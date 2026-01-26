@@ -5,6 +5,7 @@
 package os_test
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"internal/godebug"
@@ -19,9 +20,13 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
+	"time"
 	"unicode/utf16"
 	"unsafe"
 )
@@ -59,9 +64,6 @@ func TestSameWindowsFile(t *testing.T) {
 	}
 
 	p := filepath.VolumeName(path) + filepath.Base(path)
-	if err != nil {
-		t.Fatal(err)
-	}
 	ia3, err := os.Stat(p)
 	if err != nil {
 		t.Fatal(err)
@@ -661,7 +663,7 @@ func TestOpenVolumeName(t *testing.T) {
 	}
 	slices.Sort(have)
 
-	if strings.Join(want, "/") != strings.Join(have, "/") {
+	if !slices.Equal(want, have) {
 		t.Fatalf("unexpected file list %q, want %q", have, want)
 	}
 }
@@ -1562,4 +1564,766 @@ func TestReadDirNoFileID(t *testing.T) {
 	if !os.SameFile(f2, f2s) {
 		t.Errorf("SameFile(%v, %v) = false; want true", f2, f2s)
 	}
+}
+
+func TestReadWriteFileOverlapped(t *testing.T) {
+	// See https://go.dev/issue/15388.
+	t.Parallel()
+
+	name := filepath.Join(t.TempDir(), "test.txt")
+	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|windows.O_FILE_FLAG_OVERLAPPED, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	data := []byte("test")
+	n, err := f.Write(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != len(data) {
+		t.Fatalf("Write = %d; want %d", n, len(data))
+	}
+
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := io.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, data) {
+		t.Fatalf("Read = %q; want %q", got, data)
+	}
+}
+
+func TestStdinOverlappedPipe(t *testing.T) {
+	// Test that we can read from a named pipe open with FILE_FLAG_OVERLAPPED.
+	// See https://go.dev/issue/15388.
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		var buf string
+		_, err := fmt.Scanln(&buf)
+		if err != nil {
+			fmt.Print(err)
+			os.Exit(1)
+		}
+		fmt.Println(buf)
+		os.Exit(0)
+	}
+
+	t.Parallel()
+	name := pipeName()
+
+	// Create the read handle inherited by the child process.
+	r := newPipe(t, name, false, true)
+	defer r.Close()
+
+	// Create a write handle.
+	w, err := os.OpenFile(name, os.O_WRONLY, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer w.Close()
+
+	// Write some data to the pipe. The child process will read it.
+	want := []byte("test\n")
+	if _, err := w.Write(want); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a child process that will read from the pipe
+	// and write the data to stdout.
+	cmd := testenv.Command(t, testenv.Executable(t), fmt.Sprintf("-test.run=^%s$", t.Name()), "-test.v")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+	cmd.Stdin = r
+	got, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("running %q failed: %v\n%s", cmd, err, got)
+	}
+
+	if !bytes.Contains(got, want) {
+		t.Fatalf("output %q does not contain %q", got, want)
+	}
+}
+
+func newFileOverlapped(t testing.TB, name string, overlapped bool) *os.File {
+	flags := os.O_RDWR | os.O_CREATE
+	if overlapped {
+		flags |= windows.O_FILE_FLAG_OVERLAPPED
+	}
+	f, err := os.OpenFile(name, flags, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := f.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+			t.Fatal(err)
+		}
+	})
+	return f
+}
+
+var currentProcess = sync.OnceValue(func() string {
+	// Convert the process ID to a string.
+	return strconv.FormatUint(uint64(os.Getpid()), 10)
+})
+
+var pipeCounter atomic.Uint64
+
+func newBytePipe(t testing.TB, name string, overlapped bool) *os.File {
+	return newPipe(t, name, false, overlapped)
+}
+
+func newMessagePipe(t testing.TB, name string, overlapped bool) *os.File {
+	return newPipe(t, name, true, overlapped)
+}
+
+func pipeName() string {
+	return `\\.\pipe\go-os-test-` + currentProcess() + `-` + strconv.FormatUint(pipeCounter.Add(1), 10)
+}
+
+func newPipe(t testing.TB, name string, message, overlapped bool) *os.File {
+	wname, err := syscall.UTF16PtrFromString(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Create the read handle.
+	flags := windows.PIPE_ACCESS_DUPLEX
+	if overlapped {
+		flags |= windows.O_FILE_FLAG_OVERLAPPED
+	}
+	typ := windows.PIPE_TYPE_BYTE | windows.PIPE_READMODE_BYTE
+	if message {
+		typ = windows.PIPE_TYPE_MESSAGE | windows.PIPE_READMODE_MESSAGE
+	}
+	h, err := windows.CreateNamedPipe(wname, uint32(flags), uint32(typ), 1, 4096, 4096, 0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := os.NewFile(uintptr(h), name)
+	t.Cleanup(func() {
+		if err := f.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+			t.Fatal(err)
+		}
+	})
+	return f
+}
+
+func testReadWrite(t *testing.T, fdr, fdw *os.File) {
+	write := make(chan string, 1)
+	read := make(chan struct{}, 1)
+	go func() {
+		for s := range write {
+			n, err := fdw.Write([]byte(s))
+			read <- struct{}{}
+			if err != nil {
+				t.Error(err)
+			}
+			if n != len(s) {
+				t.Errorf("expected to write %d bytes, got %d", len(s), n)
+			}
+		}
+	}()
+	for i := range 10 {
+		s := strconv.Itoa(i)
+		write <- s
+		<-read
+		buf := make([]byte, len(s))
+		_, err := io.ReadFull(fdr, buf)
+		if err != nil {
+			t.Fatalf("read failed: %v", err)
+		}
+		if !bytes.Equal(buf, []byte(s)) {
+			t.Fatalf("expected %q, got %q", s, buf)
+		}
+	}
+	close(read)
+	close(write)
+}
+
+func testPreadPwrite(t *testing.T, fdr, fdw *os.File) {
+	type op struct {
+		s   string
+		off int64
+	}
+	write := make(chan op, 1)
+	read := make(chan struct{}, 1)
+	go func() {
+		for o := range write {
+			n, err := fdw.WriteAt([]byte(o.s), o.off)
+			read <- struct{}{}
+			if err != nil {
+				t.Error(err)
+			}
+			if n != len(o.s) {
+				t.Errorf("expected to write %d bytes, got %d", len(o.s), n)
+			}
+		}
+	}()
+	for i := range 10 {
+		off := int64(i % 3) // exercise some back and forth
+		s := strconv.Itoa(i)
+		write <- op{s, off}
+		<-read
+		buf := make([]byte, len(s))
+		n, err := fdr.ReadAt(buf, off)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n != len(s) {
+			t.Fatalf("expected to read %d bytes, got %d", len(s), n)
+		}
+		if !bytes.Equal(buf, []byte(s)) {
+			t.Fatalf("expected %q, got %q", s, buf)
+		}
+	}
+	close(read)
+	close(write)
+}
+
+func testFileReadEOF(t *testing.T, f *os.File) {
+	end, err := f.Seek(0, io.SeekEnd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf [1]byte
+	n, err := f.Read(buf[:])
+	if err != nil && err != io.EOF {
+		t.Errorf("expected EOF, got %v", err)
+	}
+	if n != 0 {
+		t.Errorf("expected 0 bytes, got %d", n)
+	}
+
+	n, err = f.ReadAt(buf[:], end)
+	if err != nil && err != io.EOF {
+		t.Errorf("expected EOF, got %v", err)
+	}
+	if n != 0 {
+		t.Errorf("expected 0 bytes, got %d", n)
+	}
+}
+
+func TestFile(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name            string
+		overlappedRead  bool
+		overlappedWrite bool
+	}{
+		{"overlapped", true, true},
+		{"overlapped-read", true, false},
+		{"overlapped-write", false, true},
+		{"sync", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			name := filepath.Join(t.TempDir(), "foo")
+			rh := newFileOverlapped(t, name, tt.overlappedRead)
+			wh := newFileOverlapped(t, name, tt.overlappedWrite)
+			testReadWrite(t, rh, wh)
+			testPreadPwrite(t, rh, wh)
+			testFileReadEOF(t, rh)
+		})
+	}
+}
+
+func TestFileOverlappedSeek(t *testing.T) {
+	t.Parallel()
+	name := filepath.Join(t.TempDir(), "foo")
+	f := newFileOverlapped(t, name, true)
+	content := []byte("foo")
+	if _, err := f.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	// Check that the file pointer is at the expected offset.
+	n, err := f.Seek(0, io.SeekCurrent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != int64(len(content)) {
+		t.Errorf("expected file pointer to be at offset %d, got %d", len(content), n)
+	}
+	// Set the file pointer to the start of the file.
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+	// Read the first byte.
+	var buf [1]byte
+	if _, err := f.Read(buf[:]); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(buf[:], content[:len(buf)]) {
+		t.Errorf("expected %q, got %q", content[:len(buf)], buf[:])
+	}
+	// Check that the file pointer is at the expected offset.
+	n, err = f.Seek(0, io.SeekCurrent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != int64(len(buf)) {
+		t.Errorf("expected file pointer to be at offset %d, got %d", len(buf), n)
+	}
+	if n, err = f.Seek(1, io.SeekStart); err != nil {
+		t.Fatal(err)
+	} else if n != 1 {
+		t.Errorf("expected file pointer to be at offset %d, got %d", 1, n)
+	}
+	if n, err = f.Seek(-1, io.SeekEnd); err != nil {
+		t.Fatal(err)
+	} else if n != int64(len(content)-1) {
+		t.Errorf("expected file pointer to be at offset %d, got %d", len(content)-1, n)
+	}
+	if _, err := f.Seek(-1, io.SeekStart); !errors.Is(err, windows.ERROR_NEGATIVE_SEEK) {
+		t.Errorf("expected ERROR_NEGATIVE_SEEK, got %v", err)
+	}
+	if _, err := f.Seek(0, -1); !errors.Is(err, windows.ERROR_INVALID_PARAMETER) {
+		t.Errorf("expected ERROR_INVALID_PARAMETER, got %v", err)
+	}
+}
+
+func TestFileOverlappedReadAtSeekVolume(t *testing.T) {
+	// Test that we can use File.ReadAt and File.Seek with an overlapped volume handle.
+	// See https://go.dev/issues/74951.
+	t.Parallel()
+	name := `\\.\` + filepath.VolumeName(t.TempDir())
+	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|windows.O_FILE_FLAG_OVERLAPPED, 0666)
+	if err != nil {
+		if errors.Is(err, syscall.ERROR_ACCESS_DENIED) {
+			t.Skip("skipping test: access denied")
+		}
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	var buf [0]byte
+	if _, err := f.ReadAt(buf[:], 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Seek(0, io.SeekCurrent); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPipe(t *testing.T) {
+	t.Parallel()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	testReadWrite(t, r, w)
+}
+
+func TestNamedPipe(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name            string
+		overlappedRead  bool
+		overlappedWrite bool
+	}{
+		{"overlapped", true, true},
+		{"overlapped-write", false, true},
+		{"overlapped-read", true, false},
+		{"sync", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			name := pipeName()
+			pipe := newBytePipe(t, name, tt.overlappedWrite)
+			file := newFileOverlapped(t, name, tt.overlappedRead)
+			testReadWrite(t, pipe, file)
+		})
+	}
+}
+
+func TestPipeMessageReadEOF(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	pipe := newMessagePipe(t, name, true)
+	file := newFileOverlapped(t, name, true)
+
+	_, err := pipe.Write(nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	var buf [10]byte
+	n, err := file.Read(buf[:])
+	if err != io.EOF {
+		t.Errorf("expected EOF, got %v", err)
+	}
+	if n != 0 {
+		t.Errorf("expected 0 bytes, got %d", n)
+	}
+}
+
+func TestPipeClosedEOF(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	pipe := newBytePipe(t, name, true)
+	file := newFileOverlapped(t, name, true)
+
+	pipe.Close()
+
+	var buf [10]byte
+	n, err := file.Read(buf[:])
+	if err != io.EOF {
+		t.Errorf("expected EOF, got %v", err)
+	}
+	if n != 0 {
+		t.Errorf("expected 0 bytes, got %d", n)
+	}
+}
+
+func TestPipeReadTimeout(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	_ = newBytePipe(t, name, true)
+	file := newFileOverlapped(t, name, true)
+
+	err := file.SetReadDeadline(time.Now().Add(time.Millisecond))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf [10]byte
+	_, err = file.Read(buf[:])
+	if !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Errorf("expected deadline exceeded, got %v", err)
+	}
+}
+
+func TestPipeCanceled(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	_ = newBytePipe(t, name, true)
+	file := newFileOverlapped(t, name, true)
+	ch := make(chan struct{}, 1)
+	go func() {
+		for {
+			select {
+			case <-ch:
+				return
+			default:
+				sc, err := file.SyscallConn()
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				if err := sc.Control(func(fd uintptr) {
+					syscall.CancelIoEx(syscall.Handle(fd), nil)
+				}); err != nil {
+					t.Error(err)
+					return
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+	}()
+	var tmp [1]byte
+	// Read will block until the cancel is complete.
+	_, err := file.Read(tmp[:])
+	ch <- struct{}{}
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Skip("took too long to cancel")
+	}
+	if !errors.Is(err, syscall.ERROR_OPERATION_ABORTED) {
+		t.Errorf("expected ERROR_OPERATION_ABORTED, got %v", err)
+	}
+}
+
+func iocpAssociateFile(f *os.File, iocp syscall.Handle) error {
+	_, err := windows.CreateIoCompletionPort(syscall.Handle(f.Fd()), iocp, 0, 0)
+	return err
+}
+
+func TestFileAssociatedWithExternalIOCP(t *testing.T) {
+	// Test that a caller can associate an overlapped handle to an external IOCP
+	// after the handle has been passed to os.NewFile.
+	// Also test that the File can perform I/O after it is associated with the
+	// external IOCP and that those operations do not post to the external IOCP.
+	t.Parallel()
+	name := pipeName()
+	pipe := newMessagePipe(t, name, true)
+	_ = newFileOverlapped(t, name, true) // just open a pipe client
+
+	// Use a file to exercise WriteAt.
+	file := newFileOverlapped(t, filepath.Join(t.TempDir(), "a"), true)
+
+	iocp, err := windows.CreateIoCompletionPort(syscall.InvalidHandle, 0, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if iocp == syscall.InvalidHandle {
+			// Already closed at the end of the test.
+			return
+		}
+		if err := syscall.CloseHandle(iocp); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	ch := make(chan error, 1)
+	go func() {
+		var bytes, key uint32
+		var overlapped *syscall.Overlapped
+		err := syscall.GetQueuedCompletionStatus(syscall.Handle(iocp), &bytes, &key, &overlapped, syscall.INFINITE)
+		ch <- err
+	}()
+
+	if err := iocpAssociateFile(pipe, iocp); err != nil {
+		t.Fatal(err)
+	}
+	if err := iocpAssociateFile(file, iocp); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := pipe.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.WriteAt([]byte("hello"), 0); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait fot he goroutine to call GetQueuedCompletionStatus.
+	time.Sleep(100 * time.Millisecond)
+
+	// Trigger ERROR_ABANDONED_WAIT_0.
+	if err := syscall.CloseHandle(iocp); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for the completion to be posted to the IOCP.
+	err = <-ch
+	iocp = syscall.InvalidHandle
+	const ERROR_ABANDONED_WAIT_0 = syscall.Errno(735)
+	switch err {
+	case ERROR_ABANDONED_WAIT_0:
+		// This is what we expect.
+	case nil:
+		t.Error("unexpected queued completion")
+	default:
+		t.Error(err)
+	}
+}
+
+func TestFileWriteFdRace(t *testing.T) {
+	t.Parallel()
+
+	f := newFileOverlapped(t, filepath.Join(t.TempDir(), "a"), true)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		n, err := f.Write([]byte("hi"))
+		if err != nil {
+			// We look at error strings as the
+			// expected errors are OS-specific.
+			switch {
+			case errors.Is(err, windows.ERROR_INVALID_HANDLE):
+				// Ignore an expected error.
+			default:
+				// Unexpected error.
+				t.Error(err)
+			}
+			return
+		}
+		if n != 2 {
+			t.Errorf("wrote %d bytes, expected 2", n)
+			return
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		f.Fd()
+	}()
+	wg.Wait()
+
+	iocp, err := windows.CreateIoCompletionPort(syscall.InvalidHandle, 0, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.CloseHandle(iocp)
+	if err := iocpAssociateFile(f, iocp); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := f.Write([]byte("hi")); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSplitPath(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct{ path, wantDir, wantBase string }{
+		{`a`, `.`, `a`},
+		{`a\`, `.`, `a`},
+		{`a\\`, `.`, `a`},
+		{`a\b`, `a`, `b`},
+		{`a\\b`, `a`, `b`},
+		{`a\b\`, `a`, `b`},
+		{`a\b\c`, `a\b`, `c`},
+		{`\a`, `\`, `a`},
+		{`\a\`, `\`, `a`},
+		{`\a\b`, `\a`, `b`},
+		{`\a\b\`, `\a`, `b`},
+		{`\a\b\c`, `\a\b`, `c`},
+		{`\\a`, `\\a`, `.`},
+		{`\\a\`, `\\a\`, `.`},
+		{`\\\a`, `\\\a`, `.`},
+		{`\\\a\`, `\\\a`, `.`},
+		{`\\a\b\c`, `\\a\b`, `c`},
+		{`c:`, `c:`, `.`},
+		{`c:\`, `c:\`, `.`},
+		{`c:\a`, `c:\`, `a`},
+		{`c:a`, `c:`, `a`},
+		{`c:a\b\`, `c:a`, `b`},
+		{`c:base`, `c:`, `base`},
+		{`a/b/c`, `a/b`, `c`},
+		{`a/b/c/`, `a/b`, `c`},
+		{`\\?\c:\a`, `\\?\c:\`, `a`},
+	} {
+		if dir, base := os.SplitPath(tt.path); dir != tt.wantDir || base != tt.wantBase {
+			t.Errorf("splitPath(%q) = %q, %q, want %q, %q", tt.path, dir, base, tt.wantDir, tt.wantBase)
+		}
+	}
+}
+
+func TestOpenFileFlags(t *testing.T) {
+	t.Parallel()
+
+	// The only way to retrieve some of the flags passed in CreateFile
+	// is using NtQueryInformationFile, which returns the file flags
+	// NT equivalent. Note that FILE_SYNCHRONOUS_IO_NONALERT is always
+	// set when FILE_FLAG_OVERLAPPED is not passed.
+	// The flags that can't be retrieved using NtQueryInformationFile won't
+	// be tested in here, but we at least know that the logic to handle them is correct.
+	tests := []struct {
+		flag     uint32
+		wantMode uint32
+	}{
+		{0, windows.FILE_SYNCHRONOUS_IO_NONALERT},
+		{windows.O_FILE_FLAG_OVERLAPPED, 0},
+		{windows.O_FILE_FLAG_NO_BUFFERING, windows.FILE_NO_INTERMEDIATE_BUFFERING | windows.FILE_SYNCHRONOUS_IO_NONALERT},
+		{windows.O_FILE_FLAG_NO_BUFFERING | windows.O_FILE_FLAG_OVERLAPPED, windows.FILE_NO_INTERMEDIATE_BUFFERING},
+		{windows.O_FILE_FLAG_SEQUENTIAL_SCAN, windows.FILE_SEQUENTIAL_ONLY | windows.FILE_SYNCHRONOUS_IO_NONALERT},
+		{windows.O_FILE_FLAG_WRITE_THROUGH, windows.FILE_WRITE_THROUGH | windows.FILE_SYNCHRONOUS_IO_NONALERT},
+	}
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Parallel()
+			f, err := os.OpenFile(filepath.Join(t.TempDir(), "test.txt"), syscall.O_RDWR|syscall.O_CREAT|int(tt.flag), 0666)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer f.Close()
+			var info windows.FILE_MODE_INFORMATION
+			if err := windows.NtQueryInformationFile(syscall.Handle(f.Fd()), &windows.IO_STATUS_BLOCK{},
+				unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)), windows.FileModeInformation); err != nil {
+				t.Fatal(err)
+			}
+			if info.Mode != tt.wantMode {
+				t.Errorf("file mode = 0x%x; want 0x%x", info.Mode, tt.wantMode)
+			}
+		})
+	}
+}
+
+func TestOpenFileDeleteOnClose(t *testing.T) {
+	t.Parallel()
+	name := filepath.Join(t.TempDir(), "test.txt")
+	f, err := os.OpenFile(name, syscall.O_RDWR|syscall.O_CREAT|windows.O_FILE_FLAG_DELETE_ON_CLOSE, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// The file should be deleted after closing.
+	if _, err := os.Stat(name); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("expected file to be deleted, got %v", err)
+	}
+}
+
+func TestOpenFileFlagInvalid(t *testing.T) {
+	t.Parallel()
+	// invalidFileFlag is the only value in the file flag range that is not supported,
+	// as it is not defined in the Windows API.
+	const invalidFileFlag = 0x00400000
+	f, err := os.OpenFile(filepath.Join(t.TempDir(), "test.txt"), syscall.O_RDWR|syscall.O_CREAT|invalidFileFlag, 0666)
+	if !errors.Is(err, os.ErrInvalid) {
+		t.Fatalf("expected os.ErrInvalid, got %v", err)
+	}
+	f.Close()
+}
+
+func TestOpenFileTruncateNamedPipe(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	pipe := newBytePipe(t, name, false)
+	defer pipe.Close()
+
+	f, err := os.OpenFile(name, os.O_TRUNC|os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+}
+
+func TestNewFileStdinBlocked(t *testing.T) {
+	// See https://go.dev/issue/75949.
+	t.Parallel()
+
+	// Use a subprocess to test that os.NewFile on a blocked stdin works.
+	// Can't do it in the same process because os.NewFile would close
+	// stdin for the whole test process once the test ends.
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		// In the child process, just exit.
+		// If we get here, the os package successfully initialized.
+		os.Exit(0)
+	}
+	name := pipeName()
+	stdin := newBytePipe(t, name, false)
+	file := newFileOverlapped(t, name, false)
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		// Block stdin on a read.
+		if _, err := stdin.Read(make([]byte, 1)); err != nil {
+			t.Error(err)
+		}
+	})
+
+	time.Sleep(100 * time.Millisecond) // Give time for the read to start.
+	cmd := testenv.CommandContext(t, t.Context(), testenv.Executable(t), fmt.Sprintf("-test.run=^%s$", t.Name()))
+	cmd.Env = cmd.Environ()
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+	cmd.Stdin = stdin
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+	// Unblock the read to let the goroutine exit.
+	if _, err := file.Write(make([]byte, 1)); err != nil {
+		t.Fatal(err)
+	}
+	wg.Wait() // Don't leave goroutines behind.
 }

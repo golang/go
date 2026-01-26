@@ -94,13 +94,6 @@ func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) b
 		// 	break
 		// }
 
-		// Don't report a 2nd error if we already know the type is invalid
-		// (e.g., if a cycle was detected earlier, via under).
-		// Note: ensure that t.orig is fully resolved by calling Underlying().
-		if !isValid(t.Underlying()) {
-			return false
-		}
-
 		// If the current type t is also found in nest, (the memory of) t is
 		// embedded in itself, indicating an invalid recursive type.
 		for _, e := range nest {
@@ -128,8 +121,9 @@ func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) b
 				// are not yet available to other goroutines).
 				assert(t.obj.pkg == check.pkg)
 				assert(t.Origin().obj.pkg == check.pkg)
-				t.underlying = Typ[Invalid]
-				t.Origin().underlying = Typ[Invalid]
+
+				// let t become invalid when it is unpacked
+				t.Origin().fromRHS = Typ[Invalid]
 
 				// Find the starting point of the cycle and report it.
 				// Because each type in nest must also appear in path (see invariant below),
@@ -150,7 +144,8 @@ func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) b
 		// Every type added to nest is also added to path; thus every type that is in nest
 		// must also be in path (invariant). But not every type in path is in nest, since
 		// nest may be pruned (see below, *TypeParam case).
-		if !check.validType0(pos, t.Origin().fromRHS, append(nest, t), append(path, t)) {
+		t.Origin().unpack()
+		if !check.validType0(pos, t.Origin().rhs(), append(nest, t), append(path, t)) {
 			return false
 		}
 

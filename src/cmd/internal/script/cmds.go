@@ -513,7 +513,7 @@ func lookPath(s *State, command string) (string, error) {
 	}
 
 	pathEnv, _ := s.LookupEnv(pathEnvName())
-	for _, dir := range strings.Split(pathEnv, string(filepath.ListSeparator)) {
+	for dir := range strings.SplitSeq(pathEnv, string(filepath.ListSeparator)) {
 		if dir == "" {
 			continue
 		}

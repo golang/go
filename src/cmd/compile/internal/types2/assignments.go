@@ -91,7 +91,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	// x.typ is typed
 
 	// A generic (non-instantiated) function value cannot be assigned to a variable.
-	if sig, _ := under(x.typ).(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
+	if sig, _ := x.typ.Underlying().(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
 		check.errorf(x, WrongTypeArgCount, "cannot use generic function %s without instantiation in %s", x, context)
 		x.mode = invalid
 		return
@@ -204,7 +204,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 			// dot-imported variables.
 			if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
 				v = w
-				v_used = v.used
+				v_used = check.usedVars[v]
 			}
 		}
 	}
@@ -213,7 +213,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 	check.expr(nil, &x, lhs)
 
 	if v != nil {
-		v.used = v_used // restore v.used
+		check.usedVars[v] = v_used // restore v.used
 	}
 
 	if x.mode == invalid || !isValid(x.typ) {
@@ -261,7 +261,7 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand, context string
 		var target *target
 		// avoid calling ExprString if not needed
 		if T != nil {
-			if _, ok := under(T).(*Signature); ok {
+			if _, ok := T.Underlying().(*Signature); ok {
 				target = newTarget(T, ExprString(lhs))
 			}
 		}
@@ -318,7 +318,7 @@ func (check *Checker) typesSummary(list []Type, variadic, hasDots bool) string {
 			} else {
 				// If we don't have a number, omit the "untyped" qualifier
 				// for compactness.
-				s = strings.Replace(t.(*Basic).name, "untyped ", "", -1)
+				s = strings.ReplaceAll(t.(*Basic).name, "untyped ", "")
 			}
 		default:
 			s = check.sprintf("%s", t)
@@ -566,7 +566,7 @@ func (check *Checker) shortVarDecl(pos poser, lhs, rhs []syntax.Expr) {
 		}
 
 		// declare new variable
-		obj := NewVar(ident.Pos(), check.pkg, name, nil)
+		obj := newVar(LocalVar, ident.Pos(), check.pkg, name, nil)
 		lhsVars[i] = obj
 		if name != "_" {
 			newVars = append(newVars, obj)
@@ -577,7 +577,7 @@ func (check *Checker) shortVarDecl(pos poser, lhs, rhs []syntax.Expr) {
 	// create dummy variables where the lhs is invalid
 	for i, obj := range lhsVars {
 		if obj == nil {
-			lhsVars[i] = NewVar(lhs[i].Pos(), check.pkg, "_", nil)
+			lhsVars[i] = newVar(LocalVar, lhs[i].Pos(), check.pkg, "_", nil)
 		}
 	}
 

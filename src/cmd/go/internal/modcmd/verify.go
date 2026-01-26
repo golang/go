@@ -44,20 +44,21 @@ func init() {
 }
 
 func runVerify(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
+	moduleLoaderState := modload.NewState()
+	moduleLoaderState.InitWorkfile()
 
 	if len(args) != 0 {
 		// NOTE(rsc): Could take a module pattern.
 		base.Fatalf("go: verify takes no arguments")
 	}
-	modload.ForceUseModules = true
-	modload.RootMode = modload.NeedRoot
+	moduleLoaderState.ForceUseModules = true
+	moduleLoaderState.RootMode = modload.NeedRoot
 
 	// Only verify up to GOMAXPROCS zips at once.
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
 
-	mg, err := modload.LoadModGraph(ctx, "")
+	mg, err := modload.LoadModGraph(moduleLoaderState, ctx, "")
 	if err != nil {
 		base.Fatal(err)
 	}
@@ -71,7 +72,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 		errsChans[i] = errsc
 		mod := mod // use a copy to avoid data races
 		go func() {
-			errsc <- verifyMod(ctx, mod)
+			errsc <- verifyMod(moduleLoaderState, ctx, mod)
 			<-sem
 		}()
 	}
@@ -89,12 +90,12 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 	}
 }
 
-func verifyMod(ctx context.Context, mod module.Version) []error {
+func verifyMod(loaderstate *modload.State, ctx context.Context, mod module.Version) []error {
 	if gover.IsToolchain(mod.Path) {
 		// "go" and "toolchain" have no disk footprint; nothing to verify.
 		return nil
 	}
-	if modload.MainModules.Contains(mod.Path) {
+	if loaderstate.MainModules.Contains(mod.Path) {
 		return nil
 	}
 	var errs []error

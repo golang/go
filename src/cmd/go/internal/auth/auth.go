@@ -128,7 +128,8 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
 	// If no GOAUTH command provided a credential for the given url
 	// and an error occurred, log the error.
 	if cfg.BuildX && url != "" {
-		if ok := loadCredential(&http.Request{}, url); !ok && len(cmdErrs) > 0 {
+		req := &http.Request{Header: make(http.Header)}
+		if ok := loadCredential(req, url); !ok && len(cmdErrs) > 0 {
 			log.Printf("GOAUTH encountered errors for %s:", url)
 			for _, err := range cmdErrs {
 				log.Printf("  %v", err)
@@ -141,14 +142,18 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
 // them to the request headers.
 func loadCredential(req *http.Request, url string) bool {
 	currentPrefix := strings.TrimPrefix(url, "https://")
+	currentPrefix = strings.TrimSuffix(currentPrefix, "/")
+
 	// Iteratively try prefixes, moving up the path hierarchy.
+	// E.g. example.com/foo/bar, example.com/foo, example.com
 	for {
 		headers, ok := credentialCache.Load(currentPrefix)
 		if !ok {
-			currentPrefix, _, ok = strings.Cut(currentPrefix, "/")
-			if !ok {
+			lastSlash := strings.LastIndexByte(currentPrefix, '/')
+			if lastSlash == -1 {
 				return false
 			}
+			currentPrefix = currentPrefix[:lastSlash]
 			continue
 		}
 		for key, values := range headers.(http.Header) {
@@ -165,6 +170,7 @@ func loadCredential(req *http.Request, url string) bool {
 func storeCredential(prefix string, header http.Header) {
 	// Trim "https://" prefix to match the format used in .netrc files.
 	prefix = strings.TrimPrefix(prefix, "https://")
+	prefix = strings.TrimSuffix(prefix, "/")
 	if len(header) == 0 {
 		credentialCache.Delete(prefix)
 	} else {

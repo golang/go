@@ -591,6 +591,13 @@ type spcSet struct {
 
 var spcSpace []spcSet
 
+// Each architecture is allotted a distinct subspace: [Lo, Hi) for declaring its
+// arch-specific special operands.
+const (
+	SpecialOperandARM64Base = 0 << 16
+	SpecialOperandRISCVBase = 1 << 16
+)
+
 // RegisterSpecialOperands binds a pretty-printer (SPCconv) for special
 // operand numbers to a given special operand number range. Lo is inclusive,
 // hi is exclusive (valid special operands are lo through hi-1).

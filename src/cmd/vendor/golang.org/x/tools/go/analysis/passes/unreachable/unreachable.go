@@ -14,8 +14,9 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	"golang.org/x/tools/internal/refactor"
 )
 
 //go:embed doc.go
@@ -23,14 +24,14 @@ var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:             "unreachable",
-	Doc:              analysisutil.MustExtractDoc(doc, "unreachable"),
+	Doc:              analyzerutil.MustExtractDoc(doc, "unreachable"),
 	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unreachable",
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	RunDespiteErrors: true,
 	Run:              run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -188,16 +189,21 @@ func (d *deadState) findDead(stmt ast.Stmt) {
 		case *ast.EmptyStmt:
 			// do not warn about unreachable empty statements
 		default:
+			var (
+				inspect    = d.pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+				curStmt, _ = inspect.Root().FindNode(stmt)
+				tokFile    = d.pass.Fset.File(stmt.Pos())
+			)
+			// (This call to pass.Report is a frequent source
+			// of diagnostics beyond EOF in a truncated file;
+			// see #71659.)
 			d.pass.Report(analysis.Diagnostic{
 				Pos:     stmt.Pos(),
 				End:     stmt.End(),
 				Message: "unreachable code",
 				SuggestedFixes: []analysis.SuggestedFix{{
-					Message: "Remove",
-					TextEdits: []analysis.TextEdit{{
-						Pos: stmt.Pos(),
-						End: stmt.End(),
-					}},
+					Message:   "Remove",
+					TextEdits: refactor.DeleteStmt(tokFile, curStmt),
 				}},
 			})
 			d.reachable = true // silence error about next statement

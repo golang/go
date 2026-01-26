@@ -70,20 +70,19 @@ func (s *Scope) Child(i int) *Scope { return s.children[i] }
 
 // Lookup returns the object in scope s with the given name if such an
 // object exists; otherwise the result is nil.
-func (s *Scope) Lookup(name string) Object {
-	obj := resolve(name, s.elems[name])
-	// Hijack Lookup for "any": with gotypesalias=1, we want the Universe to
-	// return an Alias for "any", and with gotypesalias=0 we want to return
-	// the legacy representation of aliases.
-	//
-	// This is rather tricky, but works out after auditing of the usage of
-	// s.elems. The only external API to access scope elements is Lookup.
-	//
-	// TODO: remove this once gotypesalias=0 is no longer supported.
-	if obj == universeAnyAlias && !aliasAny() {
-		return universeAnyNoAlias
+func (s *Scope) Lookup(name string) Object { return resolve(name, s.elems[name]) }
+
+// lookupIgnoringCase returns the objects in scope s whose names match
+// the given name ignoring case. If exported is set, only exported names
+// are returned.
+func (s *Scope) lookupIgnoringCase(name string, exported bool) []Object {
+	var matches []Object
+	for _, n := range s.Names() {
+		if (!exported || isExported(n)) && strings.EqualFold(n, name) {
+			matches = append(matches, s.Lookup(n))
+		}
 	}
-	return obj
+	return matches
 }
 
 // Insert attempts to insert an object obj into scope s.
@@ -207,10 +206,8 @@ func (*lazyObject) Exported() bool                     { panic("unreachable") }
 func (*lazyObject) Id() string                         { panic("unreachable") }
 func (*lazyObject) String() string                     { panic("unreachable") }
 func (*lazyObject) order() uint32                      { panic("unreachable") }
-func (*lazyObject) color() color                       { panic("unreachable") }
 func (*lazyObject) setType(Type)                       { panic("unreachable") }
 func (*lazyObject) setOrder(uint32)                    { panic("unreachable") }
-func (*lazyObject) setColor(color color)               { panic("unreachable") }
 func (*lazyObject) setParent(*Scope)                   { panic("unreachable") }
 func (*lazyObject) sameId(*Package, string, bool) bool { panic("unreachable") }
 func (*lazyObject) scopePos() token.Pos                { panic("unreachable") }

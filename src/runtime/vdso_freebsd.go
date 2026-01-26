@@ -54,6 +54,9 @@ func binuptime(abs bool) (bt bintime) {
 		}
 
 		curr := atomic.Load(&timekeepSharedPage.current) // atomic_load_acq_32
+		if curr >= uint32(len(timehands)) {
+			return zeroBintime
+		}
 		th := &timehands[curr]
 		gen := atomic.Load(&th.gen) // atomic_load_acq_32
 		bt = th.offset

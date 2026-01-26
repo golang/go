@@ -966,7 +966,7 @@ const (
 	//  var _ = string(x)
 	InvalidConversion
 
-	// InvalidUntypedConversion occurs when an there is no valid implicit
+	// InvalidUntypedConversion occurs when there is no valid implicit
 	// conversion from an untyped value satisfying the type constraints of the
 	// context in which it is used.
 	//

@@ -520,6 +520,32 @@ func Replaced(name string) bool {
 	return info.deleted || info.replaced && !info.dir
 }
 
+// DirContainsReplacement reports whether the named directory is affected by a replacement,
+// either because a parent directory has been replaced, it has been replaced, or a file or
+// directory under it has been replaced.
+// It is meant to be used to detect cases where GOMODCACHE has been replaced. That replacement
+// is not supported (GOMODCACHE is meant to be immutable) and the caller will use the
+// information to return an error.
+func DirContainsReplacement(name string) (string, bool) {
+	apath := abs(name)
+
+	// Check the overlay using similar logic to what stat uses.
+	i, ok := slices.BinarySearchFunc(overlay, apath, searchcmp)
+	if ok {
+		// The named directory itself has been replaced.
+		return overlay[i].from, true
+	}
+	if i < len(overlay) && str.HasFilePathPrefix(overlay[i].from, apath) {
+		// A file or directory contained in the named directory has been replaced.
+		return overlay[i].from, true
+	}
+	if i > 0 && str.HasFilePathPrefix(apath, overlay[i-1].from) {
+		// A parent of the named directory has been replaced.
+		return overlay[i-1].from, true
+	}
+	return "", false
+}
+
 // Open opens the named file in the virtual file system.
 // It must be an ordinary file, not a directory.
 func Open(name string) (*os.File, error) {

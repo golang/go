@@ -35,6 +35,8 @@ import (
 	"cmd/internal/obj"
 )
 
+var CSRs map[uint16]string = csrs
+
 //go:generate go run ../stringer.go -i $GOFILE -o anames.go -p riscv
 
 const (
@@ -317,7 +319,15 @@ const (
 	// it is the first instruction in an AUIPC + S-type pair that needs a
 	// R_RISCV_PCREL_STYPE relocation.
 	NEED_PCREL_STYPE_RELOC
+
+	// NEED_GOT_PCREL_ITYPE_RELOC is set on AUIPC instructions to indicate that
+	// it is the first instruction in an AUIPC + I-type pair that needs a
+	// R_RISCV_GOT_PCREL_ITYPE relocation.
+	NEED_GOT_PCREL_ITYPE_RELOC
 )
+
+const NEED_RELOC = NEED_JAL_RELOC | NEED_CALL_RELOC | NEED_PCREL_ITYPE_RELOC |
+	NEED_PCREL_STYPE_RELOC | NEED_GOT_PCREL_ITYPE_RELOC
 
 // RISC-V mnemonics, as defined in the "opcodes" and "opcodes-pseudo" files
 // at https://github.com/riscv/riscv-opcodes.
@@ -401,6 +411,10 @@ const (
 	ACSRRWI
 	ACSRRSI
 	ACSRRCI
+
+	// 12.3: Integer Conditional Operations (Zicond)
+	ACZEROEQZ
+	ACZERONEZ
 
 	// 13.1: Multiplication Operations
 	AMUL
@@ -546,7 +560,7 @@ const (
 	AFNMADDQ
 	AFNMSUBQ
 
-	// 22.3 Quad-Precision Convert and Move Instructions
+	// 22.3: Quad-Precision Convert and Move Instructions
 	AFCVTWQ
 	AFCVTLQ
 	AFCVTSQ
@@ -563,13 +577,72 @@ const (
 	AFSGNJNQ
 	AFSGNJXQ
 
-	// 22.4 Quad-Precision Floating-Point Compare Instructions
+	// 22.4: Quad-Precision Floating-Point Compare Instructions
 	AFEQQ
 	AFLEQ
 	AFLTQ
 
-	// 22.5 Quad-Precision Floating-Point Classify Instruction
+	// 22.5: Quad-Precision Floating-Point Classify Instruction
 	AFCLASSQ
+
+	//
+	// "C" Extension for Compressed Instructions
+	//
+
+	// 26.3.1: Compressed Stack-Pointer-Based Loads and Stores
+	ACLWSP
+	ACLDSP
+	ACFLDSP
+	ACSWSP
+	ACSDSP
+	ACFSDSP
+
+	// 26.3.2: Compressed Register-Based Loads and Stores
+	ACLW
+	ACLD
+	ACFLD
+	ACSW
+	ACSD
+	ACFSD
+
+	// 26.4: Compressed Control Transfer Instructions
+	ACJ
+	ACJR
+	ACJALR
+	ACBEQZ
+	ACBNEZ
+
+	// 26.5.1: Compressed Integer Constant-Generation Instructions
+	ACLI
+	ACLUI
+	ACADDI
+	ACADDIW
+	ACADDI16SP
+	ACADDI4SPN
+	ACSLLI
+	ACSRLI
+	ACSRAI
+	ACANDI
+
+	// 26.5.3: Compressed Integer Register-Register Operations
+	ACMV
+	ACADD
+	ACAND
+	ACOR
+	ACXOR
+	ACSUB
+	ACADDW
+	ACSUBW
+
+	// 26.5.5: Compressed NOP Instruction
+	ACNOP
+
+	// 26.5.6: Compressed Breakpoint Instruction
+	ACEBREAK
+
+	//
+	// "B" Extension for Bit Manipulation, Version 1.0.0
+	//
 
 	// 28.4.1: Address Generation Instructions (Zba)
 	AADDUW
@@ -620,15 +693,15 @@ const (
 	ABSETI
 
 	//
-	// RISC-V Vector ISA-extension (1.0) (Unprivileged 20240411)
+	// "V" Standard Extension for Vector Operations, Version 1.0
 	//
 
-	// 31.6. Configuration-Setting Instructions
+	// 31.6: Configuration-Setting Instructions
 	AVSETVLI
 	AVSETIVLI
 	AVSETVL
 
-	// 31.7.4. Vector Unit-Stride Instructions
+	// 31.7.4: Vector Unit-Stride Instructions
 	AVLE8V
 	AVLE16V
 	AVLE32V
@@ -640,7 +713,7 @@ const (
 	AVLMV
 	AVSMV
 
-	// 31.7.5. Vector Strided Instructions
+	// 31.7.5: Vector Strided Instructions
 	AVLSE8V
 	AVLSE16V
 	AVLSE32V
@@ -650,7 +723,7 @@ const (
 	AVSSE32V
 	AVSSE64V
 
-	// 31.7.6. Vector Indexed Instructions
+	// 31.7.6: Vector Indexed Instructions
 	AVLUXEI8V
 	AVLUXEI16V
 	AVLUXEI32V
@@ -668,13 +741,279 @@ const (
 	AVSOXEI32V
 	AVSOXEI64V
 
-	// 31.7.7. Unit-stride Fault-Only-First Loads
+	// 31.7.7: Unit-stride Fault-Only-First Loads
 	AVLE8FFV
 	AVLE16FFV
 	AVLE32FFV
 	AVLE64FFV
 
-	// 31.7.9. Vector Load/Store Whole Register Instructions
+	// 31.7.8. Vector Load/Store Segment Instructions
+
+	// 31.7.8.1. Vector Unit-Stride Segment Loads and Stores
+	AVLSEG2E8V
+	AVLSEG3E8V
+	AVLSEG4E8V
+	AVLSEG5E8V
+	AVLSEG6E8V
+	AVLSEG7E8V
+	AVLSEG8E8V
+	AVLSEG2E16V
+	AVLSEG3E16V
+	AVLSEG4E16V
+	AVLSEG5E16V
+	AVLSEG6E16V
+	AVLSEG7E16V
+	AVLSEG8E16V
+	AVLSEG2E32V
+	AVLSEG3E32V
+	AVLSEG4E32V
+	AVLSEG5E32V
+	AVLSEG6E32V
+	AVLSEG7E32V
+	AVLSEG8E32V
+	AVLSEG2E64V
+	AVLSEG3E64V
+	AVLSEG4E64V
+	AVLSEG5E64V
+	AVLSEG6E64V
+	AVLSEG7E64V
+	AVLSEG8E64V
+
+	AVSSEG2E8V
+	AVSSEG3E8V
+	AVSSEG4E8V
+	AVSSEG5E8V
+	AVSSEG6E8V
+	AVSSEG7E8V
+	AVSSEG8E8V
+	AVSSEG2E16V
+	AVSSEG3E16V
+	AVSSEG4E16V
+	AVSSEG5E16V
+	AVSSEG6E16V
+	AVSSEG7E16V
+	AVSSEG8E16V
+	AVSSEG2E32V
+	AVSSEG3E32V
+	AVSSEG4E32V
+	AVSSEG5E32V
+	AVSSEG6E32V
+	AVSSEG7E32V
+	AVSSEG8E32V
+	AVSSEG2E64V
+	AVSSEG3E64V
+	AVSSEG4E64V
+	AVSSEG5E64V
+	AVSSEG6E64V
+	AVSSEG7E64V
+	AVSSEG8E64V
+
+	AVLSEG2E8FFV
+	AVLSEG3E8FFV
+	AVLSEG4E8FFV
+	AVLSEG5E8FFV
+	AVLSEG6E8FFV
+	AVLSEG7E8FFV
+	AVLSEG8E8FFV
+	AVLSEG2E16FFV
+	AVLSEG3E16FFV
+	AVLSEG4E16FFV
+	AVLSEG5E16FFV
+	AVLSEG6E16FFV
+	AVLSEG7E16FFV
+	AVLSEG8E16FFV
+	AVLSEG2E32FFV
+	AVLSEG3E32FFV
+	AVLSEG4E32FFV
+	AVLSEG5E32FFV
+	AVLSEG6E32FFV
+	AVLSEG7E32FFV
+	AVLSEG8E32FFV
+	AVLSEG2E64FFV
+	AVLSEG3E64FFV
+	AVLSEG4E64FFV
+	AVLSEG5E64FFV
+	AVLSEG6E64FFV
+	AVLSEG7E64FFV
+	AVLSEG8E64FFV
+
+	// 31.7.8.2. Vector Strided Segment Loads and Stores
+	AVLSSEG2E8V
+	AVLSSEG3E8V
+	AVLSSEG4E8V
+	AVLSSEG5E8V
+	AVLSSEG6E8V
+	AVLSSEG7E8V
+	AVLSSEG8E8V
+	AVLSSEG2E16V
+	AVLSSEG3E16V
+	AVLSSEG4E16V
+	AVLSSEG5E16V
+	AVLSSEG6E16V
+	AVLSSEG7E16V
+	AVLSSEG8E16V
+	AVLSSEG2E32V
+	AVLSSEG3E32V
+	AVLSSEG4E32V
+	AVLSSEG5E32V
+	AVLSSEG6E32V
+	AVLSSEG7E32V
+	AVLSSEG8E32V
+	AVLSSEG2E64V
+	AVLSSEG3E64V
+	AVLSSEG4E64V
+	AVLSSEG5E64V
+	AVLSSEG6E64V
+	AVLSSEG7E64V
+	AVLSSEG8E64V
+
+	AVSSSEG2E8V
+	AVSSSEG3E8V
+	AVSSSEG4E8V
+	AVSSSEG5E8V
+	AVSSSEG6E8V
+	AVSSSEG7E8V
+	AVSSSEG8E8V
+	AVSSSEG2E16V
+	AVSSSEG3E16V
+	AVSSSEG4E16V
+	AVSSSEG5E16V
+	AVSSSEG6E16V
+	AVSSSEG7E16V
+	AVSSSEG8E16V
+	AVSSSEG2E32V
+	AVSSSEG3E32V
+	AVSSSEG4E32V
+	AVSSSEG5E32V
+	AVSSSEG6E32V
+	AVSSSEG7E32V
+	AVSSSEG8E32V
+	AVSSSEG2E64V
+	AVSSSEG3E64V
+	AVSSSEG4E64V
+	AVSSSEG5E64V
+	AVSSSEG6E64V
+	AVSSSEG7E64V
+	AVSSSEG8E64V
+
+	// 31.7.8.3. Vector Indexed Segment Loads and Stores
+	AVLOXSEG2EI8V
+	AVLOXSEG3EI8V
+	AVLOXSEG4EI8V
+	AVLOXSEG5EI8V
+	AVLOXSEG6EI8V
+	AVLOXSEG7EI8V
+	AVLOXSEG8EI8V
+	AVLOXSEG2EI16V
+	AVLOXSEG3EI16V
+	AVLOXSEG4EI16V
+	AVLOXSEG5EI16V
+	AVLOXSEG6EI16V
+	AVLOXSEG7EI16V
+	AVLOXSEG8EI16V
+	AVLOXSEG2EI32V
+	AVLOXSEG3EI32V
+	AVLOXSEG4EI32V
+	AVLOXSEG5EI32V
+	AVLOXSEG6EI32V
+	AVLOXSEG7EI32V
+	AVLOXSEG8EI32V
+	AVLOXSEG2EI64V
+	AVLOXSEG3EI64V
+	AVLOXSEG4EI64V
+	AVLOXSEG5EI64V
+	AVLOXSEG6EI64V
+	AVLOXSEG7EI64V
+	AVLOXSEG8EI64V
+
+	AVSOXSEG2EI8V
+	AVSOXSEG3EI8V
+	AVSOXSEG4EI8V
+	AVSOXSEG5EI8V
+	AVSOXSEG6EI8V
+	AVSOXSEG7EI8V
+	AVSOXSEG8EI8V
+	AVSOXSEG2EI16V
+	AVSOXSEG3EI16V
+	AVSOXSEG4EI16V
+	AVSOXSEG5EI16V
+	AVSOXSEG6EI16V
+	AVSOXSEG7EI16V
+	AVSOXSEG8EI16V
+	AVSOXSEG2EI32V
+	AVSOXSEG3EI32V
+	AVSOXSEG4EI32V
+	AVSOXSEG5EI32V
+	AVSOXSEG6EI32V
+	AVSOXSEG7EI32V
+	AVSOXSEG8EI32V
+	AVSOXSEG2EI64V
+	AVSOXSEG3EI64V
+	AVSOXSEG4EI64V
+	AVSOXSEG5EI64V
+	AVSOXSEG6EI64V
+	AVSOXSEG7EI64V
+	AVSOXSEG8EI64V
+
+	AVLUXSEG2EI8V
+	AVLUXSEG3EI8V
+	AVLUXSEG4EI8V
+	AVLUXSEG5EI8V
+	AVLUXSEG6EI8V
+	AVLUXSEG7EI8V
+	AVLUXSEG8EI8V
+	AVLUXSEG2EI16V
+	AVLUXSEG3EI16V
+	AVLUXSEG4EI16V
+	AVLUXSEG5EI16V
+	AVLUXSEG6EI16V
+	AVLUXSEG7EI16V
+	AVLUXSEG8EI16V
+	AVLUXSEG2EI32V
+	AVLUXSEG3EI32V
+	AVLUXSEG4EI32V
+	AVLUXSEG5EI32V
+	AVLUXSEG6EI32V
+	AVLUXSEG7EI32V
+	AVLUXSEG8EI32V
+	AVLUXSEG2EI64V
+	AVLUXSEG3EI64V
+	AVLUXSEG4EI64V
+	AVLUXSEG5EI64V
+	AVLUXSEG6EI64V
+	AVLUXSEG7EI64V
+	AVLUXSEG8EI64V
+
+	AVSUXSEG2EI8V
+	AVSUXSEG3EI8V
+	AVSUXSEG4EI8V
+	AVSUXSEG5EI8V
+	AVSUXSEG6EI8V
+	AVSUXSEG7EI8V
+	AVSUXSEG8EI8V
+	AVSUXSEG2EI16V
+	AVSUXSEG3EI16V
+	AVSUXSEG4EI16V
+	AVSUXSEG5EI16V
+	AVSUXSEG6EI16V
+	AVSUXSEG7EI16V
+	AVSUXSEG8EI16V
+	AVSUXSEG2EI32V
+	AVSUXSEG3EI32V
+	AVSUXSEG4EI32V
+	AVSUXSEG5EI32V
+	AVSUXSEG6EI32V
+	AVSUXSEG7EI32V
+	AVSUXSEG8EI32V
+	AVSUXSEG2EI64V
+	AVSUXSEG3EI64V
+	AVSUXSEG4EI64V
+	AVSUXSEG5EI64V
+	AVSUXSEG6EI64V
+	AVSUXSEG7EI64V
+	AVSUXSEG8EI64V
+
+	// 31.7.9: Vector Load/Store Whole Register Instructions
 	AVL1RE8V
 	AVL1RE16V
 	AVL1RE32V
@@ -696,7 +1035,7 @@ const (
 	AVS4RV
 	AVS8RV
 
-	// 31.11.1. Vector Single-Width Integer Add and Subtract
+	// 31.11.1: Vector Single-Width Integer Add and Subtract
 	AVADDVV
 	AVADDVX
 	AVADDVI
@@ -705,7 +1044,7 @@ const (
 	AVRSUBVX
 	AVRSUBVI
 
-	// 31.11.2. Vector Widening Integer Add/Subtract
+	// 31.11.2: Vector Widening Integer Add/Subtract
 	AVWADDUVV
 	AVWADDUVX
 	AVWSUBUVV
@@ -723,7 +1062,7 @@ const (
 	AVWSUBWV
 	AVWSUBWX
 
-	// 31.11.3. Vector Integer Extension
+	// 31.11.3: Vector Integer Extension
 	AVZEXTVF2
 	AVSEXTVF2
 	AVZEXTVF4
@@ -731,7 +1070,7 @@ const (
 	AVZEXTVF8
 	AVSEXTVF8
 
-	// 31.11.4. Vector Integer Add-with-Carry / Subtract-with-Borrow Instructions
+	// 31.11.4: Vector Integer Add-with-Carry / Subtract-with-Borrow Instructions
 	AVADCVVM
 	AVADCVXM
 	AVADCVIM
@@ -748,7 +1087,7 @@ const (
 	AVMSBCVV
 	AVMSBCVX
 
-	// 31.11.5. Vector Bitwise Logical Instructions
+	// 31.11.5: Vector Bitwise Logical Instructions
 	AVANDVV
 	AVANDVX
 	AVANDVI
@@ -759,7 +1098,7 @@ const (
 	AVXORVX
 	AVXORVI
 
-	// 31.11.6. Vector Single-Width Shift Instructions
+	// 31.11.6: Vector Single-Width Shift Instructions
 	AVSLLVV
 	AVSLLVX
 	AVSLLVI
@@ -770,7 +1109,7 @@ const (
 	AVSRAVX
 	AVSRAVI
 
-	// 31.11.7. Vector Narrowing Integer Right Shift Instructions
+	// 31.11.7: Vector Narrowing Integer Right Shift Instructions
 	AVNSRLWV
 	AVNSRLWX
 	AVNSRLWI
@@ -778,7 +1117,7 @@ const (
 	AVNSRAWX
 	AVNSRAWI
 
-	// 31.11.8. Vector Integer Compare Instructions
+	// 31.11.8: Vector Integer Compare Instructions
 	AVMSEQVV
 	AVMSEQVX
 	AVMSEQVI
@@ -800,7 +1139,7 @@ const (
 	AVMSGTVX
 	AVMSGTVI
 
-	// 31.11.9. Vector Integer Min/Max Instructions
+	// 31.11.9: Vector Integer Min/Max Instructions
 	AVMINUVV
 	AVMINUVX
 	AVMINVV
@@ -810,7 +1149,7 @@ const (
 	AVMAXVV
 	AVMAXVX
 
-	// 31.11.10. Vector Single-Width Integer Multiply Instructions
+	// 31.11.10: Vector Single-Width Integer Multiply Instructions
 	AVMULVV
 	AVMULVX
 	AVMULHVV
@@ -820,7 +1159,7 @@ const (
 	AVMULHSUVV
 	AVMULHSUVX
 
-	// 31.11.11. Vector Integer Divide Instructions
+	// 31.11.11: Vector Integer Divide Instructions
 	AVDIVUVV
 	AVDIVUVX
 	AVDIVVV
@@ -830,7 +1169,7 @@ const (
 	AVREMVV
 	AVREMVX
 
-	// 31.11.12. Vector Widening Integer Multiply Instructions
+	// 31.11.12: Vector Widening Integer Multiply Instructions
 	AVWMULVV
 	AVWMULVX
 	AVWMULUVV
@@ -838,7 +1177,7 @@ const (
 	AVWMULSUVV
 	AVWMULSUVX
 
-	// 31.11.13. Vector Single-Width Integer Multiply-Add Instructions
+	// 31.11.13: Vector Single-Width Integer Multiply-Add Instructions
 	AVMACCVV
 	AVMACCVX
 	AVNMSACVV
@@ -848,7 +1187,7 @@ const (
 	AVNMSUBVV
 	AVNMSUBVX
 
-	// 31.11.14. Vector Widening Integer Multiply-Add Instructions
+	// 31.11.14: Vector Widening Integer Multiply-Add Instructions
 	AVWMACCUVV
 	AVWMACCUVX
 	AVWMACCVV
@@ -857,17 +1196,17 @@ const (
 	AVWMACCSUVX
 	AVWMACCUSVX
 
-	// 31.11.15. Vector Integer Merge Instructions
+	// 31.11.15: Vector Integer Merge Instructions
 	AVMERGEVVM
 	AVMERGEVXM
 	AVMERGEVIM
 
-	// 31.11.16. Vector Integer Move Instructions
+	// 31.11.16: Vector Integer Move Instructions
 	AVMVVV
 	AVMVVX
 	AVMVVI
 
-	// 31.12.1. Vector Single-Width Saturating Add and Subtract
+	// 31.12.1: Vector Single-Width Saturating Add and Subtract
 	AVSADDUVV
 	AVSADDUVX
 	AVSADDUVI
@@ -879,7 +1218,7 @@ const (
 	AVSSUBVV
 	AVSSUBVX
 
-	// 31.12.2. Vector Single-Width Averaging Add and Subtract
+	// 31.12.2: Vector Single-Width Averaging Add and Subtract
 	AVAADDUVV
 	AVAADDUVX
 	AVAADDVV
@@ -889,11 +1228,11 @@ const (
 	AVASUBVV
 	AVASUBVX
 
-	// 31.12.3. Vector Single-Width Fractional Multiply with Rounding and Saturation
+	// 31.12.3: Vector Single-Width Fractional Multiply with Rounding and Saturation
 	AVSMULVV
 	AVSMULVX
 
-	// 31.12.4. Vector Single-Width Scaling Shift Instructions
+	// 31.12.4: Vector Single-Width Scaling Shift Instructions
 	AVSSRLVV
 	AVSSRLVX
 	AVSSRLVI
@@ -901,7 +1240,7 @@ const (
 	AVSSRAVX
 	AVSSRAVI
 
-	// 31.12.5. Vector Narrowing Fixed-Point Clip Instructions
+	// 31.12.5: Vector Narrowing Fixed-Point Clip Instructions
 	AVNCLIPUWV
 	AVNCLIPUWX
 	AVNCLIPUWI
@@ -909,14 +1248,14 @@ const (
 	AVNCLIPWX
 	AVNCLIPWI
 
-	// 31.13.2. Vector Single-Width Floating-Point Add/Subtract Instructions
+	// 31.13.2: Vector Single-Width Floating-Point Add/Subtract Instructions
 	AVFADDVV
 	AVFADDVF
 	AVFSUBVV
 	AVFSUBVF
 	AVFRSUBVF
 
-	// 31.13.3. Vector Widening Floating-Point Add/Subtract Instructions
+	// 31.13.3: Vector Widening Floating-Point Add/Subtract Instructions
 	AVFWADDVV
 	AVFWADDVF
 	AVFWSUBVV
@@ -926,18 +1265,18 @@ const (
 	AVFWSUBWV
 	AVFWSUBWF
 
-	// 31.13.4. Vector Single-Width Floating-Point Multiply/Divide Instructions
+	// 31.13.4: Vector Single-Width Floating-Point Multiply/Divide Instructions
 	AVFMULVV
 	AVFMULVF
 	AVFDIVVV
 	AVFDIVVF
 	AVFRDIVVF
 
-	// 31.13.5. Vector Widening Floating-Point Multiply
+	// 31.13.5: Vector Widening Floating-Point Multiply
 	AVFWMULVV
 	AVFWMULVF
 
-	// 31.13.6. Vector Single-Width Floating-Point Fused Multiply-Add Instructions
+	// 31.13.6: Vector Single-Width Floating-Point Fused Multiply-Add Instructions
 	AVFMACCVV
 	AVFMACCVF
 	AVFNMACCVV
@@ -955,7 +1294,7 @@ const (
 	AVFNMSUBVV
 	AVFNMSUBVF
 
-	// 31.13.7. Vector Widening Floating-Point Fused Multiply-Add Instructions
+	// 31.13.7: Vector Widening Floating-Point Fused Multiply-Add Instructions
 	AVFWMACCVV
 	AVFWMACCVF
 	AVFWNMACCVV
@@ -965,22 +1304,22 @@ const (
 	AVFWNMSACVV
 	AVFWNMSACVF
 
-	// 31.13.8. Vector Floating-Point Square-Root Instruction
+	// 31.13.8: Vector Floating-Point Square-Root Instruction
 	AVFSQRTV
 
-	// 31.13.9. Vector Floating-Point Reciprocal Square-Root Estimate Instruction
+	// 31.13.9: Vector Floating-Point Reciprocal Square-Root Estimate Instruction
 	AVFRSQRT7V
 
-	// 31.13.10. Vector Floating-Point Reciprocal Estimate Instruction
+	// 31.13.10: Vector Floating-Point Reciprocal Estimate Instruction
 	AVFREC7V
 
-	// 31.13.11. Vector Floating-Point MIN/MAX Instructions
+	// 31.13.11: Vector Floating-Point MIN/MAX Instructions
 	AVFMINVV
 	AVFMINVF
 	AVFMAXVV
 	AVFMAXVF
 
-	// 31.13.12. Vector Floating-Point Sign-Injection Instructions
+	// 31.13.12: Vector Floating-Point Sign-Injection Instructions
 	AVFSGNJVV
 	AVFSGNJVF
 	AVFSGNJNVV
@@ -988,7 +1327,7 @@ const (
 	AVFSGNJXVV
 	AVFSGNJXVF
 
-	// 31.13.13. Vector Floating-Point Compare Instructions
+	// 31.13.13: Vector Floating-Point Compare Instructions
 	AVMFEQVV
 	AVMFEQVF
 	AVMFNEVV
@@ -1000,16 +1339,16 @@ const (
 	AVMFGTVF
 	AVMFGEVF
 
-	// 31.13.14. Vector Floating-Point Classify Instruction
+	// 31.13.14: Vector Floating-Point Classify Instruction
 	AVFCLASSV
 
-	// 31.13.15. Vector Floating-Point Merge Instruction
+	// 31.13.15: Vector Floating-Point Merge Instruction
 	AVFMERGEVFM
 
-	// 31.13.16. Vector Floating-Point Move Instruction
+	// 31.13.16: Vector Floating-Point Move Instruction
 	AVFMVVF
 
-	// 31.13.17. Single-Width Floating-Point/Integer Type-Convert Instructions
+	// 31.13.17: Single-Width Floating-Point/Integer Type-Convert Instructions
 	AVFCVTXUFV
 	AVFCVTXFV
 	AVFCVTRTZXUFV
@@ -1017,7 +1356,7 @@ const (
 	AVFCVTFXUV
 	AVFCVTFXV
 
-	// 31.13.18. Widening Floating-Point/Integer Type-Convert Instructions
+	// 31.13.18: Widening Floating-Point/Integer Type-Convert Instructions
 	AVFWCVTXUFV
 	AVFWCVTXFV
 	AVFWCVTRTZXUFV
@@ -1026,7 +1365,7 @@ const (
 	AVFWCVTFXV
 	AVFWCVTFFV
 
-	// 31.13.19. Narrowing Floating-Point/Integer Type-Convert Instructions
+	// 31.13.19: Narrowing Floating-Point/Integer Type-Convert Instructions
 	AVFNCVTXUFW
 	AVFNCVTXFW
 	AVFNCVTRTZXUFW
@@ -1036,7 +1375,7 @@ const (
 	AVFNCVTFFW
 	AVFNCVTRODFFW
 
-	// 31.14.1. Vector Single-Width Integer Reduction Instructions
+	// 31.14.1: Vector Single-Width Integer Reduction Instructions
 	AVREDSUMVS
 	AVREDMAXUVS
 	AVREDMAXVS
@@ -1046,21 +1385,21 @@ const (
 	AVREDORVS
 	AVREDXORVS
 
-	// 31.14.2. Vector Widening Integer Reduction Instructions
+	// 31.14.2: Vector Widening Integer Reduction Instructions
 	AVWREDSUMUVS
 	AVWREDSUMVS
 
-	// 31.14.3. Vector Single-Width Floating-Point Reduction Instructions
+	// 31.14.3: Vector Single-Width Floating-Point Reduction Instructions
 	AVFREDOSUMVS
 	AVFREDUSUMVS
 	AVFREDMAXVS
 	AVFREDMINVS
 
-	// 31.14.4. Vector Widening Floating-Point Reduction Instructions
+	// 31.14.4: Vector Widening Floating-Point Reduction Instructions
 	AVFWREDOSUMVS
 	AVFWREDUSUMVS
 
-	// 31.15. Vector Mask Instructions
+	// 31.15: Vector Mask Instructions
 	AVMANDMM
 	AVMNANDMM
 	AVMANDNMM
@@ -1077,15 +1416,15 @@ const (
 	AVIOTAM
 	AVIDV
 
-	// 31.16.1. Integer Scalar Move Instructions
+	// 31.16.1: Integer Scalar Move Instructions
 	AVMVXS
 	AVMVSX
 
-	// 31.16.2. Floating-Point Scalar Move Instructions
+	// 31.16.2: Floating-Point Scalar Move Instructions
 	AVFMVFS
 	AVFMVSF
 
-	// 31.16.3. Vector Slide Instructions
+	// 31.16.3: Vector Slide Instructions
 	AVSLIDEUPVX
 	AVSLIDEUPVI
 	AVSLIDEDOWNVX
@@ -1095,16 +1434,16 @@ const (
 	AVSLIDE1DOWNVX
 	AVFSLIDE1DOWNVF
 
-	// 31.16.4. Vector Register Gather Instructions
+	// 31.16.4: Vector Register Gather Instructions
 	AVRGATHERVV
 	AVRGATHEREI16VV
 	AVRGATHERVX
 	AVRGATHERVI
 
-	// 31.16.5. Vector Compress Instruction
+	// 31.16.5: Vector Compress Instruction
 	AVCOMPRESSVM
 
-	// 31.16.6. Whole Vector Register Move
+	// 31.16.6: Whole Vector Register Move
 	AVMV1RV
 	AVMV2RV
 	AVMV4RV
@@ -1169,6 +1508,31 @@ const (
 	ARDTIME
 	ASEQZ
 	ASNEZ
+	AVFABSV
+	AVFNEGV
+	AVL1RV
+	AVL2RV
+	AVL4RV
+	AVL8RV
+	AVMCLRM
+	AVMFGEVV
+	AVMFGTVV
+	AVMMVM
+	AVMNOTM
+	AVMSETM
+	AVMSGEUVI
+	AVMSGEUVV
+	AVMSGEVI
+	AVMSGEVV
+	AVMSGTUVV
+	AVMSGTVV
+	AVMSLTUVI
+	AVMSLTVI
+	AVNCVTXXW
+	AVNEGV
+	AVNOTV
+	AVWCVTUXXV
+	AVWCVTXXV
 
 	// End marker
 	ALAST
@@ -1217,6 +1581,99 @@ const (
 	RM_RUP              // Round Up
 	RM_RMM              // Round to Nearest, ties to Max Magnitude
 )
+
+type SpecialOperand int
+
+const (
+	SPOP_BEGIN SpecialOperand = obj.SpecialOperandRISCVBase
+	SPOP_RVV_BEGIN
+
+	// Vector mask policy.
+	SPOP_MA SpecialOperand = obj.SpecialOperandRISCVBase + iota - 2
+	SPOP_MU
+
+	// Vector tail policy.
+	SPOP_TA
+	SPOP_TU
+
+	// Vector register group multiplier (VLMUL).
+	SPOP_M1
+	SPOP_M2
+	SPOP_M4
+	SPOP_M8
+	SPOP_MF2
+	SPOP_MF4
+	SPOP_MF8
+
+	// Vector selected element width (VSEW).
+	SPOP_E8
+	SPOP_E16
+	SPOP_E32
+	SPOP_E64
+	SPOP_RVV_END
+
+	// CSR names.  4096 special operands are reserved for RISC-V CSR names.
+	SPOP_CSR_BEGIN = SPOP_RVV_END
+	SPOP_CSR_END   = SPOP_CSR_BEGIN + 4096
+
+	SPOP_END = SPOP_CSR_END + 1
+)
+
+var specialOperands = map[SpecialOperand]struct {
+	encoding uint32
+	name     string
+}{
+	SPOP_MA: {encoding: 1, name: "MA"},
+	SPOP_MU: {encoding: 0, name: "MU"},
+
+	SPOP_TA: {encoding: 1, name: "TA"},
+	SPOP_TU: {encoding: 0, name: "TU"},
+
+	SPOP_M1:  {encoding: 0, name: "M1"},
+	SPOP_M2:  {encoding: 1, name: "M2"},
+	SPOP_M4:  {encoding: 2, name: "M4"},
+	SPOP_M8:  {encoding: 3, name: "M8"},
+	SPOP_MF8: {encoding: 5, name: "MF8"},
+	SPOP_MF4: {encoding: 6, name: "MF4"},
+	SPOP_MF2: {encoding: 7, name: "MF2"},
+
+	SPOP_E8:  {encoding: 0, name: "E8"},
+	SPOP_E16: {encoding: 1, name: "E16"},
+	SPOP_E32: {encoding: 2, name: "E32"},
+	SPOP_E64: {encoding: 3, name: "E64"},
+}
+
+func (so SpecialOperand) encode() uint32 {
+	switch {
+	case so >= SPOP_RVV_BEGIN && so < SPOP_RVV_END:
+		op, ok := specialOperands[so]
+		if ok {
+			return op.encoding
+		}
+	case so >= SPOP_CSR_BEGIN && so < SPOP_CSR_END:
+		csrNum := uint16(so - SPOP_CSR_BEGIN)
+		if _, ok := csrs[csrNum]; ok {
+			return uint32(csrNum)
+		}
+	}
+	return 0
+}
+
+// String returns the textual representation of a SpecialOperand.
+func (so SpecialOperand) String() string {
+	switch {
+	case so >= SPOP_RVV_BEGIN && so < SPOP_RVV_END:
+		op, ok := specialOperands[so]
+		if ok {
+			return op.name
+		}
+	case so >= SPOP_CSR_BEGIN && so < SPOP_CSR_END:
+		if csrName, ok := csrs[uint16(so-SPOP_CSR_BEGIN)]; ok {
+			return csrName
+		}
+	}
+	return ""
+}
 
 // All unary instructions which write to their arguments (as opposed to reading
 // from them) go here. The assembly parser uses this information to populate

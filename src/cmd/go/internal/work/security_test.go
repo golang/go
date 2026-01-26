@@ -8,8 +8,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	"cmd/go/internal/cfg"
 )
 
 var goodCompilerFlags = [][]string{
@@ -52,10 +50,35 @@ var goodCompilerFlags = [][]string{
 	{"-ftls-model=local-dynamic"},
 	{"-g"},
 	{"-ggdb"},
+	{"-mabi=lp64d"},
 	{"-march=souza"},
 	{"-mcmodel=medium"},
 	{"-mcpu=123"},
 	{"-mfpu=123"},
+	{"-mtls-dialect=gnu"},
+	{"-mtls-dialect=gnu2"},
+	{"-mtls-dialect=trad"},
+	{"-mtls-dialect=desc"},
+	{"-mtls-dialect=xyz"},
+	{"-msimd=lasx"},
+	{"-msimd=xyz"},
+	{"-mdouble-float"},
+	{"-mrelax"},
+	{"-mstrict-align"},
+	{"-mlsx"},
+	{"-mlasx"},
+	{"-mfrecipe"},
+	{"-mlam-bh"},
+	{"-mlamcas"},
+	{"-mld-seq-sa"},
+	{"-mno-relax"},
+	{"-mno-strict-align"},
+	{"-mno-lsx"},
+	{"-mno-lasx"},
+	{"-mno-frecipe"},
+	{"-mno-lam-bh"},
+	{"-mno-lamcas"},
+	{"-mno-ld-seq-sa"},
 	{"-mlarge-data-threshold=16"},
 	{"-mtune=happybirthday"},
 	{"-mstack-overflow"},
@@ -98,7 +121,13 @@ var badCompilerFlags = [][]string{
 	{"-march=@dawn"},
 	{"-march=-dawn"},
 	{"-mcmodel=@model"},
+	{"-mfpu=@0"},
+	{"-mfpu=-0"},
 	{"-mlarge-data-threshold=@12"},
+	{"-mtls-dialect=@gnu"},
+	{"-mtls-dialect=-gnu"},
+	{"-msimd=@none"},
+	{"-msimd=-none"},
 	{"-std=@c99"},
 	{"-std=-c99"},
 	{"-x@c"},
@@ -247,8 +276,6 @@ var badLinkerFlags = [][]string{
 	{"-Wl,--hash-style=foo"},
 	{"-x", "--c"},
 	{"-x", "@obj"},
-	{"-Wl,-dylib_install_name,@foo"},
-	{"-Wl,-install_name,@foo"},
 	{"-Wl,-rpath,@foo"},
 	{"-Wl,-R,foo,bar"},
 	{"-Wl,-R,@foo"},
@@ -265,21 +292,6 @@ var badLinkerFlags = [][]string{
 	{"./-Wl,--push-state,-R.c"},
 }
 
-var goodLinkerFlagsOnDarwin = [][]string{
-	{"-Wl,-dylib_install_name,@rpath"},
-	{"-Wl,-dylib_install_name,@rpath/"},
-	{"-Wl,-dylib_install_name,@rpath/foo"},
-	{"-Wl,-install_name,@rpath"},
-	{"-Wl,-install_name,@rpath/"},
-	{"-Wl,-install_name,@rpath/foo"},
-	{"-Wl,-rpath,@executable_path"},
-	{"-Wl,-rpath,@executable_path/"},
-	{"-Wl,-rpath,@executable_path/foo"},
-	{"-Wl,-rpath,@loader_path"},
-	{"-Wl,-rpath,@loader_path/"},
-	{"-Wl,-rpath,@loader_path/foo"},
-}
-
 func TestCheckLinkerFlags(t *testing.T) {
 	for _, f := range goodLinkerFlags {
 		if err := checkLinkerFlags("test", "test", f); err != nil {
@@ -291,31 +303,6 @@ func TestCheckLinkerFlags(t *testing.T) {
 			t.Errorf("missing error for %q", f)
 		}
 	}
-
-	goos := cfg.Goos
-
-	cfg.Goos = "darwin"
-	for _, f := range goodLinkerFlagsOnDarwin {
-		if err := checkLinkerFlags("test", "test", f); err != nil {
-			t.Errorf("unexpected error for %q: %v", f, err)
-		}
-	}
-
-	cfg.Goos = "ios"
-	for _, f := range goodLinkerFlagsOnDarwin {
-		if err := checkLinkerFlags("test", "test", f); err != nil {
-			t.Errorf("unexpected error for %q: %v", f, err)
-		}
-	}
-
-	cfg.Goos = "linux"
-	for _, f := range goodLinkerFlagsOnDarwin {
-		if err := checkLinkerFlags("test", "test", f); err == nil {
-			t.Errorf("missing error for %q", f)
-		}
-	}
-
-	cfg.Goos = goos
 }
 
 func TestCheckFlagAllowDisallow(t *testing.T) {

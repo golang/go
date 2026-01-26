@@ -19,7 +19,7 @@ env GOCACHE=$WORK/tmp/cache
 # loading to properly affect the import graph.)
 go build runtime/cgo
 
-go build -x -o main main.go
+go build -x -o main ./...
 cp stderr commands.txt
 cat header.txt commands.txt
 cp stdout test.sh
@@ -42,6 +42,13 @@ import "C"
 func main() {
 	print("hello\n")
 }
+-- go.mod --
+module example
+
+go 1.24
+
+ignore foo
+-- foo/foo.txt --
 -- header.txt --
 set -e
 -- hello.txt --

@@ -44,6 +44,6 @@ type InterfaceMulticastAddrMessage struct {
 
 // Implement the Message interface.
 
-func (InterfaceMessage) message() {}
-func (InterfaceAddrMessage) message() {}
+func (InterfaceMessage) message()              {}
+func (InterfaceAddrMessage) message()          {}
 func (InterfaceMulticastAddrMessage) message() {}

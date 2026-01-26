@@ -806,8 +806,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	autosize := int32(0)
-	var p1 *obj.Prog
-	var p2 *obj.Prog
 	for p := c.cursym.Func().Text; p != nil; p = p.Link {
 		o := p.As
 		switch o {
@@ -905,44 +903,38 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.To.Reg = REGSP
 					q.Spadj = autosize
 				} else {
-					// Frame size is too large for a MOVDU instruction.
-					// Store link register before decrementing SP, so if a signal comes
-					// during the execution of the function prologue, the traceback
-					// code will not see a half-updated stack frame.
-					// This sequence is not async preemptible, as if we open a frame
-					// at the current SP, it will clobber the saved LR.
+					// Frame size is too large for an stdu MOVDU instruction, use stdux MOVDU.
 					q = obj.Appendp(q, c.newprog)
 					q.As = AMOVD
 					q.Pos = p.Pos
 					q.From.Type = obj.TYPE_REG
 					q.From.Reg = REG_LR
 					q.To.Type = obj.TYPE_REG
-					q.To.Reg = REG_R29 // REGTMP may be used to synthesize large offset in the next instruction
+					q.To.Reg = REG_R29
 
-					q = c.ctxt.StartUnsafePoint(q, c.newprog)
-
+					// Create stack adjustment in REGTMP
 					q = obj.Appendp(q, c.newprog)
 					q.As = AMOVD
-					q.Pos = p.Pos
-					q.From.Type = obj.TYPE_REG
-					q.From.Reg = REG_R29
-					q.To.Type = obj.TYPE_MEM
-					q.To.Offset = int64(-autosize)
-					q.To.Reg = REGSP
-
-					prologueEnd = q
-
-					q = obj.Appendp(q, c.newprog)
-					q.As = AADD
 					q.Pos = p.Pos
 					q.From.Type = obj.TYPE_CONST
 					q.From.Offset = int64(-autosize)
 					q.To.Type = obj.TYPE_REG
-					q.To.Reg = REGSP
-					q.Spadj = +autosize
+					q.To.Reg = REGTMP
 
-					q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
+					prologueEnd = q
+
+					// MOVDU R29, R31(R1)
+					q = obj.Appendp(q, c.newprog)
+					q.As = AMOVDU
+					q.Pos = p.Pos
+					q.From.Type = obj.TYPE_REG
+					q.From.Reg = REG_R29
+					q.To.Type = obj.TYPE_MEM
+					q.To.Reg = REGTMP
+					q.To.Index = REGSP
+					q.Spadj = autosize
 				}
+
 				prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
 			} else if c.cursym.Func().Text.Mark&LEAF == 0 {
 				// A very few functions that do not return to their caller
@@ -965,96 +957,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.To.Type = obj.TYPE_MEM
 				q.To.Reg = REGSP
 				q.To.Offset = 24
-			}
-
-			if c.cursym.Func().Text.From.Sym.Wrapper() {
-				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
-				//
-				//	MOVD g_panic(g), R22
-				//	CMP R22, $0
-				//	BEQ end
-				//	MOVD panic_argp(R22), R23
-				//	ADD $(autosize+8), R1, R24
-				//	CMP R23, R24
-				//	BNE end
-				//	ADD $8, R1, R25
-				//	MOVD R25, panic_argp(R22)
-				// end:
-				//	NOP
-				//
-				// The NOP is needed to give the jumps somewhere to land.
-				// It is a liblink NOP, not a ppc64 NOP: it encodes to 0 instruction bytes.
-
-				q = obj.Appendp(q, c.newprog)
-
-				q.As = AMOVD
-				q.From.Type = obj.TYPE_MEM
-				q.From.Reg = REGG
-				q.From.Offset = 4 * int64(c.ctxt.Arch.PtrSize) // G.panic
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R22
-
-				q = obj.Appendp(q, c.newprog)
-				q.As = ACMP
-				q.From.Type = obj.TYPE_REG
-				q.From.Reg = REG_R22
-				q.To.Type = obj.TYPE_CONST
-				q.To.Offset = 0
-
-				q = obj.Appendp(q, c.newprog)
-				q.As = ABEQ
-				q.To.Type = obj.TYPE_BRANCH
-				p1 = q
-
-				q = obj.Appendp(q, c.newprog)
-				q.As = AMOVD
-				q.From.Type = obj.TYPE_MEM
-				q.From.Reg = REG_R22
-				q.From.Offset = 0 // Panic.argp
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R23
-
-				q = obj.Appendp(q, c.newprog)
-				q.As = AADD
-				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = int64(autosize) + c.ctxt.Arch.FixedFrameSize
-				q.Reg = REGSP
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R24
-
-				q = obj.Appendp(q, c.newprog)
-				q.As = ACMP
-				q.From.Type = obj.TYPE_REG
-				q.From.Reg = REG_R23
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R24
-
-				q = obj.Appendp(q, c.newprog)
-				q.As = ABNE
-				q.To.Type = obj.TYPE_BRANCH
-				p2 = q
-
-				q = obj.Appendp(q, c.newprog)
-				q.As = AADD
-				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = c.ctxt.Arch.FixedFrameSize
-				q.Reg = REGSP
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R25
-
-				q = obj.Appendp(q, c.newprog)
-				q.As = AMOVD
-				q.From.Type = obj.TYPE_REG
-				q.From.Reg = REG_R25
-				q.To.Type = obj.TYPE_MEM
-				q.To.Reg = REG_R22
-				q.To.Offset = 0 // Panic.argp
-
-				q = obj.Appendp(q, c.newprog)
-
-				q.As = obj.ANOP
-				p1.To.SetTarget(q)
-				p2.To.SetTarget(q)
 			}
 
 		case obj.ARET:

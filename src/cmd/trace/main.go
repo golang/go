@@ -11,8 +11,8 @@ import (
 	"flag"
 	"fmt"
 	"internal/trace"
-	"internal/trace/event"
 	"internal/trace/raw"
+	"internal/trace/tracev2"
 	"internal/trace/traceviewer"
 	"io"
 	"log"
@@ -372,13 +372,13 @@ func debugEventsFootprint(trc io.Reader) error {
 		return err
 	}
 	type eventStats struct {
-		typ   event.Type
+		typ   tracev2.EventType
 		count int
 		bytes int
 	}
 	var stats [256]eventStats
 	for i := range stats {
-		stats[i].typ = event.Type(i)
+		stats[i].typ = tracev2.EventType(i)
 	}
 	eventsRead := 0
 	for {

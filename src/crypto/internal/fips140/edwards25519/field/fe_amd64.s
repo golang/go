@@ -16,32 +16,36 @@ TEXT ·feMul(SB), NOSPLIT, $0-24
 	MOVQ DX, SI
 
 	// r0 += 19×a1×b4
-	MOVQ   8(CX), AX
-	IMUL3Q $0x13, AX, AX
-	MULQ   32(BX)
-	ADDQ   AX, DI
-	ADCQ   DX, SI
+	MOVQ 8(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	MULQ 32(BX)
+	ADDQ AX, DI
+	ADCQ DX, SI
 
 	// r0 += 19×a2×b3
-	MOVQ   16(CX), AX
-	IMUL3Q $0x13, AX, AX
-	MULQ   24(BX)
-	ADDQ   AX, DI
-	ADCQ   DX, SI
+	MOVQ 16(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	MULQ 24(BX)
+	ADDQ AX, DI
+	ADCQ DX, SI
 
 	// r0 += 19×a3×b2
-	MOVQ   24(CX), AX
-	IMUL3Q $0x13, AX, AX
-	MULQ   16(BX)
-	ADDQ   AX, DI
-	ADCQ   DX, SI
+	MOVQ 24(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	MULQ 16(BX)
+	ADDQ AX, DI
+	ADCQ DX, SI
 
 	// r0 += 19×a4×b1
-	MOVQ   32(CX), AX
-	IMUL3Q $0x13, AX, AX
-	MULQ   8(BX)
-	ADDQ   AX, DI
-	ADCQ   DX, SI
+	MOVQ 32(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	MULQ 8(BX)
+	ADDQ AX, DI
+	ADCQ DX, SI
 
 	// r1 = a0×b1
 	MOVQ (CX), AX
@@ -56,25 +60,28 @@ TEXT ·feMul(SB), NOSPLIT, $0-24
 	ADCQ DX, R8
 
 	// r1 += 19×a2×b4
-	MOVQ   16(CX), AX
-	IMUL3Q $0x13, AX, AX
-	MULQ   32(BX)
-	ADDQ   AX, R9
-	ADCQ   DX, R8
+	MOVQ 16(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	MULQ 32(BX)
+	ADDQ AX, R9
+	ADCQ DX, R8
 
 	// r1 += 19×a3×b3
-	MOVQ   24(CX), AX
-	IMUL3Q $0x13, AX, AX
-	MULQ   24(BX)
-	ADDQ   AX, R9
-	ADCQ   DX, R8
+	MOVQ 24(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	MULQ 24(BX)
+	ADDQ AX, R9
+	ADCQ DX, R8
 
 	// r1 += 19×a4×b2
-	MOVQ   32(CX), AX
-	IMUL3Q $0x13, AX, AX
-	MULQ   16(BX)
-	ADDQ   AX, R9
-	ADCQ   DX, R8
+	MOVQ 32(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	MULQ 16(BX)
+	ADDQ AX, R9
+	ADCQ DX, R8
 
 	// r2 = a0×b2
 	MOVQ (CX), AX
@@ -95,18 +102,20 @@ TEXT ·feMul(SB), NOSPLIT, $0-24
 	ADCQ DX, R10
 
 	// r2 += 19×a3×b4
-	MOVQ   24(CX), AX
-	IMUL3Q $0x13, AX, AX
-	MULQ   32(BX)
-	ADDQ   AX, R11
-	ADCQ   DX, R10
+	MOVQ 24(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	MULQ 32(BX)
+	ADDQ AX, R11
+	ADCQ DX, R10
 
 	// r2 += 19×a4×b3
-	MOVQ   32(CX), AX
-	IMUL3Q $0x13, AX, AX
-	MULQ   24(BX)
-	ADDQ   AX, R11
-	ADCQ   DX, R10
+	MOVQ 32(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	MULQ 24(BX)
+	ADDQ AX, R11
+	ADCQ DX, R10
 
 	// r3 = a0×b3
 	MOVQ (CX), AX
@@ -133,11 +142,12 @@ TEXT ·feMul(SB), NOSPLIT, $0-24
 	ADCQ DX, R12
 
 	// r3 += 19×a4×b4
-	MOVQ   32(CX), AX
-	IMUL3Q $0x13, AX, AX
-	MULQ   32(BX)
-	ADDQ   AX, R13
-	ADCQ   DX, R12
+	MOVQ 32(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	MULQ 32(BX)
+	ADDQ AX, R13
+	ADCQ DX, R12
 
 	// r4 = a0×b4
 	MOVQ (CX), AX
@@ -231,18 +241,22 @@ TEXT ·feSquare(SB), NOSPLIT, $0-16
 	MOVQ DX, BX
 
 	// r0 += 38×l1×l4
-	MOVQ   8(CX), AX
-	IMUL3Q $0x26, AX, AX
-	MULQ   32(CX)
-	ADDQ   AX, SI
-	ADCQ   DX, BX
+	MOVQ 8(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	SHLQ $0x01, AX
+	MULQ 32(CX)
+	ADDQ AX, SI
+	ADCQ DX, BX
 
 	// r0 += 38×l2×l3
-	MOVQ   16(CX), AX
-	IMUL3Q $0x26, AX, AX
-	MULQ   24(CX)
-	ADDQ   AX, SI
-	ADCQ   DX, BX
+	MOVQ 16(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	SHLQ $0x01, AX
+	MULQ 24(CX)
+	ADDQ AX, SI
+	ADCQ DX, BX
 
 	// r1 = 2×l0×l1
 	MOVQ (CX), AX
@@ -252,18 +266,21 @@ TEXT ·feSquare(SB), NOSPLIT, $0-16
 	MOVQ DX, DI
 
 	// r1 += 38×l2×l4
-	MOVQ   16(CX), AX
-	IMUL3Q $0x26, AX, AX
-	MULQ   32(CX)
-	ADDQ   AX, R8
-	ADCQ   DX, DI
+	MOVQ 16(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	SHLQ $0x01, AX
+	MULQ 32(CX)
+	ADDQ AX, R8
+	ADCQ DX, DI
 
 	// r1 += 19×l3×l3
-	MOVQ   24(CX), AX
-	IMUL3Q $0x13, AX, AX
-	MULQ   24(CX)
-	ADDQ   AX, R8
-	ADCQ   DX, DI
+	MOVQ 24(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	MULQ 24(CX)
+	ADDQ AX, R8
+	ADCQ DX, DI
 
 	// r2 = 2×l0×l2
 	MOVQ (CX), AX
@@ -279,11 +296,13 @@ TEXT ·feSquare(SB), NOSPLIT, $0-16
 	ADCQ DX, R9
 
 	// r2 += 38×l3×l4
-	MOVQ   24(CX), AX
-	IMUL3Q $0x26, AX, AX
-	MULQ   32(CX)
-	ADDQ   AX, R10
-	ADCQ   DX, R9
+	MOVQ 24(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	SHLQ $0x01, AX
+	MULQ 32(CX)
+	ADDQ AX, R10
+	ADCQ DX, R9
 
 	// r3 = 2×l0×l3
 	MOVQ (CX), AX
@@ -293,18 +312,19 @@ TEXT ·feSquare(SB), NOSPLIT, $0-16
 	MOVQ DX, R11
 
 	// r3 += 2×l1×l2
-	MOVQ   8(CX), AX
-	IMUL3Q $0x02, AX, AX
-	MULQ   16(CX)
-	ADDQ   AX, R12
-	ADCQ   DX, R11
+	MOVQ 8(CX), AX
+	SHLQ $0x01, AX
+	MULQ 16(CX)
+	ADDQ AX, R12
+	ADCQ DX, R11
 
 	// r3 += 19×l4×l4
-	MOVQ   32(CX), AX
-	IMUL3Q $0x13, AX, AX
-	MULQ   32(CX)
-	ADDQ   AX, R12
-	ADCQ   DX, R11
+	MOVQ 32(CX), DX
+	LEAQ (DX)(DX*8), AX
+	LEAQ (DX)(AX*2), AX
+	MULQ 32(CX)
+	ADDQ AX, R12
+	ADCQ DX, R11
 
 	// r4 = 2×l0×l4
 	MOVQ (CX), AX
@@ -314,11 +334,11 @@ TEXT ·feSquare(SB), NOSPLIT, $0-16
 	MOVQ DX, R13
 
 	// r4 += 2×l1×l3
-	MOVQ   8(CX), AX
-	IMUL3Q $0x02, AX, AX
-	MULQ   24(CX)
-	ADDQ   AX, R14
-	ADCQ   DX, R13
+	MOVQ 8(CX), AX
+	SHLQ $0x01, AX
+	MULQ 24(CX)
+	ADDQ AX, R14
+	ADCQ DX, R13
 
 	// r4 += l2×l2
 	MOVQ 16(CX), AX

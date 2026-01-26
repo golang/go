@@ -12,5 +12,13 @@ stderr 'X:fieldtrack$'
 
 -- version.go --
 package main
-import "runtime"
-func main() { println(runtime.Version()) }
+import (
+	"go/version"
+	"runtime"
+)
+func main() {
+	if !version.IsValid(runtime.Version()) {
+		panic("version not valid: "+runtime.Version())
+	}
+	println(runtime.Version())
+}

@@ -164,6 +164,19 @@ func readChunkLine(b *bufio.Reader) ([]byte, error) {
 		}
 		return nil, err
 	}
+
+	// RFC 9112 permits parsers to accept a bare \n as a line ending in headers,
+	// but not in chunked encoding lines. See https://www.rfc-editor.org/errata/eid7633,
+	// which explicitly rejects a clarification permitting \n as a chunk terminator.
+	//
+	// Verify that the line ends in a CRLF, and that no CRs appear before the end.
+	if idx := bytes.IndexByte(p, '\r'); idx == -1 {
+		return nil, errors.New("chunked line ends with bare LF")
+	} else if idx != len(p)-2 {
+		return nil, errors.New("invalid CR in chunked line")
+	}
+	p = p[:len(p)-2] // trim CRLF
+
 	if len(p) >= maxLineLength {
 		return nil, ErrLineTooLong
 	}
@@ -171,14 +184,14 @@ func readChunkLine(b *bufio.Reader) ([]byte, error) {
 }
 
 func trimTrailingWhitespace(b []byte) []byte {
-	for len(b) > 0 && isASCIISpace(b[len(b)-1]) {
+	for len(b) > 0 && isOWS(b[len(b)-1]) {
 		b = b[:len(b)-1]
 	}
 	return b
 }
 
-func isASCIISpace(b byte) bool {
-	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+func isOWS(b byte) bool {
+	return b == ' ' || b == '\t'
 }
 
 var semi = []byte(";")

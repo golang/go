@@ -13,6 +13,7 @@ import (
 	"go/build"
 	"internal/buildcfg"
 	"internal/cfg"
+	"internal/platform"
 	"io"
 	"io/fs"
 	"os"
@@ -140,10 +141,12 @@ func defaultContext() build.Context {
 	// Recreate that logic here with the new GOOS/GOARCH setting.
 	// We need to run steps 2 and 3 to determine what the default value
 	// of CgoEnabled would be for computing CGOChanged.
-	defaultCgoEnabled := ctxt.CgoEnabled
-	if ctxt.GOOS != runtime.GOOS || ctxt.GOARCH != runtime.GOARCH {
-		defaultCgoEnabled = false
-	} else {
+	defaultCgoEnabled := false
+	if buildcfg.DefaultCGO_ENABLED == "1" {
+		defaultCgoEnabled = true
+	} else if buildcfg.DefaultCGO_ENABLED == "0" {
+	} else if runtime.GOARCH == ctxt.GOARCH && runtime.GOOS == ctxt.GOOS {
+		defaultCgoEnabled = platform.CgoSupported(ctxt.GOOS, ctxt.GOARCH)
 		// Use built-in default cgo setting for GOOS/GOARCH.
 		// Note that ctxt.GOOS/GOARCH are derived from the preference list
 		// (1) environment, (2) go/env file, (3) runtime constants,
@@ -202,6 +205,34 @@ func defaultContext() build.Context {
 
 func init() {
 	SetGOROOT(Getenv("GOROOT"), false)
+}
+
+// ForceHost forces GOOS and GOARCH to runtime.GOOS and runtime.GOARCH.
+// This is used by go tool to build tools for the go command's own
+// GOOS and GOARCH.
+func ForceHost() {
+	Goos = runtime.GOOS
+	Goarch = runtime.GOARCH
+	ExeSuffix = exeSuffix()
+	GO386 = buildcfg.DefaultGO386
+	GOAMD64 = buildcfg.DefaultGOAMD64
+	GOARM = buildcfg.DefaultGOARM
+	GOARM64 = buildcfg.DefaultGOARM64
+	GOMIPS = buildcfg.DefaultGOMIPS
+	GOMIPS64 = buildcfg.DefaultGOMIPS64
+	GOPPC64 = buildcfg.DefaultGOPPC64
+	GORISCV64 = buildcfg.DefaultGORISCV64
+	GOWASM = ""
+
+	// Recompute the build context using Goos and Goarch to
+	// set the correct value for ctx.CgoEnabled.
+	BuildContext = defaultContext()
+	// Call SetGOROOT to properly set the GOROOT on the new context.
+	SetGOROOT(Getenv("GOROOT"), false)
+	// Recompute experiments: the settings determined depend on GOOS and GOARCH.
+	// This will also update the BuildContext's tool tags to include the new
+	// experiment tags.
+	computeExperiment()
 }
 
 // SetGOROOT sets GOROOT and associated variables to the given values.
@@ -266,6 +297,10 @@ var (
 )
 
 func init() {
+	computeExperiment()
+}
+
+func computeExperiment() {
 	Experiment, ExperimentErr = buildcfg.ParseGOEXPERIMENT(Goos, Goarch, RawGOEXPERIMENT)
 	if ExperimentErr != nil {
 		return

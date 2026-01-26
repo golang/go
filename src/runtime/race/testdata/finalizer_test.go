@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 func TestNoRaceFin(t *testing.T) {
@@ -65,4 +66,44 @@ func TestRaceFin(t *testing.T) {
 	runtime.GC()
 	time.Sleep(100 * time.Millisecond)
 	y = 66
+}
+
+func TestNoRaceCleanup(t *testing.T) {
+	c := make(chan bool)
+	go func() {
+		x := new(string)
+		y := new(string)
+		runtime.AddCleanup(x, func(y *string) {
+			*y = "foo"
+		}, y)
+		*y = "bar"
+		runtime.KeepAlive(x)
+		c <- true
+	}()
+	<-c
+	runtime.GC()
+	time.Sleep(100 * time.Millisecond)
+}
+
+func TestRaceBetweenCleanups(t *testing.T) {
+	// Allocate struct with pointer to avoid hitting tinyalloc.
+	// Otherwise we can't be sure when the allocation will
+	// be freed.
+	type T struct {
+		v int
+		p unsafe.Pointer
+	}
+	sharedVar := new(int)
+	v0 := new(T)
+	v1 := new(T)
+	cleanup := func(x int) {
+		*sharedVar = x
+	}
+	runtime.AddCleanup(v0, cleanup, 0)
+	runtime.AddCleanup(v1, cleanup, 0)
+	v0 = nil
+	v1 = nil
+
+	runtime.GC()
+	time.Sleep(100 * time.Millisecond)
 }

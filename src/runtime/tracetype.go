@@ -2,17 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Trace stack table and acquisition.
+// Trace type table.
 
 package runtime
 
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/trace/tracev2"
 	"unsafe"
 )
 
-// traceTypeTable maps stack traces (arrays of PC's) to unique uint32 ids.
+// traceTypeTable maps types to unique uint32 ids.
 // It is lock-free for reading.
 type traceTypeTable struct {
 	tab traceMap
@@ -35,7 +36,7 @@ func (t *traceTypeTable) put(typ *abi.Type) uint64 {
 // releases all memory and resets state. It must only be called once the caller
 // can guarantee that there are no more writers to the table.
 func (t *traceTypeTable) dump(gen uintptr) {
-	w := unsafeTraceExpWriter(gen, nil, traceExperimentAllocFree)
+	w := unsafeTraceExpWriter(gen, nil, tracev2.AllocFree)
 	if root := (*traceMapNode)(t.tab.root.Load()); root != nil {
 		w = dumpTypesRec(root, w)
 	}
@@ -63,7 +64,7 @@ func dumpTypesRec(node *traceMapNode, w traceWriter) traceWriter {
 	}
 
 	// Emit type.
-	w.varint(uint64(node.id))
+	w.varint(node.id)
 	w.varint(uint64(uintptr(unsafe.Pointer(typ))))
 	w.varint(uint64(typ.Size()))
 	w.varint(uint64(typ.PtrBytes))

@@ -1,0 +1,46 @@
+# Test that 'go build' stamps VCS information when building from a git worktree.
+# See https://go.dev/issue/58218.
+
+[!git] skip
+[short] skip
+
+# Create repo with a commit.
+cd repo
+exec git init
+exec git config user.email g.o.p.h.e.r@go.dev
+exec git config user.name Gopher
+exec git add -A
+exec git commit -m 'initial commit'
+
+# Sanity check: building from main repo includes VCS info.
+go build -o main.exe .
+go version -m main.exe
+stdout '^\tbuild\tvcs=git$'
+stdout '^\tbuild\tvcs.modified=false$'
+
+# Create a worktree and build from it.
+exec git worktree add ../worktree HEAD
+cd ../worktree
+go build -o worktree.exe .
+go version -m worktree.exe
+stdout '^\tbuild\tvcs=git$'
+stdout '^\tbuild\tvcs.modified=false$'
+
+# Verify that vcs.modified is detected in the worktree.
+cp ../changed.go a.go
+go build -o modified.exe .
+go version -m modified.exe
+stdout '^\tbuild\tvcs.modified=true$'
+
+-- repo/go.mod --
+module example.com/worktree
+
+go 1.18
+-- repo/a.go --
+package main
+
+func main() {}
+-- changed.go --
+package main
+
+func main() { _ = 1 }

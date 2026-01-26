@@ -72,6 +72,8 @@ Flags:
 		system tools now assume the presence of the header.
 	-dumpdep
 		Dump symbol dependency graph.
+	-e
+		No limit on number of errors reported.
 	-extar ar
 		Set the external archive program (default "ar").
 		Used only for -buildmode=c-archive.
@@ -81,6 +83,8 @@ Flags:
 		Set space-separated flags to pass to the external linker.
 	-f
 		Ignore version mismatch in the linked archives.
+	-funcalign N
+		Set function alignment to N bytes
 	-g
 		Disable Go package data checks.
 	-importcfg file

@@ -56,7 +56,7 @@ stdout '"Action":"fail","Package":"m/cycle/p","Elapsed":.*,"FailedBuild":"m/cycl
 ! go test -json -o=$devnull ./veterror
 stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"# m/veterror\\n"'
 stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"# \[m/veterror\]\\n"'
-stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"veterror(/|\\\\)main_test.go:9:9: fmt.Printf format %s reads arg #1, but call has 0 args\\n"'
+stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"veterror(/|\\\\)main_test.go:9:21: fmt.Printf format %s reads arg #1, but call has 0 args\\n"'
 stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-fail"'
 stdout '"Action":"start","Package":"m/veterror"'
 stdout '"Action":"output","Package":"m/veterror","Output":"FAIL\\tm/veterror \[build failed\]\\n"'

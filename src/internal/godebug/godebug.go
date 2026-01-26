@@ -237,8 +237,14 @@ func update(def, env string) {
 	// Update all the cached values, creating new ones as needed.
 	// We parse the environment variable first, so that any settings it has
 	// are already locked in place (did[name] = true) before we consider
-	// the defaults.
+	// the defaults. Existing immutable settings are always locked.
 	did := make(map[string]bool)
+	cache.Range(func(name, s any) bool {
+		if info := s.(*setting).info; info != nil && info.Immutable {
+			did[name.(string)] = true
+		}
+		return true
+	})
 	parse(did, env)
 	parse(did, def)
 

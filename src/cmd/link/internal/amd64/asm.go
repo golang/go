@@ -40,10 +40,6 @@ import (
 	"log"
 )
 
-func PADDR(x uint32) uint32 {
-	return x &^ 0x80000000
-}
-
 func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
 	if initfunc == nil {
@@ -183,6 +179,38 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 				ldr.Errorf(s, "unsupported relocation for PIE: %v", rt)
 			}
 		}
+		return true
+
+	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SUBTRACTOR*2 + 0:
+		// X86_64_RELOC_SUBTRACTOR must be followed by X86_64_RELOC_UNSIGNED.
+		// The pair of relocations resolves to the difference between two
+		// symbol addresses (each relocation specifies a symbol).
+		// See Darwin's header file include/mach-o/x86_64/reloc.h.
+		// ".quad _foo - _bar" is expressed as
+		// r_type=X86_64_RELOC_SUBTRACTOR, r_length=3, r_extern=1, r_pcrel=0, r_symbolnum=_bar
+		// r_type=X86_64_RELOC_UNSIGNED, r_length=3, r_extern=1, r_pcrel=0, r_symbolnum=_foo
+		//
+		// For the cases we care (the race syso), the symbol being subtracted
+		// out is always in the current section, so we can just convert it to
+		// a PC-relative relocation, with the addend adjusted.
+		// If later we need the more general form, we can introduce objabi.R_DIFF
+		// that works like this Mach-O relocation.
+		su := ldr.MakeSymbolUpdater(s)
+		outer, off := ld.FoldSubSymbolOffset(ldr, targ)
+		if outer != s {
+			ldr.Errorf(s, "unsupported X86_64_RELOC_SUBTRACTOR reloc: target %s, outer %s",
+				ldr.SymName(targ), ldr.SymName(outer))
+			break
+		}
+		relocs := su.Relocs()
+		if rIdx+1 >= relocs.Count() || relocs.At(rIdx+1).Type() != objabi.MachoRelocOffset+ld.MACHO_X86_64_RELOC_UNSIGNED*2+0 || relocs.At(rIdx+1).Off() != r.Off() {
+			ldr.Errorf(s, "unexpected X86_64_RELOC_SUBTRACTOR reloc, must be followed by X86_64_RELOC_UNSIGNED at the same offset: %d %v %d", rIdx, relocs.At(rIdx+1).Type(), relocs.At(rIdx+1).Off())
+		}
+		// The second relocation has the target symbol we want
+		su.SetRelocType(rIdx+1, objabi.R_PCREL)
+		su.SetRelocAdd(rIdx+1, r.Add()+int64(r.Off())+int64(r.Siz())-off)
+		// Remove the other relocation
+		su.SetRelocSiz(rIdx, 0)
 		return true
 
 	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 1:
@@ -379,7 +407,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			} else {
 				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 			}
-			rela.AddAddrPlus(target.Arch, targ, int64(r.Add()))
+			rela.AddAddrPlus(target.Arch, targ, r.Add())
 			// Not mark r done here. So we still apply it statically,
 			// so in the file content we'll also have the right offset
 			// to the relocation target. So it can be examined statically

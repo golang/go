@@ -251,8 +251,8 @@ func (p *Package) writeDefs() {
 	}
 
 	if callsMalloc && !*gccgo {
-		fmt.Fprint(fgo2, strings.Replace(cMallocDefGo, "PREFIX", cPrefix, -1))
-		fmt.Fprint(fgcc, strings.Replace(strings.Replace(cMallocDefC, "PREFIX", cPrefix, -1), "PACKED", p.packedAttribute(), -1))
+		fmt.Fprint(fgo2, strings.ReplaceAll(cMallocDefGo, "PREFIX", cPrefix))
+		fmt.Fprint(fgcc, strings.ReplaceAll(strings.Replace(cMallocDefC, "PREFIX", cPrefix, -1), "PACKED", p.packedAttribute()))
 	}
 
 	if err := fgcc.Close(); err != nil {
@@ -457,6 +457,36 @@ func checkImportSymName(s string) {
 // Also assumes that gc convention is to word-align the
 // input and output parameters.
 func (p *Package) structType(n *Name) (string, int64) {
+	// It's possible for us to see a type with a top-level const here,
+	// which will give us an unusable struct type. See #75751.
+	// The top-level const will always appear as a final qualifier,
+	// constructed by typeConv.loadType in the dwarf.QualType case.
+	// The top-level const is meaningless here and can simply be removed.
+	stripConst := func(s string) string {
+		i := strings.LastIndex(s, "const")
+		if i == -1 {
+			return s
+		}
+
+		// A top-level const can only be followed by other qualifiers.
+		if r, ok := strings.CutSuffix(s, "const"); ok {
+			return strings.TrimSpace(r)
+		}
+
+		var nonConst []string
+		for _, f := range strings.Fields(s[i:]) {
+			switch f {
+			case "const":
+			case "restrict", "volatile":
+				nonConst = append(nonConst, f)
+			default:
+				return s
+			}
+		}
+
+		return strings.TrimSpace(s[:i]) + " " + strings.Join(nonConst, " ")
+	}
+
 	var buf strings.Builder
 	fmt.Fprint(&buf, "struct {\n")
 	off := int64(0)
@@ -468,7 +498,7 @@ func (p *Package) structType(n *Name) (string, int64) {
 		}
 		c := t.Typedef
 		if c == "" {
-			c = t.C.String()
+			c = stripConst(t.C.String())
 		}
 		fmt.Fprintf(&buf, "\t\t%s p%d;\n", c, i)
 		off += t.Size
@@ -484,7 +514,7 @@ func (p *Package) structType(n *Name) (string, int64) {
 			fmt.Fprintf(&buf, "\t\tchar __pad%d[%d];\n", off, pad)
 			off += pad
 		}
-		fmt.Fprintf(&buf, "\t\t%s r;\n", t.C)
+		fmt.Fprintf(&buf, "\t\t%s r;\n", stripConst(t.C.String()))
 		off += t.Size
 	}
 	if off%p.PtrSize != 0 {
@@ -649,13 +679,15 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
 	if p.noEscapes[n.C] && p.noCallbacks[n.C] {
 		touchFunc = "_Cgo_keepalive"
 	}
-	fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
-	if d.Type.Params != nil {
+
+	if len(paramnames) > 0 {
+		fmt.Fprintf(fgo2, "\tif _Cgo_always_false {\n")
 		for _, name := range paramnames {
 			fmt.Fprintf(fgo2, "\t\t%s(%s)\n", touchFunc, name)
 		}
+		fmt.Fprintf(fgo2, "\t}\n")
 	}
-	fmt.Fprintf(fgo2, "\t}\n")
+
 	fmt.Fprintf(fgo2, "\treturn\n")
 	fmt.Fprintf(fgo2, "}\n")
 }
@@ -751,13 +783,13 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	// We're trying to write a gcc struct that matches gc's layout.
 	// Use packed attribute to force no padding in this struct in case
 	// gcc has different packing requirements.
-	fmt.Fprintf(fgcc, "\t%s %v *_cgo_a = v;\n", ctype, p.packedAttribute())
-	if n.FuncType.Result != nil {
+	tr := n.FuncType.Result
+	if (n.Kind != "macro" && len(n.FuncType.Params) > 0) || tr != nil {
+		fmt.Fprintf(fgcc, "\t%s %v *_cgo_a = v;\n", ctype, p.packedAttribute())
+	}
+	if tr != nil {
 		// Save the stack top for use below.
 		fmt.Fprintf(fgcc, "\tchar *_cgo_stktop = _cgo_topofstack();\n")
-	}
-	tr := n.FuncType.Result
-	if tr != nil {
 		fmt.Fprintf(fgcc, "\t__typeof__(_cgo_a->r) _cgo_r;\n")
 	}
 	fmt.Fprintf(fgcc, "\t_cgo_tsan_acquire();\n")
@@ -787,7 +819,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 		fmt.Fprintf(fgcc, "\t_cgo_errno = errno;\n")
 	}
 	fmt.Fprintf(fgcc, "\t_cgo_tsan_release();\n")
-	if n.FuncType.Result != nil {
+	if tr != nil {
 		// The cgo call may have caused a stack copy (via a callback).
 		// Adjust the return value pointer appropriately.
 		fmt.Fprintf(fgcc, "\t_cgo_a = (void*)((char*)_cgo_a + (_cgo_topofstack() - _cgo_stktop));\n")
@@ -942,25 +974,34 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		// just have to agree. The gcc struct will be compiled
 		// with __attribute__((packed)) so all padding must be
 		// accounted for explicitly.
-		ctype := "struct {\n"
+		var ctype strings.Builder
+		const start = "struct {\n"
+		ctype.WriteString(start)
 		gotype := new(bytes.Buffer)
 		fmt.Fprintf(gotype, "struct {\n")
 		off := int64(0)
 		npad := 0
-		argField := func(typ ast.Expr, namePat string, args ...interface{}) {
+		// the align is at least 1 (for char)
+		maxAlign := int64(1)
+		argField := func(typ ast.Expr, namePat string, args ...any) {
 			name := fmt.Sprintf(namePat, args...)
 			t := p.cgoType(typ)
 			if off%t.Align != 0 {
 				pad := t.Align - off%t.Align
-				ctype += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
+				fmt.Fprintf(&ctype, "\t\tchar __pad%d[%d];\n", npad, pad)
 				off += pad
 				npad++
 			}
-			ctype += fmt.Sprintf("\t\t%s %s;\n", t.C, name)
+			fmt.Fprintf(&ctype, "\t\t%s %s;\n", t.C, name)
 			fmt.Fprintf(gotype, "\t\t%s ", name)
 			noSourceConf.Fprint(gotype, fset, typ)
 			fmt.Fprintf(gotype, "\n")
 			off += t.Size
+			// keep track of the maximum alignment among all fields
+			// so that we can align the struct correctly
+			if t.Align > maxAlign {
+				maxAlign = t.Align
+			}
 		}
 		if fn.Recv != nil {
 			argField(fn.Recv.List[0].Type, "recv")
@@ -974,10 +1015,10 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 			func(i int, aname string, atype ast.Expr) {
 				argField(atype, "r%d", i)
 			})
-		if ctype == "struct {\n" {
-			ctype += "\t\tchar unused;\n" // avoid empty struct
+		if ctype.Len() == len(start) {
+			ctype.WriteString("\t\tchar unused;\n") // avoid empty struct
 		}
-		ctype += "\t}"
+		ctype.WriteString("\t}")
 		fmt.Fprintf(gotype, "\t}")
 
 		// Get the return type of the wrapper function
@@ -1003,23 +1044,25 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		}
 
 		// Build the wrapper function compiled by gcc.
-		gccExport := ""
-		if goos == "windows" {
-			gccExport = "__declspec(dllexport) "
-		}
-		s := fmt.Sprintf("%s%s %s(", gccExport, gccResult, exp.ExpName)
+		var s strings.Builder
+		fmt.Fprintf(&s, "%s %s(", gccResult, exp.ExpName)
 		if fn.Recv != nil {
-			s += p.cgoType(fn.Recv.List[0].Type).C.String()
-			s += " recv"
+			s.WriteString(p.cgoType(fn.Recv.List[0].Type).C.String())
+			s.WriteString(" recv")
 		}
-		forFieldList(fntype.Params,
-			func(i int, aname string, atype ast.Expr) {
-				if i > 0 || fn.Recv != nil {
-					s += ", "
-				}
-				s += fmt.Sprintf("%s %s", p.cgoType(atype).C, exportParamName(aname, i))
-			})
-		s += ")"
+
+		if len(fntype.Params.List) > 0 {
+			forFieldList(fntype.Params,
+				func(i int, aname string, atype ast.Expr) {
+					if i > 0 || fn.Recv != nil {
+						s.WriteString(", ")
+					}
+					fmt.Fprintf(&s, "%s %s", p.cgoType(atype).C, exportParamName(aname, i))
+				})
+		} else {
+			s.WriteString("void")
+		}
+		s.WriteByte(')')
 
 		if len(exp.Doc) > 0 {
 			fmt.Fprintf(fgcch, "\n%s", exp.Doc)
@@ -1027,11 +1070,11 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 				fmt.Fprint(fgcch, "\n")
 			}
 		}
-		fmt.Fprintf(fgcch, "extern %s;\n", s)
+		fmt.Fprintf(fgcch, "extern %s;\n", s.String())
 
 		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *);\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgcc, "\nCGO_NO_SANITIZE_THREAD")
-		fmt.Fprintf(fgcc, "\n%s\n", s)
+		fmt.Fprintf(fgcc, "\n%s\n", s.String())
 		fmt.Fprintf(fgcc, "{\n")
 		fmt.Fprintf(fgcc, "\tsize_t _cgo_ctxt = _cgo_wait_runtime_init_done();\n")
 		// The results part of the argument structure must be
@@ -1043,7 +1086,11 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		// string.h for memset, and is also robust to C++
 		// types with constructors. Both GCC and LLVM optimize
 		// this into just zeroing _cgo_a.
-		fmt.Fprintf(fgcc, "\ttypedef %s %v _cgo_argtype;\n", ctype, p.packedAttribute())
+		//
+		// The struct should be aligned to the maximum alignment
+		// of any of its fields. This to avoid alignment
+		// issues.
+		fmt.Fprintf(fgcc, "\ttypedef %s %v __attribute__((aligned(%d))) _cgo_argtype;\n", ctype.String(), p.packedAttribute(), maxAlign)
 		fmt.Fprintf(fgcc, "\tstatic _cgo_argtype _cgo_zero;\n")
 		fmt.Fprintf(fgcc, "\t_cgo_argtype _cgo_a = _cgo_zero;\n")
 		if gccResult != "void" && (len(fntype.Results.List) > 1 || len(fntype.Results.List[0].Names) > 1) {
@@ -1129,6 +1176,10 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 					if !p.hasPointer(nil, atype, false) {
 						return
 					}
+
+					// Use the export'ed file/line in error messages.
+					pos := fset.Position(exp.Func.Pos())
+					fmt.Fprintf(fgo2, "//line %s:%d\n", pos.Filename, pos.Line)
 					fmt.Fprintf(fgo2, "\t_cgoCheckResult(a.r%d)\n", i)
 				})
 		}
@@ -1391,7 +1442,7 @@ func forFieldList(fl *ast.FieldList, fn func(int, string, ast.Expr)) {
 	}
 }
 
-func c(repr string, args ...interface{}) *TypeRepr {
+func c(repr string, args ...any) *TypeRepr {
 	return &TypeRepr{repr, args}
 }
 
@@ -1505,6 +1556,9 @@ func (p *Package) doCgoType(e ast.Expr, m map[ast.Expr]bool) *Type {
 			return &Type{Size: 2 * p.PtrSize, Align: p.PtrSize, C: c("GoString")}
 		}
 		if t.Name == "error" {
+			return &Type{Size: 2 * p.PtrSize, Align: p.PtrSize, C: c("GoInterface")}
+		}
+		if t.Name == "any" {
 			return &Type{Size: 2 * p.PtrSize, Align: p.PtrSize, C: c("GoInterface")}
 		}
 		if r, ok := goTypes[t.Name]; ok {
@@ -1804,7 +1858,7 @@ void _cgoPREFIX_Cfunc__Cmalloc(void *v) {
 	void *ret;
 	_cgo_tsan_acquire();
 	ret = malloc(a->p0);
-	if (ret == 0 && a->p0 == 0) {
+	if (ret == NULL && a->p0 == 0) {
 		ret = malloc(1);
 	}
 	a->r1 = ret;
@@ -1946,7 +2000,7 @@ extern const char *_GoStringPtr(_GoString_ s);
 `
 
 func (p *Package) gccExportHeaderProlog() string {
-	return strings.Replace(gccExportHeaderProlog, "GOINTBITS", fmt.Sprint(8*p.IntSize), -1)
+	return strings.ReplaceAll(gccExportHeaderProlog, "GOINTBITS", fmt.Sprint(8*p.IntSize))
 }
 
 // gccExportHeaderProlog is written to the exported header, after the
@@ -1983,9 +2037,15 @@ typedef size_t GoUintptr;
 typedef float GoFloat32;
 typedef double GoFloat64;
 #ifdef _MSC_VER
+#if !defined(__cplusplus) || _MSVC_LANG <= 201402L
 #include <complex.h>
 typedef _Fcomplex GoComplex64;
 typedef _Dcomplex GoComplex128;
+#else
+#include <complex>
+typedef std::complex<float> GoComplex64;
+typedef std::complex<double> GoComplex128;
+#endif
 #else
 typedef float _Complex GoComplex64;
 typedef double _Complex GoComplex128;

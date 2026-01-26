@@ -41,7 +41,7 @@ const ranks = `
 # Sysmon
 NONE
 < sysmon
-< scavenge, forcegc;
+< scavenge, forcegc, computeMaxProcs, updateMaxProcsG;
 
 # Defer
 NONE < defer;
@@ -51,10 +51,14 @@ NONE <
   sweepWaiters,
   assistQueue,
   strongFromWeakQueue,
+  cleanupQueue,
   sweep;
 
 # Test only
 NONE < testR, testW;
+
+# vgetrandom
+NONE < vgetrandom;
 
 NONE < timerSend;
 
@@ -62,8 +66,11 @@ NONE < timerSend;
 NONE < allocmW, execW, cpuprof, pollCache, pollDesc, wakeableSleep;
 scavenge, sweep, testR, wakeableSleep, timerSend < hchan;
 assistQueue,
+  cleanupQueue,
+  computeMaxProcs,
   cpuprof,
   forcegc,
+  updateMaxProcsG,
   hchan,
   pollDesc, # pollDesc can interact with timers, which can lock sched.
   scavenge,
@@ -96,7 +103,15 @@ NONE
 < reflectOffs;
 
 # Synctest
-hchan, root, timers, timer, notifyList, reflectOffs < synctest;
+hchan,
+  notifyList,
+  reflectOffs,
+  root,
+  strongFromWeakQueue,
+  sweepWaiters,
+  timer,
+  timers
+< synctest;
 
 # User arena state
 NONE < userArenaState;
@@ -123,7 +138,8 @@ allg,
   reflectOffs,
   timer,
   traceStrings,
-  userArenaState
+  userArenaState,
+  vgetrandom
 # Above MALLOC are things that can allocate memory.
 < MALLOC
 # Below MALLOC is the malloc implementation.
@@ -177,6 +193,12 @@ defer,
 # Below WB is the write barrier implementation.
 < wbufSpans;
 
+# xRegState allocator
+sched < xRegAlloc;
+
+# spanSPMCs allocator and list
+WB, sched < spanSPMCs;
+
 # Span allocator
 stackLarge,
   stackpool,
@@ -189,7 +211,8 @@ stackLarge,
 # an mspanSpecial lock, and they're part of the malloc implementation.
 # Pinner bits might be freed by the span allocator.
 mheap, mspanSpecial < mheapSpecial;
-mheap, mheapSpecial < globalAlloc;
+# Fixallocs
+mheap, mheapSpecial, xRegAlloc, spanSPMCs < globalAlloc;
 
 # Execution tracer events (with a P)
 hchan,

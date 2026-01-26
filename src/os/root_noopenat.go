@@ -8,7 +8,11 @@ package os
 
 import (
 	"errors"
+	"internal/filepathlite"
+	"internal/stringslite"
 	"sync/atomic"
+	"syscall"
+	"time"
 )
 
 // root implementation for platforms with no openat.
@@ -49,7 +53,7 @@ func newRoot(name string) (*Root, error) {
 	if !fi.IsDir() {
 		return nil, errors.New("not a directory")
 	}
-	return &Root{root{name: name}}, nil
+	return &Root{&root{name: name}}, nil
 }
 
 func (r *root) Close() error {
@@ -95,6 +99,46 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
 	return fi, nil
 }
 
+func rootChmod(r *Root, name string, mode FileMode) error {
+	if err := checkPathEscapes(r, name); err != nil {
+		return &PathError{Op: "chmodat", Path: name, Err: err}
+	}
+	if err := Chmod(joinPath(r.root.name, name), mode); err != nil {
+		return &PathError{Op: "chmodat", Path: name, Err: underlyingError(err)}
+	}
+	return nil
+}
+
+func rootChown(r *Root, name string, uid, gid int) error {
+	if err := checkPathEscapes(r, name); err != nil {
+		return &PathError{Op: "chownat", Path: name, Err: err}
+	}
+	if err := Chown(joinPath(r.root.name, name), uid, gid); err != nil {
+		return &PathError{Op: "chownat", Path: name, Err: underlyingError(err)}
+	}
+	return nil
+}
+
+func rootLchown(r *Root, name string, uid, gid int) error {
+	if err := checkPathEscapesLstat(r, name); err != nil {
+		return &PathError{Op: "lchownat", Path: name, Err: err}
+	}
+	if err := Lchown(joinPath(r.root.name, name), uid, gid); err != nil {
+		return &PathError{Op: "lchownat", Path: name, Err: underlyingError(err)}
+	}
+	return nil
+}
+
+func rootChtimes(r *Root, name string, atime time.Time, mtime time.Time) error {
+	if err := checkPathEscapes(r, name); err != nil {
+		return &PathError{Op: "chtimesat", Path: name, Err: err}
+	}
+	if err := Chtimes(joinPath(r.root.name, name), atime, mtime); err != nil {
+		return &PathError{Op: "chtimesat", Path: name, Err: underlyingError(err)}
+	}
+	return nil
+}
+
 func rootMkdir(r *Root, name string, perm FileMode) error {
 	if err := checkPathEscapes(r, name); err != nil {
 		return &PathError{Op: "mkdirat", Path: name, Err: err}
@@ -105,12 +149,112 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
 	return nil
 }
 
+func rootMkdirAll(r *Root, name string, perm FileMode) error {
+	// We only check for errPathEscapes here.
+	// For errors such as ENOTDIR (a non-directory file appeared somewhere along the path),
+	// we let MkdirAll generate the error.
+	// MkdirAll will return a PathError referencing the exact location of the error,
+	// and we want to preserve that property.
+	if err := checkPathEscapes(r, name); err == errPathEscapes {
+		return &PathError{Op: "mkdirat", Path: name, Err: err}
+	}
+	prefix := r.root.name + string(PathSeparator)
+	if err := MkdirAll(prefix+name, perm); err != nil {
+		if pe, ok := err.(*PathError); ok {
+			pe.Op = "mkdirat"
+			pe.Path = stringslite.TrimPrefix(pe.Path, prefix)
+			return pe
+		}
+		return &PathError{Op: "mkdirat", Path: name, Err: underlyingError(err)}
+	}
+	return nil
+}
+
 func rootRemove(r *Root, name string) error {
 	if err := checkPathEscapesLstat(r, name); err != nil {
 		return &PathError{Op: "removeat", Path: name, Err: err}
 	}
+	if endsWithDot(name) {
+		// We don't want to permit removing the root itself, so check for that.
+		if filepathlite.Clean(name) == "." {
+			return &PathError{Op: "removeat", Path: name, Err: errPathEscapes}
+		}
+	}
 	if err := Remove(joinPath(r.root.name, name)); err != nil {
 		return &PathError{Op: "removeat", Path: name, Err: underlyingError(err)}
+	}
+	return nil
+}
+
+func rootRemoveAll(r *Root, name string) error {
+	if endsWithDot(name) {
+		// Consistency with os.RemoveAll: Return EINVAL when trying to remove .
+		return &PathError{Op: "RemoveAll", Path: name, Err: syscall.EINVAL}
+	}
+	if err := checkPathEscapesLstat(r, name); err != nil {
+		if err == syscall.ENOTDIR {
+			// Some intermediate path component is not a directory.
+			// RemoveAll treats this as success (since the target doesn't exist).
+			return nil
+		}
+		return &PathError{Op: "RemoveAll", Path: name, Err: err}
+	}
+	if err := RemoveAll(joinPath(r.root.name, name)); err != nil {
+		return &PathError{Op: "RemoveAll", Path: name, Err: underlyingError(err)}
+	}
+	return nil
+}
+
+func rootReadlink(r *Root, name string) (string, error) {
+	if err := checkPathEscapesLstat(r, name); err != nil {
+		return "", &PathError{Op: "readlinkat", Path: name, Err: err}
+	}
+	name, err := Readlink(joinPath(r.root.name, name))
+	if err != nil {
+		return "", &PathError{Op: "readlinkat", Path: name, Err: underlyingError(err)}
+	}
+	return name, nil
+}
+
+func rootRename(r *Root, oldname, newname string) error {
+	if err := checkPathEscapesLstat(r, oldname); err != nil {
+		return &PathError{Op: "renameat", Path: oldname, Err: err}
+	}
+	if err := checkPathEscapesLstat(r, newname); err != nil {
+		return &PathError{Op: "renameat", Path: newname, Err: err}
+	}
+	err := Rename(joinPath(r.root.name, oldname), joinPath(r.root.name, newname))
+	if err != nil {
+		return &LinkError{"renameat", oldname, newname, underlyingError(err)}
+	}
+	return nil
+}
+
+func rootLink(r *Root, oldname, newname string) error {
+	if err := checkPathEscapesLstat(r, oldname); err != nil {
+		return &PathError{Op: "linkat", Path: oldname, Err: err}
+	}
+	fullOldName := joinPath(r.root.name, oldname)
+	if fs, err := Lstat(fullOldName); err == nil && fs.Mode()&ModeSymlink != 0 {
+		return &PathError{Op: "linkat", Path: oldname, Err: errors.New("cannot create a hard link to a symlink")}
+	}
+	if err := checkPathEscapesLstat(r, newname); err != nil {
+		return &PathError{Op: "linkat", Path: newname, Err: err}
+	}
+	err := Link(fullOldName, joinPath(r.root.name, newname))
+	if err != nil {
+		return &LinkError{"linkat", oldname, newname, underlyingError(err)}
+	}
+	return nil
+}
+
+func rootSymlink(r *Root, oldname, newname string) error {
+	if err := checkPathEscapesLstat(r, newname); err != nil {
+		return &PathError{Op: "symlinkat", Path: newname, Err: err}
+	}
+	err := Symlink(oldname, joinPath(r.root.name, newname))
+	if err != nil {
+		return &LinkError{"symlinkat", oldname, newname, underlyingError(err)}
 	}
 	return nil
 }

@@ -49,7 +49,7 @@ func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
 	atomic.StorepNoWB(noescape(ptr), new)
 }
 
-// atomic_storePointer is the implementation of runtime/internal/UnsafePointer.Store
+// atomic_storePointer is the implementation of internal/runtime/atomic.UnsafePointer.Store
 // (like StoreNoWB but with the write barrier).
 //
 //go:nosplit
@@ -58,7 +58,7 @@ func atomic_storePointer(ptr *unsafe.Pointer, new unsafe.Pointer) {
 	atomicstorep(unsafe.Pointer(ptr), new)
 }
 
-// atomic_casPointer is the implementation of runtime/internal/UnsafePointer.CompareAndSwap
+// atomic_casPointer is the implementation of internal/runtime/atomic.UnsafePointer.CompareAndSwap
 // (like CompareAndSwapNoWB but with the write barrier).
 //
 //go:nosplit

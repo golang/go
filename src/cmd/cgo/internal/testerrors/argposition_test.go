@@ -81,7 +81,7 @@ func TestArgumentsPositions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command("go", "tool", "cgo",
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "cgo",
 		"-srcdir", testdata,
 		"-objdir", dir,
 		"issue42580.go")

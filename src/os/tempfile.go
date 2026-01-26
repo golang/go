@@ -7,7 +7,7 @@ package os
 import (
 	"errors"
 	"internal/bytealg"
-	"internal/itoa"
+	"internal/strconv"
 	_ "unsafe" // for go:linkname
 )
 
@@ -20,7 +20,7 @@ import (
 func runtime_rand() uint64
 
 func nextRandom() string {
-	return itoa.Uitoa(uint(uint32(runtime_rand())))
+	return strconv.FormatUint(uint64(uint32(runtime_rand())), 10)
 }
 
 // CreateTemp creates a new temporary file in the directory dir,
@@ -105,7 +105,7 @@ func MkdirTemp(dir, pattern string) (string, error) {
 			if try++; try < 10000 {
 				continue
 			}
-			return "", &PathError{Op: "mkdirtemp", Path: dir + string(PathSeparator) + prefix + "*" + suffix, Err: ErrExist}
+			return "", &PathError{Op: "mkdirtemp", Path: prefix + "*" + suffix, Err: ErrExist}
 		}
 		if IsNotExist(err) {
 			if _, err := Stat(dir); IsNotExist(err) {

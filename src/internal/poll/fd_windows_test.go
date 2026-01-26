@@ -6,123 +6,28 @@ package poll_test
 
 import (
 	"errors"
-	"fmt"
 	"internal/poll"
 	"internal/syscall/windows"
+	"io"
 	"os"
-	"sync"
+	"path/filepath"
 	"syscall"
 	"testing"
 	"unsafe"
 )
 
-type loggedFD struct {
-	Net string
-	FD  *poll.FD
-	Err error
-}
-
-var (
-	logMu     sync.Mutex
-	loggedFDs map[syscall.Handle]*loggedFD
-)
-
-func logFD(net string, fd *poll.FD, err error) {
-	logMu.Lock()
-	defer logMu.Unlock()
-
-	loggedFDs[fd.Sysfd] = &loggedFD{
-		Net: net,
-		FD:  fd,
-		Err: err,
-	}
-}
-
 func init() {
-	loggedFDs = make(map[syscall.Handle]*loggedFD)
-	*poll.LogInitFD = logFD
-
 	poll.InitWSA()
 }
 
-func findLoggedFD(h syscall.Handle) (lfd *loggedFD, found bool) {
-	logMu.Lock()
-	defer logMu.Unlock()
-
-	lfd, found = loggedFDs[h]
-	return lfd, found
-}
-
-// checkFileIsNotPartOfNetpoll verifies that f is not managed by netpoll.
-// It returns error, if check fails.
-func checkFileIsNotPartOfNetpoll(f *os.File) error {
-	lfd, found := findLoggedFD(syscall.Handle(f.Fd()))
-	if !found {
-		return fmt.Errorf("%v fd=%v: is not found in the log", f.Name(), f.Fd())
-	}
-	if lfd.FD.IsPartOfNetpoll() {
-		return fmt.Errorf("%v fd=%v: is part of netpoll, but should not be (logged: net=%v err=%v)", f.Name(), f.Fd(), lfd.Net, lfd.Err)
-	}
-	return nil
-}
-
-func TestFileFdsAreInitialised(t *testing.T) {
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	f, err := os.Open(exe)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	err = checkFileIsNotPartOfNetpoll(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestSerialFdsAreInitialised(t *testing.T) {
-	for _, name := range []string{"COM1", "COM2", "COM3", "COM4"} {
-		t.Run(name, func(t *testing.T) {
-			h, err := syscall.CreateFile(syscall.StringToUTF16Ptr(name),
-				syscall.GENERIC_READ|syscall.GENERIC_WRITE,
-				0,
-				nil,
-				syscall.OPEN_EXISTING,
-				syscall.FILE_ATTRIBUTE_NORMAL|syscall.FILE_FLAG_OVERLAPPED,
-				0)
-			if err != nil {
-				if errno, ok := err.(syscall.Errno); ok {
-					switch errno {
-					case syscall.ERROR_FILE_NOT_FOUND,
-						syscall.ERROR_ACCESS_DENIED:
-						t.Log("Skipping: ", err)
-						return
-					}
-				}
-				t.Fatal(err)
-			}
-			f := os.NewFile(uintptr(h), name)
-			defer f.Close()
-
-			err = checkFileIsNotPartOfNetpoll(f)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
-	}
-}
-
 func TestWSASocketConflict(t *testing.T) {
+	t.Parallel()
 	s, err := windows.WSASocket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP, nil, 0, windows.WSA_FLAG_OVERLAPPED)
 	if err != nil {
 		t.Fatal(err)
 	}
 	fd := poll.FD{Sysfd: s, IsStream: true, ZeroReadIsEOF: true}
-	_, err = fd.Init("tcp", true)
-	if err != nil {
+	if err = fd.Init("tcp", true); err != nil {
 		syscall.CloseHandle(s)
 		t.Fatal(err)
 	}
@@ -184,4 +89,78 @@ type _TCP_INFO_v0 struct {
 	DupAcksIn         uint32
 	TimeoutEpisodes   uint32
 	SynRetrans        uint8
+}
+
+func newFD(t testing.TB, h syscall.Handle, kind string, overlapped bool) *poll.FD {
+	fd := poll.FD{
+		Sysfd:         h,
+		IsStream:      true,
+		ZeroReadIsEOF: true,
+	}
+	err := fd.Init(kind, overlapped)
+	if overlapped && err != nil {
+		// Overlapped file handles should not error.
+		fd.Close()
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		fd.Close()
+	})
+	return &fd
+}
+
+func newFile(t testing.TB, name string, overlapped bool) *poll.FD {
+	namep, err := syscall.UTF16PtrFromString(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flags := syscall.FILE_ATTRIBUTE_NORMAL
+	if overlapped {
+		flags |= syscall.FILE_FLAG_OVERLAPPED
+	}
+	h, err := syscall.CreateFile(namep,
+		syscall.GENERIC_READ|syscall.GENERIC_WRITE,
+		syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_READ,
+		nil, syscall.OPEN_ALWAYS, uint32(flags), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	typ, err := syscall.GetFileType(h)
+	if err != nil {
+		syscall.CloseHandle(h)
+		t.Fatal(err)
+	}
+	kind := "file"
+	if typ == syscall.FILE_TYPE_PIPE {
+		kind = "pipe"
+	}
+	return newFD(t, h, kind, overlapped)
+}
+
+func BenchmarkReadOverlapped(b *testing.B) {
+	benchmarkRead(b, true)
+}
+
+func BenchmarkReadSync(b *testing.B) {
+	benchmarkRead(b, false)
+}
+
+func benchmarkRead(b *testing.B, overlapped bool) {
+	name := filepath.Join(b.TempDir(), "foo")
+	const content = "hello world"
+	err := os.WriteFile(name, []byte(content), 0644)
+	if err != nil {
+		b.Fatal(err)
+	}
+	file := newFile(b, name, overlapped)
+	var buf [len(content)]byte
+	for b.Loop() {
+		_, err := io.ReadFull(file, buf[:])
+		if err != nil {
+			b.Fatal(err)
+		}
+		if _, err := file.Seek(0, io.SeekStart); err != nil {
+			b.Fatal(err)
+		}
+	}
 }

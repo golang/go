@@ -1,4 +1,4 @@
-// errorcheck
+// compile
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -6,7 +6,7 @@
 
 package p
 
-type T[U interface{ M() T[U] }] int // ERROR "invalid recursive type: T refers to itself"
+type T[U interface{ M() T[U] }] int
 
 type X int
 

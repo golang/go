@@ -494,13 +494,13 @@ func foo70(mv1 *MV, m M) { // ERROR "leaking param: m$" "leaking param: mv1$"
 
 func foo71(x *int) []*int { // ERROR "leaking param: x$"
 	var y []*int
-	y = append(y, x)
+	y = append(y, x) // ERROR "append escapes to heap"
 	return y
 }
 
 func foo71a(x int) []*int { // ERROR "moved to heap: x$"
 	var y []*int
-	y = append(y, &x)
+	y = append(y, &x) // ERROR "append escapes to heap"
 	return y
 }
 
@@ -860,12 +860,12 @@ func foo104(x []*int) { // ERROR "leaking param content: x"
 
 // does not leak x but does leak content
 func foo105(x []*int) { // ERROR "leaking param content: x"
-	_ = append(y, x...)
+	_ = append(y, x...) // ERROR "append does not escape"
 }
 
 // does leak x
 func foo106(x *int) { // ERROR "leaking param: x$"
-	_ = append(y, x)
+	_ = append(y, x) // ERROR "append does not escape"
 }
 
 func foo107(x *int) map[*int]*int { // ERROR "leaking param: x$"

@@ -56,6 +56,14 @@ env CGO_CFLAGS=-fprofile-instr-generate
 go build -x -n -o dummy.exe ./usesInternalCgo
 stderr preferlinkext
 
+# Trimming file information for the UndefinedBehaviorSanitizer is permitted for internal linking.
+env CGO_CFLAGS=-fsanitize-undefined-strip-path-components=-1
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+env CGO_CFLAGS=-fsanitize-undefined-strip-path-components=2
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+
 # The -fdebug-prefix-map=path is permitted for internal linking.
 env CGO_CFLAGS=-fdebug-prefix-map=/some/sandbox/execroot/workspace=/tmp/new
 go build -x -n -o dummy.exe ./usesInternalCgo

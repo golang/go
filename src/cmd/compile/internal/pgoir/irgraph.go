@@ -158,7 +158,7 @@ func New(profileFile string) (*Profile, error) {
 	}, nil
 }
 
-// initializeIRGraph builds the IRGraph by visiting all the ir.Func in decl list
+// createIRGraph builds the IRGraph by visiting all the ir.Func in decl list
 // of a package.
 func createIRGraph(namedEdgeMap pgo.NamedEdgeMap) *IRGraph {
 	g := &IRGraph{

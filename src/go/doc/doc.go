@@ -167,6 +167,8 @@ func (p *Package) collectTypes(types []*Type) {
 		p.collectValues(t.Vars)
 		p.collectFuncs(t.Funcs)
 		p.collectFuncs(t.Methods)
+		p.collectInterfaceMethods(t)
+		p.collectStructFields(t)
 	}
 }
 
@@ -184,10 +186,56 @@ func (p *Package) collectFuncs(funcs []*Func) {
 	}
 }
 
+// collectInterfaceMethods adds methods of interface types within t to p.syms.
+// Note that t.Methods will contain methods of non-interface types, but not interface types.
+// Adding interface methods to t.Methods might make sense, but would cause us to
+// include those methods in the documentation index. Adding interface methods to p.syms
+// here allows us to linkify references like [io.Reader.Read] without making any other
+// changes to the documentation formatting at this time.
+//
+// If we do start adding interface methods to t.Methods in the future,
+// collectInterfaceMethods can be dropped as redundant with collectFuncs(t.Methods).
+func (p *Package) collectInterfaceMethods(t *Type) {
+	for _, s := range t.Decl.Specs {
+		spec, ok := s.(*ast.TypeSpec)
+		if !ok {
+			continue
+		}
+		list, isStruct := fields(spec.Type)
+		if isStruct {
+			continue
+		}
+		for _, field := range list {
+			for _, name := range field.Names {
+				p.syms[t.Name+"."+name.Name] = true
+			}
+		}
+	}
+}
+
+func (p *Package) collectStructFields(t *Type) {
+	for _, s := range t.Decl.Specs {
+		spec, ok := s.(*ast.TypeSpec)
+		if !ok {
+			continue
+		}
+		list, isStruct := fields(spec.Type)
+		if !isStruct {
+			continue
+		}
+		for _, field := range list {
+			for _, name := range field.Names {
+				p.syms[t.Name+"."+name.Name] = true
+			}
+		}
+	}
+}
+
 // NewFromFiles computes documentation for a package.
 //
 // The package is specified by a list of *ast.Files and corresponding
 // file set, which must not be nil.
+//
 // NewFromFiles uses all provided files when computing documentation,
 // so it is the caller's responsibility to provide only the files that
 // match the desired build context. "go/build".Context.MatchFile can
@@ -226,47 +274,36 @@ func NewFromFiles(fset *token.FileSet, files []*ast.File, importPath string, opt
 
 	// Collect .go and _test.go files.
 	var (
+		pkgName     string
 		goFiles     = make(map[string]*ast.File)
 		testGoFiles []*ast.File
 	)
-	for i := range files {
-		f := fset.File(files[i].Pos())
+	for i, file := range files {
+		f := fset.File(file.Pos())
 		if f == nil {
 			return nil, fmt.Errorf("file files[%d] is not found in the provided file set", i)
 		}
-		switch name := f.Name(); {
-		case strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go"):
-			goFiles[name] = files[i]
-		case strings.HasSuffix(name, "_test.go"):
-			testGoFiles = append(testGoFiles, files[i])
+		switch filename := f.Name(); {
+		case strings.HasSuffix(filename, "_test.go"):
+			testGoFiles = append(testGoFiles, file)
+		case strings.HasSuffix(filename, ".go"):
+			pkgName = file.Name.Name
+			goFiles[filename] = file
 		default:
-			return nil, fmt.Errorf("file files[%d] filename %q does not have a .go extension", i, name)
+			return nil, fmt.Errorf("file files[%d] filename %q does not have a .go extension", i, filename)
 		}
 	}
 
-	// TODO(dmitshur,gri): A relatively high level call to ast.NewPackage with a simpleImporter
-	// ast.Importer implementation is made below. It might be possible to short-circuit and simplify.
-
 	// Compute package documentation.
-	pkg, _ := ast.NewPackage(fset, goFiles, simpleImporter, nil) // Ignore errors that can happen due to unresolved identifiers.
+	//
+	// Since this package doesn't need Package.{Scope,Imports}, or
+	// handle errors, and ast.File's Scope field is unset in files
+	// parsed with parser.SkipObjectResolution, we construct the
+	// Package directly instead of calling [ast.NewPackage].
+	pkg := &ast.Package{Name: pkgName, Files: goFiles}
 	p := New(pkg, importPath, mode)
 	classifyExamples(p, Examples(testGoFiles...))
 	return p, nil
-}
-
-// simpleImporter returns a (dummy) package object named by the last path
-// component of the provided package path (as is the convention for packages).
-// This is sufficient to resolve package identifiers without doing an actual
-// import. It never returns an error.
-func simpleImporter(imports map[string]*ast.Object, path string) (*ast.Object, error) {
-	pkg := imports[path]
-	if pkg == nil {
-		// note that strings.LastIndex returns -1 if there is no "/"
-		pkg = ast.NewObj(ast.Pkg, path[strings.LastIndex(path, "/")+1:])
-		pkg.Data = ast.NewScope(nil) // required by ast.NewPackage for dot-import
-		imports[path] = pkg
-	}
-	return pkg, nil
 }
 
 // lookupSym reports whether the package has a given symbol or method.

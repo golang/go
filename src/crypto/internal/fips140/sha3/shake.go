@@ -23,14 +23,14 @@ type SHAKE struct {
 	initBlock []byte
 }
 
-func bytepad(data []byte, rate int) []byte {
-	out := make([]byte, 0, 9+len(data)+rate-1)
-	out = append(out, leftEncode(uint64(rate))...)
-	out = append(out, data...)
-	if padlen := rate - len(out)%rate; padlen < rate {
-		out = append(out, make([]byte, padlen)...)
+func bytepadWrite(c *SHAKE, data []byte, rate int) {
+	rateEnc := leftEncode(uint64(rate))
+	c.Write(rateEnc)
+	c.Write(data)
+	if padlen := rate - (len(rateEnc)+len(data))%rate; padlen < rate {
+		const maxRate = rateK256
+		c.Write(make([]byte, padlen, maxRate)) // explicit cap to allow stack allocation
 	}
-	return out
 }
 
 func leftEncode(x uint64) []byte {
@@ -47,14 +47,14 @@ func leftEncode(x uint64) []byte {
 	return b
 }
 
-func newCShake(N, S []byte, rate, outputLen int, dsbyte byte) *SHAKE {
-	c := &SHAKE{d: Digest{rate: rate, outputLen: outputLen, dsbyte: dsbyte}}
+func newCShake(c *SHAKE, N, S []byte, rate, outputLen int, dsbyte byte) *SHAKE {
+	c.d = Digest{rate: rate, outputLen: outputLen, dsbyte: dsbyte}
 	c.initBlock = make([]byte, 0, 9+len(N)+9+len(S)) // leftEncode returns max 9 bytes
 	c.initBlock = append(c.initBlock, leftEncode(uint64(len(N))*8)...)
 	c.initBlock = append(c.initBlock, N...)
 	c.initBlock = append(c.initBlock, leftEncode(uint64(len(S))*8)...)
 	c.initBlock = append(c.initBlock, S...)
-	c.Write(bytepad(c.initBlock, c.d.rate))
+	bytepadWrite(c, c.initBlock, c.d.rate)
 	return c
 }
 
@@ -82,7 +82,7 @@ func (s *SHAKE) Read(out []byte) (n int, err error) {
 func (s *SHAKE) Reset() {
 	s.d.Reset()
 	if len(s.initBlock) != 0 {
-		s.Write(bytepad(s.initBlock, s.d.rate))
+		bytepadWrite(s, s.initBlock, s.d.rate)
 	}
 }
 
@@ -132,10 +132,17 @@ func NewShake256() *SHAKE {
 // cSHAKE is desired. S is a customization byte string used for domain
 // separation. When N and S are both empty, this is equivalent to NewShake128.
 func NewCShake128(N, S []byte) *SHAKE {
+	// The actual logic is in a separate function to outline this allocation.
+	c := &SHAKE{}
+	return newCShake128(c, N, S)
+}
+
+func newCShake128(c *SHAKE, N, S []byte) *SHAKE {
 	if len(N) == 0 && len(S) == 0 {
-		return NewShake128()
+		*c = *NewShake128()
+		return c
 	}
-	return newCShake(N, S, rateK256, 32, dsbyteCShake)
+	return newCShake(c, N, S, rateK256, 32, dsbyteCShake)
 }
 
 // NewCShake256 creates a new cSHAKE256 XOF.
@@ -144,8 +151,15 @@ func NewCShake128(N, S []byte) *SHAKE {
 // cSHAKE is desired. S is a customization byte string used for domain
 // separation. When N and S are both empty, this is equivalent to NewShake256.
 func NewCShake256(N, S []byte) *SHAKE {
+	// The actual logic is in a separate function to outline this allocation.
+	c := &SHAKE{}
+	return newCShake256(c, N, S)
+}
+
+func newCShake256(c *SHAKE, N, S []byte) *SHAKE {
 	if len(N) == 0 && len(S) == 0 {
-		return NewShake256()
+		*c = *NewShake256()
+		return c
 	}
-	return newCShake(N, S, rateK512, 64, dsbyteCShake)
+	return newCShake(c, N, S, rateK512, 64, dsbyteCShake)
 }

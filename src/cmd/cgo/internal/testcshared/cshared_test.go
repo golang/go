@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/cgo/internal/cgotest"
+	"cmp"
 	"debug/elf"
 	"debug/pe"
 	"encoding/binary"
@@ -44,7 +45,7 @@ func TestMain(m *testing.M) {
 func testMain(m *testing.M) int {
 	log.SetFlags(log.Lshortfile)
 	flag.Parse()
-	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+	if testing.Short() && testenv.Builder() == "" {
 		globalSkip = func(t *testing.T) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
 		return m.Run()
 	}
@@ -75,7 +76,7 @@ func testMain(m *testing.M) int {
 	start := 0
 	lastSpace := true
 	backslash := false
-	s := string(out)
+	s := out
 	for i, c := range s {
 		if quote == '\000' && unicode.IsSpace(c) {
 			if !lastSpace {
@@ -272,7 +273,7 @@ func createHeaders() error {
 		// which results in the linkers output implib getting overwritten at each step. So instead build the
 		// import library the traditional way, using a def file.
 		err = os.WriteFile("libgo.def",
-			[]byte("LIBRARY libgo.dll\nEXPORTS\n\tDidInitRun\n\tDidMainRun\n\tDivu\n\tFromPkg\n\t_cgo_dummy_export\n"),
+			[]byte("LIBRARY libgo.dll\nEXPORTS\n\tDidInitRun\n\tDidMainRun\n\tDivu\n\tFromPkg\n"),
 			0644)
 		if err != nil {
 			return fmt.Errorf("unable to write def file: %v", err)
@@ -375,27 +376,22 @@ func TestExportedSymbols(t *testing.T) {
 	}
 }
 
-func checkNumberOfExportedFunctionsWindows(t *testing.T, exportAllSymbols bool) {
-	const prog = `
+func checkNumberOfExportedSymbolsWindows(t *testing.T, exportedSymbols int, wantAll bool) {
+	t.Parallel()
+	tmpdir := t.TempDir()
+
+	prog := `
 package main
-
 import "C"
-
-//export GoFunc
-func GoFunc() {
-	println(42)
-}
-
-//export GoFunc2
-func GoFunc2() {
-	println(24)
-}
-
-func main() {
-}
+func main() {}
 `
 
-	tmpdir := t.TempDir()
+	for i := range exportedSymbols {
+		prog += fmt.Sprintf(`
+//export GoFunc%d
+func GoFunc%d() {}
+`, i, i)
+	}
 
 	srcfile := filepath.Join(tmpdir, "test.go")
 	objfile := filepath.Join(tmpdir, "test.dll")
@@ -403,11 +399,11 @@ func main() {
 		t.Fatal(err)
 	}
 	argv := []string{"build", "-buildmode=c-shared"}
-	if exportAllSymbols {
+	if wantAll {
 		argv = append(argv, "-ldflags", "-extldflags=-Wl,--export-all-symbols")
 	}
 	argv = append(argv, "-o", objfile, srcfile)
-	out, err := exec.Command("go", argv...).CombinedOutput()
+	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("build failure: %s\n%s\n", err, string(out))
 	}
@@ -417,10 +413,36 @@ func main() {
 		t.Fatalf("pe.Open failed: %v", err)
 	}
 	defer f.Close()
-	section := f.Section(".edata")
-	if section == nil {
-		t.Skip(".edata section is not present")
+
+	_, pe64 := f.OptionalHeader.(*pe.OptionalHeader64)
+	// grab the export data directory entry
+	var idd pe.DataDirectory
+	if pe64 {
+		idd = f.OptionalHeader.(*pe.OptionalHeader64).DataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXPORT]
+	} else {
+		idd = f.OptionalHeader.(*pe.OptionalHeader32).DataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXPORT]
 	}
+
+	// figure out which section contains the import directory table
+	var section *pe.Section
+	for _, s := range f.Sections {
+		if s.Offset == 0 {
+			continue
+		}
+		if s.VirtualAddress <= idd.VirtualAddress && idd.VirtualAddress-s.VirtualAddress < s.VirtualSize {
+			section = s
+			break
+		}
+	}
+	if section == nil {
+		t.Fatal("no section contains export directory")
+	}
+	d, err := section.Data()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// seek to the virtual address specified in the export data directory
+	d = d[idd.VirtualAddress-section.VirtualAddress:]
 
 	// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
 	type IMAGE_EXPORT_DIRECTORY struct {
@@ -432,26 +454,23 @@ func main() {
 		_                 [3]uint32
 	}
 	var e IMAGE_EXPORT_DIRECTORY
-	if err := binary.Read(section.Open(), binary.LittleEndian, &e); err != nil {
+	if err := binary.Read(bytes.NewReader(d), binary.LittleEndian, &e); err != nil {
 		t.Fatalf("binary.Read failed: %v", err)
 	}
 
-	// Only the two exported functions and _cgo_dummy_export should be exported
-	expectedNumber := uint32(3)
+	exportedSymbols = cmp.Or(exportedSymbols, 1) // _cgo_stub_export is exported if there are no other symbols exported
 
-	if exportAllSymbols {
-		if e.NumberOfFunctions <= expectedNumber {
-			t.Fatalf("missing exported functions: %v", e.NumberOfFunctions)
-		}
-		if e.NumberOfNames <= expectedNumber {
-			t.Fatalf("missing exported names: %v", e.NumberOfNames)
+	// NumberOfNames is the number of functions exported with a unique name.
+	// NumberOfFunctions can be higher than that because it also counts
+	// functions exported only by ordinal, a unique number asigned by the linker,
+	// and linkers might add an unknown number of their own ordinal-only functions.
+	if wantAll {
+		if e.NumberOfNames <= uint32(exportedSymbols) {
+			t.Errorf("got %d exported names, want > %d", e.NumberOfNames, exportedSymbols)
 		}
 	} else {
-		if e.NumberOfFunctions != expectedNumber {
-			t.Fatalf("got %d exported functions; want %d", e.NumberOfFunctions, expectedNumber)
-		}
-		if e.NumberOfNames != expectedNumber {
-			t.Fatalf("got %d exported names; want %d", e.NumberOfNames, expectedNumber)
+		if e.NumberOfNames != uint32(exportedSymbols) {
+			t.Errorf("got %d exported names, want %d", e.NumberOfNames, exportedSymbols)
 		}
 	}
 }
@@ -467,12 +486,14 @@ func TestNumberOfExportedFunctions(t *testing.T) {
 
 	t.Parallel()
 
-	t.Run("OnlyExported", func(t *testing.T) {
-		checkNumberOfExportedFunctionsWindows(t, false)
-	})
-	t.Run("All", func(t *testing.T) {
-		checkNumberOfExportedFunctionsWindows(t, true)
-	})
+	for i := range 3 {
+		t.Run(fmt.Sprintf("OnlyExported/%d", i), func(t *testing.T) {
+			checkNumberOfExportedSymbolsWindows(t, i, false)
+		})
+		t.Run(fmt.Sprintf("All/%d", i), func(t *testing.T) {
+			checkNumberOfExportedSymbolsWindows(t, i, true)
+		})
+	}
 }
 
 // test1: shared library can be dynamically loaded and exported symbols are accessible.
@@ -876,6 +897,47 @@ func TestIssue36233(t *testing.T) {
 	if err = scanner.Err(); err != nil {
 		t.Errorf("scanner encountered error: %v", err)
 	}
+	if found != len(funcs) {
+		t.Error("missing functions")
+	}
+}
+
+func TestIssue68411(t *testing.T) {
+	globalSkip(t)
+	testenv.MustHaveCGO(t)
+
+	t.Parallel()
+
+	// Test that the export header uses a void function parameter for
+	// exported Go functions with no parameters.
+
+	tmpdir := t.TempDir()
+
+	const exportHeader = "issue68411.h"
+
+	run(t, nil, "go", "tool", "cgo", "-exportheader", exportHeader, "-objdir", tmpdir, "./issue68411/issue68411.go")
+	data, err := os.ReadFile(exportHeader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	funcs := []struct{ name, signature string }{
+		{"exportFuncWithNoParams", "void exportFuncWithNoParams(void)"},
+		{"exportFuncWithParams", "exportFuncWithParams(GoInt a, GoInt b)"},
+	}
+
+	var found int
+	for line := range bytes.Lines(data) {
+		for _, fn := range funcs {
+			if bytes.Contains(line, []byte(fn.name)) {
+				found++
+				if !bytes.Contains(line, []byte(fn.signature)) {
+					t.Errorf("function signature mismatch; got %q, want %q", line, fn.signature)
+				}
+			}
+		}
+	}
+
 	if found != len(funcs) {
 		t.Error("missing functions")
 	}

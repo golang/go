@@ -105,9 +105,12 @@ var (
 	FlagStrictDups    = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
 	FlagRound         = flag.Int64("R", -1, "set address rounding `quantum`")
 	FlagTextAddr      = flag.Int64("T", -1, "set the start address of text symbols")
+	FlagDataAddr      = flag.Int64("D", -1, "set the start address of data symbols")
+	FlagFuncAlign     = flag.Int("funcalign", 0, "set function align to `N` bytes")
 	flagEntrySymbol   = flag.String("E", "", "set `entry` symbol name")
 	flagPruneWeakMap  = flag.Bool("pruneweakmap", true, "prune weak mapinit refs")
 	flagRandLayout    = flag.Int64("randlayout", 0, "randomize function layout")
+	flagAllErrors     = flag.Bool("e", false, "no limit on number of errors reported")
 	cpuprofile        = flag.String("cpuprofile", "", "write cpu profile to `file`")
 	memprofile        = flag.String("memprofile", "", "write memory profile to `file`")
 	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
@@ -185,7 +188,11 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	buildVersion := buildcfg.Version
 	if goexperiment := buildcfg.Experiment.String(); goexperiment != "" {
-		buildVersion += " X:" + goexperiment
+		sep := " "
+		if !strings.Contains(buildVersion, "-") { // See go.dev/issue/75953.
+			sep = "-"
+		}
+		buildVersion += sep + "X:" + goexperiment
 	}
 	addstrdata1(ctxt, "runtime.buildVersion="+buildVersion)
 
@@ -250,6 +257,9 @@ func Main(arch *sys.Arch, theArch Arch) {
 	if *FlagRound != -1 && (*FlagRound < 4096 || !isPowerOfTwo(*FlagRound)) {
 		Exitf("invalid -R value 0x%x", *FlagRound)
 	}
+	if *FlagFuncAlign != 0 && !isPowerOfTwo(int64(*FlagFuncAlign)) {
+		Exitf("invalid -funcalign value %d", *FlagFuncAlign)
+	}
 
 	checkStrictDups = *FlagStrictDups
 
@@ -287,14 +297,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	interpreter = *flagInterpreter
 
-	if *flagBuildid == "" && ctxt.Target.IsOpenbsd() {
-		// TODO(jsing): Remove once direct syscalls are no longer in use.
-		// OpenBSD 6.7 onwards will not permit direct syscalls from a
-		// dynamically linked binary unless it identifies the binary
-		// contains a .note.go.buildid ELF note. See issue #36435.
-		*flagBuildid = "go-openbsd"
-	}
-
 	if *flagHostBuildid == "" && *flagBuildid != "" {
 		*flagHostBuildid = "gobuildid"
 	}
@@ -319,6 +321,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.computeTLSOffset()
 	bench.Start("Archinit")
 	thearch.Archinit(ctxt)
+
+	if *FlagDataAddr != -1 && *FlagDataAddr%*FlagRound != 0 {
+		Exitf("invalid -D value 0x%x: not aligned to rounding quantum 0x%x", *FlagDataAddr, *FlagRound)
+	}
 
 	if ctxt.linkShared && !ctxt.IsELF {
 		Exitf("-linkshared can only be used on elf systems")

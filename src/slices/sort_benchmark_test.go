@@ -23,7 +23,7 @@ func BenchmarkBinarySearchFloats(b *testing.B) {
 			needle := (floats[midpoint] + floats[midpoint+1]) / 2
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				slices.BinarySearch(floats, needle)
+				_, _ = slices.BinarySearch(floats, needle)
 			}
 		})
 	}
@@ -46,7 +46,7 @@ func BenchmarkBinarySearchFuncStruct(b *testing.B) {
 			cmpFunc := func(a, b *myStruct) int { return a.n - b.n }
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				slices.BinarySearchFunc(structs, needle, cmpFunc)
+				_, _ = slices.BinarySearchFunc(structs, needle, cmpFunc)
 			}
 		})
 	}

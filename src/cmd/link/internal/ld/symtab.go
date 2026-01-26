@@ -101,7 +101,7 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 			ldr.Errorf(x, "missing ELF section in putelfsym")
 			return
 		}
-		elfshnum = xosect.Elfsect.(*ElfShdr).shnum
+		elfshnum = elfShdrShnum(xosect.Elfsect.(*ElfShdr))
 	}
 
 	sname := ldr.SymExtname(x)
@@ -155,7 +155,7 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 	// match exactly. Tools like DTrace will have to wait for now.
 	if !ctxt.DynlinkingGo() {
 		// Rewrite · to . for ASCII-only tools like DTrace (sigh)
-		sname = strings.Replace(sname, "·", ".", -1)
+		sname = strings.ReplaceAll(sname, "·", ".")
 	}
 
 	if ctxt.DynlinkingGo() && bind == elf.STB_GLOBAL && curbind == elf.STB_LOCAL && ldr.SymType(x).IsText() {
@@ -244,7 +244,7 @@ func genelfsym(ctxt *Link, elfbind elf.SymBind) {
 			continue
 		}
 		st := ldr.SymType(s)
-		if st >= sym.SELFRXSECT && st < sym.SXREF {
+		if st >= sym.SELFRXSECT && st < sym.SFirstUnallocated {
 			typ := elf.STT_OBJECT
 			if st == sym.STLSBSS {
 				if ctxt.IsInternal() {
@@ -345,7 +345,7 @@ func asmbPlan9Sym(ctxt *Link) {
 			continue
 		}
 		t := ldr.SymType(s)
-		if t >= sym.SELFRXSECT && t < sym.SXREF { // data sections handled in dodata
+		if t >= sym.SELFRXSECT && t < sym.SFirstUnallocated { // data sections handled in dodata
 			if t == sym.STLSBSS {
 				continue
 			}
@@ -446,7 +446,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	ctxt.xdefine("runtime.ecovctrs", sym.SNOPTRBSS, 0)
 	ctxt.xdefine("runtime.end", sym.SBSS, 0)
 	ctxt.xdefine("runtime.epclntab", sym.SRODATA, 0)
-	ctxt.xdefine("runtime.esymtab", sym.SRODATA, 0)
 
 	// garbage collection symbols
 	s := ldr.CreateSymForUpdate("runtime.gcdata", 0)
@@ -460,30 +459,14 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	ctxt.xdefine("runtime.egcbss", sym.SRODATA, 0)
 
 	// pseudo-symbols to mark locations of type, string, and go string data.
-	var symtype, symtyperel loader.Sym
+	var symtype loader.Sym
 	if !ctxt.DynlinkingGo() {
-		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
-			s = ldr.CreateSymForUpdate("type:*", 0)
-			s.SetType(sym.STYPE)
-			s.SetSize(0)
-			s.SetAlign(int32(ctxt.Arch.PtrSize))
-			symtype = s.Sym()
-
-			s = ldr.CreateSymForUpdate("typerel.*", 0)
-			s.SetType(sym.STYPERELRO)
-			s.SetSize(0)
-			s.SetAlign(int32(ctxt.Arch.PtrSize))
-			symtyperel = s.Sym()
-		} else {
-			s = ldr.CreateSymForUpdate("type:*", 0)
-			s.SetType(sym.STYPE)
-			s.SetSize(0)
-			s.SetAlign(int32(ctxt.Arch.PtrSize))
-			symtype = s.Sym()
-			symtyperel = s.Sym()
-		}
+		s = ldr.CreateSymForUpdate("type:*", 0)
+		s.SetType(sym.STYPE)
+		s.SetSize(0)
+		s.SetAlign(int32(ctxt.Arch.PtrSize))
+		symtype = s.Sym()
 		setCarrierSym(sym.STYPE, symtype)
-		setCarrierSym(sym.STYPERELRO, symtyperel)
 	}
 
 	groupSym := func(name string, t sym.SymKind) loader.Sym {
@@ -497,19 +480,9 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	}
 	var (
 		symgostring = groupSym("go:string.*", sym.SGOSTRING)
-		symgofunc   = groupSym("go:func.*", sym.SGOFUNC)
+		symgofunc   = groupSym("go:funcdesc", sym.SGOFUNC)
 		symgcbits   = groupSym("runtime.gcbits.*", sym.SGCBITS)
 	)
-
-	symgofuncrel := symgofunc
-	if ctxt.UseRelro() {
-		symgofuncrel = groupSym("go:funcrel.*", sym.SGOFUNCRELRO)
-	}
-
-	symt := ldr.CreateSymForUpdate("runtime.symtab", 0)
-	symt.SetType(sym.SSYMTAB)
-	symt.SetSize(0)
-	symt.SetLocal(true)
 
 	// assign specific types so that they sort together.
 	// within a type they sort by size, so the .* symbols
@@ -543,53 +516,17 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		case strings.HasSuffix(name, "·f"):
 			if !ctxt.DynlinkingGo() {
 				ldr.SetAttrNotInSymbolTable(s, true)
-			}
-			if ctxt.UseRelro() {
-				symGroupType[s] = sym.SGOFUNCRELRO
-				if !ctxt.DynlinkingGo() {
-					ldr.SetCarrierSym(s, symgofuncrel)
-				}
-			} else {
-				symGroupType[s] = sym.SGOFUNC
 				ldr.SetCarrierSym(s, symgofunc)
 			}
-
-		case strings.HasPrefix(name, "gcargs."),
-			strings.HasPrefix(name, "gclocals."),
-			strings.HasPrefix(name, "gclocals·"),
-			ldr.SymType(s) == sym.SGOFUNC && s != symgofunc, // inltree, see pcln.go
-			strings.HasSuffix(name, ".opendefer"),
-			strings.HasSuffix(name, ".arginfo0"),
-			strings.HasSuffix(name, ".arginfo1"),
-			strings.HasSuffix(name, ".argliveinfo"),
-			strings.HasSuffix(name, ".wrapinfo"),
-			strings.HasSuffix(name, ".args_stackmap"),
-			strings.HasSuffix(name, ".stkobj"):
-			ldr.SetAttrNotInSymbolTable(s, true)
 			symGroupType[s] = sym.SGOFUNC
-			ldr.SetCarrierSym(s, symgofunc)
-			if ctxt.Debugvlog != 0 {
-				align := ldr.SymAlign(s)
-				liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)
-			}
 
-		// Note: Check for "type:" prefix after checking for .arginfo1 suffix.
-		// That way symbols like "type:.eq.[2]interface {}.arginfo1" that belong
-		// in go:func.* end up there.
 		case strings.HasPrefix(name, "type:"):
 			if !ctxt.DynlinkingGo() {
 				ldr.SetAttrNotInSymbolTable(s, true)
 			}
-			if ctxt.UseRelro() {
-				symGroupType[s] = sym.STYPERELRO
-				if symtyperel != 0 {
-					ldr.SetCarrierSym(s, symtyperel)
-				}
-			} else {
-				symGroupType[s] = sym.STYPE
-				if symtyperel != 0 {
-					ldr.SetCarrierSym(s, symtype)
-				}
+			symGroupType[s] = sym.STYPE
+			if symtype != 0 {
+				ldr.SetCarrierSym(s, symtype)
 			}
 		}
 	}
@@ -645,7 +582,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	sliceSym(pcln.funcnametab)
 
 	// The cutab slice
-	sliceSym(pcln.cutab)
+	slice(pcln.cutab, uint64(ldr.SymSize(pcln.cutab))/4)
 
 	// The filetab slice
 	sliceSym(pcln.filetab)
@@ -654,7 +591,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	sliceSym(pcln.pctab)
 
 	// The pclntab slice
-	slice(pcln.pclntab, uint64(ldr.SymSize(pcln.pclntab)))
+	sliceSym(pcln.pclntab)
 
 	// The ftab slice
 	slice(pcln.pclntab, uint64(pcln.nfunc+1))
@@ -684,6 +621,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.etypes", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.rodata", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("go:func.*", 0))
+	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.epclntab", 0))
 
 	if ctxt.IsAIX() && ctxt.IsExternal() {
 		// Add R_XCOFFREF relocation to prevent ld's garbage collection of
@@ -700,6 +638,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		addRef("runtime.rodata")
 		addRef("runtime.erodata")
 		addRef("runtime.epclntab")
+		addRef("go:func.*")
 		// As we use relative addressing for text symbols in functab, it is
 		// important that the offsets we computed stay unchanged by the external
 		// linker, i.e. all symbols in Textp should not be removed.
@@ -843,7 +782,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 }
 
 // CarrierSymByType tracks carrier symbols and their sizes.
-var CarrierSymByType [sym.SXREF]struct {
+var CarrierSymByType [sym.SFirstUnallocated]struct {
 	Sym  loader.Sym
 	Size int64
 }

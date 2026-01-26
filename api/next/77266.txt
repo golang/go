@@ -1,0 +1,16 @@
+pkg unicode, const Version = "17.0.0" #77266
+pkg unicode, var Beria_Erfe *RangeTable #77266
+pkg unicode, var Garay *RangeTable #77266
+pkg unicode, var Gurung_Khema *RangeTable #77266
+pkg unicode, var IDS_Unary_Operator *RangeTable #77266
+pkg unicode, var ID_Compat_Math_Continue *RangeTable #77266
+pkg unicode, var ID_Compat_Math_Start *RangeTable #77266
+pkg unicode, var Kirat_Rai *RangeTable #77266
+pkg unicode, var Modifier_Combining_Mark *RangeTable #77266
+pkg unicode, var Ol_Onal *RangeTable #77266
+pkg unicode, var Sidetic *RangeTable #77266
+pkg unicode, var Sunuwar *RangeTable #77266
+pkg unicode, var Tai_Yo *RangeTable #77266
+pkg unicode, var Todhri *RangeTable #77266
+pkg unicode, var Tolong_Siki *RangeTable #77266
+pkg unicode, var Tulu_Tigalari *RangeTable #77266

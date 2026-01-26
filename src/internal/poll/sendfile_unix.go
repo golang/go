@@ -27,29 +27,29 @@ import (
 // If handled is false, sendfile was unable to perform the copy,
 // has not modified the source or destination,
 // and the caller should perform the copy using a fallback implementation.
-func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool) {
+func SendFile(dstFD *FD, src uintptr, size int64) (n int64, err error, handled bool) {
 	if goos := runtime.GOOS; goos == "linux" || goos == "android" {
 		// Linux's sendfile doesn't require any setup:
 		// It sends from the current position of the source file and
 		// updates the position of the source after sending.
-		return sendFile(dstFD, src, nil, size)
+		return sendFile(dstFD, int(src), nil, size)
 	}
 
 	// Non-Linux sendfile implementations don't use the current position of the source file,
 	// so we need to look up the position, pass it explicitly, and adjust it after
 	// sendfile returns.
 	start, err := ignoringEINTR2(func() (int64, error) {
-		return syscall.Seek(src, 0, io.SeekCurrent)
+		return syscall.Seek(int(src), 0, io.SeekCurrent)
 	})
 	if err != nil {
 		return 0, err, false
 	}
 
 	pos := start
-	n, err, handled = sendFile(dstFD, src, &pos, size)
+	n, err, handled = sendFile(dstFD, int(src), &pos, size)
 	if n > 0 {
 		ignoringEINTR2(func() (int64, error) {
-			return syscall.Seek(src, start+n, io.SeekStart)
+			return syscall.Seek(int(src), start+n, io.SeekStart)
 		})
 	}
 	return n, err, handled
@@ -58,7 +58,7 @@ func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool)
 // sendFile wraps the sendfile system call.
 func sendFile(dstFD *FD, src int, offset *int64, size int64) (written int64, err error, handled bool) {
 	defer func() {
-		TestHookDidSendFile(dstFD, src, written, err, handled)
+		TestHookDidSendFile(dstFD, uintptr(src), written, err, handled)
 	}()
 	if err := dstFD.writeLock(); err != nil {
 		return 0, err, false

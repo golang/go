@@ -7,7 +7,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"internal/trace"
 	"io"
 	"net/http/httptest"
 	"os"
@@ -19,6 +18,7 @@ import (
 	"time"
 
 	"internal/trace/raw"
+	"internal/trace/traceviewer"
 	"internal/trace/traceviewer/format"
 )
 
@@ -159,7 +159,7 @@ func checkNetworkUnblock(t *testing.T, data format.Data) {
 	count := 0
 	var netBlockEv *format.Event
 	for _, e := range data.Events {
-		if e.TID == trace.NetpollP && e.Name == "unblock (network)" && e.Phase == "I" && e.Scope == "t" {
+		if e.TID == traceviewer.NetpollP && e.Name == "unblock (network)" && e.Phase == "I" && e.Scope == "t" {
 			count++
 			netBlockEv = e
 		}

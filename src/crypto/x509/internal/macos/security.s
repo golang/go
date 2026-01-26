@@ -21,9 +21,7 @@ TEXT ·x509_SecTrustEvaluate_trampoline(SB),NOSPLIT,$0-0
 	JMP x509_SecTrustEvaluate(SB)
 TEXT ·x509_SecTrustEvaluateWithError_trampoline(SB),NOSPLIT,$0-0
 	JMP x509_SecTrustEvaluateWithError(SB)
-TEXT ·x509_SecTrustGetCertificateCount_trampoline(SB),NOSPLIT,$0-0
-	JMP x509_SecTrustGetCertificateCount(SB)
-TEXT ·x509_SecTrustGetCertificateAtIndex_trampoline(SB),NOSPLIT,$0-0
-	JMP x509_SecTrustGetCertificateAtIndex(SB)
 TEXT ·x509_SecCertificateCopyData_trampoline(SB),NOSPLIT,$0-0
 	JMP x509_SecCertificateCopyData(SB)
+TEXT ·x509_SecTrustCopyCertificateChain_trampoline(SB),NOSPLIT,$0-0
+	JMP x509_SecTrustCopyCertificateChain(SB)

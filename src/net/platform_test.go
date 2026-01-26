@@ -7,29 +7,10 @@ package net
 import (
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 )
-
-var unixEnabledOnAIX bool
-
-func init() {
-	if runtime.GOOS == "aix" {
-		// Unix network isn't properly working on AIX 7.2 with
-		// Technical Level < 2.
-		// The information is retrieved only once in this init()
-		// instead of everytime testableNetwork is called.
-		out, _ := exec.Command("oslevel", "-s").Output()
-		if len(out) >= len("7200-XX-ZZ-YYMM") { // AIX 7.2, Tech Level XX, Service Pack ZZ, date YYMM
-			aixVer := string(out[:4])
-			tl, _ := strconv.Atoi(string(out[5:7]))
-			unixEnabledOnAIX = aixVer > "7200" || (aixVer == "7200" && tl >= 2)
-		}
-	}
-}
 
 // testableNetwork reports whether network is testable on the current
 // platform configuration.
@@ -46,13 +27,15 @@ func testableNetwork(network string) bool {
 				return false
 			}
 		}
-	case "unix", "unixgram":
+	case "unixgram":
 		switch runtime.GOOS {
-		case "android", "ios", "plan9", "windows":
+		case "windows":
 			return false
-		case "aix":
-			return unixEnabledOnAIX
+		default:
+			return supportsUnixSocket()
 		}
+	case "unix":
+		return supportsUnixSocket()
 	case "unixpacket":
 		switch runtime.GOOS {
 		case "aix", "android", "darwin", "ios", "plan9", "windows":

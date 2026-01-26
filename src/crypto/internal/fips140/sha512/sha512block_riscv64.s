@@ -138,9 +138,8 @@
 #define SHA512ROUND(index, a, b, c, d, e, f, g, h) \
 	SHA512T1(index, e, f, g, h); \
 	SHA512T2(a, b, c); \
-	MOV	X6, h; \
 	ADD	X5, d; \
-	ADD	X5, h
+	ADD	X6, X5, h
 
 #define SHA512ROUND0(index, a, b, c, d, e, f, g, h) \
 	MSGSCHEDULE0(index); \

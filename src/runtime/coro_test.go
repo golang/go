@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"internal/race"
 	"internal/testenv"
 	"runtime"
 	"strings"
@@ -34,6 +35,9 @@ func TestCoroCgoCallback(t *testing.T) {
 	testenv.MustHaveCGO(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("coro cgo callback tests not supported on Windows")
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
 	for _, test := range []string{
 		"CoroCgoIterCallback",

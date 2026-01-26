@@ -23,13 +23,15 @@ import (
 // the lifetimes of separate values (for example, through a map with weak
 // keys).
 //
-// Two Pointer values always compare equal if the pointers from which they were
-// created compare equal. This property is retained even after the
-// object referenced by the pointer used to create a weak reference is
-// reclaimed.
+// Two Pointer values compare equal if and only if the pointers from which they
+// were created compare equal.
+// This property is maintained even after the object referenced by the pointer
+// used to create a weak reference is reclaimed.
 // If multiple weak pointers are made to different offsets within the same object
 // (for example, pointers to different fields of the same struct), those pointers
 // will not compare equal.
+// In other words, weak pointers map to objects and offsets within those
+// objects, not plain addresses.
 // If a weak pointer is created from an object that becomes unreachable, but is
 // then resurrected due to a finalizer, that weak pointer will not compare equal
 // with weak pointers created after the resurrection.
@@ -56,6 +58,9 @@ import (
 // referenced object. Typically, this batching only happens for tiny
 // (on the order of 16 bytes or less) and pointer-free objects.
 type Pointer[T any] struct {
+	// Mention T in the type definition to prevent conversions
+	// between Pointer types, like we do for sync/atomic.Pointer.
+	_ [0]*T
 	u unsafe.Pointer
 }
 
@@ -69,7 +74,7 @@ func Make[T any](ptr *T) Pointer[T] {
 		u = runtime_registerWeakPointer(unsafe.Pointer(ptr))
 	}
 	runtime.KeepAlive(ptr)
-	return Pointer[T]{u}
+	return Pointer[T]{u: u}
 }
 
 // Value returns the original pointer used to create the weak pointer.

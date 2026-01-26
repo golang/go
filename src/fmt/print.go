@@ -284,6 +284,7 @@ func Sprint(a ...any) string {
 
 // Append formats using the default formats for its operands, appends the result to
 // the byte slice, and returns the updated slice.
+// Spaces are added between operands when neither is a string.
 func Append(b []byte, a ...any) []byte {
 	p := newPrinter()
 	p.doPrint(a)
@@ -1145,10 +1146,7 @@ formatLoop:
 			break
 		}
 
-		verb, size := rune(format[i]), 1
-		if verb >= utf8.RuneSelf {
-			verb, size = utf8.DecodeRuneInString(format[i:])
-		}
+		verb, size := utf8.DecodeRuneInString(format[i:])
 		i += size
 
 		switch {

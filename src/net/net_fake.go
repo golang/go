@@ -1082,11 +1082,19 @@ func (ffd *fakeNetFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int
 	return n, 0, err
 }
 
-func (ffd *fakeNetFD) writeMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (n int, oobn int, err error) {
+func (ffd *fakeNetFD) writeMsgInet4(p []byte, oob []byte, sa4 *syscall.SockaddrInet4) (n int, oobn int, err error) {
+	var sa syscall.Sockaddr
+	if sa4 != nil {
+		sa = sa4
+	}
 	return ffd.writeMsg(p, oob, sa)
 }
 
-func (ffd *fakeNetFD) writeMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (n int, oobn int, err error) {
+func (ffd *fakeNetFD) writeMsgInet6(p []byte, oob []byte, sa6 *syscall.SockaddrInet6) (n int, oobn int, err error) {
+	var sa syscall.Sockaddr
+	if sa6 != nil {
+		sa = sa6
+	}
 	return ffd.writeMsg(p, oob, sa)
 }
 

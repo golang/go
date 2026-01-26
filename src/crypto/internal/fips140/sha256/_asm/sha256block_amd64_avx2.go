@@ -15,7 +15,7 @@ import (
 // To find it, surf to http://www.intel.com/p/en_US/embedded
 // and search for that title.
 // AVX2 version by Intel, same algorithm as code in Linux kernel:
-// https://github.com/torvalds/linux/blob/master/arch/x86/crypto/sha256-avx2-asm.S
+// https://github.com/torvalds/linux/blob/master/lib/crypto/x86/sha256-avx2-asm.S
 // by
 //     James Guilford <james.guilford@intel.com>
 //     Kirk Yap <kirk.s.yap@intel.com>

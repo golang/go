@@ -27,10 +27,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 	modzip "golang.org/x/mod/zip"
 )
 
@@ -61,7 +61,7 @@ func main() {
 
 	// Must have valid version, and must not overwrite existing file.
 	version := flag.Arg(0)
-	if !regexp.MustCompile(`^v\d+\.\d+\.\d+$`).MatchString(version) {
+	if semver.Canonical(version) != version {
 		log.Fatalf("invalid version %q; must be vX.Y.Z", version)
 	}
 	if _, err := os.Stat(version + ".zip"); err == nil {
@@ -95,12 +95,41 @@ func main() {
 
 	var zbuf2 bytes.Buffer
 	zw := zip.NewWriter(&zbuf2)
+	foundVersion := false
 	for _, f := range zr.File {
 		// golang.org/fips140@v1.2.3/dir/file.go ->
 		// golang.org/fips140@v1.2.3/fips140/v1.2.3/dir/file.go
 		if f.Name != "golang.org/fips140@"+version+"/LICENSE" {
 			f.Name = "golang.org/fips140@" + version + "/fips140/" + version +
 				strings.TrimPrefix(f.Name, "golang.org/fips140@"+version)
+		}
+		// Inject version in [crypto/internal/fips140.Version].
+		if f.Name == "golang.org/fips140@"+version+"/fips140/"+version+"/fips140.go" {
+			rf, err := f.Open()
+			if err != nil {
+				log.Fatal(err)
+			}
+			contents, err := io.ReadAll(rf)
+			if err != nil {
+				log.Fatal(err)
+			}
+			returnLine := `return "latest" //mkzip:version`
+			if !bytes.Contains(contents, []byte(returnLine)) {
+				log.Fatalf("did not find %q in fips140.go", returnLine)
+			}
+			// Use only the vX.Y.Z part of a possible vX.Y.Z-hash version.
+			v, _, _ := strings.Cut(version, "-")
+			newLine := `return "` + v + `"`
+			contents = bytes.ReplaceAll(contents, []byte(returnLine), []byte(newLine))
+			wf, err := zw.Create(f.Name)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if _, err := wf.Write(contents); err != nil {
+				log.Fatal(err)
+			}
+			foundVersion = true
+			continue
 		}
 		wf, err := zw.CreateRaw(&f.FileHeader)
 		if err != nil {
@@ -116,6 +145,9 @@ func main() {
 	}
 	if err := zw.Close(); err != nil {
 		log.Fatal(err)
+	}
+	if !foundVersion {
+		log.Fatal("did not find fips140.go file")
 	}
 
 	err = os.WriteFile(version+".zip", zbuf2.Bytes(), 0666)

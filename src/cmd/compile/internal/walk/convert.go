@@ -141,16 +141,27 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		isInteger = sc.IsInteger()
 		isBool = sc.IsBoolean()
 	}
+
+	diagnose := func(msg string, n ir.Node) {
+		if base.Debug.EscapeDebug > 0 {
+			// This output is most useful with -gcflags=-W=2 or similar because
+			// it often prints a temp variable name.
+			base.WarnfAt(n.Pos(), "convert: %s: %v", msg, n)
+		}
+	}
+
 	// Try a bunch of cases to avoid an allocation.
 	var value ir.Node
 	switch {
 	case fromType.Size() == 0:
 		// n is zero-sized. Use zerobase.
+		diagnose("using global for zero-sized interface value", n)
 		cheapExpr(n, init) // Evaluate n for side-effects. See issue 19246.
 		value = ir.NewLinksymExpr(base.Pos, ir.Syms.Zerobase, types.Types[types.TUINTPTR])
 	case isBool || fromType.Size() == 1 && isInteger:
 		// n is a bool/byte. Use staticuint64s[n * 8] on little-endian
 		// and staticuint64s[n * 8 + 7] on big-endian.
+		diagnose("using global for single-byte interface value", n)
 		n = cheapExpr(n, init)
 		n = soleComponent(init, n)
 		// byteindex widens n so that the multiplication doesn't overflow.
@@ -164,11 +175,18 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		xe := ir.NewIndexExpr(base.Pos, staticuint64s, index)
 		xe.SetBounded(true)
 		value = xe
+	case n.Op() == ir.OLINKSYMOFFSET && n.(*ir.LinksymOffsetExpr).Linksym == ir.Syms.ZeroVal && n.(*ir.LinksymOffsetExpr).Offset_ == 0:
+		// n is using zeroVal, so we can use n directly.
+		// (Note that n does not have a proper pos in this case, so using conv for the diagnostic instead.)
+		diagnose("using global for zero value interface value", conv)
+		value = n
 	case n.Op() == ir.ONAME && n.(*ir.Name).Class == ir.PEXTERN && n.(*ir.Name).Readonly():
 		// n is a readonly global; use it directly.
+		diagnose("using global for interface value", n)
 		value = n
 	case conv.Esc() == ir.EscNone && fromType.Size() <= 1024:
 		// n does not escape. Use a stack temporary initialized to n.
+		diagnose("using stack temporary for interface value", n)
 		value = typecheck.TempAt(base.Pos, ir.CurFunc, fromType)
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, value, n)))
 	}
@@ -272,7 +290,7 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	s := n.X
 
 	if expr, ok := s.(*ir.AddStringExpr); ok {
-		return walkAddString(n.Type(), expr, init)
+		return walkAddString(expr, init, n)
 	}
 
 	if ir.IsConst(s, constant.String) {

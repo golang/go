@@ -1550,6 +1550,72 @@ func TestTransportProxy(t *testing.T) {
 	}
 }
 
+// Issue 74633: verify that a client will not indefinitely read a response from
+// a proxy server that writes an infinite byte of stream, rather than
+// responding with 200 OK.
+func TestProxyWithInfiniteHeader(t *testing.T) {
+	defer afterTest(t)
+
+	ln := newLocalListener(t)
+	defer ln.Close()
+	cancelc := make(chan struct{})
+	defer close(cancelc)
+
+	// Simulate a malicious / misbehaving proxy that writes an unlimited number
+	// of bytes rather than responding with 200 OK.
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			t.Errorf("Accept: %v", err)
+			return
+		}
+		defer c.Close()
+		// Read the CONNECT request
+		br := bufio.NewReader(c)
+		cr, err := ReadRequest(br)
+		if err != nil {
+			t.Errorf("proxy server failed to read CONNECT request")
+			return
+		}
+		if cr.Method != "CONNECT" {
+			t.Errorf("unexpected method %q", cr.Method)
+			return
+		}
+
+		// Keep writing bytes until the test exits.
+		for {
+			// runtime.Gosched() is needed here. Otherwise, this test might
+			// livelock in environments like WASM, where the one single thread
+			// we have could be hogged by the infinite loop of writing bytes.
+			runtime.Gosched()
+			select {
+			case <-cancelc:
+				return
+			default:
+				c.Write([]byte("infinite stream of bytes"))
+			}
+		}
+	}()
+
+	c := &Client{
+		Transport: &Transport{
+			Proxy: func(*Request) (*url.URL, error) {
+				return url.Parse("http://" + ln.Addr().String())
+			},
+			// Limit MaxResponseHeaderBytes so the test returns quicker.
+			MaxResponseHeaderBytes: 1024,
+		},
+	}
+	req, err := NewRequest("GET", "https://golang.fake.tld/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Do(req)
+	if err == nil {
+		t.Errorf("unexpected Get success")
+	}
+}
+
 func TestOnProxyConnectResponse(t *testing.T) {
 
 	var tcases = []struct {
@@ -2034,7 +2100,7 @@ func (d *countingDialer) DialContext(ctx context.Context, network, address strin
 	d.total++
 	d.live++
 
-	runtime.SetFinalizer(counted, d.decrement)
+	runtime.AddCleanup(counted, func(dd *countingDialer) { dd.decrement(nil) }, d)
 	return counted, nil
 }
 
@@ -2106,7 +2172,7 @@ func (cc *contextCounter) Track(ctx context.Context) context.Context {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	cc.live++
-	runtime.SetFinalizer(counted, cc.decrement)
+	runtime.AddCleanup(counted, func(c *contextCounter) { cc.decrement(nil) }, cc)
 	return counted
 }
 
@@ -4230,7 +4296,7 @@ func TestTransportIdleConnRacesRequest(t *testing.T) {
 	// block the connection closing.
 	runSynctest(t, testTransportIdleConnRacesRequest, []testMode{http1Mode, http2UnencryptedMode})
 }
-func testTransportIdleConnRacesRequest(t testing.TB, mode testMode) {
+func testTransportIdleConnRacesRequest(t *testing.T, mode testMode) {
 	if mode == http2UnencryptedMode {
 		t.Skip("remove skip when #70515 is fixed")
 	}
@@ -4249,6 +4315,10 @@ func testTransportIdleConnRacesRequest(t testing.TB, mode testMode) {
 	dialc := make(chan struct{})
 	cst.li.onDial = func() {
 		<-dialc
+	}
+	closec := make(chan struct{})
+	cst.li.onClose = func(*fakeNetConn) {
+		<-closec
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	req1c := make(chan error)
@@ -4279,10 +4349,6 @@ func testTransportIdleConnRacesRequest(t testing.TB, mode testMode) {
 	//
 	// First: Wait for IdleConnTimeout. The net.Conn.Close blocks.
 	synctest.Wait()
-	closec := make(chan struct{})
-	cst.li.conns[0].peer.onClose = func() {
-		<-closec
-	}
 	time.Sleep(timeout)
 	synctest.Wait()
 	// Make a request, which will use a new connection (since the existing one is closing).
@@ -4305,7 +4371,7 @@ func testTransportIdleConnRacesRequest(t testing.TB, mode testMode) {
 func TestTransportRemovesConnsAfterIdle(t *testing.T) {
 	runSynctest(t, testTransportRemovesConnsAfterIdle)
 }
-func testTransportRemovesConnsAfterIdle(t testing.TB, mode testMode) {
+func testTransportRemovesConnsAfterIdle(t *testing.T, mode testMode) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
@@ -4351,7 +4417,7 @@ func testTransportRemovesConnsAfterIdle(t testing.TB, mode testMode) {
 func TestTransportRemovesConnsAfterBroken(t *testing.T) {
 	runSynctest(t, testTransportRemovesConnsAfterBroken)
 }
-func testTransportRemovesConnsAfterBroken(t testing.TB, mode testMode) {
+func testTransportRemovesConnsAfterBroken(t *testing.T, mode testMode) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
@@ -4460,7 +4526,6 @@ func TestTransportContentEncodingCaseInsensitive(t *testing.T) {
 }
 func testTransportContentEncodingCaseInsensitive(t *testing.T, mode testMode) {
 	for _, ce := range []string{"gzip", "GZIP"} {
-		ce := ce
 		t.Run(ce, func(t *testing.T) {
 			const encodedString = "Hello Gopher"
 			ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -7555,6 +7620,38 @@ func TestTransportServerProtocols(t *testing.T) {
 			}
 			if got := resp.Header.Get("X-Proto"); got != test.want {
 				t.Fatalf("request proto %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestIssue61474(t *testing.T) {
+	run(t, testIssue61474, []testMode{http2Mode})
+}
+func testIssue61474(t *testing.T, mode testMode) {
+	if testing.Short() {
+		return
+	}
+
+	// This test reliably exercises the condition causing #61474,
+	// but requires many iterations to do so.
+	// Keep the test around for now, but don't run it by default.
+	t.Skip("test is too large")
+
+	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
+	}), func(tr *Transport) {
+		tr.MaxConnsPerHost = 1
+	})
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	for range 100000 {
+		wg.Go(func() {
+			ctx, cancel := context.WithTimeout(t.Context(), 1*time.Millisecond)
+			defer cancel()
+			req, _ := NewRequestWithContext(ctx, "GET", cst.ts.URL, nil)
+			resp, err := cst.c.Do(req)
+			if err == nil {
+				resp.Body.Close()
 			}
 		})
 	}

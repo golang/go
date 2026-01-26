@@ -11,6 +11,7 @@ package cgotest
 import (
 	"bytes"
 	"crypto/md5"
+	"internal/testenv"
 	"os"
 	"os/exec"
 	"runtime"
@@ -73,7 +74,7 @@ func test18146(t *testing.T) {
 		}
 		runtime.GOMAXPROCS(threads)
 		argv := append(os.Args, "-test.run=^$")
-		if err := syscall.Exec(os.Args[0], argv, os.Environ()); err != nil {
+		if err := syscall.Exec(testenv.Executable(t), argv, os.Environ()); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -87,7 +88,7 @@ func test18146(t *testing.T) {
 
 	args := append(append([]string(nil), os.Args[1:]...), "-test.run=^Test18146$")
 	for n := attempts; n > 0; n-- {
-		cmd := exec.Command(os.Args[0], args...)
+		cmd := exec.Command(testenv.Executable(t), args...)
 		cmd.Env = append(os.Environ(), "test18146=exec")
 		buf := bytes.NewBuffer(nil)
 		cmd.Stdout = buf

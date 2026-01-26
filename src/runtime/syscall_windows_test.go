@@ -7,6 +7,8 @@ package runtime_test
 import (
 	"fmt"
 	"internal/abi"
+	"internal/race"
+	"internal/runtime/syscall/windows"
 	"internal/syscall/windows/sysdll"
 	"internal/testenv"
 	"io"
@@ -657,7 +659,7 @@ func TestWERDialogue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := testenv.CleanCmdEnv(testenv.Command(t, exe, "-test.run=TestWERDialogue"))
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, exe, "-test.run=^TestWERDialogue$"))
 	cmd.Env = append(cmd.Env, "TEST_WER_DIALOGUE=1", "GOTRACEBACK=wer")
 	// Child process should not open WER dialogue, but return immediately instead.
 	// The exit code can't be reliably tested here because Windows can change it.
@@ -668,6 +670,9 @@ func TestWERDialogue(t *testing.T) {
 }
 
 func TestWindowsStackMemory(t *testing.T) {
+	if race.Enabled {
+		t.Skip("skipping test: race mode uses more stack memory")
+	}
 	o := runTestProg(t, "testprog", "StackMemory")
 	stackUsage, err := strconv.Atoi(o)
 	if err != nil {
@@ -772,7 +777,7 @@ func TestSyscallN(t *testing.T) {
 		t.Skipf("skipping test: GOARCH=%s", runtime.GOARCH)
 	}
 
-	for arglen := 0; arglen <= runtime.MaxArgs; arglen++ {
+	for arglen := 0; arglen <= windows.MaxArgs; arglen++ {
 		arglen := arglen
 		t.Run(fmt.Sprintf("arg-%d", arglen), func(t *testing.T) {
 			t.Parallel()
@@ -1043,7 +1048,7 @@ func TestNumCPU(t *testing.T) {
 	_GetProcessAffinityMask := kernel32.MustFindProc("GetProcessAffinityMask")
 	_SetProcessAffinityMask := kernel32.MustFindProc("SetProcessAffinityMask")
 
-	cmd := exec.Command(os.Args[0], "-test.run=TestNumCPU")
+	cmd := exec.Command(testenv.Executable(t), "-test.run=^TestNumCPU$")
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	var buf strings.Builder
 	cmd.Stdout = &buf

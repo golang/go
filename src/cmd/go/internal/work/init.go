@@ -20,24 +20,54 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"sync"
 )
 
 var buildInitStarted = false
 
-func BuildInit() {
+// makeCfgChangedEnv is the environment to set to
+// override the current environment for GOOS, GOARCH, and the GOARCH-specific
+// architecture environment variable to the configuration used by
+// the go command. They may be different because go tool <tool> for builtin
+// tools need to be built using the host configuration, so the configuration
+// used will be changed from that set in the environment. It is clipped
+// so its can append to it without changing it.
+var cfgChangedEnv []string
+
+func makeCfgChangedEnv() []string {
+	var env []string
+	if cfg.Getenv("GOOS") != cfg.Goos {
+		env = append(env, "GOOS="+cfg.Goos)
+	}
+	if cfg.Getenv("GOARCH") != cfg.Goarch {
+		env = append(env, "GOARCH="+cfg.Goarch)
+	}
+	if archenv, val, changed := cfg.GetArchEnv(); changed {
+		env = append(env, archenv+"="+val)
+	}
+	return slices.Clip(env)
+}
+
+func BuildInit(loaderstate *modload.State) {
 	if buildInitStarted {
 		base.Fatalf("go: internal error: work.BuildInit called more than once")
 	}
 	buildInitStarted = true
 	base.AtExit(closeBuilders)
 
-	modload.Init()
+	modload.Init(loaderstate)
 	instrumentInit()
 	buildModeInit()
+	initCompilerConcurrencyPool()
+	cfgChangedEnv = makeCfgChangedEnv()
+
 	if err := fsys.Init(); err != nil {
 		base.Fatal(err)
+	}
+	if from, replaced := fsys.DirContainsReplacement(cfg.GOMODCACHE); replaced {
+		base.Fatalf("go: overlay contains a replacement for %s. Files beneath GOMODCACHE (%s) must not be replaced.", from, cfg.GOMODCACHE)
 	}
 
 	// Make sure -pkgdir is absolute, because we run commands

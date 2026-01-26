@@ -19,11 +19,13 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	gourl "net/url"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -107,9 +109,7 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 	for n, c := range pprofCommands {
 		ui.help[n] = c.description
 	}
-	for n, help := range configHelp {
-		ui.help[n] = help
-	}
+	maps.Copy(ui.help, configHelp)
 	ui.help["details"] = "Show information about the profile and this view"
 	ui.help["graph"] = "Display profile as a directed graph"
 	ui.help["flamegraph"] = "Display profile as a flame graph"
@@ -125,21 +125,23 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 		Host:     host,
 		Port:     port,
 		Handlers: map[string]http.Handler{
-			"/":              http.HandlerFunc(ui.dot),
-			"/top":           http.HandlerFunc(ui.top),
-			"/disasm":        http.HandlerFunc(ui.disasm),
-			"/source":        http.HandlerFunc(ui.source),
-			"/peek":          http.HandlerFunc(ui.peek),
-			"/flamegraph":    http.HandlerFunc(ui.stackView),
-			"/flamegraph2":   redirectWithQuery("flamegraph", http.StatusMovedPermanently), // Keep legacy URL working.
-			"/flamegraphold": redirectWithQuery("flamegraph", http.StatusMovedPermanently), // Keep legacy URL working.
-			"/saveconfig":    http.HandlerFunc(ui.saveConfig),
-			"/deleteconfig":  http.HandlerFunc(ui.deleteConfig),
+			"/":             redirectWithQuery("flamegraph", http.StatusMovedPermanently),
+			"/graph":        http.HandlerFunc(ui.dot),
+			"/top":          http.HandlerFunc(ui.top),
+			"/disasm":       http.HandlerFunc(ui.disasm),
+			"/source":       http.HandlerFunc(ui.source),
+			"/peek":         http.HandlerFunc(ui.peek),
+			"/flamegraph":   http.HandlerFunc(ui.stackView),
+			"/saveconfig":   http.HandlerFunc(ui.saveConfig),
+			"/deleteconfig": http.HandlerFunc(ui.deleteConfig),
 			"/download": http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				w.Header().Set("Content-Type", "application/vnd.google.protobuf+gzip")
 				w.Header().Set("Content-Disposition", "attachment;filename=profile.pb.gz")
 				p.Write(w)
 			}),
+			// Keep legacy URLs working.
+			"/flamegraph2":   redirectWithQuery("flamegraph", http.StatusMovedPermanently),
+			"/flamegraphold": redirectWithQuery("flamegraph", http.StatusMovedPermanently),
 		},
 	}
 
@@ -227,12 +229,7 @@ func redirectWithQuery(path string, code int) http.HandlerFunc {
 }
 
 func isLocalhost(host string) bool {
-	for _, v := range []string{"localhost", "127.0.0.1", "[::1]", "::1"} {
-		if host == v {
-			return true
-		}
-	}
-	return false
+	return slices.Contains([]string{"localhost", "127.0.0.1", "[::1]", "::1"}, host)
 }
 
 func openBrowser(url string, o *plugin.Options) {

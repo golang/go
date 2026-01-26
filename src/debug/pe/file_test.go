@@ -413,7 +413,7 @@ func testDWARF(t *testing.T, linktype int) {
 
 	var foundDebugGDBScriptsSection bool
 	for _, sect := range f.Sections {
-		if sect.Name == ".debug_gdb_scripts" {
+		if sect.Name == ".debug_gdb_scripts" || sect.Name == ".zdebug_gdb_scripts" {
 			foundDebugGDBScriptsSection = true
 		}
 	}

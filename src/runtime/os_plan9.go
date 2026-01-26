@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/byteorder"
 	"internal/runtime/atomic"
 	"internal/stringslite"
 	"unsafe"
@@ -18,6 +19,7 @@ type mOS struct {
 	ignoreHangup  bool
 }
 
+func dupfd(old, new int32) int32
 func closefd(fd int32) int32
 
 //go:noescape
@@ -217,16 +219,20 @@ func minit() {
 func unminit() {
 }
 
-// Called from exitm, but not from drop, to undo the effect of thread-owned
+// Called from mexit, but not from dropm, to undo the effect of thread-owned
 // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+//
+// This always runs without a P, so //go:nowritebarrierrec is required.
+//
+//go:nowritebarrierrec
 func mdestroy(mp *m) {
 }
 
 var sysstat = []byte("/dev/sysstat\x00")
 
-func getproccount() int32 {
+func getCPUCount() int32 {
 	var buf [2048]byte
-	fd := open(&sysstat[0], _OREAD, 0)
+	fd := open(&sysstat[0], _OREAD|_OCEXEC, 0)
 	if fd < 0 {
 		return 1
 	}
@@ -255,7 +261,7 @@ var pagesize = []byte(" pagesize\n")
 func getPageSize() uintptr {
 	var buf [2048]byte
 	var pos int
-	fd := open(&devswap[0], _OREAD, 0)
+	fd := open(&devswap[0], _OREAD|_OCEXEC, 0)
 	if fd < 0 {
 		// There's not much we can do if /dev/swap doesn't
 		// exist. However, nothing in the memory manager uses
@@ -314,11 +320,36 @@ func getpid() uint64 {
 	return uint64(_atoi(c))
 }
 
+var (
+	bintimeFD int32 = -1
+
+	bintimeDev = []byte("/dev/bintime\x00")
+	randomDev  = []byte("/dev/random\x00")
+)
+
 func osinit() {
 	physPageSize = getPageSize()
 	initBloc()
-	ncpu = getproccount()
+	numCPUStartup = getCPUCount()
 	getg().m.procid = getpid()
+
+	fd := open(&bintimeDev[0], _OREAD|_OCEXEC, 0)
+	if fd < 0 {
+		fatal("cannot open /dev/bintime")
+	}
+	bintimeFD = fd
+
+	// Move fd high up, to avoid conflicts with smaller ones
+	// that programs might hard code, and to make exec's job easier.
+	// Plan 9 allocates chunks of DELTAFD=20 fds in a row,
+	// so 18 is near the top of what's possible.
+	if bintimeFD < 18 {
+		if dupfd(bintimeFD, 18) < 0 {
+			fatal("cannot dup /dev/bintime onto 18")
+		}
+		closefd(bintimeFD)
+		bintimeFD = 18
+	}
 }
 
 //go:nosplit
@@ -327,6 +358,10 @@ func crash() {
 	*(*int)(nil) = 0
 }
 
+// Don't read from /dev/random, since this device can only
+// return a few hundred bits a second and would slow creation
+// of Go processes down significantly.
+//
 //go:nosplit
 func readRandom(r []byte) int {
 	return 0
@@ -360,17 +395,6 @@ func usleep(µs uint32) {
 //go:nosplit
 func usleep_no_g(usec uint32) {
 	usleep(usec)
-}
-
-//go:nosplit
-func nanotime1() int64 {
-	var scratch int64
-	ns := nsec(&scratch)
-	// TODO(aram): remove hack after I fix _nsec in the pc64 kernel.
-	if ns == 0 {
-		return scratch
-	}
-	return ns
 }
 
 var goexits = []byte("go: exit ")
@@ -462,7 +486,7 @@ func semacreate(mp *m) {
 func semasleep(ns int64) int {
 	gp := getg()
 	if ns >= 0 {
-		ms := timediv(ns, 1000000, nil)
+		ms := int32(ns / 1000000)
 		if ms == 0 {
 			ms = 1
 		}
@@ -529,4 +553,44 @@ func preemptM(mp *m) {
 	// Not currently supported.
 	//
 	// TODO: Use a note like we use signals on POSIX OSes
+}
+
+//go:nosplit
+func readtime(t *uint64, min, n int) int {
+	if bintimeFD < 0 {
+		fatal("/dev/bintime not opened")
+	}
+	const uint64size = 8
+	r := pread(bintimeFD, unsafe.Pointer(t), int32(n*uint64size), 0)
+	if int(r) < min*uint64size {
+		fatal("cannot read /dev/bintime")
+	}
+	return int(r) / uint64size
+}
+
+// timesplit returns u/1e9, u%1e9
+func timesplit(u uint64) (sec int64, nsec int32)
+
+func frombe(u uint64) uint64 {
+	b := (*[8]byte)(unsafe.Pointer(&u))
+	return byteorder.BEUint64(b[:])
+}
+
+//go:nosplit
+func nanotime1() int64 {
+	var t [4]uint64
+	if readtime(&t[0], 1, 4) == 4 {
+		// long read indicates new kernel sending monotonic time
+		// (https://github.com/rsc/plan9/commit/baf076425).
+		return int64(frombe(t[3]))
+	}
+	// fall back to unix time
+	return int64(frombe(t[0]))
+}
+
+//go:nosplit
+func walltime() (sec int64, nsec int32) {
+	var t [1]uint64
+	readtime(&t[0], 1, 1)
+	return timesplit(frombe(t[0]))
 }

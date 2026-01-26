@@ -82,7 +82,7 @@ func TestLargeText(t *testing.T) {
 	}
 
 	// Build and run with internal linking.
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "bigtext")
+	cmd := goCmd(t, "build", "-o", "bigtext")
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -96,7 +96,7 @@ func TestLargeText(t *testing.T) {
 	}
 
 	// Build and run with external linking
-	cmd = testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "bigtext", "-ldflags", "-linkmode=external")
+	cmd = goCmd(t, "build", "-o", "bigtext", "-ldflags", "-linkmode=external")
 	cmd.Dir = tmpdir
 	out, err = cmd.CombinedOutput()
 	if err != nil {

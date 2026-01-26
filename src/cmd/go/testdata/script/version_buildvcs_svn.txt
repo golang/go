@@ -1,0 +1,96 @@
+# This test checks that VCS information is stamped into Go binaries by default,
+# controlled with -buildvcs. This test focuses on Subversion specifics.
+# The Git test covers common functionality.
+
+[!exec:svn] skip
+[!exec:svnadmin] skip
+[short] skip
+env GOBIN=$WORK/gopath/bin
+env oldpath=$PATH
+cd repo/a
+
+# If there's no local repository, there's no VCS info.
+go install
+go version -m $GOBIN/a$GOEXE
+! stdout vcs.revision
+stdout '\s+mod\s+example.com/a\s+\(devel\)'
+rm $GOBIN/a$GOEXE
+
+# If there is a repository, but it can't be used for some reason,
+# there should be an error. It should hint about -buildvcs=false.
+cd ..
+mkdir .svn
+env PATH=$WORK${/}fakebin${:}$oldpath
+chmod 0755 $WORK/fakebin/svn
+! exec svn help
+cd a
+! go install
+stderr '^error obtaining VCS status: exit status 1\n\tUse -buildvcs=false to disable VCS stamping.$'
+rm $GOBIN/a$GOEXE
+cd ..
+env PATH=$oldpath
+rm .svn
+
+# Untagged repo.
+exec svnadmin create repo
+exec svn checkout file://$PWD/repo workingDir
+cd workingDir
+cp ../a/a.go .
+cp ../a/go.mod .
+cp ../README .
+exec svn status
+exec svn add a.go go.mod README
+exec svn commit -m 'initial commit'
+exec svn update
+go install
+go version -m $GOBIN/a$GOEXE
+stdout '^\tbuild\tvcs=svn$'
+stdout '^\tbuild\tvcs.revision=1$'
+stdout '^\tbuild\tvcs.time='
+stdout '^\tbuild\tvcs.modified=false$'
+stdout '^\tmod\texample.com/a\tv0.0.0-\d+-\d+\t+'
+rm $GOBIN/a$GOEXE
+
+# Building with -buildvcs=false suppresses the info.
+go install -buildvcs=false
+go version -m $GOBIN/a$GOEXE
+! stdout vcs.revision
+stdout '\s+mod\s+example.com/a\s+\(devel\)'
+rm $GOBIN/a$GOEXE
+
+# An untracked file is shown as uncommitted, even if it isn't part of the build.
+cp ../../outside/empty.txt extra.txt
+go install
+go version -m $GOBIN/a$GOEXE
+stdout '^\tbuild\tvcs.modified=true$'
+stdout '\s+mod\s+example.com/a\s+v0.0.0-\d+-\d+\+dirty\s+'
+rm extra.txt
+rm $GOBIN/a$GOEXE
+
+# An edited file is shown as uncommitted, even if it isn't part of the build.
+cp ../../outside/empty.txt README
+go install
+go version -m $GOBIN/a$GOEXE
+stdout '^\tbuild\tvcs.modified=true$'
+stdout '\s+mod\s+example.com/a\s+v0.0.0-\d+-\d+\+dirty\s+'
+exec svn revert README
+rm $GOBIN/a$GOEXE
+
+-- $WORK/fakebin/svn --
+#!/bin/sh
+exit 1
+-- $WORK/fakebin/svn.bat --
+exit 1
+-- repo/README --
+Far out in the uncharted backwaters of the unfashionable end of the western
+spiral arm of the Galaxy lies a small, unregarded yellow sun.
+-- repo/a/go.mod --
+module example.com/a
+
+go 1.18
+-- repo/a/a.go --
+package main
+
+func main() {}
+
+-- outside/empty.txt --

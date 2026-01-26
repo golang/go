@@ -427,7 +427,7 @@ func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int
 
 	nblocks := int32(len(f.Blocks))
 	nvars := int32(len(vars))
-	bulk := bitvec.NewBulk(nvars, nblocks*7, fn.Pos())
+	bulk := bitvec.NewBulk(nvars, nblocks*4, fn.Pos())
 	for _, b := range f.Blocks {
 		be := lv.blockEffects(b)
 
@@ -769,7 +769,7 @@ func (lv *Liveness) epilogue() {
 					// its stack copy is not live.
 					continue
 				}
-				// Note: zeroing is handled by zeroResults in walk.go.
+				// Note: zeroing is handled by zeroResults in ../ssagen/ssa.go.
 				livedefer.Set(int32(i))
 			}
 			if n.IsOutputParamHeapAddr() {
@@ -981,7 +981,7 @@ func (lv *Liveness) enableClobber() {
 		// Clobber only functions where the hash of the function name matches a pattern.
 		// Useful for binary searching for a miscompiled function.
 		hstr := ""
-		for _, b := range hash.Sum20([]byte(lv.f.Name)) {
+		for _, b := range hash.Sum32([]byte(lv.f.Name)) {
 			hstr += fmt.Sprintf("%08b", b)
 		}
 		if !strings.HasSuffix(hstr, h) {
@@ -1414,9 +1414,7 @@ func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs, retL
 	{
 		cache := f.Cache.Liveness.(*livenessFuncCache)
 		if cap(lv.be) < 2000 { // Threshold from ssa.Cache slices.
-			for i := range lv.be {
-				lv.be[i] = blockEffects{}
-			}
+			clear(lv.be)
 			cache.be = lv.be
 		}
 		if len(lv.livenessMap.Vals) < 2000 {
@@ -1495,7 +1493,7 @@ func (lv *Liveness) emitStackObjects() *obj.LSym {
 		if sz != int64(int32(sz)) {
 			base.Fatalf("stack object too big: %v of type %v, size %d", v, t, sz)
 		}
-		lsym, ptrBytes := reflectdata.GCSym(t)
+		lsym, ptrBytes := reflectdata.GCSym(t, false)
 		off = objw.Uint32(x, off, uint32(sz))
 		off = objw.Uint32(x, off, uint32(ptrBytes))
 		off = objw.SymPtrOff(x, off, lsym)
@@ -1536,6 +1534,9 @@ func isfat(t *types.Type) bool {
 			}
 			return true
 		case types.TSTRUCT:
+			if t.IsSIMD() {
+				return false
+			}
 			// Struct with 1 field, check if field is fat
 			if t.NumFields() == 1 {
 				return isfat(t.Field(0).Type)

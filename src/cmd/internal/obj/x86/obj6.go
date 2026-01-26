@@ -236,7 +236,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// Rewrite float constants to values stored in memory.
 	switch p.As {
 	// Convert AMOVSS $(0), Xx to AXORPS Xx, Xx
-	case AMOVSS:
+	case AMOVSS, AVMOVSS:
 		if p.From.Type == obj.TYPE_FCONST {
 			//  f == 0 can't be used here due to -0, so use Float64bits
 			if f := p.From.Val.(float64); math.Float64bits(f) == 0 {
@@ -272,7 +272,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.From.Offset = 0
 		}
 
-	case AMOVSD:
+	case AMOVSD, AVMOVSD:
 		// Convert AMOVSD $(0), Xx to AXORPS Xx, Xx
 		if p.From.Type == obj.TYPE_FCONST {
 			//  f == 0 can't be used here due to -0, so use Float64bits
@@ -423,8 +423,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			q.From.Reg = reg
 		}
 	}
-	if p.GetFrom3() != nil && p.GetFrom3().Name == obj.NAME_EXTERN {
-		ctxt.Diag("don't know how to handle %v with -dynlink", p)
+	from3 := p.GetFrom3()
+	for i := range p.RestArgs {
+		a := &p.RestArgs[i].Addr
+		if a != from3 && a.Name == obj.NAME_EXTERN && !a.Sym.Local() {
+			ctxt.Diag("don't know how to handle %v with -dynlink", p)
+		}
 	}
 	var source *obj.Addr
 	// MOVx sym, Ry becomes $MOV sym@GOT, R15; MOVx (R15), Ry
@@ -434,9 +438,17 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
 			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
 		}
+		if from3 != nil && from3.Name == obj.NAME_EXTERN && !from3.Sym.Local() {
+			ctxt.Diag("cannot handle NAME_EXTERN on multiple operands in %v with -dynlink", p)
+		}
 		source = &p.From
 	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+		if from3 != nil && from3.Name == obj.NAME_EXTERN && !from3.Sym.Local() {
+			ctxt.Diag("cannot handle NAME_EXTERN on multiple operands in %v with -dynlink", p)
+		}
 		source = &p.To
+	} else if from3 != nil && from3.Name == obj.NAME_EXTERN && !from3.Sym.Local() {
+		source = from3
 	} else {
 		return
 	}
@@ -448,6 +460,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		//
 		// We disable open-coded defers in buildssa() on 386 ONLY with shared
 		// libraries because of this extra code added before deferreturn calls.
+		//
+		// computeDeferReturn in cmd/link/internal/ld/pcln.go depends
+		// on the size of these instructions.
 		if ctxt.Arch.Family == sys.AMD64 || (p.To.Sym != nil && p.To.Sym.Local()) || p.RegTo2 != 0 {
 			return
 		}
@@ -498,9 +513,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	p2.As = p.As
 	p2.From = p.From
 	p2.To = p.To
-	if from3 := p.GetFrom3(); from3 != nil {
-		p2.AddRestSource(*from3)
-	}
+	p2.RestArgs = p.RestArgs
 	if p.From.Name == obj.NAME_EXTERN {
 		p2.From.Reg = reg
 		p2.From.Name = obj.NAME_NONE
@@ -509,6 +522,11 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p2.To.Reg = reg
 		p2.To.Name = obj.NAME_NONE
 		p2.To.Sym = nil
+	} else if p.GetFrom3() != nil && p.GetFrom3().Name == obj.NAME_EXTERN {
+		from3 = p2.GetFrom3()
+		from3.Reg = reg
+		from3.Name = obj.NAME_NONE
+		from3.Sym = nil
 	} else {
 		return
 	}
@@ -650,6 +668,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			case obj.ACALL:
 				// Treat common runtime calls that take no arguments
 				// the same as duffcopy and duffzero.
+
+				// Note that of these functions, panicBounds does
+				// use some stack, but its stack together with the
+				// < StackSmall used by this function is still
+				// less than stackNosplit. See issue 31219.
 				if !isZeroArgRuntimeCall(q.To.Sym) {
 					leaf = false
 					break LeafSearch
@@ -668,20 +691,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
-	var regEntryTmp0, regEntryTmp1 int16
-	if ctxt.Arch.Family == sys.AMD64 {
-		regEntryTmp0, regEntryTmp1 = REGENTRYTMP0, REGENTRYTMP1
-	} else {
-		regEntryTmp0, regEntryTmp1 = REG_BX, REG_DI
-	}
-
-	var regg int16
 	if !p.From.Sym.NoSplit() {
-		// Emit split check and load G register
-		p, regg = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg))
-	} else if p.From.Sym.Wrapper() {
-		// Load G register for the wrapper code
-		p, regg = loadG(ctxt, cursym, p, newprog)
+		// Emit split check.
+		p = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg))
 	}
 
 	if bpsize > 0 {
@@ -721,123 +733,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// TODO: are there other cases (e.g., wrapper functions) that need marking?
 	if autoffset != 0 {
 		p.Pos = p.Pos.WithXlogue(src.PosPrologueEnd)
-	}
-
-	if cursym.Func().Text.From.Sym.Wrapper() {
-		// if g._panic != nil && g._panic.argp == FP {
-		//   g._panic.argp = bottom-of-frame
-		// }
-		//
-		//	MOVQ g_panic(g), regEntryTmp0
-		//	TESTQ regEntryTmp0, regEntryTmp0
-		//	JNE checkargp
-		// end:
-		//	NOP
-		//  ... rest of function ...
-		// checkargp:
-		//	LEAQ (autoffset+8)(SP), regEntryTmp1
-		//	CMPQ panic_argp(regEntryTmp0), regEntryTmp1
-		//	JNE end
-		//  MOVQ SP, panic_argp(regEntryTmp0)
-		//  JMP end
-		//
-		// The NOP is needed to give the jumps somewhere to land.
-		// It is a liblink NOP, not an x86 NOP: it encodes to 0 instruction bytes.
-		//
-		// The layout is chosen to help static branch prediction:
-		// Both conditional jumps are unlikely, so they are arranged to be forward jumps.
-
-		// MOVQ g_panic(g), regEntryTmp0
-		p = obj.Appendp(p, newprog)
-		p.As = AMOVQ
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = regg
-		p.From.Offset = 4 * int64(ctxt.Arch.PtrSize) // g_panic
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regEntryTmp0
-		if ctxt.Arch.Family == sys.I386 {
-			p.As = AMOVL
-		}
-
-		// TESTQ regEntryTmp0, regEntryTmp0
-		p = obj.Appendp(p, newprog)
-		p.As = ATESTQ
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regEntryTmp0
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regEntryTmp0
-		if ctxt.Arch.Family == sys.I386 {
-			p.As = ATESTL
-		}
-
-		// JNE checkargp (checkargp to be resolved later)
-		jne := obj.Appendp(p, newprog)
-		jne.As = AJNE
-		jne.To.Type = obj.TYPE_BRANCH
-
-		// end:
-		//  NOP
-		end := obj.Appendp(jne, newprog)
-		end.As = obj.ANOP
-
-		// Fast forward to end of function.
-		var last *obj.Prog
-		for last = end; last.Link != nil; last = last.Link {
-		}
-
-		// LEAQ (autoffset+8)(SP), regEntryTmp1
-		p = obj.Appendp(last, newprog)
-		p.As = ALEAQ
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = REG_SP
-		p.From.Offset = int64(autoffset) + int64(ctxt.Arch.RegSize)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regEntryTmp1
-		if ctxt.Arch.Family == sys.I386 {
-			p.As = ALEAL
-		}
-
-		// Set jne branch target.
-		jne.To.SetTarget(p)
-
-		// CMPQ panic_argp(regEntryTmp0), regEntryTmp1
-		p = obj.Appendp(p, newprog)
-		p.As = ACMPQ
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = regEntryTmp0
-		p.From.Offset = 0 // Panic.argp
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regEntryTmp1
-		if ctxt.Arch.Family == sys.I386 {
-			p.As = ACMPL
-		}
-
-		// JNE end
-		p = obj.Appendp(p, newprog)
-		p.As = AJNE
-		p.To.Type = obj.TYPE_BRANCH
-		p.To.SetTarget(end)
-
-		// MOVQ SP, panic_argp(regEntryTmp0)
-		p = obj.Appendp(p, newprog)
-		p.As = AMOVQ
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_SP
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = regEntryTmp0
-		p.To.Offset = 0 // Panic.argp
-		if ctxt.Arch.Family == sys.I386 {
-			p.As = AMOVL
-		}
-
-		// JMP end
-		p = obj.Appendp(p, newprog)
-		p.As = obj.AJMP
-		p.To.Type = obj.TYPE_BRANCH
-		p.To.SetTarget(end)
-
-		// Reset p for following code.
-		p = end
 	}
 
 	var deltasp int32
@@ -966,21 +861,10 @@ func isZeroArgRuntimeCall(s *obj.LSym) bool {
 		return false
 	}
 	switch s.Name {
-	case "runtime.panicdivide", "runtime.panicwrap", "runtime.panicshift":
-		return true
-	}
-	if strings.HasPrefix(s.Name, "runtime.panicIndex") || strings.HasPrefix(s.Name, "runtime.panicSlice") {
-		// These functions do take arguments (in registers),
-		// but use no stack before they do a stack check. We
-		// should include them. See issue 31219.
+	case "runtime.panicdivide", "runtime.panicwrap", "runtime.panicshift", "runtime.panicBounds", "runtime.panicExtend":
 		return true
 	}
 	return false
-}
-
-func indir_cx(ctxt *obj.Link, a *obj.Addr) {
-	a.Type = obj.TYPE_MEM
-	a.Reg = REG_CX
 }
 
 // loadG ensures the G is loaded into a register (either CX or REGG),
@@ -1026,8 +910,8 @@ func loadG(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgAlloc)
 // Append code to p to check for stack split.
 // Appends to (does not overwrite) p.
 // Assumes g is in rg.
-// Returns last new instruction and G register.
-func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgAlloc, framesize int32, textarg int32) (*obj.Prog, int16) {
+// Returns last new instruction.
+func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgAlloc, framesize int32, textarg int32) *obj.Prog {
 	cmp := ACMPQ
 	lea := ALEAQ
 	mov := AMOVQ
@@ -1241,7 +1125,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		q1.To.SetTarget(spill)
 	}
 
-	return end, rg
+	return end
 }
 
 func isR15(r int16) bool {

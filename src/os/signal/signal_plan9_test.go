@@ -5,7 +5,7 @@
 package signal
 
 import (
-	"internal/itoa"
+	"internal/strconv"
 	"os"
 	"runtime"
 	"syscall"
@@ -157,7 +157,7 @@ func TestStop(t *testing.T) {
 }
 
 func postNote(pid int, note string) error {
-	f, err := os.OpenFile("/proc/"+itoa.Itoa(pid)+"/note", os.O_WRONLY, 0)
+	f, err := os.OpenFile("/proc/"+strconv.Itoa(pid)+"/note", os.O_WRONLY, 0)
 	if err != nil {
 		return err
 	}

@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/asan"
 	"internal/testenv"
 	"reflect"
 	"regexp"
@@ -289,7 +290,7 @@ func setBig(p *int, x int, b bigBuf) {
 func TestDeferPtrsPanic(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		c := make(chan int, 1)
-		go testDeferPtrsGoexit(c, i)
+		go testDeferPtrsPanic(c, i)
 		if n := <-c; n != 42 {
 			t.Fatalf("defer's stack references were not adjusted appropriately (i=%d n=%d)", i, n)
 		}
@@ -931,6 +932,9 @@ func TestFramePointerAdjust(t *testing.T) {
 	case "amd64", "arm64":
 	default:
 		t.Skipf("frame pointer is not supported on %s", GOARCH)
+	}
+	if asan.Enabled {
+		t.Skip("skipping test: ASAN forces heap allocation")
 	}
 	output := runTestProg(t, "testprog", "FramePointerAdjust")
 	if output != "" {

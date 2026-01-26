@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
+	"internal/obscuretestdata"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -237,16 +238,13 @@ func TestReadFile(t *testing.T) {
 	}
 
 	for _, p := range platforms {
-		p := p
 		t.Run(p.goos+"_"+p.goarch, func(t *testing.T) {
 			if p != runtimePlatform && !*flagAll {
 				t.Skipf("skipping platforms other than %s_%s because -all was not set", runtimePlatform.goos, runtimePlatform.goarch)
 			}
 			for _, mode := range buildModes {
-				mode := mode
 				t.Run(mode, func(t *testing.T) {
 					for _, tc := range cases {
-						tc := tc
 						t.Run(tc.name, func(t *testing.T) {
 							t.Parallel()
 							name := tc.build(t, p.goos, p.goarch, mode)
@@ -275,22 +273,14 @@ func TestReadFile(t *testing.T) {
 
 // Test117 verifies that parsing of the old, pre-1.18 format works.
 func Test117(t *testing.T) {
-	// go117 was generated for linux-amd64 with:
-	//
-	// main.go:
-	//
-	// package main
-	// func main() {}
-	//
-	// GOTOOLCHAIN=go1.17 go mod init example.com/go117
-	// GOTOOLCHAIN=go1.17 go build
-	//
-	// TODO(prattmic): Ideally this would be built on the fly to better
-	// cover all executable formats, but then we need a network connection
-	// to download an old Go toolchain.
-	info, err := buildinfo.ReadFile("testdata/go117")
+	b, err := obscuretestdata.ReadFile("testdata/go117/go117.base64")
 	if err != nil {
 		t.Fatalf("ReadFile got err %v, want nil", err)
+	}
+
+	info, err := buildinfo.Read(bytes.NewReader(b))
+	if err != nil {
+		t.Fatalf("Read got err %v, want nil", err)
 	}
 
 	if info.GoVersion != "go1.17" {
@@ -306,20 +296,14 @@ func Test117(t *testing.T) {
 
 // TestNotGo verifies that parsing of a non-Go binary returns the proper error.
 func TestNotGo(t *testing.T) {
-	// notgo was generated for linux-amd64 with:
-	//
-	// main.c:
-	//
-	// int main(void) { return 0; }
-	//
-	// cc -o notgo main.c
-	//
-	// TODO(prattmic): Ideally this would be built on the fly to better
-	// cover all executable formats, but then we need to encode the
-	// intricacies of calling each platform's C compiler.
-	_, err := buildinfo.ReadFile("testdata/notgo")
+	b, err := obscuretestdata.ReadFile("testdata/notgo/notgo.base64")
+	if err != nil {
+		t.Fatalf("ReadFile got err %v, want nil", err)
+	}
+
+	_, err = buildinfo.Read(bytes.NewReader(b))
 	if err == nil {
-		t.Fatalf("ReadFile got nil err, want non-nil")
+		t.Fatalf("Read got nil err, want non-nil")
 	}
 
 	// The precise error text here isn't critical, but we want something
@@ -410,13 +394,13 @@ func TestIssue54968(t *testing.T) {
 }
 
 func FuzzRead(f *testing.F) {
-	go117, err := os.ReadFile("testdata/go117")
+	go117, err := obscuretestdata.ReadFile("testdata/go117/go117.base64")
 	if err != nil {
 		f.Errorf("Error reading go117: %v", err)
 	}
 	f.Add(go117)
 
-	notgo, err := os.ReadFile("testdata/notgo")
+	notgo, err := obscuretestdata.ReadFile("testdata/notgo/notgo.base64")
 	if err != nil {
 		f.Errorf("Error reading notgo: %v", err)
 	}

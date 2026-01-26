@@ -17,10 +17,26 @@ import (
 
 const help = `PROGNAME is a tool for static analysis of Go programs.
 
-PROGNAME examines Go source code and reports suspicious constructs,
-such as Printf calls whose arguments do not align with the format
-string. It uses heuristics that do not guarantee all reports are
-genuine problems, but it can find errors not caught by the compilers.
+PROGNAME examines Go source code and reports diagnostics for
+suspicious constructs or opportunities for improvement.
+Diagnostics may include suggested fixes.
+
+An example of a suspicious construct is a Printf call whose arguments
+do not align with the format string. Analyzers may use heuristics that
+do not guarantee all reports are genuine problems, but can find
+mistakes not caught by the compiler.
+
+An example of an opportunity for improvement is a loop over
+strings.Split(doc, "\n"), which may be replaced by a loop over the
+strings.SplitSeq iterator, avoiding an array allocation.
+Diagnostics in such cases may report non-problems,
+but should carry fixes that may be safely applied.
+
+For analyzers of the first kind, use "go vet -vettool=PROGRAM"
+to run the tool and report diagnostics.
+
+For analyzers of the second kind, use "go fix -fixtool=PROGRAM"
+to run the tool and apply the fixes it suggests.
 `
 
 // Help implements the help subcommand for a multichecker or unitchecker
@@ -29,7 +45,7 @@ genuine problems, but it can find errors not caught by the compilers.
 func Help(progname string, analyzers []*analysis.Analyzer, args []string) {
 	// No args: show summary of all analyzers.
 	if len(args) == 0 {
-		fmt.Println(strings.Replace(help, "PROGNAME", progname, -1))
+		fmt.Println(strings.ReplaceAll(help, "PROGNAME", progname))
 		fmt.Println("Registered analyzers:")
 		fmt.Println()
 		sort.Slice(analyzers, func(i, j int) bool {

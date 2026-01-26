@@ -64,40 +64,26 @@ func (f *elfFile) symbols() ([]Sym, error) {
 	return syms, nil
 }
 
-func (f *elfFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+func (f *elfFile) pcln() (textStart uint64, pclntab []byte, err error) {
 	if sect := f.elf.Section(".text"); sect != nil {
 		textStart = sect.Addr
 	}
 
-	sect := f.elf.Section(".gosymtab")
-	if sect == nil {
-		// try .data.rel.ro.gosymtab, for PIE binaries
-		sect = f.elf.Section(".data.rel.ro.gosymtab")
-	}
-	if sect != nil {
-		if symtab, err = sect.Data(); err != nil {
-			return 0, nil, nil, err
-		}
-	} else {
-		// if both sections failed, try the symbol
-		symtab = f.symbolData("runtime.symtab", "runtime.esymtab")
-	}
-
-	sect = f.elf.Section(".gopclntab")
+	sect := f.elf.Section(".gopclntab")
 	if sect == nil {
 		// try .data.rel.ro.gopclntab, for PIE binaries
 		sect = f.elf.Section(".data.rel.ro.gopclntab")
 	}
 	if sect != nil {
 		if pclntab, err = sect.Data(); err != nil {
-			return 0, nil, nil, err
+			return 0, nil, err
 		}
 	} else {
 		// if both sections failed, try the symbol
 		pclntab = f.symbolData("runtime.pclntab", "runtime.epclntab")
 	}
 
-	return textStart, symtab, pclntab, nil
+	return textStart, pclntab, nil
 }
 
 func (f *elfFile) text() (textStart uint64, text []byte, err error) {

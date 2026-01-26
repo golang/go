@@ -138,10 +138,6 @@ func impliesSemi(tok token) bool {
 
 // TODO(gri) provide table of []byte values for all tokens to avoid repeated string conversion
 
-func lineComment(text string) bool {
-	return strings.HasPrefix(text, "//")
-}
-
 func (p *printer) addWhitespace(kind ctrlSymbol, text string) {
 	p.pending = append(p.pending, whitespace{p.lastTok, kind /*text*/})
 	switch kind {
@@ -251,7 +247,7 @@ func mayCombine(prev token, next byte) (b bool) {
 	// return
 }
 
-func (p *printer) print(args ...interface{}) {
+func (p *printer) print(args ...any) {
 	for i := 0; i < len(args); i++ {
 		switch x := args[i].(type) {
 		case nil:
@@ -459,7 +455,7 @@ func (p *printer) printRawNode(n Node) {
 		p.printExprList(n.ElemList)
 
 	case *ArrayType:
-		var len interface{} = _DotDotDot
+		var len any = _DotDotDot
 		if n.Len != nil {
 			len = n.Len
 		}

@@ -295,7 +295,7 @@ func (check *Checker) collectObjects() {
 
 				if imp.fake {
 					// match 1.17 cmd/compile (not prescribed by spec)
-					pkgName.used = true
+					check.usedPkgNames[pkgName] = true
 				}
 
 				// add import to file scope
@@ -388,7 +388,7 @@ func (check *Checker) collectObjects() {
 				// declare all variables
 				values := syntax.UnpackListExpr(s.Values)
 				for i, name := range s.NameList {
-					obj := NewVar(name.Pos(), pkg, name.Value, nil)
+					obj := newVar(PackageVar, name.Pos(), pkg, name.Value, nil)
 					lhs[i] = obj
 
 					d := d1
@@ -436,10 +436,8 @@ func (check *Checker) collectObjects() {
 					if name == "init" {
 						obj.parent = pkg.scope
 						check.recordDef(s.Name, obj)
-						// init functions must have a body
 						if s.Body == nil {
-							// TODO(gri) make this error message consistent with the others above
-							check.softErrorf(obj.pos, MissingInitBody, "missing function body")
+							check.softErrorf(obj.pos, MissingInitBody, "func init must have a body")
 						}
 					} else {
 						check.declare(pkg.scope, s.Name, obj, nopos)
@@ -508,6 +506,19 @@ func (check *Checker) collectObjects() {
 			check.methods[base] = append(check.methods[base], m.obj)
 		}
 	}
+}
+
+// sortObjects sorts package-level objects by source-order for reproducible processing
+func (check *Checker) sortObjects() {
+	check.objList = make([]Object, len(check.objMap))
+	i := 0
+	for obj := range check.objMap {
+		check.objList[i] = obj
+		i++
+	}
+	slices.SortFunc(check.objList, func(a, b Object) int {
+		return cmp.Compare(a.order(), b.order())
+	})
 }
 
 // unpackRecv unpacks a receiver type expression and returns its components: ptr indicates
@@ -628,31 +639,19 @@ func (check *Checker) resolveBaseTypeName(ptr bool, name *syntax.Name) (ptr_ boo
 
 // packageObjects typechecks all package objects, but not function bodies.
 func (check *Checker) packageObjects() {
-	// process package objects in source order for reproducible results
-	objList := make([]Object, len(check.objMap))
-	i := 0
-	for obj := range check.objMap {
-		objList[i] = obj
-		i++
-	}
-	slices.SortFunc(objList, func(a, b Object) int {
-		return cmp.Compare(a.order(), b.order())
-	})
-
 	// add new methods to already type-checked types (from a prior Checker.Files call)
-	for _, obj := range objList {
+	for _, obj := range check.objList {
 		if obj, _ := obj.(*TypeName); obj != nil && obj.typ != nil {
 			check.collectMethods(obj)
 		}
 	}
 
-	if false && check.conf.EnableAlias {
-		// With Alias nodes we can process declarations in any order.
+	if false {
+		// TODO: determine if we can enable this code now or
+		//       if there are still problems with cycles and
+		//       aliases.
 		//
-		// TODO(adonovan): unfortunately, Alias nodes
-		// (GODEBUG=gotypesalias=1) don't entirely resolve
-		// problems with cycles. For example, in
-		// GOROOT/test/typeparam/issue50259.go,
+		// For example, in GOROOT/test/typeparam/issue50259.go,
 		//
 		// 	type T[_ any] struct{}
 		// 	type A T[B]
@@ -663,11 +662,11 @@ func (check *Checker) packageObjects() {
 		// its Type is Invalid.
 		//
 		// Investigate and reenable this branch.
-		for _, obj := range objList {
-			check.objDecl(obj, nil)
+		for _, obj := range check.objList {
+			check.objDecl(obj)
 		}
 	} else {
-		// Without Alias nodes, we process non-alias type declarations first, followed by
+		// To avoid problems with cycles, process non-alias type declarations first, followed by
 		// alias declarations, and then everything else. This appears to avoid most situations
 		// where the type of an alias is needed before it is available.
 		// There may still be cases where this is not good enough (see also go.dev/issue/25838).
@@ -675,12 +674,12 @@ func (check *Checker) packageObjects() {
 		var aliasList []*TypeName
 		var othersList []Object // everything that's not a type
 		// phase 1: non-alias type declarations
-		for _, obj := range objList {
+		for _, obj := range check.objList {
 			if tname, _ := obj.(*TypeName); tname != nil {
 				if check.objMap[tname].tdecl.Alias {
 					aliasList = append(aliasList, tname)
 				} else {
-					check.objDecl(obj, nil)
+					check.objDecl(obj)
 				}
 			} else {
 				othersList = append(othersList, obj)
@@ -688,11 +687,11 @@ func (check *Checker) packageObjects() {
 		}
 		// phase 2: alias type declarations
 		for _, obj := range aliasList {
-			check.objDecl(obj, nil)
+			check.objDecl(obj)
 		}
 		// phase 3: all other declarations
 		for _, obj := range othersList {
-			check.objDecl(obj, nil)
+			check.objDecl(obj)
 		}
 	}
 
@@ -715,7 +714,7 @@ func (check *Checker) unusedImports() {
 	// (initialization), use the blank identifier as explicit package name."
 
 	for _, obj := range check.imports {
-		if !obj.used && obj.name != "_" {
+		if obj.name != "_" && !check.usedPkgNames[obj] {
 			check.errorUnusedPkg(obj)
 		}
 	}

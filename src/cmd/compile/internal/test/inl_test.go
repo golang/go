@@ -6,7 +6,6 @@ package test
 
 import (
 	"bufio"
-	"internal/goexperiment"
 	"internal/testenv"
 	"io"
 	"math/bits"
@@ -47,7 +46,6 @@ func TestIntendedInlining(t *testing.T) {
 			"getMCache",
 			"heapSetTypeNoHeader",
 			"heapSetTypeSmallHeader",
-			"isDirectIface",
 			"itabHashFunc",
 			"nextslicecap",
 			"noescape",
@@ -67,16 +65,18 @@ func TestIntendedInlining(t *testing.T) {
 			// GC-related ones
 			"cgoInRange",
 			"gclinkptr.ptr",
+			"gcUsesSpanInlineMarkBits",
 			"guintptr.ptr",
 			"heapBitsSlice",
 			"markBits.isMarked",
 			"muintptr.ptr",
 			"puintptr.ptr",
+			"spanHeapBitsRange",
 			"spanOf",
 			"spanOfUnchecked",
 			"typePointers.nextFast",
-			"(*gcWork).putFast",
-			"(*gcWork).tryGetFast",
+			"(*gcWork).putObjFast",
+			"(*gcWork).tryGetObjFast",
 			"(*guintptr).set",
 			"(*markBits).advance",
 			"(*mspan).allocBitsForIndex",
@@ -107,6 +107,7 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Buffer).tryGrowByReslice",
 		},
 		"internal/abi": {
+			"(*Type).IsDirectIface",
 			"UseInterfaceSwitchCache",
 		},
 		"internal/runtime/math": {
@@ -124,6 +125,8 @@ func TestIntendedInlining(t *testing.T) {
 			"assemble64",
 		},
 		"unicode/utf8": {
+			"DecodeRune",
+			"DecodeRuneInString",
 			"FullRune",
 			"FullRuneInString",
 			"RuneLen",
@@ -175,9 +178,6 @@ func TestIntendedInlining(t *testing.T) {
 		},
 		"math/big": {
 			"bigEndianWord",
-			// The following functions require the math_big_pure_go build tag.
-			"addVW",
-			"subVW",
 		},
 		"math/rand": {
 			"(*rngSource).Int63",
@@ -190,7 +190,7 @@ func TestIntendedInlining(t *testing.T) {
 			// Both OnceFunc and its returned closure need to be inlinable so
 			// that the returned closure can be inlined into the caller of OnceFunc.
 			"OnceFunc",
-			"OnceFunc.func2", // The returned closure.
+			"OnceFunc.func1", // The returned closure.
 			// TODO(austin): It would be good to check OnceValue and OnceValues,
 			// too, but currently they aren't reported because they have type
 			// parameters and aren't instantiated in sync.
@@ -230,17 +230,18 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Pointer[go.shape.int]).Store",
 			"(*Pointer[go.shape.int]).Swap",
 		},
+		"testing": {
+			"(*B).Loop",
+		},
+		"path": {
+			"Base",
+			"scanChunk",
+		},
+		"path/filepath": {
+			"scanChunk",
+		},
 	}
 
-	if !goexperiment.SwissMap {
-		// Maps
-		want["runtime"] = append(want["runtime"], "bucketMask")
-		want["runtime"] = append(want["runtime"], "bucketShift")
-		want["runtime"] = append(want["runtime"], "evacuated")
-		want["runtime"] = append(want["runtime"], "tophash")
-		want["runtime"] = append(want["runtime"], "(*bmap).keys")
-		want["runtime"] = append(want["runtime"], "(*bmap).overflow")
-	}
 	if runtime.GOARCH != "386" && runtime.GOARCH != "loong64" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {
 		// nextFreeFast calls sys.TrailingZeros64, which on 386 is implemented in asm and is not inlinable.
 		// We currently don't have midstack inlining so nextFreeFast is also not inlinable on 386.
@@ -279,6 +280,25 @@ func TestIntendedInlining(t *testing.T) {
 			"(*RWMutex).RLock",
 			"(*RWMutex).RUnlock",
 			"(*Once).Do",
+		}
+	}
+
+	if runtime.GOARCH != "wasm" {
+		// mutex implementation for multi-threaded GOARCHes
+		want["runtime"] = append(want["runtime"],
+			// in the fast paths of lock2 and unlock2
+			"key8",
+			"(*mLockProfile).store",
+		)
+		if bits.UintSize == 64 {
+			// these use 64-bit arithmetic, which is hard to inline on 32-bit platforms
+			want["runtime"] = append(want["runtime"],
+				// in the fast paths of lock2 and unlock2
+				"mutexSampleContention",
+
+				// in a slow path of lock2, but within the critical section
+				"(*mLockProfile).end",
+			)
 		}
 	}
 

@@ -6,9 +6,11 @@ package syscall_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"syscall"
 	"testing"
 	"time"
@@ -47,6 +49,37 @@ func TestEscapeArg(t *testing.T) {
 	}
 }
 
+func TestEnvBlockSorted(t *testing.T) {
+	tests := []struct {
+		env  []string
+		want []string
+	}{
+		{},
+		{
+			env:  []string{"A=1"},
+			want: []string{"A=1"},
+		},
+		{
+			env:  []string{"A=1", "B=2", "C=3"},
+			want: []string{"A=1", "B=2", "C=3"},
+		},
+		{
+			env:  []string{"C=3", "B=2", "A=1"},
+			want: []string{"A=1", "B=2", "C=3"},
+		},
+		{
+			env:  []string{"c=3", "B=2", "a=1"},
+			want: []string{"a=1", "B=2", "c=3"},
+		},
+	}
+	for _, tt := range tests {
+		got := syscall.EnvSorted(tt.env)
+		if !slices.Equal(got, tt.want) {
+			t.Errorf("EnvSorted(%q) = %q, want %q", tt.env, got, tt.want)
+		}
+	}
+}
+
 func TestChangingProcessParent(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "parent" {
 		// in parent process
@@ -73,7 +106,7 @@ func TestChangingProcessParent(t *testing.T) {
 
 	// run parent process
 
-	parent := exec.Command(os.Args[0], "-test.run=^TestChangingProcessParent$")
+	parent := exec.Command(testenv.Executable(t), "-test.run=^TestChangingProcessParent$")
 	parent.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=parent")
 	err := parent.Start()
 	if err != nil {
@@ -96,7 +129,7 @@ func TestChangingProcessParent(t *testing.T) {
 	}
 	defer syscall.CloseHandle(ph)
 
-	child := exec.Command(os.Args[0], "-test.run=^TestChangingProcessParent$")
+	child := exec.Command(testenv.Executable(t), "-test.run=^TestChangingProcessParent$")
 	child.Env = append(os.Environ(),
 		"GO_WANT_HELPER_PROCESS=child",
 		"GO_WANT_HELPER_PROCESS_FILE="+childDumpPath)

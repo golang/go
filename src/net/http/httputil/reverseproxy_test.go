@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httptrace"
@@ -22,6 +23,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -1551,6 +1553,202 @@ func TestReverseProxyWebSocketCancellation(t *testing.T) {
 	}
 }
 
+func TestReverseProxyWebSocketHalfTCP(t *testing.T) {
+	// Issue #35892: support TCP half-close when HTTP is upgraded in the ReverseProxy.
+	// Specifically testing:
+	// - the communication through the reverse proxy when the client or server closes
+	//   either the read or write streams
+	// - that closing the write stream is propagated through the proxy and results in reading
+	//   EOF at the other end of the connection
+
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+
+	mustRead := func(t *testing.T, conn *net.TCPConn, msg string) {
+		b := make([]byte, len(msg))
+		if _, err := conn.Read(b); err != nil {
+			t.Errorf("failed to read: %v", err)
+		}
+
+		if got, want := string(b), msg; got != want {
+			t.Errorf("got %#q, want %#q", got, want)
+		}
+	}
+
+	mustReadError := func(t *testing.T, conn *net.TCPConn, e error) {
+		b := make([]byte, 1)
+		if _, err := conn.Read(b); !errors.Is(err, e) {
+			t.Errorf("failed to read error: %v", err)
+		}
+	}
+
+	mustWrite := func(t *testing.T, conn *net.TCPConn, msg string) {
+		if _, err := conn.Write([]byte(msg)); err != nil {
+			t.Errorf("failed to write: %v", err)
+		}
+	}
+
+	mustCloseRead := func(t *testing.T, conn *net.TCPConn) {
+		if err := conn.CloseRead(); err != nil {
+			t.Errorf("failed to CloseRead: %v", err)
+		}
+	}
+
+	mustCloseWrite := func(t *testing.T, conn *net.TCPConn) {
+		if err := conn.CloseWrite(); err != nil {
+			t.Errorf("failed to CloseWrite: %v", err)
+		}
+	}
+
+	tests := map[string]func(t *testing.T, cli, srv *net.TCPConn){
+		"server close read": func(t *testing.T, cli, srv *net.TCPConn) {
+			mustCloseRead(t, srv)
+			mustWrite(t, srv, "server sends")
+			mustRead(t, cli, "server sends")
+		},
+		"server close write": func(t *testing.T, cli, srv *net.TCPConn) {
+			mustCloseWrite(t, srv)
+			mustWrite(t, cli, "client sends")
+			mustRead(t, srv, "client sends")
+			mustReadError(t, cli, io.EOF)
+		},
+		"client close read": func(t *testing.T, cli, srv *net.TCPConn) {
+			mustCloseRead(t, cli)
+			mustWrite(t, cli, "client sends")
+			mustRead(t, srv, "client sends")
+		},
+		"client close write": func(t *testing.T, cli, srv *net.TCPConn) {
+			mustCloseWrite(t, cli)
+			mustWrite(t, srv, "server sends")
+			mustRead(t, cli, "server sends")
+			mustReadError(t, srv, io.EOF)
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			var srv *net.TCPConn
+
+			backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if g, ws := upgradeType(r.Header), "websocket"; g != ws {
+					t.Fatalf("Unexpected upgrade type %q, want %q", g, ws)
+				}
+
+				conn, _, err := w.(http.Hijacker).Hijack()
+				if err != nil {
+					conn.Close()
+					t.Fatalf("hijack failed: %v", err)
+				}
+
+				var ok bool
+				if srv, ok = conn.(*net.TCPConn); !ok {
+					conn.Close()
+					t.Fatal("conn is not a TCPConn")
+				}
+
+				upgradeMsg := "HTTP/1.1 101 Switching Protocols\r\nConnection: upgrade\r\nUpgrade: WebSocket\r\n\r\n"
+				if _, err := io.WriteString(srv, upgradeMsg); err != nil {
+					srv.Close()
+					t.Fatalf("backend upgrade failed: %v", err)
+				}
+			}))
+			defer backendServer.Close()
+
+			backendURL, _ := url.Parse(backendServer.URL)
+			rproxy := NewSingleHostReverseProxy(backendURL)
+			rproxy.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
+			frontendProxy := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+				rproxy.ServeHTTP(rw, req)
+			}))
+			defer frontendProxy.Close()
+
+			frontendURL, _ := url.Parse(frontendProxy.URL)
+			addr, err := net.ResolveTCPAddr("tcp", frontendURL.Host)
+			if err != nil {
+				t.Fatalf("failed to resolve TCP address: %v", err)
+			}
+			cli, err := net.DialTCP("tcp", nil, addr)
+			if err != nil {
+				t.Fatalf("failed to dial TCP address: %v", err)
+			}
+			defer cli.Close()
+
+			req, _ := http.NewRequest("GET", frontendProxy.URL, nil)
+			req.Header.Set("Connection", "Upgrade")
+			req.Header.Set("Upgrade", "websocket")
+			if err := req.Write(cli); err != nil {
+				t.Fatalf("failed to write request: %v", err)
+			}
+
+			br := bufio.NewReader(cli)
+			resp, err := http.ReadResponse(br, &http.Request{Method: "GET"})
+			if err != nil {
+				t.Fatalf("failed to read response: %v", err)
+			}
+			if resp.StatusCode != 101 {
+				t.Fatalf("status code not 101: %v", resp.StatusCode)
+			}
+			if strings.ToLower(resp.Header.Get("Upgrade")) != "websocket" ||
+				strings.ToLower(resp.Header.Get("Connection")) != "upgrade" {
+				t.Fatalf("frontend upgrade failed")
+			}
+			defer srv.Close()
+
+			test(t, cli, srv)
+		})
+	}
+}
+
+func TestReverseProxyUpgradeNoCloseWrite(t *testing.T) {
+	// The backend hijacks the connection,
+	// reads all data from the client,
+	// and returns.
+	backendDone := make(chan struct{})
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Connection", "upgrade")
+		w.Header().Set("Upgrade", "u")
+		w.WriteHeader(101)
+		conn, _, err := http.NewResponseController(w).Hijack()
+		if err != nil {
+			t.Errorf("Hijack: %v", err)
+		}
+		io.Copy(io.Discard, conn)
+		close(backendDone)
+	}))
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The proxy includes a ModifyResponse function which replaces the response body
+	// with its own wrapper, dropping the original body's CloseWrite method.
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.ModifyResponse = func(resp *http.Response) error {
+		type readWriteCloserOnly struct {
+			io.ReadWriteCloser
+		}
+		resp.Body = readWriteCloserOnly{resp.Body.(io.ReadWriteCloser)}
+		return nil
+	}
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	// The client sends a request and closes the connection.
+	req, _ := http.NewRequest("GET", frontend.URL, nil)
+	req.Header.Set("Connection", "upgrade")
+	req.Header.Set("Upgrade", "u")
+	resp, err := frontend.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+
+	// We expect that the client's closure of the connection is propagated to the backend.
+	<-backendDone
+}
+
 func TestUnannouncedTrailer(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -1906,10 +2104,94 @@ func testReverseProxyQueryParameterSmuggling(t *testing.T, wantCleanQuery bool, 
 	}
 }
 
+// Issue #72954: We should not call WriteHeader on a ResponseWriter after hijacking
+// the connection.
+func TestReverseProxyHijackCopyError(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Upgrade", "someproto")
+		w.WriteHeader(http.StatusSwitchingProtocols)
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := &ReverseProxy{
+		Rewrite: func(r *ProxyRequest) {
+			r.SetURL(backendURL)
+		},
+		ModifyResponse: func(resp *http.Response) error {
+			resp.Body = &testReadWriteCloser{
+				read: func([]byte) (int, error) {
+					return 0, errors.New("read error")
+				},
+			}
+			return nil
+		},
+	}
+
+	hijacked := false
+	rw := &testResponseWriter{
+		writeHeader: func(statusCode int) {
+			if hijacked {
+				t.Errorf("WriteHeader(%v) called after Hijack", statusCode)
+			}
+		},
+		hijack: func() (net.Conn, *bufio.ReadWriter, error) {
+			hijacked = true
+			cli, srv := net.Pipe()
+			go io.Copy(io.Discard, cli)
+			return srv, bufio.NewReadWriter(bufio.NewReader(srv), bufio.NewWriter(srv)), nil
+		},
+	}
+	req, _ := http.NewRequest("GET", "http://example.tld/", nil)
+	req.Header.Set("Upgrade", "someproto")
+	proxyHandler.ServeHTTP(rw, req)
+}
+
+// https://go.dev/issue/75933.
+func TestReverseProxyInvalidUpstream100ContinueDoNotHang(t *testing.T) {
+	proxy := ReverseProxy{
+		Transport: &http.Transport{DisableKeepAlives: true, ExpectContinueTimeout: time.Second * 60},
+		Director: func(request *http.Request) {
+			request.URL.Scheme = "http"
+			request.URL.Host = "doesnotexist:12345" // non-existent upstream
+		},
+	}
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxy.ServeHTTP(w, r)
+	})
+	upstreamServer := httptest.NewServer(handler)
+	defer upstreamServer.Close()
+
+	conn, err := net.Dial("tcp", upstreamServer.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	requestBody := `{"test": "data"}`
+	initialRequest := fmt.Sprintf("POST %s/test-expect HTTP/1.1\r\n"+
+		"Host: %s\r\n"+
+		"Content-Type: application/json\r\n"+
+		"Content-Length: %d\r\n"+
+		"Expect: 100-continue\r\n"+
+		"\r\n", upstreamServer.URL, upstreamServer.Listener.Addr().String(), len(requestBody))
+
+	if _, err := conn.Write([]byte(initialRequest)); err != nil {
+		log.Fatal(err)
+	}
+	buff := make([]byte, 1024)
+	if _, err := conn.Read(buff); err != nil {
+		log.Fatal(err)
+	}
+}
+
 type testResponseWriter struct {
 	h           http.Header
 	writeHeader func(int)
 	write       func([]byte) (int, error)
+	hijack      func() (net.Conn, *bufio.ReadWriter, error)
 }
 
 func (rw *testResponseWriter) Header() http.Header {
@@ -1930,4 +2212,38 @@ func (rw *testResponseWriter) Write(p []byte) (int, error) {
 		return rw.write(p)
 	}
 	return len(p), nil
+}
+
+func (rw *testResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if rw.hijack != nil {
+		return rw.hijack()
+	}
+	return nil, nil, errors.ErrUnsupported
+}
+
+type testReadWriteCloser struct {
+	read  func([]byte) (int, error)
+	write func([]byte) (int, error)
+	close func() error
+}
+
+func (rc *testReadWriteCloser) Read(p []byte) (int, error) {
+	if rc.read != nil {
+		return rc.read(p)
+	}
+	return 0, io.EOF
+}
+
+func (rc *testReadWriteCloser) Write(p []byte) (int, error) {
+	if rc.write != nil {
+		return rc.write(p)
+	}
+	return len(p), nil
+}
+
+func (rc *testReadWriteCloser) Close() error {
+	if rc.close != nil {
+		return rc.close()
+	}
+	return nil
 }

@@ -64,7 +64,7 @@ func TestChown(t *testing.T) {
 	// Then try all the auxiliary groups.
 	groups, err := Getgroups()
 	if err != nil {
-		t.Fatalf("getgroups: %s", err)
+		t.Fatal(err)
 	}
 	t.Log("groups: ", groups)
 	for _, g := range groups {
@@ -112,7 +112,7 @@ func TestFileChown(t *testing.T) {
 	// Then try all the auxiliary groups.
 	groups, err := Getgroups()
 	if err != nil {
-		t.Fatalf("getgroups: %s", err)
+		t.Fatal(err)
 	}
 	t.Log("groups: ", groups)
 	for _, g := range groups {
@@ -170,7 +170,7 @@ func TestLchown(t *testing.T) {
 	// Then try all the auxiliary groups.
 	groups, err := Getgroups()
 	if err != nil {
-		t.Fatalf("getgroups: %s", err)
+		t.Fatal(err)
 	}
 	t.Log("groups: ", groups)
 	for _, g := range groups {

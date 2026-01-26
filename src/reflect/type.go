@@ -18,6 +18,7 @@ package reflect
 import (
 	"internal/abi"
 	"internal/goarch"
+	"iter"
 	"runtime"
 	"strconv"
 	"sync"
@@ -59,7 +60,14 @@ type Type interface {
 	// method signature, without a receiver, and the Func field is nil.
 	//
 	// Methods are sorted in lexicographic order.
+	//
+	// Calling this method will force the linker to retain all exported methods in all packages.
+	// This may make the executable binary larger but will not affect execution time.
 	Method(int) Method
+
+	// Methods returns an iterator over each method in the type's method set. The sequence is
+	// equivalent to calling Method successively for each index i in the range [0, NumMethod()).
+	Methods() iter.Seq[Method]
 
 	// MethodByName returns the method with that name in the type's
 	// method set and a boolean indicating if the method was found.
@@ -69,6 +77,10 @@ type Type interface {
 	//
 	// For an interface type, the returned Method's Type field gives the
 	// method signature, without a receiver, and the Func field is nil.
+	//
+	// Calling this method will cause the linker to retain all methods with this name in all packages.
+	// If the linker can't determine the name, it will retain all exported methods.
+	// This may make the executable binary larger but will not affect execution time.
 	MethodByName(string) (Method, bool)
 
 	// NumMethod returns the number of methods accessible using Method.
@@ -165,6 +177,11 @@ type Type interface {
 	// It panics if i is not in the range [0, NumField()).
 	Field(i int) StructField
 
+	// Fields returns an iterator over each struct field for struct type t. The sequence is
+	// equivalent to calling Field successively for each index i in the range [0, NumField()).
+	// It panics if the type's Kind is not Struct.
+	Fields() iter.Seq[StructField]
+
 	// FieldByIndex returns the nested field corresponding
 	// to the index sequence. It is equivalent to calling Field
 	// successively for each index i.
@@ -201,6 +218,11 @@ type Type interface {
 	// It panics if i is not in the range [0, NumIn()).
 	In(i int) Type
 
+	// Ins returns an iterator over each input parameter of function type t. The sequence
+	// is equivalent to calling In successively for each index i in the range [0, NumIn()).
+	// It panics if the type's Kind is not Func.
+	Ins() iter.Seq[Type]
+
 	// Key returns a map type's key type.
 	// It panics if the type's Kind is not Map.
 	Key() Type
@@ -225,6 +247,11 @@ type Type interface {
 	// It panics if the type's Kind is not Func.
 	// It panics if i is not in the range [0, NumOut()).
 	Out(i int) Type
+
+	// Outs returns an iterator over each output parameter of function type t. The sequence
+	// is equivalent to calling Out successively for each index i in the range [0, NumOut()).
+	// It panics if the type's Kind is not Func.
+	Outs() iter.Seq[Type]
 
 	// OverflowComplex reports whether the complex128 x cannot be represented by type t.
 	// It panics if t's Kind is not Complex64 or Complex128.
@@ -301,11 +328,16 @@ const (
 )
 
 // Ptr is the old name for the [Pointer] kind.
+//
+//go:fix inline
 const Ptr = Pointer
 
 // uncommonType is present only for defined types or types with methods
 // (if T is a defined type, the uncommonTypes for T and *T have methods).
-// Using a pointer to this struct reduces the overall size required
+// When present, the uncommonType struct immediately follows the
+// abi.Type struct in memory.
+// The abi.TFlagUncommon indicates the presence of uncommonType.
+// Using an optional struct reduces the overall size required
 // to describe a non-defined type with no methods.
 type uncommonType = abi.UncommonType
 
@@ -925,6 +957,55 @@ func canRangeFunc2(t *abi.Type) bool {
 	return yield.InCount == 2 && yield.OutCount == 1 && yield.Out(0).Kind() == abi.Bool
 }
 
+func (t *rtype) Fields() iter.Seq[StructField] {
+	if t.Kind() != Struct {
+		panic("reflect: Fields of non-struct type " + t.String())
+	}
+	return func(yield func(StructField) bool) {
+		for i := range t.NumField() {
+			if !yield(t.Field(i)) {
+				return
+			}
+		}
+	}
+}
+
+func (t *rtype) Methods() iter.Seq[Method] {
+	return func(yield func(Method) bool) {
+		for i := range t.NumMethod() {
+			if !yield(t.Method(i)) {
+				return
+			}
+		}
+	}
+}
+
+func (t *rtype) Ins() iter.Seq[Type] {
+	if t.Kind() != Func {
+		panic("reflect: Ins of non-func type " + t.String())
+	}
+	return func(yield func(Type) bool) {
+		for i := range t.NumIn() {
+			if !yield(t.In(i)) {
+				return
+			}
+		}
+	}
+}
+
+func (t *rtype) Outs() iter.Seq[Type] {
+	if t.Kind() != Func {
+		panic("reflect: Outs of non-func type " + t.String())
+	}
+	return func(yield func(Type) bool) {
+		for i := range t.NumOut() {
+			if !yield(t.Out(i)) {
+				return
+			}
+		}
+	}
+}
+
 // add returns p+x.
 //
 // The whySafe string is ignored, so that the function still inlines
@@ -1303,6 +1384,12 @@ func TypeOf(i any) Type {
 	return toType(abi.TypeOf(i))
 }
 
+// TypeFor returns the [Type] that represents the type argument T.
+func TypeFor[T any]() Type {
+	// toRType is safe to use here; type is never nil as T is statically known.
+	return toRType(abi.TypeFor[T]())
+}
+
 // rtypeOf directly extracts the *rtype of the provided value.
 func rtypeOf(i any) *abi.Type {
 	return abi.TypeOf(i)
@@ -1318,6 +1405,8 @@ var ptrMap sync.Map // map[*rtype]*ptrType
 // The two functions behave identically.
 //
 // Deprecated: Superseded by [PointerTo].
+//
+//go:fix inline
 func PtrTo(t Type) Type { return PointerTo(t) }
 
 // PointerTo returns the pointer type with element t.
@@ -1797,7 +1886,7 @@ func ChanOf(dir ChanDir, t Type) Type {
 	var ichan any = (chan unsafe.Pointer)(nil)
 	prototype := *(**chanType)(unsafe.Pointer(&ichan))
 	ch := *prototype
-	ch.TFlag = abi.TFlagRegularMemory
+	ch.TFlag = abi.TFlagRegularMemory | abi.TFlagDirectIface
 	ch.Dir = abi.ChanDir(dir)
 	ch.Str = resolveReflectName(newName(s, "", false, false))
 	ch.Hash = fnv1(typ.Hash, 'c', byte(dir))
@@ -1878,7 +1967,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
 		hash = fnv1(hash, byte(t.t.Hash>>24), byte(t.t.Hash>>16), byte(t.t.Hash>>8), byte(t.t.Hash))
 	}
 
-	ft.TFlag = 0
+	ft.TFlag = abi.TFlagDirectIface
 	ft.Hash = hash
 	ft.InCount = uint16(len(in))
 	ft.OutCount = uint16(len(out))
@@ -2297,7 +2386,7 @@ func StructOf(fields []StructField) Type {
 						// Issue 15924.
 						panic("reflect: embedded type with methods not implemented if type is not first field")
 					}
-					if len(fields) > 1 && ft.Kind_&abi.KindDirectIface != 0 {
+					if len(fields) > 1 && ft.IsDirectIface() {
 						panic("reflect: embedded type with methods not implemented for non-pointer type")
 					}
 					for _, m := range unt.Methods() {
@@ -2508,11 +2597,10 @@ func StructOf(fields []StructField) Type {
 	}
 
 	switch {
-	case len(fs) == 1 && !fs[0].Typ.IfaceIndir():
-		// structs of 1 direct iface type can be direct
-		typ.Kind_ |= abi.KindDirectIface
+	case typ.Size_ == goarch.PtrSize && typ.PtrBytes == goarch.PtrSize:
+		typ.TFlag |= abi.TFlagDirectIface
 	default:
-		typ.Kind_ &^= abi.KindDirectIface
+		typ.TFlag &^= abi.TFlagDirectIface
 	}
 
 	return addToCache(toType(&typ.Type))
@@ -2678,11 +2766,10 @@ func ArrayOf(length int, elem Type) Type {
 	}
 
 	switch {
-	case length == 1 && !typ.IfaceIndir():
-		// array of 1 direct iface type can be direct
-		array.Kind_ |= abi.KindDirectIface
+	case array.Size_ == goarch.PtrSize && array.PtrBytes == goarch.PtrSize:
+		array.TFlag |= abi.TFlagDirectIface
 	default:
-		array.Kind_ &^= abi.KindDirectIface
+		array.TFlag &^= abi.TFlagDirectIface
 	}
 
 	ti, _ := lookupCache.LoadOrStore(ckey, toRType(&array.Type))
@@ -2818,7 +2905,7 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
 		return
 	}
 
-	switch Kind(t.Kind_ & abi.KindMask) {
+	switch Kind(t.Kind()) {
 	case Chan, Func, Map, Pointer, Slice, String, UnsafePointer:
 		// 1 pointer at start of representation
 		for bv.n < uint32(offset/goarch.PtrSize) {
@@ -2849,13 +2936,4 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
 			addTypeBits(bv, offset+f.Offset, f.Typ)
 		}
 	}
-}
-
-// TypeFor returns the [Type] that represents the type argument T.
-func TypeFor[T any]() Type {
-	var v T
-	if t := TypeOf(v); t != nil {
-		return t // optimize for T being a non-interface kind
-	}
-	return TypeOf((*T)(nil)).Elem() // only for an interface kind
 }

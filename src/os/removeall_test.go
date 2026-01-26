@@ -471,6 +471,27 @@ func TestRemoveAllNoFcntl(t *testing.T) {
 	}
 }
 
+func TestRemoveAllTrailingSlash(t *testing.T) {
+	slashes := []string{"/"}
+	if runtime.GOOS == "windows" {
+		slashes = append(slashes, `\`)
+	}
+	for _, slash := range slashes {
+		dir := makefs(t, []string{
+			"dir/a/file1",
+			"dir/a/file2",
+			"dir/file3",
+		})
+		path := dir + "/dir"
+		if err := RemoveAll(path + slash); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Stat(path); !IsNotExist(err) {
+			t.Errorf("after RemoveAll(%q), directory still exists", path+slash)
+		}
+	}
+}
+
 func BenchmarkRemoveAll(b *testing.B) {
 	tmpDir := filepath.Join(b.TempDir(), "target")
 	b.ReportAllocs()

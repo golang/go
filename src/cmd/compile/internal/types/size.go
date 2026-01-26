@@ -10,6 +10,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/internal/src"
+	"internal/buildcfg"
 	"internal/types/errors"
 )
 
@@ -388,52 +389,8 @@ func CalcSize(t *Type) {
 		if t.Elem() == nil {
 			break
 		}
-
-		CalcSize(t.Elem())
-		t.SetNotInHeap(t.Elem().NotInHeap())
-		if t.Elem().width != 0 {
-			cap := (uint64(MaxWidth) - 1) / uint64(t.Elem().width)
-			if uint64(t.NumElem()) > cap {
-				base.Errorf("type %L larger than address space", t)
-			}
-		}
-		w = t.NumElem() * t.Elem().width
-		t.align = t.Elem().align
-
-		// ABIInternal only allows "trivial" arrays (i.e., length 0 or 1)
-		// to be passed by register.
-		switch t.NumElem() {
-		case 0:
-			t.intRegs = 0
-			t.floatRegs = 0
-		case 1:
-			t.intRegs = t.Elem().intRegs
-			t.floatRegs = t.Elem().floatRegs
-		default:
-			t.intRegs = math.MaxUint8
-			t.floatRegs = math.MaxUint8
-		}
-		switch a := t.Elem().alg; a {
-		case AMEM, ANOEQ, ANOALG:
-			t.setAlg(a)
-		default:
-			switch t.NumElem() {
-			case 0:
-				// We checked above that the element type is comparable.
-				t.setAlg(AMEM)
-			case 1:
-				// Single-element array is same as its lone element.
-				t.setAlg(a)
-			default:
-				t.setAlg(ASPECIAL)
-			}
-		}
-		if t.NumElem() > 0 {
-			x := PtrDataSize(t.Elem())
-			if x > 0 {
-				t.ptrBytes = t.Elem().width*(t.NumElem()-1) + x
-			}
-		}
+		CalcArraySize(t)
+		w = t.width
 
 	case TSLICE:
 		if t.Elem() == nil {
@@ -496,6 +453,26 @@ func CalcSize(t *Type) {
 	ResumeCheckSize()
 }
 
+// simdify marks as type as "SIMD", either as a tag field,
+// or having the SIMD attribute.  The tag field is a marker
+// type used to identify a struct that is not really a struct.
+// A SIMD type is allocated to a vector register (on amd64,
+// xmm, ymm, or zmm).  The fields of a SIMD type are ignored
+// by the compiler except for the space that they reserve.
+func simdify(st *Type, isTag bool) {
+	st.align = 8
+	st.alg = ANOALG // not comparable with ==
+	st.intRegs = 0
+	st.isSIMD = true
+	if isTag {
+		st.width = 0
+		st.isSIMDTag = true
+		st.floatRegs = 0
+	} else {
+		st.floatRegs = 1
+	}
+}
+
 // CalcStructSize calculates the size of t,
 // filling in t.width, t.align, t.intRegs, and t.floatRegs,
 // even if size calculation is otherwise disabled.
@@ -508,10 +485,26 @@ func CalcStructSize(t *Type) {
 		switch {
 		case sym.Name == "align64" && isAtomicStdPkg(sym.Pkg):
 			maxAlign = 8
+
+		case buildcfg.Experiment.SIMD && (sym.Pkg.Path == "simd/archsimd") && len(t.Fields()) >= 1:
+			// This gates the experiment -- without it, no user-visible types can be "simd".
+			// The SSA-visible SIMD types remain.
+			switch sym.Name {
+			case "v128":
+				simdify(t, true)
+				return
+			case "v256":
+				simdify(t, true)
+				return
+			case "v512":
+				simdify(t, true)
+				return
+			}
 		}
 	}
 
 	fields := t.Fields()
+
 	size := calcStructOffset(t, fields, 0)
 
 	// For non-zero-sized structs which end in a zero-sized field, we
@@ -582,6 +575,68 @@ func CalcStructSize(t *Type) {
 		if size := PtrDataSize(f.Type); size > 0 {
 			t.ptrBytes = f.Offset + size
 			break
+		}
+	}
+
+	if len(t.Fields()) >= 1 && t.Fields()[0].Type.isSIMDTag {
+		// this catches `type Foo simd.Whatever` -- Foo is also SIMD.
+		simdify(t, false)
+	}
+}
+
+// CalcArraySize calculates the size of t,
+// filling in t.width, t.align, t.alg, and t.ptrBytes,
+// even if size calculation is otherwise disabled.
+func CalcArraySize(t *Type) {
+	elem := t.Elem()
+	n := t.NumElem()
+	CalcSize(elem)
+	t.SetNotInHeap(elem.NotInHeap())
+	if elem.width != 0 {
+		cap := (uint64(MaxWidth) - 1) / uint64(elem.width)
+		if uint64(n) > cap {
+			base.Errorf("type %L larger than address space", t)
+		}
+	}
+
+	t.width = elem.width * n
+	t.align = elem.align
+	// ABIInternal only allows "trivial" arrays (i.e., length 0 or 1)
+	// to be passed by register.
+	switch n {
+	case 0:
+		t.intRegs = 0
+		t.floatRegs = 0
+	case 1:
+		t.intRegs = elem.intRegs
+		t.floatRegs = elem.floatRegs
+	default:
+		t.intRegs = math.MaxUint8
+		t.floatRegs = math.MaxUint8
+	}
+	t.alg = AMEM // default
+	if t.Noalg() {
+		t.setAlg(ANOALG)
+	}
+	switch a := elem.alg; a {
+	case AMEM, ANOEQ, ANOALG:
+		t.setAlg(a)
+	default:
+		switch n {
+		case 0:
+			// We checked above that the element type is comparable.
+			t.setAlg(AMEM)
+		case 1:
+			// Single-element array is same as its lone element.
+			t.setAlg(a)
+		default:
+			t.setAlg(ASPECIAL)
+		}
+	}
+	if n > 0 {
+		x := PtrDataSize(elem)
+		if x > 0 {
+			t.ptrBytes = elem.width*(n-1) + x
 		}
 	}
 }

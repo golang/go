@@ -17,7 +17,7 @@ import (
 	"errors"
 	"internal/bytealg"
 	"internal/godebug"
-	"internal/itoa"
+	"internal/strconv"
 	"internal/stringslite"
 	"io"
 	"os"
@@ -495,9 +495,8 @@ func avoidDNS(name string) bool {
 // nameList returns a list of names for sequential DNS queries.
 func (conf *dnsConfig) nameList(name string) []string {
 	// Check name length (see isDomainName).
-	l := len(name)
-	rooted := l > 0 && name[l-1] == '.'
-	if l > 254 || l == 254 && !rooted {
+	rooted := len(name) > 0 && name[len(name)-1] == '.'
+	if len(name) > 254 || len(name) == 254 && !rooted {
 		return nil
 	}
 
@@ -511,7 +510,6 @@ func (conf *dnsConfig) nameList(name string) []string {
 
 	hasNdots := bytealg.CountString(name, '.') >= conf.ndots
 	name += "."
-	l++
 
 	// Build list of search choices.
 	names := make([]string, 0, 1+len(conf.search))
@@ -559,7 +557,7 @@ func (o hostLookupOrder) String() string {
 	if s, ok := lookupOrderName[o]; ok {
 		return s
 	}
-	return "hostLookupOrder=" + itoa.Itoa(int(o)) + "??"
+	return "hostLookupOrder=" + strconv.Itoa(int(o)) + "??"
 }
 
 func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hostLookupOrder, conf *dnsConfig) (addrs []string, err error) {
@@ -842,8 +840,7 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string, order hostLooku
 	}
 	p, server, err := r.lookup(ctx, arpa, dnsmessage.TypePTR, conf)
 	if err != nil {
-		var dnsErr *DNSError
-		if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+		if dnsErr, ok := errors.AsType[*DNSError](err); ok && dnsErr.IsNotFound {
 			if order == hostLookupDNSFiles {
 				names := lookupStaticAddr(addr)
 				if len(names) > 0 {

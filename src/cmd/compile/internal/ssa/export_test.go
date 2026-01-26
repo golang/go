@@ -98,12 +98,12 @@ func (TestFrontend) UseWriteBarrier() bool {
 	return true // only writebarrier_test cares
 }
 
-func (d TestFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
-func (d TestFrontend) Log() bool                            { return true }
+func (d TestFrontend) Logf(msg string, args ...any) { d.t.Logf(msg, args...) }
+func (d TestFrontend) Log() bool                    { return true }
 
-func (d TestFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
-func (d TestFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
-func (d TestFrontend) Debug_checknil() bool                               { return false }
+func (d TestFrontend) Fatalf(_ src.XPos, msg string, args ...any) { d.t.Fatalf(msg, args...) }
+func (d TestFrontend) Warnl(_ src.XPos, msg string, args ...any)  { d.t.Logf(msg, args...) }
+func (d TestFrontend) Debug_checknil() bool                       { return false }
 
 func (d TestFrontend) Func() *ir.Func {
 	return d.f

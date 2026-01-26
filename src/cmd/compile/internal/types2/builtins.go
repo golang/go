@@ -82,71 +82,73 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	switch id {
 	case _Append:
-		// append(s S, x ...T) S, where T is the element type of S
-		// spec: "The variadic function append appends zero or more values x to s of type
-		// S, which must be a slice type, and returns the resulting slice, also of type S.
-		// The values x are passed to a parameter of type ...T where T is the element type
-		// of S and the respective parameter passing rules apply."
-		S := x.typ
-		var T Type
-		if s, _ := coreType(S).(*Slice); s != nil {
-			T = s.elem
-		} else {
-			var cause string
-			switch {
-			case x.isNil():
-				cause = "have untyped nil"
-			case isTypeParam(S):
-				if u := coreType(S); u != nil {
-					cause = check.sprintf("%s has core type %s", x, u)
-				} else {
-					cause = check.sprintf("%s has no core type", x)
-				}
-			default:
-				cause = check.sprintf("have %s", x)
-			}
-			// don't use invalidArg prefix here as it would repeat "argument" in the error message
-			check.errorf(x, InvalidAppend, "first argument to append must be a slice; %s", cause)
+		// append(s S, x ...E) S, where E is the element type of S
+		// spec: "The variadic function append appends zero or more values x to
+		// a slice s of type S and returns the resulting slice, also of type S.
+		// The values x are passed to a parameter of type ...E where E is the
+		// element type of S and the respective parameter passing rules apply.
+		// As a special case, append also accepts a first argument assignable
+		// to type []byte with a second argument of string type followed by ... .
+		// This form appends the bytes of the string."
+
+		// In either case, the first argument must be a slice; in particular it
+		// cannot be the predeclared nil value. Note that nil is not excluded by
+		// the assignability requirement alone for the special case (go.dev/issue/76220).
+		// spec: "If S is a type parameter, all types in its type set
+		// must have the same underlying slice type []E."
+		E, err := sliceElem(x)
+		if err != nil {
+			check.errorf(x, InvalidAppend, "invalid append: %s", err.format(check))
 			return
 		}
 
-		// spec: "As a special case, append also accepts a first argument assignable
-		// to type []byte with a second argument of string type followed by ... .
-		// This form appends the bytes of the string.
+		// Handle append(bytes, y...) special case, where
+		// the type set of y is {string} or {string, []byte}.
+		var sig *Signature
 		if nargs == 2 && hasDots(call) {
 			if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
 				y := args[1]
-				if t := coreString(y.typ); t != nil && isString(t) {
-					if check.recordTypes() {
-						sig := makeSig(S, S, y.typ)
-						sig.variadic = true
-						check.recordBuiltinType(call.Fun, sig)
+				hasString := false
+				for _, u := range typeset(y.typ) {
+					if s, _ := u.(*Slice); s != nil && Identical(s.elem, universeByte) {
+						// typeset ⊇ {[]byte}
+					} else if isString(u) {
+						// typeset ⊇ {string}
+						hasString = true
+					} else {
+						y = nil
+						break
 					}
-					x.mode = value
-					x.typ = S
-					break
+				}
+				if y != nil && hasString {
+					// setting the signature also signals that we're done
+					sig = makeSig(x.typ, x.typ, y.typ)
+					sig.variadic = true
 				}
 			}
 		}
 
-		// check general case by creating custom signature
-		sig := makeSig(S, S, NewSlice(T)) // []T required for variadic signature
-		sig.variadic = true
-		check.arguments(call, sig, nil, nil, args, nil, nil) // discard result (we know the result type)
-		// ok to continue even if check.arguments reported errors
+		// general case
+		if sig == nil {
+			// check arguments by creating custom signature
+			sig = makeSig(x.typ, x.typ, NewSlice(E)) // []E required for variadic signature
+			sig.variadic = true
+			check.arguments(call, sig, nil, nil, args, nil) // discard result (we know the result type)
+			// ok to continue even if check.arguments reported errors
+		}
 
-		x.mode = value
-		x.typ = S
 		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, sig)
 		}
+		x.mode = value
+		// x.typ is unchanged
 
 	case _Cap, _Len:
 		// cap(x)
 		// len(x)
 		mode := invalid
 		var val constant.Value
-		switch t := arrayPtrDeref(under(x.typ)).(type) {
+		switch t := arrayPtrDeref(x.typ.Underlying()).(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
 				if x.mode == constant_ {
@@ -205,7 +207,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		if mode == invalid {
 			// avoid error if underlying type is invalid
-			if isValid(under(x.typ)) {
+			if isValid(x.typ.Underlying()) {
 				code := InvalidCap
 				if id == _Len {
 					code = InvalidLen
@@ -324,7 +326,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
 			assert(!isTypeParam(typ))
-			if t, _ := under(typ).(*Basic); t != nil {
+			if t, _ := typ.Underlying().(*Basic); t != nil {
 				switch t.kind {
 				case Float32:
 					return Typ[Complex64]
@@ -356,24 +358,54 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		x.typ = resTyp
 
 	case _Copy:
-		// copy(x, y []T) int
-		dst, _ := coreType(x.typ).(*Slice)
+		// copy(x, y []E) int
+		// spec: "The function copy copies slice elements from a source src to a destination
+		// dst and returns the number of elements copied. Both arguments must have identical
+		// element type E and must be assignable to a slice of type []E.
+		// The number of elements copied is the minimum of len(src) and len(dst).
+		// As a special case, copy also accepts a destination argument assignable to type
+		// []byte with a source argument of a string type.
+		// This form copies the bytes from the string into the byte slice."
 
+		// get special case out of the way
 		y := args[1]
-		src0 := coreString(y.typ)
-		if src0 != nil && isString(src0) {
-			src0 = NewSlice(universeByte)
+		var special bool
+		if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
+			special = true
+			for _, u := range typeset(y.typ) {
+				if s, _ := u.(*Slice); s != nil && Identical(s.elem, universeByte) {
+					// typeset ⊇ {[]byte}
+				} else if isString(u) {
+					// typeset ⊇ {string}
+				} else {
+					special = false
+					break
+				}
+			}
 		}
-		src, _ := src0.(*Slice)
 
-		if dst == nil || src == nil {
-			check.errorf(x, InvalidCopy, invalidArg+"copy expects slice arguments; found %s and %s", x, y)
-			return
-		}
-
-		if !Identical(dst.elem, src.elem) {
-			check.errorf(x, InvalidCopy, invalidArg+"arguments to copy %s and %s have different element types %s and %s", x, y, dst.elem, src.elem)
-			return
+		// general case
+		if !special {
+			// spec: "If the type of one or both arguments is a type parameter, all types
+			// in their respective type sets must have the same underlying slice type []E."
+			dstE, err := sliceElem(x)
+			if err != nil {
+				check.errorf(x, InvalidCopy, "invalid copy: %s", err.format(check))
+				return
+			}
+			srcE, err := sliceElem(y)
+			if err != nil {
+				// If we have a string, for a better error message proceed with byte element type.
+				if !allString(y.typ) {
+					check.errorf(y, InvalidCopy, "invalid copy: %s", err.format(check))
+					return
+				}
+				srcE = universeByte
+			}
+			if !Identical(dstE, srcE) {
+				check.errorf(x, InvalidCopy, "invalid copy: arguments %s and %s have different element types %s and %s", x, y, dstE, srcE)
+				return
+			}
 		}
 
 		if check.recordTypes() {
@@ -444,7 +476,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
 			assert(!isTypeParam(typ))
-			if t, _ := under(typ).(*Basic); t != nil {
+			if t, _ := typ.Underlying().(*Basic); t != nil {
 				switch t.kind {
 				case Complex64:
 					return Typ[Float32]
@@ -493,18 +525,30 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 
+		u, err := commonUnder(T, func(_, u Type) *typeError {
+			switch u.(type) {
+			case *Slice, *Map, *Chan:
+				return nil // ok
+			case nil:
+				return typeErrorf("no specific type")
+			default:
+				return typeErrorf("type must be slice, map, or channel")
+			}
+		})
+		if err != nil {
+			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s: %s", arg0, err.format(check))
+			return
+		}
+
 		var min int // minimum number of arguments
-		switch coreType(T).(type) {
+		switch u.(type) {
 		case *Slice:
 			min = 2
 		case *Map, *Chan:
 			min = 1
-		case nil:
-			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s: no core type", arg0)
-			return
 		default:
-			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)
-			return
+			// any other type was excluded above
+			panic("unreachable")
 		}
 		if nargs < min || min+1 < nargs {
 			check.errorf(call, WrongArgCount, invalidOp+"%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
@@ -596,15 +640,34 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 	case _New:
-		// new(T)
+		// new(T) or new(expr)
 		// (no argument evaluated yet)
-		T := check.varType(argList[0])
-		if !isValid(T) {
+		arg := argList[0]
+		check.exprOrType(x, arg, false)
+		check.exclude(x, 1<<novalue|1<<builtin)
+		switch x.mode {
+		case invalid:
 			return
+		case typexpr:
+			// new(T)
+			check.validVarType(arg, x.typ)
+		default:
+			// new(expr)
+			if isUntyped(x.typ) {
+				// check for overflow and untyped nil
+				check.assignment(x, nil, "argument to new")
+				if x.mode == invalid {
+					return
+				}
+				assert(isTyped(x.typ))
+			}
+			// report version error only if there are no other errors
+			check.verifyVersionf(call.Fun, go1_26, "new(%s)", arg)
 		}
 
+		T := x.typ
 		x.mode = value
-		x.typ = &Pointer{base: T}
+		x.typ = NewPointer(T)
 		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, T))
 		}
@@ -798,7 +861,8 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// unsafe.Slice(ptr *T, len IntegerType) []T
 		check.verifyVersionf(call.Fun, go1_17, "unsafe.Slice")
 
-		ptr, _ := coreType(x.typ).(*Pointer)
+		u, _ := commonUnder(x.typ, nil)
+		ptr, _ := u.(*Pointer)
 		if ptr == nil {
 			check.errorf(x, InvalidUnsafeSlice, invalidArg+"%s is not a pointer", x)
 			return
@@ -819,7 +883,8 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// unsafe.SliceData(slice []T) *T
 		check.verifyVersionf(call.Fun, go1_20, "unsafe.SliceData")
 
-		slice, _ := coreType(x.typ).(*Slice)
+		u, _ := commonUnder(x.typ, nil)
+		slice, _ := u.(*Slice)
 		if slice == nil {
 			check.errorf(x, InvalidUnsafeSliceData, invalidArg+"%s is not a slice", x)
 			return
@@ -915,6 +980,30 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	return true
 }
 
+// sliceElem returns the slice element type for a slice operand x
+// or a type error if x is not a slice (or a type set of slices).
+func sliceElem(x *operand) (Type, *typeError) {
+	var E Type
+	for _, u := range typeset(x.typ) {
+		s, _ := u.(*Slice)
+		if s == nil {
+			if x.isNil() {
+				// Printing x in this case would just print "nil".
+				// Special case this so we can emphasize "untyped".
+				return nil, typeErrorf("argument must be a slice; have untyped nil")
+			} else {
+				return nil, typeErrorf("argument must be a slice; have %s", x)
+			}
+		}
+		if E == nil {
+			E = s.elem
+		} else if !Identical(E, s.elem) {
+			return nil, typeErrorf("mismatched slice element types %s and %s in %s", E, s.elem, x)
+		}
+	}
+	return E, nil
+}
+
 // hasVarSize reports if the size of type t is variable due to type parameters
 // or if the type is infinitely-sized due to a cycle for which the type has not
 // yet been checked.
@@ -935,7 +1024,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
 		}()
 	}
 
-	switch u := under(t).(type) {
+	switch u := t.Underlying().(type) {
 	case *Array:
 		return hasVarSize(u.elem, seen)
 	case *Struct:
@@ -1012,13 +1101,13 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
 func makeSig(res Type, args ...Type) *Signature {
 	list := make([]*Var, len(args))
 	for i, param := range args {
-		list[i] = NewVar(nopos, nil, "", Default(param))
+		list[i] = NewParam(nopos, nil, "", Default(param))
 	}
 	params := NewTuple(list...)
 	var result *Tuple
 	if res != nil {
 		assert(!isUntyped(res))
-		result = NewTuple(NewVar(nopos, nil, "", res))
+		result = NewTuple(newVar(ResultVar, nopos, nil, "", res))
 	}
 	return &Signature{params: params, results: result}
 }
@@ -1027,7 +1116,7 @@ func makeSig(res Type, args ...Type) *Signature {
 // otherwise it returns typ.
 func arrayPtrDeref(typ Type) Type {
 	if p, ok := Unalias(typ).(*Pointer); ok {
-		if a, _ := under(p.base).(*Array); a != nil {
+		if a, _ := p.base.Underlying().(*Array); a != nil {
 			return a
 		}
 	}

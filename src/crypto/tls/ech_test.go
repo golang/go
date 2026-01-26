@@ -41,7 +41,7 @@ func TestSkipBadConfigs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := pickECHConfig(configs)
+	config, _, _, _ := pickECHConfig(configs)
 	if config != nil {
 		t.Fatal("pickECHConfig picked an invalid config")
 	}

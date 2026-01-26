@@ -348,3 +348,33 @@ func (s *sum128a) UnmarshalBinary(b []byte) error {
 	s[1] = byteorder.BEUint64(b[12:])
 	return nil
 }
+
+func (d *sum32) Clone() (hash.Cloner, error) {
+	r := *d
+	return &r, nil
+}
+
+func (d *sum32a) Clone() (hash.Cloner, error) {
+	r := *d
+	return &r, nil
+}
+
+func (d *sum64) Clone() (hash.Cloner, error) {
+	r := *d
+	return &r, nil
+}
+
+func (d *sum64a) Clone() (hash.Cloner, error) {
+	r := *d
+	return &r, nil
+}
+
+func (d *sum128) Clone() (hash.Cloner, error) {
+	r := *d
+	return &r, nil
+}
+
+func (d *sum128a) Clone() (hash.Cloner, error) {
+	r := *d
+	return &r, nil
+}

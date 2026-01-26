@@ -174,7 +174,7 @@ L6:
 	MOVD	R12, R6
 	CMPBGT	R6, $0, L1
 
-	WORD	$0xB3130000	//lcdbr	%f0,%f0
+	LCDBR	F0, F0
 	FMOVD	F0, ret+8(FP)
 	RET
 L16:
@@ -206,8 +206,8 @@ L16:
 	FMOVD	F0, ret+8(FP)
 	RET
 L17:
-	WORD	$0xB31300A0	//lcdbr	%f10,%f0
+	LCDBR	F0, F10
 	BR	L4
 L15:
-	WORD	$0xB31300A0	//lcdbr	%f10,%f0
+	LCDBR	F0, F10
 	BR	L9

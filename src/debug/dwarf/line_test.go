@@ -94,8 +94,8 @@ func TestLineGCCWindows(t *testing.T) {
 
 	toWindows := func(lf *LineFile) *LineFile {
 		lf2 := *lf
-		lf2.Name = strings.Replace(lf2.Name, "/home/austin/go.dev/", "C:\\workdir\\go\\", -1)
-		lf2.Name = strings.Replace(lf2.Name, "/", "\\", -1)
+		lf2.Name = strings.ReplaceAll(lf2.Name, "/home/austin/go.dev/", "C:\\workdir\\go\\")
+		lf2.Name = strings.ReplaceAll(lf2.Name, "/", "\\")
 		return &lf2
 	}
 	file1C := toWindows(file1C)

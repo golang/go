@@ -21,7 +21,7 @@ type MyNode struct {
 // We require lfstack objects to live outside the heap so that
 // checkptr passes on the unsafe shenanigans used.
 func allocMyNode(data int) *MyNode {
-	n := (*MyNode)(PersistentAlloc(unsafe.Sizeof(MyNode{})))
+	n := (*MyNode)(PersistentAlloc(unsafe.Sizeof(MyNode{}), TagAlign))
 	LFNodeValidate(&n.LFNode)
 	n.data = data
 	return n

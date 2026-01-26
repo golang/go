@@ -1,0 +1,98 @@
+!sum
+- go: LeadingZeros
+  asm: "VPLZCNT[DQ]"
+  in:
+  - &any
+    go: $t
+  out:
+  - *any
+- go: AESEncryptOneRound
+  asm: VAESENC
+  in:
+  - &uint8s
+    base: uint
+    overwriteElementBits: 8
+  - &uint32s
+    base: uint
+    overwriteElementBits: 32
+  out:
+  - *uint8s
+- go: AESEncryptLastRound
+  asm: VAESENCLAST
+  in:
+  - *uint8s
+  - *uint32s
+  out:
+  - *uint8s
+- go: AESRoundKeyGenAssist
+  asm: VAESKEYGENASSIST
+  in:
+  - *uint32s
+  - class: immediate
+    immOffset: 0
+    name: rconVal
+  out:
+  - *uint32s
+- go: AESDecryptOneRound
+  asm: VAESDEC
+  in:
+  - *uint8s
+  - *uint32s
+  out:
+  - *uint8s
+- go: AESDecryptLastRound
+  asm: VAESDECLAST
+  in:
+  - *uint8s
+  - *uint32s
+  out:
+  - *uint8s
+- go: AESInvMixColumns
+  asm: VAESIMC
+  in:
+  - *uint32s
+  out:
+  - *uint32s
+- go: SHA1FourRounds
+  asm: SHA1RNDS4
+  operandOrder: "SHA1RNDS4"
+  in: &2uint1imm
+  - &uint
+    go: $t
+    base: uint
+  - *uint
+  - class: immediate
+    immOffset: 0
+  out: &1uint
+  - *uint
+- go: SHA1NextE
+  asm: SHA1NEXTE
+  in: &2uint
+  - *uint
+  - *uint
+  out: *1uint
+- go: SHA1Message1
+  asm: SHA1MSG1
+  in: *2uint
+  out: *1uint
+- go: SHA1Message2
+  asm: SHA1MSG2
+  in: *2uint
+  out: *1uint
+- go: SHA256TwoRounds
+  asm: SHA256RNDS2
+  in:
+  - base: uint
+  - base: uint
+  - base: uint
+    overwriteElementBits: 32
+  out:
+  - base: uint
+- go: SHA256Message1
+  asm: SHA256MSG1
+  in: *2uint
+  out: *1uint
+- go: SHA256Message2
+  asm: SHA256MSG2
+  in: *2uint
+  out: *1uint

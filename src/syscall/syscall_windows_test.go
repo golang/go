@@ -36,8 +36,9 @@ func TestOpen(t *testing.T) {
 		{dir, syscall.O_RDONLY | syscall.O_CREAT, nil},
 		{file, syscall.O_APPEND | syscall.O_WRONLY | os.O_CREATE, nil},
 		{file, syscall.O_APPEND | syscall.O_WRONLY | os.O_CREATE | os.O_TRUNC, nil},
+		{file, syscall.O_WRONLY | syscall.O_RDWR, nil},
+		{dir, syscall.O_WRONLY | syscall.O_RDWR, nil},
 		{dir, syscall.O_RDONLY | syscall.O_TRUNC, syscall.ERROR_ACCESS_DENIED},
-		{dir, syscall.O_WRONLY | syscall.O_RDWR, syscall.EISDIR},
 		{dir, syscall.O_WRONLY, syscall.EISDIR},
 		{dir, syscall.O_RDWR, syscall.EISDIR},
 	}
@@ -298,4 +299,11 @@ func FuzzUTF16FromString(f *testing.F) {
 			t.Fatalf("len(%04x) > len(%q)+1", res, tst)
 		}
 	})
+}
+
+func BenchmarkErrnoString(b *testing.B) {
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = syscall.Errno(2).Error()
+	}
 }

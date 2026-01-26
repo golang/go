@@ -28,6 +28,9 @@ HTML templates treat data values as plain text which should be encoded so they
 can be safely embedded in an HTML document. The escaping is contextual, so
 actions can appear within JavaScript, CSS, and URI contexts.
 
+Comments are stripped from output, except for those passed in via the
+[HTML], [CSS], and [JS] types for their respective contexts.
+
 The security model used by this package assumes that template authors are
 trusted, while Execute's data parameter is not. More details are
 provided below.
@@ -210,7 +213,7 @@ that would have been produced if {{.}} was a regular string.
 
 # Security Model
 
-https://rawgit.com/mikesamuel/sanitized-jquery-templates/trunk/safetemplate.html#problem_definition defines "safe" as used by this package.
+https://web.archive.org/web/20160501113828/http://js-quasis-libraries-and-repl.googlecode.com/svn/trunk/safetemplate.html#problem_definition defines "safe" as used by this package.
 
 This package assumes that template authors are trusted, that Execute's data
 parameter is not, and seeks to preserve the properties below in the face

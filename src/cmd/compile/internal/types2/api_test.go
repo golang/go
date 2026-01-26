@@ -11,6 +11,7 @@ import (
 	"internal/goversion"
 	"internal/testenv"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -356,6 +357,11 @@ func TestTypesInfo(t *testing.T) {
 
 		// go.dev/issue/47895
 		{`package p; import "unsafe"; type S struct { f int }; var s S; var _ = unsafe.Offsetof(s.f)`, `s.f`, `int`},
+
+		// go.dev/issue/74303. Note that interface field types are synthetic, so
+		// even though `func()` doesn't appear in the source, it appears in the
+		// syntax tree.
+		{`package p; type T interface { M(int) }`, `func(int)`, `func(int)`},
 
 		// go.dev/issue/50093
 		{`package u0a; func _[_ interface{int}]() {}`, `int`, `int`},
@@ -1009,13 +1015,13 @@ func (r *N[C]) n() {  }
 		t.Errorf(`N.Method(...) returns %v for "m", but Info.Defs has %v`, gm, dm)
 	}
 	if gn != dn {
-		t.Errorf(`N.Method(...) returns %v for "m", but Info.Defs has %v`, gm, dm)
+		t.Errorf(`N.Method(...) returns %v for "n", but Info.Defs has %v`, gn, dn)
 	}
 	if dmm != dm {
 		t.Errorf(`Inside "m", r.m uses %v, want the defined func %v`, dmm, dm)
 	}
 	if dmn == dn {
-		t.Errorf(`Inside "m", r.n uses %v, want a func distinct from %v`, dmm, dm)
+		t.Errorf(`Inside "m", r.n uses %v, want a func distinct from %v`, dmn, dn)
 	}
 }
 
@@ -1219,9 +1225,9 @@ func TestPredicatesInfo(t *testing.T) {
 		{`package v0; var (a, b int; _ = a + b)`, `a + b`, `value`},
 		{`package v1; var _ = &[]int{1}`, `[]int{…}`, `value`},
 		{`package v2; var _ = func(){}`, `func() {}`, `value`},
-		{`package v4; func f() { _ = f }`, `f`, `value`},
-		{`package v3; var _ *int = nil`, `nil`, `value, nil`},
-		{`package v3; var _ *int = (nil)`, `(nil)`, `value, nil`},
+		{`package v3; func f() { _ = f }`, `f`, `value`},
+		{`package v4; var _ *int = nil`, `nil`, `value, nil`},
+		{`package v5; var _ *int = (nil)`, `(nil)`, `value, nil`},
 
 		// addressable (and thus assignable) operands
 		{`package a0; var (x int; _ = x)`, `x`, `value, addressable, assignable`},
@@ -1252,8 +1258,8 @@ func TestPredicatesInfo(t *testing.T) {
 		{`package m4; var v int`, `v`, `<missing>`},
 		{`package m5; func f() {}`, `f`, `<missing>`},
 		{`package m6; func _(x int) {}`, `x`, `<missing>`},
-		{`package m6; func _()(x int) { return }`, `x`, `<missing>`},
-		{`package m6; type T int; func (x T) _() {}`, `x`, `<missing>`},
+		{`package m7; func _()(x int) { return }`, `x`, `<missing>`},
+		{`package m8; type T int; func (x T) _() {}`, `x`, `<missing>`},
 	}
 
 	for _, test := range tests {
@@ -2462,8 +2468,8 @@ func TestInstantiateErrors(t *testing.T) {
 			t.Fatalf("Instantiate(%v, %v) returned nil error, want non-nil", T, test.targs)
 		}
 
-		var argErr *ArgumentError
-		if !errors.As(err, &argErr) {
+		argErr, ok := errors.AsType[*ArgumentError](err)
+		if !ok {
 			t.Fatalf("Instantiate(%v, %v): error is not an *ArgumentError", T, test.targs)
 		}
 
@@ -2478,8 +2484,8 @@ func TestArgumentErrorUnwrapping(t *testing.T) {
 		Index: 1,
 		Err:   Error{Msg: "test"},
 	}
-	var e Error
-	if !errors.As(err, &e) {
+	e, ok := errors.AsType[Error](err)
+	if !ok {
 		t.Fatalf("error %v does not wrap types.Error", err)
 	}
 	if e.Msg != "test" {
@@ -2973,7 +2979,6 @@ func TestTooNew(t *testing.T) {
 
 // This is a regression test for #66704.
 func TestUnaliasTooSoonInCycle(t *testing.T) {
-	t.Setenv("GODEBUG", "gotypesalias=1")
 	const src = `package a
 
 var x T[B] // this appears to cause Unalias to be called on B while still Invalid
@@ -2999,34 +3004,12 @@ type B = C
 type C = int
 `
 
-	pkg := mustTypecheck(src, &Config{EnableAlias: true}, nil)
+	pkg := mustTypecheck(src, nil, nil)
 	A := pkg.Scope().Lookup("A")
 
 	got, want := A.Type().(*Alias).Rhs().String(), "p.B"
 	if got != want {
 		t.Errorf("A.Rhs = %s, want %s", got, want)
-	}
-}
-
-// Test the hijacking described of "any" described in golang/go#66921, for
-// (concurrent) type checking.
-func TestAnyHijacking_Check(t *testing.T) {
-	for _, enableAlias := range []bool{false, true} {
-		t.Run(fmt.Sprintf("EnableAlias=%t", enableAlias), func(t *testing.T) {
-			var wg sync.WaitGroup
-			for i := 0; i < 10; i++ {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					pkg := mustTypecheck("package p; var x any", &Config{EnableAlias: enableAlias}, nil)
-					x := pkg.Scope().Lookup("x")
-					if _, gotAlias := x.Type().(*Alias); gotAlias != enableAlias {
-						t.Errorf(`Lookup("x").Type() is %T: got Alias: %t, want %t`, x.Type(), gotAlias, enableAlias)
-					}
-				}()
-			}
-			wg.Wait()
-		})
 	}
 }
 
@@ -3059,5 +3042,50 @@ func TestVersionWithoutPos(t *testing.T) {
 	want := "range over s (variable of type func(func() bool)): requires go1.23"
 	if !strings.Contains(got, want) {
 		t.Errorf("check error was %q, want substring %q", got, want)
+	}
+}
+
+func TestVarKind(t *testing.T) {
+	f := mustParse(`package p
+
+var global int
+
+type T struct { field int }
+
+func (recv T) f(param int) (result int) {
+	var local int
+	local2 := 0
+	switch local3 := any(local).(type) {
+	default:
+		_ = local3
+	}
+	return local2
+}
+`)
+
+	pkg := NewPackage("p", "p")
+	info := &Info{Defs: make(map[*syntax.Name]Object)}
+	check := NewChecker(&Config{}, pkg, info)
+	if err := check.Files([]*syntax.File{f}); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, obj := range info.Defs {
+		if v, ok := obj.(*Var); ok {
+			got = append(got, fmt.Sprintf("%s: %v", v.Name(), v.Kind()))
+		}
+	}
+	sort.Strings(got)
+	want := []string{
+		"field: FieldVar",
+		"global: PackageVar",
+		"local2: LocalVar",
+		"local: LocalVar",
+		"param: ParamVar",
+		"recv: RecvVar",
+		"result: ResultVar",
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
 }

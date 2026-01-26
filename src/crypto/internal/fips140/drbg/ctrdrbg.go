@@ -21,6 +21,14 @@ import (
 // We support a narrow range of parameters that fit the needs of our RNG:
 // AES-256, no derivation function, no personalization string, no prediction
 // resistance, and 384-bit additional input.
+//
+// WARNING: this type provides tightly scoped support for the DRBG
+// functionality we need for FIPS 140-3 _only_. This type _should not_ be used
+// outside of the FIPS 140-3 module for any other use.
+//
+// In particular, as documented, Counter does not support the derivation
+// function, or personalization strings which are necessary for safely using
+// this DRBG for generic purposes without leaking sensitive values.
 type Counter struct {
 	// c is instantiated with K as the key and V as the counter.
 	c aes.CTR

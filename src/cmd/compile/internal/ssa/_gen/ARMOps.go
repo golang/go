@@ -94,44 +94,45 @@ func init() {
 		gpspsbg    = gpspg | buildReg("SB")
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15")
 		callerSave = gp | fp | buildReg("g") // runtime.setg (and anything calling it) may clobber g
+		lr         = buildReg("R14")
 		r0         = buildReg("R0")
 		r1         = buildReg("R1")
 		r2         = buildReg("R2")
 		r3         = buildReg("R3")
-		r4         = buildReg("R4")
 	)
 	// Common regInfo
 	var (
-		gp01      = regInfo{inputs: nil, outputs: []regMask{gp}}
-		gp11      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
-		gp11carry = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp, 0}}
-		gp11sp    = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
-		gp1flags  = regInfo{inputs: []regMask{gpg}}
-		gp1flags1 = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}
-		gp21      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
-		gp21carry = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, 0}}
-		gp2flags  = regInfo{inputs: []regMask{gpg, gpg}}
-		gp2flags1 = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
-		gp22      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
-		gp31      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
-		gp31carry = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp, 0}}
-		gp3flags  = regInfo{inputs: []regMask{gp, gp, gp}}
-		gp3flags1 = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
-		gpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
-		gpstore   = regInfo{inputs: []regMask{gpspsbg, gpg}}
-		gp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
-		gp2store  = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}}
-		fp01      = regInfo{inputs: nil, outputs: []regMask{fp}}
-		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
-		fp1flags  = regInfo{inputs: []regMask{fp}}
-		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}, clobbers: buildReg("F15")} // int-float conversion uses F15 as tmp
-		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}, clobbers: buildReg("F15")}
-		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
-		fp31      = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
-		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
-		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
-		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}}
-		readflags = regInfo{inputs: nil, outputs: []regMask{gp}}
+		gp01           = regInfo{inputs: nil, outputs: []regMask{gp}}
+		gp11           = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
+		gp11carry      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp, 0}}
+		gp11sp         = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
+		gp1flags       = regInfo{inputs: []regMask{gpg}}
+		gp1flags1      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}
+		gp21           = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
+		gp21carry      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, 0}}
+		gp2flags       = regInfo{inputs: []regMask{gpg, gpg}}
+		gp2flags1      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
+		gp2flags1carry = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
+		gp22           = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
+		gp31           = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
+		gp31carry      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp, 0}}
+		gp3flags       = regInfo{inputs: []regMask{gp, gp, gp}}
+		gp3flags1      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
+		gpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
+		gpstore        = regInfo{inputs: []regMask{gpspsbg, gpg}}
+		gp2load        = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+		gp2store       = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}}
+		fp01           = regInfo{inputs: nil, outputs: []regMask{fp}}
+		fp11           = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+		fp1flags       = regInfo{inputs: []regMask{fp}}
+		fpgp           = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}, clobbers: buildReg("F15")} // int-float conversion uses F15 as tmp
+		gpfp           = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}, clobbers: buildReg("F15")}
+		fp21           = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+		fp31           = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
+		fp2flags       = regInfo{inputs: []regMask{fp, fp}}
+		fpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
+		fpstore        = regInfo{inputs: []regMask{gpspsbg, fp}}
+		readflags      = regInfo{inputs: nil, outputs: []regMask{gp}}
 	)
 	ops := []opData{
 		// binary ops
@@ -161,16 +162,17 @@ func init() {
 			call:         false, // TODO(mdempsky): Should this be true?
 		},
 
-		{name: "ADDS", argLength: 2, reg: gp21carry, asm: "ADD", commutative: true}, // arg0 + arg1, set carry flag
-		{name: "ADDSconst", argLength: 1, reg: gp11carry, asm: "ADD", aux: "Int32"}, // arg0 + auxInt, set carry flag
-		{name: "ADC", argLength: 3, reg: gp2flags1, asm: "ADC", commutative: true},  // arg0 + arg1 + carry, arg2=flags
-		{name: "ADCconst", argLength: 2, reg: gp1flags1, asm: "ADC", aux: "Int32"},  // arg0 + auxInt + carry, arg1=flags
-		{name: "SUBS", argLength: 2, reg: gp21carry, asm: "SUB"},                    // arg0 - arg1, set carry flag
-		{name: "SUBSconst", argLength: 1, reg: gp11carry, asm: "SUB", aux: "Int32"}, // arg0 - auxInt, set carry flag
-		{name: "RSBSconst", argLength: 1, reg: gp11carry, asm: "RSB", aux: "Int32"}, // auxInt - arg0, set carry flag
-		{name: "SBC", argLength: 3, reg: gp2flags1, asm: "SBC"},                     // arg0 - arg1 - carry, arg2=flags
-		{name: "SBCconst", argLength: 2, reg: gp1flags1, asm: "SBC", aux: "Int32"},  // arg0 - auxInt - carry, arg1=flags
-		{name: "RSCconst", argLength: 2, reg: gp1flags1, asm: "RSC", aux: "Int32"},  // auxInt - arg0 - carry, arg1=flags
+		{name: "ADDS", argLength: 2, reg: gp21carry, asm: "ADD", commutative: true},      // arg0 + arg1, set carry flag
+		{name: "ADDSconst", argLength: 1, reg: gp11carry, asm: "ADD", aux: "Int32"},      // arg0 + auxInt, set carry flag
+		{name: "ADC", argLength: 3, reg: gp2flags1, asm: "ADC", commutative: true},       // arg0 + arg1 + carry, arg2=flags
+		{name: "ADCconst", argLength: 2, reg: gp1flags1, asm: "ADC", aux: "Int32"},       // arg0 + auxInt + carry, arg1=flags
+		{name: "ADCS", argLength: 3, reg: gp2flags1carry, asm: "ADC", commutative: true}, // arg0 + arg1 + carrry, sets carry
+		{name: "SUBS", argLength: 2, reg: gp21carry, asm: "SUB"},                         // arg0 - arg1, set carry flag
+		{name: "SUBSconst", argLength: 1, reg: gp11carry, asm: "SUB", aux: "Int32"},      // arg0 - auxInt, set carry flag
+		{name: "RSBSconst", argLength: 1, reg: gp11carry, asm: "RSB", aux: "Int32"},      // auxInt - arg0, set carry flag
+		{name: "SBC", argLength: 3, reg: gp2flags1, asm: "SBC"},                          // arg0 - arg1 - carry, arg2=flags
+		{name: "SBCconst", argLength: 2, reg: gp1flags1, asm: "SBC", aux: "Int32"},       // arg0 - auxInt - carry, arg1=flags
+		{name: "RSCconst", argLength: 2, reg: gp1flags1, asm: "RSC", aux: "Int32"},       // auxInt - arg0 - carry, arg1=flags
 
 		{name: "MULLU", argLength: 2, reg: gp22, asm: "MULLU", commutative: true}, // arg0 * arg1, high 32 bits in out0, low 32 bits in out1
 		{name: "MULA", argLength: 3, reg: gp31, asm: "MULA"},                      // arg0 * arg1 + arg2
@@ -540,16 +542,19 @@ func init() {
 		// See runtime/stubs.go for a more detailed discussion.
 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
 
-		// There are three of these functions so that they can have three different register inputs.
-		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
-		// default registers to match so we don't need to copy registers around unnecessarily.
-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
-		// Extend ops are the same as Bounds ops except the indexes are 64-bit.
-		{name: "LoweredPanicExtendA", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r2, r3}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
-		{name: "LoweredPanicExtendB", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r1, r2}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
-		{name: "LoweredPanicExtendC", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r0, r1}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+		// LoweredPanicBoundsRR takes x and y, two values that caused a bounds check to fail.
+		// the RC and CR versions are used when one of the arguments is a constant. CC is used
+		// when both are constant (normally both 0, as prove derives the fact that a [0] bounds
+		// failure means the length must have also been 0).
+		// AuxInt contains a report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsRR", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{gp &^ lr, gp &^ lr}}, typ: "Mem", call: true}, // arg0=x, arg1=y, arg2=mem, returns memory.
+		{name: "LoweredPanicBoundsRC", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{gp &^ lr}}, typ: "Mem", call: true},    // arg0=x, arg1=mem, returns memory.
+		{name: "LoweredPanicBoundsCR", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{gp &^ lr}}, typ: "Mem", call: true},    // arg0=y, arg1=mem, returns memory.
+		{name: "LoweredPanicBoundsCC", argLength: 1, aux: "PanicBoundsCC", reg: regInfo{}, typ: "Mem", call: true},                              // arg0=mem, returns memory.
+
+		// Same as above, but the x value is 64 bits.
+		{name: "LoweredPanicExtendRR", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r0 | r1 | r2 | r3, r0 | r1 | r2 | r3, gp}}, typ: "Mem", call: true},    // arg0=x_hi, arg1=x_lo, arg2=y, arg3=mem, returns memory.
+		{name: "LoweredPanicExtendRC", argLength: 3, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{r0 | r1 | r2 | r3, r0 | r1 | r2 | r3}}, typ: "Mem", call: true}, // arg0=x_hi, arg1=x_lo, arg2=mem, returns memory.
 
 		// Constant flag value.
 		// Note: there's an "unordered" outcome for floating-point

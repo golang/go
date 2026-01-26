@@ -18,6 +18,9 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// TestPassFlagToTest ensures that the generated table of flags is
+// consistent with output of "go tool vet -flags", using the installed
+// go command---so if it fails, you may need to re-run make.bash.
 func TestPassFlagToTest(t *testing.T) {
 	wantNames := genflags.ShortTestFlags()
 

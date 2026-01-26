@@ -6,6 +6,7 @@ package dwarf_test
 
 import (
 	. "debug/dwarf"
+	"debug/elf"
 	"encoding/binary"
 	"path/filepath"
 	"reflect"
@@ -455,5 +456,64 @@ func TestIssue52045(t *testing.T) {
 	// main goal is to make sure we can get here without crashing
 	if entry0 != nil {
 		t.Errorf("got non-nil entry0, wanted nil")
+	}
+}
+
+func TestIssue57046(t *testing.T) {
+	f, err := elf.Open("testdata/issue57046-clang.elf5")
+	if err != nil {
+		t.Fatalf("elf.Open returns err: %v", err)
+	}
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("f.DWARF returns err: %v", err)
+	}
+	// Write down all the subprogram DIEs.
+	spdies := []Offset{}
+	lopcs := []uint64{}
+	r := d.Reader()
+	for {
+		e, err := r.Next()
+		if err != nil {
+			t.Fatalf("r.Next() returns err: %v", err)
+		}
+		if e == nil {
+			break
+		}
+		if e.Tag != TagSubprogram {
+			continue
+		}
+		var name string
+		var lopc uint64
+		if n, ok := e.Val(AttrName).(string); ok {
+			name = n
+		}
+		if lo, ok := e.Val(AttrLowpc).(uint64); ok {
+			lopc = lo
+		}
+		if name == "" || lopc == 0 {
+			continue
+		}
+		spdies = append(spdies, e.Offset)
+		lopcs = append(lopcs, lopc)
+	}
+
+	// Seek to the second entry in spdies (corresponding to mom() in
+	// issue57046_part2.c) and take a look at it.
+	r2 := d.Reader()
+	r2.Seek(spdies[1])
+	e, err := r2.Next()
+	if err != nil {
+		t.Fatalf("r2.Next() returns err: %v", err)
+	}
+	if e == nil {
+		t.Fatalf("r2.Next() returned nil")
+	}
+
+	// Verify that the lopc we see matches what we saw before.
+	got := e.Val(AttrLowpc).(uint64)
+	if got != lopcs[1] {
+		t.Errorf("bad lopc for fn2 following seek: want %x got %x\n",
+			lopcs[1], got)
 	}
 }

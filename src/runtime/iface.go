@@ -474,7 +474,7 @@ func typeAssert(s *abi.TypeAssert, t *_type) *itab {
 		tab = getitab(s.Inter, t, s.CanFail)
 	}
 
-	if !abi.UseInterfaceSwitchCache(GOARCH) {
+	if !abi.UseInterfaceSwitchCache(goarch.ArchFamily) {
 		return tab
 	}
 
@@ -574,7 +574,7 @@ func interfaceSwitch(s *abi.InterfaceSwitch, t *_type) (int, *itab) {
 		}
 	}
 
-	if !abi.UseInterfaceSwitchCache(GOARCH) {
+	if !abi.UseInterfaceSwitchCache(goarch.ArchFamily) {
 		return case_, tab
 	}
 

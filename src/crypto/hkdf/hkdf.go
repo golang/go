@@ -71,7 +71,7 @@ func Key[Hash hash.Hash](h func() Hash, secret, salt []byte, info string, keyLen
 }
 
 func checkFIPS140Only[Hash hash.Hash](h func() Hash, key []byte) error {
-	if !fips140only.Enabled {
+	if !fips140only.Enforced() {
 		return nil
 	}
 	if len(key) < 112/8 {

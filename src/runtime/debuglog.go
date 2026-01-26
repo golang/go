@@ -27,6 +27,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/byteorder"
 	"internal/runtime/atomic"
 	"internal/runtime/sys"
 	"unsafe"
@@ -95,7 +96,7 @@ func dlogImpl() *dloggerImpl {
 	if l == nil {
 		// Use sysAllocOS instead of sysAlloc because we want to interfere
 		// with the runtime as little as possible, and sysAlloc updates accounting.
-		l = (*dloggerImpl)(sysAllocOS(unsafe.Sizeof(dloggerImpl{})))
+		l = (*dloggerImpl)(sysAllocOS(unsafe.Sizeof(dloggerImpl{}), "debug log"))
 		if l == nil {
 			throw("failed to allocate debug log")
 		}
@@ -195,7 +196,8 @@ const (
 	debugLogPtr
 	debugLogString
 	debugLogConstString
-	debugLogStringOverflow
+	debugLogHexdump
+	debugLogOverflow
 
 	debugLogPC
 	debugLogTraceback
@@ -326,7 +328,7 @@ func (l *dloggerImpl) p(x any) *dloggerImpl {
 		l.w.uvarint(0)
 	} else {
 		v := efaceOf(&x)
-		switch v._type.Kind_ & abi.KindMask {
+		switch v._type.Kind() {
 		case abi.Chan, abi.Func, abi.Map, abi.Pointer, abi.UnsafePointer:
 			l.w.uvarint(uint64(uintptr(v.data)))
 		default:
@@ -364,10 +366,36 @@ func (l *dloggerImpl) s(x string) *dloggerImpl {
 		l.w.uvarint(uint64(len(b)))
 		l.w.bytes(b)
 		if len(b) != len(x) {
-			l.w.byte(debugLogStringOverflow)
+			l.w.byte(debugLogOverflow)
 			l.w.uvarint(uint64(len(x) - len(b)))
 		}
 	}
+	return l
+}
+
+//go:nosplit
+func (l dloggerFake) hexdump(p unsafe.Pointer, bytes uintptr) dloggerFake { return l }
+
+//go:nosplit
+func (l *dloggerImpl) hexdump(p unsafe.Pointer, bytes uintptr) *dloggerImpl {
+	var b []byte
+	bb := (*slice)(unsafe.Pointer(&b))
+	bb.array = unsafe.Pointer(p)
+	bb.len, bb.cap = int(bytes), int(bytes)
+	if len(b) > debugLogStringLimit {
+		b = b[:debugLogStringLimit]
+	}
+
+	l.w.byte(debugLogHexdump)
+	l.w.uvarint(uint64(uintptr(p)))
+	l.w.uvarint(uint64(len(b)))
+	l.w.bytes(b)
+
+	if uintptr(len(b)) != bytes {
+		l.w.byte(debugLogOverflow)
+		l.w.uvarint(uint64(bytes) - uint64(len(b)))
+	}
+
 	return l
 }
 
@@ -477,14 +505,7 @@ func (l *debugLogWriter) writeSync(tick, nano uint64) {
 //go:nosplit
 func (l *debugLogWriter) writeUint64LE(x uint64) {
 	var b [8]byte
-	b[0] = byte(x)
-	b[1] = byte(x >> 8)
-	b[2] = byte(x >> 16)
-	b[3] = byte(x >> 24)
-	b[4] = byte(x >> 32)
-	b[5] = byte(x >> 40)
-	b[6] = byte(x >> 48)
-	b[7] = byte(x >> 56)
+	byteorder.LEPutUint64(b[:], x)
 	l.bytes(b[:])
 }
 
@@ -576,10 +597,7 @@ func (r *debugLogReader) readUint64LEAt(pos uint64) uint64 {
 		b[i] = r.data.b[pos%uint64(len(r.data.b))]
 		pos++
 	}
-	return uint64(b[0]) | uint64(b[1])<<8 |
-		uint64(b[2])<<16 | uint64(b[3])<<24 |
-		uint64(b[4])<<32 | uint64(b[5])<<40 |
-		uint64(b[6])<<48 | uint64(b[7])<<56
+	return byteorder.LEUint64(b[:])
 }
 
 func (r *debugLogReader) peek() (tick uint64) {
@@ -717,8 +735,29 @@ func (r *debugLogReader) printVal() bool {
 		s := *(*string)(unsafe.Pointer(&str))
 		print(s)
 
-	case debugLogStringOverflow:
+	case debugLogOverflow:
 		print("..(", r.uvarint(), " more bytes)..")
+
+	case debugLogHexdump:
+		p := uintptr(r.uvarint())
+		bl := r.uvarint()
+		if r.begin+bl > r.end {
+			r.begin = r.end
+			print("<hexdump length corrupted>")
+			break
+		}
+		println() // Start on a new line
+		hd := hexdumper{addr: p}
+		for bl > 0 {
+			b := r.data.b[r.begin%uint64(len(r.data.b)):]
+			if uint64(len(b)) > bl {
+				b = b[:bl]
+			}
+			r.begin += uint64(len(b))
+			bl -= uint64(len(b))
+			hd.write(b)
+		}
+		hd.close()
 
 	case debugLogPC:
 		printDebugLogPC(uintptr(r.uvarint()), false)
@@ -774,7 +813,7 @@ func printDebugLogImpl() {
 	}
 	// Use sysAllocOS instead of sysAlloc because we want to interfere
 	// with the runtime as little as possible, and sysAlloc updates accounting.
-	state1 := sysAllocOS(unsafe.Sizeof(readState{}) * uintptr(n))
+	state1 := sysAllocOS(unsafe.Sizeof(readState{})*uintptr(n), "debug log")
 	if state1 == nil {
 		println("failed to allocate read state for", n, "logs")
 		printunlock()

@@ -11,7 +11,9 @@ import (
 
 func TestInternalLinkerCgoExec(t *testing.T) {
 	testenv.MustHaveCGO(t)
-	testenv.MustInternalLink(t, true)
+	// N.B. the go build explictly doesn't pass through
+	// -asan/-msan/-race, so we don't care about those.
+	testenv.MustInternalLink(t, testenv.SpecialBuildTypes{Cgo: true})
 	testGoExec(t, true, false)
 }
 

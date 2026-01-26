@@ -27,5 +27,8 @@ func badRoundTrip(*Transport, *Request) (*Response, error)
 // Like the RoundTripper interface, the error types returned
 // by RoundTrip are unspecified.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+	if t == nil {
+		panic("transport is nil")
+	}
 	return t.roundTrip(req)
 }

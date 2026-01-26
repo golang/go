@@ -128,25 +128,25 @@ func TestMultiplyDistributesOverAdd(t *testing.T) {
 func TestMul64to128(t *testing.T) {
 	a := uint64(5)
 	b := uint64(5)
-	r := mul64(a, b)
+	r := mul(a, b)
 	if r.lo != 0x19 || r.hi != 0 {
 		t.Errorf("lo-range wide mult failed, got %d + %d*(2**64)", r.lo, r.hi)
 	}
 
 	a = uint64(18014398509481983) // 2^54 - 1
 	b = uint64(18014398509481983) // 2^54 - 1
-	r = mul64(a, b)
+	r = mul(a, b)
 	if r.lo != 0xff80000000000001 || r.hi != 0xfffffffffff {
 		t.Errorf("hi-range wide mult failed, got %d + %d*(2**64)", r.lo, r.hi)
 	}
 
 	a = uint64(1125899906842661)
 	b = uint64(2097155)
-	r = mul64(a, b)
-	r = addMul64(r, a, b)
-	r = addMul64(r, a, b)
-	r = addMul64(r, a, b)
-	r = addMul64(r, a, b)
+	r = mul(a, b)
+	r = addMul(r, a, b)
+	r = addMul(r, a, b)
+	r = addMul(r, a, b)
+	r = addMul(r, a, b)
 	if r.lo != 16888498990613035 || r.hi != 640 {
 		t.Errorf("wrong answer: %d + %d*(2**64)", r.lo, r.hi)
 	}
@@ -486,30 +486,6 @@ func TestSqrtRatio(t *testing.T) {
 		if got.Equal(want) == 0 || wasSquare != tt.wasSquare {
 			t.Errorf("%d: got (%v, %v), want (%v, %v)", i, got, wasSquare, want, tt.wasSquare)
 		}
-	}
-}
-
-func TestCarryPropagate(t *testing.T) {
-	asmLikeGeneric := func(a [5]uint64) bool {
-		t1 := &Element{a[0], a[1], a[2], a[3], a[4]}
-		t2 := &Element{a[0], a[1], a[2], a[3], a[4]}
-
-		t1.carryPropagate()
-		t2.carryPropagateGeneric()
-
-		if *t1 != *t2 {
-			t.Logf("got: %#v,\nexpected: %#v", t1, t2)
-		}
-
-		return *t1 == *t2 && isInBounds(t2)
-	}
-
-	if err := quick.Check(asmLikeGeneric, quickCheckConfig(1024)); err != nil {
-		t.Error(err)
-	}
-
-	if !asmLikeGeneric([5]uint64{0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff}) {
-		t.Errorf("failed for {0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff}")
 	}
 }
 

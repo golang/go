@@ -55,21 +55,14 @@ func postorderWithNumbering(f *Func, ponums []int32) []*Block {
 	return order
 }
 
-type linkedBlocks func(*Block) []Edge
-
 func dominators(f *Func) []*Block {
-	preds := func(b *Block) []Edge { return b.Preds }
-	succs := func(b *Block) []Edge { return b.Succs }
-
-	//TODO: benchmark and try to find criteria for swapping between
+	// TODO: benchmark and try to find criteria for swapping between
 	// dominatorsSimple and dominatorsLT
-	return f.dominatorsLTOrig(f.Entry, preds, succs)
+	return f.dominatorsLTOrig(f.Entry)
 }
 
-// dominatorsLTOrig runs Lengauer-Tarjan to compute a dominator tree starting at
-// entry and using predFn/succFn to find predecessors/successors to allow
-// computing both dominator and post-dominator trees.
-func (f *Func) dominatorsLTOrig(entry *Block, predFn linkedBlocks, succFn linkedBlocks) []*Block {
+// dominatorsLTOrig runs Lengauer-Tarjan to compute a dominator tree starting at entry.
+func (f *Func) dominatorsLTOrig(entry *Block) []*Block {
 	// Adapted directly from the original TOPLAS article's "simple" algorithm
 
 	maxBlockID := entry.Func.NumBlocks()
@@ -95,13 +88,13 @@ func (f *Func) dominatorsLTOrig(entry *Block, predFn linkedBlocks, succFn linked
 
 	// Step 1. Carry out a depth first search of the problem graph. Number
 	// the vertices from 1 to n as they are reached during the search.
-	n := f.dfsOrig(entry, succFn, semi, vertex, label, parent)
+	n := f.dfsOrig(entry, semi, vertex, label, parent)
 
 	for i := n; i >= 2; i-- {
 		w := vertex[i]
 
 		// step2 in TOPLAS paper
-		for _, e := range predFn(fromID[w]) {
+		for _, e := range fromID[w].Preds {
 			v := e.b
 			if semi[v.ID] == 0 {
 				// skip unreachable predecessor
@@ -148,7 +141,7 @@ func (f *Func) dominatorsLTOrig(entry *Block, predFn linkedBlocks, succFn linked
 // (in arbitrary order).  This is a de-recursed version of dfs from the
 // original Tarjan-Lengauer TOPLAS article.  It's important to return the
 // same values for parent as the original algorithm.
-func (f *Func) dfsOrig(entry *Block, succFn linkedBlocks, semi, vertex, label, parent []ID) ID {
+func (f *Func) dfsOrig(entry *Block, semi, vertex, label, parent []ID) ID {
 	n := ID(0)
 	s := make([]*Block, 0, 256)
 	s = append(s, entry)
@@ -166,7 +159,7 @@ func (f *Func) dfsOrig(entry *Block, succFn linkedBlocks, semi, vertex, label, p
 		vertex[n] = v.ID
 		label[v.ID] = v.ID
 		// ancestor[v] already zero
-		for _, e := range succFn(v) {
+		for _, e := range v.Succs {
 			w := e.b
 			// if it has a dfnum, we've already visited it
 			if semi[w.ID] == 0 {

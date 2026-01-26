@@ -1614,7 +1614,7 @@ func TestModInverse(t *testing.T) {
 
 func BenchmarkModInverse(b *testing.B) {
 	p := new(Int).SetInt64(1) // Mersenne prime 2**1279 -1
-	p.abs = p.abs.shl(p.abs, 1279)
+	p.abs = p.abs.lsh(p.abs, 1279)
 	p.Sub(p, intOne)
 	x := new(Int).Sub(p, intOne)
 	z := new(Int)

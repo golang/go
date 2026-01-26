@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/fs"
 	"net"
@@ -187,6 +188,30 @@ var rootTestCases = []rootTest{{
 	target:  "target",
 	ltarget: "link",
 }, {
+	name: "symlink dotdot slash",
+	fs: []string{
+		"link => ../",
+	},
+	open:      "link",
+	ltarget:   "link",
+	wantError: true,
+}, {
+	name: "symlink ending in slash",
+	fs: []string{
+		"dir/",
+		"link => dir/",
+	},
+	open:   "link/target",
+	target: "dir/target",
+}, {
+	name: "symlink dotdot dotdot slash",
+	fs: []string{
+		"dir/link => ../../",
+	},
+	open:      "dir/link",
+	ltarget:   "dir/link",
+	wantError: true,
+}, {
 	name: "symlink chain",
 	fs: []string{
 		"link => a/b/c/target",
@@ -213,6 +238,16 @@ var rootTestCases = []rootTest{{
 	},
 	open:   "a/../a/b/../../a/b/../b/target",
 	target: "a/b/target",
+}, {
+	name:      "path with dotdot slash",
+	fs:        []string{},
+	open:      "../",
+	wantError: true,
+}, {
+	name:      "path with dotdot dotdot slash",
+	fs:        []string{},
+	open:      "a/../../",
+	wantError: true,
 }, {
 	name: "dotdot no symlink",
 	fs: []string{
@@ -389,6 +424,99 @@ func TestRootCreate(t *testing.T) {
 	}
 }
 
+func TestRootChmod(t *testing.T) {
+	if runtime.GOOS == "wasip1" {
+		t.Skip("Chmod not supported on " + runtime.GOOS)
+	}
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			if target != "" {
+				// Create a file with no read/write permissions,
+				// to ensure we can use Chmod on an inaccessible file.
+				if err := os.WriteFile(target, nil, 0o000); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if runtime.GOOS == "windows" {
+				// On Windows, Chmod("symlink") affects the link, not its target.
+				// See issue 71492.
+				fi, err := root.Lstat(test.open)
+				if err == nil && !fi.Mode().IsRegular() {
+					t.Skip("https://go.dev/issue/71492")
+				}
+			}
+			want := os.FileMode(0o666)
+			err := root.Chmod(test.open, want)
+			if errEndsTest(t, err, test.wantError, "root.Chmod(%q)", test.open) {
+				return
+			}
+			st, err := os.Stat(target)
+			if err != nil {
+				t.Fatalf("os.Stat(%q) = %v", target, err)
+			}
+			if got := st.Mode(); got != want {
+				t.Errorf("after root.Chmod(%q, %v): file mode = %v, want %v", test.open, want, got, want)
+			}
+		})
+	}
+}
+
+func TestRootChtimes(t *testing.T) {
+	// Don't check atimes if the fs is mounted noatime,
+	// or on Plan 9 which does not permit changing atimes to arbitrary values.
+	checkAtimes := !hasNoatime() && runtime.GOOS != "plan9"
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			if target != "" {
+				if err := os.WriteFile(target, nil, 0o666); err != nil {
+					t.Fatal(err)
+				}
+			}
+			for _, times := range []struct {
+				atime, mtime time.Time
+			}{{
+				atime: time.Now().Add(-1 * time.Minute),
+				mtime: time.Now().Add(-1 * time.Minute),
+			}, {
+				atime: time.Now().Add(1 * time.Minute),
+				mtime: time.Now().Add(1 * time.Minute),
+			}, {
+				atime: time.Time{},
+				mtime: time.Now(),
+			}, {
+				atime: time.Now(),
+				mtime: time.Time{},
+			}} {
+				switch runtime.GOOS {
+				case "js", "plan9":
+					times.atime = times.atime.Truncate(1 * time.Second)
+					times.mtime = times.mtime.Truncate(1 * time.Second)
+				case "illumos":
+					times.atime = times.atime.Truncate(1 * time.Microsecond)
+					times.mtime = times.mtime.Truncate(1 * time.Microsecond)
+				}
+
+				err := root.Chtimes(test.open, times.atime, times.mtime)
+				if errEndsTest(t, err, test.wantError, "root.Chtimes(%q)", test.open) {
+					return
+				}
+				st, err := os.Stat(target)
+				if err != nil {
+					t.Fatalf("os.Stat(%q) = %v", target, err)
+				}
+				if got := st.ModTime(); !times.mtime.IsZero() && !got.Equal(times.mtime) {
+					t.Errorf("after root.Chtimes(%q, %v, %v): got mtime=%v, want %v", test.open, times.atime, times.mtime, got, times.mtime)
+				}
+				if checkAtimes {
+					if got := os.Atime(st); !times.atime.IsZero() && !got.Equal(times.atime) {
+						t.Errorf("after root.Chtimes(%q, %v, %v): got atime=%v, want %v", test.open, times.atime, times.mtime, got, times.atime)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestRootMkdir(t *testing.T) {
 	for _, test := range rootTestCases {
 		test.run(t, func(t *testing.T, target string, root *os.Root) {
@@ -412,6 +540,46 @@ func TestRootMkdir(t *testing.T) {
 			}
 			if !fi.IsDir() {
 				t.Fatalf(`stat file created with Root.Mkdir(%q): not a directory`, test.open)
+			}
+			if mode := fi.Mode(); mode&0o777 == 0 {
+				// Issue #73559: We're not going to worry about the exact
+				// mode bits (which will have been modified by umask),
+				// but there should be mode bits.
+				t.Fatalf(`stat file created with Root.Mkdir(%q): mode=%v, want non-zero`, test.open, mode)
+			}
+		})
+	}
+}
+
+func TestRootMkdirAll(t *testing.T) {
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			wantError := test.wantError
+			if !wantError {
+				fi, err := os.Lstat(filepath.Join(root.Name(), test.open))
+				if err == nil && fi.Mode().Type() == fs.ModeSymlink {
+					// This case is trying to mkdir("some symlink"),
+					// which is an error.
+					wantError = true
+				}
+			}
+
+			err := root.Mkdir(test.open, 0o777)
+			if errEndsTest(t, err, wantError, "root.MkdirAll(%q)", test.open) {
+				return
+			}
+			fi, err := os.Lstat(target)
+			if err != nil {
+				t.Fatalf(`stat file created with Root.MkdirAll(%q): %v`, test.open, err)
+			}
+			if !fi.IsDir() {
+				t.Fatalf(`stat file created with Root.MkdirAll(%q): not a directory`, test.open)
+			}
+			if mode := fi.Mode(); mode&0o777 == 0 {
+				// Issue #73559: We're not going to worry about the exact
+				// mode bits (which will have been modified by umask),
+				// but there should be mode bits.
+				t.Fatalf(`stat file created with Root.MkdirAll(%q): mode=%v, want non-zero`, test.open, mode)
 			}
 		})
 	}
@@ -496,23 +664,65 @@ func TestRootRemoveDirectory(t *testing.T) {
 	}
 }
 
+func TestRootRemoveAll(t *testing.T) {
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			wantError := test.wantError
+			if test.ltarget != "" {
+				// Remove doesn't follow symlinks in the final path component,
+				// so it will successfully remove ltarget.
+				wantError = false
+				target = filepath.Join(root.Name(), test.ltarget)
+			} else if target != "" {
+				if err := os.Mkdir(target, 0o777); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(target, "file"), nil, 0o666); err != nil {
+					t.Fatal(err)
+				}
+			}
+			targetExists := true
+			if _, err := root.Lstat(test.open); errors.Is(err, os.ErrNotExist) {
+				// If the target doesn't exist, RemoveAll succeeds rather
+				// than returning ErrNotExist.
+				targetExists = false
+				wantError = false
+			}
+
+			err := root.RemoveAll(test.open)
+			if errEndsTest(t, err, wantError, "root.RemoveAll(%q)", test.open) {
+				return
+			}
+			if !targetExists {
+				return
+			}
+			_, err = os.Lstat(target)
+			if !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf(`stat file removed with Root.Remove(%q): %v, want ErrNotExist`, test.open, err)
+			}
+		})
+	}
+}
+
 func TestRootOpenFileAsRoot(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "target")
 	if err := os.WriteFile(target, nil, 0o666); err != nil {
 		t.Fatal(err)
 	}
-	_, err := os.OpenRoot(target)
+	r, err := os.OpenRoot(target)
 	if err == nil {
+		r.Close()
 		t.Fatal("os.OpenRoot(file) succeeded; want failure")
 	}
-	r, err := os.OpenRoot(dir)
+	r, err = os.OpenRoot(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer r.Close()
-	_, err = r.OpenRoot("target")
+	rr, err := r.OpenRoot("target")
 	if err == nil {
+		rr.Close()
 		t.Fatal("Root.OpenRoot(file) succeeded; want failure")
 	}
 }
@@ -578,6 +788,231 @@ func TestRootLstat(t *testing.T) {
 	}
 }
 
+func TestRootReadlink(t *testing.T) {
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			const content = "content"
+			wantError := test.wantError
+			if test.ltarget != "" {
+				// Readlink will read the final link, rather than following it.
+				wantError = false
+			} else {
+				// Readlink fails on non-link targets.
+				wantError = true
+			}
+
+			got, err := root.Readlink(test.open)
+			if errEndsTest(t, err, wantError, "root.Readlink(%q)", test.open) {
+				return
+			}
+
+			want, err := os.Readlink(filepath.Join(root.Name(), test.ltarget))
+			if err != nil {
+				t.Fatalf("os.Readlink(%q) = %v, want success", test.ltarget, err)
+			}
+			if got != want {
+				t.Errorf("root.Readlink(%q) = %q, want %q", test.open, got, want)
+			}
+		})
+	}
+}
+
+// TestRootRenameFrom tests renaming the test case target to a known-good path.
+func TestRootRenameFrom(t *testing.T) {
+	testRootMoveFrom(t, true)
+}
+
+// TestRootRenameFrom tests linking the test case target to a known-good path.
+func TestRootLinkFrom(t *testing.T) {
+	testenv.MustHaveLink(t)
+	testRootMoveFrom(t, false)
+}
+
+func testRootMoveFrom(t *testing.T, rename bool) {
+	want := []byte("target")
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			if target != "" {
+				if err := os.WriteFile(target, want, 0o666); err != nil {
+					t.Fatal(err)
+				}
+			}
+			wantError := test.wantError
+			var linkTarget string
+			if test.ltarget != "" {
+				// Rename will rename the link, not the file linked to.
+				wantError = false
+				var err error
+				linkTarget, err = root.Readlink(test.ltarget)
+				if err != nil {
+					t.Fatalf("root.Readlink(%q) = %v, want success", test.ltarget, err)
+				}
+
+				// When GOOS=js, creating a hard link to a symlink fails.
+				if !rename && runtime.GOOS == "js" {
+					wantError = true
+				}
+
+				// Windows allows creating a hard link to a file symlink,
+				// but not to a directory symlink.
+				//
+				// This uses os.Stat to check the link target, because this
+				// is easier than figuring out whether the link itself is a
+				// directory link. The link was created with os.Symlink,
+				// which creates directory links when the target is a directory,
+				// so this is good enough for a test.
+				if !rename && runtime.GOOS == "windows" {
+					st, err := os.Stat(filepath.Join(root.Name(), test.ltarget))
+					if err == nil && st.IsDir() {
+						wantError = true
+					}
+				}
+			}
+
+			const dstPath = "destination"
+
+			// Plan 9 doesn't allow cross-directory renames.
+			if runtime.GOOS == "plan9" && strings.Contains(test.open, "/") {
+				wantError = true
+			}
+
+			var op string
+			var err error
+			if rename {
+				op = "Rename"
+				err = root.Rename(test.open, dstPath)
+			} else {
+				op = "Link"
+				err = root.Link(test.open, dstPath)
+			}
+			if errEndsTest(t, err, wantError, "root.%v(%q, %q)", op, test.open, dstPath) {
+				return
+			}
+
+			origPath := target
+			if test.ltarget != "" {
+				origPath = filepath.Join(root.Name(), test.ltarget)
+			}
+			_, err = os.Lstat(origPath)
+			if rename {
+				if !errors.Is(err, os.ErrNotExist) {
+					t.Errorf("after renaming file, Lstat(%q) = %v, want ErrNotExist", origPath, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("after linking file, error accessing original: %v", err)
+				}
+			}
+
+			dstFullPath := filepath.Join(root.Name(), dstPath)
+			if test.ltarget != "" {
+				got, err := os.Readlink(dstFullPath)
+				if err != nil || got != linkTarget {
+					t.Errorf("os.Readlink(%q) = %q, %v, want %q", dstFullPath, got, err, linkTarget)
+				}
+			} else {
+				got, err := os.ReadFile(dstFullPath)
+				if err != nil || !bytes.Equal(got, want) {
+					t.Errorf(`os.ReadFile(%q): read content %q, %v; want %q`, dstFullPath, string(got), err, string(want))
+				}
+				st, err := os.Lstat(dstFullPath)
+				if err != nil || st.Mode()&fs.ModeSymlink != 0 {
+					t.Errorf(`os.Lstat(%q) = %v, %v; want non-symlink`, dstFullPath, st.Mode(), err)
+				}
+
+			}
+		})
+	}
+}
+
+// TestRootRenameTo tests renaming a known-good path to the test case target.
+func TestRootRenameTo(t *testing.T) {
+	testRootMoveTo(t, true)
+}
+
+// TestRootLinkTo tests renaming a known-good path to the test case target.
+func TestRootLinkTo(t *testing.T) {
+	testenv.MustHaveLink(t)
+	testRootMoveTo(t, true)
+}
+
+func testRootMoveTo(t *testing.T, rename bool) {
+	want := []byte("target")
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			const srcPath = "source"
+			if err := os.WriteFile(filepath.Join(root.Name(), srcPath), want, 0o666); err != nil {
+				t.Fatal(err)
+			}
+
+			target = test.target
+			wantError := test.wantError
+			if test.ltarget != "" {
+				// Rename will overwrite the final link rather than follow it.
+				target = test.ltarget
+				wantError = false
+			}
+
+			// Plan 9 doesn't allow cross-directory renames.
+			if runtime.GOOS == "plan9" && strings.Contains(test.open, "/") {
+				wantError = true
+			}
+
+			var err error
+			var op string
+			if rename {
+				op = "Rename"
+				err = root.Rename(srcPath, test.open)
+			} else {
+				op = "Link"
+				err = root.Link(srcPath, test.open)
+			}
+			if errEndsTest(t, err, wantError, "root.%v(%q, %q)", op, srcPath, test.open) {
+				return
+			}
+
+			_, err = os.Lstat(filepath.Join(root.Name(), srcPath))
+			if rename {
+				if !errors.Is(err, os.ErrNotExist) {
+					t.Errorf("after renaming file, Lstat(%q) = %v, want ErrNotExist", srcPath, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("after linking file, error accessing original: %v", err)
+				}
+			}
+
+			got, err := os.ReadFile(filepath.Join(root.Name(), target))
+			if err != nil || !bytes.Equal(got, want) {
+				t.Errorf(`os.ReadFile(%q): read content %q, %v; want %q`, target, string(got), err, string(want))
+			}
+		})
+	}
+}
+
+func TestRootSymlink(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			wantError := test.wantError
+			if test.ltarget != "" {
+				// We can't create a symlink over an existing symlink.
+				wantError = true
+			}
+
+			const wantTarget = "linktarget"
+			err := root.Symlink(wantTarget, test.open)
+			if errEndsTest(t, err, wantError, "root.Symlink(%q)", test.open) {
+				return
+			}
+			got, err := os.Readlink(target)
+			if err != nil || got != wantTarget {
+				t.Fatalf("ReadLink(%q) = %q, %v; want %q, nil", target, got, err, wantTarget)
+			}
+		})
+	}
+}
+
 // A rootConsistencyTest is a test case comparing os.Root behavior with
 // the corresponding non-Root function.
 //
@@ -597,6 +1032,9 @@ type rootConsistencyTest struct {
 	// detailedErrorMismatch indicates that os.Root and the corresponding non-Root
 	// function return different errors for this test.
 	detailedErrorMismatch func(t *testing.T) bool
+
+	// check is called before the test starts, and may t.Skip if necessary.
+	check func(t *testing.T)
 }
 
 var rootConsistencyTestCases = []rootConsistencyTest{{
@@ -708,6 +1146,20 @@ var rootConsistencyTestCases = []rootConsistencyTest{{
 	},
 	open: "a/../target",
 }, {
+	name: "symlink to dir ends in slash",
+	fs: []string{
+		"dir/",
+		"link => dir/",
+	},
+	open: "link",
+}, {
+	name: "symlink to file ends in slash",
+	fs: []string{
+		"file",
+		"link => file/",
+	},
+	open: "link",
+}, {
 	name: "long file name",
 	open: strings.Repeat("a", 500),
 }, {
@@ -739,6 +1191,16 @@ var rootConsistencyTestCases = []rootConsistencyTest{{
 		// On Windows, os.Root.Open returns "The directory name is invalid."
 		// and os.Open returns "The file cannot be accessed by the system.".
 		return runtime.GOOS == "windows"
+	},
+	check: func(t *testing.T) {
+		if runtime.GOOS == "windows" && strings.HasPrefix(t.Name(), "TestRootConsistencyRemoveAll/") {
+			// Root.RemoveAll notices that a/ is not a directory,
+			// and returns success.
+			// os.RemoveAll tries to open a/ and fails because
+			// it is not a regular file.
+			// The inconsistency here isn't worth fixing, so just skip this test.
+			t.Skip("known inconsistency on windows")
+		}
 	},
 }, {
 	name: "question mark",
@@ -781,6 +1243,10 @@ func (test rootConsistencyTest) run(t *testing.T, f func(t *testing.T, path stri
 	}
 
 	t.Run(test.name, func(t *testing.T) {
+		if test.check != nil {
+			test.check(t)
+		}
+
 		dir1 := makefs(t, test.fs)
 		dir2 := makefs(t, test.fs)
 		if test.fsFunc != nil {
@@ -806,14 +1272,19 @@ func (test rootConsistencyTest) run(t *testing.T, f func(t *testing.T, path stri
 		}
 
 		if err1 != nil || err2 != nil {
-			e1, ok := err1.(*os.PathError)
-			if !ok {
-				t.Fatalf("with root, expected PathError; got: %v", err1)
+			underlyingError := func(how string, err error) error {
+				switch e := err1.(type) {
+				case *os.PathError:
+					return e.Err
+				case *os.LinkError:
+					return e.Err
+				default:
+					t.Fatalf("%v, expected PathError or LinkError; got: %v", how, err)
+				}
+				return nil
 			}
-			e2, ok := err2.(*os.PathError)
-			if !ok {
-				t.Fatalf("without root, expected PathError; got: %v", err1)
-			}
+			e1 := underlyingError("with root", err1)
+			e2 := underlyingError("without root", err1)
 			detailedErrorMismatch := false
 			if f := test.detailedErrorMismatch; f != nil {
 				detailedErrorMismatch = f(t)
@@ -822,9 +1293,9 @@ func (test rootConsistencyTest) run(t *testing.T, f func(t *testing.T, path stri
 				// Plan9 syscall errors aren't comparable.
 				detailedErrorMismatch = true
 			}
-			if !detailedErrorMismatch && e1.Err != e2.Err {
-				t.Errorf("with root:    err=%v", e1.Err)
-				t.Errorf("without root: err=%v", e2.Err)
+			if !detailedErrorMismatch && e1 != e2 {
+				t.Errorf("with root:    err=%v", e1)
+				t.Errorf("without root: err=%v", e2)
 				t.Errorf("want consistent results, got mismatch")
 			}
 		}
@@ -877,6 +1348,39 @@ func TestRootConsistencyCreate(t *testing.T) {
 	}
 }
 
+func TestRootConsistencyChmod(t *testing.T) {
+	if runtime.GOOS == "wasip1" {
+		t.Skip("Chmod not supported on " + runtime.GOOS)
+	}
+	for _, test := range rootConsistencyTestCases {
+		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+			chmod := os.Chmod
+			lstat := os.Lstat
+			if r != nil {
+				chmod = r.Chmod
+				lstat = r.Lstat
+			}
+
+			var m1, m2 os.FileMode
+			if err := chmod(path, 0o555); err != nil {
+				return "chmod 0o555", err
+			}
+			fi, err := lstat(path)
+			if err == nil {
+				m1 = fi.Mode()
+			}
+			if err = chmod(path, 0o777); err != nil {
+				return "chmod 0o777", err
+			}
+			fi, err = lstat(path)
+			if err == nil {
+				m2 = fi.Mode()
+			}
+			return fmt.Sprintf("%v %v", m1, m2), err
+		})
+	}
+}
+
 func TestRootConsistencyMkdir(t *testing.T) {
 	for _, test := range rootConsistencyTestCases {
 		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
@@ -885,6 +1389,20 @@ func TestRootConsistencyMkdir(t *testing.T) {
 				err = os.Mkdir(path, 0o777)
 			} else {
 				err = r.Mkdir(path, 0o777)
+			}
+			return "", err
+		})
+	}
+}
+
+func TestRootConsistencyMkdirAll(t *testing.T) {
+	for _, test := range rootConsistencyTestCases {
+		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+			var err error
+			if r == nil {
+				err = os.MkdirAll(path, 0o777)
+			} else {
+				err = r.MkdirAll(path, 0o777)
 			}
 			return "", err
 		})
@@ -902,6 +1420,23 @@ func TestRootConsistencyRemove(t *testing.T) {
 				err = os.Remove(path)
 			} else {
 				err = r.Remove(path)
+			}
+			return "", err
+		})
+	}
+}
+
+func TestRootConsistencyRemoveAll(t *testing.T) {
+	for _, test := range rootConsistencyTestCases {
+		if test.open == "." || test.open == "./" {
+			continue // can't remove the root itself
+		}
+		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+			var err error
+			if r == nil {
+				err = os.RemoveAll(path)
+			} else {
+				err = r.RemoveAll(path)
 			}
 			return "", err
 		})
@@ -940,6 +1475,127 @@ func TestRootConsistencyLstat(t *testing.T) {
 				return "", err
 			}
 			return fmt.Sprintf("name:%q size:%v mode:%v isdir:%v", fi.Name(), fi.Size(), fi.Mode(), fi.IsDir()), nil
+		})
+	}
+}
+
+func TestRootConsistencyReadlink(t *testing.T) {
+	for _, test := range rootConsistencyTestCases {
+		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+			if r == nil {
+				return os.Readlink(path)
+			} else {
+				return r.Readlink(path)
+			}
+		})
+	}
+}
+
+func TestRootConsistencyRename(t *testing.T) {
+	testRootConsistencyMove(t, true)
+}
+
+func TestRootConsistencyLink(t *testing.T) {
+	testenv.MustHaveLink(t)
+	testRootConsistencyMove(t, false)
+}
+
+func testRootConsistencyMove(t *testing.T, rename bool) {
+	if runtime.GOOS == "plan9" {
+		// This test depends on moving files between directories.
+		t.Skip("Plan 9 does not support cross-directory renames")
+	}
+	// Run this test in two directions:
+	// Renaming the test path to a known-good path (from),
+	// and renaming a known-good path to the test path (to).
+	for _, name := range []string{"from", "to"} {
+		t.Run(name, func(t *testing.T) {
+			for _, test := range rootConsistencyTestCases {
+				if runtime.GOOS == "windows" {
+					// On Windows, Rename("/path/to/.", x) succeeds,
+					// because Windows cleans the path to just "/path/to".
+					// Root.Rename(".", x) fails as expected.
+					// Don't run this consistency test on Windows.
+					if test.open == "." || test.open == "./" {
+						continue
+					}
+				}
+
+				test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+					var move func(oldname, newname string) error
+					switch {
+					case rename && r == nil:
+						move = os.Rename
+					case rename && r != nil:
+						move = r.Rename
+					case !rename && r == nil:
+						move = os.Link
+					case !rename && r != nil:
+						move = r.Link
+					}
+					lstat := os.Lstat
+					if r != nil {
+						lstat = r.Lstat
+					}
+
+					otherPath := "other"
+					if r == nil {
+						otherPath = filepath.Join(t.TempDir(), otherPath)
+					}
+
+					var srcPath, dstPath string
+					if name == "from" {
+						srcPath = path
+						dstPath = otherPath
+					} else {
+						srcPath = otherPath
+						dstPath = path
+					}
+
+					if !rename {
+						// When the source is a symlink, Root.Link creates
+						// a hard link to the symlink.
+						// os.Link does whatever the link syscall does,
+						// which varies between operating systems and
+						// their versions.
+						// Skip running the consistency test when
+						// the source is a symlink.
+						fi, err := lstat(srcPath)
+						if err == nil && fi.Mode()&os.ModeSymlink != 0 {
+							return "", nil
+						}
+					}
+
+					if err := move(srcPath, dstPath); err != nil {
+						return "", err
+					}
+					fi, err := lstat(dstPath)
+					if err != nil {
+						t.Errorf("stat(%q) after successful copy: %v", dstPath, err)
+						return "stat error", err
+					}
+					return fmt.Sprintf("name:%q size:%v mode:%v isdir:%v", fi.Name(), fi.Size(), fi.Mode(), fi.IsDir()), nil
+				})
+			}
+		})
+	}
+}
+
+func TestRootConsistencySymlink(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+	for _, test := range rootConsistencyTestCases {
+		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+			const target = "linktarget"
+			var err error
+			var got string
+			if r == nil {
+				err = os.Symlink(target, path)
+				got, _ = os.Readlink(target)
+			} else {
+				err = r.Symlink(target, path)
+				got, _ = r.Readlink(target)
+			}
+			return got, err
 		})
 	}
 }
@@ -1176,6 +1832,33 @@ func TestRootRaceRenameDir(t *testing.T) {
 	}
 }
 
+func TestRootSymlinkToRoot(t *testing.T) {
+	dir := makefs(t, []string{
+		"d/d => ..",
+	})
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if err := root.Mkdir("d/d/new", 0777); err != nil {
+		t.Fatal(err)
+	}
+	f, err := root.Open("d/d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	names, err := f.Readdirnames(-1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slices.Sort(names)
+	if got, want := names, []string{"d", "new"}; !slices.Equal(got, want) {
+		t.Errorf("root contains: %q, want %q", got, want)
+	}
+}
+
 func TestOpenInRoot(t *testing.T) {
 	dir := makefs(t, []string{
 		"file",
@@ -1196,5 +1879,76 @@ func TestOpenInRoot(t *testing.T) {
 			f.Close()
 			t.Fatalf("OpenInRoot(%q) = nil, want error", name)
 		}
+	}
+}
+
+func TestRootRemoveDot(t *testing.T) {
+	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if err := root.Remove("."); err == nil {
+		t.Errorf(`root.Remove(".") = %v, want error`, err)
+	}
+	if err := root.RemoveAll("."); err == nil {
+		t.Errorf(`root.RemoveAll(".") = %v, want error`, err)
+	}
+	if _, err := os.Stat(dir); err != nil {
+		t.Error(`root.Remove(All)?(".") removed the root`)
+	}
+}
+
+func TestRootWriteReadFile(t *testing.T) {
+	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	name := "filename"
+	want := []byte("file contents")
+	if err := root.WriteFile(name, want, 0o666); err != nil {
+		t.Fatalf("root.WriteFile(%q, %q, 0o666) = %v; want nil", name, want, err)
+	}
+
+	got, err := root.ReadFile(name)
+	if err != nil {
+		t.Fatalf("root.ReadFile(%q) = %q, %v; want %q, nil", name, got, err, want)
+	}
+}
+
+func TestRootName(t *testing.T) {
+	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if got, want := root.Name(), dir; got != want {
+		t.Errorf("root.Name() = %q, want %q", got, want)
+	}
+
+	f, err := root.Create("file")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if got, want := f.Name(), filepath.Join(dir, "file"); got != want {
+		t.Errorf(`root.Create("file").Name() = %q, want %q`, got, want)
+	}
+
+	if err := root.Mkdir("dir", 0o777); err != nil {
+		t.Fatal(err)
+	}
+	subroot, err := root.OpenRoot("dir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer subroot.Close()
+	if got, want := subroot.Name(), filepath.Join(dir, "dir"); got != want {
+		t.Errorf(`root.OpenRoot("dir").Name() = %q, want %q`, got, want)
 	}
 }

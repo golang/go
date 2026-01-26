@@ -57,7 +57,7 @@ func (m *Merger) MergeCounters(dst, src []uint32) (error, bool) {
 	return nil, ovf
 }
 
-// Saturating add does a saturating addition of 'dst' and 'src',
+// SaturatingAdd does a saturating addition of 'dst' and 'src',
 // returning added value or math.MaxUint32 if there is an overflow.
 // Overflows are recorded in case the client needs to track them.
 func (m *Merger) SaturatingAdd(dst, src uint32) uint32 {
@@ -68,7 +68,7 @@ func (m *Merger) SaturatingAdd(dst, src uint32) uint32 {
 	return result
 }
 
-// Saturating add does a saturating addition of 'dst' and 'src',
+// SaturatingAdd does a saturating addition of 'dst' and 'src',
 // returning added value or math.MaxUint32 plus an overflow flag.
 func SaturatingAdd(dst, src uint32) (uint32, bool) {
 	d, s := uint64(dst), uint64(src)

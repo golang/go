@@ -29,7 +29,7 @@ type Cache struct {
 	ValueToProgAfter []*obj.Prog
 	debugState       debugState
 
-	Liveness interface{} // *gc.livenessFuncCache
+	Liveness any // *gc.livenessFuncCache
 
 	// Free "headers" for use by the allocators in allocators.go.
 	// Used to put slices in sync.Pools without allocation.
@@ -39,24 +39,13 @@ type Cache struct {
 
 func (c *Cache) Reset() {
 	nv := sort.Search(len(c.values), func(i int) bool { return c.values[i].ID == 0 })
-	xv := c.values[:nv]
-	for i := range xv {
-		xv[i] = Value{}
-	}
+	clear(c.values[:nv])
 	nb := sort.Search(len(c.blocks), func(i int) bool { return c.blocks[i].ID == 0 })
-	xb := c.blocks[:nb]
-	for i := range xb {
-		xb[i] = Block{}
-	}
+	clear(c.blocks[:nb])
 	nl := sort.Search(len(c.locs), func(i int) bool { return c.locs[i] == nil })
-	xl := c.locs[:nl]
-	for i := range xl {
-		xl[i] = nil
-	}
+	clear(c.locs[:nl])
 
 	// regalloc sets the length of c.regallocValues to whatever it may use,
 	// so clear according to length.
-	for i := range c.regallocValues {
-		c.regallocValues[i] = valState{}
-	}
+	clear(c.regallocValues)
 }

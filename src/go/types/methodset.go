@@ -133,7 +133,7 @@ func NewMethodSet(T Type) *MethodSet {
 				}
 			}
 
-			switch t := under(typ).(type) {
+			switch t := typ.Underlying().(type) {
 			case *Struct:
 				for i, f := range t.fields {
 					if fset == nil {

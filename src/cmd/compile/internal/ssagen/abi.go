@@ -89,6 +89,7 @@ func (s *SymABIs) ReadSymABIs(file string) {
 			// Record for later.
 			if parts[0] == "def" {
 				s.defs[sym] = abi
+				base.Ctxt.DwTextCount++
 			} else {
 				s.refs[sym] |= obj.ABISetOf(abi)
 			}
@@ -96,6 +97,18 @@ func (s *SymABIs) ReadSymABIs(file string) {
 			log.Fatalf(`%s:%d: invalid symabi type "%s"`, file, lineNum, parts[0])
 		}
 	}
+}
+
+// HasDef returns whether the given symbol has an assembly definition.
+func (s *SymABIs) HasDef(sym *types.Sym) bool {
+	symName := sym.Linkname
+	if symName == "" {
+		symName = sym.Pkg.Prefix + "." + sym.Name
+	}
+	symName = s.canonicalize(symName)
+
+	_, hasDefABI := s.defs[symName]
+	return hasDefABI
 }
 
 // GenABIWrappers applies ABI information to Funcs and generates ABI

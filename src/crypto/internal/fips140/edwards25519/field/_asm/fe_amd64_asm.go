@@ -256,6 +256,23 @@ func addMul64(r uint128, i uint64, aX, bX namedComponent) {
 	case 1:
 		Comment(fmt.Sprintf("%s += %s×%s", r, aX, bX))
 		Load(aX, RAX)
+	case 2:
+		Comment(fmt.Sprintf("%s += %d×%s×%s", r, i, aX, bX))
+		Load(aX, RAX)
+		SHLQ(U8(1), RAX)
+	case 19:
+		Comment(fmt.Sprintf("%s += %d×%s×%s", r, i, aX, bX))
+		// 19 * v ==> v + (v+v*8)*2
+		tmp := Load(aX, GP64())
+		LEAQ(Mem{Base: tmp, Index: tmp, Scale: 8}, RAX)
+		LEAQ(Mem{Base: tmp, Index: RAX, Scale: 2}, RAX)
+	case 38:
+		Comment(fmt.Sprintf("%s += %d×%s×%s", r, i, aX, bX))
+		// 38 * v ==> (v + (v+v*8)*2) * 2
+		tmp := Load(aX, GP64())
+		LEAQ(Mem{Base: tmp, Index: tmp, Scale: 8}, RAX)
+		LEAQ(Mem{Base: tmp, Index: RAX, Scale: 2}, RAX)
+		SHLQ(U8(1), RAX)
 	default:
 		Comment(fmt.Sprintf("%s += %d×%s×%s", r, i, aX, bX))
 		IMUL3Q(Imm(i), Load(aX, GP64()), RAX)

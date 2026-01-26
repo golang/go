@@ -6,7 +6,7 @@
 
 // Package stdlib provides a table of all exported symbols in the
 // standard library, along with the version at which they first
-// appeared.
+// appeared. It also provides the import graph of std packages.
 package stdlib
 
 import (
@@ -18,6 +18,14 @@ type Symbol struct {
 	Name    string
 	Kind    Kind
 	Version Version // Go version that first included the symbol
+	// Signature provides the type of a function (defined only for Kind=Func).
+	// Imported types are denoted as pkg.T; pkg is not fully qualified.
+	// TODO(adonovan): use an unambiguous encoding that is parseable.
+	//
+	// Example2:
+	//    func[M ~map[K]V, K comparable, V any](m M) M
+	//    func(fi fs.FileInfo, link string) (*Header, error)
+	Signature string // if Kind == stdlib.Func
 }
 
 // A Kind indicates the kind of a symbol:
@@ -31,7 +39,7 @@ const (
 	Var                 // "EOF"
 	Const               // "Pi"
 	Field               // "Point.X"
-	Method              // "(*Buffer).Grow"
+	Method              // "(*Buffer).Grow" or "(Reader).Read"
 )
 
 func (kind Kind) String() string {

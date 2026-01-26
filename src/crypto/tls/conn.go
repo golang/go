@@ -51,12 +51,10 @@ type Conn struct {
 	didHRR           bool // whether a HelloRetryRequest was sent/received
 	cipherSuite      uint16
 	curveID          CurveID
+	peerSigAlg       SignatureScheme
 	ocspResponse     []byte   // stapled OCSP response
 	scts             [][]byte // signed certificate timestamps from server
 	peerCertificates []*x509.Certificate
-	// activeCertHandles contains the cache handles to certificates in
-	// peerCertificates that are used to track active references.
-	activeCertHandles []*activeCert
 	// verifiedChains contains the certificate chains that we built, as
 	// opposed to the ones presented by the server.
 	verifiedChains [][]*x509.Certificate
@@ -222,20 +220,19 @@ func (hc *halfConn) changeCipherSpec() error {
 	hc.mac = hc.nextMac
 	hc.nextCipher = nil
 	hc.nextMac = nil
-	for i := range hc.seq {
-		hc.seq[i] = 0
-	}
+	clear(hc.seq[:])
 	return nil
 }
 
+// setTrafficSecret sets the traffic secret for the given encryption level. setTrafficSecret
+// should not be called directly, but rather through the Conn setWriteTrafficSecret and
+// setReadTrafficSecret wrapper methods.
 func (hc *halfConn) setTrafficSecret(suite *cipherSuiteTLS13, level QUICEncryptionLevel, secret []byte) {
 	hc.trafficSecret = secret
 	hc.level = level
 	key, iv := suite.trafficKey(secret)
 	hc.cipher = suite.aead(key, iv)
-	for i := range hc.seq {
-		hc.seq[i] = 0
-	}
+	clear(hc.seq[:])
 }
 
 // incSeq increments the sequence number.
@@ -724,6 +721,15 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 			return c.in.setErrorLocked(io.EOF)
 		}
 		if c.vers == VersionTLS13 {
+			// TLS 1.3 removed warning-level alerts except for alertUserCanceled
+			// (RFC 8446, § 6.1). Since at least one major implementation
+			// (https://bugs.openjdk.org/browse/JDK-8323517) misuses this alert,
+			// many TLS stacks now ignore it outright when seen in a TLS 1.3
+			// handshake (e.g. BoringSSL, NSS, Rustls).
+			if alert(data[1]) == alertUserCanceled {
+				// Like TLS 1.2 alertLevelWarning alerts, we drop the record and retry.
+				return c.retryReadRecord(expectChangeCipherSpec)
+			}
 			return c.in.setErrorLocked(&net.OpError{Op: "remote error", Err: alert(data[1])})
 		}
 		switch data[0] {
@@ -1173,7 +1179,7 @@ func (c *Conn) unmarshalHandshakeMessage(data []byte, transcript transcriptHash)
 	data = append([]byte(nil), data...)
 
 	if !m.unmarshal(data) {
-		return nil, c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
+		return nil, c.in.setErrorLocked(c.sendAlert(alertDecodeError))
 	}
 
 	if transcript != nil {
@@ -1336,9 +1342,6 @@ func (c *Conn) handleKeyUpdate(keyUpdate *keyUpdateMsg) error {
 		return c.in.setErrorLocked(c.sendAlert(alertInternalError))
 	}
 
-	newSecret := cipherSuite.nextTrafficSecret(c.in.trafficSecret)
-	c.in.setTrafficSecret(cipherSuite, QUICEncryptionLevelInitial, newSecret)
-
 	if keyUpdate.updateRequested {
 		c.out.Lock()
 		defer c.out.Unlock()
@@ -1356,7 +1359,12 @@ func (c *Conn) handleKeyUpdate(keyUpdate *keyUpdateMsg) error {
 		}
 
 		newSecret := cipherSuite.nextTrafficSecret(c.out.trafficSecret)
-		c.out.setTrafficSecret(cipherSuite, QUICEncryptionLevelInitial, newSecret)
+		c.setWriteTrafficSecret(cipherSuite, QUICEncryptionLevelInitial, newSecret)
+	}
+
+	newSecret := cipherSuite.nextTrafficSecret(c.in.trafficSecret)
+	if err := c.setReadTrafficSecret(cipherSuite, QUICEncryptionLevelInitial, newSecret); err != nil {
+		return err
 	}
 
 	return nil
@@ -1517,7 +1525,7 @@ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
 	}
 
 	handshakeCtx, cancel := context.WithCancel(ctx)
-	// Note: defer this before starting the "interrupter" goroutine
+	// Note: defer this before calling context.AfterFunc
 	// so that we can tell the difference between the input being canceled and
 	// this cancellation. In the former case, we need to close the connection.
 	defer cancel()
@@ -1526,28 +1534,14 @@ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
 		c.quic.cancelc = handshakeCtx.Done()
 		c.quic.cancel = cancel
 	} else if ctx.Done() != nil {
-		// Start the "interrupter" goroutine, if this context might be canceled.
-		// (The background context cannot).
-		//
-		// The interrupter goroutine waits for the input context to be done and
-		// closes the connection if this happens before the function returns.
-		done := make(chan struct{})
-		interruptRes := make(chan error, 1)
+		// Close the connection if ctx is canceled before the function returns.
+		stop := context.AfterFunc(ctx, func() {
+			_ = c.conn.Close()
+		})
 		defer func() {
-			close(done)
-			if ctxErr := <-interruptRes; ctxErr != nil {
+			if !stop() {
 				// Return context error to user.
-				ret = ctxErr
-			}
-		}()
-		go func() {
-			select {
-			case <-handshakeCtx.Done():
-				// Close the connection, discarding the error
-				_ = c.conn.Close()
-				interruptRes <- handshakeCtx.Err()
-			case <-done:
-				interruptRes <- nil
+				ret = ctx.Err()
 			}
 		}()
 	}
@@ -1587,11 +1581,13 @@ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
 			// Provide the 1-RTT read secret now that the handshake is complete.
 			// The QUIC layer MUST NOT decrypt 1-RTT packets prior to completing
 			// the handshake (RFC 9001, Section 5.7).
-			c.quicSetReadSecret(QUICEncryptionLevelApplication, c.cipherSuite, c.in.trafficSecret)
+			if err := c.quicSetReadSecret(QUICEncryptionLevelApplication, c.cipherSuite, c.in.trafficSecret); err != nil {
+				return err
+			}
 		} else {
-			var a alert
 			c.out.Lock()
-			if !errors.As(c.out.err, &a) {
+			a, ok := errors.AsType[alert](c.out.err)
+			if !ok {
 				a = alertInternalError
 			}
 			c.out.Unlock()
@@ -1623,9 +1619,9 @@ func (c *Conn) connectionStateLocked() ConnectionState {
 	state.Version = c.vers
 	state.NegotiatedProtocol = c.clientProtocol
 	state.DidResume = c.didResume
-	state.testingOnlyDidHRR = c.didHRR
-	// c.curveID is not set on TLS 1.0–1.2 resumptions. Fix that before exposing it.
-	state.testingOnlyCurveID = c.curveID
+	state.HelloRetryRequest = c.didHRR
+	state.testingOnlyPeerSignatureAlgorithm = c.peerSigAlg
+	state.CurveID = c.curveID
 	state.NegotiatedProtocolIsMutual = true
 	state.ServerName = c.serverName
 	state.CipherSuite = c.cipherSuite
@@ -1682,4 +1678,26 @@ func (c *Conn) VerifyHostname(host string) error {
 		return errors.New("tls: handshake did not verify certificate chain")
 	}
 	return c.peerCertificates[0].VerifyHostname(host)
+}
+
+// setReadTrafficSecret sets the read traffic secret for the given encryption level. If
+// being called at the same time as setWriteTrafficSecret, the caller must ensure the call
+// to setWriteTrafficSecret happens first so any alerts are sent at the write level.
+func (c *Conn) setReadTrafficSecret(suite *cipherSuiteTLS13, level QUICEncryptionLevel, secret []byte) error {
+	// Ensure that there are no buffered handshake messages before changing the
+	// read keys, since that can cause messages to be parsed that were encrypted
+	// using old keys which are no longer appropriate.
+	if c.hand.Len() != 0 {
+		c.sendAlert(alertUnexpectedMessage)
+		return errors.New("tls: handshake buffer not empty before setting read traffic secret")
+	}
+	c.in.setTrafficSecret(suite, level, secret)
+	return nil
+}
+
+// setWriteTrafficSecret sets the write traffic secret for the given encryption level. If
+// being called at the same time as setReadTrafficSecret, the caller must ensure the call
+// to setWriteTrafficSecret happens first so any alerts are sent at the write level.
+func (c *Conn) setWriteTrafficSecret(suite *cipherSuiteTLS13, level QUICEncryptionLevel, secret []byte) {
+	c.out.setTrafficSecret(suite, level, secret)
 }

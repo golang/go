@@ -9,15 +9,11 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/trace/tracev2"
 	"unsafe"
 )
 
 const (
-	// Maximum number of PCs in a single stack trace.
-	// Since events contain only stack id rather than whole stack trace,
-	// we can allow quite large values here.
-	traceStackSize = 128
-
 	// logicalStackSentinel is a sentinel value at pcBuf[0] signifying that
 	// pcBuf[1:] holds a logical stack requiring no further processing. Any other
 	// value at pcBuf[0] represents a skip value to apply to the physical stack in
@@ -32,11 +28,9 @@ const (
 // skip controls the number of leaf frames to omit in order to hide tracer internals
 // from stack traces, see CL 5523.
 //
-// Avoid calling this function directly. gen needs to be the current generation
-// that this stack trace is being written out for, which needs to be synchronized with
-// generations moving forward. Prefer traceEventWriter.stack.
-func traceStack(skip int, gp *g, gen uintptr) uint64 {
-	var pcBuf [traceStackSize]uintptr
+// Avoid calling this function directly. Prefer traceEventWriter.stack.
+func traceStack(skip int, gp *g, tab *traceStackTable) uint64 {
+	pcBuf := getg().m.profStack
 
 	// Figure out gp and mp for the backtrace.
 	var mp *m
@@ -55,7 +49,7 @@ func traceStack(skip int, gp *g, gen uintptr) uint64 {
 			// are totally fine for taking a stack trace. They're captured
 			// correctly in goStatusToTraceGoStatus.
 			switch goStatusToTraceGoStatus(status, gp.waitreason) {
-			case traceGoRunning, traceGoSyscall:
+			case tracev2.GoRunning, tracev2.GoSyscall:
 				if getg() == gp || mp.curg == gp {
 					break
 				}
@@ -113,7 +107,22 @@ func traceStack(skip int, gp *g, gen uintptr) uint64 {
 				nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.syscallbp), pcBuf[2:])
 			} else {
 				pcBuf[1] = gp.sched.pc
-				nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[2:])
+				if gp.syncSafePoint {
+					// We're stopped in morestack, which is an odd state because gp.sched.bp
+					// refers to our parent frame, since we haven't had the chance to push our
+					// frame pointer to the stack yet. If we just start walking from gp.sched.bp,
+					// we'll skip a frame as a result. Luckily, we can find the PC we want right
+					// at gp.sched.sp on non-LR platforms, and we have it directly on LR platforms.
+					// See issue go.dev/issue/68090.
+					if usesLR {
+						pcBuf[2] = gp.sched.lr
+					} else {
+						pcBuf[2] = *(*uintptr)(unsafe.Pointer(gp.sched.sp))
+					}
+					nstk += 2 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[3:])
+				} else {
+					nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[2:])
+				}
 			}
 		}
 	}
@@ -123,12 +132,13 @@ func traceStack(skip int, gp *g, gen uintptr) uint64 {
 	if nstk > 0 && gp.goid == 1 {
 		nstk-- // skip runtime.main
 	}
-	id := trace.stackTab[gen%2].put(pcBuf[:nstk])
+	id := tab.put(pcBuf[:nstk])
 	return id
 }
 
-// traceStackTable maps stack traces (arrays of PC's) to unique uint32 ids.
-// It is lock-free for reading.
+// traceStackTable maps stack traces (arrays of PC's) to unique IDs.
+//
+// ID 0 is reserved for a zero-length stack.
 type traceStackTable struct {
 	tab traceMap
 }
@@ -136,8 +146,10 @@ type traceStackTable struct {
 // put returns a unique id for the stack trace pcs and caches it in the table,
 // if it sees the trace for the first time.
 func (t *traceStackTable) put(pcs []uintptr) uint64 {
+	// Even though put will handle this for us, taking the address of pcs forces a bounds check
+	// that will fail if len(pcs) == 0.
 	if len(pcs) == 0 {
-		return 0
+		return 0 // ID 0 is reserved for zero-length stacks.
 	}
 	id, _ := t.tab.put(noescape(unsafe.Pointer(&pcs[0])), uintptr(len(pcs))*unsafe.Sizeof(uintptr(0)))
 	return id
@@ -147,7 +159,7 @@ func (t *traceStackTable) put(pcs []uintptr) uint64 {
 // releases all memory and resets state. It must only be called once the caller
 // can guarantee that there are no more writers to the table.
 func (t *traceStackTable) dump(gen uintptr) {
-	stackBuf := make([]uintptr, traceStackSize)
+	stackBuf := make([]uintptr, tracev2.MaxFramesPerStack)
 	w := unsafeTraceWriter(gen, nil)
 	if root := (*traceMapNode)(t.tab.root.Load()); root != nil {
 		w = dumpStacksRec(root, w, stackBuf)
@@ -172,16 +184,16 @@ func dumpStacksRec(node *traceMapNode, w traceWriter, stackBuf []uintptr) traceW
 	// bound is pretty loose, but avoids counting
 	// lots of varint sizes.
 	//
-	// Add 1 because we might also write traceEvStacks.
+	// Add 1 because we might also write tracev2.EvStacks.
 	var flushed bool
 	w, flushed = w.ensure(1 + maxBytes)
 	if flushed {
-		w.byte(byte(traceEvStacks))
+		w.byte(byte(tracev2.EvStacks))
 	}
 
 	// Emit stack event.
-	w.byte(byte(traceEvStack))
-	w.varint(uint64(node.id))
+	w.byte(byte(tracev2.EvStack))
+	w.varint(node.id)
 	w.varint(uint64(len(frames)))
 	for _, frame := range frames {
 		w.varint(uint64(frame.PC))

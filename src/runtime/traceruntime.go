@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/runtime/atomic"
+	"internal/trace/tracev2"
 	_ "unsafe" // for go:linkname
 )
 
@@ -24,11 +25,12 @@ func (s *gTraceState) reset() {
 
 // mTraceState is per-M state for the tracer.
 type mTraceState struct {
-	seqlock       atomic.Uintptr                    // seqlock indicating that this M is writing to a trace buffer.
-	buf           [2][traceNumExperiments]*traceBuf // Per-M traceBuf for writing. Indexed by trace.gen%2.
-	link          *m                                // Snapshot of alllink or freelink.
-	reentered     uint32                            // Whether we've reentered tracing from within tracing.
-	oldthrowsplit bool                              // gp.throwsplit upon calling traceLocker.writer. For debugging.
+	writing       atomic.Bool                          // flag indicating that this M is writing to a trace buffer.
+	buf           [2][tracev2.NumExperiments]*traceBuf // Per-M traceBuf for writing. Indexed by trace.gen%2.
+	link          *m                                   // Snapshot of alllink or freelink.
+	reentered     uint32                               // Whether we've reentered tracing from within tracing.
+	entryGen      uintptr                              // The generation value on first entry.
+	oldthrowsplit bool                                 // gp.throwsplit upon calling traceLocker.writer. For debugging.
 }
 
 // pTraceState is per-P state for the tracer.
@@ -209,21 +211,18 @@ func traceAcquireEnabled() traceLocker {
 	// Check if we're already tracing. It's safe to be reentrant in general,
 	// because this function (and the invariants of traceLocker.writer) ensure
 	// that it is.
-	if mp.trace.seqlock.Load()%2 == 1 {
+	if mp.trace.writing.Load() {
 		mp.trace.reentered++
-		return traceLocker{mp, trace.gen.Load()}
+		return traceLocker{mp, mp.trace.entryGen}
 	}
 
-	// Acquire the trace seqlock. This prevents traceAdvance from moving forward
-	// until all Ms are observed to be outside of their seqlock critical section.
+	// Set the write flag. This prevents traceAdvance from moving forward
+	// until all Ms are observed to be outside of a write critical section.
 	//
-	// Note: The seqlock is mutated here and also in traceCPUSample. If you update
-	// usage of the seqlock here, make sure to also look at what traceCPUSample is
+	// Note: The write flag is mutated here and also in traceCPUSample. If you update
+	// usage of the write flag here, make sure to also look at what traceCPUSample is
 	// doing.
-	seq := mp.trace.seqlock.Add(1)
-	if debugTraceReentrancy && seq%2 != 1 {
-		throw("bad use of trace.seqlock")
-	}
+	mp.trace.writing.Store(true)
 
 	// N.B. This load of gen appears redundant with the one in traceEnabled.
 	// However, it's very important that the gen we use for writing to the trace
@@ -235,10 +234,11 @@ func traceAcquireEnabled() traceLocker {
 	// what we did and bail.
 	gen := trace.gen.Load()
 	if gen == 0 {
-		mp.trace.seqlock.Add(1)
+		mp.trace.writing.Store(false)
 		releasem(mp)
 		return traceLocker{}
 	}
+	mp.trace.entryGen = gen
 	return traceLocker{mp, gen}
 }
 
@@ -260,11 +260,7 @@ func traceRelease(tl traceLocker) {
 	if tl.mp.trace.reentered > 0 {
 		tl.mp.trace.reentered--
 	} else {
-		seq := tl.mp.trace.seqlock.Add(1)
-		if debugTraceReentrancy && seq%2 != 0 {
-			print("runtime: seq=", seq, "\n")
-			throw("bad use of trace.seqlock")
-		}
+		tl.mp.trace.writing.Store(false)
 	}
 	releasem(tl.mp)
 }
@@ -283,7 +279,7 @@ func traceExitedSyscall() {
 
 // Gomaxprocs emits a ProcsChange event.
 func (tl traceLocker) Gomaxprocs(procs int32) {
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvProcsChange, traceArg(procs), tl.stack(1))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvProcsChange, traceArg(procs), tl.stack(1))
 }
 
 // ProcStart traces a ProcStart event.
@@ -294,14 +290,14 @@ func (tl traceLocker) ProcStart() {
 	// Procs are typically started within the scheduler when there is no user goroutine. If there is a user goroutine,
 	// it must be in _Gsyscall because the only time a goroutine is allowed to have its Proc moved around from under it
 	// is during a syscall.
-	tl.eventWriter(traceGoSyscall, traceProcIdle).event(traceEvProcStart, traceArg(pp.id), pp.trace.nextSeq(tl.gen))
+	tl.eventWriter(tracev2.GoSyscall, tracev2.ProcIdle).event(tracev2.EvProcStart, traceArg(pp.id), pp.trace.nextSeq(tl.gen))
 }
 
 // ProcStop traces a ProcStop event.
 func (tl traceLocker) ProcStop(pp *p) {
 	// The only time a goroutine is allowed to have its Proc moved around
 	// from under it is during a syscall.
-	tl.eventWriter(traceGoSyscall, traceProcRunning).event(traceEvProcStop)
+	tl.eventWriter(tracev2.GoSyscall, tracev2.ProcRunning).event(tracev2.EvProcStop)
 }
 
 // GCActive traces a GCActive event.
@@ -309,7 +305,7 @@ func (tl traceLocker) ProcStop(pp *p) {
 // Must be emitted by an actively running goroutine on an active P. This restriction can be changed
 // easily and only depends on where it's currently called.
 func (tl traceLocker) GCActive() {
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGCActive, traceArg(trace.seqGC))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGCActive, traceArg(trace.seqGC))
 	// N.B. Only one GC can be running at a time, so this is naturally
 	// serialized by the caller.
 	trace.seqGC++
@@ -320,7 +316,7 @@ func (tl traceLocker) GCActive() {
 // Must be emitted by an actively running goroutine on an active P. This restriction can be changed
 // easily and only depends on where it's currently called.
 func (tl traceLocker) GCStart() {
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGCBegin, traceArg(trace.seqGC), tl.stack(3))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGCBegin, traceArg(trace.seqGC), tl.stack(3))
 	// N.B. Only one GC can be running at a time, so this is naturally
 	// serialized by the caller.
 	trace.seqGC++
@@ -331,7 +327,7 @@ func (tl traceLocker) GCStart() {
 // Must be emitted by an actively running goroutine on an active P. This restriction can be changed
 // easily and only depends on where it's currently called.
 func (tl traceLocker) GCDone() {
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGCEnd, traceArg(trace.seqGC))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGCEnd, traceArg(trace.seqGC))
 	// N.B. Only one GC can be running at a time, so this is naturally
 	// serialized by the caller.
 	trace.seqGC++
@@ -341,14 +337,14 @@ func (tl traceLocker) GCDone() {
 func (tl traceLocker) STWStart(reason stwReason) {
 	// Although the current P may be in _Pgcstop here, we model the P as running during the STW. This deviates from the
 	// runtime's state tracking, but it's more accurate and doesn't result in any loss of information.
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvSTWBegin, tl.string(reason.String()), tl.stack(2))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvSTWBegin, tl.string(reason.String()), tl.stack(2))
 }
 
 // STWDone traces a STWEnd event.
 func (tl traceLocker) STWDone() {
 	// Although the current P may be in _Pgcstop here, we model the P as running during the STW. This deviates from the
 	// runtime's state tracking, but it's more accurate and doesn't result in any loss of information.
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvSTWEnd)
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvSTWEnd)
 }
 
 // GCSweepStart prepares to trace a sweep loop. This does not
@@ -380,7 +376,7 @@ func (tl traceLocker) GCSweepSpan(bytesSwept uintptr) {
 	pp := tl.mp.p.ptr()
 	if pp.trace.maySweep {
 		if pp.trace.swept == 0 {
-			tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGCSweepBegin, tl.stack(1))
+			tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGCSweepBegin, tl.stack(1))
 			pp.trace.inSweep = true
 		}
 		pp.trace.swept += bytesSwept
@@ -398,7 +394,7 @@ func (tl traceLocker) GCSweepDone() {
 		throw("missing traceGCSweepStart")
 	}
 	if pp.trace.inSweep {
-		tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGCSweepEnd, traceArg(pp.trace.swept), traceArg(pp.trace.reclaimed))
+		tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGCSweepEnd, traceArg(pp.trace.swept), traceArg(pp.trace.reclaimed))
 		pp.trace.inSweep = false
 	}
 	pp.trace.maySweep = false
@@ -406,22 +402,22 @@ func (tl traceLocker) GCSweepDone() {
 
 // GCMarkAssistStart emits a MarkAssistBegin event.
 func (tl traceLocker) GCMarkAssistStart() {
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGCMarkAssistBegin, tl.stack(1))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGCMarkAssistBegin, tl.stack(1))
 }
 
 // GCMarkAssistDone emits a MarkAssistEnd event.
 func (tl traceLocker) GCMarkAssistDone() {
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGCMarkAssistEnd)
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGCMarkAssistEnd)
 }
 
 // GoCreate emits a GoCreate event.
 func (tl traceLocker) GoCreate(newg *g, pc uintptr, blocked bool) {
 	newg.trace.setStatusTraced(tl.gen)
-	ev := traceEvGoCreate
+	ev := tracev2.EvGoCreate
 	if blocked {
-		ev = traceEvGoCreateBlocked
+		ev = tracev2.EvGoCreateBlocked
 	}
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(ev, traceArg(newg.goid), tl.startPC(pc), tl.stack(2))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(ev, traceArg(newg.goid), tl.startPC(pc), tl.stack(2))
 }
 
 // GoStart emits a GoStart event.
@@ -430,10 +426,10 @@ func (tl traceLocker) GoCreate(newg *g, pc uintptr, blocked bool) {
 func (tl traceLocker) GoStart() {
 	gp := getg().m.curg
 	pp := gp.m.p
-	w := tl.eventWriter(traceGoRunnable, traceProcRunning)
-	w.event(traceEvGoStart, traceArg(gp.goid), gp.trace.nextSeq(tl.gen))
+	w := tl.eventWriter(tracev2.GoRunnable, tracev2.ProcRunning)
+	w.event(tracev2.EvGoStart, traceArg(gp.goid), gp.trace.nextSeq(tl.gen))
 	if pp.ptr().gcMarkWorkerMode != gcMarkWorkerNotWorker {
-		w.event(traceEvGoLabel, trace.markWorkerLabels[tl.gen%2][pp.ptr().gcMarkWorkerMode])
+		w.event(tracev2.EvGoLabel, trace.markWorkerLabels[tl.gen%2][pp.ptr().gcMarkWorkerMode])
 	}
 }
 
@@ -441,7 +437,7 @@ func (tl traceLocker) GoStart() {
 //
 // TODO(mknyszek): Rename this to GoDestroy.
 func (tl traceLocker) GoEnd() {
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGoDestroy)
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGoDestroy)
 }
 
 // GoSched emits a GoStop event with a GoSched reason.
@@ -456,7 +452,7 @@ func (tl traceLocker) GoPreempt() {
 
 // GoStop emits a GoStop event with the provided reason.
 func (tl traceLocker) GoStop(reason traceGoStopReason) {
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGoStop, traceArg(trace.goStopReasons[tl.gen%2][reason]), tl.stack(1))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGoStop, trace.goStopReasons[tl.gen%2][reason], tl.stack(0))
 }
 
 // GoPark emits a GoBlock event with the provided reason.
@@ -464,14 +460,14 @@ func (tl traceLocker) GoStop(reason traceGoStopReason) {
 // TODO(mknyszek): Replace traceBlockReason with waitReason. It's silly
 // that we have both, and waitReason is way more descriptive.
 func (tl traceLocker) GoPark(reason traceBlockReason, skip int) {
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGoBlock, traceArg(trace.goBlockReasons[tl.gen%2][reason]), tl.stack(skip))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGoBlock, trace.goBlockReasons[tl.gen%2][reason], tl.stack(skip))
 }
 
 // GoUnpark emits a GoUnblock event.
 func (tl traceLocker) GoUnpark(gp *g, skip int) {
 	// Emit a GoWaiting status if necessary for the unblocked goroutine.
 	tl.emitUnblockStatus(gp, tl.gen)
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGoUnblock, traceArg(gp.goid), gp.trace.nextSeq(tl.gen), tl.stack(skip))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGoUnblock, traceArg(gp.goid), gp.trace.nextSeq(tl.gen), tl.stack(skip))
 }
 
 // GoSwitch emits a GoSwitch event. If destroy is true, the calling goroutine
@@ -479,10 +475,10 @@ func (tl traceLocker) GoUnpark(gp *g, skip int) {
 func (tl traceLocker) GoSwitch(nextg *g, destroy bool) {
 	// Emit a GoWaiting status if necessary for the unblocked goroutine.
 	tl.emitUnblockStatus(nextg, tl.gen)
-	w := tl.eventWriter(traceGoRunning, traceProcRunning)
-	ev := traceEvGoSwitch
+	w := tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning)
+	ev := tracev2.EvGoSwitch
 	if destroy {
-		ev = traceEvGoSwitchDestroy
+		ev = tracev2.EvGoSwitchDestroy
 	}
 	w.event(ev, traceArg(nextg.goid), nextg.trace.nextSeq(tl.gen))
 }
@@ -494,7 +490,7 @@ func (tl traceLocker) emitUnblockStatus(gp *g, gen uintptr) {
 		// TODO(go.dev/issue/65634): Although it would be nice to add a stack trace here of gp,
 		// we cannot safely do so. gp is in _Gwaiting and so we don't have ownership of its stack.
 		// We can fix this by acquiring the goroutine's scan bit.
-		tl.writer().writeGoStatus(gp.goid, -1, traceGoWaiting, gp.inMarkAssist, 0).end()
+		tl.writer().writeGoStatus(gp.goid, -1, tracev2.GoWaiting, gp.inMarkAssist, 0).end()
 	}
 }
 
@@ -505,7 +501,7 @@ func (tl traceLocker) GoSysCall() {
 	// Scribble down the M that the P is currently attached to.
 	pp := tl.mp.p.ptr()
 	pp.trace.mSyscallID = int64(tl.mp.procid)
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvGoSyscallBegin, pp.trace.nextSeq(tl.gen), tl.stack(1))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGoSyscallBegin, pp.trace.nextSeq(tl.gen), tl.stack(1))
 }
 
 // GoSysExit emits a GoSyscallEnd event, possibly along with a GoSyscallBlocked event
@@ -518,36 +514,34 @@ func (tl traceLocker) GoSysCall() {
 // - The goroutine lost its P and was unable to reacquire it, and is now running without a P.
 // - The goroutine lost its P and acquired a different one, and is now running with that P.
 func (tl traceLocker) GoSysExit(lostP bool) {
-	ev := traceEvGoSyscallEnd
-	procStatus := traceProcSyscall // Procs implicitly enter traceProcSyscall on GoSyscallBegin.
+	ev := tracev2.EvGoSyscallEnd
+	procStatus := tracev2.ProcSyscall // Procs implicitly enter tracev2.ProcSyscall on GoSyscallBegin.
 	if lostP {
-		ev = traceEvGoSyscallEndBlocked
-		procStatus = traceProcRunning // If a G has a P when emitting this event, it reacquired a P and is indeed running.
+		ev = tracev2.EvGoSyscallEndBlocked
+		procStatus = tracev2.ProcRunning // If a G has a P when emitting this event, it reacquired a P and is indeed running.
 	} else {
 		tl.mp.p.ptr().trace.mSyscallID = -1
 	}
-	tl.eventWriter(traceGoSyscall, procStatus).event(ev)
+	tl.eventWriter(tracev2.GoSyscall, procStatus).event(ev)
 }
 
 // ProcSteal indicates that our current M stole a P from another M.
 //
-// inSyscall indicates that we're stealing the P from a syscall context.
-//
 // The caller must have ownership of pp.
-func (tl traceLocker) ProcSteal(pp *p, inSyscall bool) {
+func (tl traceLocker) ProcSteal(pp *p) {
 	// Grab the M ID we stole from.
 	mStolenFrom := pp.trace.mSyscallID
 	pp.trace.mSyscallID = -1
 
 	// Emit the status of the P we're stealing. We may be just about to do this when creating the event
-	// writer but it's not guaranteed, even if inSyscall is true. Although it might seem like from a
-	// syscall context we're always stealing a P for ourselves, we may have not wired it up yet (so
+	// writer but it's not guaranteed, even if we're stealing from a syscall. Although it might seem like
+	// from a syscall context we're always stealing a P for ourselves, we may have not wired it up yet (so
 	// it wouldn't be visible to eventWriter) or we may not even intend to wire it up to ourselves
-	// at all (e.g. entersyscall_gcwait).
+	// at all and plan to hand it back to the runtime.
 	if !pp.trace.statusWasTraced(tl.gen) && pp.trace.acquireStatus(tl.gen) {
 		// Careful: don't use the event writer. We never want status or in-progress events
 		// to trigger more in-progress events.
-		tl.writer().writeProcStatus(uint64(pp.id), traceProcSyscallAbandoned, pp.trace.inSweep).end()
+		tl.writer().writeProcStatus(uint64(pp.id), tracev2.ProcSyscallAbandoned, pp.trace.inSweep).end()
 	}
 
 	// The status of the proc and goroutine, if we need to emit one here, is not evident from the
@@ -556,28 +550,30 @@ func (tl traceLocker) ProcSteal(pp *p, inSyscall bool) {
 	// ourselves specifically to keep running. The two contexts look different, but can be summarized
 	// fairly succinctly. In the former, we're a regular running goroutine and proc, if we have either.
 	// In the latter, we're a goroutine in a syscall.
-	goStatus := traceGoRunning
-	procStatus := traceProcRunning
-	if inSyscall {
-		goStatus = traceGoSyscall
-		procStatus = traceProcSyscallAbandoned
+	goStatus := tracev2.GoRunning
+	procStatus := tracev2.ProcRunning
+	if tl.mp.curg != nil && tl.mp.curg.syscallsp != 0 {
+		goStatus = tracev2.GoSyscall
+		procStatus = tracev2.ProcSyscallAbandoned
 	}
-	tl.eventWriter(goStatus, procStatus).event(traceEvProcSteal, traceArg(pp.id), pp.trace.nextSeq(tl.gen), traceArg(mStolenFrom))
+	tl.eventWriter(goStatus, procStatus).event(tracev2.EvProcSteal, traceArg(pp.id), pp.trace.nextSeq(tl.gen), traceArg(mStolenFrom))
 }
 
 // HeapAlloc emits a HeapAlloc event.
 func (tl traceLocker) HeapAlloc(live uint64) {
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvHeapAlloc, traceArg(live))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvHeapAlloc, traceArg(live))
 }
 
 // HeapGoal reads the current heap goal and emits a HeapGoal event.
 func (tl traceLocker) HeapGoal() {
 	heapGoal := gcController.heapGoal()
-	if heapGoal == ^uint64(0) {
+	// The heapGoal calculations will result in strange numbers if the GC if off. See go.dev/issue/63864.
+	// Check gcPercent before using the heapGoal in the trace.
+	if heapGoal == ^uint64(0) || gcController.gcPercent.Load() < 0 {
 		// Heap-based triggering is disabled.
 		heapGoal = 0
 	}
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvHeapGoal, traceArg(heapGoal))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvHeapGoal, traceArg(heapGoal))
 }
 
 // GoCreateSyscall indicates that a goroutine has transitioned from dead to GoSyscall.
@@ -590,19 +586,27 @@ func (tl traceLocker) GoCreateSyscall(gp *g) {
 	// N.B. We should never trace a status for this goroutine (which we're currently running on),
 	// since we want this to appear like goroutine creation.
 	gp.trace.setStatusTraced(tl.gen)
-	tl.eventWriter(traceGoBad, traceProcBad).event(traceEvGoCreateSyscall, traceArg(gp.goid))
+
+	// We might have a P left over on the thread from the last cgo callback,
+	// but in a syscall context, it is NOT ours. Act as if we do not have a P,
+	// and don't record a status.
+	tl.rawEventWriter().event(tracev2.EvGoCreateSyscall, traceArg(gp.goid))
 }
 
 // GoDestroySyscall indicates that a goroutine has transitioned from GoSyscall to dead.
 //
-// Must not have a P.
-//
 // This occurs when Go code returns back to C. On pthread platforms it occurs only when
 // the C thread is destroyed.
 func (tl traceLocker) GoDestroySyscall() {
-	// N.B. If we trace a status here, we must never have a P, and we must be on a goroutine
-	// that is in the syscall state.
-	tl.eventWriter(traceGoSyscall, traceProcBad).event(traceEvGoDestroySyscall)
+	// Write the status for the goroutine if necessary.
+	if gp := tl.mp.curg; gp != nil && !gp.trace.statusWasTraced(tl.gen) && gp.trace.acquireStatus(tl.gen) {
+		tl.writer().writeGoStatus(gp.goid, int64(tl.mp.procid), tracev2.GoSyscall, false, 0 /* no stack */).end()
+	}
+
+	// We might have a P left over on the thread from the last cgo callback,
+	// but in a syscall context, it is NOT ours. Act as if we do not have a P,
+	// and don't record a status.
+	tl.rawEventWriter().event(tracev2.EvGoDestroySyscall)
 }
 
 // To access runtime functions from runtime/trace.
@@ -617,7 +621,7 @@ func trace_userTaskCreate(id, parentID uint64, taskType string) {
 		// Need to do this check because the caller won't have it.
 		return
 	}
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvUserTaskBegin, traceArg(id), traceArg(parentID), tl.string(taskType), tl.stack(3))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvUserTaskBegin, traceArg(id), traceArg(parentID), tl.string(taskType), tl.stack(3))
 	traceRelease(tl)
 }
 
@@ -630,7 +634,7 @@ func trace_userTaskEnd(id uint64) {
 		// Need to do this check because the caller won't have it.
 		return
 	}
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvUserTaskEnd, traceArg(id), tl.stack(2))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvUserTaskEnd, traceArg(id), tl.stack(2))
 	traceRelease(tl)
 }
 
@@ -646,16 +650,16 @@ func trace_userRegion(id, mode uint64, name string) {
 		// Need to do this check because the caller won't have it.
 		return
 	}
-	var ev traceEv
+	var ev tracev2.EventType
 	switch mode {
 	case 0:
-		ev = traceEvUserRegionBegin
+		ev = tracev2.EvUserRegionBegin
 	case 1:
-		ev = traceEvUserRegionEnd
+		ev = tracev2.EvUserRegionEnd
 	default:
 		return
 	}
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(ev, traceArg(id), tl.string(name), tl.stack(3))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(ev, traceArg(id), tl.string(name), tl.stack(3))
 	traceRelease(tl)
 }
 
@@ -668,7 +672,7 @@ func trace_userLog(id uint64, category, message string) {
 		// Need to do this check because the caller won't have it.
 		return
 	}
-	tl.eventWriter(traceGoRunning, traceProcRunning).event(traceEvUserLog, traceArg(id), tl.string(category), tl.uniqueString(message), tl.stack(3))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvUserLog, traceArg(id), tl.string(category), tl.uniqueString(message), tl.stack(3))
 	traceRelease(tl)
 }
 
@@ -688,10 +692,10 @@ func traceThreadDestroy(mp *m) {
 	// Perform a traceAcquire/traceRelease on behalf of mp to
 	// synchronize with the tracer trying to flush our buffer
 	// as well.
-	seq := mp.trace.seqlock.Add(1)
-	if debugTraceReentrancy && seq%2 != 1 {
-		throw("bad use of trace.seqlock")
+	if debugTraceReentrancy && mp.trace.writing.Load() {
+		throw("bad use of trace.writing")
 	}
+	mp.trace.writing.Store(true)
 	systemstack(func() {
 		lock(&trace.lock)
 		for i := range mp.trace.buf {
@@ -706,9 +710,5 @@ func traceThreadDestroy(mp *m) {
 		}
 		unlock(&trace.lock)
 	})
-	seq1 := mp.trace.seqlock.Add(1)
-	if seq1 != seq+1 {
-		print("runtime: seq1=", seq1, "\n")
-		throw("bad use of trace.seqlock")
-	}
+	mp.trace.writing.Store(false)
 }

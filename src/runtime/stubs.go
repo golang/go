@@ -274,7 +274,16 @@ func reflectcall(stackArgsType *_type, fn, stackArgs unsafe.Pointer, stackArgsSi
 // See go.dev/issue/67401.
 //
 //go:linkname procyield
-func procyield(cycles uint32)
+//go:nosplit
+func procyield(cycles uint32) {
+	if cycles == 0 {
+		return
+	}
+	procyieldAsm(cycles)
+}
+
+// procyieldAsm is the assembly implementation of procyield.
+func procyieldAsm(cycles uint32)
 
 type neverCallThisFunction struct{}
 
@@ -312,16 +321,19 @@ func asmcgocall(fn, arg unsafe.Pointer) int32
 
 func morestack()
 
+// morestack_noctxt should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issues/67401.
+// See go.dev/issues/71672.
+//
+//go:linkname morestack_noctxt
 func morestack_noctxt()
 
 func rt0_go()
-
-// return0 is a stub used to return 0 from deferproc.
-// It is called at the very end of deferproc to signal
-// the calling Go function that it should not jump
-// to deferreturn.
-// in asm_*.s
-func return0()
 
 // in asm_*.s
 // not called directly; definitions here supply type information for traceback.

@@ -154,6 +154,28 @@ func TestRequestWithoutRemotePort(t *testing.T) {
 	}
 }
 
+// CGI Specification RFC 3875 - section 4.1.16
+// INCLUDED value for SERVER_PROTOCOL must be treated as an HTTP/1.0 request
+func TestIncludedServerProtocol(t *testing.T) {
+	env := map[string]string{
+		"REQUEST_METHOD":  "GET",
+		"SERVER_PROTOCOL": "INCLUDED",
+	}
+	req, err := RequestFromMap(env)
+	if req.Proto != "INCLUDED" {
+		t.Errorf("unexpected change to SERVER_PROTOCOL")
+	}
+	if major := req.ProtoMajor; major != 1 {
+		t.Errorf("ProtoMajor: got %d, want %d", major, 1)
+	}
+	if minor := req.ProtoMinor; minor != 0 {
+		t.Errorf("ProtoMinor: got %d, want %d", minor, 0)
+	}
+	if err != nil {
+		t.Fatalf("expected INCLUDED to be treated as HTTP/1.0 request")
+	}
+}
+
 func TestResponse(t *testing.T) {
 	var tests = []struct {
 		name   string

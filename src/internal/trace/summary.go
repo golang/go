@@ -321,16 +321,47 @@ func (s *Summarizer) Event(ev *Event) {
 			// Handle transition out.
 			g := s.gs[id]
 			switch old {
-			case GoUndetermined, GoNotExist:
+			case GoUndetermined:
 				g = &GoroutineSummary{ID: id, goroutineSummary: &goroutineSummary{}}
+
+				// The goroutine is being named for the first time.
 				// If we're coming out of GoUndetermined, then the creation time is the
 				// time of the last sync.
-				if old == GoUndetermined {
-					g.CreationTime = s.syncTs
-				} else {
-					g.CreationTime = ev.Time()
+				g.CreationTime = s.syncTs
+				g.lastRangeTime = make(map[string]Time)
+				g.BlockTimeByReason = make(map[string]time.Duration)
+				g.RangeTime = make(map[string]time.Duration)
+
+				// Accumulate all the time we spent in new as if it was old.
+				//
+				// Note that we still handle "new" again below because the time until
+				// the *next* event still needs to be accumulated (even though it's
+				// probably going to come immediately after this event).
+				stateTime := ev.Time().Sub(s.syncTs)
+				switch new {
+				case GoRunning:
+					g.ExecTime += stateTime
+				case GoWaiting:
+					g.BlockTimeByReason[st.Reason] += stateTime
+				case GoRunnable:
+					g.SchedWaitTime += stateTime
+				case GoSyscall:
+					// For a syscall, we're not going to be 'naming' this P from afar.
+					// It's "executing" somewhere. If we've got a P, then that means
+					// we've had that P since the start, so this is regular syscall time.
+					// Otherwise, this is syscall block time (no P).
+					if ev.Proc() == NoProc {
+						g.SyscallBlockTime += stateTime
+					} else {
+						g.SyscallTime += stateTime
+					}
 				}
-				// The goroutine is being created, or it's being named for the first time.
+				s.gs[g.ID] = g
+			case GoNotExist:
+				g = &GoroutineSummary{ID: id, goroutineSummary: &goroutineSummary{}}
+
+				// The goroutine is being created.
+				g.CreationTime = ev.Time()
 				g.lastRangeTime = make(map[string]Time)
 				g.BlockTimeByReason = make(map[string]time.Duration)
 				g.RangeTime = make(map[string]time.Duration)

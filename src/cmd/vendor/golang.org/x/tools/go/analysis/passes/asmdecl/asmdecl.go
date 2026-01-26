@@ -19,7 +19,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 )
 
 const Doc = "report mismatches between assembly files and Go declarations"
@@ -57,7 +57,7 @@ type asmArch struct {
 	// include the first integer register and first floating-point register. Accessing
 	// any of them counts as writing to result.
 	retRegs []string
-	// writeResult is a list of instructions that will change result register implicity.
+	// writeResult is a list of instructions that will change result register implicitly.
 	writeResult []string
 	// calculated during initialization
 	sizes    types.Sizes
@@ -150,7 +150,7 @@ var (
 	abiSuff      = re(`^(.+)<(ABI.+)>$`)
 )
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	// No work if no assembly files.
 	var sfiles []string
 	for _, fname := range pass.OtherFiles {
@@ -175,7 +175,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 Files:
 	for _, fname := range sfiles {
-		content, tf, err := analysisutil.ReadFile(pass, fname)
+		content, tf, err := analyzerutil.ReadFile(pass, fname)
 		if err != nil {
 			return nil, err
 		}
@@ -211,7 +211,7 @@ Files:
 					resultStr = "result register"
 				}
 				for _, line := range retLine {
-					pass.Reportf(analysisutil.LineStart(tf, line), "[%s] %s: RET without writing to %s", arch, fnName, resultStr)
+					pass.Reportf(tf.LineStart(line), "[%s] %s: RET without writing to %s", arch, fnName, resultStr)
 				}
 			}
 			retLine = nil
@@ -226,8 +226,8 @@ Files:
 		for lineno, line := range lines {
 			lineno++
 
-			badf := func(format string, args ...interface{}) {
-				pass.Reportf(analysisutil.LineStart(tf, lineno), "[%s] %s: %s", arch, fnName, fmt.Sprintf(format, args...))
+			badf := func(format string, args ...any) {
+				pass.Reportf(tf.LineStart(lineno), "[%s] %s: %s", arch, fnName, fmt.Sprintf(format, args...))
 			}
 
 			if arch == "" {
@@ -237,7 +237,7 @@ Files:
 					// so accumulate them all and then prefer the one that
 					// matches build.Default.GOARCH.
 					var archCandidates []*asmArch
-					for _, fld := range strings.Fields(m[1]) {
+					for fld := range strings.FieldsSeq(m[1]) {
 						for _, a := range arches {
 							if a.name == fld {
 								archCandidates = append(archCandidates, a)
@@ -542,8 +542,8 @@ func appendComponentsRecursive(arch *asmArch, t types.Type, cc []component, suff
 		elem := tu.Elem()
 		// Calculate offset of each element array.
 		fields := []*types.Var{
-			types.NewVar(token.NoPos, nil, "fake0", elem),
-			types.NewVar(token.NoPos, nil, "fake1", elem),
+			types.NewField(token.NoPos, nil, "fake0", elem, false),
+			types.NewField(token.NoPos, nil, "fake1", elem, false),
 		}
 		offsets := arch.sizes.Offsetsof(fields)
 		elemoff := int(offsets[1])
@@ -646,7 +646,7 @@ func asmParseDecl(pass *analysis.Pass, decl *ast.FuncDecl) map[string]*asmFunc {
 }
 
 // asmCheckVar checks a single variable reference.
-func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr string, off int, v *asmVar, archDef *asmArch) {
+func asmCheckVar(badf func(string, ...any), fn *asmFunc, line, expr string, off int, v *asmVar, archDef *asmArch) {
 	m := asmOpcode.FindStringSubmatch(line)
 	if m == nil {
 		if !strings.HasPrefix(strings.TrimSpace(line), "//") {

@@ -49,6 +49,8 @@ go get vcs-test.golang.org/auth/or401
 go mod tidy
 go list all
 stdout vcs-test.golang.org/auth/or404
+# With cached credentials, re-downloading in debug mode should succeed.
+go get -x vcs-test.golang.org/auth/or401
 
 # Clearing GOAUTH credentials should result in failures.
 env GOAUTH='off'

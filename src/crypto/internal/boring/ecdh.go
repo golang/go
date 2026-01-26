@@ -17,7 +17,6 @@ import (
 type PublicKeyECDH struct {
 	curve string
 	key   *C.GO_EC_POINT
-	group *C.GO_EC_GROUP
 	bytes []byte
 }
 
@@ -59,7 +58,7 @@ func NewPublicKeyECDH(curve string, bytes []byte) (*PublicKeyECDH, error) {
 		return nil, errors.New("point not on curve")
 	}
 
-	k := &PublicKeyECDH{curve, key, group, append([]byte(nil), bytes...)}
+	k := &PublicKeyECDH{curve, key, append([]byte(nil), bytes...)}
 	// Note: Because of the finalizer, any time k.key is passed to cgo,
 	// that call must be followed by a call to runtime.KeepAlive(k),
 	// to make sure k is not collected (and finalized) before the cgo
@@ -122,7 +121,7 @@ func (k *PrivateKeyECDH) PublicKey() (*PublicKeyECDH, error) {
 		C._goboringcrypto_EC_POINT_free(pt)
 		return nil, err
 	}
-	pub := &PublicKeyECDH{k.curve, pt, group, bytes}
+	pub := &PublicKeyECDH{k.curve, pt, bytes}
 	// Note: Same as in NewPublicKeyECDH regarding finalizer and KeepAlive.
 	runtime.SetFinalizer(pub, (*PublicKeyECDH).finalize)
 	return pub, nil

@@ -5,8 +5,7 @@
 package os
 
 import (
-	"internal/itoa"
-	"runtime"
+	"internal/strconv"
 	"syscall"
 	"time"
 )
@@ -41,7 +40,7 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 }
 
 func (p *Process) writeProcFile(file string, data string) error {
-	f, e := OpenFile("/proc/"+itoa.Itoa(p.Pid)+"/"+file, O_WRONLY, 0)
+	f, e := OpenFile("/proc/"+strconv.Itoa(p.Pid)+"/"+file, O_WRONLY, 0)
 	if e != nil {
 		return e
 	}
@@ -81,7 +80,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 		return nil, NewSyscallError("wait", err)
 	}
 
-	p.pidDeactivate(statusDone)
+	p.doRelease(statusDone)
 	ps = &ProcessState{
 		pid:    waitmsg.Pid,
 		status: &waitmsg,
@@ -89,15 +88,8 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 	return ps, nil
 }
 
-func (p *Process) release() error {
-	p.Pid = -1
-
-	// Just mark the PID unusable.
-	p.pidDeactivate(statusReleased)
-
-	// no need for a finalizer anymore
-	runtime.SetFinalizer(p, nil)
-	return nil
+func (p *Process) withHandle(_ func(handle uintptr)) error {
+	return ErrNoHandle
 }
 
 func findProcess(pid int) (p *Process, err error) {

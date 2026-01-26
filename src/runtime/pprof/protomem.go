@@ -63,8 +63,7 @@ func writeHeapProto(w io.Writer, p []profilerecord.MemProfileRecord, rate int64,
 			}
 		})
 	}
-	b.build()
-	return nil
+	return b.build()
 }
 
 // scaleHeapSample adjusts the data from a heap Sample to

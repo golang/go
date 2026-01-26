@@ -138,13 +138,13 @@ func coroswitch_m(gp *g) {
 	trace := traceAcquire()
 
 	canCAS := true
-	sg := gp.syncGroup
-	if sg != nil {
+	bubble := gp.bubble
+	if bubble != nil {
 		// If we're in a synctest group, always use casgstatus (which tracks
 		// group idleness) rather than directly CASing. Mark the group as active
 		// while we're in the process of transferring control.
 		canCAS = false
-		sg.incActive()
+		bubble.incActive()
 	}
 
 	if locked {
@@ -251,8 +251,8 @@ func coroswitch_m(gp *g) {
 		traceRelease(trace)
 	}
 
-	if sg != nil {
-		sg.decActive()
+	if bubble != nil {
+		bubble.decActive()
 	}
 
 	// Switch to gnext. Does not return.

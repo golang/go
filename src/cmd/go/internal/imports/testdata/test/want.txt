@@ -1,0 +1,2 @@
+cmd/go/internal/imports/testdata/test/child
+fmt

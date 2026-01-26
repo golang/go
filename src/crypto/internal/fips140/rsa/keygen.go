@@ -105,7 +105,28 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 		// negligible chance of failure we can defer the check to the end of key
 		// generation and return an error if it fails. See [checkPrivateKey].
 
-		return newPrivateKey(N, 65537, d, P, Q)
+		k, err := newPrivateKey(N, 65537, d, P, Q)
+		if err != nil {
+			return nil, err
+		}
+
+		if k.fipsApproved {
+			fips140.PCT("RSA sign and verify PCT", func() error {
+				hash := []byte{
+					0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+					0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+					0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+					0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
+				}
+				sig, err := signPKCS1v15(k, "SHA-256", hash)
+				if err != nil {
+					return err
+				}
+				return verifyPKCS1v15(k.PublicKey(), "SHA-256", hash, sig)
+			})
+		}
+
+		return k, nil
 	}
 }
 
@@ -167,15 +188,17 @@ func randomPrime(rand io.Reader, bits int) ([]byte, error) {
 		if err := drbg.ReadWithReader(rand, b); err != nil {
 			return nil, err
 		}
-		if excess := len(b)*8 - bits; excess != 0 {
-			b[0] >>= excess
-		}
+		// Clear the most significant bits to reach the desired size. We use a
+		// mask rather than right-shifting b[0] to make it easier to inject test
+		// candidates, which can be represented as simple big-endian integers.
+		excess := len(b)*8 - bits
+		b[0] &= 0b1111_1111 >> excess
 
 		// Don't let the value be too small: set the most significant two bits.
 		// Setting the top two bits, rather than just the top bit, means that
 		// when two of these values are multiplied together, the result isn't
 		// ever one bit short.
-		if excess := len(b)*8 - bits; excess < 7 {
+		if excess < 7 {
 			b[0] |= 0b1100_0000 >> excess
 		} else {
 			b[0] |= 0b0000_0001
@@ -221,14 +244,11 @@ func isPrime(w []byte) bool {
 		return false
 	}
 
-	primes, err := bigmod.NewNat().SetBytes(productOfPrimes, mr.w)
-	// If w is too small for productOfPrimes, key generation is
-	// going to be fast enough anyway.
-	if err == nil {
-		_, hasInverse := primes.InverseVarTime(primes, mr.w)
-		if !hasInverse {
-			// productOfPrimes doesn't have an inverse mod w,
-			// so w is divisible by at least one of the primes.
+	// Before Miller-Rabin, rule out most composites with trial divisions.
+	for i := 0; i < len(primes); i += 3 {
+		p1, p2, p3 := primes[i], primes[i+1], primes[i+2]
+		r := mr.w.Nat().DivShortVarTime(p1 * p2 * p3)
+		if r%p1 == 0 || r%p2 == 0 || r%p3 == 0 {
 			return false
 		}
 	}
@@ -270,9 +290,8 @@ func isPrime(w []byte) bool {
 	b := make([]byte, (bits+7)/8)
 	for {
 		drbg.Read(b)
-		if excess := len(b)*8 - bits; excess != 0 {
-			b[0] >>= excess
-		}
+		excess := len(b)*8 - bits
+		b[0] &= 0b1111_1111 >> excess
 		result, err := millerRabinIteration(mr, b)
 		if err != nil {
 			// b was rejected.
@@ -288,18 +307,34 @@ func isPrime(w []byte) bool {
 	}
 }
 
-// productOfPrimes is the product of the first 74 primes higher than 2.
+// primes are the first prime numbers (except 2), such that the product of any
+// three primes fits in a uint32.
 //
-// The number of primes was selected to be the highest such that the product fit
-// in 512 bits, so to be usable for 1024 bit RSA keys.
-//
-// Higher values cause fewer Miller-Rabin tests of composites (nothing can help
-// with the final test on the actual prime) but make InverseVarTime take longer.
-var productOfPrimes = []byte{
-	0x10, 0x6a, 0xa9, 0xfb, 0x76, 0x46, 0xfa, 0x6e, 0xb0, 0x81, 0x3c, 0x28, 0xc5, 0xd5, 0xf0, 0x9f,
-	0x07, 0x7e, 0xc3, 0xba, 0x23, 0x8b, 0xfb, 0x99, 0xc1, 0xb6, 0x31, 0xa2, 0x03, 0xe8, 0x11, 0x87,
-	0x23, 0x3d, 0xb1, 0x17, 0xcb, 0xc3, 0x84, 0x05, 0x6e, 0xf0, 0x46, 0x59, 0xa4, 0xa1, 0x1d, 0xe4,
-	0x9f, 0x7e, 0xcb, 0x29, 0xba, 0xda, 0x8f, 0x98, 0x0d, 0xec, 0xec, 0xe9, 0x2e, 0x30, 0xc4, 0x8f,
+// More primes cause fewer Miller-Rabin tests of composites (nothing can help
+// with the final test on the actual prime) but have diminishing returns: these
+// 255 primes catch 84.9% of composites, the next 255 would catch 1.5% more.
+// Adding primes can still be marginally useful since they only compete with the
+// (much more expensive) first Miller-Rabin round for candidates that were not
+// rejected by the previous primes.
+var primes = []uint{
+	3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53,
+	59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127,
+	131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199,
+	211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277, 281, 283,
+	293, 307, 311, 313, 317, 331, 337, 347, 349, 353, 359, 367, 373, 379, 383,
+	389, 397, 401, 409, 419, 421, 431, 433, 439, 443, 449, 457, 461, 463, 467,
+	479, 487, 491, 499, 503, 509, 521, 523, 541, 547, 557, 563, 569, 571, 577,
+	587, 593, 599, 601, 607, 613, 617, 619, 631, 641, 643, 647, 653, 659, 661,
+	673, 677, 683, 691, 701, 709, 719, 727, 733, 739, 743, 751, 757, 761, 769,
+	773, 787, 797, 809, 811, 821, 823, 827, 829, 839, 853, 857, 859, 863, 877,
+	881, 883, 887, 907, 911, 919, 929, 937, 941, 947, 953, 967, 971, 977, 983,
+	991, 997, 1009, 1013, 1019, 1021, 1031, 1033, 1039, 1049, 1051, 1061, 1063, 1069,
+	1087, 1091, 1093, 1097, 1103, 1109, 1117, 1123, 1129, 1151, 1153, 1163, 1171, 1181,
+	1187, 1193, 1201, 1213, 1217, 1223, 1229, 1231, 1237, 1249, 1259, 1277, 1279, 1283,
+	1289, 1291, 1297, 1301, 1303, 1307, 1319, 1321, 1327, 1361, 1367, 1373, 1381, 1399,
+	1409, 1423, 1427, 1429, 1433, 1439, 1447, 1451, 1453, 1459, 1471, 1481, 1483, 1487,
+	1489, 1493, 1499, 1511, 1523, 1531, 1543, 1549, 1553, 1559, 1567, 1571, 1579, 1583,
+	1597, 1601, 1607, 1609, 1613, 1619,
 }
 
 type millerRabin struct {

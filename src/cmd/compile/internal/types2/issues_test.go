@@ -627,38 +627,62 @@ func TestIssue50646(t *testing.T) {
 
 func TestIssue55030(t *testing.T) {
 	// makeSig makes the signature func(typ...)
-	makeSig := func(typ Type) {
-		par := NewVar(nopos, nil, "", typ)
+	// If valid is not set, making that signature is expected to panic.
+	makeSig := func(typ Type, valid bool) {
+		if !valid {
+			defer func() {
+				if recover() == nil {
+					panic("NewSignatureType panic expected")
+				}
+			}()
+		}
+		par := NewParam(nopos, nil, "", typ)
 		params := NewTuple(par)
 		NewSignatureType(nil, nil, nil, params, nil, true)
 	}
 
 	// makeSig must not panic for the following (example) types:
 	// []int
-	makeSig(NewSlice(Typ[Int]))
+	makeSig(NewSlice(Typ[Int]), true)
 
 	// string
-	makeSig(Typ[String])
+	makeSig(Typ[String], true)
 
-	// P where P's core type is string
+	// P where P's common underlying type is string
 	{
 		P := NewTypeName(nopos, nil, "P", nil) // [P string]
-		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{Typ[String]})))
+		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{Typ[String]})), true)
 	}
 
-	// P where P's core type is an (unnamed) slice
+	// P where P's common underlying type is an (unnamed) slice
 	{
 		P := NewTypeName(nopos, nil, "P", nil) // [P []int]
-		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{NewSlice(Typ[Int])})))
+		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{NewSlice(Typ[Int])})), true)
 	}
 
-	// P where P's core type is bytestring (i.e., string or []byte)
+	// P where P's type set contains strings and []byte
 	{
 		t1 := NewTerm(true, Typ[String])          // ~string
 		t2 := NewTerm(false, NewSlice(Typ[Byte])) // []byte
 		u := NewUnion([]*Term{t1, t2})            // ~string | []byte
 		P := NewTypeName(nopos, nil, "P", nil)    // [P ~string | []byte]
-		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{u})))
+		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{u})), true)
+	}
+
+	// makeSig must panic for the following (example) types:
+	// int
+	makeSig(Typ[Int], false)
+
+	// P where P's type set doesn't have any specific types
+	{
+		P := NewTypeName(nopos, nil, "P", nil) // [P any]
+		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{Universe.Lookup("any").Type()})), false)
+	}
+
+	// P where P's type set doesn't have any slice or string types
+	{
+		P := NewTypeName(nopos, nil, "P", nil) // [P any]
+		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{Typ[Int]})), false)
 	}
 }
 
@@ -839,8 +863,7 @@ func TestIssue59944(t *testing.T) {
 	testenv.MustHaveCGO(t)
 
 	// Methods declared on aliases of cgo types are not permitted.
-	const src = `// -gotypesalias=1
-
+	const src = `
 package p
 
 /*
@@ -987,8 +1010,7 @@ type A = []int
 type S struct{ A }
 `
 
-	conf := Config{EnableAlias: true}
-	pkg := mustTypecheck(src, &conf, nil)
+	pkg := mustTypecheck(src, nil, nil)
 
 	S := pkg.Scope().Lookup("S")
 	if S == nil {
@@ -1131,8 +1153,7 @@ type (
 	T A
 )`
 
-	conf := Config{EnableAlias: true}
-	pkg := mustTypecheck(src, &conf, nil)
+	pkg := mustTypecheck(src, nil, nil)
 	T := pkg.Scope().Lookup("T").(*TypeName)
 	got := T.String() // this must not panic (was issue)
 	const want = "type p.T struct{}"

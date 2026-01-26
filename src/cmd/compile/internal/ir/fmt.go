@@ -574,7 +574,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		// Special case for rune constants.
 		if typ == types.RuneType || typ == types.UntypedRune {
 			if x, ok := constant.Uint64Val(val); ok && x <= utf8.MaxRune {
-				fmt.Fprintf(s, "%q", x)
+				fmt.Fprintf(s, "%q", rune(x))
 				return
 			}
 		}
@@ -1194,7 +1194,7 @@ func dumpNode(w io.Writer, n Node, depth int) {
 	}
 }
 
-var nodeType = reflect.TypeOf((*Node)(nil)).Elem()
+var nodeType = reflect.TypeFor[Node]()
 
 func dumpNodes(w io.Writer, list Nodes, depth int) {
 	if len(list) == 0 {

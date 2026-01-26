@@ -34,8 +34,13 @@ import (
 // environment might cause environment checks to behave erratically.
 var origEnv = os.Environ()
 
-// Builder reports the name of the builder running this test
-// (for example, "linux-amd64" or "windows-386-gce").
+// Builder reports the name of the builder running this test. For example,
+// "gotip-linux-amd64_avx512-test_only" or "go1.24-windows-arm64" on LUCI,
+// or "linux-amd64" on our old infrastructure. Prefer using runtime.GOOS,
+// runtime.GOARCH, race.Enabled, reading the OS version, checking CPU
+// feature flags with internal/cpu, etc. over parsing builder names when
+// possible. When matching builder names, prefer a fuzzy match instead
+// of a strict comparison.
 // If the test is not running on the build infrastructure,
 // Builder returns the empty string.
 func Builder() string {
@@ -335,13 +340,27 @@ func CanInternalLink(withCgo bool) bool {
 	return !platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH, withCgo)
 }
 
+// SpecialBuildTypes are interesting build types that may affect linking.
+type SpecialBuildTypes struct {
+	Cgo  bool
+	Asan bool
+	Msan bool
+	Race bool
+}
+
+// NoSpecialBuildTypes indicates a standard, no cgo go build.
+var NoSpecialBuildTypes SpecialBuildTypes
+
 // MustInternalLink checks that the current system can link programs with internal
 // linking.
 // If not, MustInternalLink calls t.Skip with an explanation.
-func MustInternalLink(t testing.TB, withCgo bool) {
-	if !CanInternalLink(withCgo) {
+func MustInternalLink(t testing.TB, with SpecialBuildTypes) {
+	if with.Asan || with.Msan || with.Race {
+		t.Skipf("skipping test: internal linking with sanitizers is not supported")
+	}
+	if !CanInternalLink(with.Cgo) {
 		t.Helper()
-		if withCgo && CanInternalLink(false) {
+		if with.Cgo && CanInternalLink(false) {
 			t.Skipf("skipping test: internal linking on %s/%s is not supported with cgo", runtime.GOOS, runtime.GOARCH)
 		}
 		t.Skipf("skipping test: internal linking on %s/%s is not supported", runtime.GOOS, runtime.GOARCH)
@@ -470,7 +489,7 @@ func WriteImportcfg(t testing.TB, dstPath string, packageFiles map[string]string
 			t.Fatalf("%v: %v\n%s", cmd, err, cmd.Stderr)
 		}
 
-		for _, line := range strings.Split(string(out), "\n") {
+		for line := range strings.SplitSeq(string(out), "\n") {
 			if line == "" {
 				continue
 			}
@@ -503,4 +522,27 @@ func ParallelOn64Bit(t *testing.T) {
 		return
 	}
 	t.Parallel()
+}
+
+// CPUProfilingBroken returns true if CPU profiling has known issues on this
+// platform.
+func CPUProfilingBroken() bool {
+	switch runtime.GOOS {
+	case "plan9":
+		// Profiling unimplemented.
+		return true
+	case "aix":
+		// See https://golang.org/issue/45170.
+		return true
+	case "ios", "dragonfly", "netbsd", "illumos", "solaris":
+		// See https://golang.org/issue/13841.
+		return true
+	case "openbsd":
+		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+			// See https://golang.org/issue/13841.
+			return true
+		}
+	}
+
+	return false
 }

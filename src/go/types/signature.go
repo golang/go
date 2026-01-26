@@ -29,7 +29,13 @@ type Signature struct {
 	recv     *Var           // nil if not a method
 	params   *Tuple         // (incoming) parameters from left to right; or nil
 	results  *Tuple         // (outgoing) results from left to right; or nil
-	variadic bool           // true if the last parameter's type is of the form ...T (or string, for append built-in only)
+	variadic bool           // true if the last parameter's type is of the form ...T
+
+	// If variadic, the last element of params ordinarily has an
+	// unnamed Slice type. As a special case, in a call to append,
+	// it may be string, or a TypeParam T whose typeset ⊇ {string, []byte}.
+	// It may even be a named []byte type if a client instantiates
+	// T at such a type.
 }
 
 // NewSignature returns a new function type for the given receiver, parameters,
@@ -38,14 +44,25 @@ type Signature struct {
 // must be of unnamed slice type.
 //
 // Deprecated: Use [NewSignatureType] instead which allows for type parameters.
+//
+//go:fix inline
 func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 	return NewSignatureType(recv, nil, nil, params, results, variadic)
 }
 
 // NewSignatureType creates a new function type for the given receiver,
-// receiver type parameters, type parameters, parameters, and results. If
-// variadic is set, params must hold at least one parameter and the last
-// parameter's core type must be of unnamed slice or bytestring type.
+// receiver type parameters, type parameters, parameters, and results.
+//
+// If variadic is set, params must hold at least one parameter and the
+// last parameter must be an unnamed slice or a type parameter whose
+// type set has an unnamed slice as common underlying type.
+//
+// As a special case, to support append([]byte, str...), for variadic
+// signatures the last parameter may also be a string type, or a type
+// parameter containing a mix of byte slices and string types in its
+// type set. It may even be a named []byte slice type resulting from
+// instantiation of such a type parameter.
+//
 // If recv is non-nil, typeParams must be empty. If recvTypeParams is
 // non-empty, recv must be non-nil.
 func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params, results *Tuple, variadic bool) *Signature {
@@ -54,9 +71,36 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 		if n == 0 {
 			panic("variadic function must have at least one parameter")
 		}
-		core := coreString(params.At(n - 1).typ)
-		if _, ok := core.(*Slice); !ok && !isString(core) {
-			panic(fmt.Sprintf("got %s, want variadic parameter with unnamed slice type or string as core type", core.String()))
+		last := params.At(n - 1).typ
+		var S *Slice
+		for t := range typeset(last) {
+			var s *Slice
+			if isString(t) {
+				s = NewSlice(universeByte)
+			} else {
+				// Variadic Go functions have a last parameter of type []T,
+				// suggesting we should reject a named slice type B here.
+				//
+				// However, a call to built-in append(slice, x...)
+				// where x has a TypeParam type [T ~string | ~[]byte],
+				// has the type func([]byte, T). Since a client may
+				// instantiate this type at T=B, we must permit
+				// named slice types, even when this results in a
+				// signature func([]byte, B) where type B []byte.
+				//
+				// (The caller of NewSignatureType may have no way to
+				// know that it is dealing with the append special case.)
+				s, _ = t.Underlying().(*Slice)
+			}
+			if S == nil {
+				S = s
+			} else if s == nil || !Identical(S, s) {
+				S = nil
+				break
+			}
+		}
+		if S == nil {
+			panic(fmt.Sprintf("got %s, want variadic parameter of slice or string type", last))
 		}
 	}
 	sig := &Signature{recv: recv, params: params, results: results, variadic: variadic}
@@ -90,6 +134,7 @@ func (s *Signature) TypeParams() *TypeParamList { return s.tparams }
 func (s *Signature) RecvTypeParams() *TypeParamList { return s.rparams }
 
 // Params returns the parameters of signature s, or nil.
+// See [NewSignatureType] for details of variadic functions.
 func (s *Signature) Params() *Tuple { return s.params }
 
 // Results returns the results of signature s, or nil.
@@ -138,8 +183,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	}
 
 	// collect ordinary and result parameters
-	pnames, params, variadic := check.collectParams(ftyp.Params, true)
-	rnames, results, _ := check.collectParams(ftyp.Results, false)
+	pnames, params, variadic := check.collectParams(ParamVar, ftyp.Params)
+	rnames, results, _ := check.collectParams(ResultVar, ftyp.Results)
 
 	// declare named receiver, ordinary, and result parameters
 	scopePos := ftyp.End() // all parameter's scopes start after the signature
@@ -205,7 +250,7 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (*Var, 
 			case *Alias:
 				// Methods on generic aliases are not permitted.
 				// Only report an error if the alias type is valid.
-				if isValid(unalias(t)) {
+				if isValid(t) {
 					check.errorf(rbase, InvalidRecv, "cannot define new methods on generic alias type %s", t)
 				}
 				// Ok to continue but do not set basetype in this case so that
@@ -288,13 +333,13 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (*Var, 
 	var recv *Var
 	if rname != nil && rname.Name != "" {
 		// named receiver
-		recv = NewParam(rname.Pos(), check.pkg, rname.Name, recvType)
+		recv = newVar(RecvVar, rname.Pos(), check.pkg, rname.Name, recvType)
 		// In this case, the receiver is declared by the caller
 		// because it must be declared after any type parameters
 		// (otherwise it might shadow one of them).
 	} else {
 		// anonymous receiver
-		recv = NewParam(rparam.Pos(), check.pkg, "", recvType)
+		recv = newVar(RecvVar, rparam.Pos(), check.pkg, "", recvType)
 		check.recordImplicit(rparam, recv)
 	}
 
@@ -348,10 +393,11 @@ func (check *Checker) recordParenthesizedRecvTypes(expr ast.Expr, typ Type) {
 	}
 }
 
-// collectParams collects (but does not declare) all parameters of list and returns
-// the list of parameter names, corresponding parameter variables, and whether the
-// parameter list is variadic. Anonymous parameters are recorded with nil names.
-func (check *Checker) collectParams(list *ast.FieldList, variadicOk bool) (names []*ast.Ident, params []*Var, variadic bool) {
+// collectParams collects (but does not declare) all parameter/result
+// variables of list and returns the list of names and corresponding
+// variables, and whether the (parameter) list is variadic.
+// Anonymous parameters are recorded with nil names.
+func (check *Checker) collectParams(kind VarKind, list *ast.FieldList) (names []*ast.Ident, params []*Var, variadic bool) {
 	if list == nil {
 		return
 	}
@@ -361,7 +407,7 @@ func (check *Checker) collectParams(list *ast.FieldList, variadicOk bool) (names
 		ftype := field.Type
 		if t, _ := ftype.(*ast.Ellipsis); t != nil {
 			ftype = t.Elt
-			if variadicOk && i == len(list.List)-1 && len(field.Names) <= 1 {
+			if kind == ParamVar && i == len(list.List)-1 && len(field.Names) <= 1 {
 				variadic = true
 			} else {
 				check.softErrorf(t, InvalidSyntaxTree, "invalid use of ...")
@@ -378,7 +424,7 @@ func (check *Checker) collectParams(list *ast.FieldList, variadicOk bool) (names
 					check.error(name, InvalidSyntaxTree, "anonymous parameter")
 					// ok to continue
 				}
-				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
+				par := newVar(kind, name.Pos(), check.pkg, name.Name, typ)
 				// named parameter is declared by caller
 				names = append(names, name)
 				params = append(params, par)
@@ -386,7 +432,7 @@ func (check *Checker) collectParams(list *ast.FieldList, variadicOk bool) (names
 			named = true
 		} else {
 			// anonymous parameter
-			par := NewParam(ftype.Pos(), check.pkg, "", typ)
+			par := newVar(kind, ftype.Pos(), check.pkg, "", typ)
 			check.recordImplicit(field, par)
 			names = append(names, nil)
 			params = append(params, par)
@@ -439,7 +485,7 @@ func (check *Checker) validRecv(pos positioner, recv *Var) {
 			break
 		}
 		var cause string
-		switch u := T.under().(type) {
+		switch u := T.Underlying().(type) {
 		case *Basic:
 			// unsafe.Pointer is treated like a regular pointer
 			if u.kind == UnsafePointer {

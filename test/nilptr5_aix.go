@@ -30,3 +30,9 @@ func f6(p, q *T) {
 func f8(t *[8]int) [8]int {
 	return *t // ERROR "generated nil check"
 }
+
+// On AIX, a write nil check is removed, but a read nil check
+// remains (for the write barrier).
+func f9(x **int, y *int) {
+	*x = y // ERROR "generated nil check" "removed nil check"
+}

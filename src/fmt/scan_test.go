@@ -998,7 +998,7 @@ func TestScanStateCount(t *testing.T) {
 		t.Errorf("bad scan rune: %q %q %q should be '1' '2' '➂'", a.rune, b.rune, c.rune)
 	}
 	if a.size != 1 || b.size != 1 || c.size != 3 {
-		t.Errorf("bad scan size: %q %q %q should be 1 1 3", a.size, b.size, c.size)
+		t.Errorf("bad scan size: %d %d %d should be 1 1 3", a.size, b.size, c.size)
 	}
 }
 

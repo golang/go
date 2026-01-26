@@ -5,20 +5,21 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-// bool cas(uint32 *ptr, uint32 old, uint32 new)
+// func Cas(ptr *int32, old, new int32) bool
 // Atomically:
-//	if(*ptr == old){
-//		*ptr = new;
-//		return 1;
-//	} else
-//		return 0;
+//	if *ptr == old {
+//		*ptr = new
+//		return true
+//	} else {
+//		return false
+//	}
 TEXT ·Cas(SB), NOSPLIT, $0-17
 	MOVV	ptr+0(FP), R4
 	MOVW	old+8(FP), R5
 	MOVW	new+12(FP), R6
 
 	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLAMCAS(SB), R8
-	BEQ	R8, cas_again
+	BEQ	R8, ll_sc
 	MOVV	R5, R7  // backup old value
 	AMCASDBW	R6, (R4), R5
 	BNE	R7, R5, cas_fail0
@@ -29,6 +30,7 @@ cas_fail0:
 	MOVB	R0, ret+16(FP)
 	RET
 
+ll_sc:
 	// Implemented using the ll-sc instruction pair
 	DBAR	$0x14	// LoadAcquire barrier
 cas_again:
@@ -45,13 +47,13 @@ cas_fail1:
 	MOVV	$0, R4
 	JMP	-4(PC)
 
-// bool	cas64(uint64 *ptr, uint64 old, uint64 new)
+// func Cas64(ptr *uint64, old, new uint64) bool
 // Atomically:
-//	if(*ptr == old){
-//		*ptr = new;
-//		return 1;
+//	if *ptr == old {
+//		*ptr = new
+//		return true
 //	} else {
-//		return 0;
+//		return false
 //	}
 TEXT ·Cas64(SB), NOSPLIT, $0-25
 	MOVV	ptr+0(FP), R4
@@ -59,7 +61,7 @@ TEXT ·Cas64(SB), NOSPLIT, $0-25
 	MOVV	new+16(FP), R6
 
 	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLAMCAS(SB), R8
-	BEQ	R8, cas64_again
+	BEQ	R8, ll_sc_64
 	MOVV	R5, R7  // backup old value
 	AMCASDBV	R6, (R4), R5
 	BNE	R7, R5, cas64_fail0
@@ -70,6 +72,7 @@ cas64_fail0:
 	MOVB	R0, ret+24(FP)
 	RET
 
+ll_sc_64:
 	// Implemented using the ll-sc instruction pair
 	DBAR	$0x14
 cas64_again:
@@ -119,13 +122,14 @@ TEXT ·Xaddint32(SB),NOSPLIT,$0-20
 TEXT ·Xaddint64(SB), NOSPLIT, $0-24
 	JMP	·Xadd64(SB)
 
-// bool casp(void **val, void *old, void *new)
+// func Casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
 // Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	} else
-//		return 0;
+//	if *ptr == old {
+//		*ptr = new
+//		return true
+//	} else {
+//		return false
+//	}
 TEXT ·Casp1(SB), NOSPLIT, $0-25
 	JMP	·Cas64(SB)
 

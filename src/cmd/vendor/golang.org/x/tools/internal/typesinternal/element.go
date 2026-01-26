@@ -35,8 +35,8 @@ func ForEachElement(rtypes *typeutil.Map, msets *typeutil.MethodSetCache, T type
 
 		// Recursion over signatures of each method.
 		tmset := msets.MethodSet(T)
-		for i := 0; i < tmset.Len(); i++ {
-			sig := tmset.At(i).Type().(*types.Signature)
+		for method := range tmset.Methods() {
+			sig := method.Type().(*types.Signature)
 			// It is tempting to call visit(sig, false)
 			// but, as noted in golang.org/cl/65450043,
 			// the Signature.Recv field is ignored by

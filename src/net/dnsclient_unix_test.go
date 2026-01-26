@@ -2028,6 +2028,50 @@ func TestCVE202133195(t *testing.T) {
 							MX: dnsmessage.MustNewName("good.golang.org."),
 						},
 					},
+					dnsmessage.Resource{
+						Header: dnsmessage.ResourceHeader{
+							Name:   dnsmessage.MustNewName("127.0.0.1."),
+							Type:   dnsmessage.TypeMX,
+							Class:  dnsmessage.ClassINET,
+							Length: 4,
+						},
+						Body: &dnsmessage.MXResource{
+							MX: dnsmessage.MustNewName("127.0.0.1."),
+						},
+					},
+					dnsmessage.Resource{
+						Header: dnsmessage.ResourceHeader{
+							Name:   dnsmessage.MustNewName("1.2.3.4.5."),
+							Type:   dnsmessage.TypeMX,
+							Class:  dnsmessage.ClassINET,
+							Length: 4,
+						},
+						Body: &dnsmessage.MXResource{
+							MX: dnsmessage.MustNewName("1.2.3.4.5."),
+						},
+					},
+					dnsmessage.Resource{
+						Header: dnsmessage.ResourceHeader{
+							Name:   dnsmessage.MustNewName("2001:4860:0:2001::68."),
+							Type:   dnsmessage.TypeMX,
+							Class:  dnsmessage.ClassINET,
+							Length: 4,
+						},
+						Body: &dnsmessage.MXResource{
+							MX: dnsmessage.MustNewName("2001:4860:0:2001::68."),
+						},
+					},
+					dnsmessage.Resource{
+						Header: dnsmessage.ResourceHeader{
+							Name:   dnsmessage.MustNewName("2001:4860:0:2001::68%zone."),
+							Type:   dnsmessage.TypeMX,
+							Class:  dnsmessage.ClassINET,
+							Length: 4,
+						},
+						Body: &dnsmessage.MXResource{
+							MX: dnsmessage.MustNewName("2001:4860:0:2001::68%zone."),
+						},
+					},
 				)
 			case dnsmessage.TypeNS:
 				r.Answers = append(r.Answers,
@@ -2152,25 +2196,37 @@ func TestCVE202133195(t *testing.T) {
 		{
 			name: "MX",
 			f: func(t *testing.T) {
-				expected := []*MX{
-					{
-						Host: "good.golang.org.",
-					},
+				expected := []string{
+					"127.0.0.1.",
+					"2001:4860:0:2001::68.",
+					"good.golang.org.",
 				}
 				expectedErr := &DNSError{Err: errMalformedDNSRecordsDetail, Name: "golang.org"}
 				records, err := r.LookupMX(context.Background(), "golang.org")
 				if err.Error() != expectedErr.Error() {
 					t.Fatalf("unexpected error: %s", err)
 				}
-				if !reflect.DeepEqual(records, expected) {
-					t.Error("Unexpected record set")
+
+				hosts := func(records []*MX) []string {
+					var got []string
+					for _, mx := range records {
+						got = append(got, mx.Host)
+					}
+					slices.Sort(got)
+					return got
+				}
+
+				got := hosts(records)
+				if !slices.Equal(got, expected) {
+					t.Errorf("Unexpected record set: got %v, want %v", got, expected)
 				}
 				records, err = LookupMX("golang.org")
 				if err.Error() != expectedErr.Error() {
 					t.Fatalf("unexpected error: %s", err)
 				}
-				if !reflect.DeepEqual(records, expected) {
-					t.Error("Unexpected record set")
+				got = hosts(records)
+				if !slices.Equal(got, expected) {
+					t.Errorf("Unexpected record set: got %v, want %v", got, expected)
 				}
 			},
 		},
@@ -2571,8 +2627,7 @@ func TestLongDNSNames(t *testing.T) {
 				}
 
 				expectedErr := DNSError{Err: errNoSuchHost.Error(), Name: v.req, IsNotFound: true}
-				var dnsErr *DNSError
-				errors.As(err, &dnsErr)
+				dnsErr, _ := errors.AsType[*DNSError](err)
 				if dnsErr == nil || *dnsErr != expectedErr {
 					t.Errorf("%v: Lookup%v: unexpected error: %v", i, testName, err)
 				}
@@ -2764,8 +2819,7 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
 		}
 
 		expectedErr := DNSError{Err: errNoSuchHost.Error(), Name: testName, IsNotFound: true}
-		var dnsErr *DNSError
-		errors.As(err, &dnsErr)
+		dnsErr, _ := errors.AsType[*DNSError](err)
 		if dnsErr == nil || *dnsErr != expectedErr {
 			t.Errorf("Lookup%v: unexpected error: %v", v.name, err)
 		}
@@ -2797,8 +2851,7 @@ func TestExtendedRCode(t *testing.T) {
 
 	r := &Resolver{PreferGo: true, Dial: fake.DialContext}
 	_, _, err := r.tryOneName(context.Background(), getSystemDNSConfig(), "go.dev.", dnsmessage.TypeA)
-	var dnsErr *DNSError
-	if !(errors.As(err, &dnsErr) && dnsErr.Err == errServerMisbehaving.Error()) {
+	if dnsErr, ok := errors.AsType[*DNSError](err); !ok || dnsErr.Err != errServerMisbehaving.Error() {
 		t.Fatalf("r.tryOneName(): unexpected error: %v", err)
 	}
 }

@@ -90,23 +90,27 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-f(no-)?use-linker-plugin`), // safe if -B is not used; we don't permit -B
 	re(`-f(no-)?visibility-inlines-hidden`),
 	re(`-fsanitize=(.+)`),
+	re(`-fsanitize-undefined-strip-path-components=(-)?[0-9]+`),
 	re(`-ftemplate-depth-(.+)`),
 	re(`-ftls-model=(global-dynamic|local-dynamic|initial-exec|local-exec)`),
 	re(`-fvisibility=(.+)`),
 	re(`-g([^@\-].*)?`),
 	re(`-m32`),
 	re(`-m64`),
-	re(`-m(abi|arch|cpu|fpu|tune)=([^@\-].*)`),
+	re(`-m(abi|arch|cpu|fpu|simd|tls-dialect|tune)=([^@\-].*)`),
 	re(`-m(no-)?v?aes`),
 	re(`-marm`),
-	re(`-m(no-)?avx[0-9a-z]*`),
 	re(`-mcmodel=[0-9a-z-]+`),
 	re(`-mfloat-abi=([^@\-].*)`),
+	re(`-m(soft|single|double)-float`),
 	re(`-mfpmath=[0-9a-z,+]*`),
 	re(`-m(no-)?avx[0-9a-z.]*`),
 	re(`-m(no-)?ms-bitfields`),
 	re(`-m(no-)?stack-(.+)`),
 	re(`-mmacosx-(.+)`),
+	re(`-m(no-)?relax`),
+	re(`-m(no-)?strict-align`),
+	re(`-m(no-)?(lsx|lasx|frecipe|div32|lam-bh|lamcas|ld-seq-sa)`),
 	re(`-mios-simulator-version-min=(.+)`),
 	re(`-miphoneos-version-min=(.+)`),
 	re(`-mlarge-data-threshold=[0-9]+`),
@@ -125,6 +129,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-pedantic(-errors)?`),
 	re(`-pipe`),
 	re(`-pthread`),
+	re(`--static`),
 	re(`-?-std=([^@\-].*)`),
 	re(`-?-stdlib=([^@\-].*)`),
 	re(`--sysroot=([^@\-].*)`),
@@ -166,8 +171,13 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-flat_namespace`),
 	re(`-g([^@\-].*)?`),
 	re(`-headerpad_max_install_names`),
-	re(`-m(abi|arch|cpu|fpu|tune)=([^@\-].*)`),
+	re(`-m(abi|arch|cpu|fpu|simd|tls-dialect|tune)=([^@\-].*)`),
+	re(`-mcmodel=[0-9a-z-]+`),
 	re(`-mfloat-abi=([^@\-].*)`),
+	re(`-m(soft|single|double)-float`),
+	re(`-m(no-)?relax`),
+	re(`-m(no-)?strict-align`),
+	re(`-m(no-)?(lsx|lasx|frecipe|div32|lam-bh|lamcas|ld-seq-sa)`),
 	re(`-mmacosx-(.+)`),
 	re(`-mios-simulator-version-min=(.+)`),
 	re(`-miphoneos-version-min=(.+)`),
@@ -227,21 +237,6 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`\./.*\.(a|o|obj|dll|dylib|so|tbd)`),
 }
 
-var validLinkerFlagsOnDarwin = []*lazyregexp.Regexp{
-	// The GNU linker interprets `@file` as "read command-line options from
-	// file". Thus, we forbid values starting with `@` on linker flags.
-	// However, this causes a problem when targeting Darwin.
-	// `@executable_path`, `@loader_path`, and `@rpath` are special values
-	// used in Mach-O to change the library search path and can be used in
-	// conjunction with the `-install_name` and `-rpath` linker flags.
-	// Since the GNU linker does not support Mach-O, targeting Darwin
-	// implies not using the GNU linker. Therefore, we allow @ in the linker
-	// flags if and only if cfg.Goos == "darwin" || cfg.Goos == "ios".
-	re(`-Wl,-dylib_install_name,@rpath(/[^,]*)?`),
-	re(`-Wl,-install_name,@rpath(/[^,]*)?`),
-	re(`-Wl,-rpath,@(executable_path|loader_path)(/[^,]*)?`),
-}
-
 var validLinkerFlagsWithNextArg = []string{
 	"-arch",
 	"-F",
@@ -264,13 +259,8 @@ func checkCompilerFlags(name, source string, list []string) error {
 }
 
 func checkLinkerFlags(name, source string, list []string) error {
-	validLinkerFlagsForPlatform := validLinkerFlags
-	if cfg.Goos == "darwin" || cfg.Goos == "ios" {
-		validLinkerFlagsForPlatform = append(validLinkerFlags, validLinkerFlagsOnDarwin...)
-	}
-
 	checkOverrides := true
-	return checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlagsForPlatform, validLinkerFlagsWithNextArg, checkOverrides)
+	return checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides)
 }
 
 // checkCompilerFlagsForInternalLink returns an error if 'list'
@@ -385,13 +375,13 @@ Args:
 				}
 
 				if i+1 < len(list) {
-					return fmt.Errorf("invalid flag in %s: %s %s (see https://golang.org/s/invalidflag)", source, arg, list[i+1])
+					return fmt.Errorf("invalid flag in %s: %s %s (see https://go.dev/s/invalidflag)", source, arg, list[i+1])
 				}
-				return fmt.Errorf("invalid flag in %s: %s without argument (see https://golang.org/s/invalidflag)", source, arg)
+				return fmt.Errorf("invalid flag in %s: %s without argument (see https://go.dev/s/invalidflag)", source, arg)
 			}
 		}
 	Bad:
-		return fmt.Errorf("invalid flag in %s: %s", source, arg)
+		return fmt.Errorf("invalid flag in %s: %s (see https://go.dev/s/invalidflag)", source, arg)
 	}
 	return nil
 }

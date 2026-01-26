@@ -105,11 +105,11 @@ var (
 	objectPtrNil = reflect.ValueOf((*ast.Object)(nil))
 	scopePtrNil  = reflect.ValueOf((*ast.Scope)(nil))
 
-	identType     = reflect.TypeOf((*ast.Ident)(nil))
-	objectPtrType = reflect.TypeOf((*ast.Object)(nil))
-	positionType  = reflect.TypeOf(token.NoPos)
-	callExprType  = reflect.TypeOf((*ast.CallExpr)(nil))
-	scopePtrType  = reflect.TypeOf((*ast.Scope)(nil))
+	identType     = reflect.TypeFor[*ast.Ident]()
+	objectPtrType = reflect.TypeFor[*ast.Object]()
+	positionType  = reflect.TypeFor[token.Pos]()
+	callExprType  = reflect.TypeFor[*ast.CallExpr]()
+	scopePtrType  = reflect.TypeFor[*ast.Scope]()
 )
 
 // apply replaces each AST field x in val with f(x), returning val.

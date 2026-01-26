@@ -88,7 +88,7 @@ func TestJailAttach(t *testing.T) {
 		t.Fatalf("Build of syscall in jail root failed, output %v, err %v", o, err)
 	}
 
-	cmd = exec.Command("/syscall.test", "-test.run=TestJailAttach", "/")
+	cmd = exec.Command("/syscall.test", "-test.run=^TestJailAttach$", "/")
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Jail: jid}
 	out, err := cmd.CombinedOutput()
