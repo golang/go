@@ -1846,3 +1846,16 @@ func fipsAllowChain(chain []*x509.Certificate) bool {
 
 	return true
 }
+
+// anyUnexpiredChain reports if at least one of verifiedChains is still
+// unexpired. If verifiedChains is empty, it returns false.
+func anyUnexpiredChain(verifiedChains [][]*x509.Certificate, now time.Time) bool {
+	for _, chain := range verifiedChains {
+		if len(chain) != 0 && !slices.ContainsFunc(chain, func(cert *x509.Certificate) bool {
+			return now.Before(cert.NotBefore) || now.After(cert.NotAfter) // cert is expired
+		}) {
+			return true
+		}
+	}
+	return false
+}

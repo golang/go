@@ -13,6 +13,7 @@ import (
 	"crypto/rand"
 	"crypto/tls/internal/fips140tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -2152,4 +2153,125 @@ func TestHandshakeContextHierarchy(t *testing.T) {
 	if err := <-clientErr; err != nil {
 		t.Errorf("Unexpected client error: %v", err)
 	}
+}
+
+func TestHandshakeChainExpiryResumption(t *testing.T) {
+	t.Run("TLS1.2", func(t *testing.T) {
+		testHandshakeChainExpiryResumption(t, VersionTLS12)
+	})
+	t.Run("TLS1.3", func(t *testing.T) {
+		testHandshakeChainExpiryResumption(t, VersionTLS13)
+	})
+}
+
+func testHandshakeChainExpiryResumption(t *testing.T, version uint16) {
+	now := time.Now()
+
+	createChain := func(leafNotAfter, rootNotAfter time.Time) (leafDER, expiredLeafDER []byte, root *x509.Certificate) {
+		tmpl := &x509.Certificate{
+			Subject:               pkix.Name{CommonName: "root"},
+			NotBefore:             rootNotAfter.Add(-time.Hour * 24),
+			NotAfter:              rootNotAfter,
+			IsCA:                  true,
+			BasicConstraintsValid: true,
+		}
+		rootDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+		if err != nil {
+			t.Fatalf("CreateCertificate: %v", err)
+		}
+		root, err = x509.ParseCertificate(rootDER)
+		if err != nil {
+			t.Fatalf("ParseCertificate: %v", err)
+		}
+
+		tmpl = &x509.Certificate{
+			Subject:   pkix.Name{},
+			DNSNames:  []string{"expired-resume.example.com"},
+			NotBefore: leafNotAfter.Add(-time.Hour * 24),
+			NotAfter:  leafNotAfter,
+			KeyUsage:  x509.KeyUsageDigitalSignature,
+		}
+		leafCertDER, err := x509.CreateCertificate(rand.Reader, tmpl, root, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+		if err != nil {
+			t.Fatalf("CreateCertificate: %v", err)
+		}
+		tmpl.NotBefore, tmpl.NotAfter = leafNotAfter.Add(-time.Hour*24*365), leafNotAfter.Add(-time.Hour*24*364)
+		expiredLeafDERCertDER, err := x509.CreateCertificate(rand.Reader, tmpl, root, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+		if err != nil {
+			t.Fatalf("CreateCertificate: %v", err)
+		}
+
+		return leafCertDER, expiredLeafDERCertDER, root
+	}
+	testExpiration := func(name string, leafNotAfter, rootNotAfter time.Time) {
+		t.Run(name, func(t *testing.T) {
+			initialLeafDER, expiredLeafDER, initialRoot := createChain(leafNotAfter, rootNotAfter)
+
+			serverConfig := testConfig.Clone()
+			serverConfig.MaxVersion = version
+			serverConfig.Certificates = []Certificate{{
+				Certificate: [][]byte{initialLeafDER, expiredLeafDER},
+				PrivateKey:  testECDSAPrivateKey,
+			}}
+			serverConfig.ClientCAs = x509.NewCertPool()
+			serverConfig.ClientCAs.AddCert(initialRoot)
+			serverConfig.ClientAuth = RequireAndVerifyClientCert
+			serverConfig.Time = func() time.Time {
+				return now
+			}
+			serverConfig.InsecureSkipVerify = false
+			serverConfig.ServerName = "expired-resume.example.com"
+
+			clientConfig := testConfig.Clone()
+			clientConfig.MaxVersion = version
+			clientConfig.Certificates = []Certificate{{
+				Certificate: [][]byte{initialLeafDER, expiredLeafDER},
+				PrivateKey:  testECDSAPrivateKey,
+			}}
+			clientConfig.RootCAs = x509.NewCertPool()
+			clientConfig.RootCAs.AddCert(initialRoot)
+			clientConfig.ServerName = "expired-resume.example.com"
+			clientConfig.ClientSessionCache = NewLRUClientSessionCache(32)
+			clientConfig.InsecureSkipVerify = false
+			clientConfig.ServerName = "expired-resume.example.com"
+			clientConfig.Time = func() time.Time {
+				return now
+			}
+
+			testResume := func(t *testing.T, sc, cc *Config, expectResume bool) {
+				t.Helper()
+				ss, cs, err := testHandshake(t, cc, sc)
+				if err != nil {
+					t.Fatalf("handshake: %v", err)
+				}
+				if cs.DidResume != expectResume {
+					t.Fatalf("DidResume = %v; want %v", cs.DidResume, expectResume)
+				}
+				if ss.DidResume != expectResume {
+					t.Fatalf("DidResume = %v; want %v", cs.DidResume, expectResume)
+				}
+			}
+
+			testResume(t, serverConfig, clientConfig, false)
+			testResume(t, serverConfig, clientConfig, true)
+
+			expiredNow := time.Unix(0, min(leafNotAfter.UnixNano(), rootNotAfter.UnixNano())).Add(time.Minute)
+
+			freshLeafDER, expiredLeafDER, freshRoot := createChain(expiredNow.Add(time.Hour), expiredNow.Add(time.Hour))
+			clientConfig.Certificates = []Certificate{{
+				Certificate: [][]byte{freshLeafDER, expiredLeafDER},
+				PrivateKey:  testECDSAPrivateKey,
+			}}
+			serverConfig.Time = func() time.Time {
+				return expiredNow
+			}
+			serverConfig.ClientCAs = x509.NewCertPool()
+			serverConfig.ClientCAs.AddCert(freshRoot)
+
+			testResume(t, serverConfig, clientConfig, false)
+		})
+	}
+
+	testExpiration("LeafExpiresBeforeRoot", now.Add(2*time.Hour), now.Add(3*time.Hour))
+	testExpiration("LeafExpiresAfterRoot", now.Add(2*time.Hour), now.Add(time.Hour))
 }
