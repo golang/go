@@ -444,7 +444,12 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 			// application from a faulty ClientSessionCache implementation.
 			return nil, nil, nil, nil
 		}
-		if !anyUnexpiredChain(session.verifiedChains, c.config.time()) {
+		opts := x509.VerifyOptions{
+			CurrentTime: c.config.time(),
+			Roots:       c.config.RootCAs,
+			KeyUsages:   []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		}
+		if !anyValidVerifiedChain(session.verifiedChains, opts) {
 			// No valid chains, delete the entry.
 			c.config.ClientSessionCache.Put(cacheKey, nil)
 			return nil, nil, nil, nil
