@@ -429,9 +429,6 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 		return nil, nil, nil, nil
 	}
 
-	// Check that the cached server certificate is not expired, and that it's
-	// valid for the ServerName. This should be ensured by the cache key, but
-	// protect the application from a faulty ClientSessionCache implementation.
 	if c.config.time().After(session.peerCertificates[0].NotAfter) {
 		// Expired certificate, delete the entry.
 		c.config.ClientSessionCache.Put(cacheKey, nil)
@@ -443,6 +440,13 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 			return nil, nil, nil, nil
 		}
 		if err := session.peerCertificates[0].VerifyHostname(c.config.ServerName); err != nil {
+			// This should be ensured by the cache key, but protect the
+			// application from a faulty ClientSessionCache implementation.
+			return nil, nil, nil, nil
+		}
+		if !anyUnexpiredChain(session.verifiedChains, c.config.time()) {
+			// No valid chains, delete the entry.
+			c.config.ClientSessionCache.Put(cacheKey, nil)
 			return nil, nil, nil, nil
 		}
 	}
