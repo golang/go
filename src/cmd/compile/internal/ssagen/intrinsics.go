@@ -1653,6 +1653,19 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		all...)
 
+	/******** crypto/internal/fips140/nistec/fiat ********/
+	// p256CmovznzU64 implements conditional move: out1 = (if arg1 == 0 then arg2 else arg3)
+	add("crypto/internal/fips140/nistec/fiat", "p256CmovznzU64",
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			out1, arg1, arg2, arg3 := args[0], args[1], args[2], args[3]
+
+			arg1Uint64 := s.conv(n, arg1, arg1.Type, types.Types[types.TUINT64])
+			result := s.newValue3(ssa.OpCondSelect, types.Types[types.TUINT64], arg3, arg2, arg1Uint64)
+			s.store(types.Types[types.TUINT64], out1, result)
+
+			return s.mem()
+		}, hasCMOV...) // all with CMOV support.
+
 	if buildcfg.Experiment.SIMD {
 		// Only enable intrinsics, if SIMD experiment.
 		simdIntrinsics(addF)
