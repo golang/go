@@ -146,7 +146,7 @@ func testRead(t *testing.T, tests []readTest, read func(io.Reader) ([]byte, erro
 			}
 			continue
 		}
-		if err == nil && tt.err != "" {
+		if tt.err != "" {
 			t.Errorf("#%d: success, expected %q", i, tt.err)
 			continue
 		}
