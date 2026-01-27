@@ -382,13 +382,18 @@ func (conf *resolverConfig) init() {
 	conf.ch = make(chan struct{}, 1)
 }
 
+// distantFuture is a sentinel time used for tests to signal that
+// resolv.conf should not be rechecked.
+var distantFuture = time.Date(3000, 1, 2, 3, 4, 5, 6, time.UTC)
+
 // tryUpdate tries to update conf with the named resolv.conf file.
 // The name variable only exists for testing. It is otherwise always
 // "/etc/resolv.conf".
 func (conf *resolverConfig) tryUpdate(name string) {
 	conf.initOnce.Do(conf.init)
 
-	if conf.dnsConfig.Load().noReload {
+	dc := conf.dnsConfig.Load()
+	if dc.noReload {
 		return
 	}
 
@@ -399,7 +404,8 @@ func (conf *resolverConfig) tryUpdate(name string) {
 	defer conf.releaseSema()
 
 	now := time.Now()
-	if conf.lastChecked.After(now.Add(-5 * time.Second)) {
+	if (len(dc.servers) > 0 && conf.lastChecked.After(now.Add(-5*time.Second))) ||
+		conf.lastChecked == distantFuture {
 		return
 	}
 	conf.lastChecked = now
