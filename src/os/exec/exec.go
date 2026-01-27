@@ -203,6 +203,11 @@ type Cmd struct {
 	// stops copying, either because it has reached the end of Stdin
 	// (EOF or a read error), or because writing to the pipe returned an error,
 	// or because a nonzero WaitDelay was set and expired.
+	//
+	// Regardless of WaitDelay, Wait can block until a Read from
+	// Stdin completes. If you need to use a blocking io.Reader,
+	// use the StdinPipe method to get a pipe, copy from the Reader
+	// to the pipe, and arrange to close the Reader after Wait returns.
 	Stdin io.Reader
 
 	// Stdout and Stderr specify the process's standard output and error.
@@ -218,6 +223,12 @@ type Cmd struct {
 	// corresponding Writer. In this case, Wait does not complete until the
 	// goroutine reaches EOF or encounters an error or a nonzero WaitDelay
 	// expires.
+	//
+	// Regardless of WaitDelay, Wait can block until a Write to
+	// Stdout or Stderr completes. If you need to use a blocking io.Writer,
+	// use the StdoutPipe or StderrPipe method to get a pipe,
+	// copy from the pipe to the Writer, and arrange to close the
+	// Writer after Wait returns.
 	//
 	// If Stdout and Stderr are the same writer, and have a type that can
 	// be compared with ==, at most one goroutine at a time will call Write.
