@@ -1450,6 +1450,23 @@ const (
 	AVMV8RV
 
 	//
+	// Cryptography Extensions: Vector Instructions, Version 1.0
+	//
+
+	// 33.2.5: NIST Suite: Vector AES Block Cipher
+	AVAESEFVV
+	AVAESEFVS
+	AVAESEMVV
+	AVAESEMVS
+	AVAESDFVV
+	AVAESDFVS
+	AVAESDMVV
+	AVAESDMVS
+	AVAESKF1VI
+	AVAESKF2VI
+	AVAESZVS
+
+	//
 	// Privileged ISA (version 20240411)
 	//
 
