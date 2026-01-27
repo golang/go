@@ -3404,7 +3404,7 @@ func convertOp(dst, src *abi.Type) func(Value, Type) Value {
 		}
 
 	case String:
-		if dst.Kind() == abi.Slice && pkgPathFor(dst.Elem()) == "" {
+		if dst.Kind() == abi.Slice {
 			switch Kind(dst.Elem().Kind()) {
 			case Uint8:
 				return cvtStringBytes
@@ -3414,7 +3414,7 @@ func convertOp(dst, src *abi.Type) func(Value, Type) Value {
 		}
 
 	case Slice:
-		if dst.Kind() == abi.String && pkgPathFor(src.Elem()) == "" {
+		if dst.Kind() == abi.String {
 			switch Kind(src.Elem().Kind()) {
 			case Uint8:
 				return cvtBytesString

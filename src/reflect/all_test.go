@@ -4177,6 +4177,9 @@ type MyBytesArray [4]byte
 type MyRunes []int32
 type MyFunc func()
 type MyByte byte
+type MyRune rune
+type MyBytes2 []MyByte
+type MyRunes2 []MyRune
 
 type IntChan chan int
 type IntChanRecv <-chan int
@@ -4479,6 +4482,38 @@ var convertTests = []struct {
 	{V(MyRunes("runes🙈🙉🙊")), V(MyRunes("runes🙈🙉🙊"))},
 	{V(MyString("runes♝")), V(MyRunes("runes♝"))},
 	{V(MyRunes("runes♕")), V(MyString("runes♕"))},
+
+	// []namedByte
+	{V(string("namedByte1")), V([]MyByte("namedByte1"))},
+	{V(MyString("namedByte2")), V([]MyByte("namedByte2"))},
+	{V([]MyByte("namedByte3")), V(string("namedByte3"))},
+	{V([]MyByte("namedByte4")), V(MyString("namedByte4"))},
+
+	// []namedRune
+	{V(string("namedRune1")), V([]MyRune("namedRune1"))},
+	{V(MyString("namedRune2")), V([]MyRune("namedRune2"))},
+	{V([]MyRune("namedRune3")), V(string("namedRune3"))},
+	{V([]MyRune("namedRune4")), V(MyString("namedRune4"))},
+
+	// named []namedByte
+	{V(string("namedByte5")), V(MyBytes2("namedByte5"))},
+	{V(MyString("namedByte6")), V(MyBytes2("namedByte6"))},
+	{V(MyBytes2("namedByte7")), V(string("namedByte7"))},
+	{V(MyBytes2("namedByte8")), V(MyString("namedByte8"))},
+
+	// named []namedRune
+	{V(string("namedRune5")), V(MyRunes2("namedRune5"))},
+	{V(MyString("namedRune6")), V(MyRunes2("namedRune6"))},
+	{V(MyRunes2("namedRune7")), V(string("namedRune7"))},
+	{V(MyRunes2("namedRune8")), V(MyString("namedRune8"))},
+
+	// random ok conversions of the above types
+	{V(MyBytes2("")), V([0]MyByte{})},
+	{V(MyBytes2("AA")), V([2]MyByte{65, 65})},
+	{V(MyBytes2("")), V([]MyByte{})},
+	{V([]MyByte{}), V(MyBytes2(""))},
+	{V([]MyRune("namedRuneA")), V(MyRunes2("namedRuneA"))},
+	{V(MyRunes2("namedRuneB")), V([]MyRune("namedRuneB"))},
 
 	// slice to array
 	{V([]byte(nil)), V([0]byte{})},
