@@ -352,6 +352,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpMIPS64MOVVgpfp,
 		ssa.OpMIPS64NEGF,
 		ssa.OpMIPS64NEGD,
+		ssa.OpMIPS64ABSF,
 		ssa.OpMIPS64ABSD,
 		ssa.OpMIPS64SQRTF,
 		ssa.OpMIPS64SQRTD:

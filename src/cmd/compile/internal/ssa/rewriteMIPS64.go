@@ -332,6 +332,8 @@ func rewriteValueMIPS64(v *Value) bool {
 		return rewriteValueMIPS64_OpMIPS64MOVBreg(v)
 	case OpMIPS64MOVBstore:
 		return rewriteValueMIPS64_OpMIPS64MOVBstore(v)
+	case OpMIPS64MOVDF:
+		return rewriteValueMIPS64_OpMIPS64MOVDF(v)
 	case OpMIPS64MOVDload:
 		return rewriteValueMIPS64_OpMIPS64MOVDload(v)
 	case OpMIPS64MOVDstore:
@@ -3188,6 +3190,40 @@ func rewriteValueMIPS64_OpMIPS64MOVBstore(v *Value) bool {
 		v.AuxInt = int32ToAuxInt(off)
 		v.Aux = symToAux(sym)
 		v.AddArg3(ptr, x, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVDF(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (MOVDF (ABSD (MOVFD x)))
+	// result: (ABSF x)
+	for {
+		if v_0.Op != OpMIPS64ABSD {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpMIPS64MOVFD {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpMIPS64ABSF)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVDF (SQRTD (MOVFD x)))
+	// result: (SQRTF x)
+	for {
+		if v_0.Op != OpMIPS64SQRTD {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpMIPS64MOVFD {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpMIPS64SQRTF)
+		v.AddArg(x)
 		return true
 	}
 	return false
