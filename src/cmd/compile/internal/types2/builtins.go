@@ -1012,9 +1012,8 @@ func (check *Checker) hasVarSize(t Type) bool {
 	// better error messages.
 	switch t := Unalias(t).(type) {
 	case *Named:
-		if t.stateHas(hasFinite) {
-			// TODO(mark): Rename t.finite to t.varSize to avoid inversion.
-			return !t.finite
+		if t.stateHas(hasVarSize) {
+			return t.varSize
 		}
 
 		if i, ok := check.objPathIdx[t.obj]; ok {
@@ -1031,19 +1030,19 @@ func (check *Checker) hasVarSize(t Type) bool {
 		t.mu.Lock()
 		defer t.mu.Unlock()
 
-		// Careful, t.finite has lock-free readers. Since we might be racing
-		// another call to finiteSize, we have to avoid overwriting t.finite.
+		// Careful, t.varSize has lock-free readers. Since we might be racing
+		// another call to hasVarSize, we have to avoid overwriting t.varSize.
 		// Otherwise, the race detector will be tripped.
-		if !t.stateHas(hasFinite) {
-			t.finite = !varSize
-			t.setState(hasFinite)
+		if !t.stateHas(hasVarSize) {
+			t.varSize = varSize
+			t.setState(hasVarSize)
 		}
 
 		return varSize
 
 	case *Array:
 		// The array length is already computed. If it was a valid length, it
-		// is finite; else, an error was reported in the computation.
+		// is constant; else, an error was reported in the computation.
 		return check.hasVarSize(t.elem)
 
 	case *Struct:
