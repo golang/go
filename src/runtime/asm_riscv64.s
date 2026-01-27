@@ -122,14 +122,14 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	MOV	X2, (g_stack+stack_hi)(g)
 
 	// if there is a _cgo_init, call it using the gcc ABI.
-	MOV	_cgo_init(SB), T0
-	BEQ	T0, ZERO, nocgo
+	MOV	_cgo_init(SB), T2
+	BEQ	T2, ZERO, nocgo
 
 	MOV	ZERO, A3		// arg 3: not used
 	MOV	ZERO, A2		// arg 2: not used
 	MOV	$setg_gcc<>(SB), A1	// arg 1: setg
 	MOV	g, A0			// arg 0: G
-	JALR	RA, T0
+	JALR	RA, T2
 
 nocgo:
 	// update stackguard after _cgo_init
@@ -430,9 +430,9 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 // Call fn(arg) aligned appropriately for the gcc ABI.
 // Called on a system stack, and there may be no g yet (during needm).
 TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
-	MOV	fn+0(FP), X5
+	MOV	fn+0(FP), X11
 	MOV	arg+8(FP), X10
-	JALR	RA, (X5)
+	JALR	RA, (X11)
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -440,7 +440,7 @@ TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
 // aligned appropriately for the gcc ABI.
 // See cgocall.go for more details.
 TEXT ·asmcgocall(SB),NOSPLIT,$0-20
-	MOV	fn+0(FP), X5
+	MOV	fn+0(FP), X11
 	MOV	arg+8(FP), X10
 
 	MOV	X2, X8	// save original stack pointer
@@ -470,7 +470,7 @@ g0:
 	SUB	X8, X9, X8
 	MOV	X8, 8(X2)	// save depth in old g stack (can't just save SP, as stack might be copied during a callback)
 
-	JALR	RA, (X5)
+	JALR	RA, (X11)
 
 	// Restore g, stack pointer. X10 is return value.
 	MOV	0(X2), g
