@@ -1658,6 +1658,22 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 		expectedError: "\"*.example.com\" is not permitted",
 	},
+	// #89: a TLD constraint doesn't exclude unrelated wildcards
+	{
+		roots: []constraintsSpec{
+			{
+				bad: []string{"dns:tld"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:*.example.com"},
+		},
+	},
 }
 
 func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {

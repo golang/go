@@ -546,7 +546,7 @@ func matchDomainConstraint(domain, constraint string, excluded bool, reversedDom
 		return false, nil
 	}
 
-	if excluded && wildcardDomain && len(domainLabels) > 1 && len(constraintLabels) > 0 {
+	if excluded && wildcardDomain && len(domainLabels) > 1 && len(constraintLabels) > 1 {
 		domainLabels = domainLabels[:len(domainLabels)-1]
 		constraintLabels = constraintLabels[:len(constraintLabels)-1]
 	}
