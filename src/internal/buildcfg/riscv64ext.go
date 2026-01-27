@@ -13,8 +13,9 @@ import "strings"
 
 // RISC-V 64-bit extension name constants.
 const (
-	Riscv64ExtZacas = "zacas"
-	Riscv64ExtZabha = "zabha"
+	Riscv64ExtZacas       = "zacas"
+	Riscv64ExtZabha       = "zabha"
+	Riscv64MisalignedFast = "misaligned_fast"
 )
 
 // riscv64ExtInfo contains information about a RISC-V 64-bit extension.
@@ -27,12 +28,14 @@ type riscv64ExtInfo struct {
 var riscv64ExtRegistry = []riscv64ExtInfo{
 	{Riscv64ExtZacas, func(g *Goriscv64Extensions) *bool { return &g.Zacas }},
 	{Riscv64ExtZabha, func(g *Goriscv64Extensions) *bool { return &g.Zabha }},
+	{Riscv64MisalignedFast, func(g *Goriscv64Extensions) *bool { return &g.MisalignedFast }},
 }
 
 // Goriscv64Extensions represents the enabled RISC-V 64-bit extensions.
 type Goriscv64Extensions struct {
-	Zacas bool
-	Zabha bool
+	Zacas          bool
+	Zabha          bool
+	MisalignedFast bool
 }
 
 // Has returns true if the given extension is enabled.
