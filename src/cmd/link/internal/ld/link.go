@@ -96,6 +96,8 @@ type Link struct {
 	Textp        []loader.Sym
 	Moduledata   loader.Sym
 
+	moduledataTypeDescOffset int64
+
 	PackageFile  map[string]string
 	PackageShlib map[string]string
 

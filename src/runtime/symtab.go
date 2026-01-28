@@ -412,17 +412,17 @@ type moduledata struct {
 	findfunctab  uintptr
 	minpc, maxpc uintptr
 
-	text, etext              uintptr
-	noptrdata, enoptrdata    uintptr
-	data, edata              uintptr
-	bss, ebss                uintptr
-	noptrbss, enoptrbss      uintptr
-	covctrs, ecovctrs        uintptr
-	end, gcdata, gcbss       uintptr
-	types, etypedesc, etypes uintptr
-	rodata                   uintptr
-	gofunc                   uintptr // go.func.*
-	epclntab                 uintptr
+	text, etext                uintptr
+	noptrdata, enoptrdata      uintptr
+	data, edata                uintptr
+	bss, ebss                  uintptr
+	noptrbss, enoptrbss        uintptr
+	covctrs, ecovctrs          uintptr
+	end, gcdata, gcbss         uintptr
+	types, typedesclen, etypes uintptr
+	rodata                     uintptr
+	gofunc                     uintptr // go.func.*
+	epclntab                   uintptr
 
 	textsectmap []textsect
 	itablinks   []*itab

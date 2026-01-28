@@ -514,7 +514,7 @@ func moduleTypelinks(md *moduledata) []*_type {
 	}
 
 	// Allocate a very rough estimate of the number of types.
-	ret := make([]*_type, 0, (md.etypedesc-md.types)/(2*unsafe.Sizeof(_type{})))
+	ret := make([]*_type, 0, md.typedesclen/(2*unsafe.Sizeof(_type{})))
 
 	td := md.types
 
@@ -522,7 +522,8 @@ func moduleTypelinks(md *moduledata) []*_type {
 	// cmd/link/internal/data.go createRelroSect in allocateDataSections.
 	td++
 
-	for td < md.etypedesc {
+	etypedesc := md.types + md.typedesclen
+	for td < etypedesc {
 		// TODO: The fact that type descriptors are aligned to
 		// 0x20 does not make sense.
 		td = alignUp(td, 0x20)
