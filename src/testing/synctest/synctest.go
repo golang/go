@@ -268,6 +268,7 @@ package synctest
 import (
 	"internal/synctest"
 	"testing"
+	"time"
 	_ "unsafe" // for linkname
 )
 
@@ -308,4 +309,24 @@ func testingSynctestTest(t *testing.T, f func(*testing.T)) bool
 // in the same bubble.
 func Wait() {
 	synctest.Wait()
+}
+
+// Sleep blocks until the current bubble's clock has advanced
+// by the duration of d and every goroutine within the current bubble,
+// other than the current goroutine, is durably blocked.
+//
+// This is exactly equivalent to
+//
+//	time.Sleep(d)
+//	synctest.Wait()
+//
+// In tests, this is often preferable to calling only [time.Sleep].
+// If the test itself and another goroutine running the system under test
+// sleeps for the exact same amount of time, it's unpredictable which
+// of the two goroutines will run first. The test itself usually wants
+// to wait for the system under test to "settle" after sleeping.
+// This is what Sleep accomplishes.
+func Sleep(d time.Duration) {
+	time.Sleep(d)
+	Wait()
 }
