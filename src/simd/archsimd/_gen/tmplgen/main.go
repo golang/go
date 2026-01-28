@@ -801,6 +801,8 @@ func pa{{.VType}}(s []{{.Etype}}) *[{{.Count}}]{{.Etype}} {
 
 var avx2MaskedTemplate = shapedTemplateOf(avx2Shapes, "avx2 .Masked methods", `
 // Masked returns x but with elements zeroed where mask is false.
+//
+// Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
 	im := mask.ToInt{{.WxC}}()
 {{- if eq .Base "Int" }}
@@ -811,6 +813,8 @@ func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
 }
 
 // Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) Merge(y {{.VType}}, mask Mask{{.WxC}}) {{.VType}} {
 {{- if eq .BxC .WxC -}}
 	im := mask.ToInt{{.BxC}}()
@@ -830,6 +834,8 @@ func (x {{.VType}}) Merge(y {{.VType}}, mask Mask{{.WxC}}) {{.VType}} {
 // TODO perhaps write these in ways that work better on AVX512
 var avx512MaskedTemplate = shapedTemplateOf(avx512Shapes, "avx512 .Masked methods", `
 // Masked returns x but with elements zeroed where mask is false.
+//
+// Emulated, CPU Feature: AVX512
 func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
 	im := mask.ToInt{{.WxC}}()
 {{- if eq .Base "Int" }}
@@ -840,6 +846,8 @@ func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
 }
 
 // Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
 func (x {{.VType}}) Merge(y {{.VType}}, mask Mask{{.WxC}}) {{.VType}} {
 {{- if eq .Base "Int" }}
 	return y.blendMasked(x, mask)
