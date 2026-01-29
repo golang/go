@@ -32,7 +32,7 @@ import (
 	"unicode/utf8"
 )
 
-var debug = debugT(true)
+var debug = debugT(false)
 
 type debugT bool
 
