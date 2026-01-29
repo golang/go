@@ -127,6 +127,11 @@ func (f *File) Size() int {
 	return f.size
 }
 
+// End returns the end position of file f as registered with AddFile.
+func (f *File) End() Pos {
+	return Pos(f.base + f.size)
+}
+
 // LineCount returns the number of lines in file f.
 func (f *File) LineCount() int {
 	f.mutex.Lock()
@@ -511,7 +516,7 @@ func (s *FileSet) AddExistingFiles(files ...*File) {
 	//	}
 	//
 	// because all calls to AddFile must be in increasing order.
-	// AddExistingFilesFiles lets us augment an existing FileSet
+	// AddExistingFiles lets us augment an existing FileSet
 	// sequentially, so long as all sets of files have disjoint ranges.
 	// This approach also does not preserve line directives.
 
@@ -531,10 +536,10 @@ func (s *FileSet) AddExistingFiles(files ...*File) {
 //
 // Removing a file that does not belong to the set has no effect.
 func (s *FileSet) RemoveFile(file *File) {
-	s.last.CompareAndSwap(file, nil) // clear last file cache
-
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+
+	s.last.CompareAndSwap(file, nil) // clear last file cache
 
 	pn, _ := s.tree.locate(file.key())
 	if *pn != nil && (*pn).file == file {

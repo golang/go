@@ -236,7 +236,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// Rewrite float constants to values stored in memory.
 	switch p.As {
 	// Convert AMOVSS $(0), Xx to AXORPS Xx, Xx
-	case AMOVSS:
+	case AMOVSS, AVMOVSS:
 		if p.From.Type == obj.TYPE_FCONST {
 			//  f == 0 can't be used here due to -0, so use Float64bits
 			if f := p.From.Val.(float64); math.Float64bits(f) == 0 {
@@ -272,7 +272,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.From.Offset = 0
 		}
 
-	case AMOVSD:
+	case AMOVSD, AVMOVSD:
 		// Convert AMOVSD $(0), Xx to AXORPS Xx, Xx
 		if p.From.Type == obj.TYPE_FCONST {
 			//  f == 0 can't be used here due to -0, so use Float64bits
@@ -423,8 +423,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			q.From.Reg = reg
 		}
 	}
-	if p.GetFrom3() != nil && p.GetFrom3().Name == obj.NAME_EXTERN {
-		ctxt.Diag("don't know how to handle %v with -dynlink", p)
+	from3 := p.GetFrom3()
+	for i := range p.RestArgs {
+		a := &p.RestArgs[i].Addr
+		if a != from3 && a.Name == obj.NAME_EXTERN && !a.Sym.Local() {
+			ctxt.Diag("don't know how to handle %v with -dynlink", p)
+		}
 	}
 	var source *obj.Addr
 	// MOVx sym, Ry becomes $MOV sym@GOT, R15; MOVx (R15), Ry
@@ -434,9 +438,17 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
 			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
 		}
+		if from3 != nil && from3.Name == obj.NAME_EXTERN && !from3.Sym.Local() {
+			ctxt.Diag("cannot handle NAME_EXTERN on multiple operands in %v with -dynlink", p)
+		}
 		source = &p.From
 	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+		if from3 != nil && from3.Name == obj.NAME_EXTERN && !from3.Sym.Local() {
+			ctxt.Diag("cannot handle NAME_EXTERN on multiple operands in %v with -dynlink", p)
+		}
 		source = &p.To
+	} else if from3 != nil && from3.Name == obj.NAME_EXTERN && !from3.Sym.Local() {
+		source = from3
 	} else {
 		return
 	}
@@ -501,9 +513,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	p2.As = p.As
 	p2.From = p.From
 	p2.To = p.To
-	if from3 := p.GetFrom3(); from3 != nil {
-		p2.AddRestSource(*from3)
-	}
+	p2.RestArgs = p.RestArgs
 	if p.From.Name == obj.NAME_EXTERN {
 		p2.From.Reg = reg
 		p2.From.Name = obj.NAME_NONE
@@ -512,6 +522,11 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p2.To.Reg = reg
 		p2.To.Name = obj.NAME_NONE
 		p2.To.Sym = nil
+	} else if p.GetFrom3() != nil && p.GetFrom3().Name == obj.NAME_EXTERN {
+		from3 = p2.GetFrom3()
+		from3.Reg = reg
+		from3.Name = obj.NAME_NONE
+		from3.Sym = nil
 	} else {
 		return
 	}

@@ -85,16 +85,18 @@
 package fips140
 
 import (
+	"context"
+	"os"
+	"path"
+	"path/filepath"
+	"slices"
+	"strings"
+
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/str"
-	"context"
-	"os"
-	"path"
-	"path/filepath"
-	"strings"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -120,6 +122,9 @@ func Init() {
 	// selected toolchain version.
 	if cfg.ExperimentErr == nil && cfg.Experiment.BoringCrypto && Enabled() {
 		base.Fatalf("go: cannot use GOFIPS140 with GOEXPERIMENT=boringcrypto")
+	}
+	if slices.Contains(cfg.BuildContext.BuildTags, "purego") && Enabled() {
+		base.Fatalf("go: cannot use GOFIPS140 with the purego build tag")
 	}
 }
 
@@ -220,12 +225,11 @@ func initDir() {
 
 	mod := module.Version{Path: "golang.org/fips140", Version: v}
 	file := filepath.Join(cfg.GOROOT, "lib/fips140", v+".zip")
-	zdir, err := modfetch.Unzip(context.Background(), mod, file)
+	zdir, err := modfetch.NewFetcher().Unzip(context.Background(), mod, file)
 	if err != nil {
 		base.Fatalf("go: unpacking GOFIPS140=%v: %v", v, err)
 	}
 	dir = filepath.Join(zdir, "fips140")
-	return
 }
 
 // ResolveImport resolves the import path imp.

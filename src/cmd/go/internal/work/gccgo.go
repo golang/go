@@ -278,7 +278,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
 			return err
 		}
 		const ldflagsPrefix = "_CGO_LDFLAGS="
-		for _, line := range strings.Split(string(flags), "\n") {
+		for line := range strings.SplitSeq(string(flags), "\n") {
 			if strings.HasPrefix(line, ldflagsPrefix) {
 				flag := line[len(ldflagsPrefix):]
 				// Every _cgo_flags file has -g and -O2 in _CGO_LDFLAGS

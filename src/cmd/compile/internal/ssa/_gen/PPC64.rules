@@ -18,7 +18,10 @@
 (Max(32|64)F x y) && buildcfg.GOPPC64 >= 9 => (XSMAXJDP x y)
 
 // Combine 64 bit integer multiply and adds
-(ADD l:(MULLD x y) z) && buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l) => (MADDLD x y z)
+(ADD            z  l:(MULLD            x  y)) && buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l) => (MADDLD                        x    y                        z   )
+(ADD            z  l:(MULLDconst <mt> [x] y)) && buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l) => (MADDLD (MOVDconst <mt> [int64(x)]) y                        z   )
+(ADDconst <at> [z] l:(MULLD            x  y)) && buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l) => (MADDLD                        x    y (MOVDconst <at> [int64(z)]))
+(ADDconst <at> [z] l:(MULLDconst <mt> [x] y)) && buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l) => (MADDLD (MOVDconst <mt> [int64(x)]) y (MOVDconst <at> [int64(z)]))
 
 (Mod16 x y) => (Mod32 (SignExt16to32 x) (SignExt16to32 y))
 (Mod16u x y) => (Mod32u (ZeroExt16to32 x) (ZeroExt16to32 y))

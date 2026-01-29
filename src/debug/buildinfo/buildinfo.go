@@ -67,7 +67,7 @@ const (
 // with module support.
 func ReadFile(name string) (info *BuildInfo, err error) {
 	defer func() {
-		if pathErr := (*fs.PathError)(nil); errors.As(err, &pathErr) {
+		if _, ok := errors.AsType[*fs.PathError](err); ok {
 			err = fmt.Errorf("could not read Go build info: %w", err)
 		} else if err != nil {
 			err = fmt.Errorf("could not read Go build info from %s: %w", name, err)

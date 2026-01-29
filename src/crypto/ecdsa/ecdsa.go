@@ -27,7 +27,7 @@ import (
 	"crypto/internal/fips140cache"
 	"crypto/internal/fips140hash"
 	"crypto/internal/fips140only"
-	"crypto/internal/randutil"
+	"crypto/internal/rand"
 	"crypto/sha512"
 	"crypto/subtle"
 	"errors"
@@ -44,15 +44,13 @@ type PublicKey struct {
 
 	// X, Y are the coordinates of the public key point.
 	//
-	// Modifying the raw coordinates can produce invalid keys, and may
+	// Deprecated: modifying the raw coordinates can produce invalid keys, and may
 	// invalidate internal optimizations; moreover, [big.Int] methods are not
 	// suitable for operating on cryptographic values. To encode and decode
 	// PublicKey values, use [PublicKey.Bytes] and [ParseUncompressedPublicKey]
 	// or [crypto/x509.MarshalPKIXPublicKey] and [crypto/x509.ParsePKIXPublicKey].
 	// For ECDH, use [crypto/ecdh]. For lower-level elliptic curve operations,
 	// use a third-party module like filippo.io/nistec.
-	//
-	// These fields will be deprecated in Go 1.26.
 	X, Y *big.Int
 }
 
@@ -62,15 +60,16 @@ type PublicKey struct {
 // ECDH returns k as a [ecdh.PublicKey]. It returns an error if the key is
 // invalid according to the definition of [ecdh.Curve.NewPublicKey], or if the
 // Curve is not supported by crypto/ecdh.
-func (k *PublicKey) ECDH() (*ecdh.PublicKey, error) {
-	c := curveToECDH(k.Curve)
+func (pub *PublicKey) ECDH() (*ecdh.PublicKey, error) {
+	c := curveToECDH(pub.Curve)
 	if c == nil {
 		return nil, errors.New("ecdsa: unsupported curve by crypto/ecdh")
 	}
-	if !k.Curve.IsOnCurve(k.X, k.Y) {
-		return nil, errors.New("ecdsa: invalid public key")
+	k, err := pub.Bytes()
+	if err != nil {
+		return nil, err
 	}
-	return c.NewPublicKey(elliptic.Marshal(k.Curve, k.X, k.Y))
+	return c.NewPublicKey(k)
 }
 
 // Equal reports whether pub and x have the same value.
@@ -171,30 +170,28 @@ type PrivateKey struct {
 
 	// D is the private scalar value.
 	//
-	// Modifying the raw value can produce invalid keys, and may
+	// Deprecated: modifying the raw value can produce invalid keys, and may
 	// invalidate internal optimizations; moreover, [big.Int] methods are not
 	// suitable for operating on cryptographic values. To encode and decode
 	// PrivateKey values, use [PrivateKey.Bytes] and [ParseRawPrivateKey] or
 	// [crypto/x509.MarshalPKCS8PrivateKey] and [crypto/x509.ParsePKCS8PrivateKey].
 	// For ECDH, use [crypto/ecdh].
-	//
-	// This field will be deprecated in Go 1.26.
 	D *big.Int
 }
 
 // ECDH returns k as a [ecdh.PrivateKey]. It returns an error if the key is
 // invalid according to the definition of [ecdh.Curve.NewPrivateKey], or if the
 // Curve is not supported by [crypto/ecdh].
-func (k *PrivateKey) ECDH() (*ecdh.PrivateKey, error) {
-	c := curveToECDH(k.Curve)
+func (priv *PrivateKey) ECDH() (*ecdh.PrivateKey, error) {
+	c := curveToECDH(priv.Curve)
 	if c == nil {
 		return nil, errors.New("ecdsa: unsupported curve by crypto/ecdh")
 	}
-	size := (k.Curve.Params().N.BitLen() + 7) / 8
-	if k.D.BitLen() > size*8 {
-		return nil, errors.New("ecdsa: invalid private key")
+	k, err := priv.Bytes()
+	if err != nil {
+		return nil, err
 	}
-	return c.NewPrivateKey(k.D.FillBytes(make([]byte, size)))
+	return c.NewPrivateKey(k)
 }
 
 func curveToECDH(c elliptic.Curve) ecdh.Curve {
@@ -313,31 +310,31 @@ func privateKeyBytes[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey) ([]b
 // the bit-length of the private key's curve order, the hash will be truncated
 // to that length. It returns the ASN.1 encoded signature, like [SignASN1].
 //
-// If rand is not nil, the signature is randomized. Most applications should use
-// [crypto/rand.Reader] as rand. Note that the returned signature does not
-// depend deterministically on the bytes read from rand, and may change between
-// calls and/or between versions.
+// If random is not nil, the signature is randomized. Most applications should use
+// [crypto/rand.Reader] as random, but unless GODEBUG=cryptocustomrand=1 is set, a
+// secure source of random bytes is always used, and the actual Reader is ignored.
+// The GODEBUG setting will be removed in a future Go release. Instead, use
+// [testing/cryptotest.SetGlobalRandom].
 //
-// If rand is nil, Sign will produce a deterministic signature according to RFC
+// If random is nil, Sign will produce a deterministic signature according to RFC
 // 6979. When producing a deterministic signature, opts.HashFunc() must be the
 // function used to produce digest and priv.Curve must be one of
 // [elliptic.P224], [elliptic.P256], [elliptic.P384], or [elliptic.P521].
-func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
-	if rand == nil {
+func (priv *PrivateKey) Sign(random io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+	if random == nil {
 		return signRFC6979(priv, digest, opts)
 	}
-	return SignASN1(rand, priv, digest)
+	random = rand.CustomReader(random)
+	return SignASN1(random, priv, digest)
 }
 
 // GenerateKey generates a new ECDSA private key for the specified curve.
 //
-// Most applications should use [crypto/rand.Reader] as rand. Note that the
-// returned key does not depend deterministically on the bytes read from rand,
-// and may change between calls and/or between versions.
-func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
-	randutil.MaybeReadByte(rand)
-
-	if boring.Enabled && rand == boring.RandReader {
+// Since Go 1.26, a secure source of random bytes is always used, and the Reader is
+// ignored unless GODEBUG=cryptocustomrand=1 is set. This setting will be removed
+// in a future Go release. Instead, use [testing/cryptotest.SetGlobalRandom].
+func GenerateKey(c elliptic.Curve, r io.Reader) (*PrivateKey, error) {
+	if boring.Enabled && rand.IsDefaultReader(r) {
 		x, y, d, err := boring.GenerateKeyECDSA(c.Params().Name)
 		if err != nil {
 			return nil, err
@@ -346,22 +343,24 @@ func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
 	}
 	boring.UnreachableExceptTests()
 
+	r = rand.CustomReader(r)
+
 	switch c.Params() {
 	case elliptic.P224().Params():
-		return generateFIPS(c, ecdsa.P224(), rand)
+		return generateFIPS(c, ecdsa.P224(), r)
 	case elliptic.P256().Params():
-		return generateFIPS(c, ecdsa.P256(), rand)
+		return generateFIPS(c, ecdsa.P256(), r)
 	case elliptic.P384().Params():
-		return generateFIPS(c, ecdsa.P384(), rand)
+		return generateFIPS(c, ecdsa.P384(), r)
 	case elliptic.P521().Params():
-		return generateFIPS(c, ecdsa.P521(), rand)
+		return generateFIPS(c, ecdsa.P521(), r)
 	default:
-		return generateLegacy(c, rand)
+		return generateLegacy(c, r)
 	}
 }
 
 func generateFIPS[P ecdsa.Point[P]](curve elliptic.Curve, c *ecdsa.Curve[P], rand io.Reader) (*PrivateKey, error) {
-	if fips140only.Enabled && !fips140only.ApprovedRandomReader(rand) {
+	if fips140only.Enforced() && !fips140only.ApprovedRandomReader(rand) {
 		return nil, errors.New("crypto/ecdsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 	}
 	privateKey, err := ecdsa.GenerateKey(c, rand)
@@ -371,22 +370,17 @@ func generateFIPS[P ecdsa.Point[P]](curve elliptic.Curve, c *ecdsa.Curve[P], ran
 	return privateKeyFromFIPS(curve, privateKey)
 }
 
-// errNoAsm is returned by signAsm and verifyAsm when the assembly
-// implementation is not available.
-var errNoAsm = errors.New("no assembly implementation available")
-
 // SignASN1 signs a hash (which should be the result of hashing a larger message)
 // using the private key, priv. If the hash is longer than the bit-length of the
 // private key's curve order, the hash will be truncated to that length. It
 // returns the ASN.1 encoded signature.
 //
-// The signature is randomized. Most applications should use [crypto/rand.Reader]
-// as rand. Note that the returned signature does not depend deterministically on
-// the bytes read from rand, and may change between calls and/or between versions.
-func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
-	randutil.MaybeReadByte(rand)
-
-	if boring.Enabled && rand == boring.RandReader {
+// The signature is randomized. Since Go 1.26, a secure source of random bytes
+// is always used, and the Reader is ignored unless GODEBUG=cryptocustomrand=1
+// is set. This setting will be removed in a future Go release. Instead, use
+// [testing/cryptotest.SetGlobalRandom].
+func SignASN1(r io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
+	if boring.Enabled && rand.IsDefaultReader(r) {
 		b, err := boringPrivateKey(priv)
 		if err != nil {
 			return nil, err
@@ -395,22 +389,24 @@ func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
 	}
 	boring.UnreachableExceptTests()
 
+	r = rand.CustomReader(r)
+
 	switch priv.Curve.Params() {
 	case elliptic.P224().Params():
-		return signFIPS(ecdsa.P224(), priv, rand, hash)
+		return signFIPS(ecdsa.P224(), priv, r, hash)
 	case elliptic.P256().Params():
-		return signFIPS(ecdsa.P256(), priv, rand, hash)
+		return signFIPS(ecdsa.P256(), priv, r, hash)
 	case elliptic.P384().Params():
-		return signFIPS(ecdsa.P384(), priv, rand, hash)
+		return signFIPS(ecdsa.P384(), priv, r, hash)
 	case elliptic.P521().Params():
-		return signFIPS(ecdsa.P521(), priv, rand, hash)
+		return signFIPS(ecdsa.P521(), priv, r, hash)
 	default:
-		return signLegacy(priv, rand, hash)
+		return signLegacy(priv, r, hash)
 	}
 }
 
 func signFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey, rand io.Reader, hash []byte) ([]byte, error) {
-	if fips140only.Enabled && !fips140only.ApprovedRandomReader(rand) {
+	if fips140only.Enforced() && !fips140only.ApprovedRandomReader(rand) {
 		return nil, errors.New("crypto/ecdsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
 	}
 	k, err := privateKeyToFIPS(c, priv)
@@ -455,7 +451,7 @@ func signFIPSDeterministic[P ecdsa.Point[P]](c *ecdsa.Curve[P], hashFunc crypto.
 		return nil, err
 	}
 	h := fips140hash.UnwrapNew(hashFunc.New)
-	if fips140only.Enabled && !fips140only.ApprovedHash(h()) {
+	if fips140only.Enforced() && !fips140only.ApprovedHash(h()) {
 		return nil, errors.New("crypto/ecdsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
 	}
 	sig, err := ecdsa.SignDeterministic(c, h, k, hash)
@@ -580,25 +576,28 @@ func privateKeyToFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey) (*e
 	if err != nil {
 		return nil, err
 	}
+
+	// Reject values that would not get correctly encoded.
+	if priv.D.BitLen() > priv.Curve.Params().N.BitLen() {
+		return nil, errors.New("ecdsa: private key scalar too large")
+	}
+	if priv.D.Sign() <= 0 {
+		return nil, errors.New("ecdsa: private key scalar is zero or negative")
+	}
+
+	size := (priv.Curve.Params().N.BitLen() + 7) / 8
+	const maxScalarSize = 66 // enough for a P-521 private key
+	if size > maxScalarSize {
+		return nil, errors.New("ecdsa: internal error: curve size too large")
+	}
+	D := priv.D.FillBytes(make([]byte, size, maxScalarSize))
+
 	return privateKeyCache.Get(priv, func() (*ecdsa.PrivateKey, error) {
-		return ecdsa.NewPrivateKey(c, priv.D.Bytes(), Q)
+		return ecdsa.NewPrivateKey(c, D, Q)
 	}, func(k *ecdsa.PrivateKey) bool {
 		return subtle.ConstantTimeCompare(k.PublicKey().Bytes(), Q) == 1 &&
-			leftPadBytesEqual(k.Bytes(), priv.D.Bytes())
+			subtle.ConstantTimeCompare(k.Bytes(), D) == 1
 	})
-}
-
-func leftPadBytesEqual(a, b []byte) bool {
-	if len(a) < len(b) {
-		a, b = b, a
-	}
-	if len(a) > len(b) {
-		x := make([]byte, 0, 66 /* enough for a P-521 private key */)
-		x = append(x, make([]byte, len(a)-len(b))...)
-		x = append(x, b...)
-		b = x
-	}
-	return subtle.ConstantTimeCompare(a, b) == 1
 }
 
 // pointFromAffine is used to convert the PublicKey to a nistec SetBytes input.
@@ -611,7 +610,7 @@ func pointFromAffine(curve elliptic.Curve, x, y *big.Int) ([]byte, error) {
 	if x.BitLen() > bitSize || y.BitLen() > bitSize {
 		return nil, errors.New("overflowing coordinate")
 	}
-	// Encode the coordinates and let SetBytes reject invalid points.
+	// Encode the coordinates and let [ecdsa.NewPublicKey] reject invalid points.
 	byteLen := (bitSize + 7) / 8
 	buf := make([]byte, 1+2*byteLen)
 	buf[0] = 4 // uncompressed point

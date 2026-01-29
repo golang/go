@@ -414,6 +414,10 @@ var kinds = []abi.Kind{
 	types.TUNSAFEPTR:  abi.UnsafePointer,
 }
 
+func ABIKindOfType(t *types.Type) abi.Kind {
+	return kinds[t.Kind()]
+}
+
 var (
 	memhashvarlen  *obj.LSym
 	memequalvarlen *obj.LSym
@@ -512,8 +516,7 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	c.Field("Align_").WriteUint8(uint8(t.Alignment()))
 	c.Field("FieldAlign_").WriteUint8(uint8(t.Alignment()))
 
-	kind := kinds[t.Kind()]
-	c.Field("Kind_").WriteUint8(uint8(kind))
+	c.Field("Kind_").WriteUint8(uint8(ABIKindOfType(t)))
 
 	c.Field("Equal").WritePtr(eqfunc)
 	c.Field("GCData").WritePtr(gcsym)
@@ -714,6 +717,10 @@ func writeType(t *types.Type) *obj.LSym {
 	}
 	s.SetSiggen(true)
 
+	if !tbase.HasShape() {
+		TypeLinksym(t) // ensure lsym.Extra is set
+	}
+
 	if !NeedEmit(tbase) {
 		if i := typecheck.BaseTypeIndex(t); i >= 0 {
 			lsym.Pkg = tbase.Sym().Pkg.Prefix
@@ -748,6 +755,9 @@ func writeType(t *types.Type) *obj.LSym {
 	// +--------------------------------+                            - D
 	// | method list, if any            |   dextratype
 	// +--------------------------------+                            - E
+
+	// runtime.moduleTypelinks is aware of this type layout,
+	// and must be changed if the layout change.
 
 	// UncommonType section is included if we have a name or a method.
 	extra := t.Sym() != nil || len(methods(t)) != 0
@@ -1222,7 +1232,7 @@ func typesStrCmp(a, b typeAndStr) int {
 // GC information is always a bitmask, never a gc program.
 // GCSym may be called in concurrent backend, so it does not emit the symbol
 // content.
-func GCSym(t *types.Type) (lsym *obj.LSym, ptrdata int64) {
+func GCSym(t *types.Type, onDemandAllowed bool) (lsym *obj.LSym, ptrdata int64) {
 	// Record that we need to emit the GC symbol.
 	gcsymmu.Lock()
 	if _, ok := gcsymset[t]; !ok {
@@ -1230,7 +1240,7 @@ func GCSym(t *types.Type) (lsym *obj.LSym, ptrdata int64) {
 	}
 	gcsymmu.Unlock()
 
-	lsym, _, ptrdata = dgcsym(t, false, false)
+	lsym, _, ptrdata = dgcsym(t, false, onDemandAllowed)
 	return
 }
 
@@ -1275,7 +1285,6 @@ func dgcptrmask(t *types.Type, write bool) *obj.LSym {
 // word offsets in t that hold pointers.
 // ptrmask is assumed to fit at least types.PtrDataSize(t)/PtrSize bits.
 func fillptrmask(t *types.Type, ptrmask []byte) {
-	clear(ptrmask)
 	if !t.HasPointers() {
 		return
 	}

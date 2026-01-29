@@ -195,7 +195,7 @@ type RegisterSet uint64
 // logf prints debug-specific logging to stdout (always stdout) if the
 // current function is tagged by GOSSAFUNC (for ssa output directed
 // either to stdout or html).
-func (s *debugState) logf(msg string, args ...interface{}) {
+func (s *debugState) logf(msg string, args ...any) {
 	if s.f.PrintOrHtmlSSA {
 		fmt.Printf(msg, args...)
 	}
@@ -1553,11 +1553,11 @@ func (debugInfo *FuncDebug) PutLocationListDwarf4(list []byte, ctxt *obj.Link, l
 		}
 
 		if ctxt.UseBASEntries {
-			listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, int64(begin))
-			listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, int64(end))
+			listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, begin)
+			listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, end)
 		} else {
-			listSym.WriteCURelativeAddr(ctxt, listSym.Size, startPC, int64(begin))
-			listSym.WriteCURelativeAddr(ctxt, listSym.Size, startPC, int64(end))
+			listSym.WriteCURelativeAddr(ctxt, listSym.Size, startPC, begin)
+			listSym.WriteCURelativeAddr(ctxt, listSym.Size, startPC, end)
 		}
 
 		i += 2 * ctxt.Arch.PtrSize

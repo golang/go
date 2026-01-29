@@ -66,6 +66,12 @@ func (TestDeps) ImportPath() string {
 	return ImportPath
 }
 
+var ModulePath string
+
+func (TestDeps) ModulePath() string {
+	return ModulePath
+}
+
 // testLog implements testlog.Interface, logging actions by package os.
 type testLog struct {
 	mu  sync.Mutex

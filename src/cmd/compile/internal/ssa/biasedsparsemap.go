@@ -31,7 +31,7 @@ func (s *biasedSparseMap) cap() int {
 	if s == nil || s.s == nil {
 		return 0
 	}
-	return s.s.cap() + int(s.first)
+	return s.s.cap() + s.first
 }
 
 // size returns the number of entries stored in s

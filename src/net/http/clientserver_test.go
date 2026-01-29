@@ -46,6 +46,16 @@ const (
 	http2UnencryptedMode = testMode("h2unencrypted") // HTTP/2
 )
 
+func (m testMode) Scheme() string {
+	switch m {
+	case http1Mode, http2UnencryptedMode:
+		return "http"
+	case https1Mode, http2Mode:
+		return "https"
+	}
+	panic("unknown testMode")
+}
+
 type testNotParallelOpt struct{}
 
 var (
@@ -207,6 +217,8 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 			transportFuncs = append(transportFuncs, opt)
 		case func(*httptest.Server):
 			opt(cst.ts)
+		case func(*Server):
+			opt(cst.ts.Config)
 		default:
 			t.Fatalf("unhandled option type %T", opt)
 		}

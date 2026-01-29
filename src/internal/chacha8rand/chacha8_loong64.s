@@ -50,22 +50,22 @@ lsx_chacha8:
 
 	// load contants
 	VMOVQ	(R10), V0.W4
-	VMOVQ	1(R10), V1.W4
-	VMOVQ	2(R10), V2.W4
-	VMOVQ	3(R10), V3.W4
+	VMOVQ	4(R10), V1.W4
+	VMOVQ	8(R10), V2.W4
+	VMOVQ	12(R10), V3.W4
 
 	// load 4-32bit data from incRotMatrix added to counter
 	VMOVQ	(R11), V30
 
 	// load seed
 	VMOVQ	(R4), V4.W4
-	VMOVQ	1(R4), V5.W4
-	VMOVQ	2(R4), V6.W4
-	VMOVQ	3(R4), V7.W4
-	VMOVQ	4(R4), V8.W4
-	VMOVQ	5(R4), V9.W4
-	VMOVQ	6(R4), V10.W4
-	VMOVQ	7(R4), V11.W4
+	VMOVQ	4(R4), V5.W4
+	VMOVQ	8(R4), V6.W4
+	VMOVQ	12(R4), V7.W4
+	VMOVQ	16(R4), V8.W4
+	VMOVQ	20(R4), V9.W4
+	VMOVQ	24(R4), V10.W4
+	VMOVQ	28(R4), V11.W4
 
 	// load counter and update counter
 	VMOVQ	R6, V12.W4
@@ -77,14 +77,14 @@ lsx_chacha8:
 	VXORV	V15, V15, V15
 
 	// save seed state for adding back later
-	VORV	V4, V13, V20
-	VORV	V5, V13, V21
-	VORV	V6, V13, V22
-	VORV	V7, V13, V23
-	VORV	V8, V13, V24
-	VORV	V9, V13, V25
-	VORV	V10, V13, V26
-	VORV	V11, V13, V27
+	VMOVQ	V4, V20
+	VMOVQ	V5, V21
+	VMOVQ	V6, V22
+	VMOVQ	V7, V23
+	VMOVQ	V8, V24
+	VMOVQ	V9, V25
+	VMOVQ	V10, V26
+	VMOVQ	V11, V27
 
 	// 4 iterations. Each iteration is 8 quarter-rounds.
 	MOVV	$4, R7

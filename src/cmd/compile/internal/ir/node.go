@@ -215,7 +215,7 @@ const (
 	ORSH              // X >> Y
 	OAND              // X & Y
 	OANDNOT           // X &^ Y
-	ONEW              // new(X); corresponds to calls to new in source code
+	ONEW              // new(X); corresponds to calls to new(T) in source code
 	ONOT              // !X
 	OBITNOT           // ^X
 	OPLUS             // +X
@@ -293,6 +293,7 @@ const (
 	OLINKSYMOFFSET   // offset within a name
 	OJUMPTABLE       // A jump table structure for implementing dense expression switches
 	OINTERFACESWITCH // A type switch with interface cases
+	OMOVE2HEAP       // Promote a stack-backed slice to heap
 
 	// opcodes for generics
 	ODYNAMICDOTTYPE  // x = i.(T) where T is a type parameter (or derived from a type parameter)

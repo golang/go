@@ -387,7 +387,7 @@ func TestRISCVTrampolines(t *testing.T) {
 	buf := new(bytes.Buffer)
 	fmt.Fprintf(buf, "TEXT a(SB),$0-0\n")
 	for i := 0; i < 1<<17; i++ {
-		fmt.Fprintf(buf, "\tADD $0, X0, X0\n")
+		fmt.Fprintf(buf, "\tADD $0, X5, X0\n")
 	}
 	fmt.Fprintf(buf, "\tCALL b(SB)\n")
 	fmt.Fprintf(buf, "\tRET\n")
@@ -398,7 +398,7 @@ func TestRISCVTrampolines(t *testing.T) {
 	fmt.Fprintf(buf, "\tRET\n")
 	fmt.Fprintf(buf, "TEXT ·d(SB),0,$0-0\n")
 	for i := 0; i < 1<<17; i++ {
-		fmt.Fprintf(buf, "\tADD $0, X0, X0\n")
+		fmt.Fprintf(buf, "\tADD $0, X5, X0\n")
 	}
 	fmt.Fprintf(buf, "\tCALL a(SB)\n")
 	fmt.Fprintf(buf, "\tCALL c(SB)\n")
@@ -440,5 +440,27 @@ func d()
 	}
 	if bytes.Contains(out, []byte(" T b-tramp0")) {
 		t.Errorf("Trampoline b-tramp0 exists unnecessarily")
+	}
+}
+
+func TestRounding(t *testing.T) {
+	testCases := []struct {
+		input    int64
+		quantum  int64
+		expected int64
+	}{
+		{0x30000000, 0x2000, 0x30000000}, // Already aligned
+		{0x30002000, 0x2000, 0x30002000}, // Exactly on boundary
+		{0x30001234, 0x2000, 0x30002000},
+		{0x30001000, 0x2000, 0x30002000},
+		{0x30001fff, 0x2000, 0x30002000},
+	}
+
+	for _, tc := range testCases {
+		result := Rnd(tc.input, tc.quantum)
+		if result != tc.expected {
+			t.Errorf("Rnd(0x%x, 0x%x) = 0x%x, expected 0x%x",
+				tc.input, tc.quantum, result, tc.expected)
+		}
 	}
 }

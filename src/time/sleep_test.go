@@ -937,7 +937,6 @@ func BenchmarkParallelTimerLatency(b *testing.B) {
 		wg.Add(timerCount)
 		atomic.StoreInt32(&count, 0)
 		for j := 0; j < timerCount; j++ {
-			j := j
 			expectedWakeup := Now().Add(delay)
 			AfterFunc(delay, func() {
 				late := Since(expectedWakeup)
@@ -1011,7 +1010,6 @@ func BenchmarkStaggeredTickerLatency(b *testing.B) {
 					var wg sync.WaitGroup
 					wg.Add(tickerCount)
 					for j := 0; j < tickerCount; j++ {
-						j := j
 						doWork(delay / Duration(gmp))
 						expectedWakeup := Now().Add(delay)
 						ticker := NewTicker(delay)

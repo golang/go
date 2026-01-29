@@ -118,11 +118,6 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 		"runtime.noptrdata": "D",
 	}
 
-	if runtime.GOOS == "aix" && iscgo {
-		// pclntab is moved to .data section on AIX.
-		runtimeSyms["runtime.epclntab"] = "D"
-	}
-
 	out, err = testenv.Command(t, testenv.Executable(t), exe).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm: %v\n%s", err, string(out))

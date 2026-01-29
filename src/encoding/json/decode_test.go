@@ -1237,6 +1237,62 @@ var unmarshalTests = []struct {
 		out:      (chan int)(nil),
 		err:      &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[chan int](), Offset: 1},
 	},
+
+	// #75619
+	{
+		CaseName: Name("QuotedInt/GoSyntax"),
+		in:       `{"X": "-0000123"}`,
+		ptr: new(struct {
+			X int64 `json:",string"`
+		}),
+		out: struct {
+			X int64 `json:",string"`
+		}{-123},
+	},
+	{
+		CaseName: Name("QuotedInt/Invalid"),
+		in:       `{"X": "123 "}`,
+		ptr: new(struct {
+			X int64 `json:",string"`
+		}),
+		err: &UnmarshalTypeError{Value: "number 123 ", Type: reflect.TypeFor[int64](), Field: "X", Offset: int64(len(`{"X": "123 "`))},
+	},
+	{
+		CaseName: Name("QuotedUint/GoSyntax"),
+		in:       `{"X": "0000123"}`,
+		ptr: new(struct {
+			X uint64 `json:",string"`
+		}),
+		out: struct {
+			X uint64 `json:",string"`
+		}{123},
+	},
+	{
+		CaseName: Name("QuotedUint/Invalid"),
+		in:       `{"X": "0x123"}`,
+		ptr: new(struct {
+			X uint64 `json:",string"`
+		}),
+		err: &UnmarshalTypeError{Value: "number 0x123", Type: reflect.TypeFor[uint64](), Field: "X", Offset: int64(len(`{"X": "0x123"`))},
+	},
+	{
+		CaseName: Name("QuotedFloat/GoSyntax"),
+		in:       `{"X": "0x1_4p-2"}`,
+		ptr: new(struct {
+			X float64 `json:",string"`
+		}),
+		out: struct {
+			X float64 `json:",string"`
+		}{0x1_4p-2},
+	},
+	{
+		CaseName: Name("QuotedFloat/Invalid"),
+		in:       `{"X": "1.5e1_"}`,
+		ptr: new(struct {
+			X float64 `json:",string"`
+		}),
+		err: &UnmarshalTypeError{Value: "number 1.5e1_", Type: reflect.TypeFor[float64](), Field: "X", Offset: int64(len(`{"X": "1.5e1_"`))},
+	},
 }
 
 func TestMarshal(t *testing.T) {

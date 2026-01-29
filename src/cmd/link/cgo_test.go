@@ -115,10 +115,10 @@ func testCGOLTO(t *testing.T, cc, cgoCflags string, test int) {
 		t.Fatalf("bad case %d", test)
 	}
 
-	cmd := testenv.Command(t, testenv.GoToolPath(t), "build")
+	cmd := goCmd(t, "build")
 	cmd.Dir = dir
 	cgoCflags += " -flto"
-	cmd.Env = append(cmd.Environ(), "CGO_CFLAGS="+cgoCflags)
+	cmd.Env = append(cmd.Env, "CGO_CFLAGS="+cgoCflags)
 
 	t.Logf("CGO_CFLAGS=%q %v", cgoCflags, cmd)
 	out, err := cmd.CombinedOutput()

@@ -8,4 +8,4 @@
 
 package doc
 
-func doPkgsite(string) error { return nil }
+func doPkgsite(string, string) error { return nil }

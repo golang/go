@@ -35,7 +35,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 	check.expr(nil, &x, rangeVar)
 
 	if isTypes2 && x.mode != invalid && sValue == nil && !check.hasCallOrRecv {
-		if t, ok := arrayPtrDeref(under(x.typ)).(*Array); ok {
+		if t, ok := arrayPtrDeref(x.typ.Underlying()).(*Array); ok {
 			for {
 				// Put constant info on the thing inside parentheses.
 				// That's where (*../noder/writer).expr expects it.

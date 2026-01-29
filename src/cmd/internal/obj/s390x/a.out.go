@@ -139,8 +139,8 @@ const (
 	REG_RESERVED // end of allocated registers
 
 	REGARG  = -1      // -1 disables passing the first argument in register
-	REGRT1  = REG_R3  // used during zeroing of the stack - not reserved
-	REGRT2  = REG_R4  // used during zeroing of the stack - not reserved
+	REGRT1  = REG_R1  // used during zeroing of the stack - not reserved
+	REGRT2  = REG_R10 // used during zeroing of the stack - not reserved
 	REGTMP  = REG_R10 // scratch register used in the assembler and linker
 	REGTMP2 = REG_R11 // scratch register used in the assembler and linker
 	REGCTXT = REG_R12 // context for closures
@@ -156,7 +156,7 @@ var S390XDWARFRegisters = map[int16]int16{}
 func init() {
 	// f assigns dwarfregisters[from:to by step] = (base):((to-from)/step+base)
 	f := func(from, step, to, base int16) {
-		for r := int16(from); r <= to; r += step {
+		for r := from; r <= to; r += step {
 			S390XDWARFRegisters[r] = (r-from)/step + base
 		}
 	}

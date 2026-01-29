@@ -9,7 +9,6 @@ import (
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
-	"encoding/binary"
 	"flag"
 	"fmt"
 	"go/format"
@@ -973,19 +972,6 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with old release")
 }
 
-func TestPackageMainTestCompilerFlags(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-	tg.tempFile("src/p1/p1.go", "package main\n")
-	tg.tempFile("src/p1/p1_test.go", "package main\nimport \"testing\"\nfunc Test(t *testing.T){}\n")
-	tg.run("test", "-c", "-n", "p1")
-	tg.grepBothNot(`([\\/]compile|gccgo).* (-p main|-fgo-pkgpath=main).*p1\.go`, "should not have run compile -p main p1.go")
-	tg.grepStderr(`([\\/]compile|gccgo).* (-p p1|-fgo-pkgpath=p1).*p1\.go`, "should have run compile -p p1 p1.go")
-}
-
 // Issue 4104.
 func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
 	tooSlow(t, "links and runs a test")
@@ -1069,43 +1055,6 @@ func TestGoListDeps(t *testing.T) {
 			t.Fatalf("list -deps math: wrong order\nhave %q\nwant %q", tg.stdout.String(), want)
 		}
 	}
-}
-
-func TestGoListTest(t *testing.T) {
-	skipIfGccgo(t, "gccgo does not have standard packages")
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.makeTempdir()
-	tg.setenv("GOCACHE", tg.tempdir)
-
-	tg.run("list", "-test", "-deps", "bytes")
-	tg.grepStdout(`^bytes.test$`, "missing test main")
-	tg.grepStdout(`^bytes$`, "missing real bytes")
-	tg.grepStdout(`^bytes \[bytes.test\]$`, "missing test copy of bytes")
-	tg.grepStdout(`^testing \[bytes.test\]$`, "missing test copy of testing")
-	tg.grepStdoutNot(`^testing$`, "unexpected real copy of testing")
-
-	tg.run("list", "-test", "bytes")
-	tg.grepStdout(`^bytes.test$`, "missing test main")
-	tg.grepStdout(`^bytes$`, "missing real bytes")
-	tg.grepStdout(`^bytes \[bytes.test\]$`, "unexpected test copy of bytes")
-	tg.grepStdoutNot(`^testing \[bytes.test\]$`, "unexpected test copy of testing")
-	tg.grepStdoutNot(`^testing$`, "unexpected real copy of testing")
-
-	tg.run("list", "-test", "cmd/buildid", "cmd/gofmt")
-	tg.grepStdout(`^cmd/buildid$`, "missing cmd/buildid")
-	tg.grepStdout(`^cmd/gofmt$`, "missing cmd/gofmt")
-	tg.grepStdout(`^cmd/gofmt\.test$`, "missing cmd/gofmt test")
-	tg.grepStdoutNot(`^cmd/buildid\.test$`, "unexpected cmd/buildid test")
-	tg.grepStdoutNot(`^testing`, "unexpected testing")
-
-	tg.run("list", "-test", "runtime/cgo")
-	tg.grepStdout(`^runtime/cgo$`, "missing runtime/cgo")
-
-	tg.run("list", "-deps", "-f", "{{if .DepOnly}}{{.ImportPath}}{{end}}", "sort")
-	tg.grepStdout(`^internal/reflectlite$`, "missing internal/reflectlite")
-	tg.grepStdoutNot(`^sort`, "unexpected sort")
 }
 
 func TestGoListCompiledCgo(t *testing.T) {
@@ -1507,15 +1456,17 @@ func main() {
 	tg.setenv("PKG_CONFIG_PATH", tg.path("."))
 	tg.run("run", tg.path("foo.go"))
 
-	if runtime.GOOS != "darwin" { // darwin doesn't like these ldflags
-		// test for ldflags
-		tg.tempFile("bar.pc", `
+	libs := `Libs: -Wl,-rpath=/path\ with\ spaces/bin`
+	if runtime.GOOS == "darwin" {
+		libs = "" // darwin linker doesn't have -rpath
+	}
+	// test for ldflags
+	tg.tempFile("bar.pc", `
 Name: bar
 Description: The bar library
 Version: 1.0.0
-Libs: -Wl,-rpath=/path\ with\ spaces/bin
+`+libs+`
 `)
-	}
 
 	tg.tempFile("bar.go", `package main
 /*
@@ -1525,40 +1476,6 @@ import "C"
 func main() {}
 `)
 	tg.run("run", tg.path("bar.go"))
-}
-
-func TestListTemplateContextFunction(t *testing.T) {
-	t.Parallel()
-	for _, tt := range []struct {
-		v    string
-		want string
-	}{
-		{"GOARCH", runtime.GOARCH},
-		{"GOOS", runtime.GOOS},
-		{"GOROOT", testGOROOT},
-		{"GOPATH", os.Getenv("GOPATH")},
-		{"CgoEnabled", ""},
-		{"UseAllFiles", ""},
-		{"Compiler", ""},
-		{"BuildTags", ""},
-		{"ReleaseTags", ""},
-		{"InstallSuffix", ""},
-	} {
-		tt := tt
-		t.Run(tt.v, func(t *testing.T) {
-			tg := testgo(t)
-			tg.parallel()
-			defer tg.cleanup()
-			tmpl := "{{context." + tt.v + "}}"
-			tg.run("list", "-f", tmpl)
-			if tt.want == "" {
-				return
-			}
-			if got := strings.TrimSpace(tg.getStdout()); got != tt.want {
-				t.Errorf("go list -f %q: got %q; want %q", tmpl, got, tt.want)
-			}
-		})
-	}
 }
 
 // Test that you cannot use a local import in a package
@@ -2131,38 +2048,6 @@ func testBuildmodePIE(t *testing.T, useCgo, setBuildmodeToPIE bool) {
 		if (dc & pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) == 0 {
 			t.Error("IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag is not set")
 		}
-		if useCgo {
-			// Test that only one symbol is exported (#40795).
-			// PIE binaries don´t require .edata section but unfortunately
-			// binutils doesn´t generate a .reloc section unless there is
-			// at least one symbol exported.
-			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
-			section := f.Section(".edata")
-			if section == nil {
-				t.Skip(".edata section is not present")
-			}
-			// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
-			type IMAGE_EXPORT_DIRECTORY struct {
-				_                 [2]uint32
-				_                 [2]uint16
-				_                 [2]uint32
-				NumberOfFunctions uint32
-				NumberOfNames     uint32
-				_                 [3]uint32
-			}
-			var e IMAGE_EXPORT_DIRECTORY
-			if err := binary.Read(section.Open(), binary.LittleEndian, &e); err != nil {
-				t.Fatalf("binary.Read failed: %v", err)
-			}
-
-			// Only _cgo_dummy_export should be exported
-			if e.NumberOfFunctions != 1 {
-				t.Fatalf("got %d exported functions; want 1", e.NumberOfFunctions)
-			}
-			if e.NumberOfNames != 1 {
-				t.Fatalf("got %d exported names; want 1", e.NumberOfNames)
-			}
-		}
 	default:
 		// testBuildmodePIE opens object files, so it needs to understand the object
 		// file format.
@@ -2276,23 +2161,6 @@ func TestCacheCoverage(t *testing.T) {
 	tg.setenv("GOCACHE", tg.path("c1"))
 	tg.run("test", "-cover", "-short", "strings")
 	tg.run("test", "-cover", "-short", "math", "strings")
-}
-
-func TestIssue22588(t *testing.T) {
-	// Don't get confused by stderr coming from tools.
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-
-	tg.wantNotStale("runtime", "", "must be non-stale to compare staleness under -toolexec")
-
-	if _, err := os.Stat("/usr/bin/time"); err != nil {
-		t.Skip(err)
-	}
-
-	tg.run("list", "-f={{.Stale}}", "runtime")
-	tg.run("list", "-toolexec=/usr/bin/time", "-f={{.Stale}}", "runtime")
-	tg.grepStdout("false", "incorrectly reported runtime as stale")
 }
 
 func TestIssue22531(t *testing.T) {

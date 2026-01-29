@@ -54,6 +54,10 @@ func getBufferedEncoder(opts ...Options) *Encoder {
 	return e
 }
 func putBufferedEncoder(e *Encoder) {
+	if cap(e.s.availBuffer) > 64<<10 {
+		e.s.availBuffer = nil // avoid pinning arbitrarily large amounts of memory
+	}
+
 	// Recycle large buffers only if sufficiently utilized.
 	// If a buffer is under-utilized enough times sequentially,
 	// then it is discarded, ensuring that a single large buffer
@@ -95,9 +99,14 @@ func getStreamingEncoder(w io.Writer, opts ...Options) *Encoder {
 	}
 }
 func putStreamingEncoder(e *Encoder) {
+	if cap(e.s.availBuffer) > 64<<10 {
+		e.s.availBuffer = nil // avoid pinning arbitrarily large amounts of memory
+	}
 	if _, ok := e.s.wr.(*bytes.Buffer); ok {
+		e.s.wr, e.s.Buf = nil, nil // avoid pinning the provided bytes.Buffer
 		bytesBufferEncoderPool.Put(e)
 	} else {
+		e.s.wr = nil // avoid pinning the provided io.Writer
 		if cap(e.s.Buf) > 64<<10 {
 			e.s.Buf = nil // avoid pinning arbitrarily large amounts of memory
 		}
@@ -126,6 +135,7 @@ func getBufferedDecoder(b []byte, opts ...Options) *Decoder {
 	return d
 }
 func putBufferedDecoder(d *Decoder) {
+	d.s.buf = nil // avoid pinning the provided buffer
 	bufferedDecoderPool.Put(d)
 }
 
@@ -142,8 +152,10 @@ func getStreamingDecoder(r io.Reader, opts ...Options) *Decoder {
 }
 func putStreamingDecoder(d *Decoder) {
 	if _, ok := d.s.rd.(*bytes.Buffer); ok {
+		d.s.rd, d.s.buf = nil, nil // avoid pinning the provided bytes.Buffer
 		bytesBufferDecoderPool.Put(d)
 	} else {
+		d.s.rd = nil // avoid pinning the provided io.Reader
 		if cap(d.s.buf) > 64<<10 {
 			d.s.buf = nil // avoid pinning arbitrarily large amounts of memory
 		}

@@ -42,6 +42,10 @@ func TypeNode(t *types.Type) Node {
 
 // A DynamicType represents a type expression whose exact type must be
 // computed dynamically.
+//
+// TODO(adonovan): I think "dynamic" is a misnomer here; it's really a
+// type with free type parameters that needs to be instantiated to obtain
+// a ground type for which an rtype can exist.
 type DynamicType struct {
 	miniExpr
 

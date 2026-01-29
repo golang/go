@@ -77,7 +77,7 @@ func checkGdbVersion(t *testing.T) {
 		t.Skipf("skipping: gdb version %d.%d too old", major, minor)
 	}
 	if major < 12 || (major == 12 && minor < 1) {
-		t.Logf("gdb version <12.1 is known to crash due to a SIGWINCH recieved in non-interactive mode; if you see a crash, some test may be sending SIGWINCH to the whole process group. See go.dev/issue/58932.")
+		t.Logf("gdb version <12.1 is known to crash due to a SIGWINCH received in non-interactive mode; if you see a crash, some test may be sending SIGWINCH to the whole process group. See go.dev/issue/58932.")
 	}
 	t.Logf("gdb version %d.%d", major, minor)
 }

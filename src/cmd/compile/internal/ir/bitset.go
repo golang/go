@@ -23,7 +23,7 @@ func (f *bitset8) set2(shift uint8, b uint8) {
 	// Clear old bits.
 	*(*uint8)(f) &^= 3 << shift
 	// Set new bits.
-	*(*uint8)(f) |= uint8(b&3) << shift
+	*(*uint8)(f) |= (b & 3) << shift
 }
 
 type bitset16 uint16

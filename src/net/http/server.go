@@ -17,7 +17,7 @@ import (
 	"io"
 	"log"
 	"maps"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"net/textproto"
 	"net/url"
@@ -854,15 +854,6 @@ func bufioWriterPool(size int) *sync.Pool {
 	return nil
 }
 
-// newBufioReader should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/gobwas/ws
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname newBufioReader
 func newBufioReader(r io.Reader) *bufio.Reader {
 	if v := bufioReaderPool.Get(); v != nil {
 		br := v.(*bufio.Reader)
@@ -874,29 +865,11 @@ func newBufioReader(r io.Reader) *bufio.Reader {
 	return bufio.NewReader(r)
 }
 
-// putBufioReader should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/gobwas/ws
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname putBufioReader
 func putBufioReader(br *bufio.Reader) {
 	br.Reset(nil)
 	bufioReaderPool.Put(br)
 }
 
-// newBufioWriterSize should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/gobwas/ws
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname newBufioWriterSize
 func newBufioWriterSize(w io.Writer, size int) *bufio.Writer {
 	pool := bufioWriterPool(size)
 	if pool != nil {
@@ -909,15 +882,6 @@ func newBufioWriterSize(w io.Writer, size int) *bufio.Writer {
 	return bufio.NewWriterSize(w, size)
 }
 
-// putBufioWriter should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/gobwas/ws
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname putBufioWriter
 func putBufioWriter(bw *bufio.Writer) {
 	bw.Reset(nil)
 	if pool := bufioWriterPool(bw.Available()); pool != nil {
@@ -2408,7 +2372,7 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 		// but doing it ourselves is more reliable.
 		// See RFC 7231, section 7.1.2
 		if u.Scheme == "" && u.Host == "" {
-			oldpath := r.URL.Path
+			oldpath := r.URL.EscapedPath()
 			if oldpath == "" { // should not happen, but avoid a crash if it does
 				oldpath = "/"
 			}
@@ -2704,7 +2668,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
 		// but the path canonicalization does not.
 		_, _, u := mux.matchOrRedirect(host, r.Method, path, r.URL)
 		if u != nil {
-			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path, nil, nil
+			return RedirectHandler(u.String(), StatusTemporaryRedirect), u.Path, nil, nil
 		}
 		// Redo the match, this time with r.Host instead of r.URL.Host.
 		// Pass a nil URL to skip the trailing-slash redirect logic.
@@ -2720,7 +2684,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
 		var u *url.URL
 		n, matches, u = mux.matchOrRedirect(host, r.Method, path, r.URL)
 		if u != nil {
-			return RedirectHandler(u.String(), StatusMovedPermanently), n.pattern.String(), nil, nil
+			return RedirectHandler(u.String(), StatusTemporaryRedirect), n.pattern.String(), nil, nil
 		}
 		if path != escapedPath {
 			// Redirect to cleaned path.
@@ -2729,7 +2693,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
 				patStr = n.pattern.String()
 			}
 			u := &url.URL{Path: path, RawQuery: r.URL.RawQuery}
-			return RedirectHandler(u.String(), StatusMovedPermanently), patStr, nil, nil
+			return RedirectHandler(u.String(), StatusTemporaryRedirect), patStr, nil, nil
 		}
 	}
 	if n == nil {
@@ -2759,9 +2723,12 @@ func (mux *ServeMux) matchOrRedirect(host, method, path string, u *url.URL) (_ *
 	defer mux.mu.RUnlock()
 
 	n, matches := mux.tree.match(host, method, path)
-	// If we have an exact match, or we were asked not to try trailing-slash redirection,
-	// or the URL already has a trailing slash, then we're done.
-	if !exactMatch(n, path) && u != nil && !strings.HasSuffix(path, "/") {
+	// We can terminate here if any of the following is true:
+	// - We have an exact match already.
+	// - We were asked not to try trailing slash redirection.
+	// - The URL already has a trailing slash.
+	// - The URL is an empty string.
+	if !exactMatch(n, path) && u != nil && !strings.HasSuffix(path, "/") && path != "" {
 		// If there is an exact match with a trailing slash, then redirect.
 		path += "/"
 		n2, _ := mux.tree.match(host, method, path)
@@ -2865,8 +2832,10 @@ func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
 // always refers to user code.
 
 // Handle registers the handler for the given pattern.
-// If the given pattern conflicts with one that is already registered, Handle
-// panics.
+// If the given pattern conflicts with one that is already registered
+// or if the pattern is invalid, Handle panics.
+//
+// See [ServeMux] for details on valid patterns and conflict rules.
 func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	if use121 {
 		mux.mux121.handle(pattern, handler)
@@ -2876,8 +2845,10 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 }
 
 // HandleFunc registers the handler function for the given pattern.
-// If the given pattern conflicts with one that is already registered, HandleFunc
-// panics.
+// If the given pattern conflicts with one that is already registered
+// or if the pattern is invalid, HandleFunc panics.
+//
+// See [ServeMux] for details on valid patterns and conflict rules.
 func (mux *ServeMux) HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
 	if use121 {
 		mux.mux121.handleFunc(pattern, handler)
@@ -3059,6 +3030,9 @@ type Server struct {
 	// automatically closed when the function returns.
 	// If TLSNextProto is not nil, HTTP/2 support is not enabled
 	// automatically.
+	//
+	// Historically, TLSNextProto was used to disable HTTP/2 support.
+	// The Server.Protocols field now provides a simpler way to do this.
 	TLSNextProto map[string]func(*Server, *tls.Conn, Handler)
 
 	// ConnState specifies an optional callback function that is
@@ -3087,9 +3061,6 @@ type Server struct {
 	ConnContext func(ctx context.Context, c net.Conn) context.Context
 
 	// HTTP2 configures HTTP/2 connections.
-	//
-	// This field does not yet have any effect.
-	// See https://go.dev/issue/67813.
 	HTTP2 *HTTP2Config
 
 	// Protocols is the set of protocols accepted by the server.
@@ -3102,6 +3073,17 @@ type Server struct {
 	// If TLSNextProto is non-nil and does not contain an "h2" entry,
 	// the default is HTTP/1 only.
 	Protocols *Protocols
+
+	// DisableClientPriority specifies whether client-specified priority, as
+	// specified in RFC 9218, should be respected or not.
+	//
+	// This field only takes effect if using HTTP/2, and if no custom write
+	// scheduler is defined for the HTTP/2 server. Otherwise, this field is a
+	// no-op.
+	//
+	// If set to true, requests will be served in a round-robin manner, without
+	// prioritization.
+	DisableClientPriority bool
 
 	inShutdown atomic.Bool // true when server is in shutdown
 
@@ -3190,7 +3172,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	pollIntervalBase := time.Millisecond
 	nextPollInterval := func() time.Duration {
 		// Add 10% jitter.
-		interval := pollIntervalBase + time.Duration(rand.Intn(int(pollIntervalBase/10)))
+		interval := pollIntervalBase + time.Duration(rand.IntN(int(pollIntervalBase/10)))
 		// Double and clamp for next time.
 		pollIntervalBase *= 2
 		if pollIntervalBase > shutdownPollIntervalMax {

@@ -13,5 +13,5 @@ func isErrNoFollow(err error) bool {
 }
 
 func newDirFile(fd syscall.Handle, name string) (*File, error) {
-	return newFile(fd, name, "file", false), nil
+	return newFile(fd, name, kindOpenFile, false), nil
 }

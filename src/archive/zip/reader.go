@@ -834,7 +834,16 @@ func (r *Reader) initFileList() {
 				continue
 			}
 
-			for dir := path.Dir(name); dir != "."; dir = path.Dir(dir) {
+			dir := name
+			for {
+				if idx := strings.LastIndex(dir, "/"); idx < 0 {
+					break
+				} else {
+					dir = dir[:idx]
+				}
+				if dirs[dir] {
+					break
+				}
 				dirs[dir] = true
 			}
 

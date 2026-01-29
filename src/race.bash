@@ -9,7 +9,7 @@
 set -e
 
 function usage {
-	echo 'race detector is only supported on linux/amd64, linux/ppc64le, linux/arm64, linux/loong64, linux/s390x, freebsd/amd64, netbsd/amd64, openbsd/amd64, darwin/amd64, and darwin/arm64' 1>&2
+	echo 'race detector is only supported on linux/amd64, linux/ppc64le, linux/arm64, linux/loong64, linux/riscv64, linux/s390x, freebsd/amd64, netbsd/amd64, openbsd/amd64, darwin/amd64, and darwin/arm64' 1>&2
 	exit 1
 }
 
@@ -20,6 +20,7 @@ case $(uname -s -m) in
   "Linux ppc64le") ;;
   "Linux aarch64") ;;
   "Linux loongarch64") ;;
+  "Linux riscv64") ;;
   "Linux s390x")   ;;
   "FreeBSD amd64") ;;
   "NetBSD amd64")  ;;

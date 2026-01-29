@@ -38,6 +38,9 @@ type chacha20poly1305 struct {
 
 // New returns a ChaCha20-Poly1305 AEAD that uses the given 256-bit key.
 func New(key []byte) (cipher.AEAD, error) {
+	if fips140Enforced() {
+		return nil, errors.New("chacha20poly1305: use of ChaCha20Poly1305 is not allowed in FIPS 140-only mode")
+	}
 	if len(key) != KeySize {
 		return nil, errors.New("chacha20poly1305: bad key length")
 	}

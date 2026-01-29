@@ -227,9 +227,7 @@ type Options = jsonopts.Options
 //   - [jsontext.EscapeForJS]
 //   - [jsontext.PreserveRawStrings]
 //
-// All other boolean options are set to false.
-// All non-boolean options are set to the zero value,
-// except for [jsontext.WithIndent], which defaults to "\t".
+// All other options are not present.
 //
 // The [Marshal] and [Unmarshal] functions in this package are
 // semantically identical to calling the v2 equivalents with this option:
@@ -506,7 +504,9 @@ func ReportErrorsWithLegacySemantics(v bool) Options {
 // When marshaling, such Go values are serialized as their usual
 // JSON representation, but quoted within a JSON string.
 // When unmarshaling, such Go values must be deserialized from
-// a JSON string containing their usual JSON representation.
+// a JSON string containing their usual JSON representation or
+// Go number representation for that numeric kind.
+// Note that the Go number grammar is a superset of the JSON number grammar.
 // A JSON null quoted in a JSON string is a valid substitute for JSON null
 // while unmarshaling into a Go value that `string` takes effect on.
 //

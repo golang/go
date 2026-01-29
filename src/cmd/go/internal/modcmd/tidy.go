@@ -105,6 +105,7 @@ func (f *goVersionFlag) Set(s string) error {
 }
 
 func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
 	if len(args) > 0 {
 		base.Fatalf("go: 'go mod tidy' accepts no arguments")
 	}
@@ -119,18 +120,18 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 	// those packages. In order to make 'go test' reproducible for the packages
 	// that are in 'all' but outside of the main module, we must explicitly
 	// request that their test dependencies be included.
-	modload.ForceUseModules = true
-	modload.RootMode = modload.NeedRoot
+	moduleLoaderState.ForceUseModules = true
+	moduleLoaderState.RootMode = modload.NeedRoot
 
 	goVersion := tidyGo.String()
 	if goVersion != "" && gover.Compare(gover.Local(), goVersion) < 0 {
-		toolchain.SwitchOrFatal(ctx, &gover.TooNewError{
+		toolchain.SwitchOrFatal(moduleLoaderState, ctx, &gover.TooNewError{
 			What:      "-go flag",
 			GoVersion: goVersion,
 		})
 	}
 
-	modload.LoadPackages(ctx, modload.PackageOpts{
+	modload.LoadPackages(moduleLoaderState, ctx, modload.PackageOpts{
 		TidyGoVersion:            tidyGo.String(),
 		Tags:                     imports.AnyTags(),
 		Tidy:                     true,
@@ -141,6 +142,6 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 		LoadTests:                true,
 		AllowErrors:              tidyE,
 		SilenceMissingStdImports: true,
-		Switcher:                 new(toolchain.Switcher),
+		Switcher:                 toolchain.NewSwitcher(moduleLoaderState),
 	}, "all")
 }

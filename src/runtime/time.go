@@ -415,7 +415,7 @@ func newTimer(when, period int64, f func(arg any, seq uintptr, delay int64), arg
 //go:linkname stopTimer time.stopTimer
 func stopTimer(t *timeTimer) bool {
 	if t.isFake && getg().bubble == nil {
-		panic("stop of synctest timer from outside bubble")
+		fatal("stop of synctest timer from outside bubble")
 	}
 	return t.stop()
 }
@@ -430,7 +430,7 @@ func resetTimer(t *timeTimer, when, period int64) bool {
 		racerelease(unsafe.Pointer(&t.timer))
 	}
 	if t.isFake && getg().bubble == nil {
-		panic("reset of synctest timer from outside bubble")
+		fatal("reset of synctest timer from outside bubble")
 	}
 	return t.reset(when, period)
 }
@@ -636,6 +636,9 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 		}
 		if t.state&timerHeaped == 0 && when <= bubble.now {
 			systemstack(func() {
+				if !async && t.isChan {
+					unlock(&t.sendLock)
+				}
 				t.unlockAndRun(bubble.now, bubble)
 			})
 			return pending

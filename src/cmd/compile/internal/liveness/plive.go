@@ -427,7 +427,7 @@ func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int
 
 	nblocks := int32(len(f.Blocks))
 	nvars := int32(len(vars))
-	bulk := bitvec.NewBulk(nvars, nblocks*7, fn.Pos())
+	bulk := bitvec.NewBulk(nvars, nblocks*4, fn.Pos())
 	for _, b := range f.Blocks {
 		be := lv.blockEffects(b)
 
@@ -1493,7 +1493,7 @@ func (lv *Liveness) emitStackObjects() *obj.LSym {
 		if sz != int64(int32(sz)) {
 			base.Fatalf("stack object too big: %v of type %v, size %d", v, t, sz)
 		}
-		lsym, ptrBytes := reflectdata.GCSym(t)
+		lsym, ptrBytes := reflectdata.GCSym(t, false)
 		off = objw.Uint32(x, off, uint32(sz))
 		off = objw.Uint32(x, off, uint32(ptrBytes))
 		off = objw.SymPtrOff(x, off, lsym)
@@ -1534,6 +1534,9 @@ func isfat(t *types.Type) bool {
 			}
 			return true
 		case types.TSTRUCT:
+			if t.IsSIMD() {
+				return false
+			}
 			// Struct with 1 field, check if field is fat
 			if t.NumFields() == 1 {
 				return isfat(t.Field(0).Type)

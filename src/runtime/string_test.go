@@ -388,8 +388,6 @@ func TestString2Slice(t *testing.T) {
 	}
 }
 
-const intSize = 32 << (^uint(0) >> 63)
-
 func TestParseByteCount(t *testing.T) {
 	for _, test := range []struct {
 		in  string

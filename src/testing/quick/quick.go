@@ -64,7 +64,7 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 // hint is used for shrinking as a function of indirection level so
 // that recursive data structures will terminate.
 func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value, ok bool) {
-	if m, ok := reflect.Zero(t).Interface().(Generator); ok {
+	if m, ok := reflect.TypeAssert[Generator](reflect.Zero(t)); ok {
 		return m.Generate(rand, size), true
 	}
 

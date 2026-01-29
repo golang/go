@@ -61,7 +61,4 @@ func libc_sendfile_trampoline()
 
 //go:cgo_import_dynamic libc_sendfile sendfile "/usr/lib/libSystem.B.dylib"
 
-// Implemented in the runtime package (runtime/sys_darwin_64.go)
-func syscallX(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
-
 func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) // sic

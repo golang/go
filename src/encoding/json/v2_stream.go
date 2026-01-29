@@ -20,6 +20,10 @@ type Decoder struct {
 	dec  *jsontext.Decoder
 	opts jsonv2.Options
 	err  error
+
+	// hadPeeked reports whether [Decoder.More] was called.
+	// It is reset by [Decoder.Decode] and [Decoder.Token].
+	hadPeeked bool
 }
 
 // NewDecoder returns a new decoder that reads from r.
@@ -76,6 +80,7 @@ func (dec *Decoder) Decode(v any) error {
 		}
 		return dec.err
 	}
+	dec.hadPeeked = false
 	return jsonv2.Unmarshal(b, v, dec.opts)
 }
 
@@ -192,6 +197,9 @@ func (d Delim) String() string {
 // to mark the start and end of arrays and objects.
 // Commas and colons are elided.
 func (dec *Decoder) Token() (Token, error) {
+	if dec.err != nil {
+		return nil, dec.err
+	}
 	tok, err := dec.dec.ReadToken()
 	if err != nil {
 		// Historically, v1 would report just [io.EOF] if
@@ -206,6 +214,7 @@ func (dec *Decoder) Token() (Token, error) {
 		}
 		return nil, transformSyntacticError(err)
 	}
+	dec.hadPeeked = false
 	switch k := tok.Kind(); k {
 	case 'n':
 		return nil, nil
@@ -230,13 +239,40 @@ func (dec *Decoder) Token() (Token, error) {
 // More reports whether there is another element in the
 // current array or object being parsed.
 func (dec *Decoder) More() bool {
+	dec.hadPeeked = true
 	k := dec.dec.PeekKind()
-	return k > 0 && k != ']' && k != '}'
+	if k == 0 {
+		if dec.err == nil {
+			// PeekKind doesn't distinguish between EOF and error,
+			// so read the next token to see which we get.
+			_, err := dec.dec.ReadToken()
+			if err == nil {
+				// This is only possible if jsontext violates its documentation.
+				err = errors.New("json: successful read after failed peek")
+			}
+			dec.err = transformSyntacticError(err)
+		}
+		return dec.err != io.EOF
+	}
+	return k != ']' && k != '}'
 }
 
 // InputOffset returns the input stream byte offset of the current decoder position.
 // The offset gives the location of the end of the most recently returned token
 // and the beginning of the next token.
 func (dec *Decoder) InputOffset() int64 {
-	return dec.dec.InputOffset()
+	offset := dec.dec.InputOffset()
+	if dec.hadPeeked {
+		// Historically, InputOffset reported the location of
+		// the end of the most recently returned token
+		// unless [Decoder.More] is called, in which case, it reported
+		// the beginning of the next token.
+		unreadBuffer := dec.dec.UnreadBuffer()
+		trailingTokens := bytes.TrimLeft(unreadBuffer, " \n\r\t")
+		if len(trailingTokens) > 0 {
+			leadingWhitespace := len(unreadBuffer) - len(trailingTokens)
+			offset += int64(leadingWhitespace)
+		}
+	}
+	return offset
 }

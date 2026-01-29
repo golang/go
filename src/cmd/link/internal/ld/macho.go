@@ -106,11 +106,13 @@ const (
 	MACHO_ARM_RELOC_SECTDIFF             = 2
 	MACHO_ARM_RELOC_BR24                 = 5
 	MACHO_ARM64_RELOC_UNSIGNED           = 0
+	MACHO_ARM64_RELOC_SUBTRACTOR         = 1
 	MACHO_ARM64_RELOC_BRANCH26           = 2
 	MACHO_ARM64_RELOC_PAGE21             = 3
 	MACHO_ARM64_RELOC_PAGEOFF12          = 4
 	MACHO_ARM64_RELOC_GOT_LOAD_PAGE21    = 5
 	MACHO_ARM64_RELOC_GOT_LOAD_PAGEOFF12 = 6
+	MACHO_ARM64_RELOC_POINTER_TO_GOT     = 7
 	MACHO_ARM64_RELOC_ADDEND             = 10
 	MACHO_GENERIC_RELOC_VANILLA          = 0
 	MACHO_FAKE_GOTPCREL                  = 100
@@ -177,6 +179,8 @@ const (
 	BIND_SPECIAL_DYLIB_MAIN_EXECUTABLE = -1
 	BIND_SPECIAL_DYLIB_FLAT_LOOKUP     = -2
 	BIND_SPECIAL_DYLIB_WEAK_LOOKUP     = -3
+
+	BIND_SYMBOL_FLAGS_WEAK_IMPORT = 0x1
 
 	BIND_OPCODE_MASK                                         = 0xF0
 	BIND_IMMEDIATE_MASK                                      = 0x0F
@@ -917,7 +921,7 @@ func collectmachosyms(ctxt *Link) {
 			continue
 		}
 		t := ldr.SymType(s)
-		if t >= sym.SELFRXSECT && t < sym.SXREF { // data sections handled in dodata
+		if t >= sym.SELFRXSECT && t < sym.SFirstUnallocated { // data sections handled in dodata
 			if t == sym.STLSBSS {
 				// TLSBSS is not used on darwin. See data.go:allocateDataSections
 				continue
@@ -1252,7 +1256,7 @@ func machoEmitReloc(ctxt *Link) {
 	for i := 0; i < len(Segdwarf.Sections); i++ {
 		sect := Segdwarf.Sections[i]
 		si := dwarfp[i]
-		if si.secSym() != loader.Sym(sect.Sym) ||
+		if si.secSym() != sect.Sym ||
 			ctxt.loader.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}
@@ -1427,7 +1431,11 @@ func machoDyldInfo(ctxt *Link) {
 			bind.AddUint8(BIND_OPCODE_SET_DYLIB_SPECIAL_IMM | uint8(d)&0xf)
 		}
 
-		bind.AddUint8(BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM)
+		flags := uint8(0)
+		if ldr.SymWeakBinding(r.targ) {
+			flags |= BIND_SYMBOL_FLAGS_WEAK_IMPORT
+		}
+		bind.AddUint8(BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM | flags)
 		// target symbol name as a C string, with _ prefix
 		bind.AddUint8('_')
 		bind.Addstring(ldr.SymExtname(r.targ))
@@ -1533,11 +1541,11 @@ func machoCodeSign(ctxt *Link, fname string) error {
 		// Uodate the __LINKEDIT segment.
 		segSz := sigOff + sz - int64(linkeditSeg.Offset)
 		mf.ByteOrder.PutUint64(tmp[:8], uint64(segSz))
-		_, err = f.WriteAt(tmp[:8], int64(linkeditOff)+int64(unsafe.Offsetof(macho.Segment64{}.Memsz)))
+		_, err = f.WriteAt(tmp[:8], linkeditOff+int64(unsafe.Offsetof(macho.Segment64{}.Memsz)))
 		if err != nil {
 			return err
 		}
-		_, err = f.WriteAt(tmp[:8], int64(linkeditOff)+int64(unsafe.Offsetof(macho.Segment64{}.Filesz)))
+		_, err = f.WriteAt(tmp[:8], linkeditOff+int64(unsafe.Offsetof(macho.Segment64{}.Filesz)))
 		if err != nil {
 			return err
 		}

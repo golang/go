@@ -11,12 +11,12 @@ go mod init -C m1_24_rc0
 go mod edit -C m1_24_rc0 -go=1.24rc0 -toolchain=go1.99.2
 
 go work init
-grep '^go 1.50$' go.work
+grep '^go 1.48.0$' go.work
 ! grep toolchain go.work
 
-# work use with older modules should leave go 1.50 in the go.work.
+# work use with older modules should leave go 1.48.0 in the go.work.
 go work use ./m1_22_0
-grep '^go 1.50$' go.work
+grep '^go 1.48.0$' go.work
 ! grep toolchain go.work
 
 # work use with newer modules should bump go and toolchain,

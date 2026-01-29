@@ -7,7 +7,6 @@ package gcimporter
 import (
 	"go/token"
 	"go/types"
-	"internal/godebug"
 	"internal/pkgbits"
 	"slices"
 	"strings"
@@ -678,15 +677,8 @@ func pkgScope(pkg *types.Package) *types.Scope {
 
 // newAliasTypeName returns a new TypeName, with a materialized *types.Alias if supported.
 func newAliasTypeName(pos token.Pos, pkg *types.Package, name string, rhs types.Type, tparams []*types.TypeParam) *types.TypeName {
-	// When GODEBUG=gotypesalias=1 or unset, the Type() of the return value is a
-	// *types.Alias. Copied from x/tools/internal/aliases.NewAlias.
-	switch godebug.New("gotypesalias").Value() {
-	case "", "1":
-		tname := types.NewTypeName(pos, pkg, name, nil)
-		a := types.NewAlias(tname, rhs) // form TypeName -> Alias cycle
-		a.SetTypeParams(tparams)
-		return tname
-	}
-	assert(len(tparams) == 0)
-	return types.NewTypeName(pos, pkg, name, rhs)
+	tname := types.NewTypeName(pos, pkg, name, nil)
+	a := types.NewAlias(tname, rhs) // form TypeName -> Alias cycle
+	a.SetTypeParams(tparams)
+	return tname
 }

@@ -7,30 +7,30 @@
 package codegen
 
 func main() {
-	// amd64:"LEAQ\tcommand-line-arguments\\.main\\.f\\.g\\.h\\.func3"
+	// amd64:"LEAQ command-line-arguments\\.main\\.f\\.g\\.h\\.func3"
 	f(1)()
 
-	// amd64:"LEAQ\tcommand-line-arguments\\.main\\.g\\.h\\.func2"
+	// amd64:"LEAQ command-line-arguments\\.main\\.g\\.h\\.func2"
 	g(2)()
 
-	// amd64:"LEAQ\tcommand-line-arguments\\.main\\.h\\.func1"
+	// amd64:"LEAQ command-line-arguments\\.main\\.h\\.func1"
 	h(3)()
 
-	// amd64:"LEAQ\tcommand-line-arguments\\.main\\.f\\.g\\.h\\.func4"
+	// amd64:"LEAQ command-line-arguments\\.main\\.f\\.g\\.h\\.func4"
 	f(4)()
 }
 
 func f(x int) func() {
-	// amd64:"LEAQ\tcommand-line-arguments\\.f\\.g\\.h\\.func1"
+	// amd64:"LEAQ command-line-arguments\\.f\\.g\\.h\\.func1"
 	return g(x)
 }
 
 func g(x int) func() {
-	// amd64:"LEAQ\tcommand-line-arguments\\.g\\.h\\.func1"
+	// amd64:"LEAQ command-line-arguments\\.g\\.h\\.func1"
 	return h(x)
 }
 
 func h(x int) func() {
-	// amd64:"LEAQ\tcommand-line-arguments\\.h\\.func1"
+	// amd64:"LEAQ command-line-arguments\\.h\\.func1"
 	return func() { recover() }
 }

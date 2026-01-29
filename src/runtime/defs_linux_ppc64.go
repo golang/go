@@ -9,6 +9,7 @@ const (
 	_EINTR  = 0x4
 	_EAGAIN = 0xb
 	_ENOMEM = 0xc
+	_ENOSYS = 0x26
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1

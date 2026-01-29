@@ -486,7 +486,7 @@ func semacreate(mp *m) {
 func semasleep(ns int64) int {
 	gp := getg()
 	if ns >= 0 {
-		ms := timediv(ns, 1000000, nil)
+		ms := int32(ns / 1000000)
 		if ms == 0 {
 			ms = 1
 		}

@@ -506,7 +506,13 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (pPre, pPreempt, pCh
 		// Save LR and REGCTXT
 		const frameSize = 16
 		p = c.ctxt.StartUnsafePoint(p, c.newprog)
+
+		// Spill arguments. This has to happen before we open
+		// any more frame space.
+		p = c.cursym.Func().SpillRegisterArgs(p, c.newprog)
+
 		// MOVD LR, -16(SP)
+
 		p = obj.Appendp(p, c.newprog)
 		p.As = AMOVD
 		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
@@ -549,10 +555,12 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (pPre, pPreempt, pCh
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REGSP}
 		p.Spadj = -frameSize
 
+		// Unspill arguments
+		p = c.cursym.Func().UnspillRegisterArgs(p, c.newprog)
 		p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 	}
 
-	// MOVD	g_stackguard(g), R3
+	// MOVD	g_stackguard(g), R10
 	p = obj.Appendp(p, c.newprog)
 	// Jump back to here after morestack returns.
 	pCheck = p
@@ -565,7 +573,7 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (pPre, pPreempt, pCh
 		p.From.Offset = 3 * int64(c.ctxt.Arch.PtrSize) // G.stackguard1
 	}
 	p.To.Type = obj.TYPE_REG
-	p.To.Reg = REG_R3
+	p.To.Reg = REG_R10
 
 	// Mark the stack bound check and morestack call async nonpreemptible.
 	// If we get preempted here, when resumed the preemption request is
@@ -579,7 +587,7 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (pPre, pPreempt, pCh
 
 		p = obj.Appendp(p, c.newprog)
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R3
+		p.From.Reg = REG_R10
 		p.Reg = REGSP
 		p.As = ACMPUBGE
 		p.To.Type = obj.TYPE_BRANCH
@@ -598,40 +606,40 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (pPre, pPreempt, pCh
 		// stack guard to incorrectly succeed. We explicitly
 		// guard against underflow.
 		//
-		//	MOVD	$(framesize-StackSmall), R4
-		//	CMPUBLT	SP, R4, label-of-call-to-morestack
+		//	MOVD	$(framesize-StackSmall), R11
+		//	CMPUBLT	SP, R11, label-of-call-to-morestack
 
 		p = obj.Appendp(p, c.newprog)
 		p.As = AMOVD
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = offset
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R4
+		p.To.Reg = REG_R11
 
 		p = obj.Appendp(p, c.newprog)
 		pPreempt = p
 		p.As = ACMPUBLT
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REGSP
-		p.Reg = REG_R4
+		p.Reg = REG_R11
 		p.To.Type = obj.TYPE_BRANCH
 	}
 
 	// Check against the stack guard. We've ensured this won't underflow.
-	//	ADD $-(framesize-StackSmall), SP, R4
-	//	CMPUBGE stackguard, R4, label-of-call-to-morestack
+	//	ADD $-(framesize-StackSmall), SP, R11
+	//	CMPUBGE stackguard, R11, label-of-call-to-morestack
 	p = obj.Appendp(p, c.newprog)
 	p.As = AADD
 	p.From.Type = obj.TYPE_CONST
 	p.From.Offset = -offset
 	p.Reg = REGSP
 	p.To.Type = obj.TYPE_REG
-	p.To.Reg = REG_R4
+	p.To.Reg = REG_R11
 
 	p = obj.Appendp(p, c.newprog)
 	p.From.Type = obj.TYPE_REG
-	p.From.Reg = REG_R3
-	p.Reg = REG_R4
+	p.From.Reg = REG_R10
+	p.Reg = REG_R11
 	p.As = ACMPUBGE
 	p.To.Type = obj.TYPE_BRANCH
 
@@ -654,18 +662,22 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre, pPreempt, pCheck *obj.Prog, fr
 
 	pcdata := c.ctxt.EmitEntryStackMap(c.cursym, spfix, c.newprog)
 	pcdata = c.ctxt.StartUnsafePoint(pcdata, c.newprog)
+	if pPreempt != nil {
+		pPreempt.To.SetTarget(pcdata)
+	}
+	pPre.To.SetTarget(pcdata)
+
+	// Spill the register args that could be clobbered by the
+	// morestack code.
+	spill := c.cursym.Func().SpillRegisterArgs(pcdata, c.newprog)
 
 	// MOVD	LR, R5
-	p = obj.Appendp(pcdata, c.newprog)
-	pPre.To.SetTarget(p)
+	p = obj.Appendp(spill, c.newprog)
 	p.As = AMOVD
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = REG_LR
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R5
-	if pPreempt != nil {
-		pPreempt.To.SetTarget(p)
-	}
 
 	// BL	runtime.morestack(SB)
 	p = obj.Appendp(p, c.newprog)
@@ -680,10 +692,12 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre, pPreempt, pCheck *obj.Prog, fr
 		p.To.Sym = c.ctxt.Lookup("runtime.morestack")
 	}
 
+	// The instructions which unspill regs should be preemptible.
 	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
+	unspill := c.cursym.Func().UnspillRegisterArgs(p, c.newprog)
 
 	// BR	pCheck
-	p = obj.Appendp(p, c.newprog)
+	p = obj.Appendp(unspill, c.newprog)
 
 	p.As = ABR
 	p.To.Type = obj.TYPE_BRANCH

@@ -969,7 +969,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 				idx := t.columnIndex(wcol.Column)
 				if idx == -1 {
 					t.mu.Unlock()
-					return nil, fmt.Errorf("fakedb: invalid where clause column %q", wcol)
+					return nil, fmt.Errorf("fakedb: invalid where clause column %v", wcol)
 				}
 				tcol := trow.cols[idx]
 				if bs, ok := tcol.([]byte); ok {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -163,7 +164,7 @@ func init() {
 
 	def := defaultConfig()
 	configFieldMap = map[string]configField{}
-	t := reflect.TypeOf(config{})
+	t := reflect.TypeFor[config]()
 	for i, n := 0, t.NumField(); i < n; i++ {
 		field := t.Field(i)
 		js := strings.Split(field.Tag.Get("json"), ",")
@@ -226,11 +227,9 @@ func (cfg *config) set(f configField, value string) error {
 	case *string:
 		if len(f.choices) > 0 {
 			// Verify that value is one of the allowed choices.
-			for _, choice := range f.choices {
-				if choice == value {
-					*ptr = value
-					return nil
-				}
+			if slices.Contains(f.choices, value) {
+				*ptr = value
+				return nil
 			}
 			return fmt.Errorf("invalid %q value %q", f.name, value)
 		}

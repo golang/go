@@ -63,12 +63,12 @@ var rtPkgs = [...]string{
 	"internal/runtime/exithook",
 	"internal/runtime/gc",
 	"internal/runtime/math",
-	"internal/runtime/strconv",
 	"internal/runtime/sys",
 	"internal/runtime/maps",
 	"internal/runtime/syscall/linux",
 	"internal/runtime/syscall/windows",
 	"internal/runtime/cgroup",
+	"internal/strconv",
 	"internal/stringslite",
 	"runtime",
 }

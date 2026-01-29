@@ -26,7 +26,7 @@ func f1(a [256]int, i int) {
 	var j int
 	useInt(a[i]) // ERROR "Found IsInBounds$"
 	j = i % 256
-	useInt(a[j]) // ERROR "Found IsInBounds$"
+	useInt(a[j])
 	j = i & 255
 	useInt(a[j])
 	j = i & 17

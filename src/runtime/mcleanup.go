@@ -71,9 +71,17 @@ import (
 // mentions it. To ensure a cleanup does not get called prematurely,
 // pass the object to the [KeepAlive] function after the last point
 // where the object must remain reachable.
+//
+//go:nocheckptr
 func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
-	// Explicitly force ptr to escape to the heap.
+	// This is marked nocheckptr because checkptr doesn't understand the
+	// pointer manipulation done when looking at closure pointers.
+	// Similar code in mbitmap.go works because the functions are
+	// go:nosplit, which implies go:nocheckptr (CL 202158).
+
+	// Explicitly force ptr and cleanup to escape to the heap.
 	ptr = abi.Escape(ptr)
+	cleanup = abi.Escape(cleanup)
 
 	// The pointer to the object must be valid.
 	if ptr == nil {
@@ -82,7 +90,9 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 	usptr := uintptr(unsafe.Pointer(ptr))
 
 	// Check that arg is not equal to ptr.
-	if kind := abi.TypeOf(arg).Kind(); kind == abi.Pointer || kind == abi.UnsafePointer {
+	argType := abi.TypeOf(arg)
+	kind := argType.Kind()
+	if kind == abi.Pointer || kind == abi.UnsafePointer {
 		if unsafe.Pointer(ptr) == *((*unsafe.Pointer)(unsafe.Pointer(&arg))) {
 			panic("runtime.AddCleanup: ptr is equal to arg, cleanup will never run")
 		}
@@ -98,15 +108,26 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 		return Cleanup{}
 	}
 
-	fn := func() {
-		cleanup(arg)
+	// Create new storage for the argument.
+	var argv *S
+	if size := unsafe.Sizeof(arg); size < maxTinySize && argType.PtrBytes == 0 {
+		// Side-step the tiny allocator to avoid liveness issues, since this box
+		// will be treated like a root by the GC. We model the box as an array of
+		// uintptrs to guarantee maximum allocator alignment.
+		//
+		// TODO(mknyszek): Consider just making space in cleanupFn for this. The
+		// unfortunate part of this is it would grow specialCleanup by 16 bytes, so
+		// while there wouldn't be an allocation, *every* cleanup would take the
+		// memory overhead hit.
+		box := new([maxTinySize / goarch.PtrSize]uintptr)
+		argv = (*S)(unsafe.Pointer(box))
+	} else {
+		argv = new(S)
 	}
-	// Closure must escape.
-	fv := *(**funcval)(unsafe.Pointer(&fn))
-	fv = abi.Escape(fv)
+	*argv = arg
 
 	// Find the containing object.
-	base, _, _ := findObject(usptr, 0, 0)
+	base, span, _ := findObject(usptr, 0, 0)
 	if base == 0 {
 		if isGoPointerWithoutSpan(unsafe.Pointer(ptr)) {
 			// Cleanup is a noop.
@@ -115,12 +136,54 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 		panic("runtime.AddCleanup: ptr not in allocated block")
 	}
 
+	// Check that arg is not within ptr.
+	if kind == abi.Pointer || kind == abi.UnsafePointer {
+		argPtr := uintptr(*(*unsafe.Pointer)(unsafe.Pointer(&arg)))
+		if argPtr >= base && argPtr < base+span.elemsize {
+			// It's possible that both pointers are separate
+			// parts of a tiny allocation, which is OK.
+			// We side-stepped the tiny allocator above for
+			// the allocation for the cleanup,
+			// but the argument itself can still overlap
+			// with the value to which the cleanup is attached.
+			if span.spanclass != tinySpanClass {
+				panic("runtime.AddCleanup: ptr is within arg, cleanup will never run")
+			}
+		}
+	}
+
+	// Check that the cleanup function doesn't close over the pointer.
+	cleanupFV := unsafe.Pointer(*(**funcval)(unsafe.Pointer(&cleanup)))
+	cBase, cSpan, _ := findObject(uintptr(cleanupFV), 0, 0)
+	if cBase != 0 {
+		tp := cSpan.typePointersOfUnchecked(cBase)
+		for {
+			var addr uintptr
+			if tp, addr = tp.next(cBase + cSpan.elemsize); addr == 0 {
+				break
+			}
+			ptr := *(*uintptr)(unsafe.Pointer(addr))
+			if ptr >= base && ptr < base+span.elemsize {
+				panic("runtime.AddCleanup: cleanup function closes over ptr, cleanup will never run")
+			}
+		}
+	}
+
 	// Create another G if necessary.
 	if gcCleanups.needG() {
 		gcCleanups.createGs()
 	}
 
-	id := addCleanup(unsafe.Pointer(ptr), fv)
+	id := addCleanup(unsafe.Pointer(ptr), cleanupFn{
+		// Instantiate a caller function to call the cleanup, that is cleanup(*argv).
+		//
+		// TODO(mknyszek): This allocates because the generic dictionary argument
+		// gets closed over, but callCleanup doesn't even use the dictionary argument,
+		// so theoretically that could be removed, eliminating an allocation.
+		call: callCleanup[S],
+		fn:   *(**funcval)(unsafe.Pointer(&cleanup)),
+		arg:  unsafe.Pointer(argv),
+	})
 	if debug.checkfinalizers != 0 {
 		cleanupFn := *(**funcval)(unsafe.Pointer(&cleanup))
 		setCleanupContext(unsafe.Pointer(ptr), abi.TypeFor[T](), sys.GetCallerPC(), cleanupFn.fn, id)
@@ -129,6 +192,16 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 		id:  id,
 		ptr: usptr,
 	}
+}
+
+// callCleanup is a helper for calling cleanups in a polymorphic way.
+//
+// In practice, all it does is call fn(*arg). arg must be a *T.
+//
+//go:noinline
+func callCleanup[T any](fn *funcval, arg unsafe.Pointer) {
+	cleanup := *(*func(T))(unsafe.Pointer(&fn))
+	cleanup(*(*T)(arg))
 }
 
 // Cleanup is a handle to a cleanup call for a specific object.
@@ -216,7 +289,17 @@ const cleanupBlockSize = 512
 // that the cleanup queue does not grow during marking (but it can shrink).
 type cleanupBlock struct {
 	cleanupBlockHeader
-	cleanups [(cleanupBlockSize - unsafe.Sizeof(cleanupBlockHeader{})) / goarch.PtrSize]*funcval
+	cleanups [(cleanupBlockSize - unsafe.Sizeof(cleanupBlockHeader{})) / unsafe.Sizeof(cleanupFn{})]cleanupFn
+}
+
+var cleanupFnPtrMask = [...]uint8{0b111}
+
+// cleanupFn represents a cleanup function with it's argument, yet to be called.
+type cleanupFn struct {
+	// call is an adapter function that understands how to safely call fn(*arg).
+	call func(*funcval, unsafe.Pointer)
+	fn   *funcval       // cleanup function passed to AddCleanup.
+	arg  unsafe.Pointer // pointer to argument to pass to cleanup function.
 }
 
 var cleanupBlockPtrMask [cleanupBlockSize / goarch.PtrSize / 8]byte
@@ -245,8 +328,8 @@ type cleanupBlockHeader struct {
 //
 // Must only be called if the GC is in the sweep phase (gcphase == _GCoff),
 // because it does not synchronize with the garbage collector.
-func (b *cleanupBlock) enqueue(fn *funcval) bool {
-	b.cleanups[b.n] = fn
+func (b *cleanupBlock) enqueue(c cleanupFn) bool {
+	b.cleanups[b.n] = c
 	b.n++
 	return b.full()
 }
@@ -375,7 +458,7 @@ func (q *cleanupQueue) tryTakeWork() bool {
 // enqueue queues a single cleanup for execution.
 //
 // Called by the sweeper, and only the sweeper.
-func (q *cleanupQueue) enqueue(fn *funcval) {
+func (q *cleanupQueue) enqueue(c cleanupFn) {
 	mp := acquirem()
 	pp := mp.p.ptr()
 	b := pp.cleanups
@@ -396,7 +479,7 @@ func (q *cleanupQueue) enqueue(fn *funcval) {
 		}
 		pp.cleanups = b
 	}
-	if full := b.enqueue(fn); full {
+	if full := b.enqueue(c); full {
 		q.full.push(&b.lfnode)
 		pp.cleanups = nil
 		q.addWork(1)
@@ -641,7 +724,8 @@ func runCleanups() {
 
 		gcCleanups.beginRunningCleanups()
 		for i := 0; i < int(b.n); i++ {
-			fn := b.cleanups[i]
+			c := b.cleanups[i]
+			b.cleanups[i] = cleanupFn{}
 
 			var racectx uintptr
 			if raceenabled {
@@ -650,20 +734,15 @@ func runCleanups() {
 				// the same goroutine.
 				//
 				// Synchronize on fn. This would fail to find races on the
-				// closed-over values in fn (suppose fn is passed to multiple
-				// AddCleanup calls) if fn was not unique, but it is. Update
-				// the synchronization on fn if you intend to optimize it
-				// and store the cleanup function and cleanup argument on the
-				// queue directly.
-				racerelease(unsafe.Pointer(fn))
+				// closed-over values in fn (suppose arg is passed to multiple
+				// AddCleanup calls) if arg was not unique, but it is.
+				racerelease(unsafe.Pointer(c.arg))
 				racectx = raceEnterNewCtx()
-				raceacquire(unsafe.Pointer(fn))
+				raceacquire(unsafe.Pointer(c.arg))
 			}
 
 			// Execute the next cleanup.
-			cleanup := *(*func())(unsafe.Pointer(&fn))
-			cleanup()
-			b.cleanups[i] = nil
+			c.call(c.fn, c.arg)
 
 			if raceenabled {
 				// Restore the old context.

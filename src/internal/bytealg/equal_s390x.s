@@ -6,80 +6,92 @@
 #include "textflag.h"
 
 // memequal(a, b unsafe.Pointer, size uintptr) bool
-TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
-	MOVD	a+0(FP), R3
-	MOVD	b+8(FP), R5
-	MOVD	size+16(FP), R6
-	LA	ret+24(FP), R7
+TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
+#ifndef GOEXPERIMENT_regabiargs
+	MOVD	a+0(FP), R2
+	MOVD	b+8(FP), R3
+	MOVD	size+16(FP), R4
+	LA	ret+24(FP), R5
+#endif
 	BR	memeqbody<>(SB)
 
 // memequal_varlen(a, b unsafe.Pointer) bool
-TEXT runtime·memequal_varlen(SB),NOSPLIT|NOFRAME,$0-17
-	MOVD	a+0(FP), R3
-	MOVD	b+8(FP), R5
-	MOVD	8(R12), R6    // compiler stores size at offset 8 in the closure
-	LA	ret+16(FP), R7
+TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-17
+#ifndef GOEXPERIMENT_regabiargs
+	MOVD	a+0(FP), R2
+	MOVD	b+8(FP), R3
+	LA	ret+16(FP), R5
+#endif
+
+	MOVD	8(R12), R4    // compiler stores size at offset 8 in the closure
 	BR	memeqbody<>(SB)
 
 // input:
-//   R3 = a
-//   R5 = b
-//   R6 = len
-//   R7 = address of output byte (stores 0 or 1 here)
+//   R2 = a
+//   R3 = b
+//   R4 = len
+//   For regabiargs output value( 0/1 ) stored in R2
+//   For !regabiargs address of output byte( stores 0/1 ) stored in R5
 //   a and b have the same length
 TEXT memeqbody<>(SB),NOSPLIT|NOFRAME,$0-0
-	CMPBEQ	R3, R5, equal
+	CMPBEQ	R2, R3, equal
 loop:
-	CMPBEQ	R6, $0, equal
-	CMPBLT	R6, $32, tiny
-	CMP	R6, $256
+	CMPBEQ	R4, $0, equal
+	CMPBLT	R4, $32, tiny
+	CMP	R4, $256
 	BLT	tail
-	CLC	$256, 0(R3), 0(R5)
+	CLC	$256, 0(R2), 0(R3)
 	BNE	notequal
-	SUB	$256, R6
+	SUB	$256, R4
+	LA	256(R2), R2
 	LA	256(R3), R3
-	LA	256(R5), R5
 	BR	loop
 tail:
-	SUB	$1, R6, R8
+	SUB	$1, R4, R8
 	EXRL	$memeqbodyclc<>(SB), R8
 	BEQ	equal
 notequal:
-	MOVB	$0, 0(R7)
+	MOVD	$0, R2
+#ifndef GOEXPERIMENT_regabiargs
+	MOVB	R2, 0(R5)
+#endif
 	RET
 equal:
-	MOVB	$1, 0(R7)
+	MOVD	$1, R2
+#ifndef GOEXPERIMENT_regabiargs
+	MOVB	R2, 0(R5)
+#endif
 	RET
 tiny:
-	MOVD	$0, R2
-	CMPBLT	R6, $16, lt16
-	MOVD	0(R3), R8
-	MOVD	0(R5), R9
+	MOVD	$0, R1
+	CMPBLT	R4, $16, lt16
+	MOVD	0(R2), R8
+	MOVD	0(R3), R9
 	CMPBNE	R8, R9, notequal
-	MOVD	8(R3), R8
-	MOVD	8(R5), R9
+	MOVD	8(R2), R8
+	MOVD	8(R3), R9
 	CMPBNE	R8, R9, notequal
-	LA	16(R2), R2
-	SUB	$16, R6
+	LA	16(R1), R1
+	SUB	$16, R4
 lt16:
-	CMPBLT	R6, $8, lt8
-	MOVD	0(R3)(R2*1), R8
-	MOVD	0(R5)(R2*1), R9
+	CMPBLT	R4, $8, lt8
+	MOVD	0(R2)(R1*1), R8
+	MOVD	0(R3)(R1*1), R9
 	CMPBNE	R8, R9, notequal
-	LA	8(R2), R2
-	SUB	$8, R6
+	LA	8(R1), R1
+	SUB	$8, R4
 lt8:
-	CMPBLT	R6, $4, lt4
-	MOVWZ	0(R3)(R2*1), R8
-	MOVWZ	0(R5)(R2*1), R9
+	CMPBLT	R4, $4, lt4
+	MOVWZ	0(R2)(R1*1), R8
+	MOVWZ	0(R3)(R1*1), R9
 	CMPBNE	R8, R9, notequal
-	LA	4(R2), R2
-	SUB	$4, R6
+	LA	4(R1), R1
+	SUB	$4, R4
 lt4:
 #define CHECK(n) \
-	CMPBEQ	R6, $n, equal \
-	MOVB	n(R3)(R2*1), R8 \
-	MOVB	n(R5)(R2*1), R9 \
+	CMPBEQ	R4, $n, equal \
+	MOVB	n(R2)(R1*1), R8 \
+	MOVB	n(R3)(R1*1), R9 \
 	CMPBNE	R8, R9, notequal
 	CHECK(0)
 	CHECK(1)
@@ -88,5 +100,5 @@ lt4:
 	BR	equal
 
 TEXT memeqbodyclc<>(SB),NOSPLIT|NOFRAME,$0-0
-	CLC	$1, 0(R3), 0(R5)
+	CLC	$1, 0(R2), 0(R3)
 	RET

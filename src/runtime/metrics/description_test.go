@@ -156,3 +156,10 @@ func TestDocs(t *testing.T) {
 		fmt.Fprintf(os.Stderr, "go test -generate: doc.go already up-to-date\n")
 	}
 }
+
+func TestReadEmptySlice(t *testing.T) {
+	// Test that Read does not panic when given an empty slice.
+	// This should be a no-op.
+	metrics.Read(nil)
+	metrics.Read([]metrics.Sample{})
+}

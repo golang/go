@@ -53,6 +53,9 @@ func TestFileTransport(t *testing.T) {
 		if string(slurp) != "Bar" {
 			t.Errorf("for %s, got content %q, want %q", urlstr, string(slurp), "Bar")
 		}
+		if got := res.Request.URL.String(); got != urlstr {
+			t.Errorf("for %s, Response.Request.URL = %s, want = %s", urlstr, got, urlstr)
+		}
 	}
 
 	const badURL = "file://../no-exist.txt"

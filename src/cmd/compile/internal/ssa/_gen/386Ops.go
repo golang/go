@@ -90,22 +90,23 @@ func init() {
 
 	// Common regInfo
 	var (
-		gp01      = regInfo{inputs: nil, outputs: gponly}
-		gp11      = regInfo{inputs: []regMask{gp}, outputs: gponly}
-		gp11sp    = regInfo{inputs: []regMask{gpsp}, outputs: gponly}
-		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
-		gp21      = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
-		gp11carry = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp, 0}}
-		gp21carry = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
-		gp1carry1 = regInfo{inputs: []regMask{gp}, outputs: gponly}
-		gp2carry1 = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
-		gp21sp    = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly}
-		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
-		gp21shift = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}}
-		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax}, clobbers: dx}
-		gp21hmul  = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx}, clobbers: ax}
-		gp11mod   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{dx}, clobbers: ax}
-		gp21mul   = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx, ax}}
+		gp01           = regInfo{inputs: nil, outputs: gponly}
+		gp11           = regInfo{inputs: []regMask{gp}, outputs: gponly}
+		gp11sp         = regInfo{inputs: []regMask{gpsp}, outputs: gponly}
+		gp11sb         = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
+		gp21           = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
+		gp11carry      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp, 0}}
+		gp21carry      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
+		gp1carry1      = regInfo{inputs: []regMask{gp}, outputs: gponly}
+		gp2carry1      = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
+		gp2carry1carry = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
+		gp21sp         = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly}
+		gp21sb         = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
+		gp21shift      = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}}
+		gp11div        = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax}, clobbers: dx}
+		gp21hmul       = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx}, clobbers: ax}
+		gp11mod        = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{dx}, clobbers: ax}
+		gp21mul        = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx, ax}}
 
 		gp2flags     = regInfo{inputs: []regMask{gpsp, gpsp}}
 		gp1flags     = regInfo{inputs: []regMask{gpsp}}
@@ -181,10 +182,11 @@ func init() {
 		{name: "ADDL", argLength: 2, reg: gp21sp, asm: "ADDL", commutative: true, clobberFlags: true},                // arg0 + arg1
 		{name: "ADDLconst", argLength: 1, reg: gp11sp, asm: "ADDL", aux: "Int32", typ: "UInt32", clobberFlags: true}, // arg0 + auxint
 
-		{name: "ADDLcarry", argLength: 2, reg: gp21carry, asm: "ADDL", commutative: true, resultInArg0: true},                // arg0 + arg1, generates <carry,result> pair
-		{name: "ADDLconstcarry", argLength: 1, reg: gp11carry, asm: "ADDL", aux: "Int32", resultInArg0: true},                // arg0 + auxint, generates <carry,result> pair
-		{name: "ADCL", argLength: 3, reg: gp2carry1, asm: "ADCL", commutative: true, resultInArg0: true, clobberFlags: true}, // arg0+arg1+carry(arg2), where arg2 is flags
-		{name: "ADCLconst", argLength: 2, reg: gp1carry1, asm: "ADCL", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0+auxint+carry(arg1), where arg1 is flags
+		{name: "ADDLcarry", argLength: 2, reg: gp21carry, asm: "ADDL", commutative: true, resultInArg0: true},                          // arg0 + arg1, generates <carry,result> pair
+		{name: "ADDLconstcarry", argLength: 1, reg: gp11carry, asm: "ADDL", aux: "Int32", resultInArg0: true},                          // arg0 + auxint, generates <carry,result> pair
+		{name: "ADCL", argLength: 3, reg: gp2carry1, asm: "ADCL", commutative: true, resultInArg0: true, clobberFlags: true},           // arg0+arg1+carry(arg2), where arg2 is flags
+		{name: "ADCLcarry", argLength: 3, reg: gp2carry1carry, asm: "ADCL", commutative: true, resultInArg0: true, clobberFlags: true}, // arg0+arg1+carry(arg2), where arg2 is flags, generates <carry,result> pair
+		{name: "ADCLconst", argLength: 2, reg: gp1carry1, asm: "ADCL", aux: "Int32", resultInArg0: true, clobberFlags: true},           // arg0+auxint+carry(arg1), where arg1 is flags
 
 		{name: "SUBL", argLength: 2, reg: gp21, asm: "SUBL", resultInArg0: true, clobberFlags: true},                    // arg0 - arg1
 		{name: "SUBLconst", argLength: 1, reg: gp11, asm: "SUBL", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 - auxint

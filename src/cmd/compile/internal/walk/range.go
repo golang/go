@@ -23,7 +23,7 @@ func cheapComputableIndex(width int64) bool {
 	// MIPS does not have R+R addressing
 	// Arm64 may lack ability to generate this code in our assembler,
 	// but the architecture supports it.
-	case sys.PPC64, sys.S390X:
+	case sys.Loong64, sys.PPC64, sys.S390X:
 		return width == 1
 	case sys.AMD64, sys.I386, sys.ARM64, sys.ARM:
 		switch width {

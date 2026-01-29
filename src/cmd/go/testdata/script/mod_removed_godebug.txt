@@ -1,0 +1,11 @@
+# Test case that makes sure we print a nice error message
+# instead of the generic "unknown godebug" error message
+# for removed GODEBUGs.
+
+! go list
+stderr '^go.mod:3: use of removed godebug "x509sha1", see https://go.dev/doc/godebug#go-124$'
+
+-- go.mod --
+module example.com/bar
+
+godebug x509sha1=1

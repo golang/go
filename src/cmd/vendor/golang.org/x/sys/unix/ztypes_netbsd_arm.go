@@ -104,7 +104,7 @@ type Statvfs_t struct {
 	Fsid        uint32
 	Namemax     uint32
 	Owner       uint32
-	Spare       [4]uint32
+	Spare       [4]uint64
 	Fstypename  [32]byte
 	Mntonname   [1024]byte
 	Mntfromname [1024]byte

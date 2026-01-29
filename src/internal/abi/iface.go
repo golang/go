@@ -31,3 +31,11 @@ type NonEmptyInterface struct {
 	ITab *ITab
 	Data unsafe.Pointer
 }
+
+// CommonInterface describes the layout of both [EmptyInterface] and [NonEmptyInterface].
+type CommonInterface struct {
+	// Either an *ITab or a *Type, unexported to avoid accidental use.
+	_ unsafe.Pointer
+
+	Data unsafe.Pointer
+}

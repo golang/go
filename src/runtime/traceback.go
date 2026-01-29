@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/bytealg"
 	"internal/goarch"
+	"internal/runtime/pprof/label"
 	"internal/runtime/sys"
 	"internal/stringslite"
 	"unsafe"
@@ -429,7 +430,7 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 			// gp._defer for a defer corresponding to this function, but that
 			// is hard to do with defer records on the stack during a stack copy.)
 			// Note: the +1 is to offset the -1 that
-			// stack.go:getStackMap does to back up a return
+			// (*stkframe).getStackMap does to back up a return
 			// address make sure the pc is in the CALL instruction.
 		} else {
 			frame.continpc = 0
@@ -455,7 +456,7 @@ func (u *unwinder) next() {
 		// get everything, so crash loudly.
 		fail := u.flags&(unwindPrintErrors|unwindSilentErrors) == 0
 		doPrint := u.flags&unwindSilentErrors == 0
-		if doPrint && gp.m.incgo && f.funcID == abi.FuncID_sigpanic {
+		if doPrint && gp.m != nil && gp.m.incgo && f.funcID == abi.FuncID_sigpanic {
 			// We can inject sigpanic
 			// calls directly into C code,
 			// in which case we'll see a C
@@ -591,7 +592,7 @@ func (u *unwinder) symPC() uintptr {
 // If the current frame is not a cgo frame or if there's no registered cgo
 // unwinder, it returns 0.
 func (u *unwinder) cgoCallers(pcBuf []uintptr) int {
-	if cgoTraceback == nil || u.frame.fn.funcID != abi.FuncID_cgocallback || u.cgoCtxt < 0 {
+	if !cgoTracebackAvailable() || u.frame.fn.funcID != abi.FuncID_cgocallback || u.cgoCtxt < 0 {
 		// We don't have a cgo unwinder (typical case), or we do but we're not
 		// in a cgo frame or we're out of cgo context.
 		return 0
@@ -1014,7 +1015,7 @@ func traceback2(u *unwinder, showRuntime bool, skip, max int) (n, lastN int) {
 			anySymbolized := false
 			stop := false
 			for _, pc := range cgoBuf[:cgoN] {
-				if cgoSymbolizer == nil {
+				if !cgoSymbolizerAvailable() {
 					if pr, stop := commitFrame(); stop {
 						break
 					} else if pr {
@@ -1206,7 +1207,9 @@ var gStatusStrings = [...]string{
 	_Gwaiting:   "waiting",
 	_Gdead:      "dead",
 	_Gcopystack: "copystack",
+	_Gleaked:    "leaked",
 	_Gpreempted: "preempted",
+	_Gdeadextra: "waiting for cgo callback",
 }
 
 func goroutineheader(gp *g) {
@@ -1226,7 +1229,7 @@ func goroutineheader(gp *g) {
 	}
 
 	// Override.
-	if gpstatus == _Gwaiting && gp.waitreason != waitReasonZero {
+	if (gpstatus == _Gwaiting || gpstatus == _Gleaked) && gp.waitreason != waitReasonZero {
 		status = gp.waitreason.String()
 	}
 
@@ -1245,10 +1248,14 @@ func goroutineheader(gp *g) {
 		}
 	}
 	print(" [", status)
+	if gpstatus == _Gleaked {
+		print(" (leaked)")
+	}
 	if isScan {
 		print(" (scan)")
 	}
 	if bubble := gp.bubble; bubble != nil &&
+		gpstatus == _Gwaiting &&
 		gp.waitreason.isIdleInSynctest() &&
 		!stringslite.HasSuffix(status, "(durable)") {
 		// If this isn't a status where the name includes a (durable)
@@ -1263,6 +1270,19 @@ func goroutineheader(gp *g) {
 	}
 	if bubble := gp.bubble; bubble != nil {
 		print(", synctest bubble ", bubble.id)
+	}
+	if gp.labels != nil && debug.tracebacklabels.Load() == 1 {
+		labels := (*label.Set)(gp.labels).List
+		if len(labels) > 0 {
+			print(" labels:{")
+			for i, kv := range labels {
+				print(quoted(kv.Key), ": ", quoted(kv.Value))
+				if i < len(labels)-1 {
+					print(", ")
+				}
+			}
+			print("}")
+		}
 	}
 	print("]:\n")
 }
@@ -1290,7 +1310,16 @@ func tracebacksomeothers(me *g, showf func(*g) bool) {
 	// against concurrent creation of new Gs, but even with allglock we may
 	// miss Gs created after this loop.
 	forEachGRace(func(gp *g) {
-		if gp == me || gp == curgp || readgstatus(gp) == _Gdead || !showf(gp) || (isSystemGoroutine(gp, false) && level < 2) {
+		if gp == me || gp == curgp {
+			return
+		}
+		if status := readgstatus(gp); status == _Gdead || status == _Gdeadextra {
+			return
+		}
+		if !showf(gp) {
+			return
+		}
+		if isSystemGoroutine(gp, false) && level < 2 {
 			return
 		}
 		print("\n")
@@ -1299,7 +1328,16 @@ func tracebacksomeothers(me *g, showf func(*g) bool) {
 		// from a signal handler initiated during a systemstack call.
 		// The original G is still in the running state, and we want to
 		// print its stack.
-		if gp.m != getg().m && readgstatus(gp)&^_Gscan == _Grunning {
+		//
+		// There's a small window of time in exitsyscall where a goroutine could be
+		// in _Grunning as it's exiting a syscall. This could be the case even if the
+		// world is stopped or frozen.
+		//
+		// This is OK because the goroutine will not exit the syscall while the world
+		// is stopped or frozen. This is also why it's safe to check syscallsp here,
+		// and safe to take the goroutine's stack trace. The syscall path mutates
+		// syscallsp only just before exiting the syscall.
+		if gp.m != getg().m && readgstatus(gp)&^_Gscan == _Grunning && gp.syscallsp == 0 {
 			print("\tgoroutine running on other thread; stack unavailable\n")
 			printcreatedby(gp)
 		} else {
@@ -1342,16 +1380,19 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
 
 	// Print the hex dump.
 	print("stack: frame={sp:", hex(frame.sp), ", fp:", hex(frame.fp), "} stack=[", hex(stk.lo), ",", hex(stk.hi), ")\n")
-	hexdumpWords(lo, hi, func(p uintptr) byte {
-		switch p {
-		case frame.fp:
-			return '>'
-		case frame.sp:
-			return '<'
-		case bad:
-			return '!'
+	hexdumpWords(lo, hi-lo, func(p uintptr, m hexdumpMarker) {
+		if p == frame.fp {
+			m.start()
+			println("FP")
 		}
-		return 0
+		if p == frame.sp {
+			m.start()
+			println("SP")
+		}
+		if p == bad {
+			m.start()
+			println("bad")
+		}
 	})
 }
 
@@ -1572,16 +1613,36 @@ func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer)
 	cgoContext = context
 	cgoSymbolizer = symbolizer
 
-	// The context function is called when a C function calls a Go
-	// function. As such it is only called by C code in runtime/cgo.
-	if _cgo_set_context_function != nil {
-		cgocall(_cgo_set_context_function, context)
+	if _cgo_set_traceback_functions != nil {
+		type cgoSetTracebackFunctionsArg struct {
+			traceback  unsafe.Pointer
+			context    unsafe.Pointer
+			symbolizer unsafe.Pointer
+		}
+		arg := cgoSetTracebackFunctionsArg{
+			traceback:  traceback,
+			context:    context,
+			symbolizer: symbolizer,
+		}
+		cgocall(_cgo_set_traceback_functions, noescape(unsafe.Pointer(&arg)))
 	}
 }
 
 var cgoTraceback unsafe.Pointer
 var cgoContext unsafe.Pointer
 var cgoSymbolizer unsafe.Pointer
+
+func cgoTracebackAvailable() bool {
+	// - The traceback function must be registered via SetCgoTraceback.
+	// - This must be a cgo binary (providing _cgo_call_traceback_function).
+	return cgoTraceback != nil && _cgo_call_traceback_function != nil
+}
+
+func cgoSymbolizerAvailable() bool {
+	// - The symbolizer function must be registered via SetCgoTraceback.
+	// - This must be a cgo binary (providing _cgo_call_symbolizer_function).
+	return cgoSymbolizer != nil && _cgo_call_symbolizer_function != nil
+}
 
 // cgoTracebackArg is the type passed to cgoTraceback.
 type cgoTracebackArg struct {
@@ -1609,7 +1670,7 @@ type cgoSymbolizerArg struct {
 
 // printCgoTraceback prints a traceback of callers.
 func printCgoTraceback(callers *cgoCallers) {
-	if cgoSymbolizer == nil {
+	if !cgoSymbolizerAvailable() {
 		for _, c := range callers {
 			if c == 0 {
 				break
@@ -1634,6 +1695,8 @@ func printCgoTraceback(callers *cgoCallers) {
 // printOneCgoTraceback prints the traceback of a single cgo caller.
 // This can print more than one line because of inlining.
 // It returns the "stop" result of commitFrame.
+//
+// Preconditions: cgoSymbolizerAvailable returns true.
 func printOneCgoTraceback(pc uintptr, commitFrame func() (pr, stop bool), arg *cgoSymbolizerArg) bool {
 	arg.pc = pc
 	for {
@@ -1664,6 +1727,8 @@ func printOneCgoTraceback(pc uintptr, commitFrame func() (pr, stop bool), arg *c
 }
 
 // callCgoSymbolizer calls the cgoSymbolizer function.
+//
+// Preconditions: cgoSymbolizerAvailable returns true.
 func callCgoSymbolizer(arg *cgoSymbolizerArg) {
 	call := cgocall
 	if panicking.Load() > 0 || getg().m.curg != getg() {
@@ -1677,14 +1742,13 @@ func callCgoSymbolizer(arg *cgoSymbolizerArg) {
 	if asanenabled {
 		asanwrite(unsafe.Pointer(arg), unsafe.Sizeof(cgoSymbolizerArg{}))
 	}
-	call(cgoSymbolizer, noescape(unsafe.Pointer(arg)))
+	call(_cgo_call_symbolizer_function, noescape(unsafe.Pointer(arg)))
 }
 
 // cgoContextPCs gets the PC values from a cgo traceback.
+//
+// Preconditions: cgoTracebackAvailable returns true.
 func cgoContextPCs(ctxt uintptr, buf []uintptr) {
-	if cgoTraceback == nil {
-		return
-	}
 	call := cgocall
 	if panicking.Load() > 0 || getg().m.curg != getg() {
 		// We do not want to call into the scheduler when panicking
@@ -1702,5 +1766,5 @@ func cgoContextPCs(ctxt uintptr, buf []uintptr) {
 	if asanenabled {
 		asanwrite(unsafe.Pointer(&arg), unsafe.Sizeof(arg))
 	}
-	call(cgoTraceback, noescape(unsafe.Pointer(&arg)))
+	call(_cgo_call_traceback_function, noescape(unsafe.Pointer(&arg)))
 }

@@ -131,7 +131,9 @@ func rootMkdirAll(r *Root, fullname string, perm FileMode) error {
 			if try > 0 || !IsNotExist(err) {
 				return 0, &PathError{Op: "openat", Err: err}
 			}
-			if err := mkdirat(parent, name, perm); err != nil {
+			// Try again on EEXIST, because the directory may have been created
+			// by another process or thread between the rootOpenDir and mkdirat calls.
+			if err := mkdirat(parent, name, perm); err != nil && err != syscall.EEXIST {
 				return 0, &PathError{Op: "mkdirat", Err: err}
 			}
 		}

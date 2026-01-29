@@ -75,7 +75,7 @@ func PrintfTests() {
 	fmt.Printf("%b %b %b %b", 3e9, x, fslice, c)
 	fmt.Printf("%o %o", 3, i)
 	fmt.Printf("%p", p)
-	fmt.Printf("%q %q %q %q", 3, i, 'x', r)
+	fmt.Printf("%q %q %q", rune(3), 'x', r)
 	fmt.Printf("%s %s %s", "hi", s, []byte{65})
 	fmt.Printf("%t %t", true, b)
 	fmt.Printf("%T %T", 3, i)
@@ -162,7 +162,7 @@ func PrintfTests() {
 	Printf("hi")                       // ok
 	const format = "%s %s\n"
 	Printf(format, "hi", "there")
-	Printf(format, "hi")              // ERROR "Printf format %s reads arg #2, but call has 1 arg$"
+	Printf(format, "hi")              // ERROR "Printf format %s reads arg #2, but call has 1 arg"
 	Printf("%s %d %.3v %q", "str", 4) // ERROR "Printf format %.3v reads arg #3, but call has 2 args"
 	f := new(ptrStringer)
 	f.Warn(0, "%s", "hello", 3)           // ERROR "Warn call has possible Printf formatting directive %s"

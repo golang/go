@@ -321,6 +321,8 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	SetConsoleOutputCP(cp uint32) (err error) = kernel32.SetConsoleOutputCP
 //sys	WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, reserved *byte) (err error) = kernel32.WriteConsoleW
 //sys	ReadConsole(console Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) (err error) = kernel32.ReadConsoleW
+//sys	GetNumberOfConsoleInputEvents(console Handle, numevents *uint32) (err error) = kernel32.GetNumberOfConsoleInputEvents
+//sys	FlushConsoleInputBuffer(console Handle) (err error) = kernel32.FlushConsoleInputBuffer
 //sys	resizePseudoConsole(pconsole Handle, size uint32) (hr error) = kernel32.ResizePseudoConsole
 //sys	CreateToolhelp32Snapshot(flags uint32, processId uint32) (handle Handle, err error) [failretval==InvalidHandle] = kernel32.CreateToolhelp32Snapshot
 //sys	Module32First(snapshot Handle, moduleEntry *ModuleEntry32) (err error) = kernel32.Module32FirstW
@@ -890,8 +892,12 @@ const socket_error = uintptr(^uint32(0))
 //sys	MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int32, err error) = kernel32.MultiByteToWideChar
 //sys	getBestInterfaceEx(sockaddr unsafe.Pointer, pdwBestIfIndex *uint32) (errcode error) = iphlpapi.GetBestInterfaceEx
 //sys   GetIfEntry2Ex(level uint32, row *MibIfRow2) (errcode error) = iphlpapi.GetIfEntry2Ex
+//sys   GetIpForwardEntry2(row *MibIpForwardRow2) (errcode error) = iphlpapi.GetIpForwardEntry2
+//sys   GetIpForwardTable2(family uint16, table **MibIpForwardTable2) (errcode error) = iphlpapi.GetIpForwardTable2
 //sys   GetUnicastIpAddressEntry(row *MibUnicastIpAddressRow) (errcode error) = iphlpapi.GetUnicastIpAddressEntry
+//sys   FreeMibTable(memory unsafe.Pointer) = iphlpapi.FreeMibTable
 //sys   NotifyIpInterfaceChange(family uint16, callback uintptr, callerContext unsafe.Pointer, initialNotification bool, notificationHandle *Handle) (errcode error) = iphlpapi.NotifyIpInterfaceChange
+//sys   NotifyRouteChange2(family uint16, callback uintptr, callerContext unsafe.Pointer, initialNotification bool, notificationHandle *Handle) (errcode error) = iphlpapi.NotifyRouteChange2
 //sys   NotifyUnicastIpAddressChange(family uint16, callback uintptr, callerContext unsafe.Pointer, initialNotification bool, notificationHandle *Handle) (errcode error) = iphlpapi.NotifyUnicastIpAddressChange
 //sys   CancelMibChangeNotify2(notificationHandle Handle) (errcode error) = iphlpapi.CancelMibChangeNotify2
 
@@ -912,6 +918,17 @@ type RawSockaddrInet6 struct {
 	Flowinfo uint32
 	Addr     [16]byte /* in6_addr */
 	Scope_id uint32
+}
+
+// RawSockaddrInet is a union that contains an IPv4, an IPv6 address, or an address family. See
+// https://learn.microsoft.com/en-us/windows/win32/api/ws2ipdef/ns-ws2ipdef-sockaddr_inet.
+//
+// A [*RawSockaddrInet] may be converted to a [*RawSockaddrInet4] or [*RawSockaddrInet6] using
+// unsafe, depending on the address family.
+type RawSockaddrInet struct {
+	Family uint16
+	Port   uint16
+	Data   [6]uint32
 }
 
 type RawSockaddr struct {

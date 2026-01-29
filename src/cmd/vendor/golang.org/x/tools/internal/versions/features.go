@@ -7,13 +7,18 @@ package versions
 // This file contains predicates for working with file versions to
 // decide when a tool should consider a language feature enabled.
 
-// GoVersions that features in x/tools can be gated to.
+// named constants, to avoid misspelling
 const (
+	Go1_17 = "go1.17"
 	Go1_18 = "go1.18"
 	Go1_19 = "go1.19"
 	Go1_20 = "go1.20"
 	Go1_21 = "go1.21"
 	Go1_22 = "go1.22"
+	Go1_23 = "go1.23"
+	Go1_24 = "go1.24"
+	Go1_25 = "go1.25"
+	Go1_26 = "go1.26"
 )
 
 // Future is an invalid unknown Go version sometime in the future.

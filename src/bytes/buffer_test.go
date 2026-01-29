@@ -531,6 +531,40 @@ func TestReadString(t *testing.T) {
 	}
 }
 
+var peekTests = []struct {
+	buffer   string
+	skip     int
+	n        int
+	expected string
+	err      error
+}{
+	{"", 0, 0, "", nil},
+	{"aaa", 0, 3, "aaa", nil},
+	{"foobar", 0, 2, "fo", nil},
+	{"a", 0, 2, "a", io.EOF},
+	{"helloworld", 4, 3, "owo", nil},
+	{"helloworld", 5, 5, "world", nil},
+	{"helloworld", 5, 6, "world", io.EOF},
+	{"helloworld", 10, 1, "", io.EOF},
+}
+
+func TestPeek(t *testing.T) {
+	for _, test := range peekTests {
+		buf := NewBufferString(test.buffer)
+		buf.Next(test.skip)
+		bytes, err := buf.Peek(test.n)
+		if string(bytes) != test.expected {
+			t.Errorf("expected %q, got %q", test.expected, bytes)
+		}
+		if err != test.err {
+			t.Errorf("expected error %v, got %v", test.err, err)
+		}
+		if buf.Len() != len(test.buffer)-test.skip {
+			t.Errorf("bad length after peek: %d, want %d", buf.Len(), len(test.buffer)-test.skip)
+		}
+	}
+}
+
 func BenchmarkReadString(b *testing.B) {
 	const n = 32 << 10
 

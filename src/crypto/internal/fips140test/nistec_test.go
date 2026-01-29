@@ -18,7 +18,7 @@ import (
 func TestNISTECAllocations(t *testing.T) {
 	cryptotest.SkipTestAllocations(t)
 	t.Run("P224", func(t *testing.T) {
-		if allocs := testing.AllocsPerRun(10, func() {
+		if allocs := testing.AllocsPerRun(100, func() {
 			p := nistec.NewP224Point().SetGenerator()
 			scalar := make([]byte, 28)
 			rand.Read(scalar)
@@ -37,7 +37,7 @@ func TestNISTECAllocations(t *testing.T) {
 		}
 	})
 	t.Run("P256", func(t *testing.T) {
-		if allocs := testing.AllocsPerRun(10, func() {
+		if allocs := testing.AllocsPerRun(100, func() {
 			p := nistec.NewP256Point().SetGenerator()
 			scalar := make([]byte, 32)
 			rand.Read(scalar)
@@ -56,7 +56,7 @@ func TestNISTECAllocations(t *testing.T) {
 		}
 	})
 	t.Run("P384", func(t *testing.T) {
-		if allocs := testing.AllocsPerRun(10, func() {
+		if allocs := testing.AllocsPerRun(100, func() {
 			p := nistec.NewP384Point().SetGenerator()
 			scalar := make([]byte, 48)
 			rand.Read(scalar)
@@ -75,7 +75,7 @@ func TestNISTECAllocations(t *testing.T) {
 		}
 	})
 	t.Run("P521", func(t *testing.T) {
-		if allocs := testing.AllocsPerRun(10, func() {
+		if allocs := testing.AllocsPerRun(100, func() {
 			p := nistec.NewP521Point().SetGenerator()
 			scalar := make([]byte, 66)
 			rand.Read(scalar)

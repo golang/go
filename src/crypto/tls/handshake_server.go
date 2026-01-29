@@ -357,7 +357,7 @@ func negotiateALPN(serverProtos, clientProtos []string, quic bool) (string, erro
 	if http11fallback {
 		return "", nil
 	}
-	return "", fmt.Errorf("tls: client requested unsupported application protocols (%s)", clientProtos)
+	return "", fmt.Errorf("tls: client requested unsupported application protocols (%q)", clientProtos)
 }
 
 // supportsECDHE returns whether ECDHE key exchanges can be used with this
@@ -523,8 +523,13 @@ func (hs *serverHandshakeState) checkForResumption() error {
 	if sessionHasClientCerts && c.config.time().After(sessionState.peerCertificates[0].NotAfter) {
 		return nil
 	}
+	opts := x509.VerifyOptions{
+		CurrentTime: c.config.time(),
+		Roots:       c.config.ClientCAs,
+		KeyUsages:   []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
 	if sessionHasClientCerts && c.config.ClientAuth >= VerifyClientCertIfGiven &&
-		len(sessionState.verifiedChains) == 0 {
+		!anyValidVerifiedChain(sessionState.verifiedChains, opts) {
 		return nil
 	}
 
@@ -780,19 +785,27 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 				tlssha1.Value() // ensure godebug is initialized
 				tlssha1.IncNonDefault()
 			}
+			if hs.finishedHash.buffer == nil {
+				c.sendAlert(alertInternalError)
+				return errors.New("tls: internal error: did not keep handshake transcript for TLS 1.2")
+			}
+			if err := verifyHandshakeSignature(sigType, pub, sigHash, hs.finishedHash.buffer, certVerify.signature); err != nil {
+				c.sendAlert(alertDecryptError)
+				return errors.New("tls: invalid signature by the client certificate: " + err.Error())
+			}
 		} else {
 			sigType, sigHash, err = legacyTypeAndHashFromPublicKey(pub)
 			if err != nil {
 				c.sendAlert(alertIllegalParameter)
 				return err
 			}
+			signed := hs.finishedHash.hashForClientCertificate(sigType)
+			if err := verifyLegacyHandshakeSignature(sigType, pub, sigHash, signed, certVerify.signature); err != nil {
+				c.sendAlert(alertDecryptError)
+				return errors.New("tls: invalid signature by the client certificate: " + err.Error())
+			}
 		}
 
-		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash)
-		if err := verifyHandshakeSignature(sigType, pub, sigHash, signed, certVerify.signature); err != nil {
-			c.sendAlert(alertDecryptError)
-			return errors.New("tls: invalid signature by the client certificate: " + err.Error())
-		}
 		c.peerSigAlg = certVerify.signatureAlgorithm
 
 		if err := transcriptMsg(certVerify, &hs.finishedHash); err != nil {
@@ -965,10 +978,9 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 
 		chains, err := certs[0].Verify(opts)
 		if err != nil {
-			var errCertificateInvalid x509.CertificateInvalidError
-			if errors.As(err, &x509.UnknownAuthorityError{}) {
+			if _, ok := errors.AsType[x509.UnknownAuthorityError](err); ok {
 				c.sendAlert(alertUnknownCA)
-			} else if errors.As(err, &errCertificateInvalid) && errCertificateInvalid.Reason == x509.Expired {
+			} else if errCertificateInvalid, ok := errors.AsType[x509.CertificateInvalidError](err); ok && errCertificateInvalid.Reason == x509.Expired {
 				c.sendAlert(alertCertificateExpired)
 			} else {
 				c.sendAlert(alertBadCertificate)
@@ -1022,6 +1034,7 @@ func clientHelloInfo(ctx context.Context, c *Conn, clientHello *clientHelloMsg) 
 		SupportedVersions: supportedVersions,
 		Extensions:        clientHello.extensions,
 		Conn:              c.conn,
+		HelloRetryRequest: c.didHRR,
 		config:            c.config,
 		ctx:               ctx,
 	}

@@ -48,6 +48,7 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
 	"unsafe"
@@ -55,10 +56,12 @@ import (
 
 const (
 	// The size of a bitmap chunk, i.e. the amount of bits (that is, pages) to consider
-	// in the bitmap at once.
+	// in the bitmap at once. It is 4MB on most platforms, except on Wasm it is 512KB.
+	// We use a smaller chuck size on Wasm for the same reason as the smaller arena
+	// size (see heapArenaBytes).
 	pallocChunkPages    = 1 << logPallocChunkPages
 	pallocChunkBytes    = pallocChunkPages * pageSize
-	logPallocChunkPages = 9
+	logPallocChunkPages = 9*(1-goarch.IsWasm) + 6*goarch.IsWasm
 	logPallocChunkBytes = logPallocChunkPages + gc.PageShift
 
 	// The number of radix bits for each level.
@@ -220,6 +223,7 @@ type pageAlloc struct {
 	// heapAddrBits | L1 Bits | L2 Bits | L2 Entry Size
 	// ------------------------------------------------
 	// 32           | 0       | 10      | 128 KiB
+	// 32 (wasm)    | 0       | 13      | 128 KiB
 	// 33 (iOS)     | 0       | 11      | 256 KiB
 	// 48           | 13      | 13      | 1 MiB
 	//

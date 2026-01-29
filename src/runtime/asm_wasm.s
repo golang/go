@@ -200,7 +200,7 @@ TEXT runtime·asminit(SB), NOSPLIT, $0-0
 TEXT ·publicationBarrier(SB), NOSPLIT, $0-0
 	RET
 
-TEXT runtime·procyield(SB), NOSPLIT, $0-0 // FIXME
+TEXT runtime·procyieldAsm(SB), NOSPLIT, $0-0 // FIXME
 	RET
 
 TEXT runtime·breakpoint(SB), NOSPLIT, $0-0

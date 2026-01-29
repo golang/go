@@ -4,7 +4,7 @@
 
 //go:build darwin
 
-package macOS
+package macos
 
 import (
 	"errors"

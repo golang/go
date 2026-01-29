@@ -53,10 +53,19 @@ func gofmtFlags(filename string, maxLines int) string {
 	return ""
 }
 
-func runTest(t *testing.T, in, out string) {
-	// process flags
-	*simplifyAST = false
+// Reset global variables for all flags to their default value.
+func resetFlags() {
+	*list = false
+	*write = false
 	*rewriteRule = ""
+	*simplifyAST = false
+	*doDiff = false
+	*allErrors = false
+	*cpuprofile = ""
+}
+
+func runTest(t *testing.T, in, out string) {
+	resetFlags()
 	info, err := os.Lstat(in)
 	if err != nil {
 		t.Error(err)
@@ -156,6 +165,46 @@ func TestRewrite(t *testing.T) {
 				runTest(t, out, out)
 			}
 		})
+	}
+}
+
+// TestDiff runs gofmt with the -d flag on the input files and checks that the
+// expected exit code is set.
+func TestDiff(t *testing.T) {
+	tests := []struct {
+		in       string
+		exitCode int
+	}{
+		{in: "testdata/exitcode.input", exitCode: 1},
+		{in: "testdata/exitcode.golden", exitCode: 0},
+	}
+
+	for _, tt := range tests {
+		resetFlags()
+		*doDiff = true
+
+		initParserMode()
+		initRewrite()
+
+		info, err := os.Lstat(tt.in)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		const maxWeight = 2 << 20
+		var buf, errBuf bytes.Buffer
+		s := newSequencer(maxWeight, &buf, &errBuf)
+		s.Add(fileWeight(tt.in, info), func(r *reporter) error {
+			return processFile(tt.in, info, nil, r)
+		})
+		if errBuf.Len() > 0 {
+			t.Logf("%q", errBuf.Bytes())
+		}
+
+		if s.GetExitCode() != tt.exitCode {
+			t.Errorf("%s: expected exit code %d, got %d", tt.in, tt.exitCode, s.GetExitCode())
+		}
 	}
 }
 

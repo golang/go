@@ -173,7 +173,6 @@ func init() {
 		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true, typ: "UInt32"}, // arg0 ^ arg1
 		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int32", typ: "UInt32"}, // arg0 ^ auxInt
 		{name: "NOR", argLength: 2, reg: gp21, asm: "NOR", commutative: true},                // ^(arg0 | arg1)
-		{name: "NORconst", argLength: 1, reg: gp11, asm: "NOR", aux: "Int32"},                // ^(arg0 | auxInt)
 
 		{name: "NEG", argLength: 1, reg: gp11},                 // -arg0
 		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"},   // -arg0, float32

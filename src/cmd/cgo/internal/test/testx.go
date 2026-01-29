@@ -11,6 +11,7 @@
 package cgotest
 
 import (
+	"internal/runtime/sys"
 	"runtime"
 	"runtime/cgo"
 	"runtime/debug"
@@ -447,7 +448,7 @@ func issue7978check(t *testing.T, wantFunc string, badFunc string, depth int) {
 	runtime.GC()
 	buf := make([]byte, 65536)
 	trace := string(buf[:runtime.Stack(buf, true)])
-	for _, goroutine := range strings.Split(trace, "\n\n") {
+	for goroutine := range strings.SplitSeq(trace, "\n\n") {
 		if strings.Contains(goroutine, "test.issue7978go") {
 			trace := strings.Split(goroutine, "\n")
 			// look for the expected function in the stack
@@ -594,4 +595,30 @@ func test49633(t *testing.T) {
 	if v.msg != "hello" {
 		t.Errorf("msg = %q, want 'hello'", v.msg)
 	}
+}
+
+//export exportAny76340Param
+func exportAny76340Param(obj any) C.int {
+	if obj == nil {
+		return 0
+	}
+
+	return 1
+}
+
+//export exportAny76340Return
+func exportAny76340Return(val C.int) any {
+	if val == 0 {
+		return nil
+	}
+
+	return int(val)
+}
+
+//export ditCallback
+func ditCallback() uint8 {
+	if sys.DITEnabled() {
+		return 1
+	}
+	return 0
 }

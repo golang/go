@@ -80,31 +80,42 @@ func gofips140() string {
 	if isFIPSVersion(v) {
 		return v
 	}
-	Error = fmt.Errorf("invalid GOFIPS140: must be off, latest, inprocess, certified, or vX.Y.Z")
+	Error = fmt.Errorf("invalid GOFIPS140: must be off, latest, inprocess, certified, or v1.Y.Z")
 	return DefaultGOFIPS140
 }
 
 // isFIPSVersion reports whether v is a valid FIPS version,
-// of the form vX.Y.Z.
+// of the form v1.Y.Z or v1.Y.Z-hhhhhhhh or v1.Y.Z-rcN.
 func isFIPSVersion(v string) bool {
-	if !strings.HasPrefix(v, "v") {
+	v, ok := strings.CutPrefix(v, "v1.")
+	if !ok {
 		return false
 	}
-	v, ok := skipNum(v[len("v"):])
-	if !ok || !strings.HasPrefix(v, ".") {
+	if v, ok = cutNum(v); !ok {
 		return false
 	}
-	v, ok = skipNum(v[len("."):])
-	if !ok || !strings.HasPrefix(v, ".") {
+	if v, ok = strings.CutPrefix(v, "."); !ok {
 		return false
 	}
-	v, ok = skipNum(v[len("."):])
-	return ok && v == ""
+	if v, ok = cutNum(v); !ok {
+		return false
+	}
+	if v == "" {
+		return true
+	}
+	if v, ok = strings.CutPrefix(v, "-rc"); ok {
+		v, ok = cutNum(v)
+		return ok && v == ""
+	}
+	if v, ok = strings.CutPrefix(v, "-"); ok {
+		return len(v) == 8
+	}
+	return false
 }
 
-// skipNum skips the leading text matching [0-9]+
+// cutNum skips the leading text matching [0-9]+
 // in s, returning the rest and whether such text was found.
-func skipNum(s string) (rest string, ok bool) {
+func cutNum(s string) (rest string, ok bool) {
 	i := 0
 	for i < len(s) && '0' <= s[i] && s[i] <= '9' {
 		i++
@@ -320,28 +331,23 @@ func goriscv64() int {
 }
 
 type gowasmFeatures struct {
-	SatConv bool
-	SignExt bool
+	// Legacy features, now always enabled
+	//SatConv bool
+	//SignExt bool
 }
 
 func (f gowasmFeatures) String() string {
 	var flags []string
-	if f.SatConv {
-		flags = append(flags, "satconv")
-	}
-	if f.SignExt {
-		flags = append(flags, "signext")
-	}
 	return strings.Join(flags, ",")
 }
 
 func gowasm() (f gowasmFeatures) {
-	for _, opt := range strings.Split(envOr("GOWASM", ""), ",") {
+	for opt := range strings.SplitSeq(envOr("GOWASM", ""), ",") {
 		switch opt {
 		case "satconv":
-			f.SatConv = true
+			// ignore, always enabled
 		case "signext":
-			f.SignExt = true
+			// ignore, always enabled
 		case "":
 			// ignore
 		default:
@@ -451,12 +457,10 @@ func gogoarchTags() []string {
 		return list
 	case "wasm":
 		var list []string
-		if GOWASM.SatConv {
-			list = append(list, GOARCH+".satconv")
-		}
-		if GOWASM.SignExt {
-			list = append(list, GOARCH+".signext")
-		}
+		// SatConv is always enabled
+		list = append(list, GOARCH+".satconv")
+		// SignExt is always enabled
+		list = append(list, GOARCH+".signext")
 		return list
 	}
 	return nil

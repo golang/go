@@ -18,7 +18,7 @@ import (
 
 type rawFile interface {
 	symbols() (syms []Sym, err error)
-	pcln() (textStart uint64, symtab, pclntab []byte, err error)
+	pcln() (textStart uint64, pclntab []byte, err error)
 	text() (textStart uint64, text []byte, err error)
 	goarch() string
 	loadAddress() (uint64, error)
@@ -141,7 +141,7 @@ func (e *Entry) PCLineTable() (Liner, error) {
 		return pcln, nil
 	}
 	// Otherwise, read the pcln tables and build a Liner out of that.
-	textStart, symtab, pclntab, err := e.raw.pcln()
+	textStart, pclntab, err := e.raw.pcln()
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func (e *Entry) PCLineTable() (Liner, error) {
 			}
 		}
 	}
-	return gosym.NewTable(symtab, gosym.NewLineTable(pclntab, textStart))
+	return gosym.NewTable(nil, gosym.NewLineTable(pclntab, textStart))
 }
 
 func (e *Entry) Text() (uint64, []byte, error) {

@@ -92,7 +92,7 @@ func (p *Process) signal(sig Signal) error {
 
 func (p *Process) pidSignal(s syscall.Signal) error {
 	if p.Pid == pidReleased {
-		return errors.New("os: process already released")
+		return errProcessReleased
 	}
 	if p.Pid == pidUnset {
 		return errors.New("os: process not initialized")
@@ -105,7 +105,7 @@ func (p *Process) pidSignal(s syscall.Signal) error {
 	case statusDone:
 		return ErrProcessDone
 	case statusReleased:
-		return errors.New("os: process already released")
+		return errProcessReleased
 	}
 
 	return convertESRCH(syscall.Kill(p.Pid, s))

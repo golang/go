@@ -368,7 +368,7 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 			Err:      err,
 		})
 	}
-	errorf := func(format string, args ...interface{}) {
+	errorf := func(format string, args ...any) {
 		wrapError(fmt.Errorf(format, args...))
 	}
 
@@ -574,7 +574,7 @@ func parseReplace(filename string, line *Line, verb string, args []string, fix V
 			Err:      err,
 		}
 	}
-	errorf := func(format string, args ...interface{}) *Error {
+	errorf := func(format string, args ...any) *Error {
 		return wrapError(fmt.Errorf(format, args...))
 	}
 
@@ -685,7 +685,7 @@ func (f *WorkFile) add(errs *ErrorList, line *Line, verb string, args []string, 
 			Err:      err,
 		})
 	}
-	errorf := func(format string, args ...interface{}) {
+	errorf := func(format string, args ...any) {
 		wrapError(fmt.Errorf(format, args...))
 	}
 
@@ -1594,7 +1594,7 @@ func (f *File) AddRetract(vi VersionInterval, rationale string) error {
 		r.Syntax = f.Syntax.addLine(nil, "retract", "[", AutoQuote(vi.Low), ",", AutoQuote(vi.High), "]")
 	}
 	if rationale != "" {
-		for _, line := range strings.Split(rationale, "\n") {
+		for line := range strings.SplitSeq(rationale, "\n") {
 			com := Comment{Token: "// " + line}
 			r.Syntax.Comment().Before = append(r.Syntax.Comment().Before, com)
 		}

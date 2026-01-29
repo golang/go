@@ -36,6 +36,11 @@ type largeScalar [UserArenaChunkBytes + 1]byte
 type largePointer [UserArenaChunkBytes/unsafe.Sizeof(&smallPointer{}) + 1]*smallPointer
 
 func TestUserArena(t *testing.T) {
+	if Clobberfree() {
+		// This test crashes with SEGV in clobberfree in mgcsweep.go with GODEBUG=clobberfree=1.
+		t.Skip("triggers SEGV with GODEBUG=clobberfree=1")
+	}
+
 	// Set GOMAXPROCS to 2 so we don't run too many of these
 	// tests in parallel.
 	defer GOMAXPROCS(GOMAXPROCS(2))
@@ -228,6 +233,11 @@ func runSubTestUserArenaSlice[S comparable](t *testing.T, value []S, parallel bo
 }
 
 func TestUserArenaLiveness(t *testing.T) {
+	if Clobberfree() {
+		// This test crashes with SEGV in clobberfree in mgcsweep.go with GODEBUG=clobberfree=1.
+		t.Skip("triggers SEGV with GODEBUG=clobberfree=1")
+	}
+
 	t.Run("Free", func(t *testing.T) {
 		testUserArenaLiveness(t, false)
 	})
@@ -320,6 +330,11 @@ func testUserArenaLiveness(t *testing.T, useArenaFinalizer bool) {
 }
 
 func TestUserArenaClearsPointerBits(t *testing.T) {
+	if Clobberfree() {
+		// This test crashes with SEGV in clobberfree in mgcsweep.go with GODEBUG=clobberfree=1.
+		t.Skip("triggers SEGV with GODEBUG=clobberfree=1")
+	}
+
 	// This is a regression test for a serious issue wherein if pointer bits
 	// aren't properly cleared, it's possible to allocate scalar data down
 	// into a previously pointer-ful area, causing misinterpretation by the GC.

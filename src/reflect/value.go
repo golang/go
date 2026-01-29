@@ -8,8 +8,9 @@ import (
 	"errors"
 	"internal/abi"
 	"internal/goarch"
-	"internal/itoa"
+	"internal/strconv"
 	"internal/unsafeheader"
+	"iter"
 	"math"
 	"runtime"
 	"unsafe"
@@ -120,10 +121,16 @@ func (v Value) pointer() unsafe.Pointer {
 
 // packEface converts v to the empty interface.
 func packEface(v Value) any {
+	return *(*any)(unsafe.Pointer(&abi.EmptyInterface{
+		Type: v.typ(),
+		Data: packEfaceData(v),
+	}))
+}
+
+// packEfaceData is a helper that packs the Data part of an interface,
+// if v were to be stored in an interface.
+func packEfaceData(v Value) unsafe.Pointer {
 	t := v.typ()
-	// Declare e as a struct (and not pointer to struct) to help escape analysis.
-	e := abi.EmptyInterface{}
-	// First, fill in the data portion of the interface.
 	switch {
 	case !t.IsDirectIface():
 		if v.flag&flagIndir == 0 {
@@ -136,24 +143,20 @@ func packEface(v Value) any {
 			typedmemmove(t, c, ptr)
 			ptr = c
 		}
-		e.Data = ptr
+		return ptr
 	case v.flag&flagIndir != 0:
 		// Value is indirect, but interface is direct. We need
 		// to load the data at v.ptr into the interface data word.
-		e.Data = *(*unsafe.Pointer)(v.ptr)
+		return *(*unsafe.Pointer)(v.ptr)
 	default:
 		// Value is direct, and so is the interface.
-		e.Data = v.ptr
+		return v.ptr
 	}
-	// Now, fill in the type portion.
-	e.Type = t
-	return *(*any)(unsafe.Pointer(&e))
 }
 
 // unpackEface converts the empty interface i to a Value.
 func unpackEface(i any) Value {
 	e := (*abi.EmptyInterface)(unsafe.Pointer(&i))
-	// NOTE: don't read e.word until we know whether it is really a pointer or not.
 	t := e.Type
 	if t == nil {
 		return Value{}
@@ -359,6 +362,7 @@ func (v Value) CanSet() bool {
 // type of the function's corresponding input parameter.
 // If v is a variadic function, Call creates the variadic slice parameter
 // itself, copying in the corresponding values.
+// It panics if the Value was obtained by accessing unexported struct fields.
 func (v Value) Call(in []Value) []Value {
 	v.mustBe(Func)
 	v.mustBeExported()
@@ -372,6 +376,7 @@ func (v Value) Call(in []Value) []Value {
 // It returns the output results as Values.
 // As in Go, each input argument must be assignable to the
 // type of the function's corresponding input parameter.
+// It panics if the Value was obtained by accessing unexported struct fields.
 func (v Value) CallSlice(in []Value) []Value {
 	v.mustBe(Func)
 	v.mustBeExported()
@@ -1277,6 +1282,17 @@ func (v Value) Field(i int) Value {
 			fl |= flagStickyRO
 		}
 	}
+	if fl&flagIndir == 0 && typ.Size() == 0 {
+		// Special case for picking a field out of a direct struct.
+		// A direct struct must have a pointer field and possibly a
+		// bunch of zero-sized fields. We must return the zero-sized
+		// fields indirectly, as only ptr-shaped things can be direct.
+		// See issue 74935.
+		// We use nil instead of v.ptr as it doesn't matter and
+		// we can avoid pinning a possibly now-unused object.
+		return Value{typ, nil, fl | flagIndir}
+	}
+
 	// Either flagIndir is set and v.ptr points at struct,
 	// or flagIndir is not set and v.ptr is the actual struct data.
 	// In the former case, we want v.ptr + offset.
@@ -1544,8 +1560,18 @@ func TypeAssert[T any](v Value) (T, bool) {
 	//	TypeAssert[any](ValueOf(1)) == ValueOf(1).Interface().(any)
 	//	TypeAssert[error](ValueOf(&someError{})) == ValueOf(&someError{}).Interface().(error)
 	if typ.Kind() == abi.Interface {
-		v, ok := packEface(v).(T)
-		return v, ok
+		// To avoid allocating memory, in case the type assertion fails,
+		// first do the type assertion with a nil Data pointer.
+		iface := *(*any)(unsafe.Pointer(&abi.EmptyInterface{Type: v.typ(), Data: nil}))
+		if out, ok := iface.(T); ok {
+			// Now populate the Data field properly, we update the Data ptr
+			// directly to avoid an additional type asertion. We can re-use the
+			// itab we already got from the runtime (through the previous type assertion).
+			(*abi.CommonInterface)(unsafe.Pointer(&out)).Data = packEfaceData(v)
+			return out, true
+		}
+		var zero T
+		return zero, false
 	}
 
 	// Both v and T must be concrete types.
@@ -2608,6 +2634,48 @@ func (v Value) UnsafePointer() unsafe.Pointer {
 	panic(&ValueError{"reflect.Value.UnsafePointer", v.kind()})
 }
 
+// Fields returns an iterator over each [StructField] of v along with its [Value].
+//
+// The sequence is equivalent to calling [Value.Field] successively
+// for each index i in the range [0, NumField()).
+//
+// It panics if v's Kind is not Struct.
+func (v Value) Fields() iter.Seq2[StructField, Value] {
+	t := v.Type()
+	if t.Kind() != Struct {
+		panic("reflect: Fields of non-struct type " + t.String())
+	}
+	return func(yield func(StructField, Value) bool) {
+		for i := range v.NumField() {
+			if !yield(t.Field(i), v.Field(i)) {
+				return
+			}
+		}
+	}
+}
+
+// Methods returns an iterator over each [Method] of v along with the corresponding
+// method [Value]; this is a function with v bound as the receiver. As such, the
+// receiver shouldn't be included in the arguments to [Value.Call].
+//
+// The sequence is equivalent to calling [Value.Method] successively
+// for each index i in the range [0, NumMethod()).
+//
+// Methods panics if v is a nil interface value.
+//
+// Calling this method will force the linker to retain all exported methods in all packages.
+// This may make the executable binary larger but will not affect execution time.
+func (v Value) Methods() iter.Seq2[Method, Value] {
+	return func(yield func(Method, Value) bool) {
+		rtype := v.Type()
+		for i := range v.NumMethod() {
+			if !yield(rtype.Method(i), v.Method(i)) {
+				return
+			}
+		}
+	}
+}
+
 // StringHeader is the runtime representation of a string.
 // It cannot be used safely or portably and its representation may
 // change in a later release.
@@ -3209,8 +3277,8 @@ func (v Value) Comparable() bool {
 		return v.IsNil() || v.Elem().Comparable()
 
 	case Struct:
-		for i := 0; i < v.NumField(); i++ {
-			if !v.Field(i).Comparable() {
+		for _, value := range v.Fields() {
+			if !value.Comparable() {
 				return false
 			}
 		}
@@ -3336,7 +3404,7 @@ func convertOp(dst, src *abi.Type) func(Value, Type) Value {
 		}
 
 	case String:
-		if dst.Kind() == abi.Slice && pkgPathFor(dst.Elem()) == "" {
+		if dst.Kind() == abi.Slice {
 			switch Kind(dst.Elem().Kind()) {
 			case Uint8:
 				return cvtStringBytes
@@ -3346,7 +3414,7 @@ func convertOp(dst, src *abi.Type) func(Value, Type) Value {
 		}
 
 	case Slice:
-		if dst.Kind() == abi.String && pkgPathFor(src.Elem()) == "" {
+		if dst.Kind() == abi.String {
 			switch Kind(src.Elem().Kind()) {
 			case Uint8:
 				return cvtBytesString
@@ -3561,7 +3629,7 @@ func cvtStringRunes(v Value, t Type) Value {
 func cvtSliceArrayPtr(v Value, t Type) Value {
 	n := t.Elem().Len()
 	if n > v.Len() {
-		panic("reflect: cannot convert slice with length " + itoa.Itoa(v.Len()) + " to pointer to array with length " + itoa.Itoa(n))
+		panic("reflect: cannot convert slice with length " + strconv.Itoa(v.Len()) + " to pointer to array with length " + strconv.Itoa(n))
 	}
 	h := (*unsafeheader.Slice)(v.ptr)
 	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Pointer)}
@@ -3571,7 +3639,7 @@ func cvtSliceArrayPtr(v Value, t Type) Value {
 func cvtSliceArray(v Value, t Type) Value {
 	n := t.Len()
 	if n > v.Len() {
-		panic("reflect: cannot convert slice with length " + itoa.Itoa(v.Len()) + " to array with length " + itoa.Itoa(n))
+		panic("reflect: cannot convert slice with length " + strconv.Itoa(v.Len()) + " to array with length " + strconv.Itoa(n))
 	}
 	h := (*unsafeheader.Slice)(v.ptr)
 	typ := t.common()

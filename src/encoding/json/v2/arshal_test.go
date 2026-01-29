@@ -3217,6 +3217,11 @@ func TestMarshal(t *testing.T) {
 		in:   struct{ X any }{[8]byte{}},
 		want: `{"X":"called"}`,
 	}, {
+		name:    jsontest.Name("Interfaces/Any/Float/NaN"),
+		in:      struct{ X any }{math.NaN()},
+		want:    `{"X"`,
+		wantErr: EM(fmt.Errorf("unsupported value: %v", math.NaN())).withType(0, reflect.TypeFor[float64]()).withPos(`{"X":`, "/X"),
+	}, {
 		name: jsontest.Name("Interfaces/Any/Maps/Nil"),
 		in:   struct{ X any }{map[string]any(nil)},
 		want: `{"X":{}}`,
@@ -3278,7 +3283,7 @@ func TestMarshal(t *testing.T) {
 			return struct{ X any }{m}
 		}(),
 		want:    `{"X"` + strings.Repeat(`:{""`, startDetectingCyclesAfter),
-		wantErr: EM(internal.ErrCycle).withPos(`{"X":`+strings.Repeat(`{"":`, startDetectingCyclesAfter), "/X"+jsontext.Pointer(strings.Repeat("/", startDetectingCyclesAfter))).withType(0, T[any]()),
+		wantErr: EM(internal.ErrCycle).withPos(`{"X":`+strings.Repeat(`{"":`, startDetectingCyclesAfter), "/X"+jsontext.Pointer(strings.Repeat("/", startDetectingCyclesAfter))).withType(0, T[map[string]any]()),
 	}, {
 		name: jsontest.Name("Interfaces/Any/Slices/Nil"),
 		in:   struct{ X any }{[]any(nil)},
@@ -7828,7 +7833,8 @@ func TestUnmarshal(t *testing.T) {
 		})),
 		wantErr: EU(errSomeError).withType(0, T[unmarshalJSONv2Func]()),
 	}, {
-		name: jsontest.Name("Methods/Invalid/JSONv2/TooFew"),
+		name:  jsontest.Name("Methods/Invalid/JSONv2/TooFew"),
+		inBuf: `{}`,
 		inVal: addr(unmarshalJSONv2Func(func(*jsontext.Decoder) error {
 			return nil // do nothing
 		})),
@@ -9229,6 +9235,43 @@ func TestUnmarshalReuse(t *testing.T) {
 	})
 }
 
+type unmarshalerEOF struct{}
+
+func (unmarshalerEOF) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	return io.EOF // should be wrapped and converted by Unmarshal to io.ErrUnexpectedEOF
+}
+
+// TestUnmarshalEOF verifies that io.EOF is only ever returned by
+// UnmarshalDecode for a top-level value.
+func TestUnmarshalEOF(t *testing.T) {
+	opts := WithUnmarshalers(UnmarshalFromFunc(func(dec *jsontext.Decoder, _ *struct{}) error {
+		return io.EOF // should be wrapped and converted by Unmarshal to io.ErrUnexpectedEOF
+	}))
+
+	for _, in := range []string{"", "[", "[null", "[null]"} {
+		for _, newOut := range []func() any{
+			func() any { return new(unmarshalerEOF) },
+			func() any { return new([]unmarshalerEOF) },
+			func() any { return new(struct{}) },
+			func() any { return new([]struct{}) },
+		} {
+			wantErr := io.ErrUnexpectedEOF
+			if gotErr := Unmarshal([]byte(in), newOut(), opts); !errors.Is(gotErr, wantErr) {
+				t.Errorf("Unmarshal = %v, want %v", gotErr, wantErr)
+			}
+			if gotErr := UnmarshalRead(strings.NewReader(in), newOut(), opts); !errors.Is(gotErr, wantErr) {
+				t.Errorf("Unmarshal = %v, want %v", gotErr, wantErr)
+			}
+			switch gotErr := UnmarshalDecode(jsontext.NewDecoder(strings.NewReader(in)), newOut(), opts); {
+			case in != "" && !errors.Is(gotErr, wantErr):
+				t.Errorf("Unmarshal = %v, want %v", gotErr, wantErr)
+			case in == "" && gotErr != io.EOF:
+				t.Errorf("Unmarshal = %v, want %v", gotErr, io.EOF)
+			}
+		}
+	}
+}
+
 type ReaderFunc func([]byte) (int, error)
 
 func (f ReaderFunc) Read(b []byte) (int, error) { return f(b) }
@@ -9410,6 +9453,51 @@ func TestUnmarshalDecodeOptions(t *testing.T) {
 	dec.Reset(in, jsontext.AllowInvalidUTF8(false), opts) // earlier AllowInvalidUTF8(false) should be overridden by latter AllowInvalidUTF8(true) in opts
 	if v, _ := GetOption(dec.Options(), jsontext.AllowInvalidUTF8); v == false {
 		t.Errorf("Options.AllowInvalidUTF8 = false, want true")
+	}
+}
+
+func TestUnmarshalDecodeStream(t *testing.T) {
+	tests := []struct {
+		in   string
+		want []any
+		err  error
+	}{
+		{in: ``, err: io.EOF},
+		{in: `{`, err: &jsontext.SyntacticError{ByteOffset: len64(`{`), Err: io.ErrUnexpectedEOF}},
+		{in: `{"`, err: &jsontext.SyntacticError{ByteOffset: len64(`{"`), Err: io.ErrUnexpectedEOF}},
+		{in: `{"k"`, err: &jsontext.SyntacticError{ByteOffset: len64(`{"k"`), JSONPointer: "/k", Err: io.ErrUnexpectedEOF}},
+		{in: `{"k":`, err: &jsontext.SyntacticError{ByteOffset: len64(`{"k":`), JSONPointer: "/k", Err: io.ErrUnexpectedEOF}},
+		{in: `{"k",`, err: &jsontext.SyntacticError{ByteOffset: len64(`{"k"`), JSONPointer: "/k", Err: jsonwire.NewInvalidCharacterError(",", "after object name (expecting ':')")}},
+		{in: `{"k"}`, err: &jsontext.SyntacticError{ByteOffset: len64(`{"k"`), JSONPointer: "/k", Err: jsonwire.NewInvalidCharacterError("}", "after object name (expecting ':')")}},
+		{in: `[`, err: &jsontext.SyntacticError{ByteOffset: len64(`[`), Err: io.ErrUnexpectedEOF}},
+		{in: `[0`, err: &jsontext.SyntacticError{ByteOffset: len64(`[0`), Err: io.ErrUnexpectedEOF}},
+		{in: ` [0`, err: &jsontext.SyntacticError{ByteOffset: len64(` [0`), Err: io.ErrUnexpectedEOF}},
+		{in: `[0.`, err: &jsontext.SyntacticError{ByteOffset: len64(`[`), JSONPointer: "/0", Err: io.ErrUnexpectedEOF}},
+		{in: `[0. `, err: &jsontext.SyntacticError{ByteOffset: len64(`[0.`), JSONPointer: "/0", Err: jsonwire.NewInvalidCharacterError(" ", "in number (expecting digit)")}},
+		{in: `[0,`, err: &jsontext.SyntacticError{ByteOffset: len64(`[0,`), Err: io.ErrUnexpectedEOF}},
+		{in: `[0:`, err: &jsontext.SyntacticError{ByteOffset: len64(`[0`), Err: jsonwire.NewInvalidCharacterError(":", "after array element (expecting ',' or ']')")}},
+		{in: `n`, err: &jsontext.SyntacticError{ByteOffset: len64(`n`), Err: io.ErrUnexpectedEOF}},
+		{in: `nul`, err: &jsontext.SyntacticError{ByteOffset: len64(`nul`), Err: io.ErrUnexpectedEOF}},
+		{in: `fal `, err: &jsontext.SyntacticError{ByteOffset: len64(`fal`), Err: jsonwire.NewInvalidCharacterError(" ", "in literal false (expecting 's')")}},
+		{in: `false`, want: []any{false}, err: io.EOF},
+		{in: `false0.0[]null`, want: []any{false, 0.0, []any{}, nil}, err: io.EOF},
+	}
+	for _, tt := range tests {
+		d := jsontext.NewDecoder(strings.NewReader(tt.in))
+		var got []any
+		for {
+			var v any
+			if err := UnmarshalDecode(d, &v); err != nil {
+				if !reflect.DeepEqual(err, tt.err) {
+					t.Errorf("`%s`: UnmarshalDecode error = %v, want %v", tt.in, err, tt.err)
+				}
+				break
+			}
+			got = append(got, v)
+		}
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("`%s`: UnmarshalDecode = %v, want %v", tt.in, got, tt.want)
+		}
 	}
 }
 

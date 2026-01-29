@@ -713,7 +713,7 @@ func implicitstar(n ir.Node) ir.Node {
 	return Expr(star)
 }
 
-func needOneArg(n *ir.CallExpr, f string, args ...interface{}) (ir.Node, bool) {
+func needOneArg(n *ir.CallExpr, f string, args ...any) (ir.Node, bool) {
 	if len(n.Args) == 0 {
 		p := fmt.Sprintf(f, args...)
 		base.Errorf("missing argument to %s: %v", p, n)

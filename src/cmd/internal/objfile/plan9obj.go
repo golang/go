@@ -71,24 +71,17 @@ func (f *plan9File) symbols() ([]Sym, error) {
 	return syms, nil
 }
 
-func (f *plan9File) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+func (f *plan9File) pcln() (textStart uint64, pclntab []byte, err error) {
 	textStart = f.plan9.LoadAddress + f.plan9.HdrSize
 	if pclntab, err = loadPlan9Table(f.plan9, "runtime.pclntab", "runtime.epclntab"); err != nil {
 		// We didn't find the symbols, so look for the names used in 1.3 and earlier.
 		// TODO: Remove code looking for the old symbols when we no longer care about 1.3.
 		var err2 error
 		if pclntab, err2 = loadPlan9Table(f.plan9, "pclntab", "epclntab"); err2 != nil {
-			return 0, nil, nil, err
+			return 0, nil, err
 		}
 	}
-	if symtab, err = loadPlan9Table(f.plan9, "runtime.symtab", "runtime.esymtab"); err != nil {
-		// Same as above.
-		var err2 error
-		if symtab, err2 = loadPlan9Table(f.plan9, "symtab", "esymtab"); err2 != nil {
-			return 0, nil, nil, err
-		}
-	}
-	return textStart, symtab, pclntab, nil
+	return textStart, pclntab, nil
 }
 
 func (f *plan9File) text() (textStart uint64, text []byte, err error) {

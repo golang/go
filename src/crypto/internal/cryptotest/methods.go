@@ -19,7 +19,7 @@ import (
 // of the API even if undocumented per Hyrum's Law.
 //
 // ms must be a pointer to a non-nil interface.
-func NoExtraMethods(t *testing.T, ms interface{}, allowed ...string) {
+func NoExtraMethods(t *testing.T, ms any, allowed ...string) {
 	t.Helper()
 	extraMethods, err := extraMethods(ms)
 	if err != nil {
@@ -33,7 +33,7 @@ func NoExtraMethods(t *testing.T, ms interface{}, allowed ...string) {
 	}
 }
 
-func extraMethods(ip interface{}) ([]string, error) {
+func extraMethods(ip any) ([]string, error) {
 	v := reflect.ValueOf(ip)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Interface || v.Elem().IsNil() {
 		return nil, fmt.Errorf("argument must be a pointer to a non-nil interface")

@@ -375,11 +375,12 @@ const (
 	auxPanicBoundsCC // two constants for a bounds failure
 
 	// architecture specific aux types
-	auxARM64BitField     // aux is an arm64 bitfield lsb and width packed into auxInt
-	auxS390XRotateParams // aux is a s390x rotate parameters object encoding start bit, end bit and rotate amount
-	auxS390XCCMask       // aux is a s390x 4-bit condition code mask
-	auxS390XCCMaskInt8   // aux is a s390x 4-bit condition code mask, auxInt is an int8 immediate
-	auxS390XCCMaskUint8  // aux is a s390x 4-bit condition code mask, auxInt is a uint8 immediate
+	auxARM64BitField          // aux is an arm64 bitfield lsb and width packed into auxInt
+	auxARM64ConditionalParams // aux is a structure, which contains condition, NZCV flags and constant with indicator of using it
+	auxS390XRotateParams      // aux is a s390x rotate parameters object encoding start bit, end bit and rotate amount
+	auxS390XCCMask            // aux is a s390x 4-bit condition code mask
+	auxS390XCCMaskInt8        // aux is a s390x 4-bit condition code mask, auxInt is an int8 immediate
+	auxS390XCCMaskUint8       // aux is a s390x 4-bit condition code mask, auxInt is a uint8 immediate
 )
 
 // A SymEffect describes the effect that an SSA Value has on the variable
@@ -534,3 +535,11 @@ func (b BoundsKind) Code() (rtabi.BoundsErrorCode, bool) {
 // width+lsb<64 for 64-bit variant, width+lsb<32 for 32-bit variant.
 // the meaning of width and lsb are instruction-dependent.
 type arm64BitField int16
+
+// arm64ConditionalParams is the GO type of ARM64ConditionalParams auxInt.
+type arm64ConditionalParams struct {
+	cond       Op    // Condition code to evaluate
+	nzcv       uint8 // Fallback NZCV flags value when condition is false
+	constValue uint8 // Immediate value for constant comparisons
+	ind        bool  // Constant comparison indicator
+}

@@ -26,7 +26,7 @@
 //
 // Due to the Go Backwards Compatibility promise (https://go.dev/doc/go1compat)
 // there are a number of behaviors this package exhibits that may cause
-// interopability issues, but cannot be changed. In particular the following
+// interoperability issues, but cannot be changed. In particular the following
 // parsing behaviors may cause issues:
 //
 //   - If a JSON object contains duplicate keys, keys are processed in the order
@@ -58,7 +58,6 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
-	_ "unsafe" // for linkname
 )
 
 // Marshal returns the JSON encoding of v.
@@ -475,7 +474,7 @@ func marshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		e.WriteString("null")
 		return
 	}
-	m, ok := v.Interface().(Marshaler)
+	m, ok := reflect.TypeAssert[Marshaler](v)
 	if !ok {
 		e.WriteString("null")
 		return
@@ -498,7 +497,7 @@ func addrMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		e.WriteString("null")
 		return
 	}
-	m := va.Interface().(Marshaler)
+	m, _ := reflect.TypeAssert[Marshaler](va)
 	b, err := m.MarshalJSON()
 	if err == nil {
 		e.Grow(len(b))
@@ -516,7 +515,7 @@ func textMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		e.WriteString("null")
 		return
 	}
-	m, ok := v.Interface().(encoding.TextMarshaler)
+	m, ok := reflect.TypeAssert[encoding.TextMarshaler](v)
 	if !ok {
 		e.WriteString("null")
 		return
@@ -534,7 +533,7 @@ func addrTextMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		e.WriteString("null")
 		return
 	}
-	m := va.Interface().(encoding.TextMarshaler)
+	m, _ := reflect.TypeAssert[encoding.TextMarshaler](va)
 	b, err := m.MarshalText()
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err, "MarshalText"})
@@ -633,17 +632,6 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	}
 }
 
-// isValidNumber reports whether s is a valid JSON number literal.
-//
-// isValidNumber should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/bytedance/sonic
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname isValidNumber
 func isValidNumber(s string) bool {
 	// This function implements the JSON numbers grammar.
 	// See https://tools.ietf.org/html/rfc7159#section-6
@@ -991,7 +979,7 @@ func resolveKeyName(k reflect.Value) (string, error) {
 	if k.Kind() == reflect.String {
 		return k.String(), nil
 	}
-	if tm, ok := k.Interface().(encoding.TextMarshaler); ok {
+	if tm, ok := reflect.TypeAssert[encoding.TextMarshaler](k); ok {
 		if k.Kind() == reflect.Pointer && k.IsNil() {
 			return "", nil
 		}
@@ -1101,19 +1089,6 @@ type isZeroer interface {
 
 var isZeroerType = reflect.TypeFor[isZeroer]()
 
-// typeFields returns a list of fields that JSON should recognize for the given type.
-// The algorithm is breadth-first search over the set of structs to include - the top struct
-// and then any reachable anonymous structs.
-//
-// typeFields should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/bytedance/sonic
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname typeFields
 func typeFields(t reflect.Type) structFields {
 	// Anonymous fields to explore at the current level and the next.
 	current := []field{}

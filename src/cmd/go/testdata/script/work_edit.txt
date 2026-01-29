@@ -1,4 +1,5 @@
 # Test editing go.work files.
+env TESTGO_VERSION=go1.26.0
 
 go work init m
 cmpenv go.work go.work.want_initial
@@ -54,11 +55,11 @@ module m
 
 go 1.18
 -- go.work.want_initial --
-go $goversion
+go 1.25.0
 
 use ./m
 -- go.work.want_use_n --
-go $goversion
+go 1.25.0
 
 use (
 	./m

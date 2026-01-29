@@ -11,13 +11,14 @@ go mod init -C m1_24_rc0
 go mod edit -C m1_24_rc0 -go=1.24rc0 -toolchain=go1.99.2
 
 go work init ./m1_22_0 ./m1_22_1
-grep '^go 1.50$' go.work
+cat go.work
+grep '^go 1.48.0$' go.work
 ! grep toolchain go.work
 
-# work sync with older modules should leave go 1.50 in the go.work.
+# work sync with older modules should leave go 1.48.0 in the go.work.
 go work sync
 cat go.work
-grep '^go 1.50$' go.work
+grep '^go 1.48.0$' go.work
 ! grep toolchain go.work
 
 # work sync with newer modules should update go 1.21 -> 1.22.1 and toolchain -> go1.22.9 in go.work

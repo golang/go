@@ -7,12 +7,12 @@
 package os
 
 import (
-	"internal/itoa"
+	"internal/strconv"
 	"syscall"
 )
 
 func executable() (string, error) {
-	fn := "/proc/" + itoa.Itoa(Getpid()) + "/text"
+	fn := "/proc/" + strconv.Itoa(Getpid()) + "/text"
 	f, err := Open(fn)
 	if err != nil {
 		return "", err

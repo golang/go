@@ -714,10 +714,14 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 			}
 		case types.TINT, types.TINT8, types.TINT16, types.TINT32, types.TINT64:
 			on = typecheck.LookupRuntime("printint")
-		case types.TFLOAT32, types.TFLOAT64:
-			on = typecheck.LookupRuntime("printfloat")
-		case types.TCOMPLEX64, types.TCOMPLEX128:
-			on = typecheck.LookupRuntime("printcomplex")
+		case types.TFLOAT32:
+			on = typecheck.LookupRuntime("printfloat32")
+		case types.TFLOAT64:
+			on = typecheck.LookupRuntime("printfloat64")
+		case types.TCOMPLEX64:
+			on = typecheck.LookupRuntime("printcomplex64")
+		case types.TCOMPLEX128:
+			on = typecheck.LookupRuntime("printcomplex128")
 		case types.TBOOL:
 			on = typecheck.LookupRuntime("printbool")
 		case types.TSTRING:
@@ -725,13 +729,18 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 			if ir.IsConst(n, constant.String) {
 				cs = ir.StringVal(n)
 			}
-			switch cs {
-			case " ":
-				on = typecheck.LookupRuntime("printsp")
-			case "\n":
-				on = typecheck.LookupRuntime("printnl")
-			default:
-				on = typecheck.LookupRuntime("printstring")
+			// Print values of the named type `quoted` using printquoted.
+			if types.RuntimeSymName(n.Type().Sym()) == "quoted" {
+				on = typecheck.LookupRuntime("printquoted")
+			} else {
+				switch cs {
+				case " ":
+					on = typecheck.LookupRuntime("printsp")
+				case "\n":
+					on = typecheck.LookupRuntime("printnl")
+				default:
+					on = typecheck.LookupRuntime("printstring")
+				}
 			}
 		default:
 			badtype(ir.OPRINT, n.Type(), nil)

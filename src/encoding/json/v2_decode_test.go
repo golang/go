@@ -1243,6 +1243,62 @@ var unmarshalTests = []struct {
 		out:      (chan int)(nil),
 		err:      &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[chan int]()},
 	},
+
+	// #75619
+	{
+		CaseName: Name("QuotedInt/GoSyntax"),
+		in:       `{"X": "-0000123"}`,
+		ptr: new(struct {
+			X int64 `json:",string"`
+		}),
+		out: struct {
+			X int64 `json:",string"`
+		}{-123},
+	},
+	{
+		CaseName: Name("QuotedInt/Invalid"),
+		in:       `{"X": "123 "}`,
+		ptr: new(struct {
+			X int64 `json:",string"`
+		}),
+		err: &UnmarshalTypeError{Value: "number 123 ", Type: reflect.TypeFor[int64](), Field: "X", Offset: int64(len(`{"X": `))},
+	},
+	{
+		CaseName: Name("QuotedUint/GoSyntax"),
+		in:       `{"X": "0000123"}`,
+		ptr: new(struct {
+			X uint64 `json:",string"`
+		}),
+		out: struct {
+			X uint64 `json:",string"`
+		}{123},
+	},
+	{
+		CaseName: Name("QuotedUint/Invalid"),
+		in:       `{"X": "0x123"}`,
+		ptr: new(struct {
+			X uint64 `json:",string"`
+		}),
+		err: &UnmarshalTypeError{Value: "number 0x123", Type: reflect.TypeFor[uint64](), Field: "X", Offset: int64(len(`{"X": `))},
+	},
+	{
+		CaseName: Name("QuotedFloat/GoSyntax"),
+		in:       `{"X": "0x1_4p-2"}`,
+		ptr: new(struct {
+			X float64 `json:",string"`
+		}),
+		out: struct {
+			X float64 `json:",string"`
+		}{0x1_4p-2},
+	},
+	{
+		CaseName: Name("QuotedFloat/Invalid"),
+		in:       `{"X": "1.5e1_"}`,
+		ptr: new(struct {
+			X float64 `json:",string"`
+		}),
+		err: &UnmarshalTypeError{Value: "number 1.5e1_", Type: reflect.TypeFor[float64](), Field: "X", Offset: int64(len(`{"X": `))},
+	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -2304,6 +2360,34 @@ func TestUnmarshalTypeError(t *testing.T) {
 					tt.Where, tt.in, tt.dest, err, new(UnmarshalTypeError))
 			}
 		})
+	}
+}
+
+func TestUnmarshalTypeErrorMessage(t *testing.T) {
+	err := &UnmarshalTypeError{
+		Value:  "number 5",
+		Type:   reflect.TypeFor[int](),
+		Offset: 1234,
+		Struct: "Root",
+	}
+
+	for _, tt := range []struct {
+		field string
+		want  string
+	}{
+		{"", "json: cannot unmarshal number 5 into Go struct field Root. of type int"},
+		{"1", "json: cannot unmarshal number 5 into Root.1 of type int"},
+		{"foo", "json: cannot unmarshal number 5 into Go struct field Root.foo of type int"},
+		{"foo.1", "json: cannot unmarshal number 5 into Root.foo.1 of type int"},
+		{"foo.bar", "json: cannot unmarshal number 5 into Go struct field Root.foo.bar of type int"},
+		{"foo.bar.1", "json: cannot unmarshal number 5 into Root.foo.bar.1 of type int"},
+		{"foo.bar.baz", "json: cannot unmarshal number 5 into Go struct field Root.foo.bar.baz of type int"},
+	} {
+		err.Field = tt.field
+		got := err.Error()
+		if got != tt.want {
+			t.Errorf("Error:\n\tgot:  %v\n\twant: %v", got, tt.want)
+		}
 	}
 }
 

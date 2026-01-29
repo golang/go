@@ -29,7 +29,6 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/tools/internal/aliases"
 	"golang.org/x/tools/internal/typesinternal"
 )
 
@@ -249,7 +248,7 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 
 	case *types.Func:
 		// A func, if not package-level, must be a method.
-		if recv := obj.Type().(*types.Signature).Recv(); recv == nil {
+		if recv := obj.Signature().Recv(); recv == nil {
 			return "", fmt.Errorf("func is not a method: %v", obj)
 		}
 
@@ -281,10 +280,10 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 
 		T := o.Type()
 		if alias, ok := T.(*types.Alias); ok {
-			if r := findTypeParam(obj, aliases.TypeParams(alias), path, opTypeParam); r != nil {
+			if r := findTypeParam(obj, alias.TypeParams(), path, opTypeParam); r != nil {
 				return Path(r), nil
 			}
-			if r := find(obj, aliases.Rhs(alias), append(path, opRhs)); r != nil {
+			if r := find(obj, alias.Rhs(), append(path, opRhs)); r != nil {
 				return Path(r), nil
 			}
 
@@ -405,7 +404,7 @@ func (enc *Encoder) concreteMethod(meth *types.Func) (Path, bool) {
 		return "", false
 	}
 
-	_, named := typesinternal.ReceiverNamed(meth.Type().(*types.Signature).Recv())
+	_, named := typesinternal.ReceiverNamed(meth.Signature().Recv())
 	if named == nil {
 		return "", false
 	}
@@ -694,11 +693,11 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 
 		case opRhs:
 			if alias, ok := t.(*types.Alias); ok {
-				t = aliases.Rhs(alias)
-			} else if false && aliases.Enabled() {
-				// The Enabled check is too expensive, so for now we
-				// simply assume that aliases are not enabled.
-				// TODO(adonovan): replace with "if true {" when go1.24 is assured.
+				t = alias.Rhs()
+			} else if false {
+				// Now that go1.24 is assured, we should be able to
+				// replace this with "if true {", but it causes objectpath
+				// tests to fail. TODO(adonovan): investigate.
 				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want alias)", code, t, t)
 			}
 

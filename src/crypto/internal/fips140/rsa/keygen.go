@@ -105,7 +105,28 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 		// negligible chance of failure we can defer the check to the end of key
 		// generation and return an error if it fails. See [checkPrivateKey].
 
-		return newPrivateKey(N, 65537, d, P, Q)
+		k, err := newPrivateKey(N, 65537, d, P, Q)
+		if err != nil {
+			return nil, err
+		}
+
+		if k.fipsApproved {
+			fips140.PCT("RSA sign and verify PCT", func() error {
+				hash := []byte{
+					0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+					0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+					0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+					0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
+				}
+				sig, err := signPKCS1v15(k, "SHA-256", hash)
+				if err != nil {
+					return err
+				}
+				return verifyPKCS1v15(k.PublicKey(), "SHA-256", hash, sig)
+			})
+		}
+
+		return k, nil
 	}
 }
 
