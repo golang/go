@@ -2182,7 +2182,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	createRelroSect := func(name string, symn sym.SymKind) *sym.Section {
 		sect := state.allocateNamedDataSection(segRelro, genrelrosecname(name), []sym.SymKind{symn}, relroPerm)
 
-		if symn == sym.STYPE && ctxt.HeadType != objabi.Haix {
+		if symn == sym.STYPE {
 			// Skip forward so that no type
 			// reference uses a zero offset.
 			// This is unlikely but possible in small
