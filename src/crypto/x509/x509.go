@@ -1501,7 +1501,7 @@ func marshalCertificatePolicies(policies []OID, policyIdentifiers []asn1.ObjectI
 	return ext, err
 }
 
-func buildCSRExtensions(template *CertificateRequest) ([]pkix.Extension, error) {
+func buildCSRExtensions(template *CertificateRequest, subjectIsEmpty bool) ([]pkix.Extension, error) {
 	var ret []pkix.Extension
 
 	if (len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0 || len(template.URIs) > 0) &&
@@ -1512,8 +1512,12 @@ func buildCSRExtensions(template *CertificateRequest) ([]pkix.Extension, error) 
 		}
 
 		ret = append(ret, pkix.Extension{
-			Id:    oidExtensionSubjectAltName,
-			Value: sanBytes,
+			Id: oidExtensionSubjectAltName,
+			// From RFC 5280, Section 4.2.1.6:
+			// “If the subject field contains an empty sequence ... then
+			// subjectAltName extension ... is marked as critical”
+			Critical: subjectIsEmpty,
+			Value:    sanBytes,
 		})
 	}
 
@@ -2083,7 +2087,15 @@ func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv
 		return nil, err
 	}
 
-	extensions, err := buildCSRExtensions(template)
+	asn1Subject := template.RawSubject
+	if len(asn1Subject) == 0 {
+		asn1Subject, err = asn1.Marshal(template.Subject.ToRDNSequence())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	extensions, err := buildCSRExtensions(template, bytes.Equal(asn1Subject, emptyASN1Subject))
 	if err != nil {
 		return nil, err
 	}
@@ -2168,14 +2180,6 @@ func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv
 		}
 
 		rawAttributes = append(rawAttributes, rawValue)
-	}
-
-	asn1Subject := template.RawSubject
-	if len(asn1Subject) == 0 {
-		asn1Subject, err = asn1.Marshal(template.Subject.ToRDNSequence())
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	tbsCSR := tbsCertificateRequest{
