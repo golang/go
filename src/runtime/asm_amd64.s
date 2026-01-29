@@ -510,6 +510,8 @@ goodm:
 // The frame layout needs to match systemstack
 // so that it can pretend to be systemstack_switch.
 TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
+	// Align for consistency with offset used in gosave_systemstack_switch
+	PCALIGN	$8
 	UNDEF
 	// Make sure this function is not leaf,
 	// so the frame is saved.
@@ -885,8 +887,9 @@ TEXT ·publicationBarrier<ABIInternal>(SB),NOSPLIT,$0-0
 // Smashes R9.
 TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	// Take systemstack_switch PC and add 8 bytes to skip
-	// the prologue. The final location does not matter
-	// as long as we are between the prologue and the epilogue.
+	// the prologue. Keep 8 bytes offset consistent with
+	// PCALIGN $8 in systemstack_swtich, pointing start of
+	// UNDEF instruction beyond prologue.
 	MOVQ	$runtime·systemstack_switch+8(SB), R9
 	MOVQ	R9, (g_sched+gobuf_pc)(R14)
 	LEAQ	8(SP), R9
