@@ -32,7 +32,7 @@ import (
 	"unicode/utf8"
 )
 
-var debug = debugT(false)
+var debug = debugT(true)
 
 type debugT bool
 
@@ -549,6 +549,16 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
 
 	// domain = dot-atom / domain-literal
 	var domain string
+
+	if p.empty() {
+		return "", errors.New("mail: no domain in addr-spec")
+	}
+
+	// CFWS = (1*([FWS] comment) [FWS]) / FWS
+	if p.peek() == '(' && !p.skipCFWS() {
+		return "", errors.New("mail: wrong CFWS in addr-spec")
+	}
+
 	if p.empty() {
 		return "", errors.New("mail: no domain in addr-spec")
 	}

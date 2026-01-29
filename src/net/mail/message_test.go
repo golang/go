@@ -825,6 +825,12 @@ func TestAddressParsing(t *testing.T) {
 				Address: "jdoe@[192.168.0.1]",
 			}},
 		},
+		{
+			`jdoe@(abc) (def) (ghi) [192.168.0.1]`,
+			[]*Address{{
+				Address: "jdoe@[192.168.0.1]",
+			}},
+		},
 	}
 
 	for _, test := range tests {
