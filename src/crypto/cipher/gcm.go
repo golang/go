@@ -63,6 +63,15 @@ func NewGCMWithTagSize(cipher Block, tagSize int) (AEAD, error) {
 	return newGCM(cipher, gcmStandardNonceSize, tagSize)
 }
 
+// NewGCMWithNonceSizeAndTagSize  allows the user to specify the nonce size and tag size.
+// This is useful for compatibility with existing cryptosystems that use non-standard nonce sizes and tag sizes.
+func NewGCMWithNonceSizeAndTagSize(cipher Block, nonceSize, tagSize int) (AEAD, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/cipher: use of GCM with arbitrary IVs is not allowed in FIPS 140-only mode, use NewGCMWithRandomNonce")
+	}
+	return newGCM(cipher, nonceSize, tagSize)
+}
+
 func newGCM(cipher Block, nonceSize, tagSize int) (AEAD, error) {
 	c, ok := cipher.(*aes.Block)
 	if !ok {
