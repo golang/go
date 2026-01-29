@@ -292,7 +292,6 @@ type Rec2 struct {
 
 func TestFields(t *testing.T) {
 	for _, test := range fieldsTests {
-		test := test
 		t.Run(test.testName, func(t *testing.T) {
 			typ := TypeOf(test.val)
 			fields := VisibleFields(typ)

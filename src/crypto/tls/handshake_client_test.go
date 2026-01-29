@@ -626,7 +626,7 @@ func TestHandshakeClientHelloRetryRequest(t *testing.T) {
 		args:   []string{"-cipher", "ECDHE-RSA-AES128-GCM-SHA256", "-curves", "P-256"},
 		config: config,
 		validate: func(cs ConnectionState) error {
-			if !cs.testingOnlyDidHRR {
+			if !cs.HelloRetryRequest {
 				return errors.New("expected HelloRetryRequest")
 			}
 			return nil
@@ -2693,7 +2693,6 @@ func TestTLS13OnlyClientHelloCipherSuite(t *testing.T) {
 		},
 	}
 	for _, tt := range tls13Tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			testTLS13OnlyClientHelloCipherSuite(t, tt.ciphers)

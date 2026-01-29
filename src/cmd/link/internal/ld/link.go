@@ -96,6 +96,8 @@ type Link struct {
 	Textp        []loader.Sym
 	Moduledata   loader.Sym
 
+	moduledataTypeDescOffset int64
+
 	PackageFile  map[string]string
 	PackageShlib map[string]string
 
@@ -126,7 +128,7 @@ type cgodata struct {
 	directives [][]string
 }
 
-func (ctxt *Link) Logf(format string, args ...interface{}) {
+func (ctxt *Link) Logf(format string, args ...any) {
 	fmt.Fprintf(ctxt.Bso, format, args...)
 	ctxt.Bso.Flush()
 }

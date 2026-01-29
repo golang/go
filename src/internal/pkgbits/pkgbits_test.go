@@ -28,7 +28,7 @@ func TestRoundTrip(t *testing.T) {
 		r := pr.NewDecoder(pkgbits.SectionMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 
 		if r.Version() != w.Version() {
-			t.Errorf("Expected reader version %q to be the writer version %q", r.Version(), w.Version())
+			t.Errorf("Expected reader version %d to be the writer version %d", r.Version(), w.Version())
 		}
 	}
 }

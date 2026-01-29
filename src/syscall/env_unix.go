@@ -126,9 +126,8 @@ func Clearenv() {
 	envLock.Lock()
 	defer envLock.Unlock()
 
-	for k := range env {
-		runtimeUnsetenv(k)
-	}
+	runtimeClearenv(env)
+
 	env = make(map[string]int)
 	envs = []string{}
 }

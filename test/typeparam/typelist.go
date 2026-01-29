@@ -32,7 +32,7 @@ func _[T interface{ ~int }](x T) {
 	var _ T = T(myint(42))
 }
 
-// Indexing a generic type which has a an array as core type.
+// Indexing a generic type which has an array as core type.
 func _[T interface{ ~[10]int }](x T) {
 	_ = x[9] // ok
 }

@@ -17,8 +17,6 @@ func archauxv(tag, val uintptr) {
 	}
 }
 
-func osArchInit() {}
-
 func checkS390xCPU() {
 	// Check if the present z-system has the hardware capability to carryout
 	// floating point operations. Check if hwcap reflects CPU capability for the

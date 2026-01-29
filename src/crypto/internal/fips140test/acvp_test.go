@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"crypto/elliptic"
 	"crypto/internal/cryptotest"
+	entropy "crypto/internal/entropy/v1.0.0"
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/aes"
 	"crypto/internal/fips140/aes/gcm"
@@ -61,6 +62,11 @@ import (
 )
 
 var noPAAPAI = os.Getenv("GONOPAAPAI") == "1"
+
+// Use the capabilities, configuration and commands for the entropy source.
+// This is used to test the separate entropy source in crypto/internal/entropy
+// since the algorithm name alone can't indicate which to test.
+var entropyTesting = os.Getenv("GOENTROPYSOURCEACVP") == "1"
 
 func TestMain(m *testing.M) {
 	if noPAAPAI {
@@ -114,46 +120,13 @@ const (
 )
 
 var (
-	// SHA2 algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-celi-acvp-sha.html#section-7.2
-	// SHA3 and SHAKE algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-celi-acvp-sha3.html#name-sha3-and-shake-algorithm-ca
-	// cSHAKE algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-celi-acvp-xof.html#section-7.2
-	// HMAC algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-fussell-acvp-mac.html#section-7
-	// PBKDF2 algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-celi-acvp-pbkdf.html#section-7.3
-	// ML-KEM algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-celi-acvp-ml-kem.html#section-7.3
-	// HMAC DRBG algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-vassilev-acvp-drbg.html#section-7.2
-	// EDDSA algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-celi-acvp-eddsa.html#section-7
-	// ECDSA and DetECDSA algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-fussell-acvp-ecdsa.html#section-7
-	// AES algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-celi-acvp-symmetric.html#section-7.3
-	// HKDF KDA algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-kdf-hkdf.html#section-7.3
-	// OneStepNoCounter KDA algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-kdf-onestepnocounter.html#section-7.2
-	// TLS 1.2 KDF algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-tls.html#section-7.2
-	// TLS 1.3 KDF algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kdf-tls-v1.3.html#section-7.2
-	// SSH KDF algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-ssh.html#section-7.2
-	// ECDH algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-ssc-ecc.html#section-7.3
-	// HMAC DRBG and CTR DRBG algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-vassilev-acvp-drbg.html#section-7.2
-	// KDF-Counter and KDF-Feedback algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kbkdf.html#section-7.3
-	// RSA algorithm capabilities:
-	//   https://pages.nist.gov/ACVP/draft-celi-acvp-rsa.html#section-7.3
-	//go:embed acvp_capabilities.json
-	capabilitiesJson []byte
+
+	// Separate capabilities specific to testing the entropy source's SHA2-384 implementation.
+	// This implementation differs from the FIPS module's SHA2-384 in its supported input sizes.
+	// Set the GOENTROPYSOURCEACVP environment variable to use these capabilities in place of
+	// capabilitiesJson
+	//go:embed acvp_capabilities.entropy.json
+	entropyCapabilitiesJson []byte
 
 	// commands should reflect what config says we support. E.g. adding a command here will be a NOP
 	// unless the configuration/acvp_capabilities.json indicates the command's associated algorithm
@@ -182,6 +155,14 @@ var (
 		"SHA3-384/MCT": cmdSha3Mct(sha3.New384()),
 		"SHA3-512":     cmdHashAft(sha3.New512()),
 		"SHA3-512/MCT": cmdSha3Mct(sha3.New512()),
+
+		// Note: the "/ENTROPY" suffix is our own creation, and applied conditionally
+		// based on the environment variable that indicates our acvp_test module wrapper
+		// is being used for evaluating the separate SHA-384 implementation for the
+		// CPU jitter entropy conditioning. Set GOENTROPYSOURCEACVP=1 to use these commands
+		// in place of SHA2-384.
+		"SHA2-384/ENTROPY":     cmdEntropyHashEntropySha384Aft(),
+		"SHA2-384/MCT/ENTROPY": cmdEntropyHashEntropySha384Mct(),
 
 		// Note: SHAKE AFT and VOT test types can be handled by the same command
 		// handler impl, but use distinct acvptool command names, and so are
@@ -363,6 +344,10 @@ func processingLoop(reader io.Reader, writer io.Writer) error {
 			return fmt.Errorf("reading request: %w", err)
 		}
 
+		if entropyTesting && strings.HasPrefix(req.name, "SHA2-384") {
+			req.name = fmt.Sprintf("%s/ENTROPY", req.name)
+		}
+
 		cmd, exists := commands[req.name]
 		if !exists {
 			return fmt.Errorf("unknown command: %q", req.name)
@@ -460,9 +445,16 @@ func writeResponse(writer io.Writer, args [][]byte) error {
 // which takes no arguments and returns a single byte string
 // which is a JSON blob of ACVP algorithm configuration."
 func cmdGetConfig() command {
+	// If GOENTROPYSOURCEACVP is set, then use the entropyCapabilitiesJson
+	// instead of capabilitiesJson.
+	capabilities := [][]byte{capabilitiesJson}
+	if entropyTesting {
+		capabilities = [][]byte{entropyCapabilitiesJson}
+	}
+
 	return command{
 		handler: func(args [][]byte) ([][]byte, error) {
-			return [][]byte{capabilitiesJson}, nil
+			return capabilities, nil
 		},
 	}
 }
@@ -523,6 +515,46 @@ func cmdHashMct(h hash.Hash) command {
 				h.Reset()
 				h.Write(buf)
 				digest = h.Sum(digest[:0])
+
+				copy(buf, buf[hSize:])
+				copy(buf[2*hSize:], digest)
+			}
+
+			return [][]byte{buf[hSize*2:]}, nil
+		},
+	}
+}
+
+// cmdEntropyHashEntropySha384Aft returns a command handler that tests the
+// entropy package's SHA2-384 digest for AFT inputs.
+func cmdEntropyHashEntropySha384Aft() command {
+	return command{
+		requiredArgs: 1, // Message to hash.
+		handler: func(args [][]byte) ([][]byte, error) {
+			digest := entropy.TestingOnlySHA384(args[0])
+			return [][]byte{digest[:]}, nil
+		},
+	}
+}
+
+// cmdEntropyHashEntropySha384Mct returns a command handler that tests the
+// entropy package's SHA2-384 digest for MCT inputs.
+func cmdEntropyHashEntropySha384Mct() command {
+	return command{
+		requiredArgs: 1, // Seed message.
+		handler: func(args [][]byte) ([][]byte, error) {
+			hSize := 48
+			seed := args[0]
+
+			digest := make([]byte, 0, hSize)
+			buf := make([]byte, 0, 3*hSize)
+			buf = append(buf, seed...)
+			buf = append(buf, seed...)
+			buf = append(buf, seed...)
+
+			for i := 0; i < 1000; i++ {
+				digestRaw := entropy.TestingOnlySHA384(buf)
+				digest = digestRaw[:hSize]
 
 				copy(buf, buf[hSize:])
 				copy(buf[2*hSize:], digest)
@@ -1624,7 +1656,7 @@ func cmdHmacDrbgAft(h func() hash.Hash) command {
 			//   * Uninstantiate
 			// See Table 7 in draft-vassilev-acvp-drbg
 			out := make([]byte, outLen)
-			drbg := ecdsa.TestingOnlyNewDRBG(func() fips140.Hash { return h() }, entropy, nonce, personalization)
+			drbg := ecdsa.TestingOnlyNewDRBG(h, entropy, nonce, personalization)
 			drbg.Generate(out)
 			drbg.Generate(out)
 
@@ -2075,9 +2107,9 @@ func TestACVP(t *testing.T) {
 
 	const (
 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
-		bsslVersion   = "v0.0.0-20250207174145-0bb19f6126cb"
-		goAcvpModule  = "github.com/cpu/go-acvp"
-		goAcvpVersion = "v0.0.0-20250126154732-de1ba727a0be"
+		bsslVersion   = "v0.0.0-20251111011041-baaf868e6e8f"
+		goAcvpModule  = "github.com/geomys/acvp-testdata"
+		goAcvpVersion = "v0.0.0-20251201200548-d893de8b8b1c"
 	)
 
 	// In crypto/tls/bogo_shim_test.go the test is skipped if run on a builder with runtime.GOOS == "windows"
@@ -2085,7 +2117,7 @@ func TestACVP(t *testing.T) {
 
 	// Stat the acvp test config file so the test will be re-run if it changes, invalidating cached results
 	// from the old config.
-	if _, err := os.Stat("acvp_test.config.json"); err != nil {
+	if _, err := os.Stat(testConfigFile); err != nil {
 		t.Fatalf("failed to stat config file: %s", err)
 	}
 
@@ -2096,16 +2128,13 @@ func TestACVP(t *testing.T) {
 
 	// Build the acvptool binary.
 	toolPath := filepath.Join(t.TempDir(), "acvptool.exe")
-	goTool := testenv.GoToolPath(t)
-	cmd := testenv.Command(t, goTool,
+	cmd := testenv.Command(t, testenv.GoToolPath(t),
 		"build",
 		"-o", toolPath,
 		"./util/fipstools/acvp/acvptool")
 	cmd.Dir = bsslDir
-	out := &strings.Builder{}
-	cmd.Stderr = out
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to build acvptool: %s\n%s", err, out.String())
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build acvptool: %s\n%s", err, out)
 	}
 
 	// Similarly, fetch the ACVP data module that has vectors/expected answers.
@@ -2115,9 +2144,9 @@ func TestACVP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to fetch cwd: %s", err)
 	}
-	configPath := filepath.Join(cwd, "acvp_test.config.json")
+	configPath := filepath.Join(cwd, testConfigFile)
 	t.Logf("running check_expected.go\ncwd: %q\ndata_dir: %q\nconfig: %q\ntool: %q\nmodule-wrapper: %q\n",
-		cwd, dataDir, configPath, toolPath, os.Args[0])
+		cwd, dataDir, configPath, toolPath, testenv.Executable(t))
 
 	// Run the check_expected test driver using the acvptool we built, and this test binary as the
 	// module wrapper. The file paths in the config file are specified relative to the dataDir root
@@ -2127,21 +2156,21 @@ func TestACVP(t *testing.T) {
 		filepath.Join(bsslDir, "util/fipstools/acvp/acvptool/test/check_expected.go"),
 		"-tool",
 		toolPath,
-		// Note: module prefix must match Wrapper value in acvp_test.config.json.
-		"-module-wrappers", "go:" + os.Args[0],
+		// Note: module prefix must match Wrapper value in testConfigFile.
+		"-module-wrappers", "go:" + testenv.Executable(t),
 		"-tests", configPath,
 	}
-	cmd = testenv.Command(t, goTool, args...)
+	cmd = testenv.Command(t, testenv.GoToolPath(t), args...)
 	cmd.Dir = dataDir
 	cmd.Env = append(os.Environ(),
 		"ACVP_WRAPPER=1",
 		"GODEBUG=fips140=on",
 	)
-	output, err := cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
+	t.Logf("\n%s", out)
 	if err != nil {
-		t.Fatalf("failed to run acvp tests: %s\n%s", err, string(output))
+		t.Fatalf("failed to run acvp tests: %s", err)
 	}
-	t.Log(string(output))
 }
 
 func TestTooFewArgs(t *testing.T) {

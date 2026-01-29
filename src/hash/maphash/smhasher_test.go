@@ -8,6 +8,7 @@ package maphash
 
 import (
 	"fmt"
+	"internal/runtime/maps"
 	"internal/testenv"
 	"math"
 	"math/rand"
@@ -15,7 +16,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"unsafe"
 )
 
 // Smhasher is a torture test for hash functions.
@@ -486,7 +486,7 @@ func text(t *testing.T, h *hashSet, prefix, suffix string) {
 
 // Make sure different seed values generate different hashes.
 func TestSmhasherSeed(t *testing.T) {
-	if unsafe.Sizeof(uintptr(0)) == 4 {
+	if !maps.Use64BitHash {
 		t.Skip("32-bit platforms don't have ideal seed-input distributions (see issue 33988)")
 	}
 	t.Parallel()

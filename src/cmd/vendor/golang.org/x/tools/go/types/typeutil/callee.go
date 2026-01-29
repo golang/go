@@ -12,6 +12,7 @@ import (
 
 // Callee returns the named target of a function call, if any:
 // a function, method, builtin, or variable.
+// It returns nil for a T(x) conversion.
 //
 // Functions and methods may potentially have type parameters.
 //

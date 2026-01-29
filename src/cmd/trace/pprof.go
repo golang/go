@@ -153,10 +153,6 @@ func makeComputePprofFunc(state trace.GoState, trackReason func(string) bool) co
 			if ev.Kind() != trace.EventStateTransition {
 				continue
 			}
-			stack := ev.Stack()
-			if stack == trace.NoStack {
-				continue
-			}
 
 			// The state transition has to apply to a goroutine.
 			st := ev.StateTransition()

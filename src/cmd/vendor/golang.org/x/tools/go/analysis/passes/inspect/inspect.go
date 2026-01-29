@@ -41,7 +41,7 @@ var Analyzer = &analysis.Analyzer{
 	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/inspect",
 	Run:              run,
 	RunDespiteErrors: true,
-	ResultType:       reflect.TypeOf(new(inspector.Inspector)),
+	ResultType:       reflect.TypeFor[*inspector.Inspector](),
 }
 
 func run(pass *analysis.Pass) (any, error) {

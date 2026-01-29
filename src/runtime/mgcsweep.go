@@ -307,6 +307,7 @@ func bgsweep(c chan int) {
 			// N.B. freeSomeWbufs is already batched internally.
 			goschedIfBusy()
 		}
+		freeDeadSpanSPMCs()
 		lock(&sweep.lock)
 		if !isSweepDone() {
 			// This can happen if a GC runs between
@@ -884,7 +885,7 @@ func (s *mspan) reportZombies() {
 			if length > 1024 {
 				length = 1024
 			}
-			hexdumpWords(addr, addr+length, nil)
+			hexdumpWords(addr, length, nil)
 		}
 		mbits.advance()
 		abits.advance()

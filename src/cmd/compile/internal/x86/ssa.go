@@ -167,7 +167,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.Op386SBBL:
 		opregreg(s, v.Op.Asm(), v.Reg(), v.Args[1].Reg())
 
-	case ssa.Op386ADDLcarry, ssa.Op386SUBLcarry:
+	case ssa.Op386ADDLcarry, ssa.Op386ADCLcarry, ssa.Op386SUBLcarry:
 		// output 0 is carry/borrow, output 1 is the low 32 bits.
 		opregreg(s, v.Op.Asm(), v.Reg0(), v.Args[1].Reg())
 
@@ -804,7 +804,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			}
 		case ssa.Op386LoweredPanicBoundsCR:
 			yIsReg = true
-			yVal := int(v.Args[0].Reg() - x86.REG_AX)
+			yVal = int(v.Args[0].Reg() - x86.REG_AX)
 			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)

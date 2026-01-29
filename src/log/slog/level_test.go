@@ -215,3 +215,25 @@ func TestLevelVarString(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+func BenchmarkLevelString(b *testing.B) {
+	levels := []Level{
+		0,
+		LevelError,
+		LevelError + 2,
+		LevelError - 2,
+		LevelWarn,
+		LevelWarn - 1,
+		LevelInfo,
+		LevelInfo + 1,
+		LevelInfo - 3,
+		LevelDebug,
+		LevelDebug - 2,
+	}
+	b.ResetTimer()
+	for b.Loop() {
+		for _, level := range levels {
+			_ = level.String()
+		}
+	}
+}

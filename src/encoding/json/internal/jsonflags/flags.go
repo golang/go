@@ -169,8 +169,8 @@ func (dst *Flags) Join(src Flags) {
 	// Copy over all source presence bits over to the destination (using OR),
 	// then invert the source presence bits to clear out source value (using AND-NOT),
 	// then copy over source value bits over to the destination (using OR).
-	//	e.g., dst := Flags{Presence: 0b_1100_0011, Value: 0b_1000_0011}
-	//	e.g., src := Flags{Presence: 0b_0101_1010, Value: 0b_1001_0010}
+	//	e.g., dst := Flags{Presence: 0b_1100_0011, Values: 0b_1000_0011}
+	//	e.g., src := Flags{Presence: 0b_0101_1010, Values: 0b_1001_0010}
 	dst.Presence |= src.Presence // e.g., 0b_1100_0011 | 0b_0101_1010 -> 0b_110_11011
 	dst.Values &= ^src.Presence  // e.g., 0b_1000_0011 & 0b_1010_0101 -> 0b_100_00001
 	dst.Values |= src.Values     // e.g., 0b_1000_0001 | 0b_1001_0010 -> 0b_100_10011
@@ -182,7 +182,7 @@ func (fs *Flags) Set(f Bools) {
 	// then set the presence for all the identifier bits (using OR),
 	// then invert the identifier bits to clear out the values (using AND-NOT),
 	// then copy over all the identifier bits to the value if LSB is 1.
-	//	e.g., fs := Flags{Presence: 0b_0101_0010, Value: 0b_0001_0010}
+	//	e.g., fs := Flags{Presence: 0b_0101_0010, Values: 0b_0001_0010}
 	//	e.g., f := 0b_1001_0001
 	id := uint64(f) &^ uint64(1)  // e.g., 0b_1001_0001 & 0b_1111_1110 -> 0b_1001_0000
 	fs.Presence |= id             // e.g., 0b_0101_0010 | 0b_1001_0000 -> 0b_1101_0011
@@ -207,7 +207,7 @@ func (fs Flags) Has(f Bools) bool {
 // The value bit of f (i.e., the LSB) is ignored.
 func (fs *Flags) Clear(f Bools) {
 	// Invert f to produce a mask to clear all bits in f (using AND).
-	//	e.g., fs := Flags{Presence: 0b_0101_0010, Value: 0b_0001_0010}
+	//	e.g., fs := Flags{Presence: 0b_0101_0010, Values: 0b_0001_0010}
 	//	e.g., f := 0b_0001_1000
 	mask := uint64(^f)  // e.g., 0b_0001_1000 -> 0b_1110_0111
 	fs.Presence &= mask // e.g., 0b_0101_0010 &  0b_1110_0111 -> 0b_0100_0010

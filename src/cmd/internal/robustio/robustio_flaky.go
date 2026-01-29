@@ -31,8 +31,7 @@ func retry(f func() (err error, mayRetry bool)) error {
 			return err
 		}
 
-		var errno syscall.Errno
-		if errors.As(err, &errno) && (lowestErrno == 0 || errno < lowestErrno) {
+		if errno, ok := errors.AsType[syscall.Errno](err); ok && (lowestErrno == 0 || errno < lowestErrno) {
 			bestErr = err
 			lowestErrno = errno
 		} else if bestErr == nil {

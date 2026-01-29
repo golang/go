@@ -85,6 +85,11 @@ func (p *parser) init(file *token.File, src []byte, mode Mode) {
 	p.next()
 }
 
+// end returns the end position of the current token
+func (p *parser) end() token.Pos {
+	return p.scanner.End()
+}
+
 // ----------------------------------------------------------------------------
 // Parsing support
 
@@ -345,30 +350,29 @@ func (p *parser) expectClosing(tok token.Token, context string) token.Pos {
 
 // expectSemi consumes a semicolon and returns the applicable line comment.
 func (p *parser) expectSemi() (comment *ast.CommentGroup) {
-	// semicolon is optional before a closing ')' or '}'
-	if p.tok != token.RPAREN && p.tok != token.RBRACE {
-		switch p.tok {
-		case token.COMMA:
-			// permit a ',' instead of a ';' but complain
-			p.errorExpected(p.pos, "';'")
-			fallthrough
-		case token.SEMICOLON:
-			if p.lit == ";" {
-				// explicit semicolon
-				p.next()
-				comment = p.lineComment // use following comments
-			} else {
-				// artificial semicolon
-				comment = p.lineComment // use preceding comments
-				p.next()
-			}
-			return comment
-		default:
-			p.errorExpected(p.pos, "';'")
-			p.advance(stmtStart)
+	switch p.tok {
+	case token.RPAREN, token.RBRACE:
+		return nil // semicolon is optional before a closing ')' or '}'
+	case token.COMMA:
+		// permit a ',' instead of a ';' but complain
+		p.errorExpected(p.pos, "';'")
+		fallthrough
+	case token.SEMICOLON:
+		if p.lit == ";" {
+			// explicit semicolon
+			p.next()
+			comment = p.lineComment // use following comments
+		} else {
+			// artificial semicolon
+			comment = p.lineComment // use preceding comments
+			p.next()
 		}
+		return comment
+	default:
+		p.errorExpected(p.pos, "';'")
+		p.advance(stmtStart)
+		return nil
 	}
-	return nil
 }
 
 func (p *parser) atComma(context string, follow token.Token) bool {
@@ -721,7 +725,7 @@ func (p *parser) parseFieldDecl() *ast.Field {
 
 	var tag *ast.BasicLit
 	if p.tok == token.STRING {
-		tag = &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
+		tag = &ast.BasicLit{ValuePos: p.pos, ValueEnd: p.end(), Kind: p.tok, Value: p.lit}
 		p.next()
 	}
 
@@ -1475,7 +1479,7 @@ func (p *parser) parseOperand() ast.Expr {
 		return x
 
 	case token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING:
-		x := &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
+		x := &ast.BasicLit{ValuePos: p.pos, ValueEnd: p.end(), Kind: p.tok, Value: p.lit}
 		p.next()
 		return x
 
@@ -2512,9 +2516,11 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) as
 	}
 
 	pos := p.pos
+	end := p.pos
 	var path string
 	if p.tok == token.STRING {
 		path = p.lit
+		end = p.end()
 		p.next()
 	} else if p.tok.IsLiteral() {
 		p.error(pos, "import path must be a string")
@@ -2529,7 +2535,7 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) as
 	spec := &ast.ImportSpec{
 		Doc:     doc,
 		Name:    ident,
-		Path:    &ast.BasicLit{ValuePos: pos, Kind: token.STRING, Value: path},
+		Path:    &ast.BasicLit{ValuePos: pos, ValueEnd: end, Kind: token.STRING, Value: path},
 		Comment: comment,
 	}
 	p.imports = append(p.imports, spec)

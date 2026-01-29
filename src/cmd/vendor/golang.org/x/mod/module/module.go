@@ -261,7 +261,7 @@ func modPathOK(r rune) bool {
 
 // importPathOK reports whether r can appear in a package import path element.
 //
-// Import paths are intermediate between module paths and file paths: we allow
+// Import paths are intermediate between module paths and file paths: we
 // disallow characters that would be confusing or ambiguous as arguments to
 // 'go get' (such as '@' and ' ' ), but allow certain characters that are
 // otherwise-unambiguous on the command line and historically used for some
@@ -802,8 +802,8 @@ func MatchPrefixPatterns(globs, target string) bool {
 	for globs != "" {
 		// Extract next non-empty glob in comma-separated list.
 		var glob string
-		if i := strings.Index(globs, ","); i >= 0 {
-			glob, globs = globs[:i], globs[i+1:]
+		if before, after, ok := strings.Cut(globs, ","); ok {
+			glob, globs = before, after
 		} else {
 			glob, globs = globs, ""
 		}

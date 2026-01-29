@@ -15,8 +15,6 @@ func archauxv(tag, val uintptr) {
 	}
 }
 
-func osArchInit() {}
-
 //go:nosplit
 func cputicks() int64 {
 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.

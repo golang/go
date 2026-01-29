@@ -84,8 +84,7 @@ func _C_res_nclose(state *_C_struct___res_state) {
 }
 
 func cgoNameinfoPTR(b []byte, sa *syscall.RawSockaddr, salen int) (int, error) {
-	gerrno, err := unix.Getnameinfo(sa, salen, &b[0], len(b), nil, 0, unix.NI_NAMEREQD)
-	return int(gerrno), err
+	return unix.Getnameinfo(sa, salen, &b[0], len(b), nil, 0, unix.NI_NAMEREQD)
 }
 
 func cgoSockaddrInet4(ip IP) *syscall.RawSockaddr {

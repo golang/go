@@ -104,10 +104,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 
 	/cpu/classes/scavenge/assist:cpu-seconds
 		Estimated total CPU time spent returning unused memory to the
-		underlying platform in response eagerly in response to memory
-		pressure. This metric is an overestimate, and not directly
-		comparable to system CPU time measurements. Compare only with
-		other /cpu/classes metrics.
+		underlying platform in response eagerly to memory pressure. This
+		metric is an overestimate, and not directly comparable to system
+		CPU time measurements. Compare only with other /cpu/classes
+		metrics.
 
 	/cpu/classes/scavenge/background:cpu-seconds
 		Estimated total CPU time spent performing background tasks to
@@ -271,6 +271,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 		package due to a non-default GODEBUG=containermaxprocs=...
 		setting.
 
+	/godebug/non-default-behavior/cryptocustomrand:events
+		The number of non-default behaviors executed by the crypto
+		package due to a non-default GODEBUG=cryptocustomrand=...
+		setting.
+
 	/godebug/non-default-behavior/embedfollowsymlinks:events
 		The number of non-default behaviors executed by the cmd/go
 		package due to a non-default GODEBUG=embedfollowsymlinks=...
@@ -297,10 +302,6 @@ Below is the full list of supported metrics, ordered lexicographically.
 		package due to a non-default GODEBUG=gotestjsonbuildtext=...
 		setting.
 
-	/godebug/non-default-behavior/gotypesalias:events
-		The number of non-default behaviors executed by the go/types
-		package due to a non-default GODEBUG=gotypesalias=... setting.
-
 	/godebug/non-default-behavior/http2client:events
 		The number of non-default behaviors executed by the net/http
 		package due to a non-default GODEBUG=http2client=... setting.
@@ -308,6 +309,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/godebug/non-default-behavior/http2server:events
 		The number of non-default behaviors executed by the net/http
 		package due to a non-default GODEBUG=http2server=... setting.
+
+	/godebug/non-default-behavior/httpcookiemaxnum:events
+		The number of non-default behaviors executed by the net/http
+		package due to a non-default GODEBUG=httpcookiemaxnum=...
+		setting.
 
 	/godebug/non-default-behavior/httplaxcontentlength:events
 		The number of non-default behaviors executed by the net/http
@@ -393,6 +399,16 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/godebug/non-default-behavior/updatemaxprocs:events
 		The number of non-default behaviors executed by the runtime
 		package due to a non-default GODEBUG=updatemaxprocs=... setting.
+
+	/godebug/non-default-behavior/urlmaxqueryparams:events
+		The number of non-default behaviors executed by the net/url
+		package due to a non-default GODEBUG=urlmaxqueryparams=...
+		setting.
+
+	/godebug/non-default-behavior/urlstrictcolons:events
+		The number of non-default behaviors executed by the net/url
+		package due to a non-default GODEBUG=urlstrictcolons=...
+		setting.
 
 	/godebug/non-default-behavior/winreadlinkvolume:events
 		The number of non-default behaviors executed by the os package
@@ -509,6 +525,29 @@ Below is the full list of supported metrics, ordered lexicographically.
 		operating system threads that can execute user-level Go code
 		simultaneously.
 
+	/sched/goroutines-created:goroutines
+		Count of goroutines created since program start.
+
+	/sched/goroutines/not-in-go:goroutines
+		Approximate count of goroutines running or blocked in
+		a system call or cgo call. Not guaranteed to add up to
+		/sched/goroutines:goroutines with other goroutine metrics.
+
+	/sched/goroutines/runnable:goroutines
+		Approximate count of goroutines ready to execute,
+		but not executing. Not guaranteed to add up to
+		/sched/goroutines:goroutines with other goroutine metrics.
+
+	/sched/goroutines/running:goroutines
+		Approximate count of goroutines executing. Always less than or
+		equal to /sched/gomaxprocs:threads. Not guaranteed to add up to
+		/sched/goroutines:goroutines with other goroutine metrics.
+
+	/sched/goroutines/waiting:goroutines
+		Approximate count of goroutines waiting on a resource
+		(I/O or sync primitives). Not guaranteed to add up to
+		/sched/goroutines:goroutines with other goroutine metrics.
+
 	/sched/goroutines:goroutines
 		Count of live goroutines.
 
@@ -548,6 +587,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 		is spent getting all threads to stop (measured directly in
 		/sched/pauses/stopping/other:seconds). Bucket counts increase
 		monotonically.
+
+	/sched/threads/total:threads
+		The current count of live threads that are owned by the Go
+		runtime.
 
 	/sync/mutex/wait/total:seconds
 		Approximate cumulative time goroutines have spent blocked on a

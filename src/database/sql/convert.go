@@ -55,7 +55,7 @@ func (c ccChecker) CheckNamedValue(nv *driver.NamedValue) error {
 	// it isn't expecting. The final error will be thrown
 	// in the argument converter loop.
 	index := nv.Ordinal - 1
-	if c.want <= index {
+	if c.want >= 0 && c.want <= index {
 		return nil
 	}
 

@@ -59,22 +59,57 @@ func New(inspect *inspector.Inspector, pkg *types.Package, info *types.Info) *In
 					addPackage(obj.Pkg())
 				}
 
-				us, ok := ix.uses[obj]
-				if !ok {
-					us = &uses{}
-					us.code = us.initial[:0]
-					ix.uses[obj] = us
+				for {
+					us, ok := ix.uses[obj]
+					if !ok {
+						us = &uses{}
+						us.code = us.initial[:0]
+						ix.uses[obj] = us
+					}
+					delta := cur.Index() - us.last
+					if delta < 0 {
+						panic("non-monotonic")
+					}
+					us.code = binary.AppendUvarint(us.code, uint64(delta))
+					us.last = cur.Index()
+
+					// If n is a selection of a field or method of an instantiated
+					// type, also record a use of the generic field or method.
+					obj, ok = objectOrigin(obj)
+					if !ok {
+						break
+					}
 				}
-				delta := cur.Index() - us.last
-				if delta < 0 {
-					panic("non-monotonic")
-				}
-				us.code = binary.AppendUvarint(us.code, uint64(delta))
-				us.last = cur.Index()
 			}
 		}
 	}
 	return ix
+}
+
+// objectOrigin returns the generic object for obj if it is a field or
+// method of an instantied type; zero otherwise.
+//
+// (This operation is appropriate only for selections.
+// Lexically resolved references always resolve to the generic.
+// Although Named and Alias types also use Origin to express
+// an instance/generic distinction, that's in the domain
+// of Types; their TypeName objects always refer to the generic.)
+func objectOrigin(obj types.Object) (types.Object, bool) {
+	var origin types.Object
+	switch obj := obj.(type) {
+	case *types.Func:
+		if obj.Signature().Recv() != nil {
+			origin = obj.Origin() // G[int].method -> G[T].method
+		}
+	case *types.Var:
+		if obj.IsField() {
+			origin = obj.Origin() // G[int].field  -> G[T].field
+		}
+	}
+	if origin != nil && origin != obj {
+		return origin, true
+	}
+	return nil, false
 }
 
 // An Index holds an index mapping [types.Object] symbols to their syntax.
@@ -106,6 +141,10 @@ type uses struct {
 
 // Uses returns the sequence of Cursors of [*ast.Ident]s in this package
 // that refer to obj. If obj is nil, the sequence is empty.
+//
+// Uses, unlike the Uses field of [types.Info], records additional
+// entries mapping fields and methods of generic types to references
+// through their corresponding instantiated objects.
 func (ix *Index) Uses(obj types.Object) iter.Seq[inspector.Cursor] {
 	return func(yield func(inspector.Cursor) bool) {
 		if uses := ix.uses[obj]; uses != nil {

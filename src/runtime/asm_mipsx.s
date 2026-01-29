@@ -406,7 +406,7 @@ CALLFN(·call268435456, 268435456)
 CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
-TEXT runtime·procyield(SB),NOSPLIT,$0-4
+TEXT runtime·procyieldAsm(SB),NOSPLIT,$0-4
 	RET
 
 // Save state of caller into g->sched,

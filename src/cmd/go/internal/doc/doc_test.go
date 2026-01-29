@@ -629,6 +629,35 @@ var tests = []test{
 			`Has unexported methods`,
 		},
 	},
+	// Interface with comparable constraint.
+	{
+		"interface type with comparable",
+		[]string{p, `ExportedComparableInterface`},
+		[]string{
+			`Comment about exported interface with comparable`, // Include comment.
+			`type ExportedComparableInterface interface`,       // Interface definition.
+			`comparable.*Comment on line with comparable`,      // Comparable should be shown.
+			`ExportedMethod\(\).*Comment on line with exported method`,
+			`Has unexported methods`,
+		},
+		[]string{
+			`unexportedMethod`, // No unexported method.
+		},
+	},
+	// Interface with only comparable (no unexported methods).
+	{
+		"interface type with comparable only",
+		[]string{p, `ExportedComparableOnlyInterface`},
+		[]string{
+			`ExportedComparableOnlyInterface has only comparable`, // Include comment.
+			`type ExportedComparableOnlyInterface interface`,      // Interface definition.
+			`comparable.*Comment on line with comparable`,         // Comparable should be shown.
+			`ExportedMethod\(\).*Comment on line with exported method`,
+		},
+		[]string{
+			`Has unexported methods`, // Should NOT appear - no unexported methods.
+		},
+	},
 
 	// Interface method.
 	{

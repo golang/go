@@ -124,7 +124,7 @@ func (d *digest) Size() int { return Size }
 func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		return 0, errors.New("crypto/md5: use of MD5 is not allowed in FIPS 140-only mode")
 	}
 	// Note that we currently call block or blockGeneric
@@ -173,7 +173,7 @@ func (d *digest) Sum(in []byte) []byte {
 }
 
 func (d *digest) checkSum() [Size]byte {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		panic("crypto/md5: use of MD5 is not allowed in FIPS 140-only mode")
 	}
 

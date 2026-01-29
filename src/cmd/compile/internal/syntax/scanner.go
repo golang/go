@@ -50,12 +50,12 @@ func (s *scanner) init(src io.Reader, errh func(line, col uint, msg string), mod
 }
 
 // errorf reports an error at the most recently read character position.
-func (s *scanner) errorf(format string, args ...interface{}) {
+func (s *scanner) errorf(format string, args ...any) {
 	s.error(fmt.Sprintf(format, args...))
 }
 
 // errorAtf reports an error at a byte column offset relative to the current token start.
-func (s *scanner) errorAtf(offset int, format string, args ...interface{}) {
+func (s *scanner) errorAtf(offset int, format string, args ...any) {
 	s.errh(s.line, s.col+uint(offset), fmt.Sprintf(format, args...))
 }
 

@@ -62,13 +62,9 @@ TEXT ·archExp(SB),$0-16
 	MOVD	8(R10), F3
 	MOVD	48(R10), F2
 	CMPGTD	F0, F5, FCC0
-	BFPT	add		// x > 0
-sub:
-	FMSUBD	F3, F2, F0, F3	// Log2e*x - 0.5
-	JMP	2(PC)
-add:
+	FMSUBD	F3, F2, F0, F4	// Log2e*x - 0.5
 	FMADDD	F3, F2, F0, F3	// Log2e*x + 0.5
-
+	FSEL	FCC0, F3, F4, F3
 	FTINTRZVD F3, F4	// float64 -> int64
 	MOVV	F4, R5		// R5 = int(k)
 	FFINTDV	F4, F3		// int64 -> float64
@@ -162,13 +158,9 @@ TEXT ·archExp2(SB),$0-16
 	MOVD	0(R10), F10
 	MOVD	8(R10), F2
 	CMPGTD	F0, F10, FCC0
-	BFPT	add
-sub:
-	SUBD	F2, F0, F3	// x - 0.5
-	JMP	2(PC)
-add:
+	SUBD	F2, F0, F4	// x - 0.5
 	ADDD	F2, F0, F3	// x + 0.5
-
+	FSEL	FCC0, F3, F4, F3
 	FTINTRZVD F3, F4
 	MOVV	F4, R5
 	FFINTDV	F4, F3

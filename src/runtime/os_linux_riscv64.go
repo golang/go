@@ -9,8 +9,6 @@ import (
 	"unsafe"
 )
 
-func osArchInit() {}
-
 type riscvHWProbePairs = struct {
 	key   int64
 	value uint64

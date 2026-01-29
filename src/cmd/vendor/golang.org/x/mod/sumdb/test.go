@@ -66,7 +66,7 @@ func (s *TestServer) ReadRecords(ctx context.Context, id, n int64) ([][]byte, er
 	defer s.mu.Unlock()
 
 	var list [][]byte
-	for i := int64(0); i < n; i++ {
+	for i := range n {
 		if id+i >= int64(len(s.records)) {
 			return nil, fmt.Errorf("missing records")
 		}

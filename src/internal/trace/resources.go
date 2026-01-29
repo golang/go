@@ -224,12 +224,12 @@ type StateTransition struct {
 
 	// The actual transition data. Stored in a neutral form so that
 	// we don't need fields for every kind of resource.
-	id       int64
 	oldState uint8
 	newState uint8
 }
 
-func goStateTransition(id GoID, from, to GoState) StateTransition {
+// MakeGoStateTransition creates a goroutine state transition.
+func MakeGoStateTransition(id GoID, from, to GoState) StateTransition {
 	return StateTransition{
 		Resource: ResourceID{Kind: ResourceGoroutine, id: int64(id)},
 		oldState: uint8(from),
@@ -237,7 +237,8 @@ func goStateTransition(id GoID, from, to GoState) StateTransition {
 	}
 }
 
-func procStateTransition(id ProcID, from, to ProcState) StateTransition {
+// MakeProcStateTransition creates a proc state transition.
+func MakeProcStateTransition(id ProcID, from, to ProcState) StateTransition {
 	return StateTransition{
 		Resource: ResourceID{Kind: ResourceProc, id: int64(id)},
 		oldState: uint8(from),

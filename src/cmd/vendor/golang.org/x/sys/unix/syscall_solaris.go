@@ -629,7 +629,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Kill(pid int, signum syscall.Signal) (err error)
 //sys	Lchown(path string, uid int, gid int) (err error)
 //sys	Link(path string, link string) (err error)
-//sys	Listen(s int, backlog int) (err error) = libsocket.__xnet_llisten
+//sys	Listen(s int, backlog int) (err error) = libsocket.__xnet_listen
 //sys	Lstat(path string, stat *Stat_t) (err error)
 //sys	Madvise(b []byte, advice int) (err error)
 //sys	Mkdir(path string, mode uint32) (err error)
@@ -1050,14 +1050,6 @@ func Getmsg(fd int, cl []byte, data []byte) (retCl []byte, retData []byte, flags
 
 func IoctlSetIntRetInt(fd int, req int, arg int) (int, error) {
 	return ioctlRet(fd, req, uintptr(arg))
-}
-
-func IoctlSetString(fd int, req int, val string) error {
-	bs := make([]byte, len(val)+1)
-	copy(bs[:len(bs)-1], val)
-	err := ioctlPtr(fd, req, unsafe.Pointer(&bs[0]))
-	runtime.KeepAlive(&bs[0])
-	return err
 }
 
 // Lifreq Helpers

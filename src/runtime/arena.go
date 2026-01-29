@@ -1051,7 +1051,11 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 
 	// Model the user arena as a heap span for a large object.
 	spc := makeSpanClass(0, false)
-	h.initSpan(s, spanAllocHeap, spc, base, userArenaChunkPages)
+	// A user arena chunk is always fresh from the OS. It's either newly allocated
+	// via sysAlloc() or reused from the readyList after a sysFault(). The memory is
+	// then re-mapped via sysMap(), so we can safely treat it as scavenged; the
+	// kernel guarantees it will be zero-filled on its next use.
+	h.initSpan(s, spanAllocHeap, spc, base, userArenaChunkPages, userArenaChunkBytes)
 	s.isUserArenaChunk = true
 	s.elemsize -= userArenaChunkReserveBytes()
 	s.freeindex = 1

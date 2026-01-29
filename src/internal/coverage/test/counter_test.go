@@ -141,7 +141,7 @@ func TestCounterDataAppendSegment(t *testing.T) {
 
 	const numSegments = 2
 
-	// Write a counter with with multiple segments.
+	// Write a counter with multiple segments.
 	args := map[string]string{"argc": "1", "argv0": "prog.exe"}
 	allfuncs := [][]decodecounter.FuncPayload{}
 	ctrs := []uint32{}

@@ -248,7 +248,7 @@ func (p *Parser) asmData(operands [][]lex.Token) {
 	case obj.TYPE_CONST:
 		switch sz {
 		case 1, 2, 4, 8:
-			nameAddr.Sym.WriteInt(p.ctxt, nameAddr.Offset, int(sz), valueAddr.Offset)
+			nameAddr.Sym.WriteInt(p.ctxt, nameAddr.Offset, sz, valueAddr.Offset)
 		default:
 			p.errorf("bad int size for DATA argument: %d", sz)
 		}
@@ -262,10 +262,10 @@ func (p *Parser) asmData(operands [][]lex.Token) {
 			p.errorf("bad float size for DATA argument: %d", sz)
 		}
 	case obj.TYPE_SCONST:
-		nameAddr.Sym.WriteString(p.ctxt, nameAddr.Offset, int(sz), valueAddr.Val.(string))
+		nameAddr.Sym.WriteString(p.ctxt, nameAddr.Offset, sz, valueAddr.Val.(string))
 	case obj.TYPE_ADDR:
 		if sz == p.arch.PtrSize {
-			nameAddr.Sym.WriteAddr(p.ctxt, nameAddr.Offset, int(sz), valueAddr.Sym, valueAddr.Offset)
+			nameAddr.Sym.WriteAddr(p.ctxt, nameAddr.Offset, sz, valueAddr.Sym, valueAddr.Offset)
 		} else {
 			p.errorf("bad addr size for DATA argument: %d", sz)
 		}
@@ -780,6 +780,21 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 					return
 				}
 				prog.RegTo2 = a[2].Reg
+				break
+			}
+			// RISCV64 instructions that reference CSRs with symbolic names.
+			if isImm, ok := arch.IsRISCV64CSRO(op); ok {
+				if a[0].Type != obj.TYPE_CONST && isImm {
+					p.errorf("invalid value for first operand to %s instruction, must be a 5 bit unsigned immediate", op)
+					return
+				}
+				if a[1].Type != obj.TYPE_SPECIAL {
+					p.errorf("invalid value for second operand to %s instruction, must be a CSR name", op)
+					return
+				}
+				prog.AddRestSourceArgs([]obj.Addr{a[1]})
+				prog.From = a[0]
+				prog.To = a[2]
 				break
 			}
 			prog.From = a[0]

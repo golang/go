@@ -208,7 +208,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		}
 		// The second relocation has the target symbol we want
 		su.SetRelocType(rIdx+1, objabi.R_PCREL)
-		su.SetRelocAdd(rIdx+1, r.Add()+int64(r.Off())-off)
+		su.SetRelocAdd(rIdx+1, r.Add()+int64(r.Off())+int64(r.Siz())-off)
 		// Remove the other relocation
 		su.SetRelocSiz(rIdx, 0)
 		return true
@@ -407,7 +407,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			} else {
 				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 			}
-			rela.AddAddrPlus(target.Arch, targ, int64(r.Add()))
+			rela.AddAddrPlus(target.Arch, targ, r.Add())
 			// Not mark r done here. So we still apply it statically,
 			// so in the file content we'll also have the right offset
 			// to the relocation target. So it can be examined statically

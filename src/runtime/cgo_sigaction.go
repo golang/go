@@ -3,8 +3,10 @@
 // license that can be found in the LICENSE file.
 
 // Support for sanitizers. See runtime/cgo/sigaction.go.
+// Also used on linux/386 to clear the SA_RESTORER flag
+// when using cgo; see issue #75253.
 
-//go:build (linux && (amd64 || arm64 || loong64 || ppc64le)) || (freebsd && amd64)
+//go:build (linux && (386 || amd64 || arm64 || loong64 || ppc64le)) || (freebsd && amd64)
 
 package runtime
 
@@ -41,6 +43,8 @@ func sigaction(sig uint32, new, old *sigactiont) {
 		// system stack already in use).
 
 		var ret int32
+
+		fixSigactionForCgo(new)
 
 		var g *g
 		if mainStarted {

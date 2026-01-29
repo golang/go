@@ -2432,7 +2432,6 @@ type K = Nested[string]
 		)
 		var wg sync.WaitGroup
 		for i := 0; i < 2; i++ {
-			i := i
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -2480,8 +2479,8 @@ func TestInstantiateErrors(t *testing.T) {
 			t.Fatalf("Instantiate(%v, %v) returned nil error, want non-nil", T, test.targs)
 		}
 
-		var argErr *ArgumentError
-		if !errors.As(err, &argErr) {
+		argErr, ok := errors.AsType[*ArgumentError](err)
+		if !ok {
 			t.Fatalf("Instantiate(%v, %v): error is not an *ArgumentError", T, test.targs)
 		}
 
@@ -2496,8 +2495,8 @@ func TestArgumentErrorUnwrapping(t *testing.T) {
 		Index: 1,
 		Err:   Error{Msg: "test"},
 	}
-	var e Error
-	if !errors.As(err, &e) {
+	e, ok := errors.AsType[Error](err)
+	if !ok {
 		t.Fatalf("error %v does not wrap types.Error", err)
 	}
 	if e.Msg != "test" {
@@ -2613,7 +2612,6 @@ func fn() {
 	})
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			if got := len(idents[test.name]); got != 1 {
 				t.Fatalf("found %d identifiers named %s, want 1", got, test.name)
@@ -2995,7 +2993,6 @@ func TestTooNew(t *testing.T) {
 
 // This is a regression test for #66704.
 func TestUnaliasTooSoonInCycle(t *testing.T) {
-	setGotypesalias(t, true)
 	const src = `package a
 
 var x T[B] // this appears to cause Unalias to be called on B while still Invalid
@@ -3014,7 +3011,6 @@ type B = T[A]
 }
 
 func TestAlias_Rhs(t *testing.T) {
-	setGotypesalias(t, true)
 	const src = `package p
 
 type A = B
@@ -3028,51 +3024,6 @@ type C = int
 	got, want := A.Type().(*Alias).Rhs().String(), "p.B"
 	if got != want {
 		t.Errorf("A.Rhs = %s, want %s", got, want)
-	}
-}
-
-// Test the hijacking described of "any" described in golang/go#66921, for type
-// checking.
-func TestAnyHijacking_Check(t *testing.T) {
-	for _, enableAlias := range []bool{false, true} {
-		t.Run(fmt.Sprintf("EnableAlias=%t", enableAlias), func(t *testing.T) {
-			setGotypesalias(t, enableAlias)
-			var wg sync.WaitGroup
-			for i := 0; i < 10; i++ {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					pkg := mustTypecheck("package p; var x any", nil, nil)
-					x := pkg.Scope().Lookup("x")
-					if _, gotAlias := x.Type().(*Alias); gotAlias != enableAlias {
-						t.Errorf(`Lookup("x").Type() is %T: got Alias: %t, want %t`, x.Type(), gotAlias, enableAlias)
-					}
-				}()
-			}
-			wg.Wait()
-		})
-	}
-}
-
-// Test the hijacking described of "any" described in golang/go#66921, for
-// Scope.Lookup outside of type checking.
-func TestAnyHijacking_Lookup(t *testing.T) {
-	for _, enableAlias := range []bool{false, true} {
-		t.Run(fmt.Sprintf("EnableAlias=%t", enableAlias), func(t *testing.T) {
-			setGotypesalias(t, enableAlias)
-			a := Universe.Lookup("any")
-			if _, gotAlias := a.Type().(*Alias); gotAlias != enableAlias {
-				t.Errorf(`Lookup("x").Type() is %T: got Alias: %t, want %t`, a.Type(), gotAlias, enableAlias)
-			}
-		})
-	}
-}
-
-func setGotypesalias(t *testing.T, enable bool) {
-	if enable {
-		t.Setenv("GODEBUG", "gotypesalias=1")
-	} else {
-		t.Setenv("GODEBUG", "gotypesalias=0")
 	}
 }
 
@@ -3182,7 +3133,6 @@ func TestIssue73871(t *testing.T) {
 
 func f[T ~[]byte](y T) []byte { return append([]byte(nil), y...) }
 
-// for illustration only:
 type B []byte
 var _ = f[B]
 `
@@ -3198,17 +3148,25 @@ var _ = f[B]
 
 	// Check type inferred for 'append'.
 	//
-	// Before the fix, the inferred type of append's y parameter
+	// Before CL 688815, the inferred type of append's y parameter
 	// was T. When a client such as x/tools/go/ssa instantiated T=B,
 	// it would result in the Signature "func([]byte, B)" with the
 	// variadic flag set, an invalid combination that caused
 	// NewSignatureType to panic.
 	append := f.Decls[0].(*ast.FuncDecl).Body.List[0].(*ast.ReturnStmt).Results[0].(*ast.CallExpr).Fun
 	tAppend := info.TypeOf(append).(*Signature)
-	want := "func([]byte, ...byte) []byte"
-	if got := fmt.Sprint(tAppend); got != want {
-		// Before the fix, tAppend was func([]byte, T) []byte,
+	if got, want := fmt.Sprint(tAppend), "func([]byte, ...byte) []byte"; got != want {
+		// Before CL 688815, tAppend was func([]byte, T) []byte,
 		// where T prints as "<expected string type>".
-		t.Errorf("for append, inferred type %s, want %s", tAppend, want)
+		t.Errorf("append: got type %s, want %s", got, want)
+	}
+
+	// Instantiate the type inferred for append(...) at T=B.
+	// Before the fix in CL 689277, NewSignatureType would panic.
+	params := slices.Collect(tAppend.Params().Variables())
+	params[1] = NewVar(token.NoPos, pkg, "", pkg.Scope().Lookup("B").Type())
+	sig := NewSignatureType(nil, nil, nil, NewTuple(params...), tAppend.Results(), true)
+	if got, want := fmt.Sprint(sig), "func([]byte, p.B...) []byte"; got != want {
+		t.Errorf("instantiated: got type %s, want %s", got, want)
 	}
 }

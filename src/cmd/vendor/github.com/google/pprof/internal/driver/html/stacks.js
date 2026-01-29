@@ -579,7 +579,7 @@ function stackViewer(stacks, nodes) {
   }
 
   // percentText returns text that displays v in appropriate units alongside its
-  // percentange.
+  // percentage.
   function percentText(v) {
     function percent(v, total) {
       return Number(((100.0 * v) / total).toFixed(1)) + '%';

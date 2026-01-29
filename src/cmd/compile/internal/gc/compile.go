@@ -29,7 +29,7 @@ var (
 	compilequeue []*ir.Func // functions waiting to be compiled
 )
 
-func enqueueFunc(fn *ir.Func) {
+func enqueueFunc(fn *ir.Func, symABIs *ssagen.SymABIs) {
 	if ir.CurFunc != nil {
 		base.FatalfAt(fn.Pos(), "enqueueFunc %v inside %v", fn, ir.CurFunc)
 	}
@@ -49,22 +49,30 @@ func enqueueFunc(fn *ir.Func) {
 	}
 
 	if len(fn.Body) == 0 {
-		// Initialize ABI wrappers if necessary.
-		ir.InitLSym(fn, false)
-		types.CalcSize(fn.Type())
-		a := ssagen.AbiForBodylessFuncStackMap(fn)
-		abiInfo := a.ABIAnalyzeFuncType(fn.Type()) // abiInfo has spill/home locations for wrapper
-		if fn.ABI == obj.ABI0 {
-			// The current args_stackmap generation assumes the function
-			// is ABI0, and only ABI0 assembly function can have a FUNCDATA
-			// reference to args_stackmap (see cmd/internal/obj/plist.go:Flushplist).
-			// So avoid introducing an args_stackmap if the func is not ABI0.
-			liveness.WriteFuncMap(fn, abiInfo)
+		if ir.IsIntrinsicSym(fn.Sym()) && fn.Sym().Linkname == "" && !symABIs.HasDef(fn.Sym()) {
+			// Generate the function body for a bodyless intrinsic, in case it
+			// is used in a non-call context (e.g. as a function pointer).
+			// We skip functions defined in assembly, or has a linkname (which
+			// could be defined in another package).
+			ssagen.GenIntrinsicBody(fn)
+		} else {
+			// Initialize ABI wrappers if necessary.
+			ir.InitLSym(fn, false)
+			types.CalcSize(fn.Type())
+			a := ssagen.AbiForBodylessFuncStackMap(fn)
+			abiInfo := a.ABIAnalyzeFuncType(fn.Type()) // abiInfo has spill/home locations for wrapper
+			if fn.ABI == obj.ABI0 {
+				// The current args_stackmap generation assumes the function
+				// is ABI0, and only ABI0 assembly function can have a FUNCDATA
+				// reference to args_stackmap (see cmd/internal/obj/plist.go:Flushplist).
+				// So avoid introducing an args_stackmap if the func is not ABI0.
+				liveness.WriteFuncMap(fn, abiInfo)
 
-			x := ssagen.EmitArgInfo(fn, abiInfo)
-			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
+				x := ssagen.EmitArgInfo(fn, abiInfo)
+				objw.Global(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
+			}
+			return
 		}
-		return
 	}
 
 	errorsBefore := base.Errors()
@@ -134,73 +142,47 @@ func compileFunctions(profile *pgoir.Profile) {
 		// Compile the longest functions first,
 		// since they're most likely to be the slowest.
 		// This helps avoid stragglers.
+		// Since we remove from the end of the slice queue,
+		// that means shortest to longest.
 		slices.SortFunc(compilequeue, func(a, b *ir.Func) int {
-			return cmp.Compare(len(b.Body), len(a.Body))
+			return cmp.Compare(len(a.Body), len(b.Body))
 		})
 	}
 
-	// By default, we perform work right away on the current goroutine
-	// as the solo worker.
-	queue := func(work func(int)) {
-		work(0)
-	}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	mu.Lock()
 
-	if nWorkers := base.Flag.LowerC; nWorkers > 1 {
-		// For concurrent builds, we allow the work queue
-		// to grow arbitrarily large, but only nWorkers work items
-		// can be running concurrently.
-		workq := make(chan func(int))
-		done := make(chan int)
+	for workerId := range base.Flag.LowerC {
+		// TODO: replace with wg.Go when the oldest bootstrap has it.
+		// With the current policy, that'd be go1.27.
+		wg.Add(1)
 		go func() {
-			ids := make([]int, nWorkers)
-			for i := range ids {
-				ids[i] = i
-			}
-			var pending []func(int)
+			defer wg.Done()
+			var closures []*ir.Func
 			for {
-				select {
-				case work := <-workq:
-					pending = append(pending, work)
-				case id := <-done:
-					ids = append(ids, id)
+				mu.Lock()
+				compilequeue = append(compilequeue, closures...)
+				remaining := len(compilequeue)
+				if remaining == 0 {
+					mu.Unlock()
+					return
 				}
-				for len(pending) > 0 && len(ids) > 0 {
-					work := pending[len(pending)-1]
-					id := ids[len(ids)-1]
-					pending = pending[:len(pending)-1]
-					ids = ids[:len(ids)-1]
-					go func() {
-						work(id)
-						done <- id
-					}()
-				}
+				fn := compilequeue[len(compilequeue)-1]
+				compilequeue = compilequeue[:len(compilequeue)-1]
+				mu.Unlock()
+				ssagen.Compile(fn, workerId, profile)
+				closures = fn.Closures
 			}
 		}()
-		queue = func(work func(int)) {
-			workq <- work
-		}
-	}
-
-	var wg sync.WaitGroup
-	var compile func([]*ir.Func)
-	compile = func(fns []*ir.Func) {
-		wg.Add(len(fns))
-		for _, fn := range fns {
-			fn := fn
-			queue(func(worker int) {
-				ssagen.Compile(fn, worker, profile)
-				compile(fn.Closures)
-				wg.Done()
-			})
-		}
 	}
 
 	types.CalcSizeDisabled = true // not safe to calculate sizes concurrently
 	base.Ctxt.InParallel = true
 
-	compile(compilequeue)
-	compilequeue = nil
+	mu.Unlock()
 	wg.Wait()
+	compilequeue = nil
 
 	base.Ctxt.InParallel = false
 	types.CalcSizeDisabled = false

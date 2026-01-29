@@ -252,3 +252,16 @@ type TildeConstraint interface {
 type StructConstraint interface {
 	struct { F int }
 }
+
+// Comment about exported interface with comparable.
+type ExportedComparableInterface interface {
+	comparable         // Comment on line with comparable.
+	ExportedMethod()   // Comment on line with exported method.
+	unexportedMethod() // Comment on line with unexported method.
+}
+
+// ExportedComparableOnlyInterface has only comparable and exported method (no unexported).
+type ExportedComparableOnlyInterface interface {
+	comparable       // Comment on line with comparable.
+	ExportedMethod() // Comment on line with exported method.
+}

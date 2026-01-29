@@ -154,8 +154,8 @@ func TestWriter(t *testing.T) {
 			continue
 		}
 		// Compare the average delta to the tolerance level.
-		if averageDelta(m0, m1) > tc.tolerance {
-			t.Errorf("%s, quality=%d: average delta is too high", tc.filename, tc.quality)
+		if d := averageDelta(m0, m1); d > tc.tolerance {
+			t.Errorf("%s, quality=%d: average delta is too high (%d > %d)", tc.filename, tc.quality, d, tc.tolerance)
 			continue
 		}
 	}

@@ -29,7 +29,7 @@ import (
 // The contents of fsys must not change concurrently with TestFS.
 //
 // If TestFS finds any misbehaviors, it returns either the first error or a
-// list of errors. Use [errors.Is] or [errors.As] to inspect.
+// list of errors. Use [errors.Is] or [errors.AsType] to inspect.
 //
 // Typical usage inside a test is:
 //

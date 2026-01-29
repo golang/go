@@ -22,10 +22,9 @@ const (
 	ctrlEmpty   ctrl = 0b10000000
 	ctrlDeleted ctrl = 0b11111110
 
-	bitsetLSB     = 0x0101010101010101
-	bitsetMSB     = 0x8080808080808080
-	bitsetEmpty   = bitsetLSB * uint64(ctrlEmpty)
-	bitsetDeleted = bitsetLSB * uint64(ctrlDeleted)
+	bitsetLSB   = 0x0101010101010101
+	bitsetMSB   = 0x8080808080808080
+	bitsetEmpty = bitsetLSB * uint64(ctrlEmpty)
 )
 
 // bitset represents a set of slots within a group.
@@ -214,6 +213,12 @@ func ctrlGroupMatchEmptyOrDeleted(g ctrlGroup) bitset {
 // matchFull returns the set of slots in the group that are full.
 func (g ctrlGroup) matchFull() bitset {
 	return ctrlGroupMatchFull(g)
+}
+
+// anyFull reports whether any slots in the group are full.
+func (g ctrlGroup) anyFull() bool {
+	// A slot is full iff bit 7 is unset. Test whether any slot has bit 7 unset.
+	return (^g)&bitsetMSB != 0
 }
 
 // Portable implementation of matchFull.

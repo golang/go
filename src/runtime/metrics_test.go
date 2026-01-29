@@ -471,7 +471,7 @@ func BenchmarkReadMetricsLatency(b *testing.B) {
 	b.ReportMetric(float64(latencies[len(latencies)*99/100]), "p99-ns")
 }
 
-var readMetricsSink [1024]interface{}
+var readMetricsSink [1024]any
 
 func TestReadMetricsCumulative(t *testing.T) {
 	// Set up the set of metrics marked cumulative.
@@ -1573,5 +1573,14 @@ func TestReadMetricsFinalizers(t *testing.T) {
 	}
 	if v0, v1 := before[1].Value.Uint64(), after[1].Value.Uint64(); v0+N != v1 {
 		t.Errorf("expected %s difference to be exactly %d, got %d -> %d", before[1].Name, N, v0, v1)
+	}
+}
+
+func TestReadMetricsSched(t *testing.T) {
+	// This test is run in a subprocess to prevent other tests from polluting the metrics.
+	output := runTestProg(t, "testprog", "SchedMetrics")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
 	}
 }

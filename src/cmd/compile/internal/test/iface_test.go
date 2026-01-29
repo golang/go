@@ -13,7 +13,7 @@ var x int
 
 func TestEfaceConv1(t *testing.T) {
 	a := 5
-	i := interface{}(a)
+	i := any(a)
 	a += 2
 	if got := i.(int); got != 5 {
 		t.Errorf("wanted 5, got %d\n", got)
@@ -23,7 +23,7 @@ func TestEfaceConv1(t *testing.T) {
 func TestEfaceConv2(t *testing.T) {
 	a := 5
 	sink = &a
-	i := interface{}(a)
+	i := any(a)
 	a += 2
 	if got := i.(int); got != 5 {
 		t.Errorf("wanted 5, got %d\n", got)
@@ -38,7 +38,7 @@ func TestEfaceConv3(t *testing.T) {
 }
 
 //go:noinline
-func e2int3(i interface{}) int {
+func e2int3(i any) int {
 	x = 7
 	return i.(int)
 }
@@ -51,7 +51,7 @@ func TestEfaceConv4(t *testing.T) {
 }
 
 //go:noinline
-func e2int4(i interface{}, p *int) int {
+func e2int4(i any, p *int) int {
 	*p = 7
 	return i.(int)
 }
@@ -69,7 +69,7 @@ func (i Int) foo() {
 
 func TestIfaceConv1(t *testing.T) {
 	a := Int(5)
-	i := interface{}(a)
+	i := any(a)
 	a += 2
 	if got := i.(Int); got != 5 {
 		t.Errorf("wanted 5, got %d\n", int(got))
@@ -79,7 +79,7 @@ func TestIfaceConv1(t *testing.T) {
 func TestIfaceConv2(t *testing.T) {
 	a := Int(5)
 	sink = &a
-	i := interface{}(a)
+	i := any(a)
 	a += 2
 	if got := i.(Int); got != 5 {
 		t.Errorf("wanted 5, got %d\n", int(got))
@@ -121,7 +121,7 @@ func BenchmarkEfaceInteger(b *testing.B) {
 }
 
 //go:noinline
-func i2int(i interface{}) int {
+func i2int(i any) int {
 	return i.(int)
 }
 

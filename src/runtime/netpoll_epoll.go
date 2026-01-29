@@ -27,7 +27,7 @@ func netpollinit() {
 	}
 	efd, errno := linux.Eventfd(0, linux.EFD_CLOEXEC|linux.EFD_NONBLOCK)
 	if errno != 0 {
-		println("runtime: eventfd failed with", -errno)
+		println("runtime: eventfd failed with", errno)
 		throw("runtime: eventfd failed")
 	}
 	ev := linux.EpollEvent{

@@ -16,7 +16,7 @@ import (
 // ------------- //
 
 func load_le64(b []byte) uint64 {
-	// amd64:`MOVQ\s\(.*\),`,-`MOV[BWL]\t[^$]`,-`OR`
+	// amd64:`MOVQ\s\(.*\),`,-`MOV[BWL] [^$]`,-`OR`
 	// s390x:`MOVDBR\s\(.*\),`
 	// arm64:`MOVD\s\(R[0-9]+\),`,-`MOV[BHW]`
 	// loong64:`MOVV\s\(R[0-9]+\),`
@@ -26,7 +26,7 @@ func load_le64(b []byte) uint64 {
 }
 
 func load_le64_idx(b []byte, idx int) uint64 {
-	// amd64:`MOVQ\s\(.*\)\(.*\*1\),`,-`MOV[BWL]\t[^$]`,-`OR`
+	// amd64:`MOVQ\s\(.*\)\(.*\*1\),`,-`MOV[BWL] [^$]`,-`OR`
 	// s390x:`MOVDBR\s\(.*\)\(.*\*1\),`
 	// arm64:`MOVD\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[BHW]`
 	// loong64:`MOVV\s\(R[0-9]+\)\(R[0-9]+\),`
@@ -78,7 +78,7 @@ func load_le16_idx(b []byte, idx int) uint16 {
 }
 
 func load_be64(b []byte) uint64 {
-	// amd64/v1,amd64/v2:`BSWAPQ`,-`MOV[BWL]\t[^$]`,-`OR`
+	// amd64/v1,amd64/v2:`BSWAPQ`,-`MOV[BWL] [^$]`,-`OR`
 	// amd64/v3:`MOVBEQ`
 	// s390x:`MOVD\s\(.*\),`
 	// arm64:`REV`,`MOVD\s\(R[0-9]+\),`,-`MOV[BHW]`,-`REVW`,-`REV16W`
@@ -88,8 +88,8 @@ func load_be64(b []byte) uint64 {
 }
 
 func load_be64_idx(b []byte, idx int) uint64 {
-	// amd64/v1,amd64/v2:`BSWAPQ`,-`MOV[BWL]\t[^$]`,-`OR`
-	// amd64/v3: `MOVBEQ\t\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\), [A-Z]+[0-9]*`
+	// amd64/v1,amd64/v2:`BSWAPQ`,-`MOV[BWL] [^$]`,-`OR`
+	// amd64/v3: `MOVBEQ \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\), [A-Z]+[0-9]*`
 	// s390x:`MOVD\s\(.*\)\(.*\*1\),`
 	// arm64:`REV`,`MOVD\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[WHB]`,-`REVW`,-`REV16W`
 	// ppc64le:`MOVDBR`,-`MOV[BHW]Z`
@@ -109,7 +109,7 @@ func load_be32(b []byte) uint32 {
 
 func load_be32_idx(b []byte, idx int) uint32 {
 	// amd64/v1,amd64/v2:`BSWAPL`,-`MOV[BW]`,-`OR`
-	// amd64/v3: `MOVBEL\t\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\), [A-Z]+[0-9]*`
+	// amd64/v3: `MOVBEL \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\), [A-Z]+[0-9]*`
 	// s390x:`MOVWZ\s\(.*\)\(.*\*1\),`
 	// arm64:`REVW`,`MOVWU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[HB]`,-`REV16W`
 	// ppc64le:`MOVWBR`,-`MOV[BH]Z`
@@ -136,79 +136,79 @@ func load_be16_idx(b []byte, idx int) uint16 {
 }
 
 func load_le_byte2_uint16(s []byte) uint16 {
-	// arm64:`MOVHU\t\(R[0-9]+\)`,-`ORR`,-`MOVB`
+	// arm64:`MOVHU \(R[0-9]+\)`,-`ORR`,-`MOVB`
 	// 386:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`OR`
 	// amd64:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`OR`
-	// ppc64le:`MOVHZ\t\(R[0-9]+\)`,-`MOVBZ`
+	// ppc64le:`MOVHZ \(R[0-9]+\)`,-`MOVBZ`
 	// ppc64:`MOVHBR`,-`MOVBZ`
 	return uint16(s[0]) | uint16(s[1])<<8
 }
 
 func load_le_byte2_uint16_inv(s []byte) uint16 {
-	// arm64:`MOVHU\t\(R[0-9]+\)`,-`ORR`,-`MOVB`
+	// arm64:`MOVHU \(R[0-9]+\)`,-`ORR`,-`MOVB`
 	// 386:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`OR`
 	// amd64:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`OR`
-	// ppc64le:`MOVHZ\t\(R[0-9]+\)`,-`MOVBZ`
+	// ppc64le:`MOVHZ \(R[0-9]+\)`,-`MOVBZ`
 	// ppc64:`MOVHBR`,-`MOVBZ`
 	return uint16(s[1])<<8 | uint16(s[0])
 }
 
 func load_le_byte4_uint32(s []byte) uint32 {
-	// arm64:`MOVWU\t\(R[0-9]+\)`,-`ORR`,-`MOV[BH]`
+	// arm64:`MOVWU \(R[0-9]+\)`,-`ORR`,-`MOV[BH]`
 	// 386:`MOVL\s\([A-Z]+\)`,-`MOV[BW]`,-`OR`
 	// amd64:`MOVL\s\([A-Z]+\)`,-`MOV[BW]`,-`OR`
-	// ppc64le:`MOVWZ\t\(R[0-9]+\)`,-`MOV[BH]Z`
+	// ppc64le:`MOVWZ \(R[0-9]+\)`,-`MOV[BH]Z`
 	// ppc64:`MOVWBR`,-MOV[BH]Z`
 	return uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 | uint32(s[3])<<24
 }
 
 func load_le_byte4_uint32_inv(s []byte) uint32 {
-	// arm64:`MOVWU\t\(R[0-9]+\)`,-`ORR`,-`MOV[BH]`
+	// arm64:`MOVWU \(R[0-9]+\)`,-`ORR`,-`MOV[BH]`
 	// ppc64le:`MOVWZ`,-`MOV[BH]Z`
 	// ppc64:`MOVWBR`,-`MOV[BH]Z`
 	return uint32(s[3])<<24 | uint32(s[2])<<16 | uint32(s[1])<<8 | uint32(s[0])
 }
 
 func load_le_byte8_uint64(s []byte) uint64 {
-	// arm64:`MOVD\t\(R[0-9]+\)`,-`ORR`,-`MOV[BHW]`
-	// amd64:`MOVQ\s\([A-Z]+\),\s[A-Z]+`,-`MOV[BWL]\t[^$]`,-`OR`
-	// ppc64le:`MOVD\t\(R[0-9]+\)`,-`MOV[BHW]Z`
+	// arm64:`MOVD \(R[0-9]+\)`,-`ORR`,-`MOV[BHW]`
+	// amd64:`MOVQ\s\([A-Z]+\),\s[A-Z]+`,-`MOV[BWL] [^$]`,-`OR`
+	// ppc64le:`MOVD \(R[0-9]+\)`,-`MOV[BHW]Z`
 	// ppc64:`MOVDBR`,-`MOVW[WHB]Z`
 	return uint64(s[0]) | uint64(s[1])<<8 | uint64(s[2])<<16 | uint64(s[3])<<24 | uint64(s[4])<<32 | uint64(s[5])<<40 | uint64(s[6])<<48 | uint64(s[7])<<56
 }
 
 func load_le_byte8_uint64_inv(s []byte) uint64 {
-	// arm64:`MOVD\t\(R[0-9]+\)`,-`ORR`,-`MOV[BHW]`
+	// arm64:`MOVD \(R[0-9]+\)`,-`ORR`,-`MOV[BHW]`
 	// ppc64le:`MOVD`,-`MOV[WHB]Z`
 	// ppc64:`MOVDBR`,-`MOV[WHB]Z`
 	return uint64(s[7])<<56 | uint64(s[6])<<48 | uint64(s[5])<<40 | uint64(s[4])<<32 | uint64(s[3])<<24 | uint64(s[2])<<16 | uint64(s[1])<<8 | uint64(s[0])
 }
 
 func load_be_byte2_uint16(s []byte) uint16 {
-	// arm64:`MOVHU\t\(R[0-9]+\)`,`REV16W`,-`ORR`,-`MOVB`
+	// arm64:`MOVHU \(R[0-9]+\)`,`REV16W`,-`ORR`,-`MOVB`
 	// amd64:`MOVWLZX\s\([A-Z]+\)`,`ROLW`,-`MOVB`,-`OR`
-	// ppc64le:`MOVHBR\t\(R[0-9]+\)`,-`MOVBZ`
+	// ppc64le:`MOVHBR \(R[0-9]+\)`,-`MOVBZ`
 	// ppc64:`MOVHZ`,-`MOVBZ`
 	return uint16(s[0])<<8 | uint16(s[1])
 }
 
 func load_be_byte2_uint16_inv(s []byte) uint16 {
-	// arm64:`MOVHU\t\(R[0-9]+\)`,`REV16W`,-`ORR`,-`MOVB`
+	// arm64:`MOVHU \(R[0-9]+\)`,`REV16W`,-`ORR`,-`MOVB`
 	// amd64:`MOVWLZX\s\([A-Z]+\)`,`ROLW`,-`MOVB`,-`OR`
-	// ppc64le:`MOVHBR\t\(R[0-9]+\)`,-`MOVBZ`
+	// ppc64le:`MOVHBR \(R[0-9]+\)`,-`MOVBZ`
 	// ppc64:`MOVHZ`,-`MOVBZ`
 	return uint16(s[1]) | uint16(s[0])<<8
 }
 
 func load_be_byte4_uint32(s []byte) uint32 {
-	// arm64:`MOVWU\t\(R[0-9]+\)`,`REVW`,-`ORR`,-`REV16W`,-`MOV[BH]`
+	// arm64:`MOVWU \(R[0-9]+\)`,`REVW`,-`ORR`,-`REV16W`,-`MOV[BH]`
 	// ppc64le:`MOVWBR`,-`MOV[HB]Z`
 	// ppc64:`MOVWZ`,-`MOV[HB]Z`
 	return uint32(s[0])<<24 | uint32(s[1])<<16 | uint32(s[2])<<8 | uint32(s[3])
 }
 
 func load_be_byte4_uint32_inv(s []byte) uint32 {
-	// arm64:`MOVWU\t\(R[0-9]+\)`,`REVW`,-`ORR`,-`REV16W`,-`MOV[BH]`
+	// arm64:`MOVWU \(R[0-9]+\)`,`REVW`,-`ORR`,-`REV16W`,-`MOV[BH]`
 	// amd64/v1,amd64/v2:`MOVL\s\([A-Z]+\)`,`BSWAPL`,-`MOV[BW]`,-`OR`
 	// amd64/v3: `MOVBEL`
 	// ppc64le:`MOVWBR`,-`MOV[HB]Z`
@@ -217,17 +217,17 @@ func load_be_byte4_uint32_inv(s []byte) uint32 {
 }
 
 func load_be_byte8_uint64(s []byte) uint64 {
-	// arm64:`MOVD\t\(R[0-9]+\)`,`REV`,-`ORR`,-`REVW`,-`REV16W`,-`MOV[BHW]`
-	// ppc64le:`MOVDBR\t\(R[0-9]+\)`,-`MOV[BHW]Z`
+	// arm64:`MOVD \(R[0-9]+\)`,`REV`,-`ORR`,-`REVW`,-`REV16W`,-`MOV[BHW]`
+	// ppc64le:`MOVDBR \(R[0-9]+\)`,-`MOV[BHW]Z`
 	// ppc64:`MOVD`,-`MOV[WHB]Z`
 	return uint64(s[0])<<56 | uint64(s[1])<<48 | uint64(s[2])<<40 | uint64(s[3])<<32 | uint64(s[4])<<24 | uint64(s[5])<<16 | uint64(s[6])<<8 | uint64(s[7])
 }
 
 func load_be_byte8_uint64_inv(s []byte) uint64 {
-	// arm64:`MOVD\t\(R[0-9]+\)`,`REV`,-`ORR`,-`REVW`,-`REV16W`,-`MOV[BHW]`
-	// amd64/v1,amd64/v2:`MOVQ\s\([A-Z]+\),\s[A-Z]+`,`BSWAPQ`,-`MOV[BWL]\t[^$]`,-`OR`
+	// arm64:`MOVD \(R[0-9]+\)`,`REV`,-`ORR`,-`REVW`,-`REV16W`,-`MOV[BHW]`
+	// amd64/v1,amd64/v2:`MOVQ\s\([A-Z]+\),\s[A-Z]+`,`BSWAPQ`,-`MOV[BWL] [^$]`,-`OR`
 	// amd64/v3: `MOVBEQ`
-	// ppc64le:`MOVDBR\t\(R[0-9]+\)`,-`MOV[BHW]Z`
+	// ppc64le:`MOVDBR \(R[0-9]+\)`,-`MOV[BHW]Z`
 	// ppc64:`MOVD`,-`MOV[BHW]Z`
 	return uint64(s[7]) | uint64(s[6])<<8 | uint64(s[5])<<16 | uint64(s[4])<<24 | uint64(s[3])<<32 | uint64(s[2])<<40 | uint64(s[1])<<48 | uint64(s[0])<<56
 }
@@ -386,20 +386,20 @@ func fcall_uint32(a [2]uint32) [2]uint32 {
 // We want to merge load+op in the first function, but not in the
 // second. See Issue 19595.
 func load_op_merge(p, q *int) {
-	x := *p // amd64:`ADDQ\t\(`
+	x := *p // amd64:`ADDQ \(`
 	*q += x // The combined nilcheck and load would normally have this line number, but we want that combined operation to have the line number of the nil check instead (see #33724).
 }
 func load_op_no_merge(p, q *int) {
 	x := *p
 	for i := 0; i < 10; i++ {
-		*q += x // amd64:`ADDQ\t[A-Z]`
+		*q += x // amd64:`ADDQ [A-Z]`
 	}
 }
 
 func load_op_in_loop(a []int) int {
 	r := 0
 	for _, x := range a {
-		// amd64:`ADDQ\t\([A-Z]+\)\([A-Z]+\*8\), [A-Z]+`
+		// amd64:`ADDQ \([A-Z]+\)\([A-Z]+\*8\), [A-Z]+`
 		r += x
 	}
 	return r
@@ -407,7 +407,7 @@ func load_op_in_loop(a []int) int {
 
 // Make sure offsets are folded into loads and stores.
 func offsets_fold(_, a [20]byte) (b [20]byte) {
-	// arm64:`MOVD\tcommand-line-arguments\.a\+[0-9]+\(FP\), R[0-9]+`,`MOVD\tR[0-9]+, command-line-arguments\.b\+[0-9]+\(FP\)`
+	// arm64:`MOVD command-line-arguments\.a\+[0-9]+\(FP\), R[0-9]+`,`MOVD R[0-9]+, command-line-arguments\.b\+[0-9]+\(FP\)`
 	b = a
 	return
 }
@@ -526,7 +526,7 @@ func store_be64(b []byte, x uint64) {
 
 func store_be64_idx(b []byte, x uint64, idx int) {
 	// amd64/v1,amd64/v2:`BSWAPQ`,-`SHR.`
-	// amd64/v3:`MOVBEQ\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
+	// amd64/v3:`MOVBEQ [A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
 	// arm64:`REV`,`MOVD\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOV[BHW]`,-`REV16W`,-`REVW`
 	// ppc64le:`MOVDBR`
 	// ppc64:`MOVD\s`
@@ -558,7 +558,7 @@ func store_be32_load(b, x *[8]byte) {
 
 func store_be32_idx(b []byte, x uint32, idx int) {
 	// amd64/v1,amd64/v2:`BSWAPL`,-`SHR.`
-	// amd64/v3:`MOVBEL\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
+	// amd64/v3:`MOVBEL [A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
 	// arm64:`REVW`,`MOVW\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOV[BH]`,-`REV16W`
 	// ppc64le:`MOVWBR`
 	// ppc64:`MOVW\s`
@@ -578,7 +578,7 @@ func store_be16(b []byte, x uint16) {
 
 func store_be16_idx(b []byte, x uint16, idx int) {
 	// amd64/v1,amd64/v2:`ROLW\s\$8`,-`SHR.`
-	// amd64/v3:`MOVBEW\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
+	// amd64/v3:`MOVBEW [A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
 	// arm64:`MOVH\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,`REV16W`,-`MOVB`
 	// ppc64le:`MOVHBR`
 	// ppc64:`MOVH\s`
@@ -736,12 +736,12 @@ func store_le_byte_4_idx4_inv(b []byte, idx int, val uint32) {
 func zero_byte_2(b1, b2 []byte) {
 	// bounds checks to guarantee safety of writes below
 	_, _ = b1[1], b2[1]
-	// arm64:"MOVH\tZR",-"MOVB"
+	// arm64:"MOVH ZR" -"MOVB"
 	// amd64:`MOVW\s[$]0,\s\([A-Z]+\)`
 	// 386:`MOVW\s[$]0,\s\([A-Z]+\)`
 	// ppc64x:`MOVH\s`
 	b1[0], b1[1] = 0, 0
-	// arm64:"MOVH\tZR",-"MOVB"
+	// arm64:"MOVH ZR" -"MOVB"
 	// 386:`MOVW\s[$]0,\s\([A-Z]+\)`
 	// amd64:`MOVW\s[$]0,\s\([A-Z]+\)`
 	// ppc64x:`MOVH`
@@ -750,36 +750,36 @@ func zero_byte_2(b1, b2 []byte) {
 
 func zero_byte_4(b1, b2 []byte) {
 	_, _ = b1[3], b2[3]
-	// arm64:"MOVW\tZR",-"MOVB",-"MOVH"
+	// arm64:"MOVW ZR" -"MOVB" -"MOVH"
 	// amd64:`MOVL\s[$]0,\s\([A-Z]+\)`
 	// 386:`MOVL\s[$]0,\s\([A-Z]+\)`
 	// ppc64x:`MOVW\s`
 	b1[0], b1[1], b1[2], b1[3] = 0, 0, 0, 0
-	// arm64:"MOVW\tZR",-"MOVB",-"MOVH"
+	// arm64:"MOVW ZR" -"MOVB" -"MOVH"
 	// ppc64x:`MOVW\s`
 	b2[2], b2[3], b2[1], b2[0] = 0, 0, 0, 0
 }
 
 func zero_byte_8(b []byte) {
 	_ = b[7]
-	b[0], b[1], b[2], b[3] = 0, 0, 0, 0 // arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
+	b[0], b[1], b[2], b[3] = 0, 0, 0, 0 // arm64:"MOVD ZR" -"MOVB" -"MOVH" -"MOVW"
 	b[4], b[5], b[6], b[7] = 0, 0, 0, 0
 }
 
 func zero_byte_16(b []byte) {
 	_ = b[15]
-	b[0], b[1], b[2], b[3] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH",-"MOVW"
+	b[0], b[1], b[2], b[3] = 0, 0, 0, 0 // arm64:"STP" -"MOVB" -"MOVH" -"MOVW"
 	b[4], b[5], b[6], b[7] = 0, 0, 0, 0
 	b[8], b[9], b[10], b[11] = 0, 0, 0, 0
 	b[12], b[13], b[14], b[15] = 0, 0, 0, 0
 }
 
 func zero_byte_30(a *[30]byte) {
-	*a = [30]byte{} // arm64:"STP",-"MOVB",-"MOVH",-"MOVW"
+	*a = [30]byte{} // arm64:"STP" -"MOVB" -"MOVH" -"MOVW"
 }
 
 func zero_byte_39(a *[39]byte) {
-	*a = [39]byte{} // arm64:"MOVD",-"MOVB",-"MOVH",-"MOVW"
+	*a = [39]byte{} // arm64:"MOVD" -"MOVB" -"MOVH" -"MOVW"
 }
 
 func zero_byte_2_idx(b []byte, idx int) {
@@ -798,12 +798,12 @@ func zero_byte_2_idx2(b []byte, idx int) {
 
 func zero_uint16_2(h1, h2 []uint16) {
 	_, _ = h1[1], h2[1]
-	// arm64:"MOVW\tZR",-"MOVB",-"MOVH"
+	// arm64:"MOVW ZR" -"MOVB" -"MOVH"
 	// amd64:`MOVL\s[$]0,\s\([A-Z]+\)`
 	// 386:`MOVL\s[$]0,\s\([A-Z]+\)`
 	// ppc64x:`MOVW\s`
 	h1[0], h1[1] = 0, 0
-	// arm64:"MOVW\tZR",-"MOVB",-"MOVH"
+	// arm64:"MOVW ZR" -"MOVB" -"MOVH"
 	// amd64:`MOVL\s[$]0,\s\([A-Z]+\)`
 	// 386:`MOVL\s[$]0,\s\([A-Z]+\)`
 	// ppc64x:`MOVW`
@@ -812,28 +812,28 @@ func zero_uint16_2(h1, h2 []uint16) {
 
 func zero_uint16_4(h1, h2 []uint16) {
 	_, _ = h1[3], h2[3]
-	// arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
+	// arm64:"MOVD ZR" -"MOVB" -"MOVH" -"MOVW"
 	// amd64:`MOVQ\s[$]0,\s\([A-Z]+\)`
 	// ppc64x:`MOVD\s`
 	h1[0], h1[1], h1[2], h1[3] = 0, 0, 0, 0
-	// arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
+	// arm64:"MOVD ZR" -"MOVB" -"MOVH" -"MOVW"
 	// ppc64x:`MOVD\s`
 	h2[2], h2[3], h2[1], h2[0] = 0, 0, 0, 0
 }
 
 func zero_uint16_8(h []uint16) {
 	_ = h[7]
-	h[0], h[1], h[2], h[3] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
+	h[0], h[1], h[2], h[3] = 0, 0, 0, 0 // arm64:"STP" -"MOVB" -"MOVH"
 	h[4], h[5], h[6], h[7] = 0, 0, 0, 0
 }
 
 func zero_uint32_2(w1, w2 []uint32) {
 	_, _ = w1[1], w2[1]
-	// arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
+	// arm64:"MOVD ZR" -"MOVB" -"MOVH" -"MOVW"
 	// amd64:`MOVQ\s[$]0,\s\([A-Z]+\)`
 	// ppc64x:`MOVD\s`
 	w1[0], w1[1] = 0, 0
-	// arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
+	// arm64:"MOVD ZR" -"MOVB" -"MOVH" -"MOVW"
 	// amd64:`MOVQ\s[$]0,\s\([A-Z]+\)`
 	// ppc64x:`MOVD\s`
 	w2[1], w2[0] = 0, 0
@@ -841,22 +841,22 @@ func zero_uint32_2(w1, w2 []uint32) {
 
 func zero_uint32_4(w1, w2 []uint32) {
 	_, _ = w1[3], w2[3]
-	w1[0], w1[1], w1[2], w1[3] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
-	w2[2], w2[3], w2[1], w2[0] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
+	w1[0], w1[1], w1[2], w1[3] = 0, 0, 0, 0 // arm64:"STP" -"MOVB" -"MOVH"
+	w2[2], w2[3], w2[1], w2[0] = 0, 0, 0, 0 // arm64:"STP" -"MOVB" -"MOVH"
 }
 
 func zero_uint64_2(d1, d2 []uint64) {
 	_, _ = d1[1], d2[1]
-	d1[0], d1[1] = 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
-	d2[1], d2[0] = 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
+	d1[0], d1[1] = 0, 0 // arm64:"STP" -"MOVB" -"MOVH"
+	d2[1], d2[0] = 0, 0 // arm64:"STP" -"MOVB" -"MOVH"
 }
 
 func loadstore(p, q *[4]uint8) {
-	// amd64:"MOVL",-"MOVB"
-	// arm64:"MOVWU",-"MOVBU"
+	// amd64:"MOVL" -"MOVB"
+	// arm64:"MOVWU" -"MOVBU"
 	x0, x1, x2, x3 := q[0], q[1], q[2], q[3]
-	// amd64:"MOVL",-"MOVB"
-	// arm64:"MOVW",-"MOVB"
+	// amd64:"MOVL" -"MOVB"
+	// arm64:"MOVW" -"MOVB"
 	p[0], p[1], p[2], p[3] = x0, x1, x2, x3
 }
 
@@ -865,11 +865,11 @@ type S1 struct {
 }
 
 func loadstore2(p, q *S1) {
-	// amd64:"MOVL",-"MOVWLZX"
-	// arm64:"MOVWU",-"MOVH"
+	// amd64:"MOVL" -"MOVWLZX"
+	// arm64:"MOVWU" -"MOVH"
 	a, b := p.a, p.b
-	// amd64:"MOVL",-"MOVW"
-	// arm64:"MOVW",-"MOVH"
+	// amd64:"MOVL" -"MOVW"
+	// arm64:"MOVW" -"MOVH"
 	q.a, q.b = a, b
 }
 
@@ -878,11 +878,11 @@ func wideStore(p *[8]uint64) {
 		return
 	}
 
-	// amd64:"MOVUPS",-"MOVQ"
-	// arm64:"STP",-"MOVD"
+	// amd64:"MOVUPS" -"MOVQ"
+	// arm64:"STP" -"MOVD"
 	p[0] = 0
-	// amd64:-"MOVUPS",-"MOVQ"
-	// arm64:-"STP",-"MOVD"
+	// amd64:-"MOVUPS" -"MOVQ"
+	// arm64:-"STP" -"MOVD"
 	p[1] = 0
 }
 
@@ -893,52 +893,52 @@ func wideStore2(p *[8]uint64, x, y uint64) {
 
 	// s390x:"STMG"
 	p[0] = x
-	// s390x:-"STMG",-"MOVD"
+	// s390x:-"STMG" -"MOVD"
 	p[1] = y
 }
 
 func store32le(p *struct{ a, b uint32 }, x uint64) {
-	// amd64:"MOVQ",-"MOVL",-"SHRQ"
-	// arm64:"MOVD",-"MOVW",-"LSR"
-	// ppc64le:"MOVD",-"MOVW",-"SRD"
+	// amd64:"MOVQ" -"MOVL" -"SHRQ"
+	// arm64:"MOVD" -"MOVW" -"LSR"
+	// ppc64le:"MOVD" -"MOVW" -"SRD"
 	p.a = uint32(x)
-	// amd64:-"MOVL",-"SHRQ"
-	// arm64:-"MOVW",-"LSR"
-	// ppc64le:-"MOVW",-"SRD"
+	// amd64:-"MOVL" -"SHRQ"
+	// arm64:-"MOVW" -"LSR"
+	// ppc64le:-"MOVW" -"SRD"
 	p.b = uint32(x >> 32)
 }
 func store32be(p *struct{ a, b uint32 }, x uint64) {
 	// arm64:"STPW"
-	// ppc64:"MOVD",-"MOVW",-"SRD"
-	// s390x:"MOVD",-"MOVW",-"SRD"
+	// ppc64:"MOVD" -"MOVW" -"SRD"
+	// s390x:"MOVD" -"MOVW" -"SRD"
 	p.a = uint32(x >> 32)
 	// arm64:-"STPW"
-	// ppc64:-"MOVW",-"SRD"
-	// s390x:-"MOVW",-"SRD"
+	// ppc64:-"MOVW" -"SRD"
+	// s390x:-"MOVW" -"SRD"
 	p.b = uint32(x)
 }
 func store16le(p *struct{ a, b uint16 }, x uint32) {
-	// amd64:"MOVL",-"MOVW",-"SHRL"
-	// arm64:"MOVW",-"MOVH",-"UBFX"
-	// ppc64le:"MOVW",-"MOVH",-"SRW"
+	// amd64:"MOVL" -"MOVW" -"SHRL"
+	// arm64:"MOVW" -"MOVH" -"UBFX"
+	// ppc64le:"MOVW" -"MOVH" -"SRW"
 	p.a = uint16(x)
-	// amd64:-"MOVW",-"SHRL"
-	// arm64:-"MOVH",-"UBFX"
-	// ppc64le:-"MOVH",-"SRW"
+	// amd64:-"MOVW" -"SHRL"
+	// arm64:-"MOVH" -"UBFX"
+	// ppc64le:-"MOVH" -"SRW"
 	p.b = uint16(x >> 16)
 }
 func store16be(p *struct{ a, b uint16 }, x uint32) {
-	// ppc64:"MOVW",-"MOVH",-"SRW"
-	// s390x:"MOVW",-"MOVH",-"SRW"
+	// ppc64:"MOVW" -"MOVH" -"SRW"
+	// s390x:"MOVW" -"MOVH" -"SRW"
 	p.a = uint16(x >> 16)
-	// ppc64:-"MOVH",-"SRW"
-	// s390x:-"MOVH",-"SRW"
+	// ppc64:-"MOVH" -"SRW"
+	// s390x:-"MOVH" -"SRW"
 	p.b = uint16(x)
 }
 
 func storeBoolConst(p *struct{ a, b bool }) {
-	// amd64:"MOVW",-"MOVB"
-	// arm64:"MOVH",-"MOVB"
+	// amd64:"MOVW" -"MOVB"
+	// arm64:"MOVH" -"MOVB"
 	p.a = true
 	p.b = true
 }
@@ -948,8 +948,8 @@ func issue66413(p *struct {
 	c bool
 	d int8
 }) {
-	// amd64:"MOVL",-"MOVB"
-	// arm64:"MOVW",-"MOVB"
+	// amd64:"MOVL" -"MOVB"
+	// arm64:"MOVW" -"MOVB"
 	p.a = 31
 	p.b = false
 	p.c = true
@@ -957,7 +957,7 @@ func issue66413(p *struct {
 }
 
 func issue70300(v uint64) (b [8]byte) {
-	// amd64:"MOVQ",-"MOVB"
+	// amd64:"MOVQ" -"MOVB"
 	b[0] = byte(v)
 	b[1] = byte(v >> 8)
 	b[2] = byte(v >> 16)
@@ -970,7 +970,7 @@ func issue70300(v uint64) (b [8]byte) {
 }
 
 func issue70300Reverse(v uint64) (b [8]byte) {
-	// amd64:"MOVQ",-"MOVB"
+	// amd64:"MOVQ" -"MOVB"
 	b[7] = byte(v >> 56)
 	b[6] = byte(v >> 48)
 	b[5] = byte(v >> 40)
@@ -987,43 +987,43 @@ func issue70300Reverse(v uint64) (b [8]byte) {
 // --------------------------------- //
 
 func dwloadI64(p *struct{ a, b int64 }) int64 {
-	// arm64:"LDP\t"
+	// arm64:"LDP "
 	return p.a + p.b
 }
 func dwloadI32(p *struct{ a, b int32 }) int32 {
-	// arm64:"LDPSW\t"
+	// arm64:"LDPSW "
 	return p.a + p.b
 }
 func dwloadU32(p *struct{ a, b uint32 }) uint32 {
-	// arm64:"LDPW\t"
+	// arm64:"LDPW "
 	return p.a + p.b
 }
 func dwloadF64(p *struct{ a, b float64 }) float64 {
-	// arm64:"FLDPD\t"
+	// arm64:"FLDPD "
 	return p.a + p.b
 }
 func dwloadF32(p *struct{ a, b float32 }) float32 {
-	// arm64:"FLDPS\t"
+	// arm64:"FLDPS "
 	return p.a + p.b
 }
 
 func dwloadBig(p *struct{ a, b, c, d, e, f int64 }) int64 {
-	// arm64:"LDP\t\\(", "LDP\t16", "LDP\t32"
+	// arm64:"LDP \\(", "LDP 16", "LDP 32"
 	return p.c + p.f + p.a + p.e + p.d + p.b
 }
 
 func dwloadArg(a [2]int64) int64 {
-	// arm64:"LDP\t"
+	// arm64:"LDP "
 	return a[0] + a[1]
 }
 
 func dwloadResult1(p *string) string {
-	// arm64:"LDP\t\\(R0\\), \\(R0, R1\\)"
+	// arm64:"LDP \\(R0\\), \\(R0, R1\\)"
 	return *p
 }
 
 func dwloadResult2(p *[2]int64) (int64, int64) {
-	// arm64:"LDP\t\\(R0\\), \\(R1, R0\\)"
+	// arm64:"LDP \\(R0\\), \\(R1, R0\\)"
 	return p[1], p[0]
 }
 
@@ -1032,22 +1032,22 @@ func dwloadResult2(p *[2]int64) (int64, int64) {
 // ---------------------------------- //
 
 func dwstoreI64(p *struct{ a, b int64 }, x, y int64) {
-	// arm64:"STP\t"
+	// arm64:"STP "
 	p.a = x
 	p.b = y
 }
 func dwstoreI32(p *struct{ a, b int32 }, x, y int32) {
-	// arm64:"STPW\t"
+	// arm64:"STPW "
 	p.a = x
 	p.b = y
 }
 func dwstoreF64(p *struct{ a, b float64 }, x, y float64) {
-	// arm64:"FSTPD\t"
+	// arm64:"FSTPD "
 	p.a = x
 	p.b = y
 }
 func dwstoreF32(p *struct{ a, b float32 }, x, y float32) {
-	// arm64:"FSTPS\t"
+	// arm64:"FSTPS "
 	p.a = x
 	p.b = y
 }
@@ -1065,14 +1065,14 @@ func dwstoreBig(p *struct{ a, b, c, d, e, f int64 }, a, b, c, d, e, f int64) {
 }
 
 func dwstoreRet() [2]int {
-	// arm64:"STP\t"
+	// arm64:"STP "
 	return [2]int{5, 6}
 }
 
 func dwstoreLocal(i int) int64 {
 	var a [2]int64
 	a[0] = 5
-	// arm64:"STP\t"
+	// arm64:"STP "
 	a[1] = 6
 	return a[i]
 }
@@ -1081,7 +1081,7 @@ func dwstoreOrder(p *struct {
 	a, b       int64
 	c, d, e, f bool
 }, a, b int64) {
-	// arm64:"STP\t"
+	// arm64:"STP "
 	p.a = a
 	p.c = true
 	p.e = true

@@ -21,7 +21,7 @@ func TestEqual(t *testing.T) {
 		t.Errorf("public key is not equal to itself: %v", public)
 	}
 	if !public.Equal(crypto.Signer(private).Public().(*rsa.PublicKey)) {
-		t.Errorf("private.Public() is not Equal to public: %q", public)
+		t.Errorf("private.Public() is not Equal to public: %v", public)
 	}
 	if !private.Equal(private) {
 		t.Errorf("private key is not equal to itself: %v", private)
@@ -48,5 +48,11 @@ func TestEqual(t *testing.T) {
 	}
 	if private.Equal(other) {
 		t.Errorf("different private keys are Equal")
+	}
+
+	noPrecomp := *private
+	noPrecomp.Precomputed = rsa.PrecomputedValues{}
+	if !private.Equal(&noPrecomp) {
+		t.Errorf("private key with no precomputation is not equal to itself: %v", private)
 	}
 }

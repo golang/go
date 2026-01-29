@@ -134,10 +134,10 @@ func (g *CommentGroup) Text() string {
 		}
 
 		// Split on newlines.
-		cl := strings.Split(c, "\n")
+		cl := strings.SplitSeq(c, "\n")
 
 		// Walk lines, stripping trailing white space and adding to list.
-		for _, l := range cl {
+		for l := range cl {
 			lines = append(lines, stripTrailingWhitespace(l))
 		}
 	}
@@ -312,11 +312,10 @@ type (
 	//
 	// For raw string literals (Kind == token.STRING && Value[0] == '`'),
 	// the Value field contains the string text without carriage returns (\r) that
-	// may have been present in the source. Because the end position is
-	// computed using len(Value), the position reported by [BasicLit.End] does not match the
-	// true source end position for raw string literals containing carriage returns.
+	// may have been present in the source.
 	BasicLit struct {
 		ValuePos token.Pos   // literal position
+		ValueEnd token.Pos   // position immediately after the literal
 		Kind     token.Token // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING
 		Value    string      // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 2.4i, 'a', '\x7f', "foo" or `\m\n\o`
 	}
@@ -535,7 +534,15 @@ func (x *Ellipsis) End() token.Pos {
 	}
 	return x.Ellipsis + 3 // len("...")
 }
-func (x *BasicLit) End() token.Pos       { return token.Pos(int(x.ValuePos) + len(x.Value)) }
+func (x *BasicLit) End() token.Pos {
+	if !x.ValueEnd.IsValid() {
+		// Not from parser; use a heuristic.
+		// (Incorrect for `...` containing \r\n;
+		// see https://go.dev/issue/76031.)
+		return token.Pos(int(x.ValuePos) + len(x.Value))
+	}
+	return x.ValueEnd
+}
 func (x *FuncLit) End() token.Pos        { return x.Body.End() }
 func (x *CompositeLit) End() token.Pos   { return x.Rbrace + 1 }
 func (x *ParenExpr) End() token.Pos      { return x.Rparen + 1 }
@@ -1064,7 +1071,7 @@ type File struct {
 	Scope              *Scope          // package scope (this file only). Deprecated: see Object
 	Imports            []*ImportSpec   // imports in this file
 	Unresolved         []*Ident        // unresolved identifiers in this file. Deprecated: see Object
-	Comments           []*CommentGroup // list of all comments in the source file
+	Comments           []*CommentGroup // comments in the file, in lexical order
 	GoVersion          string          // minimum Go version required by //go:build or // +build directives
 }
 
@@ -1123,7 +1130,7 @@ func generator(file *File) (string, bool) {
 			// opt: check Contains first to avoid unnecessary array allocation in Split.
 			const prefix = "// Code generated "
 			if strings.Contains(comment.Text, prefix) {
-				for _, line := range strings.Split(comment.Text, "\n") {
+				for line := range strings.SplitSeq(comment.Text, "\n") {
 					if rest, ok := strings.CutPrefix(line, prefix); ok {
 						if gen, ok := strings.CutSuffix(rest, " DO NOT EDIT."); ok {
 							return gen, true

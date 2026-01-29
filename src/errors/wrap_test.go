@@ -239,6 +239,123 @@ func TestAsValidation(t *testing.T) {
 	}
 }
 
+func TestAsType(t *testing.T) {
+	var errT errorT
+	var errP *fs.PathError
+	type timeout interface {
+		Timeout() bool
+		error
+	}
+	_, errF := os.Open("non-existing")
+	poserErr := &poser{"oh no", nil}
+
+	testAsType(t,
+		nil,
+		errP,
+		false,
+	)
+	testAsType(t,
+		wrapped{"pitied the fool", errorT{"T"}},
+		errorT{"T"},
+		true,
+	)
+	testAsType(t,
+		errF,
+		errF,
+		true,
+	)
+	testAsType(t,
+		errT,
+		errP,
+		false,
+	)
+	testAsType(t,
+		wrapped{"wrapped", nil},
+		errT,
+		false,
+	)
+	testAsType(t,
+		&poser{"error", nil},
+		errorT{"poser"},
+		true,
+	)
+	testAsType(t,
+		&poser{"path", nil},
+		poserPathErr,
+		true,
+	)
+	testAsType(t,
+		poserErr,
+		poserErr,
+		true,
+	)
+	testAsType(t,
+		errors.New("err"),
+		timeout(nil),
+		false,
+	)
+	testAsType(t,
+		errF,
+		errF.(timeout),
+		true)
+	testAsType(t,
+		wrapped{"path error", errF},
+		errF.(timeout),
+		true,
+	)
+	testAsType(t,
+		multiErr{},
+		errT,
+		false,
+	)
+	testAsType(t,
+		multiErr{errors.New("a"), errorT{"T"}},
+		errorT{"T"},
+		true,
+	)
+	testAsType(t,
+		multiErr{errorT{"T"}, errors.New("a")},
+		errorT{"T"},
+		true,
+	)
+	testAsType(t,
+		multiErr{errorT{"a"}, errorT{"b"}},
+		errorT{"a"},
+		true,
+	)
+	testAsType(t,
+		multiErr{multiErr{errors.New("a"), errorT{"a"}}, errorT{"b"}},
+		errorT{"a"},
+		true,
+	)
+	testAsType(t,
+		multiErr{wrapped{"path error", errF}},
+		errF.(timeout),
+		true,
+	)
+	testAsType(t,
+		multiErr{nil},
+		errT,
+		false,
+	)
+}
+
+type compError interface {
+	comparable
+	error
+}
+
+func testAsType[E compError](t *testing.T, err error, want E, wantOK bool) {
+	t.Helper()
+	name := fmt.Sprintf("AsType[%T](Errorf(..., %v))", want, err)
+	t.Run(name, func(t *testing.T) {
+		got, gotOK := errors.AsType[E](err)
+		if gotOK != wantOK || got != want {
+			t.Fatalf("got %v, %t; want %v, %t", got, gotOK, want, wantOK)
+		}
+	})
+}
+
 func BenchmarkIs(b *testing.B) {
 	err1 := errors.New("1")
 	err2 := multiErr{multiErr{multiErr{err1, errorT{"a"}}, errorT{"b"}}}
@@ -256,6 +373,15 @@ func BenchmarkAs(b *testing.B) {
 		var target errorT
 		if !errors.As(err, &target) {
 			b.Fatal("As failed")
+		}
+	}
+}
+
+func BenchmarkAsType(b *testing.B) {
+	err := multiErr{multiErr{multiErr{errors.New("a"), errorT{"a"}}, errorT{"b"}}}
+	for range b.N {
+		if _, ok := errors.AsType[errorT](err); !ok {
+			b.Fatal("AsType failed")
 		}
 	}
 }

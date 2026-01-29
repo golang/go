@@ -21,7 +21,7 @@ import (
 
 // pathf is fmt.Sprintf for generating paths
 // (on windows it turns / into \ after the printf).
-func pathf(format string, args ...interface{}) string {
+func pathf(format string, args ...any) string {
 	return filepath.Clean(fmt.Sprintf(format, args...))
 }
 
@@ -324,7 +324,7 @@ func xworkdir() string {
 }
 
 // fatalf prints an error message to standard error and exits.
-func fatalf(format string, args ...interface{}) {
+func fatalf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "go tool dist: %s\n", fmt.Sprintf(format, args...))
 
 	dieOnce.Do(func() { close(dying) })
@@ -353,12 +353,12 @@ func xatexit(f func()) {
 }
 
 // xprintf prints a message to standard output.
-func xprintf(format string, args ...interface{}) {
+func xprintf(format string, args ...any) {
 	fmt.Printf(format, args...)
 }
 
 // errprintf prints a message to standard output.
-func errprintf(format string, args ...interface{}) {
+func errprintf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, format, args...)
 }
 
@@ -366,9 +366,8 @@ func xgetgoarm() string {
 	// If we're building on an actual arm system, and not building
 	// a cross-compiling toolchain, try to exec ourselves
 	// to detect whether VFP is supported and set the default GOARM.
-	// Windows requires ARMv7, so we can skip the check.
-	// We've always assumed Android is ARMv7 too.
-	if gohostarch == "arm" && goarch == "arm" && goos == gohostos && goos != "windows" && goos != "android" {
+	// We've always assumed Android is ARMv7.
+	if gohostarch == "arm" && goarch == "arm" && goos == gohostos && goos != "android" {
 		// Try to exec ourselves in a mode to detect VFP support.
 		// Seeing how far it gets determines which instructions failed.
 		// The test is OS-agnostic.

@@ -10,7 +10,6 @@ import (
 	"go/ast"
 	"go/build"
 	"go/types"
-	"regexp"
 	"slices"
 
 	"golang.org/x/tools/go/analysis"
@@ -100,6 +99,13 @@ func run(pass *analysis.Pass) (any, error) {
 				if obj, ok := pass.TypesInfo.Uses[n]; ok && obj.Pkg() != nil {
 					disallowed := disallowedSymbols(obj.Pkg(), fileVersion)
 					if minVersion, ok := disallowed[origin(obj)]; ok {
+						// Some symbols are accessible before their release but
+						// only with specific build tags unknown to us here.
+						// Avoid false positives in such cases.
+						// TODO(mkalil): move this check into typesinternal.TooNewStdSymbols.
+						if obj.Pkg().Path() == "testing/synctest" && versions.AtLeast(fileVersion, "go1.24") {
+							break // requires go1.24 && goexperiment.synctest || go1.25
+						}
 						noun := "module"
 						if fileVersion != pkgVersion {
 							noun = "file"
@@ -113,11 +119,6 @@ func run(pass *analysis.Pass) (any, error) {
 	})
 	return nil, nil
 }
-
-// Matches cgo generated comment as well as the proposed standard:
-//
-//	https://golang.org/s/generatedcode
-var generatedRx = regexp.MustCompile(`// .*DO NOT EDIT\.?`)
 
 // origin returns the original uninstantiated symbol for obj.
 func origin(obj types.Object) types.Object {

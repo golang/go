@@ -204,12 +204,13 @@ func (wg *WaitGroup) Wait() {
 				}
 			}
 			runtime_SemacquireWaitGroup(&wg.sema, synctestDurable)
-			if wg.state.Load() != 0 {
-				panic("sync: WaitGroup is reused before previous Wait has returned")
-			}
+			isReset := wg.state.Load() != 0
 			if race.Enabled {
 				race.Enable()
 				race.Acquire(unsafe.Pointer(wg))
+			}
+			if isReset {
+				panic("sync: WaitGroup is reused before previous Wait has returned")
 			}
 			return
 		}
@@ -235,7 +236,25 @@ func (wg *WaitGroup) Wait() {
 func (wg *WaitGroup) Go(f func()) {
 	wg.Add(1)
 	go func() {
-		defer wg.Done()
+		defer func() {
+			if x := recover(); x != nil {
+				// f panicked, which will be fatal because
+				// this is a new goroutine.
+				//
+				// Calling Done will unblock Wait in the main goroutine,
+				// allowing it to race with the fatal panic and
+				// possibly even exit the process (os.Exit(0))
+				// before the panic completes.
+				//
+				// This is almost certainly undesirable,
+				// so instead avoid calling Done and simply panic.
+				panic(x)
+			}
+
+			// f completed normally, or abruptly using goexit.
+			// Either way, decrement the semaphore.
+			wg.Done()
+		}()
 		f()
 	}()
 }

@@ -41,98 +41,94 @@ type SymKind uint8
 //
 //go:generate stringer -type=SymKind
 const (
+	// An otherwise invalid zero value for the type.
 	Sxxx SymKind = iota
-	STEXT
-	STEXTFIPSSTART
-	STEXTFIPS
-	STEXTFIPSEND
-	STEXTEND
-	SELFRXSECT
-	SMACHOPLT
+	// The text segment, containing executable instructions.
+	STEXT          // General executable code.
+	STEXTFIPSSTART // Start of FIPS text section.
+	STEXTFIPS      // Instructions hashed for FIPS checks.
+	STEXTFIPSEND   // End of FIPS text section.
+	STEXTEND       // End of text section.
+	SELFRXSECT     // Executable PLT; PPC64 .glink.
+	SMACHOPLT      // Mach-O PLT.
 
-	// Read-only sections.
-	STYPE
-	SSTRING
-	SGOSTRING
-	SGOFUNC
-	SGCBITS
-	SRODATA
-	SRODATAFIPSSTART
-	SRODATAFIPS
-	SRODATAFIPSEND
-	SRODATAEND
-	SFUNCTAB
+	// Read-only, non-executable, unrelocated segment.
+	SSTRING          // Used only for XCOFF runtime.rodata symbol?
+	SGOSTRING        // Go string constants.
+	SGCBITS          // GC bit masks and programs.
+	SRODATA          // General read-only data.
+	SRODATAFIPSSTART // Start of FIPS read-only data.
+	SRODATAFIPS      // FIPS read-only data.
+	SRODATAFIPSEND   // End of FIPS read-only data.
+	SRODATAEND       // End of read-only data.
+	SPCLNTAB         // Pclntab data.
+	STYPELINK        // Type links.
+	SELFROSECT       // ELF read-only data: relocs, dynamic linking info.
 
-	SELFROSECT
-
-	// Read-only sections with relocations.
+	// Read-only, non-executable, dynamically relocatable segment.
 	//
-	// Types STYPE-SFUNCTAB above are written to the .rodata section by default.
-	// When linking a shared object, some conceptually "read only" types need to
-	// be written to by relocations and putting them in a section called
-	// ".rodata" interacts poorly with the system linkers. The GNU linkers
-	// support this situation by arranging for sections of the name
-	// ".data.rel.ro.XXX" to be mprotected read only by the dynamic linker after
-	// relocations have applied, so when the Go linker is creating a shared
-	// object it checks all objects of the above types and bumps any object that
-	// has a relocation to it to the corresponding type below, which are then
-	// written to sections with appropriate magic names.
-	STYPERELRO
-	SSTRINGRELRO
-	SGOSTRINGRELRO
-	SGOFUNCRELRO
-	SGCBITSRELRO
+	// This segment holds read-only data that contains pointers to
+	// other parts of the program. When generating a position
+	// independent executable or a shared library, these sections
+	// are "relro", meaning that they start as writable, and are
+	// changed to be read-only after dynamic relocations are applied.
+	//
+	// When no dynamic relocations are required, as when generating
+	// an executable that is not position independent, this is just
+	// part of the normal read-only segment.
 	SRODATARELRO
-	SFUNCTABRELRO
-	SELFRELROSECT
-	SMACHORELROSECT
+	STYPE
+	SGOFUNC
+	SELFRELROSECT   // ELF-specific read-only relocatable: PLT, etc.
+	SMACHORELROSECT // Mach-O specific read-only relocatable.
 
-	// Part of .data.rel.ro if it exists, otherwise part of .rodata.
-	STYPELINK
-	SITABLINK
-	SSYMTAB
-	SPCLNTAB
+	SITABLINK // Itab links.
 
-	// Writable sections.
+	// Allocated writable segment.
 	SFirstWritable
-	SBUILDINFO
-	SFIPSINFO
-	SELFSECT
-	SMACHO
-	SMACHOGOT
-	SWINDOWS
-	SELFGOT
-	SNOPTRDATA
-	SNOPTRDATAFIPSSTART
-	SNOPTRDATAFIPS
-	SNOPTRDATAFIPSEND
-	SNOPTRDATAEND
-	SINITARR
-	SDATA
-	SDATAFIPSSTART
-	SDATAFIPS
-	SDATAFIPSEND
-	SDATAEND
-	SXCOFFTOC
-	SBSS
-	SNOPTRBSS
-	SLIBFUZZER_8BIT_COUNTER
-	SCOVERAGE_COUNTER
-	SCOVERAGE_AUXVAR
-	STLSBSS
-	SXREF
-	SMACHOSYMSTR
-	SMACHOSYMTAB
-	SMACHOINDIRECTPLT
-	SMACHOINDIRECTGOT
-	SFILEPATH
-	SDYNIMPORT
-	SHOSTOBJ
-	SUNDEFEXT // Undefined symbol for resolution by external linker
+	SBUILDINFO          // debug/buildinfo data (why is this writable?).
+	SFIPSINFO           // go:fipsinfo aka crypto/internal/fips140/check.Linkinfo (why is this writable)?
+	SELFSECT            // .got.plt, .plt, .dynamic where appropriate.
+	SMACHO              // Used only for .llvmasm?
+	SWINDOWS            // Windows dynamic symbols.
+	SMODULEDATA         // Linker generated moduledata struct.
+	SELFGOT             // Writable ELF GOT section.
+	SMACHOGOT           // Mach-O GOT.
+	SNOPTRDATA          // Data with no heap pointers.
+	SNOPTRDATAFIPSSTART // Start of FIPS non-pointer writable data.
+	SNOPTRDATAFIPS      // FIPS non-pointer writable data.
+	SNOPTRDATAFIPSEND   // End of FIPS non-pointer writable data.
+	SNOPTRDATAEND       // End of data with no heap pointers.
+	SINITARR            // ELF .init_array section.
+	SDATA               // Data that may have heap pointers.
+	SDATAFIPSSTART      // Start of FIPS writable data.
+	SDATAFIPS           // FIPS writable data.
+	SDATAFIPSEND        // End of FIPS writable data.
+	SDATAEND            // End of data that may have heap pointers.
+	SXCOFFTOC           // AIX TOC entries.
 
-	// Sections for debugging information
+	// Allocated zero-initialized segment.
+	SBSS                    // Zeroed data that may have heap pointers.
+	SNOPTRBSS               // Zeroed data with no heap pointers.
+	SLIBFUZZER_8BIT_COUNTER // Fuzzer counters.
+	SCOVERAGE_COUNTER       // Coverage counters.
+	SCOVERAGE_AUXVAR        // Compiler generated coverage symbols.
+	STLSBSS                 // Thread-local zeroed data.
+
+	// Unallocated segment.
+	SFirstUnallocated
+	SXREF             // Reference from non-Go object file.
+	SMACHOSYMSTR      // Mach-O string table.
+	SMACHOSYMTAB      // Mach-O symbol table.
+	SMACHOINDIRECTPLT // Mach-O indirect PLT.
+	SMACHOINDIRECTGOT // Mach-O indirect GOT.
+	SDYNIMPORT        // Reference to symbol defined in shared library.
+	SHOSTOBJ          // Symbol defined in non-Go object file.
+	SUNDEFEXT         // Undefined symbol for resolution by external linker.
+
+	// Unallocated DWARF debugging segment.
 	SDWARFSECT
-	// DWARF symbol types
+	// DWARF symbol types created by compiler or linker.
 	SDWARFCUINFO
 	SDWARFCONST
 	SDWARFFCN
@@ -144,9 +140,9 @@ const (
 	SDWARFLINES
 	SDWARFADDR
 
-	// SEH symbol types
-	SSEHUNWINDINFO
-	SSEHSECT
+	// SEH symbol types. These are probably allocated at run time.
+	SSEHUNWINDINFO // Compiler generated Windows SEH info.
+	SSEHSECT       // Windows SEH data.
 )
 
 // AbiSymKindToSymKind maps values read from object files (which are
@@ -180,33 +176,17 @@ var AbiSymKindToSymKind = [...]SymKind{
 	objabi.SSEHUNWINDINFO:          SSEHUNWINDINFO,
 }
 
-// ReadOnly are the symbol kinds that form read-only sections. In some
-// cases, if they will require relocations, they are transformed into
-// rel-ro sections using relROMap.
+// ReadOnly are the symbol kinds that form read-only sections
+// that never require runtime relocations.
 var ReadOnly = []SymKind{
-	STYPE,
 	SSTRING,
 	SGOSTRING,
-	SGOFUNC,
 	SGCBITS,
 	SRODATA,
 	SRODATAFIPSSTART,
 	SRODATAFIPS,
 	SRODATAFIPSEND,
 	SRODATAEND,
-	SFUNCTAB,
-}
-
-// RelROMap describes the transformation of read-only symbols to rel-ro
-// symbols.
-var RelROMap = map[SymKind]SymKind{
-	STYPE:     STYPERELRO,
-	SSTRING:   SSTRINGRELRO,
-	SGOSTRING: SGOSTRINGRELRO,
-	SGOFUNC:   SGOFUNCRELRO,
-	SGCBITS:   SGCBITSRELRO,
-	SRODATA:   SRODATARELRO,
-	SFUNCTAB:  SFUNCTABRELRO,
 }
 
 // IsText returns true if t is a text type.

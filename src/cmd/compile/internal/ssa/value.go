@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
+	"internal/buildcfg"
 	"math"
 	"sort"
 	"strings"
@@ -144,6 +145,13 @@ func (v *Value) AuxArm64BitField() arm64BitField {
 	return arm64BitField(v.AuxInt)
 }
 
+func (v *Value) AuxArm64ConditionalParams() arm64ConditionalParams {
+	if opcodeTable[v.Op].auxType != auxARM64ConditionalParams {
+		v.Fatalf("op %s doesn't have a ARM64ConditionalParams aux field", v.Op)
+	}
+	return auxIntToArm64ConditionalParams(v.AuxInt)
+}
+
 // long form print.  v# = opcode <type> [aux] args [: reg] (names)
 func (v *Value) LongString() string {
 	if v == nil {
@@ -203,6 +211,15 @@ func (v *Value) auxString() string {
 		lsb := v.AuxArm64BitField().lsb()
 		width := v.AuxArm64BitField().width()
 		return fmt.Sprintf(" [lsb=%d,width=%d]", lsb, width)
+	case auxARM64ConditionalParams:
+		params := v.AuxArm64ConditionalParams()
+		cond := params.Cond()
+		nzcv := params.Nzcv()
+		imm, ok := params.ConstValue()
+		if ok {
+			return fmt.Sprintf(" [cond=%s,nzcv=%d,imm=%d]", cond, nzcv, imm)
+		}
+		return fmt.Sprintf(" [cond=%s,nzcv=%d]", cond, nzcv)
 	case auxFloat32, auxFloat64:
 		return fmt.Sprintf(" [%g]", v.AuxFloat())
 	case auxString:
@@ -455,9 +472,9 @@ func (v *Value) copyIntoWithXPos(b *Block, pos src.XPos) *Value {
 	return c
 }
 
-func (v *Value) Logf(msg string, args ...interface{}) { v.Block.Logf(msg, args...) }
-func (v *Value) Log() bool                            { return v.Block.Log() }
-func (v *Value) Fatalf(msg string, args ...interface{}) {
+func (v *Value) Logf(msg string, args ...any) { v.Block.Logf(msg, args...) }
+func (v *Value) Log() bool                    { return v.Block.Log() }
+func (v *Value) Fatalf(msg string, args ...any) {
 	v.Block.Func.fe.Fatalf(v.Pos, msg, args...)
 }
 
@@ -584,7 +601,7 @@ func (v *Value) removeable() bool {
 func AutoVar(v *Value) (*ir.Name, int64) {
 	if loc, ok := v.Block.Func.RegAlloc[v.ID].(LocalSlot); ok {
 		if v.Type.Size() > loc.Type.Size() {
-			v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
+			v.Fatalf("v%d: spill/restore type %v doesn't fit in slot type %v", v.ID, v.Type, loc.Type)
 		}
 		return loc.N, loc.Off
 	}
@@ -596,11 +613,17 @@ func AutoVar(v *Value) (*ir.Name, int64) {
 // CanSSA reports whether values of type t can be represented as a Value.
 func CanSSA(t *types.Type) bool {
 	types.CalcSize(t)
-	if t.Size() > int64(4*types.PtrSize) {
+	if t.IsSIMD() {
+		return true
+	}
+	sizeLimit := int64(MaxStruct * types.PtrSize)
+	if t.Size() > sizeLimit {
 		// 4*Widthptr is an arbitrary constant. We want it
 		// to be at least 3*Widthptr so slices can be registerized.
 		// Too big and we'll introduce too much register pressure.
-		return false
+		if !buildcfg.Experiment.SIMD {
+			return false
+		}
 	}
 	switch t.Kind() {
 	case types.TARRAY:
@@ -620,7 +643,17 @@ func CanSSA(t *types.Type) bool {
 				return false
 			}
 		}
-		return true
+		// Special check for SIMD. If the composite type
+		// contains SIMD vectors we can return true
+		// if it pass the checks below.
+		if !buildcfg.Experiment.SIMD {
+			return true
+		}
+		if t.Size() <= sizeLimit {
+			return true
+		}
+		i, f := t.Registers()
+		return i+f <= MaxStruct
 	default:
 		return true
 	}

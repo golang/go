@@ -394,14 +394,6 @@ func inverseRelationship(r relationship) relationship {
 	}
 }
 
-// isLitOrSingle reports whether the segment is a non-dollar literal or a single wildcard.
-func isLitOrSingle(seg segment) bool {
-	if seg.wild {
-		return !seg.multi
-	}
-	return seg.s != "/"
-}
-
 // describeConflict returns an explanation of why two patterns conflict.
 func describeConflict(p1, p2 *pattern) string {
 	mrel := p1.compareMethods(p2)

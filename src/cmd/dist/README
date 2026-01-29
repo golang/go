@@ -4,18 +4,17 @@ As of Go 1.5, dist and other parts of the compiler toolchain are written
 in Go, making bootstrapping a little more involved than in the past.
 The approach is to build the current release of Go with an earlier one.
 
-The process to install Go 1.x, for x ≥ 24, is:
+The process to install Go 1.x, for x ≥ 26, is:
 
-1. Build cmd/dist with Go 1.22.6.
-2. Using dist, build Go 1.x compiler toolchain with Go 1.22.6.
+1. Build cmd/dist with Go 1.24.6.
+2. Using dist, build Go 1.x compiler toolchain with Go 1.24.6.
 3. Using dist, rebuild Go 1.x compiler toolchain with itself.
 4. Using dist, build Go 1.x cmd/go (as go_bootstrap) with Go 1.x compiler toolchain.
 5. Using go_bootstrap, build the remaining Go 1.x standard library and commands.
 
-Because of backward compatibility, although the steps above say Go 1.22.6,
-in practice any release ≥ Go 1.22.6 but < Go 1.x will work as the bootstrap base.
+Because of backward compatibility, although the steps above say Go 1.24.6,
+in practice any release ≥ Go 1.24.6 but < Go 1.x will work as the bootstrap base.
 Releases ≥ Go 1.x are very likely to work as well.
 
-See https://go.dev/s/go15bootstrap for more details about the original bootstrap
-and https://go.dev/issue/54265 for details about later bootstrap version bumps.
-
+See go.dev/s/go15bootstrap for more details about the original bootstrap
+and go.dev/issue/54265 for details about later bootstrap version bumps.

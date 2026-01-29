@@ -365,3 +365,53 @@ func TestPGOHash(t *testing.T) {
 		t.Errorf("output contains unexpected source line, out:\n%s", out)
 	}
 }
+
+// TestPGOZeroValues tests that a profile with all sample values scaled to zero
+// is treated as empty, ensuring the build succeeds without error.
+func TestPGOZeroValues(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("error getting wd: %v", err)
+	}
+	srcDir := filepath.Join(wd, "testdata/pgo/inline")
+
+	// Copy the module to a scratch location so we can add a go.mod.
+	dir := t.TempDir()
+
+	originalPprofFile, err := os.Open(filepath.Join(srcDir, profFile))
+	if err != nil {
+		t.Fatalf("error opening %v: %v", profFile, err)
+	}
+	defer originalPprofFile.Close()
+
+	p, err := profile.Parse(originalPprofFile)
+	if err != nil {
+		t.Fatalf("error parsing %v: %v", profFile, err)
+	}
+
+	// Zero out all samples to simulate a profile with all samples scaled away
+	for _, s := range p.Sample {
+		for i := range s.Value {
+			s.Value[i] = 0
+		}
+	}
+
+	emptyProf, err := os.Create(filepath.Join(dir, profFile))
+	if err != nil {
+		t.Fatalf("error creating %v: %v", profFile, err)
+	}
+	defer emptyProf.Close()
+
+	if err := p.Write(emptyProf); err != nil {
+		t.Fatalf("error writing %v: %v", profFile, err)
+	}
+
+	for _, file := range []string{"inline_hot.go", "inline_hot_test.go"} {
+		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
+			t.Fatalf("error copying %s: %v", file, err)
+		}
+	}
+
+	gcflag := fmt.Sprintf("-pgoprofile=%s", profFile)
+	buildPGOInliningTest(t, dir, gcflag)
+}

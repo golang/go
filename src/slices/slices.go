@@ -128,7 +128,7 @@ func ContainsFunc[S ~[]E, E any](s S, f func(E) bool) bool {
 // returning the modified slice.
 // The elements at s[i:] are shifted up to make room.
 // In the returned slice r, r[i] == v[0],
-// and, if i < len(s), r[i+len(v)] == value originally at r[i].
+// and, if i < len(s), r[i+len(v)] == value originally at s[i].
 // Insert panics if i > len(s).
 // This function is O(len(s) + len(v)).
 // If the result is empty, it has the same nilness as s.

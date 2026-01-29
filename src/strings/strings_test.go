@@ -694,7 +694,7 @@ func rot13(r rune) rune {
 func TestMap(t *testing.T) {
 	// Run a couple of awful growth/shrinkage tests
 	a := tenRunes('a')
-	// 1.  Grow. This triggers two reallocations in Map.
+	// 1. Grow. This triggers two reallocations in Map.
 	maxRune := func(rune) rune { return unicode.MaxRune }
 	m := Map(maxRune, a)
 	expect := tenRunes(unicode.MaxRune)

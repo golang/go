@@ -104,11 +104,6 @@ writing it back to go.mod.
 The -json flag prints the final go.mod file in JSON format instead of
 writing it back to go.mod. The JSON output corresponds to these Go types:
 
-	type Module struct {
-		Path    string
-		Version string
-	}
-
 	type GoMod struct {
 		Module    ModPath
 		Go        string
@@ -118,6 +113,13 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
 		Exclude   []Module
 		Replace   []Replace
 		Retract   []Retract
+		Tool      []Tool
+		Ignore    []Ignore
+	}
+
+	type Module struct {
+		Path    string
+		Version string
 	}
 
 	type ModPath struct {
@@ -207,6 +209,7 @@ func init() {
 }
 
 func runEdit(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
 	anyFlags := *editModule != "" ||
 		*editGo != "" ||
 		*editToolchain != "" ||
@@ -230,7 +233,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 1 {
 		gomod = args[0]
 	} else {
-		gomod = modload.ModFilePath()
+		gomod = moduleLoaderState.ModFilePath()
 	}
 
 	if *editModule != "" {
@@ -325,7 +328,10 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 
 // parsePathVersion parses -flag=arg expecting arg to be path@version.
 func parsePathVersion(flag, arg string) (path, version string) {
-	before, after, found := strings.Cut(arg, "@")
+	before, after, found, err := modload.ParsePathVersion(arg)
+	if err != nil {
+		base.Fatalf("go: -%s=%s: %v", flag, arg, err)
+	}
 	if !found {
 		base.Fatalf("go: -%s=%s: need path@version", flag, arg)
 	}
@@ -359,7 +365,10 @@ func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version
 	if allowDirPath && modfile.IsDirectoryPath(arg) {
 		return arg, "", nil
 	}
-	before, after, found := strings.Cut(arg, "@")
+	before, after, found, err := modload.ParsePathVersion(arg)
+	if err != nil {
+		return "", "", err
+	}
 	if !found {
 		path = arg
 	} else {
@@ -581,8 +590,9 @@ func flagDropIgnore(arg string) {
 // fileJSON is the -json output data structure.
 type fileJSON struct {
 	Module    editModuleJSON
-	Go        string `json:",omitempty"`
-	Toolchain string `json:",omitempty"`
+	Go        string      `json:",omitempty"`
+	Toolchain string      `json:",omitempty"`
+	GoDebug   []debugJSON `json:",omitempty"`
 	Require   []requireJSON
 	Exclude   []module.Version
 	Replace   []replaceJSON
@@ -594,6 +604,11 @@ type fileJSON struct {
 type editModuleJSON struct {
 	Path       string
 	Deprecated string `json:",omitempty"`
+}
+
+type debugJSON struct {
+	Key   string
+	Value string
 }
 
 type requireJSON struct {
@@ -653,6 +668,9 @@ func editPrintJSON(modFile *modfile.File) {
 	}
 	for _, i := range modFile.Ignore {
 		f.Ignore = append(f.Ignore, ignoreJSON{i.Path})
+	}
+	for _, d := range modFile.Godebug {
+		f.GoDebug = append(f.GoDebug, debugJSON{d.Key, d.Value})
 	}
 	data, err := json.MarshalIndent(&f, "", "\t")
 	if err != nil {

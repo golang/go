@@ -45,10 +45,10 @@ const (
 	EvGoSyscallBegin      // syscall enter [timestamp, P seq, stack ID]
 	EvGoSyscallEnd        // syscall exit [timestamp]
 	EvGoSyscallEndBlocked // syscall exit and it blocked at some point [timestamp]
-	EvGoStatus            // goroutine status at the start of a generation [timestamp, goroutine ID, thread ID, status]
+	EvGoStatus            // goroutine status at the start of a generation [timestamp, goroutine ID, M ID, status]
 
 	// STW.
-	EvSTWBegin // STW start [timestamp, kind]
+	EvSTWBegin // STW start [timestamp, kind, stack ID]
 	EvSTWEnd   // STW done [timestamp]
 
 	// GC events.
@@ -87,8 +87,8 @@ const (
 	EvSync          // start of a sync batch [...EvFrequency|EvClockSnapshot]
 	EvClockSnapshot // snapshot of trace, mono and wall clocks [timestamp, mono, sec, nsec]
 
-	// Reserved internal in-band end-of-generation signal. Must never appear in the trace. Added in Go 1.25.
-	// This could be used as an explicit in-band end-of-generation signal in the future.
+	// In-band end-of-generation signal. Added in Go 1.26.
+	// Used in Go 1.25 only internally.
 	EvEndOfGeneration
 
 	NumEvents

@@ -840,8 +840,7 @@ func TestReaddirOfFile(t *testing.T) {
 	if err == nil {
 		t.Error("Readdirnames succeeded; want non-nil error")
 	}
-	var pe *PathError
-	if !errors.As(err, &pe) || pe.Path != f.Name() {
+	if pe, ok := errors.AsType[*PathError](err); !ok || pe.Path != f.Name() {
 		t.Errorf("Readdirnames returned %q; want a PathError with path %q", err, f.Name())
 	}
 	if len(names) > 0 {
@@ -1193,7 +1192,7 @@ func TestRenameCaseDifference(pt *testing.T) {
 			}
 
 			if dirNamesLen := len(dirNames); dirNamesLen != 1 {
-				t.Fatalf("unexpected dirNames len, got %q, want %q", dirNamesLen, 1)
+				t.Fatalf("unexpected dirNames len, got %d, want %d", dirNamesLen, 1)
 			}
 
 			if dirNames[0] != to {

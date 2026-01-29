@@ -506,278 +506,73 @@ TEXT runtime·arc4random_buf_trampoline(SB),NOSPLIT,$0
 	CALL	libc_arc4random_buf(SB)
 	RET
 
-// syscall calls a function in libc on behalf of the syscall package.
-// syscall takes a pointer to a struct like:
-// struct {
-//	fn    uintptr
-//	a1    uintptr
-//	a2    uintptr
-//	a3    uintptr
-//	r1    uintptr
-//	r2    uintptr
-//	err   uintptr
-// }
-// syscall must be called on the g0 stack with the
-// C calling convention (use libcCall).
-//
-// syscall expects a 32-bit result and tests for 32-bit -1
-// to decide there was an error.
-TEXT runtime·syscall(SB),NOSPLIT,$16
-	MOVQ	(0*8)(DI), CX // fn
-	MOVQ	(2*8)(DI), SI // a2
-	MOVQ	(3*8)(DI), DX // a3
-	MOVQ	DI, (SP)
-	MOVQ	(1*8)(DI), DI // a1
-	XORL	AX, AX	      // vararg: say "no float args"
 
-	CALL	CX
+TEXT runtime·syscallN_trampoline(SB),NOSPLIT,$0
+	// store argument and original SP in a callee-saved register
+	MOVQ	DI, R13
+	MOVQ	SP, R14
 
-	MOVQ	(SP), DI
-	MOVQ	AX, (4*8)(DI) // r1
-	MOVQ	DX, (5*8)(DI) // r2
+	MOVQ	libcCallInfo_fn(R13), R11
+	MOVQ	libcCallInfo_n(R13), CX
+	MOVQ	libcCallInfo_args(R13), R10
 
-	// Standard libc functions return -1 on error
-	// and set errno.
-	CMPL	AX, $-1	      // Note: high 32 bits are junk
-	JNE	ok
+	// Fast version, do not store args on the stack.
+	CMPL	CX, $0; JE _0args
+	CMPL	CX, $1; JE _1args
+	CMPL	CX, $2; JE _2args
+	CMPL	CX, $3; JE _3args
+	CMPL	CX, $4; JE _4args
+	CMPL	CX, $5; JE _5args
+	CMPL	CX, $6; JE _6args
 
-	// Get error code from libc.
-	CALL	libc_error(SB)
-	MOVLQSX	(AX), AX
-	MOVQ	(SP), DI
-	MOVQ	AX, (6*8)(DI) // err
+	// Reserve stack space for remaining args
+	MOVQ	CX, R12
+	SUBQ	$6, R12
+	ADDQ	$1, R12	// make even number of words for stack alignment
+	ANDQ	$~1, R12
+	SHLQ	$3, R12
+	SUBQ	R12, SP
 
-ok:
-	XORL	AX, AX        // no error (it's ignored anyway)
-	RET
+	// Copy args to the stack.
+	// CX: count of stack arguments (n-6)
+	// SI: &args[6]
+	// DI: copy of RSP
+	SUBQ	$6, CX
+	MOVQ	R10, SI
+	ADDQ	$(8*6), SI
+	MOVQ	SP, DI
+	CLD
+	REP; MOVSQ
 
-// syscallX calls a function in libc on behalf of the syscall package.
-// syscallX takes a pointer to a struct like:
-// struct {
-//	fn    uintptr
-//	a1    uintptr
-//	a2    uintptr
-//	a3    uintptr
-//	r1    uintptr
-//	r2    uintptr
-//	err   uintptr
-// }
-// syscallX must be called on the g0 stack with the
-// C calling convention (use libcCall).
-//
-// syscallX is like syscall but expects a 64-bit result
-// and tests for 64-bit -1 to decide there was an error.
-TEXT runtime·syscallX(SB),NOSPLIT,$16
-	MOVQ	(0*8)(DI), CX // fn
-	MOVQ	(2*8)(DI), SI // a2
-	MOVQ	(3*8)(DI), DX // a3
-	MOVQ	DI, (SP)
-	MOVQ	(1*8)(DI), DI // a1
-	XORL	AX, AX	      // vararg: say "no float args"
+_6args:
+	MOVQ	(5*8)(R10), R9
+_5args:
+	MOVQ	(4*8)(R10), R8
+_4args:
+	MOVQ	(3*8)(R10), CX
+_3args:
+	MOVQ	(2*8)(R10), DX
+_2args:
+	MOVQ	(1*8)(R10), SI
+_1args:
+	MOVQ	(0*8)(R10), DI
+_0args:
 
-	CALL	CX
-
-	MOVQ	(SP), DI
-	MOVQ	AX, (4*8)(DI) // r1
-	MOVQ	DX, (5*8)(DI) // r2
-
-	// Standard libc functions return -1 on error
-	// and set errno.
-	CMPQ	AX, $-1
-	JNE	ok
-
-	// Get error code from libc.
-	CALL	libc_error(SB)
-	MOVLQSX	(AX), AX
-	MOVQ	(SP), DI
-	MOVQ	AX, (6*8)(DI) // err
-
-ok:
-	XORL	AX, AX        // no error (it's ignored anyway)
-	RET
-
-// syscallPtr is like syscallX except that the libc function reports an
-// error by returning NULL and setting errno.
-TEXT runtime·syscallPtr(SB),NOSPLIT,$16
-	MOVQ	(0*8)(DI), CX // fn
-	MOVQ	(2*8)(DI), SI // a2
-	MOVQ	(3*8)(DI), DX // a3
-	MOVQ	DI, (SP)
-	MOVQ	(1*8)(DI), DI // a1
-	XORL	AX, AX	      // vararg: say "no float args"
-
-	CALL	CX
-
-	MOVQ	(SP), DI
-	MOVQ	AX, (4*8)(DI) // r1
-	MOVQ	DX, (5*8)(DI) // r2
-
-	// syscallPtr libc functions return NULL on error
-	// and set errno.
-	TESTQ	AX, AX
-	JNE	ok
-
-	// Get error code from libc.
-	CALL	libc_error(SB)
-	MOVLQSX	(AX), AX
-	MOVQ	(SP), DI
-	MOVQ	AX, (6*8)(DI) // err
-
-ok:
-	XORL	AX, AX        // no error (it's ignored anyway)
-	RET
-
-// syscall6 calls a function in libc on behalf of the syscall package.
-// syscall6 takes a pointer to a struct like:
-// struct {
-//	fn    uintptr
-//	a1    uintptr
-//	a2    uintptr
-//	a3    uintptr
-//	a4    uintptr
-//	a5    uintptr
-//	a6    uintptr
-//	r1    uintptr
-//	r2    uintptr
-//	err   uintptr
-// }
-// syscall6 must be called on the g0 stack with the
-// C calling convention (use libcCall).
-//
-// syscall6 expects a 32-bit result and tests for 32-bit -1
-// to decide there was an error.
-TEXT runtime·syscall6(SB),NOSPLIT,$16
-	MOVQ	(0*8)(DI), R11// fn
-	MOVQ	(2*8)(DI), SI // a2
-	MOVQ	(3*8)(DI), DX // a3
-	MOVQ	(4*8)(DI), CX // a4
-	MOVQ	(5*8)(DI), R8 // a5
-	MOVQ	(6*8)(DI), R9 // a6
-	MOVQ	DI, (SP)
-	MOVQ	(1*8)(DI), DI // a1
-	XORL	AX, AX	      // vararg: say "no float args"
+	XORL	AX, AX	// vararg: say "no float args"
 
 	CALL	R11
 
-	MOVQ	(SP), DI
-	MOVQ	AX, (7*8)(DI) // r1
-	MOVQ	DX, (8*8)(DI) // r2
+	MOVQ	R14, SP	// free stack space
 
-	CMPL	AX, $-1
-	JNE	ok
-
-	CALL	libc_error(SB)
-	MOVLQSX	(AX), AX
-	MOVQ	(SP), DI
-	MOVQ	AX, (9*8)(DI) // err
-
-ok:
-	XORL	AX, AX        // no error (it's ignored anyway)
+	// Return result.
+	MOVQ	AX, libcCallInfo_r1(R13)
+	MOVQ	DX, libcCallInfo_r2(R13)
 	RET
 
-// syscall6X calls a function in libc on behalf of the syscall package.
-// syscall6X takes a pointer to a struct like:
-// struct {
-//	fn    uintptr
-//	a1    uintptr
-//	a2    uintptr
-//	a3    uintptr
-//	a4    uintptr
-//	a5    uintptr
-//	a6    uintptr
-//	r1    uintptr
-//	r2    uintptr
-//	err   uintptr
-// }
-// syscall6X must be called on the g0 stack with the
-// C calling convention (use libcCall).
-//
-// syscall6X is like syscall6 but expects a 64-bit result
-// and tests for 64-bit -1 to decide there was an error.
-TEXT runtime·syscall6X(SB),NOSPLIT,$16
-	MOVQ	(0*8)(DI), R11// fn
-	MOVQ	(2*8)(DI), SI // a2
-	MOVQ	(3*8)(DI), DX // a3
-	MOVQ	(4*8)(DI), CX // a4
-	MOVQ	(5*8)(DI), R8 // a5
-	MOVQ	(6*8)(DI), R9 // a6
-	MOVQ	DI, (SP)
-	MOVQ	(1*8)(DI), DI // a1
-	XORL	AX, AX	      // vararg: say "no float args"
-
-	CALL	R11
-
-	MOVQ	(SP), DI
-	MOVQ	AX, (7*8)(DI) // r1
-	MOVQ	DX, (8*8)(DI) // r2
-
-	CMPQ	AX, $-1
-	JNE	ok
-
+TEXT runtime·libc_error_trampoline(SB),NOSPLIT,$0
+	MOVQ	0(DI), R14
 	CALL	libc_error(SB)
-	MOVLQSX	(AX), AX
-	MOVQ	(SP), DI
-	MOVQ	AX, (9*8)(DI) // err
-
-ok:
-	XORL	AX, AX        // no error (it's ignored anyway)
-	RET
-
-// syscall9 calls a function in libc on behalf of the syscall package.
-// syscall9 takes a pointer to a struct like:
-// struct {
-//	fn    uintptr
-//	a1    uintptr
-//	a2    uintptr
-//	a3    uintptr
-//	a4    uintptr
-//	a5    uintptr
-//	a6    uintptr
-//	a7    uintptr
-//	a8    uintptr
-//	a9    uintptr
-//	r1    uintptr
-//	r2    uintptr
-//	err   uintptr
-// }
-// syscall9 must be called on the g0 stack with the
-// C calling convention (use libcCall).
-//
-// syscall9 expects a 32-bit result and tests for 32-bit -1
-// to decide there was an error.
-TEXT runtime·syscall9(SB),NOSPLIT,$32
-	MOVQ	(0*8)(DI), R13// fn
-	MOVQ	(2*8)(DI), SI // a2
-	MOVQ	(3*8)(DI), DX // a3
-	MOVQ	(4*8)(DI), CX // a4
-	MOVQ	(5*8)(DI), R8 // a5
-	MOVQ	(6*8)(DI), R9 // a6
-	MOVQ	(7*8)(DI), R10 // a7
-	MOVQ	R10, 0(SP)
-	MOVQ	(8*8)(DI), R11 // a8
-	MOVQ	R11, 8(SP)
-	MOVQ	(9*8)(DI), R12 // a9
-	MOVQ	R12, 16(SP)
-	MOVQ	DI, 24(SP)
-	MOVQ	(1*8)(DI), DI // a1
-	XORL	AX, AX	      // vararg: say "no float args"
-
-	CALL	R13
-
-	MOVQ	24(SP), DI
-	MOVQ	AX, (10*8)(DI) // r1
-	MOVQ	DX, (11*8)(DI) // r2
-
-	CMPL	AX, $-1
-	JNE	ok
-
-	CALL	libc_error(SB)
-	MOVLQSX	(AX), AX
-	MOVQ	24(SP), DI
-	MOVQ	AX, (12*8)(DI) // err
-
-ok:
-	XORL	AX, AX        // no error (it's ignored anyway)
+	MOVQ	AX, (R14)
 	RET
 
 // syscall_x509 is for crypto/x509. It is like syscall6 but does not check for errors,

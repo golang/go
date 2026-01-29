@@ -146,10 +146,8 @@ func BenchmarkIsZero(b *testing.B) {
 	s.ArrayInt_1024_NoZero[512] = 1
 	source := ValueOf(s)
 
-	for i := 0; i < source.NumField(); i++ {
-		name := source.Type().Field(i).Name
-		value := source.Field(i)
-		b.Run(name, func(b *testing.B) {
+	for field, value := range source.Fields() {
+		b.Run(field.Name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				sink = value.IsZero()
 			}
@@ -175,9 +173,8 @@ func BenchmarkSetZero(b *testing.B) {
 		Struct    Value
 	})).Elem()
 
-	for i := 0; i < source.NumField(); i++ {
-		name := source.Type().Field(i).Name
-		value := source.Field(i)
+	for field, value := range source.Fields() {
+		name := field.Name
 		zero := Zero(value.Type())
 		b.Run(name+"/Direct", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {

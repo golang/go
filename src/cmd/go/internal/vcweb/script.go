@@ -18,12 +18,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 	"golang.org/x/mod/zip"
 )
 
@@ -42,6 +44,7 @@ func newScriptEngine() *script.Engine {
 		return script.OnceCondition(summary, func() (bool, error) { return f(), nil })
 	}
 	add("bzr", lazyBool("the 'bzr' executable exists and provides the standard CLI", hasWorkingBzr))
+	add("git-sha256", script.OnceCondition("the local 'git' version is recent enough to support sha256 object/commit hashes", gitSupportsSHA256))
 
 	interrupt := func(cmd *exec.Cmd) error { return cmd.Process.Signal(os.Interrupt) }
 	gracePeriod := 30 * time.Second // arbitrary
@@ -393,4 +396,31 @@ func hasWorkingBzr() bool {
 	// See go.dev/issue/71504 for an example where 'bzr' exists in PATH but doesn't work.
 	err = exec.Command(bzr, "help").Run()
 	return err == nil
+}
+
+// Capture the major, minor and (optionally) patch version, but ignore anything later
+var gitVersLineExtract = regexp.MustCompile(`git version\s+(\d+\.\d+(?:\.\d+)?)`)
+
+func gitVersion() (string, error) {
+	gitOut, runErr := exec.Command("git", "version").CombinedOutput()
+	if runErr != nil {
+		return "v0", fmt.Errorf("failed to execute git version: %w", runErr)
+	}
+	matches := gitVersLineExtract.FindSubmatch(gitOut)
+	if len(matches) < 2 {
+		return "v0", fmt.Errorf("git version extraction regexp did not match version line: %q", gitOut)
+	}
+	return "v" + string(matches[1]), nil
+}
+
+func hasAtLeastGitVersion(minVers string) (bool, error) {
+	gitVers, gitVersErr := gitVersion()
+	if gitVersErr != nil {
+		return false, gitVersErr
+	}
+	return semver.Compare(minVers, gitVers) <= 0, nil
+}
+
+func gitSupportsSHA256() (bool, error) {
+	return hasAtLeastGitVersion("v2.29")
 }

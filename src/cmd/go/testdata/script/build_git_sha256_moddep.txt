@@ -1,5 +1,6 @@
 [short] skip
 [!git] skip
+[!git-sha256] skip
 
 env GOPRIVATE=vcs-test.golang.org
 

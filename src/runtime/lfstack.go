@@ -34,6 +34,11 @@ func (head *lfstack) push(node *lfnode) {
 }
 
 func (head *lfstack) pop() unsafe.Pointer {
+	var backoff uint32
+	// TODO: tweak backoff parameters on other architectures.
+	if GOARCH == "arm64" {
+		backoff = 128
+	}
 	for {
 		old := atomic.Load64((*uint64)(head))
 		if old == 0 {
@@ -44,6 +49,16 @@ func (head *lfstack) pop() unsafe.Pointer {
 		if atomic.Cas64((*uint64)(head), old, next) {
 			return unsafe.Pointer(node)
 		}
+
+		// Use a backoff approach to reduce demand to the shared memory location
+		// decreases memory contention and allows for other threads to make quicker
+		// progress.
+		// Read more in this Arm blog post:
+		// https://community.arm.com/arm-community-blogs/b/architectures-and-processors-blog/posts/multi-threaded-applications-arm
+		procyield(backoff)
+		// Increase backoff time.
+		backoff += backoff / 2
+
 	}
 }
 

@@ -6,7 +6,6 @@ package runtime_test
 
 import (
 	"flag"
-	"fmt"
 	"internal/asan"
 	"internal/cpu"
 	"internal/msan"
@@ -495,81 +494,6 @@ func TestVersion(t *testing.T) {
 	vers := Version()
 	if strings.Contains(vers, "\r") || strings.Contains(vers, "\n") {
 		t.Fatalf("cr/nl in version: %q", vers)
-	}
-}
-
-func TestTimediv(t *testing.T) {
-	for _, tc := range []struct {
-		num int64
-		div int32
-		ret int32
-		rem int32
-	}{
-		{
-			num: 8,
-			div: 2,
-			ret: 4,
-			rem: 0,
-		},
-		{
-			num: 9,
-			div: 2,
-			ret: 4,
-			rem: 1,
-		},
-		{
-			// Used by runtime.check.
-			num: 12345*1000000000 + 54321,
-			div: 1000000000,
-			ret: 12345,
-			rem: 54321,
-		},
-		{
-			num: 1<<32 - 1,
-			div: 2,
-			ret: 1<<31 - 1, // no overflow.
-			rem: 1,
-		},
-		{
-			num: 1 << 32,
-			div: 2,
-			ret: 1<<31 - 1, // overflow.
-			rem: 0,
-		},
-		{
-			num: 1 << 40,
-			div: 2,
-			ret: 1<<31 - 1, // overflow.
-			rem: 0,
-		},
-		{
-			num: 1<<40 + 1,
-			div: 1 << 10,
-			ret: 1 << 30,
-			rem: 1,
-		},
-	} {
-		name := fmt.Sprintf("%d div %d", tc.num, tc.div)
-		t.Run(name, func(t *testing.T) {
-			// Double check that the inputs make sense using
-			// standard 64-bit division.
-			ret64 := tc.num / int64(tc.div)
-			rem64 := tc.num % int64(tc.div)
-			if ret64 != int64(int32(ret64)) {
-				// Simulate timediv overflow value.
-				ret64 = 1<<31 - 1
-				rem64 = 0
-			}
-			if ret64 != int64(tc.ret) {
-				t.Errorf("%d / %d got ret %d rem %d want ret %d rem %d", tc.num, tc.div, ret64, rem64, tc.ret, tc.rem)
-			}
-
-			var rem int32
-			ret := Timediv(tc.num, tc.div, &rem)
-			if ret != tc.ret || rem != tc.rem {
-				t.Errorf("timediv %d / %d got ret %d rem %d want ret %d rem %d", tc.num, tc.div, ret, rem, tc.ret, tc.rem)
-			}
-		})
 	}
 }
 

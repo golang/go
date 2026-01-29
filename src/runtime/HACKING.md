@@ -266,6 +266,153 @@ If memory is already in a type-safe state and is simply being set to
 the zero value, this must be done using regular writes, `typedmemclr`,
 or `memclrHasPointers`. This performs write barriers.
 
+Linkname conventions
+====================
+
+```
+//go:linkname localname [importpath.name]
+```
+
+`//go:linkname` specifies the symbol name (`importpath.name`) used to a
+reference a local identifier (`localname`). The target symbol name is an
+arbitrary ELF/macho/etc symbol name, but by convention we typically use a
+package-prefixed symbol name to keep things organized.
+
+The full generality of `//go:linkname` is very flexible, so as a convention to
+simplify things, we define three standard forms of `//go:linkname` directives.
+
+When possible, always prefer to use the linkname "handshake" described below.
+
+"Push linkname"
+---------------
+
+A "push" linkname gives a local _definition_ a final symbol name in a different
+package. This effectively "pushes" the symbol to the other package.
+
+```
+//go:linkname foo otherpkg.foo
+func foo() {
+    // impl
+}
+```
+
+The other package needs a _declaration_ to use the symbol from Go, or it can
+directly reference the symbol in assembly. Typically this is an "export
+linkname" declaration (below).
+
+"Pull linkname"
+---------------
+
+A "pull" linkname gives references to a local _declaration_ a final symbol name
+in a different package. This effectively "pulls" the symbol from the other
+package.
+
+```
+//go:linkname foo otherpkg.foo
+func foo()
+```
+
+The other package simply needs to define the symbol, but typically this is a
+"export linkname" definition (below).
+
+"Export linkname"
+-----------------
+
+The second argument to `//go:linkname` is the target symbol name. If it is
+omitted, the toolchain uses the default symbol name. In other words, this is a
+linkname to itself. This seems to be a no-op, but it is used to mean that this
+symbol is "exported" for use with another linkname.
+
+```
+//go:linkname foo
+func foo() {
+    // impl
+}
+```
+
+When applied to a definition, an export linkname indicates that another package
+has a pull linkname targeting this symbol. This has a few effects:
+
+- The compiler avoids generates ABI wrappers for ABI0 and/or ABIInternal, so a
+  symbol defined in Go can be referenced from assembly in another package, or
+  vice versa.
+- The linker will allow pull linknames to this symbol even with
+  `-checklinkname=true` (see "Handshake" section below).
+
+```
+//go:linkname foo
+func foo()
+```
+
+When applied to a declaration, an export linkname indicates that another package
+has a push linkname targeting this symbol. Other than documentation, the only
+effect this has on the toolchain is that the compiler will not require a `.s`
+file in the package (normally the compiler requires a `.s` file when there are
+function declarations without a body).
+
+Handshake
+---------
+
+We always prefer to use push linknames rather than pull linknames. With a push
+linkname, the package with the definition is aware it is publishing an API to
+another package. On the other hand, with a pull linkname, the definition
+package may be completely unaware of the dependency and may unintentionally
+break users.
+
+The preferred form for a linkname is to use a push linkname in the defining
+package, and a target linkname in the receiving package. The latter is not
+strictly required, but serves as documentation. By convention, the receiving
+package names the symbol containing the source package to further aid
+documentation.
+
+```
+package runtime
+
+//go:linkname foo otherpkg.runtime_foo
+func foo() {
+    // impl
+}
+```
+
+```
+package otherpkg
+
+//go:linkname runtime_foo
+func runtime_foo()
+```
+
+As of Go 1.23, the linker forbids pull linknames of symbols in the standard
+library unless they participate in a handshake. Since many third-party packages
+already have pull linknames to standard library functions, for backwards
+compatibility, standard library symbols that are the target of external pull
+linknames must use a target linkname to signal to the linker that pull
+linknames are acceptable.
+
+```
+package runtime
+
+//go:linkname fastrand
+func fastrand() {
+    // impl
+}
+```
+
+Note that linker enforcement can be disabled with the `-checklinkname=false`
+flag.
+
+Variables
+---------
+
+All of the examples above use `//go:linkname` on functions. It is also possible
+to use it on global variables as well, though this is much less common.
+
+Variables don't have a clear distinction between definition and declaration. As
+a rule, only one side should have a non-zero initial value. That side is the
+"definition" and the other is the "declaration".
+
+Both sides should have the same type, including size. Though if one side is
+larger than another, the linker allocates space for the larger size.
+
 Runtime-only compiler directives
 ================================
 
@@ -371,9 +518,8 @@ The parser for the execution trace format lives in the `internal/trace` package.
 If you plan on adding new trace events, consider starting with a [trace
 experiment](../internal/trace/tracev2/EXPERIMENTS.md).
 
-If you plan to add new trace instrumentation to the runtime, wrap whatever operation
-you're tracing in `traceAcquire` and `traceRelease` fully. These functions mark a
-critical section that appears atomic to the execution tracer (but nothing else).
+If you plan to add new trace instrumentation to the runtime, read the comment
+at the top of [trace.go](./trace.go), especially the invariants.
 
 debuglog
 ========

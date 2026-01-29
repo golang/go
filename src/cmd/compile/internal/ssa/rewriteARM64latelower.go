@@ -653,11 +653,11 @@ func rewriteValueARM64latelower_OpARM64MOVHreg(v *Value) bool {
 func rewriteValueARM64latelower_OpARM64MOVWUreg(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVWUreg x)
-	// cond: zeroUpper32Bits(x, 3)
+	// cond: ZeroUpper32Bits(x, 3)
 	// result: x
 	for {
 		x := v_0
-		if !(zeroUpper32Bits(x, 3)) {
+		if !(ZeroUpper32Bits(x, 3)) {
 			break
 		}
 		v.copyOf(x)

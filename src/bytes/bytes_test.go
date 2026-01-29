@@ -891,9 +891,7 @@ func BenchmarkCountSingle(b *testing.B) {
 				b.Fatal("bad count", j, expect)
 			}
 		}
-		for i := 0; i < len(buf); i++ {
-			buf[i] = 0
-		}
+		clear(buf)
 	})
 }
 
@@ -963,7 +961,7 @@ func TestSplit(t *testing.T) {
 		if tt.n < 0 {
 			b := sliceOfString(Split([]byte(tt.s), []byte(tt.sep)))
 			if !slices.Equal(result, b) {
-				t.Errorf("Split disagrees withSplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
+				t.Errorf("Split disagrees with SplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
 		if len(a) > 0 {
@@ -1025,7 +1023,7 @@ func TestSplitAfter(t *testing.T) {
 		if tt.n < 0 {
 			b := sliceOfString(SplitAfter([]byte(tt.s), []byte(tt.sep)))
 			if !slices.Equal(result, b) {
-				t.Errorf("SplitAfter disagrees withSplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
+				t.Errorf("SplitAfter disagrees with SplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
 	}
@@ -1226,7 +1224,7 @@ func TestMap(t *testing.T) {
 	// Run a couple of awful growth/shrinkage tests
 	a := tenRunes('a')
 
-	// 1.  Grow. This triggers two reallocations in Map.
+	// 1. Grow. This triggers two reallocations in Map.
 	maxRune := func(r rune) rune { return unicode.MaxRune }
 	m := Map(maxRune, []byte(a))
 	expect := tenRunes(unicode.MaxRune)

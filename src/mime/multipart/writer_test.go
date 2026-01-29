@@ -184,6 +184,7 @@ func TestFileContentDisposition(t *testing.T) {
 		{`somefield`, `somefile"withquotes".txt`, `form-data; name="somefield"; filename="somefile\"withquotes\".txt"`},
 		{`somefield\withbackslash`, "somefile.txt", `form-data; name="somefield\\withbackslash"; filename="somefile.txt"`},
 		{"somefield", `somefile\withbackslash.txt`, `form-data; name="somefield"; filename="somefile\\withbackslash.txt"`},
+		{"a\rb\nc", "e\rf\ng", `form-data; name="a%0Db%0Ac"; filename="e%0Df%0Ag"`},
 	}
 	for i, tt := range tests {
 		if found := FileContentDisposition(tt.fieldname, tt.filename); found != tt.want {

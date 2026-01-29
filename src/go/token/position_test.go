@@ -572,10 +572,82 @@ func fsetString(fset *FileSet) string {
 	buf.WriteRune('{')
 	sep := ""
 	fset.Iterate(func(f *File) bool {
-		fmt.Fprintf(&buf, "%s%s:%d-%d", sep, f.Name(), f.Base(), f.Base()+f.Size())
+		fmt.Fprintf(&buf, "%s%s:%d-%d", sep, f.Name(), f.Base(), f.End())
 		sep = " "
 		return true
 	})
 	buf.WriteRune('}')
 	return buf.String()
+}
+
+// Test that File() does not return the already removed file, while used concurrently.
+func TestRemoveFileRace(t *testing.T) {
+	fset := NewFileSet()
+
+	// Create bunch of files.
+	var files []*File
+	for i := range 20000 {
+		f := fset.AddFile("f", -1, (i+1)*10)
+		files = append(files, f)
+	}
+
+	// governor goroutine
+	race1, race2 := make(chan *File), make(chan *File)
+	start := make(chan struct{})
+	go func() {
+		for _, f := range files {
+			<-start
+			race1 <- f
+			race2 <- f
+		}
+		<-start // unlock main test goroutine
+		close(race1)
+		close(race2)
+	}()
+
+	go func() {
+		for f := range race1 {
+			fset.File(Pos(f.Base()) + 5) // populates s.last with f
+		}
+	}()
+
+	start <- struct{}{}
+	for f := range race2 {
+		fset.RemoveFile(f)
+		got := fset.File(Pos(f.Base()) + 5)
+		if got != nil {
+			t.Fatalf("file was not removed correctly")
+		}
+		start <- struct{}{}
+	}
+}
+
+func TestRemovedFileFileReturnsNil(t *testing.T) {
+	fset := NewFileSet()
+
+	// Create bunch of files.
+	var files []*File
+	for i := range 1000 {
+		f := fset.AddFile("f", -1, (i+1)*100)
+		files = append(files, f)
+	}
+
+	rand.Shuffle(len(files), func(i, j int) {
+		files[i], files[j] = files[j], files[i]
+	})
+
+	for _, f := range files {
+		fset.RemoveFile(f)
+		if got := fset.File(Pos(f.Base()) + 10); got != nil {
+			t.Fatalf("file was not removed correctly; got file with base: %v", got.Base())
+		}
+	}
+}
+
+func TestFile_End(t *testing.T) {
+	f := NewFileSet().AddFile("a.go", 100, 42)
+	got := fmt.Sprintf("%d, %d", f.Base(), f.End())
+	if want := "100, 142"; got != want {
+		t.Errorf("Base, End = %s, want %s", got, want)
+	}
 }

@@ -28,9 +28,10 @@ const (
 var (
 	// Set in runtime.cpuinit.
 	// TODO: deprecate these; use internal/cpu directly.
+	x86HasAVX    bool
+	x86HasFMA    bool
 	x86HasPOPCNT bool
 	x86HasSSE41  bool
-	x86HasFMA    bool
 
 	armHasVFPv4 bool
 

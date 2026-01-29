@@ -36,7 +36,7 @@ func localFunctionDecls(info *types.Info, files []*ast.File) func(*types.Func) *
 // isMethodNamed returns true if f is a method defined
 // in package with the path pkgPath with a name in names.
 //
-// (Unlike [analysisinternal.IsMethodNamed], it ignores the receiver type name.)
+// (Unlike [analysis.IsMethodNamed], it ignores the receiver type name.)
 func isMethodNamed(f *types.Func, pkgPath string, names ...string) bool {
 	if f == nil {
 		return false
@@ -44,7 +44,7 @@ func isMethodNamed(f *types.Func, pkgPath string, names ...string) bool {
 	if f.Pkg() == nil || f.Pkg().Path() != pkgPath {
 		return false
 	}
-	if f.Type().(*types.Signature).Recv() == nil {
+	if f.Signature().Recv() == nil {
 		return false
 	}
 	return slices.Contains(names, f.Name())

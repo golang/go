@@ -257,8 +257,8 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 	s = typecheck.Conv(s, types.Types[types.TSTRING])
 	t = typecheck.Conv(t, types.Types[types.TSTRING])
-	sptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, s)
-	tptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, t)
+	sptr := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], ir.NewUnaryExpr(base.Pos, ir.OSPTR, s))
+	tptr := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], ir.NewUnaryExpr(base.Pos, ir.OSPTR, t))
 	slen := typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OLEN, s), types.Types[types.TUINTPTR])
 	tlen := typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OLEN, t), types.Types[types.TUINTPTR])
 
@@ -293,7 +293,7 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 		cmplen = tlen
 	}
 
-	fn := typecheck.LookupRuntime("memequal", types.Types[types.TUINT8], types.Types[types.TUINT8])
+	fn := typecheck.LookupRuntime("memequal")
 	call := typecheck.Call(base.Pos, fn, []ir.Node{sptr, tptr, ir.Copy(cmplen)}, false).(*ir.CallExpr)
 
 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)

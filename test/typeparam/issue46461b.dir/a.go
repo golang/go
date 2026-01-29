@@ -4,4 +4,4 @@
 
 package a
 
-type T[U interface{ M() int }] int
+type T[U interface{ M() T[U] }] int

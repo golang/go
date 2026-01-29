@@ -96,7 +96,7 @@ func goCmd(t *testing.T, args ...string) string {
 
 // TestMain calls testMain so that the latter can use defer (TestMain exits with os.Exit).
 func testMain(m *testing.M) (int, error) {
-	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+	if testing.Short() && testenv.Builder() == "" {
 		globalSkip = func(t testing.TB) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
 		return m.Run(), nil
 	}
@@ -554,7 +554,7 @@ func checkPIE(t *testing.T, name string) {
 }
 
 func TestTrivialPIE(t *testing.T) {
-	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-alpine") {
+	if strings.Contains(testenv.Builder(), "-alpine") {
 		t.Skip("skipping on alpine until issue #54354 resolved")
 	}
 	globalSkip(t)

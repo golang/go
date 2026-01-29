@@ -245,6 +245,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpARMADDS,
+		ssa.OpARMADCS,
 		ssa.OpARMSUBS:
 		r := v.Reg0()
 		r1 := v.Args[0].Reg()
@@ -777,7 +778,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			}
 		case ssa.OpARMLoweredPanicBoundsCR:
 			yIsReg = true
-			yVal := int(v.Args[0].Reg() - arm.REG_R0)
+			yVal = int(v.Args[0].Reg() - arm.REG_R0)
 			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)

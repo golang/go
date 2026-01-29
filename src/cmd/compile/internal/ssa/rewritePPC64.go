@@ -4125,23 +4125,48 @@ func rewriteValuePPC64_OpOffPtr(v *Value) bool {
 func rewriteValuePPC64_OpPPC64ADD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (ADD l:(MULLD x y) z)
+	b := v.Block
+	// match: (ADD z l:(MULLD x y))
 	// cond: buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)
-	// result: (MADDLD x y z)
+	// result: (MADDLD x y z )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			l := v_0
+			z := v_0
+			l := v_1
 			if l.Op != OpPPC64MULLD {
 				continue
 			}
 			y := l.Args[1]
 			x := l.Args[0]
-			z := v_1
 			if !(buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)) {
 				continue
 			}
 			v.reset(OpPPC64MADDLD)
 			v.AddArg3(x, y, z)
+			return true
+		}
+		break
+	}
+	// match: (ADD z l:(MULLDconst <mt> [x] y))
+	// cond: buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)
+	// result: (MADDLD (MOVDconst <mt> [int64(x)]) y z )
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			z := v_0
+			l := v_1
+			if l.Op != OpPPC64MULLDconst {
+				continue
+			}
+			mt := l.Type
+			x := auxIntToInt32(l.AuxInt)
+			y := l.Args[0]
+			if !(buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)) {
+				continue
+			}
+			v.reset(OpPPC64MADDLD)
+			v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, mt)
+			v0.AuxInt = int64ToAuxInt(int64(x))
+			v.AddArg3(v0, y, z)
 			return true
 		}
 		break
@@ -4239,6 +4264,52 @@ func rewriteValuePPC64_OpPPC64ADDE(v *Value) bool {
 }
 func rewriteValuePPC64_OpPPC64ADDconst(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	// match: (ADDconst <at> [z] l:(MULLD x y))
+	// cond: buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)
+	// result: (MADDLD x y (MOVDconst <at> [int64(z)]))
+	for {
+		at := v.Type
+		z := auxIntToInt64(v.AuxInt)
+		l := v_0
+		if l.Op != OpPPC64MULLD {
+			break
+		}
+		y := l.Args[1]
+		x := l.Args[0]
+		if !(buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)) {
+			break
+		}
+		v.reset(OpPPC64MADDLD)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, at)
+		v0.AuxInt = int64ToAuxInt(int64(z))
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (ADDconst <at> [z] l:(MULLDconst <mt> [x] y))
+	// cond: buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)
+	// result: (MADDLD (MOVDconst <mt> [int64(x)]) y (MOVDconst <at> [int64(z)]))
+	for {
+		at := v.Type
+		z := auxIntToInt64(v.AuxInt)
+		l := v_0
+		if l.Op != OpPPC64MULLDconst {
+			break
+		}
+		mt := l.Type
+		x := auxIntToInt32(l.AuxInt)
+		y := l.Args[0]
+		if !(buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)) {
+			break
+		}
+		v.reset(OpPPC64MADDLD)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, mt)
+		v0.AuxInt = int64ToAuxInt(int64(x))
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDconst, at)
+		v1.AuxInt = int64ToAuxInt(int64(z))
+		v.AddArg3(v0, y, v1)
+		return true
+	}
 	// match: (ADDconst [c] (ADDconst [d] x))
 	// cond: is32Bit(c+d)
 	// result: (ADDconst [c+d] x)

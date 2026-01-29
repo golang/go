@@ -9,8 +9,10 @@ import (
 	"fmt"
 )
 
-// fuseEarly runs fuse(f, fuseTypePlain|fuseTypeIntInRange).
-func fuseEarly(f *Func) { fuse(f, fuseTypePlain|fuseTypeIntInRange) }
+// fuseEarly runs fuse(f, fuseTypePlain|fuseTypeIntInRange|fuseTypeNanCheck).
+func fuseEarly(f *Func) {
+	fuse(f, fuseTypePlain|fuseTypeIntInRange|fuseTypeSingleBitDifference|fuseTypeNanCheck)
+}
 
 // fuseLate runs fuse(f, fuseTypePlain|fuseTypeIf|fuseTypeBranchRedirect).
 func fuseLate(f *Func) { fuse(f, fuseTypePlain|fuseTypeIf|fuseTypeBranchRedirect) }
@@ -21,6 +23,8 @@ const (
 	fuseTypePlain fuseType = 1 << iota
 	fuseTypeIf
 	fuseTypeIntInRange
+	fuseTypeSingleBitDifference
+	fuseTypeNanCheck
 	fuseTypeBranchRedirect
 	fuseTypeShortCircuit
 )
@@ -38,7 +42,13 @@ func fuse(f *Func, typ fuseType) {
 				changed = fuseBlockIf(b) || changed
 			}
 			if typ&fuseTypeIntInRange != 0 {
-				changed = fuseIntegerComparisons(b) || changed
+				changed = fuseIntInRange(b) || changed
+			}
+			if typ&fuseTypeSingleBitDifference != 0 {
+				changed = fuseSingleBitDifference(b) || changed
+			}
+			if typ&fuseTypeNanCheck != 0 {
+				changed = fuseNanCheck(b) || changed
 			}
 			if typ&fuseTypePlain != 0 {
 				changed = fuseBlockPlain(b) || changed

@@ -145,7 +145,6 @@ func TestWithSimulated(t *testing.T) {
 			continue
 		}
 
-		tr := tr
 		t.Run(tr, func(t *testing.T) {
 			t.Parallel()
 

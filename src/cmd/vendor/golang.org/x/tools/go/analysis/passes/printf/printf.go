@@ -18,14 +18,16 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/fmtstr"
 	"golang.org/x/tools/internal/typeparams"
+	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/versions"
+	"golang.org/x/tools/refactor/satisfy"
 )
 
 func init() {
@@ -37,11 +39,11 @@ var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:       "printf",
-	Doc:        analysisutil.MustExtractDoc(doc, "printf"),
+	Doc:        analyzerutil.MustExtractDoc(doc, "printf"),
 	URL:        "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/printf",
 	Requires:   []*analysis.Analyzer{inspect.Analyzer},
 	Run:        run,
-	ResultType: reflect.TypeOf((*Result)(nil)),
+	ResultType: reflect.TypeFor[*Result](),
 	FactTypes:  []analysis.Fact{new(isWrapper)},
 }
 
@@ -64,13 +66,13 @@ func (kind Kind) String() string {
 	case KindErrorf:
 		return "errorf"
 	}
-	return ""
+	return "(none)"
 }
 
 // Result is the printf analyzer's result type. Clients may query the result
 // to learn whether a function behaves like fmt.Print or fmt.Printf.
 type Result struct {
-	funcs map[*types.Func]Kind
+	funcs map[types.Object]Kind
 }
 
 // Kind reports whether fn behaves like fmt.Print or fmt.Printf.
@@ -111,149 +113,301 @@ func (f *isWrapper) String() string {
 
 func run(pass *analysis.Pass) (any, error) {
 	res := &Result{
-		funcs: make(map[*types.Func]Kind),
+		funcs: make(map[types.Object]Kind),
 	}
-	findPrintfLike(pass, res)
-	checkCalls(pass)
+	findPrintLike(pass, res)
+	checkCalls(pass, res)
 	return res, nil
 }
 
-type printfWrapper struct {
-	obj     *types.Func
-	fdecl   *ast.FuncDecl
-	format  *types.Var
-	args    *types.Var
+// A wrapper is a candidate print/printf wrapper function.
+//
+// We represent functions generally as types.Object, not *Func, so
+// that we can analyze anonymous functions such as
+//
+//	printf := func(format string, args ...any) {...},
+//
+// representing them by the *types.Var symbol for the local variable
+// 'printf'.
+type wrapper struct {
+	obj     types.Object     // *Func or *Var
+	curBody inspector.Cursor // for *ast.BlockStmt
+	format  *types.Var       // optional "format string" parameter in the Func{Decl,Lit}
+	args    *types.Var       // "args ...any" parameter in the Func{Decl,Lit}
 	callers []printfCaller
-	failed  bool // if true, not a printf wrapper
 }
 
+// printfCaller is a candidate print{,f} forwarding call from candidate wrapper w.
 type printfCaller struct {
-	w    *printfWrapper
-	call *ast.CallExpr
+	w    *wrapper
+	call *ast.CallExpr // forwarding call (nil for implicit interface method -> impl calls)
 }
 
-// maybePrintfWrapper decides whether decl (a declared function) may be a wrapper
-// around a fmt.Printf or fmt.Print function. If so it returns a printfWrapper
-// function describing the declaration. Later processing will analyze the
-// graph of potential printf wrappers to pick out the ones that are true wrappers.
-// A function may be a Printf or Print wrapper if its last argument is ...interface{}.
-// If the next-to-last argument is a string, then this may be a Printf wrapper.
-// Otherwise it may be a Print wrapper.
-func maybePrintfWrapper(info *types.Info, decl ast.Decl) *printfWrapper {
-	// Look for functions with final argument type ...interface{}.
-	fdecl, ok := decl.(*ast.FuncDecl)
-	if !ok || fdecl.Body == nil {
-		return nil
-	}
-	fn, ok := info.Defs[fdecl.Name].(*types.Func)
-	// Type information may be incomplete.
-	if !ok {
-		return nil
-	}
-
-	sig := fn.Type().(*types.Signature)
+// formatArgsParams returns the "format string" and "args ...any"
+// parameters of a potential print or printf wrapper function.
+// (The format is nil in the print-like case.)
+func formatArgsParams(sig *types.Signature) (format, args *types.Var) {
 	if !sig.Variadic() {
-		return nil // not variadic
+		return nil, nil // not variadic
 	}
 
 	params := sig.Params()
 	nparams := params.Len() // variadic => nonzero
 
-	// Check final parameter is "args ...interface{}".
-	args := params.At(nparams - 1)
-	iface, ok := types.Unalias(args.Type().(*types.Slice).Elem()).(*types.Interface)
-	if !ok || !iface.Empty() {
-		return nil
-	}
-
 	// Is second last param 'format string'?
-	var format *types.Var
 	if nparams >= 2 {
 		if p := params.At(nparams - 2); p.Type() == types.Typ[types.String] {
 			format = p
 		}
 	}
 
-	return &printfWrapper{
-		obj:    fn,
-		fdecl:  fdecl,
-		format: format,
-		args:   args,
+	// Check final parameter is "args ...any".
+	// (variadic => slice)
+	args = params.At(nparams - 1)
+	iface, ok := types.Unalias(args.Type().(*types.Slice).Elem()).(*types.Interface)
+	if !ok || !iface.Empty() {
+		return nil, nil
 	}
+
+	return format, args
 }
 
-// findPrintfLike scans the entire package to find printf-like functions.
-func findPrintfLike(pass *analysis.Pass, res *Result) (any, error) {
-	// Gather potential wrappers and call graph between them.
-	byObj := make(map[*types.Func]*printfWrapper)
-	var wrappers []*printfWrapper
-	for _, file := range pass.Files {
-		for _, decl := range file.Decls {
-			w := maybePrintfWrapper(pass.TypesInfo, decl)
-			if w == nil {
-				continue
+// findPrintLike scans the entire package to find print or printf-like functions.
+// When it returns, all such functions have been identified.
+func findPrintLike(pass *analysis.Pass, res *Result) {
+	var (
+		inspect = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+		info    = pass.TypesInfo
+	)
+
+	// Pass 1: gather candidate wrapper functions (and populate wrappers).
+	var (
+		wrappers []*wrapper
+		byObj    = make(map[types.Object]*wrapper)
+	)
+	for cur := range inspect.Root().Preorder((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil), (*ast.InterfaceType)(nil)) {
+
+		// addWrapper records that a func (or var representing
+		// a FuncLit) is a potential print{,f} wrapper.
+		// curBody is its *ast.BlockStmt, if any.
+		addWrapper := func(obj types.Object, sig *types.Signature, curBody inspector.Cursor) *wrapper {
+			format, args := formatArgsParams(sig)
+			if args != nil {
+				// obj (the symbol for a function/method, or variable
+				// assigned to an anonymous function) is a potential
+				// print or printf wrapper.
+				//
+				// Later processing will analyze the graph of potential
+				// wrappers and their function bodies to pick out the
+				// ones that are true wrappers.
+				w := &wrapper{
+					obj:     obj,
+					curBody: curBody,
+					format:  format, // non-nil => printf
+					args:    args,
+				}
+				byObj[w.obj] = w
+				wrappers = append(wrappers, w)
+				return w
 			}
-			byObj[w.obj] = w
-			wrappers = append(wrappers, w)
+			return nil
+		}
+
+		switch f := cur.Node().(type) {
+		case *ast.FuncDecl:
+			// named function or method:
+			//
+			//    func wrapf(format string, args ...any) {...}
+			if f.Body != nil {
+				fn := info.Defs[f.Name].(*types.Func)
+				addWrapper(fn, fn.Signature(), cur.ChildAt(edge.FuncDecl_Body, -1))
+			}
+
+		case *ast.FuncLit:
+			// anonymous function directly assigned to a variable:
+			//
+			//    var wrapf = func(format string, args ...any) {...}
+			//    wrapf    := func(format string, args ...any) {...}
+			//    wrapf     = func(format string, args ...any) {...}
+			//
+			// The LHS may also be a struct field x.wrapf or
+			// an imported var pkg.Wrapf.
+			//
+			var lhs ast.Expr
+			switch ek, idx := cur.ParentEdge(); ek {
+			case edge.ValueSpec_Values:
+				curName := cur.Parent().ChildAt(edge.ValueSpec_Names, idx)
+				lhs = curName.Node().(*ast.Ident)
+			case edge.AssignStmt_Rhs:
+				curLhs := cur.Parent().ChildAt(edge.AssignStmt_Lhs, idx)
+				lhs = curLhs.Node().(ast.Expr)
+			}
+
+			var v *types.Var
+			switch lhs := lhs.(type) {
+			case *ast.Ident:
+				// variable: wrapf = func(...)
+				v, _ = info.ObjectOf(lhs).(*types.Var)
+			case *ast.SelectorExpr:
+				if sel, ok := info.Selections[lhs]; ok {
+					// struct field: x.wrapf = func(...)
+					v = sel.Obj().(*types.Var)
+				} else {
+					// imported var: pkg.Wrapf = func(...)
+					v = info.Uses[lhs.Sel].(*types.Var)
+				}
+			}
+			if v != nil {
+				sig := info.TypeOf(f).(*types.Signature)
+				curBody := cur.ChildAt(edge.FuncLit_Body, -1)
+				addWrapper(v, sig, curBody)
+			}
+
+		case *ast.InterfaceType:
+			// Induction through interface methods is gated as
+			// if it were a go1.26 language feature, to avoid
+			// surprises when go test's vet suite gets stricter.
+			if analyzerutil.FileUsesGoVersion(pass, astutil.EnclosingFile(cur), versions.Go1_26) {
+				for imeth := range info.TypeOf(f).(*types.Interface).Methods() {
+					addWrapper(imeth, imeth.Signature(), inspector.Cursor{})
+				}
+			}
 		}
 	}
 
-	// Walk the graph to figure out which are really printf wrappers.
-	for _, w := range wrappers {
-		// Scan function for calls that could be to other printf-like functions.
-		ast.Inspect(w.fdecl.Body, func(n ast.Node) bool {
-			if w.failed {
-				return false
-			}
+	// impls maps abstract methods to implementations.
+	//
+	// Interface methods are modelled as if they have a body
+	// that calls each implementing method.
+	//
+	// In the code below, impls maps Logger.Logf to
+	// [myLogger.Logf], and if myLogger.Logf is discovered to be
+	// printf-like, then so will be Logger.Logf.
+	//
+	//   type Logger interface {
+	// 	Logf(format string, args ...any)
+	//   }
+	//   type myLogger struct{ ... }
+	//   func (myLogger) Logf(format string, args ...any) {...}
+	//   var _ Logger = myLogger{}
+	impls := methodImplementations(pass)
 
+	// doCall records a call from one wrapper to another.
+	doCall := func(w *wrapper, callee types.Object, call *ast.CallExpr) {
+		// Call from one wrapper candidate to another?
+		// Record the edge so that if callee is found to be
+		// a true wrapper, w will be too.
+		if w2, ok := byObj[callee]; ok {
+			w2.callers = append(w2.callers, printfCaller{w, call})
+		}
+
+		// Is the candidate a true wrapper, because it calls
+		// a known print{,f}-like function from the allowlist
+		// or an imported fact, or another wrapper found
+		// to be a true wrapper?
+		// If so, convert all w's callers to kind.
+		kind := callKind(pass, callee, res)
+		if kind != KindNone {
+			propagate(pass, w, call, kind, res)
+		}
+	}
+
+	// Pass 2: scan the body of each wrapper function
+	// for calls to other printf-like functions.
+	for _, w := range wrappers {
+
+		// An interface method has no body, but acts
+		// like an implicit call to each implementing method.
+		if w.curBody.Inspector() == nil {
+			for impl := range impls[w.obj.(*types.Func)] {
+				doCall(w, impl, nil)
+			}
+			continue // (no body)
+		}
+
+		// Process all calls in the wrapper function's body.
+	scan:
+		for cur := range w.curBody.Preorder(
+			(*ast.AssignStmt)(nil),
+			(*ast.UnaryExpr)(nil),
+			(*ast.CallExpr)(nil),
+		) {
+			switch n := cur.Node().(type) {
+
+			// Reject tricky cases where the parameters
+			// are potentially mutated by AssignStmt or UnaryExpr.
+			// (This logic checks for mutation only before the call.)
 			// TODO: Relax these checks; issue 26555.
-			if assign, ok := n.(*ast.AssignStmt); ok {
-				for _, lhs := range assign.Lhs {
-					if match(pass.TypesInfo, lhs, w.format) ||
-						match(pass.TypesInfo, lhs, w.args) {
-						// Modifies the format
-						// string or args in
-						// some way, so not a
-						// simple wrapper.
-						w.failed = true
-						return false
+
+			case *ast.AssignStmt:
+				// If the wrapper updates format or args
+				// it is not a simple wrapper.
+				for _, lhs := range n.Lhs {
+					if w.format != nil && match(info, lhs, w.format) ||
+						match(info, lhs, w.args) {
+						break scan
+					}
+				}
+
+			case *ast.UnaryExpr:
+				// If the wrapper computes &format or &args,
+				// it is not a simple wrapper.
+				if n.Op == token.AND &&
+					(w.format != nil && match(info, n.X, w.format) ||
+						match(info, n.X, w.args)) {
+					break scan
+				}
+
+			case *ast.CallExpr:
+				if len(n.Args) > 0 && match(info, n.Args[len(n.Args)-1], w.args) {
+					if callee := typeutil.Callee(pass.TypesInfo, n); callee != nil {
+						doCall(w, callee, n)
 					}
 				}
 			}
-			if un, ok := n.(*ast.UnaryExpr); ok && un.Op == token.AND {
-				if match(pass.TypesInfo, un.X, w.format) ||
-					match(pass.TypesInfo, un.X, w.args) {
-					// Taking the address of the
-					// format string or args,
-					// so not a simple wrapper.
-					w.failed = true
-					return false
-				}
-			}
-
-			call, ok := n.(*ast.CallExpr)
-			if !ok || len(call.Args) == 0 || !match(pass.TypesInfo, call.Args[len(call.Args)-1], w.args) {
-				return true
-			}
-
-			fn, kind := printfNameAndKind(pass, call)
-			if kind != 0 {
-				checkPrintfFwd(pass, w, call, kind, res)
-				return true
-			}
-
-			// If the call is to another function in this package,
-			// maybe we will find out it is printf-like later.
-			// Remember this call for later checking.
-			if fn != nil && fn.Pkg() == pass.Pkg && byObj[fn] != nil {
-				callee := byObj[fn]
-				callee.callers = append(callee.callers, printfCaller{w, call})
-			}
-
-			return true
-		})
+		}
 	}
-	return nil, nil
+}
+
+// methodImplementations returns the mapping from interface methods
+// declared in this package to their corresponding implementing
+// methods (which may also be interface methods), according to the set
+// of assignments to interface types that appear within this package.
+func methodImplementations(pass *analysis.Pass) map[*types.Func]map[*types.Func]bool {
+	impls := make(map[*types.Func]map[*types.Func]bool)
+
+	// To find interface/implementation relations,
+	// we use the 'satisfy' pass, but proposal #70638
+	// provides a better way.
+	//
+	// This pass over the syntax could be factored out as
+	// a separate analysis pass if it is needed by other
+	// analyzers.
+	var f satisfy.Finder
+	f.Find(pass.TypesInfo, pass.Files)
+	for assign := range f.Result {
+		// Have: LHS = RHS, where LHS is an interface type.
+		for imeth := range assign.LHS.Underlying().(*types.Interface).Methods() {
+			// Limit to interface methods of current package.
+			if imeth.Pkg() != pass.Pkg {
+				continue
+			}
+
+			if _, args := formatArgsParams(imeth.Signature()); args == nil {
+				continue // not print{,f}-like
+			}
+
+			// Add implementing method to the set.
+			impl, _, _ := types.LookupFieldOrMethod(assign.RHS, false, pass.Pkg, imeth.Name()) // can't fail
+			set, ok := impls[imeth]
+			if !ok {
+				set = make(map[*types.Func]bool)
+				impls[imeth] = set
+			}
+			set[impl.(*types.Func)] = true
+		}
+	}
+	return impls
 }
 
 func match(info *types.Info, arg ast.Expr, param *types.Var) bool {
@@ -261,19 +415,60 @@ func match(info *types.Info, arg ast.Expr, param *types.Var) bool {
 	return ok && info.ObjectOf(id) == param
 }
 
-// checkPrintfFwd checks that a printf-forwarding wrapper is forwarding correctly.
-// It diagnoses writing fmt.Printf(format, args) instead of fmt.Printf(format, args...).
-func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, kind Kind, res *Result) {
-	matched := kind == KindPrint ||
-		kind != KindNone && len(call.Args) >= 2 && match(pass.TypesInfo, call.Args[len(call.Args)-2], w.format)
-	if !matched {
+// propagate propagates changes in wrapper (non-None) kind information backwards
+// through through the wrapper.callers graph of well-formed forwarding calls.
+func propagate(pass *analysis.Pass, w *wrapper, call *ast.CallExpr, kind Kind, res *Result) {
+	// Check correct call forwarding.
+	//
+	// Interface methods (call==nil) forward
+	// correctly by construction.
+	if call != nil && !checkForward(pass, w, call, kind) {
 		return
 	}
 
+	// If the candidate's print{,f} status becomes known,
+	// propagate it back to all its so-far known callers.
+	if res.funcs[w.obj] != kind {
+		res.funcs[w.obj] = kind
+
+		// Export a fact.
+		// (This is a no-op for local symbols.)
+		// We can't export facts on a symbol of another package,
+		// but we can treat the symbol as a wrapper within
+		// the current analysis unit.
+		if w.obj.Pkg() == pass.Pkg {
+			// Facts are associated with origins.
+			pass.ExportObjectFact(origin(w.obj), &isWrapper{Kind: kind})
+		}
+
+		// Propagate kind back to known callers.
+		for _, caller := range w.callers {
+			propagate(pass, caller.w, caller.call, kind, res)
+		}
+	}
+}
+
+// checkForward checks whether a call from wrapper w is a well-formed
+// forwarding call of the specified (non-None) kind.
+//
+// If not, it reports a diagnostic that the user wrote
+// fmt.Printf(format, args) instead of fmt.Printf(format, args...).
+func checkForward(pass *analysis.Pass, w *wrapper, call *ast.CallExpr, kind Kind) bool {
+	// Printf/Errorf calls must delegate the format string.
+	switch kind {
+	case KindPrintf, KindErrorf:
+		if len(call.Args) < 2 || !match(pass.TypesInfo, call.Args[len(call.Args)-2], w.format) {
+			return false
+		}
+	}
+
+	// The args... delegation must be variadic.
+	// (That args is actually delegated was
+	// established before the root call to doCall.)
 	if !call.Ellipsis.IsValid() {
 		typ, ok := pass.TypesInfo.Types[call.Fun].Type.(*types.Signature)
 		if !ok {
-			return
+			return false
 		}
 		if len(call.Args) > typ.Params().Len() {
 			// If we're passing more arguments than what the
@@ -283,25 +478,23 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
 			//   func foo(arg1 string, arg2 ...interface{}) {
 			//       fmt.Printf("%s %v", arg1, arg2)
 			//   }
-			return
+			return false
 		}
-		desc := "printf"
-		if kind == KindPrint {
-			desc = "print"
-		}
-		pass.ReportRangef(call, "missing ... in args forwarded to %s-like function", desc)
-		return
+		pass.ReportRangef(call, "missing ... in args forwarded to %s-like function", kind)
+		return false
 	}
-	fn := w.obj
-	var fact isWrapper
-	if !pass.ImportObjectFact(fn, &fact) {
-		fact.Kind = kind
-		pass.ExportObjectFact(fn, &fact)
-		res.funcs[fn] = kind
-		for _, caller := range w.callers {
-			checkPrintfFwd(pass, caller.w, caller.call, kind, res)
-		}
+
+	return true
+}
+
+func origin(obj types.Object) types.Object {
+	switch obj := obj.(type) {
+	case *types.Func:
+		return obj.Origin()
+	case *types.Var:
+		return obj.Origin()
 	}
+	return obj
 }
 
 // isPrint records the print functions.
@@ -361,16 +554,14 @@ var isPrint = stringSet{
 	"(*testing.common).Logf":   true,
 	"(*testing.common).Skip":   true,
 	"(*testing.common).Skipf":  true,
-	// *testing.T and B are detected by induction, but testing.TB is
-	// an interface and the inference can't follow dynamic calls.
-	"(testing.TB).Error":  true,
-	"(testing.TB).Errorf": true,
-	"(testing.TB).Fatal":  true,
-	"(testing.TB).Fatalf": true,
-	"(testing.TB).Log":    true,
-	"(testing.TB).Logf":   true,
-	"(testing.TB).Skip":   true,
-	"(testing.TB).Skipf":  true,
+	"(testing.TB).Error":       true,
+	"(testing.TB).Errorf":      true,
+	"(testing.TB).Fatal":       true,
+	"(testing.TB).Fatalf":      true,
+	"(testing.TB).Log":         true,
+	"(testing.TB).Logf":        true,
+	"(testing.TB).Skip":        true,
+	"(testing.TB).Skipf":       true,
 }
 
 // formatStringIndex returns the index of the format string (the last
@@ -412,7 +603,7 @@ func stringConstantExpr(pass *analysis.Pass, expr ast.Expr) (string, bool) {
 
 // checkCalls triggers the print-specific checks for calls that invoke a print
 // function.
-func checkCalls(pass *analysis.Pass) {
+func checkCalls(pass *analysis.Pass, res *Result) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	nodeFilter := []ast.Node{
 		(*ast.File)(nil),
@@ -426,48 +617,60 @@ func checkCalls(pass *analysis.Pass) {
 			fileVersion = versions.Lang(versions.FileVersion(pass.TypesInfo, n))
 
 		case *ast.CallExpr:
-			fn, kind := printfNameAndKind(pass, n)
-			switch kind {
-			case KindPrintf, KindErrorf:
-				checkPrintf(pass, fileVersion, kind, n, fn.FullName())
-			case KindPrint:
-				checkPrint(pass, n, fn.FullName())
+			if callee := typeutil.Callee(pass.TypesInfo, n); callee != nil {
+				kind := callKind(pass, callee, res)
+				switch kind {
+				case KindPrintf, KindErrorf:
+					checkPrintf(pass, fileVersion, kind, n, fullname(callee))
+				case KindPrint:
+					checkPrint(pass, n, fullname(callee))
+				}
 			}
 		}
 	})
 }
 
-func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func, kind Kind) {
-	fn, _ = typeutil.Callee(pass.TypesInfo, call).(*types.Func)
-	if fn == nil {
-		return nil, 0
+func fullname(obj types.Object) string {
+	if fn, ok := obj.(*types.Func); ok {
+		return fn.FullName()
 	}
+	return obj.Name()
+}
 
-	// Facts are associated with generic declarations, not instantiations.
-	fn = fn.Origin()
-
-	_, ok := isPrint[fn.FullName()]
+// callKind returns the symbol of the called function
+// and its print/printf kind, if any.
+// (The symbol may be a var for an anonymous function.)
+// The result is memoized in res.funcs.
+func callKind(pass *analysis.Pass, obj types.Object, res *Result) Kind {
+	kind, ok := res.funcs[obj]
 	if !ok {
-		// Next look up just "printf", for use with -printf.funcs.
-		_, ok = isPrint[strings.ToLower(fn.Name())]
-	}
-	if ok {
-		if fn.FullName() == "fmt.Errorf" {
-			kind = KindErrorf
-		} else if strings.HasSuffix(fn.Name(), "f") {
-			kind = KindPrintf
-		} else {
-			kind = KindPrint
+		// cache miss
+		_, ok := isPrint[fullname(obj)]
+		if !ok {
+			// Next look up just "printf", for use with -printf.funcs.
+			_, ok = isPrint[strings.ToLower(obj.Name())]
 		}
-		return fn, kind
+		if ok {
+			// well-known printf functions
+			if fullname(obj) == "fmt.Errorf" {
+				kind = KindErrorf
+			} else if strings.HasSuffix(obj.Name(), "f") {
+				kind = KindPrintf
+			} else {
+				kind = KindPrint
+			}
+		} else {
+			// imported wrappers
+			// Facts are associated with generic declarations, not instantiations.
+			obj = origin(obj)
+			var fact isWrapper
+			if pass.ImportObjectFact(obj, &fact) {
+				kind = fact.Kind
+			}
+		}
+		res.funcs[obj] = kind // cache
 	}
-
-	var fact isWrapper
-	if pass.ImportObjectFact(fn, &fact) {
-		return fn, fact.Kind
-	}
-
-	return fn, KindNone
+	return kind
 }
 
 // isFormatter reports whether t could satisfy fmt.Formatter.
@@ -490,7 +693,7 @@ func isFormatter(typ types.Type) bool {
 	sig := fn.Type().(*types.Signature)
 	return sig.Params().Len() == 2 &&
 		sig.Results().Len() == 0 &&
-		analysisinternal.IsTypeNamed(sig.Params().At(0).Type(), "fmt", "State") &&
+		typesinternal.IsTypeNamed(sig.Params().At(0).Type(), "fmt", "State") &&
 		types.Identical(sig.Params().At(1).Type(), types.Typ[types.Rune])
 }
 
@@ -515,10 +718,9 @@ func checkPrintf(pass *analysis.Pass, fileVersion string, kind Kind, call *ast.C
 		// finds are sometimes unlikely or inconsequential, and may not be worth
 		// fixing for some users. Gating on language version allows us to avoid
 		// breaking existing tests and CI scripts.
-		if !suppressNonconstants &&
-			idx == len(call.Args)-1 &&
+		if idx == len(call.Args)-1 &&
 			fileVersion != "" && // fail open
-			versions.AtLeast(fileVersion, "go1.24") {
+			versions.AtLeast(fileVersion, versions.Go1_24) {
 
 			pass.Report(analysis.Diagnostic{
 				Pos: formatArg.Pos(),
@@ -568,7 +770,7 @@ func checkPrintf(pass *analysis.Pass, fileVersion string, kind Kind, call *ast.C
 			anyIndex = true
 		}
 		rng := opRange(formatArg, op)
-		if !okPrintfArg(pass, call, rng, &maxArgIndex, firstArg, name, op) {
+		if !okPrintfArg(pass, fileVersion, call, rng, &maxArgIndex, firstArg, name, op) {
 			// One error per format is enough.
 			return
 		}
@@ -600,9 +802,9 @@ func checkPrintf(pass *analysis.Pass, fileVersion string, kind Kind, call *ast.C
 // such as the position of the %v substring of "...%v...".
 func opRange(formatArg ast.Expr, op *fmtstr.Operation) analysis.Range {
 	if lit, ok := formatArg.(*ast.BasicLit); ok {
-		start, end, err := astutil.RangeInStringLiteral(lit, op.Range.Start, op.Range.End)
+		rng, err := astutil.RangeInStringLiteral(lit, op.Range.Start, op.Range.End)
 		if err == nil {
-			return analysisinternal.Range(start, end) // position of "%v"
+			return rng // position of "%v"
 		}
 	}
 	return formatArg // entire format string
@@ -613,6 +815,7 @@ type printfArgType int
 
 const (
 	argBool printfArgType = 1 << iota
+	argByte
 	argInt
 	argRune
 	argString
@@ -657,7 +860,7 @@ var printVerbs = []printVerb{
 	{'o', sharpNumFlag, argInt | argPointer},
 	{'O', sharpNumFlag, argInt | argPointer},
 	{'p', "-#", argPointer},
-	{'q', " -+.0#", argRune | argInt | argString},
+	{'q', " -+.0#", argRune | argInt | argString}, // note: when analyzing go1.26 code, argInt => argByte
 	{'s', " -+.0", argString},
 	{'t', "-", argBool},
 	{'T', "-", anyType},
@@ -671,7 +874,7 @@ var printVerbs = []printVerb{
 // okPrintfArg compares the operation to the arguments actually present,
 // reporting any discrepancies it can discern, maxArgIndex was the index of the highest used index.
 // If the final argument is ellipsissed, there's little it can do for that.
-func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, rng analysis.Range, maxArgIndex *int, firstArg int, name string, operation *fmtstr.Operation) (ok bool) {
+func okPrintfArg(pass *analysis.Pass, fileVersion string, call *ast.CallExpr, rng analysis.Range, maxArgIndex *int, firstArg int, name string, operation *fmtstr.Operation) (ok bool) {
 	verb := operation.Verb.Verb
 	var v printVerb
 	found := false
@@ -681,6 +884,13 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, rng analysis.Range, ma
 			found = true
 			break
 		}
+	}
+
+	// When analyzing go1.26 code, rune and byte are the only %q integers (#72850).
+	if verb == 'q' &&
+		fileVersion != "" && // fail open
+		versions.AtLeast(fileVersion, versions.Go1_26) {
+		v.typ = argRune | argByte | argString
 	}
 
 	// Could verb's arg implement fmt.Formatter?
@@ -730,7 +940,7 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, rng analysis.Range, ma
 			if reason != "" {
 				details = " (" + reason + ")"
 			}
-			pass.ReportRangef(rng, "%s format %s uses non-int %s%s as argument of *", name, operation.Text, analysisinternal.Format(pass.Fset, arg), details)
+			pass.ReportRangef(rng, "%s format %s uses non-int %s%s as argument of *", name, operation.Text, astutil.Format(pass.Fset, arg), details)
 			return false
 		}
 	}
@@ -757,7 +967,7 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, rng analysis.Range, ma
 	}
 	arg := call.Args[verbArgIndex]
 	if isFunctionValue(pass, arg) && verb != 'p' && verb != 'T' {
-		pass.ReportRangef(rng, "%s format %s arg %s is a func value, not called", name, operation.Text, analysisinternal.Format(pass.Fset, arg))
+		pass.ReportRangef(rng, "%s format %s arg %s is a func value, not called", name, operation.Text, astutil.Format(pass.Fset, arg))
 		return false
 	}
 	if reason, ok := matchArgType(pass, v.typ, arg); !ok {
@@ -769,14 +979,14 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, rng analysis.Range, ma
 		if reason != "" {
 			details = " (" + reason + ")"
 		}
-		pass.ReportRangef(rng, "%s format %s has arg %s of wrong type %s%s", name, operation.Text, analysisinternal.Format(pass.Fset, arg), typeString, details)
+		pass.ReportRangef(rng, "%s format %s has arg %s of wrong type %s%s", name, operation.Text, astutil.Format(pass.Fset, arg), typeString, details)
 		return false
 	}
 	// Detect recursive formatting via value's String/Error methods.
 	// The '#' flag suppresses the methods, except with %x, %X, and %q.
 	if v.typ&argString != 0 && v.verb != 'T' && (!strings.Contains(operation.Flags, "#") || strings.ContainsRune("qxX", v.verb)) {
 		if methodName, ok := recursiveStringer(pass, arg); ok {
-			pass.ReportRangef(rng, "%s format %s with arg %s causes recursive %s method call", name, operation.Text, analysisinternal.Format(pass.Fset, arg), methodName)
+			pass.ReportRangef(rng, "%s format %s with arg %s causes recursive %s method call", name, operation.Text, astutil.Format(pass.Fset, arg), methodName)
 			return false
 		}
 	}
@@ -928,7 +1138,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, name string) {
 		if sel, ok := call.Args[0].(*ast.SelectorExpr); ok {
 			if x, ok := sel.X.(*ast.Ident); ok {
 				if x.Name == "os" && strings.HasPrefix(sel.Sel.Name, "Std") {
-					pass.ReportRangef(call, "%s does not take io.Writer but has first arg %s", name, analysisinternal.Format(pass.Fset, call.Args[0]))
+					pass.ReportRangef(call, "%s does not take io.Writer but has first arg %s", name, astutil.Format(pass.Fset, call.Args[0]))
 				}
 			}
 		}
@@ -962,10 +1172,10 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, name string) {
 	}
 	for _, arg := range args {
 		if isFunctionValue(pass, arg) {
-			pass.ReportRangef(call, "%s arg %s is a func value, not called", name, analysisinternal.Format(pass.Fset, arg))
+			pass.ReportRangef(call, "%s arg %s is a func value, not called", name, astutil.Format(pass.Fset, arg))
 		}
 		if methodName, ok := recursiveStringer(pass, arg); ok {
-			pass.ReportRangef(call, "%s arg %s causes recursive call to %s method", name, analysisinternal.Format(pass.Fset, arg), methodName)
+			pass.ReportRangef(call, "%s arg %s causes recursive call to %s method", name, astutil.Format(pass.Fset, arg), methodName)
 		}
 	}
 }
@@ -993,7 +1203,7 @@ func (ss stringSet) String() string {
 }
 
 func (ss stringSet) Set(flag string) error {
-	for _, name := range strings.Split(flag, ",") {
+	for name := range strings.SplitSeq(flag, ",") {
 		if len(name) == 0 {
 			return fmt.Errorf("empty string")
 		}
@@ -1004,15 +1214,6 @@ func (ss stringSet) Set(flag string) error {
 	}
 	return nil
 }
-
-// suppressNonconstants suppresses reporting printf calls with
-// non-constant formatting strings (proposal #60529) when true.
-//
-// This variable is to allow for staging the transition to newer
-// versions of x/tools by vendoring.
-//
-// Remove this after the 1.24 release.
-var suppressNonconstants bool
 
 // isHex reports whether b is a hex digit.
 func isHex(b byte) bool {

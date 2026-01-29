@@ -117,6 +117,11 @@ const (
 	// The application may modify the [SessionState] before storing it.
 	// This event only occurs on client connections.
 	QUICStoreSession
+
+	// QUICErrorEvent indicates that a fatal error has occurred.
+	// The handshake cannot proceed and the connection must be closed.
+	// QUICEvent.Err is set.
+	QUICErrorEvent
 )
 
 // A QUICEvent is an event occurring on a QUIC connection.
@@ -138,6 +143,10 @@ type QUICEvent struct {
 
 	// Set for QUICResumeSession and QUICStoreSession.
 	SessionState *SessionState
+
+	// Set for QUICErrorEvent.
+	// The error will wrap AlertError.
+	Err error
 }
 
 type quicState struct {
@@ -157,6 +166,7 @@ type quicState struct {
 	cancel   context.CancelFunc
 
 	waitingForDrain bool
+	errorReturned   bool
 
 	// readbuf is shared between HandleData and the handshake goroutine.
 	// HandshakeCryptoData passes ownership to the handshake goroutine by
@@ -221,13 +231,22 @@ func (q *QUICConn) NextEvent() QUICEvent {
 	qs := q.conn.quic
 	if last := qs.nextEvent - 1; last >= 0 && len(qs.events[last].Data) > 0 {
 		// Write over some of the previous event's data,
-		// to catch callers erroniously retaining it.
+		// to catch callers erroneously retaining it.
 		qs.events[last].Data[0] = 0
 	}
 	if qs.nextEvent >= len(qs.events) && qs.waitingForDrain {
 		qs.waitingForDrain = false
 		<-qs.signalc
 		<-qs.blockedc
+	}
+	if err := q.conn.handshakeErr; err != nil {
+		if qs.errorReturned {
+			return QUICEvent{Kind: QUICNoEvent}
+		}
+		qs.errorReturned = true
+		qs.events = nil
+		qs.nextEvent = 0
+		return QUICEvent{Kind: QUICErrorEvent, Err: q.conn.handshakeErr}
 	}
 	if qs.nextEvent >= len(qs.events) {
 		qs.events = qs.events[:0]
@@ -302,6 +321,9 @@ type QUICSessionTicketOptions struct {
 // Currently, it can only be called once.
 func (q *QUICConn) SendSessionTicket(opts QUICSessionTicketOptions) error {
 	c := q.conn
+	if c.config.SessionTicketsDisabled {
+		return nil
+	}
 	if !c.isHandshakeComplete.Load() {
 		return quicError(errors.New("tls: SendSessionTicket called before handshake completed"))
 	}
@@ -359,12 +381,11 @@ func quicError(err error) error {
 	if err == nil {
 		return nil
 	}
-	var ae AlertError
-	if errors.As(err, &ae) {
+	if _, ok := errors.AsType[AlertError](err); ok {
 		return err
 	}
-	var a alert
-	if !errors.As(err, &a) {
+	a, ok := errors.AsType[alert](err)
+	if !ok {
 		a = alertInternalError
 	}
 	// Return an error wrapping the original error and an AlertError.
@@ -381,13 +402,22 @@ func (c *Conn) quicReadHandshakeBytes(n int) error {
 	return nil
 }
 
-func (c *Conn) quicSetReadSecret(level QUICEncryptionLevel, suite uint16, secret []byte) {
+func (c *Conn) quicSetReadSecret(level QUICEncryptionLevel, suite uint16, secret []byte) error {
+	// Ensure that there are no buffered handshake messages before changing the
+	// read keys, since that can cause messages to be parsed that were encrypted
+	// using old keys which are no longer appropriate.
+	// TODO(roland): we should merge this check with the similar one in setReadTrafficSecret.
+	if c.hand.Len() != 0 {
+		c.sendAlert(alertUnexpectedMessage)
+		return errors.New("tls: handshake buffer not empty before setting read traffic secret")
+	}
 	c.quic.events = append(c.quic.events, QUICEvent{
 		Kind:  QUICSetReadSecret,
 		Level: level,
 		Suite: suite,
 		Data:  secret,
 	})
+	return nil
 }
 
 func (c *Conn) quicSetWriteSecret(level QUICEncryptionLevel, suite uint16, secret []byte) {

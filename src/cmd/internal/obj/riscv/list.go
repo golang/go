@@ -52,9 +52,14 @@ func opSuffixString(s uint8) string {
 }
 
 func specialOperandConv(a int64) string {
+	var s string
+
 	spc := SpecialOperand(a)
 	if spc >= SPOP_BEGIN && spc < SPOP_END {
-		return spc.String()
+		s = spc.String()
 	}
-	return "SPC_??"
+	if s == "" {
+		return "SPC_??"
+	}
+	return s
 }

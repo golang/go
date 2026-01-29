@@ -319,11 +319,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 	// Rewrite BR/BL to symbol as TYPE_BRANCH.
 	switch p.As {
-	case AB,
-		ABL,
-		obj.ARET,
-		obj.ADUFFZERO,
-		obj.ADUFFCOPY:
+	case AB, ABL, obj.ARET:
 		if p.To.Sym != nil {
 			p.To.Type = obj.TYPE_BRANCH
 		}
@@ -400,39 +396,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 // Rewrite p, if necessary, to access global data via the global offset table.
 func (c *ctxt7) rewriteToUseGot(p *obj.Prog) {
-	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
-		//     ADUFFxxx $offset
-		// becomes
-		//     MOVD runtime.duffxxx@GOT, REGTMP
-		//     ADD $offset, REGTMP
-		//     CALL REGTMP
-		var sym *obj.LSym
-		if p.As == obj.ADUFFZERO {
-			sym = c.ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
-		} else {
-			sym = c.ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
-		}
-		offset := p.To.Offset
-		p.As = AMOVD
-		p.From.Type = obj.TYPE_MEM
-		p.From.Name = obj.NAME_GOTREF
-		p.From.Sym = sym
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REGTMP
-		p.To.Name = obj.NAME_NONE
-		p.To.Offset = 0
-		p.To.Sym = nil
-		p1 := obj.Appendp(p, c.newprog)
-		p1.As = AADD
-		p1.From.Type = obj.TYPE_CONST
-		p1.From.Offset = offset
-		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = REGTMP
-		p2 := obj.Appendp(p1, c.newprog)
-		p2.As = obj.ACALL
-		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = REGTMP
-	}
 
 	// We only care about global data: NAME_EXTERN means a global
 	// symbol in the Go sense, and p.Sym.Local is true for a few
@@ -543,9 +506,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		case obj.ATEXT:
 			p.Mark |= LEAF
 
-		case ABL,
-			obj.ADUFFZERO,
-			obj.ADUFFCOPY:
+		case ABL:
 			c.cursym.Func().Text.Mark &^= LEAF
 		}
 	}
@@ -912,110 +873,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.From.Type = obj.TYPE_MEM
 				p.From.Reg = REGSP
 			}
-
-		case obj.ADUFFCOPY:
-			//  ADR	ret_addr, R27
-			//  STP	(FP, R27), -24(SP)
-			//  SUB	24, SP, FP
-			//  DUFFCOPY
-			// ret_addr:
-			//  SUB	8, SP, FP
-
-			q1 := p
-			// copy DUFFCOPY from q1 to q4
-			q4 := obj.Appendp(p, c.newprog)
-			q4.Pos = p.Pos
-			q4.As = obj.ADUFFCOPY
-			q4.To = p.To
-
-			q1.As = AADR
-			q1.From.Type = obj.TYPE_BRANCH
-			q1.To.Type = obj.TYPE_REG
-			q1.To.Reg = REG_R27
-
-			q2 := obj.Appendp(q1, c.newprog)
-			q2.Pos = p.Pos
-			q2.As = ASTP
-			q2.From.Type = obj.TYPE_REGREG
-			q2.From.Reg = REGFP
-			q2.From.Offset = int64(REG_R27)
-			q2.To.Type = obj.TYPE_MEM
-			q2.To.Reg = REGSP
-			q2.To.Offset = -24
-
-			// maintain FP for DUFFCOPY
-			q3 := obj.Appendp(q2, c.newprog)
-			q3.Pos = p.Pos
-			q3.As = ASUB
-			q3.From.Type = obj.TYPE_CONST
-			q3.From.Offset = 24
-			q3.Reg = REGSP
-			q3.To.Type = obj.TYPE_REG
-			q3.To.Reg = REGFP
-
-			q5 := obj.Appendp(q4, c.newprog)
-			q5.Pos = p.Pos
-			q5.As = ASUB
-			q5.From.Type = obj.TYPE_CONST
-			q5.From.Offset = 8
-			q5.Reg = REGSP
-			q5.To.Type = obj.TYPE_REG
-			q5.To.Reg = REGFP
-			q1.From.SetTarget(q5)
-			p = q5
-
-		case obj.ADUFFZERO:
-			//  ADR	ret_addr, R27
-			//  STP	(FP, R27), -24(SP)
-			//  SUB	24, SP, FP
-			//  DUFFZERO
-			// ret_addr:
-			//  SUB	8, SP, FP
-
-			q1 := p
-			// copy DUFFZERO from q1 to q4
-			q4 := obj.Appendp(p, c.newprog)
-			q4.Pos = p.Pos
-			q4.As = obj.ADUFFZERO
-			q4.To = p.To
-
-			q1.As = AADR
-			q1.From.Type = obj.TYPE_BRANCH
-			q1.To.Type = obj.TYPE_REG
-			q1.To.Reg = REG_R27
-
-			q2 := obj.Appendp(q1, c.newprog)
-			q2.Pos = p.Pos
-			q2.As = ASTP
-			q2.From.Type = obj.TYPE_REGREG
-			q2.From.Reg = REGFP
-			q2.From.Offset = int64(REG_R27)
-			q2.To.Type = obj.TYPE_MEM
-			q2.To.Reg = REGSP
-			q2.To.Offset = -24
-
-			// maintain FP for DUFFZERO
-			q3 := obj.Appendp(q2, c.newprog)
-			q3.Pos = p.Pos
-			q3.As = ASUB
-			q3.From.Type = obj.TYPE_CONST
-			q3.From.Offset = 24
-			q3.Reg = REGSP
-			q3.To.Type = obj.TYPE_REG
-			q3.To.Reg = REGFP
-
-			q5 := obj.Appendp(q4, c.newprog)
-			q5.Pos = p.Pos
-			q5.As = ASUB
-			q5.From.Type = obj.TYPE_CONST
-			q5.From.Offset = 8
-			q5.Reg = REGSP
-			q5.To.Type = obj.TYPE_REG
-			q5.To.Reg = REGFP
-			q1.From.SetTarget(q5)
-			p = q5
 		}
-
 		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
 			f := c.cursym.Func()
 			if f.FuncFlag&abi.FuncFlagSPWrite == 0 {

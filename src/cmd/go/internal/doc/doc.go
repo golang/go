@@ -212,16 +212,16 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 			mod, err := runCmd(append(os.Environ(), "GOWORK=off"), "go", "list", "-m")
 			if err == nil && mod != "" && mod != "command-line-arguments" {
 				// If there's a module, go to the module's doc page.
-				return doPkgsite(mod)
+				return doPkgsite(mod, "")
 			}
 			gowork, err := runCmd(nil, "go", "env", "GOWORK")
 			if err == nil && gowork != "" {
 				// Outside a module, but in a workspace, go to the home page
 				// with links to each of the modules' pages.
-				return doPkgsite("")
+				return doPkgsite("", "")
 			}
 			// Outside a module or workspace, go to the documentation for the standard library.
-			return doPkgsite("std")
+			return doPkgsite("std", "")
 		}
 
 		// If args are provided, we need to figure out which page to open on the pkgsite
@@ -282,11 +282,11 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 		}
 		if found {
 			if serveHTTP {
-				path, err := objectPath(userPath, pkg, symbol, method)
+				path, fragment, err := objectPath(userPath, pkg, symbol, method)
 				if err != nil {
 					return err
 				}
-				return doPkgsite(path)
+				return doPkgsite(path, fragment)
 			}
 			return nil
 		}
@@ -305,7 +305,8 @@ func runCmd(env []string, cmdline ...string) (string, error) {
 	return strings.TrimSpace(stdout.String()), nil
 }
 
-func objectPath(userPath string, pkg *Package, symbol, method string) (string, error) {
+// returns a path followed by a fragment (or an error)
+func objectPath(userPath string, pkg *Package, symbol, method string) (string, string, error) {
 	var err error
 	path := pkg.build.ImportPath
 	if path == "." {
@@ -314,7 +315,7 @@ func objectPath(userPath string, pkg *Package, symbol, method string) (string, e
 		// go list to get the import path.
 		path, err = runCmd(nil, "go", "list", userPath)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 	}
 
@@ -322,10 +323,7 @@ func objectPath(userPath string, pkg *Package, symbol, method string) (string, e
 	if symbol != "" && method != "" {
 		object = symbol + "." + method
 	}
-	if object != "" {
-		path = path + "#" + object
-	}
-	return path, nil
+	return path, object, nil
 }
 
 // failMessage creates a nicely formatted error message when there is no result to show.

@@ -65,6 +65,22 @@ var signals = [...]string{
 	15: "terminated",
 }
 
+// File flags for [os.OpenFile]. The O_ prefix is used to indicate
+// that these flags are specific to the OpenFile function.
+const (
+	O_FILE_FLAG_OPEN_NO_RECALL     = FILE_FLAG_OPEN_NO_RECALL
+	O_FILE_FLAG_OPEN_REPARSE_POINT = FILE_FLAG_OPEN_REPARSE_POINT
+	O_FILE_FLAG_SESSION_AWARE      = FILE_FLAG_SESSION_AWARE
+	O_FILE_FLAG_POSIX_SEMANTICS    = FILE_FLAG_POSIX_SEMANTICS
+	O_FILE_FLAG_BACKUP_SEMANTICS   = FILE_FLAG_BACKUP_SEMANTICS
+	O_FILE_FLAG_DELETE_ON_CLOSE    = FILE_FLAG_DELETE_ON_CLOSE
+	O_FILE_FLAG_SEQUENTIAL_SCAN    = FILE_FLAG_SEQUENTIAL_SCAN
+	O_FILE_FLAG_RANDOM_ACCESS      = FILE_FLAG_RANDOM_ACCESS
+	O_FILE_FLAG_NO_BUFFERING       = FILE_FLAG_NO_BUFFERING
+	O_FILE_FLAG_OVERLAPPED         = FILE_FLAG_OVERLAPPED
+	O_FILE_FLAG_WRITE_THROUGH      = FILE_FLAG_WRITE_THROUGH
+)
+
 const (
 	FILE_READ_DATA        = 0x00000001
 	FILE_READ_ATTRIBUTES  = 0x00000080
@@ -1976,6 +1992,12 @@ const (
 	SYMBOLIC_LINK_FLAG_DIRECTORY     = 0x1
 )
 
+// FILE_ZERO_DATA_INFORMATION from winioctl.h
+type FileZeroDataInformation struct {
+	FileOffset      int64
+	BeyondFinalZero int64
+}
+
 const (
 	ComputerNameNetBIOS                   = 0
 	ComputerNameDnsHostname               = 1
@@ -2296,6 +2318,82 @@ type MibIfRow2 struct {
 	OutMulticastOctets          uint64
 	OutBroadcastOctets          uint64
 	OutQLen                     uint64
+}
+
+// IP_ADDRESS_PREFIX stores an IP address prefix. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-ip_address_prefix.
+type IpAddressPrefix struct {
+	Prefix       RawSockaddrInet
+	PrefixLength uint8
+}
+
+// NL_ROUTE_ORIGIN enumeration from nldef.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_route_origin.
+const (
+	NlroManual              = 0
+	NlroWellKnown           = 1
+	NlroDHCP                = 2
+	NlroRouterAdvertisement = 3
+	Nlro6to4                = 4
+)
+
+// NL_ROUTE_ORIGIN enumeration from nldef.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_route_protocol.
+const (
+	MIB_IPPROTO_OTHER             = 1
+	MIB_IPPROTO_LOCAL             = 2
+	MIB_IPPROTO_NETMGMT           = 3
+	MIB_IPPROTO_ICMP              = 4
+	MIB_IPPROTO_EGP               = 5
+	MIB_IPPROTO_GGP               = 6
+	MIB_IPPROTO_HELLO             = 7
+	MIB_IPPROTO_RIP               = 8
+	MIB_IPPROTO_IS_IS             = 9
+	MIB_IPPROTO_ES_IS             = 10
+	MIB_IPPROTO_CISCO             = 11
+	MIB_IPPROTO_BBN               = 12
+	MIB_IPPROTO_OSPF              = 13
+	MIB_IPPROTO_BGP               = 14
+	MIB_IPPROTO_IDPR              = 15
+	MIB_IPPROTO_EIGRP             = 16
+	MIB_IPPROTO_DVMRP             = 17
+	MIB_IPPROTO_RPL               = 18
+	MIB_IPPROTO_DHCP              = 19
+	MIB_IPPROTO_NT_AUTOSTATIC     = 10002
+	MIB_IPPROTO_NT_STATIC         = 10006
+	MIB_IPPROTO_NT_STATIC_NON_DOD = 10007
+)
+
+// MIB_IPFORWARD_ROW2 stores information about an IP route entry. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_ipforward_row2.
+type MibIpForwardRow2 struct {
+	InterfaceLuid        uint64
+	InterfaceIndex       uint32
+	DestinationPrefix    IpAddressPrefix
+	NextHop              RawSockaddrInet
+	SitePrefixLength     uint8
+	ValidLifetime        uint32
+	PreferredLifetime    uint32
+	Metric               uint32
+	Protocol             uint32
+	Loopback             uint8
+	AutoconfigureAddress uint8
+	Publish              uint8
+	Immortal             uint8
+	Age                  uint32
+	Origin               uint32
+}
+
+// MIB_IPFORWARD_TABLE2 contains a table of IP route entries. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_ipforward_table2.
+type MibIpForwardTable2 struct {
+	NumEntries uint32
+	Table      [1]MibIpForwardRow2
+}
+
+// Rows returns the IP route entries in the table.
+func (t *MibIpForwardTable2) Rows() []MibIpForwardRow2 {
+	return unsafe.Slice(&t.Table[0], t.NumEntries)
 }
 
 // MIB_UNICASTIPADDRESS_ROW stores information about a unicast IP address. See

@@ -44,6 +44,11 @@ func Funcs(fns []*ir.Func) {
 				*as.lhs = ir.BlankNode
 				*as.rhs = zero
 			}
+			if len(assigns) > 0 {
+				// k.Defn might be pointing at one of the
+				// assignments we're overwriting.
+				k.Defn = nil
+			}
 		}
 	}
 }

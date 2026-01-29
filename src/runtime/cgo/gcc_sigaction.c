@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build linux && (amd64 || arm64 || loong64 || ppc64le)
+//go:build linux && (386 || amd64 || arm64 || loong64 || ppc64le)
 
 #include <errno.h>
 #include <stddef.h>
@@ -17,7 +17,7 @@
 // to and from struct sigaction — are specific to ${goos}/${goarch}.
 typedef struct {
 	uintptr_t handler;
-	uint64_t flags;
+	unsigned long flags;
 #ifdef __loongarch__
 	uint64_t mask;
 	uintptr_t restorer;
@@ -57,7 +57,7 @@ x_cgo_sigaction(intptr_t signum, const go_sigaction_t *goact, go_sigaction_t *ol
 				sigaddset(&act.sa_mask, (int)(i+1));
 			}
 		}
-		act.sa_flags = (int)(goact->flags & ~(uint64_t)SA_RESTORER);
+		act.sa_flags = (int)(goact->flags & ~(unsigned long)SA_RESTORER);
 	}
 
 	ret = sigaction((int)signum, goact ? &act : NULL, oldgoact ? &oldact : NULL);
@@ -79,7 +79,7 @@ x_cgo_sigaction(intptr_t signum, const go_sigaction_t *goact, go_sigaction_t *ol
 				oldgoact->mask |= (uint64_t)(1)<<i;
 			}
 		}
-		oldgoact->flags = (uint64_t)oldact.sa_flags;
+		oldgoact->flags = (unsigned long)oldact.sa_flags;
 	}
 
 	_cgo_tsan_release();

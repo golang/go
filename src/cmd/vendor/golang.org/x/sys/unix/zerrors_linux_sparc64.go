@@ -71,6 +71,7 @@ const (
 	CS8                              = 0x30
 	CSIZE                            = 0x30
 	CSTOPB                           = 0x40
+	DM_MPATH_PROBE_PATHS             = 0x2000fd12
 	ECCGETLAYOUT                     = 0x41484d11
 	ECCGETSTATS                      = 0x40104d12
 	ECHOCTL                          = 0x200
@@ -118,6 +119,8 @@ const (
 	IEXTEN                           = 0x8000
 	IN_CLOEXEC                       = 0x400000
 	IN_NONBLOCK                      = 0x4000
+	IOCTL_MEI_NOTIFY_GET             = 0x40044803
+	IOCTL_MEI_NOTIFY_SET             = 0x80044802
 	IOCTL_VM_SOCKETS_GET_LOCAL_CID   = 0x200007b9
 	IPV6_FLOWINFO_MASK               = 0xfffffff
 	IPV6_FLOWLABEL_MASK              = 0xfffff
@@ -461,6 +464,7 @@ const (
 	SO_OOBINLINE                     = 0x100
 	SO_PASSCRED                      = 0x2
 	SO_PASSPIDFD                     = 0x55
+	SO_PASSRIGHTS                    = 0x5c
 	SO_PASSSEC                       = 0x1f
 	SO_PEEK_OFF                      = 0x26
 	SO_PEERCRED                      = 0x40
@@ -473,6 +477,7 @@ const (
 	SO_RCVBUFFORCE                   = 0x100b
 	SO_RCVLOWAT                      = 0x800
 	SO_RCVMARK                       = 0x54
+	SO_RCVPRIORITY                   = 0x5b
 	SO_RCVTIMEO                      = 0x2000
 	SO_RCVTIMEO_NEW                  = 0x44
 	SO_RCVTIMEO_OLD                  = 0x2000

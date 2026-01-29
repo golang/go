@@ -108,7 +108,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 		}
 		funcInfo := findfunc(pc)
 		if !funcInfo.valid() {
-			if cgoSymbolizer != nil {
+			if cgoSymbolizerAvailable() {
 				// Pre-expand cgo frames. We could do this
 				// incrementally, too, but there's no way to
 				// avoid allocation in this case anyway.
@@ -295,6 +295,8 @@ func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
 // expandCgoFrames expands frame information for pc, known to be
 // a non-Go function, using the cgoSymbolizer hook. expandCgoFrames
 // returns nil if pc could not be expanded.
+//
+// Preconditions: cgoSymbolizerAvailable returns true.
 func expandCgoFrames(pc uintptr) []Frame {
 	arg := cgoSymbolizerArg{pc: pc}
 	callCgoSymbolizer(&arg)
@@ -372,13 +374,19 @@ func (f *_func) funcInfo() funcInfo {
 
 // pcHeader holds data used by the pclntab lookups.
 type pcHeader struct {
-	magic          uint32  // 0xFFFFFFF1
-	pad1, pad2     uint8   // 0,0
-	minLC          uint8   // min instruction size
-	ptrSize        uint8   // size of a ptr in bytes
-	nfunc          int     // number of functions in the module
-	nfiles         uint    // number of entries in the file tab
-	textStart      uintptr // base for function entry PC offsets in this module, equal to moduledata.text
+	magic      abi.PCLnTabMagic // abi.Go1NNPcLnTabMagic
+	pad1, pad2 uint8            // 0,0
+	minLC      uint8            // min instruction size
+	ptrSize    uint8            // size of a ptr in bytes
+	nfunc      int              // number of functions in the module
+	nfiles     uint             // number of entries in the file tab
+
+	// The next field used to be textStart. This is no longer stored
+	// as it requires a relocation. Code should use the moduledata text
+	// field instead. This unused field can be removed in coordination
+	// with Delve.
+	_ uintptr
+
 	funcnameOffset uintptr // offset to the funcnametab variable from pcHeader
 	cuOffset       uintptr // offset to the cutab variable from pcHeader
 	filetabOffset  uintptr // offset to the filetab variable from pcHeader
@@ -404,19 +412,19 @@ type moduledata struct {
 	findfunctab  uintptr
 	minpc, maxpc uintptr
 
-	text, etext           uintptr
-	noptrdata, enoptrdata uintptr
-	data, edata           uintptr
-	bss, ebss             uintptr
-	noptrbss, enoptrbss   uintptr
-	covctrs, ecovctrs     uintptr
-	end, gcdata, gcbss    uintptr
-	types, etypes         uintptr
-	rodata                uintptr
-	gofunc                uintptr // go.func.*
+	text, etext                uintptr
+	noptrdata, enoptrdata      uintptr
+	data, edata                uintptr
+	bss, ebss                  uintptr
+	noptrbss, enoptrbss        uintptr
+	covctrs, ecovctrs          uintptr
+	end, gcdata, gcbss         uintptr
+	types, typedesclen, etypes uintptr
+	rodata                     uintptr
+	gofunc                     uintptr // go.func.*
+	epclntab                   uintptr
 
 	textsectmap []textsect
-	typelinks   []int32 // offsets from types
 	itablinks   []*itab
 
 	ptab []ptabEntry
@@ -436,7 +444,7 @@ type moduledata struct {
 
 	gcdatamask, gcbssmask bitvector
 
-	typemap map[typeOff]*_type // offset to *_rtype in previous module
+	typemap map[*_type]*_type // *_type to use from previous module
 
 	next *moduledata
 }
@@ -459,14 +467,14 @@ type modulehash struct {
 	runtimehash  *string
 }
 
-// pinnedTypemaps are the map[typeOff]*_type from the moduledata objects.
+// pinnedTypemaps are the map[*_type]*_type from the moduledata objects.
 //
 // These typemap objects are allocated at run time on the heap, but the
 // only direct reference to them is in the moduledata, created by the
 // linker and marked SNOPTRDATA so it is ignored by the GC.
 //
 // To make sure the map isn't collected, we keep a second reference here.
-var pinnedTypemaps []map[typeOff]*_type
+var pinnedTypemaps []map[*_type]*_type
 
 // aixStaticDataBase (used only on AIX) holds the unrelocated address
 // of the data section, set by the linker.
@@ -615,11 +623,10 @@ const debugPcln = false
 func moduledataverify1(datap *moduledata) {
 	// Check that the pclntab's format is valid.
 	hdr := datap.pcHeader
-	if hdr.magic != 0xfffffff1 || hdr.pad1 != 0 || hdr.pad2 != 0 ||
-		hdr.minLC != sys.PCQuantum || hdr.ptrSize != goarch.PtrSize || hdr.textStart != datap.text {
+	if hdr.magic != abi.CurrentPCLnTabMagic || hdr.pad1 != 0 || hdr.pad2 != 0 ||
+		hdr.minLC != sys.PCQuantum || hdr.ptrSize != goarch.PtrSize {
 		println("runtime: pcHeader: magic=", hex(hdr.magic), "pad1=", hdr.pad1, "pad2=", hdr.pad2,
-			"minLC=", hdr.minLC, "ptrSize=", hdr.ptrSize, "pcHeader.textStart=", hex(hdr.textStart),
-			"text=", hex(datap.text), "pluginpath=", datap.pluginpath)
+			"minLC=", hdr.minLC, "ptrSize=", hdr.ptrSize, "pluginpath=", datap.pluginpath)
 		throw("invalid function symbol table")
 	}
 

@@ -24,6 +24,7 @@ import (
 	"math"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -277,7 +278,7 @@ func (p *Profile) massageMappings() {
 
 	// Use heuristics to identify main binary and move it to the top of the list of mappings
 	for i, m := range p.Mapping {
-		file := strings.TrimSpace(strings.Replace(m.File, "(deleted)", "", -1))
+		file := strings.TrimSpace(strings.ReplaceAll(m.File, "(deleted)", ""))
 		if len(file) == 0 {
 			continue
 		}
@@ -734,12 +735,7 @@ func (p *Profile) RemoveLabel(key string) {
 
 // HasLabel returns true if a sample has a label with indicated key and value.
 func (s *Sample) HasLabel(key, value string) bool {
-	for _, v := range s.Label[key] {
-		if v == value {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s.Label[key], value)
 }
 
 // SetNumLabel sets the specified key to the specified value for all samples in the
@@ -852,7 +848,17 @@ func (p *Profile) HasFileLines() bool {
 // "[vdso]", "[vsyscall]" and some others, see the code.
 func (m *Mapping) Unsymbolizable() bool {
 	name := filepath.Base(m.File)
-	return strings.HasPrefix(name, "[") || strings.HasPrefix(name, "linux-vdso") || strings.HasPrefix(m.File, "/dev/dri/") || m.File == "//anon"
+	switch {
+	case strings.HasPrefix(name, "["):
+	case strings.HasPrefix(name, "linux-vdso"):
+	case strings.HasPrefix(m.File, "/dev/dri/"):
+	case m.File == "//anon":
+	case m.File == "":
+	case strings.HasPrefix(m.File, "/memfd:"):
+	default:
+		return false
+	}
+	return true
 }
 
 // Copy makes a fully independent copy of a profile.

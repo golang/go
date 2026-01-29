@@ -286,7 +286,7 @@ func (oid OID) EqualASN1OID(other asn1.ObjectIdentifier) bool {
 	return i == len(other)
 }
 
-// Strings returns the string representation of the Object Identifier.
+// String returns the string representation of the Object Identifier.
 func (oid OID) String() string {
 	var b strings.Builder
 	b.Grow(32)
@@ -392,4 +392,16 @@ func (oid OID) toASN1OID() (asn1.ObjectIdentifier, bool) {
 	}
 
 	return out, true
+}
+
+// OIDFromASN1OID creates a new OID using asn1OID.
+func OIDFromASN1OID(asn1OID asn1.ObjectIdentifier) (OID, error) {
+	uint64OID := make([]uint64, 0, len(asn1OID))
+	for _, component := range asn1OID {
+		if component < 0 {
+			return OID{}, errors.New("x509: OID components must be non-negative")
+		}
+		uint64OID = append(uint64OID, uint64(component))
+	}
+	return OIDFromInts(uint64OID)
 }

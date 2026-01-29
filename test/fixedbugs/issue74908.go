@@ -21,5 +21,4 @@ func f(b *byte) Type {
 			b: b,
 		},
 	}
-
 }

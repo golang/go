@@ -11,6 +11,7 @@ package gosym
 import (
 	"bytes"
 	"encoding/binary"
+	"internal/abi"
 	"sort"
 	"sync"
 )
@@ -174,13 +175,6 @@ func (t *LineTable) isGo12() bool {
 	return t.version >= ver12
 }
 
-const (
-	go12magic  = 0xfffffffb
-	go116magic = 0xfffffffa
-	go118magic = 0xfffffff0
-	go120magic = 0xfffffff1
-)
-
 // uintptr returns the pointer-sized value encoded at b.
 // The pointer size is dictated by the table being read.
 func (t *LineTable) uintptr(b []byte) uint64 {
@@ -220,24 +214,29 @@ func (t *LineTable) parsePclnTab() {
 	}
 
 	var possibleVersion version
-	leMagic := binary.LittleEndian.Uint32(t.Data)
-	beMagic := binary.BigEndian.Uint32(t.Data)
+
+	// The magic numbers are chosen such that reading the value with
+	// a different endianness does not result in the same value.
+	// That lets us the magic number to determine the endianness.
+	leMagic := abi.PCLnTabMagic(binary.LittleEndian.Uint32(t.Data))
+	beMagic := abi.PCLnTabMagic(binary.BigEndian.Uint32(t.Data))
+
 	switch {
-	case leMagic == go12magic:
+	case leMagic == abi.Go12PCLnTabMagic:
 		t.binary, possibleVersion = binary.LittleEndian, ver12
-	case beMagic == go12magic:
+	case beMagic == abi.Go12PCLnTabMagic:
 		t.binary, possibleVersion = binary.BigEndian, ver12
-	case leMagic == go116magic:
+	case leMagic == abi.Go116PCLnTabMagic:
 		t.binary, possibleVersion = binary.LittleEndian, ver116
-	case beMagic == go116magic:
+	case beMagic == abi.Go116PCLnTabMagic:
 		t.binary, possibleVersion = binary.BigEndian, ver116
-	case leMagic == go118magic:
+	case leMagic == abi.Go118PCLnTabMagic:
 		t.binary, possibleVersion = binary.LittleEndian, ver118
-	case beMagic == go118magic:
+	case beMagic == abi.Go118PCLnTabMagic:
 		t.binary, possibleVersion = binary.BigEndian, ver118
-	case leMagic == go120magic:
+	case leMagic == abi.Go120PCLnTabMagic:
 		t.binary, possibleVersion = binary.LittleEndian, ver120
-	case beMagic == go120magic:
+	case beMagic == abi.Go120PCLnTabMagic:
 		t.binary, possibleVersion = binary.BigEndian, ver120
 	default:
 		return

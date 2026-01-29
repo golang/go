@@ -15,6 +15,11 @@ type mOS struct {
 	mutex       pthreadmutex
 	cond        pthreadcond
 	count       int
+
+	// address of errno variable for this thread.
+	// This is an optimization to avoid calling libc_error
+	// on every syscall_rawsyscalln.
+	errnoAddr *int32
 }
 
 func unimplemented(name string) {
@@ -157,9 +162,20 @@ func sysctlbynameInt32(name []byte) (int32, int32) {
 	return ret, out
 }
 
-//go:linkname internal_cpu_getsysctlbyname internal/cpu.getsysctlbyname
-func internal_cpu_getsysctlbyname(name []byte) (int32, int32) {
+func sysctlbynameBytes(name, out []byte) int32 {
+	nout := uintptr(len(out))
+	ret := sysctlbyname(&name[0], &out[0], &nout, nil, 0)
+	return ret
+}
+
+//go:linkname internal_cpu_sysctlbynameInt32 internal/cpu.sysctlbynameInt32
+func internal_cpu_sysctlbynameInt32(name []byte) (int32, int32) {
 	return sysctlbynameInt32(name)
+}
+
+//go:linkname internal_cpu_sysctlbynameBytes internal/cpu.sysctlbynameBytes
+func internal_cpu_sysctlbynameBytes(name, out []byte) int32 {
+	return sysctlbynameBytes(name, out)
 }
 
 const (
@@ -330,6 +346,7 @@ func minit() {
 	}
 	minitSignalMask()
 	getg().m.procid = uint64(pthread_self())
+	libc_error_addr(&getg().m.errnoAddr)
 }
 
 // Called from dropm to undo the effect of an minit.

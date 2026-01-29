@@ -135,7 +135,20 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 }
 
 func openDirNolog(name string) (*File, error) {
-	return openFileNolog(name, O_RDONLY, 0)
+	f, e := openFileNolog(name, O_RDONLY, 0)
+	if e != nil {
+		return nil, e
+	}
+	d, e := f.Stat()
+	if e != nil {
+		f.Close()
+		return nil, e
+	}
+	if !d.IsDir() {
+		f.Close()
+		return nil, &PathError{Op: "open", Path: name, Err: syscall.ENOTDIR}
+	}
+	return f, nil
 }
 
 // Close closes the File, rendering it unusable for I/O.

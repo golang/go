@@ -165,7 +165,6 @@ func TestImplicitPWD(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -242,7 +241,6 @@ func TestExplicitPWD(t *testing.T) {
 		// contain symlinks preserved from the PWD value in the test's environment.
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

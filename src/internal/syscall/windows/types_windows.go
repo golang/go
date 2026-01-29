@@ -5,6 +5,7 @@
 package windows
 
 import (
+	"internal/runtime/syscall/windows"
 	"syscall"
 	"unsafe"
 )
@@ -164,6 +165,22 @@ type SECURITY_QUALITY_OF_SERVICE struct {
 	EffectiveOnly       byte
 }
 
+// File flags for [os.OpenFile]. The O_ prefix is used to indicate
+// that these flags are specific to the OpenFile function.
+const (
+	O_FILE_FLAG_OPEN_NO_RECALL     = 0x00100000
+	O_FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+	O_FILE_FLAG_SESSION_AWARE      = 0x00800000
+	O_FILE_FLAG_POSIX_SEMANTICS    = 0x01000000
+	O_FILE_FLAG_BACKUP_SEMANTICS   = 0x02000000
+	O_FILE_FLAG_DELETE_ON_CLOSE    = 0x04000000
+	O_FILE_FLAG_SEQUENTIAL_SCAN    = 0x08000000
+	O_FILE_FLAG_RANDOM_ACCESS      = 0x10000000
+	O_FILE_FLAG_NO_BUFFERING       = 0x20000000
+	O_FILE_FLAG_OVERLAPPED         = 0x40000000
+	O_FILE_FLAG_WRITE_THROUGH      = 0x80000000
+)
+
 const (
 	// CreateDisposition flags for NtCreateFile and NtCreateNamedPipeFile.
 	FILE_SUPERSEDE           = 0x00000000
@@ -193,11 +210,17 @@ const (
 	FILE_NO_COMPRESSION            = 0x00008000
 	FILE_OPEN_REQUIRING_OPLOCK     = 0x00010000
 	FILE_DISALLOW_EXCLUSIVE        = 0x00020000
+	FILE_SESSION_AWARE             = 0x00040000
 	FILE_RESERVE_OPFILTER          = 0x00100000
 	FILE_OPEN_REPARSE_POINT        = 0x00200000
 	FILE_OPEN_NO_RECALL            = 0x00400000
 	FILE_OPEN_FOR_FREE_SPACE_QUERY = 0x00800000
 )
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_disposition_info
+type FILE_DISPOSITION_INFO struct {
+	DeleteFile bool
+}
 
 // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information
 type FILE_DISPOSITION_INFORMATION struct {
@@ -261,20 +284,20 @@ type FILE_COMPLETION_INFORMATION struct {
 // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfoexw
 const VER_NT_WORKSTATION = 0x0000001
 
-// https://learn.microsoft.com/en-us/windows/win32/api/accctrl/ne-accctrl-se_object_type
-type SE_OBJECT_TYPE uint32
+type MemoryBasicInformation = windows.MemoryBasicInformation
 
-const (
-	SE_UNKNOWN_OBJECT_TYPE SE_OBJECT_TYPE = 0
-	SE_FILE_OBJECT         SE_OBJECT_TYPE = 1
-)
+type Context = windows.Context
 
-// https://learn.microsoft.com/en-us/windows/win32/secauthz/security-information
-type SECURITY_INFORMATION uint32
+const FileFlagsMask = 0xFFF00000
 
-const (
-	DACL_SECURITY_INFORMATION             SECURITY_INFORMATION = 0x00000004
-	UNPROTECTED_DACL_SECURITY_INFORMATION SECURITY_INFORMATION = 0x20000000
-)
-
-const ACL_REVISION = 2
+const ValidFileFlagsMask = O_FILE_FLAG_OPEN_REPARSE_POINT |
+	O_FILE_FLAG_BACKUP_SEMANTICS |
+	O_FILE_FLAG_OVERLAPPED |
+	O_FILE_FLAG_OPEN_NO_RECALL |
+	O_FILE_FLAG_SESSION_AWARE |
+	O_FILE_FLAG_POSIX_SEMANTICS |
+	O_FILE_FLAG_DELETE_ON_CLOSE |
+	O_FILE_FLAG_SEQUENTIAL_SCAN |
+	O_FILE_FLAG_NO_BUFFERING |
+	O_FILE_FLAG_RANDOM_ACCESS |
+	O_FILE_FLAG_WRITE_THROUGH

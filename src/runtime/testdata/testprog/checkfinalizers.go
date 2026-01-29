@@ -28,17 +28,40 @@ func DetectFinalizerAndCleanupLeaks() {
 
 	// Leak a cleanup.
 	cLeak := new(T)
+
+	// Use an extra closure to avoid the simple
+	// checking done by AddCleanup.
+	var closeOverCLeak func(int)
+	closeOverCLeak = func(x int) {
+		// Use recursion to avoid inlining.
+		if x <= 0 {
+			**cLeak = x
+		} else {
+			closeOverCLeak(x - 1)
+		}
+	}
+
 	runtime.AddCleanup(cLeak, func(x int) {
-		**cLeak = x
+		closeOverCLeak(x)
 	}, int(0))
 
 	// Have a regular cleanup to make sure it doesn't trip the detector.
 	cNoLeak := new(T)
 	runtime.AddCleanup(cNoLeak, func(_ int) {}, int(0))
 
+	// Like closeOverCLeak.
+	var closeOverCNoLeak func(int)
+	closeOverCNoLeak = func(x int) {
+		if x <= 0 {
+			**cNoLeak = x
+		} else {
+			closeOverCNoLeak(x - 1)
+		}
+	}
+
 	// Add a cleanup that only temporarily leaks cNoLeak.
 	runtime.AddCleanup(cNoLeak, func(x int) {
-		**cNoLeak = x
+		closeOverCNoLeak(x)
 	}, int(0)).Stop()
 
 	if !asan.Enabled && !race.Enabled {

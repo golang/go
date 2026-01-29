@@ -1,0 +1,174 @@
+# Basic tests of unification
+
+#
+# Terminals
+#
+
+unify:
+- _
+- _
+want:
+  _
+---
+unify:
+- _
+- test
+want:
+  test
+---
+unify:
+- test
+- t?est
+want:
+  test
+---
+unify:
+- 1
+- 1
+want:
+  1
+---
+unify:
+- test
+- foo
+want:
+  _|_
+
+#
+# Tuple
+#
+
+---
+unify:
+- [a, b]
+- [a, b]
+want:
+  [a, b]
+---
+unify:
+- [a, _]
+- [_, b]
+want:
+  [a, b]
+---
+unify:
+- ["ab?c", "de?f"]
+- [ac, def]
+want:
+  [ac, def]
+
+#
+# Repeats
+#
+
+---
+unify:
+- !repeat [a]
+- [_]
+want:
+  [a]
+---
+unify:
+- !repeat [a]
+- [_, _]
+want:
+  [a, a]
+---
+unify:
+- !repeat [a]
+- [b]
+want:
+  _|_
+---
+unify:
+- !repeat [xy*]
+- [x, xy, xyy]
+want:
+  [x, xy, xyy]
+---
+unify:
+- !repeat [xy*]
+- !repeat ["xz?y*"]
+- [x, xy, xyy]
+want:
+  [x, xy, xyy]
+---
+unify:
+- !repeat [!sum [a, b]]
+- [a, b, a]
+all:
+- [a, b, a]
+---
+unify:
+- !repeat [!sum [a, b]]
+- !repeat [!sum [b, c]]
+- [b, b, b]
+all:
+- [b, b, b]
+---
+unify:
+- !repeat [!sum [a, b]]
+- !repeat [!sum [b, c]]
+- [a]
+all: []
+
+#
+# Def
+#
+
+---
+unify:
+- {a: a, b: b}
+- {a: a, b: b}
+want:
+  {a: a, b: b}
+---
+unify:
+- {a: a}
+- {b: b}
+want:
+  {a: a, b: b}
+
+#
+# Sum
+#
+
+---
+unify:
+- !sum [1, 2]
+- !sum [2, 3]
+all:
+- 2
+---
+unify:
+- !sum [{label: a, value: abc}, {label: b, value: def}]
+- !sum [{value: "ab?c", extra: d}, {value: "def?", extra: g}]
+all:
+- {extra: d, label: a, value: abc}
+- {extra: g, label: b, value: def}
+---
+# A sum of repeats must deal with different dynamically-created variables in
+# each branch.
+unify:
+- !sum [!repeat [a], !repeat [b]]
+- [a, a, a]
+all:
+- [a, a, a]
+---
+unify:
+- !sum [!repeat [a], !repeat [b]]
+- [a, a, b]
+all: []
+---
+# Exercise sumEnvs with more than one result
+unify:
+- !sum
+  - [a|b, c|d]
+  - [e, g]
+- [!sum [a, b, e, f], !sum [c, d, g, h]]
+all:
+- [a, c]
+- [a, d]
+- [b, c]
+- [b, d]
+- [e, g]

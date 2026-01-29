@@ -38,6 +38,7 @@ type event struct {
 	FailedBuild string     `json:",omitempty"`
 	Key         string     `json:",omitempty"`
 	Value       string     `json:",omitempty"`
+	Path        string     `json:",omitempty"`
 }
 
 // textBytes is a hack to get JSON to emit a []byte as a string
@@ -180,6 +181,7 @@ var (
 		[]byte("=== FAIL  "),
 		[]byte("=== SKIP  "),
 		[]byte("=== ATTR  "),
+		[]byte("=== ARTIFACTS "),
 	}
 
 	reports = [][]byte{
@@ -251,7 +253,6 @@ func (c *Converter) handleInputLine(line []byte) {
 	// "=== RUN   "
 	// "=== PAUSE "
 	// "=== CONT  "
-	actionColon := false
 	origLine := line
 	ok := false
 	indent := 0
@@ -273,7 +274,6 @@ func (c *Converter) handleInputLine(line []byte) {
 		}
 		for _, magic := range reports {
 			if bytes.HasPrefix(line, magic) {
-				actionColon = true
 				ok = true
 				break
 			}
@@ -296,16 +296,11 @@ func (c *Converter) handleInputLine(line []byte) {
 		return
 	}
 
-	// Parse out action and test name.
-	i := 0
-	if actionColon {
-		i = bytes.IndexByte(line, ':') + 1
-	}
-	if i == 0 {
-		i = len(updates[0])
-	}
-	action := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(string(line[4:i])), ":"))
-	name := strings.TrimSpace(string(line[i:]))
+	// Parse out action and test name from "=== ACTION: Name".
+	action, name, _ := strings.Cut(string(line[len("=== "):]), " ")
+	action = strings.TrimSuffix(action, ":")
+	action = strings.ToLower(action)
+	name = strings.TrimSpace(name)
 
 	e := &event{Action: action}
 	if line[0] == '-' { // PASS or FAIL report
@@ -336,7 +331,10 @@ func (c *Converter) handleInputLine(line []byte) {
 		c.output.write(origLine)
 		return
 	}
-	if action == "attr" {
+	switch action {
+	case "artifacts":
+		name, e.Path, _ = strings.Cut(name, " ")
+	case "attr":
 		var rest string
 		name, rest, _ = strings.Cut(name, " ")
 		e.Key, e.Value, _ = strings.Cut(rest, " ")

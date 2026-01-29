@@ -172,7 +172,7 @@ func main() {
 			default:
 				return false
 			// Keep in sync with toolsIncludedInDistpack in cmd/dist/build.go.
-			case "asm", "cgo", "compile", "cover", "link", "preprofile", "vet":
+			case "asm", "cgo", "compile", "cover", "fix", "link", "preprofile", "vet":
 			}
 		}
 		return true
@@ -271,7 +271,7 @@ func readVERSION(goroot string) (version string, t time.Time) {
 		log.Fatal(err)
 	}
 	version, rest, _ := strings.Cut(string(data), "\n")
-	for _, line := range strings.Split(rest, "\n") {
+	for line := range strings.SplitSeq(rest, "\n") {
 		f := strings.Fields(line)
 		if len(f) == 0 {
 			continue

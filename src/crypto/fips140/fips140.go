@@ -23,3 +23,18 @@ func Enabled() bool {
 	}
 	return fips140.Enabled
 }
+
+// Version returns the FIPS 140-3 Go Cryptographic Module version (such as
+// "v1.0.0"), as referenced in the Security Policy for the module, if building
+// against a frozen module with GOFIPS140. Otherwise, it returns "latest". If an
+// alias is in use (such as "inprogress") the actual resolved version is
+// returned.
+//
+// The returned version may not uniquely identify the frozen module which was
+// used to build the program, if there are multiple copies of the frozen module
+// at the same version. The uniquely identifying version suffix can be found by
+// checking the value of the GOFIPS140 setting in
+// runtime/debug.BuildInfo.Settings.
+func Version() string {
+	return fips140.Version()
+}
