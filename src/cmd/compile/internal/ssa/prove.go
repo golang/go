@@ -2187,24 +2187,22 @@ func (ft *factsTable) detectSubRelations(v *Value) {
 		return // x-y might overflow
 	}
 
-	// Subtracting a positive number only makes
-	// things smaller.
-	if yLim.min >= 0 {
+	// Subtracting a positive non-zero number only makes
+	// things smaller. If it's positive or zero, it might
+	// also do nothing (x-0 == v).
+	if yLim.min > 0 {
+		ft.update(v.Block, v, x, signed, lt)
+	} else if yLim.min == 0 {
 		ft.update(v.Block, v, x, signed, lt|eq)
-		// TODO: is this worth it?
-		//if yLim.min > 0 {
-		//	ft.update(v.Block, v, x, signed, lt)
-		//}
 	}
 
 	// Subtracting a number from a bigger one
-	// can't go below 0.
-	if ft.orderS.OrderedOrEqual(y, x) {
+	// can't go below 1. If the numbers might be
+	// equal, then it can't go below 0.
+	if ft.orderS.Ordered(y, x) {
+		ft.signedMin(v, 1)
+	} else if ft.orderS.OrderedOrEqual(y, x) {
 		ft.setNonNegative(v)
-		// TODO: is this worth it?
-		//if ft.orderS.Ordered(y, x) {
-		//	ft.signedMin(v, 1)
-		//}
 	}
 }
 
