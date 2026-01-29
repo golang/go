@@ -140,7 +140,7 @@ var optab = []Optab{
 	{AMOVB, C_REG, C_NONE, C_NONE, C_TLS_IE, C_NONE, 56, 16, 0, 0},
 	{AMOVB, C_TLS_IE, C_NONE, C_NONE, C_REG, C_NONE, 57, 16, 0, 0},
 	// moving data between registers
-	{AMOVB, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 12, 4, 0, 0},
+	{AMOVB, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 1, 4, 0, 0},
 
 	// memory access
 	{AMOVBU, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
@@ -161,7 +161,7 @@ var optab = []Optab{
 	{AMOVBU, C_REG, C_NONE, C_NONE, C_TLS_IE, C_NONE, 56, 16, 0, 0},
 	{AMOVBU, C_TLS_IE, C_NONE, C_NONE, C_REG, C_NONE, 57, 16, 0, 0},
 	// moving data between registers
-	{AMOVBU, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 12, 4, 0, 0},
+	{AMOVBU, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 1, 4, 0, 0},
 
 	// memory access
 	{AMOVW, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
@@ -2298,10 +2298,20 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 1: // mov rj, rd
 		switch p.As {
+		case AMOVB:
+			o1 = OP_RR(c.oprr(AEXTWB), uint32(p.From.Reg), uint32(p.To.Reg))
+		case AMOVH:
+			o1 = OP_RR(c.oprr(AEXTWH), uint32(p.From.Reg), uint32(p.To.Reg))
 		case AMOVW:
 			o1 = OP_RRR(c.oprrr(ASLL), uint32(REGZERO), uint32(p.From.Reg), uint32(p.To.Reg))
 		case AMOVV:
 			o1 = OP_RRR(c.oprrr(AOR), uint32(REGZERO), uint32(p.From.Reg), uint32(p.To.Reg))
+		case AMOVBU:
+			o1 = OP_12IRR(c.opirr(AAND), uint32(0xff), uint32(p.From.Reg), uint32(p.To.Reg))
+		case AMOVHU:
+			o1 = OP_IRIR(c.opirir(ABSTRPICKV), 15, uint32(p.From.Reg), 0, uint32(p.To.Reg))
+		case AMOVWU:
+			o1 = OP_IRIR(c.opirir(ABSTRPICKV), 31, uint32(p.From.Reg), 0, uint32(p.To.Reg))
 		case AVMOVQ:
 			o1 = OP_6IRR(c.opirr(AVSLLV), uint32(0), uint32(p.From.Reg), uint32(p.To.Reg))
 		case AXVMOVQ:
@@ -2443,22 +2453,6 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 				Sym:  p.To.Sym,
 				Add:  p.To.Offset,
 			})
-		}
-
-	case 12: // movbs r,r
-		switch p.As {
-		case AMOVB:
-			o1 = OP_RR(c.oprr(AEXTWB), uint32(p.From.Reg), uint32(p.To.Reg))
-		case AMOVH:
-			o1 = OP_RR(c.oprr(AEXTWH), uint32(p.From.Reg), uint32(p.To.Reg))
-		case AMOVBU:
-			o1 = OP_12IRR(c.opirr(AAND), uint32(0xff), uint32(p.From.Reg), uint32(p.To.Reg))
-		case AMOVHU:
-			o1 = OP_IRIR(c.opirir(ABSTRPICKV), 15, uint32(p.From.Reg), 0, uint32(p.To.Reg))
-		case AMOVWU:
-			o1 = OP_IRIR(c.opirir(ABSTRPICKV), 31, uint32(p.From.Reg), 0, uint32(p.To.Reg))
-		default:
-			c.ctxt.Diag("unexpected encoding\n%v", p)
 		}
 
 	case 13: // vsll $ui3, [vr1], vr2
