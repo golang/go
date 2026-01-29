@@ -112,7 +112,7 @@ func isMagicExported(name string) bool {
 	}
 
 	switch base {
-	case "_init", "_getitem", "_setitem",
+	case "_init", "_getitem", "_setitem", "_len", "_cap",
 		"_add", "_sub", "_mul", "_div", "_mod",
 		"_radd", "_rsub", "_rmul", "_rdiv", "_rmod",
 		"_inc", "_dec",

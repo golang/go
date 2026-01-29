@@ -202,6 +202,60 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			}
 		}
 
+		if mode == invalid && id == _Len {
+			// MyGO extension: allow len(x) to call x._len() for non-native types.
+			if isValid(under(x.typ)) {
+				// Try method set on the receiver type.
+				if _, sig, ok := check.lookupBestMagicMethod(x.typ, "_len", nil, 1, false); ok {
+					if sig.Results().Len() == 1 && isInteger(sig.Results().At(0).Type()) {
+						mode = value
+					} else {
+						check.errorf(x, InvalidLen, invalidArg+"%s for built-in %s: _len must return an integer", x, bin.name)
+						return
+					}
+				} else if x.mode == variable {
+					// If x is addressable, also allow pointer-receiver _len.
+					if _, isPtr := x.typ.(*Pointer); !isPtr {
+						if _, sig, ok := check.lookupBestMagicMethod(&Pointer{base: x.typ}, "_len", nil, 1, false); ok {
+							if sig.Results().Len() == 1 && isInteger(sig.Results().At(0).Type()) {
+								mode = value
+							} else {
+								check.errorf(x, InvalidLen, invalidArg+"%s for built-in %s: _len must return an integer", x, bin.name)
+								return
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if mode == invalid && id == _Cap {
+			// MyGO extension: allow cap(x) to call x._cap() for non-native types.
+			if isValid(under(x.typ)) {
+				// Try method set on the receiver type.
+				if _, sig, ok := check.lookupBestMagicMethod(x.typ, "_cap", nil, 1, false); ok {
+					if sig.Results().Len() == 1 && isInteger(sig.Results().At(0).Type()) {
+						mode = value
+					} else {
+						check.errorf(x, InvalidCap, invalidArg+"%s for built-in %s: _cap must return an integer", x, bin.name)
+						return
+					}
+				} else if x.mode == variable {
+					// If x is addressable, also allow pointer-receiver _cap.
+					if _, isPtr := x.typ.(*Pointer); !isPtr {
+						if _, sig, ok := check.lookupBestMagicMethod(&Pointer{base: x.typ}, "_cap", nil, 1, false); ok {
+							if sig.Results().Len() == 1 && isInteger(sig.Results().At(0).Type()) {
+								mode = value
+							} else {
+								check.errorf(x, InvalidCap, invalidArg+"%s for built-in %s: _cap must return an integer", x, bin.name)
+								return
+							}
+						}
+					}
+				}
+			}
+		}
+
 		if mode == invalid {
 			// avoid error if underlying type is invalid
 			if isValid(under(x.typ)) {

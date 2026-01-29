@@ -848,6 +848,38 @@ func main() {
 }
 ```
 
+### len/cap 重载（_len/_cap）
+
+MyGO 支持为自定义类型提供 `_len()`/`_cap()` 魔法方法，使 `len(x)`/`cap(x)` 可用于非原生类型。
+
+**规则**
+- 方法名必须为 `_len`/`_cap`
+- 返回值必须是整型（如 `int`、`uint` 等）
+- 原生语义保留：
+  - `len`：`string`/`array`/`slice`/`map`/`chan`
+  - `cap`：`array`/`slice`/`chan`
+- 当接收者可取地址时，允许使用指针接收者 `_len`/`_cap`
+
+**示例**
+
+```go
+type MyList struct{ items []int }
+type Buffer struct{ data []byte }
+
+func (m *MyList) _len() int { return len(m.items) }
+func (b *Buffer) _cap() int { return cap(b.data) }
+
+func main() {
+    list := MyList{items: []int{1, 2, 3}}
+    fmt.Println(len(list))   // 调用 list._len()
+    fmt.Println(len(&list))  // 调用 (&list)._len()
+
+    buf := Buffer{data: make([]byte, 0, 16)}
+    fmt.Println(cap(buf))   // 调用 buf._cap()
+    fmt.Println(cap(&buf))  // 调用 (&buf)._cap()
+}
+```
+
 ### 算数运算符重载
 
 MyGO 支持通过 `_add`、`_sub` 等一系列特定命名的方法，实现对标准算术运算符（`+`, `-`, `*`, `/` 等）的重载。
@@ -1252,6 +1284,8 @@ func main() {
 | chan | `_send(T)` `_recv() T` | 数据流：`a <- v` / `<-a` |
 | slice | `_init(len int)` / `_init(len int, cap int)` | `make([]T, len)` / `make([]T, len, cap)` |
 | map / chan | `_init()` / `_init(size int)` | `make(map[K]V)` / `make(map[K]V, size)`；`make(chan T)` / `make(chan T, size)` |
+
+> 说明：原生类型的 `len` 仍是内建语义；`_len` 仅用于自定义类型。
 
 
 **⚠️注意⚠️**

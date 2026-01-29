@@ -330,6 +330,12 @@ func (r *postTypes2MagicRewriter) rewriteExpr(e syntax.Expr) syntax.Expr {
 		if call := r.tryRewriteMakeToInit(x); call != nil {
 			return call
 		}
+		if call := r.tryRewriteLenToMagic(x); call != nil {
+			return call
+		}
+		if call := r.tryRewriteCapToMagic(x); call != nil {
+			return call
+		}
 		return x
 	case *syntax.SelectorExpr:
 		x.X = r.rewriteExpr(x.X)
@@ -967,6 +973,103 @@ func (r *postTypes2MagicRewriter) flattenCommaElems(elems []syntax.Expr) []synta
 		out = append(out, elem)
 	}
 	return out
+}
+
+// ---- len() lowering ----
+func (r *postTypes2MagicRewriter) tryRewriteLenToMagic(call *syntax.CallExpr) *syntax.CallExpr {
+	if call == nil || call.HasDots || len(call.ArgList) != 1 {
+		return nil
+	}
+	name, ok := syntax.Unparen(call.Fun).(*syntax.Name)
+	if !ok || name.Value != "len" {
+		return nil
+	}
+	if !r.typeAndValue(call.Fun).IsBuiltin() {
+		return nil
+	}
+	recv := call.ArgList[0]
+	recvT := r.typeOf(recv)
+	if recvT == nil {
+		return nil
+	}
+	isIntegerType := func(t types2.Type) bool {
+		if b, _ := types2.CoreType(t).(*types2.Basic); b != nil {
+			return b.Info()&types2.IsInteger != 0
+		}
+		return false
+	}
+	// Keep native len semantics for builtin types (including pointer-to-array).
+	switch ct := types2.CoreType(recvT).(type) {
+	case *types2.Basic, *types2.Slice, *types2.Array, *types2.Map, *types2.Chan:
+		return nil
+	case *types2.Pointer:
+		if _, ok := types2.CoreType(ct.Elem()).(*types2.Array); ok {
+			return nil
+		}
+	}
+
+	candidates := []types2.Type{recvT}
+	if tv := r.typeAndValue(recv); tv.Addressable() {
+		if _, isPtr := recvT.(*types2.Pointer); !isPtr {
+			candidates = append(candidates, types2.NewPointer(recvT))
+		}
+	}
+	for _, t := range candidates {
+		if name, sig, ok := r.lookupBestMagic(t, "_len", nil, 1, false); ok {
+			if sig.Results().Len() == 1 && isIntegerType(sig.Results().At(0).Type()) {
+				return r.makeCall(call.Pos(), recv, name, nil)
+			}
+		}
+	}
+	return nil
+}
+
+func (r *postTypes2MagicRewriter) tryRewriteCapToMagic(call *syntax.CallExpr) *syntax.CallExpr {
+	if call == nil || call.HasDots || len(call.ArgList) != 1 {
+		return nil
+	}
+	name, ok := syntax.Unparen(call.Fun).(*syntax.Name)
+	if !ok || name.Value != "cap" {
+		return nil
+	}
+	if !r.typeAndValue(call.Fun).IsBuiltin() {
+		return nil
+	}
+	recv := call.ArgList[0]
+	recvT := r.typeOf(recv)
+	if recvT == nil {
+		return nil
+	}
+	isIntegerType := func(t types2.Type) bool {
+		if b, _ := types2.CoreType(t).(*types2.Basic); b != nil {
+			return b.Info()&types2.IsInteger != 0
+		}
+		return false
+	}
+	// Keep native cap semantics for builtin types (including pointer-to-array).
+	switch ct := types2.CoreType(recvT).(type) {
+	case *types2.Slice, *types2.Array, *types2.Chan:
+		return nil
+	case *types2.Pointer:
+		if _, ok := types2.CoreType(ct.Elem()).(*types2.Array); ok {
+			return nil
+		}
+	}
+
+	candidates := []types2.Type{recvT}
+	if tv := r.typeAndValue(recv); tv.Addressable() {
+		if _, isPtr := recvT.(*types2.Pointer); !isPtr {
+			candidates = append(candidates, types2.NewPointer(recvT))
+		}
+	}
+	for _, t := range candidates {
+		if name, sig, ok := r.lookupBestMagic(t, "_cap", nil, 1, false); ok {
+			if sig.Results().Len() == 1 && isIntegerType(sig.Results().At(0).Type()) {
+				return r.makeCall(call.Pos(), recv, name, nil)
+			}
+		}
+	}
+	return nil
 }
 
 // ---- constructor make(T, ...) lowering ----

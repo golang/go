@@ -833,6 +833,39 @@ func main() {
 }
 ```
 
+### len / cap Overloading (_len / _cap)
+
+MyGO allows custom types to provide `_len()` and `_cap()` magic methods so that
+`len(x)` and `cap(x)` work for non-native receivers.
+
+**Rules**
+- Method name must be `_len` or `_cap`.
+- Must return an integer type (e.g., `int`, `uint`).
+- Built-in semantics are preserved for:
+  - `len`: `string`/`array`/`slice`/`map`/`chan`
+  - `cap`: `array`/`slice`/`chan`
+- If the receiver is addressable, pointer-receiver `_len/_cap` are also accepted.
+
+**Example**
+
+```go
+type MyList struct{ items []int }
+type Buffer struct{ data []byte }
+
+func (m *MyList) _len() int { return len(m.items) }
+func (b *Buffer) _cap() int { return cap(b.data) }
+
+func main() {
+    list := MyList{items: []int{1, 2, 3}}
+    fmt.Println(len(list))   // calls list._len()
+    fmt.Println(len(&list))  // calls (&list)._len()
+
+    buf := Buffer{data: make([]byte, 0, 16)}
+    fmt.Println(cap(buf))   // calls buf._cap()
+    fmt.Println(cap(&buf))  // calls (&buf)._cap()
+}
+```
+
 ### Arithmetic Operator Overloading
 
 MyGO supports overloading standard arithmetic operators (`+`, `-`, `*`, `/`, etc.) via specific methods named `_add`, `_sub`, etc.
@@ -1158,6 +1191,8 @@ func main() {
 | `chan`                                                     | `_send(T)` / `_recv() T`                     | Data flow: `ch <- v` / `<-ch`                                                  |
 | `slice`                                                    | `_init(len int)` / `_init(len int, cap int)` | `make([]T, len)` / `make([]T, len, cap)`                                       |
 | `map` / `chan`                                             | `_init()` / `_init(size int)`                | `make(map[K]V)` / `make(map[K]V, size)`; `make(chan T)` / `make(chan T, size)` |
+
+> Note: `len` for native types remains a built-in. `_len` is only for custom types.
 
 
 **⚠️ Warning ⚠️**
