@@ -326,7 +326,6 @@ var optab = []Optab{
 
 	{ACLOW, C_REG, C_NONE, C_NONE, C_REG, C_NONE, 9, 4, 0, 0},
 	{AABSF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
-	{AMOVVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
 
 	{AVSETEQV, C_VREG, C_NONE, C_NONE, C_FCCREG, C_NONE, 9, 4, 0, 0},
 	{AXVSETEQV, C_XREG, C_NONE, C_NONE, C_FCCREG, C_NONE, 9, 4, 0, 0},
@@ -1376,6 +1375,18 @@ func buildop(ctxt *obj.Link) {
 			opset(AMOVFW, r0)
 			opset(AMOVWD, r0)
 			opset(AMOVDW, r0)
+			opset(AMOVVF, r0)
+			opset(AMOVVD, r0)
+			opset(AMOVFV, r0)
+			opset(AMOVDV, r0)
+			opset(AFFINTFW, r0)
+			opset(AFFINTFV, r0)
+			opset(AFFINTDW, r0)
+			opset(AFFINTDV, r0)
+			opset(AFTINTWF, r0)
+			opset(AFTINTWD, r0)
+			opset(AFTINTVF, r0)
+			opset(AFTINTVD, r0)
 			opset(ANEGF, r0)
 			opset(ANEGD, r0)
 			opset(AABSD, r0)
@@ -1387,21 +1398,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AFCLASSD, r0)
 			opset(AFLOGBF, r0)
 			opset(AFLOGBD, r0)
-
-		case AMOVVF:
-			opset(AMOVVD, r0)
-			opset(AMOVFV, r0)
-			opset(AMOVDV, r0)
 			opset(ATRUNCDV, r0)
 			opset(ATRUNCFV, r0)
-			opset(AFFINTFW, r0)
-			opset(AFFINTFV, r0)
-			opset(AFFINTDW, r0)
-			opset(AFFINTDV, r0)
-			opset(AFTINTWF, r0)
-			opset(AFTINTWD, r0)
-			opset(AFTINTVF, r0)
-			opset(AFTINTVD, r0)
 			opset(AFTINTRPWF, r0)
 			opset(AFTINTRPWD, r0)
 			opset(AFTINTRPVF, r0)
@@ -4391,26 +4389,26 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
 		return 0x46a1 << 10
 	case ATRUNCDW:
 		return 0x46a2 << 10
-	case AMOVFV:
-		return 0x46c9 << 10
-	case AMOVDV:
-		return 0x46ca << 10
-	case AMOVVF:
-		return 0x4746 << 10
-	case AMOVVD:
-		return 0x474a << 10
-	case AMOVFW:
-		return 0x46c1 << 10
-	case AMOVDW:
-		return 0x46c2 << 10
-	case AMOVWF:
-		return 0x4744 << 10
+	case AMOVWF, AFFINTFW:
+		return 0x4744 << 10 // ffint.s.w
+	case AMOVVF, AFFINTFV:
+		return 0x4746 << 10 // ffint.s.l
+	case AMOVWD, AFFINTDW:
+		return 0x4748 << 10 // ffint.d.w
+	case AMOVVD, AFFINTDV:
+		return 0x474a << 10 // ffint.d.l
+	case AMOVFW, AFTINTWF:
+		return 0x46c1 << 10 // ftint.w.s
+	case AMOVDW, AFTINTWD:
+		return 0x46c2 << 10 // ftint.w.d
+	case AMOVFV, AFTINTVF:
+		return 0x46c9 << 10 // ftint.l.s
+	case AMOVDV, AFTINTVD:
+		return 0x46ca << 10 // ftint.l.d
 	case AMOVDF:
-		return 0x4646 << 10
-	case AMOVWD:
-		return 0x4748 << 10
+		return 0x4646 << 10 // fcvt.s.d
 	case AMOVFD:
-		return 0x4649 << 10
+		return 0x4649 << 10 // fcvt.d.s
 	case AABSF:
 		return 0x4501 << 10
 	case AABSD:
@@ -4435,22 +4433,6 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
 		return 0x450d << 10 // fclass.s
 	case AFCLASSD:
 		return 0x450e << 10 // fclass.d
-	case AFFINTFW:
-		return 0x4744 << 10 // ffint.s.w
-	case AFFINTFV:
-		return 0x4746 << 10 // ffint.s.l
-	case AFFINTDW:
-		return 0x4748 << 10 // ffint.d.w
-	case AFFINTDV:
-		return 0x474a << 10 // ffint.d.l
-	case AFTINTWF:
-		return 0x46c1 << 10 // ftint.w.s
-	case AFTINTWD:
-		return 0x46c2 << 10 // ftint.w.d
-	case AFTINTVF:
-		return 0x46c9 << 10 // ftint.l.s
-	case AFTINTVD:
-		return 0x46ca << 10 // ftint.l.d
 	case AFTINTRMWF:
 		return 0x4681 << 10 // ftintrm.w.s
 	case AFTINTRMWD:
