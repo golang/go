@@ -1700,22 +1700,48 @@ func (ctxt *Link) hostlink() {
 		}
 
 		if ctxt.Arch.InFamily(sys.ARM64) && buildcfg.GOOS == "linux" {
-			// On ARM64, the GNU linker will fail with
-			// -znocopyreloc if it thinks a COPY relocation is
-			// required. Switch to gold.
+			// On ARM64, the GNU linker had issues with -znocopyreloc
+			// and COPY relocations. This was fixed in GNU ld 2.36+.
 			// https://sourceware.org/bugzilla/show_bug.cgi?id=19962
 			// https://go.dev/issue/22040
-			altLinker = "gold"
+			// And newer gold is deprecated, may lack new features/flags, or even missing
 
-			// If gold is not installed, gcc will silently switch
-			// back to ld.bfd. So we parse the version information
-			// and provide a useful error if gold is missing.
+			// If the default linker is GNU ld 2.35 or older, use gold
+			useGold := false
 			name, args := flagExtld[0], flagExtld[1:]
-			args = append(args, "-fuse-ld=gold", "-Wl,--version")
+			args = append(args, "-Wl,--version")
 			cmd := exec.Command(name, args...)
 			if out, err := cmd.CombinedOutput(); err == nil {
-				if !bytes.Contains(out, []byte("GNU gold")) {
-					log.Fatalf("ARM64 external linker must be gold (issue #15696, 22040), but is not: %s", out)
+				// Parse version from output like "GNU ld (GNU Binutils for Distro) 2.36.1"
+				for line := range strings.Lines(string(out)) {
+					if !strings.HasPrefix(line, "GNU ld ") {
+						continue
+					}
+					fields := strings.Fields(line[len("GNU ld "):])
+					var major, minor int
+					if ret, err := fmt.Sscanf(fields[len(fields)-1], "%d.%d", &major, &minor); ret == 2 && err == nil {
+						if major == 2 && minor <= 35 {
+							useGold = true
+						}
+						break
+					}
+				}
+			}
+
+			if useGold {
+				// Use gold for older linkers
+				altLinker = "gold"
+
+				// If gold is not installed, gcc will silently switch
+				// back to ld.bfd. So we parse the version information
+				// and provide a useful error if gold is missing.
+				args = flagExtld[1:]
+				args = append(args, "-fuse-ld=gold", "-Wl,--version")
+				cmd = exec.Command(name, args...)
+				if out, err := cmd.CombinedOutput(); err == nil {
+					if !bytes.Contains(out, []byte("GNU gold")) {
+						log.Fatalf("ARM64 external linker must be ld>=2.36 or gold (issue #15696, 22040), but is not: %s", out)
+					}
 				}
 			}
 		}
