@@ -14,6 +14,7 @@ import (
 	"internal/oserror"
 	"internal/race"
 	"internal/strconv"
+	strings "internal/stringslite"
 	"sync"
 	"unsafe"
 )
@@ -1097,10 +1098,16 @@ var connectExFunc struct {
 
 func LoadConnectEx() error {
 	connectExFunc.once.Do(func() {
-		var s Handle
-		s, connectExFunc.err = Socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
-		if connectExFunc.err != nil {
-			return
+		s, err := Socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
+		if err != nil {
+			// This can occur when IPv4 is disabled. See https://go.dev/issue/29759.
+			if strings.Index(err.Error(), "address incompatible with the requested protocol was used") >= 0 {
+				s, err = Socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)
+			}
+			connectExFunc.err = err
+			if err != nil {
+				return
+			}
 		}
 		defer CloseHandle(s)
 		var n uint32
