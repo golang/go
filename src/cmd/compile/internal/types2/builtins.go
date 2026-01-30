@@ -1009,7 +1009,8 @@ func sliceElem(x *operand) (Type, *typeError) {
 // yet been checked.
 func (check *Checker) hasVarSize(t Type) bool {
 	// Note: We could use Underlying here, but passing through the RHS may yield
-	// better error messages.
+	// better error messages and allows us to stash the result on each traversed
+	// Named type.
 	switch t := Unalias(t).(type) {
 	case *Named:
 		if t.stateHas(hasVarSize) {
@@ -1025,7 +1026,9 @@ func (check *Checker) hasVarSize(t Type) bool {
 		check.push(t.obj)
 		defer check.pop()
 
-		varSize := check.hasVarSize(t.fromRHS)
+		// Careful, we're inspecting t.fromRHS, so we need to unpack first.
+		t.unpack()
+		varSize := check.hasVarSize(t.rhs())
 
 		t.mu.Lock()
 		defer t.mu.Unlock()
