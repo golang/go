@@ -96,6 +96,11 @@ func (w *HTMLWriter) Fatalf(msg string, args ...any) {
 	base.FatalfAt(src.NoXPos, msg, args...)
 }
 
+const (
+	RIGHT_ARROW = "\u25BA" // click-to-open (is closed)
+	DOWN_ARROW  = "\u25BC" // click-to-close (is open)
+)
+
 func (w *HTMLWriter) start() {
 	if w == nil {
 		return
@@ -131,6 +136,10 @@ in that file, at that file:line, or at that file:line:column, respectively.<br>I
 locations are not treated as a single location, but as a sequence of locations that
 can be independently highlighted.
 </p>
+<p>
+Click on a ` + DOWN_ARROW + ` to collapse a subtree, or on a ` + RIGHT_ARROW + ` to expand a subtree.
+</p>
+
 
 </div>
 <label for="dark-mode-button" style="margin-left: 15px; cursor: pointer;">darkmode</label>
@@ -236,8 +245,26 @@ func (h *HTMLWriter) dumpNodesHTML(list Nodes, depth int) {
 	}
 }
 
+// indent prints indentation to w.
+func (h *HTMLWriter) indentForToggle(depth int, hasChildren bool) {
+	h.Print("\n")
+	if depth == 0 {
+		return
+	}
+	for i := 0; i < depth-1; i++ {
+		h.Print(".   ")
+	}
+	if hasChildren {
+		h.Print(". ")
+	} else {
+		h.Print(".   ")
+	}
+}
+
 func (h *HTMLWriter) dumpNodeHTML(n Node, depth int) {
-	indent(h.w, depth)
+	hasChildren := nodeHasChildren(n)
+	h.indentForToggle(depth, hasChildren)
+
 	if depth > 40 {
 		h.Print("...")
 		return
@@ -262,10 +289,16 @@ func (h *HTMLWriter) dumpNodeHTML(n Node, depth int) {
 	h.Printf("<span class=\"n%d ir-node\">", h.canonId(n))
 	defer h.Printf("</span>")
 
+	if hasChildren {
+		h.Print(`<span class="toggle" onclick="toggle_node(this)">` + DOWN_ARROW + `</span> `) // NOTE TRAILING SPACE after </span>!
+	}
+
 	if len(n.Init()) != 0 {
+		h.Print(`<span class="node-body">`)
 		h.Printf("%+v-init", n.Op())
 		h.dumpNodesHTML(n.Init(), depth+1)
 		h.indent(depth)
+		h.Print(`</span>`)
 	}
 
 	switch n.Op() {
@@ -319,6 +352,10 @@ func (h *HTMLWriter) dumpNodeHTML(n Node, depth int) {
 		n := n.(*Func)
 		h.Printf("%+v", n.Op())
 		h.dumpNodeHeaderHTML(n)
+		if hasChildren {
+			h.Print(`<span class="node-body">`)
+			defer h.Print(`</span>`)
+		}
 		fn := n
 		if len(fn.Dcl) > 0 {
 			h.indent(depth)
@@ -340,6 +377,10 @@ func (h *HTMLWriter) dumpNodeHTML(n Node, depth int) {
 			h.dumpNodesHTML(fn.Body, depth+1)
 		}
 		return
+	}
+	if hasChildren {
+		h.Print(`<span class="node-body">`)
+		defer h.Print(`</span>`)
 	}
 
 	v := reflect.ValueOf(n).Elem()
@@ -393,6 +434,54 @@ func (h *HTMLWriter) dumpNodeHTML(n Node, depth int) {
 			}
 		}
 	}
+}
+
+func nodeHasChildren(n Node) bool {
+	if n == nil {
+		return false
+	}
+	if len(n.Init()) != 0 {
+		return true
+	}
+	switch n.Op() {
+	case OLITERAL, ONAME, ONONAME, OTYPE:
+		return false
+	case ODCLFUNC:
+		n := n.(*Func)
+		return len(n.Dcl) > 0 || len(n.ClosureVars) > 0 || len(n.Body) > 0
+	}
+
+	v := reflect.ValueOf(n).Elem()
+	t := reflect.TypeOf(n).Elem()
+	nf := t.NumField()
+	for i := 0; i < nf; i++ {
+		tf := t.Field(i)
+		vf := v.Field(i)
+		if tf.PkgPath != "" {
+			continue
+		}
+		switch tf.Type.Kind() {
+		case reflect.Interface, reflect.Ptr, reflect.Slice:
+			if vf.IsNil() {
+				continue
+			}
+		}
+		switch val := vf.Interface().(type) {
+		case Node:
+			return true
+		case Nodes:
+			if len(val) > 0 {
+				return true
+			}
+		default:
+			if vf.Kind() == reflect.Slice && vf.Type().Elem().Implements(nodeType) {
+				if vf.Len() > 0 {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func (h *HTMLWriter) dumpNodeHeaderHTML(n Node) {
@@ -666,6 +755,14 @@ body.darkmode text {
 /* Capture alternative for outline-black and ellipse.outline-black when in dark mode */
 body.darkmode .outline-black        { outline: gray solid 2px; }
 
+.toggle {
+    cursor: pointer;
+    display: inline-block;
+    text-align: center;
+    user-select: none;
+    font-size: 12px; // hand-tweaked
+}
+
 </style>
 `
 
@@ -918,6 +1015,26 @@ function toggleDarkMode() {
 
     for (let i = 0; i < len; i++) {
         collapsedEls[i].classList.toggle('darkmode');
+    }
+}
+
+function toggle_node(e) {
+    event.stopPropagation();
+    var parent = e.parentNode;
+    var children = parent.children;
+    for (var i = 0; i < children.length; i++) {
+        if (children[i].classList.contains("node-body")) {
+            if (children[i].style.display == "none") {
+                children[i].style.display = "";
+            } else {
+                children[i].style.display = "none";
+            }
+        }
+    }
+    if (e.innerText == "` + RIGHT_ARROW + `") {
+        e.innerText = "` + DOWN_ARROW + `";
+    } else {
+        e.innerText = "` + RIGHT_ARROW + `";
     }
 }
 
