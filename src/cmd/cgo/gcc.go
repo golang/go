@@ -24,6 +24,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -1795,7 +1796,7 @@ var n atomic.Int64
 
 func gccTmp() string {
 	c := strconv.Itoa(int(n.Add(1)))
-	return *objDir + "_cgo_" + c + ".o"
+	return filepath.Join(outputDir(), "_cgo_"+c+".o")
 }
 
 // gccCmd returns the gcc command line to use for compiling
