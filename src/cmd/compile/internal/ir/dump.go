@@ -143,6 +143,12 @@ func AstDump(fn *Func, why string) {
 			FDump(w, why, fn)
 		},
 	)
+	// strip text following comma, for phase names.
+	comma := strings.Index(why, ",")
+	if comma > 0 {
+		why = why[:comma]
+	}
+	DumpNodeHTML(fn, why, fn)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Dump returned error %v\n", err)
 	}
@@ -187,6 +193,37 @@ func withLockAndFile(fn *Func, dump func(io.Writer)) (err error) {
 	defer func() { err = fi.Close() }()
 	dump(fi)
 	return
+}
+
+var htmlWriters = make(map[*Func]*HTMLWriter)
+var orderedFuncs = []*Func{}
+
+// DumpNodeHTML dumps the node n to the HTML writer for fn.
+// It uses the same phase name as the text dump.
+func DumpNodeHTML(fn *Func, why string, n Node) {
+	mu.Lock()
+	defer mu.Unlock()
+	w, ok := htmlWriters[fn]
+	if !ok {
+		name := escapedFileName(fn, ".html")
+		w = NewHTMLWriter(name, fn, "")
+		htmlWriters[fn] = w
+		orderedFuncs = append(orderedFuncs, fn)
+	}
+	w.WritePhase(why, why)
+}
+
+// CloseHTMLWriter closes the HTML writer for fn, if one exists.
+func CloseHTMLWriters() {
+	mu.Lock()
+	defer mu.Unlock()
+	for _, fn := range orderedFuncs {
+		if w, ok := htmlWriters[fn]; ok {
+			w.Close()
+			delete(htmlWriters, fn)
+		}
+	}
+	orderedFuncs = nil
 }
 
 type dumper struct {
