@@ -254,7 +254,11 @@ func (fd *FD) writeUnlock() {
 // readWriteLock adds a reference to fd and locks fd for reading and writing.
 // It returns an error when fd cannot be used for reading and writing.
 func (fd *FD) readWriteLock() error {
-	if !fd.fdmu.rwlock(true) || !fd.fdmu.rwlock(false) {
+	if !fd.fdmu.rwlock(true) {
+		return errClosing(fd.isFile)
+	}
+	if !fd.fdmu.rwlock(false) {
+		fd.fdmu.rwunlock(true) // unlock read lock acquired above
 		return errClosing(fd.isFile)
 	}
 	return nil
