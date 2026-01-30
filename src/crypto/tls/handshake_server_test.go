@@ -2302,7 +2302,7 @@ func testHandshakeGetConfigForClientDifferentClientCAs(t *testing.T, version uin
 	if err != nil {
 		t.Fatalf("ParseCertificate: %v", err)
 	}
-	rootDER, err = x509.CreateCertificate(rand.Reader, tmpl, tmpl, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+	rootDER, err = x509.CreateCertificate(rand.Reader, tmpl, tmpl, &testRSA2048PrivateKey.PublicKey, testRSA2048PrivateKey)
 	if err != nil {
 		t.Fatalf("CreateCertificate: %v", err)
 	}
@@ -2318,7 +2318,11 @@ func testHandshakeGetConfigForClientDifferentClientCAs(t *testing.T, version uin
 		NotAfter:  now.Add(time.Hour * 24),
 		KeyUsage:  x509.KeyUsageDigitalSignature,
 	}
-	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, rootA, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+	certA, err := x509.CreateCertificate(rand.Reader, tmpl, rootA, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+	if err != nil {
+		t.Fatalf("CreateCertificate: %v", err)
+	}
+	certB, err := x509.CreateCertificate(rand.Reader, tmpl, rootB, &testECDSAPrivateKey.PublicKey, testRSA2048PrivateKey)
 	if err != nil {
 		t.Fatalf("CreateCertificate: %v", err)
 	}
@@ -2326,7 +2330,7 @@ func testHandshakeGetConfigForClientDifferentClientCAs(t *testing.T, version uin
 	serverConfig := testConfig.Clone()
 	serverConfig.MaxVersion = version
 	serverConfig.Certificates = []Certificate{{
-		Certificate: [][]byte{certDER},
+		Certificate: [][]byte{certA},
 		PrivateKey:  testECDSAPrivateKey,
 	}}
 	serverConfig.Time = func() time.Time {
@@ -2351,7 +2355,7 @@ func testHandshakeGetConfigForClientDifferentClientCAs(t *testing.T, version uin
 	clientConfig := testConfig.Clone()
 	clientConfig.MaxVersion = version
 	clientConfig.Certificates = []Certificate{{
-		Certificate: [][]byte{certDER},
+		Certificate: [][]byte{certA},
 		PrivateKey:  testECDSAPrivateKey,
 	}}
 	clientConfig.ClientSessionCache = NewLRUClientSessionCache(32)
@@ -2379,6 +2383,8 @@ func testHandshakeGetConfigForClientDifferentClientCAs(t *testing.T, version uin
 
 	testResume(t, serverConfig, clientConfig, false)
 	testResume(t, serverConfig, clientConfig, true)
+
+	clientConfig.Certificates[0].Certificate = [][]byte{certB}
 
 	// Cause GetConfigForClient to return a config cloned from the base config,
 	// but with a different ClientCAs pool. This should cause resumption to fail.
@@ -2414,7 +2420,7 @@ func testHandshakeChangeRootCAsResumption(t *testing.T, version uint16) {
 	if err != nil {
 		t.Fatalf("ParseCertificate: %v", err)
 	}
-	rootDER, err = x509.CreateCertificate(rand.Reader, tmpl, tmpl, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+	rootDER, err = x509.CreateCertificate(rand.Reader, tmpl, tmpl, &testRSA2048PrivateKey.PublicKey, testRSA2048PrivateKey)
 	if err != nil {
 		t.Fatalf("CreateCertificate: %v", err)
 	}
@@ -2430,7 +2436,11 @@ func testHandshakeChangeRootCAsResumption(t *testing.T, version uint16) {
 		NotAfter:  now.Add(time.Hour * 24),
 		KeyUsage:  x509.KeyUsageDigitalSignature,
 	}
-	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, rootA, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+	certA, err := x509.CreateCertificate(rand.Reader, tmpl, rootA, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+	if err != nil {
+		t.Fatalf("CreateCertificate: %v", err)
+	}
+	certB, err := x509.CreateCertificate(rand.Reader, tmpl, rootB, &testECDSAPrivateKey.PublicKey, testRSA2048PrivateKey)
 	if err != nil {
 		t.Fatalf("CreateCertificate: %v", err)
 	}
@@ -2438,7 +2448,7 @@ func testHandshakeChangeRootCAsResumption(t *testing.T, version uint16) {
 	serverConfig := testConfig.Clone()
 	serverConfig.MaxVersion = version
 	serverConfig.Certificates = []Certificate{{
-		Certificate: [][]byte{certDER},
+		Certificate: [][]byte{certA},
 		PrivateKey:  testECDSAPrivateKey,
 	}}
 	serverConfig.Time = func() time.Time {
@@ -2453,7 +2463,7 @@ func testHandshakeChangeRootCAsResumption(t *testing.T, version uint16) {
 	clientConfig := testConfig.Clone()
 	clientConfig.MaxVersion = version
 	clientConfig.Certificates = []Certificate{{
-		Certificate: [][]byte{certDER},
+		Certificate: [][]byte{certA},
 		PrivateKey:  testECDSAPrivateKey,
 	}}
 	clientConfig.ClientSessionCache = NewLRUClientSessionCache(32)
@@ -2485,6 +2495,8 @@ func testHandshakeChangeRootCAsResumption(t *testing.T, version uint16) {
 	clientConfig = clientConfig.Clone()
 	clientConfig.RootCAs = x509.NewCertPool()
 	clientConfig.RootCAs.AddCert(rootB)
+
+	serverConfig.Certificates[0].Certificate = [][]byte{certB}
 
 	testResume(t, serverConfig, clientConfig, false)
 	testResume(t, serverConfig, clientConfig, true)

@@ -572,6 +572,41 @@ func TestVerifyHostname(t *testing.T) {
 	}
 }
 
+func TestRealResumption(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	config := &Config{
+		ServerName:         "yahoo.com",
+		ClientSessionCache: NewLRUClientSessionCache(0),
+	}
+
+	for range 10 {
+		conn, err := Dial("tcp", "yahoo.com:443", config)
+		if err != nil {
+			t.Log("Dial error:", err)
+			continue
+		}
+		// Do a read to consume the NewSessionTicket messages.
+		fmt.Fprintf(conn, "GET / HTTP/1.1\r\nHost: yahoo.com\r\nConnection: close\r\n\r\n")
+		conn.Read(make([]byte, 4096))
+		conn.Close()
+
+		conn, err = Dial("tcp", "yahoo.com:443", config)
+		if err != nil {
+			t.Log("second Dial error:", err)
+			continue
+		}
+		state := conn.ConnectionState()
+		conn.Close()
+
+		if state.DidResume {
+			return
+		}
+	}
+
+	t.Fatal("no connection used session resumption")
+}
+
 func TestConnCloseBreakingWrite(t *testing.T) {
 	ln := newLocalListener(t)
 	defer ln.Close()
