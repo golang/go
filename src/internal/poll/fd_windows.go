@@ -198,7 +198,8 @@ var operationPool = sync.Pool{
 	},
 }
 
-// waitIO waits for the IO operation o to complete.
+// waitIO waits for the IO operation to complete,
+// handling cancellation if necessary.
 func (fd *FD) waitIO(o *operation) error {
 	if fd.isBlocking {
 		panic("can't wait on blocking operations")
@@ -213,27 +214,22 @@ func (fd *FD) waitIO(o *operation) error {
 	// Wait for our request to complete.
 	err := fd.pd.wait(int(o.mode), fd.isFile)
 	switch err {
-	case nil, ErrNetClosing, ErrFileClosing, ErrDeadlineExceeded:
-		// No other error is expected.
+	case nil:
+		// IO completed successfully.
+	case ErrNetClosing, ErrFileClosing, ErrDeadlineExceeded:
+		// IO interrupted by "close" or "timeout", cancel our request.
+		// ERROR_NOT_FOUND can be returned when the request succeded
+		// between the time wait returned and CancelIoEx was executed.
+		if err := syscall.CancelIoEx(fd.Sysfd, &o.o); err != nil && err != syscall.ERROR_NOT_FOUND {
+			// TODO(brainman): maybe do something else, but panic.
+			panic(err)
+		}
+		fd.pd.waitCanceled(int(o.mode))
 	default:
+		// No other error is expected.
 		panic("unexpected runtime.netpoll error: " + err.Error())
 	}
 	return err
-}
-
-// cancelIO cancels the IO operation o and waits for it to complete.
-func (fd *FD) cancelIO(o *operation) {
-	if !fd.pollable() {
-		return
-	}
-	// Cancel our request.
-	err := syscall.CancelIoEx(fd.Sysfd, &o.o)
-	// Assuming ERROR_NOT_FOUND is returned, if IO is completed.
-	if err != nil && err != syscall.ERROR_NOT_FOUND {
-		// TODO(brainman): maybe do something else, but panic.
-		panic(err)
-	}
-	fd.pd.waitCanceled(int(o.mode))
 }
 
 // pin pins ptr for the duration of the IO operation.
@@ -295,12 +291,6 @@ func (fd *FD) execIO(mode int, submit func(o *operation) (uint32, error)) (int, 
 		// IO started asynchronously or completed synchronously but
 		// a sync notification is required. Wait for it to complete.
 		waitErr = fd.waitIO(o)
-		if waitErr != nil {
-			// IO interrupted by "close" or "timeout".
-			fd.cancelIO(o)
-			// We issued a cancellation request, but the IO operation may still succeeded
-			// before the cancellation request runs.
-		}
 		if fd.isFile {
 			err = windows.GetOverlappedResult(fd.Sysfd, &o.o, &qty, false)
 		} else {
