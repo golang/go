@@ -136,6 +136,7 @@ var ftoatests = []ftoaTest{
 
 	{fdiv(5e-304, 1e20), 'g', -1, "5e-324"},   // avoid constant arithmetic
 	{fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"}, // avoid constant arithmetic
+	{fdiv(5e-304, 1e20), 'e', -1, "5e-324"},
 
 	{32, 'g', -1, "32"},
 	{32, 'g', 0, "3e+01"},

@@ -196,6 +196,9 @@ var atoftests = []atofTest{
 	// way too small
 	{"1e-350", "0", nil},
 	{"1e-400000", "0", nil},
+	{"1e-345", "0", nil}, // picked off in atof64
+	{"1e-343", "0", nil}, // large c.s in parseFloat64
+	{"9.999999999999999999e-343", "0", nil},
 
 	// Near denormals and denormals.
 	{"0x2.00000000000000p-1010", "1.8227805048890994e-304", nil}, // 0x00e0000000000000
@@ -419,6 +422,11 @@ var atof32tests = []atofTest{
 	{"0x0.00000081p-125", "1e-45", nil},        // rounded up
 	{"0x0.0000008p-125", "0", nil},             // rounded down
 	{"0x0.0000007p-125", "0", nil},             // rounded down
+
+	{"1e-70", "0", nil}, // picked off in atof32
+	{"1e-65", "0", nil}, // picked off in atof32
+	{"1e-64", "0", nil}, // large c.s in parseFloat32
+	{"9.999999999999999999e-64", "0", nil},
 
 	// 2^92 = 8388608p+69 = 4951760157141521099596496896 (4.9517602e27)
 	// is an exact power of two that needs 8 decimal digits to be correctly
