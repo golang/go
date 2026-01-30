@@ -22,6 +22,7 @@ import (
 	"internal/godebug"
 	"io"
 	"net"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -1818,15 +1819,27 @@ func anyValidVerifiedChain(verifiedChains [][]*x509.Certificate, opts x509.Verif
 		}) {
 			continue
 		}
-		// Since we already validated the chain, we only care that it is
-		// rooted in a CA in CAs, or in the system pool. On platforms where
-		// we control chain validation (e.g. not Windows or macOS) this is a
-		// simple lookup in the CertPool internal hash map. On other
-		// platforms, this may be more expensive, depending on how they
-		// implement verification of just root certificates.
-		root := chain[len(chain)-1]
-		if _, err := root.Verify(opts); err == nil {
-			return true
+		// Since we already validated the chain, we only care that it is rooted
+		// in a CA in opts.Roots. On platforms where we control chain validation
+		// (e.g. not Windows or macOS) this is a simple lookup in the CertPool
+		// internal hash map, which we can simulate by running Verify on the
+		// root. On other platforms, we have to do full verification again,
+		// because EKU handling might differ. We will want to replace this with
+		// CertPool.Contains if/once that is available. See go.dev/issue/77376.
+		if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+			opts.Intermediates = x509.NewCertPool()
+			for _, cert := range chain[1:max(1, len(chain)-1)] {
+				opts.Intermediates.AddCert(cert)
+			}
+			leaf := chain[0]
+			if _, err := leaf.Verify(opts); err == nil {
+				return true
+			}
+		} else {
+			root := chain[len(chain)-1]
+			if _, err := root.Verify(opts); err == nil {
+				return true
+			}
 		}
 	}
 	return false
