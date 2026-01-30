@@ -526,7 +526,11 @@ func moduleTypelinks(md *moduledata) []*_type {
 	for td < etypedesc {
 		// TODO: The fact that type descriptors are aligned to
 		// 0x20 does not make sense.
-		td = alignUp(td, 0x20)
+		if GOARCH == "arm" {
+			td = alignUp(td, 0x8)
+		} else {
+			td = alignUp(td, 0x20)
+		}
 
 		// This code must match the data structures built by
 		// cmd/compile/internal/reflectdata/reflect.go:writeType.

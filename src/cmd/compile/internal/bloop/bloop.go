@@ -155,6 +155,10 @@ func preserveCallResults(curFn *ir.Func, call *ir.CallExpr) ir.Node {
 
 	assign := typecheck.AssignExpr(ir.NewAssignListStmt(call.Pos(), ir.OAS2, lhs, ir.Nodes{call})).(*ir.AssignListStmt)
 	assign.Def = true
+	for _, tmp := range lhs {
+		// Place temp declarations in the loop body to help escape analysis.
+		assign.PtrInit().Append(typecheck.Stmt(ir.NewDecl(assign.Pos(), ir.ODCL, tmp.(*ir.Name))))
+	}
 	return keepAliveAt(ns, assign)
 }
 
@@ -164,7 +168,11 @@ func preserveCallArgs(curFn *ir.Func, call *ir.CallExpr) ir.Node {
 	var names ir.Nodes
 	preserveTmp := func(pos src.XPos, n ir.Node) ir.Node {
 		tmp := typecheck.TempAt(pos, curFn, n.Type())
-		argTmps = append(argTmps, typecheck.AssignExpr(ir.NewAssignStmt(pos, tmp, n)))
+		assign := ir.NewAssignStmt(pos, tmp, n)
+		assign.Def = true
+		// Place temp declarations in the loop body to help escape analysis.
+		assign.PtrInit().Append(typecheck.Stmt(ir.NewDecl(assign.Pos(), ir.ODCL, tmp)))
+		argTmps = append(argTmps, typecheck.AssignExpr(assign))
 		names = append(names, tmp)
 		if base.Flag.LowerM > 1 {
 			base.WarnfAt(call.Pos(), "function arg will be kept alive")

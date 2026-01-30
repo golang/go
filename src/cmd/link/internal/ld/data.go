@@ -2182,7 +2182,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	createRelroSect := func(name string, symn sym.SymKind) *sym.Section {
 		sect := state.allocateNamedDataSection(segRelro, genrelrosecname(name), []sym.SymKind{symn}, relroPerm)
 
-		if symn == sym.STYPE && ctxt.HeadType != objabi.Haix {
+		if symn == sym.STYPE {
 			// Skip forward so that no type
 			// reference uses a zero offset.
 			// This is unlikely but possible in small
@@ -2395,6 +2395,9 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 		// sorted by type string. The reflect package will use
 		// this to ensure that type descriptor pointers are unique.
 
+		// We define type:* for some links.
+		typeStar := ldr.Lookup("type:*", 0)
+
 		// Compute all the type strings we need once.
 		typelinkStrings := make(map[loader.Sym]string)
 		for _, s := range syms {
@@ -2409,6 +2412,14 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 			// Sort head and tail regardless of typelink.
 			if ret, matched := sortHeadTail(si, sj); matched {
 				return ret
+			}
+			if typeStar != 0 {
+				// type:* comes first, after runtime.types
+				if si == typeStar {
+					return true
+				} else if sj == typeStar {
+					return false
+				}
 			}
 
 			iTypestr, iIsTypelink := typelinkStrings[si]
@@ -2438,7 +2449,7 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 		typeLinkSize := int64(1)
 		for i := range sl {
 			si := sl[i].sym
-			if si == head {
+			if si == head || si == typeStar {
 				continue
 			}
 			if _, isTypelink := typelinkStrings[si]; !isTypelink {

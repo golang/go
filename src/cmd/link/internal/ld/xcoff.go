@@ -952,7 +952,7 @@ func putaixsym(ctxt *Link, x loader.Sym, t SymbolType) {
 			Xscnlenhi: uint32(size >> 32),
 		}
 
-		if ty := ldr.SymType(x); ty >= sym.STYPE && ty <= sym.SPCLNTAB {
+		if ty := ldr.SymType(x); ty >= sym.SSTRING && ty <= sym.STYPELINK {
 			if ctxt.IsExternal() && strings.HasPrefix(ldr.SymSect(x).Name, ".data.rel.ro") {
 				// During external linking, read-only datas with relocation
 				// must be in .data.

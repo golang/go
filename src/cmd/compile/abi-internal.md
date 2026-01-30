@@ -643,8 +643,6 @@ Registers R20 - R21, R23 – R28, R30 - R31, F16 – F31 are permanent scratch r
 
 Register R2 is reserved and never used.
 
-Register R20, R21 is Used by runtime.duffcopy, runtime.duffzero.
-
 Special-purpose registers used within Go generated code and Go assembly code
 are as follows:
 
@@ -653,7 +651,6 @@ are as follows:
 | R0 | Zero value | Same | Same |
 | R1 | Link register | Link register | Scratch |
 | R3 | Stack pointer | Same | Same |
-| R20,R21 | Scratch | Scratch | Used by duffcopy, duffzero |
 | R22 | Current goroutine | Same | Same |
 | R29 | Closure context pointer | Same | Same |
 | R30, R31 | used by the assembler | Same | Same |
