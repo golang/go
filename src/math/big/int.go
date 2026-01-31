@@ -1308,3 +1308,81 @@ func (z *Int) Sqrt(x *Int) *Int {
 	z.abs = z.abs.sqrt(nil, x.abs)
 	return z
 }
+
+// FloorDiv sets z to ⌊x/y⌋ for y != 0 and returns z.
+// If y == 0, a division-by-zero run-time panic occurs.
+// FloorDiv implements floor division (unlike Go); see [Int.FloorDivMod] for more details.
+func (z *Int) FloorDiv(x, y *Int) *Int {
+	y0 := y // save y
+	if z == y || alias(z.abs, y.abs) {
+		y0 = new(Int).Set(y)
+	}
+	var m Int
+	z.DivMod(x, y, &m)
+	if y0.neg && len(m.abs) != 0 {
+		z.Sub(z, intOne)
+	}
+	return z
+}
+
+// FloorDivMod sets z to ⌊x/y⌋ and m to x mod y
+// for y != 0 and returns the pair (z, m).
+// If y == 0, a division-by-zero run-time panic occurs.
+//
+// FloorDivMod implements floor division and modulus (unlike Go):
+//
+//	q = ⌊x/y⌋    and
+//	m = x - y*q  where  0 <= |m| < |y|,  sgn(m) ∈ {0, sgn(y)}
+//
+// See [Int.QuoRem] for T-division and modulus (like Go).
+func (z *Int) FloorDivMod(x, y, m *Int) (*Int, *Int) {
+	y0 := y // save y
+	if z == y || alias(z.abs, y.abs) {
+		y0 = new(Int).Set(y)
+	}
+	z.DivMod(x, y, m)
+	if y0.neg && len(m.abs) != 0 {
+		z.Sub(z, intOne)
+		m.Add(m, y0)
+	}
+	return z, m
+}
+
+// CeilDiv sets z to ⌈x/y⌉ for y != 0 and returns z.
+// If y == 0, a division-by-zero run-time panic occurs.
+// CeilDiv implements ceiling division (unlike Go); see [Int.CeilDivMod] for more details.
+func (z *Int) CeilDiv(x, y *Int) *Int {
+	y0 := y // save y
+	if z == y || alias(z.abs, y.abs) {
+		y0 = new(Int).Set(y)
+	}
+	var m Int
+	z.DivMod(x, y, &m)
+	if !y0.neg && len(m.abs) != 0 {
+		z.Add(z, intOne)
+	}
+	return z
+}
+
+// CeilDivMod sets z to ⌈x/y⌉ and m to x mod y
+// for y != 0 and returns the pair (z, m).
+// If y == 0, a division-by-zero run-time panic occurs.
+//
+// CeilDivMod implements ceiling division and modulus (unlike Go):
+//
+//	q = ⌈x/y⌉    and
+//	m = x - y*q  where  0 <= |m| < |y|,  sgn(m) ∈ {0, -sgn(y)}
+//
+// See [Int.QuoRem] for T-division and modulus (like Go).
+func (z *Int) CeilDivMod(x, y, m *Int) (*Int, *Int) {
+	y0 := y // save y
+	if z == y || alias(z.abs, y.abs) {
+		y0 = new(Int).Set(y)
+	}
+	z.DivMod(x, y, m)
+	if !y0.neg && len(m.abs) != 0 {
+		z.Add(z, intOne)
+		m.Sub(m, y0)
+	}
+	return z, m
+}
