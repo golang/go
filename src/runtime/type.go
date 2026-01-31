@@ -520,6 +520,11 @@ func moduleTypelinks(md *moduledata) []*_type {
 
 	// We have to increment by 1 to match the increment done in
 	// cmd/link/internal/data.go createRelroSect in allocateDataSections.
+	//
+	// We don't do that increment on AIX, but on AIX we need to adjust
+	// for the fact that the runtime.types symbol has a size of 8,
+	// and the type descriptors will follow that. This increment,
+	// followed by the forced alignment to 8, will do that.
 	td++
 
 	etypedesc := md.types + md.typedesclen
@@ -527,6 +532,9 @@ func moduleTypelinks(md *moduledata) []*_type {
 		// TODO: The fact that type descriptors are aligned to
 		// 0x20 does not make sense.
 		if GOARCH == "arm" {
+			td = alignUp(td, 0x8)
+		} else if GOOS == "aix" {
+			// The alignment of 8 is forced in the linker on AIX.
 			td = alignUp(td, 0x8)
 		} else {
 			td = alignUp(td, 0x20)

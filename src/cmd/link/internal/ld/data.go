@@ -1469,6 +1469,8 @@ func checkSectSize(sect *sym.Section) {
 
 // fixZeroSizedSymbols gives a few special symbols with zero size some space.
 func fixZeroSizedSymbols(ctxt *Link) {
+	ldr := ctxt.loader
+
 	// The values in moduledata are filled out by relocations
 	// pointing to the addresses of these special symbols.
 	// Typically these symbols have no size and are not laid
@@ -1492,11 +1494,29 @@ func fixZeroSizedSymbols(ctxt *Link) {
 	// aren't real symbols, their alignment might not match the
 	// first symbol alignment. Therefore, there are explicitly put at the
 	// beginning of their section with the same alignment.
+
+	defineRuntimeTypes := func() {
+		types := ldr.CreateSymForUpdate("runtime.types", 0)
+		types.SetType(sym.STYPE)
+		types.SetSize(8)
+		types.SetAlign(int32(ctxt.Arch.PtrSize))
+		ldr.SetAttrSpecial(types.Sym(), false)
+	}
+
 	if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) && !(ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
+
+		// On AIX, below, we give runtime.types a size.
+		// That means that the type descriptors will actually
+		// follow runtime.types plus that size.
+		// To simplify matters for the runtime,
+		// always give runtime.types a size.
+		if ctxt.HeadType == objabi.Haix {
+			defineRuntimeTypes()
+		}
+
 		return
 	}
 
-	ldr := ctxt.loader
 	bss := ldr.CreateSymForUpdate("runtime.bss", 0)
 	bss.SetSize(8)
 	ldr.SetAttrSpecial(bss.Sym(), false)
@@ -1530,10 +1550,7 @@ func fixZeroSizedSymbols(ctxt *Link) {
 	enoptrdata := ldr.CreateSymForUpdate("runtime.enoptrdata", 0)
 	ldr.SetAttrSpecial(enoptrdata.Sym(), false)
 
-	types := ldr.CreateSymForUpdate("runtime.types", 0)
-	types.SetType(sym.STYPE)
-	types.SetSize(8)
-	ldr.SetAttrSpecial(types.Sym(), false)
+	defineRuntimeTypes()
 
 	etypes := ldr.CreateSymForUpdate("runtime.etypes", 0)
 	etypes.SetType(sym.STYPE)
@@ -2189,11 +2206,19 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	createRelroSect := func(name string, symn sym.SymKind) *sym.Section {
 		sect := state.allocateNamedDataSection(segRelro, genrelrosecname(name), []sym.SymKind{symn}, relroPerm)
 
-		if symn == sym.STYPE {
+		if symn == sym.STYPE && ctxt.HeadType != objabi.Haix {
 			// Skip forward so that no type
 			// reference uses a zero offset.
 			// This is unlikely but possible in small
 			// programs with no other read-only data.
+			//
+			// Don't skip forward on AIX because the external
+			// linker, when used, will align symbols itself.
+			// The external linker won't know about this skip,
+			// and will mess up the constant offsets we need
+			// within the type section. On AIX we just live
+			// with the possibility of a broken program
+			// if there is no other read-only data.
 			state.datsize++
 		}
 
@@ -2351,6 +2376,10 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 				tail = s
 				continue
 			}
+		} else if ctxt.HeadType == objabi.Haix && ldr.SymName(s) == "runtime.types" {
+			// We always use runtime.types on AIX.
+			// See the comment in fixZeroSizedSymbols.
+			head = s
 		}
 	}
 	zerobase = ldr.Lookup("runtime.zerobase", 0)

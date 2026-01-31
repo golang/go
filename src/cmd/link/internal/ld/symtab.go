@@ -528,6 +528,15 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			if symtype != 0 {
 				ldr.SetCarrierSym(s, symtype)
 			}
+			if ctxt.HeadType == objabi.Haix {
+				// The default alignment is currently 0x20,
+				// which the AIX external linker doesn't
+				// seem to support. To get consistent
+				// alignment on AIX, force alignment to 8.
+				if symalign(ldr, s) > 8 {
+					ldr.SetSymAlign(s, 8)
+				}
+			}
 		}
 	}
 
