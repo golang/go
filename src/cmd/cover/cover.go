@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/scanner"
 	"go/token"
 	"internal/coverage"
 	"internal/coverage/encodemeta"
@@ -264,6 +265,95 @@ type File struct {
 	mdb     *encodemeta.CoverageMetaDataBuilder
 	fn      Func
 	pkg     *Package
+}
+
+// Range represents a contiguous range of executable code within a basic block.
+type Range struct {
+	pos token.Pos
+	end token.Pos
+}
+
+// codeRanges analyzes a block range and returns the ranges that contain
+// executable code (excluding comment-only and blank lines).
+// It uses go/scanner to tokenize the source and identify which lines
+// contain executable code.
+//
+// Precondition: start < end (both are valid positions within f.content).
+// start and end are positions in origFile (f.fset).
+func (f *File) codeRanges(start, end token.Pos) []Range {
+	startOffset := f.offset(start)
+	endOffset := f.offset(end)
+	src := f.content[startOffset:endOffset]
+	origFile := f.fset.File(start)
+
+	// Create a temporary file for scanning this block.
+	// We use a separate FileSet because we're scanning a slice of the original source,
+	// so positions in scanFile are relative to the block start, not the original file.
+	scanFile := token.NewFileSet().AddFile("", -1, len(src))
+
+	var s scanner.Scanner
+	s.Init(scanFile, src, nil, scanner.ScanComments)
+
+	// Track which lines have executable code
+	lineHasCode := make(map[int]bool)
+
+	for {
+		pos, tok, lit := s.Scan()
+		if tok == token.EOF {
+			break
+		}
+		if tok == token.COMMENT {
+			continue // Skip comments - we only care about code
+		}
+
+		// Use PositionFor with adjusted=false to ignore //line directives.
+		startLine := scanFile.PositionFor(pos, false).Line
+		endLine := startLine
+		if tok == token.STRING {
+			// Only string literals can span multiple lines.
+			// TODO(adonovan): simplify when https://go.dev/issue/74958 is resolved.
+			endLine = scanFile.PositionFor(pos+token.Pos(len(lit)), false).Line
+		}
+
+		for line := startLine; line <= endLine; line++ {
+			lineHasCode[line] = true
+		}
+	}
+
+	// Build ranges for contiguous sections of code lines.
+	var ranges []Range
+	var codeStart token.Pos // start of current code range (in origFile)
+	inCode := false
+
+	totalLines := scanFile.LineCount()
+	for line := 1; line <= totalLines; line++ {
+		hasCode := lineHasCode[line]
+
+		if hasCode && !inCode {
+			// Start of a new code range
+			lineOffset := scanFile.Offset(scanFile.LineStart(line))
+			codeStart = origFile.Pos(startOffset + lineOffset)
+			inCode = true
+		} else if !hasCode && inCode {
+			// End of code range
+			lineOffset := scanFile.Offset(scanFile.LineStart(line))
+			codeEnd := origFile.Pos(startOffset + lineOffset)
+			ranges = append(ranges, Range{pos: codeStart, end: codeEnd})
+			inCode = false
+		}
+	}
+
+	// Close any open code range at the end
+	if inCode {
+		ranges = append(ranges, Range{pos: codeStart, end: end})
+	}
+
+	// If no ranges were created, return the original block
+	if len(ranges) == 0 {
+		return []Range{{pos: start, end: end}}
+	}
+
+	return ranges
 }
 
 // findText finds text in the original source, starting at pos.
@@ -720,8 +810,9 @@ func (f *File) newCounter(start, end token.Pos, numStmt int) string {
 			panic("internal error: counter var unset")
 		}
 		stmt = counterStmt(f, fmt.Sprintf("%s[%d]", f.fn.counterVar, slot))
-		stpos := f.fset.Position(start)
-		enpos := f.fset.Position(end)
+		// Use PositionFor with adjusted=false to ignore //line directives.
+		stpos := f.fset.PositionFor(start, false)
+		enpos := f.fset.PositionFor(end, false)
 		stpos, enpos = dedup(stpos, enpos)
 		unit := coverage.CoverableUnit{
 			StLine:  uint32(stpos.Line),
@@ -755,7 +846,12 @@ func (f *File) addCounters(pos, insertPos, blockEnd token.Pos, list []ast.Stmt, 
 	// Special case: make sure we add a counter to an empty block. Can't do this below
 	// or we will add a counter to an empty statement list after, say, a return statement.
 	if len(list) == 0 {
-		f.edit.Insert(f.offset(insertPos), f.newCounter(insertPos, blockEnd, 0)+";")
+		// Only add counter if there's executable content (not just comments)
+		ranges := f.codeRanges(insertPos, blockEnd)
+		if len(ranges) > 0 {
+			r := ranges[0]
+			f.edit.Insert(f.offset(r.pos), f.newCounter(r.pos, r.end, 0)+";")
+		}
 		return
 	}
 	// Make a copy of the list, as we may mutate it and should leave the
@@ -805,7 +901,17 @@ func (f *File) addCounters(pos, insertPos, blockEnd token.Pos, list []ast.Stmt, 
 			end = blockEnd
 		}
 		if pos != end { // Can have no source to cover if e.g. blocks abut.
-			f.edit.Insert(f.offset(insertPos), f.newCounter(pos, end, last)+";")
+			// Create counters only for executable code ranges
+			ranges := f.codeRanges(pos, end)
+			for i, r := range ranges {
+				// Insert counter at the beginning of the code range
+				insertOffset := f.offset(r.pos)
+				// For the first range, use the original insertPos if it's before the range
+				if i == 0 {
+					insertOffset = f.offset(insertPos)
+				}
+				f.edit.Insert(insertOffset, f.newCounter(r.pos, r.end, last)+";")
+			}
 		}
 		list = list[last:]
 		if len(list) == 0 {
@@ -978,7 +1084,7 @@ type block1 struct {
 
 // offset translates a token position into a 0-indexed byte offset.
 func (f *File) offset(pos token.Pos) int {
-	return f.fset.Position(pos).Offset
+	return f.fset.PositionFor(pos, false).Offset
 }
 
 // addVariables adds to the end of the file the declarations to set up the counter and position variables.
@@ -1020,8 +1126,9 @@ func (f *File) addVariables(w io.Writer) {
 	// - 32-bit ending line number
 	// - (16 bit ending column number << 16) | (16-bit starting column number).
 	for i, block := range f.blocks {
-		start := f.fset.Position(block.startByte)
-		end := f.fset.Position(block.endByte)
+		// Use PositionFor with adjusted=false to ignore //line directives.
+		start := f.fset.PositionFor(block.startByte, false)
+		end := f.fset.PositionFor(block.endByte, false)
 
 		start, end = dedup(start, end)
 
