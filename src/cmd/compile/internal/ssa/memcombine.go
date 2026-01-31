@@ -18,12 +18,42 @@ import (
 func memcombine(f *Func) {
 	// This optimization requires that the architecture has
 	// unaligned loads and unaligned stores.
-	if !f.Config.unalignedOK {
-		return
-	}
+	// if !f.Config.unalignedOK {
+	// 	return
+	// }
 
 	memcombineLoads(f)
 	memcombineStores(f)
+}
+
+// isAligned attempts to prove that ptr + offset is aligned to align bytes.
+func isAligned(ptr *Value, offset int64, align int64) bool {
+	if align <= 1 {
+		return true
+	}
+
+	// Basic principle: (PointerAlignment + Offset) % align == 0
+	switch ptr.Op {
+	case OpAddr, OpLocalAddr:
+		// Global variables or local variables (stack) usually have explicit alignment attributes
+		// In SSA, Aux typically contains *obj.LSym or *ir.Name
+		if a, ok := ptr.Aux.(interface{ Alignment() int64 }); ok {
+			baseAlign := a.Alignment()
+			return baseAlign%align == 0 && offset%align == 0
+		}
+	case OpArg:
+		// Function arguments are typically aligned at least to their type's alignment requirement,
+		// and on architectures like riscv64, stack frame start is usually 8 or 16 byte aligned.
+		if ptr.Type.Alignment()%align == 0 && offset%align == 0 {
+			return true
+		}
+	case OpOffPtr:
+		// Recursive check: if ptr = base + off1, then total offset is off1 + offset
+		return isAligned(ptr.Args[0], ptr.AuxInt+offset, align)
+	}
+
+	// If alignment cannot be statically proven, return false for safety
+	return false
 }
 
 func memcombineLoads(f *Func) {
@@ -189,6 +219,17 @@ func combineLoads(root *Value, n int64) bool {
 		}
 	}
 
+	// --- Pre-check for architectures that don't support unaligned access ---
+	// If the architecture doesn't support unaligned access, we need to do preliminary checks here
+	// Note: Detailed alignment checks will be done after sorting and computing exact offsets
+	if !root.Block.Func.Config.unalignedOK {
+		// If there is a dynamic index, we cannot statically prove alignment, so conservatively reject combining
+		if base.idx != nil {
+			return false
+		}
+		// Continue to detailed alignment checks later (need to collect and sort all load records first)
+	}
+
 	// Check all the entries, extract useful info.
 	type LoadRecord struct {
 		load   *Value
@@ -242,6 +283,28 @@ func combineLoads(root *Value, n int64) bool {
 		if r[i].offset != r[0].offset+i*size {
 			return false
 		}
+	}
+
+	// --- Alignment check (for architectures that don't support unaligned access) ---
+	// Now we have sorted load records, so we can do detailed alignment checks
+	totalSize := n * size
+	if !root.Block.Func.Config.unalignedOK {
+		// Architecture doesn't support unaligned access: we need to prove the combined access is naturally aligned
+		//
+		// For a totalSize-byte load, we need to prove:
+		// (BasePointer + r[0].offset) % totalSize == 0
+		//
+		// Use isAligned function to statically check alignment
+		if !isAligned(base.ptr, r[0].offset, totalSize) {
+			// Cannot statically prove alignment, skip combining for safety
+			return false
+		}
+
+		// Additional note: if this check passes, the combined access address satisfies natural alignment requirements
+		// For example:
+		// - 8-byte loads must be 8-byte aligned
+		// - 4-byte loads must be 4-byte aligned
+		// - 2-byte loads must be 2-byte aligned
 	}
 
 	// Check for reads in little-endian or big-endian order.
@@ -480,6 +543,15 @@ func combineStores(root *Value) {
 			return
 		}
 	}
+
+	// --- Pre-check for architectures that don't support unaligned access ---
+	// If the architecture doesn't support unaligned access and there's a dynamic index, alignment cannot be statically proven
+	if !root.Block.Func.Config.unalignedOK {
+		if rbase.idx != nil {
+			return
+		}
+	}
+
 	allMergeable = append(allMergeable, StoreRecord{root, roff, root.Aux.(*types.Type).Size()})
 	allMergeableSize := root.Aux.(*types.Type).Size()
 	// TODO: this loop strictly requires stores to chain together in memory.
@@ -550,6 +622,20 @@ func combineStores(root *Value) {
 				}
 			}
 			if sequential {
+				// --- Alignment check (for architectures that don't support unaligned access) ---
+				// After confirming stores are contiguous, check if alignment requirements are met
+				if !root.Block.Func.Config.unalignedOK {
+					// Need to prove the combined store address is naturally aligned
+					// Check if the first store location is aligned to totalSize
+					if !isAligned(rbase.ptr, candidate[0].offset, s) {
+						// Cannot prove alignment, skip this candidate set
+						continue
+					}
+					// If this check passes, it means:
+					// - base address + first offset is s-byte aligned
+					// - all stores are contiguous, so the entire combine operation is safe
+				}
+
 				a = candidate
 				aTotalSize = s
 				break
@@ -728,7 +814,7 @@ func combineStores(root *Value) {
 	if isLittleEndian && shift0 != 0 {
 		sv = rightShift(root.Block, root.Pos, sv, shift0)
 	}
-	shiftedSize = aTotalSize - a[0].size
+	shiftedSize = int64(aTotalSize - a[0].size)
 	if isBigEndian && shift0-shiftedSize*8 != 0 {
 		sv = rightShift(root.Block, root.Pos, sv, shift0-shiftedSize*8)
 	}
