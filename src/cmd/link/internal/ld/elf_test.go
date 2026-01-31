@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build cgo
+//go:build cgo && (dragonfly || freebsd || linux || netbsd || openbsd || solaris)
 
 package ld
 
@@ -52,7 +52,7 @@ func main() {
 
 	elfFile, err := elf.NewFile(fi)
 	if err != nil {
-		t.Skip("The system may not support ELF, skipped.")
+		t.Fatal(err)
 	}
 
 	section := elfFile.Section(".dynsym")
@@ -153,7 +153,7 @@ func main() {
 
 	elfFile, err := elf.NewFile(fi)
 	if err != nil {
-		t.Skip("The system may not support ELF, skipped.")
+		t.Fatal(err)
 	}
 
 	section := elfFile.Section(".shstrtab")
@@ -316,7 +316,7 @@ func TestElfBindNow(t *testing.T) {
 
 			elfFile, err := elf.NewFile(fi)
 			if err != nil {
-				t.Skip("The system may not support ELF, skipped.")
+				t.Fatal(err)
 			}
 			defer elfFile.Close()
 
@@ -487,7 +487,7 @@ func TestRelroSectionOverlapIssue67261(t *testing.T) {
 
 	elfFile, err := elf.NewFile(fi)
 	if err != nil {
-		t.Skip("The system may not support ELF, skipped.")
+		t.Fatal(err)
 	}
 	defer elfFile.Close()
 
