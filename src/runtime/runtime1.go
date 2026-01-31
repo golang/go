@@ -732,6 +732,15 @@ func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
 	return id
 }
 
+// reflect_adjustAIXGCDataForRuntime takes a type.GCData address and returns
+// the new address to use. This is only called on AIX.
+// See getGCMaskOnDemand.
+//
+//go:linkname reflect_adjustAIXGCDataForRuntime reflect.adjustAIXGCDataForRuntime
+func reflect_adjustAIXGCDataForRuntime(addr *byte) *byte {
+	return (*byte)(add(unsafe.Pointer(addr), aixStaticDataBase-firstmoduledata.data))
+}
+
 //go:linkname fips_getIndicator crypto/internal/fips140.getIndicator
 func fips_getIndicator() uint8 {
 	return getg().fipsIndicator
