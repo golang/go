@@ -1017,6 +1017,8 @@
     (ConstNil <v.Type.Elem().PtrTo()>)
     (Const64 <typ.Int> [0])
     (Const64 <typ.Int> [0]))
+(SliceLen (Phi (SliceMake _ x _) (SliceMake _ x _))) => x
+(SliceCap (Phi (SliceMake _ _ x) (SliceMake _ _ x))) => x
 
 // Special rule to help constant slicing; len > 0 implies cap > 0 implies Slicemask is all 1
 (SliceMake (AddPtr <t> x (And64 y (Slicemask _))) w:(Const64 [c]) z) && c > 0 => (SliceMake (AddPtr <t> x y) w z)
