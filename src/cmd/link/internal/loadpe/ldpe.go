@@ -346,7 +346,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		sb := l.MakeSymbolUpdater(state.sectsyms[rsect])
 		for j, r := range rsect.Relocs {
 			if int(r.SymbolTableIndex) >= len(f.COFFSymbols) {
-				return nil, fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
+				return nil, fmt.Errorf("relocation number %d symbol index idx=%d cannot be larger than number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
 			}
 			pesym := &f.COFFSymbols[r.SymbolTableIndex]
 			_, rSym, err := state.readpesym(pesym)
