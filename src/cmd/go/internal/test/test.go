@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -559,6 +560,10 @@ var (
 	testTimeout      time.Duration                     // -timeout flag
 	testV            testVFlag                         // -v flag
 	testVet          = vetFlag{flags: defaultVetFlags} // -vet flag
+
+	// Cache for covered packages hash to avoid recomputing for each test package
+	testCoverPkgsHash     cache.ActionID
+	testCoverPkgsHashOnce sync.Once
 )
 
 type testVFlag struct {
@@ -1962,6 +1967,38 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 var errBadTestInputs = errors.New("error parsing test inputs")
 var testlogMagic = []byte("# test log\n") // known to testing/internal/testdeps/deps.go
 
+// hashCoveredPackages writes to h a hash of the source files of the covered packages.
+func hashCoveredPackages(h io.Writer, pkgs []*load.Package) {
+	sort.Slice(pkgs, func(i, j int) bool { return pkgs[i].ImportPath < pkgs[j].ImportPath })
+
+	for _, pkg := range pkgs {
+		fmt.Fprintf(h, "coverpkg %s", pkg.ImportPath)
+		files := make([]string, 0, len(pkg.GoFiles)+len(pkg.CgoFiles))
+		files = append(files, pkg.GoFiles...)
+		files = append(files, pkg.CgoFiles...)
+		sort.Strings(files)
+
+		for _, f := range files {
+			fh := hashStat(filepath.Join(pkg.Dir, f))
+			if fh != (cache.ActionID{}) {
+				h.Write(fh[:])
+			}
+		}
+	}
+}
+
+// getCoveredPackagesHash returns the cached hash of covered packages, computing it only once.
+func getCoveredPackagesHash() cache.ActionID {
+	testCoverPkgsHashOnce.Do(func() {
+		if len(testCoverPkgs) > 0 {
+			h := cache.NewHash("coverpkgs")
+			hashCoveredPackages(h, testCoverPkgs)
+			testCoverPkgsHash = h.Sum()
+		}
+	})
+	return testCoverPkgsHash
+}
+
 // computeTestInputsID computes the "test inputs ID"
 // (see comment in tryCacheWithID above) for the
 // test log.
@@ -2106,7 +2143,14 @@ func testAndInputKey(testID, testInputsID cache.ActionID) cache.ActionID {
 
 // coverProfileAndInputKey returns the "coverprofile" cache key for the pair (testID, testInputsID).
 func coverProfileAndInputKey(testID, testInputsID cache.ActionID) cache.ActionID {
-	return cache.Subkey(testAndInputKey(testID, testInputsID), "coverprofile")
+	// Include covered packages hash to invalidate coverage reports when covered packages change
+	h := cache.NewHash("coverprofile")
+	testAndInputs := testAndInputKey(testID, testInputsID)
+	h.Write(testAndInputs[:])
+	// Use cached hash instead of recomputing for each test package
+	coveredPkgsHash := getCoveredPackagesHash()
+	h.Write(coveredPkgsHash[:])
+	return h.Sum()
 }
 
 func (c *runCache) saveOutput(a *work.Action) {
