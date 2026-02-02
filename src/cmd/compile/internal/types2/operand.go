@@ -60,6 +60,14 @@ type operand struct {
 	id    builtinId
 }
 
+func (x *operand) typ() Type {
+	return x.typ_
+}
+
+func (x *operand) isValid() bool {
+	return x.mode_ != invalid
+}
+
 // Pos returns the position of the expression corresponding to x.
 // If x is invalid the position is nopos.
 func (x *operand) Pos() syntax.Pos {
@@ -110,17 +118,17 @@ func operandString(x *operand, qf Qualifier) string {
 	// special-case nil
 	if isTypes2 {
 		if x.mode_ == nilvalue {
-			switch x.typ_ {
+			switch x.typ() {
 			case nil, Typ[Invalid]:
 				return "nil (with invalid type)"
 			case Typ[UntypedNil]:
 				return "nil"
 			default:
-				return fmt.Sprintf("nil (of type %s)", TypeString(x.typ_, qf))
+				return fmt.Sprintf("nil (of type %s)", TypeString(x.typ(), qf))
 			}
 		}
 	} else { // go/types
-		if x.mode_ == value && x.typ_ == Typ[UntypedNil] {
+		if x.mode_ == value && x.typ() == Typ[UntypedNil] {
 			return "nil"
 		}
 	}
@@ -135,7 +143,7 @@ func operandString(x *operand, qf Qualifier) string {
 		case builtin:
 			expr = predeclaredFuncs[x.id].name
 		case typexpr:
-			expr = TypeString(x.typ_, qf)
+			expr = TypeString(x.typ(), qf)
 		case constant_:
 			expr = x.val.String()
 		}
@@ -154,9 +162,9 @@ func operandString(x *operand, qf Qualifier) string {
 		// no type
 	default:
 		// should have a type, but be cautious (don't crash during printing)
-		if x.typ_ != nil {
-			if isUntyped(x.typ_) {
-				buf.WriteString(x.typ_.(*Basic).name)
+		if x.typ() != nil {
+			if isUntyped(x.typ()) {
+				buf.WriteString(x.typ().(*Basic).name)
 				buf.WriteByte(' ')
 				break
 			}
@@ -177,9 +185,9 @@ func operandString(x *operand, qf Qualifier) string {
 
 	// <typ>
 	if hasType {
-		if isValid(x.typ_) {
+		if isValid(x.typ()) {
 			var desc string
-			if isGeneric(x.typ_) {
+			if isGeneric(x.typ()) {
 				desc = "generic "
 			}
 
@@ -187,14 +195,14 @@ func operandString(x *operand, qf Qualifier) string {
 			// If the type is a renamed basic type, describe the basic type,
 			// as in "int32 type MyInt" for a *Named type MyInt.
 			// If it is a type parameter, describe the constraint instead.
-			tpar, _ := Unalias(x.typ_).(*TypeParam)
+			tpar, _ := Unalias(x.typ()).(*TypeParam)
 			if tpar == nil {
-				switch x.typ_.(type) {
+				switch x.typ().(type) {
 				case *Alias, *Named:
-					what := compositeKind(x.typ_)
+					what := compositeKind(x.typ())
 					if what == "" {
 						// x.typ must be basic type
-						what = x.typ_.Underlying().(*Basic).name
+						what = x.typ().Underlying().(*Basic).name
 					}
 					desc += what + " "
 				}
@@ -202,7 +210,7 @@ func operandString(x *operand, qf Qualifier) string {
 			// desc is "" or has a trailing space at the end
 
 			buf.WriteString(" of " + desc + "type ")
-			WriteType(&buf, x.typ_, qf)
+			WriteType(&buf, x.typ(), qf)
 
 			if tpar != nil {
 				buf.WriteString(" constrained by ")
@@ -295,7 +303,7 @@ func (x *operand) isNil() bool {
 	if isTypes2 {
 		return x.mode_ == nilvalue
 	} else { // go/types
-		return x.mode_ == value && x.typ_ == Typ[UntypedNil]
+		return x.mode_ == value && x.typ() == Typ[UntypedNil]
 	}
 }
 
@@ -311,7 +319,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 	}
 
 	origT := T
-	V := Unalias(x.typ_)
+	V := Unalias(x.typ())
 	T = Unalias(T)
 
 	// x's type is identical to T
@@ -416,7 +424,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 			}
 			ok, code = x.assignableTo(check, T.typ, cause)
 			if !ok {
-				errorf("cannot assign %s to %s (in %s)", x.typ_, T.typ, Tp)
+				errorf("cannot assign %s to %s (in %s)", x.typ(), T.typ, Tp)
 				return false
 			}
 			return true

@@ -173,12 +173,12 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 			continue
 		}
 		par := params.At(i)
-		if isParameterized(tparams, par.typ) || isParameterized(tparams, arg.typ_) {
+		if isParameterized(tparams, par.typ) || isParameterized(tparams, arg.typ()) {
 			// Function parameters are always typed. Arguments may be untyped.
 			// Collect the indices of untyped arguments and handle them later.
-			if isTyped(arg.typ_) {
-				if !u.unify(par.typ, arg.typ_, assign) {
-					errorf(par.typ, arg.typ_, arg)
+			if isTyped(arg.typ()) {
+				if !u.unify(par.typ, arg.typ(), assign) {
+					errorf(par.typ, arg.typ(), arg)
 					return nil
 				}
 			} else if _, ok := par.typ.(*TypeParam); ok && !arg.isNil() {
@@ -340,11 +340,11 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 			}
 			max := maxUntyped[tpar]
 			if max == nil {
-				max = arg.typ_
+				max = arg.typ()
 			} else {
-				m := maxType(max, arg.typ_)
+				m := maxType(max, arg.typ())
 				if m == nil {
-					err.addf(arg, "mismatched types %s and %s (cannot infer %s)", max, arg.typ_, tpar)
+					err.addf(arg, "mismatched types %s and %s (cannot infer %s)", max, arg.typ(), tpar)
 					return nil
 				}
 				max = m

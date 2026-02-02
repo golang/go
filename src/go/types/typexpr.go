@@ -248,7 +248,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
 
 		switch x.mode_ {
 		case typexpr:
-			return x.typ_
+			return x.typ()
 		case invalid:
 			// ignore - error reported before
 		case novalue:
@@ -263,7 +263,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
 
 		switch x.mode_ {
 		case typexpr:
-			return x.typ_
+			return x.typ()
 		case invalid:
 			// ignore - error reported before
 		case novalue:
@@ -485,7 +485,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 		return -1
 	}
 
-	if isUntyped(x.typ_) || isInteger(x.typ_) {
+	if isUntyped(x.typ()) || isInteger(x.typ()) {
 		if val := constant.ToInt(x.val); val.Kind() == constant.Int {
 			if representableConst(val, check, Typ[Int], nil) {
 				if n, ok := constant.Int64Val(val); ok && n >= 0 {
@@ -496,7 +496,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 	}
 
 	var msg string
-	if isInteger(x.typ_) {
+	if isInteger(x.typ()) {
 		msg = "invalid array length %s"
 	} else {
 		msg = "array length %s must be integer"

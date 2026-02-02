@@ -40,7 +40,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		return
 	}
 
-	if isUntyped(x.typ_) {
+	if isUntyped(x.typ()) {
 		target := T
 		// spec: "If an untyped constant is assigned to a variable of interface
 		// type or the blank identifier, the constant is first converted to type
@@ -55,16 +55,16 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 					return
 				}
 			} else if T == nil || isNonTypeParamInterface(T) {
-				target = Default(x.typ_)
+				target = Default(x.typ())
 			}
 		} else { // go/types
 			if T == nil || isNonTypeParamInterface(T) {
-				if T == nil && x.typ_ == Typ[UntypedNil] {
+				if T == nil && x.typ() == Typ[UntypedNil] {
 					check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
 					x.mode_ = invalid
 					return
 				}
-				target = Default(x.typ_)
+				target = Default(x.typ())
 			}
 		}
 		newType, val, code := check.implicitTypeAndValue(x, target)
@@ -86,7 +86,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 			x.val = val
 			check.updateExprVal(x.expr, val)
 		}
-		if newType != x.typ_ {
+		if newType != x.typ() {
 			x.typ_ = newType
 			check.updateExprType(x.expr, newType, false)
 		}
@@ -119,7 +119,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 }
 
 func (check *Checker) initConst(lhs *Const, x *operand) {
-	if x.mode_ == invalid || !isValid(x.typ_) || !isValid(lhs.typ) {
+	if x.mode_ == invalid || !isValid(x.typ()) || !isValid(lhs.typ) {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -134,11 +134,11 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 		}
 		return
 	}
-	assert(isConstType(x.typ_))
+	assert(isConstType(x.typ()))
 
 	// If the lhs doesn't have a type yet, use the type of x.
 	if lhs.typ == nil {
-		lhs.typ = x.typ_
+		lhs.typ = x.typ()
 	}
 
 	check.assignment(x, lhs.typ, "constant declaration")
@@ -154,7 +154,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 // or Typ[Invalid] in case of an error.
 // If the initialization check fails, x.mode is set to invalid.
 func (check *Checker) initVar(lhs *Var, x *operand, context string) {
-	if x.mode_ == invalid || !isValid(x.typ_) || !isValid(lhs.typ) {
+	if x.mode_ == invalid || !isValid(x.typ()) || !isValid(lhs.typ) {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -164,7 +164,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) {
 
 	// If lhs doesn't have a type yet, use the type of x.
 	if lhs.typ == nil {
-		typ := x.typ_
+		typ := x.typ()
 		if isUntyped(typ) {
 			// convert untyped types to default types
 			if typ == Typ[UntypedNil] {
@@ -219,7 +219,7 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
 		check.usedVars[v] = v_used // restore v.used
 	}
 
-	if x.mode_ == invalid || !isValid(x.typ_) {
+	if x.mode_ == invalid || !isValid(x.typ()) {
 		return Typ[Invalid]
 	}
 
@@ -243,7 +243,7 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
 		return Typ[Invalid]
 	}
 
-	return x.typ_
+	return x.typ()
 }
 
 // assignVar checks the assignment lhs = rhs (if x == nil), or lhs = x (if x != nil).
@@ -281,7 +281,7 @@ func (check *Checker) assignVar(lhs, rhs ast.Expr, x *operand, context string) {
 // operandTypes returns the list of types for the given operands.
 func operandTypes(list []*operand) (res []Type) {
 	for _, x := range list {
-		res = append(res, x.typ_)
+		res = append(res, x.typ())
 	}
 	return res
 }

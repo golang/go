@@ -26,7 +26,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 			// nothing to do
 		case representableConst(x.val, check, t, val):
 			return true
-		case isInteger(x.typ_) && isString(t):
+		case isInteger(x.typ()) && isString(t):
 			codepoint := unicode.ReplacementChar
 			if i, ok := constant.Uint64Val(x.val); ok && i <= unicode.MaxRune {
 				codepoint = rune(i)
@@ -48,7 +48,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// A conversion from an integer constant to an integer type
 		// can only fail if there's overflow. Give a concise error.
 		// (go.dev/issue/63563)
-		if !ok && isInteger(x.typ_) && isInteger(T) {
+		if !ok && isInteger(x.typ()) && isInteger(T) {
 			check.errorf(x, InvalidConversion, "constant %s overflows %s", x.val, T)
 			x.mode_ = invalid
 			return
@@ -65,11 +65,11 @@ func (check *Checker) conversion(x *operand, T Type) {
 				cause = check.sprintf("%s does not contain specific types", T)
 				return false
 			}
-			if isString(x.typ_) && isBytesOrRunes(u) {
+			if isString(x.typ()) && isBytesOrRunes(u) {
 				return true
 			}
 			if !constConvertibleTo(u, nil) {
-				if isInteger(x.typ_) && isInteger(u) {
+				if isInteger(x.typ()) && isInteger(u) {
 					// see comment above on constant conversion
 					cause = check.sprintf("constant %s overflows %s (in %s)", x.val, u, T)
 				} else {
@@ -99,7 +99,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 	// The conversion argument types are final. For untyped values the
 	// conversion provides the type, per the spec: "A constant may be
 	// given a type explicitly by a constant declaration or conversion,...".
-	if isUntyped(x.typ_) {
+	if isUntyped(x.typ()) {
 		final := T
 		// - For conversions to interfaces, except for untyped nil arguments
 		//   and isTypes2, use the argument's default type.
@@ -109,12 +109,12 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// - If !isTypes2, keep untyped nil for untyped nil arguments.
 		// - For constant integer to string conversions, keep the argument type.
 		//   (See also the TODO below.)
-		if isTypes2 && x.typ_ == Typ[UntypedNil] {
+		if isTypes2 && x.typ() == Typ[UntypedNil] {
 			// ok
 		} else if isNonTypeParamInterface(T) || constArg && !isConstType(T) || !isTypes2 && x.isNil() {
-			final = Default(x.typ_) // default type of untyped nil is untyped nil
-		} else if x.mode_ == constant_ && isInteger(x.typ_) && allString(T) {
-			final = x.typ_
+			final = Default(x.typ()) // default type of untyped nil is untyped nil
+		} else if x.mode_ == constant_ && isInteger(x.typ()) && allString(T) {
+			final = x.typ()
 		}
 		check.updateExprType(x.expr, final, true)
 	}
@@ -143,7 +143,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 	}
 
 	origT := T
-	V := Unalias(x.typ_)
+	V := Unalias(x.typ())
 	T = Unalias(T)
 	Vu := V.Underlying()
 	Tu := T.Underlying()
@@ -284,7 +284,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 				return false // no specific types
 			}
 			if !x.convertibleTo(check, T.typ, cause) {
-				errorf("cannot convert %s to type %s (in %s)", x.typ_, T.typ, Tp)
+				errorf("cannot convert %s to type %s (in %s)", x.typ(), T.typ, Tp)
 				return false
 			}
 			return true

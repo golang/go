@@ -59,7 +59,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
 	// Check the number of type arguments (got) vs number of type parameters (want).
 	// Note that x is a function value, not a type expression, so we don't need to
 	// call Underlying below.
-	sig := x.typ_.(*Signature)
+	sig := x.typ().(*Signature)
 	got, want := len(targs), sig.TypeParams().Len()
 	if got > want {
 		// Providing too many type arguments is always an error.
@@ -199,7 +199,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		if x.mode_ == invalid {
 			return conversion
 		}
-		T := x.typ_
+		T := x.typ()
 		x.mode_ = invalid
 		// We cannot convert a value to an incomplete type; make sure it's complete.
 		if !check.isComplete(T) {
@@ -251,7 +251,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 
 	// If the operand type is a type parameter, all types in its type set
 	// must have a common underlying type, which must be a signature.
-	u, err := commonUnder(x.typ_, func(t, u Type) *typeError {
+	u, err := commonUnder(x.typ(), func(t, u Type) *typeError {
 		if _, ok := u.(*Signature); u != nil && !ok {
 			return typeErrorf("%s is not a function", t)
 		}
@@ -343,7 +343,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 
 	// if type inference failed, a parameterized result must be invalidated
 	// (operands cannot have a parameterized type)
-	if x.mode_ == value && sig.TypeParams().Len() > 0 && isParameterized(sig.TypeParams().list(), x.typ_) {
+	if x.mode_ == value && sig.TypeParams().Len() > 0 && isParameterized(sig.TypeParams().list(), x.typ()) {
 		x.mode_ = invalid
 	}
 
@@ -382,7 +382,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 				if i < len(targsList) {
 					if n := len(targsList[i]); n > 0 {
 						// x must be a partially instantiated function
-						assert(n < x.typ_.(*Signature).TypeParams().Len())
+						assert(n < x.typ().(*Signature).TypeParams().Len())
 					}
 				}
 			}
@@ -419,7 +419,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 			// x is not a function instantiation (it may still be a generic function).
 			check.rawExpr(nil, &x, e, nil, true)
 			check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
-			if t, ok := x.typ_.(*Tuple); ok && x.mode_ != invalid {
+			if t, ok := x.typ().(*Tuple); ok && x.mode_ != invalid {
 				// x is a function call returning multiple values; it cannot be generic.
 				resList = make([]*operand, t.Len())
 				for i, v := range t.vars {
@@ -582,7 +582,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 	if enableReverseTypeInference {
 		for i, arg := range args {
 			// generic arguments cannot have a defined (*Named) type - no need for underlying type below
-			if asig, _ := arg.typ_.(*Signature); asig != nil && asig.TypeParams().Len() > 0 {
+			if asig, _ := arg.typ().(*Signature); asig != nil && asig.TypeParams().Len() > 0 {
 				// The argument type is a generic function signature. This type is
 				// pointer-identical with (it's copied from) the type of the generic
 				// function argument and thus the function object.
@@ -652,7 +652,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 		j := n
 		for _, i := range genericArgs {
 			arg := args[i]
-			asig := arg.typ_.(*Signature)
+			asig := arg.typ().(*Signature)
 			k := j + asig.TypeParams().Len()
 			// targs[j:k] are the inferred type arguments for asig
 			arg.typ_ = check.instantiateSignature(call.Pos(), arg.expr, asig, targs[j:k], nil) // TODO(gri) provide xlist if possible (partial instantiations)
@@ -767,14 +767,14 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 				x.mode_ = variable
 				x.typ_ = exp.typ
 				if pkg.cgo && strings.HasPrefix(exp.name, "_Cvar_") {
-					x.typ_ = x.typ_.(*Pointer).base
+					x.typ_ = x.typ().(*Pointer).base
 				}
 			case *Func:
 				x.mode_ = funcMode
 				x.typ_ = exp.typ
 				if pkg.cgo && strings.HasPrefix(exp.name, "_Cmacro_") {
 					x.mode_ = value
-					x.typ_ = x.typ_.(*Signature).results.vars[0].typ
+					x.typ_ = x.typ().(*Signature).results.vars[0].typ
 				}
 			case *Builtin:
 				x.mode_ = builtin
@@ -800,7 +800,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 	}
 
 	// We cannot select on an incomplete type; make sure it's complete.
-	if !check.isComplete(x.typ_) {
+	if !check.isComplete(x.typ()) {
 		goto Error
 	}
 
@@ -821,14 +821,14 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 
 	// Additionally, if x.typ is a pointer type, selecting implicitly dereferences the value, meaning
 	// its base type must also be complete.
-	if p, ok := x.typ_.Underlying().(*Pointer); ok && !check.isComplete(p.base) {
+	if p, ok := x.typ().Underlying().(*Pointer); ok && !check.isComplete(p.base) {
 		goto Error
 	}
 
-	obj, index, indirect = lookupFieldOrMethod(x.typ_, x.mode_ == variable, check.pkg, sel, false)
+	obj, index, indirect = lookupFieldOrMethod(x.typ(), x.mode_ == variable, check.pkg, sel, false)
 	if obj == nil {
 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
-		if !isValid(x.typ_.Underlying()) {
+		if !isValid(x.typ().Underlying()) {
 			goto Error
 		}
 
@@ -840,19 +840,19 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 
 		if indirect {
 			if x.mode_ == typexpr {
-				check.errorf(e.Sel, InvalidMethodExpr, "invalid method expression %s.%s (needs pointer receiver (*%s).%s)", x.typ_, sel, x.typ_, sel)
+				check.errorf(e.Sel, InvalidMethodExpr, "invalid method expression %s.%s (needs pointer receiver (*%s).%s)", x.typ(), sel, x.typ(), sel)
 			} else {
-				check.errorf(e.Sel, InvalidMethodExpr, "cannot call pointer method %s on %s", sel, x.typ_)
+				check.errorf(e.Sel, InvalidMethodExpr, "cannot call pointer method %s on %s", sel, x.typ())
 			}
 			goto Error
 		}
 
 		var why string
-		if isInterfacePtr(x.typ_) {
-			why = check.interfacePtrError(x.typ_)
+		if isInterfacePtr(x.typ()) {
+			why = check.interfacePtrError(x.typ())
 		} else {
-			alt, _, _ := lookupFieldOrMethod(x.typ_, x.mode_ == variable, check.pkg, sel, true)
-			why = check.lookupError(x.typ_, sel, alt, false)
+			alt, _, _ := lookupFieldOrMethod(x.typ(), x.mode_ == variable, check.pkg, sel, true)
+			why = check.lookupError(x.typ(), sel, alt, false)
 		}
 		check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
 		goto Error
@@ -862,12 +862,12 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 	switch obj := obj.(type) {
 	case *Var:
 		if x.mode_ == typexpr {
-			check.errorf(e.X, MissingFieldOrMethod, "operand for field selector %s must be value of type %s", sel, x.typ_)
+			check.errorf(e.X, MissingFieldOrMethod, "operand for field selector %s must be value of type %s", sel, x.typ())
 			goto Error
 		}
 
 		// field value
-		check.recordSelection(e, FieldVal, x.typ_, obj, index, indirect)
+		check.recordSelection(e, FieldVal, x.typ(), obj, index, indirect)
 		if x.mode_ == variable || indirect {
 			x.mode_ = variable
 		} else {
@@ -881,7 +881,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 
 		if x.mode_ == typexpr {
 			// method expression
-			check.recordSelection(e, MethodExpr, x.typ_, obj, index, indirect)
+			check.recordSelection(e, MethodExpr, x.typ(), obj, index, indirect)
 
 			sig := obj.typ.(*Signature)
 			if sig.recv == nil {
@@ -909,7 +909,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 					name = "_"
 				}
 			}
-			params = append([]*Var{NewParam(sig.recv.pos, sig.recv.pkg, name, x.typ_)}, params...)
+			params = append([]*Var{NewParam(sig.recv.pos, sig.recv.pkg, name, x.typ())}, params...)
 			x.mode_ = value
 			x.typ_ = &Signature{
 				tparams:  sig.tparams,
@@ -922,7 +922,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 
 			// TODO(gri) If we needed to take into account the receiver's
 			// addressability, should we report the type &(x.typ) instead?
-			check.recordSelection(e, MethodVal, x.typ_, obj, index, indirect)
+			check.recordSelection(e, MethodVal, x.typ(), obj, index, indirect)
 
 			// TODO(gri) The verification pass below is disabled for now because
 			//           method sets don't match method lookup in some cases.

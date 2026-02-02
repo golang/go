@@ -35,7 +35,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 	check.expr(nil, &x, rangeVar)
 
 	if isTypes2 && x.mode_ != invalid && sValue == nil && !check.hasCallOrRecv {
-		if t, ok := arrayPtrDeref(x.typ_.Underlying()).(*Array); ok {
+		if t, ok := arrayPtrDeref(x.typ().Underlying()).(*Array); ok {
 			for {
 				// Put constant info on the thing inside parentheses.
 				// That's where (*../noder/writer).expr expects it.
@@ -62,7 +62,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 	// determine key/value types
 	var key, val Type
 	if x.mode_ != invalid {
-		k, v, cause, ok := rangeKeyVal(check, x.typ_, func(v goVersion) bool {
+		k, v, cause, ok := rangeKeyVal(check, x.typ(), func(v goVersion) bool {
 			return check.allowVersion(v)
 		})
 		switch {
@@ -92,7 +92,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 	lhs := [2]syntax.Expr{sKey, sValue} // sKey, sValue may be nil
 	rhs := [2]Type{key, val}            // key, val may be nil
 
-	rangeOverInt := isInteger(x.typ_)
+	rangeOverInt := isInteger(x.typ())
 
 	if isDef {
 		// short variable declaration
@@ -169,8 +169,8 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 				// If the assignment succeeded, if x was untyped before, it now
 				// has a type inferred via the assignment. It must be an integer.
 				// (go.dev/issues/67027)
-				if x.mode_ != invalid && !isInteger(x.typ_) {
-					check.softErrorf(lhs, InvalidRangeExpr, "cannot use iteration variable of type %s", x.typ_)
+				if x.mode_ != invalid && !isInteger(x.typ()) {
+					check.softErrorf(lhs, InvalidRangeExpr, "cannot use iteration variable of type %s", x.typ())
 				}
 			} else {
 				var y operand

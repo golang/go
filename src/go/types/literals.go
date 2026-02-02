@@ -273,12 +273,12 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
 				xkey := keyVal(x.val)
 				if keyIsInterface {
 					for _, vtyp := range visited[xkey] {
-						if Identical(vtyp, x.typ_) {
+						if Identical(vtyp, x.typ()) {
 							duplicate = true
 							break
 						}
 					}
-					visited[xkey] = append(visited[xkey], x.typ_)
+					visited[xkey] = append(visited[xkey], x.typ())
 				} else {
 					_, duplicate = visited[xkey]
 					visited[xkey] = nil
