@@ -2476,7 +2476,9 @@ func (pc *persistConn) readLoop() {
 		// reading the response body. (or for cancellation or death)
 		select {
 		case bodyEOF := <-waitForBodyRead:
-			if !bodyEOF && resp.ContentLength <= maxPostCloseReadBytes {
+			tryDrain := !bodyEOF && resp.ContentLength <= maxPostCloseReadBytes
+			if tryDrain {
+				eofc <- struct{}{}
 				bodyEOF = maybeDrainBody(body.body)
 			}
 			alive = alive &&
@@ -2484,7 +2486,7 @@ func (pc *persistConn) readLoop() {
 				!pc.sawEOF &&
 				pc.wroteRequest() &&
 				tryPutIdleConn(rc.treq)
-			if bodyEOF {
+			if !tryDrain && bodyEOF {
 				eofc <- struct{}{}
 			}
 		case <-rc.treq.ctx.Done():

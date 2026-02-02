@@ -565,6 +565,9 @@ func urlErrorOp(method string) string {
 // read to EOF and closed, the [Client]'s underlying [RoundTripper]
 // (typically [Transport]) may not be able to re-use a persistent TCP
 // connection to the server for a subsequent "keep-alive" request.
+// Note, however, that [Transport] will automatically try to read a
+// [Response] Body to EOF asynchronously up to a conservative limit
+// when a Body is closed.
 //
 // The request Body, if non-nil, will be closed by the underlying
 // Transport, even on errors. The Body may be closed asynchronously after
