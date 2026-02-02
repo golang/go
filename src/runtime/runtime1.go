@@ -391,7 +391,7 @@ var dbgvars = []*dbgVar{
 	{name: "madvdontneed", value: &debug.madvdontneed},
 	{name: "panicnil", atomic: &debug.panicnil},
 	{name: "profstackdepth", value: &debug.profstackdepth, def: 128},
-	{name: "racelite", value: &debug.racelite, def: 1},
+	{name: "racelite", value: &debug.racelite},
 	{name: "sbrk", value: &debug.sbrk},
 	{name: "scavtrace", value: &debug.scavtrace},
 	{name: "scheddetail", value: &debug.scheddetail},

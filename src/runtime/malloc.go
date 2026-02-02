@@ -1511,13 +1511,6 @@ func mallocgcSmallNoscan(size uintptr, typ *_type, needzero bool) (unsafe.Pointe
 		}
 	}
 
-	if debug.racelite >= 2 {
-		println("mallocgcSmallNoscan:       allocated size:", size, "base:", hex(uintptr(x)),
-			"racelite footer:", hex(uintptr(x)+span.elemsize-gc.RaceliteFooterSize),
-			"base+elemsize:", hex(uintptr(x)+span.elemsize),
-			"elemsize:", span.elemsize)
-	}
-
 	return x, size
 }
 
@@ -1667,13 +1660,6 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type) (unsafe.Pointer, uintpt
 		if t := (gcTrigger{kind: gcTriggerHeap}); t.test() {
 			gcStart(t)
 		}
-	}
-
-	if debug.racelite >= 2 {
-		println("mallocgcSmallScanNoHeader: allocated size:", size, "base:", hex(uintptr(x)),
-			"racelite footer:", hex(uintptr(x)+span.elemsize-gc.RaceliteFooterSize),
-			"base+elemsize:", hex(uintptr(x)+span.elemsize),
-			"elemsize:", span.elemsize)
 	}
 
 	return x, size

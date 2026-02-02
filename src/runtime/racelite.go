@@ -17,6 +17,12 @@ import (
 // And in general, we certainly can improve from this very first cut.
 
 var (
+	// raceliteCheckAddrMask controls how often we check addresses for racelite.
+	// Currently, for proof-of-concept, we set to check 1 out of 16 addresses to make
+	// results come back very quickly, but a "real" system could be much higher.
+	// We would pick a higher value to keep overhead manageable.
+	raceliteCheckAddrMask = (1 << 4) - 1
+
 	// raceliteCheckAddrRand allows us to randomize which addresses we check for racelite,
 	// but to do so in a way we get a consistent answer per address across concurrent readers
 	// and writers.
@@ -32,25 +38,149 @@ var (
 	raceliteCheckWordRand uint32 = 0
 )
 
-// raceliteCheckAddrMask controls how often we check addresses for racelite.
-// Currently, for proof-of-concept, we set to check 1 out of 16 addresses to make
-// results come back very quickly, but a "real" system could be much higher.
-// We would pick a higher value to keep overhead manageable.
-const raceliteCheckAddrMask = (1 << 4) - 1
-
 // const raceliteCheckAddrMask = (1 << 10) - 1 // check 1 out of 1024 addresses
 
+// checkinstack checks if addr is in the current goroutine's stack.
+func checkinstack(addr uintptr) bool {
+	// TODO(thepudds): probably want to make sure we are not preempted.
+	mp := acquirem()
+	inStack := mp.curg.stack.lo <= addr && addr < mp.curg.stack.hi
+	releasem(mp)
+	return inStack
+}
+
+// racelitewrite instruments a store operation with lightweight data race detection.
+// The logic follows the following structure:
+//
+//	Let A be the stored address
+//	Let state(A) ∈ {0, 1} be the state of address A in the memory,
+//		where 0 means the address is not being written to, and 1 means the address is being written to.
+//
+//	if state(A) ≠ 0 {
+//		The address is already being written to!
+//		Report write-write race
+//	}
+//	state(A) = 1
+//	micropause()
+//	if state(A) = 0 {
+//		The address state was updated by another writer!
+//		Report write-write race
+//	}
+//	state(A) = 0
 func racelitewrite(addr uintptr) {
-	if diag() {
-		println("racelitewrite called with addr:    ", hex(addr),
-			"raceliteCheckAddrRand:", hex(raceliteCheckAddrRand), "raceliteCheckWordRand:", hex(raceliteCheckWordRand))
+	randWordIndex, check := raceliteCheckAddr(addr)
+	switch {
+	case !check:
+		// Not checking this addr. This is the common case.
+		if diag() {
+			print("racelitewrite: not checking addr=", hex(addr), "\n")
+		}
+		return
+	case checkinstack(addr):
+		if diag() {
+			print("racelitewrite: skip stack address ", hex(addr), "\n")
+		}
+		return
 	}
 
+	base, span, _ := findObject(uintptr(addr), 0, 0)
+	switch {
+	case span == nil && base == 0:
+		return
+	case span.elemsize > gc.RaceliteFooterSize*8:
+		if diag() {
+			println("racelite: not tracking heap objects > 64 bytes yet")
+		}
+		return
+	case span.elemsize <= 16:
+		// 	// TODO(thepudds): sidestep tiny allocator for now.
+		// 	if diag() {
+		// 		println("racelite: not tracking heap objects <= 16 bytes yet")
+		// 	}
+		// 	return
+	}
+
+	// Determine the index of the address in the heap object.
+	// Index 0 is base, index 1 is the next word, etc.
+	//
+	// Indexing is determined by the pointer size for the architecture.
+	index := (uintptr(addr) - base) / goarch.PtrSize
+	switch {
+	case index >= 64:
+		throw("racelite: index too large")
+	case index != uintptr(randWordIndex)%(span.elemsize/goarch.PtrSize):
+		// Check if we are monitoring this word index in general for this heap object.
+		// This prevents false positives, e.g., 'p.a = 1' and 'p.b = 2' for some 'p struct{ a, b int }'
+		// won't trigger races.
+		if diag() {
+			print("racelitewrite: skip undesired word ",
+				"addr=", hex(addr), " index=", index, " randWordIndex=", randWordIndex,
+				"\n")
+		}
+		return
+	}
+
+	// Now, we finally check and record our write in the footer.
+	// First, get the footer.
+	//
+	// TODO(vsaioc): We want to dereference this as a value and compare the difference
+	// instead of extracting a footer.
+	footerPtr := (*uint64)(unsafe.Pointer(base + span.elemsize - gc.RaceliteFooterSize))
+
+	if *footerPtr != 0 {
+		// Already being written to.
+		// Another writer intercepted the write.
+		print("racelite: write-write race (entry) at ",
+			"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
+			"\n")
+		return
+	}
+
+	// Now record our write, followed by a small delay to let someone see it.
+	// We either do a ~nano delay or a ~1 in 100 chance of a ~micro delay.
+	// The ~nano delay is from just checking cheaprand.
+	*footerPtr ^= 1
+	// good with 100k samples!
+	if cheaprandn(10_000) == 0 {
+		// TODO(thepudds): multiple ways to delay here. For now, do something simple that hopefully
+		// let's us see it work for the first time. ;)
+		usleep(1)
+	}
+
+	if *footerPtr == 0 {
+		// Another writer intercepted the write.
+		// TODO(vsaioc): This might be unnecessary, since we already check at the entry.
+		print("racelite: write-write race (exit) at ",
+			"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
+			"\n")
+	}
+
+	// Now clear that bit, again via XOR.
+	*footerPtr ^= 1
+}
+
+// raceliteread instruments a load operation with lightweight data race detection.
+// The logic follows the following structure:
+//
+//	Let A be the loaded address
+//	Let state(A) ∈ {0, 1} be the state of address A in the memory,
+//		where 0 means the address is not being written to, and 1 means the address is being written to.
+//
+//	if state(A) ≠ 0 {
+//		The address is already being written to.
+//		Report write-read race
+//	}
+//	micropause()
+//	if state(A) ≠ 0 {
+//		The address state was updated by a writer.
+//		Report read-write race
+//	}
+func raceliteread(addr uintptr) {
 	randWordIndex, check := raceliteCheckAddr(addr)
 	if !check {
 		// Not checking this addr. This is the common case.
 		if diag() {
-			println("racelitewrite not checking addr:    ", hex(addr))
+			print("raceliteread: skip stack address ", hex(addr), "\n")
 		}
 		return
 	}
@@ -58,131 +188,98 @@ func racelitewrite(addr uintptr) {
 	// Do a cheap-ish check to see if this points into our stack.
 	// This check is likely cheaper than findObject or findSpan.
 	// TODO(thepudds): probably want to make sure we are not preempted.
-	mp := acquirem()
-	if mp.curg.stack.lo <= uintptr(addr) && uintptr(addr) < mp.curg.stack.hi {
+	if checkinstack(addr) {
 		// This points into our stack, so ignore.
 		if diag() {
-			println("racelitewrite skip checking pointer into stack:    ", hex(addr))
+			print("raceliteread: skip stack address ", hex(addr), "\n")
 		}
-		releasem(mp)
 		return
 	}
-	releasem(mp)
 
 	base, span, _ := findObject(uintptr(addr), 0, 0)
-	if diag() {
-		println("racelitewrite called for base addr:", hex(base))
-	}
 
-	if span != nil && base != 0 {
-		if span.elemsize > gc.RaceliteFooterSize*8 {
-			if diag() {
-				println("racelite: not tracking heap objects > 64 bytes yet")
-			}
-			return
-		}
-		if span.elemsize <= 16 {
-			// TODO(thepudds): sidestep tiny allocator for now.
-			if diag() {
-				println("racelite: not tracking heap objects <= 16 bytes yet")
-			}
-			return
-		}
-
-		// Determine how far addr is into this heap allocation object.
-		// For example, does it point to the base (wordIndex 0), or
-		// point into the next work (wordIndex 1), etc.
-		wordIndex := (uintptr(addr) - base) / goarch.PtrSize
+	switch {
+	case span == nil && base == 0:
+		return
+	case span.elemsize > gc.RaceliteFooterSize*8:
 		if diag() {
-			println("racelite: word index being accessed:", wordIndex)
+			print("raceliteread: not tracking objects > 64 bytes yet; ",
+				"object at addr=", hex(addr), " is ", span.elemsize, " bytes",
+				"\n")
 		}
-		if wordIndex >= 64 {
-			throw("racelite: wordIndex too large")
-		}
-
-		// TEMP: for sanity checking, we can force it to only track word index 0.
-		// if wordIndex != 0 {
-		// 	// TEMP: for sanity checking:
-		// 	if diag() { println("racelite: TEMP: only tracking writes to word index 0 of object for now")}
+		return
+	case span.elemsize <= 16:
+		// 	// TODO(thepudds): sidestep tiny allocator for now.
+		// 	if diag() {
+		// 		println("racelite: not tracking heap objects <= 16 bytes yet")
+		// 	}
 		// 	return
-		// }
-
-		// Check if we are monitoring this word index in general for this heap object.
-		// This intent is so that any given heap object is only being monitored for writes
-		// on a single word at any given moment, which means something like 'p.a = 1' in one goroutine
-		// and 'p.b = 2' in another goroutine for 'var p struct{ a, b int }' won't both attempt
-		// to trigger writes on the single footer for the same heap object for both a and b fields
-		// at the same time.
-		if wordIndex != uintptr(randWordIndex)%(span.elemsize/goarch.PtrSize) {
-			if diag() {
-				println("racelite: skipping write check, addr is not for a desired word of object. addr:", hex(addr), "wordIndex:", wordIndex, "randWordIndex:", randWordIndex)
-			}
-			return
-		}
-
-		// Now, we finally check and record our write in the footer.
-		// First, get the footer.
-		footerPtr := (*uint64)(unsafe.Pointer(base + span.elemsize - gc.RaceliteFooterSize))
-
-		if *footerPtr != 0 {
-			// Already written to!
-			println("racelite: multiple concurrent writes to same object detected")
-			println("racelite: write flag already set for addr", hex(addr), "at word", wordIndex, "of object at base", hex(base))
-			println("racelite: existing footer value:      ", hex(*footerPtr))
-			fatal("racelite: multiple concurrent writes to same object detected")
-		}
-		// Now record our write, followed by a small delay to let someone see it.
-		// We either do a ~nano delay or a ~1 in 100 chance of a ~micro delay.
-		// The ~nano delay is from just checking cheaprand.
-		println("racelitewrite writing bit in footer at:  ", footerPtr, "word index:", wordIndex)
-		*footerPtr ^= 1
-		// good with 100k samples!
-		// if cheaprandn(50_000) == 0 {
-		if cheaprandn(1_000_000) == 0 {
-			// TODO(thepudds): multiple ways to delay here. For now, do something simple that hopefully
-			// let's us see it work for the first time. ;)
-			usleep(10)
-		}
-
-		if diag() {
-			println("racelitewrite clearing bit in footer at:  ", footerPtr, "word index:", wordIndex)
-		}
-
-		if *footerPtr == 0 {
-			// Someone else changed it! It should be 1 still if we are the only writer.
-			println("racelite: multiple concurrent writes to same object detected")
-			println("racelite: write flag was changed for addr", hex(addr), "at word", wordIndex, "of object at base", hex(base))
-			println("racelite: existing footer value:      ", *footerPtr)
-			panic("racelite: multiple concurrent writes to same object detected")
-		}
-
-		// Now clear that bit, again via XOR.
-		*footerPtr ^= 1
-
-		// Done!
 	}
-}
 
-func raceliteread(addr uintptr) {
-	// TODO(thepudds): not yet implemented. we'll first prototype with write/write races.
-	// if diag() {
-	// 	println("raceliteread called with addr:     ", hex(addr))
-	// }
+	// Determine the index of the address in the heap object.
+	// Index 0 is base, index 1 is the next word, etc.
+	//
+	// Indexing is determined by the pointer size for the architecture.
+	index := (uintptr(addr) - base) / goarch.PtrSize
+
+	switch {
+	case index >= 64:
+		// TODO(vsaioc): should this value be hardcoded?
+		throw("raceliteread: index too large")
+	case index != uintptr(randWordIndex)%(span.elemsize/goarch.PtrSize):
+		// Check if we are monitoring this word index in general for this heap object.
+		// This prevents false positives, e.g., 'p.a = 1' and '_ = p.b' for some 'p struct{ a, b int }'
+		// won't trigger races.
+		if diag() {
+			print("raceliteread: skip undesired word ",
+				"addr=", hex(addr), " index=", index, " randWordIndex=", randWordIndex,
+				"\n")
+		}
+		return
+	}
+
+	// Now, we finally check and record our write in the footer.
+	// First, get the footer.
+	footerPtr := (*uint64)(unsafe.Pointer(base + span.elemsize - gc.RaceliteFooterSize))
+
+	if *footerPtr != 0 {
+		// Already written to!
+		print("racelite: write-read race at ",
+			"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
+			"\n")
+		return
+	}
+
+	// TODO(vsaioc): We are currently randomly sampling the delay
+	// at in 1 in 10,000. This should be configurable.
+	if cheaprandn(10_000) == 0 {
+		// TODO(thepudds): multiple ways to delay here. For now, do something simple that hopefully
+		// let's us see it work for the first time. ;)
+		usleep(1)
+	}
+
+	if *footerPtr != 0 {
+		// Another writer intercepted the read.
+		print("racelite: read-write race at ",
+			"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
+			"\n")
+	}
 }
 
 // raceliteCheckAddr reports if we should check addr for racelite,
 // and if so, which word index within the object to check.
-func raceliteCheckAddr(addr uintptr) (wordIndex uint64, ok bool) {
+func raceliteCheckAddr(addr uintptr) (index uint64, ok bool) {
 	// TODO(thepudds): multiple ways to do this, improve later.
 
-	wordIndex = uint64(raceliteCheckWordRand & 63)
+	index = uint64(raceliteCheckWordRand & 63)
 
 	// Most addrs are 8 or 16 byte aligned.
 	// TODO(thepudds): probably don't need the xor, maybe not shift. maybe just do a mask and == check.
 	// Also debatable if we want monitored addresses to be strided (while shifting over time),
 	// or maybe better not strided.
 	blended := uint32(addr>>3) ^ raceliteCheckAddrRand
-	return wordIndex, blended&raceliteCheckAddrMask == 0
+	_ = blended
+	return index, true
 }
 
 // diag reports true is we should print extra info.
