@@ -152,39 +152,15 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0-20
 	RET
 
 // func timesplit(u uint64) (sec int64, nsec int32)
-TEXT runtime·timesplit(SB), NOSPLIT, $0
-	// R1 = u (nanoseconds)
-	MOVD	u+0(FP), R1
-
-	// --- reciprocal multiply to get seconds ---
-	MOVW	$0x89705f41, R2      // reciprocal constant ≈ 2^61 / 1e9
-	UMULH	R1, R2, R3           // high 64 bits of (u * constant)
-	LSR	$29, R3, R4          // R4 = seconds (int64)
-
-	// --- compute remainder = u - sec*1e9 ---
-	MOVD	$1000000000, R5
-	MUL	R4, R5, R6
-	SUB	R6, R1, R1           // R1 = remainder
-
-	// --- branchless correction ---
-	// if remainder >= 1e9:
-	//    remainder -= 1e9
-	//    sec += 1
-
-	SUB	R5, R1, R7           // R7 = remainder - 1e9
-	LSR	$63, R7, R8          // R8 = 1 if remainder < 1e9, else 0
-	EOR	$1, R8               // invert: R8 = 1 if remainder >= 1e9, else 0
-
-	// remainder -= R8 * 1e9
-	NEG	R8, R9               // R9 = -R8 (0 or -1)
-	MADD	R9, R5, R1, R1       // R1 = R1 + R9*R5 → subtract 1e9 if flag=1
-
-	// sec += R8
-	ADD	R8, R4, R4
-
-	// --- store results ---
-	MOVD	R4, sec+0(FP)
-	MOVW	R1, nsec+8(FP)
+TEXT runtime·timesplit(SB), NOSPLIT, $0-20
+	MOVD    u+0(FP), R0
+	MOVD    R0, R1
+	MOVD    $1000000000, R2
+	UDIV    R2, R1
+	MUL    R1, R2
+	SUB    R2, R0
+	MOVD    R1,sec+8(FP)
+	MOVWU    R0,nsec+16(FP)
 	RET
 
 //func nsec(*int64) int64
