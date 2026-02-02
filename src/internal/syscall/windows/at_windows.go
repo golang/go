@@ -253,7 +253,25 @@ func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
 		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|FILE_SYNCHRONOUS_IO_NONALERT|options,
 	)
 	if err != nil {
-		return ntCreateFileError(err, 0)
+		const STATUS_ACCESS_DENIED NTStatus = 0xC0000022
+		if ntStatus, ok := err.(NTStatus); !ok || ntStatus != STATUS_ACCESS_DENIED {
+			return ntCreateFileError(err, 0)
+		}
+
+		// Access denied, try opening with DELETE only.
+		// This may succeed if the file has restrictive permissions
+		// but the caller has delete child permission on the parent directory.
+		err = NtOpenFile(
+			&h,
+			DELETE,
+			objAttrs,
+			&IO_STATUS_BLOCK{},
+			FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,
+			FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|options,
+		)
+		if err != nil {
+			return ntCreateFileError(err, 0)
+		}
 	}
 	defer syscall.CloseHandle(h)
 
