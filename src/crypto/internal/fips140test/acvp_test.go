@@ -23,7 +23,6 @@ import (
 	"bytes"
 	"crypto/elliptic"
 	"crypto/internal/cryptotest"
-	entropy "crypto/internal/entropy/v1.0.0"
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/aes"
 	"crypto/internal/fips140/aes/gcm"
@@ -59,6 +58,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	entropy "crypto/internal/entropy/v1.0.0"
 )
 
 var noPAAPAI = os.Getenv("GONOPAAPAI") == "1"
@@ -2107,9 +2108,9 @@ func TestACVP(t *testing.T) {
 
 	const (
 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
-		bsslVersion   = "v0.0.0-20251111011041-baaf868e6e8f"
+		bsslVersion   = "v0.0.0-20260422110153-4ccbe2adaf4f"
 		goAcvpModule  = "github.com/geomys/acvp-testdata"
-		goAcvpVersion = "v0.0.0-20251201200548-d893de8b8b1c"
+		goAcvpVersion = "v0.0.0-20260526143807-16992c4b1561"
 	)
 
 	// In crypto/tls/bogo_shim_test.go the test is skipped if run on a builder with runtime.GOOS == "windows"
