@@ -3468,6 +3468,34 @@ func TestWriteStringAlloc(t *testing.T) {
 	}
 }
 
+// Test that it's OK to have parallel I/O and Close on a file.
+func TestFileIOCloseRace(t *testing.T) {
+	t.Parallel()
+	file, err := Create(filepath.Join(t.TempDir(), "test.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		var tmp [100]byte
+		if _, err := file.Write(tmp[:]); err != nil && !errors.Is(err, ErrClosed) {
+			t.Error(err)
+		}
+	})
+	wg.Go(func() {
+		var tmp [100]byte
+		if _, err := file.Read(tmp[:]); err != nil && err != io.EOF && !errors.Is(err, ErrClosed) {
+			t.Error(err)
+		}
+	})
+	wg.Go(func() {
+		if err := file.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	wg.Wait()
+}
+
 // Test that it's OK to have parallel I/O and Close on a pipe.
 func TestPipeIOCloseRace(t *testing.T) {
 	// Skip on wasm, which doesn't have pipes.
