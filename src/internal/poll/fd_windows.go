@@ -11,7 +11,6 @@ import (
 	"io"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"unicode/utf16"
 	"unicode/utf8"
@@ -371,7 +370,7 @@ type FD struct {
 	// Whether FILE_FLAG_OVERLAPPED was not set when opening the file.
 	isBlocking bool
 
-	disassociated atomic.Bool
+	disassociated bool
 
 	// readPinner and writePinner are automatically unpinned
 	// before execIO returns.
@@ -404,7 +403,7 @@ func (fd *FD) addOffset(off int) {
 // pollable should be used instead of fd.pd.pollable(),
 // as it is aware of the disassociated state.
 func (fd *FD) pollable() bool {
-	return fd.pd.pollable() && !fd.disassociated.Load()
+	return fd.pd.pollable() && !fd.disassociated
 }
 
 // fileKind describes the kind of file.
@@ -477,12 +476,19 @@ func (fd *FD) Init(net string, pollable bool) error {
 
 // DisassociateIOCP disassociates the file handle from the IOCP.
 // The disassociate operation will not succeed if there is any
-// in-progress IO operation on the file handle.
+// in-progress I/O operation on the file handle.
 func (fd *FD) DisassociateIOCP() error {
-	if err := fd.incref(); err != nil {
+	// There is a small race window between execIO checking fd.disassociated and
+	// DisassociateIOCP setting it. NtSetInformationFile will fail anyway if
+	// there is any in-progress I/O operation, so just take a read-write lock
+	// to ensure there is no in-progress I/O and fail early if we can't get the lock.
+	if ok, err := fd.tryReadWriteLock(); err != nil || !ok {
+		if err == nil {
+			err = errors.New("can't disassociate the handle while there is in-progress I/O")
+		}
 		return err
 	}
-	defer fd.decref()
+	defer fd.readWriteUnlock()
 
 	if fd.isBlocking || !fd.pollable() {
 		// Nothing to disassociate.
@@ -493,7 +499,8 @@ func (fd *FD) DisassociateIOCP() error {
 	if err := windows.NtSetInformationFile(fd.Sysfd, &windows.IO_STATUS_BLOCK{}, unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)), windows.FileReplaceCompletionInformation); err != nil {
 		return err
 	}
-	fd.disassociated.Store(true)
+	// tryReadWriteLock means we have exclusive access to fd.
+	fd.disassociated = true
 	// Don't call fd.pd.close(), it would be too racy.
 	// There is no harm on leaving fd.pd open until Close is called.
 	return nil
