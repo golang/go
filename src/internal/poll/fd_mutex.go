@@ -265,7 +265,9 @@ func (fd *FD) readWriteLock() error {
 // is no remaining reference.
 func (fd *FD) readWriteUnlock() {
 	fd.fdmu.rwunlock(true)
-	fd.fdmu.rwunlock(false)
+	if fd.fdmu.rwunlock(false) {
+		fd.destroy()
+	}
 }
 
 // closing returns true if fd is closing.
