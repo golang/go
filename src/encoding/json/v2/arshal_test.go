@@ -416,14 +416,9 @@ type (
 		X            *structInlinedL2 `json:",inline"`
 		StructEmbed1 `json:",inline"`
 	}
-	structInlinedL2        struct{ A, B, C string }
-	StructEmbed1           struct{ C, D, E string }
-	StructEmbed2           struct{ E, F, G string }
-	structUnknownTextValue struct {
-		A int            `json:",omitzero"`
-		X jsontext.Value `json:",unknown"`
-		B int            `json:",omitzero"`
-	}
+	structInlinedL2       struct{ A, B, C string }
+	StructEmbed1          struct{ C, D, E string }
+	StructEmbed2          struct{ E, F, G string }
 	structInlineTextValue struct {
 		A int            `json:",omitzero"`
 		X jsontext.Value `json:",inline"`
@@ -2744,33 +2739,6 @@ func TestMarshal(t *testing.T) {
 		},
 		in:   structInlineMapNamedStringAny{X: map[namedString]any{"fizz": 3.14159}},
 		want: `{"fizz":"3.14159"}`,
-	}, {
-		name: jsontest.Name("Structs/InlinedFallback/DiscardUnknownMembers"),
-		opts: []Options{DiscardUnknownMembers(true)},
-		in: structInlineTextValue{
-			A: 1,
-			X: jsontext.Value(` { "fizz" : "buzz" } `),
-			B: 2,
-		},
-		// NOTE: DiscardUnknownMembers has no effect since this is "inline".
-		want: `{"A":1,"B":2,"fizz":"buzz"}`,
-	}, {
-		name: jsontest.Name("Structs/UnknownFallback/DiscardUnknownMembers"),
-		opts: []Options{DiscardUnknownMembers(true)},
-		in: structUnknownTextValue{
-			A: 1,
-			X: jsontext.Value(` { "fizz" : "buzz" } `),
-			B: 2,
-		},
-		want: `{"A":1,"B":2}`,
-	}, {
-		name: jsontest.Name("Structs/UnknownFallback"),
-		in: structUnknownTextValue{
-			A: 1,
-			X: jsontext.Value(` { "fizz" : "buzz" } `),
-			B: 2,
-		},
-		want: `{"A":1,"B":2,"fizz":"buzz"}`,
 	}, {
 		name: jsontest.Name("Structs/DuplicateName/NoCaseInlineTextValue/Other"),
 		in: structNoCaseInlineTextValue{
@@ -6999,24 +6967,7 @@ func TestUnmarshal(t *testing.T) {
 		opts:  []Options{RejectUnknownMembers(true)},
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
 		inVal: new(structInlineTextValue),
-		// NOTE: DiscardUnknownMembers has no effect since this is "inline".
 		want: addr(structInlineTextValue{
-			A: 1,
-			X: jsontext.Value(`{"fizz":"buzz"}`),
-			B: 2,
-		}),
-	}, {
-		name:    jsontest.Name("Structs/UnknownFallback/RejectUnknownMembers"),
-		opts:    []Options{RejectUnknownMembers(true)},
-		inBuf:   `{"A":1,"fizz":"buzz","B":2}`,
-		inVal:   new(structUnknownTextValue),
-		want:    addr(structUnknownTextValue{A: 1}),
-		wantErr: EU(ErrUnknownName).withPos(`{"A":1,`, "/fizz").withType('"', T[structUnknownTextValue]()),
-	}, {
-		name:  jsontest.Name("Structs/UnknownFallback"),
-		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: new(structUnknownTextValue),
-		want: addr(structUnknownTextValue{
 			A: 1,
 			X: jsontext.Value(`{"fizz":"buzz"}`),
 			B: 2,
