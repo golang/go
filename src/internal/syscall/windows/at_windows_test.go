@@ -6,7 +6,6 @@ package windows_test
 
 import (
 	"internal/syscall/windows"
-	"internal/syscall/windows/sysdll"
 
 	"os"
 	"path/filepath"
@@ -15,28 +14,6 @@ import (
 	"unsafe"
 )
 
-var (
-	modadvapi32               = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
-	procSetEntriesInAclW      = modadvapi32.NewProc("SetEntriesInAclW")
-	procSetNamedSecurityInfoW = modadvapi32.NewProc("SetNamedSecurityInfoW")
-)
-
-// https://msdn.microsoft.com/en-us/library/windows/desktop/aa379636.aspx
-type trustee struct {
-	MultipleTrustee          *trustee
-	MultipleTrusteeOperation int32
-	TrusteeForm              int32
-	TrusteeType              int32
-	Name                     *uint16
-}
-
-// https://msdn.microsoft.com/en-us/library/windows/desktop/aa446627.aspx
-type explicitAccess struct {
-	AccessPermissions uint32
-	AccessMode        int32
-	Inheritance       uint32
-	Trustee           trustee
-}
 
 const (
 	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa374899.aspx
@@ -102,8 +79,6 @@ func TestOpen(t *testing.T) {
 }
 
 func TestDeleteAt(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		name     string
 		modifier func(t *testing.T, path string)
@@ -115,6 +90,7 @@ func TestDeleteAt(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
 			dir := t.TempDir()
 			file := filepath.Join(dir, "a")
@@ -168,27 +144,28 @@ func makeFileNotReadable(t *testing.T, name string) {
 		t.Fatal(err)
 	}
 
-	entryForSid := func(sid *syscall.SID) explicitAccess {
-		return explicitAccess{
+	entryForSid := func(sid *syscall.SID) windows.EXPLICIT_ACCESS {
+		return windows.EXPLICIT_ACCESS{
 			AccessPermissions: 0,
 			AccessMode:        GRANT_ACCESS,
 			Inheritance:       SUB_CONTAINERS_AND_OBJECTS_INHERIT,
-			Trustee: trustee{
+			Trustee: windows.TRUSTEE{
 				TrusteeForm: TRUSTEE_IS_SID,
 				Name:        (*uint16)(unsafe.Pointer(sid)),
 			},
 		}
 	}
 
-	entries := []explicitAccess{
+	entries := []windows.EXPLICIT_ACCESS{
 		entryForSid(creatorOwnerSID),
 		entryForSid(creatorGroupSID),
 		entryForSid(everyoneSID),
 	}
 
 	var oldAcl, newAcl syscall.Handle
-	if err := setEntriesInAcl(
-		entries,
+	if err := windows.SetEntriesInAcl(
+		uint32(len(entries)),
+		&entries[0],
 		oldAcl,
 		&newAcl,
 	); err != nil {
@@ -196,7 +173,7 @@ func makeFileNotReadable(t *testing.T, name string) {
 	}
 
 	defer syscall.LocalFree((syscall.Handle)(unsafe.Pointer(newAcl)))
-	if err := setNamedSecurityInfo(
+	if err := windows.SetNamedSecurityInfo(
 		name,
 		SE_FILE_OBJECT,
 		DACL_SECURITY_INFORMATION|PROTECTED_DACL_SECURITY_INFORMATION,
@@ -207,33 +184,4 @@ func makeFileNotReadable(t *testing.T, name string) {
 	); err != nil {
 		t.Fatal(err)
 	}
-}
-
-func setEntriesInAcl(entries []explicitAccess, oldAcl syscall.Handle, newAcl *syscall.Handle) error {
-	ret, _, _ := procSetEntriesInAclW.Call(
-		uintptr(len(entries)),
-		uintptr(unsafe.Pointer(&entries[0])),
-		uintptr(oldAcl),
-		uintptr(unsafe.Pointer(newAcl)),
-	)
-	if ret != 0 {
-		return syscall.Errno(ret)
-	}
-	return nil
-}
-
-func setNamedSecurityInfo(objectName string, objectType int32, secInfo uint32, owner, group *syscall.SID, dacl, sacl syscall.Handle) error {
-	ret, _, _ := procSetNamedSecurityInfoW.Call(
-		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(objectName))),
-		uintptr(objectType),
-		uintptr(secInfo),
-		uintptr(unsafe.Pointer(owner)),
-		uintptr(unsafe.Pointer(group)),
-		uintptr(dacl),
-		uintptr(sacl),
-	)
-	if ret != 0 {
-		return syscall.Errno(ret)
-	}
-	return nil
 }

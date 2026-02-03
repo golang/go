@@ -301,3 +301,20 @@ const ValidFileFlagsMask = O_FILE_FLAG_OPEN_REPARSE_POINT |
 	O_FILE_FLAG_NO_BUFFERING |
 	O_FILE_FLAG_RANDOM_ACCESS |
 	O_FILE_FLAG_WRITE_THROUGH
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa379636.aspx
+type TRUSTEE struct {
+	MultipleTrustee          *TRUSTEE
+	MultipleTrusteeOperation int32
+	TrusteeForm              int32
+	TrusteeType              int32
+	Name                     *uint16
+}
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa446627.aspx
+type EXPLICIT_ACCESS struct {
+	AccessPermissions uint32
+	AccessMode        int32
+	Inheritance       uint32
+	Trustee           TRUSTEE
+}

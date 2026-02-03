@@ -62,6 +62,8 @@ var (
 	procOpenThreadToken                   = modadvapi32.NewProc("OpenThreadToken")
 	procQueryServiceStatus                = modadvapi32.NewProc("QueryServiceStatus")
 	procRevertToSelf                      = modadvapi32.NewProc("RevertToSelf")
+	procSetEntriesInAclW                  = modadvapi32.NewProc("SetEntriesInAclW")
+	procSetNamedSecurityInfoW             = modadvapi32.NewProc("SetNamedSecurityInfoW")
 	procSetTokenInformation               = modadvapi32.NewProc("SetTokenInformation")
 	procProcessPrng                       = modbcryptprimitives.NewProc("ProcessPrng")
 	procGetAdaptersAddresses              = modiphlpapi.NewProc("GetAdaptersAddresses")
@@ -232,6 +234,31 @@ func RevertToSelf() (err error) {
 	r1, _, e1 := syscall.SyscallN(procRevertToSelf.Addr())
 	if r1 == 0 {
 		err = errnoErr(e1)
+	}
+	return
+}
+
+func SetEntriesInAcl(countExplicitEntries uint32, explicitEntries *EXPLICIT_ACCESS, oldACL syscall.Handle, newACL *syscall.Handle) (ret error) {
+	r0, _, _ := syscall.SyscallN(procSetEntriesInAclW.Addr(), uintptr(countExplicitEntries), uintptr(unsafe.Pointer(explicitEntries)), uintptr(oldACL), uintptr(unsafe.Pointer(newACL)))
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
+	}
+	return
+}
+
+func SetNamedSecurityInfo(objectName string, objectType int32, securityInformation uint32, owner *syscall.SID, group *syscall.SID, dacl syscall.Handle, sacl syscall.Handle) (ret error) {
+	var _p0 *uint16
+	_p0, ret = syscall.UTF16PtrFromString(objectName)
+	if ret != nil {
+		return
+	}
+	return _SetNamedSecurityInfo(_p0, objectType, securityInformation, owner, group, dacl, sacl)
+}
+
+func _SetNamedSecurityInfo(objectName *uint16, objectType int32, securityInformation uint32, owner *syscall.SID, group *syscall.SID, dacl syscall.Handle, sacl syscall.Handle) (ret error) {
+	r0, _, _ := syscall.SyscallN(procSetNamedSecurityInfoW.Addr(), uintptr(unsafe.Pointer(objectName)), uintptr(objectType), uintptr(securityInformation), uintptr(unsafe.Pointer(owner)), uintptr(unsafe.Pointer(group)), uintptr(dacl), uintptr(sacl))
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
 	}
 	return
 }
