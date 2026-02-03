@@ -206,3 +206,57 @@ func ExampleValue_FieldByName() {
 	// Output:
 	// Name: John
 }
+
+func ExampleValue_Fields() {
+	type Person struct {
+		Name    string
+		Age     int
+		City    string
+		Country string
+	}
+
+	p := Person{Name: "Alice", Age: 30, City: "New York", Country: "USA"}
+	v := reflect.ValueOf(p)
+
+	fmt.Println("Iterating over all struct fields:")
+	for field, value := range v.Fields() {
+		fmt.Printf("  %s = %v\n", field.Name, value)
+	}
+
+	// Output:
+	// Iterating over all struct fields:
+	//   Name = Alice
+	//   Age = 30
+	//   City = New York
+	//   Country = USA
+}
+
+func ExampleValue_Methods() {
+	r := bytes.NewReader([]byte("hello"))
+	v := reflect.ValueOf(r)
+
+	fmt.Println("Methods of *bytes.Reader:")
+	for method, methodValue := range v.Methods() {
+		fmt.Printf("  %s\n", method.Name)
+		// Call the Len method as an example
+		if method.Name == "Len" {
+			result := methodValue.Call(nil)
+			fmt.Printf("  Len() = %v\n", result[0])
+		}
+	}
+
+	// Output:
+	// Methods of *bytes.Reader:
+	//   Len
+	//   Len() = 5
+	//   Read
+	//   ReadAt
+	//   ReadByte
+	//   ReadRune
+	//   Reset
+	//   Seek
+	//   Size
+	//   UnreadByte
+	//   UnreadRune
+	//   WriteTo
+}
