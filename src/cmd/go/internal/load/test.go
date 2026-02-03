@@ -294,7 +294,7 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 
 	pb := p.Internal.Build
 	pmain.DefaultGODEBUG = defaultGODEBUG(loaderstate, pmain, pb.Directives, pb.TestDirectives, pb.XTestDirectives)
-	if pmain.Internal.BuildInfo == nil || pmain.DefaultGODEBUG != p.DefaultGODEBUG {
+	if !opts.SuppressBuildInfo && (pmain.Internal.BuildInfo == nil || pmain.DefaultGODEBUG != p.DefaultGODEBUG) {
 		// Either we didn't generate build info for the package under test (because it wasn't package main), or
 		// the DefaultGODEBUG used to build the test main package is different from the DefaultGODEBUG
 		// used to build the package under test. If we didn't set build info for the package under test
