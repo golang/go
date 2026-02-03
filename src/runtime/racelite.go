@@ -36,9 +36,14 @@ var (
 	// a given object, which helps prevent us from having different words from the same object
 	// interfere with each other.
 	raceliteCheckWordRand uint32 = 0
+
+	// raceliteCheckAddrMask = (1 << 10) - 1 // check 1 out of 1024 addresses
 )
 
-// const raceliteCheckAddrMask = (1 << 10) - 1 // check 1 out of 1024 addresses
+// diag reports true is we should print extra info.
+func diag() bool {
+	return debug.racelite >= 2
+}
 
 // checkinstack checks if addr is in the current goroutine's stack.
 func checkinstack(addr uintptr) bool {
@@ -73,12 +78,12 @@ func racelitewrite(addr uintptr) {
 	case !check:
 		// Not checking this addr. This is the common case.
 		if diag() {
-			print("racelitewrite: not checking addr=", hex(addr), "\n")
+			print("RACELITE write: not checking addr=", hex(addr), "\n")
 		}
 		return
 	case checkinstack(addr):
 		if diag() {
-			print("racelitewrite: skip stack address ", hex(addr), "\n")
+			print("RACELITE write: skip stack address ", hex(addr), "\n")
 		}
 		return
 	}
@@ -89,13 +94,13 @@ func racelitewrite(addr uintptr) {
 		return
 	case span.elemsize > gc.RaceliteFooterSize*8:
 		if diag() {
-			println("racelite: not tracking heap objects > 64 bytes yet")
+			println("RACELITE: not tracking heap objects > 64 bytes yet")
 		}
 		return
 	case span.elemsize <= 16:
 		// 	// TODO(thepudds): sidestep tiny allocator for now.
 		// 	if diag() {
-		// 		println("racelite: not tracking heap objects <= 16 bytes yet")
+		// 		println("RACELITE: not tracking heap objects <= 16 bytes yet")
 		// 	}
 		// 	return
 	}
@@ -107,13 +112,13 @@ func racelitewrite(addr uintptr) {
 	index := (uintptr(addr) - base) / goarch.PtrSize
 	switch {
 	case index >= 64:
-		throw("racelite: index too large")
+		throw("RACELITE: index too large")
 	case index != uintptr(randWordIndex)%(span.elemsize/goarch.PtrSize):
 		// Check if we are monitoring this word index in general for this heap object.
 		// This prevents false positives, e.g., 'p.a = 1' and 'p.b = 2' for some 'p struct{ a, b int }'
 		// won't trigger races.
 		if diag() {
-			print("racelitewrite: skip undesired word ",
+			print("RACELITE write: skip undesired word ",
 				"addr=", hex(addr), " index=", index, " randWordIndex=", randWordIndex,
 				"\n")
 		}
@@ -130,9 +135,17 @@ func racelitewrite(addr uintptr) {
 	if *footerPtr != 0 {
 		// Already being written to.
 		// Another writer intercepted the write.
-		print("racelite: write-write race (entry) at ",
-			"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
-			"\n")
+		//
+		// Write the current goroutine's stack on the system stack.
+		stw := stopTheWorld(stwRacelite)
+		gp := getg()
+		systemstack(func() {
+			print("RACELITE: write-write race (entry) at ",
+				"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
+				"\n")
+			traceback(^uintptr(0), ^uintptr(0), 0, gp)
+		})
+		startTheWorld(stw)
 		return
 	}
 
@@ -150,9 +163,19 @@ func racelitewrite(addr uintptr) {
 	if *footerPtr == 0 {
 		// Another writer intercepted the write.
 		// TODO(vsaioc): This might be unnecessary, since we already check at the entry.
-		print("racelite: write-write race (exit) at ",
-			"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
-			"\n")
+		// We are already sampling, so missing the narrow window where the two write
+		// checks might race overlap is (probably) not a big deal.
+		//
+		// Write the current goroutine's stack on the system stack.
+		stw := stopTheWorld(stwRacelite)
+		gp := getg()
+		systemstack(func() {
+			print("RACELITE: write-write race (exit) at ",
+				"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
+				"\n")
+			traceback(^uintptr(0), ^uintptr(0), 0, gp)
+		})
+		startTheWorld(stw)
 	}
 
 	// Now clear that bit, again via XOR.
@@ -180,7 +203,7 @@ func raceliteread(addr uintptr) {
 	if !check {
 		// Not checking this addr. This is the common case.
 		if diag() {
-			print("raceliteread: skip stack address ", hex(addr), "\n")
+			print("RACELITE read: skip stack address ", hex(addr), "\n")
 		}
 		return
 	}
@@ -191,7 +214,7 @@ func raceliteread(addr uintptr) {
 	if checkinstack(addr) {
 		// This points into our stack, so ignore.
 		if diag() {
-			print("raceliteread: skip stack address ", hex(addr), "\n")
+			print("RACELITE read: skip stack address ", hex(addr), "\n")
 		}
 		return
 	}
@@ -203,7 +226,7 @@ func raceliteread(addr uintptr) {
 		return
 	case span.elemsize > gc.RaceliteFooterSize*8:
 		if diag() {
-			print("raceliteread: not tracking objects > 64 bytes yet; ",
+			print("RACELITE read: not tracking objects > 64 bytes yet; ",
 				"object at addr=", hex(addr), " is ", span.elemsize, " bytes",
 				"\n")
 		}
@@ -211,7 +234,7 @@ func raceliteread(addr uintptr) {
 	case span.elemsize <= 16:
 		// 	// TODO(thepudds): sidestep tiny allocator for now.
 		// 	if diag() {
-		// 		println("racelite: not tracking heap objects <= 16 bytes yet")
+		// 		println("RACELITE: not tracking heap objects <= 16 bytes yet")
 		// 	}
 		// 	return
 	}
@@ -225,13 +248,13 @@ func raceliteread(addr uintptr) {
 	switch {
 	case index >= 64:
 		// TODO(vsaioc): should this value be hardcoded?
-		throw("raceliteread: index too large")
+		throw("RACELITE read: index too large")
 	case index != uintptr(randWordIndex)%(span.elemsize/goarch.PtrSize):
 		// Check if we are monitoring this word index in general for this heap object.
 		// This prevents false positives, e.g., 'p.a = 1' and '_ = p.b' for some 'p struct{ a, b int }'
 		// won't trigger races.
 		if diag() {
-			print("raceliteread: skip undesired word ",
+			print("RACELITE read: skip undesired word ",
 				"addr=", hex(addr), " index=", index, " randWordIndex=", randWordIndex,
 				"\n")
 		}
@@ -243,10 +266,18 @@ func raceliteread(addr uintptr) {
 	footerPtr := (*uint64)(unsafe.Pointer(base + span.elemsize - gc.RaceliteFooterSize))
 
 	if *footerPtr != 0 {
-		// Already written to!
-		print("racelite: write-read race at ",
-			"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
-			"\n")
+		// Reader intercepted a write.
+		//
+		// Write the current goroutine's stack on the system stack.
+		stw := stopTheWorld(stwRacelite)
+		gp := getg()
+		systemstack(func() {
+			print("RACELITE: write-read race at ",
+				"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
+				"\n")
+			traceback(^uintptr(0), ^uintptr(0), 0, gp)
+		})
+		startTheWorld(stw)
 		return
 	}
 
@@ -260,38 +291,45 @@ func raceliteread(addr uintptr) {
 
 	if *footerPtr != 0 {
 		// Another writer intercepted the read.
-		print("racelite: read-write race at ",
-			"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
-			"\n")
+		//
+		// Write the current goroutine's stack on the system stack.
+		stw := stopTheWorld(stwRacelite)
+		gp := getg()
+		systemstack(func() {
+			print("RACELITE: read-write race at ",
+				"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
+				"\n")
+			traceback(^uintptr(0), ^uintptr(0), 0, gp)
+		})
+		startTheWorld(stw)
 	}
 }
 
-// raceliteCheckAddr reports if we should check addr for racelite,
-// and if so, which word index within the object to check.
+// raceliteCheckAddr reports if we should check the given address.
+// It also retrieves the word index within the object.
 func raceliteCheckAddr(addr uintptr) (index uint64, ok bool) {
 	// TODO(thepudds): multiple ways to do this, improve later.
 
+	// Select last 6 bits of the address.
 	index = uint64(raceliteCheckWordRand & 63)
 
-	// Most addrs are 8 or 16 byte aligned.
+	// Most addresses are 8 or 16 byte aligned.
 	// TODO(thepudds): probably don't need the xor, maybe not shift. maybe just do a mask and == check.
 	// Also debatable if we want monitored addresses to be strided (while shifting over time),
 	// or maybe better not strided.
-	blended := uint32(addr>>3) ^ raceliteCheckAddrRand
-	_ = blended
-	return index, true
-}
-
-// diag reports true is we should print extra info.
-func diag() bool {
-	return debug.racelite >= 2
+	if diag() {
+		// TOOO(vsaioc): Decouple this check from diagnostics.
+		// For debugging, always sample the address.
+		return index, true
+	}
+	return index, uint32(addr>>3)^raceliteCheckAddrRand == 0
 }
 
 /*
 
 Sample program we can currently detect:
 
-$ GOEXPERIMENT=nosizespecializedmalloc GODEBUG=racelite=1 go run -gcflags='-racelite' . |& grep 'racelite: multiple concurrent writes'
+$ GOEXPERIMENT=nosizespecializedmalloc GODEBUG=racelite=1 go run -gcflags='-racelite' . |& grep 'RACELITE: multiple concurrent writes'
 
 or via stress, which fails maybe 15% of the time:
 
