@@ -1789,10 +1789,7 @@ func (b *Builder) getPkgConfigFlags(a *Action, p *load.Package) (cflags, ldflags
 			}
 		}
 
-		// Running 'pkg-config' can cause execution of
-		// arbitrary code using flags that are not in
-		// the safelist.
-		if err := checkCompilerFlags("CFLAGS", "pkg-config --cflags", pcflags); err != nil {
+		if err := checkPkgConfigFlags("", "pkg-config", pcflags); err != nil {
 			return nil, nil, err
 		}
 
