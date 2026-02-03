@@ -11,6 +11,7 @@ package arch
 import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/riscv"
+	"fmt"
 )
 
 // IsRISCV64AMO reports whether op is an AMO instruction that requires
@@ -32,6 +33,20 @@ func IsRISCV64VTypeI(op obj.As) bool {
 	return op == riscv.AVSETVLI || op == riscv.AVSETIVLI
 }
 
+// IsRISCV64CSRO reports whether the op is an instruction that uses
+// CSR symbolic names and whether that instruction expects a register
+// or an immediate source operand.
+func IsRISCV64CSRO(op obj.As) (imm bool, ok bool) {
+	switch op {
+	case riscv.ACSRRCI, riscv.ACSRRSI, riscv.ACSRRWI:
+		imm = true
+		fallthrough
+	case riscv.ACSRRC, riscv.ACSRRS, riscv.ACSRRW:
+		ok = true
+	}
+	return
+}
+
 var riscv64SpecialOperand map[string]riscv.SpecialOperand
 
 // RISCV64SpecialOperand returns the internal representation of a special operand.
@@ -39,8 +54,20 @@ func RISCV64SpecialOperand(name string) riscv.SpecialOperand {
 	if riscv64SpecialOperand == nil {
 		// Generate mapping when function is first called.
 		riscv64SpecialOperand = map[string]riscv.SpecialOperand{}
-		for opd := riscv.SPOP_BEGIN; opd < riscv.SPOP_END; opd++ {
+		for opd := riscv.SPOP_RVV_BEGIN; opd < riscv.SPOP_RVV_END; opd++ {
 			riscv64SpecialOperand[opd.String()] = opd
+		}
+		// Add the CSRs
+		for csrCode, csrName := range riscv.CSRs {
+			// The set of RVV special operand names and the set of CSR special operands
+			// names are disjoint and so can safely share a single namespace. However,
+			// it's possible that a future update to the CSRs in inst.go could introduce
+			// a conflict. This check ensures that such a conflict does not go
+			// unnoticed.
+			if _, ok := riscv64SpecialOperand[csrName]; ok {
+				panic(fmt.Sprintf("riscv64 special operand %q redefined", csrName))
+			}
+			riscv64SpecialOperand[csrName] = riscv.SpecialOperand(int(csrCode) + int(riscv.SPOP_CSR_BEGIN))
 		}
 	}
 	if opd, ok := riscv64SpecialOperand[name]; ok {

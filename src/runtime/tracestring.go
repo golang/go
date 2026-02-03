@@ -12,6 +12,8 @@ import "internal/trace/tracev2"
 
 // traceStringTable is map of string -> unique ID that also manages
 // writing strings out into the trace.
+//
+// ID 0 is reserved for the empty string.
 type traceStringTable struct {
 	// lock protects buf.
 	lock mutex
@@ -37,6 +39,9 @@ func (t *traceStringTable) put(gen uintptr, s string) uint64 {
 
 // emit emits a string and creates an ID for it, but doesn't add it to the table. Returns the ID.
 func (t *traceStringTable) emit(gen uintptr, s string) uint64 {
+	if len(s) == 0 {
+		return 0 // Empty strings are implicitly assigned ID 0 already.
+	}
 	// Grab an ID and write the string to the buffer.
 	id := t.tab.stealID()
 	systemstack(func() {

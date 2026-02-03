@@ -246,5 +246,5 @@ var _ = append[context.CancelFunc, []context.CancelFunc, context.CancelFunc](can
 func g[T any](T) T { panic(0) }
 
 var _ = g[int]
-var _ = g[nil /* ERROR "is not a type" */ ]
+var _ = g[nil /* ERROR "nil (untyped nil) is not a type" */ ]
 var _ = g(0)

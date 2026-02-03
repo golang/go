@@ -492,6 +492,9 @@ func (s *handleState) appendAttr(a Attr) bool {
 	// Special case: Source.
 	if v := a.Value; v.Kind() == KindAny {
 		if src, ok := v.Any().(*Source); ok {
+			if src.isEmpty() {
+				return false
+			}
 			if s.h.json {
 				a.Value = src.group()
 			} else {

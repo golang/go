@@ -298,6 +298,9 @@ func (b *B) doBench() BenchmarkResult {
 	return b.result
 }
 
+// Don't run more than 1e9 times. (This also keeps n in int range on 32 bit platforms.)
+const maxBenchPredictIters = 1_000_000_000
+
 func predictN(goalns int64, prevIters int64, prevns int64, last int64) int {
 	if prevns == 0 {
 		// Round up to dodge divide by zero. See https://go.dev/issue/70709.
@@ -317,7 +320,7 @@ func predictN(goalns int64, prevIters int64, prevns int64, last int64) int {
 	// Be sure to run at least one more than last time.
 	n = max(n, last+1)
 	// Don't run more than 1e9 times. (This also keeps n in int range on 32 bit platforms.)
-	n = min(n, 1e9)
+	n = min(n, maxBenchPredictIters)
 	return int(n)
 }
 
@@ -403,7 +406,9 @@ func (b *B) stopOrScaleBLoop() bool {
 		// in big trouble.
 		panic("loop iteration target overflow")
 	}
-	return true
+	// predictN may have capped the number of iterations; make sure to
+	// terminate if we've already hit that cap.
+	return uint64(prevIters) < b.loop.n
 }
 
 func (b *B) loopSlowPath() bool {
@@ -478,12 +483,12 @@ func (b *B) loopSlowPath() bool {
 // the timer so cleanup code is not measured.
 //
 // Within the body of a "for b.Loop() { ... }" loop, arguments to and
-// results from function calls within the loop are kept alive, preventing
-// the compiler from fully optimizing away the loop body. Currently, this is
-// implemented by disabling inlining of functions called in a b.Loop loop.
-// This applies only to calls syntactically between the curly braces of the loop,
-// and the loop condition must be written exactly as "b.Loop()". Optimizations
-// are performed as usual in any functions called by the loop.
+// results from function calls and assigned variables within the loop are kept
+// alive, preventing the compiler from fully optimizing away the loop body.
+// Currently, this is implemented as a compiler transformation that wraps such
+// variables with a runtime.KeepAlive intrinsic call. This applies only to
+// statements syntactically between the curly braces of the loop, and the loop
+// condition must be written exactly as "b.Loop()".
 //
 // After Loop returns false, b.N contains the total number of iterations that
 // ran, so the benchmark may use b.N to compute other average metrics.

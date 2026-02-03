@@ -540,6 +540,12 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpPPC64LessEqual(v)
 	case OpPPC64LessThan:
 		return rewriteValuePPC64_OpPPC64LessThan(v)
+	case OpPPC64LoweredPanicBoundsCR:
+		return rewriteValuePPC64_OpPPC64LoweredPanicBoundsCR(v)
+	case OpPPC64LoweredPanicBoundsRC:
+		return rewriteValuePPC64_OpPPC64LoweredPanicBoundsRC(v)
+	case OpPPC64LoweredPanicBoundsRR:
+		return rewriteValuePPC64_OpPPC64LoweredPanicBoundsRR(v)
 	case OpPPC64MFVSRD:
 		return rewriteValuePPC64_OpPPC64MFVSRD(v)
 	case OpPPC64MOVBZload:
@@ -667,7 +673,8 @@ func rewriteValuePPC64(v *Value) bool {
 	case OpPPC64XORconst:
 		return rewriteValuePPC64_OpPPC64XORconst(v)
 	case OpPanicBounds:
-		return rewriteValuePPC64_OpPanicBounds(v)
+		v.Op = OpPPC64LoweredPanicBoundsRR
+		return true
 	case OpPopCount16:
 		return rewriteValuePPC64_OpPopCount16(v)
 	case OpPopCount32:
@@ -4118,23 +4125,48 @@ func rewriteValuePPC64_OpOffPtr(v *Value) bool {
 func rewriteValuePPC64_OpPPC64ADD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (ADD l:(MULLD x y) z)
+	b := v.Block
+	// match: (ADD z l:(MULLD x y))
 	// cond: buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)
-	// result: (MADDLD x y z)
+	// result: (MADDLD x y z )
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			l := v_0
+			z := v_0
+			l := v_1
 			if l.Op != OpPPC64MULLD {
 				continue
 			}
 			y := l.Args[1]
 			x := l.Args[0]
-			z := v_1
 			if !(buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)) {
 				continue
 			}
 			v.reset(OpPPC64MADDLD)
 			v.AddArg3(x, y, z)
+			return true
+		}
+		break
+	}
+	// match: (ADD z l:(MULLDconst <mt> [x] y))
+	// cond: buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)
+	// result: (MADDLD (MOVDconst <mt> [int64(x)]) y z )
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			z := v_0
+			l := v_1
+			if l.Op != OpPPC64MULLDconst {
+				continue
+			}
+			mt := l.Type
+			x := auxIntToInt32(l.AuxInt)
+			y := l.Args[0]
+			if !(buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)) {
+				continue
+			}
+			v.reset(OpPPC64MADDLD)
+			v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, mt)
+			v0.AuxInt = int64ToAuxInt(int64(x))
+			v.AddArg3(v0, y, z)
 			return true
 		}
 		break
@@ -4232,6 +4264,52 @@ func rewriteValuePPC64_OpPPC64ADDE(v *Value) bool {
 }
 func rewriteValuePPC64_OpPPC64ADDconst(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	// match: (ADDconst <at> [z] l:(MULLD x y))
+	// cond: buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)
+	// result: (MADDLD x y (MOVDconst <at> [int64(z)]))
+	for {
+		at := v.Type
+		z := auxIntToInt64(v.AuxInt)
+		l := v_0
+		if l.Op != OpPPC64MULLD {
+			break
+		}
+		y := l.Args[1]
+		x := l.Args[0]
+		if !(buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)) {
+			break
+		}
+		v.reset(OpPPC64MADDLD)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, at)
+		v0.AuxInt = int64ToAuxInt(int64(z))
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (ADDconst <at> [z] l:(MULLDconst <mt> [x] y))
+	// cond: buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)
+	// result: (MADDLD (MOVDconst <mt> [int64(x)]) y (MOVDconst <at> [int64(z)]))
+	for {
+		at := v.Type
+		z := auxIntToInt64(v.AuxInt)
+		l := v_0
+		if l.Op != OpPPC64MULLDconst {
+			break
+		}
+		mt := l.Type
+		x := auxIntToInt32(l.AuxInt)
+		y := l.Args[0]
+		if !(buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)) {
+			break
+		}
+		v.reset(OpPPC64MADDLD)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, mt)
+		v0.AuxInt = int64ToAuxInt(int64(x))
+		v1 := b.NewValue0(v.Pos, OpPPC64MOVDconst, at)
+		v1.AuxInt = int64ToAuxInt(int64(z))
+		v.AddArg3(v0, y, v1)
+		return true
+	}
 	// match: (ADDconst [c] (ADDconst [d] x))
 	// cond: is32Bit(c+d)
 	// result: (ADDconst [c+d] x)
@@ -6825,6 +6903,86 @@ func rewriteValuePPC64_OpPPC64LessThan(v *Value) bool {
 		v.AddArg(cmp)
 		return true
 	}
+}
+func rewriteValuePPC64_OpPPC64LoweredPanicBoundsCR(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem)
+	// result: (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		p := auxToPanicBoundsC(v.Aux)
+		if v_0.Op != OpPPC64MOVDconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		mem := v_1
+		v.reset(OpPPC64LoweredPanicBoundsCC)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCCToAux(PanicBoundsCC{Cx: p.C, Cy: c})
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64LoweredPanicBoundsRC(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem)
+	// result: (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		p := auxToPanicBoundsC(v.Aux)
+		if v_0.Op != OpPPC64MOVDconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		mem := v_1
+		v.reset(OpPPC64LoweredPanicBoundsCC)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCCToAux(PanicBoundsCC{Cx: c, Cy: p.C})
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64LoweredPanicBoundsRR(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem)
+	// result: (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		x := v_0
+		if v_1.Op != OpPPC64MOVDconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mem := v_2
+		v.reset(OpPPC64LoweredPanicBoundsRC)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCToAux(PanicBoundsC{C: c})
+		v.AddArg2(x, mem)
+		return true
+	}
+	// match: (LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem)
+	// result: (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpPPC64MOVDconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		y := v_1
+		mem := v_2
+		v.reset(OpPPC64LoweredPanicBoundsCR)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCToAux(PanicBoundsC{C: c})
+		v.AddArg2(y, mem)
+		return true
+	}
+	return false
 }
 func rewriteValuePPC64_OpPPC64MFVSRD(v *Value) bool {
 	v_0 := v.Args[0]
@@ -12977,60 +13135,6 @@ func rewriteValuePPC64_OpPPC64XORconst(v *Value) bool {
 		v.reset(OpPPC64SETBCR)
 		v.AuxInt = int32ToAuxInt(n)
 		v.AddArg(cmp)
-		return true
-	}
-	return false
-}
-func rewriteValuePPC64_OpPanicBounds(v *Value) bool {
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (PanicBounds [kind] x y mem)
-	// cond: boundsABI(kind) == 0
-	// result: (LoweredPanicBoundsA [kind] x y mem)
-	for {
-		kind := auxIntToInt64(v.AuxInt)
-		x := v_0
-		y := v_1
-		mem := v_2
-		if !(boundsABI(kind) == 0) {
-			break
-		}
-		v.reset(OpPPC64LoweredPanicBoundsA)
-		v.AuxInt = int64ToAuxInt(kind)
-		v.AddArg3(x, y, mem)
-		return true
-	}
-	// match: (PanicBounds [kind] x y mem)
-	// cond: boundsABI(kind) == 1
-	// result: (LoweredPanicBoundsB [kind] x y mem)
-	for {
-		kind := auxIntToInt64(v.AuxInt)
-		x := v_0
-		y := v_1
-		mem := v_2
-		if !(boundsABI(kind) == 1) {
-			break
-		}
-		v.reset(OpPPC64LoweredPanicBoundsB)
-		v.AuxInt = int64ToAuxInt(kind)
-		v.AddArg3(x, y, mem)
-		return true
-	}
-	// match: (PanicBounds [kind] x y mem)
-	// cond: boundsABI(kind) == 2
-	// result: (LoweredPanicBoundsC [kind] x y mem)
-	for {
-		kind := auxIntToInt64(v.AuxInt)
-		x := v_0
-		y := v_1
-		mem := v_2
-		if !(boundsABI(kind) == 2) {
-			break
-		}
-		v.reset(OpPPC64LoweredPanicBoundsC)
-		v.AuxInt = int64ToAuxInt(kind)
-		v.AddArg3(x, y, mem)
 		return true
 	}
 	return false

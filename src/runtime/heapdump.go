@@ -206,7 +206,7 @@ func dumptype(t *_type) {
 		dwritebyte('.')
 		dwrite(unsafe.Pointer(unsafe.StringData(name)), uintptr(len(name)))
 	}
-	dumpbool(t.Kind_&abi.KindDirectIface == 0 || t.Pointers())
+	dumpbool(!t.IsDirectIface() || t.Pointers())
 }
 
 // dump an object.
@@ -412,10 +412,18 @@ func dumpgs() {
 	forEachG(func(gp *g) {
 		status := readgstatus(gp) // The world is stopped so gp will not be in a scan state.
 		switch status {
+		case _Grunning:
+			// Dump goroutine if it's _Grunning only during a syscall. This is safe
+			// because the goroutine will just park without mutating its stack, since
+			// the world is stopped.
+			if gp.syscallsp != 0 {
+				dumpgoroutine(gp)
+			}
+			fallthrough
 		default:
 			print("runtime: unexpected G.status ", hex(status), "\n")
 			throw("dumpgs in STW - bad status")
-		case _Gdead:
+		case _Gdead, _Gdeadextra:
 			// ok
 		case _Grunnable,
 			_Gsyscall,
@@ -460,7 +468,7 @@ func dumproots() {
 					continue
 				}
 				spf := (*specialfinalizer)(unsafe.Pointer(sp))
-				p := unsafe.Pointer(s.base() + uintptr(spf.special.offset))
+				p := unsafe.Pointer(s.base() + spf.special.offset)
 				dumpfinalizer(p, spf.fn, spf.fint, spf.ot)
 			}
 		}
@@ -536,7 +544,7 @@ func dumpparams() {
 	dumpint(uint64(arenaEnd))
 	dumpstr(goarch.GOARCH)
 	dumpstr(buildVersion)
-	dumpint(uint64(ncpu))
+	dumpint(uint64(numCPUStartup))
 }
 
 func itab_callback(tab *itab) {
@@ -659,7 +667,7 @@ func dumpmemprof() {
 				continue
 			}
 			spp := (*specialprofile)(unsafe.Pointer(sp))
-			p := s.base() + uintptr(spp.special.offset)
+			p := s.base() + spp.special.offset
 			dumpint(tagAllocSample)
 			dumpint(uint64(p))
 			dumpint(uint64(uintptr(unsafe.Pointer(spp.b))))

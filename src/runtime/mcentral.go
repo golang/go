@@ -250,13 +250,10 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 // grow allocates a new empty span from the heap and initializes it for c's size class.
 func (c *mcentral) grow() *mspan {
 	npages := uintptr(gc.SizeClassToNPages[c.spanclass.sizeclass()])
-	size := uintptr(gc.SizeClassToSize[c.spanclass.sizeclass()])
-
 	s := mheap_.alloc(npages, c.spanclass)
 	if s == nil {
 		return nil
 	}
-	s.limit = s.base() + size*uintptr(s.nelems)
 	s.initHeapBits()
 	return s
 }

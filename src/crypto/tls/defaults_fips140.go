@@ -32,11 +32,13 @@ var (
 	}
 	allowedCurvePreferencesFIPS = []CurveID{
 		X25519MLKEM768,
+		SecP256r1MLKEM768,
+		SecP384r1MLKEM1024,
 		CurveP256,
 		CurveP384,
 		CurveP521,
 	}
-	allowedSupportedSignatureAlgorithmsFIPS = []SignatureScheme{
+	allowedSignatureAlgorithmsFIPS = []SignatureScheme{
 		PSSWithSHA256,
 		ECDSAWithP256AndSHA256,
 		Ed25519,

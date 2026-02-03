@@ -5,6 +5,7 @@
 package subtle
 
 import (
+	"crypto/internal/constanttime"
 	"crypto/internal/fips140deps/byteorder"
 	"math/bits"
 )
@@ -24,7 +25,7 @@ func ConstantTimeCompare(x, y []byte) int {
 		v |= x[i] ^ y[i]
 	}
 
-	return ConstantTimeByteEq(v, 0)
+	return constanttime.ByteEq(v, 0)
 }
 
 // ConstantTimeLessOrEqBytes returns 1 if x <= y and 0 otherwise. The comparison
@@ -58,20 +59,6 @@ func ConstantTimeLessOrEqBytes(x, y []byte) int {
 	return int(b ^ 1)
 }
 
-// ConstantTimeSelect returns x if v == 1 and y if v == 0.
-// Its behavior is undefined if v takes any other value.
-func ConstantTimeSelect(v, x, y int) int { return ^(v-1)&x | (v-1)&y }
-
-// ConstantTimeByteEq returns 1 if x == y and 0 otherwise.
-func ConstantTimeByteEq(x, y uint8) int {
-	return int((uint32(x^y) - 1) >> 31)
-}
-
-// ConstantTimeEq returns 1 if x == y and 0 otherwise.
-func ConstantTimeEq(x, y int32) int {
-	return int((uint64(uint32(x^y)) - 1) >> 63)
-}
-
 // ConstantTimeCopy copies the contents of y into x (a slice of equal length)
 // if v == 1. If v == 0, x is left unchanged. Its behavior is undefined if v
 // takes any other value.
@@ -85,12 +72,4 @@ func ConstantTimeCopy(v int, x, y []byte) {
 	for i := 0; i < len(x); i++ {
 		x[i] = x[i]&xmask | y[i]&ymask
 	}
-}
-
-// ConstantTimeLessOrEq returns 1 if x <= y and 0 otherwise.
-// Its behavior is undefined if x or y are negative or > 2**31 - 1.
-func ConstantTimeLessOrEq(x, y int) int {
-	x32 := int32(x)
-	y32 := int32(y)
-	return int(((x32 - y32 - 1) >> 31) & 1)
 }

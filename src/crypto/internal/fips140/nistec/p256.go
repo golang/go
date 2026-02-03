@@ -7,8 +7,8 @@
 package nistec
 
 import (
+	"crypto/internal/constanttime"
 	"crypto/internal/fips140/nistec/fiat"
-	"crypto/internal/fips140/subtle"
 	"crypto/internal/fips140deps/byteorder"
 	"crypto/internal/fips140deps/cpu"
 	"errors"
@@ -458,7 +458,7 @@ func (table *p256Table) Select(p *P256Point, n uint8) {
 	}
 	p.Set(NewP256Point())
 	for i := uint8(1); i <= 16; i++ {
-		cond := subtle.ConstantTimeByteEq(i, n)
+		cond := constanttime.ByteEq(i, n)
 		p.Select(&table[i-1], p, cond)
 	}
 }
@@ -553,7 +553,7 @@ func (table *p256AffineTable) Select(p *p256AffinePoint, n uint8) {
 		panic("nistec: internal error: p256AffineTable.Select called with out-of-bounds value")
 	}
 	for i := uint8(1); i <= 32; i++ {
-		cond := subtle.ConstantTimeByteEq(i, n)
+		cond := constanttime.ByteEq(i, n)
 		p.x.Select(&table[i-1].x, &p.x, cond)
 		p.y.Select(&table[i-1].y, &p.y, cond)
 	}
@@ -618,7 +618,7 @@ func (p *P256Point) ScalarBaseMult(scalar []byte) (*P256Point, error) {
 	// the point at infinity (because infinity can't be represented in affine
 	// coordinates). Here we conditionally set p to the infinity if sel is zero.
 	// In the loop, that's handled by AddAffine.
-	selIsZero := subtle.ConstantTimeByteEq(sel, 0)
+	selIsZero := constanttime.ByteEq(sel, 0)
 	p.Select(NewP256Point(), t.Projective(), selIsZero)
 
 	for index >= 5 {
@@ -636,7 +636,7 @@ func (p *P256Point) ScalarBaseMult(scalar []byte) (*P256Point, error) {
 		table := &p256GeneratorTables[(index+1)/6]
 		table.Select(t, sel)
 		t.Negate(sign)
-		selIsZero := subtle.ConstantTimeByteEq(sel, 0)
+		selIsZero := constanttime.ByteEq(sel, 0)
 		p.AddAffine(p, t, selIsZero)
 	}
 

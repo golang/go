@@ -1,0 +1,82 @@
+[
+  {"algorithm":"SHA2-224","messageLength":[{"increment":8,"max":65528,"min":0}],"revision":"1.0"},
+  {"algorithm":"SHA2-256","messageLength":[{"increment":8,"max":65528,"min":0}],"revision":"1.0"},
+  {"algorithm":"SHA2-384","messageLength":[{"increment":8,"max":65528,"min":0}],"revision":"1.0"},
+  {"algorithm":"SHA2-512","messageLength":[{"increment":8,"max":65528,"min":0}],"revision":"1.0"},
+  {"algorithm":"SHA2-512/224","messageLength":[{"increment":8,"max":65528,"min":0}],"revision":"1.0"},
+  {"algorithm":"SHA2-512/256","messageLength":[{"increment":8,"max":65528,"min":0}],"revision":"1.0"},
+
+  {"algorithm":"SHA3-224","messageLength":[{"increment":8,"max":65528,"min":0}],"revision":"2.0"},
+  {"algorithm":"SHA3-256","messageLength":[{"increment":8,"max":65528,"min":0}],"revision":"2.0"},
+  {"algorithm":"SHA3-384","messageLength":[{"increment":8,"max":65528,"min":0}],"revision":"2.0"},
+  {"algorithm":"SHA3-512","messageLength":[{"increment":8,"max":65528,"min":0}],"revision":"2.0"},
+
+  {"algorithm":"SHAKE-128","inBit":false,"outBit":false,"inEmpty":true,"outputLen":[{"min":16,"max":65536,"increment":8}],"revision":"1.0"},
+  {"algorithm":"SHAKE-256","inBit":false,"outBit":false,"inEmpty":true,"outputLen":[{"min":16,"max":65536,"increment":8}],"revision":"1.0"},
+  {"algorithm":"cSHAKE-128","hexCustomization":false,"outputLen":[{"min":16,"max":65536,"increment":8}],"msgLen":[{"min":0,"max":65536,"increment":8}],"revision":"1.0"},
+  {"algorithm":"cSHAKE-256","hexCustomization":false,"outputLen":[{"min":16,"max":65536,"increment":8}],"msgLen":[{"min":0,"max":65536,"increment":8}],"revision":"1.0"},
+
+  {"algorithm":"HMAC-SHA2-224","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[224],"revision":"1.0"},
+  {"algorithm":"HMAC-SHA2-256","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[256],"revision":"1.0"},
+  {"algorithm":"HMAC-SHA2-384","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[384],"revision":"1.0"},
+  {"algorithm":"HMAC-SHA2-512","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[512],"revision":"1.0"},
+  {"algorithm":"HMAC-SHA2-512/224","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[224],"revision":"1.0"},
+  {"algorithm":"HMAC-SHA2-512/256","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[256],"revision":"1.0"},
+
+  {"algorithm":"HMAC-SHA3-224","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[224],"revision":"1.0"},
+  {"algorithm":"HMAC-SHA3-256","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[256],"revision":"1.0"},
+  {"algorithm":"HMAC-SHA3-384","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[384],"revision":"1.0"},
+  {"algorithm":"HMAC-SHA3-512","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[512],"revision":"1.0"},
+
+  {"algorithm":"KDA","mode":"HKDF","revision":"Sp800-56Cr1","fixedInfoPattern":"uPartyInfo||vPartyInfo","encoding":["concatenation"],"hmacAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"],"macSaltMethods":["default","random"],"l":2048,"z":[{"min":224,"max":65336,"increment":8}]},
+  {"algorithm":"KDA","mode":"OneStepNoCounter","revision":"Sp800-56Cr2","auxFunctions":[{"auxFunctionName":"HMAC-SHA2-224","l":224,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA2-256","l":256,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA2-384","l":384,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA2-512","l":512,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA2-512/224","l":224,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA2-512/256","l":256,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA3-224","l":224,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA3-256","l":256,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA3-384","l":384,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA3-512","l":512,"macSaltMethods":["default","random"]}],"fixedInfoPattern":"uPartyInfo||vPartyInfo","encoding":["concatenation"],"z":[{"min":224,"max":65336,"increment":8}]},
+
+  {"algorithm":"PBKDF","capabilities":[{"iterationCount":[{"min":1,"max":10000,"increment":1}],"keyLen":[{"min":112,"max":4096,"increment":8}],"passwordLen":[{"min":8,"max":64,"increment":1}],"saltLen":[{"min":128,"max":512,"increment":8}],"hmacAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}],"revision":"1.0"},
+
+  {"algorithm":"ML-KEM","mode":"keyGen","revision":"FIPS203","parameterSets":["ML-KEM-768","ML-KEM-1024"]},
+  {"algorithm":"ML-KEM","mode":"encapDecap","revision":"FIPS203","parameterSets":["ML-KEM-768","ML-KEM-1024"],"functions":["encapsulation","decapsulation"]},
+
+  {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA2-224","derFuncEnabled":false,"entropyInputLen":[192],"nonceLen":[96],"persoStringLen":[192],"additionalInputLen":[0],"returnedBitsLen":224}]},
+  {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA2-256","derFuncEnabled":false,"entropyInputLen":[256],"nonceLen":[128],"persoStringLen":[256],"additionalInputLen":[0],"returnedBitsLen":256}]},
+  {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA2-384","derFuncEnabled":false,"entropyInputLen":[256],"nonceLen":[128],"persoStringLen":[256],"additionalInputLen":[0],"returnedBitsLen":384}]},
+  {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA2-512","derFuncEnabled":false,"entropyInputLen":[256],"nonceLen":[128],"persoStringLen":[256],"additionalInputLen":[0],"returnedBitsLen":512}]},
+  {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA2-512/224","derFuncEnabled":false,"entropyInputLen":[192],"nonceLen":[96],"persoStringLen":[192],"additionalInputLen":[0],"returnedBitsLen":224}]},
+  {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA2-512/256","derFuncEnabled":false,"entropyInputLen":[256],"nonceLen":[128],"persoStringLen":[256],"additionalInputLen":[0],"returnedBitsLen":256}]},
+  {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA3-224","derFuncEnabled":false,"entropyInputLen":[192],"nonceLen":[96],"persoStringLen":[192],"additionalInputLen":[0],"returnedBitsLen":224}]},
+  {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA3-256","derFuncEnabled":false,"entropyInputLen":[256],"nonceLen":[128],"persoStringLen":[256],"additionalInputLen":[0],"returnedBitsLen":256}]},
+  {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA3-384","derFuncEnabled":false,"entropyInputLen":[256],"nonceLen":[128],"persoStringLen":[256],"additionalInputLen":[0],"returnedBitsLen":384}]},
+  {"algorithm":"hmacDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":false,"capabilities":[{"mode":"SHA3-512","derFuncEnabled":false,"entropyInputLen":[256],"nonceLen":[128],"persoStringLen":[256],"additionalInputLen":[0],"returnedBitsLen":512}]},
+
+  {"algorithm":"ctrDRBG","revision":"1.0","predResistanceEnabled":[false],"reseedImplemented":true,"capabilities":[{"mode":"AES-256","derFuncEnabled":false,"entropyInputLen":[384],"nonceLen":[0],"persoStringLen":[0],"additionalInputLen":[384],"returnedBitsLen":128}]},
+
+  {"algorithm":"EDDSA","mode":"keyGen","revision":"1.0","curve":["ED-25519"]},
+  {"algorithm":"EDDSA","mode":"keyVer","revision":"1.0","curve":["ED-25519"]},
+  {"algorithm":"EDDSA","mode":"sigGen","revision":"1.0","pure":true,"preHash":true,"contextLength":[{"min":0,"max":255,"increment":1}],"curve":["ED-25519"]},
+  {"algorithm":"EDDSA","mode":"sigVer","revision":"1.0","pure":true,"preHash":true,"curve":["ED-25519"]},
+
+  {"algorithm":"ECDSA","mode":"keyGen","revision":"FIPS186-5","curve":["P-224","P-256","P-384","P-521"],"secretGenerationMode":["testing candidates"]},
+  {"algorithm":"ECDSA","mode":"keyVer","revision":"FIPS186-5","curve":["P-224","P-256","P-384","P-521"]},
+  {"algorithm":"ECDSA","mode":"sigGen","revision":"FIPS186-5","capabilities":[{"curve":["P-224","P-256","P-384","P-521"],"hashAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}]},
+  {"algorithm":"ECDSA","mode":"sigVer","revision":"FIPS186-5","capabilities":[{"curve":["P-224","P-256","P-384","P-521"],"hashAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}]},
+  {"algorithm":"DetECDSA","mode":"sigGen","revision":"FIPS186-5","capabilities":[{"curve":["P-224","P-256","P-384","P-521"],"hashAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}]},
+
+  {"algorithm":"ACVP-AES-CBC","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"revision":"1.0"},
+  {"algorithm":"ACVP-AES-CTR","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"payloadLen":[{"min":8,"max":128,"increment":8}],"incrementalCounter":true,"overflowCounter":true,"performCounterTests":true,"revision":"1.0"},
+  {"algorithm":"ACVP-AES-GCM","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"payloadLen":[{"min":0,"max":65536,"increment":8}],"aadLen":[{"min":0,"max":65536,"increment":8}],"tagLen":[96,104,112,120,128],"ivLen":[96],"ivGen":"external","revision":"1.0"},
+  {"algorithm":"ACVP-AES-GCM","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"payloadLen":[{"min":0,"max":65536,"increment":8}],"aadLen":[{"min":0,"max":65536,"increment":8}],"tagLen":[128],"ivLen":[96],"ivGen":"internal","ivGenMode":"8.2.2","revision":"1.0"},
+  {"algorithm":"CMAC-AES","capabilities":[{"direction":["gen","ver"],"msgLen":[{"min":0,"max":524288,"increment":8}],"keyLen":[128,256],"macLen":[128]}],"revision":"1.0"},
+
+  {"algorithm":"TLS-v1.2","mode":"KDF","revision":"RFC7627","hashAlg":["SHA2-256","SHA2-384","SHA2-512"]},
+  {"algorithm":"TLS-v1.3","mode":"KDF","revision":"RFC8446","hmacAlg":["SHA2-256","SHA2-384"],"runningMode":["DHE","PSK","PSK-DHE"]},
+  {"algorithm":"kdf-components","mode":"ssh","revision":"1.0","hashAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512"],"cipher":["AES-128","AES-192","AES-256"]},
+
+  {"algorithm":"KAS-ECC-SSC","revision":"Sp800-56Ar3","scheme":{"ephemeralUnified":{"kasRole":["initiator","responder"]},"staticUnified":{"kasRole":["initiator","responder"]}},"domainParameterGenerationMethods":["P-224","P-256","P-384","P-521"]},
+
+  {"algorithm":"KDF","revision":"1.0","capabilities":[{"kdfMode":"counter","macMode":["CMAC-AES128","CMAC-AES192","CMAC-AES256"],"supportedLengths":[256],"fixedDataOrder":["before fixed data"],"counterLength":[16]},{"kdfMode":"feedback","macMode":["HMAC-SHA2-224","HMAC-SHA2-256","HMAC-SHA2-384","HMAC-SHA2-512","HMAC-SHA2-512/224","HMAC-SHA2-512/256","HMAC-SHA3-224","HMAC-SHA3-256","HMAC-SHA3-384","HMAC-SHA3-512"],"customKeyInLength":0,"supportedLengths":[{"min":8,"max":4096,"increment":8}],"fixedDataOrder":["after fixed data"],"counterLength":[8],"supportsEmptyIv":true,"requiresEmptyIv":true}]},
+
+  {"algorithm":"RSA","mode":"keyGen","revision":"FIPS186-5","infoGeneratedByServer":true,"pubExpMode":"fixed","fixedPubExp":"010001","keyFormat":"standard","capabilities":[{"randPQ":"probable","properties":[{"modulo":2048,"primeTest":["2powSecStr"]},{"modulo":3072,"primeTest":["2powSecStr"]},{"modulo":4096,"primeTest":["2powSecStr"]}]}]},
+  {"algorithm":"RSA","mode":"sigGen","revision":"FIPS186-5","capabilities":[{"sigType":"pkcs1v1.5","properties":[{"modulo":2048,"hashPair":[{"hashAlg":"SHA2-224"},{"hashAlg":"SHA2-256"},{"hashAlg":"SHA2-384"},{"hashAlg":"SHA2-512"}]},{"modulo":3072,"hashPair":[{"hashAlg":"SHA2-224"},{"hashAlg":"SHA2-256"},{"hashAlg":"SHA2-384"},{"hashAlg":"SHA2-512"}]},{"modulo":4096,"hashPair":[{"hashAlg":"SHA2-224"},{"hashAlg":"SHA2-256"},{"hashAlg":"SHA2-384"},{"hashAlg":"SHA2-512"}]}]},{"sigType":"pss","properties":[{"maskFunction":["mgf1"],"modulo":2048,"hashPair":[{"hashAlg":"SHA2-224","saltLen":28},{"hashAlg":"SHA2-256","saltLen":32},{"hashAlg":"SHA2-384","saltLen":48},{"hashAlg":"SHA2-512","saltLen":64}]},{"maskFunction":["mgf1"],"modulo":3072,"hashPair":[{"hashAlg":"SHA2-224","saltLen":28},{"hashAlg":"SHA2-256","saltLen":32},{"hashAlg":"SHA2-384","saltLen":48},{"hashAlg":"SHA2-512","saltLen":64}]},{"maskFunction":["mgf1"],"modulo":4096,"hashPair":[{"hashAlg":"SHA2-224","saltLen":28},{"hashAlg":"SHA2-256","saltLen":32},{"hashAlg":"SHA2-384","saltLen":48},{"hashAlg":"SHA2-512","saltLen":64}]}]}]},
+  {"algorithm":"RSA","mode":"sigVer","revision":"FIPS186-5","pubExpMode":"fixed","fixedPubExp":"010001","capabilities":[{"sigType":"pkcs1v1.5","properties":[{"modulo":2048,"hashPair":[{"hashAlg":"SHA2-224"},{"hashAlg":"SHA2-256"},{"hashAlg":"SHA2-384"},{"hashAlg":"SHA2-512"}]}]},{"sigType":"pkcs1v1.5","properties":[{"modulo":3072,"hashPair":[{"hashAlg":"SHA2-224"},{"hashAlg":"SHA2-256"},{"hashAlg":"SHA2-384"},{"hashAlg":"SHA2-512"}]}]},{"sigType":"pkcs1v1.5","properties":[{"modulo":4096,"hashPair":[{"hashAlg":"SHA2-224"},{"hashAlg":"SHA2-256"},{"hashAlg":"SHA2-384"},{"hashAlg":"SHA2-512"}]}]},{"sigType":"pss","properties":[{"maskFunction":["mgf1"],"modulo":2048,"hashPair":[{"hashAlg":"SHA2-224","saltLen":28},{"hashAlg":"SHA2-256","saltLen":32},{"hashAlg":"SHA2-384","saltLen":48},{"hashAlg":"SHA2-512","saltLen":64}]}]},{"sigType":"pss","properties":[{"maskFunction":["mgf1"],"modulo":3072,"hashPair":[{"hashAlg":"SHA2-224","saltLen":28},{"hashAlg":"SHA2-256","saltLen":32},{"hashAlg":"SHA2-384","saltLen":48},{"hashAlg":"SHA2-512","saltLen":64}]}]},{"sigType":"pss","properties":[{"maskFunction":["mgf1"],"modulo":4096,"hashPair":[{"hashAlg":"SHA2-224","saltLen":28},{"hashAlg":"SHA2-256","saltLen":32},{"hashAlg":"SHA2-384","saltLen":48},{"hashAlg":"SHA2-512","saltLen":64}]}]}]},
+
+  {"algorithm":"KTS-IFC","revision":"Sp800-56Br2","fixedPubExp":"010001","iutId":"C0FFEE","modulo":[2048,3072,4096],"keyGenerationMethods":["rsakpg1-basic"],"scheme":{"KTS-OAEP-basic":{"l":1024,"kasRole":["responder","initiator"],"ktsMethod":{"hashAlgs":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"],"supportsNullAssociatedData":true,"encoding":["concatenation"]}}}}
+]

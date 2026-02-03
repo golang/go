@@ -215,7 +215,7 @@ func wbBufFlush1(pp *p) {
 	// pointers we greyed. We use the buffer itself to temporarily
 	// record greyed pointers.
 	//
-	// TODO: Should scanobject/scanblock just stuff pointers into
+	// TODO: Should scanObject/scanblock just stuff pointers into
 	// the wbBuf? Then this would become the sole greying path.
 	//
 	// TODO: We could avoid shading any of the "new" pointers in

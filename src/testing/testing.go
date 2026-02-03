@@ -30,9 +30,9 @@
 //	import "testing"
 //
 //	func TestAbs(t *testing.T) {
-//	    got := Abs(-1)
+//	    got := abs(-1)
 //	    if got != 1 {
-//	        t.Errorf("Abs(-1) = %d; want 1", got)
+//	        t.Errorf("abs(-1) = %d; want 1", got)
 //	    }
 //	}
 //
@@ -420,7 +420,7 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode"
-	"unicode/utf8"
+	_ "unsafe" // for linkname
 )
 
 var initRan bool
@@ -455,6 +455,7 @@ func Init() {
 	// this flag lets "go test" tell the binary to write the files in the directory where
 	// the "go test" command is run.
 	outputDir = flag.String("test.outputdir", "", "write profiles to `dir`")
+	artifacts = flag.Bool("test.artifacts", false, "store test artifacts in test.,outputdir")
 	// Report as tests are run; default is silent for success.
 	flag.Var(&chatty, "test.v", "verbose: print additional output")
 	count = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
@@ -488,6 +489,7 @@ var (
 	short                *bool
 	failFast             *bool
 	outputDir            *string
+	artifacts            *bool
 	chatty               chattyFlag
 	count                *uint
 	coverProfile         *string
@@ -515,6 +517,7 @@ var (
 
 	cpuList     []int
 	testlogFile *os.File
+	artifactDir string
 
 	numFailed atomic.Uint32 // number of test failures
 
@@ -643,6 +646,7 @@ type common struct {
 	cleanupPc   []uintptr            // The stack trace at the point where Cleanup was called.
 	finished    bool                 // Test function has completed.
 	inFuzzFn    bool                 // Whether the fuzz target, if this is one, is running.
+	isSynctest  bool
 
 	chatty         *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
 	bench          bool           // Whether the current test is a benchmark.
@@ -651,15 +655,17 @@ type common struct {
 	runner         string         // Function name of tRunner running the test.
 	isParallel     bool           // Whether the test is parallel.
 
-	parent   *common
-	level    int               // Nesting depth of test or benchmark.
-	creator  []uintptr         // If level > 0, the stack trace at the point where the parent called t.Run.
-	name     string            // Name of test or benchmark.
-	start    highPrecisionTime // Time test or benchmark started
-	duration time.Duration
-	barrier  chan bool // To signal parallel subtests they may start. Nil when T.Parallel is not present (B) or not usable (when fuzzing).
-	signal   chan bool // To signal a test is done.
-	sub      []*T      // Queue of subtests to be run in parallel.
+	parent     *common
+	level      int       // Nesting depth of test or benchmark.
+	creator    []uintptr // If level > 0, the stack trace at the point where the parent called t.Run.
+	modulePath string
+	importPath string
+	name       string            // Name of test or benchmark.
+	start      highPrecisionTime // Time test or benchmark started
+	duration   time.Duration
+	barrier    chan bool // To signal parallel subtests they may start. Nil when T.Parallel is not present (B) or not usable (when fuzzing).
+	signal     chan bool // To signal a test is done.
+	sub        []*T      // Queue of subtests to be run in parallel.
 
 	lastRaceErrors  atomic.Int64 // Max value of race.Errors seen during the test or its subtests.
 	raceErrorLogged atomic.Bool
@@ -668,6 +674,10 @@ type common struct {
 	tempDir    string
 	tempDirErr error
 	tempDirSeq int32
+
+	artifactDirOnce sync.Once
+	artifactDir     string
+	artifactDirErr  error
 
 	ctx       context.Context
 	cancelCtx context.CancelFunc
@@ -877,6 +887,8 @@ func fmtDuration(d time.Duration) string {
 
 // TB is the interface common to [T], [B], and [F].
 type TB interface {
+	ArtifactDir() string
+	Attr(key, value string)
 	Cleanup(func())
 	Error(args ...any)
 	Errorf(format string, args ...any)
@@ -897,6 +909,7 @@ type TB interface {
 	Skipped() bool
 	TempDir() string
 	Context() context.Context
+	Output() io.Writer
 
 	// A private method to prevent users implementing the
 	// interface and so future additions to it will not
@@ -904,8 +917,10 @@ type TB interface {
 	private()
 }
 
-var _ TB = (*T)(nil)
-var _ TB = (*B)(nil)
+var (
+	_ TB = (*T)(nil)
+	_ TB = (*B)(nil)
+)
 
 // T is a type passed to Test functions to manage test state and support formatted test logs.
 //
@@ -1040,7 +1055,7 @@ func (c *common) destination() *common {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if !c.done {
+	if !c.done && !c.isSynctest {
 		return c
 	}
 	for parent := c.parent; parent != nil; parent = parent.parent {
@@ -1119,6 +1134,11 @@ type outputWriter struct {
 // Write writes a log message to the test's output stream, properly formatted and
 // indented. It may not be called after a test function and all its parents return.
 func (o *outputWriter) Write(p []byte) (int, error) {
+	// o can be nil if this is called from a top-level *TB that is no longer active.
+	// Just ignore the message in that case.
+	if o == nil || o.c == nil {
+		return 0, nil
+	}
 	if o.c.destination() == nil {
 		panic("Write called after " + o.c.name + " has completed")
 	}
@@ -1250,6 +1270,9 @@ func (c *common) Skipped() bool {
 // When printing file and line information, that function will be skipped.
 // Helper may be called simultaneously from multiple goroutines.
 func (c *common) Helper() {
+	if c.isSynctest {
+		c = c.parent
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.helperPCs == nil {
@@ -1299,13 +1322,113 @@ func (c *common) Cleanup(f func()) {
 	c.cleanups = append(c.cleanups, fn)
 }
 
+// ArtifactDir returns a directory in which the test should store output files.
+// When the -artifacts flag is provided, this directory is located
+// under the output directory. Otherwise, ArtifactDir returns a temporary directory
+// that is removed after the test completes.
+//
+// Each test or subtest within each test package has a unique artifact directory.
+// Repeated calls to ArtifactDir in the same test or subtest return the same directory.
+// Subtest outputs are not located under the parent test's output directory.
+func (c *common) ArtifactDir() string {
+	c.checkFuzzFn("ArtifactDir")
+	c.artifactDirOnce.Do(func() {
+		c.artifactDir, c.artifactDirErr = c.makeArtifactDir()
+	})
+	if c.artifactDirErr != nil {
+		c.Fatalf("ArtifactDir: %v", c.artifactDirErr)
+	}
+	return c.artifactDir
+}
+
+func hashString(s string) (h uint64) {
+	// FNV, used here to avoid a dependency on maphash.
+	for i := 0; i < len(s); i++ {
+		h ^= uint64(s[i])
+		h *= 1099511628211
+	}
+	return
+}
+
+// makeArtifactDir creates the artifact directory for a test.
+// The artifact directory is:
+//
+//	<output dir>/_artifacts/<test package>/<test name>/<random>
+//
+// The test package is the package import path with the module name prefix removed.
+// The test name is truncated if too long.
+// Special characters are removed from the path.
+func (c *common) makeArtifactDir() (string, error) {
+	if !*artifacts {
+		return c.makeTempDir()
+	}
+
+	// If the test name is longer than maxNameSize, truncate it and replace the last
+	// hashSize bytes with a hash of the full name.
+	const maxNameSize = 64
+	name := strings.ReplaceAll(c.name, "/", "__")
+	if len(name) > maxNameSize {
+		h := fmt.Sprintf("%0x", hashString(name))
+		name = name[:maxNameSize-len(h)] + h
+	}
+
+	// Remove the module path prefix from the import path.
+	pkg := strings.TrimPrefix(c.importPath, c.modulePath+"/")
+
+	// Join with /, not filepath.Join: the import path is /-separated,
+	// and we don't want removeSymbolsExcept to strip \ separators on Windows.
+	base := "/" + pkg + "/" + name
+	base = removeSymbolsExcept(base, "!#$%&()+,-.=@^_{}~ /")
+	base, err := filepath.Localize(base)
+	if err != nil {
+		// This name can't be safely converted into a local filepath.
+		// Drop it and just use _artifacts/<random>.
+		base = ""
+	}
+
+	artifactBase := filepath.Join(artifactDir, base)
+	if err := os.MkdirAll(artifactBase, 0o777); err != nil {
+		return "", err
+	}
+	dir, err := os.MkdirTemp(artifactBase, "")
+	if err != nil {
+		return "", err
+	}
+	if c.chatty != nil {
+		c.chatty.Updatef(c.name, "=== ARTIFACTS %s %v\n", c.name, dir)
+	}
+	return dir, nil
+}
+
+func removeSymbolsExcept(s, allowed string) string {
+	mapper := func(r rune) rune {
+		if unicode.IsLetter(r) ||
+			unicode.IsNumber(r) ||
+			strings.ContainsRune(allowed, r) {
+			return r
+		}
+		return -1 // disallowed symbol
+	}
+	return strings.Map(mapper, s)
+}
+
 // TempDir returns a temporary directory for the test to use.
 // The directory is automatically removed when the test and
 // all its subtests complete.
 // Each subsequent call to TempDir returns a unique directory;
 // if the directory creation fails, TempDir terminates the test by calling Fatal.
+// If the environment variable GOTMPDIR is set, the temporary directory will
+// be created somewhere beneath it.
 func (c *common) TempDir() string {
 	c.checkFuzzFn("TempDir")
+	dir, err := c.makeTempDir()
+	if err != nil {
+		c.Fatalf("TempDir: %v", err)
+	}
+	return dir
+}
+
+func (c *common) makeTempDir() (string, error) {
 	// Use a single parent directory for all the temporary directories
 	// created by a test, each numbered sequentially.
 	c.tempDirMu.Lock()
@@ -1316,7 +1439,7 @@ func (c *common) TempDir() string {
 		_, err := os.Stat(c.tempDir)
 		nonExistent = os.IsNotExist(err)
 		if err != nil && !nonExistent {
-			c.Fatalf("TempDir: %v", err)
+			return "", err
 		}
 	}
 
@@ -1331,24 +1454,10 @@ func (c *common) TempDir() string {
 		// Drop unusual characters (such as path separators or
 		// characters interacting with globs) from the directory name to
 		// avoid surprising os.MkdirTemp behavior.
-		mapper := func(r rune) rune {
-			if r < utf8.RuneSelf {
-				const allowed = "!#$%&()+,-.=@^_{}~ "
-				if '0' <= r && r <= '9' ||
-					'a' <= r && r <= 'z' ||
-					'A' <= r && r <= 'Z' {
-					return r
-				}
-				if strings.ContainsRune(allowed, r) {
-					return r
-				}
-			} else if unicode.IsLetter(r) || unicode.IsNumber(r) {
-				return r
-			}
-			return -1
-		}
-		pattern = strings.Map(mapper, pattern)
-		c.tempDir, c.tempDirErr = os.MkdirTemp("", pattern)
+		const allowed = "!#$%&()+,-.=@^_{}~ "
+		pattern = removeSymbolsExcept(pattern, allowed)
+
+		c.tempDir, c.tempDirErr = os.MkdirTemp(os.Getenv("GOTMPDIR"), pattern)
 		if c.tempDirErr == nil {
 			c.Cleanup(func() {
 				if err := removeAll(c.tempDir); err != nil {
@@ -1365,14 +1474,14 @@ func (c *common) TempDir() string {
 	c.tempDirMu.Unlock()
 
 	if c.tempDirErr != nil {
-		c.Fatalf("TempDir: %v", c.tempDirErr)
+		return "", c.tempDirErr
 	}
 
 	dir := fmt.Sprintf("%s%c%03d", c.tempDir, os.PathSeparator, seq)
-	if err := os.Mkdir(dir, 0777); err != nil {
-		c.Fatalf("TempDir: %v", err)
+	if err := os.Mkdir(dir, 0o777); err != nil {
+		return "", err
 	}
-	return dir
+	return dir, nil
 }
 
 // removeAll is like os.RemoveAll, but retries Windows "Access is denied."
@@ -1480,6 +1589,31 @@ func (c *common) Chdir(dir string) {
 func (c *common) Context() context.Context {
 	c.checkFuzzFn("Context")
 	return c.ctx
+}
+
+// Attr emits a test attribute associated with this test.
+//
+// The key must not contain whitespace.
+// The value must not contain newlines or carriage returns.
+//
+// The meaning of different attribute keys is left up to
+// continuous integration systems and test frameworks.
+//
+// Test attributes are emitted immediately in the test log,
+// but they are intended to be treated as unordered.
+func (c *common) Attr(key, value string) {
+	if strings.ContainsFunc(key, unicode.IsSpace) {
+		c.Errorf("disallowed whitespace in attribute key %q", key)
+		return
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		c.Errorf("disallowed newline in attribute value %q", value)
+		return
+	}
+	if c.chatty == nil {
+		return
+	}
+	c.chatty.Updatef(c.name, "=== ATTR  %s %v %v\n", c.name, key, value)
 }
 
 // panicHandling controls the panic handling used by runCleanup.
@@ -1615,7 +1749,7 @@ func pcToName(pc uintptr) string {
 	return frame.Function
 }
 
-const parallelConflict = `testing: test using t.Setenv or t.Chdir can not use t.Parallel`
+const parallelConflict = `testing: test using t.Setenv, t.Chdir, or cryptotest.SetGlobalRandom can not use t.Parallel`
 
 // Parallel signals that this test is to be run in parallel with (and only with)
 // other parallel tests. When a test is run multiple times due to use of
@@ -1624,6 +1758,9 @@ const parallelConflict = `testing: test using t.Setenv or t.Chdir can not use t.
 func (t *T) Parallel() {
 	if t.isParallel {
 		panic("testing: t.Parallel called multiple times")
+	}
+	if t.isSynctest {
+		panic("testing: t.Parallel called inside synctest bubble")
 	}
 	if t.denyParallel {
 		panic(parallelConflict)
@@ -1681,6 +1818,13 @@ func (t *T) Parallel() {
 	// if other parallel subtests have already introduced races, we want to
 	// let them report those races instead of attributing them to the parent.)
 	t.lastRaceErrors.Store(int64(race.Errors()))
+}
+
+// checkParallel is called by [testing/cryptotest.SetGlobalRandom].
+//
+//go:linkname checkParallel testing.checkParallel
+func checkParallel(t *T) {
+	t.checkParallel()
 }
 
 func (t *T) checkParallel() {
@@ -1813,7 +1957,8 @@ func tRunner(t *T, fn func(t *T)) {
 				t.Logf("cleanup panicked with %v", r)
 			}
 			// Flush the output log up to the root before dying.
-			for root := &t.common; root.parent != nil; root = root.parent {
+			// Skip this if this *T is a synctest bubble, because we're not a subtest.
+			for root := &t.common; !root.isSynctest && root.parent != nil; root = root.parent {
 				root.mu.Lock()
 				root.duration += highPrecisionTimeSince(root.start)
 				d := root.duration
@@ -1903,6 +2048,9 @@ func tRunner(t *T, fn func(t *T)) {
 // Run may be called simultaneously from multiple goroutines, but all such calls
 // must return before the outer test function for t returns.
 func (t *T) Run(name string, f func(t *T)) bool {
+	if t.isSynctest {
+		panic("testing: t.Run called inside synctest bubble")
+	}
 	if t.cleanupStarted.Load() {
 		panic("testing: t.Run called during t.Cleanup")
 	}
@@ -1923,15 +2071,17 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	t = &T{
 		common: common{
-			barrier:   make(chan bool),
-			signal:    make(chan bool, 1),
-			name:      testName,
-			parent:    &t.common,
-			level:     t.level + 1,
-			creator:   pc[:n],
-			chatty:    t.chatty,
-			ctx:       ctx,
-			cancelCtx: cancelCtx,
+			barrier:    make(chan bool),
+			signal:     make(chan bool, 1),
+			name:       testName,
+			modulePath: t.modulePath,
+			importPath: t.importPath,
+			parent:     &t.common,
+			level:      t.level + 1,
+			creator:    pc[:n],
+			chatty:     t.chatty,
+			ctx:        ctx,
+			cancelCtx:  cancelCtx,
 		},
 		tstate: t.tstate,
 	}
@@ -1968,11 +2118,55 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	return !t.failed
 }
 
+// testingSynctestTest runs f within a synctest bubble.
+// It is called by synctest.Test, from within an already-created bubble.
+//
+//go:linkname testingSynctestTest testing/synctest.testingSynctestTest
+func testingSynctestTest(t *T, f func(*T)) (ok bool) {
+	if t.cleanupStarted.Load() {
+		panic("testing: synctest.Run called during t.Cleanup")
+	}
+
+	var pc [maxStackLen]uintptr
+	n := runtime.Callers(2, pc[:])
+
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	t2 := &T{
+		common: common{
+			barrier:    make(chan bool),
+			signal:     make(chan bool, 1),
+			name:       t.name,
+			parent:     &t.common,
+			level:      t.level + 1,
+			creator:    pc[:n],
+			chatty:     t.chatty,
+			ctx:        ctx,
+			cancelCtx:  cancelCtx,
+			isSynctest: true,
+		},
+		tstate: t.tstate,
+	}
+
+	go tRunner(t2, f)
+	if !<-t2.signal {
+		// At this point, it is likely that FailNow was called on one of the
+		// parent tests by one of the subtests. Continue aborting up the chain.
+		runtime.Goexit()
+	}
+	return !t2.failed
+}
+
 // Deadline reports the time at which the test binary will have
 // exceeded the timeout specified by the -timeout flag.
 //
 // The ok result is false if the -timeout flag indicates “no timeout” (0).
 func (t *T) Deadline() (deadline time.Time, ok bool) {
+	if t.isSynctest {
+		// There's no point in returning a real-clock deadline to
+		// a test using a fake clock. We could return "no timeout",
+		// but panicking makes it easier for users to catch the error.
+		panic("testing: t.Deadline called inside synctest bubble")
+	}
 	deadline = t.tstate.deadline
 	return deadline, !deadline.IsZero()
 }
@@ -2048,6 +2242,7 @@ func (f matchStringOnly) MatchString(pat, str string) (bool, error)   { return f
 func (f matchStringOnly) StartCPUProfile(w io.Writer) error           { return errMain }
 func (f matchStringOnly) StopCPUProfile()                             {}
 func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error { return errMain }
+func (f matchStringOnly) ModulePath() string                          { return "" }
 func (f matchStringOnly) ImportPath() string                          { return "" }
 func (f matchStringOnly) StartTestLog(io.Writer)                      {}
 func (f matchStringOnly) StopTestLog() error                          { return errMain }
@@ -2101,6 +2296,7 @@ type M struct {
 // testing/internal/testdeps's TestDeps.
 type testDeps interface {
 	ImportPath() string
+	ModulePath() string
 	MatchString(pat, str string) (bool, error)
 	SetPanicOnExit0(bool)
 	StartCPUProfile(io.Writer) error
@@ -2132,8 +2328,10 @@ func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchma
 	}
 }
 
-var testingTesting bool
-var realStderr *os.File
+var (
+	testingTesting bool
+	realStderr     *os.File
+)
 
 // Run runs the tests. It returns an exit code to pass to os.Exit.
 // The exit code is zero when all tests pass, and non-zero for any kind
@@ -2242,7 +2440,7 @@ func (m *M) Run() (code int) {
 	if !*isFuzzWorker {
 		deadline := m.startAlarm()
 		haveExamples = len(m.examples) > 0
-		testRan, testOk := runTests(m.deps.MatchString, m.tests, deadline)
+		testRan, testOk := runTests(m.deps.ModulePath(), m.deps.ImportPath(), m.deps.MatchString, m.tests, deadline)
 		fuzzTargetsRan, fuzzTargetsOk := runFuzzTests(m.deps, m.fuzzTargets, deadline)
 		exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
 		m.stopAlarm()
@@ -2292,6 +2490,9 @@ func (t *T) report() {
 	if t.parent == nil {
 		return
 	}
+	if t.isSynctest {
+		return // t.parent will handle reporting
+	}
 	dstr := fmtDuration(t.duration)
 	format := "--- %s: %s (%s)\n"
 	if t.Failed() {
@@ -2340,14 +2541,14 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 	if *timeout > 0 {
 		deadline = time.Now().Add(*timeout)
 	}
-	ran, ok := runTests(matchString, tests, deadline)
+	ran, ok := runTests("", "", matchString, tests, deadline)
 	if !ran && !haveExamples {
 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
 	}
 	return ok
 }
 
-func runTests(matchString func(pat, str string) (bool, error), tests []InternalTest, deadline time.Time) (ran, ok bool) {
+func runTests(modulePath, importPath string, matchString func(pat, str string) (bool, error), tests []InternalTest, deadline time.Time) (ran, ok bool) {
 	ok = true
 	for _, procs := range cpuList {
 		runtime.GOMAXPROCS(procs)
@@ -2366,11 +2567,13 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 			tstate.deadline = deadline
 			t := &T{
 				common: common{
-					signal:    make(chan bool, 1),
-					barrier:   make(chan bool),
-					w:         os.Stdout,
-					ctx:       ctx,
-					cancelCtx: cancelCtx,
+					signal:     make(chan bool, 1),
+					barrier:    make(chan bool),
+					w:          os.Stdout,
+					ctx:        ctx,
+					cancelCtx:  cancelCtx,
+					modulePath: modulePath,
+					importPath: importPath,
 				},
 				tstate: tstate,
 			}
@@ -2438,6 +2641,18 @@ func (m *M) before() {
 	if *gocoverdir != "" && CoverMode() == "" {
 		fmt.Fprintf(os.Stderr, "testing: cannot use -test.gocoverdir because test binary was not built with coverage enabled\n")
 		os.Exit(2)
+	}
+	if *artifacts {
+		var err error
+		artifactDir, err = filepath.Abs(toOutputDir("_artifacts"))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "testing: cannot make -test.outputdir absolute: %v\n", err)
+			os.Exit(2)
+		}
+		if err := os.Mkdir(artifactDir, 0o777); err != nil && !errors.Is(err, os.ErrExist) {
+			fmt.Fprintf(os.Stderr, "testing: %v\n", err)
+			os.Exit(2)
+		}
 	}
 	if *testlog != "" {
 		// Note: Not using toOutputDir.

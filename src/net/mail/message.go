@@ -724,7 +724,8 @@ func (p *addrParser) consumeDomainLiteral() (string, error) {
 	}
 
 	// Parse the dtext
-	var dtext string
+	dtext := p.s
+	dtextLen := 0
 	for {
 		if p.empty() {
 			return "", errors.New("mail: unclosed domain-literal")
@@ -741,9 +742,10 @@ func (p *addrParser) consumeDomainLiteral() (string, error) {
 			return "", fmt.Errorf("mail: bad character in domain-literal: %q", r)
 		}
 
-		dtext += p.s[:size]
+		dtextLen += size
 		p.s = p.s[size:]
 	}
+	dtext = dtext[:dtextLen]
 
 	// Skip the trailing ]
 	if !p.consume(']') {

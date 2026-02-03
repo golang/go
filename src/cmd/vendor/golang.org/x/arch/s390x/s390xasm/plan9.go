@@ -142,7 +142,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		case LRVH:
 			op = "MOVHBR"
 		}
-	case LA, LAY:
+	case LA, LAY, LARL:
 		args[0], args[1] = args[1], args[0]
 		op = "MOVD"
 
@@ -349,6 +349,17 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 	case SLBGR:
 		op = "SUBE"
 		args[0], args[1] = args[1], args[0]
+	case MADBR:
+		op = "FMADD"
+		args[0], args[1], args[2] = args[1], args[2], args[0]
+	case VFM:
+		op = "WFMDB"
+		args[0], args[1], args[2] = args[1], args[2], args[0]
+		args = args[0:3]
+	case VFS:
+		op = "WFSDB"
+		args[0], args[2] = args[2], args[0]
+		args = args[0:3]
 	case MSGFR, MHI, MSFI, MSGFI:
 		switch inst.Op {
 		case MSGFR, MHI, MSFI:
@@ -500,16 +511,16 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		if err != nil {
 			return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
 		}
-		opStr, check := branchOnConditionOp(mask, inst.Op)
+		opStr := branchOnConditionOp(mask, inst.Op)
 		if opStr != "" {
 			op = opStr
 		}
 		if op == "SYNC" || op == "NOPH" {
 			return op
 		}
-		if check {
-			args[0] = args[1]
-			args = args[:1]
+		if op == "RET" {
+			args = args[:0]
+			return op
 		}
 	case LOCGR:
 		mask, err := strconv.Atoi(args[2][1:])
@@ -1036,6 +1047,9 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 // branch on relative mnemonic.
 func branch_relative_op(mask int, opconst Op) (op string, check bool) {
 	switch mask & 0xf {
+	case 1:
+		op = "BVS"
+		check = true
 	case 2:
 		op = "BGT"
 		check = true
@@ -1061,7 +1075,7 @@ func branch_relative_op(mask int, opconst Op) (op string, check bool) {
 		op = "BLEU"
 		check = true
 	case 15:
-		op = "JMP" // BR
+		op = "BR"
 		check = true
 	}
 	return op, check
@@ -1069,17 +1083,16 @@ func branch_relative_op(mask int, opconst Op) (op string, check bool) {
 
 // This function returns corresponding extended mnemonic for the given
 // brach on condition mnemonic.
-func branchOnConditionOp(mask int, opconst Op) (op string, check bool) {
+func branchOnConditionOp(mask int, opconst Op) (op string) {
 	switch mask & 0xf {
 	case 0:
 		op = "NOPH"
 	case 14:
 		op = "SYNC"
 	case 15:
-		op = "JMP"
-		check = true
+		op = "RET"
 	}
-	return op, check
+	return op
 }
 
 // This function returns corresponding plan9 mnemonic for the native bitwise mnemonic.
@@ -1260,7 +1273,7 @@ func reverseOperandOrder(op Op) bool {
 	switch op {
 	case LOCR, MLGR:
 		return true
-	case LTEBR, LTDBR:
+	case LTEBR, LTDBR, LCDBR, LGDR:
 		return true
 	case VLEIB, VLEIH, VLEIF, VLEIG, VPDI:
 		return true

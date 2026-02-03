@@ -22,7 +22,7 @@ import (
 //
 // where func is the function, val is the current value, p is the instruction being
 // considered, and arg can be used to further parameterize valfunc.
-func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym, int32, *Prog, int32, interface{}) int32, arg interface{}) *LSym {
+func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym, int32, *Prog, int32, any) int32, arg any) *LSym {
 	dbg := desc == ctxt.Debugpcln
 	dst := []byte{}
 	sym := &LSym{
@@ -138,7 +138,7 @@ func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym, 
 // or the line number (arg == 1) to use at p.
 // Because p.Pos applies to p, phase == 0 (before p)
 // takes care of the update.
-func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
+func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg any) int32 {
 	if p.As == ATEXT || p.As == ANOP || p.Pos.Line() == 0 || phase == 1 {
 		return oldval
 	}
@@ -198,7 +198,7 @@ func (s *pcinlineState) setParentPC(ctxt *Link, globalIndex int, pc int32) {
 // pctoinline computes the index into the local inlining tree to use at p.
 // If p is not the result of inlining, pctoinline returns -1. Because p.Pos
 // applies to p, phase == 0 (before p) takes care of the update.
-func (s *pcinlineState) pctoinline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
+func (s *pcinlineState) pctoinline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg any) int32 {
 	if phase == 1 {
 		return oldval
 	}
@@ -224,7 +224,7 @@ func (s *pcinlineState) pctoinline(ctxt *Link, sym *LSym, oldval int32, p *Prog,
 // It is oldval plus any adjustment made by p itself.
 // The adjustment by p takes effect only after p, so we
 // apply the change during phase == 1.
-func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
+func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg any) int32 {
 	if oldval == -1 { // starting
 		oldval = 0
 	}
@@ -245,7 +245,7 @@ func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg in
 // non-PCDATA instructions.
 // Since PCDATA instructions have no width in the final code,
 // it does not matter which phase we use for the update.
-func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
+func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg any) int32 {
 	if phase == 0 || p.As != APCDATA || p.From.Offset != int64(arg.(uint32)) {
 		return oldval
 	}
@@ -337,7 +337,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 				Attribute: AttrContentAddressable | AttrPcdata,
 			}
 		} else {
-			pcln.Pcdata[i] = funcpctab(ctxt, cursym, "pctopcdata", pctopcdata, interface{}(uint32(i)))
+			pcln.Pcdata[i] = funcpctab(ctxt, cursym, "pctopcdata", pctopcdata, any(uint32(i)))
 		}
 	}
 

@@ -184,8 +184,6 @@ type RevInfo struct {
 // To avoid version control access except when absolutely necessary,
 // Lookup does not attempt to connect to the repository itself.
 
-var lookupCache par.Cache[lookupCacheKey, Repo]
-
 type lookupCacheKey struct {
 	proxy, path string
 }
@@ -202,14 +200,14 @@ type lookupCacheKey struct {
 //
 // A successful return does not guarantee that the module
 // has any defined versions.
-func Lookup(ctx context.Context, proxy, path string) Repo {
+func (f *Fetcher) Lookup(ctx context.Context, proxy, path string) Repo {
 	if traceRepo {
 		defer logCall("Lookup(%q, %q)", proxy, path)()
 	}
 
-	return lookupCache.Do(lookupCacheKey{proxy, path}, func() Repo {
-		return newCachingRepo(ctx, path, func(ctx context.Context) (Repo, error) {
-			r, err := lookup(ctx, proxy, path)
+	return f.lookupCache.Do(lookupCacheKey{proxy, path}, func() Repo {
+		return newCachingRepo(ctx, f, path, func(ctx context.Context) (Repo, error) {
+			r, err := lookup(f, ctx, proxy, path)
 			if err == nil && traceRepo {
 				r = newLoggingRepo(r)
 			}
@@ -218,21 +216,21 @@ func Lookup(ctx context.Context, proxy, path string) Repo {
 	})
 }
 
-var lookupLocalCache par.Cache[string, Repo] // path, Repo
+var lookupLocalCache = new(par.Cache[string, Repo]) // path, Repo
 
 // LookupLocal returns a Repo that accesses local VCS information.
 //
 // codeRoot is the module path of the root module in the repository.
 // path is the module path of the module being looked up.
 // dir is the file system path of the repository containing the module.
-func LookupLocal(ctx context.Context, codeRoot string, path string, dir string) Repo {
+func (f *Fetcher) LookupLocal(ctx context.Context, codeRoot string, path string, dir string) Repo {
 	if traceRepo {
 		defer logCall("LookupLocal(%q)", path)()
 	}
 
 	return lookupLocalCache.Do(path, func() Repo {
-		return newCachingRepo(ctx, path, func(ctx context.Context) (Repo, error) {
-			repoDir, vcsCmd, err := vcs.FromDir(dir, "", true)
+		return newCachingRepo(ctx, f, path, func(ctx context.Context) (Repo, error) {
+			repoDir, vcsCmd, err := vcs.FromDir(dir, "")
 			if err != nil {
 				return nil, err
 			}
@@ -250,14 +248,14 @@ func LookupLocal(ctx context.Context, codeRoot string, path string, dir string) 
 }
 
 // lookup returns the module with the given module path.
-func lookup(ctx context.Context, proxy, path string) (r Repo, err error) {
+func lookup(fetcher_ *Fetcher, ctx context.Context, proxy, path string) (r Repo, err error) {
 	if cfg.BuildMod == "vendor" {
 		return nil, errLookupDisabled
 	}
 
 	switch path {
 	case "go", "toolchain":
-		return &toolchainRepo{path, Lookup(ctx, proxy, "golang.org/toolchain")}, nil
+		return &toolchainRepo{path, fetcher_.Lookup(ctx, proxy, "golang.org/toolchain")}, nil
 	}
 
 	if module.MatchPrefixPatterns(cfg.GONOPROXY, path) {

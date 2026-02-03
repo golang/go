@@ -652,7 +652,7 @@ func TestJSONAndTextHandlersWithUnavailableSource(t *testing.T) {
 		h    Handler
 		want string
 	}{
-		{"text", NewTextHandler(&buf, opts), "source=:0 msg=message"},
+		{"text", NewTextHandler(&buf, opts), "msg=message"},
 		{"json", NewJSONHandler(&buf, opts), `{"msg":"message"}`},
 	} {
 		t.Run(test.name, func(t *testing.T) {

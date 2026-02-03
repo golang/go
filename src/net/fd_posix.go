@@ -40,10 +40,12 @@ func (fd *netFD) name() string {
 func (fd *netFD) setAddr(laddr, raddr Addr) {
 	fd.laddr = laddr
 	fd.raddr = raddr
+	// TODO Replace with runtime.AddCleanup.
 	runtime.SetFinalizer(fd, (*netFD).Close)
 }
 
 func (fd *netFD) Close() error {
+	// TODO Replace with runtime.AddCleanup.
 	runtime.SetFinalizer(fd, nil)
 	return fd.pfd.Close()
 }

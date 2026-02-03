@@ -147,7 +147,8 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 		return
 
 	case token.ARROW:
-		if elem := check.chanElem(x, x, true); elem != nil {
+		// We cannot receive a value with an incomplete type; make sure it's complete.
+		if elem := check.chanElem(x, x, true); elem != nil && check.isComplete(elem) {
 			x.mode = commaok
 			x.typ = elem
 			check.hasCallOrRecv = true
@@ -336,7 +337,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 	// If the new type is not final and still untyped, just
 	// update the recorded type.
 	if !final && isUntyped(typ) {
-		old.typ = under(typ).(*Basic)
+		old.typ = typ.Underlying().(*Basic)
 		check.untyped[x] = old
 		return
 	}
@@ -398,7 +399,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		return nil, nil, InvalidUntypedConversion
 	}
 
-	switch u := under(target).(type) {
+	switch u := target.Underlying().(type) {
 	case *Basic:
 		if x.mode == constant_ {
 			v, code := check.representation(x, u)
@@ -605,7 +606,7 @@ Error:
 // incomparableCause returns a more specific cause why typ is not comparable.
 // If there is no more specific cause, the result is "".
 func (check *Checker) incomparableCause(typ Type) string {
-	switch under(typ).(type) {
+	switch typ.Underlying().(type) {
 	case *Slice, *Signature, *Map:
 		return compositeKind(typ) + " can only be compared to nil"
 	}
@@ -887,6 +888,10 @@ func (check *Checker) matchTypes(x, y *operand) {
 		if isTyped(x.typ) && isTyped(y.typ) {
 			return false
 		}
+		// A numeric type can only convert to another numeric type.
+		if allNumeric(x.typ) != allNumeric(y.typ) {
+			return false
+		}
 		// An untyped operand may convert to its default type when paired with an empty interface
 		// TODO(gri) This should only matter for comparisons (the only binary operation that is
 		//           valid with interfaces), but in that case the assignability check should take
@@ -951,7 +956,7 @@ type target struct {
 // The result is nil if typ is not a signature.
 func newTarget(typ Type, desc string) *target {
 	if typ != nil {
-		if sig, _ := under(typ).(*Signature); sig != nil {
+		if sig, _ := typ.Underlying().(*Signature); sig != nil {
 			return &target{sig, desc}
 		}
 	}
@@ -1029,7 +1034,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 		goto Error // error was reported before
 
 	case *ast.Ident:
-		check.ident(x, e, nil, false)
+		check.ident(x, e, false)
 
 	case *ast.Ellipsis:
 		// ellipses are handled explicitly where they are valid
@@ -1061,7 +1066,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 		return kind
 
 	case *ast.SelectorExpr:
-		check.selector(x, e, nil, false)
+		check.selector(x, e, false)
 
 	case *ast.IndexExpr, *ast.IndexListExpr:
 		ix := unpackIndexedExpr(e)
@@ -1097,12 +1102,16 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 			check.errorf(x, InvalidAssert, invalidOp+"cannot use type assertion on type parameter value %s", x)
 			goto Error
 		}
-		if _, ok := under(x.typ).(*Interface); !ok {
+		if _, ok := x.typ.Underlying().(*Interface); !ok {
 			check.errorf(x, InvalidAssert, invalidOp+"%s is not an interface", x)
 			goto Error
 		}
 		T := check.varType(e.Type)
 		if !isValid(T) {
+			goto Error
+		}
+		// We cannot assert to an incomplete type; make sure it's complete.
+		if !check.isComplete(T) {
 			goto Error
 		}
 		check.typeAssertion(e, x, T, false)
@@ -1135,6 +1144,10 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 				base = p.base
 				return true
 			}) {
+				goto Error
+			}
+			// We cannot dereference a pointer with an incomplete base type; make sure it's complete.
+			if !check.isComplete(base) {
 				goto Error
 			}
 			x.mode = variable
@@ -1194,7 +1207,7 @@ Error:
 // represented as an integer (such as 1.0) it is returned as an integer value.
 // This ensures that constants of different kind but equal value (such as
 // 1.0 + 0i, 1.0, 1) result in the same value.
-func keyVal(x constant.Value) interface{} {
+func keyVal(x constant.Value) any {
 	switch x.Kind() {
 	case constant.Complex:
 		f := constant.ToFloat(x)

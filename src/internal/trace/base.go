@@ -41,7 +41,7 @@ func (e *baseEvent) extra(v version.Version) []uint64 {
 // evTable contains the per-generation data necessary to
 // interpret an individual event.
 type evTable struct {
-	freq    frequency
+	sync
 	strings dataTable[stringID, string]
 	stacks  dataTable[stackID, stack]
 	pcs     map[uint64]frame
@@ -106,6 +106,16 @@ func (d *dataTable[EI, E]) insert(id EI, data E) error {
 	}
 	d.sparse[id] = data
 	return nil
+}
+
+// append adds a new element to the data table and returns its ID.
+func (d *dataTable[EI, E]) append(data E) EI {
+	if d.sparse == nil {
+		d.sparse = make(map[EI]E)
+	}
+	id := EI(len(d.sparse)) + 1
+	d.sparse[id] = data
+	return id
 }
 
 // compactify attempts to compact sparse into dense.

@@ -271,6 +271,7 @@ func WithIndentPrefix(prefix string) Options {
 
 /*
 // TODO(https://go.dev/issue/56733): Implement WithByteLimit and WithDepthLimit.
+// Remember to also update the "Security Considerations" section.
 
 // WithByteLimit sets a limit on the number of bytes of input or output bytes
 // that may be consumed or produced for each top-level JSON value.

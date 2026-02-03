@@ -7,10 +7,7 @@ package fips140
 import (
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/check"
-	"internal/godebug"
 )
-
-var fips140GODEBUG = godebug.New("fips140")
 
 // Enabled reports whether the cryptography libraries are operating in FIPS
 // 140-3 mode.
@@ -21,13 +18,23 @@ var fips140GODEBUG = godebug.New("fips140")
 //
 // This can't be changed after the program has started.
 func Enabled() bool {
-	godebug := fips140GODEBUG.Value()
-	currentlyEnabled := godebug == "on" || godebug == "only" || godebug == "debug"
-	if currentlyEnabled != fips140.Enabled {
-		panic("crypto/fips140: GODEBUG setting changed after program start")
-	}
 	if fips140.Enabled && !check.Verified {
 		panic("crypto/fips140: FIPS 140-3 mode enabled, but integrity check didn't pass")
 	}
 	return fips140.Enabled
+}
+
+// Version returns the FIPS 140-3 Go Cryptographic Module version (such as
+// "v1.0.0"), as referenced in the Security Policy for the module, if building
+// against a frozen module with GOFIPS140. Otherwise, it returns "latest". If an
+// alias is in use (such as "inprogress") the actual resolved version is
+// returned.
+//
+// The returned version may not uniquely identify the frozen module which was
+// used to build the program, if there are multiple copies of the frozen module
+// at the same version. The uniquely identifying version suffix can be found by
+// checking the value of the GOFIPS140 setting in
+// runtime/debug.BuildInfo.Settings.
+func Version() string {
+	return fips140.Version()
 }

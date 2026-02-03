@@ -19,6 +19,6 @@ echo "// Copyright 2022 The Go Authors. All rights reserved.
 package comment
 
 var stdPkgs = []string{"
-go list std | grep -v / | sort | sed 's/.*/"&",/'
+GOEXPERIMENT=none go list std | grep -v / | sort | sed 's/.*/"&",/'
 echo "}"
 ) | gofmt >std.go.tmp && mv std.go.tmp std.go

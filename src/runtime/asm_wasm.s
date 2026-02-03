@@ -200,7 +200,7 @@ TEXT runtime·asminit(SB), NOSPLIT, $0-0
 TEXT ·publicationBarrier(SB), NOSPLIT, $0-0
 	RET
 
-TEXT runtime·procyield(SB), NOSPLIT, $0-0 // FIXME
+TEXT runtime·procyieldAsm(SB), NOSPLIT, $0-0 // FIXME
 	RET
 
 TEXT runtime·breakpoint(SB), NOSPLIT, $0-0
@@ -532,7 +532,7 @@ TEXT wasm_pc_f_loop(SB),NOSPLIT,$0
 			Get SP
 			I32Const $8
 			I32Sub
-			I32Load16U $2 // PC_F
+			I32Load $2 // PC_F
 
 			CallIndirect $0
 			Drop
@@ -568,7 +568,7 @@ outer:
 			Get SP
 			I32Const $8
 			I32Sub
-			I32Load16U $2 // PC_F
+			I32Load $2 // PC_F
 			Tee R2
 
 			Get R0

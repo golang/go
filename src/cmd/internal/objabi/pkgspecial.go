@@ -49,12 +49,15 @@ var runtimePkgs = []string{
 	"runtime",
 
 	"internal/runtime/atomic",
+	"internal/runtime/cgroup",
 	"internal/runtime/exithook",
 	"internal/runtime/gc",
+	"internal/runtime/gc/scan",
 	"internal/runtime/maps",
 	"internal/runtime/math",
 	"internal/runtime/sys",
-	"internal/runtime/syscall",
+	"internal/runtime/syscall/linux",
+	"internal/runtime/syscall/windows",
 
 	"internal/abi",
 	"internal/bytealg",
@@ -67,6 +70,7 @@ var runtimePkgs = []string{
 	"internal/goexperiment",
 	"internal/goos",
 	"internal/profilerecord",
+	"internal/strconv",
 	"internal/stringslite",
 }
 
@@ -92,7 +96,8 @@ var allowAsmABIPkgs = []string{
 	"syscall",
 	"internal/bytealg",
 	"internal/chacha8rand",
-	"internal/runtime/syscall",
+	"internal/runtime/syscall/linux",
+	"internal/runtime/syscall/windows",
 	"internal/runtime/startlinetest",
 }
 

@@ -20,7 +20,9 @@ const (
 	Go121   Version = 21 // v1
 	Go122   Version = 22 // v2
 	Go123   Version = 23 // v2
-	Current         = Go123
+	Go125   Version = 25 // v2
+	Go126   Version = 26 // v2
+	Current         = Go126
 )
 
 var versions = map[Version][]tracev2.EventSpec{
@@ -30,8 +32,10 @@ var versions = map[Version][]tracev2.EventSpec{
 	Go119: nil,
 	Go121: nil,
 
-	Go122: tracev2.Specs()[:tracev2.EvUserLog+1], // All events after are Go 1.23+.
-	Go123: tracev2.Specs(),
+	Go122: tracev2.Specs()[:tracev2.EvUserLog+1],           // All events after are Go 1.23+.
+	Go123: tracev2.Specs()[:tracev2.EvExperimentalBatch+1], // All events after are Go 1.25+.
+	Go125: tracev2.Specs()[:tracev2.EvClockSnapshot+1],     // All events after are Go 1.26+.
+	Go126: tracev2.Specs(),
 }
 
 // Specs returns the set of event.Specs for this version.

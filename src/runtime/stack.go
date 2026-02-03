@@ -8,10 +8,12 @@ import (
 	"internal/abi"
 	"internal/cpu"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
 	"internal/runtime/sys"
+	"math/bits"
 	"unsafe"
 )
 
@@ -181,12 +183,10 @@ func stackinit() {
 
 // stacklog2 returns ⌊log_2(n)⌋.
 func stacklog2(n uintptr) int {
-	log2 := 0
-	for n > 1 {
-		n >>= 1
-		log2++
+	if n == 0 {
+		return 0
 	}
-	return log2
+	return bits.Len64(uint64(n))
 }
 
 // Allocates a stack from the free pool. Must be called with
@@ -211,6 +211,13 @@ func stackpoolalloc(order uint8) gclinkptr {
 		s.elemsize = fixedStack << order
 		for i := uintptr(0); i < _StackCacheSize; i += s.elemsize {
 			x := gclinkptr(s.base() + i)
+			if valgrindenabled {
+				// The address of x.ptr() becomes the base of stacks. We need to
+				// mark it allocated here and in stackfree and stackpoolfree, and free'd in
+				// stackalloc in order to avoid overlapping allocations and
+				// uninitialized memory errors in valgrind.
+				valgrindMalloc(unsafe.Pointer(x.ptr()), unsafe.Sizeof(x.ptr()))
+			}
 			x.ptr().next = s.manualFreeList
 			s.manualFreeList = x
 		}
@@ -388,6 +395,12 @@ func stackalloc(n uint32) stack {
 			c.stackcache[order].list = x.ptr().next
 			c.stackcache[order].size -= uintptr(n)
 		}
+		if valgrindenabled {
+			// We're about to allocate the stack region starting at x.ptr().
+			// To prevent valgrind from complaining about overlapping allocations,
+			// we need to mark the (previously allocated) memory as free'd.
+			valgrindFree(unsafe.Pointer(x.ptr()))
+		}
 		v = unsafe.Pointer(x)
 	} else {
 		var s *mspan
@@ -431,6 +444,9 @@ func stackalloc(n uint32) stack {
 	}
 	if asanenabled {
 		asanunpoison(v, uintptr(n))
+	}
+	if valgrindenabled {
+		valgrindMalloc(v, uintptr(n))
 	}
 	if stackDebug >= 1 {
 		print("  allocated ", v, "\n")
@@ -479,6 +495,9 @@ func stackfree(stk stack) {
 	if asanenabled {
 		asanpoison(v, n)
 	}
+	if valgrindenabled {
+		valgrindFree(v)
+	}
 	if n < fixedStack<<_NumStackOrders && n < _StackCacheSize {
 		order := uint8(0)
 		n2 := n
@@ -489,12 +508,23 @@ func stackfree(stk stack) {
 		x := gclinkptr(v)
 		if stackNoCache != 0 || gp.m.p == 0 || gp.m.preemptoff != "" {
 			lock(&stackpool[order].item.mu)
+			if valgrindenabled {
+				// x.ptr() is the head of the list of free stacks, and will be used
+				// when allocating a new stack, so it has to be marked allocated.
+				valgrindMalloc(unsafe.Pointer(x.ptr()), unsafe.Sizeof(x.ptr()))
+			}
 			stackpoolfree(x, order)
 			unlock(&stackpool[order].item.mu)
 		} else {
 			c := gp.m.p.ptr().mcache
 			if c.stackcache[order].size >= _StackCacheSize {
 				stackcacherelease(c, order)
+			}
+			if valgrindenabled {
+				// x.ptr() is the head of the list of free stacks, and will
+				// be used when allocating a new stack, so it has to be
+				// marked allocated.
+				valgrindMalloc(unsafe.Pointer(x.ptr()), unsafe.Sizeof(x.ptr()))
 			}
 			x.ptr().next = c.stackcache[order].list
 			c.stackcache[order].list = x
@@ -582,6 +612,16 @@ func adjustpointer(adjinfo *adjustinfo, vpp unsafe.Pointer) {
 	p := *pp
 	if stackDebug >= 4 {
 		print("        ", pp, ":", hex(p), "\n")
+	}
+	if valgrindenabled {
+		// p is a pointer on a stack, it is inherently initialized, as
+		// everything on the stack is, but valgrind for _some unknown reason_
+		// sometimes thinks it's uninitialized, and flags operations on p below
+		// as uninitialized. We just initialize it if valgrind thinks its
+		// uninitialized.
+		//
+		// See go.dev/issues/73801.
+		valgrindMakeMemDefined(unsafe.Pointer(&p), unsafe.Sizeof(&p))
 	}
 	if adjinfo.old.lo <= p && p < adjinfo.old.hi {
 		*pp = p + adjinfo.delta
@@ -781,7 +821,8 @@ func adjustsudogs(gp *g, adjinfo *adjustinfo) {
 	// the data elements pointed to by a SudoG structure
 	// might be in the stack.
 	for s := gp.waiting; s != nil; s = s.waitlink {
-		adjustpointer(adjinfo, unsafe.Pointer(&s.elem))
+		adjustpointer(adjinfo, unsafe.Pointer(&s.elem.vu))
+		adjustpointer(adjinfo, unsafe.Pointer(&s.elem.vp))
 	}
 }
 
@@ -794,7 +835,7 @@ func fillstack(stk stack, b byte) {
 func findsghi(gp *g, stk stack) uintptr {
 	var sghi uintptr
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-		p := uintptr(sg.elem) + uintptr(sg.c.elemsize)
+		p := sg.elem.uintptr() + uintptr(sg.c.get().elemsize)
 		if stk.lo <= p && p < stk.hi && p > sghi {
 			sghi = p
 		}
@@ -813,7 +854,7 @@ func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 	// Lock channels to prevent concurrent send/receive.
 	var lastc *hchan
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-		if sg.c != lastc {
+		if sg.c.get() != lastc {
 			// There is a ranking cycle here between gscan bit and
 			// hchan locks. Normally, we only allow acquiring hchan
 			// locks and then getting a gscan bit. In this case, we
@@ -823,9 +864,9 @@ func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 			// suspended. So, we get a special hchan lock rank here
 			// that is lower than gscan, but doesn't allow acquiring
 			// any other locks other than hchan.
-			lockWithRank(&sg.c.lock, lockRankHchanLeaf)
+			lockWithRank(&sg.c.get().lock, lockRankHchanLeaf)
 		}
-		lastc = sg.c
+		lastc = sg.c.get()
 	}
 
 	// Adjust sudogs.
@@ -845,10 +886,10 @@ func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 	// Unlock channels.
 	lastc = nil
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-		if sg.c != lastc {
-			unlock(&sg.c.lock)
+		if sg.c.get() != lastc {
+			unlock(&sg.c.get().lock)
 		}
-		lastc = sg.c
+		lastc = sg.c.get()
 	}
 
 	return sgsize
@@ -936,7 +977,25 @@ func copystack(gp *g, newsize uintptr) {
 		adjustframe(&u.frame, &adjinfo)
 	}
 
+	if valgrindenabled {
+		if gp.valgrindStackID == 0 {
+			gp.valgrindStackID = valgrindRegisterStack(unsafe.Pointer(new.lo), unsafe.Pointer(new.hi))
+		} else {
+			valgrindChangeStack(gp.valgrindStackID, unsafe.Pointer(new.lo), unsafe.Pointer(new.hi))
+		}
+	}
+
 	// free old stack
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		// Some portion of the old stack has secret stuff on it.
+		// We don't really know where we entered secret mode,
+		// so just clear the whole thing.
+		// TODO(dmo): traceback until we hit secret.Do? clearing
+		// is fast and optimized, might not be worth it.
+		memclrNoHeapPointers(unsafe.Pointer(old.lo), old.hi-old.lo)
+		// The memmove call above might put secrets from the stack into registers.
+		secretEraseRegisters()
+	}
 	if stackPoisonCopy != 0 {
 		fillstack(old, 0xfc)
 	}
@@ -978,6 +1037,14 @@ func newstack() {
 	}
 
 	gp := thisg.m.curg
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		// If we're entering here from a secret context, clear
+		// all the registers. This is important because we
+		// might context switch to a different goroutine which
+		// is not in secret mode, and it will not be careful
+		// about clearing its registers.
+		secretEraseRegisters()
+	}
 
 	if thisg.m.curg.throwsplit {
 		// Update syscallsp, syscallpc in case traceback uses them.
@@ -1066,6 +1133,9 @@ func newstack() {
 			gp.preemptShrink = false
 			shrinkstack(gp)
 		}
+
+		// Set a flag indicated that we've been synchronously preempted.
+		gp.syncSafePoint = true
 
 		if gp.preemptStop {
 			preemptPark(gp) // never returns
@@ -1163,15 +1233,18 @@ func isShrinkStackSafe(gp *g) bool {
 	if gp.parkingOnChan.Load() {
 		return false
 	}
-	// We also can't copy the stack while tracing is enabled, and
-	// gp is in _Gwaiting solely to make itself available to the GC.
+	// We also can't copy the stack while a gp is in _Gwaiting solely
+	// to make itself available to suspendG.
+	//
 	// In these cases, the G is actually executing on the system
-	// stack, and the execution tracer may want to take a stack trace
-	// of the G's stack. Note: it's safe to access gp.waitreason here.
-	// We're only checking if this is true if we took ownership of the
+	// stack, and the execution tracer, mutex profiler, etc. may want
+	// to take a stack trace of the G's stack.
+	//
+	// Note: it's safe to access gp.waitreason here.
+	// We're only calling isShrinkStackSafe if we took ownership of the
 	// G with the _Gscan bit. This prevents the goroutine from transitioning,
 	// which prevents gp.waitreason from changing.
-	if traceEnabled() && readgstatus(gp)&^_Gscan == _Gwaiting && gp.waitreason.isWaitingForGC() {
+	if readgstatus(gp)&^_Gscan == _Gwaiting && gp.waitreason.isWaitingForSuspendG() {
 		return false
 	}
 	return true
@@ -1205,12 +1278,6 @@ func shrinkstack(gp *g) {
 	}
 
 	if debug.gcshrinkstackoff > 0 {
-		return
-	}
-	f := findfunc(gp.startpc)
-	if f.valid() && f.funcID == abi.FuncID_gcBgMarkWorker {
-		// We're not allowed to shrink the gcBgMarkWorker
-		// stack (see gcBgMarkWorker for explanation).
 		return
 	}
 
@@ -1290,7 +1357,13 @@ func (r *stackObjectRecord) gcdata() (uintptr, *byte) {
 	ptr := uintptr(unsafe.Pointer(r))
 	var mod *moduledata
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
-		if datap.gofunc <= ptr && ptr < datap.end {
+		// The normal case: stackObjectRecord is in funcdata.
+		if datap.gofunc <= ptr && ptr < datap.epclntab {
+			mod = datap
+			break
+		}
+		// A special case: methodValueCallFrameObjs.
+		if datap.noptrbss <= ptr && ptr < datap.enoptrbss {
 			mod = datap
 			break
 		}

@@ -75,10 +75,10 @@ const (
 	SHA512                      // import crypto/sha512
 	MD5SHA1                     // no implementation; MD5+SHA1 used for TLS RSA
 	RIPEMD160                   // import golang.org/x/crypto/ripemd160
-	SHA3_224                    // import golang.org/x/crypto/sha3
-	SHA3_256                    // import golang.org/x/crypto/sha3
-	SHA3_384                    // import golang.org/x/crypto/sha3
-	SHA3_512                    // import golang.org/x/crypto/sha3
+	SHA3_224                    // import crypto/sha3
+	SHA3_256                    // import crypto/sha3
+	SHA3_384                    // import crypto/sha3
+	SHA3_512                    // import crypto/sha3
 	SHA512_224                  // import crypto/sha512
 	SHA512_256                  // import crypto/sha512
 	BLAKE2s_256                 // import golang.org/x/crypto/blake2s
@@ -252,4 +252,22 @@ func SignMessage(signer Signer, rand io.Reader, msg []byte, opts SignerOpts) (si
 		msg = h.Sum(nil)
 	}
 	return signer.Sign(rand, msg, opts)
+}
+
+// Decapsulator is an interface for an opaque private KEM key that can be used for
+// decapsulation operations. For example, an ML-KEM key kept in a hardware module.
+//
+// It is implemented, for example, by [crypto/mlkem.DecapsulationKey768].
+type Decapsulator interface {
+	Encapsulator() Encapsulator
+	Decapsulate(ciphertext []byte) (sharedKey []byte, err error)
+}
+
+// Encapsulator is an interface for a public KEM key that can be used for
+// encapsulation operations.
+//
+// It is implemented, for example, by [crypto/mlkem.EncapsulationKey768].
+type Encapsulator interface {
+	Bytes() []byte
+	Encapsulate() (sharedKey, ciphertext []byte)
 }

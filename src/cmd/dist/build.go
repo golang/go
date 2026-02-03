@@ -380,7 +380,7 @@ func findgoversion() string {
 		if i := strings.Index(b, "\n"); i >= 0 {
 			rest := b[i+1:]
 			b = chomp(b[:i])
-			for _, line := range strings.Split(rest, "\n") {
+			for line := range strings.SplitSeq(rest, "\n") {
 				f := strings.Fields(line)
 				if len(f) == 0 {
 					continue
@@ -620,15 +620,10 @@ func setup() {
 func mustLinkExternal(goos, goarch string, cgoEnabled bool) bool {
 	if cgoEnabled {
 		switch goarch {
-		case "loong64", "mips", "mipsle", "mips64", "mips64le":
+		case "mips", "mipsle", "mips64", "mips64le":
 			// Internally linking cgo is incomplete on some architectures.
 			// https://golang.org/issue/14449
 			return true
-		case "arm64":
-			if goos == "windows" {
-				// windows/arm64 internal linking is not implemented.
-				return true
-			}
 		case "ppc64":
 			// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
 			if goos == "aix" || goos == "linux" {
@@ -1137,7 +1132,7 @@ func shouldbuild(file, pkg string) bool {
 	}
 
 	// Check file contents for //go:build lines.
-	for _, p := range strings.Split(readfile(file), "\n") {
+	for p := range strings.SplitSeq(readfile(file), "\n") {
 		p = strings.TrimSpace(p)
 		if p == "" {
 			continue
@@ -1390,7 +1385,21 @@ func toolenv() []string {
 	return env
 }
 
-var toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link", "cmd/preprofile"}
+var (
+	toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link", "cmd/preprofile"}
+
+	// Keep in sync with binExes in cmd/distpack/pack.go.
+	binExesIncludedInDistpack = []string{"cmd/go", "cmd/gofmt"}
+
+	// Keep in sync with the filter in cmd/distpack/pack.go.
+	toolsIncludedInDistpack = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/cover", "cmd/fix", "cmd/link", "cmd/preprofile", "cmd/vet"}
+
+	// We could install all tools in "cmd", but is unnecessary because we will
+	// remove them in distpack, so instead install the tools that will actually
+	// be included in distpack, which is a superset of toolchain. Not installing
+	// the tools will help us test what happens when the tools aren't present.
+	toolsToInstall = slices.Concat(binExesIncludedInDistpack, toolsIncludedInDistpack)
+)
 
 // The bootstrap command runs a build from scratch,
 // stopping at having installed the go_bootstrap command.
@@ -1456,11 +1465,6 @@ func cmdbootstrap() {
 	// GOEXPERIMENT.
 	os.Setenv("GOEXPERIMENT", "none")
 
-	if debug {
-		// cmd/buildid is used in debug mode.
-		toolchain = append(toolchain, "cmd/buildid")
-	}
-
 	if isdir(pathf("%s/src/pkg", goroot)) {
 		fatalf("\n\n"+
 			"The Go package sources have moved to $GOROOT/src.\n"+
@@ -1516,7 +1520,7 @@ func cmdbootstrap() {
 	}
 
 	// To recap, so far we have built the new toolchain
-	// (cmd/asm, cmd/cgo, cmd/compile, cmd/link)
+	// (cmd/asm, cmd/cgo, cmd/compile, cmd/link, cmd/preprofile)
 	// using the Go bootstrap toolchain and go command.
 	// Then we built the new go command (as go_bootstrap)
 	// using the new toolchain and our own build logic (above).
@@ -1605,9 +1609,9 @@ func cmdbootstrap() {
 			xprintf("\n")
 		}
 		xprintf("Building commands for host, %s/%s.\n", goos, goarch)
-		goInstall(toolenv(), goBootstrap, "cmd")
-		checkNotStale(toolenv(), goBootstrap, "cmd")
-		checkNotStale(toolenv(), gorootBinGo, "cmd")
+		goInstall(toolenv(), goBootstrap, toolsToInstall...)
+		checkNotStale(toolenv(), goBootstrap, toolsToInstall...)
+		checkNotStale(toolenv(), gorootBinGo, toolsToInstall...)
 
 		timelog("build", "target toolchain")
 		if vflag > 0 {
@@ -1621,12 +1625,12 @@ func cmdbootstrap() {
 		xprintf("Building packages and commands for target, %s/%s.\n", goos, goarch)
 	}
 	goInstall(nil, goBootstrap, "std")
-	goInstall(toolenv(), goBootstrap, "cmd")
+	goInstall(toolenv(), goBootstrap, toolsToInstall...)
 	checkNotStale(toolenv(), goBootstrap, toolchain...)
 	checkNotStale(nil, goBootstrap, "std")
-	checkNotStale(toolenv(), goBootstrap, "cmd")
+	checkNotStale(toolenv(), goBootstrap, toolsToInstall...)
 	checkNotStale(nil, gorootBinGo, "std")
-	checkNotStale(toolenv(), gorootBinGo, "cmd")
+	checkNotStale(toolenv(), gorootBinGo, toolsToInstall...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		checkNotStale(toolenv(), goBootstrap, toolchain...)
@@ -1677,7 +1681,7 @@ func cmdbootstrap() {
 
 	if distpack {
 		xprintf("Packaging archives for %s/%s.\n", goos, goarch)
-		run("", ShowOutput|CheckExit, pathf("%s/distpack", tooldir))
+		run("", ShowOutput|CheckExit, gorootBinGo, "tool", "distpack")
 	}
 
 	// Print trailing banner unless instructed otherwise.
@@ -1810,7 +1814,6 @@ var cgoEnabled = map[string]bool{
 	"solaris/amd64":   true,
 	"windows/386":     true,
 	"windows/amd64":   true,
-	"windows/arm":     false,
 	"windows/arm64":   true,
 }
 
@@ -1819,9 +1822,9 @@ var cgoEnabled = map[string]bool{
 // get filtered out of cgoEnabled for 'dist list'.
 // See go.dev/issue/56679.
 var broken = map[string]bool{
-	"linux/sparc64":  true, // An incomplete port. See CL 132155.
-	"openbsd/mips64": true, // Broken: go.dev/issue/58110.
-	"windows/arm":    true, // Broken: go.dev/issue/68552.
+	"freebsd/riscv64": true, // Broken: go.dev/issue/76475.
+	"linux/sparc64":   true, // An incomplete port. See CL 132155.
+	"openbsd/mips64":  true, // Broken: go.dev/issue/58110.
 }
 
 // List of platforms which are first class ports. See go.dev/issue/38874.
@@ -2008,7 +2011,7 @@ func cmdlist() {
 }
 
 func setNoOpt() {
-	for _, gcflag := range strings.Split(gogcflags, " ") {
+	for gcflag := range strings.SplitSeq(gogcflags, " ") {
 		if gcflag == "-N" || gcflag == "-l" {
 			noOpt = true
 			break

@@ -330,6 +330,22 @@ type Taskstats struct {
 	Wpcopy_delay_total        uint64
 	Irq_count                 uint64
 	Irq_delay_total           uint64
+	Cpu_delay_max             uint64
+	Cpu_delay_min             uint64
+	Blkio_delay_max           uint64
+	Blkio_delay_min           uint64
+	Swapin_delay_max          uint64
+	Swapin_delay_min          uint64
+	Freepages_delay_max       uint64
+	Freepages_delay_min       uint64
+	Thrashing_delay_max       uint64
+	Thrashing_delay_min       uint64
+	Compact_delay_max         uint64
+	Compact_delay_min         uint64
+	Wpcopy_delay_max          uint64
+	Wpcopy_delay_min          uint64
+	Irq_delay_max             uint64
+	Irq_delay_min             uint64
 }
 
 type cpuMask uint64

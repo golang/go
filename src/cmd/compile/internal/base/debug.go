@@ -20,6 +20,8 @@ type DebugFlags struct {
 	Append                int    `help:"print information about append compilation"`
 	Checkptr              int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation" concurrent:"ok"`
 	Closure               int    `help:"print information about closure compilation"`
+	CompressInstructions  int    `help:"use compressed instructions when possible (if supported by architecture)"`
+	Converthash           string `help:"hash value for use in debugging changes to platform-dependent float-to-[u]int conversion" concurrent:"ok"`
 	Defer                 int    `help:"print information about defer compilation"`
 	DisableNil            int    `help:"disable nil checks" concurrent:"ok"`
 	DumpInlFuncProps      string `help:"dump function properties from inl heuristics to specified file"`
@@ -29,16 +31,22 @@ type DebugFlags struct {
 	DumpPtrs              int    `help:"show Node pointers values in dump output"`
 	DwarfInl              int    `help:"print information about DWARF inlined function creation"`
 	EscapeMutationsCalls  int    `help:"print extra escape analysis diagnostics about mutations and calls" concurrent:"ok"`
+	EscapeDebug           int    `help:"print information about escape analysis and resulting optimizations" concurrent:"ok"`
+	EscapeAlias           int    `help:"print information about alias analysis" concurrent:"ok"`
+	EscapeAliasCheck      int    `help:"enable additional validation for alias analysis" concurrent:"ok"`
 	Export                int    `help:"print export data"`
 	FIPSHash              string `help:"hash value for FIPS debugging" concurrent:"ok"`
 	Fmahash               string `help:"hash value for use in debugging platform-dependent multiply-add use" concurrent:"ok"`
+	FreeAppend            int    `help:"insert frees of append results when proven safe (0 disabled, 1 enabled, 2 enabled + log)" concurrent:"ok"`
 	GCAdjust              int    `help:"log adjustments to GOGC" concurrent:"ok"`
 	GCCheck               int    `help:"check heap/gc use by compiler" concurrent:"ok"`
 	GCProg                int    `help:"print dump of GC programs"`
+	GCStart               int    `help:"specify \"starting\" compiler's heap size in MiB" concurrent:"ok"`
 	Gossahash             string `help:"hash value for use in debugging the compiler"`
 	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
 	InlStaticInit         int    `help:"allow static initialization of inlined calls" concurrent:"ok"`
 	Libfuzzer             int    `help:"enable coverage instrumentation for libfuzzer"`
+	LiteralAllocHash      string `help:"hash value for use in debugging literal allocation optimizations" concurrent:"ok"`
 	LoopVar               int    `help:"shared (0, default), 1 (private loop variables), 2, private + log"`
 	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag."`
 	LocationLists         int    `help:"print information about DWARF location list creation"`

@@ -10,7 +10,7 @@ import (
 )
 
 // IsNonblock returns whether the file descriptor fd is opened
-// in non-blocking mode, that is, the [syscall.FILE_FLAG_OVERLAPPED] flag
+// in non-blocking mode, that is, the [windows.O_FILE_FLAG_OVERLAPPED] flag
 // was set when the file was opened.
 func IsNonblock(fd syscall.Handle) (nonblocking bool, err error) {
 	var info FILE_MODE_INFORMATION

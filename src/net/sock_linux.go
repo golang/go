@@ -18,9 +18,8 @@ import (
 //
 // See issue 5030 and 41470.
 func maxAckBacklog(n int) int {
-	major, minor := unix.KernelVersion()
 	size := 16
-	if major > 4 || (major == 4 && minor >= 1) {
+	if unix.KernelVersionGE(4, 1) {
 		size = 32
 	}
 

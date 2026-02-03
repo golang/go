@@ -503,6 +503,19 @@ func TestParseTagOptions(t *testing.T) {
 		wantOpts: fieldOptions{hasName: true, name: "-", quotedName: `"-"`},
 		wantErr:  errors.New("Go struct field V has malformed `json` tag: invalid trailing ',' character"),
 	}, {
+		name: jsontest.Name("DashCommaOmitEmpty"),
+		in: struct {
+			V int `json:"-,omitempty"`
+		}{},
+		wantOpts: fieldOptions{hasName: true, name: "-", quotedName: `"-"`, omitempty: true},
+		wantErr:  errors.New("Go struct field V has JSON object name \"-\"; either use `json:\"-\"` to ignore the field or use `json:\"'-',omitempty\"` to specify \"-\" as the name"),
+	}, {
+		name: jsontest.Name("QuotedDashCommaOmitEmpty"),
+		in: struct {
+			V int `json:"'-',omitempty"`
+		}{},
+		wantOpts: fieldOptions{hasName: true, name: "-", quotedName: `"-"`, omitempty: true},
+	}, {
 		name: jsontest.Name("QuotedDashName"),
 		in: struct {
 			V int `json:"'-'"`

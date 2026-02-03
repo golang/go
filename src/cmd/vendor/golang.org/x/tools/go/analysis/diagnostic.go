@@ -33,8 +33,9 @@ type Diagnostic struct {
 	URL string
 
 	// SuggestedFixes is an optional list of fixes to address the
-	// problem described by the diagnostic. Each one represents
-	// an alternative strategy; at most one may be applied.
+	// problem described by the diagnostic. Each one represents an
+	// alternative strategy, and should have a distinct and
+	// descriptive message; at most one may be applied.
 	//
 	// Fixes for different diagnostics should be treated as
 	// independent changes to the same baseline file state,

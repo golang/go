@@ -155,7 +155,6 @@ func TestDialError(t *testing.T) {
 
 	d := Dialer{Timeout: someTimeout}
 	for i, tt := range dialErrorTests {
-		i, tt := i, tt
 		t.Run(fmt.Sprint(i), func(t *testing.T) {
 			c, err := d.Dial(tt.network, tt.address)
 			if err == nil {

@@ -111,7 +111,7 @@ func arena_newArena() unsafe.Pointer {
 //go:linkname arena_arena_New arena.runtime_arena_arena_New
 func arena_arena_New(arena unsafe.Pointer, typ any) any {
 	t := (*_type)(efaceOf(&typ).data)
-	if t.Kind_&abi.KindMask != abi.Pointer {
+	if t.Kind() != abi.Pointer {
 		throw("arena_New: non-pointer type")
 	}
 	te := (*ptrtype)(unsafe.Pointer(t)).Elem
@@ -145,7 +145,7 @@ func arena_heapify(s any) any {
 	var v unsafe.Pointer
 	e := efaceOf(&s)
 	t := e._type
-	switch t.Kind_ & abi.KindMask {
+	switch t.Kind() {
 	case abi.String:
 		v = stringStructOf((*string)(e.data)).str
 	case abi.Slice:
@@ -162,7 +162,7 @@ func arena_heapify(s any) any {
 	}
 	// Heap-allocate storage for a copy.
 	var x any
-	switch t.Kind_ & abi.KindMask {
+	switch t.Kind() {
 	case abi.String:
 		s1 := s.(string)
 		s2, b := rawstring(len(s1))
@@ -293,11 +293,11 @@ func (a *userArena) slice(sl any, cap int) {
 	}
 	i := efaceOf(&sl)
 	typ := i._type
-	if typ.Kind_&abi.KindMask != abi.Pointer {
+	if typ.Kind() != abi.Pointer {
 		panic("slice result of non-ptr type")
 	}
 	typ = (*ptrtype)(unsafe.Pointer(typ)).Elem
-	if typ.Kind_&abi.KindMask != abi.Slice {
+	if typ.Kind() != abi.Slice {
 		panic("slice of non-ptr-to-slice type")
 	}
 	typ = (*slicetype)(unsafe.Pointer(typ)).Elem
@@ -745,7 +745,9 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
 	// does represent additional work for the GC, but we also have no idea
 	// what that looks like until we actually allocate things into the
 	// arena).
-	deductAssistCredit(userArenaChunkBytes)
+	if gcBlackenEnabled != 0 {
+		deductAssistCredit(userArenaChunkBytes)
+	}
 
 	// Set mp.mallocing to keep from being preempted by GC.
 	mp := acquirem()
@@ -950,6 +952,9 @@ func freeUserArenaChunk(s *mspan, x unsafe.Pointer) {
 	if asanenabled {
 		asanpoison(unsafe.Pointer(s.base()), s.elemsize)
 	}
+	if valgrindenabled {
+		valgrindFree(unsafe.Pointer(s.base()))
+	}
 
 	// Make ourselves non-preemptible as we manipulate state and statistics.
 	//
@@ -1046,12 +1051,24 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 
 	// Model the user arena as a heap span for a large object.
 	spc := makeSpanClass(0, false)
-	h.initSpan(s, spanAllocHeap, spc, base, userArenaChunkPages)
+	// A user arena chunk is always fresh from the OS. It's either newly allocated
+	// via sysAlloc() or reused from the readyList after a sysFault(). The memory is
+	// then re-mapped via sysMap(), so we can safely treat it as scavenged; the
+	// kernel guarantees it will be zero-filled on its next use.
+	h.initSpan(s, spanAllocHeap, spc, base, userArenaChunkPages, userArenaChunkBytes)
 	s.isUserArenaChunk = true
 	s.elemsize -= userArenaChunkReserveBytes()
-	s.limit = s.base() + s.elemsize
 	s.freeindex = 1
 	s.allocCount = 1
+
+	// Adjust s.limit down to the object-containing part of the span.
+	//
+	// This is just to create a slightly tighter bound on the limit.
+	// It's totally OK if the garbage collector, in particular
+	// conservative scanning, can temporarily observes an inflated
+	// limit. It will simply mark the whole chunk or just skip it
+	// since we're in the mark phase anyway.
+	s.limit = s.base() + s.elemsize
 
 	// Adjust size to include redzone.
 	if asanenabled {

@@ -257,7 +257,7 @@ func deadcode(f *Func) {
 	// Find new homes for lost lines -- require earliest in data flow with same line that is also in same block
 	for i := len(order) - 1; i >= 0; i-- {
 		w := order[i]
-		if j := pendingLines.get(w.Pos); j > -1 && f.Blocks[j] == w.Block {
+		if j, ok := pendingLines.get(w.Pos); ok && f.Blocks[j] == w.Block {
 			w.Pos = w.Pos.WithIsStmt()
 			pendingLines.remove(w.Pos)
 		}

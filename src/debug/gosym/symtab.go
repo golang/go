@@ -332,7 +332,8 @@ func walksymtab(data []byte, fn func(sym) error) error {
 
 // NewTable decodes the Go symbol table (the ".gosymtab" section in ELF),
 // returning an in-memory representation.
-// Starting with Go 1.3, the Go symbol table no longer includes symbol data.
+// Starting with Go 1.3, the Go symbol table no longer includes symbol data;
+// callers should pass nil for the symtab parameter.
 func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 	var n int
 	err := walksymtab(symtab, func(s sym) error {

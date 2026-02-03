@@ -1,5 +1,0 @@
-pkg crypto, func SignMessage(Signer, io.Reader, []uint8, SignerOpts) ([]uint8, error) #63405
-pkg crypto, type MessageSigner interface { Public, Sign, SignMessage } #63405
-pkg crypto, type MessageSigner interface, Public() PublicKey #63405
-pkg crypto, type MessageSigner interface, Sign(io.Reader, []uint8, SignerOpts) ([]uint8, error) #63405
-pkg crypto, type MessageSigner interface, SignMessage(io.Reader, []uint8, SignerOpts) ([]uint8, error) #63405

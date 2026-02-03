@@ -198,7 +198,6 @@ func TestPanicHelper(t *testing.T) {
 		}
 	})
 	for i := 0; i < 3; i++ {
-		i := i
 		t.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
 			chosen := t.Name() == *testPanicTest
 			if chosen && *testPanicCleanup {

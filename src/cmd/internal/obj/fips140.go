@@ -196,14 +196,8 @@ func EnableFIPS() bool {
 	// Perhaps the default should be changed back to -buildmode=exe,
 	// after which we could remove this case, but until then,
 	// skip FIPS on windows-386.
-	//
-	// We don't know whether arm works, because it is too hard to get builder
-	// time to test it. Disable since it's not important right now.
-	if buildcfg.GOOS == "windows" {
-		switch buildcfg.GOARCH {
-		case "386", "arm":
-			return false
-		}
+	if buildcfg.GOOS == "windows" && buildcfg.GOARCH == "386" {
+		return false
 	}
 
 	// AIX doesn't just work, and it's not worth fixing.
@@ -360,8 +354,10 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
 		objabi.R_CALLLOONG64,
 		objabi.R_CALLPOWER,
 		objabi.R_GOTPCREL,
-		objabi.R_LOONG64_ADDR_LO, // used with PC-relative load
-		objabi.R_LOONG64_ADDR_HI, // used with PC-relative load
+		objabi.R_LOONG64_ADDR_LO,         // used with PC-relative load
+		objabi.R_LOONG64_ADDR_HI,         // used with PC-relative load
+		objabi.R_LOONG64_ADDR_PCREL20_S2, // used with PC-relative load
+		objabi.R_LOONG64_CALL36,
 		objabi.R_LOONG64_TLS_LE_HI,
 		objabi.R_LOONG64_TLS_LE_LO,
 		objabi.R_LOONG64_TLS_IE_HI,
@@ -384,6 +380,7 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
 		objabi.R_RISCV_TLS_IE,
 		objabi.R_RISCV_TLS_LE,
 		objabi.R_RISCV_GOT_HI20,
+		objabi.R_RISCV_GOT_PCREL_ITYPE,
 		objabi.R_RISCV_PCREL_HI20,
 		objabi.R_RISCV_PCREL_LO12_I,
 		objabi.R_RISCV_PCREL_LO12_S,

@@ -51,7 +51,7 @@ func test1(iter int) {
 		// var fn func() // this makes it work, because fn stays off heap
 		j := 0        // ERROR "moved to heap: j$"
 		fn = func() { // ERROR "func literal escapes to heap$"
-			m[i] = append(m[i], 0)
+			m[i] = append(m[i], 0) // ERROR "append escapes to heap"
 			if j < 25 {
 				j++
 				fn()
@@ -75,7 +75,7 @@ func test2(iter int) {
 		var fn func() // this makes it work, because fn stays off heap
 		j := 0
 		fn = func() { // ERROR "func literal does not escape$"
-			m[i] = append(m[i], 0)
+			m[i] = append(m[i], 0) // ERROR "append escapes to heap"
 			if j < 25 {
 				j++
 				fn()

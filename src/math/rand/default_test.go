@@ -34,7 +34,6 @@ func TestDefaultRace(t *testing.T) {
 	t.Parallel()
 
 	for i := 0; i < 6; i++ {
-		i := i
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Parallel()
 			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestDefaultRace$")

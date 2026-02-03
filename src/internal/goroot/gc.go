@@ -37,7 +37,7 @@ func IsStandardPackage(goroot, compiler, path string) bool {
 	}
 }
 
-// gccgoSearch holds the gccgo search directories.
+// gccgoDirs holds the gccgo search directories.
 type gccgoDirs struct {
 	once sync.Once
 	dirs []string
@@ -77,8 +77,8 @@ func (gd *gccgoDirs) init() {
 	const prefix = "libraries: ="
 	var dirs []string
 	for _, dirEntry := range dirsEntries {
-		if strings.HasPrefix(dirEntry, prefix) {
-			dirs = filepath.SplitList(strings.TrimPrefix(dirEntry, prefix))
+		if after, ok := strings.CutPrefix(dirEntry, prefix); ok {
+			dirs = filepath.SplitList(after)
 			break
 		}
 	}

@@ -24,8 +24,8 @@ import (
 // The name of a duplicate JSON object member can be extracted as:
 //
 //	err := ...
-//	var serr jsontext.SyntacticError
-//	if errors.As(err, &serr) && serr.Err == jsontext.ErrDuplicateName {
+//	serr, ok := errors.AsType[*jsontext.SyntacticError](err)
+//	if ok && serr.Err == jsontext.ErrDuplicateName {
 //		ptr := serr.JSONPointer // JSON pointer to duplicate name
 //		name := ptr.LastToken() // duplicate name itself
 //		...
@@ -297,7 +297,7 @@ func (m *stateMachine) appendNumber() error {
 	return m.appendLiteral()
 }
 
-// pushObject appends a JSON start object token as next in the sequence.
+// pushObject appends a JSON begin object token as next in the sequence.
 // If an error is returned, the state is not mutated.
 func (m *stateMachine) pushObject() error {
 	switch {
@@ -332,7 +332,7 @@ func (m *stateMachine) popObject() error {
 	}
 }
 
-// pushArray appends a JSON start array token as next in the sequence.
+// pushArray appends a JSON begin array token as next in the sequence.
 // If an error is returned, the state is not mutated.
 func (m *stateMachine) pushArray() error {
 	switch {

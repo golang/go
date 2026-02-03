@@ -3,7 +3,7 @@
  * ======================
  *
  * Given an unique existing element with id "viewport" (or when missing, the 
- * first g-element), including the the library into any SVG adds the following 
+ * first g-element), including the library into any SVG adds the following 
  * capabilities:
  *
  *  - Mouse panning

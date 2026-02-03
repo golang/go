@@ -16,6 +16,7 @@ import (
 // Offsets into internal/cpu records for use in assembly.
 const (
 	offsetLOONG64HasLSX = unsafe.Offsetof(cpu.Loong64.HasLSX)
+	offsetRISCV64HasV   = unsafe.Offsetof(cpu.RISCV64.HasV)
 )
 
 const (

@@ -11,4 +11,4 @@ TEXT _rt0_arm64_ios(SB),NOSPLIT|NOFRAME,$0
 
 // library entry point.
 TEXT _rt0_arm64_ios_lib(SB),NOSPLIT|NOFRAME,$0
-	JMP	_rt0_arm64_darwin_lib(SB)
+	JMP	_rt0_arm64_lib(SB)

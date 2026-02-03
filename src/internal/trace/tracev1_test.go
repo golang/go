@@ -7,6 +7,7 @@ package trace_test
 import (
 	"internal/trace"
 	"internal/trace/testtrace"
+	"internal/trace/version"
 	"io"
 	"os"
 	"path/filepath"
@@ -20,7 +21,6 @@ func TestTraceV1(t *testing.T) {
 	}
 	var testedUserRegions bool
 	for _, p := range traces {
-		p := p
 		testName, err := filepath.Rel("./internal/tracev1/testdata", p)
 		if err != nil {
 			t.Fatalf("failed to relativize testdata path: %s", err)
@@ -38,7 +38,7 @@ func TestTraceV1(t *testing.T) {
 			}
 
 			v := testtrace.NewValidator()
-			v.Go121 = true
+			v.GoVersion = version.Go121
 			for {
 				ev, err := tr.ReadEvent()
 				if err != nil {

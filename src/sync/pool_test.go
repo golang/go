@@ -102,6 +102,18 @@ func TestPoolRelease(t *testing.T) {
 }
 
 func testPool(t *testing.T, drain bool) {
+	if drain {
+		// Run with GOMAXPROCS=1 if drain is set. The code below implicitly
+		// assumes it can remove all the pool-cached values with cleanups
+		// with Get, but this isn't necessarily true if a value gets stuck
+		// in the private slot for some P. This is especially likely when
+		// running with mayMoreStackPreempt. We can make this exact, however,
+		// by setting GOMAXPROCS to 1, so there's only 1 P. This is fine for
+		// this test, since we're not trying to check any concurrent properties
+		// of Pool anyway.
+		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	}
+
 	var p Pool
 	const N = 100
 	for try := 0; try < 3; try++ {

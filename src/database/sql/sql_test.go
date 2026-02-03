@@ -5,6 +5,7 @@
 package sql
 
 import (
+	"bytes"
 	"context"
 	"database/sql/driver"
 	"errors"
@@ -2938,7 +2939,6 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 	db.SetMaxOpenConns(1)
 
 	for _, ec := range execCases {
-		ec := ec
 		name := fmt.Sprintf("expired=%t,badReset=%t", ec.expired, ec.badReset)
 		t.Run(name, func(t *testing.T) {
 			db.clearAllConns(t)
@@ -4434,10 +4434,6 @@ func testContextCancelDuringRawBytesScan(t *testing.T, mode string) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	if _, err := db.Exec("USE_RAWBYTES"); err != nil {
-		t.Fatal(err)
-	}
-
 	// cancel used to call close asynchronously.
 	// This test checks that it waits so as not to interfere with RawBytes.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -4529,6 +4525,61 @@ func TestContextCancelBetweenNextAndErr(t *testing.T) {
 	}
 }
 
+type testScanner struct {
+	scanf func(src any) error
+}
+
+func (ts testScanner) Scan(src any) error { return ts.scanf(src) }
+
+func TestContextCancelDuringScan(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	scanStart := make(chan any)
+	scanEnd := make(chan error)
+	scanner := &testScanner{
+		scanf: func(src any) error {
+			scanStart <- src
+			return <-scanEnd
+		},
+	}
+
+	// Start a query, and pause it mid-scan.
+	want := []byte("Alice")
+	r, err := db.QueryContext(ctx, "SELECT|people|name|name=?", string(want))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !r.Next() {
+		t.Fatalf("r.Next() = false, want true")
+	}
+	go func() {
+		r.Scan(scanner)
+	}()
+	got := <-scanStart
+	defer close(scanEnd)
+	gotBytes, ok := got.([]byte)
+	if !ok {
+		t.Fatalf("r.Scan returned %T, want []byte", got)
+	}
+	if !bytes.Equal(gotBytes, want) {
+		t.Fatalf("before cancel: r.Scan returned %q, want %q", gotBytes, want)
+	}
+
+	// Cancel the query.
+	// Sleep to give it a chance to finish canceling.
+	cancel()
+	time.Sleep(10 * time.Millisecond)
+
+	// Cancelling the query should not have changed the result.
+	if !bytes.Equal(gotBytes, want) {
+		t.Fatalf("after cancel: r.Scan result is now %q, want %q", gotBytes, want)
+	}
+}
+
 func TestNilErrorAfterClose(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
@@ -4561,10 +4612,6 @@ func TestNilErrorAfterClose(t *testing.T) {
 func TestRawBytesReuse(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
-
-	if _, err := db.Exec("USE_RAWBYTES"); err != nil {
-		t.Fatal(err)
-	}
 
 	var raw RawBytes
 
@@ -4991,4 +5038,51 @@ func TestIssue69728(t *testing.T) {
 	if !reflect.DeepEqual(v1, v2) {
 		t.Errorf("not equal; v1 = %v, v2 = %v", v1, v2)
 	}
+}
+
+func TestColumnConverterWithUnknownInputCount(t *testing.T) {
+	db := OpenDB(&unknownInputsConnector{})
+	stmt, err := db.Prepare("SELECT ?")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = stmt.Exec(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+type unknownInputsConnector struct{}
+
+func (unknownInputsConnector) Connect(context.Context) (driver.Conn, error) {
+	return unknownInputsConn{}, nil
+}
+
+func (unknownInputsConnector) Driver() driver.Driver { return nil }
+
+type unknownInputsConn struct{}
+
+func (unknownInputsConn) Prepare(string) (driver.Stmt, error) { return unknownInputsStmt{}, nil }
+func (unknownInputsConn) Close() error                        { return nil }
+func (unknownInputsConn) Begin() (driver.Tx, error)           { return nil, nil }
+
+type unknownInputsStmt struct{}
+
+func (unknownInputsStmt) Close() error  { return nil }
+func (unknownInputsStmt) NumInput() int { return -1 }
+func (unknownInputsStmt) Exec(args []driver.Value) (driver.Result, error) {
+	if _, ok := args[0].(string); !ok {
+		return nil, fmt.Errorf("Expected string, got %T", args[0])
+	}
+	return nil, nil
+}
+func (unknownInputsStmt) Query([]driver.Value) (driver.Rows, error) { return nil, nil }
+func (unknownInputsStmt) ColumnConverter(idx int) driver.ValueConverter {
+	return unknownInputsValueConverter{}
+}
+
+type unknownInputsValueConverter struct{}
+
+func (unknownInputsValueConverter) ConvertValue(v any) (driver.Value, error) {
+	return "string", nil
 }

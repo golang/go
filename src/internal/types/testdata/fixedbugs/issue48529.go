@@ -4,7 +4,7 @@
 
 package p
 
-type T /* ERROR "invalid recursive type" */ [U interface{ M() T[U, int] }] int
+type T[U interface{ M() T /* ERROR "too many type arguments for type T" */ [U, int] }] int
 
 type X int
 

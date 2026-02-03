@@ -34,10 +34,12 @@
 #define SYS_mincore		4217
 #define SYS_gettid		4222
 #define SYS_futex		4238
+#define SYS_futex_time64	4422
 #define SYS_sched_getaffinity	4240
 #define SYS_exit_group		4246
 #define SYS_timer_create	4257
 #define SYS_timer_settime	4258
+#define SYS_timer_settime64	4409
 #define SYS_timer_delete	4261
 #define SYS_clock_gettime	4263
 #define SYS_tgkill		4266
@@ -196,12 +198,23 @@ TEXT runtime·timer_create(SB),NOSPLIT,$0-16
 	MOVW	R2, ret+12(FP)
 	RET
 
-TEXT runtime·timer_settime(SB),NOSPLIT,$0-20
+// Linux: kernel/time/posix-timer.c, requiring COMPAT_32BIT_TIME
+TEXT runtime·timer_settime32(SB),NOSPLIT,$0-20
 	MOVW	timerid+0(FP), R4
 	MOVW	flags+4(FP), R5
 	MOVW	new+8(FP), R6
 	MOVW	old+12(FP), R7
 	MOVW	$SYS_timer_settime, R2
+	SYSCALL
+	MOVW	R2, ret+16(FP)
+	RET
+
+TEXT runtime·timer_settime64(SB),NOSPLIT,$0-20
+	MOVW	timerid+0(FP), R4
+	MOVW	flags+4(FP), R5
+	MOVW	new+8(FP), R6
+	MOVW	old+12(FP), R7
+	MOVW	$SYS_timer_settime64, R2
 	SYSCALL
 	MOVW	R2, ret+16(FP)
 	RET
@@ -362,8 +375,10 @@ TEXT runtime·madvise(SB),NOSPLIT,$0-16
 	MOVW	R2, ret+12(FP)
 	RET
 
-// int32 futex(int32 *uaddr, int32 op, int32 val, struct timespec *timeout, int32 *uaddr2, int32 val2);
-TEXT runtime·futex(SB),NOSPLIT,$20-28
+// Linux: kernel/futex/syscalls.c, requiring COMPAT_32BIT_TIME
+// int32 futex(int32 *uaddr, int32 op, int32 val,
+//	struct old_timespec32 *timeout, int32 *uaddr2, int32 val2);
+TEXT runtime·futex_time32(SB),NOSPLIT,$20-28
 	MOVW	addr+0(FP), R4
 	MOVW	op+4(FP), R5
 	MOVW	val+8(FP), R6
@@ -382,6 +397,27 @@ TEXT runtime·futex(SB),NOSPLIT,$20-28
 	MOVW	R2, ret+24(FP)
 	RET
 
+// Linux: kernel/futex/syscalls.c
+// int32 futex(int32 *uaddr, int32 op, int32 val,
+//	struct timespec *timeout, int32 *uaddr2, int32 val2);
+TEXT runtime·futex_time64(SB),NOSPLIT,$20-28
+	MOVW	addr+0(FP), R4
+	MOVW	op+4(FP), R5
+	MOVW	val+8(FP), R6
+	MOVW	ts+12(FP), R7
+
+	MOVW	addr2+16(FP), R8
+	MOVW	val3+20(FP), R9
+
+	MOVW	R8, 16(R29)
+	MOVW	R9, 20(R29)
+
+	MOVW	$SYS_futex_time64, R2
+	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBU	R2, R0, R2	// caller expects negative errno
+	MOVW	R2, ret+24(FP)
+	RET
 
 // int32 clone(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0-24

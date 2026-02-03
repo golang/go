@@ -108,6 +108,25 @@ func testCanonMap(t *testing.T, newMap func() *canonMap[string]) {
 				wg.Wait()
 			}
 
+			// Run an extra GC cycle to de-flake. Sometimes the cleanups
+			// fail to run in time, despite drainCleanupQueue.
+			//
+			// TODO(mknyszek): Figure out why the extra GC is necessary,
+			// and what is transiently keeping the cleanups live.
+			// * I have confirmed that they are not completely stuck, and
+			//   they always eventually run.
+			// * I have also confirmed it's not asynchronous preemption
+			//   keeping them around (though that is a possibility).
+			// * I have confirmed that they are not simply sitting on
+			//   the queue, and that drainCleanupQueue is just failing
+			//   to actually empty the queue.
+			// * I have confirmed that it's not a write barrier that's
+			//   keeping it alive, nor is it a weak pointer dereference
+			//   (which shades the object during the GC).
+			// The corresponding objects do seem to be transiently truly
+			// reachable, but I have no idea by what path.
+			runtime.GC()
+
 			// Drain cleanups so everything is deleted.
 			drainCleanupQueue(t)
 

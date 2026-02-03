@@ -253,6 +253,9 @@ The //go:nosplit directive must be followed by a function declaration.
 It specifies that the function must omit its usual stack overflow check.
 This is most commonly used by low-level runtime code invoked
 at times when it is unsafe for the calling goroutine to be preempted.
+Using this directive outside of low-level runtime code is not safe,
+because it permits the nosplit function to overwrite the end of stack,
+leading to memory corruption and arbitrary program failure.
 
 # Linkname Directive
 

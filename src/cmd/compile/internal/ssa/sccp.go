@@ -4,10 +4,6 @@
 
 package ssa
 
-import (
-	"fmt"
-)
-
 // ----------------------------------------------------------------------------
 // Sparse Conditional Constant Propagation
 //
@@ -122,7 +118,7 @@ func sccp(f *Func) {
 	constCnt, rewireCnt := t.replaceConst()
 	if f.pass.debug > 0 {
 		if constCnt > 0 || rewireCnt > 0 {
-			fmt.Printf("Phase SCCP for %v : %v constants, %v dce\n", f.Name, constCnt, rewireCnt)
+			f.Warnl(f.Entry.Pos, "Phase SCCP for %v : %v constants, %v dce", f.Name, constCnt, rewireCnt)
 		}
 	}
 }
@@ -393,7 +389,7 @@ func (t *worklist) visitValue(val *Value) {
 	defer func() {
 		newLt := t.getLatticeCell(val)
 		if !equals(newLt, oldLt) {
-			if int8(oldLt.tag) > int8(newLt.tag) {
+			if oldLt.tag > newLt.tag {
 				t.f.Fatalf("Must lower lattice\n")
 			}
 			t.addUses(val)
@@ -527,6 +523,10 @@ func (t *worklist) propagate(block *Block) {
 				branchIdx = 1 - condLattice.val.AuxInt
 			} else {
 				branchIdx = condLattice.val.AuxInt
+				if branchIdx < 0 || branchIdx >= int64(len(block.Succs)) {
+					// unreachable code, do nothing then
+					break
+				}
 			}
 			t.edges = append(t.edges, block.Succs[branchIdx])
 		} else {
@@ -579,7 +579,7 @@ func (t *worklist) replaceConst() (int, int) {
 		if lt.tag == constant {
 			if !isConst(val) {
 				if t.f.pass.debug > 0 {
-					fmt.Printf("Replace %v with %v\n", val.LongString(), lt.val.LongString())
+					t.f.Warnl(val.Pos, "Replace %v with %v", val.LongString(), lt.val.LongString())
 				}
 				val.reset(lt.val.Op)
 				val.AuxInt = lt.val.AuxInt
@@ -591,7 +591,7 @@ func (t *worklist) replaceConst() (int, int) {
 				if rewireSuccessor(block, lt.val) {
 					rewireCnt++
 					if t.f.pass.debug > 0 {
-						fmt.Printf("Rewire %v %v successors\n", block.Kind, block)
+						t.f.Warnl(block.Pos, "Rewire %v %v successors", block.Kind, block)
 					}
 				}
 			}

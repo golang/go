@@ -30,6 +30,10 @@ func checkValid(data []byte) error {
 	xd := export.Decoder(d)
 	xd.Struct.Flags.Set(jsonflags.AllowDuplicateNames | jsonflags.AllowInvalidUTF8 | 1)
 	if _, err := d.ReadValue(); err != nil {
+		if err == io.EOF {
+			offset := d.InputOffset() + int64(len(d.UnreadBuffer()))
+			err = &jsontext.SyntacticError{ByteOffset: offset, Err: io.ErrUnexpectedEOF}
+		}
 		return transformSyntacticError(err)
 	}
 	if err := xd.CheckEOF(); err != nil {

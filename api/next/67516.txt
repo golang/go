@@ -1,1 +1,0 @@
-pkg crypto/tls, type ConnectionState struct, CurveID CurveID #67516

@@ -21,9 +21,8 @@ type mscratch struct {
 type mOS struct {
 	waitsema uintptr // semaphore for parking on locks
 	perrno   *int32  // pointer to tls errno
-	// these are here because they are too large to be on the stack
-	// of low-level NOSPLIT functions.
-	//LibCall       libcall;
+	// This is here to avoid using the G stack so the stack can move during the call.
+	libcall libcall
 	ts      mts
 	scratch mscratch
 }

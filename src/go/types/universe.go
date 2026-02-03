@@ -27,9 +27,8 @@ var (
 	universeBool       Type
 	universeByte       Type // uint8 alias, but has name "byte"
 	universeRune       Type // int32 alias, but has name "rune"
-	universeAnyNoAlias *TypeName
-	universeAnyAlias   *TypeName
 	universeError      Type
+	universeAny        Object
 	universeComparable Object
 )
 
@@ -79,46 +78,14 @@ func defPredeclaredTypes() {
 	for _, t := range Typ {
 		def(NewTypeName(nopos, nil, t.name, t))
 	}
+
 	for _, t := range basicAliases {
 		def(NewTypeName(nopos, nil, t.name, t))
-	}
-
-	// type any = interface{}
-	//
-	// Implement two representations of any: one for the legacy gotypesalias=0,
-	// and one for gotypesalias=1. This is necessary for consistent
-	// representation of interface aliases during type checking, and is
-	// implemented via hijacking [Scope.Lookup] for the [Universe] scope.
-	//
-	// Both representations use the same distinguished pointer for their RHS
-	// interface type, allowing us to detect any (even with the legacy
-	// representation), and format it as "any" rather than interface{}, which
-	// clarifies user-facing error messages significantly.
-	//
-	// TODO(rfindley): once the gotypesalias GODEBUG variable is obsolete (and we
-	// consistently use the Alias node), we should be able to clarify user facing
-	// error messages without using a distinguished pointer for the any
-	// interface.
-	{
-		universeAnyNoAlias = NewTypeName(nopos, nil, "any", &Interface{complete: true, tset: &topTypeSet})
-		universeAnyNoAlias.setColor(black)
-		// ensure that the any TypeName reports a consistent Parent, after
-		// hijacking Universe.Lookup with gotypesalias=0.
-		universeAnyNoAlias.setParent(Universe)
-
-		// It shouldn't matter which representation of any is actually inserted
-		// into the Universe, but we lean toward the future and insert the Alias
-		// representation.
-		universeAnyAlias = NewTypeName(nopos, nil, "any", nil)
-		universeAnyAlias.setColor(black)
-		_ = NewAlias(universeAnyAlias, universeAnyNoAlias.Type().Underlying()) // Link TypeName and Alias
-		def(universeAnyAlias)
 	}
 
 	// type error interface{ Error() string }
 	{
 		obj := NewTypeName(nopos, nil, "error", nil)
-		obj.setColor(black)
 		typ := NewNamed(obj, nil, nil)
 
 		// error.Error() string
@@ -131,20 +98,22 @@ func defPredeclaredTypes() {
 		ityp := &Interface{methods: []*Func{err}, complete: true}
 		computeInterfaceTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
 
-		typ.SetUnderlying(ityp)
+		typ.fromRHS = ityp
+		typ.Underlying()
+		def(obj)
+	}
+
+	// type any = interface{}
+	{
+		obj := NewTypeName(nopos, nil, "any", nil)
+		NewAlias(obj, &emptyInterface)
 		def(obj)
 	}
 
 	// type comparable interface{} // marked as comparable
 	{
 		obj := NewTypeName(nopos, nil, "comparable", nil)
-		obj.setColor(black)
-		typ := NewNamed(obj, nil, nil)
-
-		// interface{} // marked as comparable
-		ityp := &Interface{complete: true, tset: &_TypeSet{nil, allTermlist, true}}
-
-		typ.SetUnderlying(ityp)
+		NewNamed(obj, &Interface{complete: true, tset: &_TypeSet{nil, allTermlist, true}}, nil)
 		def(obj)
 	}
 }
@@ -166,7 +135,7 @@ func defPredeclaredConsts() {
 }
 
 func defPredeclaredNil() {
-	def(&Nil{object{name: "nil", typ: Typ[UntypedNil], color_: black}})
+	def(&Nil{object{name: "nil", typ: Typ[UntypedNil]}})
 }
 
 // A builtinId is the id of a builtin function.
@@ -283,6 +252,7 @@ func init() {
 	universeByte = Universe.Lookup("byte").Type()
 	universeRune = Universe.Lookup("rune").Type()
 	universeError = Universe.Lookup("error").Type()
+	universeAny = Universe.Lookup("any")
 	universeComparable = Universe.Lookup("comparable")
 }
 
@@ -290,7 +260,7 @@ func init() {
 // a scope. Objects with exported names are inserted in the unsafe package
 // scope; other objects are inserted in the universe scope.
 func def(obj Object) {
-	assert(obj.color() == black)
+	assert(obj.Type() != nil)
 	name := obj.Name()
 	if strings.Contains(name, " ") {
 		return // nothing to do

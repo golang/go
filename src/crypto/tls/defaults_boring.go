@@ -31,7 +31,7 @@ var (
 		CurveP384,
 		CurveP521,
 	}
-	allowedSupportedSignatureAlgorithmsFIPS = []SignatureScheme{
+	allowedSignatureAlgorithmsFIPS = []SignatureScheme{
 		PSSWithSHA256,
 		PSSWithSHA384,
 		PSSWithSHA512,

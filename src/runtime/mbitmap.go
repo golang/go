@@ -155,7 +155,9 @@ func (span *mspan) typePointersOfUnchecked(addr uintptr) typePointers {
 		typ = *(**_type)(unsafe.Pointer(addr))
 		addr += gc.MallocHeaderSize
 	} else {
-		typ = span.largeType
+		// Synchronize with allocator, in case this came from the conservative scanner.
+		// See heapSetTypeLarge for more details.
+		typ = (*_type)(atomic.Loadp(unsafe.Pointer(&span.largeType)))
 		if typ == nil {
 			// Allow a nil type here for delayed zeroing. See mallocgc.
 			return typePointers{}
@@ -690,7 +692,7 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 // malloc does not call heapSetType* when there are no pointers.
 //
 // There can be read-write races between heapSetType* and things
-// that read the heap metadata like scanobject. However, since
+// that read the heap metadata like scanObject. However, since
 // heapSetType* is only used for objects that have not yet been
 // made reachable, readers will ignore bits being modified by this
 // function. This does mean this function cannot transiently modify
@@ -712,6 +714,26 @@ func heapSetTypeNoHeader(x, dataSize uintptr, typ *_type, span *mspan) uintptr {
 }
 
 func heapSetTypeSmallHeader(x, dataSize uintptr, typ *_type, header **_type, span *mspan) uintptr {
+	if header == nil {
+		// This nil check and throw is almost pointless. Normally we would
+		// expect header to never be nil. However, this is called on potentially
+		// freshly-allocated virtual memory. As of 2025, the compiler-inserted
+		// nil check is not a branch but a memory read that we expect to fault
+		// if the pointer really is nil.
+		//
+		// However, this causes a read of the page, and operating systems may
+		// take it as a hint to back the accessed memory with a read-only zero
+		// page. However, we immediately write to this memory, which can then
+		// force operating systems to have to update the page table and flush
+		// the TLB.
+		//
+		// This nil check is thus an explicit branch instead of what the compiler
+		// would insert circa 2025, which is a memory read instruction.
+		//
+		// See go.dev/issue/74375 for details of a similar issue in
+		// spanInlineMarkBits.
+		throw("runtime: pointer to heap type header nil?")
+	}
 	*header = typ
 	if doubleCheckHeapSetType {
 		doubleCheckHeapType(x, dataSize, typ, header, span)
@@ -721,8 +743,56 @@ func heapSetTypeSmallHeader(x, dataSize uintptr, typ *_type, header **_type, spa
 
 func heapSetTypeLarge(x, dataSize uintptr, typ *_type, span *mspan) uintptr {
 	gctyp := typ
-	// Write out the header.
-	span.largeType = gctyp
+	// Write out the header atomically to synchronize with the garbage collector.
+	//
+	// This atomic store is paired with an atomic load in typePointersOfUnchecked.
+	// This store ensures that initializing x's memory cannot be reordered after
+	// this store. Meanwhile the load in typePointersOfUnchecked ensures that
+	// reading x's memory cannot be reordered before largeType is loaded. Together,
+	// these two operations guarantee that the garbage collector can only see
+	// initialized memory if largeType is non-nil.
+	//
+	// Gory details below...
+	//
+	// Ignoring conservative scanning for a moment, this store need not be atomic
+	// if we have a publication barrier on our side. This is because the garbage
+	// collector cannot observe x unless:
+	//   1. It stops this goroutine and scans its stack, or
+	//   2. We return from mallocgc and publish the pointer somewhere.
+	// Either case requires a write on our side, followed by some synchronization
+	// followed by a read by the garbage collector.
+	//
+	// In case (1), the garbage collector can only observe a nil largeType, since it
+	// had to stop our goroutine when it was preemptible during zeroing. For the
+	// duration of the zeroing, largeType is nil and the object has nothing interesting
+	// for the garbage collector to look at, so the garbage collector will not access
+	// the object at all.
+	//
+	// In case (2), the garbage collector can also observe a nil largeType. This
+	// might happen if the object was newly allocated, and a new GC cycle didn't start
+	// (that would require a global barrier, STW). In this case, the garbage collector
+	// will once again ignore the object, and that's safe because objects are
+	// allocate-black.
+	//
+	// However, the garbage collector can also observe a non-nil largeType in case (2).
+	// This is still okay, since to access the object's memory, it must have first
+	// loaded the object's pointer from somewhere. This makes the access of the object's
+	// memory a data-dependent load, and our publication barrier in the allocator
+	// guarantees that a data-dependent load must observe a version of the object's
+	// data from after the publication barrier executed.
+	//
+	// Unfortunately conservative scanning is a problem. There's no guarantee of a
+	// data dependency as in case (2) because conservative scanning can produce pointers
+	// 'out of thin air' in that it need not have been written somewhere by the allocating
+	// thread first. It might not even be a pointer, or it could be a pointer written to
+	// some stack location long ago. This is the fundamental reason why we need
+	// explicit synchronization somewhere in this whole mess. We choose to put that
+	// synchronization on largeType.
+	//
+	// As described at the very top, the treating largeType as an atomic variable, on
+	// both the reader and writer side, is sufficient to ensure that only initialized
+	// memory at x will be observed if largeType is non-nil.
+	atomic.StorepNoWB(unsafe.Pointer(&span.largeType), unsafe.Pointer(gctyp))
 	if doubleCheckHeapSetType {
 		doubleCheckHeapType(x, dataSize, typ, &span.largeType, span)
 	}
@@ -897,7 +967,7 @@ func doubleCheckTypePointersOfType(s *mspan, typ *_type, addr, size uintptr) {
 	if typ == nil {
 		return
 	}
-	if typ.Kind_&abi.KindMask == abi.Interface {
+	if typ.Kind() == abi.Interface {
 		// Interfaces are unfortunately inconsistently handled
 		// when it comes to the type pointer, so it's easy to
 		// produce a lot of false positives here.
@@ -1095,7 +1165,32 @@ func (s *mspan) nextFreeIndex() uint16 {
 // The caller must ensure s.state is mSpanInUse, and there must have
 // been no preemption points since ensuring this (which could allow a
 // GC transition, which would allow the state to change).
+//
+// Callers must ensure that the index passed here must not have been
+// produced from a pointer that came from 'thin air', as might happen
+// with conservative scanning.
 func (s *mspan) isFree(index uintptr) bool {
+	if index < uintptr(s.freeindex) {
+		return false
+	}
+	bytep, mask := s.allocBits.bitp(index)
+	return *bytep&mask == 0
+}
+
+// isFreeOrNewlyAllocated reports whether the index'th object in s is
+// either unallocated or has been allocated since the beginning of the
+// last mark phase.
+//
+// The caller must ensure s.state is mSpanInUse, and there must have
+// been no preemption points since ensuring this (which could allow a
+// GC transition, which would allow the state to change).
+//
+// Callers must ensure that the index passed here must not have been
+// produced from a pointer that came from 'thin air', as might happen
+// with conservative scanning, unless the GC is currently in the mark
+// phase. If the GC is currently in the mark phase, this function is
+// safe to call for out-of-thin-air pointers.
+func (s *mspan) isFreeOrNewlyAllocated(index uintptr) bool {
 	if index < uintptr(s.freeIndexForScan) {
 		return false
 	}
@@ -1170,6 +1265,28 @@ func markBitsForSpan(base uintptr) (mbits markBits) {
 		throw("markBitsForSpan: unaligned start")
 	}
 	return mbits
+}
+
+// isMarkedOrNotInHeap returns true if a pointer is in the heap and marked,
+// or if the pointer is not in the heap. Used by goroutine leak detection
+// to determine if concurrency resources are reachable in memory.
+func isMarkedOrNotInHeap(p unsafe.Pointer) bool {
+	obj, span, objIndex := findObject(uintptr(p), 0, 0)
+	if obj != 0 {
+		mbits := span.markBitsForIndex(objIndex)
+		return mbits.isMarked()
+	}
+
+	// If we fall through to get here, the object is not in the heap.
+	// In this case, it is either a pointer to a stack object or a global resource.
+	// Treat it as reachable in memory by default, to be safe.
+	//
+	// TODO(vsaioc): we could be more precise by checking against the stacks
+	// of runnable goroutines. I don't think this is necessary, based on what we've seen, but
+	// let's keep the option open in case the runtime evolves.
+	// This will (naively) lead to quadratic blow-up for goroutine leak detection,
+	// but if it is only run on demand, maybe the extra cost is not a show-stopper.
+	return true
 }
 
 // advance advances the markBits to the next object in the span.
@@ -1701,7 +1818,7 @@ func pointerMask(ep any) (mask []byte) {
 	t := e._type
 
 	var et *_type
-	if t.Kind_&abi.KindMask != abi.Pointer {
+	if t.Kind() != abi.Pointer {
 		throw("bad argument to getgcmask: expected type to be a pointer to the value type whose mask is being queried")
 	}
 	et = (*ptrtype)(unsafe.Pointer(t)).Elem

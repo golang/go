@@ -433,7 +433,7 @@
 		(OR <typ.UInt64> (SLLV <typ.UInt32> (ZeroExt8to32 val)
 			(SLLVconst <typ.UInt64> [3]
 				(ANDconst  <typ.UInt64> [3] ptr)))
-		(NORconst [0] <typ.UInt64> (SLLV <typ.UInt64>
+		(NOR (MOVVconst [0]) <typ.UInt64> (SLLV <typ.UInt64>
 			(MOVVconst [0xff]) (SLLVconst <typ.UInt64> [3]
 				(ANDconst <typ.UInt64> [3] ptr))))) mem)
 
@@ -452,7 +452,7 @@
 			(SLLVconst <typ.UInt64> [3]
 				(ANDconst  <typ.UInt64> [3]
 					(XORconst <typ.UInt64> [3] ptr))))
-		(NORconst [0] <typ.UInt64> (SLLV <typ.UInt64>
+		(NOR (MOVVconst [0]) <typ.UInt64> (SLLV <typ.UInt64>
 			(MOVVconst [0xff]) (SLLVconst <typ.UInt64> [3]
 				(ANDconst <typ.UInt64> [3]
 					(XORconst <typ.UInt64> [3] ptr)))))) mem)
@@ -476,9 +476,14 @@
 // Write barrier.
 (WB ...) => (LoweredWB ...)
 
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+// Publication barrier as intrinsic
+(PubBarrier ...) => (LoweredPubBarrier ...)
+
+(PanicBounds ...) => (LoweredPanicBoundsRR ...)
+(LoweredPanicBoundsRR [kind] x (MOVVconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
+(LoweredPanicBoundsRR [kind] (MOVVconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVVconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+(LoweredPanicBoundsCR [kind] {p} (MOVVconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
 
 // Optimizations
 
@@ -539,14 +544,6 @@
 	 && (ptr.Op != OpSB || !config.ctxt.Flag_shared) => (MOVFstore [off1+int32(off2)] {sym} ptr val mem)
 (MOVDstore [off1] {sym} (ADDVconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2)
 	 && (ptr.Op != OpSB || !config.ctxt.Flag_shared) => (MOVDstore [off1+int32(off2)] {sym} ptr val mem)
-(MOVBstorezero [off1] {sym} (ADDVconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	 && (ptr.Op != OpSB || !config.ctxt.Flag_shared) => (MOVBstorezero [off1+int32(off2)] {sym} ptr mem)
-(MOVHstorezero [off1] {sym} (ADDVconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	 && (ptr.Op != OpSB || !config.ctxt.Flag_shared) => (MOVHstorezero [off1+int32(off2)] {sym} ptr mem)
-(MOVWstorezero [off1] {sym} (ADDVconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	 && (ptr.Op != OpSB || !config.ctxt.Flag_shared) => (MOVWstorezero [off1+int32(off2)] {sym} ptr mem)
-(MOVVstorezero [off1] {sym} (ADDVconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
-	 && (ptr.Op != OpSB || !config.ctxt.Flag_shared) => (MOVVstorezero [off1+int32(off2)] {sym} ptr mem)
 
 (MOVBload [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
 	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
@@ -609,28 +606,6 @@
 	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
 	(MOVDstore [off1+int32(off2)] {mergeSym(sym1,sym2)} ptr val mem)
-(MOVBstorezero [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
-	(MOVBstorezero [off1+int32(off2)] {mergeSym(sym1,sym2)} ptr mem)
-(MOVHstorezero [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
-	(MOVHstorezero [off1+int32(off2)] {mergeSym(sym1,sym2)} ptr mem)
-(MOVWstorezero [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
-	(MOVWstorezero [off1+int32(off2)] {mergeSym(sym1,sym2)} ptr mem)
-(MOVVstorezero [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
-	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
-	(MOVVstorezero [off1+int32(off2)] {mergeSym(sym1,sym2)} ptr mem)
-
-// store zero
-(MOVBstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
-(MOVHstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVHstorezero [off] {sym} ptr mem)
-(MOVWstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVWstorezero [off] {sym} ptr mem)
-(MOVVstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVVstorezero [off] {sym} ptr mem)
 
 // don't extend after proper load
 (MOVBreg x:(MOVBload _ _)) => (MOVVreg x)
@@ -693,7 +668,6 @@
 (AND x (MOVVconst [c])) && is32Bit(c) => (ANDconst [c] x)
 (OR  x (MOVVconst [c])) && is32Bit(c) => (ORconst  [c] x)
 (XOR x (MOVVconst [c])) && is32Bit(c) => (XORconst [c] x)
-(NOR x (MOVVconst [c])) && is32Bit(c) => (NORconst [c] x)
 
 (SLLV _ (MOVVconst [c])) && uint64(c)>=64 => (MOVVconst [0])
 (SRLV _ (MOVVconst [c])) && uint64(c)>=64 => (MOVVconst [0])
@@ -719,11 +693,14 @@
 
 // generic simplifications
 (ADDV x (NEGV y)) => (SUBV x y)
+(SUBV x (NEGV y)) => (ADDV x y)
 (SUBV x x) => (MOVVconst [0])
 (SUBV (MOVVconst [0]) x) => (NEGV x)
 (AND x x) => x
 (OR  x x) => x
 (XOR x x) => (MOVVconst [0])
+(NEGV (SUBV x y)) => (SUBV y x)
+(NEGV (NEGV x)) => x
 
 // remove redundant *const ops
 (ADDVconst [0]  x) => x
@@ -733,7 +710,6 @@
 (ORconst  [0]  x) => x
 (ORconst  [-1] _) => (MOVVconst [-1])
 (XORconst [0]  x) => x
-(XORconst [-1] x) => (NORconst [0] x)
 
 // generic constant folding
 (ADDVconst [c] (MOVVconst [d]))  => (MOVVconst [c+d])
@@ -756,7 +732,6 @@
 (ORconst [c] (ORconst [d] x)) && is32Bit(c|d) => (ORconst [c|d] x)
 (XORconst [c] (MOVVconst [d])) => (MOVVconst [c^d])
 (XORconst [c] (XORconst [d] x)) && is32Bit(c^d) => (XORconst [c^d] x)
-(NORconst [c] (MOVVconst [d])) => (MOVVconst [^(c|d)])
 (NEGV (MOVVconst [c])) => (MOVVconst [-c])
 (MOVBreg  (MOVVconst [c])) => (MOVVconst [int64(int8(c))])
 (MOVBUreg (MOVVconst [c])) => (MOVVconst [int64(uint8(c))])

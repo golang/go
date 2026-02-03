@@ -7,6 +7,7 @@ package testing
 import (
 	"bytes"
 	"strings"
+	"time"
 )
 
 // See also TestBenchmarkBLoop* in other files.
@@ -73,6 +74,42 @@ func TestBenchmarkBLoop(t *T) {
 	if runningEnd {
 		t.Errorf("timer was still running after last iteration")
 	}
+}
+
+func TestBenchmarkBLoopCheapEarlyTerminate(t *T) {
+	if Short() {
+		t.Skip("B.Loop test needs to run for > 1s to saturate 1e9 iterations")
+	}
+	runCnt := 0
+	// Set the benchmark time high enough that we're likely to hit the 1B
+	// iteration limit even on very slow hardware.
+	// (on an AMD Ryzen 5900X, this benchmark runs in just over a second)
+	//
+	// Notably, the assertions below shouldn't fail if a test-run is slow
+	// enough that it doesn't saturate the limit.
+	const maxBenchTime = time.Second * 30
+	res := Benchmark(func(b *B) {
+		// Set the benchmark time _much_ higher than required to hit 1e9 iterations.
+		b.benchTime.d = maxBenchTime
+		for b.Loop() {
+			runCnt++
+		}
+	})
+	if runCnt > maxBenchPredictIters {
+		t.Errorf("loop body ran more than max (%d) times: %d", maxBenchPredictIters, runCnt)
+		if res.T >= maxBenchTime {
+			t.Logf("cheap benchmark exhausted time budget: %s; ran for %s", maxBenchTime, res.T)
+		}
+	}
+
+	if res.N != runCnt {
+		t.Errorf("disagreeing loop counts: res.N reported %d, while b.Loop() iterated %d times", res.N, runCnt)
+	}
+
+	if res.N > maxBenchPredictIters {
+		t.Errorf("benchmark result claims more runs than max (%d) times: %d", maxBenchPredictIters, res.N)
+	}
+
 }
 
 func TestBenchmarkBLoopBreak(t *T) {

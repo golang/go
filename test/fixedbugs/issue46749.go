@@ -31,7 +31,7 @@ var (
 var (
 	_ = b + 1         // ERROR "invalid operation.*mismatched types.*bool and untyped int"
 	_ = i + false     // ERROR "invalid operation.*mismatched types.*int and untyped bool"
-	_ = iface + 1     // ERROR "invalid operation.*mismatched types.*interface *{} and int"
-	_ = iface + 1.0   // ERROR "invalid operation.*mismatched types.*interface *{} and float64"
+	_ = iface + 1     // ERROR "invalid operation.*mismatched types.*interface *{} and untyped int"
+	_ = iface + 1.0   // ERROR "invalid operation.*mismatched types.*interface *{} and untyped float"
 	_ = iface + false // ERROR "invalid operation.*mismatched types.*interface *{} and bool"
 )

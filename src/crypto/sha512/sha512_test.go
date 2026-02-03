@@ -966,28 +966,35 @@ func TestHash(t *testing.T) {
 func TestExtraMethods(t *testing.T) {
 	t.Run("SHA-384", func(t *testing.T) {
 		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
-			h := New384()
-			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+			h := maybeCloner(New384())
+			cryptotest.NoExtraMethods(t, h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
 		})
 	})
 	t.Run("SHA-512/224", func(t *testing.T) {
 		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
-			h := New512_224()
-			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+			h := maybeCloner(New512_224())
+			cryptotest.NoExtraMethods(t, h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
 		})
 	})
 	t.Run("SHA-512/256", func(t *testing.T) {
 		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
-			h := New512_256()
-			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+			h := maybeCloner(New512_256())
+			cryptotest.NoExtraMethods(t, h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
 		})
 	})
 	t.Run("SHA-512", func(t *testing.T) {
 		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
-			h := New()
-			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+			h := maybeCloner(New())
+			cryptotest.NoExtraMethods(t, h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
 		})
 	})
+}
+
+func maybeCloner(h hash.Hash) any {
+	if c, ok := h.(hash.Cloner); ok {
+		return &c
+	}
+	return &h
 }
 
 var bench = New()

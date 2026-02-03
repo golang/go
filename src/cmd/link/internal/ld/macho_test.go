@@ -37,14 +37,14 @@ func TestMachoSectionsReadOnly(t *testing.T) {
 			args:             []string{"-ldflags", "-linkmode=internal"},
 			prog:             prog,
 			mustInternalLink: true,
-			wantSecsRO:       []string{"__got", "__rodata", "__itablink", "__typelink", "__gosymtab", "__gopclntab"},
+			wantSecsRO:       []string{"__got", "__rodata", "__itablink"},
 		},
 		{
 			name:        "linkmode-external",
 			args:        []string{"-ldflags", "-linkmode=external"},
 			prog:        prog,
 			mustHaveCGO: true,
-			wantSecsRO:  []string{"__got", "__rodata", "__itablink", "__typelink", "__gopclntab"},
+			wantSecsRO:  []string{"__got", "__rodata", "__itablink"},
 		},
 		{
 			name:             "cgo-linkmode-internal",
@@ -52,21 +52,21 @@ func TestMachoSectionsReadOnly(t *testing.T) {
 			prog:             progC,
 			mustHaveCGO:      true,
 			mustInternalLink: true,
-			wantSecsRO:       []string{"__got", "__rodata", "__itablink", "__typelink", "__gopclntab"},
+			wantSecsRO:       []string{"__got", "__rodata", "__itablink"},
 		},
 		{
 			name:        "cgo-linkmode-external",
 			args:        []string{"-ldflags", "-linkmode=external"},
 			prog:        progC,
 			mustHaveCGO: true,
-			wantSecsRO:  []string{"__got", "__rodata", "__itablink", "__typelink", "__gopclntab"},
+			wantSecsRO:  []string{"__got", "__rodata", "__itablink"},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if test.mustInternalLink {
-				testenv.MustInternalLink(t, test.mustHaveCGO)
+				testenv.MustInternalLink(t, testenv.SpecialBuildTypes{Cgo: test.mustHaveCGO})
 			}
 			if test.mustHaveCGO {
 				testenv.MustHaveCGO(t)
@@ -111,7 +111,8 @@ func TestMachoSectionsReadOnly(t *testing.T) {
 
 			for _, wsroname := range test.wantSecsRO {
 				// Now walk the sections. Section should be part of
-				// some segment that is readonly.
+				// some segment that is made readonly after
+				// relocations are appied.
 				var wsro *macho.Section
 				foundRO := false
 				for _, s := range machoFile.Sections {

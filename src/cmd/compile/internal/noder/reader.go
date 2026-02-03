@@ -762,7 +762,7 @@ func (pr *pkgReader) objIdxMayFail(idx index, implicits, explicits []*types.Type
 		if hack {
 			if sym.Def != nil {
 				name = sym.Def.(*ir.Name)
-				assert(name.Type() == typ)
+				assert(types.IdenticalStrict(name.Type(), typ))
 				return name, nil
 			}
 			sym.Def = name
@@ -930,8 +930,19 @@ func shapify(targ *types.Type, basic bool) *types.Type {
 	// types, and discarding struct field names and tags. However, we'll
 	// need to start tracking how type parameters are actually used to
 	// implement some of these optimizations.
+	pointerShaping := basic && targ.IsPtr() && !targ.Elem().NotInHeap()
+	// The exception is when the type parameter is a pointer to a type
+	// which `Type.HasShape()` returns true, but `Type.IsShape()` returns
+	// false, like `*[]go.shape.T`. This is because the type parameter is
+	// used to instantiate a generic function inside another generic function.
+	// In this case, we want to keep the targ as-is, otherwise, we may lose the
+	// original type after `*[]go.shape.T` is shapified to `*go.shape.uint8`.
+	// See issue #54535, #71184.
+	if pointerShaping && !targ.Elem().IsShape() && targ.Elem().HasShape() {
+		return targ
+	}
 	under := targ.Underlying()
-	if basic && targ.IsPtr() && !targ.Elem().NotInHeap() {
+	if pointerShaping {
 		under = types.NewPtr(types.Types[types.TUINT8])
 	}
 
@@ -2420,8 +2431,17 @@ func (r *reader) expr() (res ir.Node) {
 
 	case exprNew:
 		pos := r.pos()
-		typ := r.exprType()
-		return typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, typ))
+		if r.Bool() {
+			// new(expr) -> tmp := expr; &tmp
+			x := r.expr()
+			x = typecheck.DefaultLit(x, nil) // See TODO in exprConvert case.
+			var init ir.Nodes
+			addr := ir.NewAddrExpr(pos, r.tempCopy(pos, x, &init))
+			addr.SetInit(init)
+			return typecheck.Expr(addr)
+		}
+		// new(T)
+		return typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, r.exprType()))
 
 	case exprSizeof:
 		return ir.NewUintptr(r.pos(), r.typ().Size())
@@ -2941,6 +2961,7 @@ func (r *reader) multiExpr() []ir.Node {
 		as.Def = true
 		for i := range results {
 			tmp := r.temp(pos, r.typ())
+			tmp.Defn = as
 			as.PtrInit().Append(ir.NewDecl(pos, ir.ODCL, tmp))
 			as.Lhs.Append(tmp)
 
@@ -3228,6 +3249,7 @@ func (r *reader) exprType() ir.Node {
 	var rtype, itab ir.Node
 
 	if r.Bool() {
+		// non-empty interface
 		typ, rtype, _, _, itab = r.itab(pos)
 		if !typ.IsInterface() {
 			rtype = nil // TODO(mdempsky): Leave set?
@@ -3319,6 +3341,9 @@ func (r *reader) pkgInitOrder(target *ir.Package) {
 
 	// Outline (if legal/profitable) global map inits.
 	staticinit.OutlineMapInits(fn)
+
+	// Split large init function.
+	staticinit.SplitLargeInit(fn)
 
 	target.Inits = append(target.Inits, fn)
 }
@@ -3555,7 +3580,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
 		edit(r.curfn)
 	})
 
-	body := ir.Nodes(r.curfn.Body)
+	body := r.curfn.Body
 
 	// Reparent any declarations into the caller function.
 	for _, name := range r.curfn.Dcl {
@@ -3648,17 +3673,6 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
 	// typecheck.Target.Decls. Remove them again so we don't risk trying
 	// to compile them multiple times.
 	typecheck.Target.Funcs = typecheck.Target.Funcs[:topdcls]
-}
-
-// usedLocals returns a set of local variables that are used within body.
-func usedLocals(body []ir.Node) ir.NameSet {
-	var used ir.NameSet
-	ir.VisitList(body, func(n ir.Node) {
-		if n, ok := n.(*ir.Name); ok && n.Op() == ir.ONAME && n.Class == ir.PAUTO {
-			used.Add(n)
-		}
-	})
-	return used
 }
 
 // @@@ Method wrappers
@@ -3983,11 +3997,12 @@ func addTailCall(pos src.XPos, fn *ir.Func, recv ir.Node, method *types.Field) {
 
 	if recv.Type() != nil && recv.Type().IsPtr() && method.Type.Recv().Type.IsPtr() &&
 		method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) &&
+		!unifiedHaveInlineBody(ir.MethodExprName(dot).Func) &&
 		!(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
 		if base.Debug.TailCall != 0 {
 			base.WarnfAt(fn.Nname.Type().Recv().Type.Elem().Pos(), "tail call emitted for the method %v wrapper", method.Nname)
 		}
-		// Prefer OTAILCALL to reduce code size (the called method can be inlined).
+		// Prefer OTAILCALL to reduce code size (except the case when the called method can be inlined).
 		fn.Body.Append(ir.NewTailCallStmt(pos, call))
 		return
 	}

@@ -22,10 +22,17 @@ const (
 	// On AMD64, virtual addresses are 48-bit (or 57-bit) sign-extended.
 	// Other archs are 48-bit zero-extended.
 	//
+	// We use one extra bit to placate systems which simulate amd64 binaries on
+	// an arm64 host. Allocated arm64 addresses could be as high as 1<<48-1,
+	// which would be invalid if we assumed 48-bit sign-extended addresses.
+	// See issue 69255.
+	// (Note that this does not help the other way around, simluating arm64
+	// on amd64, but we don't have that problem at the moment.)
+	//
 	// On s390x, virtual addresses are 64-bit. There's not much we
 	// can do about this, so we just hope that the kernel doesn't
 	// get to really high addresses and panic if it does.
-	defaultAddrBits = 48
+	defaultAddrBits = 48 + 1
 
 	// On AIX, 64-bit addresses are split into 36-bit segment number and 28-bit
 	// offset in segment.  Segment numbers in the range 0x0A0000000-0x0AFFFFFFF(LSA)

@@ -5,7 +5,7 @@
 package os
 
 import (
-	"internal/itoa"
+	"internal/strconv"
 	"syscall"
 	"time"
 )
@@ -40,7 +40,7 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 }
 
 func (p *Process) writeProcFile(file string, data string) error {
-	f, e := OpenFile("/proc/"+itoa.Itoa(p.Pid)+"/"+file, O_WRONLY, 0)
+	f, e := OpenFile("/proc/"+strconv.Itoa(p.Pid)+"/"+file, O_WRONLY, 0)
 	if e != nil {
 		return e
 	}
@@ -86,6 +86,10 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 		status: &waitmsg,
 	}
 	return ps, nil
+}
+
+func (p *Process) withHandle(_ func(handle uintptr)) error {
+	return ErrNoHandle
 }
 
 func findProcess(pid int) (p *Process, err error) {

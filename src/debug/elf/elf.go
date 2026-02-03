@@ -2305,6 +2305,8 @@ const (
 	R_LARCH_TLS_TPREL32                R_LARCH = 10
 	R_LARCH_TLS_TPREL64                R_LARCH = 11
 	R_LARCH_IRELATIVE                  R_LARCH = 12
+	R_LARCH_TLS_DESC32                 R_LARCH = 13
+	R_LARCH_TLS_DESC64                 R_LARCH = 14
 	R_LARCH_MARK_LA                    R_LARCH = 20
 	R_LARCH_MARK_PCREL                 R_LARCH = 21
 	R_LARCH_SOP_PUSH_PCREL             R_LARCH = 22
@@ -2390,6 +2392,23 @@ const (
 	R_LARCH_ADD_ULEB128                R_LARCH = 107
 	R_LARCH_SUB_ULEB128                R_LARCH = 108
 	R_LARCH_64_PCREL                   R_LARCH = 109
+	R_LARCH_CALL36                     R_LARCH = 110
+	R_LARCH_TLS_DESC_PC_HI20           R_LARCH = 111
+	R_LARCH_TLS_DESC_PC_LO12           R_LARCH = 112
+	R_LARCH_TLS_DESC64_PC_LO20         R_LARCH = 113
+	R_LARCH_TLS_DESC64_PC_HI12         R_LARCH = 114
+	R_LARCH_TLS_DESC_HI20              R_LARCH = 115
+	R_LARCH_TLS_DESC_LO12              R_LARCH = 116
+	R_LARCH_TLS_DESC64_LO20            R_LARCH = 117
+	R_LARCH_TLS_DESC64_HI12            R_LARCH = 118
+	R_LARCH_TLS_DESC_LD                R_LARCH = 119
+	R_LARCH_TLS_DESC_CALL              R_LARCH = 120
+	R_LARCH_TLS_LE_HI20_R              R_LARCH = 121
+	R_LARCH_TLS_LE_ADD_R               R_LARCH = 122
+	R_LARCH_TLS_LE_LO12_R              R_LARCH = 123
+	R_LARCH_TLS_LD_PCREL20_S2          R_LARCH = 124
+	R_LARCH_TLS_GD_PCREL20_S2          R_LARCH = 125
+	R_LARCH_TLS_DESC_PCREL20_S2        R_LARCH = 126
 )
 
 var rlarchStrings = []intName{
@@ -2406,6 +2425,8 @@ var rlarchStrings = []intName{
 	{10, "R_LARCH_TLS_TPREL32"},
 	{11, "R_LARCH_TLS_TPREL64"},
 	{12, "R_LARCH_IRELATIVE"},
+	{13, "R_LARCH_TLS_DESC32"},
+	{14, "R_LARCH_TLS_DESC64"},
 	{20, "R_LARCH_MARK_LA"},
 	{21, "R_LARCH_MARK_PCREL"},
 	{22, "R_LARCH_SOP_PUSH_PCREL"},
@@ -2491,6 +2512,23 @@ var rlarchStrings = []intName{
 	{107, "R_LARCH_ADD_ULEB128"},
 	{108, "R_LARCH_SUB_ULEB128"},
 	{109, "R_LARCH_64_PCREL"},
+	{110, "R_LARCH_CALL36"},
+	{111, "R_LARCH_TLS_DESC_PC_HI20"},
+	{112, "R_LARCH_TLS_DESC_PC_LO12"},
+	{113, "R_LARCH_TLS_DESC64_PC_LO20"},
+	{114, "R_LARCH_TLS_DESC64_PC_HI12"},
+	{115, "R_LARCH_TLS_DESC_HI20"},
+	{116, "R_LARCH_TLS_DESC_LO12"},
+	{117, "R_LARCH_TLS_DESC64_LO20"},
+	{118, "R_LARCH_TLS_DESC64_HI12"},
+	{119, "R_LARCH_TLS_DESC_LD"},
+	{120, "R_LARCH_TLS_DESC_CALL"},
+	{121, "R_LARCH_TLS_LE_HI20_R"},
+	{122, "R_LARCH_TLS_LE_ADD_R"},
+	{123, "R_LARCH_TLS_LE_LO12_R"},
+	{124, "R_LARCH_TLS_LD_PCREL20_S2"},
+	{125, "R_LARCH_TLS_GD_PCREL20_S2"},
+	{126, "R_LARCH_TLS_DESC_PCREL20_S2"},
 }
 
 func (i R_LARCH) String() string   { return stringName(uint32(i), rlarchStrings, false) }

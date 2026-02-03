@@ -97,9 +97,8 @@ func GetOption[T any](opts Options, setter func(T) Options) (T, bool) {
 }
 
 // DefaultOptionsV2 is the full set of all options that define v2 semantics.
-// It is equivalent to all options under [Options], [encoding/json.Options],
-// and [encoding/json/jsontext.Options] being set to false or the zero value,
-// except for the options related to whitespace formatting.
+// It is equivalent to the set of options in [encoding/json.DefaultOptionsV1]
+// all being set to false. All other options are not present.
 func DefaultOptionsV2() Options {
 	return &jsonopts.DefaultOptionsV2
 }
@@ -257,7 +256,7 @@ func (*unmarshalersOption) JSONOptions(internal.NotForPublicUse) {}
 
 // Inject support into "jsonopts" to handle these types.
 func init() {
-	jsonopts.GetUnknownOption = func(src *jsonopts.Struct, zero jsonopts.Options) (any, bool) {
+	jsonopts.GetUnknownOption = func(src jsonopts.Struct, zero jsonopts.Options) (any, bool) {
 		switch zero.(type) {
 		case *marshalersOption:
 			if !src.Flags.Has(jsonflags.Marshalers) {
@@ -273,7 +272,7 @@ func init() {
 			panic(fmt.Sprintf("unknown option %T", zero))
 		}
 	}
-	jsonopts.JoinUnknownOption = func(dst *jsonopts.Struct, src jsonopts.Options) {
+	jsonopts.JoinUnknownOption = func(dst jsonopts.Struct, src jsonopts.Options) jsonopts.Struct {
 		switch src := src.(type) {
 		case *marshalersOption:
 			dst.Flags.Set(jsonflags.Marshalers | 1)
@@ -284,5 +283,6 @@ func init() {
 		default:
 			panic(fmt.Sprintf("unknown option %T", src))
 		}
+		return dst
 	}
 }

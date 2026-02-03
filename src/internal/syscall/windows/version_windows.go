@@ -11,27 +11,52 @@ import (
 	"unsafe"
 )
 
-// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfow
-type _OSVERSIONINFOW struct {
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfoexw
+type _OSVERSIONINFOEXW struct {
 	osVersionInfoSize uint32
 	majorVersion      uint32
 	minorVersion      uint32
 	buildNumber       uint32
 	platformId        uint32
 	csdVersion        [128]uint16
+	servicePackMajor  uint16
+	servicePackMinor  uint16
+	suiteMask         uint16
+	productType       byte
+	reserved          byte
 }
 
 // According to documentation, RtlGetVersion function always succeeds.
-//sys	rtlGetVersion(info *_OSVERSIONINFOW) = ntdll.RtlGetVersion
+//sys	rtlGetVersion(info *_OSVERSIONINFOEXW) = ntdll.RtlGetVersion
+
+// Retrieves version information of the current Windows OS
+// from the RtlGetVersion API.
+func getVersionInfo() *_OSVERSIONINFOEXW {
+	info := _OSVERSIONINFOEXW{}
+	info.osVersionInfoSize = uint32(unsafe.Sizeof(info))
+	rtlGetVersion(&info)
+	return &info
+}
 
 // Version retrieves the major, minor, and build version numbers
 // of the current Windows OS from the RtlGetVersion API.
 func Version() (major, minor, build uint32) {
-	info := _OSVERSIONINFOW{}
-	info.osVersionInfoSize = uint32(unsafe.Sizeof(info))
-	rtlGetVersion(&info)
+	info := getVersionInfo()
 	return info.majorVersion, info.minorVersion, info.buildNumber
 }
+
+// SupportUnlimitedTransmitFile indicates whether the current
+// Windows version's TransmitFile function imposes any
+// concurrent operation limits.
+// Workstation and client versions of Windows limit the number
+// of concurrent TransmitFile operations allowed on the system
+// to a maximum of two. Please see:
+// https://learn.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile
+// https://golang.org/issue/73746
+var SupportUnlimitedTransmitFile = sync.OnceValue(func() bool {
+	info := getVersionInfo()
+	return info.productType != VER_NT_WORKSTATION
+})
 
 var (
 	supportTCPKeepAliveIdle     bool

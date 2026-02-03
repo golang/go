@@ -6,7 +6,9 @@ package runtime_test
 
 import (
 	"fmt"
-	"internal/goexperiment"
+	"internal/abi"
+	"internal/goarch"
+	"internal/runtime/maps"
 	"internal/testenv"
 	"math"
 	"os"
@@ -812,31 +814,6 @@ func TestIncrementAfterBulkClearKeyStringValueInt(t *testing.T) {
 	}
 }
 
-func TestMapTombstones(t *testing.T) {
-	m := map[int]int{}
-	const N = 10000
-	// Fill a map.
-	for i := 0; i < N; i++ {
-		m[i] = i
-	}
-	runtime.MapTombstoneCheck(m)
-	// Delete half of the entries.
-	for i := 0; i < N; i += 2 {
-		delete(m, i)
-	}
-	runtime.MapTombstoneCheck(m)
-	// Add new entries to fill in holes.
-	for i := N; i < 3*N/2; i++ {
-		m[i] = i
-	}
-	runtime.MapTombstoneCheck(m)
-	// Delete everything.
-	for i := 0; i < 3*N/2; i++ {
-		delete(m, i)
-	}
-	runtime.MapTombstoneCheck(m)
-}
-
 type canString int
 
 func (c canString) String() string {
@@ -1060,44 +1037,6 @@ func TestEmptyMapWithInterfaceKey(t *testing.T) {
 	})
 }
 
-func TestMapKeys(t *testing.T) {
-	if goexperiment.SwissMap {
-		t.Skip("mapkeys not implemented for swissmaps")
-	}
-
-	type key struct {
-		s   string
-		pad [128]byte // sizeof(key) > abi.MapMaxKeyBytes
-	}
-	m := map[key]int{{s: "a"}: 1, {s: "b"}: 2}
-	keys := make([]key, 0, len(m))
-	runtime.MapKeys(m, unsafe.Pointer(&keys))
-	for _, k := range keys {
-		if len(k.s) != 1 {
-			t.Errorf("len(k.s) == %d, want 1", len(k.s))
-		}
-	}
-}
-
-func TestMapValues(t *testing.T) {
-	if goexperiment.SwissMap {
-		t.Skip("mapvalues not implemented for swissmaps")
-	}
-
-	type val struct {
-		s   string
-		pad [128]byte // sizeof(val) > abi.MapMaxElemBytes
-	}
-	m := map[int]val{1: {s: "a"}, 2: {s: "b"}}
-	vals := make([]val, 0, len(m))
-	runtime.MapValues(m, unsafe.Pointer(&vals))
-	for _, v := range vals {
-		if len(v.s) != 1 {
-			t.Errorf("len(v.s) == %d, want 1", len(v.s))
-		}
-	}
-}
-
 func computeHash() uintptr {
 	var v struct{}
 	return runtime.MemHash(unsafe.Pointer(&v), 0, unsafe.Sizeof(v))
@@ -1200,5 +1139,64 @@ func TestMapIterDeleteReplace(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestHmapSize(t *testing.T) {
+	// The structure of Map is defined in internal/runtime/maps/map.go
+	// and in cmd/compile/internal/reflectdata/map.go and must be in sync.
+	// The size of Map should be 48 bytes on 64 bit and 32 bytes on 32 bit platforms.
+	wantSize := uintptr(2*8 + 4*goarch.PtrSize)
+	gotSize := unsafe.Sizeof(maps.Map{})
+	if gotSize != wantSize {
+		t.Errorf("sizeof(maps.Map{})==%d, want %d", gotSize, wantSize)
+	}
+}
+
+// See also reflect_test.TestGroupSizeZero.
+func TestGroupSizeZero(t *testing.T) {
+	var m map[struct{}]struct{}
+	mTyp := abi.TypeOf(m)
+	mt := (*abi.MapType)(unsafe.Pointer(mTyp))
+
+	// internal/runtime/maps when create pointers to slots, even if slots
+	// are size 0. The compiler should have reserved an extra word to
+	// ensure that pointers to the zero-size type at the end of group are
+	// valid.
+	if mt.Group.Size() <= 8 {
+		t.Errorf("Group size got %d want >8", mt.Group.Size())
+	}
+}
+
+func TestMapIterOrder(t *testing.T) {
+	sizes := []int{3, 7, 9, 15}
+	for _, n := range sizes {
+		for i := 0; i < 1000; i++ {
+			// Make m be {0: true, 1: true, ..., n-1: true}.
+			m := make(map[int]bool)
+			for i := 0; i < n; i++ {
+				m[i] = true
+			}
+			// Check that iterating over the map produces at least two different orderings.
+			ord := func() []int {
+				var s []int
+				for key := range m {
+					s = append(s, key)
+				}
+				return s
+			}
+			first := ord()
+			ok := false
+			for try := 0; try < 100; try++ {
+				if !slices.Equal(first, ord()) {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				t.Errorf("Map with n=%d elements had consistent iteration order: %v", n, first)
+				break
+			}
+		}
 	}
 }

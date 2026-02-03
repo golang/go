@@ -94,22 +94,36 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string."
 
-		// get special case out of the way
+		// In either case, the first argument must be a slice; in particular it
+		// cannot be the predeclared nil value. Note that nil is not excluded by
+		// the assignability requirement alone for the special case (go.dev/issue/76220).
+		// spec: "If S is a type parameter, all types in its type set
+		// must have the same underlying slice type []E."
+		E, err := sliceElem(x)
+		if err != nil {
+			check.errorf(x, InvalidAppend, "invalid append: %s", err.format(check))
+			return
+		}
+
+		// Handle append(bytes, y...) special case, where
+		// the type set of y is {string} or {string, []byte}.
 		var sig *Signature
 		if nargs == 2 && hasDots(call) {
 			if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
 				y := args[1]
-				typeset(y.typ, func(_, u Type) bool {
+				hasString := false
+				for _, u := range typeset(y.typ) {
 					if s, _ := u.(*Slice); s != nil && Identical(s.elem, universeByte) {
-						return true
+						// typeset ⊇ {[]byte}
+					} else if isString(u) {
+						// typeset ⊇ {string}
+						hasString = true
+					} else {
+						y = nil
+						break
 					}
-					if isString(u) {
-						return true
-					}
-					y = nil
-					return false
-				})
-				if y != nil {
+				}
+				if y != nil && hasString {
 					// setting the signature also signals that we're done
 					sig = makeSig(x.typ, x.typ, y.typ)
 					sig.variadic = true
@@ -119,13 +133,6 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		// general case
 		if sig == nil {
-			// spec: "If S is a type parameter, all types in its type set
-			// must have the same underlying slice type []E."
-			E, err := sliceElem(x)
-			if err != nil {
-				check.errorf(x, InvalidAppend, "invalid append: %s", err.format(check))
-				return
-			}
 			// check arguments by creating custom signature
 			sig = makeSig(x.typ, x.typ, NewSlice(E)) // []E required for variadic signature
 			sig.variadic = true
@@ -144,7 +151,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// len(x)
 		mode := invalid
 		var val constant.Value
-		switch t := arrayPtrDeref(under(x.typ)).(type) {
+		switch t := arrayPtrDeref(x.typ.Underlying()).(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
 				if x.mode == constant_ {
@@ -203,7 +210,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		if mode == invalid {
 			// avoid error if underlying type is invalid
-			if isValid(under(x.typ)) {
+			if isValid(x.typ.Underlying()) {
 				code := InvalidCap
 				if id == _Len {
 					code = InvalidLen
@@ -322,7 +329,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
 			assert(!isTypeParam(typ))
-			if t, _ := under(typ).(*Basic); t != nil {
+			if t, _ := typ.Underlying().(*Basic); t != nil {
 				switch t.kind {
 				case Float32:
 					return Typ[Complex64]
@@ -368,16 +375,16 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		var special bool
 		if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
 			special = true
-			typeset(y.typ, func(_, u Type) bool {
+			for _, u := range typeset(y.typ) {
 				if s, _ := u.(*Slice); s != nil && Identical(s.elem, universeByte) {
-					return true
+					// typeset ⊇ {[]byte}
+				} else if isString(u) {
+					// typeset ⊇ {string}
+				} else {
+					special = false
+					break
 				}
-				if isString(u) {
-					return true
-				}
-				special = false
-				return false
-			})
+			}
 		}
 
 		// general case
@@ -472,7 +479,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
 			assert(!isTypeParam(typ))
-			if t, _ := under(typ).(*Basic); t != nil {
+			if t, _ := typ.Underlying().(*Basic); t != nil {
 				switch t.kind {
 				case Complex64:
 					return Typ[Float32]
@@ -636,15 +643,34 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 	case _New:
-		// new(T)
+		// new(T) or new(expr)
 		// (no argument evaluated yet)
-		T := check.varType(argList[0])
-		if !isValid(T) {
+		arg := argList[0]
+		check.exprOrType(x, arg, false)
+		check.exclude(x, 1<<novalue|1<<builtin)
+		switch x.mode {
+		case invalid:
 			return
+		case typexpr:
+			// new(T)
+			check.validVarType(arg, x.typ)
+		default:
+			// new(expr)
+			if isUntyped(x.typ) {
+				// check for overflow and untyped nil
+				check.assignment(x, nil, "argument to new")
+				if x.mode == invalid {
+					return
+				}
+				assert(isTyped(x.typ))
+			}
+			// report version error only if there are no other errors
+			check.verifyVersionf(call.Fun, go1_26, "new(%s)", arg)
 		}
 
+		T := x.typ
 		x.mode = value
-		x.typ = &Pointer{base: T}
+		x.typ = NewPointer(T)
 		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, T))
 		}
@@ -729,7 +755,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		if hasVarSize(x.typ, nil) {
+		if check.hasVarSize(x.typ) {
 			x.mode = value
 			if check.recordTypes() {
 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
@@ -793,7 +819,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// the part of the struct which is variable-sized. This makes both the rules
 		// simpler and also permits (or at least doesn't prevent) a compiler from re-
 		// arranging struct fields if it wanted to.
-		if hasVarSize(base, nil) {
+		if check.hasVarSize(base) {
 			x.mode = value
 			if check.recordTypes() {
 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], obj.Type()))
@@ -817,7 +843,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		if hasVarSize(x.typ, nil) {
+		if check.hasVarSize(x.typ) {
 			x.mode = value
 			if check.recordTypes() {
 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
@@ -961,29 +987,22 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 // or a type error if x is not a slice (or a type set of slices).
 func sliceElem(x *operand) (Type, *typeError) {
 	var E Type
-	var err *typeError
-	typeset(x.typ, func(_, u Type) bool {
+	for _, u := range typeset(x.typ) {
 		s, _ := u.(*Slice)
 		if s == nil {
 			if x.isNil() {
 				// Printing x in this case would just print "nil".
 				// Special case this so we can emphasize "untyped".
-				err = typeErrorf("argument must be a slice; have untyped nil")
+				return nil, typeErrorf("argument must be a slice; have untyped nil")
 			} else {
-				err = typeErrorf("argument must be a slice; have %s", x)
+				return nil, typeErrorf("argument must be a slice; have %s", x)
 			}
-			return false
 		}
 		if E == nil {
 			E = s.elem
 		} else if !Identical(E, s.elem) {
-			err = typeErrorf("mismatched slice element types %s and %s in %s", E, s.elem, x)
-			return false
+			return nil, typeErrorf("mismatched slice element types %s and %s in %s", E, s.elem, x)
 		}
-		return true
-	})
-	if err != nil {
-		return nil, err
 	}
 	return E, nil
 }
@@ -991,37 +1010,58 @@ func sliceElem(x *operand) (Type, *typeError) {
 // hasVarSize reports if the size of type t is variable due to type parameters
 // or if the type is infinitely-sized due to a cycle for which the type has not
 // yet been checked.
-func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
-	// Cycles are only possible through *Named types.
-	// The seen map is used to detect cycles and track
-	// the results of previously seen types.
-	if named := asNamed(t); named != nil {
-		if v, ok := seen[named]; ok {
-			return v
+func (check *Checker) hasVarSize(t Type) bool {
+	// Note: We could use Underlying here, but passing through the RHS may yield
+	// better error messages and allows us to stash the result on each traversed
+	// Named type.
+	switch t := Unalias(t).(type) {
+	case *Named:
+		if t.stateHas(hasVarSize) {
+			return t.varSize
 		}
-		if seen == nil {
-			seen = make(map[*Named]bool)
-		}
-		seen[named] = true // possibly cyclic until proven otherwise
-		defer func() {
-			seen[named] = varSized // record final determination for named
-		}()
-	}
 
-	switch u := under(t).(type) {
+		if i, ok := check.objPathIdx[t.obj]; ok {
+			cycle := check.objPath[i:]
+			check.cycleError(cycle, firstInSrc(cycle))
+			return true
+		}
+
+		check.push(t.obj)
+		defer check.pop()
+
+		// Careful, we're inspecting t.fromRHS, so we need to unpack first.
+		t.unpack()
+		varSize := check.hasVarSize(t.rhs())
+
+		t.mu.Lock()
+		defer t.mu.Unlock()
+
+		// Careful, t.varSize has lock-free readers. Since we might be racing
+		// another call to hasVarSize, we have to avoid overwriting t.varSize.
+		// Otherwise, the race detector will be tripped.
+		if !t.stateHas(hasVarSize) {
+			t.varSize = varSize
+			t.setState(hasVarSize)
+		}
+
+		return varSize
+
 	case *Array:
-		return hasVarSize(u.elem, seen)
+		// The array length is already computed. If it was a valid length, it
+		// is constant; else, an error was reported in the computation.
+		return check.hasVarSize(t.elem)
+
 	case *Struct:
-		for _, f := range u.fields {
-			if hasVarSize(f.typ, seen) {
+		for _, f := range t.fields {
+			if check.hasVarSize(f.typ) {
 				return true
 			}
 		}
-	case *Interface:
-		return isTypeParam(t)
-	case *Named, *Union:
-		panic("unreachable")
+
+	case *TypeParam:
+		return true
 	}
+
 	return false
 }
 
@@ -1100,7 +1140,7 @@ func makeSig(res Type, args ...Type) *Signature {
 // otherwise it returns typ.
 func arrayPtrDeref(typ Type) Type {
 	if p, ok := Unalias(typ).(*Pointer); ok {
-		if a, _ := under(p.base).(*Array); a != nil {
+		if a, _ := p.base.Underlying().(*Array); a != nil {
 			return a
 		}
 	}

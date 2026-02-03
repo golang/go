@@ -141,12 +141,12 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			// Because we have a name, typ must be of the form T or *T, where T is the name
 			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
 			// We must delay this check to the end because we don't want to instantiate
-			// (via under(t)) a possibly incomplete type.
+			// (via t.Underlying()) a possibly incomplete type.
 			embeddedTyp := typ // for closure below
 			embeddedPos := pos
 			check.later(func() {
 				t, isPtr := deref(embeddedTyp)
-				switch u := under(t).(type) {
+				switch u := t.Underlying().(type) {
 				case *Basic:
 					if !isValid(t) {
 						// error was reported before

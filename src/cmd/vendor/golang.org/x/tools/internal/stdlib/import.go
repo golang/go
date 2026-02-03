@@ -87,3 +87,11 @@ func find(pkg string) (int, bool) {
 		return strings.Compare(p.name, n)
 	})
 }
+
+// IsBootstrapPackage reports whether pkg is one of the low-level
+// packages in the Go distribution that must compile with the older
+// language version specified by [BootstrapVersion] during toolchain
+// bootstrapping; see golang.org/s/go15bootstrap.
+func IsBootstrapPackage(pkg string) bool {
+	return bootstrap[pkg]
+}

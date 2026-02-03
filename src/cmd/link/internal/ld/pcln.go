@@ -10,10 +10,12 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
+	"cmp"
 	"fmt"
 	"internal/abi"
 	"internal/buildcfg"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -36,6 +38,7 @@ type pclntab struct {
 	cutab       loader.Sym
 	filetab     loader.Sym
 	pctab       loader.Sym
+	funcdata    loader.Sym
 
 	// The number of functions + number of TEXT sections - 1. This is such an
 	// unexpected value because platforms that have more than one TEXT section
@@ -52,13 +55,20 @@ type pclntab struct {
 
 // addGeneratedSym adds a generator symbol to pclntab, returning the new Sym.
 // It is the caller's responsibility to save the symbol in state.
-func (state *pclntab) addGeneratedSym(ctxt *Link, name string, size int64, f generatorFunc) loader.Sym {
+func (state *pclntab) addGeneratedSym(ctxt *Link, name string, size int64, align int32, f generatorFunc) loader.Sym {
 	size = Rnd(size, int64(ctxt.Arch.PtrSize))
 	state.size += size
 	s := ctxt.createGeneratorSymbol(name, 0, sym.SPCLNTAB, size, f)
-	ctxt.loader.SetAttrReachable(s, true)
-	ctxt.loader.SetCarrierSym(s, state.carrier)
-	ctxt.loader.SetAttrNotInSymbolTable(s, true)
+	ldr := ctxt.loader
+	ldr.SetSymAlign(s, align)
+	ldr.SetAttrReachable(s, true)
+	ldr.SetCarrierSym(s, state.carrier)
+	ldr.SetAttrNotInSymbolTable(s, true)
+
+	if align > ldr.SymAlign(state.carrier) {
+		ldr.SetSymAlign(state.carrier, align)
+	}
+
 	return s
 }
 
@@ -183,7 +193,7 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
 	// signal to the symtab() phase that it needs to be grouped in with
 	// other similar symbols (gcdata, etc); the dodata() phase will
 	// eventually switch the type back to SRODATA.
-	inlTreeSym.SetType(sym.SGOFUNC)
+	inlTreeSym.SetType(sym.SPCLNTAB)
 	ldr.SetAttrReachable(its, true)
 	ldr.SetSymAlign(its, 4) // it has 32-bit fields
 	ninl := fi.NumInlTree()
@@ -216,7 +226,7 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
 		const size = 16
 		inlTreeSym.SetUint8(arch, int64(i*size+0), uint8(funcID))
 		// Bytes 1-3 are unused.
-		inlTreeSym.SetUint32(arch, int64(i*size+4), uint32(nameOff))
+		inlTreeSym.SetUint32(arch, int64(i*size+4), nameOff)
 		inlTreeSym.SetUint32(arch, int64(i*size+8), uint32(call.ParentPC))
 		inlTreeSym.SetUint32(arch, int64(i*size+12), uint32(startLine))
 	}
@@ -243,7 +253,6 @@ func makeInlSyms(ctxt *Link, funcs []loader.Sym, nameOffsets map[loader.Sym]uint
 // generator to fill in its data later.
 func (state *pclntab) generatePCHeader(ctxt *Link) {
 	ldr := ctxt.loader
-	textStartOff := int64(8 + 2*ctxt.Arch.PtrSize)
 	size := int64(8 + 8*ctxt.Arch.PtrSize)
 	writeHeader := func(ctxt *Link, s loader.Sym) {
 		header := ctxt.loader.MakeSymbolUpdater(s)
@@ -259,15 +268,12 @@ func (state *pclntab) generatePCHeader(ctxt *Link) {
 
 		// Write header.
 		// Keep in sync with runtime/symtab.go:pcHeader and package debug/gosym.
-		header.SetUint32(ctxt.Arch, 0, 0xfffffff1)
+		header.SetUint32(ctxt.Arch, 0, uint32(abi.CurrentPCLnTabMagic))
 		header.SetUint8(ctxt.Arch, 6, uint8(ctxt.Arch.MinLC))
 		header.SetUint8(ctxt.Arch, 7, uint8(ctxt.Arch.PtrSize))
 		off := header.SetUint(ctxt.Arch, 8, uint64(state.nfunc))
 		off = header.SetUint(ctxt.Arch, off, uint64(state.nfiles))
-		if off != textStartOff {
-			panic(fmt.Sprintf("pcHeader textStartOff: %d != %d", off, textStartOff))
-		}
-		off += int64(ctxt.Arch.PtrSize) // skip runtimeText relocation
+		off = header.SetUintptr(ctxt.Arch, off, 0) // unused
 		off = writeSymOffset(off, state.funcnametab)
 		off = writeSymOffset(off, state.cutab)
 		off = writeSymOffset(off, state.filetab)
@@ -278,10 +284,7 @@ func (state *pclntab) generatePCHeader(ctxt *Link) {
 		}
 	}
 
-	state.pcheader = state.addGeneratedSym(ctxt, "runtime.pcheader", size, writeHeader)
-	// Create the runtimeText relocation.
-	sb := ldr.MakeSymbolUpdater(state.pcheader)
-	sb.SetAddr(ctxt.Arch, textStartOff, ldr.Lookup("runtime.text", 0))
+	state.pcheader = state.addGeneratedSym(ctxt, "runtime.pcheader", size, int32(ctxt.Arch.PtrSize), writeHeader)
 }
 
 // walkFuncs iterates over the funcs, calling a function for each unique
@@ -330,7 +333,7 @@ func (state *pclntab) generateFuncnametab(ctxt *Link, funcs []loader.Sym) map[lo
 		size += int64(len(ctxt.loader.SymName(s)) + 1) // NULL terminate
 	})
 
-	state.funcnametab = state.addGeneratedSym(ctxt, "runtime.funcnametab", size, writeFuncNameTab)
+	state.funcnametab = state.addGeneratedSym(ctxt, "runtime.funcnametab", size, 1, writeFuncNameTab)
 	return nameOffsets
 }
 
@@ -446,7 +449,7 @@ func (state *pclntab) generateFilenameTabs(ctxt *Link, compUnits []*sym.Compilat
 			}
 		}
 	}
-	state.cutab = state.addGeneratedSym(ctxt, "runtime.cutab", int64(totalEntries*4), writeCutab)
+	state.cutab = state.addGeneratedSym(ctxt, "runtime.cutab", int64(totalEntries*4), 4, writeCutab)
 
 	// Write filetab.
 	writeFiletab := func(ctxt *Link, s loader.Sym) {
@@ -458,7 +461,7 @@ func (state *pclntab) generateFilenameTabs(ctxt *Link, compUnits []*sym.Compilat
 		}
 	}
 	state.nfiles = uint32(len(fileOffsets))
-	state.filetab = state.addGeneratedSym(ctxt, "runtime.filetab", fileSize, writeFiletab)
+	state.filetab = state.addGeneratedSym(ctxt, "runtime.filetab", fileSize, 1, writeFiletab)
 
 	return cuOffsets
 }
@@ -522,7 +525,158 @@ func (state *pclntab) generatePctab(ctxt *Link, funcs []loader.Sym) {
 		}
 	}
 
-	state.pctab = state.addGeneratedSym(ctxt, "runtime.pctab", size, writePctab)
+	state.pctab = state.addGeneratedSym(ctxt, "runtime.pctab", size, 1, writePctab)
+}
+
+// generateFuncdata writes out the funcdata information.
+func (state *pclntab) generateFuncdata(ctxt *Link, funcs []loader.Sym, inlsyms map[loader.Sym]loader.Sym) {
+	ldr := ctxt.loader
+
+	// Walk the functions and collect the funcdata.
+	seen := make(map[loader.Sym]struct{}, len(funcs))
+	fdSyms := make([]loader.Sym, 0, len(funcs))
+	fd := []loader.Sym{}
+	for _, s := range funcs {
+		fi := ldr.FuncInfo(s)
+		if !fi.Valid() {
+			continue
+		}
+		fi.Preload()
+		fd := funcData(ldr, s, fi, inlsyms[s], fd)
+		for j, fdSym := range fd {
+			if ignoreFuncData(ldr, s, j, fdSym) {
+				continue
+			}
+
+			if _, ok := seen[fdSym]; !ok {
+				fdSyms = append(fdSyms, fdSym)
+				seen[fdSym] = struct{}{}
+			}
+		}
+	}
+	seen = nil
+
+	// Sort the funcdata in reverse order by alignment
+	// to minimize alignment gaps. Use a stable sort
+	// for reproducible results.
+	var maxAlign int32
+	slices.SortStableFunc(fdSyms, func(a, b loader.Sym) int {
+		aAlign := symalign(ldr, a)
+		bAlign := symalign(ldr, b)
+
+		// Remember maximum alignment.
+		maxAlign = max(maxAlign, aAlign, bAlign)
+
+		// Negate to sort by decreasing alignment.
+		return -cmp.Compare(aAlign, bAlign)
+	})
+
+	// We will output the symbols in the order of fdSyms.
+	// Set the value of each symbol to its offset in the funcdata.
+	// This way when writeFuncs writes out the funcdata offset,
+	// it can simply write out the symbol value.
+
+	// Accumulated size of funcdata info.
+	size := int64(0)
+
+	for _, fdSym := range fdSyms {
+		datSize := ldr.SymSize(fdSym)
+		if datSize == 0 {
+			ctxt.Errorf(fdSym, "zero size funcdata")
+			continue
+		}
+
+		size = Rnd(size, int64(symalign(ldr, fdSym)))
+		ldr.SetSymValue(fdSym, size)
+		size += datSize
+
+		// We do not put the funcdata symbols in the symbol table.
+		ldr.SetAttrNotInSymbolTable(fdSym, true)
+
+		// Mark the symbol as special so that it does not get
+		// adjusted by the section offset.
+		ldr.SetAttrSpecial(fdSym, true)
+	}
+
+	// Funcdata symbols are permitted to have R_ADDROFF relocations,
+	// which the linker can fully resolve.
+	resolveRelocs := func(ldr *loader.Loader, fdSym loader.Sym, data []byte) {
+		relocs := ldr.Relocs(fdSym)
+		for i := 0; i < relocs.Count(); i++ {
+			r := relocs.At(i)
+			if r.Type() != objabi.R_ADDROFF {
+				ctxt.Errorf(fdSym, "unsupported reloc %d (%s) for funcdata symbol", r.Type(), sym.RelocName(ctxt.Target.Arch, r.Type()))
+				return
+			}
+			if r.Siz() != 4 {
+				ctxt.Errorf(fdSym, "unsupported ADDROFF reloc size %d for funcdata symbol", r.Siz())
+				return
+			}
+			rs := r.Sym()
+			if r.Weak() && !ldr.AttrReachable(rs) {
+				return
+			}
+			sect := ldr.SymSect(rs)
+			if sect == nil {
+				ctxt.Errorf(fdSym, "missing section for relocation target %s for funcdata symbol", ldr.SymName(rs))
+			}
+			o := ldr.SymValue(rs)
+			if sect.Name != ".text" {
+				o -= int64(sect.Vaddr)
+			} else {
+				// With multiple .text sections the offset
+				// is from the start of the first one.
+				o -= int64(Segtext.Sections[0].Vaddr)
+				if ctxt.Target.IsWasm() {
+					if o&(1<<16-1) != 0 {
+						ctxt.Errorf(fdSym, "textoff relocation does not target function entry for funcdata symbol: %s %#x", ldr.SymName(rs), o)
+					}
+					o >>= 16
+				}
+			}
+			o += r.Add()
+			if o != int64(int32(o)) && o != int64(uint32(o)) {
+				ctxt.Errorf(fdSym, "ADDROFF relocation out of range for funcdata symbol: %#x", o)
+			}
+			ctxt.Target.Arch.ByteOrder.PutUint32(data[r.Off():], uint32(o))
+		}
+	}
+
+	writeFuncData := func(ctxt *Link, s loader.Sym) {
+		ldr := ctxt.loader
+		sb := ldr.MakeSymbolUpdater(s)
+		for _, fdSym := range fdSyms {
+			off := ldr.SymValue(fdSym)
+			fdSymData := ldr.Data(fdSym)
+			sb.SetBytesAt(off, fdSymData)
+			// Resolve any R_ADDROFF relocations.
+			resolveRelocs(ldr, fdSym, sb.Data()[off:off+int64(len(fdSymData))])
+		}
+	}
+
+	state.funcdata = state.addGeneratedSym(ctxt, "go:func.*", size, maxAlign, writeFuncData)
+
+	// Because the funcdata previously was not in pclntab,
+	// we need to keep the visible symbol so that tools can find it.
+	ldr.SetAttrNotInSymbolTable(state.funcdata, false)
+}
+
+// ignoreFuncData reports whether we should ignore a funcdata symbol.
+//
+// cmd/internal/obj optimistically populates ArgsPointerMaps and
+// ArgInfo for assembly functions, hoping that the compiler will
+// emit appropriate symbols from their Go stub declarations. If
+// it didn't though, just ignore it.
+//
+// TODO(cherryyz): Fix arg map generation (see discussion on CL 523335).
+func ignoreFuncData(ldr *loader.Loader, s loader.Sym, j int, fdSym loader.Sym) bool {
+	if fdSym == 0 {
+		return true
+	}
+	if (j == abi.FUNCDATA_ArgsPointerMaps || j == abi.FUNCDATA_ArgInfo) && ldr.IsFromAssembly(s) && ldr.Data(fdSym) == nil {
+		return true
+	}
+	return false
 }
 
 // numPCData returns the number of PCData syms for the FuncInfo.
@@ -556,7 +710,7 @@ func (state *pclntab) generateFunctab(ctxt *Link, funcs []loader.Sym, inlSyms ma
 		writePCToFunc(ctxt, sb, funcs, startLocations)
 		writeFuncs(ctxt, sb, funcs, inlSyms, startLocations, cuOffsets, nameOffsets)
 	}
-	state.pclntab = state.addGeneratedSym(ctxt, "runtime.functab", size, writePcln)
+	state.pclntab = state.addGeneratedSym(ctxt, "runtime.functab", size, 4, writePcln)
 }
 
 // funcData returns the funcdata and offsets for the FuncInfo.
@@ -614,16 +768,36 @@ func (state pclntab) calculateFunctabSize(ctxt *Link, funcs []loader.Sym) (int64
 	return size, startLocations
 }
 
+// textOff computes the offset of a text symbol, relative to textStart,
+// similar to an R_ADDROFF relocation,  for various runtime metadata and
+// tables (see runtime/symtab.go:(*moduledata).textAddr).
+func textOff(ctxt *Link, s loader.Sym, textStart int64) uint32 {
+	ldr := ctxt.loader
+	off := ldr.SymValue(s) - textStart
+	if off < 0 {
+		panic(fmt.Sprintf("expected func %s(%x) to be placed at or after textStart (%x)", ldr.SymName(s), ldr.SymValue(s), textStart))
+	}
+	if ctxt.IsWasm() {
+		// On Wasm, the function table contains just the function index, whereas
+		// the "PC" (s's Value) is function index << 16 + block index (see
+		// ../wasm/asm.go:assignAddress).
+		if off&(1<<16-1) != 0 {
+			ctxt.Errorf(s, "nonzero PC_B at function entry: %#x", off)
+		}
+		off >>= 16
+	}
+	if int64(uint32(off)) != off {
+		ctxt.Errorf(s, "textOff overflow: %#x", off)
+	}
+	return uint32(off)
+}
+
 // writePCToFunc writes the PC->func lookup table.
 func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, startLocations []uint32) {
 	ldr := ctxt.loader
 	textStart := ldr.SymValue(ldr.Lookup("runtime.text", 0))
 	pcOff := func(s loader.Sym) uint32 {
-		off := ldr.SymValue(s) - textStart
-		if off < 0 {
-			panic(fmt.Sprintf("expected func %s(%x) to be placed at or after textStart (%x)", ldr.SymName(s), ldr.SymValue(s), textStart))
-		}
-		return uint32(off)
+		return textOff(ctxt, s, textStart)
 	}
 	for i, s := range funcs {
 		sb.SetUint32(ctxt.Arch, int64(i*2*4), pcOff(s))
@@ -632,21 +806,23 @@ func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, sta
 
 	// Final entry of table is just end pc offset.
 	lastFunc := funcs[len(funcs)-1]
-	sb.SetUint32(ctxt.Arch, int64(len(funcs))*2*4, pcOff(lastFunc)+uint32(ldr.SymSize(lastFunc)))
+	lastPC := pcOff(lastFunc) + uint32(ldr.SymSize(lastFunc))
+	if ctxt.IsWasm() {
+		lastPC = pcOff(lastFunc) + 1 // On Wasm it is function index (see above)
+	}
+	sb.SetUint32(ctxt.Arch, int64(len(funcs))*2*4, lastPC)
 }
 
 // writeFuncs writes the func structures and pcdata to runtime.functab.
 func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSyms map[loader.Sym]loader.Sym, startLocations, cuOffsets []uint32, nameOffsets map[loader.Sym]uint32) {
 	ldr := ctxt.loader
 	deferReturnSym := ldr.Lookup("runtime.deferreturn", abiInternalVer)
-	gofunc := ldr.Lookup("go:func.*", 0)
-	gofuncBase := ldr.SymValue(gofunc)
 	textStart := ldr.SymValue(ldr.Lookup("runtime.text", 0))
 	funcdata := []loader.Sym{}
 	var pcsp, pcfile, pcline, pcinline loader.Sym
 	var pcdata []loader.Sym
 
-	// Write the individual func objects.
+	// Write the individual func objects (runtime._func struct).
 	for i, s := range funcs {
 		startLine := int32(0)
 		fi := ldr.FuncInfo(s)
@@ -658,18 +834,15 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 
 		off := int64(startLocations[i])
 		// entryOff uint32 (offset of func entry PC from textStart)
-		entryOff := ldr.SymValue(s) - textStart
-		if entryOff < 0 {
-			panic(fmt.Sprintf("expected func %s(%x) to be placed before or at textStart (%x)", ldr.SymName(s), ldr.SymValue(s), textStart))
-		}
-		off = sb.SetUint32(ctxt.Arch, off, uint32(entryOff))
+		entryOff := textOff(ctxt, s, textStart)
+		off = sb.SetUint32(ctxt.Arch, off, entryOff)
 
 		// nameOff int32
 		nameOff, ok := nameOffsets[s]
 		if !ok {
 			panic("couldn't find function name offset")
 		}
-		off = sb.SetUint32(ctxt.Arch, off, uint32(nameOff))
+		off = sb.SetUint32(ctxt.Arch, off, nameOff)
 
 		// args int32
 		// TODO: Move into funcinfo.
@@ -691,7 +864,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 		} else {
 			off += 12
 		}
-		off = sb.SetUint32(ctxt.Arch, off, uint32(numPCData(ldr, s, fi)))
+		off = sb.SetUint32(ctxt.Arch, off, numPCData(ldr, s, fi))
 
 		// Store the offset to compilation unit's file table.
 		cuIdx := ^uint32(0)
@@ -741,25 +914,12 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 			dataoff := off + int64(4*j)
 			fdsym := funcdata[j]
 
-			// cmd/internal/obj optimistically populates ArgsPointerMaps and
-			// ArgInfo for assembly functions, hoping that the compiler will
-			// emit appropriate symbols from their Go stub declarations. If
-			// it didn't though, just ignore it.
-			//
-			// TODO(cherryyz): Fix arg map generation (see discussion on CL 523335).
-			if fdsym != 0 && (j == abi.FUNCDATA_ArgsPointerMaps || j == abi.FUNCDATA_ArgInfo) && ldr.IsFromAssembly(s) && ldr.Data(fdsym) == nil {
-				fdsym = 0
-			}
-
-			if fdsym == 0 {
+			if ignoreFuncData(ldr, s, j, fdsym) {
 				sb.SetUint32(ctxt.Arch, dataoff, ^uint32(0)) // ^0 is a sentinel for "no value"
 				continue
 			}
 
-			if outer := ldr.OuterSym(fdsym); outer != gofunc {
-				panic(fmt.Sprintf("bad carrier sym for symbol %s (funcdata %s#%d), want go:func.* got %s", ldr.SymName(fdsym), ldr.SymName(s), j, ldr.SymName(outer)))
-			}
-			sb.SetUint32(ctxt.Arch, dataoff, uint32(ldr.SymValue(fdsym)-gofuncBase))
+			sb.SetUint32(ctxt.Arch, dataoff, uint32(ldr.SymValue(fdsym)))
 		}
 	}
 }
@@ -802,6 +962,9 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	//        function table, alternating PC and offset to func struct [each entry thearch.ptrsize bytes]
 	//        end PC [thearch.ptrsize bytes]
 	//        func structures, pcdata offsets, func data.
+	//
+	//      runtime.funcdata
+	//        []byte of deduplicated funcdata
 
 	state, compUnits, funcs := makePclntab(ctxt, container)
 
@@ -811,12 +974,17 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	ldr.SetAttrReachable(state.carrier, true)
 	setCarrierSym(sym.SPCLNTAB, state.carrier)
 
+	// Aign pclntab to at least a pointer boundary,
+	// for pcHeader. This may be raised further by subsymbols.
+	ldr.SetSymAlign(state.carrier, int32(ctxt.Arch.PtrSize))
+
 	state.generatePCHeader(ctxt)
 	nameOffsets := state.generateFuncnametab(ctxt, funcs)
 	cuOffsets := state.generateFilenameTabs(ctxt, compUnits, funcs)
 	state.generatePctab(ctxt, funcs)
 	inlSyms := makeInlSyms(ctxt, funcs, nameOffsets)
 	state.generateFunctab(ctxt, funcs, inlSyms, cuOffsets, nameOffsets)
+	state.generateFuncdata(ctxt, funcs, inlSyms)
 
 	return state
 }
@@ -918,7 +1086,8 @@ func (ctxt *Link) findfunctab(state *pclntab, container loader.Bitmap) {
 		}
 	}
 
-	state.findfunctab = ctxt.createGeneratorSymbol("runtime.findfunctab", 0, sym.SRODATA, size, writeFindFuncTab)
+	state.findfunctab = ctxt.createGeneratorSymbol("runtime.findfunctab", 0, sym.SPCLNTAB, size, writeFindFuncTab)
+	ldr.SetSymAlign(state.findfunctab, 4)
 	ldr.SetAttrReachable(state.findfunctab, true)
 	ldr.SetAttrLocal(state.findfunctab, true)
 }

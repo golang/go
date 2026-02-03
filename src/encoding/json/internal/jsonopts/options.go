@@ -48,16 +48,16 @@ type ArshalValues struct {
 // DefaultOptionsV2 is the set of all options that define default v2 behavior.
 var DefaultOptionsV2 = Struct{
 	Flags: jsonflags.Flags{
-		Presence: uint64(jsonflags.AllFlags & ^jsonflags.WhitespaceFlags),
-		Values:   uint64(0),
+		Presence: uint64(jsonflags.DefaultV1Flags),
+		Values:   uint64(0), // all flags in DefaultV1Flags are false
 	},
 }
 
 // DefaultOptionsV1 is the set of all options that define default v1 behavior.
 var DefaultOptionsV1 = Struct{
 	Flags: jsonflags.Flags{
-		Presence: uint64(jsonflags.AllFlags & ^jsonflags.WhitespaceFlags),
-		Values:   uint64(jsonflags.DefaultV1Flags),
+		Presence: uint64(jsonflags.DefaultV1Flags),
+		Values:   uint64(jsonflags.DefaultV1Flags), // all flags in DefaultV1Flags are true
 	},
 }
 
@@ -65,7 +65,7 @@ func (*Struct) JSONOptions(internal.NotForPublicUse) {}
 
 // GetUnknownOption is injected by the "json" package to handle Options
 // declared in that package so that "jsonopts" can handle them.
-var GetUnknownOption = func(*Struct, Options) (any, bool) { panic("unknown option") }
+var GetUnknownOption = func(Struct, Options) (any, bool) { panic("unknown option") }
 
 func GetOption[T any](opts Options, setter func(T) Options) (T, bool) {
 	// Collapse the options to *Struct to simplify lookup.
@@ -104,14 +104,14 @@ func GetOption[T any](opts Options, setter func(T) Options) (T, bool) {
 		}
 		return any(structOpts.DepthLimit).(T), true
 	default:
-		v, ok := GetUnknownOption(structOpts, opt)
+		v, ok := GetUnknownOption(*structOpts, opt)
 		return v.(T), ok
 	}
 }
 
 // JoinUnknownOption is injected by the "json" package to handle Options
 // declared in that package so that "jsonopts" can handle them.
-var JoinUnknownOption = func(*Struct, Options) { panic("unknown option") }
+var JoinUnknownOption = func(Struct, Options) Struct { panic("unknown option") }
 
 func (dst *Struct) Join(srcs ...Options) {
 	dst.join(false, srcs...)
@@ -182,7 +182,7 @@ func (dst *Struct) join(excludeCoderOptions bool, srcs ...Options) {
 				}
 			}
 		default:
-			JoinUnknownOption(dst, src)
+			*dst = JoinUnknownOption(*dst, src)
 		}
 	}
 }

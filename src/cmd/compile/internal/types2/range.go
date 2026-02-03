@@ -9,7 +9,6 @@ package types2
 import (
 	"cmd/compile/internal/syntax"
 	"go/constant"
-	"internal/buildcfg"
 	. "internal/types/errors"
 )
 
@@ -36,7 +35,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 	check.expr(nil, &x, rangeVar)
 
 	if isTypes2 && x.mode != invalid && sValue == nil && !check.hasCallOrRecv {
-		if t, ok := arrayPtrDeref(under(x.typ)).(*Array); ok {
+		if t, ok := arrayPtrDeref(x.typ.Underlying()).(*Array); ok {
 			for {
 				// Put constant info on the thing inside parentheses.
 				// That's where (*../noder/writer).expr expects it.
@@ -237,7 +236,7 @@ func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (
 		assert(typ.dir != SendOnly)
 		return typ.elem, nil, "", true
 	case *Signature:
-		if !buildcfg.Experiment.RangeFunc && allowVersion != nil && !allowVersion(go1_23) {
+		if allowVersion != nil && !allowVersion(go1_23) {
 			return bad("requires go1.23 or later")
 		}
 		// check iterator arity

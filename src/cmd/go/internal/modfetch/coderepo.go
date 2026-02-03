@@ -384,6 +384,9 @@ func (r *codeRepo) convert(ctx context.Context, info *codehost.RevInfo, statVers
 			} else {
 				origin.TagPrefix = tags.Origin.TagPrefix
 				origin.TagSum = tags.Origin.TagSum
+				if tags.Origin.RepoSum != "" {
+					origin.RepoSum = tags.Origin.RepoSum
+				}
 			}
 		}
 	}()
@@ -1007,10 +1010,6 @@ func (r *codeRepo) GoMod(ctx context.Context, version string) (data []byte, err 
 // correct. So we stopped.
 func LegacyGoMod(modPath string) []byte {
 	return fmt.Appendf(nil, "module %s\n", modfile.AutoQuote(modPath))
-}
-
-func (r *codeRepo) modPrefix(rev string) string {
-	return r.modPath + "@" + rev
 }
 
 func (r *codeRepo) retractedVersions(ctx context.Context) (func(string) bool, error) {

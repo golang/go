@@ -11,6 +11,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"errors"
 	"fmt"
 	"hash"
 	"testing"
@@ -583,6 +584,18 @@ func TestHMAC(t *testing.T) {
 	}
 }
 
+func TestNoClone(t *testing.T) {
+	h := New(func() hash.Hash { return justHash{sha256.New()} }, []byte("key"))
+	if _, ok := h.(hash.Cloner); !ok {
+		t.Skip("no Cloner support")
+	}
+	h.Write([]byte("test"))
+	_, err := h.(hash.Cloner).Clone()
+	if !errors.Is(err, errors.ErrUnsupported) {
+		t.Errorf("Clone() = %v, want ErrUnsupported", err)
+	}
+}
+
 func TestNonUniqueHash(t *testing.T) {
 	if boring.Enabled {
 		t.Skip("hash.Hash provided by boringcrypto are not comparable")
@@ -630,6 +643,18 @@ func TestHMACHash(t *testing.T) {
 			cryptotest.TestHash(t, func() hash.Hash { return New(baseHash, key) })
 		})
 	}
+}
+
+func TestExtraMethods(t *testing.T) {
+	h := New(sha256.New, []byte("key"))
+	cryptotest.NoExtraMethods(t, maybeCloner(h))
+}
+
+func maybeCloner(h hash.Hash) any {
+	if c, ok := h.(hash.Cloner); ok {
+		return &c
+	}
+	return &h
 }
 
 func BenchmarkHMACSHA256_1K(b *testing.B) {

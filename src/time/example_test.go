@@ -735,8 +735,8 @@ func ExampleTime_String() {
 	timeWithoutNanoseconds := time.Date(2000, 2, 1, 12, 13, 14, 0, time.UTC)
 	withoutNanoseconds := timeWithoutNanoseconds.String()
 
-	fmt.Printf("withNanoseconds = %v\n", string(withNanoseconds))
-	fmt.Printf("withoutNanoseconds = %v\n", string(withoutNanoseconds))
+	fmt.Printf("withNanoseconds = %v\n", withNanoseconds)
+	fmt.Printf("withoutNanoseconds = %v\n", withoutNanoseconds)
 
 	// Output:
 	// withNanoseconds = 2000-02-01 12:13:14.000000015 +0000 UTC

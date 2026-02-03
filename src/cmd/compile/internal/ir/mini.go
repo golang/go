@@ -34,15 +34,6 @@ type miniNode struct {
 	esc  uint16
 }
 
-// posOr returns pos if known, or else n.pos.
-// For use in DeepCopy.
-func (n *miniNode) posOr(pos src.XPos) src.XPos {
-	if pos.IsKnown() {
-		return pos
-	}
-	return n.pos
-}
-
 // op can be read, but not written.
 // An embedding implementation can provide a SetOp if desired.
 // (The panicking SetOp is with the other panics below.)

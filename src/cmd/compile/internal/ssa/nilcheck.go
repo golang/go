@@ -221,7 +221,8 @@ func nilcheckelim2(f *Func) {
 
 				// Iteration order means that first nilcheck in the chain wins, others
 				// are bumped into the ordinary statement preservation algorithm.
-				u := b.Values[unnecessary.get(v.Args[0].ID)]
+				uid, _ := unnecessary.get(v.Args[0].ID)
+				u := b.Values[uid]
 				if !u.Type.IsMemory() && !u.Pos.SameFileAndLine(v.Pos) {
 					if u.Pos.IsStmt() == src.PosIsStmt {
 						pendingLines.add(u.Pos)

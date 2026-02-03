@@ -248,7 +248,7 @@ func (fd *netFD) dup() (*os.File, error) {
 	err := fd.pfd.RawControl(func(fd uintptr) {
 		h, syserr = dupSocket(syscall.Handle(fd))
 	})
-	if err != nil {
+	if err == nil {
 		err = syserr
 	}
 	if err != nil {

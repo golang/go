@@ -15,7 +15,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"hash"
-	"internal/synctest"
 	"io"
 	"log"
 	"maps"
@@ -34,6 +33,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -45,6 +45,16 @@ const (
 	http2Mode            = testMode("h2")            // HTTP/2
 	http2UnencryptedMode = testMode("h2unencrypted") // HTTP/2
 )
+
+func (m testMode) Scheme() string {
+	switch m {
+	case http1Mode, http2UnencryptedMode:
+		return "http"
+	case https1Mode, http2Mode:
+		return "https"
+	}
+	panic("unknown testMode")
+}
 
 type testNotParallelOpt struct{}
 
@@ -95,33 +105,13 @@ func run[T TBRun[T]](t T, f func(t T, mode testMode), opts ...any) {
 	}
 }
 
-// cleanupT wraps a testing.T and adds its own Cleanup method.
-// Used to execute cleanup functions within a synctest bubble.
-type cleanupT struct {
-	*testing.T
-	cleanups []func()
-}
-
-// Cleanup replaces T.Cleanup.
-func (t *cleanupT) Cleanup(f func()) {
-	t.cleanups = append(t.cleanups, f)
-}
-
-func (t *cleanupT) done() {
-	for _, f := range slices.Backward(t.cleanups) {
-		f()
-	}
-}
-
 // runSynctest is run combined with synctest.Run.
 //
 // The TB passed to f arranges for cleanup functions to be run in the synctest bubble.
-func runSynctest(t *testing.T, f func(t testing.TB, mode testMode), opts ...any) {
+func runSynctest(t *testing.T, f func(t *testing.T, mode testMode), opts ...any) {
 	run(t, func(t *testing.T, mode testMode) {
-		synctest.Run(func() {
-			ct := &cleanupT{T: t}
-			defer ct.done()
-			f(ct, mode)
+		synctest.Test(t, func(t *testing.T) {
+			f(t, mode)
 		})
 	}, opts...)
 }
@@ -227,6 +217,8 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 			transportFuncs = append(transportFuncs, opt)
 		case func(*httptest.Server):
 			opt(cst.ts)
+		case func(*Server):
+			opt(cst.ts.Config)
 		default:
 			t.Fatalf("unhandled option type %T", opt)
 		}
@@ -292,12 +284,12 @@ func TestNewClientServerTest(t *testing.T) {
 		}, modes)
 	})
 	t.Run("synctest", func(t *testing.T) {
-		runSynctest(t, func(t testing.TB, mode testMode) {
+		runSynctest(t, func(t *testing.T, mode testMode) {
 			testNewClientServerTest(t, mode, optFakeNet)
 		}, modes)
 	})
 }
-func testNewClientServerTest(t testing.TB, mode testMode, opts ...any) {
+func testNewClientServerTest(t *testing.T, mode testMode, opts ...any) {
 	var got struct {
 		sync.Mutex
 		proto  string

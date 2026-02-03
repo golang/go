@@ -7,10 +7,14 @@
 // See memclrNoHeapPointers Go doc for important implementation constraints.
 
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
-TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT|NOFRAME,$0-16
+TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-16
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	ptr+0(FP), R4
 	MOVD	n+8(FP), R5
-
+#else
+	MOVD	R2, R4
+	MOVD	R3, R5
+#endif
 	CMPBGE	R5, $32, clearge32
 
 start:
@@ -109,53 +113,23 @@ clearge32:
 // For size >= 4KB, XC is loop unrolled 16 times (4KB = 256B * 16)
 clearge4KB:
 	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
-	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
-	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
-	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
-	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
-	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
-	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
-	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
-	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
-	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
-	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
-	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
-	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
-	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
-	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
-	XC	$256, 0(R4), 0(R4)
-	ADD	$256, R4
-	ADD	$-256, R5
+	XC	$256, 256(R4), 256(R4)
+	XC	$256, 512(R4), 512(R4)
+	XC	$256, 768(R4), 768(R4)
+	XC	$256, 1024(R4), 1024(R4)
+	XC	$256, 1280(R4), 1280(R4)
+	XC	$256, 1536(R4), 1536(R4)
+	XC	$256, 1792(R4), 1792(R4)
+	XC	$256, 2048(R4), 2048(R4)
+	XC	$256, 2304(R4), 2304(R4)
+	XC	$256, 2560(R4), 2560(R4)
+	XC	$256, 2816(R4), 2816(R4)
+	XC	$256, 3072(R4), 3072(R4)
+	XC	$256, 3328(R4), 3328(R4)
+	XC	$256, 3584(R4), 3584(R4)
+	XC	$256, 3840(R4), 3840(R4)
+	ADD	$4096, R4
+	ADD	$-4096, R5
 	CMP	R5, $4096
 	BGE	clearge4KB
 
@@ -180,7 +154,7 @@ clear32to255:
 clear32:
 	VZERO	V1
 	VST	V1, 0(R4)
-	VST 	V1, 16(R4)
+	VST	V1, 16(R4)
 	RET
 
 clear33to64:

@@ -175,7 +175,7 @@ func lock2(l *mutex) {
 	// On uniprocessors, no point spinning.
 	// On multiprocessors, spin for mutexActiveSpinCount attempts.
 	spin := 0
-	if ncpu > 1 {
+	if numCPUStartup > 1 {
 		spin = mutexActiveSpinCount
 	}
 
@@ -327,16 +327,8 @@ func unlock2(l *mutex) {
 // mutexSampleContention returns whether the current mutex operation should
 // report any contention it discovers.
 func mutexSampleContention() bool {
-	if rate := int64(atomic.Load64(&mutexprofilerate)); rate <= 0 {
-		return false
-	} else {
-		// TODO: have SetMutexProfileFraction do the clamping
-		rate32 := uint32(rate)
-		if int64(rate32) != rate {
-			rate32 = ^uint32(0)
-		}
-		return cheaprandn(rate32) == 0
-	}
+	rate := atomic.Load64(&mutexprofilerate)
+	return rate > 0 && cheaprandu64()%rate == 0
 }
 
 // unlock2Wake updates the list of Ms waiting on l, waking an M if necessary.

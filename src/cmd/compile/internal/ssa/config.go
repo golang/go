@@ -41,8 +41,6 @@ type Config struct {
 	hasGReg        bool      // has hardware g register
 	ctxt           *obj.Link // Generic arch information
 	optimize       bool      // Do optimization
-	useAvg         bool      // Use optimizations that need Avg* operations
-	useHmul        bool      // Use optimizations that need Hmul* operations
 	SoftFloat      bool      //
 	Race           bool      // race detector enabled
 	BigEndian      bool      //
@@ -50,6 +48,7 @@ type Config struct {
 	haveBswap64    bool      // architecture implements Bswap64
 	haveBswap32    bool      // architecture implements Bswap32
 	haveBswap16    bool      // architecture implements Bswap16
+	haveCondSelect bool      // architecture implements CondSelect
 
 	// mulRecipes[x] = function to build v * x from v.
 	mulRecipes map[int64]mulRecipe
@@ -89,6 +88,10 @@ type Types struct {
 	Float32Ptr *types.Type
 	Float64Ptr *types.Type
 	BytePtrPtr *types.Type
+	Vec128     *types.Type
+	Vec256     *types.Type
+	Vec512     *types.Type
+	Mask       *types.Type
 }
 
 // NewTypes creates and populates a Types.
@@ -123,21 +126,25 @@ func (t *Types) SetTypPtrs() {
 	t.Float32Ptr = types.NewPtr(types.Types[types.TFLOAT32])
 	t.Float64Ptr = types.NewPtr(types.Types[types.TFLOAT64])
 	t.BytePtrPtr = types.NewPtr(types.NewPtr(types.Types[types.TUINT8]))
+	t.Vec128 = types.TypeVec128
+	t.Vec256 = types.TypeVec256
+	t.Vec512 = types.TypeVec512
+	t.Mask = types.TypeMask
 }
 
 type Logger interface {
 	// Logf logs a message from the compiler.
-	Logf(string, ...interface{})
+	Logf(string, ...any)
 
 	// Log reports whether logging is not a no-op
 	// some logging calls account for more than a few heap allocations.
 	Log() bool
 
 	// Fatalf reports a compiler error and exits.
-	Fatalf(pos src.XPos, msg string, args ...interface{})
+	Fatalf(pos src.XPos, msg string, args ...any)
 
 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
-	Warnl(pos src.XPos, fmt_ string, args ...interface{})
+	Warnl(pos src.XPos, fmt_ string, args ...any)
 
 	// Forwards the Debug flags from gc
 	Debug_checknil() bool
@@ -167,8 +174,6 @@ type Frontend interface {
 // NewConfig returns a new configuration object for the given architecture.
 func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat bool) *Config {
 	c := &Config{arch: arch, Types: types}
-	c.useAvg = true
-	c.useHmul = true
 	switch arch {
 	case "amd64":
 		c.PtrSize = 8
@@ -191,6 +196,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.haveBswap64 = true
 		c.haveBswap32 = true
 		c.haveBswap16 = true
+		c.haveCondSelect = true
 	case "386":
 		c.PtrSize = 4
 		c.RegSize = 4
@@ -236,6 +242,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.haveBswap64 = true
 		c.haveBswap32 = true
 		c.haveBswap16 = true
+		c.haveCondSelect = true
 	case "ppc64":
 		c.BigEndian = true
 		fallthrough
@@ -263,6 +270,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.haveBswap64 = true
 		c.haveBswap32 = true
 		c.haveBswap16 = true
+		c.haveCondSelect = true
 	case "mips64":
 		c.BigEndian = true
 		fallthrough
@@ -271,6 +279,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockMIPS64
 		c.lowerValue = rewriteValueMIPS64
+		c.lateLowerBlock = rewriteBlockMIPS64latelower
+		c.lateLowerValue = rewriteValueMIPS64latelower
 		c.registers = registersMIPS64[:]
 		c.gpRegMask = gpRegMaskMIPS64
 		c.fpRegMask = fpRegMaskMIPS64
@@ -283,6 +293,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockLOONG64
 		c.lowerValue = rewriteValueLOONG64
+		c.lateLowerBlock = rewriteBlockLOONG64latelower
+		c.lateLowerValue = rewriteValueLOONG64latelower
 		c.registers = registersLOONG64[:]
 		c.gpRegMask = gpRegMaskLOONG64
 		c.fpRegMask = fpRegMaskLOONG64
@@ -292,6 +304,10 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.LinkReg = linkRegLOONG64
 		c.hasGReg = true
 		c.unalignedOK = true
+		c.haveBswap64 = true
+		c.haveBswap32 = true
+		c.haveBswap16 = true
+		c.haveCondSelect = true
 	case "s390x":
 		c.PtrSize = 8
 		c.RegSize = 8
@@ -300,6 +316,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.registers = registersS390X[:]
 		c.gpRegMask = gpRegMaskS390X
 		c.fpRegMask = fpRegMaskS390X
+		c.intParamRegs = paramIntRegS390X
+		c.floatParamRegs = paramFloatRegS390X
 		c.FPReg = framepointerRegS390X
 		c.LinkReg = linkRegS390X
 		c.hasGReg = true
@@ -350,8 +368,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.FPReg = framepointerRegWasm
 		c.LinkReg = linkRegWasm
 		c.hasGReg = true
-		c.useAvg = false
-		c.useHmul = false
+		c.unalignedOK = true
+		c.haveCondSelect = true
 	default:
 		ctxt.Diag("arch %s not implemented", arch)
 	}
@@ -562,6 +580,52 @@ func (c *Config) buildRecipes(arch string) {
 					return m.Block.NewValue2I(m.Pos, OpARM64SUBshiftLL, m.Type, int64(i), x, y)
 				})
 		}
+	case "loong64":
+		// - multiply is 4 cycles.
+		// - add/sub/shift/alsl are 1 cycle.
+		// On loong64, using a multiply also needs to load the constant into a register.
+		// TODO: figure out a happy medium.
+		mulCost = 45
+
+		// add
+		r(1, 1, 10,
+			func(m, x, y *Value) *Value {
+				return m.Block.NewValue2(m.Pos, OpLOONG64ADDV, m.Type, x, y)
+			})
+		// neg
+		r(-1, 0, 10,
+			func(m, x, y *Value) *Value {
+				return m.Block.NewValue1(m.Pos, OpLOONG64NEGV, m.Type, x)
+			})
+		// sub
+		r(1, -1, 10,
+			func(m, x, y *Value) *Value {
+				return m.Block.NewValue2(m.Pos, OpLOONG64SUBV, m.Type, x, y)
+			})
+
+		// regular shifts
+		for i := 1; i < 64; i++ {
+			c := 10
+			if i == 1 {
+				// Prefer x<<1 over x+x.
+				// Note that we eventually reverse this decision in LOONG64latelower.rules,
+				// but this makes shift combining rules in LOONG64.rules simpler.
+				c--
+			}
+			r(1<<i, 0, c,
+				func(m, x, y *Value) *Value {
+					return m.Block.NewValue1I(m.Pos, OpLOONG64SLLVconst, m.Type, int64(i), x)
+				})
+		}
+
+		// ADDshiftLLV
+		for i := 1; i < 5; i++ {
+			c := 10
+			r(1, 1<<i, c,
+				func(m, x, y *Value) *Value {
+					return m.Block.NewValue2I(m.Pos, OpLOONG64ADDshiftLLV, m.Type, int64(i), x, y)
+				})
+		}
 	}
 
 	c.mulRecipes = map[int64]mulRecipe{}
@@ -628,17 +692,58 @@ func (c *Config) buildRecipes(arch string) {
 		}
 	}
 
+	// Currently we only process 3 linear combination instructions for loong64.
+	if arch == "loong64" {
+		// Three-instruction recipes.
+		// D: The first and the second are all single-instruction recipes, and they are also the third's inputs.
+		// E: The first single-instruction is the second's input, and the second is the third's input.
+
+		// D
+		for _, first := range linearCombos {
+			for _, second := range linearCombos {
+				for _, third := range linearCombos {
+					x := third.a*(first.a+first.b) + third.b*(second.a+second.b)
+					cost := first.cost + second.cost + third.cost
+					old := c.mulRecipes[x]
+					if (old.build == nil || cost < old.cost) && cost < mulCost {
+						c.mulRecipes[x] = mulRecipe{cost: cost, build: func(m, v *Value) *Value {
+							v1 := first.build(m, v, v)
+							v2 := second.build(m, v, v)
+							return third.build(m, v1, v2)
+						}}
+					}
+				}
+			}
+		}
+
+		// E
+		for _, first := range linearCombos {
+			for _, second := range linearCombos {
+				for _, third := range linearCombos {
+					x := third.a*(second.a*(first.a+first.b)+second.b) + third.b
+					cost := first.cost + second.cost + third.cost
+					old := c.mulRecipes[x]
+					if (old.build == nil || cost < old.cost) && cost < mulCost {
+						c.mulRecipes[x] = mulRecipe{cost: cost, build: func(m, v *Value) *Value {
+							v1 := first.build(m, v, v)
+							v2 := second.build(m, v1, v)
+							return third.build(m, v2, v)
+						}}
+					}
+				}
+			}
+		}
+	}
+
 	// These cases should be handled specially by rewrite rules.
 	// (Otherwise v * 1 == (neg (neg v)))
 	delete(c.mulRecipes, 0)
 	delete(c.mulRecipes, 1)
 
-	// Currently we assume that it doesn't help to do 3 linear
-	// combination instructions.
-
 	// Currently:
 	// len(c.mulRecipes) == 5984 on arm64
 	//                       680 on amd64
+	//                      9738 on loong64
 	// This function takes ~2.5ms on arm64.
 	//println(len(c.mulRecipes))
 }

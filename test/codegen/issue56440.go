@@ -13,7 +13,7 @@ package codegen
 func f(x []int) int {
 	s := make([]int, 3)
 	s = append(s, 4, 5)
-	// amd64:`MOVQ\t40\(.*\),`
+	// amd64:`MOVQ 40\(.*\),`
 	return x[len(s)]
 }
 
@@ -26,7 +26,7 @@ func g(x []int, p *bool) int {
 		}
 		s = append(s, 4, 5)
 		if *p {
-			// amd64:`MOVQ\t40\(.*\),`
+			// amd64:`MOVQ 40\(.*\),`
 			return x[len(s)]
 		}
 	}

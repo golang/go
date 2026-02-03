@@ -219,7 +219,7 @@ func (c dwCtxt) AddUint16(s dwarf.Sym, i uint16) {
 	c.AddInt(s, 2, int64(i))
 }
 func (c dwCtxt) AddUint8(s dwarf.Sym, i uint8) {
-	b := []byte{byte(i)}
+	b := []byte{i}
 	c.AddBytes(s, b)
 }
 func (c dwCtxt) AddBytes(s dwarf.Sym, b []byte) {
@@ -231,7 +231,7 @@ func (c dwCtxt) AddString(s dwarf.Sym, v string) {
 	ls.WriteString(c.Link, ls.Size, len(v), v)
 	ls.WriteInt(c.Link, ls.Size, 1, 0)
 }
-func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
+func (c dwCtxt) AddAddress(s dwarf.Sym, data any, value int64) {
 	ls := s.(*LSym)
 	size := c.PtrSize()
 	if data != nil {
@@ -241,15 +241,15 @@ func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
 		ls.WriteInt(c.Link, ls.Size, size, value)
 	}
 }
-func (c dwCtxt) AddCURelativeAddress(s dwarf.Sym, data interface{}, value int64) {
+func (c dwCtxt) AddCURelativeAddress(s dwarf.Sym, data any, value int64) {
 	ls := s.(*LSym)
 	rsym := data.(*LSym)
 	ls.WriteCURelativeAddr(c.Link, ls.Size, rsym, value)
 }
-func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
+func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t any, ofs int64) {
 	panic("should be used only in the linker")
 }
-func (c dwCtxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64) {
+func (c dwCtxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t any, ofs int64) {
 	size := 4
 	if isDwarf64(c.Link) {
 		size = 8
@@ -284,11 +284,11 @@ func (c dwCtxt) RecordChildDieOffsets(s dwarf.Sym, vars []*dwarf.Var, offsets []
 	c.Link.DwFixups.RegisterChildDIEOffsets(ls, vars, offsets)
 }
 
-func (c dwCtxt) Logf(format string, args ...interface{}) {
+func (c dwCtxt) Logf(format string, args ...any) {
 	c.Link.Logf(format, args...)
 }
 
-func (c dwCtxt) AddIndirectTextRef(s dwarf.Sym, t interface{}) {
+func (c dwCtxt) AddIndirectTextRef(s dwarf.Sym, t any) {
 	ls := s.(*LSym)
 	tsym := t.(*LSym)
 	// Note the doubling below -- DwTextCount is an estimate and

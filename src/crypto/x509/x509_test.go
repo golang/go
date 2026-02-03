@@ -30,7 +30,6 @@ import (
 	"math/big"
 	"net"
 	"net/url"
-	"os/exec"
 	"reflect"
 	"runtime"
 	"slices"
@@ -1461,9 +1460,7 @@ func TestImports(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in -short mode")
 	}
-	testenv.MustHaveGoRun(t)
-
-	if out, err := exec.Command(testenv.GoToolPath(t), "run", "x509_test_import.go").CombinedOutput(); err != nil {
+	if out, err := testenv.Command(t, testenv.GoToolPath(t), "run", "x509_test_import.go").CombinedOutput(); err != nil {
 		t.Errorf("failed to run x509_test_import.go: %s\n%s", err, out)
 	}
 }
@@ -4236,5 +4233,39 @@ func TestMessageSigner(t *testing.T) {
 	}
 	if err := cert.CheckSignatureFrom(cert); err != nil {
 		t.Fatalf("CheckSignatureFrom failed: %s", err)
+	}
+}
+
+func TestCreateCertificateNegativeMaxPathLength(t *testing.T) {
+	template := Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "TEST"},
+		NotBefore:             time.Unix(1000, 0),
+		NotAfter:              time.Unix(100000, 0),
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+
+		// CreateCertificate treats -1 in the same way as: MaxPathLen == 0 && MaxPathLenZero == false.
+		MaxPathLen: -1,
+	}
+
+	_, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+	if err != nil {
+		t.Fatalf("CreateCertificate() unexpected error: %v", err)
+	}
+
+	template.MaxPathLen = -2
+	_, err = CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+	if err == nil || err.Error() != "x509: invalid MaxPathLen, must be greater or equal to -1" {
+		t.Fatalf(`CreateCertificate() = %v; want = "x509: invalid MaxPathLen, must be greater or equal to -1"`, err)
+	}
+}
+
+func TestEKUOIDS(t *testing.T) {
+	for _, eku := range extKeyUsageOIDs {
+		oid := eku.extKeyUsage.OID()
+		if !oid.EqualASN1OID(eku.oid) {
+			t.Errorf("extKeyUsage %v: expected OID %v, got %v", eku.extKeyUsage, eku.oid, oid)
+		}
 	}
 }

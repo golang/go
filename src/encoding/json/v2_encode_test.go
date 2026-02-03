@@ -16,7 +16,9 @@ import (
 	"regexp"
 	"runtime/debug"
 	"strconv"
+	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -1407,4 +1409,22 @@ func TestIssue63379(t *testing.T) {
 			t.Errorf("expected error for %q", v)
 		}
 	}
+}
+
+// Issue #73733: encoding/json used a WaitGroup to coordinate access to cache entries.
+// Since WaitGroup.Wait is durably blocking, this caused apparent deadlocks when
+// multiple bubbles called json.Marshal at the same time.
+func TestSynctestMarshal(t *testing.T) {
+	var wg sync.WaitGroup
+	for range 5 {
+		wg.Go(func() {
+			synctest.Test(t, func(t *testing.T) {
+				_, err := Marshal([]string{})
+				if err != nil {
+					t.Errorf("Marshal: %v", err)
+				}
+			})
+		})
+	}
+	wg.Wait()
 }

@@ -7,8 +7,10 @@ package cryptotest
 import (
 	"crypto/internal/boring"
 	"crypto/internal/impl"
+	"internal/goarch"
 	"internal/goos"
 	"internal/testenv"
+	"strings"
 	"testing"
 )
 
@@ -35,25 +37,35 @@ func TestAllImplementations(t *testing.T, pkg string, f func(t *testing.T)) {
 			t.Run(name, f)
 		} else {
 			t.Run(name, func(t *testing.T) {
-				// Report an error if we're on Linux CI (assumed to be the most
-				// consistent) and the builder can't test this implementation.
-				if testenv.Builder() != "" && goos.GOOS == "linux" {
-					if name == "SHA-NI" {
-						t.Skip("known issue, see golang.org/issue/69592")
-					}
-					if name == "Armv8.2" {
-						t.Skip("known issue, see golang.org/issue/69593")
-					}
+				// Report an error if we're on the most capable builder for the
+				// architecture and the builder can't test this implementation.
+				if flagshipBuilder() {
 					t.Error("builder doesn't support CPU features needed to test this implementation")
 				} else {
 					t.Skip("implementation not supported")
 				}
 			})
 		}
-
 	}
 
 	// Test the generic implementation.
 	impl.Select(pkg, "")
 	t.Run("Base", f)
+}
+
+func flagshipBuilder() bool {
+	builder := testenv.Builder()
+	if builder == "" {
+		return false
+	}
+	switch goarch.GOARCH {
+	case "amd64":
+		return strings.Contains(builder, "_avx512")
+	case "arm64":
+		// Apple M chips support everything we use.
+		return goos.GOOS == "darwin"
+	default:
+		// Presumably the Linux builders are the most capable.
+		return goos.GOOS == "linux"
+	}
 }

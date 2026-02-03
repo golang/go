@@ -28,6 +28,8 @@ or index-value pairs.
 Yield returns true if the iterator should continue with the next
 element in the sequence, false if it should stop.
 
+Yield panics if called after it returns false.
+
 For instance, [maps.Keys] returns an iterator that produces the sequence
 of keys of the map m, implemented as follows:
 
@@ -180,13 +182,13 @@ with the extra operations and then provide an iterator over positions.
 For example, a tree implementation might provide:
 
 	// Positions returns an iterator over positions in the sequence.
-	func (t *Tree[V]) Positions() iter.Seq[*Pos]
+	func (t *Tree[V]) Positions() iter.Seq[*Pos[V]]
 
 	// A Pos represents a position in the sequence.
 	// It is only valid during the yield call it is passed to.
 	type Pos[V any] struct { ... }
 
-	// Pos returns the value at the cursor.
+	// Value returns the value at the cursor.
 	func (p *Pos[V]) Value() V
 
 	// Delete deletes the value at this point in the iteration.

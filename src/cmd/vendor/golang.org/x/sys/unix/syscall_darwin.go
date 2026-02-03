@@ -602,14 +602,9 @@ func Connectx(fd int, srcIf uint32, srcAddr, dstAddr Sockaddr, associd SaeAssocI
 	return
 }
 
-// sys	connectx(fd int, endpoints *SaEndpoints, associd SaeAssocID, flags uint32, iov []Iovec, n *uintptr, connid *SaeConnID) (err error)
 const minIovec = 8
 
 func Readv(fd int, iovs [][]byte) (n int, err error) {
-	if !darwinKernelVersionMin(11, 0, 0) {
-		return 0, ENOSYS
-	}
-
 	iovecs := make([]Iovec, 0, minIovec)
 	iovecs = appendBytes(iovecs, iovs)
 	n, err = readv(fd, iovecs)
@@ -618,9 +613,6 @@ func Readv(fd int, iovs [][]byte) (n int, err error) {
 }
 
 func Preadv(fd int, iovs [][]byte, offset int64) (n int, err error) {
-	if !darwinKernelVersionMin(11, 0, 0) {
-		return 0, ENOSYS
-	}
 	iovecs := make([]Iovec, 0, minIovec)
 	iovecs = appendBytes(iovecs, iovs)
 	n, err = preadv(fd, iovecs, offset)
@@ -629,10 +621,6 @@ func Preadv(fd int, iovs [][]byte, offset int64) (n int, err error) {
 }
 
 func Writev(fd int, iovs [][]byte) (n int, err error) {
-	if !darwinKernelVersionMin(11, 0, 0) {
-		return 0, ENOSYS
-	}
-
 	iovecs := make([]Iovec, 0, minIovec)
 	iovecs = appendBytes(iovecs, iovs)
 	if raceenabled {
@@ -644,10 +632,6 @@ func Writev(fd int, iovs [][]byte) (n int, err error) {
 }
 
 func Pwritev(fd int, iovs [][]byte, offset int64) (n int, err error) {
-	if !darwinKernelVersionMin(11, 0, 0) {
-		return 0, ENOSYS
-	}
-
 	iovecs := make([]Iovec, 0, minIovec)
 	iovecs = appendBytes(iovecs, iovs)
 	if raceenabled {
@@ -707,45 +691,7 @@ func readvRacedetect(iovecs []Iovec, n int, err error) {
 	}
 }
 
-func darwinMajorMinPatch() (maj, min, patch int, err error) {
-	var un Utsname
-	err = Uname(&un)
-	if err != nil {
-		return
-	}
-
-	var mmp [3]int
-	c := 0
-Loop:
-	for _, b := range un.Release[:] {
-		switch {
-		case b >= '0' && b <= '9':
-			mmp[c] = 10*mmp[c] + int(b-'0')
-		case b == '.':
-			c++
-			if c > 2 {
-				return 0, 0, 0, ENOTSUP
-			}
-		case b == 0:
-			break Loop
-		default:
-			return 0, 0, 0, ENOTSUP
-		}
-	}
-	if c != 2 {
-		return 0, 0, 0, ENOTSUP
-	}
-	return mmp[0], mmp[1], mmp[2], nil
-}
-
-func darwinKernelVersionMin(maj, min, patch int) bool {
-	actualMaj, actualMin, actualPatch, err := darwinMajorMinPatch()
-	if err != nil {
-		return false
-	}
-	return actualMaj > maj || actualMaj == maj && (actualMin > min || actualMin == min && actualPatch >= patch)
-}
-
+//sys	connectx(fd int, endpoints *SaEndpoints, associd SaeAssocID, flags uint32, iov []Iovec, n *uintptr, connid *SaeConnID) (err error)
 //sys	sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error)
 
 //sys	shmat(id int, addr uintptr, flag int) (ret uintptr, err error)

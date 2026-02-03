@@ -403,16 +403,23 @@ func TestHash(t *testing.T) {
 func TestExtraMethods(t *testing.T) {
 	t.Run("SHA-224", func(t *testing.T) {
 		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
-			h := New224()
-			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+			h := maybeCloner(New224())
+			cryptotest.NoExtraMethods(t, h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
 		})
 	})
 	t.Run("SHA-256", func(t *testing.T) {
 		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
-			h := New()
-			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+			h := maybeCloner(New())
+			cryptotest.NoExtraMethods(t, h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
 		})
 	})
+}
+
+func maybeCloner(h hash.Hash) any {
+	if c, ok := h.(hash.Cloner); ok {
+		return &c
+	}
+	return &h
 }
 
 var bench = New()
@@ -463,4 +470,18 @@ func BenchmarkHash256K(b *testing.B) {
 
 func BenchmarkHash1M(b *testing.B) {
 	benchmarkSize(b, 1024*1024)
+}
+
+func TestAllocatonsWithTypeAsserts(t *testing.T) {
+	cryptotest.SkipTestAllocations(t)
+	allocs := testing.AllocsPerRun(100, func() {
+		h := New()
+		h.Write([]byte{1, 2, 3})
+		marshaled, _ := h.(encoding.BinaryMarshaler).MarshalBinary()
+		marshaled, _ = h.(encoding.BinaryAppender).AppendBinary(marshaled[:0])
+		h.(encoding.BinaryUnmarshaler).UnmarshalBinary(marshaled)
+	})
+	if allocs != 0 {
+		t.Fatalf("allocs = %v; want = 0", allocs)
+	}
 }

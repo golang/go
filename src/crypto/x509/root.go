@@ -20,11 +20,12 @@ import (
 //
 //go:linkname systemRoots
 var (
-	once           sync.Once
-	systemRootsMu  sync.RWMutex
-	systemRoots    *CertPool
-	systemRootsErr error
-	fallbacksSet   bool
+	once             sync.Once
+	systemRootsMu    sync.RWMutex
+	systemRoots      *CertPool
+	systemRootsErr   error
+	fallbacksSet     bool
+	useFallbackRoots bool
 )
 
 func systemRootsPool() *CertPool {
@@ -37,10 +38,28 @@ func systemRootsPool() *CertPool {
 func initSystemRoots() {
 	systemRootsMu.Lock()
 	defer systemRootsMu.Unlock()
+
+	fallbackRoots := systemRoots
 	systemRoots, systemRootsErr = loadSystemRoots()
 	if systemRootsErr != nil {
 		systemRoots = nil
 	}
+
+	if fallbackRoots == nil {
+		return // no fallbacks to try
+	}
+
+	systemCertsAvail := systemRoots != nil && (systemRoots.len() > 0 || systemRoots.systemPool)
+
+	if !useFallbackRoots && systemCertsAvail {
+		return
+	}
+
+	if useFallbackRoots && systemCertsAvail {
+		x509usefallbackroots.IncNonDefault() // overriding system certs with fallback certs.
+	}
+
+	systemRoots, systemRootsErr = fallbackRoots, nil
 }
 
 var x509usefallbackroots = godebug.New("x509usefallbackroots")
@@ -63,10 +82,6 @@ func SetFallbackRoots(roots *CertPool) {
 		panic("roots must be non-nil")
 	}
 
-	// trigger initSystemRoots if it hasn't already been called before we
-	// take the lock
-	_ = systemRootsPool()
-
 	systemRootsMu.Lock()
 	defer systemRootsMu.Unlock()
 
@@ -75,11 +90,28 @@ func SetFallbackRoots(roots *CertPool) {
 	}
 	fallbacksSet = true
 
-	if systemRoots != nil && (systemRoots.len() > 0 || systemRoots.systemPool) {
-		if x509usefallbackroots.Value() != "1" {
-			return
-		}
-		x509usefallbackroots.IncNonDefault()
+	// Handle case when initSystemRoots was not yet executed.
+	// We handle that specially instead of calling loadSystemRoots, to avoid
+	// spending excessive amount of cpu here, since the SetFallbackRoots in most cases
+	// is going to be called at program startup.
+	if systemRoots == nil && systemRootsErr == nil {
+		systemRoots = roots
+		useFallbackRoots = x509usefallbackroots.Value() == "1"
+		return
 	}
+
+	once.Do(func() { panic("unreachable") }) // asserts that system roots were indeed loaded before.
+
+	forceFallbackRoots := x509usefallbackroots.Value() == "1"
+	systemCertsAvail := systemRoots != nil && (systemRoots.len() > 0 || systemRoots.systemPool)
+
+	if !forceFallbackRoots && systemCertsAvail {
+		return
+	}
+
+	if forceFallbackRoots && systemCertsAvail {
+		x509usefallbackroots.IncNonDefault() // overriding system certs with fallback certs.
+	}
+
 	systemRoots, systemRootsErr = roots, nil
 }

@@ -42,6 +42,7 @@ func (*Decl) isStmt() {}
 type Stmt interface {
 	Node
 	isStmt()
+	PtrInit() *Nodes
 }
 
 // A miniStmt is a miniNode with extra fields common to statements.
@@ -479,7 +480,7 @@ func NewSwitchStmt(pos src.XPos, tag Node, cases []*CaseClause) *SwitchStmt {
 // code generation to jump directly to another function entirely.
 type TailCallStmt struct {
 	miniStmt
-	Call Node // the underlying call
+	Call *CallExpr // the underlying call
 }
 
 func NewTailCallStmt(pos src.XPos, call *CallExpr) *TailCallStmt {

@@ -123,6 +123,11 @@ func (sh *Shell) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) e
 		return nil
 	}
 
+	err := checkDstOverwrite(dst, force)
+	if err != nil {
+		return err
+	}
+
 	// If we can update the mode and rename to the dst, do it.
 	// Otherwise fall back to standard copy.
 
@@ -193,16 +198,9 @@ func (sh *Shell) CopyFile(dst, src string, perm fs.FileMode, force bool) error {
 	}
 	defer sf.Close()
 
-	// Be careful about removing/overwriting dst.
-	// Do not remove/overwrite if dst exists and is a directory
-	// or a non-empty non-object file.
-	if fi, err := os.Stat(dst); err == nil {
-		if fi.IsDir() {
-			return fmt.Errorf("build output %q already exists and is a directory", dst)
-		}
-		if !force && fi.Mode().IsRegular() && fi.Size() != 0 && !isObject(dst) {
-			return fmt.Errorf("build output %q already exists and is not an object file", dst)
-		}
+	err = checkDstOverwrite(dst, force)
+	if err != nil {
+		return err
 	}
 
 	// On Windows, remove lingering ~ file from last attempt.
@@ -245,6 +243,21 @@ func mayberemovefile(s string) {
 		return
 	}
 	os.Remove(s)
+}
+
+// Be careful about removing/overwriting dst.
+// Do not remove/overwrite if dst exists and is a directory
+// or a non-empty non-object file.
+func checkDstOverwrite(dst string, force bool) error {
+	if fi, err := os.Stat(dst); err == nil {
+		if fi.IsDir() {
+			return fmt.Errorf("build output %q already exists and is a directory", dst)
+		}
+		if !force && fi.Mode().IsRegular() && fi.Size() != 0 && !isObject(dst) {
+			return fmt.Errorf("build output %q already exists and is not an object file", dst)
+		}
+	}
+	return nil
 }
 
 // writeFile writes the text to file.

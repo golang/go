@@ -780,7 +780,7 @@ func (fi dataFileInfo) Size() int64        { return int64(len(fi.f.data)) }
 func (fi dataFileInfo) Mode() os.FileMode  { return 0644 }
 func (fi dataFileInfo) ModTime() time.Time { return time.Time{} }
 func (fi dataFileInfo) IsDir() bool        { return false }
-func (fi dataFileInfo) Sys() interface{}   { return nil }
+func (fi dataFileInfo) Sys() any           { return nil }
 
 // isVendoredPackage attempts to report whether the given filename is contained
 // in a package whose import path contains (but does not end with) the component

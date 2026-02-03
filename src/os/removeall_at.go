@@ -8,6 +8,7 @@ package os
 
 import (
 	"io"
+	"runtime"
 	"syscall"
 )
 
@@ -34,7 +35,15 @@ func removeAll(path string) error {
 	// its parent directory
 	parentDir, base := splitPath(path)
 
-	parent, err := Open(parentDir)
+	flag := O_RDONLY
+	if runtime.GOOS == "windows" {
+		// On Windows, the process might not have read permission on the parent directory,
+		// but still can delete files in it. See https://go.dev/issue/74134.
+		// We can open a file even if we don't have read permission by passing the
+		// O_WRONLY | O_RDWR flag, which is mapped to FILE_READ_ATTRIBUTES.
+		flag = O_WRONLY | O_RDWR
+	}
+	parent, err := OpenFile(parentDir, flag, 0)
 	if IsNotExist(err) {
 		// If parent does not exist, base cannot exist. Fail silently
 		return nil
@@ -44,7 +53,7 @@ func removeAll(path string) error {
 	}
 	defer parent.Close()
 
-	if err := removeAllFrom(parent, base); err != nil {
+	if err := removeAllFrom(sysfdType(parent.Fd()), base); err != nil {
 		if pathErr, ok := err.(*PathError); ok {
 			pathErr.Path = parentDir + string(PathSeparator) + pathErr.Path
 			err = pathErr
@@ -54,9 +63,7 @@ func removeAll(path string) error {
 	return nil
 }
 
-func removeAllFrom(parent *File, base string) error {
-	parentFd := sysfdType(parent.Fd())
-
+func removeAllFrom(parentFd sysfdType, base string) error {
 	// Simple case: if Unlink (aka remove) works, we're done.
 	err := removefileat(parentFd, base)
 	if err == nil || IsNotExist(err) {
@@ -109,7 +116,7 @@ func removeAllFrom(parent *File, base string) error {
 
 			respSize = len(names)
 			for _, name := range names {
-				err := removeAllFrom(file, name)
+				err := removeAllFrom(sysfdType(file.Fd()), name)
 				if err != nil {
 					if pathErr, ok := err.(*PathError); ok {
 						pathErr.Path = base + string(PathSeparator) + pathErr.Path

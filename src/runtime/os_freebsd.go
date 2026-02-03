@@ -91,7 +91,7 @@ const (
 func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
 
 //go:systemstack
-func getncpu() int32 {
+func getCPUCount() int32 {
 	// Use a large buffer for the CPU mask. We're on the system
 	// stack, so this is fine, and we can't allocate memory for a
 	// dynamically-sized buffer at this point.
@@ -276,7 +276,7 @@ func libpreinit() {
 }
 
 func osinit() {
-	ncpu = getncpu()
+	numCPUStartup = getCPUCount()
 	if physPageSize == 0 {
 		physPageSize = getPageSize()
 	}
@@ -455,6 +455,12 @@ func sysSigaction(sig uint32, new, old *sigactiont) {
 			throw("sigaction failed")
 		})
 	}
+}
+
+// fixSigactionForCgo is needed for Linux.
+//
+//go:nosplit
+func fixSigactionForCgo(new *sigactiont) {
 }
 
 // asmSigaction is implemented in assembly.

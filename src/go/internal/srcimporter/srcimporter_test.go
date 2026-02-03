@@ -192,7 +192,7 @@ func TestIssue20855(t *testing.T) {
 	testenv.MustHaveSource(t)
 
 	pkg, err := importer.ImportFrom("go/internal/srcimporter/testdata/issue20855", ".", 0)
-	if err == nil || !strings.Contains(err.Error(), "missing function body") {
+	if err == nil || !strings.Contains(err.Error(), "func init must have a body") {
 		t.Fatalf("got unexpected or no error: %v", err)
 	}
 	if pkg == nil {

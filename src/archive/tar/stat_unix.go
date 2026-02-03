@@ -19,7 +19,7 @@ func init() {
 	sysStat = statUnix
 }
 
-// userMap and groupMap caches UID and GID lookups for performance reasons.
+// userMap and groupMap cache UID and GID lookups for performance reasons.
 // The downside is that renaming uname or gname by the OS never takes effect.
 var userMap, groupMap sync.Map // map[int]string
 

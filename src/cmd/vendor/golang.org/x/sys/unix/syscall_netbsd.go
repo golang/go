@@ -248,6 +248,23 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
 	return Statvfs1(path, buf, ST_WAIT)
 }
 
+func Getvfsstat(buf []Statvfs_t, flags int) (n int, err error) {
+	var (
+		_p0     unsafe.Pointer
+		bufsize uintptr
+	)
+	if len(buf) > 0 {
+		_p0 = unsafe.Pointer(&buf[0])
+		bufsize = unsafe.Sizeof(Statvfs_t{}) * uintptr(len(buf))
+	}
+	r0, _, e1 := Syscall(SYS_GETVFSSTAT, uintptr(_p0), bufsize, uintptr(flags))
+	n = int(r0)
+	if e1 != 0 {
+		err = e1
+	}
+	return
+}
+
 /*
  * Exposed directly
  */

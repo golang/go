@@ -15,8 +15,9 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	"golang.org/x/tools/internal/astutil"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 //go:embed doc.go
@@ -24,7 +25,7 @@ var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name: "tests",
-	Doc:  analysisutil.MustExtractDoc(doc, "tests"),
+	Doc:  analyzerutil.MustExtractDoc(doc, "tests"),
 	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/tests",
 	Run:  run,
 }
@@ -258,7 +259,7 @@ func isTestingType(typ types.Type, testingType string) bool {
 	if !ok {
 		return false
 	}
-	return analysisinternal.IsTypeNamed(ptr.Elem(), "testing", testingType)
+	return typesinternal.IsTypeNamed(ptr.Elem(), "testing", testingType)
 }
 
 // Validate that fuzz target function's arguments are of accepted types.
@@ -447,18 +448,6 @@ func checkExampleName(pass *analysis.Pass, fn *ast.FuncDecl) {
 	}
 }
 
-type tokenRange struct {
-	p, e token.Pos
-}
-
-func (r tokenRange) Pos() token.Pos {
-	return r.p
-}
-
-func (r tokenRange) End() token.Pos {
-	return r.e
-}
-
 func checkTest(pass *analysis.Pass, fn *ast.FuncDecl, prefix string) {
 	// Want functions with 0 results and 1 parameter.
 	if fn.Type.Results != nil && len(fn.Type.Results.List) > 0 ||
@@ -476,8 +465,9 @@ func checkTest(pass *analysis.Pass, fn *ast.FuncDecl, prefix string) {
 	if tparams := fn.Type.TypeParams; tparams != nil && len(tparams.List) > 0 {
 		// Note: cmd/go/internal/load also errors about TestXXX and BenchmarkXXX functions with type parameters.
 		// We have currently decided to also warn before compilation/package loading. This can help users in IDEs.
-		at := tokenRange{tparams.Opening, tparams.Closing}
-		pass.ReportRangef(at, "%s has type parameters: it will not be run by go test as a %sXXX function", fn.Name.Name, prefix)
+		pass.ReportRangef(astutil.RangeOf(tparams.Opening, tparams.Closing),
+			"%s has type parameters: it will not be run by go test as a %sXXX function",
+			fn.Name.Name, prefix)
 	}
 
 	if !isTestSuffix(fn.Name.Name[len(prefix):]) {

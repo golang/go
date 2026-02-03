@@ -1039,11 +1039,6 @@ func (r *reader) string() string {
 	return r.d.stringTableAt(r.int())
 }
 
-// bool reads the next bool.
-func (r *reader) bool() bool {
-	return r.int() != 0
-}
-
 // tokpos reads the next token.Position.
 func (r *reader) tokpos() token.Position {
 	return token.Position{

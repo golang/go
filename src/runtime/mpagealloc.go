@@ -48,6 +48,7 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
 	"unsafe"
@@ -55,10 +56,12 @@ import (
 
 const (
 	// The size of a bitmap chunk, i.e. the amount of bits (that is, pages) to consider
-	// in the bitmap at once.
+	// in the bitmap at once. It is 4MB on most platforms, except on Wasm it is 512KB.
+	// We use a smaller chuck size on Wasm for the same reason as the smaller arena
+	// size (see heapArenaBytes).
 	pallocChunkPages    = 1 << logPallocChunkPages
 	pallocChunkBytes    = pallocChunkPages * pageSize
-	logPallocChunkPages = 9
+	logPallocChunkPages = 9*(1-goarch.IsWasm) + 6*goarch.IsWasm
 	logPallocChunkBytes = logPallocChunkPages + gc.PageShift
 
 	// The number of radix bits for each level.
@@ -220,6 +223,7 @@ type pageAlloc struct {
 	// heapAddrBits | L1 Bits | L2 Bits | L2 Entry Size
 	// ------------------------------------------------
 	// 32           | 0       | 10      | 128 KiB
+	// 32 (wasm)    | 0       | 13      | 128 KiB
 	// 33 (iOS)     | 0       | 11      | 256 KiB
 	// 48           | 13      | 13      | 1 MiB
 	//
@@ -970,6 +974,45 @@ func (p *pageAlloc) free(base, npages uintptr) {
 		}
 	}
 	p.update(base, npages, true, false)
+}
+
+// markRandomPaddingPages marks the range of memory [base, base+npages*pageSize]
+// as both allocated and scavenged. This is used for randomizing the base heap
+// address. Both the alloc and scav bits are set so that the pages are not used
+// and so the memory accounting stats are correctly calculated.
+//
+// Similar to allocRange, it also updates the summaries to reflect the
+// newly-updated bitmap.
+//
+// p.mheapLock must be held.
+func (p *pageAlloc) markRandomPaddingPages(base uintptr, npages uintptr) {
+	assertLockHeld(p.mheapLock)
+
+	limit := base + npages*pageSize - 1
+	sc, ec := chunkIndex(base), chunkIndex(limit)
+	si, ei := chunkPageIndex(base), chunkPageIndex(limit)
+	if sc == ec {
+		chunk := p.chunkOf(sc)
+		chunk.allocRange(si, ei+1-si)
+		p.scav.index.alloc(sc, ei+1-si)
+		chunk.scavenged.setRange(si, ei+1-si)
+	} else {
+		chunk := p.chunkOf(sc)
+		chunk.allocRange(si, pallocChunkPages-si)
+		p.scav.index.alloc(sc, pallocChunkPages-si)
+		chunk.scavenged.setRange(si, pallocChunkPages-si)
+		for c := sc + 1; c < ec; c++ {
+			chunk := p.chunkOf(c)
+			chunk.allocAll()
+			p.scav.index.alloc(c, pallocChunkPages)
+			chunk.scavenged.setAll()
+		}
+		chunk = p.chunkOf(ec)
+		chunk.allocRange(0, ei+1)
+		p.scav.index.alloc(ec, ei+1)
+		chunk.scavenged.setRange(0, ei+1)
+	}
+	p.update(base, npages, true, true)
 }
 
 const (

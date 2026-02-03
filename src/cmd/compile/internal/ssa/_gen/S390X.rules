@@ -145,6 +145,9 @@
 
 (Sqrt32    ...) => (FSQRTS ...)
 
+(Max(64|32)F ...) => (WFMAX(D|S)B ...)
+(Min(64|32)F ...) => (WFMIN(D|S)B ...)
+
 // Atomic loads and stores.
 // The SYNC instruction (fast-BCR-serialization) prevents store-load
 // reordering. Other sequences of memory operations (load-load,
@@ -455,9 +458,11 @@
 // Write barrier.
 (WB ...) => (LoweredWB ...)
 
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+(PanicBounds ...) => (LoweredPanicBoundsRR ...)
+(LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
+(LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+(LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
 
 // ***************************
 // Above: lowering rules
@@ -1188,6 +1193,8 @@
 // TODO: more of this
 (ADD x (NEG y)) => (SUB x y)
 (ADDW x (NEGW y)) => (SUBW x y)
+(SUB x (NEG y)) => (ADD x y)
+(SUBW x (NEGW y)) => (ADDW x y)
 (SUB x x) => (MOVDconst [0])
 (SUBW x x) => (MOVDconst [0])
 (AND x x) => x
@@ -1196,6 +1203,7 @@
 (ORW x x) => x
 (XOR x x) => (MOVDconst [0])
 (XORW x x) => (MOVDconst [0])
+(NEG (NEG x)) => x
 (NEG (ADDconst [c] (NEG x))) && c != -(1<<31) => (ADDconst [-c] x)
 (MOVBZreg (ANDWconst [m] x)) => (MOVWZreg (ANDWconst <typ.UInt32> [int32( uint8(m))] x))
 (MOVHZreg (ANDWconst [m] x)) => (MOVWZreg (ANDWconst <typ.UInt32> [int32(uint16(m))] x))

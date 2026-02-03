@@ -267,12 +267,13 @@ var arshalTestdata = []struct {
 	new:    func() any { return new(jsonArshalerV2) },
 	skipV1: true,
 }, {
+	/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 	name:   "Duration",
 	raw:    []byte(`"1h1m1s"`),
 	val:    addr(time.Hour + time.Minute + time.Second),
 	new:    func() any { return new(time.Duration) },
 	skipV1: true,
-}, {
+	}, { */
 	name: "Time",
 	raw:  []byte(`"2006-01-02T22:04:05Z"`),
 	val:  addr(time.Unix(1136239445, 0).UTC()),

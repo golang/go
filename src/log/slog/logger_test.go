@@ -303,8 +303,7 @@ func TestCallDepthConnection(t *testing.T) {
 			cmd.Env = append(cmd.Environ(), envVar+"=1")
 
 			out, err := cmd.CombinedOutput()
-			var exitErr *exec.ExitError
-			if !errors.As(err, &exitErr) {
+			if _, ok := errors.AsType[*exec.ExitError](err); !ok {
 				t.Fatalf("expected exec.ExitError: %v", err)
 			}
 
@@ -315,7 +314,7 @@ func TestCallDepthConnection(t *testing.T) {
 			got := string(firstLine)
 
 			want := fmt.Sprintf(
-				`source=:0 msg="logger_test.go:%d: %s"`,
+				`msg="logger_test.go:%d: %s"`,
 				line+i, tt.name,
 			)
 			if got != want {
@@ -349,7 +348,7 @@ func TestAlloc(t *testing.T) {
 	t.Run("2 pairs", func(t *testing.T) {
 		s := "abc"
 		i := 2000
-		wantAllocs(t, 2, func() {
+		wantAllocs(t, 0, func() {
 			dl.Info("hello",
 				"n", i,
 				"s", s,
@@ -360,7 +359,7 @@ func TestAlloc(t *testing.T) {
 		l := New(DiscardHandler)
 		s := "abc"
 		i := 2000
-		wantAllocs(t, 2, func() {
+		wantAllocs(t, 0, func() {
 			l.Log(ctx, LevelInfo, "hello",
 				"n", i,
 				"s", s,
@@ -384,7 +383,7 @@ func TestAlloc(t *testing.T) {
 		s := "abc"
 		i := 2000
 		d := time.Second
-		wantAllocs(t, 10, func() {
+		wantAllocs(t, 1, func() {
 			dl.Info("hello",
 				"n", i, "s", s, "d", d,
 				"n", i, "s", s, "d", d,

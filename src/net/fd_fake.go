@@ -104,6 +104,7 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
 func (fd *netFD) setAddr(laddr, raddr Addr) {
 	fd.laddr = laddr
 	fd.raddr = raddr
+	// TODO Replace with runtime.AddCleanup.
 	runtime.SetFinalizer(fd, (*netFD).Close)
 }
 
@@ -111,6 +112,7 @@ func (fd *netFD) Close() error {
 	if fd.fakeNetFD != nil {
 		return fd.fakeNetFD.Close()
 	}
+	// TODO Replace with runtime.AddCleanup.
 	runtime.SetFinalizer(fd, nil)
 	return fd.pfd.Close()
 }

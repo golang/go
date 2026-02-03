@@ -13,7 +13,7 @@ func init() {
 	register("LockOSThreadVgetrandom", LockOSThreadVgetrandom)
 }
 
-var sinkInt int
+var sinkInt = 1
 
 func LockOSThreadVgetrandom() {
 	// This is a regression test for https://go.dev/issue/73141. When that
@@ -57,8 +57,9 @@ func LockOSThreadVgetrandom() {
 			// interesting scheduling where threads get descheduled
 			// in the middle of getting or putting vgetrandom
 			// state.
+			i := 0
 			for range 10 * 1000 * 1000 {
-				sinkInt = 1
+				i += sinkInt
 			}
 		}()
 	}

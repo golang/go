@@ -439,7 +439,7 @@ func TestAddrClassifier(t *testing.T) {
 	}
 	tsts := [...]struct {
 		arg    obj.Addr
-		output interface{}
+		output any
 	}{
 		// Supported register type args
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_R1}, C_REG},

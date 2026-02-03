@@ -138,7 +138,12 @@ func (d *Decoder) Reset(r io.Reader, opts ...Options) {
 	case d.s.Flags.Get(jsonflags.WithinArshalCall):
 		panic("jsontext: cannot reset Decoder passed to json.UnmarshalerFrom")
 	}
-	d.s.reset(nil, r, opts...)
+	// Reuse the buffer if it does not alias a previous [bytes.Buffer].
+	b := d.s.buf[:0]
+	if _, ok := d.s.rd.(*bytes.Buffer); ok {
+		b = nil
+	}
+	d.s.reset(b, r, opts...)
 }
 
 func (d *decoderState) reset(b []byte, r io.Reader, opts ...Options) {
@@ -301,7 +306,7 @@ func (d *decodeBuffer) PreviousTokenOrValue() []byte {
 
 // PeekKind retrieves the next token kind, but does not advance the read offset.
 //
-// It returns 0 if an error occurs. Any such error is cached until
+// It returns [KindInvalid] if an error occurs. Any such error is cached until
 // the next read call and it is the caller's responsibility to eventually
 // follow up a PeekKind call with a read call.
 func (d *Decoder) PeekKind() Kind {
@@ -769,7 +774,8 @@ func (d *decoderState) ReadValue(flags *jsonwire.ValueFlags) (Value, error) {
 
 // CheckNextValue checks whether the next value is syntactically valid,
 // but does not advance the read offset.
-func (d *decoderState) CheckNextValue() error {
+// If last, it verifies that the stream cleanly terminates with [io.EOF].
+func (d *decoderState) CheckNextValue(last bool) error {
 	d.PeekKind() // populates d.peekPos and d.peekErr
 	pos, err := d.peekPos, d.peekErr
 	d.peekPos, d.peekErr = 0, nil
@@ -780,13 +786,24 @@ func (d *decoderState) CheckNextValue() error {
 	var flags jsonwire.ValueFlags
 	if pos, err := d.consumeValue(&flags, pos, d.Tokens.Depth()); err != nil {
 		return wrapSyntacticError(d, err, pos, +1)
+	} else if last {
+		return d.checkEOF(pos)
 	}
 	return nil
 }
 
+// AtEOF reports whether the decoder is at EOF.
+func (d *decoderState) AtEOF() bool {
+	_, err := d.consumeWhitespace(d.prevEnd)
+	return err == io.ErrUnexpectedEOF
+}
+
 // CheckEOF verifies that the input has no more data.
 func (d *decoderState) CheckEOF() error {
-	switch pos, err := d.consumeWhitespace(d.prevEnd); err {
+	return d.checkEOF(d.prevEnd)
+}
+func (d *decoderState) checkEOF(pos int) error {
+	switch pos, err := d.consumeWhitespace(pos); err {
 	case nil:
 		err := jsonwire.NewInvalidCharacterError(d.buf[pos:], "after top-level value")
 		return wrapSyntacticError(d, err, pos, 0)
@@ -1137,9 +1154,9 @@ func (d *Decoder) StackDepth() int {
 // It must be a number between 0 and [Decoder.StackDepth], inclusive.
 // For each level, it reports the kind:
 //
-//   - 0 for a level of zero,
-//   - '{' for a level representing a JSON object, and
-//   - '[' for a level representing a JSON array.
+//   - [KindInvalid] for a level of zero,
+//   - [KindBeginObject] for a level representing a JSON object, and
+//   - [KindBeginArray] for a level representing a JSON array.
 //
 // It also reports the length of that JSON object or array.
 // Each name and value in a JSON object is counted separately,

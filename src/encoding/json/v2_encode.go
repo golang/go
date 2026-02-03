@@ -10,6 +10,14 @@
 //
 // See "JSON and Go" for an introduction to this package:
 // https://golang.org/doc/articles/json_and_go.html
+//
+// # Security Considerations
+//
+// See the "Security Considerations" section in [encoding/json/v2].
+//
+// For historical reasons, the default behavior of v1 [encoding/json]
+// unfortunately operates with less secure defaults.
+// New usages of JSON in Go are encouraged to use [encoding/json/v2] instead.
 package json
 
 import (
@@ -68,7 +76,10 @@ import (
 // slice, map, or string of length zero.
 //
 // As a special case, if the field tag is "-", the field is always omitted.
-// Note that a field with name "-" can still be generated using the tag "-,".
+// JSON names containing commas or quotes, or names identical to "" or "-",
+// can be specified using a single-quoted string literal, where the syntax
+// is identical to the Go grammar for a double-quoted string literal,
+// but instead uses single quotes as the delimiters.
 //
 // Examples of struct field tags and their meanings:
 //
@@ -89,7 +100,7 @@ import (
 //	Field int `json:"-"`
 //
 //	// Field appears in JSON as key "-".
-//	Field int `json:"-,"`
+//	Field int `json:"'-'"`
 //
 // The "omitzero" option specifies that the field should be omitted
 // from the encoding if the field has a zero value, according to rules:

@@ -166,7 +166,7 @@ func parent(config Config) *StartResult {
 	}
 
 	childShouldUpload := config.Upload && acquireUploadToken()
-	reportCrashes := config.ReportCrashes && crashmonitor.Supported()
+	reportCrashes := config.ReportCrashes
 
 	if reportCrashes || childShouldUpload {
 		startChild(reportCrashes, childShouldUpload, result)
@@ -267,10 +267,6 @@ func child(config Config) {
 	os.Setenv(telemetryChildVar, "2")
 	upload := os.Getenv(telemetryUploadVar) == "1"
 
-	reportCrashes := config.ReportCrashes && crashmonitor.Supported()
-	uploadStartTime := config.UploadStartTime
-	uploadURL := config.UploadURL
-
 	// The crashmonitor and/or upload process may themselves record counters.
 	counter.Open()
 
@@ -280,7 +276,7 @@ func child(config Config) {
 	// upload to finish before exiting
 	var g errgroup.Group
 
-	if reportCrashes {
+	if config.ReportCrashes {
 		g.Go(func() error {
 			crashmonitor.Child()
 			return nil
@@ -288,7 +284,7 @@ func child(config Config) {
 	}
 	if upload {
 		g.Go(func() error {
-			uploaderChild(uploadStartTime, uploadURL)
+			uploaderChild(config.UploadStartTime, config.UploadURL)
 			return nil
 		})
 	}

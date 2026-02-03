@@ -12,15 +12,23 @@ import (
 // This form typically matches the syntax defined in the RISC-V Instruction Set Manual. See
 // https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf
 func GNUSyntax(inst Inst) string {
-	op := strings.ToLower(inst.Op.String())
+	hasVectorArg := false
 	var args []string
 	for _, a := range inst.Args {
 		if a == nil {
 			break
 		}
 		args = append(args, strings.ToLower(a.String()))
+		if r, ok := a.(Reg); ok {
+			hasVectorArg = hasVectorArg || (r >= V0 && r <= V31)
+		}
 	}
 
+	if hasVectorArg {
+		return gnuVectorOp(inst, args)
+	}
+
+	op := strings.ToLower(inst.Op.String())
 	switch inst.Op {
 	case ADDI, ADDIW, ANDI, ORI, SLLI, SLLIW, SRAI, SRAIW, SRLI, SRLIW, XORI:
 		if inst.Op == ADDI {
@@ -324,10 +332,73 @@ func GNUSyntax(inst Inst) string {
 			args[1] = args[2]
 			args = args[:len(args)-1]
 		}
+
+	case VSETVLI, VSETIVLI:
+		args[0], args[2] = args[2], strings.ReplaceAll(args[0], " ", "")
+
+	case VSETVL:
+		args[0], args[2] = args[2], args[0]
 	}
 
 	if args != nil {
 		op += " " + strings.Join(args, ",")
 	}
 	return op
+}
+
+func gnuVectorOp(inst Inst, args []string) string {
+	// Instruction is either a vector load, store or an arithmetic
+	// operation. We can use the inst.Enc to figure out which. Whatever
+	// it is, it has at least one argument.
+
+	rawArgs := inst.Args[:]
+
+	var mask string
+	var op string
+	if inst.Enc&(1<<25) == 0 {
+		if implicitMask(inst.Op) {
+			mask = "v0"
+		} else {
+			mask = "v0.t"
+			args = args[1:]
+			rawArgs = rawArgs[1:]
+		}
+	}
+
+	if len(args) > 1 {
+		if inst.Enc&0x7f == 0x7 || inst.Enc&0x7f == 0x27 {
+			// It's a load or a store
+			if len(args) >= 2 {
+				args[0], args[len(args)-1] = args[len(args)-1], args[0]
+			}
+			op = pseudoRVVLoad(inst.Op)
+		} else {
+			// It's an arithmetic instruction
+
+			op, args = pseudoRVVArith(inst.Op, rawArgs, args)
+
+			if len(args) == 3 {
+				if imaOrFma(inst.Op) {
+					args[0], args[2] = args[2], args[0]
+				} else {
+					args[0], args[1], args[2] = args[2], args[0], args[1]
+				}
+			} else if len(args) == 2 {
+				args[0], args[1] = args[1], args[0]
+			}
+		}
+	}
+
+	// The mask is always the last argument
+
+	if mask != "" {
+		args = append(args, mask)
+	}
+
+	if op == "" {
+		op = inst.Op.String()
+	}
+	op = strings.ToLower(op)
+
+	return op + " " + strings.Join(args, ",")
 }

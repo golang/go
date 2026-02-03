@@ -211,6 +211,9 @@ func (s *Source) group() Value {
 	return GroupValue(as...)
 }
 
+// isEmpty returns whether the Source struct is nil or only contains zero fields.
+func (s *Source) isEmpty() bool { return s == nil || *s == Source{} }
+
 // Source returns a new Source for the log event using r's PC.
 // If the PC field is zero, meaning the Record was created without the necessary information
 // or the location is unavailable, then nil is returned.

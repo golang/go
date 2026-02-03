@@ -260,7 +260,11 @@ func (t *Time) mono() int64 {
 // IsZero reports whether t represents the zero time instant,
 // January 1, year 1, 00:00:00 UTC.
 func (t Time) IsZero() bool {
-	return t.sec() == 0 && t.nsec() == 0
+	// If hasMonotonic is set in t.wall, then the time can't be before 1885, so it can't be the year 1.
+	// If hasMonotonic is zero, then all the bits in wall other than the nanoseconds field should be 0.
+	// So if there are no nanoseconds then t.wall == 0, and if there are no seconds then t.ext == 0.
+	// This is equivalent to t.sec() == 0 && t.nsec() == 0, but is more efficient.
+	return t.wall == 0 && t.ext == 0
 }
 
 // After reports whether the time instant t is after u.
@@ -667,7 +671,7 @@ func (days absDays) split() (century absCentury, cyear absCyear, ayday absYday) 
 	// so do that instead, saving a few cycles.
 	// See Neri and Schneider, section 8.3
 	// for more about this optimization.
-	hi, lo := bits.Mul32(2939745, uint32(cd))
+	hi, lo := bits.Mul32(2939745, cd)
 	cyear = absCyear(hi)
 	ayday = absYday(lo / 2939745 / 4)
 	return

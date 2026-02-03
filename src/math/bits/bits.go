@@ -317,7 +317,7 @@ func Len16(x uint16) (n int) {
 		x >>= 8
 		n = 8
 	}
-	return n + int(len8tab[x])
+	return n + int(len8tab[uint8(x)])
 }
 
 // Len32 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
@@ -330,7 +330,7 @@ func Len32(x uint32) (n int) {
 		x >>= 8
 		n += 8
 	}
-	return n + int(len8tab[x])
+	return n + int(len8tab[uint8(x)])
 }
 
 // Len64 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
@@ -347,7 +347,7 @@ func Len64(x uint64) (n int) {
 		x >>= 8
 		n += 8
 	}
-	return n + int(len8tab[x])
+	return n + int(len8tab[uint8(x)])
 }
 
 // --- Add with carry ---

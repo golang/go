@@ -439,6 +439,9 @@ func TestDecodeInStream(t *testing.T) {
 		{CaseName: Name(""), json: ` \a`, expTokens: []any{
 			&SyntaxError{"invalid character '\\\\' looking for beginning of value", len64(` `)},
 		}},
+		{CaseName: Name(""), json: `,`, expTokens: []any{
+			&SyntaxError{"invalid character ',' looking for beginning of value", 0},
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -446,6 +449,15 @@ func TestDecodeInStream(t *testing.T) {
 			for i, want := range tt.expTokens {
 				var got any
 				var err error
+
+				wantMore := true
+				switch want {
+				case Delim(']'), Delim('}'):
+					wantMore = false
+				}
+				if got := dec.More(); got != wantMore {
+					t.Fatalf("%s:\n\tinput: %s\n\tdec.More() = %v, want %v (next token: %T(%v)) rem:%q", tt.Where, tt.json, got, wantMore, want, want, tt.json[dec.InputOffset():])
+				}
 
 				if dt, ok := want.(decodeThis); ok {
 					want = dt.v
@@ -500,5 +512,104 @@ func TestHTTPDecoding(t *testing.T) {
 	err = d.Decode(&foo)
 	if err != io.EOF {
 		t.Errorf("Decode error:\n\tgot:  %v\n\twant: io.EOF", err)
+	}
+}
+
+func TestTokenTruncation(t *testing.T) {
+	tests := []struct {
+		in  string
+		err error
+	}{
+		{in: ``, err: io.EOF},
+		{in: `{`, err: io.EOF},
+		{in: `{"`, err: io.ErrUnexpectedEOF},
+		{in: `{"k"`, err: io.EOF},
+		{in: `{"k":`, err: io.EOF},
+		{in: `{"k",`, err: &SyntaxError{"invalid character ',' after object key", int64(len(`{"k"`))}},
+		{in: `{"k"}`, err: &SyntaxError{"invalid character '}' after object key", int64(len(`{"k"`))}},
+		{in: ` [0`, err: io.EOF},
+		{in: `[0.`, err: io.ErrUnexpectedEOF},
+		{in: `[0. `, err: &SyntaxError{"invalid character ' ' in numeric literal", int64(len(`[0.`))}},
+		{in: `[0,`, err: io.EOF},
+		{in: `[0:`, err: &SyntaxError{"invalid character ':' after array element", int64(len(`[0`))}},
+		{in: `n`, err: io.ErrUnexpectedEOF},
+		{in: `nul`, err: io.ErrUnexpectedEOF},
+		{in: `fal `, err: &SyntaxError{"invalid character ' ' in literal false (expecting 's')", int64(len(`fal`))}},
+		{in: `false`, err: io.EOF},
+	}
+	for _, tt := range tests {
+		d := NewDecoder(strings.NewReader(tt.in))
+		for i := 0; true; i++ {
+			if _, err := d.Token(); err != nil {
+				if !reflect.DeepEqual(err, tt.err) {
+					t.Errorf("`%s`: %d.Token error = %#v, want %v", tt.in, i, err, tt.err)
+				}
+				break
+			}
+		}
+	}
+}
+
+func TestDecoderInputOffset(t *testing.T) {
+	const input = ` [
+		[ ] , [ "one" ] , [ "one" , "two" ] ,
+		{ } , { "alpha" : "bravo" } , { "alpha" : "bravo" , "fizz" : "buzz" }
+	] `
+	wantOffsets := []int64{
+		0, 1, 2, 5, 6, 7, 8, 9, 12, 13, 18, 19, 20, 21, 24, 25, 30, 31,
+		38, 39, 40, 41, 46, 47, 48, 49, 52, 53, 60, 61, 70, 71, 72, 73,
+		76, 77, 84, 85, 94, 95, 103, 104, 112, 113, 114, 116, 117, 117,
+		117, 117,
+	}
+	wantMores := []bool{
+		true, true, false, true, true, false, true, true, true, false,
+		true, false, true, true, true, false, true, true, true, true,
+		true, false, false, false, false,
+	}
+
+	d := NewDecoder(strings.NewReader(input))
+	checkOffset := func() {
+		t.Helper()
+		got := d.InputOffset()
+		if len(wantOffsets) == 0 {
+			t.Fatalf("InputOffset = %d, want nil", got)
+		}
+		want := wantOffsets[0]
+		if got != want {
+			t.Fatalf("InputOffset = %d, want %d", got, want)
+		}
+		wantOffsets = wantOffsets[1:]
+	}
+	checkMore := func() {
+		t.Helper()
+		got := d.More()
+		if len(wantMores) == 0 {
+			t.Fatalf("More = %v, want nil", got)
+		}
+		want := wantMores[0]
+		if got != want {
+			t.Fatalf("More = %v, want %v", got, want)
+		}
+		wantMores = wantMores[1:]
+	}
+	checkOffset()
+	checkMore()
+	checkOffset()
+	for {
+		if _, err := d.Token(); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatalf("Token error: %v", err)
+		}
+		checkOffset()
+		checkMore()
+		checkOffset()
+	}
+	checkOffset()
+	checkMore()
+	checkOffset()
+
+	if len(wantOffsets)+len(wantMores) > 0 {
+		t.Fatal("unconsumed testdata")
 	}
 }

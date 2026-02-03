@@ -36,8 +36,9 @@ func TestOpen(t *testing.T) {
 		{dir, syscall.O_RDONLY | syscall.O_CREAT, nil},
 		{file, syscall.O_APPEND | syscall.O_WRONLY | os.O_CREATE, nil},
 		{file, syscall.O_APPEND | syscall.O_WRONLY | os.O_CREATE | os.O_TRUNC, nil},
+		{file, syscall.O_WRONLY | syscall.O_RDWR, nil},
+		{dir, syscall.O_WRONLY | syscall.O_RDWR, nil},
 		{dir, syscall.O_RDONLY | syscall.O_TRUNC, syscall.ERROR_ACCESS_DENIED},
-		{dir, syscall.O_WRONLY | syscall.O_RDWR, syscall.EISDIR},
 		{dir, syscall.O_WRONLY, syscall.EISDIR},
 		{dir, syscall.O_RDWR, syscall.EISDIR},
 	}

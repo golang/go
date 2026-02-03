@@ -7,6 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/runtime/syscall/windows"
 	"unsafe"
 )
 
@@ -97,19 +98,14 @@ func (p *abiDesc) assignArg(t *_type) {
 		// passed as two words (little endian); and
 		// structs are pushed on the stack. In
 		// fastcall, arguments larger than the word
-		// size are passed by reference. On arm,
-		// 8-byte aligned arguments round up to the
-		// next even register and can be split across
-		// registers and the stack.
+		// size are passed by reference.
 		panic("compileCallback: argument size is larger than uintptr")
 	}
-	if k := t.Kind_ & abi.KindMask; GOARCH != "386" && (k == abi.Float32 || k == abi.Float64) {
+	if k := t.Kind(); GOARCH != "386" && (k == abi.Float32 || k == abi.Float64) {
 		// In fastcall, floating-point arguments in
 		// the first four positions are passed in
 		// floating-point registers, which we don't
-		// currently spill. arm passes floating-point
-		// arguments in VFP registers, which we also
-		// don't support.
+		// currently spill.
 		// So basically we only support 386.
 		panic("compileCallback: float arguments not supported")
 	}
@@ -126,7 +122,7 @@ func (p *abiDesc) assignArg(t *_type) {
 	// argument word and all supported Windows
 	// architectures are little endian, so srcStackOffset
 	// is already pointing to the right place for smaller
-	// arguments. The same is true on arm.
+	// arguments.
 
 	oldParts := p.parts
 	if p.tryRegAssignArg(t, 0) {
@@ -162,8 +158,8 @@ func (p *abiDesc) assignArg(t *_type) {
 		p.dstStackSize += t.Size_
 	}
 
-	// cdecl, stdcall, fastcall, and arm pad arguments to word size.
-	// TODO(rsc): On arm and arm64 do we need to skip the caller's saved LR?
+	// cdecl, stdcall, and fastcall pad arguments to word size.
+	// TODO(rsc): On arm64 do we need to skip the caller's saved LR?
 	p.srcStackSize += goarch.PtrSize
 }
 
@@ -174,7 +170,7 @@ func (p *abiDesc) assignArg(t *_type) {
 //
 // Returns whether the assignment succeeded.
 func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
-	switch k := t.Kind_ & abi.KindMask; k {
+	switch k := t.Kind(); k {
 	case abi.Bool, abi.Int, abi.Int8, abi.Int16, abi.Int32, abi.Uint, abi.Uint8, abi.Uint16, abi.Uint32, abi.Uintptr, abi.Pointer, abi.UnsafePointer:
 		// Assign a register for all these types.
 		return p.assignReg(t.Size_, offset)
@@ -235,7 +231,7 @@ func callbackasm()
 // and we want callback to arrive at
 // correspondent call instruction instead of start of
 // runtime.callbackasm.
-// On ARM, runtime.callbackasm is a series of mov and branch instructions.
+// On ARM64, runtime.callbackasm is a series of mov and branch instructions.
 // R12 is loaded with the callback index. Each entry is two instructions,
 // hence 8 bytes.
 func callbackasmAddr(i int) uintptr {
@@ -245,8 +241,8 @@ func callbackasmAddr(i int) uintptr {
 		panic("unsupported architecture")
 	case "386", "amd64":
 		entrySize = 5
-	case "arm", "arm64":
-		// On ARM and ARM64, each entry is a MOV instruction
+	case "arm64":
+		// On ARM64, each entry is a MOV instruction
 		// followed by a branch instruction
 		entrySize = 8
 	}
@@ -260,7 +256,7 @@ const callbackMaxFrame = 64 * goarch.PtrSize
 //
 // On 386, if cdecl is true, the returned C function will use the
 // cdecl calling convention; otherwise, it will use stdcall. On amd64,
-// it always uses fastcall. On arm, it always uses the ARM convention.
+// it always uses fastcall.
 //
 //go:linkname compileCallback syscall.compileCallback
 func compileCallback(fn eface, cdecl bool) (code uintptr) {
@@ -269,7 +265,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 		cdecl = false
 	}
 
-	if fn._type == nil || (fn._type.Kind_&abi.KindMask) != abi.Func {
+	if fn._type == nil || fn._type.Kind() != abi.Func {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	ft := (*functype)(unsafe.Pointer(fn._type))
@@ -290,7 +286,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 	if ft.OutSlice()[0].Size_ != goarch.PtrSize {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
-	if k := ft.OutSlice()[0].Kind_ & abi.KindMask; k == abi.Float32 || k == abi.Float64 {
+	if k := ft.OutSlice()[0].Kind(); k == abi.Float32 || k == abi.Float64 {
 		// In cdecl and stdcall, float results are returned in
 		// ST(0). In fastcall, they're returned in XMM0.
 		// Either way, it's not AX.
@@ -355,10 +351,6 @@ type callbackArgs struct {
 	// For fastcall, the trampoline spills register arguments to
 	// the reserved spill slots below the stack arguments,
 	// resulting in a layout equivalent to stdcall.
-	//
-	// For arm, the trampoline stores the register arguments just
-	// below the stack arguments, so again we can treat it as one
-	// big stack arguments frame.
 	args unsafe.Pointer
 	// Below are out-args from callbackWrap
 	result uintptr
@@ -411,101 +403,19 @@ func callbackWrap(a *callbackArgs) {
 	}
 }
 
-const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
-
-//go:linkname syscall_loadsystemlibrary syscall.loadsystemlibrary
-func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
-	handle, _, err = syscall_SyscallN(uintptr(unsafe.Pointer(_LoadLibraryExW)), uintptr(unsafe.Pointer(filename)), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
-	KeepAlive(filename)
-	if handle != 0 {
-		err = 0
-	}
-	return
-}
-
-// golang.org/x/sys linknames syscall.loadlibrary
-// (in addition to standard package syscall).
-// Do not remove or change the type signature.
+// syscall_syscalln calls fn with args[:n].
+// It is used to implement [syscall.SyscallN].
+// It shouldn't be used in the runtime package,
+// use [stdcall] instead.
 //
-//go:linkname syscall_loadlibrary syscall.loadlibrary
-func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
-	handle, _, err = syscall_SyscallN(uintptr(unsafe.Pointer(_LoadLibraryW)), uintptr(unsafe.Pointer(filename)))
-	KeepAlive(filename)
-	if handle != 0 {
-		err = 0
-	}
-	return
-}
-
-// golang.org/x/sys linknames syscall.getprocaddress
-// (in addition to standard package syscall).
-// Do not remove or change the type signature.
-//
-//go:linkname syscall_getprocaddress syscall.getprocaddress
-func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uintptr) {
-	outhandle, _, err = syscall_SyscallN(uintptr(unsafe.Pointer(_GetProcAddress)), handle, uintptr(unsafe.Pointer(procname)))
-	KeepAlive(procname)
-	if outhandle != 0 {
-		err = 0
-	}
-	return
-}
-
-//go:linkname syscall_Syscall syscall.Syscall
+//go:linkname syscall_syscalln syscall.syscalln
 //go:nosplit
-func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	return syscall_syscalln(fn, nargs, a1, a2, a3)
-}
-
-//go:linkname syscall_Syscall6 syscall.Syscall6
-//go:nosplit
-func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6)
-}
-
-//go:linkname syscall_Syscall9 syscall.Syscall9
-//go:nosplit
-func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
-	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9)
-}
-
-//go:linkname syscall_Syscall12 syscall.Syscall12
-//go:nosplit
-func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr) {
-	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
-}
-
-//go:linkname syscall_Syscall15 syscall.Syscall15
-//go:nosplit
-func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2, err uintptr) {
-	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15)
-}
-
-//go:linkname syscall_Syscall18 syscall.Syscall18
-//go:nosplit
-func syscall_Syscall18(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2, err uintptr) {
-	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18)
-}
-
-// maxArgs should be divisible by 2, as Windows stack
-// must be kept 16-byte aligned on syscall entry.
-//
-// Although it only permits maximum 42 parameters, it
-// is arguably large enough.
-const maxArgs = 42
-
-//go:linkname syscall_SyscallN syscall.SyscallN
-//go:nosplit
-func syscall_SyscallN(fn uintptr, args ...uintptr) (r1, r2, err uintptr) {
-	return syscall_syscalln(fn, uintptr(len(args)), args...)
-}
-
-//go:nosplit
+//go:uintptrkeepalive
 func syscall_syscalln(fn, n uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	if n > uintptr(len(args)) {
 		panic("syscall: n > len(args)") // should not be reachable from user code
 	}
-	if n > maxArgs {
+	if n > windows.MaxArgs {
 		panic("runtime: SyscallN has too many arguments")
 	}
 
@@ -513,15 +423,15 @@ func syscall_syscalln(fn, n uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	// the stack because the stack can move during fn if it
 	// calls back into Go.
 	c := &getg().m.winsyscall
-	c.fn = fn
-	c.n = n
-	if c.n != 0 {
-		c.args = uintptr(noescape(unsafe.Pointer(&args[0])))
+	c.Fn = fn
+	c.N = n
+	if c.N != 0 {
+		c.Args = uintptr(noescape(unsafe.Pointer(&args[0])))
 	}
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
 	// cgocall may reschedule us on to a different M,
 	// but it copies the return values into the new M's
 	// so we can read them from there.
 	c = &getg().m.winsyscall
-	return c.r1, c.r2, c.err
+	return c.R1, c.R2, c.Err
 }

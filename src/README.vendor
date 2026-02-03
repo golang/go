@@ -39,12 +39,14 @@ Go from source and use that 'go' binary to update its source tree.
 
 Requirements may be added, updated, and removed with 'go get'.
 The vendor directory may be updated with 'go mod vendor'.
+Tree inconsistencies are reported by 'go test cmd/internal/moddeps'.
 A typical sequence might be:
 
     cd src  # or src/cmd
     go get golang.org/x/net@master
     go mod tidy
     go mod vendor
+    go test cmd/internal/moddeps
 
 Use caution when passing '-u' to 'go get'. The '-u' flag updates
 modules providing all transitively imported packages, not only
@@ -53,3 +55,22 @@ the module providing the target package.
 Note that 'go mod vendor' only copies packages that are transitively
 imported by packages in the current module. If a new package is needed,
 it should be imported before running 'go mod vendor'.
+
+Go release cycle considerations
+===============================
+
+Applying changes to packages that are vendored follows the considerations
+written down at go.dev/s/release.
+
+When the Go tree is open for development, a specific change may be pulled in
+at any time that it is needed. During the release freeze, the bar for changes
+in vendored packages is the same as it is for changes in non-vendored packages.
+After a major release is out, minor Go releases follow a more involved process
+documented at go.dev/wiki/MinorReleases#cherry-pick-cls-for-vendored-golangorgx-packages.
+
+In addition to individual updates that happen on demand, all dependencies in
+the std and cmd modules are updated to their latest available versions at least
+twice during every major release cycle. This is done to avoid the possibility of
+some dependencies being left on very old versions and in turn make their eventual
+update more disruptive. This recurring process is tracked in go.dev/issue/36905.
+The golang.org/x/build/cmd/updatestd command exists to assist with that process.

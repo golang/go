@@ -211,7 +211,7 @@ func _[
 	var x2 P2
 	_ = max(x2)
 	_ = max(x2, x2)
-	_ = max(1, 2 /* ERROR "cannot convert 2 (untyped int constant) to type P2" */, x2) // error at 2 because max is 2
+	_ = max(1, 2, x2 /* ERROR "mismatched types untyped int (previous argument) and P2 (type of x2)" */ )
 
 	_ = max(x1, x2 /* ERROR "mismatched types P1 (previous argument) and P2 (type of x2)" */ )
 }
@@ -232,7 +232,7 @@ func _[
 	var x2 P2
 	_ = min(x2)
 	_ = min(x2, x2)
-	_ = min(1 /* ERROR "cannot convert 1 (untyped int constant) to type P2" */ , 2, x2) // error at 1 because min is 1
+	_ = min(1, 2, x2 /* ERROR "mismatched types untyped int (previous argument) and P2 (type of x2)" */ )
 
 	_ = min(x1, x2 /* ERROR "mismatched types P1 (previous argument) and P2 (type of x2)" */ )
 }

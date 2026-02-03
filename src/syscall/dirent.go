@@ -33,7 +33,7 @@ func readIntBE(b []byte, size uintptr) uint64 {
 	case 4:
 		return uint64(byteorder.BEUint32(b))
 	case 8:
-		return uint64(byteorder.BEUint64(b))
+		return byteorder.BEUint64(b)
 	default:
 		panic("syscall: readInt with unsupported size")
 	}
@@ -48,7 +48,7 @@ func readIntLE(b []byte, size uintptr) uint64 {
 	case 4:
 		return uint64(byteorder.LEUint32(b))
 	case 8:
-		return uint64(byteorder.LEUint64(b))
+		return byteorder.LEUint64(b)
 	default:
 		panic("syscall: readInt with unsupported size")
 	}
@@ -73,8 +73,8 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, 
 			break
 		}
 		// See src/os/dir_unix.go for the reason why this condition is
-		// excluded on wasip1.
-		if ino == 0 && runtime.GOOS != "wasip1" { // File absent in directory.
+		// excluded on wasip1 and linux.
+		if ino == 0 && runtime.GOOS != "linux" && runtime.GOOS != "wasip1" { // File absent in directory.
 			continue
 		}
 		const namoff = uint64(unsafe.Offsetof(Dirent{}.Name))

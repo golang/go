@@ -19,7 +19,7 @@ TEXT ·Cas(SB), NOSPLIT, $0-17
 	MOVW	new+12(FP), R6
 
 	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLAMCAS(SB), R8
-	BEQ	R8, cas_again
+	BEQ	R8, ll_sc
 	MOVV	R5, R7  // backup old value
 	AMCASDBW	R6, (R4), R5
 	BNE	R7, R5, cas_fail0
@@ -30,6 +30,7 @@ cas_fail0:
 	MOVB	R0, ret+16(FP)
 	RET
 
+ll_sc:
 	// Implemented using the ll-sc instruction pair
 	DBAR	$0x14	// LoadAcquire barrier
 cas_again:
@@ -60,7 +61,7 @@ TEXT ·Cas64(SB), NOSPLIT, $0-25
 	MOVV	new+16(FP), R6
 
 	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLAMCAS(SB), R8
-	BEQ	R8, cas64_again
+	BEQ	R8, ll_sc_64
 	MOVV	R5, R7  // backup old value
 	AMCASDBV	R6, (R4), R5
 	BNE	R7, R5, cas64_fail0
@@ -71,6 +72,7 @@ cas64_fail0:
 	MOVB	R0, ret+24(FP)
 	RET
 
+ll_sc_64:
 	// Implemented using the ll-sc instruction pair
 	DBAR	$0x14
 cas64_again:

@@ -9,6 +9,7 @@ package test
 // passFlagToTest contains the flags that should be forwarded to
 // the test binary with the prefix "test.".
 var passFlagToTest = map[string]bool{
+	"artifacts":            true,
 	"bench":                true,
 	"benchmem":             true,
 	"benchtime":            true,

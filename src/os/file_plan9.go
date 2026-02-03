@@ -23,7 +23,7 @@ func fixLongPath(path string) string {
 
 // file is the real representation of *File.
 // The extra level of indirection ensures that no clients of os
-// can overwrite this data, which could cause the cleanup
+// can overwrite this data, which could cause the finalizer
 // to close the wrong file descriptor.
 type file struct {
 	fdmu       poll.FDMutex
@@ -31,7 +31,6 @@ type file struct {
 	name       string
 	dirinfo    atomic.Pointer[dirInfo] // nil unless directory being read
 	appendMode bool                    // whether file is opened for appending
-	cleanup    runtime.Cleanup         // cleanup closes the file when no longer referenced
 }
 
 // fd is the Plan 9 implementation of Fd.
@@ -49,7 +48,7 @@ func newFileFromNewFile(fd uintptr, name string) *File {
 		return nil
 	}
 	f := &File{&file{sysfd: fdi, name: name}}
-	f.cleanup = runtime.AddCleanup(f, func(f *file) { f.close() }, f.file)
+	runtime.SetFinalizer(f.file, (*file).close)
 	return f
 }
 
@@ -136,7 +135,20 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 }
 
 func openDirNolog(name string) (*File, error) {
-	return openFileNolog(name, O_RDONLY, 0)
+	f, e := openFileNolog(name, O_RDONLY, 0)
+	if e != nil {
+		return nil, e
+	}
+	d, e := f.Stat()
+	if e != nil {
+		f.Close()
+		return nil, e
+	}
+	if !d.IsDir() {
+		f.Close()
+		return nil, &PathError{Op: "open", Path: name, Err: syscall.ENOTDIR}
+	}
+	return f, nil
 }
 
 // Close closes the File, rendering it unusable for I/O.
@@ -160,9 +172,8 @@ func (file *file) close() error {
 
 	err := file.decref()
 
-	// There is no need for a cleanup at this point. File must be alive at the point
-	// where cleanup.stop is called.
-	file.cleanup.Stop()
+	// no need for a finalizer anymore
+	runtime.SetFinalizer(file, nil)
 	return err
 }
 

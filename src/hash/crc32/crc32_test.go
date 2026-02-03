@@ -11,6 +11,7 @@ import (
 	"internal/testhash"
 	"io"
 	"math/rand"
+	"strings"
 	"testing"
 )
 
@@ -67,6 +68,8 @@ var golden = []test{
 	{0x8c79fd79, 0x297a88ed, "Even if I could be Shakespeare, I think I should still choose to be Faraday. - A. Huxley", "crc\x01ʇ\x91Ml+\xb8\xa7", "crc\x01wB\x84\x81\xbf\xd6S\xdd"},
 	{0xa20b7167, 0x66ed1d8b, "The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule", "crc\x01ʇ\x91M<lR[", "crc\x01wB\x84\x81{\xaco\xb1"},
 	{0x8e0bb443, 0xdcded527, "How can you write a big system without C++?  -Paul Glick", "crc\x01ʇ\x91M\x0e\x88\x89\xed", "crc\x01wB\x84\x813\xd7C\u007f"},
+	{0x1010dab0, 0x8a11661f, strings.Repeat("01234567", 1024), "crc\x01ʇ\x91M\x92\xe5\xba\xf3", "crc\x01wB\x84\x81\x1a\x02\x88Y"},
+	{0x772d04d7, 0x5a6f5c45, strings.Repeat("a", 1024+65), "crc\x01ʇ\x91M\xe7Љ\xd1", "crc\x01wB\x84\x81\x95B\xa9("},
 }
 
 // testGoldenIEEE verifies that the given function returns

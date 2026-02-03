@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"runtime/trace"
 	"time"
 )
@@ -36,11 +37,25 @@ func makeTree(depth int) *node {
 	}
 }
 
+func initTree(n *node) {
+	if n == nil {
+		return
+	}
+	for i := range n.data {
+		n.data[i] = 'a'
+	}
+	for i := range n.children {
+		initTree(n.children[i])
+	}
+}
+
 var trees [16]*node
 var ballast *[16]*[1024]*node
-var sink [][]byte
+var sink []*node
 
 func main() {
+	debug.SetMemoryLimit(50 << 20)
+
 	for i := range trees {
 		trees[i] = makeTree(6)
 	}
@@ -55,13 +70,17 @@ func main() {
 	}
 
 	procs := runtime.GOMAXPROCS(-1)
-	sink = make([][]byte, procs)
+	sink = make([]*node, procs)
 
 	for i := 0; i < procs; i++ {
 		i := i
 		go func() {
 			for {
-				sink[i] = make([]byte, 4<<10)
+				sink[i] = makeTree(3)
+				for range 5 {
+					initTree(sink[i])
+					runtime.Gosched()
+				}
 			}
 		}()
 	}

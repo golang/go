@@ -74,6 +74,7 @@ type ThreadCountersArg struct {
 	InSyscall int64
 }
 
-type ThreadIDArg struct {
-	ThreadID uint64
+type SchedCtxArg struct {
+	ThreadID uint64 `json:"thread,omitempty"`
+	ProcID   uint64 `json:"proc,omitempty"`
 }

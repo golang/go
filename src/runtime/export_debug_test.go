@@ -33,13 +33,13 @@ func InjectDebugCall(gp *g, fn any, regArgs *abi.RegArgs, stackArgs any, tkill f
 	}
 
 	f := efaceOf(&fn)
-	if f._type == nil || f._type.Kind_&abi.KindMask != abi.Func {
+	if f._type == nil || f._type.Kind() != abi.Func {
 		return nil, plainError("fn must be a function")
 	}
 	fv := (*funcval)(f.data)
 
 	a := efaceOf(&stackArgs)
-	if a._type != nil && a._type.Kind_&abi.KindMask != abi.Pointer {
+	if a._type != nil && a._type.Kind() != abi.Pointer {
 		return nil, plainError("args must be a pointer or nil")
 	}
 	argp := a.data

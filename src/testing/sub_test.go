@@ -280,7 +280,6 @@ func TestTRun(t *T) {
 					t.Run("c", func(t *T) {
 						t.Parallel()
 					})
-
 				})
 			})
 		},
@@ -305,7 +304,6 @@ func TestTRun(t *T) {
 									time.Sleep(time.Nanosecond)
 								})
 							}
-
 						})
 					}
 				})
@@ -507,8 +505,8 @@ func TestTRun(t *T) {
 		desc: "buffered output gets flushed at test end",
 		ok:   false,
 		output: `
---- FAIL: buffered output gets flushed at test end (0.00s)
-    --- FAIL: buffered output gets flushed at test end/#00 (0.00s)
+--- FAIL: buffered output gets flushed at test end (N.NNs)
+    --- FAIL: buffered output gets flushed at test end/#00 (N.NNs)
         a
         b`,
 		f: func(t *T) {
@@ -528,8 +526,8 @@ func TestTRun(t *T) {
 === RUN   output with chatty/#00
     a
     b
---- PASS: output with chatty (0.00s)
-    --- PASS: output with chatty/#00 (0.00s)`,
+--- PASS: output with chatty (N.NNs)
+    --- PASS: output with chatty/#00 (N.NNs)`,
 		f: func(t *T) {
 			t.Run("", func(t *T) {
 				o := t.Output()
@@ -547,9 +545,9 @@ func TestTRun(t *T) {
 ^V=== RUN   output with chatty and json/#00
     a
     b
-^V--- PASS: output with chatty and json/#00 (0.00s)
+^V--- PASS: output with chatty and json/#00 (N.NNs)
 ^V=== NAME  output with chatty and json
-^V--- PASS: output with chatty and json (0.00s)
+^V--- PASS: output with chatty and json (N.NNs)
 ^V=== NAME
 `,
 		f: func(t *T) {
@@ -585,8 +583,8 @@ func TestTRun(t *T) {
 		desc: "newline between buffered log and log",
 		ok:   false,
 		output: `
---- FAIL: newline between buffered log and log (0.00s)
-    --- FAIL: newline between buffered log and log/#00 (0.00s)
+--- FAIL: newline between buffered log and log (N.NNs)
+    --- FAIL: newline between buffered log and log/#00 (N.NNs)
         buffered message
         sub_test.go:NNN: log`,
 		f: func(t *T) {
@@ -841,7 +839,7 @@ func TestBenchmarkOutput(t *T) {
 }
 
 func TestBenchmarkStartsFrom1(t *T) {
-	var first = true
+	first := true
 	Benchmark(func(b *B) {
 		if first && b.N != 1 {
 			panic(fmt.Sprintf("Benchmark() first N=%v; want 1", b.N))
@@ -851,7 +849,7 @@ func TestBenchmarkStartsFrom1(t *T) {
 }
 
 func TestBenchmarkReadMemStatsBeforeFirstRun(t *T) {
-	var first = true
+	first := true
 	Benchmark(func(b *B) {
 		if first && (b.startAllocs == 0 || b.startBytes == 0) {
 			panic("ReadMemStats not called before first run")
@@ -990,7 +988,6 @@ func TestConcurrentCleanup(t *T) {
 		var wg sync.WaitGroup
 		wg.Add(2)
 		for i := 0; i < 2; i++ {
-			i := i
 			go func() {
 				t.Cleanup(func() {
 					// Although the calls to Cleanup are concurrent, the functions passed
@@ -1248,5 +1245,23 @@ func TestOutputWriteAfterComplete(t *T) {
 
 	if s := <-c2; s != "" {
 		t.Error(s)
+	}
+}
+
+// Verify that logging to an inactive top-level testing.T does not panic.
+// These tests can run in either order.
+
+func TestOutputEscape1(t *T) { testOutputEscape(t) }
+func TestOutputEscape2(t *T) { testOutputEscape(t) }
+
+var global *T
+
+func testOutputEscape(t *T) {
+	if global == nil {
+		// Store t in a global, to set up for the second execution.
+		global = t
+	} else {
+		// global is inactive here.
+		global.Log("hello")
 	}
 }

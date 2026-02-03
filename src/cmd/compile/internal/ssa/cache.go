@@ -29,7 +29,7 @@ type Cache struct {
 	ValueToProgAfter []*obj.Prog
 	debugState       debugState
 
-	Liveness interface{} // *gc.livenessFuncCache
+	Liveness any // *gc.livenessFuncCache
 
 	// Free "headers" for use by the allocators in allocators.go.
 	// Used to put slices in sync.Pools without allocation.

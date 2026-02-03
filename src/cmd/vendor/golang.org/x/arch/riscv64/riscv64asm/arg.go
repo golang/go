@@ -22,13 +22,23 @@ package riscv64asm
 //
 // - arg_fs3: a floating point register rs3 encoded in rs3[31:27] field
 //
+// - arg_vd: a vector register vd encoded in vd[11:7] field
+//
+// - arg_vm: indicates the presence of the mask register, encoded in vm[25] field
+//
+// - arg_vs1: a vector register vs1 encoded in vs1[19:15] field
+//
+// - arg_vs2: a vector register vs3 encoded in vs2[20:24] field
+//
+// - arg_vs3: a vector register vs3 encoded in vs3[11:7] field
+//
 // - arg_csr: a control status register encoded in csr[31:20] field
 //
 // - arg_rs1_mem: source register with offset in load commands
 //
 // - arg_rs1_store: source register with offset in store commands
 //
-// - arg_rs1_amo: source register with offset in atomic commands
+// - arg_rs1_ptr: source register used as an address with no offset in atomic and vector commands
 //
 // - arg_pred: predecessor memory ordering information encoded in pred[27:24] field
 //             For details, please refer to chapter 2.7 of ISA manual volume 1
@@ -45,6 +55,14 @@ package riscv64asm
 // - arg_bimm12: a B-type immediate encoded in bimm12[31:25|11:7] field
 //
 // - arg_imm20: an U-type immediate encoded in imm20[31:12] field
+//
+// - arg_simm5: a 5 bit signed immediate encoded in imm[19:15] field
+//
+// - arg_zimm5: a 5 bit unsigned immediate encoded in imm[19:15] field
+//
+// - arg_vtype_zimm10: a 10 bit unsigned immediate encoded in vtypei[29:20] field
+//
+// - arg_vtype_zimm11: an 11 bit unsigned immediate encoded in vtypei[30:20] field
 //
 // - arg_jimm20: a J-type immediate encoded in jimm20[31:12] field
 //
@@ -65,9 +83,14 @@ const (
 	arg_fs1
 	arg_fs2
 	arg_fs3
+	arg_vd
+	arg_vm
+	arg_vs1
+	arg_vs2
+	arg_vs3
 	arg_csr
 
-	arg_rs1_amo
+	arg_rs1_ptr
 	arg_rs1_mem
 	arg_rs1_store
 
@@ -77,6 +100,10 @@ const (
 	arg_zimm
 	arg_imm12
 	arg_simm12
+	arg_simm5
+	arg_zimm5
+	arg_vtype_zimm10
+	arg_vtype_zimm11
 	arg_bimm12
 	arg_imm20
 	arg_jimm20

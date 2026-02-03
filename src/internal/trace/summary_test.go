@@ -17,6 +17,7 @@ func TestSummarizeGoroutinesTrace(t *testing.T) {
 		hasSchedWaitTime    bool
 		hasSyncBlockTime    bool
 		hasGCMarkAssistTime bool
+		hasUnknownTime      bool
 	)
 
 	assertContainsGoroutine(t, summaries, "runtime.gcBgMarkWorker")
@@ -31,6 +32,7 @@ func TestSummarizeGoroutinesTrace(t *testing.T) {
 		if dt, ok := summary.RangeTime["GC mark assist"]; ok && dt > 0 {
 			hasGCMarkAssistTime = true
 		}
+		hasUnknownTime = hasUnknownTime || summary.UnknownTime() > 0
 	}
 	if !hasSchedWaitTime {
 		t.Error("missing sched wait time")
@@ -40,6 +42,9 @@ func TestSummarizeGoroutinesTrace(t *testing.T) {
 	}
 	if !hasGCMarkAssistTime {
 		t.Error("missing GC mark assist time")
+	}
+	if hasUnknownTime {
+		t.Error("has time that is unaccounted for")
 	}
 }
 
@@ -264,7 +269,7 @@ func basicGoroutineSummaryChecks(t *testing.T, summary *trace.GoroutineSummary) 
 }
 
 func summarizeTraceTest(t *testing.T, testPath string) *trace.Summary {
-	trc, _, err := testtrace.ParseFile(testPath)
+	trc, _, _, err := testtrace.ParseFile(testPath)
 	if err != nil {
 		t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
 	}
@@ -388,7 +393,7 @@ func basicGoroutineExecStatsChecks(t *testing.T, stats *trace.GoroutineExecStats
 
 func TestRelatedGoroutinesV2Trace(t *testing.T) {
 	testPath := "testdata/tests/go122-gc-stress.test"
-	trc, _, err := testtrace.ParseFile(testPath)
+	trc, _, _, err := testtrace.ParseFile(testPath)
 	if err != nil {
 		t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
 	}

@@ -50,7 +50,7 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "debug: preserving tmpdir %s\n", topTmpdir)
 	}
 	os.Setenv("CMDCOVDATA_TEST_RUN_MAIN", "true")
-	os.Exit(m.Run())
+	m.Run()
 }
 
 var tdmu sync.Mutex

@@ -458,7 +458,7 @@ func Renameinit() *types.Sym {
 func checkEmbed(decl *syntax.VarDecl, haveEmbed, withinFunc bool) error {
 	switch {
 	case !haveEmbed:
-		return errors.New("go:embed only allowed in Go files that import \"embed\"")
+		return errors.New("go:embed requires import \"embed\" (or import _ \"embed\", if package is not used)")
 	case len(decl.NameList) > 1:
 		return errors.New("go:embed cannot apply to multiple vars")
 	case decl.Values != nil:

@@ -112,7 +112,6 @@ var tests = []struct {
 
 func TestSamples(t *testing.T) {
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			r := NewReader(strings.NewReader(test.compressed))
 			got, err := io.ReadAll(r)
@@ -131,7 +130,6 @@ func TestReset(t *testing.T) {
 	input := strings.NewReader("")
 	r := NewReader(input)
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			input.Reset(test.compressed)
 			r.Reset(input)

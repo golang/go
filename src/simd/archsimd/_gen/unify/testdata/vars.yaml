@@ -1,0 +1,175 @@
+#
+# Basic tests
+#
+
+name: "basic string"
+unify:
+- $x
+- test
+all:
+- test
+---
+name: "basic tuple"
+unify:
+- [$x, $x]
+- [test, test]
+all:
+- [test, test]
+---
+name: "three tuples"
+unify:
+- [$x, $x]
+- [test, _]
+- [_, test]
+all:
+- [test, test]
+---
+name: "basic def"
+unify:
+- {a: $x, b: $x}
+- {a: test, b: test}
+all:
+- {a: test, b: test}
+---
+name: "three defs"
+unify:
+- {a: $x, b: $x}
+- {a: test}
+- {b: test}
+all:
+- {a: test, b: test}
+
+#
+# Bottom tests
+#
+
+---
+name: "basic bottom"
+unify:
+- [$x, $x]
+- [test, foo]
+all: []
+---
+name: "three-way bottom"
+unify:
+- [$x, $x]
+- [test, _]
+- [_, foo]
+all: []
+
+#
+# Basic sum tests
+#
+
+---
+name: "basic sum"
+unify:
+- $x
+- !sum [a, b]
+all:
+- a
+- b
+---
+name: "sum of tuples"
+unify:
+- [$x]
+- !sum [[a], [b]]
+all:
+- [a]
+- [b]
+---
+name: "acausal sum"
+unify:
+- [_, !sum [a, b]]
+- [$x, $x]
+all:
+- [a, a]
+- [b, b]
+
+#
+# Transitivity tests
+#
+
+---
+name: "transitivity"
+unify:
+- [_, _, _, test]
+- [$x, $x,   _,  _]
+- [ _, $x,  $x,  _]
+- [ _,  _,  $x, $x]
+all:
+- [test, test, test, test]
+
+#
+# Multiple vars
+#
+
+---
+name: "basic uncorrelated vars"
+unify:
+- - !sum [1, 2]
+  - !sum [3, 4]
+- - $a
+  - $b
+all:
+- [1, 3]
+- [1, 4]
+- [2, 3]
+- [2, 4]
+---
+name: "uncorrelated vars"
+unify:
+- - !sum [1, 2]
+  - !sum [3, 4]
+  - !sum [1, 2]
+- - $a
+  - $b
+  - $a
+all:
+- [1, 3, 1]
+- [1, 4, 1]
+- [2, 3, 2]
+- [2, 4, 2]
+---
+name: "entangled vars"
+unify:
+- - !sum [[1,2],[3,4]]
+  - !sum [[2,1],[3,4],[4,3]]
+- - [$a, $b]
+  - [$b, $a]
+all:
+- - [1, 2]
+  - [2, 1]
+- - [3, 4]
+  - [4, 3]
+
+#
+# End-to-end examples
+#
+
+---
+name: "end-to-end"
+unify:
+- go: Add
+  in:
+  - go: $t
+  - go: $t
+- in: !repeat
+  - !sum
+    - go: Int32x4
+      base: int
+    - go: Uint32x4
+      base: uint
+all:
+- go: Add
+  in:
+  - base: int
+    go: Int32x4
+  - base: int
+    go: Int32x4
+- go: Add
+  in:
+  - base: uint
+    go: Uint32x4
+  - base: uint
+    go: Uint32x4

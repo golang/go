@@ -40,8 +40,7 @@ const AbstractFuncSuffix = "$abstract"
 var logDwarf bool
 
 // Sym represents a symbol.
-type Sym interface {
-}
+type Sym any
 
 // A Var represents a local variable or a function parameter.
 type Var struct {
@@ -194,16 +193,16 @@ type Context interface {
 	Size(s Sym) int64
 	AddInt(s Sym, size int, i int64)
 	AddBytes(s Sym, b []byte)
-	AddAddress(s Sym, t interface{}, ofs int64)
-	AddCURelativeAddress(s Sym, t interface{}, ofs int64)
-	AddSectionOffset(s Sym, size int, t interface{}, ofs int64)
-	AddDWARFAddrSectionOffset(s Sym, t interface{}, ofs int64)
-	AddIndirectTextRef(s Sym, t interface{})
+	AddAddress(s Sym, t any, ofs int64)
+	AddCURelativeAddress(s Sym, t any, ofs int64)
+	AddSectionOffset(s Sym, size int, t any, ofs int64)
+	AddDWARFAddrSectionOffset(s Sym, t any, ofs int64)
+	AddIndirectTextRef(s Sym, t any)
 	CurrentOffset(s Sym) int64
 	RecordDclReference(from Sym, to Sym, dclIdx int, inlIndex int)
 	RecordChildDieOffsets(s Sym, vars []*Var, offsets []int32)
 	AddString(s Sym, v string)
-	Logf(format string, args ...interface{})
+	Logf(format string, args ...any)
 }
 
 // AppendUleb128 appends v to b using DWARF's unsigned LEB128 encoding.
@@ -874,7 +873,7 @@ type DWAttr struct {
 	Atr   uint16 // DW_AT_
 	Cls   uint8  // DW_CLS_
 	Value int64
-	Data  interface{}
+	Data  any
 }
 
 // DWDie represents a DWARF debug info entry.
@@ -886,7 +885,7 @@ type DWDie struct {
 	Sym    Sym
 }
 
-func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, data interface{}) error {
+func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, data any) error {
 	switch form {
 	case DW_FORM_addr: // address
 		// Allow nil addresses for DW_AT_go_runtime_type.

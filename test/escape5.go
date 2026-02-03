@@ -252,7 +252,7 @@ func f29000(_ int, x interface{}) { // ERROR "leaking param: x"
 
 func g29000() {
 	x := 1
-	f29000(2, x) // ERROR "x escapes to heap"
+	f29000(2, x) // ERROR "1 escapes to heap"
 }
 
 // Issue 28369: taking an address of a parameter and converting it into a uintptr causes an

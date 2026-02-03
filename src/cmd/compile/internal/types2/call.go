@@ -57,7 +57,7 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 
 	// Check the number of type arguments (got) vs number of type parameters (want).
 	// Note that x is a function value, not a type expression, so we don't need to
-	// call under below.
+	// call Underlying below.
 	sig := x.typ.(*Signature)
 	got, want := len(targs), sig.TypeParams().Len()
 	if got > want {
@@ -199,13 +199,18 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		}
 		T := x.typ
 		x.mode = invalid
+		// We cannot convert a value to an incomplete type; make sure it's complete.
+		if !check.isComplete(T) {
+			x.expr = call
+			return conversion
+		}
 		switch n := len(call.ArgList); n {
 		case 0:
 			check.errorf(call, WrongArgCount, "missing argument in conversion to %s", T)
 		case 1:
 			check.expr(nil, x, call.ArgList[0])
 			if x.mode != invalid {
-				if t, _ := under(T).(*Interface); t != nil && !isTypeParam(T) {
+				if t, _ := T.Underlying().(*Interface); t != nil && !isTypeParam(T) {
 					if !t.IsMethodSet() {
 						check.errorf(call, MisplacedConstraintIface, "cannot use interface %s in conversion (contains specific type constraints or is comparable)", T)
 						break
@@ -319,7 +324,14 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		} else {
 			x.mode = value
 		}
-		x.typ = sig.results.vars[0].typ // unpack tuple
+		typ := sig.results.vars[0].typ // unpack tuple
+		// We cannot return a value of an incomplete type; make sure it's complete.
+		if !check.isComplete(typ) {
+			x.mode = invalid
+			x.expr = call
+			return statement
+		}
+		x.typ = typ
 	default:
 		x.mode = value
 		x.typ = sig.results
@@ -669,7 +681,7 @@ var cgoPrefixes = [...]string{
 	"_Cmacro_", // function to evaluate the expanded expression
 }
 
-func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName, wantType bool) {
+func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool) {
 	// these must be declared before the "goto Error" statements
 	var (
 		obj      Object
@@ -715,7 +727,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 					}
 					goto Error
 				}
-				check.objDecl(exp, nil)
+				check.objDecl(exp)
 			} else {
 				exp = pkg.scope.Lookup(sel)
 				if exp == nil {
@@ -777,12 +789,6 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 
 	check.exprOrType(x, e.X, false)
 	switch x.mode {
-	case typexpr:
-		// don't crash for "type T T.x" (was go.dev/issue/51509)
-		if def != nil && def.typ == x.typ {
-			check.cycleError([]Object{def}, 0)
-			goto Error
-		}
 	case builtin:
 		check.errorf(e.Pos(), UncalledBuiltin, "invalid use of %s in selector expression", x)
 		goto Error
@@ -790,8 +796,12 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 		goto Error
 	}
 
-	// Avoid crashing when checking an invalid selector in a method declaration
-	// (i.e., where def is not set):
+	// We cannot select on an incomplete type; make sure it's complete.
+	if !check.isComplete(x.typ) {
+		goto Error
+	}
+
+	// Avoid crashing when checking an invalid selector in a method declaration.
 	//
 	//   type S[T any] struct{}
 	//   type V = S[any]
@@ -801,18 +811,21 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 	// expecting a type expression, it is an error.
 	//
 	// See go.dev/issue/57522 for more details.
-	//
-	// TODO(rfindley): We should do better by refusing to check selectors in all cases where
-	// x.typ is incomplete.
 	if wantType {
 		check.errorf(e.Sel, NotAType, "%s is not a type", syntax.Expr(e))
+		goto Error
+	}
+
+	// Additionally, if x.typ is a pointer type, selecting implicitly dereferences the value, meaning
+	// its base type must also be complete.
+	if p, ok := x.typ.Underlying().(*Pointer); ok && !check.isComplete(p.base) {
 		goto Error
 	}
 
 	obj, index, indirect = lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel, false)
 	if obj == nil {
 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
-		if !isValid(under(x.typ)) {
+		if !isValid(x.typ.Underlying()) {
 			goto Error
 		}
 
@@ -841,72 +854,69 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 		check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
 		goto Error
 	}
+	// obj != nil
 
-	// methods may not have a fully set up signature yet
-	if m, _ := obj.(*Func); m != nil {
-		check.objDecl(m, nil)
-	}
-
-	if x.mode == typexpr {
-		// method expression
-		m, _ := obj.(*Func)
-		if m == nil {
-			check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (type %s has no method %s)", x.expr, sel, x.typ, sel)
+	switch obj := obj.(type) {
+	case *Var:
+		if x.mode == typexpr {
+			check.errorf(e.X, MissingFieldOrMethod, "operand for field selector %s must be value of type %s", sel, x.typ)
 			goto Error
 		}
 
-		check.recordSelection(e, MethodExpr, x.typ, m, index, indirect)
-
-		sig := m.typ.(*Signature)
-		if sig.recv == nil {
-			check.error(e, InvalidDeclCycle, "illegal cycle in method declaration")
-			goto Error
+		// field value
+		check.recordSelection(e, FieldVal, x.typ, obj, index, indirect)
+		if x.mode == variable || indirect {
+			x.mode = variable
+		} else {
+			x.mode = value
 		}
+		x.typ = obj.typ
 
-		// The receiver type becomes the type of the first function
-		// argument of the method expression's function type.
-		var params []*Var
-		if sig.params != nil {
-			params = sig.params.vars
-		}
-		// Be consistent about named/unnamed parameters. This is not needed
-		// for type-checking, but the newly constructed signature may appear
-		// in an error message and then have mixed named/unnamed parameters.
-		// (An alternative would be to not print parameter names in errors,
-		// but it's useful to see them; this is cheap and method expressions
-		// are rare.)
-		name := ""
-		if len(params) > 0 && params[0].name != "" {
-			// name needed
-			name = sig.recv.name
-			if name == "" {
-				name = "_"
+	case *Func:
+		check.objDecl(obj) // ensure fully set-up signature
+		check.addDeclDep(obj)
+
+		if x.mode == typexpr {
+			// method expression
+			check.recordSelection(e, MethodExpr, x.typ, obj, index, indirect)
+
+			sig := obj.typ.(*Signature)
+			if sig.recv == nil {
+				check.error(e, InvalidDeclCycle, "illegal cycle in method declaration")
+				goto Error
 			}
-		}
-		params = append([]*Var{NewParam(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
-		x.mode = value
-		x.typ = &Signature{
-			tparams:  sig.tparams,
-			params:   NewTuple(params...),
-			results:  sig.results,
-			variadic: sig.variadic,
-		}
 
-		check.addDeclDep(m)
-
-	} else {
-		// regular selector
-		switch obj := obj.(type) {
-		case *Var:
-			check.recordSelection(e, FieldVal, x.typ, obj, index, indirect)
-			if x.mode == variable || indirect {
-				x.mode = variable
-			} else {
-				x.mode = value
+			// The receiver type becomes the type of the first function
+			// argument of the method expression's function type.
+			var params []*Var
+			if sig.params != nil {
+				params = sig.params.vars
 			}
-			x.typ = obj.typ
+			// Be consistent about named/unnamed parameters. This is not needed
+			// for type-checking, but the newly constructed signature may appear
+			// in an error message and then have mixed named/unnamed parameters.
+			// (An alternative would be to not print parameter names in errors,
+			// but it's useful to see them; this is cheap and method expressions
+			// are rare.)
+			name := ""
+			if len(params) > 0 && params[0].name != "" {
+				// name needed
+				name = sig.recv.name
+				if name == "" {
+					name = "_"
+				}
+			}
+			params = append([]*Var{NewParam(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
+			x.mode = value
+			x.typ = &Signature{
+				tparams:  sig.tparams,
+				params:   NewTuple(params...),
+				results:  sig.results,
+				variadic: sig.variadic,
+			}
+		} else {
+			// method value
 
-		case *Func:
 			// TODO(gri) If we needed to take into account the receiver's
 			// addressability, should we report the type &(x.typ) instead?
 			check.recordSelection(e, MethodVal, x.typ, obj, index, indirect)
@@ -917,12 +927,10 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 			sig := *obj.typ.(*Signature)
 			sig.recv = nil
 			x.typ = &sig
-
-			check.addDeclDep(obj)
-
-		default:
-			panic("unreachable")
 		}
+
+	default:
+		panic("unreachable")
 	}
 
 	// everything went well
@@ -931,6 +939,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 
 Error:
 	x.mode = invalid
+	x.typ = Typ[Invalid]
 	x.expr = e
 }
 

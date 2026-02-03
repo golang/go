@@ -8,11 +8,11 @@
 
 // Releases the cgo traceback context.
 void _cgo_release_context(uintptr_t ctxt) {
-	void (*pfn)(struct context_arg*);
+	void (*pfn)(struct cgoContextArg*);
 
 	pfn = _cgo_get_context_function();
 	if (ctxt != 0 && pfn != nil) {
-		struct context_arg arg;
+		struct cgoContextArg arg;
 
 		arg.Context = ctxt;
 		(*pfn)(&arg);

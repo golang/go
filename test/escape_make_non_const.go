@@ -106,3 +106,18 @@ type m struct {
 func newM(l int) m { // ERROR "can inline"
 	return m{make(map[string]int, l)} // ERROR "make.*escapes to heap"
 }
+
+//go:noinline
+func testLenOfSliceLit() {
+	ints := []int{0, 1, 2, 3, 4, 5} // ERROR "\[\]int\{\.\.\.\} does not escape"'
+	_ = make([]int, len(ints))      // ERROR "make\(\[\]int, 6\) does not escape"
+	_ = allocLenOf(ints)            // ERROR "inlining call", "make\(\[\]int, 6\) does not escape"
+
+	_ = make([]int, 2, len(ints))  // ERROR "make\(\[\]int, 2, 6\) does not escape"
+	_ = make([]int, len(ints), 2)  // ERROR "make\(\[\]int, len\(ints\), 2\) does not escape"
+	_ = make([]int, 10, len(ints)) // ERROR "make\(\[\]int, 10, 6\) does not escape"
+}
+
+func allocLenOf(s []int) []int { // ERROR "can inline" "s does not escape"
+	return make([]int, len(s)) // ERROR "escapes to heap"
+}

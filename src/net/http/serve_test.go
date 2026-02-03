@@ -12,6 +12,7 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"context"
+	crand "crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -287,7 +288,7 @@ func testHostHandlers(t *testing.T, mode testMode) {
 			if s != vt.expected {
 				t.Errorf("Get(%q) = %q, want %q", vt.url, s, vt.expected)
 			}
-		case StatusMovedPermanently:
+		case StatusTemporaryRedirect:
 			s := r.Header.Get("Location")
 			if s != vt.expected {
 				t.Errorf("Get(%q) = %q, want %q", vt.url, s, vt.expected)
@@ -339,7 +340,7 @@ var serveMuxTests = []struct {
 	pattern string
 }{
 	{"GET", "google.com", "/", 404, ""},
-	{"GET", "google.com", "/dir", 301, "/dir/"},
+	{"GET", "google.com", "/dir", 307, "/dir/"},
 	{"GET", "google.com", "/dir/", 200, "/dir/"},
 	{"GET", "google.com", "/dir/file", 200, "/dir/"},
 	{"GET", "google.com", "/search", 201, "/search"},
@@ -353,14 +354,14 @@ var serveMuxTests = []struct {
 	{"GET", "images.google.com", "/search", 201, "/search"},
 	{"GET", "images.google.com", "/search/", 404, ""},
 	{"GET", "images.google.com", "/search/foo", 404, ""},
-	{"GET", "google.com", "/../search", 301, "/search"},
-	{"GET", "google.com", "/dir/..", 301, ""},
-	{"GET", "google.com", "/dir/..", 301, ""},
-	{"GET", "google.com", "/dir/./file", 301, "/dir/"},
+	{"GET", "google.com", "/../search", 307, "/search"},
+	{"GET", "google.com", "/dir/..", 307, ""},
+	{"GET", "google.com", "/dir/..", 307, ""},
+	{"GET", "google.com", "/dir/./file", 307, "/dir/"},
 
 	// The /foo -> /foo/ redirect applies to CONNECT requests
 	// but the path canonicalization does not.
-	{"CONNECT", "google.com", "/dir", 301, "/dir/"},
+	{"CONNECT", "google.com", "/dir", 307, "/dir/"},
 	{"CONNECT", "google.com", "/../search", 404, ""},
 	{"CONNECT", "google.com", "/dir/..", 200, "/dir/"},
 	{"CONNECT", "google.com", "/dir/..", 200, "/dir/"},
@@ -388,6 +389,19 @@ func TestServeMuxHandler(t *testing.T) {
 		if pattern != tt.pattern || rr.Code != tt.code {
 			t.Errorf("%s %s %s = %d, %q, want %d, %q", tt.method, tt.host, tt.path, rr.Code, pattern, tt.code, tt.pattern)
 		}
+	}
+}
+
+// Issue 73688
+func TestServeMuxHandlerTrailingSlash(t *testing.T) {
+	setParallel(t)
+	mux := NewServeMux()
+	const original = "/{x}/"
+	mux.Handle(original, NotFoundHandler())
+	r, _ := NewRequest("POST", "/foo", nil)
+	_, p := mux.Handler(r)
+	if p != original {
+		t.Errorf("got %q, want %q", p, original)
 	}
 }
 
@@ -440,7 +454,7 @@ func TestServeMuxHandlerRedirects(t *testing.T) {
 			h, _ := mux.Handler(r)
 			rr := httptest.NewRecorder()
 			h.ServeHTTP(rr, r)
-			if rr.Code != 301 {
+			if rr.Code != 307 {
 				if rr.Code != tt.code {
 					t.Errorf("%s %s %s = %d, want %d", tt.method, tt.host, tt.url, rr.Code, tt.code)
 				}
@@ -456,6 +470,37 @@ func TestServeMuxHandlerRedirects(t *testing.T) {
 		if tries < 0 {
 			t.Errorf("%s %s %s, too many redirects", tt.method, tt.host, tt.url)
 		}
+	}
+}
+
+func TestServeMuxHandlerRedirectPost(t *testing.T) {
+	setParallel(t)
+	mux := NewServeMux()
+	mux.HandleFunc("POST /test/", func(w ResponseWriter, r *Request) {
+		w.WriteHeader(200)
+	})
+
+	var code, retries int
+	startURL := "http://example.com/test"
+	reqURL := startURL
+	for retries = 0; retries <= 1; retries++ {
+		r := httptest.NewRequest("POST", reqURL, strings.NewReader("hello world"))
+		h, _ := mux.Handler(r)
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, r)
+		code = rr.Code
+		switch rr.Code {
+		case 307:
+			reqURL = rr.Result().Header.Get("Location")
+			continue
+		case 200:
+			// ok
+		default:
+			t.Errorf("unhandled response code: %v", rr.Code)
+		}
+	}
+	if code != 200 {
+		t.Errorf("POST %s = %d after %d retries, want = 200", startURL, code, retries)
 	}
 }
 
@@ -478,8 +523,8 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
 			return
 		}
 
-		if code, expected := resp.Code, StatusMovedPermanently; code != expected {
-			t.Errorf("Expected response code of StatusMovedPermanently; got %d", code)
+		if code, expected := resp.Code, StatusTemporaryRedirect; code != expected {
+			t.Errorf("Expected response code of StatusPermanentRedirect; got %d", code)
 			return
 		}
 	}
@@ -565,18 +610,18 @@ func TestServeWithSlashRedirectForHostPatterns(t *testing.T) {
 		want   string
 	}{
 		{"GET", "http://example.com/", 404, "", ""},
-		{"GET", "http://example.com/pkg/foo", 301, "/pkg/foo/", ""},
+		{"GET", "http://example.com/pkg/foo", 307, "/pkg/foo/", ""},
 		{"GET", "http://example.com/pkg/bar", 200, "", "example.com/pkg/bar"},
 		{"GET", "http://example.com/pkg/bar/", 200, "", "example.com/pkg/bar/"},
-		{"GET", "http://example.com/pkg/baz", 301, "/pkg/baz/", ""},
-		{"GET", "http://example.com:3000/pkg/foo", 301, "/pkg/foo/", ""},
+		{"GET", "http://example.com/pkg/baz", 307, "/pkg/baz/", ""},
+		{"GET", "http://example.com:3000/pkg/foo", 307, "/pkg/foo/", ""},
 		{"CONNECT", "http://example.com/", 404, "", ""},
 		{"CONNECT", "http://example.com:3000/", 404, "", ""},
 		{"CONNECT", "http://example.com:9000/", 200, "", "example.com:9000/"},
-		{"CONNECT", "http://example.com/pkg/foo", 301, "/pkg/foo/", ""},
+		{"CONNECT", "http://example.com/pkg/foo", 307, "/pkg/foo/", ""},
 		{"CONNECT", "http://example.com:3000/pkg/foo", 404, "", ""},
-		{"CONNECT", "http://example.com:3000/pkg/baz", 301, "/pkg/baz/", ""},
-		{"CONNECT", "http://example.com:3000/pkg/connect", 301, "/pkg/connect/", ""},
+		{"CONNECT", "http://example.com:3000/pkg/baz", 307, "/pkg/baz/", ""},
+		{"CONNECT", "http://example.com:3000/pkg/connect", 307, "/pkg/connect/", ""},
 	}
 
 	for i, tt := range tests {
@@ -2833,6 +2878,19 @@ func TestRedirectBadPath(t *testing.T) {
 	Redirect(rr, req, "", 304)
 	if rr.Code != 304 {
 		t.Errorf("Code = %d; want 304", rr.Code)
+	}
+}
+
+func TestRedirectEscapedPath(t *testing.T) {
+	baseURL, redirectURL := "http://example.com/foo%2Fbar/", "qux%2Fbaz"
+	req := httptest.NewRequest("GET", baseURL, NoBody)
+
+	rr := httptest.NewRecorder()
+	Redirect(rr, req, redirectURL, StatusMovedPermanently)
+
+	wantURL := "/foo%2Fbar/qux%2Fbaz"
+	if got := rr.Result().Header.Get("Location"); got != wantURL {
+		t.Errorf("Redirect(%s, %s) = %s, want = %s", baseURL, redirectURL, got, wantURL)
 	}
 }
 
@@ -5268,8 +5326,8 @@ func benchmarkClientServerParallel(b *testing.B, parallelism int, mode testMode)
 func BenchmarkServer(b *testing.B) {
 	b.ReportAllocs()
 	// Child process mode;
-	if url := os.Getenv("TEST_BENCH_SERVER_URL"); url != "" {
-		n, err := strconv.Atoi(os.Getenv("TEST_BENCH_CLIENT_N"))
+	if url := os.Getenv("GO_TEST_BENCH_SERVER_URL"); url != "" {
+		n, err := strconv.Atoi(os.Getenv("GO_TEST_BENCH_CLIENT_N"))
 		if err != nil {
 			panic(err)
 		}
@@ -5303,8 +5361,8 @@ func BenchmarkServer(b *testing.B) {
 
 	cmd := testenv.Command(b, os.Args[0], "-test.run=^$", "-test.bench=^BenchmarkServer$")
 	cmd.Env = append([]string{
-		fmt.Sprintf("TEST_BENCH_CLIENT_N=%d", b.N),
-		fmt.Sprintf("TEST_BENCH_SERVER_URL=%s", ts.URL),
+		fmt.Sprintf("GO_TEST_BENCH_CLIENT_N=%d", b.N),
+		fmt.Sprintf("GO_TEST_BENCH_SERVER_URL=%s", ts.URL),
 	}, os.Environ()...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -5325,68 +5383,12 @@ func getNoBody(urlStr string) (*Response, error) {
 // A benchmark for profiling the client without the HTTP server code.
 // The server code runs in a subprocess.
 func BenchmarkClient(b *testing.B) {
-	b.ReportAllocs()
-	b.StopTimer()
-	defer afterTest(b)
-
 	var data = []byte("Hello world.\n")
-	if server := os.Getenv("TEST_BENCH_SERVER"); server != "" {
-		// Server process mode.
-		port := os.Getenv("TEST_BENCH_SERVER_PORT") // can be set by user
-		if port == "" {
-			port = "0"
-		}
-		ln, err := net.Listen("tcp", "localhost:"+port)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		fmt.Println(ln.Addr().String())
-		HandleFunc("/", func(w ResponseWriter, r *Request) {
-			r.ParseForm()
-			if r.Form.Get("stop") != "" {
-				os.Exit(0)
-			}
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Write(data)
-		})
-		var srv Server
-		log.Fatal(srv.Serve(ln))
-	}
 
-	// Start server process.
-	ctx, cancel := context.WithCancel(context.Background())
-	cmd := testenv.CommandContext(b, ctx, os.Args[0], "-test.run=^$", "-test.bench=^BenchmarkClient$")
-	cmd.Env = append(cmd.Environ(), "TEST_BENCH_SERVER=yes")
-	cmd.Stderr = os.Stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		b.Fatal(err)
-	}
-	if err := cmd.Start(); err != nil {
-		b.Fatalf("subprocess failed to start: %v", err)
-	}
-
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-		close(done)
-	}()
-	defer func() {
-		cancel()
-		<-done
-	}()
-
-	// Wait for the server in the child process to respond and tell us
-	// its listening address, once it's started listening:
-	bs := bufio.NewScanner(stdout)
-	if !bs.Scan() {
-		b.Fatalf("failed to read listening URL from child: %v", bs.Err())
-	}
-	url := "http://" + strings.TrimSpace(bs.Text()) + "/"
-	if _, err := getNoBody(url); err != nil {
-		b.Fatalf("initial probe of child process failed: %v", err)
-	}
+	url := startClientBenchmarkServer(b, HandlerFunc(func(w ResponseWriter, _ *Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(data)
+	}))
 
 	// Do b.N requests to the server.
 	b.StartTimer()
@@ -5405,12 +5407,115 @@ func BenchmarkClient(b *testing.B) {
 		}
 	}
 	b.StopTimer()
+}
+
+func startClientBenchmarkServer(b *testing.B, handler Handler) string {
+	b.ReportAllocs()
+	b.StopTimer()
+
+	if server := os.Getenv("GO_TEST_BENCH_SERVER"); server != "" {
+		// Server process mode.
+		port := os.Getenv("GO_TEST_BENCH_SERVER_PORT") // can be set by user
+		if port == "" {
+			port = "0"
+		}
+		ln, err := net.Listen("tcp", "localhost:"+port)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(ln.Addr().String())
+
+		HandleFunc("/", func(w ResponseWriter, r *Request) {
+			r.ParseForm()
+			if r.Form.Get("stop") != "" {
+				os.Exit(0)
+			}
+			handler.ServeHTTP(w, r)
+		})
+		var srv Server
+		log.Fatal(srv.Serve(ln))
+	}
+
+	// Start server process.
+	ctx, cancel := context.WithCancel(context.Background())
+	cmd := testenv.CommandContext(b, ctx, os.Args[0], "-test.run=^$", "-test.bench=^"+b.Name()+"$")
+	cmd.Env = append(cmd.Environ(), "GO_TEST_BENCH_SERVER=yes")
+	cmd.Stderr = os.Stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		b.Fatal(err)
+	}
+	if err := cmd.Start(); err != nil {
+		b.Fatalf("subprocess failed to start: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+		close(done)
+	}()
+
+	// Wait for the server in the child process to respond and tell us
+	// its listening address, once it's started listening:
+	bs := bufio.NewScanner(stdout)
+	if !bs.Scan() {
+		b.Fatalf("failed to read listening URL from child: %v", bs.Err())
+	}
+	url := "http://" + strings.TrimSpace(bs.Text()) + "/"
+	if _, err := getNoBody(url); err != nil {
+		b.Fatalf("initial probe of child process failed: %v", err)
+	}
 
 	// Instruct server process to stop.
-	getNoBody(url + "?stop=yes")
-	if err := <-done; err != nil {
-		b.Fatalf("subprocess failed: %v", err)
+	b.Cleanup(func() {
+		getNoBody(url + "?stop=yes")
+		if err := <-done; err != nil {
+			b.Fatalf("subprocess failed: %v", err)
+		}
+
+		cancel()
+		<-done
+
+		afterTest(b)
+	})
+
+	return url
+}
+
+func BenchmarkClientGzip(b *testing.B) {
+	const responseSize = 1024 * 1024
+
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if _, err := io.CopyN(gz, crand.Reader, responseSize); err != nil {
+		b.Fatal(err)
 	}
+	gz.Close()
+
+	data := buf.Bytes()
+
+	url := startClientBenchmarkServer(b, HandlerFunc(func(w ResponseWriter, _ *Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Write(data)
+	}))
+
+	// Do b.N requests to the server.
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		res, err := Get(url)
+		if err != nil {
+			b.Fatalf("Get: %v", err)
+		}
+		n, err := io.Copy(io.Discard, res.Body)
+		res.Body.Close()
+		if err != nil {
+			b.Fatalf("ReadAll: %v", err)
+		}
+		if n != responseSize {
+			b.Fatalf("ReadAll: expected %d bytes, got %d", responseSize, n)
+		}
+	}
+	b.StopTimer()
 }
 
 func BenchmarkServerFakeConnNoKeepAlive(b *testing.B) {
@@ -5842,7 +5947,7 @@ func testServerShutdown(t *testing.T, mode testMode) {
 }
 
 func TestServerShutdownStateNew(t *testing.T) { runSynctest(t, testServerShutdownStateNew) }
-func testServerShutdownStateNew(t testing.TB, mode testMode) {
+func testServerShutdownStateNew(t *testing.T, mode testMode) {
 	if testing.Short() {
 		t.Skip("test takes 5-6 seconds; skipping in short mode")
 	}
@@ -6640,7 +6745,6 @@ func testTimeoutHandlerSuperfluousLogs(t *testing.T, mode testMode) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			exitHandler := make(chan bool, 1)
 			defer close(exitHandler)
@@ -6880,7 +6984,7 @@ func TestMuxRedirectRelative(t *testing.T) {
 	if got, want := resp.Header().Get("Location"), "/"; got != want {
 		t.Errorf("Location header expected %q; got %q", want, got)
 	}
-	if got, want := resp.Code, StatusMovedPermanently; got != want {
+	if got, want := resp.Code, StatusTemporaryRedirect; got != want {
 		t.Errorf("Expected response code %d; got %d", want, got)
 	}
 }

@@ -6,7 +6,6 @@ package walk
 
 import (
 	"go/constant"
-	"internal/buildcfg"
 	"unicode/utf8"
 
 	"cmd/compile/internal/base"
@@ -24,7 +23,7 @@ func cheapComputableIndex(width int64) bool {
 	// MIPS does not have R+R addressing
 	// Arm64 may lack ability to generate this code in our assembler,
 	// but the architecture supports it.
-	case sys.PPC64, sys.S390X:
+	case sys.Loong64, sys.PPC64, sys.S390X:
 		return width == 1
 	case sys.AMD64, sys.I386, sys.ARM64, sys.ARM:
 		switch width {
@@ -247,20 +246,11 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		hit := nrange.Prealloc
 		th := hit.Type()
 		// depends on layout of iterator struct.
-		// See cmd/compile/internal/reflectdata/reflect.go:MapIterType
-		var keysym, elemsym *types.Sym
-		var iterInit, iterNext string
-		if buildcfg.Experiment.SwissMap {
-			keysym = th.Field(0).Sym
-			elemsym = th.Field(1).Sym // ditto
-			iterInit = "mapIterStart"
-			iterNext = "mapIterNext"
-		} else {
-			keysym = th.Field(0).Sym
-			elemsym = th.Field(1).Sym // ditto
-			iterInit = "mapiterinit"
-			iterNext = "mapiternext"
-		}
+		// See cmd/compile/internal/reflectdata/map.go:MapIterType
+		keysym := th.Field(0).Sym
+		elemsym := th.Field(1).Sym // ditto
+		iterInit := "mapIterStart"
+		iterNext := "mapIterNext"
 
 		fn := typecheck.LookupRuntime(iterInit, t.Key(), t.Elem(), th)
 		init = append(init, mkcallstmt1(fn, reflectdata.RangeMapRType(base.Pos, nrange), ha, typecheck.NodAddr(hit)))

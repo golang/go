@@ -7,6 +7,8 @@ package runtime_test
 import (
 	"fmt"
 	"internal/abi"
+	"internal/race"
+	"internal/runtime/syscall/windows"
 	"internal/syscall/windows/sysdll"
 	"internal/testenv"
 	"io"
@@ -668,6 +670,9 @@ func TestWERDialogue(t *testing.T) {
 }
 
 func TestWindowsStackMemory(t *testing.T) {
+	if race.Enabled {
+		t.Skip("skipping test: race mode uses more stack memory")
+	}
 	o := runTestProg(t, "testprog", "StackMemory")
 	stackUsage, err := strconv.Atoi(o)
 	if err != nil {
@@ -772,7 +777,7 @@ func TestSyscallN(t *testing.T) {
 		t.Skipf("skipping test: GOARCH=%s", runtime.GOARCH)
 	}
 
-	for arglen := 0; arglen <= runtime.MaxArgs; arglen++ {
+	for arglen := 0; arglen <= windows.MaxArgs; arglen++ {
 		arglen := arglen
 		t.Run(fmt.Sprintf("arg-%d", arglen), func(t *testing.T) {
 			t.Parallel()

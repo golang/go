@@ -404,6 +404,7 @@ type fieldOptions struct {
 // the JSON member name and other features.
 func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, err error) {
 	tag, hasTag := sf.Tag.Lookup("json")
+	tagOrig := tag
 
 	// Check whether this field is explicitly ignored.
 	if tag == "-" {
@@ -452,6 +453,13 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 		if !utf8.ValidString(name) {
 			err = cmp.Or(err, fmt.Errorf("Go struct field %s has JSON object name %q with invalid UTF-8", sf.Name, name))
 			name = string([]rune(name)) // replace invalid UTF-8 with utf8.RuneError
+		}
+		if name == "-" && tag[0] == '-' {
+			defer func() { // defer to let other errors take precedence
+				err = cmp.Or(err, fmt.Errorf("Go struct field %s has JSON object name %q; either "+
+					"use `json:\"-\"` to ignore the field or "+
+					"use `json:\"'-'%s` to specify %q as the name", sf.Name, out.name, strings.TrimPrefix(strconv.Quote(tagOrig), `"-`), name))
+			}()
 		}
 		if err2 == nil {
 			out.hasName = true

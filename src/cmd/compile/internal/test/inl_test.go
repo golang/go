@@ -6,7 +6,6 @@ package test
 
 import (
 	"bufio"
-	"internal/goexperiment"
 	"internal/testenv"
 	"io"
 	"math/bits"
@@ -47,7 +46,6 @@ func TestIntendedInlining(t *testing.T) {
 			"getMCache",
 			"heapSetTypeNoHeader",
 			"heapSetTypeSmallHeader",
-			"isDirectIface",
 			"itabHashFunc",
 			"nextslicecap",
 			"noescape",
@@ -109,6 +107,7 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Buffer).tryGrowByReslice",
 		},
 		"internal/abi": {
+			"(*Type).IsDirectIface",
 			"UseInterfaceSwitchCache",
 		},
 		"internal/runtime/math": {
@@ -126,6 +125,8 @@ func TestIntendedInlining(t *testing.T) {
 			"assemble64",
 		},
 		"unicode/utf8": {
+			"DecodeRune",
+			"DecodeRuneInString",
 			"FullRune",
 			"FullRuneInString",
 			"RuneLen",
@@ -232,17 +233,15 @@ func TestIntendedInlining(t *testing.T) {
 		"testing": {
 			"(*B).Loop",
 		},
+		"path": {
+			"Base",
+			"scanChunk",
+		},
+		"path/filepath": {
+			"scanChunk",
+		},
 	}
 
-	if !goexperiment.SwissMap {
-		// Maps
-		want["runtime"] = append(want["runtime"], "bucketMask")
-		want["runtime"] = append(want["runtime"], "bucketShift")
-		want["runtime"] = append(want["runtime"], "evacuated")
-		want["runtime"] = append(want["runtime"], "tophash")
-		want["runtime"] = append(want["runtime"], "(*bmap).keys")
-		want["runtime"] = append(want["runtime"], "(*bmap).overflow")
-	}
 	if runtime.GOARCH != "386" && runtime.GOARCH != "loong64" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {
 		// nextFreeFast calls sys.TrailingZeros64, which on 386 is implemented in asm and is not inlinable.
 		// We currently don't have midstack inlining so nextFreeFast is also not inlinable on 386.

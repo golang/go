@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package errgroup provides synchronization, error propagation, and Context
-// cancelation for groups of goroutines working on subtasks of a common task.
+// cancellation for groups of goroutines working on subtasks of a common task.
 //
 // [errgroup.Group] is related to [sync.WaitGroup] but adds handling of tasks
 // returning errors.
@@ -61,12 +61,14 @@ func (g *Group) Wait() error {
 }
 
 // Go calls the given function in a new goroutine.
+//
 // The first call to Go must happen before a Wait.
 // It blocks until the new goroutine can be added without the number of
-// active goroutines in the group exceeding the configured limit.
+// goroutines in the group exceeding the configured limit.
 //
-// The first call to return a non-nil error cancels the group's context, if the
-// group was created by calling WithContext. The error will be returned by Wait.
+// The first goroutine in the group that returns a non-nil error will
+// cancel the associated Context, if any. The error will be returned
+// by Wait.
 func (g *Group) Go(f func() error) {
 	if g.sem != nil {
 		g.sem <- token{}
@@ -75,6 +77,18 @@ func (g *Group) Go(f func() error) {
 	g.wg.Add(1)
 	go func() {
 		defer g.done()
+
+		// It is tempting to propagate panics from f()
+		// up to the goroutine that calls Wait, but
+		// it creates more problems than it solves:
+		// - it delays panics arbitrarily,
+		//   making bugs harder to detect;
+		// - it turns f's panic stack into a mere value,
+		//   hiding it from crash-monitoring tools;
+		// - it risks deadlocks that hide the panic entirely,
+		//   if f's panic leaves the program in a state
+		//   that prevents the Wait call from being reached.
+		// See #53757, #74275, #74304, #74306.
 
 		if err := f(); err != nil {
 			g.errOnce.Do(func() {
@@ -130,8 +144,8 @@ func (g *Group) SetLimit(n int) {
 		g.sem = nil
 		return
 	}
-	if len(g.sem) != 0 {
-		panic(fmt.Errorf("errgroup: modify limit while %v goroutines in the group are still active", len(g.sem)))
+	if active := len(g.sem); active != 0 {
+		panic(fmt.Errorf("errgroup: modify limit while %v goroutines in the group are still active", active))
 	}
 	g.sem = make(chan token, n)
 }

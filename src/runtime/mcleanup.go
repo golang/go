@@ -9,6 +9,7 @@ import (
 	"internal/cpu"
 	"internal/goarch"
 	"internal/runtime/atomic"
+	"internal/runtime/math"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -70,9 +71,17 @@ import (
 // mentions it. To ensure a cleanup does not get called prematurely,
 // pass the object to the [KeepAlive] function after the last point
 // where the object must remain reachable.
+//
+//go:nocheckptr
 func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
-	// Explicitly force ptr to escape to the heap.
+	// This is marked nocheckptr because checkptr doesn't understand the
+	// pointer manipulation done when looking at closure pointers.
+	// Similar code in mbitmap.go works because the functions are
+	// go:nosplit, which implies go:nocheckptr (CL 202158).
+
+	// Explicitly force ptr and cleanup to escape to the heap.
 	ptr = abi.Escape(ptr)
+	cleanup = abi.Escape(cleanup)
 
 	// The pointer to the object must be valid.
 	if ptr == nil {
@@ -81,7 +90,9 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 	usptr := uintptr(unsafe.Pointer(ptr))
 
 	// Check that arg is not equal to ptr.
-	if kind := abi.TypeOf(arg).Kind(); kind == abi.Pointer || kind == abi.UnsafePointer {
+	argType := abi.TypeOf(arg)
+	kind := argType.Kind()
+	if kind == abi.Pointer || kind == abi.UnsafePointer {
 		if unsafe.Pointer(ptr) == *((*unsafe.Pointer)(unsafe.Pointer(&arg))) {
 			panic("runtime.AddCleanup: ptr is equal to arg, cleanup will never run")
 		}
@@ -97,15 +108,26 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 		return Cleanup{}
 	}
 
-	fn := func() {
-		cleanup(arg)
+	// Create new storage for the argument.
+	var argv *S
+	if size := unsafe.Sizeof(arg); size < maxTinySize && argType.PtrBytes == 0 {
+		// Side-step the tiny allocator to avoid liveness issues, since this box
+		// will be treated like a root by the GC. We model the box as an array of
+		// uintptrs to guarantee maximum allocator alignment.
+		//
+		// TODO(mknyszek): Consider just making space in cleanupFn for this. The
+		// unfortunate part of this is it would grow specialCleanup by 16 bytes, so
+		// while there wouldn't be an allocation, *every* cleanup would take the
+		// memory overhead hit.
+		box := new([maxTinySize / goarch.PtrSize]uintptr)
+		argv = (*S)(unsafe.Pointer(box))
+	} else {
+		argv = new(S)
 	}
-	// Closure must escape.
-	fv := *(**funcval)(unsafe.Pointer(&fn))
-	fv = abi.Escape(fv)
+	*argv = arg
 
 	// Find the containing object.
-	base, _, _ := findObject(usptr, 0, 0)
+	base, span, _ := findObject(usptr, 0, 0)
 	if base == 0 {
 		if isGoPointerWithoutSpan(unsafe.Pointer(ptr)) {
 			// Cleanup is a noop.
@@ -114,16 +136,72 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 		panic("runtime.AddCleanup: ptr not in allocated block")
 	}
 
+	// Check that arg is not within ptr.
+	if kind == abi.Pointer || kind == abi.UnsafePointer {
+		argPtr := uintptr(*(*unsafe.Pointer)(unsafe.Pointer(&arg)))
+		if argPtr >= base && argPtr < base+span.elemsize {
+			// It's possible that both pointers are separate
+			// parts of a tiny allocation, which is OK.
+			// We side-stepped the tiny allocator above for
+			// the allocation for the cleanup,
+			// but the argument itself can still overlap
+			// with the value to which the cleanup is attached.
+			if span.spanclass != tinySpanClass {
+				panic("runtime.AddCleanup: ptr is within arg, cleanup will never run")
+			}
+		}
+	}
+
+	// Check that the cleanup function doesn't close over the pointer.
+	cleanupFV := unsafe.Pointer(*(**funcval)(unsafe.Pointer(&cleanup)))
+	cBase, cSpan, _ := findObject(uintptr(cleanupFV), 0, 0)
+	if cBase != 0 {
+		tp := cSpan.typePointersOfUnchecked(cBase)
+		for {
+			var addr uintptr
+			if tp, addr = tp.next(cBase + cSpan.elemsize); addr == 0 {
+				break
+			}
+			ptr := *(*uintptr)(unsafe.Pointer(addr))
+			if ptr >= base && ptr < base+span.elemsize {
+				panic("runtime.AddCleanup: cleanup function closes over ptr, cleanup will never run")
+			}
+		}
+	}
+
 	// Create another G if necessary.
 	if gcCleanups.needG() {
 		gcCleanups.createGs()
 	}
 
-	id := addCleanup(unsafe.Pointer(ptr), fv)
+	id := addCleanup(unsafe.Pointer(ptr), cleanupFn{
+		// Instantiate a caller function to call the cleanup, that is cleanup(*argv).
+		//
+		// TODO(mknyszek): This allocates because the generic dictionary argument
+		// gets closed over, but callCleanup doesn't even use the dictionary argument,
+		// so theoretically that could be removed, eliminating an allocation.
+		call: callCleanup[S],
+		fn:   *(**funcval)(unsafe.Pointer(&cleanup)),
+		arg:  unsafe.Pointer(argv),
+	})
+	if debug.checkfinalizers != 0 {
+		cleanupFn := *(**funcval)(unsafe.Pointer(&cleanup))
+		setCleanupContext(unsafe.Pointer(ptr), abi.TypeFor[T](), sys.GetCallerPC(), cleanupFn.fn, id)
+	}
 	return Cleanup{
 		id:  id,
 		ptr: usptr,
 	}
+}
+
+// callCleanup is a helper for calling cleanups in a polymorphic way.
+//
+// In practice, all it does is call fn(*arg). arg must be a *T.
+//
+//go:noinline
+func callCleanup[T any](fn *funcval, arg unsafe.Pointer) {
+	cleanup := *(*func(T))(unsafe.Pointer(&fn))
+	cleanup(*(*T)(arg))
 }
 
 // Cleanup is a handle to a cleanup call for a specific object.
@@ -145,7 +223,7 @@ func (c Cleanup) Stop() {
 	}
 
 	// The following block removes the Special record of type cleanup for the object c.ptr.
-	span := spanOfHeap(uintptr(unsafe.Pointer(c.ptr)))
+	span := spanOfHeap(c.ptr)
 	if span == nil {
 		return
 	}
@@ -155,7 +233,7 @@ func (c Cleanup) Stop() {
 	mp := acquirem()
 	span.ensureSwept()
 
-	offset := uintptr(unsafe.Pointer(c.ptr)) - span.base()
+	offset := c.ptr - span.base()
 
 	var found *special
 	lock(&span.speciallock)
@@ -168,14 +246,14 @@ func (c Cleanup) Stop() {
 				// Reached the end of the linked list. Stop searching at this point.
 				break
 			}
-			if offset == uintptr(s.offset) && _KindSpecialCleanup == s.kind &&
+			if offset == s.offset && _KindSpecialCleanup == s.kind &&
 				(*specialCleanup)(unsafe.Pointer(s)).id == c.id {
 				// The special is a cleanup and contains a matching cleanup id.
 				*iter = s.next
 				found = s
 				break
 			}
-			if offset < uintptr(s.offset) || (offset == uintptr(s.offset) && _KindSpecialCleanup < s.kind) {
+			if offset < s.offset || (offset == s.offset && _KindSpecialCleanup < s.kind) {
 				// The special is outside the region specified for that kind of
 				// special. The specials are sorted by kind.
 				break
@@ -196,6 +274,10 @@ func (c Cleanup) Stop() {
 	lock(&mheap_.speciallock)
 	mheap_.specialCleanupAlloc.free(unsafe.Pointer(found))
 	unlock(&mheap_.speciallock)
+
+	if debug.checkfinalizers != 0 {
+		clearCleanupContext(c.ptr, c.id)
+	}
 }
 
 const cleanupBlockSize = 512
@@ -207,7 +289,17 @@ const cleanupBlockSize = 512
 // that the cleanup queue does not grow during marking (but it can shrink).
 type cleanupBlock struct {
 	cleanupBlockHeader
-	cleanups [(cleanupBlockSize - unsafe.Sizeof(cleanupBlockHeader{})) / goarch.PtrSize]*funcval
+	cleanups [(cleanupBlockSize - unsafe.Sizeof(cleanupBlockHeader{})) / unsafe.Sizeof(cleanupFn{})]cleanupFn
+}
+
+var cleanupFnPtrMask = [...]uint8{0b111}
+
+// cleanupFn represents a cleanup function with it's argument, yet to be called.
+type cleanupFn struct {
+	// call is an adapter function that understands how to safely call fn(*arg).
+	call func(*funcval, unsafe.Pointer)
+	fn   *funcval       // cleanup function passed to AddCleanup.
+	arg  unsafe.Pointer // pointer to argument to pass to cleanup function.
 }
 
 var cleanupBlockPtrMask [cleanupBlockSize / goarch.PtrSize / 8]byte
@@ -236,8 +328,8 @@ type cleanupBlockHeader struct {
 //
 // Must only be called if the GC is in the sweep phase (gcphase == _GCoff),
 // because it does not synchronize with the garbage collector.
-func (b *cleanupBlock) enqueue(fn *funcval) bool {
-	b.cleanups[b.n] = fn
+func (b *cleanupBlock) enqueue(c cleanupFn) bool {
+	b.cleanups[b.n] = c
 	b.n++
 	return b.full()
 }
@@ -272,8 +364,9 @@ func (a *cleanupBlock) take(b *cleanupBlock) {
 // cleanupQueue is a queue of ready-to-run cleanup functions.
 type cleanupQueue struct {
 	// Stack of full cleanup blocks.
-	full lfstack
-	_    [cpu.CacheLinePadSize - unsafe.Sizeof(lfstack(0))]byte
+	full      lfstack
+	workUnits atomic.Uint64 // length of full; decrement before pop from full, increment after push to full
+	_         [cpu.CacheLinePadSize - unsafe.Sizeof(lfstack(0)) - unsafe.Sizeof(atomic.Uint64{})]byte
 
 	// Stack of free cleanup blocks.
 	free lfstack
@@ -290,90 +383,82 @@ type cleanupQueue struct {
 	all atomic.UnsafePointer // *cleanupBlock
 	_   [cpu.CacheLinePadSize - unsafe.Sizeof(atomic.UnsafePointer{})]byte
 
-	state cleanupSleep
-	_     [cpu.CacheLinePadSize - unsafe.Sizeof(cleanupSleep{})]byte
-
 	// Goroutine block state.
+	lock mutex
+
+	// sleeping is the list of sleeping cleanup goroutines.
 	//
-	// lock protects sleeping and writes to ng. It is also the lock
-	// used by cleanup goroutines to park atomically with updates to
-	// sleeping and ng.
-	lock     mutex
+	// Protected by lock.
 	sleeping gList
-	running  atomic.Uint32
-	ng       atomic.Uint32
-	needg    atomic.Uint32
+
+	// asleep is the number of cleanup goroutines sleeping.
+	//
+	// Read without lock, written only with the lock held.
+	// When the lock is held, the lock holder may only observe
+	// asleep.Load() == sleeping.n.
+	//
+	// To make reading without the lock safe as a signal to wake up
+	// a goroutine and handle new work, it must always be greater
+	// than or equal to sleeping.n. In the periods of time that it
+	// is strictly greater, it may cause spurious calls to wake.
+	asleep atomic.Uint32
+
+	// running indicates the number of cleanup goroutines actively
+	// executing user cleanup functions at any point in time.
+	//
+	// Read and written to without lock.
+	running atomic.Uint32
+
+	// ng is the number of cleanup goroutines.
+	//
+	// Read without lock, written only with lock held.
+	ng atomic.Uint32
+
+	// needg is the number of new cleanup goroutines that
+	// need to be created.
+	//
+	// Read without lock, written only with lock held.
+	needg atomic.Uint32
+
+	// Cleanup queue stats.
+
+	// queued represents a monotonic count of queued cleanups. This is sharded across
+	// Ps via the field cleanupsQueued in each p, so reading just this value is insufficient.
+	// In practice, this value only includes the queued count of dead Ps.
+	//
+	// Writes are protected by STW.
+	queued uint64
+
+	// executed is a monotonic count of executed cleanups.
+	//
+	// Read and updated atomically.
+	executed atomic.Uint64
 }
 
-// cleanupSleep is an atomically-updatable cleanupSleepState.
-type cleanupSleep struct {
-	u atomic.Uint64 // cleanupSleepState
+// addWork indicates that n units of parallelizable work have been added to the queue.
+func (q *cleanupQueue) addWork(n int) {
+	q.workUnits.Add(int64(n))
 }
 
-func (s *cleanupSleep) load() cleanupSleepState {
-	return cleanupSleepState(s.u.Load())
-}
-
-// awaken indicates that N cleanup goroutines should be awoken.
-func (s *cleanupSleep) awaken(n int) {
-	s.u.Add(int64(n))
-}
-
-// sleep indicates that a cleanup goroutine is about to go to sleep.
-func (s *cleanupSleep) sleep() {
-	s.u.Add(1 << 32)
-}
-
-// take returns the number of goroutines to wake to handle
-// the cleanup load, and also how many extra wake signals
-// there were. The caller takes responsibility for waking
-// up "wake" cleanup goroutines.
-//
-// The number of goroutines to wake is guaranteed to be
-// bounded by the current sleeping goroutines, provided
-// they call sleep before going to sleep, and all wakeups
-// are preceded by a call to take.
-func (s *cleanupSleep) take() (wake, extra uint32) {
+// tryTakeWork is an attempt to dequeue some work by a cleanup goroutine.
+// This might fail if there's no work to do.
+func (q *cleanupQueue) tryTakeWork() bool {
 	for {
-		old := s.load()
-		if old == 0 {
-			return 0, 0
+		wu := q.workUnits.Load()
+		if wu == 0 {
+			return false
 		}
-		if old.wakes() > old.asleep() {
-			wake = old.asleep()
-			extra = old.wakes() - old.asleep()
-		} else {
-			wake = old.wakes()
-			extra = 0
-		}
-		new := cleanupSleepState(old.asleep()-wake) << 32
-		if s.u.CompareAndSwap(uint64(old), uint64(new)) {
-			return
+		// CAS to prevent us from going negative.
+		if q.workUnits.CompareAndSwap(wu, wu-1) {
+			return true
 		}
 	}
-}
-
-// cleanupSleepState consists of two fields: the number of
-// goroutines currently asleep (equivalent to len(q.sleeping)), and
-// the number of times a wakeup signal has been sent.
-// These two fields are packed together in a uint64, such
-// that they may be updated atomically as part of cleanupSleep.
-// The top 32 bits is the number of sleeping goroutines,
-// and the bottom 32 bits is the number of wakeup signals.
-type cleanupSleepState uint64
-
-func (s cleanupSleepState) asleep() uint32 {
-	return uint32(s >> 32)
-}
-
-func (s cleanupSleepState) wakes() uint32 {
-	return uint32(s)
 }
 
 // enqueue queues a single cleanup for execution.
 //
 // Called by the sweeper, and only the sweeper.
-func (q *cleanupQueue) enqueue(fn *funcval) {
+func (q *cleanupQueue) enqueue(c cleanupFn) {
 	mp := acquirem()
 	pp := mp.p.ptr()
 	b := pp.cleanups
@@ -394,11 +479,12 @@ func (q *cleanupQueue) enqueue(fn *funcval) {
 		}
 		pp.cleanups = b
 	}
-	if full := b.enqueue(fn); full {
+	if full := b.enqueue(c); full {
 		q.full.push(&b.lfnode)
 		pp.cleanups = nil
-		q.state.awaken(1)
+		q.addWork(1)
 	}
+	pp.cleanupsQueued++
 	releasem(mp)
 }
 
@@ -406,21 +492,35 @@ func (q *cleanupQueue) enqueue(fn *funcval) {
 // and never returns nil.
 func (q *cleanupQueue) dequeue() *cleanupBlock {
 	for {
-		b := (*cleanupBlock)(q.full.pop())
-		if b != nil {
-			return b
+		if q.tryTakeWork() {
+			// Guaranteed to be non-nil.
+			return (*cleanupBlock)(q.full.pop())
 		}
 		lock(&q.lock)
+		// Increment asleep first. We may have to undo this if we abort the sleep.
+		// We must update asleep first because the scheduler might not try to wake
+		// us up when work comes in between the last check of workUnits and when we
+		// go to sleep. (It may see asleep as 0.) By incrementing it here, we guarantee
+		// after this point that if new work comes in, someone will try to grab the
+		// lock and wake us. However, this also means that if we back out, we may cause
+		// someone to spuriously grab the lock and try to wake us up, only to fail.
+		// This should be very rare because the window here is incredibly small: the
+		// window between now and when we decrement q.asleep below.
+		q.asleep.Add(1)
+
+		// Re-check workUnits under the lock and with asleep updated. If it's still zero,
+		// then no new work came in, and it's safe for us to go to sleep. If new work
+		// comes in after this point, then the scheduler will notice that we're sleeping
+		// and wake us up.
+		if q.workUnits.Load() > 0 {
+			// Undo the q.asleep update and try to take work again.
+			q.asleep.Add(-1)
+			unlock(&q.lock)
+			continue
+		}
 		q.sleeping.push(getg())
-		q.state.sleep()
 		goparkunlock(&q.lock, waitReasonCleanupWait, traceBlockSystemGoroutine, 1)
 	}
-}
-
-// tryDequeue is a non-blocking attempt to dequeue a block of cleanups.
-// May return nil if there are no blocks to run.
-func (q *cleanupQueue) tryDequeue() *cleanupBlock {
-	return (*cleanupBlock)(q.full.pop())
 }
 
 // flush pushes all active cleanup blocks to the full list and wakes up cleanup
@@ -440,6 +540,13 @@ func (q *cleanupQueue) flush() {
 	// new cleanup goroutines.
 	var cb *cleanupBlock
 	for _, pp := range allp {
+		if pp == nil {
+			// This function is reachable via mallocgc in the
+			// middle of procresize, when allp has been resized,
+			// but the new Ps not allocated yet.
+			missing++
+			continue
+		}
 		b := pp.cleanups
 		if b == nil {
 			missing++
@@ -468,7 +575,7 @@ func (q *cleanupQueue) flush() {
 		flushed++
 	}
 	if flushed != 0 {
-		q.state.awaken(flushed)
+		q.addWork(flushed)
 	}
 	if flushed+emptied+missing != len(allp) {
 		throw("failed to correctly flush all P-owned cleanup blocks")
@@ -477,34 +584,56 @@ func (q *cleanupQueue) flush() {
 	releasem(mp)
 }
 
-// needsWake returns true if cleanup goroutines need to be awoken or created to handle cleanup load.
+// needsWake returns true if cleanup goroutines may need to be awoken or created to handle cleanup load.
 func (q *cleanupQueue) needsWake() bool {
-	s := q.state.load()
-	return s.wakes() > 0 && (s.asleep() > 0 || q.ng.Load() < maxCleanupGs())
+	return q.workUnits.Load() > 0 && (q.asleep.Load() > 0 || q.ng.Load() < maxCleanupGs())
 }
 
 // wake wakes up one or more goroutines to process the cleanup queue. If there aren't
 // enough sleeping goroutines to handle the demand, wake will arrange for new goroutines
 // to be created.
 func (q *cleanupQueue) wake() {
-	wake, extra := q.state.take()
+	lock(&q.lock)
+
+	// Figure out how many goroutines to wake, and how many extra goroutines to create.
+	// Wake one goroutine for each work unit.
+	var wake, extra uint32
+	work := q.workUnits.Load()
+	asleep := uint64(q.asleep.Load())
+	if work > asleep {
+		wake = uint32(asleep)
+		if work > uint64(math.MaxUint32) {
+			// Protect against overflow.
+			extra = math.MaxUint32
+		} else {
+			extra = uint32(work - asleep)
+		}
+	} else {
+		wake = uint32(work)
+		extra = 0
+	}
 	if extra != 0 {
+		// Signal that we should create new goroutines, one for each extra work unit,
+		// up to maxCleanupGs.
 		newg := min(extra, maxCleanupGs()-q.ng.Load())
 		if newg > 0 {
 			q.needg.Add(int32(newg))
 		}
 	}
 	if wake == 0 {
+		// Nothing to do.
+		unlock(&q.lock)
 		return
 	}
 
-	// By calling 'take', we've taken ownership of waking 'wake' goroutines.
+	// Take ownership of waking 'wake' goroutines.
+	//
 	// Nobody else will wake up these goroutines, so they're guaranteed
 	// to be sitting on q.sleeping, waiting for us to wake them.
-	//
+	q.asleep.Add(-int32(wake))
+
 	// Collect them and schedule them.
 	var list gList
-	lock(&q.lock)
 	for range wake {
 		list.push(q.sleeping.pop())
 	}
@@ -562,6 +691,19 @@ func (q *cleanupQueue) endRunningCleanups() {
 	releasem(mp)
 }
 
+func (q *cleanupQueue) readQueueStats() (queued, executed uint64) {
+	executed = q.executed.Load()
+	queued = q.queued
+
+	// N.B. This is inconsistent, but that's intentional. It's just an estimate.
+	// Read this _after_ reading executed to decrease the chance that we observe
+	// an inconsistency in the statistics (executed > queued).
+	for _, pp := range allp {
+		queued += pp.cleanupsQueued
+	}
+	return
+}
+
 func maxCleanupGs() uint32 {
 	// N.B. Left as a function to make changing the policy easier.
 	return uint32(max(gomaxprocs/4, 1))
@@ -582,7 +724,8 @@ func runCleanups() {
 
 		gcCleanups.beginRunningCleanups()
 		for i := 0; i < int(b.n); i++ {
-			fn := b.cleanups[i]
+			c := b.cleanups[i]
+			b.cleanups[i] = cleanupFn{}
 
 			var racectx uintptr
 			if raceenabled {
@@ -591,20 +734,15 @@ func runCleanups() {
 				// the same goroutine.
 				//
 				// Synchronize on fn. This would fail to find races on the
-				// closed-over values in fn (suppose fn is passed to multiple
-				// AddCleanup calls) if fn was not unique, but it is. Update
-				// the synchronization on fn if you intend to optimize it
-				// and store the cleanup function and cleanup argument on the
-				// queue directly.
-				racerelease(unsafe.Pointer(fn))
+				// closed-over values in fn (suppose arg is passed to multiple
+				// AddCleanup calls) if arg was not unique, but it is.
+				racerelease(unsafe.Pointer(c.arg))
 				racectx = raceEnterNewCtx()
-				raceacquire(unsafe.Pointer(fn))
+				raceacquire(unsafe.Pointer(c.arg))
 			}
 
 			// Execute the next cleanup.
-			cleanup := *(*func())(unsafe.Pointer(&fn))
-			cleanup()
-			b.cleanups[i] = nil
+			c.call(c.fn, c.arg)
 
 			if raceenabled {
 				// Restore the old context.
@@ -612,6 +750,7 @@ func runCleanups() {
 			}
 		}
 		gcCleanups.endRunningCleanups()
+		gcCleanups.executed.Add(int64(b.n))
 
 		atomic.Store(&b.n, 0) // Synchronize with markroot. See comment in cleanupBlockHeader.
 		gcCleanups.free.push(&b.lfnode)

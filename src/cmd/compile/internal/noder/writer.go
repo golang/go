@@ -96,11 +96,8 @@ type pkgWriter struct {
 // newPkgWriter returns an initialized pkgWriter for the specified
 // package.
 func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info, otherInfo map[*syntax.FuncLit]bool) *pkgWriter {
-	// Use V2 as the encoded version aliastypeparams GOEXPERIMENT is enabled.
-	version := pkgbits.V1
-	if buildcfg.Experiment.AliasTypeParams {
-		version = pkgbits.V2
-	}
+	// Use V2 as the encoded version for aliastypeparams.
+	version := pkgbits.V2
 	return &pkgWriter{
 		PkgEncoder: pkgbits.NewPkgEncoder(version, base.Debug.SyncFrames),
 
@@ -123,12 +120,12 @@ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info, otherInfo ma
 }
 
 // errorf reports a user error about thing p.
-func (pw *pkgWriter) errorf(p poser, msg string, args ...interface{}) {
+func (pw *pkgWriter) errorf(p poser, msg string, args ...any) {
 	base.ErrorfAt(pw.m.pos(p), 0, msg, args...)
 }
 
 // fatalf reports an internal compiler error about thing p.
-func (pw *pkgWriter) fatalf(p poser, msg string, args ...interface{}) {
+func (pw *pkgWriter) fatalf(p poser, msg string, args ...any) {
 	base.FatalfAt(pw.m.pos(p), msg, args...)
 }
 
@@ -174,7 +171,7 @@ func (pw *pkgWriter) typeOf(expr syntax.Expr) types2.Type {
 type writer struct {
 	p *pkgWriter
 
-	pkgbits.Encoder
+	*pkgbits.Encoder
 
 	// sig holds the signature for the current function body, if any.
 	sig *types2.Signature
@@ -1560,7 +1557,7 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 
 func (w *writer) distinctVars(stmt *syntax.ForStmt) bool {
 	lv := base.Debug.LoopVar
-	fileVersion := w.p.info.FileVersions[stmt.Pos().Base()]
+	fileVersion := w.p.info.FileVersions[stmt.Pos().FileBase()]
 	is122 := fileVersion == "" || version.Compare(fileVersion, "go1.22") >= 0
 
 	// Turning off loopvar for 1.22 is only possible with loopvarhash=qn
@@ -2038,10 +2035,16 @@ func (w *writer) expr(expr syntax.Expr) {
 			case "new":
 				assert(len(expr.ArgList) == 1)
 				assert(!expr.HasDots)
+				arg := expr.ArgList[0]
 
 				w.Code(exprNew)
 				w.pos(expr)
-				w.exprType(nil, expr.ArgList[0])
+				tv := w.p.typeAndValue(arg)
+				if w.Bool(!tv.IsType()) {
+					w.expr(arg) // new(expr), go1.26
+				} else {
+					w.exprType(nil, arg) // new(T)
+				}
 				return
 
 			case "Sizeof":
@@ -2411,11 +2414,6 @@ type posVar struct {
 
 func (p posVar) String() string {
 	return p.pos.String() + ":" + p.var_.String()
-}
-
-func (w *writer) exprList(expr syntax.Expr) {
-	w.Sync(pkgbits.SyncExprList)
-	w.exprs(syntax.UnpackListExpr(expr))
 }
 
 func (w *writer) exprs(exprs []syntax.Expr) {

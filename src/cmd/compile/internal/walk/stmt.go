@@ -50,7 +50,7 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.OPRINT,
 		ir.OPRINTLN,
 		ir.OPANIC,
-		ir.ORECOVERFP,
+		ir.ORECOVER,
 		ir.OGETG:
 		if n.Typecheck() == 0 {
 			base.Fatalf("missing typecheck: %+v", n)
@@ -139,8 +139,7 @@ func walkStmt(n ir.Node) ir.Node {
 		n := n.(*ir.TailCallStmt)
 
 		var init ir.Nodes
-		call := n.Call.(*ir.CallExpr)
-		call.Fun = walkExpr(call.Fun, &init)
+		n.Call.Fun = walkExpr(n.Call.Fun, &init)
 
 		if len(init) > 0 {
 			init.Append(n)

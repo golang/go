@@ -11,6 +11,7 @@ import (
 	"errors"
 	"io"
 	"reflect"
+	"slices"
 
 	"encoding/json/internal/jsonflags"
 	"encoding/json/internal/jsonopts"
@@ -50,8 +51,7 @@ func marshalInlinedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *j
 	}
 
 	if v.Type() == jsontextValueType {
-		// TODO(https://go.dev/issue/62121): Use reflect.Value.AssertTo.
-		b := *v.Addr().Interface().(*jsontext.Value)
+		b, _ := reflect.TypeAssert[jsontext.Value](v.Value)
 		if len(b) == 0 { // TODO: Should this be nil? What if it were all whitespace?
 			return nil
 		}
@@ -113,7 +113,7 @@ func marshalInlinedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *j
 		mk := newAddressableValue(m.Type().Key())
 		mv := newAddressableValue(m.Type().Elem())
 		marshalKey := func(mk addressableValue) error {
-			b, err := jsonwire.AppendQuote(enc.UnusedBuffer(), mk.String(), &mo.Flags)
+			b, err := jsonwire.AppendQuote(enc.AvailableBuffer(), mk.String(), &mo.Flags)
 			if err != nil {
 				return newMarshalErrorBefore(enc, m.Type().Key(), err)
 			}
@@ -147,7 +147,7 @@ func marshalInlinedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *j
 				mk.SetIterKey(iter)
 				(*names)[i] = mk.String()
 			}
-			names.Sort()
+			slices.Sort(*names)
 			for _, name := range *names {
 				mk.SetString(name)
 				if err := marshalKey(mk); err != nil {
@@ -174,7 +174,7 @@ func unmarshalInlinedFallbackNext(dec *jsontext.Decoder, va addressableValue, uo
 	v = v.indirect(true)
 
 	if v.Type() == jsontextValueType {
-		b := v.Addr().Interface().(*jsontext.Value)
+		b, _ := reflect.TypeAssert[*jsontext.Value](v.Addr())
 		if len(*b) == 0 { // TODO: Should this be nil? What if it were all whitespace?
 			*b = append(*b, '{')
 		} else {
@@ -188,7 +188,7 @@ func unmarshalInlinedFallbackNext(dec *jsontext.Decoder, va addressableValue, uo
 					*b = append(*b, ',')
 				}
 			} else {
-				return newUnmarshalErrorAfterWithSkipping(dec, uo, v.Type(), errRawInlinedNotObject)
+				return newUnmarshalErrorAfterWithSkipping(dec, v.Type(), errRawInlinedNotObject)
 			}
 		}
 		*b = append(*b, quotedName...)

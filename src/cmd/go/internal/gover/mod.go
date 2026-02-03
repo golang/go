@@ -109,6 +109,9 @@ func ModIsPrefix(path, vers string) bool {
 // The caller is assumed to have checked that ModIsValid(path, vers) is true.
 func ModIsPrerelease(path, vers string) bool {
 	if IsToolchain(path) {
+		if path == "toolchain" {
+			return IsPrerelease(FromToolchain(vers))
+		}
 		return IsPrerelease(vers)
 	}
 	return semver.Prerelease(vers) != ""
