@@ -48,6 +48,7 @@ func diag() bool {
 // checkinstack checks if addr is in the current goroutine's stack.
 func checkinstack(addr uintptr) bool {
 	// TODO(thepudds): probably want to make sure we are not preempted.
+	// TODO(vsaioc): is the check through mp.preemptoff or mp.curg.preempt?
 	mp := acquirem()
 	inStack := mp.curg.stack.lo <= addr && addr < mp.curg.stack.hi
 	releasem(mp)
@@ -252,7 +253,7 @@ func raceliteread(addr uintptr) {
 	case index != uintptr(randWordIndex)%(span.elemsize/goarch.PtrSize):
 		// Check if we are monitoring this word index in general for this heap object.
 		// This prevents false positives, e.g., 'p.a = 1' and '_ = p.b' for some 'p struct{ a, b int }'
-		// won't trigger races.
+		// from triggering races.
 		if diag() {
 			print("RACELITE read: skip undesired word ",
 				"addr=", hex(addr), " index=", index, " randWordIndex=", randWordIndex,
@@ -313,15 +314,15 @@ func raceliteCheckAddr(addr uintptr) (index uint64, ok bool) {
 	// Select last 6 bits of the address.
 	index = uint64(raceliteCheckWordRand & 63)
 
-	// Most addresses are 8 or 16 byte aligned.
-	// TODO(thepudds): probably don't need the xor, maybe not shift. maybe just do a mask and == check.
-	// Also debatable if we want monitored addresses to be strided (while shifting over time),
-	// or maybe better not strided.
 	if diag() {
 		// TOOO(vsaioc): Decouple this check from diagnostics.
 		// For debugging, always sample the address.
 		return index, true
 	}
+	// Most addresses are 8 or 16 byte aligned.
+	// TODO(thepudds): probably don't need the xor, maybe not shift. maybe just do a mask and == check.
+	// Also debatable if we want monitored addresses to be strided (while shifting over time),
+	// or maybe better not strided.
 	return index, uint32(addr>>3)^raceliteCheckAddrRand == 0
 }
 
