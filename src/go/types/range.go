@@ -37,7 +37,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *ast.RangeStmt, noN
 	check.hasCallOrRecv = false
 	check.expr(nil, &x, rangeVar)
 
-	if isTypes2 && x.mode_ != invalid && sValue == nil && !check.hasCallOrRecv {
+	if isTypes2 && x.mode() != invalid && sValue == nil && !check.hasCallOrRecv {
 		if t, ok := arrayPtrDeref(x.typ().Underlying()).(*Array); ok {
 			for {
 				// Put constant info on the thing inside parentheses.
@@ -64,7 +64,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *ast.RangeStmt, noN
 
 	// determine key/value types
 	var key, val Type
-	if x.mode_ != invalid {
+	if x.mode() != invalid {
 		k, v, cause, ok := rangeKeyVal(check, x.typ(), func(v goVersion) bool {
 			return check.allowVersion(v)
 		})
@@ -172,7 +172,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *ast.RangeStmt, noN
 				// If the assignment succeeded, if x was untyped before, it now
 				// has a type inferred via the assignment. It must be an integer.
 				// (go.dev/issues/67027)
-				if x.mode_ != invalid && !isInteger(x.typ()) {
+				if x.mode() != invalid && !isInteger(x.typ()) {
 					check.softErrorf(lhs, InvalidRangeExpr, "cannot use iteration variable of type %s", x.typ())
 				}
 			} else {

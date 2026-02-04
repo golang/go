@@ -17,7 +17,7 @@ func (check *Checker) record(x *operand) {
 	// TODO(gri) this code can be simplified
 	var typ Type
 	var val constant.Value
-	switch x.mode_ {
+	switch x.mode() {
 	case invalid:
 		typ = Typ[Invalid]
 	case novalue:
@@ -33,9 +33,9 @@ func (check *Checker) record(x *operand) {
 	if isUntyped(typ) {
 		// delay type and value recording until we know the type
 		// or until the end of type checking
-		check.rememberUntyped(x.expr, false, x.mode_, typ.(*Basic), val)
+		check.rememberUntyped(x.expr, false, x.mode(), typ.(*Basic), val)
 	} else {
-		check.recordTypeAndValue(x.expr, x.mode_, typ, val)
+		check.recordTypeAndValue(x.expr, x.mode(), typ, val)
 	}
 }
 
@@ -94,7 +94,7 @@ func (check *Checker) recordBuiltinType(f syntax.Expr, sig *Signature) {
 func (check *Checker) recordCommaOkTypes(x syntax.Expr, a []*operand) {
 	assert(x != nil)
 	assert(len(a) == 2)
-	if a[0].mode_ == invalid {
+	if a[0].mode() == invalid {
 		return
 	}
 	t0, t1 := a[0].typ(), a[1].typ()

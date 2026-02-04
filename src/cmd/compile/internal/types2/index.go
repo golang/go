@@ -19,7 +19,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	check.exprOrType(x, e.X, true)
 	// x may be generic
 
-	switch x.mode_ {
+	switch x.mode() {
 	case invalid:
 		check.use(e.Index)
 		return false
@@ -43,7 +43,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 
 	// x should not be generic at this point, but be safe and check
 	check.nonGeneric(nil, x)
-	if x.mode_ == invalid {
+	if x.mode() == invalid {
 		return false
 	}
 
@@ -76,7 +76,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	case *Basic:
 		if isString(typ) {
 			valid = true
-			if x.mode_ == constant_ {
+			if x.mode() == constant_ {
 				length = int64(len(constant.StringVal(x.val)))
 			}
 			// an indexed string always yields a byte value
@@ -89,7 +89,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	case *Array:
 		valid = true
 		length = typ.len
-		if x.mode_ != variable {
+		if x.mode() != variable {
 			x.mode_ = value
 		}
 		x.typ_ = typ.elem
@@ -142,7 +142,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 			case *Array:
 				l = t.len
 				e = t.elem
-				if x.mode_ != variable {
+				if x.mode() != variable {
 					mode = value
 				}
 			case *Pointer:
@@ -230,7 +230,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 
 func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 	check.expr(nil, x, e.X)
-	if x.mode_ == invalid {
+	if x.mode() == invalid {
 		check.use(e.Index[:]...)
 		return
 	}
@@ -301,7 +301,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 				return
 			}
 			valid = true
-			if x.mode_ == constant_ {
+			if x.mode() == constant_ {
 				length = int64(len(constant.StringVal(x.val)))
 			}
 			// spec: "For untyped string operands the result
@@ -314,7 +314,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 	case *Array:
 		valid = true
 		length = u.len
-		if x.mode_ != variable {
+		if x.mode() != variable {
 			check.errorf(x, NonSliceableOperand, "cannot slice unaddressable value %s", x)
 			x.mode_ = invalid
 			return
@@ -427,7 +427,7 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64) 
 		return
 	}
 
-	if x.mode_ != constant_ {
+	if x.mode() != constant_ {
 		return x.typ(), -1
 	}
 
@@ -451,13 +451,13 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64) 
 // If the operand is not valid, an error is reported (using what as context)
 // and the result is false.
 func (check *Checker) isValidIndex(x *operand, code Code, what string, allowNegative bool) bool {
-	if x.mode_ == invalid {
+	if x.mode() == invalid {
 		return false
 	}
 
 	// spec: "a constant index that is untyped is given type int"
 	check.convertUntyped(x, Typ[Int])
-	if x.mode_ == invalid {
+	if x.mode() == invalid {
 		return false
 	}
 
@@ -467,7 +467,7 @@ func (check *Checker) isValidIndex(x *operand, code Code, what string, allowNega
 		return false
 	}
 
-	if x.mode_ == constant_ {
+	if x.mode() == constant_ {
 		// spec: "a constant index must be non-negative ..."
 		if !allowNegative && constant.Sign(x.val) < 0 {
 			check.errorf(x, code, invalidArg+"%s %s must not be negative", what, x)

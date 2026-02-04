@@ -56,7 +56,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		args = check.exprList(argList)
 		nargs = len(args)
 		for _, a := range args {
-			if a.mode_ == invalid {
+			if a.mode() == invalid {
 				return
 			}
 		}
@@ -154,7 +154,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		switch t := arrayPtrDeref(x.typ().Underlying()).(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
-				if x.mode_ == constant_ {
+				if x.mode() == constant_ {
 					mode = constant_
 					val = constant.MakeInt64(int64(len(constant.StringVal(x.val))))
 				} else {
@@ -300,7 +300,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			//    both of them to float64 since they must have the
 			//    same type to succeed (this will result in an error
 			//    because shifts of floats are not permitted)
-			if x.mode_ == constant_ && y.mode_ == constant_ {
+			if x.mode() == constant_ && y.mode() == constant_ {
 				toFloat := func(x *operand) {
 					if isNumeric(x.typ()) && constant.Sign(constant.Imag(x.val)) == 0 {
 						x.typ_ = Typ[UntypedFloat]
@@ -315,7 +315,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				// and check below
 			}
 		}
-		if x.mode_ == invalid || y.mode_ == invalid {
+		if x.mode() == invalid || y.mode() == invalid {
 			return
 		}
 
@@ -348,13 +348,13 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		// if both arguments are constants, the result is a constant
-		if x.mode_ == constant_ && y.mode_ == constant_ {
+		if x.mode() == constant_ && y.mode() == constant_ {
 			x.val = constant.BinaryOp(constant.ToFloat(x.val), token.ADD, constant.MakeImag(constant.ToFloat(y.val)))
 		} else {
 			x.mode_ = value
 		}
 
-		if check.recordTypes() && x.mode_ != constant_ {
+		if check.recordTypes() && x.mode() != constant_ {
 			check.recordBuiltinType(call.Fun, makeSig(resTyp, x.typ(), x.typ()))
 		}
 
@@ -441,7 +441,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		*x = *args[1] // key
 		check.assignment(x, key, "argument to delete")
-		if x.mode_ == invalid {
+		if x.mode() == invalid {
 			return
 		}
 
@@ -456,7 +456,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		// convert or check untyped argument
 		if isUntyped(x.typ()) {
-			if x.mode_ == constant_ {
+			if x.mode() == constant_ {
 				// an untyped constant number can always be considered
 				// as a complex constant
 				if isNumeric(x.typ()) {
@@ -469,7 +469,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				// result in an error (shift of complex value)
 				check.convertUntyped(x, Typ[Complex128])
 				// x should be invalid now, but be conservative and check
-				if x.mode_ == invalid {
+				if x.mode() == invalid {
 					return
 				}
 			}
@@ -502,7 +502,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		// if the argument is a constant, the result is a constant
-		if x.mode_ == constant_ {
+		if x.mode() == constant_ {
 			if id == _Real {
 				x.val = constant.Real(x.val)
 			} else {
@@ -512,7 +512,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			x.mode_ = value
 		}
 
-		if check.recordTypes() && x.mode_ != constant_ {
+		if check.recordTypes() && x.mode() != constant_ {
 			check.recordBuiltinType(call.Fun, makeSig(resTyp, x.typ()))
 		}
 
@@ -588,7 +588,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		for i, a := range args {
-			if a.mode_ == invalid {
+			if a.mode() == invalid {
 				return
 			}
 
@@ -600,7 +600,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			// The first argument is already in x and there's nothing left to do.
 			if i > 0 {
 				check.matchTypes(x, a)
-				if x.mode_ == invalid {
+				if x.mode() == invalid {
 					return
 				}
 
@@ -609,7 +609,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 					return
 				}
 
-				if x.mode_ == constant_ && a.mode_ == constant_ {
+				if x.mode() == constant_ && a.mode() == constant_ {
 					if constant.Compare(a.val, op, x.val) {
 						*x = *a
 					}
@@ -620,11 +620,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		// If nargs == 1, make sure x.mode is either a value or a constant.
-		if x.mode_ != constant_ {
+		if x.mode() != constant_ {
 			x.mode_ = value
 			// A value must not be untyped.
 			check.assignment(x, &emptyInterface, "argument to built-in "+bin.name)
-			if x.mode_ == invalid {
+			if x.mode() == invalid {
 				return
 			}
 		}
@@ -634,7 +634,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.updateExprType(a.expr, x.typ(), true)
 		}
 
-		if check.recordTypes() && x.mode_ != constant_ {
+		if check.recordTypes() && x.mode() != constant_ {
 			types := make([]Type, nargs)
 			for i := range types {
 				types[i] = x.typ()
@@ -648,7 +648,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		arg := argList[0]
 		check.exprOrType(x, arg, false)
 		check.exclude(x, 1<<novalue|1<<builtin)
-		switch x.mode_ {
+		switch x.mode() {
 		case invalid:
 			return
 		case typexpr:
@@ -659,7 +659,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			if isUntyped(x.typ()) {
 				// check for overflow and untyped nil
 				check.assignment(x, nil, "argument to new")
-				if x.mode_ == invalid {
+				if x.mode() == invalid {
 					return
 				}
 				assert(isTyped(x.typ()))
@@ -691,7 +691,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		check.assignment(x, &emptyInterface, "argument to panic")
-		if x.mode_ == invalid {
+		if x.mode() == invalid {
 			return
 		}
 
@@ -708,7 +708,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			params = make([]Type, nargs)
 			for i, a := range args {
 				check.assignment(a, nil, "argument to built-in "+predeclaredFuncs[id].name)
-				if a.mode_ == invalid {
+				if a.mode() == invalid {
 					return
 				}
 				params[i] = a.typ()
@@ -733,7 +733,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		check.verifyVersionf(call.Fun, go1_17, "unsafe.Add")
 
 		check.assignment(x, Typ[UnsafePointer], "argument to unsafe.Add")
-		if x.mode_ == invalid {
+		if x.mode() == invalid {
 			return
 		}
 
@@ -751,7 +751,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Alignof:
 		// unsafe.Alignof(x T) uintptr
 		check.assignment(x, nil, "argument to unsafe.Alignof")
-		if x.mode_ == invalid {
+		if x.mode() == invalid {
 			return
 		}
 
@@ -779,7 +779,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		check.expr(nil, x, selx.X)
-		if x.mode_ == invalid {
+		if x.mode() == invalid {
 			return
 		}
 
@@ -809,7 +809,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// record the selector expression (was bug - go.dev/issue/47895)
 		{
 			mode := value
-			if x.mode_ == variable || indirect {
+			if x.mode() == variable || indirect {
 				mode = variable
 			}
 			check.record(&operand{mode, selx, obj.Type(), nil, 0})
@@ -839,7 +839,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Sizeof:
 		// unsafe.Sizeof(x T) uintptr
 		check.assignment(x, nil, "argument to unsafe.Sizeof")
-		if x.mode_ == invalid {
+		if x.mode() == invalid {
 			return
 		}
 
@@ -904,7 +904,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		check.verifyVersionf(call.Fun, go1_20, "unsafe.String")
 
 		check.assignment(x, NewPointer(universeByte), "argument to unsafe.String")
-		if x.mode_ == invalid {
+		if x.mode() == invalid {
 			return
 		}
 
@@ -924,7 +924,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		check.verifyVersionf(call.Fun, go1_20, "unsafe.StringData")
 
 		check.assignment(x, Typ[String], "argument to unsafe.StringData")
-		if x.mode_ == invalid {
+		if x.mode() == invalid {
 			return
 		}
 
@@ -938,7 +938,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// assert(pred) causes a typechecker error if pred is false.
 		// The result of assert is the value of pred if there is no error.
 		// Note: assert is only available in self-test mode.
-		if x.mode_ != constant_ || !isBoolean(x.typ()) {
+		if x.mode() != constant_ || !isBoolean(x.typ()) {
 			check.errorf(x, Test, invalidArg+"%s is not a boolean constant", x)
 			return
 		}
@@ -970,7 +970,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.dump("%v: %s", x1.Pos(), x1)
 			x1 = &t // use incoming x only for first argument
 		}
-		if x.mode_ == invalid {
+		if x.mode() == invalid {
 			return
 		}
 		// trace is only available in test mode - no need to record signature
@@ -979,7 +979,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		panic("unreachable")
 	}
 
-	assert(x.mode_ != invalid)
+	assert(x.mode() != invalid)
 	return true
 }
 

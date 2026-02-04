@@ -18,7 +18,7 @@ import (
 // conversion type-checks the conversion T(x).
 // The result is in x.
 func (check *Checker) conversion(x *operand, T Type) {
-	constArg := x.mode_ == constant_
+	constArg := x.mode() == constant_
 
 	constConvertibleTo := func(T Type, val *constant.Value) bool {
 		switch t, _ := T.Underlying().(*Basic); {
@@ -113,7 +113,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 			// ok
 		} else if isNonTypeParamInterface(T) || constArg && !isConstType(T) || !isTypes2 && x.isNil() {
 			final = Default(x.typ()) // default type of untyped nil is untyped nil
-		} else if x.mode_ == constant_ && isInteger(x.typ()) && allString(T) {
+		} else if x.mode() == constant_ && isInteger(x.typ()) && allString(T) {
 			final = x.typ()
 		}
 		check.updateExprType(x.expr, final, true)

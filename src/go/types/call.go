@@ -176,7 +176,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 			// Delay function instantiation to argument checking,
 			// where we combine type and value arguments for type
 			// inference.
-			assert(x.mode_ == value)
+			assert(x.mode() == value)
 		} else {
 			ix = nil
 		}
@@ -187,7 +187,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	}
 	// x.typ may be generic
 
-	switch x.mode_ {
+	switch x.mode() {
 	case invalid:
 		check.use(call.Args...)
 		x.expr = call
@@ -196,7 +196,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	case typexpr:
 		// conversion
 		check.nonGeneric(nil, x)
-		if x.mode_ == invalid {
+		if x.mode() == invalid {
 			return conversion
 		}
 		T := x.typ()
@@ -211,7 +211,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 			check.errorf(inNode(call, call.Rparen), WrongArgCount, "missing argument in conversion to %s", T)
 		case 1:
 			check.expr(nil, x, call.Args[0])
-			if x.mode_ != invalid {
+			if x.mode() != invalid {
 				if hasDots(call) {
 					check.errorf(call.Args[0], BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
 					break
@@ -239,7 +239,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		}
 		x.expr = call
 		// a non-constant result implies a function call
-		if x.mode_ != invalid && x.mode_ != constant_ {
+		if x.mode() != invalid && x.mode() != constant_ {
 			check.hasCallOrRecv = true
 		}
 		return predeclaredFuncs[id].kind
@@ -247,7 +247,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 
 	// ordinary function/method call
 	// signature may be generic
-	cgocall := x.mode_ == cgofunc
+	cgocall := x.mode() == cgofunc
 
 	// If the operand type is a type parameter, all types in its type set
 	// must have a common underlying type, which must be a signature.
@@ -343,7 +343,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 
 	// if type inference failed, a parameterized result must be invalidated
 	// (operands cannot have a parameterized type)
-	if x.mode_ == value && sig.TypeParams().Len() > 0 && isParameterized(sig.TypeParams().list(), x.typ()) {
+	if x.mode() == value && sig.TypeParams().Len() > 0 && isParameterized(sig.TypeParams().list(), x.typ()) {
 		x.mode_ = invalid
 	}
 
@@ -419,7 +419,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 			// x is not a function instantiation (it may still be a generic function).
 			check.rawExpr(nil, &x, e, nil, true)
 			check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
-			if t, ok := x.typ().(*Tuple); ok && x.mode_ != invalid {
+			if t, ok := x.typ().(*Tuple); ok && x.mode() != invalid {
 				// x is a function call returning multiple values; it cannot be generic.
 				resList = make([]*operand, t.Len())
 				for i, v := range t.vars {
@@ -790,7 +790,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 	}
 
 	check.exprOrType(x, e.X, false)
-	switch x.mode_ {
+	switch x.mode() {
 	case builtin:
 		// types2 uses the position of '.' for the error
 		check.errorf(e.Sel, UncalledBuiltin, "invalid use of %s in selector expression", x)
@@ -825,7 +825,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 		goto Error
 	}
 
-	obj, index, indirect = lookupFieldOrMethod(x.typ(), x.mode_ == variable, check.pkg, sel, false)
+	obj, index, indirect = lookupFieldOrMethod(x.typ(), x.mode() == variable, check.pkg, sel, false)
 	if obj == nil {
 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
 		if !isValid(x.typ().Underlying()) {
@@ -839,7 +839,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 		}
 
 		if indirect {
-			if x.mode_ == typexpr {
+			if x.mode() == typexpr {
 				check.errorf(e.Sel, InvalidMethodExpr, "invalid method expression %s.%s (needs pointer receiver (*%s).%s)", x.typ(), sel, x.typ(), sel)
 			} else {
 				check.errorf(e.Sel, InvalidMethodExpr, "cannot call pointer method %s on %s", sel, x.typ())
@@ -851,7 +851,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 		if isInterfacePtr(x.typ()) {
 			why = check.interfacePtrError(x.typ())
 		} else {
-			alt, _, _ := lookupFieldOrMethod(x.typ(), x.mode_ == variable, check.pkg, sel, true)
+			alt, _, _ := lookupFieldOrMethod(x.typ(), x.mode() == variable, check.pkg, sel, true)
 			why = check.lookupError(x.typ(), sel, alt, false)
 		}
 		check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
@@ -861,14 +861,14 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 
 	switch obj := obj.(type) {
 	case *Var:
-		if x.mode_ == typexpr {
+		if x.mode() == typexpr {
 			check.errorf(e.X, MissingFieldOrMethod, "operand for field selector %s must be value of type %s", sel, x.typ())
 			goto Error
 		}
 
 		// field value
 		check.recordSelection(e, FieldVal, x.typ(), obj, index, indirect)
-		if x.mode_ == variable || indirect {
+		if x.mode() == variable || indirect {
 			x.mode_ = variable
 		} else {
 			x.mode_ = value
@@ -879,7 +879,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 		check.objDecl(obj) // ensure fully set-up signature
 		check.addDeclDep(obj)
 
-		if x.mode_ == typexpr {
+		if x.mode() == typexpr {
 			// method expression
 			check.recordSelection(e, MethodExpr, x.typ(), obj, index, indirect)
 
@@ -938,7 +938,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 				// any incomplete interfaces so they are available to NewMethodSet
 				// (which assumes that interfaces have been completed already).
 				typ := x.typ_
-				if x.mode_ == variable {
+				if x.mode() == variable {
 					// If typ is not an (unnamed) pointer or an interface,
 					// use *typ instead, because the method set of *typ
 					// includes the methods of typ.
@@ -1047,5 +1047,5 @@ func (check *Checker) use1(e ast.Expr, lhs bool) bool {
 	default:
 		check.rawExpr(nil, &x, e, nil, true)
 	}
-	return x.mode_ != invalid
+	return x.mode() != invalid
 }

@@ -66,7 +66,7 @@ func (check *Checker) basicLit(x *operand, e *ast.BasicLit) {
 		}
 	}
 	x.setConst(e.Kind, e.Value)
-	if x.mode_ == invalid {
+	if x.mode() == invalid {
 		// The parser already establishes syntactic correctness.
 		// If we reach here it's because of number under-/overflow.
 		// TODO(gri) setConst (and in turn the go/constant package)
@@ -265,10 +265,10 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
 			}
 			check.exprWithHint(x, kv.Key, utyp.key)
 			check.assignment(x, utyp.key, "map literal")
-			if x.mode_ == invalid {
+			if x.mode() == invalid {
 				continue
 			}
-			if x.mode_ == constant_ {
+			if x.mode() == constant_ {
 				duplicate := false
 				xkey := keyVal(x.val)
 				if keyIsInterface {

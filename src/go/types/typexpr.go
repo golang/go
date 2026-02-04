@@ -246,7 +246,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
 		var x operand
 		check.ident(&x, e, true)
 
-		switch x.mode_ {
+		switch x.mode() {
 		case typexpr:
 			return x.typ()
 		case invalid:
@@ -261,7 +261,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
 		var x operand
 		check.selector(&x, e, true)
 
-		switch x.mode_ {
+		switch x.mode() {
 		case typexpr:
 			return x.typ()
 		case invalid:
@@ -478,8 +478,8 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 
 	var x operand
 	check.expr(nil, &x, e)
-	if x.mode_ != constant_ {
-		if x.mode_ != invalid {
+	if x.mode() != constant_ {
+		if x.mode() != invalid {
 			check.errorf(&x, InvalidArrayLen, "array length %s must be constant", &x)
 		}
 		return -1

@@ -21,7 +21,7 @@ import (
 func (check *Checker) assignment(x *operand, T Type, context string) {
 	check.singleValue(x)
 
-	switch x.mode_ {
+	switch x.mode() {
 	case invalid:
 		return // error reported before
 	case nilvalue:
@@ -116,7 +116,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 }
 
 func (check *Checker) initConst(lhs *Const, x *operand) {
-	if x.mode_ == invalid || !isValid(x.typ()) || !isValid(lhs.typ) {
+	if x.mode() == invalid || !isValid(x.typ()) || !isValid(lhs.typ) {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -124,7 +124,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 	}
 
 	// rhs must be a constant
-	if x.mode_ != constant_ {
+	if x.mode() != constant_ {
 		check.errorf(x, InvalidConstInit, "%s is not constant", x)
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
@@ -139,7 +139,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 	}
 
 	check.assignment(x, lhs.typ, "constant declaration")
-	if x.mode_ == invalid {
+	if x.mode() == invalid {
 		return
 	}
 
@@ -151,7 +151,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 // or Typ[Invalid] in case of an error.
 // If the initialization check fails, x.mode is set to invalid.
 func (check *Checker) initVar(lhs *Var, x *operand, context string) {
-	if x.mode_ == invalid || !isValid(x.typ()) || !isValid(lhs.typ) {
+	if x.mode() == invalid || !isValid(x.typ()) || !isValid(lhs.typ) {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -216,13 +216,13 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 		check.usedVars[v] = v_used // restore v.used
 	}
 
-	if x.mode_ == invalid || !isValid(x.typ()) {
+	if x.mode() == invalid || !isValid(x.typ()) {
 		return Typ[Invalid]
 	}
 
 	// spec: "Each left-hand side operand must be addressable, a map index
 	// expression, or the blank identifier. Operands may be parenthesized."
-	switch x.mode_ {
+	switch x.mode() {
 	case invalid:
 		return Typ[Invalid]
 	case variable, mapindex:
@@ -231,7 +231,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 		if sel, ok := x.expr.(*syntax.SelectorExpr); ok {
 			var op operand
 			check.expr(nil, &op, sel.X)
-			if op.mode_ == mapindex {
+			if op.mode() == mapindex {
 				check.errorf(&x, UnaddressableFieldAssign, "cannot assign to struct field %s in map", ExprString(x.expr))
 				return Typ[Invalid]
 			}
@@ -441,7 +441,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 		}
 		// Only record comma-ok expression if both initializations succeeded
 		// (go.dev/issue/59371).
-		if commaOk && rhs[0].mode_ != invalid && rhs[1].mode_ != invalid {
+		if commaOk && rhs[0].mode() != invalid && rhs[1].mode() != invalid {
 			check.recordCommaOkTypes(orig_rhs[0], rhs)
 		}
 		return
@@ -449,7 +449,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 
 	// In all other cases we have an assignment mismatch.
 	// Only report a mismatch error if there are no other errors on the rhs.
-	if rhs[0].mode_ != invalid {
+	if rhs[0].mode() != invalid {
 		if returnStmt != nil {
 			check.returnError(returnStmt, lhs, rhs)
 		} else {
@@ -505,7 +505,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 		}
 		// Only record comma-ok expression if both assignments succeeded
 		// (go.dev/issue/59371).
-		if commaOk && rhs[0].mode_ != invalid && rhs[1].mode_ != invalid {
+		if commaOk && rhs[0].mode() != invalid && rhs[1].mode() != invalid {
 			check.recordCommaOkTypes(orig_rhs[0], rhs)
 		}
 		return
@@ -513,7 +513,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 
 	// In all other cases we have an assignment mismatch.
 	// Only report a mismatch error if there are no other errors on the rhs.
-	if rhs[0].mode_ != invalid {
+	if rhs[0].mode() != invalid {
 		check.assignError(orig_rhs, l, r)
 	}
 	check.useLHS(lhs...)

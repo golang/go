@@ -18,7 +18,7 @@ import (
 // For untyped constants, it checks that the value doesn't become
 // arbitrarily large.
 func (check *Checker) overflow(x *operand, opPos syntax.Pos) {
-	assert(x.mode_ == constant_)
+	assert(x.mode() == constant_)
 
 	if x.val.Kind() == constant.Unknown {
 		// TODO(gri) We should report exactly what went wrong. At the
@@ -250,7 +250,7 @@ func (check *Checker) representable(x *operand, typ *Basic) {
 //
 // If no such representation is possible, it returns a non-zero error code.
 func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, Code) {
-	assert(x.mode_ == constant_)
+	assert(x.mode() == constant_)
 	v := x.val
 	if !representableConst(x.val, check, typ, &v) {
 		if isNumeric(x.typ()) && isNumeric(typ) {

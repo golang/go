@@ -60,12 +60,16 @@ type operand struct {
 	id    builtinId
 }
 
+func (x *operand) mode() operandMode {
+	return x.mode_
+}
+
 func (x *operand) typ() Type {
 	return x.typ_
 }
 
 func (x *operand) isValid() bool {
-	return x.mode_ != invalid
+	return x.mode() != invalid
 }
 
 // Pos returns the position of the expression corresponding to x.
@@ -117,7 +121,7 @@ func (x *operand) Pos() syntax.Pos {
 func operandString(x *operand, qf Qualifier) string {
 	// special-case nil
 	if isTypes2 {
-		if x.mode_ == nilvalue {
+		if x.mode() == nilvalue {
 			switch x.typ() {
 			case nil, Typ[Invalid]:
 				return "nil (with invalid type)"
@@ -128,7 +132,7 @@ func operandString(x *operand, qf Qualifier) string {
 			}
 		}
 	} else { // go/types
-		if x.mode_ == value && x.typ() == Typ[UntypedNil] {
+		if x.mode() == value && x.typ() == Typ[UntypedNil] {
 			return "nil"
 		}
 	}
@@ -139,7 +143,7 @@ func operandString(x *operand, qf Qualifier) string {
 	if x.expr != nil {
 		expr = ExprString(x.expr)
 	} else {
-		switch x.mode_ {
+		switch x.mode() {
 		case builtin:
 			expr = predeclaredFuncs[x.id].name
 		case typexpr:
@@ -157,7 +161,7 @@ func operandString(x *operand, qf Qualifier) string {
 
 	// <untyped kind>
 	hasType := false
-	switch x.mode_ {
+	switch x.mode() {
 	case invalid, novalue, builtin, typexpr:
 		// no type
 	default:
@@ -173,10 +177,10 @@ func operandString(x *operand, qf Qualifier) string {
 	}
 
 	// <mode>
-	buf.WriteString(operandModeString[x.mode_])
+	buf.WriteString(operandModeString[x.mode()])
 
 	// <val>
-	if x.mode_ == constant_ {
+	if x.mode() == constant_ {
 		if s := x.val.String(); s != expr {
 			buf.WriteByte(' ')
 			buf.WriteString(s)
@@ -301,9 +305,9 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
 // isNil reports whether x is the (untyped) nil value.
 func (x *operand) isNil() bool {
 	if isTypes2 {
-		return x.mode_ == nilvalue
+		return x.mode() == nilvalue
 	} else { // go/types
-		return x.mode_ == value && x.typ() == Typ[UntypedNil]
+		return x.mode() == value && x.typ() == Typ[UntypedNil]
 	}
 }
 
@@ -314,7 +318,7 @@ func (x *operand) isNil() bool {
 // if assignableTo is invoked through an exported API call, i.e., when all
 // methods have been type-checked.
 func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Code) {
-	if x.mode_ == invalid || !isValid(T) {
+	if x.mode() == invalid || !isValid(T) {
 		return true, 0 // avoid spurious errors
 	}
 
