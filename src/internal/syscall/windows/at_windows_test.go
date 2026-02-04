@@ -14,25 +14,6 @@ import (
 	"unsafe"
 )
 
-
-const (
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa374899.aspx
-	GRANT_ACCESS = 1
-
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa379638.aspx
-	TRUSTEE_IS_SID = 0
-
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa446627.aspx
-	SUB_CONTAINERS_AND_OBJECTS_INHERIT = 0x3
-
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa379593.aspx
-	SE_FILE_OBJECT = 1
-
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa379573.aspx
-	DACL_SECURITY_INFORMATION           = 0x00004
-	PROTECTED_DACL_SECURITY_INFORMATION = 0x80000000
-)
-
 func TestOpen(t *testing.T) {
 	t.Parallel()
 
@@ -147,10 +128,10 @@ func makeFileNotReadable(t *testing.T, name string) {
 	entryForSid := func(sid *syscall.SID) windows.EXPLICIT_ACCESS {
 		return windows.EXPLICIT_ACCESS{
 			AccessPermissions: 0,
-			AccessMode:        GRANT_ACCESS,
-			Inheritance:       SUB_CONTAINERS_AND_OBJECTS_INHERIT,
+			AccessMode:       windows.GRANT_ACCESS,
+			Inheritance:       windows.SUB_CONTAINERS_AND_OBJECTS_INHERIT,
 			Trustee: windows.TRUSTEE{
-				TrusteeForm: TRUSTEE_IS_SID,
+				TrusteeForm: windows.TRUSTEE_IS_SID,
 				Name:        (*uint16)(unsafe.Pointer(sid)),
 			},
 		}
@@ -175,8 +156,8 @@ func makeFileNotReadable(t *testing.T, name string) {
 	defer syscall.LocalFree((syscall.Handle)(unsafe.Pointer(newAcl)))
 	if err := windows.SetNamedSecurityInfo(
 		name,
-		SE_FILE_OBJECT,
-		DACL_SECURITY_INFORMATION|PROTECTED_DACL_SECURITY_INFORMATION,
+		windows.SE_FILE_OBJECT,
+		windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION,
 		nil,
 		nil,
 		newAcl,
