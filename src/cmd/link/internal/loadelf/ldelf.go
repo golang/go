@@ -627,7 +627,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				continue
 			}
 
-			return errorf("%v: sym#%d (%q): ignoring symbol in section %d (%q) (type %d)", elfsym.sym, i, elfsym.name, elfsym.shndx, sect.name, elfsym.type_)
+			return errorf("%v: sym#%d (%q): unrecognized symbol in section %d (%q) (type %d)", elfsym.sym, i, elfsym.name, elfsym.shndx, sect.name, elfsym.type_)
 		}
 
 		s := elfsym.sym
