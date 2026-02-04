@@ -53,11 +53,11 @@ var operandModeString = [...]string{
 // for built-in functions.
 // The zero value of operand is a ready to use invalid operand.
 type operand struct {
-	mode operandMode
-	expr syntax.Expr
-	typ_ Type
-	val  constant.Value
-	id   builtinId
+	mode_ operandMode
+	expr  syntax.Expr
+	typ_  Type
+	val   constant.Value
+	id    builtinId
 }
 
 // Pos returns the position of the expression corresponding to x.
@@ -109,7 +109,7 @@ func (x *operand) Pos() syntax.Pos {
 func operandString(x *operand, qf Qualifier) string {
 	// special-case nil
 	if isTypes2 {
-		if x.mode == nilvalue {
+		if x.mode_ == nilvalue {
 			switch x.typ_ {
 			case nil, Typ[Invalid]:
 				return "nil (with invalid type)"
@@ -120,7 +120,7 @@ func operandString(x *operand, qf Qualifier) string {
 			}
 		}
 	} else { // go/types
-		if x.mode == value && x.typ_ == Typ[UntypedNil] {
+		if x.mode_ == value && x.typ_ == Typ[UntypedNil] {
 			return "nil"
 		}
 	}
@@ -131,7 +131,7 @@ func operandString(x *operand, qf Qualifier) string {
 	if x.expr != nil {
 		expr = ExprString(x.expr)
 	} else {
-		switch x.mode {
+		switch x.mode_ {
 		case builtin:
 			expr = predeclaredFuncs[x.id].name
 		case typexpr:
@@ -149,7 +149,7 @@ func operandString(x *operand, qf Qualifier) string {
 
 	// <untyped kind>
 	hasType := false
-	switch x.mode {
+	switch x.mode_ {
 	case invalid, novalue, builtin, typexpr:
 		// no type
 	default:
@@ -165,10 +165,10 @@ func operandString(x *operand, qf Qualifier) string {
 	}
 
 	// <mode>
-	buf.WriteString(operandModeString[x.mode])
+	buf.WriteString(operandModeString[x.mode_])
 
 	// <val>
-	if x.mode == constant_ {
+	if x.mode_ == constant_ {
 		if s := x.val.String(); s != expr {
 			buf.WriteByte(' ')
 			buf.WriteString(s)
@@ -281,11 +281,11 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
 
 	val := makeFromLiteral(lit, k)
 	if val.Kind() == constant.Unknown {
-		x.mode = invalid
+		x.mode_ = invalid
 		x.typ_ = Typ[Invalid]
 		return
 	}
-	x.mode = constant_
+	x.mode_ = constant_
 	x.typ_ = Typ[kind]
 	x.val = val
 }
@@ -293,9 +293,9 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
 // isNil reports whether x is the (untyped) nil value.
 func (x *operand) isNil() bool {
 	if isTypes2 {
-		return x.mode == nilvalue
+		return x.mode_ == nilvalue
 	} else { // go/types
-		return x.mode == value && x.typ_ == Typ[UntypedNil]
+		return x.mode_ == value && x.typ_ == Typ[UntypedNil]
 	}
 }
 
@@ -306,7 +306,7 @@ func (x *operand) isNil() bool {
 // if assignableTo is invoked through an exported API call, i.e., when all
 // methods have been type-checked.
 func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Code) {
-	if x.mode == invalid || !isValid(T) {
+	if x.mode_ == invalid || !isValid(T) {
 		return true, 0 // avoid spurious errors
 	}
 

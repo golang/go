@@ -50,7 +50,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
 		xlist = ix.indices
 		targs = check.typeList(xlist)
 		if targs == nil {
-			x.mode = invalid
+			x.mode_ = invalid
 			return nil
 		}
 		assert(len(targs) == len(xlist))
@@ -64,7 +64,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
 	if got > want {
 		// Providing too many type arguments is always an error.
 		check.errorf(ix.indices[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
-		x.mode = invalid
+		x.mode_ = invalid
 		return nil
 	}
 
@@ -101,7 +101,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
 			// that makes sense when reported in error messages from infer, below.
 			expr := ast.NewIdent(T.desc)
 			expr.NamePos = x.Pos() // correct position
-			args = []*operand{{mode: value, expr: expr, typ_: T.sig}}
+			args = []*operand{{mode_: value, expr: expr, typ_: T.sig}}
 			reverse = true
 		}
 
@@ -115,7 +115,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
 			if !err.empty() {
 				err.report()
 			}
-			x.mode = invalid
+			x.mode_ = invalid
 			return nil
 		}
 		got = len(targs)
@@ -125,7 +125,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
 	// instantiate function signature
 	sig = check.instantiateSignature(x.Pos(), x.expr, sig, targs, xlist)
 	x.typ_ = sig
-	x.mode = value
+	x.mode_ = value
 	return nil
 }
 
@@ -176,7 +176,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 			// Delay function instantiation to argument checking,
 			// where we combine type and value arguments for type
 			// inference.
-			assert(x.mode == value)
+			assert(x.mode_ == value)
 		} else {
 			ix = nil
 		}
@@ -187,7 +187,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	}
 	// x.typ may be generic
 
-	switch x.mode {
+	switch x.mode_ {
 	case invalid:
 		check.use(call.Args...)
 		x.expr = call
@@ -196,11 +196,11 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	case typexpr:
 		// conversion
 		check.nonGeneric(nil, x)
-		if x.mode == invalid {
+		if x.mode_ == invalid {
 			return conversion
 		}
 		T := x.typ_
-		x.mode = invalid
+		x.mode_ = invalid
 		// We cannot convert a value to an incomplete type; make sure it's complete.
 		if !check.isComplete(T) {
 			x.expr = call
@@ -211,7 +211,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 			check.errorf(inNode(call, call.Rparen), WrongArgCount, "missing argument in conversion to %s", T)
 		case 1:
 			check.expr(nil, x, call.Args[0])
-			if x.mode != invalid {
+			if x.mode_ != invalid {
 				if hasDots(call) {
 					check.errorf(call.Args[0], BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
 					break
@@ -235,11 +235,11 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		// no need to check for non-genericity here
 		id := x.id
 		if !check.builtin(x, call, id) {
-			x.mode = invalid
+			x.mode_ = invalid
 		}
 		x.expr = call
 		// a non-constant result implies a function call
-		if x.mode != invalid && x.mode != constant_ {
+		if x.mode_ != invalid && x.mode_ != constant_ {
 			check.hasCallOrRecv = true
 		}
 		return predeclaredFuncs[id].kind
@@ -247,7 +247,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 
 	// ordinary function/method call
 	// signature may be generic
-	cgocall := x.mode == cgofunc
+	cgocall := x.mode_ == cgofunc
 
 	// If the operand type is a type parameter, all types in its type set
 	// must have a common underlying type, which must be a signature.
@@ -259,7 +259,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	})
 	if err != nil {
 		check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, err.format(check))
-		x.mode = invalid
+		x.mode_ = invalid
 		x.expr = call
 		return statement
 	}
@@ -276,7 +276,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		targs = check.typeList(xlist)
 		if targs == nil {
 			check.use(call.Args...)
-			x.mode = invalid
+			x.mode_ = invalid
 			x.expr = call
 			return statement
 		}
@@ -287,7 +287,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		if got > want {
 			check.errorf(xlist[want], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
 			check.use(call.Args...)
-			x.mode = invalid
+			x.mode_ = invalid
 			x.expr = call
 			return statement
 		}
@@ -319,23 +319,23 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	// determine result
 	switch sig.results.Len() {
 	case 0:
-		x.mode = novalue
+		x.mode_ = novalue
 	case 1:
 		if cgocall {
-			x.mode = commaerr
+			x.mode_ = commaerr
 		} else {
-			x.mode = value
+			x.mode_ = value
 		}
 		typ := sig.results.vars[0].typ // unpack tuple
 		// We cannot return a value of an incomplete type; make sure it's complete.
 		if !check.isComplete(typ) {
-			x.mode = invalid
+			x.mode_ = invalid
 			x.expr = call
 			return statement
 		}
 		x.typ_ = typ
 	default:
-		x.mode = value
+		x.mode_ = value
 		x.typ_ = sig.results
 	}
 	x.expr = call
@@ -343,8 +343,8 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 
 	// if type inference failed, a parameterized result must be invalidated
 	// (operands cannot have a parameterized type)
-	if x.mode == value && sig.TypeParams().Len() > 0 && isParameterized(sig.TypeParams().list(), x.typ_) {
-		x.mode = invalid
+	if x.mode_ == value && sig.TypeParams().Len() > 0 && isParameterized(sig.TypeParams().list(), x.typ_) {
+		x.mode_ = invalid
 	}
 
 	return statement
@@ -419,11 +419,11 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 			// x is not a function instantiation (it may still be a generic function).
 			check.rawExpr(nil, &x, e, nil, true)
 			check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
-			if t, ok := x.typ_.(*Tuple); ok && x.mode != invalid {
+			if t, ok := x.typ_.(*Tuple); ok && x.mode_ != invalid {
 				// x is a function call returning multiple values; it cannot be generic.
 				resList = make([]*operand, t.Len())
 				for i, v := range t.vars {
-					resList[i] = &operand{mode: value, expr: e, typ_: v.typ}
+					resList[i] = &operand{mode_: value, expr: e, typ_: v.typ}
 				}
 			} else {
 				// x is exactly one value (possibly invalid or uninstantiated generic function).
@@ -757,27 +757,27 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 			switch exp := exp.(type) {
 			case *Const:
 				assert(exp.Val() != nil)
-				x.mode = constant_
+				x.mode_ = constant_
 				x.typ_ = exp.typ
 				x.val = exp.val
 			case *TypeName:
-				x.mode = typexpr
+				x.mode_ = typexpr
 				x.typ_ = exp.typ
 			case *Var:
-				x.mode = variable
+				x.mode_ = variable
 				x.typ_ = exp.typ
 				if pkg.cgo && strings.HasPrefix(exp.name, "_Cvar_") {
 					x.typ_ = x.typ_.(*Pointer).base
 				}
 			case *Func:
-				x.mode = funcMode
+				x.mode_ = funcMode
 				x.typ_ = exp.typ
 				if pkg.cgo && strings.HasPrefix(exp.name, "_Cmacro_") {
-					x.mode = value
+					x.mode_ = value
 					x.typ_ = x.typ_.(*Signature).results.vars[0].typ
 				}
 			case *Builtin:
-				x.mode = builtin
+				x.mode_ = builtin
 				x.typ_ = exp.typ
 				x.id = exp.id
 			default:
@@ -790,7 +790,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 	}
 
 	check.exprOrType(x, e.X, false)
-	switch x.mode {
+	switch x.mode_ {
 	case builtin:
 		// types2 uses the position of '.' for the error
 		check.errorf(e.Sel, UncalledBuiltin, "invalid use of %s in selector expression", x)
@@ -825,7 +825,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 		goto Error
 	}
 
-	obj, index, indirect = lookupFieldOrMethod(x.typ_, x.mode == variable, check.pkg, sel, false)
+	obj, index, indirect = lookupFieldOrMethod(x.typ_, x.mode_ == variable, check.pkg, sel, false)
 	if obj == nil {
 		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
 		if !isValid(x.typ_.Underlying()) {
@@ -839,7 +839,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 		}
 
 		if indirect {
-			if x.mode == typexpr {
+			if x.mode_ == typexpr {
 				check.errorf(e.Sel, InvalidMethodExpr, "invalid method expression %s.%s (needs pointer receiver (*%s).%s)", x.typ_, sel, x.typ_, sel)
 			} else {
 				check.errorf(e.Sel, InvalidMethodExpr, "cannot call pointer method %s on %s", sel, x.typ_)
@@ -851,7 +851,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 		if isInterfacePtr(x.typ_) {
 			why = check.interfacePtrError(x.typ_)
 		} else {
-			alt, _, _ := lookupFieldOrMethod(x.typ_, x.mode == variable, check.pkg, sel, true)
+			alt, _, _ := lookupFieldOrMethod(x.typ_, x.mode_ == variable, check.pkg, sel, true)
 			why = check.lookupError(x.typ_, sel, alt, false)
 		}
 		check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
@@ -861,17 +861,17 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 
 	switch obj := obj.(type) {
 	case *Var:
-		if x.mode == typexpr {
+		if x.mode_ == typexpr {
 			check.errorf(e.X, MissingFieldOrMethod, "operand for field selector %s must be value of type %s", sel, x.typ_)
 			goto Error
 		}
 
 		// field value
 		check.recordSelection(e, FieldVal, x.typ_, obj, index, indirect)
-		if x.mode == variable || indirect {
-			x.mode = variable
+		if x.mode_ == variable || indirect {
+			x.mode_ = variable
 		} else {
-			x.mode = value
+			x.mode_ = value
 		}
 		x.typ_ = obj.typ
 
@@ -879,7 +879,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 		check.objDecl(obj) // ensure fully set-up signature
 		check.addDeclDep(obj)
 
-		if x.mode == typexpr {
+		if x.mode_ == typexpr {
 			// method expression
 			check.recordSelection(e, MethodExpr, x.typ_, obj, index, indirect)
 
@@ -910,7 +910,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 				}
 			}
 			params = append([]*Var{NewParam(sig.recv.pos, sig.recv.pkg, name, x.typ_)}, params...)
-			x.mode = value
+			x.mode_ = value
 			x.typ_ = &Signature{
 				tparams:  sig.tparams,
 				params:   NewTuple(params...),
@@ -938,7 +938,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 				// any incomplete interfaces so they are available to NewMethodSet
 				// (which assumes that interfaces have been completed already).
 				typ := x.typ_
-				if x.mode == variable {
+				if x.mode_ == variable {
 					// If typ is not an (unnamed) pointer or an interface,
 					// use *typ instead, because the method set of *typ
 					// includes the methods of typ.
@@ -969,7 +969,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 				}
 			}
 
-			x.mode = value
+			x.mode_ = value
 
 			// remove receiver
 			sig := *obj.typ.(*Signature)
@@ -986,7 +986,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 	return
 
 Error:
-	x.mode = invalid
+	x.mode_ = invalid
 	x.typ_ = Typ[Invalid]
 	x.expr = e
 }
@@ -1015,7 +1015,7 @@ func (check *Checker) useN(args []ast.Expr, lhs bool) bool {
 
 func (check *Checker) use1(e ast.Expr, lhs bool) bool {
 	var x operand
-	x.mode = value // anything but invalid
+	x.mode_ = value // anything but invalid
 	switch n := ast.Unparen(e).(type) {
 	case nil:
 		// nothing to do
@@ -1047,5 +1047,5 @@ func (check *Checker) use1(e ast.Expr, lhs bool) bool {
 	default:
 		check.rawExpr(nil, &x, e, nil, true)
 	}
-	return x.mode != invalid
+	return x.mode_ != invalid
 }

@@ -238,20 +238,20 @@ L:
 	for _, e := range values {
 		var v operand
 		check.expr(nil, &v, e)
-		if x.mode == invalid || v.mode == invalid {
+		if x.mode_ == invalid || v.mode_ == invalid {
 			continue L
 		}
 		check.convertUntyped(&v, x.typ_)
-		if v.mode == invalid {
+		if v.mode_ == invalid {
 			continue L
 		}
 		// Order matters: By comparing v against x, error positions are at the case values.
 		res := v // keep original v unchanged
 		check.comparison(&res, x, syntax.Eql, true)
-		if res.mode == invalid {
+		if res.mode_ == invalid {
 			continue L
 		}
-		if v.mode != constant_ {
+		if v.mode_ != constant_ {
 			continue L // we're done
 		}
 		// look for duplicate values
@@ -444,7 +444,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		kind := check.rawExpr(nil, &x, s.X, nil, false)
 		var msg string
 		var code Code
-		switch x.mode {
+		switch x.mode_ {
 		default:
 			if kind == statement {
 				return
@@ -464,7 +464,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		var ch, val operand
 		check.expr(nil, &ch, s.Chan)
 		check.expr(nil, &val, s.Value)
-		if ch.mode == invalid || val.mode == invalid {
+		if ch.mode_ == invalid || val.mode_ == invalid {
 			return
 		}
 		if elem := check.chanElem(s, &ch, false); elem != nil {
@@ -477,7 +477,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			// (no need to call unpackExpr as s.Lhs must be single-valued)
 			var x operand
 			check.expr(nil, &x, s.Lhs)
-			if x.mode == invalid {
+			if x.mode_ == invalid {
 				return
 			}
 			if !allNumeric(x.typ_) {
@@ -592,7 +592,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.simpleStmt(s.Init)
 		var x operand
 		check.expr(nil, &x, s.Cond)
-		if x.mode != invalid && !allBoolean(x.typ_) {
+		if x.mode_ != invalid && !allBoolean(x.typ_) {
 			check.error(s.Cond, InvalidCond, "non-boolean condition in if statement")
 		}
 		check.stmt(inner, s.Then)
@@ -694,7 +694,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		if s.Cond != nil {
 			var x operand
 			check.expr(nil, &x, s.Cond)
-			if x.mode != invalid && !allBoolean(x.typ_) {
+			if x.mode_ != invalid && !allBoolean(x.typ_) {
 				check.error(s.Cond, InvalidCond, "non-boolean condition in for statement")
 			}
 		}
@@ -721,14 +721,14 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 		// By checking assignment of x to an invisible temporary
 		// (as a compiler would), we get all the relevant checks.
 		check.assignment(&x, nil, "switch expression")
-		if x.mode != invalid && !Comparable(x.typ_) && !hasNil(x.typ_) {
+		if x.mode_ != invalid && !Comparable(x.typ_) && !hasNil(x.typ_) {
 			check.errorf(&x, InvalidExprSwitch, "cannot switch on %s (%s is not comparable)", &x, x.typ_)
-			x.mode = invalid
+			x.mode_ = invalid
 		}
 	} else {
 		// spec: "A missing switch expression is
 		// equivalent to the boolean value true."
-		x.mode = constant_
+		x.mode_ = constant_
 		x.typ_ = Typ[Bool]
 		x.val = constant.MakeBool(true)
 		// TODO(gri) should have a better position here
@@ -785,7 +785,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	{
 		var x operand
 		check.expr(nil, &x, guard.X)
-		if x.mode != invalid {
+		if x.mode_ != invalid {
 			if isTypeParam(x.typ_) {
 				check.errorf(&x, InvalidTypeSwitch, "cannot use type switch on type parameter value %s", &x)
 			} else if IsInterface(x.typ_) {

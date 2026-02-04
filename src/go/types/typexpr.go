@@ -18,7 +18,7 @@ import (
 // If an error occurred, x.mode is set to invalid.
 // If wantType is set, the identifier e is expected to denote a type.
 func (check *Checker) ident(x *operand, e *ast.Ident, wantType bool) {
-	x.mode = invalid
+	x.mode_ = invalid
 	x.expr = e
 
 	scope, obj := check.lookupScope(e.Name)
@@ -98,10 +98,10 @@ func (check *Checker) ident(x *operand, e *ast.Ident, wantType bool) {
 			x.val = obj.val
 		}
 		assert(x.val != nil)
-		x.mode = constant_
+		x.mode_ = constant_
 
 	case *TypeName:
-		x.mode = typexpr
+		x.mode_ = typexpr
 
 	case *Var:
 		// It's ok to mark non-local variables, but ignore variables
@@ -114,18 +114,18 @@ func (check *Checker) ident(x *operand, e *ast.Ident, wantType bool) {
 		if !isValid(typ) {
 			return
 		}
-		x.mode = variable
+		x.mode_ = variable
 
 	case *Func:
 		check.addDeclDep(obj)
-		x.mode = value
+		x.mode_ = value
 
 	case *Builtin:
 		x.id = obj.id
-		x.mode = builtin
+		x.mode_ = builtin
 
 	case *Nil:
-		x.mode = value
+		x.mode_ = value
 
 	default:
 		panic("unreachable")
@@ -246,7 +246,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
 		var x operand
 		check.ident(&x, e, true)
 
-		switch x.mode {
+		switch x.mode_ {
 		case typexpr:
 			return x.typ_
 		case invalid:
@@ -261,7 +261,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
 		var x operand
 		check.selector(&x, e, true)
 
-		switch x.mode {
+		switch x.mode_ {
 		case typexpr:
 			return x.typ_
 		case invalid:
@@ -478,8 +478,8 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 
 	var x operand
 	check.expr(nil, &x, e)
-	if x.mode != constant_ {
-		if x.mode != invalid {
+	if x.mode_ != constant_ {
+		if x.mode_ != invalid {
 			check.errorf(&x, InvalidArrayLen, "array length %s must be constant", &x)
 		}
 		return -1

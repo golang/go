@@ -239,20 +239,20 @@ L:
 	for _, e := range values {
 		var v operand
 		check.expr(nil, &v, e)
-		if x.mode == invalid || v.mode == invalid {
+		if x.mode_ == invalid || v.mode_ == invalid {
 			continue L
 		}
 		check.convertUntyped(&v, x.typ_)
-		if v.mode == invalid {
+		if v.mode_ == invalid {
 			continue L
 		}
 		// Order matters: By comparing v against x, error positions are at the case values.
 		res := v // keep original v unchanged
 		check.comparison(&res, x, token.EQL, true)
-		if res.mode == invalid {
+		if res.mode_ == invalid {
 			continue L
 		}
-		if v.mode != constant_ {
+		if v.mode_ != constant_ {
 			continue L // we're done
 		}
 		// look for duplicate values
@@ -445,7 +445,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		kind := check.rawExpr(nil, &x, s.X, nil, false)
 		var msg string
 		var code Code
-		switch x.mode {
+		switch x.mode_ {
 		default:
 			if kind == statement {
 				return
@@ -465,7 +465,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		var ch, val operand
 		check.expr(nil, &ch, s.Chan)
 		check.expr(nil, &val, s.Value)
-		if ch.mode == invalid || val.mode == invalid {
+		if ch.mode_ == invalid || val.mode_ == invalid {
 			return
 		}
 		if elem := check.chanElem(inNode(s, s.Arrow), &ch, false); elem != nil {
@@ -486,7 +486,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 		var x operand
 		check.expr(nil, &x, s.X)
-		if x.mode == invalid {
+		if x.mode_ == invalid {
 			return
 		}
 		if !allNumeric(x.typ_) {
@@ -496,7 +496,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 		Y := &ast.BasicLit{ValuePos: s.X.Pos(), Kind: token.INT, Value: "1"} // use x's position
 		check.binary(&x, nil, s.X, Y, op, s.TokPos)
-		if x.mode == invalid {
+		if x.mode_ == invalid {
 			return
 		}
 		check.assignVar(s.X, nil, &x, "assignment")
@@ -528,7 +528,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			}
 			var x operand
 			check.binary(&x, nil, s.Lhs[0], s.Rhs[0], op, s.TokPos)
-			if x.mode == invalid {
+			if x.mode_ == invalid {
 				return
 			}
 			check.assignVar(s.Lhs[0], nil, &x, "assignment")
@@ -609,7 +609,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.simpleStmt(s.Init)
 		var x operand
 		check.expr(nil, &x, s.Cond)
-		if x.mode != invalid && !allBoolean(x.typ_) {
+		if x.mode_ != invalid && !allBoolean(x.typ_) {
 			check.error(s.Cond, InvalidCond, "non-boolean condition in if statement")
 		}
 		check.stmt(inner, s.Body)
@@ -636,14 +636,14 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			// By checking assignment of x to an invisible temporary
 			// (as a compiler would), we get all the relevant checks.
 			check.assignment(&x, nil, "switch expression")
-			if x.mode != invalid && !Comparable(x.typ_) && !hasNil(x.typ_) {
+			if x.mode_ != invalid && !Comparable(x.typ_) && !hasNil(x.typ_) {
 				check.errorf(&x, InvalidExprSwitch, "cannot switch on %s (%s is not comparable)", &x, x.typ_)
-				x.mode = invalid
+				x.mode_ = invalid
 			}
 		} else {
 			// spec: "A missing switch expression is
 			// equivalent to the boolean value true."
-			x.mode = constant_
+			x.mode_ = constant_
 			x.typ_ = Typ[Bool]
 			x.val = constant.MakeBool(true)
 			x.expr = &ast.Ident{NamePos: s.Body.Lbrace, Name: "true"}
@@ -728,7 +728,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		{
 			var x operand
 			check.expr(nil, &x, expr.X)
-			if x.mode != invalid {
+			if x.mode_ != invalid {
 				if isTypeParam(x.typ_) {
 					check.errorf(&x, InvalidTypeSwitch, "cannot use type switch on type parameter value %s", &x)
 				} else if IsInterface(x.typ_) {
@@ -837,7 +837,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if s.Cond != nil {
 			var x operand
 			check.expr(nil, &x, s.Cond)
-			if x.mode != invalid && !allBoolean(x.typ_) {
+			if x.mode_ != invalid && !allBoolean(x.typ_) {
 				check.error(s.Cond, InvalidCond, "non-boolean condition in for statement")
 			}
 		}

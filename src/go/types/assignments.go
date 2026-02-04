@@ -24,7 +24,7 @@ import (
 func (check *Checker) assignment(x *operand, T Type, context string) {
 	check.singleValue(x)
 
-	switch x.mode {
+	switch x.mode_ {
 	case invalid:
 		return // error reported before
 	case nilvalue:
@@ -36,7 +36,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// we may get here because of other problems (go.dev/issue/39634, crash 12)
 		// TODO(gri) do we need a new "generic" error code here?
 		check.errorf(x, IncompatibleAssign, "cannot assign %s to %s in %s", x, T, context)
-		x.mode = invalid
+		x.mode_ = invalid
 		return
 	}
 
@@ -51,7 +51,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 			if x.isNil() {
 				if T == nil {
 					check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
-					x.mode = invalid
+					x.mode_ = invalid
 					return
 				}
 			} else if T == nil || isNonTypeParamInterface(T) {
@@ -61,7 +61,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 			if T == nil || isNonTypeParamInterface(T) {
 				if T == nil && x.typ_ == Typ[UntypedNil] {
 					check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
-					x.mode = invalid
+					x.mode_ = invalid
 					return
 				}
 				target = Default(x.typ_)
@@ -79,7 +79,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 				code = IncompatibleAssign
 			}
 			check.error(x, code, msg)
-			x.mode = invalid
+			x.mode_ = invalid
 			return
 		}
 		if val != nil {
@@ -96,7 +96,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	// A generic (non-instantiated) function value cannot be assigned to a variable.
 	if sig, _ := x.typ_.Underlying().(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
 		check.errorf(x, WrongTypeArgCount, "cannot use generic function %s without instantiation in %s", x, context)
-		x.mode = invalid
+		x.mode_ = invalid
 		return
 	}
 
@@ -114,12 +114,12 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		} else {
 			check.errorf(x, code, "cannot use %s as %s value in %s", x, T, context)
 		}
-		x.mode = invalid
+		x.mode_ = invalid
 	}
 }
 
 func (check *Checker) initConst(lhs *Const, x *operand) {
-	if x.mode == invalid || !isValid(x.typ_) || !isValid(lhs.typ) {
+	if x.mode_ == invalid || !isValid(x.typ_) || !isValid(lhs.typ) {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -127,7 +127,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 	}
 
 	// rhs must be a constant
-	if x.mode != constant_ {
+	if x.mode_ != constant_ {
 		check.errorf(x, InvalidConstInit, "%s is not constant", x)
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
@@ -142,7 +142,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 	}
 
 	check.assignment(x, lhs.typ, "constant declaration")
-	if x.mode == invalid {
+	if x.mode_ == invalid {
 		return
 	}
 
@@ -154,11 +154,11 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 // or Typ[Invalid] in case of an error.
 // If the initialization check fails, x.mode is set to invalid.
 func (check *Checker) initVar(lhs *Var, x *operand, context string) {
-	if x.mode == invalid || !isValid(x.typ_) || !isValid(lhs.typ) {
+	if x.mode_ == invalid || !isValid(x.typ_) || !isValid(lhs.typ) {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
-		x.mode = invalid
+		x.mode_ = invalid
 		return
 	}
 
@@ -170,7 +170,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) {
 			if typ == Typ[UntypedNil] {
 				check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
 				lhs.typ = Typ[Invalid]
-				x.mode = invalid
+				x.mode_ = invalid
 				return
 			}
 			typ = Default(typ)
@@ -219,13 +219,13 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
 		check.usedVars[v] = v_used // restore v.used
 	}
 
-	if x.mode == invalid || !isValid(x.typ_) {
+	if x.mode_ == invalid || !isValid(x.typ_) {
 		return Typ[Invalid]
 	}
 
 	// spec: "Each left-hand side operand must be addressable, a map index
 	// expression, or the blank identifier. Operands may be parenthesized."
-	switch x.mode {
+	switch x.mode_ {
 	case invalid:
 		return Typ[Invalid]
 	case variable, mapindex:
@@ -234,7 +234,7 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
 		if sel, ok := x.expr.(*ast.SelectorExpr); ok {
 			var op operand
 			check.expr(nil, &op, sel.X)
-			if op.mode == mapindex {
+			if op.mode_ == mapindex {
 				check.errorf(&x, UnaddressableFieldAssign, "cannot assign to struct field %s in map", ExprString(x.expr))
 				return Typ[Invalid]
 			}
@@ -253,7 +253,7 @@ func (check *Checker) assignVar(lhs, rhs ast.Expr, x *operand, context string) {
 	T := check.lhsVar(lhs) // nil if lhs is _
 	if !isValid(T) {
 		if x != nil {
-			x.mode = invalid
+			x.mode_ = invalid
 		} else {
 			check.use(rhs)
 		}
@@ -444,7 +444,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnStmt ast.S
 		}
 		// Only record comma-ok expression if both initializations succeeded
 		// (go.dev/issue/59371).
-		if commaOk && rhs[0].mode != invalid && rhs[1].mode != invalid {
+		if commaOk && rhs[0].mode_ != invalid && rhs[1].mode_ != invalid {
 			check.recordCommaOkTypes(orig_rhs[0], rhs)
 		}
 		return
@@ -452,7 +452,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnStmt ast.S
 
 	// In all other cases we have an assignment mismatch.
 	// Only report a mismatch error if there are no other errors on the rhs.
-	if rhs[0].mode != invalid {
+	if rhs[0].mode_ != invalid {
 		if returnStmt != nil {
 			check.returnError(returnStmt, lhs, rhs)
 		} else {
@@ -508,7 +508,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []ast.Expr) {
 		}
 		// Only record comma-ok expression if both assignments succeeded
 		// (go.dev/issue/59371).
-		if commaOk && rhs[0].mode != invalid && rhs[1].mode != invalid {
+		if commaOk && rhs[0].mode_ != invalid && rhs[1].mode_ != invalid {
 			check.recordCommaOkTypes(orig_rhs[0], rhs)
 		}
 		return
@@ -516,7 +516,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []ast.Expr) {
 
 	// In all other cases we have an assignment mismatch.
 	// Only report a mismatch error if there are no other errors on the rhs.
-	if rhs[0].mode != invalid {
+	if rhs[0].mode_ != invalid {
 		check.assignError(orig_rhs, l, r)
 	}
 	check.useLHS(lhs...)

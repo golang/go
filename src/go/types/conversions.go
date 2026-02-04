@@ -18,7 +18,7 @@ import (
 // conversion type-checks the conversion T(x).
 // The result is in x.
 func (check *Checker) conversion(x *operand, T Type) {
-	constArg := x.mode == constant_
+	constArg := x.mode_ == constant_
 
 	constConvertibleTo := func(T Type, val *constant.Value) bool {
 		switch t, _ := T.Underlying().(*Basic); {
@@ -50,7 +50,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// (go.dev/issue/63563)
 		if !ok && isInteger(x.typ_) && isInteger(T) {
 			check.errorf(x, InvalidConversion, "constant %s overflows %s", x.val, T)
-			x.mode = invalid
+			x.mode_ = invalid
 			return
 		}
 	case constArg && isTypeParam(T):
@@ -79,11 +79,11 @@ func (check *Checker) conversion(x *operand, T Type) {
 			}
 			return true
 		})
-		x.mode = value // type parameters are not constants
+		x.mode_ = value // type parameters are not constants
 	case x.convertibleTo(check, T, &cause):
 		// non-constant conversion
 		ok = true
-		x.mode = value
+		x.mode_ = value
 	}
 
 	if !ok {
@@ -92,7 +92,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 		} else {
 			check.errorf(x, InvalidConversion, "cannot convert %s to type %s", x, T)
 		}
-		x.mode = invalid
+		x.mode_ = invalid
 		return
 	}
 
@@ -113,7 +113,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 			// ok
 		} else if isNonTypeParamInterface(T) || constArg && !isConstType(T) || !isTypes2 && x.isNil() {
 			final = Default(x.typ_) // default type of untyped nil is untyped nil
-		} else if x.mode == constant_ && isInteger(x.typ_) && allString(T) {
+		} else if x.mode_ == constant_ && isInteger(x.typ_) && allString(T) {
 			final = x.typ_
 		}
 		check.updateExprType(x.expr, final, true)

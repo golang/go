@@ -18,7 +18,7 @@ import (
 // For untyped constants, it checks that the value doesn't become
 // arbitrarily large.
 func (check *Checker) overflow(x *operand, opPos syntax.Pos) {
-	assert(x.mode == constant_)
+	assert(x.mode_ == constant_)
 
 	if x.val.Kind() == constant.Unknown {
 		// TODO(gri) We should report exactly what went wrong. At the
@@ -238,7 +238,7 @@ func (check *Checker) representable(x *operand, typ *Basic) {
 	v, code := check.representation(x, typ)
 	if code != 0 {
 		check.invalidConversion(code, x, typ)
-		x.mode = invalid
+		x.mode_ = invalid
 		return
 	}
 	assert(v != nil)
@@ -250,7 +250,7 @@ func (check *Checker) representable(x *operand, typ *Basic) {
 //
 // If no such representation is possible, it returns a non-zero error code.
 func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, Code) {
-	assert(x.mode == constant_)
+	assert(x.mode_ == constant_)
 	v := x.val
 	if !representableConst(x.val, check, typ, &v) {
 		if isNumeric(x.typ_) && isNumeric(typ) {
@@ -292,7 +292,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 			t = safeUnderlying(target)
 		}
 		check.invalidConversion(code, x, t)
-		x.mode = invalid
+		x.mode_ = invalid
 		return
 	}
 	if val != nil {

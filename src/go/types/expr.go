@@ -128,7 +128,7 @@ var op2str2 = [...]string{
 // The unary expression e may be nil. It's passed in for better error messages only.
 func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 	check.expr(nil, x, e.X)
-	if x.mode == invalid {
+	if x.mode_ == invalid {
 		return
 	}
 
@@ -137,31 +137,31 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 	case token.AND:
 		// spec: "As an exception to the addressability
 		// requirement x may also be a composite literal."
-		if _, ok := ast.Unparen(e.X).(*ast.CompositeLit); !ok && x.mode != variable {
+		if _, ok := ast.Unparen(e.X).(*ast.CompositeLit); !ok && x.mode_ != variable {
 			check.errorf(x, UnaddressableOperand, invalidOp+"cannot take address of %s", x)
-			x.mode = invalid
+			x.mode_ = invalid
 			return
 		}
-		x.mode = value
+		x.mode_ = value
 		x.typ_ = &Pointer{base: x.typ_}
 		return
 
 	case token.ARROW:
 		// We cannot receive a value with an incomplete type; make sure it's complete.
 		if elem := check.chanElem(x, x, true); elem != nil && check.isComplete(elem) {
-			x.mode = commaok
+			x.mode_ = commaok
 			x.typ_ = elem
 			check.hasCallOrRecv = true
 			return
 		}
-		x.mode = invalid
+		x.mode_ = invalid
 		return
 
 	case token.TILDE:
 		// Provide a better error position and message than what check.op below would do.
 		if !allInteger(x.typ_) {
 			check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint")
-			x.mode = invalid
+			x.mode_ = invalid
 			return
 		}
 		check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint (use ^ for bitwise complement)")
@@ -169,11 +169,11 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 	}
 
 	if !check.op(unaryOpPredicates, x, op) {
-		x.mode = invalid
+		x.mode_ = invalid
 		return
 	}
 
-	if x.mode == constant_ {
+	if x.mode_ == constant_ {
 		if x.val.Kind() == constant.Unknown {
 			// nothing to do (and don't cause an error below in the overflow check)
 			return
@@ -188,7 +188,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 		return
 	}
 
-	x.mode = value
+	x.mode_ = value
 	// x.typ remains unchanged
 }
 
@@ -362,7 +362,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 		// If x is a constant, it must be representable as a value of typ.
 		c := operand{old.mode, x, old.typ, old.val, 0}
 		check.convertUntyped(&c, typ)
-		if c.mode == invalid {
+		if c.mode_ == invalid {
 			return
 		}
 	}
@@ -386,7 +386,7 @@ func (check *Checker) updateExprVal(x ast.Expr, val constant.Value) {
 // If x is a constant operand, the returned constant.Value will be the
 // representation of x in this context.
 func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, constant.Value, Code) {
-	if x.mode == invalid || isTyped(x.typ_) || !isValid(target) {
+	if x.mode_ == invalid || isTyped(x.typ_) || !isValid(target) {
 		return x.typ_, nil, 0
 	}
 	// x is untyped
@@ -401,7 +401,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 
 	switch u := target.Underlying().(type) {
 	case *Basic:
-		if x.mode == constant_ {
+		if x.mode_ == constant_ {
 			v, code := check.representation(x, u)
 			if code != 0 {
 				return nil, nil, code
@@ -483,7 +483,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 func (check *Checker) comparison(x, y *operand, op token.Token, switchCase bool) {
 	// Avoid spurious errors if any of the operands has an invalid type (go.dev/issue/54405).
 	if !isValid(x.typ_) || !isValid(y.typ_) {
-		x.mode = invalid
+		x.mode_ = invalid
 		return
 	}
 
@@ -558,12 +558,12 @@ func (check *Checker) comparison(x, y *operand, op token.Token, switchCase bool)
 	}
 
 	// comparison is ok
-	if x.mode == constant_ && y.mode == constant_ {
+	if x.mode_ == constant_ && y.mode_ == constant_ {
 		x.val = constant.MakeBool(constant.Compare(x.val, op, y.val))
 		// The operands are never materialized; no need to update
 		// their types.
 	} else {
-		x.mode = value
+		x.mode_ = value
 		// The operands have now their final types, which at run-
 		// time will be materialized. Update the expression trees.
 		// If the current types are untyped, the materialized type
@@ -600,7 +600,7 @@ Error:
 	} else {
 		check.errorf(errOp, code, invalidOp+"%s %s %s (%s)", x.expr, op, y.expr, cause)
 	}
-	x.mode = invalid
+	x.mode_ = invalid
 }
 
 // incomparableCause returns a more specific cause why typ is not comparable.
@@ -619,7 +619,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 	// TODO(gri) This function seems overly complex. Revisit.
 
 	var xval constant.Value
-	if x.mode == constant_ {
+	if x.mode_ == constant_ {
 		xval = constant.ToInt(x.val)
 	}
 
@@ -629,7 +629,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 	} else {
 		// shift has no chance
 		check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
-		x.mode = invalid
+		x.mode_ = invalid
 		return
 	}
 
@@ -639,12 +639,12 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 	// Check that constants are representable by uint, but do not convert them
 	// (see also go.dev/issue/47243).
 	var yval constant.Value
-	if y.mode == constant_ {
+	if y.mode_ == constant_ {
 		// Provide a good error message for negative shift counts.
 		yval = constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
 		if yval.Kind() == constant.Int && constant.Sign(yval) < 0 {
 			check.errorf(y, InvalidShiftCount, invalidOp+"negative shift count %s", y)
-			x.mode = invalid
+			x.mode_ = invalid
 			return
 		}
 
@@ -652,8 +652,8 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 			// Caution: Check for representability here, rather than in the switch
 			// below, because isInteger includes untyped integers (was bug go.dev/issue/43697).
 			check.representable(y, Typ[Uint])
-			if y.mode == invalid {
-				x.mode = invalid
+			if y.mode_ == invalid {
+				x.mode_ = invalid
 				return
 			}
 		}
@@ -662,26 +662,26 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 		switch {
 		case allInteger(y.typ_):
 			if !allUnsigned(y.typ_) && !check.verifyVersionf(y, go1_13, invalidOp+"signed shift count %s", y) {
-				x.mode = invalid
+				x.mode_ = invalid
 				return
 			}
 		case isUntyped(y.typ_):
 			// This is incorrect, but preserves pre-existing behavior.
 			// See also go.dev/issue/47410.
 			check.convertUntyped(y, Typ[Uint])
-			if y.mode == invalid {
-				x.mode = invalid
+			if y.mode_ == invalid {
+				x.mode_ = invalid
 				return
 			}
 		default:
 			check.errorf(y, InvalidShiftCount, invalidOp+"shift count %s must be integer", y)
-			x.mode = invalid
+			x.mode_ = invalid
 			return
 		}
 	}
 
-	if x.mode == constant_ {
-		if y.mode == constant_ {
+	if x.mode_ == constant_ {
+		if y.mode_ == constant_ {
 			// if either x or y has an unknown value, the result is unknown
 			if x.val.Kind() == constant.Unknown || y.val.Kind() == constant.Unknown {
 				x.val = constant.MakeUnknown()
@@ -696,7 +696,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 			s, ok := constant.Uint64Val(yval)
 			if !ok || s > shiftBound {
 				check.errorf(y, InvalidShiftCount, invalidOp+"invalid shift count %s", y)
-				x.mode = invalid
+				x.mode_ = invalid
 				return
 			}
 			// The lhs is representable as an integer but may not be an integer
@@ -739,7 +739,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 				check.untyped[x.expr] = info
 			}
 			// keep x's type
-			x.mode = value
+			x.mode_ = value
 			return
 		}
 	}
@@ -747,11 +747,11 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 	// non-constant shift - lhs must be an integer
 	if !allInteger(x.typ_) {
 		check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
-		x.mode = invalid
+		x.mode_ = invalid
 		return
 	}
 
-	x.mode = value
+	x.mode_ = value
 }
 
 var binaryOpPredicates opPredicates
@@ -783,11 +783,11 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 	check.expr(nil, x, lhs)
 	check.expr(nil, &y, rhs)
 
-	if x.mode == invalid {
+	if x.mode_ == invalid {
 		return
 	}
-	if y.mode == invalid {
-		x.mode = invalid
+	if y.mode_ == invalid {
+		x.mode_ = invalid
 		x.expr = y.expr
 		return
 	}
@@ -798,7 +798,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 	}
 
 	check.matchTypes(x, &y)
-	if x.mode == invalid {
+	if x.mode_ == invalid {
 		return
 	}
 
@@ -821,36 +821,36 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 				check.errorf(posn, MismatchedTypes, invalidOp+"%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ_, y.typ_)
 			}
 		}
-		x.mode = invalid
+		x.mode_ = invalid
 		return
 	}
 
 	if !check.op(binaryOpPredicates, x, op) {
-		x.mode = invalid
+		x.mode_ = invalid
 		return
 	}
 
 	if op == token.QUO || op == token.REM {
 		// check for zero divisor
-		if (x.mode == constant_ || allInteger(x.typ_)) && y.mode == constant_ && constant.Sign(y.val) == 0 {
+		if (x.mode_ == constant_ || allInteger(x.typ_)) && y.mode_ == constant_ && constant.Sign(y.val) == 0 {
 			check.error(&y, DivByZero, invalidOp+"division by zero")
-			x.mode = invalid
+			x.mode_ = invalid
 			return
 		}
 
 		// check for divisor underflow in complex division (see go.dev/issue/20227)
-		if x.mode == constant_ && y.mode == constant_ && isComplex(x.typ_) {
+		if x.mode_ == constant_ && y.mode_ == constant_ && isComplex(x.typ_) {
 			re, im := constant.Real(y.val), constant.Imag(y.val)
 			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
 			if constant.Sign(re2) == 0 && constant.Sign(im2) == 0 {
 				check.error(&y, DivByZero, invalidOp+"division by zero")
-				x.mode = invalid
+				x.mode_ = invalid
 				return
 			}
 		}
 	}
 
-	if x.mode == constant_ && y.mode == constant_ {
+	if x.mode_ == constant_ && y.mode_ == constant_ {
 		// if either x or y has an unknown value, the result is unknown
 		if x.val.Kind() == constant.Unknown || y.val.Kind() == constant.Unknown {
 			x.val = constant.MakeUnknown()
@@ -867,7 +867,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 		return
 	}
 
-	x.mode = value
+	x.mode_ = value
 	// x.typ is unchanged
 }
 
@@ -924,12 +924,12 @@ func (check *Checker) matchTypes(x, y *operand) {
 
 	if mayConvert(x, y) {
 		check.convertUntyped(x, y.typ_)
-		if x.mode == invalid {
+		if x.mode_ == invalid {
 			return
 		}
 		check.convertUntyped(y, x.typ_)
-		if y.mode == invalid {
-			x.mode = invalid
+		if y.mode_ == invalid {
+			x.mode_ = invalid
 			return
 		}
 	}
@@ -995,7 +995,7 @@ func (check *Checker) rawExpr(T *target, x *operand, e ast.Expr, hint Type, allo
 // from a non-nil target T, nonGeneric reports an error and invalidates x.mode and x.typ.
 // Otherwise it leaves x alone.
 func (check *Checker) nonGeneric(T *target, x *operand) {
-	if x.mode == invalid || x.mode == novalue {
+	if x.mode_ == invalid || x.mode_ == novalue {
 		return
 	}
 	var what string
@@ -1015,7 +1015,7 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
 	}
 	if what != "" {
 		check.errorf(x.expr, WrongTypeArgCount, "cannot use generic %s %s without instantiation", what, x.expr)
-		x.mode = invalid
+		x.mode_ = invalid
 		x.typ_ = Typ[Invalid]
 	}
 }
@@ -1026,7 +1026,7 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
 func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type) exprKind {
 	// make sure x has a valid state in case of bailout
 	// (was go.dev/issue/5770)
-	x.mode = invalid
+	x.mode_ = invalid
 	x.typ_ = Typ[Invalid]
 
 	switch e := e.(type) {
@@ -1043,19 +1043,19 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 
 	case *ast.BasicLit:
 		check.basicLit(x, e)
-		if x.mode == invalid {
+		if x.mode_ == invalid {
 			goto Error
 		}
 
 	case *ast.FuncLit:
 		check.funcLit(x, e)
-		if x.mode == invalid {
+		if x.mode_ == invalid {
 			goto Error
 		}
 
 	case *ast.CompositeLit:
 		check.compositeLit(x, e, hint)
-		if x.mode == invalid {
+		if x.mode_ == invalid {
 			goto Error
 		}
 
@@ -1076,19 +1076,19 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 			}
 			check.funcInst(T, e.Pos(), x, ix, true)
 		}
-		if x.mode == invalid {
+		if x.mode_ == invalid {
 			goto Error
 		}
 
 	case *ast.SliceExpr:
 		check.sliceExpr(x, e)
-		if x.mode == invalid {
+		if x.mode_ == invalid {
 			goto Error
 		}
 
 	case *ast.TypeAssertExpr:
 		check.expr(nil, x, e.X)
-		if x.mode == invalid {
+		if x.mode_ == invalid {
 			goto Error
 		}
 		// x.(type) expressions are handled explicitly in type switches
@@ -1115,7 +1115,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 			goto Error
 		}
 		check.typeAssertion(e, x, T, false)
-		x.mode = commaok
+		x.mode_ = commaok
 		x.typ_ = T
 
 	case *ast.CallExpr:
@@ -1123,7 +1123,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 
 	case *ast.StarExpr:
 		check.exprOrType(x, e.X, false)
-		switch x.mode {
+		switch x.mode_ {
 		case invalid:
 			goto Error
 		case typexpr:
@@ -1150,13 +1150,13 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 			if !check.isComplete(base) {
 				goto Error
 			}
-			x.mode = variable
+			x.mode_ = variable
 			x.typ_ = base
 		}
 
 	case *ast.UnaryExpr:
 		check.unary(x, e)
-		if x.mode == invalid {
+		if x.mode_ == invalid {
 			goto Error
 		}
 		if e.Op == token.ARROW {
@@ -1166,7 +1166,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 
 	case *ast.BinaryExpr:
 		check.binary(x, e, e.X, e.Y, e.Op, e.OpPos)
-		if x.mode == invalid {
+		if x.mode_ == invalid {
 			goto Error
 		}
 
@@ -1177,7 +1177,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 
 	case *ast.ArrayType, *ast.StructType, *ast.FuncType,
 		*ast.InterfaceType, *ast.MapType, *ast.ChanType:
-		x.mode = typexpr
+		x.mode_ = typexpr
 		x.typ_ = check.typ(e)
 		// Note: rawExpr (caller of exprInternal) will call check.recordTypeAndValue
 		// even though check.typ has already called it. This is fine as both
@@ -1194,7 +1194,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
 	return expression
 
 Error:
-	x.mode = invalid
+	x.mode_ = invalid
 	x.expr = e
 	return statement // avoid follow-up errors
 }
@@ -1284,20 +1284,20 @@ func (check *Checker) multiExpr(e ast.Expr, allowCommaOk bool) (list []*operand,
 	check.rawExpr(nil, &x, e, nil, false)
 	check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
 
-	if t, ok := x.typ_.(*Tuple); ok && x.mode != invalid {
+	if t, ok := x.typ_.(*Tuple); ok && x.mode_ != invalid {
 		// multiple values
 		list = make([]*operand, t.Len())
 		for i, v := range t.vars {
-			list[i] = &operand{mode: value, expr: e, typ_: v.typ}
+			list[i] = &operand{mode_: value, expr: e, typ_: v.typ}
 		}
 		return
 	}
 
 	// exactly one (possibly invalid or comma-ok) value
 	list = []*operand{&x}
-	if allowCommaOk && (x.mode == mapindex || x.mode == commaok || x.mode == commaerr) {
-		x2 := &operand{mode: value, expr: e, typ_: Typ[UntypedBool]}
-		if x.mode == commaerr {
+	if allowCommaOk && (x.mode_ == mapindex || x.mode_ == commaok || x.mode_ == commaerr) {
+		x2 := &operand{mode_: value, expr: e, typ_: Typ[UntypedBool]}
+		if x.mode_ == commaerr {
 			x2.typ_ = universeError
 		}
 		list = append(list, x2)
@@ -1330,10 +1330,10 @@ func (check *Checker) exprOrType(x *operand, e ast.Expr, allowGeneric bool) {
 // exclude reports an error if x.mode is in modeset and sets x.mode to invalid.
 // The modeset may contain any of 1<<novalue, 1<<builtin, 1<<typexpr.
 func (check *Checker) exclude(x *operand, modeset uint) {
-	if modeset&(1<<x.mode) != 0 {
+	if modeset&(1<<x.mode_) != 0 {
 		var msg string
 		var code Code
-		switch x.mode {
+		switch x.mode_ {
 		case novalue:
 			if modeset&(1<<typexpr) != 0 {
 				msg = "%s used as value"
@@ -1351,18 +1351,18 @@ func (check *Checker) exclude(x *operand, modeset uint) {
 			panic("unreachable")
 		}
 		check.errorf(x, code, msg, x)
-		x.mode = invalid
+		x.mode_ = invalid
 	}
 }
 
 // singleValue reports an error if x describes a tuple and sets x.mode to invalid.
 func (check *Checker) singleValue(x *operand) {
-	if x.mode == value {
+	if x.mode_ == value {
 		// tuple types are never named - no need for underlying type below
 		if t, ok := x.typ_.(*Tuple); ok {
 			assert(t.Len() != 1)
 			check.errorf(x, TooManyValues, "multiple-value %s in single-value context", x)
-			x.mode = invalid
+			x.mode_ = invalid
 		}
 	}
 }

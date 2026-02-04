@@ -34,7 +34,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 	check.hasCallOrRecv = false
 	check.expr(nil, &x, rangeVar)
 
-	if isTypes2 && x.mode != invalid && sValue == nil && !check.hasCallOrRecv {
+	if isTypes2 && x.mode_ != invalid && sValue == nil && !check.hasCallOrRecv {
 		if t, ok := arrayPtrDeref(x.typ_.Underlying()).(*Array); ok {
 			for {
 				// Put constant info on the thing inside parentheses.
@@ -50,18 +50,18 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 			// (and thus side-effects will not be computed
 			// by the backend).
 			check.record(&operand{
-				mode: constant_,
-				expr: rangeVar,
-				typ_: Typ[Int],
-				val:  constant.MakeInt64(t.len),
-				id:   x.id,
+				mode_: constant_,
+				expr:  rangeVar,
+				typ_:  Typ[Int],
+				val:   constant.MakeInt64(t.len),
+				id:    x.id,
 			})
 		}
 	}
 
 	// determine key/value types
 	var key, val Type
-	if x.mode != invalid {
+	if x.mode_ != invalid {
 		k, v, cause, ok := rangeKeyVal(check, x.typ_, func(v goVersion) bool {
 			return check.allowVersion(v)
 		})
@@ -133,7 +133,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 				check.initVar(obj, &x, "range clause")
 			} else {
 				var y operand
-				y.mode = value
+				y.mode_ = value
 				y.expr = lhs // we don't have a better rhs expression to use here
 				y.typ_ = typ
 				check.initVar(obj, &y, "assignment") // error is on variable, use "assignment" not "range clause"
@@ -169,12 +169,12 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 				// If the assignment succeeded, if x was untyped before, it now
 				// has a type inferred via the assignment. It must be an integer.
 				// (go.dev/issues/67027)
-				if x.mode != invalid && !isInteger(x.typ_) {
+				if x.mode_ != invalid && !isInteger(x.typ_) {
 					check.softErrorf(lhs, InvalidRangeExpr, "cannot use iteration variable of type %s", x.typ_)
 				}
 			} else {
 				var y operand
-				y.mode = value
+				y.mode_ = value
 				y.expr = lhs // we don't have a better rhs expression to use here
 				y.typ_ = typ
 				check.assignVar(lhs, nil, &y, "assignment") // error is on variable, use "assignment" not "range clause"
