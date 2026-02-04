@@ -477,7 +477,7 @@ func mapClear(m, rtyp ir.Node) ir.Node {
 	// instantiate mapclear(typ *type, hmap map[any]any)
 	fn := typecheck.LookupRuntime("mapclear", t.Key(), t.Elem())
 	n := mkcallstmt1(fn, rtyp, m)
-	return walkStmt(typecheck.Stmt(n))
+	return typecheck.Stmt(n)
 }
 
 // Lower n into runtime·memclr if possible, for
