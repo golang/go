@@ -6,7 +6,6 @@ package windows_test
 
 import (
 	"internal/syscall/windows"
-
 	"os"
 	"path/filepath"
 	"syscall"
@@ -128,7 +127,7 @@ func makeFileNotReadable(t *testing.T, name string) {
 	entryForSid := func(sid *syscall.SID) windows.EXPLICIT_ACCESS {
 		return windows.EXPLICIT_ACCESS{
 			AccessPermissions: 0,
-			AccessMode:       windows.GRANT_ACCESS,
+			AccessMode:        windows.GRANT_ACCESS,
 			Inheritance:       windows.SUB_CONTAINERS_AND_OBJECTS_INHERIT,
 			Trustee: windows.TRUSTEE{
 				TrusteeForm: windows.TRUSTEE_IS_SID,
