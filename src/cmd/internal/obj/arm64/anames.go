@@ -544,5 +544,4 @@ var Anames = []string{
 	"AUTIBSP",
 	"AUTIA1716",
 	"AUTIB1716",
-	"LAST",
 }

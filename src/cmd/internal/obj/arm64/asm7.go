@@ -196,7 +196,7 @@ var atomicCASP = map[obj.As]uint32{
 	ACASPW: 0<<30 | 0x41<<21 | 0x1f<<10,
 }
 
-var oprange [ALAST & obj.AMask][]Optab
+var oprange [obj.AllowedOpCodes][]Optab
 
 var xcmp [C_NCLASS][C_NCLASS]bool
 
@@ -2183,7 +2183,23 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 	return C_GOK
 }
 
+// SVE instructions, type 127 is reserved for SVE instructions.
+// All SVE instructions are sized 4 bytes.
+var sveOptab = Optab{0, C_GOK, C_GOK, C_GOK, C_GOK, C_GOK, 127, 4, 0, 0, 0}
+
+func isSVE(as obj.As) bool {
+	// A64 opcodes are prefixed with AZ or AP for SVE/SVE2
+	// In goops_gen.go they are defined starting from ASVESTART + 1.
+	return as > ASVESTART
+}
+
 func (c *ctxt7) oplook(p *obj.Prog) *Optab {
+	if isSVE(p.As) {
+		// All SVE instructions are in the Insts table.
+		// Matching happens in asmout.
+		return &sveOptab
+	}
+
 	a1 := int(p.Optab)
 	if a1 != 0 {
 		return &optab[a1-1]
@@ -5808,6 +5824,22 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			c.ctxt.Diag("illegal argument: %v\n", p)
 			break
 		}
+	case 127:
+		// Generic SVE instruction encoding
+		matched := false
+		groupIdx := int(p.As - ASVESTART - 1)
+		if groupIdx >= 0 && groupIdx < len(insts) {
+			for _, inst := range insts[groupIdx] {
+				if bin, ok := inst.tryEncode(p); ok {
+					o1 = bin
+					matched = true
+					break
+				}
+			}
+		}
+		if !matched {
+			c.ctxt.Diag("illegal combination from SVE: %v", p)
+		}
 	}
 	out[0] = o1
 	out[1] = o2
@@ -7921,6 +7953,44 @@ func EncodeRegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, 
 			return errors.New("unsupported general register extension type: " + ext)
 
 		}
+	} else if REG_Z0 <= reg && reg <= REG_Z31 {
+		var arng int
+		switch ext {
+		case "B":
+			arng = ARNG_B
+		case "H":
+			arng = ARNG_H
+		case "S":
+			arng = ARNG_S
+		case "D":
+			arng = ARNG_D
+		case "Q":
+			arng = ARNG_Q
+		default:
+			return errors.New("invalid Z register arrangement: " + ext)
+		}
+		a.Reg = REG_ZARNG + (reg & 31) + int16((arng&15)<<5)
+	} else if REG_P0 <= reg && reg <= REG_PN15 {
+		var arng int
+		switch ext {
+		case "B":
+			arng = ARNG_B
+		case "H":
+			arng = ARNG_H
+		case "S":
+			arng = ARNG_S
+		case "D":
+			arng = ARNG_D
+		case "Q":
+			arng = ARNG_Q
+		case "Z":
+			arng = PRED_Z
+		case "M":
+			arng = PRED_M
+		default:
+			return errors.New("invalid P register arrangement: " + ext)
+		}
+		a.Reg = REG_PARNGZM + (reg & 31) + int16((arng&15)<<5)
 	} else if reg <= REG_V31 && reg >= REG_V0 {
 		switch ext {
 		case "B8":

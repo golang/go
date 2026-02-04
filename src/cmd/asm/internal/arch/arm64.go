@@ -182,6 +182,18 @@ func arm64RegisterNumber(name string, n int16) (int16, bool) {
 		if 0 <= n && n <= 31 {
 			return arm64.REG_V0 + n, true
 		}
+	case "Z":
+		if 0 <= n && n <= 31 {
+			return arm64.REG_Z0 + n, true
+		}
+	case "P":
+		if 0 <= n && n <= 15 {
+			return arm64.REG_P0 + n, true
+		}
+	case "PN":
+		if 0 <= n && n <= 15 {
+			return arm64.REG_PN0 + n, true
+		}
 	}
 	return 0, false
 }
