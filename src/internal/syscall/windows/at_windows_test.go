@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"syscall"
 	"testing"
+	"unsafe"
 )
 
 func TestOpen(t *testing.T) {
@@ -54,5 +55,113 @@ func TestOpen(t *testing.T) {
 		if err != tt.err {
 			t.Errorf("%d: Open got %q, want %q", i, err, tt.err)
 		}
+	}
+}
+
+func TestDeleteAt(t *testing.T) {
+	testCases := []struct {
+		name     string
+		modifier func(t *testing.T, path string)
+	}{
+		{"DeleteAt removes normal file", func(t *testing.T, name string) {}},
+		{"DeleteAt removes file with no read permission", makeFileNotReadable},
+		{"DeleteAt removes readonly file", makeFileReadonly},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			dir := t.TempDir()
+			file := filepath.Join(dir, "a")
+			f, err := os.Create(file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f.Close()
+
+			// Remove all permissions from the file.
+			// Do not use os.Chmod it sets only readonly attribute on Windows.
+			tc.modifier(t, file)
+
+			// delete file using DeleteAt
+			dirfd, err := syscall.Open(dir, syscall.O_RDONLY, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			base := filepath.Base(file)
+			err = windows.Deleteat(dirfd, base, 0)
+			syscall.CloseHandle(dirfd)
+			if err != nil {
+				t.Fatalf("Deleteat failed: %v", err)
+			}
+
+			// Verify the file has been deleted.
+			if _, err := os.Stat(file); !os.IsNotExist(err) {
+				t.Fatalf("file still exists after DeleteAt")
+			}
+		})
+	}
+}
+
+func makeFileReadonly(t *testing.T, name string) {
+	if err := os.Chmod(name, 0); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func makeFileNotReadable(t *testing.T, name string) {
+	creatorOwnerSID, err := syscall.StringToSid("S-1-3-0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	creatorGroupSID, err := syscall.StringToSid("S-1-3-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	everyoneSID, err := syscall.StringToSid("S-1-1-0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	entryForSid := func(sid *syscall.SID) windows.EXPLICIT_ACCESS {
+		return windows.EXPLICIT_ACCESS{
+			AccessPermissions: 0,
+			AccessMode:        windows.GRANT_ACCESS,
+			Inheritance:       windows.SUB_CONTAINERS_AND_OBJECTS_INHERIT,
+			Trustee: windows.TRUSTEE{
+				TrusteeForm: windows.TRUSTEE_IS_SID,
+				Name:        (*uint16)(unsafe.Pointer(sid)),
+			},
+		}
+	}
+
+	entries := []windows.EXPLICIT_ACCESS{
+		entryForSid(creatorOwnerSID),
+		entryForSid(creatorGroupSID),
+		entryForSid(everyoneSID),
+	}
+
+	var oldAcl, newAcl syscall.Handle
+	if err := windows.SetEntriesInAcl(
+		uint32(len(entries)),
+		&entries[0],
+		oldAcl,
+		&newAcl,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	defer syscall.LocalFree((syscall.Handle)(unsafe.Pointer(newAcl)))
+	if err := windows.SetNamedSecurityInfo(
+		name,
+		windows.SE_FILE_OBJECT,
+		windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION,
+		nil,
+		nil,
+		newAcl,
+		0,
+	); err != nil {
+		t.Fatal(err)
 	}
 }
