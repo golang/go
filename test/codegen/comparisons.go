@@ -597,6 +597,7 @@ func equalConstString1() bool {
 	b := string("Z")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a == b
 }
@@ -605,6 +606,7 @@ func equalVarString1(a string) bool {
 	b := string("Z")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a[:1] == b
 }
@@ -614,6 +616,7 @@ func equalConstString2() bool {
 	b := string("ZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a == b
 }
@@ -622,6 +625,7 @@ func equalVarString2(a string) bool {
 	b := string("ZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a[:2] == b
 }
@@ -631,6 +635,7 @@ func equalConstString4() bool {
 	b := string("ZZZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a == b
 }
@@ -639,6 +644,7 @@ func equalVarString4(a string) bool {
 	b := string("ZZZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a[:4] == b
 }
@@ -648,6 +654,7 @@ func equalConstString8() bool {
 	b := string("ZZZZZZZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a == b
 }
@@ -656,6 +663,7 @@ func equalVarString8(a string) bool {
 	b := string("ZZZZZZZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a[:8] == b
 }
