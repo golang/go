@@ -34,8 +34,8 @@ func (check *Checker) overflow(x *operand, opPos token.Pos) {
 	// their type after each constant operation.
 	// x.typ cannot be a type parameter (type
 	// parameters cannot be constant types).
-	if isTyped(x.typ) {
-		check.representable(x, x.typ.Underlying().(*Basic))
+	if isTyped(x.typ_) {
+		check.representable(x, x.typ_.Underlying().(*Basic))
 		return
 	}
 
@@ -255,7 +255,7 @@ func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, Co
 	assert(x.mode == constant_)
 	v := x.val
 	if !representableConst(x.val, check, typ, &v) {
-		if isNumeric(x.typ) && isNumeric(typ) {
+		if isNumeric(x.typ_) && isNumeric(typ) {
 			// numeric conversion : error msg
 			//
 			// integer -> integer : overflows
@@ -263,7 +263,7 @@ func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, Co
 			// float   -> integer : truncated
 			// float   -> float   : overflows
 			//
-			if !isInteger(x.typ) && isInteger(typ) {
+			if !isInteger(x.typ_) && isInteger(typ) {
 				return nil, TruncatedFloat
 			} else {
 				return nil, NumericOverflow
@@ -301,8 +301,8 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 		x.val = val
 		check.updateExprVal(x.expr, val)
 	}
-	if newType != x.typ {
-		x.typ = newType
+	if newType != x.typ_ {
+		x.typ_ = newType
 		check.updateExprType(x.expr, newType, false)
 	}
 }

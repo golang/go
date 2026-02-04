@@ -23,10 +23,10 @@ func (check *Checker) record(x *operand) {
 	case novalue:
 		typ = (*Tuple)(nil)
 	case constant_:
-		typ = x.typ
+		typ = x.typ_
 		val = x.val
 	default:
-		typ = x.typ
+		typ = x.typ_
 	}
 	assert(x.expr != nil && typ != nil)
 
@@ -97,7 +97,7 @@ func (check *Checker) recordCommaOkTypes(x syntax.Expr, a []*operand) {
 	if a[0].mode == invalid {
 		return
 	}
-	t0, t1 := a[0].typ, a[1].typ
+	t0, t1 := a[0].typ_, a[1].typ_
 	assert(isTyped(t0) && isTyped(t1) && (allBoolean(t1) || t1 == universeError))
 	if m := check.Types; m != nil {
 		for {

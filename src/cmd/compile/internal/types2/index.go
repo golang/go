@@ -28,14 +28,14 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		// type instantiation
 		x.mode = invalid
 		// TODO(gri) here we re-evaluate e.X - try to avoid this
-		x.typ = check.varType(e)
-		if isValid(x.typ) {
+		x.typ_ = check.varType(e)
+		if isValid(x.typ_) {
 			x.mode = typexpr
 		}
 		return false
 
 	case value:
-		if sig, _ := x.typ.Underlying().(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
+		if sig, _ := x.typ_.Underlying().(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
 			// function instantiation
 			return true
 		}
@@ -48,11 +48,11 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	}
 
 	// We cannot index on an incomplete type; make sure it's complete.
-	if !check.isComplete(x.typ) {
+	if !check.isComplete(x.typ_) {
 		x.mode = invalid
 		return false
 	}
-	switch typ := x.typ.Underlying().(type) {
+	switch typ := x.typ_.Underlying().(type) {
 	case *Pointer:
 		// Additionally, if x.typ is a pointer to an array type, indexing implicitly dereferences the value, meaning
 		// its base type must also be complete.
@@ -72,7 +72,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	// ordinary index expression
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch typ := x.typ.Underlying().(type) {
+	switch typ := x.typ_.Underlying().(type) {
 	case *Basic:
 		if isString(typ) {
 			valid = true
@@ -83,7 +83,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 			// (not a constant) even if the string and the
 			// index are constant
 			x.mode = value
-			x.typ = universeByte // use 'byte' name
+			x.typ_ = universeByte // use 'byte' name
 		}
 
 	case *Array:
@@ -92,20 +92,20 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		if x.mode != variable {
 			x.mode = value
 		}
-		x.typ = typ.elem
+		x.typ_ = typ.elem
 
 	case *Pointer:
 		if typ, _ := typ.base.Underlying().(*Array); typ != nil {
 			valid = true
 			length = typ.len
 			x.mode = variable
-			x.typ = typ.elem
+			x.typ_ = typ.elem
 		}
 
 	case *Slice:
 		valid = true
 		x.mode = variable
-		x.typ = typ.elem
+		x.typ_ = typ.elem
 
 	case *Map:
 		index := check.singleIndex(e)
@@ -118,19 +118,19 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		check.assignment(&key, typ.key, "map index")
 		// ok to continue even if indexing failed - map element type is known
 		x.mode = mapindex
-		x.typ = typ.elem
+		x.typ_ = typ.elem
 		x.expr = e
 		return false
 
 	case *Interface:
-		if !isTypeParam(x.typ) {
+		if !isTypeParam(x.typ_) {
 			break
 		}
 		// TODO(gri) report detailed failure cause for better error messages
 		var key, elem Type // key != nil: we must have all maps
 		mode := variable   // non-maps result mode
 		// TODO(gri) factor out closure and use it for non-typeparam cases as well
-		if underIs(x.typ, func(u Type) bool {
+		if underIs(x.typ_, func(u Type) bool {
 			l := int64(-1) // valid if >= 0
 			var k, e Type  // k is only set for maps
 			switch t := u.(type) {
@@ -192,7 +192,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 				check.assignment(&k, key, "map index")
 				// ok to continue even if indexing failed - map element type is known
 				x.mode = mapindex
-				x.typ = elem
+				x.typ_ = elem
 				x.expr = e
 				return false
 			}
@@ -200,7 +200,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 			// no maps
 			valid = true
 			x.mode = mode
-			x.typ = elem
+			x.typ_ = elem
 		}
 	}
 
@@ -220,8 +220,8 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	// In pathological (invalid) cases (e.g.: type T1 [][[]T1{}[0][0]]T0)
 	// the element type may be accessed before it's set. Make sure we have
 	// a valid type.
-	if x.typ == nil {
-		x.typ = Typ[Invalid]
+	if x.typ_ == nil {
+		x.typ_ = Typ[Invalid]
 	}
 
 	check.index(index, length)
@@ -238,9 +238,9 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 	// determine common underlying type cu
 	var ct, cu Type // type and respective common underlying type
 	var hasString bool
-	for t, u := range typeset(x.typ) {
+	for t, u := range typeset(x.typ_) {
 		if u == nil {
-			check.errorf(x, NonSliceableOperand, "cannot slice %s: no specific type in %s", x, x.typ)
+			check.errorf(x, NonSliceableOperand, "cannot slice %s: no specific type in %s", x, x.typ_)
 			cu = nil
 			break
 		}
@@ -268,15 +268,15 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 		// If we saw a string, proceed with string type,
 		// but don't go from untyped string to string.
 		cu = Typ[String]
-		if !isTypeParam(x.typ) {
-			cu = x.typ.Underlying() // untyped string remains untyped
+		if !isTypeParam(x.typ_) {
+			cu = x.typ_.Underlying() // untyped string remains untyped
 		}
 	}
 
 	// Note that we don't permit slice expressions where x is a type expression, so we don't check for that here.
 	// However, if x.typ is a pointer to an array type, slicing implicitly dereferences the value, meaning
 	// its base type must also be complete.
-	if p, ok := x.typ.Underlying().(*Pointer); ok && !check.isComplete(p.base) {
+	if p, ok := x.typ_.Underlying().(*Pointer); ok && !check.isComplete(p.base) {
 		x.mode = invalid
 		return
 	}
@@ -306,8 +306,8 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 			}
 			// spec: "For untyped string operands the result
 			// is a non-constant value of type string."
-			if isUntyped(x.typ) {
-				x.typ = Typ[String]
+			if isUntyped(x.typ_) {
+				x.typ_ = Typ[String]
 			}
 		}
 
@@ -319,13 +319,13 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 			x.mode = invalid
 			return
 		}
-		x.typ = &Slice{elem: u.elem}
+		x.typ_ = &Slice{elem: u.elem}
 
 	case *Pointer:
 		if u, _ := u.base.Underlying().(*Array); u != nil {
 			valid = true
 			length = u.len
-			x.typ = &Slice{elem: u.elem}
+			x.typ_ = &Slice{elem: u.elem}
 		}
 
 	case *Slice:
@@ -428,7 +428,7 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64) 
 	}
 
 	if x.mode != constant_ {
-		return x.typ, -1
+		return x.typ_, -1
 	}
 
 	if x.val.Kind() == constant.Unknown {
@@ -443,7 +443,7 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64) 
 	}
 
 	// 0 <= v [ && v < max ]
-	return x.typ, v
+	return x.typ_, v
 }
 
 // isValidIndex checks whether operand x satisfies the criteria for integer
@@ -462,7 +462,7 @@ func (check *Checker) isValidIndex(x *operand, code Code, what string, allowNega
 	}
 
 	// spec: "the index x must be of integer type or an untyped constant"
-	if !allInteger(x.typ) {
+	if !allInteger(x.typ_) {
 		check.errorf(x, code, invalidArg+"%s %s must be integer", what, x)
 		return false
 	}

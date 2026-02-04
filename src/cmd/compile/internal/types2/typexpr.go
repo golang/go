@@ -132,7 +132,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, wantType bool) {
 		panic("unreachable")
 	}
 
-	x.typ = typ
+	x.typ_ = typ
 }
 
 // typ type-checks the type expression e and returns its type, or Typ[Invalid].
@@ -250,7 +250,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 
 		switch x.mode {
 		case typexpr:
-			return x.typ
+			return x.typ_
 		case invalid:
 			// ignore - error reported before
 		case novalue:
@@ -265,7 +265,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 
 		switch x.mode {
 		case typexpr:
-			return x.typ
+			return x.typ_
 		case invalid:
 			// ignore - error reported before
 		case novalue:
@@ -489,7 +489,7 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
 		return -1
 	}
 
-	if isUntyped(x.typ) || isInteger(x.typ) {
+	if isUntyped(x.typ_) || isInteger(x.typ_) {
 		if val := constant.ToInt(x.val); val.Kind() == constant.Int {
 			if representableConst(val, check, Typ[Int], nil) {
 				if n, ok := constant.Int64Val(val); ok && n >= 0 {
@@ -500,7 +500,7 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
 	}
 
 	var msg string
-	if isInteger(x.typ) {
+	if isInteger(x.typ_) {
 		msg = "invalid array length %s"
 	} else {
 		msg = "array length %s must be integer"

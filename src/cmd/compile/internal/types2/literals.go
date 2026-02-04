@@ -97,7 +97,7 @@ func (check *Checker) funcLit(x *operand, e *syntax.FuncLit) {
 			}).describef(e, "func literal")
 		}
 		x.mode = value
-		x.typ = sig
+		x.typ_ = sig
 	} else {
 		check.errorf(e, InvalidSyntaxTree, "invalid function literal %v", e)
 		x.mode = invalid
@@ -269,12 +269,12 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 				xkey := keyVal(x.val)
 				if keyIsInterface {
 					for _, vtyp := range visited[xkey] {
-						if Identical(vtyp, x.typ) {
+						if Identical(vtyp, x.typ_) {
 							duplicate = true
 							break
 						}
 					}
-					visited[xkey] = append(visited[xkey], x.typ)
+					visited[xkey] = append(visited[xkey], x.typ_)
 				} else {
 					_, duplicate = visited[xkey]
 					visited[xkey] = nil
@@ -317,7 +317,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 	}
 
 	x.mode = value
-	x.typ = typ
+	x.typ_ = typ
 }
 
 // indexedElts checks the elements (elts) of an array or slice composite literal
