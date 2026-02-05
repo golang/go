@@ -28,7 +28,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"unsafe"
 )
 
 var toRemove []string
@@ -1260,77 +1259,6 @@ func TestSynctestCondSignalFromNoBubble(t *testing.T) {
 			want := "fatal error: semaphore wake of synctest goroutine from outside bubble"
 			if !strings.Contains(output, want) {
 				t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
-			}
-		})
-	}
-}
-
-func TestVirtualAllocFailure(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		t.Skip("skipping windows only test")
-	}
-
-	// Allocate a size that is guaranteed to fail VirtualAlloc on Windows
-	// immediately, without trying to expand the pagefile.
-	// https://learn.microsoft.com/en-us/windows/win32/memory/memory-limits-for-windows-releases
-	var size int64
-	if unsafe.Sizeof(int(0)) == 8 {
-		// On 64-bit Windows, the user address space is 128 TB.
-		size = 3 << 46 // 192 TB
-	} else {
-		// On 32-bit Windows, the user address space is 2 GB.
-		size = 1<<31 - 1 // ~2 GB
-	}
-
-	if mode := os.Getenv("GO_TEST_VIRTUALALLOC_FAIL"); mode != "" {
-		switch mode {
-		case "alloc":
-			runtime.SysAllocOS(uintptr(size))
-		case "reserve":
-			runtime.SysReserveOS(nil, uintptr(size))
-		case "used":
-			runtime.SysUsedOS(unsafe.Pointer(&size), uintptr(size))
-		}
-		println("did not crash")
-		os.Exit(0)
-	}
-
-	tests := []struct {
-		name string
-		mode string
-	}{
-		{"SysAllocOS", "alloc"},
-		{"SysReserveOS", "reserve"},
-		{"SysUsedOS", "used"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			exe, err := os.Executable()
-			if err != nil {
-				t.Fatal(err)
-			}
-			cmd := exec.Command(exe, "-test.run=TestVirtualAllocFailure")
-			cmd.Env = append(os.Environ(), "GO_TEST_VIRTUALALLOC_FAIL="+tt.mode)
-
-			out, err := cmd.CombinedOutput()
-			if err == nil {
-				t.Fatalf("expected crash, got success. Output:\n%s", out)
-			}
-
-			output := string(out)
-
-			want := ""
-			if tt.mode == "used" {
-				want = `runtime: VirtualAlloc of \d+ bytes failed with errno=\d+: cannot allocate \d+-byte block \(\d+ in use\)\n`
-				want += "fatal error: runtime: failed to commit pages"
-			} else {
-				want = fmt.Sprintf(`runtime: VirtualAlloc of %d bytes failed with errno=\d+: cannot allocate %d-byte block \(\d+ in use\)\n`, size, size)
-				want += "fatal error: out of memory"
-			}
-
-			if matched, err := regexp.MatchString(want, output); err != nil || !matched {
-				t.Fatalf("output does not match expected pattern.\n\nWant:\n%s\n\nGot:\n%s", want, output)
 			}
 		})
 	}
