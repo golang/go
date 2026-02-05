@@ -137,6 +137,27 @@ func newFile(t testing.TB, name string, overlapped bool) *poll.FD {
 	return newFD(t, h, kind, overlapped)
 }
 
+func TestFileSkipsCompletionPortOnSuccess(t *testing.T) {
+	t.Parallel()
+	fd := newFile(t, filepath.Join(t.TempDir(), "foo"), true)
+	if !poll.SkipsCompletionPortOnSuccess(fd) {
+		t.Fatal("expected file handles to skip completion port on success")
+	}
+}
+
+func TestSocketSkipsCompletionPortOnSuccess(t *testing.T) {
+	// Assume that all Windows we test on only have IFS handles for TCP sockets.
+	t.Parallel()
+	s, err := windows.WSASocket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP, nil, 0, windows.WSA_FLAG_OVERLAPPED)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fd := newFD(t, s, "tcp", true)
+	if !poll.SkipsCompletionPortOnSuccess(fd) {
+		t.Fatal("expected socket handles to skip completion port on success")
+	}
+}
+
 func BenchmarkReadOverlapped(b *testing.B) {
 	benchmarkRead(b, true)
 }

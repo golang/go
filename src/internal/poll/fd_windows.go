@@ -23,36 +23,41 @@ var (
 	ioSync  uint64
 )
 
-// This package uses the SetFileCompletionNotificationModes Windows
-// API to skip calling GetQueuedCompletionStatus if an IO operation
-// completes synchronously. There is a known bug where
-// SetFileCompletionNotificationModes crashes on some systems (see
-// https://support.microsoft.com/kb/2568167 for details).
-
-var socketCanUseSetFileCompletionNotificationModes bool // determines is SetFileCompletionNotificationModes is present and sockets can safely use it
-
-// checkSetFileCompletionNotificationModes verifies that
-// SetFileCompletionNotificationModes Windows API is present
-// on the system and is safe to use.
+// ifsHandlesOnly returns true if the system only has IFS handles for TCP sockets.
 // See https://support.microsoft.com/kb/2568167 for details.
-func checkSetFileCompletionNotificationModes() {
-	err := syscall.LoadSetFileCompletionNotificationModes()
-	if err != nil {
-		return
-	}
+var ifsHandlesOnly = sync.OnceValue(func() bool {
 	protos := [2]int32{syscall.IPPROTO_TCP, 0}
 	var buf [32]syscall.WSAProtocolInfo
 	len := uint32(unsafe.Sizeof(buf))
 	n, err := syscall.WSAEnumProtocols(&protos[0], &buf[0], &len)
 	if err != nil {
-		return
+		return false
 	}
-	for i := int32(0); i < n; i++ {
+	for i := range n {
 		if buf[i].ServiceFlags1&syscall.XP1_IFS_HANDLES == 0 {
-			return
+			return false
 		}
 	}
-	socketCanUseSetFileCompletionNotificationModes = true
+	return true
+})
+
+// canSkipCompletionPortOnSuccess returns true if we use FILE_SKIP_COMPLETION_PORT_ON_SUCCESS for the given handle.
+// See https://support.microsoft.com/kb/2568167 for details.
+func canSkipCompletionPortOnSuccess(h syscall.Handle, isSocket bool) bool {
+	if !isSocket {
+		// Non-socket handles can use SetFileCompletionNotificationModes without problems.
+		return true
+	}
+	if ifsHandlesOnly() {
+		// If the system only has IFS handles for TCP sockets, then there is nothing else to check.
+		return true
+	}
+	var info syscall.WSAProtocolInfo
+	size := int32(unsafe.Sizeof(info))
+	if syscall.Getsockopt(h, syscall.SOL_SOCKET, windows.SO_PROTOCOL_INFOW, (*byte)(unsafe.Pointer(&info)), &size) != nil {
+		return false
+	}
+	return info.ServiceFlags1&syscall.XP1_IFS_HANDLES != 0
 }
 
 // InitWSA initiates the use of the Winsock DLL by the current process.
@@ -64,7 +69,6 @@ var InitWSA = sync.OnceFunc(func() {
 	if e != nil {
 		initErr = e
 	}
-	checkSetFileCompletionNotificationModes()
 })
 
 // operation contains superset of data necessary to perform all async IO.
@@ -283,7 +287,7 @@ func (fd *FD) execIO(mode int, submit func(o *operation) (uint32, error), buf []
 	var waitErr error
 	// Blocking operations shouldn't return ERROR_IO_PENDING.
 	// Continue without waiting if that happens.
-	if !fd.isBlocking && (err == syscall.ERROR_IO_PENDING || (err == nil && !fd.skipSyncNotif)) {
+	if !fd.isBlocking && (err == syscall.ERROR_IO_PENDING || (err == nil && fd.waitOnSuccess)) {
 		// IO started asynchronously or completed synchronously but
 		// a sync notification is required. Wait for it to complete.
 		waitErr = fd.waitIO(o)
@@ -344,7 +348,9 @@ type FD struct {
 	// Semaphore signaled when file is closed.
 	csema uint32
 
-	skipSyncNotif bool
+	// Don't wait from completion port notifications for successful
+	// operations that complete synchronously.
+	waitOnSuccess bool
 
 	// Whether this is a streaming descriptor, as opposed to a
 	// packet-based descriptor like a UDP socket.
@@ -407,7 +413,6 @@ const (
 	kindFile
 	kindConsole
 	kindPipe
-	kindFileNet
 )
 
 // Init initializes the FD. The Sysfd field should already be set.
@@ -428,8 +433,6 @@ func (fd *FD) Init(net string, pollable bool) error {
 		fd.kind = kindConsole
 	case "pipe":
 		fd.kind = kindPipe
-	case "file+net":
-		fd.kind = kindFileNet
 	default:
 		// We don't actually care about the various network types.
 		fd.kind = kindNet
@@ -441,6 +444,12 @@ func (fd *FD) Init(net string, pollable bool) error {
 		return nil
 	}
 
+	// The default behavior of the Windows I/O manager is to queue a completion
+	// port entry for successful operations that complete synchronously when
+	// the handle is opened for overlapped I/O. We will try to disable that
+	// behavior below, as it requires an extra syscall.
+	fd.waitOnSuccess = true
+
 	// It is safe to add overlapped handles that also perform I/O
 	// outside of the runtime poller. The runtime poller will ignore
 	// I/O completion notifications not initiated by us.
@@ -448,12 +457,18 @@ func (fd *FD) Init(net string, pollable bool) error {
 	if err != nil {
 		return err
 	}
-	if fd.kind != kindNet || socketCanUseSetFileCompletionNotificationModes {
-		// Non-socket handles can use SetFileCompletionNotificationModes without problems.
-		err := syscall.SetFileCompletionNotificationModes(fd.Sysfd,
-			syscall.FILE_SKIP_SET_EVENT_ON_HANDLE|syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS,
-		)
-		fd.skipSyncNotif = err == nil
+
+	// FILE_SKIP_SET_EVENT_ON_HANDLE is always safe to use. We don't use that feature
+	// and it adds some overhead to the Windows I/O manager.
+	// See https://devblogs.microsoft.com/oldnewthing/20200221-00/?p=103466.
+	modes := uint8(syscall.FILE_SKIP_SET_EVENT_ON_HANDLE)
+	if canSkipCompletionPortOnSuccess(fd.Sysfd, fd.kind == kindNet) {
+		modes |= syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
+	}
+	if syscall.SetFileCompletionNotificationModes(fd.Sysfd, modes) == nil {
+		if modes&syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS != 0 {
+			fd.waitOnSuccess = false
+		}
 	}
 	return nil
 }
@@ -491,7 +506,7 @@ func (fd *FD) destroy() error {
 	fd.pd.close()
 	var err error
 	switch fd.kind {
-	case kindNet, kindFileNet:
+	case kindNet:
 		// The net package uses the CloseFunc variable for testing.
 		err = CloseFunc(fd.Sysfd)
 	default:
