@@ -44,7 +44,7 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 
 	// x should not be generic at this point, but be safe and check
 	check.nonGeneric(nil, x)
-	if x.mode() == invalid {
+	if !x.isValid() {
 		return false
 	}
 
@@ -232,7 +232,7 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 
 func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 	check.expr(nil, x, e.X)
-	if x.mode() == invalid {
+	if !x.isValid() {
 		check.use(e.Low, e.High, e.Max)
 		return
 	}
@@ -447,13 +447,13 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
 }
 
 func (check *Checker) isValidIndex(x *operand, code Code, what string, allowNegative bool) bool {
-	if x.mode() == invalid {
+	if !x.isValid() {
 		return false
 	}
 
 	// spec: "a constant index that is untyped is given type int"
 	check.convertUntyped(x, Typ[Int])
-	if x.mode() == invalid {
+	if !x.isValid() {
 		return false
 	}
 

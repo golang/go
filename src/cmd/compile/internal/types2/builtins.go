@@ -53,7 +53,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		args = check.exprList(argList)
 		nargs = len(args)
 		for _, a := range args {
-			if a.mode() == invalid {
+			if !a.isValid() {
 				return
 			}
 		}
@@ -312,7 +312,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 				// and check below
 			}
 		}
-		if x.mode() == invalid || y.mode() == invalid {
+		if !x.isValid() || !y.isValid() {
 			return
 		}
 
@@ -438,7 +438,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		*x = *args[1] // key
 		check.assignment(x, key, "argument to delete")
-		if x.mode() == invalid {
+		if !x.isValid() {
 			return
 		}
 
@@ -466,7 +466,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 				// result in an error (shift of complex value)
 				check.convertUntyped(x, Typ[Complex128])
 				// x should be invalid now, but be conservative and check
-				if x.mode() == invalid {
+				if !x.isValid() {
 					return
 				}
 			}
@@ -585,7 +585,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		for i, a := range args {
-			if a.mode() == invalid {
+			if !a.isValid() {
 				return
 			}
 
@@ -597,7 +597,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			// The first argument is already in x and there's nothing left to do.
 			if i > 0 {
 				check.matchTypes(x, a)
-				if x.mode() == invalid {
+				if !x.isValid() {
 					return
 				}
 
@@ -621,7 +621,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			x.mode_ = value
 			// A value must not be untyped.
 			check.assignment(x, &emptyInterface, "argument to built-in "+bin.name)
-			if x.mode() == invalid {
+			if !x.isValid() {
 				return
 			}
 		}
@@ -656,7 +656,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			if isUntyped(x.typ()) {
 				// check for overflow and untyped nil
 				check.assignment(x, nil, "argument to new")
-				if x.mode() == invalid {
+				if !x.isValid() {
 					return
 				}
 				assert(isTyped(x.typ()))
@@ -688,7 +688,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		check.assignment(x, &emptyInterface, "argument to panic")
-		if x.mode() == invalid {
+		if !x.isValid() {
 			return
 		}
 
@@ -705,7 +705,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			params = make([]Type, nargs)
 			for i, a := range args {
 				check.assignment(a, nil, "argument to built-in "+predeclaredFuncs[id].name)
-				if a.mode() == invalid {
+				if !a.isValid() {
 					return
 				}
 				params[i] = a.typ()
@@ -730,7 +730,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		check.verifyVersionf(call.Fun, go1_17, "unsafe.Add")
 
 		check.assignment(x, Typ[UnsafePointer], "argument to unsafe.Add")
-		if x.mode() == invalid {
+		if !x.isValid() {
 			return
 		}
 
@@ -748,7 +748,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	case _Alignof:
 		// unsafe.Alignof(x T) uintptr
 		check.assignment(x, nil, "argument to unsafe.Alignof")
-		if x.mode() == invalid {
+		if !x.isValid() {
 			return
 		}
 
@@ -776,7 +776,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		check.expr(nil, x, selx.X)
-		if x.mode() == invalid {
+		if !x.isValid() {
 			return
 		}
 
@@ -836,7 +836,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	case _Sizeof:
 		// unsafe.Sizeof(x T) uintptr
 		check.assignment(x, nil, "argument to unsafe.Sizeof")
-		if x.mode() == invalid {
+		if !x.isValid() {
 			return
 		}
 
@@ -901,7 +901,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		check.verifyVersionf(call.Fun, go1_20, "unsafe.String")
 
 		check.assignment(x, NewPointer(universeByte), "argument to unsafe.String")
-		if x.mode() == invalid {
+		if !x.isValid() {
 			return
 		}
 
@@ -921,7 +921,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		check.verifyVersionf(call.Fun, go1_20, "unsafe.StringData")
 
 		check.assignment(x, Typ[String], "argument to unsafe.StringData")
-		if x.mode() == invalid {
+		if !x.isValid() {
 			return
 		}
 
@@ -967,7 +967,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			check.dump("%v: %s", atPos(x1), x1)
 			x1 = &t // use incoming x only for first argument
 		}
-		if x.mode() == invalid {
+		if !x.isValid() {
 			return
 		}
 		// trace is only available in test mode - no need to record signature
@@ -976,7 +976,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		panic("unreachable")
 	}
 
-	assert(x.mode() != invalid)
+	assert(x.isValid())
 	return true
 }
 

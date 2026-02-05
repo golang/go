@@ -129,7 +129,7 @@ var op2str2 = [...]string{
 
 func (check *Checker) unary(x *operand, e *syntax.Operation) {
 	check.expr(nil, x, e.X)
-	if x.mode() == invalid {
+	if !x.isValid() {
 		return
 	}
 
@@ -387,7 +387,7 @@ func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
 		// If x is a constant, it must be representable as a value of typ.
 		c := operand{old.mode, x, old.typ, old.val, 0}
 		check.convertUntyped(&c, typ)
-		if c.mode() == invalid {
+		if !c.isValid() {
 			return
 		}
 	}
@@ -411,7 +411,7 @@ func (check *Checker) updateExprVal(x syntax.Expr, val constant.Value) {
 // If x is a constant operand, the returned constant.Value will be the
 // representation of x in this context.
 func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, constant.Value, Code) {
-	if x.mode() == invalid || isTyped(x.typ()) || !isValid(target) {
+	if !x.isValid() || isTyped(x.typ()) || !isValid(target) {
 		return x.typ(), nil, 0
 	}
 	// x is untyped
@@ -663,7 +663,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 			// Caution: Check for representability here, rather than in the switch
 			// below, because isInteger includes untyped integers (was bug go.dev/issue/43697).
 			check.representable(y, Typ[Uint])
-			if y.mode() == invalid {
+			if !y.isValid() {
 				x.invalidate()
 				return
 			}
@@ -680,7 +680,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 			// This is incorrect, but preserves pre-existing behavior.
 			// See also go.dev/issue/47410.
 			check.convertUntyped(y, Typ[Uint])
-			if y.mode() == invalid {
+			if !y.isValid() {
 				x.invalidate()
 				return
 			}
@@ -794,10 +794,10 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 	check.expr(nil, x, lhs)
 	check.expr(nil, &y, rhs)
 
-	if x.mode() == invalid {
+	if !x.isValid() {
 		return
 	}
-	if y.mode() == invalid {
+	if !y.isValid() {
 		x.invalidate()
 		x.expr = y.expr
 		return
@@ -809,7 +809,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 	}
 
 	check.matchTypes(x, &y)
-	if x.mode() == invalid {
+	if !x.isValid() {
 		return
 	}
 
@@ -932,11 +932,11 @@ func (check *Checker) matchTypes(x, y *operand) {
 
 	if mayConvert(x, y) {
 		check.convertUntyped(x, y.typ())
-		if x.mode() == invalid {
+		if !x.isValid() {
 			return
 		}
 		check.convertUntyped(y, x.typ())
-		if y.mode() == invalid {
+		if !y.isValid() {
 			x.invalidate()
 			return
 		}
@@ -1003,7 +1003,7 @@ func (check *Checker) rawExpr(T *target, x *operand, e syntax.Expr, hint Type, a
 // from a non-nil target T, nonGeneric reports an error and invalidates x.mode and x.typ.
 // Otherwise it leaves x alone.
 func (check *Checker) nonGeneric(T *target, x *operand) {
-	if x.mode() == invalid || x.mode() == novalue {
+	if !x.isValid() || x.mode() == novalue {
 		return
 	}
 	var what string
@@ -1057,19 +1057,19 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 			goto Error // error reported during parsing
 		}
 		check.basicLit(x, e)
-		if x.mode() == invalid {
+		if !x.isValid() {
 			goto Error
 		}
 
 	case *syntax.FuncLit:
 		check.funcLit(x, e)
-		if x.mode() == invalid {
+		if !x.isValid() {
 			goto Error
 		}
 
 	case *syntax.CompositeLit:
 		check.compositeLit(x, e, hint)
-		if x.mode() == invalid {
+		if !x.isValid() {
 			goto Error
 		}
 
@@ -1089,19 +1089,19 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 			}
 			check.funcInst(T, e.Pos(), x, e, true)
 		}
-		if x.mode() == invalid {
+		if !x.isValid() {
 			goto Error
 		}
 
 	case *syntax.SliceExpr:
 		check.sliceExpr(x, e)
-		if x.mode() == invalid {
+		if !x.isValid() {
 			goto Error
 		}
 
 	case *syntax.AssertExpr:
 		check.expr(nil, x, e.X)
-		if x.mode() == invalid {
+		if !x.isValid() {
 			goto Error
 		}
 		// x.(type) expressions are encoded via TypeSwitchGuards
@@ -1203,7 +1203,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 			}
 
 			check.unary(x, e)
-			if x.mode() == invalid {
+			if !x.isValid() {
 				goto Error
 			}
 			if e.Op == syntax.Recv {
@@ -1215,7 +1215,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 
 		// binary expression
 		check.binary(x, e, e.X, e.Y, e.Op)
-		if x.mode() == invalid {
+		if !x.isValid() {
 			goto Error
 		}
 
@@ -1333,7 +1333,7 @@ func (check *Checker) multiExpr(e syntax.Expr, allowCommaOk bool) (list []*opera
 	check.rawExpr(nil, &x, e, nil, false)
 	check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
 
-	if t, ok := x.typ().(*Tuple); ok && x.mode() != invalid {
+	if t, ok := x.typ().(*Tuple); ok && x.isValid() {
 		// multiple values
 		list = make([]*operand, t.Len())
 		for i, v := range t.vars {

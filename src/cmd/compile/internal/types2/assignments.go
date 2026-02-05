@@ -116,7 +116,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 }
 
 func (check *Checker) initConst(lhs *Const, x *operand) {
-	if x.mode() == invalid || !isValid(x.typ()) || !isValid(lhs.typ) {
+	if !x.isValid() || !isValid(x.typ()) || !isValid(lhs.typ) {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -139,7 +139,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 	}
 
 	check.assignment(x, lhs.typ, "constant declaration")
-	if x.mode() == invalid {
+	if !x.isValid() {
 		return
 	}
 
@@ -151,7 +151,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 // or Typ[Invalid] in case of an error.
 // If the initialization check fails, x.mode is set to invalid.
 func (check *Checker) initVar(lhs *Var, x *operand, context string) {
-	if x.mode() == invalid || !isValid(x.typ()) || !isValid(lhs.typ) {
+	if !x.isValid() || !isValid(x.typ()) || !isValid(lhs.typ) {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -216,7 +216,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 		check.usedVars[v] = v_used // restore v.used
 	}
 
-	if x.mode() == invalid || !isValid(x.typ()) {
+	if !x.isValid() || !isValid(x.typ()) {
 		return Typ[Invalid]
 	}
 

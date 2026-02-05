@@ -196,7 +196,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	case typexpr:
 		// conversion
 		check.nonGeneric(nil, x)
-		if x.mode() == invalid {
+		if !x.isValid() {
 			return conversion
 		}
 		T := x.typ()
@@ -211,7 +211,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 			check.errorf(inNode(call, call.Rparen), WrongArgCount, "missing argument in conversion to %s", T)
 		case 1:
 			check.expr(nil, x, call.Args[0])
-			if x.mode() != invalid {
+			if x.isValid() {
 				if hasDots(call) {
 					check.errorf(call.Args[0], BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
 					break
@@ -239,7 +239,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		}
 		x.expr = call
 		// a non-constant result implies a function call
-		if x.mode() != invalid && x.mode() != constant_ {
+		if x.isValid() && x.mode() != constant_ {
 			check.hasCallOrRecv = true
 		}
 		return predeclaredFuncs[id].kind
@@ -419,7 +419,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 			// x is not a function instantiation (it may still be a generic function).
 			check.rawExpr(nil, &x, e, nil, true)
 			check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
-			if t, ok := x.typ().(*Tuple); ok && x.mode() != invalid {
+			if t, ok := x.typ().(*Tuple); ok && x.isValid() {
 				// x is a function call returning multiple values; it cannot be generic.
 				resList = make([]*operand, t.Len())
 				for i, v := range t.vars {
@@ -1047,5 +1047,5 @@ func (check *Checker) use1(e ast.Expr, lhs bool) bool {
 	default:
 		check.rawExpr(nil, &x, e, nil, true)
 	}
-	return x.mode() != invalid
+	return x.isValid()
 }

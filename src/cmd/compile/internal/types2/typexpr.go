@@ -483,7 +483,7 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
 	var x operand
 	check.expr(nil, &x, e)
 	if x.mode() != constant_ {
-		if x.mode() != invalid {
+		if x.isValid() {
 			check.errorf(&x, InvalidArrayLen, "array length %s must be constant", &x)
 		}
 		return -1

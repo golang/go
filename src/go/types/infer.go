@@ -65,7 +65,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// If we have invalid (ordinary) arguments, an error was reported before.
 	// Avoid additional inference errors and exit early (go.dev/issue/60434).
 	for _, arg := range args {
-		if arg.mode() == invalid {
+		if !arg.isValid() {
 			return nil
 		}
 	}
@@ -165,7 +165,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	}
 
 	for i, arg := range args {
-		if arg.mode() == invalid {
+		if !arg.isValid() {
 			// An error was reported earlier. Ignore this arg
 			// and continue, we may still be able to infer all
 			// targs resulting in fewer follow-on errors.
