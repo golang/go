@@ -6,6 +6,7 @@ package sys
 
 import (
 	"encoding/binary"
+	"internal/buildcfg"
 	"internal/goarch"
 )
 
@@ -238,7 +239,7 @@ var ArchRISCV64 = &Arch{
 	RegSize:        8,
 	MinLC:          2,
 	Alignment:      8, // riscv unaligned loads work, but are really slow (trap + simulated by OS)
-	CanMergeLoads:  false,
+	CanMergeLoads:  buildcfg.GORISCV64EXT.MisalignedFast,
 	HasLR:          true,
 	FixedFrameSize: 8, // LR
 }
