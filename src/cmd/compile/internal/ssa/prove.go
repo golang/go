@@ -2180,29 +2180,56 @@ func (ft *factsTable) detectSubRelations(v *Value) {
 
 	// Check if we might wrap around. If so, give up.
 	width := uint(v.Type.Size()) * 8
-	if _, ok := safeSub(xLim.min, yLim.max, width); !ok {
-		return // x-y might underflow
-	}
-	if _, ok := safeSub(xLim.max, yLim.min, width); !ok {
-		return // x-y might overflow
+
+	// v >= 1 in the signed domain?
+	var vSignedMinOne bool
+
+	// Signed optimizations
+	if _, ok := safeSub(xLim.min, yLim.max, width); ok {
+		// Large abs negative y can also overflow
+		if _, ok := safeSub(xLim.max, yLim.min, width); ok {
+			// x-y won't overflow
+
+			// Subtracting a positive non-zero number only makes
+			// things smaller. If it's positive or zero, it might
+			// also do nothing (x-0 == v).
+			if yLim.min > 0 {
+				ft.update(v.Block, v, x, signed, lt)
+			} else if yLim.min == 0 {
+				ft.update(v.Block, v, x, signed, lt|eq)
+			}
+
+			// Subtracting a number from a bigger one
+			// can't go below 1. If the numbers might be
+			// equal, then it can't go below 0.
+			//
+			// This requires the overflow checks because
+			// large negative y can cause an overflow.
+			if ft.orderS.Ordered(y, x) {
+				ft.signedMin(v, 1)
+				vSignedMinOne = true
+			} else if ft.orderS.OrderedOrEqual(y, x) {
+				ft.setNonNegative(v)
+			}
+		}
 	}
 
-	// Subtracting a positive non-zero number only makes
-	// things smaller. If it's positive or zero, it might
-	// also do nothing (x-0 == v).
-	if yLim.min > 0 {
-		ft.update(v.Block, v, x, signed, lt)
-	} else if yLim.min == 0 {
-		ft.update(v.Block, v, x, signed, lt|eq)
+	// Unsigned optimizations
+	if _, ok := safeSubU(xLim.umin, yLim.umax, width); ok {
+		if yLim.umin > 0 {
+			ft.update(v.Block, v, x, unsigned, lt)
+		} else {
+			ft.update(v.Block, v, x, unsigned, lt|eq)
+		}
 	}
 
-	// Subtracting a number from a bigger one
-	// can't go below 1. If the numbers might be
-	// equal, then it can't go below 0.
-	if ft.orderS.Ordered(y, x) {
-		ft.signedMin(v, 1)
-	} else if ft.orderS.OrderedOrEqual(y, x) {
-		ft.setNonNegative(v)
+	// Proving v >= 1 in the signed domain automatically
+	// proves it in the unsigned domain, so we can skip it.
+	//
+	// We don't need overflow checks here, since if y < x,
+	// then x-y can never overflow for uint.
+	if !vSignedMinOne && ft.orderU.Ordered(y, x) {
+		ft.unsignedMin(v, 1)
 	}
 }
 
