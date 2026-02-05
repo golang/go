@@ -82,6 +82,11 @@ type operation struct {
 	mode       int32
 }
 
+func (o *operation) setOffset(off int64) {
+	o.o.OffsetHigh = uint32(off >> 32)
+	o.o.Offset = uint32(off)
+}
+
 func (fd *FD) overlapped(o *operation) *syscall.Overlapped {
 	if fd.isBlocking {
 		// Don't return the overlapped object if the file handle
@@ -245,13 +250,10 @@ func (fd *FD) execIO(mode int, submit func(o *operation) (uint32, error), buf []
 	o := operationPool.Get().(*operation)
 	defer operationPool.Put(o)
 	*o = operation{
-		o: syscall.Overlapped{
-			OffsetHigh: uint32(fd.offset >> 32),
-			Offset:     uint32(fd.offset),
-		},
 		runtimeCtx: fd.pd.runtimeCtx,
 		mode:       int32(mode),
 	}
+	o.setOffset(fd.offset)
 	if !fd.isBlocking {
 		if len(buf) > 0 {
 			ptr := unsafe.SliceData(buf)
@@ -396,7 +398,7 @@ func (fd *FD) setOffset(off int64) {
 
 // addOffset adds the given offset to the current offset.
 func (fd *FD) addOffset(off int) {
-	fd.setOffset(fd.offset + int64(off))
+	fd.offset += int64(off)
 }
 
 // pollable should be used instead of fd.pd.pollable(),
@@ -685,24 +687,21 @@ func (fd *FD) Pread(buf []byte, off int64) (int, error) {
 		buf = buf[:maxRW]
 	}
 
-	if fd.isBlocking {
-		curoffset, err := syscall.Seek(fd.Sysfd, 0, io.SeekCurrent)
-		if err != nil {
-			return 0, err
-		}
-		defer syscall.Seek(fd.Sysfd, curoffset, io.SeekStart)
-		defer fd.setOffset(curoffset)
-	} else {
+	n, err := fd.execIO('r', func(o *operation) (qty uint32, err error) {
 		// Overlapped handles don't have the file pointer updated
 		// when performing I/O operations, so there is no need to
 		// call Seek to reset the file pointer.
 		// Also, some overlapped file handles don't support seeking.
 		// See https://go.dev/issues/74951.
-		curoffset := fd.offset
-		defer fd.setOffset(curoffset)
-	}
-	fd.setOffset(off)
-	n, err := fd.execIO('r', func(o *operation) (qty uint32, err error) {
+		if fd.isBlocking {
+			curoffset, err := syscall.Seek(fd.Sysfd, 0, io.SeekCurrent)
+			if err != nil {
+				return 0, err
+			}
+			defer syscall.Seek(fd.Sysfd, curoffset, io.SeekStart)
+		}
+		o.setOffset(off)
+
 		err = syscall.ReadFile(fd.Sysfd, buf, &qty, &o.o)
 		return qty, err
 	}, buf)
@@ -908,31 +907,27 @@ func (fd *FD) Pwrite(buf []byte, off int64) (int, error) {
 	}
 	defer fd.readWriteUnlock()
 
-	if fd.isBlocking {
-		curoffset, err := syscall.Seek(fd.Sysfd, 0, io.SeekCurrent)
-		if err != nil {
-			return 0, err
-		}
-		defer syscall.Seek(fd.Sysfd, curoffset, io.SeekStart)
-		defer fd.setOffset(curoffset)
-	} else {
-		// Overlapped handles don't have the file pointer updated
-		// when performing I/O operations, so there is no need to
-		// call Seek to reset the file pointer.
-		// Also, some overlapped file handles don't support seeking.
-		// See https://go.dev/issues/74951.
-		curoffset := fd.offset
-		defer fd.setOffset(curoffset)
-	}
-
 	var ntotal int
 	for {
 		max := len(buf)
 		if max-ntotal > maxRW {
 			max = ntotal + maxRW
 		}
-		fd.setOffset(off + int64(ntotal))
 		n, err := fd.execIO('w', func(o *operation) (qty uint32, err error) {
+			// Overlapped handles don't have the file pointer updated
+			// when performing I/O operations, so there is no need to
+			// call Seek to reset the file pointer.
+			// Also, some overlapped file handles don't support seeking.
+			// See https://go.dev/issues/74951.
+			if fd.isBlocking {
+				curoffset, err := syscall.Seek(fd.Sysfd, 0, io.SeekCurrent)
+				if err != nil {
+					return 0, err
+				}
+				defer syscall.Seek(fd.Sysfd, curoffset, io.SeekStart)
+			}
+			o.setOffset(off + int64(ntotal))
+
 			err = syscall.WriteFile(fd.Sysfd, buf[ntotal:max], &qty, &o.o)
 			return qty, err
 		}, buf[ntotal:max])
