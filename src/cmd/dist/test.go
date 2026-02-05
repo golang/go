@@ -1243,7 +1243,7 @@ func (t *tester) internalLinkPIE() bool {
 	}
 	switch goos + "-" + goarch {
 	case "darwin-amd64", "darwin-arm64",
-		"linux-amd64", "linux-arm64", "linux-loong64", "linux-ppc64le",
+		"linux-amd64", "linux-arm64", "linux-loong64", "linux-ppc64le", "linux-s390x",
 		"android-arm64",
 		"windows-amd64", "windows-386", "windows-arm64":
 		return true
@@ -1253,11 +1253,6 @@ func (t *tester) internalLinkPIE() bool {
 
 func (t *tester) externalLinkPIE() bool {
 	// General rule is if -buildmode=pie and -linkmode=external both work, then they work together.
-	// Handle exceptions and then fall back to the general rule.
-	switch goos + "-" + goarch {
-	case "linux-s390x":
-		return true
-	}
 	return t.internalLinkPIE() && t.extLink()
 }
 
