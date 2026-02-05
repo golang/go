@@ -1531,7 +1531,7 @@ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
 	defer cancel()
 
 	if c.quic != nil {
-		c.quic.cancelc = handshakeCtx.Done()
+		c.quic.ctx = handshakeCtx
 		c.quic.cancel = cancel
 	} else if ctx.Done() != nil {
 		// Close the connection if ctx is canceled before the function returns.
