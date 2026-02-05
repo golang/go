@@ -83,7 +83,9 @@ func FlushErrors() {
 	if len(errorMsgs) == 0 {
 		return
 	}
-	sort.Stable(byPos(errorMsgs))
+	if Flag.LowerU == 0 {
+		sort.Stable(byPos(errorMsgs))
+	}
 	for i, err := range errorMsgs {
 		if i == 0 || err.msg != errorMsgs[i-1].msg {
 			fmt.Print(err.msg)
