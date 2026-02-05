@@ -50,7 +50,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
 		xlist = ix.indices
 		targs = check.typeList(xlist)
 		if targs == nil {
-			x.mode_ = invalid
+			x.invalidate()
 			return nil
 		}
 		assert(len(targs) == len(xlist))
@@ -64,7 +64,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
 	if got > want {
 		// Providing too many type arguments is always an error.
 		check.errorf(ix.indices[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
-		x.mode_ = invalid
+		x.invalidate()
 		return nil
 	}
 
@@ -115,7 +115,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
 			if !err.empty() {
 				err.report()
 			}
-			x.mode_ = invalid
+			x.invalidate()
 			return nil
 		}
 		got = len(targs)
@@ -200,7 +200,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 			return conversion
 		}
 		T := x.typ()
-		x.mode_ = invalid
+		x.invalidate()
 		// We cannot convert a value to an incomplete type; make sure it's complete.
 		if !check.isComplete(T) {
 			x.expr = call
@@ -235,7 +235,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		// no need to check for non-genericity here
 		id := x.id
 		if !check.builtin(x, call, id) {
-			x.mode_ = invalid
+			x.invalidate()
 		}
 		x.expr = call
 		// a non-constant result implies a function call
@@ -259,7 +259,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	})
 	if err != nil {
 		check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, err.format(check))
-		x.mode_ = invalid
+		x.invalidate()
 		x.expr = call
 		return statement
 	}
@@ -276,7 +276,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		targs = check.typeList(xlist)
 		if targs == nil {
 			check.use(call.Args...)
-			x.mode_ = invalid
+			x.invalidate()
 			x.expr = call
 			return statement
 		}
@@ -287,7 +287,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		if got > want {
 			check.errorf(xlist[want], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
 			check.use(call.Args...)
-			x.mode_ = invalid
+			x.invalidate()
 			x.expr = call
 			return statement
 		}
@@ -329,7 +329,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		typ := sig.results.vars[0].typ // unpack tuple
 		// We cannot return a value of an incomplete type; make sure it's complete.
 		if !check.isComplete(typ) {
-			x.mode_ = invalid
+			x.invalidate()
 			x.expr = call
 			return statement
 		}
@@ -344,7 +344,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	// if type inference failed, a parameterized result must be invalidated
 	// (operands cannot have a parameterized type)
 	if x.mode() == value && sig.TypeParams().Len() > 0 && isParameterized(sig.TypeParams().list(), x.typ()) {
-		x.mode_ = invalid
+		x.invalidate()
 	}
 
 	return statement
@@ -986,7 +986,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 	return
 
 Error:
-	x.mode_ = invalid
+	x.invalidate()
 	x.typ_ = Typ[Invalid]
 	x.expr = e
 }

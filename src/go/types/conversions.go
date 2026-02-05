@@ -50,7 +50,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// (go.dev/issue/63563)
 		if !ok && isInteger(x.typ()) && isInteger(T) {
 			check.errorf(x, InvalidConversion, "constant %s overflows %s", x.val, T)
-			x.mode_ = invalid
+			x.invalidate()
 			return
 		}
 	case constArg && isTypeParam(T):
@@ -92,7 +92,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 		} else {
 			check.errorf(x, InvalidConversion, "cannot convert %s to type %s", x, T)
 		}
-		x.mode_ = invalid
+		x.invalidate()
 		return
 	}
 

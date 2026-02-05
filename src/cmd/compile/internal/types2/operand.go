@@ -72,6 +72,10 @@ func (x *operand) isValid() bool {
 	return x.mode() != invalid
 }
 
+func (x *operand) invalidate() {
+	x.mode_ = invalid
+}
+
 // Pos returns the position of the expression corresponding to x.
 // If x is invalid the position is nopos.
 func (x *operand) Pos() syntax.Pos {
@@ -293,7 +297,7 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
 
 	val := makeFromLiteral(lit, k)
 	if val.Kind() == constant.Unknown {
-		x.mode_ = invalid
+		x.invalidate()
 		x.typ_ = Typ[Invalid]
 		return
 	}

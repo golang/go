@@ -18,7 +18,7 @@ import (
 // If an error occurred, x.mode is set to invalid.
 // If wantType is set, the identifier e is expected to denote a type.
 func (check *Checker) ident(x *operand, e *ast.Ident, wantType bool) {
-	x.mode_ = invalid
+	x.invalidate()
 	x.expr = e
 
 	scope, obj := check.lookupScope(e.Name)

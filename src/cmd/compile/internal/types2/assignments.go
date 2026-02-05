@@ -33,7 +33,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// we may get here because of other problems (go.dev/issue/39634, crash 12)
 		// TODO(gri) do we need a new "generic" error code here?
 		check.errorf(x, IncompatibleAssign, "cannot assign %s to %s in %s", x, T, context)
-		x.mode_ = invalid
+		x.invalidate()
 		return
 	}
 
@@ -48,7 +48,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 			if x.isNil() {
 				if T == nil {
 					check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
-					x.mode_ = invalid
+					x.invalidate()
 					return
 				}
 			} else if T == nil || isNonTypeParamInterface(T) {
@@ -58,7 +58,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 			if T == nil || isNonTypeParamInterface(T) {
 				if T == nil && x.typ() == Typ[UntypedNil] {
 					check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
-					x.mode_ = invalid
+					x.invalidate()
 					return
 				}
 				target = Default(x.typ())
@@ -76,7 +76,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 				code = IncompatibleAssign
 			}
 			check.error(x, code, msg)
-			x.mode_ = invalid
+			x.invalidate()
 			return
 		}
 		if val != nil {
@@ -111,7 +111,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		} else {
 			check.errorf(x, code, "cannot use %s as %s value in %s", x, T, context)
 		}
-		x.mode_ = invalid
+		x.invalidate()
 	}
 }
 
@@ -155,7 +155,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
-		x.mode_ = invalid
+		x.invalidate()
 		return
 	}
 
@@ -167,7 +167,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) {
 			if typ == Typ[UntypedNil] {
 				check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
 				lhs.typ = Typ[Invalid]
-				x.mode_ = invalid
+				x.invalidate()
 				return
 			}
 			typ = Default(typ)
@@ -250,7 +250,7 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand, context string
 	T := check.lhsVar(lhs) // nil if lhs is _
 	if !isValid(T) {
 		if x != nil {
-			x.mode_ = invalid
+			x.invalidate()
 		} else {
 			check.use(rhs)
 		}

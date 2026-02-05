@@ -723,7 +723,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 		check.assignment(&x, nil, "switch expression")
 		if x.mode() != invalid && !Comparable(x.typ()) && !hasNil(x.typ()) {
 			check.errorf(&x, InvalidExprSwitch, "cannot switch on %s (%s is not comparable)", &x, x.typ())
-			x.mode_ = invalid
+			x.invalidate()
 		}
 	} else {
 		// spec: "A missing switch expression is

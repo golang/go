@@ -27,7 +27,7 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 
 	case typexpr:
 		// type instantiation
-		x.mode_ = invalid
+		x.invalidate()
 		// TODO(gri) here we re-evaluate e.X - try to avoid this
 		x.typ_ = check.varType(e.orig)
 		if isValid(x.typ()) {
@@ -50,7 +50,7 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 
 	// We cannot index on an incomplete type; make sure it's complete.
 	if !check.isComplete(x.typ()) {
-		x.mode_ = invalid
+		x.invalidate()
 		return false
 	}
 	switch typ := x.typ().Underlying().(type) {
@@ -58,14 +58,14 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 		// Additionally, if x.typ is a pointer to an array type, indexing implicitly dereferences the value, meaning
 		// its base type must also be complete.
 		if !check.isComplete(typ.base) {
-			x.mode_ = invalid
+			x.invalidate()
 			return false
 		}
 	case *Map:
 		// Lastly, if x.typ is a map type, indexing must produce a value of a complete type, meaning
 		// its element type must also be complete.
 		if !check.isComplete(typ.elem) {
-			x.mode_ = invalid
+			x.invalidate()
 			return false
 		}
 	}
@@ -111,7 +111,7 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 	case *Map:
 		index := check.singleIndex(e)
 		if index == nil {
-			x.mode_ = invalid
+			x.invalidate()
 			return false
 		}
 		var key operand
@@ -185,7 +185,7 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 			if key != nil {
 				index := check.singleIndex(e)
 				if index == nil {
-					x.mode_ = invalid
+					x.invalidate()
 					return false
 				}
 				var k operand
@@ -209,13 +209,13 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 		// types2 uses the position of '[' for the error
 		check.errorf(x, NonIndexableOperand, "cannot index %s", x)
 		check.use(e.indices...)
-		x.mode_ = invalid
+		x.invalidate()
 		return false
 	}
 
 	index := check.singleIndex(e)
 	if index == nil {
-		x.mode_ = invalid
+		x.invalidate()
 		return false
 	}
 
@@ -282,7 +282,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 	// However, if x.typ is a pointer to an array type, slicing implicitly dereferences the value, meaning
 	// its base type must also be complete.
 	if p, ok := x.typ().Underlying().(*Pointer); ok && !check.isComplete(p.base) {
-		x.mode_ = invalid
+		x.invalidate()
 		return
 	}
 
@@ -291,7 +291,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 	switch u := cu.(type) {
 	case nil:
 		// error reported above
-		x.mode_ = invalid
+		x.invalidate()
 		return
 
 	case *Basic:
@@ -302,7 +302,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 					at = e // e.Index[2] should be present but be careful
 				}
 				check.error(at, InvalidSliceExpr, invalidOp+"3-index slice of string")
-				x.mode_ = invalid
+				x.invalidate()
 				return
 			}
 			valid = true
@@ -321,7 +321,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 		length = u.len
 		if x.mode() != variable {
 			check.errorf(x, NonSliceableOperand, "cannot slice unaddressable value %s", x)
-			x.mode_ = invalid
+			x.invalidate()
 			return
 		}
 		x.typ_ = &Slice{elem: u.elem}
@@ -340,7 +340,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 
 	if !valid {
 		check.errorf(x, NonSliceableOperand, "cannot slice %s", x)
-		x.mode_ = invalid
+		x.invalidate()
 		return
 	}
 
@@ -349,7 +349,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 	// spec: "Only the first index may be omitted; it defaults to 0."
 	if e.Slice3 && (e.High == nil || e.Max == nil) {
 		check.error(inNode(e, e.Rbrack), InvalidSyntaxTree, "2nd and 3rd index required in 3-index slice")
-		x.mode_ = invalid
+		x.invalidate()
 		return
 	}
 

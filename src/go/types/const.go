@@ -240,7 +240,7 @@ func (check *Checker) representable(x *operand, typ *Basic) {
 	v, code := check.representation(x, typ)
 	if code != 0 {
 		check.invalidConversion(code, x, typ)
-		x.mode_ = invalid
+		x.invalidate()
 		return
 	}
 	assert(v != nil)
@@ -294,7 +294,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 			t = safeUnderlying(target)
 		}
 		check.invalidConversion(code, x, t)
-		x.mode_ = invalid
+		x.invalidate()
 		return
 	}
 	if val != nil {
