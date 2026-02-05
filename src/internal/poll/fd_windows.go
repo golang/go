@@ -269,7 +269,7 @@ func (fd *FD) execIO(mode int, submit func(o *operation) (uint32, error), buf []
 				}
 			}()
 		}
-		if !fd.pollable() {
+		if !fd.associated {
 			// If the handle is opened for overlapped IO but we can't
 			// use the runtime poller, then we need to use an
 			// event to wait for the IO to complete.
@@ -370,7 +370,8 @@ type FD struct {
 	// Whether FILE_FLAG_OVERLAPPED was not set when opening the file.
 	isBlocking bool
 
-	disassociated bool
+	// Whether the handle is currently associated with the IOCP.
+	associated bool
 
 	// readPinner and writePinner are automatically unpinned
 	// before execIO returns.
@@ -398,12 +399,6 @@ func (fd *FD) setOffset(off int64) {
 // addOffset adds the given offset to the current offset.
 func (fd *FD) addOffset(off int) {
 	fd.offset += int64(off)
-}
-
-// pollable should be used instead of fd.pd.pollable(),
-// as it is aware of the disassociated state.
-func (fd *FD) pollable() bool {
-	return fd.pd.pollable() && !fd.disassociated
 }
 
 // fileKind describes the kind of file.
@@ -458,6 +453,7 @@ func (fd *FD) Init(net string, pollable bool) error {
 	if err != nil {
 		return err
 	}
+	fd.associated = true
 
 	// FILE_SKIP_SET_EVENT_ON_HANDLE is always safe to use. We don't use that feature
 	// and it adds some overhead to the Windows I/O manager.
@@ -490,7 +486,7 @@ func (fd *FD) DisassociateIOCP() error {
 	}
 	defer fd.readWriteUnlock()
 
-	if fd.isBlocking || !fd.pollable() {
+	if !fd.associated {
 		// Nothing to disassociate.
 		return nil
 	}
@@ -500,7 +496,7 @@ func (fd *FD) DisassociateIOCP() error {
 		return err
 	}
 	// tryReadWriteLock means we have exclusive access to fd.
-	fd.disassociated = true
+	fd.associated = false
 	// Don't call fd.pd.close(), it would be too racy.
 	// There is no harm on leaving fd.pd open until Close is called.
 	return nil
