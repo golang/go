@@ -214,11 +214,11 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Implement legacy "go fix -fix=name,..." flag.
 	if *fixFixFlag != "" {
-		fmt.Fprintf(os.Stderr, "go %s: the -fix=%s flag is obsolete and has no effect", cmd.Name(), *fixFixFlag)
+		fmt.Fprintf(os.Stderr, "go %s: the -fix=%s flag is obsolete and has no effect\n", cmd.Name(), *fixFixFlag)
 
 		// The buildtag fixer is now implemented by cmd/fix.
 		if slices.Contains(strings.Split(*fixFixFlag, ","), "buildtag") {
-			fmt.Fprintf(os.Stderr, "go %s: to enable the buildtag check, use -buildtag", cmd.Name())
+			fmt.Fprintf(os.Stderr, "go %s: to enable the buildtag check, use -buildtag\n", cmd.Name())
 		}
 	}
 
