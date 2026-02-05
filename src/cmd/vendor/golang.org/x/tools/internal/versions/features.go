@@ -9,6 +9,7 @@ package versions
 
 // named constants, to avoid misspelling
 const (
+	Go1_17 = "go1.17"
 	Go1_18 = "go1.18"
 	Go1_19 = "go1.19"
 	Go1_20 = "go1.20"

@@ -30,9 +30,7 @@ func TestEnvVars(t *testing.T) {
 		t.Fatalf("failed to read test cert: %s", err)
 	}
 	if err := os.WriteFile(filepath.Join(tmpDir, testFile), testCert, 0644); err != nil {
-		if err != nil {
-			t.Fatalf("failed to write test cert: %s", err)
-		}
+		t.Fatalf("failed to write test cert: %s", err)
 	}
 
 	testCases := []struct {

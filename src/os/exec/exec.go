@@ -203,6 +203,11 @@ type Cmd struct {
 	// stops copying, either because it has reached the end of Stdin
 	// (EOF or a read error), or because writing to the pipe returned an error,
 	// or because a nonzero WaitDelay was set and expired.
+	//
+	// Regardless of WaitDelay, Wait can block until a Read from
+	// Stdin completes. If you need to use a blocking io.Reader,
+	// use the StdinPipe method to get a pipe, copy from the Reader
+	// to the pipe, and arrange to close the Reader after Wait returns.
 	Stdin io.Reader
 
 	// Stdout and Stderr specify the process's standard output and error.
@@ -218,6 +223,12 @@ type Cmd struct {
 	// corresponding Writer. In this case, Wait does not complete until the
 	// goroutine reaches EOF or encounters an error or a nonzero WaitDelay
 	// expires.
+	//
+	// Regardless of WaitDelay, Wait can block until a Write to
+	// Stdout or Stderr completes. If you need to use a blocking io.Writer,
+	// use the StdoutPipe or StderrPipe method to get a pipe,
+	// copy from the pipe to the Writer, and arrange to close the
+	// Writer after Wait returns.
 	//
 	// If Stdout and Stderr are the same writer, and have a type that can
 	// be compared with ==, at most one goroutine at a time will call Write.
@@ -357,7 +368,9 @@ type Cmd struct {
 	cachedLookExtensions struct{ in, out string }
 
 	// startCalled records that Start was attempted, regardless of outcome.
-	startCalled atomic.Bool
+	// (Until go.dev/issue/77075 is resolved, we use atomic.SwapInt32,
+	// not atomic.Bool.Swap, to avoid triggering the copylocks vet check.)
+	startCalled int32
 }
 
 // A ctxResult reports the result of watching the Context associated with a
@@ -640,7 +653,7 @@ func (c *Cmd) Start() error {
 	// Check for doubled Start calls before we defer failure cleanup. If the prior
 	// call to Start succeeded, we don't want to spuriously close its pipes.
 	// It is an error to call Start twice even if the first call did not create a process.
-	if c.startCalled.Swap(true) {
+	if atomic.SwapInt32(&c.startCalled, 1) != 0 {
 		return errors.New("exec: already started")
 	}
 

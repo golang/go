@@ -10,7 +10,7 @@ package archsimd
 // Emulated, CPU Feature: AVX2
 func BroadcastInt8x16(x int8) Int8x16 {
 	var z Int8x16
-	return z.SetElem(0, x).Broadcast128()
+	return z.SetElem(0, x).Broadcast1To16()
 }
 
 // BroadcastInt16x8 returns a vector with the input
@@ -19,7 +19,7 @@ func BroadcastInt8x16(x int8) Int8x16 {
 // Emulated, CPU Feature: AVX2
 func BroadcastInt16x8(x int16) Int16x8 {
 	var z Int16x8
-	return z.SetElem(0, x).Broadcast128()
+	return z.SetElem(0, x).Broadcast1To8()
 }
 
 // BroadcastInt32x4 returns a vector with the input
@@ -28,7 +28,7 @@ func BroadcastInt16x8(x int16) Int16x8 {
 // Emulated, CPU Feature: AVX2
 func BroadcastInt32x4(x int32) Int32x4 {
 	var z Int32x4
-	return z.SetElem(0, x).Broadcast128()
+	return z.SetElem(0, x).Broadcast1To4()
 }
 
 // BroadcastInt64x2 returns a vector with the input
@@ -37,7 +37,7 @@ func BroadcastInt32x4(x int32) Int32x4 {
 // Emulated, CPU Feature: AVX2
 func BroadcastInt64x2(x int64) Int64x2 {
 	var z Int64x2
-	return z.SetElem(0, x).Broadcast128()
+	return z.SetElem(0, x).Broadcast1To2()
 }
 
 // BroadcastUint8x16 returns a vector with the input
@@ -46,7 +46,7 @@ func BroadcastInt64x2(x int64) Int64x2 {
 // Emulated, CPU Feature: AVX2
 func BroadcastUint8x16(x uint8) Uint8x16 {
 	var z Uint8x16
-	return z.SetElem(0, x).Broadcast128()
+	return z.SetElem(0, x).Broadcast1To16()
 }
 
 // BroadcastUint16x8 returns a vector with the input
@@ -55,7 +55,7 @@ func BroadcastUint8x16(x uint8) Uint8x16 {
 // Emulated, CPU Feature: AVX2
 func BroadcastUint16x8(x uint16) Uint16x8 {
 	var z Uint16x8
-	return z.SetElem(0, x).Broadcast128()
+	return z.SetElem(0, x).Broadcast1To8()
 }
 
 // BroadcastUint32x4 returns a vector with the input
@@ -64,7 +64,7 @@ func BroadcastUint16x8(x uint16) Uint16x8 {
 // Emulated, CPU Feature: AVX2
 func BroadcastUint32x4(x uint32) Uint32x4 {
 	var z Uint32x4
-	return z.SetElem(0, x).Broadcast128()
+	return z.SetElem(0, x).Broadcast1To4()
 }
 
 // BroadcastUint64x2 returns a vector with the input
@@ -73,7 +73,7 @@ func BroadcastUint32x4(x uint32) Uint32x4 {
 // Emulated, CPU Feature: AVX2
 func BroadcastUint64x2(x uint64) Uint64x2 {
 	var z Uint64x2
-	return z.SetElem(0, x).Broadcast128()
+	return z.SetElem(0, x).Broadcast1To2()
 }
 
 // BroadcastFloat32x4 returns a vector with the input
@@ -82,7 +82,7 @@ func BroadcastUint64x2(x uint64) Uint64x2 {
 // Emulated, CPU Feature: AVX2
 func BroadcastFloat32x4(x float32) Float32x4 {
 	var z Float32x4
-	return z.SetElem(0, x).Broadcast128()
+	return z.SetElem(0, x).Broadcast1To4()
 }
 
 // BroadcastFloat64x2 returns a vector with the input
@@ -91,7 +91,7 @@ func BroadcastFloat32x4(x float32) Float32x4 {
 // Emulated, CPU Feature: AVX2
 func BroadcastFloat64x2(x float64) Float64x2 {
 	var z Float64x2
-	return z.SetElem(0, x).Broadcast128()
+	return z.SetElem(0, x).Broadcast1To2()
 }
 
 // BroadcastInt8x32 returns a vector with the input
@@ -100,7 +100,7 @@ func BroadcastFloat64x2(x float64) Float64x2 {
 // Emulated, CPU Feature: AVX2
 func BroadcastInt8x32(x int8) Int8x32 {
 	var z Int8x16
-	return z.SetElem(0, x).Broadcast256()
+	return z.SetElem(0, x).Broadcast1To32()
 }
 
 // BroadcastInt16x16 returns a vector with the input
@@ -109,7 +109,7 @@ func BroadcastInt8x32(x int8) Int8x32 {
 // Emulated, CPU Feature: AVX2
 func BroadcastInt16x16(x int16) Int16x16 {
 	var z Int16x8
-	return z.SetElem(0, x).Broadcast256()
+	return z.SetElem(0, x).Broadcast1To16()
 }
 
 // BroadcastInt32x8 returns a vector with the input
@@ -118,7 +118,7 @@ func BroadcastInt16x16(x int16) Int16x16 {
 // Emulated, CPU Feature: AVX2
 func BroadcastInt32x8(x int32) Int32x8 {
 	var z Int32x4
-	return z.SetElem(0, x).Broadcast256()
+	return z.SetElem(0, x).Broadcast1To8()
 }
 
 // BroadcastInt64x4 returns a vector with the input
@@ -127,7 +127,7 @@ func BroadcastInt32x8(x int32) Int32x8 {
 // Emulated, CPU Feature: AVX2
 func BroadcastInt64x4(x int64) Int64x4 {
 	var z Int64x2
-	return z.SetElem(0, x).Broadcast256()
+	return z.SetElem(0, x).Broadcast1To4()
 }
 
 // BroadcastUint8x32 returns a vector with the input
@@ -136,7 +136,7 @@ func BroadcastInt64x4(x int64) Int64x4 {
 // Emulated, CPU Feature: AVX2
 func BroadcastUint8x32(x uint8) Uint8x32 {
 	var z Uint8x16
-	return z.SetElem(0, x).Broadcast256()
+	return z.SetElem(0, x).Broadcast1To32()
 }
 
 // BroadcastUint16x16 returns a vector with the input
@@ -145,7 +145,7 @@ func BroadcastUint8x32(x uint8) Uint8x32 {
 // Emulated, CPU Feature: AVX2
 func BroadcastUint16x16(x uint16) Uint16x16 {
 	var z Uint16x8
-	return z.SetElem(0, x).Broadcast256()
+	return z.SetElem(0, x).Broadcast1To16()
 }
 
 // BroadcastUint32x8 returns a vector with the input
@@ -154,7 +154,7 @@ func BroadcastUint16x16(x uint16) Uint16x16 {
 // Emulated, CPU Feature: AVX2
 func BroadcastUint32x8(x uint32) Uint32x8 {
 	var z Uint32x4
-	return z.SetElem(0, x).Broadcast256()
+	return z.SetElem(0, x).Broadcast1To8()
 }
 
 // BroadcastUint64x4 returns a vector with the input
@@ -163,7 +163,7 @@ func BroadcastUint32x8(x uint32) Uint32x8 {
 // Emulated, CPU Feature: AVX2
 func BroadcastUint64x4(x uint64) Uint64x4 {
 	var z Uint64x2
-	return z.SetElem(0, x).Broadcast256()
+	return z.SetElem(0, x).Broadcast1To4()
 }
 
 // BroadcastFloat32x8 returns a vector with the input
@@ -172,7 +172,7 @@ func BroadcastUint64x4(x uint64) Uint64x4 {
 // Emulated, CPU Feature: AVX2
 func BroadcastFloat32x8(x float32) Float32x8 {
 	var z Float32x4
-	return z.SetElem(0, x).Broadcast256()
+	return z.SetElem(0, x).Broadcast1To8()
 }
 
 // BroadcastFloat64x4 returns a vector with the input
@@ -181,7 +181,7 @@ func BroadcastFloat32x8(x float32) Float32x8 {
 // Emulated, CPU Feature: AVX2
 func BroadcastFloat64x4(x float64) Float64x4 {
 	var z Float64x2
-	return z.SetElem(0, x).Broadcast256()
+	return z.SetElem(0, x).Broadcast1To4()
 }
 
 // BroadcastInt8x64 returns a vector with the input
@@ -190,7 +190,7 @@ func BroadcastFloat64x4(x float64) Float64x4 {
 // Emulated, CPU Feature: AVX512BW
 func BroadcastInt8x64(x int8) Int8x64 {
 	var z Int8x16
-	return z.SetElem(0, x).Broadcast512()
+	return z.SetElem(0, x).Broadcast1To64()
 }
 
 // BroadcastInt16x32 returns a vector with the input
@@ -199,7 +199,7 @@ func BroadcastInt8x64(x int8) Int8x64 {
 // Emulated, CPU Feature: AVX512BW
 func BroadcastInt16x32(x int16) Int16x32 {
 	var z Int16x8
-	return z.SetElem(0, x).Broadcast512()
+	return z.SetElem(0, x).Broadcast1To32()
 }
 
 // BroadcastInt32x16 returns a vector with the input
@@ -208,7 +208,7 @@ func BroadcastInt16x32(x int16) Int16x32 {
 // Emulated, CPU Feature: AVX512F
 func BroadcastInt32x16(x int32) Int32x16 {
 	var z Int32x4
-	return z.SetElem(0, x).Broadcast512()
+	return z.SetElem(0, x).Broadcast1To16()
 }
 
 // BroadcastInt64x8 returns a vector with the input
@@ -217,7 +217,7 @@ func BroadcastInt32x16(x int32) Int32x16 {
 // Emulated, CPU Feature: AVX512F
 func BroadcastInt64x8(x int64) Int64x8 {
 	var z Int64x2
-	return z.SetElem(0, x).Broadcast512()
+	return z.SetElem(0, x).Broadcast1To8()
 }
 
 // BroadcastUint8x64 returns a vector with the input
@@ -226,7 +226,7 @@ func BroadcastInt64x8(x int64) Int64x8 {
 // Emulated, CPU Feature: AVX512BW
 func BroadcastUint8x64(x uint8) Uint8x64 {
 	var z Uint8x16
-	return z.SetElem(0, x).Broadcast512()
+	return z.SetElem(0, x).Broadcast1To64()
 }
 
 // BroadcastUint16x32 returns a vector with the input
@@ -235,7 +235,7 @@ func BroadcastUint8x64(x uint8) Uint8x64 {
 // Emulated, CPU Feature: AVX512BW
 func BroadcastUint16x32(x uint16) Uint16x32 {
 	var z Uint16x8
-	return z.SetElem(0, x).Broadcast512()
+	return z.SetElem(0, x).Broadcast1To32()
 }
 
 // BroadcastUint32x16 returns a vector with the input
@@ -244,7 +244,7 @@ func BroadcastUint16x32(x uint16) Uint16x32 {
 // Emulated, CPU Feature: AVX512F
 func BroadcastUint32x16(x uint32) Uint32x16 {
 	var z Uint32x4
-	return z.SetElem(0, x).Broadcast512()
+	return z.SetElem(0, x).Broadcast1To16()
 }
 
 // BroadcastUint64x8 returns a vector with the input
@@ -253,7 +253,7 @@ func BroadcastUint32x16(x uint32) Uint32x16 {
 // Emulated, CPU Feature: AVX512F
 func BroadcastUint64x8(x uint64) Uint64x8 {
 	var z Uint64x2
-	return z.SetElem(0, x).Broadcast512()
+	return z.SetElem(0, x).Broadcast1To8()
 }
 
 // BroadcastFloat32x16 returns a vector with the input
@@ -262,7 +262,7 @@ func BroadcastUint64x8(x uint64) Uint64x8 {
 // Emulated, CPU Feature: AVX512F
 func BroadcastFloat32x16(x float32) Float32x16 {
 	var z Float32x4
-	return z.SetElem(0, x).Broadcast512()
+	return z.SetElem(0, x).Broadcast1To16()
 }
 
 // BroadcastFloat64x8 returns a vector with the input
@@ -271,7 +271,7 @@ func BroadcastFloat32x16(x float32) Float32x16 {
 // Emulated, CPU Feature: AVX512F
 func BroadcastFloat64x8(x float64) Float64x8 {
 	var z Float64x2
-	return z.SetElem(0, x).Broadcast512()
+	return z.SetElem(0, x).Broadcast1To8()
 }
 
 // ToMask converts from Int8x16 to Mask8x16, mask element is set to true when the corresponding vector element is non-zero.

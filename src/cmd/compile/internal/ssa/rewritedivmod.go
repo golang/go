@@ -548,7 +548,7 @@ func rewriteValuedivmod_OpDiv32u(v *Value) bool {
 	}
 	// match: (Div32u <t> x (Const32 [c]))
 	// cond: umagicOK32(c) && config.RegSize == 8
-	// result: (Trunc64to32 <t> (Rsh64Ux64 <typ.UInt64> (Avg64u (Lsh64x64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [32])) (Mul64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt32> [int64(umagic32(c).m)]))) (Const64 <typ.UInt64> [32 + umagic32(c).s - 1])))
+	// result: (Trunc64to32 <t> (Rsh64Ux64 <typ.UInt64> (Avg64u (Lsh64x64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [32])) (Mul64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [int64(umagic32(c).m)]))) (Const64 <typ.UInt64> [32 + umagic32(c).s - 1])))
 	for {
 		t := v.Type
 		x := v_0
@@ -570,7 +570,7 @@ func rewriteValuedivmod_OpDiv32u(v *Value) bool {
 		v4.AuxInt = int64ToAuxInt(32)
 		v2.AddArg2(v3, v4)
 		v5 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
-		v6 := b.NewValue0(v.Pos, OpConst64, typ.UInt32)
+		v6 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
 		v6.AuxInt = int64ToAuxInt(int64(umagic32(c).m))
 		v5.AddArg2(v3, v6)
 		v1.AddArg2(v2, v5)

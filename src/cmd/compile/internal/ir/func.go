@@ -315,7 +315,9 @@ func PkgFuncName(f *Func) string {
 	}
 	s := f.Sym()
 	pkg := s.Pkg
-
+	if pkg == nil {
+		return "<nil>." + s.Name
+	}
 	return pkg.Path + "." + s.Name
 }
 

@@ -87,7 +87,7 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "debug: preserving tmpdir %s\n", topTmpdir)
 	}
 	os.Setenv("CMDCOVER_TEST_RUN_MAIN", "normal")
-	os.Exit(m.Run())
+	m.Run()
 }
 
 var tdmu sync.Mutex

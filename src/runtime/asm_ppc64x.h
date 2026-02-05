@@ -37,19 +37,3 @@
 	GLOBL	funcname(SB), NOPTR, $24
 #endif
 #endif
-
-// linux/ppc64 uses ELFv1 which uses function descriptors.
-// These must also look like ABI0 functions on linux/ppc64
-// to work with abi.FuncPCABI0(sigtramp) in os_linux.go.
-// Only static codegen is supported on linux/ppc64, so TOC
-// is not needed.
-#ifdef GOOS_linux
-#ifdef GOARCH_ppc64
-#define GO_PPC64X_HAS_FUNCDESC
-#define DEFINE_PPC64X_FUNCDESC(funcname, localfuncname)	\
-	TEXT	funcname(SB),NOSPLIT|NOFRAME,$0		\
-		DWORD	$localfuncname(SB)		\
-		DWORD	$0				\
-		DWORD	$0
-#endif
-#endif

@@ -261,7 +261,7 @@ func (r *gitRepo) loadRefs(ctx context.Context) (map[string]string, error) {
 			r.refsErr = err
 			return
 		}
-		out, gitErr := r.runGit(ctx, "git", "ls-remote", "-q", r.remote)
+		out, gitErr := r.runGit(ctx, "git", "ls-remote", "-q", "--end-of-options", r.remote)
 		release()
 
 		if gitErr != nil {
@@ -530,7 +530,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 			if fromTag && !slices.Contains(info.Tags, tag) {
 				// The local repo includes the commit hash we want, but it is missing
 				// the corresponding tag. Add that tag and try again.
-				_, err := r.runGit(ctx, "git", "tag", tag, hash)
+				_, err := r.runGit(ctx, "git", "tag", "--end-of-options", tag, hash)
 				if err != nil {
 					return nil, err
 				}
@@ -579,7 +579,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 		// an apparent Git bug introduced in Git 2.21 (commit 61c771),
 		// which causes the handler for protocol version 1 to sometimes miss
 		// tags that point to the requested commit (see https://go.dev/issue/56881).
-		_, err = r.runGit(ctx, "git", "-c", "protocol.version=2", "fetch", "-f", "--depth=1", r.remote, refspec)
+		_, err = r.runGit(ctx, "git", "-c", "protocol.version=2", "fetch", "-f", "--depth=1", "--end-of-options", r.remote, refspec)
 		release()
 
 		if err == nil {
@@ -625,12 +625,12 @@ func (r *gitRepo) fetchRefsLocked(ctx context.Context) error {
 		}
 		defer release()
 
-		if _, err := r.runGit(ctx, "git", "fetch", "-f", r.remote, "refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
+		if _, err := r.runGit(ctx, "git", "fetch", "-f", "--end-of-options", r.remote, "refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
 			return err
 		}
 
 		if _, err := os.Stat(filepath.Join(r.dir, "shallow")); err == nil {
-			if _, err := r.runGit(ctx, "git", "fetch", "--unshallow", "-f", r.remote); err != nil {
+			if _, err := r.runGit(ctx, "git", "fetch", "--unshallow", "-f", "--end-of-options", r.remote); err != nil {
 				return err
 			}
 		}
@@ -643,7 +643,7 @@ func (r *gitRepo) fetchRefsLocked(ctx context.Context) error {
 // statLocal returns a new RevInfo describing rev in the local git repository.
 // It uses version as info.Version.
 func (r *gitRepo) statLocal(ctx context.Context, version, rev string) (*RevInfo, error) {
-	out, err := r.runGit(ctx, "git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D", rev, "--")
+	out, err := r.runGit(ctx, "git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D", "--end-of-options", rev, "--")
 	if err != nil {
 		// Return info with Origin.RepoSum if possible to allow caching of negative lookup.
 		var info *RevInfo
@@ -733,7 +733,7 @@ func (r *gitRepo) ReadFile(ctx context.Context, rev, file string, maxSize int64)
 	if err != nil {
 		return nil, err
 	}
-	out, err := r.runGit(ctx, "git", "cat-file", "blob", info.Name+":"+file)
+	out, err := r.runGit(ctx, "git", "cat-file", "--end-of-options", "blob", info.Name+":"+file)
 	if err != nil {
 		return nil, fs.ErrNotExist
 	}
@@ -751,7 +751,7 @@ func (r *gitRepo) RecentTag(ctx context.Context, rev, prefix string, allowed fun
 	// result is definitive.
 	describe := func() (definitive bool) {
 		var out []byte
-		out, err = r.runGit(ctx, "git", "for-each-ref", "--format", "%(refname)", "refs/tags", "--merged", rev)
+		out, err = r.runGit(ctx, "git", "for-each-ref", "--format=%(refname)", "--merged="+rev)
 		if err != nil {
 			return true
 		}
@@ -903,7 +903,7 @@ func (r *gitRepo) ReadZip(ctx context.Context, rev, subdir string, maxSize int64
 	// TODO: Use maxSize or drop it.
 	args := []string{}
 	if subdir != "" {
-		args = append(args, "--", subdir)
+		args = append(args, subdir)
 	}
 	info, err := r.Stat(ctx, rev) // download rev into local git repo
 	if err != nil {
@@ -925,7 +925,7 @@ func (r *gitRepo) ReadZip(ctx context.Context, rev, subdir string, maxSize int64
 	// text file line endings. Setting -c core.autocrlf=input means only
 	// translate files on the way into the repo, not on the way out (archive).
 	// The -c core.eol=lf should be unnecessary but set it anyway.
-	archive, err := r.runGit(ctx, "git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", "--prefix=prefix/", info.Name, args)
+	archive, err := r.runGit(ctx, "git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", "--prefix=prefix/", "--end-of-options", info.Name, args)
 	if err != nil {
 		if bytes.Contains(err.(*RunError).Stderr, []byte("did not match any files")) {
 			return nil, fs.ErrNotExist

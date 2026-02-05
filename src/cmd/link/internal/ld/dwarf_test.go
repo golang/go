@@ -893,6 +893,10 @@ func main() {
 	var x interface{} = &X{}
 	p := *(*uintptr)(unsafe.Pointer(&x))
 	print(p)
+	f(nil)
+}
+//go:noinline
+func f(x *X) { // Make sure that there is dwarf recorded for *X.
 }
 `
 	dir := t.TempDir()

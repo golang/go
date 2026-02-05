@@ -457,12 +457,6 @@ type mspan struct {
 	// mallocgc, and issue 54596).
 	freeIndexForScan uint16
 
-	// Temporary storage for the object index that caused this span to
-	// be queued for scanning.
-	//
-	// Used only with goexperiment.GreenTeaGC.
-	scanIdx uint16
-
 	// Cache of the allocBits at freeindex. allocCache is shifted
 	// such that the lowest bit corresponds to the bit freeindex.
 	// allocCache holds the complement of allocBits, thus allowing

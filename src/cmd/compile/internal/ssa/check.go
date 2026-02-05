@@ -345,6 +345,47 @@ func checkFunc(f *Func) {
 						v.Op, v.Args[1].Type.String())
 				}
 			}
+			// Check size of args.
+			// This list isn't exhaustive, just the common ops.
+			// It also can't handle ops with args of different types, like shifts.
+			var argSize int64
+			switch v.Op {
+			case OpAdd8, OpSub8, OpMul8, OpDiv8, OpDiv8u, OpMod8, OpMod8u,
+				OpAnd8, OpOr8, OpXor8,
+				OpEq8, OpNeq8, OpLess8, OpLeq8,
+				OpNeg8, OpCom8,
+				OpSignExt8to16, OpSignExt8to32, OpSignExt8to64,
+				OpZeroExt8to16, OpZeroExt8to32, OpZeroExt8to64:
+				argSize = 1
+			case OpAdd16, OpSub16, OpMul16, OpDiv16, OpDiv16u, OpMod16, OpMod16u,
+				OpAnd16, OpOr16, OpXor16,
+				OpEq16, OpNeq16, OpLess16, OpLeq16,
+				OpNeg16, OpCom16,
+				OpSignExt16to32, OpSignExt16to64,
+				OpZeroExt16to32, OpZeroExt16to64,
+				OpTrunc16to8:
+				argSize = 2
+			case OpAdd32, OpSub32, OpMul32, OpDiv32, OpDiv32u, OpMod32, OpMod32u,
+				OpAnd32, OpOr32, OpXor32,
+				OpEq32, OpNeq32, OpLess32, OpLeq32,
+				OpNeg32, OpCom32,
+				OpSignExt32to64, OpZeroExt32to64,
+				OpTrunc32to8, OpTrunc32to16:
+				argSize = 4
+			case OpAdd64, OpSub64, OpMul64, OpDiv64, OpDiv64u, OpMod64, OpMod64u,
+				OpAnd64, OpOr64, OpXor64,
+				OpEq64, OpNeq64, OpLess64, OpLeq64,
+				OpNeg64, OpCom64,
+				OpTrunc64to8, OpTrunc64to16, OpTrunc64to32:
+				argSize = 8
+			}
+			if argSize != 0 {
+				for i, arg := range v.Args {
+					if arg.Type.Size() != argSize {
+						f.Fatalf("arg %d to %s (%v) should be %d bytes in size, it is %s", i, v.Op, v, argSize, arg.Type.String())
+					}
+				}
+			}
 
 			// TODO: check for cycles in values
 		}

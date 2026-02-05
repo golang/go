@@ -308,7 +308,7 @@ func Mask8x16FromBits(y uint16) Mask8x16
 
 // ToBits constructs a bitmap from a Mask8x16, where 1 means set for the indexed element, 0 means unset.
 //
-// Asm: KMOVB, CPU Features: AVX512
+// Asm: VPMOVMSKB, CPU Features: AVX
 func (x Mask8x16) ToBits() uint16
 
 // Mask16x8 is a mask for a SIMD vector of 8 16-bit elements.
@@ -342,7 +342,7 @@ func Mask32x4FromBits(y uint8) Mask32x4
 // ToBits constructs a bitmap from a Mask32x4, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 4 bits of y are used.
 //
-// Asm: KMOVD, CPU Features: AVX512
+// Asm: VMOVMSKPS, CPU Features: AVX
 func (x Mask32x4) ToBits() uint8
 
 // Mask64x2 is a mask for a SIMD vector of 2 64-bit elements.
@@ -360,7 +360,7 @@ func Mask64x2FromBits(y uint8) Mask64x2
 // ToBits constructs a bitmap from a Mask64x2, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 2 bits of y are used.
 //
-// Asm: KMOVQ, CPU Features: AVX512
+// Asm: VMOVMSKPD, CPU Features: AVX
 func (x Mask64x2) ToBits() uint8
 
 // v256 is a tag type that tells the compiler that this is really 256-bit SIMD
@@ -667,7 +667,7 @@ func Mask8x32FromBits(y uint32) Mask8x32
 
 // ToBits constructs a bitmap from a Mask8x32, where 1 means set for the indexed element, 0 means unset.
 //
-// Asm: KMOVB, CPU Features: AVX512
+// Asm: VPMOVMSKB, CPU Features: AVX2
 func (x Mask8x32) ToBits() uint32
 
 // Mask16x16 is a mask for a SIMD vector of 16 16-bit elements.
@@ -699,7 +699,7 @@ func Mask32x8FromBits(y uint8) Mask32x8
 
 // ToBits constructs a bitmap from a Mask32x8, where 1 means set for the indexed element, 0 means unset.
 //
-// Asm: KMOVD, CPU Features: AVX512
+// Asm: VMOVMSKPS, CPU Features: AVX
 func (x Mask32x8) ToBits() uint8
 
 // Mask64x4 is a mask for a SIMD vector of 4 64-bit elements.
@@ -717,7 +717,7 @@ func Mask64x4FromBits(y uint8) Mask64x4
 // ToBits constructs a bitmap from a Mask64x4, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 4 bits of y are used.
 //
-// Asm: KMOVQ, CPU Features: AVX512
+// Asm: VMOVMSKPD, CPU Features: AVX
 func (x Mask64x4) ToBits() uint8
 
 // v512 is a tag type that tells the compiler that this is really 512-bit SIMD

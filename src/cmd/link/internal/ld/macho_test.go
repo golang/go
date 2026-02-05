@@ -37,14 +37,14 @@ func TestMachoSectionsReadOnly(t *testing.T) {
 			args:             []string{"-ldflags", "-linkmode=internal"},
 			prog:             prog,
 			mustInternalLink: true,
-			wantSecsRO:       []string{"__got", "__rodata", "__itablink", "__typelink"},
+			wantSecsRO:       []string{"__got", "__rodata", "__itablink"},
 		},
 		{
 			name:        "linkmode-external",
 			args:        []string{"-ldflags", "-linkmode=external"},
 			prog:        prog,
 			mustHaveCGO: true,
-			wantSecsRO:  []string{"__got", "__rodata", "__itablink", "__typelink"},
+			wantSecsRO:  []string{"__got", "__rodata", "__itablink"},
 		},
 		{
 			name:             "cgo-linkmode-internal",
@@ -52,14 +52,14 @@ func TestMachoSectionsReadOnly(t *testing.T) {
 			prog:             progC,
 			mustHaveCGO:      true,
 			mustInternalLink: true,
-			wantSecsRO:       []string{"__got", "__rodata", "__itablink", "__typelink"},
+			wantSecsRO:       []string{"__got", "__rodata", "__itablink"},
 		},
 		{
 			name:        "cgo-linkmode-external",
 			args:        []string{"-ldflags", "-linkmode=external"},
 			prog:        progC,
 			mustHaveCGO: true,
-			wantSecsRO:  []string{"__got", "__rodata", "__itablink", "__typelink"},
+			wantSecsRO:  []string{"__got", "__rodata", "__itablink"},
 		},
 	}
 

@@ -1169,21 +1169,22 @@ type Link struct {
 	Flag_maymorestack    string // If not "", call this function before stack checks
 	Bso                  *bufio.Writer
 	Pathname             string
-	Pkgpath              string           // the current package's import path
-	hashmu               sync.Mutex       // protects hash, funchash
-	hash                 map[string]*LSym // name -> sym mapping
-	funchash             map[string]*LSym // name -> sym mapping for ABIInternal syms
-	statichash           map[string]*LSym // name -> sym mapping for static syms
-	PosTable             src.PosTable
-	InlTree              InlTree // global inlining tree used by gc/inl.go
-	DwFixups             *DwarfFixupTable
-	DwTextCount          int
-	Imports              []goobj.ImportedPkg
-	DiagFunc             func(string, ...any)
-	DiagFlush            func()
-	DebugInfo            func(ctxt *Link, fn *LSym, info *LSym, curfn Func) ([]dwarf.Scope, dwarf.InlCalls)
-	GenAbstractFunc      func(fn *LSym)
-	Errors               int
+	Pkgpath              string // the current package's import path
+
+	hashmu          sync.Mutex       // protects hash, funchash
+	hash            sync.Map         // name(string) -> sym(*syncOnce) mapping
+	funchash        sync.Map         // name(string) -> sym(*syncOnce) mapping for ABIInternal syms
+	statichash      map[string]*LSym // name -> sym mapping for static syms
+	PosTable        src.PosTable
+	InlTree         InlTree // global inlining tree used by gc/inl.go
+	DwFixups        *DwarfFixupTable
+	DwTextCount     int
+	Imports         []goobj.ImportedPkg
+	DiagFunc        func(string, ...any)
+	DiagFlush       func()
+	DebugInfo       func(ctxt *Link, fn *LSym, info *LSym, curfn Func) ([]dwarf.Scope, dwarf.InlCalls)
+	GenAbstractFunc func(fn *LSym)
+	Errors          int
 
 	InParallel    bool // parallel backend phase in effect
 	UseBASEntries bool // use Base Address Selection Entries in location lists and PC ranges
@@ -1215,6 +1216,13 @@ type Link struct {
 	nonpkgrefs   []*LSym // list of referenced non-package symbols
 
 	Fingerprint goobj.FingerprintType // fingerprint of symbol indices, to catch index mismatch
+}
+
+// symOnce is a "marker" value for our sync.Maps. We insert it on lookup and
+// use the atomic value to check whether initialization has been completed.
+type symOnce struct {
+	sym    LSym
+	inited atomic.Bool
 }
 
 // Assert to vet's printf checker that Link.DiagFunc is a printf-like.

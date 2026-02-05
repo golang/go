@@ -342,7 +342,6 @@ var depsRules = `
 	< internal/gover
 	< go/version
 	< go/token
-	< go/internal/scannerhooks
 	< go/scanner
 	< go/ast
 	< go/internal/typeparams;
@@ -659,7 +658,7 @@ var depsRules = `
 	net/http/httptrace,
 	mime/multipart,
 	log
-	< net/http/internal/httpcommon
+	< net/http/internal/httpcommon, net/http/internal/httpsfv
 	< net/http;
 
 	# HTTP-aware packages

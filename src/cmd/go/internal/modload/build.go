@@ -12,7 +12,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -88,7 +87,16 @@ func ModuleInfo(loaderstate *State, ctx context.Context, path string) *modinfo.M
 		return nil
 	}
 
-	if path, vers, found := strings.Cut(path, "@"); found {
+	path, vers, found, err := ParsePathVersion(path)
+	if err != nil {
+		return &modinfo.ModulePublic{
+			Path: path,
+			Error: &modinfo.ModuleError{
+				Err: err.Error(),
+			},
+		}
+	}
+	if found {
 		m := module.Version{Path: path, Version: vers}
 		return moduleInfo(loaderstate, ctx, nil, m, 0, nil)
 	}

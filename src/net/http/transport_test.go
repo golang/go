@@ -22,11 +22,11 @@ import (
 	"fmt"
 	"go/token"
 	"internal/nettrace"
-	"internal/synctest"
 	"io"
 	"log"
 	mrand "math/rand"
 	"net"
+	"net/http"
 	. "net/http"
 	"net/http/httptest"
 	"net/http/httptrace"
@@ -44,6 +44,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"testing/iotest"
+	"testing/synctest"
 	"time"
 
 	"golang.org/x/net/http/httpguts"
@@ -471,6 +472,119 @@ func testTransportReadToEndReusesConn(t *testing.T, mode testMode) {
 		if len(addrSeen) != 1 {
 			t.Errorf("for %s, server saw %d distinct client addresses; want 1", path, len(addrSeen))
 		}
+	}
+}
+
+// In HTTP/1, if a response body has not been fully read by the time it is
+// closed, we try to drain it, up to a maximum byte and time limit. If we
+// manage to drain it before the next request, the connection is re-used;
+// otherwise, a new connection is made.
+func TestTransportNotReadToEndConnectionReuse(t *testing.T) {
+	run(t, testTransportNotReadToEndConnectionReuse, []testMode{http1Mode, https1Mode})
+}
+func testTransportNotReadToEndConnectionReuse(t *testing.T, mode testMode) {
+	tests := []struct {
+		name            string
+		bodyLen         int
+		contentLenKnown bool
+		headRequest     bool
+		timeBetweenReqs time.Duration
+		responseTime    time.Duration
+		wantReuse       bool
+	}{
+		{
+			name:            "unconsumed body within drain limit",
+			bodyLen:         200 * 1024,
+			timeBetweenReqs: http.MaxPostCloseReadTime,
+			wantReuse:       true,
+		},
+		{
+			name:            "unconsumed body within drain limit with known length",
+			bodyLen:         200 * 1024,
+			contentLenKnown: true,
+			timeBetweenReqs: http.MaxPostCloseReadTime,
+			wantReuse:       true,
+		},
+		{
+			name:            "unconsumed body larger than drain limit",
+			bodyLen:         500 * 1024,
+			timeBetweenReqs: http.MaxPostCloseReadTime,
+			wantReuse:       false,
+		},
+		{
+			name:            "unconsumed body larger than drain limit with known length",
+			bodyLen:         500 * 1024,
+			contentLenKnown: true,
+			timeBetweenReqs: http.MaxPostCloseReadTime,
+			wantReuse:       false,
+		},
+		{
+			name:            "new requests start before drain for old requests are finished",
+			bodyLen:         200 * 1024,
+			timeBetweenReqs: 0,
+			responseTime:    time.Minute,
+			wantReuse:       false,
+		},
+		{
+			// Server handler will always return no body when handling a HEAD
+			// request, which should always allow connection re-use.
+			name:        "unconsumed body larger than drain limit for HEAD request",
+			bodyLen:     500 * 1024,
+			headRequest: true,
+			wantReuse:   true,
+		},
+	}
+
+	for _, tc := range tests {
+		subtest := func(t *testing.T) {
+			addrSeen := make(map[string]int)
+			ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+				addrSeen[r.RemoteAddr]++
+				time.Sleep(tc.responseTime)
+				if tc.contentLenKnown {
+					w.Header().Add("Content-Length", strconv.Itoa(tc.bodyLen))
+				}
+				w.Write(slices.Repeat([]byte("a"), tc.bodyLen))
+			}), optFakeNet).ts
+
+			var wg sync.WaitGroup
+			for range 10 {
+				wg.Go(func() {
+					method := http.MethodGet
+					if tc.headRequest {
+						method = http.MethodHead
+					}
+					ctx, cancel := context.WithCancel(context.Background())
+					req, err := http.NewRequestWithContext(ctx, method, ts.URL, nil)
+					if err != nil {
+						log.Fatal(err)
+					}
+					resp, err := ts.Client().Do(req)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if resp.StatusCode != http.StatusOK {
+						t.Errorf("expected HTTP 200, got: %v", resp.StatusCode)
+					}
+					resp.Body.Close()
+					// Context cancellation and body read after the body has been
+					// closed should not affect connection re-use.
+					cancel()
+					if n, err := resp.Body.Read([]byte{}); n != 0 || err == nil {
+						t.Errorf("read after body has been closed should not succeed, but read %v byte with %v error", n, err)
+					}
+				})
+				time.Sleep(tc.timeBetweenReqs)
+				synctest.Wait()
+			}
+			wg.Wait()
+			if (len(addrSeen) == 1) != tc.wantReuse {
+				t.Errorf("want connection reuse to be %v, but %v connections were created", tc.wantReuse, len(addrSeen))
+			}
+		}
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, subtest)
+		})
 	}
 }
 

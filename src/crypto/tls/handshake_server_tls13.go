@@ -14,6 +14,7 @@ import (
 	"crypto/internal/fips140/tls13"
 	"crypto/rsa"
 	"crypto/tls/internal/fips140tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"hash"
@@ -369,8 +370,13 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		if sessionHasClientCerts && c.config.time().After(sessionState.peerCertificates[0].NotAfter) {
 			continue
 		}
+		opts := x509.VerifyOptions{
+			CurrentTime: c.config.time(),
+			Roots:       c.config.ClientCAs,
+			KeyUsages:   []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		}
 		if sessionHasClientCerts && c.config.ClientAuth >= VerifyClientCertIfGiven &&
-			len(sessionState.verifiedChains) == 0 {
+			!anyValidVerifiedChain(sessionState.verifiedChains, opts) {
 			continue
 		}
 

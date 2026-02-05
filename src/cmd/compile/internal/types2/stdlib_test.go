@@ -332,10 +332,6 @@ func TestStdFixed(t *testing.T) {
 		"issue49814.go",  // go/types does not have constraints on array size
 		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
 		"issue52697.go",  // types2 does not have constraints on stack size
-		"issue68054.go",  // this test requires GODEBUG=gotypesalias=1
-		"issue68580.go",  // this test requires GODEBUG=gotypesalias=1
-		"issue73309.go",  // this test requires GODEBUG=gotypesalias=1
-		"issue73309b.go", // this test requires GODEBUG=gotypesalias=1
 
 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
 		// However, types2 does not know about build constraints.
@@ -402,8 +398,7 @@ func typecheckFiles(path string, filenames []string, importer Importer) (*Packag
 		Error: func(err error) {
 			errs = append(errs, err)
 		},
-		Importer:    importer,
-		EnableAlias: true,
+		Importer: importer,
 	}
 	info := Info{Uses: make(map[*syntax.Name]Object)}
 	pkg, _ := conf.Check(path, files, &info)

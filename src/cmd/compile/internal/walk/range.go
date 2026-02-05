@@ -23,7 +23,7 @@ func cheapComputableIndex(width int64) bool {
 	// MIPS does not have R+R addressing
 	// Arm64 may lack ability to generate this code in our assembler,
 	// but the architecture supports it.
-	case sys.PPC64, sys.S390X:
+	case sys.Loong64, sys.PPC64, sys.S390X:
 		return width == 1
 	case sys.AMD64, sys.I386, sys.ARM64, sys.ARM:
 		switch width {
@@ -477,7 +477,7 @@ func mapClear(m, rtyp ir.Node) ir.Node {
 	// instantiate mapclear(typ *type, hmap map[any]any)
 	fn := typecheck.LookupRuntime("mapclear", t.Key(), t.Elem())
 	n := mkcallstmt1(fn, rtyp, m)
-	return walkStmt(typecheck.Stmt(n))
+	return typecheck.Stmt(n)
 }
 
 // Lower n into runtime·memclr if possible, for

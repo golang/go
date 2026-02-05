@@ -223,7 +223,7 @@
     (Rsh64Ux64 <typ.UInt64>
       (Avg64u
         (Lsh64x64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [32]))
-        (Mul64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt32> [int64(umagic32(c).m)])))
+        (Mul64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [int64(umagic32(c).m)])))
       (Const64 <typ.UInt64> [32 + umagic32(c).s - 1])))
 (Div32u <t> x (Const32 [c])) && umagicOK32(c) && config.RegSize == 4 =>
   (Rsh32Ux64 <t>

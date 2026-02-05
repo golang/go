@@ -250,6 +250,10 @@ func fitsInBitsU(x uint64, b uint) bool {
 	return x>>b == 0
 }
 
+func noLimit() limit {
+	return noLimitForBitsize(64)
+}
+
 func noLimitForBitsize(bitsize uint) limit {
 	return limit{min: -(1 << (bitsize - 1)), max: 1<<(bitsize-1) - 1, umin: 0, umax: 1<<bitsize - 1}
 }
@@ -267,6 +271,13 @@ func convertIntWithBitsize[Target uint64 | int64, Source uint64 | int64](x Sourc
 	default:
 		panic("unreachable")
 	}
+}
+
+func (l limit) unsignedFixedLeadingBits() (fixed uint64, count uint) {
+	varying := uint(bits.Len64(l.umin ^ l.umax))
+	count = uint(bits.LeadingZeros64(l.umin ^ l.umax))
+	fixed = l.umin &^ (1<<varying - 1)
+	return
 }
 
 // add returns the limit obtained by adding a value with limit l
@@ -295,7 +306,7 @@ func (l limit) add(l2 limit, b uint) limit {
 		return limit{min: int64r, max: int64r, umin: r, umax: r}
 	}
 
-	r := noLimit
+	r := noLimit()
 	min, minOk := safeAdd(l.min, l2.min, b)
 	max, maxOk := safeAdd(l.max, l2.max, b)
 	if minOk && maxOk {
@@ -313,7 +324,7 @@ func (l limit) add(l2 limit, b uint) limit {
 
 // same as add but for subtraction.
 func (l limit) sub(l2 limit, b uint) limit {
-	r := noLimit
+	r := noLimit()
 	min, minOk := safeSub(l.min, l2.max, b)
 	max, maxOk := safeSub(l.max, l2.min, b)
 	if minOk && maxOk {
@@ -331,7 +342,7 @@ func (l limit) sub(l2 limit, b uint) limit {
 
 // same as add but for multiplication.
 func (l limit) mul(l2 limit, b uint) limit {
-	r := noLimit
+	r := noLimit()
 	umaxhi, umaxlo := bits.Mul64(l.umax, l2.umax)
 	if umaxhi == 0 && fitsInBitsU(umaxlo, b) {
 		r.umax = umaxlo
@@ -353,7 +364,7 @@ func (l limit) mul(l2 limit, b uint) limit {
 
 // Similar to add, but compute 1 << l if it fits without overflow in b bits.
 func (l limit) exp2(b uint) limit {
-	r := noLimit
+	r := noLimit()
 	if l.umax < uint64(b) {
 		r.umin = 1 << l.umin
 		r.umax = 1 << l.umax
@@ -404,7 +415,53 @@ func (l limit) neg(b uint) limit {
 	return l.com(b).add(limit{min: 1, max: 1, umin: 1, umax: 1}, b)
 }
 
-var noLimit = limit{math.MinInt64, math.MaxInt64, 0, math.MaxUint64}
+// Similar to add, but computes the TrailingZeros of the limit for bitsize b.
+func (l limit) ctz(b uint) limit {
+	fixed, fixedCount := l.unsignedFixedLeadingBits()
+	if fixedCount == 64 {
+		constResult := min(uint(bits.TrailingZeros64(fixed)), b)
+		return limit{min: int64(constResult), max: int64(constResult), umin: uint64(constResult), umax: uint64(constResult)}
+	}
+
+	varying := 64 - fixedCount
+	if l.umin&((1<<varying)-1) != 0 {
+		// there will always be at least one non-zero bit in the varying part
+		varying--
+		return noLimit().unsignedMax(uint64(varying))
+	}
+	return noLimit().unsignedMax(uint64(min(uint(bits.TrailingZeros64(fixed)), b)))
+}
+
+// Similar to add, but computes the Len of the limit for bitsize b.
+func (l limit) bitlen(b uint) limit {
+	return noLimit().unsignedMinMax(
+		uint64(bits.Len64(l.umin)),
+		uint64(bits.Len64(l.umax)),
+	)
+}
+
+// Similar to add, but computes the PopCount of the limit for bitsize b.
+func (l limit) popcount(b uint) limit {
+	fixed, fixedCount := l.unsignedFixedLeadingBits()
+	varying := 64 - fixedCount
+	fixedContribution := uint64(bits.OnesCount64(fixed))
+
+	min := fixedContribution
+	max := fixedContribution + uint64(varying)
+
+	varyingMask := uint64(1)<<varying - 1
+
+	if varyingPartOfUmax := l.umax & varyingMask; uint(bits.OnesCount64(varyingPartOfUmax)) != varying {
+		// there is at least one zero bit in the varying part
+		max--
+	}
+	if varyingPartOfUmin := l.umin & varyingMask; varyingPartOfUmin != 0 {
+		// there is at least one non-zero bit in the varying part
+		min++
+	}
+
+	return noLimit().unsignedMinMax(min, max)
+}
 
 // a limitFact is a limit known for a particular value.
 type limitFact struct {
@@ -556,7 +613,7 @@ func (ft *factsTable) pointerNil(v *Value) {
 	ft.newLimit(v, limit{min: 0, max: 0, umin: 0, umax: 0})
 }
 func (ft *factsTable) pointerNonNil(v *Value) {
-	l := noLimit
+	l := noLimit()
 	l.umin = 1
 	ft.newLimit(v, l)
 }
@@ -1788,15 +1845,15 @@ func initLimit(v *Value) limit {
 		case OpConstNil:
 			return limit{min: 0, max: 0, umin: 0, umax: 0}
 		case OpAddr, OpLocalAddr: // TODO: others?
-			l := noLimit
+			l := noLimit()
 			l.umin = 1
 			return l
 		default:
-			return noLimit
+			return noLimit()
 		}
 	}
 	if !v.Type.IsInteger() {
-		return noLimit
+		return noLimit()
 	}
 
 	// Default limits based on type.
@@ -1904,55 +1961,20 @@ func (ft *factsTable) flowLimit(v *Value) {
 		}
 
 	// math/bits
-	case OpCtz64:
-		a := ft.limits[v.Args[0].ID]
-		if a.nonzero() {
-			ft.unsignedMax(v, uint64(bits.Len64(a.umax)-1))
-		}
-	case OpCtz32:
-		a := ft.limits[v.Args[0].ID]
-		if a.nonzero() {
-			ft.unsignedMax(v, uint64(bits.Len32(uint32(a.umax))-1))
-		}
-	case OpCtz16:
-		a := ft.limits[v.Args[0].ID]
-		if a.nonzero() {
-			ft.unsignedMax(v, uint64(bits.Len16(uint16(a.umax))-1))
-		}
-	case OpCtz8:
-		a := ft.limits[v.Args[0].ID]
-		if a.nonzero() {
-			ft.unsignedMax(v, uint64(bits.Len8(uint8(a.umax))-1))
-		}
+	case OpCtz64, OpCtz32, OpCtz16, OpCtz8:
+		a := v.Args[0]
+		al := ft.limits[a.ID]
+		ft.newLimit(v, al.ctz(uint(a.Type.Size())*8))
 
 	case OpPopCount64, OpPopCount32, OpPopCount16, OpPopCount8:
-		a := ft.limits[v.Args[0].ID]
-		changingBitsCount := uint64(bits.Len64(a.umax ^ a.umin))
-		sharedLeadingMask := ^(uint64(1)<<changingBitsCount - 1)
-		fixedBits := a.umax & sharedLeadingMask
-		min := uint64(bits.OnesCount64(fixedBits))
-		ft.unsignedMinMax(v, min, min+changingBitsCount)
+		a := v.Args[0]
+		al := ft.limits[a.ID]
+		ft.newLimit(v, al.popcount(uint(a.Type.Size())*8))
 
-	case OpBitLen64:
-		a := ft.limits[v.Args[0].ID]
-		ft.unsignedMinMax(v,
-			uint64(bits.Len64(a.umin)),
-			uint64(bits.Len64(a.umax)))
-	case OpBitLen32:
-		a := ft.limits[v.Args[0].ID]
-		ft.unsignedMinMax(v,
-			uint64(bits.Len32(uint32(a.umin))),
-			uint64(bits.Len32(uint32(a.umax))))
-	case OpBitLen16:
-		a := ft.limits[v.Args[0].ID]
-		ft.unsignedMinMax(v,
-			uint64(bits.Len16(uint16(a.umin))),
-			uint64(bits.Len16(uint16(a.umax))))
-	case OpBitLen8:
-		a := ft.limits[v.Args[0].ID]
-		ft.unsignedMinMax(v,
-			uint64(bits.Len8(uint8(a.umin))),
-			uint64(bits.Len8(uint8(a.umax))))
+	case OpBitLen64, OpBitLen32, OpBitLen16, OpBitLen8:
+		a := v.Args[0]
+		al := ft.limits[a.ID]
+		ft.newLimit(v, al.bitlen(uint(a.Type.Size())*8))
 
 	// Masks.
 
@@ -2043,7 +2065,7 @@ func (ft *factsTable) flowLimit(v *Value) {
 	case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
-		lim := noLimit
+		lim := noLimit()
 		if b.umax > 0 {
 			lim = lim.unsignedMin(a.umin / b.umax)
 		}
@@ -2165,24 +2187,22 @@ func (ft *factsTable) detectSubRelations(v *Value) {
 		return // x-y might overflow
 	}
 
-	// Subtracting a positive number only makes
-	// things smaller.
-	if yLim.min >= 0 {
+	// Subtracting a positive non-zero number only makes
+	// things smaller. If it's positive or zero, it might
+	// also do nothing (x-0 == v).
+	if yLim.min > 0 {
+		ft.update(v.Block, v, x, signed, lt)
+	} else if yLim.min == 0 {
 		ft.update(v.Block, v, x, signed, lt|eq)
-		// TODO: is this worth it?
-		//if yLim.min > 0 {
-		//	ft.update(v.Block, v, x, signed, lt)
-		//}
 	}
 
 	// Subtracting a number from a bigger one
-	// can't go below 0.
-	if ft.orderS.OrderedOrEqual(y, x) {
+	// can't go below 1. If the numbers might be
+	// equal, then it can't go below 0.
+	if ft.orderS.Ordered(y, x) {
+		ft.signedMin(v, 1)
+	} else if ft.orderS.OrderedOrEqual(y, x) {
 		ft.setNonNegative(v)
-		// TODO: is this worth it?
-		//if ft.orderS.Ordered(y, x) {
-		//	ft.signedMin(v, 1)
-		//}
 	}
 }
 
@@ -2888,9 +2908,9 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			xl := ft.limits[x.ID]
 			y := v.Args[1]
 			yl := ft.limits[y.ID]
-			if xl.umin == xl.umax && isUnsignedPowerOfTwo(xl.umin) ||
+			if xl.umin == xl.umax && isPowerOfTwo(xl.umin) ||
 				xl.min == xl.max && isPowerOfTwo(xl.min) ||
-				yl.umin == yl.umax && isUnsignedPowerOfTwo(yl.umin) ||
+				yl.umin == yl.umax && isPowerOfTwo(yl.umin) ||
 				yl.min == yl.max && isPowerOfTwo(yl.min) {
 				// 0,1 * a power of two is better done as a shift
 				break

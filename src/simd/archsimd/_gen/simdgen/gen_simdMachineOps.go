@@ -181,7 +181,7 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 		}
 		hasMerging = gOp.hasMaskedMerging(maskType, shapeOut)
 		if hasMerging && !resultInArg0 {
-			// We have to copy the slice here becasue the sort will be visible from other
+			// We have to copy the slice here because the sort will be visible from other
 			// aliases when no reslicing is happening.
 			newIn := make([]Operand, len(op.In), len(op.In)+1)
 			copy(newIn, op.In)

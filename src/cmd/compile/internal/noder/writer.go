@@ -1557,7 +1557,7 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 
 func (w *writer) distinctVars(stmt *syntax.ForStmt) bool {
 	lv := base.Debug.LoopVar
-	fileVersion := w.p.info.FileVersions[stmt.Pos().Base()]
+	fileVersion := w.p.info.FileVersions[stmt.Pos().FileBase()]
 	is122 := fileVersion == "" || version.Compare(fileVersion, "go1.22") >= 0
 
 	// Turning off loopvar for 1.22 is only possible with loopvarhash=qn

@@ -379,12 +379,79 @@ func TestBitMaskFromBitsLoad(t *testing.T) {
 }
 
 func TestBitMaskToBits(t *testing.T) {
-	if !archsimd.X86.AVX512() {
-		t.Skip("Test requires X86.AVX512, not available on this hardware")
-		return
+	int8s := []int8{
+		0, 1, 1, 0, 0, 1, 0, 1,
+		1, 0, 1, 1, 0, 0, 1, 0,
+		1, 0, 0, 1, 1, 0, 1, 0,
+		0, 1, 1, 0, 0, 1, 0, 1,
+		1, 0, 0, 1, 0, 1, 1, 0,
+		0, 1, 0, 1, 1, 0, 0, 1,
+		1, 0, 1, 0, 0, 1, 1, 0,
+		0, 1, 1, 0, 1, 0, 0, 1,
 	}
-	if v := archsimd.LoadInt16x8Slice([]int16{1, 0, 1, 0, 0, 0, 0, 0}).ToMask().ToBits(); v != 0b101 {
-		t.Errorf("Want 0b101, got %b", v)
+	int16s := make([]int16, 32)
+	for i := range int16s {
+		int16s[i] = int16(int8s[i])
+	}
+	int32s := make([]int32, 16)
+	for i := range int32s {
+		int32s[i] = int32(int8s[i])
+	}
+	int64s := make([]int64, 8)
+	for i := range int64s {
+		int64s[i] = int64(int8s[i])
+	}
+	want64 := uint64(0)
+	for i := range int8s {
+		want64 |= uint64(int8s[i]) << i
+	}
+	want32 := uint32(want64)
+	want16 := uint16(want64)
+	want8 := uint8(want64)
+	want4 := want8 & 0b1111
+	want2 := want4 & 0b11
+
+	if v := archsimd.LoadInt8x16Slice(int8s[:16]).ToMask().ToBits(); v != want16 {
+		t.Errorf("want %b, got %b", want16, v)
+	}
+	if v := archsimd.LoadInt32x4Slice(int32s[:4]).ToMask().ToBits(); v != want4 {
+		t.Errorf("want %b, got %b", want4, v)
+	}
+	if v := archsimd.LoadInt32x8Slice(int32s[:8]).ToMask().ToBits(); v != want8 {
+		t.Errorf("want %b, got %b", want8, v)
+	}
+	if v := archsimd.LoadInt64x2Slice(int64s[:2]).ToMask().ToBits(); v != want2 {
+		t.Errorf("want %b, got %b", want2, v)
+	}
+	if v := archsimd.LoadInt64x4Slice(int64s[:4]).ToMask().ToBits(); v != want4 {
+		t.Errorf("want %b, got %b", want4, v)
+	}
+
+	if archsimd.X86.AVX2() {
+		if v := archsimd.LoadInt8x32Slice(int8s[:32]).ToMask().ToBits(); v != want32 {
+			t.Errorf("want %b, got %b", want32, v)
+		}
+	}
+
+	if archsimd.X86.AVX512() {
+		if v := archsimd.LoadInt8x64Slice(int8s).ToMask().ToBits(); v != want64 {
+			t.Errorf("want %b, got %b", want64, v)
+		}
+		if v := archsimd.LoadInt16x8Slice(int16s[:8]).ToMask().ToBits(); v != want8 {
+			t.Errorf("want %b, got %b", want8, v)
+		}
+		if v := archsimd.LoadInt16x16Slice(int16s[:16]).ToMask().ToBits(); v != want16 {
+			t.Errorf("want %b, got %b", want16, v)
+		}
+		if v := archsimd.LoadInt16x32Slice(int16s).ToMask().ToBits(); v != want32 {
+			t.Errorf("want %b, got %b", want32, v)
+		}
+		if v := archsimd.LoadInt32x16Slice(int32s).ToMask().ToBits(); v != want16 {
+			t.Errorf("want %b, got %b", want16, v)
+		}
+		if v := archsimd.LoadInt64x8Slice(int64s).ToMask().ToBits(); v != want8 {
+			t.Errorf("want %b, got %b", want8, v)
+		}
 	}
 }
 

@@ -248,6 +248,11 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 
 	wg.Wait()
 
+	if tokens != totalTokens || concurrentProcesses != 0 {
+		base.Fatalf("internal error: tokens not restored at end of build: tokens: %d, totalTokens: %d, concurrentProcesses: %d",
+			tokens, totalTokens, concurrentProcesses)
+	}
+
 	// Write action graph again, this time with timing information.
 	writeActionGraph()
 }
@@ -622,7 +627,7 @@ func (b *Builder) checkCacheForBuild(a, buildAction *Action, covMetaFileName str
 	// If we are going to do a full build anyway,
 	// we're going to regenerate the files in the build action anyway.
 	if need == needVet {
-		if err := b.loadCachedVet(buildAction); err == nil {
+		if err := b.loadCachedVet(buildAction, a.Deps); err == nil {
 			need &^= needVet
 		}
 	}
@@ -836,7 +841,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 
 	// Prepare Go vet config if needed.
 	if need&needVet != 0 {
-		buildVetConfig(a, srcfiles)
+		buildVetConfig(a, srcfiles, a.Deps)
 		need &^= needVet
 	}
 	if need&needCompiledGoFiles != 0 {
@@ -923,6 +928,12 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	// Compile Go.
 	objpkg := objdir + "_pkg_.a"
 	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, pgoProfile, gofiles)
+	if len(out) > 0 && (p.UsesCgo() || p.UsesSwig()) && !cfg.BuildX {
+		// Fix up output referring to cgo-generated code to be more readable.
+		// Replace *[100]_Ctype_foo with *[100]C.foo.
+		// If we're using -x, assume we're debugging and want the full dump, so disable the rewrite.
+		out = cgoTypeSigRe.ReplaceAll(out, []byte("C."))
+	}
 	if err := sh.reportCmd("", "", out, err); err != nil {
 		return err
 	}
@@ -1028,6 +1039,8 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	return nil
 }
 
+var cgoTypeSigRe = lazyregexp.New(`\b_C2?(type|func|var|macro)_\B`)
+
 func (b *Builder) checkDirectives(a *Action) error {
 	var msg []byte
 	p := a.Package
@@ -1116,7 +1129,7 @@ func (b *Builder) cacheSrcFiles(a *Action, srcfiles []string) {
 	cache.PutBytes(c, cache.Subkey(a.actionID, "srcfiles"), buf.Bytes())
 }
 
-func (b *Builder) loadCachedVet(a *Action) error {
+func (b *Builder) loadCachedVet(a *Action, vetDeps []*Action) error {
 	c := cache.Default()
 	list, _, err := cache.GetBytes(c, cache.Subkey(a.actionID, "srcfiles"))
 	if err != nil {
@@ -1136,7 +1149,7 @@ func (b *Builder) loadCachedVet(a *Action) error {
 		}
 		srcfiles = append(srcfiles, a.Objdir+name)
 	}
-	buildVetConfig(a, srcfiles)
+	buildVetConfig(a, srcfiles, vetDeps)
 	return nil
 }
 
@@ -1192,7 +1205,7 @@ type vetConfig struct {
 	SucceedOnTypecheckFailure bool // awful hack; see #18395 and below
 }
 
-func buildVetConfig(a *Action, srcfiles []string) {
+func buildVetConfig(a *Action, srcfiles []string, vetDeps []*Action) {
 	// Classify files based on .go extension.
 	// srcfiles does not include raw cgo files.
 	var gofiles, nongofiles []string
@@ -1248,7 +1261,7 @@ func buildVetConfig(a *Action, srcfiles []string) {
 		vcfgMapped[p] = true
 	}
 
-	for _, a1 := range a.Deps {
+	for _, a1 := range vetDeps {
 		p1 := a1.Package
 		if p1 == nil || p1.ImportPath == "" || p1 == a.Package {
 			continue
@@ -1783,6 +1796,11 @@ func (b *Builder) getPkgConfigFlags(a *Action, p *load.Package) (cflags, ldflags
 				return nil, nil, fmt.Errorf("invalid pkg-config package name: %s", pkg)
 			}
 		}
+
+		if err := checkPkgConfigFlags("", "pkg-config", pcflags); err != nil {
+			return nil, nil, err
+		}
+
 		var out []byte
 		out, err = sh.runOut(p.Dir, nil, b.PkgconfigCmd(), "--cflags", pcflags, "--", pkgs)
 		if err != nil {

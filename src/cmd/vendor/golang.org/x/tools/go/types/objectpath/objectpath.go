@@ -29,7 +29,6 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/tools/internal/aliases"
 	"golang.org/x/tools/internal/typesinternal"
 )
 
@@ -281,10 +280,10 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 
 		T := o.Type()
 		if alias, ok := T.(*types.Alias); ok {
-			if r := findTypeParam(obj, aliases.TypeParams(alias), path, opTypeParam); r != nil {
+			if r := findTypeParam(obj, alias.TypeParams(), path, opTypeParam); r != nil {
 				return Path(r), nil
 			}
-			if r := find(obj, aliases.Rhs(alias), append(path, opRhs)); r != nil {
+			if r := find(obj, alias.Rhs(), append(path, opRhs)); r != nil {
 				return Path(r), nil
 			}
 
@@ -694,14 +693,11 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 
 		case opRhs:
 			if alias, ok := t.(*types.Alias); ok {
-				t = aliases.Rhs(alias)
-			} else if false && aliases.Enabled() {
-				// The Enabled check is too expensive, so for now we
-				// simply assume that aliases are not enabled.
-				//
+				t = alias.Rhs()
+			} else if false {
 				// Now that go1.24 is assured, we should be able to
-				// replace this with "if true {", but it causes tests
-				// to fail. TODO(adonovan): investigate.
+				// replace this with "if true {", but it causes objectpath
+				// tests to fail. TODO(adonovan): investigate.
 				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want alias)", code, t, t)
 			}
 

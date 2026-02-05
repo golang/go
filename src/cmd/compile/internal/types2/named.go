@@ -106,9 +106,7 @@ type Named struct {
 	check *Checker  // non-nil during type-checking; nil otherwise
 	obj   *TypeName // corresponding declared object for declared types; see above for instantiated types
 
-	// flags indicating temporary violations of the invariants for fromRHS and underlying
-	allowNilRHS        bool // same as below, as well as briefly during checking of a type declaration
-	allowNilUnderlying bool // may be true from creation via [NewNamed] until [Named.SetUnderlying]
+	allowNilRHS bool // may be true from creation via [NewNamed] until [Named.SetUnderlying]
 
 	inst *instance // information for instantiated types; nil otherwise
 
@@ -117,7 +115,7 @@ type Named struct {
 	fromRHS    Type           // the declaration RHS this type is derived from
 	tparams    *TypeParamList // type parameters, or nil
 	underlying Type           // underlying type, or nil
-	finite     bool           // whether the type has finite size
+	varSize    bool           // whether the type has variable size
 
 	// methods declared for this type (not the method set of this type)
 	// Signatures are type-checked lazily.
@@ -149,10 +147,10 @@ type instance struct {
 //	unpacked
 //	└── hasMethods
 //	└── hasUnder
-//	└── hasFinite
+//	└── hasVarSize
 //
 // That is, descent down the tree is mostly linear (initial through unpacked), except upon
-// reaching the leaves (hasMethods, hasUnder, and hasFinite). A type may occupy any
+// reaching the leaves (hasMethods, hasUnder, and hasVarSize). A type may occupy any
 // combination of the leaf states at once (they are independent states).
 //
 // To represent this independence, the set of active states is represented with a bit set. State
@@ -166,7 +164,7 @@ type instance struct {
 //	11000 | unpacked, which implies lazyLoaded
 //	11100 | hasMethods, which implies unpacked (which in turn implies lazyLoaded)
 //	11010 | hasUnder, which implies unpacked ...
-//	11001 | hasFinite, which implies unpacked ...
+//	11001 | hasVarSize, which implies unpacked ...
 //	11110 | both hasMethods and hasUnder which implies unpacked ...
 //	...   | (other combinations of leaf states)
 //
@@ -179,7 +177,7 @@ const (
 	unpacked                         // methods might be unexpanded (for instances)
 	hasMethods                       // methods are all expanded (for instances)
 	hasUnder                         // underlying type is available
-	hasFinite                        // size finiteness is available
+	hasVarSize                       // varSize is available
 )
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
@@ -192,7 +190,6 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	n := (*Checker)(nil).newNamed(obj, underlying, methods)
 	if underlying == nil {
 		n.allowNilRHS = true
-		n.allowNilUnderlying = true
 	} else {
 		n.SetUnderlying(underlying)
 	}
@@ -309,8 +306,8 @@ func (n *Named) setState(m stateMask) {
 		if m&hasUnder != 0 {
 			assert(u)
 		}
-		// hasFinite => unpacked
-		if m&hasFinite != 0 {
+		// hasVarSize => unpacked
+		if m&hasVarSize != 0 {
 			assert(u)
 		}
 	}
@@ -532,7 +529,6 @@ func (t *Named) SetUnderlying(u Type) {
 	t.setState(lazyLoaded | unpacked | hasMethods) // TODO(markfreeman): Why hasMethods?
 
 	t.underlying = u
-	t.allowNilUnderlying = false
 	t.setState(hasUnder)
 }
 
@@ -594,9 +590,7 @@ func (n *Named) Underlying() Type {
 	// and complicating things there, we just check for that special case here.
 	if n.rhs() == nil {
 		assert(n.allowNilRHS)
-		if n.allowNilUnderlying {
-			return nil
-		}
+		return nil
 	}
 
 	if !n.stateHas(hasUnder) { // minor performance optimization
@@ -637,9 +631,6 @@ func (n *Named) resolveUnderlying() {
 	var u Type
 	for rhs := Type(n); u == nil; {
 		switch t := rhs.(type) {
-		case nil:
-			u = Typ[Invalid]
-
 		case *Alias:
 			rhs = unalias(t)
 
@@ -661,8 +652,8 @@ func (n *Named) resolveUnderlying() {
 			path = append(path, t)
 
 			t.unpack()
-			assert(t.rhs() != nil || t.allowNilRHS)
 			rhs = t.rhs()
+			assert(rhs != nil)
 
 		default:
 			u = rhs // any type literal or predeclared type works

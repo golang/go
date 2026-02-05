@@ -118,6 +118,7 @@ func init() {
 	regCtxt := regNamed["X26"]
 	callerSave := gpMask | fpMask | regNamed["g"]
 	r5toR6 := regNamed["X5"] | regNamed["X6"]
+	regX5 := regNamed["X5"]
 
 	var (
 		gpstore  = regInfo{inputs: []regMask{gpspsbMask, gpspMask, 0}} // SB in first input so we can load from a global, but not in second to avoid using SB as a temporary register
@@ -142,9 +143,13 @@ func init() {
 		fpload  = regInfo{inputs: []regMask{gpspsbMask, 0}, outputs: []regMask{fpMask}}
 		fp2gp   = regInfo{inputs: []regMask{fpMask, fpMask}, outputs: []regMask{gpMask}}
 
-		call        = regInfo{clobbers: callerSave}
-		callClosure = regInfo{inputs: []regMask{gpspMask, regCtxt, 0}, clobbers: callerSave}
-		callInter   = regInfo{inputs: []regMask{gpMask}, clobbers: callerSave}
+		call = regInfo{clobbers: callerSave}
+		// Avoid using X5 as the source register of calls. Using X5 here triggers
+		// RAS pop-then-push behavior which is not correct for function calls.
+		// Please refer to section 2.5.1 of the RISC-V ISA
+		// (https://docs.riscv.org/reference/isa/unpriv/rv32.html#rashints) for details.
+		callClosure = regInfo{inputs: []regMask{gpspMask ^ regX5, regCtxt, 0}, clobbers: callerSave}
+		callInter   = regInfo{inputs: []regMask{gpMask ^ regX5}, clobbers: callerSave}
 	)
 
 	RISCV64ops := []opData{

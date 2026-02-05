@@ -510,6 +510,8 @@ goodm:
 // The frame layout needs to match systemstack
 // so that it can pretend to be systemstack_switch.
 TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
+	// Align for consistency with offset used in gosave_systemstack_switch
+	PCALIGN	$8
 	UNDEF
 	// Make sure this function is not leaf,
 	// so the frame is saved.
@@ -885,8 +887,9 @@ TEXT ·publicationBarrier<ABIInternal>(SB),NOSPLIT,$0-0
 // Smashes R9.
 TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	// Take systemstack_switch PC and add 8 bytes to skip
-	// the prologue. The final location does not matter
-	// as long as we are between the prologue and the epilogue.
+	// the prologue. Keep 8 bytes offset consistent with
+	// PCALIGN $8 in systemstack_swtich, pointing start of
+	// UNDEF instruction beyond prologue.
 	MOVQ	$runtime·systemstack_switch+8(SB), R9
 	MOVQ	R9, (g_sched+gobuf_pc)(R14)
 	LEAQ	8(SP), R9
@@ -1286,7 +1289,7 @@ TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT,$0-32
 	// CX = size
 	CMPB	runtime·useAeshash(SB), $0
 	JEQ	noaes
-	JMP	aeshashbody<>(SB)
+	JMP	runtime·aeshashbody<>(SB)
 noaes:
 	JMP	runtime·memhashFallback<ABIInternal>(SB)
 
@@ -1298,7 +1301,7 @@ TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT,$0-24
 	JEQ	noaes
 	MOVQ	8(AX), CX	// length of string
 	MOVQ	(AX), AX	// string data
-	JMP	aeshashbody<>(SB)
+	JMP	runtime·aeshashbody<>(SB)
 noaes:
 	JMP	runtime·strhashFallback<ABIInternal>(SB)
 
@@ -1306,7 +1309,7 @@ noaes:
 // BX: hash seed
 // CX: length
 // At return: AX = return value
-TEXT aeshashbody<>(SB),NOSPLIT,$0-0
+TEXT runtime·aeshashbody<>(SB),NOSPLIT,$0-0
 	// Fill an SSE register with our seeds.
 	MOVQ	BX, X0				// 64 bits of per-table hash seed
 	PINSRW	$4, CX, X0			// 16 bits of length

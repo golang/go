@@ -154,12 +154,14 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 
 	r := n.Rhs[0].(*ir.IndexExpr)
 	walkExprListSafe(n.Lhs, init)
+
 	r.X = walkExpr(r.X, init)
 	r.Index = walkExpr(r.Index, init)
+	map_ := r.X
 	t := r.X.Type()
-
 	fast := mapfast(t)
 	key := mapKeyArg(fast, r, r.Index, false)
+	args := []ir.Node{reflectdata.IndexMapRType(base.Pos, r), map_, key}
 
 	// from:
 	//   a,b = m[i]
@@ -168,15 +170,14 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	//   a = *var
 	a := n.Lhs[0]
 
-	var call *ir.CallExpr
-	if w := t.Elem().Size(); w <= abi.ZeroValSize {
-		fn := mapfn(mapaccess2[fast], t, false)
-		call = mkcall1(fn, fn.Type().ResultsTuple(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key)
+	var mapFn ir.Node
+	if t.Elem().Size() > abi.ZeroValSize {
+		args = append(args, reflectdata.ZeroAddr(t.Elem().Size()))
+		mapFn = mapfn("mapaccess2_fat", t, true)
 	} else {
-		fn := mapfn("mapaccess2_fat", t, true)
-		z := reflectdata.ZeroAddr(w)
-		call = mkcall1(fn, fn.Type().ResultsTuple(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key, z)
+		mapFn = mapfn(mapaccess[fast], t, false)
 	}
+	call := mkcall1(mapFn, mapFn.Type().ResultsTuple(), init, args...)
 
 	// mapaccess2* returns a typed bool, but due to spec changes,
 	// the boolean result of i.(T) is now untyped so we make it the

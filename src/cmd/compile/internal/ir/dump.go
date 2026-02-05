@@ -9,11 +9,16 @@
 package ir
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"reflect"
 	"regexp"
+	"strings"
+	"sync"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
@@ -61,6 +66,164 @@ func FDumpAny(w io.Writer, root any, filter string, depth int) {
 
 	p.dump(reflect.ValueOf(root), depth)
 	p.printf("\n")
+}
+
+// MatchAstDump returns true if the fn matches the value
+// of the astdump debug flag.  Fn matches in the following
+// cases:
+//
+//   - astdump == name(fn)
+//   - astdump == pkgname(fn).name(fn)
+//   - astdump == afterslash(pkgname(fn)).name(fn)
+//   - astdump begins with a "~" and what follows "~" is a
+//     regular expression matching pkgname(fn).name(fn)
+//
+// If MatchAstDump returns true, it also prints to os.Stderr
+//
+//	\nir.Match(<fn>, <astdump>) for <where>\n
+func MatchAstDump(fn *Func, where string) bool {
+	if len(base.Debug.AstDump) == 0 {
+		return false
+	}
+	return matchForDump(fn, base.Ctxt.Pkgpath, where)
+}
+
+var dbgRE *regexp.Regexp
+var onceDbgRE sync.Once
+
+func matchForDump(fn *Func, pkgPath, where string) bool {
+	dbg := false
+	flag := base.Debug.AstDump
+	if flag[0] == '~' {
+		onceDbgRE.Do(func() { dbgRE = regexp.MustCompile(flag[1:]) })
+		dbg = dbgRE.MatchString(pkgPath + "." + FuncName(fn))
+	} else {
+		dbg = matchPkgFn(pkgPath, FuncName(fn), flag)
+	}
+	return dbg
+}
+
+// matchPkgFn returns true if pkg and fnName "match" toMatch.
+// "aFunc" matches "aFunc" (in any package)
+// "aPkg.aFunc" matches "aPkg.aFunc"
+// "aPkg/subPkg.aFunc" matches "subPkg.aFunc"
+func matchPkgFn(pkgName, fnName, toMatch string) bool {
+	if fnName == toMatch {
+		return true
+	}
+	matchPkgDotName := func(pkg string) bool {
+		// Allocation-free equality check for toMatch == base.Ctxt.Pkgpath + "." + fnName
+		return len(toMatch) == len(pkg)+1+len(fnName) &&
+			strings.HasPrefix(toMatch, pkg) && toMatch[len(pkg)] == '.' && strings.HasSuffix(toMatch, fnName)
+	}
+	if matchPkgDotName(pkgName) {
+		return true
+	}
+	if l := strings.LastIndexByte(pkgName, '/'); l > 0 && matchPkgDotName(pkgName[l+1:]) {
+		return true
+	}
+
+	return false
+}
+
+// AstDump appends the ast dump for fn to the ast dump file for fn.
+// The generated file name is
+//
+//	url.PathEscape(PkgFuncName(fn)) + ".ast"
+//
+// It also prints
+//
+//	Writing ast output to <astfilename>\n
+//
+// to os.Stderr.
+func AstDump(fn *Func, why string) {
+	err := withLockAndFile(
+		fn,
+		func(w io.Writer) {
+			FDump(w, why, fn)
+		},
+	)
+	// strip text following comma, for phase names.
+	comma := strings.Index(why, ",")
+	if comma > 0 {
+		why = why[:comma]
+	}
+	DumpNodeHTML(fn, why, fn)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Dump returned error %v\n", err)
+	}
+}
+
+var mu sync.Mutex
+var astDumpFiles = make(map[string]bool)
+
+// escapedFileName constructs a file name from fn and suffix,
+// url-path-escaping the function part of the name and replacing it
+// with a hash if it is too long.  The suffix is neither escaped
+// nor including in the length calculation, so an excessively
+// creative suffix will result in problems.
+func escapedFileName(fn *Func, suffix string) string {
+	name := url.PathEscape(PkgFuncName(fn))
+	if len(name) > 125 { // arbitrary limit on file names, as if anyone types these in by hand
+		hash := sha256.Sum256([]byte(name))
+		name = hex.EncodeToString(hash[:8])
+	}
+	return name + suffix
+}
+
+// withLockAndFile manages ast dump files for various function names
+// and invokes a dumping function to write output, under a lock.
+func withLockAndFile(fn *Func, dump func(io.Writer)) (err error) {
+	name := escapedFileName(fn, ".ast")
+
+	// Ensure that debugging output is not scrambled and is written promptly
+	mu.Lock()
+	defer mu.Unlock()
+	mode := os.O_APPEND | os.O_RDWR
+	if !astDumpFiles[name] {
+		astDumpFiles[name] = true
+		mode = os.O_CREATE | os.O_TRUNC | os.O_RDWR
+		fmt.Fprintf(os.Stderr, "Writing text ast output for %s to %s\n", PkgFuncName(fn), name)
+	}
+
+	fi, err := os.OpenFile(name, mode, 0777)
+	if err != nil {
+		return err
+	}
+	defer func() { err = fi.Close() }()
+	dump(fi)
+	return
+}
+
+var htmlWriters = make(map[*Func]*HTMLWriter)
+var orderedFuncs = []*Func{}
+
+// DumpNodeHTML dumps the node n to the HTML writer for fn.
+// It uses the same phase name as the text dump.
+func DumpNodeHTML(fn *Func, why string, n Node) {
+	mu.Lock()
+	defer mu.Unlock()
+	w, ok := htmlWriters[fn]
+	if !ok {
+		name := escapedFileName(fn, ".html")
+		w = NewHTMLWriter(name, fn, "")
+		htmlWriters[fn] = w
+		orderedFuncs = append(orderedFuncs, fn)
+	}
+	w.WritePhase(why, why)
+}
+
+// CloseHTMLWriter closes the HTML writer for fn, if one exists.
+func CloseHTMLWriters() {
+	mu.Lock()
+	defer mu.Unlock()
+	for _, fn := range orderedFuncs {
+		if w, ok := htmlWriters[fn]; ok {
+			w.Close()
+			delete(htmlWriters, fn)
+		}
+	}
+	orderedFuncs = nil
 }
 
 type dumper struct {

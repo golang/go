@@ -43,6 +43,10 @@ func (r *Regexp) FindStringSubmatchIndex(s string) []int {
 	return r.re().FindStringSubmatchIndex(s)
 }
 
+func (r *Regexp) ReplaceAll(src, repl []byte) []byte {
+	return r.re().ReplaceAll(src, repl)
+}
+
 func (r *Regexp) ReplaceAllString(src, repl string) string {
 	return r.re().ReplaceAllString(src, repl)
 }

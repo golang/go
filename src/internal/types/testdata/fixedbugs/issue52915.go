@@ -18,4 +18,4 @@ func _[P any]() {
 	_ = unsafe.Sizeof(struct{ T[P] }{})
 }
 
-const _ = unsafe.Sizeof(T /* ERROR "invalid recursive type" */ [int]{})
+const _ = unsafe /* ERROR "not constant" */ .Sizeof(T /* ERROR "invalid recursive type" */ [int]{})

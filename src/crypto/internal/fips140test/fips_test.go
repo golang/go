@@ -101,6 +101,8 @@ func TestFIPS140(t *testing.T) {
 	aesBlock, err := aes.New(aesKey)
 	fatalIfErr(t, err)
 
+	testFIPS140v126(t, plaintext)
+
 	t.Run("AES-CTR", func(t *testing.T) {
 		ensureServiceIndicator(t)
 		ctr := aes.NewCTR(aesBlock, aesIV)

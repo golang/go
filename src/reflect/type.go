@@ -2580,6 +2580,9 @@ func StructOf(fields []StructField) Type {
 		// space to store it.
 		typ.TFlag |= abi.TFlagGCMaskOnDemand
 		typ.GCData = (*byte)(unsafe.Pointer(new(uintptr)))
+		if runtime.GOOS == "aix" {
+			typ.GCData = adjustAIXGCData(typ.GCData)
+		}
 	}
 
 	typ.Equal = nil
@@ -2745,6 +2748,9 @@ func ArrayOf(length int, elem Type) Type {
 		// space to store it.
 		array.TFlag |= abi.TFlagGCMaskOnDemand
 		array.GCData = (*byte)(unsafe.Pointer(new(uintptr)))
+		if runtime.GOOS == "aix" {
+			array.GCData = adjustAIXGCData(array.GCData)
+		}
 	}
 
 	etyp := typ
@@ -2775,6 +2781,34 @@ func ArrayOf(length int, elem Type) Type {
 	ti, _ := lookupCache.LoadOrStore(ckey, toRType(&array.Type))
 	return ti.(Type)
 }
+
+// adjustAIXGCData adjusts the GCData field pointer for AIX.
+// See runtime.getGCMaskOnDemand.
+func adjustAIXGCData(addr *byte) *byte {
+	adjusted := adjustAIXGCDataForRuntime(addr)
+	if adjusted != addr {
+		pinAIXGCDataMu.Lock()
+		pinAIXGCData = append(pinAIXGCData, addr)
+		pinAIXGCDataMu.Unlock()
+	}
+	return adjusted
+}
+
+// adjustAIXGCDataForRuntime adjusts the GCData field pointer
+// as the runtime requires for AIX. See runtime.getGCMaskOnDemand.
+//
+//go:linkname adjustAIXGCDataForRuntime
+//go:noescape
+func adjustAIXGCDataForRuntime(*byte) *byte
+
+// pinAIXGCDataMu proects pinAIXGCData.
+var pinAIXGCDataMu sync.Mutex
+
+// pinAIXGCData keeps the actual GCData pointer alive on AIX.
+// On AIX we need to use adjustAIXGCData to convert the GC pointer
+// to the value that the runtime expects. That means that the rtype
+// no longer refers to the original pointer. This slice keeps it alive.
+var pinAIXGCData []*byte
 
 func appendVarint(x []byte, v uintptr) []byte {
 	for ; v >= 0x80; v >>= 7 {

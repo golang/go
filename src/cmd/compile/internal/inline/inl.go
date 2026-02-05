@@ -286,6 +286,8 @@ func CanInline(fn *ir.Func, profile *pgoir.Profile) {
 	// locals, and we use this map to produce a pruned Inline.Dcl
 	// list. See issue 25459 for more context.
 
+	dbg := ir.MatchAstDump(fn, "inline")
+
 	visitor := hairyVisitor{
 		curFunc:       fn,
 		debug:         isDebugFn(fn),
@@ -294,10 +296,17 @@ func CanInline(fn *ir.Func, profile *pgoir.Profile) {
 		maxBudget:     budget,
 		extraCallCost: cc,
 		profile:       profile,
+		dbg:           dbg, // Useful for downstream debugging
 	}
+
 	if visitor.tooHairy(fn) {
 		reason = visitor.reason
+		if dbg {
+			ir.AstDump(fn, "inline, too hairy because "+visitor.reason+", "+ir.FuncName(fn))
+		}
 		return
+	} else if dbg {
+		ir.AstDump(fn, "inline, OK, "+ir.FuncName(fn))
 	}
 
 	n.Func.Inl = &ir.Inline{
@@ -441,6 +450,7 @@ type hairyVisitor struct {
 	usedLocals    ir.NameSet
 	do            func(ir.Node) bool
 	profile       *pgoir.Profile
+	dbg           bool
 }
 
 func isDebugFn(fn *ir.Func) bool {

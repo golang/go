@@ -217,16 +217,17 @@ func compilerConcurrency() (int, func()) {
 	concurrentProcesses++
 	// Set aside tokens so that we don't run out if we were running cfg.BuildP concurrent compiles.
 	// We'll set aside one token for each of the action goroutines that aren't currently running a compile.
-	setAside := cfg.BuildP - concurrentProcesses
+	setAside := (cfg.BuildP - concurrentProcesses) * minTokens
 	availableTokens := tokens - setAside
-	// Grab half the remaining tokens: but with a floor of at least 1 token, and
+	// Grab half the remaining tokens: but with a floor of at least minTokens token, and
 	// a ceiling of the max backend concurrency.
-	c := max(min(availableTokens/2, maxCompilerConcurrency), 1)
+	c := max(min(availableTokens/2, maxCompilerConcurrency), minTokens)
 	tokens -= c
 	// Successfully grabbed the tokens.
 	return c, func() {
 		tokensMu.Lock()
 		defer tokensMu.Unlock()
+		concurrentProcesses--
 		tokens += c
 	}
 }
@@ -235,17 +236,22 @@ var maxCompilerConcurrency = runtime.GOMAXPROCS(0) // max value we will use for 
 
 var (
 	tokensMu            sync.Mutex
+	totalTokens         int // total number of tokens: this is used for checking that we get them all back in the end
 	tokens              int // number of available tokens
 	concurrentProcesses int // number of currently running compiles
+	minTokens           int // minimum number of tokens to give out
 )
 
 // initCompilerConcurrencyPool sets the number of tokens in the pool. It needs
 // to be run after init, so that it can use the value of cfg.BuildP.
 func initCompilerConcurrencyPool() {
-	// Size the pool so that the worst case total number of compiles is not more
-	// than what it was when we capped the concurrency to 4.
-	oldConcurrencyCap := min(4, maxCompilerConcurrency)
-	tokens = oldConcurrencyCap * cfg.BuildP
+	// Size the pool to allow 2*maxCompilerConcurrency extra tokens to
+	// be distributed amongst the compile actions in addition to the minimum
+	// of min(4,GOMAXPROCS) tokens for each of the potentially cfg.BuildP
+	// concurrently running compile actions.
+	minTokens = min(4, maxCompilerConcurrency)
+	tokens = 2*maxCompilerConcurrency + minTokens*cfg.BuildP
+	totalTokens = tokens
 }
 
 // trimpath returns the -trimpath argument to use

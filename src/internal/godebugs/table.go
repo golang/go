@@ -39,7 +39,6 @@ var All = []Info{
 	{Name: "gocachetest", Package: "cmd/go"},
 	{Name: "gocacheverify", Package: "cmd/go"},
 	{Name: "gotestjsonbuildtext", Package: "cmd/go", Changed: 24, Old: "1"},
-	{Name: "gotypesalias", Package: "go/types", Changed: 23, Old: "0"},
 	{Name: "http2client", Package: "net/http"},
 	{Name: "http2debug", Package: "net/http", Opaque: true},
 	{Name: "http2server", Package: "net/http"},
@@ -69,6 +68,7 @@ var All = []Info{
 	{Name: "tlssha1", Package: "crypto/tls", Changed: 25, Old: "1"},
 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
 	{Name: "updatemaxprocs", Package: "runtime", Changed: 25, Old: "0"},
+	{Name: "urlmaxqueryparams", Package: "net/url", Changed: 24, Old: "0"},
 	{Name: "urlstrictcolons", Package: "net/url", Changed: 26, Old: "0"},
 	{Name: "winreadlinkvolume", Package: "os", Changed: 23, Old: "0"},
 	{Name: "winsymlink", Package: "os", Changed: 23, Old: "0"},
@@ -89,6 +89,7 @@ type RemovedInfo struct {
 // Removed contains all GODEBUGs that we have removed.
 var Removed = []RemovedInfo{
 	{Name: "x509sha1", Removed: 24},
+	{Name: "gotypesalias", Removed: 27},
 }
 
 // Lookup returns the Info with the given name.

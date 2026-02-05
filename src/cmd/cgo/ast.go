@@ -301,17 +301,12 @@ func (f *File) saveExport(x any, context astContext) {
 			error_(c.Pos(), "export comment has wrong name %q, want %q", name, n.Name.Name)
 		}
 
-		doc := ""
-		for _, c1 := range n.Doc.List {
-			if c1 != c {
-				doc += c1.Text + "\n"
-			}
-		}
-
 		f.ExpFunc = append(f.ExpFunc, &ExpFunc{
 			Func:    n,
 			ExpName: name,
-			Doc:     doc,
+			// Caution: Do not set the Doc field on purpose
+			// to ensure that there are no unintended artifacts
+			// in the binary. See https://go.dev/issue/76697.
 		})
 		break
 	}

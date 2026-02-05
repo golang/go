@@ -954,7 +954,7 @@ TEXT runtime·memhash(SB),NOSPLIT,$0-16
 	MOVL	p+0(FP), AX	// ptr to data
 	MOVL	s+8(FP), BX	// size
 	LEAL	ret+12(FP), DX
-	JMP	aeshashbody<>(SB)
+	JMP	runtime·aeshashbody<>(SB)
 noaes:
 	JMP	runtime·memhashFallback(SB)
 
@@ -965,14 +965,14 @@ TEXT runtime·strhash(SB),NOSPLIT,$0-12
 	MOVL	4(AX), BX	// length of string
 	MOVL	(AX), AX	// string data
 	LEAL	ret+8(FP), DX
-	JMP	aeshashbody<>(SB)
+	JMP	runtime·aeshashbody<>(SB)
 noaes:
 	JMP	runtime·strhashFallback(SB)
 
 // AX: data
 // BX: length
 // DX: address to put return value
-TEXT aeshashbody<>(SB),NOSPLIT,$0-0
+TEXT runtime·aeshashbody<>(SB),NOSPLIT,$0-0
 	MOVL	h+4(FP), X0	            // 32 bits of per-table hash seed
 	PINSRW	$4, BX, X0	            // 16 bits of length
 	PSHUFHW	$0, X0, X0	            // replace size with its low 2 bytes repeated 4 times

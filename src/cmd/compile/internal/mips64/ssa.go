@@ -191,7 +191,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpMIPS64ANDconst,
 		ssa.OpMIPS64ORconst,
 		ssa.OpMIPS64XORconst,
-		ssa.OpMIPS64NORconst,
 		ssa.OpMIPS64SLLVconst,
 		ssa.OpMIPS64SRLVconst,
 		ssa.OpMIPS64SRAVconst,

@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.26 (Dec 2, 2025)",
+	"Subtitle": "Language version go1.26 (Jan 12, 2026)",
 	"Path": "/ref/spec"
 }-->
 
@@ -3143,7 +3143,8 @@ math.Sin // denotes the Sin function in package math
 <p>
 Composite literals construct new values for structs, arrays, slices, and maps
 each time they are evaluated.
-They consist of the type of the literal followed by a brace-bound list of elements.
+They consist of the type of the literal followed by a (possibly empty)
+brace-bound list of elements.
 Each element may optionally be preceded by a corresponding key.
 </p>
 
@@ -3168,35 +3169,53 @@ as a TypeName).
 If the LiteralType is a type parameter, all types in its type set
 must have the same underlying type which must be
 a valid composite literal type.
-The types of the elements and keys must be <a href="#Assignability">assignable</a>
-to the respective field, element, and key types of type <code>T</code>;
-there is no additional conversion.
-The key is interpreted as a field name for struct literals,
-an index for array and slice literals, and a key for map literals.
-For map literals, all elements must have a key. It is an error
-to specify multiple elements with the same field name or
-constant key value. For non-constant map keys, see the section on
-<a href="#Order_of_evaluation">evaluation order</a>.
 </p>
 
 <p>
-For struct literals the following rules apply:
+The types of the elements and keys must be <a href="#Assignability">assignable</a>
+to the respective field, element, and key types of the LiteralType;
+there is no additional conversion.
+The key is interpreted as a field name for struct literals,
+an index for array and slice literals, and a key for map literals.
+It is an error to specify multiple elements with the same field name
+or constant key value.
+A literal may omit the element list; such a literal evaluates
+to the zero value for its type.
+</p>
+
+<p>
+A parsing ambiguity arises when a composite literal using the
+TypeName form of the LiteralType appears as an operand between the
+<a href="#Keywords">keyword</a> and the opening brace of the block
+of an "if", "for", or "switch" statement, and the composite literal
+is not enclosed in parentheses, square brackets, or curly braces.
+In this rare case, the opening brace of the literal is erroneously parsed
+as the one introducing the block of statements. To resolve the ambiguity,
+the composite literal must appear within parentheses.
+</p>
+
+<pre>
+if x == (T{a,b,c}[i]) { … }
+if (x == T{a,b,c}[i]) { … }
+</pre>
+
+<h4>Struct literals</h4>
+
+<p>
+For struct literals without keys, the element list must contain an element
+for each struct field in the order in which the fields are declared.
+</p>
+
+<p>
+For struct literals with keys the following rules apply:
 </p>
 <ul>
-	<li>A key must be a field name declared in the struct type.
+	<li>Every element must have a key.
 	</li>
-	<li>An element list that does not contain any keys must
-	    list an element for each struct field in the
-	    order in which the fields are declared.
+	<li>Each key must be a field name declared in the struct type.
 	</li>
-	<li>If any element has a key, every element must have a key.
-	</li>
-	<li>An element list that contains keys does not need to
-	    have an element for each struct field. Omitted fields
-	    get the zero value for that field.
-	</li>
-	<li>A literal may omit the element list; such a literal evaluates
-	    to the zero value for its type.
+	<li>The element list does not need to have an element for each struct field.
+	    Omitted fields get the zero value for that field.
 	</li>
 	<li>It is an error to specify an element for a non-exported
 	    field of a struct belonging to a different package.
@@ -3219,6 +3238,8 @@ one may write
 origin := Point3D{}                            // zero value for Point3D
 line := Line{origin, Point3D{y: -4, z: 12.3}}  // zero value for line.q.x
 </pre>
+
+<h4>Array and slice literals</h4>
 
 <p>
 For array and slice literals the following rules apply:
@@ -3295,6 +3316,16 @@ tmp := [n]T{x1, x2, … xn}
 tmp[0 : n]
 </pre>
 
+<h4>Map literals</h4>
+
+<p>
+For map literals, each element must have a key.
+For non-constant map keys, see the section on
+<a href="#Order_of_evaluation">evaluation order</a>.
+</p>
+
+<h4>Elision of element types</h4>
+
 <p>
 Within a composite literal of array, slice, or map type <code>T</code>,
 elements or map keys that are themselves composite literals may elide the respective
@@ -3313,22 +3344,6 @@ map[Point]string{{0, 0}: "orig"}    // same as map[Point]string{Point{0, 0}: "or
 type PPoint *Point
 [2]*Point{{1.5, -3.5}, {}}          // same as [2]*Point{&amp;Point{1.5, -3.5}, &amp;Point{}}
 [2]PPoint{{1.5, -3.5}, {}}          // same as [2]PPoint{PPoint(&amp;Point{1.5, -3.5}), PPoint(&amp;Point{})}
-</pre>
-
-<p>
-A parsing ambiguity arises when a composite literal using the
-TypeName form of the LiteralType appears as an operand between the
-<a href="#Keywords">keyword</a> and the opening brace of the block
-of an "if", "for", or "switch" statement, and the composite literal
-is not enclosed in parentheses, square brackets, or curly braces.
-In this rare case, the opening brace of the literal is erroneously parsed
-as the one introducing the block of statements. To resolve the ambiguity,
-the composite literal must appear within parentheses.
-</p>
-
-<pre>
-if x == (T{a,b,c}[i]) { … }
-if (x == T{a,b,c}[i]) { … }
 </pre>
 
 <p>

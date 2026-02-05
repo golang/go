@@ -33,3 +33,12 @@ func contiguousMaskConstants() (out [64]uint64) {
 	out[3] = 0xFFFFFFFE00000001
 	return
 }
+
+func issue76449_1() (_, _, _ uint64) {
+	// amd64:-"MOVQ"
+	return 0, 0, 0
+}
+func issue76449_2() (_, _, _ uint64) {
+	// amd64:-"MOVQ"
+	return 1, 2, 1
+}

@@ -91,16 +91,16 @@ func mapaccess1(t *abi.MapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
 func mapaccess2(t *abi.MapType, m *maps.Map, key unsafe.Pointer) (unsafe.Pointer, bool)
 
 func mapaccess1_fat(t *abi.MapType, m *maps.Map, key, zero unsafe.Pointer) unsafe.Pointer {
-	e := mapaccess1(t, m, key)
-	if e == unsafe.Pointer(&zeroVal[0]) {
+	e, ok := mapaccess2(t, m, key)
+	if !ok {
 		return zero
 	}
 	return e
 }
 
 func mapaccess2_fat(t *abi.MapType, m *maps.Map, key, zero unsafe.Pointer) (unsafe.Pointer, bool) {
-	e := mapaccess1(t, m, key)
-	if e == unsafe.Pointer(&zeroVal[0]) {
+	e, ok := mapaccess2(t, m, key)
+	if !ok {
 		return zero, false
 	}
 	return e, true

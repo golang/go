@@ -583,17 +583,12 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 	switch stype {
 	default:
 		Errorf("unknown XCOFF outer symbol for type %s", stype.String())
-	case sym.SRODATA, sym.SRODATARELRO, sym.SFUNCTAB, sym.SSTRING:
+	case sym.SRODATA, sym.SRODATARELRO, sym.SSTRING:
 		// Nothing to do
-	case sym.STYPERELRO:
+	case sym.STYPE:
 		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
-			// runtime.types size must be removed, as it's a real symbol.
-			tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
-			outerSymSize["typerel.*"] = size - tsize
 			return
 		}
-		fallthrough
-	case sym.STYPE:
 		if !ctxt.DynlinkingGo() {
 			// runtime.types size must be removed, as it's a real symbol.
 			tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
@@ -605,8 +600,6 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 		if !ctxt.DynlinkingGo() {
 			outerSymSize["go:funcdesc"] = size
 		}
-	case sym.SGOFUNCRELRO:
-		outerSymSize["go:funcdescrel"] = size
 	case sym.SGCBITS:
 		outerSymSize["runtime.gcbits.*"] = size
 	case sym.SPCLNTAB:
@@ -959,7 +952,7 @@ func putaixsym(ctxt *Link, x loader.Sym, t SymbolType) {
 			Xscnlenhi: uint32(size >> 32),
 		}
 
-		if ty := ldr.SymType(x); ty >= sym.STYPE && ty <= sym.SPCLNTAB {
+		if ty := ldr.SymType(x); ty >= sym.SSTRING && ty <= sym.STYPELINK {
 			if ctxt.IsExternal() && strings.HasPrefix(ldr.SymSect(x).Name, ".data.rel.ro") {
 				// During external linking, read-only datas with relocation
 				// must be in .data.

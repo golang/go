@@ -15,7 +15,6 @@ import (
 	"cmd/internal/pathcache"
 	"errors"
 	"fmt"
-	"internal/lazyregexp"
 	"io"
 	"io/fs"
 	"os"
@@ -511,15 +510,6 @@ func (sh *Shell) reportCmd(desc, dir string, cmdOut []byte, cmdErr error) error 
 		dir = dirP
 	}
 
-	// Fix up output referring to cgo-generated code to be more readable.
-	// Replace x.go:19[/tmp/.../x.cgo1.go:18] with x.go:19.
-	// Replace *[100]_Ctype_foo with *[100]C.foo.
-	// If we're using -x, assume we're debugging and want the full dump, so disable the rewrite.
-	if !cfg.BuildX && cgoLine.MatchString(out) {
-		out = cgoLine.ReplaceAllString(out, "")
-		out = cgoTypeSigRe.ReplaceAllString(out, "C.")
-	}
-
 	// Usually desc is already p.Desc(), but if not, signal cmdError.Error to
 	// add a line explicitly mentioning the import path.
 	needsPath := importPath != "" && p != nil && desc != p.Desc()
@@ -579,9 +569,6 @@ func (e *cmdError) Error() string {
 func (e *cmdError) ImportPath() string {
 	return e.importPath
 }
-
-var cgoLine = lazyregexp.New(`\[[^\[\]]+\.(cgo1|cover)\.go:[0-9]+(:[0-9]+)?\]`)
-var cgoTypeSigRe = lazyregexp.New(`\b_C2?(type|func|var|macro)_\B`)
 
 // run runs the command given by cmdline in the directory dir.
 // If the command fails, run prints information about the failure

@@ -7,7 +7,6 @@ package facts
 import (
 	"go/types"
 
-	"golang.org/x/tools/internal/aliases"
 	"golang.org/x/tools/internal/typesinternal"
 )
 
@@ -78,7 +77,7 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 				// variant aspects
 				switch T := T.(type) {
 				case *types.Alias:
-					addType(aliases.Rhs(T))
+					addType(T.Rhs())
 				case *types.Named:
 					addType(T.Underlying())
 					for method := range T.Methods() {
