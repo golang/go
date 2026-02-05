@@ -201,10 +201,7 @@ var operationPool = sync.Pool{
 // waitIO waits for the IO operation to complete,
 // handling cancellation if necessary.
 func (fd *FD) waitIO(o *operation) error {
-	if fd.isBlocking {
-		panic("can't wait on blocking operations")
-	}
-	if !fd.pollable() {
+	if o.o.HEvent != 0 {
 		// The overlapped handle is not added to the runtime poller,
 		// the only way to wait for the IO to complete is block until
 		// the overlapped event is signaled.
