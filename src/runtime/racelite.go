@@ -7,13 +7,20 @@
 package runtime
 
 import (
-	"internal/goarch"
 	"internal/runtime/atomic"
+	"unsafe"
 )
 
 // TODO(thepudds): we currently have a ~3 level scheme of lighter checks before doing more work.
 // The intent is the first check could be emitted by the compiler.
 // And in general, we certainly can improve from this very first cut.
+
+const (
+	// raceliteIdle is the state of a virtual register when it is not being written to.
+	raceliteIdle = 0
+	// raceliteWriting is the state of a virtual register when it is being written to.
+	raceliteWriting = 1
+)
 
 var (
 	// raceliteCheckAddrMask controls how often we check addresses for racelite.
@@ -41,43 +48,130 @@ var (
 
 // raceliteVirtualRegister is a virtual register that can be used to store an address.
 type raceliteVirtualRegister struct {
-	state   atomic.Uint32  // 0 means not being written to, 1 means being written to
-	addr    atomic.Uintptr // the address currently being monitored in the virtual register
-	watcher atomic.Uint32  // the number of watchers on the virtual register
+	lock  mutex                // lock ensures that the virtual register maintains a consistent state
+	addr  atomic.Uintptr       // the address currently being monitored in the virtual register
+	owner atomic.UnsafePointer // the writer currently claiming the virtual register
 }
 
 var raceliteReg *raceliteVirtualRegister = new(raceliteVirtualRegister)
 
-func (r *raceliteVirtualRegister) init() {
-	r.state.Store(0)
-	r.addr.Store(0)
+func (r *raceliteVirtualRegister) goid() uint64 {
+	gp := (*g)(r.owner.Load())
+	if gp == nil {
+		return 0
+	}
+	return gp.goid
 }
 
-func (r *raceliteVirtualRegister) AddWatcher() {
-	r.watcher.Add(1)
-}
-
-func (r *raceliteVirtualRegister) RemoveWatcher() {
-	if r.watcher.Add(-1) == 0 {
-		// There are no more watchers. Disarm the virtual register.
-		r.state.Store(0)
-		r.addr.Store(0)
+func micropause() {
+	// Now record our write, followed by a small delay to let someone see it.
+	// We either do a ~nano delay or a ~1 in 100 chance of a ~micro delay.
+	// The ~nano delay is from just checking cheaprand.
+	// good with 100k samples!
+	if diag() || cheaprandn(10_000) == 0 {
+		// TODO(thepudds): multiple ways to delay here. For now, do something simple that hopefully
+		// let's us see it work for the first time. ;)
+		usleep(1)
+	}
+	if diag() {
+		Gosched() // FIXME: Remove this after testing.
 	}
 }
 
-// diag reports true is we should print extra info.
-func diag() bool {
-	return debug.racelite >= 2
+// claim allows the writer goroutine as the owner of the virtual register.
+func (r *raceliteVirtualRegister) claim(addr uintptr, gp *g) bool {
+
+	lock(&r.lock)
+	switch r.addr.Load() {
+	case 0:
+		// The virtual register is not occupied.
+		// The writer can claim it.
+		r.addr.Store(addr)
+		r.owner.Store(unsafe.Pointer(gp))
+		unlock(&r.lock)
+		return true
+	case addr:
+		// The virtual register is already occupied by the same address.
+		// This only happens if another writer intercepted the write.
+		// We are, therefore, dealing with a write-write race.
+		//
+		// Write the stacks of the current goroutine and the
+		// virtual register claimant on the system stack.
+		unlock(&r.lock)
+		stw := stopTheWorld(stwRacelite)
+		systemstack(func() {
+			print("RACELITE TRIGGERED: write-write race at",
+				" addr= ", hex(addr),
+				" goid=", gp.goid,
+				"\n")
+			print("WRITE AT\n")
+			traceback(^uintptr(0), ^uintptr(0), 0, gp)
+			if gp2 := (*g)(raceliteReg.owner.Load()); gp2 != nil {
+				print("WRITE AT\n")
+				traceback(^uintptr(0), ^uintptr(0), 0, gp2)
+			} else {
+				print("WRITER LOST")
+			}
+			println("RACELITE END")
+		})
+		startTheWorld(stw)
+		return false
+	default:
+		// The virtual register is already occupied by another address.
+		unlock(&r.lock)
+		return false
+	}
 }
 
-// checkinstack checks if addr is in the current goroutine's stack.
-func checkinstack(addr uintptr) bool {
-	// TODO(thepudds): probably want to make sure we are not preempted.
-	// TODO(vsaioc): is the check through mp.preemptoff or mp.curg.preempt?
-	mp := acquirem()
-	inStack := mp.curg.stack.lo <= addr && addr < mp.curg.stack.hi
-	releasem(mp)
-	return inStack
+// monitor allows a reader goroutine to check whether the virtual
+// register is occupied by a writer with the given address.
+func (r *raceliteVirtualRegister) monitor(addr uintptr, gp *g, readfirst bool) {
+	lock(&r.lock)
+
+	// Check the status of the virtual register.
+	if raceliteReg.addr.Load() == addr {
+		// The virtual register is already occupied by the same address.
+		// This can only occurr if another writer intercepted the write.
+		// Check whether we are being written to.
+		unlock(&r.lock)
+		stw := stopTheWorld(stwRacelite)
+		systemstack(func() {
+			if readfirst {
+				print("RACELITE TRIGGERED: read-write race at",
+					" addr= ", hex(addr),
+					" goid= ", gp.goid,
+					"\n")
+			} else {
+				print("RACELITE TRIGGERED: write-read race at",
+					" addr= ", hex(addr),
+					" goid= ", gp.goid,
+					"\n")
+			}
+			print("READ AT\n")
+			traceback(^uintptr(0), ^uintptr(0), 0, gp)
+
+			if gp2 := (*g)(raceliteReg.owner.Load()); gp2 != nil {
+				print("WRITE AT\n")
+				traceback(^uintptr(0), ^uintptr(0), 0, gp2)
+			} else {
+				print("WRITER LOST")
+			}
+
+			println("RACELITE END")
+		})
+		startTheWorld(stw)
+		return
+	}
+	unlock(&r.lock)
+	return
+}
+
+// release allows the writer goroutine to release the virtual register.
+func (r *raceliteVirtualRegister) release() {
+	lock(&r.lock)
+	r.addr.Store(0)
+	r.owner.Store(nil)
+	unlock(&r.lock)
 }
 
 // racelitewrite instruments a store operation with lightweight data race detection.
@@ -94,211 +188,43 @@ func checkinstack(addr uintptr) bool {
 //	}
 //	state(A) = 1
 //	micropause()
-//	if state(A) = 0 {
-//		The address state was updated by another writer!
-//		Report write-write race
-//	}
 //	state(A) = 0
 func racelitewrite(addr uintptr) {
-	randWordIndex, check := raceliteCheckAddr(addr)
-	switch {
-	case !check:
-		// Not checking this addr. This is the common case.
-		if diag() {
-			print("RACELITE write: not checking addr=", hex(addr), "\n")
-		}
-		return
-	case checkinstack(addr):
-		if diag() {
-			print("RACELITE write: skip stack address ", hex(addr), "\n")
-		}
+	if !raceliteCheckAddr(addr) {
+		// We are not sampling this address.
 		return
 	}
 
-	// TODO(vsaioc): remove indexing (not necessary without footer)
-	base, span, _ := findObject(uintptr(addr), 0, 0)
-	switch {
-	case span == nil && base == 0:
-		// We got some bad pointer.
-		return
-	case span.elemsize > 64:
-		if diag() {
-			println("RACELITE: not tracking heap objects > 64 bytes yet")
-		}
-		return
-	case span.elemsize <= 16:
-		// 	// TODO(thepudds): sidestep tiny allocator for now.
-		// 	if diag() {
-		// 		println("RACELITE: not tracking heap objects <= 16 bytes yet")
-		// 	}
-		// 	return
-	}
-
-	// Determine the index of the address in the heap object.
-	// Index 0 is base, index 1 is the next word, etc.
-	//
-	// Indexing is determined by the pointer size for the architecture.
-	index := (uintptr(addr) - base) / goarch.PtrSize
-	switch {
-	case index >= 64:
-		throw("RACELITE: index too large")
-	case index != uintptr(randWordIndex)%(span.elemsize/goarch.PtrSize):
-		// Check if we are monitoring this word index in general for this heap object.
-		// This prevents false positives, e.g., 'p.a = 1' and 'p.b = 2' for some 'p struct{ a, b int }'
-		// won't trigger races.
-		if diag() {
-			print("RACELITE write: skip undesired word ",
-				"addr=", hex(addr), " index=", index, " randWordIndex=", randWordIndex,
-				"\n")
-		}
-		return
-	}
-
+	gp := getg()
 	// Check the status of the virtual register.
-	switch registerAddr := raceliteReg.addr.Load(); registerAddr {
-	case 0:
-		// We now have a watcher on the virtual register.
-		raceliteReg.AddWatcher()
-		// The virtual register is not occupied. Try to snatch it.
-		if !raceliteReg.addr.CompareAndSwap(0, addr) {
-			// Someone else beat us to it.
-			//
-			// TODO(vsaioc): There is a narrow window where the CAS
-			// may fail and we swap with the same address.
-			// This could lead to a false negative.
-			if diag() {
-				print("RACELITE write: virtual register already occupied by addr=", hex(addr), "\n")
-			}
-			raceliteReg.RemoveWatcher()
-			return
-		}
-		if diag() {
-			print("RACELITE write: snatched virtual register\n",
-				"Virtual register:",
-				" addr=", hex(addr),
-				" reg.addr=", hex(raceliteReg.addr.Load()),
-				" state=", raceliteReg.state.Load(),
-				" watcher=", raceliteReg.watcher.Load(),
-				" goid=", getg().goid,
-				"\n")
-		}
-	case addr:
-		// We now have a watcher on the virtual register.
-		raceliteReg.AddWatcher()
-		// The virtual register is already occupied by the same address.
-		// Proceed as normal.
-		if diag() {
-			print("RACELITE write: virtual register occupied by same address\n",
-				"Virtual register:",
-				" addr=", hex(addr),
-				" reg.addr=", hex(raceliteReg.addr.Load()),
-				" state=", raceliteReg.state.Load(),
-				" watcher=", raceliteReg.watcher.Load(),
-				" goid=", getg().goid,
-				"\n")
-		}
-	default:
-		// If the virtual register is already occupied by another address,
-		// then bail out.
-		if diag() {
-			print("RACELITE write: virtual register already occupied by other address ", hex(registerAddr), "\n")
-		}
+	if !raceliteReg.claim(addr, gp) {
+		// We did not claim the virtual register.
+		// It was either claimed by another writer, or
+		// we had a write-write race.
 		return
 	}
 
-	// Try to mark the state as being written to.
-	if !raceliteReg.state.CompareAndSwap(0, 1) {
-		if diag() {
-			print("RACELITE write: already writing\n",
-				"Virtual register:",
-				" addr=", addr,
-				" reg.addr=", hex(raceliteReg.addr.Load()),
-				" state=", raceliteReg.state.Load(),
-				" watcher=", raceliteReg.watcher.Load(),
-				" goid=", getg().goid,
-				"\n")
-		}
-		// Another writer intercepted the write.
-		//
-		// Write the current goroutine's stack on the system stack.
-		stw := stopTheWorld(stwRacelite)
-		gp := getg()
-		systemstack(func() {
-			print("RACELITE TRIGGERED: write-write race (entry) at ",
-				"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
-				" goroutine=", gp.goid,
-				"\n")
-			traceback(^uintptr(0), ^uintptr(0), 0, gp)
-			println("RACELITE END")
-		})
-		startTheWorld(stw)
-		// We can disengage the watcher here, because we have already observed the data race.
-		raceliteReg.RemoveWatcher()
-		if diag() {
-			print("RACELITE write: removed watcher\n",
-				"Virtual register:",
-				" addr=", hex(addr),
-				" reg.addr=", hex(raceliteReg.addr.Load()),
-				" state=", raceliteReg.state.Load(),
-				" watcher=", raceliteReg.watcher.Load(),
-				" goid=", getg().goid,
-				"\n")
-		}
-		return
-	}
 	if diag() {
-		print("RACELITE write: marked state as being written to\n",
+		print("RACELITE write: claimed virtual register\n",
 			"Virtual register:",
 			" addr=", hex(addr),
 			" reg.addr=", hex(raceliteReg.addr.Load()),
-			" state=", raceliteReg.state.Load(),
-			" watcher=", raceliteReg.watcher.Load(),
-			" goid=", getg().goid,
+			" owner=", raceliteReg.goid(),
+			" goid=", gp.goid,
 			"\n")
 	}
 
-	// Now record our write, followed by a small delay to let someone see it.
-	// We either do a ~nano delay or a ~1 in 100 chance of a ~micro delay.
-	// The ~nano delay is from just checking cheaprand.
-	// good with 100k samples!
-	if diag() || cheaprandn(10_000) == 0 {
-		// TODO(thepudds): multiple ways to delay here. For now, do something simple that hopefully
-		// let's us see it work for the first time. ;)
-		usleep(1)
-	}
-	if diag() {
-		Gosched() // FIXME: Remove this after testing.
-	}
+	micropause()
 
-	// Reset the state to "not-writing".
-	if !raceliteReg.state.CompareAndSwap(1, 0) {
-		// Another writer intercepted this write.
-		// TODO(vsaioc): This might be unnecessary, since we already check at the entry.
-		// We are already sampling, so missing the narrow window where the two write
-		// checks might race overlap is (probably) not a big deal.
-		//
-		// Write the current goroutine's stack on the system stack.
-		stw := stopTheWorld(stwRacelite)
-		gp := getg()
-		systemstack(func() {
-			print("RACELITE TRIGGERED: write-write race (exit) at ",
-				"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
-				" goroutine=", gp.goid,
-				"\n")
-			traceback(^uintptr(0), ^uintptr(0), 0, gp)
-			println("RACELITE END")
-		})
-		startTheWorld(stw)
-	}
-	raceliteReg.RemoveWatcher()
+	// Release the virtual register.
+	raceliteReg.release()
 	if diag() {
-		print("RACELITE write: removed watcher and reset state\n",
+		print("RACELITE write: released virtual register\n",
 			"Virtual register:",
 			" addr=", hex(addr),
 			" reg.addr=", hex(raceliteReg.addr.Load()),
-			" state=", raceliteReg.state.Load(),
-			" watcher=", raceliteReg.watcher.Load(),
-			" goid=", getg().goid,
+			" owner=", raceliteReg.goid(),
+			" goid=", gp.goid,
 			"\n")
 	}
 }
@@ -320,196 +246,62 @@ func racelitewrite(addr uintptr) {
 //		Report read-write race
 //	}
 func raceliteread(addr uintptr) {
-	randWordIndex, check := raceliteCheckAddr(addr)
-	if !check {
-		// Not checking this addr. This is the common case.
-		if diag() {
-			print("RACELITE read: skip stack address ", hex(addr), "\n")
-		}
+	if !raceliteCheckAddr(addr) {
+		// We are not sampling this address.
 		return
 	}
 
-	// Do a cheap-ish check to see if this points into our stack.
-	// This check is likely cheaper than findObject or findSpan.
-	// TODO(thepudds): probably want to make sure we are not preempted.
-	if checkinstack(addr) {
-		// This points into our stack, so ignore.
-		if diag() {
-			print("RACELITE read: skip stack address ", hex(addr), "\n")
-		}
-		return
-	}
+	gp := getg()
+	// Check for a write-read race.
+	raceliteReg.monitor(addr, gp, false)
 
-	base, span, _ := findObject(uintptr(addr), 0, 0)
+	micropause()
 
-	switch {
-	case span == nil && base == 0:
-		return
-	case span.elemsize > 64:
-		if diag() {
-			print("RACELITE read: not tracking objects > 64 bytes yet; ",
-				"object at addr=", hex(addr), " is ", span.elemsize, " bytes",
-				"\n")
-		}
-		return
-	case span.elemsize <= 16:
-		// 	// TODO(thepudds): sidestep tiny allocator for now.
-		// 	if diag() {
-		// 		println("RACELITE: not tracking heap objects <= 16 bytes yet")
-		// 	}
-		// 	return
-	}
-
-	// Determine the index of the address in the heap object.
-	// Index 0 is base, index 1 is the next word, etc.
-	//
-	// Indexing is determined by the pointer size for the architecture.
-	index := (uintptr(addr) - base) / goarch.PtrSize
-
-	switch {
-	case index >= 64:
-		// TODO(vsaioc): should this value be hardcoded?
-		throw("RACELITE read: index too large")
-	case index != uintptr(randWordIndex)%(span.elemsize/goarch.PtrSize):
-		// Check if we are monitoring this word index in general for this heap object.
-		// This prevents false positives, e.g., 'p.a = 1' and '_ = p.b' for some 'p struct{ a, b int }'
-		// from triggering races.
-		if diag() {
-			print("RACELITE read: skip undesired word ",
-				"addr=", hex(addr), " index=", index, " randWordIndex=", randWordIndex,
-				"\n")
-		}
-		return
-	}
-
-	// Add a watcher here to prevent swapping out the virtual register.
-	raceliteReg.AddWatcher()
-	if diag() {
-		print("RACELITE read: added watcher\n",
-			"Virtual register:",
-			" addr=", hex(addr),
-			" reg.addr=", hex(raceliteReg.addr.Load()),
-			" state=", raceliteReg.state.Load(),
-			" watcher=", raceliteReg.watcher.Load(),
-			" goid=", getg().goid,
-			"\n")
-	}
-
-	// Check the status of the virtual register.
-	switch registerAddr := raceliteReg.addr.Load(); registerAddr {
-	case 0:
-		if diag() {
-			print("RACELITE read: virtual register not occupied\n",
-				"Virtual register:",
-				" addr=", hex(raceliteReg.addr.Load()),
-				" state=", raceliteReg.state.Load(),
-				" watcher=", raceliteReg.watcher.Load(),
-				" goid=", getg().goid,
-				"\n")
-		}
-		// The virtual register is not occupied. Try to snatch it.
-		if !raceliteReg.addr.CompareAndSwap(0, addr) {
-			// Someone else beat us to it.
-			//
-			// TODO(vsaioc): There is a narrow window where the CAS
-			// may fail and we swap with the same address.
-			// This could lead to a false negative.
-			if diag() {
-				print("RACELITE write: virtual register already occupied by addr=", hex(addr), "\n")
-			}
-			return
-		}
-	case addr:
-		if diag() {
-			print("RACELITE read: virtual register occupied by same address\n",
-				"Virtual register:",
-				" addr=", addr,
-				" state=", raceliteReg.state.Load(),
-				" watcher=", raceliteReg.watcher.Load(),
-				" goid=", getg().goid,
-				"\n")
-		}
-		// The virtual register is already occupied by the same address.
-		// Check whether we are being written to.
-		if raceliteReg.state.Load() != 0 {
-			// Already being written to.
-			// Another writer intercepted the write.
-			//
-			// Write the current goroutine's stack on the system stack.
-			stw := stopTheWorld(stwRacelite)
-			gp := getg()
-			systemstack(func() {
-				print("RACELITE TRIGGERED: write-read race at ",
-					"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
-					" goroutine=", gp.goid,
-					"\n")
-				traceback(^uintptr(0), ^uintptr(0), 0, gp)
-				println("RACELITE END")
-			})
-			startTheWorld(stw)
-			// We can disengage here the watcher here, because we have already observed the data race.
-			raceliteReg.RemoveWatcher()
-			return
-		}
-	}
-
-	// TODO(vsaioc): We are currently randomly sampling the delay
-	// at in 1 in 10,000. This should be configurable.
-	if cheaprandn(10_000) == 0 {
-		// TODO(thepudds): multiple ways to delay here. For now, do something simple that hopefully
-		// let's us see it work for the first time. ;)
-		usleep(1)
-	}
-	Gosched() // FIXME: Remove this after testing.
-
-	// Check again whether we are being written to,
-	// after the delay.
-	if raceliteReg.state.Load() != 0 {
-		// Another writer intercepted the read.
-		//
-		// Write the current goroutine's stack on the system stack.
-		stw := stopTheWorld(stwRacelite)
-		gp := getg()
-		systemstack(func() {
-			print("RACELITE TRIGGERED: read-write race at ",
-				"addr (base[index]) = ", hex(addr), " (", hex(base), "[", index, "])",
-				" goroutine=", gp.goid,
-				"\n")
-			traceback(^uintptr(0), ^uintptr(0), 0, gp)
-			println("RACELITE END")
-		})
-		startTheWorld(stw)
-	}
-	raceliteReg.RemoveWatcher()
-	if diag() {
-		print("RACELITE read: removed watcher\n",
-			"Virtual register:",
-			" addr=", hex(raceliteReg.addr.Load()),
-			" state=", raceliteReg.state.Load(),
-			" watcher=", raceliteReg.watcher.Load(),
-			" goid=", getg().goid,
-			"\n")
-	}
+	// Check for a read-write race.
+	raceliteReg.monitor(addr, gp, true)
 }
 
-// raceliteCheckAddr reports if we should check the given address.
-// It also retrieves the word index within the object.
-func raceliteCheckAddr(addr uintptr) (index uint64, ok bool) {
-	// TODO(thepudds): multiple ways to do this, improve later.
-
-	// Select last 6 bits of the address.
-	index = uint64(raceliteCheckWordRand & 63)
-
-	if diag() {
-		// TOOO(vsaioc): Decouple this check from diagnostics.
-		// For debugging, always sample the address.
-		return index, true
+func raceliteCheckAddr(addr uintptr) bool {
+	// Check that this address is not on our stack.
+	if inStack(addr) {
+		// Ignore stack addresses
+		return false
 	}
-	// Most addresses are 8 or 16 byte aligned.
-	// TODO(thepudds): probably don't need the xor, maybe not shift. maybe just do a mask and == check.
-	// Also debatable if we want monitored addresses to be strided (while shifting over time),
-	// or maybe better not strided.
-	return index, uint32(addr>>3)^raceliteCheckAddrRand == 0
+
+	// Check that we are sampling this address.
+	//
+	// FIXME(vsaioc): At the moment, we always sample when debugging.
+	if !diag() && !(uint32(addr>>3)^raceliteCheckAddrRand == 0) {
+		// Not checking this addr. This is the common case.
+		if diag() {
+			print("RACELITE write: not checking addr=", hex(addr), "\n")
+		}
+		return false
+	}
+
+	// Extract heap object.
+	base, span, _ := findObject(uintptr(addr), 0, 0)
+	if span == nil && base == 0 {
+		// We got some bad pointer. We don't care.
+		return false
+	}
+
+	return true
+}
+
+// diag reports true is we should print extra info.
+func diag() bool {
+	return debug.racelite >= 2
+}
+
+// inStack checks if addr is in the current goroutine's stack.
+func inStack(addr uintptr) bool {
+	// TODO(thepudds): probably want to make sure we are not preempted.
+	// TODO(vsaioc): is the check through mp.preemptoff or mp.curg.preempt?
+	mp := acquirem()
+	inStack := mp.curg.stack.lo <= addr && addr < mp.curg.stack.hi
+	releasem(mp)
+	return inStack
 }
 
 /*
