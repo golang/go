@@ -48,7 +48,4 @@ const (
 
 	// PageSize is the increment in which spans are managed.
 	PageSize = 1 << PageShift
-
-	// TODO(thepudds): maybe just reuse MallocHeaderSize
-	RaceliteFooterSize = 8
 )
