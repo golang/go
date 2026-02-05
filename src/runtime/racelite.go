@@ -71,7 +71,7 @@ func micropause() {
 	if diag() || cheaprandn(10_000) == 0 {
 		// TODO(thepudds): multiple ways to delay here. For now, do something simple that hopefully
 		// let's us see it work for the first time. ;)
-		usleep(1)
+		usleep(2)
 	}
 	if diag() {
 		Gosched() // FIXME: Remove this after testing.
@@ -125,7 +125,7 @@ func (r *raceliteVirtualRegister) claim(addr uintptr, gp *g) bool {
 
 // monitor allows a reader goroutine to check whether the virtual
 // register is occupied by a writer with the given address.
-func (r *raceliteVirtualRegister) monitor(addr uintptr, gp *g, readfirst bool) {
+func (r *raceliteVirtualRegister) monitor(addr uintptr, gp *g, readfirst bool) bool {
 	lock(&r.lock)
 
 	// Check the status of the virtual register.
@@ -160,10 +160,10 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, gp *g, readfirst bool) {
 			println("RACELITE END")
 		})
 		startTheWorld(stw)
-		return
+		return true
 	}
 	unlock(&r.lock)
-	return
+	return false
 }
 
 // release allows the writer goroutine to release the virtual register.
@@ -174,28 +174,28 @@ func (r *raceliteVirtualRegister) release() {
 	unlock(&r.lock)
 }
 
-// racelitewrite instruments a store operation with lightweight data race detection.
-// The logic follows the following structure:
+// racelitewrite instruments a store operation with data race detection,
+// according to the following logic:
 //
 //	Let A be the stored address
-//	Let state(A) ∈ {0, 1} be the status of address A:
-//		- 0 denotes that the address is not being written to
-//		- 1 denotes that the address is being written to
+//	Let V be a virtual register that can track A, where
+//	- V.claimed(A) checks if the virtual register is already claimed for A
+//	- V.claim(A) claims the virtual register for the writer
+//	- V.release() releases the virtual register
 //
-//	if state(A) ≠ 0 {
-//		The address is already being written to!
+//	if V.claimed(A):
 //		Report write-write race
-//	}
-//	state(A) = 1
+//		return
+//	V.claim(A)
 //	micropause()
-//	state(A) = 0
+//	V.release()
 func racelitewrite(addr uintptr) {
 	if !raceliteCheckAddr(addr) {
 		// We are not sampling this address.
 		return
 	}
-
 	gp := getg()
+
 	// Check the status of the virtual register.
 	if !raceliteReg.claim(addr, gp) {
 		// We did not claim the virtual register.
@@ -229,31 +229,30 @@ func racelitewrite(addr uintptr) {
 	}
 }
 
-// raceliteread instruments a load operation with lightweight data race detection.
-// The logic follows the following structure:
+// raceliteread instruments a load operation with data race detection,
+// according to the following logic:
 //
 //	Let A be the loaded address
-//	Let state(A) ∈ {0, 1} be the state of address A in the memory,
-//		where 0 means the address is not being written to, and 1 means the address is being written to.
+//	Let V be a virtual register that can track A, where
+//	- V.claimed(A) checks if the virtual register is already claimed for A
 //
-//	if state(A) ≠ 0 {
-//		The address is already being written to.
+//	if V.claimed(A):
 //		Report write-read race
-//	}
+//		return
 //	micropause()
-//	if state(A) ≠ 0 {
-//		The address state was updated by a writer.
+//	if V.claimed(A):
 //		Report read-write race
-//	}
 func raceliteread(addr uintptr) {
 	if !raceliteCheckAddr(addr) {
 		// We are not sampling this address.
 		return
 	}
-
 	gp := getg()
-	// Check for a write-read race.
-	raceliteReg.monitor(addr, gp, false)
+
+	if raceliteReg.monitor(addr, gp, false) {
+		// We had a write-read race.
+		return
+	}
 
 	micropause()
 
