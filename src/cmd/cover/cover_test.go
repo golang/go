@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -637,4 +638,380 @@ func main() {
 	if err == nil {
 		t.Errorf("unexpected success; want failure due to newline in file path")
 	}
+}
+
+// TestCommentedOutCodeExclusion tests that all commented lines are excluded
+// from coverage requirements using the simplified block splitting approach.
+func TestCommentedOutCodeExclusion(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	// Create a test file with various types of comments mixed with real code
+	testSrc := `package main
+
+		import "fmt"
+		
+		func main() {
+			fmt.Println("Start - should be covered")
+			
+			// This is a regular comment - should be excluded from coverage
+			x := 42
+			
+			// Any comment line is excluded, regardless of content
+			// fmt.Println("commented code")
+			// TODO: implement this later
+			// BUG: fix this issue
+			
+			y := 0
+			fmt.Println("After comments - should be covered")
+			
+			/* some comment */
+			
+			fmt.Println("It's a trap /*")
+			z := 0
+			
+			if x > 0 {
+				y = x * 2
+			} else {
+				y = x - 2
+			}
+			
+			z = 5
+			
+			/* Multiline comments
+			with here
+			and here */
+		
+			z1 := 0
+		
+			z1 = 1 /* Multiline comments
+			where there is code at the beginning
+			and the end */ z1 = 2
+			
+			z1 = 3; /* // */ z1 = 4
+		
+			z1 = 5 /* //
+			//
+			// */ z1 = 6
+			
+			/*
+			*/ z1 = 7 /*
+			*/
+			
+			z1 = 8/*
+			before */ /* after
+			*/z1 = 9
+			
+			/* before */ z1 = 10
+			/* before */ z1 = 10 /* after */
+			             z1 = 10 /* after */
+			
+			fmt.Printf("Result: %d\n", z)
+			fmt.Printf("Result: %d\n", z1)
+			
+			s := ` + "`This is a multi-line raw string" + `
+			// fake comment on line 2
+			/* and fake comment on line 3 */
+			and other` + "`" + `
+			
+			s = ` + "`another multiline string" + `
+			` + "`" + ` // another trap
+			
+			fmt.Printf("%s", s)
+			
+			// More comments to exclude
+			// for i := 0; i < 10; i++ {
+			//	 fmt.Printf("Loop %d", i)
+			// }
+			
+			fmt.Printf("Result: %d\n", y)
+			// end comment
+		}
+		
+		func empty() {
+			
+		}
+		
+		func singleBlock() {
+			fmt.Printf("ResultSomething")
+		}
+		
+		func justComment() {
+			// comment
+		}
+		
+		func justMultilineComment() {
+			/* comment
+			again
+			until here */
+		}`
+
+	tmpdir := t.TempDir()
+	srcPath := filepath.Join(tmpdir, "test.go")
+	if err := os.WriteFile(srcPath, []byte(testSrc), 0666); err != nil {
+		t.Fatalf("writing test file: %v", err)
+	}
+
+	// Test that our cover tool processes the file without errors
+	cmd := testenv.Command(t, testcover(t), "-mode=set", srcPath)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("cover failed: %v\nOutput: %s", err, out)
+	}
+
+	// The output should contain the real code but preserve commented-out code as comments, we still need to get rid of the first line
+	outStr := string(out)
+	outStr = strings.Join(strings.SplitN(outStr, "\n", 2)[1:], "\n")
+
+	segments := extractCounterPositionFromCode(outStr)
+
+	if len(segments) != 27 {
+		t.Fatalf("expected 27 code segments, got %d", len(segments))
+	}
+
+	// Assert all segments contents, we expect to find all lines of code and no comments alone on a line
+	assertSegmentContent(t, segments[0], []string{`{`, `fmt.Println("Start - should be covered")`})
+	assertSegmentContent(t, segments[1], []string{`x := 42`})
+	assertSegmentContent(t, segments[2], []string{`y := 0`, `fmt.Println("After comments - should be covered")`})
+	assertSegmentContent(t, segments[3], []string{`fmt.Println("It's a trap /*")`, `z := 0`})
+	assertSegmentContent(t, segments[4], []string{`if x > 0 {`})
+	assertSegmentContent(t, segments[5], []string{`z = 5`})
+	assertSegmentContent(t, segments[6], []string{`z1 := 0`})
+	assertSegmentContent(t, segments[7], []string{`z1 = 1 /* Multiline comments`})
+	assertSegmentContent(t, segments[8], []string{`and the end */ z1 = 2`})
+	assertSegmentContent(t, segments[9], []string{`z1 = 3; /* // */ z1 = 4`})
+	assertSegmentContent(t, segments[10], []string{`z1 = 5 /* //`})
+	assertSegmentContent(t, segments[11], []string{`// */ z1 = 6`})
+	assertSegmentContent(t, segments[12], []string{`*/ z1 = 7 /*`})
+	assertSegmentContent(t, segments[13], []string{`z1 = 8/*`})
+	assertSegmentContent(t, segments[14], []string{`*/z1 = 9`})
+	assertSegmentContent(t, segments[15], []string{`/* before */ z1 = 10`, `/* before */ z1 = 10 /* after */`, `z1 = 10 /* after */`})
+	assertSegmentContent(t, segments[16], []string{`fmt.Printf("Result: %d\n", z)`, `fmt.Printf("Result: %d\n", z1)`})
+	assertSegmentContent(t, segments[17], []string{`s := ` + "`" + `This is a multi-line raw string`, `// fake comment on line 2`, `/* and fake comment on line 3 */`,
+		`and other` + "`"})
+	assertSegmentContent(t, segments[18], []string{`s = ` + "`" + `another multiline string`, "` // another trap"})
+	assertSegmentContent(t, segments[19], []string{`fmt.Printf("%s", s)`})
+	assertSegmentContent(t, segments[20], []string{`fmt.Printf("Result: %d\n", y)`})
+	assertSegmentContent(t, segments[21], []string{`{`, `y = x * 2`, `}`})
+	assertSegmentContent(t, segments[22], []string{`{`, `{`, `y = x - 2`, `}`, `}`})
+	assertSegmentContent(t, segments[23], []string{`}`})
+	assertSegmentContent(t, segments[24], []string{`{`, `fmt.Printf("ResultSomething")`})
+	assertSegmentContent(t, segments[25], []string{`}`})
+	assertSegmentContent(t, segments[26], []string{`}`})
+}
+
+// TestLineDirective verifies that //line directives don't affect coverage
+// line number calculations (we use physical lines, not remapped ones).
+func TestLineDirective(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	// Source with //line directive that would remap lines if not handled correctly
+	testSrc := `package main
+
+		import "fmt"
+		
+		func main() {
+			//line other.go:100
+			x := 1
+			// comment that should be excluded
+			y := 2
+			//line other.go:200
+			fmt.Println(x, y)
+		}`
+
+	tmpdir := t.TempDir()
+	srcPath := filepath.Join(tmpdir, "test.go")
+	if err := os.WriteFile(srcPath, []byte(testSrc), 0666); err != nil {
+		t.Fatalf("writing test file: %v", err)
+	}
+
+	cmd := testenv.Command(t, testcover(t), "-mode=set", srcPath)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("cover failed: %v\nOutput: %s", err, out)
+	}
+
+	outStr := string(out)
+	// Skip the //line directive that cover adds at the top
+	outStr = strings.Join(strings.SplitN(outStr, "\n", 2)[1:], "\n")
+
+	segments := extractCounterPositionFromCode(outStr)
+
+	// Verify we got the expected segments with physical line numbers
+	// The //line directives should NOT affect our segment boundaries
+	if len(segments) != 4 {
+		t.Fatalf("expected 4 code segments, got %d", len(segments))
+	}
+
+	// First segment should contain the opening curly bracket, but also /
+	assertSegmentContent(t, segments[0], []string{`{`})
+	// Second segment should contain x := 1 (directive are still considered as commen)
+	assertSegmentContent(t, segments[1], []string{`x := 1`})
+	assertSegmentContent(t, segments[2], []string{`y := 2`})
+	assertSegmentContent(t, segments[3], []string{`fmt.Println(x, y)`})
+}
+
+// TestCommentExclusionBasic is a simple test verifying that comment-only lines
+// don't get coverage counters, while code lines do.
+func TestCommentExclusionBasic(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	testSrc := `package main
+
+		func main() {
+			x := 1
+			// this comment should split the block
+			y := 2
+		}`
+
+	tmpdir := t.TempDir()
+	srcPath := filepath.Join(tmpdir, "test.go")
+	if err := os.WriteFile(srcPath, []byte(testSrc), 0666); err != nil {
+		t.Fatalf("writing test file: %v", err)
+	}
+
+	cmd := testenv.Command(t, testcover(t), "-mode=set", srcPath)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("cover failed: %v\nOutput: %s", err, out)
+	}
+
+	outStr := string(out)
+	// Skip the //line directive that cover adds at the top
+	outStr = strings.Join(strings.SplitN(outStr, "\n", 2)[1:], "\n")
+
+	// Verify counters are placed correctly:
+	// - Counter before x := 1
+	// - Counter before y := 2 (after comment)
+	// The comment line itself should NOT have a counter
+
+	// Check that we have exactly 2 code segments (split by comment)
+	segments := extractCounterPositionFromCode(outStr)
+
+	if len(segments) != 2 {
+		t.Fatalf("expected 2 code segments (split by comment), got %d", len(segments))
+	}
+
+	// First segment: x := 1
+	if !strings.Contains(segments[0].Code, "x := 1") {
+		t.Errorf("segment 0 should contain 'x := 1', got: %q", segments[0].Code)
+	}
+
+	// Second segment: y := 2
+	if !strings.Contains(segments[1].Code, "y := 2") {
+		t.Errorf("segment 1 should contain 'y := 2', got: %q", segments[1].Code)
+	}
+
+	// Verify comment is NOT in any segment's code range
+	for i, seg := range segments {
+		if strings.Contains(seg.Code, "// this comment") {
+			t.Errorf("segment %d should not contain the comment, got: %q", i, seg.Code)
+		}
+	}
+}
+
+func assertSegmentContent(t *testing.T, segment CounterSegment, wantLines []string) {
+	// Note: segment.Code has counters already stripped by extractCodeFromSegmentDetail
+	code := segment.Code
+
+	// removing expected strings
+	for _, wantLine := range wantLines {
+		if strings.Contains(code, wantLine) {
+			code = strings.Replace(code, wantLine, "", 1)
+		} else {
+			t.Fatalf("expected code segment %d to contain '%q', but segment is: %q", segment.CounterIndex, wantLine, code)
+		}
+	}
+
+	// checking if only left is whitespace
+	code = strings.TrimSpace(code)
+	if code != "" {
+		t.Fatalf("expected code segment %d to contain only expected strings, leftover: %q", segment.CounterIndex, code)
+	}
+}
+
+type CounterSegment struct {
+	StartLine    int
+	EndLine      int
+	StartColumn  int
+	EndColumn    int
+	CounterIndex int
+	Code         string
+}
+
+func extractCounterPositionFromCode(code string) []CounterSegment {
+	re := regexp.MustCompile(`(?P<startLine>\d+), (?P<endLine>\d+), (?P<packedColumnDetail>0x[0-9a-f]+), // \[(?P<counterIndex>\d+)\]`)
+	// find all occurrences and extract captured parenthesis into a struct
+	matches := re.FindAllStringSubmatch(code, -1)
+	var matchResults []CounterSegment
+	for _, m := range matches {
+		packed := m[re.SubexpIndex("packedColumnDetail")]
+		var packedVal int
+		fmt.Sscanf(packed, "0x%x", &packedVal)
+		startCol := packedVal & 0xFFFF
+		endCol := (packedVal >> 16) & 0xFFFF
+		startLine, _ := strconv.Atoi(m[re.SubexpIndex("startLine")])
+		endLine, _ := strconv.Atoi(m[re.SubexpIndex("endLine")])
+
+		counterIndex, _ := strconv.Atoi(m[re.SubexpIndex("counterIndex")])
+		codeSegment := extractCodeFromSegmentDetail(startLine, endLine, startCol, endCol, code)
+
+		matchResults = append(matchResults, CounterSegment{
+			StartLine:    startLine,
+			EndLine:      endLine,
+			StartColumn:  startCol,
+			EndColumn:    endCol,
+			CounterIndex: counterIndex,
+			Code:         codeSegment,
+		})
+	}
+	return matchResults
+}
+
+func extractCodeFromSegmentDetail(startLine int, endLine int, startCol int, endCol int, code string) string {
+	// Strip all counter insertions to align with original source positions
+	counterRe := regexp.MustCompile(`GoCover\.Count\[\d+\] = 1;`)
+	code = counterRe.ReplaceAllString(code, "")
+
+	lines := strings.Split(code, "\n")
+	var codeSegment string
+	if startLine == endLine && startLine > 0 && startLine <= len(lines) {
+		// Single line segment
+		line := lines[startLine-1]
+		if startCol <= 0 {
+			startCol = 1
+		}
+		if endCol > len(line) {
+			endCol = len(line)
+		}
+
+		if startCol <= endCol {
+			// display details of next operation
+			codeSegment = line[startCol-1 : endCol]
+		}
+	} else if startLine > 0 && endLine <= len(lines) && startLine <= endLine {
+		// Multi-line segment
+		var segmentLines []string
+		for i := startLine; i <= endLine; i++ {
+			if i > len(lines) {
+				break
+			}
+			line := lines[i-1]
+			if i == startLine {
+				// First line: from startCol to end
+				if startCol > 0 && startCol <= len(line) {
+					segmentLines = append(segmentLines, line[startCol-1:])
+				}
+			} else if i == endLine {
+				// Last line: from beginning to endCol
+				if endCol <= len(line) {
+					segmentLines = append(segmentLines, line[:endCol])
+				}
+			} else {
+				// Middle lines: entire line
+				segmentLines = append(segmentLines, line)
+			}
+		}
+		codeSegment = strings.Join(segmentLines, "\n")
+	}
+	return codeSegment
 }
