@@ -234,9 +234,6 @@ func Verify(publicKey PublicKey, message, sig []byte) bool {
 // The inputs are not considered confidential, and may leak through timing side
 // channels, or if an attacker has control of part of the inputs.
 func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) error {
-	if l := len(publicKey); l != PublicKeySize {
-		panic("ed25519: bad public key length: " + strconv.Itoa(l))
-	}
 	k, err := ed25519.NewPublicKey(publicKey)
 	if err != nil {
 		return err
