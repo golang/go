@@ -507,8 +507,14 @@ var (
 // This slice is constructed as needed.
 func moduleTypelinks(md *moduledata) []*_type {
 	lock(&moduleToTypelinksLock)
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&moduleToTypelinksLock))
+	}
 
 	if typelinks, ok := moduleToTypelinks[md]; ok {
+		if raceenabled {
+			racerelease(unsafe.Pointer(&moduleToTypelinksLock))
+		}
 		unlock(&moduleToTypelinksLock)
 		return typelinks
 	}
@@ -551,6 +557,9 @@ func moduleTypelinks(md *moduledata) []*_type {
 	}
 	moduleToTypelinks[md] = ret
 
+	if raceenabled {
+		racerelease(unsafe.Pointer(&moduleToTypelinksLock))
+	}
 	unlock(&moduleToTypelinksLock)
 	return ret
 }
