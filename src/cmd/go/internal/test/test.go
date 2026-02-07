@@ -552,6 +552,7 @@ var (
 	testFailFast     bool                              // -failfast flag
 	testFuzz         string                            // -fuzz flag
 	testJSON         bool                              // -json flag
+	testLibFuzzer    string                            // -libfuzzer flag
 	testList         string                            // -list flag
 	testO            string                            // -o flag
 	testOutputDir    outputdirFlag                     // -outputdir flag
@@ -705,6 +706,14 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 
 	work.FindExecCmd() // initialize cached result
 
+	// Handle -libfuzzer flag for building libFuzzer-compatible binaries
+	// Set buildmode and build tags BEFORE BuildInit() so they are picked up properly
+	if testLibFuzzer != "" {
+		cfg.BuildBuildmode = "c-archive"
+		// Add libfuzzer build tag - must be before BuildInit for runtime/libfuzzer.go
+		cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "libfuzzer")
+	}
+
 	work.BuildInit(moduleLoaderState)
 	work.VetFlags = testVet.flags
 	work.VetExplicit = testVet.explicit
@@ -719,6 +728,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if testFuzz != "" {
+		if testLibFuzzer != "" {
+			base.Fatalf("cannot use -fuzz and -libfuzzer flags together")
+		}
 		if !platform.FuzzSupported(cfg.Goos, cfg.Goarch) {
 			base.Fatalf("-fuzz flag is not supported on %s/%s", cfg.Goos, cfg.Goarch)
 		}
@@ -766,6 +778,23 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	if testProfile() != "" && len(pkgs) != 1 {
 		base.Fatalf("cannot use %s flag with multiple packages", testProfile())
+	}
+
+	// Finish handling -libfuzzer flag (buildmode and build tag were set earlier, before BuildInit)
+	if testLibFuzzer != "" {
+		if len(pkgs) != 1 {
+			base.Fatalf("cannot use -libfuzzer flag with multiple packages")
+		}
+		// Set the libfuzzer target in load package
+		load.LibFuzzerTarget = testLibFuzzer
+		// Force -c flag (compile only, don't run)
+		testC = true
+		// Force libfuzzer instrumentation via gcflags
+		load.BuildGcflags.Set("all=-d=libfuzzer")
+		// Ensure CGO is enabled
+		if !cfg.BuildContext.CgoEnabled {
+			base.Fatalf("-libfuzzer requires CGO to be enabled")
+		}
 	}
 
 	if testO != "" {
