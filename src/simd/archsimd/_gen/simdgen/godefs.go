@@ -442,7 +442,7 @@ func writeGoDefs(path string, cl unify.Closure) error {
 	f, fI := writeSIMDStubs(deduped, typeMap)
 	formatWriteAndClose(f, path, "src/"+simdPackage+"/ops_amd64.go")
 	formatWriteAndClose(fI, path, "src/"+simdPackage+"/ops_internal_amd64.go")
-	formatWriteAndClose(writeSIMDIntrinsics(deduped, typeMap), path, "src/cmd/compile/internal/ssagen/simdintrinsics.go")
+	formatWriteAndClose(writeSIMDIntrinsics(deduped, typeMap), path, "src/cmd/compile/internal/ssagen/simdAMD64intrinsics.go")
 	formatWriteAndClose(writeSIMDGenericOps(deduped), path, "src/cmd/compile/internal/ssa/_gen/simdgenericOps.go")
 	formatWriteAndClose(writeSIMDMachineOps(deduped), path, "src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go")
 	formatWriteAndClose(writeSIMDSSA(deduped), path, "src/cmd/compile/internal/amd64/simdssa.go")

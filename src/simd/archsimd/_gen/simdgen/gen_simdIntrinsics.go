@@ -21,9 +21,7 @@ import (
 	"cmd/internal/sys"
 )
 
-const simdPackage = "` + simdPackage + `"
-
-func simdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily)) {
+func simdAMD64Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily)) {
 {{end}}
 
 {{define "op1"}}	addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen1(ssa.Op{{.GenericName}}, {{.SSAType}}), sys.AMD64)

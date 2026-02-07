@@ -9,9 +9,7 @@ import (
 	"cmd/internal/sys"
 )
 
-const simdPackage = "simd/archsimd"
-
-func simdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily)) {
+func simdAMD64Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily)) {
 	addF(simdPackage, "Uint8x16.AESDecryptLastRound", opLen2(ssa.OpAESDecryptLastRoundUint8x16, types.TypeVec128), sys.AMD64)
 	addF(simdPackage, "Uint8x32.AESDecryptLastRound", opLen2(ssa.OpAESDecryptLastRoundUint8x32, types.TypeVec256), sys.AMD64)
 	addF(simdPackage, "Uint8x64.AESDecryptLastRound", opLen2(ssa.OpAESDecryptLastRoundUint8x64, types.TypeVec512), sys.AMD64)
