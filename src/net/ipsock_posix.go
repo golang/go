@@ -70,7 +70,13 @@ func (p *ipStackCapabilities) probe() {
 			continue
 		}
 		if err := syscall.Bind(s, sa); err != nil {
-			continue
+			// If the bind was denied by a security policy (BPF, seccomp,
+			// SELinux, etc.), the kernel still supports IPv6 — the socket
+			// was created and setsockopt succeeded. Only treat errors like
+			// EADDRNOTAVAIL as lack of support. See go.dev/issue/77430.
+			if err != syscall.EPERM && err != syscall.EACCES {
+				continue
+			}
 		}
 		if i == 0 {
 			p.ipv6Enabled = true
