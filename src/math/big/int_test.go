@@ -2010,3 +2010,73 @@ func TestFloat64(t *testing.T) {
 		}
 	}
 }
+
+func TestIntFloorDivMod(t *testing.T) {
+	for i, test := range []struct {
+		x, y, q, m int64
+	}{
+		{0, 1, 0, 0},
+		{0, -1, 0, 0},
+		{1, 1, 1, 0},
+		{1, -1, -1, 0},
+		{-1, 1, -1, 0},
+		{-1, -1, 1, 0},
+		{1, 3, 0, 1},
+		{-1, 3, -1, 2},
+		{1, -3, -1, -2},
+		{-1, -3, 0, -1},
+		// examples from spec#Arithmetic_operators
+		{5, 3, 1, 2},
+		{-5, 3, -2, 1},
+		{5, -3, -2, -1},
+		{-5, -3, 1, -2},
+		{1, 2, 0, 1},
+		{8, 4, 2, 0},
+	} {
+		if test.q*test.y+test.m != test.x {
+			t.Errorf("#%v invalid test, q*y + m != x", i)
+		}
+		x := NewInt(test.x)
+		y := NewInt(test.y)
+		m := new(Int)
+		q, _ := x.FloorDivMod(x, y, m)
+		if q.Cmp(NewInt(test.q)) != 0 || m.Cmp(NewInt(test.m)) != 0 {
+			t.Errorf("#%v got q=%v m=%v, want q=%v m=%v", i, q, m, test.q, test.m)
+		}
+	}
+}
+
+func TestIntCeilDivMod(t *testing.T) {
+	for i, test := range []struct {
+		x, y, q, m int64
+	}{
+		{0, 1, 0, 0},
+		{0, -1, 0, 0},
+		{1, 1, 1, 0},
+		{1, -1, -1, 0},
+		{-1, 1, -1, 0},
+		{-1, -1, 1, 0},
+		{1, 3, 1, -2},
+		{-1, 3, 0, -1},
+		{1, -3, 0, 1},
+		{-1, -3, 1, 2},
+		// examples from spec#Arithmetic_operators
+		{5, 3, 2, -1},
+		{-5, 3, -1, -2},
+		{5, -3, -1, 2},
+		{-5, -3, 2, 1},
+		{1, 2, 1, -1},
+		{8, 4, 2, 0},
+	} {
+		if test.q*test.y+test.m != test.x {
+			t.Errorf("#%v invalid test, q*y + m != x", i)
+		}
+		x := NewInt(test.x)
+		y := NewInt(test.y)
+		m := new(Int)
+		q, _ := x.CeilDivMod(x, y, m)
+		if q.Cmp(NewInt(test.q)) != 0 || m.Cmp(NewInt(test.m)) != 0 {
+			t.Errorf("#%v got q=%v m=%v, want q=%v m=%v", i, q, m, test.q, test.m)
+		}
+	}
+}
