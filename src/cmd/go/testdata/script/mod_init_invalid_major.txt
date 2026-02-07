@@ -80,3 +80,11 @@ stderr '(?s)^go: malformed module path "foo bar": invalid char '' ''$'
 
 ! go mod init 'foo  bar baz'
 stderr '(?s)^go: malformed module path "foo  bar baz": invalid char '' ''$'
+
+# go mod init should not infer an invalid /v1 suffix from GOPATH.
+cd $WORK/gopath/src/example.com/user/repo/v1
+! go mod init
+stderr '(?s)^go: invalid module path "example.com/user/repo/v1": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2$'
+
+-- example.com/user/repo/v1/empty.go --
+package main
