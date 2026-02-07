@@ -5,6 +5,7 @@
 package sync
 
 import (
+	"internal/cpu"
 	"internal/race"
 	"runtime"
 	"sync/atomic"
@@ -224,8 +225,9 @@ func (p *Pool) pinSlow() (*poolLocal, int) {
 	// Retry under the mutex.
 	// Can not lock the mutex while pinned.
 	runtime_procUnpin()
-	allPoolsMu.Lock()
-	defer allPoolsMu.Unlock()
+	a := &allPools[uintptr(unsafe.Pointer(p))%shardPoolsSize]
+	a.lock.Lock()
+	defer a.lock.Unlock()
 	pid := runtime_procPin()
 	// poolCleanup won't be called while we are pinned.
 	s := p.localSize
@@ -234,7 +236,7 @@ func (p *Pool) pinSlow() (*poolLocal, int) {
 		return indexLocal(l, pid), pid
 	}
 	if p.local == nil {
-		allPools = append(allPools, p)
+		a.s = append(a.s, p)
 	}
 	// If GOMAXPROCS changes between GCs, we re-allocate the array and lose the old one.
 	size := runtime.GOMAXPROCS(0)
@@ -262,35 +264,47 @@ func poolCleanup() {
 	// pinned section (in effect, this has all Ps pinned).
 
 	// Drop victim caches from all pools.
-	for _, p := range oldPools {
-		p.victim = nil
-		p.victimSize = 0
+	for i, s := range oldPools {
+		for _, p := range s.s {
+			p.victim = nil
+			p.victimSize = 0
+		}
+		oldPools[i].s = nil
 	}
 
 	// Move primary cache to victim cache.
-	for _, p := range allPools {
-		p.victim = p.local
-		p.victimSize = p.localSize
-		p.local = nil
-		p.localSize = 0
+	for i := range allPools {
+		for _, p := range allPools[i].s {
+			p.victim = p.local
+			p.victimSize = p.localSize
+			p.local = nil
+			p.localSize = 0
+		}
+		oldPools[i].s = allPools[i].s
+		allPools[i].s = nil
 	}
 
 	// The pools with non-empty primary caches now have non-empty
 	// victim caches and no pools have primary caches.
-	oldPools, allPools = allPools, nil
 }
 
-var (
-	allPoolsMu Mutex
+const shardPoolsSize = 256
 
+var (
 	// allPools is the set of pools that have non-empty primary
-	// caches. Protected by either 1) allPoolsMu and pinning or 2)
+	// caches. Protected by either 1) lock of elem or 2)
 	// STW.
-	allPools []*Pool
+	allPools [shardPoolsSize]struct {
+		lock Mutex
+		s    []*Pool
+		_    [cpu.CacheLinePadSize - unsafe.Sizeof([]*Pool{}) - unsafe.Sizeof(Mutex{})]int8
+	}
 
 	// oldPools is the set of pools that may have non-empty victim
 	// caches. Protected by STW.
-	oldPools []*Pool
+	oldPools [shardPoolsSize]struct {
+		s []*Pool
+	}
 )
 
 func init() {
