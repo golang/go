@@ -1548,3 +1548,63 @@ func TestNilness(t *testing.T) {
 	wantNil(SortedFunc(emptySeq, cmp.Compare), "SortedFunc(empty)")
 	wantNil(SortedStableFunc(emptySeq, cmp.Compare), "SortedStableFunc(empty)")
 }
+
+var mapTests = []struct {
+	name string
+	s    []int
+	f    func(int) string
+	want []string
+}{
+	{
+		"nil",
+		nil,
+		func(i int) string { return "x" },
+		nil,
+	},
+	{
+		"empty",
+		[]int{},
+		func(i int) string { return "x" },
+		[]string{},
+	},
+	{
+		"ints to strings",
+		[]int{1, 2, 3},
+		func(i int) string { return string(rune(i - 1 + 'a')) },
+		[]string{"a", "b", "c"},
+	},
+}
+
+func TestMap(t *testing.T) {
+	for _, test := range mapTests {
+		t.Run(test.name, func(t *testing.T) {
+			got := Map(test.s, test.f)
+			if !Equal(got, test.want) {
+				t.Errorf("Map(%v) = %v, want %v", test.s, got, test.want)
+			}
+			if test.s == nil && got != nil {
+				t.Errorf("Map(nil) returned non-nil slice %v", got)
+			}
+			if test.s != nil && len(got) != len(test.s) {
+				t.Errorf("Map length mismatch: got %d, want %d", len(got), len(test.s))
+			}
+		})
+	}
+
+	type MySlice []int
+	s := MySlice{1, 2, 3}
+	got := Map(s, func(i int) int { return i * 2 })
+	want := []int{2, 4, 6}
+	if !Equal(got, want) {
+		t.Errorf("Map on named slice type = %v, want %v", got, want)
+	}
+}
+
+func BenchmarkMap(b *testing.B) {
+	s := make([]int, 1024)
+	f := func(i int) int { return i + 1 }
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = Map(s, f)
+	}
+}
