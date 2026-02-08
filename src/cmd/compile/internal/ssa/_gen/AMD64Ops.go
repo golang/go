@@ -1531,6 +1531,7 @@ func init() {
 		gpregmask:          gp,
 		fpregmask:          fp,
 		specialregmask:     mask.union(w.minus(v)),
+		simdregmask:        v,
 		framepointerreg:    int8(num["BP"]),
 		linkreg:            -1, // not used
 	})

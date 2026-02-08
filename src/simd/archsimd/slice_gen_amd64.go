@@ -1092,56 +1092,6 @@ func (x Float64x4) StorePart(s []float64) {
 	x.StoreArrayMasked(paFloat64x4(s), LoadInt64x4(mask).asMask())
 }
 
-// LoadUint8x16Part loads a Uint8x16 from the slice s, it returns the loaded vector and the
-// number of elements loaded.
-// If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 16 or more elements, the function is equivalent to LoadUint8x16.
-func LoadUint8x16Part(s []uint8) (Uint8x16, int) {
-	if len(s) == 0 {
-		var zero Uint8x16
-		return zero, 0
-	}
-	t := unsafe.Slice((*int8)(unsafe.Pointer(&s[0])), len(s))
-	v, l := LoadInt8x16Part(t)
-	return v.AsUint8x16(), l
-}
-
-// StorePart stores the 16 elements of x into the slice s.
-// It stores as many elements as will fit in s.
-// If s has 16 or more elements, the method is equivalent to x.Store.
-func (x Uint8x16) StorePart(s []uint8) {
-	if len(s) == 0 {
-		return
-	}
-	t := unsafe.Slice((*int8)(unsafe.Pointer(&s[0])), len(s))
-	x.AsInt8x16().StorePart(t)
-}
-
-// LoadUint16x8Part loads a Uint16x8 from the slice s, it returns the loaded vector and the
-// number of elements loaded.
-// If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 8 or more elements, the function is equivalent to LoadUint16x8.
-func LoadUint16x8Part(s []uint16) (Uint16x8, int) {
-	if len(s) == 0 {
-		var zero Uint16x8
-		return zero, 0
-	}
-	t := unsafe.Slice((*int16)(unsafe.Pointer(&s[0])), len(s))
-	v, l := LoadInt16x8Part(t)
-	return v.AsUint16x8(), l
-}
-
-// StorePart stores the 8 elements of x into the slice s.
-// It stores as many elements as will fit in s.
-// If s has 8 or more elements, the method is equivalent to x.Store.
-func (x Uint16x8) StorePart(s []uint16) {
-	if len(s) == 0 {
-		return
-	}
-	t := unsafe.Slice((*int16)(unsafe.Pointer(&s[0])), len(s))
-	x.AsInt16x8().StorePart(t)
-}
-
 // LoadUint8x32Part loads a Uint8x32 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 32 elements, the remaining elements of the vector are filled with zeroes.

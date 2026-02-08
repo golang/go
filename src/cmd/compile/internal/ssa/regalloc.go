@@ -771,7 +771,7 @@ func (s *regAllocState) init(f *Func) {
 	}
 
 	// Figure out which registers we're allowed to use.
-	s.allocatable = s.f.Config.gpRegMask.union(s.f.Config.fpRegMask).union(s.f.Config.specialRegMask)
+	s.allocatable = s.f.Config.gpRegMask.union(s.f.Config.fpRegMask).union(s.f.Config.specialRegMask).union(s.f.Config.simdRegMask)
 	s.allocatable = s.allocatable.removeReg(s.SPReg)
 	s.allocatable = s.allocatable.removeReg(s.SBReg)
 	if s.f.Config.hasGReg {
@@ -994,7 +994,7 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 	}
 	if t.IsSIMD() {
 		if t.Size() > 8 {
-			return s.f.Config.fpRegMask.intersect(s.allocatable)
+			return s.f.Config.simdRegMask.intersect(s.allocatable)
 		} else {
 			// K mask
 			return s.f.Config.gpRegMask.intersect(s.allocatable)

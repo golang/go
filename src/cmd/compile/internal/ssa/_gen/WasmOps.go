@@ -58,6 +58,23 @@ var regNamesWasm = []string{
 	"F30",
 	"F31",
 
+	"V0",
+	"V1",
+	"V2",
+	"V3",
+	"V4",
+	"V5",
+	"V6",
+	"V7",
+	"V8",
+	"V9",
+	"V10",
+	"V11",
+	"V12",
+	"V13",
+	"V14",
+	"V15",
+
 	"SP",
 	"g",
 
@@ -67,9 +84,6 @@ var regNamesWasm = []string{
 
 func init() {
 	// Make map from reg names to reg integers.
-	if len(regNamesWasm) > 64 {
-		panic("too many registers")
-	}
 	num := map[string]int{}
 	for i, name := range regNamesWasm {
 		num[name] = i
@@ -90,6 +104,7 @@ func init() {
 		gp     = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15")
 		fp32   = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15")
 		fp64   = buildReg("F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
+		v128   = buildReg("V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15")
 		gpsp   = gp.union(buildReg("SP"))
 		gpspsb = gpsp.union(buildReg("SB"))
 		// The "registers", which are actually local variables, can get clobbered
@@ -111,12 +126,31 @@ func init() {
 		fp64_11   = regInfo{inputs: []regMask{fp64}, outputs: []regMask{fp64}}
 		fp64_21   = regInfo{inputs: []regMask{fp64, fp64}, outputs: []regMask{fp64}}
 		fp64_21gp = regInfo{inputs: []regMask{fp64, fp64}, outputs: []regMask{gp}}
+
 		gpload    = regInfo{inputs: []regMask{gpspsb, regMask{}}, outputs: []regMask{gp}}
 		gpstore   = regInfo{inputs: []regMask{gpspsb, gpsp, regMask{}}}
 		fp32load  = regInfo{inputs: []regMask{gpspsb, regMask{}}, outputs: []regMask{fp32}}
 		fp32store = regInfo{inputs: []regMask{gpspsb, fp32, regMask{}}}
 		fp64load  = regInfo{inputs: []regMask{gpspsb, regMask{}}, outputs: []regMask{fp64}}
 		fp64store = regInfo{inputs: []regMask{gpspsb, fp64, regMask{}}}
+
+		v01    = regInfo{inputs: nil, outputs: []regMask{v128}}
+		vload  = regInfo{inputs: []regMask{gpspsb, regMask{}}, outputs: []regMask{v128}}
+		vstore = regInfo{inputs: []regMask{gpspsb, v128, regMask{}}}
+
+		v11 = regInfo{inputs: []regMask{v128}, outputs: []regMask{v128}}
+		v21 = regInfo{inputs: []regMask{v128, v128}, outputs: []regMask{v128}}
+		v31 = regInfo{inputs: []regMask{v128, v128, v128}, outputs: []regMask{v128}}
+
+		v11gp   = regInfo{inputs: []regMask{v128}, outputs: []regMask{gp}}
+		v11fp32 = regInfo{inputs: []regMask{v128}, outputs: []regMask{fp32}}
+		v11fp64 = regInfo{inputs: []regMask{v128}, outputs: []regMask{fp64}}
+
+		v2gpv = regInfo{inputs: []regMask{v128, v128, gp}, outputs: []regMask{v128}}
+
+		v1gpv   = regInfo{inputs: []regMask{v128, gp}, outputs: []regMask{v128}}
+		v1fp32v = regInfo{inputs: []regMask{v128, fp32}, outputs: []regMask{v128}}
+		v1fp64v = regInfo{inputs: []regMask{v128, fp64}, outputs: []regMask{v128}}
 	)
 
 	var WasmOps = []opData{
@@ -147,7 +181,8 @@ func init() {
 
 		// The following are native WebAssembly instructions, see https://webassembly.github.io/spec/core/syntax/instructions.html
 
-		{name: "Select", asm: "Select", argLength: 3, reg: gp31}, // returns arg0 if arg2 != 0, otherwise returns arg1
+		{name: "Select", asm: "Select", argLength: 3, reg: gp31},   // returns arg0 if arg2 != 0, otherwise returns arg1
+		{name: "SelectV", asm: "Select", argLength: 3, reg: v2gpv}, // returns arg0 if arg2 != 0, otherwise returns arg1
 
 		{name: "I64Load8U", asm: "I64Load8U", argLength: 2, reg: gpload, aux: "Int64", typ: "UInt8"},    // read unsigned 8-bit integer from address arg0+aux, arg1=mem
 		{name: "I64Load8S", asm: "I64Load8S", argLength: 2, reg: gpload, aux: "Int64", typ: "Int8"},     // read signed 8-bit integer from address arg0+aux, arg1=mem
@@ -165,6 +200,10 @@ func init() {
 		{name: "F64Load", asm: "F64Load", argLength: 2, reg: fp64load, aux: "Int64", typ: "Float64"}, // read 64-bit float from address arg0+aux, arg1=mem
 		{name: "F32Store", asm: "F32Store", argLength: 3, reg: fp32store, aux: "Int64", typ: "Mem"},  // store 32-bit float arg1 at address arg0+aux, arg2=mem, returns mem
 		{name: "F64Store", asm: "F64Store", argLength: 3, reg: fp64store, aux: "Int64", typ: "Mem"},  // store 64-bit float arg1 at address arg0+aux, arg2=mem, returns mem
+
+		{name: "V128Load", asm: "V128Load", argLength: 2, reg: vload, aux: "Int64", typ: "V128"},   // read 128-bit vector from address arg0+aux, arg1=mem
+		{name: "V128Store", asm: "V128Store", argLength: 3, reg: vstore, aux: "Int64", typ: "Mem"}, // store 128-bit vector arg1 at address arg0+aux, arg2=mem, returns mem
+		{name: "V128Zero", argLength: 0, reg: v01, asm: "V128Const", typ: "V128"},
 
 		{name: "I64Const", reg: gp01, aux: "Int64", rematerializeable: true, typ: "Int64"},        // returns the constant integer aux
 		{name: "F32Const", reg: fp32_01, aux: "Float32", rematerializeable: true, typ: "Float32"}, // returns the constant float aux
@@ -261,15 +300,19 @@ func init() {
 		{name: "I64Popcnt", asm: "I64Popcnt", argLength: 1, reg: gp11, typ: "Int64"}, // popcnt(arg0)
 	}
 
+	WasmOps = append(WasmOps, simdWasmOps(vload, vstore, v11, v21, v31, v11gp, v11fp32, v11fp64, v1gpv, v1fp32v, v1fp64v)...)
+
 	archs = append(archs, arch{
 		name:            "Wasm",
 		pkg:             "cmd/internal/obj/wasm",
 		genfile:         "../../wasm/ssa.go",
+		genSIMDfile:     "../../wasm/simdssa.go",
 		ops:             WasmOps,
 		blocks:          nil,
 		regnames:        regNamesWasm,
 		gpregmask:       gp,
 		fpregmask:       fp32.union(fp64),
+		simdregmask:     v128,
 		fp32regmask:     fp32,
 		fp64regmask:     fp64,
 		framepointerreg: -1, // not used

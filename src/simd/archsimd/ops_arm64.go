@@ -71,22 +71,12 @@ func (x Float64x2) Mul(y Float64x2) Float64x2
 // Mul multiplies corresponding elements of two vectors.
 //
 // Asm: VMUL, CPU Feature: NEON
-func (x Int8x16) Mul(y Int8x16) Int8x16
-
-// Mul multiplies corresponding elements of two vectors.
-//
-// Asm: VMUL, CPU Feature: NEON
 func (x Int16x8) Mul(y Int16x8) Int16x8
 
 // Mul multiplies corresponding elements of two vectors.
 //
 // Asm: VMUL, CPU Feature: NEON
 func (x Int32x4) Mul(y Int32x4) Int32x4
-
-// Mul multiplies corresponding elements of two vectors.
-//
-// Asm: VMUL, CPU Feature: NEON
-func (x Uint8x16) Mul(y Uint8x16) Uint8x16
 
 // Mul multiplies corresponding elements of two vectors.
 //

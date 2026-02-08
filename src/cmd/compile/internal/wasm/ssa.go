@@ -203,7 +203,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	case ssa.BlockExit, ssa.BlockRetJmp:
 
 	default:
-		panic("unexpected block")
+		base.FatalfAt(b.Pos, "unexpected block b%d, kind=%v", b.ID, b.Kind)
 	}
 
 	// Entry point for the next block. Used by the JMP in goToBlock.
@@ -286,9 +286,19 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
 
+	case ssa.OpWasmV128Store:
+		getValue32(s, v.Args[0])
+		getValue128(s, v.Args[1])
+		p := s.Prog(v.Op.Asm())
+		p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
+
 	case ssa.OpStoreReg:
 		getReg(s, wasm.REG_SP)
-		getValue64(s, v.Args[0])
+		if v.Type.Size() == 16 {
+			getValue128(s, v.Args[0])
+		} else {
+			getValue64(s, v.Args[0])
+		}
 		p := s.Prog(storeOp(v.Type))
 		ssagen.AddrAuto(&p.To, v)
 
@@ -365,6 +375,12 @@ func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
 		getValue32(s, v.Args[2])
 		s.Prog(v.Op.Asm())
 
+	case ssa.OpWasmSelectV:
+		getValue128(s, v.Args[0])
+		getValue128(s, v.Args[1])
+		getValue32(s, v.Args[2])
+		s.Prog(v.Op.Asm())
+
 	case ssa.OpWasmI64AddConst:
 		getValue64(s, v.Args[0])
 		i64Const(s, v.AuxInt)
@@ -379,7 +395,8 @@ func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
 	case ssa.OpWasmF64Const:
 		f64Const(s, v.AuxFloat())
 
-	case ssa.OpWasmI64Load8U, ssa.OpWasmI64Load8S, ssa.OpWasmI64Load16U, ssa.OpWasmI64Load16S, ssa.OpWasmI64Load32U, ssa.OpWasmI64Load32S, ssa.OpWasmI64Load, ssa.OpWasmF32Load, ssa.OpWasmF64Load:
+	case ssa.OpWasmI64Load8U, ssa.OpWasmI64Load8S, ssa.OpWasmI64Load16U, ssa.OpWasmI64Load16S,
+		ssa.OpWasmI64Load32U, ssa.OpWasmI64Load32S, ssa.OpWasmI64Load, ssa.OpWasmF32Load, ssa.OpWasmF64Load, ssa.OpWasmV128Load:
 		getValue32(s, v.Args[0])
 		p := s.Prog(v.Op.Asm())
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
@@ -450,15 +467,26 @@ func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
 		getValue64(s, v.Args[0])
 		s.Prog(v.Op.Asm())
 
+	case ssa.OpWasmV128Zero:
+		p := s.Prog(wasm.AV128Const)
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
+		p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
+
 	case ssa.OpLoadReg:
 		p := s.Prog(loadOp(v.Type))
 		ssagen.AddrAuto(&p.From, v.Args[0])
 
 	case ssa.OpCopy:
-		getValue64(s, v.Args[0])
+		if v.Type.Size() == 16 {
+			getValue128(s, v.Args[0])
+		} else {
+			getValue64(s, v.Args[0])
+		}
 
 	default:
-		v.Fatalf("unexpected op: %s", v.Op)
+		if !ssaGenSIMDValue(s, v, extend) {
+			v.Fatalf("unexpected op: %s", v.Op)
+		}
 
 	}
 }
@@ -503,6 +531,17 @@ func getValue64(s *ssagen.State, v *ssa.Value) {
 	if reg == wasm.REG_SP {
 		s.Prog(wasm.AI64ExtendI32U)
 	}
+}
+
+func getValue128(s *ssagen.State, v *ssa.Value) {
+	if v.OnWasmStack {
+		s.OnWasmStackSkipped--
+		ssaGenValueOnStack(s, v, true)
+		return
+	}
+
+	reg := v.Reg()
+	getReg(s, reg)
 }
 
 func i32Const(s *ssagen.State, val int32) {
@@ -565,6 +604,8 @@ func loadOp(t *types.Type) obj.As {
 		return wasm.AI64Load32U
 	case 8:
 		return wasm.AI64Load
+	case 16:
+		return wasm.AV128Load
 	default:
 		panic("bad load type")
 	}
@@ -591,6 +632,8 @@ func storeOp(t *types.Type) obj.As {
 		return wasm.AI64Store32
 	case 8:
 		return wasm.AI64Store
+	case 16:
+		return wasm.AV128Store
 	default:
 		panic("bad store type")
 	}

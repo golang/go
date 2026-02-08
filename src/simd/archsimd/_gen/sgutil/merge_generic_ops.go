@@ -184,7 +184,8 @@ func mergeOps(currentArch string, existing, new []GenericOpsData) ([]GenericOpsD
 			j++
 		}
 		if len(result) > 0 && CompareNatural(result[len(result)-1].OpName, entry.OpName) >= 0 {
-			return nil, fmt.Errorf("simdgen: mergeOps: sort invariant violated near %q", entry.OpName)
+			return nil, fmt.Errorf("simdgen: mergeOps: sort invariant violated between %q and  %q",
+				result[len(result)-1].OpName, entry.OpName)
 		}
 		result = append(result, entry)
 	}

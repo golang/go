@@ -82,7 +82,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		RegabiWrappers:       regabiSupported,
 		RegabiArgs:           regabiSupported,
 		Dwarf5:               dwarf5Supported,
-		SIMD:                 goarch == "amd64", // TODO: remove this (default to false) when dev.simd is merged
+		SIMD:                 goarch == "amd64" || goarch == "wasm", // TODO: remove this (default to false) when dev.simd is merged
 		RandomizedHeapBase64: true,
 		GreenTeaGC:           true,
 	}

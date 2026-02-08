@@ -13,7 +13,6 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 	var p *obj.Prog
 	switch v.Op {
 	case ssa.OpARM64VADD16B,
-		ssa.OpARM64VMUL16B,
 		ssa.OpARM64VSUB16B:
 		p = simdV21(s, v, arm64.ARNG_16B)
 
