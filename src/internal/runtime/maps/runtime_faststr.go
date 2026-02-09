@@ -99,62 +99,8 @@ func stringPtr(s string) unsafe.Pointer {
 
 //go:linkname runtime_mapaccess1_faststr runtime.mapaccess1_faststr
 func runtime_mapaccess1_faststr(typ *abi.MapType, m *Map, key string) unsafe.Pointer {
-	if race.Enabled && m != nil {
-		callerpc := sys.GetCallerPC()
-		pc := abi.FuncPCABIInternal(runtime_mapaccess1_faststr)
-		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
-	}
-
-	if m == nil || m.Used() == 0 {
-		return unsafe.Pointer(&zeroVal[0])
-	}
-
-	if m.writing != 0 {
-		fatal("concurrent map read and map write")
-		return nil
-	}
-
-	if m.dirLen <= 0 {
-		elem := m.getWithoutKeySmallFastStr(typ, key)
-		if elem == nil {
-			return unsafe.Pointer(&zeroVal[0])
-		}
-		return elem
-	}
-
-	k := key
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
-
-	// Select table.
-	idx := m.directoryIndex(hash)
-	t := m.directoryAt(idx)
-
-	// Probe table.
-	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
-	h2Hash := h2(hash)
-	for ; ; seq = seq.next() {
-		g := t.groups.group(typ, seq.offset)
-
-		match := g.ctrls().matchH2(h2Hash)
-
-		for match != 0 {
-			i := match.first()
-
-			slotKey := g.key(typ, i)
-			if key == *(*string)(slotKey) {
-				slotElem := unsafe.Pointer(uintptr(slotKey) + 2*goarch.PtrSize)
-				return slotElem
-			}
-			match = match.removeFirst()
-		}
-
-		match = g.ctrls().matchEmpty()
-		if match != 0 {
-			// Finding an empty slot means we've reached the end of
-			// the probe sequence.
-			return unsafe.Pointer(&zeroVal[0])
-		}
-	}
+	p, _ := runtime_mapaccess2_faststr(typ, m, key)
+	return p
 }
 
 //go:linkname runtime_mapaccess2_faststr runtime.mapaccess2_faststr

@@ -946,9 +946,9 @@ func (e *Encoder) StackDepth() int {
 // It must be a number between 0 and [Encoder.StackDepth], inclusive.
 // For each level, it reports the kind:
 //
-//   - 0 for a level of zero,
-//   - '{' for a level representing a JSON object, and
-//   - '[' for a level representing a JSON array.
+//   - [KindInvalid] for a level of zero,
+//   - [KindBeginObject] for a level representing a JSON object, and
+//   - [KindBeginArray] for a level representing a JSON array.
 //
 // It also reports the length of that JSON object or array.
 // Each name and value in a JSON object is counted separately,

@@ -1,4 +1,0 @@
-pkg crypto/rsa, func DecryptPKCS1v15 //deprecated #75302
-pkg crypto/rsa, func DecryptPKCS1v15SessionKey //deprecated #75302
-pkg crypto/rsa, func EncryptPKCS1v15 //deprecated #75302
-pkg crypto/rsa, type PKCS1v15DecryptOptions //deprecated #75302

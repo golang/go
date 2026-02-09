@@ -464,17 +464,3 @@ func ifaceE2I(t *abi.Type, src any, dst unsafe.Pointer)
 //
 //go:noescape
 func typedmemmove(t *abi.Type, dst, src unsafe.Pointer)
-
-// Dummy annotation marking that the value x escapes,
-// for use in cases where the reflect code is so clever that
-// the compiler cannot follow.
-func escapes(x any) {
-	if dummy.b {
-		dummy.x = x
-	}
-}
-
-var dummy struct {
-	b bool
-	x any
-}

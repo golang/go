@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"internal/obscuretestdata"
 	"io"
 	"io/fs"
 	"maps"
@@ -74,8 +75,9 @@ func TestWriter(t *testing.T) {
 	)
 
 	vectors := []struct {
-		file  string // Optional filename of expected output
-		tests []testFnc
+		file     string // Optional filename of expected output
+		obscured bool   // Whether file is obscured
+		tests    []testFnc
 	}{{
 		// The writer test file was produced with this command:
 		// tar (GNU tar) 1.26
@@ -151,7 +153,8 @@ func TestWriter(t *testing.T) {
 		//  bsdtar -xvf writer-big-long.tar
 		//
 		// This file is in PAX format.
-		file: "testdata/writer-big-long.tar",
+		file:     "testdata/writer-big-long.tar.base64",
+		obscured: true,
 		tests: []testFnc{
 			testHeader{Header{
 				Typeflag: TypeReg,
@@ -393,7 +396,8 @@ func TestWriter(t *testing.T) {
 					testClose{},
 				},
 			}, {
-				file: "testdata/gnu-sparse-big.tar",
+				file:     "testdata/gnu-sparse-big.tar.base64",
+				obscured: true,
 				tests: []testFnc{
 					testHeader{Header{
 						Typeflag: TypeGNUSparse,
@@ -425,7 +429,8 @@ func TestWriter(t *testing.T) {
 					testClose{nil},
 				},
 			}, {
-				file: "testdata/pax-sparse-big.tar",
+				file:     "testdata/pax-sparse-big.tar.base64",
+				obscured: true,
 				tests: []testFnc{
 					testHeader{Header{
 						Typeflag: TypeReg,
@@ -483,7 +488,7 @@ func TestWriter(t *testing.T) {
 		return x == y
 	}
 	for _, v := range vectors {
-		t.Run(path.Base(v.file), func(t *testing.T) {
+		t.Run(strings.TrimSuffix(path.Base(v.file), ".base64"), func(t *testing.T) {
 			const maxSize = 10 << 10 // 10KiB
 			buf := new(bytes.Buffer)
 			tw := NewWriter(iotest.TruncateWriter(buf, maxSize))
@@ -522,7 +527,16 @@ func TestWriter(t *testing.T) {
 			}
 
 			if v.file != "" {
-				want, err := os.ReadFile(v.file)
+				path := v.file
+				if v.obscured {
+					tf, err := obscuretestdata.DecodeToTempFile(path)
+					if err != nil {
+						t.Fatalf("obscuretestdata.DecodeToTempFile(%s): %v", path, err)
+					}
+					path = tf
+				}
+
+				want, err := os.ReadFile(path)
 				if err != nil {
 					t.Fatalf("ReadFile() = %v, want nil", err)
 				}

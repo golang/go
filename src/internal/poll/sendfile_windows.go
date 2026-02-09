@@ -75,7 +75,7 @@ func SendFile(fd *FD, src uintptr, size int64) (written int64, err error, handle
 				return 0, err
 			}
 			return uint32(chunkSize), nil
-		})
+		}, nil)
 		if err != nil {
 			return written, err, written > 0
 		}

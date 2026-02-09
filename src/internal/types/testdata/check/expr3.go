@@ -156,7 +156,7 @@ func (*T) m() {}
 
 func method_expressions() {
 	_ = T.a /* ERROR "no field or method" */
-	_ = T.x /* ERROR "has no method" */
+	_ = T /* ERROR "operand for field selector x must be value of type T" */ .x
 	_ = T.m /* ERROR "invalid method expression T.m (needs pointer receiver (*T).m)" */
 	_ = (*T).m
 
@@ -164,8 +164,8 @@ func method_expressions() {
 	var g func(*T) = (*T).m
 	_, _ = f, g
 
-	_ = T.y /* ERROR "has no method" */
-	_ = (*T).y /* ERROR "has no method" */
+	_ = T /* ERROR "operand for field selector y must be value of type T" */ .y
+	_ = ( /* ERROR "operand for field selector y must be value of type *T" */ *T).y
 }
 
 func struct_literals() {

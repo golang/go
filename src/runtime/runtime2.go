@@ -546,6 +546,7 @@ type g struct {
 	lockedm         muintptr
 	fipsIndicator   uint8
 	fipsOnlyBypass  bool
+	ditWanted       bool // set if g wants to be executed with DIT enabled
 	syncSafePoint   bool // set if g is stopped at a synchronous safe point.
 	runningCleanups atomic.Bool
 	sig             uint32
@@ -674,6 +675,7 @@ type m struct {
 	lockedExt       uint32      // tracking for external LockOSThread
 	lockedInt       uint32      // tracking for internal lockOSThread
 	mWaitList       mWaitList   // list of runtime lock waiters
+	ditEnabled      bool        // set if DIT is currently enabled on this M
 
 	mLockProfile mLockProfile // fields relating to runtime.lock contention
 	profStack    []uintptr    // used for memory/block/mutex stack traces
@@ -713,8 +715,9 @@ type m struct {
 
 	mOS
 
-	chacha8   chacha8rand.State
-	cheaprand uint64
+	chacha8     chacha8rand.State
+	cheaprand   uint32
+	cheaprand64 uint64
 
 	// Up to 10 locks held by this m, maintained by the lock ranking code.
 	locksHeldLen int
@@ -945,7 +948,7 @@ type schedt struct {
 	nmfreed      int64          // cumulative number of freed m's
 
 	ngsys        atomic.Int32 // number of system goroutines
-	nGsyscallNoP atomic.Int32 // number of goroutines in syscalls without a P
+	nGsyscallNoP atomic.Int32 // number of goroutines in syscalls without a P but whose M is not isExtraInC
 
 	pidle        puintptr // idle p's
 	npidle       atomic.Int32

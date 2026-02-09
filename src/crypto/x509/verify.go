@@ -108,31 +108,38 @@ type HostnameError struct {
 
 func (h HostnameError) Error() string {
 	c := h.Certificate
+	maxNamesIncluded := 100
 
 	if !c.hasSANExtension() && matchHostnames(c.Subject.CommonName, h.Host) {
 		return "x509: certificate relies on legacy Common Name field, use SANs instead"
 	}
 
-	var valid string
+	var valid strings.Builder
 	if ip := net.ParseIP(h.Host); ip != nil {
 		// Trying to validate an IP
 		if len(c.IPAddresses) == 0 {
 			return "x509: cannot validate certificate for " + h.Host + " because it doesn't contain any IP SANs"
 		}
+		if len(c.IPAddresses) >= maxNamesIncluded {
+			return fmt.Sprintf("x509: certificate is valid for %d IP SANs, but none matched %s", len(c.IPAddresses), h.Host)
+		}
 		for _, san := range c.IPAddresses {
-			if len(valid) > 0 {
-				valid += ", "
+			if valid.Len() > 0 {
+				valid.WriteString(", ")
 			}
-			valid += san.String()
+			valid.WriteString(san.String())
 		}
 	} else {
-		valid = strings.Join(c.DNSNames, ", ")
+		if len(c.DNSNames) >= maxNamesIncluded {
+			return fmt.Sprintf("x509: certificate is valid for %d names, but none matched %s", len(c.DNSNames), h.Host)
+		}
+		valid.WriteString(strings.Join(c.DNSNames, ", "))
 	}
 
-	if len(valid) == 0 {
+	if valid.Len() == 0 {
 		return "x509: certificate is not valid for any names, but wanted to match " + h.Host
 	}
-	return "x509: certificate is valid for " + valid + ", not " + h.Host
+	return "x509: certificate is valid for " + valid.String() + ", not " + h.Host
 }
 
 // UnknownAuthorityError results when the certificate issuer is unknown

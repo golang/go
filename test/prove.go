@@ -459,6 +459,24 @@ func f14(p, q *int, a []int) {
 	useInt(a[i2+j]) // ERROR "Proved IsInBounds$"
 }
 
+func f14mem(q *int, a []int) (r int) {
+	p := &r
+	i1 := *q
+	*p = 1 // CSE of the "q" pointer load across disjoint store to "p"
+	i2 := *q
+	useInt(a[i1])
+	useInt(a[i2]) // ERROR "Proved IsInBounds$"
+	return r
+}
+
+func sliceptr(a *[]int, i int) int {
+	var x, y int
+	px, py := &x, &y
+	*px = (*a)[i]
+	*py = (*a)[i] // ERROR "Proved IsInBounds$"
+	return x + y
+}
+
 func f15(s []int, x int) {
 	useSlice(s[x:])
 	useSlice(s[:x]) // ERROR "Proved IsSliceInBounds$"
@@ -2552,7 +2570,7 @@ func swapbound(v []int) {
 	for i := 0; i < len(v)/2; i++ { // ERROR "Proved Div64 is unsigned|Induction variable"
 		v[i], // ERROR "Proved IsInBounds"
 			v[len(v)-1-i] = // ERROR "Proved IsInBounds"
-			v[len(v)-1-i],
+			v[len(v)-1-i],  // ERROR "Proved IsInBounds"
 			v[i] // ERROR "Proved IsInBounds"
 	}
 }
@@ -2716,6 +2734,22 @@ func detectStringLenRelation(s string) bool {
 		}
 	}
 	return false
+}
+
+func issue76688(x, y uint64) uint64 {
+	if x > 1 || y != 1<<63 {
+		return 42
+	}
+	// We do not want to rewrite the multiply to a condselect here since opt can do a better job with a left shift.
+	return x * y
+}
+
+func issue76429(s []byte, k int) byte {
+	if k < 0 || k >= len(s) {
+		return 0
+	}
+	s = s[k:]   // ERROR "Proved IsSliceInBounds" "Proved slicemask not needed"
+	return s[0] // ERROR "Proved IsInBounds"
 }
 
 //go:noinline

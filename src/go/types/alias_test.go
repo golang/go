@@ -13,8 +13,6 @@ import (
 )
 
 func TestIssue74181(t *testing.T) {
-	t.Setenv("GODEBUG", "gotypesalias=1")
-
 	src := `package p
 
 type AB = A[B]
@@ -56,8 +54,6 @@ type A[T any] struct{}`
 }
 
 func TestPartialTypeCheckUndeclaredAliasPanic(t *testing.T) {
-	t.Setenv("GODEBUG", "gotypesalias=1")
-
 	src := `package p
 
 type A = B // undeclared`

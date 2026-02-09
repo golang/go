@@ -598,30 +598,30 @@
 // mutandis, for UGE and SETAE, and CC and SETCC.
 ((NE|EQ) (TESTL (SHLL (MOVLconst [1]) x) y)) => ((ULT|UGE) (BTL x y))
 ((NE|EQ) (TESTQ (SHLQ (MOVQconst [1]) x) y)) => ((ULT|UGE) (BTQ x y))
-((NE|EQ) (TESTLconst [c] x)) && isUnsignedPowerOfTwo(uint32(c))
+((NE|EQ) (TESTLconst [c] x)) && isPowerOfTwo(uint32(c))
     => ((ULT|UGE) (BTLconst [int8(log32u(uint32(c)))] x))
-((NE|EQ) (TESTQconst [c] x)) && isUnsignedPowerOfTwo(uint64(c))
+((NE|EQ) (TESTQconst [c] x)) && isPowerOfTwo(uint64(c))
     => ((ULT|UGE) (BTQconst [int8(log32u(uint32(c)))] x))
-((NE|EQ) (TESTQ (MOVQconst [c]) x)) && isUnsignedPowerOfTwo(uint64(c))
+((NE|EQ) (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(uint64(c))
     => ((ULT|UGE) (BTQconst [int8(log64u(uint64(c)))] x))
 (SET(NE|EQ) (TESTL (SHLL (MOVLconst [1]) x) y)) => (SET(B|AE)  (BTL x y))
 (SET(NE|EQ) (TESTQ (SHLQ (MOVQconst [1]) x) y)) => (SET(B|AE)  (BTQ x y))
-(SET(NE|EQ) (TESTLconst [c] x)) && isUnsignedPowerOfTwo(uint32(c))
+(SET(NE|EQ) (TESTLconst [c] x)) && isPowerOfTwo(uint32(c))
     => (SET(B|AE)  (BTLconst [int8(log32u(uint32(c)))] x))
-(SET(NE|EQ) (TESTQconst [c] x)) && isUnsignedPowerOfTwo(uint64(c))
+(SET(NE|EQ) (TESTQconst [c] x)) && isPowerOfTwo(uint64(c))
     => (SET(B|AE)  (BTQconst [int8(log32u(uint32(c)))] x))
-(SET(NE|EQ) (TESTQ (MOVQconst [c]) x)) && isUnsignedPowerOfTwo(uint64(c))
+(SET(NE|EQ) (TESTQ (MOVQconst [c]) x)) && isPowerOfTwo(uint64(c))
     => (SET(B|AE)  (BTQconst [int8(log64u(uint64(c)))] x))
 // SET..store variant
 (SET(NE|EQ)store [off] {sym} ptr (TESTL (SHLL (MOVLconst [1]) x) y) mem)
     => (SET(B|AE)store  [off] {sym} ptr (BTL x y) mem)
 (SET(NE|EQ)store [off] {sym} ptr (TESTQ (SHLQ (MOVQconst [1]) x) y) mem)
     => (SET(B|AE)store  [off] {sym} ptr (BTQ x y) mem)
-(SET(NE|EQ)store [off] {sym} ptr (TESTLconst [c] x) mem) && isUnsignedPowerOfTwo(uint32(c))
+(SET(NE|EQ)store [off] {sym} ptr (TESTLconst [c] x) mem) && isPowerOfTwo(uint32(c))
     => (SET(B|AE)store  [off] {sym} ptr (BTLconst [int8(log32u(uint32(c)))] x) mem)
-(SET(NE|EQ)store [off] {sym} ptr (TESTQconst [c] x) mem) && isUnsignedPowerOfTwo(uint64(c))
+(SET(NE|EQ)store [off] {sym} ptr (TESTQconst [c] x) mem) && isPowerOfTwo(uint64(c))
     => (SET(B|AE)store  [off] {sym} ptr (BTQconst [int8(log32u(uint32(c)))] x) mem)
-(SET(NE|EQ)store [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem) && isUnsignedPowerOfTwo(uint64(c))
+(SET(NE|EQ)store [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem) && isPowerOfTwo(uint64(c))
     => (SET(B|AE)store  [off] {sym} ptr (BTQconst [int8(log64u(uint64(c)))] x) mem)
 
 // Handle bit-testing in the form (a>>b)&1 != 0 by building the above rules
@@ -647,14 +647,14 @@
 (XOR(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y) x) => (BTC(Q|L) x y)
 // Note: only convert OR/XOR to BTS/BTC if the constant wouldn't fit in
 // the constant field of the OR/XOR instruction. See issue 61694.
-((OR|XOR)Q (MOVQconst [c]) x) && isUnsignedPowerOfTwo(uint64(c)) && uint64(c) >= 1<<31 => (BT(S|C)Qconst [int8(log64u(uint64(c)))] x)
+((OR|XOR)Q (MOVQconst [c]) x) && isPowerOfTwo(uint64(c)) && uint64(c) >= 1<<31 => (BT(S|C)Qconst [int8(log64u(uint64(c)))] x)
 
 // Recognize bit clearing: a &^= 1<<b
 (AND(Q|L) (NOT(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y)) x) => (BTR(Q|L) x y)
 (ANDN(Q|L) x (SHL(Q|L) (MOV(Q|L)const [1]) y)) => (BTR(Q|L) x y)
 // Note: only convert AND to BTR if the constant wouldn't fit in
 // the constant field of the AND instruction. See issue 61694.
-(ANDQ (MOVQconst [c]) x) && isUnsignedPowerOfTwo(uint64(^c)) && uint64(^c) >= 1<<31 => (BTRQconst [int8(log64u(uint64(^c)))] x)
+(ANDQ (MOVQconst [c]) x) && isPowerOfTwo(uint64(^c)) && uint64(^c) >= 1<<31 => (BTRQconst [int8(log64u(uint64(^c)))] x)
 
 // Special-case bit patterns on first/last bit.
 // generic.rules changes ANDs of high-part/low-part masks into a couple of shifts,
@@ -1679,21 +1679,21 @@
 (Cvt8toMask64x8 <t> x) => (VPMOVMToVec64x8 <types.TypeVec512> (KMOVBk <t> x))
 
 // masks to integers
-(CvtMask8x16to16 <t> x) => (KMOVWi <t> (VPMOVVec8x16ToM <types.TypeMask> x))
-(CvtMask8x32to32 <t> x) => (KMOVDi <t> (VPMOVVec8x32ToM <types.TypeMask> x))
-(CvtMask8x64to64 <t> x) => (KMOVQi <t> (VPMOVVec8x64ToM <types.TypeMask> x))
+(CvtMask8x16to16 ...) => (VPMOVMSKB128 ...)
+(CvtMask8x32to32 ...) => (VPMOVMSKB256 ...)
+(CvtMask8x64to64 x) => (KMOVQi (VPMOVVec8x64ToM <types.TypeMask> x))
 
-(CvtMask16x8to8 <t> x) => (KMOVBi <t> (VPMOVVec16x8ToM <types.TypeMask> x))
-(CvtMask16x16to16 <t> x) => (KMOVWi <t> (VPMOVVec16x16ToM <types.TypeMask> x))
-(CvtMask16x32to32 <t> x) => (KMOVDi <t> (VPMOVVec16x32ToM <types.TypeMask> x))
+(CvtMask16x8to8 x) => (KMOVBi (VPMOVVec16x8ToM <types.TypeMask> x))
+(CvtMask16x16to16 x) => (KMOVWi (VPMOVVec16x16ToM <types.TypeMask> x))
+(CvtMask16x32to32 x) => (KMOVDi (VPMOVVec16x32ToM <types.TypeMask> x))
 
-(CvtMask32x4to8 <t> x) => (KMOVBi <t> (VPMOVVec32x4ToM <types.TypeMask> x))
-(CvtMask32x8to8 <t> x) => (KMOVBi <t> (VPMOVVec32x8ToM <types.TypeMask> x))
-(CvtMask32x16to16 <t> x) => (KMOVWi <t> (VPMOVVec32x16ToM <types.TypeMask> x))
+(CvtMask32x4to8 ...) => (VMOVMSKPS128 ...)
+(CvtMask32x8to8 ...) => (VMOVMSKPS256 ...)
+(CvtMask32x16to16 x) => (KMOVWi (VPMOVVec32x16ToM <types.TypeMask> x))
 
-(CvtMask64x2to8 <t> x) => (KMOVBi <t> (VPMOVVec64x2ToM <types.TypeMask> x))
-(CvtMask64x4to8 <t> x) => (KMOVBi <t> (VPMOVVec64x4ToM <types.TypeMask> x))
-(CvtMask64x8to8 <t> x) => (KMOVBi <t> (VPMOVVec64x8ToM <types.TypeMask> x))
+(CvtMask64x2to8 ...) => (VMOVMSKPD128 ...)
+(CvtMask64x4to8 ...) => (VMOVMSKPD256 ...)
+(CvtMask64x8to8 x) => (KMOVBi (VPMOVVec64x8ToM <types.TypeMask> x))
 
 // optimizations
 (MOVBstore [off] {sym} ptr (KMOVBi mask) mem) => (KMOVBstore [off] {sym} ptr mask mem)
@@ -1729,6 +1729,13 @@
 
 // Misc
 (IsZeroVec x) => (SETEQ (VPTEST x x))
+
+(IsNaNFloat32x4  x) => (VCMPPS128 [3] x x)
+(IsNaNFloat32x8  x) => (VCMPPS256 [3] x x)
+(IsNaNFloat32x16 x) => (VPMOVMToVec32x16 (VCMPPS512 [3] x x))
+(IsNaNFloat64x2  x) => (VCMPPD128 [3] x x)
+(IsNaNFloat64x4  x) => (VCMPPD256 [3] x x)
+(IsNaNFloat64x8  x) => (VPMOVMToVec64x8 (VCMPPD512 [3] x x))
 
 // SIMD vector K-masked loads and stores
 
@@ -1818,10 +1825,10 @@
 (EQ (VPTEST x:(VPANDN(128|256) j k) y) yes no) && x == y && x.Uses == 2 => (ULT (VPTEST k j) yes no) // AndNot has swapped its operand order
 (EQ (VPTEST x:(VPANDN(D|Q)512 j k) y) yes no) && x == y && x.Uses == 2 => (ULT (VPTEST k j) yes no) // AndNot has swapped its operand order
 
-// DotProductQuadruple optimizations
-(VPADDD128 (VPDPBUSD128 (Zero128 <t>) x y) z) => (VPDPBUSD128 <t> z x y)
-(VPADDD256 (VPDPBUSD256 (Zero256 <t>) x y) z) => (VPDPBUSD256 <t> z x y)
-(VPADDD512 (VPDPBUSD512 (Zero512 <t>) x y) z) => (VPDPBUSD512 <t> z x y)
-(VPADDD128 (VPDPBUSDS128 (Zero128 <t>) x y) z) => (VPDPBUSDS128 <t> z x y)
-(VPADDD256 (VPDPBUSDS256 (Zero256 <t>) x y) z) => (VPDPBUSDS256 <t> z x y)
-(VPADDD512 (VPDPBUSDS512 (Zero512 <t>) x y) z) => (VPDPBUSDS512 <t> z x y)
+// optimize x.IsNaN().Or(y.IsNaN())
+(VPOR128 (VCMPP(S|D)128 [3] x x) (VCMPP(S|D)128 [3] y y)) => (VCMPP(S|D)128 [3] x y)
+(VPOR256 (VCMPP(S|D)256 [3] x x) (VCMPP(S|D)256 [3] y y)) => (VCMPP(S|D)256 [3] x y)
+(VPORD512 (VPMOVMToVec32x16 (VCMPPS512 [3] x x)) (VPMOVMToVec32x16 (VCMPPS512 [3] y y))) =>
+	(VPMOVMToVec32x16 (VCMPPS512 [3] x y))
+(VPORD512 (VPMOVMToVec64x8  (VCMPPD512 [3] x x)) (VPMOVMToVec64x8  (VCMPPD512 [3] y y))) =>
+	(VPMOVMToVec64x8  (VCMPPD512 [3] x y))

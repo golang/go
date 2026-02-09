@@ -274,9 +274,6 @@ func BenchmarkRoundTrip(b *testing.B) {
 	ek := dk.EncapsulationKey()
 	ekBytes := ek.Bytes()
 	_, c := ek.Encapsulate()
-	if err != nil {
-		b.Fatal(err)
-	}
 	b.Run("Alice", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			dkS, err := GenerateKey768()
@@ -300,9 +297,6 @@ func BenchmarkRoundTrip(b *testing.B) {
 				b.Fatal(err)
 			}
 			Ks, cS := ek.Encapsulate()
-			if err != nil {
-				b.Fatal(err)
-			}
 			sink ^= cS[0] ^ Ks[0]
 		}
 	})

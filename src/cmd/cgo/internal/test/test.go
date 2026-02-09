@@ -971,13 +971,43 @@ int issue76340testFromC(GoInterface obj) {
 GoInterface issue76340returnFromC(int val) {
 	return exportAny76340Return(val);
 }
+
+static void enableDIT() {
+	#ifdef __arm64__
+	__asm__ __volatile__("msr dit, #1");
+	#endif
+}
+
+static void disableDIT() {
+	#ifdef __arm64__
+	__asm__ __volatile__("msr dit, #0");
+	#endif
+}
+
+extern uint8_t ditCallback();
+
+static uint8_t ditCallbackTest() {
+	return ditCallback();
+}
+
+static void ditCallbackEnableDIT() {
+	enableDIT();
+	ditCallback();
+}
+
+static void ditCallbackDisableDIT() {
+	disableDIT();
+	ditCallback();
+}
 */
 import "C"
 
 import (
 	"context"
+	"crypto/subtle"
 	"fmt"
 	"internal/asan"
+	"internal/runtime/sys"
 	"math"
 	"math/rand"
 	"os"
@@ -2436,5 +2466,78 @@ func test76340(t *testing.T) {
 	r3 := C.issue76340returnFromC(0)
 	if r3.t != nil || r3.v != nil {
 		t.Errorf("issue76340returnFromC(0) returned non-nil interface: got %v, want nil", r3)
+	}
+}
+
+func testDITCgo(t *testing.T) {
+	if !sys.DITSupported {
+		t.Skip("CPU does not support DIT")
+	}
+
+	ditAlreadyEnabled := sys.DITEnabled()
+	C.enableDIT()
+
+	if ditAlreadyEnabled != sys.DITEnabled() {
+		t.Fatalf("DIT state not preserved across cgo call: before %t, after %t", ditAlreadyEnabled, sys.DITEnabled())
+	}
+
+	subtle.WithDataIndependentTiming(func() {
+		C.disableDIT()
+
+		if !sys.DITEnabled() {
+			t.Fatal("DIT disabled after disabling in cgo call")
+		}
+	})
+}
+
+func testDITCgoCallback(t *testing.T) {
+	if !sys.DITSupported {
+		t.Skip("CPU does not support DIT")
+	}
+
+	ditAlreadyEnabled := sys.DITEnabled()
+
+	subtle.WithDataIndependentTiming(func() {
+		if C.ditCallbackTest() != 1 {
+			t.Fatal("DIT not enabled in cgo callback within WithDataIndependentTiming")
+		}
+	})
+
+	if ditAlreadyEnabled != sys.DITEnabled() {
+		t.Fatalf("DIT state not preserved across cgo callback: before %t, after %t", ditAlreadyEnabled, sys.DITEnabled())
+	}
+}
+
+func testDITCgoCallbackEnableDIT(t *testing.T) {
+	if !sys.DITSupported {
+		t.Skip("CPU does not support DIT")
+	}
+
+	ditAlreadyEnabled := sys.DITEnabled()
+
+	C.ditCallbackEnableDIT()
+
+	if ditAlreadyEnabled != sys.DITEnabled() {
+		t.Fatalf("DIT state not preserved across cgo callback: before %t, after %t", ditAlreadyEnabled, sys.DITEnabled())
+	}
+}
+
+func testDITCgoCallbackDisableDIT(t *testing.T) {
+	if !sys.DITSupported {
+		t.Skip("CPU does not support DIT")
+	}
+
+	ditAlreadyEnabled := sys.DITEnabled()
+
+	subtle.WithDataIndependentTiming(func() {
+		C.ditCallbackDisableDIT()
+
+		if !sys.DITEnabled() {
+			t.Fatal("DIT disabled after disabling in cgo call")
+		}
+	})
+
+	if ditAlreadyEnabled != sys.DITEnabled() {
+		t.Fatalf("DIT state not preserved across cgo callback: before %t, after %t", ditAlreadyEnabled, sys.DITEnabled())
 	}
 }

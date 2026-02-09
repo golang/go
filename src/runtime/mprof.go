@@ -696,8 +696,8 @@ func (prof *mLockProfile) recordUnlock(cycles int64) {
 		if cycles == 0 {
 			return
 		}
-		prevScore := uint64(cheaprand64()) % uint64(prev)
-		thisScore := uint64(cheaprand64()) % uint64(cycles)
+		prevScore := cheaprandu64() % uint64(prev)
+		thisScore := cheaprandu64() % uint64(cycles)
 		if prevScore > thisScore {
 			prof.cyclesLost += cycles
 			return
@@ -731,8 +731,6 @@ func (prof *mLockProfile) captureStack() {
 	}
 	prof.haveStack = true
 
-	prof.stack[0] = logicalStackSentinel
-
 	var nstk int
 	gp := getg()
 	sp := sys.GetCallerSP()
@@ -740,7 +738,7 @@ func (prof *mLockProfile) captureStack() {
 	systemstack(func() {
 		var u unwinder
 		u.initAt(pc, sp, 0, gp, unwindSilentErrors|unwindJumpStack)
-		nstk = 1 + tracebackPCs(&u, skip, prof.stack[1:])
+		nstk = tracebackPCs(&u, skip, prof.stack)
 	})
 	if nstk < len(prof.stack) {
 		prof.stack[nstk] = 0
@@ -782,7 +780,6 @@ func (prof *mLockProfile) storeSlow() {
 	saveBlockEventStack(cycles, rate, prof.stack[:nstk], mutexProfile)
 	if lost > 0 {
 		lostStk := [...]uintptr{
-			logicalStackSentinel,
 			abi.FuncPCABIInternal(_LostContendedRuntimeLock) + sys.PCQuantum,
 		}
 		saveBlockEventStack(lost, rate, lostStk[:], mutexProfile)
@@ -834,7 +831,6 @@ func SetMutexProfileFraction(rate int) int {
 	return int(old)
 }
 
-//go:linkname mutexevent sync.event
 func mutexevent(cycles int64, skip int) {
 	if cycles < 0 {
 		cycles = 0

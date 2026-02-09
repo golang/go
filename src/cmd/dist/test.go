@@ -748,7 +748,7 @@ func (t *tester) registerTests() {
 	if !strings.Contains(goexperiment, "jsonv2") {
 		t.registerTest("GOEXPERIMENT=jsonv2 go test encoding/json/...", &goTest{
 			variant: "jsonv2",
-			env:     []string{"GOEXPERIMENT=jsonv2"},
+			env:     []string{"GOEXPERIMENT=" + goexperiments("jsonv2")},
 			pkg:     "encoding/json/...",
 		})
 	}
@@ -757,8 +757,17 @@ func (t *tester) registerTests() {
 	if !strings.Contains(goexperiment, "runtimesecret") {
 		t.registerTest("GOEXPERIMENT=runtimesecret go test runtime/secret/...", &goTest{
 			variant: "runtimesecret",
-			env:     []string{"GOEXPERIMENT=runtimesecret"},
+			env:     []string{"GOEXPERIMENT=" + goexperiments("runtimesecret")},
 			pkg:     "runtime/secret/...",
+		})
+	}
+
+	// Test GOEXPERIMENT=simd on amd64.
+	if goarch == "amd64" && !strings.Contains(goexperiment, "simd") {
+		t.registerTest("GOEXPERIMENT=simd go test simd/archsimd/...", &goTest{
+			variant: "simd",
+			env:     []string{"GOEXPERIMENT=" + goexperiments("simd")},
+			pkg:     "simd/archsimd/...",
 		})
 	}
 
@@ -780,7 +789,7 @@ func (t *tester) registerTests() {
 	if !t.compileOnly && !t.short {
 		t.registerTest("GODEBUG=gcstoptheworld=2 archive/zip",
 			&goTest{
-				variant: "runtime:gcstoptheworld2",
+				variant: "gcstoptheworld2",
 				timeout: 300 * time.Second,
 				short:   true,
 				env:     []string{"GODEBUG=gcstoptheworld=2"},
@@ -788,11 +797,27 @@ func (t *tester) registerTests() {
 			})
 		t.registerTest("GODEBUG=gccheckmark=1 runtime",
 			&goTest{
-				variant: "runtime:gccheckmark",
+				variant: "gccheckmark",
 				timeout: 300 * time.Second,
 				short:   true,
 				env:     []string{"GODEBUG=gccheckmark=1"},
 				pkg:     "runtime",
+			})
+	}
+
+	// Spectre mitigation smoke test.
+	if goos == "linux" && goarch == "amd64" {
+		// Pick a bunch of packages known to have some assembly.
+		pkgs := []string{"internal/runtime/...", "reflect", "crypto/..."}
+		if !t.short {
+			pkgs = append(pkgs, "runtime")
+		}
+		t.registerTest("spectre",
+			&goTest{
+				variant: "spectre",
+				short:   true,
+				env:     []string{"GOFLAGS=-gcflags=all=-spectre=all -asmflags=all=-spectre=all"},
+				pkgs:    pkgs,
 			})
 	}
 
@@ -1236,7 +1261,7 @@ func (t *tester) externalLinkPIE() bool {
 	return t.internalLinkPIE() && t.extLink()
 }
 
-// supportedBuildMode reports whether the given build mode is supported.
+// supportedBuildmode reports whether the given build mode is supported.
 func (t *tester) supportedBuildmode(mode string) bool {
 	switch mode {
 	case "c-archive", "c-shared", "shared", "plugin", "pie":
@@ -1878,4 +1903,20 @@ func fipsVersions(short bool) []string {
 		versions = append(versions, strings.TrimSuffix(filepath.Base(txt), ".txt"))
 	}
 	return versions
+}
+
+// goexperiments returns the GOEXPERIMENT value to use
+// when running a test with the given experiments enabled.
+//
+// It preserves any existing GOEXPERIMENTs.
+func goexperiments(exps ...string) string {
+	if len(exps) == 0 {
+		return goexperiment
+	}
+	existing := goexperiment
+	if existing != "" {
+		existing += ","
+	}
+	return existing + strings.Join(exps, ",")
+
 }

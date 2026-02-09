@@ -742,7 +742,7 @@ noaes:
 TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
 	MOVB	runtime·useAeshash(SB), R10
 	CBZ	R10, noaes
-	B	aeshashbody<>(SB)
+	B	runtime·aeshashbody<>(SB)
 noaes:
 	B	runtime·memhashFallback<ABIInternal>(SB)
 
@@ -751,7 +751,7 @@ TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	MOVB	runtime·useAeshash(SB), R10
 	CBZ	R10, noaes
 	LDP	(R0), (R0, R2)	// string data / length
-	B	aeshashbody<>(SB)
+	B	runtime·aeshashbody<>(SB)
 noaes:
 	B	runtime·strhashFallback<ABIInternal>(SB)
 
@@ -759,7 +759,7 @@ noaes:
 // R1: seed data
 // R2: length
 // At return, R0 = return value
-TEXT aeshashbody<>(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·aeshashbody<>(SB),NOSPLIT|NOFRAME,$0
 	VEOR	V30.B16, V30.B16, V30.B16
 	VMOV	R1, V30.D[0]
 	VMOV	R2, V30.D[1] // load length into seed

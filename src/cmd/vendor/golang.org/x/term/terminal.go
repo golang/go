@@ -160,7 +160,9 @@ const (
 	keyEnd
 	keyDeleteWord
 	keyDeleteLine
+	keyDelete
 	keyClearScreen
+	keyTranspose
 	keyPasteStart
 	keyPasteEnd
 )
@@ -194,6 +196,8 @@ func bytesToKey(b []byte, pasteActive bool) (rune, []byte) {
 			return keyDeleteLine, b[1:]
 		case 12: // ^L
 			return keyClearScreen, b[1:]
+		case 20: // ^T
+			return keyTranspose, b[1:]
 		case 23: // ^W
 			return keyDeleteWord, b[1:]
 		case 14: // ^N
@@ -226,6 +230,10 @@ func bytesToKey(b []byte, pasteActive bool) (rune, []byte) {
 		case 'F':
 			return keyEnd, b[3:]
 		}
+	}
+
+	if !pasteActive && len(b) >= 4 && b[0] == keyEscape && b[1] == '[' && b[2] == '3' && b[3] == '~' {
+		return keyDelete, b[4:]
 	}
 
 	if !pasteActive && len(b) >= 6 && b[0] == keyEscape && b[1] == '[' && b[2] == '1' && b[3] == ';' && b[4] == '3' {
@@ -413,7 +421,7 @@ func (t *Terminal) eraseNPreviousChars(n int) {
 	}
 }
 
-// countToLeftWord returns then number of characters from the cursor to the
+// countToLeftWord returns the number of characters from the cursor to the
 // start of the previous word.
 func (t *Terminal) countToLeftWord() int {
 	if t.pos == 0 {
@@ -438,7 +446,7 @@ func (t *Terminal) countToLeftWord() int {
 	return t.pos - pos
 }
 
-// countToRightWord returns then number of characters from the cursor to the
+// countToRightWord returns the number of characters from the cursor to the
 // start of the next word.
 func (t *Terminal) countToRightWord() int {
 	pos := t.pos
@@ -478,7 +486,7 @@ func visualLength(runes []rune) int {
 	return length
 }
 
-// histroryAt unlocks the terminal and relocks it while calling History.At.
+// historyAt unlocks the terminal and relocks it while calling History.At.
 func (t *Terminal) historyAt(idx int) (string, bool) {
 	t.lock.Unlock()     // Unlock to avoid deadlock if History methods use the output writer.
 	defer t.lock.Lock() // panic in At (or Len) protection.
@@ -590,7 +598,7 @@ func (t *Terminal) handleKey(key rune) (line string, ok bool) {
 		}
 		t.line = t.line[:t.pos]
 		t.moveCursorToPos(t.pos)
-	case keyCtrlD:
+	case keyCtrlD, keyDelete:
 		// Erase the character under the current position.
 		// The EOF case when the line is empty is handled in
 		// readLine().
@@ -600,6 +608,24 @@ func (t *Terminal) handleKey(key rune) (line string, ok bool) {
 		}
 	case keyCtrlU:
 		t.eraseNPreviousChars(t.pos)
+	case keyTranspose:
+		// This transposes the two characters around the cursor and advances the cursor. Best-effort.
+		if len(t.line) < 2 || t.pos < 1 {
+			return
+		}
+		swap := t.pos
+		if swap == len(t.line) {
+			swap-- // special: at end of line, swap previous two chars
+		}
+		t.line[swap-1], t.line[swap] = t.line[swap], t.line[swap-1]
+		if t.pos < len(t.line) {
+			t.pos++
+		}
+		if t.echo {
+			t.moveCursorToPos(swap - 1)
+			t.writeLine(t.line[swap-1:])
+			t.moveCursorToPos(t.pos)
+		}
 	case keyClearScreen:
 		// Erases the screen and moves the cursor to the home position.
 		t.queue([]rune("\x1b[2J\x1b[H"))

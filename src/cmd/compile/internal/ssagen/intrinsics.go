@@ -1028,27 +1028,27 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 	// LeadingZeros is handled because it trivially calls Len.
 	addF("math/bits", "Reverse64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBitRev64, types.Types[types.TINT], args[0])
+			return s.newValue1(ssa.OpBitRev64, types.Types[types.TUINT64], args[0])
 		},
 		sys.ARM64, sys.Loong64)
 	addF("math/bits", "Reverse32",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBitRev32, types.Types[types.TINT], args[0])
+			return s.newValue1(ssa.OpBitRev32, types.Types[types.TUINT32], args[0])
 		},
 		sys.ARM64, sys.Loong64)
 	addF("math/bits", "Reverse16",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBitRev16, types.Types[types.TINT], args[0])
+			return s.newValue1(ssa.OpBitRev16, types.Types[types.TUINT16], args[0])
 		},
 		sys.ARM64, sys.Loong64)
 	addF("math/bits", "Reverse8",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBitRev8, types.Types[types.TINT], args[0])
+			return s.newValue1(ssa.OpBitRev8, types.Types[types.TUINT8], args[0])
 		},
 		sys.ARM64, sys.Loong64)
 	addF("math/bits", "Reverse",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpBitRev64, types.Types[types.TINT], args[0])
+			return s.newValue1(ssa.OpBitRev64, types.Types[types.TUINT], args[0])
 		},
 		sys.ARM64, sys.Loong64)
 	addF("math/bits", "RotateLeft8",
@@ -1232,7 +1232,6 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		all...)
 	alias("math/bits", "Mul", "math/bits", "Mul64", p8...)
-	alias("internal/runtime/math", "Mul64", "math/bits", "Mul64", p8...)
 	addF("math/bits", "Add64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
@@ -1442,7 +1441,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			// byte N matched).
 			//
 			// NOTE: See comment above on bitsetFirst.
-			out := s.newValue1(ssa.OpAMD64PMOVMSKB, types.Types[types.TUINT16], eq)
+			out := s.newValue1(ssa.OpAMD64PMOVMSKB, types.Types[types.TUINT8], eq)
 
 			// g is only 64-bits so the upper 64-bits of the
 			// 128-bit register will be zero. If h2 is also zero,
@@ -1502,7 +1501,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 				// means byte N matched).
 				//
 				// NOTE: See comment above on bitsetFirst.
-				ret := s.newValue1(ssa.OpAMD64PMOVMSKB, types.Types[types.TUINT16], sign)
+				ret := s.newValue1(ssa.OpAMD64PMOVMSKB, types.Types[types.TUINT64], sign)
 
 				// g is only 64-bits so the upper 64-bits of
 				// the 128-bit register will be zero. PSIGNB
@@ -1532,7 +1531,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			// byte N matched).
 			//
 			// NOTE: See comment above on bitsetFirst.
-			out := s.newValue1(ssa.OpAMD64PMOVMSKB, types.Types[types.TUINT16], eq)
+			out := s.newValue1(ssa.OpAMD64PMOVMSKB, types.Types[types.TUINT8], eq)
 
 			// g is only 64-bits so the upper 64-bits of the
 			// 128-bit register will be zero. The upper 64-bits of
@@ -1566,7 +1565,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			// byte N matched).
 			//
 			// NOTE: See comment above on bitsetFirst.
-			ret := s.newValue1(ssa.OpAMD64PMOVMSKB, types.Types[types.TUINT16], gfp)
+			ret := s.newValue1(ssa.OpAMD64PMOVMSKB, types.Types[types.TUINT64], gfp)
 
 			// g is only 64-bits so the upper 64-bits of the
 			// 128-bit register will be zero. Zero will never match
@@ -1598,10 +1597,10 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			// byte N matched).
 			//
 			// NOTE: See comment above on bitsetFirst.
-			mask := s.newValue1(ssa.OpAMD64PMOVMSKB, types.Types[types.TUINT16], gfp)
+			mask := s.newValue1(ssa.OpAMD64PMOVMSKB, types.Types[types.TUINT8], gfp)
 
 			// Invert the mask to set the bits for the full slots.
-			out := s.newValue1(ssa.OpCom16, types.Types[types.TUINT16], mask)
+			out := s.newValue1(ssa.OpCom8, types.Types[types.TUINT8], mask)
 
 			// g is only 64-bits so the upper 64-bits of the
 			// 128-bit register will be zero, with bit 7 unset.
@@ -1644,7 +1643,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		// Only enable intrinsics, if SIMD experiment.
 		simdIntrinsics(addF)
 
-		addF("simd", "ClearAVXUpperBits",
+		addF(simdPackage, "ClearAVXUpperBits",
 			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				s.vars[memVar] = s.newValue1(ssa.OpAMD64VZEROUPPER, types.TypeMem, s.mem())
 				return nil
@@ -1667,16 +1666,25 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		addF(simdPackage, "Uint16x16.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
 		addF(simdPackage, "Uint32x8.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
 		addF(simdPackage, "Uint64x4.IsZero", opLen1(ssa.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		addF(simdPackage, "Float32x4.IsNaN", opLen1(ssa.OpIsNaNFloat32x4, types.TypeVec128), sys.AMD64)
+		addF(simdPackage, "Float32x8.IsNaN", opLen1(ssa.OpIsNaNFloat32x8, types.TypeVec256), sys.AMD64)
+		addF(simdPackage, "Float32x16.IsNaN", opLen1(ssa.OpIsNaNFloat32x16, types.TypeVec512), sys.AMD64)
+		addF(simdPackage, "Float64x2.IsNaN", opLen1(ssa.OpIsNaNFloat64x2, types.TypeVec128), sys.AMD64)
+		addF(simdPackage, "Float64x4.IsNaN", opLen1(ssa.OpIsNaNFloat64x4, types.TypeVec256), sys.AMD64)
+		addF(simdPackage, "Float64x8.IsNaN", opLen1(ssa.OpIsNaNFloat64x8, types.TypeVec512), sys.AMD64)
 
+		// sfp4 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
 		sfp4 := func(method string, hwop ssa.Op, vectype *types.Type) {
-			addF("simd", method,
+			addF(simdPackage, method,
 				func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 					x, a, b, c, d, y := args[0], args[1], args[2], args[3], args[4], args[5]
 					if a.Op == ssa.OpConst8 && b.Op == ssa.OpConst8 && c.Op == ssa.OpConst8 && d.Op == ssa.OpConst8 {
-						return select4FromPair(x, a, b, c, d, y, s, hwop, vectype)
-					} else {
-						return s.callResult(n, callNormal)
+						z := select4FromPair(x, a, b, c, d, y, s, hwop, vectype)
+						if z != nil {
+							return z
+						}
 					}
+					return s.callResult(n, callNormal)
 				},
 				sys.AMD64)
 		}
@@ -1693,15 +1701,18 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sfp4("Uint32x16.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedUint32x16, types.TypeVec512)
 		sfp4("Float32x16.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedFloat32x16, types.TypeVec512)
 
+		// sfp2 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
 		sfp2 := func(method string, hwop ssa.Op, vectype *types.Type, cscimm func(i, j uint8) int64) {
-			addF("simd", method,
+			addF(simdPackage, method,
 				func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 					x, a, b, y := args[0], args[1], args[2], args[3]
 					if a.Op == ssa.OpConst8 && b.Op == ssa.OpConst8 {
-						return select2FromPair(x, a, b, y, s, hwop, vectype, cscimm)
-					} else {
-						return s.callResult(n, callNormal)
+						z := select2FromPair(x, a, b, y, s, hwop, vectype, cscimm)
+						if z != nil {
+							return z
+						}
 					}
+					return s.callResult(n, callNormal)
 				},
 				sys.AMD64)
 		}
@@ -1767,6 +1778,9 @@ const (
 
 func select2FromPair(x, _a, _b, y *ssa.Value, s *state, op ssa.Op, t *types.Type, csc func(a, b uint8) int64) *ssa.Value {
 	a, b := uint8(_a.AuxInt8()), uint8(_b.AuxInt8())
+	if a > 3 || b > 3 {
+		return nil
+	}
 	pattern := (a&2)>>1 + (b & 2)
 	a, b = a&1, b&1
 
@@ -1785,6 +1799,9 @@ func select2FromPair(x, _a, _b, y *ssa.Value, s *state, op ssa.Op, t *types.Type
 
 func select4FromPair(x, _a, _b, _c, _d, y *ssa.Value, s *state, op ssa.Op, t *types.Type) *ssa.Value {
 	a, b, c, d := uint8(_a.AuxInt8()), uint8(_b.AuxInt8()), uint8(_c.AuxInt8()), uint8(_d.AuxInt8())
+	if a > 7 || b > 7 || c > 7 || d > 7 {
+		return nil
+	}
 	pattern := a>>2 + (b&4)>>1 + (c & 4) + (d&4)<<1
 
 	a, b, c, d = a&3, b&3, c&3, d&3
@@ -2153,8 +2170,8 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 
 	fn := sym.Name
 	if ssa.IntrinsicsDisable {
-		if pkg == "internal/runtime/sys" && (fn == "GetCallerPC" || fn == "GrtCallerSP" || fn == "GetClosurePtr") ||
-			pkg == "internal/simd" || pkg == "simd" { // TODO after simd has been moved to package simd, remove internal/simd
+		if pkg == "internal/runtime/sys" && (fn == "GetCallerPC" || fn == "GetCallerSP" || fn == "GetClosurePtr") ||
+			pkg == simdPackage {
 			// These runtime functions don't have definitions, must be intrinsics.
 		} else {
 			return nil

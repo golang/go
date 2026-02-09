@@ -17,7 +17,6 @@ package ed25519
 
 import (
 	"crypto"
-	"crypto/internal/fips140/drbg"
 	"crypto/internal/fips140/ed25519"
 	"crypto/internal/fips140cache"
 	"crypto/internal/fips140only"
@@ -153,7 +152,7 @@ func GenerateKey(random io.Reader) (PublicKey, PrivateKey, error) {
 	if random == nil {
 		if cryptocustomrand.Value() == "1" {
 			random = cryptorand.Reader
-			if _, ok := random.(drbg.DefaultReader); !ok {
+			if !rand.IsDefaultReader(random) {
 				cryptocustomrand.IncNonDefault()
 			}
 		} else {

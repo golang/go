@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
+	"golang.org/x/tools/internal/moreiters"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 	"golang.org/x/tools/internal/versions"
@@ -122,9 +123,21 @@ func rangeint(pass *analysis.Pass) (any, error) {
 						continue nextLoop
 					}
 
+					validIncrement := false
 					if inc, ok := loop.Post.(*ast.IncDecStmt); ok &&
 						inc.Tok == token.INC &&
 						astutil.EqualSyntax(compare.X, inc.X) {
+						// Have: i++
+						validIncrement = true
+					} else if assign, ok := loop.Post.(*ast.AssignStmt); ok &&
+						assign.Tok == token.ADD_ASSIGN &&
+						len(assign.Rhs) == 1 && isIntLiteral(info, assign.Rhs[0], 1) &&
+						len(assign.Lhs) == 1 && astutil.EqualSyntax(compare.X, assign.Lhs[0]) {
+						// Have: i += 1
+						validIncrement = true
+					}
+
+					if validIncrement {
 						// Have: for i = 0; i < limit; i++ {}
 
 						// Find references to i within the loop body.
@@ -133,6 +146,14 @@ func rangeint(pass *analysis.Pass) (any, error) {
 						if typesinternal.IsPackageLevel(v) {
 							continue nextLoop
 						}
+
+						// If v is a named result, it is implicitly
+						// used after the loop (go.dev/issue/76880).
+						// TODO(adonovan): use go1.25 v.Kind() == types.ResultVar.
+						if moreiters.Contains(enclosingSignature(curLoop, info).Results().Variables(), v) {
+							continue nextLoop
+						}
+
 						used := false
 						for curId := range curLoop.Child(loop.Body).Preorder((*ast.Ident)(nil)) {
 							id := curId.Node().(*ast.Ident)
@@ -161,7 +182,22 @@ func rangeint(pass *analysis.Pass) (any, error) {
 						// don't offer a fix, as a range loop
 						// leaves i with a different final value (limit-1).
 						if init.Tok == token.ASSIGN {
-							for curId := range curLoop.Parent().Preorder((*ast.Ident)(nil)) {
+							// Find the nearest ancestor that is not a label.
+							// Otherwise, checking for i usage outside of a for
+							// loop might not function properly further below.
+							// This is because the i usage might be a child of
+							// the loop's parent's parent, for example:
+							//     var i int
+							// Loop:
+							//     for i = 0; i < 10; i++ { break loop }
+							//     // i is in the sibling of the label, not the loop
+							//     fmt.Println(i)
+							//
+							ancestor := curLoop.Parent()
+							for is[*ast.LabeledStmt](ancestor.Node()) {
+								ancestor = ancestor.Parent()
+							}
+							for curId := range ancestor.Preorder((*ast.Ident)(nil)) {
 								id := curId.Node().(*ast.Ident)
 								if info.Uses[id] == v {
 									// Is i used after loop?
@@ -222,7 +258,7 @@ func rangeint(pass *analysis.Pass) (any, error) {
 
 						pass.Report(analysis.Diagnostic{
 							Pos:     init.Pos(),
-							End:     inc.End(),
+							End:     loop.Post.End(),
 							Message: "for loop can be modernized using range over int",
 							SuggestedFixes: []analysis.SuggestedFix{{
 								Message: fmt.Sprintf("Replace for loop with range %s",
@@ -248,7 +284,7 @@ func rangeint(pass *analysis.Pass) (any, error) {
 									// Delete inc.
 									{
 										Pos: limit.End(),
-										End: inc.End(),
+										End: loop.Post.End(),
 									},
 									// Add ")" after limit, if needed.
 									{
@@ -296,6 +332,11 @@ func isScalarLvalue(info *types.Info, curId inspector.Cursor) bool {
 		if v, ok := info.Defs[id]; ok && v.Pos() != id.Pos() {
 			return true // reassignment of i (i, j := 1, 2)
 		}
+	case edge.RangeStmt_Key:
+		rng := cur.Parent().Node().(*ast.RangeStmt)
+		if rng.Tok == token.ASSIGN {
+			return true // "for k, v = range x" is like an AssignStmt to k, v
+		}
 	case edge.IncDecStmt_X:
 		return true // i++, i--
 	case edge.UnaryExpr_X:
@@ -304,4 +345,25 @@ func isScalarLvalue(info *types.Info, curId inspector.Cursor) bool {
 		}
 	}
 	return false
+}
+
+// enclosingSignature returns the signature of the innermost
+// function enclosing the syntax node denoted by cur
+// or nil if the node is not within a function.
+//
+// TODO(adonovan): factor with gopls/internal/util/typesutil.EnclosingSignature.
+func enclosingSignature(cur inspector.Cursor, info *types.Info) *types.Signature {
+	if c, ok := enclosingFunc(cur); ok {
+		switch n := c.Node().(type) {
+		case *ast.FuncDecl:
+			if f, ok := info.Defs[n.Name]; ok {
+				return f.Type().(*types.Signature)
+			}
+		case *ast.FuncLit:
+			if f, ok := info.Types[n]; ok {
+				return f.Type.(*types.Signature)
+			}
+		}
+	}
+	return nil
 }

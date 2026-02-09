@@ -80,6 +80,8 @@ or b.ResetTimer within the same function will also be removed.
 Caveats: The b.Loop() method is designed to prevent the compiler from
 optimizing away the benchmark loop, which can occasionally result in
 slower execution due to increased allocations in some specific cases.
+Since its fix may change the performance of nanosecond-scale benchmarks,
+bloop is disabled by default in the `go fix` analyzer suite; see golang/go#74967.
 
 # Analyzer any
 
@@ -199,11 +201,18 @@ are often used to express optionality.
 
 omitzero: suggest replacing omitempty with omitzero for struct fields
 
-The omitzero analyzer identifies uses of the `omitempty` JSON struct tag on
-fields that are themselves structs. The `omitempty` tag has no effect on
-struct-typed fields. The analyzer offers two suggestions: either remove the
+The omitzero analyzer identifies uses of the `omitempty` JSON struct
+tag on fields that are themselves structs. For struct-typed fields,
+the `omitempty` tag has no effect on the behavior of json.Marshal and
+json.Unmarshal. The analyzer offers two suggestions: either remove the
 tag, or replace it with `omitzero` (added in Go 1.24), which correctly
 omits the field if the struct value is zero.
+
+However, some other serialization packages (notably kubebuilder, see
+https://book.kubebuilder.io/reference/markers.html) may have their own
+interpretation of the `json:",omitzero"` tag, so removing it may affect
+program behavior. For this reason, the omitzero modernizer will not
+make changes in any package that contains +kubebuilder annotations.
 
 Replacing `omitempty` with `omitzero` is a change in behavior. The
 original code would always encode the struct field, whereas the
@@ -460,6 +469,25 @@ The sole use of the finished string must be the last reference to the
 variable s. (It may appear within an intervening loop or function literal,
 since even s.String() is called repeatedly, it does not allocate memory.)
 
+Often the addend is a call to fmt.Sprintf, as in this example:
+
+	var s string
+	for x := range seq {
+		s += fmt.Sprintf("%v", x)
+	}
+
+which, once the suggested fix is applied, becomes:
+
+	var s strings.Builder
+	for x := range seq {
+		s.WriteString(fmt.Sprintf("%v", x))
+	}
+
+The WriteString call can be further simplified to the more efficient
+fmt.Fprintf(&s, "%v", x), avoiding the allocation of an intermediary.
+However, stringsbuilder does not perform this simplification;
+it requires staticcheck analyzer QF1012. (See https://go.dev/issue/76918.)
+
 # Analyzer testingcontext
 
 testingcontext: replace context.WithCancel with t.Context in tests
@@ -474,6 +502,22 @@ with a single call to t.Context(), which was added in Go 1.24.
 
 This change is only suggested if the `cancel` function is not used
 for any other purpose.
+
+# Analyzer unsafefuncs
+
+unsafefuncs: replace unsafe pointer arithmetic with function calls
+
+The unsafefuncs analyzer simplifies pointer arithmetic expressions by
+replacing them with calls to helper functions such as unsafe.Add,
+added in Go 1.17.
+
+Example:
+
+	unsafe.Pointer(uintptr(ptr) + uintptr(n))
+
+where ptr is an unsafe.Pointer, is replaced by:
+
+	unsafe.Add(ptr, n)
 
 # Analyzer waitgroup
 

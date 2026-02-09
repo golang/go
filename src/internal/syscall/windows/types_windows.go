@@ -301,3 +301,85 @@ const ValidFileFlagsMask = O_FILE_FLAG_OPEN_REPARSE_POINT |
 	O_FILE_FLAG_NO_BUFFERING |
 	O_FILE_FLAG_RANDOM_ACCESS |
 	O_FILE_FLAG_WRITE_THROUGH
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa379636.aspx
+type TRUSTEE struct {
+	MultipleTrustee          *TRUSTEE
+	MultipleTrusteeOperation int32
+	TrusteeForm              int32
+	TrusteeType              int32
+	Name                     *uint16
+}
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa379638.aspx
+const (
+	TRUSTEE_IS_SID = iota
+	TRUSTEE_IS_NAME
+	TRUSTEE_BAD_FORM
+	TRUSTEE_IS_OBJECTS_AND_SID
+	TRUSTEE_IS_OBJECTS_AND_NAME
+)
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa446627.aspx
+type EXPLICIT_ACCESS struct {
+	AccessPermissions uint32
+	AccessMode        int32
+	Inheritance       uint32
+	Trustee           TRUSTEE
+}
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa374899.aspx
+const (
+	NOT_USED_ACCESS = iota
+	GRANT_ACCESS
+	SET_ACCESS
+	DENY_ACCESS
+	REVOKE_ACCESS
+	SET_AUDIT_SUCCESS
+	SET_AUDIT_FAILURE
+)
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa446627.aspx
+const (
+	NO_INHERITANCE                     = 0x0
+	SUB_OBJECTS_ONLY_INHERIT           = 0x1
+	SUB_CONTAINERS_ONLY_INHERIT        = 0x2
+	SUB_CONTAINERS_AND_OBJECTS_INHERIT = 0x3
+	INHERIT_NO_PROPAGATE               = 0x4
+	INHERIT_ONLY                       = 0x8
+)
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa379593.aspx
+const (
+	SE_UNKNOWN_OBJECT_TYPE = iota
+	SE_FILE_OBJECT
+	SE_SERVICE
+	SE_PRINTER
+	SE_REGISTRY_KEY
+	SE_LMSHARE
+	SE_KERNEL_OBJECT
+	SE_WINDOW_OBJECT
+	SE_DS_OBJECT
+	SE_DS_OBJECT_ALL
+	SE_PROVIDER_DEFINED_OBJECT
+	SE_WMIGUID_OBJECT
+	SE_REGISTRY_WOW64_32KEY
+	SE_REGISTRY_WOW64_64KEY
+)
+
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dtyp/23e75ca3-98fd-4396-84e5-86cd9d40d343
+const (
+	OWNER_SECURITY_INFORMATION               = 0x00000001
+	GROUP_SECURITY_INFORMATION               = 0x00000002
+	DACL_SECURITY_INFORMATION                = 0x00000004
+	SACL_SECURITY_INFORMATION                = 0x00000008
+	LABEL_SECURITY_INFORMATION               = 0x00000010
+	UNPROTECTED_SACL_SECURITY_INFORMATION    = 0x10000000
+	UNPROTECTED_DACL_SECURITY_INFORMATION    = 0x20000000
+	PROTECTED_SACL_SECURITY_INFORMATION      = 0x40000000
+	PROTECTED_DACL_SECURITY_INFORMATION      = 0x80000000
+	ATTRIBUTE_SECURITY_INFORMATION           = 0x00000020
+	SCOPE_SECURITY_INFORMATION               = 0x00000040
+	PROCESS_TRUST_LABEL_SECURITY_INFORMATION = 0x00000080
+	BACKUP_SECURITY_INFORMATION              = 0x00010000
+)

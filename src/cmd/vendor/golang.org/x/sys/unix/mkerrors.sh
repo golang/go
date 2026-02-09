@@ -256,6 +256,7 @@ struct ltchars {
 #include <linux/loop.h>
 #include <linux/lwtunnel.h>
 #include <linux/magic.h>
+#include <linux/mei.h>
 #include <linux/memfd.h>
 #include <linux/module.h>
 #include <linux/mount.h>
@@ -613,7 +614,7 @@ ccflags="$@"
 		$2 !~ /IOC_MAGIC/ &&
 		$2 ~ /^[A-Z][A-Z0-9_]+_MAGIC2?$/ ||
 		$2 ~ /^(VM|VMADDR)_/ ||
-		$2 ~ /^IOCTL_VM_SOCKETS_/ ||
+		$2 ~ /^(IOCTL_VM_SOCKETS_|IOCTL_MEI_)/ ||
 		$2 ~ /^(TASKSTATS|TS)_/ ||
 		$2 ~ /^CGROUPSTATS_/ ||
 		$2 ~ /^GENL_/ ||

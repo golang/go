@@ -32,11 +32,6 @@ TEXT sigtramp<>(SB),NOSPLIT,$0-0
 	// R14 is cleared in case there's a non-zero value in there
 	// if called from a non-go thread.
 	XORPS	X15, X15
-#ifdef GOEXPERIMENT_simd
-	CMPB	internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
-	JNE	2(PC)
-	VXORPS	X15, X15, X15
-#endif
 	XORQ	R14, R14
 
 	get_tls(AX)

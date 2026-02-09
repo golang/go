@@ -163,7 +163,7 @@ In addition to the build flags, the flags handled by 'go test' itself are:
 
 	-o file
 	    Save a copy of the test binary to the named file.
-	    The test still runs (unless -c or -i is specified).
+	    The test still runs (unless -c is specified).
 	    If file ends in a slash or names an existing directory,
 	    the test is written to pkg.test in that directory.
 
@@ -736,7 +736,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		// Otherwise, if fuzzing identifies a failure it could corrupt checksums in
 		// the module cache (or permanently alter the behavior of std tests for all
 		// users) by writing the failing input to the package's testdata directory.
-		// (See https://golang.org/issue/48495 and test_fuzz_modcache.txt.)
+		// (See https://golang.org/issue/48495 and cmd/internal/fuzztest/test_fuzz_modcache.txt.)
 		mainMods := moduleLoaderState.MainModules
 		if m := pkgs[0].Module; m != nil && m.Path != "" {
 			if !mainMods.Contains(m.Path) {
@@ -1371,7 +1371,7 @@ func addTestVet(loaderstate *modload.State, b *work.Builder, p *load.Package, ru
 		return
 	}
 
-	vet := b.VetAction(loaderstate, work.ModeBuild, work.ModeBuild, p)
+	vet := b.VetAction(loaderstate, work.ModeBuild, work.ModeBuild, false, p)
 	runAction.Deps = append(runAction.Deps, vet)
 	// Install will clean the build directory.
 	// Make sure vet runs first.

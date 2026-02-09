@@ -33,15 +33,15 @@ var (
 // writeDefs creates output files to be compiled by gc and gcc.
 func (p *Package) writeDefs() {
 	var fgo2, fc io.Writer
-	f := creat(*objDir + "_cgo_gotypes.go")
+	f := creat("_cgo_gotypes.go")
 	defer f.Close()
 	fgo2 = f
 	if *gccgo {
-		f := creat(*objDir + "_cgo_defun.c")
+		f := creat("_cgo_defun.c")
 		defer f.Close()
 		fc = f
 	}
-	fm := creat(*objDir + "_cgo_main.c")
+	fm := creat("_cgo_main.c")
 
 	var gccgoInit strings.Builder
 
@@ -50,7 +50,7 @@ func (p *Package) writeDefs() {
 			fmt.Fprintf(fgo2, "//go:cgo_ldflag %q\n", arg)
 		}
 	} else {
-		fflg := creat(*objDir + "_cgo_flags")
+		fflg := creat("_cgo_flags")
 		for _, arg := range p.LdFlags {
 			fmt.Fprintf(fflg, "_CGO_LDFLAGS=%s\n", arg)
 		}
@@ -242,8 +242,8 @@ func (p *Package) writeDefs() {
 		}
 	}
 
-	fgcc := creat(*objDir + "_cgo_export.c")
-	fgcch := creat(*objDir + "_cgo_export.h")
+	fgcc := creat("_cgo_export.c")
+	fgcch := creat("_cgo_export.h")
 	if *gccgo {
 		p.writeGccgoExports(fgo2, fm, fgcc, fgcch)
 	} else {
@@ -263,8 +263,11 @@ func (p *Package) writeDefs() {
 	}
 
 	if *exportHeader != "" && len(p.ExpFunc) > 0 {
-		fexp := creat(*exportHeader)
-		fgcch, err := os.Open(*objDir + "_cgo_export.h")
+		fexp, err := os.Create(*exportHeader)
+		if err != nil {
+			fatalf("%s", err)
+		}
+		fgcch, err := os.Open(filepath.Join(outputDir(), "_cgo_export.h"))
 		if err != nil {
 			fatalf("%s", err)
 		}
@@ -697,8 +700,8 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 	base := srcfile
 	base = strings.TrimSuffix(base, ".go")
 	base = filepath.Base(base)
-	fgo1 := creat(*objDir + base + ".cgo1.go")
-	fgcc := creat(*objDir + base + ".cgo2.c")
+	fgo1 := creat(base + ".cgo1.go")
+	fgcc := creat(base + ".cgo2.c")
 
 	p.GoFiles = append(p.GoFiles, base+".cgo1.go")
 	p.GccFiles = append(p.GccFiles, base+".cgo2.c")
@@ -783,13 +786,13 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	// We're trying to write a gcc struct that matches gc's layout.
 	// Use packed attribute to force no padding in this struct in case
 	// gcc has different packing requirements.
-	fmt.Fprintf(fgcc, "\t%s %v *_cgo_a = v;\n", ctype, p.packedAttribute())
-	if n.FuncType.Result != nil {
+	tr := n.FuncType.Result
+	if (n.Kind != "macro" && len(n.FuncType.Params) > 0) || tr != nil {
+		fmt.Fprintf(fgcc, "\t%s %v *_cgo_a = v;\n", ctype, p.packedAttribute())
+	}
+	if tr != nil {
 		// Save the stack top for use below.
 		fmt.Fprintf(fgcc, "\tchar *_cgo_stktop = _cgo_topofstack();\n")
-	}
-	tr := n.FuncType.Result
-	if tr != nil {
 		fmt.Fprintf(fgcc, "\t__typeof__(_cgo_a->r) _cgo_r;\n")
 	}
 	fmt.Fprintf(fgcc, "\t_cgo_tsan_acquire();\n")
@@ -819,7 +822,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 		fmt.Fprintf(fgcc, "\t_cgo_errno = errno;\n")
 	}
 	fmt.Fprintf(fgcc, "\t_cgo_tsan_release();\n")
-	if n.FuncType.Result != nil {
+	if tr != nil {
 		// The cgo call may have caused a stack copy (via a callback).
 		// Adjust the return value pointer appropriately.
 		fmt.Fprintf(fgcc, "\t_cgo_a = (void*)((char*)_cgo_a + (_cgo_topofstack() - _cgo_stktop));\n")
@@ -1395,7 +1398,7 @@ func gccgoToSymbol(ppath string) string {
 				fatalf("unable to locate gccgo: %v", err)
 			}
 		}
-		gccgoMangler, err = pkgpath.ToSymbolFunc(cmd, *objDir)
+		gccgoMangler, err = pkgpath.ToSymbolFunc(cmd, outputDir())
 		if err != nil {
 			fatalf("%v", err)
 		}

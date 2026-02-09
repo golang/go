@@ -37,3 +37,10 @@ func main() {
 		}
 	}
 }
+
+// Regression test for ICE in staticdata.GlobalLinksym from
+// use of autotemp outside a function (go.dev/issue/77237).
+var (
+	x = new(0)
+	y = x
+)

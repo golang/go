@@ -646,13 +646,12 @@ func (check *Checker) packageObjects() {
 		}
 	}
 
-	if false && check.conf.EnableAlias {
-		// With Alias nodes we can process declarations in any order.
+	if false {
+		// TODO: determine if we can enable this code now or
+		//       if there are still problems with cycles and
+		//       aliases.
 		//
-		// TODO(adonovan): unfortunately, Alias nodes
-		// (GODEBUG=gotypesalias=1) don't entirely resolve
-		// problems with cycles. For example, in
-		// GOROOT/test/typeparam/issue50259.go,
+		// For example, in GOROOT/test/typeparam/issue50259.go,
 		//
 		// 	type T[_ any] struct{}
 		// 	type A T[B]
@@ -667,7 +666,7 @@ func (check *Checker) packageObjects() {
 			check.objDecl(obj)
 		}
 	} else {
-		// Without Alias nodes, we process non-alias type declarations first, followed by
+		// To avoid problems with cycles, process non-alias type declarations first, followed by
 		// alias declarations, and then everything else. This appears to avoid most situations
 		// where the type of an alias is needed before it is available.
 		// There may still be cases where this is not good enough (see also go.dev/issue/25838).

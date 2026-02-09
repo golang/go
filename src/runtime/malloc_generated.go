@@ -156,7 +156,7 @@ func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsaf
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -321,7 +321,7 @@ func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsaf
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -486,7 +486,7 @@ func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsaf
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -651,7 +651,7 @@ func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsaf
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -816,7 +816,7 @@ func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsaf
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -981,7 +981,7 @@ func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsaf
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -1146,7 +1146,7 @@ func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsaf
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -1311,7 +1311,7 @@ func mallocgcSmallScanNoHeaderSC8(size uintptr, typ *_type, needzero bool) unsaf
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -1476,7 +1476,7 @@ func mallocgcSmallScanNoHeaderSC9(size uintptr, typ *_type, needzero bool) unsaf
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -1641,7 +1641,7 @@ func mallocgcSmallScanNoHeaderSC10(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -1806,7 +1806,7 @@ func mallocgcSmallScanNoHeaderSC11(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -1971,7 +1971,7 @@ func mallocgcSmallScanNoHeaderSC12(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -2136,7 +2136,7 @@ func mallocgcSmallScanNoHeaderSC13(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -2301,7 +2301,7 @@ func mallocgcSmallScanNoHeaderSC14(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -2466,7 +2466,7 @@ func mallocgcSmallScanNoHeaderSC15(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -2631,7 +2631,7 @@ func mallocgcSmallScanNoHeaderSC16(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -2796,7 +2796,7 @@ func mallocgcSmallScanNoHeaderSC17(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -2961,7 +2961,7 @@ func mallocgcSmallScanNoHeaderSC18(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -3126,7 +3126,7 @@ func mallocgcSmallScanNoHeaderSC19(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -3291,7 +3291,7 @@ func mallocgcSmallScanNoHeaderSC20(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -3456,7 +3456,7 @@ func mallocgcSmallScanNoHeaderSC21(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -3621,7 +3621,7 @@ func mallocgcSmallScanNoHeaderSC22(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -3786,7 +3786,7 @@ func mallocgcSmallScanNoHeaderSC23(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -3951,7 +3951,7 @@ func mallocgcSmallScanNoHeaderSC24(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -4116,7 +4116,7 @@ func mallocgcSmallScanNoHeaderSC25(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -4281,7 +4281,7 @@ func mallocgcSmallScanNoHeaderSC26(size uintptr, typ *_type, needzero bool) unsa
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -4300,7 +4300,7 @@ func mallocgcSmallScanNoHeaderSC26(size uintptr, typ *_type, needzero bool) unsa
 	return x
 }
 
-func mallocTiny1(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgcTinySize1(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -4456,7 +4456,7 @@ func mallocTiny1(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocTiny2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgcTinySize2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -4612,7 +4612,7 @@ func mallocTiny2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocTiny3(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgcTinySize3(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -4768,7 +4768,7 @@ func mallocTiny3(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocTiny4(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgcTinySize4(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -4924,7 +4924,7 @@ func mallocTiny4(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocTiny5(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgcTinySize5(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -5080,7 +5080,7 @@ func mallocTiny5(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocTiny6(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgcTinySize6(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -5236,7 +5236,7 @@ func mallocTiny6(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocTiny7(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgcTinySize7(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -5392,7 +5392,7 @@ func mallocTiny7(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocTiny8(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgcTinySize8(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -5548,7 +5548,7 @@ func mallocTiny8(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocTiny9(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgcTinySize9(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -5704,7 +5704,7 @@ func mallocTiny9(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocTiny10(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgcTinySize10(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -5860,7 +5860,7 @@ func mallocTiny10(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocTiny11(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgcTinySize11(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -6016,7 +6016,7 @@ func mallocTiny11(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocTiny12(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgcTinySize12(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -6172,7 +6172,7 @@ func mallocTiny12(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocTiny13(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgcTinySize13(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -6328,7 +6328,7 @@ func mallocTiny13(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocTiny14(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgcTinySize14(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -6484,7 +6484,7 @@ func mallocTiny14(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocTiny15(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+func mallocgcTinySize15(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -6686,7 +6686,7 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -6757,7 +6757,7 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -6822,7 +6822,7 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -6893,7 +6893,7 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -6958,7 +6958,7 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -7029,7 +7029,7 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -7094,7 +7094,7 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -7165,7 +7165,7 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -7230,7 +7230,7 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -7301,7 +7301,7 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -7366,7 +7366,7 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -7437,7 +7437,7 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -7502,7 +7502,7 @@ func mallocgcSmallNoScanSC8(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -7573,7 +7573,7 @@ func mallocgcSmallNoScanSC8(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -7638,7 +7638,7 @@ func mallocgcSmallNoScanSC9(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -7709,7 +7709,7 @@ func mallocgcSmallNoScanSC9(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -7774,7 +7774,7 @@ func mallocgcSmallNoScanSC10(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -7845,7 +7845,7 @@ func mallocgcSmallNoScanSC10(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -7910,7 +7910,7 @@ func mallocgcSmallNoScanSC11(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -7981,7 +7981,7 @@ func mallocgcSmallNoScanSC11(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -8046,7 +8046,7 @@ func mallocgcSmallNoScanSC12(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -8117,7 +8117,7 @@ func mallocgcSmallNoScanSC12(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -8182,7 +8182,7 @@ func mallocgcSmallNoScanSC13(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -8253,7 +8253,7 @@ func mallocgcSmallNoScanSC13(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -8318,7 +8318,7 @@ func mallocgcSmallNoScanSC14(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -8389,7 +8389,7 @@ func mallocgcSmallNoScanSC14(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -8454,7 +8454,7 @@ func mallocgcSmallNoScanSC15(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -8525,7 +8525,7 @@ func mallocgcSmallNoScanSC15(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -8590,7 +8590,7 @@ func mallocgcSmallNoScanSC16(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -8661,7 +8661,7 @@ func mallocgcSmallNoScanSC16(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -8726,7 +8726,7 @@ func mallocgcSmallNoScanSC17(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -8797,7 +8797,7 @@ func mallocgcSmallNoScanSC17(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -8862,7 +8862,7 @@ func mallocgcSmallNoScanSC18(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -8933,7 +8933,7 @@ func mallocgcSmallNoScanSC18(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -8998,7 +8998,7 @@ func mallocgcSmallNoScanSC19(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -9069,7 +9069,7 @@ func mallocgcSmallNoScanSC19(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -9134,7 +9134,7 @@ func mallocgcSmallNoScanSC20(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -9205,7 +9205,7 @@ func mallocgcSmallNoScanSC20(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -9270,7 +9270,7 @@ func mallocgcSmallNoScanSC21(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -9341,7 +9341,7 @@ func mallocgcSmallNoScanSC21(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -9406,7 +9406,7 @@ func mallocgcSmallNoScanSC22(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -9477,7 +9477,7 @@ func mallocgcSmallNoScanSC22(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -9542,7 +9542,7 @@ func mallocgcSmallNoScanSC23(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -9613,7 +9613,7 @@ func mallocgcSmallNoScanSC23(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -9678,7 +9678,7 @@ func mallocgcSmallNoScanSC24(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -9749,7 +9749,7 @@ func mallocgcSmallNoScanSC24(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -9814,7 +9814,7 @@ func mallocgcSmallNoScanSC25(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -9885,7 +9885,7 @@ func mallocgcSmallNoScanSC25(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {
@@ -9950,7 +9950,7 @@ func mallocgcSmallNoScanSC26(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			gp := getg()
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-				addSecret(x)
+				addSecret(x, size)
 			}
 
 			if valgrindenabled {
@@ -10021,7 +10021,7 @@ func mallocgcSmallNoScanSC26(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-		addSecret(x)
+		addSecret(x, size)
 	}
 
 	if valgrindenabled {

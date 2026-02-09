@@ -215,13 +215,13 @@ func memmove(to *any, frm *any, length uintptr)
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 func memclrHasPointers(ptr unsafe.Pointer, n uintptr)
 
-func memequal(x, y *any, size uintptr) bool
-func memequal0(x, y *any) bool
-func memequal8(x, y *any) bool
-func memequal16(x, y *any) bool
-func memequal32(x, y *any) bool
-func memequal64(x, y *any) bool
-func memequal128(x, y *any) bool
+func memequal(x, y unsafe.Pointer, size uintptr) bool
+func memequal0(x, y unsafe.Pointer) bool
+func memequal8(x, y unsafe.Pointer) bool
+func memequal16(x, y unsafe.Pointer) bool
+func memequal32(x, y unsafe.Pointer) bool
+func memequal64(x, y unsafe.Pointer) bool
+func memequal128(x, y unsafe.Pointer) bool
 func f32equal(p, q unsafe.Pointer) bool
 func f64equal(p, q unsafe.Pointer) bool
 func c64equal(p, q unsafe.Pointer) bool
@@ -230,20 +230,20 @@ func strequal(p, q unsafe.Pointer) bool
 func interequal(p, q unsafe.Pointer) bool
 func nilinterequal(p, q unsafe.Pointer) bool
 
-func memhash(x *any, h uintptr, size uintptr) uintptr
+func memhash(x unsafe.Pointer, h uintptr, size uintptr) uintptr
 func memhash0(p unsafe.Pointer, h uintptr) uintptr
 func memhash8(p unsafe.Pointer, h uintptr) uintptr
 func memhash16(p unsafe.Pointer, h uintptr) uintptr
 func memhash32(p unsafe.Pointer, h uintptr) uintptr
 func memhash64(p unsafe.Pointer, h uintptr) uintptr
 func memhash128(p unsafe.Pointer, h uintptr) uintptr
-func f32hash(p *any, h uintptr) uintptr
-func f64hash(p *any, h uintptr) uintptr
-func c64hash(p *any, h uintptr) uintptr
-func c128hash(p *any, h uintptr) uintptr
-func strhash(a *any, h uintptr) uintptr
-func interhash(p *any, h uintptr) uintptr
-func nilinterhash(p *any, h uintptr) uintptr
+func f32hash(p unsafe.Pointer, h uintptr) uintptr
+func f64hash(p unsafe.Pointer, h uintptr) uintptr
+func c64hash(p unsafe.Pointer, h uintptr) uintptr
+func c128hash(p unsafe.Pointer, h uintptr) uintptr
+func strhash(a unsafe.Pointer, h uintptr) uintptr
+func interhash(p unsafe.Pointer, h uintptr) uintptr
+func nilinterhash(p unsafe.Pointer, h uintptr) uintptr
 
 // only used on 32-bit
 func int64div(int64, int64) int64

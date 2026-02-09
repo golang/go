@@ -1,2 +1,0 @@
-pkg os, method (*Process) WithHandle(func(uintptr)) error #70352
-pkg os, var ErrNoHandle error #70352

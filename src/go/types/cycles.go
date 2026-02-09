@@ -105,3 +105,27 @@ func (check *Checker) directCycle(tname *TypeName, pathIdx map[*TypeName]int) {
 		}
 	}
 }
+
+// isComplete returns whether a type is complete (i.e. up to having an underlying type).
+// Incomplete types will panic if [Type.Underlying] is called on them.
+func (check *Checker) isComplete(t Type) bool {
+	if n, ok := Unalias(t).(*Named); ok {
+		if i, found := check.objPathIdx[n.obj]; found {
+			cycle := check.objPath[i:]
+			check.cycleError(cycle, firstInSrc(cycle))
+			return false
+		}
+
+		// We must walk through names because we permit certain cycles of names.
+		// Consider:
+		//
+		//   type A B
+		//   type B [unsafe.Sizeof(A{})]int
+		//
+		// starting at B. At the site of A{}, A has no underlying type, and so a
+		// cycle must be reported.
+		return check.isComplete(n.fromRHS)
+	}
+
+	return true
+}

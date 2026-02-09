@@ -42,12 +42,11 @@ import (
 	"log"
 	"math"
 	"sort"
+	"sync"
 )
 
 func Linknew(arch *LinkArch) *Link {
 	ctxt := new(Link)
-	ctxt.hash = make(map[string]*LSym)
-	ctxt.funchash = make(map[string]*LSym)
 	ctxt.statichash = make(map[string]*LSym)
 	ctxt.Arch = arch
 	ctxt.Pathname = objabi.WorkingDir()
@@ -90,28 +89,34 @@ func (ctxt *Link) LookupABI(name string, abi ABI) *LSym {
 // If it does not exist, it creates it and
 // passes it to init for one-time initialization.
 func (ctxt *Link) LookupABIInit(name string, abi ABI, init func(s *LSym)) *LSym {
-	var hash map[string]*LSym
+	var hash *sync.Map
 	switch abi {
 	case ABI0:
-		hash = ctxt.hash
+		hash = &ctxt.hash
 	case ABIInternal:
-		hash = ctxt.funchash
+		hash = &ctxt.funchash
 	default:
 		panic("unknown ABI")
 	}
 
-	ctxt.hashmu.Lock()
-	s := hash[name]
-	if s == nil {
-		s = &LSym{Name: name}
-		s.SetABI(abi)
-		hash[name] = s
-		if init != nil {
-			init(s)
+	c, _ := hash.Load(name)
+	if c == nil {
+		once := &symOnce{
+			sym: LSym{Name: name},
 		}
+		once.sym.SetABI(abi)
+		c, _ = hash.LoadOrStore(name, once)
 	}
-	ctxt.hashmu.Unlock()
-	return s
+	once := c.(*symOnce)
+	if init != nil && !once.inited.Load() {
+		ctxt.hashmu.Lock()
+		if !once.inited.Load() {
+			init(&once.sym)
+			once.inited.Store(true)
+		}
+		ctxt.hashmu.Unlock()
+	}
+	return &once.sym
 }
 
 // Lookup looks up the symbol with name name.
@@ -124,17 +129,31 @@ func (ctxt *Link) Lookup(name string) *LSym {
 // If it does not exist, it creates it and
 // passes it to init for one-time initialization.
 func (ctxt *Link) LookupInit(name string, init func(s *LSym)) *LSym {
-	ctxt.hashmu.Lock()
-	s := ctxt.hash[name]
-	if s == nil {
-		s = &LSym{Name: name}
-		ctxt.hash[name] = s
-		if init != nil {
-			init(s)
+	c, _ := ctxt.hash.Load(name)
+	if c == nil {
+		once := &symOnce{
+			sym: LSym{Name: name},
 		}
+		c, _ = ctxt.hash.LoadOrStore(name, once)
 	}
-	ctxt.hashmu.Unlock()
-	return s
+	once := c.(*symOnce)
+	if init != nil && !once.inited.Load() {
+		// TODO(dmo): some of our init functions modify other fields
+		// in the symbol table. They are only implicitly protected since
+		// we serialize all inits under the hashmu lock.
+		// Consider auditing the functions and have them lock their
+		// concurrent access values explicitly. This would make it possible
+		// to have more than one than one init going at a time (although this might
+		// be a theoretical concern, I have yet to catch this lock actually being waited
+		// on).
+		ctxt.hashmu.Lock()
+		if !once.inited.Load() {
+			init(&once.sym)
+			once.inited.Store(true)
+		}
+		ctxt.hashmu.Unlock()
+	}
+	return &once.sym
 }
 
 func (ctxt *Link) rodataKind() (suffix string, typ objabi.SymKind) {

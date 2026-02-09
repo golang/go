@@ -1,6 +1,8 @@
 # Test that go vet's caching of vet tool actions replays
 # the recorded stderr output even after a cache hit.
 
+[short] skip 'uses a fresh build cache'
+
 # Set up fresh GOCACHE.
 env GOCACHE=$WORK/gocache
 

@@ -102,6 +102,10 @@ NONE
 < itab
 < reflectOffs;
 
+# Typelinks
+NONE
+< typelinks;
+
 # Synctest
 hchan,
   notifyList,
@@ -138,6 +142,7 @@ allg,
   reflectOffs,
   timer,
   traceStrings,
+  typelinks,
   userArenaState,
   vgetrandom
 # Above MALLOC are things that can allocate memory.

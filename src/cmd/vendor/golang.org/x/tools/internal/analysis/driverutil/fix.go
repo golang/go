@@ -93,11 +93,13 @@ type FixAction struct {
 //
 // If printDiff (from the -diff flag) is set, instead of updating the
 // files it display the final patch composed of all the cleanly merged
-// fixes.
+// fixes. (It is tempting to factor printDiff as just a variant of
+// writeFile that is provided the old and new content, but it's hard
+// to generate a good summary that way.)
 //
 // TODO(adonovan): handle file-system level aliases such as symbolic
 // links using robustio.FileID.
-func ApplyFixes(actions []FixAction, printDiff, verbose bool) error {
+func ApplyFixes(actions []FixAction, writeFile func(filename string, content []byte) error, printDiff, verbose bool) error {
 	generated := make(map[*token.File]bool)
 
 	// Select fixes to apply.
@@ -264,12 +266,11 @@ fixloop:
 			os.Stdout.WriteString(unified)
 
 		} else {
-			// write
+			// write file
 			totalFiles++
-			// TODO(adonovan): abstract the I/O.
-			if err := os.WriteFile(file, final, 0644); err != nil {
+			if err := writeFile(file, final); err != nil {
 				log.Println(err)
-				continue
+				continue // (causes ApplyFix to return an error)
 			}
 			filesUpdated++
 		}
@@ -339,6 +340,9 @@ fixloop:
 // information for the fixed file and thus cannot accurately tell
 // whether k is among the free names of T{k: 0}, which requires
 // knowledge of whether T is a struct type.
+//
+// Like [imports.Process] (the core of x/tools/cmd/goimports), it also
+// merges import decls.
 func FormatSourceRemoveImports(pkg *types.Package, src []byte) ([]byte, error) {
 	// This function was reduced from the "strict entire file"
 	// path through [format.Source].
@@ -352,6 +356,10 @@ func FormatSourceRemoveImports(pkg *types.Package, src []byte) ([]byte, error) {
 	ast.SortImports(fset, file)
 
 	removeUnneededImports(fset, pkg, file)
+
+	// TODO(adonovan): to generate cleaner edits when adding an import,
+	// consider adding a call to imports.mergeImports; however, it does
+	// cause comments to migrate.
 
 	// printerNormalizeNumbers means to canonicalize number literal prefixes
 	// and exponents while printing. See https://golang.org/doc/go1.13#gofmt.

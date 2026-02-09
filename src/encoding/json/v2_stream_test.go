@@ -439,6 +439,9 @@ func TestDecodeInStream(t *testing.T) {
 		{CaseName: Name(""), json: ` \a`, expTokens: []any{
 			&SyntaxError{"invalid character '\\\\' looking for beginning of value", len64(` `)},
 		}},
+		{CaseName: Name(""), json: `,`, expTokens: []any{
+			&SyntaxError{"invalid character ',' looking for beginning of value", 0},
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -446,6 +449,15 @@ func TestDecodeInStream(t *testing.T) {
 			for i, want := range tt.expTokens {
 				var got any
 				var err error
+
+				wantMore := true
+				switch want {
+				case Delim(']'), Delim('}'):
+					wantMore = false
+				}
+				if got := dec.More(); got != wantMore {
+					t.Fatalf("%s:\n\tinput: %s\n\tdec.More() = %v, want %v (next token: %T(%v)) rem:%q", tt.Where, tt.json, got, wantMore, want, want, tt.json[dec.InputOffset():])
+				}
 
 				if dt, ok := want.(decodeThis); ok {
 					want = dt.v

@@ -38,6 +38,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"internal/buildcfg"
+	"internal/platform"
 	"io"
 	"log"
 	"os"
@@ -576,7 +577,8 @@ func (ctxt *Link) loadlib() {
 
 	// Plugins a require cgo support to function. Similarly, plugins may require additional
 	// internal linker support on some platforms which may not be implemented.
-	ctxt.canUsePlugins = ctxt.LibraryByPkg["plugin"] != nil && iscgo
+	ctxt.canUsePlugins = ctxt.LibraryByPkg["plugin"] != nil && iscgo &&
+		platform.BuildModeSupported("gc", "plugin", buildcfg.GOOS, buildcfg.GOARCH)
 
 	// We now have enough information to determine the link mode.
 	determineLinkMode(ctxt)
@@ -2206,20 +2208,30 @@ func trimLinkerArgv(argv []string) []string {
 	flagsWithNextArgSkip := []string{
 		"-F",
 		"-l",
-		"-L",
 		"-framework",
 		"-Wl,-framework",
 		"-Wl,-rpath",
 		"-Wl,-undefined",
 	}
 	flagsWithNextArgKeep := []string{
+		"-B",
+		"-L",
 		"-arch",
 		"-isysroot",
 		"--sysroot",
 		"-target",
 		"--target",
+		"-resource-dir",
+		"-rtlib",
+		"--rtlib",
+		"-stdlib",
+		"--stdlib",
+		"-unwindlib",
+		"--unwindlib",
 	}
 	prefixesToKeep := []string{
+		"-B",
+		"-L",
 		"-f",
 		"-m",
 		"-p",
@@ -2229,6 +2241,13 @@ func trimLinkerArgv(argv []string) []string {
 		"--sysroot",
 		"-target",
 		"--target",
+		"-resource-dir",
+		"-rtlib",
+		"--rtlib",
+		"-stdlib",
+		"--stdlib",
+		"-unwindlib",
+		"--unwindlib",
 	}
 
 	var flags []string

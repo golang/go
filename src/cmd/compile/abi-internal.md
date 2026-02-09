@@ -643,8 +643,6 @@ Registers R20 - R21, R23 – R28, R30 - R31, F16 – F31 are permanent scratch r
 
 Register R2 is reserved and never used.
 
-Register R20, R21 is Used by runtime.duffcopy, runtime.duffzero.
-
 Special-purpose registers used within Go generated code and Go assembly code
 are as follows:
 
@@ -653,7 +651,6 @@ are as follows:
 | R0 | Zero value | Same | Same |
 | R1 | Link register | Link register | Scratch |
 | R3 | Stack pointer | Same | Same |
-| R20,R21 | Scratch | Scratch | Used by duffcopy, duffzero |
 | R22 | Current goroutine | Same | Same |
 | R29 | Closure context pointer | Same | Same |
 | R30, R31 | used by the assembler | Same | Same |
@@ -799,17 +796,15 @@ assembly code are as follows:
 | X2  | Stack pointer | Same | Same |
 | X3  | Global pointer | Same | Used by dynamic linker |
 | X4  | TLS (thread pointer) | TLS | Scratch |
-| X24,X25 | Scratch | Scratch | Used by duffcopy, duffzero |
 | X26 | Closure context pointer | Scratch | Scratch |
 | X27 | Current goroutine | Same | Same |
 | X31 | Scratch | Scratch | Scratch |
 
 *Rationale*: These register meanings are compatible with Go’s
-stack-based calling convention. Context register X20 will change to X26,
-duffcopy, duffzero register will change to X24, X25 before this register ABI been adopted.
+stack-based calling convention.
 X10 – X17, X8, X9, X18 – X23, is the same order as A0 – A7, S0 – S7 in platform ABI.
 F10 – F17, F8, F9, F18 – F23, is the same order as FA0 – FA7, FS0 – FS7 in platform ABI.
-X8 – X23, F8 – F15 are used for compressed instruction (RVC) which will benefit code size in the future.
+X8 – X23, F8 – F15 are used for compressed instruction (RVC) which benefits code size.
 
 #### Stack layout
 

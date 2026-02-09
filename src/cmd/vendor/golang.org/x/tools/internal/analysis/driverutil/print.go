@@ -7,6 +7,7 @@ package driverutil
 // This file defined output helpers common to all drivers.
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"go/token"
@@ -76,11 +77,10 @@ type JSONSuggestedFix struct {
 }
 
 // A JSONDiagnostic describes the JSON schema of an analysis.Diagnostic.
-//
-// TODO(matloob): include End position if present.
 type JSONDiagnostic struct {
 	Category       string                   `json:"category,omitempty"`
 	Posn           string                   `json:"posn"` // e.g. "file.go:line:column"
+	End            string                   `json:"end"`  // (ditto)
 	Message        string                   `json:"message"`
 	SuggestedFixes []JSONSuggestedFix       `json:"suggested_fixes,omitempty"`
 	Related        []JSONRelatedInformation `json:"related,omitempty"`
@@ -88,10 +88,9 @@ type JSONDiagnostic struct {
 
 // A JSONRelated describes a secondary position and message related to
 // a primary diagnostic.
-//
-// TODO(adonovan): include End position if present.
 type JSONRelatedInformation struct {
 	Posn    string `json:"posn"` // e.g. "file.go:line:column"
+	End     string `json:"end"`  // (ditto)
 	Message string `json:"message"`
 }
 
@@ -127,12 +126,14 @@ func (tree JSONTree) Add(fset *token.FileSet, id, name string, diags []analysis.
 			for _, r := range f.Related {
 				related = append(related, JSONRelatedInformation{
 					Posn:    fset.Position(r.Pos).String(),
+					End:     fset.Position(cmp.Or(r.End, r.Pos)).String(),
 					Message: r.Message,
 				})
 			}
 			jdiag := JSONDiagnostic{
 				Category:       f.Category,
 				Posn:           fset.Position(f.Pos).String(),
+				End:            fset.Position(cmp.Or(f.End, f.Pos)).String(),
 				Message:        f.Message,
 				SuggestedFixes: fixes,
 				Related:        related,

@@ -597,6 +597,7 @@ func equalConstString1() bool {
 	b := string("Z")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a == b
 }
@@ -605,6 +606,7 @@ func equalVarString1(a string) bool {
 	b := string("Z")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a[:1] == b
 }
@@ -614,6 +616,7 @@ func equalConstString2() bool {
 	b := string("ZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a == b
 }
@@ -622,6 +625,7 @@ func equalVarString2(a string) bool {
 	b := string("ZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a[:2] == b
 }
@@ -631,6 +635,7 @@ func equalConstString4() bool {
 	b := string("ZZZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a == b
 }
@@ -639,6 +644,7 @@ func equalVarString4(a string) bool {
 	b := string("ZZZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a[:4] == b
 }
@@ -648,6 +654,7 @@ func equalConstString8() bool {
 	b := string("ZZZZZZZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a == b
 }
@@ -656,19 +663,26 @@ func equalVarString8(a string) bool {
 	b := string("ZZZZZZZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
+	// loong64:-".*memequal"
 	// ppc64x:-".*memequal"
 	return a[:8] == b
 }
 
-func equalVarStringNoSpill(a,b string) bool {
-	s := string("ZZZZZZZZZ")
+func equalVarStringNoSpill(a, b string) bool {
+	s := string("123456789012345678901234567890123")
 	// arm64:".*memequal"
-	memeq1 := a[:9] == s
+	memeq1 := a[:33] == s
 	// arm64:-".*"
-	memeq2 := s == a[:9]
-	// arm64:-"MOVB\tR0,.*SP",".*memequal"
-	memeq3 := s == b[:9]
+	memeq2 := s == a[:33]
+	// arm64:-"MOVB R0,.*SP" ".*memequal"
+	memeq3 := s == b[:33]
 	return memeq1 && memeq2 && memeq3
+}
+
+func equalVarString17(a string) bool {
+	b := string("12345678901234567")
+	// arm64:-".*memequal" "CMPW [$]55," "MOVD [$]3906085646303834169," "MOVD [$]4050765991979987505,"
+	return a[:17] == b
 }
 
 func cmpToCmn(a, b, c, d int) int {

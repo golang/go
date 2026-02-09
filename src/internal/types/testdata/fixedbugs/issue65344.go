@@ -4,12 +4,12 @@
 
 package p
 
-type T1 C /* ERROR "C is not a type" */
+type T1 C /* ERROR "C (constant) is not a type" */
 
 // TODO(gri) try to avoid this follow-on error
 const C = T1(0 /* ERROR "cannot convert 0 (untyped int constant) to type T1" */)
 
-type T2 V /* ERROR "V is not a type" */
+type T2 V /* ERROR "V (package-level variable) is not a type" */
 
 var V T2
 

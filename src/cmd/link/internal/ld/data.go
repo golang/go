@@ -1469,6 +1469,8 @@ func checkSectSize(sect *sym.Section) {
 
 // fixZeroSizedSymbols gives a few special symbols with zero size some space.
 func fixZeroSizedSymbols(ctxt *Link) {
+	ldr := ctxt.loader
+
 	// The values in moduledata are filled out by relocations
 	// pointing to the addresses of these special symbols.
 	// Typically these symbols have no size and are not laid
@@ -1492,11 +1494,29 @@ func fixZeroSizedSymbols(ctxt *Link) {
 	// aren't real symbols, their alignment might not match the
 	// first symbol alignment. Therefore, there are explicitly put at the
 	// beginning of their section with the same alignment.
+
+	defineRuntimeTypes := func() {
+		types := ldr.CreateSymForUpdate("runtime.types", 0)
+		types.SetType(sym.STYPE)
+		types.SetSize(8)
+		types.SetAlign(int32(ctxt.Arch.PtrSize))
+		ldr.SetAttrSpecial(types.Sym(), false)
+	}
+
 	if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) && !(ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
+
+		// On AIX, below, we give runtime.types a size.
+		// That means that the type descriptors will actually
+		// follow runtime.types plus that size.
+		// To simplify matters for the runtime,
+		// always give runtime.types a size.
+		if ctxt.HeadType == objabi.Haix {
+			defineRuntimeTypes()
+		}
+
 		return
 	}
 
-	ldr := ctxt.loader
 	bss := ldr.CreateSymForUpdate("runtime.bss", 0)
 	bss.SetSize(8)
 	ldr.SetAttrSpecial(bss.Sym(), false)
@@ -1530,13 +1550,10 @@ func fixZeroSizedSymbols(ctxt *Link) {
 	enoptrdata := ldr.CreateSymForUpdate("runtime.enoptrdata", 0)
 	ldr.SetAttrSpecial(enoptrdata.Sym(), false)
 
-	types := ldr.CreateSymForUpdate("runtime.types", 0)
-	types.SetType(sym.STYPE)
-	types.SetSize(8)
-	ldr.SetAttrSpecial(types.Sym(), false)
+	defineRuntimeTypes()
 
 	etypes := ldr.CreateSymForUpdate("runtime.etypes", 0)
-	etypes.SetType(sym.SFUNCTAB)
+	etypes.SetType(sym.STYPE)
 	ldr.SetAttrSpecial(etypes.Sym(), false)
 
 	if ctxt.HeadType == objabi.Haix {
@@ -1558,67 +1575,40 @@ func (state *dodataState) makeRelroForSharedLib(target *Link) {
 
 	// "read only" data with relocations needs to go in its own section
 	// when building a shared library. We do this by boosting objects of
-	// type SXXX with relocations to type SXXXRELRO.
+	// type SRODATA with relocations to type SRODATARELRO.
 	ldr := target.loader
-	for _, symnro := range sym.ReadOnly {
-		symnrelro := sym.RelROMap[symnro]
-
-		ro := []loader.Sym{}
-		relro := state.data[symnrelro]
-
-		for _, s := range state.data[symnro] {
-			relocs := ldr.Relocs(s)
-			isRelro := relocs.Count() > 0
-			switch state.symType(s) {
-			case sym.STYPE, sym.STYPERELRO, sym.SGOFUNCRELRO:
-				// Symbols are not sorted yet, so it is possible
-				// that an Outer symbol has been changed to a
-				// relro Type before it reaches here.
-				isRelro = true
-			case sym.SFUNCTAB:
-				if ldr.SymName(s) == "runtime.etypes" {
-					// runtime.etypes must be at the end of
-					// the relro data.
-					isRelro = true
-				}
-			case sym.SGOFUNC, sym.SPCLNTAB:
-				// The only SGOFUNC symbols that contain relocations are .stkobj,
-				// and their relocations are of type objabi.R_ADDROFF,
-				// which always get resolved during linking.
-				isRelro = false
-			}
-			if isRelro {
-				if symnrelro == sym.Sxxx {
-					state.ctxt.Errorf(s, "cannot contain relocations (type %v)", symnro)
-				}
-				state.setSymType(s, symnrelro)
-				if outer := ldr.OuterSym(s); outer != 0 {
-					state.setSymType(outer, symnrelro)
-				}
-				relro = append(relro, s)
-			} else {
-				ro = append(ro, s)
-			}
-		}
-
-		// Check that we haven't made two symbols with the same .Outer into
-		// different types (because references two symbols with non-nil Outer
-		// become references to the outer symbol + offset it's vital that the
-		// symbol and the outer end up in the same section).
-		for _, s := range relro {
+	ro := []loader.Sym{}
+	relro := state.data[sym.SRODATARELRO]
+	for _, s := range state.data[sym.SRODATA] {
+		relocs := ldr.Relocs(s)
+		if relocs.Count() == 0 {
+			ro = append(ro, s)
+		} else {
+			state.setSymType(s, sym.SRODATARELRO)
 			if outer := ldr.OuterSym(s); outer != 0 {
-				st := state.symType(s)
-				ost := state.symType(outer)
-				if st != ost {
-					state.ctxt.Errorf(s, "inconsistent types for symbol and its Outer %s (%v != %v)",
-						ldr.SymName(outer), st, ost)
-				}
+				state.setSymType(outer, sym.SRODATARELRO)
+			}
+			relro = append(relro, s)
+		}
+	}
+
+	// Check that we haven't made two symbols with the same .Outer into
+	// different types (because references two symbols with non-nil Outer
+	// become references to the outer symbol + offset it's vital that the
+	// symbol and the outer end up in the same section).
+	for _, s := range relro {
+		if outer := ldr.OuterSym(s); outer != 0 {
+			st := state.symType(s)
+			ost := state.symType(outer)
+			if st != ost {
+				state.ctxt.Errorf(s, "inconsistent types for symbol and its Outer %s (%v != %v)",
+					ldr.SymName(outer), st, ost)
 			}
 		}
-
-		state.data[symnro] = ro
-		state.data[symnrelro] = relro
 	}
+
+	state.data[sym.SRODATA] = ro
+	state.data[sym.SRODATARELRO] = relro
 }
 
 // dodataState holds bits of state information needed by dodata() and the
@@ -2049,6 +2039,13 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.covctrs", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.ecovctrs", 0), sect)
 
+	// If we started this blob at an odd alignment, then covctrs will
+	// not be correctly aligned. Each individual entry is aligned properly,
+	// but the start marker may be before any padding inserted to enforce
+	// that alignment. Fix that here. See issue 58936.
+	covCounterDataStartOff += covCounterDataLen % 4
+	covCounterDataLen -= covCounterDataLen % 4
+
 	// Coverage instrumentation counters for libfuzzer.
 	if len(state.data[sym.SLIBFUZZER_8BIT_COUNTER]) > 0 {
 		sect := state.allocateNamedSectionAndAssignSyms(&Segdata, ".go.fuzzcntrs", sym.SLIBFUZZER_8BIT_COUNTER, sym.Sxxx, 06)
@@ -2119,10 +2116,6 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	sect = state.allocateNamedDataSection(segro, ".rodata", sym.ReadOnly, 04)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.rodata", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.erodata", 0), sect)
-	if !ctxt.UseRelro() {
-		ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.types", 0), sect)
-		ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.etypes", 0), sect)
-	}
 	for _, symn := range sym.ReadOnly {
 		symnStartValue := state.datsize
 		if len(state.data[symn]) != 0 {
@@ -2158,29 +2151,22 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	/* read-only ELF, Mach-O sections */
 	state.allocateSingleSymSections(segro, sym.SELFROSECT, sym.SRODATA, 04)
 
-	// There is some data that are conceptually read-only but are written to by
-	// relocations. On GNU systems, we can arrange for the dynamic linker to
+	// Read-only data that may require dynamic relocations at run time.
+	//
+	// On GNU systems, we can arrange for the dynamic linker to
 	// mprotect sections after relocations are applied by giving them write
-	// permissions in the object file and calling them ".data.rel.ro.FOO". We
-	// divide the .rodata section between actual .rodata and .data.rel.ro.rodata,
-	// but for the other sections that this applies to, we just write a read-only
-	// .FOO section or a read-write .data.rel.ro.FOO section depending on the
-	// situation.
-	// TODO(mwhudson): It would make sense to do this more widely, but it makes
-	// the system linker segfault on darwin.
-	const relroPerm = 06
-	const fallbackPerm = 04
-	relroSecPerm := fallbackPerm
+	// permissions in the object file and calling them ".data.rel.ro.FOO".
+
+	relroPerm := 04
 	genrelrosecname := func(suffix string) string {
 		if suffix == "" {
 			return ".rodata"
 		}
 		return suffix
 	}
-	seg := segro
+	segRelro := segro
 
 	if ctxt.UseRelro() {
-		segrelro := &Segrelrodata
 		if ctxt.LinkMode == LinkExternal && !ctxt.IsAIX() && !ctxt.IsDarwin() {
 			// Using a separate segment with an external
 			// linker results in some programs moving
@@ -2188,84 +2174,87 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 			// corrupts the moduledata. So we use the
 			// rodata segment and let the external linker
 			// sort out a rel.ro segment.
-			segrelro = segro
 		} else {
+			segRelro = &Segrelrodata
 			// Reset datsize for new segment.
 			state.datsize = 0
 		}
+
+		relroPerm = 06
 
 		if !ctxt.IsDarwin() { // We don't need the special names on darwin.
 			genrelrosecname = func(suffix string) string {
 				return ".data.rel.ro" + suffix
 			}
 		}
-
-		relroReadOnly := []sym.SymKind{}
-		for _, symnro := range sym.ReadOnly {
-			symn := sym.RelROMap[symnro]
-			relroReadOnly = append(relroReadOnly, symn)
-		}
-		seg = segrelro
-		relroSecPerm = relroPerm
-
-		/* data only written by relocations */
-		sect = state.allocateNamedDataSection(segrelro, genrelrosecname(""), relroReadOnly, relroSecPerm)
-
-		ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.types", 0), sect)
-		ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.etypes", 0), sect)
-
-		for i, symnro := range sym.ReadOnly {
-			if i == 0 && symnro == sym.STYPE && ctxt.HeadType != objabi.Haix {
-				// Skip forward so that no type
-				// reference uses a zero offset.
-				// This is unlikely but possible in small
-				// programs with no other read-only data.
-				state.datsize++
-			}
-
-			symn := sym.RelROMap[symnro]
-			if symn == sym.Sxxx {
-				continue
-			}
-			symnStartValue := state.datsize
-			if len(state.data[symn]) != 0 {
-				symnStartValue = aligndatsize(state, symnStartValue, state.data[symn][0])
-			}
-
-			for _, s := range state.data[symn] {
-				outer := ldr.OuterSym(s)
-				if s != 0 && ldr.SymSect(outer) != nil && ldr.SymSect(outer) != sect {
-					ctxt.Errorf(s, "s.Outer (%s) in different section from s, %s != %s", ldr.SymName(outer), ldr.SymSect(outer).Name, sect.Name)
-				}
-			}
-			state.assignToSection(sect, symn, sym.SRODATA)
-			setCarrierSize(symn, state.datsize-symnStartValue)
-			if ctxt.HeadType == objabi.Haix {
-				// Read-only symbols might be wrapped inside their outer
-				// symbol.
-				// XCOFF symbol table needs to know the size of
-				// these outer symbols.
-				xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
-			}
-		}
-		sect.Length = uint64(state.datsize) - sect.Vaddr
-
-		state.allocateSingleSymSections(segrelro, sym.SELFRELROSECT, sym.SRODATA, relroSecPerm)
-		state.allocateSingleSymSections(segrelro, sym.SMACHORELROSECT, sym.SRODATA, relroSecPerm)
 	}
 
-	/* typelink */
-	sect = state.allocateNamedDataSection(seg, genrelrosecname(".typelink"), []sym.SymKind{sym.STYPELINK}, relroSecPerm)
+	// checkOuter is a sanity check that for all the symbols of some kind,
+	// which are in a given section, any carrier symbol is also in
+	// that section.
+	checkOuter := func(sect *sym.Section, symn sym.SymKind) {
+		for _, s := range state.data[symn] {
+			outer := ldr.OuterSym(s)
+			if s != 0 && ldr.SymSect(outer) != nil && ldr.SymSect(outer) != sect {
+				ctxt.Errorf(s, "s.Outer (%s) in different section from s, %s != %s", ldr.SymName(outer), ldr.SymSect(outer).Name, sect.Name)
+			}
+		}
+	}
 
-	typelink := ldr.CreateSymForUpdate("runtime.typelink", 0)
-	ldr.SetSymSect(typelink.Sym(), sect)
-	typelink.SetType(sym.SRODATA)
-	state.datsize += typelink.Size()
-	state.checkdatsize(sym.STYPELINK)
-	sect.Length = uint64(state.datsize) - sect.Vaddr
+	// createRelroSect will create a section that wil be a relro
+	// section if this link is using relro.
+	createRelroSect := func(name string, symn sym.SymKind) *sym.Section {
+		sect := state.allocateNamedDataSection(segRelro, genrelrosecname(name), []sym.SymKind{symn}, relroPerm)
+
+		if symn == sym.STYPE && ctxt.HeadType != objabi.Haix {
+			// Skip forward so that no type
+			// reference uses a zero offset.
+			// This is unlikely but possible in small
+			// programs with no other read-only data.
+			//
+			// Don't skip forward on AIX because the external
+			// linker, when used, will align symbols itself.
+			// The external linker won't know about this skip,
+			// and will mess up the constant offsets we need
+			// within the type section. On AIX we just live
+			// with the possibility of a broken program
+			// if there is no other read-only data.
+			state.datsize++
+		}
+
+		// Align to first symbol.
+		symnStartValue := state.datsize
+		if len(state.data[symn]) > 0 {
+			symnStartValue = aligndatsize(state, state.datsize, state.data[symn][0])
+		}
+
+		checkOuter(sect, symn)
+		state.assignToSection(sect, symn, sym.SRODATA)
+		setCarrierSize(symn, state.datsize-symnStartValue)
+		if ctxt.HeadType == objabi.Haix {
+			// XCOFF symbol table needs to know the size
+			// of outer symbols.
+			xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
+		}
+		sect.Length = uint64(state.datsize) - sect.Vaddr
+		return sect
+	}
+
+	if len(state.data[sym.SRODATARELRO]) > 0 {
+		createRelroSect("", sym.SRODATARELRO)
+	}
+
+	sect = createRelroSect(".go.type", sym.STYPE)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.types", 0), sect)
+	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.etypes", 0), sect)
+
+	sect = createRelroSect(".go.func", sym.SGOFUNC)
+
+	state.allocateSingleSymSections(segRelro, sym.SELFRELROSECT, sym.SRODATA, relroPerm)
+	state.allocateSingleSymSections(segRelro, sym.SMACHORELROSECT, sym.SRODATA, relroPerm)
 
 	/* itablink */
-	sect = state.allocateNamedDataSection(seg, genrelrosecname(".itablink"), []sym.SymKind{sym.SITABLINK}, relroSecPerm)
+	sect = state.allocateNamedDataSection(segRelro, genrelrosecname(".itablink"), []sym.SymKind{sym.SITABLINK}, relroPerm)
 
 	itablink := ldr.CreateSymForUpdate("runtime.itablink", 0)
 	ldr.SetSymSect(itablink.Sym(), sect)
@@ -2387,43 +2376,136 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 				tail = s
 				continue
 			}
+		} else if ctxt.HeadType == objabi.Haix && ldr.SymName(s) == "runtime.types" {
+			// We always use runtime.types on AIX.
+			// See the comment in fixZeroSizedSymbols.
+			head = s
 		}
 	}
 	zerobase = ldr.Lookup("runtime.zerobase", 0)
 
+	sortHeadTail := func(si, sj loader.Sym) (less bool, matched bool) {
+		switch {
+		case si == head, sj == tail:
+			return true, true
+		case sj == head, si == tail:
+			return false, true
+		}
+		return false, false
+	}
+
+	sortFn := func(i, j int) bool {
+		si, sj := sl[i].sym, sl[j].sym
+		isz, jsz := sl[i].sz, sl[j].sz
+		if ret, matched := sortHeadTail(si, sj); matched {
+			return ret
+		}
+		if sortBySize {
+			switch {
+			// put zerobase right after all the zero-sized symbols,
+			// so zero-sized symbols have the same address as zerobase.
+			case si == zerobase:
+				return jsz != 0 // zerobase < nonzero-sized, zerobase > zero-sized
+			case sj == zerobase:
+				return isz == 0 // 0-sized < zerobase, nonzero-sized > zerobase
+			case isz != jsz:
+				return isz < jsz
+			}
+		} else {
+			iname := sl[i].name
+			jname := sl[j].name
+			if iname != jname {
+				return iname < jname
+			}
+		}
+		return si < sj // break ties by symbol number
+	}
+
 	// Perform the sort.
-	if symn != sym.SPCLNTAB {
+	switch symn {
+	case sym.SPCLNTAB:
+		// PCLNTAB was built internally, and already has the proper order.
+
+	case sym.STYPE:
+		// Sort type descriptors with the typelink flag first,
+		// sorted by type string. The reflect package will use
+		// this to ensure that type descriptor pointers are unique.
+
+		// We define type:* for some links.
+		typeStar := ldr.Lookup("type:*", 0)
+
+		// Compute all the type strings we need once.
+		typelinkStrings := make(map[loader.Sym]string)
+		for _, s := range syms {
+			if ldr.IsTypelink(s) {
+				typelinkStrings[s] = decodetypeStr(ldr, ctxt.Arch, s)
+			}
+		}
+
 		sort.Slice(sl, func(i, j int) bool {
 			si, sj := sl[i].sym, sl[j].sym
-			isz, jsz := sl[i].sz, sl[j].sz
-			switch {
-			case si == head, sj == tail:
+
+			// Sort head and tail regardless of typelink.
+			if ret, matched := sortHeadTail(si, sj); matched {
+				return ret
+			}
+			if typeStar != 0 {
+				// type:* comes first, after runtime.types
+				if si == typeStar {
+					return true
+				} else if sj == typeStar {
+					return false
+				}
+			}
+
+			iTypestr, iIsTypelink := typelinkStrings[si]
+			jTypestr, jIsTypelink := typelinkStrings[sj]
+
+			if iIsTypelink {
+				if jIsTypelink {
+					// typelink symbols sort by type string
+					return iTypestr < jTypestr
+				}
+
+				// typelink < non-typelink
 				return true
-			case sj == head, si == tail:
+			} else if jIsTypelink {
+				// non-typelink greater than typelink
 				return false
 			}
-			if sortBySize {
-				switch {
-				// put zerobase right after all the zero-sized symbols,
-				// so zero-sized symbols have the same address as zerobase.
-				case si == zerobase:
-					return jsz != 0 // zerobase < nonzero-sized, zerobase > zero-sized
-				case sj == zerobase:
-					return isz == 0 // 0-sized < zerobase, nonzero-sized > zerobase
-				case isz != jsz:
-					return isz < jsz
-				}
-			} else {
-				iname := sl[i].name
-				jname := sl[j].name
-				if iname != jname {
-					return iname < jname
-				}
-			}
-			return si < sj // break ties by symbol number
+
+			// non-typelink symbols sort by size as usual
+			return sortFn(i, j)
 		})
-	} else {
-		// PCLNTAB was built internally, and already has the proper order.
+
+		// Find the end of the typelink descriptors.
+		// The size starts at 1 to match the increment in
+		// createRelroSect in allocateDataSections.
+		// TODO: This wastes some space.
+		typeLinkSize := int64(1)
+		for i := range sl {
+			si := sl[i].sym
+			if si == head || si == typeStar {
+				continue
+			}
+			if _, isTypelink := typelinkStrings[si]; !isTypelink {
+				break
+			}
+			typeLinkSize = Rnd(typeLinkSize, int64(symalign(ldr, si)))
+			typeLinkSize += sl[i].sz
+		}
+
+		// Store the length of the typelink descriptors
+		// in the typedesclen field of moduledata.
+		if ctxt.moduledataTypeDescOffset == 0 {
+			Errorf("internal error: phase error: moduledataTypeDescOffset not set in dodataSect")
+		} else {
+			su := ldr.MakeSymbolUpdater(ctxt.Moduledata)
+			su.SetUint(ctxt.Arch, ctxt.moduledataTypeDescOffset, uint64(typeLinkSize))
+		}
+
+	default:
+		sort.Slice(sl, sortFn)
 	}
 
 	// Set alignment, construct result

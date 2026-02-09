@@ -143,7 +143,7 @@ var ArchLoong64 = &Arch{
 	PtrSize:        8,
 	RegSize:        8,
 	MinLC:          4,
-	Alignment:      8, // Unaligned accesses are not guaranteed to be fast
+	Alignment:      1,
 	CanMergeLoads:  true,
 	CanJumpTable:   true,
 	HasLR:          true,

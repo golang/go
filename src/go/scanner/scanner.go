@@ -10,7 +10,6 @@ package scanner
 import (
 	"bytes"
 	"fmt"
-	"go/internal/scannerhooks"
 	"go/token"
 	"path/filepath"
 	"strconv"
@@ -42,17 +41,12 @@ type Scanner struct {
 	lineOffset int       // current line offset
 	insertSemi bool      // insert a semicolon before next newline
 	nlPos      token.Pos // position of newline in preceding comment
-	stringEnd  token.Pos // end position; defined only for STRING tokens
+
+	endPosValid bool
+	endPos      token.Pos // overrides the offset as the default end position
 
 	// public state - ok to modify
 	ErrorCount int // number of errors encountered
-}
-
-// Provide go/parser with backdoor access to the StringEnd information.
-func init() {
-	scannerhooks.StringEnd = func(scanner any) token.Pos {
-		return scanner.(*Scanner).stringEnd
-	}
 }
 
 const (
@@ -144,18 +138,20 @@ func (s *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode
 	if file.Size() != len(src) {
 		panic(fmt.Sprintf("file size (%d) does not match src len (%d)", file.Size(), len(src)))
 	}
-	s.file = file
-	s.dir, _ = filepath.Split(file.Name())
-	s.src = src
-	s.err = err
-	s.mode = mode
 
-	s.ch = ' '
-	s.offset = 0
-	s.rdOffset = 0
-	s.lineOffset = 0
-	s.insertSemi = false
-	s.ErrorCount = 0
+	dir, _ := filepath.Split(file.Name())
+
+	*s = Scanner{
+		file: file,
+		dir:  dir,
+		src:  src,
+		err:  err,
+		mode: mode,
+
+		ch:          ' ',
+		endPosValid: true,
+		endPos:      token.NoPos,
+	}
 
 	s.next()
 	if s.ch == bom {
@@ -700,7 +696,7 @@ func stripCR(b []byte, comment bool) []byte {
 	return c[:i]
 }
 
-func (s *Scanner) scanRawString() (string, int) {
+func (s *Scanner) scanRawString() string {
 	// '`' opening already consumed
 	offs := s.offset - 1
 
@@ -721,12 +717,11 @@ func (s *Scanner) scanRawString() (string, int) {
 	}
 
 	lit := s.src[offs:s.offset]
-	rawLen := len(lit)
 	if hasCR {
 		lit = stripCR(lit, false)
 	}
 
-	return string(lit), rawLen
+	return string(lit)
 }
 
 func (s *Scanner) skipWhitespace() {
@@ -777,6 +772,21 @@ func (s *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
 	return tok0
 }
 
+// End returns the position immediately after the last scanned token.
+// If [Scanner.Scan] has not been called yet, End returns [token.NoPos].
+func (s *Scanner) End() token.Pos {
+	// Handles special case:
+	// - Makes sure we return [token.NoPos], even when [Scanner.Init] has consumed a BOM.
+	// - When the previous token was a synthetic [token.SEMICOLON] inside a multi-line
+	//   comment, we make sure End returns its ending position (i.e. prevPos+len("\n")).
+	if s.endPosValid {
+		return s.endPos
+	}
+
+	// Normal case: s.file.Pos(s.offset) represents the end of the token
+	return s.file.Pos(s.offset)
+}
+
 // Scan scans the next token and returns the token position, the token,
 // and its literal string if applicable. The source end is indicated by
 // [token.EOF].
@@ -790,7 +800,9 @@ func (s *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
 // If the returned token is [token.SEMICOLON], the corresponding
 // literal string is ";" if the semicolon was present in the source,
 // and "\n" if the semicolon was inserted because of a newline or
-// at EOF.
+// at EOF. If the newline is within a /*...*/ comment, the SEMICOLON token
+// is synthesized immediately after the COMMENT token; its position is that
+// of the actual newline within the comment.
 //
 // If the returned token is [token.ILLEGAL], the literal string is the
 // offending character.
@@ -809,10 +821,13 @@ func (s *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
 // and thus relative to the file set.
 func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 scanAgain:
+	s.endPosValid = false
 	if s.nlPos.IsValid() {
 		// Return artificial ';' token after /*...*/ comment
 		// containing newline, at position of first newline.
 		pos, tok, lit = s.nlPos, token.SEMICOLON, "\n"
+		s.endPos = pos + 1
+		s.endPosValid = true
 		s.nlPos = token.NoPos
 		return
 	}
@@ -860,7 +875,6 @@ scanAgain:
 			insertSemi = true
 			tok = token.STRING
 			lit = s.scanString()
-			s.stringEnd = pos + token.Pos(len(lit))
 		case '\'':
 			insertSemi = true
 			tok = token.CHAR
@@ -868,9 +882,7 @@ scanAgain:
 		case '`':
 			insertSemi = true
 			tok = token.STRING
-			var rawLen int
-			lit, rawLen = s.scanRawString()
-			s.stringEnd = pos + token.Pos(rawLen)
+			lit = s.scanRawString()
 		case ':':
 			tok = s.switch2(token.COLON, token.DEFINE)
 		case '.':

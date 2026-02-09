@@ -163,6 +163,13 @@ will fail early. The default value is `httpcookiemaxnum=3000`. Setting
 number of cookies. To avoid denial of service attacks, this setting and default
 was backported to Go 1.25.2 and Go 1.24.8.
 
+Go 1.26 added a new `urlmaxqueryparams` setting that controls the maximum number
+of query parameters that net/url will accept when parsing a URL-encoded query string.
+If the number of parameters exceeds the number set in `urlmaxqueryparams`,
+parsing will fail early. The default value is `urlmaxqueryparams=10000`.
+Setting `urlmaxqueryparams=0` disables the limit. To avoid denial of service
+attacks, this setting and default was backported to Go 1.25.6 and Go 1.24.12.
+
 Go 1.26 added a new `urlstrictcolons` setting that controls whether `net/url.Parse`
 allows malformed hostnames containing colons outside of a bracketed IPv6 address.
 The default `urlstrictcolons=1` rejects URLs such as `http://localhost:1:2` or `http://::1/`.
@@ -306,7 +313,7 @@ Go 1.23 changed the channels created by package time to be unbuffered
 and [`Timer.Reset`](/pkg/time/#Timer.Reset) method results much easier.
 The [`asynctimerchan` setting](/pkg/time/#NewTimer) disables this change.
 There are no runtime metrics for this change,
-This setting may be removed in a future release, Go 1.27 at the earliest.
+This setting will be removed in Go 1.27.
 
 Go 1.23 changed the mode bits reported by [`os.Lstat`](/pkg/os#Lstat) and [`os.Stat`](/pkg/os#Stat)
 for reparse points, which can be controlled with the `winsymlink` setting.
@@ -385,7 +392,7 @@ Whether the type checker produces `Alias` types or not is controlled by the
 [`gotypesalias` setting](/pkg/go/types#Alias).
 For Go 1.22 it defaults to `gotypesalias=0`.
 For Go 1.23, `gotypesalias=1` will become the default.
-This setting will be removed in a future release, Go 1.27 at the earliest.
+This setting will be removed in Go 1.27.
 
 Go 1.22 changed the default minimum TLS version supported by both servers
 and clients to TLS 1.2. The default can be reverted to TLS 1.0 using the

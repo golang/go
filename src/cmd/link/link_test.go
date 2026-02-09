@@ -869,6 +869,9 @@ func TestFuncAlignOption(t *testing.T) {
 			"_main.bar": false,
 			"_main.baz": false}
 		syms, err := f.Symbols()
+		if err != nil {
+			t.Errorf("failed to get symbols with err %v", err)
+		}
 		for _, s := range syms {
 			fn := s.Name
 			if _, ok := fname[fn]; !ok {
@@ -1960,33 +1963,55 @@ func TestFuncdataPlacement(t *testing.T) {
 	case xf != nil:
 		defer xf.Close()
 
+		var moddataSym, gofuncSym, pclntabSym, epclntabSym *xcoff.Symbol
 		for _, sym := range xf.Symbols {
 			switch sym.Name {
 			case moddataSymName:
-				moddataAddr = sym.Value
+				moddataSym = sym
 			case gofuncSymName:
-				gofuncAddr = sym.Value
+				gofuncSym = sym
+			case "runtime.pclntab":
+				pclntabSym = sym
+			case "runtime.epclntab":
+				epclntabSym = sym
 			}
 		}
 
-		for _, sec := range xf.Sections {
-			if sec.Name == ".go.pclntab" {
-				data, err := sec.Data()
-				if err != nil {
-					t.Fatal(err)
-				}
-				pclntab = data
-				pclntabAddr = sec.VirtualAddress
-				pclntabEnd = sec.VirtualAddress + sec.Size
-			}
-			if moddataAddr >= sec.VirtualAddress && moddataAddr < sec.VirtualAddress+sec.Size {
-				data, err := sec.Data()
-				if err != nil {
-					t.Fatal(err)
-				}
-				moddataBytes = data[moddataAddr-sec.VirtualAddress:]
-			}
+		if moddataSym == nil {
+			t.Fatalf("could not find symbol %s", moddataSymName)
 		}
+		if gofuncSym == nil {
+			t.Fatalf("could not find symbol %s", gofuncSymName)
+		}
+		if pclntabSym == nil {
+			t.Fatal("could not find symbol runtime.pclntab")
+		}
+		if epclntabSym == nil {
+			t.Fatal("could not find symbol runtime.epclntab")
+		}
+
+		sec := xf.Sections[moddataSym.SectionNumber-1]
+		data, err := sec.Data()
+		if err != nil {
+			t.Fatal(err)
+		}
+		moddataBytes = data[moddataSym.Value:]
+		moddataAddr = uint64(sec.VirtualAddress + moddataSym.Value)
+
+		sec = xf.Sections[gofuncSym.SectionNumber-1]
+		gofuncAddr = uint64(sec.VirtualAddress + gofuncSym.Value)
+
+		if pclntabSym.SectionNumber != epclntabSym.SectionNumber {
+			t.Fatalf("runtime.pclntab section %d != runtime.epclntab section %d", pclntabSym.SectionNumber, epclntabSym.SectionNumber)
+		}
+		sec = xf.Sections[pclntabSym.SectionNumber-1]
+		data, err = sec.Data()
+		if err != nil {
+			t.Fatal(err)
+		}
+		pclntab = data[pclntabSym.Value:epclntabSym.Value]
+		pclntabAddr = uint64(sec.VirtualAddress + pclntabSym.Value)
+		pclntabEnd = uint64(sec.VirtualAddress + epclntabSym.Value)
 
 	default:
 		panic("can't happen")
@@ -2183,31 +2208,267 @@ func TestModuledataPlacement(t *testing.T) {
 			}
 		}
 
+	case pf != nil, xf != nil:
+		if pf != nil {
+			defer pf.Close()
+		}
+		if xf != nil {
+			defer xf.Close()
+		}
+
+		// On Windows and AIX all the Go specific sections
+		// get stuffed into a few sections,
+		// so there is nothing to test here.
+	}
+}
+
+const typeSrc = `
+package main
+
+import (
+	"fmt"
+	"unsafe"
+)
+
+type MyInt int
+
+var vals = []any{
+	0,
+	0.1,
+	"",
+	MyInt(0),
+	struct{ f int }{0},
+	func() {},
+}
+
+var global int
+
+func main() {
+	fmt.Printf("global %#x\n", &global)
+	for _, v := range vals {
+		// Unsafe assumption: the first word of a value
+		// of type any is the type descriptor.
+		td := *(*uintptr)(unsafe.Pointer(&v))
+		fmt.Printf("%#x\n", td)
+	}
+}
+`
+
+// Test that type data is stored in the types section.
+func TestTypePlacement(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(typeSrc), 0o444); err != nil {
+		t.Fatal(err)
+	}
+
+	exe := filepath.Join(tmpdir, "x.exe")
+	cmd := goCmd(t, "build", "-o", exe, src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed; %v, output:\n%s", err, out)
+	}
+
+	cmd = testenv.Command(t, exe)
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("running test program failed: %v, stdout:\n%s\nstderr:\n%s", err, &stdout, &stderr)
+	}
+	stderrString := stderr.String()
+	if stderrString != "" {
+		t.Fatalf("running test program printed to stderr:\n%s", stderrString)
+	}
+
+	t.Logf("\n%s", &stdout)
+
+	var globalExeAddr uint64
+	var addrs []uint64
+	globalNext := false
+	for s := range strings.FieldsSeq(stdout.String()) {
+		if globalNext {
+			v, err := strconv.ParseUint(s, 0, 64)
+			if err != nil {
+				t.Errorf("failed to parse test program output %s: %v", s, err)
+			}
+			globalExeAddr = v
+			globalNext = false
+		} else if s == "global" {
+			globalNext = true
+		} else {
+			addr, err := strconv.ParseUint(s, 0, 64)
+			if err != nil {
+				t.Errorf("failed to parse test program output %q: %v", s, err)
+			}
+			addrs = append(addrs, addr)
+		}
+	}
+
+	ef, _ := elf.Open(exe)
+	mf, _ := macho.Open(exe)
+	pf, _ := pe.Open(exe)
+	xf, _ := xcoff.Open(exe)
+	// TODO: plan9
+	if ef == nil && mf == nil && pf == nil && xf == nil {
+		t.Skip("unrecognized executable file format")
+	}
+
+	const globalName = "main.global"
+	var typeStart, typeEnd uint64
+	var globalObjAddr uint64
+	switch {
+	case ef != nil:
+		defer ef.Close()
+
+		for _, sec := range ef.Sections {
+			if sec.Name == ".go.type" {
+				typeStart = sec.Addr
+				typeEnd = sec.Addr + sec.Size
+				break
+			}
+		}
+
+		syms, err := ef.Symbols()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if typeStart == 0 && typeEnd == 0 {
+			// We can fail to find the section for PIE.
+			// Fall back to symbols.
+			for _, sym := range syms {
+				switch sym.Name {
+				case "runtime.types":
+					typeStart = sym.Value
+				case "runtime.etypes":
+					typeEnd = sym.Value
+				}
+			}
+		}
+
+		for _, sym := range syms {
+			if sym.Name == globalName {
+				globalObjAddr = sym.Value
+				break
+			}
+		}
+
+	case mf != nil:
+		defer mf.Close()
+
+		for _, sec := range mf.Sections {
+			if sec.Name == "__go_type" {
+				typeStart = sec.Addr
+				typeEnd = sec.Addr + sec.Size
+				break
+			}
+		}
+
+		for _, sym := range mf.Symtab.Syms {
+			if sym.Name == globalName {
+				globalObjAddr = sym.Value
+				break
+			}
+		}
+
 	case pf != nil:
 		defer pf.Close()
 
-		// On Windows all the Go specific sections seem to
-		// get stuffed into a few Windows sections,
-		// so there is nothing to test here.
+		var imageBase uint64
+		switch ohdr := pf.OptionalHeader.(type) {
+		case *pe.OptionalHeader32:
+			imageBase = uint64(ohdr.ImageBase)
+		case *pe.OptionalHeader64:
+			imageBase = ohdr.ImageBase
+		}
+
+		var typeSym, eTypeSym *pe.Symbol
+		for _, sym := range pf.Symbols {
+			switch sym.Name {
+			case "runtime.types":
+				typeSym = sym
+			case "runtime.etypes":
+				eTypeSym = sym
+			case globalName:
+				globalSec := pf.Sections[sym.SectionNumber-1]
+				globalObjAddr = imageBase + uint64(globalSec.VirtualAddress+sym.Value)
+			}
+		}
+
+		if typeSym == nil {
+			t.Fatal("could not find symbol runtime.types")
+		}
+		if eTypeSym == nil {
+			t.Fatal("could not find symbol runtime.etypes")
+		}
+		if typeSym.SectionNumber != eTypeSym.SectionNumber {
+			t.Fatalf("runtime.types section %d != runtime.etypes section %d", typeSym.SectionNumber, eTypeSym.SectionNumber)
+		}
+
+		sec := pf.Sections[typeSym.SectionNumber-1]
+
+		typeStart = imageBase + uint64(sec.VirtualAddress+typeSym.Value)
+		typeEnd = imageBase + uint64(sec.VirtualAddress+eTypeSym.Value)
 
 	case xf != nil:
 		defer xf.Close()
 
+		// On XCOFF the .go.type section,
+		// like all relro sections,
+		//  gets folded into the .data section.
+		var typeSym, eTypeSym *xcoff.Symbol
 		for _, sym := range xf.Symbols {
-			if sym.Name == moddataSymName {
-				if sym.SectionNumber == 0 {
-					t.Errorf("moduledata not in a section")
-				} else {
-					sec := xf.Sections[sym.SectionNumber-1]
-					if sec.Name != ".go.module" {
-						t.Errorf("moduledata in section %s, not .go.module", sec.Name)
-					}
-					if sym.Value != sec.VirtualAddress {
-						t.Errorf("moduledata address %#x != section start address %#x", sym.Value, sec.VirtualAddress)
-					}
-				}
-				break
+			switch sym.Name {
+			case "runtime.types":
+				typeSym = sym
+			case "runtime.etypes":
+				eTypeSym = sym
+			case globalName:
+				globalSec := xf.Sections[sym.SectionNumber-1]
+				globalObjAddr = uint64(globalSec.VirtualAddress + sym.Value)
 			}
+		}
+
+		if typeSym == nil {
+			t.Fatal("could not find symbol runtime.types")
+		}
+		if eTypeSym == nil {
+			t.Fatal("could not find symbol runtime.etypes")
+		}
+		if typeSym.SectionNumber != eTypeSym.SectionNumber {
+			t.Fatalf("runtime.types section %d != runtime.etypes section %d", typeSym.SectionNumber, eTypeSym.SectionNumber)
+		}
+
+		sec := xf.Sections[typeSym.SectionNumber-1]
+
+		typeStart = uint64(sec.VirtualAddress + typeSym.Value)
+
+		typeEnd = uint64(sec.VirtualAddress + eTypeSym.Value)
+	}
+
+	if typeStart == 0 || typeEnd == 0 {
+		t.Fatalf("failed to find type descriptor addresses; found %#x to %#x", typeStart, typeEnd)
+	}
+	t.Logf("type start: %#x type end: %#x", typeStart, typeEnd)
+
+	offset := globalExeAddr - globalObjAddr
+	t.Logf("execution offset: %#x", offset)
+
+	// On AIX with internal linking the type descriptors are
+	// currently put in the .text section, whereas the global
+	// variable will be in the .data section. We must ignore
+	// the offset. This would change if using external linking.
+	if runtime.GOOS == "aix" {
+		offset = 0
+	}
+
+	for _, addr := range addrs {
+		addr -= offset
+		if addr < typeStart || addr >= typeEnd {
+			t.Errorf("type descriptor address %#x out of range: not between %#x and %#x", addr, typeStart, typeEnd)
 		}
 	}
 }

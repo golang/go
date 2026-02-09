@@ -110,7 +110,7 @@ func TestPointerEquality(t *testing.T) {
 	bt = nil
 	// bt is no longer referenced.
 	runtime.GC()
-	for i := range bt {
+	for i := range wt {
 		st := wt[i].Value()
 		if st != nil {
 			t.Fatalf("expected weak pointer to be nil, got %p", st)

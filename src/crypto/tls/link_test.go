@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -19,8 +18,6 @@ func TestLinkerGC(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 	t.Parallel()
-	goBin := testenv.GoToolPath(t)
-	testenv.MustHaveGoBuild(t)
 
 	tests := []struct {
 		name    string
@@ -80,17 +77,17 @@ func main() { tls.Dial("", "", nil) }
 				t.Fatal(err)
 			}
 			os.Remove(exeFile)
-			cmd := exec.Command(goBin, "build", "-o", "x.exe", "x.go")
+			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "x.exe", "x.go")
 			cmd.Dir = tmpDir
 			if out, err := cmd.CombinedOutput(); err != nil {
-				t.Fatalf("compile: %v, %s", err, out)
+				t.Fatalf("compile: %v\n%s", err, out)
 			}
 
-			cmd = exec.Command(goBin, "tool", "nm", "x.exe")
+			cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", "x.exe")
 			cmd.Dir = tmpDir
-			nm, err := cmd.CombinedOutput()
+			nm, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 			if err != nil {
-				t.Fatalf("nm: %v, %s", err, nm)
+				t.Fatalf("nm: %v\n%s", err, nm)
 			}
 			for _, sym := range tt.want {
 				if !bytes.Contains(nm, []byte(sym)) {

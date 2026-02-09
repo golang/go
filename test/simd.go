@@ -8,33 +8,33 @@
 
 package foo
 
-import "simd"
+import "simd/archsimd"
 
-func f1(x simd.Int8x16) {
+func f1(x archsimd.Int8x16) {
 	return // ERROR "has features avx"
 }
 
-func g1() simd.Int8x16 {
-	var x simd.Int8x16
+func g1() archsimd.Int8x16 {
+	var x archsimd.Int8x16
 	return x // ERROR "has features avx$"
 }
 
-type T1 simd.Int8x16
+type T1 archsimd.Int8x16
 
 func (x T1) h() {
 	return // ERROR "has features avx$"
 }
 
-func f2(x simd.Int8x64) {
+func f2(x archsimd.Int8x64) {
 	return // ERROR "has features avx[+]avx2[+]avx512$"
 }
 
-func g2() simd.Int8x64 {
-	var x simd.Int8x64
+func g2() archsimd.Int8x64 {
+	var x archsimd.Int8x64
 	return x // ERROR "has features avx[+]avx2[+]avx512$"
 }
 
-type T2 simd.Int8x64
+type T2 archsimd.Int8x64
 
 func (x T2) h() {
 	return // ERROR "has features avx[+]avx2[+]avx512$"
@@ -44,12 +44,12 @@ var a int
 
 func f() {
 	if a == 0 {
-		if !simd.X86.AVX512() {
+		if !archsimd.X86.AVX512() {
 			return
 		}
 		println("has avx512") // ERROR "has features avx[+]avx2[+]avx512$"
 	} else {
-		if !simd.X86.AVX2() {
+		if !archsimd.X86.AVX2() {
 			return
 		}
 		println("has avx2") // ERROR "has features avx[+]avx2$"
@@ -58,7 +58,7 @@ func f() {
 } // ERROR "has features avx[+]avx2$"
 
 func g() {
-	if simd.X86.AVX2() { // ERROR "has features avx[+]avx2$"
+	if archsimd.X86.AVX2() { // ERROR "has features avx[+]avx2$"
 		for range 5 { // ERROR "has features avx[+]avx2$"
 			if a < 0 { // ERROR "has features avx[+]avx2$"
 				a++ // ERROR "has features avx[+]avx2$"
@@ -77,7 +77,7 @@ func p() bool {
 }
 
 func hasIrreducibleLoop() {
-	if simd.X86.AVX2() {
+	if archsimd.X86.AVX2() {
 		goto a // ERROR "has features avx[+]avx2$"
 	} else {
 		goto b
@@ -96,8 +96,8 @@ c:
 	println("c")
 }
 
-func ternRewrite(m, w, x, y, z simd.Int32x16) (t0, t1, t2 simd.Int32x16) {
-	if !simd.X86.AVX512() { // ERROR "has features avx[+]avx2[+]avx512$"
+func ternRewrite(m, w, x, y, z archsimd.Int32x16) (t0, t1, t2 archsimd.Int32x16) {
+	if !archsimd.X86.AVX512() { // ERROR "has features avx[+]avx2[+]avx512$"
 		return // ERROR "has features avx[+]avx2[+]avx512$" // all blocks have it because of the vector size
 	}
 	t0 = w.Xor(y).Xor(z)                            // ERROR "Rewriting.*ternInt"
@@ -106,12 +106,12 @@ func ternRewrite(m, w, x, y, z simd.Int32x16) (t0, t1, t2 simd.Int32x16) {
 	return                                          // ERROR "has features avx[+]avx2[+]avx512$"
 }
 
-func ternTricky1(x, y, z simd.Int32x8) simd.Int32x8 {
+func ternTricky1(x, y, z archsimd.Int32x8) archsimd.Int32x8 {
 	// Int32x8 is a 256-bit vector and does not guarantee AVX-512
 	// a is a 3-variable logical expression occurring outside AVX-512 feature check
 	a := x.Xor(y).Xor(z)
-	var w simd.Int32x8
-	if !simd.X86.AVX512() { // ERROR "has features avx$"
+	var w archsimd.Int32x8
+	if !archsimd.X86.AVX512() { // ERROR "has features avx$"
 		// do nothing
 	} else {
 		w = y.AndNot(a) // ERROR "has features avx[+]avx2[+]avx512" "Rewriting.*ternInt"
@@ -120,10 +120,10 @@ func ternTricky1(x, y, z simd.Int32x8) simd.Int32x8 {
 	return a.Or(w) // ERROR "has features avx$"
 }
 
-func ternTricky2(x, y, z simd.Int32x8) simd.Int32x8 {
+func ternTricky2(x, y, z archsimd.Int32x8) archsimd.Int32x8 {
 	// Int32x8 is a 256-bit vector and does not guarantee AVX-512
-	var a, w simd.Int32x8
-	if !simd.X86.AVX512() { // ERROR "has features avx$"
+	var a, w archsimd.Int32x8
+	if !archsimd.X86.AVX512() { // ERROR "has features avx$"
 		// do nothing
 	} else {
 		a = x.Xor(y).Xor(z)
@@ -133,11 +133,11 @@ func ternTricky2(x, y, z simd.Int32x8) simd.Int32x8 {
 	return a.Or(w) // ERROR "has features avx$"
 }
 
-func ternTricky3(x, y, z simd.Int32x8) simd.Int32x8 {
+func ternTricky3(x, y, z archsimd.Int32x8) archsimd.Int32x8 {
 	// Int32x8 is a 256-bit vector and does not guarantee AVX-512
 	a := x.Xor(y).Xor(z)
 	w := y.AndNot(a)
-	if !simd.X86.AVX512() { // ERROR "has features avx$"
+	if !archsimd.X86.AVX512() { // ERROR "has features avx$"
 		return a // ERROR "has features avx$"
 	}
 	// a is a common subexpression

@@ -453,6 +453,9 @@ func (c Cursor) FindNode(n ast.Node) (Cursor, bool) {
 // rooted at c such that n.Pos() <= start && end <= n.End().
 // (For an *ast.File, it uses the bounds n.FileStart-n.FileEnd.)
 //
+// An empty range (start == end) between two adjacent nodes is
+// considered to belong to the first node.
+//
 // It returns zero if none is found.
 // Precondition: start <= end.
 //
@@ -501,10 +504,17 @@ func (c Cursor) FindByPos(start, end token.Pos) (Cursor, bool) {
 					break // disjoint, after; stop
 				}
 			}
+
 			// Inv: node.{Pos,FileStart} <= start
 			if end <= nodeEnd {
 				// node fully contains target range
 				best = i
+
+				// Don't search beyond end of the first match.
+				// This is important only for an empty range (start=end)
+				// between two adjoining nodes, which would otherwise
+				// match both nodes; we want to match only the first.
+				limit = ev.index
 			} else if nodeEnd < start {
 				i = ev.index // disjoint, before; skip forward
 			}

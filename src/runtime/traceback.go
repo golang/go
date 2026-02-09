@@ -456,7 +456,7 @@ func (u *unwinder) next() {
 		// get everything, so crash loudly.
 		fail := u.flags&(unwindPrintErrors|unwindSilentErrors) == 0
 		doPrint := u.flags&unwindSilentErrors == 0
-		if doPrint && gp.m.incgo && f.funcID == abi.FuncID_sigpanic {
+		if doPrint && gp.m != nil && gp.m.incgo && f.funcID == abi.FuncID_sigpanic {
 			// We can inject sigpanic
 			// calls directly into C code,
 			// in which case we'll see a C

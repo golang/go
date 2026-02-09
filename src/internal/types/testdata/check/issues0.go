@@ -104,7 +104,7 @@ func issue10979() {
 
 // issue11347
 // These should not crash.
-var a1, b1, c1 /* ERROR "cycle" */ b1 /* ERROR "b1 is not a type" */ = 0 > 0<<""[""[c1]]>c1
+var a1, b1, c1 /* ERROR "cycle" */ b1 /* ERROR "b1 (package-level variable) is not a type" */ = 0 > 0<<""[""[c1]]>c1
 var a2, b2 /* ERROR "cycle" */ = 0 /* ERROR "assignment mismatch" */ /* ERROR "assignment mismatch" */ > 0<<""[b2]
 var a3, b3 /* ERROR "cycle" */ = int /* ERROR "assignment mismatch" */ /* ERROR "assignment mismatch" */ (1<<""[b3])
 
@@ -351,7 +351,7 @@ func issue26234b(x T) {
 }
 
 func issue26234c() {
-	T.x /* ERROR "T.x undefined (type T has no method x)" */ ()
+	T /* ERROR "operand for field selector x must be value of type T" */ .x()
 }
 
 func issue35895() {

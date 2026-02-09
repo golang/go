@@ -1839,3 +1839,19 @@ func TestAbsPathExec(t *testing.T) {
 		}
 	})
 }
+
+// Calling Start twice is an error, regardless of outcome.
+func TestStart_twice(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	cmd := exec.Command("/bin/nonesuch")
+	if err := cmd.Start(); err == nil {
+		t.Fatalf("running invalid command succeeded")
+	}
+	err := cmd.Start()
+	got := fmt.Sprint(err)
+	want := "exec: already started"
+	if got != want {
+		t.Fatalf("Start call returned err %q, want %q", got, want)
+	}
+}

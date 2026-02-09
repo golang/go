@@ -459,30 +459,14 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	ctxt.xdefine("runtime.egcbss", sym.SRODATA, 0)
 
 	// pseudo-symbols to mark locations of type, string, and go string data.
-	var symtype, symtyperel loader.Sym
+	var symtype loader.Sym
 	if !ctxt.DynlinkingGo() {
-		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
-			s = ldr.CreateSymForUpdate("type:*", 0)
-			s.SetType(sym.STYPE)
-			s.SetSize(0)
-			s.SetAlign(int32(ctxt.Arch.PtrSize))
-			symtype = s.Sym()
-
-			s = ldr.CreateSymForUpdate("typerel.*", 0)
-			s.SetType(sym.STYPERELRO)
-			s.SetSize(0)
-			s.SetAlign(int32(ctxt.Arch.PtrSize))
-			symtyperel = s.Sym()
-		} else {
-			s = ldr.CreateSymForUpdate("type:*", 0)
-			s.SetType(sym.STYPE)
-			s.SetSize(0)
-			s.SetAlign(int32(ctxt.Arch.PtrSize))
-			symtype = s.Sym()
-			symtyperel = s.Sym()
-		}
+		s = ldr.CreateSymForUpdate("type:*", 0)
+		s.SetType(sym.STYPE)
+		s.SetSize(0)
+		s.SetAlign(int32(ctxt.Arch.PtrSize))
+		symtype = s.Sym()
 		setCarrierSym(sym.STYPE, symtype)
-		setCarrierSym(sym.STYPERELRO, symtyperel)
 	}
 
 	groupSym := func(name string, t sym.SymKind) loader.Sym {
@@ -499,11 +483,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		symgofunc   = groupSym("go:funcdesc", sym.SGOFUNC)
 		symgcbits   = groupSym("runtime.gcbits.*", sym.SGCBITS)
 	)
-
-	symgofuncrel := symgofunc
-	if ctxt.UseRelro() {
-		symgofuncrel = groupSym("go:funcdescrel", sym.SGOFUNCRELRO)
-	}
 
 	// assign specific types so that they sort together.
 	// within a type they sort by size, so the .* symbols
@@ -537,30 +516,25 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		case strings.HasSuffix(name, "·f"):
 			if !ctxt.DynlinkingGo() {
 				ldr.SetAttrNotInSymbolTable(s, true)
-			}
-			if ctxt.UseRelro() {
-				symGroupType[s] = sym.SGOFUNCRELRO
-				if !ctxt.DynlinkingGo() {
-					ldr.SetCarrierSym(s, symgofuncrel)
-				}
-			} else {
-				symGroupType[s] = sym.SGOFUNC
 				ldr.SetCarrierSym(s, symgofunc)
 			}
+			symGroupType[s] = sym.SGOFUNC
 
 		case strings.HasPrefix(name, "type:"):
 			if !ctxt.DynlinkingGo() {
 				ldr.SetAttrNotInSymbolTable(s, true)
 			}
-			if ctxt.UseRelro() {
-				symGroupType[s] = sym.STYPERELRO
-				if symtyperel != 0 {
-					ldr.SetCarrierSym(s, symtyperel)
-				}
-			} else {
-				symGroupType[s] = sym.STYPE
-				if symtyperel != 0 {
-					ldr.SetCarrierSym(s, symtype)
+			symGroupType[s] = sym.STYPE
+			if symtype != 0 {
+				ldr.SetCarrierSym(s, symtype)
+			}
+			if ctxt.HeadType == objabi.Haix {
+				// The default alignment is currently 0x20,
+				// which the AIX external linker doesn't
+				// seem to support. To get consistent
+				// alignment on AIX, force alignment to 8.
+				if symalign(ldr, s) > 8 {
+					ldr.SetSymAlign(s, 8)
 				}
 			}
 		}
@@ -653,9 +627,12 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.gcdata", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.gcbss", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.types", 0))
+	ctxt.moduledataTypeDescOffset = moduledata.Size()
+	moduledata.AddUint(ctxt.Arch, 0) // filled in by dodataSect
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.etypes", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.rodata", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("go:func.*", 0))
+	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.epclntab", 0))
 
 	if ctxt.IsAIX() && ctxt.IsExternal() {
 		// Add R_XCOFFREF relocation to prevent ld's garbage collection of
@@ -672,6 +649,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		addRef("runtime.rodata")
 		addRef("runtime.erodata")
 		addRef("runtime.epclntab")
+		addRef("go:func.*")
 		// As we use relative addressing for text symbols in functab, it is
 		// important that the offsets we computed stay unchanged by the external
 		// linker, i.e. all symbols in Textp should not be removed.
@@ -693,11 +671,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 
 	// text section information
 	slice(textsectionmapSym, uint64(nsections))
-
-	// The typelinks slice
-	typelinkSym := ldr.Lookup("runtime.typelink", 0)
-	ntypelinks := uint64(ldr.SymSize(typelinkSym)) / 4
-	slice(typelinkSym, ntypelinks)
 
 	// The itablinks slice
 	itablinkSym := ldr.Lookup("runtime.itablink", 0)

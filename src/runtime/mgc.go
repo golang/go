@@ -5,7 +5,7 @@
 // Garbage collector (GC).
 //
 // The GC runs concurrently with mutator threads, is type accurate (aka precise), allows multiple
-// GC thread to run in parallel. It is a concurrent mark and sweep that uses a write barrier. It is
+// GC threads to run in parallel. It is a concurrent mark and sweep that uses a write barrier. It is
 // non-generational and non-compacting. Allocation is done using size segregated per P allocation
 // areas to minimize fragmentation while eliminating locks in the common case.
 //
@@ -1167,7 +1167,7 @@ top:
 	// endCycle depends on all gcWork cache stats being flushed.
 	// The termination algorithm above ensured that up to
 	// allocations since the ragged barrier.
-	gcController.endCycle(now, int(gomaxprocs), work.userForced)
+	gcController.endCycle(now, int(gomaxprocs))
 
 	// Perform mark termination. This will restart the world.
 	gcMarkTermination(stw)

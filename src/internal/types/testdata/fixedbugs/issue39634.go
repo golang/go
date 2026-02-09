@@ -43,7 +43,7 @@ type foo9[A any] interface { foo9 /* ERROR "invalid recursive type" */ [A] }
 func _() { var _ = new(foo9[int]) }
 
 // crash 12
-var u, i [func /* ERROR "used as value" */ /* ERROR "used as value" */ (u /* ERROR "u is not a type" */ /* ERROR "u is not a type" */ , c /* ERROR "undefined" */ /* ERROR "undefined" */ ) {}(0, len /* ERROR "must be called" */ /* ERROR "must be called" */ )]c /* ERROR "undefined" */ /* ERROR "undefined" */
+var u, i [func /* ERROR "used as value" */ /* ERROR "used as value" */ (u /* ERROR "u (package-level variable) is not a type" */ /* ERROR "u (package-level variable) is not a type" */ , c /* ERROR "undefined" */ /* ERROR "undefined" */ ) {}(0, len /* ERROR "must be called" */ /* ERROR "must be called" */ )]c /* ERROR "undefined" */ /* ERROR "undefined" */
 
 // crash 15
 func y15() { var a /* ERROR "declared and not used" */ interface{ p() } = G15[string]{} }

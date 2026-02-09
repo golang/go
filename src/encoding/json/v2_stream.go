@@ -96,7 +96,6 @@ type Encoder struct {
 	opts jsonv2.Options
 	err  error
 
-	buf       bytes.Buffer
 	indentBuf bytes.Buffer
 
 	indentPrefix string
@@ -121,21 +120,22 @@ func (enc *Encoder) Encode(v any) error {
 		return enc.err
 	}
 
-	buf := &enc.buf
-	buf.Reset()
-	if err := jsonv2.MarshalWrite(buf, v, enc.opts); err != nil {
+	e := export.GetBufferedEncoder(enc.opts)
+	defer export.PutBufferedEncoder(e)
+	if err := jsonv2.MarshalEncode(e, v); err != nil {
 		return err
 	}
+	b := export.Encoder(e).Buf // b must not leak current scope
 	if len(enc.indentPrefix)+len(enc.indentValue) > 0 {
 		enc.indentBuf.Reset()
-		if err := Indent(&enc.indentBuf, buf.Bytes(), enc.indentPrefix, enc.indentValue); err != nil {
+		if err := Indent(&enc.indentBuf, b, enc.indentPrefix, enc.indentValue); err != nil {
 			return err
 		}
-		buf = &enc.indentBuf
+		b = enc.indentBuf.Bytes()
 	}
-	buf.WriteByte('\n')
+	b = append(b, '\n')
 
-	if _, err := enc.w.Write(buf.Bytes()); err != nil {
+	if _, err := enc.w.Write(b); err != nil {
 		enc.err = err
 		return err
 	}
@@ -146,6 +146,9 @@ func (enc *Encoder) Encode(v any) error {
 // value as if indented by the package-level function Indent(dst, src, prefix, indent).
 // Calling SetIndent("", "") disables indentation.
 func (enc *Encoder) SetIndent(prefix, indent string) {
+	// NOTE: Do not rely on the newer [jsontext.WithIndent] option since
+	// the v1 [Indent] behavior has historical bugs that cannot be changed
+	// for backward compatibility reasons.
 	enc.indentPrefix = prefix
 	enc.indentValue = indent
 }
@@ -197,6 +200,9 @@ func (d Delim) String() string {
 // to mark the start and end of arrays and objects.
 // Commas and colons are elided.
 func (dec *Decoder) Token() (Token, error) {
+	if dec.err != nil {
+		return nil, dec.err
+	}
 	tok, err := dec.dec.ReadToken()
 	if err != nil {
 		// Historically, v1 would report just [io.EOF] if
@@ -238,7 +244,20 @@ func (dec *Decoder) Token() (Token, error) {
 func (dec *Decoder) More() bool {
 	dec.hadPeeked = true
 	k := dec.dec.PeekKind()
-	return k > 0 && k != ']' && k != '}'
+	if k == 0 {
+		if dec.err == nil {
+			// PeekKind doesn't distinguish between EOF and error,
+			// so read the next token to see which we get.
+			_, err := dec.dec.ReadToken()
+			if err == nil {
+				// This is only possible if jsontext violates its documentation.
+				err = errors.New("json: successful read after failed peek")
+			}
+			dec.err = transformSyntacticError(err)
+		}
+		return dec.err != io.EOF
+	}
+	return k != ']' && k != '}'
 }
 
 // InputOffset returns the input stream byte offset of the current decoder position.

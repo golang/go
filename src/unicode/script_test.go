@@ -94,6 +94,10 @@ var inPropTest = []T{
 	{0x9FC3, "Unified_Ideograph"},
 	{0xFE0F, "Variation_Selector"},
 	{0x0020, "White_Space"},
+	{0x221e, "ID_Compat_Math_Start"},
+	{0x06e3, "Modifier_Combining_Mark"},
+	{0x2080, "ID_Compat_Math_Continue"},
+	{0x2ffe, "IDS_Unary_Operator"},
 }
 
 func TestCategories(t *testing.T) {

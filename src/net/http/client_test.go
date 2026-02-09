@@ -438,7 +438,6 @@ func testRedirectsByMethod(t *testing.T, mode testMode, method string, table []r
 		req, _ := NewRequest(method, ts.URL+tt.suffix, strings.NewReader(content))
 		req.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(strings.NewReader(content)), nil }
 		res, err := c.Do(req)
-
 		if err != nil {
 			t.Fatal(err)
 		}

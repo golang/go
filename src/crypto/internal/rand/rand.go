@@ -55,11 +55,19 @@ var cryptocustomrand = godebug.New("cryptocustomrand")
 // If returning a non-default Reader, it calls [randutil.MaybeReadByte] on it.
 func CustomReader(r io.Reader) io.Reader {
 	if cryptocustomrand.Value() == "1" {
-		if _, ok := r.(drbg.DefaultReader); !ok {
+		if !IsDefaultReader(r) {
 			randutil.MaybeReadByte(r)
 			cryptocustomrand.IncNonDefault()
 		}
 		return r
 	}
 	return Reader
+}
+
+// IsDefaultReader reports whether r is the default [crypto/rand.Reader].
+//
+// If true, the Read method of r can be assumed to call [drbg.Read].
+func IsDefaultReader(r io.Reader) bool {
+	_, ok := r.(drbg.DefaultReader)
+	return ok
 }

@@ -828,3 +828,14 @@ func TestDirectives(t *testing.T) {
 	check("XTestDirectives", p.XTestDirectives,
 		`[{"//go:xtest1" "testdata/directives/c_test.go:1:1"} {"//go:xtest2" "testdata/directives/d_test.go:1:1"} {"//go:xtest3" "testdata/directives/d_test.go:2:1"}]`)
 }
+
+// TestContextImportGoWithUseAllFiles ensures that when Context.UseAllFiles is set,
+// that the Go command is not invoked
+func TestContextImportGoWithUseAllFiles(t *testing.T) {
+	ctxt := &Context{UseAllFiles: true}
+	p := &Package{}
+	got := ctxt.importGo(p, "some/package", ".", 0)
+	if got != errNoModules {
+		t.Fatalf("Error mismatch:\n\tGot:  %v\n\tWant: %v", got, errNoModules)
+	}
+}

@@ -1,0 +1,15 @@
+# This is a script test conversion of TestListTemplateContextFunction
+# originally added in CL 20010, which fixed #14547.
+# Test the ability to use the build context in the go list template.
+
+go list -f '{{context.GOARCH}} {{context.GOOS}} {{context.GOROOT}} {{context.GOPATH}}'
+cmpenv stdout want.txt
+
+go list -f '{{context.CgoEnabled}} {{context.UseAllFiles}} {{context.Compiler}} {{context.BuildTags}} {{context.ReleaseTags}} {{context.InstallSuffix}}'
+
+-- go.mod --
+module foo
+-- foo.go --
+package foo
+-- want.txt --
+$GOARCH $GOOS $GOROOT $GOPATH

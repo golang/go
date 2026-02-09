@@ -352,15 +352,16 @@ func resolveTypeOff(ptrInModule unsafe.Pointer, off typeOff) *_type {
 		}
 		return (*_type)(res)
 	}
-	if t := md.typemap[off]; t != nil {
+	res := md.types + uintptr(off)
+	resType := (*_type)(unsafe.Pointer(res))
+	if t := md.typemap[resType]; t != nil {
 		return t
 	}
-	res := md.types + uintptr(off)
 	if res > md.etypes {
 		println("runtime: typeOff", hex(off), "out of range", hex(md.types), "-", hex(md.etypes))
 		throw("runtime: type offset out of range")
 	}
-	return (*_type)(unsafe.Pointer(res))
+	return resType
 }
 
 func (t rtype) typeOff(off typeOff) *_type {
@@ -435,22 +436,23 @@ func pkgPath(n name) string {
 // typelinksinit scans the types from extra modules and builds the
 // moduledata typemap used to de-duplicate type pointers.
 func typelinksinit() {
+	lockInit(&moduleToTypelinksLock, lockRankTypelinks)
+
 	if firstmoduledata.next == nil {
 		return
 	}
-	typehash := make(map[uint32][]*_type, len(firstmoduledata.typelinks))
 
 	modules := activeModules()
 	prev := modules[0]
+	prevTypelinks := moduleTypelinks(modules[0])
+	typehash := make(map[uint32][]*_type, len(prevTypelinks))
 	for _, md := range modules[1:] {
 		// Collect types from the previous module into typehash.
 	collect:
-		for _, tl := range prev.typelinks {
-			var t *_type
-			if prev.typemap == nil {
-				t = (*_type)(unsafe.Pointer(prev.types + uintptr(tl)))
-			} else {
-				t = prev.typemap[typeOff(tl)]
+		for _, tl := range prevTypelinks {
+			t := tl
+			if prev.typemap != nil {
+				t = prev.typemap[tl]
 			}
 			// Add to typehash if not seen before.
 			tlist := typehash[t.Hash]
@@ -462,28 +464,95 @@ func typelinksinit() {
 			typehash[t.Hash] = append(tlist, t)
 		}
 
+		mdTypelinks := moduleTypelinks(md)
+
 		if md.typemap == nil {
 			// If any of this module's typelinks match a type from a
 			// prior module, prefer that prior type by adding the offset
 			// to this module's typemap.
-			tm := make(map[typeOff]*_type, len(md.typelinks))
+			tm := make(map[*_type]*_type, len(mdTypelinks))
 			pinnedTypemaps = append(pinnedTypemaps, tm)
 			md.typemap = tm
-			for _, tl := range md.typelinks {
-				t := (*_type)(unsafe.Pointer(md.types + uintptr(tl)))
+			for _, t := range mdTypelinks {
+				set := t
 				for _, candidate := range typehash[t.Hash] {
 					seen := map[_typePair]struct{}{}
 					if typesEqual(t, candidate, seen) {
-						t = candidate
+						set = candidate
 						break
 					}
 				}
-				md.typemap[typeOff(tl)] = t
+				md.typemap[t] = set
 			}
 		}
 
 		prev = md
+		prevTypelinks = mdTypelinks
 	}
+}
+
+// moduleToTypelinks maps from moduledata to typelinks.
+// We build this lazily as needed, since most programs do not need it.
+var (
+	moduleToTypelinks     map[*moduledata][]*_type
+	moduleToTypelinksLock mutex
+)
+
+// moduleTypelinks takes a moduledata and returns the type
+// descriptors that the reflect package needs to know about.
+// These are the typelinks. They are the types that the user
+// can construct. This is used to ensure that we use a unique
+// type descriptor for all types. The returned types are sorted
+// by type string; the sorting is done by the linker.
+// This slice is constructed as needed.
+func moduleTypelinks(md *moduledata) []*_type {
+	lock(&moduleToTypelinksLock)
+
+	if typelinks, ok := moduleToTypelinks[md]; ok {
+		unlock(&moduleToTypelinksLock)
+		return typelinks
+	}
+
+	// Allocate a very rough estimate of the number of types.
+	ret := make([]*_type, 0, md.typedesclen/(2*unsafe.Sizeof(_type{})))
+
+	td := md.types
+
+	// We have to increment by 1 to match the increment done in
+	// cmd/link/internal/data.go createRelroSect in allocateDataSections.
+	//
+	// We don't do that increment on AIX, but on AIX we need to adjust
+	// for the fact that the runtime.types symbol has a size of 8,
+	// and the type descriptors will follow that. This increment,
+	// followed by the forced alignment to 8, will do that.
+	td++
+
+	etypedesc := md.types + md.typedesclen
+	for td < etypedesc {
+		// TODO: The fact that type descriptors are aligned to
+		// 0x20 does not make sense.
+		if GOARCH == "arm" {
+			td = alignUp(td, 0x8)
+		} else if GOOS == "aix" {
+			// The alignment of 8 is forced in the linker on AIX.
+			td = alignUp(td, 0x8)
+		} else {
+			td = alignUp(td, 0x20)
+		}
+
+		typ := (*_type)(unsafe.Pointer(td))
+		ret = append(ret, typ)
+
+		td += uintptr(typ.DescriptorSize())
+	}
+
+	if moduleToTypelinks == nil {
+		moduleToTypelinks = make(map[*moduledata][]*_type)
+	}
+	moduleToTypelinks[md] = ret
+
+	unlock(&moduleToTypelinksLock)
+	return ret
 }
 
 type _typePair struct {

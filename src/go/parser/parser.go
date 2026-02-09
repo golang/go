@@ -28,7 +28,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build/constraint"
-	"go/internal/scannerhooks"
 	"go/scanner"
 	"go/token"
 	"strings"
@@ -53,10 +52,9 @@ type parser struct {
 	goVersion   string            // minimum Go version found in //go:build comment
 
 	// Next token
-	pos       token.Pos   // token position
-	tok       token.Token // one token look-ahead
-	lit       string      // token literal
-	stringEnd token.Pos   // position immediately after token; STRING only
+	pos token.Pos   // token position
+	tok token.Token // one token look-ahead
+	lit string      // token literal
 
 	// Error recovery
 	// (used to limit the number of calls to parser.advance
@@ -85,6 +83,11 @@ func (p *parser) init(file *token.File, src []byte, mode Mode) {
 	p.mode = mode
 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
 	p.next()
+}
+
+// end returns the end position of the current token
+func (p *parser) end() token.Pos {
+	return p.scanner.End()
 }
 
 // ----------------------------------------------------------------------------
@@ -165,10 +168,6 @@ func (p *parser) next0() {
 				continue
 			}
 		} else {
-			if p.tok == token.STRING {
-				p.stringEnd = scannerhooks.StringEnd(&p.scanner)
-			}
-
 			// Found a non-comment; top of file is over.
 			p.top = false
 		}
@@ -726,7 +725,7 @@ func (p *parser) parseFieldDecl() *ast.Field {
 
 	var tag *ast.BasicLit
 	if p.tok == token.STRING {
-		tag = &ast.BasicLit{ValuePos: p.pos, ValueEnd: p.stringEnd, Kind: p.tok, Value: p.lit}
+		tag = &ast.BasicLit{ValuePos: p.pos, ValueEnd: p.end(), Kind: p.tok, Value: p.lit}
 		p.next()
 	}
 
@@ -1480,11 +1479,7 @@ func (p *parser) parseOperand() ast.Expr {
 		return x
 
 	case token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING:
-		end := p.pos + token.Pos(len(p.lit))
-		if p.tok == token.STRING {
-			end = p.stringEnd
-		}
-		x := &ast.BasicLit{ValuePos: p.pos, ValueEnd: end, Kind: p.tok, Value: p.lit}
+		x := &ast.BasicLit{ValuePos: p.pos, ValueEnd: p.end(), Kind: p.tok, Value: p.lit}
 		p.next()
 		return x
 
@@ -2525,7 +2520,7 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) as
 	var path string
 	if p.tok == token.STRING {
 		path = p.lit
-		end = p.stringEnd
+		end = p.end()
 		p.next()
 	} else if p.tok.IsLiteral() {
 		p.error(pos, "import path must be a string")

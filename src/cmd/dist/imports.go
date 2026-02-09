@@ -259,6 +259,6 @@ func resolveVendor(imp, srcDir string) string {
 	} else if strings.HasPrefix(srcDir, filepath.Join(goroot, "src")) {
 		return path.Join("vendor", imp)
 	} else {
-		panic(fmt.Sprintf("srcDir %q not in GOOROT/src", srcDir))
+		panic(fmt.Sprintf("srcDir %q not in GOROOT/src", srcDir))
 	}
 }

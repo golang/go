@@ -55,13 +55,20 @@ type pclntab struct {
 
 // addGeneratedSym adds a generator symbol to pclntab, returning the new Sym.
 // It is the caller's responsibility to save the symbol in state.
-func (state *pclntab) addGeneratedSym(ctxt *Link, name string, size int64, f generatorFunc) loader.Sym {
+func (state *pclntab) addGeneratedSym(ctxt *Link, name string, size int64, align int32, f generatorFunc) loader.Sym {
 	size = Rnd(size, int64(ctxt.Arch.PtrSize))
 	state.size += size
 	s := ctxt.createGeneratorSymbol(name, 0, sym.SPCLNTAB, size, f)
-	ctxt.loader.SetAttrReachable(s, true)
-	ctxt.loader.SetCarrierSym(s, state.carrier)
-	ctxt.loader.SetAttrNotInSymbolTable(s, true)
+	ldr := ctxt.loader
+	ldr.SetSymAlign(s, align)
+	ldr.SetAttrReachable(s, true)
+	ldr.SetCarrierSym(s, state.carrier)
+	ldr.SetAttrNotInSymbolTable(s, true)
+
+	if align > ldr.SymAlign(state.carrier) {
+		ldr.SetSymAlign(state.carrier, align)
+	}
+
 	return s
 }
 
@@ -277,7 +284,7 @@ func (state *pclntab) generatePCHeader(ctxt *Link) {
 		}
 	}
 
-	state.pcheader = state.addGeneratedSym(ctxt, "runtime.pcheader", size, writeHeader)
+	state.pcheader = state.addGeneratedSym(ctxt, "runtime.pcheader", size, int32(ctxt.Arch.PtrSize), writeHeader)
 }
 
 // walkFuncs iterates over the funcs, calling a function for each unique
@@ -326,7 +333,7 @@ func (state *pclntab) generateFuncnametab(ctxt *Link, funcs []loader.Sym) map[lo
 		size += int64(len(ctxt.loader.SymName(s)) + 1) // NULL terminate
 	})
 
-	state.funcnametab = state.addGeneratedSym(ctxt, "runtime.funcnametab", size, writeFuncNameTab)
+	state.funcnametab = state.addGeneratedSym(ctxt, "runtime.funcnametab", size, 1, writeFuncNameTab)
 	return nameOffsets
 }
 
@@ -442,7 +449,7 @@ func (state *pclntab) generateFilenameTabs(ctxt *Link, compUnits []*sym.Compilat
 			}
 		}
 	}
-	state.cutab = state.addGeneratedSym(ctxt, "runtime.cutab", int64(totalEntries*4), writeCutab)
+	state.cutab = state.addGeneratedSym(ctxt, "runtime.cutab", int64(totalEntries*4), 4, writeCutab)
 
 	// Write filetab.
 	writeFiletab := func(ctxt *Link, s loader.Sym) {
@@ -454,7 +461,7 @@ func (state *pclntab) generateFilenameTabs(ctxt *Link, compUnits []*sym.Compilat
 		}
 	}
 	state.nfiles = uint32(len(fileOffsets))
-	state.filetab = state.addGeneratedSym(ctxt, "runtime.filetab", fileSize, writeFiletab)
+	state.filetab = state.addGeneratedSym(ctxt, "runtime.filetab", fileSize, 1, writeFiletab)
 
 	return cuOffsets
 }
@@ -518,7 +525,7 @@ func (state *pclntab) generatePctab(ctxt *Link, funcs []loader.Sym) {
 		}
 	}
 
-	state.pctab = state.addGeneratedSym(ctxt, "runtime.pctab", size, writePctab)
+	state.pctab = state.addGeneratedSym(ctxt, "runtime.pctab", size, 1, writePctab)
 }
 
 // generateFuncdata writes out the funcdata information.
@@ -647,7 +654,7 @@ func (state *pclntab) generateFuncdata(ctxt *Link, funcs []loader.Sym, inlsyms m
 		}
 	}
 
-	state.funcdata = state.addGeneratedSym(ctxt, "go:func.*", size, writeFuncData)
+	state.funcdata = state.addGeneratedSym(ctxt, "go:func.*", size, maxAlign, writeFuncData)
 
 	// Because the funcdata previously was not in pclntab,
 	// we need to keep the visible symbol so that tools can find it.
@@ -703,7 +710,7 @@ func (state *pclntab) generateFunctab(ctxt *Link, funcs []loader.Sym, inlSyms ma
 		writePCToFunc(ctxt, sb, funcs, startLocations)
 		writeFuncs(ctxt, sb, funcs, inlSyms, startLocations, cuOffsets, nameOffsets)
 	}
-	state.pclntab = state.addGeneratedSym(ctxt, "runtime.functab", size, writePcln)
+	state.pclntab = state.addGeneratedSym(ctxt, "runtime.functab", size, 4, writePcln)
 }
 
 // funcData returns the funcdata and offsets for the FuncInfo.
@@ -967,6 +974,10 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 	ldr.SetAttrReachable(state.carrier, true)
 	setCarrierSym(sym.SPCLNTAB, state.carrier)
 
+	// Aign pclntab to at least a pointer boundary,
+	// for pcHeader. This may be raised further by subsymbols.
+	ldr.SetSymAlign(state.carrier, int32(ctxt.Arch.PtrSize))
+
 	state.generatePCHeader(ctxt)
 	nameOffsets := state.generateFuncnametab(ctxt, funcs)
 	cuOffsets := state.generateFilenameTabs(ctxt, compUnits, funcs)
@@ -1076,6 +1087,7 @@ func (ctxt *Link) findfunctab(state *pclntab, container loader.Bitmap) {
 	}
 
 	state.findfunctab = ctxt.createGeneratorSymbol("runtime.findfunctab", 0, sym.SPCLNTAB, size, writeFindFuncTab)
+	ldr.SetSymAlign(state.findfunctab, 4)
 	ldr.SetAttrReachable(state.findfunctab, true)
 	ldr.SetAttrLocal(state.findfunctab, true)
 }

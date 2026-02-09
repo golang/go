@@ -594,7 +594,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		}
 		if tname.IsAlias() {
 			buf.WriteString(" =")
-			if alias, ok := typ.(*Alias); ok { // materialized? (gotypesalias=1)
+			if alias, ok := typ.(*Alias); ok { // materialized? TODO(gri) Do we still need this (e.g. for byte, rune)?
 				typ = alias.fromRHS
 			}
 		} else if t, _ := typ.(*TypeParam); t != nil {
@@ -673,4 +673,53 @@ func writeFuncName(buf *bytes.Buffer, f *Func, qf Qualifier) {
 		}
 	}
 	buf.WriteString(f.name)
+}
+
+// objectKind returns a description of the object's kind.
+func objectKind(obj Object) string {
+	switch obj := obj.(type) {
+	case *PkgName:
+		return "package name"
+	case *Const:
+		return "constant"
+	case *TypeName:
+		if obj.IsAlias() {
+			return "type alias"
+		} else if _, ok := obj.Type().(*TypeParam); ok {
+			return "type parameter"
+		} else {
+			return "defined type"
+		}
+	case *Var:
+		switch obj.Kind() {
+		case PackageVar:
+			return "package-level variable"
+		case LocalVar:
+			return "local variable"
+		case RecvVar:
+			return "receiver"
+		case ParamVar:
+			return "parameter"
+		case ResultVar:
+			return "result variable"
+		case FieldVar:
+			return "struct field"
+		}
+	case *Func:
+		if obj.Signature().Recv() != nil {
+			return "method"
+		} else {
+			return "function"
+		}
+	case *Label:
+		return "label"
+	case *Builtin:
+		return "built-in function"
+	case *Nil:
+		return "untyped nil"
+	}
+	if debug {
+		panic(fmt.Sprintf("unknown symbol (%T)", obj))
+	}
+	return "unknown symbol"
 }

@@ -30,7 +30,6 @@ import (
 	"math/big"
 	"net"
 	"net/url"
-	"os/exec"
 	"reflect"
 	"runtime"
 	"slices"
@@ -1461,9 +1460,7 @@ func TestImports(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in -short mode")
 	}
-	testenv.MustHaveGoRun(t)
-
-	if out, err := exec.Command(testenv.GoToolPath(t), "run", "x509_test_import.go").CombinedOutput(); err != nil {
+	if out, err := testenv.Command(t, testenv.GoToolPath(t), "run", "x509_test_import.go").CombinedOutput(); err != nil {
 		t.Errorf("failed to run x509_test_import.go: %s\n%s", err, out)
 	}
 }

@@ -168,6 +168,7 @@ func (p *Package) collectTypes(types []*Type) {
 		p.collectFuncs(t.Funcs)
 		p.collectFuncs(t.Methods)
 		p.collectInterfaceMethods(t)
+		p.collectStructFields(t)
 	}
 }
 
@@ -202,6 +203,24 @@ func (p *Package) collectInterfaceMethods(t *Type) {
 		}
 		list, isStruct := fields(spec.Type)
 		if isStruct {
+			continue
+		}
+		for _, field := range list {
+			for _, name := range field.Names {
+				p.syms[t.Name+"."+name.Name] = true
+			}
+		}
+	}
+}
+
+func (p *Package) collectStructFields(t *Type) {
+	for _, s := range t.Decl.Specs {
+		spec, ok := s.(*ast.TypeSpec)
+		if !ok {
+			continue
+		}
+		list, isStruct := fields(spec.Type)
+		if !isStruct {
 			continue
 		}
 		for _, field := range list {

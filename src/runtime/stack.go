@@ -1357,7 +1357,13 @@ func (r *stackObjectRecord) gcdata() (uintptr, *byte) {
 	ptr := uintptr(unsafe.Pointer(r))
 	var mod *moduledata
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
-		if datap.gofunc <= ptr && ptr < datap.end {
+		// The normal case: stackObjectRecord is in funcdata.
+		if datap.gofunc <= ptr && ptr < datap.epclntab {
+			mod = datap
+			break
+		}
+		// A special case: methodValueCallFrameObjs.
+		if datap.noptrbss <= ptr && ptr < datap.enoptrbss {
 			mod = datap
 			break
 		}

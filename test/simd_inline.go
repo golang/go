@@ -8,9 +8,9 @@
 
 package foo
 
-import "simd"
+import "simd/archsimd"
 
-func hasClosure(a, b, c, d simd.Int64x4) (w, x, y, z simd.Int64x4) {
+func hasClosure(a, b, c, d archsimd.Int64x4) (w, x, y, z archsimd.Int64x4) {
 	shuf := func() { // ERROR "can inline hasClosure.func1"
 		w = z.RotateAllLeft(1).Xor(a)
 		x = w.RotateAllLeft(3).Xor(b)

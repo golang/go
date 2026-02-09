@@ -12,14 +12,14 @@
 package p
 
 import (
-	"simd"
+	"simd/archsimd"
 )
 
 func PackComplex(b bool) {
 	for {
 		if b {
 			var indices [4]uint32
-			simd.Uint32x4{}.ShiftAllRight(20).Store(&indices)
+			archsimd.Uint32x4{}.ShiftAllRight(20).Store(&indices)
 			_ = indices[indices[0]]
 		}
 	}
@@ -34,9 +34,9 @@ func PackComplex2(x0 uint16, src [][4]float32, b, b2 bool) {
 				px := &src[y]
 				if b {
 					var indices [4]uint32
-					fu := simd.LoadFloat32x4(px).AsUint32x4()
+					fu := archsimd.LoadFloat32x4(px).AsUint32x4()
 					fu.ShiftAllRight(0).Store(nil)
-					entry := simd.LoadUint32x4(&[4]uint32{
+					entry := archsimd.LoadUint32x4(&[4]uint32{
 						toSrgbTable[indices[0]],
 					})
 					var res [4]uint32

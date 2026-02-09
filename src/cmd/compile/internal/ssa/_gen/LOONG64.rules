@@ -773,6 +773,9 @@
 (SUBF (NEGF (MULF x y)) z) && z.Block.Func.useFMA(v) => (FNMADDF x y z)
 (SUBD (NEGD (MULD x y)) z) && z.Block.Func.useFMA(v) => (FNMADDD x y z)
 
+// Absorb conversion between 32 bit and 64 bit if both src and dst are 32 bit.
+(MOVDF ((ABS|SQRT)D (MOVFD x))) => ((ABS|SQRT)F x)
+
 // generic simplifications
 (ADDV x (NEGV y)) => (SUBV x y)
 (SUBV x (NEGV y)) => (ADDV x y)
@@ -842,6 +845,11 @@
 (MOVVreg  (MOVVconst [c])) => (MOVVconst [c])
 
 (MOVBUreg (ANDconst [c] x)) => (ANDconst [c&0xff] x)
+
+// Avoid extending when already sufficiently shifted.
+(MOVBUreg x:(SRLconst [c] y)) && c >= 24 => x
+(MOVHUreg x:(SRLconst [c] y)) && c >= 16 => x
+(MOVWUreg x:(SRLconst [c] y)) => x
 
 // Avoid extending when already sufficiently masked.
 (MOVBreg  x:(ANDconst [c] y)) && c >= 0 && int64(int8(c)) == c => x

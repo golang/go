@@ -273,13 +273,6 @@ func NewVerifier(vkey string) (Verifier, error) {
 	return v, nil
 }
 
-// chop chops s at the first instance of sep, if any,
-// and returns the text before and after sep.
-// If sep is not present, chop returns before is s and after is empty.
-func chop(s, sep string) (before, after string, ok bool) {
-	return strings.Cut(s, sep)
-}
-
 // verifier is a trivial Verifier implementation.
 type verifier struct {
 	name   string
@@ -553,7 +546,7 @@ func Open(msg []byte, known Verifiers) (*Note, error) {
 			return nil, errMalformedNote
 		}
 		line = line[len(sigPrefix):]
-		name, b64, _ := chop(string(line), " ")
+		name, b64, _ := strings.Cut(string(line), " ")
 		sig, err := base64.StdEncoding.DecodeString(b64)
 		if err != nil || !isValidName(name) || b64 == "" || len(sig) < 5 {
 			return nil, errMalformedNote

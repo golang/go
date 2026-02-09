@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate bundle -o=h2_bundle.go -prefix=http2 -tags=!nethttpomithttp2 -import=golang.org/x/net/internal/httpcommon=net/http/internal/httpcommon golang.org/x/net/http2
+//go:generate bundle -o=h2_bundle.go -prefix=http2 -tags=!nethttpomithttp2 -import=golang.org/x/net/internal/httpcommon=net/http/internal/httpcommon -import=golang.org/x/net/internal/httpsfv=net/http/internal/httpsfv golang.org/x/net/http2
 
 package http
 
@@ -106,15 +106,15 @@ type contextKey struct {
 
 func (k *contextKey) String() string { return "net/http context value " + k.name }
 
-// Given a string of the form "host", "host:port", or "[ipv6::address]:port",
-// return true if the string includes a port.
-func hasPort(s string) bool { return strings.LastIndex(s, ":") > strings.LastIndex(s, "]") }
-
-// removeEmptyPort strips the empty port in ":port" to ""
-// as mandated by RFC 3986 Section 6.2.3.
-func removeEmptyPort(host string) string {
-	if hasPort(host) {
-		return strings.TrimSuffix(host, ":")
+// removePort strips the port while correclty handling IPv6.
+func removePort(host string) string {
+	for i := len(host) - 1; i >= 0; i-- {
+		switch host[i] {
+		case ':':
+			return host[:i]
+		case ']':
+			return host
+		}
 	}
 	return host
 }

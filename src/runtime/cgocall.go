@@ -205,6 +205,18 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 		raceacquire(unsafe.Pointer(&racecgosync))
 	}
 
+	if sys.DITSupported {
+		// C code may have enabled or disabled DIT on this thread, restore
+		// our state to the expected one.
+		ditEnabled := sys.DITEnabled()
+		gp := getg()
+		if !gp.ditWanted && ditEnabled {
+			sys.DisableDIT()
+		} else if gp.ditWanted && !ditEnabled {
+			sys.EnableDIT()
+		}
+	}
+
 	// From the garbage collector's perspective, time can move
 	// backwards in the sequence above. If there's a callback into
 	// Go code, GC will see this function at the call to
@@ -427,11 +439,19 @@ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
 	restore := true
 	defer unwindm(&restore)
 
-	var ditAlreadySet bool
+	var ditStateM, ditStateG bool
 	if debug.dataindependenttiming == 1 && gp.m.isextra {
 		// We only need to enable DIT for threads that were created by C, as it
 		// should already by enabled on threads that were created by Go.
-		ditAlreadySet = sys.EnableDIT()
+		ditStateM = sys.EnableDIT()
+	} else if sys.DITSupported && debug.dataindependenttiming != 1 {
+		// C code may have enabled or disabled DIT on this thread. Set the flag
+		// on the M and G accordingly, saving their previous state to restore
+		// on return from the callback.
+		ditStateM, ditStateG = gp.m.ditEnabled, gp.ditWanted
+		ditEnabled := sys.DITEnabled()
+		gp.ditWanted = ditEnabled
+		gp.m.ditEnabled = ditEnabled
 	}
 
 	if raceenabled {
@@ -449,9 +469,16 @@ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
 		racereleasemerge(unsafe.Pointer(&racecgosync))
 	}
 
-	if debug.dataindependenttiming == 1 && !ditAlreadySet {
+	if debug.dataindependenttiming == 1 && !ditStateM {
 		// Only unset DIT if it wasn't already enabled when cgocallback was called.
 		sys.DisableDIT()
+	} else if sys.DITSupported && debug.dataindependenttiming != 1 {
+		// Restore DIT state on M and G.
+		gp.ditWanted = ditStateG
+		gp.m.ditEnabled = ditStateM
+		if !ditStateM {
+			sys.DisableDIT()
+		}
 	}
 
 	// Do not unwind m->g0->sched.sp.

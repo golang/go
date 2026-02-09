@@ -1,6 +1,0 @@
-pkg reflect, type Type interface, Fields() iter.Seq[StructField] #66631
-pkg reflect, type Type interface, Methods() iter.Seq[Method] #66631
-pkg reflect, type Type interface, Ins() iter.Seq[Type] #66631
-pkg reflect, type Type interface, Outs() iter.Seq[Type] #66631
-pkg reflect, method (Value) Fields() iter.Seq2[StructField, Value] #66631
-pkg reflect, method (Value) Methods() iter.Seq2[Method, Value] #66631

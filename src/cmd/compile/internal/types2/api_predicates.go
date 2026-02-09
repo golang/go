@@ -28,7 +28,7 @@ func AssertableTo(V *Interface, T Type) bool {
 // The behavior of AssignableTo is unspecified if V or T is Typ[Invalid] or an
 // uninstantiated generic type.
 func AssignableTo(V, T Type) bool {
-	x := operand{mode: value, typ: V}
+	x := operand{mode_: value, typ_: V}
 	ok, _ := x.assignableTo(nil, T, nil) // check not needed for non-constant x
 	return ok
 }
@@ -39,7 +39,7 @@ func AssignableTo(V, T Type) bool {
 // The behavior of ConvertibleTo is unspecified if V or T is Typ[Invalid] or an
 // uninstantiated generic type.
 func ConvertibleTo(V, T Type) bool {
-	x := operand{mode: value, typ: V}
+	x := operand{mode_: value, typ_: V}
 	return x.convertibleTo(nil, T, nil) // check not needed for non-constant x
 }
 

@@ -72,6 +72,9 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 		{"di", 7},
 	} {
 		thunkfunc := ldr.CreateSymForUpdate("__x86.get_pc_thunk."+r.name, 0)
+		if t := thunkfunc.Type(); t != 0 && t != sym.SXREF && t != sym.SDYNIMPORT && t != sym.SUNDEFEXT {
+			continue // symbol already exists, probably loaded from a C object
+		}
 		thunkfunc.SetType(sym.STEXT)
 		ldr.SetAttrLocal(thunkfunc.Sym(), true)
 		o := func(op ...uint8) {

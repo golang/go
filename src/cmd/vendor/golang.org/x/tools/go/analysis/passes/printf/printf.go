@@ -137,6 +137,7 @@ type wrapper struct {
 	callers []printfCaller
 }
 
+// printfCaller is a candidate print{,f} forwarding call from candidate wrapper w.
 type printfCaller struct {
 	w    *wrapper
 	call *ast.CallExpr // forwarding call (nil for implicit interface method -> impl calls)
@@ -246,7 +247,7 @@ func findPrintLike(pass *analysis.Pass, res *Result) {
 			switch lhs := lhs.(type) {
 			case *ast.Ident:
 				// variable: wrapf = func(...)
-				v = info.ObjectOf(lhs).(*types.Var)
+				v, _ = info.ObjectOf(lhs).(*types.Var)
 			case *ast.SelectorExpr:
 				if sel, ok := info.Selections[lhs]; ok {
 					// struct field: x.wrapf = func(...)
@@ -291,35 +292,35 @@ func findPrintLike(pass *analysis.Pass, res *Result) {
 	//   var _ Logger = myLogger{}
 	impls := methodImplementations(pass)
 
+	// doCall records a call from one wrapper to another.
+	doCall := func(w *wrapper, callee types.Object, call *ast.CallExpr) {
+		// Call from one wrapper candidate to another?
+		// Record the edge so that if callee is found to be
+		// a true wrapper, w will be too.
+		if w2, ok := byObj[callee]; ok {
+			w2.callers = append(w2.callers, printfCaller{w, call})
+		}
+
+		// Is the candidate a true wrapper, because it calls
+		// a known print{,f}-like function from the allowlist
+		// or an imported fact, or another wrapper found
+		// to be a true wrapper?
+		// If so, convert all w's callers to kind.
+		kind := callKind(pass, callee, res)
+		if kind != KindNone {
+			propagate(pass, w, call, kind, res)
+		}
+	}
+
 	// Pass 2: scan the body of each wrapper function
 	// for calls to other printf-like functions.
 	for _, w := range wrappers {
-
-		// doCall records a call from one wrapper to another.
-		doCall := func(callee types.Object, call *ast.CallExpr) {
-			// Call from one wrapper candidate to another?
-			// Record the edge so that if callee is found to be
-			// a true wrapper, w will be too.
-			if w2, ok := byObj[callee]; ok {
-				w2.callers = append(w2.callers, printfCaller{w, call})
-			}
-
-			// Is the candidate a true wrapper, because it calls
-			// a known print{,f}-like function from the allowlist
-			// or an imported fact, or another wrapper found
-			// to be a true wrapper?
-			// If so, convert all w's callers to kind.
-			kind := callKind(pass, callee, res)
-			if kind != KindNone {
-				checkForward(pass, w, call, kind, res)
-			}
-		}
 
 		// An interface method has no body, but acts
 		// like an implicit call to each implementing method.
 		if w.curBody.Inspector() == nil {
 			for impl := range impls[w.obj.(*types.Func)] {
-				doCall(impl, nil)
+				doCall(w, impl, nil)
 			}
 			continue // (no body)
 		}
@@ -360,7 +361,7 @@ func findPrintLike(pass *analysis.Pass, res *Result) {
 			case *ast.CallExpr:
 				if len(n.Args) > 0 && match(info, n.Args[len(n.Args)-1], w.args) {
 					if callee := typeutil.Callee(pass.TypesInfo, n); callee != nil {
-						doCall(callee, n)
+						doCall(w, callee, n)
 					}
 				}
 			}
@@ -414,44 +415,15 @@ func match(info *types.Info, arg ast.Expr, param *types.Var) bool {
 	return ok && info.ObjectOf(id) == param
 }
 
-// checkForward checks whether a forwarding wrapper is forwarding correctly.
-// If so, it propagates changes in wrapper kind information backwards
-// through through the wrapper.callers graph of forwarding calls.
-//
-// If not, it reports a diagnostic that the user wrote
-// fmt.Printf(format, args) instead of fmt.Printf(format, args...).
-func checkForward(pass *analysis.Pass, w *wrapper, call *ast.CallExpr, kind Kind, res *Result) {
+// propagate propagates changes in wrapper (non-None) kind information backwards
+// through through the wrapper.callers graph of well-formed forwarding calls.
+func propagate(pass *analysis.Pass, w *wrapper, call *ast.CallExpr, kind Kind, res *Result) {
 	// Check correct call forwarding.
-	// (Interface methods forward correctly by construction.)
-	if call != nil {
-		matched := kind == KindPrint ||
-			kind != KindNone && len(call.Args) >= 2 && match(pass.TypesInfo, call.Args[len(call.Args)-2], w.format)
-		if !matched {
-			return
-		}
-
-		if !call.Ellipsis.IsValid() {
-			typ, ok := pass.TypesInfo.Types[call.Fun].Type.(*types.Signature)
-			if !ok {
-				return
-			}
-			if len(call.Args) > typ.Params().Len() {
-				// If we're passing more arguments than what the
-				// print/printf function can take, adding an ellipsis
-				// would break the program. For example:
-				//
-				//   func foo(arg1 string, arg2 ...interface{}) {
-				//       fmt.Printf("%s %v", arg1, arg2)
-				//   }
-				return
-			}
-			desc := "printf"
-			if kind == KindPrint {
-				desc = "print"
-			}
-			pass.ReportRangef(call, "missing ... in args forwarded to %s-like function", desc)
-			return
-		}
+	//
+	// Interface methods (call==nil) forward
+	// correctly by construction.
+	if call != nil && !checkForward(pass, w, call, kind) {
+		return
 	}
 
 	// If the candidate's print{,f} status becomes known,
@@ -471,9 +443,48 @@ func checkForward(pass *analysis.Pass, w *wrapper, call *ast.CallExpr, kind Kind
 
 		// Propagate kind back to known callers.
 		for _, caller := range w.callers {
-			checkForward(pass, caller.w, caller.call, kind, res)
+			propagate(pass, caller.w, caller.call, kind, res)
 		}
 	}
+}
+
+// checkForward checks whether a call from wrapper w is a well-formed
+// forwarding call of the specified (non-None) kind.
+//
+// If not, it reports a diagnostic that the user wrote
+// fmt.Printf(format, args) instead of fmt.Printf(format, args...).
+func checkForward(pass *analysis.Pass, w *wrapper, call *ast.CallExpr, kind Kind) bool {
+	// Printf/Errorf calls must delegate the format string.
+	switch kind {
+	case KindPrintf, KindErrorf:
+		if len(call.Args) < 2 || !match(pass.TypesInfo, call.Args[len(call.Args)-2], w.format) {
+			return false
+		}
+	}
+
+	// The args... delegation must be variadic.
+	// (That args is actually delegated was
+	// established before the root call to doCall.)
+	if !call.Ellipsis.IsValid() {
+		typ, ok := pass.TypesInfo.Types[call.Fun].Type.(*types.Signature)
+		if !ok {
+			return false
+		}
+		if len(call.Args) > typ.Params().Len() {
+			// If we're passing more arguments than what the
+			// print/printf function can take, adding an ellipsis
+			// would break the program. For example:
+			//
+			//   func foo(arg1 string, arg2 ...interface{}) {
+			//       fmt.Printf("%s %v", arg1, arg2)
+			//   }
+			return false
+		}
+		pass.ReportRangef(call, "missing ... in args forwarded to %s-like function", kind)
+		return false
+	}
+
+	return true
 }
 
 func origin(obj types.Object) types.Object {

@@ -220,3 +220,22 @@ func BenchmarkHexEscapeNonASCII(b *testing.B) {
 		hexEscapeNonASCII(redirectURL)
 	}
 }
+
+func TestRemovePort(t *testing.T) {
+	tests := []struct {
+		in, want string
+	}{
+		{"example.com:8080", "example.com"},
+		{"example.com", "example.com"},
+		{"[2001:db8::1]:443", "[2001:db8::1]"},
+		{"[2001:db8::1]", "[2001:db8::1]"},
+		{"192.0.2.1:8080", "192.0.2.1"},
+		{"192.0.2.1", "192.0.2.1"},
+	}
+	for _, tc := range tests {
+		got := removePort(tc.in)
+		if got != tc.want {
+			t.Errorf("removePort(%q) = %q; want %q", tc.in, got, tc.want)
+		}
+	}
+}

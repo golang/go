@@ -314,7 +314,7 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 		return nil, err
 	}
 
-	if boring.Enabled && random == boring.RandReader &&
+	if boring.Enabled && rand.IsDefaultReader(random) &&
 		(bits == 2048 || bits == 3072 || bits == 4096) {
 		bN, bE, bD, bP, bQ, bDp, bDq, bQinv, err := boring.GenerateKeyRSA(bits)
 		if err != nil {

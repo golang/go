@@ -1615,6 +1615,8 @@ const (
 	IN_OPEN                                     = 0x20
 	IN_Q_OVERFLOW                               = 0x4000
 	IN_UNMOUNT                                  = 0x2000
+	IOCTL_MEI_CONNECT_CLIENT                    = 0xc0104801
+	IOCTL_MEI_CONNECT_CLIENT_VTAG               = 0xc0144804
 	IPPROTO_AH                                  = 0x33
 	IPPROTO_BEETPH                              = 0x5e
 	IPPROTO_COMP                                = 0x6c

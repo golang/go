@@ -507,6 +507,10 @@ func (t *worklist) propagate(block *Block) {
 				branchIdx = 1 - condLattice.val.AuxInt
 			} else {
 				branchIdx = condLattice.val.AuxInt
+				if branchIdx < 0 || branchIdx >= int64(len(block.Succs)) {
+					// unreachable code, do nothing then
+					break
+				}
 			}
 			t.edges = append(t.edges, block.Succs[branchIdx])
 		} else {

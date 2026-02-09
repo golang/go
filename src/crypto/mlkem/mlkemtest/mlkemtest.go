@@ -7,6 +7,7 @@ package mlkemtest
 
 import (
 	fips140mlkem "crypto/internal/fips140/mlkem"
+	"crypto/internal/fips140only"
 	"crypto/mlkem"
 	"errors"
 )
@@ -19,6 +20,9 @@ import (
 func Encapsulate768(ek *mlkem.EncapsulationKey768, random []byte) (sharedKey, ciphertext []byte, err error) {
 	if len(random) != 32 {
 		return nil, nil, errors.New("mlkemtest: Encapsulate768: random must be 32 bytes")
+	}
+	if fips140only.Enforced() {
+		return nil, nil, errors.New("crypto/mlkem/mlkemtest: use of derandomized encapsulation is not allowed in FIPS 140-only mode")
 	}
 	k, err := fips140mlkem.NewEncapsulationKey768(ek.Bytes())
 	if err != nil {
@@ -36,6 +40,9 @@ func Encapsulate768(ek *mlkem.EncapsulationKey768, random []byte) (sharedKey, ci
 func Encapsulate1024(ek *mlkem.EncapsulationKey1024, random []byte) (sharedKey, ciphertext []byte, err error) {
 	if len(random) != 32 {
 		return nil, nil, errors.New("mlkemtest: Encapsulate1024: random must be 32 bytes")
+	}
+	if fips140only.Enforced() {
+		return nil, nil, errors.New("crypto/mlkem/mlkemtest: use of derandomized encapsulation is not allowed in FIPS 140-only mode")
 	}
 	k, err := fips140mlkem.NewEncapsulationKey1024(ek.Bytes())
 	if err != nil {

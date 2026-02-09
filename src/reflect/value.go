@@ -362,6 +362,7 @@ func (v Value) CanSet() bool {
 // type of the function's corresponding input parameter.
 // If v is a variadic function, Call creates the variadic slice parameter
 // itself, copying in the corresponding values.
+// It panics if the Value was obtained by accessing unexported struct fields.
 func (v Value) Call(in []Value) []Value {
 	v.mustBe(Func)
 	v.mustBeExported()
@@ -375,6 +376,7 @@ func (v Value) Call(in []Value) []Value {
 // It returns the output results as Values.
 // As in Go, each input argument must be assignable to the
 // type of the function's corresponding input parameter.
+// It panics if the Value was obtained by accessing unexported struct fields.
 func (v Value) CallSlice(in []Value) []Value {
 	v.mustBe(Func)
 	v.mustBeExported()
@@ -3402,7 +3404,7 @@ func convertOp(dst, src *abi.Type) func(Value, Type) Value {
 		}
 
 	case String:
-		if dst.Kind() == abi.Slice && pkgPathFor(dst.Elem()) == "" {
+		if dst.Kind() == abi.Slice {
 			switch Kind(dst.Elem().Kind()) {
 			case Uint8:
 				return cvtStringBytes
@@ -3412,7 +3414,7 @@ func convertOp(dst, src *abi.Type) func(Value, Type) Value {
 		}
 
 	case Slice:
-		if dst.Kind() == abi.String && pkgPathFor(src.Elem()) == "" {
+		if dst.Kind() == abi.String {
 			switch Kind(src.Elem().Kind()) {
 			case Uint8:
 				return cvtBytesString

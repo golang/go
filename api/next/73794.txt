@@ -1,1 +1,0 @@
-pkg bytes, method (*Buffer) Peek(int) ([]uint8, error) #73794

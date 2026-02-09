@@ -7,7 +7,6 @@ package inline
 import (
 	"fmt"
 	"go/ast"
-	"go/token"
 	"go/types"
 	"slices"
 	"strings"
@@ -23,7 +22,6 @@ import (
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
-	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/moreiters"
 	"golang.org/x/tools/internal/packagepath"
 	"golang.org/x/tools/internal/refactor"
@@ -204,19 +202,12 @@ func (a *analyzer) inlineCall(call *ast.CallExpr, cur inspector.Cursor) {
 		var edits []analysis.TextEdit
 		if !lazyEdits {
 			// Inline the call.
-			content, err := a.readFile(call)
-			if err != nil {
-				a.pass.Reportf(call.Lparen, "invalid inlining candidate: cannot read source file: %v", err)
-				return
-			}
-			curFile := astutil.EnclosingFile(cur)
 			caller := &inline.Caller{
-				Fset:    a.pass.Fset,
-				Types:   a.pass.Pkg,
-				Info:    a.pass.TypesInfo,
-				File:    curFile,
-				Call:    call,
-				Content: content,
+				Fset:  a.pass.Fset,
+				Types: a.pass.Pkg,
+				Info:  a.pass.TypesInfo,
+				File:  astutil.EnclosingFile(cur),
+				Call:  call,
 				CountUses: func(pkgname *types.PkgName) int {
 					return moreiters.Len(a.index.Uses(pkgname))
 				},
@@ -245,15 +236,7 @@ func (a *analyzer) inlineCall(call *ast.CallExpr, cur inspector.Cursor) {
 				// The flag allows them to decline such fixes.
 				return
 			}
-			got := res.Content
-
-			for _, edit := range diff.Bytes(content, got) {
-				edits = append(edits, analysis.TextEdit{
-					Pos:     curFile.FileStart + token.Pos(edit.Start),
-					End:     curFile.FileStart + token.Pos(edit.End),
-					NewText: []byte(edit.New),
-				})
-			}
+			edits = res.Edits
 		}
 
 		a.pass.Report(analysis.Diagnostic{

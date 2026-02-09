@@ -73,7 +73,7 @@ var depsRules = `
 	internal/byteorder, internal/cpu, internal/goarch < internal/chacha8rand;
 	internal/goarch, math/bits < internal/strconv;
 
-	internal/cpu, internal/strconv < simd;
+	internal/cpu, internal/strconv < simd/archsimd;
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
 	internal/abi,
@@ -342,7 +342,6 @@ var depsRules = `
 	< internal/gover
 	< go/version
 	< go/token
-	< go/internal/scannerhooks
 	< go/scanner
 	< go/ast
 	< go/internal/typeparams;
@@ -659,7 +658,7 @@ var depsRules = `
 	net/http/httptrace,
 	mime/multipart,
 	log
-	< net/http/internal/httpcommon
+	< net/http/internal/httpcommon, net/http/internal/httpsfv
 	< net/http;
 
 	# HTTP-aware packages
@@ -709,7 +708,7 @@ var depsRules = `
 	< testing;
 
 	testing, math
-	< simd/internal/test_helpers;
+	< simd/archsimd/internal/test_helpers;
 
 	log/slog, testing
 	< testing/slogtest;

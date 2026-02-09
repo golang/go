@@ -137,8 +137,10 @@ func waitgroup(pass *analysis.Pass) (any, error) {
 		}
 
 		pass.Report(analysis.Diagnostic{
-			Pos:     addCall.Pos(),
-			End:     goStmt.End(),
+			// go func() {
+			// ~~~~~~~~~
+			Pos:     goStmt.Pos(),
+			End:     lit.Type.End(),
 			Message: "Goroutine creation can be simplified using WaitGroup.Go",
 			SuggestedFixes: []analysis.SuggestedFix{{
 				Message: "Simplify by using WaitGroup.Go",

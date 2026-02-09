@@ -71,7 +71,7 @@ func doPkgsite(urlPath, fragment string) error {
 		env = append(env, "GOPROXY="+gomodcache+","+goproxy)
 	}
 
-	const version = "v0.0.0-20250714212547-01b046e81fe7"
+	const version = "v0.0.0-20251223195805-1a3bd3c788fe"
 	cmd := exec.Command(goCmd(), "run", "golang.org/x/pkgsite/cmd/internal/doc@"+version,
 		"-gorepo", buildCtx.GOROOT,
 		"-http", addr,

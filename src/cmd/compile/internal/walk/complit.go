@@ -567,11 +567,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 			// lay out static data
 			vstat := readonlystaticname(t)
 
-			ctxt := inInitFunction
-			if n.Op() == ir.OARRAYLIT {
-				ctxt = inNonInitFunction
-			}
-			fixedlit(ctxt, initKindStatic, n, vstat, init)
+			fixedlit(inInitFunction, initKindStatic, n, vstat, init)
 
 			// copy static to var
 			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, vstat))

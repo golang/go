@@ -306,7 +306,7 @@ func (d *decodeBuffer) PreviousTokenOrValue() []byte {
 
 // PeekKind retrieves the next token kind, but does not advance the read offset.
 //
-// It returns 0 if an error occurs. Any such error is cached until
+// It returns [KindInvalid] if an error occurs. Any such error is cached until
 // the next read call and it is the caller's responsibility to eventually
 // follow up a PeekKind call with a read call.
 func (d *Decoder) PeekKind() Kind {
@@ -1154,9 +1154,9 @@ func (d *Decoder) StackDepth() int {
 // It must be a number between 0 and [Decoder.StackDepth], inclusive.
 // For each level, it reports the kind:
 //
-//   - 0 for a level of zero,
-//   - '{' for a level representing a JSON object, and
-//   - '[' for a level representing a JSON array.
+//   - [KindInvalid] for a level of zero,
+//   - [KindBeginObject] for a level representing a JSON object, and
+//   - [KindBeginArray] for a level representing a JSON array.
 //
 // It also reports the length of that JSON object or array.
 // Each name and value in a JSON object is counted separately,

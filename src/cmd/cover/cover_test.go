@@ -87,7 +87,7 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "debug: preserving tmpdir %s\n", topTmpdir)
 	}
 	os.Setenv("CMDCOVER_TEST_RUN_MAIN", "normal")
-	os.Exit(m.Run())
+	m.Run()
 }
 
 var tdmu sync.Mutex
@@ -637,4 +637,13 @@ func main() {
 	if err == nil {
 		t.Errorf("unexpected success; want failure due to newline in file path")
 	}
+}
+
+func TestAlignment(t *testing.T) {
+	// Test that cover data structures are aligned appropriately. See issue 58936.
+	testenv.MustHaveGoRun(t)
+	t.Parallel()
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", "-cover", filepath.Join(testdata, "align.go"), filepath.Join(testdata, "align_test.go"))
+	run(cmd, t)
 }

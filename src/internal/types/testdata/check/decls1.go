@@ -63,7 +63,7 @@ var (
 	t12 complex64 = -(u + *t11) / *&v
 	t13 int = a /* ERROR "shifted operand" */ << d
 	t14 int = i << j
-	t15 math /* ERROR "math is not a type" */
+	t15 math /* ERROR "math (package name) is not a type" */
 	t16 math.xxx /* ERROR "undefined" */
 	t17 math /* ERROR "not a type" */ .Pi
 	t18 float64 = math.Pi * 10.0
@@ -144,3 +144,10 @@ func init /* ERROR "no arguments and no return values" */ (int) {}
 func init /* ERROR "no arguments and no return values" */ () int { return 0 }
 func init /* ERROR "no arguments and no return values" */ (int) int { return 0 }
 func (T) init(int) int { return 0 }
+
+func _() {
+	var error error
+	var _ error /* ERROR "error (local variable) is not a type" */
+	_ = error
+}
+

@@ -61,7 +61,7 @@ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, erro
 		return nil, ErrMessageTooLong
 	}
 
-	if boring.Enabled && random == boring.RandReader {
+	if boring.Enabled && rand.IsDefaultReader(random) {
 		bkey, err := boringPublicKey(pub)
 		if err != nil {
 			return nil, err

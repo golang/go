@@ -472,29 +472,33 @@ func (t Token) Kind() Kind {
 	}
 }
 
+// A Kind represents the kind of a JSON token.
+//
 // Kind represents each possible JSON token kind with a single byte,
 // which is conveniently the first byte of that kind's grammar
-// with the restriction that numbers always be represented with '0':
-//
-//   - 'n': null
-//   - 'f': false
-//   - 't': true
-//   - '"': string
-//   - '0': number
-//   - '{': object begin
-//   - '}': object end
-//   - '[': array begin
-//   - ']': array end
-//
-// An invalid kind is usually represented using 0,
-// but may be non-zero due to invalid JSON data.
+// with the restriction that numbers always be represented with '0'.
 type Kind byte
+
+const (
+	KindInvalid     Kind = 0   // invalid kind
+	KindNull        Kind = 'n' // null
+	KindFalse       Kind = 'f' // false
+	KindTrue        Kind = 't' // true
+	KindString      Kind = '"' // string
+	KindNumber      Kind = '0' // number
+	KindBeginObject Kind = '{' // begin object
+	KindEndObject   Kind = '}' // end object
+	KindBeginArray  Kind = '[' // begin array
+	KindEndArray    Kind = ']' // end array
+)
 
 const invalidKind Kind = 0
 
 // String prints the kind in a humanly readable fashion.
 func (k Kind) String() string {
 	switch k {
+	case 0:
+		return "invalid"
 	case 'n':
 		return "null"
 	case 'f':
@@ -518,10 +522,31 @@ func (k Kind) String() string {
 	}
 }
 
-// normalize coalesces all possible starting characters of a number as just '0'.
+var normKind = [256]Kind{
+	'n': 'n',
+	'f': 'f',
+	't': 't',
+	'"': '"',
+	'{': '{',
+	'}': '}',
+	'[': '[',
+	']': ']',
+	'-': '0',
+	'0': '0',
+	'1': '0',
+	'2': '0',
+	'3': '0',
+	'4': '0',
+	'5': '0',
+	'6': '0',
+	'7': '0',
+	'8': '0',
+	'9': '0',
+}
+
+// normalize coalesces all possible starting characters of a number as just '0',
+// and converts all invalid kinds to 0.
 func (k Kind) normalize() Kind {
-	if k == '-' || ('0' <= k && k <= '9') {
-		return '0'
-	}
-	return k
+	// A lookup table keeps the inlining cost as low as possible.
+	return normKind[k]
 }

@@ -480,7 +480,7 @@ func isSpecializedMalloc(aux Aux) bool {
 	name := fn.String()
 	return strings.HasPrefix(name, "runtime.mallocgcSmallNoScanSC") ||
 		strings.HasPrefix(name, "runtime.mallocgcSmallScanNoHeaderSC") ||
-		strings.HasPrefix(name, "runtime.mallocTiny")
+		strings.HasPrefix(name, "runtime.mallocgcTinySize")
 }
 
 // canLoadUnaligned reports if the architecture supports unaligned load operations.
@@ -518,20 +518,15 @@ func log32(n int32) int64 { return log32u(uint32(n)) }
 func log64(n int64) int64 { return log64u(uint64(n)) }
 
 // logXu returns the logarithm of n base 2.
-// n must be a power of 2 (isUnsignedPowerOfTwo returns true)
+// n must be a power of 2 (isPowerOfTwo returns true)
 func log8u(n uint8) int64   { return int64(bits.Len8(n)) - 1 }
 func log16u(n uint16) int64 { return int64(bits.Len16(n)) - 1 }
 func log32u(n uint32) int64 { return int64(bits.Len32(n)) - 1 }
 func log64u(n uint64) int64 { return int64(bits.Len64(n)) - 1 }
 
 // isPowerOfTwoX functions report whether n is a power of 2.
-func isPowerOfTwo[T int8 | int16 | int32 | int64](n T) bool {
+func isPowerOfTwo[T int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64](n T) bool {
 	return n > 0 && n&(n-1) == 0
-}
-
-// isUnsignedPowerOfTwo reports whether n is an unsigned power of 2.
-func isUnsignedPowerOfTwo[T uint8 | uint16 | uint32 | uint64](n T) bool {
-	return n != 0 && n&(n-1) == 0
 }
 
 // is32Bit reports whether n can be represented as a signed 32 bit integer.
@@ -949,7 +944,8 @@ func disjointTypes(t1 *types.Type, t2 *types.Type) bool {
 	}
 
 	if !t1.IsPtr() || !t2.IsPtr() {
-		panic("disjointTypes: one of arguments is not a pointer")
+		// Treat non-pointer types (such as TFUNC, TMAP, uintptr) conservatively.
+		return false
 	}
 
 	t1 = t1.Elem()
@@ -1356,7 +1352,7 @@ func overlap(offset1, size1, offset2, size2 int64) bool {
 // check if value zeroes out upper 32-bit of 64-bit register.
 // depth limits recursion depth. In AMD64.rules 3 is used as limit,
 // because it catches same amount of cases as 4.
-func zeroUpper32Bits(x *Value, depth int) bool {
+func ZeroUpper32Bits(x *Value, depth int) bool {
 	if x.Type.IsSigned() && x.Type.Size() < 8 {
 		// If the value is signed, it might get re-sign-extended
 		// during spill and restore. See issue 68227.
@@ -1373,6 +1369,8 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 		OpAMD64SHRL, OpAMD64SHRLconst, OpAMD64SARL, OpAMD64SARLconst,
 		OpAMD64SHLL, OpAMD64SHLLconst:
 		return true
+	case OpAMD64MOVQconst:
+		return uint64(uint32(x.AuxInt)) == uint64(x.AuxInt)
 	case OpARM64REV16W, OpARM64REVW, OpARM64RBITW, OpARM64CLZW, OpARM64EXTRWconst,
 		OpARM64MULW, OpARM64MNEGW, OpARM64UDIVW, OpARM64DIVW, OpARM64UMODW,
 		OpARM64MADDW, OpARM64MSUBW, OpARM64RORW, OpARM64RORWconst:
@@ -1388,7 +1386,7 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 			return false
 		}
 		for i := range x.Args {
-			if !zeroUpper32Bits(x.Args[i], depth-1) {
+			if !ZeroUpper32Bits(x.Args[i], depth-1) {
 				return false
 			}
 		}
@@ -1398,14 +1396,16 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 	return false
 }
 
-// zeroUpper48Bits is similar to zeroUpper32Bits, but for upper 48 bits.
-func zeroUpper48Bits(x *Value, depth int) bool {
+// ZeroUpper48Bits is similar to ZeroUpper32Bits, but for upper 48 bits.
+func ZeroUpper48Bits(x *Value, depth int) bool {
 	if x.Type.IsSigned() && x.Type.Size() < 8 {
 		return false
 	}
 	switch x.Op {
 	case OpAMD64MOVWQZX, OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2:
 		return true
+	case OpAMD64MOVQconst, OpAMD64MOVLconst:
+		return uint64(uint16(x.AuxInt)) == uint64(x.AuxInt)
 	case OpArg: // note: but not ArgIntReg
 		return x.Type.Size() == 2 && x.Block.Func.Config.arch == "amd64"
 	case OpPhi, OpSelect0, OpSelect1:
@@ -1415,7 +1415,7 @@ func zeroUpper48Bits(x *Value, depth int) bool {
 			return false
 		}
 		for i := range x.Args {
-			if !zeroUpper48Bits(x.Args[i], depth-1) {
+			if !ZeroUpper48Bits(x.Args[i], depth-1) {
 				return false
 			}
 		}
@@ -1425,14 +1425,16 @@ func zeroUpper48Bits(x *Value, depth int) bool {
 	return false
 }
 
-// zeroUpper56Bits is similar to zeroUpper32Bits, but for upper 56 bits.
-func zeroUpper56Bits(x *Value, depth int) bool {
+// ZeroUpper56Bits is similar to ZeroUpper32Bits, but for upper 56 bits.
+func ZeroUpper56Bits(x *Value, depth int) bool {
 	if x.Type.IsSigned() && x.Type.Size() < 8 {
 		return false
 	}
 	switch x.Op {
 	case OpAMD64MOVBQZX, OpAMD64MOVBload, OpAMD64MOVBloadidx1:
 		return true
+	case OpAMD64MOVQconst, OpAMD64MOVLconst:
+		return uint64(uint8(x.AuxInt)) == uint64(x.AuxInt)
 	case OpArg: // note: but not ArgIntReg
 		return x.Type.Size() == 1 && x.Block.Func.Config.arch == "amd64"
 	case OpPhi, OpSelect0, OpSelect1:
@@ -1442,7 +1444,7 @@ func zeroUpper56Bits(x *Value, depth int) bool {
 			return false
 		}
 		for i := range x.Args {
-			if !zeroUpper56Bits(x.Args[i], depth-1) {
+			if !ZeroUpper56Bits(x.Args[i], depth-1) {
 				return false
 			}
 		}
@@ -2785,4 +2787,13 @@ func imakeOfStructMake(v *Value) *Value {
 		}
 	}
 	return v.Block.NewValue2(v.Pos, OpIMake, v.Type, v.Args[0], arg)
+}
+
+// bool2int converts bool to int: true to 1, false to 0
+func bool2int(x bool) int {
+	var b int
+	if x {
+		b = 1
+	}
+	return b
 }

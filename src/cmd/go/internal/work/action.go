@@ -109,11 +109,13 @@ type Action struct {
 	actionID         cache.ActionID // cache ID of action input
 	buildID          string         // build ID of action output
 
-	VetxOnly  bool       // Mode=="vet": only being called to supply info about dependencies
-	needVet   bool       // Mode=="build": need to fill in vet config
-	needBuild bool       // Mode=="build": need to do actual build (can be false if needVet is true)
-	vetCfg    *vetConfig // vet config
-	output    []byte     // output redirect buffer (nil means use b.Print)
+	VetxOnly   bool       // Mode=="vet": only being called to supply info about dependencies
+	needVet    bool       // Mode=="build": need to fill in vet config
+	needBuild  bool       // Mode=="build": need to do actual build (can be false if needVet is true)
+	needFix    bool       // Mode=="vet": need secondary target, a .zip file containing fixes
+	vetCfg     *vetConfig // vet config
+	FixArchive string     // the created .zip file containing fixes (if needFix)
+	output     []byte     // output redirect buffer (nil means use b.Print)
 
 	sh *Shell // lazily created per-Action shell; see Builder.Shell
 
@@ -869,9 +871,10 @@ func (b *Builder) cgoAction(p *load.Package, objdir string, deps []*Action, hasC
 // It depends on the action for compiling p.
 // If the caller may be causing p to be installed, it is up to the caller
 // to make sure that the install depends on (runs after) vet.
-func (b *Builder) VetAction(s *modload.State, mode, depMode BuildMode, p *load.Package) *Action {
+func (b *Builder) VetAction(s *modload.State, mode, depMode BuildMode, needFix bool, p *load.Package) *Action {
 	a := b.vetAction(s, mode, depMode, p)
 	a.VetxOnly = false
+	a.needFix = needFix
 	return a
 }
 

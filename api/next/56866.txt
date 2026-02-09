@@ -1,2 +1,0 @@
-pkg crypto/x509, method (ExtKeyUsage) String() string #56866
-pkg crypto/x509, method (KeyUsage) String() string #56866

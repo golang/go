@@ -91,6 +91,7 @@ stderr '-json and -diff cannot be used together'
 # Legacy way of selecting fixers is a no-op.
 go fix -fix=old1,old2 example.com/x
 stderr 'go fix: the -fix=old1,old2 flag is obsolete and has no effect'
+cp x.go.bak x.go
 
 # -c=n flag shows n lines of context.
 ! go vet -c=2 -printf example.com/x

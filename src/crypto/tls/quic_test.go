@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -478,6 +479,24 @@ func TestQUICStartContextPropagation(t *testing.T) {
 	if calls != 1 {
 		t.Errorf("GetConfigForClient called %v times, want 1", calls)
 	}
+}
+
+func TestQUICContextCancelation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	config := &QUICConfig{TLSConfig: testConfig.Clone()}
+	config.TLSConfig.MinVersion = VersionTLS13
+	cli := newTestQUICClient(t, config)
+	cli.conn.SetTransportParameters(nil)
+	srv := newTestQUICServer(t, config)
+	srv.conn.SetTransportParameters(nil)
+	// Verify that canceling the connection context concurrently does not cause any races.
+	// See https://go.dev/issue/77274.
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		_ = runTestQUICConnection(ctx, cli, srv, nil)
+	})
+	wg.Go(cancel)
+	wg.Wait()
 }
 
 func TestQUICDelayedTransportParameters(t *testing.T) {

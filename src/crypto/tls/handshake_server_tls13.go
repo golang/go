@@ -14,6 +14,7 @@ import (
 	"crypto/internal/fips140/tls13"
 	"crypto/rsa"
 	"crypto/tls/internal/fips140tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"hash"
@@ -369,8 +370,13 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		if sessionHasClientCerts && c.config.time().After(sessionState.peerCertificates[0].NotAfter) {
 			continue
 		}
+		opts := x509.VerifyOptions{
+			CurrentTime: c.config.time(),
+			Roots:       c.config.ClientCAs,
+			KeyUsages:   []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		}
 		if sessionHasClientCerts && c.config.ClientAuth >= VerifyClientCertIfGiven &&
-			len(sessionState.verifiedChains) == 0 {
+			!anyValidVerifiedChain(sessionState.verifiedChains, opts) {
 			continue
 		}
 
@@ -410,7 +416,9 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 				return err
 			}
 			earlyTrafficSecret := hs.earlySecret.ClientEarlyTrafficSecret(transcript)
-			c.quicSetReadSecret(QUICEncryptionLevelEarly, hs.suite.id, earlyTrafficSecret)
+			if err := c.quicSetReadSecret(QUICEncryptionLevelEarly, hs.suite.id, earlyTrafficSecret); err != nil {
+				return err
+			}
 		}
 
 		c.didResume = true
@@ -513,6 +521,14 @@ func (hs *serverHandshakeStateTLS13) sendDummyChangeCipherSpec() error {
 
 func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) (*keyShare, error) {
 	c := hs.c
+
+	// Make sure the client didn't send extra handshake messages alongside
+	// their initial client_hello. If they sent two client_hello messages,
+	// we will consume the second before they respond to the server_hello.
+	if c.hand.Len() != 0 {
+		c.sendAlert(alertUnexpectedMessage)
+		return nil, errors.New("tls: handshake buffer not empty before HelloRetryRequest")
+	}
 
 	// The first ClientHello gets double-hashed into the transcript upon a
 	// HelloRetryRequest. See RFC 8446, Section 4.4.1.
@@ -733,17 +749,18 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 	}
 	hs.handshakeSecret = earlySecret.HandshakeSecret(hs.sharedKey)
 
-	clientSecret := hs.handshakeSecret.ClientHandshakeTrafficSecret(hs.transcript)
-	c.in.setTrafficSecret(hs.suite, QUICEncryptionLevelHandshake, clientSecret)
 	serverSecret := hs.handshakeSecret.ServerHandshakeTrafficSecret(hs.transcript)
-	c.out.setTrafficSecret(hs.suite, QUICEncryptionLevelHandshake, serverSecret)
+	c.setWriteTrafficSecret(hs.suite, QUICEncryptionLevelHandshake, serverSecret)
+	clientSecret := hs.handshakeSecret.ClientHandshakeTrafficSecret(hs.transcript)
+	if err := c.setReadTrafficSecret(hs.suite, QUICEncryptionLevelHandshake, clientSecret); err != nil {
+		return err
+	}
 
 	if c.quic != nil {
-		if c.hand.Len() != 0 {
-			c.sendAlert(alertUnexpectedMessage)
-		}
 		c.quicSetWriteSecret(QUICEncryptionLevelHandshake, hs.suite.id, serverSecret)
-		c.quicSetReadSecret(QUICEncryptionLevelHandshake, hs.suite.id, clientSecret)
+		if err := c.quicSetReadSecret(QUICEncryptionLevelHandshake, hs.suite.id, clientSecret); err != nil {
+			return err
+		}
 	}
 
 	err := c.config.writeKeyLog(keyLogLabelClientHandshake, hs.clientHello.random, clientSecret)
@@ -887,13 +904,9 @@ func (hs *serverHandshakeStateTLS13) sendServerFinished() error {
 
 	hs.trafficSecret = hs.masterSecret.ClientApplicationTrafficSecret(hs.transcript)
 	serverSecret := hs.masterSecret.ServerApplicationTrafficSecret(hs.transcript)
-	c.out.setTrafficSecret(hs.suite, QUICEncryptionLevelApplication, serverSecret)
+	c.setWriteTrafficSecret(hs.suite, QUICEncryptionLevelApplication, serverSecret)
 
 	if c.quic != nil {
-		if c.hand.Len() != 0 {
-			// TODO: Handle this in setTrafficSecret?
-			c.sendAlert(alertUnexpectedMessage)
-		}
 		c.quicSetWriteSecret(QUICEncryptionLevelApplication, hs.suite.id, serverSecret)
 	}
 
@@ -1123,7 +1136,9 @@ func (hs *serverHandshakeStateTLS13) readClientFinished() error {
 		return errors.New("tls: invalid client finished hash")
 	}
 
-	c.in.setTrafficSecret(hs.suite, QUICEncryptionLevelApplication, hs.trafficSecret)
+	if err := c.setReadTrafficSecret(hs.suite, QUICEncryptionLevelApplication, hs.trafficSecret); err != nil {
+		return err
+	}
 
 	return nil
 }

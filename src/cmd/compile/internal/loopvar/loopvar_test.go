@@ -6,6 +6,7 @@ package loopvar_test
 
 import (
 	"internal/testenv"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -379,5 +380,64 @@ func TestLoopVarVersionDisableGoBuild(t *testing.T) {
 	}
 	if err == nil { // expect error
 		t.Errorf("err=%v == nil", err)
+	}
+}
+
+// TestLoopVarLineDirective tests that loopvar version detection works correctly
+// with line directives. This is a regression test for a bug where FileBase() was
+// used instead of Base(), causing incorrect version lookup when line directives
+// were present.
+func TestLoopVarLineDirective(t *testing.T) {
+	switch runtime.GOOS {
+	case "linux", "darwin":
+	default:
+		t.Skipf("Slow test, usually avoid it, os=%s not linux or darwin", runtime.GOOS)
+	}
+	switch runtime.GOARCH {
+	case "amd64", "arm64":
+	default:
+		t.Skipf("Slow test, usually avoid it, arch=%s not amd64 or arm64", runtime.GOARCH)
+	}
+
+	testenv.MustHaveGoBuild(t)
+	gocmd := testenv.GoToolPath(t)
+	tmpdir := t.TempDir()
+	output := filepath.Join(tmpdir, "foo.exe")
+
+	// Create a go.mod file with Go 1.21 to test compatibility behavior.
+	// When building with a higher Go compiler, the loopvar should be created per-loop.
+	gomodPath := filepath.Join(tmpdir, "go.mod")
+	if err := os.WriteFile(gomodPath, []byte("module test\n\ngo 1.21\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Copy the test file (with line directive) to the temporary module
+	testFile := "range_esc_closure_linedir.go"
+	srcPath := filepath.Join("testdata", testFile)
+	dstPath := filepath.Join(tmpdir, testFile)
+	src, err := os.ReadFile(srcPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dstPath, src, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Build the module (not as a single file, so go.mod is respected)
+	cmd := testenv.Command(t, gocmd, "build", "-o", output, ".")
+	cmd.Dir = tmpdir
+	b, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("build output: %s", b)
+		t.Fatal(err)
+	}
+	t.Logf("build output: %s", b)
+
+	cmd = testenv.Command(t, output)
+	b, err = cmd.CombinedOutput()
+	t.Logf("run output: %s", b)
+
+	if err != nil {
+		t.Errorf("expected success (exit code 0), got: %v", err)
 	}
 }

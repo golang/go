@@ -11,7 +11,7 @@
 package p
 
 import (
-	"simd"
+	"simd/archsimd"
 	"unsafe"
 )
 
@@ -20,19 +20,19 @@ func F(
 	tos *[2][4][4]float32,
 	blend int,
 ) {
-	tiny := simd.BroadcastFloat32x8(0)
+	tiny := archsimd.BroadcastFloat32x8(0)
 	for {
-		dstCol12 := simd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[0][0:]))))
-		dstCol34 := simd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[0][2:]))))
-		dstCol56 := simd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[1][0:]))))
-		dstCol78 := simd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[1][2:]))))
+		dstCol12 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[0][0:]))))
+		dstCol34 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[0][2:]))))
+		dstCol56 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[1][0:]))))
+		dstCol78 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[1][2:]))))
 
-		tosCol12 := simd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[0][0:]))))
-		tosCol34 := simd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[0][2:]))))
-		tosCol56 := simd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[1][0:]))))
-		tosCol78 := simd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[1][2:]))))
+		tosCol12 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[0][0:]))))
+		tosCol34 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[0][2:]))))
+		tosCol56 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[1][0:]))))
+		tosCol78 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[1][2:]))))
 
-		var Cr0, Cr1, Cr2 simd.Float32x8
+		var Cr0, Cr1, Cr2 archsimd.Float32x8
 		if blend != 0 {
 			invas := tosCol78.Max(tiny)
 			invad := dstCol78.Max(tiny)
@@ -42,7 +42,7 @@ func F(
 			Cs0 := tosCol12.Mul(invas)
 			Cs1 := tosCol34.Mul(invas)
 			Cs2 := tosCol56.Mul(invas)
-			var Cm0, Cm1, Cm2 simd.Float32x8
+			var Cm0, Cm1, Cm2 archsimd.Float32x8
 			switch blend {
 			case 4:
 			case 10:
@@ -61,7 +61,7 @@ func F(
 			Cr1 = dstCol78.Mul(Cs1).Mul(Cm1)
 			Cr2 = dstCol78.Mul(Cs2).Mul(Cm2)
 		}
-		var resR, resG, resB, resA simd.Float32x8
+		var resR, resG, resB, resA archsimd.Float32x8
 		if blend == 0 {
 			resR = tosCol12
 			resG = tosCol34

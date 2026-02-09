@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
+	"time"
 )
 
 func TestTransportNewClientConnRoundTrip(t *testing.T) { run(t, testTransportNewClientConnRoundTrip) }
@@ -283,12 +284,16 @@ func TestClientConnReserveAndConsume(t *testing.T) {
 				}
 
 				test.consume(t, cc, mode)
+				if mode == http1Mode || mode == https1Mode {
+					time.Sleep(http.MaxPostCloseReadTime)
+				}
 				synctest.Wait()
 
 				// State hook should be called, either to report the
-				// connection availability increasing or the connection closing.
-				if got, want := stateHookCalls, 1; got != want {
-					t.Errorf("connection state hook calls: %v, want %v", got, want)
+				// connection availability increasing or the connection closing,
+				// or both.
+				if stateHookCalls == 0 {
+					t.Errorf("connection state hook calls: %v, want >1", stateHookCalls)
 				}
 
 				if test.h1Closed && (mode == http1Mode || mode == https1Mode) {

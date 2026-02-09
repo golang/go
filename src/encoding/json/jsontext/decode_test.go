@@ -193,8 +193,8 @@ var decoderErrorTestdata = []struct {
 	name: jsontest.Name("InvalidStart"),
 	in:   ` #`,
 	calls: []decoderMethodCall{
-		{'#', zeroToken, newInvalidCharacterError("#", "at start of value").withPos(" ", ""), ""},
-		{'#', zeroValue, newInvalidCharacterError("#", "at start of value").withPos(" ", ""), ""},
+		{0, zeroToken, newInvalidCharacterError("#", "at start of value").withPos(" ", ""), ""},
+		{0, zeroValue, newInvalidCharacterError("#", "at start of value").withPos(" ", ""), ""},
 	},
 }, {
 	name: jsontest.Name("StreamN0"),

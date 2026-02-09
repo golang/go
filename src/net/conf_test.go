@@ -396,7 +396,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 	defer conf.teardown()
 
 	for _, tt := range tests {
-		if !conf.forceUpdateConf(tt.resolv, time.Now().Add(time.Hour)) {
+		if !conf.forceUpdateConf(tt.resolv, distantFuture) {
 			t.Errorf("%s: failed to change resolv config", tt.name)
 		}
 		for _, ht := range tt.hostTests {

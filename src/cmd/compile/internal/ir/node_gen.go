@@ -1188,6 +1188,9 @@ func (n *MoveToHeapExpr) doChildren(do func(Node) bool) bool {
 	if n.Slice != nil && do(n.Slice) {
 		return true
 	}
+	if n.RType != nil && do(n.RType) {
+		return true
+	}
 	return false
 }
 func (n *MoveToHeapExpr) doChildrenWithHidden(do func(Node) bool) bool {
@@ -1197,6 +1200,9 @@ func (n *MoveToHeapExpr) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
 	if n.Slice != nil {
 		n.Slice = edit(n.Slice).(Node)
+	}
+	if n.RType != nil {
+		n.RType = edit(n.RType).(Node)
 	}
 }
 func (n *MoveToHeapExpr) editChildrenWithHidden(edit func(Node) Node) {

@@ -1,1 +1,0 @@
-pkg crypto/rsa, func EncryptOAEPWithOptions(io.Reader, *PublicKey, []uint8, *OAEPOptions) ([]uint8, error) #65716

@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.26 (Nov 18, 2025)",
+	"Subtitle": "Language version go1.26 (Jan 12, 2026)",
 	"Path": "/ref/spec"
 }-->
 
@@ -3143,7 +3143,8 @@ math.Sin // denotes the Sin function in package math
 <p>
 Composite literals construct new values for structs, arrays, slices, and maps
 each time they are evaluated.
-They consist of the type of the literal followed by a brace-bound list of elements.
+They consist of the type of the literal followed by a (possibly empty)
+brace-bound list of elements.
 Each element may optionally be preceded by a corresponding key.
 </p>
 
@@ -3168,35 +3169,53 @@ as a TypeName).
 If the LiteralType is a type parameter, all types in its type set
 must have the same underlying type which must be
 a valid composite literal type.
-The types of the elements and keys must be <a href="#Assignability">assignable</a>
-to the respective field, element, and key types of type <code>T</code>;
-there is no additional conversion.
-The key is interpreted as a field name for struct literals,
-an index for array and slice literals, and a key for map literals.
-For map literals, all elements must have a key. It is an error
-to specify multiple elements with the same field name or
-constant key value. For non-constant map keys, see the section on
-<a href="#Order_of_evaluation">evaluation order</a>.
 </p>
 
 <p>
-For struct literals the following rules apply:
+The types of the elements and keys must be <a href="#Assignability">assignable</a>
+to the respective field, element, and key types of the LiteralType;
+there is no additional conversion.
+The key is interpreted as a field name for struct literals,
+an index for array and slice literals, and a key for map literals.
+It is an error to specify multiple elements with the same field name
+or constant key value.
+A literal may omit the element list; such a literal evaluates
+to the zero value for its type.
+</p>
+
+<p>
+A parsing ambiguity arises when a composite literal using the
+TypeName form of the LiteralType appears as an operand between the
+<a href="#Keywords">keyword</a> and the opening brace of the block
+of an "if", "for", or "switch" statement, and the composite literal
+is not enclosed in parentheses, square brackets, or curly braces.
+In this rare case, the opening brace of the literal is erroneously parsed
+as the one introducing the block of statements. To resolve the ambiguity,
+the composite literal must appear within parentheses.
+</p>
+
+<pre>
+if x == (T{a,b,c}[i]) { … }
+if (x == T{a,b,c}[i]) { … }
+</pre>
+
+<h4>Struct literals</h4>
+
+<p>
+For struct literals without keys, the element list must contain an element
+for each struct field in the order in which the fields are declared.
+</p>
+
+<p>
+For struct literals with keys the following rules apply:
 </p>
 <ul>
-	<li>A key must be a field name declared in the struct type.
+	<li>Every element must have a key.
 	</li>
-	<li>An element list that does not contain any keys must
-	    list an element for each struct field in the
-	    order in which the fields are declared.
+	<li>Each key must be a field name declared in the struct type.
 	</li>
-	<li>If any element has a key, every element must have a key.
-	</li>
-	<li>An element list that contains keys does not need to
-	    have an element for each struct field. Omitted fields
-	    get the zero value for that field.
-	</li>
-	<li>A literal may omit the element list; such a literal evaluates
-	    to the zero value for its type.
+	<li>The element list does not need to have an element for each struct field.
+	    Omitted fields get the zero value for that field.
 	</li>
 	<li>It is an error to specify an element for a non-exported
 	    field of a struct belonging to a different package.
@@ -3219,6 +3238,8 @@ one may write
 origin := Point3D{}                            // zero value for Point3D
 line := Line{origin, Point3D{y: -4, z: 12.3}}  // zero value for line.q.x
 </pre>
+
+<h4>Array and slice literals</h4>
 
 <p>
 For array and slice literals the following rules apply:
@@ -3295,6 +3316,16 @@ tmp := [n]T{x1, x2, … xn}
 tmp[0 : n]
 </pre>
 
+<h4>Map literals</h4>
+
+<p>
+For map literals, each element must have a key.
+For non-constant map keys, see the section on
+<a href="#Order_of_evaluation">evaluation order</a>.
+</p>
+
+<h4>Elision of element types</h4>
+
 <p>
 Within a composite literal of array, slice, or map type <code>T</code>,
 elements or map keys that are themselves composite literals may elide the respective
@@ -3313,22 +3344,6 @@ map[Point]string{{0, 0}: "orig"}    // same as map[Point]string{Point{0, 0}: "or
 type PPoint *Point
 [2]*Point{{1.5, -3.5}, {}}          // same as [2]*Point{&amp;Point{1.5, -3.5}, &amp;Point{}}
 [2]PPoint{{1.5, -3.5}, {}}          // same as [2]PPoint{PPoint(&amp;Point{1.5, -3.5}), PPoint(&amp;Point{})}
-</pre>
-
-<p>
-A parsing ambiguity arises when a composite literal using the
-TypeName form of the LiteralType appears as an operand between the
-<a href="#Keywords">keyword</a> and the opening brace of the block
-of an "if", "for", or "switch" statement, and the composite literal
-is not enclosed in parentheses, square brackets, or curly braces.
-In this rare case, the opening brace of the literal is erroneously parsed
-as the one introducing the block of statements. To resolve the ambiguity,
-the composite literal must appear within parentheses.
-</p>
-
-<pre>
-if x == (T{a,b,c}[i]) { … }
-if (x == T{a,b,c}[i]) { … }
 </pre>
 
 <p>
@@ -7496,7 +7511,7 @@ returns a received value along with an indication of whether the channel is clos
 <p>
 If the type of the argument to <code>close</code> is a
 <a href="#Type_parameter_declarations">type parameter</a>,
-all types in its type set must be channels with the same element type.
+all types in its type set must be channels.
 It is an error if any of those channels is a receive-only channel.
 </p>
 
@@ -7794,40 +7809,32 @@ min(x, y, z) == min(min(x, y), z)
 <h3 id="Allocation">Allocation</h3>
 
 <p>
-  The built-in function <code>new</code> creates a new, initialized
-  <a href="#Variables">variable</a> and returns
-  a <a href="#Pointer_types">pointer</a> to it.
-
-  It accepts a single argument, which may be either an expression or a type.
-</p>
-<p>
-  If the argument <code>expr</code> is an expression of
-  type <code>T</code>, or an untyped constant expression
-  whose <a href="#Constants">default type</a> is <code>T</code>,
-  then <code>new(expr)</code> allocates a variable of
-  type <code>T</code>, initializes it to the value
-  of <code>expr</code>, and returns its address, a value of
-  type <code>*T</code>.
-</p>
-<p>
-  If the argument is a type <code>T</code>, then <code>new(T)</code>
-  allocates a variable initialized to
-  the <a href="#The_zero_value">zero value</a> of type <code>T</code>.
-</p>
-<p>
-  For example, <code>new(123)</code> and <code>new(int)</code> each
-  return a pointer to a new variable of type <code>int</code>.
-
-  The value of the first variable is <code>123</code>, and the value
-  of the second is <code>0</code>.
+The built-in function <code>new</code> creates a new, initialized
+<a href="#Variables">variable</a> and returns
+a <a href="#Pointer_types">pointer</a> to it.
+It accepts a single argument, which may be either a type or an expression.
 </p>
 
-<pre class="grammar">
-new(T)
-</pre>
+<p>
+If the argument is a type <code>T</code>, then <code>new(T)</code>
+allocates a variable of type <code>T</code> initialized to its
+<a href="#The_zero_value">zero value</a>.
+</p>
 
 <p>
-For instance
+If the argument is an expression <code>x</code>, then <code>new(x)</code>
+allocates a variable of the type of <code>x</code> initialized to the value of <code>x</code>.
+If that value is an untyped constant, it is first implicitly <a href="#Conversions">converted</a>
+to its <a href="#Constants">default type</a>;
+if it is an untyped boolean value, it is first implicitly converted to type bool.
+The predeclared identifier <code>nil</code> cannot be used as an argument to <code>new</code>.
+</p>
+
+<p>
+For example, <code>new(int)</code> and <code>new(123)</code> each
+return a pointer to a new variable of type <code>int</code>.
+The value of the first variable is <code>0</code>, and the value
+of the second is <code>123</code>. Similarly
 </p>
 
 <pre>
@@ -7836,12 +7843,11 @@ new(S)
 </pre>
 
 <p>
-allocates storage for a variable of type <code>S</code>,
+allocates a variable of type <code>S</code>,
 initializes it (<code>a=0</code>, <code>b=0.0</code>),
 and returns a value of type <code>*S</code> containing the address
-of the location.
+of the variable.
 </p>
-
 
 <h3 id="Handling_panics">Handling panics</h3>
 
