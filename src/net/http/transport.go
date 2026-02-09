@@ -1771,11 +1771,11 @@ type ProxyConnectError struct {
 
 func (p *ProxyConnectError) Error() string {
 	// Don't return full Response.Status for backwards compatibility
-	f := strings.SplitN(p.Response.Status, " ", 2)
-	if len(f) < 2 {
+	_, statusString, found := strings.Cut(p.Response.Status, " ")
+	if !found {
 		return "unknown status code"
 	}
-	return f[1]
+	return statusString
 }
 
 var testHookProxyConnectTimeout = context.WithTimeout
