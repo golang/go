@@ -346,3 +346,62 @@ func TestRematerializeableRegCompatible(t *testing.T) {
 		t.Errorf("Expects an Copy to be issued, but got: %+v", f.f)
 	}
 }
+
+func TestPreload(t *testing.T) {
+	c := testConfig(t)
+	// amd64 has 13 general registers. We use 1 for ptr and 12 for x0-11.
+	// They all contain live values at the end of the entry block.
+	f := c.Fun("entry",
+		Bloc("entry",
+			Valu("ptr", OpArgIntReg, c.config.Types.Int8.PtrTo(), 0, &AuxNameOffset{Name: c.Temp(c.config.Types.Int8.PtrTo()), Offset: 0}),
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("x0", OpAMD64MOVBload, c.config.Types.Int8, 0, nil, "ptr", "mem"),
+			Valu("x1", OpAMD64MOVBload, c.config.Types.Int8, 1, nil, "ptr", "mem"),
+			Valu("x2", OpAMD64MOVBload, c.config.Types.Int8, 2, nil, "ptr", "mem"),
+			Valu("x3", OpAMD64MOVBload, c.config.Types.Int8, 3, nil, "ptr", "mem"),
+			Valu("x4", OpAMD64MOVBload, c.config.Types.Int8, 4, nil, "ptr", "mem"),
+			Valu("x5", OpAMD64MOVBload, c.config.Types.Int8, 5, nil, "ptr", "mem"),
+			Valu("x6", OpAMD64MOVBload, c.config.Types.Int8, 6, nil, "ptr", "mem"),
+			Valu("x7", OpAMD64MOVBload, c.config.Types.Int8, 7, nil, "ptr", "mem"),
+			Valu("x8", OpAMD64MOVBload, c.config.Types.Int8, 8, nil, "ptr", "mem"),
+			Valu("x9", OpAMD64MOVBload, c.config.Types.Int8, 9, nil, "ptr", "mem"),
+			Valu("x10", OpAMD64MOVBload, c.config.Types.Int8, 10, nil, "ptr", "mem"),
+			Valu("x11", OpAMD64MOVBload, c.config.Types.Int8, 11, nil, "ptr", "mem"),
+			Valu("init", OpAMD64MOVQconst, c.config.Types.Int64, 0, nil),
+			Goto("loopHead"),
+		),
+		Bloc("loopHead",
+			Valu("phi", OpPhi, c.config.Types.Int64, 0, nil, "init", "next"),
+			Valu("test", OpAMD64CMPQconst, types.TypeFlags, 10, nil, "phi"),
+			Lt("test", "loopBody", "exit"),
+		),
+		Bloc("loopBody",
+			Valu("next", OpAMD64ADDQconst, c.config.Types.Int64, 1, nil, "phi"),
+			Goto("loopHead"),
+		),
+		Bloc("exit",
+			Valu("m0", OpAMD64MOVBstore, types.TypeMem, 0, nil, "ptr", "x0", "mem"),
+			Valu("m1", OpAMD64MOVBstore, types.TypeMem, 1, nil, "ptr", "x1", "m0"),
+			Valu("m2", OpAMD64MOVBstore, types.TypeMem, 2, nil, "ptr", "x2", "m1"),
+			Valu("m3", OpAMD64MOVBstore, types.TypeMem, 3, nil, "ptr", "x3", "m2"),
+			Valu("m4", OpAMD64MOVBstore, types.TypeMem, 4, nil, "ptr", "x4", "m3"),
+			Valu("m5", OpAMD64MOVBstore, types.TypeMem, 5, nil, "ptr", "x5", "m4"),
+			Valu("m6", OpAMD64MOVBstore, types.TypeMem, 6, nil, "ptr", "x6", "m5"),
+			Valu("m7", OpAMD64MOVBstore, types.TypeMem, 7, nil, "ptr", "x7", "m6"),
+			Valu("m8", OpAMD64MOVBstore, types.TypeMem, 8, nil, "ptr", "x8", "m7"),
+			Valu("m9", OpAMD64MOVBstore, types.TypeMem, 9, nil, "ptr", "x9", "m8"),
+			Valu("m10", OpAMD64MOVBstore, types.TypeMem, 10, nil, "ptr", "x10", "m9"),
+			Valu("m11", OpAMD64MOVBstore, types.TypeMem, 11, nil, "ptr", "x11", "m10"),
+			Ret("m11"),
+		),
+	)
+	f.f.Blocks[1].Likely = BranchLikely
+	regalloc(f.f)
+	checkFunc(f.f)
+
+	v := f.values["phi"]
+	loc := f.f.RegAlloc[v.ID]
+	if _, ok := loc.(*Register); !ok {
+		t.Errorf("Expects to use a register for phi, but got: %s\n%v", loc, f.f)
+	}
+}

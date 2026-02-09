@@ -2015,7 +2015,27 @@ func (s *regAllocState) regalloc(f *Func) {
 				goto badloop
 			}
 
-			// TODO: sort by distance, pick the closest ones?
+			// Look into target block, find Phi arguments that come from b.
+			phiArgs := regValLiveSet // reuse this space
+			phiArgs.clear()
+			for _, v := range b.Succs[0].b.Values {
+				if v.Op == OpPhi {
+					phiArgs.add(v.Args[b.Succs[0].i].ID)
+				}
+			}
+
+			// Get mask of all registers that might be used soon in the destination.
+			// We don't want to kick values out of these registers, but we will
+			// kick out an unlikely-to-be-used value for a likely-to-be-used one.
+			var likelyUsedRegs regMask
+			for _, live := range s.live[b.ID] {
+				if live.dist < unlikelyDistance {
+					likelyUsedRegs |= s.values[live.ID].regs
+				}
+			}
+			// Promote values we're going to use soon in the destination to registers.
+			// Note that this iterates nearest-use first, as we sorted
+			// live lists by distance in computeLive.
 			for _, live := range s.live[b.ID] {
 				if live.dist >= unlikelyDistance {
 					// Don't preload anything live after the loop.
@@ -2023,14 +2043,41 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 				vid := live.ID
 				vi := &s.values[vid]
-				if vi.regs != 0 {
-					continue
-				}
-				if vi.rematerializeable {
-					continue
-				}
 				v := s.orig[vid]
-				m := s.compatRegs(v.Type) &^ s.used
+				if phiArgs.contains(vid) {
+					// A phi argument needs its value in a regular register,
+					// as returned by compatRegs. Being in a fixed register
+					// (e.g. the zero register) or being easily
+					// rematerializeable isn't enough.
+					if vi.regs&s.compatRegs(v.Type) != 0 {
+						continue
+					}
+				} else {
+					if vi.regs != 0 {
+						continue
+					}
+					if vi.rematerializeable {
+						// TODO: maybe we should not skip rematerializeable
+						// values here. One rematerialization outside the loop
+						// is better than N in the loop. But rematerializations
+						// are cheap, and spilling another value may not be.
+						// And we don't want to materialize the zero register
+						// into a different register when it is just the
+						// argument to a store.
+						continue
+					}
+				}
+				if vi.rematerializeable && s.f.Config.ctxt.Arch.Arch == sys.ArchWasm {
+					continue
+				}
+				// Registers we could load v into.
+				// Don't kick out other likely-used values.
+				m := s.compatRegs(v.Type) &^ likelyUsedRegs
+				if m == 0 {
+					// To many likely-used values to give them all a register.
+					continue
+				}
+
 				// Used desired register if available.
 			outerloop:
 				for _, e := range desired.entries {
@@ -2047,9 +2094,8 @@ func (s *regAllocState) regalloc(f *Func) {
 				if m&^desired.avoid != 0 {
 					m &^= desired.avoid
 				}
-				if m != 0 {
-					s.allocValToReg(v, m, false, b.Pos)
-				}
+				s.allocValToReg(v, m, false, b.Pos)
+				likelyUsedRegs |= s.values[v.ID].regs
 			}
 		}
 	badloop:
@@ -3127,6 +3173,17 @@ func (s *regAllocState) computeLive() {
 			}
 		}
 		unfinishedBlocks = unfinishedBlocks[:n]
+	}
+
+	// Sort live values in order of their nearest next use.
+	// Useful for promoting values to registers, nearest use first.
+	for _, b := range f.Blocks {
+		slices.SortFunc(s.live[b.ID], func(a, b liveInfo) int {
+			if a.dist != b.dist {
+				return cmp.Compare(a.dist, b.dist)
+			}
+			return cmp.Compare(a.ID, b.ID) // for deterministic sorting
+		})
 	}
 
 	s.computeDesired()
