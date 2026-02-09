@@ -25,8 +25,9 @@
 // checks that CancelFuncs are used on all control-flow paths.
 //
 // The [WithCancelCause], [WithDeadlineCause], and [WithTimeoutCause] functions
-// return a [CancelCauseFunc], which takes an error and records it as
-// the cancellation cause. Calling [Cause] on the canceled context
+// return a [CancelCauseFunc], which takes an error and records it as the cancellattion cause.
+// [WithDeadlineCause] and [WithTimeoutCause] take a cause to use after the deadline has elapsed.
+// Calling [Cause] on the canceled context
 // or any of its children retrieves the cause. If no cause is specified,
 // Cause(ctx) returns the same value as ctx.Err().
 //
