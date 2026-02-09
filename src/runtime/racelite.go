@@ -90,32 +90,39 @@ func (r *raceliteVirtualRegister) claim(addr uintptr, gp *g) bool {
 		r.owner.Store(unsafe.Pointer(gp))
 		unlock(&r.lock)
 		return true
+
 	case addr:
 		// The virtual register is already occupied by the same address.
 		// This only happens if another writer intercepted the write.
 		// We are, therefore, dealing with a write-write race.
-		//
+		unlock(&r.lock)
+
 		// Write the stacks of the current goroutine and the
 		// virtual register claimant on the system stack.
-		unlock(&r.lock)
+		//
+		// We stop the world to prevent jumbling the stacks.
 		stw := stopTheWorld(stwRacelite)
+
+		// We need to move to the system stack to walk
+		// the stack of the current goroutine.
 		systemstack(func() {
 			print("RACELITE TRIGGERED: write-write race at",
 				" addr= ", hex(addr),
 				" goid=", gp.goid,
 				"\n")
-			print("WRITE AT\n")
 			traceback(^uintptr(0), ^uintptr(0), 0, gp)
+			print("\n")
 			if gp2 := (*g)(raceliteReg.owner.Load()); gp2 != nil {
-				print("WRITE AT\n")
 				traceback(^uintptr(0), ^uintptr(0), 0, gp2)
 			} else {
-				print("WRITER LOST")
+				print("writer: stack lost\n")
 			}
 			println("RACELITE END")
 		})
+
 		startTheWorld(stw)
 		return false
+
 	default:
 		// The virtual register is already occupied by another address.
 		unlock(&r.lock)
@@ -134,7 +141,15 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, gp *g, readfirst bool) b
 		// This can only occurr if another writer intercepted the write.
 		// Check whether we are being written to.
 		unlock(&r.lock)
+
+		// Write the stacks of the current goroutine and the
+		// virtual register claimant on the system stack.
+		//
+		// We stop the world to prevent jumbling the stacks.
 		stw := stopTheWorld(stwRacelite)
+
+		// We need to move to the system stack to walk
+		// the stack of the current goroutine.
 		systemstack(func() {
 			if readfirst {
 				print("RACELITE TRIGGERED: read-write race at",
@@ -147,18 +162,16 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, gp *g, readfirst bool) b
 					" goid= ", gp.goid,
 					"\n")
 			}
-			print("READ AT\n")
 			traceback(^uintptr(0), ^uintptr(0), 0, gp)
-
+			println()
 			if gp2 := (*g)(raceliteReg.owner.Load()); gp2 != nil {
-				print("WRITE AT\n")
 				traceback(^uintptr(0), ^uintptr(0), 0, gp2)
 			} else {
-				print("WRITER LOST")
+				print("writer: stack lost\n")
 			}
-
 			println("RACELITE END")
 		})
+
 		startTheWorld(stw)
 		return true
 	}
@@ -302,56 +315,3 @@ func inStack(addr uintptr) bool {
 	releasem(mp)
 	return inStack
 }
-
-/*
-
-Sample program we can currently detect:
-
-$ GOEXPERIMENT=nosizespecializedmalloc GODEBUG=racelite=1 go run -gcflags='-racelite' . |& grep 'RACELITE: multiple concurrent writes'
-
-or via stress, which fails maybe 15% of the time:
-
-$ GOEXPERIMENT=nosizespecializedmalloc GODEBUG=racelite=1 stress -p 2 go run -gcflags='-racelite' .
-
-$ cat t.go
-
-package main
-
-import (
-	"fmt"
-	"sync"
-	"time"
-)
-
-type Foo struct{ a, b, c int } // 24 bytes; avoids tiny allocator.
-
-func main() {
-	start := time.Now()
-	v := Foo{}
-	p := &v
-
-	// Do two racy writes.
-	var wg sync.WaitGroup
-	// var mu sync.Mutex
-	for range 2 {
-		wg.Go(func() {
-			for range 10000 {
-				// mu.Lock()
-				// Without the mutex, both goroutines have a data race on writing to p.c here.
-				// This triggers racelitewrite, and we detect the race (some percent of time)!
-				// If we uncomment the mutex, then no race is reported.
-				p.c = 2
-
-				// mu.Unlock()
-			}
-		})
-	}
-	wg.Wait()
-	sink = &p
-	println(v.c)
-	fmt.Println("done in", time.Since(start))
-}
-
-var sink any
-
-*/
