@@ -1,8 +1,11 @@
-// Copyright 2025 The Go Authors. All rights reserved.
+// Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package flate
+
+// This file contains functions for loading and storing integers in little endian format.
+// These can be replaced with unsafe versions if deemed necessary.
 
 type indexer interface {
 	int | int8 | int16 | int32 | int64 | uint | uint8 | uint16 | uint32 | uint64

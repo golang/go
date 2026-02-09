@@ -1,13 +1,18 @@
-// Copyright 2025 The Go Authors. All rights reserved.
+// Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package flate
 
+const (
+	l2TableBits = 17               // Bits used in level 2 table
+	l2TableSize = 1 << l2TableBits // Size of the level 2 table
+)
+
 // Level 2 uses a similar algorithm to level 1, but with a larger table.
 type fastEncL2 struct {
 	fastGen
-	table [bTableSize]tableEntry
+	table [l2TableSize]tableEntry
 }
 
 func (e *fastEncL2) encode(dst *tokens, src []byte) {
@@ -67,7 +72,7 @@ func (e *fastEncL2) encode(dst *tokens, src []byte) {
 		nextS := s
 		var candidate tableEntry
 		for {
-			nextHash := hashLen(cv, bTableBits, hashBytes)
+			nextHash := hashLen(cv, l2TableBits, hashBytes)
 			s = nextS
 			nextS = s + doEvery + (s-nextEmit)>>skipLog
 			if nextS > sLimit {
@@ -76,7 +81,7 @@ func (e *fastEncL2) encode(dst *tokens, src []byte) {
 			candidate = e.table[nextHash]
 			now := loadLE64(src, nextS)
 			e.table[nextHash] = tableEntry{offset: s + e.cur}
-			nextHash = hashLen(now, bTableBits, hashBytes)
+			nextHash = hashLen(now, l2TableBits, hashBytes)
 
 			offset := s - (candidate.offset - e.cur)
 			if offset < maxMatchOffset && uint32(cv) == loadLE32(src, candidate.offset-e.cur) {
@@ -130,7 +135,7 @@ func (e *fastEncL2) encode(dst *tokens, src []byte) {
 				// Index first pair after match end.
 				if int(s+l+8) < len(src) {
 					cv := loadLE64(src, s)
-					e.table[hashLen(cv, bTableBits, hashBytes)] = tableEntry{offset: s + e.cur}
+					e.table[hashLen(cv, l2TableBits, hashBytes)] = tableEntry{offset: s + e.cur}
 				}
 				goto emitRemainder
 			}
@@ -138,15 +143,15 @@ func (e *fastEncL2) encode(dst *tokens, src []byte) {
 			// Store every second hash in-between, but offset by 1.
 			for i := s - l + 2; i < s-5; i += 7 {
 				x := loadLE64(src, i)
-				nextHash := hashLen(x, bTableBits, hashBytes)
+				nextHash := hashLen(x, l2TableBits, hashBytes)
 				e.table[nextHash] = tableEntry{offset: e.cur + i}
 				// Skip one
 				x >>= 16
-				nextHash = hashLen(x, bTableBits, hashBytes)
+				nextHash = hashLen(x, l2TableBits, hashBytes)
 				e.table[nextHash] = tableEntry{offset: e.cur + i + 2}
 				// Skip one
 				x >>= 16
-				nextHash = hashLen(x, bTableBits, hashBytes)
+				nextHash = hashLen(x, l2TableBits, hashBytes)
 				e.table[nextHash] = tableEntry{offset: e.cur + i + 4}
 			}
 
@@ -156,11 +161,11 @@ func (e *fastEncL2) encode(dst *tokens, src []byte) {
 			// at s+1.
 			x := loadLE64(src, s-2)
 			o := e.cur + s - 2
-			prevHash := hashLen(x, bTableBits, hashBytes)
-			prevHash2 := hashLen(x>>8, bTableBits, hashBytes)
+			prevHash := hashLen(x, l2TableBits, hashBytes)
+			prevHash2 := hashLen(x>>8, l2TableBits, hashBytes)
 			e.table[prevHash] = tableEntry{offset: o}
 			e.table[prevHash2] = tableEntry{offset: o + 1}
-			currHash := hashLen(x>>16, bTableBits, hashBytes)
+			currHash := hashLen(x>>16, l2TableBits, hashBytes)
 			candidate = e.table[currHash]
 			e.table[currHash] = tableEntry{offset: o + 2}
 

@@ -1,22 +1,26 @@
-// Copyright 2025 The Go Authors. All rights reserved.
+// Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package flate
+
+const (
+	l3TableBits = 16               // Bits used in level 3 table
+	l3TableSize = 1 << l3TableBits // Size of the level 3 table
+)
 
 // Level 3 uses a similar algorithm to level 2, with a smaller table,
 // but will check up two candidates for each iteration with more
 // entries added to the table.
 type fastEncL3 struct {
 	fastGen
-	table [1 << 16]tableEntryPrev
+	table [l3TableSize]tableEntryPrev
 }
 
 func (e *fastEncL3) encode(dst *tokens, src []byte) {
 	const (
 		inputMargin            = 12 - 1
 		minNonLiteralBlockSize = 1 + 1 + inputMargin
-		tableBits              = 16
 		hashBytes              = 5
 	)
 
@@ -72,7 +76,7 @@ func (e *fastEncL3) encode(dst *tokens, src []byte) {
 		nextS := s
 		var candidate tableEntry
 		for {
-			nextHash := hashLen(cv, tableBits, hashBytes)
+			nextHash := hashLen(cv, l3TableBits, hashBytes)
 			s = nextS
 			nextS = s + 1 + (s-nextEmit)>>skipLog
 			if nextS > sLimit {
@@ -150,7 +154,7 @@ func (e *fastEncL3) encode(dst *tokens, src []byte) {
 				// Index first pair after match end.
 				if int(t+8) < len(src) && t > 0 {
 					cv = loadLE64(src, t)
-					nextHash := hashLen(cv, tableBits, hashBytes)
+					nextHash := hashLen(cv, l3TableBits, hashBytes)
 					e.table[nextHash] = tableEntryPrev{
 						prev: e.table[nextHash].cur,
 						cur:  tableEntry{offset: e.cur + t},
@@ -161,7 +165,7 @@ func (e *fastEncL3) encode(dst *tokens, src []byte) {
 
 			// Store every 5th hash in-between.
 			for i := s - l + 2; i < s-5; i += 6 {
-				nextHash := hashLen(loadLE64(src, i), tableBits, hashBytes)
+				nextHash := hashLen(loadLE64(src, i), l3TableBits, hashBytes)
 				e.table[nextHash] = tableEntryPrev{
 					prev: e.table[nextHash].cur,
 					cur:  tableEntry{offset: e.cur + i}}
@@ -169,21 +173,21 @@ func (e *fastEncL3) encode(dst *tokens, src []byte) {
 			// We could immediately start working at s now, but to improve
 			// compression we first update the hash table at s-2 to s.
 			x := loadLE64(src, s-2)
-			prevHash := hashLen(x, tableBits, hashBytes)
+			prevHash := hashLen(x, l3TableBits, hashBytes)
 
 			e.table[prevHash] = tableEntryPrev{
 				prev: e.table[prevHash].cur,
 				cur:  tableEntry{offset: e.cur + s - 2},
 			}
 			x >>= 8
-			prevHash = hashLen(x, tableBits, hashBytes)
+			prevHash = hashLen(x, l3TableBits, hashBytes)
 
 			e.table[prevHash] = tableEntryPrev{
 				prev: e.table[prevHash].cur,
 				cur:  tableEntry{offset: e.cur + s - 1},
 			}
 			x >>= 8
-			currHash := hashLen(x, tableBits, hashBytes)
+			currHash := hashLen(x, l3TableBits, hashBytes)
 			candidates := e.table[currHash]
 			cv = x
 			e.table[currHash] = tableEntryPrev{

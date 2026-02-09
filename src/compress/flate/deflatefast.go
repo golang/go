@@ -33,17 +33,14 @@ func newFastEnc(level int) fastEnc {
 }
 
 const (
-	tableBits       = 15             // Bits used in the table
-	tableSize       = 1 << tableBits // Size of the table
-	hashLongBytes   = 7              // Bytes used for long table hash
-	baseMatchOffset = 1              // The smallest match offset
-	baseMatchLength = 3              // The smallest match length per the RFC section 3.2.5
-	maxMatchOffset  = 1 << 15        // The largest match offset
-
-	bTableBits   = 17                                               // Bits used in the big tables
-	bTableSize   = 1 << bTableBits                                  // Size of the table
-	allocHistory = maxStoreBlockSize * 5                            // Size to preallocate for history.
-	bufferReset  = (1 << 31) - allocHistory - maxStoreBlockSize - 1 // Reset the buffer offset when reaching this.
+	tableBits       = 15                                               // Bits used in the table
+	tableSize       = 1 << tableBits                                   // Size of the table
+	hashLongBytes   = 7                                                // Bytes used for long table hash
+	baseMatchOffset = 1                                                // The smallest match offset
+	baseMatchLength = 3                                                // The smallest match length per the RFC section 3.2.5
+	maxMatchOffset  = 1 << 15                                          // The largest match offset
+	allocHistory    = maxStoreBlockSize * 5                            // Size to preallocate for history.
+	bufferReset     = (1 << 31) - allocHistory - maxStoreBlockSize - 1 // Reset the buffer offset when reaching this.
 )
 
 const (
