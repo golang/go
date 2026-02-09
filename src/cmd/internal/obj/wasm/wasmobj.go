@@ -77,6 +77,23 @@ var Register = map[string]int16{
 	"F30": REG_F30,
 	"F31": REG_F31,
 
+	"V0":  REG_V0,
+	"V1":  REG_V1,
+	"V2":  REG_V2,
+	"V3":  REG_V3,
+	"V4":  REG_V4,
+	"V5":  REG_V5,
+	"V6":  REG_V6,
+	"V7":  REG_V7,
+	"V8":  REG_V8,
+	"V9":  REG_V9,
+	"V10": REG_V10,
+	"V11": REG_V11,
+	"V12": REG_V12,
+	"V13": REG_V13,
+	"V14": REG_V14,
+	"V15": REG_V15,
+
 	"PC_B": REG_PC_B,
 }
 
@@ -584,7 +601,8 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
-		case AI32Load, AI64Load, AF32Load, AF64Load, AI32Load8S, AI32Load8U, AI32Load16S, AI32Load16U, AI64Load8S, AI64Load8U, AI64Load16S, AI64Load16U, AI64Load32S, AI64Load32U:
+		case AI32Load, AI64Load, AF32Load, AF64Load, AI32Load8S, AI32Load8U, AI32Load16S, AI32Load16U,
+			AI64Load8S, AI64Load8U, AI64Load16S, AI64Load16U, AI64Load32S, AI64Load32U, AV128Load:
 			if p.From.Type == obj.TYPE_MEM {
 				as := p.As
 				from := p.From
@@ -804,6 +822,8 @@ func genWasmImportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 				p = appendp(p, AF32Load, constAddr(loadOffset))
 			case obj.WasmF64:
 				p = appendp(p, AF64Load, constAddr(loadOffset))
+			case obj.WasmV128:
+				p = appendp(p, AV128Load, constAddr(loadOffset))
 			case obj.WasmPtr:
 				p = appendp(p, AI32Load, constAddr(loadOffset))
 			case obj.WasmBool:
@@ -853,6 +873,11 @@ func genWasmImportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 				p = appendp(p, AGet, regAddr(REG_SP))
 				p = appendp(p, AGet, regAddr(REG_F16))
 				p = appendp(p, AF64Store, constAddr(storeOffset))
+			case obj.WasmV128:
+				p = appendp(p, ASet, regAddr(REG_V0))
+				p = appendp(p, AGet, regAddr(REG_SP))
+				p = appendp(p, AGet, regAddr(REG_V0))
+				p = appendp(p, AV128Store, constAddr(storeOffset))
 			case obj.WasmPtr:
 				p = appendp(p, AI64ExtendI32U)
 				p = appendp(p, ASet, regAddr(REG_R0))
@@ -917,6 +942,8 @@ func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 			p = appendp(p, AF32Store, constAddr(f.Offset))
 		case obj.WasmF64:
 			p = appendp(p, AF64Store, constAddr(f.Offset))
+		case obj.WasmV128:
+			p = appendp(p, AV128Store, constAddr(f.Offset))
 		case obj.WasmPtr:
 			p = appendp(p, AI64ExtendI32U)
 			p = appendp(p, AI64Store, constAddr(f.Offset))
@@ -978,6 +1005,8 @@ func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 			p = appendp(p, AF32Load, constAddr(f.Offset))
 		case obj.WasmF64:
 			p = appendp(p, AF64Load, constAddr(f.Offset))
+		case obj.WasmV128:
+			p = appendp(p, AV128Load, constAddr(f.Offset))
 		case obj.WasmPtr:
 			p = appendp(p, AI32Load, constAddr(f.Offset))
 		case obj.WasmBool:
@@ -1118,7 +1147,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		regs := []int16{REG_SP}
-		for reg := int16(REG_R0); reg <= REG_F31; reg++ {
+		for reg := int16(REG_R0); reg <= REG_V15; reg++ {
 			if regUsed[reg-MINREG] {
 				regs = append(regs, reg)
 			}
@@ -1228,6 +1257,13 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		case obj.ANOP, obj.ATEXT, obj.AFUNCDATA, obj.APCDATA:
 			// ignore
 			continue
+
+		case AV128Const:
+			writeOpcode(w, AV128Const)
+			// Despite what the spec implies, this is the format of a 128-bit constant.
+			writeLE64(w, p.From.Offset)
+			writeLE64(w, p.To.Offset)
+			continue
 		}
 
 		writeOpcode(w, p.As)
@@ -1283,6 +1319,22 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				panic("bad type for Call")
 			}
 
+		case AI8x16ExtractLaneS,
+			AI8x16ExtractLaneU,
+			AI8x16ReplaceLane,
+			AI16x8ExtractLaneS,
+			AI16x8ExtractLaneU,
+			AI16x8ReplaceLane,
+			AI32x4ExtractLane,
+			AI32x4ReplaceLane,
+			AI64x2ExtractLane,
+			AI64x2ReplaceLane,
+			AF32x4ExtractLane,
+			AF32x4ReplaceLane,
+			AF64x2ExtractLane,
+			AF64x2ReplaceLane:
+			writeUleb128(w, uint64(p.To.Offset))
+
 		case ACallIndirect:
 			writeUleb128(w, uint64(p.To.Offset))
 			w.WriteByte(0x00) // reserved value
@@ -1314,12 +1366,13 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			binary.LittleEndian.PutUint64(b, math.Float64bits(p.From.Val.(float64)))
 			w.Write(b)
 
-		case AI32Load, AI64Load, AF32Load, AF64Load, AI32Load8S, AI32Load8U, AI32Load16S, AI32Load16U, AI64Load8S, AI64Load8U, AI64Load16S, AI64Load16U, AI64Load32S, AI64Load32U:
+		case AI32Load, AI64Load, AF32Load, AF64Load, AI32Load8S, AI32Load8U, AI32Load16S, AI32Load16U,
+			AI64Load8S, AI64Load8U, AI64Load16S, AI64Load16U, AI64Load32S, AI64Load32U, AV128Load:
 			if p.From.Offset < 0 {
 				panic("negative offset for *Load")
 			}
 			if p.From.Type != obj.TYPE_CONST {
-				panic("bad type for *Load")
+				panic(fmt.Errorf("bad type for *Load, wanted TYPE_CONST, got %v", p.From.Type))
 			}
 			if p.From.Offset > math.MaxUint32 {
 				ctxt.Diag("bad offset in %v", p)
@@ -1327,7 +1380,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			writeUleb128(w, align(p.As))
 			writeUleb128(w, uint64(p.From.Offset))
 
-		case AI32Store, AI64Store, AF32Store, AF64Store, AI32Store8, AI32Store16, AI64Store8, AI64Store16, AI64Store32:
+		case AI32Store, AI64Store, AF32Store, AF64Store, AI32Store8, AI32Store16, AI64Store8, AI64Store16, AI64Store32, AV128Store:
 			if p.To.Offset < 0 {
 				panic("negative offset")
 			}
@@ -1373,9 +1426,21 @@ func writeOpcode(w *bytes.Buffer, as obj.As) {
 		w.WriteByte(byte(as - ALocalGet + 0x20))
 	case as < AI32TruncSatF32S:
 		w.WriteByte(byte(as - AI32Load + 0x28))
-	case as < ALast:
+	case as < AV128Load:
 		w.WriteByte(0xFC)
 		w.WriteByte(byte(as - AI32TruncSatF32S + 0x00))
+	case as < AI16x8Abs: // [AV128Load, AI16x8Abs)
+		w.WriteByte(0xFD)
+		writeUleb128(w, uint64(as-AV128Load+0x00))
+	case as < AI8x16RelaxedSwizzle: // [AI16x8Abs, AI8x16RelaxedSwizzle)
+		w.WriteByte(0xFD)
+		writeUleb128(w, uint64(as-AI16x8Abs+0x80))
+		w.WriteByte(0x01)
+	case as <= AI32x4RelaxedDotI8x16I7x16AddS: // [AI8x16RelaxedSwizzle, AI32x4RelaxedDotI8x16I7x16AddS]
+		w.WriteByte(0xFD)
+		writeUleb128(w, uint64(as-AI8x16RelaxedSwizzle+0x80))
+		w.WriteByte(0x02)
+
 	default:
 		panic(fmt.Sprintf("unexpected assembler op: %s", as))
 	}
@@ -1384,10 +1449,11 @@ func writeOpcode(w *bytes.Buffer, as obj.As) {
 type valueType byte
 
 const (
-	i32 valueType = 0x7F
-	i64 valueType = 0x7E
-	f32 valueType = 0x7D
-	f64 valueType = 0x7C
+	i32  valueType = 0x7F
+	i64  valueType = 0x7E
+	f32  valueType = 0x7D
+	f64  valueType = 0x7C
+	v128 valueType = 0x7b
 )
 
 func regType(reg int16) valueType {
@@ -1400,6 +1466,8 @@ func regType(reg int16) valueType {
 		return f32
 	case reg >= REG_F16 && reg <= REG_F31:
 		return f64
+	case reg >= REG_V0 && reg <= REG_V15:
+		return v128
 	default:
 		panic("invalid register")
 	}
@@ -1415,6 +1483,8 @@ func align(as obj.As) uint64 {
 		return 2
 	case AI64Load, AF64Load, AI64Store, AF64Store:
 		return 3
+	case AV128Load, AV128Store:
+		return 0 // TODO do we want more alignment
 	default:
 		panic("align: bad op")
 	}
@@ -1448,5 +1518,12 @@ func writeSleb128(w io.ByteWriter, v int64) {
 			c |= 0x80
 		}
 		w.WriteByte(c)
+	}
+}
+
+func writeLE64(w io.ByteWriter, v int64) {
+	for i := 0; i < 8; i++ {
+		w.WriteByte(uint8(v & 0xff))
+		v >>= 8
 	}
 }
