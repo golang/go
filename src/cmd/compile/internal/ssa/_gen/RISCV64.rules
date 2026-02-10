@@ -859,3 +859,22 @@
 (Max64  x y) && buildcfg.GORISCV64 >= 22 => (MAX  x y)
 (Min64u x y) && buildcfg.GORISCV64 >= 22 => (MINU x y)
 (Max64u x y) && buildcfg.GORISCV64 >= 22 => (MAXU x y)
+
+// Conditional selection (note that these will only be emitted for rva23u64 and above)
+(CondSelect <t> x y cond) =>
+	(OR (CZEROEQZ <t> x (MOVBUreg <typ.UInt64> cond)) (CZERONEZ <t> y (MOVBUreg <typ.UInt64> cond)))
+(CZERO(EQ|NE)Z x (SNEZ y)) => (CZERO(EQ|NE)Z x y)
+(CZERO(EQ|NE)Z x (SEQZ y)) => (CZERO(NE|EQ)Z x y)
+(CZEROEQZ x x) => x
+(CZERONEZ x x) => (MOVDconst [0])
+(CZERO(EQ|NE)Z (MOVDconst [0]) _) => (MOVDconst [0])
+
+// Optimize conditional arithmetic operations
+(OR (CZEROEQZ <t> x cond) (CZERONEZ <t> ((ADD|SUB|OR|XOR|SUBW) x y) cond)) => ((ADD|SUB|OR|XOR|SUBW) x (CZERONEZ <t> y cond))
+(OR (CZEROEQZ <t> ((ADD|SUB|OR|XOR|SUBW) x y) cond) (CZERONEZ <t> x cond)) => ((ADD|SUB|OR|XOR|SUBW) x (CZEROEQZ <t> y cond))
+(OR x:(CZEROEQZ z cond) (CZERONEZ y:(AND z _) cond)) => (OR y x)
+(OR (CZEROEQZ x:(AND z _) cond) y:(CZERONEZ z cond)) => (OR x y)
+(OR x:(CZEROEQZ z cond) (CZERONEZ y:(ANDI <t> [c] z) cond)) => (OR y x)
+(OR (CZEROEQZ x:(ANDI <t> [c] z) cond) y:(CZERONEZ z cond)) => (OR x y)
+(OR (CZEROEQZ <t> x cond) (CZERONEZ <t> ((ADDI|ORI|XORI) [c] x) cond)) => ((ADD|OR|XOR) x (CZERONEZ <t> (MOVDconst [c]) cond))
+(OR (CZEROEQZ <t> ((ADDI|ORI|XORI) [c] x) cond) (CZERONEZ <t> x cond)) => ((ADD|OR|XOR) x (CZEROEQZ <t> (MOVDconst [c]) cond))

@@ -528,6 +528,10 @@ func init() {
 		//   ====+=============================
 		{name: "FCLASSS", argLength: 1, reg: fpgp, asm: "FCLASSS", typ: "Int64"}, // classify float32
 		{name: "FCLASSD", argLength: 1, reg: fpgp, asm: "FCLASSD", typ: "Int64"}, // classify float64
+
+		// RISC-V Integer Conditional (Zicond) operations extension
+		{name: "CZEROEQZ", argLength: 2, reg: gp21, asm: "CZEROEQZ"}, // arg1 == 0 result is 0, else arg0
+		{name: "CZERONEZ", argLength: 2, reg: gp21, asm: "CZERONEZ"}, // arg1 != 0 result is 0, else arg0
 	}
 
 	RISCV64blocks := []blockData{
