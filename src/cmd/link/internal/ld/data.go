@@ -2777,6 +2777,11 @@ func (ctxt *Link) textaddress() {
 		ldr.SetSymValue(etext, int64(va))
 		ldr.SetSymValue(text, int64(Segtext.Sections[0].Vaddr))
 	}
+	if ctxt.IsWindows() {
+		// .pdata entries should be sorted by address, so process them now
+		// that we have final addresses for the text symbols.
+		collectSEH(ctxt)
+	}
 }
 
 // assigns address for a text symbol, returns (possibly new) section, its number, and the address.
