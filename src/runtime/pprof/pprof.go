@@ -171,7 +171,6 @@ import (
 // holds a lock for 1s while 5 other goroutines are waiting for the entire
 // second to acquire the lock, its unlock call stack will report 5s of
 // contention.
-
 type Profile struct {
 	name  string
 	mu    sync.Mutex
