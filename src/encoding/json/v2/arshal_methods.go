@@ -135,7 +135,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				b2, err := marshaler.MarshalText()
 				return append(b, b2...), err
 			}); err != nil {
-				err = wrapSkipFunc(err, "marshal method")
+				err = wrapErrUnsupported(err, "MarshalText method")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalText") // unlike unmarshal, always wrapped
 				}
@@ -158,7 +158,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			}
 			appender, _ := reflect.TypeAssert[encoding.TextAppender](va.Addr())
 			if err := export.Encoder(enc).AppendRaw('"', false, appender.AppendText); err != nil {
-				err = wrapSkipFunc(err, "append method")
+				err = wrapErrUnsupported(err, "AppendText method")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 					return internal.NewMarshalerError(va.Addr().Interface(), err, "AppendText") // unlike unmarshal, always wrapped
 				}
@@ -182,7 +182,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			marshaler, _ := reflect.TypeAssert[Marshaler](va.Addr())
 			val, err := marshaler.MarshalJSON()
 			if err != nil {
-				err = wrapSkipFunc(err, "marshal method")
+				err = wrapErrUnsupported(err, "MarshalJSON method")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalJSON") // unlike unmarshal, always wrapped
 				}
@@ -221,7 +221,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				err = errNonSingularValue
 			}
 			if err != nil {
-				err = wrapSkipFunc(err, "marshal method")
+				err = wrapErrUnsupported(err, "MarshalJSONTo method")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalJSONTo") // unlike unmarshal, always wrapped
 				}
@@ -255,7 +255,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			s := jsonwire.UnquoteMayCopy(val, flags.IsVerbatim())
 			unmarshaler, _ := reflect.TypeAssert[encoding.TextUnmarshaler](va.Addr())
 			if err := unmarshaler.UnmarshalText(s); err != nil {
-				err = wrapSkipFunc(err, "unmarshal method")
+				err = wrapErrUnsupported(err, "UnmarshalText method")
 				if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 					return err // unlike marshal, never wrapped
 				}
@@ -282,7 +282,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			}
 			unmarshaler, _ := reflect.TypeAssert[Unmarshaler](va.Addr())
 			if err := unmarshaler.UnmarshalJSON(val); err != nil {
-				err = wrapSkipFunc(err, "unmarshal method")
+				err = wrapErrUnsupported(err, "UnmarshalJSON method")
 				if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 					return err // unlike marshal, never wrapped
 				}
@@ -315,7 +315,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				err = errNonSingularValue
 			}
 			if err != nil {
-				err = wrapSkipFunc(err, "unmarshal method")
+				err = wrapErrUnsupported(err, "UnmarshalJSONFrom method")
 				if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 					if err2 := xd.SkipUntil(prevDepth, prevLength+1); err2 != nil {
 						return err2
