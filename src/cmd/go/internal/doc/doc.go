@@ -129,6 +129,8 @@ Flags:
 		Treat a command (package main) like a regular package.
 		Otherwise package main's exported symbols are hidden
 		when showing the package's top-level documentation.
+	-ex
+		Include executable examples.
   	-http
 		Serve HTML docs over HTTP.
 	-short
@@ -163,6 +165,7 @@ var (
 	chdir      string // -C flag
 	showAll    bool   // -all flag
 	showCmd    bool   // -cmd flag
+	showEx     bool   // -ex flag
 	showSrc    bool   // -src flag
 	short      bool   // -short flag
 	serveHTTP  bool   // -http flag
@@ -191,6 +194,7 @@ func do(ctx context.Context, writer io.Writer, flagSet *flag.FlagSet, args []str
 	flagSet.BoolVar(&unexported, "u", false, "show unexported symbols as well as exported")
 	flagSet.BoolVar(&matchCase, "c", false, "symbol matching honors case (paths not affected)")
 	flagSet.BoolVar(&showAll, "all", false, "show all documentation for package")
+	flagSet.BoolVar(&showEx, "ex", false, "show executable examples for symbol or package")
 	flagSet.BoolVar(&showCmd, "cmd", false, "show symbols with package docs even if package is a command")
 	flagSet.BoolVar(&showSrc, "src", false, "show source code for symbol")
 	flagSet.BoolVar(&short, "short", false, "one-line representation for each symbol")

@@ -750,6 +750,143 @@ var tests = []test{
 		[]string{`other fields elided`},
 	},
 
+	// Package with -ex.
+	{
+		"package with -ex",
+		[]string{`-ex`, p},
+		[]string{
+			`func ExampleExportedFunc\(\)`,
+			`func ExampleExportedType\(\)`,
+			`func Example\(\)`,
+			`func Example_multiline\(\)`,
+			`func Example_playable\(\)`,
+		},
+		nil,
+	},
+
+	// Type with -ex.
+	{
+		"type with -ex",
+		[]string{`-ex`, p, `ExportedType`},
+		[]string{
+			`func ExampleExportedType\(\)`,
+			`func ExampleExportedType_ExportedMethod\(\)`,
+		},
+		nil,
+	},
+
+	// Function with -ex.
+	{
+		"function with -ex",
+		[]string{`-ex`, p, `ExportedFunc`},
+		[]string{
+			`func ExampleExportedFunc\(\)`,
+			`Function example.`,
+			`func ExampleExportedFunc_two\(\)`,
+			`Function example two.`,
+		},
+		nil,
+	},
+
+	// Method with -ex.
+	{
+		"method with -ex",
+		[]string{`-ex`, p, `ExportedType.ExportedMethod`},
+		[]string{
+			`func ExampleExportedType_ExportedMethod\(\)`,
+			`Method example.`,
+		},
+		nil,
+	},
+
+	// Package example.
+	{
+		"package example",
+		[]string{p, `Example`},
+		[]string{
+			`fmt.Println\("Package example output"\)`,
+			`Output: Package example output`,
+		},
+		[]string{`func Example\(\)`},
+	},
+
+	// Multiline output example.
+	{
+		"multiline output example",
+		[]string{p, `Example_multiline`},
+		[]string{
+			`fmt.Println\("Multiline\\nexample\\noutput"\)`,
+			"Output: \nMultiline\nexample\noutput",
+		},
+		[]string{`Output: Multiline example output`},
+	},
+
+	// Type example.
+	{
+		"type example",
+		[]string{p, `ExampleExportedType`},
+		[]string{
+			`fmt.Println\("Type example output"\)`,
+			`Output: Type example output`,
+		},
+		[]string{`func ExampleExportedType\(\)`},
+	},
+
+	// Function example.
+	{
+		"function example",
+		[]string{p, `ExampleExportedFunc`},
+		[]string{
+			`fmt.Println\("Function example output"\)`,
+			`Output: Function example output`,
+		},
+		[]string{
+			`func ExampleExportedFunc\(\)`,
+			`fmt.Println\("Function example two output"\)`,
+			`Output: Function example two output`,
+		},
+	},
+
+	// Function example two.
+	{
+		"function example",
+		[]string{p, `ExampleExportedFunc_two`},
+		[]string{
+			`fmt.Println\("Function example two output"\)`,
+			`Output: Function example two output`,
+		},
+		[]string{
+			`func ExampleExportedFunc_two\(\)`,
+			`fmt.Println\("Function example output"\)`,
+			`Output: Function example output`,
+		},
+	},
+
+	// Method example.
+	{
+		"method example",
+		[]string{p, `ExampleExportedType_ExportedMethod`},
+		[]string{
+			`fmt.Println\("Method example output"\)`,
+			`Output: Method example output`,
+		},
+		[]string{`func ExampleExportedType_ExportedMethod\(\)`},
+	},
+
+	// Playable example.
+	{
+		"playable example",
+		[]string{p, `Example_playable`},
+		[]string{
+			`package main`,
+			`func main\(\) {`,
+			`fmt.Println\("Playable example output"\)`,
+			`}`,
+			`Output: Playable example output`,
+		},
+		[]string{`func Example_playable\(\)`},
+	},
+
 	// Case matching off.
 	{
 		"case matching off",
