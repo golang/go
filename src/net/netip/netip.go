@@ -1592,5 +1592,23 @@ func (p Prefix) String() string {
 	if !p.IsValid() {
 		return "invalid Prefix"
 	}
-	return p.ip.String() + "/" + strconv.Itoa(p.Bits())
+	var b []byte
+	switch {
+	case p.ip.z == z4:
+		const maxCap = len("255.255.255.255/32")
+		b = make([]byte, 0, maxCap)
+		b = p.ip.appendTo4(b)
+	case p.ip.Is4In6():
+		const maxCap = len("::ffff:255.255.255.255/32")
+		b = make([]byte, 0, maxCap)
+		b = append(b, "::ffff:"...)
+		b = p.ip.Unmap().appendTo4(b)
+	default:
+		const maxCap = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128")
+		b = make([]byte, 0, maxCap)
+		b = p.ip.appendTo6(b)
+	}
+	b = append(b, '/')
+	b = appendDecimal(b, uint8(p.Bits()))
+	return string(b)
 }
