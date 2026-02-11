@@ -24,10 +24,10 @@
 // child and its children until the parent is canceled. The go vet tool
 // checks that CancelFuncs are used on all control-flow paths.
 //
+/// A context may be canceled with a cause, where the cause is an error
+// describing the reason for cancellation in more detail.
 // The [WithCancelCause], [WithDeadlineCause], and [WithTimeoutCause] functions
-// return a [CancelCauseFunc], which takes an error and records it as the cancellattion cause.
-// [WithDeadlineCause] and [WithTimeoutCause] take a cause to use after the deadline has elapsed.
-// Calling [Cause] on the canceled context
+// set the cause for a canceled context. Calling [Cause] on the canceled context
 // or any of its children retrieves the cause. If no cause is specified,
 // Cause(ctx) returns the same value as ctx.Err().
 //
