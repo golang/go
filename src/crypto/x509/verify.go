@@ -253,6 +253,10 @@ type rfc2821Mailbox struct {
 	local, domain string
 }
 
+func (s rfc2821Mailbox) String() string {
+	return fmt.Sprintf("%s@%s", s.local, s.domain)
+}
+
 // parseRFC2821Mailbox parses an email address into local and domain parts,
 // based on the ABNF for a “Mailbox” from RFC 2821. According to RFC 5280,
 // Section 4.2.1.6 that's correct for an rfc822Name from a certificate: “The
