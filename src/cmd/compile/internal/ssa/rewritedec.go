@@ -242,12 +242,16 @@ func rewriteValuedec_OpIData(v *Value) bool {
 	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (IData (IMake _ data))
+	// cond: data.Op != OpStructMake && data.Op != OpArrayMake1
 	// result: data
 	for {
 		if v_0.Op != OpIMake {
 			break
 		}
 		data := v_0.Args[1]
+		if !(data.Op != OpStructMake && data.Op != OpArrayMake1) {
+			break
+		}
 		v.copyOf(data)
 		return true
 	}
