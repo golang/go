@@ -375,7 +375,7 @@ func (dnc *dnsConstraints) query(s string) (string, bool) {
 		return constraint, true
 	}
 
-	if !dnc.permitted && s[0] == '*' {
+	if !dnc.permitted && len(s) > 0 && s[0] == '*' {
 		trimmed := trimFirstLabel(s)
 		if constraint, found := dnc.parentConstraints[trimmed]; found {
 			return constraint, true
