@@ -1180,7 +1180,6 @@ top:
 	// maybe a better spot outside STW.
 	if debug.racelite > 0 {
 		raceliteCheckAddrRand = cheaprand()
-		raceliteCheckWordRand = cheaprand()
 	}
 
 	// Perform mark termination. This will restart the world.

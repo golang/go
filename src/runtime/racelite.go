@@ -15,19 +15,21 @@ import (
 // And in general, we certainly can improve from this very first cut.
 
 const (
-	// raceliteIdle is the state of a virtual register when it is not being written to.
-	raceliteIdle = 0
-	// raceliteWriting is the state of a virtual register when it is being written to.
-	raceliteWriting = 1
+	// raceliteShift is the number of bits to shift the
+	// address. We use raceliteShift to compute the number of
+	// virtual registers we have.
+	raceliteShift = 4
+
+	// raceliteRegNum is the number of virtual registers we have.
+	// It is a power of 2.
+	raceliteRegNum = 1 << raceliteShift
+
+	// raceliteCheckAddrMask selects an address suffix which
+	// can be monitored for racelite.
+	raceliteCheckAddrMask = (1 << (4 * raceliteShift)) - 1
 )
 
 var (
-	// raceliteCheckAddrMask controls how often we check addresses for racelite.
-	// Currently, for proof-of-concept, we set to check 1 out of 16 addresses to make
-	// results come back very quickly, but a "real" system could be much higher.
-	// We would pick a higher value to keep overhead manageable.
-	raceliteCheckAddrMask = (1 << 4) - 1
-
 	// raceliteCheckAddrRand allows us to randomize which addresses we check for racelite,
 	// but to do so in a way we get a consistent answer per address across concurrent readers
 	// and writers.
@@ -36,23 +38,33 @@ var (
 	// could have the compiler emit the check -- probably important to do or at least
 	// try if were were to pursue this general approach.
 	raceliteCheckAddrRand uint32 = 0
-
-	// raceliteCheckWordRand allows us to randomize which offset we check for racelite within
-	// a given object, which helps prevent us from having different words from the same object
-	// interfere with each other.
-	raceliteCheckWordRand uint32 = 0
-
-	// raceliteCheckAddrMask = (1 << 10) - 1 // check 1 out of 1024 addresses
 )
 
-// raceliteVirtualRegister is a virtual register that can be used to store an address.
+// raceliteVirtualRegister is a virtual register that can be used to
+// dynamically monitor an address for data races.
 type raceliteVirtualRegister struct {
-	lock  mutex          // lock ensures that the virtual register maintains a consistent state
-	addr  uintptr        // the address currently being monitored in the virtual register
-	owner unsafe.Pointer // the writer currently claiming the virtual register
+	lock       mutex          // lock ensures that the virtual register maintains a consistent state
+	addr       uintptr        // the address currently being monitored in the virtual register
+	owner      unsafe.Pointer // the writer currently claiming the virtual register
+	count      uint64         // the number of times the virtual register has been claimed
+	identifier uint32         // the identifier of the virtual register
 }
 
-var raceliteReg *raceliteVirtualRegister = new(raceliteVirtualRegister)
+var raceliteReg [raceliteRegNum]*raceliteVirtualRegister
+
+func raceliteinit() {
+	if debug.racelite <= 0 {
+		return
+	}
+	for i := 0; i < raceliteRegNum; i++ {
+		raceliteReg[i] = new(raceliteVirtualRegister)
+		raceliteReg[i].identifier = uint32(i)
+	}
+}
+
+func raceliteget(addr uintptr) *raceliteVirtualRegister {
+	return raceliteReg[(addr>>3)&(raceliteRegNum-1)]
+}
 
 func micropause() {
 	// Now record our write, followed by a small delay to let someone see it.
@@ -78,6 +90,7 @@ func (r *raceliteVirtualRegister) claim(addr uintptr, gp *g) bool {
 		// The writer can claim it.
 		r.addr = addr
 		r.owner = unsafe.Pointer(gp)
+		r.count++
 		unlock(&r.lock)
 		return true
 
@@ -100,7 +113,7 @@ func (r *raceliteVirtualRegister) claim(addr uintptr, gp *g) bool {
 		// We need to move to the system stack to walk
 		// the stack of the current goroutine.
 		systemstack(func() {
-			print("RACELITE TRIGGERED: write-write race at",
+			print("VR", r.identifier, " RACELITE TRIGGERED: write-write race at",
 				" addr= ", hex(addr),
 				"\n")
 			traceback(^uintptr(0), ^uintptr(0), 0, gp)
@@ -146,14 +159,14 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, gp *g, readfirst bool) b
 	// the stack of the current goroutine.
 	systemstack(func() {
 		if readfirst {
-			print("RACELITE TRIGGERED: read-write race at",
+			print("VR", r.identifier, " RACELITE TRIGGERED: read-write race at",
 				" addr= ", hex(addr),
 				"\n")
 			traceback(^uintptr(0), ^uintptr(0), 0, gp)
 			println()
 			traceback(^uintptr(0), ^uintptr(0), 0, gp2)
 		} else {
-			print("RACELITE TRIGGERED: write-read race at",
+			print("VR", r.identifier, " RACELITE TRIGGERED: write-read race at",
 				" addr= ", hex(addr),
 				"\n")
 			traceback(^uintptr(0), ^uintptr(0), 0, gp2)
@@ -195,10 +208,10 @@ func racelitewrite(addr uintptr) {
 		// We are not sampling this address.
 		return
 	}
-	gp := getg()
+	gp, r := getg(), raceliteget(addr)
 
 	// Check the status of the virtual register.
-	if !raceliteReg.claim(addr, gp) {
+	if !r.claim(addr, gp) {
 		// We did not claim the virtual register.
 		// It was either claimed by another writer, or
 		// we had a write-write race.
@@ -208,7 +221,7 @@ func racelitewrite(addr uintptr) {
 	micropause()
 
 	// Release the virtual register.
-	raceliteReg.release()
+	r.release()
 }
 
 // raceliteread instruments a load operation with data race detection,
@@ -229,9 +242,9 @@ func raceliteread(addr uintptr) {
 		// We are not sampling this address.
 		return
 	}
-	gp := getg()
+	gp, r := getg(), raceliteget(addr)
 
-	if raceliteReg.monitor(addr, gp, false) {
+	if r.monitor(addr, gp, false) {
 		// We had a write-read race.
 		return
 	}
@@ -239,7 +252,7 @@ func raceliteread(addr uintptr) {
 	micropause()
 
 	// Check for a read-write race.
-	raceliteReg.monitor(addr, gp, true)
+	r.monitor(addr, gp, true)
 }
 
 func raceliteCheckAddr(addr uintptr) bool {
@@ -252,7 +265,7 @@ func raceliteCheckAddr(addr uintptr) bool {
 	// Check that we are sampling this address.
 	//
 	// FIXME(vsaioc): At the moment, we always sample when debugging.
-	if !diag() && !(uint32(addr>>3)^raceliteCheckAddrRand == 0) {
+	if !diag() && uint32(addr>>(3+raceliteShift))&raceliteCheckAddrMask != raceliteCheckAddrRand {
 		// Not checking this addr. This is the common case.
 		if diag() {
 			print("RACELITE write: not checking addr=", hex(addr), "\n")
@@ -278,7 +291,6 @@ func diag() bool {
 // inStack checks if addr is in the current goroutine's stack.
 func inStack(addr uintptr) bool {
 	// TODO(thepudds): probably want to make sure we are not preempted.
-	// TODO(vsaioc): is the check through mp.preemptoff or mp.curg.preempt?
 	mp := acquirem()
 	inStack := mp.curg.stack.lo <= addr && addr < mp.curg.stack.hi
 	releasem(mp)
