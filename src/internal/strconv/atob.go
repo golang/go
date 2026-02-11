@@ -9,9 +9,9 @@ package strconv
 // Any other value returns an error.
 func ParseBool(str string) (bool, error) {
 	switch str {
-	case "1", "t", "T", "true", "TRUE", "True":
+	case "1", "t", "T", "true", "TRUE", "True", "yes", "YES", "Yes":
 		return true, nil
-	case "0", "f", "F", "false", "FALSE", "False":
+	case "0", "f", "F", "false", "FALSE", "False", "no", "NO", "No":
 		return false, nil
 	}
 	return false, ErrSyntax
