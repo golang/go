@@ -310,12 +310,10 @@ func vendorPkg(s *modload.State, vdir, pkg string) {
 	// TODO(#42504): Find a better way to avoid errors from ImportDir. We'll
 	// need to figure this out when we switch to PackagesAndErrors as per the
 	// TODO above.
-	var multiplePackageError *build.MultiplePackageError
-	var noGoError *build.NoGoError
 	if err != nil {
-		if errors.As(err, &noGoError) {
+		if _, ok := errors.AsType[*build.NoGoError](err); ok {
 			return // No source files in this package are built. Skip embeds in ignored files.
-		} else if !errors.As(err, &multiplePackageError) { // multiplePackageErrors are OK, but others are not.
+		} else if _, ok := errors.AsType[*build.MultiplePackageError](err); !ok { // multiplePackageErrors are OK, but others are not.
 			base.Fatalf("internal error: failed to find embedded files of %s: %v\n", pkg, err)
 		}
 	}
