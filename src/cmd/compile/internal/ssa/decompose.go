@@ -363,9 +363,9 @@ func decomposeUserPhi(v *Value) {
 func decomposeStructPhi(v *Value) {
 	t := v.Type
 	n := t.NumFields()
-	var fields [MaxStruct]*Value
+	fields := make([]*Value, 0, MaxStruct)
 	for i := 0; i < n; i++ {
-		fields[i] = v.Block.NewValue0(v.Pos, OpPhi, t.FieldType(i))
+		fields = append(fields, v.Block.NewValue0(v.Pos, OpPhi, t.FieldType(i)))
 	}
 	for _, a := range v.Args {
 		for i := 0; i < n; i++ {
@@ -373,10 +373,10 @@ func decomposeStructPhi(v *Value) {
 		}
 	}
 	v.reset(OpStructMake)
-	v.AddArgs(fields[:n]...)
+	v.AddArgs(fields...)
 
 	// Recursively decompose phis for each field.
-	for _, f := range fields[:n] {
+	for _, f := range fields {
 		decomposeUserPhi(f)
 	}
 }
