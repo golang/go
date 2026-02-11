@@ -886,6 +886,7 @@ func schedinit() {
 	typelinksinit() // uses maps, activeModules
 	itabsinit()     // uses activeModules
 	stkobjinit()    // must run before GC starts
+	raceliteinit()
 
 	sigsave(&gp.m.sigmask)
 	initSigmask = gp.m.sigmask
@@ -959,7 +960,6 @@ func schedinit() {
 	// TODO(thepudds): this is not the right place for this (sorry!),
 	// but initialize racelite state.
 	raceliteCheckAddrRand = cheaprand()
-	raceliteCheckWordRand = cheaprand()
 }
 
 func dumpgstatus(gp *g) {
