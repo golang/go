@@ -27,6 +27,9 @@ const (
 	// raceliteCheckAddrMask selects an address suffix which
 	// can be monitored for racelite.
 	raceliteCheckAddrMask = (1 << (4 * raceliteShift)) - 1
+
+	raceliteSeparator = "==================\n"
+	dataRaceHeader    = raceliteSeparator + "WARNING: DATA RACE\n"
 )
 
 var (
@@ -63,14 +66,14 @@ func raceliteinit() {
 }
 
 func raceliteget(addr uintptr) *raceliteVirtualRegister {
-	return raceliteReg[(addr>>3)&(raceliteRegNum-1)]
+	// Compile-time optimized to bitwise shift.
+	return raceliteReg[(addr>>3)%raceliteRegNum]
 }
 
+// micropause injects a small delay to a load
+// or store operation, allowing Racelite to see
+// whether another thread accessed the same address.
 func micropause() {
-	// Now record our write, followed by a small delay to let someone see it.
-	// We either do a ~nano delay or a ~1 in 100 chance of a ~micro delay.
-	// The ~nano delay is from just checking cheaprand.
-	// good with 100k samples!
 	if diag() || cheaprandn(10_000) == 0 {
 		// TODO(thepudds): multiple ways to delay here. For now, do something simple that hopefully
 		// let's us see it work for the first time. ;)
@@ -79,6 +82,29 @@ func micropause() {
 	if diag() {
 		Gosched() // FIXME: Remove this after testing.
 	}
+}
+
+// raceliteprint prints a data race report to the console.
+// The reports match the format of the data race warnings
+// issued by ThreadSanitizer (omitting ancestry information).
+//
+// Example:
+//
+//	==================
+//	WARNING: DATA RACE
+//	Write at 0x1234567890 by goroutine 123
+//		[stack trace of the writer]
+//	Previous write at 0x1234567890 by goroutine 456
+//		[stack trace of the previous writer]
+//	==================
+func raceliteprint(addr uintptr, gp *g, op1 string, gp2 *g, op2 string) {
+	print(dataRaceHeader)
+	print(op1, " at ", hex(addr), " by goroutine ", gp.goid, "\n")
+	traceback(^uintptr(0), ^uintptr(0), 0, gp)
+	print("\n")
+	print("Previous ", op2, " at ", hex(addr), " by goroutine ", gp2.goid, "\n")
+	traceback(^uintptr(0), ^uintptr(0), 0, gp2)
+	println(raceliteSeparator)
 }
 
 // claim allows the writer goroutine as the owner of the virtual register.
@@ -113,13 +139,7 @@ func (r *raceliteVirtualRegister) claim(addr uintptr, gp *g) bool {
 		// We need to move to the system stack to walk
 		// the stack of the current goroutine.
 		systemstack(func() {
-			print("VR", r.identifier, " RACELITE TRIGGERED: write-write race at",
-				" addr= ", hex(addr),
-				"\n")
-			traceback(^uintptr(0), ^uintptr(0), 0, gp)
-			print("\n")
-			traceback(^uintptr(0), ^uintptr(0), 0, gp2)
-			println("RACELITE END")
+			raceliteprint(addr, gp, "Write", gp2, "write")
 		})
 
 		startTheWorld(stw)
@@ -159,21 +179,10 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, gp *g, readfirst bool) b
 	// the stack of the current goroutine.
 	systemstack(func() {
 		if readfirst {
-			print("VR", r.identifier, " RACELITE TRIGGERED: read-write race at",
-				" addr= ", hex(addr),
-				"\n")
-			traceback(^uintptr(0), ^uintptr(0), 0, gp)
-			println()
-			traceback(^uintptr(0), ^uintptr(0), 0, gp2)
+			raceliteprint(addr, gp, "Read", gp2, "write")
 		} else {
-			print("VR", r.identifier, " RACELITE TRIGGERED: write-read race at",
-				" addr= ", hex(addr),
-				"\n")
-			traceback(^uintptr(0), ^uintptr(0), 0, gp2)
-			println()
-			traceback(^uintptr(0), ^uintptr(0), 0, gp)
+			raceliteprint(addr, gp2, "Write", gp, "read")
 		}
-		println("RACELITE END")
 	})
 
 	startTheWorld(stw)
@@ -199,10 +208,10 @@ func (r *raceliteVirtualRegister) release() {
 //
 //	if V.claimed(A):
 //		Report write-write race
-//		return
-//	V.claim(A)
-//	micropause()
-//	V.release()
+//	else:
+//		V.claim(A)
+//		micropause()
+//		V.release()
 func racelitewrite(addr uintptr) {
 	if !raceliteCheckAddr(addr) {
 		// We are not sampling this address.
@@ -233,10 +242,10 @@ func racelitewrite(addr uintptr) {
 //
 //	if V.claimed(A):
 //		Report write-read race
-//		return
-//	micropause()
-//	if V.claimed(A):
-//		Report read-write race
+//	else:
+//		micropause()
+//		if V.claimed(A):
+//			Report read-write race
 func raceliteread(addr uintptr) {
 	if !raceliteCheckAddr(addr) {
 		// We are not sampling this address.
@@ -249,6 +258,7 @@ func raceliteread(addr uintptr) {
 		return
 	}
 
+	// TODO: Stochastically pause
 	micropause()
 
 	// Check for a read-write race.
