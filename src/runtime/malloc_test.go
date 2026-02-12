@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/asan"
+	"internal/goarch"
 	"internal/race"
 	"internal/testenv"
 	"os"
@@ -850,4 +851,35 @@ func TestMkmalloc(t *testing.T) {
 	if err != nil {
 		t.Errorf("_mkmalloc tests failed: %v", err)
 	}
+}
+
+func TestScanAllocIssue77573(t *testing.T) {
+	verifyScanAlloc := func(t *testing.T, f func(), expectSize uintptr) {
+		runtime.Acquirem()
+		defer runtime.Releasem()
+		for i := 0; i < 100; i++ {
+			before := runtime.GetScanAlloc()
+			f()
+			after := runtime.GetScanAlloc()
+			// When mcache refills a new mspan, scanAlloc will be set to 0.
+			// As a result, the calculated value is not the scanAlloc of the allocated object, just retry again.
+			if after > before {
+				actualSize := after - before
+				if actualSize != expectSize {
+					t.Errorf("wrong GC Scan Alloc Size:\nwant %+v\ngot  %+v", expectSize, actualSize)
+				}
+				return
+			}
+		}
+		t.Error("always refill, it still fails after running multiple times")
+	}
+	t.Run("heap slice ([]*int, 1)", func(t *testing.T) {
+		verifyScanAlloc(t, func() { runtime.Escape(make([]*int, 1)) }, goarch.PtrSize)
+	})
+	t.Run("heap slice ([]*int, 2)", func(t *testing.T) {
+		verifyScanAlloc(t, func() { runtime.Escape(make([]*int, 2)) }, 2*goarch.PtrSize)
+	})
+	t.Run("heap slice ([]*int, 3)", func(t *testing.T) {
+		verifyScanAlloc(t, func() { runtime.Escape(make([]*int, 3)) }, 3*goarch.PtrSize)
+	})
 }

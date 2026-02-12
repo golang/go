@@ -2083,3 +2083,8 @@ func DumpPrintQuoted(s string) string {
 
 	return string(buf)
 }
+
+func GetScanAlloc() uintptr {
+	c := getMCache(getg().m)
+	return c.scanAlloc
+}
