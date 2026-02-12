@@ -8,6 +8,7 @@ package json_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"math"
