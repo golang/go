@@ -21,6 +21,9 @@ import (
 // verifyHandshakeSignature verifies a signature against unhashed handshake contents.
 func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc crypto.Hash, signed, sig []byte) error {
 	if hashFunc != directSigning {
+		if !hashFunc.Available() {
+			return fmt.Errorf("hash function unavailable: %v", hashFunc)
+		}
 		h := hashFunc.New()
 		h.Write(signed)
 		signed = h.Sum(nil)

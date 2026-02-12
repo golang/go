@@ -16,6 +16,7 @@ import (
 	"crypto/rc4"
 	"crypto/sha1"
 	"crypto/sha256"
+	_ "crypto/sha512" // for crypto.SHA384
 	"fmt"
 	"hash"
 	"internal/cpu"

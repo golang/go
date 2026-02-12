@@ -450,6 +450,9 @@ func signFIPSDeterministic[P ecdsa.Point[P]](c *ecdsa.Curve[P], hashFunc crypto.
 	if err != nil {
 		return nil, err
 	}
+	if !hashFunc.Available() {
+		return nil, errors.New("ecdsa: requested hash function unavailable: " + hashFunc.String())
+	}
 	h := fips140hash.UnwrapNew(hashFunc.New)
 	if fips140only.Enforced() && !fips140only.ApprovedHash(h()) {
 		return nil, errors.New("crypto/ecdsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")

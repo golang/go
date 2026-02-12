@@ -247,10 +247,12 @@ bXVL8iKLrG91IYQByUHZIn3WVAd2bfi4MfKagRt0ggd4
 	expectErr(t, errRet2(rsa.SignPKCS1v15(rand.Reader, rsaKey, crypto.SHA1, make([]byte, 20))))
 	// rand is always ignored for PKCS1v15 signing
 	expectNoErr(t, errRet2(rsa.SignPKCS1v15(readerWrap{rand.Reader}, rsaKey, crypto.SHA256, make([]byte, 32))))
+	expectErr(t, errRet2(rsa.SignPKCS1v15(rand.Reader, rsaKey, crypto.Hash(0), make([]byte, 32))))
 
 	expectNoErr(t, rsa.VerifyPKCS1v15(&rsaKey.PublicKey, crypto.SHA256, make([]byte, 32), sigPKCS1v15))
 	expectErr(t, rsa.VerifyPKCS1v15(&smallKey.PublicKey, crypto.SHA256, make([]byte, 32), sigPKCS1v15))
 	expectErr(t, rsa.VerifyPKCS1v15(&rsaKey.PublicKey, crypto.SHA1, make([]byte, 20), sigPKCS1v15))
+	expectErr(t, rsa.VerifyPKCS1v15(&rsaKey.PublicKey, crypto.Hash(0), make([]byte, 32), sigPKCS1v15))
 
 	sigPSS, err := rsa.SignPSS(rand.Reader, rsaKey, crypto.SHA256, make([]byte, 32), nil)
 	expectNoErr(t, err)
