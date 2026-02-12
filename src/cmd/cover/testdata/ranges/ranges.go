@@ -79,23 +79,23 @@ func main() {
 	// end comment
 }
 
-«func empty() {
+func empty() {
 
-}»
+}
 
 func singleBlock() {
 «	fmt.Printf("ResultSomething")
 »}
 
-«func justComment() {
+func justComment() {
 	// comment
-}»
+}
 
-«func justMultilineComment() {
+func justMultilineComment() {
 	/* comment
 	again
 	until here */
-}»
+}
 
 func constBlock() {
 «	const (
@@ -104,4 +104,11 @@ func constBlock() {
 		B = 2
 	)
 	fmt.Printf("A=%d B=%d", A, B)
+»}
+
+func compositeLit() {
+«	m := map[string]int{
+		"a": 1,
+»	}
+«	fmt.Println(m)
 »}

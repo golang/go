@@ -275,7 +275,9 @@ type Range struct {
 
 // codeRanges analyzes a block range and returns the sub-ranges that contain
 // executable code, excluding comment-only and blank lines.
-// It always returns at least one range.
+// If no executable code is found, it returns a single zero-width range at
+// start, so that callers always get at least one range (required by pkgcfg
+// mode, which needs a counter unit for every function body).
 func (f *File) codeRanges(start, end token.Pos) []Range {
 	var (
 		startOffset = f.offset(start)
@@ -293,21 +295,16 @@ func (f *File) codeRanges(start, end token.Pos) []Range {
 	var s scanner.Scanner
 	s.Init(scanFile, src, nil, 0)
 
-	// Bit vector tracking which lines have executable code.
-	// Allocate based on bytes.Count (an upper bound); the scanner may
-	// report fewer lines when newlines appear inside string literals.
-	maxLines := bytes.Count(src, []byte{'\n'}) + 1
-	nwords := (maxLines + 63) / 64
-	lineHasCode := make([]uint64, nwords)
-
-	setLine := func(line int) {
-		line-- // 0-indexed
-		lineHasCode[line/64] |= 1 << (uint(line) % 64)
-	}
-	testLine := func(line int) bool {
-		line-- // 0-indexed
-		return lineHasCode[line/64]&(1<<(uint(line)%64)) != 0
-	}
+	// Build ranges in a single pass through the token stream.
+	// We track the last line known to contain code (prevEndLine).
+	// When the next token appears on a line beyond prevEndLine+1,
+	// a gap (comment or blank lines) has been detected: close the
+	// current range and start a new one. Using the token's position
+	// directly (rather than the line start) ensures counter insertion
+	// lands after any closing "*/" on that line.
+	var ranges []Range
+	var codeStart token.Pos // start of current code range (in origFile)
+	prevEndLine := 0        // last line with code; 0 means no code yet
 
 	for {
 		pos, tok, lit := s.Scan()
@@ -339,42 +336,38 @@ func (f *File) codeRanges(start, end token.Pos) []Range {
 			endLine = scanFile.PositionFor(pos+token.Pos(len(lit)), false).Line
 		}
 
-		for line := startLine; line <= endLine; line++ {
-			setLine(line)
+		if prevEndLine == 0 {
+			// First code token — start the first range.
+			codeStart = origFile.Pos(startOffset + scanFile.Offset(pos))
+		} else if startLine > prevEndLine+1 {
+			// Gap detected — close previous range, start new one.
+			codeEnd := origFile.Pos(startOffset + scanFile.Offset(scanFile.LineStart(prevEndLine+1)))
+			ranges = append(ranges, Range{pos: codeStart, end: codeEnd})
+			codeStart = origFile.Pos(startOffset + scanFile.Offset(pos))
 		}
-	}
 
-	// Build ranges for contiguous sections of code lines.
-	// Use the scanner's line count, which excludes newlines inside strings.
-	var ranges []Range
-	var codeStart token.Pos // start of current code range (in origFile)
-	inCode := false
-	totalLines := scanFile.LineCount()
-
-	for line := 1; line <= totalLines; line++ {
-		hasCode := testLine(line)
-		if hasCode != inCode {
-			lineOffset := scanFile.Offset(scanFile.LineStart(line))
-			if hasCode {
-				// Start of a new code range.
-				codeStart = origFile.Pos(startOffset + lineOffset)
-			} else {
-				// End of code range.
-				codeEnd := origFile.Pos(startOffset + lineOffset)
-				ranges = append(ranges, Range{pos: codeStart, end: codeEnd})
-			}
-			inCode = hasCode
+		if endLine > prevEndLine {
+			prevEndLine = endLine
 		}
 	}
 
 	// Close any open code range at the end.
-	if inCode {
-		ranges = append(ranges, Range{pos: codeStart, end: end})
+	if prevEndLine > 0 {
+		if prevEndLine < scanFile.LineCount() {
+			// There are non-code lines after the last code line
+			// (e.g., a lone "}"). Close at the next line's start.
+			codeEnd := origFile.Pos(startOffset + scanFile.Offset(scanFile.LineStart(prevEndLine+1)))
+			ranges = append(ranges, Range{pos: codeStart, end: codeEnd})
+		} else {
+			ranges = append(ranges, Range{pos: codeStart, end: end})
+		}
 	}
 
-	// Always return at least one range.
+	// If no code was found, return a zero-width range so that callers
+	// still get a counter (needed for pkgcfg function registration)
+	// but the range doesn't visually cover any source lines.
 	if len(ranges) == 0 {
-		return []Range{{pos: start, end: end}}
+		return []Range{{pos: start, end: start}}
 	}
 
 	return ranges
@@ -867,7 +860,7 @@ func (f *File) newCounter(start, end token.Pos, numStmt int) string {
 			panic("internal error: counter var unset")
 		}
 		stmt = counterStmt(f, fmt.Sprintf("%s[%d]", f.fn.counterVar, slot))
-		// Use PositionFor with adjusted=false to ignore //line directives.
+		// Physical positions, ignoring //line directives.
 		stpos := f.position(start)
 		enpos := f.position(end)
 		stpos, enpos = dedup(stpos, enpos)
@@ -1186,7 +1179,7 @@ func (f *File) addVariables(w io.Writer) {
 	// - 32-bit ending line number
 	// - (16 bit ending column number << 16) | (16-bit starting column number).
 	for i, block := range f.blocks {
-		// Use PositionFor with adjusted=false to ignore //line directives.
+		// Physical positions, ignoring //line directives.
 		start := f.position(block.startByte)
 		end := f.position(block.endByte)
 

@@ -739,6 +739,11 @@ func coverRanges(t *testing.T, src []byte) []lineRange {
 		var packed int
 		fmt.Sscanf(m[3], "0x%x", &packed)
 		endCol := (packed >> 16) & 0xFFFF
+		startCol := packed & 0xFFFF
+		// Skip zero-width ranges (comment-only or empty blocks).
+		if startLine == endLine && startCol == endCol {
+			continue
+		}
 		// The range [start, end) is half-open. When endCol==1, the
 		// range reaches the beginning of endLine but includes no
 		// content on it, so the last covered line is endLine-1.
