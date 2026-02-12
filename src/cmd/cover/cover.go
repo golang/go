@@ -287,7 +287,7 @@ func (f *File) codeRanges(start, end token.Pos) []Range {
 	)
 
 	// Create a temporary File for scanning this block.
-	// We use a separate FileSet because we're scanning a slice of the
+	// We use a separate file because we're scanning a slice of the
 	// original source, so positions in scanFile are relative to the
 	// block start, not the original file.
 	scanFile := token.NewFileSet().AddFile("", -1, len(src))
