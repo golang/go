@@ -316,8 +316,9 @@ func (f *File) codeRanges(start, end token.Pos) []Range {
 		}
 
 		// Skip braces and automatic semicolons: braces are block
-		// delimiters, not executable code. The scanner also inserts
-		// automatic semicolons (lit == "\n") after }, ), ], etc.
+		// delimiters, not executable code. The Go spec
+		// (https://go.dev/ref/spec#Semicolons) requires the scanner
+		// to insert semicolons (with lit == "\n") after }, ), ], etc.
 		// These are always on lines already marked by real tokens,
 		// except for lone "}" lines. Skipping both prevents a lone
 		// "}" from being treated as a separate code range, which
@@ -385,6 +386,9 @@ func insideStatement(pos token.Pos, stmts []ast.Stmt) bool {
 	for _, s := range stmts {
 		if s.Pos() < pos && pos < s.End() {
 			return true
+		}
+		if s.Pos() >= pos {
+			break // stmts are in source order; the rest are past pos.
 		}
 	}
 	return false

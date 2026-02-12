@@ -96,3 +96,12 @@ func singleBlock() {
 	again
 	until here */
 }»
+
+func constBlock() {
+«	const (
+		A = 1
+
+		B = 2
+	)
+	fmt.Printf("A=%d B=%d", A, B)
+»}

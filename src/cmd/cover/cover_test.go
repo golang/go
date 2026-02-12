@@ -671,10 +671,10 @@ func parseBrackets(src []byte) ([]byte, []lineRange) {
 	)
 	i := 0
 	for i < len(src) {
-		if strings.HasPrefix(string(src[i:]), open) {
+		if bytes.HasPrefix(src[i:], []byte(open)) {
 			stack = append(stack, len(cleaned))
 			i += len(open)
-		} else if strings.HasPrefix(string(src[i:]), close) {
+		} else if bytes.HasPrefix(src[i:], []byte(close)) {
 			if len(stack) == 0 {
 				panic("unmatched close bracket at offset " + strconv.Itoa(i))
 			}
