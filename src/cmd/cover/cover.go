@@ -950,8 +950,7 @@ func (f *File) addCounters(pos, insertPos, blockEnd token.Pos, list []ast.Stmt, 
 			// Create counters only for executable code ranges.
 			// Merge back ranges that fall inside a statement to avoid
 			// inserting counters inside multi-line constructs (e.g. const blocks).
-			ranges := mergeRangesWithinStatements(f.codeRanges(pos, end), list[:last])
-			for i, r := range ranges {
+			for i, r := range mergeRangesWithinStatements(f.codeRanges(pos, end), list[:last]) {
 				// Insert counter at the beginning of the code range
 				insertOffset := f.offset(r.pos)
 				// For the first range, use the original insertPos if it's before the range
