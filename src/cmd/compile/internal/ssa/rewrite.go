@@ -2171,11 +2171,11 @@ func rewriteFixedLoad(v *Value, sym Sym, sb *Value, off int64) *Value {
 					return v
 				case "Hash":
 					v.reset(OpConst32)
-					v.AuxInt = int64(types.TypeHash(t))
+					v.AuxInt = int64(int32(types.TypeHash(t)))
 					return v
 				case "Kind_":
 					v.reset(OpConst8)
-					v.AuxInt = int64(reflectdata.ABIKindOfType(t))
+					v.AuxInt = int64(int8(reflectdata.ABIKindOfType(t)))
 					return v
 				case "GCData":
 					gcdata, _ := reflectdata.GCSym(t, true)
