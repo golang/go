@@ -52,6 +52,10 @@ instead of the go.mod in the module root directory.
 
 Tool also provides the -C, -overlay, and -modcacherw build flags.
 
+The go command places $GOROOT/bin at the beginning of $PATH in the
+environment of commands run via tool directives, so that they use the
+same 'go' as the parent 'go tool'.
+
 For more about build flags, see 'go help build'.
 
 For more about each builtin tool command, see 'go doc cmd/<command>'.
