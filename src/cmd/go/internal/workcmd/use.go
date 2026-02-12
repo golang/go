@@ -163,6 +163,9 @@ func workUse(ctx context.Context, s *modload.State, gowork string, wf *modfile.W
 				}
 				return nil
 			}
+			if d.Name() == "vendor" {
+				return filepath.SkipDir
+			}
 			lookDir(path)
 			return nil
 		})

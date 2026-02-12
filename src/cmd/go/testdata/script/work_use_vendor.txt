@@ -1,0 +1,126 @@
+# Test that 'go work use -r' skips vendor directories.
+# See https://go.dev/issue/51710.
+
+# Scenario 1: Basic recursive use should skip all vendor directories.
+# - Top-level vendor/ should be excluded.
+# - Nested vendor/ under submodules (sub/vendor/) should be excluded.
+# - Deeply nested vendor/a/vendor/ should be excluded (already unreachable via SkipDir).
+# - vendor/ under a non-module directory (subdir/vendor/) should also be excluded,
+#   because d.Name() == "vendor" skips all directories named "vendor" regardless
+#   of whether the parent is a module.
+# - A directory named "notvendor" or "myvendor" should NOT be excluded.
+go work use -r .
+cmp go.work go.work.want_recursive
+
+# Scenario 2: Non-recursive 'go work use' on a directory named "vendor"
+# should still work — the vendor skip only applies to -r walks.
+go work use vendor/example.com/dep
+cmp go.work go.work.want_explicit_vendor
+
+# Scenario 3: Re-running recursive use from clean state should produce
+# consistent results.
+cp go.work.clean go.work
+go work use -r .
+cmp go.work go.work.want_recursive
+
+-- go.work --
+go 1.24
+
+-- go.work.clean --
+go 1.24
+
+-- go.work.want_recursive --
+go 1.24
+
+use (
+	.
+	./myvendor
+	./notvendor
+	./sub
+	./subdir
+)
+-- go.work.want_explicit_vendor --
+go 1.24
+
+use (
+	.
+	./myvendor
+	./notvendor
+	./sub
+	./subdir
+	./vendor/example.com/dep
+)
+-- go.mod --
+module example.com/main
+
+go 1.24
+
+-- main.go --
+package main
+
+-- sub/go.mod --
+module example.com/sub
+
+go 1.24
+
+-- sub/main.go --
+package sub
+
+-- subdir/go.mod --
+module example.com/subdir
+
+go 1.24
+
+-- subdir/main.go --
+package subdir
+
+# subdir/vendor/ contains a module, but it is skipped by 'go work use -r'
+# because all directories named "vendor" are skipped, not just those at
+# the root of a module with an existing vendor directory.
+-- subdir/vendor/example.com/vendored/go.mod --
+module example.com/vendored
+
+go 1.24
+
+-- subdir/vendor/example.com/vendored/vendored.go --
+package vendored
+
+-- vendor/example.com/dep/go.mod --
+module example.com/dep
+
+go 1.24
+
+-- vendor/example.com/dep/dep.go --
+package dep
+
+-- sub/vendor/example.com/subdep/go.mod --
+module example.com/subdep
+
+go 1.24
+
+-- sub/vendor/example.com/subdep/subdep.go --
+package subdep
+
+-- vendor/example.com/dep/vendor/example.com/transitive/go.mod --
+module example.com/transitive
+
+go 1.24
+
+-- vendor/example.com/dep/vendor/example.com/transitive/transitive.go --
+package transitive
+
+-- notvendor/go.mod --
+module example.com/notvendor
+
+go 1.24
+
+-- notvendor/main.go --
+package notvendor
+
+-- myvendor/go.mod --
+module example.com/myvendor
+
+go 1.24
+
+-- myvendor/main.go --
+package myvendor
