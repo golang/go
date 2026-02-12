@@ -1498,7 +1498,7 @@ func fixZeroSizedSymbols(ctxt *Link) {
 	defineRuntimeTypes := func() {
 		types := ldr.CreateSymForUpdate("runtime.types", 0)
 		types.SetType(sym.STYPE)
-		types.SetSize(8)
+		types.SetSize(int64(ctxt.Arch.PtrSize))
 		types.SetAlign(int32(ctxt.Arch.PtrSize))
 		ldr.SetAttrSpecial(types.Sym(), false)
 	}
@@ -2206,20 +2206,20 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	createRelroSect := func(name string, symn sym.SymKind) *sym.Section {
 		sect := state.allocateNamedDataSection(segRelro, genrelrosecname(name), []sym.SymKind{symn}, relroPerm)
 
-		if symn == sym.STYPE && ctxt.HeadType != objabi.Haix {
-			// Skip forward so that no type
+		if symn == sym.STYPE {
+			// Increment state.datsize so that no type
 			// reference uses a zero offset.
 			// This is unlikely but possible in small
 			// programs with no other read-only data.
 			//
-			// Don't skip forward on AIX because the external
-			// linker, when used, will align symbols itself.
-			// The external linker won't know about this skip,
-			// and will mess up the constant offsets we need
-			// within the type section. On AIX we just live
-			// with the possibility of a broken program
-			// if there is no other read-only data.
-			state.datsize++
+			// But don't skip ahead if there is a runtime.types
+			// symbol with non-zero size. That can be created
+			// in fixZeroSizedSymbols. In that case the
+			// runtime.types symbol itself serves as the skip.
+			typesSym := ldr.Lookup("runtime.types", 0)
+			if typesSym == 0 || ldr.SymSize(typesSym) == 0 {
+				state.datsize += int64(ctxt.Arch.PtrSize)
+			}
 		}
 
 		// Align to first symbol.
@@ -2479,10 +2479,13 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 		})
 
 		// Find the end of the typelink descriptors.
-		// The size starts at 1 to match the increment in
+		// The size starts at PtrSize to match the value in
 		// createRelroSect in allocateDataSections.
+		// Note that we skip runtime.types in the loop,
+		// so we don't need to worry about that case;
+		// there will be an increment either way.
 		// TODO: This wastes some space.
-		typeLinkSize := int64(1)
+		typeLinkSize := int64(ctxt.Arch.PtrSize)
 		for i := range sl {
 			si := sl[i].sym
 			if si == head || si == typeStar {

@@ -524,14 +524,15 @@ func moduleTypelinks(md *moduledata) []*_type {
 
 	td := md.types
 
-	// We have to increment by 1 to match the increment done in
-	// cmd/link/internal/data.go createRelroSect in allocateDataSections.
+	// We have to increment by the pointer size to match the
+	// increment in cmd/link/internal/data.go createRelroSect
+	// in allocateDataSections.
 	//
-	// We don't do that increment on AIX, but on AIX we need to adjust
-	// for the fact that the runtime.types symbol has a size of 8,
-	// and the type descriptors will follow that. This increment,
-	// followed by the forced alignment to 8, will do that.
-	td++
+	// The linker doesn't do that increment when runtime.types
+	// has a non-zero size, but in that case the runtime.types
+	// symbol itself pushes the other symbols forward.
+	// So either way this increment is correct.
+	td += goarch.PtrSize
 
 	etypedesc := md.types + md.typedesclen
 	for td < etypedesc {
