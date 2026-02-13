@@ -7,7 +7,7 @@
 package runtime
 
 import (
-	"unsafe"
+	"internal/runtime/atomic"
 )
 
 // TODO(thepudds): we currently have a ~3 level scheme of lighter checks before doing more work.
@@ -46,11 +46,19 @@ var (
 // raceliteVirtualRegister is a virtual register that can be used to
 // dynamically monitor an address for data races.
 type raceliteVirtualRegister struct {
-	lock       mutex          // lock ensures that the virtual register maintains a consistent state
-	addr       uintptr        // the address currently being monitored in the virtual register
-	owner      unsafe.Pointer // the writer currently claiming the virtual register
-	count      uint64         // the number of times the virtual register has been claimed
-	identifier uint32         // the identifier of the virtual register
+	// Mutual exclusion ensures that the virtual register maintains a consistent state.
+	// We do not use a runtime mutex here because we want to stop the world.
+	// mu and rmu are used for a custom read-write spin-lock.
+	mu, rmu atomic.Int32
+
+	addr  uintptr // the address currently being monitored in the virtual register
+	owner *g      // the writer currently claiming the virtual register
+
+	// Diagnostic information.
+	// TODO(vsaioc): Add more for experimentation purposes and remove
+	// for the polished release version.
+	count      uint64 // the number of times the virtual register has been claimed
+	identifier uint32 // the identifier of the virtual register
 }
 
 var raceliteReg [raceliteRegNum]*raceliteVirtualRegister
@@ -84,7 +92,7 @@ func micropause() {
 	}
 }
 
-// raceliteprint prints a data race report to the console.
+// report prints a data race report to the console.
 // The reports match the format of the data race warnings
 // issued by ThreadSanitizer (omitting ancestry information).
 //
@@ -96,28 +104,78 @@ func micropause() {
 //		[stack trace of the writer]
 //	Previous write at 0x1234567890 by goroutine 456
 //		[stack trace of the previous writer]
+//
+//	Diagnostic information:
 //	==================
-func raceliteprint(addr uintptr, gp *g, op1 string, gp2 *g, op2 string) {
+func (r *raceliteVirtualRegister) report(addr uintptr, gp *g, op1 string, gp2 *g, op2 string) {
 	print(dataRaceHeader)
 	print(op1, " at ", hex(addr), " by goroutine ", gp.goid, "\n")
 	traceback(^uintptr(0), ^uintptr(0), 0, gp)
 	print("\n")
 	print("Previous ", op2, " at ", hex(addr), " by goroutine ", gp2.goid, "\n")
 	traceback(^uintptr(0), ^uintptr(0), 0, gp2)
-	println(raceliteSeparator)
+	print("\n",
+		"Diagnostic information:\n",
+		"VR(", r.identifier, "): count=", r.count,
+		"\n")
+	print(raceliteSeparator)
+}
+
+func (r *raceliteVirtualRegister) lock() {
+	for !r.mu.CompareAndSwap(0, 1) {
+		Gosched()
+	}
+	for r.rmu.Load() != 0 {
+		Gosched()
+	}
+}
+
+func (r *raceliteVirtualRegister) rlock() {
+	for {
+		for r.mu.Load() != 0 {
+			Gosched()
+		}
+		r.rmu.Add(1)
+		if r.mu.Load() == 0 {
+			break
+		}
+		r.rmu.Add(-1)
+	}
+}
+
+func (r *raceliteVirtualRegister) runlock() {
+	if r.rmu.Add(-1) < 0 {
+		throw("raceliteVirtualRegister: runlock: rmu is below 0")
+	}
+}
+
+// demote atommically switches the virtual register from holding
+// a write lock to a read lock.
+func (r *raceliteVirtualRegister) demote() {
+	if r.mu.Load() == 0 {
+		throw("raceliteVirtualRegister: demote: lock is not held")
+	}
+	r.rmu.Add(1)
+	r.unlock()
+}
+
+func (r *raceliteVirtualRegister) unlock() {
+	if !r.mu.CompareAndSwap(1, 0) {
+		throw("raceliteVirtualRegister: unlock: lock is not held")
+	}
 }
 
 // claim allows the writer goroutine as the owner of the virtual register.
 func (r *raceliteVirtualRegister) claim(addr uintptr, gp *g) bool {
-	lock(&r.lock)
+	r.lock()
 	switch r.addr {
 	case 0:
 		// The virtual register is not occupied.
 		// The writer can claim it.
-		r.addr = addr
-		r.owner = unsafe.Pointer(gp)
+		r.addr, r.owner = addr, gp
 		r.count++
-		unlock(&r.lock)
+
+		r.unlock()
 		return true
 
 	case addr:
@@ -126,9 +184,9 @@ func (r *raceliteVirtualRegister) claim(addr uintptr, gp *g) bool {
 		// We are, therefore, dealing with a write-write race.
 
 		// Store up the owner of the virtual register before unlocking.
-		gp2 := (*g)(r.owner)
-		// We must release the lock in order to stop the world.
-		unlock(&r.lock)
+
+		// We demote the virtual register to reader.
+		r.demote()
 
 		// Write the stacks of the current goroutine and the
 		// virtual register claimant on the system stack.
@@ -139,15 +197,17 @@ func (r *raceliteVirtualRegister) claim(addr uintptr, gp *g) bool {
 		// We need to move to the system stack to walk
 		// the stack of the current goroutine.
 		systemstack(func() {
-			raceliteprint(addr, gp, "Write", gp2, "write")
+			r.report(addr, gp, "Write", r.owner, "write")
 		})
 
 		startTheWorld(stw)
+
+		r.runlock()
 		return false
 
 	default:
 		// The virtual register is already occupied by another address.
-		unlock(&r.lock)
+		r.unlock()
 		return false
 	}
 }
@@ -155,46 +215,42 @@ func (r *raceliteVirtualRegister) claim(addr uintptr, gp *g) bool {
 // monitor allows a reader goroutine to check whether the virtual
 // register is occupied by a writer with the given address.
 func (r *raceliteVirtualRegister) monitor(addr uintptr, gp *g, readfirst bool) bool {
-	lock(&r.lock)
+	r.rlock()
 	// Check the status of the virtual register.
 	if r.addr != addr {
 		// The virtual register is occupied by another address.
-		unlock(&r.lock)
+		r.runlock()
 		return false
 	}
 
 	// The virtual register is occupied by the same address.
-	// Store up the owner of the virtual register before unlocking.
-	gp2 := (*g)(r.owner)
-
-	unlock(&r.lock)
 
 	// Write the stacks of the current goroutine and the
 	// virtual register claimant on the system stack.
 	//
 	// We stop the world to prevent jumbling the stacks.
 	stw := stopTheWorld(stwRacelite)
-
-	// We need to move to the system stack to walk
+	// Move to the system stack to unwind
 	// the stack of the current goroutine.
 	systemstack(func() {
 		if readfirst {
-			raceliteprint(addr, gp, "Read", gp2, "write")
+			r.report(addr, gp, "Read", r.owner, "write")
 		} else {
-			raceliteprint(addr, gp2, "Write", gp, "read")
+			r.report(addr, r.owner, "Write", gp, "read")
 		}
 	})
-
 	startTheWorld(stw)
+
+	// Reader reporting is done.
+	r.runlock()
 	return true
 }
 
-// release allows the writer goroutine to release the virtual register.
+// release detaches the virtual register from the writer goroutine.
 func (r *raceliteVirtualRegister) release() {
-	lock(&r.lock)
-	r.addr = 0
-	r.owner = nil
-	unlock(&r.lock)
+	r.lock()
+	r.addr, r.owner = 0, nil
+	r.unlock()
 }
 
 // racelitewrite instruments a store operation with data race detection,
