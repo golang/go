@@ -376,15 +376,12 @@ func (f *File) codeRanges(start, end token.Pos) []Range {
 // insideStatement reports whether pos falls strictly inside
 // (not at the start of) any statement in stmts.
 func insideStatement(pos token.Pos, stmts []ast.Stmt) bool {
-	for _, s := range stmts {
-		if s.Pos() < pos && pos < s.End() {
-			return true
-		}
-		if s.Pos() >= pos {
-			break // stmts are in source order; the rest are past pos.
-		}
-	}
-	return false
+	// Binary search for the first statement starting at or after pos.
+	i, _ := slices.BinarySearchFunc(stmts, pos, func(s ast.Stmt, p token.Pos) int {
+		return cmp.Compare(s.Pos(), p)
+	})
+	// Check if pos falls inside the preceding statement.
+	return i > 0 && pos < stmts[i-1].End()
 }
 
 // mergeRangesWithinStatements merges consecutive ranges when a later range's
@@ -951,9 +948,7 @@ func (f *File) addCounters(pos, insertPos, blockEnd token.Pos, list []ast.Stmt, 
 			// Merge back ranges that fall inside a statement to avoid
 			// inserting counters inside multi-line constructs (e.g. const blocks).
 			for i, r := range mergeRangesWithinStatements(f.codeRanges(pos, end), list[:last]) {
-				// Insert counter at the beginning of the code range
 				insertOffset := f.offset(r.pos)
-				// For the first range, use the original insertPos if it's before the range
 				if i == 0 {
 					insertOffset = f.offset(insertPos)
 				}
