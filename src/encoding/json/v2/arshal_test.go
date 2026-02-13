@@ -529,6 +529,8 @@ type (
 		UnmarshalJSON     struct{} // cancel out UnmarshalJSON method with collision
 	}
 
+	unsupportedMethodJSONv2 map[string]int
+
 	structMethodJSONv2 struct{ value string }
 	structMethodJSONv1 struct{ value string }
 	structMethodText   struct{ value string }
@@ -607,6 +609,15 @@ func (p *allMethods) UnmarshalText(val []byte) error {
 	p.method = "UnmarshalText"
 	p.value = val
 	return nil
+}
+
+func (s *unsupportedMethodJSONv2) MarshalJSONTo(enc *jsontext.Encoder) error {
+	(*s)["called"] += 1
+	return errors.ErrUnsupported
+}
+func (s *unsupportedMethodJSONv2) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	(*s)["called"] += 1
+	return errors.ErrUnsupported
 }
 
 func (s structMethodJSONv2) MarshalJSONTo(enc *jsontext.Encoder) error {
@@ -3372,6 +3383,11 @@ func TestMarshal(t *testing.T) {
 		want:         `{"k1":"v1","k2":"v2"}`,
 		canonicalize: true,
 	}, {
+		name: jsontest.Name("Methods/JSONv2/ErrUnsupported"),
+		opts: []Options{Deterministic(true)},
+		in:   unsupportedMethodJSONv2{"fizz": 123},
+		want: `{"called":1,"fizz":123}`,
+	}, {
 		name: jsontest.Name("Methods/Invalid/JSONv2/Error"),
 		in: marshalJSONv2Func(func(*jsontext.Encoder) error {
 			return errSomeError
@@ -3397,7 +3413,7 @@ func TestMarshal(t *testing.T) {
 		in: marshalJSONv2Func(func(enc *jsontext.Encoder) error {
 			return errors.ErrUnsupported
 		}),
-		wantErr: EM(errors.New("MarshalJSONTo method may not return errors.ErrUnsupported")).withType(0, T[marshalJSONv2Func]()),
+		wantErr: EM(nil).withType(0, T[marshalJSONv2Func]()),
 	}, {
 		name: jsontest.Name("Methods/Invalid/JSONv1/Error"),
 		in: marshalJSONv1Func(func() ([]byte, error) {
@@ -7777,6 +7793,11 @@ func TestUnmarshal(t *testing.T) {
 		inVal: addr(map[structMethodText]string{{"k1"}: "v1a", {"k3"}: "v3"}),
 		want:  addr(map[structMethodText]string{{"k1"}: "v1b", {"k2"}: "v2", {"k3"}: "v3"}),
 	}, {
+		name:  jsontest.Name("Methods/JSONv2/ErrUnsupported"),
+		inBuf: `{"fizz":123}`,
+		inVal: addr(unsupportedMethodJSONv2{}),
+		want:  addr(unsupportedMethodJSONv2{"called": 1, "fizz": 123}),
+	}, {
 		name:  jsontest.Name("Methods/Invalid/JSONv2/Error"),
 		inBuf: `{}`,
 		inVal: addr(unmarshalJSONv2Func(func(*jsontext.Decoder) error {
@@ -7805,7 +7826,7 @@ func TestUnmarshal(t *testing.T) {
 		inVal: addr(unmarshalJSONv2Func(func(*jsontext.Decoder) error {
 			return errors.ErrUnsupported
 		})),
-		wantErr: EU(wrapErrUnsupported(errors.ErrUnsupported, "UnmarshalJSONFrom method")).withType(0, T[unmarshalJSONv2Func]()),
+		wantErr: EU(nil).withType(0, T[unmarshalJSONv2Func]()),
 	}, {
 		name:  jsontest.Name("Methods/Invalid/JSONv1/Error"),
 		inBuf: `{}`,
