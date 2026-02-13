@@ -230,7 +230,6 @@ func BenchmarkLevelString(b *testing.B) {
 		LevelDebug,
 		LevelDebug - 2,
 	}
-	b.ResetTimer()
 	for b.Loop() {
 		for _, level := range levels {
 			_ = level.String()
