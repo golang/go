@@ -118,7 +118,7 @@ func micropause() {
 //	===^=========^====
 //	   |         '-Number of times the virtual register has been claimed
 //	   '-Virtual register identifier
-func (r *raceliteVirtualRegister) report(addr uintptr, gp, g2 *g, op1, op2 string) {
+func (r *raceliteVirtualRegister) report(addr uintptr, gp, gp2 *g, op1, op2 string) {
 	// Write the stacks of the current goroutine and the
 	// virtual register claimant on the system stack.
 	//
