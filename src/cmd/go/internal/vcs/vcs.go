@@ -11,7 +11,6 @@ import (
 	"internal/godebug"
 	"internal/lazyregexp"
 	"internal/singleflight"
-	"io/fs"
 	"log"
 	urlpkg "net/url"
 	"os"
@@ -486,28 +485,6 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 	args := strings.Fields(cmdline)
 	for i, arg := range args {
 		args[i] = expand(m, arg)
-	}
-
-	if len(args) >= 2 && args[0] == "--go-internal-mkdir" {
-		var err error
-		if filepath.IsAbs(args[1]) {
-			err = os.Mkdir(args[1], fs.ModePerm)
-		} else {
-			err = os.Mkdir(filepath.Join(dir, args[1]), fs.ModePerm)
-		}
-		if err != nil {
-			return nil, err
-		}
-		args = args[2:]
-	}
-
-	if len(args) >= 2 && args[0] == "--go-internal-cd" {
-		if filepath.IsAbs(args[1]) {
-			dir = args[1]
-		} else {
-			dir = filepath.Join(dir, args[1])
-		}
-		args = args[2:]
 	}
 
 	_, err := pathcache.LookPath(v.Cmd)
