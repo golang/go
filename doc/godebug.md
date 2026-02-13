@@ -156,6 +156,10 @@ for example,
 see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
 and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
+### Go 1.27
+
+Go 1.27 removed the `gotypesalias` setting, as noted in the [Go 1.22][#go-122] section.
+
 ### Go 1.26
 
 Go 1.26 added a new `httpcookiemaxnum` setting that controls the maximum number
