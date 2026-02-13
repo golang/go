@@ -51,8 +51,10 @@ type raceliteVirtualRegister struct {
 	// mu and rmu are used for a custom read-write spin-lock.
 	mu, rmu atomic.Int32
 
-	addr  uintptr // the address currently being monitored in the virtual register
-	owner *g      // the writer currently claiming the virtual register
+	// addr is the address currently being monitored in the virtual register
+	addr uintptr
+	// owner is the writer goroutine currently claiming the virtual register
+	owner *g
 
 	// Diagnostic information.
 	// TODO(vsaioc): Add more for experimentation purposes and remove
@@ -61,21 +63,28 @@ type raceliteVirtualRegister struct {
 	identifier uint32 // the identifier of the virtual register
 }
 
-var raceliteReg [raceliteRegNum]*raceliteVirtualRegister
+// raceliteReg is the globalarray of virtual registers.
+var raceliteReg *[raceliteRegNum]raceliteVirtualRegister
 
 func raceliteinit() {
 	if debug.racelite <= 0 {
+		// No-op if racelite is not enabled.
 		return
 	}
+
+	raceliteReg = new([raceliteRegNum]raceliteVirtualRegister)
+
+	// Initialize all virtual registers.
 	for i := 0; i < raceliteRegNum; i++ {
-		raceliteReg[i] = new(raceliteVirtualRegister)
+		// Assign an identifier to the virtual register.
+		// This is used for debugging and experimentation.
 		raceliteReg[i].identifier = uint32(i)
 	}
 }
 
 func raceliteget(addr uintptr) *raceliteVirtualRegister {
-	// Compile-time optimized to bitwise shift.
-	return raceliteReg[(addr>>3)%raceliteRegNum]
+	// Compile-time optimized to bitwise AND.
+	return &raceliteReg[(addr>>3)%raceliteRegNum]
 }
 
 // micropause injects a small delay to a load
@@ -87,82 +96,120 @@ func micropause() {
 		// let's us see it work for the first time. ;)
 		usleep(2)
 	}
-	if diag() {
-		Gosched() // FIXME: Remove this after testing.
-	}
+	// NOTE(vsaioc): We may want to experiment here.
+	Gosched()
 }
 
 // report prints a data race report to the console.
 // The reports match the format of the data race warnings
-// issued by ThreadSanitizer (omitting ancestry information).
+// issued by TSan (omitting ancestry information).
 //
 // Example:
 //
 //	==================
 //	WARNING: DATA RACE
 //	Write at 0x1234567890 by goroutine 123
-//		[stack trace of the writer]
+//	  [stack trace of the writer]
 //	Previous write at 0x1234567890 by goroutine 456
-//		[stack trace of the previous writer]
+//	  [stack trace of the previous writer]
 //
 //	Diagnostic information:
-//	==================
-func (r *raceliteVirtualRegister) report(addr uintptr, gp *g, op1 string, gp2 *g, op2 string) {
-	print(dataRaceHeader)
-	print(op1, " at ", hex(addr), " by goroutine ", gp.goid, "\n")
-	traceback(^uintptr(0), ^uintptr(0), 0, gp)
-	print("\n")
-	print("Previous ", op2, " at ", hex(addr), " by goroutine ", gp2.goid, "\n")
-	traceback(^uintptr(0), ^uintptr(0), 0, gp2)
-	print("\n",
-		"Diagnostic information:\n",
-		"VR(", r.identifier, "): count=", r.count,
-		"\n")
-	print(raceliteSeparator)
+//	VR(4): count=40
+//	===^=========^====
+//	   |         '-Number of times the virtual register has been claimed
+//	   '-Virtual register identifier
+func (r *raceliteVirtualRegister) report(addr uintptr, gp, g2 *g, op1, op2 string) {
+	// Write the stacks of the current goroutine and the
+	// virtual register claimant on the system stack.
+	//
+	// We stop the world to prevent jumbling the stacks.
+	stw := stopTheWorld(stwRacelite)
+
+	// We need to move to the system stack to walk
+	// the stack of the current goroutine.
+	systemstack(func() {
+		print(dataRaceHeader)
+		print(op1, " at ", hex(addr), " by goroutine ", gp.goid, "\n")
+		traceback(^uintptr(0), ^uintptr(0), 0, gp)
+		print("\n")
+		print("Previous ", op2, " at ", hex(addr), " by goroutine ", gp2.goid, "\n")
+		traceback(^uintptr(0), ^uintptr(0), 0, gp2)
+		print("\n",
+			"Diagnostic information:\n",
+			"VR(", r.identifier, "): count=", r.count,
+			"\n")
+		print(raceliteSeparator)
+	})
+
+	// We can restart the world now.
+	startTheWorld(stw)
 }
 
+// lock acquires the write lock on the virtual register.
 func (r *raceliteVirtualRegister) lock() {
+	// Atomically acquire the write lock.
 	for !r.mu.CompareAndSwap(0, 1) {
+		// Allow pre-emption by the other scheduler.
 		Gosched()
 	}
+	// Wait for any read locks to be released before
+	// proceeding.
 	for r.rmu.Load() != 0 {
+		// Allow pre-emption by the other scheduler.
 		Gosched()
 	}
 }
 
+// unlock releases the write lock on the virtual register.
+func (r *raceliteVirtualRegister) unlock() {
+	// Atomically release the write lock. If the lock is not held,
+	// crash and burn. We are dealing with a bug.
+	if !r.mu.CompareAndSwap(1, 0) {
+		throw("raceliteVirtualRegister: unlock: lock is not held")
+	}
+}
+
+// rlock increments the read lock on the virtual register.
 func (r *raceliteVirtualRegister) rlock() {
 	for {
+		// Wait for the write lock to be released before
 		for r.mu.Load() != 0 {
 			Gosched()
 		}
+		// Atomically increment the read lock.
 		r.rmu.Add(1)
+		// If the write lock is not held, we can proceed.
 		if r.mu.Load() == 0 {
 			break
 		}
+		// Otherwise, we need to release the read lock and try again.
 		r.rmu.Add(-1)
 	}
 }
 
+// runlock decrements the read lock on the virtual register.
 func (r *raceliteVirtualRegister) runlock() {
+	// Atomically decrement the read lock. If the read lock is not held,
+	// crash and burn. We are dealing with a bug.
 	if r.rmu.Add(-1) < 0 {
 		throw("raceliteVirtualRegister: runlock: rmu is below 0")
 	}
 }
 
 // demote atommically switches the virtual register from holding
-// a write lock to a read lock.
+// a write lock to a read lock without interrupting the critical
+// section.
+//
+// We use this to improve performance when write-write and read-write
+// races are detected simultaneously.
 func (r *raceliteVirtualRegister) demote() {
+	// Atomically check if the write lock is held. If not,
+	// crash and burn. We are dealing with a bug.
 	if r.mu.Load() == 0 {
 		throw("raceliteVirtualRegister: demote: lock is not held")
 	}
 	r.rmu.Add(1)
 	r.unlock()
-}
-
-func (r *raceliteVirtualRegister) unlock() {
-	if !r.mu.CompareAndSwap(1, 0) {
-		throw("raceliteVirtualRegister: unlock: lock is not held")
-	}
 }
 
 // claim allows the writer goroutine as the owner of the virtual register.
@@ -183,22 +230,13 @@ func (r *raceliteVirtualRegister) claim(addr uintptr, gp *g) bool {
 		// This only happens if another writer intercepted the write.
 		// We are, therefore, dealing with a write-write race.
 
-		// Store up the owner of the virtual register before unlocking.
-
-		// We demote the virtual register to reader.
+		// We demote the goroutine to virtual register reader
+		// without interrupting the critical section. Other
+		// readers can issue reports virtual register.
 		r.demote()
 
-		// Write the stacks of the current goroutine and the
-		// virtual register claimant on the system stack.
-		//
-		// We stop the world to prevent jumbling the stacks.
-		stw := stopTheWorld(stwRacelite)
-
-		// We need to move to the system stack to walk
-		// the stack of the current goroutine.
-		systemstack(func() {
-			r.report(addr, gp, "Write", r.owner, "write")
-		})
+		// Report the write-write race,
+		r.report(addr, gp, "Write", r.owner, "write")
 
 		startTheWorld(stw)
 
@@ -214,7 +252,7 @@ func (r *raceliteVirtualRegister) claim(addr uintptr, gp *g) bool {
 
 // monitor allows a reader goroutine to check whether the virtual
 // register is occupied by a writer with the given address.
-func (r *raceliteVirtualRegister) monitor(addr uintptr, gp *g, readfirst bool) bool {
+func (r *raceliteVirtualRegister) monitor(addr uintptr, gp *g, writefirst bool) bool {
 	r.rlock()
 	// Check the status of the virtual register.
 	if r.addr != addr {
@@ -224,22 +262,14 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, gp *g, readfirst bool) b
 	}
 
 	// The virtual register is occupied by the same address.
-
-	// Write the stacks of the current goroutine and the
-	// virtual register claimant on the system stack.
-	//
-	// We stop the world to prevent jumbling the stacks.
-	stw := stopTheWorld(stwRacelite)
-	// Move to the system stack to unwind
-	// the stack of the current goroutine.
-	systemstack(func() {
-		if readfirst {
-			r.report(addr, gp, "Read", r.owner, "write")
-		} else {
-			r.report(addr, r.owner, "Write", gp, "read")
-		}
-	})
-	startTheWorld(stw)
+	if writefirst {
+		// If the writer stepped in first, we have a write-read race.
+		r.report(addr, gp, r.owner, "Read", "write")
+	} else {
+		// If the reader stepped in first, we have a read-write race.
+		// Invert the order of the claimant writer and reader in the report.
+		r.report(addr, r.owner, gp, "Write", "read")
+	}
 
 	// Reader reporting is done.
 	r.runlock()
@@ -314,7 +344,6 @@ func raceliteread(addr uintptr) {
 		return
 	}
 
-	// TODO: Stochastically pause
 	micropause()
 
 	// Check for a read-write race.
@@ -332,10 +361,6 @@ func raceliteCheckAddr(addr uintptr) bool {
 	//
 	// FIXME(vsaioc): At the moment, we always sample when debugging.
 	if !diag() && uint32(addr>>(3+raceliteShift))&raceliteCheckAddrMask != raceliteCheckAddrRand {
-		// Not checking this addr. This is the common case.
-		if diag() {
-			print("RACELITE write: not checking addr=", hex(addr), "\n")
-		}
 		return false
 	}
 

@@ -886,7 +886,7 @@ func schedinit() {
 	typelinksinit() // uses maps, activeModules
 	itabsinit()     // uses activeModules
 	stkobjinit()    // must run before GC starts
-	raceliteinit()
+	raceliteinit()  // activates Racelite registers if racelite is enabled
 
 	sigsave(&gp.m.sigmask)
 	initSigmask = gp.m.sigmask
