@@ -236,7 +236,7 @@ func (r *raceliteVirtualRegister) claim(addr uintptr, gp *g) bool {
 		r.demote()
 
 		// Report the write-write race,
-		r.report(addr, gp, "Write", r.owner, "write")
+		r.report(addr, gp, r.owner, "Write", "write")
 
 		startTheWorld(stw)
 
