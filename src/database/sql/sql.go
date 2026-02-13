@@ -47,9 +47,6 @@ var driversMu sync.RWMutex
 //go:linkname drivers
 var drivers = make(map[string]driver.Driver)
 
-// nowFunc returns the current time; it's overridden in tests.
-var nowFunc = time.Now
-
 // Register makes a database driver available by the provided name.
 // If Register is called twice with the same name or if driver is nil,
 // it panics.
@@ -595,7 +592,7 @@ func (dc *driverConn) expired(timeout time.Duration) bool {
 	if timeout <= 0 {
 		return false
 	}
-	return dc.createdAt.Add(timeout).Before(nowFunc())
+	return dc.createdAt.Add(timeout).Before(time.Now())
 }
 
 // resetSession checks if the driver connection needs the
@@ -1151,7 +1148,7 @@ func (db *DB) connectionCleanerRunLocked(d time.Duration) (time.Duration, []*dri
 	if db.maxIdleTime > 0 {
 		// As freeConn is ordered by returnedAt process
 		// in reverse order to minimise the work needed.
-		idleSince := nowFunc().Add(-db.maxIdleTime)
+		idleSince := time.Now().Add(-db.maxIdleTime)
 		last := len(db.freeConn) - 1
 		for i := last; i >= 0; i-- {
 			c := db.freeConn[i]
@@ -1176,7 +1173,7 @@ func (db *DB) connectionCleanerRunLocked(d time.Duration) (time.Duration, []*dri
 	}
 
 	if db.maxLifetime > 0 {
-		expiredSince := nowFunc().Add(-db.maxLifetime)
+		expiredSince := time.Now().Add(-db.maxLifetime)
 		for i := 0; i < len(db.freeConn); i++ {
 			c := db.freeConn[i]
 			if c.createdAt.Before(expiredSince) {
@@ -1297,8 +1294,8 @@ func (db *DB) openNewConnection(ctx context.Context) {
 	}
 	dc := &driverConn{
 		db:         db,
-		createdAt:  nowFunc(),
-		returnedAt: nowFunc(),
+		createdAt:  time.Now(),
+		returnedAt: time.Now(),
 		ci:         ci,
 	}
 	if db.putConnDBLocked(dc, err) {
@@ -1370,7 +1367,7 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 		db.waitCount++
 		db.mu.Unlock()
 
-		waitStart := nowFunc()
+		waitStart := time.Now()
 
 		// Timeout the connection request with the context.
 		select {
@@ -1446,8 +1443,8 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 	db.mu.Lock()
 	dc := &driverConn{
 		db:         db,
-		createdAt:  nowFunc(),
-		returnedAt: nowFunc(),
+		createdAt:  time.Now(),
+		returnedAt: time.Now(),
 		ci:         ci,
 		inUse:      true,
 	}
@@ -1508,7 +1505,7 @@ func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
 		db.lastPut[dc] = stack()
 	}
 	dc.inUse = false
-	dc.returnedAt = nowFunc()
+	dc.returnedAt = time.Now()
 
 	for _, fn := range dc.onPut {
 		fn()
