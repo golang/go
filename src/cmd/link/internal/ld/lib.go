@@ -2248,6 +2248,7 @@ func trimLinkerArgv(argv []string) []string {
 		"--stdlib",
 		"-unwindlib",
 		"--unwindlib",
+		"-nostdlib++",
 	}
 
 	var flags []string
