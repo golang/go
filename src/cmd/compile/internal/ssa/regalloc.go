@@ -1810,7 +1810,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			if regspec.clobbersArg0 {
 				s.freeReg(register(s.f.getHome(args[0].ID).(*Register).num))
 			}
-			if regspec.clobbersArg1 {
+			if regspec.clobbersArg1 && !(regspec.clobbersArg0 && s.f.getHome(args[0].ID) == s.f.getHome(args[1].ID)) {
 				s.freeReg(register(s.f.getHome(args[1].ID).(*Register).num))
 			}
 
