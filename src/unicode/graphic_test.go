@@ -101,6 +101,50 @@ func TestIsPunctLatin1(t *testing.T) {
 	}
 }
 
+func TestIsGraphicVariationSelector(t *testing.T) {
+	// Variation selectors are invisible and should return false for IsGraphic.
+	for _, r16 := range Variation_Selector.R16 {
+		for r := rune(r16.Lo); r <= rune(r16.Hi); r += rune(r16.Stride) {
+			got := IsGraphic(r)
+			want := false
+			if got != want {
+				t.Errorf("%U incorrect: got %t; want %t", r, got, want)
+			}
+		}
+	}
+	for _, r32 := range Variation_Selector.R32 {
+		for r := rune(r32.Lo); r <= rune(r32.Hi); r += rune(r32.Stride) {
+			got := IsGraphic(r)
+			want := false
+			if got != want {
+				t.Errorf("%U incorrect: got %t; want %t", r, got, want)
+			}
+		}
+	}
+}
+
+func TestIsPrintVariationSelector(t *testing.T) {
+	// Variation selectors are invisible and should return false for IsPrint.
+	for _, r16 := range Variation_Selector.R16 {
+		for r := rune(r16.Lo); r <= rune(r16.Hi); r += rune(r16.Stride) {
+			got := IsPrint(r)
+			want := false
+			if got != want {
+				t.Errorf("%U incorrect: got %t; want %t", r, got, want)
+			}
+		}
+	}
+	for _, r32 := range Variation_Selector.R32 {
+		for r := rune(r32.Lo); r <= rune(r32.Hi); r += rune(r32.Stride) {
+			got := IsPrint(r)
+			want := false
+			if got != want {
+				t.Errorf("%U incorrect: got %t; want %t", r, got, want)
+			}
+		}
+	}
+}
+
 func TestIsSpaceLatin1(t *testing.T) {
 	for i := rune(0); i <= MaxLatin1; i++ {
 		got := IsSpace(i)
