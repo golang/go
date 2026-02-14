@@ -131,7 +131,7 @@ func (h Hash) New() hash.Hash {
 			return f()
 		}
 	}
-	panic("crypto: requested hash function #" + strconv.Itoa(int(h)) + " is unavailable")
+	panic("crypto: requested hash function unavailable: " + h.String())
 }
 
 // Available reports whether the given hash function is linked into the binary.
