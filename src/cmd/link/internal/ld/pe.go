@@ -63,6 +63,9 @@ var (
 	PEFILEALIGN int64 = 2 << 8
 )
 
+// peSectionHeaderReserve reserves header space for section headers.
+const peSectionHeaderReserve = 64
+
 const (
 	IMAGE_SCN_CNT_CODE               = 0x00000020
 	IMAGE_SCN_CNT_INITIALIZED_DATA   = 0x00000040
@@ -379,6 +382,27 @@ func (sect *peSection) checkSegment(seg *sym.Segment) {
 	}
 }
 
+// checkSection verifies COFF section sect matches sym.Section s.
+func (sect *peSection) checkSection(s *sym.Section, linkmode LinkMode) {
+	wantVA := s.Vaddr - uint64(PEBASE)
+	if wantVA != uint64(sect.virtualAddress) {
+		Errorf("%s.VirtualAddress = %#x, want %#x", sect.name, uint64(int64(sect.virtualAddress)), uint64(int64(wantVA)))
+		errorexit()
+	}
+	if s.Vaddr < s.Seg.Vaddr+s.Seg.Filelen {
+		wantOff := s.Seg.Fileoff + s.Vaddr - s.Seg.Vaddr
+		if wantOff != uint64(sect.pointerToRawData) {
+			Errorf("%s.PointerToRawData = %#x, want %#x", sect.name, uint64(int64(sect.pointerToRawData)), uint64(int64(wantOff)))
+			errorexit()
+		}
+		return
+	}
+	if sect.pointerToRawData != 0 && linkmode != LinkExternal {
+		Errorf("%s.PointerToRawData = %#x, want 0 for BSS", sect.name, uint64(int64(sect.pointerToRawData)))
+		errorexit()
+	}
+}
+
 // pad adds zeros to the section sect. It writes as many bytes
 // as necessary to make section sect.SizeOfRawData bytes long.
 // It assumes that n bytes are already written to the file.
@@ -445,61 +469,119 @@ type peFile struct {
 	symtabOffset   int64 // offset to the start of symbol table
 	symbolCount    int   // number of symbol table records written
 	dataDirectory  [16]pe.DataDirectory
+	sectMap        map[*sym.Section]*peSection // maps sym.Section to peSection
 }
 
-// addSection adds section to the COFF file f.
+// addSection adds a dynamically created section to the COFF file f.
+// The section's virtual address and file offset are allocated from
+// f.nextSectOffset and f.nextFileOffset.
 func (f *peFile) addSection(name string, sectsize int, filesize int) *peSection {
+	return f.appendSection(name, sectsize, filesize, f.nextSectOffset, f.nextFileOffset)
+}
+
+// appendSection is the internal implementation for adding sections.
+func (f *peFile) appendSection(name string, sectsize int, filesize int, vaddr uint32, fileoff uint32) *peSection {
 	sect := &peSection{
 		name:             name,
 		shortName:        name,
 		index:            len(f.sections) + 1,
-		virtualAddress:   f.nextSectOffset,
-		pointerToRawData: f.nextFileOffset,
+		virtualAddress:   vaddr,
+		pointerToRawData: fileoff,
 	}
-	f.nextSectOffset = uint32(Rnd(int64(f.nextSectOffset)+int64(sectsize), PESECTALIGN))
 	if filesize > 0 {
 		sect.virtualSize = uint32(sectsize)
 		sect.sizeOfRawData = uint32(Rnd(int64(filesize), PEFILEALIGN))
-		f.nextFileOffset += sect.sizeOfRawData
 	} else {
 		sect.sizeOfRawData = uint32(sectsize)
+	}
+	endVA := uint32(Rnd(int64(vaddr)+int64(sectsize), PESECTALIGN))
+	if endVA > f.nextSectOffset {
+		f.nextSectOffset = endVA
+	}
+	if filesize > 0 {
+		endFile := fileoff + sect.sizeOfRawData
+		if endFile > f.nextFileOffset {
+			f.nextFileOffset = endFile
+		}
 	}
 	f.sections = append(f.sections, sect)
 	return sect
 }
 
-// addDWARFSection adds DWARF section to the COFF file f.
-// This function is similar to addSection, but DWARF section names are
-// longer than 8 characters, so they need to be stored in the string table.
-func (f *peFile) addDWARFSection(name string, size int) *peSection {
-	if size == 0 {
-		Exitf("DWARF section %q is empty", name)
-	}
-	// DWARF section names are longer than 8 characters.
-	// PE format requires such names to be stored in string table,
-	// and section names replaced with slash (/) followed by
-	// correspondent string table index.
-	// see http://www.microsoft.com/whdc/system/platform/firmware/PECOFFdwn.mspx
-	// for details
-	off := f.stringTable.add(name)
-	h := f.addSection(name, size, size)
-	h.shortName = fmt.Sprintf("/%d", off)
-	h.characteristics = IMAGE_SCN_ALIGN_1BYTES | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE | IMAGE_SCN_CNT_INITIALIZED_DATA
-	return h
-}
-
 // addDWARF adds DWARF information to the COFF file f.
-func (f *peFile) addDWARF() {
+func (f *peFile) addDWARF(ctxt *Link) {
 	if *FlagW { // disable dwarf
 		return
 	}
 	for _, sect := range Segdwarf.Sections {
-		h := f.addDWARFSection(sect.Name, int(sect.Length))
+		h := f.createSection(ctxt, sect, &Segdwarf)
+		if h == nil {
+			// createSection returns nil for empty sections
+			continue
+		}
 		fileoff := sect.Vaddr - Segdwarf.Vaddr + Segdwarf.Fileoff
 		if uint64(h.pointerToRawData) != fileoff {
 			Exitf("%s.PointerToRawData = %#x, want %#x", sect.Name, h.pointerToRawData, fileoff)
 		}
 	}
+}
+
+// createSection creates a PE section for the given sym.Section.
+func (f *peFile) createSection(ctxt *Link, sect *sym.Section, seg *sym.Segment) *peSection {
+	if sect.Length == 0 {
+		return nil
+	}
+
+	name := sect.Name
+	shortName := name
+	if len(name) > 8 {
+		off := f.stringTable.add(name)
+		shortName = fmt.Sprintf("/%d", off)
+	}
+
+	fileSize := int(sect.Length)
+	if sect.Vaddr >= seg.Vaddr+seg.Filelen {
+		fileSize = 0 // BSS
+	}
+	fileoff := uint32(sect.Seg.Fileoff + sect.Vaddr - sect.Seg.Vaddr)
+	h := f.appendSection(name, int(sect.Length), fileSize, uint32(sect.Vaddr-uint64(PEBASE)), fileoff)
+	h.shortName = shortName
+
+	switch seg {
+	case &Segtext:
+		h.characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
+	case &Segrodata:
+		h.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+	case &Segrelrodata:
+		h.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+	case &Segdata:
+		if fileSize > 0 {
+			h.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
+		} else {
+			h.characteristics = IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
+		}
+	case &Segdwarf:
+		h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE | IMAGE_SCN_CNT_INITIALIZED_DATA
+		if ctxt.LinkMode == LinkExternal {
+			h.characteristics |= IMAGE_SCN_ALIGN_1BYTES
+		}
+	}
+
+	if ctxt.LinkMode == LinkExternal && seg != &Segdwarf {
+		// For external linking, set explicit 32-byte alignment in COFF object.
+		// This ensures the external linker honors our alignment requirements.
+		// DWARF sections use 1-byte alignment as they don't need special alignment.
+		h.characteristics |= IMAGE_SCN_ALIGN_32BYTES
+	}
+	if fileSize == 0 {
+		// BSS section: no file data, but size is stored in sizeOfRawData
+		// (which was correctly set by appendSection).
+		// GNU ld and lld expect BSS size in sizeOfRawData, not virtualSize.
+		h.pointerToRawData = 0
+	}
+
+	f.sectMap[sect] = h
+	return h
 }
 
 // addSEH adds SEH information to the COFF file f.
@@ -509,27 +591,64 @@ func (f *peFile) addSEH(ctxt *Link) {
 	if Segpdata.Length == 0 {
 		return
 	}
-	d := pefile.addSection(".pdata", int(Segpdata.Length), int(Segpdata.Length))
-	d.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
-	if ctxt.LinkMode == LinkExternal {
-		// Some gcc versions don't honor the default alignment for the .pdata section.
-		d.characteristics |= IMAGE_SCN_ALIGN_4BYTES
-	}
-	pefile.pdataSect = d
-	d.checkSegment(&Segpdata)
-	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].VirtualAddress = d.virtualAddress
-	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].Size = d.virtualSize
-
-	if Segxdata.Length > 0 {
-		d = pefile.addSection(".xdata", int(Segxdata.Length), int(Segxdata.Length))
+	for _, sect := range Segpdata.Sections {
+		fileoff := sect.Vaddr - Segpdata.Vaddr + Segpdata.Fileoff
+		d := f.appendSection(sect.Name, int(sect.Length), int(sect.Length), uint32(sect.Vaddr-uint64(PEBASE)), uint32(fileoff))
 		d.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
 		if ctxt.LinkMode == LinkExternal {
-			// Some gcc versions don't honor the default alignment for the .xdata section.
+			// Some gcc versions don't honor the default alignment for the .pdata section.
 			d.characteristics |= IMAGE_SCN_ALIGN_4BYTES
 		}
-		pefile.xdataSect = d
-		d.checkSegment(&Segxdata)
+		f.sectMap[sect] = d
+		if sect.Name == ".pdata" {
+			f.pdataSect = d
+		}
 	}
+	if f.pdataSect == nil {
+		return
+	}
+	f.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].VirtualAddress = f.pdataSect.virtualAddress
+	f.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].Size = f.pdataSect.virtualSize
+
+	if Segxdata.Length > 0 {
+		for _, sect := range Segxdata.Sections {
+			fileoff := sect.Vaddr - Segxdata.Vaddr + Segxdata.Fileoff
+			d := f.appendSection(sect.Name, int(sect.Length), int(sect.Length), uint32(sect.Vaddr-uint64(PEBASE)), uint32(fileoff))
+			d.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+			if ctxt.LinkMode == LinkExternal {
+				// Some gcc versions don't honor the default alignment for the .xdata section.
+				d.characteristics |= IMAGE_SCN_ALIGN_4BYTES
+			}
+			f.sectMap[sect] = d
+			if sect.Name == ".xdata" {
+				f.xdataSect = d
+			}
+		}
+	}
+}
+
+// syncNextOffsets sets next offsets to the end of the segment layout.
+func (f *peFile) syncNextOffsets() {
+	var maxFile uint64
+	var maxVA uint64
+	for _, seg := range Segments {
+		if seg.Length == 0 && seg.Filelen == 0 {
+			continue
+		}
+		fileEnd := seg.Fileoff + uint64(Rnd(int64(seg.Filelen), PEFILEALIGN))
+		if fileEnd > maxFile {
+			maxFile = fileEnd
+		}
+		vaEnd := seg.Vaddr + uint64(Rnd(int64(seg.Length), PESECTALIGN))
+		if vaEnd > maxVA {
+			maxVA = vaEnd
+		}
+	}
+	if maxVA < uint64(PEBASE) {
+		maxVA = uint64(PEBASE)
+	}
+	f.nextFileOffset = uint32(maxFile)
+	f.nextSectOffset = uint32(maxVA - uint64(PEBASE))
 }
 
 // addInitArray adds .ctors COFF section to the file f.
@@ -623,30 +742,43 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 		return int(sect.Rellen / relocLen)
 	}
 
-	type relsect struct {
-		peSect *peSection
-		seg    *sym.Segment
-		syms   []loader.Sym
+	emitForSection := func(sect *sym.Section, syms []loader.Sym) {
+		pesect := f.sectMap[sect]
+		if pesect == nil {
+			if sect.Length == 0 {
+				return
+			}
+			Errorf("emitRelocations: could not find %q section", sect.Name)
+			return
+		}
+		pesect.emitRelocations(ctxt.Out, func() int {
+			return relocsect(sect, syms, sect.Vaddr)
+		})
 	}
-	sects := []relsect{
-		{f.textSect, &Segtext, ctxt.Textp},
-		{f.rdataSect, &Segrodata, ctxt.datap},
-		{f.dataSect, &Segdata, ctxt.datap},
+
+	for _, sect := range Segtext.Sections {
+		emitForSection(sect, ctxt.Textp)
 	}
+	for _, sect := range Segrodata.Sections {
+		emitForSection(sect, ctxt.datap)
+	}
+	for _, sect := range Segrelrodata.Sections {
+		emitForSection(sect, ctxt.datap)
+	}
+	for _, sect := range Segdata.Sections {
+		emitForSection(sect, ctxt.datap)
+	}
+
+	// Handle SEH sections
 	if len(sehp.pdata) != 0 {
-		sects = append(sects, relsect{f.pdataSect, &Segpdata, sehp.pdata})
+		for _, sect := range Segpdata.Sections {
+			emitForSection(sect, sehp.pdata)
+		}
 	}
 	if len(sehp.xdata) != 0 {
-		sects = append(sects, relsect{f.xdataSect, &Segxdata, sehp.xdata})
-	}
-	for _, s := range sects {
-		s.peSect.emitRelocations(ctxt.Out, func() int {
-			var n int
-			for _, sect := range s.seg.Sections {
-				n += relocsect(sect, s.syms, s.seg.Vaddr)
-			}
-			return n
-		})
+		for _, sect := range Segxdata.Sections {
+			emitForSection(sect, sehp.xdata)
+		}
 	}
 
 dwarfLoop:
@@ -657,13 +789,11 @@ dwarfLoop:
 			ldr.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}
-		for _, pesect := range f.sections {
-			if sect.Name == pesect.name {
-				pesect.emitRelocations(ctxt.Out, func() int {
-					return relocsect(sect, si.syms, sect.Vaddr)
-				})
-				continue dwarfLoop
-			}
+		if pesect := f.sectMap[sect]; pesect != nil {
+			pesect.emitRelocations(ctxt.Out, func() int {
+				return relocsect(sect, si.syms, sect.Vaddr)
+			})
+			continue dwarfLoop
 		}
 		Errorf("emitRelocations: could not find %q section", sect.Name)
 	}
@@ -719,28 +849,14 @@ func (f *peFile) mapToPESection(ldr *loader.Loader, s loader.Sym, linkmode LinkM
 	if sect == nil {
 		return 0, 0, fmt.Errorf("could not map %s symbol with no section", ldr.SymName(s))
 	}
-	if sect.Seg == &Segtext {
-		return f.textSect.index, int64(uint64(ldr.SymValue(s)) - Segtext.Vaddr), nil
+
+	if pesect, ok := f.sectMap[sect]; ok {
+		offset = int64(uint64(ldr.SymValue(s)) - sect.Vaddr)
+		return pesect.index, offset, nil
 	}
-	if sect.Seg == &Segrodata {
-		return f.rdataSect.index, int64(uint64(ldr.SymValue(s)) - Segrodata.Vaddr), nil
-	}
-	if sect.Seg != &Segdata {
-		return 0, 0, fmt.Errorf("could not map %s symbol with non .text or .rdata or .data section", ldr.SymName(s))
-	}
-	v := uint64(ldr.SymValue(s)) - Segdata.Vaddr
-	if linkmode != LinkExternal {
-		return f.dataSect.index, int64(v), nil
-	}
-	if ldr.SymType(s).IsDATA() {
-		return f.dataSect.index, int64(v), nil
-	}
-	// Note: although address of runtime.edata (type sym.SDATA) is at the start of .bss section
-	// it still belongs to the .data section, not the .bss section.
-	if v < Segdata.Filelen {
-		return f.dataSect.index, int64(v), nil
-	}
-	return f.bssSect.index, int64(v - Segdata.Filelen), nil
+
+	return 0, 0, fmt.Errorf("could not map %s symbol: section %s not in sectMap",
+		ldr.SymName(s), sect.Name)
 }
 
 var isLabel = make(map[loader.Sym]bool)
@@ -952,12 +1068,39 @@ func (f *peFile) writeFileHeader(ctxt *Link) {
 func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	var oh pe.OptionalHeader32
 	var oh64 pe.OptionalHeader64
+	sumSections := func(mask uint32) uint32 {
+		var total uint32
+		for _, sect := range f.sections {
+			if sect.characteristics&mask == mask {
+				total += sect.sizeOfRawData
+			}
+		}
+		return total
+	}
+	minVA := func(mask uint32) (uint32, bool) {
+		var min uint32
+		var ok bool
+		for _, sect := range f.sections {
+			if sect.characteristics&mask != mask {
+				continue
+			}
+			if !ok || sect.virtualAddress < min {
+				min = sect.virtualAddress
+				ok = true
+			}
+		}
+		return min, ok
+	}
 
 	if pe64 {
 		oh64.Magic = 0x20b // PE32+
 	} else {
 		oh.Magic = 0x10b // PE32
-		oh.BaseOfData = f.dataSect.virtualAddress
+		if f.dataSect != nil {
+			oh.BaseOfData = f.dataSect.virtualAddress
+		} else if base, ok := minVA(IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_WRITE); ok {
+			oh.BaseOfData = base
+		}
 	}
 
 	// Fill out both oh64 and oh. We only use one. Oh well.
@@ -965,18 +1108,23 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	oh.MajorLinkerVersion = 3
 	oh64.MinorLinkerVersion = 0
 	oh.MinorLinkerVersion = 0
-	oh64.SizeOfCode = f.textSect.sizeOfRawData
-	oh.SizeOfCode = f.textSect.sizeOfRawData
-	oh64.SizeOfInitializedData = f.dataSect.sizeOfRawData
-	oh.SizeOfInitializedData = f.dataSect.sizeOfRawData
-	oh64.SizeOfUninitializedData = 0
-	oh.SizeOfUninitializedData = 0
+	oh64.SizeOfCode = sumSections(IMAGE_SCN_CNT_CODE)
+	oh.SizeOfCode = oh64.SizeOfCode
+	oh64.SizeOfInitializedData = sumSections(IMAGE_SCN_CNT_INITIALIZED_DATA)
+	oh.SizeOfInitializedData = oh64.SizeOfInitializedData
+	oh64.SizeOfUninitializedData = sumSections(IMAGE_SCN_CNT_UNINITIALIZED_DATA)
+	oh.SizeOfUninitializedData = oh64.SizeOfUninitializedData
 	if ctxt.LinkMode != LinkExternal {
 		oh64.AddressOfEntryPoint = uint32(Entryvalue(ctxt) - PEBASE)
 		oh.AddressOfEntryPoint = uint32(Entryvalue(ctxt) - PEBASE)
 	}
-	oh64.BaseOfCode = f.textSect.virtualAddress
-	oh.BaseOfCode = f.textSect.virtualAddress
+	if f.textSect != nil {
+		oh64.BaseOfCode = f.textSect.virtualAddress
+		oh.BaseOfCode = f.textSect.virtualAddress
+	} else if base, ok := minVA(IMAGE_SCN_CNT_CODE); ok {
+		oh64.BaseOfCode = base
+		oh.BaseOfCode = base
+	}
 	oh64.ImageBase = uint64(PEBASE)
 	oh.ImageBase = uint32(PEBASE)
 	oh64.SectionAlignment = uint32(PESECTALIGN)
@@ -1121,7 +1269,7 @@ func Peinit(ctxt *Link) {
 		}
 	}
 
-	var sh [16]pe.SectionHeader32
+	var sh [peSectionHeaderReserve]pe.SectionHeader32
 	var fh pe.FileHeader
 	PEFILEHEADR = int32(Rnd(int64(len(dosstub)+binary.Size(&fh)+l+binary.Size(&sh)), PEFILEALIGN))
 	if ctxt.LinkMode != LinkExternal {
@@ -1274,10 +1422,17 @@ func peimporteddlls() []string {
 	return dlls
 }
 
-func addimports(ctxt *Link, datsect *peSection) {
+func addimports(ctxt *Link) {
+	if dr == nil {
+		return
+	}
 	ldr := ctxt.loader
 	startoff := ctxt.Out.Offset()
 	dynamic := ldr.LookupOrCreateSym(".windynamic", 0)
+	dynsect := pefile.sectMap[ldr.SymSect(dynamic)]
+	if dynsect == nil {
+		Exitf("missing PE section for .windynamic")
+	}
 
 	// skip import descriptor table (will write it later)
 	n := uint64(0)
@@ -1332,10 +1487,10 @@ func addimports(ctxt *Link, datsect *peSection) {
 	isect.pad(ctxt.Out, uint32(n))
 	endoff := ctxt.Out.Offset()
 
-	// write FirstThunks (allocated in .data section)
-	ftbase := uint64(ldr.SymValue(dynamic)) - uint64(datsect.virtualAddress) - uint64(PEBASE)
+	// write FirstThunks (allocated in .windynamic section)
+	ftbase := uint64(ldr.SymValue(dynamic)) - uint64(dynsect.virtualAddress) - uint64(PEBASE)
 
-	ctxt.Out.SeekSet(int64(uint64(datsect.pointerToRawData) + ftbase))
+	ctxt.Out.SeekSet(int64(uint64(dynsect.pointerToRawData) + ftbase))
 	for d := dr; d != nil; d = d.next {
 		for m := d.ms; m != nil; m = m.next {
 			if pe64 {
@@ -1361,7 +1516,7 @@ func addimports(ctxt *Link, datsect *peSection) {
 		out.Write32(0)
 		out.Write32(0)
 		out.Write32(uint32(uint64(isect.virtualAddress) + d.nameoff))
-		out.Write32(uint32(uint64(datsect.virtualAddress) + ftbase + d.thunkoff))
+		out.Write32(uint32(uint64(dynsect.virtualAddress) + ftbase + d.thunkoff))
 	}
 
 	out.Write32(0) //end
@@ -1692,46 +1847,52 @@ func addpersrc(ctxt *Link) {
 }
 
 func asmbPe(ctxt *Link) {
-	t := pefile.addSection(".text", int(Segtext.Length), int(Segtext.Length))
-	t.characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
-	if ctxt.LinkMode == LinkExternal {
-		// some data symbols (e.g. masks) end up in the .text section, and they normally
-		// expect larger alignment requirement than the default text section alignment.
-		t.characteristics |= IMAGE_SCN_ALIGN_32BYTES
+	pefile.sectMap = make(map[*sym.Section]*peSection)
+
+	for _, sect := range Segtext.Sections {
+		h := pefile.createSection(ctxt, sect, &Segtext)
+		if h == nil {
+			continue
+		}
+		if sect.Name == ".text" && pefile.textSect == nil {
+			pefile.textSect = h
+			h.checkSection(sect, ctxt.LinkMode)
+		}
 	}
-	t.checkSegment(&Segtext)
-	pefile.textSect = t
-
-	ro := pefile.addSection(".rdata", int(Segrodata.Length), int(Segrodata.Length))
-	ro.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
-	if ctxt.LinkMode == LinkExternal {
-		// some data symbols (e.g. masks) end up in the .rdata section, and they normally
-		// expect larger alignment requirement than the default text section alignment.
-		ro.characteristics |= IMAGE_SCN_ALIGN_32BYTES
+	for _, sect := range Segrodata.Sections {
+		h := pefile.createSection(ctxt, sect, &Segrodata)
+		if h == nil {
+			continue
+		}
+		if sect.Name == ".rodata" {
+			pefile.rdataSect = h
+			h.checkSection(sect, ctxt.LinkMode)
+		} else if pefile.rdataSect == nil {
+			pefile.rdataSect = h
+		}
 	}
-	ro.checkSegment(&Segrodata)
-	pefile.rdataSect = ro
-
-	var d *peSection
-	if ctxt.LinkMode != LinkExternal {
-		d = pefile.addSection(".data", int(Segdata.Length), int(Segdata.Filelen))
-		d.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
-		d.checkSegment(&Segdata)
-		pefile.dataSect = d
-	} else {
-		d = pefile.addSection(".data", int(Segdata.Filelen), int(Segdata.Filelen))
-		d.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
-		d.checkSegment(&Segdata)
-		pefile.dataSect = d
-
-		b := pefile.addSection(".bss", int(Segdata.Length-Segdata.Filelen), 0)
-		b.characteristics = IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
-		b.pointerToRawData = 0
-		pefile.bssSect = b
+	for _, sect := range Segrelrodata.Sections {
+		_ = pefile.createSection(ctxt, sect, &Segrelrodata)
+	}
+	for _, sect := range Segdata.Sections {
+		h := pefile.createSection(ctxt, sect, &Segdata)
+		if h == nil {
+			continue
+		}
+		if sect.Name == ".data" {
+			pefile.dataSect = h
+			h.checkSection(sect, ctxt.LinkMode)
+		} else if pefile.dataSect == nil && h.characteristics&IMAGE_SCN_MEM_WRITE != 0 && h.characteristics&IMAGE_SCN_CNT_INITIALIZED_DATA != 0 {
+			pefile.dataSect = h
+		}
+		if sect.Name == ".bss" {
+			pefile.bssSect = h
+		}
 	}
 
 	pefile.addSEH(ctxt)
-	pefile.addDWARF()
+	pefile.addDWARF(ctxt)
+	pefile.syncNextOffsets()
 
 	if ctxt.LinkMode == LinkExternal {
 		pefile.ctorsSect = pefile.addInitArray(ctxt)
@@ -1739,7 +1900,7 @@ func asmbPe(ctxt *Link) {
 
 	ctxt.Out.SeekSet(int64(pefile.nextFileOffset))
 	if ctxt.LinkMode != LinkExternal {
-		addimports(ctxt, d)
+		addimports(ctxt)
 		addexports(ctxt)
 		addPEBaseReloc(ctxt)
 	}
@@ -1747,6 +1908,9 @@ func asmbPe(ctxt *Link) {
 	addpersrc(ctxt)
 	if ctxt.LinkMode == LinkExternal {
 		pefile.emitRelocations(ctxt)
+	}
+	if len(pefile.sections) > peSectionHeaderReserve {
+		Exitf("too many PE sections (%d), increase peSectionHeaderReserve", len(pefile.sections))
 	}
 
 	pewrite(ctxt)
