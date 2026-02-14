@@ -507,7 +507,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 	// and now then there is no reason to even request it on entry. We can
 	// drop from startRegs in that case.
 	if s.usedSinceBlockStart&(regMask(1)<<r) == 0 {
-		if s.startRegsMask&(regMask(1)<<r) == 1 {
+		if s.startRegsMask&(regMask(1)<<r) != 0 {
 			if s.f.pass.debug > regDebug {
 				fmt.Printf("dropped from startRegs: %s\n", &s.registers[r])
 			}
