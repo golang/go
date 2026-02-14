@@ -410,3 +410,20 @@ func (methodIter2) Seq2(yield func(int, int) bool) {
 
 // For Type.CanSeq2 test.
 func (methodIter2) NonSeq2(yield func(int, int)) {}
+
+func TestSeqRetNamedBool(t *testing.T) {
+	type Bool bool
+	// Note: Type.Name() == "bool" is a incorrect check,
+	// the named boolean type below will pass the incorrect check.
+	type bool Bool
+	v := ValueOf(func(func(int) bool) {})
+	if v.Type().CanSeq() {
+		t.Fatal("got true, want false")
+	}
+	shouldPanic("reflect: func(func(int) reflect_test.bool) cannot produce iter.Seq[Value]", func() { v.Seq() })
+	v2 := ValueOf(func(func(int, int) bool) {})
+	if v2.Type().CanSeq() {
+		t.Fatal("got true, want false")
+	}
+	shouldPanic("func(func(int, int) reflect_test.bool) cannot produce iter.Seq2[Value, Value]", func() { v2.Seq2() })
+}
