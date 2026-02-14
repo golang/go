@@ -10,6 +10,7 @@ import (
 )
 
 func assertString(t *testing.T, dsc, out, tgt string) {
+	t.Helper()
 	if out != tgt {
 		t.Fatalf("Expected: %q Actual: %q for %s", tgt, out, dsc)
 	}
@@ -83,5 +84,30 @@ func TestIssue29551(t *testing.T) {
 
 	for _, tc := range tests {
 		assertString(t, fmt.Sprintf("package of %q", tc.sym.Name), tc.sym.PackageName(), tc.pkgName)
+	}
+}
+
+func TestIssue66313(t *testing.T) {
+	tests := []struct {
+		sym          Sym
+		packageName  string
+		receiverName string
+		baseName     string
+	}{
+		{Sym{Name: "github.com/google/cel-go/parser/gen.(*CELLexer).reset+10c630b8"},
+			"github.com/google/cel-go/parser/gen",
+			"(*CELLexer)",
+			"reset+10c630b8",
+		},
+		{Sym{Name: "ariga.io/atlas/sql/sqlclient.(*Tx).grabConn+404a5a3"},
+			"ariga.io/atlas/sql/sqlclient",
+			"(*Tx)",
+			"grabConn+404a5a3"},
+	}
+
+	for _, tc := range tests {
+		assertString(t, fmt.Sprintf("package of %q", tc.sym.Name), tc.sym.PackageName(), tc.packageName)
+		assertString(t, fmt.Sprintf("receiver of %q", tc.sym.Name), tc.sym.ReceiverName(), tc.receiverName)
+		assertString(t, fmt.Sprintf("package of %q", tc.sym.Name), tc.sym.BaseName(), tc.baseName)
 	}
 }
