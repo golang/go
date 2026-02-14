@@ -305,38 +305,38 @@ const ValidFileFlagsMask = O_FILE_FLAG_OPEN_REPARSE_POINT |
 // https://msdn.microsoft.com/en-us/library/windows/desktop/aa379636.aspx
 type TRUSTEE struct {
 	MultipleTrustee          *TRUSTEE
-	MultipleTrusteeOperation int32
-	TrusteeForm              int32
-	TrusteeType              int32
-	Name                     *uint16
+	MultipleTrusteeOperation uint32
+	TrusteeForm              uint32
+	TrusteeType              uint32
+	Name                     uintptr
 }
 
 // https://msdn.microsoft.com/en-us/library/windows/desktop/aa379638.aspx
 const (
-	TRUSTEE_IS_SID = iota
-	TRUSTEE_IS_NAME
-	TRUSTEE_BAD_FORM
-	TRUSTEE_IS_OBJECTS_AND_SID
-	TRUSTEE_IS_OBJECTS_AND_NAME
+	TRUSTEE_IS_SID              = 0x0
+	TRUSTEE_IS_NAME             = 0x1
+	TRUSTEE_BAD_FORM            = 0x2
+	TRUSTEE_IS_OBJECTS_AND_SID  = 0x3
+	TRUSTEE_IS_OBJECTS_AND_NAME = 0x4
 )
 
 // https://msdn.microsoft.com/en-us/library/windows/desktop/aa446627.aspx
 type EXPLICIT_ACCESS struct {
 	AccessPermissions uint32
-	AccessMode        int32
+	AccessMode        uint32
 	Inheritance       uint32
 	Trustee           TRUSTEE
 }
 
 // https://msdn.microsoft.com/en-us/library/windows/desktop/aa374899.aspx
 const (
-	NOT_USED_ACCESS = iota
-	GRANT_ACCESS
-	SET_ACCESS
-	DENY_ACCESS
-	REVOKE_ACCESS
-	SET_AUDIT_SUCCESS
-	SET_AUDIT_FAILURE
+	NOT_USED_ACCESS   = 0x0
+	GRANT_ACCESS      = 0x1
+	SET_ACCESS        = 0x2
+	DENY_ACCESS       = 0x3
+	REVOKE_ACCESS     = 0x4
+	SET_AUDIT_SUCCESS = 0x5
+	SET_AUDIT_FAILURE = 0x6
 )
 
 // https://msdn.microsoft.com/en-us/library/windows/desktop/aa446627.aspx
@@ -351,20 +351,20 @@ const (
 
 // https://msdn.microsoft.com/en-us/library/windows/desktop/aa379593.aspx
 const (
-	SE_UNKNOWN_OBJECT_TYPE = iota
-	SE_FILE_OBJECT
-	SE_SERVICE
-	SE_PRINTER
-	SE_REGISTRY_KEY
-	SE_LMSHARE
-	SE_KERNEL_OBJECT
-	SE_WINDOW_OBJECT
-	SE_DS_OBJECT
-	SE_DS_OBJECT_ALL
-	SE_PROVIDER_DEFINED_OBJECT
-	SE_WMIGUID_OBJECT
-	SE_REGISTRY_WOW64_32KEY
-	SE_REGISTRY_WOW64_64KEY
+	SE_UNKNOWN_OBJECT_TYPE     = 0x0
+	SE_FILE_OBJECT             = 0x1
+	SE_SERVICE                 = 0x2
+	SE_PRINTER                 = 0x3
+	SE_REGISTRY_KEY            = 0x4
+	SE_LMSHARE                 = 0x5
+	SE_KERNEL_OBJECT           = 0x6
+	SE_WINDOW_OBJECT           = 0x7
+	SE_DS_OBJECT               = 0x8
+	SE_DS_OBJECT_ALL           = 0x9
+	SE_PROVIDER_DEFINED_OBJECT = 0xa
+	SE_WMIGUID_OBJECT          = 0xb
+	SE_REGISTRY_WOW64_32KEY    = 0xc
+	SE_REGISTRY_WOW64_64KEY    = 0xd
 )
 
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dtyp/23e75ca3-98fd-4396-84e5-86cd9d40d343
