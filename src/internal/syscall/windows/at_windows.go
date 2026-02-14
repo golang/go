@@ -585,6 +585,7 @@ func symlinkat(oldname string, newdirfd syscall.Handle, newname string, flags Sy
 	namebuf := rdbbuf[bufferSize:]
 	copy(namebuf, unsafe.String((*byte)(unsafe.Pointer(&oldnameu16[0])), 2*len(oldnameu16)))
 
+	var bytesReturned uint32
 	err = syscall.DeviceIoControl(
 		h,
 		FSCTL_SET_REPARSE_POINT,
@@ -592,7 +593,7 @@ func symlinkat(oldname string, newdirfd syscall.Handle, newname string, flags Sy
 		uint32(len(rdbbuf)),
 		nil,
 		0,
-		nil,
+		&bytesReturned,
 		nil)
 	if err != nil {
 		// Creating the symlink has failed, so try to remove the file.
