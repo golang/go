@@ -308,3 +308,7 @@ const (
 	SYS_FANOTIFY_MARK          = 301
 	SYS_PRLIMIT64              = 302
 )
+
+const (
+	_SYS_landlock_restrict_self = 446
+)

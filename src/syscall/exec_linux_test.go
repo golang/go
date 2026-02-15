@@ -727,3 +727,69 @@ func testAmbientCaps(t *testing.T, userns bool) {
 		t.Fatal(err.Error())
 	}
 }
+
+func TestLandlockRestrictSelf(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		// Child: try to create a directory.
+		// This should fail with EACCES.
+		err := os.Mkdir(filepath.Join(flag.Args()[0], "test"), 0o755)
+		if err != nil {
+			fmt.Println("DENIED")
+			os.Exit(0)
+		}
+		fmt.Println("ALLOWED")
+		os.Exit(0)
+	}
+
+	// Avoid defining SYS_LANDLOCK_CREATE_RULESET publicly.
+	SYS_LANDLOCK_CREATE_RULESET := uintptr(444)
+	switch runtime.GOARCH {
+	case "mips", "mipsle":
+		SYS_LANDLOCK_CREATE_RULESET += 4000
+	case "mips64", "mips64le":
+		SYS_LANDLOCK_CREATE_RULESET += 5000
+	}
+
+	const (
+		LANDLOCK_CREATE_RULESET_VERSION = 1
+		LANDLOCK_ACCESS_FS_MAKE_DIR     = 1 << 7
+	)
+
+	// Check if Landlock is supported.
+	_, _, errno := syscall.Syscall(SYS_LANDLOCK_CREATE_RULESET, 0, 0, LANDLOCK_CREATE_RULESET_VERSION)
+	if errno != 0 {
+		t.Skipf("Kernel does not support Landlock: %v", errno)
+	}
+
+	// Create a ruleset restricting directory creation with no allow
+	// rules, effectively denying directory creation everywhere.
+	type landlockRulesetAttr struct {
+		handledAccessFS uint64
+	}
+	attr := landlockRulesetAttr{
+		handledAccessFS: LANDLOCK_ACCESS_FS_MAKE_DIR,
+	}
+	rulesetFD, _, errno := syscall.Syscall(SYS_LANDLOCK_CREATE_RULESET, uintptr(unsafe.Pointer(&attr)), unsafe.Sizeof(attr), 0)
+	if errno != 0 {
+		t.Fatalf("landlock_create_ruleset: %v", errno)
+	}
+	defer syscall.Close(int(rulesetFD))
+
+	d := t.TempDir()
+	exe := testenv.Executable(t)
+	cmd := testenv.Command(t, exe, "-test.run=^TestLandlockRestrictSelf$", d)
+	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		UseLandlockRestrictSelf:       true,
+		LandlockRestrictSelfRulesetFD: int(rulesetFD),
+		LandlockRestrictSelfFlags:     0,
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Subprocess failed: %v\n%s", err, out)
+	}
+	got := strings.TrimSpace(string(out))
+	if want := "DENIED"; got != want {
+		t.Errorf("Subprocess output: got %q, want %q", got, want)
+	}
+}

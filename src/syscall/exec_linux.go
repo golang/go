@@ -110,6 +110,12 @@ type SysProcAttr struct {
 	// functionality is supported by the kernel, or -1. Note *PidFD is
 	// changed only if the process starts successfully.
 	PidFD *int
+	// If UseLandlockRestrictSelf is set, the child process will be placed
+	// in a new Landlock domain, by setting the prctl(2) "no_new_privs" attribute
+	// and invoking landlock_restrict_self(2) with the provided system call arguments.
+	UseLandlockRestrictSelf       bool   // Whether to invoke landlock_restrict_self(2).
+	LandlockRestrictSelfRulesetFD int    // Ruleset FD argument for landlock_restrict_self(2).
+	LandlockRestrictSelfFlags     uint32 // Flags argument for landlock_restrict_self(2).
 }
 
 var (
@@ -659,6 +665,21 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	// setting up after the fork. See issue #21428.
 	if sys.Ptrace {
 		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	// Enforce a Landlock policy if requested.
+	// PR_SET_NO_NEW_PRIVS is a prerequisite for enforcing Landlock policies,
+	// so we do it implicitly.
+	if sys.UseLandlockRestrictSelf {
+		_, _, err1 = RawSyscall6(SYS_PRCTL, _PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+
+		_, _, err1 = RawSyscall(_SYS_landlock_restrict_self, uintptr(sys.LandlockRestrictSelfRulesetFD), uintptr(sys.LandlockRestrictSelfFlags), 0)
 		if err1 != 0 {
 			goto childerror
 		}
