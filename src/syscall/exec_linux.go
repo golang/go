@@ -110,6 +110,8 @@ type SysProcAttr struct {
 	// functionality is supported by the kernel, or -1. Note *PidFD is
 	// changed only if the process starts successfully.
 	PidFD *int
+	// NoNewPrivs calls prctl(PR_SET_NO_NEW_PRIVS) before exec.
+	NoNewPrivs bool
 }
 
 var (
@@ -664,6 +666,14 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	// setting up after the fork. See issue #21428.
 	if sys.Ptrace {
 		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	// Call prctl(PR_SET_NO_NEW_PRIVS).
+	if sys.NoNewPrivs {
+		_, _, err1 = RawSyscall6(SYS_PRCTL, _PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}
