@@ -4,9 +4,6 @@
 
 //go:build unix && !solaris
 
-#include <signal.h>
-#include <string.h>
-#include <errno.h>
 #include "libcgo.h"
 #include "libcgo_unix.h"
 
@@ -37,37 +34,9 @@ _cgo_set_stacklo(G *g)
 	}
 }
 
-static void
-clang_init()
-{
-#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
-	/* The memory sanitizer distributed with versions of clang
-	   before 3.8 has a bug: if you call mmap before malloc, mmap
-	   may return an address that is later overwritten by the msan
-	   library. Avoid this problem by forcing a call to malloc
-	   here, before we ever call malloc.
-
-	   This is only required for the memory sanitizer, so it's
-	   unfortunate that we always run it. It should be possible
-	   to remove this when we no longer care about versions of
-	   clang before 3.8. The test for this is
-	   cmd/cgo/internal/testsanitizers .  */
-	uintptr *p;
-	p = (uintptr*)malloc(sizeof(uintptr));
-	if (p == NULL) {
-		fatalf("malloc failed: %s", strerror(errno));
-	}
-	/* GCC works hard to eliminate a seemingly unnecessary call to
-	   malloc, so we actually touch the memory we allocate.  */
-	((volatile char *)p)[0] = 0;
-	free(p);
-#endif
-}
-
 void
 x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 {
-	clang_init();
 	setg_gcc = setg;
 	_cgo_set_stacklo(g);
 
