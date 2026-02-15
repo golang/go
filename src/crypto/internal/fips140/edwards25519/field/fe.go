@@ -116,7 +116,7 @@ func (v *Element) Negate(a *Element) *Element {
 // If z == 0, Invert returns v = 0.
 func (v *Element) Invert(z *Element) *Element {
 	// Inversion is implemented as exponentiation with exponent p − 2. It uses the
-	// same sequence of 255 squarings and 11 multiplications as [Curve25519].
+	// same sequence of 254 squarings and 11 multiplications as [Curve25519].
 	var z2, z9, z11, z2_5_0, z2_10_0, z2_20_0, z2_50_0, z2_100_0, t Element
 
 	z2.Square(z)             // 2
