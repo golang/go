@@ -414,7 +414,7 @@ func testTextfmt(t *testing.T, s state) {
 		dumplines(lines[0:10])
 		t.Errorf("textfmt: want %s got %s", want0, lines[0])
 	}
-	want1 := mainPkgPath + "/prog1.go:13.14,15.2 1 1"
+	want1 := mainPkgPath + "/prog1.go:14.2,15.1 1 1"
 	if lines[1] != want1 {
 		dumplines(lines[0:10])
 		t.Errorf("textfmt: want %s got %s", want1, lines[1])
@@ -545,7 +545,7 @@ func testMergeSimple(t *testing.T, s state, indir1, indir2, tag string) {
 		},
 		{
 			tag:     "third function unit 0",
-			re:      regexp.MustCompile(`^0: L23:C23 -- L24:C12 NS=1 = (\d+)$`),
+			re:      regexp.MustCompile(`^0: L24:C2 -- L24:C12 NS=1 = (\d+)$`),
 			nonzero: true,
 		},
 		{
@@ -555,7 +555,7 @@ func testMergeSimple(t *testing.T, s state, indir1, indir2, tag string) {
 		},
 		{
 			tag:     "third function unit 2",
-			re:      regexp.MustCompile(`^2: L24:C12 -- L26:C3 NS=1 = (\d+)$`),
+			re:      regexp.MustCompile(`^2: L25:C3 -- L26:C1 NS=1 = (\d+)$`),
 			nonzero: true,
 		},
 	}
@@ -727,7 +727,7 @@ func testSubtract(t *testing.T, s state) {
 		},
 		{
 			tag:  "third function unit 0",
-			re:   regexp.MustCompile(`^0: L23:C23 -- L24:C12 NS=1 = (\d+)$`),
+			re:   regexp.MustCompile(`^0: L24:C2 -- L24:C12 NS=1 = (\d+)$`),
 			zero: true,
 		},
 		{
@@ -737,7 +737,7 @@ func testSubtract(t *testing.T, s state) {
 		},
 		{
 			tag:  "third function unit 2",
-			re:   regexp.MustCompile(`^2: L24:C12 -- L26:C3 NS=1 = (\d+)$`),
+			re:   regexp.MustCompile(`^2: L25:C3 -- L26:C1 NS=1 = (\d+)$`),
 			zero: true,
 		},
 	}
