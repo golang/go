@@ -81,8 +81,6 @@ const (
 	SELFRELROSECT   // ELF-specific read-only relocatable: PLT, etc.
 	SMACHORELROSECT // Mach-O specific read-only relocatable.
 
-	SITABLINK // Itab links.
-
 	// Allocated writable segment.
 	SFirstWritable
 	SBUILDINFO          // debug/buildinfo data (why is this writable?).
