@@ -2,12 +2,46 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package json implements encoding and decoding of JSON as defined in
-// RFC 7159. The mapping between JSON and Go values is described
-// in the documentation for the Marshal and Unmarshal functions.
+//go:build !goexperiment.jsonv2
+
+// Package json implements encoding and decoding of JSON as defined in RFC 7159.
+// The mapping between JSON and Go values is described in the documentation for
+// the Marshal and Unmarshal functions.
 //
 // See "JSON and Go" for an introduction to this package:
 // https://golang.org/doc/articles/json_and_go.html
+//
+// # Security Considerations
+//
+// The JSON standard (RFC 7159) is lax in its definition of a number of parser
+// behaviors. As such, many JSON parsers behave differently in various
+// scenarios. These differences in parsers mean that systems that use multiple
+// independent JSON parser implementations may parse the same JSON object in
+// differing ways.
+//
+// Systems that rely on a JSON object being parsed consistently for security
+// purposes should be careful to understand the behaviors of this parser, as
+// well as how these behaviors may cause interoperability issues with other
+// parser implementations.
+//
+// Due to the Go Backwards Compatibility promise (https://go.dev/doc/go1compat)
+// there are a number of behaviors this package exhibits that may cause
+// interoperability issues, but cannot be changed. In particular the following
+// parsing behaviors may cause issues:
+//
+//   - If a JSON object contains duplicate keys, keys are processed in the order
+//     they are observed, meaning later values will replace or be merged into
+//     prior values, depending on the field type (in particular maps and structs
+//     will have values merged, while other types have values replaced).
+//   - When parsing a JSON object into a Go struct, keys are considered in a
+//     case-insensitive fashion.
+//   - When parsing a JSON object into a Go struct, unknown keys in the JSON
+//     object are ignored (unless a [Decoder] is used and
+//     [Decoder.DisallowUnknownFields] has been called).
+//   - Invalid UTF-8 bytes in JSON strings are replaced by the Unicode
+//     replacement character.
+//   - Large JSON number integers will lose precision when unmarshaled into
+//     floating-point types.
 package json
 
 import (
@@ -24,7 +58,6 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
-	_ "unsafe" // for linkname
 )
 
 // Marshal returns the JSON encoding of v.
@@ -357,25 +390,22 @@ func typeEncoder(t reflect.Type) encoderFunc {
 	}
 
 	// To deal with recursive types, populate the map with an
-	// indirect func before we build it. This type waits on the
-	// real func (f) to be ready and then calls it. This indirect
-	// func is only used for recursive types.
-	var (
-		wg sync.WaitGroup
-		f  encoderFunc
-	)
-	wg.Add(1)
+	// indirect func before we build it. If the type is recursive,
+	// the second lookup for the type will return the indirect func.
+	//
+	// This indirect func is only used for recursive types,
+	// and briefly during racing calls to typeEncoder.
+	indirect := sync.OnceValue(func() encoderFunc {
+		return newTypeEncoder(t, true)
+	})
 	fi, loaded := encoderCache.LoadOrStore(t, encoderFunc(func(e *encodeState, v reflect.Value, opts encOpts) {
-		wg.Wait()
-		f(e, v, opts)
+		indirect()(e, v, opts)
 	}))
 	if loaded {
 		return fi.(encoderFunc)
 	}
 
-	// Compute the real encoder and replace the indirect func with it.
-	f = newTypeEncoder(t, true)
-	wg.Done()
+	f := indirect()
 	encoderCache.Store(t, f)
 	return f
 }
@@ -444,7 +474,7 @@ func marshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		e.WriteString("null")
 		return
 	}
-	m, ok := v.Interface().(Marshaler)
+	m, ok := reflect.TypeAssert[Marshaler](v)
 	if !ok {
 		e.WriteString("null")
 		return
@@ -467,7 +497,7 @@ func addrMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		e.WriteString("null")
 		return
 	}
-	m := va.Interface().(Marshaler)
+	m, _ := reflect.TypeAssert[Marshaler](va)
 	b, err := m.MarshalJSON()
 	if err == nil {
 		e.Grow(len(b))
@@ -485,7 +515,7 @@ func textMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		e.WriteString("null")
 		return
 	}
-	m, ok := v.Interface().(encoding.TextMarshaler)
+	m, ok := reflect.TypeAssert[encoding.TextMarshaler](v)
 	if !ok {
 		e.WriteString("null")
 		return
@@ -503,7 +533,7 @@ func addrTextMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		e.WriteString("null")
 		return
 	}
-	m := va.Interface().(encoding.TextMarshaler)
+	m, _ := reflect.TypeAssert[encoding.TextMarshaler](va)
 	b, err := m.MarshalText()
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err, "MarshalText"})
@@ -602,17 +632,6 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	}
 }
 
-// isValidNumber reports whether s is a valid JSON number literal.
-//
-// isValidNumber should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/bytedance/sonic
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname isValidNumber
 func isValidNumber(s string) bool {
 	// This function implements the JSON numbers grammar.
 	// See https://tools.ietf.org/html/rfc7159#section-6
@@ -960,7 +979,7 @@ func resolveKeyName(k reflect.Value) (string, error) {
 	if k.Kind() == reflect.String {
 		return k.String(), nil
 	}
-	if tm, ok := k.Interface().(encoding.TextMarshaler); ok {
+	if tm, ok := reflect.TypeAssert[encoding.TextMarshaler](k); ok {
 		if k.Kind() == reflect.Pointer && k.IsNil() {
 			return "", nil
 		}
@@ -1015,10 +1034,7 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
 		// For now, cast only a small portion of byte slices to a string
 		// so that it can be stack allocated. This slows down []byte slightly
 		// due to the extra copy, but keeps string performance roughly the same.
-		n := len(src) - i
-		if n > utf8.UTFMax {
-			n = utf8.UTFMax
-		}
+		n := min(len(src)-i, utf8.UTFMax)
 		c, size := utf8.DecodeRuneInString(string(src[i : i+n]))
 		if c == utf8.RuneError && size == 1 {
 			dst = append(dst, src[start:i]...)
@@ -1073,19 +1089,6 @@ type isZeroer interface {
 
 var isZeroerType = reflect.TypeFor[isZeroer]()
 
-// typeFields returns a list of fields that JSON should recognize for the given type.
-// The algorithm is breadth-first search over the set of structs to include - the top struct
-// and then any reachable anonymous structs.
-//
-// typeFields should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
-//   - github.com/bytedance/sonic
-//
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
-//
-//go:linkname typeFields
 func typeFields(t reflect.Type) structFields {
 	// Anonymous fields to explore at the current level and the next.
 	current := []field{}

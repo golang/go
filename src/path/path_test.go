@@ -5,6 +5,7 @@
 package path_test
 
 import (
+	"path"
 	. "path"
 	"runtime"
 	"testing"
@@ -232,5 +233,16 @@ func TestIsAbs(t *testing.T) {
 		if r := IsAbs(test.path); r != test.isAbs {
 			t.Errorf("IsAbs(%q) = %v, want %v", test.path, r, test.isAbs)
 		}
+	}
+}
+
+func BenchmarkJoin(b *testing.B) {
+	b.ReportAllocs()
+	parts := []string{"one", "two", "three", "four"}
+	s := parts[0]
+	for b.Loop() {
+		parts[0] = s
+		s = path.Join(parts...)
+		s = s[:3]
 	}
 }

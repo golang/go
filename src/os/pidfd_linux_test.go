@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func TestFindProcessViaPidfd(t *testing.T) {
@@ -143,5 +144,75 @@ func TestPidfdLeak(t *testing.T) {
 	// Allow some slack for runtime epoll descriptors and the like.
 	if got[count-1] > want[count-1]+5 {
 		t.Errorf("got descriptor %d, want %d", got[count-1], want[count-1])
+	}
+}
+
+func TestProcessWithHandleLinux(t *testing.T) {
+	t.Parallel()
+	havePidfd := os.CheckPidfdOnce() == nil
+
+	const envVar = "OSTEST_PROCESS_WITH_HANDLE"
+	if os.Getenv(envVar) != "" {
+		time.Sleep(1 * time.Minute)
+		return
+	}
+
+	cmd := testenv.CommandContext(t, t.Context(), testenv.Executable(t), "-test.run=^"+t.Name()+"$")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, envVar+"=1")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		cmd.Process.Kill()
+		cmd.Wait()
+	}()
+
+	const sig = syscall.SIGINT
+	called := false
+	err := cmd.Process.WithHandle(func(pidfd uintptr) {
+		called = true
+		// Check the provided pidfd is valid, and terminate the child.
+		err := unix.PidFDSendSignal(pidfd, sig)
+		if err != nil {
+			t.Errorf("PidFDSendSignal: got error %v, want nil", err)
+		}
+	})
+	// If pidfd is not supported, WithHandle should fail.
+	if !havePidfd && err == nil {
+		t.Fatal("WithHandle: got nil, want error")
+	}
+	// If pidfd is supported, WithHandle should succeed.
+	if havePidfd && err != nil {
+		t.Fatalf("WithHandle: got error %v, want nil", err)
+	}
+	// If pidfd is supported, function should have been called, and vice versa.
+	if havePidfd != called {
+		t.Fatalf("WithHandle: havePidfd is %v, but called is %v", havePidfd, called)
+	}
+	// If pidfd is supported, wait on the child process to check it worked as intended.
+	if called {
+		err := cmd.Wait()
+		if err == nil {
+			t.Fatal("Wait: want error, got nil")
+		}
+		st := cmd.ProcessState.Sys().(syscall.WaitStatus)
+		if !st.Signaled() {
+			t.Fatal("ProcessState: want Signaled, got", err)
+		}
+		if gotSig := st.Signal(); sig != gotSig {
+			t.Fatalf("ProcessState.Signal: want %v, got %v", sig, gotSig)
+		}
+		// Finally, check that WithHandle now returns ErrProcessDone.
+		called = false
+		err = cmd.Process.WithHandle(func(_ uintptr) {
+			called = true
+		})
+		if err != os.ErrProcessDone {
+			t.Fatalf("WithHandle: want os.ErrProcessDone, got %v", err)
+		}
+		if called {
+			t.Fatal("called: want false, got true")
+		}
 	}
 }

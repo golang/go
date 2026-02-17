@@ -6,13 +6,14 @@
 #include "textflag.h"
 #include "funcdata.h"
 
-// bool armcas(int32 *val, int32 old, int32 new)
+// func armcas(ptr *int32, old, new int32) bool
 // Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	}else
-//		return 0;
+//	if *ptr == old {
+//		*ptr = new
+//		return true
+//	} else {
+//		return false
+//	}
 //
 // To implement ·cas in sys_$GOOS_arm.s
 // using the native instructions, use:

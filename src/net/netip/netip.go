@@ -16,7 +16,6 @@ import (
 	"errors"
 	"internal/bytealg"
 	"internal/byteorder"
-	"internal/itoa"
 	"math"
 	"strconv"
 	"unique"
@@ -684,12 +683,12 @@ func (ip Addr) Prefix(b int) (Prefix, error) {
 		return Prefix{}, nil
 	case z4:
 		if b > 32 {
-			return Prefix{}, errors.New("prefix length " + itoa.Itoa(b) + " too large for IPv4")
+			return Prefix{}, errors.New("prefix length " + strconv.Itoa(b) + " too large for IPv4")
 		}
 		effectiveBits += 96
 	default:
 		if b > 128 {
-			return Prefix{}, errors.New("prefix length " + itoa.Itoa(b) + " too large for IPv6")
+			return Prefix{}, errors.New("prefix length " + strconv.Itoa(b) + " too large for IPv6")
 		}
 	}
 	ip.addr = ip.addr.and(mask6(effectiveBits))
@@ -1330,21 +1329,23 @@ func (p Prefix) isZero() bool { return p == Prefix{} }
 // IsSingleIP reports whether p contains exactly one IP.
 func (p Prefix) IsSingleIP() bool { return p.IsValid() && p.Bits() == p.ip.BitLen() }
 
-// compare returns an integer comparing two prefixes.
+// Compare returns an integer comparing two prefixes.
 // The result will be 0 if p == p2, -1 if p < p2, and +1 if p > p2.
 // Prefixes sort first by validity (invalid before valid), then
-// address family (IPv4 before IPv6), then prefix length, then
-// address.
-//
-// Unexported for Go 1.22 because we may want to compare by p.Addr first.
-// See post-acceptance discussion on go.dev/issue/61642.
-func (p Prefix) compare(p2 Prefix) int {
-	if c := cmp.Compare(p.Addr().BitLen(), p2.Addr().BitLen()); c != 0 {
+// address family (IPv4 before IPv6), then masked prefix address, then
+// prefix length, then unmasked address.
+func (p Prefix) Compare(p2 Prefix) int {
+	// Aside from sorting based on the masked address, this use of
+	// Addr.Compare also enforces the valid vs. invalid and address
+	// family ordering for the prefix.
+	if c := p.Masked().Addr().Compare(p2.Masked().Addr()); c != 0 {
 		return c
 	}
+
 	if c := cmp.Compare(p.Bits(), p2.Bits()); c != 0 {
 		return c
 	}
+
 	return p.Addr().Compare(p2.Addr())
 }
 
@@ -1591,5 +1592,23 @@ func (p Prefix) String() string {
 	if !p.IsValid() {
 		return "invalid Prefix"
 	}
-	return p.ip.String() + "/" + itoa.Itoa(p.Bits())
+	var b []byte
+	switch {
+	case p.ip.z == z4:
+		const maxCap = len("255.255.255.255/32")
+		b = make([]byte, 0, maxCap)
+		b = p.ip.appendTo4(b)
+	case p.ip.Is4In6():
+		const maxCap = len("::ffff:255.255.255.255/32")
+		b = make([]byte, 0, maxCap)
+		b = append(b, "::ffff:"...)
+		b = p.ip.Unmap().appendTo4(b)
+	default:
+		const maxCap = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128")
+		b = make([]byte, 0, maxCap)
+		b = p.ip.appendTo6(b)
+	}
+	b = append(b, '/')
+	b = appendDecimal(b, uint8(p.Bits()))
+	return string(b)
 }

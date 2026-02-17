@@ -45,6 +45,11 @@ cp y_pkgconfig_at_foo.txt y.go
 ! go build x
 stderr 'invalid pkg-config package name: @foo'
 
+# Reject #cgo pkg-config: --log-file=/tmp/log
+cp y_pkgconfig_log_file.txt y.go
+! go build x
+stderr 'invalid flag in pkg-config: --log-file=/tmp/log'
+
 # Reject #cgo CFLAGS: @foo
 cp y_cflags_at_foo.txt y.go
 ! go build x
@@ -107,6 +112,10 @@ import "C"
 -- y_pkgconfig_at_foo.txt --
 package x
 // #cgo pkg-config: @foo
+import "C"
+-- y_pkgconfig_log_file.txt --
+package x
+// #cgo pkg-config: --log-file=/tmp/log
 import "C"
 -- y_cflags_at_foo.txt --
 package x

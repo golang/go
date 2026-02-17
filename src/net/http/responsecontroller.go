@@ -62,7 +62,7 @@ func (c *ResponseController) Flush() error {
 }
 
 // Hijack lets the caller take over the connection.
-// See the Hijacker interface for details.
+// See the [Hijacker] interface for details.
 func (c *ResponseController) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	rw := c.rw
 	for {

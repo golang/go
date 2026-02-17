@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix
+//go:build unix || wasip1 || windows
 
 package os
 
 import (
-	"internal/syscall/unix"
 	"io"
+	"runtime"
 	"syscall"
 )
 
@@ -35,7 +35,15 @@ func removeAll(path string) error {
 	// its parent directory
 	parentDir, base := splitPath(path)
 
-	parent, err := Open(parentDir)
+	flag := O_RDONLY
+	if runtime.GOOS == "windows" {
+		// On Windows, the process might not have read permission on the parent directory,
+		// but still can delete files in it. See https://go.dev/issue/74134.
+		// We can open a file even if we don't have read permission by passing the
+		// O_WRONLY | O_RDWR flag, which is mapped to FILE_READ_ATTRIBUTES.
+		flag = O_WRONLY | O_RDWR
+	}
+	parent, err := OpenFile(parentDir, flag, 0)
 	if IsNotExist(err) {
 		// If parent does not exist, base cannot exist. Fail silently
 		return nil
@@ -45,7 +53,7 @@ func removeAll(path string) error {
 	}
 	defer parent.Close()
 
-	if err := removeAllFrom(parent, base); err != nil {
+	if err := removeAllFrom(sysfdType(parent.Fd()), base); err != nil {
 		if pathErr, ok := err.(*PathError); ok {
 			pathErr.Path = parentDir + string(PathSeparator) + pathErr.Path
 			err = pathErr
@@ -55,12 +63,9 @@ func removeAll(path string) error {
 	return nil
 }
 
-func removeAllFrom(parent *File, base string) error {
-	parentFd := int(parent.Fd())
+func removeAllFrom(parentFd sysfdType, base string) error {
 	// Simple case: if Unlink (aka remove) works, we're done.
-	err := ignoringEINTR(func() error {
-		return unix.Unlinkat(parentFd, base, 0)
-	})
+	err := removefileat(parentFd, base)
 	if err == nil || IsNotExist(err) {
 		return nil
 	}
@@ -82,13 +87,13 @@ func removeAllFrom(parent *File, base string) error {
 		const reqSize = 1024
 		var respSize int
 
-		// Open the directory to recurse into
+		// Open the directory to recurse into.
 		file, err := openDirAt(parentFd, base)
 		if err != nil {
 			if IsNotExist(err) {
 				return nil
 			}
-			if err == syscall.ENOTDIR || err == unix.NoFollowErrno {
+			if err == syscall.ENOTDIR || isErrNoFollow(err) {
 				// Not a directory; return the error from the unix.Unlinkat.
 				return &PathError{Op: "unlinkat", Path: base, Err: uErr}
 			}
@@ -111,7 +116,7 @@ func removeAllFrom(parent *File, base string) error {
 
 			respSize = len(names)
 			for _, name := range names {
-				err := removeAllFrom(file, name)
+				err := removeAllFrom(sysfdType(file.Fd()), name)
 				if err != nil {
 					if pathErr, ok := err.(*PathError); ok {
 						pathErr.Path = base + string(PathSeparator) + pathErr.Path
@@ -144,9 +149,7 @@ func removeAllFrom(parent *File, base string) error {
 	}
 
 	// Remove the directory itself.
-	unlinkError := ignoringEINTR(func() error {
-		return unix.Unlinkat(parentFd, base, unix.AT_REMOVEDIR)
-	})
+	unlinkError := removedirat(parentFd, base)
 	if unlinkError == nil || IsNotExist(unlinkError) {
 		return nil
 	}
@@ -165,18 +168,10 @@ func removeAllFrom(parent *File, base string) error {
 // This acts like openFileNolog rather than OpenFile because
 // we are going to (try to) remove the file.
 // The contents of this file are not relevant for test caching.
-func openDirAt(dirfd int, name string) (*File, error) {
-	r, err := ignoringEINTR2(func() (int, error) {
-		return unix.Openat(dirfd, name, O_RDONLY|syscall.O_CLOEXEC|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
-	})
+func openDirAt(dirfd sysfdType, name string) (*File, error) {
+	fd, err := rootOpenDir(dirfd, name)
 	if err != nil {
 		return nil, err
 	}
-
-	if !supportsCloseOnExec {
-		syscall.CloseOnExec(r)
-	}
-
-	// We use kindNoPoll because we know that this is a directory.
-	return newFile(r, name, kindNoPoll, false), nil
+	return newDirFile(fd, name)
 }

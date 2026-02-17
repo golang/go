@@ -701,7 +701,7 @@ func TestExitCode(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		cmd := exec.Command(os.Args[0], "-test.run=^TestExitCode$")
+		cmd := exec.Command(testenv.Executable(t), "-test.run=^TestExitCode$")
 		cmd.Env = append(
 			os.Environ(),
 			"GO_CHILD_FLAG="+test.flag,

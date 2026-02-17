@@ -260,9 +260,9 @@ func complex2() {
 func copy1() {
 	copy() // ERROR "not enough arguments"
 	copy("foo") // ERROR "not enough arguments"
-	copy([ /* ERROR "copy expects slice arguments" */ ...]int{}, []int{})
-	copy([ /* ERROR "copy expects slice arguments" */ ]int{}, [...]int{})
-	copy([ /* ERROR "different element types" */ ]int8{}, "foo")
+	copy([ /* ERROR "invalid copy: argument must be a slice; have [...]int{} (value of type [0]int)" */ ...]int{}, []int{})
+	copy([]int{}, [ /* ERROR "invalid copy: argument must be a slice; have [...]int{} (value of type [0]int)" */ ...]int{})
+	copy([ /* ERROR "invalid copy: arguments []int8{} (value of type []int8) and \"foo\" (untyped string constant) have different element types int8 and byte" */ ]int8{}, "foo")
 
 	// spec examples
 	var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7}
@@ -275,9 +275,9 @@ func copy1() {
 
 	var t [][]int
 	copy(t, t)
-	copy(t /* ERROR "copy expects slice arguments" */ , nil)
-	copy(nil /* ERROR "copy expects slice arguments" */ , t)
-	copy(nil /* ERROR "copy expects slice arguments" */ , nil)
+	copy(t, nil /* ERROR "invalid copy: argument must be a slice; have untyped nil" */ )
+	copy(nil /* ERROR "invalid copy: argument must be a slice; have untyped nil" */ , t)
+	copy(nil /* ERROR "invalid copy: argument must be a slice; have untyped nil" */ , nil)
 	copy(t... /* ERROR "invalid use of ..." */ )
 }
 
@@ -609,24 +609,58 @@ func min2() {
 	)
 }
 
+
 func new1() {
-	_ = new() // ERROR "not enough arguments"
+	_ = new()     // ERROR "not enough arguments"
 	_ = new(1, 2) // ERROR "too many arguments"
-	_ = new("foo" /* ERROR "not a type" */)
-	p := new(float64)
+	_ = new(unsafe /* ERROR "use of package unsafe not in selector" */ )
+
 	_ = new(struct{ x, y int })
+	p := new(float64)
 	q := new(*float64)
 	_ = *p == **q
-	new /* ERROR "not used" */ (int)
-        _ = &new /* ERROR "cannot take address" */ (int)
 
-	_ = new(int... /* ERROR "invalid use of ..." */ )
+	type G[P any] struct{}
+	_ = new(G[int])
+	_ = new(G /* ERROR "cannot use generic type G without instantiation" */ )
+
+	new /* ERROR "not used" */ (int)
+	_ = &new /* ERROR "cannot take address" */ (int)
+	_ = new(int... /* ERROR "invalid use of ..." */)
+	_ = new(f0 /* ERROR "f0() (no value) used as value or type" */ ())
+	_ = new(len /* ERROR "len (built-in) must be called" */)
+	_ = new(1 /* ERROR "argument to new (overflows)" */ << 70)
 }
 
 func new2() {
-	f1 := func() (x []int) { return }
-	_ = new(f0 /* ERROR "not a type" */ ())
-	_ = new(f1 /* ERROR "not a type" */ ())
+	// new(expr), added in go1.26
+	f1 := func() []int { panic(0) }
+	f2 := func() (int, int) { panic(0) }
+	var (
+		_ *[]int        = new(f1())
+		_ *func() []int = new(f1)
+		_ *bool         = new(false)
+		_ *bool         = new(1 < 2)
+		_ *int          = new(123)
+		_ *float64      = new(1.0)
+		_ *uint         = new(uint(3))
+		_ *rune         = new('a')
+		_ *string       = new("A")
+		_ *struct{}     = new(struct{}{})
+		_ *any          = new(any)
+
+		_ = new(f2 /* ERRORx "multiple-value.*in single-value context" */ ())
+		_ = new(1 << /* ERROR "constant shift overflow" */ 1000)
+		_ = new(1e10000 /* ERROR "cannot use 1e10000 (untyped float constant 1e+10000) as float64 value in argument to new (overflows)" */ )
+		_ = new(nil /* ERROR "use of untyped nil in argument to new" */ )
+		_ = new(comparable /* ERROR "cannot use type comparable outside a type constraint" */ )
+		_ = new(new /* ERROR "new (built-in) must be called" */ )
+		_ = new(panic /* ERROR "panic(0) (no value) used as value or type" */ (0))
+
+		// from issue 43125
+		_ = new(-1)
+		_ = new(1 + 1)
+	)
 }
 
 func panic1() {

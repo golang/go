@@ -58,8 +58,337 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 }
 
 func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
-	log.Fatalf("adddynrel not implemented")
+	targ := r.Sym()
+	var targType sym.SymKind
+	if targ != 0 {
+		targType = ldr.SymType(targ)
+	}
+
+	switch r.Type() {
+	default:
+		if r.Type() >= objabi.ElfRelocOffset {
+			ldr.Errorf(s, "adddynrel: unexpected reloction type %d (%s)", r.Type(), sym.RelocName(target.Arch, r.Type()))
+			return false
+		}
+
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_64):
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected R_LARCH_64 relocation for dynamic symbol %s", ldr.SymName(targ))
+		}
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ADDR)
+		if target.IsPIE() && target.IsInternal() {
+			// For internal linking PIE, this R_ADDR relocation cannot
+			// be resolved statically. We need to generate a dynamic
+			// relocation. Let the code below handle it.
+			break
+		}
+		return true
+
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_B26),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_CALL36):
+		if targType == sym.SDYNIMPORT {
+			addpltsym(target, ldr, syms, targ)
+			su := ldr.MakeSymbolUpdater(s)
+			su.SetRelocSym(rIdx, syms.PLT)
+			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymPlt(targ)))
+		}
+		if targType == 0 || targType == sym.SXREF {
+			ldr.Errorf(s, "unknown symbol %s in callloong64", ldr.SymName(targ))
+		}
+		relocType := objabi.R_CALLLOONG64
+		if r.Type() == objabi.ElfRelocOffset+objabi.RelocType(elf.R_LARCH_CALL36) {
+			relocType = objabi.R_LOONG64_CALL36
+		}
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, relocType)
+		return true
+
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_GOT_PC_HI20),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_GOT_PC_LO12):
+		if targType != sym.SDYNIMPORT {
+			// TODO: turn LDR of GOT entry into ADR of symbol itself
+		}
+
+		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_LARCH_64))
+		su := ldr.MakeSymbolUpdater(s)
+		if r.Type() == objabi.ElfRelocOffset+objabi.RelocType(elf.R_LARCH_GOT_PC_HI20) {
+			su.SetRelocType(rIdx, objabi.R_LOONG64_ADDR_HI)
+		} else {
+			su.SetRelocType(rIdx, objabi.R_LOONG64_ADDR_LO)
+		}
+		su.SetRelocSym(rIdx, syms.GOT)
+		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
+		return true
+
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_PCALA_HI20),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_PCALA_LO12),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_PCREL20_S2):
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
+		}
+		if targType == 0 || targType == sym.SXREF {
+			ldr.Errorf(s, "unknown symbol %s", ldr.SymName(targ))
+		}
+
+		var relocType objabi.RelocType
+		switch r.Type() - objabi.ElfRelocOffset {
+		case objabi.RelocType(elf.R_LARCH_PCALA_HI20):
+			relocType = objabi.R_LOONG64_ADDR_HI
+		case objabi.RelocType(elf.R_LARCH_PCALA_LO12):
+			relocType = objabi.R_LOONG64_ADDR_LO
+		case objabi.RelocType(elf.R_LARCH_PCREL20_S2):
+			relocType = objabi.R_LOONG64_ADDR_PCREL20_S2
+		}
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, relocType)
+		return true
+
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_ADD64),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_SUB64):
+		su := ldr.MakeSymbolUpdater(s)
+		if r.Type() == objabi.ElfRelocOffset+objabi.RelocType(elf.R_LARCH_ADD64) {
+			su.SetRelocType(rIdx, objabi.R_LOONG64_ADD64)
+		} else {
+			su.SetRelocType(rIdx, objabi.R_LOONG64_SUB64)
+		}
+		return true
+
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_B16),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_B21):
+		if targType == sym.SDYNIMPORT {
+			addpltsym(target, ldr, syms, targ)
+			su := ldr.MakeSymbolUpdater(s)
+			su.SetRelocSym(rIdx, syms.PLT)
+			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymPlt(targ)))
+		}
+		if targType == 0 || targType == sym.SXREF {
+			ldr.Errorf(s, "unknown symbol %s in R_JMPxxLOONG64", ldr.SymName(targ))
+		}
+		su := ldr.MakeSymbolUpdater(s)
+		if r.Type() == objabi.ElfRelocOffset+objabi.RelocType(elf.R_LARCH_B16) {
+			su.SetRelocType(rIdx, objabi.R_JMP16LOONG64)
+		} else {
+			su.SetRelocType(rIdx, objabi.R_JMP21LOONG64)
+		}
+		return true
+	}
+
+	relocs := ldr.Relocs(s)
+	r = relocs.At(rIdx)
+
+	switch r.Type() {
+	case objabi.R_CALLLOONG64:
+		if targType != sym.SDYNIMPORT {
+			return true
+		}
+		if target.IsExternal() {
+			return true
+		}
+
+		// Internal linking.
+		if r.Add() != 0 {
+			ldr.Errorf(s, "PLT call with no-zero addend (%v)", r.Add())
+		}
+
+		// Build a PLT entry and change the relocation target to that entry.
+		addpltsym(target, ldr, syms, targ)
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocSym(rIdx, syms.PLT)
+		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
+		return true
+
+	case objabi.R_ADDR:
+		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
+			// The code is asking for the address of an external
+			// function. We provide it with the address of the
+			// correspondent GOT symbol.
+			ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_LARCH_64))
+			su := ldr.MakeSymbolUpdater(s)
+			su.SetRelocSym(rIdx, syms.GOT)
+			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
+			return true
+		}
+
+		// Process dynamic relocations for the data sections.
+		if target.IsPIE() && target.IsInternal() {
+			// When internally linking, generate dynamic relocations
+			// for all typical R_ADDR relocations. The exception
+			// are those R_ADDR that are created as part of generating
+			// the dynamic relocations and must be resolved statically.
+			//
+			// There are three phases relevant to understanding this:
+			//
+			//	dodata()  // we are here
+			//	address() // symbol address assignment
+			//	reloc()   // resolution of static R_ADDR relocs
+			//
+			// At this point symbol addresses have not been
+			// assigned yet (as the final size of the .rela section
+			// will affect the addresses), and so we cannot write
+			// the Elf64_Rela.r_offset now. Instead we delay it
+			// until after the 'address' phase of the linker is
+			// complete. We do this via Addaddrplus, which creates
+			// a new R_ADDR relocation which will be resolved in
+			// the 'reloc' phase.
+			//
+			// These synthetic static R_ADDR relocs must be skipped
+			// now, or else we will be caught in an infinite loop
+			// of generating synthetic relocs for our synthetic
+			// relocs.
+			//
+			// Furthermore, the rela sections contain dynamic
+			// relocations with R_ADDR relocations on
+			// Elf64_Rela.r_offset. This field should contain the
+			// symbol offset as determined by reloc(), not the
+			// final dynamically linked address as a dynamic
+			// relocation would provide.
+			switch ldr.SymName(s) {
+			case ".dynsym", ".rela", ".rela.plt", ".got.plt", ".dynamic":
+				return false
+			}
+		} else {
+			// Either internally linking a static executable,
+			// in which case we can resolve these relocations
+			// statically in the 'reloc' phase, or externally
+			// linking, in which case the relocation will be
+			// prepared in the 'reloc' phase and passed to the
+			// external linker in the 'asmb' phase.
+			if ldr.SymType(s) != sym.SDATA && ldr.SymType(s) != sym.SRODATA {
+				break
+			}
+		}
+
+		if target.IsElf() {
+			// Generate R_LARCH_RELATIVE relocations for best
+			// efficiency in the dynamic linker.
+			//
+			// As noted above, symbol addresses have not been
+			// assigned yet, so we can't generate the final reloc
+			// entry yet. We ultimately want:
+			//
+			// r_offset = s + r.Off
+			// r_info = R_LARCH_RELATIVE
+			// r_addend = targ + r.Add
+			//
+			// The dynamic linker will set *offset = base address +
+			// addend.
+			//
+			// AddAddrPlus is used for r_offset and r_addend to
+			// generate new R_ADDR relocations that will update
+			// these fields in the 'reloc' phase.
+			rela := ldr.MakeSymbolUpdater(syms.Rela)
+			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
+			if r.Siz() == 8 {
+				rela.AddUint64(target.Arch, elf.R_INFO(0, uint32(elf.R_LARCH_RELATIVE)))
+			} else {
+				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
+			}
+			rela.AddAddrPlus(target.Arch, targ, r.Add())
+			return true
+		}
+
+	case objabi.R_LOONG64_GOT_HI,
+		objabi.R_LOONG64_GOT_LO:
+		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_LARCH_64))
+		su := ldr.MakeSymbolUpdater(s)
+		if r.Type() == objabi.R_LOONG64_GOT_HI {
+			su.SetRelocType(rIdx, objabi.R_LOONG64_ADDR_HI)
+		} else {
+			su.SetRelocType(rIdx, objabi.R_LOONG64_ADDR_LO)
+		}
+		su.SetRelocSym(rIdx, syms.GOT)
+		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
+		return true
+	}
 	return false
+}
+
+func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
+	if plt.Size() == 0 {
+		// pcalau12i $r14, imm
+		plt.AddSymRef(ctxt.Arch, gotplt.Sym(), 0, objabi.R_LOONG64_ADDR_HI, 4)
+		plt.SetUint32(ctxt.Arch, plt.Size()-4, 0x1a00000e)
+
+		// sub.d $r13, $r13, $r15
+		plt.AddUint32(ctxt.Arch, 0x0011bdad)
+
+		// ld.d $r15, $r14, imm
+		plt.AddSymRef(ctxt.Arch, gotplt.Sym(), 0, objabi.R_LOONG64_ADDR_LO, 4)
+		plt.SetUint32(ctxt.Arch, plt.Size()-4, 0x28c001cf)
+
+		// addi.d $r13, $r13, -40
+		plt.AddUint32(ctxt.Arch, 0x02ff61ad)
+
+		// addi.d $r12, $r14, imm
+		plt.AddSymRef(ctxt.Arch, gotplt.Sym(), 0, objabi.R_LOONG64_ADDR_LO, 4)
+		plt.SetUint32(ctxt.Arch, plt.Size()-4, 0x2c001cc)
+
+		// srli.d $r13, $r13, 1
+		plt.AddUint32(ctxt.Arch, 0x004505ad)
+
+		// ld.d $r12, $r12, 8
+		plt.AddUint32(ctxt.Arch, 0x28c0218c)
+
+		// jirl $r0, $r15, 0
+		plt.AddUint32(ctxt.Arch, 0x4c0001e0)
+
+		// check gotplt.size == 0
+		if gotplt.Size() != 0 {
+			ctxt.Errorf(gotplt.Sym(), "got.plt is not empty at the very beginning")
+		}
+
+		gotplt.AddUint64(ctxt.Arch, 0)
+		gotplt.AddUint64(ctxt.Arch, 0)
+	}
+}
+
+func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
+	if ldr.SymPlt(s) >= 0 {
+		return
+	}
+
+	ld.Adddynsym(ldr, target, syms, s)
+
+	if target.IsElf() {
+		plt := ldr.MakeSymbolUpdater(syms.PLT)
+		gotplt := ldr.MakeSymbolUpdater(syms.GOTPLT)
+		rela := ldr.MakeSymbolUpdater(syms.RelaPLT)
+		if plt.Size() == 0 {
+			panic("plt is not set up")
+		}
+
+		// pcalau12i $r15, imm
+		plt.AddAddrPlus4(target.Arch, gotplt.Sym(), gotplt.Size())
+		plt.SetUint32(target.Arch, plt.Size()-4, 0x1a00000f)
+		relocs := plt.Relocs()
+		plt.SetRelocType(relocs.Count()-1, objabi.R_LOONG64_ADDR_HI)
+
+		// ld.d $r15, $r15, imm
+		plt.AddAddrPlus4(target.Arch, gotplt.Sym(), gotplt.Size())
+		plt.SetUint32(target.Arch, plt.Size()-4, 0x28c001ef)
+		relocs = plt.Relocs()
+		plt.SetRelocType(relocs.Count()-1, objabi.R_LOONG64_ADDR_LO)
+
+		// pcaddu12i $r13, 0
+		plt.AddUint32(target.Arch, 0x1c00000d)
+
+		// jirl r0, r15, 0
+		plt.AddUint32(target.Arch, 0x4c0001e0)
+
+		// add to got.plt: pointer to plt[0]
+		gotplt.AddAddrPlus(target.Arch, plt.Sym(), 0)
+
+		// rela
+		rela.AddAddrPlus(target.Arch, gotplt.Sym(), gotplt.Size()-8)
+		sDynid := ldr.SymDynid(s)
+		rela.AddUint64(target.Arch, elf.R_INFO(uint32(sDynid), uint32(elf.R_LARCH_JUMP_SLOT)))
+		rela.AddUint64(target.Arch, 0)
+
+		ldr.SetPlt(s, int32(plt.Size()-16))
+	} else {
+		ldr.Errorf(s, "addpltsym: unsupport binary format")
+	}
 }
 
 func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, ri int, sectoff int64) bool {
@@ -100,6 +429,11 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write64(uint64(elf.R_LARCH_B26) | uint64(elfsym)<<32)
 		out.Write64(uint64(r.Xadd))
 
+	case objabi.R_LOONG64_CALL36:
+		out.Write64(uint64(sectoff))
+		out.Write64(uint64(elf.R_LARCH_CALL36) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
+
 	case objabi.R_LOONG64_TLS_IE_HI:
 		out.Write64(uint64(sectoff))
 		out.Write64(uint64(elf.R_LARCH_TLS_IE_PC_HI20) | uint64(elfsym)<<32)
@@ -120,6 +454,11 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write64(uint64(elf.R_LARCH_PCALA_HI20) | uint64(elfsym)<<32)
 		out.Write64(uint64(r.Xadd))
 
+	case objabi.R_LOONG64_ADDR_PCREL20_S2:
+		out.Write64(uint64(sectoff))
+		out.Write64(uint64(elf.R_LARCH_PCREL20_S2) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
+
 	case objabi.R_LOONG64_GOT_HI:
 		out.Write64(uint64(sectoff))
 		out.Write64(uint64(elf.R_LARCH_GOT_PC_HI20) | uint64(elfsym)<<32)
@@ -134,10 +473,6 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	return true
 }
 
-func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
-	return
-}
-
 func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int64) bool {
 	return false
 }
@@ -149,7 +484,8 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		default:
 			return val, 0, false
 		case objabi.R_LOONG64_ADDR_HI,
-			objabi.R_LOONG64_ADDR_LO:
+			objabi.R_LOONG64_ADDR_LO,
+			objabi.R_LOONG64_ADDR_PCREL20_S2:
 			// set up addend for eventual relocation via outer symbol.
 			rs, _ := ld.FoldSubSymbolOffset(ldr, rs)
 			rst := ldr.SymType(rs)
@@ -160,6 +496,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		case objabi.R_LOONG64_TLS_LE_HI,
 			objabi.R_LOONG64_TLS_LE_LO,
 			objabi.R_CALLLOONG64,
+			objabi.R_LOONG64_CALL36,
 			objabi.R_JMPLOONG64,
 			objabi.R_LOONG64_TLS_IE_HI,
 			objabi.R_LOONG64_TLS_IE_LO,
@@ -182,21 +519,65 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		pc := ldr.SymValue(s) + int64(r.Off())
 		t := calculatePCAlignedReloc(r.Type(), ldr.SymAddr(rs)+r.Add(), pc)
 		if r.Type() == objabi.R_LOONG64_ADDR_LO {
-			return int64(val&0xffc003ff | (t << 10)), noExtReloc, isOk
+			return val&0xffc003ff | (t << 10), noExtReloc, isOk
 		}
-		return int64(val&0xfe00001f | (t << 5)), noExtReloc, isOk
+		return val&0xfe00001f | (t << 5), noExtReloc, isOk
+	case objabi.R_LOONG64_ADDR_PCREL20_S2:
+		pc := ldr.SymValue(s) + int64(r.Off())
+		t := (ldr.SymAddr(rs) + r.Add() - pc) >> 2
+		return val&0xfe00001f | ((t & 0xfffff) << 5), noExtReloc, isOk
 	case objabi.R_LOONG64_TLS_LE_HI,
 		objabi.R_LOONG64_TLS_LE_LO:
 		t := ldr.SymAddr(rs) + r.Add()
 		if r.Type() == objabi.R_LOONG64_TLS_LE_LO {
-			return int64(val&0xffc003ff | ((t & 0xfff) << 10)), noExtReloc, isOk
+			return val&0xffc003ff | ((t & 0xfff) << 10), noExtReloc, isOk
 		}
-		return int64(val&0xfe00001f | (((t) >> 12 << 5) & 0x1ffffe0)), noExtReloc, isOk
+		return val&0xfe00001f | (((t) >> 12 << 5) & 0x1ffffe0), noExtReloc, isOk
 	case objabi.R_CALLLOONG64,
 		objabi.R_JMPLOONG64:
 		pc := ldr.SymValue(s) + int64(r.Off())
 		t := ldr.SymAddr(rs) + r.Add() - pc
-		return int64(val&0xfc000000 | (((t >> 2) & 0xffff) << 10) | (((t >> 2) & 0x3ff0000) >> 16)), noExtReloc, isOk
+		return val&0xfc000000 | (((t >> 2) & 0xffff) << 10) | (((t >> 2) & 0x3ff0000) >> 16), noExtReloc, isOk
+
+	case objabi.R_LOONG64_CALL36:
+		pc := ldr.SymValue(s) + int64(r.Off())
+		t := (ldr.SymAddr(rs) + r.Add() - pc) >> 2
+		// val is pcaddu18i (lower half) + jirl (upper half)
+		pcaddu18i := (val & 0xfe00001f) | (((t + 0x8000) >> 16) << 5)
+		jirl := ((val >> 32) & 0xfc0003ff) | ((t & 0xffff) << 10)
+		return pcaddu18i | (jirl << 32), noExtReloc, isOk
+
+	case objabi.R_JMP16LOONG64,
+		objabi.R_JMP21LOONG64:
+		pc := ldr.SymValue(s) + int64(r.Off())
+		t := ldr.SymAddr(rs) + r.Add() - pc
+		if r.Type() == objabi.R_JMP16LOONG64 {
+			return val&0xfc0003ff | (((t >> 2) & 0xffff) << 10), noExtReloc, isOk
+		}
+		return val&0xfc0003e0 | (((t >> 2) & 0xffff) << 10) | (((t >> 2) & 0x1f0000) >> 16), noExtReloc, isOk
+
+	case objabi.R_LOONG64_TLS_IE_HI,
+		objabi.R_LOONG64_TLS_IE_LO:
+		if target.IsPIE() && target.IsElf() {
+			if !target.IsLinux() {
+				ldr.Errorf(s, "TLS reloc on unsupported OS %v", target.HeadType)
+			}
+			t := ldr.SymAddr(rs) + r.Add()
+			if r.Type() == objabi.R_LOONG64_TLS_IE_HI {
+				// pcalau12i -> lu12i.w
+				return (0x14000000 | (val & 0x1f) | ((t >> 12) << 5)), noExtReloc, isOk
+			}
+			// ld.d -> ori
+			return (0x03800000 | (val & 0x3ff) | ((t & 0xfff) << 10)), noExtReloc, isOk
+		} else {
+			log.Fatalf("cannot handle R_LOONG64_TLS_IE_x (sym %s) when linking internally", ldr.SymName(rs))
+		}
+
+	case objabi.R_LOONG64_ADD64, objabi.R_LOONG64_SUB64:
+		if r.Type() == objabi.R_LOONG64_ADD64 {
+			return val + ldr.SymAddr(rs) + r.Add(), noExtReloc, isOk
+		}
+		return val - (ldr.SymAddr(rs) + r.Add()), noExtReloc, isOk
 	}
 
 	return val, 0, false
@@ -262,11 +643,14 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	relocs := ldr.Relocs(s)
 	r := relocs.At(ri)
 	switch r.Type() {
-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_B26):
-		// Host object relocations that will be turned into a PLT call.
-		// The PLT may be too far. Insert a trampoline for them.
-		fallthrough
-	case objabi.R_CALLLOONG64:
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_LARCH_B26), objabi.R_CALLLOONG64:
+		if ldr.SymType(rs) == sym.SDYNIMPORT {
+			// Nothing to do.
+			// The plt symbol has not been added. If we add tramp
+			// here, plt will not work.
+			return
+		}
+
 		var t int64
 		// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
 		// laid out. Conservatively use a trampoline. This should be rare, as we lay out packages
@@ -282,7 +666,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			for i := 0; ; i++ {
 				oName := ldr.SymName(rs)
 				name := oName + fmt.Sprintf("%+x-tramp%d", r.Add(), i)
-				tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
+				tramp = ldr.LookupOrCreateSym(name, ldr.SymVersion(rs))
 				ldr.SetAttrReachable(tramp, true)
 				if ldr.SymType(tramp) == sym.SDYNIMPORT {
 					// don't reuse trampoline defined in other module

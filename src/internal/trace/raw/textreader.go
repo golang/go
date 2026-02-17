@@ -12,7 +12,7 @@ import (
 	"strings"
 	"unicode"
 
-	"internal/trace/event"
+	"internal/trace/tracev2"
 	"internal/trace/version"
 )
 
@@ -20,8 +20,8 @@ import (
 // into an event stream.
 type TextReader struct {
 	v     version.Version
-	specs []event.Spec
-	names map[string]event.Type
+	specs []tracev2.EventSpec
+	names map[string]tracev2.EventType
 	s     *bufio.Scanner
 }
 
@@ -50,7 +50,7 @@ func NewTextReader(r io.Reader) (*TextReader, error) {
 	}
 	tr.v = v
 	tr.specs = v.Specs()
-	tr.names = event.Names(tr.specs)
+	tr.names = tracev2.EventNames(tr.specs)
 	for _, r := range line {
 		if !unicode.IsSpace(r) {
 			return nil, fmt.Errorf("encountered unexpected non-space at the end of the header: %q", line)
@@ -165,14 +165,13 @@ func readArg(s string) (arg string, value uint64, rest string, err error) {
 	if len(tok) == 0 {
 		return "", 0, s, fmt.Errorf("no argument")
 	}
-	parts := strings.SplitN(tok, "=", 2)
-	if len(parts) < 2 {
+	arg, val, found := strings.Cut(tok, "=")
+	if !found {
 		return "", 0, s, fmt.Errorf("malformed argument: %q", tok)
 	}
-	arg = parts[0]
-	value, err = strconv.ParseUint(parts[1], 10, 64)
+	value, err = strconv.ParseUint(val, 10, 64)
 	if err != nil {
-		return arg, value, s, fmt.Errorf("failed to parse argument value %q for arg %q", parts[1], parts[0])
+		return arg, value, s, fmt.Errorf("failed to parse argument value %q for arg %q", val, arg)
 	}
 	return
 }
@@ -205,11 +204,11 @@ func readToken(s string) (token, rest string) {
 }
 
 func readData(line string) ([]byte, error) {
-	parts := strings.SplitN(line, "=", 2)
-	if len(parts) < 2 || strings.TrimSpace(parts[0]) != "data" {
+	dk, dv, found := strings.Cut(line, "=")
+	if !found || strings.TrimSpace(dk) != "data" {
 		return nil, fmt.Errorf("malformed data: %q", line)
 	}
-	data, err := strconv.Unquote(strings.TrimSpace(parts[1]))
+	data, err := strconv.Unquote(strings.TrimSpace(dv))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse data: %q: %v", line, err)
 	}

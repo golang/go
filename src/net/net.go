@@ -134,6 +134,8 @@ type Conn interface {
 
 	// Close closes the connection.
 	// Any blocked Read or Write operations will be unblocked and return errors.
+	// Close may or may not block until any buffered data is sent;
+	// for TCP connections see [*TCPConn.SetLinger].
 	Close() error
 
 	// LocalAddr returns the local network address, if known.
@@ -306,6 +308,9 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 // The returned os.File's file descriptor is different from the connection's.
 // Attempting to change properties of the original using this duplicate
 // may or may not have the desired effect.
+//
+// On Windows, the returned os.File's file descriptor is not usable
+// on other processes.
 func (c *conn) File() (f *os.File, err error) {
 	f, err = c.fd.dup()
 	if err != nil {

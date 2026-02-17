@@ -202,8 +202,9 @@ func (ns *NullString) Scan(value any) error {
 		ns.String, ns.Valid = "", false
 		return nil
 	}
-	ns.Valid = true
-	return convertAssign(&ns.String, value)
+	err := convertAssign(&ns.String, value)
+	ns.Valid = err == nil
+	return err
 }
 
 // Value implements the [driver.Valuer] interface.
@@ -228,8 +229,9 @@ func (n *NullInt64) Scan(value any) error {
 		n.Int64, n.Valid = 0, false
 		return nil
 	}
-	n.Valid = true
-	return convertAssign(&n.Int64, value)
+	err := convertAssign(&n.Int64, value)
+	n.Valid = err == nil
+	return err
 }
 
 // Value implements the [driver.Valuer] interface.
@@ -254,8 +256,9 @@ func (n *NullInt32) Scan(value any) error {
 		n.Int32, n.Valid = 0, false
 		return nil
 	}
-	n.Valid = true
-	return convertAssign(&n.Int32, value)
+	err := convertAssign(&n.Int32, value)
+	n.Valid = err == nil
+	return err
 }
 
 // Value implements the [driver.Valuer] interface.
@@ -334,8 +337,9 @@ func (n *NullFloat64) Scan(value any) error {
 		n.Float64, n.Valid = 0, false
 		return nil
 	}
-	n.Valid = true
-	return convertAssign(&n.Float64, value)
+	err := convertAssign(&n.Float64, value)
+	n.Valid = err == nil
+	return err
 }
 
 // Value implements the [driver.Valuer] interface.
@@ -360,8 +364,9 @@ func (n *NullBool) Scan(value any) error {
 		n.Bool, n.Valid = false, false
 		return nil
 	}
-	n.Valid = true
-	return convertAssign(&n.Bool, value)
+	err := convertAssign(&n.Bool, value)
+	n.Valid = err == nil
+	return err
 }
 
 // Value implements the [driver.Valuer] interface.
@@ -386,8 +391,9 @@ func (n *NullTime) Scan(value any) error {
 		n.Time, n.Valid = time.Time{}, false
 		return nil
 	}
-	n.Valid = true
-	return convertAssign(&n.Time, value)
+	err := convertAssign(&n.Time, value)
+	n.Valid = err == nil
+	return err
 }
 
 // Value implements the [driver.Valuer] interface.
@@ -422,8 +428,9 @@ func (n *Null[T]) Scan(value any) error {
 		n.V, n.Valid = *new(T), false
 		return nil
 	}
-	n.Valid = true
-	return convertAssign(&n.V, value)
+	err := convertAssign(&n.V, value)
+	n.Valid = err == nil
+	return err
 }
 
 func (n Null[T]) Value() (driver.Value, error) {
@@ -1050,7 +1057,7 @@ func (db *DB) SetConnMaxLifetime(d time.Duration) {
 	}
 	db.mu.Lock()
 	// Wake cleaner up when lifetime is shortened.
-	if d > 0 && d < db.maxLifetime && db.cleanerCh != nil {
+	if d > 0 && d < db.shortestIdleTimeLocked() && db.cleanerCh != nil {
 		select {
 		case db.cleanerCh <- struct{}{}:
 		default:
@@ -1074,7 +1081,7 @@ func (db *DB) SetConnMaxIdleTime(d time.Duration) {
 	defer db.mu.Unlock()
 
 	// Wake cleaner up when idle time is shortened.
-	if d > 0 && d < db.maxIdleTime && db.cleanerCh != nil {
+	if d > 0 && d < db.shortestIdleTimeLocked() && db.cleanerCh != nil {
 		select {
 		case db.cleanerCh <- struct{}{}:
 		default:
@@ -3368,38 +3375,36 @@ func (rs *Rows) Scan(dest ...any) error {
 		// without calling Next.
 		return fmt.Errorf("sql: Scan called without calling Next (closemuScanHold)")
 	}
+
 	rs.closemu.RLock()
-
-	if rs.lasterr != nil && rs.lasterr != io.EOF {
-		rs.closemu.RUnlock()
-		return rs.lasterr
-	}
-	if rs.closed {
-		err := rs.lasterrOrErrLocked(errRowsClosed)
-		rs.closemu.RUnlock()
-		return err
-	}
-
-	if scanArgsContainRawBytes(dest) {
+	rs.raw = rs.raw[:0]
+	err := rs.scanLocked(dest...)
+	if err == nil && scanArgsContainRawBytes(dest) {
 		rs.closemuScanHold = true
-		rs.raw = rs.raw[:0]
 	} else {
 		rs.closemu.RUnlock()
 	}
+	return err
+}
+
+func (rs *Rows) scanLocked(dest ...any) error {
+	if rs.lasterr != nil && rs.lasterr != io.EOF {
+		return rs.lasterr
+	}
+	if rs.closed {
+		return rs.lasterrOrErrLocked(errRowsClosed)
+	}
 
 	if rs.lastcols == nil {
-		rs.closemuRUnlockIfHeldByScan()
 		return errors.New("sql: Scan called without calling Next")
 	}
 	if len(dest) != len(rs.lastcols) {
-		rs.closemuRUnlockIfHeldByScan()
 		return fmt.Errorf("sql: expected %d destination arguments in Scan, not %d", len(rs.lastcols), len(dest))
 	}
 
 	for i, sv := range rs.lastcols {
 		err := convertAssignRows(dest[i], sv, rs)
 		if err != nil {
-			rs.closemuRUnlockIfHeldByScan()
 			return fmt.Errorf(`sql: Scan error on column index %d, name %q: %w`, i, rs.rowsi.Columns()[i], err)
 		}
 	}

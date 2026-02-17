@@ -48,8 +48,7 @@ However, certain types don't come from Go and are special; below we will cover
 
 Some operators contain an auxiliary field. The aux fields are usually printed as
 enclosed in `[]` or `{}`, and could be the constant op argument, argument type,
-etc.
-for example:
+etc. For example:
 
 	v13 (?) = Const64 <int> [1]
 
@@ -205,6 +204,16 @@ name, e.g.
 
 This will match any function named "Foo" within a package whose final
 suffix is "blah" (e.g. something/blah.Foo, anotherthing/extra/blah.Foo).
+
+The users may also print the Control Flow Graph(CFG) by specifying in
+`GOSSAFUNC` value in the following format:
+
+	GOSSAFUNC="$FunctionName:$PassName1,$PassName2,..." go build
+
+For example, the following command will print SSA with CFGs attached to the
+`sccp` and `generic deadcode` pass columns:
+
+	GOSSAFUNC="blah.Foo:sccp,generic deadcode" go build
 
 If non-HTML dumps are needed, append a "+" to the GOSSAFUNC value
 and dumps will be written to stdout:

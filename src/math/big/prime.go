@@ -75,7 +75,9 @@ func (x *Int) ProbablyPrime(n int) bool {
 		return false
 	}
 
-	return x.abs.probablyPrimeMillerRabin(n+1, true) && x.abs.probablyPrimeLucas()
+	stk := getStack()
+	defer stk.free()
+	return x.abs.probablyPrimeMillerRabin(stk, n+1, true) && x.abs.probablyPrimeLucas(stk)
 }
 
 // probablyPrimeMillerRabin reports whether n passes reps rounds of the
@@ -83,11 +85,11 @@ func (x *Int) ProbablyPrime(n int) bool {
 // If force2 is true, one of the rounds is forced to use base 2.
 // See Handbook of Applied Cryptography, p. 139, Algorithm 4.24.
 // The number n is known to be non-zero.
-func (n nat) probablyPrimeMillerRabin(reps int, force2 bool) bool {
+func (n nat) probablyPrimeMillerRabin(stk *stack, reps int, force2 bool) bool {
 	nm1 := nat(nil).sub(n, natOne)
 	// determine q, k such that nm1 = q << k
 	k := nm1.trailingZeroBits()
-	q := nat(nil).shr(nm1, k)
+	q := nat(nil).rsh(nm1, k)
 
 	nm3 := nat(nil).sub(nm1, natTwo)
 	rand := rand.New(rand.NewSource(int64(n[0])))
@@ -103,13 +105,13 @@ NextRandom:
 			x = x.random(rand, nm3, nm3Len)
 			x = x.add(x, natTwo)
 		}
-		y = y.expNN(x, q, n, false)
+		y = y.expNN(stk, x, q, n, false)
 		if y.cmp(natOne) == 0 || y.cmp(nm1) == 0 {
 			continue
 		}
 		for j := uint(1); j < k; j++ {
-			y = y.sqr(y)
-			quotient, y = quotient.div(y, y, n)
+			y = y.sqr(stk, y)
+			quotient, y = quotient.div(stk, y, y, n)
 			if y.cmp(nm1) == 0 {
 				continue NextRandom
 			}
@@ -147,7 +149,7 @@ NextRandom:
 //
 // Crandall and Pomerance, Prime Numbers: A Computational Perspective, 2nd ed.
 // Springer, 2005.
-func (n nat) probablyPrimeLucas() bool {
+func (n nat) probablyPrimeLucas(stk *stack) bool {
 	// Discard 0, 1.
 	if len(n) == 0 || n.cmp(natOne) == 0 {
 		return false
@@ -193,8 +195,8 @@ func (n nat) probablyPrimeLucas() bool {
 			// We'll never find (d/n) = -1 if n is a square.
 			// If n is a non-square we expect to find a d in just a few attempts on average.
 			// After 40 attempts, take a moment to check if n is indeed a square.
-			t1 = t1.sqrt(n)
-			t1 = t1.sqr(t1)
+			t1 = t1.sqrt(stk, n)
+			t1 = t1.sqr(stk, t1)
 			if t1.cmp(n) == 0 {
 				return false
 			}
@@ -215,7 +217,7 @@ func (n nat) probablyPrimeLucas() bool {
 	// Arrange s = (n - Jacobi(Δ, n)) / 2^r = (n+1) / 2^r.
 	s := nat(nil).add(n, natOne)
 	r := int(s.trailingZeroBits())
-	s = s.shr(s, uint(r))
+	s = s.rsh(s, uint(r))
 	nm2 := nat(nil).sub(n, natTwo) // n-2
 
 	// We apply the "almost extra strong" test, which checks the above conditions
@@ -254,25 +256,25 @@ func (n nat) probablyPrimeLucas() bool {
 		if s.bit(uint(i)) != 0 {
 			// k' = 2k+1
 			// V(k') = V(2k+1) = V(k) V(k+1) - P.
-			t1 = t1.mul(vk, vk1)
+			t1 = t1.mul(stk, vk, vk1)
 			t1 = t1.add(t1, n)
 			t1 = t1.sub(t1, natP)
-			t2, vk = t2.div(vk, t1, n)
+			t2, vk = t2.div(stk, vk, t1, n)
 			// V(k'+1) = V(2k+2) = V(k+1)² - 2.
-			t1 = t1.sqr(vk1)
+			t1 = t1.sqr(stk, vk1)
 			t1 = t1.add(t1, nm2)
-			t2, vk1 = t2.div(vk1, t1, n)
+			t2, vk1 = t2.div(stk, vk1, t1, n)
 		} else {
 			// k' = 2k
 			// V(k'+1) = V(2k+1) = V(k) V(k+1) - P.
-			t1 = t1.mul(vk, vk1)
+			t1 = t1.mul(stk, vk, vk1)
 			t1 = t1.add(t1, n)
 			t1 = t1.sub(t1, natP)
-			t2, vk1 = t2.div(vk1, t1, n)
+			t2, vk1 = t2.div(stk, vk1, t1, n)
 			// V(k') = V(2k) = V(k)² - 2
-			t1 = t1.sqr(vk)
+			t1 = t1.sqr(stk, vk)
 			t1 = t1.add(t1, nm2)
-			t2, vk = t2.div(vk, t1, n)
+			t2, vk = t2.div(stk, vk, t1, n)
 		}
 	}
 
@@ -285,8 +287,8 @@ func (n nat) probablyPrimeLucas() bool {
 		//
 		// Since we are checking for U(k) == 0 it suffices to check 2 V(k+1) == P V(k) mod n,
 		// or P V(k) - 2 V(k+1) == 0 mod n.
-		t1 := t1.mul(vk, natP)
-		t2 := t2.shl(vk1, 1)
+		t1 := t1.mul(stk, vk, natP)
+		t2 := t2.lsh(vk1, 1)
 		if t1.cmp(t2) < 0 {
 			t1, t2 = t2, t1
 		}
@@ -294,7 +296,7 @@ func (n nat) probablyPrimeLucas() bool {
 		t3 := vk1 // steal vk1, no longer needed below
 		vk1 = nil
 		_ = vk1
-		t2, t3 = t2.div(t3, t1, n)
+		t2, t3 = t2.div(stk, t3, t1, n)
 		if len(t3) == 0 {
 			return true
 		}
@@ -312,9 +314,9 @@ func (n nat) probablyPrimeLucas() bool {
 		}
 		// k' = 2k
 		// V(k') = V(2k) = V(k)² - 2
-		t1 = t1.sqr(vk)
+		t1 = t1.sqr(stk, vk)
 		t1 = t1.sub(t1, natTwo)
-		t2, vk = t2.div(vk, t1, n)
+		t2, vk = t2.div(stk, vk, t1, n)
 	}
 	return false
 }

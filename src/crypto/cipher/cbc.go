@@ -54,7 +54,7 @@ func NewCBCEncrypter(b Block, iv []byte) BlockMode {
 	if b, ok := b.(*aes.Block); ok {
 		return aes.NewCBCEncrypter(b, [16]byte(iv))
 	}
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		panic("crypto/cipher: use of CBC with non-AES ciphers is not allowed in FIPS 140-only mode")
 	}
 	if cbc, ok := b.(cbcEncAble); ok {
@@ -133,7 +133,7 @@ func NewCBCDecrypter(b Block, iv []byte) BlockMode {
 	if b, ok := b.(*aes.Block); ok {
 		return aes.NewCBCDecrypter(b, [16]byte(iv))
 	}
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		panic("crypto/cipher: use of CBC with non-AES ciphers is not allowed in FIPS 140-only mode")
 	}
 	if cbc, ok := b.(cbcDecAble); ok {

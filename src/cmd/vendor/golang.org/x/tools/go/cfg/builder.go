@@ -13,7 +13,7 @@ import (
 )
 
 type builder struct {
-	cfg       *CFG
+	blocks    []*Block
 	mayReturn func(*ast.CallExpr) bool
 	current   *Block
 	lblocks   map[string]*lblock // labeled blocks
@@ -32,11 +32,17 @@ start:
 		*ast.SendStmt,
 		*ast.IncDecStmt,
 		*ast.GoStmt,
-		*ast.DeferStmt,
 		*ast.EmptyStmt,
 		*ast.AssignStmt:
 		// No effect on control flow.
 		b.add(s)
+
+	case *ast.DeferStmt:
+		b.add(s)
+		// Assume conservatively that this behaves like:
+		//    defer func() { recover() }
+		// so any subsequent panic may act like a return.
+		b.current.returns = true
 
 	case *ast.ExprStmt:
 		b.add(s)
@@ -64,6 +70,7 @@ start:
 		goto start // effectively: tailcall stmt(g, s.Stmt, label)
 
 	case *ast.ReturnStmt:
+		b.current.returns = true
 		b.add(s)
 		b.current = b.newBlock(KindUnreachable, s)
 
@@ -483,14 +490,13 @@ func (b *builder) labeledBlock(label *ast.Ident, stmt *ast.LabeledStmt) *lblock 
 // It does not automatically become the current block.
 // comment is an optional string for more readable debugging output.
 func (b *builder) newBlock(kind BlockKind, stmt ast.Stmt) *Block {
-	g := b.cfg
 	block := &Block{
-		Index: int32(len(g.Blocks)),
+		Index: int32(len(b.blocks)),
 		Kind:  kind,
 		Stmt:  stmt,
 	}
 	block.Succs = block.succs2[:0]
-	g.Blocks = append(g.Blocks, block)
+	b.blocks = append(b.blocks, block)
 	return block
 }
 

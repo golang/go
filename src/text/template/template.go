@@ -90,6 +90,7 @@ func (t *Template) Clone() (*Template, error) {
 	if t.common == nil {
 		return nt, nil
 	}
+	nt.option = t.option
 	t.muTmpl.RLock()
 	defer t.muTmpl.RUnlock()
 	for k, v := range t.tmpl {

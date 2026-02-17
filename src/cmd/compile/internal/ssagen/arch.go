@@ -25,8 +25,13 @@ type ArchInfo struct {
 
 	PadFrame func(int64) int64
 
-	// ZeroRange zeroes a range of memory on stack. It is only inserted
-	// at function entry, and it is ok to clobber registers.
+	// ZeroRange zeroes a range of memory the on stack.
+	//  - it is only called at function entry
+	//  - it is ok to clobber (non-arg) registers.
+	//  - currently used only for small things, so it can be simple.
+	//    - pointers to heap-allocated return values
+	//    - open-coded deferred functions
+	// (Max size in make.bash is 40 bytes.)
 	ZeroRange func(*objw.Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
 
 	Ginsnop func(*objw.Progs) *obj.Prog

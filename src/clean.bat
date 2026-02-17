@@ -6,21 +6,16 @@
 
 setlocal
 
-go tool dist env -w -p >env.bat || goto fail
+go tool dist env -w -p >env.bat || exit /b 1
 call .\env.bat
 del env.bat
 echo.
 
-if exist %GOTOOLDIR%\dist.exe goto distok
-echo cannot find %GOTOOLDIR%\dist; nothing to clean
-goto fail
-:distok
+if not exist %GOTOOLDIR%\dist.exe (
+    echo cannot find %GOTOOLDIR%\dist.exe; nothing to clean
+    exit /b 1
+)
 
 "%GOBIN%\go" clean -i std
 "%GOBIN%\go" tool dist clean
 "%GOBIN%\go" clean -i cmd
-
-goto :eof
-
-:fail
-exit /b 1

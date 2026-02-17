@@ -41,11 +41,14 @@ type Func struct {
 	ABISelf        *abi.ABIConfig // ABI for function being compiled
 	ABIDefault     *abi.ABIConfig // ABI for rtcall and other no-parsed-signature/pragma functions.
 
+	maxCPUFeatures CPUfeatures // union of all the CPU features in all the blocks.
+
 	scheduled   bool  // Values in Blocks are in final order
 	laidout     bool  // Blocks are ordered
 	NoSplit     bool  // true if function is marked as nosplit.  Used by schedule check pass.
 	dumpFileSeq uint8 // the sequence numbers of dump file. (%s_%02d__%s.dump", funcname, dumpFileSeq, phaseName)
 	IsPgoHot    bool
+	DeferReturn *Block // avoid creating more than one deferreturn if there's multiple calls to deferproc-etc.
 
 	// when register allocation is done, maps value ids to locations
 	RegAlloc []Location
@@ -101,6 +104,7 @@ func (c *Config) NewFunc(fe Frontend, cache *Cache) *Func {
 		NamedValues:          make(map[LocalSlot][]*Value),
 		CanonicalLocalSlots:  make(map[LocalSlot]*LocalSlot),
 		CanonicalLocalSplits: make(map[LocalSlotSplitKey]*LocalSlot),
+		OwnAux:               &AuxCall{},
 	}
 }
 
@@ -334,14 +338,14 @@ func (f *Func) newValueNoBlock(op Op, t *types.Type, pos src.XPos) *Value {
 // context to allow item-by-item comparisons across runs.
 // For example:
 // awk 'BEGIN {FS="\t"} $3~/TIME/{sum+=$4} END{print "t(ns)=",sum}' t.log
-func (f *Func) LogStat(key string, args ...interface{}) {
+func (f *Func) LogStat(key string, args ...any) {
 	value := ""
 	for _, a := range args {
 		value += fmt.Sprintf("\t%v", a)
 	}
 	n := "missing_pass"
 	if f.pass != nil {
-		n = strings.Replace(f.pass.name, " ", "_", -1)
+		n = strings.ReplaceAll(f.pass.name, " ", "_")
 	}
 	f.Warnl(f.Entry.Pos, "\t%s\t%s%s\t%s", n, key, value, f.Name)
 }
@@ -630,6 +634,19 @@ func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2, 
 	return v
 }
 
+// NewValue4A returns a new value in the block with four arguments and zero aux values.
+func (b *Block) NewValue4A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1, arg2, arg3 *Value) *Value {
+	v := b.Func.newValue(op, t, b, pos)
+	v.AuxInt = 0
+	v.Aux = aux
+	v.Args = []*Value{arg0, arg1, arg2, arg3}
+	arg0.Uses++
+	arg1.Uses++
+	arg2.Uses++
+	arg3.Uses++
+	return v
+}
+
 // NewValue4I returns a new value in the block with four arguments and auxint value.
 func (b *Block) NewValue4I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1, arg2, arg3 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
@@ -727,12 +744,12 @@ func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
 	return v
 }
 
-func (f *Func) Frontend() Frontend                                  { return f.fe }
-func (f *Func) Warnl(pos src.XPos, msg string, args ...interface{}) { f.fe.Warnl(pos, msg, args...) }
-func (f *Func) Logf(msg string, args ...interface{})                { f.fe.Logf(msg, args...) }
-func (f *Func) Log() bool                                           { return f.fe.Log() }
+func (f *Func) Frontend() Frontend                          { return f.fe }
+func (f *Func) Warnl(pos src.XPos, msg string, args ...any) { f.fe.Warnl(pos, msg, args...) }
+func (f *Func) Logf(msg string, args ...any)                { f.fe.Logf(msg, args...) }
+func (f *Func) Log() bool                                   { return f.fe.Log() }
 
-func (f *Func) Fatalf(msg string, args ...interface{}) {
+func (f *Func) Fatalf(msg string, args ...any) {
 	stats := "crashed"
 	if f.Log() {
 		f.Logf("  pass %s end %s\n", f.pass.name, stats)
@@ -831,9 +848,6 @@ func (f *Func) spSb() (sp, sb *Value) {
 // useFMA allows targeted debugging w/ GOFMAHASH
 // If you have an architecture-dependent FP glitch, this will help you find it.
 func (f *Func) useFMA(v *Value) bool {
-	if !f.Config.UseFMA {
-		return false
-	}
 	if base.FmaHash == nil {
 		return true
 	}

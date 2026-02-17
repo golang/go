@@ -102,8 +102,10 @@ package runtime
 
 import (
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/goos"
 	"internal/runtime/atomic"
+	"internal/runtime/gc"
 	"internal/runtime/math"
 	"internal/runtime/sys"
 	"unsafe"
@@ -112,20 +114,21 @@ import (
 const (
 	maxTinySize   = _TinySize
 	tinySizeClass = _TinySizeClass
-	maxSmallSize  = _MaxSmallSize
+	maxSmallSize  = gc.MaxSmallSize
+	pageSize      = 1 << gc.PageShift
+	pageMask      = pageSize - 1
 
-	pageShift = _PageShift
-	pageSize  = _PageSize
-
-	_PageSize = 1 << _PageShift
-	_PageMask = _PageSize - 1
+	// Unused. Left for viewcore.
+	_PageSize              = pageSize
+	minSizeForMallocHeader = gc.MinSizeForMallocHeader
+	mallocHeaderSize       = gc.MallocHeaderSize
 
 	// _64bit = 1 on 64-bit systems, 0 on 32-bit systems
 	_64bit = 1 << (^uintptr(0) >> 63) / 2
 
 	// Tiny allocator parameters, see "Tiny allocator" comment in malloc.go.
-	_TinySize      = 16
-	_TinySizeClass = int8(2)
+	_TinySize      = gc.TinySize
+	_TinySizeClass = int8(gc.TinySizeClass)
 
 	_FixAllocChunk = 16 << 10 // Chunk size for FixAlloc
 
@@ -230,19 +233,22 @@ const (
 	//      ios/arm64         40         4MB           1  256K  (2MB)
 	//       */32-bit         32         4MB           1  1024  (4KB)
 	//     */mips(le)         31         4MB           1   512  (2KB)
+	//           wasm         32       512KB           1  8192 (64KB)
 
 	// heapArenaBytes is the size of a heap arena. The heap
 	// consists of mappings of size heapArenaBytes, aligned to
 	// heapArenaBytes. The initial heap mapping is one arena.
 	//
-	// This is currently 64MB on 64-bit non-Windows and 4MB on
-	// 32-bit and on Windows. We use smaller arenas on Windows
-	// because all committed memory is charged to the process,
-	// even if it's not touched. Hence, for processes with small
-	// heaps, the mapped arena space needs to be commensurate.
-	// This is particularly important with the race detector,
-	// since it significantly amplifies the cost of committed
-	// memory.
+	// This is currently 64MB on 64-bit non-Windows, 4MB on
+	// 32-bit and on Windows, and 512KB on Wasm. We use smaller
+	// arenas on Windows because all committed memory is charged
+	// to the process, even if it's not touched. Hence, for
+	// processes with small heaps, the mapped arena space needs
+	// to be commensurate. This is particularly important with
+	// the race detector, since it significantly amplifies the
+	// cost of committed memory. We use smaller arenas on Wasm
+	// because some Wasm programs have very small heap, and
+	// everything in the Wasm linear memory is charged.
 	heapArenaBytes = 1 << logHeapArenaBytes
 
 	heapArenaWords = heapArenaBytes / goarch.PtrSize
@@ -250,7 +256,7 @@ const (
 	// logHeapArenaBytes is log_2 of heapArenaBytes. For clarity,
 	// prefer using heapArenaBytes where possible (we need the
 	// constant to compute some other constants).
-	logHeapArenaBytes = (6+20)*(_64bit*(1-goos.IsWindows)*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64)) + (2+20)*(_64bit*goos.IsWindows) + (2+20)*(1-_64bit) + (2+20)*goarch.IsWasm + (2+20)*goos.IsIos*goarch.IsArm64
+	logHeapArenaBytes = (6+20)*(_64bit*(1-goos.IsWindows)*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64)) + (2+20)*(_64bit*goos.IsWindows) + (2+20)*(1-_64bit) + (9+10)*goarch.IsWasm + (2+20)*goos.IsIos*goarch.IsArm64
 
 	// heapArenaBitmapWords is the size of each heap arena's bitmap in uintptrs.
 	heapArenaBitmapWords = heapArenaWords / (8 * goarch.PtrSize)
@@ -343,6 +349,14 @@ const (
 	// metadata mappings back to the OS. That would be quite complex to do in general
 	// as the heap is likely fragmented after a reduction in heap size.
 	minHeapForMetadataHugePages = 1 << 30
+
+	// randomizeHeapBase indicates if the heap base address should be randomized.
+	// See comment in mallocinit for how the randomization is performed.
+	randomizeHeapBase = goexperiment.RandomizedHeapBase64 && goarch.PtrSize == 8 && !isSbrkPlatform && !raceenabled && !msanenabled && !asanenabled
+
+	// randHeapBasePrefixMask is used to extract the top byte of the randomized
+	// heap base address.
+	randHeapBasePrefixMask = ^uintptr(0xff << (heapAddrBits - 8))
 )
 
 // physPageSize is the size in bytes of the OS's physical pages.
@@ -370,8 +384,26 @@ var (
 	physHugePageShift uint
 )
 
+var (
+	// heapRandSeed is a random value that is populated in mallocinit if
+	// randomizeHeapBase is set. It is used in mallocinit, and mheap.grow, to
+	// randomize the base heap address.
+	heapRandSeed              uintptr
+	heapRandSeedBitsRemaining int
+)
+
+func nextHeapRandBits(bits int) uintptr {
+	if bits > heapRandSeedBitsRemaining {
+		throw("not enough heapRandSeed bits remaining")
+	}
+	r := heapRandSeed >> (64 - bits)
+	heapRandSeed <<= bits
+	heapRandSeedBitsRemaining -= bits
+	return r
+}
+
 func mallocinit() {
-	if class_to_size[_TinySizeClass] != _TinySize {
+	if gc.SizeClassToSize[tinySizeClass] != maxTinySize {
 		throw("bad TinySizeClass")
 	}
 
@@ -432,11 +464,11 @@ func mallocinit() {
 	// span sizes are one page. Some code relies on this.
 	minSizeForMallocHeaderIsSizeClass := false
 	sizeClassesUpToMinSizeForMallocHeaderAreOnePage := true
-	for i := 0; i < len(class_to_size); i++ {
-		if class_to_allocnpages[i] > 1 {
+	for i := 0; i < len(gc.SizeClassToSize); i++ {
+		if gc.SizeClassToNPages[i] > 1 {
 			sizeClassesUpToMinSizeForMallocHeaderAreOnePage = false
 		}
-		if minSizeForMallocHeader == uintptr(class_to_size[i]) {
+		if gc.MinSizeForMallocHeader == uintptr(gc.SizeClassToSize[i]) {
 			minSizeForMallocHeaderIsSizeClass = true
 			break
 		}
@@ -449,12 +481,12 @@ func mallocinit() {
 	}
 	// Check that the pointer bitmap for all small sizes without a malloc header
 	// fits in a word.
-	if minSizeForMallocHeader/goarch.PtrSize > 8*goarch.PtrSize {
+	if gc.MinSizeForMallocHeader/goarch.PtrSize > 8*goarch.PtrSize {
 		throw("max pointer/scan bitmap size for headerless objects is too large")
 	}
 
-	if minTagBits > taggedPointerBits {
-		throw("taggedPointerBits too small")
+	if minTagBits > tagBits {
+		throw("tagBits too small")
 	}
 
 	// Initialize the heap.
@@ -515,9 +547,64 @@ func mallocinit() {
 		//
 		// In race mode we have no choice but to just use the same hints because
 		// the race detector requires that the heap be mapped contiguously.
+		//
+		// If randomizeHeapBase is set, we attempt to randomize the base address
+		// as much as possible. We do this by generating a random uint64 via
+		// bootstrapRand and using it's bits to randomize portions of the base
+		// address as follows:
+		//   * We first generate a random heapArenaBytes aligned address that we use for
+		//     generating the hints.
+		//   * On the first call to mheap.grow, we then generate a random PallocChunkBytes
+		//     aligned offset into the mmap'd heap region, which we use as the base for
+		//     the heap region.
+		//   * We then select a page offset in that PallocChunkBytes region to start the
+		//     heap at, and mark all the pages up to that offset as allocated.
+		//
+		// Our final randomized "heap base address" becomes the first byte of
+		// the first available page returned by the page allocator. This results
+		// in an address with at least heapAddrBits-gc.PageShift-2-(1*goarch.IsAmd64)
+		// bits of entropy.
+
+		var randHeapBase uintptr
+		var randHeapBasePrefix byte
+		// heapAddrBits is 48 on most platforms, but we only use 47 of those
+		// bits in order to provide a good amount of room for the heap to grow
+		// contiguously. On amd64, there are 48 bits, but the top bit is sign
+		// extended, so we throw away another bit, just to be safe.
+		randHeapAddrBits := heapAddrBits - 1 - (goarch.IsAmd64 * 1)
+		if randomizeHeapBase {
+			// Generate a random value, and take the bottom heapAddrBits-logHeapArenaBytes
+			// bits, using them as the top bits for randHeapBase.
+			heapRandSeed, heapRandSeedBitsRemaining = uintptr(bootstrapRand()), 64
+
+			topBits := (randHeapAddrBits - logHeapArenaBytes)
+			randHeapBase = nextHeapRandBits(topBits) << (randHeapAddrBits - topBits)
+			randHeapBase = alignUp(randHeapBase, heapArenaBytes)
+			randHeapBasePrefix = byte(randHeapBase >> (randHeapAddrBits - 8))
+		}
+
+		var vmaSize int
+		if GOARCH == "riscv64" {
+			// Identify which memory layout is in use based on the system
+			// stack address, knowing that the bottom half of virtual memory
+			// is user space. This should result in 39, 48 or 57. It may be
+			// possible to use RISCV_HWPROBE_KEY_HIGHEST_VIRT_ADDRESS at some
+			// point in the future - for now use the system stack address.
+			vmaSize = sys.Len64(uint64(getg().m.g0.stack.hi)) + 1
+			if raceenabled && vmaSize != 39 && vmaSize != 48 {
+				println("vma size = ", vmaSize)
+				throw("riscv64 vma size is unknown and race mode is enabled")
+			}
+		}
+
 		for i := 0x7f; i >= 0; i-- {
 			var p uintptr
 			switch {
+			case raceenabled && GOARCH == "riscv64" && vmaSize == 39:
+				p = uintptr(i)<<28 | uintptrMask&(0x0013<<28)
+				if p >= uintptrMask&0x000f00000000 {
+					continue
+				}
 			case raceenabled:
 				// The TSAN runtime requires the heap
 				// to be in the range [0x00c000000000,
@@ -526,10 +613,15 @@ func mallocinit() {
 				if p >= uintptrMask&0x00e000000000 {
 					continue
 				}
+			case randomizeHeapBase:
+				prefix := uintptr(randHeapBasePrefix+byte(i)) << (randHeapAddrBits - 8)
+				p = prefix | (randHeapBase & randHeapBasePrefixMask)
 			case GOARCH == "arm64" && GOOS == "ios":
 				p = uintptr(i)<<40 | uintptrMask&(0x0013<<28)
 			case GOARCH == "arm64":
 				p = uintptr(i)<<40 | uintptrMask&(0x0040<<32)
+			case GOARCH == "riscv64" && vmaSize == 39:
+				p = uintptr(i)<<32 | uintptrMask&(0x0013<<28)
 			case GOOS == "aix":
 				if i == 0 {
 					// We don't use addresses directly after 0x0A00000000000000
@@ -570,7 +662,7 @@ func mallocinit() {
 		// heap reservation.
 
 		const arenaMetaSize = (1 << arenaBits) * unsafe.Sizeof(heapArena{})
-		meta := uintptr(sysReserve(nil, arenaMetaSize))
+		meta := uintptr(sysReserve(nil, arenaMetaSize, "heap reservation"))
 		if meta != 0 {
 			mheap_.heapArenaAlloc.init(meta, arenaMetaSize, true)
 		}
@@ -607,7 +699,7 @@ func mallocinit() {
 			128 << 20,
 		}
 		for _, arenaSize := range arenaSizes {
-			a, size := sysReserveAligned(unsafe.Pointer(p), arenaSize, heapArenaBytes)
+			a, size := sysReserveAligned(unsafe.Pointer(p), arenaSize, heapArenaBytes, "heap reservation")
 			if a != nil {
 				mheap_.arena.init(uintptr(a), size, false)
 				p = mheap_.arena.end // For hint below
@@ -628,7 +720,7 @@ func mallocinit() {
 	}
 	// Initialize the memory limit here because the allocator is going to look at it
 	// but we haven't called gcinit yet and we're definitely going to allocate memory before then.
-	gcController.memoryLimit.Store(maxInt64)
+	gcController.memoryLimit.Store(math.MaxInt64)
 }
 
 // sysAlloc allocates heap arena space for at least n bytes. The
@@ -657,7 +749,7 @@ func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, arenaList *[]arenaIdx)
 		//
 		// Only do this if we're using the regular heap arena hints.
 		// This behavior is only for the heap.
-		v = h.arena.alloc(n, heapArenaBytes, &gcController.heapReleased)
+		v = h.arena.alloc(n, heapArenaBytes, &gcController.heapReleased, "heap")
 		if v != nil {
 			size = n
 			goto mapped
@@ -678,7 +770,7 @@ func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, arenaList *[]arenaIdx)
 			// Outside addressable heap. Can't use.
 			v = nil
 		} else {
-			v = sysReserve(unsafe.Pointer(p), n)
+			v = sysReserve(unsafe.Pointer(p), n, "heap reservation")
 		}
 		if p == uintptr(v) {
 			// Success. Update the hint.
@@ -714,7 +806,7 @@ func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, arenaList *[]arenaIdx)
 		// All of the hints failed, so we'll take any
 		// (sufficiently aligned) address the kernel will give
 		// us.
-		v, size = sysReserveAligned(nil, n, heapArenaBytes)
+		v, size = sysReserveAligned(nil, n, heapArenaBytes, "heap")
 		if v == nil {
 			return nil, 0
 		}
@@ -752,6 +844,11 @@ func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, arenaList *[]arenaIdx)
 	}
 
 mapped:
+	if valgrindenabled {
+		valgrindCreateMempool(v)
+		valgrindMakeMemNoAccess(v, size)
+	}
+
 	// Create arena metadata.
 	for ri := arenaIndex(uintptr(v)); ri <= arenaIndex(uintptr(v)+size-1); ri++ {
 		l2 := h.arenas[ri.l1()]
@@ -764,7 +861,7 @@ mapped:
 			// is paged in is too expensive. Trying to account for the whole region means
 			// that it will appear like an enormous memory overhead in statistics, even though
 			// it is not.
-			l2 = (*[1 << arenaL2Bits]*heapArena)(sysAllocOS(unsafe.Sizeof(*l2)))
+			l2 = (*[1 << arenaL2Bits]*heapArena)(sysAllocOS(unsafe.Sizeof(*l2), "heap index"))
 			if l2 == nil {
 				throw("out of memory allocating heap arena map")
 			}
@@ -780,7 +877,7 @@ mapped:
 			throw("arena already initialized")
 		}
 		var r *heapArena
-		r = (*heapArena)(h.heapArenaAlloc.alloc(unsafe.Sizeof(*r), goarch.PtrSize, &memstats.gcMiscSys))
+		r = (*heapArena)(h.heapArenaAlloc.alloc(unsafe.Sizeof(*r), goarch.PtrSize, &memstats.gcMiscSys, "heap metadata"))
 		if r == nil {
 			r = (*heapArena)(persistentalloc(unsafe.Sizeof(*r), goarch.PtrSize, &memstats.gcMiscSys))
 			if r == nil {
@@ -827,7 +924,7 @@ mapped:
 // sysReserveAligned is like sysReserve, but the returned pointer is
 // aligned to align bytes. It may reserve either n or n+align bytes,
 // so it returns the size that was reserved.
-func sysReserveAligned(v unsafe.Pointer, size, align uintptr) (unsafe.Pointer, uintptr) {
+func sysReserveAligned(v unsafe.Pointer, size, align uintptr, vmaName string) (unsafe.Pointer, uintptr) {
 	if isSbrkPlatform {
 		if v != nil {
 			throw("unexpected heap arena hint on sbrk platform")
@@ -839,7 +936,7 @@ func sysReserveAligned(v unsafe.Pointer, size, align uintptr) (unsafe.Pointer, u
 	// for a larger region and remove the parts we don't need.
 	retries := 0
 retry:
-	p := uintptr(sysReserve(v, size+align))
+	p := uintptr(sysReserve(v, size+align, vmaName))
 	switch {
 	case p == 0:
 		return nil, 0
@@ -852,7 +949,7 @@ retry:
 		// so we may have to try again.
 		sysFreeOS(unsafe.Pointer(p), size+align)
 		p = alignUp(p, align)
-		p2 := sysReserve(unsafe.Pointer(p), size)
+		p2 := sysReserve(unsafe.Pointer(p), size, vmaName)
 		if p != uintptr(p2) {
 			// Must have raced. Try again.
 			sysFreeOS(p2, size)
@@ -983,8 +1080,23 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, checkGCTrigger 
 //
 // We might consider turning these on by default; many of them previously were.
 // They account for a few % of mallocgc's cost though, which does matter somewhat
-// at scale.
+// at scale. (When testing changes to malloc, consider enabling this, and also
+// some function-local 'doubleCheck' consts such as in mbitmap.go currently.)
 const doubleCheckMalloc = false
+
+// sizeSpecializedMallocEnabled is the set of conditions where we enable the size-specialized
+// mallocgc implementation: the experiment must be enabled, and none of the sanitizers should
+// be enabled. The tables used to select the size-specialized malloc function do not compile
+// properly on plan9, so size-specialized malloc is also disabled on plan9.
+const sizeSpecializedMallocEnabled = goexperiment.SizeSpecializedMalloc && GOOS != "plan9" && !asanenabled && !raceenabled && !msanenabled && !valgrindenabled
+
+// runtimeFreegcEnabled is the set of conditions where we enable the runtime.freegc
+// implementation and the corresponding allocation-related changes: the experiment must be
+// enabled, and none of the memory sanitizers should be enabled. We allow the race detector,
+// in contrast to sizeSpecializedMallocEnabled.
+// TODO(thepudds): it would be nice to check Valgrind integration, though there are some hints
+// there might not be any canned tests in tree for Go's integration with Valgrind.
+const runtimeFreegcEnabled = goexperiment.RuntimeFreegc && !asanenabled && !msanenabled && !valgrindenabled
 
 // Allocate an object of size bytes.
 // Small objects are allocated from the per-P cache's free lists.
@@ -1016,6 +1128,17 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		return unsafe.Pointer(&zerobase)
 	}
 
+	if sizeSpecializedMallocEnabled && heapBitsInSpan(size) {
+		if typ == nil || !typ.Pointers() {
+			return mallocNoScanTable[size](size, typ, needzero)
+		} else {
+			if !needzero {
+				throw("objects with pointers must be zeroed")
+			}
+			return mallocScanTable[size](size, typ, needzero)
+		}
+	}
+
 	// It's possible for any malloc to trigger sweeping, which may in
 	// turn queue finalizers. Record this dynamic lock edge.
 	// N.B. Compiled away if lockrank experiment is not enabled.
@@ -1036,7 +1159,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		size += asanRZ
 	}
 
-	// Assist the GC if needed.
+	// Assist the GC if needed. (On the reuse path, we currently compensate for this;
+	// changes here might require changes there.)
 	if gcBlackenEnabled != 0 {
 		deductAssistCredit(size)
 	}
@@ -1044,20 +1168,52 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// Actually do the allocation.
 	var x unsafe.Pointer
 	var elemsize uintptr
-	if size <= maxSmallSize-mallocHeaderSize {
-		if typ == nil || !typ.Pointers() {
-			if size < maxTinySize {
-				x, elemsize = mallocgcTiny(size, typ, needzero)
-			} else {
+	if sizeSpecializedMallocEnabled {
+		// we know that heapBitsInSpan is false.
+		if size <= maxSmallSize-gc.MallocHeaderSize {
+			if typ == nil || !typ.Pointers() {
 				x, elemsize = mallocgcSmallNoscan(size, typ, needzero)
+			} else {
+				if !needzero {
+					throw("objects with pointers must be zeroed")
+				}
+				x, elemsize = mallocgcSmallScanHeader(size, typ)
 			}
-		} else if heapBitsInSpan(size) {
-			x, elemsize = mallocgcSmallScanNoHeader(size, typ, needzero)
 		} else {
-			x, elemsize = mallocgcSmallScanHeader(size, typ, needzero)
+			x, elemsize = mallocgcLarge(size, typ, needzero)
 		}
 	} else {
-		x, elemsize = mallocgcLarge(size, typ, needzero)
+		if size <= maxSmallSize-gc.MallocHeaderSize {
+			if typ == nil || !typ.Pointers() {
+				// tiny allocations might be kept alive by other co-located values.
+				// Make sure secret allocations get zeroed by avoiding the tiny allocator
+				// See go.dev/issue/76356
+				gp := getg()
+				if size < maxTinySize && gp.secret == 0 {
+					x, elemsize = mallocgcTiny(size, typ)
+				} else {
+					x, elemsize = mallocgcSmallNoscan(size, typ, needzero)
+				}
+			} else {
+				if !needzero {
+					throw("objects with pointers must be zeroed")
+				}
+				if heapBitsInSpan(size) {
+					x, elemsize = mallocgcSmallScanNoHeader(size, typ)
+				} else {
+					x, elemsize = mallocgcSmallScanHeader(size, typ)
+				}
+			}
+		} else {
+			x, elemsize = mallocgcLarge(size, typ, needzero)
+		}
+	}
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		// Mark any object allocated while in secret mode as secret.
+		// This ensures we zero it immediately when freeing it.
+		addSecret(x, size)
 	}
 
 	// Notify sanitizers, if enabled.
@@ -1071,11 +1227,14 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		// Poison the space between the end of the requested size of x
 		// and the end of the slot. Unpoison the requested allocation.
 		frag := elemsize - size
-		if typ != nil && typ.Pointers() && !heapBitsInSpan(elemsize) && size <= maxSmallSize-mallocHeaderSize {
-			frag -= mallocHeaderSize
+		if typ != nil && typ.Pointers() && !heapBitsInSpan(elemsize) && size <= maxSmallSize-gc.MallocHeaderSize {
+			frag -= gc.MallocHeaderSize
 		}
 		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ)
 		asanunpoison(x, size-asanRZ)
+	}
+	if valgrindenabled {
+		valgrindMalloc(x, size-asanRZ)
 	}
 
 	// Adjust our GC assist debt to account for internal fragmentation.
@@ -1092,7 +1251,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocgcTiny(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr) {
+func mallocgcTiny(size uintptr, typ *_type) (unsafe.Pointer, uintptr) {
 	// Set mp.mallocing to keep from being preempted by GC.
 	mp := acquirem()
 	if doubleCheckMalloc {
@@ -1172,7 +1331,7 @@ func mallocgcTiny(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uint
 		v, span, checkGCTrigger = c.nextFree(tinySpanClass)
 	}
 	x := unsafe.Pointer(v)
-	(*[2]uint64)(x)[0] = 0
+	(*[2]uint64)(x)[0] = 0 // Always zero
 	(*[2]uint64)(x)[1] = 0
 	// See if we need to replace the existing tiny block with the new one
 	// based on amount of remaining free space.
@@ -1189,23 +1348,23 @@ func mallocgcTiny(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uint
 	// the garbage collector could follow a pointer to x,
 	// but see uninitialized memory or stale heap bits.
 	publicationBarrier()
-	// As x and the heap bits are initialized, update
-	// freeIndexForScan now so x is seen by the GC
-	// (including conservative scan) as an allocated object.
-	// While this pointer can't escape into user code as a
-	// _live_ pointer until we return, conservative scanning
-	// may find a dead pointer that happens to point into this
-	// object. Delaying this update until now ensures that
-	// conservative scanning considers this pointer dead until
-	// this point.
-	span.freeIndexForScan = span.freeindex
 
-	// Allocate black during GC.
-	// All slots hold nil so no scanning is needed.
-	// This may be racing with GC so do it atomically if there can be
-	// a race marking the bit.
 	if writeBarrier.enabled {
+		// Allocate black during GC.
+		// All slots hold nil so no scanning is needed.
+		// This may be racing with GC so do it atomically if there can be
+		// a race marking the bit.
 		gcmarknewobject(span, uintptr(x))
+	} else {
+		// Track the last free index before the mark phase. This field
+		// is only used by the garbage collector. During the mark phase
+		// this is used by the conservative scanner to filter out objects
+		// that are both free and recently-allocated. It's safe to do that
+		// because we allocate-black if the GC is enabled. The conservative
+		// scanner produces pointers out of thin air, so without additional
+		// synchronization it might otherwise observe a partially-initialized
+		// object, which could crash the program.
+		span.freeIndexForScan = span.freeindex
 	}
 
 	// Note cache c only valid while m acquired; see #47302
@@ -1267,14 +1426,24 @@ func mallocgcSmallNoscan(size uintptr, typ *_type, needzero bool) (unsafe.Pointe
 	checkGCTrigger := false
 	c := getMCache(mp)
 	var sizeclass uint8
-	if size <= smallSizeMax-8 {
-		sizeclass = size_to_class8[divRoundUp(size, smallSizeDiv)]
+	if size <= gc.SmallSizeMax-8 {
+		sizeclass = gc.SizeToSizeClass8[divRoundUp(size, gc.SmallSizeDiv)]
 	} else {
-		sizeclass = size_to_class128[divRoundUp(size-smallSizeMax, largeSizeDiv)]
+		sizeclass = gc.SizeToSizeClass128[divRoundUp(size-gc.SmallSizeMax, gc.LargeSizeDiv)]
 	}
-	size = uintptr(class_to_size[sizeclass])
+	size = uintptr(gc.SizeClassToSize[sizeclass])
 	spc := makeSpanClass(sizeclass, true)
 	span := c.alloc[spc]
+
+	// First, check for a reusable object.
+	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
+		// We have a reusable object, use it.
+		x := mallocgcSmallNoscanReuse(c, span, spc, size, needzero)
+		mp.mallocing = 0
+		releasem(mp)
+		return x, size
+	}
+
 	v := nextFreeFast(span)
 	if v == 0 {
 		v, span, checkGCTrigger = c.nextFree(spc)
@@ -1291,23 +1460,23 @@ func mallocgcSmallNoscan(size uintptr, typ *_type, needzero bool) (unsafe.Pointe
 	// the garbage collector could follow a pointer to x,
 	// but see uninitialized memory or stale heap bits.
 	publicationBarrier()
-	// As x and the heap bits are initialized, update
-	// freeIndexForScan now so x is seen by the GC
-	// (including conservative scan) as an allocated object.
-	// While this pointer can't escape into user code as a
-	// _live_ pointer until we return, conservative scanning
-	// may find a dead pointer that happens to point into this
-	// object. Delaying this update until now ensures that
-	// conservative scanning considers this pointer dead until
-	// this point.
-	span.freeIndexForScan = span.freeindex
 
-	// Allocate black during GC.
-	// All slots hold nil so no scanning is needed.
-	// This may be racing with GC so do it atomically if there can be
-	// a race marking the bit.
 	if writeBarrier.enabled {
+		// Allocate black during GC.
+		// All slots hold nil so no scanning is needed.
+		// This may be racing with GC so do it atomically if there can be
+		// a race marking the bit.
 		gcmarknewobject(span, uintptr(x))
+	} else {
+		// Track the last free index before the mark phase. This field
+		// is only used by the garbage collector. During the mark phase
+		// this is used by the conservative scanner to filter out objects
+		// that are both free and recently-allocated. It's safe to do that
+		// because we allocate-black if the GC is enabled. The conservative
+		// scanner produces pointers out of thin air, so without additional
+		// synchronization it might otherwise observe a partially-initialized
+		// object, which could crash the program.
+		span.freeIndexForScan = span.freeindex
 	}
 
 	// Note cache c only valid while m acquired; see #47302
@@ -1334,7 +1503,56 @@ func mallocgcSmallNoscan(size uintptr, typ *_type, needzero bool) (unsafe.Pointe
 	return x, size
 }
 
-func mallocgcSmallScanNoHeader(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr) {
+// mallocgcSmallNoscanReuse returns a previously freed noscan object after preparing it for reuse.
+// It must only be called if hasReusableNoscan returned true.
+func mallocgcSmallNoscanReuse(c *mcache, span *mspan, spc spanClass, size uintptr, needzero bool) unsafe.Pointer {
+	// TODO(thepudds): could nextFreeFast, nextFree and nextReusable return unsafe.Pointer?
+	// Maybe doesn't matter. gclinkptr might be for historical reasons.
+	v, span := c.nextReusableNoScan(span, spc)
+	x := unsafe.Pointer(v)
+
+	// Compensate for the GC assist credit deducted in mallocgc (before calling us and
+	// after we return) because this is not a newly allocated object. We use the full slot
+	// size (elemsize) here because that's what mallocgc deducts overall. Note we only
+	// adjust this when gcBlackenEnabled is true, which follows mallocgc behavior.
+	// TODO(thepudds): a follow-up CL adds a more specific test of our assist credit
+	// handling, including for validating internal fragmentation handling.
+	if gcBlackenEnabled != 0 {
+		addAssistCredit(size)
+	}
+
+	// This is a previously used object, so only check needzero (and not span.needzero)
+	// for clearing.
+	if needzero {
+		memclrNoHeapPointers(x, size)
+	}
+
+	// See publicationBarrier comment in mallocgcSmallNoscan.
+	publicationBarrier()
+
+	// Finish and return. Note that we do not update span.freeIndexForScan, profiling info,
+	// nor do we check gcTrigger.
+	// TODO(thepudds): the current approach is viable for a GOEXPERIMENT, but
+	// means we do not profile reused heap objects. Ultimately, we will need a better
+	// approach for profiling, or at least ensure we are not introducing bias in the
+	// profiled allocations.
+	// TODO(thepudds): related, we probably want to adjust how allocs and frees are counted
+	// in the existing stats. Currently, reused objects are not counted as allocs nor
+	// frees, but instead roughly appear as if the original heap object lived on. We
+	// probably will also want some additional runtime/metrics, and generally think about
+	// user-facing observability & diagnostics, though all this likely can wait for an
+	// official proposal.
+	if writeBarrier.enabled {
+		// Allocate black during GC.
+		// All slots hold nil so no scanning is needed.
+		// This may be racing with GC so do it atomically if there can be
+		// a race marking the bit.
+		gcmarknewobject(span, uintptr(x))
+	}
+	return x
+}
+
+func mallocgcSmallScanNoHeader(size uintptr, typ *_type) (unsafe.Pointer, uintptr) {
 	// Set mp.mallocing to keep from being preempted by GC.
 	mp := acquirem()
 	if doubleCheckMalloc {
@@ -1355,7 +1573,7 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type, needzero bool) (unsafe.
 
 	checkGCTrigger := false
 	c := getMCache(mp)
-	sizeclass := size_to_class8[divRoundUp(size, smallSizeDiv)]
+	sizeclass := gc.SizeToSizeClass8[divRoundUp(size, gc.SmallSizeDiv)]
 	spc := makeSpanClass(sizeclass, false)
 	span := c.alloc[spc]
 	v := nextFreeFast(span)
@@ -1363,7 +1581,7 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type, needzero bool) (unsafe.
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
-	if needzero && span.needzero != 0 {
+	if span.needzero != 0 {
 		memclrNoHeapPointers(x, size)
 	}
 	if goarch.PtrSize == 8 && sizeclass == 1 {
@@ -1373,7 +1591,7 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type, needzero bool) (unsafe.
 	} else {
 		c.scanAlloc += heapSetTypeNoHeader(uintptr(x), size, typ, span)
 	}
-	size = uintptr(class_to_size[sizeclass])
+	size = uintptr(gc.SizeClassToSize[sizeclass])
 
 	// Ensure that the stores above that initialize x to
 	// type-safe memory and set the heap bits occur before
@@ -1382,23 +1600,23 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type, needzero bool) (unsafe.
 	// the garbage collector could follow a pointer to x,
 	// but see uninitialized memory or stale heap bits.
 	publicationBarrier()
-	// As x and the heap bits are initialized, update
-	// freeIndexForScan now so x is seen by the GC
-	// (including conservative scan) as an allocated object.
-	// While this pointer can't escape into user code as a
-	// _live_ pointer until we return, conservative scanning
-	// may find a dead pointer that happens to point into this
-	// object. Delaying this update until now ensures that
-	// conservative scanning considers this pointer dead until
-	// this point.
-	span.freeIndexForScan = span.freeindex
 
-	// Allocate black during GC.
-	// All slots hold nil so no scanning is needed.
-	// This may be racing with GC so do it atomically if there can be
-	// a race marking the bit.
 	if writeBarrier.enabled {
+		// Allocate black during GC.
+		// All slots hold nil so no scanning is needed.
+		// This may be racing with GC so do it atomically if there can be
+		// a race marking the bit.
 		gcmarknewobject(span, uintptr(x))
+	} else {
+		// Track the last free index before the mark phase. This field
+		// is only used by the garbage collector. During the mark phase
+		// this is used by the conservative scanner to filter out objects
+		// that are both free and recently-allocated. It's safe to do that
+		// because we allocate-black if the GC is enabled. The conservative
+		// scanner produces pointers out of thin air, so without additional
+		// synchronization it might otherwise observe a partially-initialized
+		// object, which could crash the program.
+		span.freeIndexForScan = span.freeindex
 	}
 
 	// Note cache c only valid while m acquired; see #47302
@@ -1425,7 +1643,7 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type, needzero bool) (unsafe.
 	return x, size
 }
 
-func mallocgcSmallScanHeader(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr) {
+func mallocgcSmallScanHeader(size uintptr, typ *_type) (unsafe.Pointer, uintptr) {
 	// Set mp.mallocing to keep from being preempted by GC.
 	mp := acquirem()
 	if doubleCheckMalloc {
@@ -1446,14 +1664,14 @@ func mallocgcSmallScanHeader(size uintptr, typ *_type, needzero bool) (unsafe.Po
 
 	checkGCTrigger := false
 	c := getMCache(mp)
-	size += mallocHeaderSize
+	size += gc.MallocHeaderSize
 	var sizeclass uint8
-	if size <= smallSizeMax-8 {
-		sizeclass = size_to_class8[divRoundUp(size, smallSizeDiv)]
+	if size <= gc.SmallSizeMax-8 {
+		sizeclass = gc.SizeToSizeClass8[divRoundUp(size, gc.SmallSizeDiv)]
 	} else {
-		sizeclass = size_to_class128[divRoundUp(size-smallSizeMax, largeSizeDiv)]
+		sizeclass = gc.SizeToSizeClass128[divRoundUp(size-gc.SmallSizeMax, gc.LargeSizeDiv)]
 	}
-	size = uintptr(class_to_size[sizeclass])
+	size = uintptr(gc.SizeClassToSize[sizeclass])
 	spc := makeSpanClass(sizeclass, false)
 	span := c.alloc[spc]
 	v := nextFreeFast(span)
@@ -1461,12 +1679,12 @@ func mallocgcSmallScanHeader(size uintptr, typ *_type, needzero bool) (unsafe.Po
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
-	if needzero && span.needzero != 0 {
+	if span.needzero != 0 {
 		memclrNoHeapPointers(x, size)
 	}
 	header := (**_type)(x)
-	x = add(x, mallocHeaderSize)
-	c.scanAlloc += heapSetTypeSmallHeader(uintptr(x), size-mallocHeaderSize, typ, header, span)
+	x = add(x, gc.MallocHeaderSize)
+	c.scanAlloc += heapSetTypeSmallHeader(uintptr(x), size-gc.MallocHeaderSize, typ, header, span)
 
 	// Ensure that the stores above that initialize x to
 	// type-safe memory and set the heap bits occur before
@@ -1475,23 +1693,23 @@ func mallocgcSmallScanHeader(size uintptr, typ *_type, needzero bool) (unsafe.Po
 	// the garbage collector could follow a pointer to x,
 	// but see uninitialized memory or stale heap bits.
 	publicationBarrier()
-	// As x and the heap bits are initialized, update
-	// freeIndexForScan now so x is seen by the GC
-	// (including conservative scan) as an allocated object.
-	// While this pointer can't escape into user code as a
-	// _live_ pointer until we return, conservative scanning
-	// may find a dead pointer that happens to point into this
-	// object. Delaying this update until now ensures that
-	// conservative scanning considers this pointer dead until
-	// this point.
-	span.freeIndexForScan = span.freeindex
 
-	// Allocate black during GC.
-	// All slots hold nil so no scanning is needed.
-	// This may be racing with GC so do it atomically if there can be
-	// a race marking the bit.
 	if writeBarrier.enabled {
+		// Allocate black during GC.
+		// All slots hold nil so no scanning is needed.
+		// This may be racing with GC so do it atomically if there can be
+		// a race marking the bit.
 		gcmarknewobject(span, uintptr(x))
+	} else {
+		// Track the last free index before the mark phase. This field
+		// is only used by the garbage collector. During the mark phase
+		// this is used by the conservative scanner to filter out objects
+		// that are both free and recently-allocated. It's safe to do that
+		// because we allocate-black if the GC is enabled. The conservative
+		// scanner produces pointers out of thin air, so without additional
+		// synchronization it might otherwise observe a partially-initialized
+		// object, which could crash the program.
+		span.freeIndexForScan = span.freeindex
 	}
 
 	// Note cache c only valid while m acquired; see #47302
@@ -1541,30 +1759,31 @@ func mallocgcLarge(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uin
 	size = span.elemsize
 	x := unsafe.Pointer(span.base())
 
-	// Ensure that the stores above that initialize x to
-	// type-safe memory and set the heap bits occur before
-	// the caller can make x observable to the garbage
-	// collector. Otherwise, on weakly ordered machines,
-	// the garbage collector could follow a pointer to x,
-	// but see uninitialized memory or stale heap bits.
+	// Ensure that the store above that sets largeType to
+	// nil happens before the caller can make x observable
+	// to the garbage collector.
+	//
+	// Otherwise, on weakly ordered machines, the garbage
+	// collector could follow a pointer to x, but see a stale
+	// largeType value.
 	publicationBarrier()
-	// As x and the heap bits are initialized, update
-	// freeIndexForScan now so x is seen by the GC
-	// (including conservative scan) as an allocated object.
-	// While this pointer can't escape into user code as a
-	// _live_ pointer until we return, conservative scanning
-	// may find a dead pointer that happens to point into this
-	// object. Delaying this update until now ensures that
-	// conservative scanning considers this pointer dead until
-	// this point.
-	span.freeIndexForScan = span.freeindex
 
-	// Allocate black during GC.
-	// All slots hold nil so no scanning is needed.
-	// This may be racing with GC so do it atomically if there can be
-	// a race marking the bit.
 	if writeBarrier.enabled {
+		// Allocate black during GC.
+		// All slots hold nil so no scanning is needed.
+		// This may be racing with GC so do it atomically if there can be
+		// a race marking the bit.
 		gcmarknewobject(span, uintptr(x))
+	} else {
+		// Track the last free index before the mark phase. This field
+		// is only used by the garbage collector. During the mark phase
+		// this is used by the conservative scanner to filter out objects
+		// that are both free and recently-allocated. It's safe to do that
+		// because we allocate-black if the GC is enabled. The conservative
+		// scanner produces pointers out of thin air, so without additional
+		// synchronization it might otherwise observe a partially-initialized
+		// object, which could crash the program.
+		span.freeIndexForScan = span.freeindex
 	}
 
 	// Note cache c only valid while m acquired; see #47302
@@ -1589,22 +1808,33 @@ func mallocgcLarge(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uin
 	}
 
 	// Objects can be zeroed late in a context where preemption can occur.
-	// If the object contains pointers, its pointer data must be cleared
-	// or otherwise indicate that the GC shouldn't scan it.
+	//
 	// x will keep the memory alive.
-	if noscan := typ == nil || !typ.Pointers(); !noscan || (needzero && span.needzero != 0) {
+	if needzero && span.needzero != 0 {
 		// N.B. size == fullSize always in this case.
 		memclrNoHeapPointersChunked(size, x) // This is a possible preemption point: see #47302
-
-		// Finish storing the type information for this case.
-		mp := acquirem()
-		if !noscan {
-			getMCache(mp).scanAlloc += heapSetTypeLarge(uintptr(x), size, typ, span)
-		}
-		// Publish the object with the now-zeroed memory.
-		publicationBarrier()
-		releasem(mp)
 	}
+
+	// Set the type and run the publication barrier while non-preemptible. We need to make
+	// sure that between heapSetTypeLarge and publicationBarrier we cannot get preempted,
+	// otherwise the GC could potentially observe non-zeroed memory but largeType set on weak
+	// memory architectures.
+	//
+	// The GC can also potentially observe non-zeroed memory if conservative scanning spuriously
+	// observes a partially-allocated object, see the freeIndexForScan update above. This case is
+	// handled by synchronization inside heapSetTypeLarge.
+	mp = acquirem()
+	if typ != nil && typ.Pointers() {
+		// Finish storing the type information, now that we're certain the memory is zeroed.
+		getMCache(mp).scanAlloc += heapSetTypeLarge(uintptr(x), size, typ, span)
+	}
+	// Publish the object again, now with zeroed memory and initialized type information.
+	//
+	// Even if we didn't update any type information, this is necessary to ensure that, for example,
+	// x written to a global without any synchronization still results in other goroutines observing
+	// zeroed memory.
+	publicationBarrier()
+	releasem(mp)
 	return x, size
 }
 
@@ -1651,14 +1881,21 @@ func postMallocgcDebug(x unsafe.Pointer, elemsize uintptr, typ *_type) {
 			traceRelease(trace)
 		}
 	}
+
+	// N.B. elemsize == 0 indicates a tiny allocation, since no new slot was
+	// allocated to fulfill this call to mallocgc. This means checkfinalizer
+	// will only flag an error if there is actually any risk. If an allocation
+	// has the tiny block to itself, it will not get flagged, because we won't
+	// mark the block as a tiny block.
+	if debug.checkfinalizers != 0 && elemsize == 0 {
+		setTinyBlockContext(unsafe.Pointer(alignDown(uintptr(x), maxTinySize)))
+	}
 }
 
 // deductAssistCredit reduces the current G's assist credit
 // by size bytes, and assists the GC if necessary.
 //
 // Caller must be preemptible.
-//
-// Returns the G for which the assist credit was accounted.
 func deductAssistCredit(size uintptr) {
 	// Charge the current user G for this allocation.
 	assistG := getg()
@@ -1675,6 +1912,267 @@ func deductAssistCredit(size uintptr) {
 		// before disabling preemption.
 		gcAssistAlloc(assistG)
 	}
+}
+
+// addAssistCredit is like deductAssistCredit,
+// but adds credit rather than removes,
+// and never calls gcAssistAlloc.
+func addAssistCredit(size uintptr) {
+	// Credit the current user G.
+	assistG := getg()
+	if assistG.m.curg != nil { // TODO(thepudds): do we need to do this?
+		assistG = assistG.m.curg
+	}
+	// Credit the size against the G.
+	assistG.gcAssistBytes += int64(size)
+}
+
+const (
+	// doubleCheckReusable enables some additional invariant checks for the
+	// runtime.freegc and reusable objects. Note that some of these checks alter timing,
+	// and it is good to test changes with and without this enabled.
+	doubleCheckReusable = false
+
+	// debugReusableLog enables some printlns for runtime.freegc and reusable objects.
+	debugReusableLog = false
+)
+
+// freegc records that a heap object is reusable and available for
+// immediate reuse in a subsequent mallocgc allocation, without
+// needing to wait for the GC cycle to progress.
+//
+// The information is recorded in a free list stored in the
+// current P's mcache. The caller must pass in the user size
+// and whether the object has pointers, which allows a faster free
+// operation.
+//
+// freegc must be called by the effective owner of ptr who knows
+// the pointer is logically dead, with no possible aliases that might
+// be used past that moment. In other words, ptr must be the
+// last and only pointer to its referent.
+//
+// The intended caller is the compiler.
+//
+// Note: please do not send changes that attempt to add freegc calls
+// to the standard library.
+//
+// ptr must point to a heap object or into the current g's stack,
+// in which case freegc is a no-op. In particular, ptr must not point
+// to memory in the data or bss sections, which is partially enforced.
+// For objects with a malloc header, ptr should point mallocHeaderSize bytes
+// past the base; otherwise, ptr should point to the base of the heap object.
+// In other words, ptr should be the same pointer that was returned by mallocgc.
+//
+// In addition, the caller must know that ptr's object has no specials, such
+// as might have been created by a call to SetFinalizer or AddCleanup.
+// (Internally, the runtime deals appropriately with internally-created
+// specials, such as specials for memory profiling).
+//
+// If the size of ptr's object is less than 16 bytes or greater than
+// 32KiB - gc.MallocHeaderSize bytes, freegc is currently a no-op. It must only
+// be called in alloc-safe places. It currently throws if noscan is false
+// (support for which is implemented in a later CL in our stack).
+//
+// Note that freegc accepts an unsafe.Pointer and hence keeps the pointer
+// alive. It therefore could be a pessimization in some cases (such
+// as a long-lived function) if the caller does not call freegc before
+// or roughly when the liveness analysis of the compiler
+// would otherwise have determined ptr's object is reclaimable by the GC.
+func freegc(ptr unsafe.Pointer, size uintptr, noscan bool) bool {
+	if !runtimeFreegcEnabled || !reusableSize(size) {
+		return false
+	}
+	if sizeSpecializedMallocEnabled && !noscan {
+		// TODO(thepudds): temporarily disable freegc with SizeSpecializedMalloc for pointer types
+		// until we finish integrating.
+		return false
+	}
+
+	if ptr == nil {
+		throw("freegc nil")
+	}
+
+	// Set mp.mallocing to keep from being preempted by GC.
+	// Otherwise, the GC could flush our mcache or otherwise cause problems.
+	mp := acquirem()
+	if mp.mallocing != 0 {
+		throw("freegc deadlock")
+	}
+	if mp.gsignal == getg() {
+		throw("freegc during signal")
+	}
+	mp.mallocing = 1
+
+	if mp.curg.stack.lo <= uintptr(ptr) && uintptr(ptr) < mp.curg.stack.hi {
+		// This points into our stack, so free is a no-op.
+		mp.mallocing = 0
+		releasem(mp)
+		return false
+	}
+
+	if doubleCheckReusable {
+		// TODO(thepudds): we could enforce no free on globals in bss or data. Maybe by
+		// checking span via spanOf or spanOfHeap, or maybe walk from firstmoduledata
+		// like isGoPointerWithoutSpan, or activeModules, or something. If so, we might
+		// be able to delay checking until reuse (e.g., check span just before reusing,
+		// though currently we don't always need to lookup a span on reuse). If we think
+		// no usage patterns could result in globals, maybe enforcement for globals could
+		// be behind -d=checkptr=1 or similar. The compiler can have knowledge of where
+		// a variable is allocated, but stdlib does not, although there are certain
+		// usage patterns that cannot result in a global.
+		// TODO(thepudds): separately, consider a local debugReusableMcacheOnly here
+		// to ignore freed objects if not in mspan in mcache,  maybe when freeing and reading,
+		// by checking something like s.base() <= uintptr(v) && uintptr(v) < s.limit. Or
+		// maybe a GODEBUG or compiler debug flag.
+		span := spanOf(uintptr(ptr))
+		if span == nil {
+			throw("nextReusable: nil span for pointer in free list")
+		}
+		if state := span.state.get(); state != mSpanInUse {
+			throw("nextReusable: span is not in use")
+		}
+	}
+
+	if debug.clobberfree != 0 {
+		clobberfree(ptr, size)
+	}
+
+	// We first check if p is still in our per-P cache.
+	// Get our per-P cache for small objects.
+	c := getMCache(mp)
+	if c == nil {
+		throw("freegc called without a P or outside bootstrapping")
+	}
+
+	v := uintptr(ptr)
+	if !noscan && !heapBitsInSpan(size) {
+		// mallocgcSmallScanHeader expects to get the base address of the object back
+		// from the findReusable funcs (as well as from nextFreeFast and nextFree), and
+		// not mallocHeaderSize bytes into a object, so adjust that here.
+		v -= mallocHeaderSize
+
+		// The size class lookup wants size to be adjusted by mallocHeaderSize.
+		size += mallocHeaderSize
+	}
+
+	// TODO(thepudds): should verify (behind doubleCheckReusable constant) that our calculated
+	// sizeclass here matches what's in span found via spanOf(ptr) or findObject(ptr).
+	var sizeclass uint8
+	if size <= gc.SmallSizeMax-8 {
+		sizeclass = gc.SizeToSizeClass8[divRoundUp(size, gc.SmallSizeDiv)]
+	} else {
+		sizeclass = gc.SizeToSizeClass128[divRoundUp(size-gc.SmallSizeMax, gc.LargeSizeDiv)]
+	}
+
+	spc := makeSpanClass(sizeclass, noscan)
+	s := c.alloc[spc]
+
+	if debugReusableLog {
+		if s.base() <= uintptr(v) && uintptr(v) < s.limit {
+			println("freegc [in mcache]:", hex(uintptr(v)), "sweepgen:", mheap_.sweepgen, "writeBarrier.enabled:", writeBarrier.enabled)
+		} else {
+			println("freegc [NOT in mcache]:", hex(uintptr(v)), "sweepgen:", mheap_.sweepgen, "writeBarrier.enabled:", writeBarrier.enabled)
+		}
+	}
+
+	if noscan {
+		c.addReusableNoscan(spc, uintptr(v))
+	} else {
+		// TODO(thepudds): implemented in later CL in our stack.
+		throw("freegc called for object with pointers, not yet implemented")
+	}
+
+	// For stats, for now we leave allocCount alone, roughly pretending to the rest
+	// of the system that this potential reuse never happened.
+
+	mp.mallocing = 0
+	releasem(mp)
+
+	return true
+}
+
+// nextReusableNoScan returns the next reusable object for a noscan span,
+// or 0 if no reusable object is found.
+func (c *mcache) nextReusableNoScan(s *mspan, spc spanClass) (gclinkptr, *mspan) {
+	if !runtimeFreegcEnabled {
+		return 0, s
+	}
+
+	// Pop a reusable pointer from the free list for this span class.
+	v := c.reusableNoscan[spc]
+	if v == 0 {
+		return 0, s
+	}
+	c.reusableNoscan[spc] = v.ptr().next
+
+	if debugReusableLog {
+		println("reusing from ptr free list:", hex(v), "sweepgen:", mheap_.sweepgen, "writeBarrier.enabled:", writeBarrier.enabled)
+	}
+	if doubleCheckReusable {
+		doubleCheckNextReusable(v) // debug only sanity check
+	}
+
+	// For noscan spans, we only need the span if the write barrier is enabled (so that our caller
+	// can call gcmarknewobject to allocate black). If the write barrier is enabled, we can skip
+	// looking up the span when the pointer is in a span in the mcache.
+	if !writeBarrier.enabled {
+		return v, nil
+	}
+	if s.base() <= uintptr(v) && uintptr(v) < s.limit {
+		// Return the original span.
+		return v, s
+	}
+
+	// We must find and return the span.
+	span := spanOf(uintptr(v))
+	if span == nil {
+		// TODO(thepudds): construct a test that triggers this throw.
+		throw("nextReusableNoScan: nil span for pointer in reusable object free list")
+	}
+
+	return v, span
+}
+
+// doubleCheckNextReusable checks some invariants.
+// TODO(thepudds): will probably delete some of this. Can mostly be ignored for review.
+func doubleCheckNextReusable(v gclinkptr) {
+	// TODO(thepudds): should probably take the spanClass as well to confirm expected
+	// sizeclass match.
+	_, span, objIndex := findObject(uintptr(v), 0, 0)
+	if span == nil {
+		throw("nextReusable: nil span for pointer in free list")
+	}
+	if state := span.state.get(); state != mSpanInUse {
+		throw("nextReusable: span is not in use")
+	}
+	if uintptr(v) < span.base() || uintptr(v) >= span.limit {
+		throw("nextReusable: span is not in range")
+	}
+	if span.objBase(uintptr(v)) != uintptr(v) {
+		print("nextReusable: v=", hex(v), " base=", hex(span.objBase(uintptr(v))), "\n")
+		throw("nextReusable: v is non-base-address for object found on pointer free list")
+	}
+	if span.isFree(objIndex) {
+		throw("nextReusable: pointer on free list is free")
+	}
+
+	const debugReusableEnsureSwept = false
+	if debugReusableEnsureSwept {
+		// Currently disabled.
+		// Note: ensureSwept here alters behavior (not just an invariant check).
+		span.ensureSwept()
+		if span.isFree(objIndex) {
+			throw("nextReusable: pointer on free list is free after ensureSwept")
+		}
+	}
+}
+
+// reusableSize reports if size is a currently supported size for a reusable object.
+func reusableSize(size uintptr) bool {
+	if size < maxTinySize || size > maxSmallSize-mallocHeaderSize {
+		return false
+	}
+	return true
 }
 
 // memclrNoHeapPointersChunked repeatedly calls memclrNoHeapPointers
@@ -1809,19 +2307,12 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 func nextSample() int64 {
 	if MemProfileRate == 0 {
 		// Basically never sample.
-		return maxInt64
+		return math.MaxInt64
 	}
 	if MemProfileRate == 1 {
 		// Sample immediately.
 		return 0
 	}
-	if GOOS == "plan9" {
-		// Plan 9 doesn't support floating point in note handler.
-		if gp := getg(); gp == gp.m.gsignal {
-			return nextSampleNoFP()
-		}
-	}
-
 	return int64(fastexprand(MemProfileRate))
 }
 
@@ -1853,20 +2344,6 @@ func fastexprand(mean int) int32 {
 	}
 	const minusLog2 = -0.6931471805599453 // -ln(2)
 	return int32(qlog*(minusLog2*float64(mean))) + 1
-}
-
-// nextSampleNoFP is similar to nextSample, but uses older,
-// simpler code to avoid floating point.
-func nextSampleNoFP() int64 {
-	// Set first allocation sample size.
-	rate := MemProfileRate
-	if rate > 0x3fffffff { // make 2*rate not overflow
-		rate = 0x3fffffff
-	}
-	if rate != 0 {
-		return int64(cheaprandn(uint32(2 * rate)))
-	}
-	return 0
 }
 
 type persistentAlloc struct {
@@ -1925,7 +2402,7 @@ func persistentalloc1(size, align uintptr, sysStat *sysMemStat) *notInHeap {
 		if align&(align-1) != 0 {
 			throw("persistentalloc: align is not a power of 2")
 		}
-		if align > _PageSize {
+		if align > pageSize {
 			throw("persistentalloc: align is too large")
 		}
 	} else {
@@ -1933,7 +2410,7 @@ func persistentalloc1(size, align uintptr, sysStat *sysMemStat) *notInHeap {
 	}
 
 	if size >= maxBlock {
-		return (*notInHeap)(sysAlloc(size, sysStat))
+		return (*notInHeap)(sysAlloc(size, sysStat, "immortal metadata"))
 	}
 
 	mp := acquirem()
@@ -1946,7 +2423,7 @@ func persistentalloc1(size, align uintptr, sysStat *sysMemStat) *notInHeap {
 	}
 	persistent.off = alignUp(persistent.off, align)
 	if persistent.off+size > persistentChunkSize || persistent.base == nil {
-		persistent.base = (*notInHeap)(sysAlloc(persistentChunkSize, &memstats.other_sys))
+		persistent.base = (*notInHeap)(sysAlloc(persistentChunkSize, &memstats.other_sys, "immortal metadata"))
 		if persistent.base == nil {
 			if persistent == &globalAlloc.persistentAlloc {
 				unlock(&globalAlloc.mutex)
@@ -2020,7 +2497,7 @@ func (l *linearAlloc) init(base, size uintptr, mapMemory bool) {
 	l.mapMemory = mapMemory
 }
 
-func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
+func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat, vmaName string) unsafe.Pointer {
 	p := alignUp(l.next, align)
 	if p+size > l.end {
 		return nil
@@ -2030,7 +2507,7 @@ func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Poi
 		if l.mapMemory {
 			// Transition from Reserved to Prepared to Ready.
 			n := pEnd - l.mapped
-			sysMap(unsafe.Pointer(l.mapped), n, sysStat)
+			sysMap(unsafe.Pointer(l.mapped), n, sysStat, vmaName)
 			sysUsed(unsafe.Pointer(l.mapped), n, n)
 		}
 		l.mapped = pEnd

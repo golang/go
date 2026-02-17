@@ -10,16 +10,21 @@ import (
 	"crypto"
 	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
+	"crypto/internal/fips140"
 	"crypto/rand"
 	. "crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"io"
 	"math/big"
+	"os"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -140,6 +145,12 @@ d8Y7
 }
 
 func testKeyBasics(t *testing.T, priv *PrivateKey) {
+	defer func() {
+		if t.Failed() {
+			t.Logf("failed key: %#v", priv)
+		}
+	}()
+
 	if err := priv.Validate(); err != nil {
 		t.Errorf("Validate() failed: %s", err)
 	}
@@ -207,7 +218,6 @@ func TestEverything(t *testing.T) {
 		max = 2048
 	}
 	for size := min; size <= max; size++ {
-		size := size
 		t.Run(fmt.Sprintf("%d", size), func(t *testing.T) {
 			t.Parallel()
 			priv, err := GenerateKey(rand.Reader, size)
@@ -223,8 +233,9 @@ func TestEverything(t *testing.T) {
 }
 
 func testEverything(t *testing.T, priv *PrivateKey) {
-	if err := priv.Validate(); err != nil {
-		t.Errorf("Validate() failed: %s", err)
+	validateErr := priv.Validate()
+	if validateErr != nil && len(priv.Primes) >= 2 {
+		t.Errorf("Validate() failed: %s", validateErr)
 	}
 
 	msg := []byte("test")
@@ -370,19 +381,21 @@ func testEverything(t *testing.T, priv *PrivateKey) {
 		t.Errorf("DecryptPKCS1v15 accepted a long ciphertext")
 	}
 
-	der, err := x509.MarshalPKCS8PrivateKey(priv)
-	if err != nil {
-		t.Errorf("MarshalPKCS8PrivateKey: %v", err)
-	}
-	key, err := x509.ParsePKCS8PrivateKey(der)
-	if err != nil {
-		t.Errorf("ParsePKCS8PrivateKey: %v", err)
-	}
-	if !key.(*PrivateKey).Equal(priv) {
-		t.Errorf("private key mismatch")
+	if validateErr == nil {
+		der, err := x509.MarshalPKCS8PrivateKey(priv)
+		if err != nil {
+			t.Errorf("MarshalPKCS8PrivateKey: %v", err)
+		}
+		key, err := x509.ParsePKCS8PrivateKey(der)
+		if err != nil {
+			t.Errorf("ParsePKCS8PrivateKey: %v", err)
+		}
+		if !key.(*PrivateKey).Equal(priv) {
+			t.Errorf("private key mismatch")
+		}
 	}
 
-	der, err = x509.MarshalPKIXPublicKey(&priv.PublicKey)
+	der, err := x509.MarshalPKIXPublicKey(&priv.PublicKey)
 	if err != nil {
 		t.Errorf("MarshalPKIXPublicKey: %v", err)
 	}
@@ -513,6 +526,30 @@ fLVGuFoTVIu2bF0cWAjNNMg=
 -----END TESTING KEY-----`)
 
 var test2048Key = parseKey(test2048KeyPEM)
+
+var test2048KeyOnlyD = &PrivateKey{
+	PublicKey: test2048Key.PublicKey,
+	D:         test2048Key.D,
+}
+
+var test2048KeyWithoutPrecomputed = &PrivateKey{
+	PublicKey: test2048Key.PublicKey,
+	D:         test2048Key.D,
+	Primes:    test2048Key.Primes,
+}
+
+// test2048KeyWithPrecomputed is different from test2048Key because it includes
+// only the public precomputed values, and not the fips140/rsa.PrivateKey.
+var test2048KeyWithPrecomputed = &PrivateKey{
+	PublicKey: test2048Key.PublicKey,
+	D:         test2048Key.D,
+	Primes:    test2048Key.Primes,
+	Precomputed: PrecomputedValues{
+		Dp:   test2048Key.Precomputed.Dp,
+		Dq:   test2048Key.Precomputed.Dq,
+		Qinv: test2048Key.Precomputed.Qinv,
+	},
+}
 
 var test3072Key = parseKey(testingKey(`-----BEGIN TESTING KEY-----
 MIIG/gIBADANBgkqhkiG9w0BAQEFAASCBugwggbkAgEAAoIBgQDJrvevql7G07LM
@@ -695,19 +732,32 @@ func BenchmarkEncryptOAEP(b *testing.B) {
 }
 
 func BenchmarkSignPKCS1v15(b *testing.B) {
-	b.Run("2048", func(b *testing.B) {
-		hashed := sha256.Sum256([]byte("testing"))
-
-		var sink byte
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			s, err := SignPKCS1v15(rand.Reader, test2048Key, crypto.SHA256, hashed[:])
-			if err != nil {
-				b.Fatal(err)
-			}
-			sink ^= s[0]
-		}
+	b.Run("2048", func(b *testing.B) { benchmarkSignPKCS1v15(b, test2048Key) })
+	b.Run("2048/noprecomp/OnlyD", func(b *testing.B) {
+		benchmarkSignPKCS1v15(b, test2048KeyOnlyD)
 	})
+	b.Run("2048/noprecomp/Primes", func(b *testing.B) {
+		benchmarkSignPKCS1v15(b, test2048KeyWithoutPrecomputed)
+	})
+	// This is different from "2048" because it's only the public precomputed
+	// values, and not the crypto/internal/fips140/rsa.PrivateKey.
+	b.Run("2048/noprecomp/AllValues", func(b *testing.B) {
+		benchmarkSignPKCS1v15(b, test2048KeyWithPrecomputed)
+	})
+}
+
+func benchmarkSignPKCS1v15(b *testing.B, k *PrivateKey) {
+	hashed := sha256.Sum256([]byte("testing"))
+
+	var sink byte
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s, err := SignPKCS1v15(rand.Reader, k, crypto.SHA256, hashed[:])
+		if err != nil {
+			b.Fatal(err)
+		}
+		sink ^= s[0]
+	}
 }
 
 func BenchmarkVerifyPKCS1v15(b *testing.B) {
@@ -762,16 +812,6 @@ func BenchmarkVerifyPSS(b *testing.B) {
 	})
 }
 
-func BenchmarkGenerateKey(b *testing.B) {
-	b.Run("2048", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			if _, err := GenerateKey(rand.Reader, 2048); err != nil {
-				b.Fatal(err)
-			}
-		}
-	})
-}
-
 func BenchmarkParsePKCS8PrivateKey(b *testing.B) {
 	b.Run("2048", func(b *testing.B) {
 		p, _ := pem.Decode([]byte(test2048KeyPEM))
@@ -782,6 +822,58 @@ func BenchmarkParsePKCS8PrivateKey(b *testing.B) {
 			}
 		}
 	})
+}
+
+func BenchmarkGenerateKey(b *testing.B) {
+	b.Run("2048", func(b *testing.B) {
+		primes, err := os.ReadFile("testdata/keygen2048.txt")
+		if err != nil {
+			b.Fatal(err)
+		}
+		for b.Loop() {
+			r := &testPrimeReader{primes: string(primes)}
+			if _, err := GenerateKey(r, 2048); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
+// testPrimeReader feeds prime candidates from a text file,
+// one per line in hex, to GenerateKey.
+type testPrimeReader struct {
+	primes string
+}
+
+func (r *testPrimeReader) Read(p []byte) (n int, err error) {
+	// Neutralize randutil.MaybeReadByte.
+	//
+	// DO NOT COPY this. We *will* break you. We can do this because we're
+	// in the standard library, and can update this along with the
+	// GenerateKey implementation if necessary.
+	//
+	// You have been warned.
+	if len(p) == 1 {
+		return 1, nil
+	}
+
+	var line string
+	for line == "" || line[0] == '#' {
+		var ok bool
+		line, r.primes, ok = strings.Cut(r.primes, "\n")
+		if !ok {
+			return 0, io.EOF
+		}
+	}
+	b, err := hex.DecodeString(line)
+	if err != nil {
+		return 0, err
+	}
+	if len(p) != len(b) {
+		return 0, fmt.Errorf("unexpected read length: %d", len(p))
+	}
+	copy(p, b)
+	return len(p), nil
 }
 
 type testEncryptOAEPMessage struct {
@@ -902,6 +994,36 @@ func TestEncryptDecryptOAEP(t *testing.T) {
 			}
 			if !bytes.Equal(dec, message.in) {
 				t.Errorf("#%d,%d: round trip %q -> %q", i, j, message.in, dec)
+			}
+
+			// Using different hash for MGF.
+			enc, err = EncryptOAEPWithOptions(rand.Reader, &priv.PublicKey, message.in, &OAEPOptions{Hash: crypto.SHA256, MGFHash: crypto.SHA1, Label: label})
+			if err != nil {
+				t.Errorf("#%d,%d: EncryptOAEP with different MGFHash: %v", i, j, err)
+				continue
+			}
+			dec, err = priv.Decrypt(rand.Reader, enc, &OAEPOptions{Hash: crypto.SHA256, MGFHash: crypto.SHA1, Label: label})
+			if err != nil {
+				t.Errorf("#%d,%d: DecryptOAEP with different MGFHash: %v", i, j, err)
+				continue
+			}
+			if !bytes.Equal(dec, message.in) {
+				t.Errorf("#%d,%d: round trip with different MGFHash %q -> %q", i, j, message.in, dec)
+			}
+
+			// Using a zero MGFHash.
+			enc, err = EncryptOAEPWithOptions(rand.Reader, &priv.PublicKey, message.in, &OAEPOptions{Hash: crypto.SHA256, Label: label})
+			if err != nil {
+				t.Errorf("#%d,%d: EncryptOAEP with zero MGFHash: %v", i, j, err)
+				continue
+			}
+			dec, err = DecryptOAEP(sha256, rand.Reader, priv, enc, label)
+			if err != nil {
+				t.Errorf("#%d,%d: DecryptOAEP with zero MGFHash: %v", i, j, err)
+				continue
+			}
+			if !bytes.Equal(dec, message.in) {
+				t.Errorf("#%d,%d: round trip with zero MGFHash %q -> %q", i, j, message.in, dec)
 			}
 		}
 	}
@@ -1070,4 +1192,183 @@ v/Ow5T0q5gIJAiEAyS4RaI9YG8EWx/2w0T67ZUVAw8eOMB6BIUg0Xcu+3okCIBOs
 		t.Skip("BoringCrypto mode returns the wrong error from SignPSS")
 	}
 	testEverything(t, k)
+}
+
+func TestLargeSizeDifference(t *testing.T) {
+	// This key has a 768-bit P and a 256-bit Q.
+	k1 := parseKey(testingKey(`-----BEGIN TESTING KEY-----
+MIICmAIBADANBgkqhkiG9w0BAQEFAASCAoIwggJ+AgEAAoGBAOB/V7qbbMLHZSHS
+rU3FLNQJe88wQr5asy813wqlWsCeYUn7Imxv23vDXthpkH/54+CplWDvVri24zhU
+4tHfONSEBWWKTRfQKCW+vrzf+d02rB95lVBrBDSKAUR6w1Xcx9/6ib+kQRDnMl2l
+WZzDgv8jrNPrLGipYBOLcI9/Oh3HAgMBAAECgYBr85AiAX8JIoy0+POxA/GMfIr2
+lERj+IVVXFhGbED5gjUBUn8kz/gOrClZAqgxJKVbdTcxn4KGOM64z427Y24H52zQ
+sCq7RFJ9KDd4s1hAPQImBRUYu2blqDoqxNBQBxLHVUN7vwFp2MGsHzTz7mcx7QNG
+teRbyLhCanUd3UOb4QJhAP5dyjIK1WzKBZ/jSAmjJL64bks4wEEl5eG6e2cTscCH
+RE/OSpHi57dyrxgnBkczt56hOksJFzwmgk4wEM8n/JDOXwIzvAH4w4JWhu169gCW
+8LgxCzJ71xv8+wUUouUTLwIhAOHwcdEAKyLo3K7X1nlYcUOX61yQ1GXRgIROGrsh
+NNjpAmEAuW1nu4k4QmEXLpJB7nyWic3q4T0SsatN5HrMAL1To/U3sDHDHIxbvNiG
+mcXBBuDFp4cC9rY+0OOFtDfH2SveKzW1/uX11T4iT/6Bx9cORCnEe5GNBxVOH6IQ
+34hGo1WTAiEAyCYALW1AyUQPerOpQwWeEIrb7Lw/65KTjqDB/VOFRUECYQCPcc07
+D19OB593kGklAtk1XwGt1W8OmfGIKhGMKzlYhb9MezjaX/3zpO19msSUmSNKszMX
+RpZX4LYz9Ity0nxQ3qZYN6XYNwvr7dCV0E5eS+mgbGWRrf3utdbUkZUNwYE=
+-----END TESTING KEY-----`))
+
+	// This key has a 256-bit P and a 768-bit Q.
+	k2 := parseKey(testingKey(`-----BEGIN TESTING KEY-----
+MIICVwIBADANBgkqhkiG9w0BAQEFAASCAkEwggI9AgEAAoGBAObSD1Q4cfUURAuY
+RCCTDxv3TxK/VPJH/ees4eVkJHBkgErTXJsVb7df3Pyz8J5yVU7Y68osp1uRgJu1
+E/v61L388oUQbpDlhpCzkpx2ZBfwx891JJBNgrRu/ZEDaWfXA4fx3iUDcA83NfY+
+WWBlwwjhZG2jTQAgB0kz6fIhxODRAgMBAAECgYAJcO3i1WC25C5w1Xhy5yT68TuN
+IiGWu+JbLa97NySE6tOHRvQk0QSTUGw8thsEoo3BAthlQtKHWLmvwPl1YNtEGE14
+9gMlzoveiB10tMAJqmIaPoUWgQ2Wmzz+akYgr3zEloN+2ptVRYmboOWXGOHK4LJd
+n5h7UvQNSqZyUvqogQIhAPOfMCgE3hvt4wA9cNUg3uQgUNnjr0ITiptNmgmoaaFB
+AmEA8oxdQm/Uo1B5J2ebPj/e6mCi/wv3Ewq0CNE4Q1SiLmK1EKwyYj1pNBfrT2Vs
+O5XsuFPC5V07iSjjfbaE8Q4zuKSmhVFe9aoAn8lwuuVBufGLFW7FD8PnhDZcqWsE
+ksuRAiEA7sRa5y32Hbtlmquc9VV0/nJpq1NKRmFunE1PJh4IAMECYH0Q1ZHJWkqv
+1xjzeoA5rPcLx2BdyhP+g+C8CRfmzw2+BgFH2V8ArXuYDdTNxmZfI0XUov1j+qv5
+8nvDHn+xxAekltzNnXptI49A7qjgR+jaXM47ZM+BQ6LP6S3OqfgLkQIhAKbHdb9l
+cHPGX1uUDRAU1xxtpVQ0OqXyEgqwz6y6hYRw
+-----END TESTING KEY-----`))
+
+	if boring.Enabled {
+		t.Skip("BoringCrypto mode returns the wrong error from SignPSS")
+	}
+	testEverything(t, k1)
+	testEverything(t, k2)
+}
+
+func TestNotPrecomputed(t *testing.T) {
+	t.Run("OnlyD", func(t *testing.T) {
+		testEverything(t, test2048KeyOnlyD)
+		k := *test2048KeyOnlyD
+		k.Precompute()
+		testEverything(t, &k)
+	})
+	t.Run("Primes", func(t *testing.T) {
+		testEverything(t, test2048KeyWithoutPrecomputed)
+		k := *test2048KeyWithoutPrecomputed
+		k.Precompute()
+		if k.Precomputed.Dp == nil || k.Precomputed.Dq == nil || k.Precomputed.Qinv == nil {
+			t.Error("Precomputed values should not be nil after Precompute()")
+		}
+		testEverything(t, &k)
+	})
+	t.Run("AllValues", func(t *testing.T) {
+		testEverything(t, test2048KeyWithPrecomputed)
+		k := *test2048KeyWithoutPrecomputed
+		k.Precompute()
+		if k.Precomputed.Dp == nil || k.Precomputed.Dq == nil || k.Precomputed.Qinv == nil {
+			t.Error("Precomputed values should not be nil after Precompute()")
+		}
+		testEverything(t, &k)
+	})
+}
+
+func TestModifiedPrivateKey(t *testing.T) {
+	if test512Key.Validate() != nil {
+		t.Fatal("test512Key should be valid")
+	}
+
+	t.Run("PublicKey mismatch", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.PublicKey = test512KeyTwo.PublicKey
+		})
+	})
+	t.Run("Precomputed mismatch", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.Precomputed = test512KeyTwo.Precomputed
+		})
+	})
+
+	t.Run("D+2", func(t *testing.T) {
+		if fips140.Version() == "v1.0.0" {
+			t.Skip("This was fixed after v1.0.0")
+		}
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.D = new(big.Int).Add(k.D, big.NewInt(2))
+		})
+	})
+	t.Run("D=0", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.D = new(big.Int)
+		})
+	})
+	t.Run("D is nil", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.D = nil
+		})
+	})
+
+	t.Run("N+2", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.N = new(big.Int).Add(k.N, big.NewInt(2))
+		})
+	})
+	t.Run("N=0", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.N = new(big.Int)
+		})
+	})
+	t.Run("N is nil", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.N = nil
+		})
+	})
+
+	t.Run("P+2", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.Primes[0] = new(big.Int).Add(k.Primes[0], big.NewInt(2))
+		})
+	})
+	t.Run("P=0", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.Primes[0] = new(big.Int)
+		})
+	})
+	t.Run("P is nil", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.Primes[0] = nil
+		})
+	})
+
+	t.Run("Q+2", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.Primes[1] = new(big.Int).Add(k.Primes[1], big.NewInt(2))
+		})
+	})
+	t.Run("Q=0", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.Primes[1] = new(big.Int)
+		})
+	})
+	t.Run("Q is nil", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.Primes[1] = nil
+		})
+	})
+
+	t.Run("E+2", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.E += 2
+		})
+	})
+	t.Run("E=0", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.E = 0
+		})
+	})
+}
+
+func testModifiedPrivateKey(t *testing.T, f func(*PrivateKey)) {
+	k := new(PrivateKey)
+	*k = *test512Key
+	k.Primes = slices.Clone(k.Primes)
+	f(k)
+	if err := k.Validate(); err == nil {
+		t.Error("Validate should have failed")
+	}
+	k.Precompute()
+	if err := k.Validate(); err == nil {
+		t.Error("Validate should have failed after Precompute()")
+	}
 }

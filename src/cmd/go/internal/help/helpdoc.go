@@ -19,7 +19,9 @@ The second is the SWIG program, which is a general tool for
 interfacing between languages. For information on SWIG see
 https://swig.org/. When running go build, any file with a .swig
 extension will be passed to SWIG. Any file with a .swigcxx extension
-will be passed to SWIG with the -c++ option.
+will be passed to SWIG with the -c++ option. A package can't be just
+a .swig or .swigcxx file; there must be at least one .go file, even if
+it has just a package clause.
 
 When either cgo or SWIG is used, go build will pass any .c, .m, .s, .S
 or .sx files to the C compiler, and any .cc, .cpp, .cxx files to the C++
@@ -214,12 +216,12 @@ For example,
 	import "example.org/user/foo.hg"
 
 denotes the root directory of the Mercurial repository at
-example.org/user/foo or foo.hg, and
+example.org/user/foo, and
 
 	import "example.org/repo.git/foo/bar"
 
 denotes the foo/bar directory of the Git repository at
-example.org/repo or repo.git.
+example.org/repo.
 
 When a version control system supports multiple protocols,
 each is tried in turn when downloading. For example, a Git
@@ -239,6 +241,11 @@ The meta tag has the form:
 
 	<meta name="go-import" content="import-prefix vcs repo-root">
 
+Starting in Go 1.25, an optional subdirectory will be recognized by the
+go command:
+
+	<meta name="go-import" content="import-prefix vcs repo-root subdir">
+
 The import-prefix is the import path corresponding to the repository
 root. It must be a prefix or an exact match of the package being
 fetched with "go get". If it's not an exact match, another http
@@ -252,6 +259,12 @@ The vcs is one of "bzr", "fossil", "git", "hg", "svn".
 
 The repo-root is the root of the version control system
 containing a scheme and not containing a .vcs qualifier.
+
+The subdir specifies the directory within the repo-root where the
+Go module's root (including its go.mod file) is located. It allows
+you to organize your repository with the Go module code in a subdirectory
+rather than directly at the repository's root.
+If set, all vcs tags must be prefixed with "subdir". i.e. "subdir/v1.2.3"
 
 For example,
 
@@ -267,8 +280,15 @@ If that page contains the meta tag
 	<meta name="go-import" content="example.org git https://code.org/r/p/exproj">
 
 the go tool will verify that https://example.org/?go-get=1 contains the
-same meta tag and then git clone https://code.org/r/p/exproj into
-GOPATH/src/example.org.
+same meta tag and then download the code from the Git repository at https://code.org/r/p/exproj
+
+If that page contains the meta tag
+
+	<meta name="go-import" content="example.org git https://code.org/r/p/exproj foo/subdir">
+
+the go tool will verify that https://example.org/?go-get=1 contains the same meta
+tag and then download the code from the "foo/subdir" subdirectory within the Git repository
+at https://code.org/r/p/exproj
 
 Downloaded packages are stored in the module cache.
 See https://golang.org/ref/mod#module-cache.
@@ -505,7 +525,7 @@ General-purpose environment variables:
 		The directory where 'go install' will install a command.
 	GOCACHE
 		The directory where the go command will store cached
-		information for reuse in future builds.
+		information for reuse in future builds. Must be an absolute path.
 	GOCACHEPROG
 		A command (with optional space-separated flags) that implements an
 		external go command build cache.
@@ -553,8 +573,10 @@ General-purpose environment variables:
 		The name of checksum database to use and optionally its public key and
 		URL. See https://golang.org/ref/mod#authenticating.
 	GOTMPDIR
-		The directory where the go command will write
-		temporary source files, packages, and binaries.
+		Temporary directory used by the go command and testing package.
+		Overrides the platform-specific temporary directory such as "/tmp".
+		The go command and testing package will write temporary source files,
+		packages, and binaries here.
 	GOTOOLCHAIN
 		Controls which Go toolchain is used. See https://go.dev/doc/toolchain.
 	GOVCS
@@ -675,7 +697,7 @@ Special-purpose environment variables:
 		The default is GOFIPS140=off, which makes no FIPS-140 changes at all.
 		Other values enable FIPS-140 compliance measures and select alternate
 		versions of the cryptography source code.
-		See https://go.dev/security/fips140 for details.
+		See https://go.dev/doc/security/fips140 for details.
 	GO_EXTLINK_ENABLED
 		Whether the linker should use external linking mode
 		when using -linkmode=auto with code that uses cgo.
@@ -987,6 +1009,12 @@ Naming a file dns_windows.go will cause it to be included only when
 building the package for Windows; similarly, math_386.s will be included
 only when building the package for 32-bit x86.
 
+By convention, packages with assembly implementations may provide a go-only
+version under the "purego" build constraint. This does not limit the use of
+cgo (use the "cgo" build constraint) or unsafe. For example:
+
+        //go:build purego
+
 Go versions 1.16 and earlier used a different syntax for build constraints,
 with a "// +build" prefix. The gofmt command will add an equivalent //go:build
 constraint when encountering the older syntax.
@@ -1025,7 +1053,7 @@ command
 		BlankLine     = '\n' .
 
 	Example:
-		https://example.com/
+		https://example.com
 		https://example.net/api/
 
 		Authorization: Basic <token>

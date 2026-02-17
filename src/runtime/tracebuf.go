@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/runtime/sys"
+	"internal/trace/tracev2"
 	"unsafe"
 )
 
@@ -24,11 +25,11 @@ const traceBytesPerNumber = 10
 // we can change it if it's deemed too error-prone.
 type traceWriter struct {
 	traceLocker
-	exp traceExperiment
+	exp tracev2.Experiment
 	*traceBuf
 }
 
-// writer returns an a traceWriter that writes into the current M's stream.
+// writer returns a traceWriter that writes into the current M's stream.
 //
 // Once this is called, the caller must guard against stack growth until
 // end is called on it. Therefore, it's highly recommended to use this
@@ -48,7 +49,7 @@ func (tl traceLocker) writer() traceWriter {
 			gp.throwsplit = true
 		}
 	}
-	return traceWriter{traceLocker: tl, traceBuf: tl.mp.trace.buf[tl.gen%2][traceNoExperiment]}
+	return traceWriter{traceLocker: tl, traceBuf: tl.mp.trace.buf[tl.gen%2][tracev2.NoExperiment]}
 }
 
 // unsafeTraceWriter produces a traceWriter that doesn't lock the trace.
@@ -70,7 +71,7 @@ func unsafeTraceWriter(gen uintptr, buf *traceBuf) traceWriter {
 // have any stack growth.
 //
 //go:nosplit
-func (w traceWriter) event(ev traceEv, args ...traceArg) traceWriter {
+func (w traceWriter) event(ev tracev2.EventType, args ...traceArg) traceWriter {
 	// N.B. Everything in this call must be nosplit to maintain
 	// the stack growth related invariants for writing events.
 
@@ -164,7 +165,7 @@ func (w traceWriter) refill() traceWriter {
 			unlock(&trace.lock)
 		} else {
 			unlock(&trace.lock)
-			w.traceBuf = (*traceBuf)(sysAlloc(unsafe.Sizeof(traceBuf{}), &memstats.other_sys))
+			w.traceBuf = (*traceBuf)(sysAlloc(unsafe.Sizeof(traceBuf{}), &memstats.other_sys, "trace buffer"))
 			if w.traceBuf == nil {
 				throw("trace: out of memory")
 			}
@@ -182,21 +183,42 @@ func (w traceWriter) refill() traceWriter {
 	// Tolerate a nil mp.
 	mID := ^uint64(0)
 	if w.mp != nil {
-		mID = uint64(w.mp.procid)
+		mID = w.mp.procid
 	}
 
 	// Write the buffer's header.
-	if w.exp == traceNoExperiment {
-		w.byte(byte(traceEvEventBatch))
+	if w.exp == tracev2.NoExperiment {
+		w.byte(byte(tracev2.EvEventBatch))
 	} else {
-		w.byte(byte(traceEvExperimentalBatch))
+		w.byte(byte(tracev2.EvExperimentalBatch))
 		w.byte(byte(w.exp))
 	}
 	w.varint(uint64(w.gen))
-	w.varint(uint64(mID))
+	w.varint(mID)
 	w.varint(uint64(ts))
 	w.traceBuf.lenPos = w.varintReserve()
 	return w
+}
+
+// expWriter returns a traceWriter that writes into the current M's stream for
+// the given experiment.
+func (tl traceLocker) expWriter(exp tracev2.Experiment) traceWriter {
+	return traceWriter{traceLocker: tl, traceBuf: tl.mp.trace.buf[tl.gen%2][exp], exp: exp}
+}
+
+// unsafeTraceExpWriter produces a traceWriter for experimental trace batches
+// that doesn't lock the trace. Data written to experimental batches need not
+// conform to the standard trace format.
+//
+// It should only be used in contexts where either:
+// - Another traceLocker is held.
+// - trace.gen is prevented from advancing.
+//
+// This does not have the same stack growth restrictions as traceLocker.writer.
+//
+// buf may be nil.
+func unsafeTraceExpWriter(gen uintptr, buf *traceBuf, exp tracev2.Experiment) traceWriter {
+	return traceWriter{traceLocker: traceLocker{gen: gen}, traceBuf: buf, exp: exp}
 }
 
 // traceBufQueue is a FIFO of traceBufs.
@@ -247,7 +269,7 @@ type traceBufHeader struct {
 type traceBuf struct {
 	_ sys.NotInHeap
 	traceBufHeader
-	arr [64<<10 - unsafe.Sizeof(traceBufHeader{})]byte // underlying buffer for traceBufHeader.buf
+	arr [tracev2.MaxBatchSize - unsafe.Sizeof(traceBufHeader{})]byte // underlying buffer for traceBufHeader.buf
 }
 
 // byte appends v to buf.

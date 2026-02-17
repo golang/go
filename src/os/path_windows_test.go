@@ -236,6 +236,23 @@ func TestRemoveAllLongPathRelative(t *testing.T) {
 	}
 }
 
+func TestRemoveAllFallback(t *testing.T) {
+	windows.TestDeleteatFallback = true
+	t.Cleanup(func() { windows.TestDeleteatFallback = false })
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "file1"), []byte{}, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "file2"), []byte{}, 0400); err != nil { // read-only file
+		t.Fatal(err)
+	}
+
+	if err := os.RemoveAll(dir); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func testLongPathAbs(t *testing.T, target string) {
 	t.Helper()
 	testWalkFn := func(path string, info os.FileInfo, err error) error {

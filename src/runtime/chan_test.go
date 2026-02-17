@@ -309,7 +309,6 @@ func TestSelfSelect(t *testing.T) {
 		wg.Add(2)
 		c := make(chan int, chanCap)
 		for p := 0; p < 2; p++ {
-			p := p
 			go func() {
 				defer wg.Done()
 				for i := 0; i < 1000; i++ {
@@ -359,7 +358,6 @@ func TestSelectStress(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(10)
 	for k := 0; k < 4; k++ {
-		k := k
 		go func() {
 			for i := 0; i < N; i++ {
 				c[k] <- 0

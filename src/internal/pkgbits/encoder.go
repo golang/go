@@ -27,7 +27,7 @@ type PkgEncoder struct {
 	// stringsIdx maps previously encoded strings to their index within
 	// the RelocString section, to allow deduplication. That is,
 	// elems[RelocString][stringsIdx[s]] == s (if present).
-	stringsIdx map[string]Index
+	stringsIdx map[string]RelElemIdx
 
 	// syncFrames is the number of frames to write at each sync
 	// marker. A negative value means sync markers are omitted.
@@ -47,7 +47,7 @@ func (pw *PkgEncoder) SyncMarkers() bool { return pw.syncFrames >= 0 }
 func NewPkgEncoder(version Version, syncFrames int) PkgEncoder {
 	return PkgEncoder{
 		version:    version,
-		stringsIdx: make(map[string]Index),
+		stringsIdx: make(map[string]RelElemIdx),
 		syncFrames: syncFrames,
 	}
 }
@@ -72,14 +72,17 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
 		writeUint32(flags)
 	}
 
-	// Write elemEndsEnds.
+	// TODO(markfreeman): Also can use delta encoding to write section ends,
+	// but not as impactful.
 	var sum uint32
 	for _, elems := range &pw.elems {
 		sum += uint32(len(elems))
 		writeUint32(sum)
 	}
 
-	// Write elemEnds.
+	// TODO(markfreeman): Use delta encoding to store element ends and inflate
+	// back to this representation during decoding; the numbers will be much
+	// smaller.
 	sum = 0
 	for _, elems := range &pw.elems {
 		for _, elem := range elems {
@@ -106,14 +109,14 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
 
 // StringIdx adds a string value to the strings section, if not
 // already present, and returns its index.
-func (pw *PkgEncoder) StringIdx(s string) Index {
+func (pw *PkgEncoder) StringIdx(s string) RelElemIdx {
 	if idx, ok := pw.stringsIdx[s]; ok {
-		assert(pw.elems[RelocString][idx] == s)
+		assert(pw.elems[SectionString][idx] == s)
 		return idx
 	}
 
-	idx := Index(len(pw.elems[RelocString]))
-	pw.elems[RelocString] = append(pw.elems[RelocString], s)
+	idx := RelElemIdx(len(pw.elems[SectionString]))
+	pw.elems[SectionString] = append(pw.elems[SectionString], s)
 	pw.stringsIdx[s] = idx
 	return idx
 }
@@ -121,7 +124,7 @@ func (pw *PkgEncoder) StringIdx(s string) Index {
 // NewEncoder returns an Encoder for a new element within the given
 // section, and encodes the given SyncMarker as the start of the
 // element bitstream.
-func (pw *PkgEncoder) NewEncoder(k RelocKind, marker SyncMarker) Encoder {
+func (pw *PkgEncoder) NewEncoder(k SectionKind, marker SyncMarker) *Encoder {
 	e := pw.NewEncoderRaw(k)
 	e.Sync(marker)
 	return e
@@ -131,11 +134,11 @@ func (pw *PkgEncoder) NewEncoder(k RelocKind, marker SyncMarker) Encoder {
 // section.
 //
 // Most callers should use NewEncoder instead.
-func (pw *PkgEncoder) NewEncoderRaw(k RelocKind) Encoder {
-	idx := Index(len(pw.elems[k]))
+func (pw *PkgEncoder) NewEncoderRaw(k SectionKind) *Encoder {
+	idx := RelElemIdx(len(pw.elems[k]))
 	pw.elems[k] = append(pw.elems[k], "") // placeholder
 
-	return Encoder{
+	return &Encoder{
 		p:   pw,
 		k:   k,
 		Idx: idx,
@@ -147,18 +150,18 @@ func (pw *PkgEncoder) NewEncoderRaw(k RelocKind) Encoder {
 type Encoder struct {
 	p *PkgEncoder
 
-	Relocs   []RelocEnt
-	RelocMap map[RelocEnt]uint32
+	Relocs   []RefTableEntry
+	RelocMap map[RefTableEntry]uint32
 	Data     bytes.Buffer // accumulated element bitstream data
 
 	encodingRelocHeader bool
 
-	k   RelocKind
-	Idx Index // index within relocation section
+	k   SectionKind
+	Idx RelElemIdx // index within relocation section
 }
 
-// Flush finalizes the element's bitstream and returns its Index.
-func (w *Encoder) Flush() Index {
+// Flush finalizes the element's bitstream and returns its [RelElemIdx].
+func (w *Encoder) Flush() RelElemIdx {
 	var sb strings.Builder
 
 	// Backup the data so we write the relocations at the front.
@@ -210,14 +213,14 @@ func (w *Encoder) rawVarint(x int64) {
 	w.rawUvarint(ux)
 }
 
-func (w *Encoder) rawReloc(r RelocKind, idx Index) int {
-	e := RelocEnt{r, idx}
+func (w *Encoder) rawReloc(k SectionKind, idx RelElemIdx) int {
+	e := RefTableEntry{k, idx}
 	if w.RelocMap != nil {
 		if i, ok := w.RelocMap[e]; ok {
 			return int(i)
 		}
 	} else {
-		w.RelocMap = make(map[RelocEnt]uint32)
+		w.RelocMap = make(map[RefTableEntry]uint32)
 	}
 
 	i := len(w.Relocs)
@@ -247,7 +250,7 @@ func (w *Encoder) Sync(m SyncMarker) {
 	w.rawUvarint(uint64(m))
 	w.rawUvarint(uint64(len(frames)))
 	for _, frame := range frames {
-		w.rawUvarint(uint64(w.rawReloc(RelocString, w.p.StringIdx(frame))))
+		w.rawUvarint(uint64(w.rawReloc(SectionString, w.p.StringIdx(frame))))
 	}
 }
 
@@ -302,9 +305,9 @@ func (w *Encoder) Uint(x uint) { w.Uint64(uint64(x)) }
 // Note: Only the index is formally written into the element
 // bitstream, so bitstream decoders must know from context which
 // section an encoded relocation refers to.
-func (w *Encoder) Reloc(r RelocKind, idx Index) {
+func (w *Encoder) Reloc(k SectionKind, idx RelElemIdx) {
 	w.Sync(SyncUseReloc)
-	w.Len(w.rawReloc(r, idx))
+	w.Len(w.rawReloc(k, idx))
 }
 
 // Code encodes and writes a Code value into the element bitstream.
@@ -325,9 +328,9 @@ func (w *Encoder) String(s string) {
 
 // StringRef writes a reference to the given index, which must be a
 // previously encoded string value.
-func (w *Encoder) StringRef(idx Index) {
+func (w *Encoder) StringRef(idx RelElemIdx) {
 	w.Sync(SyncString)
-	w.Reloc(RelocString, idx)
+	w.Reloc(SectionString, idx)
 }
 
 // Strings encodes and writes a variable-length slice of strings into

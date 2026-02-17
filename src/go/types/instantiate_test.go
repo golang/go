@@ -184,12 +184,11 @@ var X T[int]
 		src := prefix + test.decl
 		pkg := mustTypecheck(src, nil, nil)
 		typ := NewPointer(pkg.Scope().Lookup("X").Type())
-		obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
-		m, _ := obj.(*Func)
-		if m == nil {
-			t.Fatalf(`LookupFieldOrMethod(%s, "m") = %v, want func m`, typ, obj)
+		sel, ok := LookupSelection(typ, false, pkg, "m")
+		if !ok {
+			t.Fatalf(`LookupSelection(%s, "m") failed, want func m`, typ)
 		}
-		if got := ObjectString(m, RelativeTo(pkg)); got != test.want {
+		if got := ObjectString(sel.Obj(), RelativeTo(pkg)); got != test.want {
 			t.Errorf("instantiated %q, want %q", got, test.want)
 		}
 	}
@@ -206,15 +205,15 @@ var _ T[int]
 `
 	pkg := mustTypecheck(src, nil, nil)
 	typ := pkg.Scope().Lookup("T").Type().(*Named)
-	obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
-	if obj == nil {
-		t.Fatalf(`LookupFieldOrMethod(%s, "m") = %v, want func m`, typ, obj)
+	sel, ok := LookupSelection(typ, false, pkg, "m")
+	if !ok {
+		t.Fatalf(`LookupSelection(%s, "m") failed, want func m`, typ)
 	}
 
 	// Verify that the original method is not mutated by instantiating T (this
 	// bug manifested when subst did not return a new signature).
 	want := "func (T[P]).m()"
-	if got := stripAnnotations(ObjectString(obj, RelativeTo(pkg))); got != want {
+	if got := stripAnnotations(ObjectString(sel.Obj(), RelativeTo(pkg))); got != want {
 		t.Errorf("instantiated %q, want %q", got, want)
 	}
 }

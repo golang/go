@@ -262,7 +262,7 @@ type Bisect struct {
 	// each pattern starts with a !.
 	Disable bool
 
-	// SkipDigits is the number of hex digits to use in skip messages.
+	// SkipHexDigits is the number of hex digits to use in skip messages.
 	// If the set of available changes is the same in each run, as it should be,
 	// then this doesn't matter: we'll only exclude suffixes that uniquely identify
 	// a given change. But for some programs, especially bisecting runtime

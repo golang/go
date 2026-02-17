@@ -23,24 +23,20 @@ func jumpLoong64(word string) bool {
 	return false
 }
 
-// IsLoong64MUL reports whether the op (as defined by an loong64.A* constant) is
-// one of the MUL/DIV/REM instructions that require special handling.
-func IsLoong64MUL(op obj.As) bool {
-	switch op {
-	case loong64.AMUL, loong64.AMULU, loong64.AMULV, loong64.AMULVU,
-		loong64.ADIV, loong64.ADIVU, loong64.ADIVV, loong64.ADIVVU,
-		loong64.AREM, loong64.AREMU, loong64.AREMV, loong64.AREMVU:
-		return true
-	}
-	return false
-}
-
 // IsLoong64RDTIME reports whether the op (as defined by an loong64.A*
 // constant) is one of the RDTIMELW/RDTIMEHW/RDTIMED instructions that
 // require special handling.
 func IsLoong64RDTIME(op obj.As) bool {
 	switch op {
 	case loong64.ARDTIMELW, loong64.ARDTIMEHW, loong64.ARDTIMED:
+		return true
+	}
+	return false
+}
+
+func IsLoong64PRELD(op obj.As) bool {
+	switch op {
+	case loong64.APRELD, loong64.APRELDX:
 		return true
 	}
 	return false
@@ -79,48 +75,51 @@ var loong64LasxArngExtMap = map[string]int16{
 // Loong64RegisterExtension constructs an Loong64 register with extension or arrangement.
 func Loong64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
 	var ok bool
-	var arng_type int16
-	var simd_type int16
+	var arngType int16
+	var simdType int16
+	var simdReg int16
 
 	switch {
 	case reg >= loong64.REG_V0 && reg <= loong64.REG_V31:
-		simd_type = loong64.LSX
+		simdType = loong64.LSX
+		simdReg = reg - loong64.REG_V0
 	case reg >= loong64.REG_X0 && reg <= loong64.REG_X31:
-		simd_type = loong64.LASX
+		simdType = loong64.LASX
+		simdReg = reg - loong64.REG_X0
 	default:
 		return errors.New("Loong64 extension: invalid LSX/LASX register: " + fmt.Sprintf("%d", reg))
 	}
 
 	if isIndex {
-		arng_type, ok = loong64ElemExtMap[ext]
+		arngType, ok = loong64ElemExtMap[ext]
 		if !ok {
 			return errors.New("Loong64 extension: invalid LSX/LASX arrangement type: " + ext)
 		}
 
 		a.Reg = loong64.REG_ELEM
-		a.Reg += ((reg & loong64.EXT_REG_MASK) << loong64.EXT_REG_SHIFT)
-		a.Reg += ((arng_type & loong64.EXT_TYPE_MASK) << loong64.EXT_TYPE_SHIFT)
-		a.Reg += ((simd_type & loong64.EXT_SIMDTYPE_MASK) << loong64.EXT_SIMDTYPE_SHIFT)
+		a.Reg += ((simdReg & loong64.EXT_REG_MASK) << loong64.EXT_REG_SHIFT)
+		a.Reg += ((arngType & loong64.EXT_TYPE_MASK) << loong64.EXT_TYPE_SHIFT)
+		a.Reg += ((simdType & loong64.EXT_SIMDTYPE_MASK) << loong64.EXT_SIMDTYPE_SHIFT)
 		a.Index = num
 	} else {
-		switch simd_type {
+		switch simdType {
 		case loong64.LSX:
-			arng_type, ok = loong64LsxArngExtMap[ext]
+			arngType, ok = loong64LsxArngExtMap[ext]
 			if !ok {
 				return errors.New("Loong64 extension: invalid LSX arrangement type: " + ext)
 			}
 
 		case loong64.LASX:
-			arng_type, ok = loong64LasxArngExtMap[ext]
+			arngType, ok = loong64LasxArngExtMap[ext]
 			if !ok {
 				return errors.New("Loong64 extension: invalid LASX arrangement type: " + ext)
 			}
 		}
 
 		a.Reg = loong64.REG_ARNG
-		a.Reg += ((reg & loong64.EXT_REG_MASK) << loong64.EXT_REG_SHIFT)
-		a.Reg += ((arng_type & loong64.EXT_TYPE_MASK) << loong64.EXT_TYPE_SHIFT)
-		a.Reg += ((simd_type & loong64.EXT_SIMDTYPE_MASK) << loong64.EXT_SIMDTYPE_SHIFT)
+		a.Reg += ((simdReg & loong64.EXT_REG_MASK) << loong64.EXT_REG_SHIFT)
+		a.Reg += ((arngType & loong64.EXT_TYPE_MASK) << loong64.EXT_TYPE_SHIFT)
+		a.Reg += ((simdType & loong64.EXT_SIMDTYPE_MASK) << loong64.EXT_SIMDTYPE_SHIFT)
 	}
 
 	return nil

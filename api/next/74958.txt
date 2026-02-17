@@ -1,0 +1,1 @@
+pkg go/scanner, method (*Scanner) End() token.Pos #74958

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.rangefunc
-
 package race_test
 
 import (
@@ -65,6 +63,7 @@ func foo(v int) int64 {
 // TestRaceRangeFuncIterator races because x%5 can be equal to 4,
 // therefore foo can early exit.
 func TestRaceRangeFuncIterator(t *testing.T) {
+	t.Skip("#72925: uncaught panic ends tests")
 	x := foo(4)
 	t.Logf("foo(4)=%d", x)
 }
@@ -72,6 +71,7 @@ func TestRaceRangeFuncIterator(t *testing.T) {
 // TestNoRaceRangeFuncIterator does not race because x%5 is never 5,
 // therefore foo's loop will not exit early, and this it will not race.
 func TestNoRaceRangeFuncIterator(t *testing.T) {
+	t.Skip("#72925: unexpected data race")
 	x := foo(5)
 	t.Logf("foo(5)=%d", x)
 }

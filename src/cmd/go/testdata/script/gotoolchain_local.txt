@@ -197,6 +197,8 @@ go mod edit -go=1.501 -toolchain=none
 go version
 stdout go1.501
 
+go mod edit -go=1.21
+
 # avoid two-step switch, first from install target requirement, then from GOTOOLCHAIN min
 # instead, just jump directly to GOTOOLCHAIN min
 env TESTGO_VERSION=go1.2.3
@@ -205,20 +207,48 @@ env GOTOOLCHAIN=go1.23.0+auto
 ! go install rsc.io/fortune/nonexist@v0.0.1
 ! stderr 'switching to go1.22.9'
 stderr 'using go1.23.0'
-env GODEBUG=
 env GOTOOLCHAIN=auto
 
-# go install m@v and go run m@v should ignore go.mod and use m@v
+# go install m@v and go run m@v should use the go directive from m@v,
+# or the go directive in go.mod, whichever is higher.
 env TESTGO_VERSION=go1.2.3
-go mod edit -go=1.999 -toolchain=go1.998
+go mod edit -go=1.1.1 -toolchain=go1.1.1
 
 ! go install rsc.io/fortune/nonexist@v0.0.1
 stderr '^go: rsc.io/fortune@v0.0.1 requires go >= 1.21rc999; switching to go1.22.9$'
+! stderr 'upgrading toolchain'
 stderr '^go: rsc.io/fortune/nonexist@v0.0.1: module rsc.io/fortune@v0.0.1 found, but does not contain package rsc.io/fortune/nonexist'
 
 ! go run rsc.io/fortune/nonexist@v0.0.1
 stderr '^go: rsc.io/fortune@v0.0.1 requires go >= 1.21rc999; switching to go1.22.9$'
+! stderr 'upgrading toolchain'
 stderr '^go: rsc.io/fortune/nonexist@v0.0.1: module rsc.io/fortune@v0.0.1 found, but does not contain package rsc.io/fortune/nonexist'
+
+go mod edit -go=1.23rc1 -toolchain=go1.1.1
+
+! go install rsc.io/fortune/nonexist@v0.0.1
+stderr '^go: upgrading toolchain to go1.23rc1 \(required by go line in go.mod; upgrade allowed by GOTOOLCHAIN=auto\)'
+! stderr 'switching to'
+stderr '^go: rsc.io/fortune/nonexist@v0.0.1: module rsc.io/fortune@v0.0.1 found, but does not contain package rsc.io/fortune/nonexist'
+
+! go run rsc.io/fortune/nonexist@v0.0.1
+stderr '^go: upgrading toolchain to go1.23rc1 \(required by go line in go.mod; upgrade allowed by GOTOOLCHAIN=auto\)'
+! stderr 'switching to'
+stderr '^go: rsc.io/fortune/nonexist@v0.0.1: module rsc.io/fortune@v0.0.1 found, but does not contain package rsc.io/fortune/nonexist'
+
+go mod edit -go=1.23rc1 -toolchain=go1.998
+
+! go install rsc.io/fortune/nonexist@v0.0.1
+stderr '^go: upgrading toolchain to go1.998 \(required by toolchain line in go.mod; upgrade allowed by GOTOOLCHAIN=auto\)'
+! stderr 'switching to'
+stderr '^go: rsc.io/fortune/nonexist@v0.0.1: module rsc.io/fortune@v0.0.1 found, but does not contain package rsc.io/fortune/nonexist'
+
+! go run rsc.io/fortune/nonexist@v0.0.1
+stderr '^go: upgrading toolchain to go1.998 \(required by toolchain line in go.mod; upgrade allowed by GOTOOLCHAIN=auto\)'
+! stderr 'switching to'
+stderr '^go: rsc.io/fortune/nonexist@v0.0.1: module rsc.io/fortune@v0.0.1 found, but does not contain package rsc.io/fortune/nonexist'
+
+go mod edit -go=1.1.1 -toolchain=go1.1.1
 
 # go install should handle unknown flags to find m@v
 ! go install -unknownflag rsc.io/fortune/nonexist@v0.0.1
@@ -228,6 +258,8 @@ stderr '^flag provided but not defined: -unknownflag'
 ! go install -unknownflag arg rsc.io/fortune/nonexist@v0.0.1
 stderr '^go: rsc.io/fortune@v0.0.1 requires go >= 1.21rc999; switching to go1.22.9$'
 stderr '^flag provided but not defined: -unknownflag'
+
+env GODEBUG=
 
 # go run cannot handle unknown boolean flags
 ! go run -unknownflag rsc.io/fortune/nonexist@v0.0.1

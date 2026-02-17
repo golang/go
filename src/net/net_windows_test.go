@@ -100,7 +100,7 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
 	defer ln.Close()
 
 	// Start child process that connects to our listener.
-	cmd := exec.Command(os.Args[0], "-test.run=TestAcceptIgnoreSomeErrors")
+	cmd := exec.Command(testenv.Executable(t), "-test.run=^TestAcceptIgnoreSomeErrors$")
 	cmd.Env = append(os.Environ(), "GOTEST_DIAL_ADDR="+ln.Addr().String())
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -302,7 +302,7 @@ func TestInterfacesWithNetsh(t *testing.T) {
 	}
 	slices.Sort(want)
 
-	if strings.Join(want, "/") != strings.Join(have, "/") {
+	if !slices.Equal(want, have) {
 		t.Fatalf("unexpected interface list %q, want %q", have, want)
 	}
 }
@@ -487,7 +487,7 @@ func TestInterfaceAddrsWithNetsh(t *testing.T) {
 		want = append(want, wantIPv6...)
 		slices.Sort(want)
 
-		if strings.Join(want, "/") != strings.Join(have, "/") {
+		if !slices.Equal(want, have) {
 			t.Errorf("%s: unexpected addresses list %q, want %q", ifi.Name, have, want)
 		}
 	}

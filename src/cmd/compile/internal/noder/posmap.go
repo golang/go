@@ -23,7 +23,6 @@ type poser interface{ Pos() syntax.Pos }
 type ender interface{ End() syntax.Pos }
 
 func (m *posMap) pos(p poser) src.XPos { return m.makeXPos(p.Pos()) }
-func (m *posMap) end(p ender) src.XPos { return m.makeXPos(p.End()) }
 
 func (m *posMap) makeXPos(pos syntax.Pos) src.XPos {
 	// Predeclared objects (e.g., the result parameter for error.Error)

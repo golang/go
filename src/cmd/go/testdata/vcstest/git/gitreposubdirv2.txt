@@ -1,0 +1,31 @@
+handle git
+
+env GIT_AUTHOR_NAME='Sam Thanawalla'
+env GIT_AUTHOR_EMAIL='samthanawalla@google.com'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+at 2019-10-07T14:15:32-04:00
+
+git init
+
+git add subdir
+git commit -m 'initial commit'
+git branch -m master
+git tag subdir/v2.0.0
+git show-ref --tags --heads
+cmp stdout .git-refs
+
+-- .git-refs --
+5212d800bfd1f6377da46aee6cbceca2f60d4ea6 refs/heads/master
+5212d800bfd1f6377da46aee6cbceca2f60d4ea6 refs/tags/subdir/v2.0.0
+-- subdir/go.mod --
+module vcs-test.golang.org/go/gitreposubdirv2/v2
+
+go 1.23
+-- subdir/hello.go --
+package greeterv2
+
+func Hello() string {
+	return "hello, world v2"
+}

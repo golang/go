@@ -13,7 +13,7 @@ import "strconv"
 // https://golang.org/cl/209597.
 func parseRelease(rel string) (major, minor, patch int, ok bool) {
 	// Strip anything after a dash or plus.
-	for i := 0; i < len(rel); i++ {
+	for i := range len(rel) {
 		if rel[i] == '-' || rel[i] == '+' {
 			rel = rel[:i]
 			break
@@ -21,7 +21,7 @@ func parseRelease(rel string) (major, minor, patch int, ok bool) {
 	}
 
 	next := func() (int, bool) {
-		for i := 0; i < len(rel); i++ {
+		for i := range len(rel) {
 			if rel[i] == '.' {
 				ver, err := strconv.Atoi(rel[:i])
 				rel = rel[i+1:]

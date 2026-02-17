@@ -30,6 +30,8 @@ func main() {
 	// should not be adjusted when the stack is copied.
 	recurse(100, p, v)
 }
+
+//go:noinline
 func recurse(n int, p *S, v uintptr) {
 	if n > 0 {
 		recurse(n-1, p, v)

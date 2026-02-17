@@ -1,0 +1,26 @@
+# Don't allow the creation of modules with special "go" or "toolchain" paths.
+! go mod init go
+! stderr 'panic'
+stderr 'invalid module path'
+
+! go mod init toolchain
+! stderr 'panic'
+stderr 'invalid module path'
+
+# A module that contains the path element "go" is okay.
+go mod init example.com/go
+stderr 'creating new go.mod'
+
+# go mod edit won't allow a reserved module path either
+! go mod edit -module=go
+stderr 'invalid -module'
+
+# The go command should check for work modules for bad
+# names to return a proper error and avoid a panic.
+cp badmod.txt go.mod
+! go list
+! stderr panic
+stderr 'invalid module path'
+
+-- badmod.txt --
+module go

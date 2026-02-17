@@ -63,7 +63,7 @@ func internal_cpu_sysctlUint64(mib []uint32) (uint64, bool) {
 	return sysctlUint64(mib)
 }
 
-func getncpu() int32 {
+func getCPUCount() int32 {
 	// Try hw.ncpuonline first because hw.ncpu would report a number twice as
 	// high as the actual CPUs running on OpenBSD 6.4 with hyperthreading
 	// disabled (hw.smt=0). See https://golang.org/issue/30127
@@ -134,8 +134,56 @@ func semawakeup(mp *m) {
 	}
 }
 
+// mstart_stub provides glue code to call mstart from pthread_create.
+func mstart_stub()
+
+// May run with m.p==nil, so write barriers are not allowed.
+//
+//go:nowritebarrierrec
+func newosproc(mp *m) {
+	if false {
+		print("newosproc m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
+	}
+
+	// Initialize an attribute object.
+	var attr pthreadattr
+	if err := pthread_attr_init(&attr); err != 0 {
+		writeErrStr(failthreadcreate)
+		exit(1)
+	}
+
+	// Find out OS stack size for our own stack guard.
+	var stacksize uintptr
+	if pthread_attr_getstacksize(&attr, &stacksize) != 0 {
+		writeErrStr(failthreadcreate)
+		exit(1)
+	}
+	mp.g0.stack.hi = stacksize // for mstart
+
+	// Tell the pthread library we won't join with this thread.
+	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
+		writeErrStr(failthreadcreate)
+		exit(1)
+	}
+
+	// Finally, create the thread. It starts at mstart_stub, which does some low-level
+	// setup and then calls mstart.
+	var oset sigset
+	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+	err := retryOnEAGAIN(func() int32 {
+		return pthread_create(&attr, abi.FuncPCABI0(mstart_stub), unsafe.Pointer(mp))
+	})
+	sigprocmask(_SIG_SETMASK, &oset, nil)
+	if err != 0 {
+		writeErrStr(failthreadcreate)
+		exit(1)
+	}
+
+	pthread_attr_destroy(&attr)
+}
+
 func osinit() {
-	ncpu = getncpu()
+	numCPUStartup = getCPUCount()
 	physPageSize = getPageSize()
 }
 
@@ -160,9 +208,6 @@ func goenvs() {
 // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
 func mpreinit(mp *m) {
 	gsignalSize := int32(32 * 1024)
-	if GOARCH == "mips64" {
-		gsignalSize = int32(64 * 1024)
-	}
 	mp.gsignal = malg(gsignalSize)
 	mp.gsignal.m = mp
 }
@@ -182,8 +227,12 @@ func unminit() {
 	getg().m.procid = 0
 }
 
-// Called from exitm, but not from drop, to undo the effect of thread-owned
+// Called from mexit, but not from dropm, to undo the effect of thread-owned
 // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+//
+// This always runs without a P, so //go:nowritebarrierrec is required.
+//
+//go:nowritebarrierrec
 func mdestroy(mp *m) {
 }
 

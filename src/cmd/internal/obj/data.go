@@ -210,3 +210,22 @@ func (s *LSym) AddRel(ctxt *Link, rel Reloc) {
 	}
 	s.R = append(s.R, rel)
 }
+
+// WriteDwTxtAddrx appends a zero blob of the proper size to s at off
+// and attaches one of the various R_DWTXTADDR_U* relocations to the
+// symbol. Here size is dependent on the total number of functions in
+// the package (for more on why this is needed, consult the
+// .debug_addr generation code in the linker).
+func (s *LSym) WriteDwTxtAddrx(ctxt *Link, off int64, rsym *LSym, maxFuncs int) {
+	rtype, sz := objabi.FuncCountToDwTxtAddrFlavor(maxFuncs)
+	s.prepwrite(ctxt, off, sz)
+	if int64(int32(off)) != off {
+		ctxt.Diag("WriteDwTxtAddrx: off overflow %d in %s", off, s.Name)
+	}
+	s.AddRel(ctxt, Reloc{
+		Type: rtype,
+		Off:  int32(off),
+		Siz:  uint8(sz),
+		Sym:  rsym,
+	})
+}

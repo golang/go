@@ -144,55 +144,43 @@ func contentID(buildID string) string {
 // build setups agree on details like $GOROOT and file name paths, but at least the
 // tool IDs do not make it impossible.)
 func (b *Builder) toolID(name string) string {
-	b.id.Lock()
-	id := b.toolIDCache[name]
-	b.id.Unlock()
+	return b.toolIDCache.Do(name, func() string {
+		path := base.Tool(name)
+		desc := "go tool " + name
 
-	if id != "" {
-		return id
-	}
-
-	path := base.Tool(name)
-	desc := "go tool " + name
-
-	// Special case: undocumented -vettool overrides usual vet,
-	// for testing vet or supplying an alternative analysis tool.
-	if name == "vet" && VetTool != "" {
-		path = VetTool
-		desc = VetTool
-	}
-
-	cmdline := str.StringList(cfg.BuildToolexec, path, "-V=full")
-	cmd := exec.Command(cmdline[0], cmdline[1:]...)
-	var stdout, stderr strings.Builder
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		if stderr.Len() > 0 {
-			os.Stderr.WriteString(stderr.String())
+		// Special case: -{vet,fix}tool overrides usual cmd/{vet,fix}
+		// for testing or supplying an alternative analysis tool.
+		// (We use only "vet" terminology in the action graph.)
+		if name == "vet" {
+			path = VetTool
+			desc = VetTool
 		}
-		base.Fatalf("go: error obtaining buildID for %s: %v", desc, err)
-	}
 
-	line := stdout.String()
-	f := strings.Fields(line)
-	if len(f) < 3 || f[0] != name && path != VetTool || f[1] != "version" || f[2] == "devel" && !strings.HasPrefix(f[len(f)-1], "buildID=") {
-		base.Fatalf("go: parsing buildID from %s -V=full: unexpected output:\n\t%s", desc, line)
-	}
-	if f[2] == "devel" {
-		// On the development branch, use the content ID part of the build ID.
-		id = contentID(f[len(f)-1])
-	} else {
+		cmdline := str.StringList(cfg.BuildToolexec, path, "-V=full")
+		cmd := exec.Command(cmdline[0], cmdline[1:]...)
+		var stdout, stderr strings.Builder
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			if stderr.Len() > 0 {
+				os.Stderr.WriteString(stderr.String())
+			}
+			base.Fatalf("go: error obtaining buildID for %s: %v", desc, err)
+		}
+
+		line := stdout.String()
+		f := strings.Fields(line)
+		if len(f) < 3 || f[0] != name && path != VetTool || f[1] != "version" || strings.Contains(f[2], "devel") && !strings.HasPrefix(f[len(f)-1], "buildID=") {
+			base.Fatalf("go: parsing buildID from %s -V=full: unexpected output:\n\t%s", desc, line)
+		}
+		if strings.Contains(f[2], "devel") {
+			// On the development branch, use the content ID part of the build ID.
+			return contentID(f[len(f)-1])
+		}
 		// For a release, the output is like: "compile version go1.9.1 X:framepointer".
 		// Use the whole line.
-		id = strings.TrimSpace(line)
-	}
-
-	b.id.Lock()
-	b.toolIDCache[name] = id
-	b.id.Unlock()
-
-	return id
+		return strings.TrimSpace(line)
+	})
 }
 
 // gccToolID returns the unique ID to use for a tool that is invoked
@@ -216,10 +204,11 @@ func (b *Builder) toolID(name string) string {
 // to detect changes in the underlying compiler. The returned exe can be empty,
 // which means to rely only on the id.
 func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
+	//TODO: Use par.Cache instead of a mutex and a map. See Builder.toolID.
 	key := name + "." + language
 	b.id.Lock()
-	id = b.toolIDCache[key]
-	exe = b.toolIDCache[key+".exe"]
+	id = b.gccToolIDCache[key]
+	exe = b.gccToolIDCache[key+".exe"]
 	b.id.Unlock()
 
 	if id != "" {
@@ -309,8 +298,8 @@ func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
 	}
 
 	b.id.Lock()
-	b.toolIDCache[key] = id
-	b.toolIDCache[key+".exe"] = exe
+	b.gccToolIDCache[key] = id
+	b.gccToolIDCache[key+".exe"] = exe
 	b.id.Unlock()
 
 	return id, exe, nil
@@ -412,6 +401,25 @@ var (
 	stdlibRecompiled        = counter.New("go/buildcache/stdlib-recompiled")
 	stdlibRecompiledIncOnce = sync.OnceFunc(stdlibRecompiled.Inc)
 )
+
+// testRunAction returns the run action for a test given the link action
+// for the test binary, if the only (non-test-barrier) action that depend
+// on the link action is the run action.
+func testRunAction(a *Action) *Action {
+	if len(a.triggers) != 1 || a.triggers[0].Mode != "test barrier" {
+		return nil
+	}
+	var runAction *Action
+	for _, t := range a.triggers[0].triggers {
+		if t.Mode == "test run" {
+			if runAction != nil {
+				return nil
+			}
+			runAction = t
+		}
+	}
+	return runAction
+}
 
 // useCache tries to satisfy the action a, which has action ID actionHash,
 // by using a cached result from an earlier build.
@@ -538,7 +546,7 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, 
 	// then to avoid the link step, report the link as up-to-date.
 	// We avoid the nested build ID problem in the previous special case
 	// by recording the test results in the cache under the action ID half.
-	if len(a.triggers) == 1 && a.triggers[0].TryCache != nil && a.triggers[0].TryCache(b, a.triggers[0]) {
+	if ra := testRunAction(a); ra != nil && ra.TryCache != nil && ra.TryCache(b, ra, a) {
 		// Best effort attempt to display output from the compile and link steps.
 		// If it doesn't work, it doesn't work: reusing the test result is more
 		// important than reprinting diagnostic information.
@@ -654,7 +662,7 @@ func (b *Builder) updateBuildID(a *Action, target string) error {
 	sh := b.Shell(a)
 
 	if cfg.BuildX || cfg.BuildN {
-		sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList(base.Tool("buildid"), "-w", target)))
+		sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList("go", "tool", "buildid", "-w", target)))
 		if cfg.BuildN {
 			return nil
 		}
@@ -757,8 +765,9 @@ func (b *Builder) updateBuildID(a *Action, target string) error {
 			}
 			outputID, _, err := c.PutExecutable(a.actionID, name+cfg.ExeSuffix, r)
 			r.Close()
+			a.cachedExecutable = c.OutputFile(outputID)
 			if err == nil && cfg.BuildX {
-				sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList("cp", target, c.OutputFile(outputID))))
+				sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList("cp", target, a.cachedExecutable)))
 			}
 		}
 	}

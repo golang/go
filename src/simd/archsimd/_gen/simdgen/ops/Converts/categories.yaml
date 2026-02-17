@@ -1,0 +1,217 @@
+!sum
+# Float <-> Int conversions
+- go: "ConvertToInt32"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to int32.
+    // When a conversion is inexact, a truncated (round toward zero) value is returned.
+    // If a converted result cannot be represented in int32, an implementation-defined
+    // architecture-specific value is returned.
+- go: "ConvertToUint32"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to uint32.
+    // When a conversion is inexact, a truncated (round toward zero) value is returned.
+    // If a converted result cannot be represented in uint32, an implementation-defined
+    // architecture-specific value is returned.
+- go: "ConvertToInt64"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to int64.
+    // When a conversion is inexact, a truncated (round toward zero) value is returned.
+    // If a converted result cannot be represented in int64, an implementation-defined
+    // architecture-specific value is returned.
+- go: "ConvertToUint64"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to uint64.
+    // When a conversion is inexact, a truncated (round toward zero) value is returned.
+    // If a converted result cannot be represented in uint64, an implementation-defined
+    // architecture-specific value is returned.
+- go: "ConvertToFloat32" # Also float64 -> float32
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to float32.
+- go: "ConvertToFloat64" # Also float32 -> float64
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to float64.
+
+# Int <-> Int conversions
+- go: "TruncateToInt8"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME truncates element values to int8.
+- go: "SaturateToInt8"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to int8 with signed saturation.
+- go: "ExtendToInt16(Concat)?"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME sign-extends element values to int16.
+- go: "TruncateToInt16(Concat)?"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME truncates element values to int16.
+- go: "SaturateToInt16(Concat(Grouped)?)?"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to int16 with signed saturation.
+- go: "ExtendToInt32"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME sign-extends element values to int32.
+- go: "TruncateToInt32"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME truncates element values to int32.
+- go: "SaturateToInt32"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to int32 with signed saturation.
+- go: "ExtendToInt64"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME sign-extends element values to int64.
+- go: "TruncateToUint8"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME truncates element values to uint8.
+- go: "SaturateToUint8"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to uint8 with unsigned saturation.
+- go: "ExtendToUint16(Concat)?"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME zero-extends element values to uint16.
+- go: "TruncateToUint16(Concat)?"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME truncates element values to uint16.
+- go: "SaturateToUint16(Concat(Grouped)?)?"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values to uint16 with unsigned saturation.
+- go: "ExtendToUint32"
+  regexpTag: "convert"
+  commutative: false
+  documentation: !string |-
+    // NAME zero-extends element values to uint32.
+- go: "TruncateToUint32"
+  regexpTag: "convert"
+  commutative: false
+  documentation: !string |-
+    // NAME truncates element values to uint32.
+- go: "SaturateToUint32"
+  regexpTag: "convert"
+  commutative: false
+  documentation: !string |-
+    // NAME converts element values to uint32 with unsigned saturation.
+- go: "ExtendToUint64"
+  regexpTag: "convert"
+  commutative: false
+  documentation: !string |-
+    // NAME zero-extends element values to uint64.
+# low-part only Int <-> Int conversions
+- go: ExtendLo8ToUint16
+  commutative: false
+  documentation: !string |-
+    // NAME zero-extends 8 lowest vector element values to uint16.
+- go: ExtendLo8ToInt16
+  commutative: false
+  documentation: !string |-
+    // NAME sign-extends 8 lowest vector element values to int16.
+- go: ExtendLo4ToUint32
+  commutative: false
+  documentation: !string |-
+    // NAME zero-extends 4 lowest vector element values to uint32.
+- go: ExtendLo4ToInt32
+  commutative: false
+  documentation: !string |-
+    // NAME sign-extends 4 lowest vector element values to int32.
+- go: ExtendLo2ToUint64
+  commutative: false
+  documentation: !string |-
+    // NAME zero-extends 2 lowest vector element values to uint64.
+- go: ExtendLo2ToInt64
+  commutative: false
+  documentation: !string |-
+    // NAME sign-extends 2 lowest vector element values to int64.
+- go: ExtendLo2ToUint64
+  commutative: false
+  documentation: !string |-
+    // NAME zero-extends 2 lowest vector element values to uint64.
+- go: ExtendLo4ToUint64
+  commutative: false
+  documentation: !string |-
+    // NAME zero-extends 4 lowest vector element values to uint64.
+- go: ExtendLo2ToInt64
+  commutative: false
+  documentation: !string |-
+    // NAME sign-extends 2 lowest vector element values to int64.
+- go: ExtendLo4ToInt64
+  commutative: false
+  documentation: !string |-
+    // NAME sign-extends 4 lowest vector element values to int64.
+- go: ExtendLo4ToUint32
+  commutative: false
+  documentation: !string |-
+    // NAME zero-extends 4 lowest vector element values to uint32.
+- go: ExtendLo8ToUint32
+  commutative: false
+  documentation: !string |-
+    // NAME zero-extends 8 lowest vector element values to uint32.
+- go: ExtendLo4ToInt32
+  commutative: false
+  documentation: !string |-
+    // NAME sign-extends 4 lowest vector element values to int32.
+- go: ExtendLo8ToInt32
+  commutative: false
+  documentation: !string |-
+    // NAME sign-extends 8 lowest vector element values to int32.
+- go: ExtendLo2ToUint64
+  commutative: false
+  documentation: !string |-
+    // NAME zero-extends 2 lowest vector element values to uint64.
+- go: ExtendLo4ToUint64
+  commutative: false
+  documentation: !string |-
+    // NAME zero-extends 4 lowest vector element values to uint64.
+- go: ExtendLo8ToUint64
+  commutative: false
+  documentation: !string |-
+    // NAME zero-extends 8 lowest vector element values to uint64.
+- go: ExtendLo2ToInt64
+  commutative: false
+  documentation: !string |-
+    // NAME sign-extends 2 lowest vector element values to int64.
+- go: ExtendLo4ToInt64
+  commutative: false
+  documentation: !string |-
+    // NAME sign-extends 4 lowest vector element values to int64.
+- go: ExtendLo8ToInt64
+  commutative: false
+  documentation: !string |-
+    // NAME sign-extends 8 lowest vector element values to int64.

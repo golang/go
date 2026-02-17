@@ -440,11 +440,14 @@ func (enc *Encoder) encodeGobEncoder(b *encBuffer, ut *userTypeInfo, v reflect.V
 	// We know it's one of these.
 	switch ut.externalEnc {
 	case xGob:
-		data, err = v.Interface().(GobEncoder).GobEncode()
+		gobEncoder, _ := reflect.TypeAssert[GobEncoder](v)
+		data, err = gobEncoder.GobEncode()
 	case xBinary:
-		data, err = v.Interface().(encoding.BinaryMarshaler).MarshalBinary()
+		binaryMarshaler, _ := reflect.TypeAssert[encoding.BinaryMarshaler](v)
+		data, err = binaryMarshaler.MarshalBinary()
 	case xText:
-		data, err = v.Interface().(encoding.TextMarshaler).MarshalText()
+		textMarshaler, _ := reflect.TypeAssert[encoding.TextMarshaler](v)
+		data, err = textMarshaler.MarshalText()
 	}
 	if err != nil {
 		error_(err)

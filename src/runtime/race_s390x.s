@@ -25,10 +25,14 @@
 
 // func runtime·raceread(addr uintptr)
 // Called from instrumented code.
-TEXT	runtime·raceread(SB), NOSPLIT, $0-8
+TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
 	// void __tsan_read(ThreadState *thr, void *addr, void *pc);
 	MOVD	$__tsan_read(SB), R1
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	addr+0(FP), R3
+#else
+	MOVD	R2, R3
+#endif
 	MOVD	R14, R4
 	JMP	racecalladdr<>(SB)
 
@@ -46,10 +50,14 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
 
 // func runtime·racewrite(addr uintptr)
 // Called from instrumented code.
-TEXT	runtime·racewrite(SB), NOSPLIT, $0-8
+TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
 	// void __tsan_write(ThreadState *thr, void *addr, void *pc);
 	MOVD	$__tsan_write(SB), R1
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	addr+0(FP), R3
+#else
+	MOVD	R2, R3
+#endif
 	MOVD	R14, R4
 	JMP	racecalladdr<>(SB)
 
@@ -67,10 +75,15 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
 
 // func runtime·racereadrange(addr, size uintptr)
 // Called from instrumented code.
-TEXT	runtime·racereadrange(SB), NOSPLIT, $0-16
+TEXT	runtime·racereadrange<ABIInternal>(SB), NOSPLIT, $0-16
 	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVD	$__tsan_read_range(SB), R1
+#ifndef GOEXPERIMENT_regabiargs
 	LMG	addr+0(FP), R3, R4
+#else
+	MOVD	R3, R4
+	MOVD	R2, R3
+#endif
 	MOVD	R14, R5
 	JMP	racecalladdr<>(SB)
 
@@ -91,10 +104,15 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
 
 // func runtime·racewriterange(addr, size uintptr)
 // Called from instrumented code.
-TEXT	runtime·racewriterange(SB), NOSPLIT, $0-16
+TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
 	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVD	$__tsan_write_range(SB), R1
+#ifndef GOEXPERIMENT_regabiargs
 	LMG	addr+0(FP), R3, R4
+#else
+	MOVD	R3, R4
+	MOVD	R2, R3
+#endif
 	MOVD	R14, R5
 	JMP	racecalladdr<>(SB)
 
@@ -410,9 +428,16 @@ TEXT	racecall<>(SB), NOSPLIT, $0-0
 	BL	runtime·save_g(SB)		// Save g for callbacks.
 	MOVD	R15, R7				// Save SP.
 	MOVD	g_m(g), R8			// R8 = thread.
-	MOVD	m_g0(R8), R8			// R8 = g0.
-	CMPBEQ	R8, g, call			// Already on g0?
-	MOVD	(g_sched+gobuf_sp)(R8), R15	// Switch SP to g0.
+
+	// Switch to g0 stack if we aren't already on g0 or gsignal.
+	MOVD	m_gsignal(R8), R9
+	CMPBEQ	R9, g, call
+
+	MOVD	m_g0(R8), R9
+	CMPBEQ	R9, g, call
+
+	MOVD	(g_sched+gobuf_sp)(R9), R15	// Switch SP to g0.
+
 call:	SUB	$160, R15			// Allocate C frame.
 	BL	R1				// Call C code.
 	MOVD	R7, R15				// Restore SP.

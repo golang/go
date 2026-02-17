@@ -98,12 +98,13 @@ the behavior depends on the file descriptor number. A write to a
 broken pipe on file descriptors 1 or 2 (standard output or standard
 error) will cause the program to exit with a SIGPIPE signal. A write
 to a broken pipe on some other file descriptor will take no action on
-the SIGPIPE signal, and the write will fail with an EPIPE error.
+the SIGPIPE signal, and the write will fail with a [syscall.EPIPE]
+error.
 
 If the program has called Notify to receive SIGPIPE signals, the file
 descriptor number does not matter. The SIGPIPE signal will be
-delivered to the Notify channel, and the write will fail with an EPIPE
-error.
+delivered to the Notify channel, and the write will fail with a
+[syscall.EPIPE] error.
 
 This means that, by default, command line programs will behave like
 typical Unix command line programs, while other programs will not

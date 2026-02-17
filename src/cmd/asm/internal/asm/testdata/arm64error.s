@@ -420,4 +420,12 @@ TEXT errors(SB),$0
 	AESE	V1.B16, V2.B8                                    // ERROR "invalid arrangement"
 	SHA256SU1	V1.S4, V2.B16, V3.S4                     // ERROR "invalid arrangement"
 	SHA1H	V1.B16, V2.B16                                   // ERROR "invalid operands"
+	BTI                                       		 // ERROR "missing operand"
+	BTI	PLDL1KEEP					 // ERROR "illegal argument"
+	PACIASP	C                                                // ERROR "illegal combination"
+	AUTIASP	R2                                               // ERROR "illegal combination"
+	PACIBSP	R0                                               // ERROR "illegal combination"
+	AUTIBSP	C                                                // ERROR "illegal combination"
+	AUTIA1716	$45                                      // ERROR "illegal combination"
+	AUTIB1716	R0                                       // ERROR "illegal combination"
 	RET

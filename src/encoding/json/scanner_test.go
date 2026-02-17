@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !goexperiment.jsonv2
+
 package json
 
 import (
@@ -72,6 +74,7 @@ func TestCompactAndIndent(t *testing.T) {
 	-5e+2
 ]`},
 		{Name(""), "{\"\":\"<>&\u2028\u2029\"}", "{\n\t\"\": \"<>&\u2028\u2029\"\n}"}, // See golang.org/issue/34070
+		{Name(""), `null`, "null \n\r\t"},                                             // See golang.org/issue/13520 and golang.org/issue/74806
 	}
 	var buf bytes.Buffer
 	for _, tt := range tests {
@@ -100,7 +103,7 @@ func TestCompactAndIndent(t *testing.T) {
 			buf.Reset()
 			if err := Indent(&buf, []byte(tt.compact), "", "\t"); err != nil {
 				t.Errorf("%s: Indent error: %v", tt.Where, err)
-			} else if got := buf.String(); got != tt.indent {
+			} else if got := buf.String(); got != strings.TrimRight(tt.indent, " \n\r\t") {
 				t.Errorf("%s: Compact:\n\tgot:  %s\n\twant: %s", tt.Where, indentNewlines(got), indentNewlines(tt.indent))
 			}
 		})

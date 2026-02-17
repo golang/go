@@ -8,7 +8,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -20,6 +23,7 @@ type testQUICConn struct {
 	ticketOpts        QUICSessionTicketOptions
 	onResumeSession   func(*SessionState)
 	gotParams         []byte
+	gotError          error
 	earlyDataRejected bool
 	complete          bool
 }
@@ -108,6 +112,9 @@ func runTestQUICConnection(ctx context.Context, cli, srv *testQUICConn, onEvent 
 		if onEvent != nil && onEvent(e, a, b) {
 			continue
 		}
+		if a.gotError != nil && e.Kind != QUICNoEvent {
+			return fmt.Errorf("unexpected event %v after QUICErrorEvent", e.Kind)
+		}
 		switch e.Kind {
 		case QUICNoEvent:
 			idleCount++
@@ -151,6 +158,11 @@ func runTestQUICConnection(ctx context.Context, cli, srv *testQUICConn, onEvent 
 			}
 		case QUICRejectedEarlyData:
 			a.earlyDataRejected = true
+		case QUICErrorEvent:
+			if e.Err == nil {
+				return errors.New("unexpected QUICErrorEvent with no Err")
+			}
+			a.gotError = e.Err
 		}
 		if e.Kind != QUICNoEvent {
 			idleCount = 0
@@ -230,6 +242,18 @@ func TestQUICSessionResumption(t *testing.T) {
 	if !cli2.conn.ConnectionState().DidResume {
 		t.Errorf("second connection did not use session resumption")
 	}
+
+	clientConfig.TLSConfig.SessionTicketsDisabled = true
+	cli3 := newTestQUICClient(t, clientConfig)
+	cli3.conn.SetTransportParameters(nil)
+	srv3 := newTestQUICServer(t, serverConfig)
+	srv3.conn.SetTransportParameters(nil)
+	if err := runTestQUICConnection(context.Background(), cli3, srv3, nil); err != nil {
+		t.Fatalf("error during third connection handshake: %v", err)
+	}
+	if cli3.conn.ConnectionState().DidResume {
+		t.Errorf("third connection unexpectedly used session resumption")
+	}
 }
 
 func TestQUICFragmentaryData(t *testing.T) {
@@ -278,7 +302,7 @@ func TestQUICPostHandshakeClientAuthentication(t *testing.T) {
 	certReq := new(certificateRequestMsgTLS13)
 	certReq.ocspStapling = true
 	certReq.scts = true
-	certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+	certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms(VersionTLS13)
 	certReqBytes, err := certReq.marshal()
 	if err != nil {
 		t.Fatal(err)
@@ -308,11 +332,11 @@ func TestQUICPostHandshakeKeyUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := cli.conn.HandleData(QUICEncryptionLevelApplication, append([]byte{
-		byte(typeKeyUpdate),
-		byte(0), byte(0), byte(len(keyUpdateBytes)),
-	}, keyUpdateBytes...)); !errors.Is(err, alertUnexpectedMessage) {
-		t.Fatalf("key update request: got error %v, want alertUnexpectedMessage", err)
+	expectedErr := "unexpected key update message"
+	if err = cli.conn.HandleData(QUICEncryptionLevelApplication, keyUpdateBytes); err == nil {
+		t.Fatalf("key update request: expected error from post-handshake key update, got nil")
+	} else if !strings.Contains(err.Error(), expectedErr) {
+		t.Fatalf("key update request: got error %v, expected substring %q", err, expectedErr)
 	}
 }
 
@@ -355,9 +379,47 @@ func TestQUICHandshakeError(t *testing.T) {
 	if !errors.Is(err, AlertError(alertBadCertificate)) {
 		t.Errorf("connection handshake terminated with error %q, want alertBadCertificate", err)
 	}
-	var e *CertificateVerificationError
-	if !errors.As(err, &e) {
+	if _, ok := errors.AsType[*CertificateVerificationError](err); !ok {
 		t.Errorf("connection handshake terminated with error %q, want CertificateVerificationError", err)
+	}
+
+	ev := cli.conn.NextEvent()
+	if ev.Kind != QUICErrorEvent {
+		t.Errorf("client.NextEvent: no QUICErrorEvent, want one")
+	}
+	if ev.Err != err {
+		t.Errorf("client.NextEvent: want same error returned by Start, got %v", ev.Err)
+	}
+}
+
+// Test that we can report an error produced by the GetEncryptedClientHelloKeys function.
+func TestQUICECHKeyError(t *testing.T) {
+	getECHKeysError := errors.New("error returned by GetEncryptedClientHelloKeys")
+	config := &QUICConfig{TLSConfig: testConfig.Clone()}
+	config.TLSConfig.MinVersion = VersionTLS13
+	config.TLSConfig.NextProtos = []string{"h3"}
+	config.TLSConfig.GetEncryptedClientHelloKeys = func(*ClientHelloInfo) ([]EncryptedClientHelloKey, error) {
+		return nil, getECHKeysError
+	}
+	cli := newTestQUICClient(t, config)
+	cli.conn.SetTransportParameters(nil)
+	srv := newTestQUICServer(t, config)
+
+	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != errTransportParametersRequired {
+		t.Fatalf("handshake with no client parameters: %v; want errTransportParametersRequired", err)
+	}
+	srv.conn.SetTransportParameters(nil)
+	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err == nil {
+		t.Fatalf("handshake with GetEncryptedClientHelloKeys errors: nil, want error")
+	}
+	if srv.gotError == nil {
+		t.Fatalf("after GetEncryptedClientHelloKeys error, server did not see QUICErrorEvent")
+	}
+	if _, ok := errors.AsType[AlertError](srv.gotError); !ok {
+		t.Errorf("connection handshake terminated with error %T, want AlertError", srv.gotError)
+	}
+	if !errors.Is(srv.gotError, getECHKeysError) {
+		t.Errorf("connection handshake terminated with error %v, want error returned by GetEncryptedClientHelloKeys", srv.gotError)
 	}
 }
 
@@ -417,6 +479,24 @@ func TestQUICStartContextPropagation(t *testing.T) {
 	if calls != 1 {
 		t.Errorf("GetConfigForClient called %v times, want 1", calls)
 	}
+}
+
+func TestQUICContextCancelation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	config := &QUICConfig{TLSConfig: testConfig.Clone()}
+	config.TLSConfig.MinVersion = VersionTLS13
+	cli := newTestQUICClient(t, config)
+	cli.conn.SetTransportParameters(nil)
+	srv := newTestQUICServer(t, config)
+	srv.conn.SetTransportParameters(nil)
+	// Verify that canceling the connection context concurrently does not cause any races.
+	// See https://go.dev/issue/77274.
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		_ = runTestQUICConnection(ctx, cli, srv, nil)
+	})
+	wg.Go(cancel)
+	wg.Wait()
 }
 
 func TestQUICDelayedTransportParameters(t *testing.T) {

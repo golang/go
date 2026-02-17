@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"go/constant"
 	. "internal/types/errors"
-	"sync/atomic"
+	"os"
 )
 
 // nopos indicates an unknown position
@@ -20,28 +20,8 @@ var nopos syntax.Pos
 // debugging/development support
 const debug = false // leave on during development
 
-// _aliasAny changes the behavior of [Scope.Lookup] for "any" in the
-// [Universe] scope.
-//
-// This is necessary because while Alias creation is controlled by
-// [Config.EnableAlias], the representation of "any" is a global. In
-// [Scope.Lookup], we select this global representation based on the result of
-// [aliasAny], but as a result need to guard against this behavior changing
-// during the type checking pass. Therefore we implement the following rule:
-// any number of goroutines can type check concurrently with the same
-// EnableAlias value, but if any goroutine tries to type check concurrently
-// with a different EnableAlias value, we panic.
-//
-// To achieve this, _aliasAny is a state machine:
-//
-//	0:        no type checking is occurring
-//	negative: type checking is occurring without EnableAlias set
-//	positive: type checking is occurring with EnableAlias set
-var _aliasAny int32
-
-func aliasAny() bool {
-	return atomic.LoadInt32(&_aliasAny) >= 0 // default true
-}
+// position tracing for panics during type checking
+const tracePos = true
 
 // exprInfo stores information about an untyped expression.
 type exprInfo struct {
@@ -114,7 +94,7 @@ type action struct {
 
 // If debug is set, describef sets a printf-formatted description for action a.
 // Otherwise, it is a no-op.
-func (a *action) describef(pos poser, format string, args ...interface{}) {
+func (a *action) describef(pos poser, format string, args ...any) {
 	if debug {
 		a.desc = &actionDesc{pos, format, args}
 	}
@@ -125,7 +105,7 @@ func (a *action) describef(pos poser, format string, args ...interface{}) {
 type actionDesc struct {
 	pos    poser
 	format string
-	args   []interface{}
+	args   []any
 }
 
 // A Checker maintains the state of the type checker.
@@ -137,9 +117,10 @@ type Checker struct {
 	ctxt *Context // context for de-duplicating instances
 	pkg  *Package
 	*Info
-	nextID uint64                 // unique Id for type parameters (first valid Id is 1)
-	objMap map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
-	impMap map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+	objList []Object               // source-ordered keys of objMap
+	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
 	// see TODO in validtype.go
 	// valids  instanceLookup      // valid *Named (incl. instantiated) types per the validType check
 
@@ -162,21 +143,25 @@ type Checker struct {
 	dotImportMap  map[dotImportKey]*PkgName  // maps dot-imported objects to the package they were dot-imported through
 	brokenAliases map[*TypeName]bool         // set of aliases with broken (not yet determined) types
 	unionTypeSets map[*Union]*_TypeSet       // computed type sets for union types
+	usedVars      map[*Var]bool              // set of used variables
+	usedPkgNames  map[*PkgName]bool          // set of used package names
 	mono          monoGraph                  // graph for detecting non-monomorphizable instantiation loops
 
-	firstErr error                    // first error encountered
-	methods  map[*TypeName][]*Func    // maps package scope type names to associated non-blank (non-interface) methods
-	untyped  map[syntax.Expr]exprInfo // map of expressions without final type
-	delayed  []action                 // stack of delayed action segments; segments are processed in FIFO order
-	objPath  []Object                 // path of object dependencies during type inference (for cycle reporting)
-	cleaners []cleaner                // list of types that may need a final cleanup at the end of type-checking
+	firstErr   error                    // first error encountered
+	methods    map[*TypeName][]*Func    // maps package scope type names to associated non-blank (non-interface) methods
+	untyped    map[syntax.Expr]exprInfo // map of expressions without final type
+	delayed    []action                 // stack of delayed action segments; segments are processed in FIFO order
+	objPath    []Object                 // path of object dependencies during type-checking (for cycle reporting)
+	objPathIdx map[Object]int           // map of object to object path index during type-checking (for cycle reporting)
+	cleaners   []cleaner                // list of types that may need a final cleanup at the end of type-checking
 
 	// environment within which the current object is type-checked (valid only
 	// for the duration of type-checking a specific object)
 	environment
 
 	// debugging
-	indent int // indentation for tracing
+	posStack []syntax.Pos // stack of source positions seen; used for panic tracing
+	indent   int          // indentation for tracing
 }
 
 // addDeclDep adds the dependency edge (check.decl -> to) if check.decl exists
@@ -189,34 +174,6 @@ func (check *Checker) addDeclDep(to Object) {
 		return // to is not a package-level object
 	}
 	from.addDep(to)
-}
-
-// Note: The following three alias-related functions are only used
-//       when Alias types are not enabled.
-
-// brokenAlias records that alias doesn't have a determined type yet.
-// It also sets alias.typ to Typ[Invalid].
-// Not used if check.conf.EnableAlias is set.
-func (check *Checker) brokenAlias(alias *TypeName) {
-	assert(!check.conf.EnableAlias)
-	if check.brokenAliases == nil {
-		check.brokenAliases = make(map[*TypeName]bool)
-	}
-	check.brokenAliases[alias] = true
-	alias.typ = Typ[Invalid]
-}
-
-// validAlias records that alias has the valid type typ (possibly Typ[Invalid]).
-func (check *Checker) validAlias(alias *TypeName, typ Type) {
-	assert(!check.conf.EnableAlias)
-	delete(check.brokenAliases, alias)
-	alias.typ = typ
-}
-
-// isBrokenAlias reports whether alias doesn't have a determined type yet.
-func (check *Checker) isBrokenAlias(alias *TypeName) bool {
-	assert(!check.conf.EnableAlias)
-	return check.brokenAliases[alias]
 }
 
 func (check *Checker) rememberUntyped(e syntax.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
@@ -240,19 +197,22 @@ func (check *Checker) later(f func()) *action {
 	return &check.delayed[i]
 }
 
-// push pushes obj onto the object path and returns its index in the path.
-func (check *Checker) push(obj Object) int {
+// push pushes obj onto the object path and records its index in the path index map.
+func (check *Checker) push(obj Object) {
+	if check.objPathIdx == nil {
+		check.objPathIdx = make(map[Object]int)
+	}
+	check.objPathIdx[obj] = len(check.objPath)
 	check.objPath = append(check.objPath, obj)
-	return len(check.objPath) - 1
 }
 
-// pop pops and returns the topmost object from the object path.
-func (check *Checker) pop() Object {
+// pop pops an object from the object path and removes it from the path index map.
+func (check *Checker) pop() {
 	i := len(check.objPath) - 1
 	obj := check.objPath[i]
-	check.objPath[i] = nil
+	check.objPath[i] = nil // help the garbage collector
 	check.objPath = check.objPath[:i]
-	return obj
+	delete(check.objPathIdx, obj)
 }
 
 type cleaner interface {
@@ -285,12 +245,14 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
 
 	return &Checker{
-		conf:   conf,
-		ctxt:   conf.Context,
-		pkg:    pkg,
-		Info:   info,
-		objMap: make(map[Object]*declInfo),
-		impMap: make(map[importKey]*Package),
+		conf:         conf,
+		ctxt:         conf.Context,
+		pkg:          pkg,
+		Info:         info,
+		objMap:       make(map[Object]*declInfo),
+		impMap:       make(map[importKey]*Package),
+		usedVars:     make(map[*Var]bool),
+		usedPkgNames: make(map[*PkgName]bool),
 	}
 }
 
@@ -298,6 +260,8 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 // The provided files must all belong to the same package.
 func (check *Checker) initFiles(files []*syntax.File) {
 	// start with a clean slate (check.Files may be called multiple times)
+	// TODO(gri): what determines which fields are zeroed out here, vs at the end
+	// of checkFiles?
 	check.files = nil
 	check.imports = nil
 	check.dotImportMap = nil
@@ -307,7 +271,15 @@ func (check *Checker) initFiles(files []*syntax.File) {
 	check.untyped = nil
 	check.delayed = nil
 	check.objPath = nil
+	check.objPathIdx = nil
 	check.cleaners = nil
+
+	// We must initialize usedVars and usedPkgNames both here and in NewChecker,
+	// because initFiles is not called in the CheckExpr or Eval codepaths, yet we
+	// want to free this memory at the end of Files ('used' predicates are
+	// only needed in the context of a given file).
+	check.usedVars = make(map[*Var]bool)
+	check.usedPkgNames = make(map[*PkgName]bool)
 
 	// determine package name and collect valid files
 	pkg := check.pkg
@@ -383,6 +355,16 @@ func versionMax(a, b goVersion) goVersion {
 	return b
 }
 
+// pushPos pushes pos onto the pos stack.
+func (check *Checker) pushPos(pos syntax.Pos) {
+	check.posStack = append(check.posStack, pos)
+}
+
+// popPos pops from the pos stack.
+func (check *Checker) popPos() {
+	check.posStack = check.posStack[:len(check.posStack)-1]
+}
+
 // A bailout panic is used for early termination.
 type bailout struct{}
 
@@ -392,6 +374,24 @@ func (check *Checker) handleBailout(err *error) {
 		// normal return or early exit
 		*err = check.firstErr
 	default:
+		if len(check.posStack) > 0 {
+			doPrint := func(ps []syntax.Pos) {
+				for i := len(ps) - 1; i >= 0; i-- {
+					fmt.Fprintf(os.Stderr, "\t%v\n", ps[i])
+				}
+			}
+
+			fmt.Fprintln(os.Stderr, "The following panic happened checking types near:")
+			if len(check.posStack) <= 10 {
+				doPrint(check.posStack)
+			} else {
+				// if it's long, truncate the middle; it's least likely to help
+				doPrint(check.posStack[len(check.posStack)-5:])
+				fmt.Fprintln(os.Stderr, "\t...")
+				doPrint(check.posStack[:5])
+			}
+		}
+
 		// re-panic
 		panic(p)
 	}
@@ -420,20 +420,6 @@ func (check *Checker) Files(files []*syntax.File) (err error) {
 // syntax is properly type annotated even in a package containing
 // errors.
 func (check *Checker) checkFiles(files []*syntax.File) {
-	// Ensure that EnableAlias is consistent among concurrent type checking
-	// operations. See the documentation of [_aliasAny] for details.
-	if check.conf.EnableAlias {
-		if atomic.AddInt32(&_aliasAny, 1) <= 0 {
-			panic("EnableAlias set while !EnableAlias type checking is ongoing")
-		}
-		defer atomic.AddInt32(&_aliasAny, -1)
-	} else {
-		if atomic.AddInt32(&_aliasAny, -1) >= 0 {
-			panic("!EnableAlias set while EnableAlias type checking is ongoing")
-		}
-		defer atomic.AddInt32(&_aliasAny, 1)
-	}
-
 	print := func(msg string) {
 		if check.conf.Trace {
 			fmt.Println()
@@ -446,6 +432,12 @@ func (check *Checker) checkFiles(files []*syntax.File) {
 
 	print("== collectObjects ==")
 	check.collectObjects()
+
+	print("== sortObjects ==")
+	check.sortObjects()
+
+	print("== directCycles ==")
+	check.directCycles()
 
 	print("== packageObjects ==")
 	check.packageObjects()
@@ -482,8 +474,11 @@ func (check *Checker) checkFiles(files []*syntax.File) {
 	check.seenPkgMap = nil
 	check.brokenAliases = nil
 	check.unionTypeSets = nil
+	check.usedVars = nil
+	check.usedPkgNames = nil
 	check.ctxt = nil
 
+	// TODO(gri): shouldn't the cleanup above occur after the bailout?
 	// TODO(gri) There's more memory we should release at this point.
 }
 
@@ -568,8 +563,8 @@ func (check *Checker) recordCommaOkTypesInSyntax(x syntax.Expr, t0, t1 Type) {
 			assert(tv.Type != nil) // should have been recorded already
 			pos := x.Pos()
 			tv.Type = NewTuple(
-				NewVar(pos, check.pkg, "", t0),
-				NewVar(pos, check.pkg, "", t1),
+				NewParam(pos, check.pkg, "", t0),
+				NewParam(pos, check.pkg, "", t1),
 			)
 			x.SetTypeInfo(tv)
 			p, _ := x.(*syntax.ParenExpr)

@@ -8,7 +8,6 @@
 package types
 
 import (
-	"fmt"
 	"go/token"
 )
 
@@ -25,24 +24,6 @@ import (
 //
 // Like a defined ([Named]) type, an alias type has a name.
 // Use the [Alias.Obj] method to access its [TypeName] object.
-//
-// Historically, Alias types were not materialized so that, in the example
-// above, A's type was represented by a Basic (int), not an Alias
-// whose [Alias.Rhs] is int. But Go 1.24 allows you to declare an
-// alias type with type parameters or arguments:
-//
-//	type Set[K comparable] = map[K]bool
-//	s := make(Set[String])
-//
-// and this requires that Alias types be materialized. Use the
-// [Alias.TypeParams] and [Alias.TypeArgs] methods to access them.
-//
-// To ease the transition, the Alias type was introduced in go1.22,
-// but the type-checker would not construct values of this type unless
-// the GODEBUG=gotypesalias=1 environment variable was provided.
-// Starting in go1.23, this variable is enabled by default.
-// This setting also causes the predeclared type "any" to be
-// represented as an Alias, not a bare [Interface].
 type Alias struct {
 	obj     *TypeName      // corresponding declared alias object
 	orig    *Alias         // original, uninstantiated alias
@@ -53,7 +34,7 @@ type Alias struct {
 }
 
 // NewAlias creates a new Alias type with the given type name and rhs.
-// rhs must not be nil.
+// If rhs is nil, the alias is incomplete.
 func NewAlias(obj *TypeName, rhs Type) *Alias {
 	alias := (*Checker)(nil).newAlias(obj, rhs)
 	// Ensure that alias.actual is set (#65455).
@@ -101,6 +82,7 @@ func (a *Alias) Rhs() Type { return a.fromRHS }
 // otherwise it follows t's alias chain until it
 // reaches a non-alias type which is then returned.
 // Consequently, the result is never an alias type.
+// Returns nil if the alias is incomplete.
 func Unalias(t Type) Type {
 	if a0, _ := t.(*Alias); a0 != nil {
 		return unalias(a0)
@@ -116,19 +98,9 @@ func unalias(a0 *Alias) Type {
 	for a := a0; a != nil; a, _ = t.(*Alias) {
 		t = a.fromRHS
 	}
-	if t == nil {
-		panic(fmt.Sprintf("non-terminated alias %s", a0.obj.name))
-	}
-
-	// Memoize the type only if valid.
-	// In the presence of unfinished cyclic declarations, Unalias
-	// would otherwise latch the invalid value (#66704).
-	// TODO(adonovan): rethink, along with checker.typeDecl's use
-	// of Invalid to mark unfinished aliases.
-	if t != Typ[Invalid] {
-		a0.actual = t
-	}
-
+	// It's fine to memoize nil types since it's the zero value for actual.
+	// It accomplishes nothing.
+	a0.actual = t
 	return t
 }
 
@@ -140,9 +112,8 @@ func asNamed(t Type) *Named {
 }
 
 // newAlias creates a new Alias type with the given type name and rhs.
-// rhs must not be nil.
+// If rhs is nil, the alias is incomplete.
 func (check *Checker) newAlias(obj *TypeName, rhs Type) *Alias {
-	assert(rhs != nil)
 	a := new(Alias)
 	a.obj = obj
 	a.orig = a
@@ -175,12 +146,6 @@ func (check *Checker) newAliasInstance(pos token.Pos, orig *Alias, targs []Type,
 
 func (a *Alias) cleanup() {
 	// Ensure a.actual is set before types are published,
-	// so Unalias is a pure "getter", not a "setter".
-	actual := Unalias(a)
-
-	if actual == Typ[Invalid] {
-		// We don't set a.actual to Typ[Invalid] during type checking,
-		// as it may indicate that the RHS is not fully set up.
-		a.actual = actual
-	}
+	// so unalias is a pure "getter", not a "setter".
+	unalias(a)
 }

@@ -5,6 +5,7 @@
 package path_test
 
 import (
+	"fmt"
 	. "path"
 	"testing"
 )
@@ -82,3 +83,20 @@ func TestMatch(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkMatch(b *testing.B) {
+	for _, tt := range matchTests {
+		name := fmt.Sprintf("%q %q", tt.pattern, tt.s)
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for range b.N {
+				bSink, errSink = Match(tt.pattern, tt.s)
+			}
+		})
+	}
+}
+
+var (
+	bSink   bool
+	errSink error
+)

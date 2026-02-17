@@ -7,10 +7,12 @@ package asn1
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -506,6 +508,7 @@ var unmarshalTestData = []struct {
 	{[]byte{0x30, 0x05, 0x02, 0x03, 0x12, 0x34, 0x56}, &TestBigInt{big.NewInt(0x123456)}},
 	{[]byte{0x30, 0x0b, 0x31, 0x09, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x01, 0x03}, &TestSet{Ints: []int{1, 2, 3}}},
 	{[]byte{0x12, 0x0b, '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ' '}, newString("0123456789 ")},
+	{[]byte{0x14, 0x03, 0xbf, 0x61, 0x3f}, newString("¿a?")},
 }
 
 func TestUnmarshal(t *testing.T) {
@@ -1126,34 +1129,43 @@ func TestTaggedRawValue(t *testing.T) {
 }
 
 var bmpStringTests = []struct {
+	name       string
 	decoded    string
 	encodedHex string
+	invalid    bool
 }{
-	{"", "0000"},
+	{"empty string", "", "0000", false},
 	// Example from https://tools.ietf.org/html/rfc7292#appendix-B.
-	{"Beavis", "0042006500610076006900730000"},
+	{"rfc7292 example", "Beavis", "0042006500610076006900730000", false},
 	// Some characters from the "Letterlike Symbols Unicode block".
-	{"\u2115 - Double-struck N", "21150020002d00200044006f00750062006c0065002d00730074007200750063006b0020004e0000"},
+	{"letterlike symbols", "\u2115 - Double-struck N", "21150020002d00200044006f00750062006c0065002d00730074007200750063006b0020004e0000", false},
+	{"invalid length", "", "ff", true},
+	{"invalid surrogate", "", "5051d801", true},
+	{"invalid noncharacter 0xfdd1", "", "5051fdd1", true},
+	{"invalid noncharacter 0xffff", "", "5051ffff", true},
+	{"invalid noncharacter 0xfffe", "", "5051fffe", true},
 }
 
 func TestBMPString(t *testing.T) {
-	for i, test := range bmpStringTests {
-		encoded, err := hex.DecodeString(test.encodedHex)
-		if err != nil {
-			t.Fatalf("#%d: failed to decode from hex string", i)
-		}
+	for _, test := range bmpStringTests {
+		t.Run(test.name, func(t *testing.T) {
+			encoded, err := hex.DecodeString(test.encodedHex)
+			if err != nil {
+				t.Fatalf("failed to decode from hex string: %s", err)
+			}
 
-		decoded, err := parseBMPString(encoded)
+			decoded, err := parseBMPString(encoded)
 
-		if err != nil {
-			t.Errorf("#%d: decoding output gave an error: %s", i, err)
-			continue
-		}
+			if err != nil && !test.invalid {
+				t.Errorf("parseBMPString failed: %s", err)
+			} else if test.invalid && err == nil {
+				t.Error("parseBMPString didn't fail as expected")
+			}
 
-		if decoded != test.decoded {
-			t.Errorf("#%d: decoding output resulted in %q, but it should have been %q", i, decoded, test.decoded)
-			continue
-		}
+			if decoded != test.decoded {
+				t.Errorf("parseBMPString(%q): got %q, want %q", encoded, decoded, test.decoded)
+			}
+		})
 	}
 }
 
@@ -1173,5 +1185,72 @@ func BenchmarkObjectIdentifierString(b *testing.B) {
 	oidPublicKeyRSA := ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
 	for i := 0; i < b.N; i++ {
 		_ = oidPublicKeyRSA.String()
+	}
+}
+
+func TestImplicitTypeRoundtrip(t *testing.T) {
+	type tagged struct {
+		IA5         string    `asn1:"tag:1,ia5"`
+		Printable   string    `asn1:"tag:2,printable"`
+		UTF8        string    `asn1:"tag:3,utf8"`
+		Numeric     string    `asn1:"tag:4,numeric"`
+		UTC         time.Time `asn1:"tag:5,utc"`
+		Generalized time.Time `asn1:"tag:6,generalized"`
+	}
+	a := tagged{
+		IA5:         "ia5",
+		Printable:   "printable",
+		UTF8:        "utf8",
+		Numeric:     "123 456",
+		UTC:         time.Now().UTC().Truncate(time.Second),
+		Generalized: time.Now().UTC().Truncate(time.Second),
+	}
+	enc, err := Marshal(a)
+	if err != nil {
+		t.Fatalf("Marshal failed: %s", err)
+	}
+	var b tagged
+	if _, err := Unmarshal(enc, &b); err != nil {
+		t.Fatalf("Unmarshal failed: %s", err)
+	}
+
+	if !reflect.DeepEqual(a, b) {
+		t.Fatalf("Unexpected diff after roundtripping struct\na: %#v\nb: %#v", a, b)
+	}
+}
+
+func TestParsingMemoryConsumption(t *testing.T) {
+	// Craft a syntatically valid, but empty, ~10 MB DER bomb. A successful
+	// unmarshal of this bomb should yield ~280 MB. However, the parsing should
+	// fail due to the empty content; and, in such cases, we want to make sure
+	// that we do not unnecessarily allocate memories.
+	derBomb := make([]byte, 10_000_000)
+	for i := range derBomb {
+		derBomb[i] = 0x30
+	}
+	derBomb = append([]byte{0x30, 0x83, 0x98, 0x96, 0x80}, derBomb...)
+
+	var m runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&m)
+	memBefore := m.TotalAlloc
+
+	var out []struct {
+		Id       []int
+		Critical bool `asn1:"optional"`
+		Value    []byte
+	}
+	_, err := Unmarshal(derBomb, &out)
+	if !errors.As(err, &SyntaxError{}) {
+		t.Fatalf("Incorrect error result: want (%v), but got (%v) instead", &SyntaxError{}, err)
+	}
+
+	runtime.ReadMemStats(&m)
+	memDiff := m.TotalAlloc - memBefore
+
+	// Ensure that the memory allocated does not exceed 10<<21 (~20 MB) when
+	// the parsing fails.
+	if memDiff > 10<<21 {
+		t.Errorf("Too much memory allocated while parsing DER: %v MiB", memDiff/1024/1024)
 	}
 }

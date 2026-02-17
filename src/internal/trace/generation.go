@@ -9,13 +9,15 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
 	"strings"
+	"time"
 
-	"internal/trace/event"
-	"internal/trace/event/go122"
+	"internal/trace/tracev2"
+	"internal/trace/version"
 )
 
 // generation contains all the trace data for a single
@@ -31,22 +33,102 @@ type generation struct {
 	*evTable
 }
 
+// readGeneration buffers and decodes the structural elements of a trace generation
+// out of r.
+func readGeneration(r *bufio.Reader, ver version.Version) (*generation, error) {
+	if ver < version.Go126 {
+		return nil, errors.New("internal error: readGeneration called for <1.26 trace")
+	}
+	g := &generation{
+		evTable: &evTable{
+			pcs: make(map[uint64]frame),
+		},
+		batches: make(map[ThreadID][]batch),
+	}
+
+	// Read batches one at a time until we either hit the next generation.
+	for {
+		b, gen, err := readBatch(r)
+		if err == io.EOF {
+			if len(g.batches) != 0 {
+				return nil, errors.New("incomplete generation found; trace likely truncated")
+			}
+			return nil, nil // All done.
+		}
+		if err != nil {
+			return nil, err
+		}
+		if g.gen == 0 {
+			// Initialize gen.
+			g.gen = gen
+		}
+		if b.isEndOfGeneration() {
+			break
+		}
+		if gen == 0 {
+			// 0 is a sentinel used by the runtime, so we'll never see it.
+			return nil, fmt.Errorf("invalid generation number %d", gen)
+		}
+		if gen != g.gen {
+			return nil, fmt.Errorf("broken trace: missing end-of-generation event, or generations are interleaved")
+		}
+		if g.minTs == 0 || b.time < g.minTs {
+			g.minTs = b.time
+		}
+		if err := processBatch(g, b, ver); err != nil {
+			return nil, err
+		}
+	}
+
+	// Check some invariants.
+	if g.freq == 0 {
+		return nil, fmt.Errorf("no frequency event found")
+	}
+	if !g.hasClockSnapshot {
+		return nil, fmt.Errorf("no clock snapshot event found")
+	}
+
+	// N.B. Trust that the batch order is correct. We can't validate the batch order
+	// by timestamp because the timestamps could just be plain wrong. The source of
+	// truth is the order things appear in the trace and the partial order sequence
+	// numbers on certain events. If it turns out the batch order is actually incorrect
+	// we'll very likely fail to advance a partial order from the frontier.
+
+	// Compactify stacks and strings for better lookup performance later.
+	g.stacks.compactify()
+	g.strings.compactify()
+
+	// Validate stacks.
+	if err := validateStackStrings(&g.stacks, &g.strings, g.pcs); err != nil {
+		return nil, err
+	}
+
+	// Now that we have the frequency, fix up CPU samples.
+	fixUpCPUSamples(g.cpuSamples, g.freq)
+	return g, nil
+}
+
 // spilledBatch represents a batch that was read out for the next generation,
 // while reading the previous one. It's passed on when parsing the next
 // generation.
+//
+// Used only for trace versions < Go126.
 type spilledBatch struct {
 	gen uint64
 	*batch
 }
 
-// readGeneration buffers and decodes the structural elements of a trace generation
+// readGenerationWithSpill buffers and decodes the structural elements of a trace generation
 // out of r. spill is the first batch of the new generation (already buffered and
 // parsed from reading the last generation). Returns the generation and the first
 // batch read of the next generation, if any.
 //
 // If gen is non-nil, it is valid and must be processed before handling the returned
 // error.
-func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilledBatch, error) {
+func readGenerationWithSpill(r *bufio.Reader, spill *spilledBatch, ver version.Version) (*generation, *spilledBatch, error) {
+	if ver >= version.Go126 {
+		return nil, nil, errors.New("internal error: readGenerationWithSpill called for Go 1.26+ trace")
+	}
 	g := &generation{
 		evTable: &evTable{
 			pcs: make(map[uint64]frame),
@@ -55,14 +137,15 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
 	}
 	// Process the spilled batch.
 	if spill != nil {
+		// Process the spilled batch, which contains real data.
 		g.gen = spill.gen
-		if err := processBatch(g, *spill.batch); err != nil {
+		g.minTs = spill.batch.time
+		if err := processBatch(g, *spill.batch, ver); err != nil {
 			return nil, nil, err
 		}
 		spill = nil
 	}
-	// Read batches one at a time until we either hit EOF or
-	// the next generation.
+	// Read batches one at a time until we either hit the next generation.
 	var spillErr error
 	for {
 		b, gen, err := readBatch(r)
@@ -71,7 +154,7 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
 		}
 		if err != nil {
 			if g.gen != 0 {
-				// This is an error reading the first batch of the next generation.
+				// This may be an error reading the first batch of the next generation.
 				// This is fine. Let's forge ahead assuming that what we've got so
 				// far is fine.
 				spillErr = err
@@ -87,7 +170,8 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
 			// Initialize gen.
 			g.gen = gen
 		}
-		if gen == g.gen+1 { // TODO: advance this the same way the runtime does.
+		if gen == g.gen+1 {
+			// TODO: Increment the generation with wraparound the same way the runtime does.
 			spill = &spilledBatch{gen: gen, batch: &b}
 			break
 		}
@@ -104,7 +188,7 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
 		if g.minTs == 0 || b.time < g.minTs {
 			g.minTs = b.time
 		}
-		if err := processBatch(g, b); err != nil {
+		if err := processBatch(g, b, ver); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -113,6 +197,10 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
 	if g.freq == 0 {
 		return nil, nil, fmt.Errorf("no frequency event found")
 	}
+	if ver >= version.Go125 && !g.hasClockSnapshot {
+		return nil, nil, fmt.Errorf("no clock snapshot event found")
+	}
+
 	// N.B. Trust that the batch order is correct. We can't validate the batch order
 	// by timestamp because the timestamps could just be plain wrong. The source of
 	// truth is the order things appear in the trace and the partial order sequence
@@ -128,20 +216,13 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
 		return nil, nil, err
 	}
 
-	// Fix up the CPU sample timestamps, now that we have freq.
-	for i := range g.cpuSamples {
-		s := &g.cpuSamples[i]
-		s.time = g.freq.mul(timestamp(s.time))
-	}
-	// Sort the CPU samples.
-	slices.SortFunc(g.cpuSamples, func(a, b cpuSample) int {
-		return cmp.Compare(a.time, b.time)
-	})
+	// Now that we have the frequency, fix up CPU samples.
+	fixUpCPUSamples(g.cpuSamples, g.freq)
 	return g, spill, spillErr
 }
 
 // processBatch adds the batch to the generation.
-func processBatch(g *generation, b batch) error {
+func processBatch(g *generation, b batch, ver version.Version) error {
 	switch {
 	case b.isStringsBatch():
 		if err := addStrings(&g.strings, b); err != nil {
@@ -157,22 +238,19 @@ func processBatch(g *generation, b batch) error {
 			return err
 		}
 		g.cpuSamples = samples
-	case b.isFreqBatch():
-		freq, err := parseFreq(b)
-		if err != nil {
+	case b.isSyncBatch(ver):
+		if err := setSyncBatch(&g.sync, b, ver); err != nil {
 			return err
 		}
-		if g.freq != 0 {
-			return fmt.Errorf("found multiple frequency events")
-		}
-		g.freq = freq
-	case b.exp != event.NoExperiment:
+	case b.exp != tracev2.NoExperiment:
 		if g.expBatches == nil {
-			g.expBatches = make(map[event.Experiment][]ExperimentalBatch)
+			g.expBatches = make(map[tracev2.Experiment][]ExperimentalBatch)
 		}
 		if err := addExperimentalBatch(g.expBatches, b); err != nil {
 			return err
 		}
+	case b.isEndOfGeneration():
+		return errors.New("internal error: unexpectedly processing EndOfGeneration; broken trace?")
 	default:
 		if _, ok := g.batches[b.m]; !ok {
 			g.batchMs = append(g.batchMs, b.m)
@@ -222,7 +300,7 @@ func addStrings(stringTable *dataTable[stringID, string], b batch) error {
 	}
 	r := bytes.NewReader(b.data)
 	hdr, err := r.ReadByte() // Consume the EvStrings byte.
-	if err != nil || event.Type(hdr) != go122.EvStrings {
+	if err != nil || tracev2.EventType(hdr) != tracev2.EvStrings {
 		return fmt.Errorf("missing strings batch header")
 	}
 
@@ -233,7 +311,7 @@ func addStrings(stringTable *dataTable[stringID, string], b batch) error {
 		if err != nil {
 			return err
 		}
-		if event.Type(ev) != go122.EvString {
+		if tracev2.EventType(ev) != tracev2.EvString {
 			return fmt.Errorf("expected string event, got %d", ev)
 		}
 
@@ -248,8 +326,8 @@ func addStrings(stringTable *dataTable[stringID, string], b batch) error {
 		if err != nil {
 			return err
 		}
-		if len > go122.MaxStringSize {
-			return fmt.Errorf("invalid string size %d, maximum is %d", len, go122.MaxStringSize)
+		if len > tracev2.MaxEventTrailerDataSize {
+			return fmt.Errorf("invalid string size %d, maximum is %d", len, tracev2.MaxEventTrailerDataSize)
 		}
 
 		// Copy out the string.
@@ -280,7 +358,7 @@ func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b ba
 	}
 	r := bytes.NewReader(b.data)
 	hdr, err := r.ReadByte() // Consume the EvStacks byte.
-	if err != nil || event.Type(hdr) != go122.EvStacks {
+	if err != nil || tracev2.EventType(hdr) != tracev2.EvStacks {
 		return fmt.Errorf("missing stacks batch header")
 	}
 
@@ -290,7 +368,7 @@ func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b ba
 		if err != nil {
 			return err
 		}
-		if event.Type(ev) != go122.EvStack {
+		if tracev2.EventType(ev) != tracev2.EvStack {
 			return fmt.Errorf("expected stack event, got %d", ev)
 		}
 
@@ -305,8 +383,8 @@ func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b ba
 		if err != nil {
 			return err
 		}
-		if nFrames > go122.MaxFramesPerStack {
-			return fmt.Errorf("invalid stack size %d, maximum is %d", nFrames, go122.MaxFramesPerStack)
+		if nFrames > tracev2.MaxFramesPerStack {
+			return fmt.Errorf("invalid stack size %d, maximum is %d", nFrames, tracev2.MaxFramesPerStack)
 		}
 
 		// Each frame consists of 4 fields: pc, funcID (string), fileID (string), line.
@@ -358,7 +436,7 @@ func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
 	}
 	r := bytes.NewReader(b.data)
 	hdr, err := r.ReadByte() // Consume the EvCPUSamples byte.
-	if err != nil || event.Type(hdr) != go122.EvCPUSamples {
+	if err != nil || tracev2.EventType(hdr) != tracev2.EvCPUSamples {
 		return nil, fmt.Errorf("missing CPU samples batch header")
 	}
 
@@ -368,7 +446,7 @@ func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
 		if err != nil {
 			return nil, err
 		}
-		if event.Type(ev) != go122.EvCPUSample {
+		if tracev2.EventType(ev) != tracev2.EvCPUSample {
 			return nil, fmt.Errorf("expected CPU sample event, got %d", ev)
 		}
 
@@ -422,27 +500,87 @@ func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
 	return samples, nil
 }
 
-// parseFreq parses out a lone EvFrequency from a batch.
-func parseFreq(b batch) (frequency, error) {
-	if !b.isFreqBatch() {
-		return 0, fmt.Errorf("internal error: parseFreq called on non-frequency batch")
+// sync holds the per-generation sync data.
+type sync struct {
+	freq             frequency
+	hasClockSnapshot bool
+	snapTime         timestamp
+	snapMono         uint64
+	snapWall         time.Time
+}
+
+func setSyncBatch(s *sync, b batch, ver version.Version) error {
+	if !b.isSyncBatch(ver) {
+		return fmt.Errorf("internal error: setSyncBatch called on non-sync batch")
 	}
 	r := bytes.NewReader(b.data)
-	r.ReadByte() // Consume the EvFrequency byte.
-
-	// Read the frequency. It'll come out as timestamp units per second.
-	f, err := binary.ReadUvarint(r)
-	if err != nil {
-		return 0, err
+	if ver >= version.Go125 {
+		hdr, err := r.ReadByte() // Consume the EvSync byte.
+		if err != nil || tracev2.EventType(hdr) != tracev2.EvSync {
+			return fmt.Errorf("missing sync batch header")
+		}
 	}
-	// Convert to nanoseconds per timestamp unit.
-	return frequency(1.0 / (float64(f) / 1e9)), nil
+
+	lastTs := b.time
+	for r.Len() != 0 {
+		// Read the header
+		ev, err := r.ReadByte()
+		if err != nil {
+			return err
+		}
+		et := tracev2.EventType(ev)
+		switch {
+		case et == tracev2.EvFrequency:
+			if s.freq != 0 {
+				return fmt.Errorf("found multiple frequency events")
+			}
+			// Read the frequency. It'll come out as timestamp units per second.
+			f, err := binary.ReadUvarint(r)
+			if err != nil {
+				return err
+			}
+			// Convert to nanoseconds per timestamp unit.
+			s.freq = frequency(1.0 / (float64(f) / 1e9))
+		case et == tracev2.EvClockSnapshot && ver >= version.Go125:
+			if s.hasClockSnapshot {
+				return fmt.Errorf("found multiple clock snapshot events")
+			}
+			s.hasClockSnapshot = true
+			// Read the EvClockSnapshot arguments.
+			tdiff, err := binary.ReadUvarint(r)
+			if err != nil {
+				return err
+			}
+			lastTs += timestamp(tdiff)
+			s.snapTime = lastTs
+			mono, err := binary.ReadUvarint(r)
+			if err != nil {
+				return err
+			}
+			s.snapMono = mono
+			sec, err := binary.ReadUvarint(r)
+			if err != nil {
+				return err
+			}
+			nsec, err := binary.ReadUvarint(r)
+			if err != nil {
+				return err
+			}
+			// TODO(felixge): In theory we could inject s.snapMono into the time
+			// value below to make it comparable. But there is no API for this
+			// in the time package right now.
+			s.snapWall = time.Unix(int64(sec), int64(nsec))
+		default:
+			return fmt.Errorf("expected frequency or clock snapshot event, got %d", ev)
+		}
+	}
+	return nil
 }
 
 // addExperimentalBatch takes an experimental batch and adds it to the list of experimental
 // batches for the experiment its a part of.
-func addExperimentalBatch(expBatches map[event.Experiment][]ExperimentalBatch, b batch) error {
-	if b.exp == event.NoExperiment {
+func addExperimentalBatch(expBatches map[tracev2.Experiment][]ExperimentalBatch, b batch) error {
+	if b.exp == tracev2.NoExperiment {
 		return fmt.Errorf("internal error: addExperimentalBatch called on non-experimental batch")
 	}
 	expBatches[b.exp] = append(expBatches[b.exp], ExperimentalBatch{
@@ -450,4 +588,16 @@ func addExperimentalBatch(expBatches map[event.Experiment][]ExperimentalBatch, b
 		Data:   b.data,
 	})
 	return nil
+}
+
+func fixUpCPUSamples(samples []cpuSample, freq frequency) {
+	// Fix up the CPU sample timestamps.
+	for i := range samples {
+		s := &samples[i]
+		s.time = freq.mul(timestamp(s.time))
+	}
+	// Sort the CPU samples.
+	slices.SortFunc(samples, func(a, b cpuSample) int {
+		return cmp.Compare(a.time, b.time)
+	})
 }

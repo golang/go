@@ -7,7 +7,6 @@
 package work
 
 import (
-	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/str"
 	"cmd/internal/cov/covcmd"
@@ -25,7 +24,7 @@ import (
 func (b *Builder) CovData(a *Action, cmdargs ...any) ([]byte, error) {
 	cmdline := str.StringList(cmdargs...)
 	args := append([]string{}, cfg.BuildToolexec...)
-	args = append(args, base.Tool("covdata"))
+	args = append(args, "go", "tool", "covdata")
 	args = append(args, cmdline...)
 	return b.Shell(a).runOut(a.Objdir, nil, args)
 }
@@ -37,8 +36,9 @@ func (b *Builder) CovData(a *Action, cmdargs ...any) ([]byte, error) {
 // but will be empty; in this case the return is an empty string.
 func BuildActionCoverMetaFile(runAct *Action) (string, error) {
 	p := runAct.Package
-	for i := range runAct.Deps {
-		pred := runAct.Deps[i]
+	barrierAct := runAct.Deps[0]
+	for i := range barrierAct.Deps {
+		pred := barrierAct.Deps[i]
 		if pred.Mode != "build" || pred.Package == nil {
 			continue
 		}

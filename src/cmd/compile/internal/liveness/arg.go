@@ -132,7 +132,7 @@ func ArgLiveness(fn *ir.Func, f *ssa.Func, pp *objw.Progs) (blockIdx, valueIdx m
 	}
 
 	nargs := int32(len(lv.args))
-	bulk := bitvec.NewBulk(nargs, int32(len(f.Blocks)*2), fn.Pos())
+	bulk := bitvec.NewBulk(nargs, int32(len(f.Blocks)*2))
 	for _, b := range f.Blocks {
 		be := &lv.be[b.ID]
 		be.livein = bulk.Next()
@@ -316,6 +316,7 @@ func (lv *argLiveness) emit() *obj.LSym {
 
 	lsym := base.Ctxt.Lookup(lv.fn.LSym.Name + ".argliveinfo")
 	lsym.Set(obj.AttrContentAddressable, true)
+	lsym.Align = 1
 
 	off := objw.Uint8(lsym, 0, argOffsets[0]) // smallest offset that needs liveness info.
 	for idx, live := range livenessMaps {

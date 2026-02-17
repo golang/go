@@ -9,8 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"internal/trace/event"
-	"internal/trace/event/go122"
+	"internal/trace/tracev2"
 )
 
 type batchCursor struct {
@@ -66,8 +65,8 @@ func (b *batchCursor) compare(a *batchCursor) int {
 // be the case for every event in a plain EventBatch.
 func readTimedBaseEvent(b []byte, e *baseEvent) (int, timestamp, error) {
 	// Get the event type.
-	typ := event.Type(b[0])
-	specs := go122.Specs()
+	typ := tracev2.EventType(b[0])
+	specs := tracev2.Specs()
 	if int(typ) >= len(specs) {
 		return 0, 0, fmt.Errorf("found invalid event type: %v", typ)
 	}

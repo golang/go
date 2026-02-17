@@ -30,7 +30,7 @@ var (
 
 // Reader implements buffering for an io.Reader object.
 // A new Reader is created by calling [NewReader] or [NewReaderSize];
-// alternatively the zero value of a Reader may be used after calling [Reset]
+// alternatively the zero value of a Reader may be used after calling [Reader.Reset]
 // on it.
 type Reader struct {
 	buf          []byte
@@ -311,10 +311,7 @@ func (b *Reader) ReadRune() (r rune, size int, err error) {
 	if b.r == b.w {
 		return 0, 0, b.readErr()
 	}
-	r, size = rune(b.buf[b.r]), 1
-	if r >= utf8.RuneSelf {
-		r, size = utf8.DecodeRune(b.buf[b.r:b.w])
-	}
+	r, size = utf8.DecodeRune(b.buf[b.r:b.w])
 	b.r += size
 	b.lastByte = int(b.buf[b.r-1])
 	b.lastRuneSize = size

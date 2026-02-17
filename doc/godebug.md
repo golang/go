@@ -85,6 +85,9 @@ if the work module's `go.mod` or the workspace's `go.work`
 says `go` `1.20`, then the program defaults to `panicnil=1`,
 matching Go 1.20 instead of Go 1.21.
 
+As an exception, GODEBUGs introduced for security releases
+will have the new behavior apply to all versions.
+
 Because this method of setting GODEBUG defaults was introduced only in Go 1.21,
 programs listing versions of Go earlier than Go 1.20 are configured to match Go 1.20,
 not the older version.
@@ -109,7 +112,9 @@ Only the work module's `go.mod` is consulted for `godebug` directives.
 Any directives in required dependency modules are ignored.
 It is an error to list a `godebug` with an unrecognized setting.
 (Toolchains older than Go 1.23 reject all `godebug` lines, since they do not
-understand `godebug` at all.)
+understand `godebug` at all.) When a workspace is in use, `godebug`
+directives in `go.mod` files are ignored, and `go.work` will be consulted
+for `godebug` directives instead.
 
 The defaults from the `go` and `godebug` lines apply to all main
 packages that are built. For more fine-grained control,
@@ -151,7 +156,100 @@ for example,
 see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
 and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
+### Go 1.27
+
+Go 1.27 removed the `gotypesalias` setting, as noted in the [Go 1.22][#go-122] section.
+
+### Go 1.26
+
+Go 1.26 added a new `httpcookiemaxnum` setting that controls the maximum number
+of cookies that net/http will accept when parsing HTTP headers. If the number of
+cookie in a header exceeds the number set in `httpcookiemaxnum`, cookie parsing
+will fail early. The default value is `httpcookiemaxnum=3000`. Setting
+`httpcookiemaxnum=0` will allow the cookie parsing to accept an indefinite
+number of cookies. To avoid denial of service attacks, this setting and default
+was backported to Go 1.25.2 and Go 1.24.8.
+
+Go 1.26 added a new `urlmaxqueryparams` setting that controls the maximum number
+of query parameters that net/url will accept when parsing a URL-encoded query string.
+If the number of parameters exceeds the number set in `urlmaxqueryparams`,
+parsing will fail early. The default value is `urlmaxqueryparams=10000`.
+Setting `urlmaxqueryparams=0` disables the limit. To avoid denial of service
+attacks, this setting and default was backported to Go 1.25.6 and Go 1.24.12.
+
+Go 1.26 added a new `urlstrictcolons` setting that controls whether `net/url.Parse`
+allows malformed hostnames containing colons outside of a bracketed IPv6 address.
+The default `urlstrictcolons=1` rejects URLs such as `http://localhost:1:2` or `http://::1/`.
+Colons are permitted as part of a bracketed IPv6 address, such as `http://[::1]/`.
+
+Go 1.26 enabled two additional post-quantum key exchange mechanisms:
+SecP256r1MLKEM768 and SecP384r1MLKEM1024. The default can be reverted using the
+[`tlssecpmlkem` setting](/pkg/crypto/tls/#Config.CurvePreferences).
+
+Go 1.26 added a new `tracebacklabels` setting that controls the inclusion of
+goroutine labels set through the the `runtime/pprof` package. Setting `tracebacklabels=1`
+includes these key/value pairs in the goroutine status header of runtime
+tracebacks and debug=2 runtime/pprof stack dumps. This format may change in the future.
+(see go.dev/issue/76349)
+
+Go 1.26 added a new `cryptocustomrand` setting that controls whether most crypto/...
+APIs ignore the random `io.Reader` parameter. For Go 1.26, it defaults
+to `cryptocustomrand=0`, ignoring the random parameters. Using `cryptocustomrand=1`
+reverts to the pre-Go 1.26 behavior.
+
+### Go 1.25
+
+Go 1.25 added a new `decoratemappings` setting that controls whether the Go
+runtime annotates OS anonymous memory mappings with context about their
+purpose. These annotations appear in /proc/self/maps and /proc/self/smaps as
+"[anon: Go: ...]". This setting is only used on Linux. For Go 1.25, it defaults
+to `decoratemappings=1`, enabling annotations. Using `decoratemappings=0`
+reverts to the pre-Go 1.25 behavior. This setting is fixed at program startup
+time, and can't be modified by changing the `GODEBUG` environment variable
+after the program starts.
+
+Go 1.25 added a new `embedfollowsymlinks` setting that controls whether the
+Go command will follow symlinks to regular files embedding files.
+The default value `embedfollowsymlinks=0` does not allow following
+symlinks. `embedfollowsymlinks=1` will allow following symlinks.
+
+Go 1.25 added a new `containermaxprocs` setting that controls whether the Go
+runtime will consider cgroup CPU limits when setting the default GOMAXPROCS.
+The default value `containermaxprocs=1` will use cgroup limits in addition to
+the total logical CPU count and CPU affinity. `containermaxprocs=0` will
+disable consideration of cgroup limits. This setting only affects Linux.
+
+Go 1.25 added a new `updatemaxprocs` setting that controls whether the Go
+runtime will periodically update GOMAXPROCS for new CPU affinity or cgroup
+limits. The default value `updatemaxprocs=1` will enable periodic updates.
+`updatemaxprocs=0` will disable periodic updates.
+
+Go 1.25 disabled SHA-1 signature algorithms in TLS 1.2 according to RFC 9155.
+The default can be reverted using the `tlssha1=1` setting.
+
+Go 1.25 switched to SHA-256 to fill in missing SubjectKeyId in
+crypto/x509.CreateCertificate. The setting `x509sha256skid=0` reverts to SHA-1.
+
+Go 1.25 corrected the semantics of contention reports for runtime-internal locks,
+and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environment_Variables).
+
+Go 1.25 (starting with Go 1.25 RC 2) disabled build information stamping when
+multiple VCS are detected due to concerns around VCS injection attacks. This
+behavior and setting was backported to Go 1.24.5 and Go 1.23.11. This behavior
+can be renabled with the setting `allowmultiplevcs=1`.
+
 ### Go 1.24
+
+Go 1.24 added a new `fips140` setting that controls whether the Go
+Cryptographic Module operates in FIPS 140-3 mode.
+The possible values are:
+- "off": no special support for FIPS 140-3 mode. This is the default.
+- "on": the Go Cryptographic Module operates in FIPS 140-3 mode.
+- "only": like "on", but cryptographic algorithms not approved by
+  FIPS 140-3 return an error or panic.
+For more information, see [FIPS 140-3 Compliance](/doc/security/fips140).
+This setting is fixed at program startup time, and can't be modified
+by changing the `GODEBUG` environment variable after the program starts.
 
 Go 1.24 changed the global [`math/rand.Seed`](/pkg/math/rand/#Seed) to be a
 no-op. This behavior is controlled by the `randseednop` setting.
@@ -206,6 +304,8 @@ field by default.
 Go 1.24 enabled the post-quantum key exchange mechanism
 X25519MLKEM768 by default. The default can be reverted using the
 [`tlsmlkem` setting](/pkg/crypto/tls/#Config.CurvePreferences).
+This can be useful when dealing with buggy TLS servers that do not handle large records correctly,
+causing a timeout during the handshake (see [TLS post-quantum TL;DR fail](https://tldr.fail/)).
 Go 1.24 also removed X25519Kyber768Draft00 and the Go 1.23 `tlskyber` setting.
 
 Go 1.24 made [`ParsePKCS1PrivateKey`](/pkg/crypto/x509/#ParsePKCS1PrivateKey)
@@ -220,7 +320,7 @@ Go 1.23 changed the channels created by package time to be unbuffered
 and [`Timer.Reset`](/pkg/time/#Timer.Reset) method results much easier.
 The [`asynctimerchan` setting](/pkg/time/#NewTimer) disables this change.
 There are no runtime metrics for this change,
-This setting may be removed in a future release, Go 1.27 at the earliest.
+This setting will be removed in Go 1.27.
 
 Go 1.23 changed the mode bits reported by [`os.Lstat`](/pkg/os#Lstat) and [`os.Stat`](/pkg/os#Stat)
 for reparse points, which can be controlled with the `winsymlink` setting.
@@ -242,6 +342,8 @@ Previous versions default to `winreadlinkvolume=0`.
 Go 1.23 enabled the experimental post-quantum key exchange mechanism
 X25519Kyber768Draft00 by default. The default can be reverted using the
 [`tlskyber` setting](/pkg/crypto/tls/#Config.CurvePreferences).
+This can be useful when dealing with buggy TLS servers that do not handle large records correctly,
+causing a timeout during the handshake (see [TLS post-quantum TL;DR fail](https://tldr.fail/)).
 
 Go 1.23 changed the behavior of
 [crypto/x509.ParseCertificate](/pkg/crypto/x509/#ParseCertificate) to reject
@@ -255,6 +357,7 @@ any effect.
 Go 1.23 changed the default TLS cipher suites used by clients and servers when
 not explicitly configured, removing 3DES cipher suites. The default can be reverted
 using the [`tls3des` setting](/pkg/crypto/tls/#Config.CipherSuites).
+This setting will be removed in Go 1.27.
 
 Go 1.23 changed the behavior of [`tls.X509KeyPair`](/pkg/crypto/tls#X509KeyPair)
 and [`tls.LoadX509KeyPair`](/pkg/crypto/tls#LoadX509KeyPair) to populate the
@@ -262,6 +365,7 @@ Leaf field of the returned [`tls.Certificate`](/pkg/crypto/tls#Certificate).
 This behavior is controlled by the `x509keypairleaf` setting. For Go 1.23, it
 defaults to `x509keypairleaf=1`. Previous versions default to
 `x509keypairleaf=0`.
+This setting will be removed in Go 1.27.
 
 Go 1.23 changed
 [`net/http.ServeContent`](/pkg/net/http#ServeContent),
@@ -295,28 +399,31 @@ Whether the type checker produces `Alias` types or not is controlled by the
 [`gotypesalias` setting](/pkg/go/types#Alias).
 For Go 1.22 it defaults to `gotypesalias=0`.
 For Go 1.23, `gotypesalias=1` will become the default.
-This setting will be removed in a future release, Go 1.27 at the earliest.
+This setting will be removed in Go 1.27.
 
 Go 1.22 changed the default minimum TLS version supported by both servers
 and clients to TLS 1.2. The default can be reverted to TLS 1.0 using the
 [`tls10server` setting](/pkg/crypto/tls/#Config).
+This setting will be removed in Go 1.27.
 
 Go 1.22 changed the default TLS cipher suites used by clients and servers when
 not explicitly configured, removing the cipher suites which used RSA based key
 exchange. The default can be reverted using the [`tlsrsakex` setting](/pkg/crypto/tls/#Config).
+This setting will be removed in Go 1.27.
 
 Go 1.22 disabled
 [`ConnectionState.ExportKeyingMaterial`](/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial)
 when the connection supports neither TLS 1.3 nor Extended Master Secret
 (implemented in Go 1.21). It can be reenabled with the [`tlsunsafeekm`
 setting](/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial).
+This setting will be removed in Go 1.27.
 
 Go 1.22 changed how the runtime interacts with transparent huge pages on Linux.
 In particular, a common default Linux kernel configuration can result in
 significant memory overheads, and Go 1.22 no longer works around this default.
 To work around this issue without adjusting kernel settings, transparent huge
 pages can be disabled for Go memory with the
-[`disablethp` setting](/pkg/runtime#hdr-Environment_Variable).
+[`disablethp` setting](/pkg/runtime#hdr-Environment_Variables).
 This behavior was backported to Go 1.21.1, but the setting is only available
 starting with Go 1.21.6.
 This setting may be removed in a future release, and users impacted by this issue
@@ -328,7 +435,7 @@ Go 1.22 added contention on runtime-internal locks to the [`mutex`
 profile](/pkg/runtime/pprof#Profile). Contention on these locks is always
 reported at `runtime._LostContendedRuntimeLock`. Complete stack traces of
 runtime locks can be enabled with the [`runtimecontentionstacks`
-setting](/pkg/runtime#hdr-Environment_Variable). These stack traces have
+setting](/pkg/runtime#hdr-Environment_Variables). These stack traces have
 non-standard semantics, see setting documentation for details.
 
 Go 1.22 added a new [`crypto/x509.Certificate`](/pkg/crypto/x509/#Certificate)
@@ -337,7 +444,7 @@ certificate policy OIDs with components larger than 31 bits. By default this
 field is only used during parsing, when it is populated with policy OIDs, but
 not used during marshaling. It can be used to marshal these larger OIDs, instead
 of the existing PolicyIdentifiers field, by using the
-[`x509usepolicies` setting.](/pkg/crypto/x509/#CreateCertificate).
+[`x509usepolicies` setting](/pkg/crypto/x509/#CreateCertificate).
 
 
 ### Go 1.21

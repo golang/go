@@ -51,6 +51,9 @@ func stripExperiment(version string) string {
 	if i := strings.Index(version, " X:"); i >= 0 {
 		return version[:i]
 	}
+	if i := strings.Index(version, "-X:"); i >= 0 {
+		return version[:i]
+	}
 	return version
 }
 

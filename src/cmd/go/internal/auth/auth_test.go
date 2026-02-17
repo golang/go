@@ -71,3 +71,20 @@ func TestCredentialCacheDelete(t *testing.T) {
 		t.Errorf("loadCredential:\nhave %q\nwant %q", got.Header, want.Header)
 	}
 }
+
+func TestCredentialCacheTrailingSlash(t *testing.T) {
+	// Store a credential for api.github.com/foo/bar
+	want := http.Request{Header: make(http.Header)}
+	want.SetBasicAuth("user", "pwd")
+	storeCredential("api.github.com/foo", want.Header)
+	got := &http.Request{Header: make(http.Header)}
+	ok := loadCredential(got, "api.github.com/foo/bar")
+	if !ok || !reflect.DeepEqual(got.Header, want.Header) {
+		t.Errorf("parseNetrc:\nhave %q\nwant %q", got.Header, want.Header)
+	}
+	got2 := &http.Request{Header: make(http.Header)}
+	ok = loadCredential(got2, "https://api.github.com/foo/bar/")
+	if !ok || !reflect.DeepEqual(got2.Header, want.Header) {
+		t.Errorf("parseNetrc:\nhave %q\nwant %q", got2.Header, want.Header)
+	}
+}

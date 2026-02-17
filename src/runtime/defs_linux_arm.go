@@ -11,6 +11,7 @@ const (
 	_EINTR  = 0x4
 	_ENOMEM = 0xc
 	_EAGAIN = 0xb
+	_ENOSYS = 0x26
 
 	_PROT_NONE  = 0
 	_PROT_READ  = 0x1
@@ -95,14 +96,28 @@ const (
 	_SOCK_DGRAM = 0x2
 )
 
-type timespec struct {
+// The timespec structs and types are defined in Linux in
+// include/uapi/linux/time_types.h and include/uapi/asm-generic/posix_types.h.
+type timespec32 struct {
 	tv_sec  int32
 	tv_nsec int32
 }
 
 //go:nosplit
+func (ts *timespec32) setNsec(ns int64) {
+	ts.tv_sec = int32(ns / 1e9)
+	ts.tv_nsec = int32(ns % 1e9)
+}
+
+type timespec struct {
+	tv_sec  int64
+	tv_nsec int64
+}
+
+//go:nosplit
 func (ts *timespec) setNsec(ns int64) {
-	ts.tv_sec = timediv(ns, 1e9, &ts.tv_nsec)
+	ts.tv_sec = int64(ns / 1e9)
+	ts.tv_nsec = int64(ns % 1e9)
 }
 
 type stackt struct {
@@ -152,6 +167,11 @@ type timeval struct {
 
 func (tv *timeval) set_usec(x int32) {
 	tv.tv_usec = x
+}
+
+type itimerspec32 struct {
+	it_interval timespec32
+	it_value    timespec32
 }
 
 type itimerspec struct {

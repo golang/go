@@ -15,5 +15,5 @@ func debugf(format string, args ...interface{}) { // ERROR "can inline debugf" "
 
 func bar() { // ERROR "can inline bar"
 	value := 10
-	debugf("value is %d", value) // ERROR "inlining call to debugf" "value does not escape" "\.\.\. argument does not escape"
+	debugf("value is %d", value) // ERROR "inlining call to debugf" "10 does not escape" "\.\.\. argument does not escape"
 }

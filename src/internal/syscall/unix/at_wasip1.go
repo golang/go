@@ -105,6 +105,70 @@ func Mkdirat(dirfd int, path string, mode uint32) error {
 //go:noescape
 func path_create_directory(fd int32, path *byte, pathLen size) syscall.Errno
 
+func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
+	// WASI preview 1 doesn't support changing file modes.
+	return syscall.ENOSYS
+}
+
+func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
+	// WASI preview 1 doesn't support changing file ownership.
+	return syscall.ENOSYS
+}
+
+func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) error {
+	if oldpath == "" || newpath == "" {
+		return syscall.EINVAL
+	}
+	return errnoErr(path_rename(
+		int32(olddirfd),
+		unsafe.StringData(oldpath),
+		size(len(oldpath)),
+		int32(newdirfd),
+		unsafe.StringData(newpath),
+		size(len(newpath)),
+	))
+}
+
+//go:wasmimport wasi_snapshot_preview1 path_rename
+//go:noescape
+func path_rename(oldFd int32, oldPath *byte, oldPathLen size, newFd int32, newPath *byte, newPathLen size) syscall.Errno
+
+func Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flag int) error {
+	if oldpath == "" || newpath == "" {
+		return syscall.EINVAL
+	}
+	return errnoErr(path_link(
+		int32(olddirfd),
+		0,
+		unsafe.StringData(oldpath),
+		size(len(oldpath)),
+		int32(newdirfd),
+		unsafe.StringData(newpath),
+		size(len(newpath)),
+	))
+}
+
+//go:wasmimport wasi_snapshot_preview1 path_link
+//go:noescape
+func path_link(oldFd int32, oldFlags uint32, oldPath *byte, oldPathLen size, newFd int32, newPath *byte, newPathLen size) syscall.Errno
+
+func Symlinkat(oldpath string, newdirfd int, newpath string) error {
+	if oldpath == "" || newpath == "" {
+		return syscall.EINVAL
+	}
+	return errnoErr(path_symlink(
+		unsafe.StringData(oldpath),
+		size(len(oldpath)),
+		int32(newdirfd),
+		unsafe.StringData(newpath),
+		size(len(newpath)),
+	))
+}
+
+//go:wasmimport wasi_snapshot_preview1 path_symlink
+//go:noescape
+func path_symlink(oldPath *byte, oldPathLen size, fd int32, newPath *byte, newPathLen size) syscall.Errno
+
 func errnoErr(errno syscall.Errno) error {
 	if errno == 0 {
 		return nil

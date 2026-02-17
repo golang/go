@@ -43,7 +43,7 @@ func TestSlogtest(t *testing.T) {
 
 func parseLines(src []byte, parse func([]byte) (map[string]any, error)) ([]map[string]any, error) {
 	var records []map[string]any
-	for _, line := range bytes.Split(src, []byte{'\n'}) {
+	for line := range bytes.SplitSeq(src, []byte{'\n'}) {
 		if len(line) == 0 {
 			continue
 		}

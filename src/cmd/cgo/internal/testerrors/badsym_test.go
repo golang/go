@@ -136,7 +136,7 @@ func TestBadSymbol(t *testing.T) {
 	makeFile(godir, "go.mod", "module badsym")
 
 	// Try to build our little package.
-	cmd := exec.Command("go", "build", "-ldflags=-v")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-v")
 	cmd.Dir = godir
 	output, err := cmd.CombinedOutput()
 
@@ -186,7 +186,7 @@ func cCompilerCmd(t *testing.T) []string {
 	start := 0
 	lastSpace := true
 	backslash := false
-	s := string(out)
+	s := out
 	for i, c := range s {
 		if quote == '\000' && unicode.IsSpace(c) {
 			if !lastSpace {

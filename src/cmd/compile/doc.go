@@ -60,6 +60,11 @@ Flags:
 		Allow references to Go symbols in shared libraries (experimental).
 	-e
 		Remove the limit on the number of errors reported (default limit is 10).
+	-embedcfg file
+		Read go:embed configuration from file.
+		This is required if any //go:embed directives are used.
+		The file is a JSON file mapping patterns to lists of filenames
+		and filenames to full path names.
 	-goversion string
 		Specify required go tool version of the runtime.
 		Exits when the runtime go version does not match goversion.
@@ -248,6 +253,9 @@ The //go:nosplit directive must be followed by a function declaration.
 It specifies that the function must omit its usual stack overflow check.
 This is most commonly used by low-level runtime code invoked
 at times when it is unsafe for the calling goroutine to be preempted.
+Using this directive outside of low-level runtime code is not safe,
+because it permits the nosplit function to overwrite the end of stack,
+leading to memory corruption and arbitrary program failure.
 
 # Linkname Directive
 

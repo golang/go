@@ -7,7 +7,7 @@
 package poll
 
 import (
-	"internal/itoa"
+	"internal/strconv"
 	"internal/syscall/unix"
 	"io"
 	"sync/atomic"
@@ -379,7 +379,7 @@ func (fd *FD) Write(p []byte) (int, error) {
 				// If we don't check this we will panic
 				// with slice bounds out of range.
 				// Use a more informative panic.
-				panic("invalid return from write: got " + itoa.Itoa(n) + " from a write of " + itoa.Itoa(max-nn))
+				panic("invalid return from write: got " + strconv.Itoa(n) + " from a write of " + strconv.Itoa(max-nn))
 			}
 			nn += n
 		}

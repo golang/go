@@ -86,9 +86,9 @@ type Reader struct {
 // If r does not also implement [io.ByteReader],
 // the decompressor may read more data than necessary from r.
 //
-// It is the caller's responsibility to call Close on the [Reader] when done.
+// It is the caller's responsibility to call [Reader.Close] when done.
 //
-// The [Reader.Header] fields will be valid in the [Reader] returned.
+// The Reader.[Header] fields will be valid in the [Reader] returned.
 func NewReader(r io.Reader) (*Reader, error) {
 	z := new(Reader)
 	if err := z.Reset(r); err != nil {
@@ -242,7 +242,7 @@ func (z *Reader) readHeader() (hdr Header, err error) {
 	return hdr, nil
 }
 
-// Read implements [io.Reader], reading uncompressed bytes from its underlying [Reader].
+// Read implements [io.Reader], reading uncompressed bytes from its underlying reader.
 func (z *Reader) Read(p []byte) (n int, err error) {
 	if z.err != nil {
 		return 0, z.err
@@ -284,7 +284,7 @@ func (z *Reader) Read(p []byte) (n int, err error) {
 	return n, nil
 }
 
-// Close closes the [Reader]. It does not close the underlying [io.Reader].
+// Close closes the [Reader]. It does not close the underlying reader.
 // In order for the GZIP checksum to be verified, the reader must be
 // fully consumed until the [io.EOF].
 func (z *Reader) Close() error { return z.decompressor.Close() }

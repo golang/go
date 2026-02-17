@@ -55,6 +55,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/stringslite"
 )
 
@@ -134,7 +135,7 @@ func suspendG(gp *g) suspendGState {
 			dumpgstatus(gp)
 			throw("invalid g status")
 
-		case _Gdead:
+		case _Gdead, _Gdeadextra:
 			// Nothing to suspend.
 			//
 			// preemptStop may need to be cleared, but
@@ -160,7 +161,7 @@ func suspendG(gp *g) suspendGState {
 			s = _Gwaiting
 			fallthrough
 
-		case _Grunnable, _Gsyscall, _Gwaiting:
+		case _Grunnable, _Gsyscall, _Gwaiting, _Gleaked:
 			// Claim goroutine by setting scan bit.
 			// This may race with execution or readying of gp.
 			// The scan bit keeps it from transition state.
@@ -269,6 +270,7 @@ func resumeG(state suspendGState) {
 
 	case _Grunnable | _Gscan,
 		_Gwaiting | _Gscan,
+		_Gleaked | _Gscan,
 		_Gsyscall | _Gscan:
 		casfrom_Gscanstatus(gp, s, s&^_Gscan)
 	}
@@ -285,28 +287,59 @@ func resumeG(state suspendGState) {
 //
 //go:nosplit
 func canPreemptM(mp *m) bool {
-	return mp.locks == 0 && mp.mallocing == 0 && mp.preemptoff == "" && mp.p.ptr().status == _Prunning
+	return mp.locks == 0 && mp.mallocing == 0 && mp.preemptoff == "" && mp.p.ptr().status == _Prunning && mp.curg != nil && readgstatus(mp.curg)&^_Gscan != _Gsyscall
 }
 
 //go:generate go run mkpreempt.go
 
 // asyncPreempt saves all user registers and calls asyncPreempt2.
 //
-// When stack scanning encounters an asyncPreempt frame, it scans that
+// It saves GP registers (anything that might contain a pointer) to the G stack.
+// Hence, when stack scanning encounters an asyncPreempt frame, it scans that
 // frame and its parent frame conservatively.
+//
+// On some platforms, it saves large additional scalar-only register state such
+// as vector registers to an "extended register state" on the P.
 //
 // asyncPreempt is implemented in assembly.
 func asyncPreempt()
 
+// asyncPreempt2 is the Go continuation of asyncPreempt.
+//
+// It must be deeply nosplit because there's untyped data on the stack from
+// asyncPreempt.
+//
+// It must not have any write barriers because we need to limit the amount of
+// stack it uses.
+//
 //go:nosplit
+//go:nowritebarrierrec
 func asyncPreempt2() {
+	// We can't grow the stack with untyped data from asyncPreempt, so switch to
+	// the system stack right away.
+	mcall(func(gp *g) {
+		gp.asyncSafePoint = true
+
+		// Move the extended register state from the P to the G. We do this now that
+		// we're on the system stack to avoid stack splits.
+		xRegSave(gp)
+
+		if gp.preemptStop {
+			preemptPark(gp)
+		} else {
+			gopreempt_m(gp)
+		}
+		// The above functions never return.
+	})
+
+	// Do not grow the stack below here!
+
 	gp := getg()
-	gp.asyncSafePoint = true
-	if gp.preemptStop {
-		mcall(preemptPark)
-	} else {
-		mcall(gopreempt_m)
-	}
+
+	// Put the extended register state back on the M so resumption can find it.
+	// We can't do this in asyncPreemptM because the park calls never return.
+	xRegRestore(gp)
+
 	gp.asyncSafePoint = false
 }
 
@@ -319,19 +352,13 @@ func init() {
 	total := funcMaxSPDelta(f)
 	f = findfunc(abi.FuncPCABIInternal(asyncPreempt2))
 	total += funcMaxSPDelta(f)
+	f = findfunc(abi.FuncPCABIInternal(xRegRestore))
+	total += funcMaxSPDelta(f)
 	// Add some overhead for return PCs, etc.
 	asyncPreemptStack = uintptr(total) + 8*goarch.PtrSize
 	if asyncPreemptStack > stackNosplit {
-		// We need more than the nosplit limit. This isn't
-		// unsafe, but it may limit asynchronous preemption.
-		//
-		// This may be a problem if we start using more
-		// registers. In that case, we should store registers
-		// in a context object. If we pre-allocate one per P,
-		// asyncPreempt can spill just a few registers to the
-		// stack, then grab its context object and spill into
-		// it. When it enters the runtime, it would allocate a
-		// new context for the P.
+		// We need more than the nosplit limit. This isn't unsafe, but it may
+		// limit asynchronous preemption. Consider moving state into xRegState.
 		print("runtime: asyncPreemptStack=", asyncPreemptStack, "\n")
 		throw("async stack too large")
 	}
@@ -380,6 +407,22 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		return false, 0
 	}
 
+	// If we're in the middle of a secret computation, we can't
+	// allow any conservative scanning of stacks, as that may lead
+	// to secrets leaking out from the stack into work buffers.
+	// Additionally, the preemption code will store the
+	// machine state (including registers which may contain confidential
+	// information) into the preemption buffers.
+	//
+	// TODO(dmo): there's technically nothing stopping us from doing the
+	// preemption, granted that don't conservatively scan and we clean up after
+	// ourselves. This is made slightly harder by the xRegs cached allocations
+	// that can move between Gs and Ps. In any case, for the intended users (cryptography code)
+	// they are unlikely get stuck in unterminating loops.
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return false, 0
+	}
+
 	// Check if PC is an unsafe-point.
 	f := findfunc(pc)
 	if !f.valid() {
@@ -418,15 +461,21 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 	u, uf := newInlineUnwinder(f, pc)
 	name := u.srcFunc(uf).name()
 	if stringslite.HasPrefix(name, "runtime.") ||
-		stringslite.HasPrefix(name, "runtime/internal/") ||
+		stringslite.HasPrefix(name, "internal/runtime/") ||
 		stringslite.HasPrefix(name, "reflect.") {
 		// For now we never async preempt the runtime or
 		// anything closely tied to the runtime. Known issues
 		// include: various points in the scheduler ("don't
 		// preempt between here and here"), much of the defer
 		// implementation (untyped info on stack), bulk write
-		// barriers (write barrier check),
-		// reflect.{makeFuncStub,methodValueCall}.
+		// barriers (write barrier check), atomic functions in
+		// internal/runtime/atomic, reflect.{makeFuncStub,methodValueCall}.
+		//
+		// Note that this is a subset of the runtimePkgs in pkgspecial.go
+		// and these checks are theoretically redundant because the compiler
+		// marks "all points" in runtime functions as unsafe for async preemption.
+		// But for some reason, we can't eliminate these checks until https://go.dev/issue/72031
+		// is resolved.
 		//
 		// TODO(austin): We should improve this, or opt things
 		// in incrementally.

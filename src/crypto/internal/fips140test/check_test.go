@@ -5,7 +5,8 @@
 package fipstest
 
 import (
-	"crypto/internal/fips140"
+	"bytes"
+	"crypto/internal/cryptotest"
 	. "crypto/internal/fips140/check"
 	"crypto/internal/fips140/check/checktest"
 	"fmt"
@@ -13,32 +14,26 @@ import (
 	"internal/godebug"
 	"internal/testenv"
 	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"unicode"
 	"unsafe"
 )
 
-const enableFIPSTest = true
-
-func TestFIPSCheckVerify(t *testing.T) {
+func TestIntegrityCheck(t *testing.T) {
 	if Verified {
 		t.Logf("verified")
 		return
 	}
 
-	if godebug.New("#fips140").Value() == "on" {
+	if godebug.New("fips140").Value() == "on" {
 		t.Fatalf("GODEBUG=fips140=on but verification did not run")
 	}
 
-	if !enableFIPSTest {
-		return
-	}
+	cryptotest.MustSupportFIPS140(t)
 
-	if err := fips140.Supported(); err != nil {
-		t.Skipf("skipping: %v", err)
-	}
-
-	cmd := testenv.Command(t, os.Args[0], "-test.v", "-test.run=TestFIPSCheck")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.v", "-test.run=^TestIntegrityCheck$")
 	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -47,14 +42,50 @@ func TestFIPSCheckVerify(t *testing.T) {
 	t.Logf("exec'ed GODEBUG=fips140=on and succeeded:\n%s", out)
 }
 
-func TestFIPSCheckInfo(t *testing.T) {
-	if !enableFIPSTest {
-		return
+func TestIntegrityCheckFailure(t *testing.T) {
+	moduleStatus(t)
+	cryptotest.MustSupportFIPS140(t)
+
+	bin, err := os.ReadFile(testenv.Executable(t))
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if err := fips140.Supported(); err != nil {
-		t.Skipf("skipping: %v", err)
+	// Replace the expected module checksum with a different value.
+	bin = bytes.ReplaceAll(bin, Linkinfo.Sum[:], bytes.Repeat([]byte("X"), len(Linkinfo.Sum)))
+
+	binPath := filepath.Join(t.TempDir(), "fips140test.exe")
+	if err := os.WriteFile(binPath, bin, 0o755); err != nil {
+		t.Fatal(err)
 	}
+
+	if runtime.GOOS == "darwin" {
+		// Regenerate the macOS ad-hoc code signature.
+		cmd := testenv.Command(t, "codesign", "-s", "-", "-f", binPath)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("codesign failed: %v\n%s", err, out)
+		}
+	}
+
+	t.Logf("running modified binary...")
+	cmd := testenv.Command(t, binPath, "-test.v", "-test.run=^TestIntegrityCheck$")
+	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
+	out, err := cmd.CombinedOutput()
+	t.Logf("running with GODEBUG=fips140=on:\n%s", out)
+	if err == nil {
+		t.Errorf("modified binary did not fail as expected")
+	}
+	if !bytes.Contains(out, []byte("fips140: verification mismatch")) {
+		t.Errorf("modified binary did not fail with expected message")
+	}
+	if bytes.Contains(out, []byte("verified")) {
+		t.Errorf("modified binary did not exit")
+	}
+}
+
+func TestIntegrityCheckInfo(t *testing.T) {
+	cryptotest.MustSupportFIPS140(t)
 
 	// Check that the checktest symbols are initialized properly.
 	if checktest.NOPTRDATA != 1 {

@@ -8,13 +8,16 @@
 // We benchmark converting between the JSON form
 // and in-memory data structures.
 
+//go:build !goexperiment.jsonv2
+
 package json
 
 import (
 	"bytes"
-	"compress/gzip"
+	"crypto/sha256"
 	"fmt"
 	"internal/testenv"
+	"internal/zstd"
 	"io"
 	"os"
 	"reflect"
@@ -44,15 +47,12 @@ var codeJSON []byte
 var codeStruct codeResponse
 
 func codeInit() {
-	f, err := os.Open("testdata/code.json.gz")
+	f, err := os.Open("internal/jsontest/testdata/golang_source.json.zst")
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
-	gz, err := gzip.NewReader(f)
-	if err != nil {
-		panic(err)
-	}
+	gz := zstd.NewReader(f)
 	data, err := io.ReadAll(gz)
 	if err != nil {
 		panic(err)
@@ -579,6 +579,22 @@ func BenchmarkUnmarshalNumber(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		if err := Unmarshal(data, &number); err != nil {
 			b.Fatal("Unmarshal:", err)
+		}
+	}
+}
+
+func BenchmarkNewEncoderEncode(b *testing.B) {
+	m := make(map[string]string)
+	for i := range 100_000 {
+		k := fmt.Sprintf("key%d", i)
+		v := fmt.Sprintf("%x", sha256.Sum256([]byte(k)))
+		m[k] = v
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := NewEncoder(io.Discard).Encode(m); err != nil {
+			b.Fatalf("Encode error: %v", err)
 		}
 	}
 }

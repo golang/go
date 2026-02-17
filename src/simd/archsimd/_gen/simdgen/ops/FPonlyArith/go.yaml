@@ -1,0 +1,65 @@
+!sum
+- go: Div
+  asm: "V?DIVP[SD]"
+  in: &2fp
+  - &fp
+    go: $t
+    base: float
+  - *fp
+  out: &1fp
+  - *fp
+- go: Sqrt
+  asm: "V?SQRTP[SD]"
+  in: *1fp
+  out: *1fp
+# TODO: Provide separate methods for 12-bit precision and 14-bit precision?
+- go: Reciprocal
+  asm: "VRCP(14)?P[SD]"
+  in: *1fp
+  out: *1fp
+- go: ReciprocalSqrt
+  asm: "V?RSQRT(14)?P[SD]"
+  in: *1fp
+  out: *1fp
+- go: Scale
+  asm: "VSCALEFP[SD]"
+  in: *2fp
+  out: *1fp
+
+- go: "RoundToEven|Ceil|Floor|Trunc"
+  regexpTag: "fp"
+  asm: "VROUNDP[SD]"
+  in:
+  - *fp
+  - class: immediate
+    const: 0 # place holder
+  out: *1fp
+
+- go: "(RoundToEven|Ceil|Floor|Trunc)Scaled"
+  regexpTag: "fp"
+  asm: "VRNDSCALEP[SD]"
+  in:
+  - *fp
+  - class: immediate
+    const: 0 # place holder
+    immOffset: 4 # "M", round to numbers with M digits after dot(by means of binary number).
+    name: prec
+  out: *1fp
+- go: "(RoundToEven|Ceil|Floor|Trunc)ScaledResidue"
+  regexpTag: "fp"
+  asm: "VREDUCEP[SD]"
+  in:
+  - *fp
+  - class: immediate
+    const: 0 # place holder
+    immOffset: 4 # "M", round to numbers with M digits after dot(by means of binary number).
+    name: prec
+  out: *1fp
+
+- go: "AddSub"
+  asm: "VADDSUBP[SD]"
+  in:
+  - *fp
+  - *fp
+  out:
+  - *fp

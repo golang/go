@@ -317,7 +317,7 @@ func applicIterator(te *testing.T, x []int32) {
 	}
 }
 
-func equiv(a, b interface{}) bool {
+func equiv(a, b any) bool {
 	sa, sb := a.(*sstring), b.(*sstring)
 	return *sa == *sb
 }
@@ -450,16 +450,16 @@ func TestEquals(t *testing.T) {
 		[]int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2})
 }
 
-func first(x, y interface{}) interface{} {
+func first(x, y any) any {
 	return x
 }
-func second(x, y interface{}) interface{} {
+func second(x, y any) any {
 	return y
 }
-func alwaysNil(x, y interface{}) interface{} {
+func alwaysNil(x, y any) any {
 	return nil
 }
-func smaller(x, y interface{}) interface{} {
+func smaller(x, y any) any {
 	xi, _ := strconv.Atoi(fmt.Sprint(x))
 	yi, _ := strconv.Atoi(fmt.Sprint(y))
 	if xi < yi {
@@ -560,7 +560,7 @@ func (s *sstring) String() string {
 	return s.s
 }
 
-func stringer(s string) interface{} {
+func stringer(s string) any {
 	return &sstring{s}
 }
 

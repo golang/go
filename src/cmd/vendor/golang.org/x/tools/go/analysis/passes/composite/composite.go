@@ -51,7 +51,7 @@ func init() {
 
 // runUnkeyedLiteral checks if a composite literal is a struct literal with
 // unkeyed fields.
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -115,7 +115,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 					missingKeys = append(missingKeys, analysis.TextEdit{
 						Pos:     e.Pos(),
 						End:     e.Pos(),
-						NewText: []byte(fmt.Sprintf("%s: ", field.Name())),
+						NewText: fmt.Appendf(nil, "%s: ", field.Name()),
 					})
 				}
 			}
@@ -153,7 +153,8 @@ func isLocalType(pass *analysis.Pass, typ types.Type) bool {
 		return isLocalType(pass, x.Elem())
 	case interface{ Obj() *types.TypeName }: // *Named or *TypeParam (aliases were removed already)
 		// names in package foo are local to foo_test too
-		return strings.TrimSuffix(x.Obj().Pkg().Path(), "_test") == strings.TrimSuffix(pass.Pkg.Path(), "_test")
+		return x.Obj().Pkg() != nil &&
+			strings.TrimSuffix(x.Obj().Pkg().Path(), "_test") == strings.TrimSuffix(pass.Pkg.Path(), "_test")
 	}
 	return false
 }

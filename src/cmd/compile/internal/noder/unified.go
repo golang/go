@@ -7,7 +7,6 @@ package noder
 import (
 	"cmp"
 	"fmt"
-	"internal/buildcfg"
 	"internal/pkgbits"
 	"internal/types/errors"
 	"io"
@@ -199,7 +198,7 @@ func unified(m posMap, noders []*noder) {
 	localPkgReader = newPkgReader(pkgbits.NewPkgDecoder(types.LocalPkg.Path, data))
 	readPackage(localPkgReader, types.LocalPkg, true)
 
-	r := localPkgReader.newReader(pkgbits.RelocMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
+	r := localPkgReader.newReader(pkgbits.SectionMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
 	r.pkgInit(types.LocalPkg, target)
 
 	readBodies(target, false)
@@ -322,8 +321,8 @@ func writePkgStub(m posMap, noders []*noder) string {
 
 	pw.collectDecls(noders)
 
-	publicRootWriter := pw.newWriter(pkgbits.RelocMeta, pkgbits.SyncPublic)
-	privateRootWriter := pw.newWriter(pkgbits.RelocMeta, pkgbits.SyncPrivate)
+	publicRootWriter := pw.newWriter(pkgbits.SectionMeta, pkgbits.SyncPublic)
+	privateRootWriter := pw.newWriter(pkgbits.SectionMeta, pkgbits.SyncPrivate)
 
 	assert(publicRootWriter.Idx == pkgbits.PublicRootIdx)
 	assert(privateRootWriter.Idx == pkgbits.PrivateRootIdx)
@@ -406,7 +405,7 @@ func freePackage(pkg *types2.Package) {
 // import.
 func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 	{
-		r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+		r := pr.newReader(pkgbits.SectionMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 
 		pkg := r.pkg()
 		// This error can happen if "go tool compile" is called with wrong "-p" flag, see issue #54542.
@@ -424,7 +423,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 			if r.Version().Has(pkgbits.DerivedFuncInstance) {
 				assert(!r.Bool())
 			}
-			idx := r.Reloc(pkgbits.RelocObj)
+			idx := r.Reloc(pkgbits.SectionObj)
 			assert(r.Len() == 0)
 
 			path, name, code := r.p.PeekObj(idx)
@@ -437,7 +436,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 	}
 
 	if !localStub {
-		r := pr.newReader(pkgbits.RelocMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
+		r := pr.newReader(pkgbits.SectionMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
 
 		if r.Bool() {
 			sym := importpkg.Lookup(".inittask")
@@ -449,7 +448,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 		for i, n := 0, r.Len(); i < n; i++ {
 			path := r.String()
 			name := r.String()
-			idx := r.Reloc(pkgbits.RelocBody)
+			idx := r.Reloc(pkgbits.SectionBody)
 
 			sym := types.NewPkg(path, "").Lookup(name)
 			if _, ok := importBodyReader[sym]; !ok {
@@ -464,11 +463,8 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 // writeUnifiedExport writes to `out` the finalized, self-contained
 // Unified IR export data file for the current compilation unit.
 func writeUnifiedExport(out io.Writer) {
-	// Use V2 as the encoded version aliastypeparams GOEXPERIMENT is enabled.
-	version := pkgbits.V1
-	if buildcfg.Experiment.AliasTypeParams {
-		version = pkgbits.V2
-	}
+	// Use V2 as the encoded version for aliastypeparams.
+	version := pkgbits.V2
 	l := linker{
 		pw: pkgbits.NewPkgEncoder(version, base.Debug.SyncFrames),
 
@@ -477,8 +473,8 @@ func writeUnifiedExport(out io.Writer) {
 		bodies: make(map[*types.Sym]index),
 	}
 
-	publicRootWriter := l.pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPublic)
-	privateRootWriter := l.pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPrivate)
+	publicRootWriter := l.pw.NewEncoder(pkgbits.SectionMeta, pkgbits.SyncPublic)
+	privateRootWriter := l.pw.NewEncoder(pkgbits.SectionMeta, pkgbits.SyncPrivate)
 	assert(publicRootWriter.Idx == pkgbits.PublicRootIdx)
 	assert(privateRootWriter.Idx == pkgbits.PrivateRootIdx)
 
@@ -486,10 +482,10 @@ func writeUnifiedExport(out io.Writer) {
 
 	{
 		pr := localPkgReader
-		r := pr.NewDecoder(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+		r := pr.NewDecoder(pkgbits.SectionMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 
 		r.Sync(pkgbits.SyncPkg)
-		selfPkgIdx = l.relocIdx(pr, pkgbits.RelocPkg, r.Reloc(pkgbits.RelocPkg))
+		selfPkgIdx = l.relocIdx(pr, pkgbits.SectionPkg, r.Reloc(pkgbits.SectionPkg))
 
 		if r.Version().Has(pkgbits.HasInit) {
 			r.Bool()
@@ -500,7 +496,7 @@ func writeUnifiedExport(out io.Writer) {
 			if r.Version().Has(pkgbits.DerivedFuncInstance) {
 				assert(!r.Bool())
 			}
-			idx := r.Reloc(pkgbits.RelocObj)
+			idx := r.Reloc(pkgbits.SectionObj)
 			assert(r.Len() == 0)
 
 			xpath, xname, xtag := pr.PeekObj(idx)
@@ -508,7 +504,7 @@ func writeUnifiedExport(out io.Writer) {
 			assert(xtag != pkgbits.ObjStub)
 
 			if types.IsExported(xname) {
-				l.relocIdx(pr, pkgbits.RelocObj, idx)
+				l.relocIdx(pr, pkgbits.SectionObj, idx)
 			}
 		}
 
@@ -525,7 +521,7 @@ func writeUnifiedExport(out io.Writer) {
 		w := publicRootWriter
 
 		w.Sync(pkgbits.SyncPkg)
-		w.Reloc(pkgbits.RelocPkg, selfPkgIdx)
+		w.Reloc(pkgbits.SectionPkg, selfPkgIdx)
 
 		if w.Version().Has(pkgbits.HasInit) {
 			w.Bool(false)
@@ -537,7 +533,7 @@ func writeUnifiedExport(out io.Writer) {
 			if w.Version().Has(pkgbits.DerivedFuncInstance) {
 				w.Bool(false)
 			}
-			w.Reloc(pkgbits.RelocObj, idx)
+			w.Reloc(pkgbits.SectionObj, idx)
 			w.Len(0)
 		}
 
@@ -564,7 +560,7 @@ func writeUnifiedExport(out io.Writer) {
 		for _, body := range bodies {
 			w.String(body.sym.Pkg.Path)
 			w.String(body.sym.Name)
-			w.Reloc(pkgbits.RelocBody, body.idx)
+			w.Reloc(pkgbits.SectionBody, body.idx)
 		}
 
 		w.Sync(pkgbits.SyncEOF)

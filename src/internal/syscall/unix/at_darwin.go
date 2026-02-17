@@ -58,3 +58,125 @@ func Mkdirat(dirfd int, path string, mode uint32) error {
 	}
 	return nil
 }
+
+func libc_fchmodat_trampoline()
+
+//go:cgo_import_dynamic libc_fchmodat fchmodat "/usr/lib/libSystem.B.dylib"
+
+func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
+	p, err := syscall.BytePtrFromString(path)
+	if err != nil {
+		return err
+	}
+	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_fchmodat_trampoline),
+		uintptr(dirfd),
+		uintptr(unsafe.Pointer(p)),
+		uintptr(mode),
+		uintptr(flags),
+		0,
+		0)
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
+
+func libc_fchownat_trampoline()
+
+//go:cgo_import_dynamic libc_fchownat fchownat "/usr/lib/libSystem.B.dylib"
+
+func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
+	p, err := syscall.BytePtrFromString(path)
+	if err != nil {
+		return err
+	}
+	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_fchownat_trampoline),
+		uintptr(dirfd),
+		uintptr(unsafe.Pointer(p)),
+		uintptr(uid),
+		uintptr(gid),
+		uintptr(flags),
+		0)
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
+
+func libc_renameat_trampoline()
+
+//go:cgo_import_dynamic libc_renameat renameat "/usr/lib/libSystem.B.dylib"
+
+func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) error {
+	oldp, err := syscall.BytePtrFromString(oldpath)
+	if err != nil {
+		return err
+	}
+	newp, err := syscall.BytePtrFromString(newpath)
+	if err != nil {
+		return err
+	}
+	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_renameat_trampoline),
+		uintptr(olddirfd),
+		uintptr(unsafe.Pointer(oldp)),
+		uintptr(newdirfd),
+		uintptr(unsafe.Pointer(newp)),
+		0,
+		0)
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
+
+func libc_linkat_trampoline()
+
+//go:cgo_import_dynamic libc_linkat linkat "/usr/lib/libSystem.B.dylib"
+
+func Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flag int) error {
+	oldp, err := syscall.BytePtrFromString(oldpath)
+	if err != nil {
+		return err
+	}
+	newp, err := syscall.BytePtrFromString(newpath)
+	if err != nil {
+		return err
+	}
+	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_linkat_trampoline),
+		uintptr(olddirfd),
+		uintptr(unsafe.Pointer(oldp)),
+		uintptr(newdirfd),
+		uintptr(unsafe.Pointer(newp)),
+		uintptr(flag),
+		0)
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
+
+func libc_symlinkat_trampoline()
+
+//go:cgo_import_dynamic libc_symlinkat symlinkat "/usr/lib/libSystem.B.dylib"
+
+func Symlinkat(oldpath string, newdirfd int, newpath string) error {
+	oldp, err := syscall.BytePtrFromString(oldpath)
+	if err != nil {
+		return err
+	}
+	newp, err := syscall.BytePtrFromString(newpath)
+	if err != nil {
+		return err
+	}
+	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_symlinkat_trampoline),
+		uintptr(unsafe.Pointer(oldp)),
+		uintptr(newdirfd),
+		uintptr(unsafe.Pointer(newp)),
+		0,
+		0,
+		0)
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}

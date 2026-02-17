@@ -20,7 +20,26 @@ import (
 // fakeLabelName matches the RISCV_FAKE_LABEL_NAME from binutils.
 const fakeLabelName = ".L0 "
 
-func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
+func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
+	if initfunc == nil {
+		return
+	}
+
+	// Emit the following function:
+	//
+	// go.link.addmoduledatainit:
+	//      auipc a0, %pcrel_hi(local.moduledata)
+	//      addi  a0, %pcrel_lo(local.moduledata)
+	//      j     runtime.addmoduledata
+
+	sz := initfunc.AddSymRef(ctxt.Arch, ctxt.Moduledata, 0, objabi.R_RISCV_PCREL_ITYPE, 8)
+	initfunc.SetUint32(ctxt.Arch, sz-8, 0x00000517) // auipc a0, %pcrel_hi(local.moduledata)
+	initfunc.SetUint32(ctxt.Arch, sz-4, 0x00050513) // addi  a0, %pcrel_lo(local.moduledata)
+
+	sz = initfunc.AddSymRef(ctxt.Arch, addmoduledata, 0, objabi.R_RISCV_JAL, 4)
+	initfunc.SetUint32(ctxt.Arch, sz-4, 0x0000006f) // j runtime.addmoduledata
+}
 
 func findHI20Reloc(ldr *loader.Loader, s loader.Sym, val int64) *loader.Reloc {
 	outer := ldr.OuterSym(s)
@@ -99,6 +118,26 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su.SetRelocType(rIdx, objabi.R_RISCV_PCREL_LO12_S)
 		return true
 
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_32_PCREL):
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_PCREL)
+		return true
+
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_64):
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_ADDR)
+		return true
+
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_ADD32):
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_RISCV_ADD32)
+		return true
+
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_SUB32):
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_RISCV_SUB32)
+		return true
+
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_RVC_BRANCH):
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_RISCV_RVC_BRANCH)
@@ -116,6 +155,11 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_RELAX):
 		// Ignore relaxations, at least for now.
+		return true
+
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_JAL):
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_RISCV_JAL)
 		return true
 
 	default:
@@ -170,8 +214,11 @@ func genSymsLate(ctxt *ld.Link, ldr *loader.Loader) {
 		relocs := ldr.Relocs(s)
 		for ri := 0; ri < relocs.Count(); ri++ {
 			r := relocs.At(ri)
-			if r.Type() != objabi.R_RISCV_CALL && r.Type() != objabi.R_RISCV_PCREL_ITYPE &&
-				r.Type() != objabi.R_RISCV_PCREL_STYPE && r.Type() != objabi.R_RISCV_TLS_IE {
+			if r.Type() != objabi.R_RISCV_CALL &&
+				r.Type() != objabi.R_RISCV_PCREL_ITYPE &&
+				r.Type() != objabi.R_RISCV_PCREL_STYPE &&
+				r.Type() != objabi.R_RISCV_TLS_IE &&
+				r.Type() != objabi.R_RISCV_GOT_PCREL_ITYPE {
 				continue
 			}
 			if r.Off() == 0 && ldr.SymType(s).IsText() {
@@ -233,7 +280,11 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write64(uint64(elf.R_RISCV_JAL) | uint64(elfsym)<<32)
 		out.Write64(uint64(r.Xadd))
 
-	case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE:
+	case objabi.R_RISCV_CALL,
+		objabi.R_RISCV_PCREL_ITYPE,
+		objabi.R_RISCV_PCREL_STYPE,
+		objabi.R_RISCV_TLS_IE,
+		objabi.R_RISCV_GOT_PCREL_ITYPE:
 		// Find the text symbol for the AUIPC instruction targeted
 		// by this relocation.
 		relocs := ldr.Relocs(s)
@@ -262,6 +313,8 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 			hiRel, loRel = elf.R_RISCV_PCREL_HI20, elf.R_RISCV_PCREL_LO12_S
 		case objabi.R_RISCV_TLS_IE:
 			hiRel, loRel = elf.R_RISCV_TLS_GOT_HI20, elf.R_RISCV_PCREL_LO12_I
+		case objabi.R_RISCV_GOT_PCREL_ITYPE:
+			hiRel, loRel = elf.R_RISCV_GOT_HI20, elf.R_RISCV_PCREL_LO12_I
 		}
 		out.Write64(uint64(sectoff))
 		out.Write64(uint64(hiRel) | uint64(elfsym)<<32)
@@ -426,7 +479,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		case objabi.R_RISCV_JAL, objabi.R_RISCV_JAL_TRAMP:
 			return val, 1, true
 
-		case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE:
+		case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE, objabi.R_RISCV_GOT_PCREL_ITYPE:
 			return val, 2, true
 		}
 
@@ -444,7 +497,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		}
 		immMask := int64(riscv.JTypeImmMask)
 
-		val = (val &^ immMask) | int64(imm)
+		val = (val &^ immMask) | imm
 
 		return val, 0, true
 
@@ -611,6 +664,14 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		second = (second &^ secondImmMask) | int64(uint32(secondImm))
 
 		return second<<32 | auipc, 0, true
+
+	case objabi.R_RISCV_ADD32:
+		addr := val + ldr.SymValue(rs) + r.Add()
+		return int64(uint32(addr)), 0, true
+
+	case objabi.R_RISCV_SUB32:
+		addr := val - ldr.SymValue(rs) - r.Add()
+		return int64(uint32(addr)), 0, true
 	}
 
 	return val, 0, false
@@ -626,7 +687,7 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
 	case objabi.R_RISCV_JAL, objabi.R_RISCV_JAL_TRAMP:
 		return ld.ExtrelocSimple(ldr, r), true
 
-	case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE:
+	case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE, objabi.R_RISCV_GOT_PCREL_ITYPE:
 		return ld.ExtrelocViaOuterSym(ldr, r, s), true
 	}
 	return loader.ExtReloc{}, false
@@ -658,7 +719,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			if r.Add() != 0 {
 				name = fmt.Sprintf("%s%+x-tramp%d", oName, r.Add(), i)
 			}
-			tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
+			tramp = ldr.LookupOrCreateSym(name, ldr.SymVersion(rs))
 			ldr.SetAttrReachable(tramp, true)
 			if ldr.SymType(tramp) == sym.SDYNIMPORT {
 				// Do not reuse trampoline defined in other module.
@@ -683,7 +744,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 		if ldr.SymType(tramp) == 0 {
 			trampb := ldr.MakeSymbolUpdater(tramp)
 			ctxt.AddTramp(trampb, ldr.SymType(s))
-			genCallTramp(ctxt.Arch, ctxt.LinkMode, ldr, trampb, rs, int64(r.Add()))
+			genCallTramp(ctxt.Arch, ctxt.LinkMode, ldr, trampb, rs, r.Add())
 		}
 		sb := ldr.MakeSymbolUpdater(s)
 		if ldr.SymValue(rs) == 0 {

@@ -209,7 +209,7 @@ func (d *Decoder) Decode(read func(pkgPath string) ([]byte, error)) (*Set, error
 	// Facts may describe indirectly imported packages, or their objects.
 	m := make(map[key]analysis.Fact) // one big bucket
 	for _, imp := range d.pkg.Imports() {
-		logf := func(format string, args ...interface{}) {
+		logf := func(format string, args ...any) {
 			if debug {
 				prefix := fmt.Sprintf("in %s, importing %s: ",
 					d.pkg.Path(), imp.Path())

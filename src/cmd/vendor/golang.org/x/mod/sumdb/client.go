@@ -244,7 +244,7 @@ func (c *Client) Lookup(path, vers string) (lines []string, err error) {
 		data []byte
 		err  error
 	}
-	result := c.record.Do(file, func() interface{} {
+	result := c.record.Do(file, func() any {
 		// Try the on-disk cache, or else get from web.
 		writeCache := false
 		data, err := c.ops.ReadCache(file)
@@ -284,7 +284,7 @@ func (c *Client) Lookup(path, vers string) (lines []string, err error) {
 	// (with or without /go.mod).
 	prefix := path + " " + vers + " "
 	var hashes []string
-	for _, line := range strings.Split(string(result.data), "\n") {
+	for line := range strings.SplitSeq(string(result.data), "\n") {
 		if strings.HasPrefix(line, prefix) {
 			hashes = append(hashes, line)
 		}
@@ -552,7 +552,7 @@ func (c *Client) readTile(tile tlog.Tile) ([]byte, error) {
 		err  error
 	}
 
-	result := c.tileCache.Do(tile, func() interface{} {
+	result := c.tileCache.Do(tile, func() any {
 		// Try the requested tile in on-disk cache.
 		data, err := c.ops.ReadCache(c.tileCacheKey(tile))
 		if err == nil {

@@ -26,7 +26,7 @@ func quickCheckConfig(slowScale int) *quick.Config {
 
 var scOneBytes = [32]byte{1}
 var scOne, _ = new(Scalar).SetCanonicalBytes(scOneBytes[:])
-var scMinusOne, _ = new(Scalar).SetCanonicalBytes(scalarMinusOneBytes[:])
+var scMinusOne = new(Scalar).Subtract(new(Scalar), scOne)
 
 // Generate returns a valid (reduced modulo l) Scalar with a distribution
 // weighted towards high, low, and edge values.
@@ -38,7 +38,7 @@ func (Scalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
 	case diceRoll == 1:
 		s = scOneBytes
 	case diceRoll == 2:
-		s = scalarMinusOneBytes
+		s = [32]byte(scMinusOne.Bytes())
 	case diceRoll < 5:
 		// Generate a low scalar in [0, 2^125).
 		rand.Read(s[:16])
@@ -96,16 +96,29 @@ func TestScalarSetCanonicalBytes(t *testing.T) {
 		t.Errorf("failed scalar->bytes->scalar round-trip: %v", err)
 	}
 
-	b := scalarMinusOneBytes
-	b[31] += 1
-	s := scOne
-	if out, err := s.SetCanonicalBytes(b[:]); err == nil {
-		t.Errorf("SetCanonicalBytes worked on a non-canonical value")
-	} else if s != scOne {
-		t.Errorf("SetCanonicalBytes modified its receiver")
-	} else if out != nil {
-		t.Errorf("SetCanonicalBytes did not return nil with an error")
+	expectReject := func(b []byte) {
+		t.Helper()
+		s := scOne
+		if out, err := s.SetCanonicalBytes(b[:]); err == nil {
+			t.Errorf("SetCanonicalBytes worked on a non-canonical value")
+		} else if s != scOne {
+			t.Errorf("SetCanonicalBytes modified its receiver")
+		} else if out != nil {
+			t.Errorf("SetCanonicalBytes did not return nil with an error")
+		}
 	}
+
+	b := scMinusOne.Bytes()
+	b[0] += 1
+	expectReject(b)
+
+	b = scMinusOne.Bytes()
+	b[31] += 1
+	expectReject(b)
+
+	b = scMinusOne.Bytes()
+	b[31] |= 0b1000_0000
+	expectReject(b)
 }
 
 func TestScalarSetUniformBytes(t *testing.T) {

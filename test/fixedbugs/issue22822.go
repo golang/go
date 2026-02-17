@@ -13,7 +13,7 @@ func F() {
 	slice := []int{1, 2, 3}
 	_ = slice
 	len := int(2)
-	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at LINE-1|expected function|cannot call non-function len"
+	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at LINE-1|expected function|cannot call len"
 	const iota = 1
-	println(iota(slice)) // ERROR "cannot call non-function iota .type int., declared at LINE-1|expected function|cannot call non-function iota"
+	println(iota(slice)) // ERROR "cannot call non-function iota .type int., declared at LINE-1|expected function|cannot call iota"
 }

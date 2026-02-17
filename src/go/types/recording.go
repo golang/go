@@ -20,25 +20,25 @@ func (check *Checker) record(x *operand) {
 	// TODO(gri) this code can be simplified
 	var typ Type
 	var val constant.Value
-	switch x.mode {
+	switch x.mode() {
 	case invalid:
 		typ = Typ[Invalid]
 	case novalue:
 		typ = (*Tuple)(nil)
 	case constant_:
-		typ = x.typ
+		typ = x.typ()
 		val = x.val
 	default:
-		typ = x.typ
+		typ = x.typ()
 	}
 	assert(x.expr != nil && typ != nil)
 
 	if isUntyped(typ) {
 		// delay type and value recording until we know the type
 		// or until the end of type checking
-		check.rememberUntyped(x.expr, false, x.mode, typ.(*Basic), val)
+		check.rememberUntyped(x.expr, false, x.mode(), typ.(*Basic), val)
 	} else {
-		check.recordTypeAndValue(x.expr, x.mode, typ, val)
+		check.recordTypeAndValue(x.expr, x.mode(), typ, val)
 	}
 }
 
@@ -97,10 +97,10 @@ func (check *Checker) recordBuiltinType(f ast.Expr, sig *Signature) {
 func (check *Checker) recordCommaOkTypes(x ast.Expr, a []*operand) {
 	assert(x != nil)
 	assert(len(a) == 2)
-	if a[0].mode == invalid {
+	if a[0].mode() == invalid {
 		return
 	}
-	t0, t1 := a[0].typ, a[1].typ
+	t0, t1 := a[0].typ(), a[1].typ()
 	assert(isTyped(t0) && isTyped(t1) && (allBoolean(t1) || t1 == universeError))
 	if m := check.Types; m != nil {
 		for {
@@ -108,8 +108,8 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a []*operand) {
 			assert(tv.Type != nil) // should have been recorded already
 			pos := x.Pos()
 			tv.Type = NewTuple(
-				NewVar(pos, check.pkg, "", t0),
-				NewVar(pos, check.pkg, "", t1),
+				newVar(LocalVar, pos, check.pkg, "", t0),
+				newVar(LocalVar, pos, check.pkg, "", t1),
 			)
 			m[x] = tv
 			// if x is a parenthesized expression (p.X), update p.X

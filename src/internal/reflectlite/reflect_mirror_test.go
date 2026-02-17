@@ -101,7 +101,6 @@ func TestMirrorWithReflect(t *testing.T) {
 		{".", "reflectlite", rl},
 		{reflectDir, "reflect", r},
 	} {
-		tc := tc
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

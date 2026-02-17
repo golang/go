@@ -245,7 +245,7 @@ var MIPSDWARFRegisters = map[int16]int16{}
 func init() {
 	// f assigns dwarfregisters[from:to] = (base):(to-from+base)
 	f := func(from, to, base int16) {
-		for r := int16(from); r <= to; r++ {
+		for r := from; r <= to; r++ {
 			MIPSDWARFRegisters[r] = (r - from) + base
 		}
 	}

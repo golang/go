@@ -140,7 +140,7 @@ func TestDirentRepeat(t *testing.T) {
 	// Check results
 	slices.Sort(files)
 	slices.Sort(files2)
-	if strings.Join(files, "|") != strings.Join(files2, "|") {
+	if !slices.Equal(files, files2) {
 		t.Errorf("bad file list: want\n%q\ngot\n%q", files, files2)
 	}
 }

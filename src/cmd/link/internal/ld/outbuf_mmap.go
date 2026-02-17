@@ -28,7 +28,7 @@ func (out *OutBuf) Mmap(filesize uint64) (err error) {
 		// Some file systems do not support fallocate. We ignore that error as linking
 		// can still take place, but you might SIGBUS when you write to the mmapped
 		// area.
-		if err != syscall.ENOTSUP && err != syscall.EPERM && err != errNoFallocate {
+		if err != syscall.ENOTSUP && err != syscall.EOPNOTSUPP && err != syscall.EPERM && err != errNoFallocate {
 			return err
 		}
 	}

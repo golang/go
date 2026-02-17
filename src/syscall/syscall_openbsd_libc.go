@@ -13,7 +13,7 @@ import (
 var dupTrampoline = abi.FuncPCABI0(libc_dup3_trampoline)
 
 func init() {
-	execveOpenBSD = execve
+	execveLibc = execve
 }
 
 func syscallInternal(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {

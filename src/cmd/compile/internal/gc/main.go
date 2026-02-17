@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/bloop"
 	"cmd/compile/internal/coverage"
 	"cmd/compile/internal/deadlocals"
 	"cmd/compile/internal/dwarfgen"
@@ -22,6 +23,7 @@ import (
 	"cmd/compile/internal/pkginit"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/rttype"
+	"cmd/compile/internal/slice"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticinit"
@@ -45,6 +47,7 @@ import (
 // already been some compiler errors). It may also be invoked from the explicit panic in
 // hcrash(), in which case, we pass the panic on through.
 func handlePanic() {
+	ir.CloseHTMLWriters()
 	if err := recover(); err != nil {
 		if err == "-h" {
 			// Force real panic now with -h option (hcrash) - the error
@@ -81,10 +84,13 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	base.DebugSSA = ssa.PhaseOption
 	base.ParseFlags()
 
-	if os.Getenv("GOGC") == "" { // GOGC set disables starting heap adjustment
-		// More processors will use more heap, but assume that more memory is available.
-		// So 1 processor -> 40MB, 4 -> 64MB, 12 -> 128MB
-		base.AdjustStartingHeap(uint64(32+8*base.Flag.LowerC) << 20)
+	if flagGCStart := base.Debug.GCStart; flagGCStart > 0 || // explicit flags overrides environment variable disable of GC boost
+		os.Getenv("GOGC") == "" && os.Getenv("GOMEMLIMIT") == "" && base.Flag.LowerC != 1 { // explicit GC knobs or no concurrency implies default heap
+		startHeapMB := int64(128)
+		if flagGCStart > 0 {
+			startHeapMB = int64(flagGCStart)
+		}
+		base.AdjustStartingHeap(uint64(startHeapMB)<<20, 0, 0, 0, base.Debug.GCAdjust == 1)
 	}
 
 	types.LocalPkg = types.NewPkg(base.Ctxt.Pkgpath, "")
@@ -104,12 +110,10 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	ir.Pkgs.Runtime = types.NewPkg("go.runtime", "runtime")
 	ir.Pkgs.Runtime.Prefix = "runtime"
 
-	if buildcfg.Experiment.SwissMap {
-		// Pseudo-package that contains the compiler's builtin
-		// declarations for maps.
-		ir.Pkgs.InternalMaps = types.NewPkg("go.internal/runtime/maps", "internal/runtime/maps")
-		ir.Pkgs.InternalMaps.Prefix = "internal/runtime/maps"
-	}
+	// Pseudo-package that contains the compiler's builtin
+	// declarations for maps.
+	ir.Pkgs.InternalMaps = types.NewPkg("go.internal/runtime/maps", "internal/runtime/maps")
+	ir.Pkgs.InternalMaps.Prefix = "internal/runtime/maps"
 
 	// pseudo-packages used in symbol tables
 	ir.Pkgs.Itab = types.NewPkg("go.itab", "go.itab")
@@ -188,9 +192,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	ir.EscFmt = escape.Fmt
 	ir.IsIntrinsicCall = ssagen.IsIntrinsicCall
+	ir.IsIntrinsicSym = ssagen.IsIntrinsicSym
 	inline.SSADumpInline = ssagen.DumpInline
 	ssagen.InitEnv()
-	ssagen.InitTables()
 
 	types.PtrSize = ssagen.Arch.LinkArch.PtrSize
 	types.RegSize = ssagen.Arch.LinkArch.RegSize
@@ -203,6 +207,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	typecheck.InitUniverse()
 	typecheck.InitRuntime()
 	rttype.Init()
+
+	// Some intrinsics (notably, the simd intrinsics) mention
+	// types "eagerly", thus ssagen must be initialized AFTER
+	// the type system is ready.
+	ssagen.InitTables()
 
 	// Parse and typecheck input.
 	noder.LoadPackage(flag.Args())
@@ -235,9 +244,24 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		}
 	}
 
+	for _, fn := range typecheck.Target.Funcs {
+		if ir.MatchAstDump(fn, "start") {
+			ir.AstDump(fn, "start, "+ir.FuncName(fn))
+		}
+	}
+
+	// Apply bloop markings.
+	bloop.Walk(typecheck.Target)
+
 	// Interleaved devirtualization and inlining.
 	base.Timer.Start("fe", "devirtualize-and-inline")
 	interleaved.DevirtualizeAndInlinePackage(typecheck.Target, profile)
+
+	for _, fn := range typecheck.Target.Funcs {
+		if ir.MatchAstDump(fn, "devirtualize-and-inline") {
+			ir.AstDump(fn, "devirtualize-and-inline, "+ir.FuncName(fn))
+		}
+	}
 
 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
 
@@ -267,6 +291,8 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// because large values may contain pointers, it must happen early.
 	base.Timer.Start("fe", "escapes")
 	escape.Funcs(typecheck.Target.Funcs)
+
+	slice.Funcs(typecheck.Target.Funcs)
 
 	loopvar.LogTransformations(transformed)
 
@@ -304,7 +330,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		}
 
 		if nextFunc < len(typecheck.Target.Funcs) {
-			enqueueFunc(typecheck.Target.Funcs[nextFunc])
+			enqueueFunc(typecheck.Target.Funcs[nextFunc], symABIs)
 			nextFunc++
 			continue
 		}

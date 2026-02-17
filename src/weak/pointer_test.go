@@ -16,10 +16,13 @@ import (
 )
 
 type T struct {
-	// N.B. This must contain a pointer, otherwise the weak handle might get placed
-	// in a tiny block making the tests in this package flaky.
+	// N.B. T is what it is to avoid having test values get tiny-allocated
+	// in the same block as the weak handle, but since the fix to
+	// go.dev/issue/76007, this should no longer be possible.
+	// TODO(mknyszek): Consider using tiny-allocated values for all the tests.
 	t *T
 	a int
+	b int
 }
 
 func TestPointer(t *testing.T) {
@@ -107,7 +110,7 @@ func TestPointerEquality(t *testing.T) {
 	bt = nil
 	// bt is no longer referenced.
 	runtime.GC()
-	for i := range bt {
+	for i := range wt {
 		st := wt[i].Value()
 		if st != nil {
 			t.Fatalf("expected weak pointer to be nil, got %p", st)
@@ -154,6 +157,42 @@ func TestPointerFinalizer(t *testing.T) {
 	runtime.GC()
 	if wt.Value() != nil {
 		t.Errorf("weak pointer is non-nil even after finalization: %v", wt)
+	}
+}
+
+func TestPointerCleanup(t *testing.T) {
+	bt := new(T)
+	wt := weak.Make(bt)
+	done := make(chan struct{}, 1)
+	runtime.AddCleanup(bt, func(_ bool) {
+		if wt.Value() != nil {
+			t.Errorf("weak pointer did not go nil before cleanup was executed")
+		}
+		done <- struct{}{}
+	}, true)
+
+	// Make sure the weak pointer stays around while bt is live.
+	runtime.GC()
+	if wt.Value() == nil {
+		t.Errorf("weak pointer went nil too soon")
+	}
+	runtime.KeepAlive(bt)
+
+	// bt is no longer referenced.
+	//
+	// Run one cycle to queue the cleanup.
+	runtime.GC()
+	if wt.Value() != nil {
+		t.Errorf("weak pointer did not go nil when cleanup was enqueued")
+	}
+
+	// Wait for the cleanup to run.
+	<-done
+
+	// The weak pointer should still be nil after the cleanup runs.
+	runtime.GC()
+	if wt.Value() != nil {
+		t.Errorf("weak pointer is non-nil even after cleanup: %v", wt)
 	}
 }
 
@@ -250,5 +289,77 @@ func TestIssue70739(t *testing.T) {
 	wx2 := weak.Make(&x[1<<16])
 	if wx1 != wx2 {
 		t.Fatal("failed to look up special and made duplicate weak handle; see issue #70739")
+	}
+}
+
+var immortal T
+
+func TestImmortalPointer(t *testing.T) {
+	w0 := weak.Make(&immortal)
+	if weak.Make(&immortal) != w0 {
+		t.Error("immortal weak pointers to the same pointer not equal")
+	}
+	w0a := weak.Make(&immortal.a)
+	w0b := weak.Make(&immortal.b)
+	if w0a == w0b {
+		t.Error("separate immortal pointers (same object) have the same pointer")
+	}
+	if got, want := w0.Value(), &immortal; got != want {
+		t.Errorf("immortal weak pointer to %p has unexpected Value %p", want, got)
+	}
+	if got, want := w0a.Value(), &immortal.a; got != want {
+		t.Errorf("immortal weak pointer to %p has unexpected Value %p", want, got)
+	}
+	if got, want := w0b.Value(), &immortal.b; got != want {
+		t.Errorf("immortal weak pointer to %p has unexpected Value %p", want, got)
+	}
+
+	// Run a couple of cycles.
+	runtime.GC()
+	runtime.GC()
+
+	// All immortal weak pointers should never get cleared.
+	if got, want := w0.Value(), &immortal; got != want {
+		t.Errorf("immortal weak pointer to %p has unexpected Value %p", want, got)
+	}
+	if got, want := w0a.Value(), &immortal.a; got != want {
+		t.Errorf("immortal weak pointer to %p has unexpected Value %p", want, got)
+	}
+	if got, want := w0b.Value(), &immortal.b; got != want {
+		t.Errorf("immortal weak pointer to %p has unexpected Value %p", want, got)
+	}
+}
+
+func TestPointerTiny(t *testing.T) {
+	runtime.GC() // Clear tiny-alloc caches.
+
+	const N = 1000
+	wps := make([]weak.Pointer[int], N)
+	for i := range N {
+		// N.B. *x is just an int, so the value is very likely
+		// tiny-allocated alongside the weak handle, assuming bug
+		// from go.dev/issue/76007 exists.
+		x := new(int)
+		*x = i
+		wps[i] = weak.Make(x)
+	}
+
+	// Get the cleanups to start running.
+	runtime.GC()
+
+	// Expect at least 3/4ths of the weak pointers to have gone nil.
+	//
+	// Note that we provide some leeway since it's possible our allocation
+	// gets grouped with some other long-lived tiny allocation, but this
+	// shouldn't be the case for the vast majority of allocations.
+	n := 0
+	for _, wp := range wps {
+		if wp.Value() == nil {
+			n++
+		}
+	}
+	const want = 3 * N / 4
+	if n < want {
+		t.Fatalf("not enough weak pointers are nil: expected at least %v, got %v", want, n)
 	}
 }

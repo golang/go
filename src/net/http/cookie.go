@@ -7,6 +7,7 @@ package http
 import (
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"log"
 	"net"
 	"net/http/internal/ascii"
@@ -15,6 +16,8 @@ import (
 	"strings"
 	"time"
 )
+
+var httpcookiemaxnum = godebug.New("httpcookiemaxnum")
 
 // A Cookie represents an HTTP cookie as sent in the Set-Cookie header of an
 // HTTP response or the Cookie header of an HTTP request.
@@ -58,28 +61,48 @@ const (
 )
 
 var (
-	errBlankCookie           = errors.New("http: blank cookie")
-	errEqualNotFoundInCookie = errors.New("http: '=' not found in cookie")
-	errInvalidCookieName     = errors.New("http: invalid cookie name")
-	errInvalidCookieValue    = errors.New("http: invalid cookie value")
+	errBlankCookie            = errors.New("http: blank cookie")
+	errEqualNotFoundInCookie  = errors.New("http: '=' not found in cookie")
+	errInvalidCookieName      = errors.New("http: invalid cookie name")
+	errInvalidCookieValue     = errors.New("http: invalid cookie value")
+	errCookieNumLimitExceeded = errors.New("http: number of cookies exceeded limit")
 )
+
+const defaultCookieMaxNum = 3000
+
+func cookieNumWithinMax(cookieNum int) bool {
+	withinDefaultMax := cookieNum <= defaultCookieMaxNum
+	if httpcookiemaxnum.Value() == "" {
+		return withinDefaultMax
+	}
+	if customMax, err := strconv.Atoi(httpcookiemaxnum.Value()); err == nil {
+		withinCustomMax := customMax == 0 || cookieNum <= customMax
+		if withinDefaultMax != withinCustomMax {
+			httpcookiemaxnum.IncNonDefault()
+		}
+		return withinCustomMax
+	}
+	return withinDefaultMax
+}
 
 // ParseCookie parses a Cookie header value and returns all the cookies
 // which were set in it. Since the same cookie name can appear multiple times
 // the returned Values can contain more than one value for a given key.
 func ParseCookie(line string) ([]*Cookie, error) {
-	parts := strings.Split(textproto.TrimString(line), ";")
-	if len(parts) == 1 && parts[0] == "" {
+	nparts := strings.Count(line, ";") + 1
+	if !cookieNumWithinMax(nparts) {
+		return nil, errCookieNumLimitExceeded
+	} else if nparts == 1 && textproto.TrimString(line) == "" {
 		return nil, errBlankCookie
 	}
-	cookies := make([]*Cookie, 0, len(parts))
-	for _, s := range parts {
+	cookies := make([]*Cookie, 0, nparts)
+	for s := range strings.SplitSeq(line, ";") {
 		s = textproto.TrimString(s)
 		name, value, found := strings.Cut(s, "=")
 		if !found {
 			return nil, errEqualNotFoundInCookie
 		}
-		if !isCookieNameValid(name) {
+		if !isToken(name) {
 			return nil, errInvalidCookieName
 		}
 		value, quoted, found := parseCookieValue(value, true)
@@ -104,7 +127,7 @@ func ParseSetCookie(line string) (*Cookie, error) {
 		return nil, errEqualNotFoundInCookie
 	}
 	name = textproto.TrimString(name)
-	if !isCookieNameValid(name) {
+	if !isToken(name) {
 		return nil, errInvalidCookieName
 	}
 	value, quoted, ok := parseCookieValue(value, true)
@@ -197,9 +220,19 @@ func ParseSetCookie(line string) (*Cookie, error) {
 
 // readSetCookies parses all "Set-Cookie" values from
 // the header h and returns the successfully parsed Cookies.
+//
+// If the amount of cookies exceeds CookieNumLimit, and httpcookielimitnum
+// GODEBUG option is not explicitly turned off, this function will silently
+// fail and return an empty slice.
 func readSetCookies(h Header) []*Cookie {
 	cookieCount := len(h["Set-Cookie"])
 	if cookieCount == 0 {
+		return []*Cookie{}
+	}
+	// Cookie limit was unfortunately introduced at a later point in time.
+	// As such, we can only fail by returning an empty slice rather than
+	// explicit error.
+	if !cookieNumWithinMax(cookieCount) {
 		return []*Cookie{}
 	}
 	cookies := make([]*Cookie, 0, cookieCount)
@@ -225,7 +258,7 @@ func SetCookie(w ResponseWriter, cookie *Cookie) {
 // header (if other fields are set).
 // If c is nil or c.Name is invalid, the empty string is returned.
 func (c *Cookie) String() string {
-	if c == nil || !isCookieNameValid(c.Name) {
+	if c == nil || !isToken(c.Name) {
 		return ""
 	}
 	// extraCookieLength derived from typical length of cookie attributes
@@ -295,7 +328,7 @@ func (c *Cookie) Valid() error {
 	if c == nil {
 		return errors.New("http: nil Cookie")
 	}
-	if !isCookieNameValid(c.Name) {
+	if !isToken(c.Name) {
 		return errors.New("http: invalid Cookie.Name")
 	}
 	if !c.Expires.IsZero() && !validCookieExpires(c.Expires) {
@@ -329,10 +362,25 @@ func (c *Cookie) Valid() error {
 // readCookies parses all "Cookie" values from the header h and
 // returns the successfully parsed Cookies.
 //
-// if filter isn't empty, only cookies of that name are returned.
+// If filter isn't empty, only cookies of that name are returned.
+//
+// If the amount of cookies exceeds CookieNumLimit, and httpcookielimitnum
+// GODEBUG option is not explicitly turned off, this function will silently
+// fail and return an empty slice.
 func readCookies(h Header, filter string) []*Cookie {
 	lines := h["Cookie"]
 	if len(lines) == 0 {
+		return []*Cookie{}
+	}
+
+	// Cookie limit was unfortunately introduced at a later point in time.
+	// As such, we can only fail by returning an empty slice rather than
+	// explicit error.
+	cookieCount := 0
+	for _, line := range lines {
+		cookieCount += strings.Count(line, ";") + 1
+	}
+	if !cookieNumWithinMax(cookieCount) {
 		return []*Cookie{}
 	}
 
@@ -349,7 +397,7 @@ func readCookies(h Header, filter string) []*Cookie {
 			}
 			name, val, _ := strings.Cut(part, "=")
 			name = textproto.TrimString(name)
-			if !isCookieNameValid(name) {
+			if !isToken(name) {
 				continue
 			}
 			if filter != "" && filter != name {
@@ -394,7 +442,8 @@ func isCookieDomainName(s string) bool {
 	}
 
 	if s[0] == '.' {
-		// A cookie a domain attribute may start with a leading dot.
+		// A cookie domain attribute may start with a leading dot.
+		// Per RFC 6265 section 5.2.3, a leading dot is ignored.
 		s = s[1:]
 	}
 	last := byte('.')
@@ -459,9 +508,6 @@ func sanitizeCookieName(n string) string {
 // See https://golang.org/issue/7243 for the discussion.
 func sanitizeCookieValue(v string, quoted bool) string {
 	v = sanitizeOrWarn("Cookie.Value", validCookieValueByte, v)
-	if len(v) == 0 {
-		return v
-	}
 	if strings.ContainsAny(v, " ,") || quoted {
 		return `"` + v + `"`
 	}
@@ -525,11 +571,4 @@ func parseCookieValue(raw string, allowDoubleQuote bool) (value string, quoted, 
 		}
 	}
 	return raw, quoted, true
-}
-
-func isCookieNameValid(raw string) bool {
-	if raw == "" {
-		return false
-	}
-	return strings.IndexFunc(raw, isNotToken) < 0
 }

@@ -12,8 +12,8 @@ import (
 	"sync"
 )
 
-func fipsPCT(k *PrivateKey) error {
-	return fips140.PCT("Ed25519 sign and verify PCT", func() error {
+func fipsPCT(k *PrivateKey) {
+	fips140.PCT("Ed25519 sign and verify PCT", func() error {
 		return pairwiseTest(k)
 	})
 }

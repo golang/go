@@ -225,10 +225,6 @@ const (
 	REGZERO = REG_R0 // set to zero
 	REGLINK = REG_R1
 	REGSP   = REG_R3
-	REGRET  = REG_R20 // not use
-	REGARG  = -1      // -1 disables passing the first argument in register
-	REGRT1  = REG_R20 // reserved for runtime, duffzero and duffcopy
-	REGRT2  = REG_R21 // reserved for runtime, duffcopy
 	REGCTXT = REG_R29 // context for closures
 	REGG    = REG_R22 // G in loong64
 	REGTMP  = REG_R30 // used by the assembler
@@ -240,7 +236,7 @@ var LOONG64DWARFRegisters = map[int16]int16{}
 func init() {
 	// f assigns dwarfregisters[from:to] = (base):(to-from+base)
 	f := func(from, to, base int16) {
-		for r := int16(from); r <= to; r++ {
+		for r := from; r <= to; r++ {
 			LOONG64DWARFRegisters[r] = (r - from) + base
 		}
 	}
@@ -253,7 +249,13 @@ func init() {
 }
 
 const (
-	BIG = 2046
+	BIG_8  = 128 - 2 // FIXME (not sure if -2 is appropriate)
+	BIG_9  = 256 - 2
+	BIG_10 = 512 - 2
+	BIG_11 = 1024 - 2
+	BIG_12 = 2046
+	BIG_16 = 32768 - 2
+	BIG_32 = 2147483648 - 2
 )
 
 const (
@@ -327,15 +329,73 @@ const (
 	C_XREG
 	C_ARNG // Vn.<T>
 	C_ELEM // Vn.<T>[index]
+
 	C_ZCON
-	C_SCON // 12 bit signed
-	C_UCON // 32 bit signed, low 12 bits 0
-	C_ADD0CON
-	C_AND0CON
-	C_ADDCON  // -0x800 <= v < 0
-	C_ANDCON  // 0 < v <= 0xFFF
-	C_LCON    // other 32
-	C_DCON    // other 64 (could subdivide further)
+	C_U1CON      // 1 bit unsigned constant
+	C_U2CON      // 2 bit unsigned constant
+	C_U3CON      // 3 bit unsigned constant
+	C_U4CON      // 4 bit unsigned constant
+	C_U5CON      // 5 bit unsigned constant
+	C_U6CON      // 6 bit unsigned constant
+	C_U7CON      // 7 bit unsigned constant
+	C_U8CON      // 8 bit unsigned constant
+	C_S5CON      // 5 bit signed constant
+	C_US12CON    // same as C_S12CON, increase the priority of C_S12CON in special cases.
+	C_UU12CON    // same as C_U12CON, increase the priority of C_U12CON in special cases.
+	C_S12CON     // 12 bit signed constant, -0x800 < v <= 0x7ff
+	C_U12CON     // 12 bit unsigned constant, 0 < v <= 0xfff
+	C_12CON      // 12 bit signed constant, or 12 bit unsigned constant
+	C_S13CON20_0 // 13 bit signed constant, low 12 bits 0
+	C_S13CON     // 13 bit signed constant
+	C_U13CON20_0 // 13 bit unsigned constant, low 12 bits 0
+	C_U13CON     // 13 bit unsigned constant
+	C_13CON      // 13 bit signed constant, or 13 bit unsigned constant
+	C_U15CON     // 15 bit unsigned constant
+	C_U15CON20_0 // 15 bit unsigned constant, low 12 bits 0
+	C_32CON20_0  // 32 bit signed, low 12 bits 0
+	C_32CON      // other 32 bit signed
+
+	// 64 bit signed, lo32 bits 0, hi20 bits are not 0, hi12 bits can
+	// be obtained by sign extension of the hi20 bits.
+	C_DCON20S_0
+	// 64 bit signed, lo52 bits 0, hi12 bits are not 0.
+	C_DCON12_0
+	// 64 bit signed, lo32 bits 0, hi32 bits are not 0.
+	C_DCON32_0
+	// 64 bit signed, lo12 bits 0, lo20 bits are not 0, hi20 bits can be
+	// obtained by sign extension of the lo20 bits, other bits are not 0.
+	C_DCON12_20S
+	// 64 bit signed, lo12 bits 0, hi20 bits are not 0, hi12 bits can be
+	// obtained by sign extension of the hi20 bits, other bits are not 0.
+	C_DCON20S_20
+	// 64 bit signed, lo12 bits 0, other bits are not 0.
+	C_DCON32_20
+	// 64 bit signed, lo12 bits are not 0, 12~51 bits can be obtained
+	// by sign extension of the lo12 bits, other bits are not 0.
+	C_DCON12_12S
+	// 64 bit signed, hi20 bits and lo12 bits are not 0, hi12 bits can
+	// be obtained by sign extension of the hi20 bits, lo20 bits can
+	// be obtained by sign extension of the lo12 bits.
+	C_DCON20S_12S
+	// 64 bit signed, lo12 bits are not 0, lo20 bits can be obtained by sign
+	// extension of the lo12 bits, other bits are not 0.
+	C_DCON32_12S
+	// 64 bit signed, lo20 and lo12 bits are not 0, hi20 bits can be obtained by sign
+	// extension of the lo20 bits. other bits are not 0.
+	C_DCON12_32S
+	// 64 bit signed, hi20 bits are not 0, hi12 bits can be obtained by sign
+	// extension of the hi20 bits, lo32 bits are not 0.
+	C_DCON20S_32
+	// 64 bit signed, 12~51 bits 0, other bits are not 0.
+	C_DCON12_12U
+	// 64 bit signed, lo20 bits 0, hi20 bits are not 0, hi12 bits can be
+	// obtained by sign extension of the hi20 bits, lo12 bits are not 0.
+	C_DCON20S_12U
+	// 64 bit signed, lo20 bits 0, other bits are not 0.
+	C_DCON32_12U
+	// other 64
+	C_DCON
+
 	C_SACON   // $n(REG) where n <= int12
 	C_LACON   // $n(REG) where int12 < n <= int32
 	C_DACON   // $n(REG) where int32 < n
@@ -343,10 +403,16 @@ const (
 	C_BRAN
 	C_SAUTO
 	C_LAUTO
-	C_ZOREG
-	C_SOREG
-	C_LOREG
-	C_ROFF // register offset
+	C_ZOREG    // An $0+reg memory op
+	C_SOREG_8  // An $n+reg memory arg where n is a 8 bit signed offset
+	C_SOREG_9  // An $n+reg memory arg where n is a 9 bit signed offset
+	C_SOREG_10 // An $n+reg memory arg where n is a 10 bit signed offset
+	C_SOREG_11 // An $n+reg memory arg where n is a 11 bit signed offset
+	C_SOREG_12 // An $n+reg memory arg where n is a 12 bit signed offset
+	C_SOREG_16 // An $n+reg memory arg where n is a 16 bit signed offset
+	C_LOREG_32 // An $n+reg memory arg where n is a 32 bit signed offset
+	C_LOREG_64 // An $n+reg memory arg where n is a 64 bit signed offset
+	C_ROFF     // register offset
 	C_ADDR
 	C_TLS_LE
 	C_TLS_IE
@@ -363,7 +429,6 @@ const (
 	AADD
 	AADDD
 	AADDF
-	AADDU
 
 	AADDW
 	AAND
@@ -402,6 +467,7 @@ const (
 	ADIVF
 	ADIVU
 	ADIVW
+	ADIVWU
 
 	ALL
 	ALLV
@@ -428,7 +494,6 @@ const (
 	AMUL
 	AMULD
 	AMULF
-	AMULU
 	AMULH
 	AMULHU
 	AMULW
@@ -442,7 +507,9 @@ const (
 	ANOR
 	AOR
 	AREM
+	AREMW
 	AREMU
+	AREMWU
 
 	ARFE
 
@@ -462,7 +529,6 @@ const (
 	ASUBD
 	ASUBF
 
-	ASUBU
 	ASUBW
 	ADBAR
 	ASYSCALL
@@ -511,9 +577,21 @@ const (
 	AMOVVF
 	AMOVVD
 
+	// 2.2.1.2
+	AADDV16
+
+	// 2.2.1.3
+	AALSLW
+	AALSLWU
+	AALSLV
+
 	// 2.2.1.8
 	AORN
 	AANDN
+
+	// 2.2.1.12
+	AMULWVW
+	AMULWVWU
 
 	// 2.2.7. Atomic Memory Access Instructions
 	AAMSWAPB
@@ -605,6 +683,14 @@ const (
 	ABSTRPICKW
 	ABSTRPICKV
 
+	// 2.2.5.3
+	AMOVWP
+	AMOVVP
+
+	// 2.2.5.4. Prefetch Instructions
+	APRELD
+	APRELDX
+
 	// 2.2.9. CRC Check Instructions
 	ACRCWBW
 	ACRCWHW
@@ -636,6 +722,12 @@ const (
 	AFMIND
 	AFMAXF
 	AFMAXD
+
+	// 3.2.1.4
+	AFMAXAF
+	AFMAXAD
+	AFMINAF
+	AFMINAD
 
 	// 3.2.1.7
 	AFCOPYSGF
@@ -677,11 +769,105 @@ const (
 	AFTINTRNEVF
 	AFTINTRNEVD
 
+	// 3.2.4.2
+	AFSEL
+
 	// LSX and LASX memory access instructions
 	AVMOVQ
 	AXVMOVQ
 
+	// LSX and LASX arithmetic instructions
+	AVADDB
+	AVADDH
+	AVADDW
+	AVADDV
+	AVADDQ
+	AXVADDB
+	AXVADDH
+	AXVADDW
+	AXVADDV
+	AXVADDQ
+	AVSUBB
+	AVSUBH
+	AVSUBW
+	AVSUBV
+	AVSUBQ
+	AXVSUBB
+	AXVSUBH
+	AXVSUBW
+	AXVSUBV
+	AXVSUBQ
+	AVADDBU
+	AVADDHU
+	AVADDWU
+	AVADDVU
+	AVSUBBU
+	AVSUBHU
+	AVSUBWU
+	AVSUBVU
+	AXVADDBU
+	AXVADDHU
+	AXVADDWU
+	AXVADDVU
+	AXVSUBBU
+	AXVSUBHU
+	AXVSUBWU
+	AXVSUBVU
+	AVSADDB
+	AVSADDH
+	AVSADDW
+	AVSADDV
+	AVSSUBB
+	AVSSUBH
+	AVSSUBW
+	AVSSUBV
+	AVSADDBU
+	AVSADDHU
+	AVSADDWU
+	AVSADDVU
+	AVSSUBBU
+	AVSSUBHU
+	AVSSUBWU
+	AVSSUBVU
+	AXVSADDB
+	AXVSADDH
+	AXVSADDW
+	AXVSADDV
+	AXVSSUBB
+	AXVSSUBH
+	AXVSSUBW
+	AXVSSUBV
+	AXVSADDBU
+	AXVSADDHU
+	AXVSADDWU
+	AXVSADDVU
+	AXVSSUBBU
+	AXVSSUBHU
+	AXVSSUBWU
+	AXVSSUBVU
+
 	// LSX and LASX Bit-manipulation Instructions
+	AVANDB
+	AVORB
+	AVXORB
+	AVNORB
+	AXVANDB
+	AXVORB
+	AXVXORB
+	AXVNORB
+	AVANDV
+	AVORV
+	AVXORV
+	AVNORV
+	AVANDNV
+	AVORNV
+	AXVANDV
+	AXVORV
+	AXVXORV
+	AXVNORV
+	AXVANDNV
+	AXVORNV
+
 	AVPCNTB
 	AVPCNTH
 	AVPCNTW
@@ -690,6 +876,31 @@ const (
 	AXVPCNTH
 	AXVPCNTW
 	AXVPCNTV
+
+	AVBITCLRB
+	AVBITCLRH
+	AVBITCLRW
+	AVBITCLRV
+	AVBITSETB
+	AVBITSETH
+	AVBITSETW
+	AVBITSETV
+	AVBITREVB
+	AVBITREVH
+	AVBITREVW
+	AVBITREVV
+	AXVBITCLRB
+	AXVBITCLRH
+	AXVBITCLRW
+	AXVBITCLRV
+	AXVBITSETB
+	AXVBITSETH
+	AXVBITSETW
+	AXVBITSETV
+	AXVBITREVB
+	AXVBITREVH
+	AXVBITREVW
+	AXVBITREVV
 
 	// LSX and LASX integer comparison instruction
 	AVSEQB
@@ -700,6 +911,443 @@ const (
 	AXVSEQW
 	AVSEQV
 	AXVSEQV
+
+	AVSLTB
+	AVSLTH
+	AVSLTW
+	AVSLTV
+	AVSLTBU
+	AVSLTHU
+	AVSLTWU
+	AVSLTVU
+	AXVSLTB
+	AXVSLTH
+	AXVSLTW
+	AXVSLTV
+	AXVSLTBU
+	AXVSLTHU
+	AXVSLTWU
+	AXVSLTVU
+
+	// LSX and LASX integer div and mod instructions
+	AVDIVB
+	AVDIVH
+	AVDIVW
+	AVDIVV
+	AVDIVBU
+	AVDIVHU
+	AVDIVWU
+	AVDIVVU
+	AVMODB
+	AVMODH
+	AVMODW
+	AVMODV
+	AVMODBU
+	AVMODHU
+	AVMODWU
+	AVMODVU
+	AXVDIVB
+	AXVDIVH
+	AXVDIVW
+	AXVDIVV
+	AXVDIVBU
+	AXVDIVHU
+	AXVDIVWU
+	AXVDIVVU
+	AXVMODB
+	AXVMODH
+	AXVMODW
+	AXVMODV
+	AXVMODBU
+	AXVMODHU
+	AXVMODWU
+	AXVMODVU
+
+	// LSX and LASX shift operation instructions
+	AVSLLB
+	AVSLLH
+	AVSLLW
+	AVSLLV
+	AVSRLB
+	AVSRLH
+	AVSRLW
+	AVSRLV
+	AVSRAB
+	AVSRAH
+	AVSRAW
+	AVSRAV
+	AVROTRB
+	AVROTRH
+	AVROTRW
+	AVROTRV
+	AXVSLLB
+	AXVSLLH
+	AXVSLLW
+	AXVSLLV
+	AXVSRLB
+	AXVSRLH
+	AXVSRLW
+	AXVSRLV
+	AXVSRAB
+	AXVSRAH
+	AXVSRAW
+	AXVSRAV
+	AXVROTRB
+	AXVROTRH
+	AXVROTRW
+	AXVROTRV
+
+	// LSX and LASX move and shuffle instructions
+	AVILVLB
+	AVILVLH
+	AVILVLW
+	AVILVLV
+	AVILVHB
+	AVILVHH
+	AVILVHW
+	AVILVHV
+	AXVILVLB
+	AXVILVLH
+	AXVILVLW
+	AXVILVLV
+	AXVILVHB
+	AXVILVHH
+	AXVILVHW
+	AXVILVHV
+
+	// LSX and LASX integer mul instructions
+	AVMULB
+	AVMULH
+	AVMULW
+	AVMULV
+	AVMUHB
+	AVMUHH
+	AVMUHW
+	AVMUHV
+	AVMUHBU
+	AVMUHHU
+	AVMUHWU
+	AVMUHVU
+	AXVMULB
+	AXVMULH
+	AXVMULW
+	AXVMULV
+	AXVMUHB
+	AXVMUHH
+	AXVMUHW
+	AXVMUHV
+	AXVMUHBU
+	AXVMUHHU
+	AXVMUHWU
+	AXVMUHVU
+
+	// LSX and LASX floating point instructions
+	AVFSQRTF
+	AVFSQRTD
+	AVFRECIPF
+	AVFRECIPD
+	AVFRSQRTF
+	AVFRSQRTD
+	AXVFSQRTF
+	AXVFSQRTD
+	AXVFRECIPF
+	AXVFRECIPD
+	AXVFRSQRTF
+	AXVFRSQRTD
+
+	AVADDF
+	AVADDD
+	AVSUBF
+	AVSUBD
+	AVMULF
+	AVMULD
+	AVDIVF
+	AVDIVD
+	AXVADDF
+	AXVADDD
+	AXVSUBF
+	AXVSUBD
+	AXVMULF
+	AXVMULD
+	AXVDIVF
+	AXVDIVD
+
+	AVFCLASSF
+	AVFCLASSD
+	AXVFCLASSF
+	AXVFCLASSD
+
+	// LSX and LASX floating point conversion instructions
+	AVFRINTRNEF
+	AVFRINTRNED
+	AVFRINTRZF
+	AVFRINTRZD
+	AVFRINTRPF
+	AVFRINTRPD
+	AVFRINTRMF
+	AVFRINTRMD
+	AVFRINTF
+	AVFRINTD
+	AXVFRINTRNEF
+	AXVFRINTRNED
+	AXVFRINTRZF
+	AXVFRINTRZD
+	AXVFRINTRPF
+	AXVFRINTRPD
+	AXVFRINTRMF
+	AXVFRINTRMD
+	AXVFRINTF
+	AXVFRINTD
+
+	// LSX and LASX integer neg instructions
+	AVNEGB
+	AVNEGH
+	AVNEGW
+	AVNEGV
+	AXVNEGB
+	AXVNEGH
+	AXVNEGW
+	AXVNEGV
+
+	// LSX and LASX mul instructions that operate on even or odd positions
+	AVMULWEVHB
+	AVMULWEVWH
+	AVMULWEVVW
+	AVMULWEVQV
+	AVMULWODHB
+	AVMULWODWH
+	AVMULWODVW
+	AVMULWODQV
+	AVMULWEVHBU
+	AVMULWEVWHU
+	AVMULWEVVWU
+	AVMULWEVQVU
+	AVMULWODHBU
+	AVMULWODWHU
+	AVMULWODVWU
+	AVMULWODQVU
+	AXVMULWEVHB
+	AXVMULWEVWH
+	AXVMULWEVVW
+	AXVMULWEVQV
+	AXVMULWODHB
+	AXVMULWODWH
+	AXVMULWODVW
+	AXVMULWODQV
+	AXVMULWEVHBU
+	AXVMULWEVWHU
+	AXVMULWEVVWU
+	AXVMULWEVQVU
+	AXVMULWODHBU
+	AXVMULWODWHU
+	AXVMULWODVWU
+	AXVMULWODQVU
+	AVMULWEVHBUB
+	AVMULWEVWHUH
+	AVMULWEVVWUW
+	AVMULWEVQVUV
+	AVMULWODHBUB
+	AVMULWODWHUH
+	AVMULWODVWUW
+	AVMULWODQVUV
+	AXVMULWEVHBUB
+	AXVMULWEVWHUH
+	AXVMULWEVVWUW
+	AXVMULWEVQVUV
+	AXVMULWODHBUB
+	AXVMULWODWHUH
+	AXVMULWODVWUW
+	AXVMULWODQVUV
+
+	AVADDWEVHB
+	AVADDWEVWH
+	AVADDWEVVW
+	AVADDWEVQV
+	AVSUBWEVHB
+	AVSUBWEVWH
+	AVSUBWEVVW
+	AVSUBWEVQV
+	AVADDWODHB
+	AVADDWODWH
+	AVADDWODVW
+	AVADDWODQV
+	AVSUBWODHB
+	AVSUBWODWH
+	AVSUBWODVW
+	AVSUBWODQV
+	AXVADDWEVHB
+	AXVADDWEVWH
+	AXVADDWEVVW
+	AXVADDWEVQV
+	AXVSUBWEVHB
+	AXVSUBWEVWH
+	AXVSUBWEVVW
+	AXVSUBWEVQV
+	AXVADDWODHB
+	AXVADDWODWH
+	AXVADDWODVW
+	AXVADDWODQV
+	AXVSUBWODHB
+	AXVSUBWODWH
+	AXVSUBWODVW
+	AXVSUBWODQV
+	AVADDWEVHBU
+	AVADDWEVWHU
+	AVADDWEVVWU
+	AVADDWEVQVU
+	AVSUBWEVHBU
+	AVSUBWEVWHU
+	AVSUBWEVVWU
+	AVSUBWEVQVU
+	AVADDWODHBU
+	AVADDWODWHU
+	AVADDWODVWU
+	AVADDWODQVU
+	AVSUBWODHBU
+	AVSUBWODWHU
+	AVSUBWODVWU
+	AVSUBWODQVU
+	AXVADDWEVHBU
+	AXVADDWEVWHU
+	AXVADDWEVVWU
+	AXVADDWEVQVU
+	AXVSUBWEVHBU
+	AXVSUBWEVWHU
+	AXVSUBWEVVWU
+	AXVSUBWEVQVU
+	AXVADDWODHBU
+	AXVADDWODWHU
+	AXVADDWODVWU
+	AXVADDWODQVU
+	AXVSUBWODHBU
+	AXVSUBWODWHU
+	AXVSUBWODVWU
+	AXVSUBWODQVU
+
+	AVMADDB
+	AVMADDH
+	AVMADDW
+	AVMADDV
+	AVMSUBB
+	AVMSUBH
+	AVMSUBW
+	AVMSUBV
+
+	AXVMADDB
+	AXVMADDH
+	AXVMADDW
+	AXVMADDV
+	AXVMSUBB
+	AXVMSUBH
+	AXVMSUBW
+	AXVMSUBV
+
+	AVMADDWEVHB
+	AVMADDWEVWH
+	AVMADDWEVVW
+	AVMADDWEVQV
+	AVMADDWODHB
+	AVMADDWODWH
+	AVMADDWODVW
+	AVMADDWODQV
+
+	AVMADDWEVHBU
+	AVMADDWEVWHU
+	AVMADDWEVVWU
+	AVMADDWEVQVU
+	AVMADDWODHBU
+	AVMADDWODWHU
+	AVMADDWODVWU
+	AVMADDWODQVU
+
+	AVMADDWEVHBUB
+	AVMADDWEVWHUH
+	AVMADDWEVVWUW
+	AVMADDWEVQVUV
+	AVMADDWODHBUB
+	AVMADDWODWHUH
+	AVMADDWODVWUW
+	AVMADDWODQVUV
+
+	AXVMADDWEVHB
+	AXVMADDWEVWH
+	AXVMADDWEVVW
+	AXVMADDWEVQV
+	AXVMADDWODHB
+	AXVMADDWODWH
+	AXVMADDWODVW
+	AXVMADDWODQV
+
+	AXVMADDWEVHBU
+	AXVMADDWEVWHU
+	AXVMADDWEVVWU
+	AXVMADDWEVQVU
+	AXVMADDWODHBU
+	AXVMADDWODWHU
+	AXVMADDWODVWU
+	AXVMADDWODQVU
+
+	AXVMADDWEVHBUB
+	AXVMADDWEVWHUH
+	AXVMADDWEVVWUW
+	AXVMADDWEVQVUV
+	AXVMADDWODHBUB
+	AXVMADDWODWHUH
+	AXVMADDWODVWUW
+	AXVMADDWODQVUV
+
+	AVSHUF4IB
+	AVSHUF4IH
+	AVSHUF4IW
+	AVSHUF4IV
+	AXVSHUF4IB
+	AXVSHUF4IH
+	AXVSHUF4IW
+	AXVSHUF4IV
+
+	AVSHUFB
+	AVSHUFH
+	AVSHUFW
+	AVSHUFV
+	AXVSHUFB
+	AXVSHUFH
+	AXVSHUFW
+	AXVSHUFV
+
+	AVPERMIW
+	AXVPERMIW
+	AXVPERMIV
+	AXVPERMIQ
+
+	AVEXTRINSB
+	AVEXTRINSH
+	AVEXTRINSW
+	AVEXTRINSV
+	AXVEXTRINSB
+	AXVEXTRINSH
+	AXVEXTRINSW
+	AXVEXTRINSV
+
+	AVSETEQV
+	AVSETNEV
+	AVSETANYEQB
+	AVSETANYEQH
+	AVSETANYEQW
+	AVSETANYEQV
+	AVSETALLNEB
+	AVSETALLNEH
+	AVSETALLNEW
+	AVSETALLNEV
+	AXVSETEQV
+	AXVSETNEV
+	AXVSETANYEQB
+	AXVSETANYEQH
+	AXVSETANYEQW
+	AXVSETANYEQV
+	AXVSETALLNEB
+	AXVSETALLNEH
+	AXVSETALLNEW
+	AXVSETALLNEV
 
 	ALAST
 

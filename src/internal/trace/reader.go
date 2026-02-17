@@ -6,13 +6,14 @@ package trace
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
 	"strings"
 
-	"internal/trace/event/go122"
 	"internal/trace/internal/tracev1"
+	"internal/trace/tracev2"
 	"internal/trace/version"
 )
 
@@ -22,16 +23,29 @@ import (
 // event as the first event, and a Sync event as the last event.
 // (There may also be any number of Sync events in the middle, too.)
 type Reader struct {
+	version    version.Version
 	r          *bufio.Reader
 	lastTs     Time
 	gen        *generation
-	spill      *spilledBatch
-	spillErr   error // error from reading spill
 	frontier   []*batchCursor
 	cpuSamples []cpuSample
 	order      ordering
 	syncs      int
+	readGenErr error
 	done       bool
+
+	// Spill state.
+	//
+	// Traces before Go 1.26 had no explicit end-of-generation signal, and
+	// so the first batch of the next generation needed to be parsed to identify
+	// a new generation. This batch is the "spilled" so we don't lose track
+	// of it when parsing the next generation.
+	//
+	// This is unnecessary after Go 1.26 because of an explicit end-of-generation
+	// signal.
+	spill        *spilledBatch
+	spillErr     error // error from reading spill
+	spillErrSync bool  // whether we emitted a Sync before reporting spillErr
 
 	v1Events *traceV1Converter
 }
@@ -52,10 +66,12 @@ func NewReader(r io.Reader) (*Reader, error) {
 		return &Reader{
 			v1Events: convertV1Trace(tr),
 		}, nil
-	case version.Go122, version.Go123:
+	case version.Go122, version.Go123, version.Go125, version.Go126:
 		return &Reader{
-			r: br,
+			version: v,
+			r:       br,
 			order: ordering{
+				traceVer:    v,
 				mStates:     make(map[ThreadID]*mState),
 				pStates:     make(map[ProcID]*pState),
 				gStates:     make(map[GoID]*gState),
@@ -135,50 +151,23 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 
 	// Check if we need to refresh the generation.
 	if len(r.frontier) == 0 && len(r.cpuSamples) == 0 {
-		if r.spillErr != nil {
-			return Event{}, r.spillErr
+		if r.version < version.Go126 {
+			return r.nextGenWithSpill()
 		}
-		if r.gen != nil && r.spill == nil {
-			// If we have a generation from the last read,
-			// and there's nothing left in the frontier, and
-			// there's no spilled batch, indicating that there's
-			// no further generation, it means we're done.
-			// Emit the final sync event.
-			r.done = true
+		if r.readGenErr != nil {
+			return Event{}, r.readGenErr
+		}
+		gen, err := readGeneration(r.r, r.version)
+		if err != nil {
+			// Before returning an error, emit the sync event
+			// for the current generation and queue up the error
+			// for the next call.
+			r.readGenErr = err
+			r.gen = nil
 			r.syncs++
 			return syncEvent(nil, r.lastTs, r.syncs), nil
 		}
-		// Read the next generation.
-		var err error
-		r.gen, r.spill, err = readGeneration(r.r, r.spill)
-		if r.gen == nil {
-			return Event{}, err
-		}
-		r.spillErr = err
-
-		// Reset CPU samples cursor.
-		r.cpuSamples = r.gen.cpuSamples
-
-		// Reset frontier.
-		for _, m := range r.gen.batchMs {
-			batches := r.gen.batches[m]
-			bc := &batchCursor{m: m}
-			ok, err := bc.nextEvent(batches, r.gen.freq)
-			if err != nil {
-				return Event{}, err
-			}
-			if !ok {
-				// Turns out there aren't actually any events in these batches.
-				continue
-			}
-			r.frontier = heapInsert(r.frontier, bc)
-		}
-		r.syncs++
-		if r.lastTs == 0 {
-			r.lastTs = r.gen.freq.mul(r.gen.minTs)
-		}
-		// Always emit a sync event at the beginning of the generation.
-		return syncEvent(r.gen.evTable, r.lastTs, r.syncs), nil
+		return r.installGen(gen)
 	}
 	tryAdvance := func(i int) (bool, error) {
 		bc := r.frontier[i]
@@ -245,10 +234,82 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 	return ev, nil
 }
 
+// nextGenWithSpill reads the generation and calls nextGen while
+// also handling any spilled batches.
+func (r *Reader) nextGenWithSpill() (Event, error) {
+	if r.version >= version.Go126 {
+		return Event{}, errors.New("internal error: nextGenWithSpill called for Go 1.26+ trace")
+	}
+	if r.spillErr != nil {
+		if r.spillErrSync {
+			return Event{}, r.spillErr
+		}
+		r.spillErrSync = true
+		r.syncs++
+		return syncEvent(nil, r.lastTs, r.syncs), nil
+	}
+	if r.gen != nil && r.spill == nil {
+		// If we have a generation from the last read,
+		// and there's nothing left in the frontier, and
+		// there's no spilled batch, indicating that there's
+		// no further generation, it means we're done.
+		// Emit the final sync event.
+		r.done = true
+		r.syncs++
+		return syncEvent(nil, r.lastTs, r.syncs), nil
+	}
+
+	// Read the next generation.
+	var gen *generation
+	gen, r.spill, r.spillErr = readGenerationWithSpill(r.r, r.spill, r.version)
+	if gen == nil {
+		r.gen = nil
+		r.spillErrSync = true
+		r.syncs++
+		return syncEvent(nil, r.lastTs, r.syncs), nil
+	}
+	return r.installGen(gen)
+}
+
+// installGen installs the new generation into the Reader and returns
+// a Sync event for the new generation.
+func (r *Reader) installGen(gen *generation) (Event, error) {
+	if gen == nil {
+		// Emit the final sync event.
+		r.gen = nil
+		r.done = true
+		r.syncs++
+		return syncEvent(nil, r.lastTs, r.syncs), nil
+	}
+	r.gen = gen
+
+	// Reset CPU samples cursor.
+	r.cpuSamples = r.gen.cpuSamples
+
+	// Reset frontier.
+	for _, m := range r.gen.batchMs {
+		batches := r.gen.batches[m]
+		bc := &batchCursor{m: m}
+		ok, err := bc.nextEvent(batches, r.gen.freq)
+		if err != nil {
+			return Event{}, err
+		}
+		if !ok {
+			// Turns out there aren't actually any events in these batches.
+			continue
+		}
+		r.frontier = heapInsert(r.frontier, bc)
+	}
+	r.syncs++
+
+	// Always emit a sync event at the beginning of the generation.
+	return syncEvent(r.gen.evTable, r.gen.freq.mul(r.gen.minTs), r.syncs), nil
+}
+
 func dumpFrontier(frontier []*batchCursor) string {
 	var sb strings.Builder
 	for _, bc := range frontier {
-		spec := go122.Specs()[bc.ev.typ]
+		spec := tracev2.Specs()[bc.ev.typ]
 		fmt.Fprintf(&sb, "M %d [%s time=%d", bc.m, spec.Name, bc.ev.time)
 		for i, arg := range spec.Args[1:] {
 			fmt.Fprintf(&sb, " %s=%d", arg, bc.ev.args[i])

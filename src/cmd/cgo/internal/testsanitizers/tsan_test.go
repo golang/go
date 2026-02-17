@@ -56,6 +56,7 @@ func TestTSAN(t *testing.T) {
 		{src: "tsan13.go", needsRuntime: true},
 		{src: "tsan14.go", needsRuntime: true},
 		{src: "tsan15.go", needsRuntime: true},
+		{src: "tsan_tracebackctxt", needsRuntime: true}, // Subdirectory
 	}
 	for _, tc := range cases {
 		tc := tc
@@ -67,7 +68,7 @@ func TestTSAN(t *testing.T) {
 			defer dir.RemoveAll(t)
 
 			outPath := dir.Join(name)
-			mustRun(t, config.goCmd("build", "-o", outPath, srcPath(tc.src)))
+			mustRun(t, config.goCmd("build", "-o", outPath, "./"+srcPath(tc.src)))
 
 			cmdArgs := []string{outPath}
 			if goos == "linux" {

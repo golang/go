@@ -5,6 +5,7 @@
 package sql
 
 import (
+	"bytes"
 	"context"
 	"database/sql/driver"
 	"errors"
@@ -1374,8 +1375,7 @@ func TestConnQuery(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -1402,8 +1402,7 @@ func TestConnRaw(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -1518,8 +1517,7 @@ func TestInvalidNilValues(t *testing.T) {
 			db := newTestDB(t, "people")
 			defer closeDB(t, db)
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			conn, err := db.Conn(ctx)
 			if err != nil {
 				t.Fatal(err)
@@ -1547,8 +1545,7 @@ func TestConnTx(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -2793,8 +2790,7 @@ func TestManyErrBadConn(t *testing.T) {
 	// Conn
 	db = manyErrBadConnSetup()
 	defer closeDB(t, db)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -2935,8 +2931,7 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 	}
 	defer func() { nowFunc = time.Now }()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	db := newTestDB(t, "magicquery")
 	defer closeDB(t, db)
@@ -2944,7 +2939,6 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 	db.SetMaxOpenConns(1)
 
 	for _, ec := range execCases {
-		ec := ec
 		name := fmt.Sprintf("expired=%t,badReset=%t", ec.expired, ec.badReset)
 		t.Run(name, func(t *testing.T) {
 			db.clearAllConns(t)
@@ -3786,8 +3780,7 @@ func TestIssue20647(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	conn, err := db.Conn(ctx)
 	if err != nil {
@@ -4142,9 +4135,7 @@ func TestNamedValueChecker(t *testing.T) {
 	}
 	defer db.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+	ctx := t.Context()
 	_, err = db.ExecContext(ctx, "WIPE")
 	if err != nil {
 		t.Fatal("exec wipe", err)
@@ -4192,9 +4183,7 @@ func TestNamedValueCheckerSkip(t *testing.T) {
 	}
 	defer db.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+	ctx := t.Context()
 	_, err = db.ExecContext(ctx, "WIPE")
 	if err != nil {
 		t.Fatal("exec wipe", err)
@@ -4305,8 +4294,7 @@ func TestQueryExecContextOnly(t *testing.T) {
 	}
 	defer db.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	conn, err := db.Conn(ctx)
 	if err != nil {
@@ -4446,10 +4434,6 @@ func testContextCancelDuringRawBytesScan(t *testing.T, mode string) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	if _, err := db.Exec("USE_RAWBYTES"); err != nil {
-		t.Fatal(err)
-	}
-
 	// cancel used to call close asynchronously.
 	// This test checks that it waits so as not to interfere with RawBytes.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -4541,6 +4525,61 @@ func TestContextCancelBetweenNextAndErr(t *testing.T) {
 	}
 }
 
+type testScanner struct {
+	scanf func(src any) error
+}
+
+func (ts testScanner) Scan(src any) error { return ts.scanf(src) }
+
+func TestContextCancelDuringScan(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	scanStart := make(chan any)
+	scanEnd := make(chan error)
+	scanner := &testScanner{
+		scanf: func(src any) error {
+			scanStart <- src
+			return <-scanEnd
+		},
+	}
+
+	// Start a query, and pause it mid-scan.
+	want := []byte("Alice")
+	r, err := db.QueryContext(ctx, "SELECT|people|name|name=?", string(want))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !r.Next() {
+		t.Fatalf("r.Next() = false, want true")
+	}
+	go func() {
+		r.Scan(scanner)
+	}()
+	got := <-scanStart
+	defer close(scanEnd)
+	gotBytes, ok := got.([]byte)
+	if !ok {
+		t.Fatalf("r.Scan returned %T, want []byte", got)
+	}
+	if !bytes.Equal(gotBytes, want) {
+		t.Fatalf("before cancel: r.Scan returned %q, want %q", gotBytes, want)
+	}
+
+	// Cancel the query.
+	// Sleep to give it a chance to finish canceling.
+	cancel()
+	time.Sleep(10 * time.Millisecond)
+
+	// Cancelling the query should not have changed the result.
+	if !bytes.Equal(gotBytes, want) {
+		t.Fatalf("after cancel: r.Scan result is now %q, want %q", gotBytes, want)
+	}
+}
+
 func TestNilErrorAfterClose(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
@@ -4573,10 +4612,6 @@ func TestNilErrorAfterClose(t *testing.T) {
 func TestRawBytesReuse(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
-
-	if _, err := db.Exec("USE_RAWBYTES"); err != nil {
-		t.Fatal(err)
-	}
 
 	var raw RawBytes
 
@@ -5002,5 +5037,201 @@ func TestIssue69728(t *testing.T) {
 
 	if !reflect.DeepEqual(v1, v2) {
 		t.Errorf("not equal; v1 = %v, v2 = %v", v1, v2)
+	}
+}
+
+func TestColumnConverterWithUnknownInputCount(t *testing.T) {
+	db := OpenDB(&unknownInputsConnector{})
+	stmt, err := db.Prepare("SELECT ?")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = stmt.Exec(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+type unknownInputsConnector struct{}
+
+func (unknownInputsConnector) Connect(context.Context) (driver.Conn, error) {
+	return unknownInputsConn{}, nil
+}
+
+func (unknownInputsConnector) Driver() driver.Driver { return nil }
+
+type unknownInputsConn struct{}
+
+func (unknownInputsConn) Prepare(string) (driver.Stmt, error) { return unknownInputsStmt{}, nil }
+func (unknownInputsConn) Close() error                        { return nil }
+func (unknownInputsConn) Begin() (driver.Tx, error)           { return nil, nil }
+
+type unknownInputsStmt struct{}
+
+func (unknownInputsStmt) Close() error  { return nil }
+func (unknownInputsStmt) NumInput() int { return -1 }
+func (unknownInputsStmt) Exec(args []driver.Value) (driver.Result, error) {
+	if _, ok := args[0].(string); !ok {
+		return nil, fmt.Errorf("Expected string, got %T", args[0])
+	}
+	return nil, nil
+}
+func (unknownInputsStmt) Query([]driver.Value) (driver.Rows, error) { return nil, nil }
+func (unknownInputsStmt) ColumnConverter(idx int) driver.ValueConverter {
+	return unknownInputsValueConverter{}
+}
+
+type unknownInputsValueConverter struct{}
+
+func (unknownInputsValueConverter) ConvertValue(v any) (driver.Value, error) {
+	return "string", nil
+}
+
+func TestNullTypeScanErrorConsistency(t *testing.T) {
+	// Issue #45662: Null* types should have Valid=false when Scan returns an error.
+	// Previously, Valid was set to true before convertAssign was called,
+	// so if conversion failed, Valid would still be true despite the error.
+
+	tests := []struct {
+		name    string
+		scanner Scanner
+		input   any
+		wantErr bool
+	}{
+		{
+			name:    "NullInt32 with invalid input",
+			scanner: &NullInt32{},
+			input:   []byte("not_a_number"),
+			wantErr: true,
+		},
+		{
+			name:    "NullInt64 with invalid input",
+			scanner: &NullInt64{},
+			input:   []byte("not_a_number"),
+			wantErr: true,
+		},
+		{
+			name:    "NullFloat64 with invalid input",
+			scanner: &NullFloat64{},
+			input:   []byte("not_a_float"),
+			wantErr: true,
+		},
+		{
+			name:    "NullBool with invalid input",
+			scanner: &NullBool{},
+			input:   []byte("not_a_bool"),
+			wantErr: true,
+		},
+		// Valid cases should still work
+		{
+			name:    "NullInt32 with valid input",
+			scanner: &NullInt32{},
+			input:   int64(42),
+			wantErr: false,
+		},
+		{
+			name:    "NullInt64 with valid input",
+			scanner: &NullInt64{},
+			input:   int64(42),
+			wantErr: false,
+		},
+		{
+			name:    "NullFloat64 with valid input",
+			scanner: &NullFloat64{},
+			input:   float64(3.14),
+			wantErr: false,
+		},
+		{
+			name:    "NullBool with valid input",
+			scanner: &NullBool{},
+			input:   true,
+			wantErr: false,
+		},
+		{
+			name:    "NullString with valid input",
+			scanner: &NullString{},
+			input:   "hello",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.scanner.Scan(tt.input)
+
+			// Check that error matches expectation
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Scan() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			// The key invariant: Valid should be the opposite of whether we got an error
+			// (assuming non-nil input)
+			var valid bool
+			switch s := tt.scanner.(type) {
+			case *NullInt32:
+				valid = s.Valid
+			case *NullInt64:
+				valid = s.Valid
+			case *NullFloat64:
+				valid = s.Valid
+			case *NullBool:
+				valid = s.Valid
+			case *NullString:
+				valid = s.Valid
+			case *NullTime:
+				valid = s.Valid
+			}
+
+			if err != nil && valid {
+				t.Errorf("Scan() returned error but Valid=true; want Valid=false when err!=nil")
+			}
+			if err == nil && !valid {
+				t.Errorf("Scan() returned nil error but Valid=false; want Valid=true when err==nil")
+			}
+		})
+	}
+}
+
+// TestNullTypeScanNil verifies that scanning nil sets Valid=false without error.
+func TestNullTypeScanNil(t *testing.T) {
+	tests := []struct {
+		name    string
+		scanner Scanner
+	}{
+		{"NullString", &NullString{String: "preset", Valid: true}},
+		{"NullInt64", &NullInt64{Int64: 42, Valid: true}},
+		{"NullInt32", &NullInt32{Int32: 42, Valid: true}},
+		{"NullFloat64", &NullFloat64{Float64: 3.14, Valid: true}},
+		{"NullBool", &NullBool{Bool: true, Valid: true}},
+		{"NullTime", &NullTime{Time: time.Now(), Valid: true}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.scanner.Scan(nil)
+			if err != nil {
+				t.Errorf("Scan(nil) error = %v; want nil", err)
+			}
+
+			var valid bool
+			switch s := tt.scanner.(type) {
+			case *NullString:
+				valid = s.Valid
+			case *NullInt64:
+				valid = s.Valid
+			case *NullInt32:
+				valid = s.Valid
+			case *NullFloat64:
+				valid = s.Valid
+			case *NullBool:
+				valid = s.Valid
+			case *NullTime:
+				valid = s.Valid
+			}
+
+			if valid {
+				t.Errorf("Scan(nil) left Valid=true; want Valid=false")
+			}
+		})
 	}
 }

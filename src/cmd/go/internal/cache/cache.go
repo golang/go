@@ -59,7 +59,7 @@ type Cache interface {
 	// background cleanup work started earlier. Any cache trimming in one
 	// process should not cause the invariants of this interface to be
 	// violated in another process. Namely, a cache trim from one process should
-	// not delete an ObjectID from disk that was recently Get or Put from
+	// not delete an OutputID from disk that was recently Get or Put from
 	// another process. As a rule of thumb, don't trim things used in the last
 	// day.
 	Close() error
@@ -296,6 +296,10 @@ func GetBytes(c Cache, id ActionID) ([]byte, Entry, error) {
 // GetMmap looks up the action ID in the cache and returns
 // the corresponding output bytes.
 // GetMmap should only be used for data that can be expected to fit in memory.
+// The boolean result indicates whether the file was opened.
+// If it is true, the caller should avoid attempting
+// to write to the file on Windows, because Windows locks
+// the open file, and writes to it will fail.
 func GetMmap(c Cache, id ActionID) ([]byte, Entry, bool, error) {
 	entry, err := c.Get(id)
 	if err != nil {

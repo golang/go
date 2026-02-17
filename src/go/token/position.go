@@ -98,6 +98,9 @@ func (p Pos) IsValid() bool {
 
 // A File is a handle for a file belonging to a [FileSet].
 // A File has a name, size, and line offset table.
+//
+// Use [FileSet.AddFile] to create a File.
+// A File may belong to more than one FileSet; see [FileSet.AddExistingFiles].
 type File struct {
 	name string // file name as provided to AddFile
 	base int    // Pos value range for this file is [base...base+size]
@@ -122,6 +125,11 @@ func (f *File) Base() int {
 // Size returns the size of file f as registered with AddFile.
 func (f *File) Size() int {
 	return f.size
+}
+
+// End returns the end position of file f as registered with AddFile.
+func (f *File) End() Pos {
+	return Pos(f.base + f.size)
 }
 
 // LineCount returns the number of lines in file f.
@@ -268,26 +276,12 @@ func (f *File) AddLineColumnInfo(offset int, filename string, line, column int) 
 
 // fixOffset fixes an out-of-bounds offset such that 0 <= offset <= f.size.
 func (f *File) fixOffset(offset int) int {
-	switch {
-	case offset < 0:
-		if !debug {
-			return 0
-		}
-	case offset > f.size:
-		if !debug {
-			return f.size
-		}
-	default:
-		return offset
-	}
-
-	// only generate this code if needed
-	if debug {
+	if debug && !(0 <= offset && offset <= f.size) {
 		panic(fmt.Sprintf("offset %d out of bounds [%d, %d] (position %d out of bounds [%d, %d])",
 			0 /* for symmetry */, offset, f.size,
 			f.base+offset, f.base, f.base+f.size))
 	}
-	return 0
+	return max(min(f.size, offset), 0)
 }
 
 // Pos returns the Pos value for the given file offset.
@@ -426,7 +420,7 @@ func (f *File) Position(p Pos) (pos Position) {
 type FileSet struct {
 	mutex sync.RWMutex         // protects the file set
 	base  int                  // base offset for the next file
-	files []*File              // list of files in the order added to the set
+	tree  tree                 // tree of files in ascending base order
 	last  atomic.Pointer[File] // cache of last file looked up
 }
 
@@ -484,9 +478,41 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 	}
 	// add the file to the file set
 	s.base = base
-	s.files = append(s.files, f)
+	s.tree.add(f)
 	s.last.Store(f)
 	return f
+}
+
+// AddExistingFiles adds the specified files to the
+// FileSet if they are not already present.
+// The caller must ensure that no pair of Files that
+// would appear in the resulting FileSet overlap.
+func (s *FileSet) AddExistingFiles(files ...*File) {
+	// This function cannot be implemented as:
+	//
+	//	for _, file := range files {
+	//		if prev := fset.File(token.Pos(file.Base())); prev != nil {
+	//			if prev != file {
+	//				panic("FileSet contains a different file at the same base")
+	//			}
+	//			continue
+	//		}
+	//		file2 := fset.AddFile(file.Name(), file.Base(), file.Size())
+	//		file2.SetLines(file.Lines())
+	//	}
+	//
+	// because all calls to AddFile must be in increasing order.
+	// AddExistingFiles lets us augment an existing FileSet
+	// sequentially, so long as all sets of files have disjoint ranges.
+	// This approach also does not preserve line directives.
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	for _, f := range files {
+		s.tree.add(f)
+		s.base = max(s.base, f.Base()+f.Size()+1)
+	}
 }
 
 // RemoveFile removes a file from the [FileSet] so that subsequent
@@ -496,44 +522,31 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 //
 // Removing a file that does not belong to the set has no effect.
 func (s *FileSet) RemoveFile(file *File) {
-	s.last.CompareAndSwap(file, nil) // clear last file cache
-
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if i := searchFiles(s.files, file.base); i >= 0 && s.files[i] == file {
-		last := &s.files[len(s.files)-1]
-		s.files = slices.Delete(s.files, i, i+1)
-		*last = nil // don't prolong lifetime when popping last element
+	s.last.CompareAndSwap(file, nil) // clear last file cache
+
+	pn, _ := s.tree.locate(file.key())
+	if *pn != nil && (*pn).file == file {
+		s.tree.delete(pn)
 	}
 }
 
-// Iterate calls f for the files in the file set in the order they were added
-// until f returns false.
-func (s *FileSet) Iterate(f func(*File) bool) {
-	for i := 0; ; i++ {
-		var file *File
-		s.mutex.RLock()
-		if i < len(s.files) {
-			file = s.files[i]
-		}
+// Iterate calls yield for the files in the file set in ascending Base
+// order until yield returns false.
+func (s *FileSet) Iterate(yield func(*File) bool) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	// Unlock around user code.
+	// The iterator is robust to modification by yield.
+	// Avoid range here, so we can use defer.
+	s.tree.all()(func(f *File) bool {
 		s.mutex.RUnlock()
-		if file == nil || !f(file) {
-			break
-		}
-	}
-}
-
-func searchFiles(a []*File, x int) int {
-	i, found := slices.BinarySearchFunc(a, x, func(a *File, x int) int {
-		return cmp.Compare(a.base, x)
+		defer s.mutex.RLock()
+		return yield(f)
 	})
-	if !found {
-		// We want the File containing x, but if we didn't
-		// find x then i is the next one.
-		i--
-	}
-	return i
 }
 
 func (s *FileSet) file(p Pos) *File {
@@ -545,16 +558,12 @@ func (s *FileSet) file(p Pos) *File {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	// p is not in last file - search all files
-	if i := searchFiles(s.files, int(p)); i >= 0 {
-		f := s.files[i]
-		// f.base <= int(p) by definition of searchFiles
-		if int(p) <= f.base+f.size {
-			// Update cache of last file. A race is ok,
-			// but an exclusive lock causes heavy contention.
-			s.last.Store(f)
-			return f
-		}
+	pn, _ := s.tree.locate(key{int(p), int(p)})
+	if n := *pn; n != nil {
+		// Update cache of last file. A race is ok,
+		// but an exclusive lock causes heavy contention.
+		s.last.Store(n.file)
+		return n.file
 	}
 	return nil
 }

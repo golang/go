@@ -106,11 +106,13 @@ const (
 	MACHO_ARM_RELOC_SECTDIFF             = 2
 	MACHO_ARM_RELOC_BR24                 = 5
 	MACHO_ARM64_RELOC_UNSIGNED           = 0
+	MACHO_ARM64_RELOC_SUBTRACTOR         = 1
 	MACHO_ARM64_RELOC_BRANCH26           = 2
 	MACHO_ARM64_RELOC_PAGE21             = 3
 	MACHO_ARM64_RELOC_PAGEOFF12          = 4
 	MACHO_ARM64_RELOC_GOT_LOAD_PAGE21    = 5
 	MACHO_ARM64_RELOC_GOT_LOAD_PAGEOFF12 = 6
+	MACHO_ARM64_RELOC_POINTER_TO_GOT     = 7
 	MACHO_ARM64_RELOC_ADDEND             = 10
 	MACHO_GENERIC_RELOC_VANILLA          = 0
 	MACHO_FAKE_GOTPCREL                  = 100
@@ -177,6 +179,8 @@ const (
 	BIND_SPECIAL_DYLIB_MAIN_EXECUTABLE = -1
 	BIND_SPECIAL_DYLIB_FLAT_LOOKUP     = -2
 	BIND_SPECIAL_DYLIB_WEAK_LOOKUP     = -3
+
+	BIND_SYMBOL_FLAGS_WEAK_IMPORT = 0x1
 
 	BIND_OPCODE_MASK                                         = 0xF0
 	BIND_IMMEDIATE_MASK                                      = 0x0F
@@ -430,8 +434,10 @@ func (ctxt *Link) domacho() {
 				// This must be fairly recent for Apple signing (go.dev/issue/30488).
 				// Having too old a version here was also implicated in some problems
 				// calling into macOS libraries (go.dev/issue/56784).
-				// In general this can be the most recent supported macOS version.
-				version = 11<<16 | 0<<8 | 0<<0 // 11.0.0
+				// CL 460476 noted that in general this can be the most recent supported
+				// macOS version, but we haven't tested if going higher than Go's oldest
+				// supported macOS version could cause new problems.
+				version = 12<<16 | 0<<8 | 0<<0 // 12.0.0
 			}
 			ml := newMachoLoad(ctxt.Arch, imacho.LC_BUILD_VERSION, 4)
 			ml.data[0] = uint32(machoPlatform)
@@ -461,9 +467,13 @@ func (ctxt *Link) domacho() {
 		sb.SetType(sym.SMACHOPLT)
 		sb.SetReachable(true)
 
-		s = ctxt.loader.LookupOrCreateSym(".got", 0) // will be __nl_symbol_ptr
+		s = ctxt.loader.LookupOrCreateSym(".got", 0) // will be __got
 		sb = ctxt.loader.MakeSymbolUpdater(s)
-		sb.SetType(sym.SMACHOGOT)
+		if ctxt.UseRelro() {
+			sb.SetType(sym.SMACHORELROSECT)
+		} else {
+			sb.SetType(sym.SMACHOGOT)
+		}
 		sb.SetReachable(true)
 		sb.SetAlign(4)
 
@@ -541,7 +551,7 @@ func machoadddynlib(lib string, linkmode LinkMode) {
 }
 
 func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) {
-	buf := "__" + strings.Replace(sect.Name[1:], ".", "_", -1)
+	buf := "__" + strings.ReplaceAll(sect.Name[1:], ".", "_")
 
 	msect := newMachoSect(mseg, buf, segname)
 
@@ -583,7 +593,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 	}
 
 	if sect.Name == ".got" {
-		msect.name = "__nl_symbol_ptr"
+		msect.name = "__got"
 		msect.flag = S_NON_LAZY_SYMBOL_POINTERS
 		msect.res1 = uint32(ctxt.loader.SymSize(ctxt.ArchSyms.LinkEditPLT) / 4) /* offset into indirect symbol table */
 	}
@@ -911,7 +921,7 @@ func collectmachosyms(ctxt *Link) {
 			continue
 		}
 		t := ldr.SymType(s)
-		if t >= sym.SELFRXSECT && t < sym.SXREF { // data sections handled in dodata
+		if t >= sym.SELFRXSECT && t < sym.SFirstUnallocated { // data sections handled in dodata
 			if t == sym.STLSBSS {
 				// TLSBSS is not used on darwin. See data.go:allocateDataSections
 				continue
@@ -1035,7 +1045,7 @@ func machosymtab(ctxt *Link) {
 		symstr.AddUint8('_')
 
 		// replace "·" as ".", because DTrace cannot handle it.
-		name := strings.Replace(ldr.SymExtname(s), "·", ".", -1)
+		name := strings.ReplaceAll(ldr.SymExtname(s), "·", ".")
 
 		name = mangleABIName(ctxt, ldr, s, name)
 		symstr.Addstring(name)
@@ -1246,7 +1256,7 @@ func machoEmitReloc(ctxt *Link) {
 	for i := 0; i < len(Segdwarf.Sections); i++ {
 		sect := Segdwarf.Sections[i]
 		si := dwarfp[i]
-		if si.secSym() != loader.Sym(sect.Sym) ||
+		if si.secSym() != sect.Sym ||
 			ctxt.loader.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}
@@ -1421,7 +1431,11 @@ func machoDyldInfo(ctxt *Link) {
 			bind.AddUint8(BIND_OPCODE_SET_DYLIB_SPECIAL_IMM | uint8(d)&0xf)
 		}
 
-		bind.AddUint8(BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM)
+		flags := uint8(0)
+		if ldr.SymWeakBinding(r.targ) {
+			flags |= BIND_SYMBOL_FLAGS_WEAK_IMPORT
+		}
+		bind.AddUint8(BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM | flags)
 		// target symbol name as a C string, with _ prefix
 		bind.AddUint8('_')
 		bind.Addstring(ldr.SymExtname(r.targ))
@@ -1527,11 +1541,11 @@ func machoCodeSign(ctxt *Link, fname string) error {
 		// Uodate the __LINKEDIT segment.
 		segSz := sigOff + sz - int64(linkeditSeg.Offset)
 		mf.ByteOrder.PutUint64(tmp[:8], uint64(segSz))
-		_, err = f.WriteAt(tmp[:8], int64(linkeditOff)+int64(unsafe.Offsetof(macho.Segment64{}.Memsz)))
+		_, err = f.WriteAt(tmp[:8], linkeditOff+int64(unsafe.Offsetof(macho.Segment64{}.Memsz)))
 		if err != nil {
 			return err
 		}
-		_, err = f.WriteAt(tmp[:8], int64(linkeditOff)+int64(unsafe.Offsetof(macho.Segment64{}.Filesz)))
+		_, err = f.WriteAt(tmp[:8], linkeditOff+int64(unsafe.Offsetof(macho.Segment64{}.Filesz)))
 		if err != nil {
 			return err
 		}

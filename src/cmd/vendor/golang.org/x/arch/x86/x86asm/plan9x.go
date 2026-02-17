@@ -116,12 +116,23 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 		return fmt.Sprintf("%#x", addr)
 
 	case Imm:
-		if s, base := symname(uint64(a)); s != "" {
-			suffix := ""
-			if uint64(a) != base {
-				suffix = fmt.Sprintf("%+d", uint64(a)-base)
+		if (inst.Op == MOV || inst.Op == PUSH) && inst.DataSize == 32 {
+			// Only try to convert an immediate to a symbol in certain
+			// special circumstances. See issue 72942.
+			//
+			// On 64-bit, symbol addresses always hit the Mem case below.
+			// Particularly, we use LEAQ to materialize the address of
+			// a global or function.
+			//
+			// On 32-bit, we sometimes use MOVL. Still try to symbolize
+			// those immediates.
+			if s, base := symname(uint64(a)); s != "" {
+				suffix := ""
+				if uint64(a) != base {
+					suffix = fmt.Sprintf("%+d", uint64(a)-base)
+				}
+				return fmt.Sprintf("$%s%s(SB)", s, suffix)
 			}
-			return fmt.Sprintf("$%s%s(SB)", s, suffix)
 		}
 		if inst.Mode == 32 {
 			return fmt.Sprintf("$%#x", uint32(a))

@@ -11,6 +11,10 @@ const (
 	openatTrap     uintptr = syscall.SYS_OPENAT
 	readlinkatTrap uintptr = syscall.SYS_READLINKAT
 	mkdiratTrap    uintptr = syscall.SYS_MKDIRAT
+	fchmodatTrap   uintptr = syscall.SYS_FCHMODAT
+	fchownatTrap   uintptr = syscall.SYS_FCHOWNAT
+	linkatTrap     uintptr = syscall.SYS_LINKAT
+	symlinkatTrap  uintptr = syscall.SYS_SYMLINKAT
 )
 
 const (

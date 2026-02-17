@@ -8,7 +8,9 @@ import (
 	"internal/abi"
 	"internal/bytealg"
 	"internal/goarch"
+	"internal/runtime/math"
 	"internal/runtime/sys"
+	"internal/strconv"
 	"unsafe"
 )
 
@@ -57,6 +59,9 @@ func concatstrings(buf *tmpBuf, a []string) string {
 	return s
 }
 
+// concatstring2 helps make the callsite smaller (compared to concatstrings),
+// and we think this is currently more valuable than omitting one call in the
+// chain, the same goes for concatstring{3,4,5}.
 func concatstring2(buf *tmpBuf, a0, a1 string) string {
 	return concatstrings(buf, []string{a0, a1})
 }
@@ -76,7 +81,7 @@ func concatstring5(buf *tmpBuf, a0, a1, a2, a3, a4 string) string {
 // concatbytes implements a Go string concatenation x+y+z+... returning a slice
 // of bytes.
 // The operands are passed in the slice a.
-func concatbytes(a []string) []byte {
+func concatbytes(buf *tmpBuf, a []string) []byte {
 	l := 0
 	for _, x := range a {
 		n := len(x)
@@ -90,7 +95,13 @@ func concatbytes(a []string) []byte {
 		return []byte{}
 	}
 
-	b := rawbyteslice(l)
+	var b []byte
+	if buf != nil && l <= len(buf) {
+		*buf = tmpBuf{}
+		b = buf[:l]
+	} else {
+		b = rawbyteslice(l)
+	}
 	offset := 0
 	for _, x := range a {
 		copy(b[offset:], x)
@@ -100,20 +111,23 @@ func concatbytes(a []string) []byte {
 	return b
 }
 
-func concatbyte2(a0, a1 string) []byte {
-	return concatbytes([]string{a0, a1})
+// concatbyte2 helps make the callsite smaller (compared to concatbytes),
+// and we think this is currently more valuable than omitting one call in
+// the chain, the same goes for concatbyte{3,4,5}.
+func concatbyte2(buf *tmpBuf, a0, a1 string) []byte {
+	return concatbytes(buf, []string{a0, a1})
 }
 
-func concatbyte3(a0, a1, a2 string) []byte {
-	return concatbytes([]string{a0, a1, a2})
+func concatbyte3(buf *tmpBuf, a0, a1, a2 string) []byte {
+	return concatbytes(buf, []string{a0, a1, a2})
 }
 
-func concatbyte4(a0, a1, a2, a3 string) []byte {
-	return concatbytes([]string{a0, a1, a2, a3})
+func concatbyte4(buf *tmpBuf, a0, a1, a2, a3 string) []byte {
+	return concatbytes(buf, []string{a0, a1, a2, a3})
 }
 
-func concatbyte5(a0, a1, a2, a3, a4 string) []byte {
-	return concatbytes([]string{a0, a1, a2, a3, a4})
+func concatbyte5(buf *tmpBuf, a0, a1, a2, a3, a4 string) []byte {
+	return concatbytes(buf, []string{a0, a1, a2, a3, a4})
 }
 
 // slicebytetostring converts a byte slice to a string.
@@ -385,77 +399,6 @@ func gostringn(p *byte, l int) string {
 	return s
 }
 
-const (
-	maxUint64 = ^uint64(0)
-	maxInt64  = int64(maxUint64 >> 1)
-)
-
-// atoi64 parses an int64 from a string s.
-// The bool result reports whether s is a number
-// representable by a value of type int64.
-func atoi64(s string) (int64, bool) {
-	if s == "" {
-		return 0, false
-	}
-
-	neg := false
-	if s[0] == '-' {
-		neg = true
-		s = s[1:]
-	}
-
-	un := uint64(0)
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c < '0' || c > '9' {
-			return 0, false
-		}
-		if un > maxUint64/10 {
-			// overflow
-			return 0, false
-		}
-		un *= 10
-		un1 := un + uint64(c) - '0'
-		if un1 < un {
-			// overflow
-			return 0, false
-		}
-		un = un1
-	}
-
-	if !neg && un > uint64(maxInt64) {
-		return 0, false
-	}
-	if neg && un > uint64(maxInt64)+1 {
-		return 0, false
-	}
-
-	n := int64(un)
-	if neg {
-		n = -n
-	}
-
-	return n, true
-}
-
-// atoi is like atoi64 but for integers
-// that fit into an int.
-func atoi(s string) (int, bool) {
-	if n, ok := atoi64(s); n == int64(int(n)) {
-		return int(n), ok
-	}
-	return 0, false
-}
-
-// atoi32 is like atoi but for integers
-// that fit into an int32.
-func atoi32(s string) (int32, bool) {
-	if n, ok := atoi64(s); n == int64(int32(n)) {
-		return int32(n), ok
-	}
-	return 0, false
-}
-
 // parseByteCount parses a string that represents a count of bytes.
 //
 // s must match the following regular expression:
@@ -477,11 +420,11 @@ func parseByteCount(s string) (int64, bool) {
 	// Handle the easy non-suffix case.
 	last := s[len(s)-1]
 	if last >= '0' && last <= '9' {
-		n, ok := atoi64(s)
-		if !ok || n < 0 {
+		n, err := strconv.ParseInt(s, 10, 64)
+		if err != nil || n < 0 {
 			return 0, false
 		}
-		return n, ok
+		return n, true
 	}
 	// Failing a trailing digit, this must always end in 'B'.
 	// Also at this point there must be at least one digit before
@@ -492,11 +435,11 @@ func parseByteCount(s string) (int64, bool) {
 	// The one before that must always be a digit or 'i'.
 	if c := s[len(s)-2]; c >= '0' && c <= '9' {
 		// Trivial 'B' suffix.
-		n, ok := atoi64(s[:len(s)-1])
-		if !ok || n < 0 {
+		n, err := strconv.ParseInt(s[:len(s)-1], 10, 64)
+		if err != nil || n < 0 {
 			return 0, false
 		}
-		return n, ok
+		return n, true
 	} else if c != 'i' {
 		return 0, false
 	}
@@ -523,17 +466,17 @@ func parseByteCount(s string) (int64, bool) {
 	for i := 0; i < power; i++ {
 		m *= 1024
 	}
-	n, ok := atoi64(s[:len(s)-3])
-	if !ok || n < 0 {
+	n, err := strconv.ParseInt(s[:len(s)-3], 10, 64)
+	if err != nil || n < 0 {
 		return 0, false
 	}
 	un := uint64(n)
-	if un > maxUint64/m {
+	if un > math.MaxUint64/m {
 		// Overflow.
 		return 0, false
 	}
 	un *= m
-	if un > uint64(maxInt64) {
+	if un > uint64(math.MaxInt64) {
 		// Overflow.
 		return 0, false
 	}

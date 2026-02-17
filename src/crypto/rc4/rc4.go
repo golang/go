@@ -31,7 +31,7 @@ func (k KeySizeError) Error() string {
 // NewCipher creates and returns a new [Cipher]. The key argument should be the
 // RC4 key, at least 1 byte and at most 256 bytes.
 func NewCipher(key []byte) (*Cipher, error) {
-	if fips140only.Enabled {
+	if fips140only.Enforced() {
 		return nil, errors.New("crypto/rc4: use of RC4 is not allowed in FIPS 140-only mode")
 	}
 	k := len(key)
@@ -55,9 +55,7 @@ func NewCipher(key []byte) (*Cipher, error) {
 // Deprecated: Reset can't guarantee that the key will be entirely removed from
 // the process's memory.
 func (c *Cipher) Reset() {
-	for i := range c.s {
-		c.s[i] = 0
-	}
+	clear(c.s[:])
 	c.i, c.j = 0, 0
 }
 

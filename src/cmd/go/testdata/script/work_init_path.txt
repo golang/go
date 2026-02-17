@@ -2,7 +2,7 @@
 # 'go work init . .. foo/bar' should produce a go.work file
 # with the same paths as 'go work init; go work use -r ..',
 # and it should have 'use .' rather than 'use ./.' inside.
-
+env TESTGO_VERSION=go1.23
 cd dir
 
 go work init . .. foo/bar
@@ -12,19 +12,19 @@ go work init
 go work use -r ..
 cmp go.work go.work.init
 
-cmpenv go.work $WORK/go.work.want
+cmp go.work $WORK/go.work.want
 
 -- go.mod --
 module example
 go 1.18
 -- dir/go.mod --
 module example
-go 1.18
+go 1.21.0
 -- dir/foo/bar/go.mod --
 module example
-go 1.18
+go 1.21.0
 -- $WORK/go.work.want --
-go $goversion
+go 1.21.0
 
 use (
 	.

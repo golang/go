@@ -9,6 +9,7 @@ package signal
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"internal/testenv"
@@ -304,7 +305,7 @@ func TestDetectNohup(t *testing.T) {
 		// We have no intention of reading from c.
 		c := make(chan os.Signal, 1)
 		Notify(c, syscall.SIGHUP)
-		if out, err := testenv.Command(t, os.Args[0], "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput(); err == nil {
+		if out, err := testenv.Command(t, testenv.Executable(t), "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput(); err == nil {
 			t.Errorf("ran test with -check_sighup_ignored and it succeeded: expected failure.\nOutput:\n%s", out)
 		}
 		Stop(c)
@@ -316,7 +317,7 @@ func TestDetectNohup(t *testing.T) {
 		}
 		Ignore(syscall.SIGHUP)
 		os.Remove("nohup.out")
-		out, err := testenv.Command(t, "/usr/bin/nohup", os.Args[0], "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput()
+		out, err := testenv.Command(t, "/usr/bin/nohup", testenv.Executable(t), "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput()
 
 		data, _ := os.ReadFile("nohup.out")
 		os.Remove("nohup.out")
@@ -347,7 +348,6 @@ func TestStop(t *testing.T) {
 	}
 
 	for _, sig := range sigs {
-		sig := sig
 		t.Run(fmt.Sprint(sig), func(t *testing.T) {
 			// When calling Notify with a specific signal,
 			// independent signals should not interfere with each other,
@@ -441,7 +441,6 @@ func TestNohup(t *testing.T) {
 			subTimeout -= subTimeout / 10 // Leave 10% headroom for propagating output.
 		}
 		for i := 1; i <= 2; i++ {
-			i := i
 			t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 				t.Parallel()
 
@@ -454,7 +453,7 @@ func TestNohup(t *testing.T) {
 				if subTimeout != 0 {
 					args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
 				}
-				out, err := testenv.Command(t, os.Args[0], args...).CombinedOutput()
+				out, err := testenv.Command(t, testenv.Executable(t), args...).CombinedOutput()
 
 				if err == nil {
 					t.Errorf("ran test with -send_uncaught_sighup=%d and it succeeded: expected failure.\nOutput:\n%s", i, out)
@@ -484,7 +483,6 @@ func TestNohup(t *testing.T) {
 			subTimeout -= subTimeout / 10 // Leave 10% headroom for propagating output.
 		}
 		for i := 1; i <= 2; i++ {
-			i := i
 			t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 				t.Parallel()
 
@@ -562,7 +560,7 @@ func TestAtomicStop(t *testing.T) {
 		if deadline, ok := t.Deadline(); ok {
 			timeout = time.Until(deadline).String()
 		}
-		cmd := testenv.Command(t, os.Args[0], "-test.run=^TestAtomicStop$", "-test.timeout="+timeout)
+		cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestAtomicStop$", "-test.timeout="+timeout)
 		cmd.Env = append(os.Environ(), "GO_TEST_ATOMIC_STOP=1")
 		out, err := cmd.CombinedOutput()
 		if err == nil {
@@ -726,6 +724,9 @@ func TestNotifyContextNotifications(t *testing.T) {
 		}
 		wg.Wait()
 		<-ctx.Done()
+		if got, want := context.Cause(ctx).Error(), "interrupt signal received"; got != want {
+			t.Errorf("context.Cause(ctx) = %q, want %q", got, want)
+		}
 		fmt.Println("received SIGINT")
 		// Sleep to give time to simultaneous signals to reach the process.
 		// These signals must be ignored given stop() is not called on this code.
@@ -743,7 +744,6 @@ func TestNotifyContextNotifications(t *testing.T) {
 		{"multiple", 10},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -765,7 +765,7 @@ func TestNotifyContextNotifications(t *testing.T) {
 			if subTimeout != 0 {
 				args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
 			}
-			out, err := testenv.Command(t, os.Args[0], args...).CombinedOutput()
+			out, err := testenv.Command(t, testenv.Executable(t), args...).CombinedOutput()
 			if err != nil {
 				t.Errorf("ran test with -check_notify_ctx_notification and it failed with %v.\nOutput:\n%s", err, out)
 			}
@@ -801,11 +801,15 @@ func TestNotifyContextStop(t *testing.T) {
 	if got := c.Err(); got != context.Canceled {
 		t.Errorf("c.Err() = %q, want %q", got, context.Canceled)
 	}
+	if got := context.Cause(c); got != context.Canceled {
+		t.Errorf("context.Cause(c.Err()) = %q, want %q", got, context.Canceled)
+	}
 }
 
 func TestNotifyContextCancelParent(t *testing.T) {
-	parent, cancelParent := context.WithCancel(context.Background())
-	defer cancelParent()
+	parent, cancelParent := context.WithCancelCause(context.Background())
+	parentCause := errors.New("parent canceled")
+	defer cancelParent(parentCause)
 	c, stop := NotifyContext(parent, syscall.SIGINT)
 	defer stop()
 
@@ -813,18 +817,22 @@ func TestNotifyContextCancelParent(t *testing.T) {
 		t.Errorf("c.String() = %q, want %q", got, want)
 	}
 
-	cancelParent()
+	cancelParent(parentCause)
 	<-c.Done()
 	if got := c.Err(); got != context.Canceled {
 		t.Errorf("c.Err() = %q, want %q", got, context.Canceled)
+	}
+	if got := context.Cause(c); got != parentCause {
+		t.Errorf("context.Cause(c) = %q, want %q", got, parentCause)
 	}
 }
 
 func TestNotifyContextPrematureCancelParent(t *testing.T) {
-	parent, cancelParent := context.WithCancel(context.Background())
-	defer cancelParent()
+	parent, cancelParent := context.WithCancelCause(context.Background())
+	parentCause := errors.New("parent canceled")
+	defer cancelParent(parentCause)
 
-	cancelParent() // Prematurely cancel context before calling NotifyContext.
+	cancelParent(parentCause) // Prematurely cancel context before calling NotifyContext.
 	c, stop := NotifyContext(parent, syscall.SIGINT)
 	defer stop()
 
@@ -835,6 +843,9 @@ func TestNotifyContextPrematureCancelParent(t *testing.T) {
 	<-c.Done()
 	if got := c.Err(); got != context.Canceled {
 		t.Errorf("c.Err() = %q, want %q", got, context.Canceled)
+	}
+	if got := context.Cause(c); got != parentCause {
+		t.Errorf("context.Cause(c) = %q, want %q", got, parentCause)
 	}
 }
 

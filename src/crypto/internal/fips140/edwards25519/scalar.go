@@ -7,6 +7,7 @@ package edwards25519
 import (
 	"crypto/internal/fips140deps/byteorder"
 	"errors"
+	"math/bits"
 )
 
 // A Scalar is an integer modulo
@@ -179,15 +180,23 @@ func isReduced(s []byte) bool {
 		return false
 	}
 
-	for i := len(s) - 1; i >= 0; i-- {
-		switch {
-		case s[i] > scalarMinusOneBytes[i]:
-			return false
-		case s[i] < scalarMinusOneBytes[i]:
-			return true
-		}
-	}
-	return true
+	s0 := byteorder.LEUint64(s[:8])
+	s1 := byteorder.LEUint64(s[8:16])
+	s2 := byteorder.LEUint64(s[16:24])
+	s3 := byteorder.LEUint64(s[24:])
+
+	l0 := byteorder.LEUint64(scalarMinusOneBytes[:8])
+	l1 := byteorder.LEUint64(scalarMinusOneBytes[8:16])
+	l2 := byteorder.LEUint64(scalarMinusOneBytes[16:24])
+	l3 := byteorder.LEUint64(scalarMinusOneBytes[24:])
+
+	// Do a constant time subtraction chain scalarMinusOneBytes - s. If there is
+	// a borrow at the end, then s > scalarMinusOneBytes.
+	_, b := bits.Sub64(l0, s0, 0)
+	_, b = bits.Sub64(l1, s1, b)
+	_, b = bits.Sub64(l2, s2, b)
+	_, b = bits.Sub64(l3, s3, b)
+	return b == 0
 }
 
 // SetBytesWithClamping applies the buffer pruning described in RFC 8032,

@@ -4,7 +4,11 @@
 
 package net
 
-import "internal/poll"
+import (
+	"internal/poll"
+	"os/exec"
+	"syscall"
+)
 
 var (
 	// Placeholders for saving original socket system calls.
@@ -39,4 +43,15 @@ func forceCloseSockets() {
 	for s := range sw.Sockets() {
 		poll.CloseFunc(s)
 	}
+}
+
+func addCmdInheritedHandle(cmd *exec.Cmd, fd uintptr) {
+	// Inherited handles are not inherited by default in Windows.
+	// We need to set the handle inheritance flag explicitly.
+	// See https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa#parameters
+	// for more details.
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	cmd.SysProcAttr.AdditionalInheritedHandles = append(cmd.SysProcAttr.AdditionalInheritedHandles, syscall.Handle(fd))
 }

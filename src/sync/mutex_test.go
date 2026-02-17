@@ -187,9 +187,8 @@ func init() {
 }
 
 func TestMutexMisuse(t *testing.T) {
-	testenv.MustHaveExec(t)
 	for _, test := range misuseTests {
-		out, err := exec.Command(os.Args[0], "TESTMISUSE", test.name).CombinedOutput()
+		out, err := exec.Command(testenv.Executable(t), "TESTMISUSE", test.name).CombinedOutput()
 		if err == nil || !strings.Contains(string(out), "unlocked") {
 			t.Errorf("%s: did not find failure with message about unlocked lock: %s\n%s\n", test.name, err, out)
 		}

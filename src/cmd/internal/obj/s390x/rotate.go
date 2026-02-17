@@ -67,7 +67,7 @@ func (r RotateParams) RotateLeft(amount uint8) RotateParams {
 // OutMask provides a mask representing the selected bits.
 func (r RotateParams) OutMask() uint64 {
 	// Note: z must be unsigned for bootstrap compiler
-	z := uint8(63-r.End+r.Start) & 63 // number of zero bits in mask
+	z := (63 - r.End + r.Start) & 63 // number of zero bits in mask
 	return bits.RotateLeft64(^uint64(0)<<z, -int(r.Start))
 }
 

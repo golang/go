@@ -67,8 +67,7 @@ func readMainModuleMapping() (start, end uint64, exe, buildID string, err error)
 func createModuleSnapshot() (syscall.Handle, error) {
 	for {
 		snap, err := syscall.CreateToolhelp32Snapshot(windows.TH32CS_SNAPMODULE|windows.TH32CS_SNAPMODULE32, uint32(syscall.Getpid()))
-		var errno syscall.Errno
-		if err != nil && errors.As(err, &errno) && errno == windows.ERROR_BAD_LENGTH {
+		if errno, ok := errors.AsType[syscall.Errno](err); ok && errno == windows.ERROR_BAD_LENGTH {
 			// When CreateToolhelp32Snapshot(SNAPMODULE|SNAPMODULE32, ...) fails
 			// with ERROR_BAD_LENGTH then it should be retried until it succeeds.
 			continue

@@ -23,7 +23,7 @@ func clone[T comparable](value T, seq *cloneSeq) T {
 		ps := (*string)(unsafe.Pointer(uintptr(unsafe.Pointer(&value)) + offset))
 		*ps = stringslite.Clone(*ps)
 	}
-	return value
+	return abi.EscapeToResultNonString(value)
 }
 
 // singleStringClone describes how to clone a single string.

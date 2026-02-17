@@ -1,0 +1,36 @@
+env GO111MODULE=on
+
+go mod edit -godebug 'http2debug=2'
+cmp go.mod go.mod.edit.want1
+
+go mod edit -json
+cmp stdout go.mod.edit.want2
+-- go.mod --
+module foo
+
+go 1.25.0
+-- go.mod.edit.want1 --
+module foo
+
+go 1.25.0
+
+godebug http2debug=2
+-- go.mod.edit.want2 --
+{
+	"Module": {
+		"Path": "foo"
+	},
+	"Go": "1.25.0",
+	"GoDebug": [
+		{
+			"Key": "http2debug",
+			"Value": "2"
+		}
+	],
+	"Require": null,
+	"Exclude": null,
+	"Replace": null,
+	"Retract": null,
+	"Tool": null,
+	"Ignore": null
+}

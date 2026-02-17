@@ -53,6 +53,17 @@ TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
+TEXT runtime·dupfd(SB),NOSPLIT,$0
+	MOVQ	$5, BP
+	// Kernel expects each int32 arg to be 64-bit-aligned.
+	// The return value slot is where the kernel
+	// expects to find the second argument, so copy it there.
+	MOVL	new+4(FP), AX
+	MOVL	AX, ret+8(FP)
+	SYSCALL
+	MOVL	AX, ret+8(FP)
+	RET
+
 TEXT runtime·exits(SB),NOSPLIT,$0
 	MOVQ	$8, BP
 	SYSCALL
@@ -82,17 +93,9 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
 	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·nsec(SB),NOSPLIT,$0
-	MOVQ	$53, BP
-	SYSCALL
-	MOVQ	AX, ret+8(FP)
-	RET
-
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$8-12
-	CALL	runtime·nanotime1(SB)
-	MOVQ	0(SP), AX
-
+// func timesplit(u uint64) (sec int64, nsec int32)
+TEXT runtime·timesplit(SB),NOSPLIT,$0
+	MOVQ	u+0(FP), AX
 	// generated code for
 	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%1000000000 }
 	// adapted to reduce duplication
@@ -102,10 +105,10 @@ TEXT runtime·walltime(SB),NOSPLIT,$8-12
 	ADDQ	CX, DX
 	RCRQ	$1, DX
 	SHRQ	$29, DX
-	MOVQ	DX, sec+0(FP)
+	MOVQ	DX, sec+8(FP)
 	IMULQ	$1000000000, DX
 	SUBQ	DX, CX
-	MOVL	CX, nsec+8(FP)
+	MOVL	CX, nsec+16(FP)
 	RET
 
 TEXT runtime·notify(SB),NOSPLIT,$0

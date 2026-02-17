@@ -21,7 +21,6 @@ import (
 var (
 	DefaultUserAgent                  = defaultUserAgent
 	NewLoggingConn                    = newLoggingConn
-	ExportAppendTime                  = appendTime
 	ExportRefererForURL               = refererForURL
 	ExportServerNewConn               = (*Server).newConn
 	ExportCloseWriteAndWait           = (*conn).closeWriteAndWait
@@ -34,6 +33,7 @@ var (
 	Export_shouldCopyHeaderOnRedirect = shouldCopyHeaderOnRedirect
 	Export_writeStatusLine            = writeStatusLine
 	Export_is408Message               = is408Message
+	MaxPostCloseReadTime              = maxPostCloseReadTime
 )
 
 var MaxWriteWaitBeforeConnReuse = &maxWriteWaitBeforeConnReuse

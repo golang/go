@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build cgo
+//go:build cgo && (dragonfly || freebsd || linux || netbsd || openbsd || solaris)
 
 package ld
 
@@ -52,7 +52,7 @@ func main() {
 
 	elfFile, err := elf.NewFile(fi)
 	if err != nil {
-		t.Skip("The system may not support ELF, skipped.")
+		t.Fatal(err)
 	}
 
 	section := elfFile.Section(".dynsym")
@@ -153,7 +153,7 @@ func main() {
 
 	elfFile, err := elf.NewFile(fi)
 	if err != nil {
-		t.Skip("The system may not support ELF, skipped.")
+		t.Fatal(err)
 	}
 
 	section := elfFile.Section(".shstrtab")
@@ -278,7 +278,8 @@ func TestElfBindNow(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if test.mustInternalLink {
-				testenv.MustInternalLink(t, test.mustHaveCGO)
+				// N.B. none of the tests pass -asan/-msan/-asan.
+				testenv.MustInternalLink(t, testenv.SpecialBuildTypes{Cgo: test.mustHaveCGO})
 			}
 			if test.mustHaveCGO {
 				testenv.MustHaveCGO(t)
@@ -315,7 +316,7 @@ func TestElfBindNow(t *testing.T) {
 
 			elfFile, err := elf.NewFile(fi)
 			if err != nil {
-				t.Skip("The system may not support ELF, skipped.")
+				t.Fatal(err)
 			}
 			defer elfFile.Close()
 
@@ -407,8 +408,7 @@ func TestElfBindNow(t *testing.T) {
 }
 
 // This program is intended to be just big/complicated enough that
-// we wind up with decent-sized .data.rel.ro.{typelink,itablink,gopclntab}
-// sections.
+// we wind up with a decent-sized .data.rel.ro.itablink section.
 const ifacecallsProg = `
 package main
 
@@ -487,7 +487,7 @@ func TestRelroSectionOverlapIssue67261(t *testing.T) {
 
 	elfFile, err := elf.NewFile(fi)
 	if err != nil {
-		t.Skip("The system may not support ELF, skipped.")
+		t.Fatal(err)
 	}
 	defer elfFile.Close()
 

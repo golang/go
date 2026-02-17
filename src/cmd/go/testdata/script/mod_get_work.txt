@@ -1,0 +1,46 @@
+# Test go get with the work pattern.
+
+# go get work gets dependencies to satisfy missing imports in the
+# main modules' package graph. Before the 'work' pattern existed, users
+# would have to run './...' in the root of the work (main) module.
+cp go.mod go.mod.orig
+go get work
+cmp go.mod go.mod.want
+
+# 'go get work' and 'go get all' behave very differently. Because
+# 'all' evaluates to work packages but also to their dependencies,
+# 'go get all' will run the 'get' logic on all the dependency module
+# packages, bumping all their modules to the latest versions.
+cp go.mod.orig go.mod
+go get all
+cmp go.mod go.mod.all.want
+-- go.mod --
+module example.com/a
+
+go 1.25
+-- go.mod.want --
+module example.com/a
+
+go 1.25
+
+require rsc.io/quote v1.5.2
+
+require (
+	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
+	rsc.io/sampler v1.3.0 // indirect
+)
+-- go.mod.all.want --
+module example.com/a
+
+go 1.25
+
+require rsc.io/quote v1.5.2
+
+require (
+	golang.org/x/text v0.3.0 // indirect
+	rsc.io/sampler v1.99.99 // indirect
+)
+-- a.go --
+package a
+
+import _ "rsc.io/quote"

@@ -37,17 +37,3 @@ func ReadFile(filename string) ([]byte, error) {
 func RemoveAll(path string) error {
 	return removeAll(path)
 }
-
-// IsEphemeralError reports whether err is one of the errors that the functions
-// in this package attempt to mitigate.
-//
-// Errors considered ephemeral include:
-//   - syscall.ERROR_ACCESS_DENIED
-//   - syscall.ERROR_FILE_NOT_FOUND
-//   - internal/syscall/windows.ERROR_SHARING_VIOLATION
-//
-// This set may be expanded in the future; programs must not rely on the
-// non-ephemerality of any given error.
-func IsEphemeralError(err error) bool {
-	return isEphemeralError(err)
-}

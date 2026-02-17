@@ -44,7 +44,7 @@ stdout '^\tbuild\tvcs.modified=true$'
 cd ..
 
 # Revision and commit time are tagged for repositories with commits.
-exec bzr add a README
+exec bzr add a README go.mod
 exec bzr commit -m 'initial commit'
 cd a
 go install
@@ -61,7 +61,7 @@ cd ..
 cp README README2
 exec bzr add a README2
 exec bzr commit -m 'second commit'
-exec bzr tag v1.2.3
+exec bzr tag a/v1.2.3
 cd a
 go install
 go version -m $GOBIN/a$GOEXE
@@ -114,6 +114,10 @@ exit 1
 -- repo/README --
 Far out in the uncharted backwaters of the unfashionable end of the western
 spiral arm of the Galaxy lies a small, unregarded yellow sun.
+-- repo/go.mod --
+module example.com
+
+go 1.18
 -- repo/a/go.mod --
 module example.com/a
 

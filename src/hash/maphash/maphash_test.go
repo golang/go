@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"hash"
 	"internal/asan"
+	"internal/testhash"
 	"math"
 	"reflect"
 	"strings"
@@ -253,12 +254,17 @@ func TestComparable(t *testing.T) {
 	}
 	testComparable(t, s1, s2)
 	testComparable(t, s1.s, s2.s)
+	c1 := make(chan struct{})
+	c2 := make(chan struct{})
+	testComparable(t, c1, c1)
+	testComparable(t, chan struct{}(nil))
 	testComparable(t, float32(0), negativeZero[float32]())
 	testComparable(t, float64(0), negativeZero[float64]())
 	testComparableNoEqual(t, math.NaN(), math.NaN())
 	testComparableNoEqual(t, [2]string{"a", ""}, [2]string{"", "a"})
 	testComparableNoEqual(t, struct{ a, b string }{"foo", ""}, struct{ a, b string }{"", "foo"})
 	testComparableNoEqual(t, struct{ a, b any }{int(0), struct{}{}}, struct{ a, b any }{struct{}{}, int(0)})
+	testComparableNoEqual(t, c1, c2)
 }
 
 func testComparableNoEqual[T comparable](t *testing.T, v1, v2 T) {
@@ -454,6 +460,10 @@ func TestComparableAllocations(t *testing.T) {
 // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
 var _ hash.Hash = &Hash{}
 var _ hash.Hash64 = &Hash{}
+
+func TestHashInterface(t *testing.T) {
+	testhash.TestHash(t, func() hash.Hash { return new(Hash) })
+}
 
 func benchmarkSize(b *testing.B, size int) {
 	h := &Hash{}

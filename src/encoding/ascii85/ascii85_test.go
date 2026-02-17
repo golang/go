@@ -119,13 +119,10 @@ func TestDecoder(t *testing.T) {
 		decoder := NewDecoder(strings.NewReader(p.encoded))
 		dbuf, err := io.ReadAll(decoder)
 		if err != nil {
-			t.Fatal("Read failed", err)
+			t.Fatalf("Read from %q = %v, want nil", p.encoded, err)
 		}
 		testEqual(t, "Read from %q = length %v, want %v", p.encoded, len(dbuf), len(p.decoded))
 		testEqual(t, "Decoding of %q = %q, want %q", p.encoded, string(dbuf), p.decoded)
-		if err != nil {
-			testEqual(t, "Read from %q = %v, want %v", p.encoded, err, io.EOF)
-		}
 	}
 }
 

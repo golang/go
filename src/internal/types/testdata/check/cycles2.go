@@ -64,8 +64,8 @@ var _ = x == y
 
 // Test case for issue 6638.
 
-type T interface {
-	m() [T(nil).m /* ERROR "undefined" */ ()[0]]int
+type T /* ERROR "invalid recursive type" */ interface {
+	m() [T(nil).m()[0]]int
 }
 
 // Variations of this test case.

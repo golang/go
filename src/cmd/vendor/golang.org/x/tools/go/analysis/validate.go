@@ -63,7 +63,7 @@ func Validate(analyzers []*Analyzer) error {
 					return fmt.Errorf("fact type %s registered by two analyzers: %v, %v",
 						t, a, prev)
 				}
-				if t.Kind() != reflect.Ptr {
+				if t.Kind() != reflect.Pointer {
 					return fmt.Errorf("%s: fact type %s is not a pointer", a, t)
 				}
 				factTypes[t] = a

@@ -226,6 +226,7 @@ struct ltchars {
 #include <linux/cryptouser.h>
 #include <linux/devlink.h>
 #include <linux/dm-ioctl.h>
+#include <linux/elf.h>
 #include <linux/errqueue.h>
 #include <linux/ethtool_netlink.h>
 #include <linux/falloc.h>
@@ -255,6 +256,7 @@ struct ltchars {
 #include <linux/loop.h>
 #include <linux/lwtunnel.h>
 #include <linux/magic.h>
+#include <linux/mei.h>
 #include <linux/memfd.h>
 #include <linux/module.h>
 #include <linux/mount.h>
@@ -349,6 +351,9 @@ struct ltchars {
 #define _HIDIOCGRAWPHYS		HIDIOCGRAWPHYS(_HIDIOCGRAWPHYS_LEN)
 #define _HIDIOCGRAWUNIQ		HIDIOCGRAWUNIQ(_HIDIOCGRAWUNIQ_LEN)
 
+// Renamed in v6.16, commit c6d732c38f93 ("net: ethtool: remove duplicate defines for family info")
+#define ETHTOOL_FAMILY_NAME	ETHTOOL_GENL_NAME
+#define ETHTOOL_FAMILY_VERSION	ETHTOOL_GENL_VERSION
 '
 
 includes_NetBSD='
@@ -526,6 +531,7 @@ ccflags="$@"
 		$2 ~ /^O[CNPFPL][A-Z]+[^_][A-Z]+$/ ||
 		$2 ~ /^(NL|CR|TAB|BS|VT|FF)DLY$/ ||
 		$2 ~ /^(NL|CR|TAB|BS|VT|FF)[0-9]$/ ||
+		$2 ~ /^(DT|EI|ELF|EV|NN|NT|PF|SHF|SHN|SHT|STB|STT|VER)_/ ||
 		$2 ~ /^O?XTABS$/ ||
 		$2 ~ /^TC[IO](ON|OFF)$/ ||
 		$2 ~ /^IN_/ ||
@@ -608,7 +614,7 @@ ccflags="$@"
 		$2 !~ /IOC_MAGIC/ &&
 		$2 ~ /^[A-Z][A-Z0-9_]+_MAGIC2?$/ ||
 		$2 ~ /^(VM|VMADDR)_/ ||
-		$2 ~ /^IOCTL_VM_SOCKETS_/ ||
+		$2 ~ /^(IOCTL_VM_SOCKETS_|IOCTL_MEI_)/ ||
 		$2 ~ /^(TASKSTATS|TS)_/ ||
 		$2 ~ /^CGROUPSTATS_/ ||
 		$2 ~ /^GENL_/ ||

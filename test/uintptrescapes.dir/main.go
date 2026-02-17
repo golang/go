@@ -49,7 +49,7 @@ func main() {
 		defer wg.Done()
 		b := F1()
 		if b != 42 {
-			fmt.Printf("F1: got %d, expected 42\n", b)
+			fmt.Printf("F1: got %d, want 42\n", b)
 			c <- false
 		}
 	}()
@@ -58,7 +58,7 @@ func main() {
 		defer wg.Done()
 		b := F2()
 		if b != 42 {
-			fmt.Printf("F2: got %d, expected 42\n", b)
+			fmt.Printf("F2: got %d, want 42\n", b)
 			c <- false
 		}
 	}()
@@ -67,7 +67,7 @@ func main() {
 		defer wg.Done()
 		b := M1()
 		if b != 42 {
-			fmt.Printf("M1: got %d, expected 42\n", b)
+			fmt.Printf("M1: got %d, want 42\n", b)
 			c <- false
 		}
 	}()
@@ -76,7 +76,7 @@ func main() {
 		defer wg.Done()
 		b := M2()
 		if b != 42 {
-			fmt.Printf("M2: got %d, expected 42\n", b)
+			fmt.Printf("M2: got %d, want 42\n", b)
 			c <- false
 		}
 	}()

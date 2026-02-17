@@ -93,12 +93,22 @@ func EncodeStack(pcs []uintptr, prefix string) string {
 			// Use function-relative line numbering.
 			// f:+2 means two lines into function f.
 			// f:-1 should never happen, but be conservative.
+			//
+			// An inlined call is replaced by a NOP instruction
+			// with the correct pclntab information.
 			_, entryLine := fr.Func.FileLine(fr.Entry)
-			loc = fmt.Sprintf("%s.%s:%+d", path, fname, fr.Line-entryLine)
+			loc = fmt.Sprintf("%s.%s:%+d,+0x%x", path, fname, fr.Line-entryLine, fr.PC-fr.Entry)
 		} else {
 			// The function is non-Go code or is fully inlined:
 			// use absolute line number within enclosing file.
-			loc = fmt.Sprintf("%s.%s:=%d", path, fname, fr.Line)
+			//
+			// For inlined calls, the PC and Entry values
+			// both refer to the enclosing combined function.
+			// For example, both these PCs are relative to "caller":
+			//
+			//   callee:=1,+0x12        ('=' means inlined)
+			//   caller:+2,+0x34
+			loc = fmt.Sprintf("%s.%s:=%d,+0x%x", path, fname, fr.Line, fr.PC-fr.Entry)
 		}
 		locs = append(locs, loc)
 		if !more {

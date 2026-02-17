@@ -853,7 +853,7 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
 		} else {
 			ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
-		rela.AddAddrPlus(target.Arch, targ, int64(r.Add()))
+		rela.AddAddrPlus(target.Arch, targ, r.Add())
 
 		// Not mark r done here. So we still apply it statically,
 		// so in the file content we'll also have the right offset
@@ -1208,7 +1208,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 
 				// Look up the trampoline in case it already exists
 
-				tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
+				tramp = ldr.LookupOrCreateSym(name, ldr.SymVersion(rs))
 				if oName == "runtime.deferreturn" {
 					ldr.SetIsDeferReturnTramp(tramp, true)
 				}

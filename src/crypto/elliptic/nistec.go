@@ -27,13 +27,9 @@ func initP224() {
 	}
 }
 
-type p256Curve struct {
-	nistCurve[*nistec.P256Point]
-}
-
-var p256 = &p256Curve{nistCurve[*nistec.P256Point]{
+var p256 = &nistCurve[*nistec.P256Point]{
 	newPoint: nistec.NewP256Point,
-}}
+}
 
 func initP256() {
 	p256.params = &CurveParams{
@@ -226,26 +222,6 @@ func (curve *nistCurve[Point]) ScalarBaseMult(scalar []byte) (*big.Int, *big.Int
 		panic("crypto/elliptic: nistec rejected normalized scalar")
 	}
 	return curve.pointToAffine(p)
-}
-
-// CombinedMult returns [s1]G + [s2]P where G is the generator. It's used
-// through an interface upgrade in crypto/ecdsa.
-func (curve *nistCurve[Point]) CombinedMult(Px, Py *big.Int, s1, s2 []byte) (x, y *big.Int) {
-	s1 = curve.normalizeScalar(s1)
-	q, err := curve.newPoint().ScalarBaseMult(s1)
-	if err != nil {
-		panic("crypto/elliptic: nistec rejected normalized scalar")
-	}
-	p, err := curve.pointFromAffine(Px, Py)
-	if err != nil {
-		panic("crypto/elliptic: CombinedMult was called on an invalid point")
-	}
-	s2 = curve.normalizeScalar(s2)
-	p, err = p.ScalarMult(p, s2)
-	if err != nil {
-		panic("crypto/elliptic: nistec rejected normalized scalar")
-	}
-	return curve.pointToAffine(p.Add(p, q))
 }
 
 func (curve *nistCurve[Point]) Unmarshal(data []byte) (x, y *big.Int) {

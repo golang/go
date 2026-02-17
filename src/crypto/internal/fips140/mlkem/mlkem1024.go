@@ -113,15 +113,13 @@ func GenerateKey1024() (*DecapsulationKey1024, error) {
 }
 
 func generateKey1024(dk *DecapsulationKey1024) (*DecapsulationKey1024, error) {
+	fipsSelfTest()
 	var d [32]byte
 	drbg.Read(d[:])
 	var z [32]byte
 	drbg.Read(z[:])
 	kemKeyGen1024(dk, &d, &z)
-	if err := fips140.PCT("ML-KEM PCT", func() error { return kemPCT1024(dk) }); err != nil {
-		// This clearly can't happen, but FIPS 140-3 requires us to check.
-		panic(err)
-	}
+	fips140.PCT("ML-KEM PCT", func() error { return kemPCT1024(dk) })
 	fips140.RecordApproved()
 	return dk, nil
 }
@@ -129,6 +127,7 @@ func generateKey1024(dk *DecapsulationKey1024) (*DecapsulationKey1024, error) {
 // GenerateKeyInternal1024 is a derandomized version of GenerateKey1024,
 // exclusively for use in tests.
 func GenerateKeyInternal1024(d, z *[32]byte) *DecapsulationKey1024 {
+	fipsSelfTest()
 	dk := &DecapsulationKey1024{}
 	kemKeyGen1024(dk, d, z)
 	return dk
@@ -149,10 +148,6 @@ func newKeyFromSeed1024(dk *DecapsulationKey1024, seed []byte) (*DecapsulationKe
 	d := (*[32]byte)(seed[:32])
 	z := (*[32]byte)(seed[32:])
 	kemKeyGen1024(dk, d, z)
-	if err := fips140.PCT("ML-KEM PCT", func() error { return kemPCT1024(dk) }); err != nil {
-		// This clearly can't happen, but FIPS 140-3 requires us to check.
-		panic(err)
-	}
 	fips140.RecordApproved()
 	return dk, nil
 }
@@ -285,6 +280,7 @@ func (ek *EncapsulationKey1024) Encapsulate() (sharedKey, ciphertext []byte) {
 }
 
 func (ek *EncapsulationKey1024) encapsulate(cc *[CiphertextSize1024]byte) (sharedKey, ciphertext []byte) {
+	fipsSelfTest()
 	var m [messageSize]byte
 	drbg.Read(m[:])
 	// Note that the modulus check (step 2 of the encapsulation key check from
@@ -296,6 +292,7 @@ func (ek *EncapsulationKey1024) encapsulate(cc *[CiphertextSize1024]byte) (share
 // EncapsulateInternal is a derandomized version of Encapsulate, exclusively for
 // use in tests.
 func (ek *EncapsulationKey1024) EncapsulateInternal(m *[32]byte) (sharedKey, ciphertext []byte) {
+	fipsSelfTest()
 	cc := &[CiphertextSize1024]byte{}
 	return kemEncaps1024(cc, ek, m)
 }
@@ -372,11 +369,12 @@ func pkeEncrypt1024(cc *[CiphertextSize1024]byte, ex *encryptionKey1024, m *[mes
 
 	u := make([]ringElement, k1024) // NTT⁻¹(AT ◦ r) + e1
 	for i := range u {
-		u[i] = e1[i]
+		var uHat nttElement
 		for j := range r {
 			// Note that i and j are inverted, as we need the transposed of A.
-			u[i] = polyAdd(u[i], inverseNTT(nttMul(ex.a[j*k1024+i], r[j])))
+			uHat = polyAdd(uHat, nttMul(ex.a[j*k1024+i], r[j]))
 		}
+		u[i] = polyAdd(e1[i], inverseNTT(uHat))
 	}
 
 	μ := ringDecodeAndDecompress1(m)
@@ -401,6 +399,7 @@ func pkeEncrypt1024(cc *[CiphertextSize1024]byte, ex *encryptionKey1024, m *[mes
 //
 // The shared key must be kept secret.
 func (dk *DecapsulationKey1024) Decapsulate(ciphertext []byte) (sharedKey []byte, err error) {
+	fipsSelfTest()
 	if len(ciphertext) != CiphertextSize1024 {
 		return nil, errors.New("mlkem: invalid ciphertext length")
 	}

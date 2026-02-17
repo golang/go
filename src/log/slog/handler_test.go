@@ -10,7 +10,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
+	"log/slog/internal/buffer"
 	"os"
 	"path/filepath"
 	"slices"
@@ -529,9 +531,27 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			wantText: "name.first=Perry name.last=Platypus",
 			wantJSON: `{"name":{"first":"Perry","last":"Platypus"}}`,
 		},
+		{
+			name:    "group and key (or both) needs quoting",
+			replace: removeKeys(TimeKey, LevelKey),
+			attrs: []Attr{
+				Group("prefix",
+					String(" needs quoting ", "v"), String("NotNeedsQuoting", "v"),
+				),
+				Group("prefix needs quoting",
+					String(" needs quoting ", "v"), String("NotNeedsQuoting", "v"),
+				),
+			},
+			wantText: `msg=message "prefix. needs quoting "=v prefix.NotNeedsQuoting=v "prefix needs quoting. needs quoting "=v "prefix needs quoting.NotNeedsQuoting"=v`,
+			wantJSON: `{"msg":"message","prefix":{" needs quoting ":"v","NotNeedsQuoting":"v"},"prefix needs quoting":{" needs quoting ":"v","NotNeedsQuoting":"v"}}`,
+		},
 	} {
 		r := NewRecord(testTime, LevelInfo, "message", callerPC(2))
-		line := strconv.Itoa(r.source().Line)
+		source := r.Source()
+		if source == nil {
+			t.Fatal("source is nil")
+		}
+		line := strconv.Itoa(source.Line)
 		r.AddAttrs(test.attrs...)
 		var buf bytes.Buffer
 		opts := HandlerOptions{ReplaceAttr: test.replace, AddSource: test.addSource}
@@ -615,6 +635,40 @@ func TestHandlerEnabled(t *testing.T) {
 		if got != test.want {
 			t.Errorf("%v: got %t, want %t", test.leveler, got, test.want)
 		}
+	}
+}
+
+func TestJSONAndTextHandlersWithUnavailableSource(t *testing.T) {
+	// Verify that a nil source does not cause a panic.
+	// and that the source is empty.
+	var buf bytes.Buffer
+	opts := &HandlerOptions{
+		ReplaceAttr: removeKeys(LevelKey),
+		AddSource:   true,
+	}
+
+	for _, test := range []struct {
+		name string
+		h    Handler
+		want string
+	}{
+		{"text", NewTextHandler(&buf, opts), "msg=message"},
+		{"json", NewJSONHandler(&buf, opts), `{"msg":"message"}`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			buf.Reset()
+			r := NewRecord(time.Time{}, LevelInfo, "message", 0)
+			err := test.h.Handle(t.Context(), r)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			want := strings.TrimSpace(test.want)
+			got := strings.TrimSpace(buf.String())
+			if got != want {
+				t.Errorf("\ngot  %s\nwant %s", got, want)
+			}
+		})
 	}
 }
 
@@ -731,4 +785,32 @@ func TestDiscardHandler(t *testing.T) {
 	l.LogAttrs(ctx, LevelInfo+1, "a b c", Int("a", 1), String("b", "two"))
 	l.Info("info", "a", []Attr{Int("i", 1)})
 	l.Info("info", "a", GroupValue(Int("i", 1)))
+}
+
+func BenchmarkAppendKey(b *testing.B) {
+	for _, size := range []int{5, 10, 30, 50, 100} {
+		for _, quoting := range []string{"no_quoting", "pre_quoting", "key_quoting", "both_quoting"} {
+			b.Run(fmt.Sprintf("%s_prefix_size_%d", quoting, size), func(b *testing.B) {
+				var (
+					hs     = NewJSONHandler(io.Discard, nil).newHandleState(buffer.New(), false, "")
+					prefix = bytes.Repeat([]byte("x"), size)
+					key    = "key"
+				)
+
+				if quoting == "pre_quoting" || quoting == "both_quoting" {
+					prefix[0] = '"'
+				}
+				if quoting == "key_quoting" || quoting == "both_quoting" {
+					key = "ke\""
+				}
+
+				hs.prefix = (*buffer.Buffer)(&prefix)
+
+				for b.Loop() {
+					hs.appendKey(key)
+					hs.buf.Reset()
+				}
+			})
+		}
+	}
 }

@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"internal/abi"
-	"internal/buildcfg"
 	"slices"
 	"sort"
 	"strings"
@@ -185,6 +184,7 @@ func dimportpath(p *types.Pkg) {
 	ot := dnameData(s, 0, p.Path, "", nil, false, false)
 	objw.Global(s, int32(ot), obj.DUPOK|obj.RODATA)
 	s.Set(obj.AttrContentAddressable, true)
+	s.Align = 1
 	p.Pathsym = s
 }
 
@@ -309,6 +309,7 @@ func dname(name, tag string, pkg *types.Pkg, exported, embedded bool) *obj.LSym 
 	ot := dnameData(s, 0, name, tag, pkg, exported, embedded)
 	objw.Global(s, int32(ot), obj.DUPOK|obj.RODATA)
 	s.Set(obj.AttrContentAddressable, true)
+	s.Align = 1
 	return s
 }
 
@@ -415,6 +416,10 @@ var kinds = []abi.Kind{
 	types.TUNSAFEPTR:  abi.UnsafePointer,
 }
 
+func ABIKindOfType(t *types.Type) abi.Kind {
+	return kinds[t.Kind()]
+}
+
 var (
 	memhashvarlen  *obj.LSym
 	memequalvarlen *obj.LSym
@@ -491,6 +496,9 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 			exported = types.IsExported(t.Elem().Sym().Name)
 		}
 	}
+	if types.IsDirectIface(t) {
+		tflag |= abi.TFlagDirectIface
+	}
 
 	if tflag != abi.TFlag(uint8(tflag)) {
 		// this should optimize away completely
@@ -510,11 +518,7 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	c.Field("Align_").WriteUint8(uint8(t.Alignment()))
 	c.Field("FieldAlign_").WriteUint8(uint8(t.Alignment()))
 
-	kind := kinds[t.Kind()]
-	if types.IsDirectIface(t) {
-		kind |= abi.KindDirectIface
-	}
-	c.Field("Kind_").WriteUint8(uint8(kind))
+	c.Field("Kind_").WriteUint8(uint8(ABIKindOfType(t)))
 
 	c.Field("Equal").WritePtr(eqfunc)
 	c.Field("GCData").WritePtr(gcsym)
@@ -592,11 +596,21 @@ func TypePtrAt(pos src.XPos, t *types.Type) *ir.AddrExpr {
 // it may sometimes, but not always, be a type that can't implement the specified
 // interface.
 func ITabLsym(typ, iface *types.Type) *obj.LSym {
+	return itabLsym(typ, iface, true)
+}
+
+func itabLsym(typ, iface *types.Type, allowNonImplement bool) *obj.LSym {
 	s, existed := ir.Pkgs.Itab.LookupOK(typ.LinkString() + "," + iface.LinkString())
 	lsym := s.Linksym()
+	signatmu.Lock()
+	if lsym.Extra == nil {
+		ii := lsym.NewItabInfo()
+		ii.Type = typ
+	}
+	signatmu.Unlock()
 
 	if !existed {
-		writeITab(lsym, typ, iface, true)
+		writeITab(lsym, typ, iface, allowNonImplement)
 	}
 	return lsym
 }
@@ -605,13 +619,7 @@ func ITabLsym(typ, iface *types.Type) *obj.LSym {
 // *runtime.itab value for concrete type typ implementing interface
 // iface.
 func ITabAddrAt(pos src.XPos, typ, iface *types.Type) *ir.AddrExpr {
-	s, existed := ir.Pkgs.Itab.LookupOK(typ.LinkString() + "," + iface.LinkString())
-	lsym := s.Linksym()
-
-	if !existed {
-		writeITab(lsym, typ, iface, false)
-	}
-
+	lsym := itabLsym(typ, iface, false)
 	return typecheck.LinksymAddr(pos, lsym, types.Types[types.TUINT8])
 }
 
@@ -711,6 +719,10 @@ func writeType(t *types.Type) *obj.LSym {
 	}
 	s.SetSiggen(true)
 
+	if !tbase.HasShape() {
+		TypeLinksym(t) // ensure lsym.Extra is set
+	}
+
 	if !NeedEmit(tbase) {
 		if i := typecheck.BaseTypeIndex(t); i >= 0 {
 			lsym.Pkg = tbase.Sym().Pkg.Prefix
@@ -746,6 +758,9 @@ func writeType(t *types.Type) *obj.LSym {
 	// | method list, if any            |   dextratype
 	// +--------------------------------+                            - E
 
+	// internal/abi.Type.DescriptorSize is aware of this type layout,
+	// and must be changed if the layout change.
+
 	// UncommonType section is included if we have a name or a method.
 	extra := t.Sym() != nil || len(methods(t)) != 0
 
@@ -769,11 +784,7 @@ func writeType(t *types.Type) *obj.LSym {
 		rt = rttype.InterfaceType
 		dataAdd = len(imethods(t)) * int(rttype.IMethod.Size())
 	case types.TMAP:
-		if buildcfg.Experiment.SwissMap {
-			rt = rttype.SwissMapType
-		} else {
-			rt = rttype.OldMapType
-		}
+		rt = rttype.MapType
 	case types.TPTR:
 		rt = rttype.PtrType
 		// TODO: use rttype.Type for Elem() is ANY?
@@ -873,11 +884,7 @@ func writeType(t *types.Type) *obj.LSym {
 		}
 
 	case types.TMAP:
-		if buildcfg.Experiment.SwissMap {
-			writeSwissMapType(t, lsym, c)
-		} else {
-			writeOldMapType(t, lsym, c)
-		}
+		writeMapType(t, lsym, c)
 
 	case types.TPTR:
 		// internal/abi.PtrType
@@ -958,6 +965,7 @@ func writeType(t *types.Type) *obj.LSym {
 		keep = false
 	}
 	lsym.Set(obj.AttrMakeTypelink, keep)
+	lsym.Align = int16(types.PtrSize)
 
 	return lsym
 }
@@ -1077,6 +1085,7 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type, allowNonImplement bool) {
 	// Nothing writes static itabs, so they are read only.
 	objw.Global(lsym, int32(rttype.ITab.Size()+delta), int16(obj.DUPOK|obj.RODATA))
 	lsym.Set(obj.AttrContentAddressable, true)
+	lsym.Align = int16(types.PtrSize)
 }
 
 func WritePluginTable() {
@@ -1227,7 +1236,7 @@ func typesStrCmp(a, b typeAndStr) int {
 // GC information is always a bitmask, never a gc program.
 // GCSym may be called in concurrent backend, so it does not emit the symbol
 // content.
-func GCSym(t *types.Type) (lsym *obj.LSym, ptrdata int64) {
+func GCSym(t *types.Type, onDemandAllowed bool) (lsym *obj.LSym, ptrdata int64) {
 	// Record that we need to emit the GC symbol.
 	gcsymmu.Lock()
 	if _, ok := gcsymset[t]; !ok {
@@ -1235,7 +1244,7 @@ func GCSym(t *types.Type) (lsym *obj.LSym, ptrdata int64) {
 	}
 	gcsymmu.Unlock()
 
-	lsym, _, ptrdata = dgcsym(t, false, false)
+	lsym, _, ptrdata = dgcsym(t, false, onDemandAllowed)
 	return
 }
 
@@ -1272,6 +1281,9 @@ func dgcptrmask(t *types.Type, write bool) *obj.LSym {
 		}
 		objw.Global(lsym, int32(len(ptrmask)), obj.DUPOK|obj.RODATA|obj.LOCAL)
 		lsym.Set(obj.AttrContentAddressable, true)
+		// The runtime expects ptrmasks to be aligned
+		// as a uintptr.
+		lsym.Align = int16(types.PtrSize)
 	}
 	return lsym
 }
@@ -1280,9 +1292,6 @@ func dgcptrmask(t *types.Type, write bool) *obj.LSym {
 // word offsets in t that hold pointers.
 // ptrmask is assumed to fit at least types.PtrDataSize(t)/PtrSize bits.
 func fillptrmask(t *types.Type, ptrmask []byte) {
-	for i := range ptrmask {
-		ptrmask[i] = 0
-	}
 	if !t.HasPointers() {
 		return
 	}
@@ -1474,11 +1483,4 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 		Sym:  TypeLinksym(ityp),
 		Add:  InterfaceMethodOffset(ityp, midx),
 	})
-}
-
-func deref(t *types.Type) *types.Type {
-	if t.IsPtr() {
-		return t.Elem()
-	}
-	return t
 }

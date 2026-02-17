@@ -93,6 +93,13 @@ TEXT runtime·closefd(SB),NOSPLIT,$0-8
 	MOVW	R0, ret+4(FP)
 	RET
 
+//func dupfd(old, new int32) int32
+TEXT runtime·dupfd(SB),NOSPLIT,$0-12
+	MOVW	$SYS_DUP, R0
+	SWI	$0
+	MOVW	R0, ret+8(FP)
+	RET
+
 //func exits(msg *byte)
 TEXT runtime·exits(SB),NOSPLIT,$0-4
 	MOVW    $SYS_EXITS, R0
@@ -127,26 +134,10 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0-12
 	MOVW	R0, ret+8(FP)
 	RET
 
-//func nsec(*int64) int64
-TEXT runtime·nsec(SB),NOSPLIT|NOFRAME,$0-12
-	MOVW	$SYS_NSEC, R0
-	SWI	$0
-	MOVW	arg+0(FP), R1
-	MOVW	0(R1), R0
-	MOVW	R0, ret_lo+4(FP)
-	MOVW	4(R1), R0
-	MOVW	R0, ret_hi+8(FP)
-	RET
-
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$12-12
-	// use nsec system call to get current time in nanoseconds
-	MOVW	$sysnsec_lo-8(SP), R0	// destination addr
-	MOVW	R0,res-12(SP)
-	MOVW	$SYS_NSEC, R0
-	SWI	$0
-	MOVW	sysnsec_lo-8(SP), R1	// R1:R2 = nsec
-	MOVW	sysnsec_hi-4(SP), R2
+// func timesplit(u uint64) (sec int64, nsec int32)
+TEXT runtime·timesplit(SB),NOSPLIT,$0
+	MOVW	u_lo+0(FP), R1	// R1:R2 = nsec
+	MOVW	u_hi+4(FP), R2
 
 	// multiply nanoseconds by reciprocal of 10**9 (scaled by 2**61)
 	// to get seconds (96 bit scaled result)
@@ -173,9 +164,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$12-12
 	SUB.HS	R5,R1			//    remainder -= 10**9
 	ADD.HS	$1,R6			//    sec += 1
 
-	MOVW	R6,sec_lo+0(FP)
-	MOVW	R7,sec_hi+4(FP)
-	MOVW	R1,nsec+8(FP)
+	MOVW	R6,sec_lo+8(FP)
+	MOVW	R7,sec_hi+12(FP)
+	MOVW	R1,nsec+16(FP)
 	RET
 
 //func notify(fn unsafe.Pointer) int32

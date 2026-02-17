@@ -240,8 +240,8 @@ func isValidName(name string) bool {
 
 // NewVerifier construct a new [Verifier] from an encoded verifier key.
 func NewVerifier(vkey string) (Verifier, error) {
-	name, vkey := chop(vkey, "+")
-	hash16, key64 := chop(vkey, "+")
+	name, vkey, _ := strings.Cut(vkey, "+")
+	hash16, key64, _ := strings.Cut(vkey, "+")
 	hash, err1 := strconv.ParseUint(hash16, 16, 32)
 	key, err2 := base64.StdEncoding.DecodeString(key64)
 	if len(hash16) != 8 || err1 != nil || err2 != nil || !isValidName(name) || len(key) == 0 {
@@ -273,17 +273,6 @@ func NewVerifier(vkey string) (Verifier, error) {
 	return v, nil
 }
 
-// chop chops s at the first instance of sep, if any,
-// and returns the text before and after sep.
-// If sep is not present, chop returns before is s and after is empty.
-func chop(s, sep string) (before, after string) {
-	i := strings.Index(s, sep)
-	if i < 0 {
-		return s, ""
-	}
-	return s[:i], s[i+len(sep):]
-}
-
 // verifier is a trivial Verifier implementation.
 type verifier struct {
 	name   string
@@ -297,10 +286,10 @@ func (v *verifier) Verify(msg, sig []byte) bool { return v.verify(msg, sig) }
 
 // NewSigner constructs a new [Signer] from an encoded signer key.
 func NewSigner(skey string) (Signer, error) {
-	priv1, skey := chop(skey, "+")
-	priv2, skey := chop(skey, "+")
-	name, skey := chop(skey, "+")
-	hash16, key64 := chop(skey, "+")
+	priv1, skey, _ := strings.Cut(skey, "+")
+	priv2, skey, _ := strings.Cut(skey, "+")
+	name, skey, _ := strings.Cut(skey, "+")
+	hash16, key64, _ := strings.Cut(skey, "+")
 	hash, err1 := strconv.ParseUint(hash16, 16, 32)
 	key, err2 := base64.StdEncoding.DecodeString(key64)
 	if priv1 != "PRIVATE" || priv2 != "KEY" || len(hash16) != 8 || err1 != nil || err2 != nil || !isValidName(name) || len(key) == 0 {
@@ -557,7 +546,7 @@ func Open(msg []byte, known Verifiers) (*Note, error) {
 			return nil, errMalformedNote
 		}
 		line = line[len(sigPrefix):]
-		name, b64 := chop(string(line), " ")
+		name, b64, _ := strings.Cut(string(line), " ")
 		sig, err := base64.StdEncoding.DecodeString(b64)
 		if err != nil || !isValidName(name) || b64 == "" || len(sig) < 5 {
 			return nil, errMalformedNote

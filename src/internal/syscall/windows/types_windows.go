@@ -5,6 +5,7 @@
 package windows
 
 import (
+	"internal/runtime/syscall/windows"
 	"syscall"
 	"unsafe"
 )
@@ -14,6 +15,8 @@ const (
 	TCP_KEEPIDLE  = 0x03
 	TCP_KEEPCNT   = 0x10
 	TCP_KEEPINTVL = 0x11
+
+	SIO_UDP_NETRESET = syscall.IOC_IN | syscall.IOC_VENDOR | 15
 )
 
 const (
@@ -162,6 +165,22 @@ type SECURITY_QUALITY_OF_SERVICE struct {
 	EffectiveOnly       byte
 }
 
+// File flags for [os.OpenFile]. The O_ prefix is used to indicate
+// that these flags are specific to the OpenFile function.
+const (
+	O_FILE_FLAG_OPEN_NO_RECALL     = 0x00100000
+	O_FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+	O_FILE_FLAG_SESSION_AWARE      = 0x00800000
+	O_FILE_FLAG_POSIX_SEMANTICS    = 0x01000000
+	O_FILE_FLAG_BACKUP_SEMANTICS   = 0x02000000
+	O_FILE_FLAG_DELETE_ON_CLOSE    = 0x04000000
+	O_FILE_FLAG_SEQUENTIAL_SCAN    = 0x08000000
+	O_FILE_FLAG_RANDOM_ACCESS      = 0x10000000
+	O_FILE_FLAG_NO_BUFFERING       = 0x20000000
+	O_FILE_FLAG_OVERLAPPED         = 0x40000000
+	O_FILE_FLAG_WRITE_THROUGH      = 0x80000000
+)
+
 const (
 	// CreateDisposition flags for NtCreateFile and NtCreateNamedPipeFile.
 	FILE_SUPERSEDE           = 0x00000000
@@ -191,11 +210,17 @@ const (
 	FILE_NO_COMPRESSION            = 0x00008000
 	FILE_OPEN_REQUIRING_OPLOCK     = 0x00010000
 	FILE_DISALLOW_EXCLUSIVE        = 0x00020000
+	FILE_SESSION_AWARE             = 0x00040000
 	FILE_RESERVE_OPFILTER          = 0x00100000
 	FILE_OPEN_REPARSE_POINT        = 0x00200000
 	FILE_OPEN_NO_RECALL            = 0x00400000
 	FILE_OPEN_FOR_FREE_SPACE_QUERY = 0x00800000
 )
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_disposition_info
+type FILE_DISPOSITION_INFO struct {
+	DeleteFile bool
+}
 
 // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information
 type FILE_DISPOSITION_INFORMATION struct {
@@ -215,4 +240,146 @@ const (
 	FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK = 0x00000004
 	FILE_DISPOSITION_ON_CLOSE                  = 0x00000008
 	FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE = 0x00000010
+)
+
+// Flags for FILE_RENAME_INFORMATION_EX.
+const (
+	FILE_RENAME_REPLACE_IF_EXISTS = 0x00000001
+	FILE_RENAME_POSIX_SEMANTICS   = 0x00000002
+)
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information
+type FILE_RENAME_INFORMATION struct {
+	ReplaceIfExists bool
+	RootDirectory   syscall.Handle
+	FileNameLength  uint32
+	FileName        [syscall.MAX_PATH]uint16
+}
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information
+type FILE_RENAME_INFORMATION_EX struct {
+	Flags          uint32
+	RootDirectory  syscall.Handle
+	FileNameLength uint32
+	FileName       [syscall.MAX_PATH]uint16
+}
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_link_information
+type FILE_LINK_INFORMATION struct {
+	ReplaceIfExists bool
+	RootDirectory   syscall.Handle
+	FileNameLength  uint32
+	FileName        [syscall.MAX_PATH]uint16
+}
+
+const FileReplaceCompletionInformation = 61
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_completion_information
+type FILE_COMPLETION_INFORMATION struct {
+	Port syscall.Handle
+	Key  uintptr
+}
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-osversioninfoexa
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfoexw
+const VER_NT_WORKSTATION = 0x0000001
+
+type MemoryBasicInformation = windows.MemoryBasicInformation
+
+type Context = windows.Context
+
+const FileFlagsMask = 0xFFF00000
+
+const ValidFileFlagsMask = O_FILE_FLAG_OPEN_REPARSE_POINT |
+	O_FILE_FLAG_BACKUP_SEMANTICS |
+	O_FILE_FLAG_OVERLAPPED |
+	O_FILE_FLAG_OPEN_NO_RECALL |
+	O_FILE_FLAG_SESSION_AWARE |
+	O_FILE_FLAG_POSIX_SEMANTICS |
+	O_FILE_FLAG_DELETE_ON_CLOSE |
+	O_FILE_FLAG_SEQUENTIAL_SCAN |
+	O_FILE_FLAG_NO_BUFFERING |
+	O_FILE_FLAG_RANDOM_ACCESS |
+	O_FILE_FLAG_WRITE_THROUGH
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa379636.aspx
+type TRUSTEE struct {
+	MultipleTrustee          *TRUSTEE
+	MultipleTrusteeOperation int32
+	TrusteeForm              int32
+	TrusteeType              int32
+	Name                     *uint16
+}
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa379638.aspx
+const (
+	TRUSTEE_IS_SID = iota
+	TRUSTEE_IS_NAME
+	TRUSTEE_BAD_FORM
+	TRUSTEE_IS_OBJECTS_AND_SID
+	TRUSTEE_IS_OBJECTS_AND_NAME
+)
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa446627.aspx
+type EXPLICIT_ACCESS struct {
+	AccessPermissions uint32
+	AccessMode        int32
+	Inheritance       uint32
+	Trustee           TRUSTEE
+}
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa374899.aspx
+const (
+	NOT_USED_ACCESS = iota
+	GRANT_ACCESS
+	SET_ACCESS
+	DENY_ACCESS
+	REVOKE_ACCESS
+	SET_AUDIT_SUCCESS
+	SET_AUDIT_FAILURE
+)
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa446627.aspx
+const (
+	NO_INHERITANCE                     = 0x0
+	SUB_OBJECTS_ONLY_INHERIT           = 0x1
+	SUB_CONTAINERS_ONLY_INHERIT        = 0x2
+	SUB_CONTAINERS_AND_OBJECTS_INHERIT = 0x3
+	INHERIT_NO_PROPAGATE               = 0x4
+	INHERIT_ONLY                       = 0x8
+)
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa379593.aspx
+const (
+	SE_UNKNOWN_OBJECT_TYPE = iota
+	SE_FILE_OBJECT
+	SE_SERVICE
+	SE_PRINTER
+	SE_REGISTRY_KEY
+	SE_LMSHARE
+	SE_KERNEL_OBJECT
+	SE_WINDOW_OBJECT
+	SE_DS_OBJECT
+	SE_DS_OBJECT_ALL
+	SE_PROVIDER_DEFINED_OBJECT
+	SE_WMIGUID_OBJECT
+	SE_REGISTRY_WOW64_32KEY
+	SE_REGISTRY_WOW64_64KEY
+)
+
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dtyp/23e75ca3-98fd-4396-84e5-86cd9d40d343
+const (
+	OWNER_SECURITY_INFORMATION               = 0x00000001
+	GROUP_SECURITY_INFORMATION               = 0x00000002
+	DACL_SECURITY_INFORMATION                = 0x00000004
+	SACL_SECURITY_INFORMATION                = 0x00000008
+	LABEL_SECURITY_INFORMATION               = 0x00000010
+	UNPROTECTED_SACL_SECURITY_INFORMATION    = 0x10000000
+	UNPROTECTED_DACL_SECURITY_INFORMATION    = 0x20000000
+	PROTECTED_SACL_SECURITY_INFORMATION      = 0x40000000
+	PROTECTED_DACL_SECURITY_INFORMATION      = 0x80000000
+	ATTRIBUTE_SECURITY_INFORMATION           = 0x00000020
+	SCOPE_SECURITY_INFORMATION               = 0x00000040
+	PROCESS_TRUST_LABEL_SECURITY_INFORMATION = 0x00000080
+	BACKUP_SECURITY_INFORMATION              = 0x00010000
 )

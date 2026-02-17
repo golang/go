@@ -31,7 +31,7 @@ func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err
 	panic("cgo stub: cgo not available")
 }
 
-func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, completed bool) {
+func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error) {
 	panic("cgo stub: cgo not available")
 }
 

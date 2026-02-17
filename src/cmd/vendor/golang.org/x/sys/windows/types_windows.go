@@ -65,6 +65,22 @@ var signals = [...]string{
 	15: "terminated",
 }
 
+// File flags for [os.OpenFile]. The O_ prefix is used to indicate
+// that these flags are specific to the OpenFile function.
+const (
+	O_FILE_FLAG_OPEN_NO_RECALL     = FILE_FLAG_OPEN_NO_RECALL
+	O_FILE_FLAG_OPEN_REPARSE_POINT = FILE_FLAG_OPEN_REPARSE_POINT
+	O_FILE_FLAG_SESSION_AWARE      = FILE_FLAG_SESSION_AWARE
+	O_FILE_FLAG_POSIX_SEMANTICS    = FILE_FLAG_POSIX_SEMANTICS
+	O_FILE_FLAG_BACKUP_SEMANTICS   = FILE_FLAG_BACKUP_SEMANTICS
+	O_FILE_FLAG_DELETE_ON_CLOSE    = FILE_FLAG_DELETE_ON_CLOSE
+	O_FILE_FLAG_SEQUENTIAL_SCAN    = FILE_FLAG_SEQUENTIAL_SCAN
+	O_FILE_FLAG_RANDOM_ACCESS      = FILE_FLAG_RANDOM_ACCESS
+	O_FILE_FLAG_NO_BUFFERING       = FILE_FLAG_NO_BUFFERING
+	O_FILE_FLAG_OVERLAPPED         = FILE_FLAG_OVERLAPPED
+	O_FILE_FLAG_WRITE_THROUGH      = FILE_FLAG_WRITE_THROUGH
+)
+
 const (
 	FILE_READ_DATA        = 0x00000001
 	FILE_READ_ATTRIBUTES  = 0x00000080
@@ -1074,6 +1090,7 @@ const (
 	IP_ADD_MEMBERSHIP  = 0xc
 	IP_DROP_MEMBERSHIP = 0xd
 	IP_PKTINFO         = 0x13
+	IP_MTU_DISCOVER    = 0x47
 
 	IPV6_V6ONLY         = 0x1b
 	IPV6_UNICAST_HOPS   = 0x4
@@ -1083,6 +1100,7 @@ const (
 	IPV6_JOIN_GROUP     = 0xc
 	IPV6_LEAVE_GROUP    = 0xd
 	IPV6_PKTINFO        = 0x13
+	IPV6_MTU_DISCOVER   = 0x47
 
 	MSG_OOB       = 0x1
 	MSG_PEEK      = 0x2
@@ -1132,6 +1150,15 @@ const (
 	WSASYS_STATUS_LEN  = 128
 )
 
+// enum PMTUD_STATE from ws2ipdef.h
+const (
+	IP_PMTUDISC_NOT_SET = 0
+	IP_PMTUDISC_DO      = 1
+	IP_PMTUDISC_DONT    = 2
+	IP_PMTUDISC_PROBE   = 3
+	IP_PMTUDISC_MAX     = 4
+)
+
 type WSABuf struct {
 	Len uint32
 	Buf *byte
@@ -1144,6 +1171,22 @@ type WSAMsg struct {
 	BufferCount uint32
 	Control     WSABuf
 	Flags       uint32
+}
+
+type WSACMSGHDR struct {
+	Len   uintptr
+	Level int32
+	Type  int32
+}
+
+type IN_PKTINFO struct {
+	Addr    [4]byte
+	Ifindex uint32
+}
+
+type IN6_PKTINFO struct {
+	Addr    [16]byte
+	Ifindex uint32
 }
 
 // Flags for WSASocket
@@ -1949,6 +1992,12 @@ const (
 	SYMBOLIC_LINK_FLAG_DIRECTORY     = 0x1
 )
 
+// FILE_ZERO_DATA_INFORMATION from winioctl.h
+type FileZeroDataInformation struct {
+	FileOffset      int64
+	BeyondFinalZero int64
+}
+
 const (
 	ComputerNameNetBIOS                   = 0
 	ComputerNameDnsHostname               = 1
@@ -2269,6 +2318,82 @@ type MibIfRow2 struct {
 	OutMulticastOctets          uint64
 	OutBroadcastOctets          uint64
 	OutQLen                     uint64
+}
+
+// IP_ADDRESS_PREFIX stores an IP address prefix. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-ip_address_prefix.
+type IpAddressPrefix struct {
+	Prefix       RawSockaddrInet
+	PrefixLength uint8
+}
+
+// NL_ROUTE_ORIGIN enumeration from nldef.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_route_origin.
+const (
+	NlroManual              = 0
+	NlroWellKnown           = 1
+	NlroDHCP                = 2
+	NlroRouterAdvertisement = 3
+	Nlro6to4                = 4
+)
+
+// NL_ROUTE_ORIGIN enumeration from nldef.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_route_protocol.
+const (
+	MIB_IPPROTO_OTHER             = 1
+	MIB_IPPROTO_LOCAL             = 2
+	MIB_IPPROTO_NETMGMT           = 3
+	MIB_IPPROTO_ICMP              = 4
+	MIB_IPPROTO_EGP               = 5
+	MIB_IPPROTO_GGP               = 6
+	MIB_IPPROTO_HELLO             = 7
+	MIB_IPPROTO_RIP               = 8
+	MIB_IPPROTO_IS_IS             = 9
+	MIB_IPPROTO_ES_IS             = 10
+	MIB_IPPROTO_CISCO             = 11
+	MIB_IPPROTO_BBN               = 12
+	MIB_IPPROTO_OSPF              = 13
+	MIB_IPPROTO_BGP               = 14
+	MIB_IPPROTO_IDPR              = 15
+	MIB_IPPROTO_EIGRP             = 16
+	MIB_IPPROTO_DVMRP             = 17
+	MIB_IPPROTO_RPL               = 18
+	MIB_IPPROTO_DHCP              = 19
+	MIB_IPPROTO_NT_AUTOSTATIC     = 10002
+	MIB_IPPROTO_NT_STATIC         = 10006
+	MIB_IPPROTO_NT_STATIC_NON_DOD = 10007
+)
+
+// MIB_IPFORWARD_ROW2 stores information about an IP route entry. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_ipforward_row2.
+type MibIpForwardRow2 struct {
+	InterfaceLuid        uint64
+	InterfaceIndex       uint32
+	DestinationPrefix    IpAddressPrefix
+	NextHop              RawSockaddrInet
+	SitePrefixLength     uint8
+	ValidLifetime        uint32
+	PreferredLifetime    uint32
+	Metric               uint32
+	Protocol             uint32
+	Loopback             uint8
+	AutoconfigureAddress uint8
+	Publish              uint8
+	Immortal             uint8
+	Age                  uint32
+	Origin               uint32
+}
+
+// MIB_IPFORWARD_TABLE2 contains a table of IP route entries. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_ipforward_table2.
+type MibIpForwardTable2 struct {
+	NumEntries uint32
+	Table      [1]MibIpForwardRow2
+}
+
+// Rows returns the IP route entries in the table.
+func (t *MibIpForwardTable2) Rows() []MibIpForwardRow2 {
+	return unsafe.Slice(&t.Table[0], t.NumEntries)
 }
 
 // MIB_UNICASTIPADDRESS_ROW stores information about a unicast IP address. See
@@ -2673,6 +2798,8 @@ type CommTimeouts struct {
 
 // NTUnicodeString is a UTF-16 string for NT native APIs, corresponding to UNICODE_STRING.
 type NTUnicodeString struct {
+	// Note: Length and MaximumLength are in *bytes*, not uint16s.
+	// They should always be even.
 	Length        uint16
 	MaximumLength uint16
 	Buffer        *uint16
@@ -3600,4 +3727,214 @@ const (
 	KLF_REPLACELANG   = 0x00000010
 	KLF_NOTELLSHELL   = 0x00000080
 	KLF_SETFORPROCESS = 0x00000100
+)
+
+// Virtual Key codes
+// https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
+const (
+	VK_LBUTTON             = 0x01
+	VK_RBUTTON             = 0x02
+	VK_CANCEL              = 0x03
+	VK_MBUTTON             = 0x04
+	VK_XBUTTON1            = 0x05
+	VK_XBUTTON2            = 0x06
+	VK_BACK                = 0x08
+	VK_TAB                 = 0x09
+	VK_CLEAR               = 0x0C
+	VK_RETURN              = 0x0D
+	VK_SHIFT               = 0x10
+	VK_CONTROL             = 0x11
+	VK_MENU                = 0x12
+	VK_PAUSE               = 0x13
+	VK_CAPITAL             = 0x14
+	VK_KANA                = 0x15
+	VK_HANGEUL             = 0x15
+	VK_HANGUL              = 0x15
+	VK_IME_ON              = 0x16
+	VK_JUNJA               = 0x17
+	VK_FINAL               = 0x18
+	VK_HANJA               = 0x19
+	VK_KANJI               = 0x19
+	VK_IME_OFF             = 0x1A
+	VK_ESCAPE              = 0x1B
+	VK_CONVERT             = 0x1C
+	VK_NONCONVERT          = 0x1D
+	VK_ACCEPT              = 0x1E
+	VK_MODECHANGE          = 0x1F
+	VK_SPACE               = 0x20
+	VK_PRIOR               = 0x21
+	VK_NEXT                = 0x22
+	VK_END                 = 0x23
+	VK_HOME                = 0x24
+	VK_LEFT                = 0x25
+	VK_UP                  = 0x26
+	VK_RIGHT               = 0x27
+	VK_DOWN                = 0x28
+	VK_SELECT              = 0x29
+	VK_PRINT               = 0x2A
+	VK_EXECUTE             = 0x2B
+	VK_SNAPSHOT            = 0x2C
+	VK_INSERT              = 0x2D
+	VK_DELETE              = 0x2E
+	VK_HELP                = 0x2F
+	VK_LWIN                = 0x5B
+	VK_RWIN                = 0x5C
+	VK_APPS                = 0x5D
+	VK_SLEEP               = 0x5F
+	VK_NUMPAD0             = 0x60
+	VK_NUMPAD1             = 0x61
+	VK_NUMPAD2             = 0x62
+	VK_NUMPAD3             = 0x63
+	VK_NUMPAD4             = 0x64
+	VK_NUMPAD5             = 0x65
+	VK_NUMPAD6             = 0x66
+	VK_NUMPAD7             = 0x67
+	VK_NUMPAD8             = 0x68
+	VK_NUMPAD9             = 0x69
+	VK_MULTIPLY            = 0x6A
+	VK_ADD                 = 0x6B
+	VK_SEPARATOR           = 0x6C
+	VK_SUBTRACT            = 0x6D
+	VK_DECIMAL             = 0x6E
+	VK_DIVIDE              = 0x6F
+	VK_F1                  = 0x70
+	VK_F2                  = 0x71
+	VK_F3                  = 0x72
+	VK_F4                  = 0x73
+	VK_F5                  = 0x74
+	VK_F6                  = 0x75
+	VK_F7                  = 0x76
+	VK_F8                  = 0x77
+	VK_F9                  = 0x78
+	VK_F10                 = 0x79
+	VK_F11                 = 0x7A
+	VK_F12                 = 0x7B
+	VK_F13                 = 0x7C
+	VK_F14                 = 0x7D
+	VK_F15                 = 0x7E
+	VK_F16                 = 0x7F
+	VK_F17                 = 0x80
+	VK_F18                 = 0x81
+	VK_F19                 = 0x82
+	VK_F20                 = 0x83
+	VK_F21                 = 0x84
+	VK_F22                 = 0x85
+	VK_F23                 = 0x86
+	VK_F24                 = 0x87
+	VK_NUMLOCK             = 0x90
+	VK_SCROLL              = 0x91
+	VK_OEM_NEC_EQUAL       = 0x92
+	VK_OEM_FJ_JISHO        = 0x92
+	VK_OEM_FJ_MASSHOU      = 0x93
+	VK_OEM_FJ_TOUROKU      = 0x94
+	VK_OEM_FJ_LOYA         = 0x95
+	VK_OEM_FJ_ROYA         = 0x96
+	VK_LSHIFT              = 0xA0
+	VK_RSHIFT              = 0xA1
+	VK_LCONTROL            = 0xA2
+	VK_RCONTROL            = 0xA3
+	VK_LMENU               = 0xA4
+	VK_RMENU               = 0xA5
+	VK_BROWSER_BACK        = 0xA6
+	VK_BROWSER_FORWARD     = 0xA7
+	VK_BROWSER_REFRESH     = 0xA8
+	VK_BROWSER_STOP        = 0xA9
+	VK_BROWSER_SEARCH      = 0xAA
+	VK_BROWSER_FAVORITES   = 0xAB
+	VK_BROWSER_HOME        = 0xAC
+	VK_VOLUME_MUTE         = 0xAD
+	VK_VOLUME_DOWN         = 0xAE
+	VK_VOLUME_UP           = 0xAF
+	VK_MEDIA_NEXT_TRACK    = 0xB0
+	VK_MEDIA_PREV_TRACK    = 0xB1
+	VK_MEDIA_STOP          = 0xB2
+	VK_MEDIA_PLAY_PAUSE    = 0xB3
+	VK_LAUNCH_MAIL         = 0xB4
+	VK_LAUNCH_MEDIA_SELECT = 0xB5
+	VK_LAUNCH_APP1         = 0xB6
+	VK_LAUNCH_APP2         = 0xB7
+	VK_OEM_1               = 0xBA
+	VK_OEM_PLUS            = 0xBB
+	VK_OEM_COMMA           = 0xBC
+	VK_OEM_MINUS           = 0xBD
+	VK_OEM_PERIOD          = 0xBE
+	VK_OEM_2               = 0xBF
+	VK_OEM_3               = 0xC0
+	VK_OEM_4               = 0xDB
+	VK_OEM_5               = 0xDC
+	VK_OEM_6               = 0xDD
+	VK_OEM_7               = 0xDE
+	VK_OEM_8               = 0xDF
+	VK_OEM_AX              = 0xE1
+	VK_OEM_102             = 0xE2
+	VK_ICO_HELP            = 0xE3
+	VK_ICO_00              = 0xE4
+	VK_PROCESSKEY          = 0xE5
+	VK_ICO_CLEAR           = 0xE6
+	VK_OEM_RESET           = 0xE9
+	VK_OEM_JUMP            = 0xEA
+	VK_OEM_PA1             = 0xEB
+	VK_OEM_PA2             = 0xEC
+	VK_OEM_PA3             = 0xED
+	VK_OEM_WSCTRL          = 0xEE
+	VK_OEM_CUSEL           = 0xEF
+	VK_OEM_ATTN            = 0xF0
+	VK_OEM_FINISH          = 0xF1
+	VK_OEM_COPY            = 0xF2
+	VK_OEM_AUTO            = 0xF3
+	VK_OEM_ENLW            = 0xF4
+	VK_OEM_BACKTAB         = 0xF5
+	VK_ATTN                = 0xF6
+	VK_CRSEL               = 0xF7
+	VK_EXSEL               = 0xF8
+	VK_EREOF               = 0xF9
+	VK_PLAY                = 0xFA
+	VK_ZOOM                = 0xFB
+	VK_NONAME              = 0xFC
+	VK_PA1                 = 0xFD
+	VK_OEM_CLEAR           = 0xFE
+)
+
+// Mouse button constants.
+// https://docs.microsoft.com/en-us/windows/console/mouse-event-record-str
+const (
+	FROM_LEFT_1ST_BUTTON_PRESSED = 0x0001
+	RIGHTMOST_BUTTON_PRESSED     = 0x0002
+	FROM_LEFT_2ND_BUTTON_PRESSED = 0x0004
+	FROM_LEFT_3RD_BUTTON_PRESSED = 0x0008
+	FROM_LEFT_4TH_BUTTON_PRESSED = 0x0010
+)
+
+// Control key state constaints.
+// https://docs.microsoft.com/en-us/windows/console/key-event-record-str
+// https://docs.microsoft.com/en-us/windows/console/mouse-event-record-str
+const (
+	CAPSLOCK_ON        = 0x0080
+	ENHANCED_KEY       = 0x0100
+	LEFT_ALT_PRESSED   = 0x0002
+	LEFT_CTRL_PRESSED  = 0x0008
+	NUMLOCK_ON         = 0x0020
+	RIGHT_ALT_PRESSED  = 0x0001
+	RIGHT_CTRL_PRESSED = 0x0004
+	SCROLLLOCK_ON      = 0x0040
+	SHIFT_PRESSED      = 0x0010
+)
+
+// Mouse event record event flags.
+// https://docs.microsoft.com/en-us/windows/console/mouse-event-record-str
+const (
+	MOUSE_MOVED    = 0x0001
+	DOUBLE_CLICK   = 0x0002
+	MOUSE_WHEELED  = 0x0004
+	MOUSE_HWHEELED = 0x0008
+)
+
+// Input Record Event Types
+// https://learn.microsoft.com/en-us/windows/console/input-record-str
+const (
+	FOCUS_EVENT              = 0x0010
+	KEY_EVENT                = 0x0001
+	MENU_EVENT               = 0x0008
+	MOUSE_EVENT              = 0x0002
+	WINDOW_BUFFER_SIZE_EVENT = 0x0004
 )

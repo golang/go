@@ -8,7 +8,7 @@
 // from a safe context (e.g. not an error/panic path or signal
 // handler, preemption enabled, allocation allowed, write barriers
 // allowed, etc), and that the exit function F will be invoked under
-// similar circumstances. That is the say, we are expecting that F
+// similar circumstances. That is to say, we are expecting that F
 // uses normal / high-level Go code as opposed to one of the more
 // restricted dialects used for the trickier parts of the runtime.
 package exithook

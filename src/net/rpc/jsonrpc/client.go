@@ -120,5 +120,5 @@ func Dial(network, address string) (*rpc.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewClient(conn), err
+	return NewClient(conn), nil
 }

@@ -15,7 +15,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"internal/goexperiment"
 	"io"
 	"log"
 	"os"
@@ -330,18 +329,10 @@ func (c *ProgCache) Put(a ActionID, file io.ReadSeeker) (_ OutputID, size int64,
 		return out, size, nil
 	}
 
-	// For compatibility with Go 1.23/1.24 GOEXPERIMENT=gocacheprog users, also
-	// populate the deprecated ObjectID field. This will be removed in Go 1.25.
-	var deprecatedValue []byte
-	if goexperiment.CacheProg {
-		deprecatedValue = out[:]
-	}
-
 	res, err := c.send(c.ctx, &cacheprog.Request{
 		Command:  cacheprog.CmdPut,
 		ActionID: a[:],
 		OutputID: out[:],
-		ObjectID: deprecatedValue, // TODO(bradfitz): remove in Go 1.25
 		Body:     file,
 		BodySize: size,
 	})

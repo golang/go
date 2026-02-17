@@ -10,14 +10,24 @@ import (
 	"internal/runtime/sys"
 )
 
-// The Error interface identifies a run time error.
+// Error identifies a runtime error used in panic.
+//
+// The Go runtime triggers panics for a variety of cases, as described by the
+// Go Language Spec, such as out-of-bounds slice/array access, close of nil
+// channels, type assertion failures, etc.
+//
+// When these cases occur, the Go runtime panics with an error that implements
+// Error. This can be useful when recovering from panics to distinguish between
+// custom application panics and fundamental runtime panics.
+//
+// Packages outside of the Go standard library should not implement Error.
 type Error interface {
 	error
 
 	// RuntimeError is a no-op function but
-	// serves to distinguish types that are run time
+	// serves to distinguish types that are runtime
 	// errors from ordinary errors: a type is a
-	// run time error if it has a RuntimeError method.
+	// runtime error if it has a RuntimeError method.
 	RuntimeError()
 }
 
@@ -122,52 +132,34 @@ type boundsError struct {
 	// Instead, we keep track of whether x should be interpreted as signed or unsigned.
 	// y is known to be nonnegative and to fit in an int.
 	signed bool
-	code   boundsErrorCode
+	code   abi.BoundsErrorCode
 }
-
-type boundsErrorCode uint8
-
-const (
-	boundsIndex boundsErrorCode = iota // s[x], 0 <= x < len(s) failed
-
-	boundsSliceAlen // s[?:x], 0 <= x <= len(s) failed
-	boundsSliceAcap // s[?:x], 0 <= x <= cap(s) failed
-	boundsSliceB    // s[x:y], 0 <= x <= y failed (but boundsSliceA didn't happen)
-
-	boundsSlice3Alen // s[?:?:x], 0 <= x <= len(s) failed
-	boundsSlice3Acap // s[?:?:x], 0 <= x <= cap(s) failed
-	boundsSlice3B    // s[?:x:y], 0 <= x <= y failed (but boundsSlice3A didn't happen)
-	boundsSlice3C    // s[x:y:?], 0 <= x <= y failed (but boundsSlice3A/B didn't happen)
-
-	boundsConvert // (*[x]T)(s), 0 <= x <= len(s) failed
-	// Note: in the above, len(s) and cap(s) are stored in y
-)
 
 // boundsErrorFmts provide error text for various out-of-bounds panics.
 // Note: if you change these strings, you should adjust the size of the buffer
 // in boundsError.Error below as well.
 var boundsErrorFmts = [...]string{
-	boundsIndex:      "index out of range [%x] with length %y",
-	boundsSliceAlen:  "slice bounds out of range [:%x] with length %y",
-	boundsSliceAcap:  "slice bounds out of range [:%x] with capacity %y",
-	boundsSliceB:     "slice bounds out of range [%x:%y]",
-	boundsSlice3Alen: "slice bounds out of range [::%x] with length %y",
-	boundsSlice3Acap: "slice bounds out of range [::%x] with capacity %y",
-	boundsSlice3B:    "slice bounds out of range [:%x:%y]",
-	boundsSlice3C:    "slice bounds out of range [%x:%y:]",
-	boundsConvert:    "cannot convert slice with length %y to array or pointer to array with length %x",
+	abi.BoundsIndex:      "index out of range [%x] with length %y",
+	abi.BoundsSliceAlen:  "slice bounds out of range [:%x] with length %y",
+	abi.BoundsSliceAcap:  "slice bounds out of range [:%x] with capacity %y",
+	abi.BoundsSliceB:     "slice bounds out of range [%x:%y]",
+	abi.BoundsSlice3Alen: "slice bounds out of range [::%x] with length %y",
+	abi.BoundsSlice3Acap: "slice bounds out of range [::%x] with capacity %y",
+	abi.BoundsSlice3B:    "slice bounds out of range [:%x:%y]",
+	abi.BoundsSlice3C:    "slice bounds out of range [%x:%y:]",
+	abi.BoundsConvert:    "cannot convert slice with length %y to array or pointer to array with length %x",
 }
 
 // boundsNegErrorFmts are overriding formats if x is negative. In this case there's no need to report y.
 var boundsNegErrorFmts = [...]string{
-	boundsIndex:      "index out of range [%x]",
-	boundsSliceAlen:  "slice bounds out of range [:%x]",
-	boundsSliceAcap:  "slice bounds out of range [:%x]",
-	boundsSliceB:     "slice bounds out of range [%x:]",
-	boundsSlice3Alen: "slice bounds out of range [::%x]",
-	boundsSlice3Acap: "slice bounds out of range [::%x]",
-	boundsSlice3B:    "slice bounds out of range [:%x:]",
-	boundsSlice3C:    "slice bounds out of range [%x::]",
+	abi.BoundsIndex:      "index out of range [%x]",
+	abi.BoundsSliceAlen:  "slice bounds out of range [:%x]",
+	abi.BoundsSliceAcap:  "slice bounds out of range [:%x]",
+	abi.BoundsSliceB:     "slice bounds out of range [%x:]",
+	abi.BoundsSlice3Alen: "slice bounds out of range [::%x]",
+	abi.BoundsSlice3Acap: "slice bounds out of range [::%x]",
+	abi.BoundsSlice3B:    "slice bounds out of range [:%x:]",
+	abi.BoundsSlice3C:    "slice bounds out of range [%x::]",
 }
 
 func (e boundsError) RuntimeError() {}
@@ -268,7 +260,7 @@ func printanycustomtype(i any) {
 	eface := efaceOf(&i)
 	typestring := toRType(eface._type).string()
 
-	switch eface._type.Kind_ {
+	switch eface._type.Kind() {
 	case abi.String:
 		print(typestring, `("`)
 		printindented(*(*string)(eface.data))

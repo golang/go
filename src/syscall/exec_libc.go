@@ -61,7 +61,13 @@ func write1(fd uintptr, buf uintptr, nbyte uintptr) (n uintptr, err Errno)
 
 // syscall defines this global on our behalf to avoid a build dependency on other platforms
 func init() {
-	execveLibc = execve
+	execveLibc = execveLibcWrapper
+}
+
+func execveLibcWrapper(path *byte, argv **byte, envp **byte) error {
+	return execve(uintptr(unsafe.Pointer(path)),
+		uintptr(unsafe.Pointer(argv)),
+		uintptr(unsafe.Pointer(envp)))
 }
 
 // Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.

@@ -305,6 +305,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 						as := ir.NewAssignStmt(x.Pos(), z, tz)
 						as.Def = true
 						as.SetTypecheck(1)
+						z.Defn = as
 						preBody.Append(as)
 						dclFixups[z] = as
 
@@ -447,6 +448,11 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 		}
 	}
 	ir.WithFunc(fn, forCapture)
+
+	if ir.MatchAstDump(fn, "loopvar") {
+		ir.AstDump(fn, "loopvar, "+ir.FuncName(fn))
+	}
+
 	return transformed
 }
 
@@ -556,7 +562,7 @@ func LogTransformations(transformed []VarAndLoop) {
 
 			if logopt.Enabled() {
 				// For automated checking of coverage of this transformation, include this in the JSON information.
-				var nString interface{} = n
+				var nString any = n
 				if inner != outer {
 					nString = fmt.Sprintf("%v (from inline)", n)
 				}

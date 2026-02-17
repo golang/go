@@ -14,9 +14,16 @@ import (
 	"time"
 )
 
-// ErrProcessDone indicates a [Process] has finished.
-var ErrProcessDone = errors.New("os: process already finished")
+var (
+	// ErrProcessDone indicates a [Process] has finished.
+	ErrProcessDone = errors.New("os: process already finished")
+	// errProcessReleased indicates a [Process] has been released.
+	errProcessReleased = errors.New("os: process already released")
+	// ErrNoHandle indicates a [Process] does not have a handle.
+	ErrNoHandle = errors.New("os: process handle unavailable")
+)
 
+// processStatus describes the status of a [Process].
 type processStatus uint32
 
 const (
@@ -52,6 +59,9 @@ type Process struct {
 	// This is a pointer to a separate memory allocation
 	// so that we can use runtime.AddCleanup.
 	handle *processHandle
+
+	// cleanup is used to clean up the process handle.
+	cleanup runtime.Cleanup
 }
 
 // processHandle holds an operating system handle to a process.
@@ -107,14 +117,15 @@ func (ph *processHandle) release() {
 	}
 }
 
+// newPIDProcess returns a [Process] for the given PID.
 func newPIDProcess(pid int) *Process {
 	p := &Process{
 		Pid: pid,
 	}
-	runtime.SetFinalizer(p, (*Process).Release)
 	return p
 }
 
+// newHandleProcess returns a [Process] with the given PID and handle.
 func newHandleProcess(pid int, handle uintptr) *Process {
 	ph := &processHandle{
 		handle: handle,
@@ -128,19 +139,25 @@ func newHandleProcess(pid int, handle uintptr) *Process {
 		Pid:    pid,
 		handle: ph,
 	}
-	runtime.SetFinalizer(p, (*Process).Release)
+
+	p.cleanup = runtime.AddCleanup(p, (*processHandle).release, ph)
+
 	return p
 }
 
+// newDoneProcess returns a [Process] for the given PID
+// that is already marked as done. This is used on Unix systems
+// if the process is known to not exist.
 func newDoneProcess(pid int) *Process {
 	p := &Process{
 		Pid: pid,
 	}
 	p.state.Store(uint32(statusDone)) // No persistent reference, as there is no handle.
-	runtime.SetFinalizer(p, (*Process).Release)
 	return p
 }
 
+// handleTransientAcquire returns the process handle or,
+// if the process is not ready, the current status.
 func (p *Process) handleTransientAcquire() (uintptr, processStatus) {
 	if p.handle == nil {
 		panic("handleTransientAcquire called in invalid mode")
@@ -166,6 +183,7 @@ func (p *Process) handleTransientAcquire() (uintptr, processStatus) {
 	return 0, status
 }
 
+// handleTransientRelease releases a handle returned by handleTransientAcquire.
 func (p *Process) handleTransientRelease() {
 	if p.handle == nil {
 		panic("handleTransientRelease called in invalid mode")
@@ -173,57 +191,13 @@ func (p *Process) handleTransientRelease() {
 	p.handle.release()
 }
 
-// Drop the Process' persistent reference on the handle, deactivating future
-// Wait/Signal calls with the passed reason.
-//
-// Returns the status prior to this call. If this is not statusOK, then the
-// reference was not dropped or status changed.
-func (p *Process) handlePersistentRelease(reason processStatus) processStatus {
-	if p.handle == nil {
-		panic("handlePersistentRelease called in invalid mode")
-	}
-
-	for {
-		state := p.state.Load()
-		status := processStatus(state)
-		if status != statusOK {
-			// Both Release and successful Wait will drop the
-			// Process' persistent reference on the handle. We
-			// can't allow concurrent calls to drop the reference
-			// twice, so we use the status as a guard to ensure the
-			// reference is dropped exactly once.
-			return status
-		}
-		if !p.state.CompareAndSwap(state, uint32(reason)) {
-			continue
-		}
-		p.handle.release()
-		return status
-	}
-}
-
+// pidStatus returns the current process status.
 func (p *Process) pidStatus() processStatus {
 	if p.handle != nil {
 		panic("pidStatus called in invalid mode")
 	}
 
 	return processStatus(p.state.Load())
-}
-
-func (p *Process) pidDeactivate(reason processStatus) {
-	if p.handle != nil {
-		panic("pidDeactivate called in invalid mode")
-	}
-
-	// Both Release and successful Wait will deactivate the PID. Only one
-	// of those should win, so nothing left to do here if the compare
-	// fails.
-	//
-	// N.B. This means that results can be inconsistent. e.g., with a
-	// racing Release and Wait, Wait may successfully wait on the process,
-	// returning the wait status, while future calls error with "process
-	// released" rather than "process done".
-	p.state.CompareAndSwap(0, uint32(reason))
 }
 
 // ProcAttr holds the attributes that will be applied to a new process
@@ -302,23 +276,58 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (*Process, error) 
 // rendering it unusable in the future.
 // Release only needs to be called if [Process.Wait] is not.
 func (p *Process) Release() error {
-	// Note to future authors: the Release API is cursed.
-	//
-	// On Unix and Plan 9, Release sets p.Pid = -1. This is the only part of the
-	// Process API that is not thread-safe, but it can't be changed now.
-	//
-	// On Windows, Release does _not_ modify p.Pid.
-	//
-	// On Windows, Wait calls Release after successfully waiting to
-	// proactively clean up resources.
-	//
-	// On Unix and Plan 9, Wait also proactively cleans up resources, but
-	// can not call Release, as Wait does not set p.Pid = -1.
-	//
-	// On Unix and Plan 9, calling Release a second time has no effect.
-	//
-	// On Windows, calling Release a second time returns EINVAL.
-	return p.release()
+	// Unfortunately, for historical reasons, on systems other
+	// than Windows, Release sets the Pid field to -1.
+	// This causes the race detector to report a problem
+	// on concurrent calls to Release, but we can't change it now.
+	if runtime.GOOS != "windows" {
+		p.Pid = -1
+	}
+
+	oldStatus := p.doRelease(statusReleased)
+
+	// For backward compatibility, on Windows only,
+	// we return EINVAL on a second call to Release.
+	if runtime.GOOS == "windows" {
+		if oldStatus == statusReleased {
+			return syscall.EINVAL
+		}
+	}
+
+	return nil
+}
+
+// doRelease releases a [Process], setting the status to newStatus.
+// If the previous status is not statusOK, this does nothing.
+// It returns the previous status.
+func (p *Process) doRelease(newStatus processStatus) processStatus {
+	for {
+		state := p.state.Load()
+		oldStatus := processStatus(state)
+		if oldStatus != statusOK {
+			return oldStatus
+		}
+
+		if !p.state.CompareAndSwap(state, uint32(newStatus)) {
+			continue
+		}
+
+		// We have successfully released the Process.
+		// If it has a handle, release the reference we
+		// created in newHandleProcess.
+		if p.handle != nil {
+			// No need for more cleanup.
+			// We must stop the cleanup before calling release;
+			// otherwise the cleanup might run concurrently
+			// with the release, which would cause the reference
+			// counts to be invalid, causing a panic.
+			p.cleanup.Stop()
+
+			p.handle.release()
+		}
+
+		return statusOK
+	}
 }
 
 // Kill causes the [Process] to exit immediately. Kill does not wait until
@@ -341,6 +350,18 @@ func (p *Process) Wait() (*ProcessState, error) {
 // Sending [Interrupt] on Windows is not implemented.
 func (p *Process) Signal(sig Signal) error {
 	return p.signal(sig)
+}
+
+// WithHandle calls a supplied function f with a valid process handle
+// as an argument. The handle is guaranteed to refer to process p
+// until f returns, even if p terminates. This function cannot be used
+// after [Process.Release] or [Process.Wait].
+//
+// If process handles are not supported or a handle is not available,
+// it returns [ErrNoHandle]. Currently, process handles are supported
+// on Linux 5.4 or later (pidfd) and Windows.
+func (p *Process) WithHandle(f func(handle uintptr)) error {
+	return p.withHandle(f)
 }
 
 // UserTime returns the user CPU time of the exited process and its children.

@@ -6,16 +6,13 @@ package net
 
 import (
 	"context"
-	"internal/itoa"
+	"internal/strconv"
 	"net/netip"
 	"syscall"
 )
 
 // BUG(mikio): On Plan 9, the ReadMsgUDP and
 // WriteMsgUDP methods of UDPConn are not implemented.
-
-// BUG(mikio): On Windows, the File method of UDPConn is not
-// implemented.
 
 // BUG(mikio): On JS, methods and functions related to UDPConn are not
 // implemented.
@@ -50,9 +47,9 @@ func (a *UDPAddr) String() string {
 	}
 	ip := ipEmptyString(a.IP)
 	if a.Zone != "" {
-		return JoinHostPort(ip+"%"+a.Zone, itoa.Itoa(a.Port))
+		return JoinHostPort(ip+"%"+a.Zone, strconv.Itoa(a.Port))
 	}
-	return JoinHostPort(ip, itoa.Itoa(a.Port))
+	return JoinHostPort(ip, strconv.Itoa(a.Port))
 }
 
 func (a *UDPAddr) isWildcard() bool {
@@ -288,6 +285,10 @@ func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
 // If the IP field of raddr is nil or an unspecified IP address, the
 // local system is assumed.
 func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+	return dialUDP(context.Background(), nil, network, laddr, raddr)
+}
+
+func dialUDP(ctx context.Context, dialer *Dialer, network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	switch network {
 	case "udp", "udp4", "udp6":
 	default:
@@ -297,7 +298,10 @@ func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
 	}
 	sd := &sysDialer{network: network, address: raddr.String()}
-	c, err := sd.dialUDP(context.Background(), laddr, raddr)
+	if dialer != nil {
+		sd.Dialer = *dialer
+	}
+	c, err := sd.dialUDP(ctx, laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}

@@ -131,7 +131,7 @@ func TestGenericsHashKeyInPprofBuilder(t *testing.T) {
 	for _, sz := range []int{128, 256} {
 		genericAllocFunc[uint32](sz / 4)
 	}
-	for _, sz := range []int{32, 64} {
+	for _, sz := range []int{64, 128} {
 		genericAllocFunc[uint64](sz / 8)
 	}
 
@@ -149,8 +149,8 @@ func TestGenericsHashKeyInPprofBuilder(t *testing.T) {
 	expected := []string{
 		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint32] [1 128 0 0]",
 		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint32] [1 256 0 0]",
-		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint64] [1 32 0 0]",
 		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint64] [1 64 0 0]",
+		"testing.tRunner;runtime/pprof.TestGenericsHashKeyInPprofBuilder;runtime/pprof.genericAllocFunc[go.shape.uint64] [1 128 0 0]",
 	}
 
 	for _, l := range expected {
@@ -273,9 +273,6 @@ func TestHeapRuntimeFrames(t *testing.T) {
 			t.Errorf("Sample got %s, want no runtime frames", l)
 		}
 		if strings.Contains(l, "internal/runtime/") {
-			t.Errorf("Sample got %s, want no runtime frames", l)
-		}
-		if strings.Contains(l, "runtime/internal/") {
 			t.Errorf("Sample got %s, want no runtime frames", l)
 		}
 		if strings.Contains(l, "mapassign") { // in case mapassign moves to a package not matching above paths.

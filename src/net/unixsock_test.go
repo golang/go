@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !plan9 && !windows
+//go:build !plan9
 
 package net
 
@@ -247,7 +247,6 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 
 	handler := func(ls *localServer, ln Listener) {}
 	for _, laddr := range []string{"", testUnixAddr(t)} {
-		laddr := laddr
 		taddr := testUnixAddr(t)
 		ta, err := ResolveUnixAddr("unix", taddr)
 		if err != nil {
@@ -282,7 +281,7 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 		}
 
 		switch runtime.GOOS {
-		case "android", "linux":
+		case "android", "linux", "windows":
 			if laddr == "" {
 				laddr = "@" // autobind feature
 			}
@@ -306,7 +305,6 @@ func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
 	}
 
 	for _, laddr := range []string{"", testUnixAddr(t)} {
-		laddr := laddr
 		taddr := testUnixAddr(t)
 		ta, err := ResolveUnixAddr("unixgram", taddr)
 		if err != nil {
@@ -377,6 +375,17 @@ func TestUnixUnlink(t *testing.T) {
 		}
 		return l.(*UnixListener)
 	}
+	fileListener := func(t *testing.T, l *UnixListener) (*os.File, Listener) {
+		f, err := l.File()
+		if err != nil {
+			t.Fatal(err)
+		}
+		ln, err := FileListener(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f, ln
+	}
 	checkExists := func(t *testing.T, desc string) {
 		if _, err := os.Stat(name); err != nil {
 			t.Fatalf("unix socket does not exist %s: %v", desc, err)
@@ -399,8 +408,7 @@ func TestUnixUnlink(t *testing.T) {
 	// FileListener should not.
 	t.Run("FileListener", func(t *testing.T) {
 		l := listen(t)
-		f, _ := l.File()
-		l1, _ := FileListener(f)
+		f, l1 := fileListener(t, l)
 		checkExists(t, "after FileListener")
 		f.Close()
 		checkExists(t, "after File close")
@@ -446,8 +454,7 @@ func TestUnixUnlink(t *testing.T) {
 
 	t.Run("FileListener/SetUnlinkOnClose(true)", func(t *testing.T) {
 		l := listen(t)
-		f, _ := l.File()
-		l1, _ := FileListener(f)
+		f, l1 := fileListener(t, l)
 		checkExists(t, "after FileListener")
 		l1.(*UnixListener).SetUnlinkOnClose(true)
 		f.Close()
@@ -459,8 +466,7 @@ func TestUnixUnlink(t *testing.T) {
 
 	t.Run("FileListener/SetUnlinkOnClose(false)", func(t *testing.T) {
 		l := listen(t)
-		f, _ := l.File()
-		l1, _ := FileListener(f)
+		f, l1 := fileListener(t, l)
 		checkExists(t, "after FileListener")
 		l1.(*UnixListener).SetUnlinkOnClose(false)
 		f.Close()

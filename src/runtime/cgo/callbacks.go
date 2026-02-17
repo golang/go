@@ -121,13 +121,30 @@ var _cgo_bindm = &x_cgo_bindm
 var x_cgo_notify_runtime_init_done byte
 var _cgo_notify_runtime_init_done = &x_cgo_notify_runtime_init_done
 
-// Sets the traceback context function. See runtime.SetCgoTraceback.
+// Sets the traceback, context, and symbolizer functions. See
+// runtime.SetCgoTraceback.
 
-//go:cgo_import_static x_cgo_set_context_function
-//go:linkname x_cgo_set_context_function x_cgo_set_context_function
-//go:linkname _cgo_set_context_function _cgo_set_context_function
-var x_cgo_set_context_function byte
-var _cgo_set_context_function = &x_cgo_set_context_function
+//go:cgo_import_static x_cgo_set_traceback_functions
+//go:linkname x_cgo_set_traceback_functions x_cgo_set_traceback_functions
+//go:linkname _cgo_set_traceback_functions _cgo_set_traceback_functions
+var x_cgo_set_traceback_functions byte
+var _cgo_set_traceback_functions = &x_cgo_set_traceback_functions
+
+// Call the traceback function registered with x_cgo_set_traceback_functions.
+
+//go:cgo_import_static x_cgo_call_traceback_function
+//go:linkname x_cgo_call_traceback_function x_cgo_call_traceback_function
+//go:linkname _cgo_call_traceback_function _cgo_call_traceback_function
+var x_cgo_call_traceback_function byte
+var _cgo_call_traceback_function = &x_cgo_call_traceback_function
+
+// Call the symbolizer function registered with x_cgo_set_symbolizer_functions.
+
+//go:cgo_import_static x_cgo_call_symbolizer_function
+//go:linkname x_cgo_call_symbolizer_function x_cgo_call_symbolizer_function
+//go:linkname _cgo_call_symbolizer_function _cgo_call_symbolizer_function
+var x_cgo_call_symbolizer_function byte
+var _cgo_call_symbolizer_function = &x_cgo_call_symbolizer_function
 
 // Calls a libc function to execute background work injected via libc
 // interceptors, such as processing pending signals under the thread

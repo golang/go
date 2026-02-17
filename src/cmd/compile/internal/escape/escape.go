@@ -6,6 +6,9 @@ package escape
 
 import (
 	"fmt"
+	"go/constant"
+	"go/token"
+	"internal/goexperiment"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -86,8 +89,9 @@ import (
 // A batch holds escape analysis state that's shared across an entire
 // batch of functions being analyzed at once.
 type batch struct {
-	allLocs  []*location
-	closures []closure
+	allLocs         []*location
+	closures        []closure
+	reassignOracles map[*ir.Func]*ir.ReassignOracle
 
 	heapLoc    location
 	mutatorLoc location
@@ -119,16 +123,24 @@ type escape struct {
 }
 
 func Funcs(all []*ir.Func) {
-	ir.VisitFuncsBottomUp(all, Batch)
+	// Make a cache of ir.ReassignOracles. The cache is lazily populated.
+	// TODO(thepudds): consider adding a field on ir.Func instead. We might also be able
+	// to use that field elsewhere, like in walk. See discussion in https://go.dev/cl/688075.
+	reassignOracles := make(map[*ir.Func]*ir.ReassignOracle)
+
+	ir.VisitFuncsBottomUp(all, func(list []*ir.Func, recursive bool) {
+		Batch(list, reassignOracles)
+	})
 }
 
 // Batch performs escape analysis on a minimal batch of
 // functions.
-func Batch(fns []*ir.Func, recursive bool) {
+func Batch(fns []*ir.Func, reassignOracles map[*ir.Func]*ir.ReassignOracle) {
 	var b batch
 	b.heapLoc.attrs = attrEscapes | attrPersists | attrMutates | attrCalls
 	b.mutatorLoc.attrs = attrMutates
 	b.calleeLoc.attrs = attrCalls
+	b.reassignOracles = reassignOracles
 
 	// Construct data-flow graph from syntax trees.
 	for _, fn := range fns {
@@ -154,6 +166,11 @@ func Batch(fns []*ir.Func, recursive bool) {
 	b.closures = nil
 
 	for _, loc := range b.allLocs {
+		// Try to replace some non-constant expressions with literals.
+		b.rewriteWithLiterals(loc.n, loc.curfn)
+
+		// Check if the node must be heap allocated for certain reasons
+		// such as OMAKESLICE for a large slice.
 		if why := HeapAllocReason(loc.n); why != "" {
 			b.flow(b.heapHole().addr(loc.n, why), loc)
 		}
@@ -306,7 +323,11 @@ func (b *batch) finish(fns []*ir.Func) {
 				}
 			} else {
 				if base.Flag.LowerM != 0 && !goDeferWrapper {
-					base.WarnfAt(n.Pos(), "%v escapes to heap", n)
+					if n.Op() == ir.OAPPEND {
+						base.WarnfAt(n.Pos(), "append escapes to heap")
+					} else {
+						base.WarnfAt(n.Pos(), "%v escapes to heap", n)
+					}
 				}
 				if logopt.Enabled() {
 					var e_curfn *ir.Func // TODO(mdempsky): Fix.
@@ -316,7 +337,11 @@ func (b *batch) finish(fns []*ir.Func) {
 			n.SetEsc(ir.EscHeap)
 		} else {
 			if base.Flag.LowerM != 0 && n.Op() != ir.ONAME && !goDeferWrapper {
-				base.WarnfAt(n.Pos(), "%v does not escape", n)
+				if n.Op() == ir.OAPPEND {
+					base.WarnfAt(n.Pos(), "append does not escape")
+				} else {
+					base.WarnfAt(n.Pos(), "%v does not escape", n)
+				}
 			}
 			n.SetEsc(ir.EscNone)
 			if !loc.hasAttr(attrPersists) {
@@ -343,6 +368,21 @@ func (b *batch) finish(fns []*ir.Func) {
 				}
 				n.SetOp(ir.OSTR2BYTESTMP)
 			}
+		}
+	}
+
+	if goexperiment.RuntimeFreegc {
+		// Look for specific patterns of usage, such as appends
+		// to slices that we can prove are not aliased.
+		for _, fn := range fns {
+			a := aliasAnalysis{}
+			a.analyze(fn)
+		}
+	}
+
+	for _, fn := range fns {
+		if ir.MatchAstDump(fn, "escape") {
+			ir.AstDump(fn, "escape, "+ir.FuncName(fn))
 		}
 	}
 }
@@ -506,4 +546,132 @@ func (b *batch) reportLeaks(pos src.XPos, name string, esc leaks, sig *types.Typ
 	if !warned {
 		base.WarnfAt(pos, "%v does not escape, mutate, or call", name)
 	}
+}
+
+// rewriteWithLiterals attempts to replace certain non-constant expressions
+// within n with a literal if possible.
+func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
+	if n == nil || fn == nil {
+		return
+	}
+
+	assignTemp := func(pos src.XPos, n ir.Node, init *ir.Nodes) {
+		// Preserve any side effects of n by assigning it to an otherwise unused temp.
+		tmp := typecheck.TempAt(pos, fn, n.Type())
+		init.Append(typecheck.Stmt(ir.NewDecl(pos, ir.ODCL, tmp)))
+		init.Append(typecheck.Stmt(ir.NewAssignStmt(pos, tmp, n)))
+	}
+
+	switch n.Op() {
+	case ir.OMAKESLICE:
+		// Check if we can replace a non-constant argument to make with
+		// a literal to allow for this slice to be stack allocated if otherwise allowed.
+		n := n.(*ir.MakeExpr)
+
+		r := &n.Cap
+		if n.Cap == nil {
+			r = &n.Len
+		}
+
+		if (*r).Op() != ir.OLITERAL {
+			// Look up a cached ReassignOracle for the function, lazily computing one if needed.
+			ro := b.reassignOracle(fn)
+			if ro == nil {
+				base.Fatalf("no ReassignOracle for function %v with closure parent %v", fn, fn.ClosureParent)
+			}
+
+			s := ro.StaticValue(*r)
+			switch s.Op() {
+			case ir.OLITERAL:
+				lit, ok := s.(*ir.BasicLit)
+				if !ok || lit.Val().Kind() != constant.Int {
+					base.Fatalf("unexpected BasicLit Kind")
+				}
+				if constant.Compare(lit.Val(), token.GEQ, constant.MakeInt64(0)) {
+					if !base.LiteralAllocHash.MatchPos(n.Pos(), nil) {
+						// De-selected by literal alloc optimizations debug hash.
+						return
+					}
+					// Preserve any side effects of the original expression, then replace it.
+					assignTemp(n.Pos(), *r, n.PtrInit())
+					*r = ir.NewBasicLit(n.Pos(), (*r).Type(), lit.Val())
+				}
+			case ir.OLEN:
+				x := ro.StaticValue(s.(*ir.UnaryExpr).X)
+				if x.Op() == ir.OSLICELIT {
+					x := x.(*ir.CompLitExpr)
+					// Preserve any side effects of the original expression, then update the value.
+					assignTemp(n.Pos(), *r, n.PtrInit())
+					*r = ir.NewBasicLit(n.Pos(), types.Types[types.TINT], constant.MakeInt64(x.Len))
+				}
+			}
+		}
+	case ir.OCONVIFACE:
+		// Check if we can replace a non-constant expression in an interface conversion with
+		// a literal to avoid heap allocating the underlying interface value.
+		conv := n.(*ir.ConvExpr)
+		if conv.X.Op() != ir.OLITERAL && !conv.X.Type().IsInterface() {
+			// TODO(thepudds): likely could avoid some work by tightening the check of conv.X's type.
+			// Look up a cached ReassignOracle for the function, lazily computing one if needed.
+			ro := b.reassignOracle(fn)
+			if ro == nil {
+				base.Fatalf("no ReassignOracle for function %v with closure parent %v", fn, fn.ClosureParent)
+			}
+			v := ro.StaticValue(conv.X)
+			if v != nil && v.Op() == ir.OLITERAL && ir.ValidTypeForConst(conv.X.Type(), v.Val()) {
+				if !base.LiteralAllocHash.MatchPos(n.Pos(), nil) {
+					// De-selected by literal alloc optimizations debug hash.
+					return
+				}
+				if base.Debug.EscapeDebug >= 3 {
+					base.WarnfAt(n.Pos(), "rewriting OCONVIFACE value from %v (%v) to %v (%v)", conv.X, conv.X.Type(), v, v.Type())
+				}
+				// Preserve any side effects of the original expression, then replace it.
+				assignTemp(conv.Pos(), conv.X, conv.PtrInit())
+				v := v.(*ir.BasicLit)
+				conv.X = ir.NewBasicLit(conv.Pos(), conv.X.Type(), v.Val())
+				typecheck.Expr(conv)
+			}
+		}
+	}
+}
+
+// reassignOracle returns an initialized *ir.ReassignOracle for fn.
+// If fn is a closure, it returns the ReassignOracle for the ultimate parent.
+//
+// A new ReassignOracle is initialized lazily if needed, and the result
+// is cached to reduce duplicative work of preparing a ReassignOracle.
+func (b *batch) reassignOracle(fn *ir.Func) *ir.ReassignOracle {
+	if ro, ok := b.reassignOracles[fn]; ok {
+		return ro // Hit.
+	}
+
+	// For closures, we want the ultimate parent's ReassignOracle,
+	// so walk up the parent chain, if any.
+	f := fn
+	for f.ClosureParent != nil && !f.ClosureParent.IsPackageInit() {
+		f = f.ClosureParent
+	}
+
+	if f != fn {
+		// We found a parent.
+		ro := b.reassignOracles[f]
+		if ro != nil {
+			// Hit, via a parent. Before returning, store this ro for the original fn as well.
+			b.reassignOracles[fn] = ro
+			return ro
+		}
+	}
+
+	// Miss. We did not find a ReassignOracle for fn or a parent, so lazily create one.
+	ro := &ir.ReassignOracle{}
+	ro.Init(f)
+
+	// Cache the answer for the original fn.
+	b.reassignOracles[fn] = ro
+	if f != fn {
+		// Cache for the parent as well.
+		b.reassignOracles[f] = ro
+	}
+	return ro
 }

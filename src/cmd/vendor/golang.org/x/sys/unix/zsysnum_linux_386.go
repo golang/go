@@ -458,4 +458,9 @@ const (
 	SYS_LSM_SET_SELF_ATTR            = 460
 	SYS_LSM_LIST_MODULES             = 461
 	SYS_MSEAL                        = 462
+	SYS_SETXATTRAT                   = 463
+	SYS_GETXATTRAT                   = 464
+	SYS_LISTXATTRAT                  = 465
+	SYS_REMOVEXATTRAT                = 466
+	SYS_OPEN_TREE_ATTR               = 467
 )

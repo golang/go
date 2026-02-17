@@ -24,6 +24,17 @@ func sprintf(fset *token.FileSet, qf Qualifier, tpSubscripts bool, format string
 			panic("got operand instead of *operand")
 		case *operand:
 			arg = operandString(a, qf)
+		case []*operand:
+			var buf strings.Builder
+			buf.WriteByte('[')
+			for i, x := range a {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(operandString(x, qf))
+			}
+			buf.WriteByte(']')
+			arg = buf.String()
 		case token.Pos:
 			if fset != nil {
 				arg = fset.Position(a).String()
@@ -88,11 +99,32 @@ func (check *Checker) sprintf(format string, args ...any) string {
 }
 
 func (check *Checker) trace(pos token.Pos, format string, args ...any) {
-	fmt.Printf("%s:\t%s%s\n",
-		check.fset.Position(pos),
+	pos1 := check.fset.Position(pos)
+	// Use the width of line and pos values to align the ":" by adding padding before it.
+	// Cap padding at 5: 3 digits for the line, 2 digits for the column number, which is
+	// ok for most cases.
+	w := ndigits(pos1.Line) + ndigits(pos1.Column)
+	pad := "     "[:max(5-w, 0)]
+	fmt.Printf("%s%s:  %s%s\n",
+		pos1,
+		pad,
 		strings.Repeat(".  ", check.indent),
 		sprintf(check.fset, check.qualifier, true, format, args...),
 	)
+}
+
+// ndigits returns the number of decimal digits in x.
+// For x < 10, the result is always 1.
+// For x > 100, the result is always 3.
+func ndigits(x int) int {
+	switch {
+	case x < 10:
+		return 1
+	case x < 100:
+		return 2
+	default:
+		return 3
+	}
 }
 
 // dump is only needed for debugging
