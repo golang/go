@@ -537,12 +537,11 @@ var genericOps = []opData{
 	{name: "IData", argLength: 1},                // arg0=interface, returns data field
 
 	// Structs
-	{name: "StructMake", argLength: -1},                // args...=field0..n-1. Returns struct with n fields.
+	{name: "StructMake", argLength: -1},                // args...=field0..n-1. Returns struct with n fields. Must have >0 size (use Empty otherwise).
 	{name: "StructSelect", argLength: 1, aux: "Int64"}, // arg0=struct, auxint=field index.  Returns the auxint'th field.
 
 	// Arrays
-	{name: "ArrayMake0"},                              // Returns array with 0 elements
-	{name: "ArrayMake1", argLength: 1},                // Returns array with 1 element
+	{name: "ArrayMake1", argLength: 1},                // Returns array with 1 element. Use Empty if the element is zero-sized.
 	{name: "ArraySelect", argLength: 1, aux: "Int64"}, // arg0=array, auxint=index. Returns a[i].
 
 	// Spill&restore ops for the register allocator. These are
@@ -681,6 +680,9 @@ var genericOps = []opData{
 
 	// Helper instruction which is semantically equivalent to calling runtime.memequal, but some targets may prefer to custom lower it later, e.g. for specific constant sizes.
 	{name: "MemEq", argLength: 4, commutative: true, typ: "Bool"}, // arg0=ptr0, arg1=ptr1, arg2=size, arg3=memory.
+
+	// Value of a zero-sized type.
+	{name: "Empty", argLength: 0},
 
 	// SIMD
 	{name: "ZeroSIMD", argLength: 0}, // zero value of a vector

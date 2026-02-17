@@ -101,8 +101,7 @@
 
 (IMake _typ (StructMake ___)) => imakeOfStructMake(v)
 (StructSelect (IData x)) && v.Type.Size() > 0 => (IData x)
-(StructSelect (IData x)) && v.Type.Size() == 0 && v.Type.IsStruct() => (StructMake)
-(StructSelect (IData x)) && v.Type.Size() == 0 && v.Type.IsArray() => (ArrayMake0)
+(StructSelect (IData x)) && v.Type.Size() == 0 => (Empty)
 
 (StructSelect [i] x:(StructMake ___)) => x.Args[i]
 

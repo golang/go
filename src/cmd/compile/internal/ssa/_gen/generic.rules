@@ -941,7 +941,7 @@
 
 // struct operations
 (StructSelect [i] x:(StructMake ___)) => x.Args[i]
-(Load <t> _ _) && t.IsStruct() && CanSSA(t) && !t.IsSIMD() => rewriteStructLoad(v)
+(Load <t> _ _) && t.IsStruct() && t.Size() > 0 && CanSSA(t) && !t.IsSIMD() => rewriteStructLoad(v)
 (Store _ (StructMake ___) _) => rewriteStructStore(v)
 
 (StructSelect [i] x:(Load <t> ptr mem)) && !CanSSA(t) =>
@@ -950,8 +950,7 @@
 // Putting struct{*byte} and similar into direct interfaces.
 (IMake _typ (StructMake ___)) => imakeOfStructMake(v)
 (StructSelect (IData x)) && v.Type.Size() > 0 => (IData x)
-(StructSelect (IData x)) && v.Type.Size() == 0 && v.Type.IsStruct() => (StructMake)
-(StructSelect (IData x)) && v.Type.Size() == 0 && v.Type.IsArray() => (ArrayMake0)
+(StructSelect (IData x)) && v.Type.Size() == 0 => (Empty)
 
 // un-SSAable values use mem->mem copies
 (Store {t} dst (Load src mem) mem) && !CanSSA(t) =>
@@ -962,18 +961,18 @@
 // array ops
 (ArraySelect (ArrayMake1 x)) => x
 
-(Load <t> _ _) && t.IsArray() && t.NumElem() == 0 =>
-  (ArrayMake0)
-
 (Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && CanSSA(t) =>
   (ArrayMake1 (Load <t.Elem()> ptr mem))
 
-(Store _ (ArrayMake0) mem) => mem
 (Store dst (ArrayMake1 e) mem) => (Store {e.Type} dst e mem)
 
 // Putting [1]*byte and similar into direct interfaces.
 (IMake _typ (ArrayMake1 val)) => (IMake _typ val)
 (ArraySelect [0] (IData x)) => (IData x)
+
+// zero-sized values.
+(Load <t> _ _) && t.Size() == 0 => (Empty)
+(Store _ (Empty) mem) => mem
 
 // string ops
 // Decomposing StringMake and lowering of StringPtr and StringLen
