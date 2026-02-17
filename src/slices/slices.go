@@ -125,8 +125,8 @@ func ContainsFunc[S ~[]E, E any](s S, f func(E) bool) bool {
 	return IndexFunc(s, f) >= 0
 }
 
-// Insert inserts the values v... into s at index i,
-// returning the modified slice.
+// Insert modifies s in place by inserting the values v... at index i,
+// and returns the modified slice.
 // The elements at s[i:] are shifted up to make room.
 // In the returned slice r, r[i] == v[0],
 // and, if i < len(s), r[i+len(v)] == value originally at s[i].
@@ -214,7 +214,8 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 	return s
 }
 
-// Delete removes the elements s[i:j] from s, returning the modified slice.
+// Delete modifies s in place by removing the elements s[i:j],
+// and returns the modified slice.
 // Delete panics if j > len(s) or s[i:j] is not a valid slice of s.
 // Delete is O(len(s)-i), so if many items must be deleted, it is better to
 // make a single call deleting them all together than to delete one at a time.
@@ -233,8 +234,8 @@ func Delete[S ~[]E, E any](s S, i, j int) S {
 	return s
 }
 
-// DeleteFunc removes any elements from s for which del returns true,
-// returning the modified slice.
+// DeleteFunc modifies s in place by removing any elements for which del returns true,
+// and returns the modified slice.
 // DeleteFunc zeroes the elements between the new length and the original length.
 // If the result is empty, it has the same nilness as s.
 func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
@@ -253,8 +254,8 @@ func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
 	return s[:i]
 }
 
-// Replace replaces the elements s[i:j] by the given v, and returns the
-// modified slice.
+// Replace modifies s in place by replacing the elements s[i:j] with the given v,
+// and returns the modified slice.
 // Replace panics if j > len(s) or s[i:j] is not a valid slice of s.
 // When len(v) < (j-i), Replace zeroes the elements between the new length and the original length.
 // If the result is empty, it has the same nilness as s.
