@@ -5,11 +5,14 @@
 package modernize
 
 import (
+	"cmp"
 	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
 	"go/types"
+	"maps"
+	"slices"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -61,9 +64,18 @@ func stringsbuilder(pass *analysis.Pass) (any, error) {
 		}
 	}
 
+	lexicalOrder := func(x, y *types.Var) int { return cmp.Compare(x.Pos(), y.Pos()) }
+
+	// File and Pos of last fix edit,
+	// for overlapping fix span detection.
+	var (
+		lastEditFile *ast.File
+		lastEditEnd  token.Pos
+	)
+
 	// Now check each candidate variable's decl and uses.
 nextcand:
-	for v := range candidates {
+	for _, v := range slices.SortedFunc(maps.Keys(candidates), lexicalOrder) {
 		var edits []analysis.TextEdit
 
 		// Check declaration of s:
@@ -79,6 +91,15 @@ nextcand:
 		if !ok {
 			continue
 		}
+
+		// To avoid semantic conflicts, do not offer a fix if its edit
+		// range (ignoring import edits) overlaps a previous fix.
+		// This fixes #76983 and is an ad-hoc mitigation of #76476.
+		file := astutil.EnclosingFile(def)
+		if file == lastEditFile && v.Pos() < lastEditEnd {
+			continue
+		}
+
 		ek, _ := def.ParentEdge()
 		if ek == edge.AssignStmt_Lhs &&
 			len(def.Parent().Node().(*ast.AssignStmt).Lhs) == 1 {
@@ -302,6 +323,9 @@ nextcand:
 		if numLoopAssigns == 0 {
 			continue nextcand // no += in a loop; reject
 		}
+
+		lastEditFile = file
+		lastEditEnd = edits[len(edits)-1].End
 
 		pass.Report(analysis.Diagnostic{
 			Pos:     loopAssign.Pos(),

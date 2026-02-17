@@ -25,7 +25,7 @@ import (
 var NewExprAnalyzer = &analysis.Analyzer{
 	Name:      "newexpr",
 	Doc:       analyzerutil.MustExtractDoc(doc, "newexpr"),
-	URL:       "https://pkg.go.dev/golang.org/x/tools/gopls/internal/analysis/modernize#newexpr",
+	URL:       "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#newexpr",
 	Requires:  []*analysis.Analyzer{inspect.Analyzer},
 	Run:       run,
 	FactTypes: []analysis.Fact{&newLike{}},

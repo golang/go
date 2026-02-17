@@ -36,7 +36,7 @@ var stringscutAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: stringscut,
-	URL: "https://pkg.go.dev/golang.org/x/tools/gopls/internal/analysis/modernize#stringscut",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#stringscut",
 }
 
 func init() {
@@ -345,6 +345,7 @@ func indexArgValid(info *types.Info, index *typeindex.Index, expr ast.Expr, afte
 	switch expr := expr.(type) {
 	case *ast.CallExpr:
 		return types.Identical(tv.Type, byteSliceType) &&
+			info.Types[expr.Fun].IsType() && // make sure this isn't a function that returns a byte slice
 			indexArgValid(info, index, expr.Args[0], afterPos) // check s in []byte(s)
 	case *ast.Ident:
 		sObj := info.Uses[expr]
