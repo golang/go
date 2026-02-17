@@ -238,8 +238,6 @@ func (r *raceliteVirtualRegister) claim(addr uintptr, gp *g) bool {
 		// Report the write-write race,
 		r.report(addr, gp, r.owner, "Write", "write")
 
-		startTheWorld(stw)
-
 		r.runlock()
 		return false
 
