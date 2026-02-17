@@ -6035,7 +6035,6 @@ const (
 	OpIData
 	OpStructMake
 	OpStructSelect
-	OpArrayMake0
 	OpArrayMake1
 	OpArraySelect
 	OpStoreReg
@@ -6127,6 +6126,7 @@ const (
 	OpPrefetchCache
 	OpPrefetchCacheStreamed
 	OpMemEq
+	OpEmpty
 	OpZeroSIMD
 	OpCvt16toMask8x16
 	OpCvt32toMask8x32
@@ -88209,11 +88209,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ArrayMake0",
-		argLen:  0,
-		generic: true,
-	},
-	{
 		name:    "ArrayMake1",
 		argLen:  1,
 		generic: true,
@@ -88732,6 +88727,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      4,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "Empty",
+		argLen:  0,
+		generic: true,
 	},
 	{
 		name:    "ZeroSIMD",

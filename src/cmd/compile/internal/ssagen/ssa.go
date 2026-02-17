@@ -4489,6 +4489,11 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 			// Grab old value of structure.
 			old := s.expr(left.X)
 
+			if left.Type().Size() == 0 {
+				// Nothing to do when assigning zero-sized things.
+				return
+			}
+
 			// Make new structure.
 			new := s.newValue0(ssa.OpStructMake, t)
 
@@ -4526,6 +4531,10 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 			if n != 1 {
 				s.Fatalf("assigning to non-1-length array")
 			}
+			if t.Size() == 0 {
+				return
+			}
+
 			// Rewrite to a = [1]{v}
 			len := s.constInt(types.Types[types.TINT], 1)
 			s.boundsCheck(i, len, ssa.BoundsIndex, false) // checks i == 0
@@ -4571,6 +4580,9 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 
 // zeroVal returns the zero value for type t.
 func (s *state) zeroVal(t *types.Type) *ssa.Value {
+	if t.Size() == 0 {
+		return s.entryNewValue0(ssa.OpEmpty, t)
+	}
 	switch {
 	case t.IsInteger():
 		switch t.Size() {
@@ -4623,13 +4635,8 @@ func (s *state) zeroVal(t *types.Type) *ssa.Value {
 			v.AddArg(s.zeroVal(t.FieldType(i)))
 		}
 		return v
-	case t.IsArray():
-		switch t.NumElem() {
-		case 0:
-			return s.entryNewValue0(ssa.OpArrayMake0, t)
-		case 1:
-			return s.entryNewValue1(ssa.OpArrayMake1, t, s.zeroVal(t.Elem()))
-		}
+	case t.IsArray() && t.NumElem() == 1:
+		return s.entryNewValue1(ssa.OpArrayMake1, t, s.zeroVal(t.Elem()))
 	case t.IsSIMD():
 		return s.newValue0(ssa.OpZeroSIMD, t)
 	}

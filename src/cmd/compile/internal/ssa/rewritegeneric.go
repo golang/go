@@ -12420,25 +12420,14 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> _ _)
-	// cond: t.IsStruct() && CanSSA(t) && !t.IsSIMD()
+	// cond: t.IsStruct() && t.Size() > 0 && CanSSA(t) && !t.IsSIMD()
 	// result: rewriteStructLoad(v)
 	for {
 		t := v.Type
-		if !(t.IsStruct() && CanSSA(t) && !t.IsSIMD()) {
+		if !(t.IsStruct() && t.Size() > 0 && CanSSA(t) && !t.IsSIMD()) {
 			break
 		}
 		v.copyOf(rewriteStructLoad(v))
-		return true
-	}
-	// match: (Load <t> _ _)
-	// cond: t.IsArray() && t.NumElem() == 0
-	// result: (ArrayMake0)
-	for {
-		t := v.Type
-		if !(t.IsArray() && t.NumElem() == 0) {
-			break
-		}
-		v.reset(OpArrayMake0)
 		return true
 	}
 	// match: (Load <t> ptr mem)
@@ -12455,6 +12444,17 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpLoad, t.Elem())
 		v0.AddArg2(ptr, mem)
 		v.AddArg(v0)
+		return true
+	}
+	// match: (Load <t> _ _)
+	// cond: t.Size() == 0
+	// result: (Empty)
+	for {
+		t := v.Type
+		if !(t.Size() == 0) {
+			break
+		}
+		v.reset(OpEmpty)
 		return true
 	}
 	// match: (Load <typ.Int8> sptr:(Addr {scon} (SB)) mem)
@@ -32219,16 +32219,6 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		v.AddArg3(dst, src, v0)
 		return true
 	}
-	// match: (Store _ (ArrayMake0) mem)
-	// result: mem
-	for {
-		if v_1.Op != OpArrayMake0 {
-			break
-		}
-		mem := v_2
-		v.copyOf(mem)
-		return true
-	}
 	// match: (Store dst (ArrayMake1 e) mem)
 	// result: (Store {e.Type} dst e mem)
 	for {
@@ -32241,6 +32231,16 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		v.reset(OpStore)
 		v.Aux = typeToAux(e.Type)
 		v.AddArg3(dst, e, mem)
+		return true
+	}
+	// match: (Store _ (Empty) mem)
+	// result: mem
+	for {
+		if v_1.Op != OpEmpty {
+			break
+		}
+		mem := v_2
+		v.copyOf(mem)
 		return true
 	}
 	// match: (Store (SelectN [0] call:(StaticLECall ___)) x mem:(SelectN [1] call))
@@ -32734,29 +32734,16 @@ func rewriteValuegeneric_OpStructSelect(v *Value) bool {
 		return true
 	}
 	// match: (StructSelect (IData x))
-	// cond: v.Type.Size() == 0 && v.Type.IsStruct()
-	// result: (StructMake)
+	// cond: v.Type.Size() == 0
+	// result: (Empty)
 	for {
 		if v_0.Op != OpIData {
 			break
 		}
-		if !(v.Type.Size() == 0 && v.Type.IsStruct()) {
+		if !(v.Type.Size() == 0) {
 			break
 		}
-		v.reset(OpStructMake)
-		return true
-	}
-	// match: (StructSelect (IData x))
-	// cond: v.Type.Size() == 0 && v.Type.IsArray()
-	// result: (ArrayMake0)
-	for {
-		if v_0.Op != OpIData {
-			break
-		}
-		if !(v.Type.Size() == 0 && v.Type.IsArray()) {
-			break
-		}
-		v.reset(OpArrayMake0)
+		v.reset(OpEmpty)
 		return true
 	}
 	return false
