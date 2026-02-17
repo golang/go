@@ -269,7 +269,9 @@ func (fd *FD) readWriteLock() error {
 		return errClosing(fd.isFile)
 	}
 	if !fd.fdmu.rwlock(writeLock, waitLock) {
-		fd.fdmu.rwunlock(readlock) // unlock read lock acquired above
+		if fd.fdmu.rwunlock(readlock) {
+			fd.destroy()
+		}
 		return errClosing(fd.isFile)
 	}
 	return nil
@@ -286,7 +288,9 @@ func (fd *FD) tryReadWriteLock() (bool, error) {
 		return false, nil
 	}
 	if !fd.fdmu.rwlock(writeLock, tryLock) {
-		fd.fdmu.rwunlock(readlock) // unlock read lock acquired above
+		if fd.fdmu.rwunlock(readlock) {
+			fd.destroy()
+		}
 		if fd.closing() {
 			return false, errClosing(fd.isFile)
 		}
