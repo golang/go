@@ -330,6 +330,8 @@ func main() {
 		racefini() // does not return
 	}
 
+	raceliteReportAll()
+
 	exit(0)
 	for {
 		var x *int32
