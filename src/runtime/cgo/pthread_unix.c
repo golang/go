@@ -73,6 +73,8 @@ x_cgo_sys_thread_create(void* (*func)(void*)) {
 	}
 }
 
+void (* _cgo_sys_thread_create)(void* (*func)(void*)) = x_cgo_sys_thread_create;
+
 void
 x_cgo_getstackbound(uintptr bounds[2])
 {
@@ -114,6 +116,8 @@ x_cgo_getstackbound(uintptr bounds[2])
 	bounds[1] = (uintptr)addr + size;
 	_cgo_tsan_release();
 }
+
+void (* _cgo_getstackbound)(uintptr[2]) = x_cgo_getstackbound;
 
 // _cgo_try_pthread_create retries pthread_create if it fails with EAGAIN.
 int

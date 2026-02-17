@@ -93,6 +93,8 @@ void x_cgo_bindm(void* g) {
 	pthread_setspecific(pthread_g, g);
 }
 
+void (* _cgo_bindm)(void*) = x_cgo_bindm;
+
 void
 x_cgo_notify_runtime_init_done(void* dummy __attribute__ ((unused))) {
 	pthread_mutex_lock(&runtime_init_mu);
@@ -176,3 +178,21 @@ pthread_key_destructor(void* g) {
 		x_crosscall2_ptr(NULL, g, 0, 0);
 	}
 }
+
+void
+x_cgo_thread_start(ThreadStart *arg)
+{
+	ThreadStart *ts;
+
+	/* Make our own copy that can persist after we return. */
+	ts = malloc(sizeof *ts);
+	if(ts == nil) {
+		fprintf(stderr, "runtime/cgo: out of memory in thread_start\n");
+		abort();
+	}
+	*ts = *arg;
+
+	_cgo_sys_thread_start(ts);	/* OS-dependent half */
+}
+
+void (* _cgo_thread_start)(ThreadStart*) = x_cgo_thread_start;
