@@ -3331,7 +3331,7 @@ func (b *Builder) swig(a *Action, objdir string, pcCFLAGS []string) error {
 		}
 	}
 	for _, f := range p.SwigCXXFiles {
-		if b.swigOne(a, f, objdir, pcCFLAGS, true, intgosize); err != nil {
+		if err := b.swigOne(a, f, objdir, pcCFLAGS, true, intgosize); err != nil {
 			return err
 		}
 	}
