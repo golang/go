@@ -355,7 +355,7 @@ func deleteatFallback(h syscall.Handle) error {
 		h,
 		FileDispositionInfo,
 		unsafe.Pointer(&FILE_DISPOSITION_INFO{
-			DeleteFile: true,
+			DeleteFile: 1,
 		}),
 		uint32(unsafe.Sizeof(FILE_DISPOSITION_INFO{})),
 	)
@@ -416,7 +416,7 @@ func Renameat(olddirfd syscall.Handle, oldpath string, newdirfd syscall.Handle, 
 	//
 	// Try again.
 	renameInfo := FILE_RENAME_INFORMATION{
-		ReplaceIfExists: true,
+		ReplaceIfExists: 1,
 		RootDirectory:   newdirfd,
 	}
 	copy(renameInfo.FileName[:], p16)
@@ -602,7 +602,7 @@ func symlinkat(oldname string, newdirfd syscall.Handle, newname string, flags Sy
 			h,
 			&IO_STATUS_BLOCK{},
 			unsafe.Pointer(&FILE_DISPOSITION_INFORMATION{
-				DeleteFile: true,
+				DeleteFile: 1,
 			}),
 			uint32(unsafe.Sizeof(FILE_DISPOSITION_INFORMATION{})),
 			FileDispositionInformation,
