@@ -524,9 +524,6 @@ func parsegodebug(godebug string, seen map[string]bool) {
 			continue
 		}
 		key, value := field[:i], field[i+1:]
-		if key == "racelite" {
-			println("thepudds: racelite debug flag seen")
-		}
 
 		if seen[key] {
 			continue
