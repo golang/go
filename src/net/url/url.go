@@ -915,6 +915,19 @@ func (v Values) Has(key string) bool {
 	return ok
 }
 
+// Clone creates a deep copy of the subject [Values].
+func (vs Values) Clone() Values {
+	if vs == nil {
+		return nil
+	}
+
+	newVals := make(Values, len(vs))
+	for k, v := range vs {
+		newVals[k] = slices.Clone(v)
+	}
+	return newVals
+}
+
 // ParseQuery parses the URL-encoded query string and returns
 // a map listing the values specified for each key.
 // ParseQuery always returns a non-nil map containing all the
