@@ -1,0 +1,151 @@
+# Test for slicescontains bug: incorrect transformation when loop assigns non-boolean values.
+#
+# This test demonstrates a bug where the slicescontains analyzer incorrectly
+# suggests transforming loops that assign non-boolean values into slices.Contains
+# calls, which would cause type errors.
+#
+# THE BUG:
+# The check `isTrueOrFalse(assign.Rhs[0]) == -isTrueOrFalse(prevAssign.Rhs[0])`
+# incorrectly passes when BOTH values are non-boolean (both return 0).
+# This causes `0 == -0` to evaluate to true, triggering the transformation.
+#
+# Bug pattern that INCORRECTLY transforms:
+#   syncMode := FULL_SYNC
+#   for _, option := range modes {
+#       if option == INCREMENTAL_SYNC {
+#           syncMode = INCREMENTAL_SYNC  // Non-boolean assignment!
+#           break
+#       }
+#   }
+# Gets transformed to:
+#   syncMode := slices.Contains(modes, INCREMENTAL_SYNC)  // TYPE ERROR: bool vs SyncMode
+#
+# When the bug is fixed, these patterns should NOT be transformed.
+
+go fix -diff example.com/x
+
+# BUG CASE 1: Non-boolean constant assignment (isTrueOrFalse returns 0 for both)
+# The bug causes this to incorrectly match because 0 == -0 is true.
+# If this outputs 'slices.Contains' for syncMode, the bug is present.
+! stdout 'syncMode = slices.Contains'
+! stdout 'syncMode := slices.Contains'
+
+# BUG CASE 2: Integer value assignment (also triggers 0 == -0 bug)
+! stdout 'status = slices.Contains'
+
+# BUG CASE 3: Loop assigns the matched element value itself
+# This uses range variable in body so should be rejected by usesRangeVar check.
+# Including to verify this check works correctly.
+! stdout 'foundValue = slices.Contains'
+
+# BUG CASE 4: Loop with side effects beyond setting a flag
+# This has 3 statements (counter++, result = x, break), so len(body.List) != 2.
+# The general case transform preserves the body, so this should still compile.
+# But we verify it doesn't do the "special case" transform that would lose the side effect.
+! stdout 'result = slices.Contains'
+
+# VALID CASE: This is the correct pattern that should be transformed.
+# Boolean flag set to true/false (isTrueOrFalse returns +1 and -1).
+stdout 'found = slices.Contains'
+
+-- go.mod --
+module example.com/x
+go 1.21
+
+-- x.go --
+package x
+
+import "slices"
+
+// Avoid unused import error
+var _ = slices.Contains[[]string]
+
+type SyncMode string
+
+const (
+	FULL_SYNC        SyncMode = "full"
+	INCREMENTAL_SYNC SyncMode = "incremental"
+)
+
+type StreamConfig struct {
+	SupportedSyncModes []SyncMode
+}
+
+// BUG CASE 1: Non-boolean constant assignment.
+// The bug is: isTrueOrFalse(INCREMENTAL_SYNC) == 0
+//             isTrueOrFalse(FULL_SYNC) == 0
+//             0 == -0 is TRUE, so the check incorrectly passes!
+// This should NOT be transformed because it would change:
+//   syncMode (type SyncMode) to syncMode (type bool)
+func assignNonBoolConstant(streamConfig StreamConfig) SyncMode {
+	syncMode := FULL_SYNC
+	for _, syncOption := range streamConfig.SupportedSyncModes {
+		if syncOption == INCREMENTAL_SYNC {
+			syncMode = INCREMENTAL_SYNC
+			break
+		}
+	}
+	return syncMode
+}
+
+// BUG CASE 2: Integer value assignment.
+// Same bug pattern: 0 == -0 incorrectly passes.
+const (
+	STATUS_PENDING   = 0
+	STATUS_COMPLETED = 1
+)
+
+func assignIntegerValue(statuses []int) int {
+	status := STATUS_PENDING
+	for _, s := range statuses {
+		if s == STATUS_COMPLETED {
+			status = STATUS_COMPLETED
+			break
+		}
+	}
+	return status
+}
+
+// BUG CASE 3: Loop assigns the matched element value itself.
+// This should be rejected by the usesRangeVar check since `item` is used.
+func assignMatchedElement(items []string, target string) string {
+	foundValue := ""
+	for _, item := range items {
+		if item == target {
+			foundValue = item // Uses range variable
+			break
+		}
+	}
+	return foundValue
+}
+
+// BUG CASE 4: Loop with side effects beyond setting a flag.
+// Body has 3 statements, so len(body.List) != 2.
+// The "special case" transform won't fire, but we verify correctness.
+var sideEffectCounter int
+
+func loopWithSideEffects(items []string, target string) string {
+	result := ""
+	for _, item := range items {
+		if item == target {
+			sideEffectCounter++
+			result = "found"
+			break
+		}
+	}
+	return result
+}
+
+// VALID CASE: Boolean flag pattern that SHOULD be transformed.
+// isTrueOrFalse(true) == +1, isTrueOrFalse(false) == -1
+// +1 == -(-1) == +1, so the check correctly passes.
+func findWithBoolFlag(items []string, target string) bool {
+	found := false
+	for _, item := range items {
+		if item == target {
+			found = true
+			break
+		}
+	}
+	return found
+}
