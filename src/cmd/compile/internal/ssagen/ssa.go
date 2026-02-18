@@ -343,7 +343,7 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 	if base.Flag.Cfg.Instrumenting && fn.Pragma&ir.Norace == 0 && !fn.Linksym().ABIWrapper() {
 		// TODO(thepudds): add Racelite here? this check is not what I would expect... We would
 		// want to respect NoRaceFunc probably.
-		if (!base.Flag.Race && !base.Flag.Racelite) || !objabi.LookupPkgSpecial(fn.Sym().Pkg.Path).NoRaceFunc {
+		if (!base.Flag.Race && !base.Flag.Cfg.Racelite) || !objabi.LookupPkgSpecial(fn.Sym().Pkg.Path).NoRaceFunc {
 			s.instrumentMemory = true
 		}
 		if base.Flag.Race {
@@ -1579,7 +1579,7 @@ func (s *state) instrument2(t *types.Type, addr, addr2 *ssa.Value, kind instrume
 		default:
 			panic("unreachable")
 		}
-	} else if base.Flag.Racelite {
+	} else if base.Flag.Cfg.Racelite {
 		// TODO(thepudds): probably need to handle composite objects.
 		switch kind {
 		case instrumentRead:
