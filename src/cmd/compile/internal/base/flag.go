@@ -15,6 +15,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 
@@ -118,7 +119,7 @@ type CmdFlags struct {
 	CoverageCfg        func(string) "help:\"read coverage configuration from `file`\""
 	Pack               bool         "help:\"write to file.a instead of file.o\""
 	Race               bool         "help:\"enable race detector\""
-	Racelite           bool         "help:\"enable lite race detector\""
+	Racelite           string       "help:\"enable racelite for matching packages; must be a valid regular expression\""
 	Shared             *bool        "help:\"generate code that can be linked into a shared library\"" // &Ctxt.Flag_shared, set below
 	SmallFrames        bool         "help:\"reduce the size limit for stack allocated objects\""      // small stacks, to diagnose GC latency; see golang.org/issue/27732
 	Spectre            string       "help:\"enable spectre mitigations in `list` (all, index, ret)\""
@@ -144,6 +145,9 @@ type CmdFlags struct {
 		// Whether we are adding any sort of code instrumentation, such as
 		// when the race detector is enabled.
 		Instrumenting bool
+		// Set true if the current package path matches
+		// the pattern specified by -racelite.
+		Racelite bool
 	}
 }
 
@@ -206,6 +210,16 @@ func ParseFlags() {
 		// This will only override the flags set in gcd;
 		// any others set on the command line remain set.
 		Flag.LowerD.Set(gcd)
+	}
+
+	// Check the racelite flag and update the Racelite configuration
+	// if the package matches the racelite pattern.
+	if Flag.Racelite != "" {
+		re, err := regexp.Compile(Flag.Racelite)
+		if err != nil {
+			log.Fatalf("invalid -racelite pattern: %s\nerror: %v", Flag.Racelite, err)
+		}
+		Flag.Cfg.Racelite = re.MatchString(Ctxt.Pkgpath)
 	}
 
 	if Debug.Gossahash != "" {
@@ -343,14 +357,14 @@ func ParseFlags() {
 		Flag.LowerO = p + suffix
 	}
 	switch {
-	case Flag.Race && Flag.MSan:
+	case (Flag.Race || Flag.Cfg.Racelite) && Flag.MSan:
 		log.Fatal("cannot use both -race and -msan")
-	case Flag.Race && Flag.ASan:
+	case (Flag.Race || Flag.Cfg.Racelite) && Flag.ASan:
 		log.Fatal("cannot use both -race and -asan")
 	case Flag.MSan && Flag.ASan:
 		log.Fatal("cannot use both -msan and -asan")
 	}
-	if Flag.Race || Flag.MSan || Flag.ASan {
+	if Flag.Race || Flag.Cfg.Racelite || Flag.MSan || Flag.ASan {
 		// -race, -msan and -asan imply -d=checkptr for now.
 		if Debug.Checkptr == -1 { // if not set explicitly
 			Debug.Checkptr = 1
