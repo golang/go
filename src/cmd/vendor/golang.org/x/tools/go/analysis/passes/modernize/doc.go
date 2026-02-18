@@ -91,6 +91,8 @@ The any analyzer suggests replacing uses of the empty interface type,
 `interface{}`, with the `any` alias, which was introduced in Go 1.18.
 This is a purely stylistic change that makes code more readable.
 
+Note: the -any flag enables only this analyzer; it does not enable all analyzers.
+
 # Analyzer errorsastype
 
 errorsastype: replace errors.As with errors.AsType[T]
