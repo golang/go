@@ -415,22 +415,27 @@ func (check *Checker) collectObjects() {
 
 			case *syntax.FuncDecl:
 				name := s.Name.Value
-				obj := NewFunc(s.Name.Pos(), pkg, name, nil)
-				hasTParamError := false // avoid duplicate type parameter errors
+				obj := NewFunc(s.Name.Pos(), pkg, name, nil) // signature set later
+				var tparam0 *syntax.Field
+				if len(s.TParamList) > 0 {
+					tparam0 = s.TParamList[0]
+				}
 				if s.Recv == nil {
 					// regular function
 					if name == "init" || name == "main" && pkg.name == "main" {
+						// init and main functions must not declare type and ordinary parameters or results
 						code := InvalidInitDecl
 						if name == "main" {
 							code = InvalidMainDecl
 						}
-						if len(s.TParamList) != 0 {
-							check.softErrorf(s.TParamList[0], code, "func %s must have no type parameters", name)
-							hasTParamError = true
+						if tparam0 != nil {
+							check.softErrorf(tparam0, code, "func %s must have no type parameters", name)
 						}
 						if t := s.Type; len(t.ParamList) != 0 || len(t.ResultList) != 0 {
 							check.softErrorf(s.Name, code, "func %s must have no arguments and no return values", name)
 						}
+					} else {
+						_ = tparam0 != nil && check.verifyVersionf(tparam0, go1_18, "type parameter")
 					}
 					// don't declare init functions in the package scope - they are invisible
 					if name == "init" {
@@ -452,14 +457,9 @@ func (check *Checker) collectObjects() {
 					if recv, _ := base.(*syntax.Name); recv != nil && name != "_" {
 						methods = append(methods, methodInfo{obj, ptr, recv})
 					}
-					// methods cannot have type parameters for now
-					if len(s.TParamList) != 0 {
-						check.softErrorf(s.TParamList[0], InvalidMethodTypeParams, "method %s must have no type parameters", name)
-						hasTParamError = true
-					}
+					_ = tparam0 != nil && check.verifyVersionf(tparam0, go1_27, "generic method")
 					check.recordDef(s.Name, obj)
 				}
-				_ = len(s.TParamList) != 0 && !hasTParamError && check.verifyVersionf(s.TParamList[0], go1_18, "type parameter")
 				info := &declInfo{file: fileScope, version: check.version, fdecl: s}
 				// Methods are not package-level objects but we still track them in the
 				// object map so that we can handle them like regular functions (if the
