@@ -122,6 +122,10 @@ type Type int
 // invocation.
 type Type1 int
 
+// TypeOrExpr is here for the purposes of documentation only. It is a stand-in
+// for either a Go type or an expression.
+type TypeOrExpr int
+
 // IntegerType is here for the purposes of documentation only. It is a stand-in
 // for any integer type: int, uint, int8 etc.
 type IntegerType int
@@ -220,10 +224,16 @@ func max[T cmp.Ordered](x T, y ...T) T
 // min will return NaN.
 func min[T cmp.Ordered](x T, y ...T) T
 
-// The new built-in function allocates memory. The first argument is a type,
-// not a value, and the value returned is a pointer to a newly
-// allocated zero value of that type.
-func new(Type) *Type
+// The built-in function new creates a new, initialized variable and returns
+// a pointer to it. It accepts a single argument, which may be either a type
+// or an expression.
+//
+// If the argument is a type T, then new(T) allocates a variable of type T
+// initialized to its zero value.
+//
+// If the argument is an expression x, then new(x) allocates a variable of
+// the type of x initialized to the value of x.
+func new(TypeOrExpr) *Type
 
 // The complex built-in function constructs a complex value from two
 // floating-point values. The real and imaginary parts must be of the same
