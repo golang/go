@@ -92,43 +92,35 @@ func raceliteget(addr uintptr) *raceliteVirtualRegister {
 
 // inStack checks if addr is in the current goroutine's stack.
 func inStack(addr uintptr) bool {
-	// TODO(thepudds): probably want to make sure we are not preempted.
-	mp := acquirem()
-	if mp.curg == nil || getg() == mp.g0 {
-		releasem(mp)
-		// TODO(vsaioc): We are dealing with mysterious behavior here.
-		return true
-	}
-	inStack := mp.curg.stack.lo <= addr && addr < mp.curg.stack.hi
-	releasem(mp)
-	return inStack
+	gp := getg()
+	return gp.stack.lo <= addr && addr < gp.stack.hi
 }
 
 // micropause injects a small delay to a load
 // or store operation, allowing Racelite to see
 // whether another thread accessed the same address.
 func micropause() {
-	if diag() || cheaprandn(10_000) == 0 {
+	if cheaprandn(100_000) == 0 {
 		// TODO(thepudds): multiple ways to delay here. For now, do something simple that hopefully
 		// let's us see it work for the first time. ;)
-		usleep(2)
+		usleep(1)
 	}
 	// NOTE(vsaioc): We may want to experiment here.
-	Gosched()
+	// Gosched()
 }
 
 // raceliteCheckAddr checks if we should sample the given address for data race detection.
 func raceliteCheckAddr(addr uintptr) bool {
-	// Check that this address is not on our stack.
-	if inStack(addr) {
-		// Ignore stack addresses
-		return false
-	}
-
 	// Check that we are sampling this address.
 	//
 	// FIXME(vsaioc): At the moment, we always sample when debugging.
 	if !diag() && uint32(addr>>(3+raceliteShift))&raceliteCheckAddrMask != raceliteCheckAddrRand {
+		return false
+	}
+
+	// Check that this address is not on our stack.
+	if inStack(addr) {
+		// Ignore stack addresses
 		return false
 	}
 
@@ -334,7 +326,7 @@ func record(rec raceliteRec) {
 		raceliteRecs.recs[slot] = rec
 	case rec2.pcs1[0] == rec.pcs1[0] && rec2.pcs2[0] == rec.pcs2[0]:
 		// We have discovered a duplicate data race. Increment the count.
-		rec2.count++
+		raceliteRecs.recs[slot].count++
 	default:
 		// We have encountered a hash collision.
 		// Report it without overriding the existing record.
