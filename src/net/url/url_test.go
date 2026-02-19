@@ -1209,6 +1209,7 @@ var resolveReferenceTests = []struct {
 	{"http://foo.com", "bar", "http://foo.com/bar"},
 	{"http://foo.com/", "bar", "http://foo.com/bar"},
 	{"http://foo.com/bar/baz", "quux", "http://foo.com/bar/quux"},
+	{"http://foo.com/bar/baz/", "quux", "http://foo.com/bar/baz/quux"},
 
 	// ... going up
 	{"http://foo.com/bar/baz", "../quux", "http://foo.com/quux"},

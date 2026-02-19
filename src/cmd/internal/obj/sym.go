@@ -166,6 +166,7 @@ func (ctxt *Link) Float32Sym(f float32) *LSym {
 	name := fmt.Sprintf("$f32.%08x%s", i, suffix)
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 4
+		s.Align = 4
 		s.WriteFloat32(ctxt, 0, f)
 		s.Type = typ
 		s.Set(AttrLocal, true)
@@ -180,6 +181,7 @@ func (ctxt *Link) Float64Sym(f float64) *LSym {
 	name := fmt.Sprintf("$f64.%016x%s", i, suffix)
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 8
+		s.Align = int16(ctxt.Arch.PtrSize)
 		s.WriteFloat64(ctxt, 0, f)
 		s.Type = typ
 		s.Set(AttrLocal, true)
@@ -193,6 +195,7 @@ func (ctxt *Link) Int32Sym(i int64) *LSym {
 	name := fmt.Sprintf("$i32.%08x%s", uint64(i), suffix)
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 4
+		s.Align = 4
 		s.WriteInt(ctxt, 0, 4, i)
 		s.Type = typ
 		s.Set(AttrLocal, true)
@@ -206,6 +209,7 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
 	name := fmt.Sprintf("$i64.%016x%s", uint64(i), suffix)
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 8
+		s.Align = int16(ctxt.Arch.PtrSize)
 		s.WriteInt(ctxt, 0, 8, i)
 		s.Type = typ
 		s.Set(AttrLocal, true)
@@ -219,6 +223,7 @@ func (ctxt *Link) Int128Sym(hi, lo int64) *LSym {
 	name := fmt.Sprintf("$i128.%016x%016x%s", uint64(hi), uint64(lo), suffix)
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 16
+		s.Align = int16(ctxt.Arch.PtrSize)
 		if ctxt.Arch.ByteOrder == binary.LittleEndian {
 			s.WriteInt(ctxt, 0, 8, lo)
 			s.WriteInt(ctxt, 8, 8, hi)
@@ -240,6 +245,7 @@ func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
 	return ctxt.LookupInit(fmt.Sprintf("gclocals·%s", str), func(lsym *LSym) {
 		lsym.P = data
 		lsym.Set(AttrContentAddressable, true)
+		lsym.Align = 4
 	})
 }
 

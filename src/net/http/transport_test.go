@@ -3877,7 +3877,7 @@ func testTransportNoReuseAfterEarlyResponse(t *testing.T, mode testMode) {
 		c net.Conn
 	}
 	var getOkay bool
-	var copying sync.WaitGroup
+	var willCopy sync.WaitGroup
 	closeConn := func() {
 		sconn.Lock()
 		defer sconn.Unlock()
@@ -3891,7 +3891,7 @@ func testTransportNoReuseAfterEarlyResponse(t *testing.T, mode testMode) {
 	}
 	defer func() {
 		closeConn()
-		copying.Wait()
+		willCopy.Wait()
 	}()
 
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -3903,12 +3903,12 @@ func testTransportNoReuseAfterEarlyResponse(t *testing.T, mode testMode) {
 		sconn.Lock()
 		sconn.c = conn
 		sconn.Unlock()
-		conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nfoo")) // keep-alive
 
-		copying.Add(1)
+		willCopy.Add(1)
+		conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nfoo")) // keep-alive
 		go func() {
 			io.Copy(io.Discard, conn)
-			copying.Done()
+			willCopy.Done()
 		}()
 	})).ts
 	c := ts.Client()

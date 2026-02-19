@@ -234,25 +234,3 @@ func ARM64RegisterArrangement(reg int16, name, arng string) (int64, error) {
 	}
 	return (int64(curQ) & 1 << 30) | (int64(curSize&3) << 10), nil
 }
-
-// ARM64RegisterListOffset generates offset encoding according to AArch64 specification.
-func ARM64RegisterListOffset(firstReg, regCnt int, arrangement int64) (int64, error) {
-	offset := int64(firstReg)
-	switch regCnt {
-	case 1:
-		offset |= 0x7 << 12
-	case 2:
-		offset |= 0xa << 12
-	case 3:
-		offset |= 0x6 << 12
-	case 4:
-		offset |= 0x2 << 12
-	default:
-		return 0, errors.New("invalid register numbers in ARM64 register list")
-	}
-	offset |= arrangement
-	// arm64 uses the 60th bit to differentiate from other archs
-	// For more details, refer to: obj/arm64/list7.go
-	offset |= 1 << 60
-	return offset, nil
-}

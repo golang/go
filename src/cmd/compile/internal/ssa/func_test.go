@@ -260,6 +260,11 @@ func Eq(cond, sub, alt string) ctrl {
 	return ctrl{BlockAMD64EQ, cond, []string{sub, alt}}
 }
 
+// Lt specifies a BlockAMD64LT.
+func Lt(cond, yes, no string) ctrl {
+	return ctrl{BlockAMD64LT, cond, []string{yes, no}}
+}
+
 // bloc, ctrl, and valu are internal structures used by Bloc, Valu, Goto,
 // If, and Exit to help define blocks.
 

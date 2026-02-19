@@ -658,6 +658,9 @@ func maybeSwitchForGoInstallVersion(loaderstate *modload.State, minVers string) 
 		}
 
 		if bf, ok := f.Value.(interface{ IsBoolFlag() bool }); !ok || !bf.IsBoolFlag() {
+			if len(args) == 0 {
+				return
+			}
 			// The next arg is the value for this flag. Skip it.
 			args = args[1:]
 			continue

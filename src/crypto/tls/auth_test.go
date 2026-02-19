@@ -7,7 +7,8 @@ package tls
 import (
 	"crypto"
 	"crypto/tls/internal/fips140tls"
-	"os"
+	"internal/testenv"
+	"strconv"
 	"testing"
 )
 
@@ -63,32 +64,34 @@ func TestSignatureSelection(t *testing.T) {
 	}
 
 	for testNo, test := range tests {
-		if fips140tls.Required() && test.expectedHash == crypto.SHA1 {
-			t.Logf("skipping test[%d] - not compatible with TLS FIPS mode", testNo)
-			continue
-		}
-		savedGODEBUG := os.Getenv("GODEBUG")
-		os.Setenv("GODEBUG", savedGODEBUG+","+test.godebug)
+		t.Run(strconv.Itoa(testNo), func(t *testing.T) {
+			if fips140tls.Required() && test.expectedHash == crypto.SHA1 {
+				t.Skip("skipping test not compatible with TLS FIPS mode")
+			}
+			if test.godebug != "" {
+				testenv.SetGODEBUG(t, test.godebug)
+			} else {
+				t.Parallel()
+			}
 
-		sigAlg, err := selectSignatureScheme(test.tlsVersion, test.cert, test.peerSigAlgs)
-		if err != nil {
-			t.Errorf("test[%d]: unexpected selectSignatureScheme error: %v", testNo, err)
-		}
-		if test.expectedSigAlg != sigAlg {
-			t.Errorf("test[%d]: expected signature scheme %v, got %v", testNo, test.expectedSigAlg, sigAlg)
-		}
-		sigType, hashFunc, err := typeAndHashFromSignatureScheme(sigAlg)
-		if err != nil {
-			t.Errorf("test[%d]: unexpected typeAndHashFromSignatureScheme error: %v", testNo, err)
-		}
-		if test.expectedSigType != sigType {
-			t.Errorf("test[%d]: expected signature algorithm %#x, got %#x", testNo, test.expectedSigType, sigType)
-		}
-		if test.expectedHash != hashFunc {
-			t.Errorf("test[%d]: expected hash function %#x, got %#x", testNo, test.expectedHash, hashFunc)
-		}
-
-		os.Setenv("GODEBUG", savedGODEBUG)
+			sigAlg, err := selectSignatureScheme(test.tlsVersion, test.cert, test.peerSigAlgs)
+			if err != nil {
+				t.Errorf("unexpected selectSignatureScheme error: %v", err)
+			}
+			if test.expectedSigAlg != sigAlg {
+				t.Errorf("expected signature scheme %v, got %v", test.expectedSigAlg, sigAlg)
+			}
+			sigType, hashFunc, err := typeAndHashFromSignatureScheme(sigAlg)
+			if err != nil {
+				t.Errorf("unexpected typeAndHashFromSignatureScheme error: %v", err)
+			}
+			if test.expectedSigType != sigType {
+				t.Errorf("expected signature algorithm %#x, got %#x", test.expectedSigType, sigType)
+			}
+			if test.expectedHash != hashFunc {
+				t.Errorf("expected hash function %#x, got %#x", test.expectedHash, hashFunc)
+			}
+		})
 	}
 
 	brokenCert := &Certificate{

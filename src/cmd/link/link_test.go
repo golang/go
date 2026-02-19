@@ -2416,20 +2416,37 @@ func TestTypePlacement(t *testing.T) {
 	case xf != nil:
 		defer xf.Close()
 
-		for _, sec := range xf.Sections {
-			if sec.Name == ".go.type" {
-				typeStart = sec.VirtualAddress
-				typeEnd = sec.VirtualAddress + sec.Size
-				break
+		// On XCOFF the .go.type section,
+		// like all relro sections,
+		//  gets folded into the .data section.
+		var typeSym, eTypeSym *xcoff.Symbol
+		for _, sym := range xf.Symbols {
+			switch sym.Name {
+			case "runtime.types":
+				typeSym = sym
+			case "runtime.etypes":
+				eTypeSym = sym
+			case globalName:
+				globalSec := xf.Sections[sym.SectionNumber-1]
+				globalObjAddr = uint64(globalSec.VirtualAddress + sym.Value)
 			}
 		}
 
-		for _, sym := range xf.Symbols {
-			if sym.Name == globalName {
-				globalObjAddr = sym.Value
-				break
-			}
+		if typeSym == nil {
+			t.Fatal("could not find symbol runtime.types")
 		}
+		if eTypeSym == nil {
+			t.Fatal("could not find symbol runtime.etypes")
+		}
+		if typeSym.SectionNumber != eTypeSym.SectionNumber {
+			t.Fatalf("runtime.types section %d != runtime.etypes section %d", typeSym.SectionNumber, eTypeSym.SectionNumber)
+		}
+
+		sec := xf.Sections[typeSym.SectionNumber-1]
+
+		typeStart = uint64(sec.VirtualAddress + typeSym.Value)
+
+		typeEnd = uint64(sec.VirtualAddress + eTypeSym.Value)
 	}
 
 	if typeStart == 0 || typeEnd == 0 {
@@ -2439,6 +2456,14 @@ func TestTypePlacement(t *testing.T) {
 
 	offset := globalExeAddr - globalObjAddr
 	t.Logf("execution offset: %#x", offset)
+
+	// On AIX with internal linking the type descriptors are
+	// currently put in the .text section, whereas the global
+	// variable will be in the .data section. We must ignore
+	// the offset. This would change if using external linking.
+	if runtime.GOOS == "aix" {
+		offset = 0
+	}
 
 	for _, addr := range addrs {
 		addr -= offset

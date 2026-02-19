@@ -127,11 +127,14 @@ var (
 // done to start up the runtime. It is built by the linker.
 var runtime_inittasks []*initTask
 
-// main_init_done is a signal used by cgocallbackg that initialization
-// has been completed. It is made before _cgo_notify_runtime_init_done,
-// so all cgo calls can rely on it existing. When main_init is complete,
-// it is closed, meaning cgocallbackg can reliably receive from it.
-var main_init_done chan bool
+// mainInitDone is a signal used by cgocallbackg that initialization
+// has been completed. If this is false, wait on mainInitDoneChan.
+var mainInitDone atomic.Bool
+
+// mainInitDoneChan is closed after initialization has been completed.
+// It is made before _cgo_notify_runtime_init_done, so all cgo
+// calls can rely on it existing.
+var mainInitDoneChan chan bool
 
 //go:linkname main_main main.main
 func main_main()
@@ -213,7 +216,7 @@ func main() {
 	gcenable()
 	defaultGOMAXPROCSUpdateEnable() // don't STW before runtime initialized.
 
-	main_init_done = make(chan bool)
+	mainInitDoneChan = make(chan bool)
 	if iscgo {
 		if _cgo_pthread_key_created == nil {
 			throw("_cgo_pthread_key_created missing")
@@ -265,7 +268,8 @@ func main() {
 	// of collecting statistics in malloc and newproc
 	inittrace.active = false
 
-	close(main_init_done)
+	mainInitDone.Store(true)
+	close(mainInitDoneChan)
 
 	needUnlock = false
 	unlockOSThread()

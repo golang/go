@@ -56,3 +56,18 @@ callGoInCThread(int max)
 
 	return max;
 }
+
+static void*
+callbackInInitCThread(void* unused)
+{
+	callbackInInit();
+	return NULL;
+}
+
+void
+callbackInInitC(void)
+{
+	pthread_t thread;
+
+	pthread_create(&thread, NULL, callbackInInitCThread, NULL);
+}

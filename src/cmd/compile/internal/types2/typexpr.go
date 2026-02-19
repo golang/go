@@ -18,7 +18,7 @@ import (
 // If an error occurred, x.mode is set to invalid.
 // If wantType is set, the identifier e is expected to denote a type.
 func (check *Checker) ident(x *operand, e *syntax.Name, wantType bool) {
-	x.mode = invalid
+	x.invalidate()
 	x.expr = e
 
 	scope, obj := check.lookupScope(e.Value)
@@ -99,10 +99,10 @@ func (check *Checker) ident(x *operand, e *syntax.Name, wantType bool) {
 			x.val = obj.val
 		}
 		assert(x.val != nil)
-		x.mode = constant_
+		x.mode_ = constant_
 
 	case *TypeName:
-		x.mode = typexpr
+		x.mode_ = typexpr
 
 	case *Var:
 		// It's ok to mark non-local variables, but ignore variables
@@ -115,24 +115,24 @@ func (check *Checker) ident(x *operand, e *syntax.Name, wantType bool) {
 		if !isValid(typ) {
 			return
 		}
-		x.mode = variable
+		x.mode_ = variable
 
 	case *Func:
 		check.addDeclDep(obj)
-		x.mode = value
+		x.mode_ = value
 
 	case *Builtin:
 		x.id = obj.id
-		x.mode = builtin
+		x.mode_ = builtin
 
 	case *Nil:
-		x.mode = nilvalue
+		x.mode_ = nilvalue
 
 	default:
 		panic("unreachable")
 	}
 
-	x.typ = typ
+	x.typ_ = typ
 }
 
 // typ type-checks the type expression e and returns its type, or Typ[Invalid].
@@ -248,9 +248,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 		var x operand
 		check.ident(&x, e, true)
 
-		switch x.mode {
+		switch x.mode() {
 		case typexpr:
-			return x.typ
+			return x.typ()
 		case invalid:
 			// ignore - error reported before
 		case novalue:
@@ -263,9 +263,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 		var x operand
 		check.selector(&x, e, true)
 
-		switch x.mode {
+		switch x.mode() {
 		case typexpr:
-			return x.typ
+			return x.typ()
 		case invalid:
 			// ignore - error reported before
 		case novalue:
@@ -482,14 +482,14 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
 
 	var x operand
 	check.expr(nil, &x, e)
-	if x.mode != constant_ {
-		if x.mode != invalid {
+	if x.mode() != constant_ {
+		if x.isValid() {
 			check.errorf(&x, InvalidArrayLen, "array length %s must be constant", &x)
 		}
 		return -1
 	}
 
-	if isUntyped(x.typ) || isInteger(x.typ) {
+	if isUntyped(x.typ()) || isInteger(x.typ()) {
 		if val := constant.ToInt(x.val); val.Kind() == constant.Int {
 			if representableConst(val, check, Typ[Int], nil) {
 				if n, ok := constant.Int64Val(val); ok && n >= 0 {
@@ -500,7 +500,7 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
 	}
 
 	var msg string
-	if isInteger(x.typ) {
+	if isInteger(x.typ()) {
 		msg = "invalid array length %s"
 	} else {
 		msg = "array length %s must be integer"

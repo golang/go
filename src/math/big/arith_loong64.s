@@ -162,10 +162,8 @@ TEXT ·lshVU(SB), NOSPLIT, $0
 	MOVV x_base+24(FP), R6
 	MOVV z_base+0(FP), R7
 	// run loop backward
-	SLLV $3, R4, R8
-	ADDVU R8, R6
-	SLLV $3, R4, R8
-	ADDVU R8, R7
+	ALSLV $3, R4, R6, R6
+	ALSLV $3, R4, R7, R7
 	// shift first word into carry
 	MOVV -8(R6), R8
 	MOVV $64, R9

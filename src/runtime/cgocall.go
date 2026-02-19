@@ -424,8 +424,16 @@ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
 		// The C call to Go came from a thread not currently running
 		// any Go. In the case of -buildmode=c-archive or c-shared,
 		// this call may be coming in before package initialization
-		// is complete. Wait until it is.
-		<-main_init_done
+		// is complete. Don't proceed until it is.
+		//
+		// We check a bool first for speed, and wait on a channel
+		// if it's not ready.
+		//
+		// In race mode, skip the optimization and always use the
+		// channel, which has the race instrumentation.
+		if raceenabled || !mainInitDone.Load() {
+			<-mainInitDoneChan
+		}
 	}
 
 	// Check whether the profiler needs to be turned on or off; this route to

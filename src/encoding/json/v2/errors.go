@@ -299,6 +299,13 @@ func collapseSemanticErrors(err error) error {
 	return err
 }
 
+func wrapErrUnsupported(err error, what string) error {
+	if errors.Is(err, errors.ErrUnsupported) {
+		return errors.New(what + " may not return errors.ErrUnsupported")
+	}
+	return err
+}
+
 // errorModalVerb is a modal verb like "cannot" or "unable to".
 //
 // Once per process, Hyrum-proof the error message by deliberately

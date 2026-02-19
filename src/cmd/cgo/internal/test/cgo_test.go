@@ -78,6 +78,7 @@ func TestBoolAlign(t *testing.T)                { testBoolAlign(t) }
 func TestCallGoWithString(t *testing.T)         { testCallGoWithString(t) }
 func TestCallback(t *testing.T)                 { testCallback(t) }
 func TestCallbackCallers(t *testing.T)          { testCallbackCallers(t) }
+func TestCallbackInInit(t *testing.T)           { testCallbackInInit(t) }
 func TestCallbackGC(t *testing.T)               { testCallbackGC(t) }
 func TestCallbackPanic(t *testing.T)            { testCallbackPanic(t) }
 func TestCallbackPanicLocked(t *testing.T)      { testCallbackPanicLocked(t) }

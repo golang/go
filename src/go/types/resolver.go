@@ -446,6 +446,11 @@ func (check *Checker) collectObjects() {
 					if recv, _ := base.(*ast.Ident); recv != nil && name != "_" {
 						methods = append(methods, methodInfo{obj, ptr, recv})
 					}
+					// methods cannot have type parameters for now
+					if d.decl.Type.TypeParams.NumFields() != 0 {
+						check.softErrorf(d.decl.Type.TypeParams.List[0], InvalidMethodTypeParams, "method %s must have no type parameters", name)
+						hasTParamError = true
+					}
 					check.recordDef(d.decl.Name, obj)
 				}
 				_ = d.decl.Type.TypeParams.NumFields() != 0 && !hasTParamError && check.verifyVersionf(d.decl.Type.TypeParams.List[0], go1_18, "type parameter")

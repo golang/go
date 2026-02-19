@@ -1469,6 +1469,8 @@ func checkSectSize(sect *sym.Section) {
 
 // fixZeroSizedSymbols gives a few special symbols with zero size some space.
 func fixZeroSizedSymbols(ctxt *Link) {
+	ldr := ctxt.loader
+
 	// The values in moduledata are filled out by relocations
 	// pointing to the addresses of these special symbols.
 	// Typically these symbols have no size and are not laid
@@ -1492,11 +1494,29 @@ func fixZeroSizedSymbols(ctxt *Link) {
 	// aren't real symbols, their alignment might not match the
 	// first symbol alignment. Therefore, there are explicitly put at the
 	// beginning of their section with the same alignment.
+
+	defineRuntimeTypes := func() {
+		types := ldr.CreateSymForUpdate("runtime.types", 0)
+		types.SetType(sym.STYPE)
+		types.SetSize(int64(ctxt.Arch.PtrSize))
+		types.SetAlign(int32(ctxt.Arch.PtrSize))
+		ldr.SetAttrSpecial(types.Sym(), false)
+	}
+
 	if !(ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) && !(ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
+
+		// On AIX, below, we give runtime.types a size.
+		// That means that the type descriptors will actually
+		// follow runtime.types plus that size.
+		// To simplify matters for the runtime,
+		// always give runtime.types a size.
+		if ctxt.HeadType == objabi.Haix {
+			defineRuntimeTypes()
+		}
+
 		return
 	}
 
-	ldr := ctxt.loader
 	bss := ldr.CreateSymForUpdate("runtime.bss", 0)
 	bss.SetSize(8)
 	ldr.SetAttrSpecial(bss.Sym(), false)
@@ -1530,10 +1550,7 @@ func fixZeroSizedSymbols(ctxt *Link) {
 	enoptrdata := ldr.CreateSymForUpdate("runtime.enoptrdata", 0)
 	ldr.SetAttrSpecial(enoptrdata.Sym(), false)
 
-	types := ldr.CreateSymForUpdate("runtime.types", 0)
-	types.SetType(sym.STYPE)
-	types.SetSize(8)
-	ldr.SetAttrSpecial(types.Sym(), false)
+	defineRuntimeTypes()
 
 	etypes := ldr.CreateSymForUpdate("runtime.etypes", 0)
 	etypes.SetType(sym.STYPE)
@@ -2022,6 +2039,13 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.covctrs", 0), sect)
 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.ecovctrs", 0), sect)
 
+	// If we started this blob at an odd alignment, then covctrs will
+	// not be correctly aligned. Each individual entry is aligned properly,
+	// but the start marker may be before any padding inserted to enforce
+	// that alignment. Fix that here. See issue 58936.
+	covCounterDataStartOff += covCounterDataLen % 4
+	covCounterDataLen -= covCounterDataLen % 4
+
 	// Coverage instrumentation counters for libfuzzer.
 	if len(state.data[sym.SLIBFUZZER_8BIT_COUNTER]) > 0 {
 		sect := state.allocateNamedSectionAndAssignSyms(&Segdata, ".go.fuzzcntrs", sym.SLIBFUZZER_8BIT_COUNTER, sym.Sxxx, 06)
@@ -2183,11 +2207,19 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 		sect := state.allocateNamedDataSection(segRelro, genrelrosecname(name), []sym.SymKind{symn}, relroPerm)
 
 		if symn == sym.STYPE {
-			// Skip forward so that no type
+			// Increment state.datsize so that no type
 			// reference uses a zero offset.
 			// This is unlikely but possible in small
 			// programs with no other read-only data.
-			state.datsize++
+			//
+			// But don't skip ahead if there is a runtime.types
+			// symbol with non-zero size. That can be created
+			// in fixZeroSizedSymbols. In that case the
+			// runtime.types symbol itself serves as the skip.
+			typesSym := ldr.Lookup("runtime.types", 0)
+			if typesSym == 0 || ldr.SymSize(typesSym) == 0 {
+				state.datsize += int64(ctxt.Arch.PtrSize)
+			}
 		}
 
 		// Align to first symbol.
@@ -2344,6 +2376,10 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 				tail = s
 				continue
 			}
+		} else if ctxt.HeadType == objabi.Haix && ldr.SymName(s) == "runtime.types" {
+			// We always use runtime.types on AIX.
+			// See the comment in fixZeroSizedSymbols.
+			head = s
 		}
 	}
 	zerobase = ldr.Lookup("runtime.zerobase", 0)
@@ -2443,10 +2479,13 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 		})
 
 		// Find the end of the typelink descriptors.
-		// The size starts at 1 to match the increment in
+		// The size starts at PtrSize to match the value in
 		// createRelroSect in allocateDataSections.
+		// Note that we skip runtime.types in the loop,
+		// so we don't need to worry about that case;
+		// there will be an increment either way.
 		// TODO: This wastes some space.
-		typeLinkSize := int64(1)
+		typeLinkSize := int64(ctxt.Arch.PtrSize)
 		for i := range sl {
 			si := sl[i].sym
 			if si == head || si == typeStar {

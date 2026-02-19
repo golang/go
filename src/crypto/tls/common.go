@@ -807,7 +807,7 @@ type Config struct {
 	// or use the GODEBUG=tlsmlkem=0 environment variable.
 	//
 	// From Go 1.26, the default includes the [SecP256r1MLKEM768] and
-	// [SecP256r1MLKEM768] hybrid post-quantum key exchanges, too. To disable
+	// [SecP384r1MLKEM1024] hybrid post-quantum key exchanges, too. To disable
 	// them, set CurvePreferences explicitly or use either the
 	// GODEBUG=tlsmlkem=0 or the GODEBUG=tlssecpmlkem=0 environment variable.
 	CurvePreferences []CurveID
@@ -825,7 +825,7 @@ type Config struct {
 	// KeyLogWriter optionally specifies a destination for TLS master secrets
 	// in NSS key log format that can be used to allow external programs
 	// such as Wireshark to decrypt TLS connections.
-	// See https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/Key_Log_Format.
+	// See https://datatracker.ietf.org/doc/draft-ietf-tls-keylogfile/.
 	// Use of KeyLogWriter compromises security and should only be
 	// used for debugging.
 	KeyLogWriter io.Writer

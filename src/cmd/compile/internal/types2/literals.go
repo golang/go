@@ -57,18 +57,18 @@ func (check *Checker) basicLit(x *operand, e *syntax.BasicLit) {
 		const limit = 10000
 		if len(e.Value) > limit {
 			check.errorf(e, InvalidConstVal, "excessively long constant: %s... (%d chars)", e.Value[:10], len(e.Value))
-			x.mode = invalid
+			x.invalidate()
 			return
 		}
 	}
 	x.setConst(e.Kind, e.Value)
-	if x.mode == invalid {
+	if !x.isValid() {
 		// The parser already establishes syntactic correctness.
 		// If we reach here it's because of number under-/overflow.
 		// TODO(gri) setConst (and in turn the go/constant package)
 		// should return an error describing the issue.
 		check.errorf(e, InvalidConstVal, "malformed constant: %s", e.Value)
-		x.mode = invalid
+		x.invalidate()
 		return
 	}
 	// Ensure that integer values don't overflow (go.dev/issue/54280).
@@ -96,11 +96,11 @@ func (check *Checker) funcLit(x *operand, e *syntax.FuncLit) {
 				check.funcBody(decl, "<function literal>", sig, e.Body, iota)
 			}).describef(e, "func literal")
 		}
-		x.mode = value
-		x.typ = sig
+		x.mode_ = value
+		x.typ_ = sig
 	} else {
 		check.errorf(e, InvalidSyntaxTree, "invalid function literal %v", e)
-		x.mode = invalid
+		x.invalidate()
 	}
 }
 
@@ -145,7 +145,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 
 	// We cannot create a literal of an incomplete type; make sure it's complete.
 	if !check.isComplete(base) {
-		x.mode = invalid
+		x.invalidate()
 		return
 	}
 
@@ -261,20 +261,20 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 			}
 			check.exprWithHint(x, kv.Key, utyp.key)
 			check.assignment(x, utyp.key, "map literal")
-			if x.mode == invalid {
+			if !x.isValid() {
 				continue
 			}
-			if x.mode == constant_ {
+			if x.mode() == constant_ {
 				duplicate := false
 				xkey := keyVal(x.val)
 				if keyIsInterface {
 					for _, vtyp := range visited[xkey] {
-						if Identical(vtyp, x.typ) {
+						if Identical(vtyp, x.typ()) {
 							duplicate = true
 							break
 						}
 					}
-					visited[xkey] = append(visited[xkey], x.typ)
+					visited[xkey] = append(visited[xkey], x.typ())
 				} else {
 					_, duplicate = visited[xkey]
 					visited[xkey] = nil
@@ -311,13 +311,13 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 				cause = " (no common underlying type)"
 			}
 			check.errorf(e, InvalidLit, "invalid composite literal%s type %s%s", qualifier, typ, cause)
-			x.mode = invalid
+			x.invalidate()
 			return
 		}
 	}
 
-	x.mode = value
-	x.typ = typ
+	x.mode_ = value
+	x.typ_ = typ
 }
 
 // indexedElts checks the elements (elts) of an array or slice composite literal

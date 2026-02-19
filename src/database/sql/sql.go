@@ -202,8 +202,9 @@ func (ns *NullString) Scan(value any) error {
 		ns.String, ns.Valid = "", false
 		return nil
 	}
-	ns.Valid = true
-	return convertAssign(&ns.String, value)
+	err := convertAssign(&ns.String, value)
+	ns.Valid = err == nil
+	return err
 }
 
 // Value implements the [driver.Valuer] interface.
@@ -228,8 +229,9 @@ func (n *NullInt64) Scan(value any) error {
 		n.Int64, n.Valid = 0, false
 		return nil
 	}
-	n.Valid = true
-	return convertAssign(&n.Int64, value)
+	err := convertAssign(&n.Int64, value)
+	n.Valid = err == nil
+	return err
 }
 
 // Value implements the [driver.Valuer] interface.
@@ -254,8 +256,9 @@ func (n *NullInt32) Scan(value any) error {
 		n.Int32, n.Valid = 0, false
 		return nil
 	}
-	n.Valid = true
-	return convertAssign(&n.Int32, value)
+	err := convertAssign(&n.Int32, value)
+	n.Valid = err == nil
+	return err
 }
 
 // Value implements the [driver.Valuer] interface.
@@ -334,8 +337,9 @@ func (n *NullFloat64) Scan(value any) error {
 		n.Float64, n.Valid = 0, false
 		return nil
 	}
-	n.Valid = true
-	return convertAssign(&n.Float64, value)
+	err := convertAssign(&n.Float64, value)
+	n.Valid = err == nil
+	return err
 }
 
 // Value implements the [driver.Valuer] interface.
@@ -360,8 +364,9 @@ func (n *NullBool) Scan(value any) error {
 		n.Bool, n.Valid = false, false
 		return nil
 	}
-	n.Valid = true
-	return convertAssign(&n.Bool, value)
+	err := convertAssign(&n.Bool, value)
+	n.Valid = err == nil
+	return err
 }
 
 // Value implements the [driver.Valuer] interface.
@@ -386,8 +391,9 @@ func (n *NullTime) Scan(value any) error {
 		n.Time, n.Valid = time.Time{}, false
 		return nil
 	}
-	n.Valid = true
-	return convertAssign(&n.Time, value)
+	err := convertAssign(&n.Time, value)
+	n.Valid = err == nil
+	return err
 }
 
 // Value implements the [driver.Valuer] interface.
@@ -422,8 +428,9 @@ func (n *Null[T]) Scan(value any) error {
 		n.V, n.Valid = *new(T), false
 		return nil
 	}
-	n.Valid = true
-	return convertAssign(&n.V, value)
+	err := convertAssign(&n.V, value)
+	n.Valid = err == nil
+	return err
 }
 
 func (n Null[T]) Value() (driver.Value, error) {

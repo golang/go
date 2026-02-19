@@ -71,3 +71,33 @@ type _ interface {
 	T[P]
 	T[P1, P2]
 }
+
+// generic method
+type List[E any] []E
+
+func (l List[E]) Map[F any](m func(E) F) (r List[F]) {
+	for _, x := range l {
+		r = append(r, m(x))
+	}
+	return
+}
+
+func _() {
+	l := List[string]{"foo", "foobar", "42"}
+	r := l.Map(func(s string) int { return len(s)})
+	_ = r
+}
+
+func _[E, F any](l List[E]) List[F] {
+	var f func(List[E], func(E) F) List[F] = List[E].Map  // method expression & type inference
+	return f(l, func(E) F { var f F; return f })
+}
+
+// disallowed type parameters
+
+type _ func /* ERROR function type must have no type parameters */ [P any](P)
+type _ interface {
+	m /* ERROR interface method must have no type parameters */ [P any](P)
+}
+
+var _ = func /* ERROR function type must have no type parameters */ [P any](P) {}

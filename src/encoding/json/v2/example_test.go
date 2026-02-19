@@ -338,67 +338,6 @@ func Example_inlinedFields() {
 	// }
 }
 
-// Due to version skew, the set of JSON object members known at compile-time
-// may differ from the set of members encountered at execution-time.
-// As such, it may be useful to have finer grain handling of unknown members.
-// This package supports preserving, rejecting, or discarding such members.
-func Example_unknownMembers() {
-	const input = `{
-		"Name": "Teal",
-		"Value": "#008080",
-		"WebSafe": false
-	}`
-	type Color struct {
-		Name  string
-		Value string
-
-		// Unknown is a Go struct field that holds unknown JSON object members.
-		// It is marked as having this behavior with the "unknown" tag option.
-		//
-		// The type may be a jsontext.Value or map[string]T.
-		Unknown jsontext.Value `json:",unknown"`
-	}
-
-	// By default, unknown members are stored in a Go field marked as "unknown"
-	// or ignored if no such field exists.
-	var color Color
-	err := json.Unmarshal([]byte(input), &color)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Unknown members:", string(color.Unknown))
-
-	// Specifying RejectUnknownMembers causes Unmarshal
-	// to reject the presence of any unknown members.
-	err = json.Unmarshal([]byte(input), new(Color), json.RejectUnknownMembers(true))
-	serr, ok := errors.AsType[*json.SemanticError](err)
-	if ok && serr.Err == json.ErrUnknownName {
-		fmt.Println("Unmarshal error:", serr.Err, strconv.Quote(serr.JSONPointer.LastToken()))
-	}
-
-	// By default, Marshal preserves unknown members stored in
-	// a Go struct field marked as "unknown".
-	b, err := json.Marshal(color)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Output with unknown members:   ", string(b))
-
-	// Specifying DiscardUnknownMembers causes Marshal
-	// to discard any unknown members.
-	b, err = json.Marshal(color, json.DiscardUnknownMembers(true))
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Output without unknown members:", string(b))
-
-	// Output:
-	// Unknown members: {"WebSafe":false}
-	// Unmarshal error: unknown object member name "WebSafe"
-	// Output with unknown members:    {"Name":"Teal","Value":"#008080","WebSafe":false}
-	// Output without unknown members: {"Name":"Teal","Value":"#008080"}
-}
-
 // The "format" tag option can be used to alter the formatting of certain types.
 func Example_formatFlags() {
 	value := struct {
@@ -612,8 +551,8 @@ func ExampleWithUnmarshalers_rawNumber() {
 				if dec.PeekKind() == '0' {
 					*val = jsontext.Value(nil)
 				}
-				// Return SkipFunc to fallback on default unmarshal behavior.
-				return json.SkipFunc
+				// Return ErrUnsupported to fallback on default unmarshal behavior.
+				return errors.ErrUnsupported
 			}),
 		))
 	if err != nil {
@@ -666,8 +605,8 @@ func ExampleWithUnmarshalers_recordOffsets() {
 				n := len(unread) - len(bytes.TrimLeft(unread, " \n\r\t,:"))
 				tunnel.ByteOffset = dec.InputOffset() + int64(n)
 
-				// Return SkipFunc to fallback on default unmarshal behavior.
-				return json.SkipFunc
+				// Return ErrUnsupported to fallback on default unmarshal behavior.
+				return errors.ErrUnsupported
 			}),
 		))
 	if err != nil {

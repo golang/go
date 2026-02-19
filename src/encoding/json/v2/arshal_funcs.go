@@ -19,16 +19,7 @@ import (
 	"encoding/json/jsontext"
 )
 
-// SkipFunc may be returned by [MarshalToFunc] and [UnmarshalFromFunc] functions.
-//
-// Any function that returns SkipFunc must not cause observable side effects
-// on the provided [jsontext.Encoder] or [jsontext.Decoder].
-// For example, it is permissible to call [jsontext.Decoder.PeekKind],
-// but not permissible to call [jsontext.Decoder.ReadToken] or
-// [jsontext.Encoder.WriteToken] since such methods mutate the state.
-var SkipFunc = errors.New("json: skip function")
-
-var errSkipMutation = errors.New("must not read or write any tokens when skipping")
+var errUnsupportedMutation = errors.New("unsupported calls must not read or write any tokens")
 var errNonSingularValue = errors.New("must read or write exactly one value")
 
 // Marshalers is a list of functions that may override the marshal behavior
@@ -41,7 +32,8 @@ type Marshalers = typedMarshalers
 // JoinMarshalers constructs a flattened list of marshal functions.
 // If multiple functions in the list are applicable for a value of a given type,
 // then those earlier in the list take precedence over those that come later.
-// If a function returns [SkipFunc], then the next applicable function is called,
+// If a function returns [errors.ErrUnsupported],
+// then the next applicable function is called,
 // otherwise the default marshaling behavior is used.
 //
 // For example:
@@ -63,7 +55,8 @@ type Unmarshalers = typedUnmarshalers
 // JoinUnmarshalers constructs a flattened list of unmarshal functions.
 // If multiple functions in the list are applicable for a value of a given type,
 // then those earlier in the list take precedence over those that come later.
-// If a function returns [SkipFunc], then the next applicable function is called,
+// If a function returns [errors.ErrUnsupported],
+// then the next applicable function is called,
 // otherwise the default unmarshaling behavior is used.
 //
 // For example:
@@ -151,7 +144,7 @@ func (a *typedArshalers[Coder]) lookup(fnc func(*Coder, addressableValue, *jsono
 	fncDefault := fnc
 	fnc = func(c *Coder, v addressableValue, o *jsonopts.Struct) error {
 		for _, fnc := range fncs {
-			if err := fnc(c, v, o); err != SkipFunc {
+			if err := fnc(c, v, o); !errors.Is(err, errors.ErrUnsupported) {
 				return err // may be nil or non-nil
 			}
 		}
@@ -171,7 +164,7 @@ func (a *typedArshalers[Coder]) lookup(fnc func(*Coder, addressableValue, *jsono
 //
 // The function must marshal exactly one JSON value.
 // The value of T must not be retained outside the function call.
-// It may not return [SkipFunc].
+// It may not return [errors.ErrUnsupported].
 func MarshalFunc[T any](fn func(T) ([]byte, error)) *Marshalers {
 	t := reflect.TypeFor[T]()
 	assertCastableTo(t, true)
@@ -181,7 +174,7 @@ func MarshalFunc[T any](fn func(T) ([]byte, error)) *Marshalers {
 			v, _ := reflect.TypeAssert[T](va.castTo(t))
 			val, err := fn(v)
 			if err != nil {
-				err = wrapSkipFunc(err, "marshal function of type func(T) ([]byte, error)")
+				err = wrapErrUnsupported(err, "marshal function of type func(T) ([]byte, error)")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalFunc") // unlike unmarshal, always wrapped
 				}
@@ -210,9 +203,9 @@ func MarshalFunc[T any](fn func(T) ([]byte, error)) *Marshalers {
 // if T is an interface or pointer type.
 //
 // The function must marshal exactly one JSON value by calling write methods
-// on the provided encoder. It may return [SkipFunc] such that marshaling can
+// on the provided encoder. It may return [errors.ErrUnsupported] such that marshaling can
 // move on to the next marshal function. However, no mutable method calls may
-// be called on the encoder if [SkipFunc] is returned.
+// be called on the encoder if [errors.ErrUnsupported] is returned.
 // The pointer to [jsontext.Encoder] and the value of T
 // must not be retained outside the function call.
 func MarshalToFunc[T any](fn func(*jsontext.Encoder, T) error) *Marshalers {
@@ -232,11 +225,11 @@ func MarshalToFunc[T any](fn func(*jsontext.Encoder, T) error) *Marshalers {
 				err = errNonSingularValue
 			}
 			if err != nil {
-				if err == SkipFunc {
+				if errors.Is(err, errors.ErrUnsupported) {
 					if prevDepth == currDepth && prevLength == currLength {
-						return SkipFunc
+						return err // forward [errors.ErrUnsupported]
 					}
-					err = errSkipMutation
+					err = errUnsupportedMutation
 				}
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalToFunc") // unlike unmarshal, always wrapped
@@ -261,7 +254,7 @@ func MarshalToFunc[T any](fn func(*jsontext.Encoder, T) error) *Marshalers {
 // The function must unmarshal exactly one JSON value.
 // The input []byte must not be mutated.
 // The input []byte and value T must not be retained outside the function call.
-// It may not return [SkipFunc].
+// It may not return [errors.ErrUnsupported].
 func UnmarshalFunc[T any](fn func([]byte, T) error) *Unmarshalers {
 	t := reflect.TypeFor[T]()
 	assertCastableTo(t, false)
@@ -275,7 +268,7 @@ func UnmarshalFunc[T any](fn func([]byte, T) error) *Unmarshalers {
 			v, _ := reflect.TypeAssert[T](va.castTo(t))
 			err = fn(val, v)
 			if err != nil {
-				err = wrapSkipFunc(err, "unmarshal function of type func([]byte, T) error")
+				err = wrapErrUnsupported(err, "unmarshal function of type func([]byte, T) error")
 				if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 					return err // unlike marshal, never wrapped
 				}
@@ -294,9 +287,9 @@ func UnmarshalFunc[T any](fn func([]byte, T) error) *Unmarshalers {
 // The function is always provided with a non-nil pointer value.
 //
 // The function must unmarshal exactly one JSON value by calling read methods
-// on the provided decoder. It may return [SkipFunc] such that unmarshaling can
+// on the provided decoder. It may return [errors.ErrUnsupported] such that unmarshaling can
 // move on to the next unmarshal function. However, no mutable method calls may
-// be called on the decoder if [SkipFunc] is returned.
+// be called on the decoder if [errors.ErrUnsupported] is returned.
 // The pointer to [jsontext.Decoder] and the value of T
 // must not be retained outside the function call.
 func UnmarshalFromFunc[T any](fn func(*jsontext.Decoder, T) error) *Unmarshalers {
@@ -319,11 +312,11 @@ func UnmarshalFromFunc[T any](fn func(*jsontext.Decoder, T) error) *Unmarshalers
 				err = errNonSingularValue
 			}
 			if err != nil {
-				if err == SkipFunc {
+				if errors.Is(err, errors.ErrUnsupported) {
 					if prevDepth == currDepth && prevLength == currLength {
-						return SkipFunc
+						return err // forward [errors.ErrUnsupported]
 					}
-					err = errSkipMutation
+					err = errUnsupportedMutation
 				}
 				if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 					if err2 := xd.SkipUntil(prevDepth, prevLength+1); err2 != nil {
@@ -430,11 +423,4 @@ func castableToFromAny(to reflect.Type) bool {
 		}
 	}
 	return false
-}
-
-func wrapSkipFunc(err error, what string) error {
-	if err == SkipFunc {
-		return errors.New(what + " cannot be skipped")
-	}
-	return err
 }

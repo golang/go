@@ -60,6 +60,14 @@ Every non-dead G has a *user stack* associated with it, which is what
 user Go code executes on. User stacks start small (e.g., 2K) and grow
 or shrink dynamically.
 
+When a goroutine exits, its stack memory may be freed immediately or
+retained for reuse by another goroutine. If the stack has the default
+starting size, it is kept with the `g` object for reuse. If the stack
+has grown beyond the starting size, it is freed and a new stack will
+be allocated when the `g` is reused. Note that the `g` object itself
+is never freed (as described above), but its associated stack memory
+is managed separately and can be reclaimed.
+
 Every M has a *system stack* associated with it (also known as the M's
 "g0" stack because it's implemented as a stub G) and, on Unix
 platforms, a *signal stack* (also known as the M's "gsignal" stack).

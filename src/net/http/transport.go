@@ -2087,10 +2087,7 @@ func (cm *connectMethod) addr() string {
 // TLS certificate.
 func (cm *connectMethod) tlsHost() string {
 	h := cm.targetAddr
-	if hasPort(h) {
-		h = h[:strings.LastIndex(h, ":")]
-	}
-	return h
+	return removePort(h)
 }
 
 // connectMethodKey is the map key version of connectMethod, with a
