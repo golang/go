@@ -41,9 +41,6 @@ const (
 	//
 	// They are used to determine the access type pair.
 	raceOp1Read, raceOp2Read uint8 = 0b01, 0b10
-
-	raceliteSeparator = "==================\n"
-	dataRaceHeader    = raceliteSeparator + "WARNING: DATA RACE\n"
 )
 
 var (
@@ -275,7 +272,8 @@ func (rec raceliteRec) report() {
 		op2 = "Write"
 	}
 	// Print the latest operation first (like TSan).
-	print(dataRaceHeader,
+	print("==================\n",
+		"WARNING: DATA RACE\n",
 		op2, " at ", hex(rec.addr), " by goroutine ", rec.goid2, "\n")
 	raceliteReportPC(rec.pcs2, rec.n2)
 	// Print the previous operation second.
@@ -283,7 +281,7 @@ func (rec raceliteRec) report() {
 		"Previous ", op1, " at ", hex(rec.addr), " by goroutine ", rec.goid1, "\n")
 	raceliteReportPC(rec.pcs1, rec.n1)
 	print("\n", "Race discovered ", rec.count, " times.\n",
-		raceliteSeparator)
+		"==================\n")
 }
 
 func raceliteReportAll() {
