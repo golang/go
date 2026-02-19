@@ -7,14 +7,11 @@
 package runtime
 
 const (
-	// raceliteShift is the number of bits to shift the
-	// address. We use raceliteShift to compute the number of
-	// virtual registers we have.
-	raceliteShift uint8 = 4
+	// raceliteVRShift is log2(number of virtual registers).
+	raceliteVRShift uint8 = 4
 
-	// raceliteRecordNum is the number of data race records we have
-	// available for reporting.
-	raceliteRecordNum uint32 = 256
+	// raceliteRecordShift is log2(maximum number of data race records).
+	raceliteRecordShift uint32 = 8
 
 	// racelitePCDepth is the number of program counters to store
 	// in data race record stacks.
@@ -22,11 +19,14 @@ const (
 
 	// raceliteRegNum is the number of virtual registers we have.
 	// Keep as power of 2 for efficient modulo operation.
-	raceliteRegNum = 1 << raceliteShift
+	raceliteRegNum = 1 << raceliteVRShift
+
+	// raceliteRecordNum is the number of data race records we have.
+	raceliteRecordNum = 1 << raceliteRecordShift
 
 	// raceliteCheckAddrMask selects an address suffix which
 	// can be monitored for racelite.
-	raceliteCheckAddrMask = (1 << (4 * raceliteShift)) - 1
+	raceliteCheckAddrMask = (1 << (4 * raceliteVRShift)) - 1
 
 	// These values denote the type of the accesses involved
 	// in a race as follows (assume BE):
@@ -114,7 +114,7 @@ func raceliteCheckAddr(addr uintptr) bool {
 	// Check that we are sampling this address.
 	//
 	// FIXME(vsaioc): At the moment, we always sample when debugging.
-	if !diag() && uint32(addr>>(3+raceliteShift))&raceliteCheckAddrMask != raceliteCheckAddrRand {
+	if !diag() && uint32(addr>>(3+raceliteVRShift))&raceliteCheckAddrMask != raceliteCheckAddrRand {
 		return false
 	}
 
@@ -309,7 +309,9 @@ func raceliteget(addr uintptr) *raceliteVirtualRegister {
 // the global data race record data structure.
 func record(rec raceliteRec) {
 	// Compute fingerprint from leaf PCs on both stacks.
-	slot := uint64(rec.pcs1[0]*31+rec.pcs2[0]) % uint64(raceliteRecordNum)
+	const k = 0x9e3779b97f4a7c15 // golden ratio
+	slot := uint64(((rec.pcs1[0] + rec.pcs2[0]) ^ (rec.pcs1[0] * rec.pcs2[0])) * k)
+	slot >>= (64 - raceliteRecordShift)
 
 	raceliteRecs.lock()
 	switch rec2 := raceliteRecs.recs[slot]; {
