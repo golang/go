@@ -6,10 +6,6 @@
 
 package runtime
 
-import (
-	"internal/runtime/atomic"
-)
-
 const (
 	// raceliteShift is the number of bits to shift the
 	// address. We use raceliteShift to compute the number of
@@ -32,15 +28,19 @@ const (
 	// can be monitored for racelite.
 	raceliteCheckAddrMask = (1 << (4 * raceliteShift)) - 1
 
-	// Operation masks are used to determine the type of the operation
-	// performed at the data race
-
-	// writeOp1Mask is used to determine whether
-	// the first operation was a write.
-	writeOp1Mask uint8 = 0x3
-	// writeOp2Mask is used to determine whether
-	// the second operation was a write.
-	writeOp2Mask uint8 = 0xc
+	// These values denote the type of the accesses involved
+	// in a race as follows (assume BE):
+	//
+	//	 .----> Second operation (latest)
+	//	 | .--> First operation (previous)
+	//	.-+-.
+	//	|0|0: write-write (default)
+	//	|0|1: read-write
+	//	|1|0: write-read
+	//	|1|1: read-read (impossible case)
+	//
+	// They are used to determine the access type pair.
+	raceOp1Read, raceOp2Read uint8 = 0b01, 0b10
 
 	raceliteSeparator = "==================\n"
 	dataRaceHeader    = raceliteSeparator + "WARNING: DATA RACE\n"
@@ -134,21 +134,11 @@ func raceliteCheckAddr(addr uintptr) bool {
 	return true
 }
 
-// raceliteLock is a custom read-write spin-lock that is only
-// used for locking virtual registers and data race records.
-//
-// TOOD(vsaioc): better integrate this with the rest of the runtime.
-type raceliteLock struct {
-	mu, rmu atomic.Int32
-}
-
 // raceliteVirtualRegister is a virtual register that can be used to
 // dynamically monitor an address for data races.
 type raceliteVirtualRegister struct {
 	// Mutual exclusion ensures that the virtual register maintains a consistent state.
-	// We do not use a runtime mutex here because we want to stop the world.
-	// mu and rmu are used for a custom read-write spin-lock.
-	raceliteLock
+	rwmutex
 
 	// addr is the address currently being monitored in the virtual register
 	addr uintptr
@@ -170,27 +160,34 @@ type raceliteVirtualRegister struct {
 	identifier uint32 // the identifier of the virtual register
 }
 
-// raceliteRec is a preserved data race record. We use this
-// to avoid flooding I/O with data race reports every time a data race occurs.
+// raceliteRec is a preserved data race record. Aggregate
+// data races matching the same signature into a single report.
 type raceliteRec struct {
-	// The address of the data race. This is just representative,
-	// as de-duplication is handled at the source location of the operations.
+	// The address with racy accesses. This is just representative,
+	// as de-duplication is relative to access operation source locations.
 	addr uintptr
 
-	// The program counters where the data race occurred.
+	// Program counters of racy stacks.
+	//
+	// pcs1 denotes the previous operation
+	// pcs2 denotes the latest operation
 	pcs1, pcs2 [racelitePCDepth]uintptr
-	// The stack depth for each racy goroutine.
+	// Stack depth of racy goroutines (cannot exceed racelitePCDepth).
+	//
+	// n1 denotes the stack depth of the previous operation
+	// n2 denotes the stack depth of the latest operation
 	n1, n2 int
-	// The goroutine IDs of the two goroutines involved in the data race.
+	// The racy goroutine IDs. goid1 denotes the goroutine ID of the previous operation
+	// goid2 denotes the goroutine ID of the latest operation
 	goid1, goid2 uint64
 
 	// The operation types that caused the data race.
-	// The last 4 LSB have the following meanings:
+	// For some prefix p, op carries the following meanings:
 	//
-	//	- 0000: read-read (impossible)
-	//	- 0011: write-read
-	//	- 1100: read-write
-	//	- 1111: write-write
+	//	01: write-read
+	//	10: read-write
+	//	00: write-write (default)
+	//	11: read-read (impossible)
 	ops uint8
 
 	count uint64 // the number of times the data race has been reported
@@ -203,7 +200,7 @@ var (
 	// raceliteRecs is a global structure that contains the array of data race records
 	// and a mutex to protect access to the array.
 	raceliteRecs *struct {
-		raceliteLock
+		rwmutex
 		recs [raceliteRecordNum]raceliteRec
 	}
 )
@@ -221,13 +218,26 @@ func raceliteinit() {
 		// Assign an identifier to the virtual register.
 		// This is used for debugging and experimentation.
 		raceliteReg[i].identifier = uint32(i)
+		raceliteReg[i].init(lockRankRaceliteR, lockRankRaceliteRInternal, lockRankRaceliteW)
 	}
 
 	// Initialize the data race record structure.
 	raceliteRecs = new(struct {
-		raceliteLock
+		rwmutex
 		recs [raceliteRecordNum]raceliteRec
 	})
+	raceliteRecs.init(lockRankRaceliteR, lockRankRaceliteRInternal, lockRankRaceliteW)
+}
+
+func raceliteReportPC(pcs [racelitePCDepth]uintptr, n int) {
+	for _, pc := range pcs[:n] {
+		if f := findfunc(pc); f.valid() {
+			if pc > f.entry() {
+				pc--
+			}
+			printAncestorTracebackFuncInfo(f, pc)
+		}
+	}
 }
 
 // raceliteReport prints a data race report to the console.
@@ -251,39 +261,29 @@ func (rec raceliteRec) report() {
 		return
 	}
 
-	print(dataRaceHeader)
 	var op1, op2 string
-	if rec.ops&writeOp1Mask != 0 {
-		op1 = "Write"
+	// Get the type of the previous operation.
+	if rec.ops&raceOp1Read != 0 {
+		op1 = "read"
 	} else {
-		op1 = "Read"
+		op1 = "write"
 	}
-	if rec.ops&writeOp2Mask != 0 {
-		op2 = "write"
+	// Get the type of the latest operation.
+	if rec.ops&raceOp2Read != 0 {
+		op2 = "Read"
 	} else {
-		op2 = "read"
+		op2 = "Write"
 	}
-	print(op1, " at ", hex(rec.addr), " by goroutine ", rec.goid1, "\n")
-	for _, pc := range rec.pcs1[:rec.n1] {
-		if f := findfunc(pc); f.valid() {
-			if pc > f.entry() {
-				pc--
-			}
-			printAncestorTracebackFuncInfo(f, pc)
-		}
-	}
-	print("\n")
-	print("Previous ", op2, " at ", hex(rec.addr), " by goroutine ", rec.goid2, "\n")
-	for _, pc := range rec.pcs2[:rec.n2] {
-		if f := findfunc(pc); f.valid() {
-			if pc > f.entry() {
-				pc--
-			}
-			printAncestorTracebackFuncInfo(f, pc)
-		}
-	}
-	print("\n", "Race discovered ", rec.count, " times.\n")
-	print(raceliteSeparator)
+	// Print the latest operation first (like TSan).
+	print(dataRaceHeader,
+		op2, " at ", hex(rec.addr), " by goroutine ", rec.goid2, "\n")
+	raceliteReportPC(rec.pcs2, rec.n2)
+	// Print the previous operation second.
+	print("\n",
+		"Previous ", op1, " at ", hex(rec.addr), " by goroutine ", rec.goid1, "\n")
+	raceliteReportPC(rec.pcs1, rec.n1)
+	print("\n", "Race discovered ", rec.count, " times.\n",
+		raceliteSeparator)
 }
 
 func raceliteReportAll() {
@@ -308,16 +308,8 @@ func raceliteget(addr uintptr) *raceliteVirtualRegister {
 // record checks whether a data race can be recorded in
 // the global data race record data structure.
 func record(rec raceliteRec) {
-	// Compute fingerprint from PCs
-	fp := uint64(0)
-	for i := 0; i < rec.n1; i++ {
-		fp = fp*31 + uint64(rec.pcs1[i])
-	}
-	for i := 0; i < rec.n2; i++ {
-		fp = fp*31 + uint64(rec.pcs2[i])
-	}
-
-	slot := fp % uint64(raceliteRecordNum)
+	// Compute fingerprint from leaf PCs on both stacks.
+	slot := uint64(rec.pcs1[0]*31+rec.pcs2[0]) % uint64(raceliteRecordNum)
 
 	raceliteRecs.lock()
 	switch rec2 := raceliteRecs.recs[slot]; {
@@ -335,56 +327,6 @@ func record(rec raceliteRec) {
 		}
 	}
 	raceliteRecs.unlock()
-}
-
-// lock acquires the write lock on the virtual register.
-func (r *raceliteLock) lock() {
-	// Atomically acquire the write lock.
-	for !r.mu.CompareAndSwap(0, 1) {
-		Gosched() // Allow pre-emption
-	}
-
-	// Wait for any read locks to be released before
-	// proceeding.
-	for r.rmu.Load() != 0 {
-		Gosched() // Allow pre-emption
-	}
-}
-
-// unlock releases the write lock on the virtual register.
-func (r *raceliteLock) unlock() {
-	// Atomically release the write lock. If the lock is not held,
-	// crash and burn. We are dealing with a bug.
-	if !r.mu.CompareAndSwap(1, 0) {
-		throw("raceliteVirtualRegister: unlock: lock is not held")
-	}
-}
-
-// rlock increments the read lock on the virtual register.
-func (r *raceliteLock) rlock() {
-	for {
-		// Wait for the write lock to be released before
-		for r.mu.Load() != 0 {
-			Gosched() // Allow pre-emption
-		}
-		// Atomically increment the read lock.
-		r.rmu.Add(1)
-		// If the write lock is not held, we can proceed.
-		if r.mu.Load() == 0 {
-			break
-		}
-		// Otherwise, we need to release the read lock and try again.
-		r.rmu.Add(-1)
-	}
-}
-
-// runlock decrements the read lock on the virtual register.
-func (r *raceliteLock) runlock() {
-	// Atomically decrement the read lock. If the read lock is not held,
-	// crash and burn. We are dealing with a bug.
-	if r.rmu.Add(-1) < 0 {
-		throw("raceliteVirtualRegister: runlock: rmu is below 0")
-	}
 }
 
 // claim allows the writer goroutine as the owner of the virtual register.
@@ -419,11 +361,11 @@ func (r *raceliteVirtualRegister) claim(addr uintptr) bool {
 		// goroutine before releasing the lock on the
 		// virtual registers.
 		rec := raceliteRec{
-			n2:    r.n,    // Get stack depth of writer goroutine.
-			goid2: r.goid, // Get goroutine ID of writer goroutine.
+			n1:    r.n,    // Get stack depth of writer goroutine.
+			goid1: r.goid, // Get goroutine ID of writer goroutine.
 		}
 		// Copy its PC stack.
-		copy(rec.pcs2[:], r.pcs[:])
+		copy(rec.pcs1[:], r.pcs[:])
 
 		// We can now release the lock on the virtual register.
 		r.unlock()
@@ -431,11 +373,9 @@ func (r *raceliteVirtualRegister) claim(addr uintptr) bool {
 		// Record the remaining information
 		rec.addr = addr
 		// Get the PCs and stack depth of the current goroutine.
-		rec.n1 = callers(2, rec.pcs1[:racelitePCDepth])
+		rec.n2 = callers(2, rec.pcs2[:racelitePCDepth])
 
-		rec.goid1 = getg().goid
-
-		rec.ops = writeOp1Mask | writeOp2Mask // write-write race
+		rec.goid2 = getg().goid
 		rec.count = 1
 
 		record(rec)
@@ -465,27 +405,24 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 	// about the writer goroutine.
 	var rec raceliteRec
 
-	if op&writeOp1Mask != 0 {
+	if op&raceOp1Read != 0 {
 		// The writer occurred second, so we have a read-write race
-		// Place the writer as the first goroutine.
-		rec = raceliteRec{
-			n1:    r.n,    // Get stack depth of writer goroutine.
-			goid1: r.goid, // Get goroutine ID of writer goroutine.
-		}
-		// Copy its PC stack.
-		copy(rec.pcs1[:], r.pcs[:])
-	} else if op&writeOp2Mask != 0 {
-		// The writer occurred first, so we have a write-read race
 		// Place the writer as the second goroutine.
 		rec = raceliteRec{
 			n2:    r.n,    // Get stack depth of writer goroutine.
 			goid2: r.goid, // Get goroutine ID of writer goroutine.
 		}
-		// Copy its PC stack.
-		copy(rec.pcs2[:], r.pcs[:])
+		copy(rec.pcs2[:], r.pcs[:r.n]) // Copy the stack.
+	} else if op^raceOp2Read != 0 {
+		// The writer occurred first, so we have a write-read race
+		// Place the writer as the first goroutine.
+		rec = raceliteRec{
+			n1:    r.n,    // Get stack depth of writer goroutine.
+			goid1: r.goid, // Get goroutine ID of writer goroutine.
+		}
+		copy(rec.pcs1[:], r.pcs[:r.n]) // Copy the stack.
 	} else {
-		// Something strange happened. Tolerate the error,
-		// but drop the data race record.
+		// Something strange happened. Tolerate, but drop the report.
 		r.runlock()
 		return true
 	}
@@ -493,19 +430,18 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 	// We can now release the lock on the virtual register.
 	r.runlock()
 
-	if op&writeOp1Mask != 0 {
+	if op&raceOp1Read != 0 {
 		// The writer occurred second, so we have a read-write race.
-		// Place the reader as the second goroutine.
-		rec.n2 = callers(2, rec.pcs2[:])
-		rec.goid2 = getg().goid // Get goroutine ID of reader goroutine.
-	} else if op&writeOp2Mask != 0 {
-		// The writer occurred first, so we have a write-read race.
 		// Place the reader as the first goroutine.
 		rec.n1 = callers(2, rec.pcs1[:])
-		rec.goid1 = getg().goid // Get goroutine ID of writer goroutine.
+		rec.goid1 = getg().goid // Get goroutine ID of reader goroutine.
+	} else if op&raceOp2Read != 0 {
+		// The writer occurred first, so we have a write-read race.
+		// Place the reader as the second goroutine.
+		rec.n2 = callers(2, rec.pcs2[:])
+		rec.goid2 = getg().goid // Get goroutine ID of writer goroutine.
 	} else {
-		// Something strange happened. Tolerate the error,
-		// but drop the data race record.
+		// Something strange happened. Tolerate, but drop the report.
 		return true
 	}
 
@@ -575,15 +511,15 @@ func raceliteread(addr uintptr) {
 		// We are not sampling this address.
 		return
 	}
-	r := raceliteget(addr)
 
+	r := raceliteget(addr)
 	// Check for a write-read race.
-	if r.monitor(addr, writeOp2Mask) {
+	if r.monitor(addr, raceOp2Read) {
 		return
 	}
 
 	micropause()
 
 	// Check for a read-write race.
-	r.monitor(addr, writeOp1Mask)
+	r.monitor(addr, raceOp1Read)
 }
