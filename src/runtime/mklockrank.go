@@ -54,6 +54,9 @@ NONE <
   cleanupQueue,
   sweep;
 
+# Racelite
+NONE < raceliteR, raceliteW;
+
 # Test only
 NONE < testR, testW;
 
@@ -253,6 +256,10 @@ execR,
 testR,
   testW
 < testRInternal;
+
+raceliteR,
+	raceliteW
+< raceliteRInternal;
 `
 
 // cyclicRanks lists lock ranks that allow multiple locks of the same
