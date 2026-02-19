@@ -39,6 +39,8 @@ const (
 //
 // The returned path ends in a slash only if it represents a root directory,
 // such as "/" on Unix or `C:\` on Windows.
+// Note, however, that on Windows volume-only paths like "C:" return "C:."
+// without a trailing slash.
 //
 // Finally, any occurrences of slash are replaced by Separator.
 //
@@ -462,7 +464,8 @@ func Base(path string) string {
 // slashes are removed.
 // If the path is empty, Dir returns ".".
 // If the path consists entirely of separators, Dir returns a single separator.
-// The returned path does not end in a separator unless it is the root directory.
+// The returned path does not end in a separator unless it is the root directory,
+// except for Windows volume paths such as "C:" which return "C:." or "C:\".
 func Dir(path string) string {
 	return filepathlite.Dir(path)
 }
