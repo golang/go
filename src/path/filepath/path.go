@@ -466,6 +466,7 @@ func Base(path string) string {
 // If the path consists entirely of separators, Dir returns a single separator.
 // The returned path does not end in a separator unless it is the root directory,
 // except for Windows volume paths such as "C:" which return "C:." or "C:\".
+// For example, on Windows, Dir("C:") returns "C:.".
 func Dir(path string) string {
 	return filepathlite.Dir(path)
 }
