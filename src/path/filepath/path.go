@@ -463,6 +463,8 @@ func Base(path string) string {
 // If the path is empty, Dir returns ".".
 // If the path consists entirely of separators, Dir returns a single separator.
 // The returned path does not end in a separator unless it is the root directory.
+// On Windows, Dir("C:") returns "C:.", not "C:".
+
 func Dir(path string) string {
 	return filepathlite.Dir(path)
 }
