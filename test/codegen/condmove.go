@@ -6,6 +6,8 @@
 
 package codegen
 
+import "crypto/subtle"
+
 func cmovint(c int) int {
 	x := c + 4
 	if x < 0 {
@@ -526,4 +528,12 @@ func cmovFromMulFromFlags64sext(x int64, b bool) int64 {
 	r := int64(int8(branchlessBoolToUint8(b)))
 	// amd64:"CMOV",-"MOVB.ZX",-"MUL"
 	return x * r
+}
+
+func constantTimeSelect(v, x, y int) int {
+	// amd64:"CMOVQ"
+	// arm64:"CSEL"
+	// riscv64/rva20u64,riscv64/rva22u64:"SNEZ" "NEG" "AND" "OR"
+	// riscv64/rva23u64:"NEG" "CZERONEZ" "CZEROEQZ" "OR" -"SNEZ" -"AND"
+	return subtle.ConstantTimeSelect(v, x, y)
 }
