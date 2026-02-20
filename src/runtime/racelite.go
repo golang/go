@@ -12,21 +12,22 @@ import (
 )
 
 const (
+	// raceliteVRShift is log2(raceliteRegNum).
 	raceliteVRShift uint8 = 4
-
-	// raceliteRecordShift is log2(maximum number of data race records).
-	raceliteRecordShift uint8 = 8
-
-	// racelitePCDepth is the number of program counters to store
-	// in data race record stacks.
-	racelitePCDepth = 16
 
 	// raceliteRegNum is the number of virtual registers we have.
 	// Keep as power of 2 for efficient modulo operation.
 	raceliteRegNum = 1 << raceliteVRShift
 
+	// raceliteRecordShift is log2(raceliteRecordNum).
+	raceliteRecordShift uint8 = 8
+
 	// raceliteRecordNum is the number of data race records we have.
 	raceliteRecordNum = 1 << raceliteRecordShift
+
+	// racelitePCDepth is the number of program counters to store
+	// in data race record stacks.
+	racelitePCDepth = 16
 
 	// raceliteCheckAddrMask selects an address suffix which
 	// can be monitored for racelite.
