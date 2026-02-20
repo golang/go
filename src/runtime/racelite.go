@@ -6,12 +6,17 @@
 
 package runtime
 
+import (
+	"internal/goarch"
+	"internal/runtime/sys"
+)
+
 const (
 	// raceliteVRShift is log2(number of virtual registers).
 	raceliteVRShift uint8 = 4
 
 	// raceliteRecordShift is log2(maximum number of data race records).
-	raceliteRecordShift uint32 = 8
+	raceliteRecordShift uint8 = 8
 
 	// racelitePCDepth is the number of program counters to store
 	// in data race record stacks.
@@ -41,6 +46,16 @@ const (
 	//
 	// They are used to determine the access type pair.
 	raceOp1Read, raceOp2Read uint8 = 0b01, 0b10
+
+	// raceliteReportThreshold is the number of times a data race must be reported
+	// before the instrumentation is disabled for the PC.
+	raceliteReportThreshold = 5
+
+	// raceliteDisarmedPCsShift is log2(raceliteDisarmedPCsSize).
+	raceliteDisarmedPCsShift uint8 = 12
+	// raceliteDisarmedPCsSize is the size of the array that
+	// monitors disarmed PCs.
+	raceliteDisarmedPCsSize = 1 << raceliteDisarmedPCsShift
 )
 
 var (
@@ -52,6 +67,11 @@ var (
 	// could have the compiler emit the check -- probably important to do or at least
 	// try if were were to pursue this general approach.
 	raceliteCheckAddrRand uint32 = 0
+
+	// raceliteDisarmedPCs is the array that monitors disarmed PCs.
+	// Each PC is represented by a bit in the array.
+	// We use Fibonacci hashing to map the PC unto the array index.
+	raceliteDisarmedPCs [raceliteDisarmedPCsSize]bool
 )
 
 // diag reports true is we should print extra info.
@@ -102,8 +122,25 @@ func micropause() {
 		// let's us see it work for the first time. ;)
 		usleep(1)
 	}
-	// NOTE(vsaioc): We may want to experiment here.
-	// Gosched()
+}
+
+// raceliteFib computes the Fibonacci hash of the given value,
+// then compressing it into a range of [0, 2^shift).
+func raceliteFib(v uintptr, shift uint8) uintptr {
+	const k = 0x9e3779b97f4a7c15 // golden ratio
+	return (v * k) >> (goarch.PtrSize*8 - shift)
+}
+
+// raceliteDisarm marks the given PC as disarmed.
+// Is racy, but that is ok.
+func raceliteDisarm(v uintptr) {
+	raceliteDisarmedPCs[raceliteFib(v, raceliteDisarmedPCsShift)] = true
+}
+
+// raceliteDisarmed checks if the given PC is disarmed.
+// Is racy, but that is ok.
+func raceliteDisarmed(v uintptr) bool {
+	return raceliteDisarmedPCs[raceliteFib(v, raceliteDisarmedPCsShift)]
 }
 
 // raceliteCheckAddr checks if we should sample the given address for data race detection.
@@ -226,7 +263,8 @@ func raceliteinit() {
 	raceliteRecs.init(lockRankRaceliteR, lockRankRaceliteRInternal, lockRankRaceliteW)
 }
 
-func raceliteReportPC(pcs [racelitePCDepth]uintptr, n int) {
+// reportPC prints a stack trace to the console.
+func (rec raceliteRec) reportPC(pcs [racelitePCDepth]uintptr, n int) {
 	for _, pc := range pcs[:n] {
 		if f := findfunc(pc); f.valid() {
 			if pc > f.entry() {
@@ -275,11 +313,11 @@ func (rec raceliteRec) report() {
 	print("==================\n",
 		"WARNING: DATA RACE\n",
 		op2, " at ", hex(rec.addr), " by goroutine ", rec.goid2, "\n")
-	raceliteReportPC(rec.pcs2, rec.n2)
+	rec.reportPC(rec.pcs2, rec.n2)
 	// Print the previous operation second.
 	print("\n",
 		"Previous ", op1, " at ", hex(rec.addr), " by goroutine ", rec.goid1, "\n")
-	raceliteReportPC(rec.pcs1, rec.n1)
+	rec.reportPC(rec.pcs1, rec.n1)
 	print("\n", "Race discovered ", rec.count, " times.\n",
 		"==================\n")
 }
@@ -307,9 +345,7 @@ func raceliteget(addr uintptr) *raceliteVirtualRegister {
 // the global data race record data structure.
 func record(rec raceliteRec) {
 	// Compute fingerprint from leaf PCs on both stacks.
-	const k = 0x9e3779b97f4a7c15 // golden ratio
-	slot := uint64(((rec.pcs1[0] + rec.pcs2[0]) ^ (rec.pcs1[0] * rec.pcs2[0])) * k)
-	slot >>= (64 - raceliteRecordShift)
+	slot := raceliteFib(((rec.pcs1[0] + rec.pcs2[0]) ^ (rec.pcs1[0] * rec.pcs2[0])), raceliteRecordShift)
 
 	raceliteRecs.lock()
 	switch rec2 := raceliteRecs.recs[slot]; {
@@ -318,7 +354,17 @@ func record(rec raceliteRec) {
 		raceliteRecs.recs[slot] = rec
 	case rec2.pcs1[0] == rec.pcs1[0] && rec2.pcs2[0] == rec.pcs2[0]:
 		// We have discovered a duplicate data race. Increment the count.
-		raceliteRecs.recs[slot].count++
+		if raceliteRecs.recs[slot].count >= raceliteReportThreshold {
+			// We have reported this data race enough. We can disarm
+			// instrumentation for the PCs (and clear the data race record).
+			raceliteDisarm(rec.pcs1[0])
+			raceliteDisarm(rec.pcs2[0])
+
+			rec2.report()
+			raceliteRecs.recs[slot] = raceliteRec{}
+		} else {
+			raceliteRecs.recs[slot].count++
+		}
 	default:
 		// We have encountered a hash collision.
 		// Report it without overriding the existing record.
@@ -476,6 +522,10 @@ func (r *raceliteVirtualRegister) release() {
 //	pause
 //	release V
 func racelitewrite(addr uintptr) {
+	if raceliteDisarmed(sys.GetCallerPC()) {
+		return
+	}
+
 	if !raceliteCheckAddr(addr) {
 		// We are not sampling this address.
 		return
@@ -507,6 +557,10 @@ func racelitewrite(addr uintptr) {
 //	if V is claimed for A:
 //		Report read-write race and exit
 func raceliteread(addr uintptr) {
+	if raceliteDisarmed(sys.GetCallerPC()) {
+		return
+	}
+
 	if !raceliteCheckAddr(addr) {
 		// We are not sampling this address.
 		return
