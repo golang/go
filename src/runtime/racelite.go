@@ -48,7 +48,7 @@ const (
 	raceliteOp1Read, raceliteOp2Read uint8 = 0b01, 0b10
 
 	// raceliteReportThreshold is the number of times a data race must be reported
-	// before the instrumentation is disabled for the PC.
+	// before the instrumentation is disarmed for the PC.
 	raceliteReportThreshold = 5
 
 	// raceliteDisarmedPCsShift is log2(raceliteDisarmedPCsSize).
@@ -233,9 +233,9 @@ var (
 
 	// raceliteRecs is a global structure that contains the array of data race records
 	// and a mutex to protect access to the array.
-	raceliteRecs *struct {
+	raceliteRecs *[raceliteRecordNum]struct {
 		rwmutex
-		recs [raceliteRecordNum]raceliteRec
+		rec raceliteRec
 	}
 )
 
@@ -256,11 +256,13 @@ func raceliteinit() {
 	}
 
 	// Initialize the data race record structure.
-	raceliteRecs = new(struct {
+	raceliteRecs = new([raceliteRecordNum]struct {
 		rwmutex
-		recs [raceliteRecordNum]raceliteRec
+		rec raceliteRec
 	})
-	raceliteRecs.init(lockRankRaceliteR, lockRankRaceliteRInternal, lockRankRaceliteW)
+	for i := 0; i < raceliteRecordNum; i++ {
+		(&raceliteRecs[i]).init(lockRankRaceliteR, lockRankRaceliteRInternal, lockRankRaceliteW)
+	}
 }
 
 // reportPC prints a stack trace to the console.
@@ -289,7 +291,7 @@ func (rec raceliteRec) reportPC(pcs [racelitePCDepth]uintptr, n int) {
 //	Previous write at 0x1234567890 by goroutine 456
 //	[stack trace of the previous writer]
 //
-//	Race discovered 40 times.
+//	Race discovered 3 times.
 //	==================
 func (rec raceliteRec) report() {
 	if rec.addr == 0 {
@@ -329,8 +331,8 @@ func raceliteReportAll() {
 	}
 
 	stw := stopTheWorld(stwRacelite)
-	for _, rec := range raceliteRecs.recs {
-		rec.report()
+	for i := 0; i < raceliteRecordNum; i++ {
+		raceliteRecs[i].rec.report()
 	}
 	startTheWorld(stw)
 }
@@ -347,23 +349,23 @@ func record(rec raceliteRec) {
 	// Compute fingerprint from leaf PCs on both stacks.
 	slot := raceliteFib(((rec.pcs1[0] + rec.pcs2[0]) ^ (rec.pcs1[0] * rec.pcs2[0])), raceliteRecordShift)
 
-	raceliteRecs.lock()
-	switch rec2 := raceliteRecs.recs[slot]; {
+	(&raceliteRecs[slot]).lock()
+	switch rec2 := raceliteRecs[slot].rec; {
 	case rec2.addr == 0:
 		// We have discovered a new data race. Store it.
-		raceliteRecs.recs[slot] = rec
+		raceliteRecs[slot].rec = rec
 	case rec2.pcs1[0] == rec.pcs1[0] && rec2.pcs2[0] == rec.pcs2[0]:
 		// We have discovered a duplicate data race. Increment the count.
-		if raceliteRecs.recs[slot].count >= raceliteReportThreshold {
+		if raceliteRecs[slot].rec.count >= raceliteReportThreshold {
 			// We have reported this data race enough. We can disarm
 			// instrumentation for the PCs (and clear the data race record).
 			raceliteDisarm(rec.pcs1[0])
 			raceliteDisarm(rec.pcs2[0])
 
 			rec2.report()
-			raceliteRecs.recs[slot] = raceliteRec{}
+			raceliteRecs[slot].rec = raceliteRec{}
 		} else {
-			raceliteRecs.recs[slot].count++
+			raceliteRecs[slot].rec.count++
 		}
 	default:
 		// We have encountered a hash collision.
@@ -372,7 +374,7 @@ func record(rec raceliteRec) {
 			println("Hash collision detected for data race at", rec.addr)
 		}
 	}
-	raceliteRecs.unlock()
+	(&raceliteRecs[slot]).unlock()
 }
 
 // claim allows the writer goroutine as the owner of the virtual register.
@@ -523,6 +525,8 @@ func (r *raceliteVirtualRegister) release() {
 //	release V
 func racelitewrite(addr uintptr) {
 	if raceliteDisarmed(sys.GetCallerPC()) {
+		// We detected enough data races at this PC,
+		// so we can stop sampling.
 		return
 	}
 
@@ -530,6 +534,7 @@ func racelitewrite(addr uintptr) {
 		// We are not sampling this address.
 		return
 	}
+
 	r := raceliteget(addr)
 
 	// Check the status of the virtual register.
