@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	// raceliteVRShift is log2(number of virtual registers).
 	raceliteVRShift uint8 = 4
 
 	// raceliteRecordShift is log2(maximum number of data race records).
@@ -45,7 +44,7 @@ const (
 	//	|1|1: read-read (impossible case)
 	//
 	// They are used to determine the access type pair.
-	raceOp1Read, raceOp2Read uint8 = 0b01, 0b10
+	raceliteOp1Read, raceliteOp2Read uint8 = 0b01, 0b10
 
 	// raceliteReportThreshold is the number of times a data race must be reported
 	// before the instrumentation is disabled for the PC.
@@ -298,13 +297,13 @@ func (rec raceliteRec) report() {
 
 	var op1, op2 string
 	// Get the type of the previous operation.
-	if rec.ops&raceOp1Read != 0 {
+	if rec.ops&raceliteOp1Read != 0 {
 		op1 = "read"
 	} else {
 		op1 = "write"
 	}
 	// Get the type of the latest operation.
-	if rec.ops&raceOp2Read != 0 {
+	if rec.ops&raceliteOp2Read != 0 {
 		op2 = "Read"
 	} else {
 		op2 = "Write"
@@ -451,7 +450,7 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 	// about the writer goroutine.
 	var rec raceliteRec
 
-	if op&raceOp1Read != 0 {
+	if op&raceliteOp1Read != 0 {
 		// The writer occurred second, so we have a read-write race
 		// Place the writer as the second goroutine.
 		rec = raceliteRec{
@@ -459,7 +458,7 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 			goid2: r.goid, // Get goroutine ID of writer goroutine.
 		}
 		copy(rec.pcs2[:], r.pcs[:r.n]) // Copy the stack.
-	} else if op^raceOp2Read != 0 {
+	} else if op^raceliteOp2Read != 0 {
 		// The writer occurred first, so we have a write-read race
 		// Place the writer as the first goroutine.
 		rec = raceliteRec{
@@ -476,12 +475,12 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 	// We can now release the lock on the virtual register.
 	r.runlock()
 
-	if op&raceOp1Read != 0 {
+	if op&raceliteOp1Read != 0 {
 		// The writer occurred second, so we have a read-write race.
 		// Place the reader as the first goroutine.
 		rec.n1 = callers(2, rec.pcs1[:])
 		rec.goid1 = getg().goid // Get goroutine ID of reader goroutine.
-	} else if op&raceOp2Read != 0 {
+	} else if op&raceliteOp2Read != 0 {
 		// The writer occurred first, so we have a write-read race.
 		// Place the reader as the second goroutine.
 		rec.n2 = callers(2, rec.pcs2[:])
@@ -568,12 +567,12 @@ func raceliteread(addr uintptr) {
 
 	r := raceliteget(addr)
 	// Check for a write-read race.
-	if r.monitor(addr, raceOp2Read) {
+	if r.monitor(addr, raceliteOp2Read) {
 		return
 	}
 
 	micropause()
 
 	// Check for a read-write race.
-	r.monitor(addr, raceOp1Read)
+	r.monitor(addr, raceliteOp1Read)
 }
