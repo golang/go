@@ -4529,7 +4529,15 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 				return
 			}
 			if n != 1 {
-				s.Fatalf("assigning to non-1-length array")
+				// This can happen in weird, always-panics cases, like:
+				//     var x [0][2]int
+				//     x[i][j] = 5
+				// We know it always panics because the LHS is ssa-able,
+				// and arrays of length > 1 can't be ssa-able unless
+				// they are somewhere inside an outer [0].
+				// We can ignore the actual assignment, it is dynamically
+				// unreachable. See issue 77635.
+				return
 			}
 			if t.Size() == 0 {
 				return
@@ -5223,7 +5231,15 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 	}
 
 	if s.canSSA(n) {
-		s.Fatalf("addr of canSSA expression: %+v", n)
+		// This happens in weird, always-panics cases, like:
+		//     var x [0][2]int
+		//     x[i][j] = 5
+		// The outer assignment, ...[j] = 5, is a fine
+		// assignment to do, but requires computing the address
+		// &x[i], which will always panic when evaluated.
+		// We just return something reasonable in this case.
+		// It will be dynamically unreachable. See issue 77635.
+		return s.newValue1A(ssa.OpAddr, n.Type().PtrTo(), ir.Syms.Zerobase, s.sb)
 	}
 
 	t := types.NewPtr(n.Type())
