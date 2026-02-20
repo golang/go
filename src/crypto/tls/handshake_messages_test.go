@@ -568,6 +568,154 @@ func TestRejectEmptySCT(t *testing.T) {
 	}
 }
 
+func TestRATLSChallengeExtension(t *testing.T) {
+	// buildClientHelloWithRATLS constructs a minimal ClientHello with the
+	// RA-TLS challenge extension containing the given challenge bytes.
+	buildClientHelloWithRATLS := func(challenge []byte) []byte {
+		var b bytes.Buffer
+		// handshake type: ClientHello
+		b.WriteByte(1)
+		// placeholder for 3-byte length (filled below)
+		b.Write([]byte{0, 0, 0})
+
+		// client_version: TLS 1.2
+		b.Write([]byte{0x03, 0x03})
+		// random (32 bytes of zeros)
+		b.Write(make([]byte, 32))
+		// session_id length: 0
+		b.WriteByte(0)
+		// cipher_suites: length 2, one suite (TLS_RSA_WITH_AES_128_GCM_SHA256 = 0x009c)
+		b.Write([]byte{0x00, 0x02, 0x00, 0x9c})
+		// compression_methods: length 1, null
+		b.Write([]byte{0x01, 0x00})
+
+		// extensions
+		var extBuf bytes.Buffer
+		// extension type: extensionRATLS (0xffbb)
+		extBuf.Write([]byte{0xff, 0xbb})
+		// extension length
+		extBuf.Write([]byte{byte(len(challenge) >> 8), byte(len(challenge))})
+		extBuf.Write(challenge)
+
+		extLen := extBuf.Len()
+		b.Write([]byte{byte(extLen >> 8), byte(extLen)})
+		b.Write(extBuf.Bytes())
+
+		// patch the 3-byte handshake length
+		out := b.Bytes()
+		bodyLen := len(out) - 4
+		out[1] = byte(bodyLen >> 16)
+		out[2] = byte(bodyLen >> 8)
+		out[3] = byte(bodyLen)
+		return out
+	}
+
+	t.Run("valid 32-byte challenge", func(t *testing.T) {
+		challenge := make([]byte, 32)
+		for i := range challenge {
+			challenge[i] = byte(i)
+		}
+		raw := buildClientHelloWithRATLS(challenge)
+		var m clientHelloMsg
+		if !m.unmarshal(raw) {
+			t.Fatal("failed to unmarshal ClientHello with valid 32-byte RA-TLS challenge")
+		}
+		if !bytes.Equal(m.raTLSChallenge, challenge) {
+			t.Fatalf("raTLSChallenge = %x, want %x", m.raTLSChallenge, challenge)
+		}
+	})
+
+	t.Run("valid 8-byte challenge (minimum)", func(t *testing.T) {
+		challenge := []byte{1, 2, 3, 4, 5, 6, 7, 8}
+		raw := buildClientHelloWithRATLS(challenge)
+		var m clientHelloMsg
+		if !m.unmarshal(raw) {
+			t.Fatal("failed to unmarshal ClientHello with 8-byte RA-TLS challenge")
+		}
+		if !bytes.Equal(m.raTLSChallenge, challenge) {
+			t.Fatalf("raTLSChallenge = %x, want %x", m.raTLSChallenge, challenge)
+		}
+	})
+
+	t.Run("valid 64-byte challenge (maximum)", func(t *testing.T) {
+		challenge := make([]byte, 64)
+		for i := range challenge {
+			challenge[i] = byte(i)
+		}
+		raw := buildClientHelloWithRATLS(challenge)
+		var m clientHelloMsg
+		if !m.unmarshal(raw) {
+			t.Fatal("failed to unmarshal ClientHello with 64-byte RA-TLS challenge")
+		}
+		if !bytes.Equal(m.raTLSChallenge, challenge) {
+			t.Fatalf("raTLSChallenge = %x, want %x", m.raTLSChallenge, challenge)
+		}
+	})
+
+	t.Run("reject 7-byte challenge (too short)", func(t *testing.T) {
+		challenge := []byte{1, 2, 3, 4, 5, 6, 7}
+		raw := buildClientHelloWithRATLS(challenge)
+		var m clientHelloMsg
+		if m.unmarshal(raw) {
+			t.Fatal("expected unmarshal to fail for 7-byte RA-TLS challenge")
+		}
+	})
+
+	t.Run("reject 65-byte challenge (too long)", func(t *testing.T) {
+		challenge := make([]byte, 65)
+		raw := buildClientHelloWithRATLS(challenge)
+		var m clientHelloMsg
+		if m.unmarshal(raw) {
+			t.Fatal("expected unmarshal to fail for 65-byte RA-TLS challenge")
+		}
+	})
+
+	t.Run("reject empty challenge", func(t *testing.T) {
+		raw := buildClientHelloWithRATLS([]byte{})
+		var m clientHelloMsg
+		if m.unmarshal(raw) {
+			t.Fatal("expected unmarshal to fail for empty RA-TLS challenge")
+		}
+	})
+
+	t.Run("no RA-TLS extension", func(t *testing.T) {
+		// Build a ClientHello with no extensions at all.
+		var b bytes.Buffer
+		b.WriteByte(1)
+		b.Write([]byte{0, 0, 0})
+		b.Write([]byte{0x03, 0x03})
+		b.Write(make([]byte, 32))
+		b.WriteByte(0)
+		b.Write([]byte{0x00, 0x02, 0x00, 0x9c})
+		b.Write([]byte{0x01, 0x00})
+		out := b.Bytes()
+		bodyLen := len(out) - 4
+		out[1] = byte(bodyLen >> 16)
+		out[2] = byte(bodyLen >> 8)
+		out[3] = byte(bodyLen)
+
+		var m clientHelloMsg
+		if !m.unmarshal(out) {
+			t.Fatal("failed to unmarshal ClientHello with no extensions")
+		}
+		if m.raTLSChallenge != nil {
+			t.Fatalf("raTLSChallenge should be nil, got %x", m.raTLSChallenge)
+		}
+	})
+
+	t.Run("propagated to ClientHelloInfo", func(t *testing.T) {
+		challenge := make([]byte, 32)
+		for i := range challenge {
+			challenge[i] = byte(i + 0xa0)
+		}
+		m := &clientHelloMsg{raTLSChallenge: challenge}
+		chi := clientHelloInfo(nil, &Conn{config: &Config{}}, m)
+		if !bytes.Equal(chi.RATLSChallenge, challenge) {
+			t.Fatalf("ClientHelloInfo.RATLSChallenge = %x, want %x", chi.RATLSChallenge, challenge)
+		}
+	})
+}
+
 func TestRejectDuplicateExtensions(t *testing.T) {
 	clientHelloBytes, err := hex.DecodeString("010000440303000000000000000000000000000000000000000000000000000000000000000000000000001c0000000a000800000568656c6c6f0000000a000800000568656c6c6f")
 	if err != nil {

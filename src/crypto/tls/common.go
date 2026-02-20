@@ -129,6 +129,7 @@ const (
 	extensionRenegotiationInfo       uint16 = 0xff01
 	extensionECHOuterExtensions      uint16 = 0xfd00
 	extensionEncryptedClientHello    uint16 = 0xfe0d
+	extensionRATLS                   uint16 = 0xffbb // TODO: replace with the real IANA value once assigned
 )
 
 // TLS signaling cipher suite values
@@ -476,6 +477,9 @@ type ClientHelloInfo struct {
 
 	// ctx is the context of the handshake that is in progress.
 	ctx context.Context
+
+	// RATLSChallenge contains the raw bytes of the RATS TLS challenge, if present.
+	RATLSChallenge []byte
 }
 
 // Context returns the context of the handshake that is in progress.
