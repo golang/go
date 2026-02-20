@@ -534,6 +534,6 @@ func constantTimeSelect(v, x, y int) int {
 	// amd64:"CMOVQ"
 	// arm64:"CSEL"
 	// riscv64/rva20u64,riscv64/rva22u64:"SNEZ" "NEG" "AND" "OR"
-	// riscv64/rva23u64:"NEG" "CZERONEZ" "CZEROEQZ" "OR" -"SNEZ" -"AND"
+	// riscv64/rva23u64:"CZERONEZ" "CZEROEQZ" "OR" -"SNEZ" -"NEG" -"AND"
 	return subtle.ConstantTimeSelect(v, x, y)
 }

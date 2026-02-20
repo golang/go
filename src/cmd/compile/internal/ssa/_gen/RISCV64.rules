@@ -866,6 +866,7 @@
 	(OR (CZEROEQZ <t> x (MOVBUreg <typ.UInt64> cond)) (CZERONEZ <t> y (MOVBUreg <typ.UInt64> cond)))
 (CZERO(EQ|NE)Z x (SNEZ y)) => (CZERO(EQ|NE)Z x y)
 (CZERO(EQ|NE)Z x (SEQZ y)) => (CZERO(NE|EQ)Z x y)
+(CZERO(EQ|NE)Z x (NEG y)) => (CZERO(EQ|NE)Z x y)
 (CZEROEQZ x x) => x
 (CZERONEZ x x) => (MOVDconst [0])
 (CZERO(EQ|NE)Z (MOVDconst [0]) _) => (MOVDconst [0])
