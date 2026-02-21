@@ -214,8 +214,7 @@ func BenchmarkJSONHandler(b *testing.B) {
 				String("traceID", "2039232309232309"),
 				String("URL", "https://pkg.go.dev/golang.org/x/log/slog"))
 			b.ReportAllocs()
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				l.LogAttrs(ctx, LevelInfo, "this is a typical log message",
 					String("module", "github.com/google/go-cmp"),
 					String("version", "v1.23.4"),
@@ -276,8 +275,7 @@ func BenchmarkPreformatting(b *testing.B) {
 		b.Run(bench.name, func(b *testing.B) {
 			l := New(NewJSONHandler(bench.wc, nil)).With(bench.attrs...)
 			b.ReportAllocs()
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				l.LogAttrs(ctx, LevelInfo, "this is a typical log message",
 					String("module", "github.com/google/go-cmp"),
 					String("version", "v1.23.4"),
