@@ -132,9 +132,9 @@ import (
 // It holds details about individual packages.
 //
 // This variable should only be accessed directly in top-level exported
-// functions. All other functions that require or produce a *loader should pass
+// functions. All other functions that require or produce a *packageLoader should pass
 // or return it as an explicit parameter.
-var loaded *loader
+var loaded *packageLoader
 
 // PackageOpts control the behavior of the LoadPackages function.
 type PackageOpts struct {
@@ -265,7 +265,7 @@ func LoadPackages(loaderstate *State, ctx context.Context, opts PackageOpts, pat
 		}
 	}
 
-	updateMatches := func(rs *Requirements, ld *loader) {
+	updateMatches := func(rs *Requirements, ld *packageLoader) {
 		for _, m := range matches {
 			switch {
 			case m.IsLocal():
@@ -880,11 +880,11 @@ func Lookup(loaderstate *State, parentPath string, parentIsStd bool, path string
 	return pkg.dir, pkg.path, pkg.err
 }
 
-// A loader manages the process of loading information about
+// A packageLoader manages the process of loading information about
 // the required packages for a particular build,
 // checking that the packages are available in the module set,
 // and updating the module set if needed.
-type loader struct {
+type packageLoader struct {
 	loaderParams
 
 	// allClosesOverTests indicates whether the "all" pattern includes
@@ -916,7 +916,7 @@ type loaderParams struct {
 	listRoots func(rs *Requirements) []string
 }
 
-func (ld *loader) reset() {
+func (ld *packageLoader) reset() {
 	select {
 	case <-ld.work.Idle():
 	default:
@@ -930,7 +930,7 @@ func (ld *loader) reset() {
 
 // error reports an error via either os.Stderr or base.Error,
 // according to whether ld.AllowErrors is set.
-func (ld *loader) error(err error) {
+func (ld *packageLoader) error(err error) {
 	if ld.AllowErrors {
 		fmt.Fprintf(os.Stderr, "go: %v\n", err)
 	} else if ld.Switcher != nil {
@@ -941,7 +941,7 @@ func (ld *loader) error(err error) {
 }
 
 // switchIfErrors switches toolchains if a switch is needed.
-func (ld *loader) switchIfErrors(ctx context.Context) {
+func (ld *packageLoader) switchIfErrors(ctx context.Context) {
 	if ld.Switcher != nil {
 		ld.Switcher.Switch(ctx)
 	}
@@ -949,7 +949,7 @@ func (ld *loader) switchIfErrors(ctx context.Context) {
 
 // exitIfErrors switches toolchains if a switch is needed
 // or else exits if any errors have been reported.
-func (ld *loader) exitIfErrors(ctx context.Context) {
+func (ld *packageLoader) exitIfErrors(ctx context.Context) {
 	ld.switchIfErrors(ctx)
 	base.ExitIfErrors()
 }
@@ -957,7 +957,7 @@ func (ld *loader) exitIfErrors(ctx context.Context) {
 // goVersion reports the Go version that should be used for the loader's
 // requirements: ld.TidyGoVersion if set, or ld.requirements.GoVersion()
 // otherwise.
-func (ld *loader) goVersion(loaderstate *State) string {
+func (ld *packageLoader) goVersion(loaderstate *State) string {
 	if ld.TidyGoVersion != "" {
 		return ld.TidyGoVersion
 	}
@@ -970,10 +970,10 @@ type loadPkg struct {
 	path   string // import path
 	testOf *loadPkg
 
-	// Populated at construction time and updated by (*loader).applyPkgFlags:
+	// Populated at construction time and updated by (*packageLoader).applyPkgFlags:
 	flags atomicLoadPkgFlags
 
-	// Populated by (*loader).load:
+	// Populated by (*packageLoader).load:
 	mod         module.Version // module providing package
 	dir         string         // directory containing source code
 	err         error          // error loading package
@@ -982,11 +982,11 @@ type loadPkg struct {
 	inStd       bool
 	altMods     []module.Version // modules that could have contained the package but did not
 
-	// Populated by (*loader).pkgTest:
+	// Populated by (*packageLoader).pkgTest:
 	testOnce sync.Once
 	test     *loadPkg
 
-	// Populated by postprocessing in (*loader).buildStacks:
+	// Populated by postprocessing in (*packageLoader).buildStacks:
 	stack *loadPkg // package importing this one in minimal import stack for this pkg
 }
 
@@ -1079,8 +1079,8 @@ var errMissing = errors.New("cannot find package")
 // The set of root packages is returned by the params.listRoots function, and
 // expanded to the full set of packages by tracing imports (and possibly tests)
 // as needed.
-func loadFromRoots(loaderstate *State, ctx context.Context, params loaderParams) *loader {
-	ld := &loader{
+func loadFromRoots(loaderstate *State, ctx context.Context, params loaderParams) *packageLoader {
+	ld := &packageLoader{
 		loaderParams: params,
 		work:         par.NewQueue(runtime.GOMAXPROCS(0)),
 	}
@@ -1357,7 +1357,7 @@ func loadFromRoots(loaderstate *State, ctx context.Context, params loaderParams)
 // The "changed" return value reports whether the update changed the selected
 // version of any module that either provided a loaded package or may now
 // provide a package that was previously unresolved.
-func (ld *loader) updateRequirements(loaderstate *State, ctx context.Context) (changed bool, err error) {
+func (ld *packageLoader) updateRequirements(loaderstate *State, ctx context.Context) (changed bool, err error) {
 	rs := ld.requirements
 
 	// direct contains the set of modules believed to provide packages directly
@@ -1558,7 +1558,7 @@ func (ld *loader) updateRequirements(loaderstate *State, ctx context.Context) (c
 // The newly-resolved packages are added to the addedModuleFor map, and
 // resolveMissingImports returns a map from each new module version to
 // the first missing package that module would resolve.
-func (ld *loader) resolveMissingImports(loaderstate *State, ctx context.Context) (modAddedBy map[module.Version]*loadPkg, err error) {
+func (ld *packageLoader) resolveMissingImports(loaderstate *State, ctx context.Context) (modAddedBy map[module.Version]*loadPkg, err error) {
 	type pkgMod struct {
 		pkg *loadPkg
 		mod *module.Version
@@ -1659,9 +1659,9 @@ func (ld *loader) resolveMissingImports(loaderstate *State, ctx context.Context)
 // ld.work queue, and its test (if requested) will also be populated once
 // imports have been resolved. When ld.work goes idle, all transitive imports of
 // the requested package (and its test, if requested) will have been loaded.
-func (ld *loader) pkg(loaderstate *State, ctx context.Context, path string, flags loadPkgFlags) *loadPkg {
+func (ld *packageLoader) pkg(loaderstate *State, ctx context.Context, path string, flags loadPkgFlags) *loadPkg {
 	if flags.has(pkgImportsLoaded) {
-		panic("internal error: (*loader).pkg called with pkgImportsLoaded flag set")
+		panic("internal error: (*packageLoader).pkg called with pkgImportsLoaded flag set")
 	}
 
 	pkg := ld.pkgCache.Do(path, func() *loadPkg {
@@ -1681,7 +1681,7 @@ func (ld *loader) pkg(loaderstate *State, ctx context.Context, path string, flag
 // applyPkgFlags updates pkg.flags to set the given flags and propagate the
 // (transitive) effects of those flags, possibly loading or enqueueing further
 // packages as a result.
-func (ld *loader) applyPkgFlags(loaderstate *State, ctx context.Context, pkg *loadPkg, flags loadPkgFlags) {
+func (ld *packageLoader) applyPkgFlags(loaderstate *State, ctx context.Context, pkg *loadPkg, flags loadPkgFlags) {
 	if flags == 0 {
 		return
 	}
@@ -1758,7 +1758,7 @@ func (ld *loader) applyPkgFlags(loaderstate *State, ctx context.Context, pkg *lo
 // preloadRootModules loads the module requirements needed to identify the
 // selected version of each module providing a package in rootPkgs,
 // adding new root modules to the module graph if needed.
-func (ld *loader) preloadRootModules(loaderstate *State, ctx context.Context, rootPkgs []string) (changedBuildList bool) {
+func (ld *packageLoader) preloadRootModules(loaderstate *State, ctx context.Context, rootPkgs []string) (changedBuildList bool) {
 	needc := make(chan map[module.Version]bool, 1)
 	needc <- map[module.Version]bool{}
 	for _, path := range rootPkgs {
@@ -1837,7 +1837,7 @@ func (ld *loader) preloadRootModules(loaderstate *State, ctx context.Context, ro
 }
 
 // load loads an individual package.
-func (ld *loader) load(loaderstate *State, ctx context.Context, pkg *loadPkg) {
+func (ld *packageLoader) load(loaderstate *State, ctx context.Context, pkg *loadPkg) {
 	var mg *ModuleGraph
 	if ld.requirements.pruning == unpruned {
 		var err error
@@ -1922,7 +1922,7 @@ func (ld *loader) load(loaderstate *State, ctx context.Context, pkg *loadPkg) {
 //
 // pkgTest requires that the imports of pkg have already been loaded (flagged
 // with pkgImportsLoaded).
-func (ld *loader) pkgTest(loaderstate *State, ctx context.Context, pkg *loadPkg, testFlags loadPkgFlags) *loadPkg {
+func (ld *packageLoader) pkgTest(loaderstate *State, ctx context.Context, pkg *loadPkg, testFlags loadPkgFlags) *loadPkg {
 	if pkg.isTest() {
 		panic("pkgTest called on a test package")
 	}
@@ -1965,7 +1965,7 @@ func (ld *loader) pkgTest(loaderstate *State, ctx context.Context, pkg *loadPkg,
 
 // stdVendor returns the canonical import path for the package with the given
 // path when imported from the standard-library package at parentPath.
-func (ld *loader) stdVendor(loaderstate *State, parentPath, path string) string {
+func (ld *packageLoader) stdVendor(loaderstate *State, parentPath, path string) string {
 	if p, _, ok := fips140.ResolveImport(path); ok {
 		return p
 	}
@@ -2006,7 +2006,7 @@ func (ld *loader) stdVendor(loaderstate *State, parentPath, path string) string 
 
 // computePatternAll returns the list of packages matching pattern "all",
 // starting with a list of the import paths for the packages in the main module.
-func (ld *loader) computePatternAll() (all []string) {
+func (ld *packageLoader) computePatternAll() (all []string) {
 	for _, pkg := range ld.pkgs {
 		if module.CheckImportPath(pkg.path) != nil {
 			// Don't add packages with invalid paths. This means that
@@ -2027,7 +2027,7 @@ func (ld *loader) computePatternAll() (all []string) {
 // or as a replacement for another module, but not both at the same time.
 //
 // (See https://golang.org/issue/26607 and https://golang.org/issue/34650.)
-func (ld *loader) checkMultiplePaths(loaderstate *State) {
+func (ld *packageLoader) checkMultiplePaths(loaderstate *State) {
 	mods := ld.requirements.rootModules
 	if cached := ld.requirements.graph.Load(); cached != nil {
 		if mg := cached.mg; mg != nil {
@@ -2048,7 +2048,7 @@ func (ld *loader) checkMultiplePaths(loaderstate *State) {
 
 // checkTidyCompatibility emits an error if any package would be loaded from a
 // different module under rs than under ld.requirements.
-func (ld *loader) checkTidyCompatibility(loaderstate *State, ctx context.Context, rs *Requirements, compatVersion string) {
+func (ld *packageLoader) checkTidyCompatibility(loaderstate *State, ctx context.Context, rs *Requirements, compatVersion string) {
 	goVersion := rs.GoVersion(loaderstate)
 	suggestUpgrade := false
 	suggestEFlag := false
@@ -2308,7 +2308,7 @@ Happy:
 // package up the import stack in their minimal chain.
 // As a side effect, buildStacks also constructs ld.pkgs,
 // the list of all packages loaded.
-func (ld *loader) buildStacks() {
+func (ld *packageLoader) buildStacks() {
 	if len(ld.pkgs) > 0 {
 		panic("buildStacks")
 	}

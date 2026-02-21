@@ -2066,7 +2066,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 // including any go.mod files needed to reconstruct the MVS result
 // or identify go versions,
 // in addition to the checksums for every module in keepMods.
-func keepSums(loaderstate *State, ctx context.Context, ld *loader, rs *Requirements, which whichSums) map[module.Version]bool {
+func keepSums(loaderstate *State, ctx context.Context, ld *packageLoader, rs *Requirements, which whichSums) map[module.Version]bool {
 	// Every module in the full module graph contributes its requirements,
 	// so in order to ensure that the build list itself is reproducible,
 	// we need sums for every go.mod in the graph (regardless of whether
