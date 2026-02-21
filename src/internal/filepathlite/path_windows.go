@@ -8,6 +8,7 @@ import (
 	"internal/bytealg"
 	"internal/stringslite"
 	"internal/syscall/windows"
+	"slices"
 	"syscall"
 )
 
@@ -323,4 +324,9 @@ func postClean(out *lazybuf) {
 	if len(out.buf) >= 3 && IsPathSeparator(out.buf[0]) && out.buf[1] == '?' && out.buf[2] == '?' {
 		out.prepend(Separator, '.')
 	}
+}
+
+func (b *lazybuf) prepend(prefix ...byte) {
+	b.buf = slices.Insert(b.buf, 0, prefix...)
+	b.w += len(prefix)
 }
