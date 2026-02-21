@@ -341,6 +341,7 @@
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) => (MOVDload ptr mem)
 (Load <t> ptr mem) && is32BitFloat(t) => (FMOVSload ptr mem)
 (Load <t> ptr mem) && is64BitFloat(t) => (FMOVDload ptr mem)
+(Load <t> ptr mem) && t.Size() == 16 => (FMOVQload ptr mem)
 
 // stores
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
@@ -349,6 +350,7 @@
 (Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVDstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (FMOVSstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (FMOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 16 => (FMOVQstore ptr val mem)
 
 // zeroing
 (Zero [0] _   mem) => mem
@@ -1864,3 +1866,6 @@
 // 32 mul 32 -> 64
 (MUL r:(MOVWUreg x) s:(MOVWUreg y)) && r.Uses == 1 && s.Uses == 1 => (UMULL x y)
 (MUL r:(MOVWreg  x) s:(MOVWreg  y)) && r.Uses == 1 && s.Uses == 1 =>  (MULL x y)
+
+// SIMD zero
+(ZeroSIMD <t>) && t.Size() == 16 => (VMOVI16B [0] <t>)

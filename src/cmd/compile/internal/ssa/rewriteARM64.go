@@ -1173,6 +1173,8 @@ func rewriteValueARM64(v *Value) bool {
 	case OpZeroExt8to64:
 		v.Op = OpARM64MOVBUreg
 		return true
+	case OpZeroSIMD:
+		return rewriteValueARM64_OpZeroSIMD(v)
 	}
 	return false
 }
@@ -18641,6 +18643,20 @@ func rewriteValueARM64_OpLoad(v *Value) bool {
 		v.AddArg2(ptr, mem)
 		return true
 	}
+	// match: (Load <t> ptr mem)
+	// cond: t.Size() == 16
+	// result: (FMOVQload ptr mem)
+	for {
+		t := v.Type
+		ptr := v_0
+		mem := v_1
+		if !(t.Size() == 16) {
+			break
+		}
+		v.reset(OpARM64FMOVQload)
+		v.AddArg2(ptr, mem)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpLocalAddr(v *Value) bool {
@@ -22288,6 +22304,21 @@ func rewriteValueARM64_OpStore(v *Value) bool {
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
+	// match: (Store {t} ptr val mem)
+	// cond: t.Size() == 16
+	// result: (FMOVQstore ptr val mem)
+	for {
+		t := auxToType(v.Aux)
+		ptr := v_0
+		val := v_1
+		mem := v_2
+		if !(t.Size() == 16) {
+			break
+		}
+		v.reset(OpARM64FMOVQstore)
+		v.AddArg3(ptr, val, mem)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpZero(v *Value) bool {
@@ -22591,6 +22622,22 @@ func rewriteValueARM64_OpZero(v *Value) bool {
 		v.reset(OpARM64LoweredZeroLoop)
 		v.AuxInt = int64ToAuxInt(s)
 		v.AddArg2(ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpZeroSIMD(v *Value) bool {
+	// match: (ZeroSIMD <t>)
+	// cond: t.Size() == 16
+	// result: (VMOVI16B [0] <t>)
+	for {
+		t := v.Type
+		if !(t.Size() == 16) {
+			break
+		}
+		v.reset(OpARM64VMOVI16B)
+		v.Type = t
+		v.AuxInt = uint8ToAuxInt(0)
 		return true
 	}
 	return false

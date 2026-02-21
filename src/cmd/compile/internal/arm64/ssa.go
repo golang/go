@@ -21,7 +21,11 @@ import (
 
 // loadByType returns the load instruction of the given type.
 func loadByType(t *types.Type) obj.As {
-	if t.IsFloat() {
+	if t.IsSIMD() {
+		if t.Size() == 16 {
+			return arm64.AFMOVQ // Use FMOVQ (LDR Q) for 128-bit SIMD loads
+		}
+	} else if t.IsFloat() {
 		switch t.Size() {
 		case 4:
 			return arm64.AFMOVS
@@ -57,7 +61,11 @@ func loadByType(t *types.Type) obj.As {
 
 // storeByType returns the store instruction of the given type.
 func storeByType(t *types.Type) obj.As {
-	if t.IsFloat() {
+	if t.IsSIMD() {
+		if t.Size() == 16 {
+			return arm64.AFMOVQ // Use FMOVQ (STR Q) for 128-bit SIMD stores
+		}
+	} else if t.IsFloat() {
 		switch t.Size() {
 		case 4:
 			return arm64.AFMOVS
@@ -174,14 +182,29 @@ func simdRegArng(reg int16, arng int16) int16 {
 	return reg
 }
 
-// simdV11 generates element-wise unary vector operations, e.g. VCNT V1.B8, V0.B8
-func simdV11(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+// simdV01Imm generates a VMOVI-like instruction, e.g. VMOVI $0, V0.B16
+func simdV01Imm(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
-	p.From.Type = obj.TYPE_REG
-	p.From.Reg = simdRegArng(v.Args[0].Reg(), arrangement)
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = int64(v.AuxUInt8())
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = simdRegArng(v.Reg(), arrangement)
 	return p
+}
+
+// simdV11Asm generates element-wise unary vector operations with explicit asm, e.g. VMOV V1.B16, V0.B16
+func simdV11Asm(s *ssagen.State, asm obj.As, src, dst int16, arrangement int16) *obj.Prog {
+	p := s.Prog(asm)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdRegArng(src, arrangement)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(dst, arrangement)
+	return p
+}
+
+// simdV11 generates element-wise unary vector operations, e.g. VCNT V1.B8, V0.B8
+func simdV11(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	return simdV11Asm(s, v.Op.Asm(), v.Args[0].Reg(), v.Reg(), arrangement)
 }
 
 // simdV11Scalar generates vector-to-scalar reduction operations, e.g. VUADDLV V1.B8, V0
@@ -215,6 +238,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			default:
 				panic("bad float size")
 			}
+		} else if v.Type.IsSIMD() {
+			if v.Type.Size() == 16 {
+				simdV11Asm(s, arm64.AVMOV, x, y, arm64.ARNG_16B)
+				return
+			} else {
+				panic("bad simd size")
+			}
 		}
 		p := s.Prog(as)
 		p.From.Type = obj.TYPE_REG
@@ -223,6 +253,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = y
 	case ssa.OpARM64MOVDnop, ssa.OpARM64ZERO:
 		// nothing to do
+	case ssa.OpARM64VMOVI16B:
+		simdV01Imm(s, v, arm64.ARNG_16B)
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("load flags not implemented: %v", v.LongString())
