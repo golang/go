@@ -134,6 +134,10 @@ type FloatType float32
 // stand-in for either complex type: complex64 or complex128.
 type ComplexType complex64
 
+// TypeOrValue is here for the purposes of documentation only. It is a stand-in
+// for either a type or an expression.
+type TypeOrValue int
+
 // The append built-in function appends elements to the end of a slice. If
 // it has sufficient capacity, the destination is resliced to accommodate the
 // new elements. If it does not, a new underlying array will be allocated.
@@ -229,13 +233,8 @@ func min[T cmp.Ordered](x T, y ...T) T
 //
 // If the argument is an expression x, then new(x) allocates a variable of
 // the type of x initialized to the value of x. If that value is an untyped
-// constant, it is first implicitly converted to its default type; if it is
-// an untyped boolean value, it is first implicitly converted to type bool.
-//
-// For example, new(int) and new(123) each return a pointer to a new
-// variable of type int. The value of the first variable is 0, and the value
-// of the second is 123.
-func new(Type) *Type
+// constant, it is first implicitly converted to its default type.
+func new(TypeOrValue) *Type
 
 // The complex built-in function constructs a complex value from two
 // floating-point values. The real and imaginary parts must be of the same
