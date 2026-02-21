@@ -273,3 +273,7 @@ const (
 	SYS_BPF                    = 280
 	SYS_EXECVEAT               = 281
 )
+
+const (
+	_SYS_landlock_restrict_self = 446
+)
