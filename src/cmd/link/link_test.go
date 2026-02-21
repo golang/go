@@ -2208,15 +2208,34 @@ func TestModuledataPlacement(t *testing.T) {
 			}
 		}
 
-	case pf != nil, xf != nil:
-		if pf != nil {
-			defer pf.Close()
+	case pf != nil:
+		defer pf.Close()
+
+		var moddataSym *pe.Symbol
+		for _, sym := range pf.Symbols {
+			if sym.Name == moddataSymName || sym.Name == "_"+moddataSymName {
+				moddataSym = sym
+				break
+			}
 		}
-		if xf != nil {
-			defer xf.Close()
+		if moddataSym == nil {
+			t.Fatalf("could not find symbol %s", moddataSymName)
+		}
+		if moddataSym.SectionNumber <= 0 {
+			t.Fatalf("moduledata not in a section (section number %d)", moddataSym.SectionNumber)
+		}
+		sec := pf.Sections[moddataSym.SectionNumber-1]
+		if sec.Name != ".go.module" {
+			t.Errorf("moduledata in section %s, not .go.module", sec.Name)
+		}
+		if moddataSym.Value != 0 {
+			t.Errorf("moduledata offset %#x != 0", moddataSym.Value)
 		}
 
-		// On Windows and AIX all the Go specific sections
+	case xf != nil:
+		defer xf.Close()
+
+		// On AIX all the Go specific sections
 		// get stuffed into a few sections,
 		// so there is nothing to test here.
 	}
@@ -2470,5 +2489,47 @@ func TestTypePlacement(t *testing.T) {
 		if addr < typeStart || addr >= typeEnd {
 			t.Errorf("type descriptor address %#x out of range: not between %#x and %#x", addr, typeStart, typeEnd)
 		}
+	}
+}
+
+func TestPEEdataSection(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "x.go")
+	if err := os.WriteFile(src, []byte(trivialSrc), 0o444); err != nil {
+		t.Fatal(err)
+	}
+
+	exe := filepath.Join(tmpdir, "x.exe")
+	cmd := goCmd(t, "build", "-o", exe, src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed; %v, output:\n%s", err, out)
+	}
+
+	pf, err := pe.Open(exe)
+	if err != nil {
+		t.Skip("not a PE executable")
+	}
+	defer pf.Close()
+
+	var edataSym *pe.Symbol
+	for _, sym := range pf.Symbols {
+		if sym.Name == "runtime.edata" || sym.Name == "_runtime.edata" {
+			edataSym = sym
+			break
+		}
+	}
+	if edataSym == nil {
+		t.Fatal("could not find symbol runtime.edata")
+	}
+	if edataSym.SectionNumber <= 0 {
+		t.Fatalf("runtime.edata not in a section (section number %d)", edataSym.SectionNumber)
+	}
+
+	sec := pf.Sections[edataSym.SectionNumber-1]
+	if sec.Name != ".data" {
+		t.Errorf("runtime.edata in section %s, not .data", sec.Name)
 	}
 }
