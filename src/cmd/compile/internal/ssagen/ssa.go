@@ -5162,6 +5162,19 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 		s.vars[memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, v, s.mem())
 	}
 
+	// Build result value (before we might end the defer block, below).
+	var result *ssa.Value
+	if len(res) == 0 || k != callNormal {
+		result = nil
+	} else {
+		fp := res[0]
+		if returnResultAddr {
+			result = s.resultAddrOfCall(call, 0, fp.Type)
+		} else {
+			result = s.newValue1I(ssa.OpSelectN, fp.Type, 0, call)
+		}
+	}
+
 	// Finish block for defers
 	if k == callDefer || k == callDeferStack || isCallDeferRangeFunc {
 		b := s.endBlock()
@@ -5181,15 +5194,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 		s.startBlock(bNext)
 	}
 
-	if len(res) == 0 || k != callNormal {
-		// call has no return value. Continue with the next statement.
-		return nil
-	}
-	fp := res[0]
-	if returnResultAddr {
-		return s.resultAddrOfCall(call, 0, fp.Type)
-	}
-	return s.newValue1I(ssa.OpSelectN, fp.Type, 0, call)
+	return result
 }
 
 // maybeNilCheckClosure checks if a nil check of a closure is needed in some
