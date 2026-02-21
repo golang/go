@@ -1764,7 +1764,7 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
 				return false
 			}
 		case "freebsd":
-			return goarch == "amd64"
+			return goarch == "amd64" || goarch == "arm" || goarch == "arm64"
 		}
 		return false
 
@@ -1772,7 +1772,7 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
 		switch platform {
 		case "linux/amd64", "linux/arm", "linux/arm64", "linux/loong64", "linux/386", "linux/ppc64le", "linux/riscv64", "linux/s390x",
 			"android/amd64", "android/arm", "android/arm64", "android/386",
-			"freebsd/amd64",
+			"freebsd/amd64", "freebsd/arm", "freebsd/arm64",
 			"darwin/amd64", "darwin/arm64",
 			"windows/amd64", "windows/386", "windows/arm64",
 			"wasip1/wasm":
