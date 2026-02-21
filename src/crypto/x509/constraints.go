@@ -12,6 +12,9 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"crypto/x509/pkix"
+	"reflect"
+	"encoding/asn1"
 )
 
 // This file contains the data structures and functions necessary for
@@ -64,7 +67,7 @@ import (
 // map, and if so case insensitively compare the domain portion of the
 // email.
 
-type nameConstraintsSet[T *net.IPNet | string, V net.IP | string] struct {
+type nameConstraintsSet[T *net.IPNet | string | *pkix.RDNSequence, V net.IP | string | pkix.RDNSequence] struct {
 	set []T
 }
 
@@ -435,13 +438,94 @@ func (ec *emailConstraints) query(s parsedEmail) (string, bool) {
 	return constraint, found
 }
 
+type dirNameConstraints struct {
+	// all lets us short circuit the query logic if we see a zero length
+	// constraint which permits or excludes everything.
+	all bool
+
+	permitted bool
+
+	constraints *nameConstraintsSet[*pkix.RDNSequence, pkix.RDNSequence]
+}
+
+func newDirNameConstraints(l []pkix.RDNSequence, permitted bool) interface {
+	query(pkix.RDNSequence) (*pkix.RDNSequence, bool)
+} {
+	if len(l) == 0 {
+		return nil
+	}
+
+	for _, n := range l {
+		if len(n) == 0 {
+			return &dirNameConstraints{all: true, permitted: permitted}
+		}
+	}
+
+	constraints := make([]*pkix.RDNSequence, len(l))
+	for i := range l {
+		constraints[i] = &l[i]
+	}
+
+	dc := &dirNameConstraints{
+		constraints: &nameConstraintsSet[*pkix.RDNSequence, pkix.RDNSequence]{
+			set: constraints,
+		},
+		permitted: permitted,
+	}
+
+	return dc
+}
+
+func matchDirNameConstraint(constraint, subject pkix.RDNSequence) bool {
+	if len(constraint) > len(subject) {
+		return false
+	}
+
+	for i, cRDN := range constraint {
+		sRDN := subject[i]
+
+		if len(cRDN) != len(sRDN) {
+			return false
+		}
+
+		for _, cAttr := range cRDN {
+			found := false
+			for _, sAttr := range sRDN {
+				if cAttr.Type.Equal(sAttr.Type) && reflect.DeepEqual(cAttr.Value, sAttr.Value) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func (ec *dirNameConstraints) query(s pkix.RDNSequence) (*pkix.RDNSequence, bool) {
+	if ec.all {
+		return nil, true
+	}
+
+	for _, constraint := range ec.constraints.set {
+		if matchDirNameConstraint(*constraint, s) {
+			return constraint, true
+		}
+	}
+
+	return nil, false
+}
+
 type constraints[T any, V any] struct {
 	constraintType string
 	permitted      interface{ query(V) (T, bool) }
 	excluded       interface{ query(V) (T, bool) }
 }
 
-func checkConstraints[T string | *net.IPNet, V any, P string | net.IP | parsedURI | parsedEmail](c constraints[T, V], s V, p P) error {
+func checkConstraints[T string | *net.IPNet | *pkix.RDNSequence, V any, P string | net.IP | parsedURI | parsedEmail | pkix.RDNSequence](c constraints[T, V], s V, p P) error {
 	if c.permitted != nil {
 		if _, found := c.permitted.query(s); !found {
 			return fmt.Errorf("%s %q is not permitted by any constraint", c.constraintType, p)
@@ -456,16 +540,17 @@ func checkConstraints[T string | *net.IPNet, V any, P string | net.IP | parsedUR
 }
 
 type chainConstraints struct {
-	ip    constraints[*net.IPNet, net.IP]
-	dns   constraints[string, string]
-	uri   constraints[string, string]
-	email constraints[string, parsedEmail]
+	ip	constraints[*net.IPNet, net.IP]
+	dns	constraints[string, string]
+	uri	constraints[string, string]
+	email	constraints[string, parsedEmail]
+	dirName	constraints[*pkix.RDNSequence, pkix.RDNSequence]
 
 	index int
 	next  *chainConstraints
 }
 
-func (cc *chainConstraints) check(dns []string, uris []parsedURI, emails []parsedEmail, ips []net.IP) error {
+func (cc *chainConstraints) check(dns []string, uris []parsedURI, emails []parsedEmail, ips []net.IP, dirName pkix.RDNSequence) error {
 	for _, ip := range ips {
 		if err := checkConstraints(cc.ip, ip, ip); err != nil {
 			return err
@@ -495,21 +580,33 @@ func (cc *chainConstraints) check(dns []string, uris []parsedURI, emails []parse
 			return err
 		}
 	}
+
+	if err := checkConstraints(cc.dirName, dirName, dirName); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func checkChainConstraints(chain []*Certificate) error {
 	var currentConstraints *chainConstraints
 	var last *chainConstraints
+        var subject pkix.RDNSequence
+
+	chainHasDirNameConstraints := false
 	for i, c := range chain {
 		if !c.hasNameConstraints() {
 			continue
+		}
+		if len(c.PermittedDirNames) > 0 || len(c.ExcludedDirNames) > 0 {
+			chainHasDirNameConstraints = true
 		}
 		cc := &chainConstraints{
 			ip:    constraints[*net.IPNet, net.IP]{"IP address", newIPNetConstraints(c.PermittedIPRanges), newIPNetConstraints(c.ExcludedIPRanges)},
 			dns:   constraints[string, string]{"DNS name", newDNSConstraints(c.PermittedDNSDomains, true), newDNSConstraints(c.ExcludedDNSDomains, false)},
 			uri:   constraints[string, string]{"URI", newDNSConstraints(c.PermittedURIDomains, true), newDNSConstraints(c.ExcludedURIDomains, false)},
 			email: constraints[string, parsedEmail]{"email address", newEmailConstraints(c.PermittedEmailAddresses, true), newEmailConstraints(c.ExcludedEmailAddresses, false)},
+			dirName: constraints[*pkix.RDNSequence, pkix.RDNSequence]{"Directory Name", newDirNameConstraints(c.PermittedDirNames, true), newDirNameConstraints(c.ExcludedDirNames, false)},
 			index: i,
 		}
 		if currentConstraints == nil {
@@ -525,7 +622,7 @@ func checkChainConstraints(chain []*Certificate) error {
 	}
 
 	for i, c := range chain {
-		if !c.hasSANExtension() {
+		if !c.hasSANExtension() && !chainHasDirNameConstraints {
 			continue
 		}
 		if i >= currentConstraints.index {
@@ -546,8 +643,15 @@ func checkChainConstraints(chain []*Certificate) error {
 			return err
 		}
 
+		// cert.Subject.ToRDNSequence cannot be used as it ignores unknown RDN
+		if rest, err := asn1.Unmarshal(c.RawSubject, &subject); err != nil {
+			return err
+		} else if len(rest) != 0 {
+			return fmt.Errorf("x509: trailing data after X.509 subject")
+		}
+
 		for n := currentConstraints; n != nil; n = n.next {
-			if err := n.check(c.DNSNames, uris, emails, c.IPAddresses); err != nil {
+			if err := n.check(c.DNSNames, uris, emails, c.IPAddresses, subject); err != nil {
 				return err
 			}
 		}
