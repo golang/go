@@ -3402,6 +3402,18 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AVMV4RV & obj.AMask: {enc: rVVEncoding},
 	AVMV8RV & obj.AMask: {enc: rVVEncoding},
 
+	// 32.2.5: Zvkned - NIST Suite: Vector AES Block Cipher
+	AVAESEFVV & obj.AMask:  {enc: rVVVEncoding},
+	AVAESEFVS & obj.AMask:  {enc: rVVVEncoding},
+	AVAESEMVV & obj.AMask:  {enc: rVVVEncoding},
+	AVAESEMVS & obj.AMask:  {enc: rVVVEncoding},
+	AVAESDFVV & obj.AMask:  {enc: rVVVEncoding},
+	AVAESDFVS & obj.AMask:  {enc: rVVVEncoding},
+	AVAESDMVV & obj.AMask:  {enc: rVVVEncoding},
+	AVAESDMVS & obj.AMask:  {enc: rVVVEncoding},
+	AVAESKF1VI & obj.AMask: {enc: rVVuEncoding},
+	AVAESKF2VI & obj.AMask: {enc: rVVuEncoding},
+	AVAESZVS & obj.AMask:   {enc: rVVVEncoding},
 	//
 	// Privileged ISA
 	//
@@ -4680,7 +4692,7 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		ins.rd, ins.rs1, ins.rs2, ins.rs3 = uint32(p.To.Reg), uint32(p.Reg), uint32(p.From.Reg), obj.REG_NONE
 
 	case AVADDVI, AVRSUBVI, AVANDVI, AVORVI, AVXORVI, AVMSEQVI, AVMSNEVI, AVMSLEUVI, AVMSLEVI, AVMSGTUVI, AVMSGTVI,
-		AVSLLVI, AVSRLVI, AVSRAVI, AVNSRLWI, AVNSRAWI, AVRGATHERVI, AVSLIDEUPVI, AVSLIDEDOWNVI:
+		AVSLLVI, AVSRLVI, AVSRAVI, AVNSRLWI, AVNSRAWI, AVRGATHERVI, AVSLIDEUPVI, AVSLIDEDOWNVI, AVAESKF1VI, AVAESKF2VI:
 		// Set mask bit
 		switch {
 		case ins.rs3 == obj.REG_NONE:
@@ -4702,6 +4714,27 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 			p.Ctxt.Diag("%v: invalid vector mask register", p)
 		}
 		ins.rs1 = obj.REG_NONE
+	case AVAESEFVV, AVAESEFVS, AVAESEMVV, AVAESEMVS, AVAESDFVV, AVAESDFVS, AVAESDMVV, AVAESDMVS, AVAESZVS:
+		if ins.rs1 == REG_V0 || ins.rs3 != obj.REG_NONE {
+			p.Ctxt.Diag("%v: AES instructions do not support masking", p)
+		}
+		ins.funct7 |= 1 // vm=1 unmasked
+
+		var vs1 uint32
+		switch ins.as {
+		case AVAESEFVV, AVAESEFVS:
+			vs1 = 3
+		case AVAESEMVV, AVAESEMVS:
+			vs1 = 2
+		case AVAESDFVV, AVAESDFVS:
+			vs1 = 1
+		case AVAESDMVV, AVAESDMVS:
+			vs1 = 0
+		case AVAESZVS:
+			vs1 = 7
+		}
+
+		ins.rd, ins.rs1, ins.rs2, ins.rs3 = uint32(p.To.Reg), REG_V0+vs1, uint32(p.From.Reg), obj.REG_NONE
 
 	case AVMVVV, AVMVVX:
 		if ins.rs1 != obj.REG_NONE {
