@@ -431,8 +431,38 @@ func rewriteValueARM64(v *Value) bool {
 	case OpAdd8:
 		v.Op = OpARM64ADD
 		return true
+	case OpAddFloat32x4:
+		v.Op = OpARM64VFADD4S
+		return true
+	case OpAddFloat64x2:
+		v.Op = OpARM64VFADD2D
+		return true
+	case OpAddInt16x8:
+		v.Op = OpARM64VADD8H
+		return true
+	case OpAddInt32x4:
+		v.Op = OpARM64VADD4S
+		return true
+	case OpAddInt64x2:
+		v.Op = OpARM64VADD2D
+		return true
+	case OpAddInt8x16:
+		v.Op = OpARM64VADD16B
+		return true
 	case OpAddPtr:
 		v.Op = OpARM64ADD
+		return true
+	case OpAddUint16x8:
+		v.Op = OpARM64VADD8H
+		return true
+	case OpAddUint32x4:
+		v.Op = OpARM64VADD4S
+		return true
+	case OpAddUint64x2:
+		v.Op = OpARM64VADD2D
+		return true
+	case OpAddUint8x16:
+		v.Op = OpARM64VADD16B
 		return true
 	case OpAddr:
 		return rewriteValueARM64_OpAddr(v)
@@ -897,6 +927,30 @@ func rewriteValueARM64(v *Value) bool {
 	case OpMul8:
 		v.Op = OpARM64MULW
 		return true
+	case OpMulFloat32x4:
+		v.Op = OpARM64VFMUL4S
+		return true
+	case OpMulFloat64x2:
+		v.Op = OpARM64VFMUL2D
+		return true
+	case OpMulInt16x8:
+		v.Op = OpARM64VMUL8H
+		return true
+	case OpMulInt32x4:
+		v.Op = OpARM64VMUL4S
+		return true
+	case OpMulInt8x16:
+		v.Op = OpARM64VMUL16B
+		return true
+	case OpMulUint16x8:
+		v.Op = OpARM64VMUL8H
+		return true
+	case OpMulUint32x4:
+		v.Op = OpARM64VMUL4S
+		return true
+	case OpMulUint8x16:
+		v.Op = OpARM64VMUL16B
+		return true
 	case OpNeg16:
 		v.Op = OpARM64NEG
 		return true
@@ -1108,8 +1162,38 @@ func rewriteValueARM64(v *Value) bool {
 	case OpSub8:
 		v.Op = OpARM64SUB
 		return true
+	case OpSubFloat32x4:
+		v.Op = OpARM64VFSUB4S
+		return true
+	case OpSubFloat64x2:
+		v.Op = OpARM64VFSUB2D
+		return true
+	case OpSubInt16x8:
+		v.Op = OpARM64VSUB8H
+		return true
+	case OpSubInt32x4:
+		v.Op = OpARM64VSUB4S
+		return true
+	case OpSubInt64x2:
+		v.Op = OpARM64VSUB2D
+		return true
+	case OpSubInt8x16:
+		v.Op = OpARM64VSUB16B
+		return true
 	case OpSubPtr:
 		v.Op = OpARM64SUB
+		return true
+	case OpSubUint16x8:
+		v.Op = OpARM64VSUB8H
+		return true
+	case OpSubUint32x4:
+		v.Op = OpARM64VSUB4S
+		return true
+	case OpSubUint64x2:
+		v.Op = OpARM64VSUB2D
+		return true
+	case OpSubUint8x16:
+		v.Op = OpARM64VSUB16B
 		return true
 	case OpTailCall:
 		v.Op = OpARM64CALLtail

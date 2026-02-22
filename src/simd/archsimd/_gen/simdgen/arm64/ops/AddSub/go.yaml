@@ -1,0 +1,16 @@
+!sum
+- go: Add
+  asm: "VADD|VFADD"
+  in:
+  - &any
+    go: $t
+  - *any
+  out:
+  - *any
+- go: Sub
+  asm: "VSUB|VFSUB"
+  in:
+  - *any
+  - *any
+  out:
+  - *any

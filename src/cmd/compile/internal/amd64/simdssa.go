@@ -3713,5 +3713,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		x86.ParseSuffix(p, "Z")
 	}
 
+	// Ensure p is marked as used (may not be used in all generated code paths)
+	_ = p
 	return true
 }

@@ -160,11 +160,13 @@ func compareSimdTypePairs(x, y simdTypePair) int {
 	return compareSimdTypes(x.Tdst, y.Tdst)
 }
 
-const simdPackageHeader = generatedHeader + `
+func simdPackageHeader() string {
+	return generatedHeader() + `
 //go:build goexperiment.simd
 
 package archsimd
 `
+}
 
 const simdTypesTemplates = `
 {{define "sizeTmpl"}}
@@ -551,7 +553,7 @@ func writeSIMDTypes(typeMap simdTypeMap) *bytes.Buffer {
 	maskFromVal := templateOf(simdMaskFromValTemplate, "maskFromVal_amd64")
 
 	buffer := new(bytes.Buffer)
-	buffer.WriteString(simdPackageHeader)
+	buffer.WriteString(simdPackageHeader())
 
 	sizes := make([]int, 0, len(typeMap))
 	for size, types := range typeMap {
@@ -580,7 +582,7 @@ func writeSIMDTypes(typeMap simdTypeMap) *bytes.Buffer {
 					panic(fmt.Errorf("failed to execute loadstore template for type %s: %w", typeDef.Name, err))
 				}
 				// restrict to AVX2 masked loads/stores first.
-				if typeDef.MaskedLoadStoreFilter() {
+				if CurrentArch().Arch == "amd64" && typeDef.MaskedLoadStoreFilter() {
 					if err := maskedLoadStore.ExecuteTemplate(buffer, "maskedloadstore_amd64", typeDef); err != nil {
 						panic(fmt.Errorf("failed to execute maskedloadstore template for type %s: %w", typeDef.Name, err))
 					}
@@ -705,7 +707,7 @@ func writeSIMDFeatures(ops []Operation) *bytes.Buffer {
 	t := templateOf(simdFeaturesTemplate, "features")
 
 	buffer := new(bytes.Buffer)
-	buffer.WriteString(simdPackageHeader)
+	buffer.WriteString(simdPackageHeader())
 
 	if err := t.Execute(buffer, features); err != nil {
 		panic(fmt.Errorf("failed to execute features template: %w", err))
@@ -720,8 +722,8 @@ func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) 
 	t := templateOf(simdStubsTmpl, "simdStubs")
 	f = new(bytes.Buffer)
 	fI = new(bytes.Buffer)
-	f.WriteString(simdPackageHeader)
-	fI.WriteString(simdPackageHeader)
+	f.WriteString(simdPackageHeader())
+	fI.WriteString(simdPackageHeader())
 
 	slices.SortFunc(ops, compareOperations)
 

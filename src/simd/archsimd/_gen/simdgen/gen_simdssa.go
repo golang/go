@@ -8,19 +8,20 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"text/template"
 )
 
 var (
-	ssaTemplates = template.Must(template.New("simdSSA").Parse(`{{define "header"}}` + generatedHeader + `
-package amd64
+	ssaTemplates = template.Must(template.New("simdSSA").Parse(`{{define "header"}}{{.GeneratedHeader}}
+package {{.Arch}}
 
 import (
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj"
-	"cmd/internal/obj/x86"
+	"cmd/internal/obj/{{.ObjArch}}"
 )
 
 func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
@@ -28,7 +29,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 	switch v.Op {{"{"}}{{end}}
 {{define "case"}}
 	case {{.Cases}}:
-		p = {{.Helper}}(s, v)
+		p = {{.Helper}}(s, v{{if .Arrangement}}, {{.Arrangement}}{{end}})
 {{end}}
 {{define "footer"}}
 	default:
@@ -44,61 +45,42 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 	}
 {{end}}
 {{define "ending"}}
+	// Ensure p is marked as used (may not be used in all generated code paths)
+	_ = p
 	return true
 }
 {{end}}`))
 )
 
 type tplSSAData struct {
-	Cases  string
-	Helper string
+	Cases       string
+	Helper      string
+	Arrangement string // Optional arrangement constant for ARM64, e.g. arm64.ARNG_4S
+}
+
+type tplSSAHeader struct {
+	Arch            string
+	ObjArch         string
+	GeneratedHeader string
+}
+
+// getArrangementFromOp extracts the arrangement constant from an SSA op name for ARM64.
+// For example, "ssa.OpARM64VFADD4S" returns "arm64.ARNG_4S".
+func getArrangementFromOp(archInfo ArchInfo, caseStr string) string {
+	for _, a := range archInfo.Arrangements {
+		if strings.Contains(caseStr, a) {
+			return archInfo.Arch + ".ARNG_" + a
+		}
+	}
+	return ""
 }
 
 // writeSIMDSSA generates the ssa to prog lowering codes and writes it to simdssa.go
 // within the specified directory.
 func writeSIMDSSA(ops []Operation) *bytes.Buffer {
+	archInfo := CurrentArch()
 	var ZeroingMask []string
-	regInfoKeys := []string{
-		"v11",
-		"v21",
-		"v2k",
-		"v2kv",
-		"v2kk",
-		"vkv",
-		"v31",
-		"v3kv",
-		"v11Imm8",
-		"vkvImm8",
-		"v21Imm8",
-		"v2kImm8",
-		"v2kkImm8",
-		"v31ResultInArg0",
-		"v3kvResultInArg0",
-		"vfpv",
-		"vfpkv",
-		"vgpvImm8",
-		"vgpImm8",
-		"v2kvImm8",
-		"vkvload",
-		"v21load",
-		"v31loadResultInArg0",
-		"v3kvloadResultInArg0",
-		"v2kvload",
-		"v2kload",
-		"v11load",
-		"v11loadImm8",
-		"vkvloadImm8",
-		"v21loadImm8",
-		"v2kloadImm8",
-		"v2kkloadImm8",
-		"v2kvloadImm8",
-		"v31ResultInArg0Imm8",
-		"v31loadResultInArg0Imm8",
-		"v21ResultInArg0",
-		"v21ResultInArg0Imm8",
-		"v31x0AtIn2ResultInArg0",
-		"v2kvResultInArg0",
-	}
+	regInfoKeys := archInfo.RegInfoKeys
 	regInfoSet := map[string][]string{}
 	for _, key := range regInfoKeys {
 		regInfoSet[key] = []string{}
@@ -161,7 +143,7 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 			continue
 		}
 		seen[asm] = struct{}{}
-		caseStr := fmt.Sprintf("ssa.OpAMD64%s", asm)
+		caseStr := fmt.Sprintf("ssa.Op%s%s", archInfo.ArchUpper, asm)
 		isZeroMasking := false
 		if shapeIn == OneKmaskIn || shapeIn == OneKmaskImmIn {
 			if gOp.Zeroing == nil || *gOp.Zeroing {
@@ -197,7 +179,12 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 
 	buffer := new(bytes.Buffer)
 
-	if err := ssaTemplates.ExecuteTemplate(buffer, "header", nil); err != nil {
+	headerData := tplSSAHeader{
+		Arch:            archInfo.Arch,
+		ObjArch:         archInfo.ObjArch,
+		GeneratedHeader: archInfo.GeneratedHeader,
+	}
+	if err := ssaTemplates.ExecuteTemplate(buffer, "header", headerData); err != nil {
 		panic(fmt.Errorf("failed to execute header template: %w", err))
 	}
 
@@ -207,12 +194,34 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		if len(cases) == 0 {
 			continue
 		}
-		data := tplSSAData{
-			Cases:  strings.Join(cases, ",\n\t\t"),
-			Helper: "simd" + capitalizeFirst(regShape),
+
+		// Group cases by arrangement (for ARM64)
+		arrangementGroups := make(map[string][]string)
+		for _, caseStr := range cases {
+			arrangement := getArrangementFromOp(archInfo, caseStr)
+			arrangementGroups[arrangement] = append(arrangementGroups[arrangement], caseStr)
 		}
-		if err := ssaTemplates.ExecuteTemplate(buffer, "case", data); err != nil {
-			panic(fmt.Errorf("failed to execute case template for %s: %w", regShape, err))
+
+		// Sort arrangement keys for deterministic output
+		var arrangements []string
+		for arrangement := range arrangementGroups {
+			arrangements = append(arrangements, arrangement)
+		}
+		sort.Strings(arrangements)
+
+		// Generate cases for each arrangement group in sorted order
+		for _, arrangement := range arrangements {
+			groupCases := arrangementGroups[arrangement]
+			data := tplSSAData{
+				Cases:  strings.Join(groupCases, ",\n\t\t"),
+				Helper: "simd" + capitalizeFirst(regShape),
+			}
+			if arrangement != "" {
+				data.Arrangement = arrangement
+			}
+			if err := ssaTemplates.ExecuteTemplate(buffer, "case", data); err != nil {
+				panic(fmt.Errorf("failed to execute case template for %s: %w", regShape, err))
+			}
 		}
 	}
 
@@ -226,8 +235,8 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		}
 	}
 
-	if err := ssaTemplates.ExecuteTemplate(buffer, "ending", nil); err != nil {
-		panic(fmt.Errorf("failed to execute footer template: %w", err))
+	if err := ssaTemplates.ExecuteTemplate(buffer, "ending", headerData); err != nil {
+		panic(fmt.Errorf("failed to execute ending template: %w", err))
 	}
 
 	return buffer

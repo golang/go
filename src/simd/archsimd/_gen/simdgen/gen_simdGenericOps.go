@@ -9,12 +9,12 @@ import (
 	"bytes"
 )
 
-// writeSIMDGenericOps generates the generic ops and writes it to simdAMD64ops.go
-// within the specified directory.
+// writeSIMDGenericOps generates the generic ops for the current architecture,
+// merges them with existing ops from other architectures, and returns the
+// result as a buffer ready for writing.
 func writeSIMDGenericOps(ops []Operation, genericOpsFilePath string) *bytes.Buffer {
-
 	// Generate fresh ops for current arch.
-	const currentArch = "amd64"
+	currentArch := CurrentArch().Arch
 	var newOps []sgutil.GenericOpsData
 	for _, op := range ops {
 		if op.NoGenericOps != nil && *op.NoGenericOps == "true" {
@@ -34,7 +34,7 @@ func writeSIMDGenericOps(ops []Operation, genericOpsFilePath string) *bytes.Buff
 		})
 	}
 
-	buf := sgutil.MergeSIMDGenericOps(newOps, genericOpsFilePath, "amd64")
+	buf := sgutil.MergeSIMDGenericOps(newOps, genericOpsFilePath, currentArch)
 
 	return buf
 }

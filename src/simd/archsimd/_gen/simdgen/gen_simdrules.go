@@ -162,7 +162,7 @@ func parseAsmRule(rule string) (bool, string, string) {
 // within the specified directory.
 func writeSIMDRules(ops []Operation) *bytes.Buffer {
 	buffer := new(bytes.Buffer)
-	buffer.WriteString(generatedHeader + "\n")
+	buffer.WriteString(generatedHeader() + "\n")
 
 	// asm -> masked merging rules
 	maskedMergeOpts := make(map[string]string)

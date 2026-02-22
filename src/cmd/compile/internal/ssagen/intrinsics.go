@@ -1674,6 +1674,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 	if buildcfg.Experiment.SIMD {
 		// Only enable intrinsics, if SIMD experiment.
 		simdAMD64Intrinsics(addF)
+		simdARM64Intrinsics(addF)
 
 		addF(simdPackage, "ClearAVXUpperBits",
 			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {

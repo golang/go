@@ -15,8 +15,7 @@ import (
 const simdMachineOpsTmpl = `
 package main
 
-func simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vfpkv, w11, w21, w2k, wkw, w2kw, w2kk, w31, w3kw, wgpw, wgp, wfpw, wfpkw,
-	wkwload, v21load, v31load, v11load, w21load, w31load, w2kload, w2kwload, w11load, w3kwload, w2kkload, v31x0AtIn2 regInfo) []opData {
+func simd{{.ArchUpper}}Ops({{.RegInfoParams}}) []opData {
 	return []opData{
 {{- range .OpsData }}
 		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}",{{if .Comm}} commutative: true,{{end}} typ: "{{.Type}}"{{if .ResultInArg0}}, resultInArg0: true{{end}}},
@@ -45,7 +44,7 @@ func simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vf
 func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 	t := templateOf(simdMachineOpsTmpl, "simdAMD64Ops")
 	buffer := new(bytes.Buffer)
-	buffer.WriteString(generatedHeader)
+	buffer.WriteString(generatedHeader())
 
 	type opData struct {
 		OpName       string
@@ -57,6 +56,8 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 		ResultInArg0 bool
 	}
 	type machineOpsData struct {
+		ArchUpper         string
+		RegInfoParams     string
 		OpsData           []opData
 		OpsDataImm        []opData
 		OpsDataLoad       []opData
@@ -65,11 +66,9 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 		OpsDataImmMerging []opData
 	}
 
-	regInfoSet := map[string]bool{
-		"v11": true, "v21": true, "v2k": true, "v2kv": true, "v2kk": true, "vkv": true, "v31": true, "v3kv": true, "vgpv": true, "vgp": true, "vfpv": true, "vfpkv": true,
-		"w11": true, "w21": true, "w2k": true, "w2kw": true, "w2kk": true, "wkw": true, "w31": true, "w3kw": true, "wgpw": true, "wgp": true, "wfpw": true, "wfpkw": true,
-		"wkwload": true, "v21load": true, "v31load": true, "v11load": true, "w21load": true, "w31load": true, "w2kload": true, "w2kwload": true, "w11load": true,
-		"w3kwload": true, "w2kkload": true, "v31x0AtIn2": true}
+	archInfo := CurrentArch()
+
+	regInfoSet := archInfo.RegInfoSet
 	opsData := make([]opData, 0)
 	opsDataImm := make([]opData, 0)
 	opsDataLoad := make([]opData, 0)
@@ -250,8 +249,17 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 	sort.Slice(opsDataImmMerging, func(i, j int) bool {
 		return compareNatural(opsDataImmMerging[i].OpName, opsDataImmMerging[j].OpName) < 0
 	})
-	err := t.Execute(buffer, machineOpsData{opsData, opsDataImm, opsDataLoad, opsDataImmLoad,
-		opsDataMerging, opsDataImmMerging})
+
+	err := t.Execute(buffer, machineOpsData{
+		ArchUpper:         archInfo.ArchUpper,
+		RegInfoParams:     archInfo.RegInfoParams,
+		OpsData:           opsData,
+		OpsDataImm:        opsDataImm,
+		OpsDataLoad:       opsDataLoad,
+		OpsDataImmLoad:    opsDataImmLoad,
+		OpsDataMerging:    opsDataMerging,
+		OpsDataImmMerging: opsDataImmMerging,
+	})
 	if err != nil {
 		panic(fmt.Errorf("failed to execute template: %w", err))
 	}

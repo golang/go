@@ -217,6 +217,17 @@ func simdV11Scalar(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	return p
 }
 
+// simdV21 generates element-wise binary vector operations, e.g. VFADD V1.S4, V2.S4, V0.S4
+func simdV21(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdRegArng(v.Args[1].Reg(), arrangement)
+	p.Reg = simdRegArng(v.Args[0].Reg(), arrangement)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arrangement)
+	return p
+}
+
 func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
 	case ssa.OpCopy, ssa.OpARM64MOVDreg:
@@ -1576,7 +1587,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	default:
-		v.Fatalf("genValue not implemented: %s", v.LongString())
+		if !ssaGenSIMDValue(s, v) {
+			v.Fatalf("genValue not implemented: %s", v.LongString())
+		}
 	}
 }
 

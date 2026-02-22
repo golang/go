@@ -1,0 +1,9 @@
+!sum
+- go: Mul
+  asm: "VMUL|VFMUL"
+  in:
+  - &any
+    go: $t
+  - *any
+  out:
+  - *any
