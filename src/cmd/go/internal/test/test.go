@@ -310,6 +310,11 @@ control the execution of any test:
 	    in parallel as well, according to the setting of the -p flag
 	    (see 'go help build').
 
+	-p n
+		The number of packages that can be run in parallel.
+		The default is GOMAXPROCS, normally the number of CPUs available.
+		See 'go help build' for more details.
+
 	-run regexp
 	    Run only those tests, examples, and fuzz tests matching the regular
 	    expression. For tests, the regular expression is split by unbracketed
