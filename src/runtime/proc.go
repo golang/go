@@ -956,10 +956,6 @@ func schedinit() {
 		// to ensure runtime·modinfo is kept in the resulting binary.
 		modinfo = ""
 	}
-
-	// TODO(thepudds): this is not the right place for this (sorry!),
-	// but initialize racelite state.
-	raceliteCheckAddrRand = cheaprand()
 }
 
 func dumpgstatus(gp *g) {
@@ -6505,6 +6501,8 @@ func sysmon() {
 	idle := 0 // how many cycles in succession we had not wokeup somebody
 	delay := uint32(0)
 
+	raceliteLastRefresh := nanotime()
+
 	for {
 		if idle == 0 { // start with 20us sleep...
 			delay = 20
@@ -6515,6 +6513,12 @@ func sysmon() {
 			delay = 10 * 1000
 		}
 		usleep(delay)
+
+		// Racelite refresh random address sampler every 1 second.
+		if now := nanotime(); now-raceliteLastRefresh > 1_000_000_000 {
+			raceliteLastRefresh = now
+			raceliteCheckAddrRand = cheaprand()
+		}
 
 		// sysmon should not enter deep sleep if schedtrace is enabled so that
 		// it can print that information at the right time.
