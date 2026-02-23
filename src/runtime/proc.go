@@ -6515,9 +6515,11 @@ func sysmon() {
 		usleep(delay)
 
 		// Racelite refresh random address sampler every 1 second.
-		if now := nanotime(); now-raceliteLastRefresh > 1_000_000_000 {
-			raceliteLastRefresh = now
-			raceliteCheckAddrRand = cheaprand()
+		if debug.racelite > 0 {
+			if now := nanotime(); now-raceliteLastRefresh > 1_000_000_000 {
+				raceliteLastRefresh = now
+				raceliteSamplingRand = cheaprand()
+			}
 		}
 
 		// sysmon should not enter deep sleep if schedtrace is enabled so that
