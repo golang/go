@@ -14,14 +14,12 @@ import (
 const (
 	// raceliteVRShift is log2(raceliteRegNum).
 	raceliteVRShift uint8 = 4
-
 	// raceliteRegNum is the number of virtual registers we have.
 	// Keep as power of 2 for efficient modulo operation.
 	raceliteRegNum = 1 << raceliteVRShift
 
 	// raceliteRecordShift is log2(raceliteRecordNum).
 	raceliteRecordShift uint8 = 8
-
 	// raceliteRecordNum is the number of data race records we have.
 	raceliteRecordNum = 1 << raceliteRecordShift
 
@@ -67,7 +65,11 @@ var (
 	// raceliteDisarmedPCs is the array that monitors disarmed PCs.
 	// Each PC is represented by a bit in the array.
 	// We use Fibonacci hashing to map the PC unto the array index.
-	raceliteDisarmedPCs [raceliteDisarmedPCsSize]bool
+	raceliteDisarmedPCs *[raceliteDisarmedPCsSize]bool
+
+	// raceliteRecords is the array that records data races.
+	// This prevents duplicate data races from being reported.
+	raceliteRecords *[raceliteRecordNum]bool
 )
 
 // diag reports true is we should print extra info.
@@ -241,6 +243,9 @@ func raceliteinit() {
 		raceliteReg[i].identifier = uint32(i)
 		raceliteReg[i].init(lockRankRaceliteR, lockRankRaceliteRInternal, lockRankRaceliteW)
 	}
+
+	raceliteDisarmedPCs = new([raceliteDisarmedPCsSize]bool)
+	raceliteRecords = new([raceliteRecordNum]bool)
 }
 
 // reportPC prints a stack trace to the console.
@@ -275,6 +280,14 @@ func (rec raceliteRec) report() {
 	if rec.addr == 0 {
 		return
 	}
+
+	slot := raceliteFib(((rec.pcs1[0] + rec.pcs2[0]) ^ (rec.pcs1[0] * rec.pcs2[0])), raceliteRecordShift)
+	if raceliteRecords[slot] {
+		// We already recorded this data race.
+		return
+	}
+
+	raceliteRecords[slot] = true
 
 	var op1, op2 string
 	// Get the type of the previous operation.
