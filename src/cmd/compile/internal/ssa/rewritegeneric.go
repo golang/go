@@ -12013,6 +12013,37 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		v.copyOf(x)
 		return true
 	}
+	// match: (Load <t1> op:(OffPtr [o1] p1) move:(Move [n] p2 src mem))
+	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p2) && !isVolatile(src)
+	// result: @move.Block (Load <t1> (OffPtr <op.Type> [o1] src) mem)
+	for {
+		t1 := v.Type
+		op := v_0
+		if op.Op != OpOffPtr {
+			break
+		}
+		o1 := auxIntToInt64(op.AuxInt)
+		p1 := op.Args[0]
+		move := v_1
+		if move.Op != OpMove {
+			break
+		}
+		n := auxIntToInt64(move.AuxInt)
+		mem := move.Args[2]
+		p2 := move.Args[0]
+		src := move.Args[1]
+		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p2) && !isVolatile(src)) {
+			break
+		}
+		b = move.Block
+		v0 := b.NewValue0(v.Pos, OpLoad, t1)
+		v.copyOf(v0)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, op.Type)
+		v1.AuxInt = int64ToAuxInt(o1)
+		v1.AddArg(src)
+		v0.AddArg2(v1, mem)
+		return true
+	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const64 [x]) _))
 	// cond: isSamePtr(p1,p2) && t2.Size() == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x)))
 	// result: (Const64F [math.Float64frombits(uint64(x))])
