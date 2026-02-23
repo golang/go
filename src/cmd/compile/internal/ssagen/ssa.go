@@ -341,9 +341,9 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 	if base.Flag.Cfg.Instrumenting && fn.Pragma&ir.Norace == 0 && !fn.Linksym().ABIWrapper() {
 		if !base.Flag.Race || !objabi.LookupPkgSpecial(fn.Sym().Pkg.Path).NoRaceFunc {
 			s.instrumentMemory = true
-		}
-		if base.Flag.Race {
-			s.instrumentEnterExit = true
+			if base.Flag.Race {
+				s.instrumentEnterExit = true
+			}
 		}
 	}
 
