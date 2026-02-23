@@ -446,19 +446,24 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 	// issue #46653 and #72032.
 	oldsz := l.SymSize(oldi)
 	sz := int64(r.Sym(li).Siz())
+	oldr, oldli := l.toLocal(oldi)
+	oldsym := oldr.Sym(oldli)
 	if osym.Dupok() {
-		if l.flags&FlagStrictDups != 0 {
-			l.checkdup(name, r, li, oldi)
-		}
-		if oldsz < sz {
-			// new symbol overwrites old symbol.
-			l.objSyms[oldi] = objSym{r.objidx, li}
+		if oldsym.Dupok() {
+			if l.flags&FlagStrictDups != 0 {
+				l.checkdup(name, r, li, oldi)
+			}
+			if oldsz < sz {
+				// new symbol overwrites old symbol.
+				l.objSyms[oldi] = objSym{r.objidx, li}
+			}
 		}
 		return oldi
 	}
-	oldr, oldli := l.toLocal(oldi)
-	oldsym := oldr.Sym(oldli)
 	if oldsym.Dupok() {
+		// oldsym is Dupok, new is not.
+		// new symbol overwrites old symbol.
+		l.objSyms[oldi] = objSym{r.objidx, li}
 		return oldi
 	}
 	// If one is a DATA symbol (i.e. has content, DataSize != 0,
