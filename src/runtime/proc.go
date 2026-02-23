@@ -886,7 +886,7 @@ func schedinit() {
 	typelinksinit() // uses maps, activeModules
 	itabsinit()     // uses activeModules
 	stkobjinit()    // must run before GC starts
-	raceliteinit()  // activates Racelite registers if racelite is enabled
+	raceliteinit()  // activates Racelite if it is enabled
 
 	sigsave(&gp.m.sigmask)
 	initSigmask = gp.m.sigmask
@@ -6501,7 +6501,7 @@ func sysmon() {
 	idle := 0 // how many cycles in succession we had not wokeup somebody
 	delay := uint32(0)
 
-	raceliteLastRefresh := nanotime()
+	var raceliteLastRefresh int64
 
 	for {
 		if idle == 0 { // start with 20us sleep...
