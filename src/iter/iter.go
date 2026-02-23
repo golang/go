@@ -230,7 +230,7 @@ type Seq2[K, V any] func(yield func(K, V) bool)
 
 type coro struct{}
 
-//go:linkname newcoro runtime.newcoro
+//go:linknamestd newcoro runtime.newcoro
 func newcoro(func(*coro)) *coro
 
 //go:linknamestd coroswitch runtime.coroswitch

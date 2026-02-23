@@ -15,6 +15,7 @@ import (
 	"debug/elf"
 	"fmt"
 	"internal/abi"
+	"internal/buildcfg"
 	"io"
 	"iter"
 	"log"
@@ -2368,7 +2369,7 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 		v := abiToVer(osym.ABI(), r.version)
 		gi := l.LookupOrCreateSym(name, v)
 		r.syms[ndef+i] = gi
-		if osym.IsLinkname() || osym.IsLinknameStd() {
+		if osym.IsLinkname() || osym.IsLinknameStd() || r.FromAssembly() {
 			// Check if a linkname reference is allowed.
 			// Only check references (pull), not definitions (push),
 			// so push is always allowed.
@@ -2426,8 +2427,6 @@ func abiToVer(abi uint16, localSymVersion int) int {
 // If a name is in this map, it is allowed only in listed packages,
 // even if it has a linknamed definition.
 var blockedLinknames = map[string][]string{
-	// coroutines
-	"runtime.newcoro": {"iter"},
 	// fips info
 	"go:fipsinfo": {"crypto/internal/fips140/check"},
 	// New internal linknames in Go 1.24
@@ -2553,6 +2552,27 @@ func (l *Loader) checkLinkname(refpkg *oReader, name string, s Sym) {
 		return
 	}
 	osym := r.Sym(li)
+	if r.FromAssembly() && !osym.IsLinknameStd() && !osym.IsLinkname() {
+		if strings.HasPrefix(name, pkg) {
+			// Allow if by name it is pushed to pkg, e.g. in package a,
+			// an assembly function is defined as b.F, then it is allowed
+			// to be used in package b.
+			return
+		}
+		// For an assembly symbol, check if there is a linkname applied
+		// to its ABI wrapper.
+		if !buildcfg.Experiment.RegabiWrappers {
+			// If ABI wrapper is not enabled (i.e. non-regabi platform),
+			// permit for now, as there is no good way to check.
+			return
+		}
+		otherABI := 1 - abiToVer(osym.ABI(), r.version) // for now, we only have ABI 0 and 1
+		w := l.Lookup(name, otherABI)                   // TODO: use an aux symbol instead of name lookup?
+		if w != 0 {
+			r, li = l.toLocal(w)
+			osym = r.Sym(li)
+		}
+	}
 	if osym.IsLinknameStd() {
 		// It is pushed with linknamestd. Allow only pulls from the
 		// standard library.
@@ -2560,12 +2580,8 @@ func (l *Loader) checkLinkname(refpkg *oReader, name string, s Sym) {
 			return
 		}
 	}
-	if osym.IsLinkname() || osym.ABIWrapper() {
+	if osym.IsLinkname() {
 		// Allow if the def has a linkname (push).
-		// ABI wrapper usually wraps an assembly symbol, a linknamed symbol,
-		// or an external symbol, or provide access of a Go symbol to assembly.
-		// For now, allow ABI wrappers.
-		// TODO: check the wrapped symbol?
 		return
 	}
 	error()

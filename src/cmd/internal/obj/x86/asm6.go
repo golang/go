@@ -2265,7 +2265,16 @@ func instinit(ctxt *obj.Link) {
 
 	switch ctxt.Headtype {
 	case objabi.Hplan9:
+		// _privates is a special symbol on Plan 9 that
+		// points to per–process private data (like TLS area).
+		// See https://9p.io/magic/man2html/2/exec .
+		// The assembler inserts a reference to this symbol
+		// for accessing the G. Mark it as linkname so it is
+		// allowed to access from anywhere. (Would be nice to
+		// mark it external, but we don't have a mechanism for
+		// that.)
 		plan9privates = ctxt.Lookup("_privates")
+		plan9privates.Set(obj.AttrLinkname, true)
 	}
 
 	for i := range avxOptab {

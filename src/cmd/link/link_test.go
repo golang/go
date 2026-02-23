@@ -12,6 +12,7 @@ import (
 	"debug/pe"
 	"errors"
 	"internal/abi"
+	"internal/buildcfg"
 	"internal/platform"
 	"internal/testenv"
 	"internal/xcoff"
@@ -1715,6 +1716,10 @@ func TestCheckLinkname(t *testing.T) {
 		{"coro2.go", false},
 		// pull linkname of a builtin symbol is not ok
 		{"builtin.go", false},
+		// using a linkname to reference a runtime assembly
+		// function is not ok (except on non-regabi platforms)
+		{"systemstack.go", !buildcfg.Experiment.RegabiWrappers},
+		// misc
 		{"addmoduledata.go", false},
 		{"freegc.go", false},
 		// legacy bad linkname is ok, for now
