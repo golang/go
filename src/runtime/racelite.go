@@ -27,9 +27,9 @@ const (
 	// in data race record stacks.
 	racelitePCDepth = 16
 
-	// raceliteCheckAddrMask selects an address suffix which
-	// can be monitored for racelite.
-	raceliteCheckAddrMask = (1 << (4 * raceliteVRShift)) - 1
+	// raceliteSamplerMask selects the suffixes of addresses.
+	// The suffix decides which address is monitored with Racelite.
+	raceliteSamplerMask = (1 << (4 * raceliteVRShift)) - 1
 
 	// These values denote the type of the accesses involved
 	// in a race as follows (assume BE):
@@ -53,14 +53,17 @@ const (
 )
 
 var (
-	// raceliteCheckAddrRand allows us to randomize which addresses we check for racelite,
+	// raceliteSamplingRand allows us to randomize which addresses we check for racelite,
 	// but to do so in a way we get a consistent answer per address across concurrent readers
 	// and writers.
 	//
 	// TODO(thepudds): for now, for convenience we only check this in runtime, but we
 	// could have the compiler emit the check -- probably important to do or at least
 	// try if were were to pursue this general approach.
-	raceliteCheckAddrRand uint32 = 0
+	raceliteSamplingRand uint32 = 0
+
+	// raceliteReg is the globalarray of virtual registers.
+	raceliteReg *[raceliteRegNum]raceliteVirtualRegister
 
 	// raceliteDisarmedPCs is the array that monitors disarmed PCs.
 	// Each PC is represented by a bit in the array.
@@ -77,9 +80,6 @@ func diag() bool {
 	return debug.racelite >= 2
 }
 
-// raceliteReg is the globalarray of virtual registers.
-var raceliteReg *[raceliteRegNum]raceliteVirtualRegister
-
 // Initialize Racelite tooling
 func raceliteinit() {
 	if debug.racelite <= 0 {
@@ -88,18 +88,21 @@ func raceliteinit() {
 	}
 
 	// Initialize the random address sampler.
-	raceliteCheckAddrRand = cheaprand()
+	raceliteSamplingRand = cheaprand()
 
 	raceliteReg = new([raceliteRegNum]raceliteVirtualRegister)
-
 	// Initialize all virtual registers.
 	for i := 0; i < raceliteRegNum; i++ {
 		// Assign an identifier to the virtual register.
 		// This is used for debugging and experimentation.
 		raceliteReg[i].identifier = uint32(i)
 	}
+
+	raceliteDisarmedPCs = new([raceliteDisarmedPCsSize]bool)
+	raceliteRecords = new([raceliteRecordNum]bool)
 }
 
+// raceliteget returns the virtual register for the given address.
 func raceliteget(addr uintptr) *raceliteVirtualRegister {
 	// Compile-time optimized to bitwise AND.
 	return &raceliteReg[(addr>>3)%raceliteRegNum]
@@ -122,9 +125,9 @@ func micropause() {
 	}
 }
 
-// raceliteFib computes the Fibonacci hash of the given value,
+// raceliteHash computes the Fibonacci hash of the given value,
 // then compressing it into a range of [0, 2^shift).
-func raceliteFib(v uintptr, shift uint8) uintptr {
+func raceliteHash(v uintptr, shift uint8) uintptr {
 	const k = 0x9e3779b97f4a7c15 // golden ratio
 	return (v * k) >> (goarch.PtrSize*8 - shift)
 }
@@ -132,21 +135,19 @@ func raceliteFib(v uintptr, shift uint8) uintptr {
 // raceliteDisarm marks the given PC as disarmed.
 // Is racy, but that is ok.
 func raceliteDisarm(v uintptr) {
-	raceliteDisarmedPCs[raceliteFib(v, raceliteDisarmedPCsShift)] = true
+	raceliteDisarmedPCs[raceliteHash(v, raceliteDisarmedPCsShift)] = true
 }
 
 // raceliteDisarmed checks if the given PC is disarmed.
 // Is racy, but that is ok.
 func raceliteDisarmed(v uintptr) bool {
-	return raceliteDisarmedPCs[raceliteFib(v, raceliteDisarmedPCsShift)]
+	return raceliteDisarmedPCs[raceliteHash(v, raceliteDisarmedPCsShift)]
 }
 
-// raceliteCheckAddr checks if we should sample the given address for data race detection.
-func raceliteCheckAddr(addr uintptr) bool {
+// raceliteSampling checks if we should sample the given address for data race detection.
+func raceliteSampling(addr uintptr) bool {
 	// Check that we are sampling this address.
-	//
-	// FIXME(vsaioc): At the moment, we always sample when debugging.
-	if !diag() && uint32(addr>>(3+raceliteVRShift))&raceliteCheckAddrMask != raceliteCheckAddrRand {
+	if uint32(addr>>(3+raceliteVRShift))&raceliteSamplerMask != raceliteSamplingRand {
 		return false
 	}
 
@@ -223,31 +224,6 @@ type raceliteRec struct {
 	ops uint8
 }
 
-var (
-	// raceliteReg is the globalarray of virtual registers.
-	raceliteReg *[raceliteRegNum]raceliteVirtualRegister
-)
-
-func raceliteinit() {
-	if debug.racelite <= 0 {
-		// No-op if racelite is not enabled.
-		return
-	}
-
-	raceliteReg = new([raceliteRegNum]raceliteVirtualRegister)
-
-	// Initialize all virtual registers.
-	for i := 0; i < raceliteRegNum; i++ {
-		// Assign an identifier to the virtual register.
-		// This is used for debugging and experimentation.
-		raceliteReg[i].identifier = uint32(i)
-		raceliteReg[i].init(lockRankRaceliteR, lockRankRaceliteRInternal, lockRankRaceliteW)
-	}
-
-	raceliteDisarmedPCs = new([raceliteDisarmedPCsSize]bool)
-	raceliteRecords = new([raceliteRecordNum]bool)
-}
-
 // reportPC prints a stack trace to the console.
 func (rec raceliteRec) reportPC(pcs [racelitePCDepth]uintptr, n int) {
 	for _, pc := range pcs[:n] {
@@ -281,7 +257,7 @@ func (rec raceliteRec) report() {
 		return
 	}
 
-	slot := raceliteFib(((rec.pcs1[0] + rec.pcs2[0]) ^ (rec.pcs1[0] * rec.pcs2[0])), raceliteRecordShift)
+	slot := raceliteHash(((rec.pcs1[0] + rec.pcs2[0]) ^ (rec.pcs1[0] * rec.pcs2[0])), raceliteRecordShift)
 	if raceliteRecords[slot] {
 		// We already recorded this data race.
 		return
@@ -315,12 +291,6 @@ func (rec raceliteRec) report() {
 	rec.reportPC(rec.pcs1, rec.n1)
 	print("==================\n")
 	startTheWorld(stw)
-}
-
-// raceliteget returns the virtual register for the given address.
-func raceliteget(addr uintptr) *raceliteVirtualRegister {
-	// Compile-time optimized to bitwise AND.
-	return &raceliteReg[(addr>>3)%raceliteRegNum]
 }
 
 // claim allows the writer goroutine as the owner of the virtual register.
@@ -477,7 +447,7 @@ func (r *raceliteVirtualRegister) release() {
 //	pause
 //	release V
 func racelitewrite(addr uintptr) {
-	if !raceliteCheckAddr(addr) {
+	if !raceliteSampling(addr) {
 		// We are not sampling this address.
 		return
 	}
@@ -514,7 +484,7 @@ func racelitewrite(addr uintptr) {
 //	if V is claimed for A:
 //		Report read-write race and exit
 func raceliteread(addr uintptr) {
-	if !raceliteCheckAddr(addr) {
+	if !raceliteSampling(addr) {
 		// We are not sampling this address.
 		return
 	}
