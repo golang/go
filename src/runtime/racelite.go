@@ -66,11 +66,15 @@ type raceliteVirtualRegister struct {
 // raceliteReg is the globalarray of virtual registers.
 var raceliteReg *[raceliteRegNum]raceliteVirtualRegister
 
+// Initialize Racelite tooling
 func raceliteinit() {
 	if debug.racelite <= 0 {
 		// No-op if racelite is not enabled.
 		return
 	}
+
+	// Initialize the random address sampler.
+	raceliteCheckAddrRand = cheaprand()
 
 	raceliteReg = new([raceliteRegNum]raceliteVirtualRegister)
 
