@@ -47,10 +47,6 @@ const (
 	// They are used to determine the access type pair.
 	raceliteOp1Read, raceliteOp2Read uint8 = 0b01, 0b10
 
-	// raceliteReportThreshold is the number of times a data race must be reported
-	// before the instrumentation is disarmed for the PC.
-	raceliteReportThreshold = 5
-
 	// raceliteDisarmedPCsShift is log2(raceliteDisarmedPCsSize).
 	raceliteDisarmedPCsShift uint8 = 12
 	// raceliteDisarmedPCsSize is the size of the array that
