@@ -301,8 +301,6 @@ func setMNoWB(mp **m, new *m) {
 }
 
 type gobuf struct {
-	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
-	//
 	// ctxt is unusual with respect to GC: it may be a
 	// heap-allocated funcval, so GC needs to track it, but it
 	// needs to be set and cleared from assembly, where it's
@@ -479,12 +477,12 @@ type g struct {
 	// It is stack.lo+StackGuard on g0 and gsignal stacks.
 	// It is ~0 on other goroutine stacks, to trigger a call to morestackc (and crash).
 	stack       stack   // offset known to runtime/cgo
-	stackguard0 uintptr // offset known to liblink
-	stackguard1 uintptr // offset known to liblink
+	stackguard0 uintptr // offset known to cmd/internal/obj/*
+	stackguard1 uintptr // offset known to cmd/internal/obj/*
 
-	_panic    *_panic // innermost panic - offset known to liblink
+	_panic    *_panic // innermost panic
 	_defer    *_defer // innermost defer
-	m         *m      // current m; offset known to arm liblink
+	m         *m      // current m
 	sched     gobuf
 	syscallsp uintptr // if status==Gsyscall, syscallsp = sched.sp to use during gc
 	syscallpc uintptr // if status==Gsyscall, syscallpc = sched.pc to use during gc

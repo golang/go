@@ -428,7 +428,10 @@ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
 		//
 		// We check a bool first for speed, and wait on a channel
 		// if it's not ready.
-		if !mainInitDone.Load() {
+		//
+		// In race mode, skip the optimization and always use the
+		// channel, which has the race instrumentation.
+		if raceenabled || !mainInitDone.Load() {
 			<-mainInitDoneChan
 		}
 	}

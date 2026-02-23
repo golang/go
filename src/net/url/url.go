@@ -1322,3 +1322,16 @@ func JoinPath(base string, elem ...string) (result string, err error) {
 	}
 	return res.String(), nil
 }
+
+// Clone creates a deep copy of the fields of the subject [URL].
+func (u *URL) Clone() *URL {
+	if u == nil {
+		return nil
+	}
+
+	uc := new(*u)
+	if u.User != nil {
+		uc.User = new(*u.User)
+	}
+	return uc
+}

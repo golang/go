@@ -728,7 +728,7 @@ func (t *tester) registerTests() {
 
 		// Test that earlier FIPS snapshots build.
 		// In long mode, test that they work too.
-		for _, version := range fipsVersions(t.short) {
+		for _, version := range fipsVersions() {
 			suffix := " # (build and vet only)"
 			run := "^$" // only ensure they compile
 			if !t.short {
@@ -1291,11 +1291,12 @@ func (t *tester) registerCgoTests(heading string) {
 			// This isn't actually a Go buildmode, just a convenient way to tell
 			// cgoTest we want static linking.
 			gt.buildmode = ""
-			if linkmode == "external" {
+			switch linkmode {
+			case "external":
 				ldflags = append(ldflags, `-extldflags "-static -pthread"`)
-			} else if linkmode == "auto" {
+			case "auto":
 				gt.env = append(gt.env, "CGO_LDFLAGS=-static -pthread")
-			} else {
+			default:
 				panic("unknown linkmode with static build: " + linkmode)
 			}
 			gt.tags = append(gt.tags, "static")
@@ -1320,8 +1321,8 @@ func (t *tester) registerCgoTests(heading string) {
 
 	os := gohostos
 	p := gohostos + "/" + goarch
-	switch {
-	case os == "darwin", os == "windows":
+	switch os {
+	case "darwin", "windows":
 		if !t.extLink() {
 			break
 		}
@@ -1338,7 +1339,7 @@ func (t *tester) registerCgoTests(heading string) {
 			}
 		}
 
-	case os == "aix", os == "android", os == "dragonfly", os == "freebsd", os == "linux", os == "netbsd", os == "openbsd":
+	case "aix", "android", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
 		gt := cgoTest("external-g0", "test", "external", "")
 		gt.env = append(gt.env, "CGO_CFLAGS=-g0 -fdiagnostics-color")
 
@@ -1524,14 +1525,6 @@ func (t *tester) runPending(nextTest *distTest) {
 			fmt.Printf("# go tool dist test -run=^%s$\n", dt.name)
 		}
 	}
-}
-
-func (t *tester) hasBash() bool {
-	switch gohostos {
-	case "windows", "plan9":
-		return false
-	}
-	return true
 }
 
 // hasParallelism is a copy of the function
@@ -1881,7 +1874,7 @@ func (t *tester) fipsSupported() bool {
 }
 
 // fipsVersions returns the list of versions available in lib/fips140.
-func fipsVersions(short bool) []string {
+func fipsVersions() []string {
 	var versions []string
 	zips, err := filepath.Glob(filepath.Join(goroot, "lib/fips140/*.zip"))
 	if err != nil {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix && !solaris
+//go:build unix
 
 #include "libcgo.h"
 #include "libcgo_unix.h"
@@ -48,16 +48,6 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 	}
 }
 
-// TODO: change crosscall_ppc64 and crosscall_s390x so that it matches crosscall1
-// signature and behavior.
-#if defined(__powerpc64__)
-extern void crosscall_ppc64(void (*fn)(void), void *g);
-#elif defined(__s390x__)
-extern void crosscall_s390x(void (*fn)(void), void *g);
-#else
-extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
-#endif
-
 void*
 threadentry(void *v)
 {
@@ -72,16 +62,6 @@ threadentry(void *v)
 		x_cgo_threadentry_platform();
 	}
 
-#if defined(__powerpc64__)
-	// Save g for this thread in C TLS
-	setg_gcc((void*)ts.g);
-	crosscall_ppc64(ts.fn, (void*)ts.g);
-#elif defined(__s390x__)
-	// Save g for this thread in C TLS
-	setg_gcc((void*)ts.g);
-	crosscall_s390x(ts.fn, (void*)ts.g);
-#else
 	crosscall1(ts.fn, setg_gcc, ts.g);
-#endif
 	return NULL;
 }

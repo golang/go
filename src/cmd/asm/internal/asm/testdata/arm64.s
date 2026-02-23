@@ -698,6 +698,12 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FMOVD	F4, (R2)(R6)                    // 446826fc
 	FMOVD	F4, (R2)(R6<<3)                 // 447826fc
 
+// global address
+	FMOVQ	F5, x+8(SB)
+	FMOVQ	F5, x(SB)
+	FMOVQ	x+8(SB), F5
+	FMOVQ	x(SB), F5
+
 // vmov
 	VMOV	V8.S[1], R1           // 013d0c0e
 	VMOV	V0.D[0], R11          // 0b3c084e

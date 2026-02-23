@@ -5,23 +5,24 @@
 .file "gcc_aix_ppc64.S"
 
 /*
- * void crosscall_ppc64(void (*fn)(void), void *g)
+ * void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g)
  *
  * Calling into the gc tool chain, where all registers are caller save.
  * Called from standard ppc64 C ABI, where r2, r14-r31, f14-f31 are
  * callee-save, so they must be saved explicitly.
  * AIX has a special assembly syntax and keywords that can be mixed with
  * Linux assembly.
+ * ABI: r3=fn, r4=setg_gcc, r5=g
  */
   .toc
   .csect .text[PR]
-  .globl crosscall_ppc64
-  .globl .crosscall_ppc64
-  .csect crosscall_ppc64[DS]
-crosscall_ppc64:
-  .llong .crosscall_ppc64, TOC[tc0], 0
+  .globl crosscall1
+  .globl .crosscall1
+  .csect crosscall1[DS]
+crosscall1:
+  .llong .crosscall1, TOC[tc0], 0
   .csect .text[PR]
-.crosscall_ppc64:
+.crosscall1:
 	// Start with standard C stack frame layout and linkage
 	mflr	0
 	std	0, 16(1)	// Save LR in caller's frame
@@ -33,11 +34,19 @@ crosscall_ppc64:
 	// Must match _cgo_reginit in runtime package.
 	xor 0, 0, 0
 
+	// Save fn in r14 (callee-save) so we can reuse r3 for setg_gcc call
+	mr	14, 3
 	// Restore g pointer (r30 in Go ABI, which may have been clobbered by C)
-	mr	30, 4
+	mr	30, 5
+
+	// Call setg_gcc(g)
+	mr	3, 5      // arg g
+	mr	12, 4     // setg_gcc
+	mtctr	12
+	bctrl
 
 	// Call fn
-	mr	12, 3
+	mr	12, 14
 	mtctr	12
 	bctrl
 

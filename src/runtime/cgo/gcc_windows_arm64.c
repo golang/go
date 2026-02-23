@@ -26,7 +26,6 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	_cgo_beginthread(threadentry, ts);
 }
 
-extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
 
 static unsigned long
 __stdcall

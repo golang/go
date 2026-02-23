@@ -635,6 +635,10 @@ func CanSSA(t *types.Type) bool {
 		}
 		return false
 	case types.TSTRUCT:
+		if types.IsDirectIface(t) {
+			// Note: even if t.NumFields()>MaxStruct! See issue 77534.
+			return true
+		}
 		if t.NumFields() > MaxStruct {
 			return false
 		}

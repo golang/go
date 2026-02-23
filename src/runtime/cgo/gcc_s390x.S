@@ -5,14 +5,15 @@
 .file "gcc_s390x.S"
 
 /*
- * void crosscall_s390x(void (*fn)(void), void *g)
+ * void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g)
  *
  * Calling into the go tool chain, where all registers are caller save.
  * Called from standard s390x C ABI, where r6-r13, r15, and f8-f15 are
  * callee-save, so they must be saved explicitly.
+ * ABI: r2=fn, r3=setg_gcc, r4=g.
  */
-.globl crosscall_s390x
-crosscall_s390x:
+.globl crosscall1
+crosscall1:
 	/* save r6-r15 in the register save area of the calling function */
 	stmg    %r6, %r15, 48(%r15)
 
@@ -29,10 +30,18 @@ crosscall_s390x:
 	std     %f14, 48(%r15)
 	std     %f15, 56(%r15)
 
+	/* save fn pointer in r6 (already saved to stack) */
+	lgr     %r6, %r2
 	/* restore g pointer */
-	lgr     %r13, %r3
+	lgr     %r13, %r4
+
+	/* prepare arg for setg_gcc: first argument in r2 */
+	lgr     %r2, %r4      /* r2 = g */
+	/* call setg_gcc(g) using function pointer in r3 */
+	basr    %r14, %r3
 
 	/* call fn */
+	lgr     %r2, %r6
 	basr    %r14, %r2
 
 	/* restore floating point registers */
