@@ -223,20 +223,11 @@ type raceliteRec struct {
 	//	00: write-write (default)
 	//	11: read-read (impossible)
 	ops uint8
-
-	count uint64 // the number of times the data race has been reported
 }
 
 var (
 	// raceliteReg is the globalarray of virtual registers.
 	raceliteReg *[raceliteRegNum]raceliteVirtualRegister
-
-	// raceliteRecs is a global structure that contains the array of data race records
-	// and a mutex to protect access to the array.
-	raceliteRecs *[raceliteRecordNum]struct {
-		rwmutex
-		rec raceliteRec
-	}
 )
 
 func raceliteinit() {
@@ -253,15 +244,6 @@ func raceliteinit() {
 		// This is used for debugging and experimentation.
 		raceliteReg[i].identifier = uint32(i)
 		raceliteReg[i].init(lockRankRaceliteR, lockRankRaceliteRInternal, lockRankRaceliteW)
-	}
-
-	// Initialize the data race record structure.
-	raceliteRecs = new([raceliteRecordNum]struct {
-		rwmutex
-		rec raceliteRec
-	})
-	for i := 0; i < raceliteRecordNum; i++ {
-		(&raceliteRecs[i]).init(lockRankRaceliteR, lockRankRaceliteRInternal, lockRankRaceliteW)
 	}
 }
 
@@ -311,6 +293,8 @@ func (rec raceliteRec) report() {
 	} else {
 		op2 = "Write"
 	}
+
+	stw := stopTheWorld(stwRacelite)
 	// Print the latest operation first (like TSan).
 	print("==================\n",
 		"WARNING: DATA RACE\n",
@@ -320,20 +304,7 @@ func (rec raceliteRec) report() {
 	print("\n",
 		"Previous ", op1, " at ", hex(rec.addr), " by goroutine ", rec.goid1, "\n")
 	rec.reportPC(rec.pcs1, rec.n1)
-	print("\n", "Race discovered ", rec.count, " times.\n",
-		"==================\n")
-}
-
-func raceliteReportAll() {
-	if debug.racelite <= 0 {
-		// No-op if racelite is not enabled.
-		return
-	}
-
-	stw := stopTheWorld(stwRacelite)
-	for i := 0; i < raceliteRecordNum; i++ {
-		raceliteRecs[i].rec.report()
-	}
+	print("==================\n")
 	startTheWorld(stw)
 }
 
@@ -341,40 +312,6 @@ func raceliteReportAll() {
 func raceliteget(addr uintptr) *raceliteVirtualRegister {
 	// Compile-time optimized to bitwise AND.
 	return &raceliteReg[(addr>>3)%raceliteRegNum]
-}
-
-// record checks whether a data race can be recorded in
-// the global data race record data structure.
-func record(rec raceliteRec) {
-	// Compute fingerprint from leaf PCs on both stacks.
-	slot := raceliteFib(((rec.pcs1[0] + rec.pcs2[0]) ^ (rec.pcs1[0] * rec.pcs2[0])), raceliteRecordShift)
-
-	(&raceliteRecs[slot]).lock()
-	switch rec2 := raceliteRecs[slot].rec; {
-	case rec2.addr == 0:
-		// We have discovered a new data race. Store it.
-		raceliteRecs[slot].rec = rec
-	case rec2.pcs1[0] == rec.pcs1[0] && rec2.pcs2[0] == rec.pcs2[0]:
-		// We have discovered a duplicate data race. Increment the count.
-		if raceliteRecs[slot].rec.count >= raceliteReportThreshold {
-			// We have reported this data race enough. We can disarm
-			// instrumentation for the PCs (and clear the data race record).
-			raceliteDisarm(rec.pcs1[0])
-			raceliteDisarm(rec.pcs2[0])
-
-			rec2.report()
-			raceliteRecs[slot].rec = raceliteRec{}
-		} else {
-			raceliteRecs[slot].rec.count++
-		}
-	default:
-		// We have encountered a hash collision.
-		// Report it without overriding the existing record.
-		if false && diag() {
-			println("Hash collision detected for data race at", rec.addr)
-		}
-	}
-	(&raceliteRecs[slot]).unlock()
 }
 
 // claim allows the writer goroutine as the owner of the virtual register.
@@ -415,7 +352,8 @@ func (r *raceliteVirtualRegister) claim(addr uintptr) bool {
 		// Copy its PC stack.
 		copy(rec.pcs1[:], r.pcs[:])
 
-		// We can now release the lock on the virtual register.
+		// We obtained all the information we need about the claiming writer
+		// goroutine and can now release the lock on the virtual register.
 		r.unlock()
 
 		// Record the remaining information
@@ -423,10 +361,11 @@ func (r *raceliteVirtualRegister) claim(addr uintptr) bool {
 		// Get the PCs and stack depth of the current goroutine.
 		rec.n2 = callers(2, rec.pcs2[:racelitePCDepth])
 
-		rec.goid2 = getg().goid
-		rec.count = 1
+		// Disarm the instrumentation for this writer.
+		raceliteDisarm(rec.pcs2[0])
 
-		record(rec)
+		rec.goid2 = getg().goid
+		rec.report()
 		return false
 
 	default:
@@ -475,7 +414,8 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 		return true
 	}
 
-	// We can now release the lock on the virtual register.
+	// We obtained all the information we need about the writer goroutine,
+	// and can now release the lock on the virtual register.
 	r.runlock()
 
 	if op&raceliteOp1Read != 0 {
@@ -483,11 +423,17 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 		// Place the reader as the first goroutine.
 		rec.n1 = callers(2, rec.pcs1[:])
 		rec.goid1 = getg().goid // Get goroutine ID of reader goroutine.
+
+		// Disarm reader instrumentation
+		raceliteDisarm(rec.pcs1[0])
 	} else if op&raceliteOp2Read != 0 {
 		// The writer occurred first, so we have a write-read race.
 		// Place the reader as the second goroutine.
 		rec.n2 = callers(2, rec.pcs2[:])
 		rec.goid2 = getg().goid // Get goroutine ID of writer goroutine.
+
+		// Disarm reader instrumentation
+		raceliteDisarm(rec.pcs2[0])
 	} else {
 		// Something strange happened. Tolerate, but drop the report.
 		return true
@@ -495,11 +441,9 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 
 	// Record the remaining information
 	rec.addr = addr
-
 	rec.ops = op // write-read or read-write race
-	rec.count = 1
 
-	record(rec)
+	rec.report()
 
 	return true
 }
@@ -524,14 +468,13 @@ func (r *raceliteVirtualRegister) release() {
 //	pause
 //	release V
 func racelitewrite(addr uintptr) {
-	if raceliteDisarmed(sys.GetCallerPC()) {
-		// We detected enough data races at this PC,
-		// so we can stop sampling.
+	if !raceliteCheckAddr(addr) {
+		// We are not sampling this address.
 		return
 	}
 
-	if !raceliteCheckAddr(addr) {
-		// We are not sampling this address.
+	if raceliteDisarmed(sys.GetCallerPC()) {
+		// We already detected a data race at this PC.
 		return
 	}
 
@@ -562,12 +505,13 @@ func racelitewrite(addr uintptr) {
 //	if V is claimed for A:
 //		Report read-write race and exit
 func raceliteread(addr uintptr) {
-	if raceliteDisarmed(sys.GetCallerPC()) {
+	if !raceliteCheckAddr(addr) {
+		// We are not sampling this address.
 		return
 	}
 
-	if !raceliteCheckAddr(addr) {
-		// We are not sampling this address.
+	if raceliteDisarmed(sys.GetCallerPC()) {
+		// We already detected a data race at this PC.
 		return
 	}
 
