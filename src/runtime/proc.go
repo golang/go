@@ -6514,9 +6514,9 @@ func sysmon() {
 		}
 		usleep(delay)
 
-		// Racelite refresh random address sampler every 1 second.
+		// Racelite refresh random address sampler every 0.1ms.
 		if debug.racelite > 0 {
-			if now := nanotime(); now-raceliteLastRefresh > 1_000_000_000 {
+			if now := nanotime(); now-raceliteLastRefresh > 100_000 {
 				raceliteLastRefresh = now
 				raceliteSamplingRand = cheaprand()
 			}

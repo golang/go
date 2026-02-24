@@ -12,11 +12,11 @@ import (
 )
 
 const (
-	// raceliteVRShift is log2(raceliteRegNum).
+	// raceliteVRShift is log2(raceliteVRNum).
 	raceliteVRShift uint8 = 4
-	// raceliteRegNum is the number of virtual registers we have.
+	// raceliteVRNum is the number of virtual registers we have.
 	// Keep as power of 2 for efficient modulo operation.
-	raceliteRegNum = 1 << raceliteVRShift
+	raceliteVRNum = 1 << raceliteVRShift
 
 	// raceliteRecordShift is log2(raceliteRecordNum).
 	raceliteRecordShift uint8 = 8
@@ -26,10 +26,6 @@ const (
 	// racelitePCDepth is the number of program counters to store
 	// in data race record stacks.
 	racelitePCDepth = 16
-
-	// raceliteSamplerMask selects the suffixes of addresses.
-	// The suffix decides which address is monitored with Racelite.
-	raceliteSamplerMask = (1 << (4 * raceliteVRShift)) - 1
 
 	// These values denote the type of the accesses involved
 	// in a race as follows (assume BE):
@@ -63,7 +59,7 @@ var (
 	raceliteSamplingRand uint32 = 0
 
 	// raceliteReg is the globalarray of virtual registers.
-	raceliteReg *[raceliteRegNum]raceliteVirtualRegister
+	raceliteReg *[raceliteVRNum]raceliteVirtualRegister
 
 	// raceliteDisarmedPCs is the array that monitors disarmed PCs.
 	// Each PC is represented by a bit in the array.
@@ -73,6 +69,15 @@ var (
 	// raceliteRecords is the array that records data races.
 	// This prevents duplicate data races from being reported.
 	raceliteRecords *[raceliteRecordNum]bool
+
+	// racliteSamplingShift is log2(raceliteSamplingMask+1)
+	//
+	// Initialized in raceliteinit based on the value of debug.racelite.
+	raceliteSamplingShift uint8
+	// raceliteSamplingMask is used when determining whether to sample an address.
+	//
+	// Initialized in raceliteinit based on the value of debug.racelite.
+	raceliteSamplingMask uint32
 )
 
 // diag reports true is we should print extra info.
@@ -90,9 +95,9 @@ func raceliteinit() {
 	// Initialize the random address sampler.
 	raceliteSamplingRand = cheaprand()
 
-	raceliteReg = new([raceliteRegNum]raceliteVirtualRegister)
+	raceliteReg = new([raceliteVRNum]raceliteVirtualRegister)
 	// Initialize all virtual registers.
-	for i := 0; i < raceliteRegNum; i++ {
+	for i := 0; i < raceliteVRNum; i++ {
 		// Assign an identifier to the virtual register.
 		// This is used for debugging and experimentation.
 		raceliteReg[i].identifier = uint32(i)
@@ -100,12 +105,25 @@ func raceliteinit() {
 
 	raceliteDisarmedPCs = new([raceliteDisarmedPCsSize]bool)
 	raceliteRecords = new([raceliteRecordNum]bool)
+
+	switch debug.racelite {
+	case 1:
+		// Standard Racelite
+		// Sample one address (8-byte aligned) in every 4096.
+		raceliteSamplingShift = 11
+	case 2:
+		// Debug Racelite
+		// Sample one address (8-byte aligned) in every 2.
+		raceliteSamplingShift = 1
+	}
+
+	raceliteSamplingMask = (1 << raceliteSamplingShift) - 1
 }
 
 // raceliteget returns the virtual register for the given address.
 func raceliteget(addr uintptr) *raceliteVirtualRegister {
 	// Compile-time optimized to bitwise AND.
-	return &raceliteReg[(addr>>3)%raceliteRegNum]
+	return &raceliteReg[(addr>>3)%raceliteVRNum]
 }
 
 // inStack checks if addr is in the current goroutine's stack.
@@ -146,8 +164,10 @@ func raceliteDisarmed(v uintptr) bool {
 
 // raceliteSampling checks if we should sample the given address for data race detection.
 func raceliteSampling(addr uintptr) bool {
-	// Check that we are sampling this address.
-	if uint32(addr>>(3+raceliteVRShift))&raceliteSamplerMask != raceliteSamplingRand {
+	// Check that we are sampling this address, stripped of
+	// a (3+raceliteVRShift)-bit suffix for 8-byte alignment
+	// and because we have enough virutal registers.
+	if (uint32(addr>>(3+raceliteVRShift))^raceliteSamplingRand)&raceliteSamplingMask != 0 {
 		return false
 	}
 
@@ -371,7 +391,8 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 	// about the writer goroutine.
 	var rec raceliteRec
 
-	if op&raceliteOp1Read != 0 {
+	switch {
+	case op&raceliteOp1Read != 0:
 		// The writer occurred second, so we have a read-write race
 		// Place the writer as the second goroutine.
 		rec = raceliteRec{
@@ -379,7 +400,7 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 			goid2: r.goid, // Get goroutine ID of writer goroutine.
 		}
 		copy(rec.pcs2[:], r.pcs[:r.n]) // Copy the stack.
-	} else if op^raceliteOp2Read != 0 {
+	case op^raceliteOp2Read != 0:
 		// The writer occurred first, so we have a write-read race
 		// Place the writer as the first goroutine.
 		rec = raceliteRec{
@@ -387,7 +408,7 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 			goid1: r.goid, // Get goroutine ID of writer goroutine.
 		}
 		copy(rec.pcs1[:], r.pcs[:r.n]) // Copy the stack.
-	} else {
+	default:
 		// Something strange happened. Tolerate, but drop the report.
 		r.runlock()
 		return true
@@ -397,7 +418,8 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 	// and can now release the lock on the virtual register.
 	r.runlock()
 
-	if op&raceliteOp1Read != 0 {
+	switch {
+	case op&raceliteOp1Read != 0:
 		// The writer occurred second, so we have a read-write race.
 		// Place the reader as the first goroutine.
 		rec.n1 = callers(2, rec.pcs1[:])
@@ -405,7 +427,7 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 
 		// Disarm reader instrumentation
 		raceliteDisarm(rec.pcs1[0])
-	} else if op&raceliteOp2Read != 0 {
+	case op&raceliteOp2Read != 0:
 		// The writer occurred first, so we have a write-read race.
 		// Place the reader as the second goroutine.
 		rec.n2 = callers(2, rec.pcs2[:])
@@ -413,7 +435,7 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 
 		// Disarm reader instrumentation
 		raceliteDisarm(rec.pcs2[0])
-	} else {
+	default:
 		// Something strange happened. Tolerate, but drop the report.
 		return true
 	}
