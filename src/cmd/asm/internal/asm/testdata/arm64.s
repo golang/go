@@ -287,6 +287,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	HINT $0                                 // 1f2003d5
 	DMB	$1
 	SVC
+	SB                                      // ff3003d5
 
 // encryption
 	SHA256H	V9.S4, V3, V2                   // 6240095e

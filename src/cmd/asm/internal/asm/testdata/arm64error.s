@@ -428,4 +428,5 @@ TEXT errors(SB),$0
 	AUTIBSP	C                                                // ERROR "illegal combination"
 	AUTIA1716	$45                                      // ERROR "illegal combination"
 	AUTIB1716	R0                                       // ERROR "illegal combination"
+	SB	$1                                               // ERROR "illegal combination"
 	RET
