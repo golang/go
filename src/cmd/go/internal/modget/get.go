@@ -402,13 +402,13 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
+	if *getTool {
+		updateTools(moduleLoaderState, ctx, r, queries, &opts)
+	}
+
 	// If a workspace applies, checkPackageProblems will switch to the workspace
 	// using modload.EnterWorkspace when doing the final load, and then switch back.
 	r.checkPackageProblems(moduleLoaderState, ctx, pkgPatterns)
-
-	if *getTool {
-		updateTools(moduleLoaderState, ctx, queries, &opts)
-	}
 
 	// Everything succeeded. Update go.mod.
 	oldReqs := reqsFromGoMod(modload.ModFile(moduleLoaderState))
@@ -433,7 +433,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	}
 }
 
-func updateTools(loaderstate *modload.State, ctx context.Context, queries []*query, opts *modload.WriteOpts) {
+func updateTools(loaderstate *modload.State, ctx context.Context, r *resolver, queries []*query, opts *modload.WriteOpts) {
 	pkgOpts := modload.PackageOpts{
 		VendorModulesInGOROOTSrc: true,
 		LoadTests:                *getT,
@@ -456,6 +456,16 @@ func updateTools(loaderstate *modload.State, ctx context.Context, queries []*que
 		} else {
 			opts.AddTools = append(opts.AddTools, m.Pkgs...)
 		}
+	}
+
+	mg, err := modload.LoadModGraph(loaderstate, ctx, "")
+	if err != nil {
+		toolchain.SwitchOrFatal(loaderstate, ctx, err)
+	}
+	r.buildList = mg.BuildList()
+	r.buildListVersion = make(map[string]string, len(r.buildList))
+	for _, m := range r.buildList {
+		r.buildListVersion[m.Path] = m.Version
 	}
 }
 
