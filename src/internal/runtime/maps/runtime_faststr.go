@@ -54,7 +54,11 @@ func (m *Map) getWithoutKeySmallFastStr(typ *abi.MapType, key string) unsafe.Poi
 
 dohash:
 	// This path will cost 1 hash and 1+ε comparisons.
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
+
+	// See the related comment in runtime_mapaccess2_fast32
+	// for why we pass local copy of key.
+	k := key
+	hash := strhash(unsafe.Pointer(&k), m.seed)
 	h2 := uint8(h2(hash))
 	ctrls = *g.ctrls()
 	slotKey = g.key(typ, 0)
@@ -128,8 +132,10 @@ func runtime_mapaccess2_faststr(typ *abi.MapType, m *Map, key string) (unsafe.Po
 		return elem, true
 	}
 
+	// See the related comment in runtime_mapaccess2_fast32
+	// for why we pass local copy of key.
 	k := key
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+	hash := strhash(unsafe.Pointer(&k), m.seed)
 
 	// Select table.
 	idx := m.directoryIndex(hash)
@@ -219,8 +225,10 @@ func runtime_mapassign_faststr(typ *abi.MapType, m *Map, key string) unsafe.Poin
 		fatal("concurrent map writes")
 	}
 
+	// See the related comment in runtime_mapaccess2_fast32
+	// for why we pass local copy of key.
 	k := key
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+	hash := strhash(unsafe.Pointer(&k), m.seed)
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.
