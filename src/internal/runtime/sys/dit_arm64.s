@@ -11,9 +11,17 @@ TEXT ·EnableDIT(SB),$0-1
     MOVB R1, ret+0(FP)
     TBNZ $0, R1, ret
     MSR $1, DIT
+#ifdef GOOS_darwin
+    // Arm documents that barriers are not necessary when writing to, or reading
+    // from, PSTATE fields. However, Apple documentation indicates that barriers
+    // should be used, in particular when setting the PSTATE.DIT field. Barriers
+    // aren't cheap, so only use them on Apple silicon for now.
+    //
+    // See go.dev/issue/77776.
     MOVBU internal∕cpu·ARM64+const_offsetARM64HasSB(SB), R2
     TBZ $0, R2, sbFallback
     SB
+#endif
 ret:
     RET
 sbFallback:
