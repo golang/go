@@ -5359,7 +5359,7 @@ func (x Uint32x4) SHA1NextE(y Uint32x4) Uint32x4
 
 /* SHA256Message1 */
 
-// SHA256Message1 does the sigma and addtion of 1 in SHA256 algorithm defined in FIPS 180-4.
+// SHA256Message1 does the sigma and addition of 1 in SHA256 algorithm defined in FIPS 180-4.
 // x = {W0, W1, W2, W3}
 // y = {W4, 0, 0, 0}
 // result = {W0+σ(W1), W1+σ(W2), W2+σ(W3), W3+σ(W4)}
