@@ -774,6 +774,9 @@ var depsRules = `
 	CRYPTO-MATH, testing, internal/testenv, internal/testhash, encoding/json, regexp
 	< crypto/internal/cryptotest;
 
+	crypto/internal/cryptotest, encoding/hex
+	< crypto/internal/cryptotest/wycheproof;
+
 	CGO, FMT
 	< crypto/internal/sysrand/internal/seccomp;
 
