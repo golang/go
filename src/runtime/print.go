@@ -217,7 +217,7 @@ func printquoted(s string) {
 			continue
 		case runeError:
 			// Distinguish errors from a valid encoding of U+FFFD.
-			if _, j := decoderune(s, i); j == i+1 {
+			if _, j := decoderune(s, uint(i)); j == uint(i+1) {
 				gwrite(bytes(`\x`))
 				printhexopts(false, 2, uint64(s[i]))
 				continue
