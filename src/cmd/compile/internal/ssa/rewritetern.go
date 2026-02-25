@@ -174,9 +174,6 @@ func rewriteTern(f *Func) {
 	replace := func(a0 *Value, vars0 [3]*Value) {
 		imm := computeTT(a0, vars0)
 		op := ternOpForLogical(a0.Op)
-		if a0.Op >= OpAMD64LoweredGetClosurePtr {
-			return // It is already an AMD64 machine instruction
-		}
 		if op == a0.Op {
 			panic(fmt.Errorf("should have mapped away from input op, a0 is %s", a0.LongString()))
 		}
