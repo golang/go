@@ -197,9 +197,9 @@ TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
 TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 	RET
 
-// Any changes must be reflected to runtime/cgo/gcc_aix_ppc64.S:.crosscall_ppc64
+// Any changes must be reflected to runtime/cgo/gcc_aix_ppc64.S:.crosscall1
 TEXT _cgo_reginit(SB),NOSPLIT|NOFRAME,$0-0
-	// crosscall_ppc64 and crosscall2 need to reginit, but can't
+	// crosscall1 and crosscall2 need to reginit, but can't
 	// get at the 'runtime.reginit' symbol.
 	BR	runtime·reginit(SB)
 

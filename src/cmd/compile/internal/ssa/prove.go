@@ -3063,7 +3063,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 
 func removeBranch(b *Block, branch branch) {
 	c := b.Controls[0]
-	if b.Func.pass.debug > 0 {
+	if c != nil && b.Func.pass.debug > 0 {
 		verb := "Proved"
 		if branch == positive {
 			verb = "Disproved"

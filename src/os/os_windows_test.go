@@ -1617,7 +1617,7 @@ func TestStdinOverlappedPipe(t *testing.T) {
 	name := pipeName()
 
 	// Create the read handle inherited by the child process.
-	r := newPipe(t, name, false, true)
+	r := newPipe(t, name, 4096, false, true)
 	defer r.Close()
 
 	// Create a write handle.
@@ -1674,18 +1674,18 @@ var currentProcess = sync.OnceValue(func() string {
 var pipeCounter atomic.Uint64
 
 func newBytePipe(t testing.TB, name string, overlapped bool) *os.File {
-	return newPipe(t, name, false, overlapped)
+	return newPipe(t, name, 4096, false, overlapped)
 }
 
 func newMessagePipe(t testing.TB, name string, overlapped bool) *os.File {
-	return newPipe(t, name, true, overlapped)
+	return newPipe(t, name, 4096, true, overlapped)
 }
 
 func pipeName() string {
 	return `\\.\pipe\go-os-test-` + currentProcess() + `-` + strconv.FormatUint(pipeCounter.Add(1), 10)
 }
 
-func newPipe(t testing.TB, name string, message, overlapped bool) *os.File {
+func newPipe(t testing.TB, name string, bufSize uint32, message, overlapped bool) *os.File {
 	wname, err := syscall.UTF16PtrFromString(name)
 	if err != nil {
 		t.Fatal(err)
@@ -1699,7 +1699,7 @@ func newPipe(t testing.TB, name string, message, overlapped bool) *os.File {
 	if message {
 		typ = windows.PIPE_TYPE_MESSAGE | windows.PIPE_READMODE_MESSAGE
 	}
-	h, err := windows.CreateNamedPipe(wname, uint32(flags), uint32(typ), 1, 4096, 4096, 0, nil)
+	h, err := windows.CreateNamedPipe(wname, uint32(flags), uint32(typ), 1, bufSize, bufSize, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2169,6 +2169,58 @@ func TestFileWriteFdRace(t *testing.T) {
 
 	if _, err := f.Write([]byte("hi")); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestFileFdWithConcurrentIO(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	pipe := newPipe(t, name, 0, true, true) // unbuffered pipe so Write blocks
+	file := newFileOverlapped(t, name, true)
+	const writeSize = 2
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		// Ensure the Write is pending.
+		var tmp [writeSize / 2]byte
+		if _, err := file.Read(tmp[:]); err != nil {
+			t.Error(err)
+		}
+		// Try to dissaciate the file from any IOCP.
+		pipe.Fd()
+		// Complete the Write.
+		if _, err := file.Read(tmp[:]); err != nil {
+			t.Error(err)
+		}
+	})
+	// Write will block until the goroutine reads all 2 bytes.
+	var tmp [writeSize]byte
+	n, err := pipe.Write(tmp[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != writeSize {
+		t.Fatalf("expected to write %d bytes, got %d", writeSize, n)
+	}
+	wg.Wait()
+
+	// Verify that the pipe is still associated with the Go runtime IOCP
+	// by trying to associate it with a new IOCP, which should fail.
+	iocp, err := windows.CreateIoCompletionPort(syscall.InvalidHandle, 0, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.CloseHandle(iocp)
+	sc, err := pipe.SyscallConn()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sc.Control(func(fd uintptr) {
+		_, err = windows.CreateIoCompletionPort(syscall.Handle(fd), iocp, 0, 0)
+		if err == nil {
+			t.Fatal("pipe should still be associated with the Go runtime IOCP")
+		}
+	}); err != nil {
+		t.Fatal(err)
 	}
 }
 

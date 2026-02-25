@@ -11,7 +11,6 @@ import (
 	"io"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"unicode/utf16"
 	"unicode/utf8"
@@ -270,7 +269,7 @@ func (fd *FD) execIO(mode int, submit func(o *operation) (uint32, error), buf []
 				}
 			}()
 		}
-		if !fd.pollable() {
+		if !fd.associated {
 			// If the handle is opened for overlapped IO but we can't
 			// use the runtime poller, then we need to use an
 			// event to wait for the IO to complete.
@@ -371,7 +370,8 @@ type FD struct {
 	// Whether FILE_FLAG_OVERLAPPED was not set when opening the file.
 	isBlocking bool
 
-	disassociated atomic.Bool
+	// Whether the handle is currently associated with the IOCP.
+	associated bool
 
 	// readPinner and writePinner are automatically unpinned
 	// before execIO returns.
@@ -399,12 +399,6 @@ func (fd *FD) setOffset(off int64) {
 // addOffset adds the given offset to the current offset.
 func (fd *FD) addOffset(off int) {
 	fd.offset += int64(off)
-}
-
-// pollable should be used instead of fd.pd.pollable(),
-// as it is aware of the disassociated state.
-func (fd *FD) pollable() bool {
-	return fd.pd.pollable() && !fd.disassociated.Load()
 }
 
 // fileKind describes the kind of file.
@@ -459,6 +453,7 @@ func (fd *FD) Init(net string, pollable bool) error {
 	if err != nil {
 		return err
 	}
+	fd.associated = true
 
 	// FILE_SKIP_SET_EVENT_ON_HANDLE is always safe to use. We don't use that feature
 	// and it adds some overhead to the Windows I/O manager.
@@ -477,14 +472,21 @@ func (fd *FD) Init(net string, pollable bool) error {
 
 // DisassociateIOCP disassociates the file handle from the IOCP.
 // The disassociate operation will not succeed if there is any
-// in-progress IO operation on the file handle.
+// in-progress I/O operation on the file handle.
 func (fd *FD) DisassociateIOCP() error {
-	if err := fd.incref(); err != nil {
+	// There is a small race window between execIO checking fd.disassociated and
+	// DisassociateIOCP setting it. NtSetInformationFile will fail anyway if
+	// there is any in-progress I/O operation, so just take a read-write lock
+	// to ensure there is no in-progress I/O and fail early if we can't get the lock.
+	if ok, err := fd.tryReadWriteLock(); err != nil || !ok {
+		if err == nil {
+			err = errors.New("can't disassociate the handle while there is in-progress I/O")
+		}
 		return err
 	}
-	defer fd.decref()
+	defer fd.readWriteUnlock()
 
-	if fd.isBlocking || !fd.pollable() {
+	if !fd.associated {
 		// Nothing to disassociate.
 		return nil
 	}
@@ -493,7 +495,8 @@ func (fd *FD) DisassociateIOCP() error {
 	if err := windows.NtSetInformationFile(fd.Sysfd, &windows.IO_STATUS_BLOCK{}, unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)), windows.FileReplaceCompletionInformation); err != nil {
 		return err
 	}
-	fd.disassociated.Store(true)
+	// tryReadWriteLock means we have exclusive access to fd.
+	fd.associated = false
 	// Don't call fd.pd.close(), it would be too racy.
 	// There is no harm on leaving fd.pd open until Close is called.
 	return nil

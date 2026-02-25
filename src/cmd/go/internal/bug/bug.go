@@ -76,11 +76,11 @@ A link on go.dev/play is best.
 
 
 
+### What did you see happen?
+
+
+
 ### What did you expect to see?
-
-
-
-### What did you see instead?
 
 `
 

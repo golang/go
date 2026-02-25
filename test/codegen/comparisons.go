@@ -462,7 +462,7 @@ func CmpToZero_ex5(e, f int32, u uint32) int {
 
 func UintLtZero(a uint8, b uint16, c uint32, d uint64) int {
 	// amd64: -`(TESTB|TESTW|TESTL|TESTQ|JCC|JCS)`
-	// arm64: -`(CMPW|CMP|BHS|BLO)`
+	// arm64: -`(CMPW|CMP|CCMP|CCMPW|BHS|BLO)`
 	if a < 0 || b < 0 || c < 0 || d < 0 {
 		return 1
 	}
@@ -471,7 +471,7 @@ func UintLtZero(a uint8, b uint16, c uint32, d uint64) int {
 
 func UintGeqZero(a uint8, b uint16, c uint32, d uint64) int {
 	// amd64: -`(TESTB|TESTW|TESTL|TESTQ|JCS|JCC)`
-	// arm64: -`(CMPW|CMP|BLO|BHS)`
+	// arm64: -`(CMPW|CMP|CCMP|CCMPW|BLO|BHS)`
 	if a >= 0 || b >= 0 || c >= 0 || d >= 0 {
 		return 1
 	}
@@ -479,7 +479,7 @@ func UintGeqZero(a uint8, b uint16, c uint32, d uint64) int {
 }
 
 func UintGtZero(a uint8, b uint16, c uint32, d uint64) int {
-	// arm64: `(CBN?ZW)`, `(CBN?Z[^W])`, -`(CMPW|CMP|BLS|BHI)`
+	// arm64: `(CMPW|CMP|CCMP|CCMPW|BNE|BEQ)`
 	if a > 0 || b > 0 || c > 0 || d > 0 {
 		return 1
 	}
@@ -487,7 +487,7 @@ func UintGtZero(a uint8, b uint16, c uint32, d uint64) int {
 }
 
 func UintLeqZero(a uint8, b uint16, c uint32, d uint64) int {
-	// arm64: `(CBN?ZW)`, `(CBN?Z[^W])`, -`(CMPW|CMP|BHI|BLS)`
+	// arm64: `(CMPW|CMP|CCMP|CCMPW|BNE|BEQ)`
 	if a <= 0 || b <= 0 || c <= 0 || d <= 0 {
 		return 1
 	}
@@ -495,7 +495,7 @@ func UintLeqZero(a uint8, b uint16, c uint32, d uint64) int {
 }
 
 func UintLtOne(a uint8, b uint16, c uint32, d uint64) int {
-	// arm64: `(CBN?ZW)`, `(CBN?Z[^W])`, -`(CMPW|CMP|BHS|BLO)`
+	// arm64: `(CMPW|CMP|CCMP|CCMPW|BNE|BEQ)`
 	if a < 1 || b < 1 || c < 1 || d < 1 {
 		return 1
 	}
@@ -503,8 +503,40 @@ func UintLtOne(a uint8, b uint16, c uint32, d uint64) int {
 }
 
 func UintGeqOne(a uint8, b uint16, c uint32, d uint64) int {
-	// arm64: `(CBN?ZW)`, `(CBN?Z[^W])`, -`(CMPW|CMP|BLO|BHS)`
+	// arm64: `(CMPW|CMP|CCMP|CCMPW|BNE|BEQ)`
 	if a >= 1 || b >= 1 || c >= 1 || d >= 1 {
+		return 1
+	}
+	return 0
+}
+
+func ConditionalCompareUint8(a, b uint8) int {
+	// arm64:"CCMPW EQ, R[0-9]+, [$]1, [$]0"
+	if a == 1 && b == 1 {
+		return 1
+	}
+	return 0
+}
+
+func ConditionalCompareInt16(a, b int16) int {
+	// arm64:"CCMPW LE, R[0-9]+, R[0-9]+, [$]4"
+	if a > 3 || a == b {
+		return 1
+	}
+	return 0
+}
+
+func ConditionalCompareUint32(a, b uint32) int {
+	// arm64:"CCMPW LO, R[0-9]+, [$]28, [$]2"
+	if a > b && a < 28 {
+		return 1
+	}
+	return 0
+}
+
+func ConditionalCompareInt64(a, b int64) int {
+	// arm64:"CCMP GT, R[0-9]+, R[0-9]+, [$]0"
+	if a <= 16 || a != b {
 		return 1
 	}
 	return 0

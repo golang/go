@@ -762,5 +762,6 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	VMOV V0.B[1], R11                                           // 0b3c030e
 	VMOV V1.H[3], R12                                           // 2c3c0e0e
 	VUSHR $6, V22.H8, V23.H8                                    // d7061a6f
+	SB                                                          // ff3003d5
 
 	RET

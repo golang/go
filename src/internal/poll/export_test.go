@@ -27,7 +27,7 @@ func (mu *XFDMutex) Decref() bool {
 }
 
 func (mu *XFDMutex) RWLock(read bool) bool {
-	return mu.rwlock(read)
+	return mu.rwlock(read, waitLock)
 }
 
 func (mu *XFDMutex) RWUnlock(read bool) bool {

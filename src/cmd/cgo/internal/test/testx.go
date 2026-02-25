@@ -26,6 +26,7 @@ import (
 // threads
 extern void doAdd(int, int);
 extern int callGoInCThread(int);
+extern void callbackInInitC(void);
 
 // issue 1328
 void IntoC(void);
@@ -621,4 +622,29 @@ func ditCallback() uint8 {
 		return 1
 	}
 	return 0
+}
+
+// Test C calling back into Go before init is done.
+// In particular, this does not trigger false race
+// (the fix is in CL 746581).
+
+var callbackInInitVar int
+
+func init() {
+	C.callbackInInitC()
+	callbackInInitVar = 123
+}
+
+var callbackInInitChan = make(chan int)
+
+//export callbackInInit
+func callbackInInit() {
+	if callbackInInitVar != 123 {
+		panic("callbackInInitVar not initialized to 123")
+	}
+	callbackInInitChan <- 1
+}
+
+func testCallbackInInit(t *testing.T) {
+	<-callbackInInitChan // make sure callbackInInit runs
 }

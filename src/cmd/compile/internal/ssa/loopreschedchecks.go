@@ -75,10 +75,7 @@ func insertLoopReschedChecks(f *Func) {
 
 	idom := f.Idom()
 	po := f.postorder()
-	// The ordering in the dominator tree matters; it's important that
-	// the walk of the dominator tree also be a preorder (i.e., a node is
-	// visited only after all its non-backedge predecessors have been visited).
-	sdom := newSparseOrderedTree(f, idom, po)
+	sdom := f.Sdom()
 
 	if f.pass.debug > 1 {
 		fmt.Printf("before %s = %s\n", f.Name, sdom.treestructure(f.Entry))

@@ -232,9 +232,7 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 	})
 
 	test(t, "before_first_load_force_godebug", func(t *testing.T) {
-		if err := os.Setenv("GODEBUG", "x509usefallbackroots=1"); err != nil {
-			t.Fatal(err)
-		}
+		testenv.SetGODEBUG(t, "x509usefallbackroots=1")
 
 		installSystemRootCAs(t)
 
@@ -250,9 +248,7 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 	})
 
 	test(t, "after_first_load_force_godebug", func(t *testing.T) {
-		if err := os.Setenv("GODEBUG", "x509usefallbackroots=1"); err != nil {
-			t.Fatal(err)
-		}
+		testenv.SetGODEBUG(t, "x509usefallbackroots=1")
 
 		installSystemRootCAs(t)
 		SystemCertPool() // load system certs, before setting fallbacks
@@ -269,9 +265,7 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 	})
 
 	test(t, "after_first_load_force_godebug_no_system_certs", func(t *testing.T) {
-		if err := os.Setenv("GODEBUG", "x509usefallbackroots=1"); err != nil {
-			t.Fatal(err)
-		}
+		testenv.SetGODEBUG(t, "x509usefallbackroots=1")
 
 		SystemCertPool() // load system certs, before setting fallbacks
 

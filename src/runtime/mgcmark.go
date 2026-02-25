@@ -967,6 +967,11 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 		scanblock(uintptr(unsafe.Pointer(&gp.sched.ctxt)), goarch.PtrSize, &oneptrmask[0], gcw, &state)
 	}
 
+	// Scan conservatively the extended register state.
+	if gp.asyncSafePoint {
+		xRegScan(gp, gcw, &state)
+	}
+
 	// Scan the stack. Accumulate a list of stack objects.
 	var u unwinder
 	for u.init(gp, 0); u.valid(); u.next() {

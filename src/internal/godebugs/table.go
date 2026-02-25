@@ -87,6 +87,9 @@ type RemovedInfo struct {
 }
 
 // Removed contains all GODEBUGs that we have removed.
+//
+// Every removed GODEBUG must have a corresponding section in doc/godebug.md,
+// since cmd/go links to this document when a removed GODEBUG is used.
 var Removed = []RemovedInfo{
 	{Name: "x509sha1", Removed: 24},
 	{Name: "gotypesalias", Removed: 27},

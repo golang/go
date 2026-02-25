@@ -30705,6 +30705,29 @@ func rewriteValuegeneric_OpSliceCap(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (SliceCap (Phi (SliceMake _ _ x) (SliceMake _ _ x)))
+	// result: x
+	for {
+		if v_0.Op != OpPhi || len(v_0.Args) != 2 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpSliceMake {
+			break
+		}
+		x := v_0_0.Args[2]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpSliceMake {
+			break
+		}
+		_ = v_0_1.Args[2]
+		if x != v_0_1.Args[2] {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpSliceLen(v *Value) bool {
@@ -30759,6 +30782,29 @@ func rewriteValuegeneric_OpSliceLen(v *Value) bool {
 		x := v_0_1.Args[0]
 		v.reset(OpSliceLen)
 		v.AddArg(x)
+		return true
+	}
+	// match: (SliceLen (Phi (SliceMake _ x _) (SliceMake _ x _)))
+	// result: x
+	for {
+		if v_0.Op != OpPhi || len(v_0.Args) != 2 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpSliceMake {
+			break
+		}
+		x := v_0_0.Args[1]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpSliceMake {
+			break
+		}
+		_ = v_0_1.Args[1]
+		if x != v_0_1.Args[1] {
+			break
+		}
+		v.copyOf(x)
 		return true
 	}
 	// match: (SliceLen (SelectN [0] (StaticLECall {sym} _ newLen:(Const64) _ _ _ _)))

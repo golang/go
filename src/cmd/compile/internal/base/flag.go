@@ -78,6 +78,7 @@ type CmdFlags struct {
 	LowerR CountFlag  "help:\"debug generated wrappers\""
 	LowerT bool       "help:\"enable tracing for debugging the compiler\""
 	LowerW CountFlag  "help:\"debug type checking\""
+	LowerU CountFlag  "help:\"emit unsorted warnings/errors\""
 	LowerV *bool      "help:\"increase debug verbosity\""
 
 	// Special characters

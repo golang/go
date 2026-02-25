@@ -566,7 +566,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 			addArg(e)
 			pos = pos.WithNotStmt()
 		}
-		if at.NumFields() > 4 {
+		if at.NumFields() > MaxStruct && !types.IsDirectIface(at) {
 			panic(fmt.Errorf("Too many fields (%d, %d bytes), container=%s", at.NumFields(), at.Size(), container.LongString()))
 		}
 		a = makeOf(a, OpStructMake, args)

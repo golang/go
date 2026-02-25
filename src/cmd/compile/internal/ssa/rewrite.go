@@ -1954,7 +1954,7 @@ func arm64BFWidth(mask, rshift int64) int64 {
 	return nto(shiftedMask)
 }
 
-// encodes condition code and NZCV flags into auxint.
+// encodes condition code and NZCV flags into result.
 func arm64ConditionalParamsAuxInt(cond Op, nzcv uint8) arm64ConditionalParams {
 	if cond < OpARM64Equal || cond > OpARM64GreaterEqualU {
 		panic("Wrong conditional operation")
@@ -2171,11 +2171,11 @@ func rewriteFixedLoad(v *Value, sym Sym, sb *Value, off int64) *Value {
 					return v
 				case "Hash":
 					v.reset(OpConst32)
-					v.AuxInt = int64(types.TypeHash(t))
+					v.AuxInt = int64(int32(types.TypeHash(t)))
 					return v
 				case "Kind_":
 					v.reset(OpConst8)
-					v.AuxInt = int64(reflectdata.ABIKindOfType(t))
+					v.AuxInt = int64(int8(reflectdata.ABIKindOfType(t)))
 					return v
 				case "GCData":
 					gcdata, _ := reflectdata.GCSym(t, true)

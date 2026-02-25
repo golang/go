@@ -8,10 +8,12 @@ import (
 	"bytes"
 	"compress/flate"
 	"crypto/internal/cryptotest"
+	"crypto/internal/rand"
 	"errors"
 	"internal/testenv"
 	"io"
 	"os"
+	"reflect"
 	"sync"
 	"testing"
 )
@@ -210,6 +212,28 @@ func benchmarkRead(b *testing.B, size int) {
 	for i := 0; i < b.N; i++ {
 		if _, err := Read(buf); err != nil {
 			b.Fatal(err)
+		}
+	}
+}
+
+func TestDefaultReader(t *testing.T) {
+	if !rand.IsDefaultReader(Reader) {
+		t.Error("rand.IsDefaultReader(Reader) == False")
+	}
+
+	typ := reflect.ValueOf(Reader).Type()
+	for method := range typ.Methods() {
+		if method.Name == "Read" {
+			continue
+		}
+		if method.IsExported() {
+			t.Fatal("unexpected exported method")
+		}
+	}
+
+	for field := range typ.Fields() {
+		if field.IsExported() {
+			t.Fatal("unexpected exported field")
 		}
 	}
 }

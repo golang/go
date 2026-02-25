@@ -57,3 +57,19 @@ callGoInCThread(int max)
 	CloseHandle((HANDLE)thread_id);
 	return max;
 }
+
+__stdcall
+static unsigned int
+callbackInInitCThread(void* unused)
+{
+	callbackInInit();
+	return 0;
+}
+
+void
+callbackInInitC(void)
+{
+	uintptr_t thread_id;
+	thread_id = _beginthreadex(0, 0, callbackInInitCThread, NULL, 0, 0);
+	CloseHandle((HANDLE)thread_id);
+}

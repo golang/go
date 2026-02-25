@@ -1540,10 +1540,6 @@ func (ctxt *Link) doelf() {
 			dynamic.SetType(sym.SELFSECT)
 		}
 
-		if ctxt.IsS390X() {
-			// S390X uses .got instead of .got.plt
-			gotplt = got
-		}
 		thearch.ELF.SetupPLT(ctxt, ctxt.loader, plt, gotplt, dynamic.Sym())
 
 		// .dynamic table

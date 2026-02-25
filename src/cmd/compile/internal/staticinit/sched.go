@@ -764,6 +764,8 @@ func StaticName(t *types.Type) *ir.Name {
 	typecheck.Target.Externs = append(typecheck.Target.Externs, n)
 
 	n.Linksym().Set(obj.AttrStatic, true)
+	n.Linksym().Align = int16(t.Alignment())
+
 	return n
 }
 

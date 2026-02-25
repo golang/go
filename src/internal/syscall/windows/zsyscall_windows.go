@@ -83,6 +83,7 @@ var (
 	procGetTempPath2W                     = modkernel32.NewProc("GetTempPath2W")
 	procGetVolumeInformationByHandleW     = modkernel32.NewProc("GetVolumeInformationByHandleW")
 	procGetVolumeNameForVolumeMountPointW = modkernel32.NewProc("GetVolumeNameForVolumeMountPointW")
+	procIsProcessorFeaturePresent         = modkernel32.NewProc("IsProcessorFeaturePresent")
 	procLockFileEx                        = modkernel32.NewProc("LockFileEx")
 	procModule32FirstW                    = modkernel32.NewProc("Module32FirstW")
 	procModule32NextW                     = modkernel32.NewProc("Module32NextW")
@@ -238,15 +239,15 @@ func RevertToSelf() (err error) {
 	return
 }
 
-func SetEntriesInAcl(countExplicitEntries uint32, explicitEntries *EXPLICIT_ACCESS, oldACL syscall.Handle, newACL *syscall.Handle) (ret error) {
-	r0, _, _ := syscall.SyscallN(procSetEntriesInAclW.Addr(), uintptr(countExplicitEntries), uintptr(unsafe.Pointer(explicitEntries)), uintptr(oldACL), uintptr(unsafe.Pointer(newACL)))
+func SetEntriesInAcl(countExplicitEntries uint32, explicitEntries *EXPLICIT_ACCESS, oldACL *ACL, newACL **ACL) (ret error) {
+	r0, _, _ := syscall.SyscallN(procSetEntriesInAclW.Addr(), uintptr(countExplicitEntries), uintptr(unsafe.Pointer(explicitEntries)), uintptr(unsafe.Pointer(oldACL)), uintptr(unsafe.Pointer(newACL)))
 	if r0 != 0 {
 		ret = syscall.Errno(r0)
 	}
 	return
 }
 
-func SetNamedSecurityInfo(objectName string, objectType int32, securityInformation uint32, owner *syscall.SID, group *syscall.SID, dacl syscall.Handle, sacl syscall.Handle) (ret error) {
+func SetNamedSecurityInfo(objectName string, objectType uint32, securityInformation uint32, owner *syscall.SID, group *syscall.SID, dacl *ACL, sacl *ACL) (ret error) {
 	var _p0 *uint16
 	_p0, ret = syscall.UTF16PtrFromString(objectName)
 	if ret != nil {
@@ -255,8 +256,8 @@ func SetNamedSecurityInfo(objectName string, objectType int32, securityInformati
 	return _SetNamedSecurityInfo(_p0, objectType, securityInformation, owner, group, dacl, sacl)
 }
 
-func _SetNamedSecurityInfo(objectName *uint16, objectType int32, securityInformation uint32, owner *syscall.SID, group *syscall.SID, dacl syscall.Handle, sacl syscall.Handle) (ret error) {
-	r0, _, _ := syscall.SyscallN(procSetNamedSecurityInfoW.Addr(), uintptr(unsafe.Pointer(objectName)), uintptr(objectType), uintptr(securityInformation), uintptr(unsafe.Pointer(owner)), uintptr(unsafe.Pointer(group)), uintptr(dacl), uintptr(sacl))
+func _SetNamedSecurityInfo(objectName *uint16, objectType uint32, securityInformation uint32, owner *syscall.SID, group *syscall.SID, dacl *ACL, sacl *ACL) (ret error) {
+	r0, _, _ := syscall.SyscallN(procSetNamedSecurityInfoW.Addr(), uintptr(unsafe.Pointer(objectName)), uintptr(objectType), uintptr(securityInformation), uintptr(unsafe.Pointer(owner)), uintptr(unsafe.Pointer(group)), uintptr(unsafe.Pointer(dacl)), uintptr(unsafe.Pointer(sacl)))
 	if r0 != 0 {
 		ret = syscall.Errno(r0)
 	}
@@ -424,6 +425,12 @@ func GetVolumeNameForVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
+	return
+}
+
+func IsProcessorFeaturePresent(ProcessorFeature uint32) (ret bool) {
+	r0, _, _ := syscall.SyscallN(procIsProcessorFeaturePresent.Addr(), uintptr(ProcessorFeature))
+	ret = r0 != 0
 	return
 }
 

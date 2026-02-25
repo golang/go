@@ -793,8 +793,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				ctxt.Diag("alignment value of an instruction must be a power of two and in the range [4, 2048], got %d\n", alignedValue)
 			}
 			// Update the current text symbol alignment value.
-			if int32(alignedValue) > cursym.Func().Align {
-				cursym.Func().Align = int32(alignedValue)
+			if int16(alignedValue) > cursym.Align {
+				cursym.Align = int16(alignedValue)
 			}
 		}
 	}

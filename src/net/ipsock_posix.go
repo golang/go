@@ -158,7 +158,7 @@ func favoriteAddrFamily(network string, laddr, raddr sockaddr, mode string) (fam
 
 func internetSocket(ctx context.Context, net string, laddr, raddr sockaddr, sotype, proto int, mode string, ctrlCtxFn func(context.Context, string, string, syscall.RawConn) error) (fd *netFD, err error) {
 	switch runtime.GOOS {
-	case "aix", "windows", "openbsd", "js", "wasip1":
+	case "aix", "freebsd", "windows", "openbsd", "js", "wasip1":
 		if mode == "dial" && raddr.isWildcard() {
 			raddr = raddr.toLocal(net)
 		}

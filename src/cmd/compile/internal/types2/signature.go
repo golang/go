@@ -155,7 +155,6 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 
 	// collect and declare function type parameters
 	if tparams != nil {
-		// The parser will complain about invalid type parameters for methods.
 		check.collectTypeParams(&sig.tparams, tparams)
 	}
 

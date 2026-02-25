@@ -53,6 +53,10 @@ By default, 'go run' compiles the binary without generating the information
 used by debuggers, to reduce build time. To include debugger information in
 the binary, use 'go build'.
 
+The go command places $GOROOT/bin at the beginning of $PATH in the
+subprocess environment, so that subprocesses that execute 'go' commands
+use the same 'go' as their parent.
+
 The exit status of Run is not the exit status of the compiled binary.
 
 For more about build flags, see 'go help build'.

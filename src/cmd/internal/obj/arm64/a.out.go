@@ -836,6 +836,7 @@ const (
 	AREVW
 	AROR
 	ARORW
+	ASB
 	ASBC
 	ASBCS
 	ASBCSW

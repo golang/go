@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/scanner"
 	"go/token"
 	"internal/coverage"
 	"internal/coverage/encodemeta"
@@ -264,6 +265,142 @@ type File struct {
 	mdb     *encodemeta.CoverageMetaDataBuilder
 	fn      Func
 	pkg     *Package
+}
+
+// Range represents a contiguous range of executable code within a basic block.
+type Range struct {
+	pos token.Pos
+	end token.Pos
+}
+
+// codeRanges analyzes a block range and returns the sub-ranges that contain
+// executable code, excluding comment-only and blank lines.
+// If no executable code is found, it returns a single zero-width range at
+// start, so that callers always get at least one range (required by pkgcfg
+// mode, which needs a counter unit for every function body).
+func (f *File) codeRanges(start, end token.Pos) []Range {
+	var (
+		startOffset = f.offset(start)
+		endOffset   = f.offset(end)
+		src         = f.content[startOffset:endOffset]
+		origFile    = f.fset.File(start)
+	)
+
+	// Create a temporary File for scanning this block.
+	// We use a separate file because we're scanning a slice of the
+	// original source, so positions in scanFile are relative to the
+	// block start, not the original file.
+	scanFile := token.NewFileSet().AddFile("", -1, len(src))
+
+	var s scanner.Scanner
+	s.Init(scanFile, src, nil, 0)
+
+	// Build ranges in a single pass through the token stream.
+	// We track the last line known to contain code (prevEndLine).
+	// When the next token appears on a line beyond prevEndLine+1,
+	// a gap (comment or blank lines) has been detected: close the
+	// current range and start a new one. Using the token's position
+	// directly (rather than the line start) ensures counter insertion
+	// lands after any closing "*/" on that line.
+	var ranges []Range
+	var codeStart token.Pos // start of current code range (in origFile)
+	prevEndLine := 0        // last line with code; 0 means no code yet
+
+	for {
+		pos, tok, lit := s.Scan()
+		if tok == token.EOF {
+			break
+		}
+
+		// Skip braces and automatic semicolons: braces are block
+		// delimiters, not executable code. The Go spec
+		// (https://go.dev/ref/spec#Semicolons) requires the scanner
+		// to insert semicolons (with lit == "\n") after }, ), ], etc.
+		// These are always on lines already marked by real tokens,
+		// except for lone "}" lines. Skipping both prevents a lone
+		// "}" from being treated as a separate code range, which
+		// would cause counter insertion after return statements.
+		if tok == token.LBRACE || tok == token.RBRACE {
+			continue
+		}
+		if tok == token.SEMICOLON && lit == "\n" {
+			continue
+		}
+
+		// Use PositionFor with adjusted=false to ignore //line directives.
+		startLine := scanFile.PositionFor(pos, false).Line
+		endLine := startLine
+		if tok == token.STRING {
+			// Only string literals can span multiple lines.
+			// TODO(adonovan): simplify when https://go.dev/issue/74958 is resolved.
+			endLine = scanFile.PositionFor(pos+token.Pos(len(lit)), false).Line
+		}
+
+		if prevEndLine == 0 {
+			// First code token — start the first range.
+			codeStart = origFile.Pos(startOffset + scanFile.Offset(pos))
+		} else if startLine > prevEndLine+1 {
+			// Gap detected — close previous range, start new one.
+			codeEnd := origFile.Pos(startOffset + scanFile.Offset(scanFile.LineStart(prevEndLine+1)))
+			ranges = append(ranges, Range{pos: codeStart, end: codeEnd})
+			codeStart = origFile.Pos(startOffset + scanFile.Offset(pos))
+		}
+
+		if endLine > prevEndLine {
+			prevEndLine = endLine
+		}
+	}
+
+	// Close any open code range at the end.
+	if prevEndLine > 0 {
+		if prevEndLine < scanFile.LineCount() {
+			// There are non-code lines after the last code line
+			// (e.g., a lone "}"). Close at the next line's start.
+			codeEnd := origFile.Pos(startOffset + scanFile.Offset(scanFile.LineStart(prevEndLine+1)))
+			ranges = append(ranges, Range{pos: codeStart, end: codeEnd})
+		} else {
+			ranges = append(ranges, Range{pos: codeStart, end: end})
+		}
+	}
+
+	// If no code was found, return a zero-width range so that callers
+	// still get a counter (needed for pkgcfg function registration)
+	// but the range doesn't visually cover any source lines.
+	if len(ranges) == 0 {
+		return []Range{{pos: start, end: start}}
+	}
+
+	return ranges
+}
+
+// insideStatement reports whether pos falls strictly inside
+// (not at the start of) any statement in stmts.
+func insideStatement(pos token.Pos, stmts []ast.Stmt) bool {
+	// Binary search for the first statement starting at or after pos.
+	i, _ := slices.BinarySearchFunc(stmts, pos, func(s ast.Stmt, p token.Pos) int {
+		return cmp.Compare(s.Pos(), p)
+	})
+	// Check if pos falls inside the preceding statement.
+	return i > 0 && pos < stmts[i-1].End()
+}
+
+// mergeRangesWithinStatements merges consecutive ranges when a later range's
+// start position falls strictly inside a statement. This prevents counter
+// insertion inside multi-line statements such as const (...) blocks.
+func mergeRangesWithinStatements(ranges []Range, stmts []ast.Stmt) []Range {
+	if len(ranges) <= 1 {
+		return ranges
+	}
+	merged := []Range{ranges[0]}
+	for _, r := range ranges[1:] {
+		if insideStatement(r.pos, stmts) {
+			// Extend previous range to cover this one.
+			merged[len(merged)-1].end = r.end
+		} else {
+			merged = append(merged, r)
+		}
+	}
+	return merged
 }
 
 // findText finds text in the original source, starting at pos.
@@ -720,8 +857,9 @@ func (f *File) newCounter(start, end token.Pos, numStmt int) string {
 			panic("internal error: counter var unset")
 		}
 		stmt = counterStmt(f, fmt.Sprintf("%s[%d]", f.fn.counterVar, slot))
-		stpos := f.fset.Position(start)
-		enpos := f.fset.Position(end)
+		// Physical positions, ignoring //line directives.
+		stpos := f.position(start)
+		enpos := f.position(end)
 		stpos, enpos = dedup(stpos, enpos)
 		unit := coverage.CoverableUnit{
 			StLine:  uint32(stpos.Line),
@@ -755,7 +893,8 @@ func (f *File) addCounters(pos, insertPos, blockEnd token.Pos, list []ast.Stmt, 
 	// Special case: make sure we add a counter to an empty block. Can't do this below
 	// or we will add a counter to an empty statement list after, say, a return statement.
 	if len(list) == 0 {
-		f.edit.Insert(f.offset(insertPos), f.newCounter(insertPos, blockEnd, 0)+";")
+		r := f.codeRanges(insertPos, blockEnd)[0]
+		f.edit.Insert(f.offset(r.pos), f.newCounter(r.pos, r.end, 0)+";")
 		return
 	}
 	// Make a copy of the list, as we may mutate it and should leave the
@@ -805,7 +944,16 @@ func (f *File) addCounters(pos, insertPos, blockEnd token.Pos, list []ast.Stmt, 
 			end = blockEnd
 		}
 		if pos != end { // Can have no source to cover if e.g. blocks abut.
-			f.edit.Insert(f.offset(insertPos), f.newCounter(pos, end, last)+";")
+			// Create counters only for executable code ranges.
+			// Merge back ranges that fall inside a statement to avoid
+			// inserting counters inside multi-line constructs (e.g. const blocks).
+			for i, r := range mergeRangesWithinStatements(f.codeRanges(pos, end), list[:last]) {
+				insertOffset := f.offset(r.pos)
+				if i == 0 {
+					insertOffset = f.offset(insertPos)
+				}
+				f.edit.Insert(insertOffset, f.newCounter(r.pos, r.end, last)+";")
+			}
 		}
 		list = list[last:]
 		if len(list) == 0 {
@@ -976,9 +1124,14 @@ type block1 struct {
 	index int
 }
 
+// position returns the Position for pos, ignoring //line directives.
+func (f *File) position(pos token.Pos) token.Position {
+	return f.fset.PositionFor(pos, false)
+}
+
 // offset translates a token position into a 0-indexed byte offset.
 func (f *File) offset(pos token.Pos) int {
-	return f.fset.Position(pos).Offset
+	return f.position(pos).Offset
 }
 
 // addVariables adds to the end of the file the declarations to set up the counter and position variables.
@@ -1020,8 +1173,9 @@ func (f *File) addVariables(w io.Writer) {
 	// - 32-bit ending line number
 	// - (16 bit ending column number << 16) | (16-bit starting column number).
 	for i, block := range f.blocks {
-		start := f.fset.Position(block.startByte)
-		end := f.fset.Position(block.endByte)
+		// Physical positions, ignoring //line directives.
+		start := f.position(block.startByte)
+		end := f.position(block.endByte)
 
 		start, end = dedup(start, end)
 

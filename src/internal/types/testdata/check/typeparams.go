@@ -329,8 +329,8 @@ func init[P /* ERROR "func init must have no type parameters" */ any]() {}
 type T struct {}
 
 func (T) m1() {}
-func (T) m2[ /* ERROR "method must have no type parameters" */ _ any]() {}
-func (T) m3[ /* ERROR "method must have no type parameters" */ P any]() {}
+func (T) m2[_ /* ERROR "method m2 must have no type parameters" */ any]() {}
+func (T) m3[P /* ERROR "method m3 must have no type parameters" */ any]() {}
 
 // type inference across parameterized types
 

@@ -236,6 +236,8 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 	// reliably report its contents."
 	// For non-SSA-able arguments, however, the correct information
 	// is known -- they have a single home on the stack.
+	var outidx int
+	debug, _ := fn.DebugInfo.(*ssa.FuncDebug)
 	for _, n := range dcl {
 		if selected.Has(n) {
 			continue
@@ -244,6 +246,11 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		if c == '.' || n.Type().IsUntyped() {
 			continue
 		}
+
+		// Occasionally the dcl list will contain duplicates. Add here
+		// so the `selected.Has` check above filters them out.
+		selected.Add(n)
+
 		if n.Class == ir.PPARAM && !ssa.CanSSA(n.Type()) {
 			// SSA-able args get location lists, and may move in and
 			// out of registers, so those are handled elsewhere.
@@ -256,6 +263,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 			decls = append(decls, n)
 			continue
 		}
+
 		typename := dwarf.InfoPrefix + types.TypeSymName(n.Type())
 		decls = append(decls, n)
 		tag := dwarf.DW_TAG_variable
@@ -288,11 +296,30 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 			DictIndex:     n.DictIndex,
 			ClosureOffset: closureOffset(n, closureVars),
 		}
-		if n.Esc() == ir.EscHeap {
+		if debug != nil && isReturnValue && n.IsOutputParamInRegisters() {
+			// Create register based location list
+			// This assumes that the register return params in the dcl list is sorted correctly and
+			// params appear in order they are defined in the function signature.
+
+			startIDs := debug.RegOutputParamStartIDs
+			if !strings.HasPrefix(n.Sym().Name, "~") {
+				// If this is not an unnamed return parameter do not pass ranges through and assume
+				// this value is live throughout the entirety of the function.
+				// TODO(derekparker): there is still work to be done here to better track the movement
+				// of these params through the body of the function, e.g. it may move registers at certain address
+				// ranges or spill to the stack.
+				startIDs = nil
+			}
+			list := createRegisterReturnParamLocList(debug.RegOutputParamRegList[outidx], debug.EntryID, startIDs)
+			outidx++
+			dvar.PutLocationList = func(listSym, startPC dwarf.Sym) {
+				debug.PutLocationList(list, base.Ctxt, listSym.(*obj.LSym), startPC.(*obj.LSym))
+			}
+		}
+		if debug != nil && n.Esc() == ir.EscHeap {
 			if n.Heapaddr == nil {
 				base.Fatalf("invalid heap allocated var without Heapaddr")
 			}
-			debug := fn.DebugInfo.(*ssa.FuncDebug)
 			list := createHeapDerefLocationList(n, debug.EntryID)
 			dvar.PutLocationList = func(listSym, startPC dwarf.Sym) {
 				debug.PutLocationList(list, base.Ctxt, listSym.(*obj.LSym), startPC.(*obj.LSym))
@@ -307,6 +334,54 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 	sortDeclsAndVars(fn, decls, vars)
 
 	return decls, vars
+}
+
+// createRegisterReturnParamLocList creates a location list that specifies
+// a value is in a register for the given block ranges.
+// startIDs contains a list of SSA IDs where the value is live, and it is assumed by this function
+// that the value is live until the nearest RET instruction, or the end of the function in the case
+// of the last / only start location.
+func createRegisterReturnParamLocList(regs []int8, entryID ssa.ID, startIDs []ssa.ID) []byte {
+	var list []byte
+	ctxt := base.Ctxt
+
+	if len(startIDs) == 0 {
+		// No ranges specified, fall back to full function
+		startIDs = []ssa.ID{ssa.BlockStart.ID}
+	}
+
+	stardIDLenIdx := len(startIDs) - 1
+	// Create a location list entry for each range
+	for i, start := range startIDs {
+		var sizeIdx int
+
+		end := ssa.FuncLocalEnd.ID
+		if i == stardIDLenIdx {
+			// If this is the last entry always extend to end of function.
+			end = ssa.FuncEnd.ID
+		}
+		list, sizeIdx = ssa.SetupLocList(base.Ctxt, entryID, list, start, end)
+
+		// The actual location expression
+		for _, reg := range regs {
+			if reg < 32 {
+				list = append(list, dwarf.DW_OP_reg0+byte(reg))
+			} else {
+				list = append(list, dwarf.DW_OP_regx)
+				list = dwarf.AppendUleb128(list, uint64(reg))
+			}
+			if len(regs) > 1 {
+				list = append(list, dwarf.DW_OP_piece)
+				list = dwarf.AppendUleb128(list, uint64(ctxt.Arch.RegSize))
+			}
+		}
+
+		// Update the size for this entry
+		locSize := len(list) - sizeIdx - 2
+		ctxt.Arch.ByteOrder.PutUint16(list[sizeIdx:], uint16(locSize))
+	}
+
+	return list
 }
 
 // sortDeclsAndVars sorts the decl and dwarf var lists according to

@@ -40,7 +40,6 @@ import (
 	"math"
 	"math/bits"
 	"slices"
-	"strings"
 )
 
 // ctxt7 holds state while assembling a single function.
@@ -485,6 +484,8 @@ var optab = []Optab{
 	{AFMOVS, C_ADDR, C_NONE, C_NONE, C_FREG, C_NONE, 65, 12, 0, 0, 0},
 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_ADDR, C_NONE, 64, 12, 0, 0, 0},
 	{AFMOVD, C_ADDR, C_NONE, C_NONE, C_FREG, C_NONE, 65, 12, 0, 0, 0},
+	{AFMOVQ, C_FREG, C_NONE, C_NONE, C_ADDR, C_NONE, 64, 12, 0, 0, 0},
+	{AFMOVQ, C_ADDR, C_NONE, C_NONE, C_FREG, C_NONE, 65, 12, 0, 0, 0},
 	{AFMOVS, C_FCON, C_NONE, C_NONE, C_FREG, C_NONE, 55, 4, 0, 0, 0},
 	{AFMOVS, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 54, 4, 0, 0, 0},
 	{AFMOVD, C_FCON, C_NONE, C_NONE, C_FREG, C_NONE, 55, 4, 0, 0, 0},
@@ -876,6 +877,7 @@ var optab = []Optab{
 	{ATLBI, C_SPOP, C_NONE, C_NONE, C_ZREG, C_NONE, 107, 4, 0, 0, 0},
 	{ABTI, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 108, 4, 0, 0, 0},
 	{ABTI, C_SPOP, C_NONE, C_NONE, C_NONE, C_NONE, 108, 4, 0, 0, 0},
+	{ASB, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 10, 4, 0, 0, 0},
 
 	/* encryption instructions */
 	{AAESD, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 26, 4, 0, 0, 0}, // for compatibility with old code
@@ -1071,42 +1073,12 @@ func (o *Optab) size(ctxt *obj.Link, p *obj.Prog) int {
 		// to decide whether to use the unaligned/aligned forms, so o.size's result is always
 		// in sync with the code generation decisions, because it *is* the code generation decision.
 		align := int64(1 << sz)
-		if o.a1 == C_ADDR && p.From.Offset%align == 0 && symAlign(p.From.Sym) >= align ||
-			o.a4 == C_ADDR && p.To.Offset%align == 0 && symAlign(p.To.Sym) >= align {
+		if o.a1 == C_ADDR && p.From.Offset%align == 0 && int64(p.From.Sym.Align) >= align ||
+			o.a4 == C_ADDR && p.To.Offset%align == 0 && int64(p.To.Sym.Align) >= align {
 			return 8
 		}
 	}
 	return int(o.size_)
-}
-
-// symAlign returns the expected symbol alignment of the symbol s.
-// This must match the linker's own default alignment decisions.
-func symAlign(s *obj.LSym) int64 {
-	name := s.Name
-	switch {
-	case strings.HasPrefix(name, "go:string."),
-		strings.HasPrefix(name, "type:.namedata."),
-		strings.HasPrefix(name, "type:.importpath."),
-		strings.HasSuffix(name, ".opendefer"),
-		strings.HasSuffix(name, ".arginfo0"),
-		strings.HasSuffix(name, ".arginfo1"),
-		strings.HasSuffix(name, ".argliveinfo"):
-		// These are just bytes, or varints.
-		return 1
-	case strings.HasPrefix(name, "gclocals·"):
-		// It has 32-bit fields.
-		return 4
-	default:
-		switch {
-		case s.Size%8 == 0:
-			return 8
-		case s.Size%4 == 0:
-			return 4
-		case s.Size%2 == 0:
-			return 2
-		}
-	}
-	return 1
 }
 
 func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
@@ -3271,6 +3243,9 @@ func buildop(ctxt *obj.Link) {
 		case AVTBL:
 			oprangeset(AVTBX, t)
 
+		case ASB:
+			break
+
 		case AVCNT,
 			AVMOV,
 			AVLD1,
@@ -5047,7 +5022,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			}
 		}
 		o1 |= uint32(p.To.Offset)
-		// cmd/asm/internal/arch/arm64.go:ARM64RegisterListOffset
+		// RegisterListOffset
 		// add opcode(bit 12-15) for vld1, mask it off if it's not vld1
 		o1 = c.maskOpvldvst(p, o1)
 
@@ -5156,7 +5131,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			}
 		}
 		o1 |= uint32(p.From.Offset)
-		// cmd/asm/internal/arch/arm64.go:ARM64RegisterListOffset
+		// RegisterListOffset
 		// add opcode(bit 12-15) for vst1, mask it off if it's not vst1
 		o1 = c.maskOpvldvst(p, o1)
 		o1 |= uint32(r&31) << 5
@@ -6870,6 +6845,9 @@ func (c *ctxt7) opimm(p *obj.Prog, a obj.As) uint32 {
 
 	case ACLREX:
 		return SYSOP(0, 0, 3, 3, 0, 2, 0x1F)
+
+	case ASB:
+		return SYSOP(0, 0, 3, 3, 0, 0, 0xFF)
 	}
 
 	c.ctxt.Diag("%v: bad imm %v", p, a)
@@ -7873,8 +7851,8 @@ func pack(q uint32, arngA, arngB uint8) uint32 {
 	return q<<16 | uint32(arngA)<<8 | uint32(arngB)
 }
 
-// ARM64RegisterExtension constructs an ARM64 register with extension or arrangement.
-func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
+// EncodeRegisterExtension constructs an ARM64 register with extension or arrangement in the argument a.
+func EncodeRegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
 	Rnum := (reg & 31) + num<<5
 	if isAmount {
 		if num < 0 || num > 7 {
@@ -8014,4 +7992,24 @@ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, i
 		return errors.New("invalid register and extension combination")
 	}
 	return nil
+}
+
+// RegisterListOffset generates offset encoding according to AArch64 specification.
+func RegisterListOffset(firstReg, regCnt int, arrangement int64) (int64, error) {
+	offset := int64(firstReg)
+	switch regCnt {
+	case 1:
+		offset |= 0x7 << 12
+	case 2:
+		offset |= 0xa << 12
+	case 3:
+		offset |= 0x6 << 12
+	case 4:
+		offset |= 0x2 << 12
+	default:
+		return 0, errors.New("invalid register numbers in ARM64 register list")
+	}
+	offset |= arrangement
+	offset |= obj.RegListARM64Lo
+	return offset, nil
 }

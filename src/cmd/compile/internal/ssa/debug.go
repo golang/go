@@ -38,7 +38,12 @@ type FuncDebug struct {
 	LocationLists [][]byte
 	// Register-resident output parameters for the function. This is filled in at
 	// SSA generation time.
-	RegOutputParams []*ir.Name
+	RegOutputParams       []*ir.Name
+	RegOutputParamRegList [][]int8
+	// RegOutputParamStartIDs contains a list of SSA IDs which represent a location where
+	// the register based return param is known to be live. It is assumed that the value is
+	// live from the ID to the closest function return location.
+	RegOutputParamStartIDs []ID
 	// Variable declarations that were removed during optimization
 	OptDcl []*ir.Name
 	// The ssa.Func.EntryID value, used to build location lists for
@@ -187,6 +192,12 @@ var FuncEnd = &Value{
 	ID:  -30000,
 	Op:  OpInvalid,
 	Aux: StringToAux("FuncEnd"),
+}
+
+var FuncLocalEnd = &Value{
+	ID:  -40000,
+	Op:  OpInvalid,
+	Aux: StringToAux("FuncLocalEnd"),
 }
 
 // RegisterSet is a bitmap of registers, indexed by Register.num.

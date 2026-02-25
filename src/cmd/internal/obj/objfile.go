@@ -369,43 +369,10 @@ func (w *writer) Sym(s *LSym) {
 	if strings.HasPrefix(name, "gofile..") {
 		name = filepath.ToSlash(name)
 	}
-	var align uint32
-	if fn := s.Func(); fn != nil {
-		align = uint32(fn.Align)
-	}
-	if s.ContentAddressable() && s.Size != 0 {
-		// We generally assume data symbols are naturally aligned
-		// (e.g. integer constants), except for strings and a few
-		// compiler-emitted funcdata. If we dedup a string symbol and
-		// a non-string symbol with the same content, we should keep
-		// the largest alignment.
-		// TODO: maybe the compiler could set the alignment for all
-		// data symbols more carefully.
-		switch {
-		case strings.HasPrefix(s.Name, "go:string."),
-			strings.HasPrefix(name, "type:.namedata."),
-			strings.HasPrefix(name, "type:.importpath."),
-			strings.HasSuffix(name, ".opendefer"),
-			strings.HasSuffix(name, ".arginfo0"),
-			strings.HasSuffix(name, ".arginfo1"),
-			strings.HasSuffix(name, ".argliveinfo"):
-			// These are just bytes, or varints.
-			align = 1
-		case strings.HasPrefix(name, "gclocals·"):
-			// It has 32-bit fields.
-			align = 4
-		default:
-			switch {
-			case w.ctxt.Arch.PtrSize == 8 && s.Size%8 == 0:
-				align = 8
-			case s.Size%4 == 0:
-				align = 4
-			case s.Size%2 == 0:
-				align = 2
-			default:
-				align = 1
-			}
-		}
+	align := uint32(s.Align)
+	if s.ContentAddressable() && s.Size != 0 && align == 0 {
+		// TODO: Check that alignment is set for all symbols.
+		w.ctxt.Diag("%s: is content-addressable but alignment is not set (size is %d)", s.Name, s.Size)
 	}
 	if s.Size > cutoff {
 		w.ctxt.Diag("%s: symbol too large (%d bytes > %d bytes)", s.Name, s.Size, cutoff)
@@ -895,10 +862,10 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	if s.Func() != nil && s.Func().FuncFlag&abi.FuncFlagAsm != 0 {
 		fmt.Fprintf(ctxt.Bso, "asm ")
 	}
-	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
+	fmt.Fprintf(ctxt.Bso, "size=%d align=%#x", s.Size, s.Align)
 	if s.Type.IsText() {
 		fn := s.Func()
-		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x funcid=%#x align=%#x", uint64(fn.Args), uint64(fn.Locals), uint64(fn.FuncID), uint64(fn.Align))
+		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x funcid=%#x", uint64(fn.Args), uint64(fn.Locals), uint64(fn.FuncID))
 		if s.Leaf() {
 			fmt.Fprintf(ctxt.Bso, " leaf")
 		}

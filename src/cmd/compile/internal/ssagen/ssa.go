@@ -283,6 +283,7 @@ func (s *state) emitOpenDeferInfo() {
 
 	x := base.Ctxt.Lookup(s.curfn.LSym.Name + ".opendefer")
 	x.Set(obj.AttrContentAddressable, true)
+	x.Align = 1
 	s.curfn.LSym.Func().OpenCodedDeferInfo = x
 
 	off := 0
@@ -460,6 +461,15 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 	var params *abi.ABIParamResultInfo
 	params = s.f.ABISelf.ABIAnalyze(fn.Type(), true)
 
+	abiRegIndexToRegister := func(reg abi.RegIndex) int8 {
+		i := s.f.ABISelf.FloatIndexFor(reg)
+		if i >= 0 { // float PR
+			return s.f.Config.FloatParamReg(abi.RegIndex(i))
+		} else {
+			return s.f.Config.IntParamReg(reg)
+		}
+	}
+
 	// The backend's stackframe pass prunes away entries from the fn's
 	// Dcl list, including PARAMOUT nodes that correspond to output
 	// params passed in registers. Walk the Dcl list and capture these
@@ -469,6 +479,16 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 	for _, n := range fn.Dcl {
 		if n.Class == ir.PPARAMOUT && n.IsOutputParamInRegisters() {
 			debugInfo.RegOutputParams = append(debugInfo.RegOutputParams, n)
+			op := params.OutParam(len(debugInfo.RegOutputParamRegList))
+			debugInfo.RegOutputParamRegList = append(debugInfo.RegOutputParamRegList, make([]int8, len(op.Registers)))
+			for i, reg := range op.Registers {
+				idx := len(debugInfo.RegOutputParamRegList) - 1
+				// TODO(deparker) This is a rather large amount of conversions to get from
+				// an abi.RegIndex to a Dwarf register number. Can this be simplified?
+				abiReg := s.f.Config.Reg(abiRegIndexToRegister(reg))
+				dwarfReg := base.Ctxt.Arch.DWARFRegisters[abiReg]
+				debugInfo.RegOutputParamRegList[idx][i] = int8(dwarfReg)
+			}
 		}
 	}
 	fn.DebugInfo = &debugInfo
@@ -6781,6 +6801,7 @@ func emitArgInfo(e *ssafn, f *ssa.Func, pp *objw.Progs) {
 // emit argument info (locations on stack) of f for traceback.
 func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	x := base.Ctxt.Lookup(fmt.Sprintf("%s.arginfo%d", f.LSym.Name, f.ABI))
+	x.Align = 1
 	// NOTE: do not set ContentAddressable here. This may be referenced from
 	// assembly code by name (in this case f is a declaration).
 	// Instead, set it in emitArgInfo above.
@@ -6900,6 +6921,7 @@ func emitWrappedFuncInfo(e *ssafn, pp *objw.Progs) {
 	x := base.Ctxt.LookupInit(fmt.Sprintf("%s.wrapinfo", wsym.Name), func(x *obj.LSym) {
 		objw.SymPtrOff(x, 0, wsym)
 		x.Set(obj.AttrContentAddressable, true)
+		x.Align = 4
 	})
 	e.curfn.LSym.Func().WrapInfo = x
 
@@ -7279,6 +7301,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			ssa.BuildFuncDebugNoOptimized(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset, debugInfo)
 		} else {
 			ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists, StackOffset, debugInfo)
+			populateReturnValueBlockRanges(f, debugInfo)
 		}
 		bstart := s.bstart
 		idToIdx := make([]int, f.NumBlocks())
@@ -7302,6 +7325,20 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 				return valueToProgAfter[blk.Values[nv-1].ID].Pc
 			case ssa.FuncEnd.ID:
 				return e.curfn.LSym.Size
+			case ssa.FuncLocalEnd.ID:
+				// Find the closest RET instruction to this block.
+				// This ensures that location lists are correct for functions
+				// with multiple returns.
+				blk := f.Blocks[idToIdx[b]]
+				nv := len(blk.Values)
+				pa := valueToProgAfter[blk.Values[nv-1].ID]
+				for {
+					if pa.Link == nil || pa.As == obj.ARET {
+						break
+					}
+					pa = pa.Link
+				}
+				return pa.Pc + 1
 			default:
 				return valueToProgAfter[v].Pc
 			}
@@ -8079,6 +8116,33 @@ func SpillSlotAddr(spill ssa.Spill, baseReg int16, extraOffset int64) obj.Addr {
 
 func isStructNotSIMD(t *types.Type) bool {
 	return t.IsStruct() && !t.IsSIMD()
+}
+
+// populateReturnValueBlockRanges analyzes the SSA to find when return values
+// are assigned and creates precise block ranges for their liveness.
+func populateReturnValueBlockRanges(f *ssa.Func, debugInfo *ssa.FuncDebug) {
+	if debugInfo == nil || len(debugInfo.RegOutputParams) == 0 {
+		return
+	}
+
+	// Find assignment points for each return parameter.
+	for _, b := range f.Blocks {
+		// Check if this is a return block
+		if b.Kind != ssa.BlockRet && b.Kind != ssa.BlockRetJmp {
+			continue
+		}
+		val := b.Values[0]
+		for i := range b.Values {
+			// Not skipping these causes a panic when using the value to lookup within `valueToProgAfter`.
+			op := b.Values[i].Op
+			if op == ssa.OpArgIntReg || op == ssa.OpArgFloatReg {
+				continue
+			}
+			val = b.Values[i]
+			break
+		}
+		debugInfo.RegOutputParamStartIDs = append(debugInfo.RegOutputParamStartIDs, val.ID)
+	}
 }
 
 var BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym

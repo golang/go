@@ -183,7 +183,7 @@ func TestMakeStructFields(t *testing.T) {
 				X jsontext.Value `json:",inline"`
 			} `json:",inline"`
 			X2 struct {
-				X map[string]any `json:",unknown"`
+				X map[string]any `json:",inline"`
 			} `json:",inline"`
 		}{},
 		want: structFields{},
@@ -194,12 +194,12 @@ func TestMakeStructFields(t *testing.T) {
 				X jsontext.Value `json:",inline"`
 			} `json:",inline"`
 			X2 struct {
-				X map[string]any `json:",unknown"`
+				X map[string]any `json:",inline"`
 			} `json:",inline"`
-			X map[string]jsontext.Value `json:",unknown"`
+			X map[string]jsontext.Value `json:",inline"`
 		}{},
 		want: structFields{
-			inlinedFallback: &structField{id: 0, index: []int{2}, typ: T[map[string]jsontext.Value](), fieldOptions: fieldOptions{name: "X", quotedName: `"X"`, unknown: true}},
+			inlinedFallback: &structField{id: 0, index: []int{2}, typ: T[map[string]jsontext.Value](), fieldOptions: fieldOptions{name: "X", quotedName: `"X"`, inline: true}},
 		},
 	}, {
 		name: jsontest.Name("InlinedFallback/InvalidImplicit"),
@@ -232,17 +232,11 @@ func TestMakeStructFields(t *testing.T) {
 		want:    structFields{flattened: []structField{}},
 		wantErr: errors.New(`Go struct fields A and B conflict over JSON object name "same"`),
 	}, {
-		name: jsontest.Name("BothInlineAndUnknown"),
-		in: struct {
-			A struct{} `json:",inline,unknown"`
-		}{},
-		wantErr: errors.New("Go struct field A cannot have both `inline` and `unknown` specified"),
-	}, {
 		name: jsontest.Name("InlineWithOptions"),
 		in: struct {
 			A struct{} `json:",inline,omitempty"`
 		}{},
-		wantErr: errors.New("Go struct field A cannot have any options other than `inline` or `unknown` specified"),
+		wantErr: errors.New("Go struct field A cannot have any options other than `inline` specified"),
 	}, {
 		name: jsontest.Name("UnknownWithOptions"),
 		in: struct {
@@ -257,7 +251,7 @@ func TestMakeStructFields(t *testing.T) {
 				inline:     true,
 			},
 		}},
-		wantErr: errors.New("Go struct field A cannot have any options other than `inline` or `unknown` specified"),
+		wantErr: errors.New("Go struct field A cannot have any options other than `inline` specified"),
 	}, {
 		name: jsontest.Name("InlineTextMarshaler"),
 		in: struct {
@@ -287,10 +281,18 @@ func TestMakeStructFields(t *testing.T) {
 		}}},
 		wantErr: errors.New(`inlined Go struct field A of type struct { encoding.TextAppender } must not implement marshal or unmarshal methods`),
 	}, {
-		name: jsontest.Name("UnknownJSONMarshaler"),
+		name: jsontest.Name("InlineJSONMarshaler"),
 		in: struct {
-			A struct{ Marshaler } `json:",unknown"`
+			A struct{ Marshaler } `json:",inline"`
 		}{},
+		want: structFields{flattened: []structField{{
+			index: []int{0, 0},
+			typ:   reflect.TypeFor[Marshaler](),
+			fieldOptions: fieldOptions{
+				name:       "Marshaler",
+				quotedName: `"Marshaler"`,
+			},
+		}}},
 		wantErr: errors.New(`inlined Go struct field A of type struct { json.Marshaler } must not implement marshal or unmarshal methods`),
 	}, {
 		name: jsontest.Name("InlineJSONMarshalerTo"),
@@ -307,10 +309,18 @@ func TestMakeStructFields(t *testing.T) {
 		}}},
 		wantErr: errors.New(`inlined Go struct field A of type struct { json.MarshalerTo } must not implement marshal or unmarshal methods`),
 	}, {
-		name: jsontest.Name("UnknownTextUnmarshaler"),
+		name: jsontest.Name("InlineTextUnmarshaler"),
 		in: struct {
-			A *struct{ encoding.TextUnmarshaler } `json:",unknown"`
+			A *struct{ encoding.TextUnmarshaler } `json:",inline"`
 		}{},
+		want: structFields{flattened: []structField{{
+			index: []int{0, 0},
+			typ:   reflect.TypeFor[encoding.TextUnmarshaler](),
+			fieldOptions: fieldOptions{
+				name:       "TextUnmarshaler",
+				quotedName: `"TextUnmarshaler"`,
+			},
+		}}},
 		wantErr: errors.New(`inlined Go struct field A of type struct { encoding.TextUnmarshaler } must not implement marshal or unmarshal methods`),
 	}, {
 		name: jsontest.Name("InlineJSONUnmarshaler"),
@@ -327,23 +337,23 @@ func TestMakeStructFields(t *testing.T) {
 		}}},
 		wantErr: errors.New(`inlined Go struct field A of type struct { json.Unmarshaler } must not implement marshal or unmarshal methods`),
 	}, {
-		name: jsontest.Name("UnknownJSONUnmarshalerFrom"),
+		name: jsontest.Name("InlineJSONUnmarshalerFrom"),
 		in: struct {
-			A struct{ UnmarshalerFrom } `json:",unknown"`
+			A struct{ UnmarshalerFrom } `json:",inline"`
 		}{},
+		want: structFields{flattened: []structField{{
+			index: []int{0, 0},
+			typ:   reflect.TypeFor[UnmarshalerFrom](),
+			fieldOptions: fieldOptions{
+				name:       "UnmarshalerFrom",
+				quotedName: `"UnmarshalerFrom"`,
+			},
+		}}},
 		wantErr: errors.New(`inlined Go struct field A of type struct { json.UnmarshalerFrom } must not implement marshal or unmarshal methods`),
-	}, {
-		name: jsontest.Name("UnknownStruct"),
-		in: struct {
-			A struct {
-				X, Y, Z string
-			} `json:",unknown"`
-		}{},
-		wantErr: errors.New("inlined Go struct field A of type struct { X string; Y string; Z string } with `unknown` tag must be a Go map of string key or a jsontext.Value"),
 	}, {
 		name: jsontest.Name("InlineUnsupported/MapIntKey"),
 		in: struct {
-			A map[int]any `json:",unknown"`
+			A map[int]any `json:",inline"`
 		}{},
 		wantErr: errors.New(`inlined Go struct field A of type map[int]interface {} must be a Go struct, Go map of string key, or jsontext.Value`),
 	}, {
@@ -633,9 +643,9 @@ func TestParseTagOptions(t *testing.T) {
 	}, {
 		name: jsontest.Name("SuperfluousCommas"),
 		in: struct {
-			V int `json:",,,,\"\",,inline,unknown,,,,"`
+			V int `json:",,,,\"\",,inline,,,,,"`
 		}{},
-		wantOpts: fieldOptions{name: "V", quotedName: `"V"`, inline: true, unknown: true},
+		wantOpts: fieldOptions{name: "V", quotedName: `"V"`, inline: true},
 		wantErr:  errors.New("Go struct field V has malformed `json` tag: invalid character ',' at start of option (expecting Unicode letter or single quote)"),
 	}, {
 		name: jsontest.Name("CaseAloneOption"),
@@ -683,12 +693,6 @@ func TestParseTagOptions(t *testing.T) {
 			FieldName int `json:",inline"`
 		}{},
 		wantOpts: fieldOptions{name: "FieldName", quotedName: `"FieldName"`, inline: true},
-	}, {
-		name: jsontest.Name("UnknownOption"),
-		in: struct {
-			FieldName int `json:",unknown"`
-		}{},
-		wantOpts: fieldOptions{name: "FieldName", quotedName: `"FieldName"`, unknown: true},
 	}, {
 		name: jsontest.Name("OmitZeroOption"),
 		in: struct {
@@ -743,14 +747,13 @@ func TestParseTagOptions(t *testing.T) {
 	}, {
 		name: jsontest.Name("AllOptions"),
 		in: struct {
-			FieldName int `json:",case:ignore,inline,unknown,omitzero,omitempty,string,format:format"`
+			FieldName int `json:",case:ignore,inline,omitzero,omitempty,string,format:format"`
 		}{},
 		wantOpts: fieldOptions{
 			name:       "FieldName",
 			quotedName: `"FieldName"`,
 			casing:     caseIgnore,
 			inline:     true,
-			unknown:    true,
 			omitzero:   true,
 			omitempty:  true,
 			string:     true,
@@ -759,14 +762,13 @@ func TestParseTagOptions(t *testing.T) {
 	}, {
 		name: jsontest.Name("AllOptionsQuoted"),
 		in: struct {
-			FieldName int `json:",'case':'ignore','inline','unknown','omitzero','omitempty','string','format':'format'"`
+			FieldName int `json:",'case':'ignore','inline','omitzero','omitempty','string','format':'format'"`
 		}{},
 		wantOpts: fieldOptions{
 			name:       "FieldName",
 			quotedName: `"FieldName"`,
 			casing:     caseIgnore,
 			inline:     true,
-			unknown:    true,
 			omitzero:   true,
 			omitempty:  true,
 			string:     true,
@@ -783,7 +785,7 @@ func TestParseTagOptions(t *testing.T) {
 	}, {
 		name: jsontest.Name("AllOptionsSpaceSensitive"),
 		in: struct {
-			FieldName int `json:", case:ignore , inline , unknown , omitzero , omitempty , string , format:format "`
+			FieldName int `json:", case:ignore , inline , omitzero , omitempty , string , format:format "`
 		}{},
 		wantOpts: fieldOptions{name: "FieldName", quotedName: `"FieldName"`},
 		wantErr:  errors.New("Go struct field FieldName has malformed `json` tag: invalid character ' ' at start of option (expecting Unicode letter or single quote)"),

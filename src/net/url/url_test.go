@@ -10,6 +10,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"internal/diff"
 	"io"
 	"net"
 	"reflect"
@@ -2360,4 +2361,79 @@ func TestParseStrictIpv6(t *testing.T) {
 		})
 	}
 
+}
+
+func TestURLClone(t *testing.T) {
+	tests := []struct {
+		name string
+		in   *URL
+	}{
+		{"nil", nil},
+		{"zero value", &URL{}},
+		{
+			"Populated but nil .User",
+			&URL{
+				User:     nil,
+				Host:     "foo",
+				Path:     "/path",
+				RawQuery: "a=b",
+			},
+		},
+		{
+			"non-nil .User",
+			&URL{
+				User:     User("user"),
+				Host:     "foo",
+				Path:     "/path",
+				RawQuery: "a=b",
+			},
+		},
+		{
+			"non-nil .User: user and password set",
+			&URL{
+				User:     UserPassword("user", "password"),
+				Host:     "foo",
+				Path:     "/path",
+				RawQuery: "a=b",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// 1. The cloned URL must always deep equal the input, but never the same pointer.
+			cloned := tt.in.Clone()
+			if !reflect.DeepEqual(tt.in, cloned) {
+				t.Fatalf("Differing values\n%s",
+					diff.Diff("original", []byte(tt.in.String()), "cloned", []byte(cloned.String())))
+			}
+			if tt.in == nil {
+				return
+			}
+
+			// Ensure that their pointer values are not the same.
+			if tt.in == cloned {
+				t.Fatalf("URL: same pointer returned: %p", cloned)
+			}
+
+			// 2. Test out malleability of URL fields.
+			cloned.Scheme = "https"
+			if cloned.Scheme == tt.in.Scheme {
+				t.Error("Inconsistent state: cloned.scheme changed and reflected in the input's scheme")
+			}
+			if reflect.DeepEqual(tt.in, cloned) {
+				t.Fatal("Inconsistent state: cloned and input are somehow the same")
+			}
+
+			// 3. Ensure that the .User object deep equals but not the same pointer.
+			if !reflect.DeepEqual(tt.in.User, cloned.User) {
+				t.Fatalf("Differing .User\n%s",
+					diff.Diff("original", []byte(tt.in.String()), "cloned", []byte(cloned.String())))
+			}
+			bothNil := tt.in.User == nil && cloned.User == nil
+			if !bothNil && tt.in.User == cloned.User {
+				t.Fatalf(".User: same pointer returned: %p", cloned.User)
+			}
+		})
+	}
 }
