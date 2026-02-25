@@ -34,6 +34,9 @@ TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
 	// identify exactly which byte has matched.
 
 	CBZ	R1, fail
+#ifdef GOOS_android
+	ADD	R0, R1, R20 // R20 = end of data
+#endif
 	MOVD	R0, R11
 	// Magic constant 0x40100401 allows us to identify
 	// which lane matches the requested byte.
@@ -51,7 +54,17 @@ TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
 	// Input string is not 32-byte aligned. We calculate the
 	// syndrome value for the aligned 32 bytes block containing
 	// the first bytes and mask off the irrelevant part.
+#ifdef GOOS_android
+	// Android requires us to not read outside an aligned 16-byte
+	// region because MTE might be enforced.
+	VLD1.P	(R3), [V1.B16]
+	CMP	R3, R20
+	BLS	2(PC)
+	VLD1	(R3), [V2.B16]
+	ADD	$0x10, R3
+#else
 	VLD1.P	(R3), [V1.B16, V2.B16]
+#endif
 	SUB	$0x20, R9, R4
 	ADDS	R4, R1, R1
 	VCMEQ	V0.B16, V1.B16, V3.B16
@@ -71,7 +84,15 @@ TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
 	CBNZ	R6, tail
 
 loop:
+#ifdef GOOS_android
+	VLD1.P	(R3), [V1.B16]
+	CMP	R3, R20
+	BLS	2(PC)
+	VLD1	(R3), [V2.B16]
+	ADD	$0x10, R3
+#else
 	VLD1.P	(R3), [V1.B16, V2.B16]
+#endif
 	SUBS	$0x20, R1, R1
 	VCMEQ	V0.B16, V1.B16, V3.B16
 	VCMEQ	V0.B16, V2.B16, V4.B16
