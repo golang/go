@@ -6501,8 +6501,6 @@ func sysmon() {
 	idle := 0 // how many cycles in succession we had not wokeup somebody
 	delay := uint32(0)
 
-	var raceliteLastRefresh int64
-
 	for {
 		if idle == 0 { // start with 20us sleep...
 			delay = 20
@@ -6514,12 +6512,9 @@ func sysmon() {
 		}
 		usleep(delay)
 
-		// Racelite refresh random address sampler every 0.1ms.
 		if debug.racelite > 0 {
-			if now := nanotime(); now-raceliteLastRefresh > 100_000 {
-				raceliteLastRefresh = now
-				raceliteSamplingRand = cheaprand()
-			}
+			// Refresh Racelite sampler and cool down PC.
+			racelitetick(delay)
 		}
 
 		// sysmon should not enter deep sleep if schedtrace is enabled so that
