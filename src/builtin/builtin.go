@@ -122,6 +122,10 @@ type Type int
 // invocation.
 type Type1 int
 
+// TypeOrExpr is here for the purposes of documentation only. It is a stand-in
+// for either a Go type or an expression.
+type TypeOrExpr int
+
 // IntegerType is here for the purposes of documentation only. It is a stand-in
 // for any integer type: int, uint, int8 etc.
 type IntegerType int
@@ -133,10 +137,6 @@ type FloatType float32
 // ComplexType is here for the purposes of documentation only. It is a
 // stand-in for either complex type: complex64 or complex128.
 type ComplexType complex64
-
-// TypeOrValue is here for the purposes of documentation only. It is a stand-in
-// for either a type or an expression.
-type TypeOrValue int
 
 // The append built-in function appends elements to the end of a slice. If
 // it has sufficient capacity, the destination is resliced to accommodate the
@@ -224,15 +224,16 @@ func max[T cmp.Ordered](x T, y ...T) T
 // min will return NaN.
 func min[T cmp.Ordered](x T, y ...T) T
 
-// The new built-in function allocates a new, initialized variable and
-// returns a pointer to it. It accepts a single argument, which may be
-// either a type or an expression. If the argument is a type T, then
-// new(T) allocates a variable of type T initialized to its zero value.
-// Otherwise, the argument is an expression and new(x) allocates a
-// variable of the type of x initialized to the value of x. If that value
-// is an untyped constant, it is first implicitly converted to its default
-// type.
-func new(TypeOrValue) *Type
+// The built-in function new creates a new, initialized variable and returns
+// a pointer to it. It accepts a single argument, which may be either a type
+// or an expression.
+//
+// If the argument is a type T, then new(T) allocates a variable of type T
+// initialized to its zero value.
+//
+// If the argument is an expression x, then new(x) allocates a variable of
+// the type of x initialized to the value of x.
+func new(TypeOrExpr) *Type
 
 // The complex built-in function constructs a complex value from two
 // floating-point values. The real and imaginary parts must be of the same
