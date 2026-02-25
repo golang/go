@@ -172,9 +172,9 @@ func racelitehottemp(temp uint16) bool {
 	return t > 0 && cheaprandn(t) != 0
 }
 
-// raceliteskip samples whether to instrument a PC by
+// raceliteskippc checks whether to skip instrumentation of a PC by
 // using its temperature.
-func raceliteskip(v uintptr) bool {
+func raceliteskippc(v uintptr) bool {
 	hash := racelitehash(v, racelitePCTempShift)
 	racelitePCTemp[hash]++
 	return racelitehottemp(racelitePCTemp[hash])
@@ -489,7 +489,7 @@ func racelitewrite(addr uintptr) {
 		return
 	}
 
-	if raceliteskip(sys.GetCallerPC()) {
+	if raceliteskippc(sys.GetCallerPC()) {
 		// This PC is hot, so we skip instrumentation.
 		return
 	}
@@ -525,7 +525,7 @@ func raceliteread(addr uintptr) {
 		return
 	}
 
-	if raceliteskip(sys.GetCallerPC()) {
+	if raceliteskippc(sys.GetCallerPC()) {
 		// We already detected a data race at this PC.
 		return
 	}
