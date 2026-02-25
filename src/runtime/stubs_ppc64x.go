@@ -9,6 +9,10 @@ package runtime
 import "unsafe"
 
 // Called from assembly only; declared for go vet.
+//
+// load_g is also called from runtime/cgo.
+//
+//go:linknamestd load_g
 func load_g()
 func save_g()
 func reginit()
@@ -16,9 +20,15 @@ func reginit()
 //go:noescape
 func asmcgocall_no_g(fn, arg unsafe.Pointer)
 
+// Used by reflectcall and the reflect package.
+//
 // Spills/loads arguments in registers to/from an internal/abi.RegArgs
 // respectively. Does not follow the Go ABI.
+//
+//go:linknamestd spillArgs
 func spillArgs()
+
+//go:linknamestd unspillArgs
 func unspillArgs()
 
 // getfp returns the frame pointer register of its caller or 0 if not implemented.
