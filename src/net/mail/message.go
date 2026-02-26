@@ -556,11 +556,7 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
 
 	// CFWS = (1*([FWS] comment) [FWS]) / FWS
 	if !p.skipCFWS() {
-		return "", errors.New("mail: wrong CFWS in addr-spec")
-	}
-
-	if p.empty() {
-		return "", errors.New("mail: no domain in addr-spec")
+		return "", errors.New("mail: misformatted addr-spec")
 	}
 
 	if p.peek() == '[' {
