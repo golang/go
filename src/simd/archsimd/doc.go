@@ -58,6 +58,4 @@
 //     allocate it in the heap, or put it in an aggregate type.
 package archsimd
 
-// BUG(cherry): Using a vector type as a type parameter may not work.
-
 // BUG(cherry): Using reflect Call to call a vector function/method may not work.

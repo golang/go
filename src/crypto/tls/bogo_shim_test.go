@@ -32,7 +32,11 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
-const boringsslModVer = "v0.0.0-20250620172916-f51d8b099832"
+// boringsslModVer is the version of BoringSSL that we test against.
+// The pseudo-version can be found by executing:
+//
+//	go mod download -json boringssl.googlesource.com/boringssl.git@latest
+const boringsslModVer = "v0.0.0-20260209204302-2a7ca5404e13"
 
 var (
 	port   = flag.String("port", "", "")
@@ -619,8 +623,8 @@ func TestBogoSuite(t *testing.T) {
 	// are present in the output. They are only checked if -bogo-filter
 	// was not passed.
 	assertResults := map[string]string{
-		"CurveTest-Client-MLKEM-TLS13": "PASS",
-		"CurveTest-Server-MLKEM-TLS13": "PASS",
+		"CurveTest-Client-X25519MLKEM768-TLS13": "PASS",
+		"CurveTest-Server-X25519MLKEM768-TLS13": "PASS",
 
 		// Various signature algorithm tests checking that we enforce our
 		// preferences on the peer.

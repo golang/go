@@ -47,6 +47,7 @@ import (
 // already been some compiler errors). It may also be invoked from the explicit panic in
 // hcrash(), in which case, we pass the panic on through.
 func handlePanic() {
+	ir.CloseHTMLWriters()
 	if err := recover(); err != nil {
 		if err == "-h" {
 			// Force real panic now with -h option (hcrash) - the error
@@ -243,12 +244,24 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		}
 	}
 
+	for _, fn := range typecheck.Target.Funcs {
+		if ir.MatchAstDump(fn, "start") {
+			ir.AstDump(fn, "start, "+ir.FuncName(fn))
+		}
+	}
+
 	// Apply bloop markings.
 	bloop.Walk(typecheck.Target)
 
 	// Interleaved devirtualization and inlining.
 	base.Timer.Start("fe", "devirtualize-and-inline")
 	interleaved.DevirtualizeAndInlinePackage(typecheck.Target, profile)
+
+	for _, fn := range typecheck.Target.Funcs {
+		if ir.MatchAstDump(fn, "devirtualize-and-inline") {
+			ir.AstDump(fn, "devirtualize-and-inline, "+ir.FuncName(fn))
+		}
+	}
 
 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
 

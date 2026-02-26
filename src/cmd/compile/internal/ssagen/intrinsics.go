@@ -1612,6 +1612,10 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 	/******** crypto/internal/constanttime ********/
 	// We implement a superset of the Select promise:
 	// Select returns x if v != 0 and y if v == 0.
+	hasCMOV := []*sys.Arch{sys.ArchAMD64, sys.ArchARM64, sys.ArchLoong64, sys.ArchPPC64, sys.ArchPPC64LE, sys.ArchWasm}
+	if cfg.goriscv64 >= 23 {
+		hasCMOV = append(hasCMOV, sys.ArchRISCV64)
+	}
 	add("crypto/internal/constanttime", "Select",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v, x, y := args[0], args[1], args[2]
@@ -1631,8 +1635,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			check := s.newValue2(checkOp, types.Types[types.TBOOL], zero, v)
 
 			return s.newValue3(ssa.OpCondSelect, types.Types[types.TINT], x, y, check)
-		},
-		sys.ArchAMD64, sys.ArchARM64, sys.ArchLoong64, sys.ArchPPC64, sys.ArchPPC64LE, sys.ArchWasm) // all with CMOV support.
+		}, hasCMOV...) // all with CMOV support.
 	add("crypto/internal/constanttime", "boolToUint8",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpCvtBoolToUint8, types.Types[types.TUINT8], args[0])
@@ -2170,7 +2173,7 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 
 	fn := sym.Name
 	if ssa.IntrinsicsDisable {
-		if pkg == "internal/runtime/sys" && (fn == "GetCallerPC" || fn == "GrtCallerSP" || fn == "GetClosurePtr") ||
+		if pkg == "internal/runtime/sys" && (fn == "GetCallerPC" || fn == "GetCallerSP" || fn == "GetClosurePtr") ||
 			pkg == simdPackage {
 			// These runtime functions don't have definitions, must be intrinsics.
 		} else {

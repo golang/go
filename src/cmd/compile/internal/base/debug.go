@@ -18,6 +18,7 @@ var Debug DebugFlags
 type DebugFlags struct {
 	AlignHot              int    `help:"enable hot block alignment (currently requires -pgo)" concurrent:"ok"`
 	Append                int    `help:"print information about append compilation"`
+	AstDump               string `help:"for specified function/method, dump AST/IR at interesting points in compilation, to file pkg.func.ast. Use leading ~ for regular expression match."`
 	Checkptr              int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation" concurrent:"ok"`
 	Closure               int    `help:"print information about closure compilation"`
 	CompressInstructions  int    `help:"use compressed instructions when possible (if supported by architecture)"`

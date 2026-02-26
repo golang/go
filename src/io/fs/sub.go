@@ -24,7 +24,8 @@ type SubFS interface {
 // Otherwise, Sub returns a new [FS] implementation sub that,
 // in effect, implements sub.Open(name) as fsys.Open(path.Join(dir, name)).
 // The implementation also translates calls to ReadDir, ReadFile,
-// ReadLink, Lstat, and Glob appropriately.
+// ReadLink, Lstat, and Glob appropriately. Sub does not check if the
+// directory currently exists.
 //
 // Note that Sub(os.DirFS("/"), "prefix") is equivalent to os.DirFS("/prefix")
 // and that neither of them guarantees to avoid operating system
@@ -32,6 +33,7 @@ type SubFS interface {
 // does not check for symbolic links inside "/prefix" that point to
 // other directories. That is, [os.DirFS] is not a general substitute for a
 // chroot-style security mechanism, and Sub does not change that fact.
+// Use [os.Root] to constrain access to particular directory trees.
 func Sub(fsys FS, dir string) (FS, error) {
 	if !ValidPath(dir) {
 		return nil, &PathError{Op: "sub", Path: dir, Err: ErrInvalid}

@@ -10,6 +10,9 @@ import (
 	"bytes"
 	"debug/elf"
 	"fmt"
+	"internal/asan"
+	"internal/msan"
+	"internal/race"
 	"internal/testenv"
 	"io"
 	"os"
@@ -120,7 +123,18 @@ func TestCore(t *testing.T) {
 		t.Fatalf("error initing module %v\n%s", err, out)
 	}
 
-	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", filepath.Join(tmpDir, "a.exe"))
+	// Pass through the flags for any of the memory validating modes
+	args := []string{"build", "-o", filepath.Join(tmpDir, "a.exe")}
+	if msan.Enabled {
+		args = append(args, "-msan")
+	}
+	if asan.Enabled {
+		args = append(args, "-asan")
+	}
+	if race.Enabled {
+		args = append(args, "-race")
+	}
+	cmd = exec.Command(testenv.GoToolPath(t), args...)
 	cmd.Dir = tmpDir
 	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {

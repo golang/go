@@ -287,6 +287,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	HINT $0                                 // 1f2003d5
 	DMB	$1
 	SVC
+	SB                                      // ff3003d5
 
 // encryption
 	SHA256H	V9.S4, V3, V2                   // 6240095e
@@ -697,6 +698,12 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FMOVS	F4, (R2)(R6<<2)                 // 447826bc
 	FMOVD	F4, (R2)(R6)                    // 446826fc
 	FMOVD	F4, (R2)(R6<<3)                 // 447826fc
+
+// global address
+	FMOVQ	F5, x+8(SB)
+	FMOVQ	F5, x(SB)
+	FMOVQ	x+8(SB), F5
+	FMOVQ	x(SB), F5
 
 // vmov
 	VMOV	V8.S[1], R1           // 013d0c0e

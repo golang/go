@@ -120,7 +120,6 @@ const (
 	FormatNilSliceAsNull      // marshal only
 	OmitZeroStructFields      // marshal only
 	MatchCaseInsensitiveNames // marshal or unmarshal
-	DiscardUnknownMembers     // marshal only
 	RejectUnknownMembers      // unmarshal only
 	Marshalers                // marshal only; non-boolean flag
 	Unmarshalers              // unmarshal only; non-boolean flag
@@ -151,7 +150,7 @@ const (
 )
 
 // bitsUsed is the number of bits used in the 64-bit boolean flags
-const bitsUsed = 42
+const bitsUsed = 41
 
 // Static compile check that bitsUsed and maxArshalV1Flag are in sync.
 const _ = uint64((1<<bitsUsed)-maxArshalV1Flag) + uint64(maxArshalV1Flag-(1<<bitsUsed))

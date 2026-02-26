@@ -586,14 +586,9 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 	case sym.SRODATA, sym.SRODATARELRO, sym.SSTRING:
 		// Nothing to do
 	case sym.STYPE:
-		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
-			return
-		}
-		if !ctxt.DynlinkingGo() {
-			// runtime.types size must be removed, as it's a real symbol.
-			tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
-			outerSymSize["type:*"] = size - tsize
-		}
+		// runtime.types size must be removed, as it's a real symbol.
+		tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
+		outerSymSize["type:*"] = size - tsize
 	case sym.SGOSTRING:
 		outerSymSize["go:string.*"] = size
 	case sym.SGOFUNC:

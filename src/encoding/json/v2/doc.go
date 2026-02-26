@@ -121,17 +121,6 @@
 //     while many non-fallback fields may be specified. This option
 //     must not be specified with any other option (including the JSON name).
 //
-//   - unknown: The "unknown" option is a specialized variant
-//     of the inlined fallback to indicate that this Go struct field
-//     contains any number of unknown JSON object members. The field type must
-//     be a [jsontext.Value], map[~string]T, or an unnamed pointer to such types.
-//     If [DiscardUnknownMembers] is specified when marshaling,
-//     the contents of this field are ignored.
-//     If [RejectUnknownMembers] is specified when unmarshaling,
-//     any unknown object members are rejected regardless of whether
-//     an inlined fallback with the "unknown" option exists. This option
-//     must not be specified with any other option (including the JSON name).
-//
 //   - format: The "format" option specifies a format flag
 //     used to specialize the formatting of the field value.
 //     The option is a key-value pair specified as "format:value" where

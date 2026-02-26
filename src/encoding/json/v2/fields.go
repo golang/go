@@ -129,25 +129,16 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 					f.inline = true // implied by use of Go embedding without an explicit name
 				}
 			}
-			if f.inline || f.unknown {
+			if f.inline {
 				// Handle an inlined field that serializes to/from
 				// zero or more JSON object members.
 
-				switch f.fieldOptions {
-				case fieldOptions{name: f.name, quotedName: f.quotedName, inline: true}:
-				case fieldOptions{name: f.name, quotedName: f.quotedName, unknown: true}:
-				case fieldOptions{name: f.name, quotedName: f.quotedName, inline: true, unknown: true}:
-					serr = orErrorf(serr, t, "Go struct field %s cannot have both `inline` and `unknown` specified", sf.Name)
-					f.inline = false // let `unknown` take precedence
-				default:
-					serr = orErrorf(serr, t, "Go struct field %s cannot have any options other than `inline` or `unknown` specified", sf.Name)
+				if f.fieldOptions != (fieldOptions{name: f.name, quotedName: f.quotedName, inline: true}) {
+					serr = orErrorf(serr, t, "Go struct field %s cannot have any options other than `inline` specified", sf.Name)
 					if f.hasName {
 						continue // invalid inlined field; treat as ignored
 					}
-					f.fieldOptions = fieldOptions{name: f.name, quotedName: f.quotedName, inline: f.inline, unknown: f.unknown}
-					if f.inline && f.unknown {
-						f.inline = false // let `unknown` take precedence
-					}
+					f.fieldOptions = fieldOptions{name: f.name, quotedName: f.quotedName, inline: f.inline}
 				}
 
 				// Reject any types with custom serialization otherwise
@@ -160,10 +151,6 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 				// Handle an inlined field that serializes to/from
 				// a finite number of JSON object members backed by a Go struct.
 				if tf.Kind() == reflect.Struct {
-					if f.unknown {
-						serr = orErrorf(serr, t, "inlined Go struct field %s of type %s with `unknown` tag must be a Go map of string key or a jsontext.Value", sf.Name, tf)
-						continue // invalid inlined field; treat as ignored
-					}
 					if qe.visitChildren {
 						queue = append(queue, queueEntry{tf, f.index, !seen[tf]})
 					}
@@ -392,7 +379,6 @@ type fieldOptions struct {
 	nameNeedEscape bool
 	casing         int8 // either 0, caseIgnore, or caseStrict
 	inline         bool
-	unknown        bool
 	omitzero       bool
 	omitempty      bool
 	string         bool
@@ -526,8 +512,6 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 			}
 		case "inline":
 			out.inline = true
-		case "unknown":
-			out.unknown = true
 		case "omitzero":
 			out.omitzero = true
 		case "omitempty":
@@ -553,7 +537,7 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 			// This catches invalid mutants such as "omitEmpty" or "omit_empty".
 			normOpt := strings.ReplaceAll(strings.ToLower(opt), "_", "")
 			switch normOpt {
-			case "case", "inline", "unknown", "omitzero", "omitempty", "string", "format":
+			case "case", "inline", "omitzero", "omitempty", "string", "format":
 				err = cmp.Or(err, fmt.Errorf("Go struct field %s has invalid appearance of `%s` tag option; specify `%s` instead", sf.Name, opt, normOpt))
 			}
 

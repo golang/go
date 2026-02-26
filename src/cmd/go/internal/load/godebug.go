@@ -66,10 +66,7 @@ func defaultGODEBUG(loaderstate *modload.State, p *Package, directives, testDire
 	// If GOFIPS140 is set to anything but "off",
 	// default to GODEBUG=fips140=on.
 	if fips140.Enabled() {
-		if m == nil {
-			m = make(map[string]string)
-		}
-		m["fips140"] = "on"
+		m = map[string]string{"fips140": "on"}
 	}
 
 	// Add directives from main module go.mod.

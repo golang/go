@@ -616,6 +616,9 @@ func CanSSA(t *types.Type) bool {
 	if t.IsSIMD() {
 		return true
 	}
+	if t.Size() == 0 {
+		return true
+	}
 	sizeLimit := int64(MaxStruct * types.PtrSize)
 	if t.Size() > sizeLimit {
 		// 4*Widthptr is an arbitrary constant. We want it
@@ -635,6 +638,10 @@ func CanSSA(t *types.Type) bool {
 		}
 		return false
 	case types.TSTRUCT:
+		if types.IsDirectIface(t) {
+			// Note: even if t.NumFields()>MaxStruct! See issue 77534.
+			return true
+		}
 		if t.NumFields() > MaxStruct {
 			return false
 		}

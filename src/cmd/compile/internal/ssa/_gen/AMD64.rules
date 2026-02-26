@@ -1578,7 +1578,8 @@
 
 (MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read8(sym, int64(off)))])
 (MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
-(MOVLload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVLload <t> [off] {sym} (SB) _) && symIsRO(sym) && is32BitInt(t) => (MOVLconst [int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVLload <t> [off] {sym} (SB) _) && symIsRO(sym) && is64BitInt(t) => (MOVQconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVQload [off] {sym} (SB) _) && symIsRO(sym) => (MOVQconst [int64(read64(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVBQSXload [off] {sym} (SB) _) && symIsRO(sym) => (MOVQconst [int64(int8(read8(sym, int64(off))))])
 (MOVWQSXload [off] {sym} (SB) _) && symIsRO(sym) => (MOVQconst [int64(int16(read16(sym, int64(off), config.ctxt.Arch.ByteOrder)))])

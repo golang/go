@@ -289,9 +289,8 @@ func BenchmarkUnsafeStrings(b *testing.B) {
 	for i := range src {
 		src[i] = StringValue(fmt.Sprintf("string#%d", i))
 	}
-	b.ResetTimer()
 	var d string
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(dst, src)
 		for _, a := range dst {
 			d = a.String()

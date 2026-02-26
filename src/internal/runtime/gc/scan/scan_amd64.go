@@ -38,4 +38,5 @@ var avx512ScanPackedReqsMet = cpu.X86.HasAVX512VL &&
 	cpu.X86.HasAVX512BW &&
 	cpu.X86.HasGFNI &&
 	cpu.X86.HasAVX512BITALG &&
-	cpu.X86.HasAVX512VBMI
+	cpu.X86.HasAVX512VBMI &&
+	cpu.X86.HasPOPCNT

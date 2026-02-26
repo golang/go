@@ -561,6 +561,7 @@ const (
 	STATUS_NOT_SUPPORTED             NTStatus = 0xC00000BB
 	STATUS_INVALID_PARAMETER         NTStatus = 0xC000000D
 	STATUS_INVALID_INFO_CLASS        NTStatus = 0xC0000003
+	STATUS_ACCESS_DENIED             NTStatus = 0xC0000022
 )
 
 const (
@@ -572,6 +573,8 @@ type FILE_MODE_INFORMATION struct {
 	Mode uint32
 }
 
+//sys	IsProcessorFeaturePresent(ProcessorFeature uint32) (ret bool) = kernel32.IsProcessorFeaturePresent
+
 // NT Native APIs
 //sys   NtCreateFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, allocationSize *int64, attributes uint32, share uint32, disposition uint32, options uint32, eabuffer unsafe.Pointer, ealength uint32) (ntstatus error) = ntdll.NtCreateFile
 //sys   NtOpenFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, share uint32, options uint32) (ntstatus error) = ntdll.NtOpenFile
@@ -579,3 +582,6 @@ type FILE_MODE_INFORMATION struct {
 //sys   NtSetInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer unsafe.Pointer, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtSetInformationFile
 //sys	RtlIsDosDeviceName_U(name *uint16) (ret uint32) = ntdll.RtlIsDosDeviceName_U
 //sys   NtQueryInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer unsafe.Pointer, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtQueryInformationFile
+
+//sys	SetEntriesInAcl(countExplicitEntries uint32, explicitEntries *EXPLICIT_ACCESS, oldACL *ACL, newACL **ACL) (ret error) =  advapi32.SetEntriesInAclW
+//sys	SetNamedSecurityInfo(objectName string, objectType uint32, securityInformation uint32, owner *syscall.SID, group *syscall.SID, dacl *ACL, sacl *ACL) (ret error) = advapi32.SetNamedSecurityInfoW

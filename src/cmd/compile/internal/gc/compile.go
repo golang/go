@@ -121,6 +121,9 @@ func prepareFunc(fn *ir.Func) {
 
 	ir.CurFunc = fn
 	walk.Walk(fn)
+	if ir.MatchAstDump(fn, "walk") {
+		ir.AstDump(fn, "walk, "+ir.FuncName(fn))
+	}
 	ir.CurFunc = nil // enforce no further uses of CurFunc
 
 	base.Ctxt.DwTextCount++

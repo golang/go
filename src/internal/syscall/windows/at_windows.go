@@ -246,14 +246,31 @@ func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
 	var h syscall.Handle
 	err := NtOpenFile(
 		&h,
-		SYNCHRONIZE|FILE_READ_ATTRIBUTES|DELETE,
+		FILE_READ_ATTRIBUTES|DELETE,
 		objAttrs,
 		&IO_STATUS_BLOCK{},
 		FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,
-		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|FILE_SYNCHRONOUS_IO_NONALERT|options,
+		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|options,
 	)
 	if err != nil {
-		return ntCreateFileError(err, 0)
+		if ntStatus, ok := err.(NTStatus); !ok || ntStatus != STATUS_ACCESS_DENIED {
+			return ntCreateFileError(err, 0)
+		}
+
+		// Access denied, try opening with DELETE only.
+		// This may succeed if the file has restrictive permissions
+		// but the caller has delete child permission on the parent directory.
+		err = NtOpenFile(
+			&h,
+			DELETE,
+			objAttrs,
+			&IO_STATUS_BLOCK{},
+			FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,
+			FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|options,
+		)
+		if err != nil {
+			return ntCreateFileError(err, 0)
+		}
 	}
 	defer syscall.CloseHandle(h)
 
@@ -338,7 +355,7 @@ func deleteatFallback(h syscall.Handle) error {
 		h,
 		FileDispositionInfo,
 		unsafe.Pointer(&FILE_DISPOSITION_INFO{
-			DeleteFile: true,
+			DeleteFile: 1,
 		}),
 		uint32(unsafe.Sizeof(FILE_DISPOSITION_INFO{})),
 	)
@@ -399,7 +416,7 @@ func Renameat(olddirfd syscall.Handle, oldpath string, newdirfd syscall.Handle, 
 	//
 	// Try again.
 	renameInfo := FILE_RENAME_INFORMATION{
-		ReplaceIfExists: true,
+		ReplaceIfExists: 1,
 		RootDirectory:   newdirfd,
 	}
 	copy(renameInfo.FileName[:], p16)
@@ -568,6 +585,7 @@ func symlinkat(oldname string, newdirfd syscall.Handle, newname string, flags Sy
 	namebuf := rdbbuf[bufferSize:]
 	copy(namebuf, unsafe.String((*byte)(unsafe.Pointer(&oldnameu16[0])), 2*len(oldnameu16)))
 
+	var bytesReturned uint32
 	err = syscall.DeviceIoControl(
 		h,
 		FSCTL_SET_REPARSE_POINT,
@@ -575,7 +593,7 @@ func symlinkat(oldname string, newdirfd syscall.Handle, newname string, flags Sy
 		uint32(len(rdbbuf)),
 		nil,
 		0,
-		nil,
+		&bytesReturned,
 		nil)
 	if err != nil {
 		// Creating the symlink has failed, so try to remove the file.
@@ -584,7 +602,7 @@ func symlinkat(oldname string, newdirfd syscall.Handle, newname string, flags Sy
 			h,
 			&IO_STATUS_BLOCK{},
 			unsafe.Pointer(&FILE_DISPOSITION_INFORMATION{
-				DeleteFile: true,
+				DeleteFile: 1,
 			}),
 			uint32(unsafe.Sizeof(FILE_DISPOSITION_INFORMATION{})),
 			FileDispositionInformation,

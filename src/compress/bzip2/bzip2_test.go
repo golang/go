@@ -25,11 +25,11 @@ func mustDecodeHex(s string) []byte {
 
 func mustLoadFile(f string) []byte {
 	if strings.HasSuffix(f, ".base64") {
-		tf, err := obscuretestdata.DecodeToTempFile(f)
+		b, err := obscuretestdata.ReadFile(f)
 		if err != nil {
-			panic(fmt.Sprintf("obscuretestdata.DecodeToTempFile(%s): %v", f, err))
+			panic(fmt.Sprintf("obscuretestdata.ReadFile(%s): %v", f, err))
 		}
-		f = tf
+		return b
 	}
 
 	b, err := os.ReadFile(f)

@@ -253,6 +253,58 @@ var validLinkerFlagsWithNextArg = []string{
 	"-Wl,-undefined",
 }
 
+var validPkgConfigFlags = []*lazyregexp.Regexp{
+	re(`--atleast-pkgconfig-version=\d+\.\d+\.\d+`),
+	re(`--atleast-version=\d+\.\d+\.\d+`),
+	re(`--cflags-only-I`),
+	re(`--cflags`),
+	re(`--define-prefix`),
+	re(`--define-variable=[A-Za-z_][A-Za-z0-9_]*=[^@\-]*`),
+	re(`--digraph`),
+	re(`--dont-define-prefix`),
+	re(`--dont-relocate-paths`),
+	re(`--dump-personality`),
+	re(`--env-only`),
+	re(`--errors-to-stdout`),
+	re(`--exact-version=\d+\.\d+\.\d+`),
+	re(`--exists`),
+	re(`--fragment-filter=[A-Za-z_][a-zA-Z0-9_]*`),
+	re(`--ignore-conflicts`),
+	re(`--internal-cflags`),
+	re(`--keep-system-cflags`),
+	re(`--keep-system-libs`),
+	re(`--libs-only-l`),
+	re(`--libs-only-L`),
+	re(`--libs`),
+	re(`--list-all`),
+	re(`--list-package-names`),
+	re(`--max-version=\d+\.\d+\.\d+`),
+	re(`--maximum-traverse-depth=[0-9]+`),
+	re(`--modversion`),
+	re(`--msvc-syntax`),
+	re(`--no-cache`),
+	re(`--no-provides`),
+	re(`--no-uninstalled`),
+	re(`--path`),
+	re(`--personality=(triplet|filename)`),
+	re(`--prefix-variable=[A-Za-z_][a-zA-Z0-9_]*`),
+	re(`--print-errors`),
+	re(`--print-provides`),
+	re(`--print-requires-private`),
+	re(`--print-requires`),
+	re(`--print-variables`),
+	re(`--pure`),
+	re(`--shared`),
+	re(`--short-errors`),
+	re(`--silence-errors`),
+	re(`--simulate`),
+	re(`--static`),
+	re(`--uninstalled`),
+	re(`--validate`),
+	re(`--variable=[A-Za-z_][a-zA-Z0-9_]*`),
+	re(`--with-path=[^@\-].*`),
+}
+
 func checkCompilerFlags(name, source string, list []string) error {
 	checkOverrides := true
 	return checkFlags(name, source, list, nil, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides)
@@ -261,6 +313,11 @@ func checkCompilerFlags(name, source string, list []string) error {
 func checkLinkerFlags(name, source string, list []string) error {
 	checkOverrides := true
 	return checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides)
+}
+
+func checkPkgConfigFlags(name, source string, list []string) error {
+	checkOverrides := false
+	return checkFlags(name, source, list, nil, validPkgConfigFlags, nil, checkOverrides)
 }
 
 // checkCompilerFlagsForInternalLink returns an error if 'list'

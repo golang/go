@@ -1440,3 +1440,24 @@ func TestSaturateConcat(t *testing.T) {
 		})
 	}
 }
+
+func stringy[T interface{ String() string }](v T) string {
+	return v.String()
+}
+
+func double[T interface{ Add(T) T }](v T) T {
+	return v.Add(v)
+}
+
+// Test that vector type instantiation works correctly, see issue #77444.
+func TestTypeParam(t *testing.T) {
+	x := archsimd.LoadInt64x2Slice([]int64{1, 1})
+	y := archsimd.LoadInt64x2Slice([]int64{1, 1})
+	if got := stringy(x); got != y.String() {
+		t.Fatalf("string(x) = %q, want %q", got, y.String())
+	}
+	want := y.Add(y)
+	if got := double(x); got.NotEqual(want).ToBits() != 0 {
+		t.Fatalf("double(x) = %v, want %v", got, want)
+	}
+}

@@ -34,8 +34,8 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 	check.hasCallOrRecv = false
 	check.expr(nil, &x, rangeVar)
 
-	if isTypes2 && x.mode != invalid && sValue == nil && !check.hasCallOrRecv {
-		if t, ok := arrayPtrDeref(x.typ.Underlying()).(*Array); ok {
+	if isTypes2 && x.isValid() && sValue == nil && !check.hasCallOrRecv {
+		if t, ok := arrayPtrDeref(x.typ().Underlying()).(*Array); ok {
 			for {
 				// Put constant info on the thing inside parentheses.
 				// That's where (*../noder/writer).expr expects it.
@@ -50,19 +50,19 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 			// (and thus side-effects will not be computed
 			// by the backend).
 			check.record(&operand{
-				mode: constant_,
-				expr: rangeVar,
-				typ:  Typ[Int],
-				val:  constant.MakeInt64(t.len),
-				id:   x.id,
+				mode_: constant_,
+				expr:  rangeVar,
+				typ_:  Typ[Int],
+				val:   constant.MakeInt64(t.len),
+				id:    x.id,
 			})
 		}
 	}
 
 	// determine key/value types
 	var key, val Type
-	if x.mode != invalid {
-		k, v, cause, ok := rangeKeyVal(check, x.typ, func(v goVersion) bool {
+	if x.isValid() {
+		k, v, cause, ok := rangeKeyVal(check, x.typ(), func(v goVersion) bool {
 			return check.allowVersion(v)
 		})
 		switch {
@@ -92,7 +92,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 	lhs := [2]syntax.Expr{sKey, sValue} // sKey, sValue may be nil
 	rhs := [2]Type{key, val}            // key, val may be nil
 
-	rangeOverInt := isInteger(x.typ)
+	rangeOverInt := isInteger(x.typ())
 
 	if isDef {
 		// short variable declaration
@@ -133,9 +133,9 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 				check.initVar(obj, &x, "range clause")
 			} else {
 				var y operand
-				y.mode = value
+				y.mode_ = value
 				y.expr = lhs // we don't have a better rhs expression to use here
-				y.typ = typ
+				y.typ_ = typ
 				check.initVar(obj, &y, "assignment") // error is on variable, use "assignment" not "range clause"
 			}
 			assert(obj.typ != nil)
@@ -169,14 +169,14 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 				// If the assignment succeeded, if x was untyped before, it now
 				// has a type inferred via the assignment. It must be an integer.
 				// (go.dev/issues/67027)
-				if x.mode != invalid && !isInteger(x.typ) {
-					check.softErrorf(lhs, InvalidRangeExpr, "cannot use iteration variable of type %s", x.typ)
+				if x.isValid() && !isInteger(x.typ()) {
+					check.softErrorf(lhs, InvalidRangeExpr, "cannot use iteration variable of type %s", x.typ())
 				}
 			} else {
 				var y operand
-				y.mode = value
+				y.mode_ = value
 				y.expr = lhs // we don't have a better rhs expression to use here
-				y.typ = typ
+				y.typ_ = typ
 				check.assignVar(lhs, nil, &y, "assignment") // error is on variable, use "assignment" not "range clause"
 			}
 		}

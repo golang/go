@@ -868,20 +868,43 @@ func walkIndexMap(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 	key := mapKeyArg(fast, n, n.Index, n.Assigned)
 	args := []ir.Node{reflectdata.IndexMapRType(base.Pos, n), map_, key}
 
-	var mapFn ir.Node
-	switch {
-	case n.Assigned:
-		mapFn = mapfn(mapassign[fast], t, false)
-	case t.Elem().Size() > abi.ZeroValSize:
-		args = append(args, reflectdata.ZeroAddr(t.Elem().Size()))
-		mapFn = mapfn("mapaccess1_fat", t, true)
-	default:
-		mapFn = mapfn(mapaccess1[fast], t, false)
+	if n.Assigned {
+		mapFn := mapfn(mapassign[fast], t, false)
+		call := mkcall1(mapFn, nil, init, args...)
+		call.SetType(types.NewPtr(t.Elem()))
+		call.MarkNonNil() // mapassign always return non-nil pointers.
+		star := ir.NewStarExpr(base.Pos, call)
+		star.SetType(t.Elem())
+		star.SetTypecheck(1)
+		return star
 	}
-	call := mkcall1(mapFn, nil, init, args...)
-	call.SetType(types.NewPtr(t.Elem()))
-	call.MarkNonNil() // mapaccess1* and mapassign always return non-nil pointers.
-	star := ir.NewStarExpr(base.Pos, call)
+
+	// from:
+	//   m[i]
+	// to:
+	//   var, _ = mapaccess2*(t, m, i)
+	//   *var
+	var mapFn ir.Node
+	if t.Elem().Size() > abi.ZeroValSize {
+		args = append(args, reflectdata.ZeroAddr(t.Elem().Size()))
+		mapFn = mapfn("mapaccess2_fat", t, true)
+	} else {
+		mapFn = mapfn(mapaccess[fast], t, false)
+	}
+	call := mkcall1(mapFn, mapFn.Type().ResultsTuple(), init, args...)
+
+	var_ := typecheck.TempAt(base.Pos, ir.CurFunc, types.NewPtr(t.Elem()))
+	var_.SetTypecheck(1)
+	var_.MarkNonNil() // mapaccess always returns a non-nill pointer
+
+	bool_ := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
+	bool_.SetTypecheck(1)
+
+	r := ir.NewAssignListStmt(base.Pos, ir.OAS2FUNC, []ir.Node{var_, bool_}, []ir.Node{call})
+	r.SetTypecheck(1)
+	init.Append(walkExpr(r, init))
+
+	star := ir.NewStarExpr(base.Pos, var_)
 	star.SetType(t.Elem())
 	star.SetTypecheck(1)
 	return star

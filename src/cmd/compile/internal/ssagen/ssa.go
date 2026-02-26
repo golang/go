@@ -283,6 +283,7 @@ func (s *state) emitOpenDeferInfo() {
 
 	x := base.Ctxt.Lookup(s.curfn.LSym.Name + ".opendefer")
 	x.Set(obj.AttrContentAddressable, true)
+	x.Align = 1
 	s.curfn.LSym.Func().OpenCodedDeferInfo = x
 
 	off := 0
@@ -4488,6 +4489,11 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 			// Grab old value of structure.
 			old := s.expr(left.X)
 
+			if left.Type().Size() == 0 {
+				// Nothing to do when assigning zero-sized things.
+				return
+			}
+
 			// Make new structure.
 			new := s.newValue0(ssa.OpStructMake, t)
 
@@ -4523,8 +4529,20 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 				return
 			}
 			if n != 1 {
-				s.Fatalf("assigning to non-1-length array")
+				// This can happen in weird, always-panics cases, like:
+				//     var x [0][2]int
+				//     x[i][j] = 5
+				// We know it always panics because the LHS is ssa-able,
+				// and arrays of length > 1 can't be ssa-able unless
+				// they are somewhere inside an outer [0].
+				// We can ignore the actual assignment, it is dynamically
+				// unreachable. See issue 77635.
+				return
 			}
+			if t.Size() == 0 {
+				return
+			}
+
 			// Rewrite to a = [1]{v}
 			len := s.constInt(types.Types[types.TINT], 1)
 			s.boundsCheck(i, len, ssa.BoundsIndex, false) // checks i == 0
@@ -4570,6 +4588,9 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 
 // zeroVal returns the zero value for type t.
 func (s *state) zeroVal(t *types.Type) *ssa.Value {
+	if t.Size() == 0 {
+		return s.entryNewValue0(ssa.OpEmpty, t)
+	}
 	switch {
 	case t.IsInteger():
 		switch t.Size() {
@@ -4622,13 +4643,8 @@ func (s *state) zeroVal(t *types.Type) *ssa.Value {
 			v.AddArg(s.zeroVal(t.FieldType(i)))
 		}
 		return v
-	case t.IsArray():
-		switch t.NumElem() {
-		case 0:
-			return s.entryNewValue0(ssa.OpArrayMake0, t)
-		case 1:
-			return s.entryNewValue1(ssa.OpArrayMake1, t, s.zeroVal(t.Elem()))
-		}
+	case t.IsArray() && t.NumElem() == 1:
+		return s.entryNewValue1(ssa.OpArrayMake1, t, s.zeroVal(t.Elem()))
 	case t.IsSIMD():
 		return s.newValue0(ssa.OpZeroSIMD, t)
 	}
@@ -5215,7 +5231,15 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 	}
 
 	if s.canSSA(n) {
-		s.Fatalf("addr of canSSA expression: %+v", n)
+		// This happens in weird, always-panics cases, like:
+		//     var x [0][2]int
+		//     x[i][j] = 5
+		// The outer assignment, ...[j] = 5, is a fine
+		// assignment to do, but requires computing the address
+		// &x[i], which will always panic when evaluated.
+		// We just return something reasonable in this case.
+		// It will be dynamically unreachable. See issue 77635.
+		return s.newValue1A(ssa.OpAddr, n.Type().PtrTo(), ir.Syms.Zerobase, s.sb)
 	}
 
 	t := types.NewPtr(n.Type())
@@ -6781,6 +6805,7 @@ func emitArgInfo(e *ssafn, f *ssa.Func, pp *objw.Progs) {
 // emit argument info (locations on stack) of f for traceback.
 func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	x := base.Ctxt.Lookup(fmt.Sprintf("%s.arginfo%d", f.LSym.Name, f.ABI))
+	x.Align = 1
 	// NOTE: do not set ContentAddressable here. This may be referenced from
 	// assembly code by name (in this case f is a declaration).
 	// Instead, set it in emitArgInfo above.
@@ -6900,6 +6925,7 @@ func emitWrappedFuncInfo(e *ssafn, pp *objw.Progs) {
 	x := base.Ctxt.LookupInit(fmt.Sprintf("%s.wrapinfo", wsym.Name), func(x *obj.LSym) {
 		objw.SymPtrOff(x, 0, wsym)
 		x.Set(obj.AttrContentAddressable, true)
+		x.Align = 4
 	})
 	e.curfn.LSym.Func().WrapInfo = x
 

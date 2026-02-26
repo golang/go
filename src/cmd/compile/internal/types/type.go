@@ -1683,6 +1683,9 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	if underlying.HasShape() {
 		t.SetHasShape(true)
 	}
+	if underlying.isSIMD {
+		simdify(t, underlying.isSIMDTag)
+	}
 
 	// spec: "The declared type does not inherit any methods bound
 	// to the existing type, but the method set of an interface

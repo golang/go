@@ -13,9 +13,11 @@ import (
 	_ "unsafe"
 )
 
-type reader struct {
-	drbg.DefaultReader
-}
+// defaultReader aliases [drbg.DefaultReader], so that [reader]
+// does not have an exported DefaultReader field.
+type defaultReader = drbg.DefaultReader
+
+type reader struct{ defaultReader }
 
 func (r reader) Read(b []byte) (n int, err error) {
 	if boring.Enabled {
@@ -62,12 +64,4 @@ func CustomReader(r io.Reader) io.Reader {
 		return r
 	}
 	return Reader
-}
-
-// IsDefaultReader reports whether r is the default [crypto/rand.Reader].
-//
-// If true, the Read method of r can be assumed to call [drbg.Read].
-func IsDefaultReader(r io.Reader) bool {
-	_, ok := r.(drbg.DefaultReader)
-	return ok
 }

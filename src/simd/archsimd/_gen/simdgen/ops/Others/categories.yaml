@@ -83,7 +83,7 @@
 - go: SHA256TwoRounds
   commutative: false
   documentation: !string |-
-    // NAME does 2 rounds of B loop to calculate updated state variables in SHA1 algorithm defined in FIPS 180-4.
+    // NAME does 2 rounds of B loop to calculate updated state variables in SHA256 algorithm defined in FIPS 180-4.
     // x = {h, g, d, c}
     // y = {f, e, b, a}
     // z = {W0+K0, W1+K1}
@@ -95,14 +95,14 @@
 - go: SHA256Message1
   commutative: false
   documentation: !string |-
-    // NAME does the sigma and addition of 1 in SHA1 algorithm defined in FIPS 180-4.
+    // NAME does the sigma and addition of 1 in SHA256 algorithm defined in FIPS 180-4.
     // x = {W0, W1, W2, W3}
     // y = {W4, 0, 0, 0}
     // result = {W0+σ(W1), W1+σ(W2), W2+σ(W3), W3+σ(W4)}
 - go: SHA256Message2
   commutative: false
   documentation: !string |-
-    // NAME does the sigma and addition of 3 in SHA1 algorithm defined in FIPS 180-4.
+    // NAME does the sigma and addition of 3 in SHA256 algorithm defined in FIPS 180-4.
     // x = result of 2
     // y = {0, 0, W14, W15}
     // result = {W16, W17, W18, W19}

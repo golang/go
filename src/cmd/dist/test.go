@@ -728,7 +728,7 @@ func (t *tester) registerTests() {
 
 		// Test that earlier FIPS snapshots build.
 		// In long mode, test that they work too.
-		for _, version := range fipsVersions(t.short) {
+		for _, version := range fipsVersions() {
 			suffix := " # (build and vet only)"
 			run := "^$" // only ensure they compile
 			if !t.short {
@@ -789,7 +789,7 @@ func (t *tester) registerTests() {
 	if !t.compileOnly && !t.short {
 		t.registerTest("GODEBUG=gcstoptheworld=2 archive/zip",
 			&goTest{
-				variant: "runtime:gcstoptheworld2",
+				variant: "gcstoptheworld2",
 				timeout: 300 * time.Second,
 				short:   true,
 				env:     []string{"GODEBUG=gcstoptheworld=2"},
@@ -797,11 +797,27 @@ func (t *tester) registerTests() {
 			})
 		t.registerTest("GODEBUG=gccheckmark=1 runtime",
 			&goTest{
-				variant: "runtime:gccheckmark",
+				variant: "gccheckmark",
 				timeout: 300 * time.Second,
 				short:   true,
 				env:     []string{"GODEBUG=gccheckmark=1"},
 				pkg:     "runtime",
+			})
+	}
+
+	// Spectre mitigation smoke test.
+	if goos == "linux" && goarch == "amd64" {
+		// Pick a bunch of packages known to have some assembly.
+		pkgs := []string{"internal/runtime/...", "reflect", "crypto/..."}
+		if !t.short {
+			pkgs = append(pkgs, "runtime")
+		}
+		t.registerTest("spectre",
+			&goTest{
+				variant: "spectre",
+				short:   true,
+				env:     []string{"GOFLAGS=-gcflags=all=-spectre=all -asmflags=all=-spectre=all"},
+				pkgs:    pkgs,
 			})
 	}
 
@@ -1227,7 +1243,7 @@ func (t *tester) internalLinkPIE() bool {
 	}
 	switch goos + "-" + goarch {
 	case "darwin-amd64", "darwin-arm64",
-		"linux-amd64", "linux-arm64", "linux-loong64", "linux-ppc64le",
+		"linux-amd64", "linux-arm64", "linux-loong64", "linux-ppc64le", "linux-s390x",
 		"android-arm64",
 		"windows-amd64", "windows-386", "windows-arm64":
 		return true
@@ -1237,11 +1253,6 @@ func (t *tester) internalLinkPIE() bool {
 
 func (t *tester) externalLinkPIE() bool {
 	// General rule is if -buildmode=pie and -linkmode=external both work, then they work together.
-	// Handle exceptions and then fall back to the general rule.
-	switch goos + "-" + goarch {
-	case "linux-s390x":
-		return true
-	}
 	return t.internalLinkPIE() && t.extLink()
 }
 
@@ -1280,11 +1291,12 @@ func (t *tester) registerCgoTests(heading string) {
 			// This isn't actually a Go buildmode, just a convenient way to tell
 			// cgoTest we want static linking.
 			gt.buildmode = ""
-			if linkmode == "external" {
+			switch linkmode {
+			case "external":
 				ldflags = append(ldflags, `-extldflags "-static -pthread"`)
-			} else if linkmode == "auto" {
+			case "auto":
 				gt.env = append(gt.env, "CGO_LDFLAGS=-static -pthread")
-			} else {
+			default:
 				panic("unknown linkmode with static build: " + linkmode)
 			}
 			gt.tags = append(gt.tags, "static")
@@ -1309,8 +1321,8 @@ func (t *tester) registerCgoTests(heading string) {
 
 	os := gohostos
 	p := gohostos + "/" + goarch
-	switch {
-	case os == "darwin", os == "windows":
+	switch os {
+	case "darwin", "windows":
 		if !t.extLink() {
 			break
 		}
@@ -1327,7 +1339,7 @@ func (t *tester) registerCgoTests(heading string) {
 			}
 		}
 
-	case os == "aix", os == "android", os == "dragonfly", os == "freebsd", os == "linux", os == "netbsd", os == "openbsd":
+	case "aix", "android", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
 		gt := cgoTest("external-g0", "test", "external", "")
 		gt.env = append(gt.env, "CGO_CFLAGS=-g0 -fdiagnostics-color")
 
@@ -1513,14 +1525,6 @@ func (t *tester) runPending(nextTest *distTest) {
 			fmt.Printf("# go tool dist test -run=^%s$\n", dt.name)
 		}
 	}
-}
-
-func (t *tester) hasBash() bool {
-	switch gohostos {
-	case "windows", "plan9":
-		return false
-	}
-	return true
 }
 
 // hasParallelism is a copy of the function
@@ -1870,7 +1874,7 @@ func (t *tester) fipsSupported() bool {
 }
 
 // fipsVersions returns the list of versions available in lib/fips140.
-func fipsVersions(short bool) []string {
+func fipsVersions() []string {
 	var versions []string
 	zips, err := filepath.Glob(filepath.Join(goroot, "lib/fips140/*.zip"))
 	if err != nil {

@@ -52,6 +52,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archrelocvariant: archrelocvariant,
 		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,
+		TLSIEtoLE:        tlsIEtoLE,
 
 		ELF: ld.ELFArch{
 			Linuxdynld:     "/lib64/ld64.so.1",

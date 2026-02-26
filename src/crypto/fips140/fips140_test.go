@@ -6,46 +6,30 @@ package fips140
 
 import (
 	"internal/godebug"
-	"os"
+	"internal/testenv"
 	"testing"
 )
 
 func TestImmutableGODEBUG(t *testing.T) {
-	defer func(v string) { os.Setenv("GODEBUG", v) }(os.Getenv("GODEBUG"))
-
 	fips140Enabled := Enabled()
 	fips140Setting := godebug.New("fips140")
 	fips140SettingValue := fips140Setting.Value()
 
-	os.Setenv("GODEBUG", "fips140=off")
-	if Enabled() != fips140Enabled {
-		t.Errorf("Enabled() changed after setting GODEBUG=fips140=off")
+	tests := []string{
+		"fips140=off",
+		"fips140=on",
+		"fips140=",
+		"",
 	}
-	if fips140Setting.Value() != fips140SettingValue {
-		t.Errorf("fips140Setting.Value() changed after setting GODEBUG=fips140=off")
-	}
-
-	os.Setenv("GODEBUG", "fips140=on")
-	if Enabled() != fips140Enabled {
-		t.Errorf("Enabled() changed after setting GODEBUG=fips140=on")
-	}
-	if fips140Setting.Value() != fips140SettingValue {
-		t.Errorf("fips140Setting.Value() changed after setting GODEBUG=fips140=on")
-	}
-
-	os.Setenv("GODEBUG", "fips140=")
-	if Enabled() != fips140Enabled {
-		t.Errorf("Enabled() changed after setting GODEBUG=fips140=")
-	}
-	if fips140Setting.Value() != fips140SettingValue {
-		t.Errorf("fips140Setting.Value() changed after setting GODEBUG=fips140=")
-	}
-
-	os.Setenv("GODEBUG", "")
-	if Enabled() != fips140Enabled {
-		t.Errorf("Enabled() changed after setting GODEBUG=")
-	}
-	if fips140Setting.Value() != fips140SettingValue {
-		t.Errorf("fips140Setting.Value() changed after setting GODEBUG=")
+	for _, godebugValue := range tests {
+		t.Run(godebugValue, func(t *testing.T) {
+			testenv.SetGODEBUG(t, godebugValue)
+			if Enabled() != fips140Enabled {
+				t.Errorf("Enabled() changed after setting GODEBUG=%s", godebugValue)
+			}
+			if fips140Setting.Value() != fips140SettingValue {
+				t.Errorf("fips140Setting.Value() changed after setting GODEBUG=%s", godebugValue)
+			}
+		})
 	}
 }

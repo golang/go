@@ -76,6 +76,27 @@
         "PAKE-Extension-*": "We don't support PAKE",
         "*TicketFlags": "We don't support draft-ietf-tls-tlsflags",
 
+        "BothMLKEMAndKyber-MLKEM1024": "We don't support ML-KEM 1024 KEX",
+        "CurveTest-Client-MLKEM1024-TLS13": "We don't support ML-KEM 1024 KEX",
+        "CurveTest-Invalid-MLKEMEncapKeyNotReduced-Server-MLKEM1024-TLS13": "We don't support ML-KEM 1024 KEX",
+        "CurveTest-Invalid-PadKeyShare-Client-MLKEM1024-TLS13": "We don't support ML-KEM 1024 KEX",
+        "CurveTest-Invalid-PadKeyShare-Server-MLKEM1024-TLS13": "We don't support ML-KEM 1024 KEX",
+        "CurveTest-Invalid-TruncateKeyShare-Client-MLKEM1024-TLS13": "We don't support ML-KEM 1024 KEX",
+        "CurveTest-Invalid-TruncateKeyShare-Server-MLKEM1024-TLS13": "We don't support ML-KEM 1024 KEX",
+        "CurveTest-Server-MLKEM1024-TLS13": "We don't support ML-KEM 1024 KEX",
+        "JustConfiguringMLKEMWorks-MLKEM1024": "We don't support ML-KEM 1024 KEX",
+        "NotJustMLKEMKeyShare-MLKEM1024": "We don't support ML-KEM 1024 KEX",
+        "TwoMLKEMs": "We don't support ML-KEM 1024 KEX",
+        "MLKEMKeyShareIncludedSecond-MLKEM1024": "We don't support ML-KEM 1024 KEX",
+        "MLKEMKeyShareIncludedSecond-X25519MLKEM768": "We don't support ML-KEM 1024 KEX",
+        "MLKEMKeyShareIncludedThird-MLKEM1024": "We don't support ML-KEM 1024 KEX",
+
+        "MLKEMKeyShareIncludedThird-X25519MLKEM768": "We don't return key shares in client preference order",
+
+        "ECDSAKeyUsage-*": "We don't enforce ECDSA KU",
+
+        "RSAKeyUsage-*": "We don't enforce RSA KU",
+
         "CheckLeafCurve": "TODO: first pass, this should be fixed",
         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
         "SupportedVersionSelection-TLS12": "TODO: first pass, this should be fixed",
@@ -167,19 +188,6 @@
         "HelloRetryRequest-DuplicateCookie-TLS13": "TODO: first pass, this should be fixed",
         "HelloRetryRequest-Unknown-TLS13": "TODO: first pass, this should be fixed",
         "SendPostHandshakeChangeCipherSpec-TLS13": "TODO: first pass, this should be fixed",
-        "ECDSAKeyUsage-Server-TLS12": "TODO: first pass, this should be fixed",
-        "ECDSAKeyUsage-Server-TLS13": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Client-WantEncipherment-GotEnciphermentTLS1": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Server-WantSignature-GotEncipherment-TLS1": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Client-WantSignature-GotSignature-TLS1": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Client-WantEncipherment-GotEnciphermentTLS11": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Client-WantSignature-GotSignature-TLS11": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Client-WantEncipherment-GotEnciphermentTLS12": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Server-WantSignature-GotEncipherment-TLS12": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Server-WantSignature-GotEncipherment-TLS11": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Client-WantSignature-GotSignature-TLS12": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Client-WantSignature-GotSignature-TLS13": "TODO: first pass, this should be fixed",
-        "RSAKeyUsage-Server-WantSignature-GotEncipherment-TLS13": "TODO: first pass, this should be fixed",
         "EmptyExtensions-ClientHello-TLS1": "TODO: first pass, this should be fixed",
         "OmitExtensions-ClientHello-TLS1": "TODO: first pass, this should be fixed",
         "EmptyExtensions-ClientHello-TLS12": "TODO: first pass, this should be fixed",
@@ -214,15 +222,6 @@
         "KeyUpdate-Requested": "TODO: 2025/06  BoGo update, should be fixed",
         "AppDataBeforeTLS13KeyChange-*": "TODO: 2025/06  BoGo update, should be fixed"
     },
-    "AllCurves": [
-        23,
-        24,
-        25,
-        29,
-        4587,
-        4588,
-        4589
-    ],
     "ErrorMap": {
         ":ECH_REJECTED:": ["tls: server rejected ECH"]
     }

@@ -5356,6 +5356,8 @@ const (
 	OpRISCV64LoweredFMAXD
 	OpRISCV64FCLASSS
 	OpRISCV64FCLASSD
+	OpRISCV64CZEROEQZ
+	OpRISCV64CZERONEZ
 
 	OpS390XFADDS
 	OpS390XFADD
@@ -6033,7 +6035,6 @@ const (
 	OpIData
 	OpStructMake
 	OpStructSelect
-	OpArrayMake0
 	OpArrayMake1
 	OpArraySelect
 	OpStoreReg
@@ -6125,6 +6126,7 @@ const (
 	OpPrefetchCache
 	OpPrefetchCacheStreamed
 	OpMemEq
+	OpEmpty
 	OpZeroSIMD
 	OpCvt16toMask8x16
 	OpCvt32toMask8x32
@@ -81426,6 +81428,34 @@ var opcodeTable = [...]opInfo{
 			},
 		},
 	},
+	{
+		name:   "CZEROEQZ",
+		argLen: 2,
+		asm:    riscv.ACZEROEQZ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "CZERONEZ",
+		argLen: 2,
+		asm:    riscv.ACZERONEZ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
 
 	{
 		name:         "FADDS",
@@ -88179,11 +88209,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ArrayMake0",
-		argLen:  0,
-		generic: true,
-	},
-	{
 		name:    "ArrayMake1",
 		argLen:  1,
 		generic: true,
@@ -88702,6 +88727,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      4,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "Empty",
+		argLen:  0,
+		generic: true,
 	},
 	{
 		name:    "ZeroSIMD",

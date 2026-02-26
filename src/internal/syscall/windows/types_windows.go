@@ -219,12 +219,12 @@ const (
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_disposition_info
 type FILE_DISPOSITION_INFO struct {
-	DeleteFile bool
+	DeleteFile byte
 }
 
 // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information
 type FILE_DISPOSITION_INFORMATION struct {
-	DeleteFile bool
+	DeleteFile byte
 }
 
 // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information_ex
@@ -250,7 +250,7 @@ const (
 
 // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information
 type FILE_RENAME_INFORMATION struct {
-	ReplaceIfExists bool
+	ReplaceIfExists byte
 	RootDirectory   syscall.Handle
 	FileNameLength  uint32
 	FileName        [syscall.MAX_PATH]uint16
@@ -266,7 +266,7 @@ type FILE_RENAME_INFORMATION_EX struct {
 
 // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_link_information
 type FILE_LINK_INFORMATION struct {
-	ReplaceIfExists bool
+	ReplaceIfExists byte
 	RootDirectory   syscall.Handle
 	FileNameLength  uint32
 	FileName        [syscall.MAX_PATH]uint16
@@ -301,3 +301,170 @@ const ValidFileFlagsMask = O_FILE_FLAG_OPEN_REPARSE_POINT |
 	O_FILE_FLAG_NO_BUFFERING |
 	O_FILE_FLAG_RANDOM_ACCESS |
 	O_FILE_FLAG_WRITE_THROUGH
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa379636.aspx
+type TRUSTEE struct {
+	MultipleTrustee          *TRUSTEE
+	MultipleTrusteeOperation uint32
+	TrusteeForm              uint32
+	TrusteeType              uint32
+	Name                     uintptr
+}
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa379638.aspx
+const (
+	TRUSTEE_IS_SID              = 0x0
+	TRUSTEE_IS_NAME             = 0x1
+	TRUSTEE_BAD_FORM            = 0x2
+	TRUSTEE_IS_OBJECTS_AND_SID  = 0x3
+	TRUSTEE_IS_OBJECTS_AND_NAME = 0x4
+)
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa446627.aspx
+type EXPLICIT_ACCESS struct {
+	AccessPermissions uint32
+	AccessMode        uint32
+	Inheritance       uint32
+	Trustee           TRUSTEE
+}
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa374899.aspx
+const (
+	NOT_USED_ACCESS   = 0x0
+	GRANT_ACCESS      = 0x1
+	SET_ACCESS        = 0x2
+	DENY_ACCESS       = 0x3
+	REVOKE_ACCESS     = 0x4
+	SET_AUDIT_SUCCESS = 0x5
+	SET_AUDIT_FAILURE = 0x6
+)
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa446627.aspx
+const (
+	NO_INHERITANCE                     = 0x0
+	SUB_OBJECTS_ONLY_INHERIT           = 0x1
+	SUB_CONTAINERS_ONLY_INHERIT        = 0x2
+	SUB_CONTAINERS_AND_OBJECTS_INHERIT = 0x3
+	INHERIT_NO_PROPAGATE               = 0x4
+	INHERIT_ONLY                       = 0x8
+)
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa379593.aspx
+const (
+	SE_UNKNOWN_OBJECT_TYPE     = 0x0
+	SE_FILE_OBJECT             = 0x1
+	SE_SERVICE                 = 0x2
+	SE_PRINTER                 = 0x3
+	SE_REGISTRY_KEY            = 0x4
+	SE_LMSHARE                 = 0x5
+	SE_KERNEL_OBJECT           = 0x6
+	SE_WINDOW_OBJECT           = 0x7
+	SE_DS_OBJECT               = 0x8
+	SE_DS_OBJECT_ALL           = 0x9
+	SE_PROVIDER_DEFINED_OBJECT = 0xa
+	SE_WMIGUID_OBJECT          = 0xb
+	SE_REGISTRY_WOW64_32KEY    = 0xc
+	SE_REGISTRY_WOW64_64KEY    = 0xd
+)
+
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dtyp/23e75ca3-98fd-4396-84e5-86cd9d40d343
+const (
+	OWNER_SECURITY_INFORMATION               = 0x00000001
+	GROUP_SECURITY_INFORMATION               = 0x00000002
+	DACL_SECURITY_INFORMATION                = 0x00000004
+	SACL_SECURITY_INFORMATION                = 0x00000008
+	LABEL_SECURITY_INFORMATION               = 0x00000010
+	UNPROTECTED_SACL_SECURITY_INFORMATION    = 0x10000000
+	UNPROTECTED_DACL_SECURITY_INFORMATION    = 0x20000000
+	PROTECTED_SACL_SECURITY_INFORMATION      = 0x40000000
+	PROTECTED_DACL_SECURITY_INFORMATION      = 0x80000000
+	ATTRIBUTE_SECURITY_INFORMATION           = 0x00000020
+	SCOPE_SECURITY_INFORMATION               = 0x00000040
+	PROCESS_TRUST_LABEL_SECURITY_INFORMATION = 0x00000080
+	BACKUP_SECURITY_INFORMATION              = 0x00010000
+)
+
+// The processor features to be tested for IsProcessorFeaturePresent, see
+// https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-isprocessorfeaturepresent
+const (
+	PF_ARM_64BIT_LOADSTORE_ATOMIC              = 25
+	PF_ARM_DIVIDE_INSTRUCTION_AVAILABLE        = 24
+	PF_ARM_EXTERNAL_CACHE_AVAILABLE            = 26
+	PF_ARM_FMAC_INSTRUCTIONS_AVAILABLE         = 27
+	PF_ARM_VFP_32_REGISTERS_AVAILABLE          = 18
+	PF_3DNOW_INSTRUCTIONS_AVAILABLE            = 7
+	PF_CHANNELS_ENABLED                        = 16
+	PF_COMPARE_EXCHANGE_DOUBLE                 = 2
+	PF_COMPARE_EXCHANGE128                     = 14
+	PF_COMPARE64_EXCHANGE128                   = 15
+	PF_FASTFAIL_AVAILABLE                      = 23
+	PF_FLOATING_POINT_EMULATED                 = 1
+	PF_FLOATING_POINT_PRECISION_ERRATA         = 0
+	PF_MMX_INSTRUCTIONS_AVAILABLE              = 3
+	PF_NX_ENABLED                              = 12
+	PF_PAE_ENABLED                             = 9
+	PF_RDTSC_INSTRUCTION_AVAILABLE             = 8
+	PF_RDWRFSGSBASE_AVAILABLE                  = 22
+	PF_SECOND_LEVEL_ADDRESS_TRANSLATION        = 20
+	PF_SSE3_INSTRUCTIONS_AVAILABLE             = 13
+	PF_SSSE3_INSTRUCTIONS_AVAILABLE            = 36
+	PF_SSE4_1_INSTRUCTIONS_AVAILABLE           = 37
+	PF_SSE4_2_INSTRUCTIONS_AVAILABLE           = 38
+	PF_AVX_INSTRUCTIONS_AVAILABLE              = 39
+	PF_AVX2_INSTRUCTIONS_AVAILABLE             = 40
+	PF_AVX512F_INSTRUCTIONS_AVAILABLE          = 41
+	PF_VIRT_FIRMWARE_ENABLED                   = 21
+	PF_XMMI_INSTRUCTIONS_AVAILABLE             = 6
+	PF_XMMI64_INSTRUCTIONS_AVAILABLE           = 10
+	PF_XSAVE_ENABLED                           = 17
+	PF_ARM_V8_INSTRUCTIONS_AVAILABLE           = 29
+	PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE    = 30
+	PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE     = 31
+	PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE   = 34
+	PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE       = 43
+	PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE    = 44
+	PF_ARM_V83_LRCPC_INSTRUCTIONS_AVAILABLE    = 45
+	PF_ARM_SVE_INSTRUCTIONS_AVAILABLE          = 46
+	PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE         = 47
+	PF_ARM_SVE2_1_INSTRUCTIONS_AVAILABLE       = 48
+	PF_ARM_SVE_AES_INSTRUCTIONS_AVAILABLE      = 49
+	PF_ARM_SVE_PMULL128_INSTRUCTIONS_AVAILABLE = 50
+	PF_ARM_SVE_BITPERM_INSTRUCTIONS_AVAILABLE  = 51
+	PF_ARM_SVE_BF16_INSTRUCTIONS_AVAILABLE     = 52
+	PF_ARM_SVE_EBF16_INSTRUCTIONS_AVAILABLE    = 53
+	PF_ARM_SVE_B16B16_INSTRUCTIONS_AVAILABLE   = 54
+	PF_ARM_SVE_SHA3_INSTRUCTIONS_AVAILABLE     = 55
+	PF_ARM_SVE_SM4_INSTRUCTIONS_AVAILABLE      = 56
+	PF_ARM_SVE_I8MM_INSTRUCTIONS_AVAILABLE     = 57
+	PF_ARM_SVE_F32MM_INSTRUCTIONS_AVAILABLE    = 58
+	PF_ARM_SVE_F64MM_INSTRUCTIONS_AVAILABLE    = 59
+	PF_BMI2_INSTRUCTIONS_AVAILABLE             = 60
+	PF_MOVDIR64B_INSTRUCTION_AVAILABLE         = 61
+	PF_ARM_LSE2_AVAILABLE                      = 62
+	PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE         = 64
+	PF_ARM_SHA512_INSTRUCTIONS_AVAILABLE       = 65
+	PF_ARM_V82_I8MM_INSTRUCTIONS_AVAILABLE     = 66
+	PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE     = 67
+	PF_ARM_V86_BF16_INSTRUCTIONS_AVAILABLE     = 68
+	PF_ARM_V86_EBF16_INSTRUCTIONS_AVAILABLE    = 69
+	PF_ARM_SME_INSTRUCTIONS_AVAILABLE          = 70
+	PF_ARM_SME2_INSTRUCTIONS_AVAILABLE         = 71
+	PF_ARM_SME2_1_INSTRUCTIONS_AVAILABLE       = 72
+	PF_ARM_SME2_2_INSTRUCTIONS_AVAILABLE       = 73
+	PF_ARM_SME_AES_INSTRUCTIONS_AVAILABLE      = 74
+	PF_ARM_SME_SBITPERM_INSTRUCTIONS_AVAILABLE = 75
+	PF_ARM_SME_SF8MM4_INSTRUCTIONS_AVAILABLE   = 76
+	PF_ARM_SME_SF8MM8_INSTRUCTIONS_AVAILABLE   = 77
+	PF_ARM_SME_SF8DP2_INSTRUCTIONS_AVAILABLE   = 78
+	PF_ARM_SME_SF8DP4_INSTRUCTIONS_AVAILABLE   = 79
+	PF_ARM_SME_SF8FMA_INSTRUCTIONS_AVAILABLE   = 80
+	PF_ARM_SME_F8F32_INSTRUCTIONS_AVAILABLE    = 81
+	PF_ARM_SME_F8F16_INSTRUCTIONS_AVAILABLE    = 82
+	PF_ARM_SME_F16F16_INSTRUCTIONS_AVAILABLE   = 83
+	PF_ARM_SME_B16B16_INSTRUCTIONS_AVAILABLE   = 84
+	PF_ARM_SME_F64F64_INSTRUCTIONS_AVAILABLE   = 85
+	PF_ARM_SME_I16I64_INSTRUCTIONS_AVAILABLE   = 86
+	PF_ARM_SME_LUTv2_INSTRUCTIONS_AVAILABLE    = 87
+	PF_ARM_SME_FA64_INSTRUCTIONS_AVAILABLE     = 88
+	PF_UMONITOR_INSTRUCTION_AVAILABLE          = 89
+)

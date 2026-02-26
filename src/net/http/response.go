@@ -61,7 +61,10 @@ type Response struct {
 	// a zero-length body. It is the caller's responsibility to
 	// close Body. The default HTTP client's Transport may not
 	// reuse HTTP/1.x "keep-alive" TCP connections if the Body is
-	// not read to completion and closed.
+	// not read to completion and closed; however, manually reading
+	// the body to completion should not be needed in most cases,
+	// as closing the body will also cause the body to be read to
+	// completion asynchronously, up to a conservative limit.
 	//
 	// The Body is automatically dechunked if the server replied
 	// with a "chunked" Transfer-Encoding.

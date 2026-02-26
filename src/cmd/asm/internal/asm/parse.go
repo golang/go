@@ -775,7 +775,7 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
 
 	switch p.arch.Family {
 	case sys.ARM64:
-		err := arm64.ARM64RegisterExtension(a, ext, reg, num, isAmount, isIndex)
+		err := arm64.EncodeRegisterExtension(a, ext, reg, num, isAmount, isIndex)
 		if err != nil {
 			p.errorf("%v", err)
 		}
@@ -1174,7 +1174,7 @@ ListLoop:
 	case sys.ARM:
 		a.Offset = int64(bits)
 	case sys.ARM64:
-		offset, err := arch.ARM64RegisterListOffset(firstReg, regCnt, arrangement)
+		offset, err := arm64.RegisterListOffset(firstReg, regCnt, arrangement)
 		if err != nil {
 			p.errorf("%v", err)
 		}

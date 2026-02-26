@@ -2794,12 +2794,6 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	var tparams *ast.FieldList
 	if p.tok == token.LBRACK {
 		tparams = p.parseTypeParameters()
-		if recv != nil && tparams != nil {
-			// Method declarations do not have type parameters. We parse them for a
-			// better error message and improved error recovery.
-			p.error(tparams.Opening, "method must have no type parameters")
-			tparams = nil
-		}
 	}
 	params := p.parseParameters(false)
 	results := p.parseParameters(true)

@@ -274,6 +274,10 @@ func checkFunc(f *Func) {
 				}
 			}
 
+			if (v.Op == OpStructMake || v.Op == OpArrayMake1) && v.Type.Size() == 0 {
+				f.Fatalf("zero-sized Make; use Empty instead %v", v)
+			}
+
 			if f.RegAlloc != nil && f.Config.SoftFloat && v.Type.IsFloat() {
 				f.Fatalf("unexpected floating-point type %v", v.LongString())
 			}

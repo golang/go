@@ -906,27 +906,11 @@ func (t *rtype) CanSeq() bool {
 	case Int8, Int16, Int32, Int64, Int, Uint8, Uint16, Uint32, Uint64, Uint, Uintptr, Array, Slice, Chan, String, Map:
 		return true
 	case Func:
-		return canRangeFunc(&t.t)
+		return canRangeFunc(&t.t, 1)
 	case Pointer:
 		return t.Elem().Kind() == Array
 	}
 	return false
-}
-
-func canRangeFunc(t *abi.Type) bool {
-	if t.Kind() != abi.Func {
-		return false
-	}
-	f := t.FuncType()
-	if f.InCount != 1 || f.OutCount != 0 {
-		return false
-	}
-	y := f.In(0)
-	if y.Kind() != abi.Func {
-		return false
-	}
-	yield := y.FuncType()
-	return yield.InCount == 1 && yield.OutCount == 1 && yield.Out(0).Kind() == abi.Bool
 }
 
 func (t *rtype) CanSeq2() bool {
@@ -934,14 +918,14 @@ func (t *rtype) CanSeq2() bool {
 	case Array, Slice, String, Map:
 		return true
 	case Func:
-		return canRangeFunc2(&t.t)
+		return canRangeFunc(&t.t, 2)
 	case Pointer:
 		return t.Elem().Kind() == Array
 	}
 	return false
 }
 
-func canRangeFunc2(t *abi.Type) bool {
+func canRangeFunc(t *abi.Type, seq uint16) bool {
 	if t.Kind() != abi.Func {
 		return false
 	}
@@ -954,7 +938,7 @@ func canRangeFunc2(t *abi.Type) bool {
 		return false
 	}
 	yield := y.FuncType()
-	return yield.InCount == 2 && yield.OutCount == 1 && yield.Out(0).Kind() == abi.Bool
+	return yield.InCount == seq && yield.OutCount == 1 && yield.Out(0).Kind() == abi.Bool && toRType(yield.Out(0)).PkgPath() == ""
 }
 
 func (t *rtype) Fields() iter.Seq[StructField] {
@@ -2580,6 +2564,9 @@ func StructOf(fields []StructField) Type {
 		// space to store it.
 		typ.TFlag |= abi.TFlagGCMaskOnDemand
 		typ.GCData = (*byte)(unsafe.Pointer(new(uintptr)))
+		if runtime.GOOS == "aix" {
+			typ.GCData = adjustAIXGCData(typ.GCData)
+		}
 	}
 
 	typ.Equal = nil
@@ -2745,6 +2732,9 @@ func ArrayOf(length int, elem Type) Type {
 		// space to store it.
 		array.TFlag |= abi.TFlagGCMaskOnDemand
 		array.GCData = (*byte)(unsafe.Pointer(new(uintptr)))
+		if runtime.GOOS == "aix" {
+			array.GCData = adjustAIXGCData(array.GCData)
+		}
 	}
 
 	etyp := typ
@@ -2775,6 +2765,34 @@ func ArrayOf(length int, elem Type) Type {
 	ti, _ := lookupCache.LoadOrStore(ckey, toRType(&array.Type))
 	return ti.(Type)
 }
+
+// adjustAIXGCData adjusts the GCData field pointer for AIX.
+// See runtime.getGCMaskOnDemand.
+func adjustAIXGCData(addr *byte) *byte {
+	adjusted := adjustAIXGCDataForRuntime(addr)
+	if adjusted != addr {
+		pinAIXGCDataMu.Lock()
+		pinAIXGCData = append(pinAIXGCData, addr)
+		pinAIXGCDataMu.Unlock()
+	}
+	return adjusted
+}
+
+// adjustAIXGCDataForRuntime adjusts the GCData field pointer
+// as the runtime requires for AIX. See runtime.getGCMaskOnDemand.
+//
+//go:linkname adjustAIXGCDataForRuntime
+//go:noescape
+func adjustAIXGCDataForRuntime(*byte) *byte
+
+// pinAIXGCDataMu proects pinAIXGCData.
+var pinAIXGCDataMu sync.Mutex
+
+// pinAIXGCData keeps the actual GCData pointer alive on AIX.
+// On AIX we need to use adjustAIXGCData to convert the GC pointer
+// to the value that the runtime expects. That means that the rtype
+// no longer refers to the original pointer. This slice keeps it alive.
+var pinAIXGCData []*byte
 
 func appendVarint(x []byte, v uintptr) []byte {
 	for ; v >= 0x80; v >>= 7 {

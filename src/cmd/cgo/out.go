@@ -33,15 +33,15 @@ var (
 // writeDefs creates output files to be compiled by gc and gcc.
 func (p *Package) writeDefs() {
 	var fgo2, fc io.Writer
-	f := creat(*objDir + "_cgo_gotypes.go")
+	f := creat("_cgo_gotypes.go")
 	defer f.Close()
 	fgo2 = f
 	if *gccgo {
-		f := creat(*objDir + "_cgo_defun.c")
+		f := creat("_cgo_defun.c")
 		defer f.Close()
 		fc = f
 	}
-	fm := creat(*objDir + "_cgo_main.c")
+	fm := creat("_cgo_main.c")
 
 	var gccgoInit strings.Builder
 
@@ -50,7 +50,7 @@ func (p *Package) writeDefs() {
 			fmt.Fprintf(fgo2, "//go:cgo_ldflag %q\n", arg)
 		}
 	} else {
-		fflg := creat(*objDir + "_cgo_flags")
+		fflg := creat("_cgo_flags")
 		for _, arg := range p.LdFlags {
 			fmt.Fprintf(fflg, "_CGO_LDFLAGS=%s\n", arg)
 		}
@@ -242,8 +242,8 @@ func (p *Package) writeDefs() {
 		}
 	}
 
-	fgcc := creat(*objDir + "_cgo_export.c")
-	fgcch := creat(*objDir + "_cgo_export.h")
+	fgcc := creat("_cgo_export.c")
+	fgcch := creat("_cgo_export.h")
 	if *gccgo {
 		p.writeGccgoExports(fgo2, fm, fgcc, fgcch)
 	} else {
@@ -263,8 +263,11 @@ func (p *Package) writeDefs() {
 	}
 
 	if *exportHeader != "" && len(p.ExpFunc) > 0 {
-		fexp := creat(*exportHeader)
-		fgcch, err := os.Open(*objDir + "_cgo_export.h")
+		fexp, err := os.Create(*exportHeader)
+		if err != nil {
+			fatalf("%s", err)
+		}
+		fgcch, err := os.Open(filepath.Join(outputDir(), "_cgo_export.h"))
 		if err != nil {
 			fatalf("%s", err)
 		}
@@ -697,8 +700,8 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 	base := srcfile
 	base = strings.TrimSuffix(base, ".go")
 	base = filepath.Base(base)
-	fgo1 := creat(*objDir + base + ".cgo1.go")
-	fgcc := creat(*objDir + base + ".cgo2.c")
+	fgo1 := creat(base + ".cgo1.go")
+	fgcc := creat(base + ".cgo2.c")
 
 	p.GoFiles = append(p.GoFiles, base+".cgo1.go")
 	p.GccFiles = append(p.GccFiles, base+".cgo2.c")
@@ -1395,7 +1398,7 @@ func gccgoToSymbol(ppath string) string {
 				fatalf("unable to locate gccgo: %v", err)
 			}
 		}
-		gccgoMangler, err = pkgpath.ToSymbolFunc(cmd, *objDir)
+		gccgoMangler, err = pkgpath.ToSymbolFunc(cmd, outputDir())
 		if err != nil {
 			fatalf("%v", err)
 		}
