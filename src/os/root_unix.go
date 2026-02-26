@@ -104,6 +104,7 @@ func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File,
 		return nil, &PathError{Op: "openat", Path: name, Err: err}
 	}
 	f := newFile(fd, joinPath(root.Name(), name), kindOpenFile, unix.HasNonblockFlag(flag))
+	f.inRoot = true
 	return f, nil
 }
 
