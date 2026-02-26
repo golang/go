@@ -71,6 +71,8 @@ stderr 'unknown go command variable GOGC'
 stderr 'GOEXE cannot be modified'
 ! go env -w GOVERSION=customversion
 stderr 'GOVERSION cannot be modified'
+! go env -w GOROOT=./go
+stderr 'GOROOT cannot be modified'
 ! go env -w GOENV=/env
 stderr 'GOENV can only be set using the OS environment'
 ! go env -w GODEBUG=gctrace=1
