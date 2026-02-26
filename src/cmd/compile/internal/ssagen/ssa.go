@@ -5671,7 +5671,7 @@ func (s *state) storeTypeScalars(t *types.Type, left, right *ssa.Value, skip ski
 			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
 			s.storeTypeScalars(ft, addr, val, 0)
 		}
-	case t.IsArray() && t.NumElem() == 0:
+	case t.IsArray() && t.Size() == 0:
 		// nothing
 	case t.IsArray() && t.NumElem() == 1:
 		s.storeTypeScalars(t.Elem(), left, s.newValue1I(ssa.OpArraySelect, t.Elem(), 0, right), 0)
@@ -5711,7 +5711,7 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
 			s.storeTypePtrs(ft, addr, val)
 		}
-	case t.IsArray() && t.NumElem() == 0:
+	case t.IsArray() && t.Size() == 0:
 		// nothing
 	case t.IsArray() && t.NumElem() == 1:
 		s.storeTypePtrs(t.Elem(), left, s.newValue1I(ssa.OpArraySelect, t.Elem(), 0, right))
