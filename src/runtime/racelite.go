@@ -143,7 +143,7 @@ func inStack(addr uintptr) bool {
 // or store operation, allowing Racelite to see
 // whether another thread accessed the same address.
 func racelitepause() {
-	if cheaprandn(100_000) == 0 {
+	if cheaprandn(10_000) == 0 {
 		// TODO(thepudds): multiple ways to delay here. For now, do something simple that hopefully
 		// let's us see it work for the first time. ;)
 		usleep(1)
@@ -184,7 +184,7 @@ func raceliteskippc(v uintptr) bool {
 func racelitesampled(addr uintptr) bool {
 	// Check that we are sampling this address, stripped of
 	// a (3+raceliteVRShift)-bit suffix for 8-byte alignment
-	// and because we have enough virutal registers.
+	// and because we have enough virtual registers.
 	if (uint32(addr>>(3+raceliteVRShift))^raceliteSamplingRand)&raceliteSamplingMask != 0 {
 		return false
 	}
@@ -237,7 +237,7 @@ func racelitegetvr(addr uintptr) *raceliteVirtualRegister {
 	return &raceliteReg[(addr>>3)%raceliteVRNum]
 }
 
-// claim allows the writer goroutine as the owner of the virtual register.
+// claim sets the writer goroutine as the owner of the virtual register.
 func (r *raceliteVirtualRegister) claim(addr uintptr) bool {
 	r.lock()
 	switch r.addr {
@@ -375,8 +375,8 @@ func (r *raceliteVirtualRegister) release() {
 	r.unlock()
 }
 
-// raceliteRec is a preserved data race record. Aggregate
-// data races matching the same signature into a single report.
+// raceliteRec represents a data race record. Data races matching
+// the same signature are aggregated into a single report.
 type raceliteRec struct {
 	// The address with racy accesses. This is just representative,
 	// as de-duplication is relative to access operation source locations.
@@ -397,7 +397,7 @@ type raceliteRec struct {
 	goid1, goid2 uint64
 
 	// The operation types that caused the data race.
-	// For some prefix p, op carries the following meanings:
+	// ops carries the following meanings:
 	//
 	//	01: write-read
 	//	10: read-write
@@ -431,8 +431,6 @@ func (rec raceliteRec) reportPC(pcs [racelitePCDepth]uintptr, n int) {
 //
 //	Previous write at 0x1234567890 by goroutine 456
 //	[stack trace of the previous writer]
-//
-//	Race discovered 3 times.
 //	==================
 func (rec raceliteRec) report() {
 	slot := racelitehash(((rec.pcs1[0] + rec.pcs2[0]) ^ (rec.pcs1[0] * rec.pcs2[0])), raceliteRecordShift)
@@ -526,7 +524,7 @@ func raceliteread(addr uintptr) {
 	}
 
 	if raceliteskippc(sys.GetCallerPC()) {
-		// We already detected a data race at this PC.
+		// This PC is hot, so we skip instrumentation.
 		return
 	}
 
