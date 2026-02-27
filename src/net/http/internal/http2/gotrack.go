@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ignore
-
 // Defensive debug-only utility to track that functions run on the
 // goroutine that they're supposed to.
 

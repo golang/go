@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ignore
-
 package http2
 
 import (
@@ -11,11 +9,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/internal/httpcommon"
 	"net/url"
 
 	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2/hpack"
-	"golang.org/x/net/internal/httpcommon"
 )
 
 // writeFramer is implemented by any type that is used to write frames.

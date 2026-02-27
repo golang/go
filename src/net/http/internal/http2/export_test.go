@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ignore
-
 package http2
 
 import (
@@ -16,8 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"net/http/internal/httpcommon"
+
 	"golang.org/x/net/http2/hpack"
-	"golang.org/x/net/internal/httpcommon"
 )
 
 const (

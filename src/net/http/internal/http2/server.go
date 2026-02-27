@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ignore
-
 // TODO: turn off the serve goroutine when idle, so
 // an idle conn only has the readFrames goroutine active. (which could
 // also be optimized probably to pin less memory in crypto/tls). This
@@ -40,6 +38,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/http/internal/httpcommon"
 	"net/textproto"
 	"net/url"
 	"os"
@@ -52,7 +51,6 @@ import (
 
 	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2/hpack"
-	"golang.org/x/net/internal/httpcommon"
 )
 
 const (

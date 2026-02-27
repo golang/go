@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ignore
-
 package http2_test
 
 import (
@@ -37,7 +35,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	. "golang.org/x/net/http2"
+	. "net/http/internal/http2"
+
 	"golang.org/x/net/http2/hpack"
 )
 

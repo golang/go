@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ignore
-
 // Package http2 implements the HTTP/2 protocol.
 //
 // This package is low-level and intended to be used directly by very
@@ -13,7 +11,7 @@
 // requires Go 1.6 or later)
 //
 // See https://http2.github.io/ for more information on HTTP/2.
-package http2 // import "golang.org/x/net/http2"
+package http2
 
 import (
 	"bufio"

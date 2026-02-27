@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ignore
-
 // Transport code.
 
 package http2
@@ -27,6 +25,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptrace"
+	"net/http/internal/httpcommon"
 	"net/textproto"
 	"strconv"
 	"strings"
@@ -37,7 +36,6 @@ import (
 	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2/hpack"
 	"golang.org/x/net/idna"
-	"golang.org/x/net/internal/httpcommon"
 )
 
 const (

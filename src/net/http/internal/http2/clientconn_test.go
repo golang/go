@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ignore
-
 // Infrastructure for testing ClientConn.RoundTrip.
 // Put actual tests in transport_test.go.
 
@@ -14,17 +12,17 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"internal/gate"
 	"io"
 	"net/http"
+	. "net/http/internal/http2"
 	"reflect"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
 
-	. "golang.org/x/net/http2"
 	"golang.org/x/net/http2/hpack"
-	"golang.org/x/net/internal/gate"
 )
 
 // TestTestClientConn demonstrates usage of testClientConn.

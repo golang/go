@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ignore
-
 package http2_test
 
 import (
@@ -17,7 +15,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	. "golang.org/x/net/http2"
+	. "net/http/internal/http2"
 )
 
 func TestServer_Push_Success(t *testing.T) { synctestTest(t, testServer_Push_Success) }
