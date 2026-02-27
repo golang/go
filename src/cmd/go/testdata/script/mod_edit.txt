@@ -1,8 +1,5 @@
 env GO111MODULE=on
 
-# Set go version so that we can test produced mod files for equality.
-env TESTGO_VERSION=go1.26.0
-
 # Test that go mod edits and related mod flags work.
 # Also test that they can use a dummy name that isn't resolvable. golang.org/issue/24100
 
@@ -13,16 +10,16 @@ stderr 'cannot determine module path'
 
 go mod init x.x/y/z
 stderr 'creating new go.mod: module x.x/y/z'
-cmp go.mod $WORK/go.mod.init
+cmpenv go.mod $WORK/go.mod.init
 
 ! go mod init
-cmp go.mod $WORK/go.mod.init
+cmpenv go.mod $WORK/go.mod.init
 
 # go mod edits
 go mod edit -droprequire=x.1 -require=x.1@v1.0.0 -require=x.2@v1.1.0 -droprequire=x.2 -exclude='x.1 @ v1.2.0' -exclude=x.1@v1.2.1 -exclude=x.1@v2.0.0+incompatible -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z' -retract=v1.6.0 -retract=[v1.1.0,v1.2.0] -retract=[v1.3.0,v1.4.0] -retract=v1.0.0
-cmp go.mod $WORK/go.mod.edit1
+cmpenv go.mod $WORK/go.mod.edit1
 go mod edit -droprequire=x.1 -dropexclude=x.1@v1.2.1 -dropexclude=x.1@v2.0.0+incompatible -dropreplace=x.1@v1.3.0 -require=x.3@v1.99.0 -dropretract=v1.0.0 -dropretract=[v1.1.0,v1.2.0]
-cmp go.mod $WORK/go.mod.edit2
+cmpenv go.mod $WORK/go.mod.edit2
 
 # -exclude and -retract reject invalid versions.
 ! go mod edit -exclude=example.com/m@bad
@@ -39,11 +36,11 @@ stderr '^go: -exclude=example.com/m/v2@v1\.0\.0: version "v1\.0\.0" invalid: sho
 ! go mod edit -exclude=gopkg.in/example.v1@v2.0.0
 stderr '^go: -exclude=gopkg\.in/example\.v1@v2\.0\.0: version "v2\.0\.0" invalid: should be v1, not v2$'
 
-cmp go.mod $WORK/go.mod.edit2
+cmpenv go.mod $WORK/go.mod.edit2
 
 # go mod edit -json
 go mod edit -json
-cmp stdout $WORK/go.mod.json
+cmpenv stdout $WORK/go.mod.json
 
 # go mod edit -json (retractions with rationales)
 go mod edit -json $WORK/go.mod.retractrationale
@@ -59,66 +56,66 @@ cmp stdout $WORK/go.mod.empty.json
 
 # go mod edit -replace
 go mod edit -replace=x.1@v1.3.0=y.1/v2@v2.3.5 -replace=x.1@v1.4.0=y.1/v2@v2.3.5
-cmp go.mod $WORK/go.mod.edit3
+cmpenv go.mod $WORK/go.mod.edit3
 go mod edit -replace=x.1=y.1/v2@v2.3.6
-cmp go.mod $WORK/go.mod.edit4
+cmpenv go.mod $WORK/go.mod.edit4
 go mod edit -dropreplace=x.1
-cmp go.mod $WORK/go.mod.edit5
+cmpenv go.mod $WORK/go.mod.edit5
 go mod edit -replace=x.1=../y.1/@v2
-cmp go.mod $WORK/go.mod.edit6
+cmpenv go.mod $WORK/go.mod.edit6
 ! go mod edit -replace=x.1=y.1/@v2
 stderr '^go: -replace=x.1=y.1/@v2: invalid new path: malformed import path "y.1/": trailing slash$'
 
 # go mod edit -fmt
 cp $WORK/go.mod.badfmt go.mod
 go mod edit -fmt -print # -print should avoid writing file
-cmp stdout $WORK/go.mod.goodfmt
+cmpenv stdout $WORK/go.mod.goodfmt
 cmp go.mod $WORK/go.mod.badfmt
 go mod edit -fmt # without -print, should write file (and nothing to stdout)
 ! stdout .
-cmp go.mod $WORK/go.mod.goodfmt
+cmpenv go.mod $WORK/go.mod.goodfmt
 
 # go mod edit -module
 cd $WORK/m
 go mod init a.a/b/c
 go mod edit -module x.x/y/z
-cmp go.mod go.mod.edit
+cmpenv go.mod go.mod.edit
 
 # golang.org/issue/30513: don't require go-gettable module paths.
 cd $WORK/local
 go mod init foo
 go mod edit -module local-only -require=other-local@v1.0.0 -replace other-local@v1.0.0=./other
-cmp go.mod go.mod.edit
+cmpenv go.mod go.mod.edit
 
 # go mod edit -godebug
 cd $WORK/g
 cp go.mod.start go.mod
 go mod edit -godebug key=value
-cmp go.mod go.mod.edit
+cmpenv go.mod go.mod.edit
 go mod edit -dropgodebug key2
-cmp go.mod go.mod.edit
+cmpenv go.mod go.mod.edit
 go mod edit -dropgodebug key
-cmp go.mod go.mod.start
+cmpenv go.mod go.mod.start
 
 # go mod edit -tool
 cd $WORK/h
 cp go.mod.start go.mod
 go mod edit -tool example.com/tool
-cmp go.mod go.mod.edit
+cmpenv go.mod go.mod.edit
 go mod edit -droptool example.com/tool2
-cmp go.mod go.mod.edit
+cmpenv go.mod go.mod.edit
 go mod edit -droptool example.com/tool
-cmp go.mod go.mod.start
+cmpenv go.mod go.mod.start
 
 # go mod edit -ignore
 cd $WORK/i
 cp go.mod.start go.mod
 go mod edit -ignore example.com/ignore
-cmp go.mod go.mod.edit
+cmpenv go.mod go.mod.edit
 go mod edit -dropignore example.com/ignore2
-cmp go.mod go.mod.edit
+cmpenv go.mod go.mod.edit
 go mod edit -dropignore example.com/ignore
-cmp go.mod go.mod.start
+cmpenv go.mod go.mod.start
 
 -- x.go --
 package x
@@ -129,11 +126,11 @@ package w
 -- $WORK/go.mod.init --
 module x.x/y/z
 
-go 1.25.0
+go $goversion
 -- $WORK/go.mod.edit1 --
 module x.x/y/z
 
-go 1.25.0
+go $goversion
 
 require x.1 v1.0.0
 
@@ -157,7 +154,7 @@ retract (
 -- $WORK/go.mod.edit2 --
 module x.x/y/z
 
-go 1.25.0
+go $goversion
 
 exclude x.1 v1.2.0
 
@@ -174,7 +171,7 @@ require x.3 v1.99.0
 	"Module": {
 		"Path": "x.x/y/z"
 	},
-	"Go": "1.25.0",
+	"Go": "$goversion",
 	"Require": [
 		{
 			"Path": "x.3",
@@ -214,7 +211,7 @@ require x.3 v1.99.0
 -- $WORK/go.mod.edit3 --
 module x.x/y/z
 
-go 1.25.0
+go $goversion
 
 exclude x.1 v1.2.0
 
@@ -232,7 +229,7 @@ require x.3 v1.99.0
 -- $WORK/go.mod.edit4 --
 module x.x/y/z
 
-go 1.25.0
+go $goversion
 
 exclude x.1 v1.2.0
 
@@ -247,7 +244,7 @@ require x.3 v1.99.0
 -- $WORK/go.mod.edit5 --
 module x.x/y/z
 
-go 1.25.0
+go $goversion
 
 exclude x.1 v1.2.0
 
@@ -260,7 +257,7 @@ require x.3 v1.99.0
 -- $WORK/go.mod.edit6 --
 module x.x/y/z
 
-go 1.25.0
+go $goversion
 
 exclude x.1 v1.2.0
 
@@ -275,7 +272,7 @@ replace x.1 => ../y.1/@v2
 -- $WORK/local/go.mod.edit --
 module local-only
 
-go 1.25.0
+go $goversion
 
 require other-local v1.0.0
 
@@ -307,7 +304,7 @@ retract [v1.8.1, v1.8.2]
 -- $WORK/m/go.mod.edit --
 module x.x/y/z
 
-go 1.25.0
+go $goversion
 -- $WORK/go.mod.retractrationale --
 module x.x/y/z
 
