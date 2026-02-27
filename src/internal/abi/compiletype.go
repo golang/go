@@ -26,3 +26,33 @@ func TFlagOff(ptrSize int) int { return 2*ptrSize + 4 }
 
 // ITabTypeOff returns the offset of ITab.Type for a compilation target with a given ptrSize
 func ITabTypeOff(ptrSize int) int { return ptrSize }
+
+// RTypeSize returns sizeof(kindType) for a compilation target with a given ptrSize.
+func RTypeSize(kind Kind, ptrSize int) int {
+	cs := CommonSize(ptrSize)
+	switch kind {
+	case Struct: // reflect.structType
+		return cs + 4*ptrSize
+	case Pointer: // reflect.ptrType
+		return cs + ptrSize
+	case Func: // reflect.funcType
+		return cs + ptrSize // 4 bytes, pointer aligned
+	case Slice: // reflect.sliceType
+		return cs + ptrSize
+	case Array: // reflect.arrayType
+		return cs + 3*ptrSize
+	case Chan: // reflect.chanType
+		return cs + 2*ptrSize
+	case Map: // internal/abi.MapType
+		sz := cs + 10*ptrSize + 4
+		if ptrSize == 8 {
+			sz += 4 // padding for final uint32 field (Flags).
+		}
+		return sz
+	case Interface: // reflect.interfaceType
+		return cs + 4*ptrSize
+	default:
+		// just Sizeof(rtype)
+		return cs
+	}
+}
