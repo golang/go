@@ -86,7 +86,7 @@ func getKeepAliveNodes(pos src.XPos, n ir.Node) ir.Nodes {
 	if name != nil {
 		debugName(name, pos)
 		return ir.Nodes{name}
-	} else if deref := n.(*ir.StarExpr); deref != nil {
+	} else if deref, ok := n.(*ir.StarExpr); ok && deref != nil {
 		if base.Flag.LowerM > 1 {
 			base.WarnfAt(pos, "dereference will be kept alive")
 		}
