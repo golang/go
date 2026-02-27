@@ -7,6 +7,7 @@
 #include "go_asm.h"
 #include "funcdata.h"
 #include "textflag.h"
+#include "cgo/abi_riscv64.h"
 
 // The following thunks allow calling the gcc-compiled race runtime directly
 // from Go code without going all the way through cgo.
@@ -473,30 +474,8 @@ rest:
 	// 8(X2) and 16(X2) are for args passed to racecallback
 	SUB	$(27*8), X2
 	MOV	X1, (0*8)(X2)
-	MOV	X8, (3*8)(X2)
-	MOV	X9, (4*8)(X2)
-	MOV	X18, (5*8)(X2)
-	MOV	X19, (6*8)(X2)
-	MOV	X20, (7*8)(X2)
-	MOV	X21, (8*8)(X2)
-	MOV	X22, (9*8)(X2)
-	MOV	X23, (10*8)(X2)
-	MOV	X24, (11*8)(X2)
-	MOV	X25, (12*8)(X2)
-	MOV	X26, (13*8)(X2)
-	MOV	g, (14*8)(X2)
-	MOVD	F8, (15*8)(X2)
-	MOVD	F9, (16*8)(X2)
-	MOVD	F18, (17*8)(X2)
-	MOVD	F19, (18*8)(X2)
-	MOVD	F20, (19*8)(X2)
-	MOVD	F21, (20*8)(X2)
-	MOVD	F22, (21*8)(X2)
-	MOVD	F23, (22*8)(X2)
-	MOVD	F24, (23*8)(X2)
-	MOVD	F25, (24*8)(X2)
-	MOVD	F26, (25*8)(X2)
-	MOVD	F27, (26*8)(X2)
+	SAVE_GPR((3*8))
+	SAVE_FPR((15*8))
 
 	// Set g = g0.
 	CALL	runtime·load_g(SB)
@@ -515,30 +494,8 @@ rest:
 ret:
 	// Restore callee-save registers.
 	MOV	(0*8)(X2), X1
-	MOV	(3*8)(X2), X8
-	MOV	(4*8)(X2), X9
-	MOV	(5*8)(X2), X18
-	MOV	(6*8)(X2), X19
-	MOV	(7*8)(X2), X20
-	MOV	(8*8)(X2), X21
-	MOV	(9*8)(X2), X22
-	MOV	(10*8)(X2), X23
-	MOV	(11*8)(X2), X24
-	MOV	(12*8)(X2), X25
-	MOV	(13*8)(X2), X26
-	MOV	(14*8)(X2), g
-	MOVD	(15*8)(X2), F8
-	MOVD	(16*8)(X2), F9
-	MOVD	(17*8)(X2), F18
-	MOVD	(18*8)(X2), F19
-	MOVD	(19*8)(X2), F20
-	MOVD	(20*8)(X2), F21
-	MOVD	(21*8)(X2), F22
-	MOVD	(22*8)(X2), F23
-	MOVD	(23*8)(X2), F24
-	MOVD	(24*8)(X2), F25
-	MOVD	(25*8)(X2), F26
-	MOVD	(26*8)(X2), F27
+	RESTORE_GPR((3*8))
+	RESTORE_FPR((15*8))
 
 	ADD	$(27*8), X2
 	JMP	(X1)
