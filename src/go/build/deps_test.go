@@ -633,6 +633,9 @@ var depsRules = `
 
 	# HTTP, King of Dependencies.
 
+	context
+	< internal/gate;
+
 	FMT
 	< golang.org/x/net/http2/hpack
 	< net/http/internal, net/http/internal/ascii, net/http/internal/testcert;
