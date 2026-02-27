@@ -65,9 +65,9 @@ func testConfigTransportSettings(t testing.TB) {
 func TestConfigPingTimeoutServer(t *testing.T) { synctestTest(t, testConfigPingTimeoutServer) }
 func testConfigPingTimeoutServer(t testing.TB) {
 	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
-	}, func(s *Server) {
-		s.ReadIdleTimeout = 2 * time.Second
-		s.PingTimeout = 3 * time.Second
+	}, func(h2 *http.HTTP2Config) {
+		h2.SendPingTimeout = 2 * time.Second
+		h2.PingTimeout = 3 * time.Second
 	})
 	st.greet()
 
@@ -79,9 +79,9 @@ func testConfigPingTimeoutServer(t testing.TB) {
 
 func TestConfigPingTimeoutTransport(t *testing.T) { synctestTest(t, testConfigPingTimeoutTransport) }
 func testConfigPingTimeoutTransport(t testing.TB) {
-	tc := newTestClientConn(t, func(tr *Transport) {
-		tr.ReadIdleTimeout = 2 * time.Second
-		tr.PingTimeout = 3 * time.Second
+	tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
+		h2.SendPingTimeout = 2 * time.Second
+		h2.PingTimeout = 3 * time.Second
 	})
 	tc.greet()
 

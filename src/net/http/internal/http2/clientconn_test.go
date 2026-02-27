@@ -498,6 +498,7 @@ type testTransport struct {
 }
 
 func newTestTransport(t testing.TB, opts ...any) *testTransport {
+	t.Helper()
 	tt := &testTransport{
 		t: t,
 	}
@@ -505,12 +506,19 @@ func newTestTransport(t testing.TB, opts ...any) *testTransport {
 	tr := &Transport{}
 	for _, o := range opts {
 		switch o := o.(type) {
+		case nil:
 		case func(*http.Transport):
 			o(tr.TestTransport())
-		case func(*Transport):
-			o(tr)
 		case *Transport:
 			tr = o
+		case func(*http.HTTP2Config):
+			tr1 := tr.TestTransport()
+			if tr1.HTTP2 == nil {
+				tr1.HTTP2 = &http.HTTP2Config{}
+			}
+			o(tr1.HTTP2)
+		default:
+			t.Fatalf("unknown newTestTransport option type %T", o)
 		}
 	}
 	tt.tr = tr

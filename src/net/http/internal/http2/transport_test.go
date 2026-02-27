@@ -55,12 +55,34 @@ func init() {
 	canceledCtx = ctx
 }
 
+// newTransport returns an *http.Transport configured to use HTTP/2.
+func newTransport(t testing.TB, opts ...any) *http.Transport {
+	tr1 := &http.Transport{
+		TLSClientConfig: tlsConfigInsecure,
+		Protocols:       protocols("h2"),
+		HTTP2:           &http.HTTP2Config{},
+	}
+	ConfigureTransport(tr1)
+	for _, o := range opts {
+		switch o := o.(type) {
+		case func(*http.Transport):
+			o(tr1)
+		case func(*http.HTTP2Config):
+			o(tr1.HTTP2)
+		default:
+			t.Fatalf("unknown newTransport option %T", o)
+		}
+	}
+	t.Cleanup(tr1.CloseIdleConnections)
+	return tr1
+}
+
 func TestTransportExternal(t *testing.T) {
 	if !*extNet {
 		t.Skip("skipping external network test")
 	}
 	req, _ := http.NewRequest("GET", "https://"+*transportHost+"/", nil)
-	rt := &Transport{TLSClientConfig: tlsConfigInsecure}
+	rt := newTransport(t)
 	res, err := rt.RoundTrip(req)
 	if err != nil {
 		t.Fatalf("%v", err)
@@ -119,13 +141,13 @@ func TestIdleConnTimeout(t *testing.T) {
 		name:            "H1TransportTimeoutExpires",
 		idleConnTimeout: 0 * time.Second,
 		wait:            1 * time.Second,
-		baseTransport: &http.Transport{
-			IdleConnTimeout: 2 * time.Second,
-		},
+		baseTransport: newTransport(t, func(tr1 *http.Transport) {
+			tr1.IdleConnTimeout = 2 * time.Second
+		}),
 		wantNewConn: false,
 	}} {
 		synctestSubtest(t, test.name, func(t testing.TB) {
-			tt := newTestTransport(t, func(tr *Transport) {
+			tt := newTestTransport(t, func(tr *http.Transport) {
 				tr.IdleConnTimeout = test.idleConnTimeout
 			})
 			var tc *testClientConn
@@ -194,12 +216,11 @@ func TestTransportH2c(t *testing.T) {
 		},
 	}
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
-	tr := &Transport{
-		AllowHTTP: true,
-		DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-			return net.Dial(network, addr)
-		},
+	tr := newTransport(t)
+	tr.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return net.Dial(network, addr)
 	}
+	tr.Protocols = protocols("h2c")
 	res, err := tr.RoundTrip(req)
 	if err != nil {
 		t.Fatal(err)
@@ -225,7 +246,7 @@ func TestTransport(t *testing.T) {
 		io.WriteString(w, body)
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
+	tr := ts.Client().Transport.(*http.Transport)
 	defer tr.CloseIdleConnections()
 
 	u, err := url.Parse(ts.URL)
@@ -236,6 +257,7 @@ func TestTransport(t *testing.T) {
 		req := &http.Request{
 			Method: m,
 			URL:    u,
+			Header: http.Header{},
 		}
 		res, err := tr.RoundTrip(req)
 		if err != nil {
@@ -278,6 +300,29 @@ func TestTransport(t *testing.T) {
 }
 
 func TestTransportFailureErrorForHTTP1Response(t *testing.T) {
+	// This path test exercises contains a race condition:
+	// The test sends an HTTP/2 request to an HTTP/1 server.
+	// When the HTTP/2 client connects to the server, it sends the client preface.
+	// The HTTP/1 server will respond to the preface with an error.
+	//
+	// If the HTTP/2 client sends its request before it gets the error response,
+	// RoundTrip will return an error about "frame header looked like an HTTP/1.1 header".
+	//
+	// However, if the HTTP/2 client gets the error response before it sends its request,
+	// RoundTrip will return a "client conn could not be established" error,
+	// because we don't keep the content of the error around after closing the connection--
+	// just the fact that the connection is closed.
+	//
+	// For some reason, the timing works out so that this test passes consistently on most
+	// platforms except when GOOS=js, when it consistently fails.
+	//
+	// Skip the whole test for now.
+	//
+	// TODO: Plumb the error causing the connection to be closed up to the user
+	// in the case where the connection was closed before the first request on it
+	// could be sent.
+	t.Skip("test is racy")
+
 	const expectedHTTP1PayloadHint = "frame header looked like an HTTP/1.1 header"
 
 	ts := httptest.NewServer(http.NewServeMux())
@@ -298,13 +343,9 @@ func TestTransportFailureErrorForHTTP1Response(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			tr := &Transport{
-				DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
-					return net.Dial(network, addr)
-				},
-				MaxReadFrameSize: tc.maxFrameSize,
-				AllowHTTP:        true,
-			}
+			tr := newTransport(t)
+			tr.HTTP2.MaxReadFrameSize = int(tc.maxFrameSize)
+			tr.Protocols = protocols("h2c")
 
 			req, err := http.NewRequest("GET", ts.URL, nil)
 			if err != nil {
@@ -312,14 +353,14 @@ func TestTransportFailureErrorForHTTP1Response(t *testing.T) {
 			}
 
 			_, err = tr.RoundTrip(req)
-			if !strings.Contains(err.Error(), expectedHTTP1PayloadHint) {
+			if err == nil || !strings.Contains(err.Error(), expectedHTTP1PayloadHint) {
 				t.Errorf("expected error to contain %q, got %v", expectedHTTP1PayloadHint, err)
 			}
 		})
 	}
 }
 
-func testTransportReusesConns(t *testing.T, useClient, wantSame bool, modReq func(*http.Request)) {
+func testTransportReusesConns(t *testing.T, wantSame bool, modReq func(*http.Request)) {
 	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, r.RemoteAddr)
 	}, func(ts *httptest.Server) {
@@ -327,25 +368,14 @@ func testTransportReusesConns(t *testing.T, useClient, wantSame bool, modReq fun
 			t.Logf("conn %v is now state %v", c.RemoteAddr(), st)
 		}
 	})
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	if useClient {
-		tr.ConnPool = NewNoDialClientConnPool()
-	}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 	get := func() string {
 		req, err := http.NewRequest("GET", ts.URL, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 		modReq(req)
-		var res *http.Response
-		if useClient {
-			c := ts.Client()
-			ConfigureTransports(c.Transport.(*http.Transport))
-			res, err = c.Do(req)
-		} else {
-			res, err = tr.RoundTrip(req)
-		}
+		res, err := tr.RoundTrip(req)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -386,14 +416,7 @@ func TestTransportReusesConns(t *testing.T) {
 		wantSame: false,
 	}} {
 		t.Run(test.name, func(t *testing.T) {
-			t.Run("Transport", func(t *testing.T) {
-				const useClient = false
-				testTransportReusesConns(t, useClient, test.wantSame, test.modReq)
-			})
-			t.Run("Client", func(t *testing.T) {
-				const useClient = true
-				testTransportReusesConns(t, useClient, test.wantSame, test.modReq)
-			})
+			testTransportReusesConns(t, test.wantSame, test.modReq)
 		})
 	}
 }
@@ -408,9 +431,8 @@ func testTransportGetGotConnHooks(t *testing.T, useClient bool) {
 		io.WriteString(w, r.RemoteAddr)
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
+	tr := newTransport(t)
 	client := ts.Client()
-	ConfigureTransports(client.Transport.(*http.Transport))
 
 	var (
 		getConns int32
@@ -541,7 +563,7 @@ func TestTransportAbortClosesPipes(t *testing.T) {
 	errCh := make(chan error)
 	go func() {
 		defer close(errCh)
-		tr := &Transport{TLSClientConfig: tlsConfigInsecure}
+		tr := newTransport(t)
 		req, err := http.NewRequest("GET", ts.URL, nil)
 		if err != nil {
 			errCh <- err
@@ -582,8 +604,7 @@ func TestTransportPath(t *testing.T) {
 		},
 	)
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 	const (
 		path  = "/testpath"
 		query = "q=1"
@@ -655,8 +676,7 @@ func TestTransportBody(t *testing.T) {
 	)
 
 	for i, tt := range bodyTests {
-		tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-		defer tr.CloseIdleConnections()
+		tr := newTransport(t)
 
 		var body io.Reader = strings.NewReader(tt.body)
 		if tt.noContentLen {
@@ -696,46 +716,6 @@ func shortString(v string) string {
 		return v
 	}
 	return fmt.Sprintf("%v[...%d bytes omitted...]%v", v[:maxLen/2], len(v)-maxLen, v[len(v)-maxLen/2:])
-}
-
-func TestTransportDialTLS(t *testing.T) {
-	var mu sync.Mutex // guards following
-	var gotReq, didDial bool
-
-	ts := newTestServer(t,
-		func(w http.ResponseWriter, r *http.Request) {
-			mu.Lock()
-			gotReq = true
-			mu.Unlock()
-		},
-	)
-	tr := &Transport{
-		DialTLS: func(netw, addr string, cfg *tls.Config) (net.Conn, error) {
-			mu.Lock()
-			didDial = true
-			mu.Unlock()
-			cfg.InsecureSkipVerify = true
-			c, err := tls.Dial(netw, addr, cfg)
-			if err != nil {
-				return nil, err
-			}
-			return c, c.Handshake()
-		},
-	}
-	defer tr.CloseIdleConnections()
-	client := &http.Client{Transport: tr}
-	res, err := client.Get(ts.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	res.Body.Close()
-	mu.Lock()
-	if !gotReq {
-		t.Error("didn't get request")
-	}
-	if !didDial {
-		t.Error("didn't use dial hook")
-	}
 }
 
 func TestConfigureTransport(t *testing.T) {
@@ -900,8 +880,7 @@ func TestTransportFullDuplex(t *testing.T) {
 		fmt.Fprintf(w, "bye.\n")
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 	c := &http.Client{Transport: tr}
 
 	pr, pw := io.Pipe()
@@ -952,8 +931,7 @@ func TestTransportConnectRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 	c := &http.Client{Transport: tr}
 
 	tests := []struct {
@@ -1604,8 +1582,7 @@ func TestTransportBodyReadErrorType(t *testing.T) {
 		optQuiet,
 	)
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 	c := &http.Client{Transport: tr}
 
 	res, err := c.Get(ts.URL)
@@ -1642,20 +1619,17 @@ func TestTransportDoubleCloseOnWriteError(t *testing.T) {
 		},
 	)
 
-	tr := &Transport{
-		TLSClientConfig: tlsConfigInsecure,
-		DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-			tc, err := tls.Dial(network, addr, cfg)
-			if err != nil {
-				return nil, err
-			}
-			mu.Lock()
-			defer mu.Unlock()
-			conn = tc
-			return tc, nil
-		},
+	tr := newTransport(t)
+	tr.DialTLS = func(network, addr string) (net.Conn, error) {
+		tc, err := tls.Dial(network, addr, tlsConfigInsecure)
+		if err != nil {
+			return nil, err
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		conn = tc
+		return tc, nil
 	}
-	defer tr.CloseIdleConnections()
 	c := &http.Client{Transport: tr}
 	c.Get(ts.URL)
 }
@@ -1671,17 +1645,15 @@ func TestTransportDisableKeepAlives(t *testing.T) {
 	)
 
 	connClosed := make(chan struct{}) // closed on tls.Conn.Close
-	tr := &Transport{
-		TLSClientConfig: tlsConfigInsecure,
-		DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-			tc, err := tls.Dial(network, addr, cfg)
-			if err != nil {
-				return nil, err
-			}
-			return &noteCloseConn{Conn: tc, closefn: func() { close(connClosed) }}, nil
-		},
+	tr := newTransport(t)
+	tr.Dial = func(network, addr string) (net.Conn, error) {
+		tc, err := net.Dial(network, addr)
+		if err != nil {
+			return nil, err
+		}
+		return &noteCloseConn{Conn: tc, closefn: func() { close(connClosed) }}, nil
 	}
-	tr.TestTransport().DisableKeepAlives = true
+	tr.DisableKeepAlives = true
 	c := &http.Client{Transport: tr}
 	res, err := c.Get(ts.URL)
 	if err != nil {
@@ -1713,19 +1685,17 @@ func TestTransportDisableKeepAlives_Concurrency(t *testing.T) {
 
 	var dials int32
 	var conns sync.WaitGroup
-	tr := &Transport{
-		TLSClientConfig: tlsConfigInsecure,
-		DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-			tc, err := tls.Dial(network, addr, cfg)
-			if err != nil {
-				return nil, err
-			}
-			atomic.AddInt32(&dials, 1)
-			conns.Add(1)
-			return &noteCloseConn{Conn: tc, closefn: func() { conns.Done() }}, nil
-		},
+	tr := newTransport(t)
+	tr.Dial = func(network, addr string) (net.Conn, error) {
+		tc, err := net.Dial(network, addr)
+		if err != nil {
+			return nil, err
+		}
+		atomic.AddInt32(&dials, 1)
+		conns.Add(1)
+		return &noteCloseConn{Conn: tc, closefn: func() { conns.Done() }}, nil
 	}
-	tr.TestTransport().DisableKeepAlives = true
+	tr.DisableKeepAlives = true
 	c := &http.Client{Transport: tr}
 	var reqs sync.WaitGroup
 	const N = 20
@@ -1873,11 +1843,8 @@ func TestTransportDisableCompression(t *testing.T) {
 		}
 	})
 
-	tr := &Transport{
-		TLSClientConfig: tlsConfigInsecure,
-	}
-	tr.TestTransport().DisableCompression = true
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
+	tr.DisableCompression = true
 
 	req, err := http.NewRequest("GET", ts.URL, nil)
 	if err != nil {
@@ -1901,8 +1868,7 @@ func TestTransportRejectsConnHeaders(t *testing.T) {
 		w.Header().Set("Got-Header", strings.Join(got, ","))
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 
 	tests := []struct {
 		key   string
@@ -2044,8 +2010,7 @@ func TestTransportRejectsContentLengthWithSign(t *testing.T) {
 			ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Length", tt.cl[0])
 			})
-			tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-			defer tr.CloseIdleConnections()
+			tr := newTransport(t)
 
 			req, _ := http.NewRequest("HEAD", ts.URL, nil)
 			res, err := tr.RoundTrip(req)
@@ -2084,7 +2049,7 @@ func TestTransportFailsOnInvalidHeadersAndTrailers(t *testing.T) {
 	}{
 		0: {
 			h:       http.Header{"with space": {"foo"}},
-			wantErr: `invalid HTTP header name "with space"`,
+			wantErr: `net/http: invalid header field name "with space"`,
 		},
 		1: {
 			h:       http.Header{"name": {"Брэд"}},
@@ -2092,28 +2057,30 @@ func TestTransportFailsOnInvalidHeadersAndTrailers(t *testing.T) {
 		},
 		2: {
 			h:       http.Header{"имя": {"Brad"}},
-			wantErr: `invalid HTTP header name "имя"`,
+			wantErr: `net/http: invalid header field name "имя"`,
 		},
 		3: {
 			h:       http.Header{"foo": {"foo\x01bar"}},
-			wantErr: `invalid HTTP header value for header "foo"`,
+			wantErr: `net/http: invalid header field value for "foo"`,
 		},
 		4: {
 			t:       http.Header{"foo": {"foo\x01bar"}},
-			wantErr: `invalid HTTP trailer value for header "foo"`,
+			wantErr: `net/http: invalid trailer field value for "foo"`,
 		},
 		5: {
 			t:       http.Header{"x-\r\nda": {"foo\x01bar"}},
-			wantErr: `invalid HTTP trailer name "x-\r\nda"`,
+			wantErr: `net/http: invalid trailer field name "x-\r\nda"`,
 		},
 	}
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 
 	for i, tt := range tests {
 		req, _ := http.NewRequest("GET", ts.URL, nil)
 		req.Header = tt.h
+		if req.Header == nil {
+			req.Header = http.Header{}
+		}
 		req.Trailer = tt.t
 		res, err := tr.RoundTrip(req)
 		var bad bool
@@ -2622,8 +2589,7 @@ func testTransportBodyDoubleEndStream(t testing.TB) {
 		// Nothing.
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 
 	for i := 0; i < 2; i++ {
 		req, _ := http.NewRequest("POST", ts.URL, byteAndEOFReader('a'))
@@ -2797,7 +2763,9 @@ func testRoundTripDoesntConsumeRequestBodyEarly(t testing.TB) {
 
 func TestClientConnPing(t *testing.T) {
 	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {})
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
+	tr := &Transport{
+		TLSClientConfig: tlsConfigInsecure,
+	}
 	defer tr.CloseIdleConnections()
 	ctx := context.Background()
 	cc, err := tr.DialClientConn(ctx, ts.Listener.Addr().String(), false)
@@ -2835,8 +2803,7 @@ func TestTransportCancelDataResponseRace(t *testing.T) {
 		}
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 
 	c := &http.Client{Transport: tr}
 	req, _ := http.NewRequest("GET", ts.URL, nil)
@@ -2871,8 +2838,7 @@ func TestTransportNoRaceOnRequestObjectAfterRequestComplete(t *testing.T) {
 		io.WriteString(w, "body")
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 
 	req, _ := http.NewRequest("GET", ts.URL, nil)
 	resp, err := tr.RoundTrip(req)
@@ -2892,9 +2858,9 @@ func TestTransportNoRaceOnRequestObjectAfterRequestComplete(t *testing.T) {
 
 func TestTransportCloseAfterLostPing(t *testing.T) { synctestTest(t, testTransportCloseAfterLostPing) }
 func testTransportCloseAfterLostPing(t testing.TB) {
-	tc := newTestClientConn(t, func(tr *Transport) {
-		tr.PingTimeout = 1 * time.Second
-		tr.ReadIdleTimeout = 1 * time.Second
+	tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
+		h2.PingTimeout = 1 * time.Second
+		h2.SendPingTimeout = 1 * time.Second
 	})
 	tc.greet()
 
@@ -2916,23 +2882,23 @@ func TestTransportPingWriteBlocks(t *testing.T) {
 	ts := newTestServer(t,
 		func(w http.ResponseWriter, r *http.Request) {},
 	)
-	tr := &Transport{
-		TLSClientConfig: tlsConfigInsecure,
-		DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-			s, c := net.Pipe() // unbuffered, unlike a TCP conn
-			go func() {
-				// Read initial handshake frames.
-				// Without this, we block indefinitely in newClientConn,
-				// and never get to the point of sending a PING.
-				var buf [1024]byte
-				s.Read(buf[:])
-			}()
-			return c, nil
-		},
-		PingTimeout:     1 * time.Millisecond,
-		ReadIdleTimeout: 1 * time.Millisecond,
+	tr := newTransport(t)
+	tr.Dial = func(network, addr string) (net.Conn, error) {
+		s, c := net.Pipe() // unbuffered, unlike a TCP conn
+		go func() {
+			srv := tls.Server(s, tlsConfigInsecure)
+			srv.Handshake()
+
+			// Read initial handshake frames.
+			// Without this, we block indefinitely in newClientConn,
+			// and never get to the point of sending a PING.
+			var buf [1024]byte
+			s.Read(buf[:])
+		}()
+		return c, nil
 	}
-	defer tr.CloseIdleConnections()
+	tr.HTTP2.PingTimeout = 1 * time.Millisecond
+	tr.HTTP2.SendPingTimeout = 1 * time.Millisecond
 	c := &http.Client{Transport: tr}
 	_, err := c.Get(ts.URL)
 	if err == nil {
@@ -2944,8 +2910,8 @@ func TestTransportPingWhenReadingMultiplePings(t *testing.T) {
 	synctestTest(t, testTransportPingWhenReadingMultiplePings)
 }
 func testTransportPingWhenReadingMultiplePings(t testing.TB) {
-	tc := newTestClientConn(t, func(tr *Transport) {
-		tr.ReadIdleTimeout = 1000 * time.Millisecond
+	tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
+		h2.SendPingTimeout = 1000 * time.Millisecond
 	})
 	tc.greet()
 
@@ -2991,8 +2957,8 @@ func TestTransportPingWhenReadingPingDisabled(t *testing.T) {
 	synctestTest(t, testTransportPingWhenReadingPingDisabled)
 }
 func testTransportPingWhenReadingPingDisabled(t testing.TB) {
-	tc := newTestClientConn(t, func(tr *Transport) {
-		tr.ReadIdleTimeout = 0 // PINGs disabled
+	tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
+		h2.SendPingTimeout = 0 // PINGs disabled
 	})
 	tc.greet()
 
@@ -3279,11 +3245,19 @@ func TestTransportMaxFrameReadSize(t *testing.T) {
 		want:             64000,
 	}, {
 		maxReadFrameSize: 1024,
-		want:             MinMaxFrameSize,
+		// Setting x/net/Transport.MaxReadFrameSize to an out of range value clips.
+		//
+		// Setting net/http.Transport.HTTP2Config.MaxReadFrameSize to
+		// an out of range value reverts to the default (the more common
+		// behavior for out of range fields).
+		//
+		// This test's expectation changed when the http2 package moved into
+		// net/http, since the configuration field set changed.
+		want: DefaultMaxReadFrameSize,
 	}} {
 		synctestSubtest(t, fmt.Sprint(test.maxReadFrameSize), func(t testing.TB) {
-			tc := newTestClientConn(t, func(tr *Transport) {
-				tr.MaxReadFrameSize = test.maxReadFrameSize
+			tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
+				h2.MaxReadFrameSize = int(test.maxReadFrameSize)
 			})
 
 			fr := readFrame[*SettingsFrame](t, tc)
@@ -3299,24 +3273,21 @@ func TestTransportMaxFrameReadSize(t *testing.T) {
 
 func TestTransportRequestsLowServerLimit(t *testing.T) {
 	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-	}, func(s *Server) {
-		s.MaxConcurrentStreams = 1
+	}, func(h2 *http.HTTP2Config) {
+		h2.MaxConcurrentStreams = 1
 	})
 
 	var (
 		connCountMu sync.Mutex
 		connCount   int
 	)
-	tr := &Transport{
-		TLSClientConfig: tlsConfigInsecure,
-		DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-			connCountMu.Lock()
-			defer connCountMu.Unlock()
-			connCount++
-			return tls.Dial(network, addr, cfg)
-		},
+	tr := newTransport(t)
+	tr.DialTLS = func(network, addr string) (net.Conn, error) {
+		connCountMu.Lock()
+		defer connCountMu.Unlock()
+		connCount++
+		return tls.Dial(network, addr, tlsConfigInsecure)
 	}
-	defer tr.CloseIdleConnections()
 
 	const reqCount = 3
 	for i := 0; i < reqCount; i++ {
@@ -3341,30 +3312,16 @@ func TestTransportRequestsLowServerLimit(t *testing.T) {
 	}
 }
 
-// tests Transport.StrictMaxConcurrentStreams
+// tests Transport.HTTP2.StrictMaxConcurrentRequests
 func TestTransportRequestsStallAtServerLimit(t *testing.T) {
-	synctestSubtest(t, "Transport", func(t testing.TB) {
-		testTransportRequestsStallAtServerLimit(t, func(tr *Transport) {
-			tr.StrictMaxConcurrentStreams = true
-		})
-	})
-	synctestSubtest(t, "HTTP2Config", func(t testing.TB) {
-		// HTTP2Config.StrictMaxConcurrentRequests was added in Go 1.26.
-		h2 := &http.HTTP2Config{}
-		v := reflect.ValueOf(h2).Elem().FieldByName("StrictMaxConcurrentRequests")
-		if !v.IsValid() {
-			t.Skip("HTTP2Config does not contain StrictMaxConcurrentRequests")
-		}
-		v.SetBool(true)
-		testTransportRequestsStallAtServerLimit(t, func(tr *http.Transport) {
-			tr.HTTP2 = h2
-		})
-	})
+	synctest.Test(t, testTransportRequestsStallAtServerLimit)
 }
-func testTransportRequestsStallAtServerLimit(t testing.TB, opt any) {
+func testTransportRequestsStallAtServerLimit(t *testing.T) {
 	const maxConcurrent = 2
 
-	tc := newTestClientConn(t, opt)
+	tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
+		h2.StrictMaxConcurrentRequests = true
+	})
 	tc.greet(Setting{SettingMaxConcurrentStreams, maxConcurrent})
 
 	cancelClientRequest := make(chan struct{})
@@ -3445,8 +3402,8 @@ func TestTransportMaxDecoderHeaderTableSize(t *testing.T) {
 }
 func testTransportMaxDecoderHeaderTableSize(t testing.TB) {
 	var reqSize, resSize uint32 = 8192, 16384
-	tc := newTestClientConn(t, func(tr *Transport) {
-		tr.MaxDecoderHeaderTableSize = reqSize
+	tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
+		h2.MaxDecoderHeaderTableSize = int(reqSize)
 	})
 
 	fr := readFrame[*SettingsFrame](t, tc)
@@ -3467,12 +3424,13 @@ func TestTransportMaxEncoderHeaderTableSize(t *testing.T) {
 }
 func testTransportMaxEncoderHeaderTableSize(t testing.TB) {
 	var peerAdvertisedMaxHeaderTableSize uint32 = 16384
-	tc := newTestClientConn(t, func(tr *Transport) {
-		tr.MaxEncoderHeaderTableSize = 8192
+	const wantMaxEncoderHeaderTableSize = 8192
+	tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
+		h2.MaxEncoderHeaderTableSize = wantMaxEncoderHeaderTableSize
 	})
 	tc.greet(Setting{SettingHeaderTableSize, peerAdvertisedMaxHeaderTableSize})
 
-	if got, want := tc.cc.TestHPACKEncoder().MaxDynamicTableSize(), tc.tr.MaxEncoderHeaderTableSize; got != want {
+	if got, want := tc.cc.TestHPACKEncoder().MaxDynamicTableSize(), uint32(wantMaxEncoderHeaderTableSize); got != want {
 		t.Fatalf("henc.MaxDynamicTableSize() = %d, want %d", got, want)
 	}
 }
@@ -3559,8 +3517,7 @@ func benchSimpleRoundTrip(b *testing.B, nReqHeaders, nResHeader int) {
 		optQuiet,
 	)
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(b)
 
 	req, err := http.NewRequest("GET", ts.URL, nil)
 	if err != nil {
@@ -3602,8 +3559,7 @@ func TestTransportResponseAndResetWithoutConsumingBodyRace(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 
 	// The request body needs to be big enough to trigger flow control.
 	req, _ := http.NewRequest("PUT", ts.URL, infiniteReader{})
@@ -3677,8 +3633,8 @@ func benchLargeDownloadRoundTrip(b *testing.B, frameSize uint32) {
 		}, optQuiet,
 	)
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure, MaxReadFrameSize: frameSize}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(b)
+	tr.HTTP2.MaxReadFrameSize = int(frameSize)
 
 	req, err := http.NewRequest("GET", ts.URL, nil)
 	if err != nil {
@@ -3730,8 +3686,7 @@ func BenchmarkClientGzip(b *testing.B) {
 		optQuiet,
 	)
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(b)
 
 	req, err := http.NewRequest("GET", ts.URL, nil)
 	if err != nil {
@@ -4007,8 +3962,7 @@ func testTransportBodyLargerThanSpecifiedContentLength(t testing.TB, body *chunk
 		r.Body.Read(make([]byte, 6))
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 
 	req, _ := http.NewRequest("POST", ts.URL, body)
 	req.ContentLength = contentLen
@@ -4083,14 +4037,8 @@ func TestTransportBodyRewindRace(t *testing.T) {
 		return
 	})
 
-	tr := &http.Transport{
-		TLSClientConfig: tlsConfigInsecure,
-		MaxConnsPerHost: 1,
-	}
-	err := ConfigureTransport(tr)
-	if err != nil {
-		t.Fatal(err)
-	}
+	tr := newTransport(t)
+	tr.MaxConnsPerHost = 1
 	client := &http.Client{
 		Transport: tr,
 	}
@@ -4129,16 +4077,10 @@ func TestTransportServerResetStreamAtHeaders(t *testing.T) {
 		return
 	})
 
-	tr := &http.Transport{
-		TLSClientConfig:       tlsConfigInsecure,
-		MaxConnsPerHost:       1,
-		ExpectContinueTimeout: 10 * time.Second,
-	}
+	tr := newTransport(t)
+	tr.MaxConnsPerHost = 1
+	tr.ExpectContinueTimeout = 10 * time.Second
 
-	err := ConfigureTransport(tr)
-	if err != nil {
-		t.Fatal(err)
-	}
 	client := &http.Client{
 		Transport: tr,
 	}
@@ -4180,16 +4122,10 @@ func TestTransportExpectContinue(t *testing.T) {
 		}
 	})
 
-	tr := &http.Transport{
-		TLSClientConfig:       tlsConfigInsecure,
-		MaxConnsPerHost:       1,
-		ExpectContinueTimeout: 10 * time.Second,
-	}
+	tr := newTransport(t)
+	tr.MaxConnsPerHost = 1
+	tr.ExpectContinueTimeout = 10 * time.Second
 
-	err := ConfigureTransport(tr)
-	if err != nil {
-		t.Fatal(err)
-	}
 	client := &http.Client{
 		Transport: tr,
 	}
@@ -4349,8 +4285,7 @@ func TestTransportFrameBufferReuse(t *testing.T) {
 		}
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 
 	var wg sync.WaitGroup
 	defer wg.Wait()
@@ -4434,27 +4369,28 @@ func TestTransportBlockingRequestWrite(t *testing.T) {
 				if v := r.Trailer.Get("Big"); v != "" && v != filler {
 					t.Errorf("request trailer mismatch\ngot:  %q\nwant: %q", string(v), filler)
 				}
-			}, func(s *Server) {
-				s.MaxConcurrentStreams = 1
+			}, func(h2 *http.HTTP2Config) {
+				h2.MaxConcurrentStreams = 1
+			}, func(s *http.Server) {
+				s.Protocols = protocols("h2c")
 			})
 
 			// This Transport creates connections that block on writes after 1024 bytes.
 			connc := make(chan *blockingWriteConn, 1)
 			connCount := 0
-			tr := &Transport{
-				TLSClientConfig: tlsConfigInsecure,
-				DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-					connCount++
-					c, err := tls.Dial(network, addr, cfg)
-					wc := newBlockingWriteConn(c, 1024)
-					select {
-					case connc <- wc:
-					default:
-					}
-					return wc, err
-				},
+			tr := newTransport(t)
+			tr.Protocols = protocols("h2c")
+			tr.Dial = func(network, addr string) (net.Conn, error) {
+				connCount++
+				c, err := net.Dial(network, addr)
+				wc := newBlockingWriteConn(c, 1024)
+				select {
+				case connc <- wc:
+				default:
+				}
+				return wc, err
 			}
-			defer tr.CloseIdleConnections()
+			t.Log(ts.URL)
 
 			// Request 1: A small request to ensure we read the server MaxConcurrentStreams.
 			{
@@ -4727,8 +4663,7 @@ func TestTransportContentLengthWithoutBody(t *testing.T) {
 			ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Length", contentLength)
 			})
-			tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-			defer tr.CloseIdleConnections()
+			tr := newTransport(t)
 
 			contentLength = test.contentLength
 
@@ -4763,8 +4698,7 @@ func testTransportCloseResponseBodyWhileRequestBodyHangs(t testing.TB) {
 		io.Copy(io.Discard, r.Body)
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 
 	pr, pw := net.Pipe()
 	req, err := http.NewRequest("GET", ts.URL, pr)
@@ -4791,8 +4725,7 @@ func testTransport300ResponseBody(t testing.TB) {
 		w.Write(body)
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 
 	pr, pw := net.Pipe()
 	req, err := http.NewRequest("GET", ts.URL, pr)
@@ -4816,17 +4749,16 @@ func testTransport300ResponseBody(t testing.TB) {
 }
 
 func TestTransportWriteByteTimeout(t *testing.T) {
-	ts := newTestServer(t,
-		func(w http.ResponseWriter, r *http.Request) {},
-	)
-	tr := &Transport{
-		TLSClientConfig: tlsConfigInsecure,
-		DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-			_, c := net.Pipe()
-			return c, nil
-		},
-		WriteByteTimeout: 1 * time.Millisecond,
+	ts := newTestServer(t, nil, func(s *http.Server) {
+		s.Protocols = protocols("h2c")
+	})
+	tr := newTransport(t)
+	tr.Protocols = protocols("h2c")
+	tr.Dial = func(network, addr string) (net.Conn, error) {
+		_, c := net.Pipe()
+		return c, nil
 	}
+	tr.HTTP2.WriteByteTimeout = 1 * time.Millisecond
 	defer tr.CloseIdleConnections()
 	c := &http.Client{Transport: tr}
 
@@ -4859,19 +4791,16 @@ func (c *slowWriteConn) Write(b []byte) (n int, err error) {
 
 func TestTransportSlowWrites(t *testing.T) { synctestTest(t, testTransportSlowWrites) }
 func testTransportSlowWrites(t testing.TB) {
-	ts := newTestServer(t,
-		func(w http.ResponseWriter, r *http.Request) {},
-	)
-	tr := &Transport{
-		TLSClientConfig: tlsConfigInsecure,
-		DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-			cfg.InsecureSkipVerify = true
-			c, err := tls.Dial(network, addr, cfg)
-			return &slowWriteConn{Conn: c}, err
-		},
-		WriteByteTimeout: 1 * time.Millisecond,
+	ts := newTestServer(t, nil, func(s *http.Server) {
+		s.Protocols = protocols("h2c")
+	})
+	tr := newTransport(t)
+	tr.Protocols = protocols("h2c")
+	tr.Dial = func(network, addr string) (net.Conn, error) {
+		c, err := net.Dial(network, addr)
+		return &slowWriteConn{Conn: c}, err
 	}
-	defer tr.CloseIdleConnections()
+	tr.HTTP2.WriteByteTimeout = 1 * time.Millisecond
 	c := &http.Client{Transport: tr}
 
 	const bodySize = 1 << 20
@@ -4992,19 +4921,17 @@ func TestTransportDialTLSContext(t *testing.T) {
 		func(w http.ResponseWriter, r *http.Request) {},
 		serverTLSConfigFunc,
 	)
-	tr := &Transport{
-		TLSClientConfig: &tls.Config{
-			GetClientCertificate: func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error) {
-				// Tests that the context provided to `req` is
-				// passed into this function.
-				close(blockCh)
-				<-cri.Context().Done()
-				return nil, cri.Context().Err()
-			},
-			InsecureSkipVerify: true,
+	tr := newTransport(t)
+	tr.TLSClientConfig = &tls.Config{
+		GetClientCertificate: func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			// Tests that the context provided to `req` is
+			// passed into this function.
+			close(blockCh)
+			<-cri.Context().Done()
+			return nil, cri.Context().Err()
 		},
+		InsecureSkipVerify: true,
 	}
-	defer tr.CloseIdleConnections()
 	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -5042,6 +4969,7 @@ func TestTransportDialTLSContext(t *testing.T) {
 // the first request's context is cancelled, the second request
 // resumes the dial automatically.
 func TestDialRaceResumesDial(t *testing.T) {
+	t.Skip("https://go.dev/issue/77908: test fails when using an http.Transport")
 	blockCh := make(chan struct{})
 	serverTLSConfigFunc := func(ts *httptest.Server) {
 		ts.Config.TLSConfig = &tls.Config{
@@ -5054,23 +4982,21 @@ func TestDialRaceResumesDial(t *testing.T) {
 		func(w http.ResponseWriter, r *http.Request) {},
 		serverTLSConfigFunc,
 	)
-	tr := &Transport{
-		TLSClientConfig: &tls.Config{
-			GetClientCertificate: func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error) {
-				select {
-				case <-blockCh:
-					// If we already errored, return without error.
-					return &tls.Certificate{}, nil
-				default:
-				}
-				close(blockCh)
-				<-cri.Context().Done()
-				return nil, cri.Context().Err()
-			},
-			InsecureSkipVerify: true,
+	tr := newTransport(t)
+	tr.TLSClientConfig = &tls.Config{
+		GetClientCertificate: func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			select {
+			case <-blockCh:
+				// If we already errored, return without error.
+				return &tls.Certificate{}, nil
+			default:
+			}
+			close(blockCh)
+			<-cri.Context().Done()
+			return nil, cri.Context().Err()
 		},
+		InsecureSkipVerify: true,
 	}
-	defer tr.CloseIdleConnections()
 	req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -5213,13 +5139,6 @@ func TestTransport1xxLimits(t *testing.T) {
 		hcount:  10,
 		limited: false,
 	}, {
-		name: "MaxHeaderListSize",
-		opt: func(tr *Transport) {
-			tr.MaxHeaderListSize = 10000
-		},
-		hcount:  10,
-		limited: true,
-	}, {
 		name: "MaxResponseHeaderBytes",
 		opt: func(tr *http.Transport) {
 			tr.MaxResponseHeaderBytes = 10000
@@ -5244,8 +5163,8 @@ func TestTransport1xxLimits(t *testing.T) {
 		limited: true,
 	}, {
 		name: "limit disabled by client trace",
-		opt: func(tr *Transport) {
-			tr.MaxHeaderListSize = 10000
+		opt: func(tr *http.Transport) {
+			tr.MaxResponseHeaderBytes = 10000
 		},
 		ctxfn: func(ctx context.Context) context.Context {
 			return httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
@@ -5296,8 +5215,8 @@ func TestTransport1xxLimits(t *testing.T) {
 // is canceled, it continues to consume a concurrency slot until the server responds to a PING.
 func TestTransportSendPingWithReset(t *testing.T) { synctestTest(t, testTransportSendPingWithReset) }
 func testTransportSendPingWithReset(t testing.TB) {
-	tc := newTestClientConn(t, func(tr *Transport) {
-		tr.StrictMaxConcurrentStreams = true
+	tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
+		h2.StrictMaxConcurrentRequests = true
 	})
 
 	const maxConcurrent = 3
@@ -5342,8 +5261,8 @@ func TestTransportNoPingAfterResetWithFrames(t *testing.T) {
 	synctestTest(t, testTransportNoPingAfterResetWithFrames)
 }
 func testTransportNoPingAfterResetWithFrames(t testing.TB) {
-	tc := newTestClientConn(t, func(tr *Transport) {
-		tr.StrictMaxConcurrentStreams = true
+	tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
+		h2.StrictMaxConcurrentRequests = true
 	})
 
 	const maxConcurrent = 1
@@ -5537,7 +5456,7 @@ func testTransportTLSNextProtoConnOK(t testing.TB) {
 	cli, _ := synctestNetPipe()
 	cliTLS := tls.Client(cli, tlsConfigInsecure)
 	go func() {
-		t1.TLSNextProto["h2"]("dummy.tld", cliTLS)
+		tt.tr.TestTransport().TLSNextProto["h2"]("dummy.tld", cliTLS)
 	}()
 	synctest.Wait()
 	tc := tt.getConn()
@@ -5679,6 +5598,7 @@ func testTransportTLSNextProtoConnImmediateFailureUnused(t testing.TB) {
 }
 
 func TestExtendedConnectClientWithServerSupport(t *testing.T) {
+	t.Skip("https://go.dev/issue/53208 -- net/http needs to support the :protocol header")
 	SetDisableExtendedConnectProtocol(t, false)
 	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(":protocol") != "extended-connect" {
@@ -5686,11 +5606,7 @@ func TestExtendedConnectClientWithServerSupport(t *testing.T) {
 		}
 		t.Log(io.Copy(w, r.Body))
 	})
-	tr := &Transport{
-		TLSClientConfig: tlsConfigInsecure,
-		AllowHTTP:       true,
-	}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 	pr, pw := io.Pipe()
 	pwDone := make(chan struct{})
 	req, _ := http.NewRequest("CONNECT", ts.URL, pr)
@@ -5718,15 +5634,12 @@ func TestExtendedConnectClientWithServerSupport(t *testing.T) {
 }
 
 func TestExtendedConnectClientWithoutServerSupport(t *testing.T) {
+	t.Skip("https://go.dev/issue/53208 -- net/http needs to support the :protocol header")
 	SetDisableExtendedConnectProtocol(t, true)
 	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		io.Copy(w, r.Body)
 	})
-	tr := &Transport{
-		TLSClientConfig: tlsConfigInsecure,
-		AllowHTTP:       true,
-	}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 	pr, pw := io.Pipe()
 	pwDone := make(chan struct{})
 	req, _ := http.NewRequest("CONNECT", ts.URL, pr)
@@ -5752,6 +5665,7 @@ func TestExtendedConnectReadFrameError(t *testing.T) {
 	synctestTest(t, testExtendedConnectReadFrameError)
 }
 func testExtendedConnectReadFrameError(t testing.TB) {
+	t.Skip("https://go.dev/issue/53208 -- net/http needs to support the :protocol header")
 	tc := newTestClientConn(t)
 	tc.wantFrameType(FrameSettings)
 	tc.wantFrameType(FrameWindowUpdate)

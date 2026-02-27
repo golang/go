@@ -10,6 +10,7 @@ import (
 	"compress/zlib"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"flag"
 	"fmt"
@@ -31,6 +32,7 @@ import (
 	"time"
 
 	. "net/http/internal/http2"
+	"net/http/internal/testcert"
 
 	"golang.org/x/net/http2/hpack"
 )
@@ -115,9 +117,14 @@ func (w twriter) Write(p []byte) (n int, err error) {
 }
 
 func newTestServer(t testing.TB, handler http.HandlerFunc, opts ...interface{}) *httptest.Server {
+	t.Helper()
+	if handler == nil {
+		handler = func(w http.ResponseWriter, req *http.Request) {}
+	}
 	ts := httptest.NewUnstartedServer(handler)
 	ts.EnableHTTP2 = true
 	ts.Config.ErrorLog = log.New(twriter{t: t}, "", log.LstdFlags)
+	ts.Config.Protocols = protocols("h2")
 	h2server := new(Server)
 	for _, opt := range opts {
 		switch v := opt.(type) {
@@ -125,25 +132,30 @@ func newTestServer(t testing.TB, handler http.HandlerFunc, opts ...interface{}) 
 			v(ts)
 		case func(*http.Server):
 			v(ts.Config)
-		case func(*Server):
-			v(h2server)
+		case func(*http.HTTP2Config):
+			if ts.Config.HTTP2 == nil {
+				ts.Config.HTTP2 = &http.HTTP2Config{}
+			}
+			v(ts.Config.HTTP2)
 		default:
 			t.Fatalf("unknown newTestServer option type %T", v)
 		}
 	}
 	ConfigureServer(ts.Config, h2server)
 
-	// ConfigureServer populates ts.Config.TLSConfig.
-	// Copy it to ts.TLS as well.
-	ts.TLS = ts.Config.TLSConfig
+	if ts.Config.Protocols.HTTP2() {
+		ts.TLS = testServerTLSConfig
+		if ts.Config.TLSConfig != nil {
+			ts.TLS = ts.Config.TLSConfig
+		}
+		ts.StartTLS()
+	} else if ts.Config.Protocols.UnencryptedHTTP2() {
+		ts.EnableHTTP2 = false // actually just disables HTTP/2 over TLS
+		ts.Start()
+	} else {
+		t.Fatalf("Protocols contains neither HTTP2 nor UnencryptedHTTP2")
+	}
 
-	// Go 1.22 changes the default minimum TLS version to TLS 1.2,
-	// in order to properly test cases where we want to reject low
-	// TLS versions, we need to explicitly configure the minimum
-	// version here.
-	ts.Config.TLSConfig.MinVersion = tls.VersionTLS10
-
-	ts.StartTLS()
 	t.Cleanup(func() {
 		ts.CloseClientConnections()
 		ts.Close()
@@ -172,10 +184,13 @@ func newServerTester(t testing.TB, handler http.HandlerFunc, opts ...interface{}
 	}
 	for _, opt := range opts {
 		switch v := opt.(type) {
-		case func(*Server):
-			v(h2server)
 		case func(*http.Server):
 			v(h1server)
+		case func(*http.HTTP2Config):
+			if h1server.HTTP2 == nil {
+				h1server.HTTP2 = &http.HTTP2Config{}
+			}
+			v(h1server.HTTP2)
 		case func(*tls.ConnectionState):
 			v(&tlsState)
 		default:
@@ -202,6 +217,7 @@ func newServerTester(t testing.TB, handler http.HandlerFunc, opts ...interface{}
 	if handler == nil {
 		handler = serverTesterHandler{st}.ServeHTTP
 	}
+	h1server.Handler = handler
 
 	t.Cleanup(func() {
 		st.Close()
@@ -1295,9 +1311,9 @@ func testServer_Handler_Sends_WindowUpdate(t testing.TB) {
 	//
 	// This also needs to be less than MAX_FRAME_SIZE.
 	const windowSize = 65535 * 2
-	st := newServerTester(t, nil, func(s *Server) {
-		s.MaxUploadBufferPerConnection = windowSize
-		s.MaxUploadBufferPerStream = windowSize
+	st := newServerTester(t, nil, func(h2 *http.HTTP2Config) {
+		h2.MaxReceiveBufferPerConnection = windowSize
+		h2.MaxReceiveBufferPerStream = windowSize
 	})
 	defer st.Close()
 
@@ -1336,9 +1352,9 @@ func TestServer_Handler_Sends_WindowUpdate_Padding(t *testing.T) {
 }
 func testServer_Handler_Sends_WindowUpdate_Padding(t testing.TB) {
 	const windowSize = 65535 * 2
-	st := newServerTester(t, nil, func(s *Server) {
-		s.MaxUploadBufferPerConnection = windowSize
-		s.MaxUploadBufferPerStream = windowSize
+	st := newServerTester(t, nil, func(h2 *http.HTTP2Config) {
+		h2.MaxReceiveBufferPerConnection = windowSize
+		h2.MaxReceiveBufferPerStream = windowSize
 	})
 	defer st.Close()
 
@@ -1748,9 +1764,7 @@ func TestServer_Rejects_PriorityUpdateUnparsable(t *testing.T) {
 	synctestTest(t, testServer_Rejects_PriorityUnparsable)
 }
 func testServer_Rejects_PriorityUnparsable(t testing.TB) {
-	st := newServerTester(t, nil, func(s *Server) {
-		s.NewWriteScheduler = NewPriorityWriteSchedulerRFC9218
-	})
+	st := newServerTester(t, nil)
 	defer st.Close()
 	st.greet()
 	st.writePriorityUpdate(1, "Invalid dictionary: ((((")
@@ -2640,7 +2654,10 @@ func testServer_Advertises_Common_Cipher(t testing.TB) {
 	tlsConfig := tlsConfigInsecure.Clone()
 	tlsConfig.MaxVersion = tls.VersionTLS12
 	tlsConfig.CipherSuites = []uint16{requiredSuite}
-	tr := &Transport{TLSClientConfig: tlsConfig}
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfig,
+		Protocols:       protocols("h2"),
+	}
 	defer tr.CloseIdleConnections()
 
 	req, err := http.NewRequest("GET", ts.URL, nil)
@@ -2704,8 +2721,8 @@ func TestServer_MaxDecoderHeaderTableSize(t *testing.T) {
 }
 func testServer_MaxDecoderHeaderTableSize(t testing.TB) {
 	wantHeaderTableSize := uint32(InitialHeaderTableSize * 2)
-	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {}, func(s *Server) {
-		s.MaxDecoderHeaderTableSize = wantHeaderTableSize
+	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {}, func(h2 *http.HTTP2Config) {
+		h2.MaxDecoderHeaderTableSize = int(wantHeaderTableSize)
 	})
 	defer st.Close()
 
@@ -2730,8 +2747,8 @@ func TestServer_MaxEncoderHeaderTableSize(t *testing.T) {
 }
 func testServer_MaxEncoderHeaderTableSize(t testing.TB) {
 	wantHeaderTableSize := uint32(InitialHeaderTableSize / 2)
-	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {}, func(s *Server) {
-		s.MaxEncoderHeaderTableSize = wantHeaderTableSize
+	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {}, func(h2 *http.HTTP2Config) {
+		h2.MaxEncoderHeaderTableSize = int(wantHeaderTableSize)
 	})
 	defer st.Close()
 
@@ -3058,7 +3075,10 @@ func testServerWritesUndeclaredTrailers(t testing.TB) {
 		w.Header().Set(http.TrailerPrefix+trailer, value)
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfigInsecure,
+		Protocols:       protocols("h2"),
+	}
 	defer tr.CloseIdleConnections()
 
 	cl := &http.Client{Transport: tr}
@@ -3715,7 +3735,10 @@ func testExpect100ContinueAfterHandlerWrites(t testing.TB) {
 		io.WriteString(w, msg2)
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfigInsecure,
+		Protocols:       protocols("h2"),
+	}
 	defer tr.CloseIdleConnections()
 
 	req, _ := http.NewRequest("POST", ts.URL, io.LimitReader(neverEnding('A'), 2<<20))
@@ -3787,7 +3810,10 @@ func TestUnreadFlowControlReturned_Server(t *testing.T) {
 				<-unblock
 			})
 
-			tr := &Transport{TLSClientConfig: tlsConfigInsecure}
+			tr := &http.Transport{
+				TLSClientConfig: tlsConfigInsecure,
+				Protocols:       protocols("h2"),
+			}
 			defer tr.CloseIdleConnections()
 
 			// This previously hung on the 4th iteration.
@@ -3856,8 +3882,8 @@ func testServerIdleTimeout(t testing.TB) {
 	}
 
 	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
-	}, func(h2s *Server) {
-		h2s.IdleTimeout = 500 * time.Millisecond
+	}, func(s *http.Server) {
+		s.IdleTimeout = 500 * time.Millisecond
 	})
 	defer st.Close()
 
@@ -3881,8 +3907,8 @@ func testServerIdleTimeout_AfterRequest(t testing.TB) {
 	var st *serverTester
 	st = newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(requestTimeout)
-	}, func(h2s *Server) {
-		h2s.IdleTimeout = idleTimeout
+	}, func(s *http.Server) {
+		s.IdleTimeout = idleTimeout
 	})
 	defer st.Close()
 
@@ -3963,7 +3989,10 @@ func testIssue20704Race(t testing.TB) {
 		}
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfigInsecure,
+		Protocols:       protocols("h2"),
+	}
 	defer tr.CloseIdleConnections()
 	cl := &http.Client{Transport: tr}
 
@@ -4254,7 +4283,10 @@ func TestContentEncodingNoSniffing(t *testing.T) {
 				w.Write(tt.body)
 			})
 
-			tr := &Transport{TLSClientConfig: tlsConfigInsecure}
+			tr := &http.Transport{
+				TLSClientConfig: tlsConfigInsecure,
+				Protocols:       protocols("h2"),
+			}
 			defer tr.CloseIdleConnections()
 
 			req, _ := http.NewRequest("GET", ts.URL, nil)
@@ -4304,9 +4336,9 @@ func testServerWindowUpdateOnBodyClose(t testing.TB) {
 		}
 		r.Body.Close()
 		errc <- nil
-	}, func(s *Server) {
-		s.MaxUploadBufferPerConnection = windowSize
-		s.MaxUploadBufferPerStream = windowSize
+	}, func(h2 *http.HTTP2Config) {
+		h2.MaxReceiveBufferPerConnection = windowSize
+		h2.MaxReceiveBufferPerStream = windowSize
 	})
 	defer st.Close()
 
@@ -4515,8 +4547,8 @@ func TestServerInitialFlowControlWindow(t *testing.T) {
 		synctestSubtest(t, fmt.Sprint(want), func(t testing.TB) {
 
 			st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
-			}, func(s *Server) {
-				s.MaxUploadBufferPerConnection = want
+			}, func(h2 *http.HTTP2Config) {
+				h2.MaxReceiveBufferPerConnection = int(want)
 			})
 			st.writePreface()
 			st.writeSettings()
@@ -4579,7 +4611,10 @@ func testServerWriteDoesNotRetainBufferAfterReturn(t testing.TB) {
 		}
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfigInsecure,
+		Protocols:       protocols("h2"),
+	}
 	defer tr.CloseIdleConnections()
 
 	req, _ := http.NewRequest("GET", ts.URL, nil)
@@ -4618,7 +4653,10 @@ func testServerWriteDoesNotRetainBufferAfterServerClose(t testing.TB) {
 		}
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfigInsecure,
+		Protocols:       protocols("h2"),
+	}
 	defer tr.CloseIdleConnections()
 
 	req, _ := http.NewRequest("GET", ts.URL, nil)
@@ -4651,8 +4689,8 @@ func testServerMaxHandlerGoroutines(t testing.TB) {
 			}
 		case <-donec:
 		}
-	}, func(s *Server) {
-		s.MaxConcurrentStreams = maxHandlers
+	}, func(h2 *http.HTTP2Config) {
+		h2.MaxConcurrentStreams = maxHandlers
 	})
 	defer st.Close()
 
@@ -4906,8 +4944,13 @@ func testServerWriteByteTimeout(t testing.TB) {
 	const timeout = 1 * time.Second
 	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Write(make([]byte, 100))
-	}, func(s *Server) {
-		s.WriteByteTimeout = timeout
+	}, func(s *http.Server) {
+		// Use unencrypted HTTP/2, so a byte written by the server corresponds
+		// to a byte read by the test. Using TLS adds another layer of buffering
+		// and timeout management, which aren't really relevant to the test.
+		s.Protocols = protocols("h2c")
+	}, func(h2 *http.HTTP2Config) {
+		h2.WriteByteTimeout = timeout
 	})
 	st.greet()
 
@@ -4936,16 +4979,16 @@ func testServerWriteByteTimeout(t testing.TB) {
 
 func TestServerPingSent(t *testing.T) { synctestTest(t, testServerPingSent) }
 func testServerPingSent(t testing.TB) {
-	const readIdleTimeout = 15 * time.Second
+	const sendPingTimeout = 15 * time.Second
 	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
-	}, func(s *Server) {
-		s.ReadIdleTimeout = readIdleTimeout
+	}, func(h2 *http.HTTP2Config) {
+		h2.SendPingTimeout = sendPingTimeout
 	})
 	st.greet()
 
 	st.wantIdle()
 
-	st.advance(readIdleTimeout)
+	st.advance(sendPingTimeout)
 	_ = readFrame[*PingFrame](t, st)
 	st.wantIdle()
 
@@ -4957,16 +5000,16 @@ func testServerPingSent(t testing.TB) {
 
 func TestServerPingResponded(t *testing.T) { synctestTest(t, testServerPingResponded) }
 func testServerPingResponded(t testing.TB) {
-	const readIdleTimeout = 15 * time.Second
+	const sendPingTimeout = 15 * time.Second
 	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
-	}, func(s *Server) {
-		s.ReadIdleTimeout = readIdleTimeout
+	}, func(h2 *http.HTTP2Config) {
+		h2.SendPingTimeout = sendPingTimeout
 	})
 	st.greet()
 
 	st.wantIdle()
 
-	st.advance(readIdleTimeout)
+	st.advance(sendPingTimeout)
 	pf := readFrame[*PingFrame](t, st)
 	st.wantIdle()
 
@@ -5040,46 +5083,20 @@ func TestServerSettingNoRFC7540Priorities(t *testing.T) {
 	synctestTest(t, testServerSettingNoRFC7540Priorities)
 }
 func testServerSettingNoRFC7540Priorities(t testing.TB) {
-	tests := []struct {
-		ws                   func() WriteScheduler
-		wantNoRFC7540Setting bool
-	}{
-		{
-			ws: func() WriteScheduler {
-				return NewPriorityWriteSchedulerRFC7540(nil)
-			},
-			wantNoRFC7540Setting: false,
-		},
-		{
-			ws:                   NewPriorityWriteSchedulerRFC9218,
-			wantNoRFC7540Setting: true,
-		},
-		{
-			ws:                   NewRandomWriteScheduler,
-			wantNoRFC7540Setting: true,
-		},
-		{
-			ws:                   NewRoundRobinWriteScheduler,
-			wantNoRFC7540Setting: true,
-		},
-	}
-	for _, tt := range tests {
-		st := newServerTester(t, nil, func(s *Server) {
-			s.NewWriteScheduler = tt.ws
-		})
-		defer st.Close()
+	const wantNoRFC7540Setting = true
+	st := newServerTester(t, nil)
+	defer st.Close()
 
-		var gotNoRFC7540Setting bool
-		st.greetAndCheckSettings(func(s Setting) error {
-			if s.ID != SettingNoRFC7540Priorities {
-				return nil
-			}
-			gotNoRFC7540Setting = s.Val == 1
+	var gotNoRFC7540Setting bool
+	st.greetAndCheckSettings(func(s Setting) error {
+		if s.ID != SettingNoRFC7540Priorities {
 			return nil
-		})
-		if tt.wantNoRFC7540Setting != gotNoRFC7540Setting {
-			t.Errorf("want SETTINGS_NO_RFC7540_PRIORITIES to be %v, got %v", tt.wantNoRFC7540Setting, gotNoRFC7540Setting)
 		}
+		gotNoRFC7540Setting = s.Val == 1
+		return nil
+	})
+	if wantNoRFC7540Setting != gotNoRFC7540Setting {
+		t.Errorf("want SETTINGS_NO_RFC7540_PRIORITIES to be %v, got %v", wantNoRFC7540Setting, gotNoRFC7540Setting)
 	}
 }
 
@@ -5100,74 +5117,6 @@ func testServerSettingNoRFC7540PrioritiesInvalid(t testing.TB) {
 
 // This test documents current behavior, rather than ideal behavior that we
 // would necessarily like to see. Refer to go.dev/issues/75936 for details.
-func TestServerRFC7540PrioritySmallPayload(t *testing.T) {
-	synctestTest(t, testServerRFC7540PrioritySmallPayload)
-}
-func testServerRFC7540PrioritySmallPayload(t testing.TB) {
-	endTest := false
-	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
-		for !endTest {
-			w.Write([]byte("a"))
-			if f, ok := w.(http.Flusher); ok {
-				f.Flush()
-			}
-		}
-	}, func(s *Server) {
-		s.NewWriteScheduler = func() WriteScheduler {
-			return NewPriorityWriteSchedulerRFC7540(nil)
-		}
-	})
-	if syncConn, ok := st.cc.(*synctestNetConn); ok {
-		syncConn.SetReadBufferSize(1)
-	} else {
-		t.Fatal("Server connection is not synctestNetConn")
-	}
-	defer st.Close()
-	defer func() { endTest = true }()
-	st.greet()
-
-	// Create 5 streams with weight of 0, and another 5 streams with weight of
-	// 255.
-	// Since each stream receives an infinite number of bytes, we should expect
-	// to see that almost all of the response we get are for the streams with
-	// weight of 255.
-	for i := 1; i <= 19; i += 2 {
-		weight := 1
-		if i > 10 {
-			weight = 255
-		}
-		st.writeHeaders(HeadersFrameParam{
-			StreamID:      uint32(i),
-			BlockFragment: st.encodeHeader(),
-			EndStream:     true,
-			EndHeaders:    true,
-			Priority:      PriorityParam{StreamDep: 0, Weight: uint8(weight)},
-		})
-		synctest.Wait()
-	}
-
-	// In the current implementation however, the response we get are
-	// distributed equally amongst all the streams, regardless of weight.
-	streamWriteCount := make(map[uint32]int)
-	totalWriteCount := 10000
-	for range totalWriteCount {
-		f := st.readFrame()
-		if f == nil {
-			break
-		}
-		streamWriteCount[f.Header().StreamID] += 1
-	}
-	for streamID, writeCount := range streamWriteCount {
-		expectedWriteCount := totalWriteCount / len(streamWriteCount)
-		errorMargin := expectedWriteCount / 100
-		if writeCount >= expectedWriteCount+errorMargin || writeCount <= expectedWriteCount-errorMargin {
-			t.Errorf("Expected stream %v to receive %v±%v writes, got %v", streamID, expectedWriteCount, errorMargin, writeCount)
-		}
-	}
-}
-
-// This test documents current behavior, rather than ideal behavior that we
-// would necessarily like to see. Refer to go.dev/issues/75936 for details.
 func TestServerRFC9218PrioritySmallPayload(t *testing.T) {
 	synctestTest(t, testServerRFC9218PrioritySmallPayload)
 }
@@ -5180,8 +5129,6 @@ func testServerRFC9218PrioritySmallPayload(t testing.TB) {
 				f.Flush()
 			}
 		}
-	}, func(s *Server) {
-		s.NewWriteScheduler = NewPriorityWriteSchedulerRFC9218
 	})
 	if syncConn, ok := st.cc.(*synctestNetConn); ok {
 		syncConn.SetReadBufferSize(1)
@@ -5240,8 +5187,6 @@ func testServerRFC9218Priority(t testing.TB) {
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}
-	}, func(s *Server) {
-		s.NewWriteScheduler = NewPriorityWriteSchedulerRFC9218
 	})
 	defer st.Close()
 	if syncConn, ok := st.cc.(*synctestNetConn); ok {
@@ -5295,8 +5240,6 @@ func testServerRFC9218PriorityIgnoredWhenProxied(t testing.TB) {
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}
-	}, func(s *Server) {
-		s.NewWriteScheduler = NewPriorityWriteSchedulerRFC9218
 	})
 	defer st.Close()
 	if syncConn, ok := st.cc.(*synctestNetConn); ok {
@@ -5344,8 +5287,6 @@ func testServerRFC9218PriorityAware(t testing.TB) {
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}
-	}, func(s *Server) {
-		s.NewWriteScheduler = NewPriorityWriteSchedulerRFC9218
 	})
 	defer st.Close()
 	if syncConn, ok := st.cc.(*synctestNetConn); ok {
@@ -5409,4 +5350,49 @@ func testServerRFC9218PriorityAware(t testing.TB) {
 	if !slices.Equal(slices.Compact(half), half) {
 		t.Errorf("want stream to be processed one-by-one to completion when aware of priority, got: %v", streamFrameOrder)
 	}
+}
+
+var (
+	testServerTLSConfig *tls.Config
+	testClientTLSConfig *tls.Config
+)
+
+func init() {
+	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
+	if err != nil {
+		panic(err)
+	}
+	testServerTLSConfig = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		NextProtos:   []string{"h2"},
+	}
+
+	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		panic(err)
+	}
+	certpool := x509.NewCertPool()
+	certpool.AddCert(x509Cert)
+	testClientTLSConfig = &tls.Config{
+		InsecureSkipVerify: true,
+		RootCAs:            certpool,
+		NextProtos:         []string{"h2"},
+	}
+}
+
+func protocols(protos ...string) *http.Protocols {
+	p := new(http.Protocols)
+	for _, s := range protos {
+		switch s {
+		case "h1":
+			p.SetHTTP1(true)
+		case "h2":
+			p.SetHTTP2(true)
+		case "h2c":
+			p.SetUnencryptedHTTP2(true)
+		default:
+			panic("unknown protocol: " + s)
+		}
+	}
+	return p
 }
