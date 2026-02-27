@@ -233,6 +233,9 @@ func TestIntendedInlining(t *testing.T) {
 		"testing": {
 			"(*B).Loop",
 		},
+		"time": {
+			"Duration.String",
+		},
 		"path": {
 			"Base",
 			"scanChunk",
