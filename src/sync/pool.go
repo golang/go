@@ -6,6 +6,7 @@ package sync
 
 import (
 	"internal/race"
+	rtatomic "internal/runtime/atomic"
 	"runtime"
 	"sync/atomic"
 	"unsafe"
@@ -159,8 +160,8 @@ func (p *Pool) Get() any {
 
 func (p *Pool) getSlow(pid int) any {
 	// See the comment in pin regarding ordering of the loads.
-	size := runtime_LoadAcquintptr(&p.localSize) // load-acquire
-	locals := p.local                            // load-consume
+	size := rtatomic.LoadAcquintptr(&p.localSize) // load-acquire
+	locals := p.local                             // load-consume
 	// Try to steal one element from other procs.
 	for i := 0; i < int(size); i++ {
 		l := indexLocal(locals, (pid+i+1)%int(size))
@@ -212,8 +213,8 @@ func (p *Pool) pin() (*poolLocal, int) {
 	// Since we've disabled preemption, GC cannot happen in between.
 	// Thus here we must observe local at least as large localSize.
 	// We can observe a newer/larger local, it is fine (we must observe its zero-initialized-ness).
-	s := runtime_LoadAcquintptr(&p.localSize) // load-acquire
-	l := p.local                              // load-consume
+	s := rtatomic.LoadAcquintptr(&p.localSize) // load-acquire
+	l := p.local                               // load-consume
 	if uintptr(pid) < s {
 		return indexLocal(l, pid), pid
 	}
@@ -240,7 +241,7 @@ func (p *Pool) pinSlow() (*poolLocal, int) {
 	size := runtime.GOMAXPROCS(0)
 	local := make([]poolLocal, size)
 	atomic.StorePointer(&p.local, unsafe.Pointer(&local[0])) // store-release
-	runtime_StoreReluintptr(&p.localSize, uintptr(size))     // store-release
+	rtatomic.StoreReluintptr(&p.localSize, uintptr(size))    // store-release
 	return &local[pid], pid
 }
 
@@ -306,13 +307,3 @@ func indexLocal(l unsafe.Pointer, i int) *poolLocal {
 func runtime_registerPoolCleanup(cleanup func())
 func runtime_procPin() int
 func runtime_procUnpin()
-
-// The below are implemented in internal/runtime/atomic and the
-// compiler also knows to intrinsify the symbol we linkname into this
-// package.
-
-//go:linkname runtime_LoadAcquintptr internal/runtime/atomic.LoadAcquintptr
-func runtime_LoadAcquintptr(ptr *uintptr) uintptr
-
-//go:linkname runtime_StoreReluintptr internal/runtime/atomic.StoreReluintptr
-func runtime_StoreReluintptr(ptr *uintptr, val uintptr)
