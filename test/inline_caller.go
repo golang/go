@@ -54,9 +54,9 @@ type wantFrame struct {
 
 // -1 means don't care
 var expected = []wantFrame{
-	0: {"main.testCaller", 36},
-	1: {"main.testCaller", 31},
-	2: {"main.testCaller", 27},
+	0: {"main.h", 36},
+	1: {"main.g", 31},
+	2: {"main.f", 27},
 	3: {"main.testCaller", 42},
 	4: {"main.main", 68},
 	5: {"runtime.main", -1},

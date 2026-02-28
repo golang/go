@@ -5,12 +5,17 @@
 package os
 
 import (
+	"errors"
+	"internal/testlog"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
 )
+
+// ErrProcessDone indicates a Process has finished.
+var ErrProcessDone = errors.New("os: process already finished")
 
 // Process stores the information about a process created by StartProcess.
 type Process struct {
@@ -49,6 +54,9 @@ type ProcAttr struct {
 	// standard error. An implementation may support additional entries,
 	// depending on the underlying operating system. A nil entry corresponds
 	// to that file being closed when the process starts.
+	// On Unix systems, StartProcess will change these File values
+	// to blocking mode, which means that SetDeadline will stop working
+	// and calling Close will not interrupt a Read or Write.
 	Files []*File
 
 	// Operating system-specific process creation attributes.
@@ -84,13 +92,20 @@ func FindProcess(pid int) (*Process, error) {
 }
 
 // StartProcess starts a new process with the program, arguments and attributes
-// specified by name, argv and attr.
+// specified by name, argv and attr. The argv slice will become os.Args in the
+// new process, so it normally starts with the program name.
+//
+// If the calling goroutine has locked the operating system thread
+// with runtime.LockOSThread and modified any inheritable OS-level
+// thread state (for example, Linux or Plan 9 name spaces), the new
+// process will inherit the caller's thread state.
 //
 // StartProcess is a low-level interface. The os/exec package provides
 // higher-level interfaces.
 //
 // If there is an error, it will be of type *PathError.
 func StartProcess(name string, argv []string, attr *ProcAttr) (*Process, error) {
+	testlog.Open(name)
 	return startProcess(name, argv, attr)
 }
 
@@ -101,7 +116,9 @@ func (p *Process) Release() error {
 	return p.release()
 }
 
-// Kill causes the Process to exit immediately.
+// Kill causes the Process to exit immediately. Kill does not wait until
+// the Process has actually exited. This only kills the Process itself,
+// not any other processes it may have started.
 func (p *Process) Kill() error {
 	return p.kill()
 }
@@ -132,6 +149,8 @@ func (p *ProcessState) SystemTime() time.Duration {
 }
 
 // Exited reports whether the program has exited.
+// On Unix systems this reports true if the program exited due to calling exit,
+// but false if the program terminated due to a signal.
 func (p *ProcessState) Exited() bool {
 	return p.exited()
 }
@@ -145,7 +164,7 @@ func (p *ProcessState) Success() bool {
 // Sys returns system-dependent exit information about
 // the process. Convert it to the appropriate underlying
 // type, such as syscall.WaitStatus on Unix, to access its contents.
-func (p *ProcessState) Sys() interface{} {
+func (p *ProcessState) Sys() any {
 	return p.sys()
 }
 
@@ -154,6 +173,6 @@ func (p *ProcessState) Sys() interface{} {
 // type, such as *syscall.Rusage on Unix, to access its contents.
 // (On Unix, *syscall.Rusage matches struct rusage as defined in the
 // getrusage(2) manual page.)
-func (p *ProcessState) SysUsage() interface{} {
+func (p *ProcessState) SysUsage() any {
 	return p.sysUsage()
 }

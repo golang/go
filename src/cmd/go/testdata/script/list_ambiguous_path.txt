@@ -1,0 +1,38 @@
+# Ensures that we can correctly list package patterns ending in '.go'.
+# See golang.org/issue/34653.
+
+# A single pattern for a package ending in '.go'.
+go list ./foo.go
+stdout '^test/foo.go$'
+
+# Multiple patterns for packages including one ending in '.go'.
+go list ./bar ./foo.go
+stdout '^test/bar$'
+stdout '^test/foo.go$'
+
+# A single pattern for a Go file.
+go list ./a.go
+stdout '^command-line-arguments$'
+
+# A single typo-ed pattern for a Go file. This should
+# treat the wrong pattern as if it were a package.
+! go list ./foo.go/b.go
+stderr '^stat .*[/\\]foo\.go[/\\]b\.go: directory not found$'
+
+# Multiple patterns for Go files with a typo. This should
+# treat the wrong pattern as if it were a nonexistent file.
+! go list ./foo.go/a.go ./foo.go/b.go
+[plan9] stderr 'stat ./foo.go/b.go: ''./foo.go/b.go'' does not exist'
+[windows] stderr './foo.go/b.go: The system cannot find the file specified'
+[!plan9] [!windows] stderr './foo.go/b.go: no such file or directory'
+
+-- a.go --
+package main
+-- bar/a.go --
+package bar
+-- foo.go/a.go --
+package foo.go
+-- go.mod --
+module "test"
+
+go 1.13

@@ -36,6 +36,55 @@ func TestLiveControlOps(t *testing.T) {
 	checkFunc(f.f)
 }
 
+// Test to make sure G register is never reloaded from spill (spill of G is okay)
+// See #25504
+func TestNoGetgLoadReg(t *testing.T) {
+	/*
+		Original:
+		func fff3(i int) *g {
+			gee := getg()
+			if i == 0 {
+				fff()
+			}
+			return gee // here
+		}
+	*/
+	c := testConfigARM64(t)
+	f := c.Fun("b1",
+		Bloc("b1",
+			Valu("v1", OpInitMem, types.TypeMem, 0, nil),
+			Valu("v6", OpArg, c.config.Types.Int64, 0, c.Frontend().Auto(src.NoXPos, c.config.Types.Int64)),
+			Valu("v8", OpGetG, c.config.Types.Int64.PtrTo(), 0, nil, "v1"),
+			Valu("v11", OpARM64CMPconst, types.TypeFlags, 0, nil, "v6"),
+			Eq("v11", "b2", "b4"),
+		),
+		Bloc("b4",
+			Goto("b3"),
+		),
+		Bloc("b3",
+			Valu("v14", OpPhi, types.TypeMem, 0, nil, "v1", "v12"),
+			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+			Valu("v16", OpARM64MOVDstore, types.TypeMem, 0, nil, "v8", "sb", "v14"),
+			Exit("v16"),
+		),
+		Bloc("b2",
+			Valu("v12", OpARM64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "v1"),
+			Goto("b3"),
+		),
+	)
+	regalloc(f.f)
+	checkFunc(f.f)
+	// Double-check that we never restore to the G register. Regalloc should catch it, but check again anyway.
+	r := f.f.RegAlloc
+	for _, b := range f.blocks {
+		for _, v := range b.Values {
+			if v.Op == OpLoadReg && r[v.ID].String() == "g" {
+				t.Errorf("Saw OpLoadReg targeting g register: %s", v.LongString())
+			}
+		}
+	}
+}
+
 // Test to make sure we don't push spills into loops.
 // See issue #19595.
 func TestSpillWithLoop(t *testing.T) {
@@ -50,7 +99,7 @@ func TestSpillWithLoop(t *testing.T) {
 		),
 		Bloc("loop",
 			Valu("memphi", OpPhi, types.TypeMem, 0, nil, "mem", "call"),
-			Valu("call", OpAMD64CALLstatic, types.TypeMem, 0, nil, "memphi"),
+			Valu("call", OpAMD64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "memphi"),
 			Valu("test", OpAMD64CMPBconst, types.TypeFlags, 0, nil, "cond"),
 			Eq("test", "next", "exit"),
 		),
@@ -91,12 +140,12 @@ func TestSpillMove1(t *testing.T) {
 		Bloc("exit1",
 			// store before call, y is available in a register
 			Valu("mem2", OpAMD64MOVQstore, types.TypeMem, 0, nil, "p", "y", "mem"),
-			Valu("mem3", OpAMD64CALLstatic, types.TypeMem, 0, nil, "mem2"),
+			Valu("mem3", OpAMD64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "mem2"),
 			Exit("mem3"),
 		),
 		Bloc("exit2",
 			// store after call, y must be loaded from a spill location
-			Valu("mem4", OpAMD64CALLstatic, types.TypeMem, 0, nil, "mem"),
+			Valu("mem4", OpAMD64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "mem"),
 			Valu("mem5", OpAMD64MOVQstore, types.TypeMem, 0, nil, "p", "y", "mem4"),
 			Exit("mem5"),
 		),
@@ -139,13 +188,13 @@ func TestSpillMove2(t *testing.T) {
 		),
 		Bloc("exit1",
 			// store after call, y must be loaded from a spill location
-			Valu("mem2", OpAMD64CALLstatic, types.TypeMem, 0, nil, "mem"),
+			Valu("mem2", OpAMD64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "mem"),
 			Valu("mem3", OpAMD64MOVQstore, types.TypeMem, 0, nil, "p", "y", "mem2"),
 			Exit("mem3"),
 		),
 		Bloc("exit2",
 			// store after call, y must be loaded from a spill location
-			Valu("mem4", OpAMD64CALLstatic, types.TypeMem, 0, nil, "mem"),
+			Valu("mem4", OpAMD64CALLstatic, types.TypeMem, 0, AuxCallLSym("_"), "mem"),
 			Valu("mem5", OpAMD64MOVQstore, types.TypeMem, 0, nil, "p", "y", "mem4"),
 			Exit("mem5"),
 		),

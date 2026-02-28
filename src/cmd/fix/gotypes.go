@@ -21,11 +21,11 @@ var gotypesFix = fix{
 }
 
 func gotypes(f *ast.File) bool {
-	truth := fixGoTypes(f)
+	fixed := fixGoTypes(f)
 	if fixGoExact(f) {
-		truth = true
+		fixed = true
 	}
-	return truth
+	return fixed
 }
 
 func fixGoTypes(f *ast.File) bool {
@@ -36,7 +36,7 @@ func fixGoExact(f *ast.File) bool {
 	// This one is harder because the import name changes.
 	// First find the import spec.
 	var importSpec *ast.ImportSpec
-	walk(f, func(n interface{}) {
+	walk(f, func(n any) {
 		if importSpec != nil {
 			return
 		}

@@ -6,7 +6,7 @@ package mail_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/mail"
 	"strings"
@@ -62,7 +62,7 @@ Message body
 	fmt.Println("To:", header.Get("To"))
 	fmt.Println("Subject:", header.Get("Subject"))
 
-	body, err := ioutil.ReadAll(m.Body)
+	body, err := io.ReadAll(m.Body)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -2,18 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !mips
-// +build !mipsle
-// +build !mips64
-// +build !mips64le
-// +build linux
+//go:build !mips && !mipsle && !mips64 && !mips64le && linux
 
 package runtime
-
-type sigTabT struct {
-	flags int32
-	name  string
-}
 
 var sigtable = [...]sigTabT{
 	/* 0 */ {0, "SIGNONE: no trap"},
@@ -33,24 +24,24 @@ var sigtable = [...]sigTabT{
 	/* 14 */ {_SigNotify, "SIGALRM: alarm clock"},
 	/* 15 */ {_SigNotify + _SigKill, "SIGTERM: termination"},
 	/* 16 */ {_SigThrow + _SigUnblock, "SIGSTKFLT: stack fault"},
-	/* 17 */ {_SigNotify + _SigUnblock, "SIGCHLD: child status has changed"},
-	/* 18 */ {_SigNotify + _SigDefault, "SIGCONT: continue"},
+	/* 17 */ {_SigNotify + _SigUnblock + _SigIgn, "SIGCHLD: child status has changed"},
+	/* 18 */ {_SigNotify + _SigDefault + _SigIgn, "SIGCONT: continue"},
 	/* 19 */ {0, "SIGSTOP: stop, unblockable"},
-	/* 20 */ {_SigNotify + _SigDefault, "SIGTSTP: keyboard stop"},
-	/* 21 */ {_SigNotify + _SigDefault, "SIGTTIN: background read from tty"},
-	/* 22 */ {_SigNotify + _SigDefault, "SIGTTOU: background write to tty"},
-	/* 23 */ {_SigNotify, "SIGURG: urgent condition on socket"},
+	/* 20 */ {_SigNotify + _SigDefault + _SigIgn, "SIGTSTP: keyboard stop"},
+	/* 21 */ {_SigNotify + _SigDefault + _SigIgn, "SIGTTIN: background read from tty"},
+	/* 22 */ {_SigNotify + _SigDefault + _SigIgn, "SIGTTOU: background write to tty"},
+	/* 23 */ {_SigNotify + _SigIgn, "SIGURG: urgent condition on socket"},
 	/* 24 */ {_SigNotify, "SIGXCPU: cpu limit exceeded"},
 	/* 25 */ {_SigNotify, "SIGXFSZ: file size limit exceeded"},
 	/* 26 */ {_SigNotify, "SIGVTALRM: virtual alarm clock"},
 	/* 27 */ {_SigNotify + _SigUnblock, "SIGPROF: profiling alarm clock"},
-	/* 28 */ {_SigNotify, "SIGWINCH: window size change"},
+	/* 28 */ {_SigNotify + _SigIgn, "SIGWINCH: window size change"},
 	/* 29 */ {_SigNotify, "SIGIO: i/o now possible"},
 	/* 30 */ {_SigNotify, "SIGPWR: power failure restart"},
 	/* 31 */ {_SigThrow, "SIGSYS: bad system call"},
 	/* 32 */ {_SigSetStack + _SigUnblock, "signal 32"}, /* SIGCANCEL; see issue 6997 */
 	/* 33 */ {_SigSetStack + _SigUnblock, "signal 33"}, /* SIGSETXID; see issues 3871, 9400, 12498 */
-	/* 34 */ {_SigNotify, "signal 34"},
+	/* 34 */ {_SigSetStack + _SigUnblock, "signal 34"}, /* musl SIGSYNCCALL; see issue 39343 */
 	/* 35 */ {_SigNotify, "signal 35"},
 	/* 36 */ {_SigNotify, "signal 36"},
 	/* 37 */ {_SigNotify, "signal 37"},

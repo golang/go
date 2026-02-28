@@ -14,6 +14,7 @@ func TestRaceMutexRWMutex(t *testing.T) {
 	var mu1 sync.Mutex
 	var mu2 sync.RWMutex
 	var x int16 = 0
+	_ = x
 	ch := make(chan bool, 2)
 	go func() {
 		mu1.Lock()
@@ -34,6 +35,7 @@ func TestRaceMutexRWMutex(t *testing.T) {
 func TestNoRaceRWMutex(t *testing.T) {
 	var mu sync.RWMutex
 	var x, y int64 = 0, 1
+	_ = y
 	ch := make(chan bool, 2)
 	go func() {
 		mu.Lock()

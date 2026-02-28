@@ -8,4 +8,4 @@
 
 package p
 
-var f = func() { // ERROR "unexpected EOF"
+var f = func() { // ERROR "unexpected EOF|expected .*}.*"

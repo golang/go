@@ -1,0 +1,197 @@
+pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 = 52393
+pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 uint16
+pkg crypto/tls, const TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 = 52392
+pkg crypto/tls, const TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 uint16
+pkg crypto/tls, func CipherSuiteName(uint16) string
+pkg crypto/tls, func CipherSuites() []*CipherSuite
+pkg crypto/tls, func InsecureCipherSuites() []*CipherSuite
+pkg crypto/tls, method (*CertificateRequestInfo) SupportsCertificate(*Certificate) error
+pkg crypto/tls, method (*ClientHelloInfo) SupportsCertificate(*Certificate) error
+pkg crypto/tls, type Certificate struct, SupportedSignatureAlgorithms []SignatureScheme
+pkg crypto/tls, type CertificateRequestInfo struct, Version uint16
+pkg crypto/tls, type CipherSuite struct
+pkg crypto/tls, type CipherSuite struct, ID uint16
+pkg crypto/tls, type CipherSuite struct, Insecure bool
+pkg crypto/tls, type CipherSuite struct, Name string
+pkg crypto/tls, type CipherSuite struct, SupportedVersions []uint16
+pkg debug/dwarf, const AttrAddrBase = 115
+pkg debug/dwarf, const AttrAddrBase Attr
+pkg debug/dwarf, const AttrAlignment = 136
+pkg debug/dwarf, const AttrAlignment Attr
+pkg debug/dwarf, const AttrBinaryScale = 91
+pkg debug/dwarf, const AttrBinaryScale Attr
+pkg debug/dwarf, const AttrCallAllCalls = 122
+pkg debug/dwarf, const AttrCallAllCalls Attr
+pkg debug/dwarf, const AttrCallAllSourceCalls = 123
+pkg debug/dwarf, const AttrCallAllSourceCalls Attr
+pkg debug/dwarf, const AttrCallAllTailCalls = 124
+pkg debug/dwarf, const AttrCallAllTailCalls Attr
+pkg debug/dwarf, const AttrCallDataLocation = 133
+pkg debug/dwarf, const AttrCallDataLocation Attr
+pkg debug/dwarf, const AttrCallDataValue = 134
+pkg debug/dwarf, const AttrCallDataValue Attr
+pkg debug/dwarf, const AttrCallOrigin = 127
+pkg debug/dwarf, const AttrCallOrigin Attr
+pkg debug/dwarf, const AttrCallPC = 129
+pkg debug/dwarf, const AttrCallPC Attr
+pkg debug/dwarf, const AttrCallParameter = 128
+pkg debug/dwarf, const AttrCallParameter Attr
+pkg debug/dwarf, const AttrCallReturnPC = 125
+pkg debug/dwarf, const AttrCallReturnPC Attr
+pkg debug/dwarf, const AttrCallTailCall = 130
+pkg debug/dwarf, const AttrCallTailCall Attr
+pkg debug/dwarf, const AttrCallTarget = 131
+pkg debug/dwarf, const AttrCallTarget Attr
+pkg debug/dwarf, const AttrCallTargetClobbered = 132
+pkg debug/dwarf, const AttrCallTargetClobbered Attr
+pkg debug/dwarf, const AttrCallValue = 126
+pkg debug/dwarf, const AttrCallValue Attr
+pkg debug/dwarf, const AttrConstExpr = 108
+pkg debug/dwarf, const AttrConstExpr Attr
+pkg debug/dwarf, const AttrDataBitOffset = 107
+pkg debug/dwarf, const AttrDataBitOffset Attr
+pkg debug/dwarf, const AttrDecimalScale = 92
+pkg debug/dwarf, const AttrDecimalScale Attr
+pkg debug/dwarf, const AttrDecimalSign = 94
+pkg debug/dwarf, const AttrDecimalSign Attr
+pkg debug/dwarf, const AttrDefaulted = 139
+pkg debug/dwarf, const AttrDefaulted Attr
+pkg debug/dwarf, const AttrDeleted = 138
+pkg debug/dwarf, const AttrDeleted Attr
+pkg debug/dwarf, const AttrDigitCount = 95
+pkg debug/dwarf, const AttrDigitCount Attr
+pkg debug/dwarf, const AttrDwoName = 118
+pkg debug/dwarf, const AttrDwoName Attr
+pkg debug/dwarf, const AttrElemental = 102
+pkg debug/dwarf, const AttrElemental Attr
+pkg debug/dwarf, const AttrEndianity = 101
+pkg debug/dwarf, const AttrEndianity Attr
+pkg debug/dwarf, const AttrEnumClass = 109
+pkg debug/dwarf, const AttrEnumClass Attr
+pkg debug/dwarf, const AttrExplicit = 99
+pkg debug/dwarf, const AttrExplicit Attr
+pkg debug/dwarf, const AttrExportSymbols = 137
+pkg debug/dwarf, const AttrExportSymbols Attr
+pkg debug/dwarf, const AttrLinkageName = 110
+pkg debug/dwarf, const AttrLinkageName Attr
+pkg debug/dwarf, const AttrLoclistsBase = 140
+pkg debug/dwarf, const AttrLoclistsBase Attr
+pkg debug/dwarf, const AttrMacros = 121
+pkg debug/dwarf, const AttrMacros Attr
+pkg debug/dwarf, const AttrMainSubprogram = 106
+pkg debug/dwarf, const AttrMainSubprogram Attr
+pkg debug/dwarf, const AttrMutable = 97
+pkg debug/dwarf, const AttrMutable Attr
+pkg debug/dwarf, const AttrNoreturn = 135
+pkg debug/dwarf, const AttrNoreturn Attr
+pkg debug/dwarf, const AttrObjectPointer = 100
+pkg debug/dwarf, const AttrObjectPointer Attr
+pkg debug/dwarf, const AttrPictureString = 96
+pkg debug/dwarf, const AttrPictureString Attr
+pkg debug/dwarf, const AttrPure = 103
+pkg debug/dwarf, const AttrPure Attr
+pkg debug/dwarf, const AttrRank = 113
+pkg debug/dwarf, const AttrRank Attr
+pkg debug/dwarf, const AttrRecursive = 104
+pkg debug/dwarf, const AttrRecursive Attr
+pkg debug/dwarf, const AttrReference = 119
+pkg debug/dwarf, const AttrReference Attr
+pkg debug/dwarf, const AttrRnglistsBase = 116
+pkg debug/dwarf, const AttrRnglistsBase Attr
+pkg debug/dwarf, const AttrRvalueReference = 120
+pkg debug/dwarf, const AttrRvalueReference Attr
+pkg debug/dwarf, const AttrSignature = 105
+pkg debug/dwarf, const AttrSignature Attr
+pkg debug/dwarf, const AttrSmall = 93
+pkg debug/dwarf, const AttrSmall Attr
+pkg debug/dwarf, const AttrStrOffsetsBase = 114
+pkg debug/dwarf, const AttrStrOffsetsBase Attr
+pkg debug/dwarf, const AttrStringLengthBitSize = 111
+pkg debug/dwarf, const AttrStringLengthBitSize Attr
+pkg debug/dwarf, const AttrStringLengthByteSize = 112
+pkg debug/dwarf, const AttrStringLengthByteSize Attr
+pkg debug/dwarf, const AttrThreadsScaled = 98
+pkg debug/dwarf, const AttrThreadsScaled Attr
+pkg debug/dwarf, const ClassAddrPtr = 15
+pkg debug/dwarf, const ClassAddrPtr Class
+pkg debug/dwarf, const ClassLocList = 16
+pkg debug/dwarf, const ClassLocList Class
+pkg debug/dwarf, const ClassRngList = 17
+pkg debug/dwarf, const ClassRngList Class
+pkg debug/dwarf, const ClassRngListsPtr = 18
+pkg debug/dwarf, const ClassRngListsPtr Class
+pkg debug/dwarf, const ClassStrOffsetsPtr = 19
+pkg debug/dwarf, const ClassStrOffsetsPtr Class
+pkg debug/dwarf, const TagAtomicType = 71
+pkg debug/dwarf, const TagAtomicType Tag
+pkg debug/dwarf, const TagCallSite = 72
+pkg debug/dwarf, const TagCallSite Tag
+pkg debug/dwarf, const TagCallSiteParameter = 73
+pkg debug/dwarf, const TagCallSiteParameter Tag
+pkg debug/dwarf, const TagCoarrayType = 68
+pkg debug/dwarf, const TagCoarrayType Tag
+pkg debug/dwarf, const TagDynamicType = 70
+pkg debug/dwarf, const TagDynamicType Tag
+pkg debug/dwarf, const TagGenericSubrange = 69
+pkg debug/dwarf, const TagGenericSubrange Tag
+pkg debug/dwarf, const TagImmutableType = 75
+pkg debug/dwarf, const TagImmutableType Tag
+pkg debug/dwarf, const TagSkeletonUnit = 74
+pkg debug/dwarf, const TagSkeletonUnit Tag
+pkg debug/dwarf, method (*Data) AddSection(string, []uint8) error
+pkg debug/dwarf, method (*LineReader) Files() []*LineFile
+pkg debug/dwarf, method (*Reader) ByteOrder() binary.ByteOrder
+pkg encoding/asn1, const TagBMPString = 30
+pkg encoding/asn1, const TagBMPString ideal-int
+pkg encoding/json, method (*Decoder) InputOffset() int64
+pkg go/build, type Context struct, Dir string
+pkg go/doc, func NewFromFiles(*token.FileSet, []*ast.File, string, ...interface{}) (*Package, error)
+pkg go/doc, type Example struct, Suffix string
+pkg go/doc, type Func struct, Examples []*Example
+pkg go/doc, type Package struct, Examples []*Example
+pkg go/doc, type Type struct, Examples []*Example
+pkg hash/maphash, func MakeSeed() Seed
+pkg hash/maphash, method (*Hash) BlockSize() int
+pkg hash/maphash, method (*Hash) Reset()
+pkg hash/maphash, method (*Hash) Seed() Seed
+pkg hash/maphash, method (*Hash) SetSeed(Seed)
+pkg hash/maphash, method (*Hash) Size() int
+pkg hash/maphash, method (*Hash) Sum([]uint8) []uint8
+pkg hash/maphash, method (*Hash) Sum64() uint64
+pkg hash/maphash, method (*Hash) Write([]uint8) (int, error)
+pkg hash/maphash, method (*Hash) WriteByte(uint8) error
+pkg hash/maphash, method (*Hash) WriteString(string) (int, error)
+pkg hash/maphash, type Hash struct
+pkg hash/maphash, type Seed struct
+pkg log, const Lmsgprefix = 64
+pkg log, const Lmsgprefix ideal-int
+pkg math, func FMA(float64, float64, float64) float64
+pkg math/bits, func Rem(uint, uint, uint) uint
+pkg math/bits, func Rem32(uint32, uint32, uint32) uint32
+pkg math/bits, func Rem64(uint64, uint64, uint64) uint64
+pkg mime/multipart, method (*Reader) NextRawPart() (*Part, error)
+pkg net/http, method (Header) Values(string) []string
+pkg net/http, type Transport struct, DialTLSContext func(context.Context, string, string) (net.Conn, error)
+pkg net/http/httptest, type Server struct, EnableHTTP2 bool
+pkg net/textproto, method (MIMEHeader) Values(string) []string
+pkg strconv, method (*NumError) Unwrap() error
+pkg syscall (windows-386), const CTRL_CLOSE_EVENT = 2
+pkg syscall (windows-386), const CTRL_CLOSE_EVENT ideal-int
+pkg syscall (windows-386), const CTRL_LOGOFF_EVENT = 5
+pkg syscall (windows-386), const CTRL_LOGOFF_EVENT ideal-int
+pkg syscall (windows-386), const CTRL_SHUTDOWN_EVENT = 6
+pkg syscall (windows-386), const CTRL_SHUTDOWN_EVENT ideal-int
+pkg syscall (windows-amd64), const CTRL_CLOSE_EVENT = 2
+pkg syscall (windows-amd64), const CTRL_CLOSE_EVENT ideal-int
+pkg syscall (windows-amd64), const CTRL_LOGOFF_EVENT = 5
+pkg syscall (windows-amd64), const CTRL_LOGOFF_EVENT ideal-int
+pkg syscall (windows-amd64), const CTRL_SHUTDOWN_EVENT = 6
+pkg syscall (windows-amd64), const CTRL_SHUTDOWN_EVENT ideal-int
+pkg testing, method (*B) Cleanup(func())
+pkg testing, method (*T) Cleanup(func())
+pkg testing, type TB interface, Cleanup(func())
+pkg unicode, const Version = "12.0.0"
+pkg unicode, var Elymaic *RangeTable
+pkg unicode, var Nandinagari *RangeTable
+pkg unicode, var Nyiakeng_Puachue_Hmong *RangeTable
+pkg unicode, var Wancho *RangeTable

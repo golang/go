@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 // Build this command explicitly: go build gotype.go
 
@@ -32,9 +32,11 @@ checking packages containing imports with relative import paths
 files to include for such packages.
 
 Usage:
+
 	gotype [flags] [path...]
 
 The flags are:
+
 	-t
 		include local test files in a directory (ignored if -x is provided)
 	-x
@@ -47,12 +49,15 @@ The flags are:
 		compiler used for installed packages (gc, gccgo, or source); default: source
 
 Flags controlling additional output:
+
 	-ast
-		print AST (forces -seq)
+		print AST
 	-trace
-		print parse trace (forces -seq)
+		print parse trace
 	-comments
 		parse comments (ignored unless -ast or -trace is provided)
+	-panic
+		panic on first error
 
 Examples:
 
@@ -72,7 +77,6 @@ cmd/compile:
 To verify the output of a pipe:
 
 	echo "package foo" | gotype
-
 */
 package main
 
@@ -86,7 +90,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"go/types"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -102,9 +106,10 @@ var (
 	compiler   = flag.String("c", "source", "compiler used for installed packages (gc, gccgo, or source)")
 
 	// additional output control
-	printAST      = flag.Bool("ast", false, "print AST (forces -seq)")
-	printTrace    = flag.Bool("trace", false, "print parse trace (forces -seq)")
+	printAST      = flag.Bool("ast", false, "print AST")
+	printTrace    = flag.Bool("trace", false, "print parse trace")
 	parseComments = flag.Bool("comments", false, "parse comments (ignored unless -ast or -trace is provided)")
+	panicOnError  = flag.Bool("panic", false, "panic on first error")
 )
 
 var (
@@ -164,6 +169,9 @@ func usage() {
 }
 
 func report(err error) {
+	if *panicOnError {
+		panic(err)
+	}
 	scanner.PrintError(os.Stderr, err)
 	if list, ok := err.(scanner.ErrorList); ok {
 		errorCount += len(list)
@@ -173,7 +181,7 @@ func report(err error) {
 }
 
 // parse may be called concurrently
-func parse(filename string, src interface{}) (*ast.File, error) {
+func parse(filename string, src any) (*ast.File, error) {
 	if *verbose {
 		fmt.Println(filename)
 	}
@@ -185,7 +193,7 @@ func parse(filename string, src interface{}) (*ast.File, error) {
 }
 
 func parseStdin() (*ast.File, error) {
-	src, err := ioutil.ReadAll(os.Stdin)
+	src, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		return nil, err
 	}
@@ -209,14 +217,30 @@ func parseFiles(dir string, filenames []string) ([]*ast.File, error) {
 	}
 	wg.Wait()
 
-	// if there are errors, return the first one for deterministic results
+	// If there are errors, return the first one for deterministic results.
+	var first error
 	for _, err := range errors {
 		if err != nil {
-			return nil, err
+			first = err
+			// If we have an error, some files may be nil.
+			// Remove them. (The go/parser always returns
+			// a possibly partial AST even in the presence
+			// of errors, except if the file doesn't exist
+			// in the first place, in which case it cannot
+			// matter.)
+			i := 0
+			for _, f := range files {
+				if f != nil {
+					files[i] = f
+					i++
+				}
+			}
+			files = files[:i]
+			break
 		}
 	}
 
-	return files, nil
+	return files, first
 }
 
 func parseDir(dir string) ([]*ast.File, error) {
@@ -275,7 +299,7 @@ func checkPkgFiles(files []*ast.File) {
 			}
 			report(err)
 		},
-		Importer: importer.For(*compiler, nil),
+		Importer: importer.ForCompiler(fset, *compiler, nil),
 		Sizes:    types.SizesFor(build.Default.Compiler, build.Default.GOARCH),
 	}
 
@@ -318,7 +342,7 @@ func main() {
 	files, err := getPkgFiles(flag.Args())
 	if err != nil {
 		report(err)
-		os.Exit(2)
+		// ok to continue (files may be empty, but not nil)
 	}
 
 	checkPkgFiles(files)

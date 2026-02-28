@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !android
 // +build !android
 
 // Test that pthread_cancel works as expected
-// (NPTL uses SIGRTMIN to implement thread cancelation)
+// (NPTL uses SIGRTMIN to implement thread cancellation)
 // See https://golang.org/issue/6997
 package cgotest
 
@@ -17,8 +18,10 @@ extern int CancelThread();
 */
 import "C"
 
-import "testing"
-import "time"
+import (
+	"testing"
+	"time"
+)
 
 func test6997(t *testing.T) {
 	r := C.StartThread()

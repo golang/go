@@ -17,7 +17,7 @@ func ParseBool(str string) (bool, error) {
 	return false, syntaxError("ParseBool", str)
 }
 
-// FormatBool returns "true" or "false" according to the value of b
+// FormatBool returns "true" or "false" according to the value of b.
 func FormatBool(b bool) string {
 	if b {
 		return "true"

@@ -1,0 +1,7 @@
+-- input --
+[io] at start of comment.
+[io] at start of line.
+At end of line: [io]
+At end of comment: [io]
+-- markdown --
+[io](/io) at start of comment. [io](/io) at start of line. At end of line: [io](/io) At end of comment: [io](/io)

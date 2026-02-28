@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
-// +build mips64 mips64le
+//go:build linux && (mips64 || mips64le)
 
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -66,6 +65,7 @@ func (c *sigctxt) hi() uint64   { return c.regs().sc_mdhi }
 func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
 func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
 
+func (c *sigctxt) set_r28(x uint64)  { c.regs().sc_regs[28] = x }
 func (c *sigctxt) set_r30(x uint64)  { c.regs().sc_regs[30] = x }
 func (c *sigctxt) set_pc(x uint64)   { c.regs().sc_pc = x }
 func (c *sigctxt) set_sp(x uint64)   { c.regs().sc_regs[29] = x }
@@ -73,5 +73,5 @@ func (c *sigctxt) set_link(x uint64) { c.regs().sc_regs[31] = x }
 
 func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
 func (c *sigctxt) set_sigaddr(x uint64) {
-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
+	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
 }

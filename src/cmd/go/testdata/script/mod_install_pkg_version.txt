@@ -1,0 +1,203 @@
+# 'go install pkg@version' works outside a module.
+env GO111MODULE=auto
+go install example.com/cmd/a@v1.0.0
+exists $GOPATH/bin/a$GOEXE
+rm $GOPATH/bin
+
+
+# 'go install pkg@version' reports an error if modules are disabled.
+env GO111MODULE=off
+! go install example.com/cmd/a@v1.0.0
+stderr '^go: modules disabled by GO111MODULE=off; see ''go help modules''$'
+env GO111MODULE=auto
+
+
+# 'go install pkg@version' ignores go.mod in current directory.
+cd m
+cp go.mod go.mod.orig
+! go list -m all
+stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
+go install example.com/cmd/a@latest
+cmp go.mod go.mod.orig
+exists $GOPATH/bin/a$GOEXE
+go version -m $GOPATH/bin/a$GOEXE
+stdout '^\tmod\texample.com/cmd\tv1.0.0\t' # "latest", not from go.mod
+rm $GOPATH/bin/a
+cd ..
+
+
+# 'go install -modfile=x.mod pkg@version' reports an error, but only if
+# -modfile is specified explicitly on the command line.
+cd m
+env GOFLAGS=-modfile=go.mod
+go install example.com/cmd/a@latest  # same as above
+env GOFLAGS=
+! go install -modfile=go.mod example.com/cmd/a@latest
+stderr '^go: -modfile cannot be used with commands that ignore the current module$'
+cd ..
+
+
+# Every test case requires linking, so we only cover the most important cases
+# when -short is set.
+[short] stop
+
+
+# 'go install pkg@version' works on a module that doesn't have a go.mod file
+# and with a module whose go.mod file has missing requirements.
+# With a proxy, the two cases are indistinguishable.
+go install rsc.io/fortune@v1.0.0
+stderr '^go: found rsc.io/quote in rsc.io/quote v1.5.2$'
+exists $GOPATH/bin/fortune$GOEXE
+! exists $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0/go.mod # no go.mod file
+go version -m $GOPATH/bin/fortune$GOEXE
+stdout '^\tdep\trsc.io/quote\tv1.5.2\t' # latest version of fortune's dependency
+rm $GOPATH/bin
+
+
+# 'go install dir@version' works like a normal 'go install' command if
+# dir is a relative or absolute path.
+env GO111MODULE=on
+go mod download rsc.io/fortune@v1.0.0
+! go install $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0
+stderr '^go: go\.mod file not found in current directory or any parent directory; see ''go help modules''$'
+! go install ../pkg/mod/rsc.io/fortune@v1.0.0
+stderr '^go: go\.mod file not found in current directory or any parent directory; see ''go help modules''$'
+mkdir tmp
+cd tmp
+go mod init tmp
+go mod edit -require=rsc.io/fortune@v1.0.0
+! go install -mod=readonly $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0
+stderr '^missing go\.sum entry for module providing package rsc\.io/fortune; to add:\n\tgo mod download rsc\.io/fortune$'
+! go install -mod=readonly ../../pkg/mod/rsc.io/fortune@v1.0.0
+stderr '^missing go\.sum entry for module providing package rsc\.io/fortune; to add:\n\tgo mod download rsc\.io/fortune$'
+go get rsc.io/fortune@v1.0.0
+go install -mod=readonly $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0
+exists $GOPATH/bin/fortune$GOEXE
+cd ..
+rm tmp
+rm $GOPATH/bin
+env GO111MODULE=auto
+
+# 'go install pkg@version' reports errors for meta packages, std packages,
+# and directories.
+! go install std@v1.0.0
+stderr '^go: std@v1.0.0: argument must be a package path, not a meta-package$'
+! go install fmt@v1.0.0
+stderr '^go: fmt@v1.0.0: argument must not be a package in the standard library$'
+! go install example.com//cmd/a@v1.0.0
+stderr '^go: example.com//cmd/a@v1.0.0: argument must be a clean package path$'
+! go install example.com/cmd/a@v1.0.0 ./x@v1.0.0
+stderr '^go: ./x@v1.0.0: argument must be a package path, not a relative path$'
+! go install example.com/cmd/a@v1.0.0 $GOPATH/src/x@v1.0.0
+stderr '^go: '$WORK'[/\\]gopath/src/x@v1.0.0: argument must be a package path, not an absolute path$'
+! go install example.com/cmd/a@v1.0.0 cmd/...@v1.0.0
+stderr '^package cmd/go not provided by module example.com/cmd@v1.0.0$'
+
+# 'go install pkg@version' should accept multiple arguments but report an error
+# if the version suffixes are different, even if they refer to the same version.
+go install example.com/cmd/a@v1.0.0 example.com/cmd/b@v1.0.0
+exists $GOPATH/bin/a$GOEXE
+exists $GOPATH/bin/b$GOEXE
+rm $GOPATH/bin
+
+env GO111MODULE=on
+go list -m example.com/cmd@latest
+stdout '^example.com/cmd v1.0.0$'
+env GO111MODULE=auto
+
+! go install example.com/cmd/a@v1.0.0 example.com/cmd/b@latest
+stderr '^go: example.com/cmd/b@latest: all arguments must refer to packages in the same module at the same version \(@v1.0.0\)$'
+
+
+# 'go install pkg@version' should report an error if the arguments are in
+# different modules.
+! go install example.com/cmd/a@v1.0.0 rsc.io/fortune@v1.0.0
+stderr '^package rsc.io/fortune provided by module rsc.io/fortune@v1.0.0\n\tAll packages must be provided by the same module \(example.com/cmd@v1.0.0\).$'
+
+
+# 'go install pkg@version' should report an error if an argument is not
+# a main package.
+! go install example.com/cmd/a@v1.0.0 example.com/cmd/err@v1.0.0
+stderr '^package example.com/cmd/err is not a main package$'
+
+# Wildcards should match only main packages. This module has a non-main package
+# with an error, so we'll know if that gets built.
+mkdir tmp
+cd tmp
+go mod init m
+go get example.com/cmd@v1.0.0
+! go build example.com/cmd/...
+stderr 'err[/\\]err.go:3:9: undefined: DoesNotCompile$'
+cd ..
+
+go install example.com/cmd/...@v1.0.0
+exists $GOPATH/bin/a$GOEXE
+exists $GOPATH/bin/b$GOEXE
+rm $GOPATH/bin
+
+# If a wildcard matches no packages, we should see a warning.
+! go install example.com/cmd/nomatch...@v1.0.0
+stderr '^go: example.com/cmd/nomatch\.\.\.@v1.0.0: module example.com/cmd@v1.0.0 found, but does not contain packages matching example.com/cmd/nomatch\.\.\.$'
+go install example.com/cmd/a@v1.0.0 example.com/cmd/nomatch...@v1.0.0
+stderr '^go: warning: "example.com/cmd/nomatch\.\.\." matched no packages$'
+
+# If a wildcard matches only non-main packges, we should see a different warning.
+go install example.com/cmd/err...@v1.0.0
+stderr '^go: warning: "example.com/cmd/err\.\.\." matched only non-main packages$'
+
+
+# 'go install pkg@version' should report errors if the module contains
+# replace or exclude directives.
+go mod download example.com/cmd@v1.0.0-replace
+! go install example.com/cmd/a@v1.0.0-replace
+cmp stderr replace-err
+
+go mod download example.com/cmd@v1.0.0-exclude
+! go install example.com/cmd/a@v1.0.0-exclude
+cmp stderr exclude-err
+
+# 'go install pkg@version' should report an error if the module requires a
+# higher version of itself.
+! go install example.com/cmd/a@v1.0.0-newerself
+stderr '^go: example.com/cmd/a@v1.0.0-newerself: version constraints conflict:\n\texample.com/cmd@v1.0.0-newerself requires example.com/cmd@v1.0.0, but example.com/cmd@v1.0.0-newerself is requested$'
+
+
+# 'go install pkg@version' will only match a retracted version if it's
+# explicitly requested.
+env GO111MODULE=on
+go list -m -versions example.com/cmd
+! stdout v1.9.0
+go list -m -versions -retracted example.com/cmd
+stdout v1.9.0
+go install example.com/cmd/a@latest
+go version -m $GOPATH/bin/a$GOEXE
+stdout '^\tmod\texample.com/cmd\tv1.0.0\t'
+go install example.com/cmd/a@v1.9.0
+go version -m $GOPATH/bin/a$GOEXE
+stdout '^\tmod\texample.com/cmd\tv1.9.0\t'
+env GO111MODULE=
+
+# 'go install pkg@version' succeeds when -mod=readonly is set explicitly.
+# Verifies #43278.
+go install -mod=readonly example.com/cmd/a@v1.0.0
+
+-- m/go.mod --
+module m
+
+go 1.16
+
+require example.com/cmd v1.1.0-doesnotexist
+-- x/x.go --
+package main
+
+func main() {}
+-- replace-err --
+go: example.com/cmd/a@v1.0.0-replace (in example.com/cmd@v1.0.0-replace):
+	The go.mod file for the module providing named packages contains one or
+	more replace directives. It must not contain directives that would cause
+	it to be interpreted differently than if it were the main module.
+-- exclude-err --
+go: example.com/cmd/a@v1.0.0-exclude (in example.com/cmd@v1.0.0-exclude):
+	The go.mod file for the module providing named packages contains one or
+	more exclude directives. It must not contain directives that would cause
+	it to be interpreted differently than if it were the main module.

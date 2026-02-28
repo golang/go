@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd
+//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd
 
 package net
 
@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -45,7 +46,7 @@ func TestPointToPointInterface(t *testing.T) {
 	if testing.Short() {
 		t.Skip("avoid external network")
 	}
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 	if os.Getuid() != 0 {
@@ -62,6 +63,9 @@ func TestPointToPointInterface(t *testing.T) {
 			t.Skipf("test requires external command: %v", err)
 		}
 		if err := ti.setup(); err != nil {
+			if e := err.Error(); strings.Contains(e, "No such device") && strings.Contains(e, "gre0") {
+				t.Skip("skipping test; no gre0 device. likely running in container?")
+			}
 			t.Fatal(err)
 		} else {
 			time.Sleep(3 * time.Millisecond)
@@ -170,5 +174,39 @@ func TestInterfaceArrivalAndDeparture(t *testing.T) {
 			}
 			t.Fatalf("got %v; want lt %v", len(ift3), len(ift2))
 		}
+	}
+}
+
+func TestInterfaceArrivalAndDepartureZoneCache(t *testing.T) {
+	if testing.Short() {
+		t.Skip("avoid external network")
+	}
+	if os.Getuid() != 0 {
+		t.Skip("must be root")
+	}
+
+	// Ensure zoneCache is filled:
+	_, _ = Listen("tcp", "[fe80::1%nonexistent]:0")
+
+	ti := &testInterface{local: "fe80::1"}
+	if err := ti.setLinkLocal(0); err != nil {
+		t.Skipf("test requires external command: %v", err)
+	}
+	if err := ti.setup(); err != nil {
+		t.Fatal(err)
+	}
+	defer ti.teardown()
+
+	time.Sleep(3 * time.Millisecond)
+
+	// If Listen fails (on Linux with “bind: invalid argument”), zoneCache was
+	// not updated when encountering a nonexistent interface:
+	ln, err := Listen("tcp", "[fe80::1%"+ti.name+"]:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln.Close()
+	if err := ti.teardown(); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -4,13 +4,17 @@
 
 package reflect
 
-import "unsafe"
+import (
+	"internal/goarch"
+	"internal/unsafeheader"
+	"unsafe"
+)
 
 // Swapper returns a function that swaps the elements in the provided
 // slice.
 //
 // Swapper panics if the provided interface is not a slice.
-func Swapper(slice interface{}) func(i, j int) {
+func Swapper(slice any) func(i, j int) {
 	v := ValueOf(slice)
 	if v.Kind() != Slice {
 		panic(&ValueError{Method: "Swapper", Kind: v.Kind()})
@@ -29,11 +33,11 @@ func Swapper(slice interface{}) func(i, j int) {
 
 	typ := v.Type().Elem().(*rtype)
 	size := typ.Size()
-	hasPtr := typ.kind&kindNoPointers == 0
+	hasPtr := typ.ptrdata != 0
 
 	// Some common & small cases, without using memmove:
 	if hasPtr {
-		if size == ptrSize {
+		if size == goarch.PtrSize {
 			ps := *(*[]unsafe.Pointer)(v.ptr)
 			return func(i, j int) { ps[i], ps[j] = ps[j], ps[i] }
 		}
@@ -58,15 +62,15 @@ func Swapper(slice interface{}) func(i, j int) {
 		}
 	}
 
-	s := (*sliceHeader)(v.ptr)
+	s := (*unsafeheader.Slice)(v.ptr)
 	tmp := unsafe_New(typ) // swap scratch space
 
 	return func(i, j int) {
 		if uint(i) >= uint(s.Len) || uint(j) >= uint(s.Len) {
 			panic("reflect: slice index out of range")
 		}
-		val1 := arrayAt(s.Data, i, size)
-		val2 := arrayAt(s.Data, j, size)
+		val1 := arrayAt(s.Data, i, size, "i < s.Len")
+		val2 := arrayAt(s.Data, j, size, "j < s.Len")
 		typedmemmove(typ, tmp, val1)
 		typedmemmove(typ, val1, val2)
 		typedmemmove(typ, val2, tmp)

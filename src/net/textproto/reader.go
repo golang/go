@@ -7,10 +7,11 @@ package textproto
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // A Reader implements convenience methods for reading requests
@@ -85,10 +86,9 @@ func (r *Reader) readLineSlice() ([]byte, error) {
 // The first call to ReadContinuedLine will return "Line 1 continued..."
 // and the second will return "Line 2".
 //
-// A line consisting of only white space is never continued.
-//
+// Empty lines are never continued.
 func (r *Reader) ReadContinuedLine() (string, error) {
-	line, err := r.readContinuedLineSlice()
+	line, err := r.readContinuedLineSlice(noValidation)
 	return string(line), err
 }
 
@@ -109,7 +109,7 @@ func trim(s []byte) []byte {
 // ReadContinuedLineBytes is like ReadContinuedLine but
 // returns a []byte instead of a string.
 func (r *Reader) ReadContinuedLineBytes() ([]byte, error) {
-	line, err := r.readContinuedLineSlice()
+	line, err := r.readContinuedLineSlice(noValidation)
 	if line != nil {
 		buf := make([]byte, len(line))
 		copy(buf, line)
@@ -118,7 +118,15 @@ func (r *Reader) ReadContinuedLineBytes() ([]byte, error) {
 	return line, err
 }
 
-func (r *Reader) readContinuedLineSlice() ([]byte, error) {
+// readContinuedLineSlice reads continued lines from the reader buffer,
+// returning a byte slice with all lines. The validateFirstLine function
+// is run on the first read line, and if it returns an error then this
+// error is returned from readContinuedLineSlice.
+func (r *Reader) readContinuedLineSlice(validateFirstLine func([]byte) error) ([]byte, error) {
+	if validateFirstLine == nil {
+		return nil, fmt.Errorf("missing validateFirstLine func")
+	}
+
 	// Read the first line.
 	line, err := r.readLineSlice()
 	if err != nil {
@@ -128,13 +136,18 @@ func (r *Reader) readContinuedLineSlice() ([]byte, error) {
 		return line, nil
 	}
 
+	if err := validateFirstLine(line); err != nil {
+		return nil, err
+	}
+
 	// Optimistically assume that we have started to buffer the next line
-	// and it starts with an ASCII letter (the next header key), so we can
-	// avoid copying that buffered data around in memory and skipping over
-	// non-existent whitespace.
+	// and it starts with an ASCII letter (the next header key), or a blank
+	// line, so we can avoid copying that buffered data around in memory
+	// and skipping over non-existent whitespace.
 	if r.R.Buffered() > 1 {
-		peek, err := r.R.Peek(1)
-		if err == nil && isASCIILetter(peek[0]) {
+		peek, _ := r.R.Peek(2)
+		if len(peek) > 0 && (isASCIILetter(peek[0]) || peek[0] == '\n') ||
+			len(peek) == 2 && peek[0] == '\r' && peek[1] == '\n' {
 			return trim(line), nil
 		}
 	}
@@ -202,9 +215,12 @@ func parseCodeLine(line string, expectCode int) (code int, continued bool, messa
 }
 
 // ReadCodeLine reads a response code line of the form
+//
 //	code message
+//
 // where code is a three-digit status code and the message
 // extends to the rest of the line. An example of such a line is:
+//
 //	220 plan9.bell-labs.com ESMTP
 //
 // If the prefix of the status does not match the digits in expectCode,
@@ -215,7 +231,6 @@ func parseCodeLine(line string, expectCode int) (code int, continued bool, messa
 // If the response is multi-line, ReadCodeLine returns an error.
 //
 // An expectCode <= 0 disables the check of the status code.
-//
 func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err error) {
 	code, continued, message, err := r.readCodeLine(expectCode)
 	if err == nil && continued {
@@ -236,13 +251,13 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err err
 // with the same code followed by a space. Each line in message is
 // separated by a newline (\n).
 //
-// See page 36 of RFC 959 (http://www.ietf.org/rfc/rfc959.txt) for
+// See page 36 of RFC 959 (https://www.ietf.org/rfc/rfc959.txt) for
 // details of another form of response accepted:
 //
-//  code-message line 1
-//  message line 2
-//  ...
-//  code message line n
+//	code-message line 1
+//	message line 2
+//	...
+//	code message line n
 //
 // If the prefix of the status does not match the digits in expectCode,
 // ReadResponse returns with err set to &Error{code, message}.
@@ -250,7 +265,6 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err err
 // the status is not in the range [310,319].
 //
 // An expectCode <= 0 disables the check of the status code.
-//
 func (r *Reader) ReadResponse(expectCode int) (code int, message string, err error) {
 	code, continued, message, err := r.readCodeLine(expectCode)
 	multi := continued
@@ -410,7 +424,7 @@ func (r *Reader) closeDot() {
 //
 // See the documentation for the DotReader method for details about dot-encoding.
 func (r *Reader) ReadDotBytes() ([]byte, error) {
-	return ioutil.ReadAll(r.DotReader())
+	return io.ReadAll(r.DotReader())
 }
 
 // ReadDotLines reads a dot-encoding and returns a slice
@@ -445,6 +459,8 @@ func (r *Reader) ReadDotLines() ([]string, error) {
 	return v, err
 }
 
+var colon = []byte(":")
+
 // ReadMIMEHeader reads a MIME-style header from r.
 // The header is a sequence of possibly continued Key: Value lines
 // ending in a blank line.
@@ -464,7 +480,6 @@ func (r *Reader) ReadDotLines() ([]string, error) {
 //		"My-Key": {"Value 1", "Value 2"},
 //		"Long-Key": {"Even Longer Value"},
 //	}
-//
 func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 	// Avoid lots of small slice allocations later by allocating one
 	// large one ahead of time which we'll cut up into smaller
@@ -476,24 +491,28 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 	}
 
 	m := make(MIMEHeader, hint)
+
+	// The first line cannot start with a leading space.
+	if buf, err := r.R.Peek(1); err == nil && (buf[0] == ' ' || buf[0] == '\t') {
+		line, err := r.readLineSlice()
+		if err != nil {
+			return m, err
+		}
+		return m, ProtocolError("malformed MIME header initial line: " + string(line))
+	}
+
 	for {
-		kv, err := r.readContinuedLineSlice()
+		kv, err := r.readContinuedLineSlice(mustHaveFieldNameColon)
 		if len(kv) == 0 {
 			return m, err
 		}
 
-		// Key ends at first colon; should not have spaces but
-		// they appear in the wild, violating specs, so we
-		// remove them if present.
-		i := bytes.IndexByte(kv, ':')
-		if i < 0 {
+		// Key ends at first colon.
+		k, v, ok := bytes.Cut(kv, colon)
+		if !ok {
 			return m, ProtocolError("malformed MIME header line: " + string(kv))
 		}
-		endKey := i
-		for endKey > 0 && kv[endKey-1] == ' ' {
-			endKey--
-		}
-		key := canonicalMIMEHeaderKey(kv[:endKey])
+		key := canonicalMIMEHeaderKey(k)
 
 		// As per RFC 7230 field-name is a token, tokens consist of one or more chars.
 		// We could return a ProtocolError here, but better to be liberal in what we
@@ -503,11 +522,7 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 		}
 
 		// Skip initial spaces in value.
-		i++ // skip colon
-		for i < len(kv) && (kv[i] == ' ' || kv[i] == '\t') {
-			i++
-		}
-		value := string(kv[i:])
+		value := strings.TrimLeft(string(v), " \t")
 
 		vv := m[key]
 		if vv == nil && len(strs) > 0 {
@@ -528,6 +543,22 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 	}
 }
 
+// noValidation is a no-op validation func for readContinuedLineSlice
+// that permits any lines.
+func noValidation(_ []byte) error { return nil }
+
+// mustHaveFieldNameColon ensures that, per RFC 7230, the
+// field-name is on a single line, so the first line must
+// contain a colon.
+func mustHaveFieldNameColon(line []byte) error {
+	if bytes.IndexByte(line, ':') < 0 {
+		return ProtocolError(fmt.Sprintf("malformed MIME header: missing colon: %q", line))
+	}
+	return nil
+}
+
+var nl = []byte("\n")
+
 // upcomingHeaderNewlines returns an approximation of the number of newlines
 // that will be in this header. If it gets confused, it returns 0.
 func (r *Reader) upcomingHeaderNewlines() (n int) {
@@ -538,17 +569,7 @@ func (r *Reader) upcomingHeaderNewlines() (n int) {
 		return
 	}
 	peek, _ := r.R.Peek(s)
-	for len(peek) > 0 {
-		i := bytes.IndexByte(peek, '\n')
-		if i < 3 {
-			// Not present (-1) or found within the next few bytes,
-			// implying we're at the end ("\r\n\r\n" or "\n\n")
-			return
-		}
-		n++
-		peek = peek[i+1:]
-	}
-	return
+	return bytes.Count(peek, nl)
 }
 
 // CanonicalMIMEHeaderKey returns the canonical format of the
@@ -582,11 +603,12 @@ const toLower = 'a' - 'A'
 
 // validHeaderFieldByte reports whether b is a valid byte in a header
 // field name. RFC 7230 says:
-//   header-field   = field-name ":" OWS field-value OWS
-//   field-name     = token
-//   tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
-//           "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
-//   token = 1*tchar
+//
+//	header-field   = field-name ":" OWS field-value OWS
+//	field-name     = token
+//	tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+//	        "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+//	token = 1*tchar
 func validHeaderFieldByte(b byte) bool {
 	return int(b) < len(isTokenTable) && isTokenTable[b]
 }
@@ -621,6 +643,7 @@ func canonicalMIMEHeaderKey(a []byte) string {
 		a[i] = c
 		upper = c == '-' // for next time
 	}
+	commonHeaderOnce.Do(initCommonHeader)
 	// The compiler recognizes m[string(byteSlice)] as a special
 	// case, so a copy of a's bytes into a new string does not
 	// happen in this map lookup:
@@ -631,9 +654,12 @@ func canonicalMIMEHeaderKey(a []byte) string {
 }
 
 // commonHeader interns common header strings.
-var commonHeader = make(map[string]string)
+var commonHeader map[string]string
 
-func init() {
+var commonHeaderOnce sync.Once
+
+func initCommonHeader() {
+	commonHeader = make(map[string]string)
 	for _, v := range []string{
 		"Accept",
 		"Accept-Charset",

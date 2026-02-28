@@ -21,7 +21,7 @@ The client must close the response body when finished with it:
 		// handle error
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	// ...
 
 For control over HTTP client headers, redirect policy, and other
@@ -102,6 +102,5 @@ directly and use its ConfigureTransport and/or ConfigureServer
 functions. Manually configuring HTTP/2 via the golang.org/x/net/http2
 package takes precedence over the net/http package's built-in HTTP/2
 support.
-
 */
 package http

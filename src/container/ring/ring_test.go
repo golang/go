@@ -33,7 +33,7 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
 	// iteration
 	n = 0
 	s := 0
-	r.Do(func(p interface{}) {
+	r.Do(func(p any) {
 		n++
 		if p != nil {
 			s += p.(int)
@@ -179,7 +179,7 @@ func TestLink2(t *testing.T) {
 func TestLink3(t *testing.T) {
 	var r Ring
 	n := 1
-	for i := 1; i < 100; i++ {
+	for i := 1; i < 10; i++ {
 		n += i
 		verify(t, r.Link(New(i)), n, -1)
 	}

@@ -2,18 +2,47 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package exec
+// Use an external test to avoid os/exec -> internal/testenv -> os/exec
+// circular dependency.
+
+package exec_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 )
+
+func init() {
+	registerHelperCommand("exec", cmdExec)
+	registerHelperCommand("lookpath", cmdLookPath)
+}
+
+func cmdLookPath(args ...string) {
+	p, err := exec.LookPath(args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "LookPath failed: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Print(p)
+}
+
+func cmdExec(args ...string) {
+	cmd := exec.Command(args[1])
+	cmd.Dir = args[0]
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Child: %s %s", err, string(output))
+		os.Exit(1)
+	}
+	fmt.Printf("%s", string(output))
+}
 
 func installExe(t *testing.T, dest, src string) {
 	fsrc, err := os.Open(src)
@@ -62,10 +91,10 @@ type lookPathTest struct {
 	fails     bool // test is expected to fail
 }
 
-func (test lookPathTest) runProg(t *testing.T, env []string, args ...string) (string, error) {
-	cmd := Command(args[0], args[1:]...)
+func (test lookPathTest) runProg(t *testing.T, env []string, cmd *exec.Cmd) (string, error) {
 	cmd.Env = env
 	cmd.Dir = test.rootDir
+	args := append([]string(nil), cmd.Args...)
 	args[0] = filepath.Base(args[0])
 	cmdText := fmt.Sprintf("%q command", strings.Join(args, " "))
 	out, err := cmd.CombinedOutput()
@@ -112,7 +141,7 @@ func createEnv(dir, PATH, PATHEXT string) []string {
 		dirs[i] = filepath.Join(dir, dirs[i])
 	}
 	path := strings.Join(dirs, ";")
-	env = updateEnv(env, "PATH", path)
+	env = updateEnv(env, "PATH", os.Getenv("SystemRoot")+"/System32;"+path)
 	return env
 }
 
@@ -131,15 +160,14 @@ func (test lookPathTest) run(t *testing.T, tmpdir, printpathExe string) {
 	// Run "cmd.exe /c test.searchFor" with new environment and
 	// work directory set. All candidates are copies of printpath.exe.
 	// These will output their program paths when run.
-	should, errCmd := test.runProg(t, env, "cmd", "/c", test.searchFor)
+	should, errCmd := test.runProg(t, env, exec.Command("cmd", "/c", test.searchFor))
 	// Run the lookpath program with new environment and work directory set.
-	env = append(env, "GO_WANT_HELPER_PROCESS=1")
-	have, errLP := test.runProg(t, env, os.Args[0], "-test.run=TestHelperProcess", "--", "lookpath", test.searchFor)
+	have, errLP := test.runProg(t, env, helperCommand(t, "lookpath", test.searchFor))
 	// Compare results.
 	if errCmd == nil && errLP == nil {
 		// both succeeded
 		if should != have {
-			t.Fatalf("test=%+v failed: expected to find %q, but found %q", test, should, have)
+			t.Fatalf("test=%+v:\ncmd /c ran: %s\nlookpath found: %s", test, should, have)
 		}
 		return
 	}
@@ -302,22 +330,19 @@ var lookPathTests = []lookPathTest{
 }
 
 func TestLookPath(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "TestLookPath")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmp)
-
+	tmp := t.TempDir()
 	printpathExe := buildPrintPathExe(t, tmp)
 
 	// Run all tests.
 	for i, test := range lookPathTests {
-		dir := filepath.Join(tmp, "d"+strconv.Itoa(i))
-		err := os.Mkdir(dir, 0700)
-		if err != nil {
-			t.Fatal("Mkdir failed: ", err)
-		}
-		test.run(t, dir, printpathExe)
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			dir := filepath.Join(tmp, "d"+strconv.Itoa(i))
+			err := os.Mkdir(dir, 0700)
+			if err != nil {
+				t.Fatal("Mkdir failed: ", err)
+			}
+			test.run(t, dir, printpathExe)
+		})
 	}
 }
 
@@ -345,30 +370,26 @@ func (test commandTest) isSuccess(rootDir, output string, err error) error {
 	return nil
 }
 
-func (test commandTest) runOne(rootDir string, env []string, dir, arg0 string) error {
-	cmd := Command(os.Args[0], "-test.run=TestHelperProcess", "--", "exec", dir, arg0)
+func (test commandTest) runOne(t *testing.T, rootDir string, env []string, dir, arg0 string) {
+	cmd := helperCommand(t, "exec", dir, arg0)
 	cmd.Dir = rootDir
 	cmd.Env = env
 	output, err := cmd.CombinedOutput()
 	err = test.isSuccess(rootDir, string(output), err)
 	if (err != nil) != test.fails {
 		if test.fails {
-			return fmt.Errorf("test=%+v: succeeded, but expected to fail", test)
+			t.Errorf("test=%+v: succeeded, but expected to fail", test)
+		} else {
+			t.Error(err)
 		}
-		return err
 	}
-	return nil
 }
 
 func (test commandTest) run(t *testing.T, rootDir, printpathExe string) {
 	createFiles(t, rootDir, test.files, printpathExe)
 	PATHEXT := `.COM;.EXE;.BAT`
 	env := createEnv(rootDir, test.PATH, PATHEXT)
-	env = append(env, "GO_WANT_HELPER_PROCESS=1")
-	err := test.runOne(rootDir, env, test.dir, test.arg0)
-	if err != nil {
-		t.Error(err)
-	}
+	test.runOne(t, rootDir, env, test.dir, test.arg0)
 }
 
 var commandTests = []commandTest{
@@ -499,12 +520,7 @@ var commandTests = []commandTest{
 }
 
 func TestCommand(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "TestCommand")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmp)
-
+	tmp := t.TempDir()
 	printpathExe := buildPrintPathExe(t, tmp)
 
 	// Run all tests.
@@ -524,7 +540,7 @@ func TestCommand(t *testing.T) {
 func buildPrintPathExe(t *testing.T, dir string) string {
 	const name = "printpath"
 	srcname := name + ".go"
-	err := ioutil.WriteFile(filepath.Join(dir, srcname), []byte(printpathSrc), 0644)
+	err := os.WriteFile(filepath.Join(dir, srcname), []byte(printpathSrc), 0644)
 	if err != nil {
 		t.Fatalf("failed to create source: %v", err)
 	}
@@ -532,7 +548,7 @@ func buildPrintPathExe(t *testing.T, dir string) string {
 		t.Fatalf("failed to execute template: %v", err)
 	}
 	outname := name + ".exe"
-	cmd := Command("go", "build", "-o", outname, srcname)
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", outname, srcname)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

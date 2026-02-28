@@ -89,9 +89,3 @@ less_than_2:
 done:
 	MOVWU	R9, ret+32(FP)
 	RET
-
-// func supportsCRC32() bool
-TEXT ·supportsCRC32(SB),NOSPLIT,$0-1
-	MOVB	runtime·supportCRC32(SB), R0
-	MOVB	R0, ret+0(FP)
-	RET

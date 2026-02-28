@@ -13,42 +13,15 @@
 #include "libcgo.h"
 #include "libcgo_unix.h"
 
+#include <TargetConditionals.h>
+
+#if TARGET_OS_IPHONE
 #include <CoreFoundation/CFBundle.h>
 #include <CoreFoundation/CFString.h>
-
-#define magic (0xc476c475c47957UL)
-
-// inittls allocates a thread-local storage slot for g.
-//
-// It finds the first available slot using pthread_key_create and uses
-// it as the offset value for runtime.tlsg.
-static void
-inittls(void **tlsg, void **tlsbase)
-{
-	pthread_key_t k;
-	int i, err;
-
-	err = pthread_key_create(&k, nil);
-	if(err != 0) {
-		fprintf(stderr, "runtime/cgo: pthread_key_create failed: %d\n", err);
-		abort();
-	}
-	//fprintf(stderr, "runtime/cgo: k = %d, tlsbase = %p\n", (int)k, tlsbase); // debug
-	pthread_setspecific(k, (void*)magic);
-	// The first key should be at 257.
-	for (i=0; i<PTHREAD_KEYS_MAX; i++) {
-		if (*(tlsbase+i) == (void*)magic) {
-			*tlsg = (void*)(i*sizeof(void *));
-			pthread_setspecific(k, 0);
-			return;
-		}
-	}
-	fprintf(stderr, "runtime/cgo: could not find pthread key.\n");
-	abort();
-}
+#endif
 
 static void *threadentry(void*);
-void (*setg_gcc)(void*);
+static void (*setg_gcc)(void*);
 
 void
 _cgo_sys_thread_start(ThreadStart *ts)
@@ -87,14 +60,18 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
+#if TARGET_OS_IPHONE
 	darwin_arm_init_thread_exception_port();
+#endif
 
 	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
 	return nil;
 }
 
+#if TARGET_OS_IPHONE
+
 // init_working_dir sets the current working directory to the app root.
-// By default darwin/arm processes start in "/".
+// By default ios/arm64 processes start in "/".
 static void
 init_working_dir()
 {
@@ -105,7 +82,7 @@ init_working_dir()
 	}
 	CFURLRef url_ref = CFBundleCopyResourceURL(bundle, CFSTR("Info"), CFSTR("plist"), NULL);
 	if (url_ref == NULL) {
-		fprintf(stderr, "runtime/cgo: no Info.plist URL\n");
+		// No Info.plist found. It can happen on Corellium virtual devices.
 		return;
 	}
 	CFStringRef url_str_ref = CFURLGetString(url_ref);
@@ -131,7 +108,7 @@ init_working_dir()
 		fprintf(stderr, "runtime/cgo: chdir(%s) failed\n", dir);
 	}
 
-	// The test harness in go_darwin_arm_exec passes the relative working directory
+	// The test harness in go_ios_exec passes the relative working directory
 	// in the GoExecWrapperWorkingDirectory property of the app bundle.
 	CFStringRef wd_ref = CFBundleGetValueForInfoDictionaryKey(bundle, CFSTR("GoExecWrapperWorkingDirectory"));
 	if (wd_ref != NULL) {
@@ -142,13 +119,13 @@ init_working_dir()
 		if (chdir(buf) != 0) {
 			fprintf(stderr, "runtime/cgo: chdir(%s) failed\n", buf);
 		}
-		// Notify the test harness that we're correctly set up
-		raise(SIGINT);
 	}
 }
 
+#endif // TARGET_OS_IPHONE
+
 void
-x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+x_cgo_init(G *g, void (*setg)(void*))
 {
 	pthread_attr_t attr;
 	size_t size;
@@ -160,11 +137,9 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 	g->stacklo = (uintptr)&attr - size + 4096;
 	pthread_attr_destroy(&attr);
 
-	// yes, tlsbase from mrs might not be correctly aligned.
-	inittls(tlsg, (void**)((uintptr)tlsbase & ~7));
-
+#if TARGET_OS_IPHONE
 	darwin_arm_init_mach_exception_handler();
 	darwin_arm_init_thread_exception_port();
-
 	init_working_dir();
+#endif
 }

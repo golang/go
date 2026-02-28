@@ -1,0 +1,107 @@
+# This test checks that VCS information is stamped into Go binaries by default,
+# controlled with -buildvcs. This test focuses on Bazaar specifics.
+# The Git test covers common functionality.
+
+[!exec:bzr] skip
+[short] skip
+env GOBIN=$WORK/gopath/bin
+env oldpath=$PATH
+env HOME=$WORK
+cd repo/a
+exec bzr whoami 'J.R. Gopher <gopher@golang.org>'
+
+# If there's no local repository, there's no VCS info.
+go install
+go version -m $GOBIN/a$GOEXE
+! stdout bzrrevision
+rm $GOBIN/a$GOEXE
+
+# If there is a repository, but it can't be used for some reason,
+# there should be an error. It should hint about -buildvcs=false.
+cd ..
+mkdir .bzr
+env PATH=$WORK${/}fakebin${:}$oldpath
+chmod 0755 $WORK/fakebin/bzr
+! exec bzr help
+cd a
+! go install
+stderr '^error obtaining VCS status: exit status 1\n\tUse -buildvcs=false to disable VCS stamping.$'
+rm $GOBIN/a$GOEXE
+cd ..
+env PATH=$oldpath
+rm .bzr
+
+# If there is an empty repository in a parent directory, only "modified" is tagged.
+exec bzr init
+cd a
+go install
+go version -m $GOBIN/a$GOEXE
+stdout '^\tbuild\tvcs=bzr$'
+! stdout vcs.revision
+! stdout vcs.time
+stdout '^\tbuild\tvcs.modified=true$'
+cd ..
+
+# Revision and commit time are tagged for repositories with commits.
+exec bzr add a README
+exec bzr commit -m 'initial commit'
+cd a
+go install
+go version -m $GOBIN/a$GOEXE
+stdout '^\tbuild\tvcs=bzr$'
+stdout '^\tbuild\tvcs.revision='
+stdout '^\tbuild\tvcs.time='
+stdout '^\tbuild\tvcs.modified=false$'
+rm $GOBIN/a$GOEXE
+
+# Building an earlier commit should still build clean.
+cp ../../outside/empty.txt ../NEWS
+exec bzr add ../NEWS
+exec bzr commit -m 'add NEWS'
+exec bzr update -r1
+go install
+go version -m $GOBIN/a$GOEXE
+stdout '^\tbuild\tvcs=bzr$'
+stdout '^\tbuild\tvcs.revision='
+stdout '^\tbuild\tvcs.time='
+stdout '^\tbuild\tvcs.modified=false$'
+
+# Building with -buildvcs=false suppresses the info.
+go install -buildvcs=false
+go version -m $GOBIN/a$GOEXE
+! stdout vcs.revision
+rm $GOBIN/a$GOEXE
+
+# An untracked file is shown as modified, even if it isn't part of the build.
+cp ../../outside/empty.txt .
+go install
+go version -m $GOBIN/a$GOEXE
+stdout '^\tbuild\tvcs.modified=true$'
+rm empty.txt
+rm $GOBIN/a$GOEXE
+
+# An edited file is shown as modified, even if it isn't part of the build.
+cp ../../outside/empty.txt ../README
+go install
+go version -m $GOBIN/a$GOEXE
+stdout '^\tbuild\tvcs.modified=true$'
+exec bzr revert ../README
+rm $GOBIN/a$GOEXE
+
+-- $WORK/fakebin/bzr --
+#!/bin/sh
+exit 1
+-- $WORK/fakebin/bzr.bat --
+exit 1
+-- repo/README --
+Far out in the uncharted backwaters of the unfashionable end of the western
+spiral arm of the Galaxy lies a small, unregarded yellow sun.
+-- repo/a/go.mod --
+module example.com/a
+
+go 1.18
+-- repo/a/a.go --
+package main
+
+func main() {}
+-- outside/empty.txt --

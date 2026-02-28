@@ -38,7 +38,7 @@ package math
 //                      = 1/sqrt(2) * (cos(x) + sin(x))
 //              sin(x0) = sin(x)cos(pi/4)-cos(x)sin(pi/4)
 //                      = 1/sqrt(2) * (sin(x) - cos(x))
-//         (To avoid cancelation, use
+//         (To avoid cancellation, use
 //              sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
 //         to compute the worse one.)
 //
@@ -70,6 +70,7 @@ package math
 // J0 returns the order-zero Bessel function of the first kind.
 //
 // Special cases are:
+//
 //	J0(±Inf) = 0
 //	J0(0) = 1
 //	J0(NaN) = NaN
@@ -99,9 +100,7 @@ func J0(x float64) float64 {
 		return 1
 	}
 
-	if x < 0 {
-		x = -x
-	}
+	x = Abs(x)
 	if x >= 2 {
 		s, c := Sincos(x)
 		ss := s - c
@@ -149,6 +148,7 @@ func J0(x float64) float64 {
 // Y0 returns the order-zero Bessel function of the second kind.
 //
 // Special cases are:
+//
 //	Y0(+Inf) = 0
 //	Y0(0) = -Inf
 //	Y0(x < 0) = NaN
@@ -188,7 +188,7 @@ func Y0(x float64) float64 {
 		//             =  1/sqrt(2) * (sin(x) + cos(x))
 		//     sin(x0) = sin(x)cos(3pi/4)-cos(x)sin(3pi/4)
 		//             =  1/sqrt(2) * (sin(x) - cos(x))
-		// To avoid cancelation, use
+		// To avoid cancellation, use
 		//     sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
 		// to compute the worse one.
 

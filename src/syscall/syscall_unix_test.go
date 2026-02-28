@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build unix
 
 package syscall_test
 
@@ -11,12 +11,12 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"syscall"
 	"testing"
 	"time"
@@ -69,7 +69,7 @@ func _() {
 // Thus this test also verifies that the Flock_t structure can be
 // roundtripped with F_SETLK and F_GETLK.
 func TestFcntlFlock(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	if runtime.GOOS == "ios" {
 		t.Skip("skipping; no child processes allowed on iOS")
 	}
 	flock := syscall.Flock_t{
@@ -78,26 +78,30 @@ func TestFcntlFlock(t *testing.T) {
 	}
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "" {
 		// parent
-		tempDir, err := ioutil.TempDir("", "TestFcntlFlock")
-		if err != nil {
-			t.Fatalf("Failed to create temp dir: %v", err)
-		}
+		tempDir := t.TempDir()
 		name := filepath.Join(tempDir, "TestFcntlFlock")
 		fd, err := syscall.Open(name, syscall.O_CREAT|syscall.O_RDWR|syscall.O_CLOEXEC, 0)
 		if err != nil {
 			t.Fatalf("Open failed: %v", err)
 		}
-		defer os.RemoveAll(tempDir)
-		defer syscall.Close(fd)
-		if err := syscall.Ftruncate(fd, 1<<20); err != nil {
+		// f takes ownership of fd, and will close it.
+		//
+		// N.B. This defer is also necessary to keep f alive
+		// while we use its fd, preventing its finalizer from
+		// executing.
+		f := os.NewFile(uintptr(fd), name)
+		defer f.Close()
+
+		if err := syscall.Ftruncate(int(f.Fd()), 1<<20); err != nil {
 			t.Fatalf("Ftruncate(1<<20) failed: %v", err)
 		}
-		if err := syscall.FcntlFlock(uintptr(fd), syscall.F_SETLK, &flock); err != nil {
+		if err := syscall.FcntlFlock(f.Fd(), syscall.F_SETLK, &flock); err != nil {
 			t.Fatalf("FcntlFlock(F_SETLK) failed: %v", err)
 		}
+
 		cmd := exec.Command(os.Args[0], "-test.run=^TestFcntlFlock$")
 		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
-		cmd.ExtraFiles = []*os.File{os.NewFile(uintptr(fd), name)}
+		cmd.ExtraFiles = []*os.File{f}
 		out, err := cmd.CombinedOutput()
 		if len(out) > 0 || err != nil {
 			t.Fatalf("child process: %q, %v", out, err)
@@ -136,18 +140,32 @@ func TestPassFD(t *testing.T) {
 		return
 	}
 
-	tempDir, err := ioutil.TempDir("", "TestPassFD")
-	if err != nil {
-		t.Fatal(err)
+	if runtime.GOOS == "aix" {
+		// Unix network isn't properly working on AIX 7.2 with Technical Level < 2
+		out, err := exec.Command("oslevel", "-s").Output()
+		if err != nil {
+			t.Skipf("skipping on AIX because oslevel -s failed: %v", err)
+		}
+		if len(out) < len("7200-XX-ZZ-YYMM") { // AIX 7.2, Tech Level XX, Service Pack ZZ, date YYMM
+			t.Skip("skipping on AIX because oslevel -s hasn't the right length")
+		}
+		aixVer := string(out[:4])
+		tl, err := strconv.Atoi(string(out[5:7]))
+		if err != nil {
+			t.Skipf("skipping on AIX because oslevel -s output cannot be parsed: %v", err)
+		}
+		if aixVer < "7200" || (aixVer == "7200" && tl < 2) {
+			t.Skip("skipped on AIX versions previous to 7.2 TL 2")
+		}
+
 	}
-	defer os.RemoveAll(tempDir)
+
+	tempDir := t.TempDir()
 
 	fds, err := syscall.Socketpair(syscall.AF_LOCAL, syscall.SOCK_STREAM, 0)
 	if err != nil {
 		t.Fatalf("Socketpair: %v", err)
 	}
-	defer syscall.Close(fds[0])
-	defer syscall.Close(fds[1])
 	writeFile := os.NewFile(uintptr(fds[0]), "child-writes")
 	readFile := os.NewFile(uintptr(fds[1]), "parent-reads")
 	defer writeFile.Close()
@@ -180,6 +198,9 @@ func TestPassFD(t *testing.T) {
 		uc.Close()
 	})
 	_, oobn, _, _, err := uc.ReadMsgUnix(buf, oob)
+	if err != nil {
+		t.Fatalf("ReadMsgUnix: %v", err)
+	}
 	closeUnix.Stop()
 
 	scms, err := syscall.ParseSocketControlMessage(oob[:oobn])
@@ -201,7 +222,7 @@ func TestPassFD(t *testing.T) {
 	f := os.NewFile(uintptr(gotFds[0]), "fd-from-child")
 	defer f.Close()
 
-	got, err := ioutil.ReadAll(f)
+	got, err := io.ReadAll(f)
 	want := "Hello from child process!\n"
 	if string(got) != want {
 		t.Errorf("child process ReadAll: %q, %v; want %q", got, err, want)
@@ -233,11 +254,15 @@ func passFDChild() {
 	// We make it in tempDir, which our parent will clean up.
 	flag.Parse()
 	tempDir := flag.Arg(0)
-	f, err := ioutil.TempFile(tempDir, "")
+	f, err := os.CreateTemp(tempDir, "")
 	if err != nil {
 		fmt.Printf("TempFile: %v", err)
 		return
 	}
+	// N.B. This defer is also necessary to keep f alive
+	// while we use its fd, preventing its finalizer from
+	// executing.
+	defer f.Close()
 
 	f.Write([]byte("Hello from child process!\n"))
 	f.Seek(0, io.SeekStart)
@@ -301,44 +326,6 @@ func TestUnixRightsRoundtrip(t *testing.T) {
 	}
 }
 
-func TestRlimit(t *testing.T) {
-	var rlimit, zero syscall.Rlimit
-	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlimit)
-	if err != nil {
-		t.Fatalf("Getrlimit: save failed: %v", err)
-	}
-	if zero == rlimit {
-		t.Fatalf("Getrlimit: save failed: got zero value %#v", rlimit)
-	}
-	set := rlimit
-	set.Cur = set.Max - 1
-	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &set)
-	if err != nil {
-		t.Fatalf("Setrlimit: set failed: %#v %v", set, err)
-	}
-	var get syscall.Rlimit
-	err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &get)
-	if err != nil {
-		t.Fatalf("Getrlimit: get failed: %v", err)
-	}
-	set = rlimit
-	set.Cur = set.Max - 1
-	if set != get {
-		// Seems like Darwin requires some privilege to
-		// increase the soft limit of rlimit sandbox, though
-		// Setrlimit never reports an error.
-		switch runtime.GOOS {
-		case "darwin":
-		default:
-			t.Fatalf("Rlimit: change failed: wanted %#v got %#v", set, get)
-		}
-	}
-	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rlimit)
-	if err != nil {
-		t.Fatalf("Setrlimit: restore failed: %#v %v", rlimit, err)
-	}
-}
-
 func TestSeekFailure(t *testing.T) {
 	_, err := syscall.Seek(-1, 0, io.SeekStart)
 	if err == nil {
@@ -348,5 +335,19 @@ func TestSeekFailure(t *testing.T) {
 	t.Logf("Seek: %v", str)
 	if str == "" {
 		t.Fatalf("Seek(-1, 0, 0) return error with empty message")
+	}
+}
+
+func TestSetsockoptString(t *testing.T) {
+	// should not panic on empty string, see issue #31277
+	err := syscall.SetsockoptString(-1, 0, 0, "")
+	if err == nil {
+		t.Fatalf("SetsockoptString: did not fail")
+	}
+}
+
+func TestENFILETemporary(t *testing.T) {
+	if !syscall.ENFILE.Temporary() {
+		t.Error("ENFILE is not treated as a temporary error")
 	}
 }

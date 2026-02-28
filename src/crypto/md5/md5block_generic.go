@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !amd64,!amd64p32,!386,!arm,!ppc64le,!s390x
+//go:build !amd64 && !386 && !arm && !ppc64le && !ppc64 && !s390x && !arm64
 
 package md5
 
-var block = blockGeneric
+const haveAsm = false
+
+func block(dig *digest, p []byte) {
+	blockGeneric(dig, p)
+}

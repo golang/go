@@ -41,17 +41,38 @@ func testHelper(t *T) {
 	}
 	fn("4")
 
-	// Check that calling Helper from inside this test entry function
-	// doesn't have an effect.
-	t.Helper()
-	t.Error("5")
-
 	t.Run("sub", func(t *T) {
-		helper(t, "6")
-		notHelperCallingHelper(t, "7")
+		helper(t, "5")
+		notHelperCallingHelper(t, "6")
+		// Check that calling Helper from inside a subtest entry function
+		// works as if it were in an ordinary function call.
 		t.Helper()
-		t.Error("8")
+		t.Error("7")
 	})
+
+	// Check that calling Helper from inside a top-level test function
+	// has no effect.
+	t.Helper()
+	t.Error("8")
+
+	// Check that right caller is reported for func passed to Cleanup when
+	// multiple cleanup functions have been registered.
+	t.Cleanup(func() {
+		t.Helper()
+		t.Error("10")
+	})
+	t.Cleanup(func() {
+		t.Helper()
+		t.Error("9")
+	})
+
+	// Check that helper-ness propagates up through subtests
+	// to helpers above. See https://golang.org/issue/44887.
+	helperSubCallingHelper(t, "11")
+
+	// Check that helper-ness propagates up through panic/recover.
+	// See https://golang.org/issue/31154.
+	recoverHelper(t, "12")
 }
 
 func parallelTestHelper(t *T) {
@@ -64,4 +85,28 @@ func parallelTestHelper(t *T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func helperSubCallingHelper(t *T, msg string) {
+	t.Helper()
+	t.Run("sub2", func(t *T) {
+		t.Helper()
+		t.Fatal(msg)
+	})
+}
+
+func recoverHelper(t *T, msg string) {
+	t.Helper()
+	defer func() {
+		t.Helper()
+		if err := recover(); err != nil {
+			t.Errorf("recover %s", err)
+		}
+	}()
+	doPanic(t, msg)
+}
+
+func doPanic(t *T, msg string) {
+	t.Helper()
+	panic(msg)
 }

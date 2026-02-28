@@ -12,6 +12,7 @@ import (
 
 func TestNoRaceCond(t *testing.T) {
 	x := 0
+	_ = x
 	condition := 0
 	var mu sync.Mutex
 	cond := sync.NewCond(&mu)
@@ -35,6 +36,7 @@ func TestRaceCond(t *testing.T) {
 	var mu sync.Mutex
 	cond := sync.NewCond(&mu)
 	x := 0
+	_ = x
 	condition := 0
 	go func() {
 		time.Sleep(10 * time.Millisecond) // Enter cond.Wait loop
@@ -67,6 +69,7 @@ func TestRaceAnnounceThreads(t *testing.T) {
 	allDone := make(chan bool, N)
 
 	var x int
+	_ = x
 
 	var f, g, h func()
 	f = func() {
@@ -123,16 +126,17 @@ func TestNoRaceAfterFunc1(t *testing.T) {
 
 func TestNoRaceAfterFunc2(t *testing.T) {
 	var x int
+	_ = x
 	timer := time.AfterFunc(10, func() {
 		x = 1
 	})
 	defer timer.Stop()
-	_ = x
 }
 
 func TestNoRaceAfterFunc3(t *testing.T) {
 	c := make(chan bool, 1)
 	x := 0
+	_ = x
 	time.AfterFunc(1e7, func() {
 		x = 1
 		c <- true
@@ -143,6 +147,7 @@ func TestNoRaceAfterFunc3(t *testing.T) {
 func TestRaceAfterFunc3(t *testing.T) {
 	c := make(chan bool, 2)
 	x := 0
+	_ = x
 	time.AfterFunc(1e7, func() {
 		x = 1
 		c <- true
@@ -161,6 +166,7 @@ func TestRaceAfterFunc3(t *testing.T) {
 // comprehensible.
 func TestRaceGoroutineCreationStack(t *testing.T) {
 	var x int
+	_ = x
 	var ch = make(chan bool, 1)
 
 	f1 := func() {

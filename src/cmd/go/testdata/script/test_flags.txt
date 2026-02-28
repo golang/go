@@ -1,0 +1,132 @@
+env GO111MODULE=on
+
+[short] skip
+
+# Arguments after the flag terminator should be ignored.
+# If we pass '-- -test.v', we should not get verbose output
+# *and* output from the test should not be echoed.
+go test ./x -- -test.v
+stdout '\Aok\s+example.com/x\s+[0-9.s]+\n\z'
+! stderr .
+
+# For backward-compatibility with previous releases of the 'go' command,
+# arguments that appear after unrecognized flags should not be treated
+# as packages, even if they are unambiguously not arguments to flags.
+# Even though ./x looks like a package path, the real package should be
+# the implicit '.'.
+! go test --answer=42 ./x
+stderr '^no Go files in .+$'
+! stderr '/x'
+
+# However, *flags* that appear after unrecognized flags should still be
+# interpreted as flags, under the (possibly-erroneous) assumption that
+# unrecognized flags are non-boolean.
+
+go test -v -x ./x -timeout 24h -boolflag=true foo -timeout 25h
+stdout 'args: foo -timeout 25h'
+stdout 'timeout: 24h0m0s$'  # -timeout is unambiguously not a flag, so the real flag wins.
+
+go test -v -x ./x -timeout 24h -boolflag foo -timeout 25h
+stdout 'args: foo -test\.timeout=25h0m0s'  # For legacy reasons, '-timeout ' is erroneously rewritten to -test.timeout; see https://golang.org/issue/40763.
+stdout 'timeout: 24h0m0s$'  # Actual flag wins.
+
+go test -v -x ./x -timeout 24h -stringflag foo -timeout 25h
+stdout 'args: $'
+stdout 'timeout: 25h0m0s$'  # Later flag wins.
+
+# An explicit '-outputdir=' argument should set test.outputdir
+# to the 'go' command's working directory, not zero it out
+# for the test binary.
+go test -x -coverprofile=cover.out '-outputdir=' ./x
+stderr '-test.outputdir=[^ ]'
+exists ./cover.out
+! exists ./x/cover.out
+
+# Test flags from GOFLAGS should be forwarded to the test binary,
+# with the 'test.' prefix in the GOFLAGS entry...
+env GOFLAGS='-test.timeout=24h0m0s -count=1'
+go test -v -x ./x
+stdout 'timeout: 24h0m0s$'
+stderr '-test.count=1'
+
+# ...or without.
+env GOFLAGS='-timeout=24h0m0s -count=1'
+go test -v -x ./x
+stdout 'timeout: 24h0m0s$'
+stderr '-test.count=1'
+
+# Arguments from the command line should override GOFLAGS...
+go test -v -x -timeout=25h0m0s ./x
+stdout 'timeout: 25h0m0s$'
+stderr '-test.count=1'
+
+# ...even if they use a different flag name.
+go test -v -x -test.timeout=26h0m0s ./x
+stdout 'timeout: 26h0m0s$'
+stderr '-test\.timeout=26h0m0s'
+! stderr 'timeout=24h0m0s'
+stderr '-test.count=1'
+
+# Invalid flags should be reported exactly once.
+! go test -covermode=walrus ./x
+stderr -count=1 'invalid value "walrus" for flag -covermode: valid modes are .*$'
+stderr '^usage: go test .*$'
+stderr '^Run ''go help test'' and ''go help testflag'' for details.$'
+
+# Passing -help to the test binary should show flag help.
+go test ./x -args -help
+stdout 'usage_message'
+
+# -covermode, -coverpkg, and -coverprofile should imply -cover
+go test -covermode=set ./x
+stdout '\s+coverage:\s+'
+
+go test -coverpkg=encoding/binary ./x
+stdout '\s+coverage:\s+'
+
+go test -coverprofile=cover.out ./x
+stdout '\s+coverage:\s+'
+exists ./cover.out
+rm ./cover.out
+
+# -*profile and -trace flags should force output to the current working directory
+# or -outputdir, not the directory containing the test.
+
+go test -memprofile=mem.out ./x
+exists ./mem.out
+rm ./mem.out
+
+go test -trace=trace.out ./x
+exists ./trace.out
+rm ./trace.out
+
+# Relative paths with -outputdir should be relative to the go command's working
+# directory, not the directory containing the test.
+mkdir profiles
+go test -memprofile=mem.out -outputdir=./profiles ./x
+exists ./profiles/mem.out
+rm profiles
+
+-- go.mod --
+module example.com
+go 1.14
+-- x/x_test.go --
+package x
+
+import (
+	"flag"
+	"strings"
+	"testing"
+)
+
+var _ = flag.String("usage_message", "", "dummy flag to check usage message")
+var boolflag = flag.Bool("boolflag", false, "ignored boolean flag")
+var stringflag = flag.String("stringflag", "", "ignored string flag")
+
+func TestLogTimeout(t *testing.T) {
+	t.Logf("timeout: %v", flag.Lookup("test.timeout").Value)
+}
+
+func TestLogArgs(t *testing.T) {
+	t.Logf("args: %s", strings.Join(flag.Args(), " "))
+}

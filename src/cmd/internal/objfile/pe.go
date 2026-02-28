@@ -10,7 +10,7 @@ import (
 	"debug/dwarf"
 	"debug/pe"
 	"fmt"
-	"os"
+	"io"
 	"sort"
 )
 
@@ -18,16 +18,10 @@ type peFile struct {
 	pe *pe.File
 }
 
-func openPE(r *os.File) (rawFile, error) {
+func openPE(r io.ReaderAt) (rawFile, error) {
 	f, err := pe.NewFile(r)
 	if err != nil {
 		return nil, err
-	}
-	switch f.OptionalHeader.(type) {
-	case *pe.OptionalHeader32, *pe.OptionalHeader64:
-		// ok
-	default:
-		return nil, fmt.Errorf("unrecognized PE format")
 	}
 	return &peFile{f}, nil
 }
@@ -188,15 +182,18 @@ func loadPETable(f *pe.File, sname, ename string) ([]byte, error) {
 }
 
 func (f *peFile) goarch() string {
-	// Not sure how to get the info we want from PE header.
-	// Look in symbol table for telltale rt0 symbol.
-	if _, err := findPESymbol(f.pe, "_rt0_386_windows"); err == nil {
+	switch f.pe.Machine {
+	case pe.IMAGE_FILE_MACHINE_I386:
 		return "386"
-	}
-	if _, err := findPESymbol(f.pe, "_rt0_amd64_windows"); err == nil {
+	case pe.IMAGE_FILE_MACHINE_AMD64:
 		return "amd64"
+	case pe.IMAGE_FILE_MACHINE_ARMNT:
+		return "arm"
+	case pe.IMAGE_FILE_MACHINE_ARM64:
+		return "arm64"
+	default:
+		return ""
 	}
-	return ""
 }
 
 func (f *peFile) loadAddress() (uint64, error) {

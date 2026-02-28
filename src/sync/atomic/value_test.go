@@ -7,10 +7,11 @@ package atomic_test
 import (
 	"math/rand"
 	"runtime"
+	"strconv"
 	"sync"
+	"sync/atomic"
 	. "sync/atomic"
 	"testing"
-	"time"
 )
 
 func TestValue(t *testing.T) {
@@ -79,7 +80,7 @@ func TestValuePanic(t *testing.T) {
 }
 
 func TestValueConcurrent(t *testing.T) {
-	tests := [][]interface{}{
+	tests := [][]any{
 		{uint16(0), ^uint16(0), uint16(1 + 2<<8), uint16(3 + 4<<8)},
 		{uint32(0), ^uint32(0), uint32(1 + 2<<16), uint32(3 + 4<<16)},
 		{uint64(0), ^uint64(0), uint64(1 + 2<<32), uint64(3 + 4<<32)},
@@ -93,10 +94,11 @@ func TestValueConcurrent(t *testing.T) {
 	}
 	for _, test := range tests {
 		var v Value
-		done := make(chan bool)
+		done := make(chan bool, p)
 		for i := 0; i < p; i++ {
 			go func() {
 				r := rand.New(rand.NewSource(rand.Int63()))
+				expected := true
 			loop:
 				for j := 0; j < N; j++ {
 					x := test[r.Intn(len(test))]
@@ -108,9 +110,10 @@ func TestValueConcurrent(t *testing.T) {
 						}
 					}
 					t.Logf("loaded unexpected value %+v, want %+v", x, test)
-					done <- false
+					expected = false
+					break
 				}
-				done <- true
+				done <- expected
 			}()
 		}
 		for i := 0; i < p; i++ {
@@ -134,67 +137,138 @@ func BenchmarkValueRead(b *testing.B) {
 	})
 }
 
-// The following example shows how to use Value for periodic program config updates
-// and propagation of the changes to worker goroutines.
-func ExampleValue_config() {
-	var config Value // holds current server configuration
-	// Create initial config value and store into config.
-	config.Store(loadConfig())
-	go func() {
-		// Reload config every 10 seconds
-		// and update config value with the new version.
-		for {
-			time.Sleep(10 * time.Second)
-			config.Store(loadConfig())
-		}
-	}()
-	// Create worker goroutines that handle incoming requests
-	// using the latest config value.
-	for i := 0; i < 10; i++ {
-		go func() {
-			for r := range requests() {
-				c := config.Load()
-				// Handle request r using config c.
-				_, _ = r, c
+var Value_SwapTests = []struct {
+	init any
+	new  any
+	want any
+	err  any
+}{
+	{init: nil, new: nil, err: "sync/atomic: swap of nil value into Value"},
+	{init: nil, new: true, want: nil, err: nil},
+	{init: true, new: "", err: "sync/atomic: swap of inconsistently typed value into Value"},
+	{init: true, new: false, want: true, err: nil},
+}
+
+func TestValue_Swap(t *testing.T) {
+	for i, tt := range Value_SwapTests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			var v Value
+			if tt.init != nil {
+				v.Store(tt.init)
 			}
+			defer func() {
+				err := recover()
+				switch {
+				case tt.err == nil && err != nil:
+					t.Errorf("should not panic, got %v", err)
+				case tt.err != nil && err == nil:
+					t.Errorf("should panic %v, got <nil>", tt.err)
+				}
+			}()
+			if got := v.Swap(tt.new); got != tt.want {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+			if got := v.Load(); got != tt.new {
+				t.Errorf("got %v, want %v", got, tt.new)
+			}
+		})
+	}
+}
+
+func TestValueSwapConcurrent(t *testing.T) {
+	var v Value
+	var count uint64
+	var g sync.WaitGroup
+	var m, n uint64 = 10000, 10000
+	if testing.Short() {
+		m = 1000
+		n = 1000
+	}
+	for i := uint64(0); i < m*n; i += n {
+		i := i
+		g.Add(1)
+		go func() {
+			var c uint64
+			for new := i; new < i+n; new++ {
+				if old := v.Swap(new); old != nil {
+					c += old.(uint64)
+				}
+			}
+			atomic.AddUint64(&count, c)
+			g.Done()
 		}()
 	}
-}
-
-func loadConfig() map[string]string {
-	return make(map[string]string)
-}
-
-func requests() chan int {
-	return make(chan int)
-}
-
-// The following example shows how to maintain a scalable frequently read,
-// but infrequently updated data structure using copy-on-write idiom.
-func ExampleValue_readMostly() {
-	type Map map[string]string
-	var m Value
-	m.Store(make(Map))
-	var mu sync.Mutex // used only by writers
-	// read function can be used to read the data without further synchronization
-	read := func(key string) (val string) {
-		m1 := m.Load().(Map)
-		return m1[key]
+	g.Wait()
+	if want, got := (m*n-1)*(m*n)/2, count+v.Load().(uint64); got != want {
+		t.Errorf("sum from 0 to %d was %d, want %v", m*n-1, got, want)
 	}
-	// insert function can be used to update the data without further synchronization
-	insert := func(key, val string) {
-		mu.Lock() // synchronize with other potential writers
-		defer mu.Unlock()
-		m1 := m.Load().(Map) // load current value of the data structure
-		m2 := make(Map)      // create a new value
-		for k, v := range m1 {
-			m2[k] = v // copy all data from the current object to the new one
-		}
-		m2[key] = val // do the update that we need
-		m.Store(m2)   // atomically replace the current object with the new one
-		// At this point all new readers start working with the new version.
-		// The old version will be garbage collected once the existing readers
-		// (if any) are done with it.
+}
+
+var heapA, heapB = struct{ uint }{0}, struct{ uint }{0}
+
+var Value_CompareAndSwapTests = []struct {
+	init any
+	new  any
+	old  any
+	want bool
+	err  any
+}{
+	{init: nil, new: nil, old: nil, err: "sync/atomic: compare and swap of nil value into Value"},
+	{init: nil, new: true, old: "", err: "sync/atomic: compare and swap of inconsistently typed values into Value"},
+	{init: nil, new: true, old: true, want: false, err: nil},
+	{init: nil, new: true, old: nil, want: true, err: nil},
+	{init: true, new: "", err: "sync/atomic: compare and swap of inconsistently typed value into Value"},
+	{init: true, new: true, old: false, want: false, err: nil},
+	{init: true, new: true, old: true, want: true, err: nil},
+	{init: heapA, new: struct{ uint }{1}, old: heapB, want: true, err: nil},
+}
+
+func TestValue_CompareAndSwap(t *testing.T) {
+	for i, tt := range Value_CompareAndSwapTests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			var v Value
+			if tt.init != nil {
+				v.Store(tt.init)
+			}
+			defer func() {
+				err := recover()
+				switch {
+				case tt.err == nil && err != nil:
+					t.Errorf("got %v, wanted no panic", err)
+				case tt.err != nil && err == nil:
+					t.Errorf("did not panic, want %v", tt.err)
+				}
+			}()
+			if got := v.CompareAndSwap(tt.old, tt.new); got != tt.want {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+		})
 	}
-	_, _ = read, insert
+}
+
+func TestValueCompareAndSwapConcurrent(t *testing.T) {
+	var v Value
+	var w sync.WaitGroup
+	v.Store(0)
+	m, n := 1000, 100
+	if testing.Short() {
+		m = 100
+		n = 100
+	}
+	for i := 0; i < m; i++ {
+		i := i
+		w.Add(1)
+		go func() {
+			for j := i; j < m*n; runtime.Gosched() {
+				if v.CompareAndSwap(j, j+1) {
+					j += m
+				}
+			}
+			w.Done()
+		}()
+	}
+	w.Wait()
+	if stop := v.Load().(int); stop != m*n {
+		t.Errorf("did not get to %v, stopped at %v", m*n, stop)
+	}
 }

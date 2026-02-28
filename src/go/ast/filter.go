@@ -24,7 +24,6 @@ func exportFilter(name string) bool {
 // stripped. The File.Comments list is not changed.
 //
 // FileExports reports whether there are exported declarations.
-//
 func FileExports(src *File) bool {
 	return filterFile(src, exportFilter, true)
 }
@@ -35,7 +34,6 @@ func FileExports(src *File) bool {
 //
 // PackageExports reports whether there are exported declarations;
 // it returns false otherwise.
-//
 func PackageExports(pkg *Package) bool {
 	return filterPackage(pkg, exportFilter, true)
 }
@@ -59,7 +57,6 @@ func filterIdentList(list []*Ident, f Filter) []*Ident {
 // fieldName assumes that x is the type of an anonymous field and
 // returns the corresponding field name. If x is not an acceptable
 // anonymous field, the result is nil.
-//
 func fieldName(x Expr) *Ident {
 	switch t := x.(type) {
 	case *Ident:
@@ -107,6 +104,34 @@ func filterFieldList(fields *FieldList, filter Filter, export bool) (removedFiel
 	}
 	fields.List = list[0:j]
 	return
+}
+
+func filterCompositeLit(lit *CompositeLit, filter Filter, export bool) {
+	n := len(lit.Elts)
+	lit.Elts = filterExprList(lit.Elts, filter, export)
+	if len(lit.Elts) < n {
+		lit.Incomplete = true
+	}
+}
+
+func filterExprList(list []Expr, filter Filter, export bool) []Expr {
+	j := 0
+	for _, exp := range list {
+		switch x := exp.(type) {
+		case *CompositeLit:
+			filterCompositeLit(x, filter, export)
+		case *KeyValueExpr:
+			if x, ok := x.Key.(*Ident); ok && !filter(x.Name) {
+				continue
+			}
+			if x, ok := x.Value.(*CompositeLit); ok {
+				filterCompositeLit(x, filter, export)
+			}
+		}
+		list[j] = exp
+		j++
+	}
+	return list[0:j]
 }
 
 func filterParamList(fields *FieldList, filter Filter, export bool) bool {
@@ -158,6 +183,7 @@ func filterSpec(spec Spec, f Filter, export bool) bool {
 	switch s := spec.(type) {
 	case *ValueSpec:
 		s.Names = filterIdentList(s.Names, f)
+		s.Values = filterExprList(s.Values, f, export)
 		if len(s.Names) > 0 {
 			if export {
 				filterType(s.Type, f, export)
@@ -200,7 +226,6 @@ func filterSpecList(list []Spec, f Filter, export bool) []Spec {
 //
 // FilterDecl reports whether there are any declared names left after
 // filtering.
-//
 func FilterDecl(decl Decl, f Filter) bool {
 	return filterDecl(decl, f, false)
 }
@@ -225,7 +250,6 @@ func filterDecl(decl Decl, f Filter, export bool) bool {
 //
 // FilterFile reports whether there are any top-level declarations
 // left after filtering.
-//
 func FilterFile(src *File, f Filter) bool {
 	return filterFile(src, f, false)
 }
@@ -252,7 +276,6 @@ func filterFile(src *File, f Filter, export bool) bool {
 //
 // FilterPackage reports whether there are any top-level declarations
 // left after filtering.
-//
 func FilterPackage(pkg *Package, f Filter) bool {
 	return filterPackage(pkg, f, false)
 }
@@ -286,7 +309,6 @@ const (
 // nameOf returns the function (foo) or method name (foo.bar) for
 // the given function declaration. If the AST is incorrect for the
 // receiver, it assumes a function instead.
-//
 func nameOf(f *FuncDecl) string {
 	if r := f.Recv; r != nil && len(r.List) == 1 {
 		// looks like a correct receiver declaration
@@ -306,12 +328,10 @@ func nameOf(f *FuncDecl) string {
 
 // separator is an empty //-style comment that is interspersed between
 // different comment groups when they are concatenated into a single group
-//
 var separator = &Comment{token.NoPos, "//"}
 
 // MergePackageFiles creates a file AST by merging the ASTs of the
 // files belonging to a package. The mode flags control merging behavior.
-//
 func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	// Count the number of package docs, comments and declarations across
 	// all package files. Also, compute sorted list of filenames, so that
@@ -445,7 +465,9 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 			}
 		}
 	} else {
-		for _, f := range pkg.Files {
+		// Iterate over filenames for deterministic order.
+		for _, filename := range filenames {
+			f := pkg.Files[filename]
 			imports = append(imports, f.Imports...)
 		}
 	}
@@ -455,7 +477,8 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	if mode&FilterUnassociatedComments == 0 {
 		comments = make([]*CommentGroup, ncomments)
 		i := 0
-		for _, f := range pkg.Files {
+		for _, filename := range filenames {
+			f := pkg.Files[filename]
 			i += copy(comments[i:], f.Comments)
 		}
 	}

@@ -1,5 +1,5 @@
 // Derived from Inferno utils/6l/l.h and related files.
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -34,8 +34,10 @@ package objabi
 type SymKind uint8
 
 // Defined SymKind values.
+// These are used to index into cmd/link/internal/sym/AbiSymKindToSymKind
 //
 // TODO(rsc): Give idiomatic Go names.
+//
 //go:generate stringer -type=SymKind
 const (
 	// An otherwise invalid zero value for the type
@@ -52,10 +54,20 @@ const (
 	SBSS
 	// Statically data that is initially all 0s and does not contain pointers
 	SNOPTRBSS
-	// Thread-local data that is initally all 0s
+	// Thread-local data that is initially all 0s
 	STLSBSS
 	// Debugging data
-	SDWARFINFO
+	SDWARFCUINFO
+	SDWARFCONST
+	SDWARFFCN
+	SDWARFABSFCN
+	SDWARFTYPE
+	SDWARFVAR
 	SDWARFRANGE
 	SDWARFLOC
+	SDWARFLINES
+	// Coverage instrumentation counter for libfuzzer.
+	SLIBFUZZER_EXTRA_COUNTER
+	// Update cmd/link/internal/sym/AbiSymKindToSymKind for new SymKind values.
+
 )

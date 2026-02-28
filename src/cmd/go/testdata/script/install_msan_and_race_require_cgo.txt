@@ -1,0 +1,20 @@
+# Tests Issue #21895
+
+env CGO_ENABLED=0
+
+[race] ! go install -race triv.go
+[race] stderr '-race requires cgo'
+[race] ! stderr '-msan'
+
+[msan] ! go install -msan triv.go
+[msan] stderr '-msan requires cgo'
+[msan] ! stderr '-race'
+
+[asan] ! go install -asan triv.go
+[asan] stderr '-asan requires cgo'
+[asan] ! stderr '-msan'
+
+-- triv.go --
+package main
+
+func main() {}

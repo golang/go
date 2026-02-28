@@ -5,7 +5,6 @@
 package syntax
 
 import (
-	"os"
 	"testing"
 )
 
@@ -14,9 +13,9 @@ func TestDump(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	ast, err := ParseFile(*src_, nil, nil, CheckBranches)
-	if err != nil {
-		t.Fatal(err)
+	ast, _ := ParseFile(*src_, func(err error) { t.Error(err) }, nil, CheckBranches)
+
+	if ast != nil {
+		Fdump(testOut(), ast)
 	}
-	Fdump(os.Stdout, ast)
 }

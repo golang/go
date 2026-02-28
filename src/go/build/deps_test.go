@@ -10,443 +10,565 @@ package build
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"go/token"
+	"internal/testenv"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 )
 
-// pkgDeps defines the expected dependencies between packages in
+// depsRules defines the expected dependencies between packages in
 // the Go source tree. It is a statement of policy.
-// Changes should not be made to this map without prior discussion.
-//
-// The map contains two kinds of entries:
-// 1) Lower-case keys are standard import paths and list the
-// allowed imports in that package.
-// 2) Upper-case keys define aliases for package sets, which can then
-// be used as dependencies by other rules.
 //
 // DO NOT CHANGE THIS DATA TO FIX BUILDS.
+// Existing packages should not have their constraints relaxed
+// without prior discussion.
+// Negative assertions should almost never be removed.
 //
-var pkgDeps = map[string][]string{
-	// L0 is the lowest level, core, nearly unavoidable packages.
-	"errors":                  {},
-	"io":                      {"errors", "sync"},
-	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys"},
-	"runtime/internal/sys":    {},
-	"runtime/internal/atomic": {"unsafe", "runtime/internal/sys"},
-	"internal/race":           {"runtime", "unsafe"},
-	"sync":                    {"internal/race", "runtime", "sync/atomic", "unsafe"},
-	"sync/atomic":             {"unsafe"},
-	"unsafe":                  {},
-	"internal/cpu":            {"runtime"},
+// The general syntax of a rule is:
+//
+//	a, b < c, d;
+//
+// which means c and d come after a and b in the partial order
+// (that is, c and d can import a and b),
+// but doesn't provide a relative order between a vs b or c vs d.
+//
+// The rules can chain together, as in:
+//
+//	e < f, g < h;
+//
+// which is equivalent to
+//
+//	e < f, g;
+//	f, g < h;
+//
+// Except for the special bottom element "NONE", each name
+// must appear exactly once on the right-hand side of a rule.
+// That rule serves as the definition of the allowed dependencies
+// for that name. The definition must appear before any uses
+// of the name on the left-hand side of a rule. (That is, the
+// rules themselves must be ordered according to the partial
+// order, for easier reading by people.)
+//
+// Negative assertions double-check the partial order:
+//
+//	i !< j
+//
+// means that it must NOT be the case that i < j.
+// Negative assertions may appear anywhere in the rules,
+// even before i and j have been defined.
+//
+// Comments begin with #.
+//
+// All-caps names are pseudo-names for specific points
+// in the dependency lattice.
+var depsRules = `
+	# No dependencies allowed for any of these packages.
+	NONE
+	< constraints, container/list, container/ring,
+	  internal/cfg, internal/cpu, internal/goarch,
+	  internal/goexperiment, internal/goos,
+	  internal/goversion, internal/nettrace,
+	  unicode/utf8, unicode/utf16, unicode,
+	  unsafe;
 
-	"L0": {
-		"errors",
-		"io",
-		"runtime",
-		"runtime/internal/atomic",
-		"sync",
-		"sync/atomic",
-		"unsafe",
-		"internal/cpu",
-	},
+	# These packages depend only on internal/goarch and unsafe.
+	internal/goarch, unsafe
+	< internal/abi;
 
-	// L1 adds simple functions and strings processing,
-	// but not Unicode tables.
-	"math":          {"internal/cpu", "unsafe"},
-	"math/bits":     {},
-	"math/cmplx":    {"math"},
-	"math/rand":     {"L0", "math"},
-	"strconv":       {"L0", "unicode/utf8", "math"},
-	"unicode/utf16": {},
-	"unicode/utf8":  {},
+	# RUNTIME is the core runtime group of packages, all of them very light-weight.
+	internal/abi, internal/cpu, internal/goarch,
+	internal/goexperiment, internal/goos, unsafe
+	< internal/bytealg
+	< internal/itoa
+	< internal/unsafeheader
+	< runtime/internal/sys
+	< runtime/internal/syscall
+	< runtime/internal/atomic
+	< runtime/internal/math
+	< runtime
+	< sync/atomic
+	< internal/race
+	< sync
+	< internal/reflectlite
+	< errors
+	< internal/oserror, math/bits
+	< RUNTIME;
 
-	"L1": {
-		"L0",
-		"math",
-		"math/bits",
-		"math/cmplx",
-		"math/rand",
-		"sort",
-		"strconv",
-		"unicode/utf16",
-		"unicode/utf8",
-	},
+	RUNTIME
+	< sort
+	< container/heap;
 
-	// L2 adds Unicode and strings processing.
-	"bufio":   {"L0", "unicode/utf8", "bytes"},
-	"bytes":   {"L0", "unicode", "unicode/utf8"},
-	"path":    {"L0", "unicode/utf8", "strings"},
-	"strings": {"L0", "unicode", "unicode/utf8"},
-	"unicode": {},
+	RUNTIME
+	< io;
 
-	"L2": {
-		"L1",
-		"bufio",
-		"bytes",
-		"path",
-		"strings",
-		"unicode",
-	},
+	syscall !< io;
+	reflect !< sort;
 
-	// L3 adds reflection and some basic utility packages
-	// and interface definitions, but nothing that makes
-	// system calls.
-	"crypto":              {"L2", "hash"}, // interfaces
-	"crypto/cipher":       {"L2", "crypto/subtle"},
-	"crypto/subtle":       {},
-	"encoding/base32":     {"L2"},
-	"encoding/base64":     {"L2"},
-	"encoding/binary":     {"L2", "reflect"},
-	"hash":                {"L2"}, // interfaces
-	"hash/adler32":        {"L2", "hash"},
-	"hash/crc32":          {"L2", "hash"},
-	"hash/crc64":          {"L2", "hash"},
-	"hash/fnv":            {"L2", "hash"},
-	"image":               {"L2", "image/color"}, // interfaces
-	"image/color":         {"L2"},                // interfaces
-	"image/color/palette": {"L2", "image/color"},
-	"reflect":             {"L2"},
-	"sort":                {"reflect"},
+	RUNTIME, unicode/utf8
+	< path;
 
-	"L3": {
-		"L2",
-		"crypto",
-		"crypto/cipher",
-		"crypto/internal/cipherhw",
-		"crypto/subtle",
-		"encoding/base32",
-		"encoding/base64",
-		"encoding/binary",
-		"hash",
-		"hash/adler32",
-		"hash/crc32",
-		"hash/crc64",
-		"hash/fnv",
-		"image",
-		"image/color",
-		"image/color/palette",
-		"reflect",
-	},
+	unicode !< path;
 
-	// End of linear dependency definitions.
+	# SYSCALL is RUNTIME plus the packages necessary for basic system calls.
+	RUNTIME, unicode/utf8, unicode/utf16
+	< internal/syscall/windows/sysdll, syscall/js
+	< syscall
+	< internal/syscall/unix, internal/syscall/windows, internal/syscall/windows/registry
+	< internal/syscall/execenv
+	< SYSCALL;
 
-	// Operating system access.
-	"syscall":                           {"L0", "internal/race", "internal/syscall/windows/sysdll", "unicode/utf16"},
-	"internal/syscall/unix":             {"L0", "syscall"},
-	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll"},
-	"internal/syscall/windows/registry": {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
-	"time": {
-		// "L0" without the "io" package:
-		"errors",
-		"runtime",
-		"runtime/internal/atomic",
-		"sync",
-		"sync/atomic",
-		"unsafe",
-		// Other time dependencies:
-		"internal/syscall/windows/registry",
-		"syscall",
-	},
+	# TIME is SYSCALL plus the core packages about time, including context.
+	SYSCALL
+	< time/tzdata
+	< time
+	< context
+	< TIME;
 
-	"internal/poll": {"L0", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8"},
-	"os":            {"L1", "os", "syscall", "time", "internal/poll", "internal/syscall/windows"},
-	"path/filepath": {"L2", "os", "syscall"},
-	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
-	"os/exec":       {"L2", "os", "context", "path/filepath", "syscall"},
-	"os/signal":     {"L2", "os", "syscall"},
+	TIME, io, path, sort
+	< io/fs;
 
-	// OS enables basic operating system functionality,
-	// but not direct use of package syscall, nor os/signal.
-	"OS": {
-		"io/ioutil",
-		"os",
-		"os/exec",
-		"path/filepath",
-		"time",
-	},
+	# MATH is RUNTIME plus the basic math packages.
+	RUNTIME
+	< math
+	< MATH;
 
-	// Formatted I/O: few dependencies (L1) but we must add reflect.
-	"fmt": {"L1", "os", "reflect"},
-	"log": {"L1", "os", "fmt", "time"},
+	unicode !< math;
 
-	// Packages used by testing must be low-level (L2+fmt).
-	"regexp":         {"L2", "regexp/syntax"},
-	"regexp/syntax":  {"L2"},
-	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os", "time"},
-	"runtime/pprof":  {"L2", "compress/gzip", "context", "encoding/binary", "fmt", "io/ioutil", "os", "text/tabwriter", "time"},
-	"runtime/trace":  {"L0"},
-	"text/tabwriter": {"L2"},
+	MATH
+	< math/cmplx;
 
-	"testing":          {"L2", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
-	"testing/iotest":   {"L2", "log"},
-	"testing/quick":    {"L2", "flag", "fmt", "reflect", "time"},
-	"internal/testenv": {"L2", "OS", "flag", "testing", "syscall"},
+	MATH
+	< math/rand;
 
-	// L4 is defined as L3+fmt+log+time, because in general once
-	// you're using L3 packages, use of fmt, log, or time is not a big deal.
-	"L4": {
-		"L3",
-		"fmt",
-		"log",
-		"time",
-	},
+	MATH
+	< runtime/metrics;
 
-	// Go parser.
-	"go/ast":     {"L4", "OS", "go/scanner", "go/token"},
-	"go/doc":     {"L4", "go/ast", "go/token", "regexp", "text/template"},
-	"go/parser":  {"L4", "OS", "go/ast", "go/scanner", "go/token"},
-	"go/printer": {"L4", "OS", "go/ast", "go/scanner", "go/token", "text/tabwriter"},
-	"go/scanner": {"L4", "OS", "go/token"},
-	"go/token":   {"L4"},
+	MATH, unicode/utf8
+	< strconv;
 
-	"GOPARSER": {
-		"go/ast",
-		"go/doc",
-		"go/parser",
-		"go/printer",
-		"go/scanner",
-		"go/token",
-	},
+	unicode !< strconv;
 
-	"go/format":       {"L4", "GOPARSER", "internal/format"},
-	"internal/format": {"L4", "GOPARSER"},
+	# STR is basic string and buffer manipulation.
+	RUNTIME, io, unicode/utf8, unicode/utf16, unicode
+	< bytes, strings
+	< bufio;
 
-	// Go type checking.
-	"go/constant":               {"L4", "go/token", "math/big"},
-	"go/importer":               {"L4", "go/build", "go/internal/gccgoimporter", "go/internal/gcimporter", "go/internal/srcimporter", "go/token", "go/types"},
-	"go/internal/gcimporter":    {"L4", "OS", "go/build", "go/constant", "go/token", "go/types", "text/scanner"},
-	"go/internal/gccgoimporter": {"L4", "OS", "debug/elf", "go/constant", "go/token", "go/types", "text/scanner"},
-	"go/internal/srcimporter":   {"L4", "fmt", "go/ast", "go/build", "go/parser", "go/token", "go/types", "path/filepath"},
-	"go/types":                  {"L4", "GOPARSER", "container/heap", "go/constant"},
+	bufio, path, strconv
+	< STR;
 
-	// One of a kind.
-	"archive/tar":              {"L4", "OS", "syscall"},
-	"archive/zip":              {"L4", "OS", "compress/flate"},
-	"container/heap":           {"sort"},
-	"compress/bzip2":           {"L4"},
-	"compress/flate":           {"L4"},
-	"compress/gzip":            {"L4", "compress/flate"},
-	"compress/lzw":             {"L4"},
-	"compress/zlib":            {"L4", "compress/flate"},
-	"context":                  {"errors", "fmt", "reflect", "sync", "time"},
-	"database/sql":             {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
-	"database/sql/driver":      {"L4", "context", "time", "database/sql/internal"},
-	"debug/dwarf":              {"L4"},
-	"debug/elf":                {"L4", "OS", "debug/dwarf", "compress/zlib"},
-	"debug/gosym":              {"L4"},
-	"debug/macho":              {"L4", "OS", "debug/dwarf"},
-	"debug/pe":                 {"L4", "OS", "debug/dwarf"},
-	"debug/plan9obj":           {"L4", "OS"},
-	"encoding":                 {"L4"},
-	"encoding/ascii85":         {"L4"},
-	"encoding/asn1":            {"L4", "math/big"},
-	"encoding/csv":             {"L4"},
-	"encoding/gob":             {"L4", "OS", "encoding"},
-	"encoding/hex":             {"L4"},
-	"encoding/json":            {"L4", "encoding"},
-	"encoding/pem":             {"L4"},
-	"encoding/xml":             {"L4", "encoding"},
-	"flag":                     {"L4", "OS"},
-	"go/build":                 {"L4", "OS", "GOPARSER"},
-	"html":                     {"L4"},
-	"image/draw":               {"L4", "image/internal/imageutil"},
-	"image/gif":                {"L4", "compress/lzw", "image/color/palette", "image/draw"},
-	"image/internal/imageutil": {"L4"},
-	"image/jpeg":               {"L4", "image/internal/imageutil"},
-	"image/png":                {"L4", "compress/zlib"},
-	"index/suffixarray":        {"L4", "regexp"},
-	"internal/singleflight":    {"sync"},
-	"internal/trace":           {"L4", "OS"},
-	"math/big":                 {"L4"},
-	"mime":                     {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
-	"mime/quotedprintable":     {"L4"},
-	"net/internal/socktest":    {"L4", "OS", "syscall"},
-	"net/url":                  {"L4"},
-	"plugin":                   {"L0", "OS", "CGO"},
-	"runtime/pprof/internal/profile": {"L4", "OS", "compress/gzip", "regexp"},
-	"testing/internal/testdeps":      {"L4", "runtime/pprof", "regexp"},
-	"text/scanner":                   {"L4", "OS"},
-	"text/template/parse":            {"L4"},
+	# OS is basic OS access, including helpers (path/filepath, os/exec, etc).
+	# OS includes string routines, but those must be layered above package os.
+	# OS does not include reflection.
+	io/fs
+	< internal/testlog
+	< internal/poll
+	< os
+	< os/signal;
 
-	"html/template": {
-		"L4", "OS", "encoding/json", "html", "text/template",
-		"text/template/parse",
-	},
-	"text/template": {
-		"L4", "OS", "net/url", "text/template/parse",
-	},
+	io/fs
+	< embed;
 
-	// Cgo.
-	// If you add a dependency on CGO, you must add the package to
-	// cgoPackages in cmd/dist/test.go.
-	"runtime/cgo": {"L0", "C"},
-	"CGO":         {"C", "runtime/cgo"},
+	unicode, fmt !< net, os, os/signal;
 
-	// Fake entry to satisfy the pseudo-import "C"
-	// that shows up in programs that use cgo.
-	"C": {},
+	os/signal, STR
+	< path/filepath
+	< io/ioutil, os/exec;
 
-	// Race detector/MSan uses cgo.
-	"runtime/race": {"C"},
-	"runtime/msan": {"C"},
+	io/ioutil, os/exec, os/signal
+	< OS;
 
-	// Plan 9 alone needs io/ioutil and os.
-	"os/user": {"L4", "CGO", "io/ioutil", "os", "syscall"},
+	reflect !< OS;
 
-	// Basic networking.
-	// Because net must be used by any package that wants to
-	// do networking portably, it must have a small dependency set: just L0+basic os.
-	"net": {
-		"L0", "CGO",
-		"context", "math/rand", "os", "reflect", "sort", "syscall", "time",
-		"internal/nettrace", "internal/poll",
-		"internal/syscall/windows", "internal/singleflight", "internal/race",
-		"golang_org/x/net/lif", "golang_org/x/net/route",
-	},
+	OS
+	< golang.org/x/sys/cpu;
 
-	// NET enables use of basic network-related packages.
-	"NET": {
-		"net",
-		"mime",
-		"net/textproto",
-		"net/url",
-	},
+	os < internal/godebug;
 
-	// Uses of networking.
-	"log/syslog":    {"L4", "OS", "net"},
-	"net/mail":      {"L4", "NET", "OS", "mime"},
-	"net/textproto": {"L4", "OS", "net"},
+	# FMT is OS (which includes string routines) plus reflect and fmt.
+	# It does not include package log, which should be avoided in core packages.
+	strconv, unicode
+	< reflect;
 
-	// Core crypto.
-	"crypto/aes":    {"L3"},
-	"crypto/des":    {"L3"},
-	"crypto/hmac":   {"L3"},
-	"crypto/md5":    {"L3"},
-	"crypto/rc4":    {"L3"},
-	"crypto/sha1":   {"L3"},
-	"crypto/sha256": {"L3"},
-	"crypto/sha512": {"L3"},
+	os, reflect
+	< internal/fmtsort
+	< fmt;
 
-	"CRYPTO": {
-		"crypto/aes",
-		"crypto/des",
-		"crypto/hmac",
-		"crypto/md5",
-		"crypto/rc4",
-		"crypto/sha1",
-		"crypto/sha256",
-		"crypto/sha512",
-		"golang_org/x/crypto/chacha20poly1305",
-		"golang_org/x/crypto/curve25519",
-		"golang_org/x/crypto/poly1305",
-	},
+	OS, fmt
+	< FMT;
 
-	// Random byte, number generation.
-	// This would be part of core crypto except that it imports
-	// math/big, which imports fmt.
-	"crypto/rand": {"L4", "CRYPTO", "OS", "math/big", "syscall", "internal/syscall/unix"},
+	log !< FMT;
 
-	// Mathematical crypto: dependencies on fmt (L4) and math/big.
-	// We could avoid some of the fmt, but math/big imports fmt anyway.
-	"crypto/dsa":      {"L4", "CRYPTO", "math/big"},
-	"crypto/ecdsa":    {"L4", "CRYPTO", "crypto/elliptic", "math/big", "encoding/asn1"},
-	"crypto/elliptic": {"L4", "CRYPTO", "math/big"},
-	"crypto/rsa":      {"L4", "CRYPTO", "crypto/rand", "math/big"},
+	OS, FMT
+	< internal/execabs;
 
-	"CRYPTO-MATH": {
-		"CRYPTO",
-		"crypto/dsa",
-		"crypto/ecdsa",
-		"crypto/elliptic",
-		"crypto/rand",
-		"crypto/rsa",
-		"encoding/asn1",
-		"math/big",
-	},
+	OS, internal/execabs
+	< internal/goroot;
 
-	// SSL/TLS.
-	"crypto/tls": {
-		"L4", "CRYPTO-MATH", "OS",
-		"container/list", "crypto/x509", "encoding/pem", "net", "syscall",
-	},
-	"crypto/x509": {
-		"L4", "CRYPTO-MATH", "OS", "CGO",
-		"crypto/x509/pkix", "encoding/pem", "encoding/hex", "net", "os/user", "syscall",
-	},
-	"crypto/x509/pkix": {"L4", "CRYPTO-MATH"},
+	# Misc packages needing only FMT.
+	FMT
+	< html,
+	  mime/quotedprintable,
+	  net/internal/socktest,
+	  net/url,
+	  runtime/trace,
+	  text/scanner,
+	  text/tabwriter;
 
-	// Simple net+crypto-aware packages.
-	"mime/multipart": {"L4", "OS", "mime", "crypto/rand", "net/textproto", "mime/quotedprintable"},
-	"net/smtp":       {"L4", "CRYPTO", "NET", "crypto/tls"},
+	# encodings
+	# core ones do not use fmt.
+	io, strconv
+	< encoding;
 
-	// HTTP, kingpin of dependencies.
-	"net/http": {
-		"L4", "NET", "OS",
-		"compress/gzip",
-		"container/list",
-		"context",
-		"crypto/rand",
-		"crypto/tls",
-		"golang_org/x/net/http2/hpack",
-		"golang_org/x/net/idna",
-		"golang_org/x/net/lex/httplex",
-		"golang_org/x/net/proxy",
-		"golang_org/x/text/unicode/norm",
-		"golang_org/x/text/width",
-		"internal/nettrace",
-		"mime/multipart",
-		"net/http/httptrace",
-		"net/http/internal",
-		"runtime/debug",
-	},
-	"net/http/internal":  {"L4"},
-	"net/http/httptrace": {"context", "crypto/tls", "internal/nettrace", "net", "reflect", "time"},
+	encoding, reflect
+	< encoding/binary
+	< encoding/base32, encoding/base64;
 
-	// HTTP-using packages.
-	"expvar":             {"L4", "OS", "encoding/json", "net/http"},
-	"net/http/cgi":       {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp"},
-	"net/http/cookiejar": {"L4", "NET", "net/http"},
-	"net/http/fcgi":      {"L4", "NET", "OS", "context", "net/http", "net/http/cgi"},
-	"net/http/httptest":  {"L4", "NET", "OS", "crypto/tls", "flag", "net/http", "net/http/internal", "crypto/x509"},
-	"net/http/httputil":  {"L4", "NET", "OS", "context", "net/http", "net/http/internal"},
-	"net/http/pprof":     {"L4", "OS", "html/template", "net/http", "runtime/pprof", "runtime/trace"},
-	"net/rpc":            {"L4", "NET", "encoding/gob", "html/template", "net/http"},
-	"net/rpc/jsonrpc":    {"L4", "NET", "encoding/json", "net/rpc"},
-}
+	FMT, encoding < flag;
 
-// isMacro reports whether p is a package dependency macro
-// (uppercase name).
-func isMacro(p string) bool {
-	return 'A' <= p[0] && p[0] <= 'Z'
-}
+	fmt !< encoding/base32, encoding/base64;
 
-func allowed(pkg string) map[string]bool {
-	m := map[string]bool{}
-	var allow func(string)
-	allow = func(p string) {
-		if m[p] {
-			return
-		}
-		m[p] = true // set even for macros, to avoid loop on cycle
+	FMT, encoding/base32, encoding/base64
+	< encoding/ascii85, encoding/csv, encoding/gob, encoding/hex,
+	  encoding/json, encoding/pem, encoding/xml, mime;
 
-		// Upper-case names are macro-expanded.
-		if isMacro(p) {
-			for _, pp := range pkgDeps[p] {
-				allow(pp)
-			}
-		}
-	}
-	for _, pp := range pkgDeps[pkg] {
-		allow(pp)
-	}
-	return m
-}
+	# hashes
+	io
+	< hash
+	< hash/adler32, hash/crc32, hash/crc64, hash/fnv, hash/maphash;
+
+	# math/big
+	FMT, encoding/binary, math/rand
+	< math/big;
+
+	# compression
+	FMT, encoding/binary, hash/adler32, hash/crc32
+	< compress/bzip2, compress/flate, compress/lzw
+	< archive/zip, compress/gzip, compress/zlib;
+
+	# templates
+	FMT
+	< text/template/parse;
+
+	net/url, text/template/parse
+	< text/template
+	< internal/lazytemplate;
+
+	encoding/json, html, text/template
+	< html/template;
+
+	# regexp
+	FMT
+	< regexp/syntax
+	< regexp
+	< internal/lazyregexp;
+
+	# suffix array
+	encoding/binary, regexp
+	< index/suffixarray;
+
+	# executable parsing
+	FMT, encoding/binary, compress/zlib
+	< runtime/debug
+	< debug/dwarf
+	< debug/elf, debug/gosym, debug/macho, debug/pe, debug/plan9obj, internal/xcoff
+	< debug/buildinfo
+	< DEBUG;
+
+	# go parser and friends.
+	FMT
+	< go/token
+	< go/scanner
+	< go/ast
+	< go/internal/typeparams
+	< go/parser;
+
+	FMT
+	< go/build/constraint, go/doc/comment;
+
+	go/build/constraint, go/doc/comment, go/parser, text/tabwriter
+	< go/printer
+	< go/format;
+
+	go/doc/comment, go/parser, internal/lazyregexp, text/template
+	< go/doc;
+
+	math/big, go/token
+	< go/constant;
+
+	container/heap, go/constant, go/parser, regexp
+	< go/types;
+
+	FMT, internal/goexperiment
+	< internal/buildcfg;
+
+	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion
+	< go/build;
+
+	# databases
+	FMT
+	< database/sql/internal
+	< database/sql/driver
+	< database/sql;
+
+	# images
+	FMT, compress/lzw, compress/zlib
+	< image/color
+	< image, image/color/palette
+	< image/internal/imageutil
+	< image/draw
+	< image/gif, image/jpeg, image/png;
+
+	# cgo, delayed as long as possible.
+	# If you add a dependency on CGO, you must add the package
+	# to cgoPackages in cmd/dist/test.go as well.
+	RUNTIME
+	< C
+	< runtime/cgo
+	< CGO
+	< runtime/race, runtime/msan, runtime/asan;
+
+	# Bulk of the standard library must not use cgo.
+	# The prohibition stops at net and os/user.
+	C !< fmt, go/types, CRYPTO-MATH;
+
+	CGO, OS
+	< plugin;
+
+	CGO, FMT
+	< os/user
+	< archive/tar;
+
+	sync
+	< internal/singleflight;
+
+	os
+	< golang.org/x/net/dns/dnsmessage,
+	  golang.org/x/net/lif,
+	  golang.org/x/net/route;
+
+	os, runtime, strconv, sync, unsafe,
+	internal/godebug
+	< internal/intern;
+
+	internal/bytealg, internal/intern, internal/itoa, math/bits, sort, strconv
+	< net/netip;
+
+	# net is unavoidable when doing any networking,
+	# so large dependencies must be kept out.
+	# This is a long-looking list but most of these
+	# are small with few dependencies.
+	CGO,
+	golang.org/x/net/dns/dnsmessage,
+	golang.org/x/net/lif,
+	golang.org/x/net/route,
+	internal/godebug,
+	internal/nettrace,
+	internal/poll,
+	internal/singleflight,
+	internal/race,
+	net/netip,
+	os
+	< net;
+
+	fmt, unicode !< net;
+	math/rand !< net; # net uses runtime instead
+
+	# NET is net plus net-helper packages.
+	FMT, net
+	< net/textproto;
+
+	mime, net/textproto, net/url
+	< NET;
+
+	# logging - most packages should not import; http and up is allowed
+	FMT
+	< log;
+
+	log !< crypto/tls, database/sql, go/importer, testing;
+
+	FMT, log, net
+	< log/syslog;
+
+	NET, log
+	< net/mail;
+
+	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
+	sync/atomic < crypto/internal/boring/fipstls;
+	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
+
+	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
+	# Unfortunately, stuck with reflect via encoding/binary.
+	crypto/internal/boring/sig,
+	crypto/internal/boring/syso,
+	encoding/binary,
+	golang.org/x/sys/cpu,
+	hash
+	< crypto
+	< crypto/subtle
+	< crypto/internal/subtle
+	< crypto/elliptic/internal/fiat
+	< crypto/elliptic/internal/nistec
+	< crypto/ed25519/internal/edwards25519/field, golang.org/x/crypto/curve25519/internal/field
+	< crypto/ed25519/internal/edwards25519
+	< crypto/cipher
+	< crypto/internal/boring
+	< crypto/boring
+	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
+	  crypto/sha1, crypto/sha256, crypto/sha512
+	< CRYPTO;
+
+	CGO, fmt, net !< CRYPTO;
+
+	# CRYPTO-MATH is core bignum-based crypto - no cgo, net; fmt now ok.
+	CRYPTO, FMT, math/big, embed
+	< crypto/internal/boring/bbig
+	< crypto/internal/randutil
+	< crypto/rand
+	< crypto/ed25519
+	< encoding/asn1
+	< golang.org/x/crypto/cryptobyte/asn1
+	< golang.org/x/crypto/cryptobyte
+	< golang.org/x/crypto/curve25519
+	< crypto/dsa, crypto/elliptic, crypto/rsa
+	< crypto/ecdsa
+	< CRYPTO-MATH;
+
+	CGO, net !< CRYPTO-MATH;
+
+	# TLS, Prince of Dependencies.
+	CRYPTO-MATH, NET, container/list, encoding/hex, encoding/pem
+	< golang.org/x/crypto/internal/subtle
+	< golang.org/x/crypto/chacha20
+	< golang.org/x/crypto/internal/poly1305
+	< golang.org/x/crypto/chacha20poly1305
+	< golang.org/x/crypto/hkdf
+	< crypto/x509/internal/macos
+	< crypto/x509/pkix;
+
+	crypto/internal/boring/fipstls, crypto/x509/pkix
+	< crypto/x509
+	< crypto/tls;
+
+	# crypto-aware packages
+
+	DEBUG, go/build, go/types, text/scanner, crypto/md5
+	< internal/pkgbits
+	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
+	< go/importer;
+
+	NET, crypto/rand, mime/quotedprintable
+	< mime/multipart;
+
+	crypto/tls
+	< net/smtp;
+
+	# HTTP, King of Dependencies.
+
+	FMT
+	< golang.org/x/net/http2/hpack
+	< net/http/internal, net/http/internal/ascii, net/http/internal/testcert;
+
+	FMT, NET, container/list, encoding/binary, log
+	< golang.org/x/text/transform
+	< golang.org/x/text/unicode/norm
+	< golang.org/x/text/unicode/bidi
+	< golang.org/x/text/secure/bidirule
+	< golang.org/x/net/idna
+	< golang.org/x/net/http/httpguts, golang.org/x/net/http/httpproxy;
+
+	NET, crypto/tls
+	< net/http/httptrace;
+
+	compress/gzip,
+	golang.org/x/net/http/httpguts,
+	golang.org/x/net/http/httpproxy,
+	golang.org/x/net/http2/hpack,
+	net/http/internal,
+	net/http/internal/ascii,
+	net/http/internal/testcert,
+	net/http/httptrace,
+	mime/multipart,
+	log
+	< net/http;
+
+	# HTTP-aware packages
+
+	encoding/json, net/http
+	< expvar;
+
+	net/http, net/http/internal/ascii
+	< net/http/cookiejar, net/http/httputil;
+
+	net/http, flag
+	< net/http/httptest;
+
+	net/http, regexp
+	< net/http/cgi
+	< net/http/fcgi;
+
+	# Profiling
+	FMT, compress/gzip, encoding/binary, text/tabwriter
+	< runtime/pprof;
+
+	OS, compress/gzip, regexp
+	< internal/profile;
+
+	html, internal/profile, net/http, runtime/pprof, runtime/trace
+	< net/http/pprof;
+
+	# RPC
+	encoding/gob, encoding/json, go/token, html/template, net/http
+	< net/rpc
+	< net/rpc/jsonrpc;
+
+	# System Information
+	internal/cpu, sync
+	< internal/sysinfo;
+
+	# Test-only
+	log
+	< testing/iotest
+	< testing/fstest;
+
+	FMT, flag, math/rand
+	< testing/quick;
+
+	FMT, DEBUG, flag, runtime/trace, internal/sysinfo, math/rand
+	< testing;
+
+	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token,
+	internal/godebug, math/rand, encoding/hex, crypto/sha256
+	< internal/fuzz;
+
+	internal/fuzz, internal/testlog, runtime/pprof, regexp
+	< testing/internal/testdeps;
+
+	OS, flag, testing, internal/cfg
+	< internal/testenv;
+
+	OS, encoding/base64
+	< internal/obscuretestdata;
+
+	CGO, OS, fmt
+	< os/signal/internal/pty;
+
+	NET, testing, math/rand
+	< golang.org/x/net/nettest;
+
+	syscall
+	< os/exec/internal/fdtest;
+
+	FMT, container/heap, math/rand
+	< internal/trace;
+
+	FMT
+	< internal/diff, internal/txtar;
+`
 
 // listStdPkgs returns the same list of packages as "go list std".
 func listStdPkgs(goroot string) ([]string, error) {
@@ -454,8 +576,8 @@ func listStdPkgs(goroot string) ([]string, error) {
 	var pkgs []string
 
 	src := filepath.Join(goroot, "src") + string(filepath.Separator)
-	walkFn := func(path string, fi os.FileInfo, err error) error {
-		if err != nil || !fi.IsDir() || path == src {
+	walkFn := func(path string, d fs.DirEntry, err error) error {
+		if err != nil || !d.IsDir() || path == src {
 			return nil
 		}
 
@@ -465,22 +587,21 @@ func listStdPkgs(goroot string) ([]string, error) {
 		}
 
 		name := filepath.ToSlash(path[len(src):])
-		if name == "builtin" || name == "cmd" || strings.Contains(name, "golang_org") {
+		if name == "builtin" || name == "cmd" {
 			return filepath.SkipDir
 		}
 
-		pkgs = append(pkgs, name)
+		pkgs = append(pkgs, strings.TrimPrefix(name, "vendor/"))
 		return nil
 	}
-	if err := filepath.Walk(src, walkFn); err != nil {
+	if err := filepath.WalkDir(src, walkFn); err != nil {
 		return nil, err
 	}
 	return pkgs, nil
 }
 
 func TestDependencies(t *testing.T) {
-	iOS := runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
-	if runtime.GOOS == "nacl" || iOS {
+	if !testenv.HasSrc() {
 		// Tests run in a limited file system and we do not
 		// provide access to every source file.
 		t.Skipf("skipping on %s/%s, missing full GOROOT", runtime.GOOS, runtime.GOARCH)
@@ -493,15 +614,22 @@ func TestDependencies(t *testing.T) {
 	}
 	sort.Strings(all)
 
+	sawImport := map[string]map[string]bool{} // from package => to package => true
+	policy := depsPolicy(t)
+
 	for _, pkg := range all {
 		imports, err := findImports(pkg)
 		if err != nil {
 			t.Error(err)
 			continue
 		}
-		ok := allowed(pkg)
+		if sawImport[pkg] == nil {
+			sawImport[pkg] = map[string]bool{}
+		}
+		ok := policy[pkg]
 		var bad []string
 		for _, imp := range imports {
+			sawImport[pkg][imp] = true
 			if !ok[imp] {
 				bad = append(bad, imp)
 			}
@@ -512,39 +640,54 @@ func TestDependencies(t *testing.T) {
 	}
 }
 
-var buildIgnore = []byte("\n// +build ignore")
+var buildIgnore = []byte("\n//go:build ignore")
 
 func findImports(pkg string) ([]string, error) {
-	dir := filepath.Join(Default.GOROOT, "src", pkg)
-	files, err := ioutil.ReadDir(dir)
+	vpkg := pkg
+	if strings.HasPrefix(pkg, "golang.org") {
+		vpkg = "vendor/" + pkg
+	}
+	dir := filepath.Join(Default.GOROOT, "src", vpkg)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
 	var imports []string
 	var haveImport = map[string]bool{}
+	if pkg == "crypto/internal/boring" {
+		haveImport["C"] = true // kludge: prevent C from appearing in crypto/internal/boring imports
+	}
+	fset := token.NewFileSet()
 	for _, file := range files {
 		name := file.Name()
+		if name == "slice_go14.go" || name == "slice_go18.go" {
+			// These files are for compiler bootstrap with older versions of Go and not built in the standard build.
+			continue
+		}
 		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
-		f, err := os.Open(filepath.Join(dir, name))
+		info := fileInfo{
+			name: filepath.Join(dir, name),
+			fset: fset,
+		}
+		f, err := os.Open(info.name)
 		if err != nil {
 			return nil, err
 		}
-		var imp []string
-		data, err := readImports(f, false, &imp)
+		err = readGoInfo(f, &info)
 		f.Close()
 		if err != nil {
 			return nil, fmt.Errorf("reading %v: %v", name, err)
 		}
-		if bytes.Contains(data, buildIgnore) {
+		if info.parsed.Name.Name == "main" {
 			continue
 		}
-		for _, quoted := range imp {
-			path, err := strconv.Unquote(quoted)
-			if err != nil {
-				continue
-			}
+		if bytes.Contains(info.header, buildIgnore) {
+			continue
+		}
+		for _, imp := range info.imports {
+			path := imp.path
 			if !haveImport[path] {
 				haveImport[path] = true
 				imports = append(imports, path)
@@ -553,4 +696,227 @@ func findImports(pkg string) ([]string, error) {
 	}
 	sort.Strings(imports)
 	return imports, nil
+}
+
+// depsPolicy returns a map m such that m[p][d] == true when p can import d.
+func depsPolicy(t *testing.T) map[string]map[string]bool {
+	allowed := map[string]map[string]bool{"NONE": {}}
+	disallowed := [][2][]string{}
+
+	parseDepsRules(t, func(deps []string, op string, users []string) {
+		if op == "!<" {
+			disallowed = append(disallowed, [2][]string{deps, users})
+			return
+		}
+		for _, u := range users {
+			if allowed[u] != nil {
+				t.Errorf("multiple deps lists for %s", u)
+			}
+			allowed[u] = make(map[string]bool)
+			for _, d := range deps {
+				if allowed[d] == nil {
+					t.Errorf("use of %s before its deps list", d)
+				}
+				allowed[u][d] = true
+			}
+		}
+	})
+
+	// Check for missing deps info.
+	for _, deps := range allowed {
+		for d := range deps {
+			if allowed[d] == nil {
+				t.Errorf("missing deps list for %s", d)
+			}
+		}
+	}
+
+	// Complete transitive allowed deps.
+	for k := range allowed {
+		for i := range allowed {
+			for j := range allowed {
+				if i != k && k != j && allowed[i][k] && allowed[k][j] {
+					if i == j {
+						// Can only happen along with a "use of X before deps" error above,
+						// but this error is more specific - it makes clear that reordering the
+						// rules will not be enough to fix the problem.
+						t.Errorf("deps policy cycle: %s < %s < %s", j, k, i)
+					}
+					allowed[i][j] = true
+				}
+			}
+		}
+	}
+
+	// Check negative assertions against completed allowed deps.
+	for _, bad := range disallowed {
+		deps, users := bad[0], bad[1]
+		for _, d := range deps {
+			for _, u := range users {
+				if allowed[u][d] {
+					t.Errorf("deps policy incorrect: assertion failed: %s !< %s", d, u)
+				}
+			}
+		}
+	}
+
+	if t.Failed() {
+		t.FailNow()
+	}
+
+	return allowed
+}
+
+// parseDepsRules parses depsRules, calling save(deps, op, users)
+// for each deps < users or deps !< users rule
+// (op is "<" or "!<").
+func parseDepsRules(t *testing.T, save func(deps []string, op string, users []string)) {
+	p := &depsParser{t: t, lineno: 1, text: depsRules}
+
+	var prev []string
+	var op string
+	for {
+		list, tok := p.nextList()
+		if tok == "" {
+			if prev == nil {
+				break
+			}
+			p.syntaxError("unexpected EOF")
+		}
+		if prev != nil {
+			save(prev, op, list)
+		}
+		prev = list
+		if tok == ";" {
+			prev = nil
+			op = ""
+			continue
+		}
+		if tok != "<" && tok != "!<" {
+			p.syntaxError("missing <")
+		}
+		op = tok
+	}
+}
+
+// A depsParser parses the depsRules syntax described above.
+type depsParser struct {
+	t        *testing.T
+	lineno   int
+	lastWord string
+	text     string
+}
+
+// syntaxError reports a parsing error.
+func (p *depsParser) syntaxError(msg string) {
+	p.t.Fatalf("deps:%d: syntax error: %s near %s", p.lineno, msg, p.lastWord)
+}
+
+// nextList parses and returns a comma-separated list of names.
+func (p *depsParser) nextList() (list []string, token string) {
+	for {
+		tok := p.nextToken()
+		switch tok {
+		case "":
+			if len(list) == 0 {
+				return nil, ""
+			}
+			fallthrough
+		case ",", "<", "!<", ";":
+			p.syntaxError("bad list syntax")
+		}
+		list = append(list, tok)
+
+		tok = p.nextToken()
+		if tok != "," {
+			return list, tok
+		}
+	}
+}
+
+// nextToken returns the next token in the deps rules,
+// one of ";" "," "<" "!<" or a name.
+func (p *depsParser) nextToken() string {
+	for {
+		if p.text == "" {
+			return ""
+		}
+		switch p.text[0] {
+		case ';', ',', '<':
+			t := p.text[:1]
+			p.text = p.text[1:]
+			return t
+
+		case '!':
+			if len(p.text) < 2 || p.text[1] != '<' {
+				p.syntaxError("unexpected token !")
+			}
+			p.text = p.text[2:]
+			return "!<"
+
+		case '#':
+			i := strings.Index(p.text, "\n")
+			if i < 0 {
+				i = len(p.text)
+			}
+			p.text = p.text[i:]
+			continue
+
+		case '\n':
+			p.lineno++
+			fallthrough
+		case ' ', '\t':
+			p.text = p.text[1:]
+			continue
+
+		default:
+			i := strings.IndexAny(p.text, "!;,<#\n \t")
+			if i < 0 {
+				i = len(p.text)
+			}
+			t := p.text[:i]
+			p.text = p.text[i:]
+			p.lastWord = t
+			return t
+		}
+	}
+}
+
+// TestStdlibLowercase tests that all standard library package names are
+// lowercase. See Issue 40065.
+func TestStdlibLowercase(t *testing.T) {
+	if !testenv.HasSrc() {
+		t.Skipf("skipping on %s/%s, missing full GOROOT", runtime.GOOS, runtime.GOARCH)
+	}
+
+	ctxt := Default
+	all, err := listStdPkgs(ctxt.GOROOT)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, pkgname := range all {
+		if strings.ToLower(pkgname) != pkgname {
+			t.Errorf("package %q should not use upper-case path", pkgname)
+		}
+	}
+}
+
+// TestFindImports tests that findImports works.  See #43249.
+func TestFindImports(t *testing.T) {
+	imports, err := findImports("go/build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("go/build imports %q", imports)
+	want := []string{"bytes", "os", "path/filepath", "strings"}
+wantLoop:
+	for _, w := range want {
+		for _, imp := range imports {
+			if imp == w {
+				continue wantLoop
+			}
+		}
+		t.Errorf("expected to find %q in import list", w)
+	}
 }

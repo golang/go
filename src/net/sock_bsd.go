@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd netbsd openbsd
+//go:build darwin || dragonfly || freebsd || netbsd || openbsd
 
 package net
 
@@ -17,8 +17,10 @@ func maxListenerBacklog() int {
 		err error
 	)
 	switch runtime.GOOS {
-	case "darwin", "freebsd":
+	case "darwin", "ios":
 		n, err = syscall.SysctlUint32("kern.ipc.somaxconn")
+	case "freebsd":
+		n, err = syscall.SysctlUint32("kern.ipc.soacceptqueue")
 	case "netbsd":
 		// NOTE: NetBSD has no somaxconn-like kernel state so far
 	case "openbsd":

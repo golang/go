@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // Strings and slices that don't escape and fit into tmpBuf are stack allocated,
@@ -110,6 +111,43 @@ var stringdata = []struct{ name, data string }{
 	{"MixedLength", "$Ѐࠀက퀀𐀀\U00040000\U0010FFFF"},
 }
 
+var sinkInt int
+
+func BenchmarkRuneCount(b *testing.B) {
+	// Each sub-benchmark counts the runes in a string in a different way.
+	b.Run("lenruneslice", func(b *testing.B) {
+		for _, sd := range stringdata {
+			b.Run(sd.name, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					sinkInt += len([]rune(sd.data))
+				}
+			})
+		}
+	})
+	b.Run("rangeloop", func(b *testing.B) {
+		for _, sd := range stringdata {
+			b.Run(sd.name, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					n := 0
+					for range sd.data {
+						n++
+					}
+					sinkInt += n
+				}
+			})
+		}
+	})
+	b.Run("utf8.RuneCountInString", func(b *testing.B) {
+		for _, sd := range stringdata {
+			b.Run(sd.name, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					sinkInt += utf8.RuneCountInString(sd.data)
+				}
+			})
+		}
+	})
+}
+
 func BenchmarkRuneIterate(b *testing.B) {
 	b.Run("range", func(b *testing.B) {
 		for _, sd := range stringdata {
@@ -125,7 +163,7 @@ func BenchmarkRuneIterate(b *testing.B) {
 		for _, sd := range stringdata {
 			b.Run(sd.name, func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					for _ = range sd.data {
+					for range sd.data {
 					}
 				}
 			})
@@ -135,7 +173,7 @@ func BenchmarkRuneIterate(b *testing.B) {
 		for _, sd := range stringdata {
 			b.Run(sd.name, func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					for _, _ = range sd.data {
+					for range sd.data {
 					}
 				}
 			})
@@ -202,6 +240,34 @@ func TestCompareTempString(t *testing.T) {
 	}
 }
 
+func TestStringIndexHaystack(t *testing.T) {
+	// See issue 25864.
+	haystack := []byte("hello")
+	needle := "ll"
+	n := testing.AllocsPerRun(1000, func() {
+		if strings.Index(string(haystack), needle) != 2 {
+			t.Fatalf("needle not found")
+		}
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
+	}
+}
+
+func TestStringIndexNeedle(t *testing.T) {
+	// See issue 25864.
+	haystack := "hello"
+	needle := []byte("ll")
+	n := testing.AllocsPerRun(1000, func() {
+		if strings.Index(haystack, string(needle)) != 2 {
+			t.Fatalf("needle not found")
+		}
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
+	}
+}
+
 func TestStringOnStack(t *testing.T) {
 	s := ""
 	for i := 0; i < 3; i++ {
@@ -216,7 +282,7 @@ func TestStringOnStack(t *testing.T) {
 func TestIntString(t *testing.T) {
 	// Non-escaping result of intstring.
 	s := ""
-	for i := 0; i < 4; i++ {
+	for i := rune(0); i < 4; i++ {
 		s += string(i+'0') + string(i+'0'+1)
 	}
 	if want := "01122334"; s != want {
@@ -225,7 +291,7 @@ func TestIntString(t *testing.T) {
 
 	// Escaping result of intstring.
 	var a [4]string
-	for i := 0; i < 4; i++ {
+	for i := rune(0); i < 4; i++ {
 		a[i] = string(i + '0')
 	}
 	s = a[0] + a[1] + a[2] + a[3]

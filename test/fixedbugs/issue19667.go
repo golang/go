@@ -9,5 +9,5 @@
 package p
 
 func f() {
-	if err := http.ListenAndServe(
-} // ERROR "unexpected }, expecting expression"
+	if err := http.ListenAndServe( // GCCGO_ERROR "undefined name"
+} // ERROR "unexpected }, expecting expression|expected operand|missing .*\)|expected .*;|expected .*{"

@@ -8,6 +8,8 @@ package pkix
 
 import (
 	"encoding/asn1"
+	"encoding/hex"
+	"fmt"
 	"math/big"
 	"time"
 )
@@ -21,13 +23,82 @@ type AlgorithmIdentifier struct {
 
 type RDNSequence []RelativeDistinguishedNameSET
 
+var attributeTypeNames = map[string]string{
+	"2.5.4.6":  "C",
+	"2.5.4.10": "O",
+	"2.5.4.11": "OU",
+	"2.5.4.3":  "CN",
+	"2.5.4.5":  "SERIALNUMBER",
+	"2.5.4.7":  "L",
+	"2.5.4.8":  "ST",
+	"2.5.4.9":  "STREET",
+	"2.5.4.17": "POSTALCODE",
+}
+
+// String returns a string representation of the sequence r,
+// roughly following the RFC 2253 Distinguished Names syntax.
+func (r RDNSequence) String() string {
+	s := ""
+	for i := 0; i < len(r); i++ {
+		rdn := r[len(r)-1-i]
+		if i > 0 {
+			s += ","
+		}
+		for j, tv := range rdn {
+			if j > 0 {
+				s += "+"
+			}
+
+			oidString := tv.Type.String()
+			typeName, ok := attributeTypeNames[oidString]
+			if !ok {
+				derBytes, err := asn1.Marshal(tv.Value)
+				if err == nil {
+					s += oidString + "=#" + hex.EncodeToString(derBytes)
+					continue // No value escaping necessary.
+				}
+
+				typeName = oidString
+			}
+
+			valueString := fmt.Sprint(tv.Value)
+			escaped := make([]rune, 0, len(valueString))
+
+			for k, c := range valueString {
+				escape := false
+
+				switch c {
+				case ',', '+', '"', '\\', '<', '>', ';':
+					escape = true
+
+				case ' ':
+					escape = k == 0 || k == len(valueString)-1
+
+				case '#':
+					escape = k == 0
+				}
+
+				if escape {
+					escaped = append(escaped, '\\', c)
+				} else {
+					escaped = append(escaped, c)
+				}
+			}
+
+			s += typeName + "=" + string(escaped)
+		}
+	}
+
+	return s
+}
+
 type RelativeDistinguishedNameSET []AttributeTypeAndValue
 
 // AttributeTypeAndValue mirrors the ASN.1 structure of the same name in
-// http://tools.ietf.org/html/rfc5280#section-4.1.2.4
+// RFC 5280, Section 4.1.2.4.
 type AttributeTypeAndValue struct {
 	Type  asn1.ObjectIdentifier
-	Value interface{}
+	Value any
 }
 
 // AttributeTypeAndValueSET represents a set of ASN.1 sequences of
@@ -46,19 +117,30 @@ type Extension struct {
 }
 
 // Name represents an X.509 distinguished name. This only includes the common
-// elements of a DN. When parsing, all elements are stored in Names and
-// non-standard elements can be extracted from there. When marshaling, elements
-// in ExtraNames are appended and override other values with the same OID.
+// elements of a DN. Note that Name is only an approximation of the X.509
+// structure. If an accurate representation is needed, asn1.Unmarshal the raw
+// subject or issuer as an RDNSequence.
 type Name struct {
 	Country, Organization, OrganizationalUnit []string
 	Locality, Province                        []string
 	StreetAddress, PostalCode                 []string
 	SerialNumber, CommonName                  string
 
-	Names      []AttributeTypeAndValue
+	// Names contains all parsed attributes. When parsing distinguished names,
+	// this can be used to extract non-standard attributes that are not parsed
+	// by this package. When marshaling to RDNSequences, the Names field is
+	// ignored, see ExtraNames.
+	Names []AttributeTypeAndValue
+
+	// ExtraNames contains attributes to be copied, raw, into any marshaled
+	// distinguished names. Values override any attributes with the same OID.
+	// The ExtraNames field is not populated when parsing, see Names.
 	ExtraNames []AttributeTypeAndValue
 }
 
+// FillFromRDNSequence populates n from the provided RDNSequence.
+// Multi-entry RDNs are flattened, all entries are added to the
+// relevant n fields, and the grouping is not preserved.
 func (n *Name) FillFromRDNSequence(rdns *RDNSequence) {
 	for _, rdn := range *rdns {
 		if len(rdn) == 0 {
@@ -129,6 +211,18 @@ func (n Name) appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentif
 	return append(in, s)
 }
 
+// ToRDNSequence converts n into a single RDNSequence. The following
+// attributes are encoded as multi-value RDNs:
+//
+//   - Country
+//   - Organization
+//   - OrganizationalUnit
+//   - Locality
+//   - Province
+//   - StreetAddress
+//   - PostalCode
+//
+// Each ExtraNames entry is encoded as an individual RDN.
 func (n Name) ToRDNSequence() (ret RDNSequence) {
 	ret = n.appendRDNs(ret, n.Country, oidCountry)
 	ret = n.appendRDNs(ret, n.Province, oidProvince)
@@ -150,7 +244,32 @@ func (n Name) ToRDNSequence() (ret RDNSequence) {
 	return ret
 }
 
-// oidInAttributeTypeAndValue returns whether a type with the given OID exists
+// String returns the string form of n, roughly following
+// the RFC 2253 Distinguished Names syntax.
+func (n Name) String() string {
+	var rdns RDNSequence
+	// If there are no ExtraNames, surface the parsed value (all entries in
+	// Names) instead.
+	if n.ExtraNames == nil {
+		for _, atv := range n.Names {
+			t := atv.Type
+			if len(t) == 4 && t[0] == 2 && t[1] == 5 && t[2] == 4 {
+				switch t[3] {
+				case 3, 5, 6, 7, 8, 9, 10, 11, 17:
+					// These attributes were already parsed into named fields.
+					continue
+				}
+			}
+			// Place non-standard parsed values at the beginning of the sequence
+			// so they will be at the end of the string. See Issue 39924.
+			rdns = append(rdns, []AttributeTypeAndValue{atv})
+		}
+	}
+	rdns = append(rdns, n.ToRDNSequence()...)
+	return rdns.String()
+}
+
+// oidInAttributeTypeAndValue reports whether a type with the given OID exists
 // in atv.
 func oidInAttributeTypeAndValue(oid asn1.ObjectIdentifier, atv []AttributeTypeAndValue) bool {
 	for _, a := range atv {
@@ -170,13 +289,15 @@ type CertificateList struct {
 	SignatureValue     asn1.BitString
 }
 
-// HasExpired reports whether now is past the expiry time of certList.
+// HasExpired reports whether certList should have been updated by now.
 func (certList *CertificateList) HasExpired(now time.Time) bool {
-	return now.After(certList.TBSCertList.NextUpdate)
+	return !now.Before(certList.TBSCertList.NextUpdate)
 }
 
 // TBSCertificateList represents the ASN.1 structure of the same name. See RFC
 // 5280, section 5.1.
+//
+// Deprecated: x509.RevocationList should be used instead.
 type TBSCertificateList struct {
 	Raw                 asn1.RawContent
 	Version             int `asn1:"optional,default:0"`
@@ -190,6 +311,8 @@ type TBSCertificateList struct {
 
 // RevokedCertificate represents the ASN.1 structure of the same name. See RFC
 // 5280, section 5.1.
+//
+// Deprecated: x509.RevocationList should be used instead.
 type RevokedCertificate struct {
 	SerialNumber   *big.Int
 	RevocationTime time.Time

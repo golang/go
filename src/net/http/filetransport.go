@@ -22,11 +22,11 @@ type fileTransport struct {
 // The typical use case for NewFileTransport is to register the "file"
 // protocol with a Transport, as in:
 //
-//   t := &http.Transport{}
-//   t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
-//   c := &http.Client{Transport: t}
-//   res, err := c.Get("file:///etc/passwd")
-//   ...
+//	t := &http.Transport{}
+//	t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
+//	c := &http.Client{Transport: t}
+//	res, err := c.Get("file:///etc/passwd")
+//	...
 func NewFileTransport(fs FileSystem) RoundTripper {
 	return fileTransport{fileHandler{fs}}
 }

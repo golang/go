@@ -6,16 +6,18 @@ package net
 
 import (
 	"context"
+	"internal/itoa"
+	"net/netip"
 	"syscall"
 )
 
-// BUG(mikio): On NaCl, Plan 9 and Windows, the ReadMsgUDP and
+// BUG(mikio): On Plan 9, the ReadMsgUDP and
 // WriteMsgUDP methods of UDPConn are not implemented.
 
 // BUG(mikio): On Windows, the File method of UDPConn is not
 // implemented.
 
-// BUG(mikio): On NaCl, the ListenMulticastUDP function is not
+// BUG(mikio): On JS, methods and functions related to UDPConn are not
 // implemented.
 
 // UDPAddr represents the address of a UDP end point.
@@ -23,6 +25,20 @@ type UDPAddr struct {
 	IP   IP
 	Port int
 	Zone string // IPv6 scoped addressing zone
+}
+
+// AddrPort returns the UDPAddr a as a netip.AddrPort.
+//
+// If a.Port does not fit in a uint16, it's silently truncated.
+//
+// If a is nil, a zero value is returned.
+func (a *UDPAddr) AddrPort() netip.AddrPort {
+	if a == nil {
+		return netip.AddrPort{}
+	}
+	na, _ := netip.AddrFromSlice(a.IP)
+	na = na.WithZone(a.Zone)
+	return netip.AddrPortFrom(na, uint16(a.Port))
 }
 
 // Network returns the address's network name, "udp".
@@ -34,9 +50,9 @@ func (a *UDPAddr) String() string {
 	}
 	ip := ipEmptyString(a.IP)
 	if a.Zone != "" {
-		return JoinHostPort(ip+"%"+a.Zone, itoa(a.Port))
+		return JoinHostPort(ip+"%"+a.Zone, itoa.Itoa(a.Port))
 	}
-	return JoinHostPort(ip, itoa(a.Port))
+	return JoinHostPort(ip, itoa.Itoa(a.Port))
 }
 
 func (a *UDPAddr) isWildcard() bool {
@@ -83,6 +99,24 @@ func ResolveUDPAddr(network, address string) (*UDPAddr, error) {
 	return addrs.forResolve(network, address).(*UDPAddr), nil
 }
 
+// UDPAddrFromAddrPort returns addr as a UDPAddr. If addr.IsValid() is false,
+// then the returned UDPAddr will contain a nil IP field, indicating an
+// address family-agnostic unspecified address.
+func UDPAddrFromAddrPort(addr netip.AddrPort) *UDPAddr {
+	return &UDPAddr{
+		IP:   addr.Addr().AsSlice(),
+		Zone: addr.Addr().Zone(),
+		Port: int(addr.Port()),
+	}
+}
+
+// An addrPortUDPAddr is a netip.AddrPort-based UDP address that satisfies the Addr interface.
+type addrPortUDPAddr struct {
+	netip.AddrPort
+}
+
+func (addrPortUDPAddr) Network() string { return "udp" }
+
 // UDPConn is the implementation of the Conn and PacketConn interfaces
 // for UDP network connections.
 type UDPConn struct {
@@ -99,11 +133,20 @@ func (c *UDPConn) SyscallConn() (syscall.RawConn, error) {
 }
 
 // ReadFromUDP acts like ReadFrom but returns a UDPAddr.
-func (c *UDPConn) ReadFromUDP(b []byte) (int, *UDPAddr, error) {
+func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+	// This function is designed to allow the caller to control the lifetime
+	// of the returned *UDPAddr and thereby prevent an allocation.
+	// See https://blog.filippo.io/efficient-go-apis-with-the-inliner/.
+	// The real work is done by readFromUDP, below.
+	return c.readFromUDP(b, &UDPAddr{})
+}
+
+// readFromUDP implements ReadFromUDP.
+func (c *UDPConn) readFromUDP(b []byte, addr *UDPAddr) (int, *UDPAddr, error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
 	}
-	n, addr, err := c.readFrom(b)
+	n, addr, err := c.readFrom(b, addr)
 	if err != nil {
 		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
@@ -112,15 +155,22 @@ func (c *UDPConn) ReadFromUDP(b []byte) (int, *UDPAddr, error) {
 
 // ReadFrom implements the PacketConn ReadFrom method.
 func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
-	if !c.ok() {
-		return 0, nil, syscall.EINVAL
+	n, addr, err := c.readFromUDP(b, &UDPAddr{})
+	if addr == nil {
+		// Return Addr(nil), not Addr(*UDPConn(nil)).
+		return n, nil, err
 	}
-	n, addr, err := c.readFrom(b)
+	return n, addr, err
+}
+
+// ReadFromUDPAddrPort acts like ReadFrom but returns a netip.AddrPort.
+func (c *UDPConn) ReadFromUDPAddrPort(b []byte) (n int, addr netip.AddrPort, err error) {
+	if !c.ok() {
+		return 0, netip.AddrPort{}, syscall.EINVAL
+	}
+	n, addr, err = c.readFromAddrPort(b)
 	if err != nil {
 		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
-	}
-	if addr == nil {
-		return n, nil, err
 	}
 	return n, addr, err
 }
@@ -133,8 +183,18 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 // The packages golang.org/x/net/ipv4 and golang.org/x/net/ipv6 can be
 // used to manipulate IP-level socket options in oob.
 func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {
+	var ap netip.AddrPort
+	n, oobn, flags, ap, err = c.ReadMsgUDPAddrPort(b, oob)
+	if ap.IsValid() {
+		addr = UDPAddrFromAddrPort(ap)
+	}
+	return
+}
+
+// ReadMsgUDPAddrPort is like ReadMsgUDP but returns an netip.AddrPort instead of a UDPAddr.
+func (c *UDPConn) ReadMsgUDPAddrPort(b, oob []byte) (n, oobn, flags int, addr netip.AddrPort, err error) {
 	if !c.ok() {
-		return 0, 0, 0, nil, syscall.EINVAL
+		return 0, 0, 0, netip.AddrPort{}, syscall.EINVAL
 	}
 	n, oobn, flags, addr, err = c.readMsg(b, oob)
 	if err != nil {
@@ -151,6 +211,18 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 	n, err := c.writeTo(b, addr)
 	if err != nil {
 		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr.opAddr(), Err: err}
+	}
+	return n, err
+}
+
+// WriteToUDPAddrPort acts like WriteTo but takes a netip.AddrPort.
+func (c *UDPConn) WriteToUDPAddrPort(b []byte, addr netip.AddrPort) (int, error) {
+	if !c.ok() {
+		return 0, syscall.EINVAL
+	}
+	n, err := c.writeToAddrPort(b, addr)
+	if err != nil {
+		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addrPortUDPAddr{addr}, Err: err}
 	}
 	return n, err
 }
@@ -190,6 +262,18 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
 	return
 }
 
+// WriteMsgUDPAddrPort is like WriteMsgUDP but takes a netip.AddrPort instead of a UDPAddr.
+func (c *UDPConn) WriteMsgUDPAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn int, err error) {
+	if !c.ok() {
+		return 0, 0, syscall.EINVAL
+	}
+	n, oobn, err = c.writeMsgAddrPort(b, oob, addr)
+	if err != nil {
+		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addrPortUDPAddr{addr}, Err: err}
+	}
+	return
+}
+
 func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
 
 // DialUDP acts like Dial for UDP networks.
@@ -208,7 +292,8 @@ func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	if raddr == nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
 	}
-	c, err := dialUDP(context.Background(), network, laddr, raddr)
+	sd := &sysDialer{network: network, address: raddr.String()}
+	c, err := sd.dialUDP(context.Background(), laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}
@@ -233,7 +318,8 @@ func ListenUDP(network string, laddr *UDPAddr) (*UDPConn, error) {
 	if laddr == nil {
 		laddr = &UDPAddr{}
 	}
-	c, err := listenUDP(context.Background(), network, laddr)
+	sl := &sysListener{network: network, address: laddr.String()}
+	c, err := sl.listenUDP(context.Background(), laddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
@@ -257,6 +343,9 @@ func ListenUDP(network string, laddr *UDPAddr) (*UDPConn, error) {
 // ListenMulticastUDP is just for convenience of simple, small
 // applications. There are golang.org/x/net/ipv4 and
 // golang.org/x/net/ipv6 packages for general purpose uses.
+//
+// Note that ListenMulticastUDP will set the IP_MULTICAST_LOOP socket option
+// to 0 under IPPROTO_IP, to disable loopback of multicast packets.
 func ListenMulticastUDP(network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
 	switch network {
 	case "udp", "udp4", "udp6":
@@ -266,7 +355,8 @@ func ListenMulticastUDP(network string, ifi *Interface, gaddr *UDPAddr) (*UDPCon
 	if gaddr == nil || gaddr.IP == nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr.opAddr(), Err: errMissingAddress}
 	}
-	c, err := listenMulticastUDP(context.Background(), network, ifi, gaddr)
+	sl := &sysListener{network: network, address: gaddr.String()}
+	c, err := sl.listenMulticastUDP(context.Background(), ifi, gaddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr.opAddr(), Err: err}
 	}

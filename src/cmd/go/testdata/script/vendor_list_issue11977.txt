@@ -1,0 +1,17 @@
+[!net] skip
+[!exec:git] skip
+env GO111MODULE=off
+
+go get github.com/rsc/go-get-issue-11864
+
+go list -f '{{join .TestImports "\n"}}' github.com/rsc/go-get-issue-11864/t
+stdout 'go-get-issue-11864/vendor/vendor.org/p'
+
+go list -f '{{join .XTestImports "\n"}}' github.com/rsc/go-get-issue-11864/tx
+stdout 'go-get-issue-11864/vendor/vendor.org/p'
+
+go list -f '{{join .XTestImports "\n"}}' github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx2
+stdout 'go-get-issue-11864/vendor/vendor.org/tx2'
+
+go list -f '{{join .XTestImports "\n"}}' github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx3
+stdout 'go-get-issue-11864/vendor/vendor.org/tx3'

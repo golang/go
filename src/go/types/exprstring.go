@@ -8,17 +8,23 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
+	"go/internal/typeparams"
 )
 
-// ExprString returns the (possibly simplified) string representation for x.
+// ExprString returns the (possibly shortened) string representation for x.
+// Shortened representations are suitable for user interfaces but may not
+// necessarily follow Go syntax.
 func ExprString(x ast.Expr) string {
 	var buf bytes.Buffer
 	WriteExpr(&buf, x)
 	return buf.String()
 }
 
-// WriteExpr writes the (possibly simplified) string representation for x to buf.
+// WriteExpr writes the (possibly shortened) string representation for x to buf.
+// Shortened representations are suitable for user interfaces but may not
+// necessarily follow Go syntax.
 func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 	// The AST preserves source-level parentheses so there is
 	// no need to introduce them here to correct for different
@@ -27,7 +33,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 
 	switch x := x.(type) {
 	default:
-		buf.WriteString("(bad expr)") // nil, ast.BadExpr, ast.KeyValueExpr
+		buf.WriteString(fmt.Sprintf("(ast: %T)", x)) // nil, ast.BadExpr, ast.KeyValueExpr
 
 	case *ast.Ident:
 		buf.WriteString(x.Name)
@@ -44,12 +50,12 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 	case *ast.FuncLit:
 		buf.WriteByte('(')
 		WriteExpr(buf, x.Type)
-		buf.WriteString(" literal)") // simplified
+		buf.WriteString(" literal)") // shortened
 
 	case *ast.CompositeLit:
 		buf.WriteByte('(')
 		WriteExpr(buf, x.Type)
-		buf.WriteString(" literal)") // simplified
+		buf.WriteString(" literal)") // shortened
 
 	case *ast.ParenExpr:
 		buf.WriteByte('(')
@@ -61,10 +67,11 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 		buf.WriteByte('.')
 		buf.WriteString(x.Sel.Name)
 
-	case *ast.IndexExpr:
-		WriteExpr(buf, x.X)
+	case *ast.IndexExpr, *ast.IndexListExpr:
+		ix := typeparams.UnpackIndexExpr(x)
+		WriteExpr(buf, ix.X)
 		buf.WriteByte('[')
-		WriteExpr(buf, x.Index)
+		writeExprList(buf, ix.Indices)
 		buf.WriteByte(']')
 
 	case *ast.SliceExpr:
@@ -94,12 +101,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 	case *ast.CallExpr:
 		WriteExpr(buf, x.Fun)
 		buf.WriteByte('(')
-		for i, arg := range x.Args {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-			WriteExpr(buf, arg)
-		}
+		writeExprList(buf, x.Args)
 		if x.Ellipsis.IsValid() {
 			buf.WriteString("...")
 		}
@@ -130,7 +132,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 
 	case *ast.StructType:
 		buf.WriteString("struct{")
-		writeFieldList(buf, x.Fields, "; ", false)
+		writeFieldList(buf, x.Fields.List, "; ", false)
 		buf.WriteByte('}')
 
 	case *ast.FuncType:
@@ -139,7 +141,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 
 	case *ast.InterfaceType:
 		buf.WriteString("interface{")
-		writeFieldList(buf, x.Methods, "; ", true)
+		writeFieldList(buf, x.Methods.List, "; ", true)
 		buf.WriteByte('}')
 
 	case *ast.MapType:
@@ -165,7 +167,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 
 func writeSigExpr(buf *bytes.Buffer, sig *ast.FuncType) {
 	buf.WriteByte('(')
-	writeFieldList(buf, sig.Params, ", ", false)
+	writeFieldList(buf, sig.Params.List, ", ", false)
 	buf.WriteByte(')')
 
 	res := sig.Results
@@ -184,23 +186,18 @@ func writeSigExpr(buf *bytes.Buffer, sig *ast.FuncType) {
 
 	// multiple or named result(s)
 	buf.WriteByte('(')
-	writeFieldList(buf, res, ", ", false)
+	writeFieldList(buf, res.List, ", ", false)
 	buf.WriteByte(')')
 }
 
-func writeFieldList(buf *bytes.Buffer, fields *ast.FieldList, sep string, iface bool) {
-	for i, f := range fields.List {
+func writeFieldList(buf *bytes.Buffer, list []*ast.Field, sep string, iface bool) {
+	for i, f := range list {
 		if i > 0 {
 			buf.WriteString(sep)
 		}
 
 		// field list names
-		for i, name := range f.Names {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-			buf.WriteString(name.Name)
-		}
+		writeIdentList(buf, f.Names)
 
 		// types of interface methods consist of signatures only
 		if sig, _ := f.Type.(*ast.FuncType); sig != nil && iface {
@@ -216,5 +213,23 @@ func writeFieldList(buf *bytes.Buffer, fields *ast.FieldList, sep string, iface 
 		WriteExpr(buf, f.Type)
 
 		// ignore tag
+	}
+}
+
+func writeIdentList(buf *bytes.Buffer, list []*ast.Ident) {
+	for i, x := range list {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		buf.WriteString(x.Name)
+	}
+}
+
+func writeExprList(buf *bytes.Buffer, list []ast.Expr) {
+	for i, x := range list {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		WriteExpr(buf, x)
 	}
 }

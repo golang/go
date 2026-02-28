@@ -688,8 +688,8 @@ var _ = T1{
 
 // not aligned
 var _ = T2{
-	a:	x,
-	b:	y,
+	a:			x,
+	b:			y,
 	ccccccccccccccccccccc:	z,
 }
 
@@ -703,8 +703,8 @@ var _ = T3{
 // not aligned
 var _ = T4{
 	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:	x,
-	b:	y,
-	c:	z,
+	b:						y,
+	c:						z,
 }
 
 // no alignment of map composite entries if they are not the first entry on a line

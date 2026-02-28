@@ -2,55 +2,75 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js
+
 package net
 
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 )
 
-// testUnixAddr uses ioutil.TempFile to get a name that is unique.
-// It also uses /tmp directory in case it is prohibited to create UNIX
-// sockets in TMPDIR.
-func testUnixAddr() string {
-	f, err := ioutil.TempFile("", "go-nettest")
+// testUnixAddr uses os.MkdirTemp to get a name that is unique.
+func testUnixAddr(t testing.TB) string {
+	// Pass an empty pattern to get a directory name that is as short as possible.
+	// If we end up with a name longer than the sun_path field in the sockaddr_un
+	// struct, we won't be able to make the syscall to open the socket.
+	d, err := os.MkdirTemp("", "")
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
-	addr := f.Name()
-	f.Close()
-	os.Remove(addr)
-	return addr
+	t.Cleanup(func() {
+		if err := os.RemoveAll(d); err != nil {
+			t.Error(err)
+		}
+	})
+	return filepath.Join(d, "sock")
 }
 
-func newLocalListener(network string) (Listener, error) {
+func newLocalListener(t testing.TB, network string) Listener {
+	listen := func(net, addr string) Listener {
+		ln, err := Listen(net, addr)
+		if err != nil {
+			t.Helper()
+			t.Fatal(err)
+		}
+		return ln
+	}
+
 	switch network {
 	case "tcp":
 		if supportsIPv4() {
+			if !supportsIPv6() {
+				return listen("tcp4", "127.0.0.1:0")
+			}
 			if ln, err := Listen("tcp4", "127.0.0.1:0"); err == nil {
-				return ln, nil
+				return ln
 			}
 		}
 		if supportsIPv6() {
-			return Listen("tcp6", "[::1]:0")
+			return listen("tcp6", "[::1]:0")
 		}
 	case "tcp4":
 		if supportsIPv4() {
-			return Listen("tcp4", "127.0.0.1:0")
+			return listen("tcp4", "127.0.0.1:0")
 		}
 	case "tcp6":
 		if supportsIPv6() {
-			return Listen("tcp6", "[::1]:0")
+			return listen("tcp6", "[::1]:0")
 		}
 	case "unix", "unixpacket":
-		return Listen(network, testUnixAddr())
+		return listen(network, testUnixAddr(t))
 	}
-	return nil, fmt.Errorf("%s is not supported", network)
+
+	t.Helper()
+	t.Fatalf("%s is not supported", network)
+	return nil
 }
 
 func newDualStackListener() (lns []*TCPListener, err error) {
@@ -88,6 +108,7 @@ type localServer struct {
 	lnmu sync.RWMutex
 	Listener
 	done chan bool // signal that indicates server stopped
+	cl   []Conn    // accepted connection list
 }
 
 func (ls *localServer) buildup(handler func(*localServer, Listener)) error {
@@ -100,10 +121,16 @@ func (ls *localServer) buildup(handler func(*localServer, Listener)) error {
 
 func (ls *localServer) teardown() error {
 	ls.lnmu.Lock()
+	defer ls.lnmu.Unlock()
 	if ls.Listener != nil {
 		network := ls.Listener.Addr().Network()
 		address := ls.Listener.Addr().String()
 		ls.Listener.Close()
+		for _, c := range ls.cl {
+			if err := c.Close(); err != nil {
+				return err
+			}
+		}
 		<-ls.done
 		ls.Listener = nil
 		switch network {
@@ -111,16 +138,13 @@ func (ls *localServer) teardown() error {
 			os.Remove(address)
 		}
 	}
-	ls.lnmu.Unlock()
 	return nil
 }
 
-func newLocalServer(network string) (*localServer, error) {
-	ln, err := newLocalListener(network)
-	if err != nil {
-		return nil, err
-	}
-	return &localServer{Listener: ln, done: make(chan bool)}, nil
+func newLocalServer(t testing.TB, network string) *localServer {
+	t.Helper()
+	ln := newLocalListener(t, network)
+	return &localServer{Listener: ln, done: make(chan bool)}
 }
 
 type streamListener struct {
@@ -129,8 +153,8 @@ type streamListener struct {
 	done chan bool // signal that indicates server stopped
 }
 
-func (sl *streamListener) newLocalServer() (*localServer, error) {
-	return &localServer{Listener: sl.Listener, done: make(chan bool)}, nil
+func (sl *streamListener) newLocalServer() *localServer {
+	return &localServer{Listener: sl.Listener, done: make(chan bool)}
 }
 
 type dualStackServer struct {
@@ -204,7 +228,7 @@ func newDualStackServer() (*dualStackServer, error) {
 	}, nil
 }
 
-func transponder(ln Listener, ch chan<- error) {
+func (ls *localServer) transponder(ln Listener, ch chan<- error) {
 	defer close(ch)
 
 	switch ln := ln.(type) {
@@ -221,7 +245,7 @@ func transponder(ln Listener, ch chan<- error) {
 		ch <- err
 		return
 	}
-	defer c.Close()
+	ls.cl = append(ls.cl, c)
 
 	network := ln.Addr().Network()
 	if c.LocalAddr().Network() != network || c.RemoteAddr().Network() != network {
@@ -282,75 +306,39 @@ func transceiver(c Conn, wb []byte, ch chan<- error) {
 	}
 }
 
-func timeoutReceiver(c Conn, d, min, max time.Duration, ch chan<- error) {
-	var err error
-	defer func() { ch <- err }()
-
-	t0 := time.Now()
-	if err = c.SetReadDeadline(time.Now().Add(d)); err != nil {
-		return
-	}
-	b := make([]byte, 256)
-	var n int
-	n, err = c.Read(b)
-	t1 := time.Now()
-	if n != 0 || err == nil || !err.(Error).Timeout() {
-		err = fmt.Errorf("Read did not return (0, timeout): (%d, %v)", n, err)
-		return
-	}
-	if dt := t1.Sub(t0); min > dt || dt > max && !testing.Short() {
-		err = fmt.Errorf("Read took %s; expected %s", dt, d)
-		return
-	}
-}
-
-func timeoutTransmitter(c Conn, d, min, max time.Duration, ch chan<- error) {
-	var err error
-	defer func() { ch <- err }()
-
-	t0 := time.Now()
-	if err = c.SetWriteDeadline(time.Now().Add(d)); err != nil {
-		return
-	}
-	var n int
-	for {
-		n, err = c.Write([]byte("TIMEOUT TRANSMITTER"))
+func newLocalPacketListener(t testing.TB, network string) PacketConn {
+	listenPacket := func(net, addr string) PacketConn {
+		c, err := ListenPacket(net, addr)
 		if err != nil {
-			break
+			t.Helper()
+			t.Fatal(err)
 		}
+		return c
 	}
-	t1 := time.Now()
-	if err == nil || !err.(Error).Timeout() {
-		err = fmt.Errorf("Write did not return (any, timeout): (%d, %v)", n, err)
-		return
-	}
-	if dt := t1.Sub(t0); min > dt || dt > max && !testing.Short() {
-		err = fmt.Errorf("Write took %s; expected %s", dt, d)
-		return
-	}
-}
 
-func newLocalPacketListener(network string) (PacketConn, error) {
 	switch network {
 	case "udp":
 		if supportsIPv4() {
-			return ListenPacket("udp4", "127.0.0.1:0")
+			return listenPacket("udp4", "127.0.0.1:0")
 		}
 		if supportsIPv6() {
-			return ListenPacket("udp6", "[::1]:0")
+			return listenPacket("udp6", "[::1]:0")
 		}
 	case "udp4":
 		if supportsIPv4() {
-			return ListenPacket("udp4", "127.0.0.1:0")
+			return listenPacket("udp4", "127.0.0.1:0")
 		}
 	case "udp6":
 		if supportsIPv6() {
-			return ListenPacket("udp6", "[::1]:0")
+			return listenPacket("udp6", "[::1]:0")
 		}
 	case "unixgram":
-		return ListenPacket(network, testUnixAddr())
+		return listenPacket(network, testUnixAddr(t))
 	}
-	return nil, fmt.Errorf("%s is not supported", network)
+
+	t.Helper()
+	t.Fatalf("%s is not supported", network)
+	return nil
 }
 
 func newDualStackPacketListener() (cs []*UDPConn, err error) {
@@ -415,20 +403,18 @@ func (ls *localPacketServer) teardown() error {
 	return nil
 }
 
-func newLocalPacketServer(network string) (*localPacketServer, error) {
-	c, err := newLocalPacketListener(network)
-	if err != nil {
-		return nil, err
-	}
-	return &localPacketServer{PacketConn: c, done: make(chan bool)}, nil
+func newLocalPacketServer(t testing.TB, network string) *localPacketServer {
+	t.Helper()
+	c := newLocalPacketListener(t, network)
+	return &localPacketServer{PacketConn: c, done: make(chan bool)}
 }
 
 type packetListener struct {
 	PacketConn
 }
 
-func (pl *packetListener) newLocalServer() (*localPacketServer, error) {
-	return &localPacketServer{PacketConn: pl.PacketConn, done: make(chan bool)}, nil
+func (pl *packetListener) newLocalServer() *localPacketServer {
+	return &localPacketServer{PacketConn: pl.PacketConn, done: make(chan bool)}
 }
 
 func packetTransponder(c PacketConn, ch chan<- error) {
@@ -497,27 +483,5 @@ func packetTransceiver(c PacketConn, wb []byte, dst Addr, ch chan<- error) {
 	}
 	if n != len(wb) {
 		ch <- fmt.Errorf("read %d; want %d", n, len(wb))
-	}
-}
-
-func timeoutPacketReceiver(c PacketConn, d, min, max time.Duration, ch chan<- error) {
-	var err error
-	defer func() { ch <- err }()
-
-	t0 := time.Now()
-	if err = c.SetReadDeadline(time.Now().Add(d)); err != nil {
-		return
-	}
-	b := make([]byte, 256)
-	var n int
-	n, _, err = c.ReadFrom(b)
-	t1 := time.Now()
-	if n != 0 || err == nil || !err.(Error).Timeout() {
-		err = fmt.Errorf("ReadFrom did not return (0, timeout): (%d, %v)", n, err)
-		return
-	}
-	if dt := t1.Sub(t0); min > dt || dt > max && !testing.Short() {
-		err = fmt.Errorf("ReadFrom took %s; expected %s", dt, d)
-		return
 	}
 }

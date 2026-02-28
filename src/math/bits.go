@@ -8,9 +8,12 @@ const (
 	uvnan    = 0x7FF8000000000001
 	uvinf    = 0x7FF0000000000000
 	uvneginf = 0xFFF0000000000000
+	uvone    = 0x3FF0000000000000
 	mask     = 0x7FF
 	shift    = 64 - 11 - 1
 	bias     = 1023
+	signMask = 1 << 63
+	fracMask = 1<<shift - 1
 )
 
 // Inf returns positive infinity if sign >= 0, negative infinity if sign < 0.
@@ -24,10 +27,10 @@ func Inf(sign int) float64 {
 	return Float64frombits(v)
 }
 
-// NaN returns an IEEE 754 ``not-a-number'' value.
+// NaN returns an IEEE 754 “not-a-number” value.
 func NaN() float64 { return Float64frombits(uvnan) }
 
-// IsNaN reports whether f is an IEEE 754 ``not-a-number'' value.
+// IsNaN reports whether f is an IEEE 754 “not-a-number” value.
 func IsNaN(f float64) (is bool) {
 	// IEEE 754 says that only NaNs satisfy f != f.
 	// To avoid the floating-point hardware, could use:

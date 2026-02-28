@@ -5,28 +5,40 @@
 package ssa
 
 import (
-	"cmd/internal/objabi"
+	"bytes"
 	"cmd/internal/src"
 	"fmt"
+	"hash/crc32"
+	"internal/buildcfg"
+	"io"
 	"log"
+	"math/rand"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
 
 // Compile is the main entry point for this package.
 // Compile modifies f so that on return:
-//   · all Values in f map to 0 or 1 assembly instructions of the target architecture
-//   · the order of f.Blocks is the order to emit the Blocks
-//   · the order of b.Values is the order to emit the Values in each Block
-//   · f has a non-nil regAlloc field
+//   - all Values in f map to 0 or 1 assembly instructions of the target architecture
+//   - the order of f.Blocks is the order to emit the Blocks
+//   - the order of b.Values is the order to emit the Values in each Block
+//   - f has a non-nil regAlloc field
 func Compile(f *Func) {
 	// TODO: debugging - set flags to control verbosity of compiler,
 	// which phases to dump IR before/after, etc.
 	if f.Log() {
 		f.Logf("compiling %s\n", f.Name)
+	}
+
+	var rnd *rand.Rand
+	if checkEnabled {
+		seed := int64(crc32.ChecksumIEEE(([]byte)(f.Name))) ^ int64(checkRandSeed)
+		rnd = rand.New(rand.NewSource(seed))
 	}
 
 	// hook to print function & phase if panic happens
@@ -37,14 +49,19 @@ func Compile(f *Func) {
 			stack := make([]byte, 16384)
 			n := runtime.Stack(stack, false)
 			stack = stack[:n]
+			if f.HTMLWriter != nil {
+				f.HTMLWriter.flushPhases()
+			}
 			f.Fatalf("panic during %s while compiling %s:\n\n%v\n\n%s\n", phaseName, f.Name, err, stack)
 		}
 	}()
 
 	// Run all the passes
-	printFunc(f)
-	f.HTMLWriter.WriteFunc("start", f)
-	if BuildDump != "" && BuildDump == f.Name {
+	if f.Log() {
+		printFunc(f)
+	}
+	f.HTMLWriter.WritePhase("start", "start")
+	if BuildDump[f.Name] {
 		f.dumpFile("build")
 	}
 	if checkEnabled {
@@ -66,6 +83,17 @@ func Compile(f *Func) {
 			runtime.ReadMemStats(&mStart)
 		}
 
+		if checkEnabled && !f.scheduled {
+			// Test that we don't depend on the value order, by randomizing
+			// the order of values in each block. See issue 18169.
+			for _, b := range f.Blocks {
+				for i := 0; i < len(b.Values)-1; i++ {
+					j := i + rnd.Intn(len(b.Values)-i)
+					b.Values[i], b.Values[j] = b.Values[j], b.Values[i]
+				}
+			}
+		}
+
 		tStart := time.Now()
 		p.fn(f)
 		tEnd := time.Now()
@@ -84,9 +112,11 @@ func Compile(f *Func) {
 				stats = fmt.Sprintf("[%d ns]", time)
 			}
 
-			f.Logf("  pass %s end %s\n", p.name, stats)
-			printFunc(f)
-			f.HTMLWriter.WriteFunc(fmt.Sprintf("after %s <span class=\"stats\">%s</span>", phaseName, stats), f)
+			if f.Log() {
+				f.Logf("  pass %s end %s\n", p.name, stats)
+				printFunc(f)
+			}
+			f.HTMLWriter.WritePhase(phaseName, fmt.Sprintf("%s <span class=\"stats\">%s</span>", phaseName, stats))
 		}
 		if p.time || p.mem {
 			// Surround timing information w/ enough context to allow comparisons.
@@ -111,32 +141,61 @@ func Compile(f *Func) {
 		}
 	}
 
+	if f.HTMLWriter != nil {
+		// Ensure we write any pending phases to the html
+		f.HTMLWriter.flushPhases()
+	}
+
+	if f.ruleMatches != nil {
+		var keys []string
+		for key := range f.ruleMatches {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		buf := new(bytes.Buffer)
+		fmt.Fprintf(buf, "%s: ", f.Name)
+		for _, key := range keys {
+			fmt.Fprintf(buf, "%s=%d ", key, f.ruleMatches[key])
+		}
+		fmt.Fprint(buf, "\n")
+		fmt.Print(buf.String())
+	}
+
 	// Squash error printing defer
 	phaseName = ""
 }
 
-// TODO: should be a config field
-var dumpFileSeq int
+// DumpFileForPhase creates a file from the function name and phase name,
+// warning and returning nil if this is not possible.
+func (f *Func) DumpFileForPhase(phaseName string) io.WriteCloser {
+	f.dumpFileSeq++
+	fname := fmt.Sprintf("%s_%02d__%s.dump", f.Name, int(f.dumpFileSeq), phaseName)
+	fname = strings.Replace(fname, " ", "_", -1)
+	fname = strings.Replace(fname, "/", "_", -1)
+	fname = strings.Replace(fname, ":", "_", -1)
+
+	if ssaDir := os.Getenv("GOSSADIR"); ssaDir != "" {
+		fname = filepath.Join(ssaDir, fname)
+	}
+
+	fi, err := os.Create(fname)
+	if err != nil {
+		f.Warnl(src.NoXPos, "Unable to create after-phase dump file %s", fname)
+		return nil
+	}
+	return fi
+}
 
 // dumpFile creates a file from the phase name and function name
 // Dumping is done to files to avoid buffering huge strings before
 // output.
 func (f *Func) dumpFile(phaseName string) {
-	dumpFileSeq++
-	fname := fmt.Sprintf("%s__%s_%d.dump", phaseName, f.Name, dumpFileSeq)
-	fname = strings.Replace(fname, " ", "_", -1)
-	fname = strings.Replace(fname, "/", "_", -1)
-	fname = strings.Replace(fname, ":", "_", -1)
-
-	fi, err := os.Create(fname)
-	if err != nil {
-		f.Warnl(src.NoXPos, "Unable to create after-phase dump file %s", fname)
-		return
+	fi := f.DumpFileForPhase(phaseName)
+	if fi != nil {
+		p := stringFuncPrinter{w: fi}
+		fprintFunc(p, f)
+		fi.Close()
 	}
-
-	p := stringFuncPrinter{w: fi}
-	fprintFunc(p, f)
-	fi.Close()
 }
 
 type pass struct {
@@ -159,8 +218,18 @@ func (p *pass) addDump(s string) {
 	p.dump[s] = true
 }
 
+func (p *pass) String() string {
+	if p == nil {
+		return "nil pass"
+	}
+	return p.name
+}
+
 // Run consistency checker between each phase
-var checkEnabled = false
+var (
+	checkEnabled  = false
+	checkRandSeed = 0
+)
 
 // Debug output
 var IntrinsicsDebug int
@@ -169,7 +238,9 @@ var IntrinsicsDisable bool
 var BuildDebug int
 var BuildTest int
 var BuildStats int
-var BuildDump string // name of function to dump after initial build of ssa
+var BuildDump map[string]bool = make(map[string]bool) // names of functions to dump after initial build of ssa
+
+var GenssaDump map[string]bool = make(map[string]bool) // names of functions to dump after ssa has been converted to asm
 
 // PhaseOption sets the specified flag in the specified ssa phase,
 // returning empty string if this was successful or a string explaining
@@ -179,8 +250,8 @@ var BuildDump string // name of function to dump after initial build of ssa
 // version is used as a regular expression to match the phase name(s).
 //
 // Special cases that have turned out to be useful:
-//  ssa/check/on enables checking after each phase
-//  ssa/all/time enables time reporting for all phases
+//   - ssa/check/on enables checking after each phase
+//   - ssa/all/time enables time reporting for all phases
 //
 // See gc/lex.go for dissection of the option string.
 // Example uses:
@@ -188,60 +259,107 @@ var BuildDump string // name of function to dump after initial build of ssa
 // GO_GCFLAGS=-d=ssa/generic_cse/time,ssa/generic_cse/stats,ssa/generic_cse/debug=3 ./make.bash
 //
 // BOOT_GO_GCFLAGS=-d='ssa/~^.*scc$/off' GO_GCFLAGS='-d=ssa/~^.*scc$/off' ./make.bash
-//
 func PhaseOption(phase, flag string, val int, valString string) string {
-	if phase == "help" {
+	switch phase {
+	case "", "help":
 		lastcr := 0
-		phasenames := "check, all, build, intrinsics"
+		phasenames := "    check, all, build, intrinsics, genssa"
 		for _, p := range passes {
 			pn := strings.Replace(p.name, " ", "_", -1)
 			if len(pn)+len(phasenames)-lastcr > 70 {
-				phasenames += "\n"
+				phasenames += "\n    "
 				lastcr = len(phasenames)
 				phasenames += pn
 			} else {
 				phasenames += ", " + pn
 			}
 		}
-		return "" +
-			`GcFlag -d=ssa/<phase>/<flag>[=<value>|<function_name>]
-<phase> is one of:
+		return `PhaseOptions usage:
+
+    go tool compile -d=ssa/<phase>/<flag>[=<value>|<function_name>]
+
+where:
+
+- <phase> is one of:
 ` + phasenames + `
-<flag> is one of on, off, debug, mem, time, test, stats, dump
-<value> defaults to 1
-<function_name> is required for "dump", specifies name of function to dump after <phase>
-Except for dump, output is directed to standard out; dump appears in a file.
+
+- <flag> is one of:
+    on, off, debug, mem, time, test, stats, dump, seed
+
+- <value> defaults to 1
+
+- <function_name> is required for the "dump" flag, and specifies the
+  name of function to dump after <phase>
+
 Phase "all" supports flags "time", "mem", and "dump".
-Phases "intrinsics" supports flags "on", "off", and "debug".
-Interpretation of the "debug" value depends on the phase.
-Dump files are named <phase>__<function_name>_<seq>.dump.
+Phase "intrinsics" supports flags "on", "off", and "debug".
+Phase "genssa" (assembly generation) supports the flag "dump".
+
+If the "dump" flag is specified, the output is written on a file named
+<phase>__<function_name>_<seq>.dump; otherwise it is directed to stdout.
+
+Examples:
+
+    -d=ssa/check/on
+enables checking after each phase
+
+	-d=ssa/check/seed=1234
+enables checking after each phase, using 1234 to seed the PRNG
+used for value order randomization
+
+    -d=ssa/all/time
+enables time reporting for all phases
+
+    -d=ssa/prove/debug=2
+sets debugging level to 2 in the prove pass
+
+Be aware that when "/debug=X" is applied to a pass, some passes
+will emit debug output for all functions, and other passes will
+only emit debug output for functions that match the current
+GOSSAFUNC value.
+
+Multiple flags can be passed at once, by separating them with
+commas. For example:
+
+    -d=ssa/check/on,ssa/all/time
 `
 	}
 
-	if phase == "check" && flag == "on" {
-		checkEnabled = val != 0
-		return ""
-	}
-	if phase == "check" && flag == "off" {
-		checkEnabled = val == 0
-		return ""
+	if phase == "check" {
+		switch flag {
+		case "on":
+			checkEnabled = val != 0
+			debugPoset = checkEnabled // also turn on advanced self-checking in prove's datastructure
+			return ""
+		case "off":
+			checkEnabled = val == 0
+			debugPoset = checkEnabled
+			return ""
+		case "seed":
+			checkEnabled = true
+			checkRandSeed = val
+			debugPoset = checkEnabled
+			return ""
+		}
 	}
 
 	alltime := false
 	allmem := false
 	alldump := false
 	if phase == "all" {
-		if flag == "time" {
+		switch flag {
+		case "time":
 			alltime = val != 0
-		} else if flag == "mem" {
+		case "mem":
 			allmem = val != 0
-		} else if flag == "dump" {
+		case "dump":
 			alldump = val != 0
 			if alldump {
-				BuildDump = valString
+				BuildDump[valString] = true
+				GenssaDump[valString] = true
 			}
-		} else {
-			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
+		default:
+			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/all/{time,mem,dump=function_name})", flag, phase)
 		}
 	}
 
@@ -254,7 +372,7 @@ Dump files are named <phase>__<function_name>_<seq>.dump.
 		case "debug":
 			IntrinsicsDebug = val
 		default:
-			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
+			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/intrinsics/{on,off,debug})", flag, phase)
 		}
 		return ""
 	}
@@ -267,9 +385,18 @@ Dump files are named <phase>__<function_name>_<seq>.dump.
 		case "stats":
 			BuildStats = val
 		case "dump":
-			BuildDump = valString
+			BuildDump[valString] = true
 		default:
-			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
+			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/build/{debug,test,stats,dump=function_name})", flag, phase)
+		}
+		return ""
+	}
+	if phase == "genssa" {
+		switch flag {
+		case "dump":
+			GenssaDump[valString] = true
+		default:
+			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/genssa/dump=function_name)", flag, phase)
 		}
 		return ""
 	}
@@ -330,39 +457,49 @@ Dump files are named <phase>__<function_name>_<seq>.dump.
 // list of passes for the compiler
 var passes = [...]pass{
 	// TODO: combine phielim and copyelim into a single pass?
+	{name: "number lines", fn: numberLines, required: true},
 	{name: "early phielim", fn: phielim},
 	{name: "early copyelim", fn: copyelim},
 	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
 	{name: "short circuit", fn: shortcircuit},
 	{name: "decompose user", fn: decomposeUser, required: true},
-	{name: "opt", fn: opt, required: true},               // TODO: split required rules and optimizing rules
+	{name: "pre-opt deadcode", fn: deadcode},
+	{name: "opt", fn: opt, required: true},               // NB: some generic rules know the name of the opt pass. TODO: split required rules and optimizing rules
 	{name: "zero arg cse", fn: zcse, required: true},     // required to merge OpSB values
 	{name: "opt deadcode", fn: deadcode, required: true}, // remove any blocks orphaned during opt
 	{name: "generic cse", fn: cse},
 	{name: "phiopt", fn: phiopt},
+	{name: "gcse deadcode", fn: deadcode, required: true}, // clean out after cse and phiopt
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
-	{name: "loopbce", fn: loopbce},
+	{name: "early fuse", fn: fuseEarly},
 	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
-	{name: "dec", fn: dec, required: true},
+	{name: "expand calls", fn: expandCalls, required: true},
+	{name: "softfloat", fn: softfloat, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
-	{name: "generic deadcode", fn: deadcode},
+	{name: "dead auto elim", fn: elimDeadAutosGeneric},
+	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
 	{name: "check bce", fn: checkbce},
-	{name: "fuse", fn: fuse},
+	{name: "branchelim", fn: branchelim},
+	{name: "late fuse", fn: fuseLate},
 	{name: "dse", fn: dse},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
-		disabled: objabi.Preemptibleloops_enabled == 0}, // insert resched checks in loops.
-	{name: "tighten", fn: tighten}, // move values closer to their uses
+		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
 	{name: "lower", fn: lower, required: true},
+	{name: "addressing modes", fn: addressingModes, required: false},
+	{name: "lowered deadcode for cse", fn: deadcode}, // deadcode immediately before CSE avoids CSE making dead values live again
 	{name: "lowered cse", fn: cse},
+	{name: "elim unread autos", fn: elimUnreadAutos},
+	{name: "tighten tuple selectors", fn: tightenTupleSelectors, required: true},
 	{name: "lowered deadcode", fn: deadcode, required: true},
 	{name: "checkLower", fn: checkLower, required: true},
 	{name: "late phielim", fn: phielim},
 	{name: "late copyelim", fn: copyelim},
-	{name: "phi tighten", fn: phiTighten},
+	{name: "tighten", fn: tighten}, // move values closer to their uses
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
+	{name: "phi tighten", fn: phiTighten},            // place rematerializable phi args near uses to reduce value lifetimes
 	{name: "likelyadjust", fn: likelyadjust},
 	{name: "layout", fn: layout, required: true},     // schedule blocks
 	{name: "schedule", fn: schedule, required: true}, // schedule values
@@ -401,11 +538,9 @@ var passOrder = [...]constraint{
 	// allow deadcode to clean up after nilcheckelim
 	{"nilcheckelim", "generic deadcode"},
 	// nilcheckelim generates sequences of plain basic blocks
-	{"nilcheckelim", "fuse"},
+	{"nilcheckelim", "late fuse"},
 	// nilcheckelim relies on opt to rewrite user nil checks
 	{"opt", "nilcheckelim"},
-	// tighten should happen before lowering to avoid splitting naturally paired instructions such as CMP/SET
-	{"tighten", "lower"},
 	// tighten will be most effective when as many values have been removed as possible
 	{"generic deadcode", "tighten"},
 	{"generic cse", "tighten"},
@@ -413,6 +548,12 @@ var passOrder = [...]constraint{
 	{"generic deadcode", "check bce"},
 	// don't run optimization pass until we've decomposed builtin objects
 	{"decompose builtin", "late opt"},
+	// decompose builtin is the last pass that may introduce new float ops, so run softfloat after it
+	{"decompose builtin", "softfloat"},
+	// tuple selectors must be tightened to generators and de-duplicated before scheduling
+	{"tighten tuple selectors", "schedule"},
+	// remove critical edges before phi tighten, so that phi args get better placement
+	{"critical", "phi tighten"},
 	// don't layout blocks until critical edges have been removed
 	{"critical", "layout"},
 	// regalloc requires the removal of all critical edges

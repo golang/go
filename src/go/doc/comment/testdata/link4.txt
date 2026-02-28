@@ -1,0 +1,77 @@
+-- input --
+These are not links.
+
+[x
+
+[x]:
+
+[x]:https://go.dev
+
+[x]https://go.dev
+
+[x]: surprise://go.dev
+
+[x]: surprise!
+
+But this is, with a tab (although it's unused).
+
+[z]:	https://go.dev
+-- gofmt --
+These are not links.
+
+[x
+
+[x]:
+
+[x]:https://go.dev
+
+[x]https://go.dev
+
+[x]: surprise://go.dev
+
+[x]: surprise!
+
+But this is, with a tab (although it's unused).
+
+[z]: https://go.dev
+-- text --
+These are not links.
+
+[x
+
+[x]:
+
+[x]:https://go.dev
+
+[x]https://go.dev
+
+[x]: surprise://go.dev
+
+[x]: surprise!
+
+But this is, with a tab (although it's unused).
+-- markdown --
+These are not links.
+
+\[x
+
+\[x]:
+
+\[x]:[https://go.dev](https://go.dev)
+
+\[x][https://go.dev](https://go.dev)
+
+\[x]: surprise://go.dev
+
+\[x]: surprise!
+
+But this is, with a tab (although it's unused).
+-- html --
+<p>These are not links.
+<p>[x
+<p>[x]:
+<p>[x]:<a href="https://go.dev">https://go.dev</a>
+<p>[x]<a href="https://go.dev">https://go.dev</a>
+<p>[x]: surprise://go.dev
+<p>[x]: surprise!
+<p>But this is, with a tab (although it&apos;s unused).

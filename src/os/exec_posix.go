@@ -2,17 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
+//go:build unix || (js && wasm) || windows
 
 package os
 
 import (
+	"internal/itoa"
+	"internal/syscall/execenv"
+	"runtime"
 	"syscall"
 )
 
-// The only signal values guaranteed to be present on all systems
-// are Interrupt (send the process an interrupt) and Kill (force
-// the process to exit).
+// The only signal values guaranteed to be present in the os package on all
+// systems are os.Interrupt (send the process an interrupt) and os.Kill (force
+// the process to exit). On Windows, sending os.Interrupt to a process with
+// os.Process.Signal is not implemented; it will return an error instead of
+// sending a signal.
 var (
 	Interrupt Signal = syscall.SIGINT
 	Kill      Signal = syscall.SIGKILL
@@ -36,16 +41,25 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 		Sys: attr.Sys,
 	}
 	if sysattr.Env == nil {
-		sysattr.Env = Environ()
+		sysattr.Env, err = execenv.Default(sysattr.Sys)
+		if err != nil {
+			return nil, err
+		}
 	}
+	sysattr.Files = make([]uintptr, 0, len(attr.Files))
 	for _, f := range attr.Files {
 		sysattr.Files = append(sysattr.Files, f.Fd())
 	}
 
 	pid, h, e := syscall.StartProcess(name, argv, sysattr)
+
+	// Make sure we don't run the finalizers of attr.Files.
+	runtime.KeepAlive(attr)
+
 	if e != nil {
-		return nil, &PathError{"fork/exec", name, e}
+		return nil, &PathError{Op: "fork/exec", Path: name, Err: e}
 	}
+
 	return newProcess(pid, h), nil
 }
 
@@ -73,11 +87,11 @@ func (p *ProcessState) success() bool {
 	return p.status.ExitStatus() == 0
 }
 
-func (p *ProcessState) sys() interface{} {
+func (p *ProcessState) sys() any {
 	return p.status
 }
 
-func (p *ProcessState) sysUsage() interface{} {
+func (p *ProcessState) sysUsage() any {
 	return p.rusage
 }
 
@@ -89,13 +103,18 @@ func (p *ProcessState) String() string {
 	res := ""
 	switch {
 	case status.Exited():
-		res = "exit status " + itoa(status.ExitStatus())
+		code := status.ExitStatus()
+		if runtime.GOOS == "windows" && uint(code) >= 1<<16 { // windows uses large hex numbers
+			res = "exit status " + uitox(uint(code))
+		} else { // unix systems use small decimal integers
+			res = "exit status " + itoa.Itoa(code) // unix
+		}
 	case status.Signaled():
 		res = "signal: " + status.Signal().String()
 	case status.Stopped():
 		res = "stop signal: " + status.StopSignal().String()
 		if status.StopSignal() == syscall.SIGTRAP && status.TrapCause() != 0 {
-			res += " (trap " + itoa(status.TrapCause()) + ")"
+			res += " (trap " + itoa.Itoa(status.TrapCause()) + ")"
 		}
 	case status.Continued():
 		res = "continued"
@@ -104,4 +123,14 @@ func (p *ProcessState) String() string {
 		res += " (core dumped)"
 	}
 	return res
+}
+
+// ExitCode returns the exit code of the exited process, or -1
+// if the process hasn't exited or was terminated by a signal.
+func (p *ProcessState) ExitCode() int {
+	// return -1 if the process hasn't started.
+	if p == nil {
+		return -1
+	}
+	return p.status.ExitStatus()
 }

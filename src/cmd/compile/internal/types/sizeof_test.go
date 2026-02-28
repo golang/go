@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !nacl
-
 package types
 
 import (
@@ -22,16 +20,15 @@ func TestSizeof(t *testing.T) {
 		_32bit uintptr     // size on 32bit platforms
 		_64bit uintptr     // size on 64bit platforms
 	}{
-		{Sym{}, 52, 88},
-		{Type{}, 52, 88},
+		{Sym{}, 32, 64},
+		{Type{}, 64, 112},
 		{Map{}, 20, 40},
 		{Forward{}, 20, 32},
 		{Func{}, 28, 48},
-		{Struct{}, 12, 24},
-		{Interface{}, 4, 8},
+		{Struct{}, 16, 32},
+		{Interface{}, 8, 16},
 		{Chan{}, 8, 16},
 		{Array{}, 12, 16},
-		{DDDField{}, 4, 8},
 		{FuncArgs{}, 4, 8},
 		{ChanArgs{}, 4, 8},
 		{Ptr{}, 4, 8},

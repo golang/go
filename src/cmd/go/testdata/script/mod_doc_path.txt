@@ -1,0 +1,30 @@
+# cmd/doc should use GOROOT to locate the 'go' command,
+# not use whatever is in $PATH.
+
+# Remove 'go' from $PATH. (It can still be located via $GOROOT/bin/go, and the
+# test script's built-in 'go' command still knows where to find it.)
+env PATH=''
+[plan9] env path=''
+
+go doc p.X
+
+-- go.mod --
+module example
+
+go 1.19
+
+require example.com/p v0.1.0
+
+replace example.com/p => ./pfork
+-- example.go --
+package example
+
+import _ "example.com/p"
+-- pfork/go.mod --
+module example.com/p
+
+go 1.19
+-- pfork/p.go --
+package p
+
+const X = 42

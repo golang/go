@@ -6,8 +6,8 @@
 package browser
 
 import (
+	exec "internal/execabs"
 	"os"
-	"os/exec"
 	"runtime"
 	"time"
 )

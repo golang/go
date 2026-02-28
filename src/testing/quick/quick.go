@@ -113,7 +113,7 @@ func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value,
 			}
 			v.SetMapIndex(key, value)
 		}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if rand.Intn(size) == 0 {
 			v.Set(reflect.Zero(concrete)) // Generate nil pointer.
 		} else {
@@ -180,7 +180,8 @@ type Config struct {
 	MaxCount int
 	// MaxCountScale is a non-negative scale factor applied to the
 	// default maximum.
-	// If zero, the default is unchanged.
+	// A count of zero implies the default, which is usually 100
+	// but can be set by the -quickchecks flag.
 	MaxCountScale float64
 	// Rand specifies a source of random numbers.
 	// If nil, a default pseudo-random source will be used.
@@ -226,7 +227,7 @@ func (s SetupError) Error() string { return string(s) }
 // A CheckError is the result of Check finding an error.
 type CheckError struct {
 	Count int
-	In    []interface{}
+	In    []any
 }
 
 func (s *CheckError) Error() string {
@@ -236,8 +237,8 @@ func (s *CheckError) Error() string {
 // A CheckEqualError is the result CheckEqual finding an error.
 type CheckEqualError struct {
 	CheckError
-	Out1 []interface{}
-	Out2 []interface{}
+	Out1 []any
+	Out2 []any
 }
 
 func (s *CheckEqualError) Error() string {
@@ -250,16 +251,16 @@ func (s *CheckEqualError) Error() string {
 // Check returns that input as a *CheckError.
 // For example:
 //
-// 	func TestOddMultipleOfThree(t *testing.T) {
-// 		f := func(x int) bool {
-// 			y := OddMultipleOfThree(x)
-// 			return y%2 == 1 && y%3 == 0
-// 		}
-// 		if err := quick.Check(f, nil); err != nil {
-// 			t.Error(err)
-// 		}
-// 	}
-func Check(f interface{}, config *Config) error {
+//	func TestOddMultipleOfThree(t *testing.T) {
+//		f := func(x int) bool {
+//			y := OddMultipleOfThree(x)
+//			return y%2 == 1 && y%3 == 0
+//		}
+//		if err := quick.Check(f, nil); err != nil {
+//			t.Error(err)
+//		}
+//	}
+func Check(f any, config *Config) error {
 	if config == nil {
 		config = &defaultConfig
 	}
@@ -298,7 +299,7 @@ func Check(f interface{}, config *Config) error {
 // It calls f and g repeatedly with arbitrary values for each argument.
 // If f and g return different answers, CheckEqual returns a *CheckEqualError
 // describing the input and the outputs.
-func CheckEqual(f, g interface{}, config *Config) error {
+func CheckEqual(f, g any, config *Config) error {
 	if config == nil {
 		config = &defaultConfig
 	}
@@ -357,7 +358,7 @@ func arbitraryValues(args []reflect.Value, f reflect.Type, config *Config, rand 
 	return
 }
 
-func functionAndType(f interface{}) (v reflect.Value, t reflect.Type, ok bool) {
+func functionAndType(f any) (v reflect.Value, t reflect.Type, ok bool) {
 	v = reflect.ValueOf(f)
 	ok = v.Kind() == reflect.Func
 	if !ok {
@@ -367,15 +368,15 @@ func functionAndType(f interface{}) (v reflect.Value, t reflect.Type, ok bool) {
 	return
 }
 
-func toInterfaces(values []reflect.Value) []interface{} {
-	ret := make([]interface{}, len(values))
+func toInterfaces(values []reflect.Value) []any {
+	ret := make([]any, len(values))
 	for i, v := range values {
 		ret[i] = v.Interface()
 	}
 	return ret
 }
 
-func toString(interfaces []interface{}) string {
+func toString(interfaces []any) string {
 	s := make([]string, len(interfaces))
 	for i, v := range interfaces {
 		s[i] = fmt.Sprintf("%#v", v)

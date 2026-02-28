@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	. "io"
-	"io/ioutil"
 	"runtime"
 	"strings"
 	"testing"
@@ -64,6 +63,31 @@ func TestMultiReader(t *testing.T) {
 	})
 }
 
+func TestMultiReaderAsWriterTo(t *testing.T) {
+	mr := MultiReader(
+		strings.NewReader("foo "),
+		MultiReader( // Tickle the buffer reusing codepath
+			strings.NewReader(""),
+			strings.NewReader("bar"),
+		),
+	)
+	mrAsWriterTo, ok := mr.(WriterTo)
+	if !ok {
+		t.Fatalf("expected cast to WriterTo to succeed")
+	}
+	sink := &strings.Builder{}
+	n, err := mrAsWriterTo.WriteTo(sink)
+	if err != nil {
+		t.Fatalf("expected no error; got %v", err)
+	}
+	if n != 7 {
+		t.Errorf("expected read 7 bytes; got %d", n)
+	}
+	if result := sink.String(); result != "foo bar" {
+		t.Errorf(`expected "foo bar"; got %q`, result)
+	}
+}
+
 func TestMultiWriter(t *testing.T) {
 	sink := new(bytes.Buffer)
 	// Hide bytes.Buffer's WriteString method:
@@ -77,7 +101,7 @@ func TestMultiWriter_String(t *testing.T) {
 	testMultiWriter(t, new(bytes.Buffer))
 }
 
-// test that a multiWriter.WriteString calls results in at most 1 allocation,
+// Test that a multiWriter.WriteString calls results in at most 1 allocation,
 // even if multiple targets don't support WriteString.
 func TestMultiWriter_WriteStringSingleAlloc(t *testing.T) {
 	var sink1, sink2 bytes.Buffer
@@ -142,12 +166,61 @@ func testMultiWriter(t *testing.T, sink interface {
 	}
 }
 
+// writerFunc is a Writer implemented by the underlying func.
+type writerFunc func(p []byte) (int, error)
+
+func (f writerFunc) Write(p []byte) (int, error) {
+	return f(p)
+}
+
+// Test that MultiWriter properly flattens chained multiWriters.
+func TestMultiWriterSingleChainFlatten(t *testing.T) {
+	pc := make([]uintptr, 1000) // 1000 should fit the full stack
+	n := runtime.Callers(0, pc)
+	var myDepth = callDepth(pc[:n])
+	var writeDepth int // will contain the depth from which writerFunc.Writer was called
+	var w Writer = MultiWriter(writerFunc(func(p []byte) (int, error) {
+		n := runtime.Callers(1, pc)
+		writeDepth += callDepth(pc[:n])
+		return 0, nil
+	}))
+
+	mw := w
+	// chain a bunch of multiWriters
+	for i := 0; i < 100; i++ {
+		mw = MultiWriter(w)
+	}
+
+	mw = MultiWriter(w, mw, w, mw)
+	mw.Write(nil) // don't care about errors, just want to check the call-depth for Write
+
+	if writeDepth != 4*(myDepth+2) { // 2 should be multiWriter.Write and writerFunc.Write
+		t.Errorf("multiWriter did not flatten chained multiWriters: expected writeDepth %d, got %d",
+			4*(myDepth+2), writeDepth)
+	}
+}
+
+func TestMultiWriterError(t *testing.T) {
+	f1 := writerFunc(func(p []byte) (int, error) {
+		return len(p) / 2, ErrShortWrite
+	})
+	f2 := writerFunc(func(p []byte) (int, error) {
+		t.Errorf("MultiWriter called f2.Write")
+		return len(p), nil
+	})
+	w := MultiWriter(f1, f2)
+	n, err := w.Write(make([]byte, 100))
+	if n != 50 || err != ErrShortWrite {
+		t.Errorf("Write = %d, %v, want 50, ErrShortWrite", n, err)
+	}
+}
+
 // Test that MultiReader copies the input slice and is insulated from future modification.
 func TestMultiReaderCopy(t *testing.T) {
 	slice := []Reader{strings.NewReader("hello world")}
 	r := MultiReader(slice...)
 	slice[0] = nil
-	data, err := ioutil.ReadAll(r)
+	data, err := ReadAll(r)
 	if err != nil || string(data) != "hello world" {
 		t.Errorf("ReadAll() = %q, %v, want %q, nil", data, err, "hello world")
 	}
@@ -168,7 +241,7 @@ func TestMultiWriterCopy(t *testing.T) {
 	}
 }
 
-// readerFunc is an io.Reader implemented by the underlying func.
+// readerFunc is a Reader implemented by the underlying func.
 type readerFunc func(p []byte) (int, error)
 
 func (f readerFunc) Read(p []byte) (int, error) {
@@ -212,7 +285,7 @@ func TestMultiReaderFlatten(t *testing.T) {
 }
 
 // byteAndEOFReader is a Reader which reads one byte (the underlying
-// byte) and io.EOF at once in its Read call.
+// byte) and EOF at once in its Read call.
 type byteAndEOFReader byte
 
 func (b byteAndEOFReader) Read(p []byte) (n int, err error) {
@@ -227,7 +300,7 @@ func (b byteAndEOFReader) Read(p []byte) (n int, err error) {
 
 // This used to yield bytes forever; issue 16795.
 func TestMultiReaderSingleByteWithEOF(t *testing.T) {
-	got, err := ioutil.ReadAll(LimitReader(MultiReader(byteAndEOFReader('a'), byteAndEOFReader('b')), 10))
+	got, err := ReadAll(LimitReader(MultiReader(byteAndEOFReader('a'), byteAndEOFReader('b')), 10))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +310,7 @@ func TestMultiReaderSingleByteWithEOF(t *testing.T) {
 	}
 }
 
-// Test that a reader returning (n, EOF) at the end of an MultiReader
+// Test that a reader returning (n, EOF) at the end of a MultiReader
 // chain continues to return EOF on its final read, rather than
 // yielding a (0, EOF).
 func TestMultiReaderFinalEOF(t *testing.T) {

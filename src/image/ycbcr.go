@@ -45,6 +45,7 @@ func (s YCbCrSubsampleRatio) String() string {
 // that map to separate chroma samples.
 // It is not an absolute requirement, but YStride and len(Y) are typically
 // multiples of 8, and:
+//
 //	For 4:4:4, CStride == YStride/1 && len(Cb) == len(Cr) == len(Y)/1.
 //	For 4:2:2, CStride == YStride/2 && len(Cb) == len(Cr) == len(Y)/2.
 //	For 4:2:0, CStride == YStride/2 && len(Cb) == len(Cr) == len(Y)/4.
@@ -69,6 +70,11 @@ func (p *YCbCr) Bounds() Rectangle {
 
 func (p *YCbCr) At(x, y int) color.Color {
 	return p.YCbCrAt(x, y)
+}
+
+func (p *YCbCr) RGBA64At(x, y int) color.RGBA64 {
+	r, g, b, a := p.YCbCrAt(x, y).RGBA()
+	return color.RGBA64{uint16(r), uint16(g), uint16(b), uint16(a)}
 }
 
 func (p *YCbCr) YCbCrAt(x, y int) color.YCbCr {
@@ -168,6 +174,16 @@ func yCbCrSize(r Rectangle, subsampleRatio YCbCrSubsampleRatio) (w, h, cw, ch in
 // ratio.
 func NewYCbCr(r Rectangle, subsampleRatio YCbCrSubsampleRatio) *YCbCr {
 	w, h, cw, ch := yCbCrSize(r, subsampleRatio)
+
+	// totalLength should be the same as i2, below, for a valid Rectangle r.
+	totalLength := add2NonNeg(
+		mul3NonNeg(1, w, h),
+		mul3NonNeg(2, cw, ch),
+	)
+	if totalLength < 0 {
+		panic("image: NewYCbCr Rectangle has huge or negative dimensions")
+	}
+
 	i0 := w*h + 0*cw*ch
 	i1 := w*h + 1*cw*ch
 	i2 := w*h + 2*cw*ch
@@ -198,6 +214,11 @@ func (p *NYCbCrA) ColorModel() color.Model {
 
 func (p *NYCbCrA) At(x, y int) color.Color {
 	return p.NYCbCrAAt(x, y)
+}
+
+func (p *NYCbCrA) RGBA64At(x, y int) color.RGBA64 {
+	r, g, b, a := p.NYCbCrAAt(x, y).RGBA()
+	return color.RGBA64{uint16(r), uint16(g), uint16(b), uint16(a)}
 }
 
 func (p *NYCbCrA) NYCbCrAAt(x, y int) color.NYCbCrA {
@@ -277,6 +298,16 @@ func (p *NYCbCrA) Opaque() bool {
 // ratio.
 func NewNYCbCrA(r Rectangle, subsampleRatio YCbCrSubsampleRatio) *NYCbCrA {
 	w, h, cw, ch := yCbCrSize(r, subsampleRatio)
+
+	// totalLength should be the same as i3, below, for a valid Rectangle r.
+	totalLength := add2NonNeg(
+		mul3NonNeg(2, w, h),
+		mul3NonNeg(2, cw, ch),
+	)
+	if totalLength < 0 {
+		panic("image: NewNYCbCrA Rectangle has huge or negative dimension")
+	}
+
 	i0 := 1*w*h + 0*cw*ch
 	i1 := 1*w*h + 1*cw*ch
 	i2 := 1*w*h + 2*cw*ch

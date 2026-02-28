@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd netbsd openbsd
+//go:build darwin || dragonfly || freebsd || netbsd || openbsd
 
 package net
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"runtime"
@@ -52,4 +53,8 @@ func (ti *testInterface) setPointToPoint(suffix int) error {
 		Args: []string{"ifconfig", ti.name, "destroy"},
 	})
 	return nil
+}
+
+func (ti *testInterface) setLinkLocal(suffix int) error {
+	return errors.New("not yet implemented for BSD")
 }

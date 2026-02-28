@@ -6,7 +6,8 @@ package multipart
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
+	"mime"
 	"net/textproto"
 	"strings"
 	"testing"
@@ -50,7 +51,7 @@ func TestWriter(t *testing.T) {
 	if g, e := part.FormName(), "myfile"; g != e {
 		t.Errorf("part 1: want form name %q, got %q", e, g)
 	}
-	slurp, err := ioutil.ReadAll(part)
+	slurp, err := io.ReadAll(part)
 	if err != nil {
 		t.Fatalf("part 1: ReadAll: %v", err)
 	}
@@ -65,7 +66,7 @@ func TestWriter(t *testing.T) {
 	if g, e := part.FormName(), "key"; g != e {
 		t.Errorf("part 2: want form name %q, got %q", e, g)
 	}
-	slurp, err = ioutil.ReadAll(part)
+	slurp, err = io.ReadAll(part)
 	if err != nil {
 		t.Fatalf("part 2: ReadAll: %v", err)
 	}
@@ -94,6 +95,7 @@ func TestWriterSetBoundary(t *testing.T) {
 		{"my-separator", true},
 		{"with space", true},
 		{"badspace ", false},
+		{"(boundary)", true},
 	}
 	for i, tt := range tests {
 		var b bytes.Buffer
@@ -107,6 +109,17 @@ func TestWriterSetBoundary(t *testing.T) {
 			if got != tt.b {
 				t.Errorf("boundary = %q; want %q", got, tt.b)
 			}
+
+			ct := w.FormDataContentType()
+			mt, params, err := mime.ParseMediaType(ct)
+			if err != nil {
+				t.Errorf("could not parse Content-Type %q: %v", ct, err)
+			} else if mt != "multipart/form-data" {
+				t.Errorf("unexpected media type %q; want %q", mt, "multipart/form-data")
+			} else if b := params["boundary"]; b != tt.b {
+				t.Errorf("unexpected boundary parameter %q; want %q", b, tt.b)
+			}
+
 			w.Close()
 			wantSub := "\r\n--" + tt.b + "--\r\n"
 			if got := b.String(); !strings.Contains(got, wantSub) {
@@ -121,7 +134,7 @@ func TestWriterBoundaryGoroutines(t *testing.T) {
 	// different goroutines. This was previously broken by
 	// https://codereview.appspot.com/95760043/ and reverted in
 	// https://codereview.appspot.com/117600043/
-	w := NewWriter(ioutil.Discard)
+	w := NewWriter(io.Discard)
 	done := make(chan int)
 	go func() {
 		w.CreateFormField("foo")

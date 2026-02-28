@@ -1,0 +1,74 @@
+[short] skip
+[gccgo] skip
+
+# Test line numbers in cover errors.
+
+# Get errors from a go test into stderr.txt
+! go test coverbad
+stderr 'p\.go:4' # look for error at coverbad/p.go:4
+[cgo] stderr 'p1\.go:6' # look for error at coverbad/p.go:6
+! stderr $WORK # make sure temporary directory isn't in error
+
+cp stderr $WORK/stderr.txt
+
+# Clean out character positions from stderr.txt
+# It's OK that stderr2 drops the character position in the error,
+# because of the //line directive (see golang.org/issue/22662).
+go run clean_charpos.go $WORK/stderr.txt &
+
+# Get errors from coverage into stderr2.txt
+! go test -cover coverbad
+cp stderr $WORK/stderr2.txt
+
+wait # for go run above
+
+cmp $WORK/stderr.txt $WORK/stderr2.txt
+
+-- go.mod --
+module coverbad
+
+go 1.16
+-- p.go --
+package p
+
+func f() {
+	g()
+}
+-- p1.go --
+package p
+
+import "C"
+
+func h() {
+	j()
+}
+-- p_test.go --
+package p
+
+import "testing"
+
+func Test(t *testing.T) {}
+-- clean_charpos.go --
+// +build ignore
+
+package main
+
+import (
+	"log"
+	"os"
+	"strings"
+)
+
+func main() {
+	log.SetFlags(0)
+	b, err := os.ReadFile(os.Args[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+	s := strings.ReplaceAll(string(b), "p.go:4:2:", "p.go:4:")
+	s = strings.ReplaceAll(s, "p1.go:6:2:", "p1.go:6:")
+	os.WriteFile(os.Args[1], []byte(s), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+}

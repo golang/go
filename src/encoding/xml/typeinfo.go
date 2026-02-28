@@ -33,13 +33,15 @@ const (
 	fAttr
 	fCDATA
 	fCharData
-	fInnerXml
+	fInnerXML
 	fComment
 	fAny
 
 	fOmitEmpty
 
-	fMode = fElement | fAttr | fCDATA | fCharData | fInnerXml | fComment | fAny
+	fMode = fElement | fAttr | fCDATA | fCharData | fInnerXML | fComment | fAny
+
+	xmlName = "XMLName"
 )
 
 var tinfoMap sync.Map // map[reflect.Type]*typeInfo
@@ -58,14 +60,14 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 		n := typ.NumField()
 		for i := 0; i < n; i++ {
 			f := typ.Field(i)
-			if (f.PkgPath != "" && !f.Anonymous) || f.Tag.Get("xml") == "-" {
+			if (!f.IsExported() && !f.Anonymous) || f.Tag.Get("xml") == "-" {
 				continue // Private field
 			}
 
 			// For embedded structs, embed its fields.
 			if f.Anonymous {
 				t := f.Type
-				if t.Kind() == reflect.Ptr {
+				if t.Kind() == reflect.Pointer {
 					t = t.Elem()
 				}
 				if t.Kind() == reflect.Struct {
@@ -91,7 +93,7 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 				return nil, err
 			}
 
-			if f.Name == "XMLName" {
+			if f.Name == xmlName {
 				tinfo.xmlname = finfo
 				continue
 			}
@@ -113,8 +115,8 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 
 	// Split the tag from the xml namespace if necessary.
 	tag := f.Tag.Get("xml")
-	if i := strings.Index(tag, " "); i >= 0 {
-		finfo.xmlns, tag = tag[:i], tag[i+1:]
+	if ns, t, ok := strings.Cut(tag, " "); ok {
+		finfo.xmlns, tag = ns, t
 	}
 
 	// Parse flags.
@@ -132,7 +134,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 			case "chardata":
 				finfo.flags |= fCharData
 			case "innerxml":
-				finfo.flags |= fInnerXml
+				finfo.flags |= fInnerXML
 			case "comment":
 				finfo.flags |= fComment
 			case "any":
@@ -147,8 +149,8 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 		switch mode := finfo.flags & fMode; mode {
 		case 0:
 			finfo.flags |= fElement
-		case fAttr, fCDATA, fCharData, fInnerXml, fComment, fAny, fAny | fAttr:
-			if f.Name == "XMLName" || tag != "" && mode != fAttr {
+		case fAttr, fCDATA, fCharData, fInnerXML, fComment, fAny, fAny | fAttr:
+			if f.Name == xmlName || tag != "" && mode != fAttr {
 				valid = false
 			}
 		default:
@@ -173,7 +175,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 			f.Name, typ, f.Tag.Get("xml"))
 	}
 
-	if f.Name == "XMLName" {
+	if f.Name == xmlName {
 		// The XMLName field records the XML element name. Don't
 		// process it as usual because its name should default to
 		// empty rather than to the field name.
@@ -227,7 +229,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 // in case it exists and has a valid xml field tag, otherwise
 // it returns nil.
 func lookupXMLName(typ reflect.Type) (xmlname *fieldInfo) {
-	for typ.Kind() == reflect.Ptr {
+	for typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
 	}
 	if typ.Kind() != reflect.Struct {
@@ -235,11 +237,11 @@ func lookupXMLName(typ reflect.Type) (xmlname *fieldInfo) {
 	}
 	for i, n := 0, typ.NumField(); i < n; i++ {
 		f := typ.Field(i)
-		if f.Name != "XMLName" {
+		if f.Name != xmlName {
 			continue
 		}
 		finfo, err := structFieldInfo(typ, &f)
-		if finfo.name != "" && err == nil {
+		if err == nil && finfo.name != "" {
 			return finfo
 		}
 		// Also consider errors as a non-existent field tag
@@ -342,15 +344,25 @@ func (e *TagPathError) Error() string {
 	return fmt.Sprintf("%s field %q with tag %q conflicts with field %q with tag %q", e.Struct, e.Field1, e.Tag1, e.Field2, e.Tag2)
 }
 
+const (
+	initNilPointers     = true
+	dontInitNilPointers = false
+)
+
 // value returns v's field value corresponding to finfo.
-// It's equivalent to v.FieldByIndex(finfo.idx), but initializes
-// and dereferences pointers as necessary.
-func (finfo *fieldInfo) value(v reflect.Value) reflect.Value {
+// It's equivalent to v.FieldByIndex(finfo.idx), but when passed
+// initNilPointers, it initializes and dereferences pointers as necessary.
+// When passed dontInitNilPointers and a nil pointer is reached, the function
+// returns a zero reflect.Value.
+func (finfo *fieldInfo) value(v reflect.Value, shouldInitNilPointers bool) reflect.Value {
 	for i, x := range finfo.idx {
 		if i > 0 {
 			t := v.Type()
-			if t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct {
+			if t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Struct {
 				if v.IsNil() {
+					if !shouldInitNilPointers {
+						return reflect.Value{}
+					}
 					v.Set(reflect.New(v.Type().Elem()))
 				}
 				v = v.Elem()

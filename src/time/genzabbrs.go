@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 //
 // usage:
@@ -17,9 +17,10 @@ import (
 	"encoding/xml"
 	"flag"
 	"go/format"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"sort"
 	"text/template"
 	"time"
@@ -52,13 +53,7 @@ type zone struct {
 	DSTime   string
 }
 
-type zones []*zone
-
-func (zs zones) Len() int           { return len(zs) }
-func (zs zones) Swap(i, j int)      { zs[i], zs[j] = zs[j], zs[i] }
-func (zs zones) Less(i, j int) bool { return zs[i].UnixName < zs[j].UnixName }
-
-const wzURL = "http://unicode.org/cldr/data/common/supplemental/windowsZones.xml"
+const wzURL = "https://raw.githubusercontent.com/unicode-org/cldr/master/common/supplemental/windowsZones.xml"
 
 type MapZone struct {
 	Other     string `xml:"other,attr"`
@@ -70,14 +65,14 @@ type SupplementalData struct {
 	Zones []MapZone `xml:"windowsZones>mapTimezones>mapZone"`
 }
 
-func readWindowsZones() (zones, error) {
+func readWindowsZones() ([]*zone, error) {
 	r, err := http.Get(wzURL)
 	if err != nil {
 		return nil, err
 	}
 	defer r.Body.Close()
 
-	data, err := ioutil.ReadAll(r.Body)
+	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +82,7 @@ func readWindowsZones() (zones, error) {
 	if err != nil {
 		return nil, err
 	}
-	zs := make(zones, 0)
+	zs := make([]*zone, 0)
 	for _, z := range sd.Zones {
 		if z.Territory != "001" {
 			// to avoid dups. I don't know why.
@@ -114,10 +109,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	sort.Sort(zs)
+	sort.Slice(zs, func(i, j int) bool {
+		return zs[i].UnixName < zs[j].UnixName
+	})
 	var v = struct {
 		URL string
-		Zs  zones
+		Zs  []*zone
 	}{
 		wzURL,
 		zs,
@@ -131,7 +128,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile(*filename, data, 0644)
+	err = os.WriteFile(*filename, data, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}

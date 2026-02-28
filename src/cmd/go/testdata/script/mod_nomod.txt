@@ -1,0 +1,43 @@
+# Test go commands with no module.
+env GO111MODULE=on
+
+# go mod edit fails unless given explicit mod file argument
+! go mod edit -json
+go mod edit -json x.mod
+
+# bug succeeds
+[exec:echo] env BROWSER=echo
+[exec:echo] go bug
+
+# commands that load the package in the current directory fail
+! go build
+! go fmt
+! go generate
+! go get
+! go install
+! go list
+! go run
+! go test
+! go vet
+
+# clean succeeds, even with -modcache
+go clean -modcache
+
+# doc succeeds for standard library
+go doc unsafe
+
+# env succeeds
+go env
+
+# tool succeeds
+go tool -n test2json
+
+# version succeeds
+go version
+
+-- x.mod --
+module m
+
+-- x.go --
+package main
+func main() {}

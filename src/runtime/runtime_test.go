@@ -5,6 +5,8 @@
 package runtime_test
 
 import (
+	"flag"
+	"fmt"
 	"io"
 	. "runtime"
 	"runtime/debug"
@@ -12,6 +14,8 @@ import (
 	"testing"
 	"unsafe"
 )
+
+var flagQuick = flag.Bool("quick", false, "skip slow tests, for second run in all.bash")
 
 func init() {
 	// We're testing the runtime, so make tracebacks show things
@@ -50,8 +54,8 @@ func BenchmarkIfaceCmpNil100(b *testing.B) {
 	}
 }
 
-var efaceCmp1 interface{}
-var efaceCmp2 interface{}
+var efaceCmp1 any
+var efaceCmp2 any
 
 func BenchmarkEfaceCmpDiff(b *testing.B) {
 	x := 5
@@ -61,6 +65,18 @@ func BenchmarkEfaceCmpDiff(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 100; j++ {
 			if efaceCmp1 == efaceCmp2 {
+				b.Fatal("bad comparison")
+			}
+		}
+	}
+}
+
+func BenchmarkEfaceCmpDiffIndirect(b *testing.B) {
+	efaceCmp1 = [2]int{1, 2}
+	efaceCmp2 = [2]int{1, 2}
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 100; j++ {
+			if efaceCmp1 != efaceCmp2 {
 				b.Fatal("bad comparison")
 			}
 		}
@@ -105,6 +121,21 @@ func BenchmarkDeferMany(b *testing.B) {
 			}
 		}(1, 2, 3)
 	}
+}
+
+func BenchmarkPanicRecover(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		defer3()
+	}
+}
+
+func defer3() {
+	defer func(x, y, z int) {
+		if recover() == nil {
+			panic("failed recover")
+		}
+	}(1, 2, 3)
+	panic("hi")
 }
 
 // golang.org/issue/7063
@@ -162,9 +193,14 @@ func TestSetPanicOnFault(t *testing.T) {
 	}
 }
 
+// testSetPanicOnFault tests one potentially faulting address.
+// It deliberately constructs and uses an invalid pointer,
+// so mark it as nocheckptr.
+//
+//go:nocheckptr
 func testSetPanicOnFault(t *testing.T, addr uintptr, nfault *int) {
-	if GOOS == "nacl" {
-		t.Skip("nacl doesn't seem to fault on high addresses")
+	if GOOS == "js" {
+		t.Skip("js does not support catching faults")
 	}
 
 	defer func() {
@@ -196,9 +232,9 @@ func eqstring_generic(s1, s2 string) bool {
 }
 
 func TestEqString(t *testing.T) {
-	// This isn't really an exhaustive test of eqstring, it's
+	// This isn't really an exhaustive test of == on strings, it's
 	// just a convenient way of documenting (via eqstring_generic)
-	// what eqstring does.
+	// what == does.
 	s := []string{
 		"",
 		"a",
@@ -213,7 +249,7 @@ func TestEqString(t *testing.T) {
 			x := s1 == s2
 			y := eqstring_generic(s1, s2)
 			if x != y {
-				t.Errorf(`eqstring("%s","%s") = %t, want %t`, s1, s2, x, y)
+				t.Errorf(`("%s" == "%s") = %t, want %t`, s1, s2, x, y)
 			}
 		}
 	}
@@ -232,8 +268,8 @@ func TestTrailingZero(t *testing.T) {
 		n int64
 		z struct{}
 	}
-	if unsafe.Sizeof(T2{}) != 8+unsafe.Sizeof(Uintreg(0)) {
-		t.Errorf("sizeof(%#v)==%d, want %d", T2{}, unsafe.Sizeof(T2{}), 8+unsafe.Sizeof(Uintreg(0)))
+	if unsafe.Sizeof(T2{}) != 8+unsafe.Sizeof(uintptr(0)) {
+		t.Errorf("sizeof(%#v)==%d, want %d", T2{}, unsafe.Sizeof(T2{}), 8+unsafe.Sizeof(uintptr(0)))
 	}
 	type T3 struct {
 		n byte
@@ -257,32 +293,6 @@ func TestTrailingZero(t *testing.T) {
 	}
 	if unsafe.Sizeof(T5{}) != 0 {
 		t.Errorf("sizeof(%#v)==%d, want 0", T5{}, unsafe.Sizeof(T5{}))
-	}
-}
-
-func TestBadOpen(t *testing.T) {
-	if GOOS == "windows" || GOOS == "nacl" {
-		t.Skip("skipping OS that doesn't have open/read/write/close")
-	}
-	// make sure we get the correct error code if open fails. Same for
-	// read/write/close on the resulting -1 fd. See issue 10052.
-	nonfile := []byte("/notreallyafile")
-	fd := Open(&nonfile[0], 0, 0)
-	if fd != -1 {
-		t.Errorf("open(\"%s\")=%d, want -1", string(nonfile), fd)
-	}
-	var buf [32]byte
-	r := Read(-1, unsafe.Pointer(&buf[0]), int32(len(buf)))
-	if r != -1 {
-		t.Errorf("read()=%d, want -1", r)
-	}
-	w := Write(^uintptr(0), unsafe.Pointer(&buf[0]), int32(len(buf)))
-	if w != -1 {
-		t.Errorf("write()=%d, want -1", w)
-	}
-	c := Close(-1)
-	if c != -1 {
-		t.Errorf("close()=%d, want -1", c)
 	}
 }
 
@@ -352,5 +362,80 @@ func TestVersion(t *testing.T) {
 	vers := Version()
 	if strings.Contains(vers, "\r") || strings.Contains(vers, "\n") {
 		t.Fatalf("cr/nl in version: %q", vers)
+	}
+}
+
+func TestTimediv(t *testing.T) {
+	for _, tc := range []struct {
+		num int64
+		div int32
+		ret int32
+		rem int32
+	}{
+		{
+			num: 8,
+			div: 2,
+			ret: 4,
+			rem: 0,
+		},
+		{
+			num: 9,
+			div: 2,
+			ret: 4,
+			rem: 1,
+		},
+		{
+			// Used by runtime.check.
+			num: 12345*1000000000 + 54321,
+			div: 1000000000,
+			ret: 12345,
+			rem: 54321,
+		},
+		{
+			num: 1<<32 - 1,
+			div: 2,
+			ret: 1<<31 - 1, // no overflow.
+			rem: 1,
+		},
+		{
+			num: 1 << 32,
+			div: 2,
+			ret: 1<<31 - 1, // overflow.
+			rem: 0,
+		},
+		{
+			num: 1 << 40,
+			div: 2,
+			ret: 1<<31 - 1, // overflow.
+			rem: 0,
+		},
+		{
+			num: 1<<40 + 1,
+			div: 1 << 10,
+			ret: 1 << 30,
+			rem: 1,
+		},
+	} {
+		name := fmt.Sprintf("%d div %d", tc.num, tc.div)
+		t.Run(name, func(t *testing.T) {
+			// Double check that the inputs make sense using
+			// standard 64-bit division.
+			ret64 := tc.num / int64(tc.div)
+			rem64 := tc.num % int64(tc.div)
+			if ret64 != int64(int32(ret64)) {
+				// Simulate timediv overflow value.
+				ret64 = 1<<31 - 1
+				rem64 = 0
+			}
+			if ret64 != int64(tc.ret) {
+				t.Errorf("%d / %d got ret %d rem %d want ret %d rem %d", tc.num, tc.div, ret64, rem64, tc.ret, tc.rem)
+			}
+
+			var rem int32
+			ret := Timediv(tc.num, tc.div, &rem)
+			if ret != tc.ret || rem != tc.rem {
+				t.Errorf("timediv %d / %d got ret %d rem %d want ret %d rem %d", tc.num, tc.div, ret, rem, tc.ret, tc.rem)
+			}
+		})
 	}
 }

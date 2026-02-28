@@ -9,8 +9,8 @@ package doc
 import (
 	"go/ast"
 	"go/token"
+	"internal/lazyregexp"
 	"path"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,9 +18,10 @@ import (
 	"unicode/utf8"
 )
 
-// An Example represents an example function found in a source files.
+// An Example represents an example function found in a test source file.
 type Example struct {
-	Name        string // name of the item being exemplified
+	Name        string // name of the item being exemplified (including optional suffix)
+	Suffix      string // example suffix, without leading '_' (only populated by NewFromFiles)
 	Doc         string // example function doc string
 	Code        ast.Node
 	Play        *ast.File // a whole program version of the example
@@ -31,8 +32,10 @@ type Example struct {
 	Order       int  // original source code order
 }
 
-// Examples returns the examples found in the files, sorted by Name field.
+// Examples returns the examples found in testFiles, sorted by Name field.
 // The Order fields record the order in which the examples were encountered.
+// The Suffix field is not populated when Examples is called directly, it is
+// only populated by NewFromFiles for examples it finds in _test.go files.
 //
 // Playable Examples must be in a package whose name ends in "_test".
 // An Example is "playable" (the Play field is non-nil) in either of these
@@ -41,13 +44,13 @@ type Example struct {
 //     identifiers from other packages (or predeclared identifiers, such as
 //     "int") and the test file does not include a dot import.
 //   - The entire test file is the example: the file contains exactly one
-//     example function, zero test or benchmark functions, and at least one
-//     top-level function, type, variable, or constant declaration other
-//     than the example function.
-func Examples(files ...*ast.File) []*Example {
+//     example function, zero test, fuzz test, or benchmark function, and at
+//     least one top-level function, type, variable, or constant declaration
+//     other than the example function.
+func Examples(testFiles ...*ast.File) []*Example {
 	var list []*Example
-	for _, file := range files {
-		hasTests := false // file contains tests or benchmarks
+	for _, file := range testFiles {
+		hasTests := false // file contains tests, fuzz test, or benchmarks
 		numDecl := 0      // number of non-import declarations in the file
 		var flist []*Example
 		for _, decl := range file.Decls {
@@ -56,16 +59,22 @@ func Examples(files ...*ast.File) []*Example {
 				continue
 			}
 			f, ok := decl.(*ast.FuncDecl)
-			if !ok {
+			if !ok || f.Recv != nil {
 				continue
 			}
 			numDecl++
 			name := f.Name.Name
-			if isTest(name, "Test") || isTest(name, "Benchmark") {
+			if isTest(name, "Test") || isTest(name, "Benchmark") || isTest(name, "Fuzz") {
 				hasTests = true
 				continue
 			}
 			if !isTest(name, "Example") {
+				continue
+			}
+			if params := f.Type.Params; len(params.List) != 0 {
+				continue // function has params; not a valid example
+			}
+			if f.Body == nil { // ast.File.Body nil dereference (see issue 28044)
 				continue
 			}
 			var doc string
@@ -77,7 +86,7 @@ func Examples(files ...*ast.File) []*Example {
 				Name:        name[len("Example"):],
 				Doc:         doc,
 				Code:        f.Body,
-				Play:        playExample(file, f.Body),
+				Play:        playExample(file, f),
 				Comments:    file.Comments,
 				Output:      output,
 				Unordered:   unordered,
@@ -94,11 +103,14 @@ func Examples(files ...*ast.File) []*Example {
 		}
 		list = append(list, flist...)
 	}
-	sort.Sort(exampleByName(list))
+	// sort by name
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].Name < list[j].Name
+	})
 	return list
 }
 
-var outputPrefix = regexp.MustCompile(`(?i)^[[:space:]]*(unordered )?output:`)
+var outputPrefix = lazyregexp.New(`(?i)^[[:space:]]*(unordered )?output:`)
 
 // Extracts the expected output and whether there was a valid output comment
 func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) (output string, unordered, ok bool) {
@@ -121,9 +133,9 @@ func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) (output strin
 	return "", false, false // no suitable comment found
 }
 
-// isTest tells whether name looks like a test, example, or benchmark.
-// It is a Test (say) if there is a character after Test that is not a
-// lower-case letter. (We don't want Testiness.)
+// isTest tells whether name looks like a test, example, fuzz test, or
+// benchmark. It is a Test (say) if there is a character after Test that is not
+// a lower-case letter. (We don't want Testiness.)
 func isTest(name, prefix string) bool {
 	if !strings.HasPrefix(name, prefix) {
 		return false
@@ -135,35 +147,41 @@ func isTest(name, prefix string) bool {
 	return !unicode.IsLower(rune)
 }
 
-type exampleByName []*Example
-
-func (s exampleByName) Len() int           { return len(s) }
-func (s exampleByName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s exampleByName) Less(i, j int) bool { return s[i].Name < s[j].Name }
-
 // playExample synthesizes a new *ast.File based on the provided
 // file with the provided function body as the body of main.
-func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
+func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
+	body := f.Body
+
 	if !strings.HasSuffix(file.Name.Name, "_test") {
 		// We don't support examples that are part of the
 		// greater package (yet).
 		return nil
 	}
 
-	// Find top-level declarations in the file.
-	topDecls := make(map[*ast.Object]bool)
+	// Collect top-level declarations in the file.
+	topDecls := make(map[*ast.Object]ast.Decl)
+	typMethods := make(map[string][]ast.Decl)
+
 	for _, decl := range file.Decls {
 		switch d := decl.(type) {
 		case *ast.FuncDecl:
-			topDecls[d.Name.Obj] = true
+			if d.Recv == nil {
+				topDecls[d.Name.Obj] = d
+			} else {
+				if len(d.Recv.List) == 1 {
+					t := d.Recv.List[0].Type
+					tname, _ := baseTypeName(t)
+					typMethods[tname] = append(typMethods[tname], d)
+				}
+			}
 		case *ast.GenDecl:
 			for _, spec := range d.Specs {
 				switch s := spec.(type) {
 				case *ast.TypeSpec:
-					topDecls[s.Name.Obj] = true
+					topDecls[s.Name.Obj] = d
 				case *ast.ValueSpec:
-					for _, id := range s.Names {
-						topDecls[id.Obj] = true
+					for _, name := range s.Names {
+						topDecls[name.Obj] = d
 					}
 				}
 			}
@@ -172,36 +190,74 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 
 	// Find unresolved identifiers and uses of top-level declarations.
 	unresolved := make(map[string]bool)
-	usesTopDecl := false
+	var depDecls []ast.Decl
+	hasDepDecls := make(map[ast.Decl]bool)
+
 	var inspectFunc func(ast.Node) bool
 	inspectFunc = func(n ast.Node) bool {
-		// For selector expressions, only inspect the left hand side.
-		// (For an expression like fmt.Println, only add "fmt" to the
-		// set of unresolved names, not "Println".)
-		if e, ok := n.(*ast.SelectorExpr); ok {
+		switch e := n.(type) {
+		case *ast.Ident:
+			if e.Obj == nil && e.Name != "_" {
+				unresolved[e.Name] = true
+			} else if d := topDecls[e.Obj]; d != nil {
+				if !hasDepDecls[d] {
+					hasDepDecls[d] = true
+					depDecls = append(depDecls, d)
+				}
+			}
+			return true
+		case *ast.SelectorExpr:
+			// For selector expressions, only inspect the left hand side.
+			// (For an expression like fmt.Println, only add "fmt" to the
+			// set of unresolved names, not "Println".)
 			ast.Inspect(e.X, inspectFunc)
 			return false
-		}
-		// For key value expressions, only inspect the value
-		// as the key should be resolved by the type of the
-		// composite literal.
-		if e, ok := n.(*ast.KeyValueExpr); ok {
+		case *ast.KeyValueExpr:
+			// For key value expressions, only inspect the value
+			// as the key should be resolved by the type of the
+			// composite literal.
 			ast.Inspect(e.Value, inspectFunc)
 			return false
-		}
-		if id, ok := n.(*ast.Ident); ok {
-			if id.Obj == nil {
-				unresolved[id.Name] = true
-			} else if topDecls[id.Obj] {
-				usesTopDecl = true
-			}
 		}
 		return true
 	}
 	ast.Inspect(body, inspectFunc)
-	if usesTopDecl {
-		// We don't support examples that are not self-contained (yet).
-		return nil
+	for i := 0; i < len(depDecls); i++ {
+		switch d := depDecls[i].(type) {
+		case *ast.FuncDecl:
+			// Inspect types of parameters and results. See #28492.
+			if d.Type.Params != nil {
+				for _, p := range d.Type.Params.List {
+					ast.Inspect(p.Type, inspectFunc)
+				}
+			}
+			if d.Type.Results != nil {
+				for _, r := range d.Type.Results.List {
+					ast.Inspect(r.Type, inspectFunc)
+				}
+			}
+
+			// Functions might not have a body. See #42706.
+			if d.Body != nil {
+				ast.Inspect(d.Body, inspectFunc)
+			}
+		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				switch s := spec.(type) {
+				case *ast.TypeSpec:
+					ast.Inspect(s.Type, inspectFunc)
+
+					depDecls = append(depDecls, typMethods[s.Name.Name]...)
+				case *ast.ValueSpec:
+					if s.Type != nil {
+						ast.Inspect(s.Type, inspectFunc)
+					}
+					for _, val := range s.Values {
+						ast.Inspect(val, inspectFunc)
+					}
+				}
+			}
+		}
 	}
 
 	// Remove predeclared identifiers from unresolved list.
@@ -220,6 +276,11 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 		p, err := strconv.Unquote(s.Path.Value)
 		if err != nil {
 			continue
+		}
+		if p == "syscall/js" {
+			// We don't support examples that import syscall/js,
+			// because the package syscall/js is not available in the playground.
+			return nil
 		}
 		n := path.Base(p)
 		if s.Name != nil {
@@ -264,6 +325,20 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 	// end position.
 	body, comments = stripOutputComment(body, comments)
 
+	// Include documentation belonging to dependent declarations.
+	for _, d := range depDecls {
+		switch d := d.(type) {
+		case *ast.GenDecl:
+			if d.Doc != nil {
+				comments = append(comments, d.Doc)
+			}
+		case *ast.FuncDecl:
+			if d.Doc != nil {
+				comments = append(comments, d.Doc)
+			}
+		}
+	}
+
 	// Synthesize import declaration.
 	importDecl := &ast.GenDecl{
 		Tok:    token.IMPORT,
@@ -282,14 +357,27 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 	// Synthesize main function.
 	funcDecl := &ast.FuncDecl{
 		Name: ast.NewIdent("main"),
-		Type: &ast.FuncType{Params: &ast.FieldList{}}, // FuncType.Params must be non-nil
+		Type: f.Type,
 		Body: body,
 	}
+
+	decls := make([]ast.Decl, 0, 2+len(depDecls))
+	decls = append(decls, importDecl)
+	decls = append(decls, depDecls...)
+	decls = append(decls, funcDecl)
+
+	sort.Slice(decls, func(i, j int) bool {
+		return decls[i].Pos() < decls[j].Pos()
+	})
+
+	sort.Slice(comments, func(i, j int) bool {
+		return comments[i].Pos() < comments[j].Pos()
+	})
 
 	// Synthesize file.
 	return &ast.File{
 		Name:     ast.NewIdent("main"),
-		Decls:    []ast.Decl{importDecl, funcDecl},
+		Decls:    decls,
 		Comments: comments,
 	}
 }
@@ -347,6 +435,9 @@ func stripOutputComment(body *ast.BlockStmt, comments []*ast.CommentGroup) (*ast
 
 // lastComment returns the last comment inside the provided block.
 func lastComment(b *ast.BlockStmt, c []*ast.CommentGroup) (i int, last *ast.CommentGroup) {
+	if b == nil {
+		return
+	}
 	pos, end := b.Pos(), b.End()
 	for j, cg := range c {
 		if cg.Pos() < pos {
@@ -358,4 +449,101 @@ func lastComment(b *ast.BlockStmt, c []*ast.CommentGroup) (i int, last *ast.Comm
 		i, last = j, cg
 	}
 	return
+}
+
+// classifyExamples classifies examples and assigns them to the Examples field
+// of the relevant Func, Type, or Package that the example is associated with.
+//
+// The classification process is ambiguous in some cases:
+//
+//   - ExampleFoo_Bar matches a type named Foo_Bar
+//     or a method named Foo.Bar.
+//   - ExampleFoo_bar matches a type named Foo_bar
+//     or Foo (with a "bar" suffix).
+//
+// Examples with malformed names are not associated with anything.
+func classifyExamples(p *Package, examples []*Example) {
+	if len(examples) == 0 {
+		return
+	}
+
+	// Mapping of names for funcs, types, and methods to the example listing.
+	ids := make(map[string]*[]*Example)
+	ids[""] = &p.Examples // package-level examples have an empty name
+	for _, f := range p.Funcs {
+		if !token.IsExported(f.Name) {
+			continue
+		}
+		ids[f.Name] = &f.Examples
+	}
+	for _, t := range p.Types {
+		if !token.IsExported(t.Name) {
+			continue
+		}
+		ids[t.Name] = &t.Examples
+		for _, f := range t.Funcs {
+			if !token.IsExported(f.Name) {
+				continue
+			}
+			ids[f.Name] = &f.Examples
+		}
+		for _, m := range t.Methods {
+			if !token.IsExported(m.Name) {
+				continue
+			}
+			ids[strings.TrimPrefix(m.Recv, "*")+"_"+m.Name] = &m.Examples
+		}
+	}
+
+	// Group each example with the associated func, type, or method.
+	for _, ex := range examples {
+		// Consider all possible split points for the suffix
+		// by starting at the end of string (no suffix case),
+		// then trying all positions that contain a '_' character.
+		//
+		// An association is made on the first successful match.
+		// Examples with malformed names that match nothing are skipped.
+		for i := len(ex.Name); i >= 0; i = strings.LastIndexByte(ex.Name[:i], '_') {
+			prefix, suffix, ok := splitExampleName(ex.Name, i)
+			if !ok {
+				continue
+			}
+			exs, ok := ids[prefix]
+			if !ok {
+				continue
+			}
+			ex.Suffix = suffix
+			*exs = append(*exs, ex)
+			break
+		}
+	}
+
+	// Sort list of example according to the user-specified suffix name.
+	for _, exs := range ids {
+		sort.Slice((*exs), func(i, j int) bool {
+			return (*exs)[i].Suffix < (*exs)[j].Suffix
+		})
+	}
+}
+
+// splitExampleName attempts to split example name s at index i,
+// and reports if that produces a valid split. The suffix may be
+// absent. Otherwise, it must start with a lower-case letter and
+// be preceded by '_'.
+//
+// One of i == len(s) or s[i] == '_' must be true.
+func splitExampleName(s string, i int) (prefix, suffix string, ok bool) {
+	if i == len(s) {
+		return s, "", true
+	}
+	if i == len(s)-1 {
+		return "", "", false
+	}
+	prefix, suffix = s[:i], s[i+1:]
+	return prefix, suffix, isExampleSuffix(suffix)
+}
+
+func isExampleSuffix(s string) bool {
+	r, size := utf8.DecodeRuneInString(s)
+	return size > 0 && unicode.IsLower(r)
 }

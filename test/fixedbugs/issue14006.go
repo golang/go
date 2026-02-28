@@ -21,26 +21,26 @@ func f() {
 	var x int
 	switch x {
 	case 1:
-		2:	// ERROR "unexpected :"
+		2:	// ERROR "unexpected :|expected .*;.* or .*}.* or newline|value computed is not used"
 	case 2:
 	}
 
 	switch x {
 	case 1:
-		2: ;	// ERROR "unexpected :"
+		2: ;	// ERROR "unexpected :|expected .*;.* or .*}.* or newline|value computed is not used"
 	case 2:
 	}
 
 	var y string
 	switch y {
 	case "foo":
-		"bar":	// ERROR "unexpected :"
+		"bar":	// ERROR "unexpected :|expected .*;.* or .*}.* or newline|value computed is not used"
 	case "bar":
 	}
 
 	switch y {
 	case "foo":
-		"bar": ;	// ERROR "unexpected :"
+		"bar": ;	// ERROR "unexpected :|expected .*;.* or .*}.* or newline|value computed is not used"
 	case "bar":
 	}
 
@@ -50,15 +50,18 @@ func f() {
 		labelname:	// ERROR "missing statement after label"
 	case false:
 	}
+}
 
+func g() {
+	var z bool
 	switch {
 	case z:
-		labelname:	// ERROR "label labelname defined and not used"
+		labelname:	// ERROR "label labelname defined and not used|previous definition|defined and not used"
 	}
 
 	switch {
 	case z:
-		labelname: ;	// ERROR "label labelname already defined at LINE-5"
+		labelname: ;	// ERROR "label labelname already defined at LINE-5|label .*labelname.* already defined"
 	case false:
 	}
 }

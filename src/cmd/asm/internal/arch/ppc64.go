@@ -15,7 +15,7 @@ import (
 
 func jumpPPC64(word string) bool {
 	switch word {
-	case "BC", "BCL", "BEQ", "BGE", "BGT", "BL", "BLE", "BLT", "BNE", "BR", "BVC", "BVS", "CALL", "JMP":
+	case "BC", "BCL", "BEQ", "BGE", "BGT", "BL", "BLE", "BLT", "BNE", "BR", "BVC", "BVS", "BDNZ", "BDZ", "CALL", "JMP":
 		return true
 	}
 	return false
@@ -47,7 +47,7 @@ func IsPPC64ISEL(op obj.As) bool {
 // one of the CMP instructions that require special handling.
 func IsPPC64CMP(op obj.As) bool {
 	switch op {
-	case ppc64.ACMP, ppc64.ACMPU, ppc64.ACMPW, ppc64.ACMPWU:
+	case ppc64.ACMP, ppc64.ACMPU, ppc64.ACMPW, ppc64.ACMPWU, ppc64.AFCMPU:
 		return true
 	}
 	return false

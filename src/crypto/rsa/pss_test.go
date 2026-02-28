@@ -9,10 +9,9 @@ import (
 	"bytes"
 	"compress/bzip2"
 	"crypto"
-	_ "crypto/md5"
 	"crypto/rand"
 	"crypto/sha1"
-	_ "crypto/sha256"
+	"crypto/sha256"
 	"encoding/hex"
 	"math/big"
 	"os"
@@ -103,7 +102,7 @@ func TestPSSGolden(t *testing.T) {
 			switch {
 			case len(line) == 0:
 				if len(partialValue) > 0 {
-					values <- strings.Replace(partialValue, " ", "", -1)
+					values <- strings.ReplaceAll(partialValue, " ", "")
 					partialValue = ""
 					lastWasValue = true
 				}
@@ -211,7 +210,7 @@ func TestPSSSigning(t *testing.T) {
 		{8, 8, true},
 	}
 
-	hash := crypto.MD5
+	hash := crypto.SHA1
 	h := hash.New()
 	h.Write([]byte("testing"))
 	hashed := h.Sum(nil)
@@ -230,6 +229,24 @@ func TestPSSSigning(t *testing.T) {
 		if (err == nil) != test.good {
 			t.Errorf("#%d: bad result, wanted: %t, got: %s", i, test.good, err)
 		}
+	}
+}
+
+func TestSignWithPSSSaltLengthAuto(t *testing.T) {
+	key, err := GenerateKey(rand.Reader, 513)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte("message"))
+	signature, err := key.Sign(rand.Reader, digest[:], &PSSOptions{
+		SaltLength: PSSSaltLengthAuto,
+		Hash:       crypto.SHA256,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(signature) == 0 {
+		t.Fatal("empty signature returned")
 	}
 }
 

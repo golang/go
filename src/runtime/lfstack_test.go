@@ -24,7 +24,7 @@ func toMyNode(node *LFNode) *MyNode {
 	return (*MyNode)(unsafe.Pointer(node))
 }
 
-var global interface{}
+var global any
 
 func TestLFStack(t *testing.T) {
 	stack := new(uint64)

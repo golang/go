@@ -9,11 +9,17 @@ import (
 	"encoding/binary"
 	"fmt"
 	"internal/race"
+	"internal/testenv"
 	. "runtime"
+	"sync/atomic"
 	"testing"
+	"unsafe"
 )
 
 func TestMemmove(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
 	t.Parallel()
 	size := 256
 	if testing.Short() {
@@ -53,6 +59,9 @@ func TestMemmove(t *testing.T) {
 }
 
 func TestMemmoveAlias(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
 	t.Parallel()
 	size := 256
 	if testing.Short() {
@@ -88,6 +97,10 @@ func TestMemmoveAlias(t *testing.T) {
 }
 
 func TestMemmoveLarge0x180000(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("-short")
+	}
+
 	t.Parallel()
 	if race.Enabled {
 		t.Skip("skipping large memmove test under race detector")
@@ -96,6 +109,10 @@ func TestMemmoveLarge0x180000(t *testing.T) {
 }
 
 func TestMemmoveOverlapLarge0x120000(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("-short")
+	}
+
 	t.Parallel()
 	if race.Enabled {
 		t.Skip("skipping large memmove test under race detector")
@@ -191,6 +208,71 @@ func cmpb(a, b []byte) int {
 	return l
 }
 
+// Ensure that memmove writes pointers atomically, so the GC won't
+// observe a partially updated pointer.
+func TestMemmoveAtomicity(t *testing.T) {
+	if race.Enabled {
+		t.Skip("skip under the race detector -- this test is intentionally racy")
+	}
+
+	var x int
+
+	for _, backward := range []bool{true, false} {
+		for _, n := range []int{3, 4, 5, 6, 7, 8, 9, 10, 15, 25, 49} {
+			n := n
+
+			// test copying [N]*int.
+			sz := uintptr(n * PtrSize)
+			name := fmt.Sprint(sz)
+			if backward {
+				name += "-backward"
+			} else {
+				name += "-forward"
+			}
+			t.Run(name, func(t *testing.T) {
+				// Use overlapping src and dst to force forward/backward copy.
+				var s [100]*int
+				src := s[n-1 : 2*n-1]
+				dst := s[:n]
+				if backward {
+					src, dst = dst, src
+				}
+				for i := range src {
+					src[i] = &x
+				}
+				for i := range dst {
+					dst[i] = nil
+				}
+
+				var ready uint32
+				go func() {
+					sp := unsafe.Pointer(&src[0])
+					dp := unsafe.Pointer(&dst[0])
+					atomic.StoreUint32(&ready, 1)
+					for i := 0; i < 10000; i++ {
+						Memmove(dp, sp, sz)
+						MemclrNoHeapPointers(dp, sz)
+					}
+					atomic.StoreUint32(&ready, 2)
+				}()
+
+				for atomic.LoadUint32(&ready) == 0 {
+					Gosched()
+				}
+
+				for atomic.LoadUint32(&ready) != 2 {
+					for i := range dst {
+						p := dst[i]
+						if p != nil && p != &x {
+							t.Fatalf("got partially updated pointer %p at dst[%d], want either nil or %p", p, i, &x)
+						}
+					}
+				}
+			})
+		}
+	}
+}
+
 func benchmarkSizes(b *testing.B, sizes []int, fn func(b *testing.B, n int)) {
 	for _, n := range sizes {
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
@@ -204,6 +286,9 @@ var bufSizes = []int{
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 	32, 64, 128, 256, 512, 1024, 2048, 4096,
 }
+var bufSizesOverlap = []int{
+	32, 64, 128, 256, 512, 1024, 2048, 4096,
+}
 
 func BenchmarkMemmove(b *testing.B) {
 	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
@@ -211,6 +296,15 @@ func BenchmarkMemmove(b *testing.B) {
 		y := make([]byte, n)
 		for i := 0; i < b.N; i++ {
 			copy(x, y)
+		}
+	})
+}
+
+func BenchmarkMemmoveOverlap(b *testing.B) {
+	benchmarkSizes(b, bufSizesOverlap, func(b *testing.B, n int) {
+		x := make([]byte, n+16)
+		for i := 0; i < b.N; i++ {
+			copy(x[16:n+16], x[:n])
 		}
 	})
 }
@@ -225,12 +319,30 @@ func BenchmarkMemmoveUnalignedDst(b *testing.B) {
 	})
 }
 
+func BenchmarkMemmoveUnalignedDstOverlap(b *testing.B) {
+	benchmarkSizes(b, bufSizesOverlap, func(b *testing.B, n int) {
+		x := make([]byte, n+16)
+		for i := 0; i < b.N; i++ {
+			copy(x[16:n+16], x[1:n+1])
+		}
+	})
+}
+
 func BenchmarkMemmoveUnalignedSrc(b *testing.B) {
 	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
 		x := make([]byte, n)
 		y := make([]byte, n+1)
 		for i := 0; i < b.N; i++ {
 			copy(x, y[1:])
+		}
+	})
+}
+
+func BenchmarkMemmoveUnalignedSrcOverlap(b *testing.B) {
+	benchmarkSizes(b, bufSizesOverlap, func(b *testing.B, n int) {
+		x := make([]byte, n+1)
+		for i := 0; i < b.N; i++ {
+			copy(x[1:n+1], x[:n])
 		}
 	})
 }
@@ -441,6 +553,13 @@ func BenchmarkCopyFat512(b *testing.B) {
 		_ = y
 	}
 }
+func BenchmarkCopyFat520(b *testing.B) {
+	var x [520 / 4]uint32
+	for i := 0; i < b.N; i++ {
+		y := x
+		_ = y
+	}
+}
 func BenchmarkCopyFat1024(b *testing.B) {
 	var x [1024 / 4]uint32
 	for i := 0; i < b.N; i++ {
@@ -449,21 +568,30 @@ func BenchmarkCopyFat1024(b *testing.B) {
 	}
 }
 
+// BenchmarkIssue18740 ensures that memmove uses 4 and 8 byte load/store to move 4 and 8 bytes.
+// It used to do 2 2-byte load/stores, which leads to a pipeline stall
+// when we try to read the result with one 4-byte load.
 func BenchmarkIssue18740(b *testing.B) {
-	// This tests that memmove uses one 4-byte load/store to move 4 bytes.
-	// It used to do 2 2-byte load/stores, which leads to a pipeline stall
-	// when we try to read the result with one 4-byte load.
-	var buf [4]byte
-	for j := 0; j < b.N; j++ {
-		s := uint32(0)
-		for i := 0; i < 4096; i += 4 {
-			copy(buf[:], g[i:])
-			s += binary.LittleEndian.Uint32(buf[:])
-		}
-		sink = uint64(s)
+	benchmarks := []struct {
+		name  string
+		nbyte int
+		f     func([]byte) uint64
+	}{
+		{"2byte", 2, func(buf []byte) uint64 { return uint64(binary.LittleEndian.Uint16(buf)) }},
+		{"4byte", 4, func(buf []byte) uint64 { return uint64(binary.LittleEndian.Uint32(buf)) }},
+		{"8byte", 8, func(buf []byte) uint64 { return binary.LittleEndian.Uint64(buf) }},
+	}
+
+	var g [4096]byte
+	for _, bm := range benchmarks {
+		buf := make([]byte, bm.nbyte)
+		b.Run(bm.name, func(b *testing.B) {
+			for j := 0; j < b.N; j++ {
+				for i := 0; i < 4096; i += bm.nbyte {
+					copy(buf[:], g[i:])
+					sink += bm.f(buf[:])
+				}
+			}
+		})
 	}
 }
-
-// TODO: 2 byte and 8 byte benchmarks also.
-
-var g [4096]byte

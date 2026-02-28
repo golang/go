@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Binary api computes the exported API of a set of Go packages.
+// Api computes the exported API of a set of Go packages.
 package main
 
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -15,26 +16,42 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	exec "internal/execabs"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 )
+
+func goCmd() string {
+	var exeSuffix string
+	if runtime.GOOS == "windows" {
+		exeSuffix = ".exe"
+	}
+	if goroot := build.Default.GOROOT; goroot != "" {
+		path := filepath.Join(goroot, "bin", "go"+exeSuffix)
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+	return "go"
+}
 
 // Flags
 var (
-	checkFile  = flag.String("c", "", "optional comma-separated filename(s) to check API against")
-	allowNew   = flag.Bool("allow_new", true, "allow API additions")
-	exceptFile = flag.String("except", "", "optional filename of packages that are allowed to change without triggering a failure in the tool")
-	nextFile   = flag.String("next", "", "optional filename of tentative upcoming API features for the next release. This file can be lazily maintained. It only affects the delta warnings from the -c file printed on success.")
-	verbose    = flag.Bool("v", false, "verbose debugging")
-	forceCtx   = flag.String("contexts", "", "optional comma-separated list of <goos>-<goarch>[-cgo] to override default contexts.")
+	checkFiles      = flag.String("c", "", "optional comma-separated filename(s) to check API against")
+	requireApproval = flag.String("approval", "", "require approvals in comma-separated list of `files`")
+	allowNew        = flag.Bool("allow_new", true, "allow API additions")
+	exceptFile      = flag.String("except", "", "optional filename of packages that are allowed to change without triggering a failure in the tool")
+	nextFiles       = flag.String("next", "", "comma-separated list of `files` for upcoming API features for the next release. These files can be lazily maintained. They only affects the delta warnings from the -c file printed on success.")
+	verbose         = flag.Bool("v", false, "verbose debugging")
+	forceCtx        = flag.String("contexts", "", "optional comma-separated list of <goos>-<goarch>[-cgo] to override default contexts.")
 )
 
 // contexts are the default contexts which are scanned, unless
@@ -46,8 +63,6 @@ var contexts = []*build.Context{
 	{GOOS: "linux", GOARCH: "amd64"},
 	{GOOS: "linux", GOARCH: "arm", CgoEnabled: true},
 	{GOOS: "linux", GOARCH: "arm"},
-	{GOOS: "darwin", GOARCH: "386", CgoEnabled: true},
-	{GOOS: "darwin", GOARCH: "386"},
 	{GOOS: "darwin", GOARCH: "amd64", CgoEnabled: true},
 	{GOOS: "darwin", GOARCH: "amd64"},
 	{GOOS: "windows", GOARCH: "amd64"},
@@ -64,6 +79,8 @@ var contexts = []*build.Context{
 	{GOOS: "netbsd", GOARCH: "amd64"},
 	{GOOS: "netbsd", GOARCH: "arm", CgoEnabled: true},
 	{GOOS: "netbsd", GOARCH: "arm"},
+	{GOOS: "netbsd", GOARCH: "arm64", CgoEnabled: true},
+	{GOOS: "netbsd", GOARCH: "arm64"},
 	{GOOS: "openbsd", GOARCH: "386", CgoEnabled: true},
 	{GOOS: "openbsd", GOARCH: "386"},
 	{GOOS: "openbsd", GOARCH: "amd64", CgoEnabled: true},
@@ -73,7 +90,10 @@ var contexts = []*build.Context{
 func contextName(c *build.Context) string {
 	s := c.GOOS + "-" + c.GOARCH
 	if c.CgoEnabled {
-		return s + "-cgo"
+		s += "-cgo"
+	}
+	if c.Dir != "" {
+		s += fmt.Sprintf(" [%s]", c.Dir)
 	}
 	return s
 }
@@ -109,10 +129,14 @@ var internalPkg = regexp.MustCompile(`(^|/)internal($|/)`)
 func main() {
 	flag.Parse()
 
+	if build.Default.GOROOT == "" {
+		log.Fatalf("GOROOT not found. (If binary was built with -trimpath, $GOROOT must be set.)")
+	}
+
 	if !strings.Contains(runtime.Version(), "weekly") && !strings.Contains(runtime.Version(), "devel") {
-		if *nextFile != "" {
-			fmt.Printf("Go version is %q, ignoring -next %s\n", runtime.Version(), *nextFile)
-			*nextFile = ""
+		if *nextFiles != "" {
+			fmt.Printf("Go version is %q, ignoring -next %s\n", runtime.Version(), *nextFiles)
+			*nextFiles = ""
 		}
 	}
 
@@ -123,46 +147,37 @@ func main() {
 		c.Compiler = build.Default.Compiler
 	}
 
-	var pkgNames []string
-	if flag.NArg() > 0 {
-		pkgNames = flag.Args()
-	} else {
-		stds, err := exec.Command("go", "list", "std").Output()
-		if err != nil {
-			log.Fatal(err)
-		}
-		for _, pkg := range strings.Fields(string(stds)) {
-			if !internalPkg.MatchString(pkg) {
-				pkgNames = append(pkgNames, pkg)
-			}
-		}
+	walkers := make([]*Walker, len(contexts))
+	var wg sync.WaitGroup
+	for i, context := range contexts {
+		i, context := i, context
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			walkers[i] = NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
+		}()
 	}
+	wg.Wait()
 
 	var featureCtx = make(map[string]map[string]bool) // feature -> context name -> true
-	for _, context := range contexts {
-		w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
-
-		for _, name := range pkgNames {
-			// Vendored packages do not contribute to our
-			// public API surface.
-			if strings.HasPrefix(name, "vendor/") {
-				continue
-			}
-			// - Package "unsafe" contains special signatures requiring
-			//   extra care when printing them - ignore since it is not
-			//   going to change w/o a language change.
-			// - We don't care about the API of commands.
-			if name != "unsafe" && !strings.HasPrefix(name, "cmd/") {
-				if name == "runtime/cgo" && !context.CgoEnabled {
-					// w.Import(name) will return nil
-					continue
-				}
-				pkg, _ := w.Import(name)
-				w.export(pkg)
-			}
+	for _, w := range walkers {
+		pkgNames := w.stdPackages
+		if flag.NArg() > 0 {
+			pkgNames = flag.Args()
 		}
 
-		ctxName := contextName(context)
+		for _, name := range pkgNames {
+			pkg, err := w.Import(name)
+			if _, nogo := err.(*build.NoGoError); nogo {
+				continue
+			}
+			if err != nil {
+				log.Fatalf("Import(%q): %v", name, err)
+			}
+			w.export(pkg)
+		}
+
+		ctxName := contextName(w.context)
 		for _, f := range w.Features() {
 			if featureCtx[f] == nil {
 				featureCtx[f] = make(map[string]bool)
@@ -194,7 +209,7 @@ func main() {
 	bw := bufio.NewWriter(os.Stdout)
 	defer bw.Flush()
 
-	if *checkFile == "" {
+	if *checkFiles == "" {
 		sort.Strings(features)
 		for _, f := range features {
 			fmt.Fprintln(bw, f)
@@ -203,13 +218,17 @@ func main() {
 	}
 
 	var required []string
-	for _, file := range strings.Split(*checkFile, ",") {
+	for _, file := range strings.Split(*checkFiles, ",") {
 		required = append(required, fileFeatures(file)...)
 	}
-	optional := fileFeatures(*nextFile)
+	var optional []string
+	if *nextFiles != "" {
+		for _, file := range strings.Split(*nextFiles, ",") {
+			optional = append(optional, fileFeatures(file)...)
+		}
+	}
 	exception := fileFeatures(*exceptFile)
-	fail = !compareAPI(bw, features, required, optional, exception,
-		*allowNew && strings.Contains(runtime.Version(), "devel"))
+	fail = !compareAPI(bw, features, required, optional, exception, *allowNew)
 }
 
 // export emits the exported package features.
@@ -221,7 +240,7 @@ func (w *Walker) export(pkg *types.Package) {
 	w.current = pkg
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
-		if ast.IsExported(name) {
+		if token.IsExported(name) {
 			w.emitObj(scope.Lookup(name))
 		}
 	}
@@ -243,6 +262,13 @@ func featureWithoutContext(f string) string {
 		return f
 	}
 	return spaceParensRx.ReplaceAllString(f, "")
+}
+
+// portRemoved reports whether the given port-specific API feature is
+// okay to no longer exist because its port was removed.
+func portRemoved(feature string) bool {
+	return strings.Contains(feature, "(darwin-386)") ||
+		strings.Contains(feature, "(darwin-386-cgo)")
 }
 
 func compareAPI(w io.Writer, features, required, optional, exception []string, allowAdd bool) (ok bool) {
@@ -272,6 +298,8 @@ func compareAPI(w io.Writer, features, required, optional, exception []string, a
 				// acknowledged by being in the file
 				// "api/except.txt". No need to print them out
 				// here.
+			} else if portRemoved(feature) {
+				// okay.
 			} else if featureSet[featureWithoutContext(feature)] {
 				// okay.
 			} else {
@@ -309,21 +337,54 @@ func compareAPI(w io.Writer, features, required, optional, exception []string, a
 	return
 }
 
+// aliasReplacer applies type aliases to earlier API files,
+// to avoid misleading negative results.
+// This makes all the references to os.FileInfo in go1.txt
+// be read as if they said fs.FileInfo, since os.FileInfo is now an alias.
+// If there are many of these, we could do a more general solution,
+// but for now the replacer is fine.
+var aliasReplacer = strings.NewReplacer(
+	"os.FileInfo", "fs.FileInfo",
+	"os.FileMode", "fs.FileMode",
+	"os.PathError", "fs.PathError",
+)
+
 func fileFeatures(filename string) []string {
 	if filename == "" {
 		return nil
 	}
-	bs, err := ioutil.ReadFile(filename)
+	needApproval := false
+	for _, name := range strings.Split(*requireApproval, ",") {
+		if filename == name {
+			needApproval = true
+			break
+		}
+	}
+	bs, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatalf("Error reading file %s: %v", filename, err)
 	}
-	lines := strings.Split(string(bs), "\n")
+	s := string(bs)
+	s = aliasReplacer.Replace(s)
+	lines := strings.Split(s, "\n")
 	var nonblank []string
-	for _, line := range lines {
+	for i, line := range lines {
 		line = strings.TrimSpace(line)
-		if line != "" && !strings.HasPrefix(line, "#") {
-			nonblank = append(nonblank, line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
 		}
+		if needApproval {
+			feature, approval, ok := strings.Cut(line, "#")
+			if !ok {
+				log.Fatalf("%s:%d: missing proposal approval\n", filename, i+1)
+			}
+			_, err := strconv.Atoi(approval)
+			if err != nil {
+				log.Fatalf("%s:%d: malformed proposal approval #%s\n", filename, i+1, approval)
+			}
+			line = strings.TrimSpace(feature)
+		}
+		nonblank = append(nonblank, line)
 	}
 	return nonblank
 }
@@ -331,21 +392,27 @@ func fileFeatures(filename string) []string {
 var fset = token.NewFileSet()
 
 type Walker struct {
-	context  *build.Context
-	root     string
-	scope    []string
-	current  *types.Package
-	features map[string]bool           // set
-	imported map[string]*types.Package // packages already imported
+	context     *build.Context
+	root        string
+	scope       []string
+	current     *types.Package
+	features    map[string]bool              // set
+	imported    map[string]*types.Package    // packages already imported
+	stdPackages []string                     // names, omitting "unsafe", internal, and vendored packages
+	importMap   map[string]map[string]string // importer dir -> import path -> canonical path
+	importDir   map[string]string            // canonical import path -> dir
+
 }
 
 func NewWalker(context *build.Context, root string) *Walker {
-	return &Walker{
+	w := &Walker{
 		context:  context,
 		root:     root,
 		features: map[string]bool{},
 		imported: map[string]*types.Package{"unsafe": types.Unsafe},
 	}
+	w.loadImports()
+	return w
 }
 
 func (w *Walker) Features() (fs []string) {
@@ -373,9 +440,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 	return f, nil
 }
 
-// The package cache doesn't operate correctly in rare (so far artificial)
-// circumstances (issue 8425). Disable before debugging non-obvious errors
-// from the type-checker.
+// Disable before debugging non-obvious errors from the type-checker.
 const usePkgCache = true
 
 var (
@@ -386,7 +451,7 @@ var (
 // tagKey returns the tag-based key to use in the pkgCache.
 // It is a comma-separated string; the first part is dir, the rest tags.
 // The satisfied tags are derived from context but only those that
-// matter (the ones listed in the tags argument) are used.
+// matter (the ones listed in the tags argument plus GOOS and GOARCH) are used.
 // The tags list, which came from go/build's Package.AllTags,
 // is known to be sorted.
 func tagKey(dir string, context *build.Context, tags []string) string {
@@ -402,12 +467,145 @@ func tagKey(dir string, context *build.Context, tags []string) string {
 	}
 	// TODO: ReleaseTags (need to load default)
 	key := dir
+
+	// explicit on GOOS and GOARCH as global cache will use "all" cached packages for
+	// an indirect imported package. See https://github.com/golang/go/issues/21181
+	// for more detail.
+	tags = append(tags, context.GOOS, context.GOARCH)
+	sort.Strings(tags)
+
 	for _, tag := range tags {
 		if ctags[tag] {
 			key += "," + tag
+			ctags[tag] = false
 		}
 	}
 	return key
+}
+
+type listImports struct {
+	stdPackages []string                     // names, omitting "unsafe", internal, and vendored packages
+	importDir   map[string]string            // canonical import path → directory
+	importMap   map[string]map[string]string // import path → canonical import path
+}
+
+var listCache sync.Map // map[string]listImports, keyed by contextName
+
+// listSem is a semaphore restricting concurrent invocations of 'go list'. 'go
+// list' has its own internal concurrency, so we use a hard-coded constant (to
+// allow the I/O-intensive phases of 'go list' to overlap) instead of scaling
+// all the way up to GOMAXPROCS.
+var listSem = make(chan semToken, 2)
+
+type semToken struct{}
+
+// loadImports populates w with information about the packages in the standard
+// library and the packages they themselves import in w's build context.
+//
+// The source import path and expanded import path are identical except for vendored packages.
+// For example, on return:
+//
+//	w.importMap["math"] = "math"
+//	w.importDir["math"] = "<goroot>/src/math"
+//
+//	w.importMap["golang.org/x/net/route"] = "vendor/golang.org/x/net/route"
+//	w.importDir["vendor/golang.org/x/net/route"] = "<goroot>/src/vendor/golang.org/x/net/route"
+//
+// Since the set of packages that exist depends on context, the result of
+// loadImports also depends on context. However, to improve test running time
+// the configuration for each environment is cached across runs.
+func (w *Walker) loadImports() {
+	if w.context == nil {
+		return // test-only Walker; does not use the import map
+	}
+
+	name := contextName(w.context)
+
+	imports, ok := listCache.Load(name)
+	if !ok {
+		listSem <- semToken{}
+		defer func() { <-listSem }()
+
+		cmd := exec.Command(goCmd(), "list", "-e", "-deps", "-json", "std")
+		cmd.Env = listEnv(w.context)
+		if w.context.Dir != "" {
+			cmd.Dir = w.context.Dir
+		}
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Fatalf("loading imports: %v\n%s", err, out)
+		}
+
+		var stdPackages []string
+		importMap := make(map[string]map[string]string)
+		importDir := make(map[string]string)
+		dec := json.NewDecoder(bytes.NewReader(out))
+		for {
+			var pkg struct {
+				ImportPath, Dir string
+				ImportMap       map[string]string
+				Standard        bool
+			}
+			err := dec.Decode(&pkg)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				log.Fatalf("go list: invalid output: %v", err)
+			}
+
+			// - Package "unsafe" contains special signatures requiring
+			//   extra care when printing them - ignore since it is not
+			//   going to change w/o a language change.
+			// - Internal and vendored packages do not contribute to our
+			//   API surface. (If we are running within the "std" module,
+			//   vendored dependencies appear as themselves instead of
+			//   their "vendor/" standard-library copies.)
+			// - 'go list std' does not include commands, which cannot be
+			//   imported anyway.
+			if ip := pkg.ImportPath; pkg.Standard && ip != "unsafe" && !strings.HasPrefix(ip, "vendor/") && !internalPkg.MatchString(ip) {
+				stdPackages = append(stdPackages, ip)
+			}
+			importDir[pkg.ImportPath] = pkg.Dir
+			if len(pkg.ImportMap) > 0 {
+				importMap[pkg.Dir] = make(map[string]string, len(pkg.ImportMap))
+			}
+			for k, v := range pkg.ImportMap {
+				importMap[pkg.Dir][k] = v
+			}
+		}
+
+		sort.Strings(stdPackages)
+		imports = listImports{
+			stdPackages: stdPackages,
+			importMap:   importMap,
+			importDir:   importDir,
+		}
+		imports, _ = listCache.LoadOrStore(name, imports)
+	}
+
+	li := imports.(listImports)
+	w.stdPackages = li.stdPackages
+	w.importDir = li.importDir
+	w.importMap = li.importMap
+}
+
+// listEnv returns the process environment to use when invoking 'go list' for
+// the given context.
+func listEnv(c *build.Context) []string {
+	if c == nil {
+		return os.Environ()
+	}
+
+	environ := append(os.Environ(),
+		"GOOS="+c.GOOS,
+		"GOARCH="+c.GOARCH)
+	if c.CgoEnabled {
+		environ = append(environ, "CGO_ENABLED=1")
+	} else {
+		environ = append(environ, "CGO_ENABLED=0")
+	}
+	return environ
 }
 
 // Importing is a sentinel taking the place in Walker.imported
@@ -415,6 +613,15 @@ func tagKey(dir string, context *build.Context, tags []string) string {
 var importing types.Package
 
 func (w *Walker) Import(name string) (*types.Package, error) {
+	return w.ImportFrom(name, "", 0)
+}
+
+func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*types.Package, error) {
+	name := fromPath
+	if canonical, ok := w.importMap[fromDir][fromPath]; ok {
+		name = canonical
+	}
+
 	pkg := w.imported[name]
 	if pkg != nil {
 		if pkg == &importing {
@@ -424,15 +631,13 @@ func (w *Walker) Import(name string) (*types.Package, error) {
 	}
 	w.imported[name] = &importing
 
-	root := w.root
-	if strings.HasPrefix(name, "golang_org/x/") {
-		root = filepath.Join(root, "vendor")
-	}
-
 	// Determine package files.
-	dir := filepath.Join(root, filepath.FromSlash(name))
+	dir := w.importDir[name]
+	if dir == "" {
+		dir = filepath.Join(w.root, filepath.FromSlash(name))
+	}
 	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
-		log.Fatalf("no source in tree for import %q: %v", name, err)
+		log.Panicf("no source in tree for import %q (from import %s in %s): %v", name, fromPath, fromDir, err)
 	}
 
 	context := w.context
@@ -457,7 +662,7 @@ func (w *Walker) Import(name string) (*types.Package, error) {
 	info, err := context.ImportDir(dir, 0)
 	if err != nil {
 		if _, nogo := err.(*build.NoGoError); nogo {
-			return nil, nil
+			return nil, err
 		}
 		log.Fatalf("pkg %q, dir %q: ScanDir: %v", name, dir, err)
 	}
@@ -483,10 +688,15 @@ func (w *Walker) Import(name string) (*types.Package, error) {
 	}
 
 	// Type-check package files.
+	var sizes types.Sizes
+	if w.context != nil {
+		sizes = types.SizesFor(w.context.Compiler, w.context.GOARCH)
+	}
 	conf := types.Config{
 		IgnoreFuncBodies: true,
 		FakeImportC:      true,
 		Importer:         w,
+		Sizes:            sizes,
 	}
 	pkg, err = conf.Check(name, fset, files, nil)
 	if err != nil {
@@ -526,6 +736,36 @@ func sortedMethodNames(typ *types.Interface) []string {
 	list := make([]string, n)
 	for i := range list {
 		list[i] = typ.Method(i).Name()
+	}
+	sort.Strings(list)
+	return list
+}
+
+// sortedEmbeddeds returns constraint types embedded in an
+// interface. It does not include embedded interface types or methods.
+func (w *Walker) sortedEmbeddeds(typ *types.Interface) []string {
+	n := typ.NumEmbeddeds()
+	list := make([]string, 0, n)
+	for i := 0; i < n; i++ {
+		emb := typ.EmbeddedType(i)
+		switch emb := emb.(type) {
+		case *types.Interface:
+			list = append(list, w.sortedEmbeddeds(emb)...)
+		case *types.Union:
+			var buf bytes.Buffer
+			nu := emb.Len()
+			for i := 0; i < nu; i++ {
+				if i > 0 {
+					buf.WriteString(" | ")
+				}
+				term := emb.Term(i)
+				if term.Tilde() {
+					buf.WriteByte('~')
+				}
+				w.writeType(&buf, term.Type())
+			}
+			list = append(list, buf.String())
+		}
 	}
 	sort.Strings(list)
 	return list
@@ -588,9 +828,16 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
 
 	case *types.Interface:
 		buf.WriteString("interface{")
-		if typ.NumMethods() > 0 {
+		if typ.NumMethods() > 0 || typ.NumEmbeddeds() > 0 {
 			buf.WriteByte(' ')
+		}
+		if typ.NumMethods() > 0 {
 			buf.WriteString(strings.Join(sortedMethodNames(typ), ", "))
+		}
+		if typ.NumEmbeddeds() > 0 {
+			buf.WriteString(strings.Join(w.sortedEmbeddeds(typ), ", "))
+		}
+		if typ.NumMethods() > 0 || typ.NumEmbeddeds() > 0 {
 			buf.WriteByte(' ')
 		}
 		buf.WriteString("}")
@@ -625,12 +872,19 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
 		}
 		buf.WriteString(typ.Obj().Name())
 
+	case *types.TypeParam:
+		// Type parameter names may change, so use a placeholder instead.
+		fmt.Fprintf(buf, "$%d", typ.Index())
+
 	default:
 		panic(fmt.Sprintf("unknown type %T", typ))
 	}
 }
 
 func (w *Walker) writeSignature(buf *bytes.Buffer, sig *types.Signature) {
+	if tparams := sig.TypeParams(); tparams != nil {
+		w.writeTypeParams(buf, tparams, true)
+	}
 	w.writeParams(buf, sig.Params(), sig.Variadic())
 	switch res := sig.Results(); res.Len() {
 	case 0:
@@ -642,6 +896,23 @@ func (w *Walker) writeSignature(buf *bytes.Buffer, sig *types.Signature) {
 		buf.WriteByte(' ')
 		w.writeParams(buf, res, false)
 	}
+}
+
+func (w *Walker) writeTypeParams(buf *bytes.Buffer, tparams *types.TypeParamList, withConstraints bool) {
+	buf.WriteByte('[')
+	c := tparams.Len()
+	for i := 0; i < c; i++ {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		tp := tparams.At(i)
+		w.writeType(buf, tp)
+		if withConstraints {
+			buf.WriteByte(' ')
+			w.writeType(buf, tp.Constraint())
+		}
+	}
+	buf.WriteByte(']')
 }
 
 func (w *Walker) writeParams(buf *bytes.Buffer, t *types.Tuple, variadic bool) {
@@ -697,7 +968,17 @@ func (w *Walker) emitObj(obj types.Object) {
 
 func (w *Walker) emitType(obj *types.TypeName) {
 	name := obj.Name()
+	if tparams := obj.Type().(*types.Named).TypeParams(); tparams != nil {
+		var buf bytes.Buffer
+		buf.WriteString(name)
+		w.writeTypeParams(&buf, tparams, true)
+		name = buf.String()
+	}
 	typ := obj.Type()
+	if obj.IsAlias() {
+		w.emitf("type %s = %s", name, w.typeString(typ))
+		return
+	}
 	switch typ := typ.Underlying().(type) {
 	case *types.Struct:
 		w.emitStructType(name, typ)
@@ -816,10 +1097,16 @@ func (w *Walker) emitMethod(m *types.Selection) {
 			log.Fatalf("exported method with unexported receiver base type: %s", m)
 		}
 	}
-	w.emitf("method (%s) %s%s", w.typeString(recv), m.Obj().Name(), w.signatureString(sig))
+	tps := ""
+	if rtp := sig.RecvTypeParams(); rtp != nil {
+		var buf bytes.Buffer
+		w.writeTypeParams(&buf, rtp, false)
+		tps = buf.String()
+	}
+	w.emitf("method (%s%s) %s%s", w.typeString(recv), tps, m.Obj().Name(), w.signatureString(sig))
 }
 
-func (w *Walker) emitf(format string, args ...interface{}) {
+func (w *Walker) emitf(format string, args ...any) {
 	f := strings.Join(w.scope, ", ") + ", " + fmt.Sprintf(format, args...)
 	if strings.Contains(f, "\n") {
 		panic("feature contains newlines: " + f)

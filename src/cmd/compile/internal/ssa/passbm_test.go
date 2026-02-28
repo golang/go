@@ -1,6 +1,7 @@
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
 package ssa
 
 import (
@@ -68,7 +69,7 @@ func genFunction(size int) []bloc {
 	blocs = append(blocs,
 		Bloc("entry",
 			Valu(valn("store", 0, 4), OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("sb", OpSB, types.Types[types.TUINTPTR], 0, nil),
 			Goto(blockn(1)),
 		),
 	)

@@ -1,10 +1,10 @@
-// errorcheck -0 -m -l=3
+// errorcheck -0 -m
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Test more aggressive inlining (-l=3 allows variadic functions)
+// Test inlining of variadic functions.
 // See issue #18116.
 
 package foo
@@ -14,6 +14,6 @@ func head(xs ...string) string { // ERROR "can inline head" "leaking param: xs t
 }
 
 func f() string { // ERROR "can inline f"
-	x := head("hello", "world") // ERROR "inlining call to head" "\[\]string literal does not escape"
+	x := head("hello", "world") // ERROR "inlining call to head" "\.\.\. argument does not escape"
 	return x
 }

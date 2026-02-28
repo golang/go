@@ -6,6 +6,7 @@ package utf8_test
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 	"unicode"
 	. "unicode/utf8"
@@ -127,6 +128,17 @@ func TestEncodeRune(t *testing.T) {
 	}
 }
 
+func TestAppendRune(t *testing.T) {
+	for _, m := range utf8map {
+		if buf := AppendRune(nil, m.r); string(buf) != m.str {
+			t.Errorf("AppendRune(nil, %#04x) = %s, want %s", m.r, buf, m.str)
+		}
+		if buf := AppendRune([]byte("init"), m.r); string(buf) != "init"+m.str {
+			t.Errorf("AppendRune(init, %#04x) = %s, want %s", m.r, buf, "init"+m.str)
+		}
+	}
+}
+
 func TestDecodeRune(t *testing.T) {
 	for _, m := range utf8map {
 		b := []byte(m.str)
@@ -212,14 +224,25 @@ func TestSequencing(t *testing.T) {
 	}
 }
 
-// Check that a range loop and a []int conversion visit the same runes.
+func runtimeRuneCount(s string) int {
+	return len([]rune(s)) // Replaced by gc with call to runtime.countrunes(s).
+}
+
+// Check that a range loop, len([]rune(string)) optimization and
+// []rune conversions visit the same runes.
 // Not really a test of this package, but the assumption is used here and
-// it's good to verify
-func TestIntConversion(t *testing.T) {
+// it's good to verify.
+func TestRuntimeConversion(t *testing.T) {
 	for _, ts := range testStrings {
+		count := RuneCountInString(ts)
+		if n := runtimeRuneCount(ts); n != count {
+			t.Errorf("%q: len([]rune()) counted %d runes; got %d from RuneCountInString", ts, n, count)
+			break
+		}
+
 		runes := []rune(ts)
-		if RuneCountInString(ts) != len(runes) {
-			t.Errorf("%q: expected %d runes; got %d", ts, len(runes), RuneCountInString(ts))
+		if n := len(runes); n != count {
+			t.Errorf("%q: []rune() has length %d; got %d from RuneCountInString", ts, n, count)
 			break
 		}
 		i := 0
@@ -532,8 +555,17 @@ func BenchmarkRuneCountInStringTenJapaneseChars(b *testing.B) {
 	}
 }
 
+var ascii100000 = strings.Repeat("0123456789", 10000)
+
 func BenchmarkValidTenASCIIChars(b *testing.B) {
 	s := []byte("0123456789")
+	for i := 0; i < b.N; i++ {
+		Valid(s)
+	}
+}
+
+func BenchmarkValid100KASCIIChars(b *testing.B) {
+	s := []byte(ascii100000)
 	for i := 0; i < b.N; i++ {
 		Valid(s)
 	}
@@ -545,6 +577,19 @@ func BenchmarkValidTenJapaneseChars(b *testing.B) {
 		Valid(s)
 	}
 }
+func BenchmarkValidLongMostlyASCII(b *testing.B) {
+	longMostlyASCII := []byte(longStringMostlyASCII)
+	for i := 0; i < b.N; i++ {
+		Valid(longMostlyASCII)
+	}
+}
+
+func BenchmarkValidLongJapanese(b *testing.B) {
+	longJapanese := []byte(longStringJapanese)
+	for i := 0; i < b.N; i++ {
+		Valid(longJapanese)
+	}
+}
 
 func BenchmarkValidStringTenASCIIChars(b *testing.B) {
 	for i := 0; i < b.N; i++ {
@@ -552,10 +597,45 @@ func BenchmarkValidStringTenASCIIChars(b *testing.B) {
 	}
 }
 
+func BenchmarkValidString100KASCIIChars(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ValidString(ascii100000)
+	}
+}
+
 func BenchmarkValidStringTenJapaneseChars(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		ValidString("日本語日本語日本語日")
 	}
+}
+
+func BenchmarkValidStringLongMostlyASCII(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ValidString(longStringMostlyASCII)
+	}
+}
+
+func BenchmarkValidStringLongJapanese(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ValidString(longStringJapanese)
+	}
+}
+
+var longStringMostlyASCII string // ~100KB, ~97% ASCII
+var longStringJapanese string    // ~100KB, non-ASCII
+
+func init() {
+	const japanese = "日本語日本語日本語日"
+	var b bytes.Buffer
+	for i := 0; b.Len() < 100_000; i++ {
+		if i%100 == 0 {
+			b.WriteString(japanese)
+		} else {
+			b.WriteString("0123456789")
+		}
+	}
+	longStringMostlyASCII = b.String()
+	longStringJapanese = strings.Repeat(japanese, 100_000/len(japanese))
 }
 
 func BenchmarkEncodeASCIIRune(b *testing.B) {
@@ -569,6 +649,20 @@ func BenchmarkEncodeJapaneseRune(b *testing.B) {
 	buf := make([]byte, UTFMax)
 	for i := 0; i < b.N; i++ {
 		EncodeRune(buf, '本')
+	}
+}
+
+func BenchmarkAppendASCIIRune(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		AppendRune(buf[:0], 'a')
+	}
+}
+
+func BenchmarkAppendJapaneseRune(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		AppendRune(buf[:0], '本')
 	}
 }
 
@@ -586,16 +680,24 @@ func BenchmarkDecodeJapaneseRune(b *testing.B) {
 	}
 }
 
-func BenchmarkFullASCIIRune(b *testing.B) {
-	a := []byte{'a'}
-	for i := 0; i < b.N; i++ {
-		FullRune(a)
-	}
-}
+// boolSink is used to reference the return value of benchmarked
+// functions to avoid dead code elimination.
+var boolSink bool
 
-func BenchmarkFullJapaneseRune(b *testing.B) {
-	nihon := []byte("本")
-	for i := 0; i < b.N; i++ {
-		FullRune(nihon)
+func BenchmarkFullRune(b *testing.B) {
+	benchmarks := []struct {
+		name string
+		data []byte
+	}{
+		{"ASCII", []byte("a")},
+		{"Incomplete", []byte("\xf0\x90\x80")},
+		{"Japanese", []byte("本")},
+	}
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				boolSink = FullRune(bm.data)
+			}
+		})
 	}
 }

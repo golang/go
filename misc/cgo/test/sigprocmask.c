@@ -4,10 +4,12 @@
 
 // +build !windows
 
+#include <errno.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <time.h>
 #include <unistd.h>
 
 extern void IntoGoAndBack();
@@ -28,11 +30,22 @@ static void* sigthreadfunc(void* unused) {
 }
 
 int RunSigThread() {
+	int tries;
 	pthread_t thread;
 	int r;
+	struct timespec ts;
 
-	r = pthread_create(&thread, NULL, &sigthreadfunc, NULL);
-	if (r != 0)
-		return r;
-	return pthread_join(thread, NULL);
+	for (tries = 0; tries < 20; tries++) {
+		r = pthread_create(&thread, NULL, &sigthreadfunc, NULL);
+		if (r == 0) {
+			return pthread_join(thread, NULL);
+		}
+		if (r != EAGAIN) {
+			return r;
+		}
+		ts.tv_sec = 0;
+		ts.tv_nsec = (tries + 1) * 1000 * 1000; // Milliseconds.
+		nanosleep(&ts, NULL);
+	}
+	return EAGAIN;
 }

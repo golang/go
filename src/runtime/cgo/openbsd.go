@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build openbsd
+//go:build openbsd
 
 package cgo
 
@@ -17,4 +17,5 @@ var _guard_local uintptr
 
 // This is normally marked as hidden and placed in the
 // .openbsd.randomdata section.
+//
 //go:cgo_export_dynamic __guard_local __guard_local

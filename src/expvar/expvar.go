@@ -17,12 +17,11 @@
 // The package is sometimes only imported for the side effect of
 // registering its HTTP handler and the above variables. To use it
 // this way, link this package into your program:
-//	import _ "expvar"
 //
+//	import _ "expvar"
 package expvar
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -32,6 +31,7 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -111,7 +111,7 @@ type KeyValue struct {
 }
 
 func (v *Map) String() string {
-	var b bytes.Buffer
+	var b strings.Builder
 	fmt.Fprintf(&b, "{")
 	first := true
 	v.Do(func(kv KeyValue) {
@@ -125,14 +125,30 @@ func (v *Map) String() string {
 	return b.String()
 }
 
-func (v *Map) Init() *Map { return v }
+// Init removes all keys from the map.
+func (v *Map) Init() *Map {
+	v.keysMu.Lock()
+	defer v.keysMu.Unlock()
+	v.keys = v.keys[:0]
+	v.m.Range(func(k, _ any) bool {
+		v.m.Delete(k)
+		return true
+	})
+	return v
+}
 
-// updateKeys updates the sorted list of keys in v.keys.
+// addKey updates the sorted list of keys in v.keys.
 func (v *Map) addKey(key string) {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
-	v.keys = append(v.keys, key)
-	sort.Strings(v.keys)
+	// Using insertion sort to place key into the already-sorted v.keys.
+	if i := sort.SearchStrings(v.keys, key); i >= len(v.keys) {
+		v.keys = append(v.keys, key)
+	} else if v.keys[i] != key {
+		v.keys = append(v.keys, "")
+		copy(v.keys[i+1:], v.keys[i:])
+		v.keys[i] = key
+	}
 }
 
 func (v *Map) Get(key string) Var {
@@ -189,6 +205,17 @@ func (v *Map) AddFloat(key string, delta float64) {
 	}
 }
 
+// Delete deletes the given key from the map.
+func (v *Map) Delete(key string) {
+	v.keysMu.Lock()
+	defer v.keysMu.Unlock()
+	i := sort.SearchStrings(v.keys, key)
+	if i < len(v.keys) && key == v.keys[i] {
+		v.keys = append(v.keys[:i], v.keys[i+1:]...)
+		v.m.Delete(key)
+	}
+}
+
 // Do calls f for each entry in the map.
 // The map is locked during the iteration,
 // but existing entries may be concurrently updated.
@@ -211,7 +238,7 @@ func (v *String) Value() string {
 	return p
 }
 
-// String implements the Val interface. To get the unquoted string
+// String implements the Var interface. To get the unquoted string
 // use Value.
 func (v *String) String() string {
 	s := v.Value()
@@ -225,9 +252,9 @@ func (v *String) Set(value string) {
 
 // Func implements Var by calling the function
 // and formatting the returned value using JSON.
-type Func func() interface{}
+type Func func() any
 
-func (f Func) Value() interface{} {
+func (f Func) Value() any {
 	return f()
 }
 
@@ -323,11 +350,11 @@ func Handler() http.Handler {
 	return http.HandlerFunc(expvarHandler)
 }
 
-func cmdline() interface{} {
+func cmdline() any {
 	return os.Args
 }
 
-func memstats() interface{} {
+func memstats() any {
 	stats := new(runtime.MemStats)
 	runtime.ReadMemStats(stats)
 	return *stats

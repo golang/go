@@ -6,118 +6,167 @@
 
 package types
 
-import "sort"
+import "go/token"
 
-func isNamed(typ Type) bool {
-	if _, ok := typ.(*Basic); ok {
-		return ok
+// The isX predicates below report whether t is an X.
+// If t is a type parameter the result is false; i.e.,
+// these predicates don't look inside a type parameter.
+
+func isBoolean(t Type) bool        { return isBasic(t, IsBoolean) }
+func isInteger(t Type) bool        { return isBasic(t, IsInteger) }
+func isUnsigned(t Type) bool       { return isBasic(t, IsUnsigned) }
+func isFloat(t Type) bool          { return isBasic(t, IsFloat) }
+func isComplex(t Type) bool        { return isBasic(t, IsComplex) }
+func isNumeric(t Type) bool        { return isBasic(t, IsNumeric) }
+func isString(t Type) bool         { return isBasic(t, IsString) }
+func isIntegerOrFloat(t Type) bool { return isBasic(t, IsInteger|IsFloat) }
+func isConstType(t Type) bool      { return isBasic(t, IsConstType) }
+
+// isBasic reports whether under(t) is a basic type with the specified info.
+// If t is a type parameter the result is false; i.e.,
+// isBasic does not look inside a type parameter.
+func isBasic(t Type, info BasicInfo) bool {
+	u, _ := under(t).(*Basic)
+	return u != nil && u.info&info != 0
+}
+
+// The allX predicates below report whether t is an X.
+// If t is a type parameter the result is true if isX is true
+// for all specified types of the type parameter's type set.
+// allX is an optimized version of isX(coreType(t)) (which
+// is the same as underIs(t, isX)).
+
+func allBoolean(typ Type) bool         { return allBasic(typ, IsBoolean) }
+func allInteger(typ Type) bool         { return allBasic(typ, IsInteger) }
+func allUnsigned(typ Type) bool        { return allBasic(typ, IsUnsigned) }
+func allNumeric(typ Type) bool         { return allBasic(typ, IsNumeric) }
+func allString(typ Type) bool          { return allBasic(typ, IsString) }
+func allOrdered(typ Type) bool         { return allBasic(typ, IsOrdered) }
+func allNumericOrString(typ Type) bool { return allBasic(typ, IsNumeric|IsString) }
+
+// allBasic reports whether under(t) is a basic type with the specified info.
+// If t is a type parameter, the result is true if isBasic(t, info) is true
+// for all specific types of the type parameter's type set.
+// allBasic(t, info) is an optimized version of isBasic(coreType(t), info).
+func allBasic(t Type, info BasicInfo) bool {
+	if tpar, _ := t.(*TypeParam); tpar != nil {
+		return tpar.is(func(t *term) bool { return t != nil && isBasic(t.typ, info) })
 	}
-	_, ok := typ.(*Named)
+	return isBasic(t, info)
+}
+
+// hasName reports whether t has a name. This includes
+// predeclared types, defined types, and type parameters.
+// hasName may be called with types that are not fully set up.
+func hasName(t Type) bool {
+	switch t.(type) {
+	case *Basic, *Named, *TypeParam:
+		return true
+	}
+	return false
+}
+
+// isTyped reports whether t is typed; i.e., not an untyped
+// constant or boolean. isTyped may be called with types that
+// are not fully set up.
+func isTyped(t Type) bool {
+	// isTyped is called with types that are not fully
+	// set up. Must not call under()!
+	b, _ := t.(*Basic)
+	return b == nil || b.info&IsUntyped == 0
+}
+
+// isUntyped(t) is the same as !isTyped(t).
+func isUntyped(t Type) bool {
+	return !isTyped(t)
+}
+
+// IsInterface reports whether t is an interface type.
+func IsInterface(t Type) bool {
+	_, ok := under(t).(*Interface)
 	return ok
 }
 
-func isBoolean(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsBoolean != 0
+// isNonTypeParamInterface reports whether t is an interface type but not a type parameter.
+func isNonTypeParamInterface(t Type) bool {
+	return !isTypeParam(t) && IsInterface(t)
 }
 
-func isInteger(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsInteger != 0
-}
-
-func isUnsigned(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsUnsigned != 0
-}
-
-func isFloat(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsFloat != 0
-}
-
-func isComplex(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsComplex != 0
-}
-
-func isNumeric(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsNumeric != 0
-}
-
-func isString(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsString != 0
-}
-
-func isTyped(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return !ok || t.info&IsUntyped == 0
-}
-
-func isUntyped(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsUntyped != 0
-}
-
-func isOrdered(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsOrdered != 0
-}
-
-func isConstType(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsConstType != 0
-}
-
-// IsInterface reports whether typ is an interface type.
-func IsInterface(typ Type) bool {
-	_, ok := typ.Underlying().(*Interface)
+// isTypeParam reports whether t is a type parameter.
+func isTypeParam(t Type) bool {
+	_, ok := t.(*TypeParam)
 	return ok
+}
+
+// isGeneric reports whether a type is a generic, uninstantiated type
+// (generic signatures are not included).
+// TODO(gri) should we include signatures or assert that they are not present?
+func isGeneric(t Type) bool {
+	// A parameterized type is only generic if it doesn't have an instantiation already.
+	named, _ := t.(*Named)
+	return named != nil && named.obj != nil && named.targs == nil && named.TypeParams() != nil
 }
 
 // Comparable reports whether values of type T are comparable.
 func Comparable(T Type) bool {
-	switch t := T.Underlying().(type) {
+	return comparable(T, true, nil, nil)
+}
+
+// If dynamic is set, non-type parameter interfaces are always comparable.
+// If reportf != nil, it may be used to report why T is not comparable.
+func comparable(T Type, dynamic bool, seen map[Type]bool, reportf func(string, ...interface{})) bool {
+	if seen[T] {
+		return true
+	}
+	if seen == nil {
+		seen = make(map[Type]bool)
+	}
+	seen[T] = true
+
+	switch t := under(T).(type) {
 	case *Basic:
 		// assume invalid types to be comparable
 		// to avoid follow-up errors
 		return t.kind != UntypedNil
-	case *Pointer, *Interface, *Chan:
+	case *Pointer, *Chan:
 		return true
 	case *Struct:
 		for _, f := range t.fields {
-			if !Comparable(f.typ) {
+			if !comparable(f.typ, dynamic, seen, nil) {
+				if reportf != nil {
+					reportf("struct containing %s cannot be compared", f.typ)
+				}
 				return false
 			}
 		}
 		return true
 	case *Array:
-		return Comparable(t.elem)
-	}
-	return false
-}
-
-// hasNil reports whether a type includes the nil value.
-func hasNil(typ Type) bool {
-	switch t := typ.Underlying().(type) {
-	case *Basic:
-		return t.kind == UnsafePointer
-	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
+		if !comparable(t.elem, dynamic, seen, nil) {
+			if reportf != nil {
+				reportf("%s cannot be compared", t)
+			}
+			return false
+		}
 		return true
+	case *Interface:
+		return dynamic && !isTypeParam(T) || t.typeSet().IsComparable(seen)
 	}
 	return false
 }
 
-// Identical reports whether x and y are identical.
-func Identical(x, y Type) bool {
-	return identical(x, y, true, nil)
-}
-
-// IdenticalIgnoreTags reports whether x and y are identical if tags are ignored.
-func IdenticalIgnoreTags(x, y Type) bool {
-	return identical(x, y, false, nil)
+// hasNil reports whether type t includes the nil value.
+func hasNil(t Type) bool {
+	switch u := under(t).(type) {
+	case *Basic:
+		return u.kind == UnsafePointer
+	case *Slice, *Pointer, *Signature, *Map, *Chan:
+		return true
+	case *Interface:
+		return !isTypeParam(t) || u.typeSet().underIs(func(u Type) bool {
+			return u != nil && hasNil(u)
+		})
+	}
+	return false
 }
 
 // An ifacePair is a node in a stack of interface type pairs compared for identity.
@@ -130,6 +179,7 @@ func (p *ifacePair) identical(q *ifacePair) bool {
 	return p.x == q.x && p.y == q.y || p.x == q.y && p.y == q.x
 }
 
+// For changes to this code the corresponding changes should be made to unifier.nify.
 func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 	if x == y {
 		return true
@@ -148,7 +198,9 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// Two array types are identical if they have identical element types
 		// and the same array length.
 		if y, ok := y.(*Array); ok {
-			return x.len == y.len && identical(x.elem, y.elem, cmpTags, p)
+			// If one or both array lengths are unknown (< 0) due to some error,
+			// assume they are the same to avoid spurious follow-on errors.
+			return (x.len < 0 || y.len < 0 || x.len == y.len) && identical(x.elem, y.elem, cmpTags, p)
 		}
 
 	case *Slice:
@@ -160,13 +212,13 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 	case *Struct:
 		// Two struct types are identical if they have the same sequence of fields,
 		// and if corresponding fields have the same names, and identical types,
-		// and identical tags. Two anonymous fields are considered to have the same
+		// and identical tags. Two embedded fields are considered to have the same
 		// name. Lower-case field names from different packages are always different.
 		if y, ok := y.(*Struct); ok {
 			if x.NumFields() == y.NumFields() {
 				for i, f := range x.fields {
 					g := y.fields[i]
-					if f.anonymous != g.anonymous ||
+					if f.embedded != g.embedded ||
 						cmpTags && x.Tag(i) != y.Tag(i) ||
 						!f.sameId(g.pkg, g.name) ||
 						!identical(f.typ, g.typ, cmpTags, p) {
@@ -201,23 +253,85 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 		}
 
 	case *Signature:
-		// Two function types are identical if they have the same number of parameters
-		// and result values, corresponding parameter and result types are identical,
-		// and either both functions are variadic or neither is. Parameter and result
-		// names are not required to match.
-		if y, ok := y.(*Signature); ok {
-			return x.variadic == y.variadic &&
-				identical(x.params, y.params, cmpTags, p) &&
-				identical(x.results, y.results, cmpTags, p)
+		y, _ := y.(*Signature)
+		if y == nil {
+			return false
+		}
+
+		// Two function types are identical if they have the same number of
+		// parameters and result values, corresponding parameter and result types
+		// are identical, and either both functions are variadic or neither is.
+		// Parameter and result names are not required to match, and type
+		// parameters are considered identical modulo renaming.
+
+		if x.TypeParams().Len() != y.TypeParams().Len() {
+			return false
+		}
+
+		// In the case of generic signatures, we will substitute in yparams and
+		// yresults.
+		yparams := y.params
+		yresults := y.results
+
+		if x.TypeParams().Len() > 0 {
+			// We must ignore type parameter names when comparing x and y. The
+			// easiest way to do this is to substitute x's type parameters for y's.
+			xtparams := x.TypeParams().list()
+			ytparams := y.TypeParams().list()
+
+			var targs []Type
+			for i := range xtparams {
+				targs = append(targs, x.TypeParams().At(i))
+			}
+			smap := makeSubstMap(ytparams, targs)
+
+			var check *Checker // ok to call subst on a nil *Checker
+
+			// Constraints must be pair-wise identical, after substitution.
+			for i, xtparam := range xtparams {
+				ybound := check.subst(token.NoPos, ytparams[i].bound, smap, nil)
+				if !identical(xtparam.bound, ybound, cmpTags, p) {
+					return false
+				}
+			}
+
+			yparams = check.subst(token.NoPos, y.params, smap, nil).(*Tuple)
+			yresults = check.subst(token.NoPos, y.results, smap, nil).(*Tuple)
+		}
+
+		return x.variadic == y.variadic &&
+			identical(x.params, yparams, cmpTags, p) &&
+			identical(x.results, yresults, cmpTags, p)
+
+	case *Union:
+		if y, _ := y.(*Union); y != nil {
+			// TODO(rfindley): can this be reached during type checking? If so,
+			// consider passing a type set map.
+			unionSets := make(map[*Union]*_TypeSet)
+			xset := computeUnionTypeSet(nil, unionSets, token.NoPos, x)
+			yset := computeUnionTypeSet(nil, unionSets, token.NoPos, y)
+			return xset.terms.equal(yset.terms)
 		}
 
 	case *Interface:
+		// Two interface types are identical if they describe the same type sets.
+		// With the existing implementation restriction, this simplifies to:
+		//
 		// Two interface types are identical if they have the same set of methods with
-		// the same names and identical function types. Lower-case method names from
-		// different packages are always different. The order of the methods is irrelevant.
+		// the same names and identical function types, and if any type restrictions
+		// are the same. Lower-case method names from different packages are always
+		// different. The order of the methods is irrelevant.
 		if y, ok := y.(*Interface); ok {
-			a := x.allMethods
-			b := y.allMethods
+			xset := x.typeSet()
+			yset := y.typeSet()
+			if xset.comparable != yset.comparable {
+				return false
+			}
+			if !xset.terms.equal(yset.terms) {
+				return false
+			}
+			a := xset.methods
+			b := yset.methods
 			if len(a) == len(b) {
 				// Interface types are the only types where cycles can occur
 				// that are not "terminated" via named types; and such cycles
@@ -249,8 +363,8 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 					p = p.prev
 				}
 				if debug {
-					assert(sort.IsSorted(byUniqueMethodName(a)))
-					assert(sort.IsSorted(byUniqueMethodName(b)))
+					assertSortedMethods(a)
+					assertSortedMethods(b)
 				}
 				for i, f := range a {
 					g := b[i]
@@ -279,10 +393,38 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// Two named types are identical if their type names originate
 		// in the same type declaration.
 		if y, ok := y.(*Named); ok {
+			xargs := x.TypeArgs().list()
+			yargs := y.TypeArgs().list()
+
+			if len(xargs) != len(yargs) {
+				return false
+			}
+
+			if len(xargs) > 0 {
+				// Instances are identical if their original type and type arguments
+				// are identical.
+				if !Identical(x.orig, y.orig) {
+					return false
+				}
+				for i, xa := range xargs {
+					if !Identical(xa, yargs[i]) {
+						return false
+					}
+				}
+				return true
+			}
+
+			// TODO(gri) Why is x == y not sufficient? And if it is,
+			//           we can just return false here because x == y
+			//           is caught in the very beginning of this function.
 			return x.obj == y.obj
 		}
 
+	case *TypeParam:
+		// nothing to do (x and y being equal is caught in the very beginning of this function)
+
 	case nil:
+		// avoid a crash in case of nil type
 
 	default:
 		unreachable()
@@ -291,12 +433,28 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 	return false
 }
 
+// identicalInstance reports if two type instantiations are identical.
+// Instantiations are identical if their origin and type arguments are
+// identical.
+func identicalInstance(xorig Type, xargs []Type, yorig Type, yargs []Type) bool {
+	if len(xargs) != len(yargs) {
+		return false
+	}
+
+	for i, xa := range xargs {
+		if !Identical(xa, yargs[i]) {
+			return false
+		}
+	}
+
+	return Identical(xorig, yorig)
+}
+
 // Default returns the default "typed" type for an "untyped" type;
 // it returns the incoming type for all other types. The default type
 // for untyped nil is untyped nil.
-//
-func Default(typ Type) Type {
-	if t, ok := typ.(*Basic); ok {
+func Default(t Type) Type {
+	if t, ok := t.(*Basic); ok {
 		switch t.kind {
 		case UntypedBool:
 			return Typ[Bool]
@@ -312,5 +470,5 @@ func Default(typ Type) Type {
 			return Typ[String]
 		}
 	}
-	return typ
+	return t
 }

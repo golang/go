@@ -120,17 +120,17 @@ type MixedNested struct {
 }
 
 type NilTest struct {
-	A interface{} `xml:"parent1>parent2>a"`
-	B interface{} `xml:"parent1>b"`
-	C interface{} `xml:"parent1>parent2>c"`
+	A any `xml:"parent1>parent2>a"`
+	B any `xml:"parent1>b"`
+	C any `xml:"parent1>parent2>c"`
 }
 
 type Service struct {
 	XMLName struct{} `xml:"service"`
 	Domain  *Domain  `xml:"host>domain"`
 	Port    *Port    `xml:"host>port"`
-	Extra1  interface{}
-	Extra2  interface{} `xml:"host>extra2"`
+	Extra1  any
+	Extra2  any `xml:"host>extra2"`
 }
 
 var nilStruct *Ship
@@ -283,7 +283,7 @@ type Data struct {
 }
 
 type Plain struct {
-	V interface{}
+	V any
 }
 
 type MyInt int
@@ -307,6 +307,11 @@ type PointerFieldsTest struct {
 type ChardataEmptyTest struct {
 	XMLName  Name    `xml:"test"`
 	Contents *string `xml:",chardata"`
+}
+
+type PointerAnonFields struct {
+	*MyInt
+	*NamedType
 }
 
 type MyMarshalerTest struct {
@@ -382,7 +387,7 @@ type NestedAndCData struct {
 	CDATA string   `xml:",cdata"`
 }
 
-func ifaceptr(x interface{}) interface{} {
+func ifaceptr(x any) any {
 	return &x
 }
 
@@ -392,7 +397,6 @@ func stringptr(x string) *string {
 
 type T1 struct{}
 type T2 struct{}
-type T3 struct{}
 
 type IndirComment struct {
 	T1      T1
@@ -408,7 +412,7 @@ type DirectComment struct {
 
 type IfaceComment struct {
 	T1      T1
-	Comment interface{} `xml:",comment"`
+	Comment any `xml:",comment"`
 	T2      T2
 }
 
@@ -426,7 +430,7 @@ type DirectChardata struct {
 
 type IfaceChardata struct {
 	T1       T1
-	Chardata interface{} `xml:",chardata"`
+	Chardata any `xml:",chardata"`
 	T2       T2
 }
 
@@ -444,7 +448,7 @@ type DirectCDATA struct {
 
 type IfaceCDATA struct {
 	T1    T1
-	CDATA interface{} `xml:",cdata"`
+	CDATA any `xml:",cdata"`
 	T2    T2
 }
 
@@ -462,7 +466,7 @@ type DirectInnerXML struct {
 
 type IfaceInnerXML struct {
 	T1       T1
-	InnerXML interface{} `xml:",innerxml"`
+	InnerXML any `xml:",innerxml"`
 	T2       T2
 }
 
@@ -480,7 +484,7 @@ type DirectElement struct {
 
 type IfaceElement struct {
 	T1      T1
-	Element interface{}
+	Element any
 	T2      T2
 }
 
@@ -498,7 +502,7 @@ type DirectOmitEmpty struct {
 
 type IfaceOmitEmpty struct {
 	T1        T1
-	OmitEmpty interface{} `xml:",omitempty"`
+	OmitEmpty any `xml:",omitempty"`
 	T2        T2
 }
 
@@ -516,8 +520,12 @@ type DirectAny struct {
 
 type IfaceAny struct {
 	T1  T1
-	Any interface{} `xml:",any"`
+	Any any `xml:",any"`
 	T2  T2
+}
+
+type Generic[T any] struct {
+	X T
 }
 
 var (
@@ -532,7 +540,7 @@ var (
 // please try to make them two-way as well to ensure that
 // marshaling and unmarshaling are as symmetrical as feasible.
 var marshalTests = []struct {
-	Value          interface{}
+	Value          any
 	ExpectXML      string
 	MarshalOnly    bool
 	MarshalError   string
@@ -571,16 +579,6 @@ var marshalTests = []struct {
 	{
 		Value:     &Plain{time.Unix(1e9, 123456789).UTC()},
 		ExpectXML: `<Plain><V>2001-09-09T01:46:40.123456789Z</V></Plain>`,
-	},
-
-	// A pointer to struct{} may be used to test for an element's presence.
-	{
-		Value:     &PresenceTest{new(struct{})},
-		ExpectXML: `<PresenceTest><Exists></Exists></PresenceTest>`,
-	},
-	{
-		Value:     &PresenceTest{},
-		ExpectXML: `<PresenceTest></PresenceTest>`,
 	},
 
 	// A pointer to struct{} may be used to test for an element's presence.
@@ -646,7 +644,8 @@ var marshalTests = []struct {
 	{Value: &Universe{Visible: 9.3e13}, ExpectXML: `<universe>9.3e+13</universe>`},
 	{Value: &Particle{HasMass: true}, ExpectXML: `<particle>true</particle>`},
 	{Value: &Departure{When: ParseTime("2013-01-09T00:15:00-09:00")}, ExpectXML: `<departure>2013-01-09T00:15:00-09:00</departure>`},
-	{Value: atomValue, ExpectXML: atomXml},
+	{Value: atomValue, ExpectXML: atomXML},
+	{Value: &Generic[int]{1}, ExpectXML: `<Generic><X>1</X></Generic>`},
 	{
 		Value: &Ship{
 			Name:  "Heart of Gold",
@@ -898,6 +897,18 @@ var marshalTests = []struct {
 			`<FieldA>A.A</FieldA>` +
 			`<FieldE>A.D.E</FieldE>` +
 			`</EmbedA>`,
+	},
+
+	// Anonymous struct pointer field which is nil
+	{
+		Value:     &EmbedB{},
+		ExpectXML: `<EmbedB><FieldB></FieldB></EmbedB>`,
+	},
+
+	// Other kinds of nil anonymous fields
+	{
+		Value:     &PointerAnonFields{},
+		ExpectXML: `<PointerAnonFields></PointerAnonFields>`,
 	},
 
 	// Test that name casing matters
@@ -1689,7 +1700,7 @@ type BadAttr struct {
 }
 
 var marshalErrorTests = []struct {
-	Value interface{}
+	Value any
 	Err   string
 	Kind  reflect.Kind
 }{
@@ -1727,7 +1738,7 @@ var marshalErrorTests = []struct {
 }
 
 var marshalIndentTests = []struct {
-	Value     interface{}
+	Value     any
 	Prefix    string
 	Indent    string
 	ExpectXML string
@@ -1910,7 +1921,7 @@ func BenchmarkMarshal(b *testing.B) {
 
 func BenchmarkUnmarshal(b *testing.B) {
 	b.ReportAllocs()
-	xml := []byte(atomXml)
+	xml := []byte(atomXML)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			Unmarshal(xml, &Feed{})
@@ -1922,7 +1933,7 @@ func BenchmarkUnmarshal(b *testing.B) {
 func TestStructPointerMarshal(t *testing.T) {
 	type A struct {
 		XMLName string `xml:"a"`
-		B       []interface{}
+		B       []any
 	}
 	type C struct {
 		XMLName Name
@@ -2277,6 +2288,30 @@ var encodeTokenTests = []struct {
 		}},
 	},
 	want: `<foo xmlns="space"><bar xmlns="space" xmlns:space="space" space:attr="value">`,
+}, {
+	desc: "reserved namespace prefix -- all lower case",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2001/xmlSchema-instance", "nil"}, "true"},
+		}},
+	},
+	want: `<foo xmlns:_xmlSchema-instance="http://www.w3.org/2001/xmlSchema-instance" _xmlSchema-instance:nil="true">`,
+}, {
+	desc: "reserved namespace prefix -- all upper case",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2001/XMLSchema-instance", "nil"}, "true"},
+		}},
+	},
+	want: `<foo xmlns:_XMLSchema-instance="http://www.w3.org/2001/XMLSchema-instance" _XMLSchema-instance:nil="true">`,
+}, {
+	desc: "reserved namespace prefix -- all mixed case",
+	toks: []Token{
+		StartElement{Name{"", "foo"}, []Attr{
+			{Name{"http://www.w3.org/2001/XmLSchema-instance", "nil"}, "true"},
+		}},
+	},
+	want: `<foo xmlns:_XmLSchema-instance="http://www.w3.org/2001/XmLSchema-instance" _XmLSchema-instance:nil="true">`,
 }}
 
 func TestEncodeToken(t *testing.T) {
@@ -2292,7 +2327,7 @@ loop:
 				continue loop
 			}
 		}
-		errorf := func(f string, a ...interface{}) {
+		errorf := func(f string, a ...any) {
 			t.Errorf("#%d %s token #%d:%s", i, tt.desc, len(tt.toks)-1, fmt.Sprintf(f, a...))
 		}
 		switch {
@@ -2439,5 +2474,60 @@ func TestIssue16158(t *testing.T) {
 	}{})
 	if err == nil {
 		t.Errorf("Unmarshal: expected error, got nil")
+	}
+}
+
+// Issue 20953. Crash on invalid XMLName attribute.
+
+type InvalidXMLName struct {
+	XMLName Name `xml:"error"`
+	Type    struct {
+		XMLName Name `xml:"type,attr"`
+	}
+}
+
+func TestInvalidXMLName(t *testing.T) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	if err := enc.Encode(InvalidXMLName{}); err == nil {
+		t.Error("unexpected success")
+	} else if want := "invalid tag"; !strings.Contains(err.Error(), want) {
+		t.Errorf("error %q does not contain %q", err, want)
+	}
+}
+
+// Issue 50164. Crash on zero value XML attribute.
+type LayerOne struct {
+	XMLName Name `xml:"l1"`
+
+	Value     *float64 `xml:"value,omitempty"`
+	*LayerTwo `xml:",omitempty"`
+}
+
+type LayerTwo struct {
+	ValueTwo *int `xml:"value_two,attr,omitempty"`
+}
+
+func TestMarshalZeroValue(t *testing.T) {
+	proofXml := `<l1><value>1.2345</value></l1>`
+	var l1 LayerOne
+	err := Unmarshal([]byte(proofXml), &l1)
+	if err != nil {
+		t.Fatalf("unmarshal XML error: %v", err)
+	}
+	want := float64(1.2345)
+	got := *l1.Value
+	if got != want {
+		t.Fatalf("unexpected unmarshal result, want %f but got %f", want, got)
+	}
+
+	// Marshal again (or Encode again)
+	// In issue 50164, here `Marshal(l1)` will panic because of the zero value of xml attribute ValueTwo `value_two`.
+	anotherXML, err := Marshal(l1)
+	if err != nil {
+		t.Fatalf("marshal XML error: %v", err)
+	}
+	if string(anotherXML) != proofXml {
+		t.Fatalf("unexpected unmarshal result, want %q but got %q", proofXml, anotherXML)
 	}
 }

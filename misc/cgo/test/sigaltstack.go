@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !windows && !android
 // +build !windows,!android
 
 // Test that the Go runtime still works if C code changes the signal stack.
@@ -14,15 +15,22 @@ package cgotest
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _AIX
+// On AIX, SIGSTKSZ is too small to handle Go sighandler.
+#define CSIGSTKSZ 0x4000
+#else
+#define CSIGSTKSZ SIGSTKSZ
+#endif
+
 static stack_t oss;
-static char signalStack[SIGSTKSZ];
+static char signalStack[CSIGSTKSZ];
 
 static void changeSignalStack(void) {
 	stack_t ss;
 	memset(&ss, 0, sizeof ss);
 	ss.ss_sp = signalStack;
 	ss.ss_flags = 0;
-	ss.ss_size = SIGSTKSZ;
+	ss.ss_size = CSIGSTKSZ;
 	if (sigaltstack(&ss, &oss) < 0) {
 		perror("sigaltstack");
 		abort();
@@ -55,10 +63,8 @@ import (
 
 func testSigaltstack(t *testing.T) {
 	switch {
-	case runtime.GOOS == "solaris", runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64"):
+	case runtime.GOOS == "solaris", runtime.GOOS == "illumos", runtime.GOOS == "ios" && runtime.GOARCH == "arm64":
 		t.Skipf("switching signal stack not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
-	case runtime.GOOS == "darwin" && runtime.GOARCH == "386":
-		t.Skipf("sigaltstack fails on darwin/386")
 	}
 
 	C.changeSignalStack()

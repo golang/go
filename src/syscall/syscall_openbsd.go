@@ -14,6 +14,12 @@ package syscall
 
 import "unsafe"
 
+func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+
 type SockaddrDatalink struct {
 	Len    uint8
 	Family uint8
@@ -26,10 +32,7 @@ type SockaddrDatalink struct {
 	raw    RawSockaddrDatalink
 }
 
-func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
-
 func nametomib(name string) (mib []_C_int, err error) {
-
 	// Perform lookup via a binary search
 	left := 0
 	right := len(sysctlMib) - 1
@@ -62,15 +65,40 @@ func direntNamlen(buf []byte) (uint64, bool) {
 	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
 }
 
-//sysnb pipe(p *[2]_C_int) (err error)
-func Pipe(p []int) (err error) {
+func Pipe(p []int) error {
+	return Pipe2(p, 0)
+}
+
+//sysnb pipe2(p *[2]_C_int, flags int) (err error)
+func Pipe2(p []int, flags int) error {
 	if len(p) != 2 {
 		return EINVAL
 	}
 	var pp [2]_C_int
-	err = pipe(&pp)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	err := pipe2(&pp, flags)
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
+	return err
+}
+
+//sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
+func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
+	var rsa RawSockaddrAny
+	var len _Socklen = SizeofSockaddrAny
+	nfd, err = accept4(fd, &rsa, &len, flags)
+	if err != nil {
+		return
+	}
+	if len > SizeofSockaddrAny {
+		panic("RawSockaddrAny too small")
+	}
+	sa, err = anyToSockaddr(&rsa)
+	if err != nil {
+		Close(nfd)
+		nfd = 0
+	}
 	return
 }
 
@@ -79,7 +107,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	return getdents(fd, buf)
 }
 
-// TODO
+// TODO, see golang.org/issue/5847
 func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
 	return -1, ENOSYS
 }
@@ -112,7 +140,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 //sys	Close(fd int) (err error)
 //sys	Dup(fd int) (nfd int, err error)
 //sys	Dup2(from int, to int) (err error)
-//sys	Exit(code int)
+//sys	dup3(from int, to int, flags int) (err error)
 //sys	Fchdir(fd int) (err error)
 //sys	Fchflags(fd int, flags int) (err error)
 //sys	Fchmod(fd int, mode uint32) (err error)
@@ -149,14 +177,13 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
 //sys	Pathconf(path string, name int) (val int, err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
+//sys	pread(fd int, p []byte, offset int64) (n int, err error)
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Readlink(path string, buf []byte) (n int, err error)
 //sys	Rename(from string, to string) (err error)
 //sys	Revoke(path string) (err error)
 //sys	Rmdir(path string) (err error)
-//sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = SYS_LSEEK
 //sys	Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (err error)
 //sysnb	Setegid(egid int) (err error)
 //sysnb	Seteuid(euid int) (err error)
@@ -181,103 +208,4 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 //sys	write(fd int, p []byte) (n int, err error)
 //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
 //sys	munmap(addr uintptr, length uintptr) (err error)
-//sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
-
-/*
- * Unimplemented
- */
-// __getcwd
-// __semctl
-// __syscall
-// __sysctl
-// adjfreq
-// break
-// clock_getres
-// clock_gettime
-// clock_settime
-// closefrom
-// execve
-// faccessat
-// fchmodat
-// fchownat
-// fcntl
-// fhopen
-// fhstat
-// fhstatfs
-// fork
-// fstatat
-// futimens
-// getfh
-// getgid
-// getitimer
-// getlogin
-// getresgid
-// getresuid
-// getrtable
-// getthrid
-// ioctl
-// ktrace
-// lfs_bmapv
-// lfs_markv
-// lfs_segclean
-// lfs_segwait
-// linkat
-// mincore
-// minherit
-// mkdirat
-// mkfifoat
-// mknodat
-// mlock
-// mlockall
-// mount
-// mquery
-// msgctl
-// msgget
-// msgrcv
-// msgsnd
-// munlock
-// munlockall
-// nfssvc
-// nnpfspioctl
-// openat
-// poll
-// preadv
-// profil
-// pwritev
-// quotactl
-// readlinkat
-// readv
-// reboot
-// renameat
-// rfork
-// sched_yield
-// semget
-// semop
-// setgroups
-// setitimer
-// setresgid
-// setresuid
-// setrtable
-// setsockopt
-// shmat
-// shmctl
-// shmdt
-// shmget
-// sigaction
-// sigaltstack
-// sigpending
-// sigprocmask
-// sigreturn
-// sigsuspend
-// symlinkat
-// sysarch
-// syscall
-// threxit
-// thrsigdivert
-// thrsleep
-// thrwakeup
-// unlinkat
-// utimensat
-// vfork
-// writev
+//sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)

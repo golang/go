@@ -5,12 +5,17 @@
 package runtime_test
 
 import (
+	"bytes"
+	"fmt"
+	"reflect"
+	"regexp"
 	. "runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+	_ "unsafe" // for go:linkname
 )
 
 // TestStackMem measures per-thread stack segment cache behavior.
@@ -72,58 +77,69 @@ func TestStackMem(t *testing.T) {
 
 // Test stack growing in different contexts.
 func TestStackGrowth(t *testing.T) {
-	// Don't make this test parallel as this makes the 20 second
-	// timeout unreliable on slow builders. (See issue #19381.)
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+
+	t.Parallel()
 
 	var wg sync.WaitGroup
 
 	// in a normal goroutine
+	var growDuration time.Duration // For debugging failures
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		growStack()
+		start := time.Now()
+		growStack(nil)
+		growDuration = time.Since(start)
 	}()
 	wg.Wait()
+	t.Log("first growStack took", growDuration)
 
 	// in locked goroutine
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		LockOSThread()
-		growStack()
+		growStack(nil)
 		UnlockOSThread()
 	}()
 	wg.Wait()
 
 	// in finalizer
+	var finalizerStart time.Time
+	var started, progress uint32
 	wg.Add(1)
-	go func() {
+	s := new(string) // Must be of a type that avoids the tiny allocator, or else the finalizer might not run.
+	SetFinalizer(s, func(ss *string) {
 		defer wg.Done()
-		done := make(chan bool)
-		var started uint32
-		go func() {
-			s := new(string)
-			SetFinalizer(s, func(ss *string) {
-				atomic.StoreUint32(&started, 1)
-				growStack()
-				done <- true
-			})
-			s = nil
-			done <- true
-		}()
-		<-done
-		GC()
-		select {
-		case <-done:
-		case <-time.After(20 * time.Second):
+		finalizerStart = time.Now()
+		atomic.StoreUint32(&started, 1)
+		growStack(&progress)
+	})
+	setFinalizerTime := time.Now()
+	s = nil
+
+	if d, ok := t.Deadline(); ok {
+		// Pad the timeout by an arbitrary 5% to give the AfterFunc time to run.
+		timeout := time.Until(d) * 19 / 20
+		timer := time.AfterFunc(timeout, func() {
+			// Panic — instead of calling t.Error and returning from the test — so
+			// that we get a useful goroutine dump if the test times out, especially
+			// if GOTRACEBACK=system or GOTRACEBACK=crash is set.
 			if atomic.LoadUint32(&started) == 0 {
-				t.Log("finalizer did not start")
+				panic("finalizer did not start")
+			} else {
+				panic(fmt.Sprintf("finalizer started %s ago (%s after registration) and ran %d iterations, but did not return", time.Since(finalizerStart), finalizerStart.Sub(setFinalizerTime), atomic.LoadUint32(&progress)))
 			}
-			t.Error("finalizer did not run")
-			return
-		}
-	}()
+		})
+		defer timer.Stop()
+	}
+
+	GC()
 	wg.Wait()
+	t.Logf("finalizer started after %s and ran %d iterations in %v", finalizerStart.Sub(setFinalizerTime), atomic.LoadUint32(&progress), time.Since(finalizerStart))
 }
 
 // ... and in init
@@ -131,7 +147,7 @@ func TestStackGrowth(t *testing.T) {
 //	growStack()
 //}
 
-func growStack() {
+func growStack(progress *uint32) {
 	n := 1 << 10
 	if testing.Short() {
 		n = 1 << 8
@@ -141,6 +157,9 @@ func growStack() {
 		growStackIter(&x, i)
 		if x != i+1 {
 			panic("stack is corrupted")
+		}
+		if progress != nil {
+			atomic.StoreUint32(progress, uint32(i))
 		}
 	}
 	GC()
@@ -231,7 +250,7 @@ func TestDeferPtrs(t *testing.T) {
 		}
 	}()
 	defer set(&y, 42)
-	growStack()
+	growStack(nil)
 }
 
 type bigBuf [4 * 1024]byte
@@ -289,6 +308,39 @@ func testDeferPtrsPanic(c chan int, i int) {
 	}()
 	defer setBig(&y, 42, bigBuf{})
 	useStackAndCall(i, func() { panic(1) })
+}
+
+//go:noinline
+func testDeferLeafSigpanic1() {
+	// Cause a sigpanic to be injected in this frame.
+	//
+	// This function has to be declared before
+	// TestDeferLeafSigpanic so the runtime will crash if we think
+	// this function's continuation PC is in
+	// TestDeferLeafSigpanic.
+	*(*int)(nil) = 0
+}
+
+// TestDeferLeafSigpanic tests defer matching around leaf functions
+// that sigpanic. This is tricky because on LR machines the outer
+// function and the inner function have the same SP, but it's critical
+// that we match up the defer correctly to get the right liveness map.
+// See issue #25499.
+func TestDeferLeafSigpanic(t *testing.T) {
+	// Push a defer that will walk the stack.
+	defer func() {
+		if err := recover(); err == nil {
+			t.Fatal("expected panic from nil pointer")
+		}
+		GC()
+	}()
+	// Call a leaf function. We must set up the exact call stack:
+	//
+	//  defering function -> leaf function -> sigpanic
+	//
+	// On LR machines, the leaf function will have the same SP as
+	// the SP pushed for the defer frame.
+	testDeferLeafSigpanic1()
 }
 
 // TestPanicUseStack checks that a chain of Panic structs on the stack are
@@ -438,6 +490,26 @@ func TestStackPanic(t *testing.T) {
 	panic("test panic")
 }
 
+func BenchmarkStackCopyPtr(b *testing.B) {
+	c := make(chan bool)
+	for i := 0; i < b.N; i++ {
+		go func() {
+			i := 1000000
+			countp(&i)
+			c <- true
+		}()
+		<-c
+	}
+}
+
+func countp(n *int) {
+	if *n == 0 {
+		return
+	}
+	*n--
+	countp(n)
+}
+
 func BenchmarkStackCopy(b *testing.B) {
 	c := make(chan bool)
 	for i := 0; i < b.N; i++ {
@@ -468,162 +540,367 @@ func BenchmarkStackCopyNoCache(b *testing.B) {
 }
 
 func count1(n int) int {
-	if n == 0 {
+	if n <= 0 {
 		return 0
 	}
 	return 1 + count2(n-1)
 }
 
-func count2(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count3(n-1)
+func count2(n int) int  { return 1 + count3(n-1) }
+func count3(n int) int  { return 1 + count4(n-1) }
+func count4(n int) int  { return 1 + count5(n-1) }
+func count5(n int) int  { return 1 + count6(n-1) }
+func count6(n int) int  { return 1 + count7(n-1) }
+func count7(n int) int  { return 1 + count8(n-1) }
+func count8(n int) int  { return 1 + count9(n-1) }
+func count9(n int) int  { return 1 + count10(n-1) }
+func count10(n int) int { return 1 + count11(n-1) }
+func count11(n int) int { return 1 + count12(n-1) }
+func count12(n int) int { return 1 + count13(n-1) }
+func count13(n int) int { return 1 + count14(n-1) }
+func count14(n int) int { return 1 + count15(n-1) }
+func count15(n int) int { return 1 + count16(n-1) }
+func count16(n int) int { return 1 + count17(n-1) }
+func count17(n int) int { return 1 + count18(n-1) }
+func count18(n int) int { return 1 + count19(n-1) }
+func count19(n int) int { return 1 + count20(n-1) }
+func count20(n int) int { return 1 + count21(n-1) }
+func count21(n int) int { return 1 + count22(n-1) }
+func count22(n int) int { return 1 + count23(n-1) }
+func count23(n int) int { return 1 + count1(n-1) }
+
+type stkobjT struct {
+	p *stkobjT
+	x int64
+	y [20]int // consume some stack
 }
 
-func count3(n int) int {
+// Sum creates a linked list of stkobjTs.
+func Sum(n int64, p *stkobjT) {
 	if n == 0 {
-		return 0
+		return
 	}
-	return 1 + count4(n-1)
+	s := stkobjT{p: p, x: n}
+	Sum(n-1, &s)
+	p.x += s.x
 }
 
-func count4(n int) int {
-	if n == 0 {
-		return 0
+func BenchmarkStackCopyWithStkobj(b *testing.B) {
+	c := make(chan bool)
+	for i := 0; i < b.N; i++ {
+		go func() {
+			var s stkobjT
+			Sum(100000, &s)
+			c <- true
+		}()
+		<-c
 	}
-	return 1 + count5(n-1)
 }
 
-func count5(n int) int {
-	if n == 0 {
-		return 0
+type structWithMethod struct{}
+
+func (s structWithMethod) caller() string {
+	_, file, line, ok := Caller(1)
+	if !ok {
+		panic("Caller failed")
 	}
-	return 1 + count6(n-1)
+	return fmt.Sprintf("%s:%d", file, line)
 }
 
-func count6(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count7(n-1)
+func (s structWithMethod) callers() []uintptr {
+	pc := make([]uintptr, 16)
+	return pc[:Callers(0, pc)]
 }
 
-func count7(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count8(n-1)
+func (s structWithMethod) stack() string {
+	buf := make([]byte, 4<<10)
+	return string(buf[:Stack(buf, false)])
 }
 
-func count8(n int) int {
-	if n == 0 {
-		return 0
+func (s structWithMethod) nop() {}
+
+func TestStackWrapperCaller(t *testing.T) {
+	var d structWithMethod
+	// Force the compiler to construct a wrapper method.
+	wrapper := (*structWithMethod).caller
+	// Check that the wrapper doesn't affect the stack trace.
+	if dc, ic := d.caller(), wrapper(&d); dc != ic {
+		t.Fatalf("direct caller %q != indirect caller %q", dc, ic)
 	}
-	return 1 + count9(n-1)
 }
 
-func count9(n int) int {
-	if n == 0 {
-		return 0
+func TestStackWrapperCallers(t *testing.T) {
+	var d structWithMethod
+	wrapper := (*structWithMethod).callers
+	// Check that <autogenerated> doesn't appear in the stack trace.
+	pcs := wrapper(&d)
+	frames := CallersFrames(pcs)
+	for {
+		fr, more := frames.Next()
+		if fr.File == "<autogenerated>" {
+			t.Fatalf("<autogenerated> appears in stack trace: %+v", fr)
+		}
+		if !more {
+			break
+		}
 	}
-	return 1 + count10(n-1)
 }
 
-func count10(n int) int {
-	if n == 0 {
-		return 0
+func TestStackWrapperStack(t *testing.T) {
+	var d structWithMethod
+	wrapper := (*structWithMethod).stack
+	// Check that <autogenerated> doesn't appear in the stack trace.
+	stk := wrapper(&d)
+	if strings.Contains(stk, "<autogenerated>") {
+		t.Fatalf("<autogenerated> appears in stack trace:\n%s", stk)
 	}
-	return 1 + count11(n-1)
 }
 
-func count11(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count12(n-1)
+type I interface {
+	M()
 }
 
-func count12(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count13(n-1)
+func TestStackWrapperStackPanic(t *testing.T) {
+	t.Run("sigpanic", func(t *testing.T) {
+		// nil calls to interface methods cause a sigpanic.
+		testStackWrapperPanic(t, func() { I.M(nil) }, "runtime_test.I.M")
+	})
+	t.Run("panicwrap", func(t *testing.T) {
+		// Nil calls to value method wrappers call panicwrap.
+		wrapper := (*structWithMethod).nop
+		testStackWrapperPanic(t, func() { wrapper(nil) }, "runtime_test.(*structWithMethod).nop")
+	})
 }
 
-func count13(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count14(n-1)
+func testStackWrapperPanic(t *testing.T, cb func(), expect string) {
+	// Test that the stack trace from a panicking wrapper includes
+	// the wrapper, even though elide these when they don't panic.
+	t.Run("CallersFrames", func(t *testing.T) {
+		defer func() {
+			err := recover()
+			if err == nil {
+				t.Fatalf("expected panic")
+			}
+			pcs := make([]uintptr, 10)
+			n := Callers(0, pcs)
+			frames := CallersFrames(pcs[:n])
+			for {
+				frame, more := frames.Next()
+				t.Log(frame.Function)
+				if frame.Function == expect {
+					return
+				}
+				if !more {
+					break
+				}
+			}
+			t.Fatalf("panicking wrapper %s missing from stack trace", expect)
+		}()
+		cb()
+	})
+	t.Run("Stack", func(t *testing.T) {
+		defer func() {
+			err := recover()
+			if err == nil {
+				t.Fatalf("expected panic")
+			}
+			buf := make([]byte, 4<<10)
+			stk := string(buf[:Stack(buf, false)])
+			if !strings.Contains(stk, "\n"+expect) {
+				t.Fatalf("panicking wrapper %s missing from stack trace:\n%s", expect, stk)
+			}
+		}()
+		cb()
+	})
 }
 
-func count14(n int) int {
-	if n == 0 {
-		return 0
+func TestCallersFromWrapper(t *testing.T) {
+	// Test that invoking CallersFrames on a stack where the first
+	// PC is an autogenerated wrapper keeps the wrapper in the
+	// trace. Normally we elide these, assuming that the wrapper
+	// calls the thing you actually wanted to see, but in this
+	// case we need to keep it.
+	pc := reflect.ValueOf(I.M).Pointer()
+	frames := CallersFrames([]uintptr{pc})
+	frame, more := frames.Next()
+	if frame.Function != "runtime_test.I.M" {
+		t.Fatalf("want function %s, got %s", "runtime_test.I.M", frame.Function)
 	}
-	return 1 + count15(n-1)
+	if more {
+		t.Fatalf("want 1 frame, got > 1")
+	}
 }
 
-func count15(n int) int {
-	if n == 0 {
-		return 0
+func TestTracebackSystemstack(t *testing.T) {
+	if GOARCH == "ppc64" || GOARCH == "ppc64le" {
+		t.Skip("systemstack tail call not implemented on ppc64x")
 	}
-	return 1 + count16(n-1)
+
+	// Test that profiles correctly jump over systemstack,
+	// including nested systemstack calls.
+	pcs := make([]uintptr, 20)
+	pcs = pcs[:TracebackSystemstack(pcs, 5)]
+	// Check that runtime.TracebackSystemstack appears five times
+	// and that we see TestTracebackSystemstack.
+	countIn, countOut := 0, 0
+	frames := CallersFrames(pcs)
+	var tb bytes.Buffer
+	for {
+		frame, more := frames.Next()
+		fmt.Fprintf(&tb, "\n%s+0x%x %s:%d", frame.Function, frame.PC-frame.Entry, frame.File, frame.Line)
+		switch frame.Function {
+		case "runtime.TracebackSystemstack":
+			countIn++
+		case "runtime_test.TestTracebackSystemstack":
+			countOut++
+		}
+		if !more {
+			break
+		}
+	}
+	if countIn != 5 || countOut != 1 {
+		t.Fatalf("expected 5 calls to TracebackSystemstack and 1 call to TestTracebackSystemstack, got:%s", tb.String())
+	}
 }
 
-func count16(n int) int {
-	if n == 0 {
-		return 0
+func TestTracebackAncestors(t *testing.T) {
+	goroutineRegex := regexp.MustCompile(`goroutine [0-9]+ \[`)
+	for _, tracebackDepth := range []int{0, 1, 5, 50} {
+		output := runTestProg(t, "testprog", "TracebackAncestors", fmt.Sprintf("GODEBUG=tracebackancestors=%d", tracebackDepth))
+
+		numGoroutines := 3
+		numFrames := 2
+		ancestorsExpected := numGoroutines
+		if numGoroutines > tracebackDepth {
+			ancestorsExpected = tracebackDepth
+		}
+
+		matches := goroutineRegex.FindAllStringSubmatch(output, -1)
+		if len(matches) != 2 {
+			t.Fatalf("want 2 goroutines, got:\n%s", output)
+		}
+
+		// Check functions in the traceback.
+		fns := []string{"main.recurseThenCallGo", "main.main", "main.printStack", "main.TracebackAncestors"}
+		for _, fn := range fns {
+			if !strings.Contains(output, "\n"+fn+"(") {
+				t.Fatalf("expected %q function in traceback:\n%s", fn, output)
+			}
+		}
+
+		if want, count := "originating from goroutine", ancestorsExpected; strings.Count(output, want) != count {
+			t.Errorf("output does not contain %d instances of %q:\n%s", count, want, output)
+		}
+
+		if want, count := "main.recurseThenCallGo(...)", ancestorsExpected*(numFrames+1); strings.Count(output, want) != count {
+			t.Errorf("output does not contain %d instances of %q:\n%s", count, want, output)
+		}
+
+		if want, count := "main.recurseThenCallGo(0x", 1; strings.Count(output, want) != count {
+			t.Errorf("output does not contain %d instances of %q:\n%s", count, want, output)
+		}
 	}
-	return 1 + count17(n-1)
 }
 
-func count17(n int) int {
-	if n == 0 {
-		return 0
+// Test that defer closure is correctly scanned when the stack is scanned.
+func TestDeferLiveness(t *testing.T) {
+	output := runTestProg(t, "testprog", "DeferLiveness", "GODEBUG=clobberfree=1")
+	if output != "" {
+		t.Errorf("output:\n%s\n\nwant no output", output)
 	}
-	return 1 + count18(n-1)
 }
 
-func count18(n int) int {
-	if n == 0 {
-		return 0
+func TestDeferHeapAndStack(t *testing.T) {
+	P := 4     // processors
+	N := 10000 //iterations
+	D := 200   // stack depth
+
+	if testing.Short() {
+		P /= 2
+		N /= 10
+		D /= 10
 	}
-	return 1 + count19(n-1)
+	c := make(chan bool)
+	for p := 0; p < P; p++ {
+		go func() {
+			for i := 0; i < N; i++ {
+				if deferHeapAndStack(D) != 2*D {
+					panic("bad result")
+				}
+			}
+			c <- true
+		}()
+	}
+	for p := 0; p < P; p++ {
+		<-c
+	}
 }
 
-func count19(n int) int {
+// deferHeapAndStack(n) computes 2*n
+func deferHeapAndStack(n int) (r int) {
 	if n == 0 {
 		return 0
 	}
-	return 1 + count20(n-1)
+	if n%2 == 0 {
+		// heap-allocated defers
+		for i := 0; i < 2; i++ {
+			defer func() {
+				r++
+			}()
+		}
+	} else {
+		// stack-allocated defers
+		defer func() {
+			r++
+		}()
+		defer func() {
+			r++
+		}()
+	}
+	r = deferHeapAndStack(n - 1)
+	escapeMe(new([1024]byte)) // force some GCs
+	return
 }
 
-func count20(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count21(n-1)
+// Pass a value to escapeMe to force it to escape.
+var escapeMe = func(x any) {}
+
+// Test that when F -> G is inlined and F is excluded from stack
+// traces, G still appears.
+func TestTracebackInlineExcluded(t *testing.T) {
+	defer func() {
+		recover()
+		buf := make([]byte, 4<<10)
+		stk := string(buf[:Stack(buf, false)])
+
+		t.Log(stk)
+
+		if not := "tracebackExcluded"; strings.Contains(stk, not) {
+			t.Errorf("found but did not expect %q", not)
+		}
+		if want := "tracebackNotExcluded"; !strings.Contains(stk, want) {
+			t.Errorf("expected %q in stack", want)
+		}
+	}()
+	tracebackExcluded()
 }
 
-func count21(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count22(n-1)
+// tracebackExcluded should be excluded from tracebacks. There are
+// various ways this could come up. Linking it to a "runtime." name is
+// rather synthetic, but it's easy and reliable. See issue #42754 for
+// one way this happened in real code.
+//
+//go:linkname tracebackExcluded runtime.tracebackExcluded
+//go:noinline
+func tracebackExcluded() {
+	// Call an inlined function that should not itself be excluded
+	// from tracebacks.
+	tracebackNotExcluded()
 }
 
-func count22(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count23(n-1)
-}
-
-func count23(n int) int {
-	if n == 0 {
-		return 0
-	}
-	return 1 + count1(n-1)
+// tracebackNotExcluded should be inlined into tracebackExcluded, but
+// should not itself be excluded from the traceback.
+func tracebackNotExcluded() {
+	var x *int
+	*x = 0
 }

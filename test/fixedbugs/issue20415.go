@@ -11,7 +11,7 @@ package p
 // 1
 var f byte
 
-var f interface{} // ERROR "previous declaration at issue20415.go:12"
+var f interface{} // ERROR "issue20415.go:12: previous declaration|redefinition|f redeclared"
 
 func _(f int) {
 }
@@ -22,7 +22,7 @@ var g byte
 func _(g int) {
 }
 
-var g interface{} // ERROR "previous declaration at issue20415.go:20"
+var g interface{} // ERROR "issue20415.go:20: previous declaration|redefinition|g redeclared"
 
 // 3
 func _(h int) {
@@ -30,4 +30,4 @@ func _(h int) {
 
 var h byte
 
-var h interface{} // ERROR "previous declaration at issue20415.go:31"
+var h interface{} // ERROR "issue20415.go:31: previous declaration|redefinition|h redeclared"

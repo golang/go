@@ -9,17 +9,21 @@
 // is unknown due to an error. Operations on unknown
 // values produce unknown values unless specified
 // otherwise.
-//
-package constant // import "go/constant"
+package constant
 
 import (
 	"fmt"
 	"go/token"
 	"math"
 	"math/big"
+	"math/bits"
 	"strconv"
+	"strings"
+	"sync"
 	"unicode/utf8"
 )
+
+//go:generate stringer -type Kind
 
 // Kind specifies the kind of value represented by a Value.
 type Kind int
@@ -64,10 +68,31 @@ type Value interface {
 // The spec requires at least 256 bits; typical implementations use 512 bits.
 const prec = 512
 
+// TODO(gri) Consider storing "error" information in an unknownVal so clients
+// can provide better error messages. For instance, if a number is
+// too large (incl. infinity), that could be recorded in unknownVal.
+// See also #20583 and #42695 for use cases.
+
+// Representation of values:
+//
+// Values of Int and Float Kind have two different representations each: int64Val
+// and intVal, and ratVal and floatVal. When possible, the "smaller", respectively
+// more precise (for Floats) representation is chosen. However, once a Float value
+// is represented as a floatVal, any subsequent results remain floatVals (unless
+// explicitly converted); i.e., no attempt is made to convert a floatVal back into
+// a ratVal. The reasoning is that all representations but floatVal are mathematically
+// exact, but once that precision is lost (by moving to floatVal), moving back to
+// a different representation implies a precision that's not actually there.
+
 type (
 	unknownVal struct{}
 	boolVal    bool
-	stringVal  string
+	stringVal  struct {
+		// Lazy value: either a string (l,r==nil) or an addition (l,r!=nil).
+		mu   sync.Mutex
+		s    string
+		l, r *stringVal
+	}
 	int64Val   int64                    // Int values representable as an int64
 	intVal     struct{ val *big.Int }   // Int values not representable as an int64
 	ratVal     struct{ val *big.Rat }   // Float values representable as a fraction
@@ -77,7 +102,7 @@ type (
 
 func (unknownVal) Kind() Kind { return Unknown }
 func (boolVal) Kind() Kind    { return Bool }
-func (stringVal) Kind() Kind  { return String }
+func (*stringVal) Kind() Kind { return String }
 func (int64Val) Kind() Kind   { return Int }
 func (intVal) Kind() Kind     { return Int }
 func (ratVal) Kind() Kind     { return Float }
@@ -88,9 +113,9 @@ func (unknownVal) String() string { return "unknown" }
 func (x boolVal) String() string  { return strconv.FormatBool(bool(x)) }
 
 // String returns a possibly shortened quoted form of the String value.
-func (x stringVal) String() string {
+func (x *stringVal) String() string {
 	const maxLen = 72 // a reasonable length
-	s := strconv.Quote(string(x))
+	s := strconv.Quote(x.string())
 	if utf8.RuneCountInString(s) > maxLen {
 		// The string without the enclosing quotes is greater than maxLen-2 runes
 		// long. Remove the last 3 runes (including the closing '"') by keeping
@@ -105,11 +130,65 @@ func (x stringVal) String() string {
 	return s
 }
 
+// string constructs and returns the actual string literal value.
+// If x represents an addition, then it rewrites x to be a single
+// string, to speed future calls. This lazy construction avoids
+// building different string values for all subpieces of a large
+// concatenation. See golang.org/issue/23348.
+func (x *stringVal) string() string {
+	x.mu.Lock()
+	if x.l != nil {
+		x.s = strings.Join(reverse(x.appendReverse(nil)), "")
+		x.l = nil
+		x.r = nil
+	}
+	s := x.s
+	x.mu.Unlock()
+
+	return s
+}
+
+// reverse reverses x in place and returns it.
+func reverse(x []string) []string {
+	n := len(x)
+	for i := 0; i+i < n; i++ {
+		x[i], x[n-1-i] = x[n-1-i], x[i]
+	}
+	return x
+}
+
+// appendReverse appends to list all of x's subpieces, but in reverse,
+// and returns the result. Appending the reversal allows processing
+// the right side in a recursive call and the left side in a loop.
+// Because a chain like a + b + c + d + e is actually represented
+// as ((((a + b) + c) + d) + e), the left-side loop avoids deep recursion.
+// x must be locked.
+func (x *stringVal) appendReverse(list []string) []string {
+	y := x
+	for y.r != nil {
+		y.r.mu.Lock()
+		list = y.r.appendReverse(list)
+		y.r.mu.Unlock()
+
+		l := y.l
+		if y != x {
+			y.mu.Unlock()
+		}
+		l.mu.Lock()
+		y = l
+	}
+	s := y.s
+	if y != x {
+		y.mu.Unlock()
+	}
+	return append(list, s)
+}
+
 func (x int64Val) String() string { return strconv.FormatInt(int64(x), 10) }
 func (x intVal) String() string   { return x.val.String() }
 func (x ratVal) String() string   { return rtof(x).String() }
 
-// String returns returns a decimal approximation of the Float value.
+// String returns a decimal approximation of the Float value.
 func (x floatVal) String() string {
 	f := x.val
 
@@ -160,7 +239,7 @@ func (x complexVal) String() string { return fmt.Sprintf("(%s + %si)", x.re, x.i
 
 func (x unknownVal) ExactString() string { return x.String() }
 func (x boolVal) ExactString() string    { return x.String() }
-func (x stringVal) ExactString() string  { return strconv.Quote(string(x)) }
+func (x *stringVal) ExactString() string { return strconv.Quote(x.string()) }
 func (x int64Val) ExactString() string   { return x.String() }
 func (x intVal) ExactString() string     { return x.String() }
 
@@ -180,7 +259,7 @@ func (x complexVal) ExactString() string {
 
 func (unknownVal) implementsValue() {}
 func (boolVal) implementsValue()    {}
-func (stringVal) implementsValue()  {}
+func (*stringVal) implementsValue() {}
 func (int64Val) implementsValue()   {}
 func (ratVal) implementsValue()     {}
 func (intVal) implementsValue()     {}
@@ -196,14 +275,8 @@ func i64tor(x int64Val) ratVal   { return ratVal{newRat().SetInt64(int64(x))} }
 func i64tof(x int64Val) floatVal { return floatVal{newFloat().SetInt64(int64(x))} }
 func itor(x intVal) ratVal       { return ratVal{newRat().SetInt(x.val)} }
 func itof(x intVal) floatVal     { return floatVal{newFloat().SetInt(x.val)} }
-
-func rtof(x ratVal) floatVal {
-	a := newFloat().SetInt(x.val.Num())
-	b := newFloat().SetInt(x.val.Denom())
-	return floatVal{a.Quo(a, b)}
-}
-
-func vtoc(x Value) complexVal { return complexVal{x, int64Val(0)} }
+func rtof(x ratVal) floatVal     { return floatVal{newFloat().SetRat(x.val)} }
+func vtoc(x Value) complexVal    { return complexVal{x, int64Val(0)} }
 
 func makeInt(x *big.Int) Value {
 	if x.IsInt64() {
@@ -212,21 +285,15 @@ func makeInt(x *big.Int) Value {
 	return intVal{x}
 }
 
-// Permit fractions with component sizes up to maxExp
-// before switching to using floating-point numbers.
-const maxExp = 4 << 10
-
 func makeRat(x *big.Rat) Value {
 	a := x.Num()
 	b := x.Denom()
-	if a.BitLen() < maxExp && b.BitLen() < maxExp {
+	if smallInt(a) && smallInt(b) {
 		// ok to remain fraction
 		return ratVal{x}
 	}
 	// components too large => switch to float
-	fa := newFloat().SetInt(a)
-	fb := newFloat().SetInt(b)
-	return floatVal{fa.Quo(fa, fb)}
+	return floatVal{newFloat().SetRat(x)}
 }
 
 var floatVal0 = floatVal{newFloat()}
@@ -236,16 +303,25 @@ func makeFloat(x *big.Float) Value {
 	if x.Sign() == 0 {
 		return floatVal0
 	}
+	if x.IsInf() {
+		return unknownVal{}
+	}
+	// No attempt is made to "go back" to ratVal, even if possible,
+	// to avoid providing the illusion of a mathematically exact
+	// representation.
 	return floatVal{x}
 }
 
 func makeComplex(re, im Value) Value {
+	if re.Kind() == Unknown || im.Kind() == Unknown {
+		return unknownVal{}
+	}
 	return complexVal{re, im}
 }
 
 func makeFloatFromLiteral(lit string) Value {
 	if f, ok := newFloat().SetString(lit); ok {
-		if smallRat(f) {
+		if smallFloat(f) {
 			// ok to use rationals
 			if f.Sign() == 0 {
 				// Issue 20228: If the float underflowed to zero, parse just "0".
@@ -254,8 +330,9 @@ func makeFloatFromLiteral(lit string) Value {
 				// but it'll take forever to parse as a Rat.
 				lit = "0"
 			}
-			r, _ := newRat().SetString(lit)
-			return ratVal{r}
+			if r, ok := newRat().SetString(lit); ok {
+				return ratVal{r}
+			}
 		}
 		// otherwise use floats
 		return makeFloat(f)
@@ -263,14 +340,34 @@ func makeFloatFromLiteral(lit string) Value {
 	return nil
 }
 
-// smallRat reports whether x would lead to "reasonably"-sized fraction
+// Permit fractions with component sizes up to maxExp
+// before switching to using floating-point numbers.
+const maxExp = 4 << 10
+
+// smallInt reports whether x would lead to "reasonably"-sized fraction
 // if converted to a *big.Rat.
-func smallRat(x *big.Float) bool {
-	if !x.IsInf() {
-		e := x.MantExp(nil)
-		return -maxExp < e && e < maxExp
+func smallInt(x *big.Int) bool {
+	return x.BitLen() < maxExp
+}
+
+// smallFloat64 reports whether x would lead to "reasonably"-sized fraction
+// if converted to a *big.Rat.
+func smallFloat64(x float64) bool {
+	if math.IsInf(x, 0) {
+		return false
 	}
-	return false
+	_, e := math.Frexp(x)
+	return -maxExp < e && e < maxExp
+}
+
+// smallFloat reports whether x would lead to "reasonably"-sized fraction
+// if converted to a *big.Rat.
+func smallFloat(x *big.Float) bool {
+	if x.IsInf() {
+		return false
+	}
+	e := x.MantExp(nil)
+	return -maxExp < e && e < maxExp
 }
 
 // ----------------------------------------------------------------------------
@@ -283,7 +380,7 @@ func MakeUnknown() Value { return unknownVal{} }
 func MakeBool(b bool) Value { return boolVal(b) }
 
 // MakeString returns the String value for s.
-func MakeString(s string) Value { return stringVal(s) }
+func MakeString(s string) Value { return &stringVal{s: s} }
 
 // MakeInt64 returns the Int value for x.
 func MakeInt64(x int64) Value { return int64Val(x) }
@@ -297,16 +394,16 @@ func MakeUint64(x uint64) Value {
 }
 
 // MakeFloat64 returns the Float value for x.
+// If x is -0.0, the result is 0.0.
 // If x is not finite, the result is an Unknown.
 func MakeFloat64(x float64) Value {
 	if math.IsInf(x, 0) || math.IsNaN(x) {
 		return unknownVal{}
 	}
-	// convert -0 to 0
-	if x == 0 {
-		return int64Val(0)
+	if smallFloat64(x) {
+		return ratVal{newRat().SetFloat64(x + 0)} // convert -0 to 0
 	}
-	return ratVal{newRat().SetFloat64(x)}
+	return floatVal{newFloat().SetFloat64(x + 0)}
 }
 
 // MakeFromLiteral returns the corresponding integer, floating-point,
@@ -382,8 +479,8 @@ func BoolVal(x Value) bool {
 // If x is Unknown, the result is "".
 func StringVal(x Value) string {
 	switch x := x.(type) {
-	case stringVal:
-		return string(x)
+	case *stringVal:
+		return x.string()
 	case unknownVal:
 		return ""
 	default:
@@ -469,13 +566,77 @@ func Float64Val(x Value) (float64, bool) {
 	}
 }
 
+// Val returns the underlying value for a given constant. Since it returns an
+// interface, it is up to the caller to type assert the result to the expected
+// type. The possible dynamic return types are:
+//
+//	x Kind             type of result
+//	-----------------------------------------
+//	Bool               bool
+//	String             string
+//	Int                int64 or *big.Int
+//	Float              *big.Float or *big.Rat
+//	everything else    nil
+func Val(x Value) any {
+	switch x := x.(type) {
+	case boolVal:
+		return bool(x)
+	case *stringVal:
+		return x.string()
+	case int64Val:
+		return int64(x)
+	case intVal:
+		return x.val
+	case ratVal:
+		return x.val
+	case floatVal:
+		return x.val
+	default:
+		return nil
+	}
+}
+
+// Make returns the Value for x.
+//
+//	type of x        result Kind
+//	----------------------------
+//	bool             Bool
+//	string           String
+//	int64            Int
+//	*big.Int         Int
+//	*big.Float       Float
+//	*big.Rat         Float
+//	anything else    Unknown
+func Make(x any) Value {
+	switch x := x.(type) {
+	case bool:
+		return boolVal(x)
+	case string:
+		return &stringVal{s: x}
+	case int64:
+		return int64Val(x)
+	case *big.Int:
+		return makeInt(x)
+	case *big.Rat:
+		return makeRat(x)
+	case *big.Float:
+		return makeFloat(x)
+	default:
+		return unknownVal{}
+	}
+}
+
 // BitLen returns the number of bits required to represent
 // the absolute value x in binary representation; x must be an Int or an Unknown.
 // If x is Unknown, the result is 0.
 func BitLen(x Value) int {
 	switch x := x.(type) {
 	case int64Val:
-		return i64toi(x).val.BitLen()
+		u := uint64(x)
+		if x < 0 {
+			u = uint64(-x)
+		}
+		return 64 - bits.LeadingZeros64(u)
 	case intVal:
 		return x.val.BitLen()
 	case unknownVal:
@@ -596,7 +757,7 @@ func Num(x Value) Value {
 	case ratVal:
 		return makeInt(x.val.Num())
 	case floatVal:
-		if smallRat(x.val) {
+		if smallFloat(x.val) {
 			r, _ := x.val.Rat(nil)
 			return makeInt(r.Num())
 		}
@@ -618,7 +779,7 @@ func Denom(x Value) Value {
 	case ratVal:
 		return makeInt(x.val.Denom())
 	case floatVal:
-		if smallRat(x.val) {
+		if smallFloat(x.val) {
 			r, _ := x.val.Rat(nil)
 			return makeInt(r.Denom())
 		}
@@ -691,7 +852,7 @@ func ToInt(x Value) Value {
 		// avoid creation of huge integers
 		// (Existing tests require permitting exponents of at least 1024;
 		// allow any value that would also be permissible as a fraction.)
-		if smallRat(x.val) {
+		if smallFloat(x.val) {
 			i := newInt()
 			if _, acc := x.val.Int(i); acc == big.Exact {
 				return makeInt(i)
@@ -734,14 +895,16 @@ func ToInt(x Value) Value {
 func ToFloat(x Value) Value {
 	switch x := x.(type) {
 	case int64Val:
-		return i64tof(x)
+		return i64tor(x) // x is always a small int
 	case intVal:
+		if smallInt(x.val) {
+			return itor(x)
+		}
 		return itof(x)
 	case ratVal, floatVal:
 		return x
 	case complexVal:
-		if im := ToInt(x.im); im.Kind() == Int && Sign(im) == 0 {
-			// imaginary component is 0
+		if Sign(x.im) == 0 {
 			return ToFloat(x.re)
 		}
 	}
@@ -752,13 +915,7 @@ func ToFloat(x Value) Value {
 // Otherwise it returns an Unknown.
 func ToComplex(x Value) Value {
 	switch x := x.(type) {
-	case int64Val:
-		return vtoc(i64tof(x))
-	case intVal:
-		return vtoc(itof(x))
-	case ratVal:
-		return vtoc(x)
-	case floatVal:
+	case int64Val, intVal, ratVal, floatVal:
 		return vtoc(x)
 	case complexVal:
 		return x
@@ -785,7 +942,6 @@ func is63bit(x int64) bool {
 // The operation must be defined for the operand.
 // If prec > 0 it specifies the ^ (xor) result size in bits.
 // If y is Unknown, the result is Unknown.
-//
 func UnaryOp(op token.Token, y Value, prec uint) Value {
 	switch op {
 	case token.ADD:
@@ -856,7 +1012,7 @@ func ord(x Value) int {
 		return -1
 	case unknownVal:
 		return 0
-	case boolVal, stringVal:
+	case boolVal, *stringVal:
 		return 1
 	case int64Val:
 		return 2
@@ -875,61 +1031,46 @@ func ord(x Value) int {
 // smallest complexity for two values x and y. If one of them is
 // numeric, both of them must be numeric. If one of them is Unknown
 // or invalid (say, nil) both results are that value.
-//
 func match(x, y Value) (_, _ Value) {
-	if ord(x) > ord(y) {
-		y, x = match(y, x)
-		return x, y
+	switch ox, oy := ord(x), ord(y); {
+	case ox < oy:
+		x, y = match0(x, y)
+	case ox > oy:
+		y, x = match0(y, x)
 	}
-	// ord(x) <= ord(y)
+	return x, y
+}
 
-	switch x := x.(type) {
-	case boolVal, stringVal, complexVal:
-		return x, y
+// match0 must only be called by match.
+// Invariant: ord(x) < ord(y)
+func match0(x, y Value) (_, _ Value) {
+	// Prefer to return the original x and y arguments when possible,
+	// to avoid unnecessary heap allocations.
 
-	case int64Val:
-		switch y := y.(type) {
-		case int64Val:
-			return x, y
-		case intVal:
-			return i64toi(x), y
-		case ratVal:
-			return i64tor(x), y
-		case floatVal:
-			return i64tof(x), y
-		case complexVal:
-			return vtoc(x), y
-		}
-
+	switch y.(type) {
 	case intVal:
-		switch y := y.(type) {
-		case intVal:
-			return x, y
-		case ratVal:
-			return itor(x), y
-		case floatVal:
-			return itof(x), y
-		case complexVal:
-			return vtoc(x), y
+		switch x1 := x.(type) {
+		case int64Val:
+			return i64toi(x1), y
 		}
-
 	case ratVal:
-		switch y := y.(type) {
-		case ratVal:
-			return x, y
-		case floatVal:
-			return rtof(x), y
-		case complexVal:
-			return vtoc(x), y
+		switch x1 := x.(type) {
+		case int64Val:
+			return i64tor(x1), y
+		case intVal:
+			return itor(x1), y
 		}
-
 	case floatVal:
-		switch y := y.(type) {
-		case floatVal:
-			return x, y
-		case complexVal:
-			return vtoc(x), y
+		switch x1 := x.(type) {
+		case int64Val:
+			return i64tof(x1), y
+		case intVal:
+			return itof(x1), y
+		case ratVal:
+			return rtof(x1), y
 		}
+	case complexVal:
+		return vtoc(x), y
 	}
 
 	// force unknown and invalid values into "x position" in callers of match
@@ -946,7 +1087,6 @@ func match(x, y Value) (_, _ Value) {
 // To force integer division of Int operands, use op == token.QUO_ASSIGN
 // instead of token.QUO; the result is guaranteed to be Int in this case.
 // Division by zero leads to a run-time panic.
-//
 func BinaryOp(x_ Value, op token.Token, y_ Value) Value {
 	x, y := match(x_, y_)
 
@@ -1108,9 +1248,9 @@ func BinaryOp(x_ Value, op token.Token, y_ Value) Value {
 		}
 		return makeComplex(re, im)
 
-	case stringVal:
+	case *stringVal:
 		if op == token.ADD {
-			return x + y.(stringVal)
+			return &stringVal{l: x, r: y.(*stringVal)}
 		}
 	}
 
@@ -1126,7 +1266,6 @@ func quo(x, y Value) Value { return BinaryOp(x, token.QUO, y) }
 // Shift returns the result of the shift expression x op s
 // with op == token.SHL or token.SHR (<< or >>). x must be
 // an Int or an Unknown. If x is Unknown, the result is x.
-//
 func Shift(x Value, op token.Token, s uint) Value {
 	switch x := x.(type) {
 	case unknownVal:
@@ -1182,7 +1321,6 @@ func cmpZero(x int, op token.Token) bool {
 // The comparison must be defined for the operands.
 // If one of the operands is Unknown, the result is
 // false.
-//
 func Compare(x_ Value, op token.Token, y_ Value) bool {
 	x, y := match(x_, y_)
 
@@ -1236,21 +1374,22 @@ func Compare(x_ Value, op token.Token, y_ Value) bool {
 			return !re || !im
 		}
 
-	case stringVal:
-		y := y.(stringVal)
+	case *stringVal:
+		xs := x.string()
+		ys := y.(*stringVal).string()
 		switch op {
 		case token.EQL:
-			return x == y
+			return xs == ys
 		case token.NEQ:
-			return x != y
+			return xs != ys
 		case token.LSS:
-			return x < y
+			return xs < ys
 		case token.LEQ:
-			return x <= y
+			return xs <= ys
 		case token.GTR:
-			return x > y
+			return xs > ys
 		case token.GEQ:
-			return x >= y
+			return xs >= ys
 		}
 	}
 

@@ -48,6 +48,7 @@ package math
 // Jn returns the order-n Bessel function of the first kind.
 //
 // Special cases are:
+//
 //	Jn(n, ±Inf) = 0
 //	Jn(n, NaN) = NaN
 func Jn(n int, x float64) float64 {
@@ -103,15 +104,15 @@ func Jn(n int, x float64) float64 {
 			//                 3     s+c             c-s
 
 			var temp float64
-			switch n & 3 {
+			switch s, c := Sincos(x); n & 3 {
 			case 0:
-				temp = Cos(x) + Sin(x)
+				temp = c + s
 			case 1:
-				temp = -Cos(x) + Sin(x)
+				temp = -c + s
 			case 2:
-				temp = -Cos(x) - Sin(x)
+				temp = -c - s
 			case 3:
-				temp = Cos(x) - Sin(x)
+				temp = c - s
 			}
 			b = (1 / SqrtPi) * temp / Sqrt(x)
 		} else {
@@ -225,6 +226,7 @@ func Jn(n int, x float64) float64 {
 // Yn returns the order-n Bessel function of the second kind.
 //
 // Special cases are:
+//
 //	Yn(n, +Inf) = 0
 //	Yn(n ≥ 0, 0) = -Inf
 //	Yn(n < 0, 0) = +Inf if n is odd, -Inf if n is even
@@ -278,15 +280,15 @@ func Yn(n int, x float64) float64 {
 		//		   3	 s+c		 c-s
 
 		var temp float64
-		switch n & 3 {
+		switch s, c := Sincos(x); n & 3 {
 		case 0:
-			temp = Sin(x) - Cos(x)
+			temp = s - c
 		case 1:
-			temp = -Sin(x) - Cos(x)
+			temp = -s - c
 		case 2:
-			temp = -Sin(x) + Cos(x)
+			temp = -s + c
 		case 3:
-			temp = Sin(x) + Cos(x)
+			temp = s + c
 		}
 		b = (1 / SqrtPi) * temp / Sqrt(x)
 	} else {

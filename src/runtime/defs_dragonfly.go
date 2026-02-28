@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 /*
 Input to cgo.
@@ -31,6 +31,9 @@ const (
 	EFAULT = C.EFAULT
 	EBUSY  = C.EBUSY
 	EAGAIN = C.EAGAIN
+
+	O_NONBLOCK = C.O_NONBLOCK
+	O_CLOEXEC  = C.O_CLOEXEC
 
 	PROT_NONE  = C.PROT_NONE
 	PROT_READ  = C.PROT_READ
@@ -103,6 +106,7 @@ const (
 	EV_DELETE    = C.EV_DELETE
 	EV_CLEAR     = C.EV_CLEAR
 	EV_ERROR     = C.EV_ERROR
+	EV_EOF       = C.EV_EOF
 	EVFILT_READ  = C.EVFILT_READ
 	EVFILT_WRITE = C.EVFILT_WRITE
 )

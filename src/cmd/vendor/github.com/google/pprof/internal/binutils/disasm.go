@@ -19,39 +19,65 @@ import (
 	"io"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/google/pprof/internal/plugin"
 	"github.com/ianlancetaylor/demangle"
 )
 
 var (
-	nmOutputRE            = regexp.MustCompile(`^\s*([[:xdigit:]]+)\s+(.)\s+(.*)`)
-	objdumpAsmOutputRE    = regexp.MustCompile(`^\s*([[:xdigit:]]+):\s+(.*)`)
-	objdumpOutputFileLine = regexp.MustCompile(`^(.*):([0-9]+)`)
-	objdumpOutputFunction = regexp.MustCompile(`^(\S.*)\(\):`)
+	nmOutputRE                = regexp.MustCompile(`^\s*([[:xdigit:]]+)\s+(.)\s+(.*)`)
+	objdumpAsmOutputRE        = regexp.MustCompile(`^\s*([[:xdigit:]]+):\s+(.*)`)
+	objdumpOutputFileLine     = regexp.MustCompile(`^;?\s?(.*):([0-9]+)`)
+	objdumpOutputFunction     = regexp.MustCompile(`^;?\s?(\S.*)\(\):`)
+	objdumpOutputFunctionLLVM = regexp.MustCompile(`^([[:xdigit:]]+)?\s?(.*):`)
 )
 
 func findSymbols(syms []byte, file string, r *regexp.Regexp, address uint64) ([]*plugin.Sym, error) {
 	// Collect all symbols from the nm output, grouping names mapped to
 	// the same address into a single symbol.
+
+	// The symbols to return.
 	var symbols []*plugin.Sym
+
+	// The current group of symbol names, and the address they are all at.
 	names, start := []string{}, uint64(0)
+
 	buf := bytes.NewBuffer(syms)
-	for symAddr, name, err := nextSymbol(buf); err == nil; symAddr, name, err = nextSymbol(buf) {
+
+	for {
+		symAddr, name, err := nextSymbol(buf)
+		if err == io.EOF {
+			// Done. If there was an unfinished group, append it.
+			if len(names) != 0 {
+				if match := matchSymbol(names, start, symAddr-1, r, address); match != nil {
+					symbols = append(symbols, &plugin.Sym{Name: match, File: file, Start: start, End: symAddr - 1})
+				}
+			}
+
+			// And return the symbols.
+			return symbols, nil
+		}
+
 		if err != nil {
+			// There was some kind of serious error reading nm's output.
 			return nil, err
 		}
-		if start == symAddr {
+
+		// If this symbol is at the same address as the current group, add it to the group.
+		if symAddr == start {
 			names = append(names, name)
 			continue
 		}
+
+		// Otherwise append the current group to the list of symbols.
 		if match := matchSymbol(names, start, symAddr-1, r, address); match != nil {
 			symbols = append(symbols, &plugin.Sym{Name: match, File: file, Start: start, End: symAddr - 1})
 		}
+
+		// And start a new group.
 		names, start = []string{name}, symAddr
 	}
-
-	return symbols, nil
 }
 
 // matchSymbol checks if a symbol is to be selected by checking its
@@ -62,7 +88,7 @@ func matchSymbol(names []string, start, end uint64, r *regexp.Regexp, address ui
 		return names
 	}
 	for _, name := range names {
-		if r.MatchString(name) {
+		if r == nil || r.MatchString(name) {
 			return []string{name}
 		}
 
@@ -96,6 +122,7 @@ func disassemble(asm []byte) ([]plugin.Inst, error) {
 				break
 			}
 		}
+		input = strings.TrimSpace(input)
 
 		if fields := objdumpAsmOutputRE.FindStringSubmatch(input); len(fields) == 3 {
 			if address, err := strconv.ParseUint(fields[1], 16, 64); err == nil {
@@ -119,6 +146,11 @@ func disassemble(asm []byte) ([]plugin.Inst, error) {
 		if fields := objdumpOutputFunction.FindStringSubmatch(input); len(fields) == 2 {
 			function = fields[1]
 			continue
+		} else {
+			if fields := objdumpOutputFunctionLLVM.FindStringSubmatch(input); len(fields) == 3 {
+				function = fields[2]
+				continue
+			}
 		}
 		// Reset on unrecognized lines.
 		function, file, line = "", "", 0
@@ -137,6 +169,7 @@ func nextSymbol(buf *bytes.Buffer) (uint64, string, error) {
 				return 0, "", err
 			}
 		}
+		line = strings.TrimSpace(line)
 
 		if fields := nmOutputRE.FindStringSubmatch(line); len(fields) == 4 {
 			if address, err := strconv.ParseUint(fields[1], 16, 64); err == nil {

@@ -4,8 +4,6 @@
 
 // Package plugin implements loading and symbol resolution of Go plugins.
 //
-// Currently plugins only work on Linux.
-//
 // A plugin is a Go main package with exported functions and variables that
 // has been built with:
 //
@@ -14,13 +12,17 @@
 // When a plugin is first opened, the init functions of all packages not
 // already part of the program are called. The main function is not run.
 // A plugin is only initialized once, and cannot be closed.
+//
+// Currently plugins are only supported on Linux, FreeBSD, and macOS.
+// Please report any issues.
 package plugin
 
 // Plugin is a loaded Go plugin.
 type Plugin struct {
 	pluginpath string
+	err        string        // set if plugin failed to load
 	loaded     chan struct{} // closed when loaded
-	syms       map[string]interface{}
+	syms       map[string]any
 }
 
 // Open opens a Go plugin.
@@ -67,4 +69,4 @@ func (p *Plugin) Lookup(symName string) (Symbol, error) {
 //	}
 //	*v.(*int) = 7
 //	f.(func())() // prints "Hello, number 7"
-type Symbol interface{}
+type Symbol any

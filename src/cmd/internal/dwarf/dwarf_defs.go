@@ -93,6 +93,9 @@ const (
 	DW_CLS_REFERENCE
 	DW_CLS_ADDRLOC
 	DW_CLS_STRING
+
+	// Go-specific internal hackery.
+	DW_CLS_GO_TYPEREF
 )
 
 // Table 20
@@ -217,6 +220,8 @@ const (
 	DW_FORM_exprloc      = 0x18 // exprloc
 	DW_FORM_flag_present = 0x19 // flag
 	DW_FORM_ref_sig8     = 0x20 // reference
+	// Pseudo-form: expanded to data4 on IOS, udata elsewhere.
+	DW_FORM_udata_pseudo = 0x99
 )
 
 // Table 24 (#operands, notes)

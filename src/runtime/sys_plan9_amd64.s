@@ -6,10 +6,6 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-// setldt(int entry, int address, int limit)
-TEXT runtime·setldt(SB),NOSPLIT,$0
-	RET
-
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVQ	$14, BP
 	SYSCALL
@@ -94,11 +90,11 @@ TEXT runtime·nsec(SB),NOSPLIT,$0
 
 // func walltime() (sec int64, nsec int32)
 TEXT runtime·walltime(SB),NOSPLIT,$8-12
-	CALL	runtime·nanotime(SB)
+	CALL	runtime·nanotime1(SB)
 	MOVQ	0(SP), AX
 
 	// generated code for
-	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
+	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%1000000000 }
 	// adapted to reduce duplication
 	MOVQ	AX, CX
 	MOVQ	$1360296554856532783, AX
@@ -123,7 +119,7 @@ TEXT runtime·noted(SB),NOSPLIT,$0
 	SYSCALL
 	MOVL	AX, ret+8(FP)
 	RET
-	
+
 TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	MOVQ	$38, BP
 	SYSCALL
@@ -136,7 +132,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
+TEXT runtime·tstart_plan9(SB),NOSPLIT,$8
 	MOVQ	newm+0(FP), CX
 	MOVQ	m_g0(CX), DX
 
@@ -160,8 +156,10 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
 	CALL	runtime·mstart(SB)
 
-	MOVQ	$0x1234, 0x1234		// not reached
-	RET
+	// Exit the thread.
+	MOVQ	$0, 0(SP)
+	CALL	runtime·exits(SB)
+	JMP	0(PC)
 
 // This is needed by asm_amd64.s
 TEXT runtime·settls(SB),NOSPLIT,$0
@@ -253,3 +251,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$16-16
 	MOVQ	0(SP), AX
 	MOVQ	AX, ret_base+0(FP)
 	RET
+
+// never called on this platform
+TEXT ·sigpanictramp(SB),NOSPLIT,$0-0
+	UNDEF

@@ -7,6 +7,7 @@ package big
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -532,6 +533,9 @@ var expTests = []struct {
 	{"1", "0", "", "1"},
 	{"-10", "0", "", "1"},
 	{"1234", "-1", "", "1"},
+	{"1234", "-1", "0", "1"},
+	{"17", "-100", "1234", "865"},
+	{"2", "-100", "1234", ""},
 
 	// m == 1
 	{"0", "0", "1", "0"},
@@ -556,7 +560,7 @@ var expTests = []struct {
 	{"0x8000000000000000", "3", "6719", "5447"},
 	{"0x8000000000000000", "1000", "6719", "1603"},
 	{"0x8000000000000000", "1000000", "6719", "3199"},
-	{"0x8000000000000000", "-1000000", "6719", "1"},
+	{"0x8000000000000000", "-1000000", "6719", "3663"}, // 3663 = ModInverse(3199, 6719) Issue #25865
 
 	{"0xffffffffffffffffffffffffffffffff", "0x12345678123456781234567812345678123456789", "0x01112222333344445555666677778889", "0x36168FA1DB3AAE6C8CE647E137F97A"},
 
@@ -604,10 +608,15 @@ func TestExp(t *testing.T) {
 	for i, test := range expTests {
 		x, ok1 := new(Int).SetString(test.x, 0)
 		y, ok2 := new(Int).SetString(test.y, 0)
-		out, ok3 := new(Int).SetString(test.out, 0)
 
-		var ok4 bool
-		var m *Int
+		var ok3, ok4 bool
+		var out, m *Int
+
+		if len(test.out) == 0 {
+			out, ok3 = nil, true
+		} else {
+			out, ok3 = new(Int).SetString(test.out, 0)
+		}
 
 		if len(test.m) == 0 {
 			m, ok4 = nil, true
@@ -621,10 +630,10 @@ func TestExp(t *testing.T) {
 		}
 
 		z1 := new(Int).Exp(x, y, m)
-		if !isNormalized(z1) {
+		if z1 != nil && !isNormalized(z1) {
 			t.Errorf("#%d: %v is not normalized", i, *z1)
 		}
-		if z1.Cmp(out) != 0 {
+		if !(z1 == nil && out == nil || z1.Cmp(out) == 0) {
 			t.Errorf("#%d: got %x want %x", i, z1, out)
 		}
 
@@ -674,25 +683,93 @@ func checkGcd(aBytes, bBytes []byte) bool {
 	return x.Cmp(d) == 0
 }
 
+// euclidExtGCD is a reference implementation of Euclid's
+// extended GCD algorithm for testing against optimized algorithms.
+// Requirements: a, b > 0
+func euclidExtGCD(a, b *Int) (g, x, y *Int) {
+	A := new(Int).Set(a)
+	B := new(Int).Set(b)
+
+	// A = Ua*a + Va*b
+	// B = Ub*a + Vb*b
+	Ua := new(Int).SetInt64(1)
+	Va := new(Int)
+
+	Ub := new(Int)
+	Vb := new(Int).SetInt64(1)
+
+	q := new(Int)
+	temp := new(Int)
+
+	r := new(Int)
+	for len(B.abs) > 0 {
+		q, r = q.QuoRem(A, B, r)
+
+		A, B, r = B, r, A
+
+		// Ua, Ub = Ub, Ua-q*Ub
+		temp.Set(Ub)
+		Ub.Mul(Ub, q)
+		Ub.Sub(Ua, Ub)
+		Ua.Set(temp)
+
+		// Va, Vb = Vb, Va-q*Vb
+		temp.Set(Vb)
+		Vb.Mul(Vb, q)
+		Vb.Sub(Va, Vb)
+		Va.Set(temp)
+	}
+	return A, Ua, Va
+}
+
+func checkLehmerGcd(aBytes, bBytes []byte) bool {
+	a := new(Int).SetBytes(aBytes)
+	b := new(Int).SetBytes(bBytes)
+
+	if a.Sign() <= 0 || b.Sign() <= 0 {
+		return true // can only test positive arguments
+	}
+
+	d := new(Int).lehmerGCD(nil, nil, a, b)
+	d0, _, _ := euclidExtGCD(a, b)
+
+	return d.Cmp(d0) == 0
+}
+
+func checkLehmerExtGcd(aBytes, bBytes []byte) bool {
+	a := new(Int).SetBytes(aBytes)
+	b := new(Int).SetBytes(bBytes)
+	x := new(Int)
+	y := new(Int)
+
+	if a.Sign() <= 0 || b.Sign() <= 0 {
+		return true // can only test positive arguments
+	}
+
+	d := new(Int).lehmerGCD(x, y, a, b)
+	d0, x0, y0 := euclidExtGCD(a, b)
+
+	return d.Cmp(d0) == 0 && x.Cmp(x0) == 0 && y.Cmp(y0) == 0
+}
+
 var gcdTests = []struct {
 	d, x, y, a, b string
 }{
 	// a <= 0 || b <= 0
 	{"0", "0", "0", "0", "0"},
-	{"0", "0", "0", "0", "7"},
-	{"0", "0", "0", "11", "0"},
-	{"0", "0", "0", "-77", "35"},
-	{"0", "0", "0", "64515", "-24310"},
-	{"0", "0", "0", "-64515", "-24310"},
+	{"7", "0", "1", "0", "7"},
+	{"7", "0", "-1", "0", "-7"},
+	{"11", "1", "0", "11", "0"},
+	{"7", "-1", "-2", "-77", "35"},
+	{"935", "-3", "8", "64515", "24310"},
+	{"935", "-3", "-8", "64515", "-24310"},
+	{"935", "3", "-8", "-64515", "-24310"},
 
 	{"1", "-9", "47", "120", "23"},
 	{"7", "1", "-2", "77", "35"},
 	{"935", "-3", "8", "64515", "24310"},
 	{"935000000000000000", "-3", "8", "64515000000000000000", "24310000000000000000"},
 	{"1", "-221", "22059940471369027483332068679400581064239780177629666810348940098015901108344", "98920366548084643601728869055592650835572950932266967461790948584315647051443", "991"},
-
-	// test early exit (after one Euclidean iteration) in binaryGCD
-	{"1", "", "", "1", "98920366548084643601728869055592650835572950932266967461790948584315647051443"},
 }
 
 func testGcd(t *testing.T, d, x, y, a, b *Int) {
@@ -707,38 +784,66 @@ func testGcd(t *testing.T, d, x, y, a, b *Int) {
 
 	D := new(Int).GCD(X, Y, a, b)
 	if D.Cmp(d) != 0 {
-		t.Errorf("GCD(%s, %s): got d = %s, want %s", a, b, D, d)
+		t.Errorf("GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, D, d)
 	}
 	if x != nil && X.Cmp(x) != 0 {
-		t.Errorf("GCD(%s, %s): got x = %s, want %s", a, b, X, x)
+		t.Errorf("GCD(%s, %s, %s, %s): got x = %s, want %s", x, y, a, b, X, x)
 	}
 	if y != nil && Y.Cmp(y) != 0 {
-		t.Errorf("GCD(%s, %s): got y = %s, want %s", a, b, Y, y)
-	}
-
-	// binaryGCD requires a > 0 && b > 0
-	if a.Sign() <= 0 || b.Sign() <= 0 {
-		return
-	}
-
-	D.binaryGCD(a, b)
-	if D.Cmp(d) != 0 {
-		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, D, d)
+		t.Errorf("GCD(%s, %s, %s, %s): got y = %s, want %s", x, y, a, b, Y, y)
 	}
 
 	// check results in presence of aliasing (issue #11284)
 	a2 := new(Int).Set(a)
 	b2 := new(Int).Set(b)
-	a2.binaryGCD(a2, b2) // result is same as 1st argument
+	a2.GCD(X, Y, a2, b2) // result is same as 1st argument
 	if a2.Cmp(d) != 0 {
-		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, a2, d)
+		t.Errorf("aliased z = a GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, a2, d)
+	}
+	if x != nil && X.Cmp(x) != 0 {
+		t.Errorf("aliased z = a GCD(%s, %s, %s, %s): got x = %s, want %s", x, y, a, b, X, x)
+	}
+	if y != nil && Y.Cmp(y) != 0 {
+		t.Errorf("aliased z = a GCD(%s, %s, %s, %s): got y = %s, want %s", x, y, a, b, Y, y)
 	}
 
 	a2 = new(Int).Set(a)
 	b2 = new(Int).Set(b)
-	b2.binaryGCD(a2, b2) // result is same as 2nd argument
+	b2.GCD(X, Y, a2, b2) // result is same as 2nd argument
 	if b2.Cmp(d) != 0 {
-		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, b2, d)
+		t.Errorf("aliased z = b GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, b2, d)
+	}
+	if x != nil && X.Cmp(x) != 0 {
+		t.Errorf("aliased z = b GCD(%s, %s, %s, %s): got x = %s, want %s", x, y, a, b, X, x)
+	}
+	if y != nil && Y.Cmp(y) != 0 {
+		t.Errorf("aliased z = b GCD(%s, %s, %s, %s): got y = %s, want %s", x, y, a, b, Y, y)
+	}
+
+	a2 = new(Int).Set(a)
+	b2 = new(Int).Set(b)
+	D = new(Int).GCD(a2, b2, a2, b2) // x = a, y = b
+	if D.Cmp(d) != 0 {
+		t.Errorf("aliased x = a, y = b GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, D, d)
+	}
+	if x != nil && a2.Cmp(x) != 0 {
+		t.Errorf("aliased x = a, y = b GCD(%s, %s, %s, %s): got x = %s, want %s", x, y, a, b, a2, x)
+	}
+	if y != nil && b2.Cmp(y) != 0 {
+		t.Errorf("aliased x = a, y = b GCD(%s, %s, %s, %s): got y = %s, want %s", x, y, a, b, b2, y)
+	}
+
+	a2 = new(Int).Set(a)
+	b2 = new(Int).Set(b)
+	D = new(Int).GCD(b2, a2, a2, b2) // x = b, y = a
+	if D.Cmp(d) != 0 {
+		t.Errorf("aliased x = b, y = a GCD(%s, %s, %s, %s): got d = %s, want %s", x, y, a, b, D, d)
+	}
+	if x != nil && b2.Cmp(x) != 0 {
+		t.Errorf("aliased x = b, y = a GCD(%s, %s, %s, %s): got x = %s, want %s", x, y, a, b, b2, x)
+	}
+	if y != nil && a2.Cmp(y) != 0 {
+		t.Errorf("aliased x = b, y = a GCD(%s, %s, %s, %s): got y = %s, want %s", x, y, a, b, a2, y)
 	}
 }
 
@@ -757,6 +862,14 @@ func TestGcd(t *testing.T) {
 	}
 
 	if err := quick.Check(checkGcd, nil); err != nil {
+		t.Error(err)
+	}
+
+	if err := quick.Check(checkLehmerGcd, nil); err != nil {
+		t.Error(err)
+	}
+
+	if err := quick.Check(checkLehmerExtGcd, nil); err != nil {
 		t.Error(err)
 	}
 }
@@ -899,6 +1012,77 @@ func TestLshRsh(t *testing.T) {
 		}
 		if in.Cmp(out) != 0 {
 			t.Errorf("#%d: got %s want %s", i, out, in)
+		}
+	}
+}
+
+// Entries must be sorted by value in ascending order.
+var cmpAbsTests = []string{
+	"0",
+	"1",
+	"2",
+	"10",
+	"10000000",
+	"2783678367462374683678456387645876387564783686583485",
+	"2783678367462374683678456387645876387564783686583486",
+	"32957394867987420967976567076075976570670947609750670956097509670576075067076027578341538",
+}
+
+func TestCmpAbs(t *testing.T) {
+	values := make([]*Int, len(cmpAbsTests))
+	var prev *Int
+	for i, s := range cmpAbsTests {
+		x, ok := new(Int).SetString(s, 0)
+		if !ok {
+			t.Fatalf("SetString(%s, 0) failed", s)
+		}
+		if prev != nil && prev.Cmp(x) >= 0 {
+			t.Fatal("cmpAbsTests entries not sorted in ascending order")
+		}
+		values[i] = x
+		prev = x
+	}
+
+	for i, x := range values {
+		for j, y := range values {
+			// try all combinations of signs for x, y
+			for k := 0; k < 4; k++ {
+				var a, b Int
+				a.Set(x)
+				b.Set(y)
+				if k&1 != 0 {
+					a.Neg(&a)
+				}
+				if k&2 != 0 {
+					b.Neg(&b)
+				}
+
+				got := a.CmpAbs(&b)
+				want := 0
+				switch {
+				case i > j:
+					want = 1
+				case i < j:
+					want = -1
+				}
+				if got != want {
+					t.Errorf("absCmp |%s|, |%s|: got %d; want %d", &a, &b, got, want)
+				}
+			}
+		}
+	}
+}
+
+func TestIntCmpSelf(t *testing.T) {
+	for _, s := range cmpAbsTests {
+		x, ok := new(Int).SetString(s, 0)
+		if !ok {
+			t.Fatalf("SetString(%s, 0) failed", s)
+		}
+		got := x.Cmp(x)
+		want := 0
+		if got != want {
+			t.Errorf("x = %s: x.Cmp(x): got %d; want %d", x, got, want)
 		}
 	}
 }
@@ -1175,6 +1359,31 @@ func TestBitSet(t *testing.T) {
 	}
 }
 
+var tzbTests = []struct {
+	in  string
+	out uint
+}{
+	{"0", 0},
+	{"1", 0},
+	{"-1", 0},
+	{"4", 2},
+	{"-8", 3},
+	{"0x4000000000000000000", 74},
+	{"-0x8000000000000000000", 75},
+}
+
+func TestTrailingZeroBits(t *testing.T) {
+	for i, test := range tzbTests {
+		in, _ := new(Int).SetString(test.in, 0)
+		want := test.out
+		got := in.TrailingZeroBits()
+
+		if got != want {
+			t.Errorf("#%d: got %v want %v", i, got, want)
+		}
+	}
+}
+
 func BenchmarkBitset(b *testing.B) {
 	z := new(Int)
 	z.SetBit(z, 512, 1)
@@ -1235,7 +1444,7 @@ func BenchmarkModSqrt225_Tonelli(b *testing.B) {
 	}
 }
 
-func BenchmarkModSqrt224_3Mod4(b *testing.B) {
+func BenchmarkModSqrt225_3Mod4(b *testing.B) {
 	p := tri(225)
 	x := new(Int).SetUint64(2)
 	for i := 0; i < b.N; i++ {
@@ -1244,27 +1453,25 @@ func BenchmarkModSqrt224_3Mod4(b *testing.B) {
 	}
 }
 
-func BenchmarkModSqrt5430_Tonelli(b *testing.B) {
-	if isRaceBuilder {
-		b.Skip("skipping on race builder")
-	}
-	p := tri(5430)
-	x := new(Int).SetUint64(2)
+func BenchmarkModSqrt231_Tonelli(b *testing.B) {
+	p := tri(231)
+	p.Sub(p, intOne)
+	p.Sub(p, intOne) // tri(231) - 2 is a prime == 5 mod 8
+	x := new(Int).SetUint64(7)
 	for i := 0; i < b.N; i++ {
-		x.SetUint64(2)
+		x.SetUint64(7)
 		x.modSqrtTonelliShanks(x, p)
 	}
 }
 
-func BenchmarkModSqrt5430_3Mod4(b *testing.B) {
-	if isRaceBuilder {
-		b.Skip("skipping on race builder")
-	}
-	p := tri(5430)
-	x := new(Int).SetUint64(2)
+func BenchmarkModSqrt231_5Mod8(b *testing.B) {
+	p := tri(231)
+	p.Sub(p, intOne)
+	p.Sub(p, intOne) // tri(231) - 2 is a prime == 5 mod 8
+	x := new(Int).SetUint64(7)
 	for i := 0; i < b.N; i++ {
-		x.SetUint64(2)
-		x.modSqrt3Mod4Prime(x, p)
+		x.SetUint64(7)
+		x.modSqrt5Mod8Prime(x, p)
 	}
 }
 
@@ -1326,19 +1533,21 @@ var modInverseTests = []struct {
 	{"1234567", "458948883992"},
 	{"239487239847", "2410312426921032588552076022197566074856950548502459942654116941958108831682612228890093858261341614673227141477904012196503648957050582631942730706805009223062734745341073406696246014589361659774041027169249453200378729434170325843778659198143763193776859869524088940195577346119843545301547043747207749969763750084308926339295559968882457872412993810129130294592999947926365264059284647209730384947211681434464714438488520940127459844288859336526896320919633919"},
 	{"-10", "13"}, // issue #16984
+	{"10", "-13"},
+	{"-17", "-13"},
 }
 
 func TestModInverse(t *testing.T) {
 	var element, modulus, gcd, inverse Int
 	one := NewInt(1)
-	for i, test := range modInverseTests {
+	for _, test := range modInverseTests {
 		(&element).SetString(test.element, 10)
 		(&modulus).SetString(test.modulus, 10)
 		(&inverse).ModInverse(&element, &modulus)
 		(&inverse).Mul(&inverse, &element)
 		(&inverse).Mod(&inverse, &modulus)
 		if (&inverse).Cmp(one) != 0 {
-			t.Errorf("#%d: failed (e·e^(-1)=%s)", i, &inverse)
+			t.Errorf("ModInverse(%d,%d)*%d%%%d=%d, not 1", &element, &modulus, &element, &modulus, &inverse)
 		}
 	}
 	// exhaustive test for small values
@@ -1357,6 +1566,17 @@ func TestModInverse(t *testing.T) {
 				t.Errorf("ModInverse(%d,%d)*%d%%%d=%d, not 1", &element, &modulus, &element, &modulus, &inverse)
 			}
 		}
+	}
+}
+
+func BenchmarkModInverse(b *testing.B) {
+	p := new(Int).SetInt64(1) // Mersenne prime 2**1279 -1
+	p.abs = p.abs.shl(p.abs, 1279)
+	p.Sub(p, intOne)
+	x := new(Int).Sub(p, intOne)
+	z := new(Int)
+	for i := 0; i < b.N; i++ {
+		z.ModInverse(x, p)
 	}
 }
 
@@ -1379,6 +1599,12 @@ func testModSqrt(t *testing.T, elt, mod, sq, sqrt *Int) bool {
 	}
 	sqChk.Sub(sq, mod)
 	z = sqrtChk.ModSqrt(&sqChk, mod)
+	if z != &sqrtChk || z.Cmp(sqrt) != 0 {
+		t.Errorf("ModSqrt returned inconsistent value %s", z)
+	}
+
+	// test x aliasing z
+	z = sqrtChk.ModSqrt(sqrtChk.Set(sq), mod)
 	if z != &sqrtChk || z.Cmp(sqrt) != 0 {
 		t.Errorf("ModSqrt returned inconsistent value %s", z)
 	}
@@ -1536,11 +1762,135 @@ func TestSqrt(t *testing.T) {
 	}
 }
 
+// We can't test this together with the other Exp tests above because
+// it requires a different receiver setup.
+func TestIssue22830(t *testing.T) {
+	one := new(Int).SetInt64(1)
+	base, _ := new(Int).SetString("84555555300000000000", 10)
+	mod, _ := new(Int).SetString("66666670001111111111", 10)
+	want, _ := new(Int).SetString("17888885298888888889", 10)
+
+	var tests = []int64{
+		0, 1, -1,
+	}
+
+	for _, n := range tests {
+		m := NewInt(n)
+		if got := m.Exp(base, one, mod); got.Cmp(want) != 0 {
+			t.Errorf("(%v).Exp(%s, 1, %s) = %s, want %s", n, base, mod, got, want)
+		}
+	}
+}
+
 func BenchmarkSqrt(b *testing.B) {
 	n, _ := new(Int).SetString("1"+strings.Repeat("0", 1001), 10)
 	b.ResetTimer()
 	t := new(Int)
 	for i := 0; i < b.N; i++ {
 		t.Sqrt(n)
+	}
+}
+
+func benchmarkIntSqr(b *testing.B, nwords int) {
+	x := new(Int)
+	x.abs = rndNat(nwords)
+	t := new(Int)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		t.Mul(x, x)
+	}
+}
+
+func BenchmarkIntSqr(b *testing.B) {
+	for _, n := range sqrBenchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
+			benchmarkIntSqr(b, n)
+		})
+	}
+}
+
+func benchmarkDiv(b *testing.B, aSize, bSize int) {
+	var r = rand.New(rand.NewSource(1234))
+	aa := randInt(r, uint(aSize))
+	bb := randInt(r, uint(bSize))
+	if aa.Cmp(bb) < 0 {
+		aa, bb = bb, aa
+	}
+	x := new(Int)
+	y := new(Int)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		x.DivMod(aa, bb, y)
+	}
+}
+
+func BenchmarkDiv(b *testing.B) {
+	sizes := []int{
+		10, 20, 50, 100, 200, 500, 1000,
+		1e4, 1e5, 1e6, 1e7,
+	}
+	for _, i := range sizes {
+		j := 2 * i
+		b.Run(fmt.Sprintf("%d/%d", j, i), func(b *testing.B) {
+			benchmarkDiv(b, j, i)
+		})
+	}
+}
+
+func TestFillBytes(t *testing.T) {
+	checkResult := func(t *testing.T, buf []byte, want *Int) {
+		t.Helper()
+		got := new(Int).SetBytes(buf)
+		if got.CmpAbs(want) != 0 {
+			t.Errorf("got 0x%x, want 0x%x: %x", got, want, buf)
+		}
+	}
+	panics := func(f func()) (panic bool) {
+		defer func() { panic = recover() != nil }()
+		f()
+		return
+	}
+
+	for _, n := range []string{
+		"0",
+		"1000",
+		"0xffffffff",
+		"-0xffffffff",
+		"0xffffffffffffffff",
+		"0x10000000000000000",
+		"0xabababababababababababababababababababababababababa",
+		"0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+	} {
+		t.Run(n, func(t *testing.T) {
+			t.Logf(n)
+			x, ok := new(Int).SetString(n, 0)
+			if !ok {
+				panic("invalid test entry")
+			}
+
+			// Perfectly sized buffer.
+			byteLen := (x.BitLen() + 7) / 8
+			buf := make([]byte, byteLen)
+			checkResult(t, x.FillBytes(buf), x)
+
+			// Way larger, checking all bytes get zeroed.
+			buf = make([]byte, 100)
+			for i := range buf {
+				buf[i] = 0xff
+			}
+			checkResult(t, x.FillBytes(buf), x)
+
+			// Too small.
+			if byteLen > 0 {
+				buf = make([]byte, byteLen-1)
+				if !panics(func() { x.FillBytes(buf) }) {
+					t.Errorf("expected panic for small buffer and value %x", x)
+				}
+			}
+		})
 	}
 }

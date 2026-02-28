@@ -12,14 +12,29 @@ import (
 	"strings"
 )
 
+// The Universe scope contains all predeclared objects of Go.
+// It is the outermost scope of any chain of nested scopes.
+var Universe *Scope
+
+// The Unsafe package is the package returned by an importer
+// for the import path "unsafe".
+var Unsafe *Package
+
 var (
-	Universe     *Scope
-	Unsafe       *Package
-	universeIota *Const
-	universeByte *Basic // uint8 alias, but has name "byte"
-	universeRune *Basic // int32 alias, but has name "rune"
+	universeIota       Object
+	universeByte       Type // uint8 alias, but has name "byte"
+	universeRune       Type // int32 alias, but has name "rune"
+	universeAny        Object
+	universeError      Type
+	universeComparable Object
 )
 
+// Typ contains the predeclared *Basic types indexed by their
+// corresponding BasicKind.
+//
+// The *Basic type for Typ[Byte] will have the name "uint8".
+// Use Universe.Lookup("byte").Type() to obtain the specific
+// alias basic type named "byte" (and analogous for "rune").
 var Typ = []*Basic{
 	Invalid: {Invalid, 0, "invalid type"},
 
@@ -64,13 +79,44 @@ func defPredeclaredTypes() {
 		def(NewTypeName(token.NoPos, nil, t.name, t))
 	}
 
-	// Error has a nil package in its qualified name since it is in no package
-	res := NewVar(token.NoPos, nil, "", Typ[String])
-	sig := &Signature{results: NewTuple(res)}
-	err := NewFunc(token.NoPos, nil, "Error", sig)
-	typ := &Named{underlying: NewInterface([]*Func{err}, nil).Complete()}
-	sig.recv = NewVar(token.NoPos, nil, "", typ)
-	def(NewTypeName(token.NoPos, nil, "error", typ))
+	// type any = interface{}
+	// Note: don't use &emptyInterface for the type of any. Using a unique
+	// pointer allows us to detect any and format it as "any" rather than
+	// interface{}, which clarifies user-facing error messages significantly.
+	def(NewTypeName(token.NoPos, nil, "any", &Interface{complete: true, tset: &topTypeSet}))
+
+	// type error interface{ Error() string }
+	{
+		obj := NewTypeName(token.NoPos, nil, "error", nil)
+		obj.setColor(black)
+		typ := NewNamed(obj, nil, nil)
+
+		// error.Error() string
+		recv := NewVar(token.NoPos, nil, "", typ)
+		res := NewVar(token.NoPos, nil, "", Typ[String])
+		sig := NewSignatureType(recv, nil, nil, nil, NewTuple(res), false)
+		err := NewFunc(token.NoPos, nil, "Error", sig)
+
+		// interface{ Error() string }
+		ityp := &Interface{methods: []*Func{err}, complete: true}
+		computeInterfaceTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
+
+		typ.SetUnderlying(ityp)
+		def(obj)
+	}
+
+	// type comparable interface{} // marked as comparable
+	{
+		obj := NewTypeName(token.NoPos, nil, "comparable", nil)
+		obj.setColor(black)
+		typ := NewNamed(obj, nil, nil)
+
+		// interface{} // marked as comparable
+		ityp := &Interface{complete: true, tset: &_TypeSet{nil, allTermlist, true}}
+
+		typ.SetUnderlying(ityp)
+		def(obj)
+	}
 }
 
 var predeclaredConsts = [...]struct {
@@ -90,7 +136,7 @@ func defPredeclaredConsts() {
 }
 
 func defPredeclaredNil() {
-	def(&Nil{object{name: "nil", typ: Typ[UntypedNil]}})
+	def(&Nil{object{name: "nil", typ: Typ[UntypedNil], color_: black}})
 }
 
 // A builtinId is the id of a builtin function.
@@ -115,9 +161,11 @@ const (
 	_Recover
 
 	// package unsafe
+	_Add
 	_Alignof
 	_Offsetof
 	_Sizeof
+	_Slice
 
 	// testing support
 	_Assert
@@ -146,9 +194,11 @@ var predeclaredFuncs = [...]struct {
 	_Real:    {"real", 1, false, expression},
 	_Recover: {"recover", 0, false, statement},
 
+	_Add:      {"Add", 2, false, expression},
 	_Alignof:  {"Alignof", 1, false, expression},
 	_Offsetof: {"Offsetof", 1, false, expression},
 	_Sizeof:   {"Sizeof", 1, false, expression},
+	_Slice:    {"Slice", 2, false, expression},
 
 	_Assert: {"assert", 1, false, statement},
 	_Trace:  {"trace", 0, true, statement},
@@ -185,22 +235,25 @@ func init() {
 	defPredeclaredNil()
 	defPredeclaredFuncs()
 
-	universeIota = Universe.Lookup("iota").(*Const)
-	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
-	universeRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
+	universeIota = Universe.Lookup("iota")
+	universeByte = Universe.Lookup("byte").Type()
+	universeRune = Universe.Lookup("rune").Type()
+	universeAny = Universe.Lookup("any")
+	universeError = Universe.Lookup("error").Type()
+	universeComparable = Universe.Lookup("comparable")
 }
 
 // Objects with names containing blanks are internal and not entered into
 // a scope. Objects with exported names are inserted in the unsafe package
 // scope; other objects are inserted in the universe scope.
-//
 func def(obj Object) {
+	assert(obj.color() == black)
 	name := obj.Name()
 	if strings.Contains(name, " ") {
 		return // nothing to do
 	}
 	// fix Obj link for named types
-	if typ, ok := obj.Type().(*Named); ok {
+	if typ, _ := obj.Type().(*Named); typ != nil {
 		typ.obj = obj.(*TypeName)
 	}
 	// exported identifiers go into package unsafe
@@ -218,6 +271,6 @@ func def(obj Object) {
 		}
 	}
 	if scope.Insert(obj) != nil {
-		panic("internal error: double declaration")
+		panic("double declaration of predeclared identifier")
 	}
 }

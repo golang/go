@@ -4,11 +4,6 @@
 
 package runtime
 
-type sigTabT struct {
-	flags int32
-	name  string
-}
-
 var sigtable = [...]sigTabT{
 	/* 0 */ {0, "SIGNONE: no trap"},
 	/* 1 */ {_SigNotify + _SigKill, "SIGHUP: hangup"},
@@ -28,16 +23,16 @@ var sigtable = [...]sigTabT{
 	/* 15 */ {_SigNotify + _SigKill, "SIGTERM: software termination signal from kill"},
 	/* 16 */ {_SigNotify, "SIGUSR1: user defined signal 1"},
 	/* 17 */ {_SigNotify, "SIGUSR2: user defined signal 2"},
-	/* 18 */ {_SigNotify + _SigUnblock, "SIGCHLD: child status change alias (POSIX)"},
+	/* 18 */ {_SigNotify + _SigUnblock + _SigIgn, "SIGCHLD: child status change alias (POSIX)"},
 	/* 19 */ {_SigNotify, "SIGPWR: power-fail restart"},
-	/* 20 */ {_SigNotify, "SIGWINCH: window size change"},
-	/* 21 */ {_SigNotify, "SIGURG: urgent socket condition"},
+	/* 20 */ {_SigNotify + _SigIgn, "SIGWINCH: window size change"},
+	/* 21 */ {_SigNotify + _SigIgn, "SIGURG: urgent socket condition"},
 	/* 22 */ {_SigNotify, "SIGPOLL: pollable event occurred"},
 	/* 23 */ {0, "SIGSTOP: stop (cannot be caught or ignored)"},
-	/* 24 */ {_SigNotify + _SigDefault, "SIGTSTP: user stop requested from tty"},
-	/* 25 */ {_SigNotify + _SigDefault, "SIGCONT: stopped process has been continued"},
-	/* 26 */ {_SigNotify + _SigDefault, "SIGTTIN: background tty read attempted"},
-	/* 27 */ {_SigNotify + _SigDefault, "SIGTTOU: background tty write attempted"},
+	/* 24 */ {_SigNotify + _SigDefault + _SigIgn, "SIGTSTP: user stop requested from tty"},
+	/* 25 */ {_SigNotify + _SigDefault + _SigIgn, "SIGCONT: stopped process has been continued"},
+	/* 26 */ {_SigNotify + _SigDefault + _SigIgn, "SIGTTIN: background tty read attempted"},
+	/* 27 */ {_SigNotify + _SigDefault + _SigIgn, "SIGTTOU: background tty write attempted"},
 	/* 28 */ {_SigNotify, "SIGVTALRM: virtual timer expired"},
 	/* 29 */ {_SigNotify + _SigUnblock, "SIGPROF: profiling timer expired"},
 	/* 30 */ {_SigNotify, "SIGXCPU: exceeded cpu limit"},
@@ -46,7 +41,7 @@ var sigtable = [...]sigTabT{
 	/* 33 */ {_SigNotify, "SIGLWP: reserved signal no longer used by"},
 	/* 34 */ {_SigNotify, "SIGFREEZE: special signal used by CPR"},
 	/* 35 */ {_SigNotify, "SIGTHAW: special signal used by CPR"},
-	/* 36 */ {_SigSetStack + _SigUnblock, "SIGCANCEL: reserved signal for thread cancellation"}, // Oracle's spelling of cancelation.
+	/* 36 */ {_SigSetStack + _SigUnblock, "SIGCANCEL: reserved signal for thread cancellation"}, // Oracle's spelling of cancellation.
 	/* 37 */ {_SigNotify, "SIGLOST: resource lost (eg, record-lock lost)"},
 	/* 38 */ {_SigNotify, "SIGXRES: resource control exceeded"},
 	/* 39 */ {_SigNotify, "SIGJVM1: reserved signal for Java Virtual Machine"},

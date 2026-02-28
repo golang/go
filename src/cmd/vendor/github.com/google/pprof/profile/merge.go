@@ -35,7 +35,10 @@ func (p *Profile) Compact() *Profile {
 // functions and mappings. Profiles must have identical profile sample
 // and period types or the merge will fail. profile.Period of the
 // resulting profile will be the maximum of all profiles, and
-// profile.TimeNanos will be the earliest nonzero one.
+// profile.TimeNanos will be the earliest nonzero one. Merges are
+// associative with the caveat of the first profile having some
+// specialization in how headers are combined. There may be other
+// subtleties now or in the future regarding associativity.
 func Merge(srcs []*Profile) (*Profile, error) {
 	if len(srcs) == 0 {
 		return nil, fmt.Errorf("no profiles to merge")
@@ -64,7 +67,7 @@ func Merge(srcs []*Profile) (*Profile, error) {
 			// represents the main binary. Take the first Mapping we see,
 			// otherwise the operations below will add mappings in an
 			// arbitrary order.
-			pm.mapMapping(srcs[0].Mapping[0])
+			pm.mapMapping(src.Mapping[0])
 		}
 
 		for _, s := range src.Sample {
@@ -83,6 +86,41 @@ func Merge(srcs []*Profile) (*Profile, error) {
 	}
 
 	return p, nil
+}
+
+// Normalize normalizes the source profile by multiplying each value in profile by the
+// ratio of the sum of the base profile's values of that sample type to the sum of the
+// source profile's value of that sample type.
+func (p *Profile) Normalize(pb *Profile) error {
+
+	if err := p.compatible(pb); err != nil {
+		return err
+	}
+
+	baseVals := make([]int64, len(p.SampleType))
+	for _, s := range pb.Sample {
+		for i, v := range s.Value {
+			baseVals[i] += v
+		}
+	}
+
+	srcVals := make([]int64, len(p.SampleType))
+	for _, s := range p.Sample {
+		for i, v := range s.Value {
+			srcVals[i] += v
+		}
+	}
+
+	normScale := make([]float64, len(baseVals))
+	for i := range baseVals {
+		if srcVals[i] == 0 {
+			normScale[i] = 0.0
+		} else {
+			normScale[i] = float64(baseVals[i]) / float64(srcVals[i])
+		}
+	}
+	p.ScaleN(normScale)
+	return nil
 }
 
 func isZeroSample(s *Sample) bool {
@@ -120,6 +158,7 @@ func (pm *profileMerger) mapSample(src *Sample) *Sample {
 		Value:    make([]int64, len(src.Value)),
 		Label:    make(map[string][]string, len(src.Label)),
 		NumLabel: make(map[string][]int64, len(src.NumLabel)),
+		NumUnit:  make(map[string][]string, len(src.NumLabel)),
 	}
 	for i, l := range src.Location {
 		s.Location[i] = pm.mapLocation(l)
@@ -130,9 +169,13 @@ func (pm *profileMerger) mapSample(src *Sample) *Sample {
 		s.Label[k] = vv
 	}
 	for k, v := range src.NumLabel {
+		u := src.NumUnit[k]
 		vv := make([]int64, len(v))
+		uu := make([]string, len(u))
 		copy(vv, v)
+		copy(uu, u)
 		s.NumLabel[k] = vv
+		s.NumUnit[k] = uu
 	}
 	// Check memoization table. Must be done on the remapped location to
 	// account for the remapped mapping. Add current values to the
@@ -165,7 +208,7 @@ func (sample *Sample) key() sampleKey {
 
 	numlabels := make([]string, 0, len(sample.NumLabel))
 	for k, v := range sample.NumLabel {
-		numlabels = append(numlabels, fmt.Sprintf("%q%x", k, v))
+		numlabels = append(numlabels, fmt.Sprintf("%q%x%x", k, v, sample.NumUnit[k]))
 	}
 	sort.Strings(numlabels)
 
@@ -188,16 +231,16 @@ func (pm *profileMerger) mapLocation(src *Location) *Location {
 	}
 
 	if l, ok := pm.locationsByID[src.ID]; ok {
-		pm.locationsByID[src.ID] = l
 		return l
 	}
 
 	mi := pm.mapMapping(src.Mapping)
 	l := &Location{
-		ID:      uint64(len(pm.p.Location) + 1),
-		Mapping: mi.m,
-		Address: uint64(int64(src.Address) + mi.offset),
-		Line:    make([]Line, len(src.Line)),
+		ID:       uint64(len(pm.p.Location) + 1),
+		Mapping:  mi.m,
+		Address:  uint64(int64(src.Address) + mi.offset),
+		Line:     make([]Line, len(src.Line)),
+		IsFolded: src.IsFolded,
 	}
 	for i, ln := range src.Line {
 		l.Line[i] = pm.mapLine(ln)
@@ -218,7 +261,8 @@ func (pm *profileMerger) mapLocation(src *Location) *Location {
 // key generates locationKey to be used as a key for maps.
 func (l *Location) key() locationKey {
 	key := locationKey{
-		addr: l.Address,
+		addr:     l.Address,
+		isFolded: l.IsFolded,
 	}
 	if l.Mapping != nil {
 		// Normalizes address to handle address space randomization.
@@ -239,6 +283,7 @@ func (l *Location) key() locationKey {
 type locationKey struct {
 	addr, mappingID uint64
 	lines           string
+	isFolded        bool
 }
 
 func (pm *profileMerger) mapMapping(src *Mapping) mapInfo {
@@ -251,51 +296,37 @@ func (pm *profileMerger) mapMapping(src *Mapping) mapInfo {
 	}
 
 	// Check memoization tables.
-	bk, pk := src.key()
-	if src.BuildID != "" {
-		if m, ok := pm.mappings[bk]; ok {
-			mi := mapInfo{m, int64(m.Start) - int64(src.Start)}
-			pm.mappingsByID[src.ID] = mi
-			return mi
-		}
-	}
-	if src.File != "" {
-		if m, ok := pm.mappings[pk]; ok {
-			mi := mapInfo{m, int64(m.Start) - int64(src.Start)}
-			pm.mappingsByID[src.ID] = mi
-			return mi
-		}
+	mk := src.key()
+	if m, ok := pm.mappings[mk]; ok {
+		mi := mapInfo{m, int64(m.Start) - int64(src.Start)}
+		pm.mappingsByID[src.ID] = mi
+		return mi
 	}
 	m := &Mapping{
-		ID:              uint64(len(pm.p.Mapping) + 1),
-		Start:           src.Start,
-		Limit:           src.Limit,
-		Offset:          src.Offset,
-		File:            src.File,
-		BuildID:         src.BuildID,
-		HasFunctions:    src.HasFunctions,
-		HasFilenames:    src.HasFilenames,
-		HasLineNumbers:  src.HasLineNumbers,
-		HasInlineFrames: src.HasInlineFrames,
+		ID:                     uint64(len(pm.p.Mapping) + 1),
+		Start:                  src.Start,
+		Limit:                  src.Limit,
+		Offset:                 src.Offset,
+		File:                   src.File,
+		KernelRelocationSymbol: src.KernelRelocationSymbol,
+		BuildID:                src.BuildID,
+		HasFunctions:           src.HasFunctions,
+		HasFilenames:           src.HasFilenames,
+		HasLineNumbers:         src.HasLineNumbers,
+		HasInlineFrames:        src.HasInlineFrames,
 	}
 	pm.p.Mapping = append(pm.p.Mapping, m)
 
 	// Update memoization tables.
-	if m.BuildID != "" {
-		pm.mappings[bk] = m
-	}
-	if m.File != "" {
-		pm.mappings[pk] = m
-	}
+	pm.mappings[mk] = m
 	mi := mapInfo{m, 0}
 	pm.mappingsByID[src.ID] = mi
 	return mi
 }
 
 // key generates encoded strings of Mapping to be used as a key for
-// maps. The first key represents only the build id, while the second
-// represents only the file path.
-func (m *Mapping) key() (buildIDKey, pathKey mappingKey) {
+// maps.
+func (m *Mapping) key() mappingKey {
 	// Normalize addresses to handle address space randomization.
 	// Round up to next 4K boundary to avoid minor discrepancies.
 	const mapsizeRounding = 0x1000
@@ -303,24 +334,27 @@ func (m *Mapping) key() (buildIDKey, pathKey mappingKey) {
 	size := m.Limit - m.Start
 	size = size + mapsizeRounding - 1
 	size = size - (size % mapsizeRounding)
-
-	buildIDKey = mappingKey{
-		size,
-		m.Offset,
-		m.BuildID,
+	key := mappingKey{
+		size:   size,
+		offset: m.Offset,
 	}
 
-	pathKey = mappingKey{
-		size,
-		m.Offset,
-		m.File,
+	switch {
+	case m.BuildID != "":
+		key.buildIDOrFile = m.BuildID
+	case m.File != "":
+		key.buildIDOrFile = m.File
+	default:
+		// A mapping containing neither build ID nor file name is a fake mapping. A
+		// key with empty buildIDOrFile is used for fake mappings so that they are
+		// treated as the same mapping during merging.
 	}
-	return
+	return key
 }
 
 type mappingKey struct {
-	size, offset    uint64
-	buildidIDOrFile string
+	size, offset  uint64
+	buildIDOrFile string
 }
 
 func (pm *profileMerger) mapLine(src Line) Line {
@@ -382,6 +416,7 @@ func combineHeaders(srcs []*Profile) (*Profile, error) {
 
 	var timeNanos, durationNanos, period int64
 	var comments []string
+	seenComments := map[string]bool{}
 	var defaultSampleType string
 	for _, s := range srcs {
 		if timeNanos == 0 || s.TimeNanos < timeNanos {
@@ -391,7 +426,12 @@ func combineHeaders(srcs []*Profile) (*Profile, error) {
 		if period == 0 || period < s.Period {
 			period = s.Period
 		}
-		comments = append(comments, s.Comments...)
+		for _, c := range s.Comments {
+			if seen := seenComments[c]; !seen {
+				comments = append(comments, c)
+				seenComments[c] = true
+			}
+		}
 		if defaultSampleType == "" {
 			defaultSampleType = s.DefaultSampleType
 		}
@@ -432,7 +472,6 @@ func (p *Profile) compatible(pb *Profile) error {
 			return fmt.Errorf("incompatible sample types %v and %v", p.SampleType, pb.SampleType)
 		}
 	}
-
 	return nil
 }
 

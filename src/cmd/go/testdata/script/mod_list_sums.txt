@@ -1,0 +1,32 @@
+# https://golang.org/issue/41297: 'go list -m' should not require go.sum with
+# -versions or when all args are version queries.
+
+go mod init m
+go mod edit -require=rsc.io/quote@v1.5.1
+
+go list -m -mod=readonly rsc.io/quote@latest
+stdout '^rsc\.io/quote v1\.5\.2$'
+! stderr .
+
+go list -m -mod=readonly -versions rsc.io/quote
+stdout 'rsc\.io/quote v1\.0\.0 .* v1\.5\.3-pre1$'
+! stderr .
+
+# Incidentally fetching the required version of a module records its checksum,
+# just because it happens to be in the build list, and recording the checksum
+# triggers an error under -mod=readonly.
+#
+# TODO(#41297): This should not be an error.
+! go list -m -mod=readonly rsc.io/quote@<v1.5.2
+stderr '^go: updates to go.sum needed, disabled by -mod=readonly$'
+! stderr 'missing go.sum entry'
+
+# Attempting to list the versions of a module that is not a root dependency
+# causes the build list to be resolved (so that the selected version can *also*
+# be identified, even though it is not relevant to this particular output).
+# That, in turn, causes us to need checksums for the go.sum files for the
+# modules in the module graph.
+#
+# TODO(#41297): This should not be an error either.
+! go list -m -mod=readonly -versions rsc.io/sampler
+stderr '^go: rsc\.io/quote@v1\.5\.1: missing go\.sum entry; to add it:\n\tgo mod download rsc\.io/quote$'

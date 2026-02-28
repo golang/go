@@ -7,10 +7,12 @@
 package types_test
 
 import (
+	"fmt"
 	"go/ast"
 	"go/importer"
 	"go/parser"
 	"go/token"
+	"internal/goexperiment"
 	"internal/testenv"
 	"strings"
 	"testing"
@@ -75,7 +77,7 @@ func TestEvalArith(t *testing.T) {
 		`false == false`,
 		`12345678 + 87654321 == 99999999`,
 		`10 * 20 == 200`,
-		`(1<<1000)*2 >> 100 == 2<<900`,
+		`(1<<500)*2 >> 100 == 2<<400`,
 		`"foo" + "bar" == "foobar"`,
 		`"abc" <= "bcd"`,
 		`len([10]struct{}{}) == 2*5`,
@@ -110,7 +112,7 @@ func TestEvalPos(t *testing.T) {
 			x = a + len(s)
 			return float64(x)
 			/* true => true, untyped bool */
-			/* fmt.Println => , func(a ...interface{}) (n int, err error) */
+			/* fmt.Println => , func(a ...any) (n int, err error) */
 			/* c => 3, untyped float */
 			/* T => , p.T */
 			/* a => , int */
@@ -149,6 +151,19 @@ func TestEvalPos(t *testing.T) {
 		package p
 		/* T => , p.T */
 		`,
+		`
+		package p
+		import "io"
+		type R = io.Reader
+		func _() {
+			/* interface{R}.Read => , func(_ interface{io.Reader}, p []byte) (n int, err error) */
+			_ = func() {
+				/* interface{io.Writer}.Write => , func(_ interface{io.Writer}, p []byte) (n int, err error) */
+				type io interface {} // must not shadow io in line above
+			}
+			type R interface {} // must not shadow R in first line of this function body
+		}
+		`,
 	}
 
 	fset := token.NewFileSet()
@@ -181,8 +196,110 @@ func TestEvalPos(t *testing.T) {
 	}
 }
 
-// split splits string s at the first occurrence of s.
+// split splits string s at the first occurrence of s, trimming spaces.
 func split(s, sep string) (string, string) {
-	i := strings.Index(s, sep)
-	return strings.TrimSpace(s[:i]), strings.TrimSpace(s[i+len(sep):])
+	before, after, _ := strings.Cut(s, sep)
+	return strings.TrimSpace(before), strings.TrimSpace(after)
+}
+
+func TestCheckExpr(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	// Each comment has the form /* expr => object */:
+	// expr is an identifier or selector expression that is passed
+	// to CheckExpr at the position of the comment, and object is
+	// the string form of the object it denotes.
+	src := `
+package p
+
+import "fmt"
+
+const c = 3.0
+type T []int
+type S struct{ X int }
+
+func f(a int, s string) S {
+	/* fmt.Println => func fmt.Println(a ...any) (n int, err error) */
+	/* fmt.Stringer.String => func (fmt.Stringer).String() string */
+	fmt.Println("calling f")
+
+	var fmt struct{ Println int }
+	/* fmt => var fmt struct{Println int} */
+	/* fmt.Println => field Println int */
+	/* f(1, "").X => field X int */
+	fmt.Println = 1
+
+	/* append => builtin append */
+
+	/* new(S).X => field X int */
+
+	return S{}
+}`
+
+	// The unified IR importer always sets interface method receiver
+	// parameters to point to the Interface type, rather than the Named.
+	// See #49906.
+	if goexperiment.Unified {
+		src = strings.ReplaceAll(src, "func (fmt.Stringer).", "func (interface).")
+	}
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "p", src, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conf := Config{Importer: importer.Default()}
+	pkg, err := conf.Check("p", fset, []*ast.File{f}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	checkExpr := func(pos token.Pos, str string) (Object, error) {
+		expr, err := parser.ParseExprFrom(fset, "eval", str, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		info := &Info{
+			Uses:       make(map[*ast.Ident]Object),
+			Selections: make(map[*ast.SelectorExpr]*Selection),
+		}
+		if err := CheckExpr(fset, pkg, pos, expr, info); err != nil {
+			return nil, fmt.Errorf("CheckExpr(%q) failed: %s", str, err)
+		}
+		switch expr := expr.(type) {
+		case *ast.Ident:
+			if obj, ok := info.Uses[expr]; ok {
+				return obj, nil
+			}
+		case *ast.SelectorExpr:
+			if sel, ok := info.Selections[expr]; ok {
+				return sel.Obj(), nil
+			}
+			if obj, ok := info.Uses[expr.Sel]; ok {
+				return obj, nil // qualified identifier
+			}
+		}
+		return nil, fmt.Errorf("no object for %s", str)
+	}
+
+	for _, group := range f.Comments {
+		for _, comment := range group.List {
+			s := comment.Text
+			if len(s) >= 4 && strings.HasPrefix(s, "/*") && strings.HasSuffix(s, "*/") {
+				pos := comment.Pos()
+				expr, wantObj := split(s[2:len(s)-2], "=>")
+				obj, err := checkExpr(pos, expr)
+				if err != nil {
+					t.Errorf("%s: %s", fset.Position(pos), err)
+					continue
+				}
+				if obj.String() != wantObj {
+					t.Errorf("%s: checkExpr(%s) = %s, want %v",
+						fset.Position(pos), expr, obj, wantObj)
+				}
+			}
+		}
+	}
 }

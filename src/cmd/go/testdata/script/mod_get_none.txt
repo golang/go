@@ -1,0 +1,12 @@
+env GO111MODULE=on
+
+go mod init example.com/foo
+
+# 'go get bar@none' should be a no-op if module bar is not active.
+go get example.com/bar@none
+go list -m all
+! stdout example.com/bar
+
+go get example.com/bar@none
+go list -m all
+! stdout example.com/bar

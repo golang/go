@@ -9,13 +9,13 @@
 package arch
 
 import (
-	"cmd/internal/obj"
 	"cmd/internal/obj/s390x"
 )
 
 func jumpS390x(word string) bool {
 	switch word {
-	case "BC",
+	case "BRC",
+		"BC",
 		"BCL",
 		"BEQ",
 		"BGE",
@@ -29,6 +29,8 @@ func jumpS390x(word string) bool {
 		"BR",
 		"BVC",
 		"BVS",
+		"BRCT",
+		"BRCTG",
 		"CMPBEQ",
 		"CMPBGE",
 		"CMPBGT",
@@ -41,28 +43,16 @@ func jumpS390x(word string) bool {
 		"CMPUBLE",
 		"CMPUBLT",
 		"CMPUBNE",
+		"CRJ",
+		"CGRJ",
+		"CLRJ",
+		"CLGRJ",
+		"CIJ",
+		"CGIJ",
+		"CLIJ",
+		"CLGIJ",
 		"CALL",
 		"JMP":
-		return true
-	}
-	return false
-}
-
-// IsS390xCMP reports whether the op (as defined by an s390x.A* constant) is
-// one of the CMP instructions that require special handling.
-func IsS390xCMP(op obj.As) bool {
-	switch op {
-	case s390x.ACMP, s390x.ACMPU, s390x.ACMPW, s390x.ACMPWU:
-		return true
-	}
-	return false
-}
-
-// IsS390xNEG reports whether the op (as defined by an s390x.A* constant) is
-// one of the NEG-like instructions that require special handling.
-func IsS390xNEG(op obj.As) bool {
-	switch op {
-	case s390x.ANEG, s390x.ANEGW:
 		return true
 	}
 	return false

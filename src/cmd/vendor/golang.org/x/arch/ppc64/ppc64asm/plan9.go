@@ -19,7 +19,9 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 	if symname == nil {
 		symname = func(uint64) (string, uint64) { return "", 0 }
 	}
-	if inst.Op == 0 {
+	if inst.Op == 0 && inst.Enc == 0 {
+		return "WORD $0"
+	} else if inst.Op == 0 {
 		return "?"
 	}
 	var args []string
@@ -35,25 +37,103 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 	op = plan9OpMap[inst.Op]
 	if op == "" {
 		op = strings.ToUpper(inst.Op.String())
+		if op[len(op)-1] == '.' {
+			op = op[:len(op)-1] + "CC"
+		}
 	}
 	// laid out the instruction
 	switch inst.Op {
 	default: // dst, sA, sB, ...
-		if len(args) == 0 {
+		switch len(args) {
+		case 0:
 			return op
-		} else if len(args) == 1 {
+		case 1:
 			return fmt.Sprintf("%s %s", op, args[0])
+		case 2:
+			if inst.Op == COPY || inst.Op == PASTECC {
+				return op + " " + args[0] + "," + args[1]
+			}
+			return op + " " + args[1] + "," + args[0]
+		case 3:
+			if reverseOperandOrder(inst.Op) {
+				return op + " " + args[2] + "," + args[1] + "," + args[0]
+			}
+		case 4:
+			if reverseMiddleOps(inst.Op) {
+				return op + " " + args[1] + "," + args[3] + "," + args[2] + "," + args[0]
+			}
 		}
 		args = append(args, args[0])
-		return op + " " + strings.Join(args[1:], ", ")
+		return op + " " + strings.Join(args[1:], ",")
+	case PASTECC:
+		// paste. has two input registers, and an L field, unlike other 3 operand instructions.
+		return op + " " + args[0] + "," + args[1] + "," + args[2]
+	case SYNC:
+		if args[0] == "$1" {
+			return "LWSYNC"
+		}
+		return "HWSYNC"
+
+	case ISEL:
+		return "ISEL " + args[3] + "," + args[1] + "," + args[2] + "," + args[0]
+
 	// store instructions always have the memory operand at the end, no need to reorder
-	case STB, STBU, STBX, STBUX,
-		STH, STHU, STHX, STHUX,
-		STW, STWU, STWX, STWUX,
-		STD, STDU, STDX, STDUX,
-		STQ,
-		STHBRX, STWBRX:
-		return op + " " + strings.Join(args, ", ")
+	// indexed stores handled separately
+	case STB, STBU,
+		STH, STHU,
+		STW, STWU,
+		STD, STDU,
+		STQ, STFD, STFDU, STFS, STFSU:
+		return op + " " + strings.Join(args, ",")
+
+	case FCMPU, FCMPO, CMPD, CMPDI, CMPLD, CMPLDI, CMPW, CMPWI, CMPLW, CMPLWI:
+		crf := int(inst.Args[0].(CondReg) - CR0)
+		cmpstr := op + " " + args[1] + "," + args[2]
+		if crf != 0 { // print CRx as the final operand if not implied (i.e BF != 0)
+			cmpstr += "," + args[0]
+		}
+		return cmpstr
+
+	case LIS:
+		return "ADDIS $0," + args[1] + "," + args[0]
+	// store instructions with index registers
+	case STBX, STBUX, STHX, STHUX, STWX, STWUX, STDX, STDUX,
+		STHBRX, STWBRX, STDBRX, STSWX, STFIWX:
+		return "MOV" + op[2:len(op)-1] + " " + args[0] + ",(" + args[2] + ")(" + args[1] + ")"
+
+	case STDCXCC, STWCXCC, STHCXCC, STBCXCC:
+		return op + " " + args[0] + ",(" + args[2] + ")(" + args[1] + ")"
+
+	case STXVX, STXVD2X, STXVW4X, STXVH8X, STXVB16X, STXSDX, STVX, STVXL, STVEBX, STVEHX, STVEWX, STXSIWX, STFDX, STFDUX, STFDPX, STFSX, STFSUX:
+		return op + " " + args[0] + ",(" + args[2] + ")(" + args[1] + ")"
+
+	case STXV:
+		return op + " " + args[0] + "," + args[1]
+
+	case STXVL, STXVLL:
+		return op + " " + args[0] + "," + args[1] + "," + args[2]
+
+	case LWAX, LWAUX, LWZX, LHZX, LBZX, LDX, LHAX, LHAUX, LDARX, LWARX, LHARX, LBARX, LFDX, LFDUX, LFSX, LFSUX, LDBRX, LWBRX, LHBRX, LDUX, LWZUX, LHZUX, LBZUX:
+		if args[1] == "0" {
+			return op + " (" + args[2] + ")," + args[0]
+		}
+		return op + " (" + args[2] + ")(" + args[1] + ")," + args[0]
+
+	case LXVX, LXVD2X, LXVW4X, LXVH8X, LXVB16X, LVX, LVXL, LVSR, LVSL, LVEBX, LVEHX, LVEWX, LXSDX, LXSIWAX:
+		return op + " (" + args[2] + ")(" + args[1] + ")," + args[0]
+
+	case LXV:
+		return op + " " + args[1] + "," + args[0]
+
+	case LXVL, LXVLL:
+		return op + " " + args[1] + "," + args[2] + "," + args[0]
+
+	case DCBT, DCBTST, DCBZ, DCBST, ICBI:
+		if args[0] == "0" || args[0] == "R0" {
+			return op + " (" + args[1] + ")"
+		}
+		return op + " (" + args[1] + ")(" + args[0] + ")"
+
 	// branch instructions needs additional handling
 	case BCLR:
 		if int(inst.Args[0].(Imm))&20 == 20 { // unconditional
@@ -61,12 +141,17 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		}
 		return op + " " + strings.Join(args, ", ")
 	case BC:
-		if int(inst.Args[0].(Imm))&0x1c == 12 { // jump on cond bit set
-			return fmt.Sprintf("B%s %s", args[1], args[2])
-		} else if int(inst.Args[0].(Imm))&0x1c == 4 && revCondMap[args[1]] != "" { // jump on cond bit not set
-			return fmt.Sprintf("B%s %s", revCondMap[args[1]], args[2])
+		bo := int(inst.Args[0].(Imm))
+		bi := int(inst.Args[1].(CondReg) - Cond0LT)
+		bcname := condName[((bo&0x8)>>1)|(bi&0x3)]
+		if bo&0x17 == 4 { // jump only a CR bit set/unset, no hints (at bits) set.
+			if bi >= 4 {
+				return fmt.Sprintf("B%s CR%d,%s", bcname, bi>>2, args[2])
+			} else {
+				return fmt.Sprintf("B%s %s", bcname, args[2])
+			}
 		}
-		return op + " " + strings.Join(args, ", ")
+		return op + " " + strings.Join(args, ",")
 	case BCCTR:
 		if int(inst.Args[0].(Imm))&20 == 20 { // unconditional
 			return "BR (CTR)"
@@ -76,9 +161,9 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		if int(inst.Args[0].(Imm))&20 == 20 { // unconditional
 			return "BL (CTR)"
 		}
-		return op + " " + strings.Join(args, ", ")
+		return op + " " + strings.Join(args, ",")
 	case BCA, BCL, BCLA, BCLRL, BCTAR, BCTARL:
-		return op + " " + strings.Join(args, ", ")
+		return op + " " + strings.Join(args, ",")
 	}
 }
 
@@ -102,16 +187,18 @@ func plan9Arg(inst *Inst, argIndex int, pc uint64, arg Arg, symname func(uint64)
 		}
 		return strings.ToUpper(arg.String())
 	case CondReg:
-		if arg == CR0 && strings.HasPrefix(inst.Op.String(), "cmp") {
-			return "" // don't show cr0 for cmp instructions
-		} else if arg >= CR0 {
-			return fmt.Sprintf("CR%d", int(arg-CR0))
+		// This op is left as its numerical value, not mapped onto CR + condition
+		if inst.Op == ISEL {
+			return fmt.Sprintf("$%d", (arg - Cond0LT))
 		}
 		bit := [4]string{"LT", "GT", "EQ", "SO"}[(arg-Cond0LT)%4]
 		if arg <= Cond0SO {
 			return bit
+		} else if arg > Cond0SO && arg <= Cond7SO {
+			return fmt.Sprintf("CR%d%s", int(arg-Cond0LT)/4, bit)
+		} else {
+			return fmt.Sprintf("CR%d", int(arg-CR0))
 		}
-		return fmt.Sprintf("4*CR%d+%s", int(arg-Cond0LT)/4, bit)
 	case Imm:
 		return fmt.Sprintf("$%d", arg)
 	case SpReg:
@@ -141,32 +228,138 @@ func plan9Arg(inst *Inst, argIndex int, pc uint64, arg Arg, symname func(uint64)
 	return fmt.Sprintf("???(%v)", arg)
 }
 
+func reverseMiddleOps(op Op) bool {
+	switch op {
+	case FMADD, FMADDCC, FMADDS, FMADDSCC, FMSUB, FMSUBCC, FMSUBS, FMSUBSCC, FNMADD, FNMADDCC, FNMADDS, FNMADDSCC, FNMSUB, FNMSUBCC, FNMSUBS, FNMSUBSCC, FSEL, FSELCC:
+		return true
+	}
+	return false
+}
+
+func reverseOperandOrder(op Op) bool {
+	switch op {
+	// Special case for SUBF, SUBFC: not reversed
+	case ADD, ADDC, ADDE, ADDCC, ADDCCC:
+		return true
+	case MULLW, MULLWCC, MULHW, MULHWCC, MULLD, MULLDCC, MULHD, MULHDCC, MULLWO, MULLWOCC, MULHWU, MULHWUCC, MULLDO, MULLDOCC:
+		return true
+	case DIVD, DIVDCC, DIVDU, DIVDUCC, DIVDE, DIVDECC, DIVDEU, DIVDEUCC, DIVDO, DIVDOCC, DIVDUO, DIVDUOCC:
+		return true
+	case MODUD, MODSD, MODUW, MODSW:
+		return true
+	case FADD, FADDS, FSUB, FSUBS, FMUL, FMULS, FDIV, FDIVS, FMADD, FMADDS, FMSUB, FMSUBS, FNMADD, FNMADDS, FNMSUB, FNMSUBS, FMULSCC:
+		return true
+	case FADDCC, FADDSCC, FSUBCC, FMULCC, FDIVCC, FDIVSCC:
+		return true
+	case OR, ORC, AND, ANDC, XOR, NAND, EQV, NOR, ANDCC, ORCC, XORCC, EQVCC, NORCC, NANDCC:
+		return true
+	case SLW, SLWCC, SLD, SLDCC, SRW, SRAW, SRWCC, SRAWCC, SRD, SRDCC, SRAD, SRADCC:
+		return true
+	}
+	return false
+}
+
 // revCondMap maps a conditional register bit to its inverse, if possible.
 var revCondMap = map[string]string{
 	"LT": "GE", "GT": "LE", "EQ": "NE",
 }
 
+// Lookup table to map BI[0:1] and BO[3] to an extended mnemonic for CR ops.
+// Bits 0-1 map to a bit with a CR field, and bit 2 selects the inverted (0)
+// or regular (1) extended mnemonic.
+var condName = []string{
+	"GE",
+	"LE",
+	"NE",
+	"NSO",
+	"LT",
+	"GT",
+	"EQ",
+	"SO",
+}
+
 // plan9OpMap maps an Op to its Plan 9 mnemonics, if different than its GNU mnemonics.
 var plan9OpMap = map[Op]string{
-	LWARX: "LWAR", STWCX_: "STWCCC",
-	LDARX: "LDAR", STDCX_: "STDCCC",
-	LHARX: "LHAR", STHCX_: "STHCCC",
-	LBARX: "LBAR", STBCX_: "STBCCC",
-	ADDI: "ADD",
-	ADD_: "ADDCC",
-	LBZ:  "MOVBZ", STB: "MOVB",
-	LBZU: "MOVBZU", STBU: "MOVBU", // TODO(minux): indexed forms are not handled
+	LWARX:     "LWAR",
+	LDARX:     "LDAR",
+	LHARX:     "LHAR",
+	LBARX:     "LBAR",
+	LWAX:      "MOVW",
+	LHAX:      "MOVH",
+	LWAUX:     "MOVWU",
+	LHAU:      "MOVHU",
+	LHAUX:     "MOVHU",
+	LDX:       "MOVD",
+	LDUX:      "MOVDU",
+	LWZX:      "MOVWZ",
+	LWZUX:     "MOVWZU",
+	LHZX:      "MOVHZ",
+	LHZUX:     "MOVHZU",
+	LBZX:      "MOVBZ",
+	LBZUX:     "MOVBZU",
+	LDBRX:     "MOVDBR",
+	LWBRX:     "MOVWBR",
+	LHBRX:     "MOVHBR",
+	MCRF:      "MOVFL",
+	XORI:      "XOR",
+	ORI:       "OR",
+	ANDICC:    "ANDCC",
+	ANDC:      "ANDN",
+	ADDEO:     "ADDEV",
+	ADDEOCC:   "ADDEVCC",
+	ADDO:      "ADDV",
+	ADDOCC:    "ADDVCC",
+	ADDMEO:    "ADDMEV",
+	ADDMEOCC:  "ADDMEVCC",
+	ADDCO:     "ADDCV",
+	ADDCOCC:   "ADDCVCC",
+	ADDZEO:    "ADDZEV",
+	ADDZEOCC:  "ADDZEVCC",
+	SUBFME:    "SUBME",
+	SUBFMECC:  "SUBMECC",
+	SUBFZE:    "SUBZE",
+	SUBFZECC:  "SUBZECC",
+	SUBFZEO:   "SUBZEV",
+	SUBFZEOCC: "SUBZEVCC",
+	SUBFC:     "SUBC",
+	ORC:       "ORN",
+	MULLWO:    "MULLWV",
+	MULLWOCC:  "MULLWVCC",
+	MULLDO:    "MULLDV",
+	MULLDOCC:  "MULLDVCC",
+	DIVDO:     "DIVDV",
+	DIVDOCC:   "DIVDVCC",
+	DIVDUO:    "DIVDUV",
+	DIVDUOCC:  "DIVDUVCC",
+	ADDI:      "ADD",
+	MULLI:     "MULLD",
+	SRADI:     "SRAD",
+	SUBF:      "SUB",
+	STBCXCC:   "STBCCC",
+	STWCXCC:   "STWCCC",
+	STDCXCC:   "STDCCC",
+	LI:        "MOVD",
+	LBZ:       "MOVBZ", STB: "MOVB",
+	LBZU: "MOVBZU", STBU: "MOVBU",
 	LHZ: "MOVHZ", LHA: "MOVH", STH: "MOVH",
 	LHZU: "MOVHZU", STHU: "MOVHU",
-	LI:  "MOVD",
-	LIS: "ADDIS",
 	LWZ: "MOVWZ", LWA: "MOVW", STW: "MOVW",
 	LWZU: "MOVWZU", STWU: "MOVWU",
 	LD: "MOVD", STD: "MOVD",
 	LDU: "MOVDU", STDU: "MOVDU",
+	LFD: "FMOVD", STFD: "FMOVD",
+	LFS: "FMOVS", STFS: "FMOVS",
+	LFDX: "FMOVD", STFDX: "FMOVD",
+	LFDU: "FMOVDU", STFDU: "FMOVDU",
+	LFDUX: "FMOVDU", STFDUX: "FMOVDU",
+	LFSX: "FMOVS", STFSX: "FMOVS",
+	LFSU: "FMOVSU", STFSU: "FMOVSU",
+	LFSUX: "FMOVSU", STFSUX: "FMOVSU",
+	CMPD: "CMP", CMPDI: "CMP",
+	CMPW: "CMPW", CMPWI: "CMPW",
+	CMPLD: "CMPU", CMPLDI: "CMPU",
+	CMPLW: "CMPWU", CMPLWI: "CMPWU",
 	MTSPR: "MOVD", MFSPR: "MOVD", // the width is ambiguous for SPRs
-	B:     "BR",
-	BL:    "CALL",
-	CMPLD: "CMPU", CMPLW: "CMPWU",
-	CMPD: "CMP", CMPW: "CMPW",
+	B:  "BR",
+	BL: "CALL",
 }

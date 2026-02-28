@@ -103,7 +103,7 @@ func TestNextJsCtx(t *testing.T) {
 
 func TestJSValEscaper(t *testing.T) {
 	tests := []struct {
-		x  interface{}
+		x  any
 		js string
 	}{
 		{int(42), " 42 "},
@@ -137,11 +137,11 @@ func TestJSValEscaper(t *testing.T) {
 		{"foo", `"foo"`},
 		// Newlines.
 		{"\r\n\u2028\u2029", `"\r\n\u2028\u2029"`},
-		// "\v" == "v" on IE 6 so use "\x0b" instead.
+		// "\v" == "v" on IE 6 so use "\u000b" instead.
 		{"\t\x0b", `"\t\u000b"`},
 		{struct{ X, Y int }{1, 2}, `{"X":1,"Y":2}`},
-		{[]interface{}{}, "[]"},
-		{[]interface{}{42, "foo", nil}, `[42,"foo",null]`},
+		{[]any{}, "[]"},
+		{[]any{42, "foo", nil}, `[42,"foo",null]`},
 		{[]string{"<!--", "</script>", "-->"}, `["\u003c!--","\u003c/script\u003e","--\u003e"]`},
 		{"<!--", `"\u003c!--"`},
 		{"-->", `"--\u003e"`},
@@ -149,6 +149,7 @@ func TestJSValEscaper(t *testing.T) {
 		{"]]>", `"]]\u003e"`},
 		{"</script", `"\u003c/script"`},
 		{"\U0001D11E", "\"\U0001D11E\""}, // or "\uD834\uDD1E"
+		{nil, " null "},
 	}
 
 	for _, test := range tests {
@@ -157,7 +158,7 @@ func TestJSValEscaper(t *testing.T) {
 		}
 		// Make sure that escaping corner cases are not broken
 		// by nesting.
-		a := []interface{}{test.x}
+		a := []any{test.x}
 		want := "[" + strings.TrimSpace(test.js) + "]"
 		if js := jsValEscaper(a); js != want {
 			t.Errorf("%+v: want\n\t%q\ngot\n\t%q", a, want, js)
@@ -167,12 +168,12 @@ func TestJSValEscaper(t *testing.T) {
 
 func TestJSStrEscaper(t *testing.T) {
 	tests := []struct {
-		x   interface{}
+		x   any
 		esc string
 	}{
 		{"", ``},
 		{"foo", `foo`},
-		{"\u0000", `\0`},
+		{"\u0000", `\u0000`},
 		{"\t", `\t`},
 		{"\n", `\n`},
 		{"\r", `\r`},
@@ -182,15 +183,15 @@ func TestJSStrEscaper(t *testing.T) {
 		{"\\n", `\\n`},
 		{"foo\r\nbar", `foo\r\nbar`},
 		// Preserve attribute boundaries.
-		{`"`, `\x22`},
-		{`'`, `\x27`},
+		{`"`, `\u0022`},
+		{`'`, `\u0027`},
 		// Allow embedding in HTML without further escaping.
-		{`&amp;`, `\x26amp;`},
+		{`&amp;`, `\u0026amp;`},
 		// Prevent breaking out of text node and element boundaries.
-		{"</script>", `\x3c\/script\x3e`},
-		{"<![CDATA[", `\x3c![CDATA[`},
-		{"]]>", `]]\x3e`},
-		// http://dev.w3.org/html5/markup/aria/syntax.html#escaping-text-span
+		{"</script>", `\u003c\/script\u003e`},
+		{"<![CDATA[", `\u003c![CDATA[`},
+		{"]]>", `]]\u003e`},
+		// https://dev.w3.org/html5/markup/aria/syntax.html#escaping-text-span
 		//   "The text in style, script, title, and textarea elements
 		//   must not have an escaping text span start that is not
 		//   followed by an escaping text span end."
@@ -200,11 +201,11 @@ func TestJSStrEscaper(t *testing.T) {
 		// allow regular text content to be interpreted as script
 		// allowing script execution via a combination of a JS string
 		// injection followed by an HTML text injection.
-		{"<!--", `\x3c!--`},
-		{"-->", `--\x3e`},
-		// From http://code.google.com/p/doctype/wiki/ArticleUtf7
+		{"<!--", `\u003c!--`},
+		{"-->", `--\u003e`},
+		// From https://code.google.com/p/doctype/wiki/ArticleUtf7
 		{"+ADw-script+AD4-alert(1)+ADw-/script+AD4-",
-			`\x2bADw-script\x2bAD4-alert(1)\x2bADw-\/script\x2bAD4-`,
+			`\u002bADw-script\u002bAD4-alert(1)\u002bADw-\/script\u002bAD4-`,
 		},
 		// Invalid UTF-8 sequence
 		{"foo\xA0bar", "foo\xA0bar"},
@@ -222,12 +223,12 @@ func TestJSStrEscaper(t *testing.T) {
 
 func TestJSRegexpEscaper(t *testing.T) {
 	tests := []struct {
-		x   interface{}
+		x   any
 		esc string
 	}{
 		{"", `(?:)`},
 		{"foo", `foo`},
-		{"\u0000", `\0`},
+		{"\u0000", `\u0000`},
 		{"\t", `\t`},
 		{"\n", `\n`},
 		{"\r", `\r`},
@@ -237,19 +238,19 @@ func TestJSRegexpEscaper(t *testing.T) {
 		{"\\n", `\\n`},
 		{"foo\r\nbar", `foo\r\nbar`},
 		// Preserve attribute boundaries.
-		{`"`, `\x22`},
-		{`'`, `\x27`},
+		{`"`, `\u0022`},
+		{`'`, `\u0027`},
 		// Allow embedding in HTML without further escaping.
-		{`&amp;`, `\x26amp;`},
+		{`&amp;`, `\u0026amp;`},
 		// Prevent breaking out of text node and element boundaries.
-		{"</script>", `\x3c\/script\x3e`},
-		{"<![CDATA[", `\x3c!\[CDATA\[`},
-		{"]]>", `\]\]\x3e`},
+		{"</script>", `\u003c\/script\u003e`},
+		{"<![CDATA[", `\u003c!\[CDATA\[`},
+		{"]]>", `\]\]\u003e`},
 		// Escaping text spans.
-		{"<!--", `\x3c!\-\-`},
-		{"-->", `\-\-\x3e`},
+		{"<!--", `\u003c!\-\-`},
+		{"-->", `\-\-\u003e`},
 		{"*", `\*`},
-		{"+", `\x2b`},
+		{"+", `\u002b`},
 		{"?", `\?`},
 		{"[](){}", `\[\]\(\)\{\}`},
 		{"$foo|x.y", `\$foo\|x\.y`},
@@ -277,33 +278,33 @@ func TestEscapersOnLower7AndSelectHighCodepoints(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		escaper func(...interface{}) string
+		escaper func(...any) string
 		escaped string
 	}{
 		{
 			"jsStrEscaper",
 			jsStrEscaper,
-			"\\0\x01\x02\x03\x04\x05\x06\x07" +
-				"\x08\\t\\n\\x0b\\f\\r\x0E\x0F" +
-				"\x10\x11\x12\x13\x14\x15\x16\x17" +
-				"\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f" +
-				` !\x22#$%\x26\x27()*\x2b,-.\/` +
-				`0123456789:;\x3c=\x3e?` +
+			`\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007` +
+				`\u0008\t\n\u000b\f\r\u000e\u000f` +
+				`\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017` +
+				`\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f` +
+				` !\u0022#$%\u0026\u0027()*\u002b,-.\/` +
+				`0123456789:;\u003c=\u003e?` +
 				`@ABCDEFGHIJKLMNO` +
 				`PQRSTUVWXYZ[\\]^_` +
 				"`abcdefghijklmno" +
-				"pqrstuvwxyz{|}~\x7f" +
+				"pqrstuvwxyz{|}~\u007f" +
 				"\u00A0\u0100\\u2028\\u2029\ufeff\U0001D11E",
 		},
 		{
 			"jsRegexpEscaper",
 			jsRegexpEscaper,
-			"\\0\x01\x02\x03\x04\x05\x06\x07" +
-				"\x08\\t\\n\\x0b\\f\\r\x0E\x0F" +
-				"\x10\x11\x12\x13\x14\x15\x16\x17" +
-				"\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f" +
-				` !\x22#\$%\x26\x27\(\)\*\x2b,\-\.\/` +
-				`0123456789:;\x3c=\x3e\?` +
+			`\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007` +
+				`\u0008\t\n\u000b\f\r\u000e\u000f` +
+				`\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017` +
+				`\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f` +
+				` !\u0022#\$%\u0026\u0027\(\)\*\u002b,\-\.\/` +
+				`0123456789:;\u003c=\u003e\?` +
 				`@ABCDEFGHIJKLMNO` +
 				`PQRSTUVWXYZ\[\\\]\^_` +
 				"`abcdefghijklmno" +
@@ -342,6 +343,8 @@ func TestIsJsMimeType(t *testing.T) {
 		{"application/javascript/version=1.8", false},
 		{"text/javascript", true},
 		{"application/json", true},
+		{"application/ld+json", true},
+		{"module", true},
 	}
 
 	for _, test := range tests {

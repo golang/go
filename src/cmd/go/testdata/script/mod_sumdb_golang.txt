@@ -1,0 +1,82 @@
+# Test default GOPROXY and GOSUMDB
+env GOPROXY=
+env GOSUMDB=
+go env GOPROXY
+stdout '^https://proxy.golang.org,direct$'
+go env GOSUMDB
+stdout '^sum.golang.org$'
+env GOPROXY=https://proxy.golang.org
+go env GOSUMDB
+stdout '^sum.golang.org$'
+
+# Download direct from github.
+
+[!net] skip
+[!exec:git] skip
+env GOSUMDB=sum.golang.org
+env GOPROXY=direct
+
+go get rsc.io/quote@v1.5.2
+cp go.sum saved.sum
+
+
+# Download from proxy.golang.org with go.sum entry already.
+# Use 'go list' instead of 'go get' since the latter may download extra go.mod
+# files not listed in go.sum.
+
+go clean -modcache
+env GOSUMDB=
+env GOPROXY=
+
+go list -x -m all  # Download go.mod files.
+! stderr github
+stderr proxy.golang.org/rsc.io/quote
+! stderr sum.golang.org/tile
+! stderr sum.golang.org/lookup/rsc.io/quote
+
+go list -x -deps rsc.io/quote  # Download module source.
+! stderr github
+stderr proxy.golang.org/rsc.io/quote
+! stderr sum.golang.org/tile
+! stderr sum.golang.org/lookup/rsc.io/quote
+
+cmp go.sum saved.sum
+
+
+# Download again.
+# Should use the checksum database to validate new go.sum lines,
+# but not need to fetch any new data from the proxy.
+
+rm go.sum
+
+go list -mod=mod -x -m all  # Add checksums for go.mod files.
+stderr sum.golang.org/tile
+! stderr github
+! stderr proxy.golang.org/rsc.io/quote
+stderr sum.golang.org/lookup/rsc.io/quote
+
+go list -mod=mod -x rsc.io/quote  # Add checksums for module source.
+! stderr .  # Adds checksums, but for entities already in the module cache.
+
+cmp go.sum saved.sum
+
+
+# test fallback to direct
+
+env TESTGOPROXY404=1
+go clean -modcache
+rm go.sum
+
+go list -mod=mod -x -m all  # Download go.mod files
+stderr 'proxy.golang.org.*404 testing'
+stderr github.com/rsc
+
+go list -mod=mod -x rsc.io/quote  # Download module source.
+stderr 'proxy.golang.org.*404 testing'
+stderr github.com/rsc
+
+cmp go.sum saved.sum
+
+
+-- go.mod --
+module m

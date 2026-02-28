@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+//go:build unix || (js && wasm)
 
 package os
 
@@ -19,33 +19,33 @@ func (f *File) Stat() (FileInfo, error) {
 	var fs fileStat
 	err := f.pfd.Fstat(&fs.sys)
 	if err != nil {
-		return nil, &PathError{"stat", f.name, err}
+		return nil, &PathError{Op: "stat", Path: f.name, Err: err}
 	}
 	fillFileStatFromSys(&fs, f.name)
 	return &fs, nil
 }
 
-// Stat returns a FileInfo describing the named file.
-// If there is an error, it will be of type *PathError.
-func Stat(name string) (FileInfo, error) {
+// statNolog stats a file with no test logging.
+func statNolog(name string) (FileInfo, error) {
 	var fs fileStat
-	err := syscall.Stat(name, &fs.sys)
+	err := ignoringEINTR(func() error {
+		return syscall.Stat(name, &fs.sys)
+	})
 	if err != nil {
-		return nil, &PathError{"stat", name, err}
+		return nil, &PathError{Op: "stat", Path: name, Err: err}
 	}
 	fillFileStatFromSys(&fs, name)
 	return &fs, nil
 }
 
-// Lstat returns a FileInfo describing the named file.
-// If the file is a symbolic link, the returned FileInfo
-// describes the symbolic link. Lstat makes no attempt to follow the link.
-// If there is an error, it will be of type *PathError.
-func Lstat(name string) (FileInfo, error) {
+// lstatNolog lstats a file with no test logging.
+func lstatNolog(name string) (FileInfo, error) {
 	var fs fileStat
-	err := syscall.Lstat(name, &fs.sys)
+	err := ignoringEINTR(func() error {
+		return syscall.Lstat(name, &fs.sys)
+	})
 	if err != nil {
-		return nil, &PathError{"lstat", name, err}
+		return nil, &PathError{Op: "lstat", Path: name, Err: err}
 	}
 	fillFileStatFromSys(&fs, name)
 	return &fs, nil

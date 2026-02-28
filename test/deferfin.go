@@ -18,12 +18,8 @@ import (
 var sink func()
 
 func main() {
-	// Does not work on 32-bits due to partially conservative GC.
+	// Does not work with gccgo, due to partially conservative GC.
 	// Try to enable when we have fully precise GC.
-	if runtime.GOARCH != "amd64" {
-		return
-	}
-	// Likewise for gccgo.
 	if runtime.Compiler == "gccgo" {
 		return
 	}
@@ -60,4 +56,3 @@ func main() {
 		panic("not all finalizers are called")
 	}
 }
-

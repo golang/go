@@ -6,9 +6,9 @@ package race_test
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"os"
 	"runtime"
@@ -60,6 +60,7 @@ func TestRaceIntRWGlobalFuncs(t *testing.T) {
 
 func TestRaceIntRWClosures(t *testing.T) {
 	var x, y int
+	_ = y
 	ch := make(chan int, 2)
 
 	go func() {
@@ -76,6 +77,7 @@ func TestRaceIntRWClosures(t *testing.T) {
 
 func TestNoRaceIntRWClosures(t *testing.T) {
 	var x, y int
+	_ = y
 	ch := make(chan int, 1)
 
 	go func() {
@@ -93,6 +95,7 @@ func TestNoRaceIntRWClosures(t *testing.T) {
 
 func TestRaceInt32RWClosures(t *testing.T) {
 	var x, y int32
+	_ = y
 	ch := make(chan bool, 2)
 
 	go func() {
@@ -168,6 +171,7 @@ func TestRaceCaseCondition2(t *testing.T) {
 
 func TestRaceCaseBody(t *testing.T) {
 	var x, y int
+	_ = y
 	ch := make(chan int, 2)
 
 	go func() {
@@ -189,6 +193,7 @@ func TestRaceCaseBody(t *testing.T) {
 
 func TestNoRaceCaseFallthrough(t *testing.T) {
 	var x, y, z int
+	_ = y
 	ch := make(chan int, 2)
 	z = 1
 
@@ -210,6 +215,7 @@ func TestNoRaceCaseFallthrough(t *testing.T) {
 
 func TestRaceCaseFallthrough(t *testing.T) {
 	var x, y, z int
+	_ = y
 	ch := make(chan int, 2)
 	z = 1
 
@@ -249,7 +255,7 @@ func TestRaceCaseIssue6418(t *testing.T) {
 
 func TestRaceCaseType(t *testing.T) {
 	var x, y int
-	var i interface{} = x
+	var i any = x
 	c := make(chan int, 1)
 	go func() {
 		switch i.(type) {
@@ -264,7 +270,7 @@ func TestRaceCaseType(t *testing.T) {
 
 func TestRaceCaseTypeBody(t *testing.T) {
 	var x, y int
-	var i interface{} = &x
+	var i any = &x
 	c := make(chan int, 1)
 	go func() {
 		switch i := i.(type) {
@@ -282,8 +288,8 @@ func TestRaceCaseTypeIssue5890(t *testing.T) {
 	// spurious extra instrumentation of the initial interface
 	// value.
 	var x, y int
-	m := make(map[int]map[int]interface{})
-	m[0] = make(map[int]interface{})
+	m := make(map[int]map[int]any)
+	m[0] = make(map[int]any)
 	c := make(chan int, 1)
 	go func() {
 		switch i := m[0][1].(type) {
@@ -323,6 +329,7 @@ func TestRaceRange(t *testing.T) {
 	const N = 2
 	var a [N]int
 	var x, y int
+	_ = x + y
 	done := make(chan bool, N)
 	for i, v := range a {
 		go func(i int) {
@@ -433,6 +440,7 @@ func TestNoRaceForIncr(t *testing.T) {
 
 func TestRacePlus(t *testing.T) {
 	var x, y, z int
+	_ = y
 	ch := make(chan int, 2)
 
 	go func() {
@@ -449,6 +457,7 @@ func TestRacePlus(t *testing.T) {
 
 func TestRacePlus2(t *testing.T) {
 	var x, y, z int
+	_ = y
 	ch := make(chan int, 2)
 
 	go func() {
@@ -465,6 +474,7 @@ func TestRacePlus2(t *testing.T) {
 
 func TestNoRacePlus(t *testing.T) {
 	var x, y, z, f int
+	_ = x + y + f
 	ch := make(chan int, 2)
 
 	go func() {
@@ -481,6 +491,7 @@ func TestNoRacePlus(t *testing.T) {
 
 func TestRaceComplement(t *testing.T) {
 	var x, y, z int
+	_ = x
 	ch := make(chan int, 2)
 
 	go func() {
@@ -497,6 +508,7 @@ func TestRaceComplement(t *testing.T) {
 
 func TestRaceDiv(t *testing.T) {
 	var x, y, z int
+	_ = x
 	ch := make(chan int, 2)
 
 	go func() {
@@ -513,6 +525,7 @@ func TestRaceDiv(t *testing.T) {
 
 func TestRaceDivConst(t *testing.T) {
 	var x, y, z uint32
+	_ = x
 	ch := make(chan int, 2)
 
 	go func() {
@@ -529,6 +542,7 @@ func TestRaceDivConst(t *testing.T) {
 
 func TestRaceMod(t *testing.T) {
 	var x, y, z int
+	_ = x
 	ch := make(chan int, 2)
 
 	go func() {
@@ -545,6 +559,7 @@ func TestRaceMod(t *testing.T) {
 
 func TestRaceModConst(t *testing.T) {
 	var x, y, z int
+	_ = x
 	ch := make(chan int, 2)
 
 	go func() {
@@ -561,6 +576,7 @@ func TestRaceModConst(t *testing.T) {
 
 func TestRaceRotate(t *testing.T) {
 	var x, y, z uint32
+	_ = x
 	ch := make(chan int, 2)
 
 	go func() {
@@ -742,7 +758,7 @@ func TestRaceStructFieldRW3(t *testing.T) {
 }
 
 func TestRaceEfaceWW(t *testing.T) {
-	var a, b interface{}
+	var a, b any
 	ch := make(chan bool, 1)
 	go func() {
 		a = 1
@@ -794,7 +810,7 @@ func TestRaceEfaceConv(t *testing.T) {
 	c := make(chan bool)
 	v := 0
 	go func() {
-		go func(x interface{}) {
+		go func(x any) {
 		}(v)
 		c <- true
 	}()
@@ -932,6 +948,7 @@ func TestRaceFuncVariableRW(t *testing.T) {
 
 func TestRaceFuncVariableWW(t *testing.T) {
 	var f func(x int) int
+	_ = f
 	ch := make(chan bool, 1)
 	go func() {
 		f = func(x int) int {
@@ -948,6 +965,7 @@ func TestRaceFuncVariableWW(t *testing.T) {
 // This one should not belong to mop_test
 func TestRacePanic(t *testing.T) {
 	var x int
+	_ = x
 	var zero int = 0
 	ch := make(chan bool, 2)
 	go func() {
@@ -1109,7 +1127,7 @@ func TestRaceRune(t *testing.T) {
 
 func TestRaceEmptyInterface1(t *testing.T) {
 	c := make(chan bool)
-	var x interface{}
+	var x any
 	go func() {
 		x = nil
 		c <- true
@@ -1120,7 +1138,7 @@ func TestRaceEmptyInterface1(t *testing.T) {
 
 func TestRaceEmptyInterface2(t *testing.T) {
 	c := make(chan bool)
-	var x interface{}
+	var x any
 	go func() {
 		x = &Point{}
 		c <- true
@@ -1284,6 +1302,7 @@ func TestNoRaceFuncUnlock(t *testing.T) {
 	ch := make(chan bool, 1)
 	var mu sync.Mutex
 	x := 0
+	_ = x
 	go func() {
 		mu.Lock()
 		x = 42
@@ -1560,7 +1579,7 @@ func TestRaceAddrExpr(t *testing.T) {
 func TestRaceTypeAssert(t *testing.T) {
 	c := make(chan bool, 1)
 	x := 0
-	var i interface{} = x
+	var i any = x
 	go func() {
 		y := 0
 		i = y
@@ -1812,6 +1831,7 @@ func TestNoRaceAsFunc4(t *testing.T) {
 	c := make(chan bool, 1)
 	var mu sync.Mutex
 	x := 0
+	_ = x
 	go func() {
 		x = func() int { // Write of x must be under the mutex.
 			mu.Lock()
@@ -1876,6 +1896,14 @@ func TestRaceNestedStruct(t *testing.T) {
 }
 
 func TestRaceIssue5567(t *testing.T) {
+	testRaceRead(t, false)
+}
+
+func TestRaceIssue51618(t *testing.T) {
+	testRaceRead(t, true)
+}
+
+func testRaceRead(t *testing.T, pread bool) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
 	in := make(chan []byte)
 	res := make(chan error)
@@ -1894,7 +1922,11 @@ func TestRaceIssue5567(t *testing.T) {
 		var n, total int
 		b := make([]byte, 17) // the race is on b buffer
 		for err == nil {
-			n, err = f.Read(b)
+			if pread {
+				n, err = f.ReadAt(b, int64(total))
+			} else {
+				n, err = f.Read(b)
+			}
 			total += n
 			if n > 0 {
 				in <- b[:n]
@@ -1904,7 +1936,7 @@ func TestRaceIssue5567(t *testing.T) {
 			err = nil
 		}
 	}()
-	h := sha1.New()
+	h := crc32.New(crc32.MakeTable(0x12345678))
 	for b := range in {
 		h.Write(b)
 	}
@@ -2042,6 +2074,7 @@ func TestNoRaceTinyAlloc(t *testing.T) {
 	const P = 4
 	const N = 1e6
 	var tinySink *byte
+	_ = tinySink
 	done := make(chan bool)
 	for p := 0; p < P; p++ {
 		go func() {

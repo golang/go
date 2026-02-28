@@ -12,6 +12,7 @@ import (
 
 func TestNoRaceChanSync(t *testing.T) {
 	v := 0
+	_ = v
 	c := make(chan int)
 	go func() {
 		v = 1
@@ -23,6 +24,7 @@ func TestNoRaceChanSync(t *testing.T) {
 
 func TestNoRaceChanSyncRev(t *testing.T) {
 	v := 0
+	_ = v
 	c := make(chan int)
 	go func() {
 		c <- 0
@@ -34,6 +36,7 @@ func TestNoRaceChanSyncRev(t *testing.T) {
 
 func TestNoRaceChanAsync(t *testing.T) {
 	v := 0
+	_ = v
 	c := make(chan int, 10)
 	go func() {
 		v = 1
@@ -45,6 +48,7 @@ func TestNoRaceChanAsync(t *testing.T) {
 
 func TestRaceChanAsyncRev(t *testing.T) {
 	v := 0
+	_ = v
 	c := make(chan int, 10)
 	go func() {
 		c <- 0
@@ -56,6 +60,7 @@ func TestRaceChanAsyncRev(t *testing.T) {
 
 func TestNoRaceChanAsyncCloseRecv(t *testing.T) {
 	v := 0
+	_ = v
 	c := make(chan int, 10)
 	go func() {
 		v = 1
@@ -72,6 +77,7 @@ func TestNoRaceChanAsyncCloseRecv(t *testing.T) {
 
 func TestNoRaceChanAsyncCloseRecv2(t *testing.T) {
 	v := 0
+	_ = v
 	c := make(chan int, 10)
 	go func() {
 		v = 1
@@ -83,6 +89,7 @@ func TestNoRaceChanAsyncCloseRecv2(t *testing.T) {
 
 func TestNoRaceChanAsyncCloseRecv3(t *testing.T) {
 	v := 0
+	_ = v
 	c := make(chan int, 10)
 	go func() {
 		v = 1
@@ -95,6 +102,7 @@ func TestNoRaceChanAsyncCloseRecv3(t *testing.T) {
 
 func TestNoRaceChanSyncCloseRecv(t *testing.T) {
 	v := 0
+	_ = v
 	c := make(chan int)
 	go func() {
 		v = 1
@@ -111,6 +119,7 @@ func TestNoRaceChanSyncCloseRecv(t *testing.T) {
 
 func TestNoRaceChanSyncCloseRecv2(t *testing.T) {
 	v := 0
+	_ = v
 	c := make(chan int)
 	go func() {
 		v = 1
@@ -122,6 +131,7 @@ func TestNoRaceChanSyncCloseRecv2(t *testing.T) {
 
 func TestNoRaceChanSyncCloseRecv3(t *testing.T) {
 	v := 0
+	_ = v
 	c := make(chan int)
 	go func() {
 		v = 1
@@ -134,6 +144,7 @@ func TestNoRaceChanSyncCloseRecv3(t *testing.T) {
 
 func TestRaceChanSyncCloseSend(t *testing.T) {
 	v := 0
+	_ = v
 	c := make(chan int)
 	go func() {
 		v = 1
@@ -150,6 +161,7 @@ func TestRaceChanSyncCloseSend(t *testing.T) {
 
 func TestRaceChanAsyncCloseSend(t *testing.T) {
 	v := 0
+	_ = v
 	c := make(chan int, 10)
 	go func() {
 		v = 1
@@ -170,6 +182,7 @@ func TestRaceChanCloseClose(t *testing.T) {
 	compl := make(chan bool, 2)
 	v1 := 0
 	v2 := 0
+	_ = v1 + v2
 	c := make(chan int)
 	go func() {
 		defer func() {
@@ -197,6 +210,7 @@ func TestRaceChanCloseClose(t *testing.T) {
 
 func TestRaceChanSendLen(t *testing.T) {
 	v := 0
+	_ = v
 	c := make(chan int, 10)
 	go func() {
 		v = 1
@@ -210,6 +224,7 @@ func TestRaceChanSendLen(t *testing.T) {
 
 func TestRaceChanRecvLen(t *testing.T) {
 	v := 0
+	_ = v
 	c := make(chan int, 10)
 	c <- 1
 	go func() {
@@ -226,6 +241,7 @@ func TestRaceChanSendSend(t *testing.T) {
 	compl := make(chan bool, 2)
 	v1 := 0
 	v2 := 0
+	_ = v1 + v2
 	c := make(chan int, 1)
 	go func() {
 		v1 = 1
@@ -264,6 +280,7 @@ func TestNoRaceChanPtr(t *testing.T) {
 func TestRaceChanWrongSend(t *testing.T) {
 	v1 := 0
 	v2 := 0
+	_ = v1 + v2
 	c := make(chan int, 2)
 	go func() {
 		v1 = 1
@@ -284,6 +301,7 @@ func TestRaceChanWrongSend(t *testing.T) {
 func TestRaceChanWrongClose(t *testing.T) {
 	v1 := 0
 	v2 := 0
+	_ = v1 + v2
 	c := make(chan int, 1)
 	done := make(chan bool)
 	go func() {
@@ -559,17 +577,32 @@ func TestRaceChanItselfCap(t *testing.T) {
 	<-compl
 }
 
-func TestRaceChanCloseLen(t *testing.T) {
-	v := 0
+func TestNoRaceChanCloseLen(t *testing.T) {
 	c := make(chan int, 10)
-	c <- 0
+	r := make(chan int, 10)
 	go func() {
-		v = 1
-		close(c)
+		r <- len(c)
 	}()
-	time.Sleep(1e7)
-	_ = len(c)
-	v = 2
+	go func() {
+		close(c)
+		r <- 0
+	}()
+	<-r
+	<-r
+}
+
+func TestNoRaceChanCloseCap(t *testing.T) {
+	c := make(chan int, 10)
+	r := make(chan int, 10)
+	go func() {
+		r <- cap(c)
+	}()
+	go func() {
+		close(c)
+		r <- 0
+	}()
+	<-r
+	<-r
 }
 
 func TestRaceChanCloseSend(t *testing.T) {
@@ -587,6 +620,7 @@ func TestNoRaceChanMutex(t *testing.T) {
 	done := make(chan struct{})
 	mtx := make(chan struct{}, 1)
 	data := 0
+	_ = data
 	go func() {
 		mtx <- struct{}{}
 		data = 42
@@ -604,6 +638,7 @@ func TestNoRaceSelectMutex(t *testing.T) {
 	mtx := make(chan struct{}, 1)
 	aux := make(chan bool)
 	data := 0
+	_ = data
 	go func() {
 		select {
 		case mtx <- struct{}{}:
@@ -632,6 +667,7 @@ func TestRaceChanSem(t *testing.T) {
 	done := make(chan struct{})
 	mtx := make(chan bool, 2)
 	data := 0
+	_ = data
 	go func() {
 		mtx <- true
 		data = 42
@@ -700,4 +736,52 @@ func TestNoRaceBlockedSelectSendSync(t *testing.T) {
 		}
 	case <-make(chan int):
 	}
+}
+
+// Test that close synchronizes with a read from the empty closed channel.
+// See https://golang.org/issue/36714.
+func TestNoRaceCloseHappensBeforeRead(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		var loc int
+		var write = make(chan struct{})
+		var read = make(chan struct{})
+
+		go func() {
+			select {
+			case <-write:
+				_ = loc
+			default:
+			}
+			close(read)
+		}()
+
+		go func() {
+			loc = 1
+			close(write)
+		}()
+
+		<-read
+	}
+}
+
+// Test that we call the proper race detector function when c.elemsize==0.
+// See https://github.com/golang/go/issues/42598
+func TestNoRaceElemetSize0(t *testing.T) {
+	var x, y int
+	var c = make(chan struct{}, 2)
+	c <- struct{}{}
+	c <- struct{}{}
+	go func() {
+		x += 1
+		<-c
+	}()
+	go func() {
+		y += 1
+		<-c
+	}()
+	time.Sleep(10 * time.Millisecond)
+	c <- struct{}{}
+	c <- struct{}{}
+	x += 1
+	y += 1
 }

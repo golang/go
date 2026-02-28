@@ -5,46 +5,42 @@
 package x509
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"internal/testenv"
+	"math/big"
+	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 )
 
-var supportSHA2 = true
-
 type verifyTest struct {
-	leaf                 string
-	intermediates        []string
-	roots                []string
-	currentTime          int64
-	dnsName              string
-	systemSkip           bool
-	keyUsages            []ExtKeyUsage
-	testSystemRootsError bool
-	sha2                 bool
+	name          string
+	leaf          string
+	intermediates []string
+	roots         []string
+	currentTime   int64
+	dnsName       string
+	systemSkip    bool
+	systemLax     bool
+	keyUsages     []ExtKeyUsage
 
-	errorCallback  func(*testing.T, int, error) bool
+	errorCallback  func(*testing.T, error)
 	expectedChains [][]string
 }
 
 var verifyTests = []verifyTest{
 	{
-		leaf:                 googleLeaf,
-		intermediates:        []string{giag2Intermediate},
-		currentTime:          1395785200,
-		dnsName:              "www.google.com",
-		testSystemRootsError: true,
-
-		// Without any roots specified we should get a system roots
-		// error.
-		errorCallback: expectSystemRootsError,
-	},
-	{
+		name:          "Valid",
 		leaf:          googleLeaf,
 		intermediates: []string{giag2Intermediate},
 		roots:         []string{geoTrustRoot},
@@ -56,6 +52,7 @@ var verifyTests = []verifyTest{
 		},
 	},
 	{
+		name:          "MixedCase",
 		leaf:          googleLeaf,
 		intermediates: []string{giag2Intermediate},
 		roots:         []string{geoTrustRoot},
@@ -67,15 +64,27 @@ var verifyTests = []verifyTest{
 		},
 	},
 	{
+		name:          "HostnameMismatch",
 		leaf:          googleLeaf,
 		intermediates: []string{giag2Intermediate},
 		roots:         []string{geoTrustRoot},
 		currentTime:   1395785200,
 		dnsName:       "www.example.com",
 
-		errorCallback: expectHostnameError,
+		errorCallback: expectHostnameError("certificate is valid for"),
 	},
 	{
+		name:          "IPMissing",
+		leaf:          googleLeaf,
+		intermediates: []string{giag2Intermediate},
+		roots:         []string{geoTrustRoot},
+		currentTime:   1395785200,
+		dnsName:       "1.2.3.4",
+
+		errorCallback: expectHostnameError("doesn't contain any IP SANs"),
+	},
+	{
+		name:          "Expired",
 		leaf:          googleLeaf,
 		intermediates: []string{giag2Intermediate},
 		roots:         []string{geoTrustRoot},
@@ -85,6 +94,7 @@ var verifyTests = []verifyTest{
 		errorCallback: expectExpired,
 	},
 	{
+		name:        "MissingIntermediate",
 		leaf:        googleLeaf,
 		roots:       []string{geoTrustRoot},
 		currentTime: 1395785200,
@@ -96,6 +106,7 @@ var verifyTests = []verifyTest{
 		errorCallback: expectAuthorityUnknown,
 	},
 	{
+		name:          "RootInIntermediates",
 		leaf:          googleLeaf,
 		intermediates: []string{geoTrustRoot, giag2Intermediate},
 		roots:         []string{geoTrustRoot},
@@ -106,31 +117,50 @@ var verifyTests = []verifyTest{
 			{"Google", "Google Internet Authority", "GeoTrust"},
 		},
 		// CAPI doesn't build the chain with the duplicated GeoTrust
-		// entry so the results don't match. Thus we skip this test
-		// until that's fixed.
-		systemSkip: true,
+		// entry so the results don't match.
+		systemLax: true,
 	},
 	{
+		name:          "dnssec-exp",
 		leaf:          dnssecExpLeaf,
 		intermediates: []string{startComIntermediate},
 		roots:         []string{startComRoot},
 		currentTime:   1302726541,
 
-		expectedChains: [][]string{
-			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
-		},
-	},
-	{
-		leaf:          dnssecExpLeaf,
-		intermediates: []string{startComIntermediate, startComRoot},
-		roots:         []string{startComRoot},
-		currentTime:   1302726541,
+		// The StartCom root is not trusted by Windows when the default
+		// ServerAuth EKU is requested.
+		systemSkip: true,
 
 		expectedChains: [][]string{
 			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
 		},
 	},
 	{
+		name:          "dnssec-exp/AnyEKU",
+		leaf:          dnssecExpLeaf,
+		intermediates: []string{startComIntermediate},
+		roots:         []string{startComRoot},
+		currentTime:   1302726541,
+		keyUsages:     []ExtKeyUsage{ExtKeyUsageAny},
+
+		expectedChains: [][]string{
+			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
+		},
+	},
+	{
+		name:          "dnssec-exp/RootInIntermediates",
+		leaf:          dnssecExpLeaf,
+		intermediates: []string{startComIntermediate, startComRoot},
+		roots:         []string{startComRoot},
+		currentTime:   1302726541,
+		systemSkip:    true, // see dnssec-exp test
+
+		expectedChains: [][]string{
+			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
+		},
+	},
+	{
+		name:          "InvalidHash",
 		leaf:          googleLeafWithInvalidHash,
 		intermediates: []string{giag2Intermediate},
 		roots:         []string{geoTrustRoot},
@@ -139,57 +169,47 @@ var verifyTests = []verifyTest{
 
 		// The specific error message may not occur when using system
 		// verification.
-		systemSkip:    true,
+		systemLax:     true,
 		errorCallback: expectHashError,
 	},
+	// EKULeaf tests use an unconstrained chain leading to a leaf certificate
+	// with an E-mail Protection EKU but not a Server Auth one, checking that
+	// the EKUs on the leaf are enforced.
 	{
-		// The default configuration should reject an S/MIME chain.
-		leaf:        smimeLeaf,
-		roots:       []string{smimeIntermediate},
-		currentTime: 1339436154,
+		name:          "EKULeaf",
+		leaf:          smimeLeaf,
+		intermediates: []string{smimeIntermediate},
+		roots:         []string{smimeRoot},
+		currentTime:   1594673418,
 
-		// Key usage not implemented for Windows yet.
-		systemSkip:    true,
 		errorCallback: expectUsageError,
 	},
 	{
-		leaf:        smimeLeaf,
-		roots:       []string{smimeIntermediate},
-		currentTime: 1339436154,
-		keyUsages:   []ExtKeyUsage{ExtKeyUsageServerAuth},
+		name:          "EKULeafExplicit",
+		leaf:          smimeLeaf,
+		intermediates: []string{smimeIntermediate},
+		roots:         []string{smimeRoot},
+		currentTime:   1594673418,
+		keyUsages:     []ExtKeyUsage{ExtKeyUsageServerAuth},
 
-		// Key usage not implemented for Windows yet.
-		systemSkip:    true,
 		errorCallback: expectUsageError,
 	},
 	{
-		leaf:        smimeLeaf,
-		roots:       []string{smimeIntermediate},
-		currentTime: 1339436154,
-		keyUsages:   []ExtKeyUsage{ExtKeyUsageEmailProtection},
+		name:          "EKULeafValid",
+		leaf:          smimeLeaf,
+		intermediates: []string{smimeIntermediate},
+		roots:         []string{smimeRoot},
+		currentTime:   1594673418,
+		keyUsages:     []ExtKeyUsage{ExtKeyUsageEmailProtection},
 
-		// Key usage not implemented for Windows yet.
-		systemSkip: true,
 		expectedChains: [][]string{
-			{"Ryan Hurst", "GlobalSign PersonalSign 2 CA - G2"},
-		},
-	},
-	{
-		leaf:          megaLeaf,
-		intermediates: []string{comodoIntermediate1},
-		roots:         []string{comodoRoot},
-		currentTime:   1360431182,
-
-		// CryptoAPI can find alternative validation paths so we don't
-		// perform this test with system validation.
-		systemSkip: true,
-		expectedChains: [][]string{
-			{"mega.co.nz", "EssentialSSL CA", "COMODO Certification Authority"},
+			{"CORPORATIVO FICTICIO ACTIVO", "EAEko Herri Administrazioen CA - CA AAPP Vascas (2)", "IZENPE S.A."},
 		},
 	},
 	{
 		// Check that a name constrained intermediate works even when
 		// it lists multiple constraints.
+		name:          "MultipleConstraints",
 		leaf:          nameConstraintsLeaf,
 		intermediates: []string{nameConstraintsIntermediate1, nameConstraintsIntermediate2},
 		roots:         []string{globalSignRoot},
@@ -208,17 +228,16 @@ var verifyTests = []verifyTest{
 	{
 		// Check that SHA-384 intermediates (which are popping up)
 		// work.
+		name:          "SHA-384",
 		leaf:          moipLeafCert,
 		intermediates: []string{comodoIntermediateSHA384, comodoRSAAuthority},
 		roots:         []string{addTrustRoot},
 		currentTime:   1397502195,
 		dnsName:       "api.moip.com.br",
 
-		// CryptoAPI can find alternative validation paths so we don't
-		// perform this test with system validation.
-		systemSkip: true,
+		// CryptoAPI can find alternative validation paths.
+		systemLax: true,
 
-		sha2: true,
 		expectedChains: [][]string{
 			{
 				"api.moip.com.br",
@@ -231,11 +250,12 @@ var verifyTests = []verifyTest{
 	{
 		// Putting a certificate as a root directly should work as a
 		// way of saying “exactly this”.
+		name:        "LeafInRoots",
 		leaf:        selfSigned,
 		roots:       []string{selfSigned},
 		currentTime: 1471624472,
 		dnsName:     "foo.example",
-		systemSkip:  true,
+		systemSkip:  true, // does not chain to a system root
 
 		expectedChains: [][]string{
 			{"Acme Co"},
@@ -244,139 +264,171 @@ var verifyTests = []verifyTest{
 	{
 		// Putting a certificate as a root directly should not skip
 		// other checks however.
+		name:        "LeafInRootsInvalid",
 		leaf:        selfSigned,
 		roots:       []string{selfSigned},
 		currentTime: 1471624472,
 		dnsName:     "notfoo.example",
-		systemSkip:  true,
+		systemSkip:  true, // does not chain to a system root
 
-		errorCallback: expectHostnameError,
-	},
-	{
-		// The issuer name in the leaf doesn't exactly match the
-		// subject name in the root. Go does not perform
-		// canonicalization and so should reject this. See issue 14955.
-		leaf:        issuerSubjectMatchLeaf,
-		roots:       []string{issuerSubjectMatchRoot},
-		currentTime: 1475787715,
-		systemSkip:  true,
-
-		errorCallback: expectSubjectIssuerMismatcthError,
+		errorCallback: expectHostnameError("certificate is valid for"),
 	},
 	{
 		// An X.509 v1 certificate should not be accepted as an
 		// intermediate.
+		name:          "X509v1Intermediate",
 		leaf:          x509v1TestLeaf,
 		intermediates: []string{x509v1TestIntermediate},
 		roots:         []string{x509v1TestRoot},
 		currentTime:   1481753183,
-		systemSkip:    true,
+		systemSkip:    true, // does not chain to a system root
 
 		errorCallback: expectNotAuthorizedError,
 	},
 	{
-		// If any SAN extension is present (even one without any DNS
-		// names), the CN should be ignored.
+		name:        "IgnoreCNWithSANs",
 		leaf:        ignoreCNWithSANLeaf,
 		dnsName:     "foo.example.com",
 		roots:       []string{ignoreCNWithSANRoot},
 		currentTime: 1486684488,
-		systemSkip:  true,
+		systemSkip:  true, // does not chain to a system root
 
-		errorCallback: expectHostnameError,
+		errorCallback: expectHostnameError("certificate is not valid for any names"),
 	},
 	{
 		// Test that excluded names are respected.
+		name:          "ExcludedNames",
 		leaf:          excludedNamesLeaf,
 		dnsName:       "bender.local",
 		intermediates: []string{excludedNamesIntermediate},
 		roots:         []string{excludedNamesRoot},
 		currentTime:   1486684488,
-		systemSkip:    true,
+		systemSkip:    true, // does not chain to a system root
 
 		errorCallback: expectNameConstraintsError,
 	},
+	{
+		// Test that unknown critical extensions in a leaf cause a
+		// verify error.
+		name:          "CriticalExtLeaf",
+		leaf:          criticalExtLeafWithExt,
+		intermediates: []string{criticalExtIntermediate},
+		roots:         []string{criticalExtRoot},
+		currentTime:   1486684488,
+		systemSkip:    true, // does not chain to a system root
+
+		errorCallback: expectUnhandledCriticalExtension,
+	},
+	{
+		// Test that unknown critical extensions in an intermediate
+		// cause a verify error.
+		name:          "CriticalExtIntermediate",
+		leaf:          criticalExtLeaf,
+		intermediates: []string{criticalExtIntermediateWithExt},
+		roots:         []string{criticalExtRoot},
+		currentTime:   1486684488,
+		systemSkip:    true, // does not chain to a system root
+
+		errorCallback: expectUnhandledCriticalExtension,
+	},
+	{
+		name:        "ValidCN",
+		leaf:        validCNWithoutSAN,
+		dnsName:     "foo.example.com",
+		roots:       []string{invalidCNRoot},
+		currentTime: 1540000000,
+		systemSkip:  true, // does not chain to a system root
+
+		errorCallback: expectHostnameError("certificate relies on legacy Common Name field"),
+	},
+	{
+		// A certificate with an AKID should still chain to a parent without SKID.
+		// See Issue 30079.
+		name:        "AKIDNoSKID",
+		leaf:        leafWithAKID,
+		roots:       []string{rootWithoutSKID},
+		currentTime: 1550000000,
+		dnsName:     "example",
+		systemSkip:  true, // does not chain to a system root
+
+		expectedChains: [][]string{
+			{"Acme LLC", "Acme Co"},
+		},
+	},
+	{
+		// When there are two parents, one with a incorrect subject but matching SKID
+		// and one with a correct subject but missing SKID, the latter should be
+		// considered as a possible parent.
+		leaf:        leafMatchingAKIDMatchingIssuer,
+		roots:       []string{rootMatchingSKIDMismatchingSubject, rootMismatchingSKIDMatchingSubject},
+		currentTime: 1550000000,
+		dnsName:     "example",
+		systemSkip:  true,
+
+		expectedChains: [][]string{
+			{"Leaf", "Root B"},
+		},
+	},
 }
 
-func expectHostnameError(t *testing.T, i int, err error) (ok bool) {
-	if _, ok := err.(HostnameError); !ok {
-		t.Errorf("#%d: error was not a HostnameError: %s", i, err)
-		return false
+func expectHostnameError(msg string) func(*testing.T, error) {
+	return func(t *testing.T, err error) {
+		if _, ok := err.(HostnameError); !ok {
+			t.Fatalf("error was not a HostnameError: %v", err)
+		}
+		if !strings.Contains(err.Error(), msg) {
+			t.Fatalf("HostnameError did not contain %q: %v", msg, err)
+		}
 	}
-	return true
 }
 
-func expectExpired(t *testing.T, i int, err error) (ok bool) {
+func expectExpired(t *testing.T, err error) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != Expired {
-		t.Errorf("#%d: error was not Expired: %s", i, err)
-		return false
+		t.Fatalf("error was not Expired: %v", err)
 	}
-	return true
 }
 
-func expectUsageError(t *testing.T, i int, err error) (ok bool) {
+func expectUsageError(t *testing.T, err error) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != IncompatibleUsage {
-		t.Errorf("#%d: error was not IncompatibleUsage: %s", i, err)
-		return false
+		t.Fatalf("error was not IncompatibleUsage: %v", err)
 	}
-	return true
 }
 
-func expectAuthorityUnknown(t *testing.T, i int, err error) (ok bool) {
+func expectAuthorityUnknown(t *testing.T, err error) {
 	e, ok := err.(UnknownAuthorityError)
 	if !ok {
-		t.Errorf("#%d: error was not UnknownAuthorityError: %s", i, err)
-		return false
+		t.Fatalf("error was not UnknownAuthorityError: %v", err)
 	}
 	if e.Cert == nil {
-		t.Errorf("#%d: error was UnknownAuthorityError, but missing Cert: %s", i, err)
-		return false
+		t.Fatalf("error was UnknownAuthorityError, but missing Cert: %v", err)
 	}
-	return true
 }
 
-func expectSystemRootsError(t *testing.T, i int, err error) bool {
-	if _, ok := err.(SystemRootsError); !ok {
-		t.Errorf("#%d: error was not SystemRootsError: %s", i, err)
-		return false
-	}
-	return true
-}
-
-func expectHashError(t *testing.T, i int, err error) bool {
+func expectHashError(t *testing.T, err error) {
 	if err == nil {
-		t.Errorf("#%d: no error resulted from invalid hash", i)
-		return false
+		t.Fatalf("no error resulted from invalid hash")
 	}
 	if expected := "algorithm unimplemented"; !strings.Contains(err.Error(), expected) {
-		t.Errorf("#%d: error resulting from invalid hash didn't contain '%s', rather it was: %s", i, expected, err)
-		return false
+		t.Fatalf("error resulting from invalid hash didn't contain '%s', rather it was: %v", expected, err)
 	}
-	return true
 }
 
-func expectSubjectIssuerMismatcthError(t *testing.T, i int, err error) (ok bool) {
-	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != NameMismatch {
-		t.Errorf("#%d: error was not a NameMismatch: %s", i, err)
-		return false
-	}
-	return true
-}
-
-func expectNameConstraintsError(t *testing.T, i int, err error) (ok bool) {
+func expectNameConstraintsError(t *testing.T, err error) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != CANotAuthorizedForThisName {
-		t.Errorf("#%d: error was not a CANotAuthorizedForThisName: %s", i, err)
-		return false
+		t.Fatalf("error was not a CANotAuthorizedForThisName: %v", err)
 	}
-	return true
 }
 
-func expectNotAuthorizedError(t *testing.T, i int, err error) (ok bool) {
+func expectNotAuthorizedError(t *testing.T, err error) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != NotAuthorizedToSign {
-		t.Errorf("#%d: error was not a NotAuthorizedToSign: %s", i, err)
-		return false
+		t.Fatalf("error was not a NotAuthorizedToSign: %v", err)
 	}
-	return true
+}
+
+func expectUnhandledCriticalExtension(t *testing.T, err error) {
+	if _, ok := err.(UnhandledCriticalExtension); !ok {
+		t.Fatalf("error was not an UnhandledCriticalExtension: %v", err)
+	}
 }
 
 func certificateFromPEM(pemBytes string) (*Certificate, error) {
@@ -387,106 +439,116 @@ func certificateFromPEM(pemBytes string) (*Certificate, error) {
 	return ParseCertificate(block.Bytes)
 }
 
-func testVerify(t *testing.T, useSystemRoots bool) {
-	for i, test := range verifyTests {
-		if useSystemRoots && test.systemSkip {
-			continue
-		}
-		if runtime.GOOS == "windows" && test.testSystemRootsError {
-			continue
-		}
-		if useSystemRoots && !supportSHA2 && test.sha2 {
-			continue
-		}
+func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
+	opts := VerifyOptions{
+		Intermediates: NewCertPool(),
+		DNSName:       test.dnsName,
+		CurrentTime:   time.Unix(test.currentTime, 0),
+		KeyUsages:     test.keyUsages,
+	}
 
-		opts := VerifyOptions{
-			Intermediates: NewCertPool(),
-			DNSName:       test.dnsName,
-			CurrentTime:   time.Unix(test.currentTime, 0),
-			KeyUsages:     test.keyUsages,
-		}
-
-		if !useSystemRoots {
-			opts.Roots = NewCertPool()
-			for j, root := range test.roots {
-				ok := opts.Roots.AppendCertsFromPEM([]byte(root))
-				if !ok {
-					t.Errorf("#%d: failed to parse root #%d", i, j)
-					return
-				}
-			}
-		}
-
-		for j, intermediate := range test.intermediates {
-			ok := opts.Intermediates.AppendCertsFromPEM([]byte(intermediate))
+	if !useSystemRoots {
+		opts.Roots = NewCertPool()
+		for j, root := range test.roots {
+			ok := opts.Roots.AppendCertsFromPEM([]byte(root))
 			if !ok {
-				t.Errorf("#%d: failed to parse intermediate #%d", i, j)
-				return
+				t.Fatalf("failed to parse root #%d", j)
 			}
 		}
+	}
 
-		leaf, err := certificateFromPEM(test.leaf)
-		if err != nil {
-			t.Errorf("#%d: failed to parse leaf: %s", i, err)
-			return
+	for j, intermediate := range test.intermediates {
+		ok := opts.Intermediates.AppendCertsFromPEM([]byte(intermediate))
+		if !ok {
+			t.Fatalf("failed to parse intermediate #%d", j)
+		}
+	}
+
+	leaf, err := certificateFromPEM(test.leaf)
+	if err != nil {
+		t.Fatalf("failed to parse leaf: %v", err)
+	}
+
+	chains, err := leaf.Verify(opts)
+
+	if test.errorCallback == nil && err != nil {
+		if runtime.GOOS == "windows" && strings.HasSuffix(testenv.Builder(), "-2008") && err.Error() == "x509: certificate signed by unknown authority" {
+			testenv.SkipFlaky(t, 19564)
+		}
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if test.errorCallback != nil {
+		if useSystemRoots && test.systemLax {
+			if err == nil {
+				t.Fatalf("expected error")
+			}
+		} else {
+			test.errorCallback(t, err)
+		}
+	}
+
+	doesMatch := func(expectedChain []string, chain []*Certificate) bool {
+		if len(chain) != len(expectedChain) {
+			return false
 		}
 
-		var oldSystemRoots *CertPool
-		if test.testSystemRootsError {
-			oldSystemRoots = systemRootsPool()
-			systemRoots = nil
-			opts.Roots = nil
-		}
-
-		chains, err := leaf.Verify(opts)
-
-		if test.testSystemRootsError {
-			systemRoots = oldSystemRoots
-		}
-
-		if test.errorCallback == nil && err != nil {
-			t.Errorf("#%d: unexpected error: %s", i, err)
-		}
-		if test.errorCallback != nil {
-			if !test.errorCallback(t, i, err) {
-				return
+		for k, cert := range chain {
+			if !strings.Contains(nameToKey(&cert.Subject), expectedChain[k]) {
+				return false
 			}
 		}
+		return true
+	}
 
-		if len(chains) != len(test.expectedChains) {
-			t.Errorf("#%d: wanted %d chains, got %d", i, len(test.expectedChains), len(chains))
-		}
-
-		// We check that each returned chain matches a chain from
-		// expectedChains but an entry in expectedChains can't match
-		// two chains.
-		seenChains := make([]bool, len(chains))
-	NextOutputChain:
+	// Every expected chain should match 1 returned chain
+	for _, expectedChain := range test.expectedChains {
+		nChainMatched := 0
 		for _, chain := range chains {
-		TryNextExpected:
-			for j, expectedChain := range test.expectedChains {
-				if seenChains[j] {
-					continue
-				}
-				if len(chain) != len(expectedChain) {
-					continue
-				}
-				for k, cert := range chain {
-					if !strings.Contains(nameToKey(&cert.Subject), expectedChain[k]) {
-						continue TryNextExpected
-					}
-				}
-				// we matched
-				seenChains[j] = true
-				continue NextOutputChain
+			if doesMatch(expectedChain, chain) {
+				nChainMatched++
 			}
-			t.Errorf("#%d: No expected chain matched %s", i, chainToDebugString(chain))
+		}
+
+		if nChainMatched != 1 {
+			t.Errorf("Got %v matches instead of %v for expected chain %v", nChainMatched, 1, expectedChain)
+			for _, chain := range chains {
+				if doesMatch(expectedChain, chain) {
+					t.Errorf("\t matched %v", chainToDebugString(chain))
+				}
+			}
+		}
+	}
+
+	// Every returned chain should match 1 expected chain (or <2 if testing against the system)
+	for _, chain := range chains {
+		nMatched := 0
+		for _, expectedChain := range test.expectedChains {
+			if doesMatch(expectedChain, chain) {
+				nMatched++
+			}
+		}
+		// Allow additional unknown chains if systemLax is set
+		if nMatched == 0 && test.systemLax == false || nMatched > 1 {
+			t.Errorf("Got %v matches for chain %v", nMatched, chainToDebugString(chain))
+			for _, expectedChain := range test.expectedChains {
+				if doesMatch(expectedChain, chain) {
+					t.Errorf("\t matched %v", expectedChain)
+				}
+			}
 		}
 	}
 }
 
 func TestGoVerify(t *testing.T) {
-	testVerify(t, false)
+	// Temporarily enable SHA-1 verification since a number of test chains
+	// require it. TODO(filippo): regenerate test chains.
+	defer func(old bool) { debugAllowSHA1 = old }(debugAllowSHA1)
+	debugAllowSHA1 = true
+	for _, test := range verifyTests {
+		t.Run(test.name, func(t *testing.T) {
+			testVerify(t, test, false)
+		})
+	}
 }
 
 func TestSystemVerify(t *testing.T) {
@@ -494,7 +556,14 @@ func TestSystemVerify(t *testing.T) {
 		t.Skipf("skipping verify test using system APIs on %q", runtime.GOOS)
 	}
 
-	testVerify(t, true)
+	for _, test := range verifyTests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.systemSkip {
+				t.SkipNow()
+			}
+			testVerify(t, test, true)
+		})
+	}
 }
 
 func chainToDebugString(chain []*Certificate) string {
@@ -531,8 +600,7 @@ tQWVYrmm3ok9Nns4d0iXrKYgjy6myQzCsplFAMfOEVEiIuCl6rYVSAlk6l5PdPcF
 PseKUgzbFbS9bZvlxrFUaKnjaZC2mqUPuLk/IH2uSrW4nOQdtqvmlKXBx4Ot2/Un
 hw4EbNX/3aBd7YdStysVAq45pmp06drE57xNNB6pXE0zX5IJL4hmXXeXxx12E6nV
 5fEWCRE11azbJHFwLJhWC9kXtNHjUStedejV0NxPNO3CBWaAocvmMw==
------END CERTIFICATE-----
-`
+-----END CERTIFICATE-----`
 
 const giag2Intermediate = `-----BEGIN CERTIFICATE-----
 MIIEBDCCAuygAwIBAgIDAjppMA0GCSqGSIb3DQEBBQUAMEIxCzAJBgNVBAYTAlVT
@@ -557,8 +625,7 @@ zG+FA1jDaFETzf3I93k9mTXwVqO94FntT0QJo544evZG0R0SnU++0ED8Vf4GXjza
 HFa9llF7b1cq26KqltyMdMKVvvBulRP/F/A8rLIQjcxz++iPAsbw+zOzlTvjwsto
 WHPbqCRiOwY1nQ2pM714A5AuTHhdUDqB1O6gyHA43LL5Z/qHQF1hwFGPa4NrzQU6
 yuGnBXj8ytqU0CwIPX4WecigUCAkVDNx
------END CERTIFICATE-----
-`
+-----END CERTIFICATE-----`
 
 const googleLeaf = `-----BEGIN CERTIFICATE-----
 MIIEdjCCA16gAwIBAgIIcR5k4dkoe04wDQYJKoZIhvcNAQEFBQAwSTELMAkGA1UE
@@ -585,8 +652,7 @@ tJAW0kYGJ+wqKm53wG/JaOADTnnq2Mt/j6F2uvjgN/ouns1nRHufIvd370N0LeH+
 orKqTuAPzXK7imQk6+OycYABbqCtC/9qmwRd8wwn7sF97DtYfK8WuNHtFalCAwyi
 8LxJJYJCLWoMhZ+V8GZm+FOex5qkQAjnZrtNlbQJ8ro4r+rpKXtmMFFhfa+7L+PA
 Kom08eUK8skxAzfDDijZPh10VtJ66uBoiDPdT+uCBehcBIcmSTrKjFGX
------END CERTIFICATE-----
-`
+-----END CERTIFICATE-----`
 
 // googleLeafWithInvalidHash is the same as googleLeaf, but the signature
 // algorithm in the certificate contains a nonsense OID.
@@ -615,8 +681,7 @@ tJAW0kYGJ+wqKm53wG/JaOADTnnq2Mt/j6F2uvjgN/ouns1nRHufIvd370N0LeH+
 orKqTuAPzXK7imQk6+OycYABbqCtC/9qmwRd8wwn7sF97DtYfK8WuNHtFalCAwyi
 8LxJJYJCLWoMhZ+V8GZm+FOex5qkQAjnZrtNlbQJ8ro4r+rpKXtmMFFhfa+7L+PA
 Kom08eUK8skxAzfDDijZPh10VtJ66uBoiDPdT+uCBehcBIcmSTrKjFGX
------END CERTIFICATE-----
-`
+-----END CERTIFICATE-----`
 
 const dnssecExpLeaf = `-----BEGIN CERTIFICATE-----
 MIIGzTCCBbWgAwIBAgIDAdD6MA0GCSqGSIb3DQEBBQUAMIGMMQswCQYDVQQGEwJJ
@@ -741,145 +806,127 @@ NOsF/5oirpt9P/FlUQqmMGqz9IgcgA38corog14=
 -----END CERTIFICATE-----`
 
 const smimeLeaf = `-----BEGIN CERTIFICATE-----
-MIIFBjCCA+6gAwIBAgISESFvrjT8XcJTEe6rBlPptILlMA0GCSqGSIb3DQEBBQUA
-MFQxCzAJBgNVBAYTAkJFMRkwFwYDVQQKExBHbG9iYWxTaWduIG52LXNhMSowKAYD
-VQQDEyFHbG9iYWxTaWduIFBlcnNvbmFsU2lnbiAyIENBIC0gRzIwHhcNMTIwMTIz
-MTYzNjU5WhcNMTUwMTIzMTYzNjU5WjCBlDELMAkGA1UEBhMCVVMxFjAUBgNVBAgT
-DU5ldyBIYW1zcGhpcmUxEzARBgNVBAcTClBvcnRzbW91dGgxGTAXBgNVBAoTEEds
-b2JhbFNpZ24sIEluYy4xEzARBgNVBAMTClJ5YW4gSHVyc3QxKDAmBgkqhkiG9w0B
-CQEWGXJ5YW4uaHVyc3RAZ2xvYmFsc2lnbi5jb20wggEiMA0GCSqGSIb3DQEBAQUA
-A4IBDwAwggEKAoIBAQC4ASSTvavmsFQAob60ukSSwOAL9nT/s99ltNUCAf5fPH5j
-NceMKxaQse2miOmRRIXaykcq1p/TbI70Ztce38r2mbOwqDHHPVi13GxJEyUXWgaR
-BteDMu5OGyWNG1kchVsGWpbstT0Z4v0md5m1BYFnxB20ebJyOR2lXDxsFK28nnKV
-+5eMj76U8BpPQ4SCH7yTMG6y0XXsB3cCrBKr2o3TOYgEKv+oNnbaoMt3UxMt9nSf
-9jyIshjqfnT5Aew3CUNMatO55g5FXXdIukAweg1YSb1ls05qW3sW00T3d7dQs9/7
-NuxCg/A2elmVJSoy8+MLR8JSFEf/aMgjO/TyLg/jAgMBAAGjggGPMIIBizAOBgNV
-HQ8BAf8EBAMCBaAwTQYDVR0gBEYwRDBCBgorBgEEAaAyASgKMDQwMgYIKwYBBQUH
-AgEWJmh0dHBzOi8vd3d3Lmdsb2JhbHNpZ24uY29tL3JlcG9zaXRvcnkvMCQGA1Ud
-EQQdMBuBGXJ5YW4uaHVyc3RAZ2xvYmFsc2lnbi5jb20wCQYDVR0TBAIwADAdBgNV
-HSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwQwQwYDVR0fBDwwOjA4oDagNIYyaHR0
-cDovL2NybC5nbG9iYWxzaWduLmNvbS9ncy9nc3BlcnNvbmFsc2lnbjJnMi5jcmww
-VQYIKwYBBQUHAQEESTBHMEUGCCsGAQUFBzAChjlodHRwOi8vc2VjdXJlLmdsb2Jh
-bHNpZ24uY29tL2NhY2VydC9nc3BlcnNvbmFsc2lnbjJnMi5jcnQwHQYDVR0OBBYE
-FFWiECe0/L72eVYqcWYnLV6SSjzhMB8GA1UdIwQYMBaAFD8V0m18L+cxnkMKBqiU
-bCw7xe5lMA0GCSqGSIb3DQEBBQUAA4IBAQAhQi6hLPeudmf3IBF4IDzCvRI0FaYd
-BKfprSk/H0PDea4vpsLbWpA0t0SaijiJYtxKjlM4bPd+2chb7ejatDdyrZIzmDVy
-q4c30/xMninGKokpYA11/Ve+i2dvjulu65qasrtQRGybAuuZ67lrp/K3OMFgjV5N
-C3AHYLzvNU4Dwc4QQ1BaMOg6KzYSrKbABRZajfrpC9uiePsv7mDIXLx/toBPxWNl
-a5vJm5DrZdn7uHdvBCE6kMykbOLN5pmEK0UIlwKh6Qi5XD0pzlVkEZliFkBMJgub
-d/eF7xeg7TKPWC5xyOFp9SdMolJM7LTC3wnSO3frBAev+q/nGs9Xxyvs
+MIIIPDCCBiSgAwIBAgIQaMDxFS0pOMxZZeOBxoTJtjANBgkqhkiG9w0BAQsFADCB
+nTELMAkGA1UEBhMCRVMxFDASBgNVBAoMC0laRU5QRSBTLkEuMTowOAYDVQQLDDFB
+WlogWml1cnRhZ2lyaSBwdWJsaWtvYSAtIENlcnRpZmljYWRvIHB1YmxpY28gU0NB
+MTwwOgYDVQQDDDNFQUVrbyBIZXJyaSBBZG1pbmlzdHJhemlvZW4gQ0EgLSBDQSBB
+QVBQIFZhc2NhcyAoMikwHhcNMTcwNzEyMDg1MzIxWhcNMjEwNzEyMDg1MzIxWjCC
+AQwxDzANBgNVBAoMBklaRU5QRTE4MDYGA1UECwwvWml1cnRhZ2lyaSBrb3Jwb3Jh
+dGlib2EtQ2VydGlmaWNhZG8gY29ycG9yYXRpdm8xQzBBBgNVBAsMOkNvbmRpY2lv
+bmVzIGRlIHVzbyBlbiB3d3cuaXplbnBlLmNvbSBub2xhIGVyYWJpbGkgamFraXRl
+a28xFzAVBgNVBC4TDi1kbmkgOTk5OTk5ODlaMSQwIgYDVQQDDBtDT1JQT1JBVElW
+TyBGSUNUSUNJTyBBQ1RJVk8xFDASBgNVBCoMC0NPUlBPUkFUSVZPMREwDwYDVQQE
+DAhGSUNUSUNJTzESMBAGA1UEBRMJOTk5OTk5ODlaMIIBIjANBgkqhkiG9w0BAQEF
+AAOCAQ8AMIIBCgKCAQEAwVOMwUDfBtsH0XuxYnb+v/L774jMH8valX7RPH8cl2Lb
+SiqSo0RchW2RGA2d1yuYHlpChC9jGmt0X/g66/E/+q2hUJlfJtqVDJFwtFYV4u2S
+yzA3J36V4PRkPQrKxAsbzZriFXAF10XgiHQz9aVeMMJ9GBhmh9+DK8Tm4cMF6i8l
++AuC35KdngPF1x0ealTYrYZplpEJFO7CiW42aLi6vQkDR2R7nmZA4AT69teqBWsK
+0DZ93/f0G/3+vnWwNTBF0lB6dIXoaz8OMSyHLqGnmmAtMrzbjAr/O/WWgbB/BqhR
+qjJQ7Ui16cuDldXaWQ/rkMzsxmsAox0UF+zdQNvXUQIDAQABo4IDBDCCAwAwgccG
+A1UdEgSBvzCBvIYVaHR0cDovL3d3dy5pemVucGUuY29tgQ9pbmZvQGl6ZW5wZS5j
+b22kgZEwgY4xRzBFBgNVBAoMPklaRU5QRSBTLkEuIC0gQ0lGIEEwMTMzNzI2MC1S
+TWVyYy5WaXRvcmlhLUdhc3RlaXogVDEwNTUgRjYyIFM4MUMwQQYDVQQJDDpBdmRh
+IGRlbCBNZWRpdGVycmFuZW8gRXRvcmJpZGVhIDE0IC0gMDEwMTAgVml0b3JpYS1H
+YXN0ZWl6MB4GA1UdEQQXMBWBE2ZpY3RpY2lvQGl6ZW5wZS5ldXMwDgYDVR0PAQH/
+BAQDAgXgMCkGA1UdJQQiMCAGCCsGAQUFBwMCBggrBgEFBQcDBAYKKwYBBAGCNxQC
+AjAdBgNVHQ4EFgQUyeoOD4cgcljKY0JvrNuX2waFQLAwHwYDVR0jBBgwFoAUwKlK
+90clh/+8taaJzoLSRqiJ66MwggEnBgNVHSAEggEeMIIBGjCCARYGCisGAQQB8zkB
+AQEwggEGMDMGCCsGAQUFBwIBFidodHRwOi8vd3d3Lml6ZW5wZS5jb20vcnBhc2Nh
+Y29ycG9yYXRpdm8wgc4GCCsGAQUFBwICMIHBGoG+Wml1cnRhZ2lyaWEgRXVza2Fs
+IEF1dG9ub21pYSBFcmtpZGVnb2tvIHNla3RvcmUgcHVibGlrb2tvIGVyYWt1bmRl
+ZW4gYmFybmUtc2FyZWV0YW4gYmFrYXJyaWsgZXJhYmlsIGRhaXRla2UuIFVzbyBy
+ZXN0cmluZ2lkbyBhbCBhbWJpdG8gZGUgcmVkZXMgaW50ZXJuYXMgZGUgRW50aWRh
+ZGVzIGRlbCBTZWN0b3IgUHVibGljbyBWYXNjbzAyBggrBgEFBQcBAQQmMCQwIgYI
+KwYBBQUHMAGGFmh0dHA6Ly9vY3NwLml6ZW5wZS5jb20wOgYDVR0fBDMwMTAvoC2g
+K4YpaHR0cDovL2NybC5pemVucGUuY29tL2NnaS1iaW4vY3JsaW50ZXJuYTIwDQYJ
+KoZIhvcNAQELBQADggIBAIy5PQ+UZlCRq6ig43vpHwlwuD9daAYeejV0Q+ZbgWAE
+GtO0kT/ytw95ZEJMNiMw3fYfPRlh27ThqiT0VDXZJDlzmn7JZd6QFcdXkCsiuv4+
+ZoXAg/QwnA3SGUUO9aVaXyuOIIuvOfb9MzoGp9xk23SMV3eiLAaLMLqwB5DTfBdt
+BGI7L1MnGJBv8RfP/TL67aJ5bgq2ri4S8vGHtXSjcZ0+rCEOLJtmDNMnTZxancg3
+/H5edeNd+n6Z48LO+JHRxQufbC4mVNxVLMIP9EkGUejlq4E4w6zb5NwCQczJbSWL
+i31rk2orsNsDlyaLGsWZp3JSNX6RmodU4KAUPor4jUJuUhrrm3Spb73gKlV/gcIw
+bCE7mML1Kss3x1ySaXsis6SZtLpGWKkW2iguPWPs0ydV6RPhmsCxieMwPPIJ87vS
+5IejfgyBae7RSuAIHyNFy4uI5xwvwUFf6OZ7az8qtW7ImFOgng3Ds+W9k1S2CNTx
+d0cnKTfA6IpjGo8EeHcxnIXT8NPImWaRj0qqonvYady7ci6U4m3lkNSdXNn1afgw
+mYust+gxVtOZs1gk2MUCgJ1V1X+g7r/Cg7viIn6TLkLrpS1kS1hvMqkl9M+7XqPo
+Qd95nJKOkusQpy99X4dF/lfbYAQnnjnqh3DLD2gvYObXFaAYFaiBKTiMTV2X72F+
 -----END CERTIFICATE-----`
 
 const smimeIntermediate = `-----BEGIN CERTIFICATE-----
-MIIEFjCCAv6gAwIBAgILBAAAAAABL07hL1IwDQYJKoZIhvcNAQEFBQAwVzELMAkG
-A1UEBhMCQkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYtc2ExEDAOBgNVBAsTB1Jv
-b3QgQ0ExGzAZBgNVBAMTEkdsb2JhbFNpZ24gUm9vdCBDQTAeFw0xMTA0MTMxMDAw
-MDBaFw0xOTA0MTMxMDAwMDBaMFQxCzAJBgNVBAYTAkJFMRkwFwYDVQQKExBHbG9i
-YWxTaWduIG52LXNhMSowKAYDVQQDEyFHbG9iYWxTaWduIFBlcnNvbmFsU2lnbiAy
-IENBIC0gRzIwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDBa0H5Nez4
-En3dIlFpX7e5E0YndxQ74xOBbz7kdBd+DLX0LOQMjVPU3DAgKL9ujhH+ZhHkURbH
-3X/94TQSUL/z2JjsaQvS0NqyZXHhM5eeuquzOJRzEQ8+odETzHg2G0Erv7yjSeww
-gkwDWDJnYUDlOjYTDUEG6+i+8Mn425reo4I0E277wD542kmVWeW7+oHv5dZo9e1Q
-yWwiKTEP6BEQVVSBgThXMG4traSSDRUt3T1eQTZx5EObpiBEBO4OTqiBTJfg4vEI
-YgkXzKLpnfszTB6YMDpR9/QS6p3ANB3kfAb+t6udSO3WCst0DGrwHDLBFGDR4UeY
-T5KGGnI7cWL7AgMBAAGjgeUwgeIwDgYDVR0PAQH/BAQDAgEGMBIGA1UdEwEB/wQI
-MAYBAf8CAQAwHQYDVR0OBBYEFD8V0m18L+cxnkMKBqiUbCw7xe5lMEcGA1UdIARA
-MD4wPAYEVR0gADA0MDIGCCsGAQUFBwIBFiZodHRwczovL3d3dy5nbG9iYWxzaWdu
-LmNvbS9yZXBvc2l0b3J5LzAzBgNVHR8ELDAqMCigJqAkhiJodHRwOi8vY3JsLmds
-b2JhbHNpZ24ubmV0L3Jvb3QuY3JsMB8GA1UdIwQYMBaAFGB7ZhpFDZfKiVAvfQTN
-NKj//P1LMA0GCSqGSIb3DQEBBQUAA4IBAQBDc3nMpMxJMQMcYUCB3+C73UpvwDE8
-eCOr7t2F/uaQKKcyqqstqLZc6vPwI/rcE9oDHugY5QEjQzIBIEaTnN6P0vege2IX
-eCOr7t2F/uaQKKcyqqstqLZc6vPwI/rcE9oDHugY5QEjQzIBIEaTnN6P0vege2IX
-YEvTWbWwGdPytDFPYIl3/6OqNSXSnZ7DxPcdLJq2uyiga8PB/TTIIHYkdM2+1DE0
-7y3rH/7TjwDVD7SLu5/SdOfKskuMPTjOEvz3K161mymW06klVhubCIWOro/Gx1Q2
-2FQOZ7/2k4uYoOdBTSlb8kTAuzZNgIE0rB2BIYCTz/P6zZIKW0ogbRSH
+MIIHNzCCBSGgAwIBAgIQJMXIqlZvjuhMvqcFXOFkpDALBgkqhkiG9w0BAQswODEL
+MAkGA1UEBhMCRVMxFDASBgNVBAoMC0laRU5QRSBTLkEuMRMwEQYDVQQDDApJemVu
+cGUuY29tMB4XDTEwMTAyMDA4MjMzM1oXDTM3MTIxMjIzMDAwMFowgZ0xCzAJBgNV
+BAYTAkVTMRQwEgYDVQQKDAtJWkVOUEUgUy5BLjE6MDgGA1UECwwxQVpaIFppdXJ0
+YWdpcmkgcHVibGlrb2EgLSBDZXJ0aWZpY2FkbyBwdWJsaWNvIFNDQTE8MDoGA1UE
+AwwzRUFFa28gSGVycmkgQWRtaW5pc3RyYXppb2VuIENBIC0gQ0EgQUFQUCBWYXNj
+YXMgKDIpMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAoIM7nEdI0N1h
+rR5T4xuV/usKDoMIasaiKvfLhbwxaNtTt+a7W/6wV5bv3svQFIy3sUXjjdzV1nG2
+To2wo/YSPQiOt8exWvOapvL21ogiof+kelWnXFjWaKJI/vThHYLgIYEMj/y4HdtU
+ojI646rZwqsb4YGAopwgmkDfUh5jOhV2IcYE3TgJAYWVkj6jku9PLaIsHiarAHjD
+PY8dig8a4SRv0gm5Yk7FXLmW1d14oxQBDeHZ7zOEXfpafxdEDO2SNaRJjpkh8XRr
+PGqkg2y1Q3gT6b4537jz+StyDIJ3omylmlJsGCwqT7p8mEqjGJ5kC5I2VnjXKuNn
+soShc72khWZVUJiJo5SGuAkNE2ZXqltBVm5Jv6QweQKsX6bkcMc4IZok4a+hx8FM
+8IBpGf/I94pU6HzGXqCyc1d46drJgDY9mXa+6YDAJFl3xeXOOW2iGCfwXqhiCrKL
+MYvyMZzqF3QH5q4nb3ZnehYvraeMFXJXDn+Utqp8vd2r7ShfQJz01KtM4hgKdgSg
+jtW+shkVVN5ng/fPN85ovfAH2BHXFfHmQn4zKsYnLitpwYM/7S1HxlT61cdQ7Nnk
+3LZTYEgAoOmEmdheklT40WAYakksXGM5VrzG7x9S7s1Tm+Vb5LSThdHC8bxxwyTb
+KsDRDNJ84N9fPDO6qHnzaL2upQ43PycCAwEAAaOCAdkwggHVMIHHBgNVHREEgb8w
+gbyGFWh0dHA6Ly93d3cuaXplbnBlLmNvbYEPaW5mb0BpemVucGUuY29tpIGRMIGO
+MUcwRQYDVQQKDD5JWkVOUEUgUy5BLiAtIENJRiBBMDEzMzcyNjAtUk1lcmMuVml0
+b3JpYS1HYXN0ZWl6IFQxMDU1IEY2MiBTODFDMEEGA1UECQw6QXZkYSBkZWwgTWVk
+aXRlcnJhbmVvIEV0b3JiaWRlYSAxNCAtIDAxMDEwIFZpdG9yaWEtR2FzdGVpejAP
+BgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAdBgNVHQ4EFgQUwKlK90cl
+h/+8taaJzoLSRqiJ66MwHwYDVR0jBBgwFoAUHRxlDqjyJXu0kc/ksbHmvVV0bAUw
+OgYDVR0gBDMwMTAvBgRVHSAAMCcwJQYIKwYBBQUHAgEWGWh0dHA6Ly93d3cuaXpl
+bnBlLmNvbS9jcHMwNwYIKwYBBQUHAQEEKzApMCcGCCsGAQUFBzABhhtodHRwOi8v
+b2NzcC5pemVucGUuY29tOjgwOTQwMwYDVR0fBCwwKjAooCagJIYiaHR0cDovL2Ny
+bC5pemVucGUuY29tL2NnaS1iaW4vYXJsMjALBgkqhkiG9w0BAQsDggIBAMbjc3HM
+3DG9ubWPkzsF0QsktukpujbTTcGk4h20G7SPRy1DiiTxrRzdAMWGjZioOP3/fKCS
+M539qH0M+gsySNie+iKlbSZJUyE635T1tKw+G7bDUapjlH1xyv55NC5I6wCXGC6E
+3TEP5B/E7dZD0s9E4lS511ubVZivFgOzMYo1DO96diny/N/V1enaTCpRl1qH1OyL
+xUYTijV4ph2gL6exwuG7pxfRcVNHYlrRaXWfTz3F6NBKyULxrI3P/y6JAtN1GqT4
+VF/+vMygx22n0DufGepBwTQz6/rr1ulSZ+eMnuJiTXgh/BzQnkUsXTb8mHII25iR
+0oYF2qAsk6ecWbLiDpkHKIDHmML21MZE13MS8NSvTHoqJO4LyAmDe6SaeNHtrPlK
+b6mzE1BN2ug+ZaX8wLA5IMPFaf0jKhb/Cxu8INsxjt00brsErCc9ip1VNaH0M4bi
+1tGxfiew2436FaeyUxW7Pl6G5GgkNbuUc7QIoRy06DdU/U38BxW3uyJMY60zwHvS
+FlKAn0OvYp4niKhAJwaBVN3kowmJuOU5Rid+TUnfyxbJ9cttSgzaF3hP/N4zgMEM
+5tikXUskeckt8LUK96EH0QyssavAMECUEb/xrupyRdYWwjQGvNLq6T5+fViDGyOw
+k+lzD44wofy8paAy9uC9Owae0zMEzhcsyRm7
 -----END CERTIFICATE-----`
 
-var megaLeaf = `-----BEGIN CERTIFICATE-----
-MIIFOjCCBCKgAwIBAgIQWYE8Dup170kZ+k11Lg51OjANBgkqhkiG9w0BAQUFADBy
-MQswCQYDVQQGEwJHQjEbMBkGA1UECBMSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYD
-VQQHEwdTYWxmb3JkMRowGAYDVQQKExFDT01PRE8gQ0EgTGltaXRlZDEYMBYGA1UE
-AxMPRXNzZW50aWFsU1NMIENBMB4XDTEyMTIxNDAwMDAwMFoXDTE0MTIxNDIzNTk1
-OVowfzEhMB8GA1UECxMYRG9tYWluIENvbnRyb2wgVmFsaWRhdGVkMS4wLAYDVQQL
-EyVIb3N0ZWQgYnkgSW5zdHJhIENvcnBvcmF0aW9uIFB0eS4gTFREMRUwEwYDVQQL
-EwxFc3NlbnRpYWxTU0wxEzARBgNVBAMTCm1lZ2EuY28ubnowggEiMA0GCSqGSIb3
-DQEBAQUAA4IBDwAwggEKAoIBAQDcxMCClae8BQIaJHBUIVttlLvhbK4XhXPk3RQ3
-G5XA6tLZMBQ33l3F9knYJ0YErXtr8IdfYoulRQFmKFMJl9GtWyg4cGQi2Rcr5VN5
-S5dA1vu4oyJBxE9fPELcK6Yz1vqaf+n6za+mYTiQYKggVdS8/s8hmNuXP9Zk1pIn
-+q0pGsf8NAcSHMJgLqPQrTDw+zae4V03DvcYfNKjuno88d2226ld7MAmQZ7uRNsI
-/CnkdelVs+akZsXf0szefSqMJlf08SY32t2jj4Ra7RApVYxOftD9nij/aLfuqOU6
-ow6IgIcIG2ZvXLZwK87c5fxL7UAsTTV+M1sVv8jA33V2oKLhAgMBAAGjggG9MIIB
-uTAfBgNVHSMEGDAWgBTay+qtWwhdzP/8JlTOSeVVxjj0+DAdBgNVHQ4EFgQUmP9l
-6zhyrZ06Qj4zogt+6LKFk4AwDgYDVR0PAQH/BAQDAgWgMAwGA1UdEwEB/wQCMAAw
-NAYDVR0lBC0wKwYIKwYBBQUHAwEGCCsGAQUFBwMCBgorBgEEAYI3CgMDBglghkgB
-hvhCBAEwTwYDVR0gBEgwRjA6BgsrBgEEAbIxAQICBzArMCkGCCsGAQUFBwIBFh1o
-dHRwczovL3NlY3VyZS5jb21vZG8uY29tL0NQUzAIBgZngQwBAgEwOwYDVR0fBDQw
-MjAwoC6gLIYqaHR0cDovL2NybC5jb21vZG9jYS5jb20vRXNzZW50aWFsU1NMQ0Eu
-Y3JsMG4GCCsGAQUFBwEBBGIwYDA4BggrBgEFBQcwAoYsaHR0cDovL2NydC5jb21v
-ZG9jYS5jb20vRXNzZW50aWFsU1NMQ0FfMi5jcnQwJAYIKwYBBQUHMAGGGGh0dHA6
-Ly9vY3NwLmNvbW9kb2NhLmNvbTAlBgNVHREEHjAcggptZWdhLmNvLm56gg53d3cu
-bWVnYS5jby5uejANBgkqhkiG9w0BAQUFAAOCAQEAcYhrsPSvDuwihMOh0ZmRpbOE
-Gw6LqKgLNTmaYUPQhzi2cyIjhUhNvugXQQlP5f0lp5j8cixmArafg1dTn4kQGgD3
-ivtuhBTgKO1VYB/VRoAt6Lmswg3YqyiS7JiLDZxjoV7KoS5xdiaINfHDUaBBY4ZH
-j2BUlPniNBjCqXe/HndUTVUewlxbVps9FyCmH+C4o9DWzdGBzDpCkcmo5nM+cp7q
-ZhTIFTvZfo3zGuBoyu8BzuopCJcFRm3cRiXkpI7iOMUIixO1szkJS6WpL1sKdT73
-UXp08U0LBqoqG130FbzEJBBV3ixbvY6BWMHoCWuaoF12KJnC5kHt2RoWAAgMXA==
------END CERTIFICATE-----`
-
-var comodoIntermediate1 = `-----BEGIN CERTIFICATE-----
-MIIFAzCCA+ugAwIBAgIQGLLLuqME8aAPwfLzJkYqSjANBgkqhkiG9w0BAQUFADCB
-gTELMAkGA1UEBhMCR0IxGzAZBgNVBAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4G
-A1UEBxMHU2FsZm9yZDEaMBgGA1UEChMRQ09NT0RPIENBIExpbWl0ZWQxJzAlBgNV
-BAMTHkNPTU9ETyBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTAeFw0wNjEyMDEwMDAw
-MDBaFw0xOTEyMzEyMzU5NTlaMHIxCzAJBgNVBAYTAkdCMRswGQYDVQQIExJHcmVh
-dGVyIE1hbmNoZXN0ZXIxEDAOBgNVBAcTB1NhbGZvcmQxGjAYBgNVBAoTEUNPTU9E
-TyBDQSBMaW1pdGVkMRgwFgYDVQQDEw9Fc3NlbnRpYWxTU0wgQ0EwggEiMA0GCSqG
-SIb3DQEBAQUAA4IBDwAwggEKAoIBAQCt8AiwcsargxIxF3CJhakgEtSYau2A1NHf
-5I5ZLdOWIY120j8YC0YZYwvHIPPlC92AGvFaoL0dds23Izp0XmEbdaqb1IX04XiR
-0y3hr/yYLgbSeT1awB8hLRyuIVPGOqchfr7tZ291HRqfalsGs2rjsQuqag7nbWzD
-ypWMN84hHzWQfdvaGlyoiBSyD8gSIF/F03/o4Tjg27z5H6Gq1huQByH6RSRQXScq
-oChBRVt9vKCiL6qbfltTxfEFFld+Edc7tNkBdtzffRDPUanlOPJ7FAB1WfnwWdsX
-Pvev5gItpHnBXaIcw5rIp6gLSApqLn8tl2X2xQScRMiZln5+pN0vAgMBAAGjggGD
-MIIBfzAfBgNVHSMEGDAWgBQLWOWLxkwVN6RAqTCpIb5HNlpW/zAdBgNVHQ4EFgQU
-2svqrVsIXcz//CZUzknlVcY49PgwDgYDVR0PAQH/BAQDAgEGMBIGA1UdEwEB/wQI
-MAYBAf8CAQAwIAYDVR0lBBkwFwYKKwYBBAGCNwoDAwYJYIZIAYb4QgQBMD4GA1Ud
-IAQ3MDUwMwYEVR0gADArMCkGCCsGAQUFBwIBFh1odHRwczovL3NlY3VyZS5jb21v
-ZG8uY29tL0NQUzBJBgNVHR8EQjBAMD6gPKA6hjhodHRwOi8vY3JsLmNvbW9kb2Nh
-LmNvbS9DT01PRE9DZXJ0aWZpY2F0aW9uQXV0aG9yaXR5LmNybDBsBggrBgEFBQcB
-AQRgMF4wNgYIKwYBBQUHMAKGKmh0dHA6Ly9jcnQuY29tb2RvY2EuY29tL0NvbW9k
-b1VUTlNHQ0NBLmNydDAkBggrBgEFBQcwAYYYaHR0cDovL29jc3AuY29tb2RvY2Eu
-Y29tMA0GCSqGSIb3DQEBBQUAA4IBAQAtlzR6QDLqcJcvgTtLeRJ3rvuq1xqo2l/z
-odueTZbLN3qo6u6bldudu+Ennv1F7Q5Slqz0J790qpL0pcRDAB8OtXj5isWMcL2a
-ejGjKdBZa0wztSz4iw+SY1dWrCRnilsvKcKxudokxeRiDn55w/65g+onO7wdQ7Vu
-F6r7yJiIatnyfKH2cboZT7g440LX8NqxwCPf3dfxp+0Jj1agq8MLy6SSgIGSH6lv
-+Wwz3D5XxqfyH8wqfOQsTEZf6/Nh9yvENZ+NWPU6g0QO2JOsTGvMd/QDzczc4BxL
-XSXaPV7Od4rhPsbXlM1wSTz/Dr0ISKvlUhQVnQ6cGodWaK2cCQBk
------END CERTIFICATE-----`
-
-var comodoRoot = `-----BEGIN CERTIFICATE-----
-MIIEHTCCAwWgAwIBAgIQToEtioJl4AsC7j41AkblPTANBgkqhkiG9w0BAQUFADCB
-gTELMAkGA1UEBhMCR0IxGzAZBgNVBAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4G
-A1UEBxMHU2FsZm9yZDEaMBgGA1UEChMRQ09NT0RPIENBIExpbWl0ZWQxJzAlBgNV
-BAMTHkNPTU9ETyBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTAeFw0wNjEyMDEwMDAw
-MDBaFw0yOTEyMzEyMzU5NTlaMIGBMQswCQYDVQQGEwJHQjEbMBkGA1UECBMSR3Jl
-YXRlciBNYW5jaGVzdGVyMRAwDgYDVQQHEwdTYWxmb3JkMRowGAYDVQQKExFDT01P
-RE8gQ0EgTGltaXRlZDEnMCUGA1UEAxMeQ09NT0RPIENlcnRpZmljYXRpb24gQXV0
-aG9yaXR5MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0ECLi3LjkRv3
-UcEbVASY06m/weaKXTuH+7uIzg3jLz8GlvCiKVCZrts7oVewdFFxze1CkU1B/qnI
-2GqGd0S7WWaXUF601CxwRM/aN5VCaTwwxHGzUvAhTaHYujl8HJ6jJJ3ygxaYqhZ8
-Q5sVW7euNJH+1GImGEaaP+vB+fGQV+useg2L23IwambV4EajcNxo2f8ESIl33rXp
-+2dtQem8Ob0y2WIC8bGoPW43nOIv4tOiJovGuFVDiOEjPqXSJDlqR6sA1KGzqSX+
-DT+nHbrTUcELpNqsOO9VUCQFZUaTNE8tja3G1CEZ0o7KBWFxB3NH5YoZEr0ETc5O
-nKVIrLsm9wIDAQABo4GOMIGLMB0GA1UdDgQWBBQLWOWLxkwVN6RAqTCpIb5HNlpW
-/zAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zBJBgNVHR8EQjBAMD6g
-PKA6hjhodHRwOi8vY3JsLmNvbW9kb2NhLmNvbS9DT01PRE9DZXJ0aWZpY2F0aW9u
-QXV0aG9yaXR5LmNybDANBgkqhkiG9w0BAQUFAAOCAQEAPpiem/Yb6dc5t3iuHXIY
-SdOH5EOC6z/JqvWote9VfCFSZfnVDeFs9D6Mk3ORLgLETgdxb8CPOGEIqB6BCsAv
-IC9Bi5HcSEW88cbeunZrM8gALTFGTO3nnc+IlP8zwFboJIYmuNg4ON8qa90SzMc/
-RxdMosIGlgnW2/4/PEZB31jiVg88O8EckzXZOFKs7sjsLjBOlDW0JB9LeGna8gI4
-zJVSk/BwJVmcIGfE7vmLV2H0knZ9P4SNVbfo5azV8fUZVqZa+5Acr5Pr5RzUZ5dd
-BA6+C4OmF4O5MBKgxTMVBbkN+8cFduPYSo38NBejxiEovjBFMR7HeL5YYTisO+IB
-ZQ==
+const smimeRoot = `-----BEGIN CERTIFICATE-----
+MIIF8TCCA9mgAwIBAgIQALC3WhZIX7/hy/WL1xnmfTANBgkqhkiG9w0BAQsFADA4
+MQswCQYDVQQGEwJFUzEUMBIGA1UECgwLSVpFTlBFIFMuQS4xEzARBgNVBAMMCkl6
+ZW5wZS5jb20wHhcNMDcxMjEzMTMwODI4WhcNMzcxMjEzMDgyNzI1WjA4MQswCQYD
+VQQGEwJFUzEUMBIGA1UECgwLSVpFTlBFIFMuQS4xEzARBgNVBAMMCkl6ZW5wZS5j
+b20wggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQDJ03rKDx6sp4boFmVq
+scIbRTJxldn+EFvMr+eleQGPicPK8lVx93e+d5TzcqQsRNiekpsUOqHnJJAKClaO
+xdgmlOHZSOEtPtoKct2jmRXagaKH9HtuJneJWK3W6wyyQXpzbm3benhB6QiIEn6H
+LmYRY2xU+zydcsC8Lv/Ct90NduM61/e0aL6i9eOBbsFGb12N4E3GVFWJGjMxCrFX
+uaOKmMPsOzTFlUFpfnXCPCDFYbpRR6AgkJOhkEvzTnyFRVSa0QUmQbC1TR0zvsQD
+yCV8wXDbO/QJLVQnSKwv4cSsPsjLkkxTOTcj7NMB+eAJRE1NZMDhDVqHIrytG6P+
+JrUV86f8hBnp7KGItERphIPzidF0BqnMC9bC3ieFUCbKF7jJeodWLBoBHmy+E60Q
+rLUk9TiRodZL2vG70t5HtfG8gfZZa88ZU+mNFctKy6lvROUbQc/hhqfK0GqfvEyN
+BjNaooXlkDWgYlwWTvDjovoDGrQscbNYLN57C9saD+veIR8GdwYDsMnvmfzAuU8L
+hij+0rnq49qlw0dpEuDb8PYZi+17cNcC1u2HGCgsBCRMd+RIihrGO5rUD8r6ddIB
+QFqNeb+Lz0vPqhbBleStTIo+F5HUsWLlguWABKQDfo2/2n+iD5dPDNMN+9fR5XJ+
+HMh3/1uaD7euBUbl8agW7EekFwIDAQABo4H2MIHzMIGwBgNVHREEgagwgaWBD2lu
+Zm9AaXplbnBlLmNvbaSBkTCBjjFHMEUGA1UECgw+SVpFTlBFIFMuQS4gLSBDSUYg
+QTAxMzM3MjYwLVJNZXJjLlZpdG9yaWEtR2FzdGVpeiBUMTA1NSBGNjIgUzgxQzBB
+BgNVBAkMOkF2ZGEgZGVsIE1lZGl0ZXJyYW5lbyBFdG9yYmlkZWEgMTQgLSAwMTAx
+MCBWaXRvcmlhLUdhc3RlaXowDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC
+AQYwHQYDVR0OBBYEFB0cZQ6o8iV7tJHP5LGx5r1VdGwFMA0GCSqGSIb3DQEBCwUA
+A4ICAQB4pgwWSp9MiDrAyw6lFn2fuUhfGI8NYjb2zRlrrKvV9pF9rnHzP7MOeIWb
+laQnIUdCSnxIOvVFfLMMjlF4rJUT3sb9fbgakEyrkgPH7UIBzg/YsfqikuFgba56
+awmqxinuaElnMIAkejEWOVt+8Rwu3WwJrfIxwYJOubv5vr8qhT/AQKM6WfxZSzwo
+JNu0FXWuDYi6LnPAvViH5ULy617uHjAimcs30cQhbIHsvm0m5hzkQiCeR7Csg1lw
+LDXWrzY0tM07+DKo7+N4ifuNRSzanLh+QBxh5z6ikixL8s36mLYp//Pye6kfLqCT
+VyvehQP5aTfLnnhqBbTFMXiJ7HqnheG5ezzevh55hM6fcA5ZwjUukCox2eRFekGk
+LhObNA5me0mrZJfQRsN5nXJQY6aYWwa9SG3YOYNw6DXwBdGqvOPbyALqfP2C2sJb
+UjWumDqtujWTI6cfSN01RpiyEGjkpTHCClguGYEQyVB1/OpaFs4R1+7vUIgtYf8/
+QnMFlEPVjjxOAToZpR9GTnfQXeWBIiGH/pR9hNiTrdZoQ0iy2+tzJOeRf1SktoA+
+naM8THLCV8Sg1Mw4J87VBp6iSNnpn86CcDaTmjvfliHjWbcM2pE38P1ZWrOZyGls
+QyYBNWNgVYkDOnXYukrZVP/u3oDYLdE41V4tC5h9Pmzb/CaIxw==
 -----END CERTIFICATE-----`
 
 var nameConstraintsLeaf = `-----BEGIN CERTIFICATE-----
@@ -1198,50 +1245,7 @@ vRAvOtNiKtPzFeQVdbRPOskC4rcHyPeiDAMAMixeLi63+CFty4da3r5lRezeedCE
 cw3ESZzThBwWqvPOtJdpXdm+r57pDW8qD+/0lY8wfImMNkQAyCUCLg/1Lxt/hrBj
 -----END CERTIFICATE-----`
 
-const issuerSubjectMatchRoot = `
-Certificate:
-    Data:
-        Version: 3 (0x2)
-        Serial Number: 161640039802297062 (0x23e42c281e55ae6)
-    Signature Algorithm: sha256WithRSAEncryption
-        Issuer: O=Golang, CN=Root ca
-        Validity
-            Not Before: Jan  1 00:00:00 2015 GMT
-            Not After : Jan  1 00:00:00 2025 GMT
-        Subject: O=Golang, CN=Root ca
-        Subject Public Key Info:
-            Public Key Algorithm: rsaEncryption
-                Public-Key: (1024 bit)
-                Modulus:
-                    00:e9:0e:7f:11:0c:e6:5a:e6:86:83:70:f6:51:07:
-                    2e:02:78:11:f5:b2:24:92:38:ee:26:62:02:c7:94:
-                    f1:3e:a1:77:6a:c0:8f:d5:22:68:b6:5d:e2:4c:da:
-                    e0:85:11:35:c2:92:72:49:8d:81:b4:88:97:6b:b7:
-                    fc:b2:44:5b:d9:4d:06:70:f9:0c:c6:8f:e9:b3:df:
-                    a3:6a:84:6c:43:59:be:9d:b2:d0:76:9b:c3:d7:fa:
-                    99:59:c3:b8:e5:f3:53:03:bd:49:d6:b3:cc:a2:43:
-                    fe:ad:c2:0b:b9:01:b8:56:29:94:03:24:a7:0d:28:
-                    21:29:a9:ae:94:5b:4a:f9:9f
-                Exponent: 65537 (0x10001)
-        X509v3 extensions:
-            X509v3 Key Usage: critical
-                Certificate Sign
-            X509v3 Extended Key Usage:
-                TLS Web Server Authentication, TLS Web Client Authentication
-            X509v3 Basic Constraints: critical
-                CA:TRUE
-            X509v3 Subject Key Identifier:
-                40:37:D7:01:FB:40:2F:B8:1C:7E:54:04:27:8C:59:01
-    Signature Algorithm: sha256WithRSAEncryption
-         6f:84:df:49:e0:99:d4:71:66:1d:32:86:56:cb:ea:5a:6b:0e:
-         00:6a:d1:5a:6e:1f:06:23:07:ff:cb:d1:1a:74:e4:24:43:0b:
-         aa:2a:a0:73:75:25:82:bc:bf:3f:a9:f8:48:88:ac:ed:3a:94:
-         3b:0d:d3:88:c8:67:44:61:33:df:71:6c:c5:af:ed:16:8c:bf:
-         82:f9:49:bb:e3:2a:07:53:36:37:25:77:de:91:a4:77:09:7f:
-         6f:b2:91:58:c4:05:89:ea:8e:fa:e1:3b:19:ef:f8:f6:94:b7:
-         7b:27:e6:e4:84:dd:2b:f5:93:f5:3c:d8:86:c5:38:01:56:5c:
-         9f:6d
------BEGIN CERTIFICATE-----
+const issuerSubjectMatchRoot = `-----BEGIN CERTIFICATE-----
 MIICIDCCAYmgAwIBAgIIAj5CwoHlWuYwDQYJKoZIhvcNAQELBQAwIzEPMA0GA1UE
 ChMGR29sYW5nMRAwDgYDVQQDEwdSb290IGNhMB4XDTE1MDEwMTAwMDAwMFoXDTI1
 MDEwMTAwMDAwMFowIzEPMA0GA1UEChMGR29sYW5nMRAwDgYDVQQDEwdSb290IGNh
@@ -1256,53 +1260,7 @@ RGEz33Fsxa/tFoy/gvlJu+MqB1M2NyV33pGkdwl/b7KRWMQFieqO+uE7Ge/49pS3
 eyfm5ITdK/WT9TzYhsU4AVZcn20=
 -----END CERTIFICATE-----`
 
-const issuerSubjectMatchLeaf = `
-Certificate:
-    Data:
-        Version: 3 (0x2)
-        Serial Number: 16785088708916013734 (0xe8f09d3fe25beaa6)
-    Signature Algorithm: sha256WithRSAEncryption
-        Issuer: O=Golang, CN=Root CA
-        Validity
-            Not Before: Jan  1 00:00:00 2015 GMT
-            Not After : Jan  1 00:00:00 2025 GMT
-        Subject: O=Golang, CN=Leaf
-        Subject Public Key Info:
-            Public Key Algorithm: rsaEncryption
-                Public-Key: (1024 bit)
-                Modulus:
-                    00:db:46:7d:93:2e:12:27:06:48:bc:06:28:21:ab:
-                    7e:c4:b6:a2:5d:fe:1e:52:45:88:7a:36:47:a5:08:
-                    0d:92:42:5b:c2:81:c0:be:97:79:98:40:fb:4f:6d:
-                    14:fd:2b:13:8b:c2:a5:2e:67:d8:d4:09:9e:d6:22:
-                    38:b7:4a:0b:74:73:2b:c2:34:f1:d1:93:e5:96:d9:
-                    74:7b:f3:58:9f:6c:61:3c:c0:b0:41:d4:d9:2b:2b:
-                    24:23:77:5b:1c:3b:bd:75:5d:ce:20:54:cf:a1:63:
-                    87:1d:1e:24:c4:f3:1d:1a:50:8b:aa:b6:14:43:ed:
-                    97:a7:75:62:f4:14:c8:52:d7
-                Exponent: 65537 (0x10001)
-        X509v3 extensions:
-            X509v3 Key Usage: critical
-                Digital Signature, Key Encipherment
-            X509v3 Extended Key Usage:
-                TLS Web Server Authentication, TLS Web Client Authentication
-            X509v3 Basic Constraints: critical
-                CA:FALSE
-            X509v3 Subject Key Identifier:
-                9F:91:16:1F:43:43:3E:49:A6:DE:6D:B6:80:D7:9F:60
-            X509v3 Authority Key Identifier:
-                keyid:40:37:D7:01:FB:40:2F:B8:1C:7E:54:04:27:8C:59:01
-
-    Signature Algorithm: sha256WithRSAEncryption
-         8d:86:05:da:89:f5:1d:c5:16:14:41:b9:34:87:2b:5c:38:99:
-         e3:d9:5a:5b:7a:5b:de:0b:5c:08:45:09:6f:1c:9d:31:5f:08:
-         ca:7a:a3:99:da:83:0b:22:be:4f:02:35:91:4e:5d:5c:37:bf:
-         89:22:58:7d:30:76:d2:2f:d0:a0:ee:77:9e:77:c0:d6:19:eb:
-         ec:a0:63:35:6a:80:9b:80:1a:80:de:64:bc:40:38:3c:22:69:
-         ad:46:26:a2:3d:ea:f4:c2:92:49:16:03:96:ae:64:21:b9:7c:
-         ee:64:91:47:81:aa:b4:0c:09:2b:12:1a:b2:f3:af:50:b3:b1:
-         ce:24
------BEGIN CERTIFICATE-----
+const issuerSubjectMatchLeaf = `-----BEGIN CERTIFICATE-----
 MIICODCCAaGgAwIBAgIJAOjwnT/iW+qmMA0GCSqGSIb3DQEBCwUAMCMxDzANBgNV
 BAoTBkdvbGFuZzEQMA4GA1UEAxMHUm9vdCBDQTAeFw0xNTAxMDEwMDAwMDBaFw0y
 NTAxMDEwMDAwMDBaMCAxDzANBgNVBAoTBkdvbGFuZzENMAsGA1UEAxMETGVhZjCB
@@ -1315,11 +1273,9 @@ Q0M+SabebbaA159gMBsGA1UdIwQUMBKAEEA31wH7QC+4HH5UBCeMWQEwDQYJKoZI
 hvcNAQELBQADgYEAjYYF2on1HcUWFEG5NIcrXDiZ49laW3pb3gtcCEUJbxydMV8I
 ynqjmdqDCyK+TwI1kU5dXDe/iSJYfTB20i/QoO53nnfA1hnr7KBjNWqAm4AagN5k
 vEA4PCJprUYmoj3q9MKSSRYDlq5kIbl87mSRR4GqtAwJKxIasvOvULOxziQ=
------END CERTIFICATE-----
-`
+-----END CERTIFICATE-----`
 
-const x509v1TestRoot = `
------BEGIN CERTIFICATE-----
+const x509v1TestRoot = `-----BEGIN CERTIFICATE-----
 MIICIDCCAYmgAwIBAgIIAj5CwoHlWuYwDQYJKoZIhvcNAQELBQAwIzEPMA0GA1UE
 ChMGR29sYW5nMRAwDgYDVQQDEwdSb290IENBMB4XDTE1MDEwMTAwMDAwMFoXDTI1
 MDEwMTAwMDAwMFowIzEPMA0GA1UEChMGR29sYW5nMRAwDgYDVQQDEwdSb290IENB
@@ -1334,8 +1290,7 @@ h2NtN34ard0hEfHc8qW8mkXdsysVmq6cPvFYaHz+dBtkHuHDoy8YQnC0zdN/WyYB
 /1JmacUUofl+HusHuLkDxmadogI=
 -----END CERTIFICATE-----`
 
-const x509v1TestIntermediate = `
------BEGIN CERTIFICATE-----
+const x509v1TestIntermediate = `-----BEGIN CERTIFICATE-----
 MIIByjCCATMCCQCCdEMsT8ykqTANBgkqhkiG9w0BAQsFADAjMQ8wDQYDVQQKEwZH
 b2xhbmcxEDAOBgNVBAMTB1Jvb3QgQ0EwHhcNMTUwMTAxMDAwMDAwWhcNMjUwMTAx
 MDAwMDAwWjAwMQ8wDQYDVQQKEwZHb2xhbmcxHTAbBgNVBAMTFFguNTA5djEgaW50
@@ -1348,8 +1303,7 @@ zWE77kJDibzd141u21ZbLsKvEdUJXjla43bdyMmEqf5VGpC3D4sFt3QVH7lGeRur
 x5Wlq1u3YDL/j6s1nU2dQ3ySB/oP7J+vQ9V4QeM+
 -----END CERTIFICATE-----`
 
-const x509v1TestLeaf = `
------BEGIN CERTIFICATE-----
+const x509v1TestLeaf = `-----BEGIN CERTIFICATE-----
 MIICMzCCAZygAwIBAgIJAPo99mqJJrpJMA0GCSqGSIb3DQEBCwUAMDAxDzANBgNV
 BAoTBkdvbGFuZzEdMBsGA1UEAxMUWC41MDl2MSBpbnRlcm1lZGlhdGUwHhcNMTUw
 MTAxMDAwMDAwWhcNMjUwMTAxMDAwMDAwWjArMQ8wDQYDVQQKEwZHb2xhbmcxGDAW
@@ -1364,8 +1318,7 @@ CwUAA4GBADYzYUvaToO/ucBskPdqXV16AaakIhhSENswYVSl97/sODaxsjishKq9
 /jt8qszOXCv2vYdUTPNuPqufXLWMoirpuXrr1liJDmedCcAHepY/
 -----END CERTIFICATE-----`
 
-const ignoreCNWithSANRoot = `
------BEGIN CERTIFICATE-----
+const ignoreCNWithSANRoot = `-----BEGIN CERTIFICATE-----
 MIIDPzCCAiegAwIBAgIIJkzCwkNrPHMwDQYJKoZIhvcNAQELBQAwMDEQMA4GA1UE
 ChMHVEVTVElORzEcMBoGA1UEAxMTKipUZXN0aW5nKiogUm9vdCBDQTAeFw0xNTAx
 MDEwMDAwMDBaFw0yNTAxMDEwMDAwMDBaMDAxEDAOBgNVBAoTB1RFU1RJTkcxHDAa
@@ -1386,8 +1339,7 @@ aSLjI/Ya0zwUARMmyZ3RRGCyhIarPb20mKSaMf1/Nb23pS3k1QgmZhk5pAnXYsWu
 BJ6bvwEAasFiLGP6Zbdmxb2hIA==
 -----END CERTIFICATE-----`
 
-const ignoreCNWithSANLeaf = `
------BEGIN CERTIFICATE-----
+const ignoreCNWithSANLeaf = `-----BEGIN CERTIFICATE-----
 MIIDaTCCAlGgAwIBAgIJAONakvRTxgJhMA0GCSqGSIb3DQEBCwUAMDAxEDAOBgNV
 BAoTB1RFU1RJTkcxHDAaBgNVBAMTEyoqVGVzdGluZyoqIFJvb3QgQ0EwHhcNMTUw
 MTAxMDAwMDAwWhcNMjUwMTAxMDAwMDAwWjAsMRAwDgYDVQQKEwdURVNUSU5HMRgw
@@ -1409,8 +1361,7 @@ j2kBQyvnyKsXHLAKUoUOpd6t/1PHrfXnGj+HmzZNloJ/BZ1kiWb4eLvMljoLGkZn
 xZbqP3Krgjj4XNaXjg==
 -----END CERTIFICATE-----`
 
-const excludedNamesLeaf = `
------BEGIN CERTIFICATE-----
+const excludedNamesLeaf = `-----BEGIN CERTIFICATE-----
 MIID4DCCAsigAwIBAgIHDUSFtJknhzANBgkqhkiG9w0BAQsFADCBnjELMAkGA1UE
 BhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExEjAQBgNVBAcMCUxvcyBHYXRvczEU
 MBIGA1UECgwLTmV0ZmxpeCBJbmMxLTArBgNVBAsMJFBsYXRmb3JtIFNlY3VyaXR5
@@ -1432,11 +1383,9 @@ hDt8MCFJ8eSjCyKdtZh1MPMLrLVymmJV+Rc9JUUYM9TIeERkpl0rskcO1YGewkYt
 qKlWE+0S16+pzsWvKn831uylqwIb8ANBPsCX4aM4muFBHavSWAHgRO+P+yXVw8Q+
 VQDnMHUe5PbZd1/+1KKVs1K/CkBCtoHNHp1d/JT+2zUQJphwja9CcgfFdVhSnHL4
 oEEOFtqVMIuQfR2isi08qW/JGOHc4sFoLYB8hvdaxKWSE19A
------END CERTIFICATE-----
-`
+-----END CERTIFICATE-----`
 
-const excludedNamesIntermediate = `
------BEGIN CERTIFICATE-----
+const excludedNamesIntermediate = `-----BEGIN CERTIFICATE-----
 MIIDzTCCArWgAwIBAgIHDUSFqYeczDANBgkqhkiG9w0BAQsFADCBmTELMAkGA1UE
 BhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExEjAQBgNVBAcMCUxvcyBHYXRvczEU
 MBIGA1UECgwLTmV0ZmxpeCBJbmMxLTArBgNVBAsMJFBsYXRmb3JtIFNlY3VyaXR5
@@ -1460,8 +1409,7 @@ LbIjZCSfgZnk/LK1KU1j91FI2bc2ULYZvAC1PAg8/zvIgxn6YM2Q7ZsdEgWw0FpS
 zMBX1/lk4wkFckeUIlkD55Y=
 -----END CERTIFICATE-----`
 
-const excludedNamesRoot = `
------BEGIN CERTIFICATE-----
+const excludedNamesRoot = `-----BEGIN CERTIFICATE-----
 MIIEGTCCAwGgAwIBAgIHDUSFpInn/zANBgkqhkiG9w0BAQsFADCBozELMAkGA1UE
 BhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExEjAQBgNVBAcMCUxvcyBHYXRvczEU
 MBIGA1UECgwLTmV0ZmxpeCBJbmMxLTArBgNVBAsMJFBsYXRmb3JtIFNlY3VyaXR5
@@ -1486,6 +1434,78 @@ yU1yRHUqUYpN0DWFpsPbBqgM6uUAVO2ayBFhPgWUaqkmSbZ/Nq7isGvknaTmcIwT
 +NQCZDd5eFeU8PpNX7rgaYE4GPq+EEmLVCBYmdctr8QVdqJ//8Xu3+1phjDy
 -----END CERTIFICATE-----`
 
+const invalidCNRoot = `-----BEGIN CERTIFICATE-----
+MIIBFjCBvgIJAIsu4r+jb70UMAoGCCqGSM49BAMCMBQxEjAQBgNVBAsMCVRlc3Qg
+cm9vdDAeFw0xODA3MTExODMyMzVaFw0yODA3MDgxODMyMzVaMBQxEjAQBgNVBAsM
+CVRlc3Qgcm9vdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABF6oDgMg0LV6YhPj
+QXaPXYCc2cIyCdqp0ROUksRz0pOLTc5iY2nraUheRUD1vRRneq7GeXOVNn7uXONg
+oCGMjNwwCgYIKoZIzj0EAwIDRwAwRAIgDSiwgIn8g1lpruYH0QD1GYeoWVunfmrI
+XzZZl0eW/ugCICgOfXeZ2GGy3wIC0352BaC3a8r5AAb2XSGNe+e9wNN6
+-----END CERTIFICATE-----`
+
+const validCNWithoutSAN = `-----BEGIN CERTIFICATE-----
+MIIBJzCBzwIUB7q8t9mrDAL+UB1OFaMN5BEWFKQwCgYIKoZIzj0EAwIwFDESMBAG
+A1UECwwJVGVzdCByb290MB4XDTE4MDcxMTE4NDcyNFoXDTI4MDcwODE4NDcyNFow
+GjEYMBYGA1UEAwwPZm9vLmV4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0D
+AQcDQgAEp6Z8IjOnR38Iky1fYTUu2kVndvKXcxiwARJKGtW3b0E8uwVp9AZd/+sr
+p4ULTPdFToFAeqnGHbu62bkms8pQkDAKBggqhkjOPQQDAgNHADBEAiBTbNe3WWFR
+cqUYo0sNUuoV+tCTMDJUS+0PWIW4qBqCOwIgFHdLDn5PCk9kJpfc0O2qZx03hdq0
+h7olHCpY9yMRiz0=
+-----END CERTIFICATE-----`
+
+const rootWithoutSKID = `-----BEGIN CERTIFICATE-----
+MIIBbzCCARSgAwIBAgIQeCkq3C8SOX/JM5PqYTl9cDAKBggqhkjOPQQDAjASMRAw
+DgYDVQQKEwdBY21lIENvMB4XDTE5MDIwNDIyNTYzNFoXDTI5MDIwMTIyNTYzNFow
+EjEQMA4GA1UEChMHQWNtZSBDbzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABISm
+jGlTr4dLOWT+BCTm2PzWRjk1DpLcSAh+Al8eB1Nc2eBWxYIH9qPirfatvqBOA4c5
+ZwycRpFoaw6O+EmXnVujTDBKMA4GA1UdDwEB/wQEAwICpDATBgNVHSUEDDAKBggr
+BgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MBIGA1UdEQQLMAmCB2V4YW1wbGUwCgYI
+KoZIzj0EAwIDSQAwRgIhAMaBYWFCjTfn0MNyQ0QXvYT/iIFompkIqzw6wB7qjLrA
+AiEA3sn65V7G4tsjZEOpN0Jykn9uiTjqniqn/S/qmv8gIec=
+-----END CERTIFICATE-----`
+
+const leafWithAKID = `-----BEGIN CERTIFICATE-----
+MIIBjTCCATSgAwIBAgIRAPCKYvADhKLPaWOtcTu2XYwwCgYIKoZIzj0EAwIwEjEQ
+MA4GA1UEChMHQWNtZSBDbzAeFw0xOTAyMDQyMzA2NTJaFw0yOTAyMDEyMzA2NTJa
+MBMxETAPBgNVBAoTCEFjbWUgTExDMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE
+Wk5N+/8X97YT6ClFNIE5/4yc2YwKn921l0wrIJEcT2u+Uydm7EqtCJNtZjYMAnBd
+Acp/wynpTwC6tBTsxcM0s6NqMGgwDgYDVR0PAQH/BAQDAgWgMBMGA1UdJQQMMAoG
+CCsGAQUFBwMBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUwitfkXg0JglCjW9R
+ssWvTAveakIwEgYDVR0RBAswCYIHZXhhbXBsZTAKBggqhkjOPQQDAgNHADBEAiBk
+4LpWiWPOIl5PIhX9PDVkmjpre5oyoH/3aYwG8ABYuAIgCeSfbYueOOG2AdXuMqSU
+ZZMqeJS7JldLx91sPUArY5A=
+-----END CERTIFICATE-----`
+
+const rootMatchingSKIDMismatchingSubject = `-----BEGIN CERTIFICATE-----
+MIIBQjCB6aADAgECAgEAMAoGCCqGSM49BAMCMBExDzANBgNVBAMTBlJvb3QgQTAe
+Fw0wOTExMTAyMzAwMDBaFw0xOTExMDgyMzAwMDBaMBExDzANBgNVBAMTBlJvb3Qg
+QTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPK4p1uXq2aAeDtKDHIokg2rTcPM
+2gq3N9Y96wiW6/7puBK1+INEW//cO9x6FpzkcsHw/TriAqy4sck/iDAvf9WjMjAw
+MA8GA1UdJQQIMAYGBFUdJQAwDwYDVR0TAQH/BAUwAwEB/zAMBgNVHQ4EBQQDAQID
+MAoGCCqGSM49BAMCA0gAMEUCIQDgtAp7iVHxMnKxZPaLQPC+Tv2r7+DJc88k2SKH
+MPs/wQIgFjjNvBoQEl7vSHTcRGCCcFMdlN4l0Dqc9YwGa9fyrQs=
+-----END CERTIFICATE-----`
+
+const rootMismatchingSKIDMatchingSubject = `-----BEGIN CERTIFICATE-----
+MIIBNDCB26ADAgECAgEAMAoGCCqGSM49BAMCMBExDzANBgNVBAMTBlJvb3QgQjAe
+Fw0wOTExMTAyMzAwMDBaFw0xOTExMDgyMzAwMDBaMBExDzANBgNVBAMTBlJvb3Qg
+QjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABI1YRFcIlkWzm9BdEVrIsEQJ2dT6
+qiW8/WV9GoIhmDtX9SEDHospc0Cgm+TeD2QYW2iMrS5mvNe4GSw0Jezg/bOjJDAi
+MA8GA1UdJQQIMAYGBFUdJQAwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNI
+ADBFAiEAukWOiuellx8bugRiwCS5XQ6IOJ1SZcjuZxj76WojwxkCIHqa71qNw8FM
+DtA5yoL9M2pDFF6ovFWnaCe+KlzSwAW/
+-----END CERTIFICATE-----`
+
+const leafMatchingAKIDMatchingIssuer = `-----BEGIN CERTIFICATE-----
+MIIBNTCB26ADAgECAgEAMAoGCCqGSM49BAMCMBExDzANBgNVBAMTBlJvb3QgQjAe
+Fw0wOTExMTAyMzAwMDBaFw0xOTExMDgyMzAwMDBaMA8xDTALBgNVBAMTBExlYWYw
+WTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASNWERXCJZFs5vQXRFayLBECdnU+qol
+vP1lfRqCIZg7V/UhAx6LKXNAoJvk3g9kGFtojK0uZrzXuBksNCXs4P2zoyYwJDAO
+BgNVHSMEBzAFgAMBAgMwEgYDVR0RBAswCYIHZXhhbXBsZTAKBggqhkjOPQQDAgNJ
+ADBGAiEAnV9XV7a4h0nfJB8pWv+pBUXRlRFA2uZz3mXEpee8NYACIQCWa+wL70GL
+ePBQCV1F9sE2q4ZrnsT9TZoNrSe/bMDjzA==
+-----END CERTIFICATE-----`
+
 var unknownAuthorityErrorTests = []struct {
 	cert     string
 	expected string
@@ -1503,7 +1523,7 @@ func TestUnknownAuthorityError(t *testing.T) {
 		}
 		c, err := ParseCertificate(der.Bytes)
 		if err != nil {
-			t.Errorf("#%d: Unable to parse certificate -> %s", i, err)
+			t.Errorf("#%d: Unable to parse certificate -> %v", i, err)
 		}
 		uae := &UnknownAuthorityError{
 			Cert:     c,
@@ -1519,22 +1539,37 @@ func TestUnknownAuthorityError(t *testing.T) {
 
 var nameConstraintTests = []struct {
 	constraint, domain string
+	expectError        bool
 	shouldMatch        bool
 }{
-	{"", "anything.com", true},
-	{"example.com", "example.com", true},
-	{"example.com", "ExAmPle.coM", true},
-	{"example.com", "exampl1.com", false},
-	{"example.com", "www.ExAmPle.coM", true},
-	{"example.com", "notexample.com", false},
-	{".example.com", "example.com", false},
-	{".example.com", "www.example.com", true},
-	{".example.com", "www..example.com", false},
+	{"", "anything.com", false, true},
+	{"example.com", "example.com", false, true},
+	{"example.com.", "example.com", true, false},
+	{"example.com", "example.com.", true, false},
+	{"example.com", "ExAmPle.coM", false, true},
+	{"example.com", "exampl1.com", false, false},
+	{"example.com", "www.ExAmPle.coM", false, true},
+	{"example.com", "sub.www.ExAmPle.coM", false, true},
+	{"example.com", "notexample.com", false, false},
+	{".example.com", "example.com", false, false},
+	{".example.com", "www.example.com", false, true},
+	{".example.com", "www..example.com", true, false},
 }
 
 func TestNameConstraints(t *testing.T) {
 	for i, test := range nameConstraintTests {
-		result := matchNameConstraint(test.domain, test.constraint)
+		result, err := matchDomainConstraint(test.domain, test.constraint)
+
+		if err != nil && !test.expectError {
+			t.Errorf("unexpected error for test #%d: domain=%s, constraint=%s, err=%s", i, test.domain, test.constraint, err)
+			continue
+		}
+
+		if err == nil && test.expectError {
+			t.Errorf("unexpected success for test #%d: domain=%s, constraint=%s", i, test.domain, test.constraint)
+			continue
+		}
+
 		if result != test.shouldMatch {
 			t.Errorf("unexpected result for test #%d: domain=%s, constraint=%s, result=%t", i, test.domain, test.constraint, result)
 		}
@@ -1596,3 +1631,754 @@ w67CoNRb81dy+4Q1lGpA8ORoLWh5fIq2t2eNGc4qB8vlTIKiESzAwu7u3sRfuWQi
 4R+gnfLd37FWflMHwztFbVTuNtPOljCX0LN7KcuoXYlr05RhQrmoN7fQHsrZMNLs
 8FVjHdKKu+uPstwd04Uy4BR/H2y1yerN9j/L6ZkMl98iiA==
 -----END CERTIFICATE-----`
+
+const criticalExtRoot = `-----BEGIN CERTIFICATE-----
+MIIBqzCCAVGgAwIBAgIJAJ+mI/85cXApMAoGCCqGSM49BAMCMB0xDDAKBgNVBAoT
+A09yZzENMAsGA1UEAxMEUm9vdDAeFw0xNTAxMDEwMDAwMDBaFw0yNTAxMDEwMDAw
+MDBaMB0xDDAKBgNVBAoTA09yZzENMAsGA1UEAxMEUm9vdDBZMBMGByqGSM49AgEG
+CCqGSM49AwEHA0IABJGp9joiG2QSQA+1FczEDAsWo84rFiP3GTL+n+ugcS6TyNib
+gzMsdbJgVi+a33y0SzLZxB+YvU3/4KTk8yKLC+2jejB4MA4GA1UdDwEB/wQEAwIC
+BDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDwYDVR0TAQH/BAUwAwEB
+/zAZBgNVHQ4EEgQQQDfXAftAL7gcflQEJ4xZATAbBgNVHSMEFDASgBBAN9cB+0Av
+uBx+VAQnjFkBMAoGCCqGSM49BAMCA0gAMEUCIFeSV00fABFceWR52K+CfIgOHotY
+FizzGiLB47hGwjMuAiEA8e0um2Kr8FPQ4wmFKaTRKHMaZizCGl3m+RG5QsE1KWo=
+-----END CERTIFICATE-----`
+
+const criticalExtIntermediate = `-----BEGIN CERTIFICATE-----
+MIIBszCCAVmgAwIBAgIJAL2kcGZKpzVqMAoGCCqGSM49BAMCMB0xDDAKBgNVBAoT
+A09yZzENMAsGA1UEAxMEUm9vdDAeFw0xNTAxMDEwMDAwMDBaFw0yNTAxMDEwMDAw
+MDBaMCUxDDAKBgNVBAoTA09yZzEVMBMGA1UEAxMMSW50ZXJtZWRpYXRlMFkwEwYH
+KoZIzj0CAQYIKoZIzj0DAQcDQgAESqVq92iPEq01cL4o99WiXDc5GZjpjNlzMS1n
+rk8oHcVDp4tQRRQG3F4A6dF1rn/L923ha3b0fhDLlAvXZB+7EKN6MHgwDgYDVR0P
+AQH/BAQDAgIEMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAPBgNVHRMB
+Af8EBTADAQH/MBkGA1UdDgQSBBCMGmiotXbbXVd7H40UsgajMBsGA1UdIwQUMBKA
+EEA31wH7QC+4HH5UBCeMWQEwCgYIKoZIzj0EAwIDSAAwRQIhAOhhNRb6KV7h3wbE
+cdap8bojzvUcPD78fbsQPCNw1jPxAiBOeAJhlTwpKn9KHpeJphYSzydj9NqcS26Y
+xXbdbm27KQ==
+-----END CERTIFICATE-----`
+
+const criticalExtLeafWithExt = `-----BEGIN CERTIFICATE-----
+MIIBxTCCAWugAwIBAgIJAJZAUtw5ccb1MAoGCCqGSM49BAMCMCUxDDAKBgNVBAoT
+A09yZzEVMBMGA1UEAxMMSW50ZXJtZWRpYXRlMB4XDTE1MDEwMTAwMDAwMFoXDTI1
+MDEwMTAwMDAwMFowJDEMMAoGA1UEChMDT3JnMRQwEgYDVQQDEwtleGFtcGxlLmNv
+bTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABF3ABa2+B6gUyg6ayCaRQWYY/+No
+6PceLqEavZNUeVNuz7bS74Toy8I7R3bGMkMgbKpLSPlPTroAATvebTXoBaijgYQw
+gYEwDgYDVR0PAQH/BAQDAgWgMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcD
+AjAMBgNVHRMBAf8EAjAAMBkGA1UdDgQSBBBRNtBL2vq8nCV3qVp7ycxMMBsGA1Ud
+IwQUMBKAEIwaaKi1dttdV3sfjRSyBqMwCgYDUQMEAQH/BAAwCgYIKoZIzj0EAwID
+SAAwRQIgVjy8GBgZFiagexEuDLqtGjIRJQtBcf7lYgf6XFPH1h4CIQCT6nHhGo6E
+I+crEm4P5q72AnA/Iy0m24l7OvLuXObAmg==
+-----END CERTIFICATE-----`
+
+const criticalExtIntermediateWithExt = `-----BEGIN CERTIFICATE-----
+MIIB2TCCAX6gAwIBAgIIQD3NrSZtcUUwCgYIKoZIzj0EAwIwHTEMMAoGA1UEChMD
+T3JnMQ0wCwYDVQQDEwRSb290MB4XDTE1MDEwMTAwMDAwMFoXDTI1MDEwMTAwMDAw
+MFowPTEMMAoGA1UEChMDT3JnMS0wKwYDVQQDEyRJbnRlcm1lZGlhdGUgd2l0aCBD
+cml0aWNhbCBFeHRlbnNpb24wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQtnmzH
+mcRm10bdDBnJE7xQEJ25cLCL5okuEphRR0Zneo6+nQZikoh+UBbtt5GV3Dms7LeP
+oF5HOplYDCd8wi/wo4GHMIGEMA4GA1UdDwEB/wQEAwICBDAdBgNVHSUEFjAUBggr
+BgEFBQcDAQYIKwYBBQUHAwIwDwYDVR0TAQH/BAUwAwEB/zAZBgNVHQ4EEgQQKxdv
+UuQZ6sO3XvBsxgNZ3zAbBgNVHSMEFDASgBBAN9cB+0AvuBx+VAQnjFkBMAoGA1ED
+BAEB/wQAMAoGCCqGSM49BAMCA0kAMEYCIQCQzTPd6XKex+OAPsKT/1DsoMsg8vcG
+c2qZ4Q0apT/kvgIhAKu2TnNQMIUdcO0BYQIl+Uhxc78dc9h4lO+YJB47pHGx
+-----END CERTIFICATE-----`
+
+const criticalExtLeaf = `-----BEGIN CERTIFICATE-----
+MIIBzzCCAXWgAwIBAgIJANoWFIlhCI9MMAoGCCqGSM49BAMCMD0xDDAKBgNVBAoT
+A09yZzEtMCsGA1UEAxMkSW50ZXJtZWRpYXRlIHdpdGggQ3JpdGljYWwgRXh0ZW5z
+aW9uMB4XDTE1MDEwMTAwMDAwMFoXDTI1MDEwMTAwMDAwMFowJDEMMAoGA1UEChMD
+T3JnMRQwEgYDVQQDEwtleGFtcGxlLmNvbTBZMBMGByqGSM49AgEGCCqGSM49AwEH
+A0IABG1Lfh8A0Ho2UvZN5H0+ONil9c8jwtC0y0xIZftyQE+Fwr9XwqG3rV2g4M1h
+GnJa9lV9MPHg8+b85Hixm0ZSw7SjdzB1MA4GA1UdDwEB/wQEAwIFoDAdBgNVHSUE
+FjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDAYDVR0TAQH/BAIwADAZBgNVHQ4EEgQQ
+UNhY4JhezH9gQYqvDMWrWDAbBgNVHSMEFDASgBArF29S5Bnqw7de8GzGA1nfMAoG
+CCqGSM49BAMCA0gAMEUCIQClA3d4tdrDu9Eb5ZBpgyC+fU1xTZB0dKQHz6M5fPZA
+2AIgN96lM+CPGicwhN24uQI6flOsO3H0TJ5lNzBYLtnQtlc=
+-----END CERTIFICATE-----`
+
+func TestValidHostname(t *testing.T) {
+	tests := []struct {
+		host                     string
+		validInput, validPattern bool
+	}{
+		{host: "example.com", validInput: true, validPattern: true},
+		{host: "eXample123-.com", validInput: true, validPattern: true},
+		{host: "-eXample123-.com"},
+		{host: ""},
+		{host: "."},
+		{host: "example..com"},
+		{host: ".example.com"},
+		{host: "example.com.", validInput: true},
+		{host: "*.example.com."},
+		{host: "*.example.com", validPattern: true},
+		{host: "*foo.example.com"},
+		{host: "foo.*.example.com"},
+		{host: "exa_mple.com", validInput: true, validPattern: true},
+		{host: "foo,bar"},
+		{host: "project-dev:us-central1:main"},
+	}
+	for _, tt := range tests {
+		if got := validHostnamePattern(tt.host); got != tt.validPattern {
+			t.Errorf("validHostnamePattern(%q) = %v, want %v", tt.host, got, tt.validPattern)
+		}
+		if got := validHostnameInput(tt.host); got != tt.validInput {
+			t.Errorf("validHostnameInput(%q) = %v, want %v", tt.host, got, tt.validInput)
+		}
+	}
+}
+
+func generateCert(cn string, isCA bool, issuer *Certificate, issuerKey crypto.PrivateKey) (*Certificate, crypto.PrivateKey, error) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, _ := rand.Int(rand.Reader, serialNumberLimit)
+
+	template := &Certificate{
+		SerialNumber: serialNumber,
+		Subject:      pkix.Name{CommonName: cn},
+		NotBefore:    time.Now().Add(-1 * time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
+
+		KeyUsage:              KeyUsageKeyEncipherment | KeyUsageDigitalSignature | KeyUsageCertSign,
+		ExtKeyUsage:           []ExtKeyUsage{ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		IsCA:                  isCA,
+	}
+	if issuer == nil {
+		issuer = template
+		issuerKey = priv
+	}
+
+	derBytes, err := CreateCertificate(rand.Reader, template, issuer, priv.Public(), issuerKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	cert, err := ParseCertificate(derBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return cert, priv, nil
+}
+
+func TestPathologicalChain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping generation of a long chain of certificates in short mode")
+	}
+
+	// Build a chain where all intermediates share the same subject, to hit the
+	// path building worst behavior.
+	roots, intermediates := NewCertPool(), NewCertPool()
+
+	parent, parentKey, err := generateCert("Root CA", true, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots.AddCert(parent)
+
+	for i := 1; i < 100; i++ {
+		parent, parentKey, err = generateCert("Intermediate CA", true, parent, parentKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		intermediates.AddCert(parent)
+	}
+
+	leaf, _, err := generateCert("Leaf", false, parent, parentKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	start := time.Now()
+	_, err = leaf.Verify(VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+	})
+	t.Logf("verification took %v", time.Since(start))
+
+	if err == nil || !strings.Contains(err.Error(), "signature check attempts limit") {
+		t.Errorf("expected verification to fail with a signature checks limit error; got %v", err)
+	}
+}
+
+func TestLongChain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping generation of a long chain of certificates in short mode")
+	}
+
+	roots, intermediates := NewCertPool(), NewCertPool()
+
+	parent, parentKey, err := generateCert("Root CA", true, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots.AddCert(parent)
+
+	for i := 1; i < 15; i++ {
+		name := fmt.Sprintf("Intermediate CA #%d", i)
+		parent, parentKey, err = generateCert(name, true, parent, parentKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		intermediates.AddCert(parent)
+	}
+
+	leaf, _, err := generateCert("Leaf", false, parent, parentKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	start := time.Now()
+	if _, err := leaf.Verify(VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+	}); err != nil {
+		t.Error(err)
+	}
+	t.Logf("verification took %v", time.Since(start))
+}
+
+func TestSystemRootsError(t *testing.T) {
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+		t.Skip("Windows and darwin do not use (or support) systemRoots")
+	}
+
+	defer func(oldSystemRoots *CertPool) { systemRoots = oldSystemRoots }(systemRootsPool())
+
+	opts := VerifyOptions{
+		Intermediates: NewCertPool(),
+		DNSName:       "www.google.com",
+		CurrentTime:   time.Unix(1395785200, 0),
+	}
+
+	if ok := opts.Intermediates.AppendCertsFromPEM([]byte(giag2Intermediate)); !ok {
+		t.Fatalf("failed to parse intermediate")
+	}
+
+	leaf, err := certificateFromPEM(googleLeaf)
+	if err != nil {
+		t.Fatalf("failed to parse leaf: %v", err)
+	}
+
+	systemRoots = nil
+
+	_, err = leaf.Verify(opts)
+	if _, ok := err.(SystemRootsError); !ok {
+		t.Errorf("error was not SystemRootsError: %v", err)
+	}
+}
+
+func TestSystemRootsErrorUnwrap(t *testing.T) {
+	var err1 = errors.New("err1")
+	err := SystemRootsError{Err: err1}
+	if !errors.Is(err, err1) {
+		t.Error("errors.Is failed, wanted success")
+	}
+}
+
+func TestIssue51759(t *testing.T) {
+	// badCertData contains a cert that we parse as valid
+	// but that macOS SecCertificateCreateWithData rejects.
+	const badCertData = "0\x82\x01U0\x82\x01\a\xa0\x03\x02\x01\x02\x02\x01\x020\x05\x06\x03+ep0R1P0N\x06\x03U\x04\x03\x13Gderpkey8dc58100b2493614ee1692831a461f3f4dd3f9b3b088e244f887f81b4906ac260\x1e\x17\r220112235755Z\x17\r220313235755Z0R1P0N\x06\x03U\x04\x03\x13Gderpkey8dc58100b2493614ee1692831a461f3f4dd3f9b3b088e244f887f81b4906ac260*0\x05\x06\x03+ep\x03!\x00bA\xd8e\xadW\xcb\xefZ\x89\xb5\"\x1eR\x9d\xba\x0e:\x1042Q@\u007f\xbd\xfb{ks\x04\xd1£\x020\x000\x05\x06\x03+ep\x03A\x00[\xa7\x06y\x86(\x94\x97\x9eLwA\x00\x01x\xaa\xbc\xbd Ê]\n(΅!ف0\xf5\x9a%I\x19<\xffo\xf1\xeaaf@\xb1\xa7\xaf\xfd\xe9R\xc7\x0f\x8d&\xd5\xfc\x0f;Ϙ\x82\x84a\xbc\r"
+	badCert, err := ParseCertificate([]byte(badCertData))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("leaf", func(t *testing.T) {
+		opts := VerifyOptions{}
+		_, err = badCert.Verify(opts)
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	})
+
+	goodCert, err := certificateFromPEM(googleLeaf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("intermediate", func(t *testing.T) {
+		opts := VerifyOptions{
+			Intermediates: NewCertPool(),
+		}
+		opts.Intermediates.AddCert(badCert)
+		_, err = goodCert.Verify(opts)
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	})
+}
+
+type trustGraphEdge struct {
+	Issuer         string
+	Subject        string
+	Type           int
+	MutateTemplate func(*Certificate)
+}
+
+type trustGraphDescription struct {
+	Roots []string
+	Leaf  string
+	Graph []trustGraphEdge
+}
+
+func genCertEdge(t *testing.T, subject string, key crypto.Signer, mutateTmpl func(*Certificate), certType int, issuer *Certificate, signer crypto.Signer) *Certificate {
+	t.Helper()
+
+	serial, err := rand.Int(rand.Reader, big.NewInt(100))
+	if err != nil {
+		t.Fatalf("failed to generate test serial: %s", err)
+	}
+	tmpl := &Certificate{
+		SerialNumber: serial,
+		Subject:      pkix.Name{CommonName: subject},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+	}
+	if certType == rootCertificate || certType == intermediateCertificate {
+		tmpl.IsCA, tmpl.BasicConstraintsValid = true, true
+		tmpl.KeyUsage = KeyUsageCertSign
+	} else if certType == leafCertificate {
+		tmpl.DNSNames = []string{"localhost"}
+	}
+	if mutateTmpl != nil {
+		mutateTmpl(tmpl)
+	}
+
+	if certType == rootCertificate {
+		issuer = tmpl
+		signer = key
+	}
+
+	d, err := CreateCertificate(rand.Reader, tmpl, issuer, key.Public(), signer)
+	if err != nil {
+		t.Fatalf("failed to generate test cert: %s", err)
+	}
+	c, err := ParseCertificate(d)
+	if err != nil {
+		t.Fatalf("failed to parse test cert: %s", err)
+	}
+	return c
+}
+
+func buildTrustGraph(t *testing.T, d trustGraphDescription) (*CertPool, *CertPool, *Certificate) {
+	t.Helper()
+
+	certs := map[string]*Certificate{}
+	keys := map[string]crypto.Signer{}
+	roots := []*Certificate{}
+	for _, r := range d.Roots {
+		k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			t.Fatalf("failed to generate test key: %s", err)
+		}
+		root := genCertEdge(t, r, k, nil, rootCertificate, nil, nil)
+		roots = append(roots, root)
+		certs[r] = root
+		keys[r] = k
+	}
+
+	intermediates := []*Certificate{}
+	var leaf *Certificate
+	for _, e := range d.Graph {
+		issuerCert, ok := certs[e.Issuer]
+		if !ok {
+			t.Fatalf("unknown issuer %s", e.Issuer)
+		}
+		issuerKey, ok := keys[e.Issuer]
+		if !ok {
+			t.Fatalf("unknown issuer %s", e.Issuer)
+		}
+
+		k, ok := keys[e.Subject]
+		if !ok {
+			var err error
+			k, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+			if err != nil {
+				t.Fatalf("failed to generate test key: %s", err)
+			}
+			keys[e.Subject] = k
+		}
+		cert := genCertEdge(t, e.Subject, k, e.MutateTemplate, e.Type, issuerCert, issuerKey)
+		certs[e.Subject] = cert
+		if e.Subject == d.Leaf {
+			leaf = cert
+		} else {
+			intermediates = append(intermediates, cert)
+		}
+	}
+
+	rootPool, intermediatePool := NewCertPool(), NewCertPool()
+	for i := len(roots) - 1; i >= 0; i-- {
+		rootPool.AddCert(roots[i])
+	}
+	for i := len(intermediates) - 1; i >= 0; i-- {
+		intermediatePool.AddCert(intermediates[i])
+	}
+
+	return rootPool, intermediatePool, leaf
+}
+
+func chainsToStrings(chains [][]*Certificate) []string {
+	chainStrings := []string{}
+	for _, chain := range chains {
+		names := []string{}
+		for _, c := range chain {
+			names = append(names, c.Subject.String())
+		}
+		chainStrings = append(chainStrings, strings.Join(names, " -> "))
+	}
+	sort.Strings(chainStrings)
+	return chainStrings
+}
+
+func TestPathBuilding(t *testing.T) {
+	tests := []struct {
+		name           string
+		graph          trustGraphDescription
+		expectedChains []string
+		expectedErr    string
+	}{
+		{
+			// Build the following graph from RFC 4158, figure 7 (note that in this graph edges represent
+			// certificates where the parent is the issuer and the child is the subject.) For the certificate
+			// C->B, use an unsupported ExtKeyUsage (in this case ExtKeyUsageCodeSigning) which invalidates
+			// the path Trust Anchor -> C -> B -> EE. The remaining valid paths should be:
+			//   * Trust Anchor -> A -> B -> EE
+			//   * Trust Anchor -> C -> A -> B -> EE
+			//
+			//     +---------+
+			//     |  Trust  |
+			//     | Anchor  |
+			//     +---------+
+			//      |       |
+			//      v       v
+			//   +---+    +---+
+			//   | A |<-->| C |
+			//   +---+    +---+
+			//    |         |
+			//    |  +---+  |
+			//    +->| B |<-+
+			//       +---+
+			//         |
+			//         v
+			//       +----+
+			//       | EE |
+			//       +----+
+			name: "bad EKU",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "root",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.ExtKeyUsage = []ExtKeyUsage{ExtKeyUsageCodeSigning}
+						},
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=inter c -> CN=root",
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=root",
+			},
+		},
+		{
+			// Build the following graph from RFC 4158, figure 7 (note that in this graph edges represent
+			// certificates where the parent is the issuer and the child is the subject.) For the certificate
+			// C->B, use a unconstrained SAN which invalidates the path Trust Anchor -> C -> B -> EE. The
+			// remaining valid paths should be:
+			//   * Trust Anchor -> A -> B -> EE
+			//   * Trust Anchor -> C -> A -> B -> EE
+			//
+			//     +---------+
+			//     |  Trust  |
+			//     | Anchor  |
+			//     +---------+
+			//      |       |
+			//      v       v
+			//   +---+    +---+
+			//   | A |<-->| C |
+			//   +---+    +---+
+			//    |         |
+			//    |  +---+  |
+			//    +->| B |<-+
+			//       +---+
+			//         |
+			//         v
+			//       +----+
+			//       | EE |
+			//       +----+
+			name: "bad EKU",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "root",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+						MutateTemplate: func(t *Certificate) {
+							t.PermittedDNSDomains = []string{"good"}
+							t.DNSNames = []string{"bad"}
+						},
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=inter c -> CN=root",
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=root",
+			},
+		},
+		{
+			// Build the following graph, we should find both paths:
+			//   * Trust Anchor -> A -> C -> EE
+			//   * Trust Anchor -> A -> B -> C -> EE
+			//
+			//	       +---------+
+			//	       |  Trust  |
+			//	       | Anchor  |
+			//	       +---------+
+			//	            |
+			//	            v
+			//	          +---+
+			//	          | A |
+			//	          +---+
+			//	           | |
+			//	           | +----+
+			//	           |      v
+			//	           |    +---+
+			//	           |    | B |
+			//	           |    +---+
+			//	           |      |
+			//	           |  +---v
+			//	           v  v
+			//            +---+
+			//            | C |
+			//            +---+
+			//              |
+			//              v
+			//            +----+
+			//            | EE |
+			//            +----+
+			name: "all paths",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=leaf -> CN=inter c -> CN=inter a -> CN=root",
+				"CN=leaf -> CN=inter c -> CN=inter b -> CN=inter a -> CN=root",
+			},
+		},
+		{
+			// Build the following graph, which contains a cross-signature loop
+			// (A and C cross sign each other). Paths that include the A -> C -> A
+			// (and vice versa) loop should be ignored, resulting in the paths:
+			//   * Trust Anchor -> A -> B -> EE
+			//   * Trust Anchor -> C -> B -> EE
+			//   * Trust Anchor -> A -> C -> B -> EE
+			//   * Trust Anchor -> C -> A -> B -> EE
+			//
+			//     +---------+
+			//     |  Trust  |
+			//     | Anchor  |
+			//     +---------+
+			//      |       |
+			//      v       v
+			//   +---+    +---+
+			//   | A |<-->| C |
+			//   +---+    +---+
+			//    |         |
+			//    |  +---+  |
+			//    +->| B |<-+
+			//       +---+
+			//         |
+			//         v
+			//       +----+
+			//       | EE |
+			//       +----+
+			name: "ignore cross-sig loops",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "root",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=inter c -> CN=root",
+				"CN=leaf -> CN=inter b -> CN=inter a -> CN=root",
+				"CN=leaf -> CN=inter b -> CN=inter c -> CN=inter a -> CN=root",
+				"CN=leaf -> CN=inter b -> CN=inter c -> CN=root",
+			},
+		},
+		{
+			// Build a simple two node graph, where the leaf is directly issued from
+			// the root and both certificates have matching subject and public key, but
+			// the leaf has SANs.
+			name: "leaf with same subject, key, as parent but with SAN",
+			graph: trustGraphDescription{
+				Roots: []string{"root"},
+				Leaf:  "root",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "root",
+						Type:    leafCertificate,
+						MutateTemplate: func(c *Certificate) {
+							c.DNSNames = []string{"localhost"}
+						},
+					},
+				},
+			},
+			expectedChains: []string{
+				"CN=root -> CN=root",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			roots, intermediates, leaf := buildTrustGraph(t, tc.graph)
+			chains, err := leaf.Verify(VerifyOptions{
+				Roots:         roots,
+				Intermediates: intermediates,
+			})
+			if err != nil && err.Error() != tc.expectedErr {
+				t.Fatalf("unexpected error: got %q, want %q", err, tc.expectedErr)
+			}
+			gotChains := chainsToStrings(chains)
+			if !reflect.DeepEqual(gotChains, tc.expectedChains) {
+				t.Errorf("unexpected chains returned:\ngot:\n\t%s\nwant:\n\t%s", strings.Join(gotChains, "\n\t"), strings.Join(tc.expectedChains, "\n\t"))
+			}
+		})
+	}
+}

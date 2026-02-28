@@ -5,11 +5,33 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
+	"runtime/internal/atomic"
+	"runtime/internal/syscall"
 	"unsafe"
 )
 
-type mOS struct{}
+// sigPerThreadSyscall is the same signal (SIGSETXID) used by glibc for
+// per-thread syscalls on Linux. We use it for the same purpose in non-cgo
+// binaries.
+const sigPerThreadSyscall = _SIGRTMIN + 1
+
+type mOS struct {
+	// profileTimer holds the ID of the POSIX interval timer for profiling CPU
+	// usage on this thread.
+	//
+	// It is valid when the profileTimerValid field is non-zero. A thread
+	// creates and manages its own timer, and these fields are read and written
+	// only by this thread. But because some of the reads on profileTimerValid
+	// are in signal handling code, access to that field uses atomic operations.
+	profileTimer      int32
+	profileTimerValid uint32
+
+	// needPerThreadSyscall indicates that a per-thread syscall is required
+	// for doAllThreadsSyscall.
+	needPerThreadSyscall atomic.Uint8
+}
 
 //go:noescape
 func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer, val3 uint32) int32
@@ -24,48 +46,40 @@ func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer, 
 // Futexsleep is allowed to wake up spuriously.
 
 const (
-	_FUTEX_WAIT = 0
-	_FUTEX_WAKE = 1
+	_FUTEX_PRIVATE_FLAG = 128
+	_FUTEX_WAIT_PRIVATE = 0 | _FUTEX_PRIVATE_FLAG
+	_FUTEX_WAKE_PRIVATE = 1 | _FUTEX_PRIVATE_FLAG
 )
 
 // Atomically,
+//
 //	if(*addr == val) sleep
+//
 // Might be woken up spuriously; that's allowed.
 // Don't sleep longer than ns; ns < 0 means forever.
+//
 //go:nosplit
 func futexsleep(addr *uint32, val uint32, ns int64) {
-	var ts timespec
-
 	// Some Linux kernels have a bug where futex of
 	// FUTEX_WAIT returns an internal error code
 	// as an errno. Libpthread ignores the return value
 	// here, and so can we: as it says a few lines up,
 	// spurious wakeups are allowed.
 	if ns < 0 {
-		futex(unsafe.Pointer(addr), _FUTEX_WAIT, val, nil, nil, 0)
+		futex(unsafe.Pointer(addr), _FUTEX_WAIT_PRIVATE, val, nil, nil, 0)
 		return
 	}
 
-	// It's difficult to live within the no-split stack limits here.
-	// On ARM and 386, a 64-bit divide invokes a general software routine
-	// that needs more stack than we can afford. So we use timediv instead.
-	// But on real 64-bit systems, where words are larger but the stack limit
-	// is not, even timediv is too heavy, and we really need to use just an
-	// ordinary machine instruction.
-	if sys.PtrSize == 8 {
-		ts.set_sec(ns / 1000000000)
-		ts.set_nsec(int32(ns % 1000000000))
-	} else {
-		ts.tv_nsec = 0
-		ts.set_sec(int64(timediv(ns, 1000000000, (*int32)(unsafe.Pointer(&ts.tv_nsec)))))
-	}
-	futex(unsafe.Pointer(addr), _FUTEX_WAIT, val, unsafe.Pointer(&ts), nil, 0)
+	var ts timespec
+	ts.setNsec(ns)
+	futex(unsafe.Pointer(addr), _FUTEX_WAIT_PRIVATE, val, unsafe.Pointer(&ts), nil, 0)
 }
 
 // If any procs are sleeping on addr, wake up at most cnt.
+//
 //go:nosplit
 func futexwakeup(addr *uint32, cnt uint32) {
-	ret := futex(unsafe.Pointer(addr), _FUTEX_WAKE, cnt, nil, nil, 0)
+	ret := futex(unsafe.Pointer(addr), _FUTEX_WAKE_PRIVATE, cnt, nil, nil, 0)
 	if ret >= 0 {
 		return
 	}
@@ -89,13 +103,13 @@ func getproccount() int32 {
 	// buffers, but we don't have a dynamic memory allocator at the
 	// moment, so that's a bit tricky and seems like overkill.
 	const maxCPUs = 64 * 1024
-	var buf [maxCPUs / (sys.PtrSize * 8)]uintptr
+	var buf [maxCPUs / 8]byte
 	r := sched_getaffinity(0, unsafe.Sizeof(buf), &buf[0])
 	if r < 0 {
 		return 1
 	}
 	n := int32(0)
-	for _, v := range buf[:r/sys.PtrSize] {
+	for _, v := range buf[:r] {
 		for v != 0 {
 			n += int32(v & 1)
 			v >>= 1
@@ -128,6 +142,13 @@ const (
 	_CLONE_NEWUTS         = 0x4000000
 	_CLONE_NEWIPC         = 0x8000000
 
+	// As of QEMU 2.8.0 (5ea2fc84d), user emulation requires all six of these
+	// flags to be set when creating a thread; attempts to share the other
+	// five but leave SYSVSEM unshared will fail with -EINVAL.
+	//
+	// In non-QEMU environments CLONE_SYSVSEM is inconsequential as we do not
+	// use System V semaphores.
+
 	cloneFlags = _CLONE_VM | /* share memory */
 		_CLONE_FS | /* share cwd, etc */
 		_CLONE_FILES | /* share fd table */
@@ -140,20 +161,22 @@ const (
 func clone(flags int32, stk, mp, gp, fn unsafe.Pointer) int32
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
-func newosproc(mp *m, stk unsafe.Pointer) {
+func newosproc(mp *m) {
+	stk := unsafe.Pointer(mp.g0.stack.hi)
 	/*
 	 * note: strace gets confused if we use CLONE_PTRACE here.
 	 */
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", funcPC(clone), " id=", mp.id, " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", abi.FuncPCABI0(clone), " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
 	// Disable signals during clone, so that the new thread starts
 	// with signals disabled. It will enable them in minit.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
+	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(abi.FuncPCABI0(mstart)))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 
 	if ret < 0 {
@@ -166,6 +189,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 }
 
 // Version of newosproc that doesn't require a valid G.
+//
 //go:nosplit
 func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 	stack := sysAlloc(stacksize, &memstats.stacks_sys)
@@ -193,6 +217,10 @@ const (
 
 var procAuxv = []byte("/proc/self/auxv\x00")
 
+var addrspace_vec [1]byte
+
+func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
+
 func sysargs(argc int32, argv **byte) {
 	n := argc + 1
 
@@ -205,47 +233,52 @@ func sysargs(argc int32, argv **byte) {
 	n++
 
 	// now argv+n is auxv
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
-	if sysauxv(auxv[:]) == 0 {
-		// In some situations we don't get a loader-provided
-		// auxv, such as when loaded as a library on Android.
-		// Fall back to /proc/self/auxv.
-		fd := open(&procAuxv[0], 0 /* O_RDONLY */, 0)
-		if fd < 0 {
-			// On Android, /proc/self/auxv might be unreadable (issue 9229), so we fallback to
-			// try using mincore to detect the physical page size.
-			// mincore should return EINVAL when address is not a multiple of system page size.
-			const size = 256 << 10 // size of memory region to allocate
-			p := mmap(nil, size, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
-			if uintptr(p) < 4096 {
-				return
-			}
-			var n uintptr
-			for n = 4 << 10; n < size; n <<= 1 {
-				err := mincore(unsafe.Pointer(uintptr(p)+n), 1, &addrspace_vec[0])
-				if err == 0 {
-					physPageSize = n
-					break
-				}
-			}
-			if physPageSize == 0 {
-				physPageSize = size
-			}
-			munmap(p, size)
-			return
-		}
-		var buf [128]uintptr
-		n := read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
-		closefd(fd)
-		if n < 0 {
-			return
-		}
-		// Make sure buf is terminated, even if we didn't read
-		// the whole file.
-		buf[len(buf)-2] = _AT_NULL
-		sysauxv(buf[:])
+	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+	if sysauxv(auxv[:]) != 0 {
+		return
 	}
+	// In some situations we don't get a loader-provided
+	// auxv, such as when loaded as a library on Android.
+	// Fall back to /proc/self/auxv.
+	fd := open(&procAuxv[0], 0 /* O_RDONLY */, 0)
+	if fd < 0 {
+		// On Android, /proc/self/auxv might be unreadable (issue 9229), so we fallback to
+		// try using mincore to detect the physical page size.
+		// mincore should return EINVAL when address is not a multiple of system page size.
+		const size = 256 << 10 // size of memory region to allocate
+		p, err := mmap(nil, size, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+		if err != 0 {
+			return
+		}
+		var n uintptr
+		for n = 4 << 10; n < size; n <<= 1 {
+			err := mincore(unsafe.Pointer(uintptr(p)+n), 1, &addrspace_vec[0])
+			if err == 0 {
+				physPageSize = n
+				break
+			}
+		}
+		if physPageSize == 0 {
+			physPageSize = size
+		}
+		munmap(p, size)
+		return
+	}
+	var buf [128]uintptr
+	n = read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
+	closefd(fd)
+	if n < 0 {
+		return
+	}
+	// Make sure buf is terminated, even if we didn't read
+	// the whole file.
+	buf[len(buf)-2] = _AT_NULL
+	sysauxv(buf[:])
 }
+
+// startupRandomData holds random bytes initialized at startup. These come from
+// the ELF AT_RANDOM auxiliary vector.
+var startupRandomData []byte
 
 func sysauxv(auxv []uintptr) int {
 	var i int
@@ -262,12 +295,59 @@ func sysauxv(auxv []uintptr) int {
 		}
 
 		archauxv(tag, val)
+		vdsoauxv(tag, val)
 	}
 	return i / 2
 }
 
+var sysTHPSizePath = []byte("/sys/kernel/mm/transparent_hugepage/hpage_pmd_size\x00")
+
+func getHugePageSize() uintptr {
+	var numbuf [20]byte
+	fd := open(&sysTHPSizePath[0], 0 /* O_RDONLY */, 0)
+	if fd < 0 {
+		return 0
+	}
+	ptr := noescape(unsafe.Pointer(&numbuf[0]))
+	n := read(fd, ptr, int32(len(numbuf)))
+	closefd(fd)
+	if n <= 0 {
+		return 0
+	}
+	n-- // remove trailing newline
+	v, ok := atoi(slicebytetostringtmp((*byte)(ptr), int(n)))
+	if !ok || v < 0 {
+		v = 0
+	}
+	if v&(v-1) != 0 {
+		// v is not a power of 2
+		return 0
+	}
+	return uintptr(v)
+}
+
 func osinit() {
 	ncpu = getproccount()
+	physHugePageSize = getHugePageSize()
+	if iscgo {
+		// #42494 glibc and musl reserve some signals for
+		// internal use and require they not be blocked by
+		// the rest of a normal C runtime. When the go runtime
+		// blocks...unblocks signals, temporarily, the blocked
+		// interval of time is generally very short. As such,
+		// these expectations of *libc code are mostly met by
+		// the combined go+cgo system of threads. However,
+		// when go causes a thread to exit, via a return from
+		// mstart(), the combined runtime can deadlock if
+		// these signals are blocked. Thus, don't block these
+		// signals when exiting threads.
+		// - glibc: SIGCANCEL (32), SIGSETXID (33)
+		// - musl: SIGTIMER (32), SIGCANCEL (33), SIGSYNCCALL (34)
+		sigdelset(&sigsetAllExiting, 32)
+		sigdelset(&sigsetAllExiting, 33)
+		sigdelset(&sigsetAllExiting, 34)
+	}
+	osArchInit()
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -291,6 +371,7 @@ func goenvs() {
 // Called to do synchronous initialization of Go code built with
 // -buildmode=c-archive or -buildmode=c-shared.
 // None of the Go runtime is initialized.
+//
 //go:nosplit
 //go:nowritebarrierrec
 func libpreinit() {
@@ -311,46 +392,22 @@ func gettid() uint32
 func minit() {
 	minitSignals()
 
-	// for debuggers, in case cgo created the thread
+	// Cgo-created threads and the bootstrap m are missing a
+	// procid. We need this for asynchronous preemption and it's
+	// useful in debuggers.
 	getg().m.procid = uint64(gettid())
 }
 
 // Called from dropm to undo the effect of an minit.
+//
 //go:nosplit
 func unminit() {
 	unminitSignals()
 }
 
-func memlimit() uintptr {
-	/*
-		TODO: Convert to Go when something actually uses the result.
-
-		Rlimit rl;
-		extern byte runtime·text[], runtime·end[];
-		uintptr used;
-
-		if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
-			return 0;
-		if(rl.rlim_cur >= 0x7fffffff)
-			return 0;
-
-		// Estimate our VM footprint excluding the heap.
-		// Not an exact science: use size of binary plus
-		// some room for thread stacks.
-		used = runtime·end - runtime·text + (64<<20);
-		if(used >= rl.rlim_cur)
-			return 0;
-
-		// If there's not at least 16 MB left, we're probably
-		// not going to be able to do much. Treat as no limit.
-		rl.rlim_cur -= used;
-		if(rl.rlim_cur < (16<<20))
-			return 0;
-
-		return rl.rlim_cur - used;
-	*/
-
-	return 0
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
 }
 
 //#ifdef GOARCH_386
@@ -358,7 +415,7 @@ func memlimit() uintptr {
 //#endif
 
 func sigreturn()
-func sigtramp(sig uint32, info *siginfo, ctx unsafe.Pointer)
+func sigtramp() // Called via C ABI
 func cgoSigtramp()
 
 //go:noescape
@@ -366,6 +423,15 @@ func sigaltstack(new, old *stackt)
 
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)
+
+//go:noescape
+func timer_create(clockid int32, sevp *sigevent, timerid *int32) int32
+
+//go:noescape
+func timer_settime(timerid int32, flags int32, new, old *itimerspec) int32
+
+//go:noescape
+func timer_delete(timerid int32) int32
 
 //go:noescape
 func rtsigprocmask(how int32, new, old *sigset, size int32)
@@ -376,14 +442,24 @@ func sigprocmask(how int32, new, old *sigset) {
 	rtsigprocmask(how, new, old, int32(unsafe.Sizeof(*new)))
 }
 
-//go:noescape
-func getrlimit(kind int32, limit unsafe.Pointer) int32
 func raise(sig uint32)
 func raiseproc(sig uint32)
 
 //go:noescape
-func sched_getaffinity(pid, len uintptr, buf *uintptr) int32
+func sched_getaffinity(pid, len uintptr, buf *byte) int32
 func osyield()
+
+//go:nosplit
+func osyield_no_g() {
+	osyield()
+}
+
+func pipe2(flags int32) (r, w int32, errno int32)
+
+const (
+	_si_max_size    = 128
+	_sigev_max_size = 64
+)
 
 //go:nosplit
 //go:nowritebarrierrec
@@ -395,46 +471,417 @@ func setsig(i uint32, fn uintptr) {
 	// should not be used". x86_64 kernel requires it. Only use it on
 	// x86.
 	if GOARCH == "386" || GOARCH == "amd64" {
-		sa.sa_restorer = funcPC(sigreturn)
+		sa.sa_restorer = abi.FuncPCABI0(sigreturn)
 	}
-	if fn == funcPC(sighandler) {
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
 		if iscgo {
-			fn = funcPC(cgoSigtramp)
+			fn = abi.FuncPCABI0(cgoSigtramp)
 		} else {
-			fn = funcPC(sigtramp)
+			fn = abi.FuncPCABI0(sigtramp)
 		}
 	}
 	sa.sa_handler = fn
-	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
+	sigaction(i, &sa, nil)
 }
 
 //go:nosplit
 //go:nowritebarrierrec
 func setsigstack(i uint32) {
 	var sa sigactiont
-	rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask))
+	sigaction(i, nil, &sa)
 	if sa.sa_flags&_SA_ONSTACK != 0 {
 		return
 	}
 	sa.sa_flags |= _SA_ONSTACK
-	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
+	sigaction(i, &sa, nil)
 }
 
 //go:nosplit
 //go:nowritebarrierrec
 func getsig(i uint32) uintptr {
 	var sa sigactiont
-	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
-		throw("rt_sigaction read failure")
-	}
+	sigaction(i, nil, &sa)
 	return sa.sa_handler
 }
 
 // setSignaltstackSP sets the ss_sp field of a stackt.
+//
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
 	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
 }
 
+//go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
+}
+
+// sysSigaction calls the rt_sigaction system call.
+//
+//go:nosplit
+func sysSigaction(sig uint32, new, old *sigactiont) {
+	if rt_sigaction(uintptr(sig), new, old, unsafe.Sizeof(sigactiont{}.sa_mask)) != 0 {
+		// Workaround for bugs in QEMU user mode emulation.
+		//
+		// QEMU turns calls to the sigaction system call into
+		// calls to the C library sigaction call; the C
+		// library call rejects attempts to call sigaction for
+		// SIGCANCEL (32) or SIGSETXID (33).
+		//
+		// QEMU rejects calling sigaction on SIGRTMAX (64).
+		//
+		// Just ignore the error in these case. There isn't
+		// anything we can do about it anyhow.
+		if sig != 32 && sig != 33 && sig != 64 {
+			// Use system stack to avoid split stack overflow on ppc64/ppc64le.
+			systemstack(func() {
+				throw("sigaction failed")
+			})
+		}
+	}
+}
+
+// rt_sigaction is implemented in assembly.
+//
+//go:noescape
+func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
+
+func getpid() int
+func tgkill(tgid, tid, sig int)
+
+// signalM sends a signal to mp.
+func signalM(mp *m, sig int) {
+	tgkill(getpid(), int(mp.procid), sig)
+}
+
+// go118UseTimerCreateProfiler enables the per-thread CPU profiler.
+const go118UseTimerCreateProfiler = true
+
+// validSIGPROF compares this signal delivery's code against the signal sources
+// that the profiler uses, returning whether the delivery should be processed.
+// To be processed, a signal delivery from a known profiling mechanism should
+// correspond to the best profiling mechanism available to this thread. Signals
+// from other sources are always considered valid.
+//
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	code := int32(c.sigcode())
+	setitimer := code == _SI_KERNEL
+	timer_create := code == _SI_TIMER
+
+	if !(setitimer || timer_create) {
+		// The signal doesn't correspond to a profiling mechanism that the
+		// runtime enables itself. There's no reason to process it, but there's
+		// no reason to ignore it either.
+		return true
+	}
+
+	if mp == nil {
+		// Since we don't have an M, we can't check if there's an active
+		// per-thread timer for this thread. We don't know how long this thread
+		// has been around, and if it happened to interact with the Go scheduler
+		// at a time when profiling was active (causing it to have a per-thread
+		// timer). But it may have never interacted with the Go scheduler, or
+		// never while profiling was active. To avoid double-counting, process
+		// only signals from setitimer.
+		//
+		// When a custom cgo traceback function has been registered (on
+		// platforms that support runtime.SetCgoTraceback), SIGPROF signals
+		// delivered to a thread that cannot find a matching M do this check in
+		// the assembly implementations of runtime.cgoSigtramp.
+		return setitimer
+	}
+
+	// Having an M means the thread interacts with the Go scheduler, and we can
+	// check whether there's an active per-thread timer for this thread.
+	if atomic.Load(&mp.profileTimerValid) != 0 {
+		// If this M has its own per-thread CPU profiling interval timer, we
+		// should track the SIGPROF signals that come from that timer (for
+		// accurate reporting of its CPU usage; see issue 35057) and ignore any
+		// that it gets from the process-wide setitimer (to not over-count its
+		// CPU consumption).
+		return timer_create
+	}
+
+	// No active per-thread timer means the only valid profiler is setitimer.
+	return setitimer
+}
+
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	mp := getg().m
+	mp.profilehz = hz
+
+	if !go118UseTimerCreateProfiler {
+		return
+	}
+
+	// destroy any active timer
+	if atomic.Load(&mp.profileTimerValid) != 0 {
+		timerid := mp.profileTimer
+		atomic.Store(&mp.profileTimerValid, 0)
+		mp.profileTimer = 0
+
+		ret := timer_delete(timerid)
+		if ret != 0 {
+			print("runtime: failed to disable profiling timer; timer_delete(", timerid, ") errno=", -ret, "\n")
+			throw("timer_delete")
+		}
+	}
+
+	if hz == 0 {
+		// If the goal was to disable profiling for this thread, then the job's done.
+		return
+	}
+
+	// The period of the timer should be 1/Hz. For every "1/Hz" of additional
+	// work, the user should expect one additional sample in the profile.
+	//
+	// But to scale down to very small amounts of application work, to observe
+	// even CPU usage of "one tenth" of the requested period, set the initial
+	// timing delay in a different way: So that "one tenth" of a period of CPU
+	// spend shows up as a 10% chance of one sample (for an expected value of
+	// 0.1 samples), and so that "two and six tenths" periods of CPU spend show
+	// up as a 60% chance of 3 samples and a 40% chance of 2 samples (for an
+	// expected value of 2.6). Set the initial delay to a value in the unifom
+	// random distribution between 0 and the desired period. And because "0"
+	// means "disable timer", add 1 so the half-open interval [0,period) turns
+	// into (0,period].
+	//
+	// Otherwise, this would show up as a bias away from short-lived threads and
+	// from threads that are only occasionally active: for example, when the
+	// garbage collector runs on a mostly-idle system, the additional threads it
+	// activates may do a couple milliseconds of GC-related work and nothing
+	// else in the few seconds that the profiler observes.
+	spec := new(itimerspec)
+	spec.it_value.setNsec(1 + int64(fastrandn(uint32(1e9/hz))))
+	spec.it_interval.setNsec(1e9 / int64(hz))
+
+	var timerid int32
+	var sevp sigevent
+	sevp.notify = _SIGEV_THREAD_ID
+	sevp.signo = _SIGPROF
+	sevp.sigev_notify_thread_id = int32(mp.procid)
+	ret := timer_create(_CLOCK_THREAD_CPUTIME_ID, &sevp, &timerid)
+	if ret != 0 {
+		// If we cannot create a timer for this M, leave profileTimerValid false
+		// to fall back to the process-wide setitimer profiler.
+		return
+	}
+
+	ret = timer_settime(timerid, 0, spec, nil)
+	if ret != 0 {
+		print("runtime: failed to configure profiling timer; timer_settime(", timerid,
+			", 0, {interval: {",
+			spec.it_interval.tv_sec, "s + ", spec.it_interval.tv_nsec, "ns} value: {",
+			spec.it_value.tv_sec, "s + ", spec.it_value.tv_nsec, "ns}}, nil) errno=", -ret, "\n")
+		throw("timer_settime")
+	}
+
+	mp.profileTimer = timerid
+	atomic.Store(&mp.profileTimerValid, 1)
+}
+
+// perThreadSyscallArgs contains the system call number, arguments, and
+// expected return values for a system call to be executed on all threads.
+type perThreadSyscallArgs struct {
+	trap uintptr
+	a1   uintptr
+	a2   uintptr
+	a3   uintptr
+	a4   uintptr
+	a5   uintptr
+	a6   uintptr
+	r1   uintptr
+	r2   uintptr
+}
+
+// perThreadSyscall is the system call to execute for the ongoing
+// doAllThreadsSyscall.
+//
+// perThreadSyscall may only be written while mp.needPerThreadSyscall == 0 on
+// all Ms.
+var perThreadSyscall perThreadSyscallArgs
+
+// syscall_runtime_doAllThreadsSyscall and executes a specified system call on
+// all Ms.
+//
+// The system call is expected to succeed and return the same value on every
+// thread. If any threads do not match, the runtime throws.
+//
+//go:linkname syscall_runtime_doAllThreadsSyscall syscall.runtime_doAllThreadsSyscall
+//go:uintptrescapes
+func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+	if iscgo {
+		// In cgo, we are not aware of threads created in C, so this approach will not work.
+		panic("doAllThreadsSyscall not supported with cgo enabled")
+	}
+
+	// STW to guarantee that user goroutines see an atomic change to thread
+	// state. Without STW, goroutines could migrate Ms while change is in
+	// progress and e.g., see state old -> new -> old -> new.
+	//
+	// N.B. Internally, this function does not depend on STW to
+	// successfully change every thread. It is only needed for user
+	// expectations, per above.
+	stopTheWorld("doAllThreadsSyscall")
+
+	// This function depends on several properties:
+	//
+	// 1. All OS threads that already exist are associated with an M in
+	//    allm. i.e., we won't miss any pre-existing threads.
+	// 2. All Ms listed in allm will eventually have an OS thread exist.
+	//    i.e., they will set procid and be able to receive signals.
+	// 3. OS threads created after we read allm will clone from a thread
+	//    that has executed the system call. i.e., they inherit the
+	//    modified state.
+	//
+	// We achieve these through different mechanisms:
+	//
+	// 1. Addition of new Ms to allm in allocm happens before clone of its
+	//    OS thread later in newm.
+	// 2. newm does acquirem to avoid being preempted, ensuring that new Ms
+	//    created in allocm will eventually reach OS thread clone later in
+	//    newm.
+	// 3. We take allocmLock for write here to prevent allocation of new Ms
+	//    while this function runs. Per (1), this prevents clone of OS
+	//    threads that are not yet in allm.
+	allocmLock.lock()
+
+	// Disable preemption, preventing us from changing Ms, as we handle
+	// this M specially.
+	//
+	// N.B. STW and lock() above do this as well, this is added for extra
+	// clarity.
+	acquirem()
+
+	// N.B. allocmLock also prevents concurrent execution of this function,
+	// serializing use of perThreadSyscall, mp.needPerThreadSyscall, and
+	// ensuring all threads execute system calls from multiple calls in the
+	// same order.
+
+	r1, r2, errno := syscall.Syscall6(trap, a1, a2, a3, a4, a5, a6)
+	if GOARCH == "ppc64" || GOARCH == "ppc64le" {
+		// TODO(https://go.dev/issue/51192 ): ppc64 doesn't use r2.
+		r2 = 0
+	}
+	if errno != 0 {
+		releasem(getg().m)
+		allocmLock.unlock()
+		startTheWorld()
+		return r1, r2, errno
+	}
+
+	perThreadSyscall = perThreadSyscallArgs{
+		trap: trap,
+		a1:   a1,
+		a2:   a2,
+		a3:   a3,
+		a4:   a4,
+		a5:   a5,
+		a6:   a6,
+		r1:   r1,
+		r2:   r2,
+	}
+
+	// Wait for all threads to start.
+	//
+	// As described above, some Ms have been added to allm prior to
+	// allocmLock, but not yet completed OS clone and set procid.
+	//
+	// At minimum we must wait for a thread to set procid before we can
+	// send it a signal.
+	//
+	// We take this one step further and wait for all threads to start
+	// before sending any signals. This prevents system calls from getting
+	// applied twice: once in the parent and once in the child, like so:
+	//
+	//          A                     B                  C
+	//                         add C to allm
+	// doAllThreadsSyscall
+	//   allocmLock.lock()
+	//   signal B
+	//                         <receive signal>
+	//                         execute syscall
+	//                         <signal return>
+	//                         clone C
+	//                                             <thread start>
+	//                                             set procid
+	//   signal C
+	//                                             <receive signal>
+	//                                             execute syscall
+	//                                             <signal return>
+	//
+	// In this case, thread C inherited the syscall-modified state from
+	// thread B and did not need to execute the syscall, but did anyway
+	// because doAllThreadsSyscall could not be sure whether it was
+	// required.
+	//
+	// Some system calls may not be idempotent, so we ensure each thread
+	// executes the system call exactly once.
+	for mp := allm; mp != nil; mp = mp.alllink {
+		for atomic.Load64(&mp.procid) == 0 {
+			// Thread is starting.
+			osyield()
+		}
+	}
+
+	// Signal every other thread, where they will execute perThreadSyscall
+	// from the signal handler.
+	gp := getg()
+	tid := gp.m.procid
+	for mp := allm; mp != nil; mp = mp.alllink {
+		if atomic.Load64(&mp.procid) == tid {
+			// Our thread already performed the syscall.
+			continue
+		}
+		mp.needPerThreadSyscall.Store(1)
+		signalM(mp, sigPerThreadSyscall)
+	}
+
+	// Wait for all threads to complete.
+	for mp := allm; mp != nil; mp = mp.alllink {
+		if mp.procid == tid {
+			continue
+		}
+		for mp.needPerThreadSyscall.Load() != 0 {
+			osyield()
+		}
+	}
+
+	perThreadSyscall = perThreadSyscallArgs{}
+
+	releasem(getg().m)
+	allocmLock.unlock()
+	startTheWorld()
+
+	return r1, r2, errno
+}
+
+// runPerThreadSyscall runs perThreadSyscall for this M if required.
+//
+// This function throws if the system call returns with anything other than the
+// expected values.
+//go:nosplit
+func runPerThreadSyscall() {
+	gp := getg()
+	if gp.m.needPerThreadSyscall.Load() == 0 {
+		return
+	}
+
+	args := perThreadSyscall
+	r1, r2, errno := syscall.Syscall6(args.trap, args.a1, args.a2, args.a3, args.a4, args.a5, args.a6)
+	if GOARCH == "ppc64" || GOARCH == "ppc64le" {
+		// TODO(https://go.dev/issue/51192 ): ppc64 doesn't use r2.
+		r2 = 0
+	}
+	if errno != 0 || r1 != args.r1 || r2 != args.r2 {
+		print("trap:", args.trap, ", a123456=[", args.a1, ",", args.a2, ",", args.a3, ",", args.a4, ",", args.a5, ",", args.a6, "]\n")
+		print("results: got {r1=", r1, ",r2=", r2, ",errno=", errno, "}, want {r1=", args.r1, ",r2=", args.r2, ",errno=0\n")
+		throw("AllThreadsSyscall6 results differ between threads; runtime corrupted")
+	}
+
+	gp.m.needPerThreadSyscall.Store(0)
 }

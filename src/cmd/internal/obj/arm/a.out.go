@@ -1,5 +1,5 @@
 // Inferno utils/5c/5.out.h
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5c/5.out.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/5c/5.out.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -86,7 +86,6 @@ const (
 	REG_CPSR // must be 2-aligned
 	REG_SPSR
 
-	MAXREG
 	REGRET = REG_R0
 	/* compiler allocates R1 up as temps */
 	/* compiler allocates register variables R3 up */
@@ -110,16 +109,48 @@ const (
 	FREGTMP = REG_F15
 )
 
+// http://infocenter.arm.com/help/topic/com.arm.doc.ihi0040b/IHI0040B_aadwarf.pdf
+var ARMDWARFRegisters = map[int16]int16{}
+
+func init() {
+	// f assigns dwarfregisters[from:to] = (base):(step*(to-from)+base)
+	f := func(from, to, base, step int16) {
+		for r := int16(from); r <= to; r++ {
+			ARMDWARFRegisters[r] = step*(r-from) + base
+		}
+	}
+	f(REG_R0, REG_R15, 0, 1)
+	f(REG_F0, REG_F15, 64, 2) // Use d0 through D15, aka S0, S2, ..., S30
+}
+
+// Special registers, after subtracting obj.RBaseARM, bit 9 indicates
+// a special register and the low bits select the register.
+const (
+	REG_SPECIAL = obj.RBaseARM + 1<<9 + iota
+	REG_MB_SY
+	REG_MB_ST
+	REG_MB_ISH
+	REG_MB_ISHST
+	REG_MB_NSH
+	REG_MB_NSHST
+	REG_MB_OSH
+	REG_MB_OSHST
+
+	MAXREG
+)
+
 const (
 	C_NONE = iota
 	C_REG
 	C_REGREG
 	C_REGREG2
 	C_REGLIST
-	C_SHIFT
+	C_SHIFT     /* register shift R>>x */
+	C_SHIFTADDR /* memory address with shifted offset R>>x(R) */
 	C_FREG
 	C_PSR
 	C_FCR
+	C_SPR /* REG_MB_SY */
 
 	C_RCON   /* 0xff rotated */
 	C_NCON   /* ~RCON */
@@ -132,8 +163,8 @@ const (
 	C_SFCON
 	C_LFCON
 
-	C_RACON
-	C_LACON
+	C_RACON /* <=0xff rotated constant offset from auto */
+	C_LACON /* Large Auto CONstant, i.e. large offset from SP */
 
 	C_SBRA
 	C_LBRA
@@ -230,6 +261,24 @@ const (
 	ASUBD
 	AMULF
 	AMULD
+	ANMULF
+	ANMULD
+	AMULAF
+	AMULAD
+	ANMULAF
+	ANMULAD
+	AMULSF
+	AMULSD
+	ANMULSF
+	ANMULSD
+	AFMULAF
+	AFMULAD
+	AFNMULAF
+	AFNMULAD
+	AFMULSF
+	AFMULSD
+	AFNMULSF
+	AFNMULSD
 	ADIVF
 	ADIVD
 	ASQRTF
@@ -286,6 +335,8 @@ const (
 	ALDREXD
 	ASTREXD
 
+	ADMB
+
 	APLD
 
 	ACLZ
@@ -294,15 +345,22 @@ const (
 	AREVSH
 	ARBIT
 
+	AXTAB
+	AXTAH
+	AXTABU
+	AXTAHU
+
+	ABFX
+	ABFXU
+	ABFC
+	ABFI
+
 	AMULWT
 	AMULWB
 	AMULBB
 	AMULAWT
 	AMULAWB
 	AMULABB
-
-	ADATABUNDLE
-	ADATABUNDLEEND
 
 	AMRC // MRC/MCR
 

@@ -1,0 +1,80 @@
+# Regression test for golang.org/issue/34254:
+# a clone of gopkg.in/[…].vN should be replaceable by
+# a fork hosted at corp.example.com/[…]/vN,
+# even if there is an explicit go.mod file containing the
+# gopkg.in path.
+
+[short] skip
+[!net] skip
+[!exec:git] skip
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+env GOFLAGS=-mod=mod
+
+# Replacing gopkg.in/[…].vN with a repository with a root go.mod file
+# specifying […].vN and a compatible version should succeed, even if
+# the replacement path is not a gopkg.in path.
+cd 4-to-4
+go list -m gopkg.in/src-d/go-git.v4
+
+# Previous versions of the "go" command accepted v0 and v1 pseudo-versions
+# as replacements for gopkg.in/[…].v4.
+# As a special case, we continue to accept those.
+
+cd ../4-to-0
+go list -m gopkg.in/src-d/go-git.v4
+
+cd ../4-to-1
+go list -m gopkg.in/src-d/go-git.v4
+
+cd ../4-to-incompatible
+go list -m gopkg.in/src-d/go-git.v4
+
+# A mismatched gopkg.in path should not be able to replace a different major version.
+cd ../3-to-gomod-4
+! go list -m gopkg.in/src-d/go-git.v3
+stderr '^go: gopkg\.in/src-d/go-git\.v3@v3\.2\.0 \(replaced by gopkg\.in/src-d/go-git\.v3@v3\.0\.0-20190801152248-0d1a009cbb60\): version "v3\.0\.0-20190801152248-0d1a009cbb60" invalid: go\.mod has non-\.\.\.\.v3 module path "gopkg\.in/src-d/go-git\.v4" at revision 0d1a009cbb60$'
+
+-- 4-to-4/go.mod --
+module golang.org/issue/34254
+
+go 1.13
+
+require gopkg.in/src-d/go-git.v4 v4.13.1
+
+replace gopkg.in/src-d/go-git.v4 v4.13.1 => github.com/src-d/go-git/v4 v4.13.1
+-- 4-to-1/go.mod --
+module golang.org/issue/34254
+
+go 1.13
+
+require gopkg.in/src-d/go-git.v4 v4.13.1
+
+replace gopkg.in/src-d/go-git.v4 v4.13.1 => github.com/src-d/go-git v1.0.1-0.20190801152248-0d1a009cbb60
+-- 4-to-0/go.mod --
+module golang.org/issue/34254
+
+go 1.13
+
+require gopkg.in/src-d/go-git.v4 v4.13.1
+
+replace gopkg.in/src-d/go-git.v4 v4.13.1 => github.com/src-d/go-git v0.0.0-20190801152248-0d1a009cbb60
+-- 4-to-incompatible/go.mod --
+module golang.org/issue/34254
+
+go 1.13
+
+require gopkg.in/src-d/go-git.v4 v4.13.1
+
+replace gopkg.in/src-d/go-git.v4 v4.13.1 => github.com/src-d/go-git v4.6.0+incompatible
+-- 3-to-gomod-4/go.mod --
+module golang.org/issue/34254
+go 1.13
+
+require gopkg.in/src-d/go-git.v3 v3.2.0
+
+// This replacement has a go.mod file declaring its path to be
+// gopkg.in/src-d/go-git.v4, so it cannot be used as a replacement for v3.
+replace gopkg.in/src-d/go-git.v3 v3.2.0 => gopkg.in/src-d/go-git.v3 v3.0.0-20190801152248-0d1a009cbb60

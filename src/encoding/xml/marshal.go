@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	// A generic XML header suitable for use with the output of Marshal.
+	// Header is a generic XML header suitable for use with the output of Marshal.
 	// This is not automatically added to any output of this package,
 	// it is provided as a convenience.
 	Header = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
@@ -32,44 +32,51 @@ const (
 // elements containing the data.
 //
 // The name for the XML elements is taken from, in order of preference:
-//     - the tag on the XMLName field, if the data is a struct
-//     - the value of the XMLName field of type Name
-//     - the tag of the struct field used to obtain the data
-//     - the name of the struct field used to obtain the data
-//     - the name of the marshaled type
+//   - the tag on the XMLName field, if the data is a struct
+//   - the value of the XMLName field of type Name
+//   - the tag of the struct field used to obtain the data
+//   - the name of the struct field used to obtain the data
+//   - the name of the marshaled type
 //
 // The XML element for a struct contains marshaled elements for each of the
 // exported fields of the struct, with these exceptions:
-//     - the XMLName field, described above, is omitted.
-//     - a field with tag "-" is omitted.
-//     - a field with tag "name,attr" becomes an attribute with
-//       the given name in the XML element.
-//     - a field with tag ",attr" becomes an attribute with the
-//       field name in the XML element.
-//     - a field with tag ",chardata" is written as character data,
-//       not as an XML element.
-//     - a field with tag ",cdata" is written as character data
-//       wrapped in one or more <![CDATA[ ... ]]> tags, not as an XML element.
-//     - a field with tag ",innerxml" is written verbatim, not subject
-//       to the usual marshaling procedure.
-//     - a field with tag ",comment" is written as an XML comment, not
-//       subject to the usual marshaling procedure. It must not contain
-//       the "--" string within it.
-//     - a field with a tag including the "omitempty" option is omitted
-//       if the field value is empty. The empty values are false, 0, any
-//       nil pointer or interface value, and any array, slice, map, or
-//       string of length zero.
-//     - an anonymous struct field is handled as if the fields of its
-//       value were part of the outer struct.
+//   - the XMLName field, described above, is omitted.
+//   - a field with tag "-" is omitted.
+//   - a field with tag "name,attr" becomes an attribute with
+//     the given name in the XML element.
+//   - a field with tag ",attr" becomes an attribute with the
+//     field name in the XML element.
+//   - a field with tag ",chardata" is written as character data,
+//     not as an XML element.
+//   - a field with tag ",cdata" is written as character data
+//     wrapped in one or more <![CDATA[ ... ]]> tags, not as an XML element.
+//   - a field with tag ",innerxml" is written verbatim, not subject
+//     to the usual marshaling procedure.
+//   - a field with tag ",comment" is written as an XML comment, not
+//     subject to the usual marshaling procedure. It must not contain
+//     the "--" string within it.
+//   - a field with a tag including the "omitempty" option is omitted
+//     if the field value is empty. The empty values are false, 0, any
+//     nil pointer or interface value, and any array, slice, map, or
+//     string of length zero.
+//   - an anonymous struct field is handled as if the fields of its
+//     value were part of the outer struct.
+//   - a field implementing Marshaler is written by calling its MarshalXML
+//     method.
+//   - a field implementing encoding.TextMarshaler is written by encoding the
+//     result of its MarshalText method as text.
 //
 // If a field uses a tag "a>b>c", then the element c will be nested inside
 // parent elements a and b. Fields that appear next to each other that name
 // the same parent will be enclosed in one XML element.
 //
+// If the XML name for a struct field is defined by both the field tag and the
+// struct's XMLName field, the names must match.
+//
 // See MarshalIndent for an example.
 //
 // Marshal will return an error if asked to marshal a channel, function, or map.
-func Marshal(v interface{}) ([]byte, error) {
+func Marshal(v any) ([]byte, error) {
 	var b bytes.Buffer
 	if err := NewEncoder(&b).Encode(v); err != nil {
 		return nil, err
@@ -115,7 +122,7 @@ type MarshalerAttr interface {
 // MarshalIndent works like Marshal, but each XML element begins on a new
 // indented line that starts with prefix and is followed by one or more
 // copies of indent according to the nesting depth.
-func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
+func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 	var b bytes.Buffer
 	enc := NewEncoder(&b)
 	enc.Indent(prefix, indent)
@@ -151,7 +158,7 @@ func (enc *Encoder) Indent(prefix, indent string) {
 // of Go values to XML.
 //
 // Encode calls Flush before returning.
-func (enc *Encoder) Encode(v interface{}) error {
+func (enc *Encoder) Encode(v any) error {
 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, nil)
 	if err != nil {
 		return err
@@ -166,7 +173,7 @@ func (enc *Encoder) Encode(v interface{}) error {
 // of Go values to XML.
 //
 // EncodeElement calls Flush before returning.
-func (enc *Encoder) EncodeElement(v interface{}, start StartElement) error {
+func (enc *Encoder) EncodeElement(v any, start StartElement) error {
 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, &start)
 	if err != nil {
 		return err
@@ -320,7 +327,7 @@ func (p *printer) createAttrPrefix(url string) string {
 	// (The "http://www.w3.org/2000/xmlns/" name space is also predefined as "xmlns",
 	// but users should not be trying to use that one directly - that's our job.)
 	if url == xmlURL {
-		return "xml"
+		return xmlPrefix
 	}
 
 	// Need to define a new name space.
@@ -338,8 +345,11 @@ func (p *printer) createAttrPrefix(url string) string {
 	if prefix == "" || !isName([]byte(prefix)) || strings.Contains(prefix, ":") {
 		prefix = "_"
 	}
-	if strings.HasPrefix(prefix, "xml") {
-		// xmlanything is reserved.
+	// xmlanything is reserved and any variant of it regardless of
+	// case should be matched, so:
+	//    (('X'|'x') ('M'|'m') ('L'|'l'))
+	// See Section 2.3 of https://www.w3.org/TR/REC-xml/
+	if len(prefix) >= 3 && strings.EqualFold(prefix[:3], "xml") {
 		prefix = "_" + prefix
 	}
 	if p.attrNS[prefix] != "" {
@@ -410,7 +420,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	// Drill into interfaces and pointers.
 	// This can turn into an infinite loop given a cyclic chain,
 	// but it matches the Go 1 behavior.
-	for val.Kind() == reflect.Interface || val.Kind() == reflect.Ptr {
+	for val.Kind() == reflect.Interface || val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			return nil
 		}
@@ -472,8 +482,11 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		xmlname := tinfo.xmlname
 		if xmlname.name != "" {
 			start.Name.Space, start.Name.Local = xmlname.xmlns, xmlname.name
-		} else if v, ok := xmlname.value(val).Interface().(Name); ok && v.Local != "" {
-			start.Name = v
+		} else {
+			fv := xmlname.value(val, dontInitNilPointers)
+			if v, ok := fv.Interface().(Name); ok && v.Local != "" {
+				start.Name = v
+			}
 		}
 	}
 	if start.Name.Local == "" && finfo != nil {
@@ -481,6 +494,10 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	}
 	if start.Name.Local == "" {
 		name := typ.Name()
+		if i := strings.IndexByte(name, '['); i >= 0 {
+			// Truncate generic instantiation name. See issue 48318.
+			name = name[:i]
+		}
 		if name == "" {
 			return &UnsupportedTypeError{typ}
 		}
@@ -493,9 +510,9 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		if finfo.flags&fAttr == 0 {
 			continue
 		}
-		fv := finfo.value(val)
+		fv := finfo.value(val, dontInitNilPointers)
 
-		if finfo.flags&fOmitEmpty != 0 && isEmptyValue(fv) {
+		if finfo.flags&fOmitEmpty != 0 && (!fv.IsValid() || isEmptyValue(fv)) {
 			continue
 		}
 
@@ -586,7 +603,7 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 
 	// Dereference or skip nil pointer, interface values.
 	switch val.Kind() {
-	case reflect.Ptr, reflect.Interface:
+	case reflect.Pointer, reflect.Interface:
 		if val.IsNil() {
 			return nil
 		}
@@ -780,7 +797,7 @@ var ddBytes = []byte("--")
 // This can turn into an infinite loop given a cyclic chain,
 // but it matches the Go 1 behavior.
 func indirect(vf reflect.Value) reflect.Value {
-	for vf.Kind() == reflect.Interface || vf.Kind() == reflect.Ptr {
+	for vf.Kind() == reflect.Interface || vf.Kind() == reflect.Pointer {
 		if vf.IsNil() {
 			return vf
 		}
@@ -796,7 +813,12 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 		if finfo.flags&fAttr != 0 {
 			continue
 		}
-		vf := finfo.value(val)
+		vf := finfo.value(val, dontInitNilPointers)
+		if !vf.IsValid() {
+			// The field is behind an anonymous struct field that's
+			// nil. Skip it.
+			continue
+		}
 
 		switch finfo.flags & fMode {
 		case fCDATA, fCharData:
@@ -907,7 +929,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 			p.WriteString("-->")
 			continue
 
-		case fInnerXml:
+		case fInnerXML:
 			vf = indirect(vf)
 			iface := vf.Interface()
 			switch raw := iface.(type) {
@@ -924,7 +946,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 				return err
 			}
 			if len(finfo.parents) > len(s.stack) {
-				if vf.Kind() != reflect.Ptr && vf.Kind() != reflect.Interface || !vf.IsNil() {
+				if vf.Kind() != reflect.Pointer && vf.Kind() != reflect.Interface || !vf.IsNil() {
 					if err := s.push(finfo.parents[len(s.stack):]); err != nil {
 						return err
 					}
@@ -1011,7 +1033,7 @@ func (s *parentStack) push(parents []string) error {
 	return nil
 }
 
-// A MarshalXMLError is returned when Marshal encounters a type
+// UnsupportedTypeError is returned when Marshal encounters a type
 // that cannot be converted into XML.
 type UnsupportedTypeError struct {
 	Type reflect.Type
@@ -1033,7 +1055,7 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.Uint() == 0
 	case reflect.Float32, reflect.Float64:
 		return v.Float() == 0
-	case reflect.Interface, reflect.Ptr:
+	case reflect.Interface, reflect.Pointer:
 		return v.IsNil()
 	}
 	return false

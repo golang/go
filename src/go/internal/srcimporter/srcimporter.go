@@ -13,8 +13,13 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	exec "internal/execabs"
+	"io"
+	"os"
 	"path/filepath"
+	"strings"
 	"sync"
+	_ "unsafe" // for go:linkname
 )
 
 // An Importer provides the context for importing packages from source code.
@@ -25,7 +30,7 @@ type Importer struct {
 	packages map[string]*types.Package
 }
 
-// NewImporter returns a new Importer for the given context, file set, and map
+// New returns a new Importer for the given context, file set, and map
 // of packages. The context is used to resolve import paths to package paths,
 // and identifying the files belonging to the package. If the context provides
 // non-nil file system functions, they are used instead of the regular package
@@ -44,9 +49,9 @@ func New(ctxt *build.Context, fset *token.FileSet, packages map[string]*types.Pa
 // for a package that is in the process of being imported.
 var importing types.Package
 
-// Import(path) is a shortcut for ImportFrom(path, "", 0).
+// Import(path) is a shortcut for ImportFrom(path, ".", 0).
 func (p *Importer) Import(path string) (*types.Package, error) {
-	return p.ImportFrom(path, "", 0)
+	return p.ImportFrom(path, ".", 0) // use "." rather than "" (see issue #24441)
 }
 
 // ImportFrom imports the package with the given import path resolved from the given srcDir,
@@ -60,23 +65,10 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 		panic("non-zero import mode")
 	}
 
-	// determine package path (do vendor resolution)
-	var bp *build.Package
-	var err error
-	switch {
-	default:
-		if abs, err := p.absPath(srcDir); err == nil { // see issue #14282
-			srcDir = abs
-		}
-		bp, err = p.ctxt.Import(path, srcDir, build.FindOnly)
-
-	case build.IsLocalImport(path):
-		// "./x" -> "srcDir/x"
-		bp, err = p.ctxt.ImportDir(filepath.Join(srcDir, path), build.FindOnly)
-
-	case p.isAbsPath(path):
-		return nil, fmt.Errorf("invalid absolute import path %q", path)
+	if abs, err := p.absPath(srcDir); err == nil { // see issue #14282
+		srcDir = abs
 	}
+	bp, err := p.ctxt.Import(path, srcDir, 0)
 	if err != nil {
 		return nil, err // err may be *build.NoGoError - return as is
 	}
@@ -113,11 +105,6 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 		}
 	}()
 
-	// collect package files
-	bp, err = p.ctxt.ImportDir(bp.Dir, 0)
-	if err != nil {
-		return nil, err // err may be *build.NoGoError - return as is
-	}
 	var filenames []string
 	filenames = append(filenames, bp.GoFiles...)
 	filenames = append(filenames, bp.CgoFiles...)
@@ -128,19 +115,47 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 	}
 
 	// type-check package files
+	var firstHardErr error
 	conf := types.Config{
 		IgnoreFuncBodies: true,
-		FakeImportC:      true,
-		Importer:         p,
-		Sizes:            p.sizes,
+		// continue type-checking after the first error
+		Error: func(err error) {
+			if firstHardErr == nil && !err.(types.Error).Soft {
+				firstHardErr = err
+			}
+		},
+		Importer: p,
+		Sizes:    p.sizes,
 	}
+	if len(bp.CgoFiles) > 0 {
+		if p.ctxt.OpenFile != nil {
+			// cgo, gcc, pkg-config, etc. do not support
+			// build.Context's VFS.
+			conf.FakeImportC = true
+		} else {
+			setUsesCgo(&conf)
+			file, err := p.cgo(bp)
+			if err != nil {
+				return nil, fmt.Errorf("error processing cgo for package %q: %w", bp.ImportPath, err)
+			}
+			files = append(files, file)
+		}
+	}
+
 	pkg, err = conf.Check(bp.ImportPath, p.fset, files, nil)
 	if err != nil {
-		// Type-checking stops after the first error (types.Config.Error is not set),
-		// so the returned package is very likely incomplete. Don't return it since
-		// we don't know its condition: It's very likely unsafe to use and it's also
-		// not added to p.packages which may cause further problems (issue #20837).
-		return nil, fmt.Errorf("type-checking package %q failed (%v)", bp.ImportPath, err)
+		// If there was a hard error it is possibly unsafe
+		// to use the package as it may not be fully populated.
+		// Do not return it (see also #20837, #20855).
+		if firstHardErr != nil {
+			pkg = nil
+			err = firstHardErr // give preference to first hard error over any soft error
+		}
+		return pkg, fmt.Errorf("type-checking package %q failed (%v)", bp.ImportPath, err)
+	}
+	if firstHardErr != nil {
+		// this can only happen if we have a bug in go/types
+		panic("package is not safe yet no error was returned")
 	}
 
 	p.packages[bp.ImportPath] = pkg
@@ -148,7 +163,11 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 }
 
 func (p *Importer) parseFiles(dir string, filenames []string) ([]*ast.File, error) {
-	open := p.ctxt.OpenFile // possibly nil
+	// use build.Context's OpenFile if there is one
+	open := p.ctxt.OpenFile
+	if open == nil {
+		open = func(name string) (io.ReadCloser, error) { return os.Open(name) }
+	}
 
 	files := make([]*ast.File, len(filenames))
 	errors := make([]error, len(filenames))
@@ -158,22 +177,13 @@ func (p *Importer) parseFiles(dir string, filenames []string) ([]*ast.File, erro
 	for i, filename := range filenames {
 		go func(i int, filepath string) {
 			defer wg.Done()
-			if open != nil {
-				src, err := open(filepath)
-				if err != nil {
-					errors[i] = fmt.Errorf("opening package file %s failed (%v)", filepath, err)
-					return
-				}
-				files[i], errors[i] = parser.ParseFile(p.fset, filepath, src, 0)
-				src.Close() // ignore Close error - parsing may have succeeded which is all we need
-			} else {
-				// Special-case when ctxt doesn't provide a custom OpenFile and use the
-				// parser's file reading mechanism directly. This appears to be quite a
-				// bit faster than opening the file and providing an io.ReaderCloser in
-				// both cases.
-				// TODO(gri) investigate performance difference (issue #19281)
-				files[i], errors[i] = parser.ParseFile(p.fset, filepath, nil, 0)
+			src, err := open(filepath)
+			if err != nil {
+				errors[i] = err // open provides operation and filename in error
+				return
 			}
+			files[i], errors[i] = parser.ParseFile(p.fset, filepath, src, 0)
+			src.Close() // ignore Close error - parsing may have succeeded which is all we need
 		}(i, p.joinPath(dir, filename))
 	}
 	wg.Wait()
@@ -186,6 +196,51 @@ func (p *Importer) parseFiles(dir string, filenames []string) ([]*ast.File, erro
 	}
 
 	return files, nil
+}
+
+func (p *Importer) cgo(bp *build.Package) (*ast.File, error) {
+	tmpdir, err := os.MkdirTemp("", "srcimporter")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(tmpdir)
+
+	goCmd := "go"
+	if p.ctxt.GOROOT != "" {
+		goCmd = filepath.Join(p.ctxt.GOROOT, "bin", "go")
+	}
+	args := []string{goCmd, "tool", "cgo", "-objdir", tmpdir}
+	if bp.Goroot {
+		switch bp.ImportPath {
+		case "runtime/cgo":
+			args = append(args, "-import_runtime_cgo=false", "-import_syscall=false")
+		case "runtime/race":
+			args = append(args, "-import_syscall=false")
+		}
+	}
+	args = append(args, "--")
+	args = append(args, strings.Fields(os.Getenv("CGO_CPPFLAGS"))...)
+	args = append(args, bp.CgoCPPFLAGS...)
+	if len(bp.CgoPkgConfig) > 0 {
+		cmd := exec.Command("pkg-config", append([]string{"--cflags"}, bp.CgoPkgConfig...)...)
+		out, err := cmd.Output()
+		if err != nil {
+			return nil, fmt.Errorf("pkg-config --cflags: %w", err)
+		}
+		args = append(args, strings.Fields(string(out))...)
+	}
+	args = append(args, "-I", tmpdir)
+	args = append(args, strings.Fields(os.Getenv("CGO_CFLAGS"))...)
+	args = append(args, bp.CgoCFLAGS...)
+	args = append(args, bp.CgoFiles...)
+
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Dir = bp.Dir
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("go tool cgo: %w", err)
+	}
+
+	return parser.ParseFile(p.fset, filepath.Join(tmpdir, "_cgo_gotypes.go"), nil, 0)
 }
 
 // context-controlled file system operations
@@ -209,3 +264,6 @@ func (p *Importer) joinPath(elem ...string) string {
 	}
 	return filepath.Join(elem...)
 }
+
+//go:linkname setUsesCgo go/types.srcimporter_setUsesCgo
+func setUsesCgo(conf *types.Config)

@@ -6,9 +6,10 @@ package httptest
 
 import (
 	"bufio"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
+	"sync"
 	"testing"
 )
 
@@ -61,7 +62,7 @@ func testServer(t *testing.T, newServer newServerFunc) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := ioutil.ReadAll(res.Body)
+	got, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		t.Fatal(err)
@@ -81,7 +82,7 @@ func testGetAfterClose(t *testing.T, newServer newServerFunc) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := ioutil.ReadAll(res.Body)
+	got, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +94,7 @@ func testGetAfterClose(t *testing.T, newServer newServerFunc) {
 
 	res, err = http.Get(ts.URL)
 	if err == nil {
-		body, _ := ioutil.ReadAll(res.Body)
+		body, _ := io.ReadAll(res.Body)
 		t.Fatalf("Unexpected response after close: %v, %v, %s", res.Status, res.Header, body)
 	}
 }
@@ -152,7 +153,7 @@ func testServerClient(t *testing.T, newTLSServer newServerFunc) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := ioutil.ReadAll(res.Body)
+	got, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		t.Fatal(err)
@@ -201,4 +202,93 @@ func TestServerZeroValueClose(t *testing.T) {
 	}
 
 	ts.Close() // tests that it doesn't panic
+}
+
+// Issue 51799: test hijacking a connection and then closing it
+// concurrently with closing the server.
+func TestCloseHijackedConnection(t *testing.T) {
+	hijacked := make(chan net.Conn)
+	ts := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer close(hijacked)
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			t.Fatal("failed to hijack")
+		}
+		c, _, err := hj.Hijack()
+		if err != nil {
+			t.Fatal(err)
+		}
+		hijacked <- c
+	}))
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		req, err := http.NewRequest("GET", ts.URL, nil)
+		if err != nil {
+			t.Log(err)
+		}
+		// Use a client not associated with the Server.
+		var c http.Client
+		resp, err := c.Do(req)
+		if err != nil {
+			t.Log(err)
+			return
+		}
+		resp.Body.Close()
+	}()
+
+	wg.Add(1)
+	conn := <-hijacked
+	go func(conn net.Conn) {
+		defer wg.Done()
+		// Close the connection and then inform the Server that
+		// we closed it.
+		conn.Close()
+		ts.Config.ConnState(conn, http.StateClosed)
+	}(conn)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ts.Close()
+	}()
+	wg.Wait()
+}
+
+func TestTLSServerWithHTTP2(t *testing.T) {
+	modes := []struct {
+		name      string
+		wantProto string
+	}{
+		{"http1", "HTTP/1.1"},
+		{"http2", "HTTP/2.0"},
+	}
+
+	for _, tt := range modes {
+		t.Run(tt.name, func(t *testing.T) {
+			cst := NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("X-Proto", r.Proto)
+			}))
+
+			switch tt.name {
+			case "http2":
+				cst.EnableHTTP2 = true
+				cst.StartTLS()
+			default:
+				cst.Start()
+			}
+
+			defer cst.Close()
+
+			res, err := cst.Client().Get(cst.URL)
+			if err != nil {
+				t.Fatalf("Failed to make request: %v", err)
+			}
+			if g, w := res.Header.Get("X-Proto"), tt.wantProto; g != w {
+				t.Fatalf("X-Proto header mismatch:\n\tgot:  %q\n\twant: %q", g, w)
+			}
+		})
+	}
 }

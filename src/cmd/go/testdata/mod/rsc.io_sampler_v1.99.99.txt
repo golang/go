@@ -1,0 +1,140 @@
+rsc.io/sampler@v1.99.99
+
+-- .mod --
+module "rsc.io/sampler"
+
+require "golang.org/x/text" v0.0.0-20170915032832-14c0d48ead0c
+-- .info --
+{"Version":"v1.99.99","Name":"732a3c400797d8835f2af34a9561f155bef85435","Short":"732a3c400797","Time":"2018-02-13T22:20:19Z"}
+-- go.mod --
+module "rsc.io/sampler"
+
+require "golang.org/x/text" v0.0.0-20170915032832-14c0d48ead0c
+-- hello.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Translations by Google Translate.
+
+package sampler
+
+var hello = newText(`
+
+English: en: 99 bottles of beer on the wall, 99 bottles of beer, ...
+
+`)
+-- hello_test.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package sampler
+
+import (
+	"testing"
+
+	"golang.org/x/text/language"
+)
+
+var helloTests = []struct {
+	prefs []language.Tag
+	text  string
+}{
+	{
+		[]language.Tag{language.Make("en-US"), language.Make("fr")},
+		"Hello, world.",
+	},
+	{
+		[]language.Tag{language.Make("fr"), language.Make("en-US")},
+		"Bonjour le monde.",
+	},
+}
+
+func TestHello(t *testing.T) {
+	for _, tt := range helloTests {
+		text := Hello(tt.prefs...)
+		if text != tt.text {
+			t.Errorf("Hello(%v) = %q, want %q", tt.prefs, text, tt.text)
+		}
+	}
+}
+-- sampler.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package sampler shows simple texts.
+package sampler // import "rsc.io/sampler"
+
+import (
+	"os"
+	"strings"
+
+	"golang.org/x/text/language"
+)
+
+// DefaultUserPrefs returns the default user language preferences.
+// It consults the $LC_ALL, $LC_MESSAGES, and $LANG environment
+// variables, in that order.
+func DefaultUserPrefs() []language.Tag {
+	var prefs []language.Tag
+	for _, k := range []string{"LC_ALL", "LC_MESSAGES", "LANG"} {
+		if env := os.Getenv(k); env != "" {
+			prefs = append(prefs, language.Make(env))
+		}
+	}
+	return prefs
+}
+
+// Hello returns a localized greeting.
+// If no prefs are given, Hello uses DefaultUserPrefs.
+func Hello(prefs ...language.Tag) string {
+	if len(prefs) == 0 {
+		prefs = DefaultUserPrefs()
+	}
+	return hello.find(prefs)
+}
+
+func Glass() string {
+	return "I can eat glass and it doesn't hurt me."
+}
+
+// A text is a localized text.
+type text struct {
+	byTag   map[string]string
+	matcher language.Matcher
+}
+
+// newText creates a new localized text, given a list of translations.
+func newText(s string) *text {
+	t := &text{
+		byTag: make(map[string]string),
+	}
+	var tags []language.Tag
+	for _, line := range strings.Split(s, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		f := strings.Split(line, ": ")
+		if len(f) != 3 {
+			continue
+		}
+		tag := language.Make(f[1])
+		tags = append(tags, tag)
+		t.byTag[tag.String()] = f[2]
+	}
+	t.matcher = language.NewMatcher(tags)
+	return t
+}
+
+// find finds the text to use for the given language tag preferences.
+func (t *text) find(prefs []language.Tag) string {
+	tag, _, _ := t.matcher.Match(prefs...)
+	s := t.byTag[tag.String()]
+	if strings.HasPrefix(s, "RTL ") {
+		s = "\u200F" + strings.TrimPrefix(s, "RTL ") + "\u200E"
+	}
+	return s
+}

@@ -6,14 +6,21 @@
 // in Go binaries. It is included by assembly sources, so it must
 // be written using #defines.
 //
-// These must agree with symtab.go and ../cmd/internal/obj/funcdata.go.
+// These must agree with symtab.go and ../cmd/internal/objabi/funcdata.go.
 
-#define PCDATA_StackMapIndex 0
-#define PCDATA_InlTreeIndex 1
+#define PCDATA_UnsafePoint 0
+#define PCDATA_StackMapIndex 1
+#define PCDATA_InlTreeIndex 2
+#define PCDATA_ArgLiveIndex 3
 
 #define FUNCDATA_ArgsPointerMaps 0 /* garbage collector blocks */
 #define FUNCDATA_LocalsPointerMaps 1
-#define FUNCDATA_InlTree 2
+#define FUNCDATA_StackObjects 2
+#define FUNCDATA_InlTree 3
+#define FUNCDATA_OpenCodedDeferInfo 4 /* info for func with open-coded defers */
+#define FUNCDATA_ArgInfo 5
+#define FUNCDATA_ArgLiveInfo 6
+#define FUNCDATA_WrapInfo 7
 
 // Pseudo-assembly statements.
 
@@ -28,9 +35,9 @@
 // defines the pointer map for the function's arguments.
 // GO_ARGS should be the first instruction in a function that uses it.
 // It can be omitted if there are no arguments at all.
-// GO_ARGS is inserted implicitly by the linker for any function
-// that also has a Go prototype and therefore is usually not necessary
-// to write explicitly.
+// GO_ARGS is inserted implicitly by the linker for any function whose
+// name starts with a middle-dot and that also has a Go prototype; it
+// is therefore usually not necessary to write explicitly.
 #define GO_ARGS	FUNCDATA $FUNCDATA_ArgsPointerMaps, go_args_stackmap(SB)
 
 // GO_RESULTS_INITIALIZED indicates that the assembly function
@@ -40,7 +47,7 @@
 
 // NO_LOCAL_POINTERS indicates that the assembly function stores
 // no pointers to heap objects in its local stack variables.
-#define NO_LOCAL_POINTERS	FUNCDATA $FUNCDATA_LocalsPointerMaps, runtime·no_pointers_stackmap(SB)
+#define NO_LOCAL_POINTERS	FUNCDATA $FUNCDATA_LocalsPointerMaps, no_pointers_stackmap(SB)
 
 // ArgsSizeUnknown is set in Func.argsize to mark all functions
 // whose argument size is unknown (C vararg functions, and

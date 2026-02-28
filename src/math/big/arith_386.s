@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !math_big_pure_go
 // +build !math_big_pure_go
 
 #include "textflag.h"
@@ -15,16 +16,6 @@ TEXT ·mulWW(SB),NOSPLIT,$0
 	MULL y+4(FP)
 	MOVL DX, z1+8(FP)
 	MOVL AX, z0+12(FP)
-	RET
-
-
-// func divWW(x1, x0, y Word) (q, r Word)
-TEXT ·divWW(SB),NOSPLIT,$0
-	MOVL x1+0(FP), DX
-	MOVL x0+4(FP), AX
-	DIVL y+8(FP)
-	MOVL AX, q+12(FP)
-	MOVL DX, r+16(FP)
 	RET
 
 
@@ -136,7 +127,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	MOVL s+24(FP), CX
 	MOVL (SI)(BX*4), AX	// w1 = x[n-1]
 	MOVL $0, DX
-	SHLL CX, DX:AX		// w1>>ŝ
+	SHLL CX, AX, DX		// w1>>ŝ
 	MOVL DX, c+28(FP)
 
 	CMPL BX, $0
@@ -145,7 +136,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	// i > 0
 L8:	MOVL AX, DX		// w = w1
 	MOVL -4(SI)(BX*4), AX	// w1 = x[i-1]
-	SHLL CX, DX:AX		// w<<s | w1>>ŝ
+	SHLL CX, AX, DX		// w<<s | w1>>ŝ
 	MOVL DX, (DI)(BX*4)	// z[i] = w<<s | w1>>ŝ
 	SUBL $1, BX		// i--
 	JG L8			// i > 0
@@ -171,7 +162,7 @@ TEXT ·shrVU(SB),NOSPLIT,$0
 	MOVL s+24(FP), CX
 	MOVL (SI), AX		// w1 = x[0]
 	MOVL $0, DX
-	SHRL CX, DX:AX		// w1<<ŝ
+	SHRL CX, AX, DX		// w1<<ŝ
 	MOVL DX, c+28(FP)
 
 	MOVL $0, BX		// i = 0
@@ -180,10 +171,10 @@ TEXT ·shrVU(SB),NOSPLIT,$0
 	// i < n-1
 L9:	MOVL AX, DX		// w = w1
 	MOVL 4(SI)(BX*4), AX	// w1 = x[i+1]
-	SHRL CX, DX:AX		// w>>s | w1<<ŝ
+	SHRL CX, AX, DX		// w>>s | w1<<ŝ
 	MOVL DX, (DI)(BX*4)	// z[i] = w>>s | w1<<ŝ
 	ADDL $1, BX		// i++
-	
+
 E9:	CMPL BX, BP
 	JL L9			// i < n-1
 
@@ -251,21 +242,4 @@ E6:	CMPL BX, $0		// i < 0
 	RET
 
 
-// func divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
-TEXT ·divWVW(SB),NOSPLIT,$0
-	MOVL z+0(FP), DI
-	MOVL xn+12(FP), DX	// r = xn
-	MOVL x+16(FP), SI
-	MOVL y+28(FP), CX
-	MOVL z_len+4(FP), BX	// i = z
-	JMP E7
 
-L7:	MOVL (SI)(BX*4), AX
-	DIVL CX
-	MOVL AX, (DI)(BX*4)
-
-E7:	SUBL $1, BX		// i--
-	JGE L7			// i >= 0
-
-	MOVL DX, r+32(FP)
-	RET

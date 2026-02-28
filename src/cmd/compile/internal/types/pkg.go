@@ -15,14 +15,23 @@ import (
 // pkgMap maps a package path to a package.
 var pkgMap = make(map[string]*Pkg)
 
+// MaxPkgHeight is a height greater than any likely package height.
+const MaxPkgHeight = 1e9
+
 type Pkg struct {
-	Path     string // string literal used in import statement, e.g. "runtime/internal/sys"
-	Name     string // package name, e.g. "sys"
-	Pathsym  *obj.LSym
-	Prefix   string // escaped path for use in symbol table
-	Imported bool   // export data of this package was parsed
-	Direct   bool   // imported directly
-	Syms     map[string]*Sym
+	Path    string // string literal used in import statement, e.g. "runtime/internal/sys"
+	Name    string // package name, e.g. "sys"
+	Prefix  string // escaped path for use in symbol table
+	Syms    map[string]*Sym
+	Pathsym *obj.LSym
+
+	// Height is the package's height in the import graph. Leaf
+	// packages (i.e., packages with no imports) have height 0,
+	// and all other packages have height 1 plus the maximum
+	// height of their imported packages.
+	Height int
+
+	Direct bool // imported directly
 }
 
 // NewPkg returns a new Pkg for the given package path and name.
@@ -39,7 +48,15 @@ func NewPkg(path, name string) *Pkg {
 	p := new(Pkg)
 	p.Path = path
 	p.Name = name
-	p.Prefix = objabi.PathToPrefix(path)
+	if path == "go.shape" {
+		// Don't escape "go.shape", since it's not needed (it's a builtin
+		// package), and we don't want escape codes showing up in shape type
+		// names, which also appear in names of function/method
+		// instantiations.
+		p.Prefix = path
+	} else {
+		p.Prefix = objabi.PathToPrefix(path)
+	}
 	p.Syms = make(map[string]*Sym)
 	pkgMap[path] = p
 
@@ -74,8 +91,6 @@ func (pkg *Pkg) Lookup(name string) *Sym {
 	return s
 }
 
-var InitSyms []*Sym
-
 // LookupOK looks up name in pkg and reports whether it previously existed.
 func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
 	// TODO(gri) remove this check in favor of specialized lookup
@@ -89,9 +104,6 @@ func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
 	s = &Sym{
 		Name: name,
 		Pkg:  pkg,
-	}
-	if name == "init" {
-		InitSyms = append(InitSyms, s)
 	}
 	pkg.Syms[name] = s
 	return s, false
@@ -125,7 +137,7 @@ func InternString(b []byte) string {
 	return s
 }
 
-// CleanroomDo invokes f in an environment with with no preexisting packages.
+// CleanroomDo invokes f in an environment with no preexisting packages.
 // For testing of import/export only.
 func CleanroomDo(f func()) {
 	saved := pkgMap

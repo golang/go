@@ -1,4 +1,10 @@
+// Copyright 2014 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package runtime
+
+import "unsafe"
 
 // Constants
 const (
@@ -16,6 +22,7 @@ const (
 	_MAP_FIXED   = 0x10
 
 	_MADV_DONTNEED   = 0x4
+	_MADV_FREE       = 0x8
 	_MADV_HUGEPAGE   = 0xe
 	_MADV_NOHUGEPAGE = 0xf
 
@@ -23,6 +30,8 @@ const (
 	_SA_ONSTACK     = 0x8000000
 	_SA_RESTORER    = 0 // unused on ARM
 	_SA_SIGINFO     = 0x4
+	_SI_KERNEL      = 0x80
+	_SI_TIMER       = -0x2
 	_SIGHUP         = 0x1
 	_SIGINT         = 0x2
 	_SIGQUIT        = 0x3
@@ -53,6 +62,7 @@ const (
 	_SIGIO          = 0x1d
 	_SIGPWR         = 0x1e
 	_SIGSYS         = 0x1f
+	_SIGRTMIN       = 0x20
 	_FPE_INTDIV     = 0x1
 	_FPE_INTOVF     = 0x2
 	_FPE_FLTDIV     = 0x3
@@ -70,7 +80,12 @@ const (
 	_ITIMER_PROF    = 0x2
 	_ITIMER_VIRTUAL = 0x1
 	_O_RDONLY       = 0
+	_O_NONBLOCK     = 0x800
 	_O_CLOEXEC      = 0x80000
+
+	_CLOCK_THREAD_CPUTIME_ID = 0x3
+
+	_SIGEV_THREAD_ID = 0x4
 
 	_EPOLLIN       = 0x1
 	_EPOLLOUT      = 0x4
@@ -84,7 +99,6 @@ const (
 	_EPOLL_CTL_MOD = 0x3
 
 	_AF_UNIX    = 0x1
-	_F_SETFL    = 0x4
 	_SOCK_DGRAM = 0x2
 )
 
@@ -93,12 +107,9 @@ type timespec struct {
 	tv_nsec int32
 }
 
-func (ts *timespec) set_sec(x int64) {
-	ts.tv_sec = int32(x)
-}
-
-func (ts *timespec) set_nsec(x int32) {
-	ts.tv_nsec = x
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = timediv(ns, 1e9, &ts.tv_nsec)
 }
 
 type stackt struct {
@@ -150,17 +161,44 @@ func (tv *timeval) set_usec(x int32) {
 	tv.tv_usec = x
 }
 
+type itimerspec struct {
+	it_interval timespec
+	it_value    timespec
+}
+
 type itimerval struct {
 	it_interval timeval
 	it_value    timeval
 }
 
-type siginfo struct {
+type sigeventFields struct {
+	value  uintptr
+	signo  int32
+	notify int32
+	// below here is a union; sigev_notify_thread_id is the only field we use
+	sigev_notify_thread_id int32
+}
+
+type sigevent struct {
+	sigeventFields
+
+	// Pad struct to the max size in the kernel.
+	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
+}
+
+type siginfoFields struct {
 	si_signo int32
 	si_errno int32
 	si_code  int32
 	// below here is a union; si_addr is the only field we use
 	si_addr uint32
+}
+
+type siginfo struct {
+	siginfoFields
+
+	// Pad struct to the max size in the kernel.
+	_ [_si_max_size - unsafe.Sizeof(siginfoFields{})]byte
 }
 
 type sigactiont struct {

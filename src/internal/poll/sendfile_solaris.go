@@ -7,6 +7,7 @@ package poll
 import "syscall"
 
 // Not strictly needed, but very helpful for debugging, see issue #10221.
+//
 //go:cgo_import_dynamic _ _ "libsendfile.so"
 //go:cgo_import_dynamic _ _ "libsocket.so"
 
@@ -20,8 +21,11 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
 		return 0, err
 	}
 	defer dstFD.writeUnlock()
+	if err := dstFD.pd.prepareWrite(dstFD.isFile); err != nil {
+		return 0, err
+	}
 
-	dst := int(dstFD.Sysfd)
+	dst := dstFD.Sysfd
 	var written int64
 	var err error
 	for remain > 0 {
@@ -39,8 +43,7 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
 			pos += int64(n)
 			written += int64(n)
 			remain -= int64(n)
-		}
-		if n == 0 && err1 == nil {
+		} else if n == 0 && err1 == nil {
 			break
 		}
 		if err1 == syscall.EAGAIN {

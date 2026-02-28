@@ -52,7 +52,7 @@ func (c *sigctxt) sp() uint64  { return c.regs().sp }
 //go:nowritebarrierrec
 func (c *sigctxt) pc() uint64 { return c.regs().pc }
 
-func (c *sigctxt) fault() uint64 { return uint64(uintptr(unsafe.Pointer(c.info.si_addr))) }
+func (c *sigctxt) fault() uintptr { return uintptr(unsafe.Pointer(c.info.si_addr)) }
 
 func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
 func (c *sigctxt) sigaddr() uint64 { return uint64(uintptr(unsafe.Pointer(c.info.si_addr))) }
@@ -67,6 +67,7 @@ func (c *sigctxt) set_sigaddr(x uint64) {
 	c.info.si_addr = (*byte)(unsafe.Pointer(uintptr(x)))
 }
 
+//go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
 	switch sig {
 	case _SIGTRAP:

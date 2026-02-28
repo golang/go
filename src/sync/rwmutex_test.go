@@ -59,6 +59,7 @@ func reader(rwm *RWMutex, num_iterations int, activity *int32, cdone chan bool) 
 		rwm.RLock()
 		n := atomic.AddInt32(activity, 1)
 		if n < 1 || n >= 10000 {
+			rwm.RUnlock()
 			panic(fmt.Sprintf("wlock(%d)\n", n))
 		}
 		for i := 0; i < 100; i++ {
@@ -74,6 +75,7 @@ func writer(rwm *RWMutex, num_iterations int, activity *int32, cdone chan bool) 
 		rwm.Lock()
 		n := atomic.AddInt32(activity, 10000)
 		if n != 10000 {
+			rwm.Unlock()
 			panic(fmt.Sprintf("wlock(%d)\n", n))
 		}
 		for i := 0; i < 100; i++ {
@@ -106,6 +108,34 @@ func HammerRWMutex(gomaxprocs, numReaders, num_iterations int) {
 }
 
 func TestRWMutex(t *testing.T) {
+	var m RWMutex
+
+	m.Lock()
+	if m.TryLock() {
+		t.Fatalf("TryLock succeeded with mutex locked")
+	}
+	if m.TryRLock() {
+		t.Fatalf("TryRLock succeeded with mutex locked")
+	}
+	m.Unlock()
+
+	if !m.TryLock() {
+		t.Fatalf("TryLock failed with mutex unlocked")
+	}
+	m.Unlock()
+
+	if !m.TryRLock() {
+		t.Fatalf("TryRLock failed with mutex unlocked")
+	}
+	if !m.TryRLock() {
+		t.Fatalf("TryRLock failed with mutex rlocked")
+	}
+	if m.TryLock() {
+		t.Fatalf("TryLock succeeded with mutex rlocked")
+	}
+	m.RUnlock()
+	m.RUnlock()
+
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(-1))
 	n := 1000
 	if testing.Short() {

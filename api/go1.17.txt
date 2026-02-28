@@ -1,0 +1,276 @@
+pkg archive/zip, method (*File) OpenRaw() (io.Reader, error)
+pkg archive/zip, method (*Writer) Copy(*File) error
+pkg archive/zip, method (*Writer) CreateRaw(*FileHeader) (io.Writer, error)
+pkg compress/lzw, method (*Reader) Close() error
+pkg compress/lzw, method (*Reader) Read([]uint8) (int, error)
+pkg compress/lzw, method (*Reader) Reset(io.Reader, Order, int)
+pkg compress/lzw, method (*Writer) Close() error
+pkg compress/lzw, method (*Writer) Reset(io.Writer, Order, int)
+pkg compress/lzw, method (*Writer) Write([]uint8) (int, error)
+pkg compress/lzw, type Reader struct
+pkg compress/lzw, type Writer struct
+pkg crypto/tls, method (*CertificateRequestInfo) Context() context.Context
+pkg crypto/tls, method (*ClientHelloInfo) Context() context.Context
+pkg crypto/tls, method (*Conn) HandshakeContext(context.Context) error
+pkg database/sql, method (*NullByte) Scan(interface{}) error
+pkg database/sql, method (*NullInt16) Scan(interface{}) error
+pkg database/sql, method (NullByte) Value() (driver.Value, error)
+pkg database/sql, method (NullInt16) Value() (driver.Value, error)
+pkg database/sql, type NullByte struct
+pkg database/sql, type NullByte struct, Byte uint8
+pkg database/sql, type NullByte struct, Valid bool
+pkg database/sql, type NullInt16 struct
+pkg database/sql, type NullInt16 struct, Int16 int16
+pkg database/sql, type NullInt16 struct, Valid bool
+pkg debug/elf, const SHT_MIPS_ABIFLAGS = 1879048234
+pkg debug/elf, const SHT_MIPS_ABIFLAGS SectionType
+pkg encoding/csv, method (*Reader) FieldPos(int) (int, int)
+pkg go/build, type Context struct, ToolTags []string
+pkg go/parser, const SkipObjectResolution = 64
+pkg go/parser, const SkipObjectResolution Mode
+pkg image, method (*Alpha) RGBA64At(int, int) color.RGBA64
+pkg image, method (*Alpha) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*Alpha16) RGBA64At(int, int) color.RGBA64
+pkg image, method (*Alpha16) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*CMYK) RGBA64At(int, int) color.RGBA64
+pkg image, method (*CMYK) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*Gray) RGBA64At(int, int) color.RGBA64
+pkg image, method (*Gray) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*Gray16) RGBA64At(int, int) color.RGBA64
+pkg image, method (*Gray16) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*NRGBA) RGBA64At(int, int) color.RGBA64
+pkg image, method (*NRGBA) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*NRGBA64) RGBA64At(int, int) color.RGBA64
+pkg image, method (*NRGBA64) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*NYCbCrA) RGBA64At(int, int) color.RGBA64
+pkg image, method (*Paletted) RGBA64At(int, int) color.RGBA64
+pkg image, method (*Paletted) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*RGBA) RGBA64At(int, int) color.RGBA64
+pkg image, method (*RGBA) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*Uniform) RGBA64At(int, int) color.RGBA64
+pkg image, method (*YCbCr) RGBA64At(int, int) color.RGBA64
+pkg image, method (Rectangle) RGBA64At(int, int) color.RGBA64
+pkg image, type RGBA64Image interface { At, Bounds, ColorModel, RGBA64At }
+pkg image, type RGBA64Image interface, At(int, int) color.Color
+pkg image, type RGBA64Image interface, Bounds() Rectangle
+pkg image, type RGBA64Image interface, ColorModel() color.Model
+pkg image, type RGBA64Image interface, RGBA64At(int, int) color.RGBA64
+pkg image/draw, type RGBA64Image interface { At, Bounds, ColorModel, RGBA64At, Set, SetRGBA64 }
+pkg image/draw, type RGBA64Image interface, At(int, int) color.Color
+pkg image/draw, type RGBA64Image interface, Bounds() image.Rectangle
+pkg image/draw, type RGBA64Image interface, ColorModel() color.Model
+pkg image/draw, type RGBA64Image interface, RGBA64At(int, int) color.RGBA64
+pkg image/draw, type RGBA64Image interface, Set(int, int, color.Color)
+pkg image/draw, type RGBA64Image interface, SetRGBA64(int, int, color.RGBA64)
+pkg io/fs, func FileInfoToDirEntry(FileInfo) DirEntry
+pkg math (darwin-amd64), const MaxInt = 9223372036854775807
+pkg math (darwin-amd64), const MaxUint = 18446744073709551615
+pkg math (darwin-amd64), const MinInt = -9223372036854775808
+pkg math (darwin-amd64-cgo), const MaxInt = 9223372036854775807
+pkg math (darwin-amd64-cgo), const MaxUint = 18446744073709551615
+pkg math (darwin-amd64-cgo), const MinInt = -9223372036854775808
+pkg math (freebsd-386), const MaxInt = 2147483647
+pkg math (freebsd-386), const MaxUint = 4294967295
+pkg math (freebsd-386), const MinInt = -2147483648
+pkg math (freebsd-386-cgo), const MaxInt = 2147483647
+pkg math (freebsd-386-cgo), const MaxUint = 4294967295
+pkg math (freebsd-386-cgo), const MinInt = -2147483648
+pkg math (freebsd-amd64), const MaxInt = 9223372036854775807
+pkg math (freebsd-amd64), const MaxUint = 18446744073709551615
+pkg math (freebsd-amd64), const MinInt = -9223372036854775808
+pkg math (freebsd-amd64-cgo), const MaxInt = 9223372036854775807
+pkg math (freebsd-amd64-cgo), const MaxUint = 18446744073709551615
+pkg math (freebsd-amd64-cgo), const MinInt = -9223372036854775808
+pkg math (freebsd-arm), const MaxInt = 2147483647
+pkg math (freebsd-arm), const MaxUint = 4294967295
+pkg math (freebsd-arm), const MinInt = -2147483648
+pkg math (freebsd-arm-cgo), const MaxInt = 2147483647
+pkg math (freebsd-arm-cgo), const MaxUint = 4294967295
+pkg math (freebsd-arm-cgo), const MinInt = -2147483648
+pkg math (linux-386), const MaxInt = 2147483647
+pkg math (linux-386), const MaxUint = 4294967295
+pkg math (linux-386), const MinInt = -2147483648
+pkg math (linux-386-cgo), const MaxInt = 2147483647
+pkg math (linux-386-cgo), const MaxUint = 4294967295
+pkg math (linux-386-cgo), const MinInt = -2147483648
+pkg math (linux-amd64), const MaxInt = 9223372036854775807
+pkg math (linux-amd64), const MaxUint = 18446744073709551615
+pkg math (linux-amd64), const MinInt = -9223372036854775808
+pkg math (linux-amd64-cgo), const MaxInt = 9223372036854775807
+pkg math (linux-amd64-cgo), const MaxUint = 18446744073709551615
+pkg math (linux-amd64-cgo), const MinInt = -9223372036854775808
+pkg math (linux-arm), const MaxInt = 2147483647
+pkg math (linux-arm), const MaxUint = 4294967295
+pkg math (linux-arm), const MinInt = -2147483648
+pkg math (linux-arm-cgo), const MaxInt = 2147483647
+pkg math (linux-arm-cgo), const MaxUint = 4294967295
+pkg math (linux-arm-cgo), const MinInt = -2147483648
+pkg math (netbsd-386), const MaxInt = 2147483647
+pkg math (netbsd-386), const MaxUint = 4294967295
+pkg math (netbsd-386), const MinInt = -2147483648
+pkg math (netbsd-386-cgo), const MaxInt = 2147483647
+pkg math (netbsd-386-cgo), const MaxUint = 4294967295
+pkg math (netbsd-386-cgo), const MinInt = -2147483648
+pkg math (netbsd-amd64), const MaxInt = 9223372036854775807
+pkg math (netbsd-amd64), const MaxUint = 18446744073709551615
+pkg math (netbsd-amd64), const MinInt = -9223372036854775808
+pkg math (netbsd-amd64-cgo), const MaxInt = 9223372036854775807
+pkg math (netbsd-amd64-cgo), const MaxUint = 18446744073709551615
+pkg math (netbsd-amd64-cgo), const MinInt = -9223372036854775808
+pkg math (netbsd-arm), const MaxInt = 2147483647
+pkg math (netbsd-arm), const MaxUint = 4294967295
+pkg math (netbsd-arm), const MinInt = -2147483648
+pkg math (netbsd-arm-cgo), const MaxInt = 2147483647
+pkg math (netbsd-arm-cgo), const MaxUint = 4294967295
+pkg math (netbsd-arm-cgo), const MinInt = -2147483648
+pkg math (netbsd-arm64), const MaxInt = 9223372036854775807
+pkg math (netbsd-arm64), const MaxUint = 18446744073709551615
+pkg math (netbsd-arm64), const MinInt = -9223372036854775808
+pkg math (netbsd-arm64-cgo), const MaxInt = 9223372036854775807
+pkg math (netbsd-arm64-cgo), const MaxUint = 18446744073709551615
+pkg math (netbsd-arm64-cgo), const MinInt = -9223372036854775808
+pkg math (openbsd-386), const MaxInt = 2147483647
+pkg math (openbsd-386), const MaxUint = 4294967295
+pkg math (openbsd-386), const MinInt = -2147483648
+pkg math (openbsd-386-cgo), const MaxInt = 2147483647
+pkg math (openbsd-386-cgo), const MaxUint = 4294967295
+pkg math (openbsd-386-cgo), const MinInt = -2147483648
+pkg math (openbsd-amd64), const MaxInt = 9223372036854775807
+pkg math (openbsd-amd64), const MaxUint = 18446744073709551615
+pkg math (openbsd-amd64), const MinInt = -9223372036854775808
+pkg math (openbsd-amd64-cgo), const MaxInt = 9223372036854775807
+pkg math (openbsd-amd64-cgo), const MaxUint = 18446744073709551615
+pkg math (openbsd-amd64-cgo), const MinInt = -9223372036854775808
+pkg math (windows-386), const MaxInt = 2147483647
+pkg math (windows-386), const MaxUint = 4294967295
+pkg math (windows-386), const MinInt = -2147483648
+pkg math (windows-amd64), const MaxInt = 9223372036854775807
+pkg math (windows-amd64), const MaxUint = 18446744073709551615
+pkg math (windows-amd64), const MinInt = -9223372036854775808
+pkg math, const MaxFloat64 = 1.79769e+308  // 179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368
+pkg math, const MaxInt ideal-int
+pkg math, const MaxUint ideal-int
+pkg math, const MinInt ideal-int
+pkg math, const SmallestNonzeroFloat32 = 1.4013e-45  // 1/713623846352979940529142984724747568191373312
+pkg math, const SmallestNonzeroFloat64 = 4.94066e-324  // 1/202402253307310618352495346718917307049556649764142118356901358027430339567995346891960383701437124495187077864316811911389808737385793476867013399940738509921517424276566361364466907742093216341239767678472745068562007483424692698618103355649159556340810056512358769552333414615230502532186327508646006263307707741093494784
+pkg net, method (*ParseError) Temporary() bool
+pkg net, method (*ParseError) Timeout() bool
+pkg net, method (IP) IsPrivate() bool
+pkg net/http, func AllowQuerySemicolons(Handler) Handler
+pkg net/url, method (Values) Has(string) bool
+pkg reflect, func VisibleFields(Type) []StructField
+pkg reflect, method (Method) IsExported() bool
+pkg reflect, method (StructField) IsExported() bool
+pkg reflect, method (Value) CanConvert(Type) bool
+pkg runtime/cgo (darwin-amd64-cgo), func NewHandle(interface{}) Handle
+pkg runtime/cgo (darwin-amd64-cgo), method (Handle) Delete()
+pkg runtime/cgo (darwin-amd64-cgo), method (Handle) Value() interface{}
+pkg runtime/cgo (darwin-amd64-cgo), type Handle uintptr
+pkg runtime/cgo (freebsd-386-cgo), func NewHandle(interface{}) Handle
+pkg runtime/cgo (freebsd-386-cgo), method (Handle) Delete()
+pkg runtime/cgo (freebsd-386-cgo), method (Handle) Value() interface{}
+pkg runtime/cgo (freebsd-386-cgo), type Handle uintptr
+pkg runtime/cgo (freebsd-amd64-cgo), func NewHandle(interface{}) Handle
+pkg runtime/cgo (freebsd-amd64-cgo), method (Handle) Delete()
+pkg runtime/cgo (freebsd-amd64-cgo), method (Handle) Value() interface{}
+pkg runtime/cgo (freebsd-amd64-cgo), type Handle uintptr
+pkg runtime/cgo (freebsd-arm-cgo), func NewHandle(interface{}) Handle
+pkg runtime/cgo (freebsd-arm-cgo), method (Handle) Delete()
+pkg runtime/cgo (freebsd-arm-cgo), method (Handle) Value() interface{}
+pkg runtime/cgo (freebsd-arm-cgo), type Handle uintptr
+pkg runtime/cgo (linux-386-cgo), func NewHandle(interface{}) Handle
+pkg runtime/cgo (linux-386-cgo), method (Handle) Delete()
+pkg runtime/cgo (linux-386-cgo), method (Handle) Value() interface{}
+pkg runtime/cgo (linux-386-cgo), type Handle uintptr
+pkg runtime/cgo (linux-amd64-cgo), func NewHandle(interface{}) Handle
+pkg runtime/cgo (linux-amd64-cgo), method (Handle) Delete()
+pkg runtime/cgo (linux-amd64-cgo), method (Handle) Value() interface{}
+pkg runtime/cgo (linux-amd64-cgo), type Handle uintptr
+pkg runtime/cgo (linux-arm-cgo), func NewHandle(interface{}) Handle
+pkg runtime/cgo (linux-arm-cgo), method (Handle) Delete()
+pkg runtime/cgo (linux-arm-cgo), method (Handle) Value() interface{}
+pkg runtime/cgo (linux-arm-cgo), type Handle uintptr
+pkg runtime/cgo (netbsd-386-cgo), func NewHandle(interface{}) Handle
+pkg runtime/cgo (netbsd-386-cgo), method (Handle) Delete()
+pkg runtime/cgo (netbsd-386-cgo), method (Handle) Value() interface{}
+pkg runtime/cgo (netbsd-386-cgo), type Handle uintptr
+pkg runtime/cgo (netbsd-amd64-cgo), func NewHandle(interface{}) Handle
+pkg runtime/cgo (netbsd-amd64-cgo), method (Handle) Delete()
+pkg runtime/cgo (netbsd-amd64-cgo), method (Handle) Value() interface{}
+pkg runtime/cgo (netbsd-amd64-cgo), type Handle uintptr
+pkg runtime/cgo (netbsd-arm-cgo), func NewHandle(interface{}) Handle
+pkg runtime/cgo (netbsd-arm-cgo), method (Handle) Delete()
+pkg runtime/cgo (netbsd-arm-cgo), method (Handle) Value() interface{}
+pkg runtime/cgo (netbsd-arm-cgo), type Handle uintptr
+pkg runtime/cgo (netbsd-arm64-cgo), func NewHandle(interface{}) Handle
+pkg runtime/cgo (netbsd-arm64-cgo), method (Handle) Delete()
+pkg runtime/cgo (netbsd-arm64-cgo), method (Handle) Value() interface{}
+pkg runtime/cgo (netbsd-arm64-cgo), type Handle uintptr
+pkg runtime/cgo (openbsd-386-cgo), func NewHandle(interface{}) Handle
+pkg runtime/cgo (openbsd-386-cgo), method (Handle) Delete()
+pkg runtime/cgo (openbsd-386-cgo), method (Handle) Value() interface{}
+pkg runtime/cgo (openbsd-386-cgo), type Handle uintptr
+pkg runtime/cgo (openbsd-amd64-cgo), func NewHandle(interface{}) Handle
+pkg runtime/cgo (openbsd-amd64-cgo), method (Handle) Delete()
+pkg runtime/cgo (openbsd-amd64-cgo), method (Handle) Value() interface{}
+pkg runtime/cgo (openbsd-amd64-cgo), type Handle uintptr
+pkg strconv, func QuotedPrefix(string) (string, error)
+pkg sync/atomic, method (*Value) CompareAndSwap(interface{}, interface{}) bool
+pkg sync/atomic, method (*Value) Swap(interface{}) interface{}
+pkg syscall (netbsd-386), const SYS_WAIT6 = 481
+pkg syscall (netbsd-386), const SYS_WAIT6 ideal-int
+pkg syscall (netbsd-386), const WEXITED = 32
+pkg syscall (netbsd-386), const WEXITED ideal-int
+pkg syscall (netbsd-386-cgo), const SYS_WAIT6 = 481
+pkg syscall (netbsd-386-cgo), const SYS_WAIT6 ideal-int
+pkg syscall (netbsd-386-cgo), const WEXITED = 32
+pkg syscall (netbsd-386-cgo), const WEXITED ideal-int
+pkg syscall (netbsd-amd64), const SYS_WAIT6 = 481
+pkg syscall (netbsd-amd64), const SYS_WAIT6 ideal-int
+pkg syscall (netbsd-amd64), const WEXITED = 32
+pkg syscall (netbsd-amd64), const WEXITED ideal-int
+pkg syscall (netbsd-amd64-cgo), const SYS_WAIT6 = 481
+pkg syscall (netbsd-amd64-cgo), const SYS_WAIT6 ideal-int
+pkg syscall (netbsd-amd64-cgo), const WEXITED = 32
+pkg syscall (netbsd-amd64-cgo), const WEXITED ideal-int
+pkg syscall (netbsd-arm), const SYS_WAIT6 = 481
+pkg syscall (netbsd-arm), const SYS_WAIT6 ideal-int
+pkg syscall (netbsd-arm), const WEXITED = 32
+pkg syscall (netbsd-arm), const WEXITED ideal-int
+pkg syscall (netbsd-arm-cgo), const SYS_WAIT6 = 481
+pkg syscall (netbsd-arm-cgo), const SYS_WAIT6 ideal-int
+pkg syscall (netbsd-arm-cgo), const WEXITED = 32
+pkg syscall (netbsd-arm-cgo), const WEXITED ideal-int
+pkg syscall (netbsd-arm64), const SYS_WAIT6 = 481
+pkg syscall (netbsd-arm64), const SYS_WAIT6 ideal-int
+pkg syscall (netbsd-arm64), const WEXITED = 32
+pkg syscall (netbsd-arm64), const WEXITED ideal-int
+pkg syscall (netbsd-arm64-cgo), const SYS_WAIT6 = 481
+pkg syscall (netbsd-arm64-cgo), const SYS_WAIT6 ideal-int
+pkg syscall (netbsd-arm64-cgo), const WEXITED = 32
+pkg syscall (netbsd-arm64-cgo), const WEXITED ideal-int
+pkg syscall (openbsd-386), const MSG_CMSG_CLOEXEC = 2048
+pkg syscall (openbsd-386), const MSG_CMSG_CLOEXEC ideal-int
+pkg syscall (openbsd-386-cgo), const MSG_CMSG_CLOEXEC = 2048
+pkg syscall (openbsd-386-cgo), const MSG_CMSG_CLOEXEC ideal-int
+pkg syscall (openbsd-amd64), const MSG_CMSG_CLOEXEC = 2048
+pkg syscall (openbsd-amd64), const MSG_CMSG_CLOEXEC ideal-int
+pkg syscall (openbsd-amd64-cgo), const MSG_CMSG_CLOEXEC = 2048
+pkg syscall (openbsd-amd64-cgo), const MSG_CMSG_CLOEXEC ideal-int
+pkg syscall (windows-386), type SysProcAttr struct, AdditionalInheritedHandles []Handle
+pkg syscall (windows-386), type SysProcAttr struct, ParentProcess Handle
+pkg syscall (windows-amd64), type SysProcAttr struct, AdditionalInheritedHandles []Handle
+pkg syscall (windows-amd64), type SysProcAttr struct, ParentProcess Handle
+pkg testing, method (*B) Setenv(string, string)
+pkg testing, method (*T) Setenv(string, string)
+pkg testing, type TB interface, Setenv(string, string)
+pkg text/template/parse, const SkipFuncCheck = 2
+pkg text/template/parse, const SkipFuncCheck Mode
+pkg time, const Layout = "01/02 03:04:05PM '06 -0700"
+pkg time, const Layout ideal-string
+pkg time, func UnixMicro(int64) Time
+pkg time, func UnixMilli(int64) Time
+pkg time, method (Time) GoString() string
+pkg time, method (Time) IsDST() bool
+pkg time, method (Time) UnixMicro() int64
+pkg time, method (Time) UnixMilli() int64

@@ -1,0 +1,45 @@
+# The loader should not attempt to resolve imports of the "all", "std", and "cmd" meta-packages.
+
+! go list -deps ./importall
+! stderr 'internal error'
+stderr '^importall[/\\]x.go:3:8: "all" is not an importable package; see ''go help packages''$'
+
+! go list -deps ./importcmd
+! stderr 'internal error'
+stderr '^importcmd[/\\]x.go:3:8: "cmd" is not an importable package; see ''go help packages''$'
+
+! go list -deps ./importstd
+! stderr 'internal error'
+stderr '^importstd[/\\]x.go:3:8: "std" is not an importable package; see ''go help packages''$'
+
+
+# Not even if such a path is theoretically provided by a (necessarily replaced) module.
+
+go mod edit -replace std@v0.1.0=./modstd
+go mod edit -require std@v0.1.0
+
+! go list -deps ./importstd
+stderr '^importstd[/\\]x.go:3:8: "std" is not an importable package; see ''go help packages''$'
+
+
+-- go.mod --
+module example.com
+go 1.16
+-- importall/x.go --
+package importall
+
+import _ "all"
+-- importcmd/x.go --
+package importcmd
+
+import _ "cmd"
+-- importstd/x.go --
+package importstd
+
+import _ "std"
+-- modstd/go.mod --
+module std
+go 1.16
+-- modstd/std.go --
+// Package std is an incredibly confusingly-named package.
+package std

@@ -17,7 +17,7 @@ var contextFix = fix{
 	date:     "2016-09-09",
 	f:        ctxfix,
 	desc:     `Change imports of golang.org/x/net/context to context`,
-	disabled: true,
+	disabled: false,
 }
 
 func ctxfix(f *ast.File) bool {

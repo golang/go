@@ -8,7 +8,11 @@ import (
 	"bytes"
 	. "flag"
 	"fmt"
+	"internal/testenv"
+	"io"
 	"os"
+	"os/exec"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -33,6 +37,7 @@ func TestEverything(t *testing.T) {
 	String("test_string", "0", "string value")
 	Float64("test_float64", 0, "float64 value")
 	Duration("test_duration", 0, "time.Duration value")
+	Func("test_func", "func value", func(string) error { return nil })
 
 	m := make(map[string]*Flag)
 	desired := "0"
@@ -47,6 +52,8 @@ func TestEverything(t *testing.T) {
 				ok = true
 			case f.Name == "test_duration" && f.Value.String() == desired+"s":
 				ok = true
+			case f.Name == "test_func" && f.Value.String() == "":
+				ok = true
 			}
 			if !ok {
 				t.Error("Visit: bad value", f.Value.String(), "for", f.Name)
@@ -54,7 +61,7 @@ func TestEverything(t *testing.T) {
 		}
 	}
 	VisitAll(visitor)
-	if len(m) != 8 {
+	if len(m) != 9 {
 		t.Error("VisitAll misses some flags")
 		for k, v := range m {
 			t.Log(k, *v)
@@ -77,9 +84,10 @@ func TestEverything(t *testing.T) {
 	Set("test_string", "1")
 	Set("test_float64", "1")
 	Set("test_duration", "1s")
+	Set("test_func", "1")
 	desired = "1"
 	Visit(visitor)
-	if len(m) != 8 {
+	if len(m) != 9 {
 		t.Error("Visit fails after set")
 		for k, v := range m {
 			t.Log(k, *v)
@@ -238,6 +246,7 @@ func (f *flagVar) Set(value string) error {
 func TestUserDefined(t *testing.T) {
 	var flags FlagSet
 	flags.Init("test", ContinueOnError)
+	flags.SetOutput(io.Discard)
 	var v flagVar
 	flags.Var(&v, "v", "usage")
 	if err := flags.Parse([]string{"-v", "1", "-v", "2", "-v=3"}); err != nil {
@@ -249,6 +258,49 @@ func TestUserDefined(t *testing.T) {
 	expect := "[1 2 3]"
 	if v.String() != expect {
 		t.Errorf("expected value %q got %q", expect, v.String())
+	}
+}
+
+func TestUserDefinedFunc(t *testing.T) {
+	flags := NewFlagSet("test", ContinueOnError)
+	flags.SetOutput(io.Discard)
+	var ss []string
+	flags.Func("v", "usage", func(s string) error {
+		ss = append(ss, s)
+		return nil
+	})
+	if err := flags.Parse([]string{"-v", "1", "-v", "2", "-v=3"}); err != nil {
+		t.Error(err)
+	}
+	if len(ss) != 3 {
+		t.Fatal("expected 3 args; got ", len(ss))
+	}
+	expect := "[1 2 3]"
+	if got := fmt.Sprint(ss); got != expect {
+		t.Errorf("expected value %q got %q", expect, got)
+	}
+	// test usage
+	var buf strings.Builder
+	flags.SetOutput(&buf)
+	flags.Parse([]string{"-h"})
+	if usage := buf.String(); !strings.Contains(usage, "usage") {
+		t.Errorf("usage string not included: %q", usage)
+	}
+	// test Func error
+	flags = NewFlagSet("test", ContinueOnError)
+	flags.SetOutput(io.Discard)
+	flags.Func("v", "usage", func(s string) error {
+		return fmt.Errorf("test error")
+	})
+	// flag not set, so no error
+	if err := flags.Parse(nil); err != nil {
+		t.Error(err)
+	}
+	// flag set, expect error
+	if err := flags.Parse([]string{"-v", "1"}); err == nil {
+		t.Error("expected error; got none")
+	} else if errMsg := err.Error(); !strings.Contains(errMsg, "test error") {
+		t.Errorf(`error should contain "test error"; got %q`, errMsg)
 	}
 }
 
@@ -285,6 +337,7 @@ func (b *boolFlagVar) IsBoolFlag() bool {
 func TestUserDefinedBool(t *testing.T) {
 	var flags FlagSet
 	flags.Init("test", ContinueOnError)
+	flags.SetOutput(io.Discard)
 	var b boolFlagVar
 	var err error
 	flags.Var(&b, "b", "usage")
@@ -379,22 +432,58 @@ func TestHelp(t *testing.T) {
 	}
 }
 
+// zeroPanicker is a flag.Value whose String method panics if its dontPanic
+// field is false.
+type zeroPanicker struct {
+	dontPanic bool
+	v         string
+}
+
+func (f *zeroPanicker) Set(s string) error {
+	f.v = s
+	return nil
+}
+
+func (f *zeroPanicker) String() string {
+	if !f.dontPanic {
+		panic("panic!")
+	}
+	return f.v
+}
+
 const defaultOutput = `  -A	for bootstrapping, allow 'any' type
   -Alongflagname
     	disable bounds checking
   -C	a boolean defaulting to true (default true)
   -D path
     	set relative path for local imports
+  -E string
+    	issue 23543 (default "0")
   -F number
     	a non-zero number (default 2.7)
   -G float
     	a float that defaults to zero
+  -M string
+    	a multiline
+    	help
+    	string
   -N int
     	a non-zero int (default 27)
+  -O	a flag
+    	multiline help string (default true)
+  -V list
+    	a list of strings (default [a b])
   -Z int
     	an int that defaults to zero
+  -ZP0 value
+    	a flag whose String method panics when it is zero
+  -ZP1 value
+    	a flag whose String method panics when it is zero
   -maxT timeout
     	set timeout for dial
+
+panic calling String method on zero flag_test.zeroPanicker for flag ZP0: panic!
+panic calling String method on zero flag_test.zeroPanicker for flag ZP1: panic!
 `
 
 func TestPrintDefaults(t *testing.T) {
@@ -405,15 +494,21 @@ func TestPrintDefaults(t *testing.T) {
 	fs.Bool("Alongflagname", false, "disable bounds checking")
 	fs.Bool("C", true, "a boolean defaulting to true")
 	fs.String("D", "", "set relative `path` for local imports")
+	fs.String("E", "0", "issue 23543")
 	fs.Float64("F", 2.7, "a non-zero `number`")
 	fs.Float64("G", 0, "a float that defaults to zero")
+	fs.String("M", "", "a multiline\nhelp\nstring")
 	fs.Int("N", 27, "a non-zero int")
+	fs.Bool("O", true, "a flag\nmultiline help string")
+	fs.Var(&flagVar{"a", "b"}, "V", "a `list` of strings")
 	fs.Int("Z", 0, "an int that defaults to zero")
+	fs.Var(&zeroPanicker{true, ""}, "ZP0", "a flag whose String method panics when it is zero")
+	fs.Var(&zeroPanicker{true, "something"}, "ZP1", "a flag whose String method panics when it is zero")
 	fs.Duration("maxT", 0, "set `timeout` for dial")
 	fs.PrintDefaults()
 	got := buf.String()
 	if got != defaultOutput {
-		t.Errorf("got %q want %q\n", got, defaultOutput)
+		t.Errorf("got:\n%q\nwant:\n%q", got, defaultOutput)
 	}
 }
 
@@ -430,5 +525,250 @@ func TestIntFlagOverflow(t *testing.T) {
 	}
 	if err := Set("u", "4294967296"); err == nil {
 		t.Error("unexpected success setting Uint")
+	}
+}
+
+// Issue 20998: Usage should respect CommandLine.output.
+func TestUsageOutput(t *testing.T) {
+	ResetForTesting(DefaultUsage)
+	var buf bytes.Buffer
+	CommandLine.SetOutput(&buf)
+	defer func(old []string) { os.Args = old }(os.Args)
+	os.Args = []string{"app", "-i=1", "-unknown"}
+	Parse()
+	const want = "flag provided but not defined: -i\nUsage of app:\n"
+	if got := buf.String(); got != want {
+		t.Errorf("output = %q; want %q", got, want)
+	}
+}
+
+func TestGetters(t *testing.T) {
+	expectedName := "flag set"
+	expectedErrorHandling := ContinueOnError
+	expectedOutput := io.Writer(os.Stderr)
+	fs := NewFlagSet(expectedName, expectedErrorHandling)
+
+	if fs.Name() != expectedName {
+		t.Errorf("unexpected name: got %s, expected %s", fs.Name(), expectedName)
+	}
+	if fs.ErrorHandling() != expectedErrorHandling {
+		t.Errorf("unexpected ErrorHandling: got %d, expected %d", fs.ErrorHandling(), expectedErrorHandling)
+	}
+	if fs.Output() != expectedOutput {
+		t.Errorf("unexpected output: got %#v, expected %#v", fs.Output(), expectedOutput)
+	}
+
+	expectedName = "gopher"
+	expectedErrorHandling = ExitOnError
+	expectedOutput = os.Stdout
+	fs.Init(expectedName, expectedErrorHandling)
+	fs.SetOutput(expectedOutput)
+
+	if fs.Name() != expectedName {
+		t.Errorf("unexpected name: got %s, expected %s", fs.Name(), expectedName)
+	}
+	if fs.ErrorHandling() != expectedErrorHandling {
+		t.Errorf("unexpected ErrorHandling: got %d, expected %d", fs.ErrorHandling(), expectedErrorHandling)
+	}
+	if fs.Output() != expectedOutput {
+		t.Errorf("unexpected output: got %v, expected %v", fs.Output(), expectedOutput)
+	}
+}
+
+func TestParseError(t *testing.T) {
+	for _, typ := range []string{"bool", "int", "int64", "uint", "uint64", "float64", "duration"} {
+		fs := NewFlagSet("parse error test", ContinueOnError)
+		fs.SetOutput(io.Discard)
+		_ = fs.Bool("bool", false, "")
+		_ = fs.Int("int", 0, "")
+		_ = fs.Int64("int64", 0, "")
+		_ = fs.Uint("uint", 0, "")
+		_ = fs.Uint64("uint64", 0, "")
+		_ = fs.Float64("float64", 0, "")
+		_ = fs.Duration("duration", 0, "")
+		// Strings cannot give errors.
+		args := []string{"-" + typ + "=x"}
+		err := fs.Parse(args) // x is not a valid setting for any flag.
+		if err == nil {
+			t.Errorf("Parse(%q)=%v; expected parse error", args, err)
+			continue
+		}
+		if !strings.Contains(err.Error(), "invalid") || !strings.Contains(err.Error(), "parse error") {
+			t.Errorf("Parse(%q)=%v; expected parse error", args, err)
+		}
+	}
+}
+
+func TestRangeError(t *testing.T) {
+	bad := []string{
+		"-int=123456789012345678901",
+		"-int64=123456789012345678901",
+		"-uint=123456789012345678901",
+		"-uint64=123456789012345678901",
+		"-float64=1e1000",
+	}
+	for _, arg := range bad {
+		fs := NewFlagSet("parse error test", ContinueOnError)
+		fs.SetOutput(io.Discard)
+		_ = fs.Int("int", 0, "")
+		_ = fs.Int64("int64", 0, "")
+		_ = fs.Uint("uint", 0, "")
+		_ = fs.Uint64("uint64", 0, "")
+		_ = fs.Float64("float64", 0, "")
+		// Strings cannot give errors, and bools and durations do not return strconv.NumError.
+		err := fs.Parse([]string{arg})
+		if err == nil {
+			t.Errorf("Parse(%q)=%v; expected range error", arg, err)
+			continue
+		}
+		if !strings.Contains(err.Error(), "invalid") || !strings.Contains(err.Error(), "value out of range") {
+			t.Errorf("Parse(%q)=%v; expected range error", arg, err)
+		}
+	}
+}
+
+func TestExitCode(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	magic := 123
+	if os.Getenv("GO_CHILD_FLAG") != "" {
+		fs := NewFlagSet("test", ExitOnError)
+		if os.Getenv("GO_CHILD_FLAG_HANDLE") != "" {
+			var b bool
+			fs.BoolVar(&b, os.Getenv("GO_CHILD_FLAG_HANDLE"), false, "")
+		}
+		fs.Parse([]string{os.Getenv("GO_CHILD_FLAG")})
+		os.Exit(magic)
+	}
+
+	tests := []struct {
+		flag       string
+		flagHandle string
+		expectExit int
+	}{
+		{
+			flag:       "-h",
+			expectExit: 0,
+		},
+		{
+			flag:       "-help",
+			expectExit: 0,
+		},
+		{
+			flag:       "-undefined",
+			expectExit: 2,
+		},
+		{
+			flag:       "-h",
+			flagHandle: "h",
+			expectExit: magic,
+		},
+		{
+			flag:       "-help",
+			flagHandle: "help",
+			expectExit: magic,
+		},
+	}
+
+	for _, test := range tests {
+		cmd := exec.Command(os.Args[0], "-test.run=TestExitCode")
+		cmd.Env = append(
+			os.Environ(),
+			"GO_CHILD_FLAG="+test.flag,
+			"GO_CHILD_FLAG_HANDLE="+test.flagHandle,
+		)
+		cmd.Run()
+		got := cmd.ProcessState.ExitCode()
+		// ExitCode is either 0 or 1 on Plan 9.
+		if runtime.GOOS == "plan9" && test.expectExit != 0 {
+			test.expectExit = 1
+		}
+		if got != test.expectExit {
+			t.Errorf("unexpected exit code for test case %+v \n: got %d, expect %d",
+				test, got, test.expectExit)
+		}
+	}
+}
+
+func mustPanic(t *testing.T, testName string, expected string, f func()) {
+	t.Helper()
+	defer func() {
+		switch msg := recover().(type) {
+		case nil:
+			t.Errorf("%s\n: expected panic(%q), but did not panic", testName, expected)
+		case string:
+			if msg != expected {
+				t.Errorf("%s\n: expected panic(%q), but got panic(%q)", testName, expected, msg)
+			}
+		default:
+			t.Errorf("%s\n: expected panic(%q), but got panic(%T%v)", testName, expected, msg, msg)
+		}
+	}()
+	f()
+}
+
+func TestInvalidFlags(t *testing.T) {
+	tests := []struct {
+		flag     string
+		errorMsg string
+	}{
+		{
+			flag:     "-foo",
+			errorMsg: "flag \"-foo\" begins with -",
+		},
+		{
+			flag:     "foo=bar",
+			errorMsg: "flag \"foo=bar\" contains =",
+		},
+	}
+
+	for _, test := range tests {
+		testName := fmt.Sprintf("FlagSet.Var(&v, %q, \"\")", test.flag)
+
+		fs := NewFlagSet("", ContinueOnError)
+		buf := bytes.NewBuffer(nil)
+		fs.SetOutput(buf)
+
+		mustPanic(t, testName, test.errorMsg, func() {
+			var v flagVar
+			fs.Var(&v, test.flag, "")
+		})
+		if msg := test.errorMsg + "\n"; msg != buf.String() {
+			t.Errorf("%s\n: unexpected output: expected %q, bug got %q", testName, msg, buf)
+		}
+	}
+}
+
+func TestRedefinedFlags(t *testing.T) {
+	tests := []struct {
+		flagSetName string
+		errorMsg    string
+	}{
+		{
+			flagSetName: "",
+			errorMsg:    "flag redefined: foo",
+		},
+		{
+			flagSetName: "fs",
+			errorMsg:    "fs flag redefined: foo",
+		},
+	}
+
+	for _, test := range tests {
+		testName := fmt.Sprintf("flag redefined in FlagSet(%q)", test.flagSetName)
+
+		fs := NewFlagSet(test.flagSetName, ContinueOnError)
+		buf := bytes.NewBuffer(nil)
+		fs.SetOutput(buf)
+
+		var v flagVar
+		fs.Var(&v, "foo", "")
+
+		mustPanic(t, testName, test.errorMsg, func() {
+			fs.Var(&v, "foo", "")
+		})
+		if msg := test.errorMsg + "\n"; msg != buf.String() {
+			t.Errorf("%s\n: unexpected output: expected %q, bug got %q", testName, msg, buf)
+		}
 	}
 }

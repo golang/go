@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 /*
 Input to cgo.
@@ -38,6 +38,8 @@ const (
 	EBADF       = C.EBADF
 	EFAULT      = C.EFAULT
 	EAGAIN      = C.EAGAIN
+	EBUSY       = C.EBUSY
+	ETIME       = C.ETIME
 	ETIMEDOUT   = C.ETIMEDOUT
 	EWOULDBLOCK = C.EWOULDBLOCK
 	EINPROGRESS = C.EINPROGRESS
@@ -118,6 +120,7 @@ const (
 	MAXHOSTNAMELEN = C.MAXHOSTNAMELEN
 
 	O_NONBLOCK = C.O_NONBLOCK
+	O_CLOEXEC  = C.O_CLOEXEC
 	FD_CLOEXEC = C.FD_CLOEXEC
 	F_GETFL    = C.F_GETFL
 	F_SETFL    = C.F_SETFL
@@ -128,7 +131,9 @@ const (
 	POLLHUP = C.POLLHUP
 	POLLERR = C.POLLERR
 
-	PORT_SOURCE_FD = C.PORT_SOURCE_FD
+	PORT_SOURCE_FD    = C.PORT_SOURCE_FD
+	PORT_SOURCE_ALERT = C.PORT_SOURCE_ALERT
+	PORT_ALERT_UPDATE = C.PORT_ALERT_UPDATE
 )
 
 type SemT C.sem_t

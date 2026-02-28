@@ -122,6 +122,37 @@ func TestReverseSortIntSlice(t *testing.T) {
 	}
 }
 
+func TestBreakPatterns(t *testing.T) {
+	// Special slice used to trigger breakPatterns.
+	data := make([]int, 30)
+	for i := range data {
+		data[i] = 10
+	}
+	data[(len(data)/4)*1] = 0
+	data[(len(data)/4)*2] = 1
+	data[(len(data)/4)*3] = 2
+	Sort(IntSlice(data))
+}
+
+func TestReverseRange(t *testing.T) {
+	data := []int{1, 2, 3, 4, 5, 6, 7}
+	ReverseRange(IntSlice(data), 0, len(data))
+	for i := len(data) - 1; i > 0; i-- {
+		if data[i] > data[i-1] {
+			t.Fatalf("reverseRange didn't work")
+		}
+	}
+
+	data1 := []int{1, 2, 3, 4, 5, 6, 7}
+	data2 := []int{1, 2, 5, 4, 3, 6, 7}
+	ReverseRange(IntSlice(data1), 2, 5)
+	for i, v := range data1 {
+		if v != data2[i] {
+			t.Fatalf("reverseRange didn't work")
+		}
+	}
+}
+
 type nonDeterministicTestingData struct {
 	r *rand.Rand
 }
@@ -194,7 +225,7 @@ func BenchmarkSortString1K_Slice(b *testing.B) {
 func BenchmarkStableString1K(b *testing.B) {
 	b.StopTimer()
 	unsorted := make([]string, 1<<10)
-	for i := 0; i < len(data); i++ {
+	for i := range unsorted {
 		unsorted[i] = strconv.Itoa(i ^ 0x2cc)
 	}
 	data := make([]string, len(unsorted))
@@ -213,6 +244,45 @@ func BenchmarkSortInt1K(b *testing.B) {
 		data := make([]int, 1<<10)
 		for i := 0; i < len(data); i++ {
 			data[i] = i ^ 0x2cc
+		}
+		b.StartTimer()
+		Ints(data)
+		b.StopTimer()
+	}
+}
+
+func BenchmarkSortInt1K_Sorted(b *testing.B) {
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		data := make([]int, 1<<10)
+		for i := 0; i < len(data); i++ {
+			data[i] = i
+		}
+		b.StartTimer()
+		Ints(data)
+		b.StopTimer()
+	}
+}
+
+func BenchmarkSortInt1K_Reversed(b *testing.B) {
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		data := make([]int, 1<<10)
+		for i := 0; i < len(data); i++ {
+			data[i] = len(data) - i
+		}
+		b.StartTimer()
+		Ints(data)
+		b.StopTimer()
+	}
+}
+
+func BenchmarkSortInt1K_Mod8(b *testing.B) {
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		data := make([]int, 1<<10)
+		for i := 0; i < len(data); i++ {
+			data[i] = i % 8
 		}
 		b.StartTimer()
 		Ints(data)
@@ -323,8 +393,7 @@ func (d *testingData) Less(i, j int) bool {
 }
 func (d *testingData) Swap(i, j int) {
 	if d.nswap >= d.maxswap {
-		d.t.Errorf("%s: used %d swaps sorting slice of %d", d.desc, d.nswap, len(d.data))
-		d.t.FailNow()
+		d.t.Fatalf("%s: used %d swaps sorting slice of %d", d.desc, d.nswap, len(d.data))
 	}
 	d.nswap++
 	d.data[i], d.data[j] = d.data[j], d.data[i]
@@ -433,9 +502,7 @@ func testBentleyMcIlroy(t *testing.T, sort func(Interface), maxswap func(int) in
 					// mutating method Sort can call is TestingData.swap,
 					// it suffices here just to check that the final slice is sorted.
 					if !IntsAreSorted(mdata) {
-						t.Errorf("%s: ints not sorted", desc)
-						t.Errorf("\t%v", mdata)
-						t.FailNow()
+						t.Fatalf("%s: ints not sorted\n\t%v", desc, mdata)
 					}
 				}
 			}
@@ -456,51 +523,70 @@ func TestStableBM(t *testing.T) {
 }
 
 // This is based on the "antiquicksort" implementation by M. Douglas McIlroy.
-// See http://www.cs.dartmouth.edu/~doug/mdmspe.pdf for more info.
+// See https://www.cs.dartmouth.edu/~doug/mdmspe.pdf for more info.
 type adversaryTestingData struct {
-	data      []int
-	keys      map[int]int
-	candidate int
+	t         *testing.T
+	data      []int // item values, initialized to special gas value and changed by Less
+	maxcmp    int   // number of comparisons allowed
+	ncmp      int   // number of comparisons (calls to Less)
+	nsolid    int   // number of elements that have been set to non-gas values
+	candidate int   // guess at current pivot
+	gas       int   // special value for unset elements, higher than everything else
 }
 
 func (d *adversaryTestingData) Len() int { return len(d.data) }
 
 func (d *adversaryTestingData) Less(i, j int) bool {
-	if _, present := d.keys[i]; !present {
-		if _, present := d.keys[j]; !present {
-			if i == d.candidate {
-				d.keys[i] = len(d.keys)
-			} else {
-				d.keys[j] = len(d.keys)
-			}
+	if d.ncmp >= d.maxcmp {
+		d.t.Fatalf("used %d comparisons sorting adversary data with size %d", d.ncmp, len(d.data))
+	}
+	d.ncmp++
+
+	if d.data[i] == d.gas && d.data[j] == d.gas {
+		if i == d.candidate {
+			// freeze i
+			d.data[i] = d.nsolid
+			d.nsolid++
+		} else {
+			// freeze j
+			d.data[j] = d.nsolid
+			d.nsolid++
 		}
 	}
 
-	if _, present := d.keys[i]; !present {
+	if d.data[i] == d.gas {
 		d.candidate = i
-		return false
-	}
-	if _, present := d.keys[j]; !present {
+	} else if d.data[j] == d.gas {
 		d.candidate = j
-		return true
 	}
 
-	return d.keys[i] >= d.keys[j]
+	return d.data[i] < d.data[j]
 }
 
 func (d *adversaryTestingData) Swap(i, j int) {
 	d.data[i], d.data[j] = d.data[j], d.data[i]
 }
 
-func TestAdversary(t *testing.T) {
-	const size = 100
+func newAdversaryTestingData(t *testing.T, size int, maxcmp int) *adversaryTestingData {
+	gas := size - 1
 	data := make([]int, size)
 	for i := 0; i < size; i++ {
-		data[i] = i
+		data[i] = gas
 	}
+	return &adversaryTestingData{t: t, data: data, maxcmp: maxcmp, gas: gas}
+}
 
-	d := &adversaryTestingData{data, make(map[int]int), 0}
+func TestAdversary(t *testing.T) {
+	const size = 10000            // large enough to distinguish between O(n^2) and O(n*log(n))
+	maxcmp := size * lg(size) * 4 // the factor 4 was found by trial and error
+	d := newAdversaryTestingData(t, size, maxcmp)
 	Sort(d) // This should degenerate to heapsort.
+	// Check data is fully populated and sorted.
+	for i, v := range d.data {
+		if v != i {
+			t.Fatalf("adversary data not fully sorted")
+		}
+	}
 }
 
 func TestStableInts(t *testing.T) {

@@ -38,6 +38,25 @@ func TestPrimeBitsLt2(t *testing.T) {
 	}
 }
 
+func TestPrimeNondeterministic(t *testing.T) {
+	r := mathrand.New(mathrand.NewSource(42))
+	p0, err := rand.Prime(r, 32)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 128; i++ {
+		r.Seed(42)
+		p, err := rand.Prime(r, 32)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.Cmp(p0) != 0 {
+			return
+		}
+	}
+	t.Error("Prime always generated the same prime given the same input")
+}
+
 func TestInt(t *testing.T) {
 	// start at 128 so the case of (max.BitLen() % 8) == 0 is covered
 	for n := 128; n < 140; n++ {
@@ -84,6 +103,9 @@ func TestIntMask(t *testing.T) {
 	for max := 1; max <= 256; max++ {
 		t.Run(fmt.Sprintf("max=%d", max), func(t *testing.T) {
 			for i := 0; i < max; i++ {
+				if testing.Short() && i == 0 {
+					i = max - 1
+				}
 				var b bytes.Buffer
 				b.WriteByte(byte(i))
 				n, err := rand.Int(&b, big.NewInt(int64(max)))

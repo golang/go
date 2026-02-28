@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
-// +build mips64 mips64le
+//go:build (linux || openbsd) && (mips64 || mips64le)
 
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -67,28 +67,34 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	// functions are correctly handled. This smashes
 	// the stack frame but we're not going back there
 	// anyway.
-	sp := c.sp() - sys.PtrSize
+	sp := c.sp() - goarch.PtrSize
 	c.set_sp(sp)
 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
 
 	pc := gp.sigpc
 
-	// If we don't recognize the PC as code
-	// but we do recognize the link register as code,
-	// then assume this was a call to non-code and treat like
-	// pc == 0, to make unwinding show the context.
-	if pc != 0 && !findfunc(pc).valid() && findfunc(uintptr(c.link())).valid() {
-		pc = 0
-	}
-
-	// Don't bother saving PC if it's zero, which is
-	// probably a call to a nil func: the old link register
-	// is more useful in the stack trace.
-	if pc != 0 {
+	if shouldPushSigpanic(gp, pc, uintptr(c.link())) {
+		// Make it look the like faulting PC called sigpanic.
 		c.set_link(uint64(pc))
 	}
 
 	// In case we are panicking from external C code
+	sigpanicPC := uint64(abi.FuncPCABIInternal(sigpanic))
+	c.set_r28(sigpanicPC >> 32 << 32) // RSB register
 	c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
-	c.set_pc(uint64(funcPC(sigpanic)))
+	c.set_pc(sigpanicPC)
+}
+
+func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+	// Push the LR to stack, as we'll clobber it in order to
+	// push the call. The function being pushed is responsible
+	// for restoring the LR and setting the SP back.
+	// This extra slot is known to gentraceback.
+	sp := c.sp() - 8
+	c.set_sp(sp)
+	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
+	// Set up PC and LR to pretend the function being signaled
+	// calls targetPC at resumePC.
+	c.set_link(uint64(resumePC))
+	c.set_pc(uint64(targetPC))
 }

@@ -7,9 +7,9 @@ package filepath_test
 import (
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	. "path/filepath"
+	"reflect"
 	"runtime"
 	"sort"
 	"strings"
@@ -74,8 +74,10 @@ var matchTests = []MatchTest{
 	{"[", "a", false, ErrBadPattern},
 	{"[^", "a", false, ErrBadPattern},
 	{"[^bc", "a", false, ErrBadPattern},
-	{"a[", "a", false, nil},
+	{"a[", "a", false, ErrBadPattern},
 	{"a[", "ab", false, ErrBadPattern},
+	{"a[", "x", false, ErrBadPattern},
+	{"a/b[", "x", false, ErrBadPattern},
 	{"*x", "xxx", true, nil},
 }
 
@@ -105,7 +107,7 @@ func TestMatch(t *testing.T) {
 	}
 }
 
-// contains returns true if vector contains the string s.
+// contains reports whether vector contains the string s.
 func contains(vector []string, s string) bool {
 	for _, elem := range vector {
 		if elem == s {
@@ -154,9 +156,11 @@ func TestGlob(t *testing.T) {
 }
 
 func TestGlobError(t *testing.T) {
-	_, err := Glob("[]")
-	if err == nil {
-		t.Error("expected error for bad pattern; got none")
+	bad := []string{`[]`, `nonexist/[]`}
+	for _, pattern := range bad {
+		if _, err := Glob(pattern); err != ErrBadPattern {
+			t.Errorf("Glob(%#q) returned err=%v, want ErrBadPattern", pattern, err)
+		}
 	}
 }
 
@@ -177,12 +181,7 @@ var globSymlinkTests = []struct {
 func TestGlobSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := ioutil.TempDir("", "globsymlink")
-	if err != nil {
-		t.Fatal("creating temp dir:", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
+	tmpDir := t.TempDir()
 	for _, tt := range globSymlinkTests {
 		path := Join(tmpDir, tt.path)
 		dest := Join(tmpDir, tt.dest)
@@ -263,18 +262,7 @@ func TestWindowsGlob(t *testing.T) {
 		t.Skipf("skipping windows specific test")
 	}
 
-	tmpDir, err := ioutil.TempDir("", "TestWindowsGlob")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// /tmp may itself be a symlink
-	tmpDir, err = EvalSymlinks(tmpDir)
-	if err != nil {
-		t.Fatal("eval symlink for tmp dir:", err)
-	}
-
+	tmpDir := tempDirCanonical(t)
 	if len(tmpDir) < 3 {
 		t.Fatalf("tmpDir path %q is too short", tmpDir)
 	}
@@ -297,7 +285,7 @@ func TestWindowsGlob(t *testing.T) {
 		}
 	}
 	for _, file := range files {
-		err := ioutil.WriteFile(Join(tmpDir, file), nil, 0666)
+		err := os.WriteFile(Join(tmpDir, file), nil, 0666)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -319,15 +307,13 @@ func TestWindowsGlob(t *testing.T) {
 	// test absolute paths
 	for _, test := range tests {
 		var p string
-		err = test.globAbs(tmpDir, tmpDir)
-		if err != nil {
+		if err := test.globAbs(tmpDir, tmpDir); err != nil {
 			t.Error(err)
 		}
 		// test C:\*Documents and Settings\...
 		p = tmpDir
 		p = strings.Replace(p, `:\`, `:\*`, 1)
-		err = test.globAbs(tmpDir, p)
-		if err != nil {
+		if err := test.globAbs(tmpDir, p); err != nil {
 			t.Error(err)
 		}
 		// test C:\Documents and Settings*\...
@@ -335,8 +321,7 @@ func TestWindowsGlob(t *testing.T) {
 		p = strings.Replace(p, `:\`, `:`, 1)
 		p = strings.Replace(p, `\`, `*\`, 1)
 		p = strings.Replace(p, `:`, `:\`, 1)
-		err = test.globAbs(tmpDir, p)
-		if err != nil {
+		if err := test.globAbs(tmpDir, p); err != nil {
 			t.Error(err)
 		}
 	}
@@ -369,5 +354,20 @@ func TestWindowsGlob(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+	}
+}
+
+func TestNonWindowsGlobEscape(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skipf("skipping non-windows specific test")
+	}
+	pattern := `\match.go`
+	want := []string{"match.go"}
+	matches, err := Glob(pattern)
+	if err != nil {
+		t.Fatalf("Glob error for %q: %s", pattern, err)
+	}
+	if !reflect.DeepEqual(matches, want) {
+		t.Fatalf("Glob(%#q) = %v want %v", pattern, matches, want)
 	}
 }

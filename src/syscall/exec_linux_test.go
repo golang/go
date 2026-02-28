@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
+//go:build linux
 
 package syscall_test
 
@@ -11,17 +11,64 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
 	"testing"
 	"unsafe"
 )
+
+func isDocker() bool {
+	_, err := os.Stat("/.dockerenv")
+	return err == nil
+}
+
+func isLXC() bool {
+	return os.Getenv("container") == "lxc"
+}
+
+func skipInContainer(t *testing.T) {
+	// TODO: the callers of this func are using this func to skip
+	// tests when running as some sort of "fake root" that's uid 0
+	// but lacks certain Linux capabilities. Most of the Go builds
+	// run in privileged containers, though, where root is much
+	// closer (if not identical) to the real root. We should test
+	// for what we need exactly (which capabilities are active?),
+	// instead of just assuming "docker == bad". Then we'd get more test
+	// coverage on a bunch of builders too.
+	if isDocker() {
+		t.Skip("skip this test in Docker container")
+	}
+	if isLXC() {
+		t.Skip("skip this test in LXC container")
+	}
+}
+
+func skipNoUserNamespaces(t *testing.T) {
+	if _, err := os.Stat("/proc/self/ns/user"); err != nil {
+		if os.IsNotExist(err) {
+			t.Skip("kernel doesn't support user namespaces")
+		}
+		if os.IsPermission(err) {
+			t.Skip("unable to test user namespaces due to permissions")
+		}
+		t.Fatalf("Failed to stat /proc/self/ns/user: %v", err)
+	}
+}
+
+func skipUnprivilegedUserClone(t *testing.T) {
+	// Skip the test if the sysctl that prevents unprivileged user
+	// from creating user namespaces is enabled.
+	data, errRead := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+	if errRead != nil || len(data) < 1 || data[0] == '0' {
+		t.Skip("kernel prohibits user namespace in unprivileged process")
+	}
+}
 
 // Check if we are in a chroot by checking if the inode of / is
 // different from 2 (there is no better test available to non-root on
@@ -35,15 +82,8 @@ func isChrooted(t *testing.T) bool {
 }
 
 func checkUserNS(t *testing.T) {
-	if _, err := os.Stat("/proc/self/ns/user"); err != nil {
-		if os.IsNotExist(err) {
-			t.Skip("kernel doesn't support user namespaces")
-		}
-		if os.IsPermission(err) {
-			t.Skip("unable to test user namespaces due to permissions")
-		}
-		t.Fatalf("Failed to stat /proc/self/ns/user: %v", err)
-	}
+	skipInContainer(t)
+	skipNoUserNamespaces(t)
 	if isChrooted(t) {
 		// create_user_ns in the kernel (see
 		// https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/kernel/user_namespace.c)
@@ -52,25 +92,23 @@ func checkUserNS(t *testing.T) {
 	}
 	// On some systems, there is a sysctl setting.
 	if os.Getuid() != 0 {
-		data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
-		if errRead == nil && data[0] == '0' {
-			t.Skip("kernel prohibits user namespace in unprivileged process")
-		}
+		skipUnprivilegedUserClone(t)
 	}
 	// On Centos 7 make sure they set the kernel parameter user_namespace=1
 	// See issue 16283 and 20796.
 	if _, err := os.Stat("/sys/module/user_namespace/parameters/enable"); err == nil {
-		buf, _ := ioutil.ReadFile("/sys/module/user_namespace/parameters/enabled")
+		buf, _ := os.ReadFile("/sys/module/user_namespace/parameters/enabled")
 		if !strings.HasPrefix(string(buf), "Y") {
 			t.Skip("kernel doesn't support user namespaces")
 		}
 	}
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
+
+	// On Centos 7.5+, user namespaces are disabled if user.max_user_namespaces = 0
+	if _, err := os.Stat("/proc/sys/user/max_user_namespaces"); err == nil {
+		buf, errRead := os.ReadFile("/proc/sys/user/max_user_namespaces")
+		if errRead == nil && buf[0] == '0' {
+			t.Skip("kernel doesn't support user namespaces")
+		}
 	}
 }
 
@@ -114,7 +152,7 @@ func TestCloneNEWUSERAndRemapRootEnableSetgroups(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("skipping root only test")
 	}
-	testNEWUSERRemap(t, 0, 0, false)
+	testNEWUSERRemap(t, 0, 0, true)
 }
 
 func TestCloneNEWUSERAndRemapNoRootDisableSetgroups(t *testing.T) {
@@ -147,18 +185,11 @@ func TestEmptyCredGroupsDisableSetgroups(t *testing.T) {
 }
 
 func TestUnshare(t *testing.T) {
+	skipInContainer(t)
 	// Make sure we are running as root so we have permissions to use unshare
 	// and create a network namespace.
 	if os.Getuid() != 0 {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
-	}
-
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
 	}
 
 	path := "/proc/net/dev"
@@ -178,7 +209,7 @@ func TestUnshare(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	orig, err := ioutil.ReadFile(path)
+	orig, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,12 +258,14 @@ func TestGroupCleanup(t *testing.T) {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	strOut := strings.TrimSpace(string(out))
+	t.Logf("id: %s", strOut)
+
 	expected := "uid=0(root) gid=0(root)"
 	// Just check prefix because some distros reportedly output a
 	// context parameter; see https://golang.org/issue/16224.
 	// Alpine does not output groups; see https://golang.org/issue/19938.
 	if !strings.HasPrefix(strOut, expected) {
-		t.Errorf("id command output: %q, expected prefix: %q", strOut, expected)
+		t.Errorf("expected prefix: %q", expected)
 	}
 }
 
@@ -261,21 +294,14 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	strOut := strings.TrimSpace(string(out))
+	t.Logf("id: %s", strOut)
 
-	// Strings we've seen in the wild.
-	expected := []string{
-		"uid=0(root) gid=0(root) groups=0(root)",
-		"uid=0(root) gid=0(root) groups=0(root),65534(nobody)",
-		"uid=0(root) gid=0(root) groups=0(root),65534(nogroup)",
-		"uid=0(root) gid=0(root) groups=0(root),65534",
-		"uid=0(root) gid=0(root) groups=0(root),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody)", // Alpine; see https://golang.org/issue/19938
+	// As in TestGroupCleanup, just check prefix.
+	// The actual groups and contexts seem to vary from one distro to the next.
+	expected := "uid=0(root) gid=0(root) groups=0(root)"
+	if !strings.HasPrefix(strOut, expected) {
+		t.Errorf("expected prefix: %q", expected)
 	}
-	for _, e := range expected {
-		if strOut == e {
-			return
-		}
-	}
-	t.Errorf("id command output: %q, expected one of %q", strOut, expected)
 }
 
 // TestUnshareHelperProcess isn't a real test. It's used as a helper process
@@ -293,27 +319,20 @@ func TestUnshareMountNameSpaceHelper(*testing.T) {
 
 // Test for Issue 38471: unshare fails because systemd has forced / to be shared
 func TestUnshareMountNameSpace(t *testing.T) {
+	skipInContainer(t)
 	// Make sure we are running as root so we have permissions to use unshare
 	// and create a network namespace.
 	if os.Getuid() != 0 {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
 	}
 
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
-	}
-
-	d, err := ioutil.TempDir("", "unshare")
+	d, err := os.MkdirTemp("", "unshare")
 	if err != nil {
 		t.Fatalf("tempdir: %v", err)
 	}
 
 	cmd := exec.Command(os.Args[0], "-test.run=TestUnshareMountNameSpaceHelper", d)
-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNS}
 
 	o, err := cmd.CombinedOutput()
@@ -342,21 +361,14 @@ func TestUnshareMountNameSpace(t *testing.T) {
 
 // Test for Issue 20103: unshare fails when chroot is used
 func TestUnshareMountNameSpaceChroot(t *testing.T) {
+	skipInContainer(t)
 	// Make sure we are running as root so we have permissions to use unshare
 	// and create a network namespace.
 	if os.Getuid() != 0 {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
 	}
 
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
-	}
-
-	d, err := ioutil.TempDir("", "unshare")
+	d, err := os.MkdirTemp("", "unshare")
 	if err != nil {
 		t.Fatalf("tempdir: %v", err)
 	}
@@ -371,7 +383,7 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 	}
 
 	cmd = exec.Command("/syscall.test", "-test.run=TestUnshareMountNameSpaceHelper", "/")
-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Chroot: d, Unshareflags: syscall.CLONE_NEWNS}
 
 	o, err := cmd.CombinedOutput()
@@ -402,9 +414,52 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 	}
 }
 
+func TestUnshareUidGidMappingHelper(*testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	defer os.Exit(0)
+	if err := syscall.Chroot(os.TempDir()); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+}
+
+// Test for Issue 29789: unshare fails when uid/gid mapping is specified
+func TestUnshareUidGidMapping(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("test exercises unprivileged user namespace, fails with privileges")
+	}
+	checkUserNS(t)
+	cmd := exec.Command(os.Args[0], "-test.run=TestUnshareUidGidMappingHelper")
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Unshareflags:               syscall.CLONE_NEWNS | syscall.CLONE_NEWUSER,
+		GidMappingsEnableSetgroups: false,
+		UidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      syscall.Getuid(),
+				Size:        1,
+			},
+		},
+		GidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      syscall.Getgid(),
+				Size:        1,
+			},
+		},
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+	}
+}
+
 type capHeader struct {
 	version uint32
-	pid     int
+	pid     int32
 }
 
 type capData struct {
@@ -414,6 +469,7 @@ type capData struct {
 }
 
 const CAP_SYS_TIME = 25
+const CAP_SYSLOG = 34
 
 type caps struct {
 	hdr  capHeader
@@ -446,9 +502,7 @@ func mustSupportAmbientCaps(t *testing.T) {
 		buf[i] = byte(b)
 	}
 	ver := string(buf[:])
-	if i := strings.Index(ver, "\x00"); i != -1 {
-		ver = ver[:i]
-	}
+	ver, _, _ = strings.Cut(ver, "\x00")
 	if strings.HasPrefix(ver, "2.") ||
 		strings.HasPrefix(ver, "3.") ||
 		strings.HasPrefix(ver, "4.1.") ||
@@ -474,6 +528,10 @@ func TestAmbientCapsHelper(*testing.T) {
 		fmt.Fprintln(os.Stderr, "CAP_SYS_TIME unexpectedly not in the effective capability mask")
 		os.Exit(2)
 	}
+	if caps.data[1].effective&(1<<uint(CAP_SYSLOG&31)) == 0 {
+		fmt.Fprintln(os.Stderr, "CAP_SYSLOG unexpectedly not in the effective capability mask")
+		os.Exit(2)
+	}
 }
 
 func TestAmbientCaps(t *testing.T) {
@@ -482,28 +540,24 @@ func TestAmbientCaps(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
 	}
+
+	testAmbientCaps(t, false)
+}
+
+func TestAmbientCapsUserns(t *testing.T) {
+	checkUserNS(t)
+	testAmbientCaps(t, true)
+}
+
+func testAmbientCaps(t *testing.T, userns bool) {
+	skipInContainer(t)
 	mustSupportAmbientCaps(t)
 
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
-	}
+	skipUnprivilegedUserClone(t)
 
-	caps, err := getCaps()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Add CAP_SYS_TIME to the permitted and inheritable capability mask,
-	// otherwise we will not be able to add it to the ambient capability mask.
-	caps.data[0].permitted |= 1 << uint(CAP_SYS_TIME)
-	caps.data[0].inheritable |= 1 << uint(CAP_SYS_TIME)
-
-	if _, _, errno := syscall.Syscall(syscall.SYS_CAPSET, uintptr(unsafe.Pointer(&caps.hdr)), uintptr(unsafe.Pointer(&caps.data[0])), 0); errno != 0 {
-		t.Fatalf("SYS_CAPSET: %v", errno)
+	// skip on android, due to lack of lookup support
+	if runtime.GOOS == "android" {
+		t.Skip("skipping test on android; see Issue 27327")
 	}
 
 	u, err := user.Lookup("nobody")
@@ -520,7 +574,7 @@ func TestAmbientCaps(t *testing.T) {
 	}
 
 	// Copy the test binary to a temporary location which is readable by nobody.
-	f, err := ioutil.TempFile("", "gotest")
+	f, err := os.CreateTemp("", "gotest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -542,7 +596,7 @@ func TestAmbientCaps(t *testing.T) {
 	}
 
 	cmd := exec.Command(f.Name(), "-test.run=TestAmbientCapsHelper")
-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -550,7 +604,29 @@ func TestAmbientCaps(t *testing.T) {
 			Uid: uint32(uid),
 			Gid: uint32(gid),
 		},
-		AmbientCaps: []uintptr{CAP_SYS_TIME},
+		AmbientCaps: []uintptr{CAP_SYS_TIME, CAP_SYSLOG},
+	}
+	if userns {
+		cmd.SysProcAttr.Cloneflags = syscall.CLONE_NEWUSER
+		const nobody = 65534
+		uid := os.Getuid()
+		gid := os.Getgid()
+		cmd.SysProcAttr.UidMappings = []syscall.SysProcIDMap{{
+			ContainerID: int(nobody),
+			HostID:      int(uid),
+			Size:        int(1),
+		}}
+		cmd.SysProcAttr.GidMappings = []syscall.SysProcIDMap{{
+			ContainerID: int(nobody),
+			HostID:      int(gid),
+			Size:        int(1),
+		}}
+
+		// Set credentials to run as user and group nobody.
+		cmd.SysProcAttr.Credential = &syscall.Credential{
+			Uid: nobody,
+			Gid: nobody,
+		}
 	}
 	if err := cmd.Run(); err != nil {
 		t.Fatal(err.Error())

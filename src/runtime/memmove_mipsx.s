@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build mips mipsle
+//go:build mips || mipsle
 
 #include "textflag.h"
 
@@ -14,7 +14,9 @@
 #define MOVWLO  MOVWL
 #endif
 
-// void runtime·memmove(void*, void*, uintptr)
+// See memmove Go doc for important implementation constraints.
+
+// func memmove(to, from unsafe.Pointer, n uintptr)
 TEXT runtime·memmove(SB),NOSPLIT,$-0-12
 	MOVW	n+8(FP), R3
 	MOVW	from+4(FP), R2

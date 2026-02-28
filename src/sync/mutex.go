@@ -77,7 +77,35 @@ func (m *Mutex) Lock() {
 		}
 		return
 	}
+	// Slow path (outlined so that the fast path can be inlined)
+	m.lockSlow()
+}
 
+// TryLock tries to lock m and reports whether it succeeded.
+//
+// Note that while correct uses of TryLock do exist, they are rare,
+// and use of TryLock is often a sign of a deeper problem
+// in a particular use of mutexes.
+func (m *Mutex) TryLock() bool {
+	old := m.state
+	if old&(mutexLocked|mutexStarving) != 0 {
+		return false
+	}
+
+	// There may be a goroutine waiting for the mutex, but we are
+	// running now and can try to grab the mutex before that
+	// goroutine wakes up.
+	if !atomic.CompareAndSwapInt32(&m.state, old, old|mutexLocked) {
+		return false
+	}
+
+	if race.Enabled {
+		race.Acquire(unsafe.Pointer(m))
+	}
+	return true
+}
+
+func (m *Mutex) lockSlow() {
 	var waitStartTime int64
 	starving := false
 	awoke := false
@@ -118,7 +146,7 @@ func (m *Mutex) Lock() {
 			// The goroutine has been woken from sleep,
 			// so we need to reset the flag in either case.
 			if new&mutexWoken == 0 {
-				panic("sync: inconsistent mutex state")
+				throw("sync: inconsistent mutex state")
 			}
 			new &^= mutexWoken
 		}
@@ -131,7 +159,7 @@ func (m *Mutex) Lock() {
 			if waitStartTime == 0 {
 				waitStartTime = runtime_nanotime()
 			}
-			runtime_SemacquireMutex(&m.sema, queueLifo)
+			runtime_SemacquireMutex(&m.sema, queueLifo, 1)
 			starving = starving || runtime_nanotime()-waitStartTime > starvationThresholdNs
 			old = m.state
 			if old&mutexStarving != 0 {
@@ -140,7 +168,7 @@ func (m *Mutex) Lock() {
 				// inconsistent state: mutexLocked is not set and we are still
 				// accounted as waiter. Fix that.
 				if old&(mutexLocked|mutexWoken) != 0 || old>>mutexWaiterShift == 0 {
-					panic("sync: inconsistent mutex state")
+					throw("sync: inconsistent mutex state")
 				}
 				delta := int32(mutexLocked - 1<<mutexWaiterShift)
 				if !starving || old>>mutexWaiterShift == 1 {
@@ -180,8 +208,16 @@ func (m *Mutex) Unlock() {
 
 	// Fast path: drop lock bit.
 	new := atomic.AddInt32(&m.state, -mutexLocked)
+	if new != 0 {
+		// Outlined slow path to allow inlining the fast path.
+		// To hide unlockSlow during tracing we skip one extra frame when tracing GoUnblock.
+		m.unlockSlow(new)
+	}
+}
+
+func (m *Mutex) unlockSlow(new int32) {
 	if (new+mutexLocked)&mutexLocked == 0 {
-		panic("sync: unlock of unlocked mutex")
+		throw("sync: unlock of unlocked mutex")
 	}
 	if new&mutexStarving == 0 {
 		old := new
@@ -198,16 +234,17 @@ func (m *Mutex) Unlock() {
 			// Grab the right to wake someone.
 			new = (old - 1<<mutexWaiterShift) | mutexWoken
 			if atomic.CompareAndSwapInt32(&m.state, old, new) {
-				runtime_Semrelease(&m.sema, false)
+				runtime_Semrelease(&m.sema, false, 1)
 				return
 			}
 			old = m.state
 		}
 	} else {
-		// Starving mode: handoff mutex ownership to the next waiter.
+		// Starving mode: handoff mutex ownership to the next waiter, and yield
+		// our time slice so that the next waiter can start to run immediately.
 		// Note: mutexLocked is not set, the waiter will set it after wakeup.
 		// But mutex is still considered locked if mutexStarving is set,
 		// so new coming goroutines won't acquire it.
-		runtime_Semrelease(&m.sema, true)
+		runtime_Semrelease(&m.sema, true, 1)
 	}
 }

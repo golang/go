@@ -1,0 +1,11 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// See the top of AMD64splitload.rules for discussion of these rules.
+
+(CMP(L|W|B)load {sym} [off] ptr x mem) => (CMP(L|W|B) (MOV(L|W|B)load {sym} [off] ptr mem) x)
+
+(CMPLconstload {sym} [vo] ptr mem) => (CMPLconst (MOVLload {sym} [vo.Off()] ptr mem) [vo.Val()])
+(CMPWconstload {sym} [vo] ptr mem) => (CMPWconst (MOVWload {sym} [vo.Off()] ptr mem) [vo.Val16()])
+(CMPBconstload {sym} [vo] ptr mem) => (CMPBconst (MOVBload {sym} [vo.Off()] ptr mem) [vo.Val8()])

@@ -28,11 +28,16 @@ helperfuncs_test.go:33: 1
 helperfuncs_test.go:21: 2
 helperfuncs_test.go:35: 3
 helperfuncs_test.go:42: 4
-helperfuncs_test.go:47: 5
 --- FAIL: Test/sub (?s)
-helperfuncs_test.go:50: 6
-helperfuncs_test.go:21: 7
-helperfuncs_test.go:53: 8
+helperfuncs_test.go:45: 5
+helperfuncs_test.go:21: 6
+helperfuncs_test.go:44: 7
+helperfuncs_test.go:56: 8
+--- FAIL: Test/sub2 (?s)
+helperfuncs_test.go:71: 11
+helperfuncs_test.go:75: recover 12
+helperfuncs_test.go:64: 9
+helperfuncs_test.go:60: 10
 `
 	lines := strings.Split(buf.String(), "\n")
 	durationRE := regexp.MustCompile(`\(.*\)$`)
@@ -66,5 +71,36 @@ func TestTBHelperParallel(t *T) {
 	want := "helperfuncs_test.go:21: parallel"
 	if got := strings.TrimSpace(lines[1]); got != want {
 		t.Errorf("got output line %q; want %q", got, want)
+	}
+}
+
+type noopWriter int
+
+func (nw *noopWriter) Write(b []byte) (int, error) { return len(b), nil }
+
+func BenchmarkTBHelper(b *B) {
+	w := noopWriter(0)
+	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
+	t1 := &T{
+		common: common{
+			signal: make(chan bool),
+			w:      &w,
+		},
+		context: ctx,
+	}
+	f1 := func() {
+		t1.Helper()
+	}
+	f2 := func() {
+		t1.Helper()
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if i&1 == 0 {
+			f1()
+		} else {
+			f2()
+		}
 	}
 }

@@ -6,6 +6,8 @@ package net
 
 import (
 	"context"
+	"internal/bytealg"
+	"runtime"
 	"sync"
 )
 
@@ -43,6 +45,13 @@ func supportsIPv6() bool {
 // IPv4 address inside an IPv6 address at transport layer
 // protocols. See RFC 4291, RFC 4038 and RFC 3493.
 func supportsIPv4map() bool {
+	// Some operating systems provide no support for mapping IPv4
+	// addresses to IPv6, and a runtime check is unnecessary.
+	switch runtime.GOOS {
+	case "dragonfly", "openbsd":
+		return false
+	}
+
 	ipStackCaps.Once.Do(ipStackCaps.probe)
 	return ipStackCaps.ipv4MappedIPv6Enabled
 }
@@ -170,7 +179,7 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 
 	if hostport[0] == '[' {
 		// Expect the first ']' just before the last ':'.
-		end := byteIndex(hostport, ']')
+		end := bytealg.IndexByteString(hostport, ']')
 		if end < 0 {
 			return addrErr(hostport, "missing ']' in address")
 		}
@@ -192,14 +201,14 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 		j, k = 1, end+1 // there can't be a '[' resp. ']' before these positions
 	} else {
 		host = hostport[:i]
-		if byteIndex(host, ':') >= 0 {
+		if bytealg.IndexByteString(host, ':') >= 0 {
 			return addrErr(hostport, tooManyColons)
 		}
 	}
-	if byteIndex(hostport[j:], '[') >= 0 {
+	if bytealg.IndexByteString(hostport[j:], '[') >= 0 {
 		return addrErr(hostport, "unexpected '[' in address")
 	}
-	if byteIndex(hostport[k:], ']') >= 0 {
+	if bytealg.IndexByteString(hostport[k:], ']') >= 0 {
 		return addrErr(hostport, "unexpected ']' in address")
 	}
 
@@ -226,7 +235,7 @@ func splitHostZone(s string) (host, zone string) {
 func JoinHostPort(host, port string) string {
 	// We assume that host is a literal IPv6 address if host has
 	// colons.
-	if byteIndex(host, ':') >= 0 {
+	if bytealg.IndexByteString(host, ':') >= 0 {
 		return "[" + host + "]:" + port
 	}
 	return host + ":" + port
@@ -276,24 +285,16 @@ func (r *Resolver) internetAddrList(ctx context.Context, net, addr string) (addr
 	}
 
 	// Try as a literal IP address, then as a DNS name.
-	var ips []IPAddr
-	if ip := parseIPv4(host); ip != nil {
-		ips = []IPAddr{{IP: ip}}
-	} else if ip, zone := parseIPv6(host, true); ip != nil {
-		ips = []IPAddr{{IP: ip, Zone: zone}}
-		// Issue 18806: if the machine has halfway configured
-		// IPv6 such that it can bind on "::" (IPv6unspecified)
-		// but not connect back to that same address, fall
-		// back to dialing 0.0.0.0.
-		if ip.Equal(IPv6unspecified) {
-			ips = append(ips, IPAddr{IP: IPv4zero})
-		}
-	} else {
-		// Try as a DNS name.
-		ips, err = r.LookupIPAddr(ctx, host)
-		if err != nil {
-			return nil, err
-		}
+	ips, err := r.lookupIPAddr(ctx, net, host)
+	if err != nil {
+		return nil, err
+	}
+	// Issue 18806: if the machine has halfway configured
+	// IPv6 such that it can bind on "::" (IPv6unspecified)
+	// but not connect back to that same address, fall
+	// back to dialing 0.0.0.0.
+	if len(ips) == 1 && ips[0].IP.Equal(IPv6unspecified) {
+		ips = append(ips, IPAddr{IP: IPv4zero})
 	}
 
 	var filter func(IPAddr) bool

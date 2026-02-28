@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/goarch"
 	"math"
 	"reflect"
 	"runtime"
@@ -16,9 +17,21 @@ import (
 	"testing"
 )
 
+func TestHmapSize(t *testing.T) {
+	// The structure of hmap is defined in runtime/map.go
+	// and in cmd/compile/internal/gc/reflect.go and must be in sync.
+	// The size of hmap should be 48 bytes on 64 bit and 28 bytes on 32 bit platforms.
+	var hmapSize = uintptr(8 + 5*goarch.PtrSize)
+	if runtime.RuntimeHmapSize != hmapSize {
+		t.Errorf("sizeof(runtime.hmap{})==%d, want %d", runtime.RuntimeHmapSize, hmapSize)
+	}
+
+}
+
 // negative zero is a good test because:
-//  1) 0 and -0 are equal, yet have distinct representations.
-//  2) 0 is represented as all zeros, -0 isn't.
+//  1. 0 and -0 are equal, yet have distinct representations.
+//  2. 0 is represented as all zeros, -0 isn't.
+//
 // I'm not sure the language spec actually requires this behavior,
 // but it's what the current map implementation does.
 func TestNegativeZero(t *testing.T) {
@@ -52,14 +65,7 @@ func TestNegativeZero(t *testing.T) {
 	}
 }
 
-// nan is a good test because nan != nan, and nan has
-// a randomized hash value.
-func TestNan(t *testing.T) {
-	m := make(map[float64]int, 0)
-	nan := math.NaN()
-	m[nan] = 1
-	m[nan] = 2
-	m[nan] = 4
+func testMapNan(t *testing.T, m map[float64]int) {
 	if len(m) != 3 {
 		t.Error("length wrong")
 	}
@@ -78,6 +84,67 @@ func TestNan(t *testing.T) {
 	}
 }
 
+// nan is a good test because nan != nan, and nan has
+// a randomized hash value.
+func TestMapAssignmentNan(t *testing.T) {
+	m := make(map[float64]int, 0)
+	nan := math.NaN()
+
+	// Test assignment.
+	m[nan] = 1
+	m[nan] = 2
+	m[nan] = 4
+	testMapNan(t, m)
+}
+
+// nan is a good test because nan != nan, and nan has
+// a randomized hash value.
+func TestMapOperatorAssignmentNan(t *testing.T) {
+	m := make(map[float64]int, 0)
+	nan := math.NaN()
+
+	// Test assignment operations.
+	m[nan] += 1
+	m[nan] += 2
+	m[nan] += 4
+	testMapNan(t, m)
+}
+
+func TestMapOperatorAssignment(t *testing.T) {
+	m := make(map[int]int, 0)
+
+	// "m[k] op= x" is rewritten into "m[k] = m[k] op x"
+	// differently when op is / or % than when it isn't.
+	// Simple test to make sure they all work as expected.
+	m[0] = 12345
+	m[0] += 67890
+	m[0] /= 123
+	m[0] %= 456
+
+	const want = (12345 + 67890) / 123 % 456
+	if got := m[0]; got != want {
+		t.Errorf("got %d, want %d", got, want)
+	}
+}
+
+var sinkAppend bool
+
+func TestMapAppendAssignment(t *testing.T) {
+	m := make(map[int][]int, 0)
+
+	m[0] = nil
+	m[0] = append(m[0], 12345)
+	m[0] = append(m[0], 67890)
+	sinkAppend, m[0] = !sinkAppend, append(m[0], 123, 456)
+	a := []int{7, 8, 9, 0}
+	m[0] = append(m[0], a...)
+
+	want := []int{12345, 67890, 123, 456, 7, 8, 9, 0}
+	if got := m[0]; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
 // Maps aren't actually copied on assignment.
 func TestAlias(t *testing.T) {
 	m := make(map[int]int, 0)
@@ -92,17 +159,24 @@ func TestAlias(t *testing.T) {
 func TestGrowWithNaN(t *testing.T) {
 	m := make(map[float64]int, 4)
 	nan := math.NaN()
+
+	// Use both assignment and assignment operations as they may
+	// behave differently.
 	m[nan] = 1
 	m[nan] = 2
-	m[nan] = 4
+	m[nan] += 4
+
 	cnt := 0
 	s := 0
 	growflag := true
 	for k, v := range m {
 		if growflag {
 			// force a hashtable resize
-			for i := 0; i < 100; i++ {
+			for i := 0; i < 50; i++ {
 				m[float64(i)] = i
+			}
+			for i := 50; i < 100; i++ {
+				m[float64(i)] += i
 			}
 			growflag = false
 		}
@@ -128,8 +202,8 @@ func TestGrowWithNegativeZero(t *testing.T) {
 	negzero := math.Copysign(0.0, -1.0)
 	m := make(map[FloatInt]int, 4)
 	m[FloatInt{0.0, 0}] = 1
-	m[FloatInt{0.0, 1}] = 2
-	m[FloatInt{0.0, 2}] = 4
+	m[FloatInt{0.0, 1}] += 2
+	m[FloatInt{0.0, 2}] += 4
 	m[FloatInt{0.0, 3}] = 8
 	growflag := true
 	s := 0
@@ -211,8 +285,11 @@ func TestIterGrowAndDelete(t *testing.T) {
 // an iterator is still using them.
 func TestIterGrowWithGC(t *testing.T) {
 	m := make(map[int]int, 4)
-	for i := 0; i < 16; i++ {
+	for i := 0; i < 8; i++ {
 		m[i] = i
+	}
+	for i := 8; i < 16; i++ {
+		m[i] += i
 	}
 	growflag := true
 	bitmask := 0
@@ -244,7 +321,7 @@ func testConcurrentReadsAfterGrowth(t *testing.T, useReflect bool) {
 	numGrowStep := 250
 	numReader := 16
 	if testing.Short() {
-		numLoop, numGrowStep = 2, 500
+		numLoop, numGrowStep = 2, 100
 	}
 	for i := 0; i < numLoop; i++ {
 		m := make(map[int]int, 0)
@@ -359,11 +436,11 @@ func TestEmptyKeyAndValue(t *testing.T) {
 // ("quick keys") as well as long keys.
 func TestSingleBucketMapStringKeys_DupLen(t *testing.T) {
 	testMapLookups(t, map[string]string{
-		"x":    "x1val",
-		"xx":   "x2val",
-		"foo":  "fooval",
-		"bar":  "barval", // same key length as "foo"
-		"xxxx": "x4val",
+		"x":                      "x1val",
+		"xx":                     "x2val",
+		"foo":                    "fooval",
+		"bar":                    "barval", // same key length as "foo"
+		"xxxx":                   "x4val",
 		strings.Repeat("x", 128): "longval1",
 		strings.Repeat("y", 128): "longval2",
 	})
@@ -397,7 +474,7 @@ func TestMapNanGrowIterator(t *testing.T) {
 	nan := math.NaN()
 	const nBuckets = 16
 	// To fill nBuckets buckets takes LOAD * nBuckets keys.
-	nKeys := int(nBuckets * *runtime.HashLoad)
+	nKeys := int(nBuckets * runtime.HashLoad)
 
 	// Get map to full point with nan keys.
 	for i := 0; i < nKeys; i++ {
@@ -596,6 +673,134 @@ func TestIgnoreBogusMapHint(t *testing.T) {
 	}
 }
 
+var mapSink map[int]int
+
+var mapBucketTests = [...]struct {
+	n        int // n is the number of map elements
+	noescape int // number of expected buckets for non-escaping map
+	escape   int // number of expected buckets for escaping map
+}{
+	{-(1 << 30), 1, 1},
+	{-1, 1, 1},
+	{0, 1, 1},
+	{1, 1, 1},
+	{8, 1, 1},
+	{9, 2, 2},
+	{13, 2, 2},
+	{14, 4, 4},
+	{26, 4, 4},
+}
+
+func TestMapBuckets(t *testing.T) {
+	// Test that maps of different sizes have the right number of buckets.
+	// Non-escaping maps with small buckets (like map[int]int) never
+	// have a nil bucket pointer due to starting with preallocated buckets
+	// on the stack. Escaping maps start with a non-nil bucket pointer if
+	// hint size is above bucketCnt and thereby have more than one bucket.
+	// These tests depend on bucketCnt and loadFactor* in map.go.
+	t.Run("mapliteral", func(t *testing.T) {
+		for _, tt := range mapBucketTests {
+			localMap := map[int]int{}
+			if runtime.MapBucketsPointerIsNil(localMap) {
+				t.Errorf("no escape: buckets pointer is nil for non-escaping map")
+			}
+			for i := 0; i < tt.n; i++ {
+				localMap[i] = i
+			}
+			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
+				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
+			}
+			escapingMap := map[int]int{}
+			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
+				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
+			}
+			for i := 0; i < tt.n; i++ {
+				escapingMap[i] = i
+			}
+			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
+				t.Errorf("escape n=%d want %d buckets, got %d", tt.n, tt.escape, got)
+			}
+			mapSink = escapingMap
+		}
+	})
+	t.Run("nohint", func(t *testing.T) {
+		for _, tt := range mapBucketTests {
+			localMap := make(map[int]int)
+			if runtime.MapBucketsPointerIsNil(localMap) {
+				t.Errorf("no escape: buckets pointer is nil for non-escaping map")
+			}
+			for i := 0; i < tt.n; i++ {
+				localMap[i] = i
+			}
+			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
+				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
+			}
+			escapingMap := make(map[int]int)
+			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
+				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
+			}
+			for i := 0; i < tt.n; i++ {
+				escapingMap[i] = i
+			}
+			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
+				t.Errorf("escape: n=%d want %d buckets, got %d", tt.n, tt.escape, got)
+			}
+			mapSink = escapingMap
+		}
+	})
+	t.Run("makemap", func(t *testing.T) {
+		for _, tt := range mapBucketTests {
+			localMap := make(map[int]int, tt.n)
+			if runtime.MapBucketsPointerIsNil(localMap) {
+				t.Errorf("no escape: buckets pointer is nil for non-escaping map")
+			}
+			for i := 0; i < tt.n; i++ {
+				localMap[i] = i
+			}
+			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
+				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
+			}
+			escapingMap := make(map[int]int, tt.n)
+			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
+				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
+			}
+			for i := 0; i < tt.n; i++ {
+				escapingMap[i] = i
+			}
+			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
+				t.Errorf("escape: n=%d want %d buckets, got %d", tt.n, tt.escape, got)
+			}
+			mapSink = escapingMap
+		}
+	})
+	t.Run("makemap64", func(t *testing.T) {
+		for _, tt := range mapBucketTests {
+			localMap := make(map[int]int, int64(tt.n))
+			if runtime.MapBucketsPointerIsNil(localMap) {
+				t.Errorf("no escape: buckets pointer is nil for non-escaping map")
+			}
+			for i := 0; i < tt.n; i++ {
+				localMap[i] = i
+			}
+			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
+				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
+			}
+			escapingMap := make(map[int]int, tt.n)
+			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
+				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
+			}
+			for i := 0; i < tt.n; i++ {
+				escapingMap[i] = i
+			}
+			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
+				t.Errorf("escape: n=%d want %d buckets, got %d", tt.n, tt.escape, got)
+			}
+			mapSink = escapingMap
+		}
+	})
+
+}
+
 func benchmarkMapPop(b *testing.B, n int) {
 	m := map[int]int{}
 	for i := 0; i < b.N; i++ {
@@ -617,14 +822,38 @@ func BenchmarkMapPop100(b *testing.B)   { benchmarkMapPop(b, 100) }
 func BenchmarkMapPop1000(b *testing.B)  { benchmarkMapPop(b, 1000) }
 func BenchmarkMapPop10000(b *testing.B) { benchmarkMapPop(b, 10000) }
 
+var testNonEscapingMapVariable int = 8
+
 func TestNonEscapingMap(t *testing.T) {
 	n := testing.AllocsPerRun(1000, func() {
+		m := map[int]int{}
+		m[0] = 0
+	})
+	if n != 0 {
+		t.Fatalf("mapliteral: want 0 allocs, got %v", n)
+	}
+	n = testing.AllocsPerRun(1000, func() {
 		m := make(map[int]int)
 		m[0] = 0
 	})
 	if n != 0 {
-		t.Fatalf("want 0 allocs, got %v", n)
+		t.Fatalf("no hint: want 0 allocs, got %v", n)
 	}
+	n = testing.AllocsPerRun(1000, func() {
+		m := make(map[int]int, 8)
+		m[0] = 0
+	})
+	if n != 0 {
+		t.Fatalf("with small hint: want 0 allocs, got %v", n)
+	}
+	n = testing.AllocsPerRun(1000, func() {
+		m := make(map[int]int, testNonEscapingMapVariable)
+		m[0] = 0
+	})
+	if n != 0 {
+		t.Fatalf("with variable hint: want 0 allocs, got %v", n)
+	}
+
 }
 
 func benchmarkMapAssignInt32(b *testing.B, n int) {
@@ -634,13 +863,34 @@ func benchmarkMapAssignInt32(b *testing.B, n int) {
 	}
 }
 
-func benchmarkMapDeleteInt32(b *testing.B, n int) {
+func benchmarkMapOperatorAssignInt32(b *testing.B, n int) {
 	a := make(map[int32]int)
-	for i := 0; i < n*b.N; i++ {
-		a[int32(i)] = i
+	for i := 0; i < b.N; i++ {
+		a[int32(i&(n-1))] += i
 	}
+}
+
+func benchmarkMapAppendAssignInt32(b *testing.B, n int) {
+	a := make(map[int32][]int)
+	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < n*b.N; i = i + n {
+	for i := 0; i < b.N; i++ {
+		key := int32(i & (n - 1))
+		a[key] = append(a[key], i)
+	}
+}
+
+func benchmarkMapDeleteInt32(b *testing.B, n int) {
+	a := make(map[int32]int, n)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if len(a) == 0 {
+			b.StopTimer()
+			for j := i; j < i+n; j++ {
+				a[int32(j)] = j
+			}
+			b.StartTimer()
+		}
 		delete(a, int32(i))
 	}
 }
@@ -652,13 +902,34 @@ func benchmarkMapAssignInt64(b *testing.B, n int) {
 	}
 }
 
-func benchmarkMapDeleteInt64(b *testing.B, n int) {
+func benchmarkMapOperatorAssignInt64(b *testing.B, n int) {
 	a := make(map[int64]int)
-	for i := 0; i < n*b.N; i++ {
-		a[int64(i)] = i
+	for i := 0; i < b.N; i++ {
+		a[int64(i&(n-1))] += i
 	}
+}
+
+func benchmarkMapAppendAssignInt64(b *testing.B, n int) {
+	a := make(map[int64][]int)
+	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < n*b.N; i = i + n {
+	for i := 0; i < b.N; i++ {
+		key := int64(i & (n - 1))
+		a[key] = append(a[key], i)
+	}
+}
+
+func benchmarkMapDeleteInt64(b *testing.B, n int) {
+	a := make(map[int64]int, n)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if len(a) == 0 {
+			b.StopTimer()
+			for j := i; j < i+n; j++ {
+				a[int64(j)] = j
+			}
+			b.StartTimer()
+		}
 		delete(a, int64(i))
 	}
 }
@@ -675,18 +946,72 @@ func benchmarkMapAssignStr(b *testing.B, n int) {
 	}
 }
 
-func benchmarkMapDeleteStr(b *testing.B, n int) {
-	k := make([]string, n*b.N)
-	for i := 0; i < n*b.N; i++ {
+func benchmarkMapOperatorAssignStr(b *testing.B, n int) {
+	k := make([]string, n)
+	for i := 0; i < len(k); i++ {
 		k[i] = strconv.Itoa(i)
 	}
-	a := make(map[string]int)
-	for i := 0; i < n*b.N; i++ {
-		a[k[i]] = i
-	}
 	b.ResetTimer()
-	for i := 0; i < n*b.N; i = i + n {
-		delete(a, k[i])
+	a := make(map[string]string)
+	for i := 0; i < b.N; i++ {
+		key := k[i&(n-1)]
+		a[key] += key
+	}
+}
+
+func benchmarkMapAppendAssignStr(b *testing.B, n int) {
+	k := make([]string, n)
+	for i := 0; i < len(k); i++ {
+		k[i] = strconv.Itoa(i)
+	}
+	a := make(map[string][]string)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		key := k[i&(n-1)]
+		a[key] = append(a[key], key)
+	}
+}
+
+func benchmarkMapDeleteStr(b *testing.B, n int) {
+	i2s := make([]string, n)
+	for i := 0; i < n; i++ {
+		i2s[i] = strconv.Itoa(i)
+	}
+	a := make(map[string]int, n)
+	b.ResetTimer()
+	k := 0
+	for i := 0; i < b.N; i++ {
+		if len(a) == 0 {
+			b.StopTimer()
+			for j := 0; j < n; j++ {
+				a[i2s[j]] = j
+			}
+			k = i
+			b.StartTimer()
+		}
+		delete(a, i2s[i-k])
+	}
+}
+
+func benchmarkMapDeletePointer(b *testing.B, n int) {
+	i2p := make([]*int, n)
+	for i := 0; i < n; i++ {
+		i2p[i] = new(int)
+	}
+	a := make(map[*int]int, n)
+	b.ResetTimer()
+	k := 0
+	for i := 0; i < b.N; i++ {
+		if len(a) == 0 {
+			b.StopTimer()
+			for j := 0; j < n; j++ {
+				a[i2p[j]] = j
+			}
+			k = i
+			b.StartTimer()
+		}
+		delete(a, i2p[i-k])
 	}
 }
 
@@ -704,8 +1029,214 @@ func BenchmarkMapAssign(b *testing.B) {
 	b.Run("Str", runWith(benchmarkMapAssignStr, 1<<8, 1<<16))
 }
 
+func BenchmarkMapOperatorAssign(b *testing.B) {
+	b.Run("Int32", runWith(benchmarkMapOperatorAssignInt32, 1<<8, 1<<16))
+	b.Run("Int64", runWith(benchmarkMapOperatorAssignInt64, 1<<8, 1<<16))
+	b.Run("Str", runWith(benchmarkMapOperatorAssignStr, 1<<8, 1<<16))
+}
+
+func BenchmarkMapAppendAssign(b *testing.B) {
+	b.Run("Int32", runWith(benchmarkMapAppendAssignInt32, 1<<8, 1<<16))
+	b.Run("Int64", runWith(benchmarkMapAppendAssignInt64, 1<<8, 1<<16))
+	b.Run("Str", runWith(benchmarkMapAppendAssignStr, 1<<8, 1<<16))
+}
+
 func BenchmarkMapDelete(b *testing.B) {
-	b.Run("Int32", runWith(benchmarkMapDeleteInt32, 1, 2, 4))
-	b.Run("Int64", runWith(benchmarkMapDeleteInt64, 1, 2, 4))
-	b.Run("Str", runWith(benchmarkMapDeleteStr, 1, 2, 4))
+	b.Run("Int32", runWith(benchmarkMapDeleteInt32, 100, 1000, 10000))
+	b.Run("Int64", runWith(benchmarkMapDeleteInt64, 100, 1000, 10000))
+	b.Run("Str", runWith(benchmarkMapDeleteStr, 100, 1000, 10000))
+	b.Run("Pointer", runWith(benchmarkMapDeletePointer, 100, 1000, 10000))
+}
+
+func TestDeferDeleteSlow(t *testing.T) {
+	ks := []complex128{0, 1, 2, 3}
+
+	m := make(map[any]int)
+	for i, k := range ks {
+		m[k] = i
+	}
+	if len(m) != len(ks) {
+		t.Errorf("want %d elements, got %d", len(ks), len(m))
+	}
+
+	func() {
+		for _, k := range ks {
+			defer delete(m, k)
+		}
+	}()
+	if len(m) != 0 {
+		t.Errorf("want 0 elements, got %d", len(m))
+	}
+}
+
+// TestIncrementAfterDeleteValueInt and other test Issue 25936.
+// Value types int, int32, int64 are affected. Value type string
+// works as expected.
+func TestIncrementAfterDeleteValueInt(t *testing.T) {
+	const key1 = 12
+	const key2 = 13
+
+	m := make(map[int]int)
+	m[key1] = 99
+	delete(m, key1)
+	m[key2]++
+	if n2 := m[key2]; n2 != 1 {
+		t.Errorf("incremented 0 to %d", n2)
+	}
+}
+
+func TestIncrementAfterDeleteValueInt32(t *testing.T) {
+	const key1 = 12
+	const key2 = 13
+
+	m := make(map[int]int32)
+	m[key1] = 99
+	delete(m, key1)
+	m[key2]++
+	if n2 := m[key2]; n2 != 1 {
+		t.Errorf("incremented 0 to %d", n2)
+	}
+}
+
+func TestIncrementAfterDeleteValueInt64(t *testing.T) {
+	const key1 = 12
+	const key2 = 13
+
+	m := make(map[int]int64)
+	m[key1] = 99
+	delete(m, key1)
+	m[key2]++
+	if n2 := m[key2]; n2 != 1 {
+		t.Errorf("incremented 0 to %d", n2)
+	}
+}
+
+func TestIncrementAfterDeleteKeyStringValueInt(t *testing.T) {
+	const key1 = ""
+	const key2 = "x"
+
+	m := make(map[string]int)
+	m[key1] = 99
+	delete(m, key1)
+	m[key2] += 1
+	if n2 := m[key2]; n2 != 1 {
+		t.Errorf("incremented 0 to %d", n2)
+	}
+}
+
+func TestIncrementAfterDeleteKeyValueString(t *testing.T) {
+	const key1 = ""
+	const key2 = "x"
+
+	m := make(map[string]string)
+	m[key1] = "99"
+	delete(m, key1)
+	m[key2] += "1"
+	if n2 := m[key2]; n2 != "1" {
+		t.Errorf("appended '1' to empty (nil) string, got %s", n2)
+	}
+}
+
+// TestIncrementAfterBulkClearKeyStringValueInt tests that map bulk
+// deletion (mapclear) still works as expected. Note that it was not
+// affected by Issue 25936.
+func TestIncrementAfterBulkClearKeyStringValueInt(t *testing.T) {
+	const key1 = ""
+	const key2 = "x"
+
+	m := make(map[string]int)
+	m[key1] = 99
+	for k := range m {
+		delete(m, k)
+	}
+	m[key2]++
+	if n2 := m[key2]; n2 != 1 {
+		t.Errorf("incremented 0 to %d", n2)
+	}
+}
+
+func TestMapTombstones(t *testing.T) {
+	m := map[int]int{}
+	const N = 10000
+	// Fill a map.
+	for i := 0; i < N; i++ {
+		m[i] = i
+	}
+	runtime.MapTombstoneCheck(m)
+	// Delete half of the entries.
+	for i := 0; i < N; i += 2 {
+		delete(m, i)
+	}
+	runtime.MapTombstoneCheck(m)
+	// Add new entries to fill in holes.
+	for i := N; i < 3*N/2; i++ {
+		m[i] = i
+	}
+	runtime.MapTombstoneCheck(m)
+	// Delete everything.
+	for i := 0; i < 3*N/2; i++ {
+		delete(m, i)
+	}
+	runtime.MapTombstoneCheck(m)
+}
+
+type canString int
+
+func (c canString) String() string {
+	return fmt.Sprintf("%d", int(c))
+}
+
+func TestMapInterfaceKey(t *testing.T) {
+	// Test all the special cases in runtime.typehash.
+	type GrabBag struct {
+		f32  float32
+		f64  float64
+		c64  complex64
+		c128 complex128
+		s    string
+		i0   any
+		i1   interface {
+			String() string
+		}
+		a [4]string
+	}
+
+	m := map[any]bool{}
+	// Put a bunch of data in m, so that a bad hash is likely to
+	// lead to a bad bucket, which will lead to a missed lookup.
+	for i := 0; i < 1000; i++ {
+		m[i] = true
+	}
+	m[GrabBag{f32: 1.0}] = true
+	if !m[GrabBag{f32: 1.0}] {
+		panic("f32 not found")
+	}
+	m[GrabBag{f64: 1.0}] = true
+	if !m[GrabBag{f64: 1.0}] {
+		panic("f64 not found")
+	}
+	m[GrabBag{c64: 1.0i}] = true
+	if !m[GrabBag{c64: 1.0i}] {
+		panic("c64 not found")
+	}
+	m[GrabBag{c128: 1.0i}] = true
+	if !m[GrabBag{c128: 1.0i}] {
+		panic("c128 not found")
+	}
+	m[GrabBag{s: "foo"}] = true
+	if !m[GrabBag{s: "foo"}] {
+		panic("string not found")
+	}
+	m[GrabBag{i0: "foo"}] = true
+	if !m[GrabBag{i0: "foo"}] {
+		panic("interface{} not found")
+	}
+	m[GrabBag{i1: canString(5)}] = true
+	if !m[GrabBag{i1: canString(5)}] {
+		panic("interface{String() string} not found")
+	}
+	m[GrabBag{a: [4]string{"foo", "bar", "baz", "bop"}}] = true
+	if !m[GrabBag{a: [4]string{"foo", "bar", "baz", "bop"}}] {
+		panic("array not found")
+	}
 }

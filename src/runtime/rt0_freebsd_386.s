@@ -4,13 +4,14 @@
 
 #include "textflag.h"
 
-TEXT _rt0_386_freebsd(SB),NOSPLIT,$8
-	MOVL	8(SP), AX
-	LEAL	12(SP), BX
-	MOVL	AX, 0(SP)
-	MOVL	BX, 4(SP)
-	CALL	main(SB)
-	INT	$3
+TEXT _rt0_386_freebsd(SB),NOSPLIT,$0
+	JMP	_rt0_386(SB)
+
+TEXT _rt0_386_freebsd_lib(SB),NOSPLIT,$0
+	JMP	_rt0_386_lib(SB)
 
 TEXT main(SB),NOSPLIT,$0
+	// Remove the return address from the stack.
+	// rt0_go doesn't expect it to be there.
+	ADDL	$4, SP
 	JMP	runtime·rt0_go(SB)

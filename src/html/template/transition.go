@@ -23,6 +23,7 @@ var transitionFunc = [...]func(context, []byte) (context, int){
 	stateRCDATA:      tSpecialTagEnd,
 	stateAttr:        tAttr,
 	stateURL:         tURL,
+	stateSrcset:      tURL,
 	stateJS:          tJS,
 	stateJSDqStr:     tJSDelimited,
 	stateJSSqStr:     tJSDelimited,
@@ -117,6 +118,8 @@ func tTag(c context, s []byte) (context, int) {
 			attr = attrStyle
 		case contentTypeJS:
 			attr = attrScript
+		case contentTypeSrcset:
+			attr = attrSrcset
 		}
 	}
 
@@ -161,6 +164,7 @@ var attrStartStates = [...]state{
 	attrScriptType: stateAttr,
 	attrStyle:      stateCSS,
 	attrURL:        stateURL,
+	attrSrcset:     stateSrcset,
 }
 
 // tBeforeValue is the context transition function for stateBeforeValue.
@@ -250,7 +254,7 @@ func tURL(c context, s []byte) (context, int) {
 		c.urlPart = urlPartQueryOrFrag
 	} else if len(s) != eatWhiteSpace(s, 0) && c.urlPart == urlPartNone {
 		// HTML5 uses "Valid URL potentially surrounded by spaces" for
-		// attrs: http://www.w3.org/TR/html5/index.html#attributes-1
+		// attrs: https://www.w3.org/TR/html5/index.html#attributes-1
 		c.urlPart = urlPartPreQuery
 	}
 	return c, len(s)
@@ -376,7 +380,7 @@ func tLineCmt(c context, s []byte) (context, int) {
 		// are supported by the 4 major browsers.
 		// This defines line comments as
 		//     LINECOMMENT ::= "//" [^\n\f\d]*
-		// since http://www.w3.org/TR/css3-syntax/#SUBTOK-nl defines
+		// since https://www.w3.org/TR/css3-syntax/#SUBTOK-nl defines
 		// newlines:
 		//     nl ::= #xA | #xD #xA | #xD | #xC
 	default:
@@ -388,7 +392,7 @@ func tLineCmt(c context, s []byte) (context, int) {
 		return c, len(s)
 	}
 	c.state = endState
-	// Per section 7.4 of EcmaScript 5 : http://es5.github.com/#x7.4
+	// Per section 7.4 of EcmaScript 5 : https://es5.github.com/#x7.4
 	// "However, the LineTerminator at the end of the line is not
 	// considered to be part of the single-line comment; it is
 	// recognized separately by the lexical grammar and becomes part

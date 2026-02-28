@@ -1,7 +1,12 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 #include "go_asm.h"
 #include "textflag.h"
 
 TEXT _rt0_ppc64le_linux(SB),NOSPLIT,$0
+	XOR R0, R0	  // Make sure R0 is zero before _main
 	BR _main<>(SB)
 
 TEXT _rt0_ppc64le_linux_lib(SB),NOSPLIT,$-8
@@ -10,9 +15,8 @@ TEXT _rt0_ppc64le_linux_lib(SB),NOSPLIT,$-8
 	MOVD	R0, 16(R1) // Save LR in caller's frame.
 	MOVW	CR, R0     // Save CR in caller's frame
 	MOVD	R0, 8(R1)
-	MOVD	R2, 24(R1) // Save TOC in caller's frame.
 	MOVDU	R1, -320(R1) // Allocate frame.
-	
+
 	// Preserve callee-save registers.
 	MOVD	R14, 24(R1)
 	MOVD	R15, 32(R1)
@@ -121,7 +125,6 @@ done:
 	FMOVD	304(R1), F31
 
 	ADD	$320, R1
-	MOVD	24(R1), R2
 	MOVD	8(R1), R0
 	MOVFL	R0, $0xff
 	MOVD	16(R1), R0
@@ -144,25 +147,35 @@ TEXT _main<>(SB),NOSPLIT,$-8
 	// In a statically linked binary, the stack contains argc,
 	// argv as argc string pointers followed by a NULL, envv as a
 	// sequence of string pointers followed by a NULL, and auxv.
-	// There is no TLS base pointer.
+	// The TLS pointer should be initialized to 0.
 	//
-	// In a dynamically linked binary, r3 contains argc, r4
-	// contains argv, r5 contains envp, r6 contains auxv, and r13
+	// In an ELFv2 compliant dynamically linked binary, R3 contains argc,
+	// R4 contains argv, R5 contains envp, R6 contains auxv, and R13
 	// contains the TLS pointer.
 	//
-	// Figure out which case this is by looking at r4: if it's 0,
-	// we're statically linked; otherwise we're dynamically
-	// linked.
-	CMP	R0, R4
-	BNE	dlink
+	// When loading via glibc, the first doubleword on the stack points
+	// to NULL a value. (that is *(uintptr)(R1) == 0). This is used to
+	// differentiate static vs dynamicly linked binaries.
+	//
+	// If loading with the musl loader, it doesn't follow the ELFv2 ABI. It
+	// passes argc/argv similar to the linux kernel, R13 (TLS) is
+	// initialized, and R3/R4 are undefined.
+	MOVD	(R1), R12
+	CMP	R0, R12
+	BEQ	tls_and_argcv_in_reg
 
-	// Statically linked
+	// Arguments are passed via the stack (musl loader or a static binary)
 	MOVD	0(R1), R3 // argc
 	ADD	$8, R1, R4 // argv
+
+	// Did the TLS pointer get set? If so, don't change it (e.g musl).
+	CMP	R0, R13
+	BNE	tls_and_argcv_in_reg
+
 	MOVD	$runtime·m0+m_tls(SB), R13 // TLS
 	ADD	$0x7000, R13
 
-dlink:
+tls_and_argcv_in_reg:
 	BR	main(SB)
 
 TEXT main(SB),NOSPLIT,$-8

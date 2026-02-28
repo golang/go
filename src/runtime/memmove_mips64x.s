@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build mips64 mips64le
+//go:build mips64 || mips64le
 
 #include "textflag.h"
 
-// void runtime·memmove(void*, void*, uintptr)
-TEXT runtime·memmove(SB), NOSPLIT, $-8-24
+// See memmove Go doc for important implementation constraints.
+
+// func memmove(to, from unsafe.Pointer, n uintptr)
+TEXT runtime·memmove(SB), NOSPLIT|NOFRAME, $0-24
 	MOVV	to+0(FP), R1
 	MOVV	from+8(FP), R2
 	MOVV	n+16(FP), R3

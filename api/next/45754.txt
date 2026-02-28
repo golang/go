@@ -1,0 +1,2 @@
+pkg flag, func TextVar(encoding.TextUnmarshaler, string, encoding.TextMarshaler, string) #45754
+pkg flag, method (*FlagSet) TextVar(encoding.TextUnmarshaler, string, encoding.TextMarshaler, string) #45754

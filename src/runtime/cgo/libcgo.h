@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#undef nil
 #define nil ((void*)0)
 #define nelem(x) (sizeof(x)/sizeof((x)[0]))
 
@@ -60,12 +61,12 @@ void _cgo_sys_thread_start(ThreadStart *ts);
  * If runtime.SetCgoTraceback is used to set a context function,
  * calls the context function and returns the context value.
  */
-uintptr_t _cgo_wait_runtime_init_done();
+uintptr_t _cgo_wait_runtime_init_done(void);
 
 /*
  * Call fn in the 6c world.
  */
-void crosscall_amd64(void (*fn)(void));
+void crosscall_amd64(void (*fn)(void), void (*setg_gcc)(void*), void *g);
 
 /*
  * Call fn in the 8c world.
@@ -94,6 +95,16 @@ struct context_arg {
 	uintptr_t Context;
 };
 extern void (*(_cgo_get_context_function(void)))(struct context_arg*);
+
+/*
+ * The argument for the cgo traceback callback. See runtime.SetCgoTraceback.
+ */
+struct cgoTracebackArg {
+	uintptr_t  Context;
+	uintptr_t  SigContext;
+	uintptr_t* Buf;
+	uintptr_t  Max;
+};
 
 /*
  * TSAN support.  This is only useful when building with

@@ -6,6 +6,7 @@ package expvar
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -161,6 +162,65 @@ func BenchmarkStringSet(b *testing.B) {
 	})
 }
 
+func TestMapInit(t *testing.T) {
+	RemoveAll()
+	colors := NewMap("bike-shed-colors")
+	colors.Add("red", 1)
+	colors.Add("blue", 1)
+	colors.Add("chartreuse", 1)
+
+	n := 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 3 {
+		t.Errorf("after three Add calls with distinct keys, Do should invoke f 3 times; got %v", n)
+	}
+
+	colors.Init()
+
+	n = 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 0 {
+		t.Errorf("after Init, Do should invoke f 0 times; got %v", n)
+	}
+}
+
+func TestMapDelete(t *testing.T) {
+	RemoveAll()
+	colors := NewMap("bike-shed-colors")
+
+	colors.Add("red", 1)
+	colors.Add("red", 2)
+	colors.Add("blue", 4)
+
+	n := 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 2 {
+		t.Errorf("after two Add calls with distinct keys, Do should invoke f 2 times; got %v", n)
+	}
+
+	colors.Delete("red")
+	n = 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 1 {
+		t.Errorf("removed red, Do should invoke f 1 times; got %v", n)
+	}
+
+	colors.Delete("notfound")
+	n = 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 1 {
+		t.Errorf("attempted to remove notfound, Do should invoke f 1 times; got %v", n)
+	}
+
+	colors.Delete("blue")
+	colors.Delete("blue")
+	n = 0
+	colors.Do(func(KeyValue) { n++ })
+	if n != 0 {
+		t.Errorf("all keys removed, Do should invoke f 0 times; got %v", n)
+	}
+}
+
 func TestMapCounter(t *testing.T) {
 	RemoveAll()
 	colors := NewMap("bike-shed-colors")
@@ -182,12 +242,12 @@ func TestMapCounter(t *testing.T) {
 	// colors.String() should be '{"red":3, "blue":4}',
 	// though the order of red and blue could vary.
 	s := colors.String()
-	var j interface{}
+	var j any
 	err := json.Unmarshal([]byte(s), &j)
 	if err != nil {
 		t.Errorf("colors.String() isn't valid JSON: %v", err)
 	}
-	m, ok := j.(map[string]interface{})
+	m, ok := j.(map[string]any)
 	if !ok {
 		t.Error("colors.String() didn't produce a map.")
 	}
@@ -238,6 +298,26 @@ func BenchmarkMapSetDifferent(b *testing.B) {
 			}
 		}
 	})
+}
+
+// BenchmarkMapSetDifferentRandom simulates such a case where the concerned
+// keys of Map.Set are generated dynamically and as a result insertion is
+// out of order and the number of the keys may be large.
+func BenchmarkMapSetDifferentRandom(b *testing.B) {
+	keys := make([]string, 100)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("%x", sha1.Sum([]byte(fmt.Sprint(i))))
+	}
+
+	v := new(Int)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m := new(Map).Init()
+		for _, k := range keys {
+			m.Set(k, v)
+		}
+	}
 }
 
 func BenchmarkMapSetString(b *testing.B) {
@@ -291,6 +371,25 @@ func BenchmarkMapAddDifferent(b *testing.B) {
 	})
 }
 
+// BenchmarkMapAddDifferentRandom simulates such a case where that the concerned
+// keys of Map.Add are generated dynamically and as a result insertion is out of
+// order and the number of the keys may be large.
+func BenchmarkMapAddDifferentRandom(b *testing.B) {
+	keys := make([]string, 100)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("%x", sha1.Sum([]byte(fmt.Sprint(i))))
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m := new(Map).Init()
+		for _, k := range keys {
+			m.Add(k, 1)
+		}
+	}
+}
+
 func BenchmarkMapAddSameSteadyState(b *testing.B) {
 	m := new(Map).Init()
 	b.RunParallel(func(pb *testing.PB) {
@@ -328,8 +427,8 @@ func BenchmarkMapAddDifferentSteadyState(b *testing.B) {
 
 func TestFunc(t *testing.T) {
 	RemoveAll()
-	var x interface{} = []string{"a", "b"}
-	f := Func(func() interface{} { return x })
+	var x any = []string{"a", "b"}
+	f := Func(func() any { return x })
 	if s, exp := f.String(), `["a","b"]`; s != exp {
 		t.Errorf(`f.String() = %q, want %q`, s, exp)
 	}
@@ -390,12 +489,13 @@ func BenchmarkRealworldExpvarUsage(b *testing.B) {
 		b.Fatalf("Listen failed: %v", err)
 	}
 	defer ln.Close()
-	done := make(chan bool)
+	done := make(chan bool, 1)
 	go func() {
 		for p := 0; p < P; p++ {
 			s, err := ln.Accept()
 			if err != nil {
 				b.Errorf("Accept failed: %v", err)
+				done <- false
 				return
 			}
 			servers[p] = s
@@ -405,11 +505,14 @@ func BenchmarkRealworldExpvarUsage(b *testing.B) {
 	for p := 0; p < P; p++ {
 		c, err := net.Dial("tcp", ln.Addr().String())
 		if err != nil {
+			<-done
 			b.Fatalf("Dial failed: %v", err)
 		}
 		clients[p] = c
 	}
-	<-done
+	if !<-done {
+		b.FailNow()
+	}
 
 	b.StartTimer()
 

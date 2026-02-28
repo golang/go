@@ -34,14 +34,20 @@ var (
 	symbolzRE = regexp.MustCompile(`(0x[[:xdigit:]]+)\s+(.*)`)
 )
 
-// Symbolize symbolizes profile p by parsing data returned by a
-// symbolz handler. syms receives the symbolz query (hex addresses
-// separated by '+') and returns the symbolz output in a string. It
-// symbolizes all locations based on their addresses, regardless of
-// mapping.
-func Symbolize(sources plugin.MappingSources, syms func(string, string) ([]byte, error), p *profile.Profile, ui plugin.UI) error {
+// Symbolize symbolizes profile p by parsing data returned by a symbolz
+// handler. syms receives the symbolz query (hex addresses separated by '+')
+// and returns the symbolz output in a string. If force is false, it will only
+// symbolize locations from mappings not already marked as HasFunctions. Never
+// attempts symbolization of addresses from unsymbolizable system
+// mappings as those may look negative - e.g. "[vsyscall]".
+func Symbolize(p *profile.Profile, force bool, sources plugin.MappingSources, syms func(string, string) ([]byte, error), ui plugin.UI) error {
 	for _, m := range p.Mapping {
-		if m.HasFunctions {
+		if !force && m.HasFunctions {
+			// Only check for HasFunctions as symbolz only populates function names.
+			continue
+		}
+		// Skip well-known system mappings.
+		if m.Unsymbolizable() {
 			continue
 		}
 		mappingSources := sources[m.File]
@@ -62,19 +68,35 @@ func Symbolize(sources plugin.MappingSources, syms func(string, string) ([]byte,
 	return nil
 }
 
+// hasGperftoolsSuffix checks whether path ends with one of the suffixes listed in
+// pprof_remote_servers.html from the gperftools distribution
+func hasGperftoolsSuffix(path string) bool {
+	suffixes := []string{
+		"/pprof/heap",
+		"/pprof/growth",
+		"/pprof/profile",
+		"/pprof/pmuprofile",
+		"/pprof/contention",
+	}
+	for _, s := range suffixes {
+		if strings.HasSuffix(path, s) {
+			return true
+		}
+	}
+	return false
+}
+
 // symbolz returns the corresponding symbolz source for a profile URL.
 func symbolz(source string) string {
 	if url, err := url.Parse(source); err == nil && url.Host != "" {
-		if strings.Contains(url.Path, "/") {
-			if dir := path.Dir(url.Path); dir == "/debug/pprof" {
-				// For Go language profile handlers in net/http/pprof package.
-				url.Path = "/debug/pprof/symbol"
-			} else {
-				url.Path = "/symbolz"
-			}
-			url.RawQuery = ""
-			return url.String()
+		// All paths in the net/http/pprof Go package contain /debug/pprof/
+		if strings.Contains(url.Path, "/debug/pprof/") || hasGperftoolsSuffix(url.Path) {
+			url.Path = path.Clean(url.Path + "/../symbol")
+		} else {
+			url.Path = "/symbolz"
 		}
+		url.RawQuery = ""
+		return url.String()
 	}
 
 	return ""
@@ -82,16 +104,16 @@ func symbolz(source string) string {
 
 // symbolizeMapping symbolizes locations belonging to a Mapping by querying
 // a symbolz handler. An offset is applied to all addresses to take care of
-// normalization occured for merged Mappings.
+// normalization occurred for merged Mappings.
 func symbolizeMapping(source string, offset int64, syms func(string, string) ([]byte, error), m *profile.Mapping, p *profile.Profile) error {
 	// Construct query of addresses to symbolize.
 	var a []string
 	for _, l := range p.Location {
 		if l.Mapping == m && l.Address != 0 && len(l.Line) == 0 {
 			// Compensate for normalization.
-			addr := int64(l.Address) + offset
-			if addr < 0 {
-				return fmt.Errorf("unexpected negative adjusted address, mapping %v source %d, offset %d", l.Mapping, l.Address, offset)
+			addr, overflow := adjust(l.Address, offset)
+			if overflow {
+				return fmt.Errorf("cannot adjust address %d by %d, it would overflow (mapping %v)", l.Address, offset, l.Mapping)
 			}
 			a = append(a, fmt.Sprintf("%#x", addr))
 		}
@@ -122,15 +144,15 @@ func symbolizeMapping(source string, offset int64, syms func(string, string) ([]
 		}
 
 		if symbol := symbolzRE.FindStringSubmatch(l); len(symbol) == 3 {
-			addr, err := strconv.ParseInt(symbol[1], 0, 64)
+			origAddr, err := strconv.ParseUint(symbol[1], 0, 64)
 			if err != nil {
 				return fmt.Errorf("unexpected parse failure %s: %v", symbol[1], err)
 			}
-			if addr < 0 {
-				return fmt.Errorf("unexpected negative adjusted address, source %s, offset %d", symbol[1], offset)
-			}
 			// Reapply offset expected by the profile.
-			addr -= offset
+			addr, overflow := adjust(origAddr, -offset)
+			if overflow {
+				return fmt.Errorf("cannot adjust symbolz address %d by %d, it would overflow", origAddr, -offset)
+			}
 
 			name := symbol[2]
 			fn := functions[name]
@@ -144,7 +166,7 @@ func symbolizeMapping(source string, offset int64, syms func(string, string) ([]
 				p.Function = append(p.Function, fn)
 			}
 
-			lines[uint64(addr)] = profile.Line{Function: fn}
+			lines[addr] = profile.Line{Function: fn}
 		}
 	}
 
@@ -158,4 +180,21 @@ func symbolizeMapping(source string, offset int64, syms func(string, string) ([]
 	}
 
 	return nil
+}
+
+// adjust shifts the specified address by the signed offset. It returns the
+// adjusted address. It signals that the address cannot be adjusted without an
+// overflow by returning true in the second return value.
+func adjust(addr uint64, offset int64) (uint64, bool) {
+	adj := uint64(int64(addr) + offset)
+	if offset < 0 {
+		if adj >= addr {
+			return 0, true
+		}
+	} else {
+		if adj < addr {
+			return 0, true
+		}
+	}
+	return adj, false
 }

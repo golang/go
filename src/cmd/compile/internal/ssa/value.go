@@ -5,11 +5,12 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
-	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 )
 
@@ -25,14 +26,18 @@ type Value struct {
 	Op Op
 
 	// The type of this value. Normally this will be a Go type, but there
-	// are a few other pseudo-types, see type.go.
+	// are a few other pseudo-types, see ../types/type.go.
 	Type *types.Type
 
 	// Auxiliary info for this value. The type of this information depends on the opcode and type.
 	// AuxInt is used for integer values, Aux is used for other values.
 	// Floats are stored in AuxInt using math.Float64bits(f).
+	// Unused portions of AuxInt are filled by sign-extending the used portion,
+	// even if the represented value is unsigned.
+	// Users of AuxInt which interpret AuxInt as unsigned (e.g. shifts) must be careful.
+	// Use Value.AuxUnsigned to get the zero-extended value of AuxInt.
 	AuxInt int64
-	Aux    interface{}
+	Aux    Aux
 
 	// Arguments of this value
 	Args []*Value
@@ -43,8 +48,15 @@ type Value struct {
 	// Source position
 	Pos src.XPos
 
-	// Use count. Each appearance in Value.Args and Block.Control counts once.
+	// Use count. Each appearance in Value.Args and Block.Controls counts once.
 	Uses int32
+
+	// wasm: Value stays on the WebAssembly stack. This value will not get a "register" (WebAssembly variable)
+	// nor a slot on Go stack, and the generation of this value is delayed to its use time.
+	OnWasmStack bool
+
+	// Is this value in the per-function constant cache? If so, remove from cache before changing it or recycling it.
+	InCache bool
 
 	// Storage for the first three args
 	argstorage [3]*Value
@@ -66,7 +78,7 @@ func (v *Value) String() string {
 }
 
 func (v *Value) AuxInt8() int8 {
-	if opcodeTable[v.Op].auxType != auxInt8 {
+	if opcodeTable[v.Op].auxType != auxInt8 && opcodeTable[v.Op].auxType != auxNameOffsetInt8 {
 		v.Fatalf("op %s doesn't have an int8 aux field", v.Op)
 	}
 	return int8(v.AuxInt)
@@ -86,6 +98,25 @@ func (v *Value) AuxInt32() int32 {
 	return int32(v.AuxInt)
 }
 
+// AuxUnsigned returns v.AuxInt as an unsigned value for OpConst*.
+// v.AuxInt is always sign-extended to 64 bits, even if the
+// represented value is unsigned. This undoes that sign extension.
+func (v *Value) AuxUnsigned() uint64 {
+	c := v.AuxInt
+	switch v.Op {
+	case OpConst64:
+		return uint64(c)
+	case OpConst32:
+		return uint64(uint32(c))
+	case OpConst16:
+		return uint64(uint16(c))
+	case OpConst8:
+		return uint64(uint8(c))
+	}
+	v.Fatalf("op %s isn't OpConst*", v.Op)
+	return 0
+}
+
 func (v *Value) AuxFloat() float64 {
 	if opcodeTable[v.Op].auxType != auxFloat32 && opcodeTable[v.Op].auxType != auxFloat64 {
 		v.Fatalf("op %s doesn't have a float aux field", v.Op)
@@ -99,28 +130,44 @@ func (v *Value) AuxValAndOff() ValAndOff {
 	return ValAndOff(v.AuxInt)
 }
 
+func (v *Value) AuxArm64BitField() arm64BitField {
+	if opcodeTable[v.Op].auxType != auxARM64BitField {
+		v.Fatalf("op %s doesn't have a ValAndOff aux field", v.Op)
+	}
+	return arm64BitField(v.AuxInt)
+}
+
 // long form print.  v# = opcode <type> [aux] args [: reg] (names)
 func (v *Value) LongString() string {
+	if v == nil {
+		return "<NIL VALUE>"
+	}
 	s := fmt.Sprintf("v%d = %s", v.ID, v.Op)
 	s += " <" + v.Type.String() + ">"
 	s += v.auxString()
 	for _, a := range v.Args {
 		s += fmt.Sprintf(" %v", a)
 	}
-	r := v.Block.Func.RegAlloc
+	var r []Location
+	if v.Block != nil {
+		r = v.Block.Func.RegAlloc
+	}
 	if int(v.ID) < len(r) && r[v.ID] != nil {
-		s += " : " + r[v.ID].Name()
+		s += " : " + r[v.ID].String()
 	}
 	var names []string
-	for name, values := range v.Block.Func.NamedValues {
-		for _, value := range values {
-			if value == v {
-				names = append(names, name.Name())
-				break // drop duplicates.
+	if v.Block != nil {
+		for name, values := range v.Block.Func.NamedValues {
+			for _, value := range values {
+				if value == v {
+					names = append(names, name.String())
+					break // drop duplicates.
+				}
 			}
 		}
 	}
 	if len(names) != 0 {
+		sort.Strings(names) // Otherwise a source of variation in debugging output.
 		s += " (" + strings.Join(names, ", ") + ")"
 	}
 	return s
@@ -142,20 +189,24 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" [%d]", v.AuxInt32())
 	case auxInt64, auxInt128:
 		return fmt.Sprintf(" [%d]", v.AuxInt)
+	case auxARM64BitField:
+		lsb := v.AuxArm64BitField().getARM64BFlsb()
+		width := v.AuxArm64BitField().getARM64BFwidth()
+		return fmt.Sprintf(" [lsb=%d,width=%d]", lsb, width)
 	case auxFloat32, auxFloat64:
 		return fmt.Sprintf(" [%g]", v.AuxFloat())
 	case auxString:
 		return fmt.Sprintf(" {%q}", v.Aux)
-	case auxSym, auxTyp:
+	case auxSym, auxCall, auxTyp:
 		if v.Aux != nil {
 			return fmt.Sprintf(" {%v}", v.Aux)
 		}
-	case auxSymOff, auxSymInt32, auxTypSize:
+	case auxSymOff, auxCallOff, auxTypSize, auxNameOffsetInt8:
 		s := ""
 		if v.Aux != nil {
 			s = fmt.Sprintf(" {%v}", v.Aux)
 		}
-		if v.AuxInt != 0 {
+		if v.AuxInt != 0 || opcodeTable[v.Op].auxType == auxNameOffsetInt8 {
 			s += fmt.Sprintf(" [%v]", v.AuxInt)
 		}
 		return s
@@ -165,10 +216,20 @@ func (v *Value) auxString() string {
 			s = fmt.Sprintf(" {%v}", v.Aux)
 		}
 		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
+	case auxCCop:
+		return fmt.Sprintf(" {%s}", Op(v.AuxInt))
+	case auxS390XCCMask, auxS390XRotateParams:
+		return fmt.Sprintf(" {%v}", v.Aux)
+	case auxFlagConstant:
+		return fmt.Sprintf("[%s]", flagConstant(v.AuxInt))
 	}
 	return ""
 }
 
+// If/when midstack inlining is enabled (-l=4), the compiler gets both larger and slower.
+// Not-inlining this method is a help (*Value.reset and *Block.NewValue0 are similar).
+//
+//go:noinline
 func (v *Value) AddArg(w *Value) {
 	if v.Args == nil {
 		v.resetArgs() // use argstorage
@@ -176,6 +237,58 @@ func (v *Value) AddArg(w *Value) {
 	v.Args = append(v.Args, w)
 	w.Uses++
 }
+
+//go:noinline
+func (v *Value) AddArg2(w1, w2 *Value) {
+	if v.Args == nil {
+		v.resetArgs() // use argstorage
+	}
+	v.Args = append(v.Args, w1, w2)
+	w1.Uses++
+	w2.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg3(w1, w2, w3 *Value) {
+	if v.Args == nil {
+		v.resetArgs() // use argstorage
+	}
+	v.Args = append(v.Args, w1, w2, w3)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg4(w1, w2, w3, w4 *Value) {
+	v.Args = append(v.Args, w1, w2, w3, w4)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+	w4.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg5(w1, w2, w3, w4, w5 *Value) {
+	v.Args = append(v.Args, w1, w2, w3, w4, w5)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+	w4.Uses++
+	w5.Uses++
+}
+
+//go:noinline
+func (v *Value) AddArg6(w1, w2, w3, w4, w5, w6 *Value) {
+	v.Args = append(v.Args, w1, w2, w3, w4, w5, w6)
+	w1.Uses++
+	w2.Uses++
+	w3.Uses++
+	w4.Uses++
+	w5.Uses++
+	w6.Uses++
+}
+
 func (v *Value) AddArgs(a ...*Value) {
 	if v.Args == nil {
 		v.resetArgs() // use argstorage
@@ -190,20 +303,20 @@ func (v *Value) SetArg(i int, w *Value) {
 	v.Args[i] = w
 	w.Uses++
 }
-func (v *Value) RemoveArg(i int) {
-	v.Args[i].Uses--
-	copy(v.Args[i:], v.Args[i+1:])
-	v.Args[len(v.Args)-1] = nil // aid GC
-	v.Args = v.Args[:len(v.Args)-1]
-}
 func (v *Value) SetArgs1(a *Value) {
 	v.resetArgs()
 	v.AddArg(a)
 }
-func (v *Value) SetArgs2(a *Value, b *Value) {
+func (v *Value) SetArgs2(a, b *Value) {
 	v.resetArgs()
 	v.AddArg(a)
 	v.AddArg(b)
+}
+func (v *Value) SetArgs3(a, b, c *Value) {
+	v.resetArgs()
+	v.AddArg(a)
+	v.AddArg(b)
+	v.AddArg(c)
 }
 
 func (v *Value) resetArgs() {
@@ -216,16 +329,77 @@ func (v *Value) resetArgs() {
 	v.Args = v.argstorage[:0]
 }
 
+// reset is called from most rewrite rules.
+// Allowing it to be inlined increases the size
+// of cmd/compile by almost 10%, and slows it down.
+//
+//go:noinline
 func (v *Value) reset(op Op) {
+	if v.InCache {
+		v.Block.Func.unCache(v)
+	}
 	v.Op = op
 	v.resetArgs()
 	v.AuxInt = 0
 	v.Aux = nil
 }
 
+// invalidateRecursively marks a value as invalid (unused)
+// and after decrementing reference counts on its Args,
+// also recursively invalidates any of those whose use
+// count goes to zero.  It returns whether any of the
+// invalidated values was marked with IsStmt.
+//
+// BEWARE of doing this *before* you've applied intended
+// updates to SSA.
+func (v *Value) invalidateRecursively() bool {
+	lostStmt := v.Pos.IsStmt() == src.PosIsStmt
+	if v.InCache {
+		v.Block.Func.unCache(v)
+	}
+	v.Op = OpInvalid
+
+	for _, a := range v.Args {
+		a.Uses--
+		if a.Uses == 0 {
+			lost := a.invalidateRecursively()
+			lostStmt = lost || lostStmt
+		}
+	}
+
+	v.argstorage[0] = nil
+	v.argstorage[1] = nil
+	v.argstorage[2] = nil
+	v.Args = v.argstorage[:0]
+
+	v.AuxInt = 0
+	v.Aux = nil
+	return lostStmt
+}
+
+// copyOf is called from rewrite rules.
+// It modifies v to be (Copy a).
+//
+//go:noinline
+func (v *Value) copyOf(a *Value) {
+	if v == a {
+		return
+	}
+	if v.InCache {
+		v.Block.Func.unCache(v)
+	}
+	v.Op = OpCopy
+	v.resetArgs()
+	v.AddArg(a)
+	v.AuxInt = 0
+	v.Aux = nil
+	v.Type = a.Type
+}
+
 // copyInto makes a new value identical to v and adds it to the end of b.
+// unlike copyIntoWithXPos this does not check for v.Pos being a statement.
 func (v *Value) copyInto(b *Block) *Value {
-	c := b.NewValue0(v.Pos, v.Op, v.Type) // Lose the position, this causes line number churn otherwise.
+	c := b.NewValue0(v.Pos.WithNotStmt(), v.Op, v.Type) // Lose the position, this causes line number churn otherwise.
 	c.Aux = v.Aux
 	c.AuxInt = v.AuxInt
 	c.AddArgs(v.Args...)
@@ -237,11 +411,17 @@ func (v *Value) copyInto(b *Block) *Value {
 	return c
 }
 
-// copyIntoNoXPos makes a new value identical to v and adds it to the end of b.
-// The copied value receives no source code position to avoid confusing changes
-// in debugger information (the intended user is the register allocator).
-func (v *Value) copyIntoNoXPos(b *Block) *Value {
-	c := b.NewValue0(src.NoXPos, v.Op, v.Type) // Lose the position, this causes line number churn otherwise.
+// copyIntoWithXPos makes a new value identical to v and adds it to the end of b.
+// The supplied position is used as the position of the new value.
+// Because this is used for rematerialization, check for case that (rematerialized)
+// input to value with position 'pos' carried a statement mark, and that the supplied
+// position (of the instruction using the rematerialized value) is not marked, and
+// preserve that mark if its line matches the supplied position.
+func (v *Value) copyIntoWithXPos(b *Block, pos src.XPos) *Value {
+	if v.Pos.IsStmt() == src.PosIsStmt && pos.IsStmt() != src.PosIsStmt && v.Pos.SameFileAndLine(pos) {
+		pos = pos.WithIsStmt()
+	}
+	c := b.NewValue0(pos, v.Op, v.Type)
 	c.Aux = v.Aux
 	c.AuxInt = v.AuxInt
 	c.AddArgs(v.Args...)
@@ -259,41 +439,26 @@ func (v *Value) Fatalf(msg string, args ...interface{}) {
 	v.Block.Func.fe.Fatalf(v.Pos, msg, args...)
 }
 
-// isGenericIntConst returns whether v is a generic integer constant.
+// isGenericIntConst reports whether v is a generic integer constant.
 func (v *Value) isGenericIntConst() bool {
 	return v != nil && (v.Op == OpConst64 || v.Op == OpConst32 || v.Op == OpConst16 || v.Op == OpConst8)
 }
 
-// ExternSymbol is an aux value that encodes a variable's
-// constant offset from the static base pointer.
-type ExternSymbol struct {
-	Sym *obj.LSym
-	// Note: the offset for an external symbol is not
-	// calculated until link time.
-}
-
-// ArgSymbol is an aux value that encodes an argument or result
-// variable's constant offset from FP (FP = SP + framesize).
-type ArgSymbol struct {
-	Node GCNode // A *gc.Node referring to the argument/result variable.
-}
-
-// AutoSymbol is an aux value that encodes a local variable's
-// constant offset from SP.
-type AutoSymbol struct {
-	Node GCNode // A *gc.Node referring to a local (auto) variable.
-}
-
-func (s *ExternSymbol) String() string {
-	return s.Sym.String()
-}
-
-func (s *ArgSymbol) String() string {
-	return s.Node.String()
-}
-
-func (s *AutoSymbol) String() string {
-	return s.Node.String()
+// ResultReg returns the result register assigned to v, in cmd/internal/obj/$ARCH numbering.
+// It is similar to Reg and Reg0, except that it is usable interchangeably for all Value Ops.
+// If you know v.Op, using Reg or Reg0 (as appropriate) will be more efficient.
+func (v *Value) ResultReg() int16 {
+	reg := v.Block.Func.RegAlloc[v.ID]
+	if reg == nil {
+		v.Fatalf("nil reg for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	if pair, ok := reg.(LocPair); ok {
+		reg = pair[0]
+	}
+	if reg == nil {
+		v.Fatalf("nil reg0 for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	return reg.(*Register).objNum
 }
 
 // Reg returns the register assigned to v, in cmd/internal/obj/$ARCH numbering.
@@ -346,4 +511,52 @@ func (v *Value) MemoryArg() *Value {
 		return m
 	}
 	return nil
+}
+
+// LackingPos indicates whether v is a value that is unlikely to have a correct
+// position assigned to it.  Ignoring such values leads to more user-friendly positions
+// assigned to nearby values and the blocks containing them.
+func (v *Value) LackingPos() bool {
+	// The exact definition of LackingPos is somewhat heuristically defined and may change
+	// in the future, for example if some of these operations are generated more carefully
+	// with respect to their source position.
+	return v.Op == OpVarDef || v.Op == OpVarKill || v.Op == OpVarLive || v.Op == OpPhi ||
+		(v.Op == OpFwdRef || v.Op == OpCopy) && v.Type == types.TypeMem
+}
+
+// removeable reports whether the value v can be removed from the SSA graph entirely
+// if its use count drops to 0.
+func (v *Value) removeable() bool {
+	if v.Type.IsVoid() {
+		// Void ops, like nil pointer checks, must stay.
+		return false
+	}
+	if v.Type.IsMemory() {
+		// We don't need to preserve all memory ops, but we do need
+		// to keep calls at least (because they might have
+		// synchronization operations we can't see).
+		return false
+	}
+	if v.Op.HasSideEffects() {
+		// These are mostly synchronization operations.
+		return false
+	}
+	return true
+}
+
+// TODO(mdempsky): Shouldn't be necessary; see discussion at golang.org/cl/275756
+func (*Value) CanBeAnSSAAux() {}
+
+// AutoVar returns a *Name and int64 representing the auto variable and offset within it
+// where v should be spilled.
+func AutoVar(v *Value) (*ir.Name, int64) {
+	if loc, ok := v.Block.Func.RegAlloc[v.ID].(LocalSlot); ok {
+		if v.Type.Size() > loc.Type.Size() {
+			v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
+		}
+		return loc.N, loc.Off
+	}
+	// Assume it is a register, return its spill slot, which needs to be live
+	nameOff := v.Aux.(*AuxNameOffset)
+	return nameOff.Name, nameOff.Offset
 }

@@ -10,14 +10,14 @@ import (
 )
 
 // GOMAXPROCS sets the maximum number of CPUs that can be executing
-// simultaneously and returns the previous setting. If n < 1, it does not
-// change the current setting.
-// The number of logical CPUs on the local machine can be queried with NumCPU.
+// simultaneously and returns the previous setting. It defaults to
+// the value of runtime.NumCPU. If n < 1, it does not change the current setting.
 // This call will go away when the scheduler improves.
 func GOMAXPROCS(n int) int {
-	if n > _MaxGomaxprocs {
-		n = _MaxGomaxprocs
+	if GOARCH == "wasm" && n > 1 {
+		n = 1 // WebAssembly has no threads yet, so only one CPU is possible.
 	}
+
 	lock(&sched.lock)
 	ret := int(gomaxprocs)
 	unlock(&sched.lock)
@@ -25,12 +25,12 @@ func GOMAXPROCS(n int) int {
 		return ret
 	}
 
-	stopTheWorld("GOMAXPROCS")
+	stopTheWorldGC("GOMAXPROCS")
 
 	// newprocs will be processed by startTheWorld
 	newprocs = int32(n)
 
-	startTheWorld()
+	startTheWorldGC()
 	return ret
 }
 
@@ -45,7 +45,7 @@ func NumCPU() int {
 
 // NumCgoCall returns the number of cgo calls made by the current process.
 func NumCgoCall() int64 {
-	var n int64
+	var n = int64(atomic.Load64(&ncgocall))
 	for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
 		n += int64(mp.ncgocall)
 	}
@@ -55,4 +55,61 @@ func NumCgoCall() int64 {
 // NumGoroutine returns the number of goroutines that currently exist.
 func NumGoroutine() int {
 	return int(gcount())
+}
+
+//go:linkname debug_modinfo runtime/debug.modinfo
+func debug_modinfo() string {
+	return modinfo
+}
+
+// mayMoreStackPreempt is a maymorestack hook that forces a preemption
+// at every possible cooperative preemption point.
+//
+// This is valuable to apply to the runtime, which can be sensitive to
+// preemption points. To apply this to all preemption points in the
+// runtime and runtime-like code, use the following in bash or zsh:
+//
+//	X=(-{gc,asm}flags={runtime/...,reflect,sync}=-d=maymorestack=runtime.mayMoreStackPreempt) GOFLAGS=${X[@]}
+//
+// This must be deeply nosplit because it is called from a function
+// prologue before the stack is set up and because the compiler will
+// call it from any splittable prologue (leading to infinite
+// recursion).
+//
+// Ideally it should also use very little stack because the linker
+// doesn't currently account for this in nosplit stack depth checking.
+//
+// Ensure mayMoreStackPreempt can be called for all ABIs.
+//
+//go:nosplit
+//go:linkname mayMoreStackPreempt
+func mayMoreStackPreempt() {
+	// Don't do anything on the g0 or gsignal stack.
+	g := getg()
+	if g == g.m.g0 || g == g.m.gsignal {
+		return
+	}
+	// Force a preemption, unless the stack is already poisoned.
+	if g.stackguard0 < stackPoisonMin {
+		g.stackguard0 = stackPreempt
+	}
+}
+
+// mayMoreStackMove is a maymorestack hook that forces stack movement
+// at every possible point.
+//
+// See mayMoreStackPreempt.
+//
+//go:nosplit
+//go:linkname mayMoreStackMove
+func mayMoreStackMove() {
+	// Don't do anything on the g0 or gsignal stack.
+	g := getg()
+	if g == g.m.g0 || g == g.m.gsignal {
+		return
+	}
+	// Force stack movement, unless the stack is already poisoned.
+	if g.stackguard0 < stackPoisonMin {
+		g.stackguard0 = stackForceMove
+	}
 }

@@ -41,7 +41,7 @@ type percentSlashTag struct {
 }
 
 type punctuationTag struct {
-	V string `json:"!#$%&()*+-./:<=>?@[]^_{|}~"` // https://golang.org/issue/3546
+	V string `json:"!#$%&()*+-./:;<=>?@[]^_{|}~ "` // https://golang.org/issue/3546
 }
 
 type dashTag struct {
@@ -73,7 +73,7 @@ type unicodeTag struct {
 }
 
 var structTagObjectKeyTests = []struct {
-	raw   interface{}
+	raw   any
 	value string
 	key   string
 }{
@@ -90,7 +90,7 @@ var structTagObjectKeyTests = []struct {
 	{badFormatTag{"Orfevre"}, "Orfevre", "Y"},
 	{badCodeTag{"Reliable Man"}, "Reliable Man", "Z"},
 	{percentSlashTag{"brut"}, "brut", "text/html%"},
-	{punctuationTag{"Union Rags"}, "Union Rags", "!#$%&()*+-./:<=>?@[]^_{|}~"},
+	{punctuationTag{"Union Rags"}, "Union Rags", "!#$%&()*+-./:;<=>?@[]^_{|}~ "},
 	{spaceTag{"Perreddu"}, "Perreddu", "With space"},
 	{unicodeTag{"Loukanikos"}, "Loukanikos", "Ελλάδα"},
 }
@@ -101,12 +101,12 @@ func TestStructTagObjectKey(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Marshal(%#q) failed: %v", tt.raw, err)
 		}
-		var f interface{}
+		var f any
 		err = Unmarshal(b, &f)
 		if err != nil {
 			t.Fatalf("Unmarshal(%#q) failed: %v", b, err)
 		}
-		for i, v := range f.(map[string]interface{}) {
+		for i, v := range f.(map[string]any) {
 			switch i {
 			case tt.key:
 				if s, ok := v.(string); !ok || s != tt.value {

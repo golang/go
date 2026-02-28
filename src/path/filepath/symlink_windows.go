@@ -40,7 +40,7 @@ func normBase(path string) (string, error) {
 	return syscall.UTF16ToString(data.FileName[:]), nil
 }
 
-// baseIsDotDot returns whether the last element of path is "..".
+// baseIsDotDot reports whether the last element of path is "..".
 // The given path should be 'Clean'-ed in advance.
 func baseIsDotDot(path string) bool {
 	i := strings.LastIndexByte(path, Separator)
@@ -49,11 +49,12 @@ func baseIsDotDot(path string) bool {
 
 // toNorm returns the normalized path that is guaranteed to be unique.
 // It should accept the following formats:
-//   * UNC paths                              (e.g \\server\share\foo\bar)
-//   * absolute paths                         (e.g C:\foo\bar)
-//   * relative paths begin with drive letter (e.g C:foo\bar, C:..\foo\bar, C:.., C:.)
-//   * relative paths begin with '\'          (e.g \foo\bar)
-//   * relative paths begin without '\'       (e.g foo\bar, ..\foo\bar, .., .)
+//   - UNC paths                              (e.g \\server\share\foo\bar)
+//   - absolute paths                         (e.g C:\foo\bar)
+//   - relative paths begin with drive letter (e.g C:foo\bar, C:..\foo\bar, C:.., C:.)
+//   - relative paths begin with '\'          (e.g \foo\bar)
+//   - relative paths begin without '\'       (e.g foo\bar, ..\foo\bar, .., .)
+//
 // The returned normalized path will be in the same form (of 5 listed above) as the input path.
 // If two paths A and B are indicating the same file with the same format, toNorm(A) should be equal to toNorm(B).
 // The normBase parameter should be equal to the normBase func, except for in tests.  See docs on the normBase func.
@@ -68,7 +69,7 @@ func toNorm(path string, normBase func(string) (string, error)) (string, error) 
 	path = path[len(volume):]
 
 	// skip special cases
-	if path == "." || path == `\` {
+	if path == "" || path == "." || path == `\` {
 		return volume + path, nil
 	}
 
@@ -107,9 +108,13 @@ func toNorm(path string, normBase func(string) (string, error)) (string, error) 
 }
 
 func evalSymlinks(path string) (string, error) {
-	path, err := walkSymlinks(path)
+	newpath, err := walkSymlinks(path)
 	if err != nil {
 		return "", err
 	}
-	return toNorm(path, normBase)
+	newpath, err = toNorm(newpath, normBase)
+	if err != nil {
+		return "", err
+	}
+	return newpath, nil
 }

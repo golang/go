@@ -11,7 +11,7 @@ if [ ! -f run.bash ]; then
 fi
 export GOROOT="$(cd .. && pwd)"
 
-gobin="${GOBIN:-../bin}"
+gobin="${GOROOT}"/bin
 if ! "$gobin"/go help >/dev/null 2>&1; then
 	echo 'cannot find go command; nothing to clean' >&2
 	exit 1

@@ -5,15 +5,16 @@
 package os
 
 import (
-	"errors"
+	"internal/itoa"
 	"runtime"
 	"syscall"
 	"time"
 )
 
-// The only signal values guaranteed to be present on all systems
-// are Interrupt (send the process an interrupt) and Kill (force
-// the process to exit).
+// The only signal values guaranteed to be present in the os package
+// on all systems are Interrupt (send the process an interrupt) and
+// Kill (force the process to exit). Interrupt is not implemented on
+// Windows; using it with os.Process.Signal will return an error.
 var (
 	Interrupt Signal = syscall.Note("interrupt")
 	Kill      Signal = syscall.Note("kill")
@@ -26,20 +27,21 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 		Sys: attr.Sys,
 	}
 
+	sysattr.Files = make([]uintptr, 0, len(attr.Files))
 	for _, f := range attr.Files {
 		sysattr.Files = append(sysattr.Files, f.Fd())
 	}
 
 	pid, h, e := syscall.StartProcess(name, argv, sysattr)
 	if e != nil {
-		return nil, &PathError{"fork/exec", name, e}
+		return nil, &PathError{Op: "fork/exec", Path: name, Err: e}
 	}
 
 	return newProcess(pid, h), nil
 }
 
 func (p *Process) writeProcFile(file string, data string) error {
-	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/"+file, O_WRONLY, 0)
+	f, e := OpenFile("/proc/"+itoa.Itoa(p.Pid)+"/"+file, O_WRONLY, 0)
 	if e != nil {
 		return e
 	}
@@ -50,7 +52,7 @@ func (p *Process) writeProcFile(file string, data string) error {
 
 func (p *Process) signal(sig Signal) error {
 	if p.done() {
-		return errors.New("os: process already finished")
+		return ErrProcessDone
 	}
 	if e := p.writeProcFile("note", sig.String()); e != nil {
 		return NewSyscallError("signal", e)
@@ -113,11 +115,11 @@ func (p *ProcessState) success() bool {
 	return p.status.ExitStatus() == 0
 }
 
-func (p *ProcessState) sys() interface{} {
+func (p *ProcessState) sys() any {
 	return p.status
 }
 
-func (p *ProcessState) sysUsage() interface{} {
+func (p *ProcessState) sysUsage() any {
 	return p.status
 }
 
@@ -134,4 +136,14 @@ func (p *ProcessState) String() string {
 		return "<nil>"
 	}
 	return "exit status: " + p.status.Msg
+}
+
+// ExitCode returns the exit code of the exited process, or -1
+// if the process hasn't exited or was terminated by a signal.
+func (p *ProcessState) ExitCode() int {
+	// return -1 if the process hasn't started.
+	if p == nil {
+		return -1
+	}
+	return p.status.ExitStatus()
 }

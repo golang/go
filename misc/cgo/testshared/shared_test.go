@@ -9,33 +9,44 @@ import (
 	"bytes"
 	"debug/elf"
 	"encoding/binary"
-	"errors"
+	"flag"
 	"fmt"
 	"go/build"
 	"io"
-	"io/ioutil"
 	"log"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
 
-var gopathInstallDir, gorootInstallDir, suffix string
+var gopathInstallDir, gorootInstallDir string
 
 // This is the smallest set of packages we can link into a shared
 // library (runtime/cgo is built implicitly).
 var minpkgs = []string{"runtime", "sync/atomic"}
 var soname = "libruntime,sync-atomic.so"
 
+var testX = flag.Bool("testx", false, "if true, pass -x to 'go' subcommands invoked by the test")
+var testWork = flag.Bool("testwork", false, "if true, log and do not delete the temporary working directory")
+
 // run runs a command and calls t.Errorf if it fails.
 func run(t *testing.T, msg string, args ...string) {
+	runWithEnv(t, msg, nil, args...)
+}
+
+// runWithEnv runs a command under the given environment and calls t.Errorf if it fails.
+func runWithEnv(t *testing.T, msg string, env []string, args ...string) {
 	c := exec.Command(args[0], args[1:]...)
+	if len(env) != 0 {
+		c.Env = append(os.Environ(), env...)
+	}
 	if output, err := c.CombinedOutput(); err != nil {
 		t.Errorf("executing %s (%s) failed %s:\n%s", strings.Join(args, " "), msg, err, output)
 	}
@@ -43,133 +54,189 @@ func run(t *testing.T, msg string, args ...string) {
 
 // goCmd invokes the go tool with the installsuffix set up by TestMain. It calls
 // t.Fatalf if the command fails.
-func goCmd(t *testing.T, args ...string) {
-	newargs := []string{args[0], "-installsuffix=" + suffix}
-	if testing.Verbose() {
-		newargs = append(newargs, "-v")
+func goCmd(t *testing.T, args ...string) string {
+	newargs := []string{args[0]}
+	if *testX && args[0] != "env" {
+		newargs = append(newargs, "-x", "-ldflags=-v")
 	}
 	newargs = append(newargs, args[1:]...)
 	c := exec.Command("go", newargs...)
-	var output []byte
-	var err error
-	if testing.Verbose() {
-		fmt.Printf("+ go %s\n", strings.Join(newargs, " "))
-		c.Stdout = os.Stdout
+	stderr := new(strings.Builder)
+	c.Stderr = stderr
+
+	if testing.Verbose() && t == nil {
+		fmt.Fprintf(os.Stderr, "+ go %s\n", strings.Join(args, " "))
 		c.Stderr = os.Stderr
-		err = c.Run()
-	} else {
-		output, err = c.CombinedOutput()
 	}
+	output, err := c.Output()
+
 	if err != nil {
 		if t != nil {
-			t.Fatalf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, output)
+			t.Helper()
+			t.Fatalf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, stderr)
 		} else {
-			log.Fatalf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, output)
+			// Panic instead of using log.Fatalf so that deferred cleanup may run in testMain.
+			log.Panicf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, stderr)
 		}
 	}
+	if testing.Verbose() && t != nil {
+		t.Logf("go %s", strings.Join(args, " "))
+		if stderr.Len() > 0 {
+			t.Logf("%s", stderr)
+		}
+	}
+	return string(bytes.TrimSpace(output))
 }
 
 // TestMain calls testMain so that the latter can use defer (TestMain exits with os.Exit).
 func testMain(m *testing.M) (int, error) {
-	// Because go install -buildmode=shared $standard_library_package always
-	// installs into $GOROOT, here are some gymnastics to come up with a unique
-	// installsuffix to use in this test that we can clean up afterwards.
+	workDir, err := os.MkdirTemp("", "shared_test")
+	if err != nil {
+		return 0, err
+	}
+	if *testWork || testing.Verbose() {
+		fmt.Printf("+ mkdir -p %s\n", workDir)
+	}
+	if !*testWork {
+		defer os.RemoveAll(workDir)
+	}
+
+	// Some tests need to edit the source in GOPATH, so copy this directory to a
+	// temporary directory and chdir to that.
+	gopath := filepath.Join(workDir, "gopath")
+	modRoot, err := cloneTestdataModule(gopath)
+	if err != nil {
+		return 0, err
+	}
+	if testing.Verbose() {
+		fmt.Printf("+ export GOPATH=%s\n", gopath)
+		fmt.Printf("+ cd %s\n", modRoot)
+	}
+	os.Setenv("GOPATH", gopath)
+	// Explicitly override GOBIN as well, in case it was set through a GOENV file.
+	os.Setenv("GOBIN", filepath.Join(gopath, "bin"))
+	os.Chdir(modRoot)
+	os.Setenv("PWD", modRoot)
+
+	// The test also needs to install libraries into GOROOT/pkg, so copy the
+	// subset of GOROOT that we need.
+	//
+	// TODO(golang.org/issue/28553): Rework -buildmode=shared so that it does not
+	// need to write to GOROOT.
+	goroot := filepath.Join(workDir, "goroot")
+	if err := cloneGOROOTDeps(goroot); err != nil {
+		return 0, err
+	}
+	if testing.Verbose() {
+		fmt.Fprintf(os.Stderr, "+ export GOROOT=%s\n", goroot)
+	}
+	os.Setenv("GOROOT", goroot)
+
 	myContext := build.Default
+	myContext.GOROOT = goroot
+	myContext.GOPATH = gopath
 	runtimeP, err := myContext.Import("runtime", ".", build.ImportComment)
 	if err != nil {
 		return 0, fmt.Errorf("import failed: %v", err)
 	}
-	for i := 0; i < 10000; i++ {
-		try := fmt.Sprintf("%s_%d_dynlink", runtimeP.PkgTargetRoot, rand.Int63())
-		err = os.Mkdir(try, 0700)
-		if os.IsExist(err) {
-			continue
-		}
-		if err == nil {
-			gorootInstallDir = try
-		}
-		break
-	}
-	if err != nil {
-		return 0, fmt.Errorf("can't create temporary directory: %v", err)
-	}
-	if gorootInstallDir == "" {
-		return 0, errors.New("could not create temporary directory after 10000 tries")
-	}
-	if testing.Verbose() {
-		fmt.Printf("+ mkdir -p %s\n", gorootInstallDir)
-	}
-	defer os.RemoveAll(gorootInstallDir)
-
-	// Some tests need to edit the source in GOPATH, so copy this directory to a
-	// temporary directory and chdir to that.
-	scratchDir, err := ioutil.TempDir("", "testshared")
-	if err != nil {
-		return 0, fmt.Errorf("TempDir failed: %v", err)
-	}
-	if testing.Verbose() {
-		fmt.Printf("+ mkdir -p %s\n", scratchDir)
-	}
-	defer os.RemoveAll(scratchDir)
-	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
-		scratchPath := filepath.Join(scratchDir, path)
-		if info.IsDir() {
-			if path == "." {
-				return nil
-			}
-			if testing.Verbose() {
-				fmt.Printf("+ mkdir -p %s\n", scratchPath)
-			}
-			return os.Mkdir(scratchPath, info.Mode())
-		} else {
-			fromBytes, err := ioutil.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			if testing.Verbose() {
-				fmt.Printf("+ cp %s %s\n", path, scratchPath)
-			}
-			return ioutil.WriteFile(scratchPath, fromBytes, info.Mode())
-		}
-	})
-	if err != nil {
-		return 0, fmt.Errorf("walk failed: %v", err)
-	}
-	os.Setenv("GOPATH", scratchDir)
-	if testing.Verbose() {
-		fmt.Printf("+ export GOPATH=%s\n", scratchDir)
-	}
-	myContext.GOPATH = scratchDir
-	if testing.Verbose() {
-		fmt.Printf("+ cd %s\n", scratchDir)
-	}
-	os.Chdir(scratchDir)
+	gorootInstallDir = runtimeP.PkgTargetRoot + "_dynlink"
 
 	// All tests depend on runtime being built into a shared library. Because
 	// that takes a few seconds, do it here and have all tests use the version
 	// built here.
-	suffix = strings.Split(filepath.Base(gorootInstallDir), "_")[2]
 	goCmd(nil, append([]string{"install", "-buildmode=shared"}, minpkgs...)...)
 
-	myContext.InstallSuffix = suffix + "_dynlink"
-	depP, err := myContext.Import("depBase", ".", build.ImportComment)
+	myContext.InstallSuffix = "_dynlink"
+	depP, err := myContext.Import("./depBase", ".", build.ImportComment)
 	if err != nil {
 		return 0, fmt.Errorf("import failed: %v", err)
 	}
-	gopathInstallDir = depP.PkgTargetRoot
+	if depP.PkgTargetRoot == "" {
+		gopathInstallDir = filepath.Dir(goCmd(nil, "list", "-buildmode=shared", "-f", "{{.Target}}", "./depBase"))
+	} else {
+		gopathInstallDir = filepath.Join(depP.PkgTargetRoot, "testshared")
+	}
 	return m.Run(), nil
 }
 
 func TestMain(m *testing.M) {
-	// Some of the tests install binaries into a custom GOPATH.
-	// That won't work if GOBIN is set.
-	os.Unsetenv("GOBIN")
+	log.SetFlags(log.Lshortfile)
+	flag.Parse()
 
 	exitCode, err := testMain(m)
 	if err != nil {
 		log.Fatal(err)
 	}
 	os.Exit(exitCode)
+}
+
+// cloneTestdataModule clones the packages from src/testshared into gopath.
+// It returns the directory within gopath at which the module root is located.
+func cloneTestdataModule(gopath string) (string, error) {
+	modRoot := filepath.Join(gopath, "src", "testshared")
+	if err := overlayDir(modRoot, "testdata"); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module testshared\n"), 0644); err != nil {
+		return "", err
+	}
+	return modRoot, nil
+}
+
+// cloneGOROOTDeps copies (or symlinks) the portions of GOROOT/src and
+// GOROOT/pkg relevant to this test into the given directory.
+// It must be run from within the testdata module.
+func cloneGOROOTDeps(goroot string) error {
+	oldGOROOT := strings.TrimSpace(goCmd(nil, "env", "GOROOT"))
+	if oldGOROOT == "" {
+		return fmt.Errorf("go env GOROOT returned an empty string")
+	}
+
+	// Before we clone GOROOT, figure out which packages we need to copy over.
+	listArgs := []string{
+		"list",
+		"-deps",
+		"-f", "{{if and .Standard (not .ForTest)}}{{.ImportPath}}{{end}}",
+	}
+	stdDeps := goCmd(nil, append(listArgs, minpkgs...)...)
+	testdataDeps := goCmd(nil, append(listArgs, "-test", "./...")...)
+
+	pkgs := append(strings.Split(strings.TrimSpace(stdDeps), "\n"),
+		strings.Split(strings.TrimSpace(testdataDeps), "\n")...)
+	sort.Strings(pkgs)
+	var pkgRoots []string
+	for _, pkg := range pkgs {
+		parentFound := false
+		for _, prev := range pkgRoots {
+			if strings.HasPrefix(pkg, prev) {
+				// We will copy in the source for pkg when we copy in prev.
+				parentFound = true
+				break
+			}
+		}
+		if !parentFound {
+			pkgRoots = append(pkgRoots, pkg)
+		}
+	}
+
+	gorootDirs := []string{
+		"pkg/tool",
+		"pkg/include",
+	}
+	for _, pkg := range pkgRoots {
+		gorootDirs = append(gorootDirs, filepath.Join("src", pkg))
+	}
+
+	for _, dir := range gorootDirs {
+		if testing.Verbose() {
+			fmt.Fprintf(os.Stderr, "+ cp -r %s %s\n", filepath.Join(oldGOROOT, dir), filepath.Join(goroot, dir))
+		}
+		if err := overlayDir(filepath.Join(goroot, dir), filepath.Join(oldGOROOT, dir)); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // The shared library was built at the expected location.
@@ -220,6 +287,7 @@ func TestNoTextrel(t *testing.T) {
 }
 
 // The shared library does not contain symbols called ".dup"
+// (See golang.org/issue/14841.)
 func TestNoDupSymbols(t *testing.T) {
 	sopath := filepath.Join(gorootInstallDir, soname)
 	f, err := elf.Open(sopath)
@@ -250,7 +318,7 @@ func TestShlibnameFiles(t *testing.T) {
 	}
 	for _, pkg := range pkgs {
 		shlibnamefile := filepath.Join(gorootInstallDir, pkg+".shlibname")
-		contentsb, err := ioutil.ReadFile(shlibnamefile)
+		contentsb, err := os.ReadFile(shlibnamefile)
 		if err != nil {
 			t.Errorf("error reading shlibnamefile for %s: %v", pkg, err)
 			continue
@@ -346,11 +414,12 @@ func readNotes(f *elf.File) ([]*note, error) {
 }
 
 func dynStrings(t *testing.T, path string, flag elf.DynTag) []string {
+	t.Helper()
 	f, err := elf.Open(path)
-	defer f.Close()
 	if err != nil {
 		t.Fatalf("elf.Open(%q) failed: %v", path, err)
 	}
+	defer f.Close()
 	dynstrings, err := f.DynString(flag)
 	if err != nil {
 		t.Fatalf("DynString(%s) failed on %s: %v", flag, path, err)
@@ -359,6 +428,7 @@ func dynStrings(t *testing.T, path string, flag elf.DynTag) []string {
 }
 
 func AssertIsLinkedToRegexp(t *testing.T, path string, re *regexp.Regexp) {
+	t.Helper()
 	for _, dynstring := range dynStrings(t, path, elf.DT_NEEDED) {
 		if re.MatchString(dynstring) {
 			return
@@ -368,10 +438,12 @@ func AssertIsLinkedToRegexp(t *testing.T, path string, re *regexp.Regexp) {
 }
 
 func AssertIsLinkedTo(t *testing.T, path, lib string) {
+	t.Helper()
 	AssertIsLinkedToRegexp(t, path, regexp.MustCompile(regexp.QuoteMeta(lib)))
 }
 
 func AssertHasRPath(t *testing.T, path, dir string) {
+	t.Helper()
 	for _, tag := range []elf.DynTag{elf.DT_RPATH, elf.DT_RUNPATH} {
 		for _, dynstring := range dynStrings(t, path, tag) {
 			for _, rpath := range strings.Split(dynstring, ":") {
@@ -386,31 +458,48 @@ func AssertHasRPath(t *testing.T, path, dir string) {
 
 // Build a trivial program that links against the shared runtime and check it runs.
 func TestTrivialExecutable(t *testing.T) {
-	goCmd(t, "install", "-linkshared", "trivial")
-	run(t, "trivial executable", "./bin/trivial")
-	AssertIsLinkedTo(t, "./bin/trivial", soname)
-	AssertHasRPath(t, "./bin/trivial", gorootInstallDir)
+	goCmd(t, "install", "-linkshared", "./trivial")
+	run(t, "trivial executable", "../../bin/trivial")
+	AssertIsLinkedTo(t, "../../bin/trivial", soname)
+	AssertHasRPath(t, "../../bin/trivial", gorootInstallDir)
+	// It is 19K on linux/amd64, with separate-code in binutils ld and 64k being most common alignment
+	// 4*64k should be enough, but this might need revision eventually.
+	checkSize(t, "../../bin/trivial", 256000)
 }
 
 // Build a trivial program in PIE mode that links against the shared runtime and check it runs.
 func TestTrivialExecutablePIE(t *testing.T) {
-	goCmd(t, "build", "-buildmode=pie", "-o", "trivial.pie", "-linkshared", "trivial")
+	goCmd(t, "build", "-buildmode=pie", "-o", "trivial.pie", "-linkshared", "./trivial")
 	run(t, "trivial executable", "./trivial.pie")
 	AssertIsLinkedTo(t, "./trivial.pie", soname)
 	AssertHasRPath(t, "./trivial.pie", gorootInstallDir)
+	// It is 19K on linux/amd64, with separate-code in binutils ld and 64k being most common alignment
+	// 4*64k should be enough, but this might need revision eventually.
+	checkSize(t, "./trivial.pie", 256000)
+}
+
+// Check that the file size does not exceed a limit.
+func checkSize(t *testing.T, f string, limit int64) {
+	fi, err := os.Stat(f)
+	if err != nil {
+		t.Fatalf("stat failed: %v", err)
+	}
+	if sz := fi.Size(); sz > limit {
+		t.Errorf("file too large: got %d, want <= %d", sz, limit)
+	}
 }
 
 // Build a division test program and check it runs.
 func TestDivisionExecutable(t *testing.T) {
-	goCmd(t, "install", "-linkshared", "division")
-	run(t, "division executable", "./bin/division")
+	goCmd(t, "install", "-linkshared", "./division")
+	run(t, "division executable", "../../bin/division")
 }
 
 // Build an executable that uses cgo linked against the shared runtime and check it
 // runs.
 func TestCgoExecutable(t *testing.T) {
-	goCmd(t, "install", "-linkshared", "execgo")
-	run(t, "cgo executable", "./bin/execgo")
+	goCmd(t, "install", "-linkshared", "./execgo")
+	run(t, "cgo executable", "../../bin/execgo")
 }
 
 func checkPIE(t *testing.T, name string) {
@@ -429,7 +518,7 @@ func checkPIE(t *testing.T, name string) {
 
 func TestTrivialPIE(t *testing.T) {
 	name := "trivial_pie"
-	goCmd(t, "build", "-buildmode=pie", "-o="+name, "trivial")
+	goCmd(t, "build", "-buildmode=pie", "-o="+name, "./trivial")
 	defer os.Remove(name)
 	run(t, name, "./"+name)
 	checkPIE(t, name)
@@ -437,7 +526,7 @@ func TestTrivialPIE(t *testing.T) {
 
 func TestCgoPIE(t *testing.T) {
 	name := "cgo_pie"
-	goCmd(t, "build", "-buildmode=pie", "-o="+name, "execgo")
+	goCmd(t, "build", "-buildmode=pie", "-o="+name, "./execgo")
 	defer os.Remove(name)
 	run(t, name, "./"+name)
 	checkPIE(t, name)
@@ -446,28 +535,29 @@ func TestCgoPIE(t *testing.T) {
 // Build a GOPATH package into a shared library that links against the goroot runtime
 // and an executable that links against both.
 func TestGopathShlib(t *testing.T) {
-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "depBase")
-	AssertIsLinkedTo(t, filepath.Join(gopathInstallDir, "libdepBase.so"), soname)
-	goCmd(t, "install", "-linkshared", "exe")
-	AssertIsLinkedTo(t, "./bin/exe", soname)
-	AssertIsLinkedTo(t, "./bin/exe", "libdepBase.so")
-	AssertHasRPath(t, "./bin/exe", gorootInstallDir)
-	AssertHasRPath(t, "./bin/exe", gopathInstallDir)
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+	shlib := goCmd(t, "list", "-f", "{{.Shlib}}", "-buildmode=shared", "-linkshared", "./depBase")
+	AssertIsLinkedTo(t, shlib, soname)
+	goCmd(t, "install", "-linkshared", "./exe")
+	AssertIsLinkedTo(t, "../../bin/exe", soname)
+	AssertIsLinkedTo(t, "../../bin/exe", filepath.Base(shlib))
+	AssertHasRPath(t, "../../bin/exe", gorootInstallDir)
+	AssertHasRPath(t, "../../bin/exe", filepath.Dir(gopathInstallDir))
 	// And check it runs.
-	run(t, "executable linked to GOPATH library", "./bin/exe")
+	run(t, "executable linked to GOPATH library", "../../bin/exe")
 }
 
 // The shared library contains a note listing the packages it contains in a section
 // that is not mapped into memory.
 func testPkgListNote(t *testing.T, f *elf.File, note *note) {
 	if note.section.Flags != 0 {
-		t.Errorf("package list section has flags %v", note.section.Flags)
+		t.Errorf("package list section has flags %v, want 0", note.section.Flags)
 	}
 	if isOffsetLoaded(f, note.section.Offset) {
 		t.Errorf("package list section contained in PT_LOAD segment")
 	}
-	if note.desc != "depBase\n" {
-		t.Errorf("incorrect package list %q", note.desc)
+	if note.desc != "testshared/depBase\n" {
+		t.Errorf("incorrect package list %q, want %q", note.desc, "testshared/depBase\n")
 	}
 }
 
@@ -476,7 +566,7 @@ func testPkgListNote(t *testing.T, f *elf.File, note *note) {
 // bytes into it.
 func testABIHashNote(t *testing.T, f *elf.File, note *note) {
 	if note.section.Flags != elf.SHF_ALLOC {
-		t.Errorf("abi hash section has flags %v", note.section.Flags)
+		t.Errorf("abi hash section has flags %v, want SHF_ALLOC", note.section.Flags)
 	}
 	if !isOffsetLoaded(f, note.section.Offset) {
 		t.Errorf("abihash section not contained in PT_LOAD segment")
@@ -497,13 +587,13 @@ func testABIHashNote(t *testing.T, f *elf.File, note *note) {
 		return
 	}
 	if elf.ST_BIND(hashbytes.Info) != elf.STB_LOCAL {
-		t.Errorf("%s has incorrect binding %v", hashbytes.Name, elf.ST_BIND(hashbytes.Info))
+		t.Errorf("%s has incorrect binding %v, want STB_LOCAL", hashbytes.Name, elf.ST_BIND(hashbytes.Info))
 	}
 	if f.Sections[hashbytes.Section] != note.section {
-		t.Errorf("%s has incorrect section %v", hashbytes.Name, f.Sections[hashbytes.Section].Name)
+		t.Errorf("%s has incorrect section %v, want %s", hashbytes.Name, f.Sections[hashbytes.Section].Name, note.section.Name)
 	}
 	if hashbytes.Value-note.section.Addr != 16 {
-		t.Errorf("%s has incorrect offset into section %d", hashbytes.Name, hashbytes.Value-note.section.Addr)
+		t.Errorf("%s has incorrect offset into section %d, want 16", hashbytes.Name, hashbytes.Value-note.section.Addr)
 	}
 }
 
@@ -511,21 +601,22 @@ func testABIHashNote(t *testing.T, f *elf.File, note *note) {
 // was linked against in an unmapped section.
 func testDepsNote(t *testing.T, f *elf.File, note *note) {
 	if note.section.Flags != 0 {
-		t.Errorf("package list section has flags %v", note.section.Flags)
+		t.Errorf("package list section has flags %v, want 0", note.section.Flags)
 	}
 	if isOffsetLoaded(f, note.section.Offset) {
 		t.Errorf("package list section contained in PT_LOAD segment")
 	}
 	// libdepBase.so just links against the lib containing the runtime.
 	if note.desc != soname {
-		t.Errorf("incorrect dependency list %q", note.desc)
+		t.Errorf("incorrect dependency list %q, want %q", note.desc, soname)
 	}
 }
 
 // The shared library contains notes with defined contents; see above.
 func TestNotes(t *testing.T) {
-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "depBase")
-	f, err := elf.Open(filepath.Join(gopathInstallDir, "libdepBase.so"))
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+	shlib := goCmd(t, "list", "-f", "{{.Shlib}}", "-buildmode=shared", "-linkshared", "./depBase")
+	f, err := elf.Open(shlib)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -556,7 +647,7 @@ func TestNotes(t *testing.T) {
 			abiHashNoteFound = true
 		case 3: // ELF_NOTE_GODEPS_TAG
 			if depsNoteFound {
-				t.Error("multiple abi hash notes")
+				t.Error("multiple dependency list notes")
 			}
 			testDepsNote(t, f, note)
 			depsNoteFound = true
@@ -574,26 +665,27 @@ func TestNotes(t *testing.T) {
 }
 
 // Build a GOPATH package (depBase) into a shared library that links against the goroot
-// runtime, another package (dep2) that links against the first, and and an
+// runtime, another package (dep2) that links against the first, and an
 // executable that links against dep2.
 func TestTwoGopathShlibs(t *testing.T) {
-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "depBase")
-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep2")
-	goCmd(t, "install", "-linkshared", "exe2")
-	run(t, "executable linked to GOPATH library", "./bin/exe2")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./dep2")
+	goCmd(t, "install", "-linkshared", "./exe2")
+	run(t, "executable linked to GOPATH library", "../../bin/exe2")
 }
 
 func TestThreeGopathShlibs(t *testing.T) {
-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "depBase")
-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep2")
-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep3")
-	goCmd(t, "install", "-linkshared", "exe3")
-	run(t, "executable linked to GOPATH library", "./bin/exe3")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./dep2")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./dep3")
+	goCmd(t, "install", "-linkshared", "./exe3")
+	run(t, "executable linked to GOPATH library", "../../bin/exe3")
 }
 
-// If gccgo is not available or not new enough call t.Skip. Otherwise,
-// return a build.Context that is set up for gccgo.
-func prepGccgo(t *testing.T) build.Context {
+// If gccgo is not available or not new enough, call t.Skip.
+func requireGccgo(t *testing.T) {
+	t.Helper()
+
 	gccgoName := os.Getenv("GCCGO")
 	if gccgoName == "" {
 		gccgoName = "gccgo"
@@ -607,64 +699,75 @@ func prepGccgo(t *testing.T) build.Context {
 	if err != nil {
 		t.Fatalf("%s -dumpversion failed: %v\n%s", gccgoPath, err, output)
 	}
-	if string(output) < "5" {
+	dot := bytes.Index(output, []byte{'.'})
+	if dot > 0 {
+		output = output[:dot]
+	}
+	major, err := strconv.Atoi(string(output))
+	if err != nil {
+		t.Skipf("can't parse gccgo version number %s", output)
+	}
+	if major < 5 {
 		t.Skipf("gccgo too old (%s)", strings.TrimSpace(string(output)))
 	}
-	gccgoContext := build.Default
-	gccgoContext.InstallSuffix = suffix + "_fPIC"
-	gccgoContext.Compiler = "gccgo"
-	gccgoContext.GOPATH = os.Getenv("GOPATH")
-	return gccgoContext
+
+	gomod, err := exec.Command("go", "env", "GOMOD").Output()
+	if err != nil {
+		t.Fatalf("go env GOMOD: %v", err)
+	}
+	if len(bytes.TrimSpace(gomod)) > 0 {
+		t.Skipf("gccgo not supported in module mode; see golang.org/issue/30344")
+	}
 }
 
 // Build a GOPATH package into a shared library with gccgo and an executable that
 // links against it.
 func TestGoPathShlibGccgo(t *testing.T) {
-	gccgoContext := prepGccgo(t)
+	requireGccgo(t)
 
 	libgoRE := regexp.MustCompile("libgo.so.[0-9]+")
 
-	depP, err := gccgoContext.Import("depBase", ".", build.ImportComment)
-	if err != nil {
-		t.Fatalf("import failed: %v", err)
-	}
-	gccgoInstallDir := filepath.Join(depP.PkgTargetRoot, "shlibs")
-	goCmd(t, "install", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "depBase")
-	AssertIsLinkedToRegexp(t, filepath.Join(gccgoInstallDir, "libdepBase.so"), libgoRE)
-	goCmd(t, "install", "-compiler=gccgo", "-linkshared", "exe")
-	AssertIsLinkedToRegexp(t, "./bin/exe", libgoRE)
-	AssertIsLinkedTo(t, "./bin/exe", "libdepBase.so")
-	AssertHasRPath(t, "./bin/exe", gccgoInstallDir)
+	goCmd(t, "install", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "./depBase")
+
+	// Run 'go list' after 'go install': with gccgo, we apparently don't know the
+	// shlib location until after we've installed it.
+	shlib := goCmd(t, "list", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "-f", "{{.Shlib}}", "./depBase")
+
+	AssertIsLinkedToRegexp(t, shlib, libgoRE)
+	goCmd(t, "install", "-compiler=gccgo", "-linkshared", "./exe")
+	AssertIsLinkedToRegexp(t, "../../bin/exe", libgoRE)
+	AssertIsLinkedTo(t, "../../bin/exe", filepath.Base(shlib))
+	AssertHasRPath(t, "../../bin/exe", filepath.Dir(shlib))
 	// And check it runs.
-	run(t, "gccgo-built", "./bin/exe")
+	run(t, "gccgo-built", "../../bin/exe")
 }
 
 // The gccgo version of TestTwoGopathShlibs: build a GOPATH package into a shared
 // library with gccgo, another GOPATH package that depends on the first and an
 // executable that links the second library.
 func TestTwoGopathShlibsGccgo(t *testing.T) {
-	gccgoContext := prepGccgo(t)
+	requireGccgo(t)
 
 	libgoRE := regexp.MustCompile("libgo.so.[0-9]+")
 
-	depP, err := gccgoContext.Import("depBase", ".", build.ImportComment)
-	if err != nil {
-		t.Fatalf("import failed: %v", err)
-	}
-	gccgoInstallDir := filepath.Join(depP.PkgTargetRoot, "shlibs")
-	goCmd(t, "install", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "depBase")
-	goCmd(t, "install", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "dep2")
-	goCmd(t, "install", "-compiler=gccgo", "-linkshared", "exe2")
+	goCmd(t, "install", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "./depBase")
+	goCmd(t, "install", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "./dep2")
+	goCmd(t, "install", "-compiler=gccgo", "-linkshared", "./exe2")
 
-	AssertIsLinkedToRegexp(t, filepath.Join(gccgoInstallDir, "libdepBase.so"), libgoRE)
-	AssertIsLinkedToRegexp(t, filepath.Join(gccgoInstallDir, "libdep2.so"), libgoRE)
-	AssertIsLinkedTo(t, filepath.Join(gccgoInstallDir, "libdep2.so"), "libdepBase.so")
-	AssertIsLinkedToRegexp(t, "./bin/exe2", libgoRE)
-	AssertIsLinkedTo(t, "./bin/exe2", "libdep2")
-	AssertIsLinkedTo(t, "./bin/exe2", "libdepBase.so")
+	// Run 'go list' after 'go install': with gccgo, we apparently don't know the
+	// shlib location until after we've installed it.
+	dep2 := goCmd(t, "list", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "-f", "{{.Shlib}}", "./dep2")
+	depBase := goCmd(t, "list", "-compiler=gccgo", "-buildmode=shared", "-linkshared", "-f", "{{.Shlib}}", "./depBase")
+
+	AssertIsLinkedToRegexp(t, depBase, libgoRE)
+	AssertIsLinkedToRegexp(t, dep2, libgoRE)
+	AssertIsLinkedTo(t, dep2, filepath.Base(depBase))
+	AssertIsLinkedToRegexp(t, "../../bin/exe2", libgoRE)
+	AssertIsLinkedTo(t, "../../bin/exe2", filepath.Base(dep2))
+	AssertIsLinkedTo(t, "../../bin/exe2", filepath.Base(depBase))
 
 	// And check it runs.
-	run(t, "gccgo-built", "./bin/exe2")
+	run(t, "gccgo-built", "../../bin/exe2")
 }
 
 // Testing rebuilding of shared libraries when they are stale is a bit more
@@ -686,28 +789,85 @@ func resetFileStamps() {
 	}
 	reset := func(path string) {
 		if err := filepath.Walk(path, chtime); err != nil {
-			log.Fatalf("resetFileStamps failed: %v", err)
+			log.Panicf("resetFileStamps failed: %v", err)
 		}
 
 	}
-	reset("bin")
-	reset("pkg")
-	reset("src")
+	reset("../../bin")
+	reset("../../pkg")
+	reset("../../src")
 	reset(gorootInstallDir)
 }
 
-// touch makes path newer than the "old" time stamp used by resetFileStamps.
-func touch(path string) {
+// touch changes path and returns a function that changes it back.
+// It also sets the time of the file, so that we can see if it is rewritten.
+func touch(t *testing.T, path string) (cleanup func()) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := make([]byte, len(data))
+	copy(old, data)
+	if bytes.HasPrefix(data, []byte("!<arch>\n")) {
+		// Change last digit of build ID.
+		// (Content ID in the new content-based build IDs.)
+		const marker = `build id "`
+		i := bytes.Index(data, []byte(marker))
+		if i < 0 {
+			t.Fatal("cannot find build id in archive")
+		}
+		j := bytes.IndexByte(data[i+len(marker):], '"')
+		if j < 0 {
+			t.Fatal("cannot find build id in archive")
+		}
+		i += len(marker) + j - 1
+		if data[i] == 'a' {
+			data[i] = 'b'
+		} else {
+			data[i] = 'a'
+		}
+	} else {
+		// assume it's a text file
+		data = append(data, '\n')
+	}
+
+	// If the file is still a symlink from an overlay, delete it so that we will
+	// replace it with a regular file instead of overwriting the symlinked one.
+	fi, err := os.Lstat(path)
+	if err == nil && !fi.Mode().IsRegular() {
+		fi, err = os.Stat(path)
+		if err := os.Remove(path); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// If we're replacing a symlink to a read-only file, make the new file
+	// user-writable.
+	perm := fi.Mode().Perm() | 0200
+
+	if err := os.WriteFile(path, data, perm); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Chtimes(path, nearlyNew, nearlyNew); err != nil {
-		log.Fatalf("os.Chtimes failed: %v", err)
+		t.Fatal(err)
+	}
+	return func() {
+		if err := os.WriteFile(path, old, perm); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
 // isNew returns if the path is newer than the time stamp used by touch.
-func isNew(path string) bool {
+func isNew(t *testing.T, path string) bool {
+	t.Helper()
 	fi, err := os.Stat(path)
 	if err != nil {
-		log.Fatalf("os.Stat failed: %v", err)
+		t.Fatal(err)
 	}
 	return fi.ModTime().After(stampTime)
 }
@@ -715,64 +875,96 @@ func isNew(path string) bool {
 // Fail unless path has been rebuilt (i.e. is newer than the time stamp used by
 // isNew)
 func AssertRebuilt(t *testing.T, msg, path string) {
-	if !isNew(path) {
+	t.Helper()
+	if !isNew(t, path) {
 		t.Errorf("%s was not rebuilt (%s)", msg, path)
 	}
 }
 
 // Fail if path has been rebuilt (i.e. is newer than the time stamp used by isNew)
 func AssertNotRebuilt(t *testing.T, msg, path string) {
-	if isNew(path) {
+	t.Helper()
+	if isNew(t, path) {
 		t.Errorf("%s was rebuilt (%s)", msg, path)
 	}
 }
 
 func TestRebuilding(t *testing.T) {
-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "depBase")
-	goCmd(t, "install", "-linkshared", "exe")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+	goCmd(t, "install", "-linkshared", "./exe")
+	info := strings.Fields(goCmd(t, "list", "-buildmode=shared", "-linkshared", "-f", "{{.Target}} {{.Shlib}}", "./depBase"))
+	if len(info) != 2 {
+		t.Fatalf("go list failed to report Target and/or Shlib")
+	}
+	target := info[0]
+	shlib := info[1]
 
 	// If the source is newer than both the .a file and the .so, both are rebuilt.
-	resetFileStamps()
-	touch("src/depBase/dep.go")
-	goCmd(t, "install", "-linkshared", "exe")
-	AssertRebuilt(t, "new source", filepath.Join(gopathInstallDir, "depBase.a"))
-	AssertRebuilt(t, "new source", filepath.Join(gopathInstallDir, "libdepBase.so"))
+	t.Run("newsource", func(t *testing.T) {
+		resetFileStamps()
+		cleanup := touch(t, "./depBase/dep.go")
+		defer func() {
+			cleanup()
+			goCmd(t, "install", "-linkshared", "./exe")
+		}()
+		goCmd(t, "install", "-linkshared", "./exe")
+		AssertRebuilt(t, "new source", target)
+		AssertRebuilt(t, "new source", shlib)
+	})
 
 	// If the .a file is newer than the .so, the .so is rebuilt (but not the .a)
-	resetFileStamps()
-	touch(filepath.Join(gopathInstallDir, "depBase.a"))
-	goCmd(t, "install", "-linkshared", "exe")
-	AssertNotRebuilt(t, "new .a file", filepath.Join(gopathInstallDir, "depBase.a"))
-	AssertRebuilt(t, "new .a file", filepath.Join(gopathInstallDir, "libdepBase.so"))
+	t.Run("newarchive", func(t *testing.T) {
+		resetFileStamps()
+		AssertNotRebuilt(t, "new .a file before build", target)
+		goCmd(t, "list", "-linkshared", "-f={{.ImportPath}} {{.Stale}} {{.StaleReason}} {{.Target}}", "./depBase")
+		AssertNotRebuilt(t, "new .a file before build", target)
+		cleanup := touch(t, target)
+		defer func() {
+			cleanup()
+			goCmd(t, "install", "-v", "-linkshared", "./exe")
+		}()
+		goCmd(t, "install", "-v", "-linkshared", "./exe")
+		AssertNotRebuilt(t, "new .a file", target)
+		AssertRebuilt(t, "new .a file", shlib)
+	})
 }
 
-func appendFile(path, content string) {
+func appendFile(t *testing.T, path, content string) {
+	t.Helper()
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0660)
 	if err != nil {
-		log.Fatalf("os.OpenFile failed: %v", err)
+		t.Fatalf("os.OpenFile failed: %v", err)
 	}
 	defer func() {
 		err := f.Close()
 		if err != nil {
-			log.Fatalf("f.Close failed: %v", err)
+			t.Fatalf("f.Close failed: %v", err)
 		}
 	}()
 	_, err = f.WriteString(content)
 	if err != nil {
-		log.Fatalf("f.WriteString failed: %v", err)
+		t.Fatalf("f.WriteString failed: %v", err)
 	}
 }
 
-func writeFile(path, content string) {
-	err := ioutil.WriteFile(path, []byte(content), 0644)
+func createFile(t *testing.T, path, content string) {
+	t.Helper()
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
-		log.Fatalf("ioutil.WriteFile failed: %v", err)
+		t.Fatalf("os.OpenFile failed: %v", err)
+	}
+	_, err = f.WriteString(content)
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		t.Fatalf("WriteString failed: %v", err)
 	}
 }
 
 func TestABIChecking(t *testing.T) {
-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "depBase")
-	goCmd(t, "install", "-linkshared", "exe")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+	goCmd(t, "install", "-linkshared", "./exe")
 
 	// If we make an ABI-breaking change to depBase and rebuild libp.so but not exe,
 	// exe will abort with a complaint on startup.
@@ -780,18 +972,21 @@ func TestABIChecking(t *testing.T) {
 	// some senses but suffices for the narrow definition of ABI compatibility the
 	// toolchain uses today.
 	resetFileStamps()
-	appendFile("src/depBase/dep.go", "func ABIBreak() {}\n")
-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "depBase")
-	c := exec.Command("./bin/exe")
+
+	createFile(t, "./depBase/break.go", "package depBase\nfunc ABIBreak() {}\n")
+	defer os.Remove("./depBase/break.go")
+
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+	c := exec.Command("../../bin/exe")
 	output, err := c.CombinedOutput()
 	if err == nil {
 		t.Fatal("executing exe did not fail after ABI break")
 	}
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	foundMsg := false
-	const wantLine = "abi mismatch detected between the executable and libdepBase.so"
+	const wantPrefix = "abi mismatch detected between the executable and lib"
 	for scanner.Scan() {
-		if scanner.Text() == wantLine {
+		if strings.HasPrefix(scanner.Text(), wantPrefix) {
 			foundMsg = true
 			break
 		}
@@ -800,20 +995,20 @@ func TestABIChecking(t *testing.T) {
 		t.Errorf("scanner encountered error: %v", err)
 	}
 	if !foundMsg {
-		t.Fatalf("exe failed, but without line %q; got output:\n%s", wantLine, output)
+		t.Fatalf("exe failed, but without line %q; got output:\n%s", wantPrefix, output)
 	}
 
 	// Rebuilding exe makes it work again.
-	goCmd(t, "install", "-linkshared", "exe")
-	run(t, "rebuilt exe", "./bin/exe")
+	goCmd(t, "install", "-linkshared", "./exe")
+	run(t, "rebuilt exe", "../../bin/exe")
 
 	// If we make a change which does not break ABI (such as adding an unexported
 	// function) and rebuild libdepBase.so, exe still works, even if new function
 	// is in a file by itself.
 	resetFileStamps()
-	writeFile("src/depBase/dep2.go", "package depBase\nfunc noABIBreak() {}\n")
-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "depBase")
-	run(t, "after non-ABI breaking change", "./bin/exe")
+	createFile(t, "./depBase/dep2.go", "package depBase\nfunc noABIBreak() {}\n")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./depBase")
+	run(t, "after non-ABI breaking change", "../../bin/exe")
 }
 
 // If a package 'explicit' imports a package 'implicit', building
@@ -823,18 +1018,76 @@ func TestABIChecking(t *testing.T) {
 // executable rather than fetching it from the shared library. The
 // link still succeeds and the executable still runs though.
 func TestImplicitInclusion(t *testing.T) {
-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "explicit")
-	goCmd(t, "install", "-linkshared", "implicitcmd")
-	run(t, "running executable linked against library that contains same package as it", "./bin/implicitcmd")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./explicit")
+	goCmd(t, "install", "-linkshared", "./implicitcmd")
+	run(t, "running executable linked against library that contains same package as it", "../../bin/implicitcmd")
 }
 
 // Tests to make sure that the type fields of empty interfaces and itab
 // fields of nonempty interfaces are unique even across modules,
 // so that interface equality works correctly.
 func TestInterface(t *testing.T) {
-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "iface_a")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./iface_a")
 	// Note: iface_i gets installed implicitly as a dependency of iface_a.
-	goCmd(t, "install", "-buildmode=shared", "-linkshared", "iface_b")
-	goCmd(t, "install", "-linkshared", "iface")
-	run(t, "running type/itab uniqueness tester", "./bin/iface")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./iface_b")
+	goCmd(t, "install", "-linkshared", "./iface")
+	run(t, "running type/itab uniqueness tester", "../../bin/iface")
+}
+
+// Access a global variable from a library.
+func TestGlobal(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./globallib")
+	goCmd(t, "install", "-linkshared", "./global")
+	run(t, "global executable", "../../bin/global")
+	AssertIsLinkedTo(t, "../../bin/global", soname)
+	AssertHasRPath(t, "../../bin/global", gorootInstallDir)
+}
+
+// Run a test using -linkshared of an installed shared package.
+// Issue 26400.
+func TestTestInstalledShared(t *testing.T) {
+	goCmd(t, "test", "-linkshared", "-test.short", "sync/atomic")
+}
+
+// Test generated pointer method with -linkshared.
+// Issue 25065.
+func TestGeneratedMethod(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue25065")
+}
+
+// Test use of shared library struct with generated hash function.
+// Issue 30768.
+func TestGeneratedHash(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue30768/issue30768lib")
+	goCmd(t, "test", "-linkshared", "./issue30768")
+}
+
+// Test that packages can be added not in dependency order (here a depends on b, and a adds
+// before b). This could happen with e.g. go build -buildmode=shared std. See issue 39777.
+func TestPackageOrder(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue39777/a", "./issue39777/b")
+}
+
+// Test that GC data are generated correctly by the linker when it needs a type defined in
+// a shared library. See issue 39927.
+func TestGCData(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./gcdata/p")
+	goCmd(t, "build", "-linkshared", "./gcdata/main")
+	runWithEnv(t, "running gcdata/main", []string{"GODEBUG=clobberfree=1"}, "./main")
+}
+
+// Test that we don't decode type symbols from shared libraries (which has no data,
+// causing panic). See issue 44031.
+func TestIssue44031(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/a")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/b")
+	goCmd(t, "run", "-linkshared", "./issue44031/main")
+}
+
+// Test that we use a variable from shared libraries (which implement an
+// interface in shared libraries.). A weak reference is used in the itab
+// in main process. It can cause unreacheble panic. See issue 47873.
+func TestIssue47873(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue47837/a")
+	goCmd(t, "run", "-linkshared", "./issue47837/main")
 }

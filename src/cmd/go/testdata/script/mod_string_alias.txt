@@ -1,0 +1,14 @@
+[short] skip
+
+env GO111MODULE=on
+
+go mod init golang.org/issue/27584
+
+go build .
+
+-- main.go --
+package main
+
+type string = []int
+
+func main() {}

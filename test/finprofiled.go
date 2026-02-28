@@ -23,7 +23,7 @@ func main() {
 	// only for middle bytes. The finalizer resurrects that object.
 	// As the result, all allocated memory must stay alive.
 	const (
-		N = 1 << 20
+		N             = 1 << 20
 		tinyBlockSize = 16 // runtime._TinySize
 	)
 	hold := make([]*int32, 0, N)
@@ -36,7 +36,7 @@ func main() {
 		}
 	}
 	// Finalize as much as possible.
-	// Note: the sleep only increases probility of bug detection,
+	// Note: the sleep only increases probability of bug detection,
 	// it cannot lead to false failure.
 	for i := 0; i < 5; i++ {
 		runtime.GC()

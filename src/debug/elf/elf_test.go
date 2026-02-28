@@ -10,7 +10,7 @@ import (
 )
 
 type nameTest struct {
-	val interface{}
+	val any
 	str string
 }
 
@@ -44,6 +44,28 @@ func TestNames(t *testing.T) {
 		s := fmt.Sprint(tt.val)
 		if s != tt.str {
 			t.Errorf("#%d: Sprint(%d) = %q, want %q", i, tt.val, s, tt.str)
+		}
+	}
+}
+
+func TestNobitsSection(t *testing.T) {
+	const testdata = "testdata/gcc-amd64-linux-exec"
+	f, err := Open(testdata)
+	if err != nil {
+		t.Fatalf("could not read %s: %v", testdata, err)
+	}
+	defer f.Close()
+	bss := f.Section(".bss")
+	bssData, err := bss.Data()
+	if err != nil {
+		t.Fatalf("error reading .bss section: %v", err)
+	}
+	if g, w := uint64(len(bssData)), bss.Size; g != w {
+		t.Errorf(".bss section length mismatch: got %d, want %d", g, w)
+	}
+	for i := range bssData {
+		if bssData[i] != 0 {
+			t.Fatalf("unexpected non-zero byte at offset %d: %#x", i, bssData[i])
 		}
 	}
 }

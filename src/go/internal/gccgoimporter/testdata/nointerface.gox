@@ -1,0 +1,8 @@
+v3;
+package nointerface
+pkgpath nointerface
+types 3 2 133 17
+type 1 "I" <type -11>
+ func /*nointerface*/ (p <esc:0x1> <type 2>) Get () <type -11>
+ func (p <esc:0x1> <type 2>) Set (v <type -11>)
+type 2 *<type 1>

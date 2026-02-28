@@ -3,6 +3,8 @@
 // license that can be found in the LICENSE file.
 
 #include "textflag.h"
+#include "go_asm.h"
+
 
 DATA p256ordK0<>+0x00(SB)/4, $0xee00bc4f
 DATA p256ord<>+0x00(SB)/8, $0xffffffff00000000
@@ -44,28 +46,23 @@ GLOBL p256ord<>(SB), 8, $32
 GLOBL p256<>(SB), 8, $80
 GLOBL p256mul<>(SB), 8, $160
 
-// func hasVectorFacility() bool
-TEXT ·hasVectorFacility(SB), NOSPLIT, $24-1
-	MOVD  $x-24(SP), R1
-	XC    $24, 0(R1), 0(R1) // clear the storage
-	MOVD  $2, R0            // R0 is the number of double words stored -1
-	WORD  $0xB2B01000       // STFLE 0(R1)
-	XOR   R0, R0            // reset the value of R0
-	MOVBZ z-8(SP), R1
-	AND   $0x40, R1
-	BEQ   novector
-
-vectorinstalled:
-	// check if the vector instruction has been enabled
-	VLEIB  $0, $0xF, V16
-	VLGVB  $0, V16, R1
-	CMPBNE R1, $0xF, novector
-	MOVB   $1, ret+0(FP) // have vx
-	RET
-
-novector:
-	MOVB $0, ret+0(FP)   // no vx
-	RET
+DATA p256vmsl<>+0x0(SB)/8, $0x0012131415161718
+DATA p256vmsl<>+0x8(SB)/8, $0x00191a1b1c1d1e1f
+DATA p256vmsl<>+0x10(SB)/8, $0x0012131415161718
+DATA p256vmsl<>+0x18(SB)/8, $0x000b0c0d0e0f1011
+DATA p256vmsl<>+0x20(SB)/8, $0x00191a1b1c1d1e1f
+DATA p256vmsl<>+0x28(SB)/8, $0x0012131415161718
+DATA p256vmsl<>+0x30(SB)/8, $0x000b0c0d0e0f1011
+DATA p256vmsl<>+0x38(SB)/8, $0x0012131415161718
+DATA p256vmsl<>+0x40(SB)/8, $0x000405060708090a
+DATA p256vmsl<>+0x48(SB)/8, $0x000b0c0d0e0f1011
+DATA p256vmsl<>+0x50(SB)/8, $0x000b0c0d0e0f1011
+DATA p256vmsl<>+0x58(SB)/8, $0x000405060708090a
+DATA p256vmsl<>+0x60(SB)/8, $0x1010101000010203
+DATA p256vmsl<>+0x68(SB)/8, $0x100405060708090a
+DATA p256vmsl<>+0x70(SB)/8, $0x100405060708090a
+DATA p256vmsl<>+0x78(SB)/8, $0x1010101000010203
+GLOBL p256vmsl<>(SB), 8, $128
 
 // ---------------------------------------
 // iff cond == 1  val <- -val
@@ -890,7 +887,7 @@ TEXT ·p256OrdMul(SB), NOSPLIT, $0
 #undef K0
 
 // ---------------------------------------
-// p256MulInternal
+// p256MulInternalVX
 // V0-V3,V30,V31 - Not Modified
 // V4-V15 - Volatile
 
@@ -991,7 +988,7 @@ TEXT ·p256OrdMul(SB), NOSPLIT, $0
  *                                                                *Mi obra de arte de siglo XXI @vpaprots
  *
  *
- * First group is special, doesnt get the two inputs:
+ * First group is special, doesn't get the two inputs:
  *                                             +--------+--------+<-+
  *                                     +-------|  ADD2  |  ADD1  |--|-----+
  *                                     |       +--------+--------+  |     |
@@ -1033,7 +1030,7 @@ TEXT ·p256OrdMul(SB), NOSPLIT, $0
  *
  * Last 'group' needs to RED2||RED1 shifted less
  */
-TEXT p256MulInternal<>(SB), NOSPLIT, $0-0
+TEXT ·p256MulInternalVX(SB), NOSPLIT, $0-0
 	VL 32(CPOOL), SEL1
 	VL 48(CPOOL), SEL2
 	VL 64(CPOOL), SEL3
@@ -1278,6 +1275,443 @@ TEXT p256MulInternal<>(SB), NOSPLIT, $0-0
 #undef CAR1
 #undef CAR2
 
+// ---------------------------------------
+// p256MulInternalVMSL
+// V0-V3,V30,V31 - Not Modified
+// V4-V14 - Volatile
+
+#define CPOOL   R4
+#define SCRATCH R9
+
+// Parameters
+#define X0    V0 // Not modified
+#define X1    V1 // Not modified
+#define Y0    V2 // Not modified
+#define Y1    V3 // Not modified
+#define T0    V4
+#define T1    V5
+#define T2    V6
+#define P0    V30 // Not modified
+#define P1    V31 // Not modified
+
+// input: d0
+// output: h0, h1
+// temp: TEMP, ZERO, BORROW
+#define OBSERVATION3(d0, h0, h1, TEMP, ZERO, BORROW) \
+	VZERO ZERO                   \
+	VSLDB $4, d0, ZERO, h0       \
+	VLR   h0, BORROW             \
+	VSLDB $12, ZERO, h0, TEMP    \
+	VSQ   TEMP, h0, h0           \
+	VSLDB $12, d0, BORROW, h1    \
+	VSLDB $8, ZERO, BORROW, TEMP \
+	VAQ   TEMP, h0, h0           \
+
+#define OBSERVATION3A(d2, h0, h1, TEMP, ZERO) \
+	VZERO ZERO                \
+	VSLDB $8, d2, ZERO, TEMP  \
+	VSLDB $8, d2, TEMP, h0    \
+	VSLDB $12, ZERO, TEMP, h1 \
+	VSQ   h1, h0, h0          \
+
+TEXT ·p256MulInternalVMSL(SB), NOFRAME|NOSPLIT, $0-0
+	VSTM V16, V19, (SCRATCH)
+
+	MOVD $p256vmsl<>+0x00(SB), CPOOL
+
+	// Divide input1 into 5 limbs
+	VGBM  $0x007f, V14
+	VZERO V12
+	VSLDB $2, X1, X0, V13
+	VSLDB $2, Y1, Y0, V8
+	VSLDB $4, V12, X1, V11 // V11(X1): 4 bytes limb
+	VSLDB $4, V12, Y1, V6  // V6: 4 bytes limb
+
+	VN V14, X0, V5   // V5: first 7 bytes limb
+	VN V14, Y0, V10  // V10: first 7 bytes limb
+	VN V14, V13, V13 // v13: third 7 bytes limb
+	VN V14, V8, V8   // V8: third 7 bytes limb
+
+	VMSLG V10, V5, V12, V10 // v10: l10 x l5 (column 1)
+	VMSLG V8, V5, V12, V8   // v8: l8 x l5
+	VMSLG V6, V13, V12, V13 // v13: l6 x l3
+	VMSLG V6, V11, V12, V11 // v11: l6 x l1 (column 9)
+	VMSLG V6, V5, V12, V6   // v6: l6 x l5
+
+	MOVD $p256vmsl<>+0x00(SB), CPOOL
+	VGBM $0x7f7f, V14
+
+	VL 0(CPOOL), V4
+	VL 16(CPOOL), V7
+	VL 32(CPOOL), V9
+	VL 48(CPOOL), V5
+	VLM 64(CPOOL), V16, V19
+
+	VPERM V12, X0, V4, V4   // v4: limb4 | limb5
+	VPERM Y1, Y0, V7, V7
+	VPERM V12, Y0, V9, V9   // v9: limb10 | limb9
+	VPERM X1, X0, V5, V5
+	VPERM X1, X0, V16, V16
+	VPERM Y1, Y0, V17, V17
+	VPERM X1, V12, V18, V18 // v18: limb1 | limb2
+	VPERM Y1, V12, V19, V19 // v19: limb7 | limb6
+	VN    V14, V7, V7       // v7:  limb9 | limb8
+	VN    V14, V5, V5       // v5:  limb3 | limb4
+	VN    V14, V16, V16     // v16: limb2 | limb3
+	VN    V14, V17, V17     // v17: limb8 | limb7
+
+	VMSLG V9, V4, V12, V14   // v14: l10 x l4 + l9 x l5 (column 2)
+	VMSLG V9, V5, V8, V8     // v8: l10 x l9 + l3 x l4 + l8 x l5 (column 3)
+	VMSLG V9, V16, V12, V16  // v16: l10 x l9 + l2 x l3
+	VMSLG V9, V18, V12, V9   // v9: l10 x l1 + l9 x l2
+	VMSLG V7, V18, V12, V7   // v7: l9 x l1 + l8 x l2
+	VMSLG V17, V4, V16, V16  // v16: l8 x l4 + l7 x l5 + l10 x l9 + l2 x l3 (column 4)
+	VMSLG V17, V5, V9, V9    // v9: l10 x l1 + l9 x l2 + l8 x l3 + l7 x l4
+	VMSLG V17, V18, V12, V17 // v18: l8 x l1 + l7 x l2
+	VMSLG V19, V5, V7, V7    // v7: l9 x l1 + l8 x l2 + l7 x l3 + l6 x l4 (column 6)
+	VMSLG V19, V18, V12, V19 // v19: l7 x l1 + l6 x l2 (column 8)
+	VAQ   V9, V6, V9         // v9: l10 x l1 + l9 x l2 + l8 x l3 + l7 x l4 + l6 x l5 (column 5)
+	VAQ   V17, V13, V13      // v13: l8 x l1 + l7 x l2 + l6 x l3 (column 7)
+
+	VSLDB $9, V12, V10, V4
+	VSLDB $9, V12, V7, V5
+	VAQ   V4, V14, V14
+	VAQ   V5, V13, V13
+
+	VSLDB $9, V12, V14, V4
+	VSLDB $9, V12, V13, V5
+	VAQ   V4, V8, V8
+	VAQ   V5, V19, V19
+
+	VSLDB $9, V12, V8, V4
+	VSLDB $9, V12, V19, V5
+	VAQ   V4, V16, V16
+	VAQ   V5, V11, V11
+
+	VSLDB $9, V12, V16, V4
+	VAQ   V4, V9, V17
+
+	VGBM $0x007f, V4
+	VGBM $0x00ff, V5
+
+	VN V10, V4, V10
+	VN V14, V4, V14
+	VN V8, V4, V8
+	VN V16, V4, V16
+	VN V17, V4, V9
+	VN V7, V4, V7
+	VN V13, V4, V13
+	VN V19, V4, V19
+	VN V11, V5, V11
+
+	VSLDB $7, V14, V14, V14
+	VSLDB $14, V8, V12, V4
+	VSLDB $14, V12, V8, V8
+	VSLDB $5, V16, V16, V16
+	VSLDB $12, V9, V12, V5
+
+	VO V14, V10, V10
+	VO V8, V16, V16
+	VO V4, V10, V10  // first rightmost 128bits of the multiplication result
+	VO V5, V16, V16  // second rightmost 128bits of the multiplication result
+
+	// adjust v7, v13, v19, v11
+	VSLDB $7, V13, V13, V13
+	VSLDB $14, V19, V12, V4
+	VSLDB $14, V12, V19, V19
+	VSLDB $5, V11, V12, V5
+	VO    V13, V7, V7
+	VO    V4, V7, V7
+	VO    V19, V5, V11
+
+	VSLDB $9, V12, V17, V14
+	VSLDB $12, V12, V9, V9
+	VACCQ V7, V14, V13
+	VAQ   V7, V14, V7
+	VAQ   V11, V13, V11
+
+	// First reduction, 96 bits
+	VSLDB $4, V16, V10, T0
+	VSLDB $4, V12, V16, T1
+	VSLDB $3, V11, V7, V11 // fourth rightmost 128bits of the multiplication result
+	VSLDB $3, V7, V12, V7
+	OBSERVATION3(V10, V8, T2, V17, V18, V19)// results V8 | T2
+	VO    V7, V9, V7       // third rightmost 128bits of the multiplication result
+	VACCQ T0, T2, V9
+	VAQ   T0, T2, T2
+	VACQ  T1, V8, V9, V8
+
+	// Second reduction 96 bits
+	VSLDB $4, V8, T2, T0
+	VSLDB $4, V12, V8, T1
+	OBSERVATION3(T2, V9, V8, V17, V18, V19)// results V9 | V8
+	VACCQ T0, V8, T2
+	VAQ   T0, V8, V8
+	VACQ  T1, V9, T2, V9
+
+	// Third reduction 64 bits
+	VSLDB  $8, V9, V8, T0
+	VSLDB  $8, V12, V9, T1
+	OBSERVATION3A(V8, V14, V13, V17, V18)// results V14 | V13
+	VACCQ  T0, V13, V12
+	VAQ    T0, V13, V13
+	VACQ   T1, V14, V12, V14
+	VACCQ  V13, V7, V12
+	VAQ    V13, V7, T0
+	VACCCQ V14, V11, V12, T2
+	VACQ   V14, V11, V12, T1 // results T2 | T1 | T0
+
+	// ---------------------------------------------------
+	MOVD $p256mul<>+0x00(SB), CPOOL
+
+	VZERO   V12
+	VSCBIQ  P0, T0, V8
+	VSQ     P0, T0, V7
+	VSBCBIQ T1, P1, V8, V10
+	VSBIQ   T1, P1, V8, V9
+	VSBIQ   T2, V12, V10, T2
+
+	// what output to use, V9||V7 or T1||T0?
+	VSEL T0, V7, T2, T0
+	VSEL T1, V9, T2, T1
+
+	VLM (SCRATCH), V16, V19
+
+	RET
+
+// ---------------------------------------
+// p256SqrInternalVMSL
+// V0-V1,V30,V31 - Not Modified
+// V4-V14 - Volatile
+
+TEXT ·p256SqrInternalVMSL(SB), NOFRAME|NOSPLIT, $0-0
+	VSTM V16, V18, (SCRATCH)
+
+	MOVD $p256vmsl<>+0x00(SB), CPOOL
+	// Divide input into limbs
+	VGBM  $0x007f, V14
+	VZERO V12
+	VSLDB $2, X1, X0, V13
+	VSLDB $4, V12, X1, V11 // V11(X1): 4 bytes limb
+
+	VN V14, X0, V10  // V10: first 7 bytes limb
+	VN V14, V13, V13 // v13: third 7 bytes limb
+
+	VMSLG V10, V10, V12, V10 // v10: l10 x l5 (column 1)
+	VMSLG V13, V13, V12, V13 // v13: l8 x l3
+	VMSLG V11, V11, V12, V11 // v11: l6 x l1 (column 9)
+
+	MOVD $p256vmsl<>+0x00(SB), CPOOL
+	VGBM $0x7f7f, V14
+
+	VL 0(CPOOL), V4
+	VL 16(CPOOL), V7
+	VL 32(CPOOL), V9
+	VL 48(CPOOL), V5
+	VLM 64(CPOOL), V16, V18
+	VL 112(CPOOL), V8
+
+	VPERM V12, X0, V4, V4   // v4: limb4 | limb5
+	VPERM X1, X0, V7, V7
+	VPERM V12, X0, V9, V9   // v9: limb10 | limb9
+	VPERM X1, X0, V5, V5
+	VPERM X1, X0, V16, V16
+	VPERM X1, X0, V17, V17
+	VPERM X1, V12, V18, V18 // v18: limb1 | limb2
+	VPERM X1, V12, V8, V8   // v8:  limb7 | limb6
+	VN    V14, V7, V7       // v7:  limb9 | limb8
+	VN    V14, V5, V5       // v5:  limb3 | limb4
+	VN    V14, V16, V16     // v16: limb2 | limb3
+	VN    V14, V17, V17     // v17: limb8 | limb7
+
+	VMSLEOG V9, V18, V13, V6   // v6: l10 x l1 + l9 x l2 + l8 x l3 + l7 x l4 + l6 x l5 (column 5)
+	VMSLG   V9, V4, V12, V14   // v14: l10 x l4 + l9 x l5 (column 2)
+	VMSLEOG V9, V16, V12, V16  // v16: l10 x l2 + l9 x l3 + l8 x l4 + l7 x l5 (column 4)
+	VMSLEOG V7, V18, V12, V7   // v7: l9 x l1 + l8 x l2 (column 6)
+	VMSLEG  V17, V18, V12, V13 // v13: l8 x l1 + l7 x l2 + l6 x l3 (column 7)
+	VMSLG   V8, V18, V12, V8   // v8: l7 x l1 + l6 x l2 (column 8)
+	VMSLEG  V9, V5, V12, V18   // v18: l10 x l3 + l9 x l4 + l8 x l5 (column 3)
+
+	VSLDB $9, V12, V10, V4
+	VSLDB $9, V12, V7, V5
+	VAQ   V4, V14, V14
+	VAQ   V5, V13, V13
+
+	VSLDB $9, V12, V14, V4
+	VSLDB $9, V12, V13, V5
+	VAQ   V4, V18, V18
+	VAQ   V5, V8, V8
+
+	VSLDB $9, V12, V18, V4
+	VSLDB $9, V12, V8, V5
+	VAQ   V4, V16, V16
+	VAQ   V5, V11, V11
+
+	VSLDB $9, V12, V16, V4
+	VAQ   V4, V6, V17
+
+	VGBM $0x007f, V4
+	VGBM $0x00ff, V5
+
+	VN V10, V4, V10
+	VN V14, V4, V14
+	VN V18, V4, V18
+	VN V16, V4, V16
+	VN V17, V4, V9
+	VN V7, V4, V7
+	VN V13, V4, V13
+	VN V8, V4, V8
+	VN V11, V5, V11
+
+	VSLDB $7, V14, V14, V14
+	VSLDB $14, V18, V12, V4
+	VSLDB $14, V12, V18, V18
+	VSLDB $5, V16, V16, V16
+	VSLDB $12, V9, V12, V5
+
+	VO V14, V10, V10
+	VO V18, V16, V16
+	VO V4, V10, V10  // first rightmost 128bits of the multiplication result
+	VO V5, V16, V16  // second rightmost 128bits of the multiplication result
+
+	// adjust v7, v13, v8, v11
+	VSLDB $7, V13, V13, V13
+	VSLDB $14, V8, V12, V4
+	VSLDB $14, V12, V8, V8
+	VSLDB $5, V11, V12, V5
+	VO    V13, V7, V7
+	VO    V4, V7, V7
+	VO    V8, V5, V11
+
+	VSLDB $9, V12, V17, V14
+	VSLDB $12, V12, V9, V9
+	VACCQ V7, V14, V13
+	VAQ   V7, V14, V7
+	VAQ   V11, V13, V11
+
+	// First reduction, 96 bits
+	VSLDB $4, V16, V10, T0
+	VSLDB $4, V12, V16, T1
+	VSLDB $3, V11, V7, V11 // fourth rightmost 128bits of the multiplication result
+	VSLDB $3, V7, V12, V7
+	OBSERVATION3(V10, V8, T2, V16, V17, V18)// results V8 | T2
+	VO    V7, V9, V7       // third rightmost 128bits of the multiplication result
+	VACCQ T0, T2, V9
+	VAQ   T0, T2, T2
+	VACQ  T1, V8, V9, V8
+
+	// Second reduction 96 bits
+	VSLDB $4, V8, T2, T0
+	VSLDB $4, V12, V8, T1
+	OBSERVATION3(T2, V9, V8, V16, V17, V18)// results V9 | V8
+	VACCQ T0, V8, T2
+	VAQ   T0, V8, V8
+	VACQ  T1, V9, T2, V9
+
+	// Third reduction 64 bits
+	VSLDB  $8, V9, V8, T0
+	VSLDB  $8, V12, V9, T1
+	OBSERVATION3A(V8, V14, V13, V17, V18)// results V14 | V13
+	VACCQ  T0, V13, V12
+	VAQ    T0, V13, V13
+	VACQ   T1, V14, V12, V14
+	VACCQ  V13, V7, V12
+	VAQ    V13, V7, T0
+	VACCCQ V14, V11, V12, T2
+	VACQ   V14, V11, V12, T1 // results T2 | T1 | T0
+
+	// ---------------------------------------------------
+	MOVD $p256mul<>+0x00(SB), CPOOL
+
+	VZERO   V12
+	VSCBIQ  P0, T0, V8
+	VSQ     P0, T0, V7
+	VSBCBIQ T1, P1, V8, V10
+	VSBIQ   T1, P1, V8, V9
+	VSBIQ   T2, V12, V10, T2
+
+	// what output to use, V9||V7 or T1||T0?
+	VSEL T0, V7, T2, T0
+	VSEL T1, V9, T2, T1
+
+	VLM (SCRATCH), V16, V18
+	RET
+
+
+
+#undef CPOOL
+#undef SCRATCH
+#undef X0
+#undef X1
+#undef Y0
+#undef Y1
+#undef T0
+#undef T1
+#undef T2
+#undef P0
+#undef P1
+
+#define SCRATCH R9
+
+TEXT p256MulInternal<>(SB),NOSPLIT,$64-0
+	MOVD    $scratch-64(SP), SCRATCH
+	MOVD    ·p256MulInternalFacility+0x00(SB),R7
+	CALL    (R7)
+	RET
+
+TEXT ·p256MulInternalTrampolineSetup(SB),NOSPLIT|NOFRAME, $0
+	MOVBZ  internal∕cpu·S390X+const_offsetS390xHasVE1(SB), R0
+	MOVD    $·p256MulInternalFacility+0x00(SB), R7
+	MOVD    $·p256MulInternalVX(SB), R8
+	CMPBEQ  R0, $0, novmsl      // VE1 facility = 1, VMSL supported
+	MOVD    $·p256MulInternalVMSL(SB), R8
+novmsl:
+	MOVD    R8, 0(R7)
+	BR      (R8)
+
+GLOBL ·p256MulInternalFacility+0x00(SB), NOPTR, $8
+DATA ·p256MulInternalFacility+0x00(SB)/8, $·p256MulInternalTrampolineSetup(SB)
+
+// Parameters
+#define X0    V0
+#define X1    V1
+#define Y0    V2
+#define Y1    V3
+
+TEXT ·p256SqrInternalVX(SB), NOFRAME|NOSPLIT, $0
+	VLR X0, Y0
+	VLR X1, Y1
+	BR  ·p256MulInternalVX(SB)
+
+#undef X0
+#undef X1
+#undef Y0
+#undef Y1
+
+
+TEXT p256SqrInternal<>(SB),NOSPLIT,$48-0
+	MOVD    $scratch-48(SP), SCRATCH
+        MOVD    ·p256SqrInternalFacility+0x00(SB),R7
+        CALL    (R7)
+	RET
+
+TEXT ·p256SqrInternalTrampolineSetup(SB),NOSPLIT|NOFRAME, $0
+	MOVBZ  internal∕cpu·S390X+const_offsetS390xHasVE1(SB), R0
+	MOVD    $·p256SqrInternalFacility+0x00(SB), R7
+	MOVD    $·p256SqrInternalVX(SB), R8
+	CMPBEQ  R0, $0, novmsl      // VE1 facility = 1, VMSL supported
+	MOVD    $·p256SqrInternalVMSL(SB), R8
+novmsl:
+	MOVD    R8, 0(R7)
+	BR      (R8)
+
+
+GLOBL ·p256SqrInternalFacility+0x00(SB), NOPTR, $8
+DATA ·p256SqrInternalFacility+0x00(SB)/8, $·p256SqrInternalTrampolineSetup(SB)
+
+#undef SCRATCH
+
+
 #define p256SubInternal(T1, T0, X1, X0, Y1, Y0) \
 	VZERO   ZER                \
 	VSCBIQ  Y0, X0, CAR1       \
@@ -1384,6 +1818,52 @@ TEXT ·p256MulAsm(SB), NOSPLIT, $0
 #undef T1
 #undef P0
 #undef P1
+
+// ---------------------------------------
+// func p256SqrAsm(res, in1 []byte)
+#define res_ptr R1
+#define x_ptr   R2
+#define y_ptr   R3
+#define CPOOL   R4
+
+// Parameters
+#define X0    V0
+#define X1    V1
+#define T0    V4
+#define T1    V5
+
+// Constants
+#define P0    V30
+#define P1    V31
+TEXT ·p256SqrAsm(SB), NOSPLIT, $0
+	MOVD res+0(FP), res_ptr
+	MOVD in1+24(FP), x_ptr
+
+	VL (1*16)(x_ptr), X0
+	VL (0*16)(x_ptr), X1
+
+	MOVD $p256mul<>+0x00(SB), CPOOL
+	VL   16(CPOOL), P0
+	VL   0(CPOOL), P1
+
+	CALL p256SqrInternal<>(SB)
+
+	VST T0, (1*16)(res_ptr)
+	VST T1, (0*16)(res_ptr)
+	RET
+
+#undef res_ptr
+#undef x_ptr
+#undef y_ptr
+#undef CPOOL
+
+#undef X0
+#undef X1
+#undef T0
+#undef T1
+#undef P0
+#undef P1
+
 
 // Point add with P2 being affine point
 // If sign == 1 -> P2 = -P2
@@ -1524,7 +2004,7 @@ TEXT ·p256PointAddAffineAsm(SB), NOSPLIT, $0
 	VL   80(P1ptr), X0       // Z1L
 	VLR  X0, Y0
 	VLR  X1, Y1
-	CALL p256MulInternal<>(SB)
+	CALL p256SqrInternal<>(SB)
 
 	// X=T ; Y-  ; MUL; T2=T // T2 = T1*Z1    T1   T2
 	VLR  T0, X0
@@ -1570,7 +2050,7 @@ TEXT ·p256PointAddAffineAsm(SB), NOSPLIT, $0
 	// X=Y;  Y- ;  MUL; X=T  // T3 = T1*T1         T2
 	VLR  Y0, X0
 	VLR  Y1, X1
-	CALL p256MulInternal<>(SB)
+	CALL p256SqrInternal<>(SB)
 	VLR  T0, X0
 	VLR  T1, X1
 
@@ -1594,7 +2074,7 @@ TEXT ·p256PointAddAffineAsm(SB), NOSPLIT, $0
 	VLR  T2H, X1
 	VLR  T2L, Y0
 	VLR  T2H, Y1
-	CALL p256MulInternal<>(SB)
+	CALL p256SqrInternal<>(SB)
 
 	// SUB(T<T-T1)           // X3 = X3-T1    T1   T2   T3   T4  (T1 = X3)
 	p256SubInternal(T1,T0,T1,T0,T1H,T1L)
@@ -1733,9 +2213,9 @@ TEXT ·p256PointAddAffineAsm(SB), NOSPLIT, $0
 #undef CAR2
 
 // p256PointDoubleAsm(P3, P1 *p256Point)
-// http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
-// http://www.hyperelliptic.org/EFD/g1p/auto-shortw.html
-// http://www.hyperelliptic.org/EFD/g1p/auto-shortw-projective-3.html
+// https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
+// https://www.hyperelliptic.org/EFD/g1p/auto-shortw.html
+// https://www.hyperelliptic.org/EFD/g1p/auto-shortw-projective-3.html
 #define P3ptr   R1
 #define P1ptr   R2
 #define CPOOL   R4
@@ -1783,7 +2263,7 @@ TEXT ·p256PointAddAffineAsm(SB), NOSPLIT, $0
 #define CAR1  V28
 #define CAR2  V29
 /*
- * http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2004-hmv
+ * https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2004-hmv
  * Cost: 4M + 4S + 1*half + 5add + 2*2 + 1*3.
  * Source: 2004 Hankerson–Menezes–Vanstone, page 91.
  * 	A  = 3(X₁-Z₁²)×(X₁+Z₁²)
@@ -1827,7 +2307,7 @@ TEXT ·p256PointDoubleAsm(SB), NOSPLIT, $0
 	VL   80(P1ptr), X0       // Z1L
 	VLR  X0, Y0
 	VLR  X1, Y1
-	CALL p256MulInternal<>(SB)
+	CALL p256SqrInternal<>(SB)
 
 	// SUB(X<X1-T)            // T2 = X1-T1
 	VL 0(P1ptr), X1H
@@ -1859,7 +2339,7 @@ TEXT ·p256PointDoubleAsm(SB), NOSPLIT, $0
 	// X-  ; Y=X ; MUL; T-    // Y3 = Y3²
 	VLR  X0, Y0
 	VLR  X1, Y1
-	CALL p256MulInternal<>(SB)
+	CALL p256SqrInternal<>(SB)
 
 	// X=T ; Y=X1; MUL; T3=T  // T3 = Y3*X1
 	VLR  T0, X0
@@ -1873,7 +2353,7 @@ TEXT ·p256PointDoubleAsm(SB), NOSPLIT, $0
 	// X-  ; Y=X ; MUL; T-    // Y3 = Y3²
 	VLR  X0, Y0
 	VLR  X1, Y1
-	CALL p256MulInternal<>(SB)
+	CALL p256SqrInternal<>(SB)
 
 	// HAL(Y3<T)              // Y3 = half*Y3
 	p256HalfInternal(Y3H,Y3L, T1,T0)
@@ -1883,7 +2363,7 @@ TEXT ·p256PointDoubleAsm(SB), NOSPLIT, $0
 	VLR  T2H, X1
 	VLR  T2L, Y0
 	VLR  T2H, Y1
-	CALL p256MulInternal<>(SB)
+	CALL p256SqrInternal<>(SB)
 
 	// ADD(T1<T3+T3)          // T1 = 2*T3
 	p256AddInternal(T1H,T1L,T3H,T3L,T3H,T3L)
@@ -1944,10 +2424,12 @@ TEXT ·p256PointDoubleAsm(SB), NOSPLIT, $0
 #undef CAR2
 
 // p256PointAddAsm(P3, P1, P2 *p256Point)
-#define P3ptr   R1
-#define P1ptr   R2
-#define P2ptr   R3
-#define CPOOL   R4
+#define P3ptr  R1
+#define P1ptr  R2
+#define P2ptr  R3
+#define CPOOL  R4
+#define ISZERO R5
+#define TRUE   R6
 
 // Temporaries in REGs
 #define T1L   V16
@@ -1983,7 +2465,7 @@ TEXT ·p256PointDoubleAsm(SB), NOSPLIT, $0
 #define PL    V30
 #define PH    V31
 /*
- * https://choucroutage.com/Papers/SideChannelAttacks/ctrsa-2011-brown.pdf "Software Implementation of the NIST Elliptic Curves Over Prime Fields"
+ * https://delta.cs.cinvestav.mx/~francisco/arith/julio.pdf "Software Implementation of the NIST Elliptic Curves Over Prime Fields"
  *
  * A = X₁×Z₂²
  * B = Y₁×Z₂³
@@ -1993,7 +2475,7 @@ TEXT ·p256PointDoubleAsm(SB), NOSPLIT, $0
  * Y₃ = D×(A×C² - X₃) - B×C³
  * Z₃ = Z₁×Z₂×C
  *
- * Three-operand formula (adopted): http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-1998-cmo-2
+ * Three-operand formula (adopted): https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-1998-cmo-2
  * Temp storage: T1,T2,U1,H,Z3=X3=Y3,S1,R
  *
  * T1 = Z1*Z1
@@ -2062,7 +2544,7 @@ TEXT ·p256PointAddAsm(SB), NOSPLIT, $0
 	VL   80(P1ptr), X0       // Z1L
 	VLR  X0, Y0
 	VLR  X1, Y1
-	CALL p256MulInternal<>(SB)
+	CALL p256SqrInternal<>(SB)
 
 	// X-  ; Y=T ; MUL; R=T  // R  = Z1*T1
 	VLR  T0, Y0
@@ -2083,7 +2565,7 @@ TEXT ·p256PointAddAsm(SB), NOSPLIT, $0
 	VL   80(P2ptr), X0       // Z2L
 	VLR  X0, Y0
 	VLR  X1, Y1
-	CALL p256MulInternal<>(SB)
+	CALL p256SqrInternal<>(SB)
 
 	// X-  ; Y=T ; MUL; S1=T // S1 = Z2*T2
 	VLR  T0, Y0
@@ -2101,6 +2583,21 @@ TEXT ·p256PointAddAsm(SB), NOSPLIT, $0
 
 	// SUB(H<H-T)            // H  = H-U1
 	p256SubInternal(HH,HL,HH,HL,T1,T0)
+
+	// if H == 0 or H^P == 0 then ret=1 else ret=0
+	// clobbers T1H and T1L
+	MOVD   $0, ISZERO
+	MOVD   $1, TRUE
+	VZERO  ZER
+	VO     HL, HH, T1H
+	VCEQGS ZER, T1H, T1H
+	MOVDEQ TRUE, ISZERO
+	VX     HL, PL, T1L
+	VX     HH, PH, T1H
+	VO     T1L, T1H, T1H
+	VCEQGS ZER, T1H, T1H
+	MOVDEQ TRUE, ISZERO
+	MOVD   ISZERO, ret+24(FP)
 
 	// X=Z1; Y=Z2; MUL; T-   // Z3 = Z1*Z2
 	VL   64(P1ptr), X1       // Z1H
@@ -2137,12 +2634,28 @@ TEXT ·p256PointAddAsm(SB), NOSPLIT, $0
 	// SUB(R<T-S1)           // R  = T-S1
 	p256SubInternal(RH,RL,T1,T0,S1H,S1L)
 
+	// if R == 0 or R^P == 0 then ret=ret else ret=0
+	// clobbers T1H and T1L
+	MOVD   $0, ISZERO
+	MOVD   $1, TRUE
+	VZERO  ZER
+	VO     RL, RH, T1H
+	VCEQGS ZER, T1H, T1H
+	MOVDEQ TRUE, ISZERO
+	VX     RL, PL, T1L
+	VX     RH, PH, T1H
+	VO     T1L, T1H, T1H
+	VCEQGS ZER, T1H, T1H
+	MOVDEQ TRUE, ISZERO
+	AND    ret+24(FP), ISZERO
+	MOVD   ISZERO, ret+24(FP)
+
 	// X=H ; Y=H ; MUL; T-   // T1 = H*H
 	VLR  HL, X0
 	VLR  HH, X1
 	VLR  HL, Y0
 	VLR  HH, Y1
-	CALL p256MulInternal<>(SB)
+	CALL p256SqrInternal<>(SB)
 
 	// X-  ; Y=T ; MUL; T2=T // T2 = H*T1
 	VLR  T0, Y0
@@ -2163,7 +2676,7 @@ TEXT ·p256PointAddAsm(SB), NOSPLIT, $0
 	VLR  RH, X1
 	VLR  RL, Y0
 	VLR  RH, Y1
-	CALL p256MulInternal<>(SB)
+	CALL p256SqrInternal<>(SB)
 
 	// SUB(T<T-T2)           // X3 = X3-T2
 	p256SubInternal(T1,T0,T1,T0,T2H,T2L)

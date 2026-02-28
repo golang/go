@@ -10,9 +10,11 @@
 package main
 
 // issue 8142: lost 'addrtaken' bit on inlined variables.
-// no inlining in this test, so just checking that non-inlined works.
 
 func printnl()
+
+//go:noescape
+func useT40(*T40)
 
 type T40 struct {
 	m map[int]int
@@ -20,20 +22,20 @@ type T40 struct {
 
 func newT40() *T40 {
 	ret := T40{}
-	ret.m = make(map[int]int) // ERROR "live at call to makemap: &ret$"
+	ret.m = make(map[int]int, 42) // ERROR "live at call to makemap: &ret$"
 	return &ret
 }
 
 func bad40() {
-	t := newT40() // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
-	printnl()     // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
-	_ = t
+	t := newT40() // ERROR "stack object ret T40$" "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
+	printnl()     // ERROR "live at call to printnl: ret$"
+	useT40(t)
 }
 
 func good40() {
-	ret := T40{}
-	ret.m = make(map[int]int) // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
+	ret := T40{}                  // ERROR "stack object ret T40$"
+	ret.m = make(map[int]int, 42) // ERROR "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
 	t := &ret
-	printnl() // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
-	_ = t
+	printnl() // ERROR "live at call to printnl: ret$"
+	useT40(t)
 }

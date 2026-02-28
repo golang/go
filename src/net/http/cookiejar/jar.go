@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/internal/ascii"
 	"net/url"
 	"sort"
 	"strings"
@@ -18,9 +19,9 @@ import (
 )
 
 // PublicSuffixList provides the public suffix of a domain. For example:
-//      - the public suffix of "example.com" is "com",
-//      - the public suffix of "foo1.foo2.foo3.co.uk" is "co.uk", and
-//      - the public suffix of "bar.pvt.k12.ma.us" is "pvt.k12.ma.us".
+//   - the public suffix of "example.com" is "com",
+//   - the public suffix of "foo1.foo2.foo3.co.uk" is "co.uk", and
+//   - the public suffix of "bar.pvt.k12.ma.us" is "pvt.k12.ma.us".
 //
 // Implementations of PublicSuffixList must be safe for concurrent use by
 // multiple goroutines.
@@ -93,6 +94,7 @@ type entry struct {
 	Value      string
 	Domain     string
 	Path       string
+	SameSite   string
 	Secure     bool
 	HttpOnly   bool
 	Persistent bool
@@ -295,7 +297,6 @@ func (j *Jar) setCookies(u *url.URL, cookies []*http.Cookie, now time.Time) {
 // host name.
 func canonicalHost(host string) (string, error) {
 	var err error
-	host = strings.ToLower(host)
 	if hasPort(host) {
 		host, _, err = net.SplitHostPort(host)
 		if err != nil {
@@ -306,7 +307,13 @@ func canonicalHost(host string) (string, error) {
 		// Strip trailing dot from fully qualified domain names.
 		host = host[:len(host)-1]
 	}
-	return toASCII(host)
+	encoded, err := toASCII(host)
+	if err != nil {
+		return "", err
+	}
+	// We know this is ascii, no need to check.
+	lower, _ := ascii.ToLower(encoded)
+	return lower, nil
 }
 
 // hasPort reports whether host contains a port number. host may be a host
@@ -418,6 +425,15 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 	e.Secure = c.Secure
 	e.HttpOnly = c.HttpOnly
 
+	switch c.SameSite {
+	case http.SameSiteDefaultMode:
+		e.SameSite = "SameSite"
+	case http.SameSiteStrictMode:
+		e.SameSite = "SameSite=Strict"
+	case http.SameSiteLaxMode:
+		e.SameSite = "SameSite=Lax"
+	}
+
 	return e, false, nil
 }
 
@@ -459,7 +475,12 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
 		// both are illegal.
 		return "", false, errMalformedDomain
 	}
-	domain = strings.ToLower(domain)
+
+	domain, isASCII := ascii.ToLower(domain)
+	if !isASCII {
+		// Received non-ASCII domain, e.g. "perché.com" instead of "xn--perch-fsa.com"
+		return "", false, errMalformedDomain
+	}
 
 	if domain[len(domain)-1] == '.' {
 		// We received stuff like "Domain=www.example.com.".

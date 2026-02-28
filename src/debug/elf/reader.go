@@ -63,11 +63,11 @@ func (r *readSeekerFromReader) Read(p []byte) (n int, err error) {
 func (r *readSeekerFromReader) Seek(offset int64, whence int) (int64, error) {
 	var newOffset int64
 	switch whence {
-	case io.SeekStart:
+	case seekStart:
 		newOffset = offset
-	case io.SeekCurrent:
+	case seekCurrent:
 		newOffset = r.offset + offset
-	case io.SeekEnd:
+	case seekEnd:
 		newOffset = r.size + offset
 	default:
 		return 0, os.ErrInvalid

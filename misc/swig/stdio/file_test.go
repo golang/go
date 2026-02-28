@@ -20,3 +20,9 @@ func TestRead(t *testing.T) {
 		t.Error("fclose failed")
 	}
 }
+
+func TestF(t *testing.T) {
+	if x := F(); x != 1 {
+		t.Fatalf("x = %d, want 1", x)
+	}
+}

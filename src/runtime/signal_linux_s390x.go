@@ -5,6 +5,8 @@
 package runtime
 
 import (
+	"internal/abi"
+	"internal/goarch"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -53,7 +55,7 @@ func (c *sigctxt) set_sp(x uint64)      { c.regs().gregs[15] = x }
 func (c *sigctxt) set_pc(x uint64)      { c.regs().psw_addr = x }
 func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
 func (c *sigctxt) set_sigaddr(x uint64) {
-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
+	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
 }
 
 func dumpregs(c *sigctxt) {
@@ -99,23 +101,27 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 
 	pc := uintptr(gp.sigpc)
 
-	// If we don't recognize the PC as code
-	// but we do recognize the link register as code,
-	// then assume this was a call to non-code and treat like
-	// pc == 0, to make unwinding show the context.
-	if pc != 0 && !findfunc(pc).valid() && findfunc(uintptr(c.link())).valid() {
-		pc = 0
-	}
-
-	// Don't bother saving PC if it's zero, which is
-	// probably a call to a nil func: the old link register
-	// is more useful in the stack trace.
-	if pc != 0 {
+	if shouldPushSigpanic(gp, pc, uintptr(c.link())) {
+		// Make it look the like faulting PC called sigpanic.
 		c.set_link(uint64(pc))
 	}
 
 	// In case we are panicking from external C code
 	c.set_r0(0)
 	c.set_r13(uint64(uintptr(unsafe.Pointer(gp))))
-	c.set_pc(uint64(funcPC(sigpanic)))
+	c.set_pc(uint64(abi.FuncPCABIInternal(sigpanic)))
+}
+
+func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+	// Push the LR to stack, as we'll clobber it in order to
+	// push the call. The function being pushed is responsible
+	// for restoring the LR and setting the SP back.
+	// This extra slot is known to gentraceback.
+	sp := c.sp() - 8
+	c.set_sp(sp)
+	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
+	// Set up PC and LR to pretend the function being signaled
+	// calls targetPC at resumePC.
+	c.set_link(uint64(resumePC))
+	c.set_pc(uint64(targetPC))
 }

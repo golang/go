@@ -7,12 +7,14 @@ package asm
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"text/scanner"
 
 	"cmd/asm/internal/arch"
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
+	"cmd/internal/obj/x86"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 )
@@ -35,6 +37,12 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 		case sys.ARM64:
 			if !arch.ARM64Suffix(prog, cond) {
 				p.errorf("unrecognized suffix .%q", cond)
+				return
+			}
+
+		case sys.AMD64, sys.I386:
+			if err := x86.ParseSuffix(prog, cond); err != nil {
+				p.errorf("%v", err)
 				return
 			}
 
@@ -71,7 +79,7 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 
 // validSymbol checks that addr represents a valid name for a pseudo-op.
 func (p *Parser) validSymbol(pseudo string, addr *obj.Addr, offsetOk bool) bool {
-	if addr.Name != obj.NAME_EXTERN && addr.Name != obj.NAME_STATIC || addr.Scale != 0 || addr.Reg != 0 {
+	if addr.Sym == nil || addr.Name != obj.NAME_EXTERN && addr.Name != obj.NAME_STATIC || addr.Scale != 0 || addr.Reg != 0 {
 		p.errorf("%s symbol %q must be a symbol(SB)", pseudo, symbolName(addr))
 		return false
 	}
@@ -99,7 +107,7 @@ func (p *Parser) validImmediate(pseudo string, addr *obj.Addr) bool {
 
 // asmText assembles a TEXT pseudo-op.
 // TEXT runtime·sigtramp(SB),4,$0-0
-func (p *Parser) asmText(word string, operands [][]lex.Token) {
+func (p *Parser) asmText(operands [][]lex.Token) {
 	if len(operands) != 2 && len(operands) != 3 {
 		p.errorf("expect two or three operands for TEXT")
 		return
@@ -126,11 +134,19 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 		next++
 	}
 
+	// Issue an error if we see a function defined as ABIInternal
+	// without NOSPLIT. In ABIInternal, obj needs to know the function
+	// signature in order to construct the morestack path, so this
+	// currently isn't supported for asm functions.
+	if nameAddr.Sym.ABI() == obj.ABIInternal && flag&obj.NOSPLIT == 0 {
+		p.errorf("TEXT %q: ABIInternal requires NOSPLIT", name)
+	}
+
 	// Next operand is the frame and arg size.
 	// Bizarre syntax: $frameSize-argSize is two words, not subtraction.
 	// Both frameSize and argSize must be simple integers; only frameSize
 	// can be negative.
-	// The "-argSize" may be missing; if so, set it to obj.ArgsSizeUnknown.
+	// The "-argSize" may be missing; if so, set it to objabi.ArgsSizeUnknown.
 	// Parse left to right.
 	op := operands[next]
 	if len(op) < 2 || op[0].ScanToken != '$' {
@@ -173,14 +189,14 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 			// Argsize set below.
 		},
 	}
-	nameAddr.Sym.Func.Text = prog
+	nameAddr.Sym.Func().Text = prog
 	prog.To.Val = int32(argSize)
 	p.append(prog, "", true)
 }
 
 // asmData assembles a DATA pseudo-op.
 // DATA masks<>+0x00(SB)/4, $0x00000000
-func (p *Parser) asmData(word string, operands [][]lex.Token) {
+func (p *Parser) asmData(operands [][]lex.Token) {
 	if len(operands) != 2 {
 		p.errorf("expect two operands for DATA")
 		return
@@ -193,7 +209,11 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
 		p.errorf("expect /size for DATA argument")
 		return
 	}
-	scale := p.parseScale(op[n-1].String())
+	szop := op[n-1].String()
+	sz, err := strconv.Atoi(szop)
+	if err != nil {
+		p.errorf("bad size for DATA argument: %q", szop)
+	}
 	op = op[:n-2]
 	nameAddr := p.address(op)
 	if !p.validSymbol("DATA", &nameAddr, true) {
@@ -216,31 +236,40 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
 		p.errorf("overlapping DATA entry for %s", name)
 		return
 	}
-	p.dataAddr[name] = nameAddr.Offset + int64(scale)
+	p.dataAddr[name] = nameAddr.Offset + int64(sz)
 
 	switch valueAddr.Type {
 	case obj.TYPE_CONST:
-		nameAddr.Sym.WriteInt(p.ctxt, nameAddr.Offset, int(scale), valueAddr.Offset)
+		switch sz {
+		case 1, 2, 4, 8:
+			nameAddr.Sym.WriteInt(p.ctxt, nameAddr.Offset, int(sz), valueAddr.Offset)
+		default:
+			p.errorf("bad int size for DATA argument: %d", sz)
+		}
 	case obj.TYPE_FCONST:
-		switch scale {
+		switch sz {
 		case 4:
 			nameAddr.Sym.WriteFloat32(p.ctxt, nameAddr.Offset, float32(valueAddr.Val.(float64)))
 		case 8:
 			nameAddr.Sym.WriteFloat64(p.ctxt, nameAddr.Offset, valueAddr.Val.(float64))
 		default:
-			panic("bad float scale")
+			p.errorf("bad float size for DATA argument: %d", sz)
 		}
 	case obj.TYPE_SCONST:
-		nameAddr.Sym.WriteString(p.ctxt, nameAddr.Offset, int(scale), valueAddr.Val.(string))
+		nameAddr.Sym.WriteString(p.ctxt, nameAddr.Offset, int(sz), valueAddr.Val.(string))
 	case obj.TYPE_ADDR:
-		nameAddr.Sym.WriteAddr(p.ctxt, nameAddr.Offset, int(scale), valueAddr.Sym, valueAddr.Offset)
+		if sz == p.arch.PtrSize {
+			nameAddr.Sym.WriteAddr(p.ctxt, nameAddr.Offset, int(sz), valueAddr.Sym, valueAddr.Offset)
+		} else {
+			p.errorf("bad addr size for DATA argument: %d", sz)
+		}
 	}
 }
 
 // asmGlobl assembles a GLOBL pseudo-op.
 // GLOBL shifts<>(SB),8,$256
 // GLOBL shifts<>(SB),$256
-func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
+func (p *Parser) asmGlobl(operands [][]lex.Token) {
 	if len(operands) != 2 && len(operands) != 3 {
 		p.errorf("expect two or three operands for GLOBL")
 		return
@@ -272,7 +301,7 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
 
 // asmPCData assembles a PCDATA pseudo-op.
 // PCDATA $2, $705
-func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
+func (p *Parser) asmPCData(operands [][]lex.Token) {
 	if len(operands) != 2 {
 		p.errorf("expect two operands for PCDATA")
 		return
@@ -301,9 +330,31 @@ func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
 	p.append(prog, "", true)
 }
 
+// asmPCAlign assembles a PCALIGN pseudo-op.
+// PCALIGN $16
+func (p *Parser) asmPCAlign(operands [][]lex.Token) {
+	if len(operands) != 1 {
+		p.errorf("expect one operand for PCALIGN")
+		return
+	}
+
+	// Operand 0 must be an immediate constant.
+	key := p.address(operands[0])
+	if !p.validImmediate("PCALIGN", &key) {
+		return
+	}
+
+	prog := &obj.Prog{
+		Ctxt: p.ctxt,
+		As:   obj.APCALIGN,
+		From: key,
+	}
+	p.append(prog, "", true)
+}
+
 // asmFuncData assembles a FUNCDATA pseudo-op.
 // FUNCDATA $1, funcdata<>+4(SB)
-func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
+func (p *Parser) asmFuncData(operands [][]lex.Token) {
 	if len(operands) != 2 {
 		p.errorf("expect two operands for FUNCDATA")
 		return
@@ -343,6 +394,13 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 		As:   op,
 	}
 	switch len(a) {
+	case 0:
+		if p.arch.Family == sys.Wasm {
+			target = &obj.Addr{Type: obj.TYPE_NONE}
+			break
+		}
+		p.errorf("wrong number of arguments to %s instruction", op)
+		return
 	case 1:
 		target = &a[0]
 	case 2:
@@ -367,7 +425,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 			prog.Reg = reg
 			break
 		}
-		if p.arch.Family == sys.MIPS || p.arch.Family == sys.MIPS64 {
+		if p.arch.Family == sys.MIPS || p.arch.Family == sys.MIPS64 || p.arch.Family == sys.RISCV64 {
 			// 3-operand jumps.
 			// First two must be registers
 			target = &a[2]
@@ -384,7 +442,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 				prog.Reg = p.getRegister(prog, op, &a[1])
 			} else {
 				// Compare register with immediate and jump.
-				prog.From3 = newAddr(a[1])
+				prog.SetFrom3(a[1])
 			}
 			break
 		}
@@ -400,8 +458,19 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 			target = &a[2]
 			break
 		}
-
-		fallthrough
+		p.errorf("wrong number of arguments to %s instruction", op)
+		return
+	case 4:
+		if p.arch.Family == sys.S390X {
+			// 4-operand compare-and-branch.
+			prog.From = a[0]
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			prog.SetFrom3(a[2])
+			target = &a[3]
+			break
+		}
+		p.errorf("wrong number of arguments to %s instruction", op)
+		return
 	default:
 		p.errorf("wrong number of arguments to %s instruction", op)
 		return
@@ -445,6 +514,8 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 	case target.Type == obj.TYPE_CONST:
 		// JMP $4
 		prog.To = a[0]
+	case target.Type == obj.TYPE_NONE:
+		// JMP
 	default:
 		p.errorf("cannot assemble jump %+v", target)
 		return
@@ -486,7 +557,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 	case 0:
 		// Nothing to do.
 	case 1:
-		if p.arch.UnaryDst[op] {
+		if p.arch.UnaryDst[op] || op == obj.ARET || op == obj.AGETCALLERPC {
 			// prog.From is no address.
 			prog.To = a[0]
 		} else {
@@ -507,27 +578,6 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				break
 			}
 			// Strange special cases.
-			if arch.IsARMSTREX(op) {
-				/*
-					STREX x, (y)
-						from=(y) reg=x to=x
-					STREX (x), y
-						from=(x) reg=y to=y
-				*/
-				if a[0].Type == obj.TYPE_REG && a[1].Type != obj.TYPE_REG {
-					prog.From = a[1]
-					prog.Reg = a[0].Reg
-					prog.To = a[0]
-					break
-				} else if a[0].Type != obj.TYPE_REG && a[1].Type == obj.TYPE_REG {
-					prog.From = a[0]
-					prog.Reg = a[1].Reg
-					prog.To = a[1]
-					break
-				}
-				p.errorf("unrecognized addressing for %s", op)
-				return
-			}
 			if arch.IsARMFloatCmp(op) {
 				prog.From = a[0]
 				prog.Reg = p.getRegister(prog, op, &a[1])
@@ -564,22 +614,25 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				prog.To = a[2]
 				break
 			}
+			if arch.IsARMBFX(op) {
+				// a[0] and a[1] must be constants, a[2] must be a register
+				prog.From = a[0]
+				prog.SetFrom3(a[1])
+				prog.To = a[2]
+				break
+			}
 			// Otherwise the 2nd operand (a[1]) must be a register.
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.To = a[2]
 		case sys.AMD64:
-			// Catch missing operand here, because we store immediate as part of From3, and can't distinguish
-			// missing operand from legal value 0 in obj/x86/asm6.
-			if arch.IsAMD4OP(op) {
-				p.errorf("4 operands required, but only 3 are provided for %s instruction", op)
-			}
 			prog.From = a[0]
-			prog.From3 = newAddr(a[1])
+			prog.SetFrom3(a[1])
 			prog.To = a[2]
 		case sys.ARM64:
-			// ARM64 instructions with one input and two outputs.
-			if arch.IsARM64STLXR(op) {
+			switch {
+			case arch.IsARM64STLXR(op):
+				// ARM64 instructions with one input and two outputs.
 				prog.From = a[0]
 				prog.To = a[1]
 				if a[2].Type != obj.TYPE_REG {
@@ -587,14 +640,31 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 					return
 				}
 				prog.RegTo2 = a[2].Reg
-				break
+			case arch.IsARM64TBL(op):
+				// one of its inputs does not fit into prog.Reg.
+				prog.From = a[0]
+				prog.SetFrom3(a[1])
+				prog.To = a[2]
+			case arch.IsARM64CASP(op):
+				prog.From = a[0]
+				prog.To = a[1]
+				// both 1st operand and 3rd operand are (Rs, Rs+1) register pair.
+				// And the register pair must be contiguous.
+				if (a[0].Type != obj.TYPE_REGREG) || (a[2].Type != obj.TYPE_REGREG) {
+					p.errorf("invalid addressing modes for 1st or 3rd operand to %s instruction, must be register pair", op)
+					return
+				}
+				// For ARM64 CASP-like instructions, its 2nd destination operand is register pair(Rt, Rt+1) that can
+				// not fit into prog.RegTo2, so save it to the prog.RestArgs.
+				prog.SetTo2(a[2])
+			default:
+				prog.From = a[0]
+				prog.Reg = p.getRegister(prog, op, &a[1])
+				prog.To = a[2]
 			}
-			prog.From = a[0]
-			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.To = a[2]
 		case sys.I386:
 			prog.From = a[0]
-			prog.From3 = newAddr(a[1])
+			prog.SetFrom3(a[1])
 			prog.To = a[2]
 		case sys.PPC64:
 			if arch.IsPPC64CMP(op) {
@@ -616,18 +686,33 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				prog.To = a[2]
 			case obj.TYPE_CONST:
 				prog.From = a[0]
-				prog.From3 = newAddr(a[1])
+				prog.SetFrom3(a[1])
 				prog.To = a[2]
 			default:
 				p.errorf("invalid addressing modes for %s instruction", op)
 				return
 			}
+		case sys.RISCV64:
+			// RISCV64 instructions with one input and two outputs.
+			if arch.IsRISCV64AMO(op) {
+				prog.From = a[0]
+				prog.To = a[1]
+				if a[2].Type != obj.TYPE_REG {
+					p.errorf("invalid addressing modes for third operand to %s instruction, must be register", op)
+					return
+				}
+				prog.RegTo2 = a[2].Reg
+				break
+			}
+			prog.From = a[0]
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			prog.To = a[2]
 		case sys.S390X:
 			prog.From = a[0]
 			if a[1].Type == obj.TYPE_REG {
 				prog.Reg = p.getRegister(prog, op, &a[1])
 			} else {
-				prog.From3 = newAddr(a[1])
+				prog.SetFrom3(a[1])
 			}
 			prog.To = a[2]
 		default:
@@ -635,40 +720,39 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			return
 		}
 	case 4:
-		if p.arch.Family == sys.ARM && arch.IsARMMULA(op) {
-			// All must be registers.
-			p.getRegister(prog, op, &a[0])
-			r1 := p.getRegister(prog, op, &a[1])
-			r2 := p.getRegister(prog, op, &a[2])
-			p.getRegister(prog, op, &a[3])
-			prog.From = a[0]
-			prog.To = a[3]
-			prog.To.Type = obj.TYPE_REGREG2
-			prog.To.Offset = int64(r2)
-			prog.Reg = r1
-			break
+		if p.arch.Family == sys.ARM {
+			if arch.IsARMBFX(op) {
+				// a[0] and a[1] must be constants, a[2] and a[3] must be registers
+				prog.From = a[0]
+				prog.SetFrom3(a[1])
+				prog.Reg = p.getRegister(prog, op, &a[2])
+				prog.To = a[3]
+				break
+			}
+			if arch.IsARMMULA(op) {
+				// All must be registers.
+				p.getRegister(prog, op, &a[0])
+				r1 := p.getRegister(prog, op, &a[1])
+				r2 := p.getRegister(prog, op, &a[2])
+				p.getRegister(prog, op, &a[3])
+				prog.From = a[0]
+				prog.To = a[3]
+				prog.To.Type = obj.TYPE_REGREG2
+				prog.To.Offset = int64(r2)
+				prog.Reg = r1
+				break
+			}
 		}
 		if p.arch.Family == sys.AMD64 {
-			// 4 operand instruction have form  ymm1, ymm2, ymm3/m256, imm8
-			// So From3 is always just a register, so we store imm8 in Offset field,
-			// to avoid increasing size of Prog.
-			prog.From = a[1]
-			prog.From3 = newAddr(a[2])
-			if a[0].Type != obj.TYPE_CONST {
-				p.errorf("first operand must be an immediate in %s instruction", op)
-			}
-			if prog.From3.Type != obj.TYPE_REG {
-				p.errorf("third operand must be a register in %s instruction", op)
-			}
-			prog.From3.Offset = int64(p.getImmediate(prog, op, &a[0]))
+			prog.From = a[0]
+			prog.SetRestArgs([]obj.Addr{a[1], a[2]})
 			prog.To = a[3]
-			prog.RegTo2 = -1
 			break
 		}
 		if p.arch.Family == sys.ARM64 {
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.From3 = newAddr(a[2])
+			prog.SetFrom3(a[2])
 			prog.To = a[3]
 			break
 		}
@@ -676,12 +760,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			if arch.IsPPC64RLD(op) {
 				prog.From = a[0]
 				prog.Reg = p.getRegister(prog, op, &a[1])
-				prog.From3 = newAddr(a[2])
+				prog.SetFrom3(a[2])
 				prog.To = a[3]
 				break
 			} else if arch.IsPPC64ISEL(op) {
 				// ISEL BC,RB,RA,RT becomes isel rt,ra,rb,bc
-				prog.From3 = newAddr(a[2])                // ra
+				prog.SetFrom3(a[2])                       // ra
 				prog.From = a[0]                          // bc
 				prog.Reg = p.getRegister(prog, op, &a[1]) // rb
 				prog.To = a[3]                            // rt
@@ -695,19 +779,26 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			if a[1].Type == obj.TYPE_REG {
 				prog.From = a[0]
 				prog.Reg = p.getRegister(prog, op, &a[1])
-				prog.From3 = newAddr(a[2])
+				prog.SetFrom3(a[2])
 				prog.To = a[3]
 				break
 			} else if a[1].Type == obj.TYPE_CONST {
 				prog.From = a[0]
 				prog.Reg = p.getRegister(prog, op, &a[2])
-				prog.From3 = newAddr(a[1])
+				prog.SetFrom3(a[1])
 				prog.To = a[3]
 				break
 			} else {
 				p.errorf("invalid addressing modes for %s instruction", op)
 				return
 			}
+		}
+		if p.arch.Family == sys.RISCV64 {
+			prog.From = a[0]
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			prog.SetRestArgs([]obj.Addr{a[2]})
+			prog.To = a[3]
+			break
 		}
 		if p.arch.Family == sys.S390X {
 			if a[1].Type != obj.TYPE_REG {
@@ -716,29 +807,30 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			}
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.From3 = newAddr(a[2])
+			prog.SetFrom3(a[2])
 			prog.To = a[3]
 			break
 		}
 		p.errorf("can't handle %s instruction with 4 operands", op)
 		return
 	case 5:
-		if p.arch.Family == sys.PPC64 && arch.IsPPC64RLD(op) {
-			// Always reg, reg, con, con, reg.  (con, con is a 'mask').
+		if p.arch.Family == sys.PPC64 {
 			prog.From = a[0]
+			// Second arg is always a register type on ppc64.
 			prog.Reg = p.getRegister(prog, op, &a[1])
-			mask1 := p.getConstant(prog, op, &a[2])
-			mask2 := p.getConstant(prog, op, &a[3])
-			var mask uint32
-			if mask1 < mask2 {
-				mask = (^uint32(0) >> uint(mask1)) & (^uint32(0) << uint(31-mask2))
-			} else {
-				mask = (^uint32(0) >> uint(mask2+1)) & (^uint32(0) << uint(31-(mask1-1)))
-			}
-			prog.From3 = &obj.Addr{
-				Type:   obj.TYPE_CONST,
-				Offset: int64(mask),
-			}
+			prog.SetRestArgs([]obj.Addr{a[2], a[3]})
+			prog.To = a[4]
+			break
+		}
+		if p.arch.Family == sys.AMD64 {
+			prog.From = a[0]
+			prog.SetRestArgs([]obj.Addr{a[1], a[2], a[3]})
+			prog.To = a[4]
+			break
+		}
+		if p.arch.Family == sys.S390X {
+			prog.From = a[0]
+			prog.SetRestArgs([]obj.Addr{a[1], a[2], a[3]})
 			prog.To = a[4]
 			break
 		}

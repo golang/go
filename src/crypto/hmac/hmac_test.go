@@ -5,6 +5,8 @@
 package hmac
 
 import (
+	"bytes"
+	"crypto/internal/boring"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -25,7 +27,7 @@ type hmacTest struct {
 
 var hmacTests = []hmacTest{
 	// Tests from US FIPS 198
-	// http://csrc.nist.gov/publications/fips/fips198/fips-198a.pdf
+	// https://csrc.nist.gov/publications/fips/fips198/fips-198a.pdf
 	{
 		sha1.New,
 		[]byte{
@@ -205,7 +207,7 @@ var hmacTests = []hmacTest{
 		sha256.BlockSize,
 	},
 
-	// Tests from http://csrc.nist.gov/groups/ST/toolkit/examples.html
+	// Tests from https://csrc.nist.gov/groups/ST/toolkit/examples.html
 	// (truncated tag tests are left out)
 	{
 		sha1.New,
@@ -518,6 +520,31 @@ var hmacTests = []hmacTest{
 		sha512.Size,
 		sha512.BlockSize,
 	},
+	// HMAC without key is dumb but should probably not fail.
+	{
+		sha1.New,
+		[]byte{},
+		[]byte("message"),
+		"d5d1ed05121417247616cfc8378f360a39da7cfa",
+		sha1.Size,
+		sha1.BlockSize,
+	},
+	{
+		sha256.New,
+		[]byte{},
+		[]byte("message"),
+		"eb08c1f56d5ddee07f7bdf80468083da06b64cf4fac64fe3a90883df5feacae4",
+		sha256.Size,
+		sha256.BlockSize,
+	},
+	{
+		sha512.New,
+		[]byte{},
+		[]byte("message"),
+		"08fce52f6395d59c2a3fb8abb281d74ad6f112b9a9c787bcea290d94dadbc82b2ca3e5e12bf2277c7fedbb0154d5493e41bb7459f63c8e39554ea3651b812492",
+		sha512.Size,
+		sha512.BlockSize,
+	},
 }
 
 func TestHMAC(t *testing.T) {
@@ -529,7 +556,7 @@ func TestHMAC(t *testing.T) {
 		if b := h.BlockSize(); b != tt.blocksize {
 			t.Errorf("BlockSize: got %v, want %v", b, tt.blocksize)
 		}
-		for j := 0; j < 2; j++ {
+		for j := 0; j < 4; j++ {
 			n, err := h.Write(tt.in)
 			if n != len(tt.in) || err != nil {
 				t.Errorf("test %d.%d: Write(%d) = %d, %v", i, j, len(tt.in), n, err)
@@ -546,8 +573,33 @@ func TestHMAC(t *testing.T) {
 
 			// Second iteration: make sure reset works.
 			h.Reset()
+
+			// Third and fourth iteration: make sure hmac works on
+			// hashes without MarshalBinary/UnmarshalBinary
+			if j == 1 {
+				h = New(func() hash.Hash { return justHash{tt.hash()} }, tt.key)
+			}
 		}
 	}
+}
+
+func TestNonUniqueHash(t *testing.T) {
+	if boring.Enabled {
+		t.Skip("hash.Hash provided by boringcrypto are not comparable")
+	}
+	sha := sha256.New()
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Error("expected panic when calling New with a non-unique hash generation function")
+		}
+	}()
+	New(func() hash.Hash { return sha }, []byte("bytes"))
+}
+
+// justHash implements just the hash.Hash methods and nothing else
+type justHash struct {
+	hash.Hash
 }
 
 func TestEqual(t *testing.T) {
@@ -569,6 +621,42 @@ func TestEqual(t *testing.T) {
 	}
 }
 
+func TestWriteAfterSum(t *testing.T) {
+	h := New(sha1.New, nil)
+	h.Write([]byte("hello"))
+	sumHello := h.Sum(nil)
+
+	h = New(sha1.New, nil)
+	h.Write([]byte("hello world"))
+	sumHelloWorld := h.Sum(nil)
+
+	// Test that Sum has no effect on future Sum or Write operations.
+	// This is a bit unusual as far as usage, but it's allowed
+	// by the definition of Go hash.Hash, and some clients expect it to work.
+	h = New(sha1.New, nil)
+	h.Write([]byte("hello"))
+	if sum := h.Sum(nil); !bytes.Equal(sum, sumHello) {
+		t.Fatalf("1st Sum after hello = %x, want %x", sum, sumHello)
+	}
+	if sum := h.Sum(nil); !bytes.Equal(sum, sumHello) {
+		t.Fatalf("2nd Sum after hello = %x, want %x", sum, sumHello)
+	}
+
+	h.Write([]byte(" world"))
+	if sum := h.Sum(nil); !bytes.Equal(sum, sumHelloWorld) {
+		t.Fatalf("1st Sum after hello world = %x, want %x", sum, sumHelloWorld)
+	}
+	if sum := h.Sum(nil); !bytes.Equal(sum, sumHelloWorld) {
+		t.Fatalf("2nd Sum after hello world = %x, want %x", sum, sumHelloWorld)
+	}
+
+	h.Reset()
+	h.Write([]byte("hello"))
+	if sum := h.Sum(nil); !bytes.Equal(sum, sumHello) {
+		t.Fatalf("Sum after Reset + hello = %x, want %x", sum, sumHello)
+	}
+}
+
 func BenchmarkHMACSHA256_1K(b *testing.B) {
 	key := make([]byte, 32)
 	buf := make([]byte, 1024)
@@ -576,8 +664,8 @@ func BenchmarkHMACSHA256_1K(b *testing.B) {
 	b.SetBytes(int64(len(buf)))
 	for i := 0; i < b.N; i++ {
 		h.Write(buf)
-		h.Reset()
 		mac := h.Sum(nil)
+		h.Reset()
 		buf[0] = mac[0]
 	}
 }
@@ -589,7 +677,18 @@ func BenchmarkHMACSHA256_32(b *testing.B) {
 	b.SetBytes(int64(len(buf)))
 	for i := 0; i < b.N; i++ {
 		h.Write(buf)
+		mac := h.Sum(nil)
 		h.Reset()
+		buf[0] = mac[0]
+	}
+}
+
+func BenchmarkNewWriteSum(b *testing.B) {
+	buf := make([]byte, 32)
+	b.SetBytes(int64(len(buf)))
+	for i := 0; i < b.N; i++ {
+		h := New(sha256.New, make([]byte, 32))
+		h.Write(buf)
 		mac := h.Sum(nil)
 		buf[0] = mac[0]
 	}

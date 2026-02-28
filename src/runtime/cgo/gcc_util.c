@@ -29,6 +29,10 @@ void(* const _cgo_yield)() = NULL;
 
 #include <string.h>
 
+char x_cgo_yield_strncpy_src = 0;
+char x_cgo_yield_strncpy_dst = 0;
+size_t x_cgo_yield_strncpy_n = 0;
+
 /*
 Stub for allowing libc interceptors to execute.
 
@@ -50,9 +54,14 @@ x_cgo_yield()
 
 	So we choose strncpy(_, _, 0): it requires an extra header,
 	but it's standard and should be very efficient.
+
+	GCC 7 has an unfortunate habit of optimizing out strncpy calls (see
+	https://golang.org/issue/21196), so the arguments here need to be global
+	variables with external linkage in order to ensure that the call traps all the
+	way down into libc.
 	*/
-	char nothing = 0;
-	strncpy(&nothing, &nothing, 0);
+	strncpy(&x_cgo_yield_strncpy_dst, &x_cgo_yield_strncpy_src,
+	        x_cgo_yield_strncpy_n);
 }
 
 void(* const _cgo_yield)() = &x_cgo_yield;

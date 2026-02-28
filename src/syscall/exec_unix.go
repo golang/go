@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build unix
 
 // Fork, exec, wait, etc.
 
 package syscall
 
 import (
+	errorspkg "errors"
+	"internal/bytealg"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -81,15 +83,21 @@ func StringSlicePtr(ss []string) []*byte {
 // pointers to NUL-terminated byte arrays. If any string contains
 // a NUL byte, it returns (nil, EINVAL).
 func SlicePtrFromStrings(ss []string) ([]*byte, error) {
-	var err error
-	bb := make([]*byte, len(ss)+1)
-	for i := 0; i < len(ss); i++ {
-		bb[i], err = BytePtrFromString(ss[i])
-		if err != nil {
-			return nil, err
+	n := 0
+	for _, s := range ss {
+		if bytealg.IndexByteString(s, 0) != -1 {
+			return nil, EINVAL
 		}
+		n += len(s) + 1 // +1 for NUL
 	}
-	bb[len(ss)] = nil
+	bb := make([]*byte, len(ss)+1)
+	b := make([]byte, n)
+	n = 0
+	for i, s := range ss {
+		bb[i] = &b[n]
+		copy(b[n:], s)
+		n += len(s) + 1
+	}
 	return bb, nil
 }
 
@@ -144,9 +152,6 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		sys = &zeroSysProcAttr
 	}
 
-	p[0] = -1
-	p[1] = -1
-
 	// Convert args to C form.
 	argv0p, err := BytePtrFromString(argv0)
 	if err != nil {
@@ -180,6 +185,15 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		}
 	}
 
+	// Both Setctty and Foreground use the Ctty field,
+	// but they give it slightly different meanings.
+	if sys.Setctty && sys.Foreground {
+		return 0, errorspkg.New("both Setctty and Foreground set in SysProcAttr")
+	}
+	if sys.Setctty && sys.Ctty >= len(attr.Files) {
+		return 0, errorspkg.New("Setctty set but Ctty not valid in child")
+	}
+
 	// Acquire the fork lock so that no other threads
 	// create new fds that are not yet close-on-exec
 	// before we fork.
@@ -187,20 +201,28 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 
 	// Allocate child status pipe close on exec.
 	if err = forkExecPipe(p[:]); err != nil {
-		goto error
+		ForkLock.Unlock()
+		return 0, err
 	}
 
 	// Kick off child.
 	pid, err1 = forkAndExecInChild(argv0p, argvp, envvp, chroot, dir, attr, sys, p[1])
 	if err1 != 0 {
-		err = Errno(err1)
-		goto error
+		Close(p[0])
+		Close(p[1])
+		ForkLock.Unlock()
+		return 0, Errno(err1)
 	}
 	ForkLock.Unlock()
 
 	// Read child error status from pipe.
 	Close(p[1])
-	n, err = readlen(p[0], (*byte)(unsafe.Pointer(&err1)), int(unsafe.Sizeof(err1)))
+	for {
+		n, err = readlen(p[0], (*byte)(unsafe.Pointer(&err1)), int(unsafe.Sizeof(err1)))
+		if err != EINTR {
+			break
+		}
+	}
 	Close(p[0])
 	if err != nil || n != 0 {
 		if n == int(unsafe.Sizeof(err1)) {
@@ -221,14 +243,6 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 
 	// Read got EOF, so pipe closed on exec, so exec succeeded.
 	return pid, nil
-
-error:
-	if p[0] >= 0 {
-		Close(p[0])
-		Close(p[1])
-	}
-	ForkLock.Unlock()
-	return 0, err
 }
 
 // Combination of fork and exec, careful to be thread safe.
@@ -246,9 +260,11 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 func runtime_BeforeExec()
 func runtime_AfterExec()
 
-// execveSolaris is non-nil on Solaris, set to execve in exec_solaris.go; this
+// execveLibc is non-nil on OS using libc syscall, set to execve in exec_libc.go; this
 // avoids a build dependency for other platforms.
-var execveSolaris func(path uintptr, argv uintptr, envp uintptr) (err Errno)
+var execveLibc func(path uintptr, argv uintptr, envp uintptr) Errno
+var execveDarwin func(path *byte, argv **byte, envp **byte) error
+var execveOpenBSD func(path *byte, argv **byte, envp **byte) error
 
 // Exec invokes the execve(2) system call.
 func Exec(argv0 string, argv []string, envv []string) (err error) {
@@ -266,13 +282,19 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 	}
 	runtime_BeforeExec()
 
-	var err1 Errno
-	if runtime.GOOS == "solaris" {
-		// RawSyscall should never be used on Solaris.
-		err1 = execveSolaris(
+	var err1 error
+	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "aix" {
+		// RawSyscall should never be used on Solaris, illumos, or AIX.
+		err1 = execveLibc(
 			uintptr(unsafe.Pointer(argv0p)),
 			uintptr(unsafe.Pointer(&argvp[0])),
 			uintptr(unsafe.Pointer(&envvp[0])))
+	} else if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+		// Similarly on Darwin.
+		err1 = execveDarwin(argv0p, &argvp[0], &envvp[0])
+	} else if runtime.GOOS == "openbsd" && (runtime.GOARCH == "386" || runtime.GOARCH == "amd64" || runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		// Similarly on OpenBSD.
+		err1 = execveOpenBSD(argv0p, &argvp[0], &envvp[0])
 	} else {
 		_, _, err1 = RawSyscall(SYS_EXECVE,
 			uintptr(unsafe.Pointer(argv0p)),

@@ -8,14 +8,23 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
-	"go/build"
 	"go/parser"
 	"go/token"
+	exec "internal/execabs"
+	"io"
 	"os"
+	"path"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"text/tabwriter"
+
+	"golang.org/x/tools/cover"
 )
 
 // funcOutput takes two file names as arguments, a coverage profile to read as input and an output
@@ -31,7 +40,12 @@ import (
 //	total:		(statements)			91.9%
 
 func funcOutput(profile, outputFile string) error {
-	profiles, err := ParseProfiles(profile)
+	profiles, err := cover.ParseProfiles(profile)
+	if err != nil {
+		return err
+	}
+
+	dirs, err := findPkgs(profiles)
 	if err != nil {
 		return err
 	}
@@ -55,7 +69,7 @@ func funcOutput(profile, outputFile string) error {
 	var total, covered int64
 	for _, profile := range profiles {
 		fn := profile.FileName
-		file, err := findFile(fn)
+		file, err := findFile(dirs, fn)
 		if err != nil {
 			return err
 		}
@@ -113,6 +127,10 @@ type FuncVisitor struct {
 func (v *FuncVisitor) Visit(node ast.Node) ast.Visitor {
 	switch n := node.(type) {
 	case *ast.FuncDecl:
+		if n.Body == nil {
+			// Do not count declarations of assembly functions.
+			break
+		}
 		start := v.fset.Position(n.Pos())
 		end := v.fset.Position(n.End())
 		fe := &FuncExtent{
@@ -128,7 +146,7 @@ func (v *FuncVisitor) Visit(node ast.Node) ast.Visitor {
 }
 
 // coverage returns the fraction of the statements in the function that were covered, as a numerator and denominator.
-func (f *FuncExtent) coverage(profile *Profile) (num, den int64) {
+func (f *FuncExtent) coverage(profile *cover.Profile) (num, den int64) {
 	// We could avoid making this n^2 overall by doing a single scan and annotating the functions,
 	// but the sizes of the data structures is never very large and the scan is almost instantaneous.
 	var covered, total int64
@@ -150,14 +168,76 @@ func (f *FuncExtent) coverage(profile *Profile) (num, den int64) {
 	return covered, total
 }
 
-// findFile finds the location of the named file in GOROOT, GOPATH etc.
-func findFile(file string) (string, error) {
-	dir, file := filepath.Split(file)
-	pkg, err := build.Import(dir, ".", build.FindOnly)
-	if err != nil {
-		return "", fmt.Errorf("can't find %q: %v", file, err)
+// Pkg describes a single package, compatible with the JSON output from 'go list'; see 'go help list'.
+type Pkg struct {
+	ImportPath string
+	Dir        string
+	Error      *struct {
+		Err string
 	}
-	return filepath.Join(pkg.Dir, file), nil
+}
+
+func findPkgs(profiles []*cover.Profile) (map[string]*Pkg, error) {
+	// Run go list to find the location of every package we care about.
+	pkgs := make(map[string]*Pkg)
+	var list []string
+	for _, profile := range profiles {
+		if strings.HasPrefix(profile.FileName, ".") || filepath.IsAbs(profile.FileName) {
+			// Relative or absolute path.
+			continue
+		}
+		pkg := path.Dir(profile.FileName)
+		if _, ok := pkgs[pkg]; !ok {
+			pkgs[pkg] = nil
+			list = append(list, pkg)
+		}
+	}
+
+	if len(list) == 0 {
+		return pkgs, nil
+	}
+
+	// Note: usually run as "go tool cover" in which case $GOROOT is set,
+	// in which case runtime.GOROOT() does exactly what we want.
+	goTool := filepath.Join(runtime.GOROOT(), "bin/go")
+	cmd := exec.Command(goTool, append([]string{"list", "-e", "-json"}, list...)...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	stdout, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("cannot run go list: %v\n%s", err, stderr.Bytes())
+	}
+	dec := json.NewDecoder(bytes.NewReader(stdout))
+	for {
+		var pkg Pkg
+		err := dec.Decode(&pkg)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("decoding go list json: %v", err)
+		}
+		pkgs[pkg.ImportPath] = &pkg
+	}
+	return pkgs, nil
+}
+
+// findFile finds the location of the named file in GOROOT, GOPATH etc.
+func findFile(pkgs map[string]*Pkg, file string) (string, error) {
+	if strings.HasPrefix(file, ".") || filepath.IsAbs(file) {
+		// Relative or absolute path.
+		return file, nil
+	}
+	pkg := pkgs[path.Dir(file)]
+	if pkg != nil {
+		if pkg.Dir != "" {
+			return filepath.Join(pkg.Dir, path.Base(file)), nil
+		}
+		if pkg.Error != nil {
+			return "", errors.New(pkg.Error.Err)
+		}
+	}
+	return "", fmt.Errorf("did not find package for %s in go list output", file)
 }
 
 func percent(covered, total int64) float64 {

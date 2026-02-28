@@ -12,7 +12,7 @@ import (
 // implementation of GCM through the AEAD interface.
 // See crypto/cipher/gcm.go.
 type gcmAble interface {
-	NewGCM(size int) (cipher.AEAD, error)
+	NewGCM(nonceSize, tagSize int) (cipher.AEAD, error)
 }
 
 // cbcEncAble is implemented by cipher.Blocks that can provide an optimized

@@ -21,27 +21,27 @@ func (me *HasAMethod) Do() {
 }
 
 func InMyCode(x *Imported, y *HasAMethod, z *other.Exported) {
-	x.Do() // ERROR "x\.Do undefined \(type \*Imported is pointer to interface, not interface\)"
-	x.do() // ERROR "x\.do undefined \(type \*Imported is pointer to interface, not interface\)"
+	x.Do() // ERROR "x\.Do undefined \(type \*Imported is pointer to interface, not interface\)|type that is pointer to interface"
+	x.do() // ERROR "x\.do undefined \(type \*Imported is pointer to interface, not interface\)|type that is pointer to interface"
 	(*x).Do()
-	x.Dont()    // ERROR "x\.Dont undefined \(type \*Imported is pointer to interface, not interface\)"
-	(*x).Dont() // ERROR "\(\*x\)\.Dont undefined \(type Imported has no field or method Dont\)"
+	x.Dont()    // ERROR "x\.Dont undefined \(type \*Imported is pointer to interface, not interface\)|type that is pointer to interface"
+	(*x).Dont() // ERROR "\(\*x\)\.Dont undefined \(type Imported has no field or method Dont\)|reference to undefined field or method"
 
 	y.Do()
-	y.do() // ERROR "y\.do undefined \(type \*HasAMethod has no field or method do, but does have Do\)"
+	y.do() // ERROR "y\.do undefined \(type \*HasAMethod has no field or method do, but does have Do\)|reference to undefined field or method"
 	(*y).Do()
-	(*y).do()   // ERROR "\(\*y\)\.do undefined \(type HasAMethod has no field or method do, but does have Do\)"
-	y.Dont()    // ERROR "y\.Dont undefined \(type \*HasAMethod has no field or method Dont\)"
-	(*y).Dont() // ERROR "\(\*y\)\.Dont undefined \(type HasAMethod has no field or method Dont\)"
+	(*y).do()   // ERROR "\(\*y\)\.do undefined \(type HasAMethod has no field or method do, but does have Do\)|reference to undefined field or method"
+	y.Dont()    // ERROR "y\.Dont undefined \(type \*HasAMethod has no field or method Dont\)|reference to undefined field or method"
+	(*y).Dont() // ERROR "\(\*y\)\.Dont undefined \(type HasAMethod has no field or method Dont\)|reference to undefined field or method"
 
-	z.Do() // ERROR "z\.Do undefined \(type \*other\.Exported is pointer to interface, not interface\)"
-	z.do() // ERROR "z\.do undefined \(type \*other\.Exported is pointer to interface, not interface\)"
+	z.Do() // ERROR "z\.Do undefined \(type \*other\.Exported is pointer to interface, not interface\)|type that is pointer to interface"
+	z.do() // ERROR "z\.do undefined \(type \*other\.Exported is pointer to interface, not interface\)|type that is pointer to interface"
 	(*z).Do()
-	(*z).do()     // ERROR "\(\*z\)\.do undefined \(type other.Exported has no field or method do, but does have Do\)"
-	z.Dont()      // ERROR "z\.Dont undefined \(type \*other\.Exported is pointer to interface, not interface\)"
-	(*z).Dont()   // ERROR "\(\*z\)\.Dont undefined \(type other\.Exported has no field or method Dont\)"
-	z.secret()    // ERROR "z\.secret undefined \(type \*other\.Exported is pointer to interface, not interface\)"
-	(*z).secret() // ERROR "\(\*z\)\.secret undefined \(cannot refer to unexported field or method secret\)"
+	(*z).do()     // ERROR "\(\*z\)\.do undefined \(type other.Exported has no field or method do, but does have Do\)|reference to undefined field or method"
+	z.Dont()      // ERROR "z\.Dont undefined \(type \*other\.Exported is pointer to interface, not interface\)|type that is pointer to interface"
+	(*z).Dont()   // ERROR "\(\*z\)\.Dont undefined \(type other\.Exported has no field or method Dont\)|reference to undefined field or method"
+	z.secret()    // ERROR "z\.secret undefined \(type \*other\.Exported is pointer to interface, not interface\)|type that is pointer to interface"
+	(*z).secret() // ERROR "\(\*z\)\.secret undefined \(cannot refer to unexported field or method secret\)|reference to unexported field or method"
 
 }
 

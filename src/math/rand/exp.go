@@ -13,7 +13,7 @@ import (
  *
  * See "The Ziggurat Method for Generating Random Variables"
  * (Marsaglia & Tsang, 2000)
- * http://www.jstatsoft.org/v05/i08/paper [pdf]
+ * https://www.jstatsoft.org/v05/i08/paper [pdf]
  */
 
 const (
@@ -26,8 +26,7 @@ const (
 // To produce a distribution with a different rate parameter,
 // callers can adjust the output using:
 //
-//  sample = ExpFloat64() / desiredRateParameter
-//
+//	sample = ExpFloat64() / desiredRateParameter
 func (r *Rand) ExpFloat64() float64 {
 	for {
 		j := r.Uint32()

@@ -5,6 +5,7 @@
 package net
 
 import (
+	"internal/syscall/windows"
 	"syscall"
 	"time"
 )
@@ -13,7 +14,8 @@ var (
 	testHookDialChannel = func() { time.Sleep(time.Millisecond) } // see golang.org/issue/5349
 
 	// Placeholders for socket system calls.
-	socketFunc  func(int, int, int) (syscall.Handle, error)  = syscall.Socket
-	connectFunc func(syscall.Handle, syscall.Sockaddr) error = syscall.Connect
-	listenFunc  func(syscall.Handle, int) error              = syscall.Listen
+	socketFunc    func(int, int, int) (syscall.Handle, error)                                                 = syscall.Socket
+	wsaSocketFunc func(int32, int32, int32, *syscall.WSAProtocolInfo, uint32, uint32) (syscall.Handle, error) = windows.WSASocket
+	connectFunc   func(syscall.Handle, syscall.Sockaddr) error                                                = syscall.Connect
+	listenFunc    func(syscall.Handle, int) error                                                             = syscall.Listen
 )

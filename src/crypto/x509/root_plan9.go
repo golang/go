@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build plan9
+//go:build plan9
 
 package x509
 
 import (
-	"io/ioutil"
 	"os"
 )
 
@@ -24,7 +23,7 @@ func loadSystemRoots() (*CertPool, error) {
 	roots := NewCertPool()
 	var bestErr error
 	for _, file := range certFiles {
-		data, err := ioutil.ReadFile(file)
+		data, err := os.ReadFile(file)
 		if err == nil {
 			roots.AppendCertsFromPEM(data)
 			return roots, nil
@@ -32,6 +31,9 @@ func loadSystemRoots() (*CertPool, error) {
 		if bestErr == nil || (os.IsNotExist(bestErr) && !os.IsNotExist(err)) {
 			bestErr = err
 		}
+	}
+	if bestErr == nil {
+		return roots, nil
 	}
 	return nil, bestErr
 }

@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build unix
 
 package net
 
 import (
 	"errors"
+	"io/fs"
 	"os"
 	"reflect"
 	"strings"
@@ -102,6 +103,61 @@ var dnsReadConfigTests = []struct {
 			search:   []string{"c.symbolic-datum-552.internal."},
 		},
 	},
+	{
+		name: "testdata/single-request-resolv.conf",
+		want: &dnsConfig{
+			servers:       defaultNS,
+			ndots:         1,
+			singleRequest: true,
+			timeout:       5 * time.Second,
+			attempts:      2,
+			search:        []string{"domain.local."},
+		},
+	},
+	{
+		name: "testdata/single-request-reopen-resolv.conf",
+		want: &dnsConfig{
+			servers:       defaultNS,
+			ndots:         1,
+			singleRequest: true,
+			timeout:       5 * time.Second,
+			attempts:      2,
+			search:        []string{"domain.local."},
+		},
+	},
+	{
+		name: "testdata/linux-use-vc-resolv.conf",
+		want: &dnsConfig{
+			servers:  defaultNS,
+			ndots:    1,
+			useTCP:   true,
+			timeout:  5 * time.Second,
+			attempts: 2,
+			search:   []string{"domain.local."},
+		},
+	},
+	{
+		name: "testdata/freebsd-usevc-resolv.conf",
+		want: &dnsConfig{
+			servers:  defaultNS,
+			ndots:    1,
+			useTCP:   true,
+			timeout:  5 * time.Second,
+			attempts: 2,
+			search:   []string{"domain.local."},
+		},
+	},
+	{
+		name: "testdata/openbsd-tcp-resolv.conf",
+		want: &dnsConfig{
+			servers:  defaultNS,
+			ndots:    1,
+			useTCP:   true,
+			timeout:  5 * time.Second,
+			attempts: 2,
+			search:   []string{"domain.local."},
+		},
+	},
 }
 
 func TestDNSReadConfig(t *testing.T) {
@@ -128,7 +184,7 @@ func TestDNSReadMissingFile(t *testing.T) {
 
 	conf := dnsReadConfig("a-nonexistent-file")
 	if !os.IsNotExist(conf.err) {
-		t.Errorf("missing resolv.conf:\ngot: %v\nwant: %v", conf.err, os.ErrNotExist)
+		t.Errorf("missing resolv.conf:\ngot: %v\nwant: %v", conf.err, fs.ErrNotExist)
 	}
 	conf.err = nil
 	want := &dnsConfig{

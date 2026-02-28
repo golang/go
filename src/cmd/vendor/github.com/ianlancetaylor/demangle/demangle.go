@@ -2,9 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package demangle defines functions that demangle GCC/LLVM C++ symbol names.
+// Package demangle defines functions that demangle GCC/LLVM
+// C++ and Rust symbol names.
 // This package recognizes names that were mangled according to the C++ ABI
-// defined at http://codesourcery.com/cxx-abi/.
+// defined at http://codesourcery.com/cxx-abi/ and the Rust ABI
+// defined at
+// https://rust-lang.github.io/rfcs/2603-rust-symbol-name-mangling-v0.html
+//
+// Most programs will want to call Filter or ToString.
 package demangle
 
 import (
@@ -15,7 +20,7 @@ import (
 
 // ErrNotMangledName is returned by CheckedDemangle if the string does
 // not appear to be a C++ symbol name.
-var ErrNotMangledName = errors.New("not a C++ mangled name")
+var ErrNotMangledName = errors.New("not a C++ or Rust mangled name")
 
 // Option is the type of demangler options.
 type Option int
@@ -31,11 +36,23 @@ const (
 	// NoParams implies NoClones.
 	NoClones
 
+	// The NoRust option disables demangling of old-style Rust
+	// mangled names, which can be confused with C++ style mangled
+	// names. New style Rust mangled names are still recognized.
+	NoRust
+
 	// The Verbose option turns on more verbose demangling.
 	Verbose
+
+	// LLVMStyle tries to translate an AST to a string in the
+	// style of the LLVM demangler. This does not affect
+	// the parsing of the AST, only the conversion of the AST
+	// to a string.
+	LLVMStyle
 )
 
-// Filter demangles a C++ symbol name, returning the human-readable C++ name.
+// Filter demangles a C++ or Rust symbol name,
+// returning the human-readable C++ or Rust name.
 // If any error occurs during demangling, the input string is returned.
 func Filter(name string, options ...Option) string {
 	ret, err := ToString(name, options...)
@@ -45,11 +62,34 @@ func Filter(name string, options ...Option) string {
 	return ret
 }
 
-// ToString demangles a C++ symbol name, returning human-readable C++
-// name or an error.
-// If the name does not appear to be a C++ symbol name at all, the
-// error will be ErrNotMangledName.
+// ToString demangles a C++ or Rust symbol name,
+// returning a human-readable C++ or Rust name or an error.
+// If the name does not appear to be a C++ or Rust symbol name at all,
+// the error will be ErrNotMangledName.
 func ToString(name string, options ...Option) (string, error) {
+	if strings.HasPrefix(name, "_R") {
+		return rustToString(name, options)
+	}
+
+	// Check for an old-style Rust mangled name.
+	// It starts with _ZN and ends with "17h" followed by 16 hex digits
+	// followed by "E".
+	if strings.HasPrefix(name, "_ZN") && strings.HasSuffix(name, "E") && len(name) > 23 && name[len(name)-20:len(name)-17] == "17h" {
+		noRust := false
+		for _, o := range options {
+			if o == NoRust {
+				noRust = true
+				break
+			}
+		}
+		if !noRust {
+			s, ok := oldRustToString(name, options)
+			if ok {
+				return s, nil
+			}
+		}
+	}
+
 	a, err := ToAST(name, options...)
 	if err != nil {
 		return "", err
@@ -63,10 +103,35 @@ func ToString(name string, options ...Option) (string, error) {
 // the parameter types are not demangled.
 // If the name does not appear to be a C++ symbol name at all, the
 // error will be ErrNotMangledName.
+// This function does not currently support Rust symbol names.
 func ToAST(name string, options ...Option) (AST, error) {
 	if strings.HasPrefix(name, "_Z") {
 		a, err := doDemangle(name[2:], options...)
 		return a, adjustErr(err, 2)
+	}
+
+	if strings.HasPrefix(name, "___Z") {
+		// clang extensions
+		block := strings.LastIndex(name, "_block_invoke")
+		if block == -1 {
+			return nil, ErrNotMangledName
+		}
+		a, err := doDemangle(name[4:block], options...)
+		if err != nil {
+			return a, adjustErr(err, 4)
+		}
+		name = strings.TrimPrefix(name[block:], "_block_invoke")
+		if len(name) > 0 && name[0] == '_' {
+			name = name[1:]
+		}
+		for len(name) > 0 && isDigit(name[0]) {
+			name = name[1:]
+		}
+		if len(name) > 0 && name[0] != '.' {
+			return nil, errors.New("unparsed characters at end of mangled name")
+		}
+		a = &Special{Prefix: "invocation function for block in ", Val: a}
+		return a, nil
 	}
 
 	const prefix = "_GLOBAL_"
@@ -148,19 +213,20 @@ func doDemangle(name string, options ...Option) (ret AST, err error) {
 		case NoParams:
 			params = false
 			clones = false
-		case NoTemplateParams:
-		// This is a valid option but only affect printing of the AST.
 		case NoClones:
 			clones = false
 		case Verbose:
 			verbose = true
+		case NoTemplateParams, LLVMStyle:
+			// These are valid options but only affect
+			// printing of the AST.
 		default:
 			return nil, fmt.Errorf("unrecognized demangler option %v", o)
 		}
 	}
 
 	st := &state{str: name, verbose: verbose}
-	a := st.encoding(params)
+	a := st.encoding(params, notForLocalName)
 
 	// Accept a clone suffix.
 	if clones {
@@ -183,6 +249,16 @@ type state struct {
 	off       int           // offset of str within original string
 	subs      substitutions // substitutions
 	templates []*Template   // templates being processed
+
+	// The number of entries in templates when we started parsing
+	// a lambda, plus 1 so that 0 means not parsing a lambda.
+	lambdaTemplateLevel int
+
+	// Counts of template parameters without template arguments,
+	// for lambdas.
+	typeTemplateParamCount     int
+	nonTypeTemplateParamCount  int
+	templateTemplateParamCount int
 }
 
 // copy returns a copy of the current state.
@@ -249,10 +325,17 @@ func adjustErr(err error, adj int) error {
 	return err
 }
 
+type forLocalNameType int
+
+const (
+	forLocalName forLocalNameType = iota
+	notForLocalName
+)
+
 // encoding ::= <(function) name> <bare-function-type>
 //              <(data) name>
 //              <special-name>
-func (st *state) encoding(params bool) AST {
+func (st *state) encoding(params bool, local forLocalNameType) AST {
 	if len(st.str) < 1 {
 		st.fail("expected encoding")
 	}
@@ -298,23 +381,63 @@ func (st *state) encoding(params bool) AST {
 		return a
 	}
 
-	check := a
-	mwq, _ := check.(*MethodWithQualifiers)
-	if mwq != nil {
-		check = mwq.Method
+	mwq, _ := a.(*MethodWithQualifiers)
+
+	var findTemplate func(AST) *Template
+	findTemplate = func(check AST) *Template {
+		switch check := check.(type) {
+		case *Template:
+			return check
+		case *Qualified:
+			if check.LocalName {
+				return findTemplate(check.Name)
+			} else if _, ok := check.Name.(*Constructor); ok {
+				return findTemplate(check.Name)
+			}
+		case *MethodWithQualifiers:
+			return findTemplate(check.Method)
+		case *Constructor:
+			if check.Base != nil {
+				return findTemplate(check.Base)
+			}
+		}
+		return nil
 	}
-	template, _ := check.(*Template)
+
+	template := findTemplate(a)
+	var oldLambdaTemplateLevel int
 	if template != nil {
 		st.templates = append(st.templates, template)
+		oldLambdaTemplateLevel = st.lambdaTemplateLevel
+		st.lambdaTemplateLevel = 0
+	}
+
+	// Checking for the enable_if attribute here is what the LLVM
+	// demangler does.  This is not very general but perhaps it is
+	// sufficient.
+	const enableIfPrefix = "Ua9enable_ifI"
+	var enableIfArgs []AST
+	if strings.HasPrefix(st.str, enableIfPrefix) {
+		st.advance(len(enableIfPrefix) - 1)
+		enableIfArgs = st.templateArgs()
 	}
 
 	ft := st.bareFunctionType(hasReturnType(a))
 
 	if template != nil {
 		st.templates = st.templates[:len(st.templates)-1]
+		st.lambdaTemplateLevel = oldLambdaTemplateLevel
 	}
 
 	ft = simplify(ft)
+
+	// For a local name, discard the return type, so that it
+	// doesn't get confused with the top level return type.
+	if local == forLocalName {
+		if functype, ok := ft.(*FunctionType); ok {
+			functype.ForLocalName = true
+		}
+	}
 
 	// Any top-level qualifiers belong to the function type.
 	if mwq != nil {
@@ -334,13 +457,24 @@ func (st *state) encoding(params bool) AST {
 		}
 	}
 
-	return &Typed{Name: a, Type: ft}
+	r := AST(&Typed{Name: a, Type: ft})
+
+	if len(enableIfArgs) > 0 {
+		r = &EnableIf{Type: r, Args: enableIfArgs}
+	}
+
+	return r
 }
 
 // hasReturnType returns whether the mangled form of a will have a
 // return type.
 func hasReturnType(a AST) bool {
 	switch a := a.(type) {
+	case *Qualified:
+		if a.LocalName {
+			return hasReturnType(a.Name)
+		}
+		return false
 	case *Template:
 		return !isCDtorConversion(a.Name)
 	case *TypeWithQualifiers:
@@ -466,7 +600,7 @@ func (st *state) nestedName() AST {
 	q := st.cvQualifiers()
 	r := st.refQualifier()
 	a := st.prefix()
-	if len(q) > 0 || r != "" {
+	if q != nil || r != "" {
 		a = &MethodWithQualifiers{Method: a, Qualifiers: q, RefQualifier: r}
 	}
 	if len(st.str) == 0 || st.str[0] != 'E' {
@@ -517,7 +651,7 @@ func (st *state) prefix() AST {
 		var next AST
 
 		c := st.str[0]
-		if isDigit(c) || isLower(c) || c == 'U' || c == 'L' {
+		if isDigit(c) || isLower(c) || c == 'U' || c == 'L' || (c == 'D' && len(st.str) > 1 && st.str[1] == 'C') {
 			un, isUnCast := st.unqualifiedName()
 			next = un
 			if isUnCast {
@@ -526,14 +660,30 @@ func (st *state) prefix() AST {
 		} else {
 			switch st.str[0] {
 			case 'C':
-				if len(st.str) < 2 {
+				inheriting := false
+				st.advance(1)
+				if len(st.str) > 0 && st.str[0] == 'I' {
+					inheriting = true
+					st.advance(1)
+				}
+				if len(st.str) < 1 {
 					st.fail("expected constructor type")
 				}
 				if last == nil {
 					st.fail("constructor before name is seen")
 				}
-				st.advance(2)
-				next = &Constructor{Name: getLast(last)}
+				st.advance(1)
+				var base AST
+				if inheriting {
+					base = st.demangleType(false)
+				}
+				next = &Constructor{
+					Name: getLast(last),
+					Base: base,
+				}
+				if len(st.str) > 0 && st.str[0] == 'B' {
+					next = st.taggedName(next)
+				}
 			case 'D':
 				if len(st.str) > 1 && (st.str[1] == 'T' || st.str[1] == 't') {
 					next = st.demangleType(false)
@@ -546,6 +696,9 @@ func (st *state) prefix() AST {
 					}
 					st.advance(2)
 					next = &Destructor{Name: getLast(last)}
+					if len(st.str) > 0 && st.str[0] == 'B' {
+						next = st.taggedName(next)
+					}
 				}
 			case 'S':
 				next = st.substitution(true)
@@ -584,6 +737,29 @@ func (st *state) prefix() AST {
 				// gives appropriate output.
 				st.advance(1)
 				continue
+			case 'J':
+				// It appears that in some cases clang
+				// can emit a J for a template arg
+				// without the expected I.  I don't
+				// know when this happens, but I've
+				// seen it in some large C++ programs.
+				if a == nil {
+					st.fail("unexpected template arguments")
+				}
+				var args []AST
+				for len(st.str) == 0 || st.str[0] != 'E' {
+					arg := st.templateArg()
+					args = append(args, arg)
+				}
+				st.advance(1)
+				tmpl := &Template{Name: a, Args: args}
+				if isCast {
+					st.setTemplate(a, tmpl)
+					st.clearTemplateArgs(args)
+					isCast = false
+				}
+				a = nil
+				next = tmpl
 			default:
 				st.fail("unrecognized letter in prefix")
 			}
@@ -625,6 +801,18 @@ func (st *state) unqualifiedName() (r AST, isCast bool) {
 			n := st.sourceName()
 			a = &Unary{Op: op, Expr: n, Suffix: false, SizeofType: false}
 		}
+	} else if c == 'D' && len(st.str) > 1 && st.str[1] == 'C' {
+		var bindings []AST
+		st.advance(2)
+		for {
+			binding := st.sourceName()
+			bindings = append(bindings, binding)
+			if len(st.str) > 0 && st.str[0] == 'E' {
+				st.advance(1)
+				break
+			}
+		}
+		a = &StructuredBindings{Bindings: bindings}
 	} else {
 		switch c {
 		case 'C', 'D':
@@ -640,6 +828,10 @@ func (st *state) unqualifiedName() (r AST, isCast bool) {
 			}
 			c := st.str[1]
 			switch c {
+			case 'b':
+				st.advance(2)
+				st.compactNumber()
+				a = &Name{Name: "'block-literal'"}
 			case 'l':
 				a = st.closureTypeName()
 			case 't':
@@ -714,6 +906,42 @@ func (st *state) number() int {
 	return val
 }
 
+// <seq-id> ::= <0-9A-Z>+
+//
+// We expect this to be followed by an underscore.
+func (st *state) seqID(eofOK bool) int {
+	if len(st.str) > 0 && st.str[0] == '_' {
+		st.advance(1)
+		return 0
+	}
+	id := 0
+	for {
+		if len(st.str) == 0 {
+			if eofOK {
+				return id + 1
+			}
+			st.fail("missing end to sequence ID")
+		}
+		// Don't overflow a 32-bit int.
+		if id >= 0x80000000/36-36 {
+			st.fail("sequence ID overflow")
+		}
+		c := st.str[0]
+		if c == '_' {
+			st.advance(1)
+			return id + 1
+		}
+		if isDigit(c) {
+			id = id*36 + int(c-'0')
+		} else if isUpper(c) {
+			id = id*36 + int(c-'A') + 10
+		} else {
+			st.fail("invalid character in sequence ID")
+		}
+		st.advance(1)
+	}
+}
+
 // An operator is the demangled name, and the number of arguments it
 // takes in an expression.
 type operator struct {
@@ -730,19 +958,26 @@ var operators = map[string]operator{
 	"ad": {"&", 1},
 	"an": {"&", 2},
 	"at": {"alignof ", 1},
+	"aw": {"co_await ", 1},
 	"az": {"alignof ", 1},
 	"cc": {"const_cast", 2},
 	"cl": {"()", 2},
+	// cp is not in the ABI but is used by clang "when the call
+	// would use ADL except for being parenthesized."
+	"cp": {"()", 2},
 	"cm": {",", 2},
 	"co": {"~", 1},
 	"dV": {"/=", 2},
+	"dX": {"[...]=", 3},
 	"da": {"delete[] ", 1},
 	"dc": {"dynamic_cast", 2},
 	"de": {"*", 1},
+	"di": {"=", 2},
 	"dl": {"delete ", 1},
 	"ds": {".*", 2},
 	"dt": {".", 2},
 	"dv": {"/", 2},
+	"dx": {"]=", 2},
 	"eO": {"^=", 2},
 	"eo": {"^", 2},
 	"eq": {"==", 2},
@@ -769,6 +1004,7 @@ var operators = map[string]operator{
 	"ng": {"-", 1},
 	"nt": {"!", 1},
 	"nw": {"new", 3},
+	"nx": {"noexcept", 1},
 	"oR": {"|=", 2},
 	"oo": {"||", 2},
 	"or": {"|", 2},
@@ -784,7 +1020,10 @@ var operators = map[string]operator{
 	"rc": {"reinterpret_cast", 2},
 	"rm": {"%", 2},
 	"rs": {">>", 2},
+	"sP": {"sizeof...", 1},
+	"sZ": {"sizeof...", 1},
 	"sc": {"static_cast", 2},
+	"ss": {"<=>", 2},
 	"st": {"sizeof ", 1},
 	"sz": {"sizeof ", 1},
 	"tr": {"throw", 0},
@@ -834,7 +1073,7 @@ func (st *state) operatorName(inExpression bool) (AST, int) {
 //              ::= Z <(function) encoding> E d [<parameter> number>] _ <entity name>
 func (st *state) localName() AST {
 	st.checkChar('Z')
-	fn := st.encoding(true)
+	fn := st.encoding(true, forLocalName)
 	if len(st.str) == 0 || st.str[0] != 'E' {
 		st.fail("expected E after local name")
 	}
@@ -851,7 +1090,7 @@ func (st *state) localName() AST {
 			st.advance(1)
 			num = st.compactNumber()
 		}
-		var n AST = st.name()
+		n := st.name()
 		n = st.discriminator(n)
 		if num >= 0 {
 			n = &DefaultArg{Num: num, Arg: n}
@@ -904,6 +1143,7 @@ func (st *state) javaResource() AST {
 //                ::= TT <type>
 //                ::= TI <type>
 //                ::= TS <type>
+//                ::= TA <template-arg>
 //                ::= GV <(object) name>
 //                ::= T <call-offset> <(base) encoding>
 //                ::= Tc <call-offset> <call-offset> <(base) encoding>
@@ -937,18 +1177,21 @@ func (st *state) specialName() AST {
 		case 'S':
 			t := st.demangleType(false)
 			return &Special{Prefix: "typeinfo name for ", Val: t}
+		case 'A':
+			t := st.templateArg()
+			return &Special{Prefix: "template parameter object for ", Val: t}
 		case 'h':
 			st.callOffset('h')
-			v := st.encoding(true)
+			v := st.encoding(true, notForLocalName)
 			return &Special{Prefix: "non-virtual thunk to ", Val: v}
 		case 'v':
 			st.callOffset('v')
-			v := st.encoding(true)
+			v := st.encoding(true, notForLocalName)
 			return &Special{Prefix: "virtual thunk to ", Val: v}
 		case 'c':
 			st.callOffset(0)
 			st.callOffset(0)
-			v := st.encoding(true)
+			v := st.encoding(true, notForLocalName)
 			return &Special{Prefix: "covariant return thunk to ", Val: v}
 		case 'C':
 			derived := st.demangleType(false)
@@ -992,10 +1235,10 @@ func (st *state) specialName() AST {
 			return &Special{Prefix: "guard variable for ", Val: n}
 		case 'R':
 			n := st.name()
-			i := st.number()
-			return &Special{Prefix: fmt.Sprintf("reference temporary #%d for ", i), Val: n}
+			st.seqID(true)
+			return &Special{Prefix: "reference temporary for ", Val: n}
 		case 'A':
-			v := st.encoding(true)
+			v := st.encoding(true, notForLocalName)
 			return &Special{Prefix: "hidden alias for ", Val: v}
 		case 'T':
 			if len(st.str) == 0 {
@@ -1003,7 +1246,7 @@ func (st *state) specialName() AST {
 			}
 			c := st.str[0]
 			st.advance(1)
-			v := st.encoding(true)
+			v := st.encoding(true, notForLocalName)
 			switch c {
 			case 'n':
 				return &Special{Prefix: "non-transaction clone for ", Val: v}
@@ -1114,7 +1357,7 @@ func (st *state) demangleType(isCast bool) AST {
 	addSubst := true
 
 	q := st.cvQualifiers()
-	if len(q) > 0 {
+	if q != nil {
 		if len(st.str) == 0 {
 			st.fail("expected type")
 		}
@@ -1135,7 +1378,7 @@ func (st *state) demangleType(isCast bool) AST {
 	if btype, ok := builtinTypes[st.str[0]]; ok {
 		ret = &BuiltinType{Name: btype}
 		st.advance(1)
-		if len(q) > 0 {
+		if q != nil {
 			ret = &TypeWithQualifiers{Base: ret, Qualifiers: q}
 			st.subs.add(ret)
 		}
@@ -1155,6 +1398,23 @@ func (st *state) demangleType(isCast bool) AST {
 	case 'M':
 		ret = st.pointerToMemberType(isCast)
 	case 'T':
+		if len(st.str) > 1 && (st.str[1] == 's' || st.str[1] == 'u' || st.str[1] == 'e') {
+			c = st.str[1]
+			st.advance(2)
+			ret = st.name()
+			var kind string
+			switch c {
+			case 's':
+				kind = "struct"
+			case 'u':
+				kind = "union"
+			case 'e':
+				kind = "enum"
+			}
+			ret = &ElaboratedType{Kind: kind, Type: ret}
+			break
+		}
+
 		ret = st.templateParam()
 		if len(st.str) > 0 && st.str[0] == 'I' {
 			// See the function comment to explain this.
@@ -1262,6 +1522,8 @@ func (st *state) demangleType(isCast bool) AST {
 
 		case 'a':
 			ret = &Name{Name: "auto"}
+		case 'c':
+			ret = &Name{Name: "decltype(auto)"}
 
 		case 'f':
 			ret = &BuiltinType{Name: "decimal32"}
@@ -1271,6 +1533,8 @@ func (st *state) demangleType(isCast bool) AST {
 			ret = &BuiltinType{Name: "decimal128"}
 		case 'h':
 			ret = &BuiltinType{Name: "half"}
+		case 'u':
+			ret = &BuiltinType{Name: "char8_t"}
 		case 's':
 			ret = &BuiltinType{Name: "char16_t"}
 		case 'i':
@@ -1319,7 +1583,7 @@ func (st *state) demangleType(isCast bool) AST {
 		}
 	}
 
-	if len(q) > 0 {
+	if q != nil {
 		if _, ok := ret.(*FunctionType); ok {
 			ret = &MethodWithQualifiers{Method: ret, Qualifiers: q, RefQualifier: ""}
 		} else if mwq, ok := ret.(*MethodWithQualifiers); ok {
@@ -1409,17 +1673,32 @@ func (st *state) demangleCastTemplateArgs(tp AST, addSubst bool) AST {
 }
 
 // mergeQualifiers merges two qualifer lists into one.
-func mergeQualifiers(q1, q2 Qualifiers) Qualifiers {
-	m := make(map[string]bool)
-	for _, qual := range q1 {
-		m[qual] = true
+func mergeQualifiers(q1AST, q2AST AST) AST {
+	if q1AST == nil {
+		return q2AST
 	}
-	for _, qual := range q2 {
-		if !m[qual] {
-			q1 = append(q1, qual)
-			m[qual] = true
+	if q2AST == nil {
+		return q1AST
+	}
+	q1 := q1AST.(*Qualifiers)
+	m := make(map[string]bool)
+	for _, qualAST := range q1.Qualifiers {
+		qual := qualAST.(*Qualifier)
+		if len(qual.Exprs) == 0 {
+			m[qual.Name] = true
 		}
 	}
+	rq := q1.Qualifiers
+	for _, qualAST := range q2AST.(*Qualifiers).Qualifiers {
+		qual := qualAST.(*Qualifier)
+		if len(qual.Exprs) > 0 {
+			rq = append(rq, qualAST)
+		} else if !m[qual.Name] {
+			rq = append(rq, qualAST)
+			m[qual.Name] = true
+		}
+	}
+	q1.Qualifiers = rq
 	return q1
 }
 
@@ -1432,20 +1711,51 @@ var qualifiers = map[byte]string{
 }
 
 // <CV-qualifiers> ::= [r] [V] [K]
-func (st *state) cvQualifiers() Qualifiers {
-	var q Qualifiers
+func (st *state) cvQualifiers() AST {
+	var q []AST
+qualLoop:
 	for len(st.str) > 0 {
 		if qv, ok := qualifiers[st.str[0]]; ok {
-			q = append([]string{qv}, q...)
+			qual := &Qualifier{Name: qv}
+			q = append([]AST{qual}, q...)
 			st.advance(1)
-		} else if len(st.str) > 1 && st.str[:2] == "Dx" {
-			q = append([]string{"transaction_safe"}, q...)
-			st.advance(2)
+		} else if len(st.str) > 1 && st.str[0] == 'D' {
+			var qual AST
+			switch st.str[1] {
+			case 'x':
+				qual = &Qualifier{Name: "transaction_safe"}
+				st.advance(2)
+			case 'o':
+				qual = &Qualifier{Name: "noexcept"}
+				st.advance(2)
+			case 'O':
+				st.advance(2)
+				expr := st.expression()
+				if len(st.str) == 0 || st.str[0] != 'E' {
+					st.fail("expected E after computed noexcept expression")
+				}
+				st.advance(1)
+				qual = &Qualifier{Name: "noexcept", Exprs: []AST{expr}}
+			case 'w':
+				st.advance(2)
+				parmlist := st.parmlist()
+				if len(st.str) == 0 || st.str[0] != 'E' {
+					st.fail("expected E after throw parameter list")
+				}
+				st.advance(1)
+				qual = &Qualifier{Name: "throw", Exprs: parmlist}
+			default:
+				break qualLoop
+			}
+			q = append([]AST{qual}, q...)
 		} else {
 			break
 		}
 	}
-	return q
+	if len(q) == 0 {
+		return nil
+	}
+	return &Qualifiers{Qualifiers: q}
 }
 
 // <ref-qualifier> ::= R
@@ -1529,7 +1839,11 @@ func (st *state) bareFunctionType(hasReturnType bool) AST {
 		returnType = st.demangleType(false)
 	}
 	types := st.parmlist()
-	return &FunctionType{Return: returnType, Args: types}
+	return &FunctionType{
+		Return:       returnType,
+		Args:         types,
+		ForLocalName: false, // may be set later in encoding
+	}
 }
 
 // <array-type> ::= A <(positive dimension) number> _ <(element) type>
@@ -1646,6 +1960,8 @@ func (st *state) compactNumber() int {
 
 // <template-param> ::= T_
 //                  ::= T <(parameter-2 non-negative) number> _
+//                  ::= TL <level-1> __
+//                  ::= TL <level-1> _ <parameter-2 non-negative number> _
 //
 // When a template parameter is a substitution candidate, any
 // reference to that substitution refers to the template parameter
@@ -1653,15 +1969,27 @@ func (st *state) compactNumber() int {
 // whatever the template parameter would be expanded to here.  We sort
 // this out in substitution and simplify.
 func (st *state) templateParam() AST {
-	if len(st.templates) == 0 {
-		st.fail("template parameter not in scope of template")
-	}
 	off := st.off
-
 	st.checkChar('T')
+
+	level := 0
+	if len(st.str) > 0 && st.str[0] == 'L' {
+		st.advance(1)
+		level = st.compactNumber()
+	}
+
 	n := st.compactNumber()
 
-	template := st.templates[len(st.templates)-1]
+	if level >= len(st.templates) {
+		if st.lambdaTemplateLevel > 0 && level == st.lambdaTemplateLevel-1 {
+			// Lambda auto params are mangled as template params.
+			// See https://gcc.gnu.org/PR78252.
+			return &LambdaAuto{Index: n}
+		}
+		st.failEarlier(fmt.Sprintf("template parameter is not in scope of template (level %d >= %d)", level, len(st.templates)), st.off-off)
+	}
+
+	template := st.templates[level]
 
 	if template == nil {
 		// We are parsing a cast operator.  If the cast is
@@ -1671,6 +1999,11 @@ func (st *state) templateParam() AST {
 	}
 
 	if n >= len(template.Args) {
+		if st.lambdaTemplateLevel > 0 && level == st.lambdaTemplateLevel-1 {
+			// Lambda auto params are mangled as template params.
+			// See https://gcc.gnu.org/PR78252.
+			return &LambdaAuto{Index: n}
+		}
 		st.failEarlier(fmt.Sprintf("template index out of range (%d >= %d)", n, len(template.Args)), st.off-off)
 	}
 
@@ -1698,6 +2031,10 @@ func (st *state) setTemplate(a AST, tmpl *Template) {
 				st.fail(fmt.Sprintf("cast template index out of range (%d >= %d)", a.Index, len(tmpl.Args)))
 			}
 			a.Template = tmpl
+			return false
+		case *Closure:
+			// There are no template params in closure types.
+			// https://gcc.gnu.org/PR78252.
 			return false
 		default:
 			for _, v := range seen {
@@ -1788,12 +2125,63 @@ func (st *state) exprList(stop byte) AST {
 // <expression> ::= <(unary) operator-name> <expression>
 //              ::= <(binary) operator-name> <expression> <expression>
 //              ::= <(trinary) operator-name> <expression> <expression> <expression>
+//              ::= pp_ <expression>
+//              ::= mm_ <expression>
 //              ::= cl <expression>+ E
+//              ::= cl <expression>+ E
+//              ::= cv <type> <expression>
+//              ::= cv <type> _ <expression>* E
+//              ::= tl <type> <braced-expression>* E
+//              ::= il <braced-expression>* E
+//              ::= [gs] nw <expression>* _ <type> E
+//              ::= [gs] nw <expression>* _ <type> <initializer>
+//              ::= [gs] na <expression>* _ <type> E
+//              ::= [gs] na <expression>* _ <type> <initializer>
+//              ::= [gs] dl <expression>
+//              ::= [gs] da <expression>
+//              ::= dc <type> <expression>
+//              ::= sc <type> <expression>
+//              ::= cc <type> <expression>
+//              ::= mc <parameter type> <expr> [<offset number>] E
+//              ::= rc <type> <expression>
+//              ::= ti <type>
+//              ::= te <expression>
+//              ::= so <referent type> <expr> [<offset number>] <union-selector>* [p] E
 //              ::= st <type>
+//              ::= sz <expression>
+//              ::= at <type>
+//              ::= az <expression>
+//              ::= nx <expression>
 //              ::= <template-param>
-//              ::= sr <type> <unqualified-name>
-//              ::= sr <type> <unqualified-name> <template-args>
+//              ::= <function-param>
+//              ::= dt <expression> <unresolved-name>
+//              ::= pt <expression> <unresolved-name>
+//              ::= ds <expression> <expression>
+//              ::= sZ <template-param>
+//              ::= sZ <function-param>
+//              ::= sP <template-arg>* E
+//              ::= sp <expression>
+//              ::= fl <binary operator-name> <expression>
+//              ::= fr <binary operator-name> <expression>
+//              ::= fL <binary operator-name> <expression> <expression>
+//              ::= fR <binary operator-name> <expression> <expression>
+//              ::= tw <expression>
+//              ::= tr
+//              ::= u <source-name> <template-arg>* E
+//              ::= <unresolved-name>
 //              ::= <expr-primary>
+//
+// <function-param> ::= fp <CV-qualifiers> _
+//                  ::= fp <CV-qualifiers> <number>
+//                  ::= fL <number> p <CV-qualifiers> _
+//                  ::= fL <number> p <CV-qualifiers> <number>
+//                  ::= fpT
+//
+// <braced-expression> ::= <expression>
+//                     ::= di <field source-name> <braced-expression>
+//                     ::= dx <index expression> <braced-expression>
+//                     ::= dX <range begin expression> <range end expression> <braced-expression>
+//
 func (st *state) expression() AST {
 	if len(st.str) == 0 {
 		st.fail("expected expression")
@@ -1802,62 +2190,11 @@ func (st *state) expression() AST {
 		return st.exprPrimary()
 	} else if st.str[0] == 'T' {
 		return st.templateParam()
-	} else if st.str[0] == 's' && len(st.str) > 1 && st.str[1] == 'r' {
+	} else if st.str[0] == 's' && len(st.str) > 1 && st.str[1] == 'o' {
 		st.advance(2)
-		if len(st.str) == 0 {
-			st.fail("expected unresolved type")
-		}
-		switch st.str[0] {
-		case 'T', 'D', 'S':
-			t := st.demangleType(false)
-			n := st.baseUnresolvedName()
-			n = &Qualified{Scope: t, Name: n, LocalName: false}
-			if len(st.str) > 0 && st.str[0] == 'I' {
-				args := st.templateArgs()
-				n = &Template{Name: n, Args: args}
-			}
-			return n
-		default:
-			var s AST
-			if st.str[0] == 'N' {
-				st.advance(1)
-				s = st.demangleType(false)
-			}
-			for len(st.str) == 0 || st.str[0] != 'E' {
-				// GCC does not seem to follow the ABI here.
-				// It can emit type/name without an 'E'.
-				if s != nil && len(st.str) > 0 && !isDigit(st.str[0]) {
-					if q, ok := s.(*Qualified); ok {
-						a := q.Scope
-						if t, ok := a.(*Template); ok {
-							st.subs.add(t.Name)
-							st.subs.add(t)
-						} else {
-							st.subs.add(a)
-						}
-						return s
-					}
-				}
-				n := st.sourceName()
-				if len(st.str) > 0 && st.str[0] == 'I' {
-					st.subs.add(n)
-					args := st.templateArgs()
-					n = &Template{Name: n, Args: args}
-				}
-				if s == nil {
-					s = n
-				} else {
-					s = &Qualified{Scope: s, Name: n, LocalName: false}
-				}
-				st.subs.add(s)
-			}
-			if s == nil {
-				st.fail("missing scope in unresolved name")
-			}
-			st.advance(1)
-			n := st.baseUnresolvedName()
-			return &Qualified{Scope: s, Name: n, LocalName: false}
-		}
+		return st.subobject()
+	} else if st.str[0] == 's' && len(st.str) > 1 && st.str[1] == 'r' {
+		return st.unresolvedName()
 	} else if st.str[0] == 's' && len(st.str) > 1 && st.str[1] == 'p' {
 		st.advance(2)
 		e := st.expression()
@@ -1887,8 +2224,41 @@ func (st *state) expression() AST {
 			st.advance(1)
 			return &FunctionParam{Index: 0}
 		} else {
+			// We can see qualifiers here, but we don't
+			// include them in the demangled string.
+			st.cvQualifiers()
 			index := st.compactNumber()
 			return &FunctionParam{Index: index + 1}
+		}
+	} else if st.str[0] == 'f' && len(st.str) > 2 && st.str[1] == 'L' && isDigit(st.str[2]) {
+		st.advance(2)
+		// We don't include the scope count in the demangled string.
+		st.number()
+		if len(st.str) == 0 || st.str[0] != 'p' {
+			st.fail("expected p after function parameter scope count")
+		}
+		st.advance(1)
+		// We can see qualifiers here, but we don't include them
+		// in the demangled string.
+		st.cvQualifiers()
+		index := st.compactNumber()
+		return &FunctionParam{Index: index + 1}
+	} else if st.str[0] == 'm' && len(st.str) > 1 && st.str[1] == 'c' {
+		st.advance(2)
+		typ := st.demangleType(false)
+		expr := st.expression()
+		offset := 0
+		if len(st.str) > 0 && (st.str[0] == 'n' || isDigit(st.str[0])) {
+			offset = st.number()
+		}
+		if len(st.str) == 0 || st.str[0] != 'E' {
+			st.fail("expected E after pointer-to-member conversion")
+		}
+		st.advance(1)
+		return &PtrMemCast{
+			Type:   typ,
+			Expr:   expr,
+			Offset: offset,
 		}
 	} else if isDigit(st.str[0]) || (st.str[0] == 'o' && len(st.str) > 1 && st.str[1] == 'n') {
 		if st.str[0] == 'o' {
@@ -1915,6 +2285,50 @@ func (st *state) expression() AST {
 		o, _ := st.operatorName(true)
 		t := st.demangleType(false)
 		return &Unary{Op: o, Expr: t, Suffix: false, SizeofType: true}
+	} else if st.str[0] == 'u' {
+		st.advance(1)
+		name := st.sourceName()
+		// Special case __uuidof followed by type or
+		// expression, as used by LLVM.
+		if n, ok := name.(*Name); ok && n.Name == "__uuidof" {
+			if len(st.str) < 2 {
+				st.fail("missing uuidof argument")
+			}
+			var operand AST
+			if st.str[0] == 't' {
+				st.advance(1)
+				operand = st.demangleType(false)
+			} else if st.str[0] == 'z' {
+				st.advance(1)
+				operand = st.expression()
+			}
+			if operand != nil {
+				return &Binary{
+					Op:   &Operator{Name: "()"},
+					Left: name,
+					Right: &ExprList{
+						Exprs: []AST{operand},
+					},
+				}
+			}
+		}
+		var args []AST
+		for {
+			if len(st.str) == 0 {
+				st.fail("missing argument in vendor extended expressoin")
+			}
+			if st.str[0] == 'E' {
+				st.advance(1)
+				break
+			}
+			arg := st.templateArg()
+			args = append(args, arg)
+		}
+		return &Binary{
+			Op:    &Operator{Name: "()"},
+			Left:  name,
+			Right: &ExprList{Exprs: args},
+		}
 	} else {
 		if len(st.str) < 2 {
 			st.fail("missing operator code")
@@ -1951,13 +2365,15 @@ func (st *state) expression() AST {
 				left, _ = st.operatorName(true)
 				right = st.expression()
 				return &Fold{Left: code[1] == 'l', Op: left, Arg1: right, Arg2: nil}
+			} else if code == "di" {
+				left, _ = st.unqualifiedName()
 			} else {
 				left = st.expression()
 			}
-			if code == "cl" {
+			if code == "cl" || code == "cp" {
 				right = st.exprList('E')
 			} else if code == "dt" || code == "pt" {
-				right, _ = st.unqualifiedName()
+				right = st.unresolvedName()
 				if len(st.str) > 0 && st.str[0] == 'I' {
 					args := st.templateArgs()
 					right = &Template{Name: right, Args: args}
@@ -2007,6 +2423,118 @@ func (st *state) expression() AST {
 			st.fail(fmt.Sprintf("unsupported number of operator arguments: %d", args))
 			panic("not reached")
 		}
+	}
+}
+
+// <expression> ::= so <referent type> <expr> [<offset number>] <union-selector>* [p] E
+// <union-selector> ::= _ [<number>]
+func (st *state) subobject() AST {
+	typ := st.demangleType(false)
+	expr := st.expression()
+	offset := 0
+	if len(st.str) > 0 && (st.str[0] == 'n' || isDigit(st.str[0])) {
+		offset = st.number()
+	}
+	var selectors []int
+	for len(st.str) > 0 && st.str[0] == '_' {
+		st.advance(1)
+		selector := 0
+		if len(st.str) > 0 && (st.str[0] == 'n' || isDigit(st.str[0])) {
+			selector = st.number()
+		}
+		selectors = append(selectors, selector)
+	}
+	pastEnd := false
+	if len(st.str) > 0 && st.str[0] == 'p' {
+		st.advance(1)
+		pastEnd = true
+	}
+	if len(st.str) == 0 || st.str[0] != 'E' {
+		st.fail("expected E after subobject")
+	}
+	st.advance(1)
+	return &Subobject{
+		Type:      typ,
+		SubExpr:   expr,
+		Offset:    offset,
+		Selectors: selectors,
+		PastEnd:   pastEnd,
+	}
+}
+
+// <unresolved-name> ::= [gs] <base-unresolved-name>
+//                   ::= sr <unresolved-type> <base-unresolved-name>
+//                   ::= srN <unresolved-type> <unresolved-qualifier-level>+ E <base-unresolved-name>
+//                   ::= [gs] sr <unresolved-qualifier-level>+ E <base-unresolved-name>
+func (st *state) unresolvedName() AST {
+	if len(st.str) >= 2 && st.str[:2] == "gs" {
+		st.advance(2)
+		n := st.unresolvedName()
+		return &Unary{
+			Op:         &Operator{Name: "::"},
+			Expr:       n,
+			Suffix:     false,
+			SizeofType: false,
+		}
+	} else if len(st.str) >= 2 && st.str[:2] == "sr" {
+		st.advance(2)
+		if len(st.str) == 0 {
+			st.fail("expected unresolved type")
+		}
+		switch st.str[0] {
+		case 'T', 'D', 'S':
+			t := st.demangleType(false)
+			n := st.baseUnresolvedName()
+			n = &Qualified{Scope: t, Name: n, LocalName: false}
+			if len(st.str) > 0 && st.str[0] == 'I' {
+				args := st.templateArgs()
+				n = &Template{Name: n, Args: args}
+				st.subs.add(n)
+			}
+			return n
+		default:
+			var s AST
+			if st.str[0] == 'N' {
+				st.advance(1)
+				s = st.demangleType(false)
+			}
+			for len(st.str) == 0 || st.str[0] != 'E' {
+				// GCC does not seem to follow the ABI here.
+				// It can emit type/name without an 'E'.
+				if s != nil && len(st.str) > 0 && !isDigit(st.str[0]) {
+					if q, ok := s.(*Qualified); ok {
+						a := q.Scope
+						if t, ok := a.(*Template); ok {
+							st.subs.add(t.Name)
+							st.subs.add(t)
+						} else {
+							st.subs.add(a)
+						}
+						return s
+					}
+				}
+				n := st.sourceName()
+				if len(st.str) > 0 && st.str[0] == 'I' {
+					st.subs.add(n)
+					args := st.templateArgs()
+					n = &Template{Name: n, Args: args}
+				}
+				if s == nil {
+					s = n
+				} else {
+					s = &Qualified{Scope: s, Name: n, LocalName: false}
+				}
+				st.subs.add(s)
+			}
+			if s == nil {
+				st.fail("missing scope in unresolved name")
+			}
+			st.advance(1)
+			n := st.baseUnresolvedName()
+			return &Qualified{Scope: s, Name: n, LocalName: false}
+		}
+	} else {
+		return st.baseUnresolvedName()
 	}
 }
 
@@ -2065,14 +2593,39 @@ func (st *state) exprPrimary() AST {
 			st.fail("expected mangled name")
 		}
 		st.advance(1)
-		ret = st.encoding(true)
+		ret = st.encoding(true, notForLocalName)
 	} else {
 		t := st.demangleType(false)
+
+		isArrayType := func(typ AST) bool {
+			if twq, ok := typ.(*TypeWithQualifiers); ok {
+				typ = twq.Base
+			}
+			_, ok := typ.(*ArrayType)
+			return ok
+		}
 
 		neg := false
 		if len(st.str) > 0 && st.str[0] == 'n' {
 			neg = true
 			st.advance(1)
+		}
+		if len(st.str) > 0 && st.str[0] == 'E' {
+			if bt, ok := t.(*BuiltinType); ok && bt.Name == "decltype(nullptr)" {
+				// A nullptr should not have a value.
+				// We accept one if present because GCC
+				// used to generate one.
+				// https://gcc.gnu.org/PR91979.
+			} else if cl, ok := t.(*Closure); ok {
+				// A closure doesn't have a value.
+				st.advance(1)
+				return &LambdaExpr{Type: cl}
+			} else if isArrayType(t) {
+				st.advance(1)
+				return &StringLiteral{Type: t}
+			} else {
+				st.fail("missing literal value")
+			}
 		}
 		i := 0
 		for len(st.str) > i && st.str[i] != 'E' {
@@ -2089,16 +2642,37 @@ func (st *state) exprPrimary() AST {
 	return ret
 }
 
-// <discriminator> ::= _ <(non-negative) number>
+// <discriminator> ::= _ <(non-negative) number> (when number < 10)
+//                     __ <(non-negative) number> _ (when number >= 10)
 func (st *state) discriminator(a AST) AST {
 	if len(st.str) == 0 || st.str[0] != '_' {
+		// clang can generate a discriminator at the end of
+		// the string with no underscore.
+		for i := 0; i < len(st.str); i++ {
+			if !isDigit(st.str[i]) {
+				return a
+			}
+		}
+		// Skip the trailing digits.
+		st.advance(len(st.str))
 		return a
 	}
 	off := st.off
 	st.advance(1)
+	trailingUnderscore := false
+	if len(st.str) > 0 && st.str[0] == '_' {
+		st.advance(1)
+		trailingUnderscore = true
+	}
 	d := st.number()
 	if d < 0 {
 		st.failEarlier("invalid negative discriminator", st.off-off)
+	}
+	if trailingUnderscore && d >= 10 {
+		if len(st.str) == 0 || st.str[0] != '_' {
+			st.fail("expected _ after discriminator >= 10")
+		}
+		st.advance(1)
 	}
 	// We don't currently print out the discriminator, so we don't
 	// save it.
@@ -2106,18 +2680,131 @@ func (st *state) discriminator(a AST) AST {
 }
 
 // <closure-type-name> ::= Ul <lambda-sig> E [ <nonnegative number> ] _
+// <lambda-sig> ::= <parameter type>+
 func (st *state) closureTypeName() AST {
 	st.checkChar('U')
 	st.checkChar('l')
+
+	oldLambdaTemplateLevel := st.lambdaTemplateLevel
+	st.lambdaTemplateLevel = len(st.templates) + 1
+
+	var templateArgs []AST
+	var template *Template
+	for len(st.str) > 1 && st.str[0] == 'T' {
+		arg, templateVal := st.templateParamDecl()
+		if arg == nil {
+			break
+		}
+		templateArgs = append(templateArgs, arg)
+		if template == nil {
+			template = &Template{
+				Name: &Name{Name: "lambda"},
+			}
+			st.templates = append(st.templates, template)
+		}
+		template.Args = append(template.Args, templateVal)
+	}
+
 	types := st.parmlist()
+
+	st.lambdaTemplateLevel = oldLambdaTemplateLevel
+
+	if template != nil {
+		st.templates = st.templates[:len(st.templates)-1]
+	}
+
 	if len(st.str) == 0 || st.str[0] != 'E' {
 		st.fail("expected E after closure type name")
 	}
 	st.advance(1)
 	num := st.compactNumber()
-	ret := &Closure{Types: types, Num: num}
-	st.subs.add(ret)
-	return ret
+	return &Closure{TemplateArgs: templateArgs, Types: types, Num: num}
+}
+
+// <template-param-decl> ::= Ty                          # type parameter
+//                       ::= Tn <type>                   # non-type parameter
+//                       ::= Tt <template-param-decl>* E # template parameter
+//                       ::= Tp <template-param-decl>    # parameter pack
+//
+// Returns the new AST to include in the AST we are building and the
+// new AST to add to the list of template parameters.
+//
+// Returns nil, nil if not looking at a template-param-decl.
+func (st *state) templateParamDecl() (AST, AST) {
+	if len(st.str) < 2 || st.str[0] != 'T' {
+		return nil, nil
+	}
+	mk := func(prefix string, p *int) AST {
+		idx := *p
+		(*p)++
+		return &TemplateParamName{
+			Prefix: prefix,
+			Index:  idx,
+		}
+	}
+	switch st.str[1] {
+	case 'y':
+		st.advance(2)
+		name := mk("$T", &st.typeTemplateParamCount)
+		tp := &TypeTemplateParam{
+			Name: name,
+		}
+		return tp, name
+	case 'n':
+		st.advance(2)
+		name := mk("$N", &st.nonTypeTemplateParamCount)
+		typ := st.demangleType(false)
+		tp := &NonTypeTemplateParam{
+			Name: name,
+			Type: typ,
+		}
+		return tp, name
+	case 't':
+		st.advance(2)
+		name := mk("$TT", &st.templateTemplateParamCount)
+		var params []AST
+		var template *Template
+		for {
+			if len(st.str) == 0 {
+				st.fail("expected closure template parameter")
+			}
+			if st.str[0] == 'E' {
+				st.advance(1)
+				break
+			}
+			off := st.off
+			param, templateVal := st.templateParamDecl()
+			if param == nil {
+				st.failEarlier("expected closure template parameter", st.off-off)
+			}
+			params = append(params, param)
+			if template == nil {
+				template = &Template{
+					Name: &Name{Name: "template_template"},
+				}
+				st.templates = append(st.templates, template)
+			}
+			template.Args = append(template.Args, templateVal)
+		}
+		if template != nil {
+			st.templates = st.templates[:len(st.templates)-1]
+		}
+		tp := &TemplateTemplateParam{
+			Name:   name,
+			Params: params,
+		}
+		return tp, name
+	case 'p':
+		st.advance(2)
+		off := st.off
+		param, templateVal := st.templateParamDecl()
+		if param == nil {
+			st.failEarlier("expected lambda template parameter", st.off-off)
+		}
+		return &TemplateParamPack{Param: param}, templateVal
+	default:
+		return nil, nil
+	}
 }
 
 // <unnamed-type-name> ::= Ut [ <nonnegative number> ] _
@@ -2231,36 +2918,11 @@ func (st *state) substitution(forPrefix bool) AST {
 		st.fail("missing substitution index")
 	}
 	c := st.str[0]
-	st.advance(1)
-	dec := 1
+	off := st.off
 	if c == '_' || isDigit(c) || isUpper(c) {
-		id := 0
-		if c != '_' {
-			for c != '_' {
-				// Don't overflow a 32-bit int.
-				if id >= 0x80000000/36-36 {
-					st.fail("substitution index overflow")
-				}
-				if isDigit(c) {
-					id = id*36 + int(c-'0')
-				} else if isUpper(c) {
-					id = id*36 + int(c-'A') + 10
-				} else {
-					st.fail("invalid character in substitution index")
-				}
-
-				if len(st.str) == 0 {
-					st.fail("missing end to substitution index")
-				}
-				c = st.str[0]
-				st.advance(1)
-				dec++
-			}
-			id++
-		}
-
+		id := st.seqID(false)
 		if id >= len(st.subs) {
-			st.failEarlier(fmt.Sprintf("substitution index out of range (%d >= %d)", id, len(st.subs)), dec)
+			st.failEarlier(fmt.Sprintf("substitution index out of range (%d >= %d)", id, len(st.subs)), st.off-off)
 		}
 
 		ret := st.subs[id]
@@ -2268,31 +2930,94 @@ func (st *state) substitution(forPrefix bool) AST {
 		// We need to update any references to template
 		// parameters to refer to the currently active
 		// template.
+
+		// When copying a Typed we may need to adjust
+		// the templates.
+		copyTemplates := st.templates
+		var oldLambdaTemplateLevel []int
+
+		// pushTemplate is called from skip, popTemplate from copy.
+		pushTemplate := func(template *Template) {
+			copyTemplates = append(copyTemplates, template)
+			oldLambdaTemplateLevel = append(oldLambdaTemplateLevel, st.lambdaTemplateLevel)
+			st.lambdaTemplateLevel = 0
+		}
+		popTemplate := func() {
+			copyTemplates = copyTemplates[:len(copyTemplates)-1]
+			st.lambdaTemplateLevel = oldLambdaTemplateLevel[len(oldLambdaTemplateLevel)-1]
+			oldLambdaTemplateLevel = oldLambdaTemplateLevel[:len(oldLambdaTemplateLevel)-1]
+		}
+
 		copy := func(a AST) AST {
-			tp, ok := a.(*TemplateParam)
-			if !ok {
+			var index int
+			switch a := a.(type) {
+			case *Typed:
+				// Remove the template added in skip.
+				if _, ok := a.Name.(*Template); ok {
+					popTemplate()
+				}
+				return nil
+			case *Closure:
+				// Undo the save in skip.
+				st.lambdaTemplateLevel = oldLambdaTemplateLevel[len(oldLambdaTemplateLevel)-1]
+				oldLambdaTemplateLevel = oldLambdaTemplateLevel[:len(oldLambdaTemplateLevel)-1]
+				return nil
+			case *TemplateParam:
+				index = a.Index
+			case *LambdaAuto:
+				// A lambda auto parameter is represented
+				// as a template parameter, so we may have
+				// to change back when substituting.
+				index = a.Index
+			default:
 				return nil
 			}
-			if len(st.templates) == 0 {
-				st.failEarlier("substituted template parameter not in scope of template", dec)
+			if st.lambdaTemplateLevel > 0 {
+				if _, ok := a.(*LambdaAuto); ok {
+					return nil
+				}
+				return &LambdaAuto{Index: index}
 			}
-			template := st.templates[len(st.templates)-1]
+			var template *Template
+			if len(copyTemplates) > 0 {
+				template = copyTemplates[len(copyTemplates)-1]
+			} else if rt, ok := ret.(*Template); ok {
+				// At least with clang we can see a template
+				// to start, and sometimes we need to refer
+				// to it. There is probably something wrong
+				// here.
+				template = rt
+			} else {
+				st.failEarlier("substituted template parameter not in scope of template", st.off-off)
+			}
 			if template == nil {
 				// This template parameter is within
 				// the scope of a cast operator.
-				return &TemplateParam{Index: tp.Index, Template: nil}
+				return &TemplateParam{Index: index, Template: nil}
 			}
 
-			if tp.Index >= len(template.Args) {
-				st.failEarlier(fmt.Sprintf("substituted template index out of range (%d >= %d)", tp.Index, len(template.Args)), dec)
+			if index >= len(template.Args) {
+				st.failEarlier(fmt.Sprintf("substituted template index out of range (%d >= %d)", index, len(template.Args)), st.off-off)
 			}
 
-			return &TemplateParam{Index: tp.Index, Template: template}
+			return &TemplateParam{Index: index, Template: template}
 		}
 		var seen []AST
 		skip := func(a AST) bool {
-			if _, ok := a.(*Typed); ok {
-				return true
+			switch a := a.(type) {
+			case *Typed:
+				if template, ok := a.Name.(*Template); ok {
+					// This template is removed in copy.
+					pushTemplate(template)
+				}
+				return false
+			case *Closure:
+				// This is undone in copy.
+				oldLambdaTemplateLevel = append(oldLambdaTemplateLevel, st.lambdaTemplateLevel)
+				st.lambdaTemplateLevel = len(copyTemplates) + 1
+				return false
+			case *TemplateParam, *LambdaAuto:
+				return false
 			}
 			for _, v := range seen {
 				if v == a {
@@ -2302,12 +3027,14 @@ func (st *state) substitution(forPrefix bool) AST {
 			seen = append(seen, a)
 			return false
 		}
+
 		if c := ret.Copy(copy, skip); c != nil {
 			return c
 		}
 
 		return ret
 	} else {
+		st.advance(1)
 		m := subAST
 		if st.verbose {
 			m = verboseAST
@@ -2324,6 +3051,7 @@ func (st *state) substitution(forPrefix bool) AST {
 
 		if len(st.str) > 0 && st.str[0] == 'B' {
 			a = st.taggedName(a)
+			st.subs.add(a)
 		}
 
 		return a

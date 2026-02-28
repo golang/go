@@ -2,27 +2,31 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package main_test
 
 import (
-	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"cmd/go/internal/robustio"
 )
 
 func TestAbsolutePath(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "TestAbsolutePath")
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+
+	tmp, err := os.MkdirTemp("", "TestAbsolutePath")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmp)
+	defer robustio.RemoveAll(tmp)
 
 	file := filepath.Join(tmp, "a.go")
-	err = ioutil.WriteFile(file, []byte{}, 0644)
+	err = os.WriteFile(file, []byte{}, 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,21 +36,11 @@ func TestAbsolutePath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(wd)
-
-	// Chdir so current directory and a.go reside on the same drive.
-	err = os.Chdir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	noVolume := file[len(filepath.VolumeName(file)):]
 	wrongPath := filepath.Join(dir, noVolume)
-	output, err := exec.Command(testenv.GoToolPath(t), "build", noVolume).CombinedOutput()
+	cmd := exec.Command(tg.goTool(), "build", noVolume)
+	cmd.Dir = dir
+	output, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatal("build should fail")
 	}

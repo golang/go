@@ -1007,9 +1007,9 @@ func TestFloatFloat64(t *testing.T) {
 		{"0x.fffffffffffffp-1022", smallestNormalFloat64 - math.SmallestNonzeroFloat64, Exact},
 		{"4503599627370495p-1074", smallestNormalFloat64 - math.SmallestNonzeroFloat64, Exact},
 
-		// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+		// https://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
 		{"2.2250738585072011e-308", 2.225073858507201e-308, Below},
-		// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+		// https://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
 		{"2.2250738585072012e-308", 2.2250738585072014e-308, Above},
 	} {
 		for i := 0; i < 2; i++ {
@@ -1258,6 +1258,31 @@ func TestFloatAdd(t *testing.T) {
 	}
 }
 
+// TestFloatAddRoundZero tests Float.Add/Sub rounding when the result is exactly zero.
+// x + (-x) or x - x for non-zero x should be +0 in all cases except when
+// the rounding mode is ToNegativeInf in which case it should be -0.
+func TestFloatAddRoundZero(t *testing.T) {
+	for _, mode := range [...]RoundingMode{ToNearestEven, ToNearestAway, ToZero, AwayFromZero, ToPositiveInf, ToNegativeInf} {
+		x := NewFloat(5.0)
+		y := new(Float).Neg(x)
+		want := NewFloat(0.0)
+		if mode == ToNegativeInf {
+			want.Neg(want)
+		}
+		got := new(Float).SetMode(mode)
+		got.Add(x, y)
+		if got.Cmp(want) != 0 || got.neg != (mode == ToNegativeInf) {
+			t.Errorf("%s:\n\t     %v\n\t+    %v\n\t=    %v\n\twant %v",
+				mode, x, y, got, want)
+		}
+		got.Sub(x, x)
+		if got.Cmp(want) != 0 || got.neg != (mode == ToNegativeInf) {
+			t.Errorf("%v:\n\t     %v\n\t-    %v\n\t=    %v\n\twant %v",
+				mode, x, x, got, want)
+		}
+	}
+}
+
 // TestFloatAdd32 tests that Float.Add/Sub of numbers with
 // 24bit mantissa behaves like float32 addition/subtraction
 // (excluding denormal numbers).
@@ -1372,7 +1397,7 @@ func TestFloatMul(t *testing.T) {
 					got.Mul(x, y)
 					want := zbits.round(prec, mode)
 					if got.Cmp(want) != 0 {
-						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t*    %s %v\n\t=    %s\n\twant %s",
+						t.Errorf("i = %d, prec = %d, %s:\n\t     %v %v\n\t*    %v %v\n\t=    %v\n\twant %v",
 							i, prec, mode, x, xbits, y, ybits, got, want)
 					}
 
@@ -1382,7 +1407,7 @@ func TestFloatMul(t *testing.T) {
 					got.Quo(z, x)
 					want = ybits.round(prec, mode)
 					if got.Cmp(want) != 0 {
-						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t/    %s %v\n\t=    %s\n\twant %s",
+						t.Errorf("i = %d, prec = %d, %s:\n\t     %v %v\n\t/    %v %v\n\t=    %v\n\twant %v",
 							i, prec, mode, z, zbits, x, xbits, got, want)
 					}
 				}
@@ -1465,13 +1490,13 @@ func TestIssue6866(t *testing.T) {
 		z2.Sub(two, p)
 
 		if z1.Cmp(z2) != 0 {
-			t.Fatalf("prec %d: got z1 = %s != z2 = %s; want z1 == z2\n", prec, z1, z2)
+			t.Fatalf("prec %d: got z1 = %v != z2 = %v; want z1 == z2\n", prec, z1, z2)
 		}
 		if z1.Sign() != 0 {
-			t.Errorf("prec %d: got z1 = %s; want 0", prec, z1)
+			t.Errorf("prec %d: got z1 = %v; want 0", prec, z1)
 		}
 		if z2.Sign() != 0 {
-			t.Errorf("prec %d: got z2 = %s; want 0", prec, z2)
+			t.Errorf("prec %d: got z2 = %v; want 0", prec, z2)
 		}
 	}
 }

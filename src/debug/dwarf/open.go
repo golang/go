@@ -7,7 +7,10 @@
 // http://dwarfstd.org/doc/dwarf-2.0.0.pdf
 package dwarf
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"errors"
+)
 
 // Data represents the DWARF debugging information
 // loaded from an executable file (for example, an ELF or Mach-O executable).
@@ -22,13 +25,22 @@ type Data struct {
 	ranges   []byte
 	str      []byte
 
+	// New sections added in DWARF 5.
+	addr       []byte
+	lineStr    []byte
+	strOffsets []byte
+	rngLists   []byte
+
 	// parsed data
-	abbrevCache map[uint32]abbrevTable
+	abbrevCache map[uint64]abbrevTable
+	bigEndian   bool
 	order       binary.ByteOrder
 	typeCache   map[Offset]Type
 	typeSigs    map[uint64]*typeUnit
 	unit        []unit
 }
+
+var errSegmentSelector = errors.New("non-zero segment_selector size not supported")
 
 // New returns a new Data object initialized from the given parameters.
 // Rather than calling this function directly, clients should typically use
@@ -48,23 +60,34 @@ func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Dat
 		pubnames:    pubnames,
 		ranges:      ranges,
 		str:         str,
-		abbrevCache: make(map[uint32]abbrevTable),
+		abbrevCache: make(map[uint64]abbrevTable),
 		typeCache:   make(map[Offset]Type),
 		typeSigs:    make(map[uint64]*typeUnit),
 	}
 
 	// Sniff .debug_info to figure out byte order.
-	// bytes 4:6 are the version, a tiny 16-bit number (1, 2, 3).
+	// 32-bit DWARF: 4 byte length, 2 byte version.
+	// 64-bit DWARf: 4 bytes of 0xff, 8 byte length, 2 byte version.
 	if len(d.info) < 6 {
 		return nil, DecodeError{"info", Offset(len(d.info)), "too short"}
 	}
-	x, y := d.info[4], d.info[5]
+	offset := 4
+	if d.info[0] == 0xff && d.info[1] == 0xff && d.info[2] == 0xff && d.info[3] == 0xff {
+		if len(d.info) < 14 {
+			return nil, DecodeError{"info", Offset(len(d.info)), "too short"}
+		}
+		offset = 12
+	}
+	// Fetch the version, a tiny 16-bit number (1, 2, 3, 4, 5).
+	x, y := d.info[offset], d.info[offset+1]
 	switch {
 	case x == 0 && y == 0:
 		return nil, DecodeError{"info", 4, "unsupported version 0"}
 	case x == 0:
+		d.bigEndian = true
 		d.order = binary.BigEndian
 	case y == 0:
+		d.bigEndian = false
 		d.order = binary.LittleEndian
 	default:
 		return nil, DecodeError{"info", 4, "cannot determine byte order"}
@@ -84,4 +107,24 @@ func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Dat
 // and serves to distinguish one .debug_types section from another.
 func (d *Data) AddTypes(name string, types []byte) error {
 	return d.parseTypes(name, types)
+}
+
+// AddSection adds another DWARF section by name. The name should be a
+// DWARF section name such as ".debug_addr", ".debug_str_offsets", and
+// so forth. This approach is used for new DWARF sections added in
+// DWARF 5 and later.
+func (d *Data) AddSection(name string, contents []byte) error {
+	var err error
+	switch name {
+	case ".debug_addr":
+		d.addr = contents
+	case ".debug_line_str":
+		d.lineStr = contents
+	case ".debug_str_offsets":
+		d.strOffsets = contents
+	case ".debug_rnglists":
+		d.rngLists = contents
+	}
+	// Just ignore names that we don't yet support.
+	return err
 }

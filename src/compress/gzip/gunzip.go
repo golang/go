@@ -66,7 +66,7 @@ type Header struct {
 // Only the first header is recorded in the Reader fields.
 //
 // Gzip files store a length and checksum of the uncompressed data.
-// The Reader will return a ErrChecksum when Read
+// The Reader will return an ErrChecksum when Read
 // reaches the end of the uncompressed data if it does not
 // have the expected length or checksum. Clients should treat data
 // returned by Read as tentative until they receive the io.EOF
@@ -126,8 +126,8 @@ func (z *Reader) Reset(r io.Reader) error {
 // can be useful when reading file formats that distinguish individual gzip
 // data streams or mix gzip data streams with other data streams.
 // In this mode, when the Reader reaches the end of the data stream,
-// Read returns io.EOF. If the underlying reader implements io.ByteReader,
-// it will be left positioned just after the gzip stream.
+// Read returns io.EOF. The underlying reader must implement io.ByteReader
+// in order to be left positioned just after the gzip stream.
 // To start the next stream, call z.Reset(r) followed by z.Multistream(false).
 // If there is no next stream, z.Reset(r) will return io.EOF.
 func (z *Reader) Multistream(ok bool) {
@@ -211,14 +211,14 @@ func (z *Reader) readHeader() (hdr Header, err error) {
 	var s string
 	if flg&flagName != 0 {
 		if s, err = z.readString(); err != nil {
-			return hdr, err
+			return hdr, noEOF(err)
 		}
 		hdr.Name = s
 	}
 
 	if flg&flagComment != 0 {
 		if s, err = z.readString(); err != nil {
-			return hdr, err
+			return hdr, noEOF(err)
 		}
 		hdr.Comment = s
 	}

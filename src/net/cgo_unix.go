@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build cgo,!netgo
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build cgo && !netgo && unix
 
 package net
 
@@ -12,9 +11,13 @@ package net
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+
+// If nothing else defined EAI_OVERFLOW, make sure it has a value.
+#ifndef EAI_OVERFLOW
+#define EAI_OVERFLOW -12
+#endif
 */
 import "C"
 
@@ -50,7 +53,7 @@ type reverseLookupResult struct {
 }
 
 func cgoLookupHost(ctx context.Context, name string) (hosts []string, err error, completed bool) {
-	addrs, err, completed := cgoLookupIP(ctx, name)
+	addrs, err, completed := cgoLookupIP(ctx, "ip", name)
 	for _, addr := range addrs {
 		hosts = append(hosts, addr.String())
 	}
@@ -70,13 +73,11 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 	default:
 		return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}, true
 	}
-	if len(network) >= 4 {
-		switch network[3] {
-		case '4':
-			hints.ai_family = C.AF_INET
-		case '6':
-			hints.ai_family = C.AF_INET6
-		}
+	switch ipVersion(network) {
+	case '4':
+		hints.ai_family = C.AF_INET
+	case '6':
+		hints.ai_family = C.AF_INET6
 	}
 	if ctx.Done() == nil {
 		port, err := cgoLookupServicePort(&hints, network, service)
@@ -95,16 +96,16 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 }
 
 func cgoLookupServicePort(hints *C.struct_addrinfo, network, service string) (port int, err error) {
-	s := C.CString(service)
-	// Lowercase the service name in the C-allocated memory.
-	for i := 0; i < len(service); i++ {
-		bp := (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(s)) + uintptr(i)))
-		*bp = lowerASCII(*bp)
+	cservice := make([]byte, len(service)+1)
+	copy(cservice, service)
+	// Lowercase the C service name.
+	for i, b := range cservice[:len(service)] {
+		cservice[i] = lowerASCII(b)
 	}
 	var res *C.struct_addrinfo
-	defer C.free(unsafe.Pointer(s))
-	gerrno, err := C.getaddrinfo(nil, s, hints, &res)
+	gerrno, err := C.getaddrinfo(nil, (*C.char)(unsafe.Pointer(&cservice[0])), hints, &res)
 	if gerrno != 0 {
+		isTemporary := false
 		switch gerrno {
 		case C.EAI_SYSTEM:
 			if err == nil { // see golang.org/issue/6232
@@ -112,8 +113,9 @@ func cgoLookupServicePort(hints *C.struct_addrinfo, network, service string) (po
 			}
 		default:
 			err = addrinfoErrno(gerrno)
+			isTemporary = addrinfoErrno(gerrno).Temporary()
 		}
-		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service}
+		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service, IsTemporary: isTemporary}
 	}
 	defer C.freeaddrinfo(res)
 
@@ -137,19 +139,28 @@ func cgoPortLookup(result chan<- portLookupResult, hints *C.struct_addrinfo, net
 	result <- portLookupResult{port, err}
 }
 
-func cgoLookupIPCNAME(name string) (addrs []IPAddr, cname string, err error) {
+func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err error) {
 	acquireThread()
 	defer releaseThread()
 
 	var hints C.struct_addrinfo
 	hints.ai_flags = cgoAddrInfoFlags
 	hints.ai_socktype = C.SOCK_STREAM
+	hints.ai_family = C.AF_UNSPEC
+	switch ipVersion(network) {
+	case '4':
+		hints.ai_family = C.AF_INET
+	case '6':
+		hints.ai_family = C.AF_INET6
+	}
 
-	h := C.CString(name)
-	defer C.free(unsafe.Pointer(h))
+	h := make([]byte, len(name)+1)
+	copy(h, name)
 	var res *C.struct_addrinfo
-	gerrno, err := C.getaddrinfo(h, nil, &hints, &res)
+	gerrno, err := C.getaddrinfo((*C.char)(unsafe.Pointer(&h[0])), nil, &hints, &res)
 	if gerrno != 0 {
+		isErrorNoSuchHost := false
+		isTemporary := false
 		switch gerrno {
 		case C.EAI_SYSTEM:
 			if err == nil {
@@ -164,10 +175,13 @@ func cgoLookupIPCNAME(name string) (addrs []IPAddr, cname string, err error) {
 			}
 		case C.EAI_NONAME:
 			err = errNoSuchHost
+			isErrorNoSuchHost = true
 		default:
 			err = addrinfoErrno(gerrno)
+			isTemporary = addrinfoErrno(gerrno).Temporary()
 		}
-		return nil, "", &DNSError{Err: err.Error(), Name: name}
+
+		return nil, "", &DNSError{Err: err.Error(), Name: name, IsNotFound: isErrorNoSuchHost, IsTemporary: isTemporary}
 	}
 	defer C.freeaddrinfo(res)
 
@@ -199,18 +213,18 @@ func cgoLookupIPCNAME(name string) (addrs []IPAddr, cname string, err error) {
 	return addrs, cname, nil
 }
 
-func cgoIPLookup(result chan<- ipLookupResult, name string) {
-	addrs, cname, err := cgoLookupIPCNAME(name)
+func cgoIPLookup(result chan<- ipLookupResult, network, name string) {
+	addrs, cname, err := cgoLookupIPCNAME(network, name)
 	result <- ipLookupResult{addrs, cname, err}
 }
 
-func cgoLookupIP(ctx context.Context, name string) (addrs []IPAddr, err error, completed bool) {
+func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error, completed bool) {
 	if ctx.Done() == nil {
-		addrs, _, err = cgoLookupIPCNAME(name)
+		addrs, _, err = cgoLookupIPCNAME(network, name)
 		return addrs, err, true
 	}
 	result := make(chan ipLookupResult, 1)
-	go cgoIPLookup(result, name)
+	go cgoIPLookup(result, network, name)
 	select {
 	case r := <-result:
 		return r.addrs, r.err, true
@@ -221,11 +235,11 @@ func cgoLookupIP(ctx context.Context, name string) (addrs []IPAddr, err error, c
 
 func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, completed bool) {
 	if ctx.Done() == nil {
-		_, cname, err = cgoLookupIPCNAME(name)
+		_, cname, err = cgoLookupIPCNAME("ip", name)
 		return cname, err, true
 	}
 	result := make(chan ipLookupResult, 1)
-	go cgoIPLookup(result, name)
+	go cgoIPLookup(result, "ip", name)
 	select {
 	case r := <-result:
 		return r.cname, r.err, true
@@ -236,12 +250,12 @@ func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, 
 
 // These are roughly enough for the following:
 //
-// Source		Encoding			Maximum length of single name entry
-// Unicast DNS		ASCII or			<=253 + a NUL terminator
-//			Unicode in RFC 5892		252 * total number of labels + delimiters + a NUL terminator
-// Multicast DNS	UTF-8 in RFC 5198 or		<=253 + a NUL terminator
-//			the same as unicast DNS ASCII	<=253 + a NUL terminator
-// Local database	various				depends on implementation
+//	 Source		Encoding			Maximum length of single name entry
+//	 Unicast DNS		ASCII or			<=253 + a NUL terminator
+//				Unicode in RFC 5892		252 * total number of labels + delimiters + a NUL terminator
+//	 Multicast DNS	UTF-8 in RFC 5198 or		<=253 + a NUL terminator
+//				the same as unicast DNS ASCII	<=253 + a NUL terminator
+//	 Local database	various				depends on implementation
 const (
 	nameinfoLen    = 64
 	maxNameinfoLen = 4096
@@ -251,7 +265,7 @@ func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error, 
 	var zone string
 	ip := parseIPv4(addr)
 	if ip == nil {
-		ip, zone = parseIPv6(addr, true)
+		ip, zone = parseIPv6Zone(addr)
 	}
 	if ip == nil {
 		return nil, &DNSError{Err: "invalid address", Name: addr}, true
@@ -288,6 +302,7 @@ func cgoLookupAddrPTR(addr string, sa *C.struct_sockaddr, salen C.socklen_t) (na
 		}
 	}
 	if gerrno != 0 {
+		isTemporary := false
 		switch gerrno {
 		case C.EAI_SYSTEM:
 			if err == nil { // see golang.org/issue/6232
@@ -295,8 +310,9 @@ func cgoLookupAddrPTR(addr string, sa *C.struct_sockaddr, salen C.socklen_t) (na
 			}
 		default:
 			err = addrinfoErrno(gerrno)
+			isTemporary = addrinfoErrno(gerrno).Temporary()
 		}
-		return nil, &DNSError{Err: err.Error(), Name: addr}
+		return nil, &DNSError{Err: err.Error(), Name: addr, IsTemporary: isTemporary}
 	}
 	for i := 0; i < len(b); i++ {
 		if b[i] == 0 {
@@ -304,7 +320,7 @@ func cgoLookupAddrPTR(addr string, sa *C.struct_sockaddr, salen C.socklen_t) (na
 			break
 		}
 	}
-	return []string{absDomainName(b)}, nil
+	return []string{absDomainName(string(b))}, nil
 }
 
 func cgoReverseLookup(result chan<- reverseLookupResult, addr string, sa *C.struct_sockaddr, salen C.socklen_t) {

@@ -9,6 +9,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
+#include "cgo/abi_amd64.h"
 
 TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVQ addr+0(FP), DI
@@ -18,6 +19,8 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVQ ut+24(FP), R8
 	MOVL $454, AX
 	SYSCALL
+	JCC	2(PC)
+	NEGQ	AX
 	MOVL	AX, ret+32(FP)
 	RET
 
@@ -26,6 +29,9 @@ TEXT runtime·thr_new(SB),NOSPLIT,$0
 	MOVL size+8(FP), SI
 	MOVL $455, AX
 	SYSCALL
+	JCC	2(PC)
+	NEGQ	AX
+	MOVL	AX, ret+16(FP)
 	RET
 
 TEXT runtime·thr_start(SB),NOSPLIT,$0
@@ -54,12 +60,16 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$-8
-	MOVL	code+0(FP), DI		// arg 1 exit status
-	MOVL	$431, AX
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+	MOVQ	wait+0(FP), AX
+	// We're done using the stack.
+	MOVL	$0, (AX)
+	MOVL	$0, DI		// arg 1 long *state
+	MOVL	$431, AX	// thr_exit
 	SYSCALL
 	MOVL	$0xf1, 0xf1  // crash
-	RET
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVQ	name+0(FP), DI		// arg 1 pathname
@@ -88,37 +98,43 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVL	$3, AX
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$-1, AX
+	NEGQ	AX			// caller expects negative errno
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$-8
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT,$0-20
+	LEAQ	r+8(FP), DI
+	MOVL	flags+0(FP), SI
+	MOVL	$542, AX
+	SYSCALL
+	JCC	2(PC)
+	NEGQ	AX
+	MOVL	AX, errno+16(FP)
+	RET
+
+TEXT runtime·write1(SB),NOSPLIT,$-8
 	MOVQ	fd+0(FP), DI		// arg 1 fd
 	MOVQ	p+8(FP), SI		// arg 2 buf
 	MOVL	n+16(FP), DX		// arg 3 count
 	MOVL	$4, AX
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$-1, AX
+	NEGQ	AX			// caller expects negative errno
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·getrlimit(SB),NOSPLIT,$-8
-	MOVL	kind+0(FP), DI
-	MOVQ	limit+8(FP), SI
-	MOVL	$194, AX
-	SYSCALL
-	MOVL	AX, ret+16(FP)
-	RET
-
-TEXT runtime·raise(SB),NOSPLIT,$16
-	// thr_self(&8(SP))
-	LEAQ	8(SP), DI	// arg 1 &8(SP)
+TEXT runtime·thr_self(SB),NOSPLIT,$0-8
+	// thr_self(&0(FP))
+	LEAQ	ret+0(FP), DI	// arg 1
 	MOVL	$432, AX
 	SYSCALL
-	// thr_kill(self, SIGPIPE)
-	MOVQ	8(SP), DI	// arg 1 id
-	MOVL	sig+0(FP), SI	// arg 2
+	RET
+
+TEXT runtime·thr_kill(SB),NOSPLIT,$0-16
+	// thr_kill(tid, sig)
+	MOVQ	tid+0(FP), DI	// arg 1 id
+	MOVQ	sig+8(FP), SI	// arg 2 sig
 	MOVL	$433, AX
 	SYSCALL
 	RET
@@ -142,9 +158,9 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-8
 	SYSCALL
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $32
-	MOVL	$232, AX // clock_gettime
+// func fallback_walltime() (sec int64, nsec int32)
+TEXT runtime·fallback_walltime(SB), NOSPLIT, $32-12
+	MOVL	$232, AX	// clock_gettime
 	MOVQ	$0, DI		// CLOCK_REALTIME
 	LEAQ	8(SP), SI
 	SYSCALL
@@ -156,10 +172,8 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVL	DX, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB), NOSPLIT, $32
+TEXT runtime·fallback_nanotime(SB), NOSPLIT, $32-8
 	MOVL	$232, AX
-	// We can use CLOCK_MONOTONIC_FAST here when we drop
-	// support for FreeBSD 8-STABLE.
 	MOVQ	$4, DI		// CLOCK_MONOTONIC
 	LEAQ	8(SP), SI
 	SYSCALL
@@ -173,14 +187,27 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
 	MOVQ	AX, ret+0(FP)
 	RET
 
-TEXT runtime·sigaction(SB),NOSPLIT,$-8
-	MOVL	sig+0(FP), DI		// arg 1 sig
+TEXT runtime·asmSigaction(SB),NOSPLIT,$0
+	MOVQ	sig+0(FP), DI		// arg 1 sig
 	MOVQ	new+8(FP), SI		// arg 2 act
 	MOVQ	old+16(FP), DX		// arg 3 oact
 	MOVL	$416, AX
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$0xf1, 0xf1  // crash
+	MOVL	$-1, AX
+	MOVL	AX, ret+24(FP)
+	RET
+
+TEXT runtime·callCgoSigaction(SB),NOSPLIT,$16
+	MOVQ	sig+0(FP), DI		// arg 1 sig
+	MOVQ	new+8(FP), SI		// arg 2 act
+	MOVQ	old+16(FP), DX		// arg 3 oact
+	MOVQ	_cgo_sigaction(SB), AX
+	MOVQ	SP, BX			// callee-saved
+	ANDQ	$~15, SP		// alignment as per amd64 psABI
+	CALL	AX
+	MOVQ	BX, SP
+	MOVL	AX, ret+24(FP)
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
@@ -196,29 +223,131 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	POPQ	BP
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$72
-	// Save callee-saved C registers, since the caller may be a C signal handler.
-	MOVQ	BX, bx-8(SP)
-	MOVQ	BP, bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
-	MOVQ	R12, r12-24(SP)
-	MOVQ	R13, r13-32(SP)
-	MOVQ	R14, r14-40(SP)
-	MOVQ	R15, r15-48(SP)
-	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
-	// modify them.
+// Called using C ABI.
+TEXT runtime·sigtramp(SB),NOSPLIT,$0
+	// Transition from C ABI to Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
 
-	MOVQ	DX, ctx-56(SP)
-	MOVQ	SI, info-64(SP)
-	MOVQ	DI, signum-72(SP)
-	CALL	runtime·sigtrampgo(SB)
+	// Set up ABIInternal environment: g in R14, cleared X15.
+	get_tls(R12)
+	MOVQ	g(R12), R14
+	PXOR	X15, X15
 
-	MOVQ	r15-48(SP), R15
-	MOVQ	r14-40(SP), R14
-	MOVQ	r13-32(SP), R13
-	MOVQ	r12-24(SP), R12
-	MOVQ	bp-16(SP),  BP
-	MOVQ	bx-8(SP),   BX
+	// Reserve space for spill slots.
+	NOP	SP		// disable vet stack checking
+	ADJSP   $24
+
+	// Call into the Go signal handler
+	MOVQ	DI, AX	// sig
+	MOVQ	SI, BX	// info
+	MOVQ	DX, CX	// ctx
+	CALL	·sigtrampgo<ABIInternal>(SB)
+
+	ADJSP	$-24
+
+        POP_REGS_HOST_TO_ABI0()
 	RET
+
+// Called using C ABI.
+TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
+	// Transition from C ABI to Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
+
+	// Set up ABIInternal environment: g in R14, cleared X15.
+	get_tls(R12)
+	MOVQ	g(R12), R14
+	PXOR	X15, X15
+
+	// Reserve space for spill slots.
+	NOP	SP		// disable vet stack checking
+	ADJSP   $24
+
+	// Call into the Go signal handler
+	MOVQ	DI, AX	// sig
+	MOVQ	SI, BX	// info
+	MOVQ	DX, CX	// ctx
+	CALL	·sigprofNonGo<ABIInternal>(SB)
+
+	ADJSP	$-24
+
+	POP_REGS_HOST_TO_ABI0()
+	RET
+
+// Used instead of sigtramp in programs that use cgo.
+// Arguments from kernel are in DI, SI, DX.
+TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+	// If no traceback function, do usual sigtramp.
+	MOVQ	runtime·cgoTraceback(SB), AX
+	TESTQ	AX, AX
+	JZ	sigtramp
+
+	// If no traceback support function, which means that
+	// runtime/cgo was not linked in, do usual sigtramp.
+	MOVQ	_cgo_callers(SB), AX
+	TESTQ	AX, AX
+	JZ	sigtramp
+
+	// Figure out if we are currently in a cgo call.
+	// If not, just do usual sigtramp.
+	get_tls(CX)
+	MOVQ	g(CX),AX
+	TESTQ	AX, AX
+	JZ	sigtrampnog     // g == nil
+	MOVQ	g_m(AX), AX
+	TESTQ	AX, AX
+	JZ	sigtramp        // g.m == nil
+	MOVL	m_ncgo(AX), CX
+	TESTL	CX, CX
+	JZ	sigtramp        // g.m.ncgo == 0
+	MOVQ	m_curg(AX), CX
+	TESTQ	CX, CX
+	JZ	sigtramp        // g.m.curg == nil
+	MOVQ	g_syscallsp(CX), CX
+	TESTQ	CX, CX
+	JZ	sigtramp        // g.m.curg.syscallsp == 0
+	MOVQ	m_cgoCallers(AX), R8
+	TESTQ	R8, R8
+	JZ	sigtramp        // g.m.cgoCallers == nil
+	MOVL	m_cgoCallersUse(AX), CX
+	TESTL	CX, CX
+	JNZ	sigtramp	// g.m.cgoCallersUse != 0
+
+	// Jump to a function in runtime/cgo.
+	// That function, written in C, will call the user's traceback
+	// function with proper unwind info, and will then call back here.
+	// The first three arguments, and the fifth, are already in registers.
+	// Set the two remaining arguments now.
+	MOVQ	runtime·cgoTraceback(SB), CX
+	MOVQ	$runtime·sigtramp(SB), R9
+	MOVQ	_cgo_callers(SB), AX
+	JMP	AX
+
+sigtramp:
+	JMP	runtime·sigtramp(SB)
+
+sigtrampnog:
+	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
+	// stack trace.
+	CMPL	DI, $27 // 27 == SIGPROF
+	JNZ	sigtramp
+
+	// Lock sigprofCallersUse.
+	MOVL	$0, AX
+	MOVL	$1, CX
+	MOVQ	$runtime·sigprofCallersUse(SB), R11
+	LOCK
+	CMPXCHGL	CX, 0(R11)
+	JNZ	sigtramp  // Skip stack trace if already locked.
+
+	// Jump to the traceback function in runtime/cgo.
+	// It will call back to sigprofNonGo, via sigprofNonGoWrapper, to convert
+	// the arguments to the Go calling convention.
+	// First three arguments to traceback function are in registers already.
+	MOVQ	runtime·cgoTraceback(SB), CX
+	MOVQ	$runtime·sigprofCallers(SB), R8
+	MOVQ	$runtime·sigprofNonGoWrapper<>(SB), R9
+	MOVQ	_cgo_callers(SB), AX
+	JMP	AX
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVQ	addr+0(FP), DI		// arg 1 addr
@@ -229,7 +358,13 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVL	off+28(FP), R9		// arg 6 offset
 	MOVL	$477, AX
 	SYSCALL
-	MOVQ	AX, ret+32(FP)
+	JCC	ok
+	MOVQ	$0, p+32(FP)
+	MOVQ	AX, err+40(FP)
+	RET
+ok:
+	MOVQ	AX, p+32(FP)
+	MOVQ	$0, err+40(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
@@ -247,9 +382,11 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	flags+16(FP), DX
 	MOVQ	$75, AX	// madvise
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	JCC	2(PC)
+	MOVL	$-1, AX
+	MOVL	AX, ret+24(FP)
 	RET
-	
+
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVQ	new+0(FP), DI
 	MOVQ	old+8(FP), SI

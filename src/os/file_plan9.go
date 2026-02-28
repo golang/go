@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/poll"
 	"io"
 	"runtime"
 	"syscall"
@@ -21,13 +22,20 @@ func fixLongPath(path string) string {
 // can overwrite this data, which could cause the finalizer
 // to close the wrong file descriptor.
 type file struct {
-	fd      int
-	name    string
-	dirinfo *dirInfo // nil unless directory being read
+	fd         int
+	name       string
+	dirinfo    *dirInfo // nil unless directory being read
+	appendMode bool     // whether file is opened for appending
 }
 
 // Fd returns the integer Plan 9 file descriptor referencing the open file.
-// The file descriptor is valid only until f.Close is called or f is garbage collected.
+// If f is closed, the file descriptor becomes invalid.
+// If f is garbage collected, a finalizer may close the file descriptor,
+// making it invalid; see runtime.SetFinalizer for more information on when
+// a finalizer might be run. On Unix systems this will cause the SetDeadline
+// methods to stop working.
+//
+// As an alternative, see the f.SyscallConn method.
 func (f *File) Fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
@@ -58,7 +66,7 @@ type dirInfo struct {
 func epipecheck(file *File, e error) {
 }
 
-// DevNull is the name of the operating system's ``null device.''
+// DevNull is the name of the operating system's “null device.”
 // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
 const DevNull = "/dev/null"
 
@@ -77,12 +85,8 @@ func syscallMode(i FileMode) (o uint32) {
 	return
 }
 
-// OpenFile is the generalized open call; most users will use Open
-// or Create instead. It opens the named file with specified flag
-// (O_RDONLY etc.) and perm, (0666 etc.) if applicable. If successful,
-// methods on the returned File can be used for I/O.
-// If there is an error, it will be of type *PathError.
-func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+// openFileNolog is the Plan 9 implementation of OpenFile.
+func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	var (
 		fd     int
 		e      error
@@ -112,22 +116,21 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 		fd, e = syscall.Create(name, flag, syscallMode(perm))
 	} else {
 		fd, e = syscall.Open(name, flag)
-		if e != nil && create {
-			var e1 error
-			fd, e1 = syscall.Create(name, flag, syscallMode(perm))
-			if e1 == nil {
-				e = nil
+		if IsNotExist(e) && create {
+			fd, e = syscall.Create(name, flag, syscallMode(perm))
+			if e != nil {
+				return nil, &PathError{Op: "create", Path: name, Err: e}
 			}
 		}
 	}
 
 	if e != nil {
-		return nil, &PathError{"open", name, e}
+		return nil, &PathError{Op: "open", Path: name, Err: e}
 	}
 
 	if append {
 		if _, e = syscall.Seek(fd, 0, io.SeekEnd); e != nil {
-			return nil, &PathError{"seek", name, e}
+			return nil, &PathError{Op: "seek", Path: name, Err: e}
 		}
 	}
 
@@ -135,7 +138,9 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 }
 
 // Close closes the File, rendering it unusable for I/O.
-// It returns an error, if any.
+// On files that support SetDeadline, any pending I/O operations will
+// be canceled and return immediately with an ErrClosed error.
+// Close will return an error if it has already been called.
 func (f *File) Close() error {
 	if err := f.checkValid("close"); err != nil {
 		return err
@@ -149,7 +154,7 @@ func (file *file) close() error {
 	}
 	var err error
 	if e := syscall.Close(file.fd); e != nil {
-		err = &PathError{"close", file.name, e}
+		err = &PathError{Op: "close", Path: file.name, Err: e}
 	}
 	file.fd = badFd // so it can't be closed again
 
@@ -186,10 +191,10 @@ func (f *File) Truncate(size int64) error {
 	var buf [syscall.STATFIXLEN]byte
 	n, err := d.Marshal(buf[:])
 	if err != nil {
-		return &PathError{"truncate", f.name, err}
+		return &PathError{Op: "truncate", Path: f.name, Err: err}
 	}
 	if err = syscall.Fwstat(f.fd, buf[:n]); err != nil {
-		return &PathError{"truncate", f.name, err}
+		return &PathError{Op: "truncate", Path: f.name, Err: err}
 	}
 	return nil
 }
@@ -204,7 +209,7 @@ func (f *File) chmod(mode FileMode) error {
 
 	odir, e := dirstat(f)
 	if e != nil {
-		return &PathError{"chmod", f.name, e}
+		return &PathError{Op: "chmod", Path: f.name, Err: e}
 	}
 	d.Null()
 	d.Mode = odir.Mode&^chmodMask | syscallMode(mode)&chmodMask
@@ -212,10 +217,10 @@ func (f *File) chmod(mode FileMode) error {
 	var buf [syscall.STATFIXLEN]byte
 	n, err := d.Marshal(buf[:])
 	if err != nil {
-		return &PathError{"chmod", f.name, err}
+		return &PathError{Op: "chmod", Path: f.name, Err: err}
 	}
 	if err = syscall.Fwstat(f.fd, buf[:n]); err != nil {
-		return &PathError{"chmod", f.name, err}
+		return &PathError{Op: "chmod", Path: f.name, Err: err}
 	}
 	return nil
 }
@@ -233,10 +238,10 @@ func (f *File) Sync() error {
 	var buf [syscall.STATFIXLEN]byte
 	n, err := d.Marshal(buf[:])
 	if err != nil {
-		return NewSyscallError("fsync", err)
+		return &PathError{Op: "sync", Path: f.name, Err: err}
 	}
 	if err = syscall.Fwstat(f.fd, buf[:n]); err != nil {
-		return NewSyscallError("fsync", err)
+		return &PathError{Op: "sync", Path: f.name, Err: err}
 	}
 	return nil
 }
@@ -289,6 +294,11 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
+	if f.dirinfo != nil {
+		// Free cached dirinfo, so we allocate a new one if we
+		// access this file as a directory again. See #35767 and #37161.
+		f.dirinfo = nil
+	}
 	return syscall.Seek(f.fd, offset, whence)
 }
 
@@ -304,10 +314,10 @@ func Truncate(name string, size int64) error {
 	var buf [syscall.STATFIXLEN]byte
 	n, err := d.Marshal(buf[:])
 	if err != nil {
-		return &PathError{"truncate", name, err}
+		return &PathError{Op: "truncate", Path: name, Err: err}
 	}
 	if err = syscall.Wstat(name, buf[:n]); err != nil {
-		return &PathError{"truncate", name, err}
+		return &PathError{Op: "truncate", Path: name, Err: err}
 	}
 	return nil
 }
@@ -316,7 +326,7 @@ func Truncate(name string, size int64) error {
 // If there is an error, it will be of type *PathError.
 func Remove(name string) error {
 	if e := syscall.Remove(name); e != nil {
-		return &PathError{"remove", name, e}
+		return &PathError{Op: "remove", Path: name, Err: e}
 	}
 	return nil
 }
@@ -324,16 +334,6 @@ func Remove(name string) error {
 // HasPrefix from the strings package.
 func hasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
-}
-
-// LastIndexByte from the strings package.
-func lastIndex(s string, sep byte) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == sep {
-			return i
-		}
-	}
-	return -1
 }
 
 func rename(oldname, newname string) error {
@@ -379,7 +379,7 @@ func chmod(name string, mode FileMode) error {
 
 	odir, e := dirstat(name)
 	if e != nil {
-		return &PathError{"chmod", name, e}
+		return &PathError{Op: "chmod", Path: name, Err: e}
 	}
 	d.Null()
 	d.Mode = odir.Mode&^chmodMask | syscallMode(mode)&chmodMask
@@ -387,10 +387,10 @@ func chmod(name string, mode FileMode) error {
 	var buf [syscall.STATFIXLEN]byte
 	n, err := d.Marshal(buf[:])
 	if err != nil {
-		return &PathError{"chmod", name, err}
+		return &PathError{Op: "chmod", Path: name, Err: err}
 	}
 	if err = syscall.Wstat(name, buf[:n]); err != nil {
-		return &PathError{"chmod", name, err}
+		return &PathError{Op: "chmod", Path: name, Err: err}
 	}
 	return nil
 }
@@ -411,10 +411,10 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
 	var buf [syscall.STATFIXLEN]byte
 	n, err := d.Marshal(buf[:])
 	if err != nil {
-		return &PathError{"chtimes", name, err}
+		return &PathError{Op: "chtimes", Path: name, Err: err}
 	}
 	if err = syscall.Wstat(name, buf[:n]); err != nil {
-		return &PathError{"chtimes", name, err}
+		return &PathError{Op: "chtimes", Path: name, Err: err}
 	}
 	return nil
 }
@@ -440,6 +440,8 @@ func Link(oldname, newname string) error {
 }
 
 // Symlink creates newname as a symbolic link to oldname.
+// On Windows, a symlink to a non-existent oldname creates a file symlink;
+// if oldname is later created as a directory the symlink will not work.
 // If there is an error, it will be of type *LinkError.
 func Symlink(oldname, newname string) error {
 	return &LinkError{"symlink", oldname, newname, syscall.EPLAN9}
@@ -448,21 +450,25 @@ func Symlink(oldname, newname string) error {
 // Readlink returns the destination of the named symbolic link.
 // If there is an error, it will be of type *PathError.
 func Readlink(name string) (string, error) {
-	return "", &PathError{"readlink", name, syscall.EPLAN9}
+	return "", &PathError{Op: "readlink", Path: name, Err: syscall.EPLAN9}
 }
 
 // Chown changes the numeric uid and gid of the named file.
 // If the file is a symbolic link, it changes the uid and gid of the link's target.
+// A uid or gid of -1 means to not change that value.
 // If there is an error, it will be of type *PathError.
+//
+// On Windows or Plan 9, Chown always returns the syscall.EWINDOWS or
+// EPLAN9 error, wrapped in *PathError.
 func Chown(name string, uid, gid int) error {
-	return &PathError{"chown", name, syscall.EPLAN9}
+	return &PathError{Op: "chown", Path: name, Err: syscall.EPLAN9}
 }
 
 // Lchown changes the numeric uid and gid of the named file.
 // If the file is a symbolic link, it changes the uid and gid of the link itself.
 // If there is an error, it will be of type *PathError.
 func Lchown(name string, uid, gid int) error {
-	return &PathError{"lchown", name, syscall.EPLAN9}
+	return &PathError{Op: "lchown", Path: name, Err: syscall.EPLAN9}
 }
 
 // Chown changes the numeric uid and gid of the named file.
@@ -471,11 +477,16 @@ func (f *File) Chown(uid, gid int) error {
 	if f == nil {
 		return ErrInvalid
 	}
-	return &PathError{"chown", f.name, syscall.EPLAN9}
+	return &PathError{Op: "chown", Path: f.name, Err: syscall.EPLAN9}
 }
 
 func tempDir() string {
-	return "/tmp"
+	dir := Getenv("TMPDIR")
+	if dir == "" {
+		dir = "/tmp"
+	}
+	return dir
+
 }
 
 // Chdir changes the current working directory to the file,
@@ -486,9 +497,33 @@ func (f *File) Chdir() error {
 		return err
 	}
 	if e := syscall.Fchdir(f.fd); e != nil {
-		return &PathError{"chdir", f.name, e}
+		return &PathError{Op: "chdir", Path: f.name, Err: e}
 	}
 	return nil
+}
+
+// setDeadline sets the read and write deadline.
+func (f *File) setDeadline(time.Time) error {
+	if err := f.checkValid("SetDeadline"); err != nil {
+		return err
+	}
+	return poll.ErrNoDeadline
+}
+
+// setReadDeadline sets the read deadline.
+func (f *File) setReadDeadline(time.Time) error {
+	if err := f.checkValid("SetReadDeadline"); err != nil {
+		return err
+	}
+	return poll.ErrNoDeadline
+}
+
+// setWriteDeadline sets the write deadline.
+func (f *File) setWriteDeadline(time.Time) error {
+	if err := f.checkValid("SetWriteDeadline"); err != nil {
+		return err
+	}
+	return poll.ErrNoDeadline
 }
 
 // checkValid checks whether f is valid for use.
@@ -498,7 +533,29 @@ func (f *File) checkValid(op string) error {
 		return ErrInvalid
 	}
 	if f.fd == badFd {
-		return &PathError{op, f.name, ErrClosed}
+		return &PathError{Op: op, Path: f.name, Err: ErrClosed}
 	}
 	return nil
+}
+
+type rawConn struct{}
+
+func (c *rawConn) Control(f func(uintptr)) error {
+	return syscall.EPLAN9
+}
+
+func (c *rawConn) Read(f func(uintptr) bool) error {
+	return syscall.EPLAN9
+}
+
+func (c *rawConn) Write(f func(uintptr) bool) error {
+	return syscall.EPLAN9
+}
+
+func newRawConn(file *File) (*rawConn, error) {
+	return nil, syscall.EPLAN9
+}
+
+func ignoringEINTR(fn func() error) error {
+	return fn()
 }

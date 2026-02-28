@@ -1,0 +1,36 @@
+# This is a regression test for golang.org/issue/50036
+# Don't check sums for other modules in the workspace.
+
+cd m/sub
+go install -n
+
+-- go.work --
+go 1.18
+
+use (
+    ./m
+    ./m/sub
+)
+-- m/go.mod --
+module example.com/m
+
+go 1.18
+
+-- m/m.go --
+package m
+
+func M() {}
+-- m/sub/go.mod --
+module example.com/m/sub
+
+go 1.18
+
+require example.com/m v1.0.0
+-- m/sub/main.go --
+package main
+
+import "example.com/m"
+
+func main() {
+    m.M()
+}

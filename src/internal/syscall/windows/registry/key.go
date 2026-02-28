@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build windows
+//go:build windows
 
 // Package registry provides access to the Windows registry.
 //
@@ -22,11 +22,10 @@
 //
 // NOTE: This package is a copy of golang.org/x/sys/windows/registry
 // with KeyInfo.ModTime removed to prevent dependency cycles.
-//
 package registry
 
 import (
-	"io"
+	"runtime"
 	"syscall"
 )
 
@@ -90,22 +89,19 @@ func OpenKey(k Key, path string, access uint32) (Key, error) {
 }
 
 // ReadSubKeyNames returns the names of subkeys of key k.
-// The parameter n controls the number of returned names,
-// analogous to the way os.File.Readdirnames works.
-func (k Key) ReadSubKeyNames(n int) ([]string, error) {
-	ki, err := k.Stat()
-	if err != nil {
-		return nil, err
-	}
-	names := make([]string, 0, ki.SubKeyCount)
-	buf := make([]uint16, ki.MaxSubKeyLen+1) // extra room for terminating zero byte
+func (k Key) ReadSubKeyNames() ([]string, error) {
+	// RegEnumKeyEx must be called repeatedly and to completion.
+	// During this time, this goroutine cannot migrate away from
+	// its current thread. See #49320.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	names := make([]string, 0)
+	// Registry key size limit is 255 bytes and described there:
+	// https://msdn.microsoft.com/library/windows/desktop/ms724872.aspx
+	buf := make([]uint16, 256) //plus extra room for terminating zero byte
 loopItems:
 	for i := uint32(0); ; i++ {
-		if n > 0 {
-			if len(names) == n {
-				return names, nil
-			}
-		}
 		l := uint32(len(buf))
 		for {
 			err := syscall.RegEnumKeyEx(syscall.Handle(k), i, &buf[0], &l, nil, nil, nil, nil)
@@ -124,9 +120,6 @@ loopItems:
 			return names, err
 		}
 		names = append(names, syscall.UTF16ToString(buf[:l]))
-	}
-	if n > len(names) {
-		return names, io.EOF
 	}
 	return names, nil
 }

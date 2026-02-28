@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build dragonfly freebsd linux
+//go:build dragonfly || freebsd || linux
 
 package runtime
 
@@ -38,12 +38,17 @@ const (
 // affect mutex's state.
 
 // We use the uintptr mutex.key and note.key as a uint32.
+//
 //go:nosplit
 func key32(p *uintptr) *uint32 {
 	return (*uint32)(unsafe.Pointer(p))
 }
 
 func lock(l *mutex) {
+	lockWithRank(l, getLockRank(l))
+}
+
+func lock2(l *mutex) {
 	gp := getg()
 
 	if gp.m.locks < 0 {
@@ -104,6 +109,10 @@ func lock(l *mutex) {
 }
 
 func unlock(l *mutex) {
+	unlockWithRank(l)
+}
+
+func unlock2(l *mutex) {
 	v := atomic.Xchg(key32(&l.key), mutex_unlocked)
 	if v == mutex_unlocked {
 		throw("unlock of unlocked lock")
@@ -224,8 +233,14 @@ func notetsleepg(n *note, ns int64) bool {
 		throw("notetsleepg on g0")
 	}
 
-	entersyscallblock(0)
+	entersyscallblock()
 	ok := notetsleep_internal(n, ns)
-	exitsyscall(0)
+	exitsyscall()
 	return ok
 }
+
+func beforeIdle(int64, int64) (*g, bool) {
+	return nil, false
+}
+
+func checkTimeouts() {}

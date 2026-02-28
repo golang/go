@@ -22,12 +22,12 @@ type closure func(i, j int) ent
 type ent int
 
 func (e ent) String() string {
-	return fmt.Sprintf("%d", int(e)) // ERROR "ent.String ... argument does not escape$" "int\(e\) escapes to heap$"
+	return fmt.Sprintf("%d", int(e)) // ERROR "... argument does not escape$" "int\(e\) escapes to heap$"
 }
 
 //go:noinline
-func foo(ops closure, j int) (err fmt.Stringer) { // ERROR "leaking param: ops$" "leaking param: ops to result err level=0$"
-	enqueue := func(i int) fmt.Stringer { // ERROR "func literal escapes to heap$"
+func foo(ops closure, j int) (err fmt.Stringer) { // ERROR "ops does not escape"
+	enqueue := func(i int) fmt.Stringer { // ERROR "func literal does not escape"
 		return ops(i, j) // ERROR "ops\(i, j\) escapes to heap$"
 	}
 	err = enqueue(4)
@@ -39,9 +39,9 @@ func foo(ops closure, j int) (err fmt.Stringer) { // ERROR "leaking param: ops$"
 
 func main() {
 	// 3 identical functions, to get different escape behavior.
-	f := func(i, j int) ent { // ERROR "func literal escapes to heap$"
+	f := func(i, j int) ent { // ERROR "func literal does not escape"
 		return ent(i + j)
 	}
 	i := foo(f, 3).(ent)
-	fmt.Printf("foo(f,3)=%d\n", int(i)) // ERROR "int\(i\) escapes to heap$" "main ... argument does not escape$"
+	fmt.Printf("foo(f,3)=%d\n", int(i)) // ERROR "int\(i\) escapes to heap$" "... argument does not escape$"
 }

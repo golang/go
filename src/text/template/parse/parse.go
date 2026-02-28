@@ -21,15 +21,26 @@ type Tree struct {
 	Name      string    // name of the template represented by the tree.
 	ParseName string    // name of the top-level template during parsing, for error messages.
 	Root      *ListNode // top-level root of the tree.
+	Mode      Mode      // parsing mode.
 	text      string    // text parsed to create the template (or its parent)
 	// Parsing only; cleared after parse.
-	funcs     []map[string]interface{}
-	lex       *lexer
-	token     [3]item // three-token lookahead for parser.
-	peekCount int
-	vars      []string // variables defined at the moment.
-	treeSet   map[string]*Tree
+	funcs      []map[string]any
+	lex        *lexer
+	token      [3]item // three-token lookahead for parser.
+	peekCount  int
+	vars       []string // variables defined at the moment.
+	treeSet    map[string]*Tree
+	actionLine int // line of left delim starting action
+	rangeDepth int
 }
+
+// A mode value is a set of flags (or 0). Modes control parser behavior.
+type Mode uint
+
+const (
+	ParseComments Mode = 1 << iota // parse comments and add them to AST
+	SkipFuncCheck                  // do not check that functions are defined
+)
 
 // Copy returns a copy of the Tree. Any parsing state is discarded.
 func (t *Tree) Copy() *Tree {
@@ -48,7 +59,7 @@ func (t *Tree) Copy() *Tree {
 // templates described in the argument string. The top-level template will be
 // given the specified name. If an error is encountered, parsing stops and an
 // empty map is returned with the error.
-func Parse(name, text, leftDelim, rightDelim string, funcs ...map[string]interface{}) (map[string]*Tree, error) {
+func Parse(name, text, leftDelim, rightDelim string, funcs ...map[string]any) (map[string]*Tree, error) {
 	treeSet := make(map[string]*Tree)
 	t := New(name)
 	t.text = text
@@ -108,13 +119,8 @@ func (t *Tree) nextNonSpace() (token item) {
 }
 
 // peekNonSpace returns but does not consume the next non-space token.
-func (t *Tree) peekNonSpace() (token item) {
-	for {
-		token = t.next()
-		if token.typ != itemSpace {
-			break
-		}
-	}
+func (t *Tree) peekNonSpace() item {
+	token := t.nextNonSpace()
 	t.backup()
 	return token
 }
@@ -122,7 +128,7 @@ func (t *Tree) peekNonSpace() (token item) {
 // Parsing.
 
 // New allocates a new parse tree with the given name.
-func New(name string, funcs ...map[string]interface{}) *Tree {
+func New(name string, funcs ...map[string]any) *Tree {
 	return &Tree{
 		Name:  name,
 		funcs: funcs,
@@ -148,14 +154,11 @@ func (t *Tree) ErrorContext(n Node) (location, context string) {
 	}
 	lineNum := 1 + strings.Count(text, "\n")
 	context = n.String()
-	if len(context) > 20 {
-		context = fmt.Sprintf("%.20s...", context)
-	}
 	return fmt.Sprintf("%s:%d:%d", tree.ParseName, lineNum, byteNum), context
 }
 
 // errorf formats the error and terminates processing.
-func (t *Tree) errorf(format string, args ...interface{}) {
+func (t *Tree) errorf(format string, args ...any) {
 	t.Root = nil
 	format = fmt.Sprintf("template: %s:%d: %s", t.ParseName, t.token[0].line, format)
 	panic(fmt.Errorf(format, args...))
@@ -186,6 +189,16 @@ func (t *Tree) expectOneOf(expected1, expected2 itemType, context string) item {
 
 // unexpected complains about the token and terminates processing.
 func (t *Tree) unexpected(token item, context string) {
+	if token.typ == itemError {
+		extra := ""
+		if t.actionLine != 0 && t.actionLine != token.line {
+			extra = fmt.Sprintf(" in action started at %s:%d", t.ParseName, t.actionLine)
+			if strings.HasSuffix(token.val, " action") {
+				extra = extra[len(" in action"):] // avoid "action in action"
+			}
+		}
+		t.errorf("%s%s", token, extra)
+	}
 	t.errorf("unexpected %s in %s", token, context)
 }
 
@@ -205,12 +218,14 @@ func (t *Tree) recover(errp *error) {
 }
 
 // startParse initializes the parser, using the lexer.
-func (t *Tree) startParse(funcs []map[string]interface{}, lex *lexer, treeSet map[string]*Tree) {
+func (t *Tree) startParse(funcs []map[string]any, lex *lexer, treeSet map[string]*Tree) {
 	t.Root = nil
 	t.lex = lex
 	t.vars = []string{"$"}
 	t.funcs = funcs
 	t.treeSet = treeSet
+	lex.breakOK = !t.hasFunction("break")
+	lex.continueOK = !t.hasFunction("continue")
 }
 
 // stopParse terminates parsing.
@@ -225,10 +240,11 @@ func (t *Tree) stopParse() {
 // the template for execution. If either action delimiter string is empty, the
 // default ("{{" or "}}") is used. Embedded template definitions are added to
 // the treeSet map.
-func (t *Tree) Parse(text, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]interface{}) (tree *Tree, err error) {
+func (t *Tree) Parse(text, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]any) (tree *Tree, err error) {
 	defer t.recover(&err)
 	t.ParseName = t.Name
-	t.startParse(funcs, lex(t.Name, text, leftDelim, rightDelim), treeSet)
+	emitComment := t.Mode&ParseComments != 0
+	t.startParse(funcs, lex(t.Name, text, leftDelim, rightDelim, emitComment), treeSet)
 	t.text = text
 	t.parse()
 	t.add()
@@ -248,12 +264,14 @@ func (t *Tree) add() {
 	}
 }
 
-// IsEmptyTree reports whether this tree (node) is empty of everything but space.
+// IsEmptyTree reports whether this tree (node) is empty of everything but space or comments.
 func IsEmptyTree(n Node) bool {
 	switch n := n.(type) {
 	case nil:
 		return true
 	case *ActionNode:
+	case *CommentNode:
+		return true
 	case *IfNode:
 	case *ListNode:
 		for _, node := range n.Nodes {
@@ -284,6 +302,7 @@ func (t *Tree) parse() {
 			if t.nextNonSpace().typ == itemDefine {
 				newT := New("definition") // name will be updated once we know it.
 				newT.text = t.text
+				newT.Mode = t.Mode
 				newT.ParseName = t.ParseName
 				newT.startParse(t.funcs, t.lex, t.treeSet)
 				newT.parseDefinition()
@@ -322,7 +341,9 @@ func (t *Tree) parseDefinition() {
 }
 
 // itemList:
+//
 //	textOrAction*
+//
 // Terminates at {{end}} or {{else}}, returned separately.
 func (t *Tree) itemList() (list *ListNode, next Node) {
 	list = t.newList(t.peekNonSpace().pos)
@@ -339,28 +360,43 @@ func (t *Tree) itemList() (list *ListNode, next Node) {
 }
 
 // textOrAction:
-//	text | action
+//
+//	text | comment | action
 func (t *Tree) textOrAction() Node {
 	switch token := t.nextNonSpace(); token.typ {
 	case itemText:
 		return t.newText(token.pos, token.val)
 	case itemLeftDelim:
+		t.actionLine = token.line
+		defer t.clearActionLine()
 		return t.action()
+	case itemComment:
+		return t.newComment(token.pos, token.val)
 	default:
 		t.unexpected(token, "input")
 	}
 	return nil
 }
 
+func (t *Tree) clearActionLine() {
+	t.actionLine = 0
+}
+
 // Action:
+//
 //	control
 //	command ("|" command)*
+//
 // Left delim is past. Now get actions.
 // First word could be a keyword such as range.
 func (t *Tree) action() (n Node) {
 	switch token := t.nextNonSpace(); token.typ {
 	case itemBlock:
 		return t.blockControl()
+	case itemBreak:
+		return t.breakControl(token.pos, token.line)
+	case itemContinue:
+		return t.continueControl(token.pos, token.line)
 	case itemElse:
 		return t.elseControl()
 	case itemEnd:
@@ -377,52 +413,86 @@ func (t *Tree) action() (n Node) {
 	t.backup()
 	token := t.peek()
 	// Do not pop variables; they persist until "end".
-	return t.newAction(token.pos, token.line, t.pipeline("command"))
+	return t.newAction(token.pos, token.line, t.pipeline("command", itemRightDelim))
+}
+
+// Break:
+//
+//	{{break}}
+//
+// Break keyword is past.
+func (t *Tree) breakControl(pos Pos, line int) Node {
+	if token := t.nextNonSpace(); token.typ != itemRightDelim {
+		t.unexpected(token, "{{break}}")
+	}
+	if t.rangeDepth == 0 {
+		t.errorf("{{break}} outside {{range}}")
+	}
+	return t.newBreak(pos, line)
+}
+
+// Continue:
+//
+//	{{continue}}
+//
+// Continue keyword is past.
+func (t *Tree) continueControl(pos Pos, line int) Node {
+	if token := t.nextNonSpace(); token.typ != itemRightDelim {
+		t.unexpected(token, "{{continue}}")
+	}
+	if t.rangeDepth == 0 {
+		t.errorf("{{continue}} outside {{range}}")
+	}
+	return t.newContinue(pos, line)
 }
 
 // Pipeline:
+//
 //	declarations? command ('|' command)*
-func (t *Tree) pipeline(context string) (pipe *PipeNode) {
-	var decl []*VariableNode
+func (t *Tree) pipeline(context string, end itemType) (pipe *PipeNode) {
 	token := t.peekNonSpace()
-	pos := token.pos
-	// Are there declarations?
-	for {
-		if v := t.peekNonSpace(); v.typ == itemVariable {
-			t.next()
-			// Since space is a token, we need 3-token look-ahead here in the worst case:
-			// in "$x foo" we need to read "foo" (as opposed to ":=") to know that $x is an
-			// argument variable rather than a declaration. So remember the token
-			// adjacent to the variable so we can push it back if necessary.
-			tokenAfterVariable := t.peek()
-			if next := t.peekNonSpace(); next.typ == itemColonEquals || (next.typ == itemChar && next.val == ",") {
-				t.nextNonSpace()
-				variable := t.newVariable(v.pos, v.val)
-				decl = append(decl, variable)
-				t.vars = append(t.vars, v.val)
-				if next.typ == itemChar && next.val == "," {
-					if context == "range" && len(decl) < 2 {
-						continue
-					}
-					t.errorf("too many declarations in %s", context)
+	pipe = t.newPipeline(token.pos, token.line, nil)
+	// Are there declarations or assignments?
+decls:
+	if v := t.peekNonSpace(); v.typ == itemVariable {
+		t.next()
+		// Since space is a token, we need 3-token look-ahead here in the worst case:
+		// in "$x foo" we need to read "foo" (as opposed to ":=") to know that $x is an
+		// argument variable rather than a declaration. So remember the token
+		// adjacent to the variable so we can push it back if necessary.
+		tokenAfterVariable := t.peek()
+		next := t.peekNonSpace()
+		switch {
+		case next.typ == itemAssign, next.typ == itemDeclare:
+			pipe.IsAssign = next.typ == itemAssign
+			t.nextNonSpace()
+			pipe.Decl = append(pipe.Decl, t.newVariable(v.pos, v.val))
+			t.vars = append(t.vars, v.val)
+		case next.typ == itemChar && next.val == ",":
+			t.nextNonSpace()
+			pipe.Decl = append(pipe.Decl, t.newVariable(v.pos, v.val))
+			t.vars = append(t.vars, v.val)
+			if context == "range" && len(pipe.Decl) < 2 {
+				switch t.peekNonSpace().typ {
+				case itemVariable, itemRightDelim, itemRightParen:
+					// second initialized variable in a range pipeline
+					goto decls
+				default:
+					t.errorf("range can only initialize variables")
 				}
-			} else if tokenAfterVariable.typ == itemSpace {
-				t.backup3(v, tokenAfterVariable)
-			} else {
-				t.backup2(v)
 			}
+			t.errorf("too many declarations in %s", context)
+		case tokenAfterVariable.typ == itemSpace:
+			t.backup3(v, tokenAfterVariable)
+		default:
+			t.backup2(v)
 		}
-		break
 	}
-	pipe = t.newPipeline(pos, token.line, decl)
 	for {
 		switch token := t.nextNonSpace(); token.typ {
-		case itemRightDelim, itemRightParen:
+		case end:
 			// At this point, the pipeline is complete
 			t.checkPipeline(pipe, context)
-			if token.typ == itemRightParen {
-				t.backup()
-			}
 			return
 		case itemBool, itemCharConstant, itemComplex, itemDot, itemField, itemIdentifier,
 			itemNumber, itemNil, itemRawString, itemString, itemVariable, itemLeftParen:
@@ -451,9 +521,15 @@ func (t *Tree) checkPipeline(pipe *PipeNode, context string) {
 
 func (t *Tree) parseControl(allowElseIf bool, context string) (pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) {
 	defer t.popVars(len(t.vars))
-	pipe = t.pipeline(context)
+	pipe = t.pipeline(context, itemRightDelim)
+	if context == "range" {
+		t.rangeDepth++
+	}
 	var next Node
 	list, next = t.itemList()
+	if context == "range" {
+		t.rangeDepth--
+	}
 	switch next.Type() {
 	case nodeEnd: //done
 	case nodeElse:
@@ -483,38 +559,49 @@ func (t *Tree) parseControl(allowElseIf bool, context string) (pos Pos, line int
 }
 
 // If:
+//
 //	{{if pipeline}} itemList {{end}}
 //	{{if pipeline}} itemList {{else}} itemList {{end}}
+//
 // If keyword is past.
 func (t *Tree) ifControl() Node {
 	return t.newIf(t.parseControl(true, "if"))
 }
 
 // Range:
+//
 //	{{range pipeline}} itemList {{end}}
 //	{{range pipeline}} itemList {{else}} itemList {{end}}
+//
 // Range keyword is past.
 func (t *Tree) rangeControl() Node {
-	return t.newRange(t.parseControl(false, "range"))
+	r := t.newRange(t.parseControl(false, "range"))
+	return r
 }
 
 // With:
+//
 //	{{with pipeline}} itemList {{end}}
 //	{{with pipeline}} itemList {{else}} itemList {{end}}
+//
 // If keyword is past.
 func (t *Tree) withControl() Node {
 	return t.newWith(t.parseControl(false, "with"))
 }
 
 // End:
+//
 //	{{end}}
+//
 // End keyword is past.
 func (t *Tree) endControl() Node {
 	return t.newEnd(t.expect(itemRightDelim, "end").pos)
 }
 
 // Else:
+//
 //	{{else}}
+//
 // Else keyword is past.
 func (t *Tree) elseControl() Node {
 	// Special case for "else if".
@@ -528,7 +615,9 @@ func (t *Tree) elseControl() Node {
 }
 
 // Block:
+//
 //	{{block stringValue pipeline}}
+//
 // Block keyword is past.
 // The name must be something that can evaluate to a string.
 // The pipeline is mandatory.
@@ -537,10 +626,11 @@ func (t *Tree) blockControl() Node {
 
 	token := t.nextNonSpace()
 	name := t.parseTemplateName(token, context)
-	pipe := t.pipeline(context)
+	pipe := t.pipeline(context, itemRightDelim)
 
 	block := New(name) // name will be updated once we know it.
 	block.text = t.text
+	block.Mode = t.Mode
 	block.ParseName = t.ParseName
 	block.startParse(t.funcs, t.lex, t.treeSet)
 	var end Node
@@ -555,7 +645,9 @@ func (t *Tree) blockControl() Node {
 }
 
 // Template:
+//
 //	{{template stringValue pipeline}}
+//
 // Template keyword is past. The name must be something that can evaluate
 // to a string.
 func (t *Tree) templateControl() Node {
@@ -566,7 +658,7 @@ func (t *Tree) templateControl() Node {
 	if t.nextNonSpace().typ != itemRightDelim {
 		t.backup()
 		// Do not pop variables; they persist until "end".
-		pipe = t.pipeline(context)
+		pipe = t.pipeline(context, itemRightDelim)
 	}
 	return t.newTemplate(token.pos, token.line, name, pipe)
 }
@@ -586,7 +678,9 @@ func (t *Tree) parseTemplateName(token item, context string) (name string) {
 }
 
 // command:
+//
 //	operand (space operand)*
+//
 // space-separated arguments up to a pipeline character or right delimiter.
 // we consume the pipe character but leave the right delim to terminate the action.
 func (t *Tree) command() *CommandNode {
@@ -600,13 +694,12 @@ func (t *Tree) command() *CommandNode {
 		switch token := t.next(); token.typ {
 		case itemSpace:
 			continue
-		case itemError:
-			t.errorf("%s", token.val)
 		case itemRightDelim, itemRightParen:
 			t.backup()
 		case itemPipe:
+			// nothing here; break loop below
 		default:
-			t.errorf("unexpected %s in operand", token)
+			t.unexpected(token, "operand")
 		}
 		break
 	}
@@ -617,7 +710,9 @@ func (t *Tree) command() *CommandNode {
 }
 
 // operand:
+//
 //	term .Field*
+//
 // An operand is a space-separated component of a command,
 // a term possibly followed by field accesses.
 // A nil return means the next item is not an operand.
@@ -651,20 +746,21 @@ func (t *Tree) operand() Node {
 }
 
 // term:
+//
 //	literal (number, string, nil, boolean)
 //	function (identifier)
 //	.
 //	.Field
 //	$
 //	'(' pipeline ')'
+//
 // A term is a simple "expression".
 // A nil return means the next item is not a term.
 func (t *Tree) term() Node {
 	switch token := t.nextNonSpace(); token.typ {
-	case itemError:
-		t.errorf("%s", token.val)
 	case itemIdentifier:
-		if !t.hasFunction(token.val) {
+		checkFunc := t.Mode&SkipFuncCheck == 0
+		if checkFunc && !t.hasFunction(token.val) {
 			t.errorf("function %q not defined", token.val)
 		}
 		return NewIdentifier(token.val).SetTree(t).SetPos(token.pos)
@@ -685,11 +781,7 @@ func (t *Tree) term() Node {
 		}
 		return number
 	case itemLeftParen:
-		pipe := t.pipeline("parenthesized pipeline")
-		if token := t.next(); token.typ != itemRightParen {
-			t.errorf("unclosed right paren: unexpected %s", token)
-		}
-		return pipe
+		return t.pipeline("parenthesized pipeline", itemRightParen)
 	case itemString, itemRawString:
 		s, err := strconv.Unquote(token.val)
 		if err != nil {

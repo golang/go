@@ -8,6 +8,6 @@
 
 package main
 
-var z struct {
-	e [cap(z.e)]int // ERROR "array bound|typechecking loop|invalid array"
+var z struct { // GC_ERROR "initialization loop for z"
+	e [cap(z.e)]int // GCCGO_ERROR "array bound|typechecking loop|invalid array"
 }

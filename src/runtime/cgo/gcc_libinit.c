@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build cgo
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 #include <pthread.h>
 #include <errno.h>
@@ -32,7 +32,7 @@ x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
 }
 
 uintptr_t
-_cgo_wait_runtime_init_done() {
+_cgo_wait_runtime_init_done(void) {
 	void (*pfn)(struct context_arg*);
 
 	pthread_mutex_lock(&runtime_init_mu);
@@ -63,7 +63,7 @@ _cgo_wait_runtime_init_done() {
 }
 
 void
-x_cgo_notify_runtime_init_done(void* dummy) {
+x_cgo_notify_runtime_init_done(void* dummy __attribute__ ((unused))) {
 	pthread_mutex_lock(&runtime_init_mu);
 	runtime_init_done = 1;
 	pthread_cond_broadcast(&runtime_init_cond);
@@ -98,6 +98,10 @@ _cgo_try_pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*p
 
 	for (tries = 0; tries < 20; tries++) {
 		err = pthread_create(thread, attr, pfn, arg);
+		if (err == 0) {
+			pthread_detach(*thread);
+			return 0;
+		}
 		if (err != EAGAIN) {
 			return err;
 		}

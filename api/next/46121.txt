@@ -1,0 +1,2 @@
+pkg html/template, method (*Template) Funcs(template.FuncMap) *Template #46121
+pkg html/template, type FuncMap = template.FuncMap #46121

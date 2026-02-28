@@ -15,7 +15,9 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"internal/testenv"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -85,6 +87,12 @@ func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {
 
 	// the first and 2nd result should be identical
 	if !bytes.Equal(b1.Bytes(), b2.Bytes()) {
+		// A known instance of gofmt not being idempotent
+		// (see Issue #24472)
+		if strings.HasSuffix(filename, "issue22662.go") {
+			t.Log("known gofmt idempotency bug (Issue #24472)")
+			return
+		}
 		t.Errorf("gofmt %s not idempotent", filename)
 	}
 }
@@ -101,12 +109,13 @@ func testFiles(t *testing.T, filenames <-chan string, done chan<- int) {
 func genFilenames(t *testing.T, filenames chan<- string) {
 	defer close(filenames)
 
-	handleFile := func(filename string, fi os.FileInfo, err error) error {
+	handleFile := func(filename string, d fs.DirEntry, err error) error {
 		if err != nil {
 			t.Error(err)
 			return nil
 		}
-		if isGoFile(fi) {
+		// don't descend into testdata directories
+		if isGoFile(d) && !strings.Contains(filepath.ToSlash(filename), "/testdata/") {
 			filenames <- filename
 			nfiles++
 		}
@@ -117,13 +126,17 @@ func genFilenames(t *testing.T, filenames chan<- string) {
 	if *files != "" {
 		for _, filename := range strings.Split(*files, ",") {
 			fi, err := os.Stat(filename)
-			handleFile(filename, fi, err)
+			handleFile(filename, &statDirEntry{fi}, err)
 		}
 		return // ignore files under -root
 	}
 
 	// otherwise, test all Go files under *root
-	filepath.Walk(*root, handleFile)
+	goroot := *root
+	if goroot == "" {
+		goroot = testenv.GOROOT(t)
+	}
+	filepath.WalkDir(goroot, handleFile)
 }
 
 func TestAll(t *testing.T) {
@@ -157,3 +170,12 @@ func TestAll(t *testing.T) {
 		fmt.Printf("processed %d files\n", nfiles)
 	}
 }
+
+type statDirEntry struct {
+	info fs.FileInfo
+}
+
+func (d *statDirEntry) Name() string               { return d.info.Name() }
+func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
+func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
+func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }

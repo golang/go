@@ -9,7 +9,8 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
-	
+#include "cgo/abi_amd64.h"
+
 TEXT runtime·sys_umtx_sleep(SB),NOSPLIT,$0
 	MOVQ addr+0(FP), DI		// arg 1 - ptr
 	MOVL val+8(FP), SI		// arg 2 - value
@@ -64,12 +65,18 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$-8
-	MOVL	code+0(FP), DI		// arg 1 exit status
-	MOVL	$431, AX
+// func exitThread(wait *uint32)
+TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+	MOVQ	wait+0(FP), AX
+	// We're done using the stack.
+	MOVL	$0, (AX)
+	MOVL	$0x10000, DI	// arg 1 how - EXTEXIT_LWP
+	MOVL	$0, SI		// arg 2 status
+	MOVL	$0, DX		// arg 3 addr
+	MOVL	$494, AX	// extexit
 	SYSCALL
 	MOVL	$0xf1, 0xf1  // crash
-	RET
+	JMP	0(PC)
 
 TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVQ	name+0(FP), DI		// arg 1 pathname
@@ -98,35 +105,49 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVL	$3, AX
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$-1, AX
+	NEGL	AX			// caller expects negative errno
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$-8
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT,$0-20
+	MOVL	$0, DI
+	// dragonfly expects flags as the 2nd argument
+	MOVL	flags+0(FP), SI
+	MOVL	$538, AX
+	SYSCALL
+	JCC	pipe2ok
+	MOVL	$-1,r+8(FP)
+	MOVL	$-1,w+12(FP)
+	MOVL	AX, errno+16(FP)
+	RET
+pipe2ok:
+	MOVL	AX, r+8(FP)
+	MOVL	DX, w+12(FP)
+	MOVL	$0, errno+16(FP)
+	RET
+
+TEXT runtime·write1(SB),NOSPLIT,$-8
 	MOVQ	fd+0(FP), DI		// arg 1 fd
 	MOVQ	p+8(FP), SI		// arg 2 buf
 	MOVL	n+16(FP), DX		// arg 3 count
 	MOVL	$4, AX
 	SYSCALL
 	JCC	2(PC)
-	MOVL	$-1, AX
+	NEGL	AX			// caller expects negative errno
 	MOVL	AX, ret+24(FP)
 	RET
 
-TEXT runtime·getrlimit(SB),NOSPLIT,$-8
-	MOVL	kind+0(FP), DI
-	MOVQ	limit+8(FP), SI
-	MOVL	$194, AX
-	SYSCALL
-	MOVL	AX, ret+16(FP)
-	RET
-
-TEXT runtime·raise(SB),NOSPLIT,$16
+TEXT runtime·lwp_gettid(SB),NOSPLIT,$0-4
 	MOVL	$496, AX	// lwp_gettid
 	SYSCALL
-	MOVQ	$-1, DI		// arg 1 - pid
-	MOVQ	AX, SI		// arg 2 - tid
-	MOVL	sig+0(FP), DX	// arg 3 - signum
+	MOVL	AX, ret+0(FP)
+	RET
+
+TEXT runtime·lwp_kill(SB),NOSPLIT,$0-16
+	MOVL	pid+0(FP), DI	// arg 1 - pid
+	MOVL	tid+4(FP), SI	// arg 2 - tid
+	MOVQ	sig+8(FP), DX	// arg 3 - signum
 	MOVL	$497, AX	// lwp_kill
 	SYSCALL
 	RET
@@ -162,7 +183,7 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVL	DX, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime(SB), NOSPLIT, $32
+TEXT runtime·nanotime1(SB), NOSPLIT, $32
 	MOVL	$232, AX
 	MOVQ	$4, DI  	// CLOCK_MONOTONIC
 	LEAQ	8(SP), SI
@@ -200,28 +221,29 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	POPQ	BP
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$72
-	// Save callee-saved C registers, since the caller may be a C signal handler.
-	MOVQ	BX,  bx-8(SP)
-	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
-	MOVQ	R12, r12-24(SP)
-	MOVQ	R13, r13-32(SP)
-	MOVQ	R14, r14-40(SP)
-	MOVQ	R15, r15-48(SP)
-	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
-	// modify them.
+// Called using C ABI.
+TEXT runtime·sigtramp(SB),NOSPLIT,$0
+	// Transition from C ABI to Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
 
-	MOVQ	DX, ctx-56(SP)
-	MOVQ	SI, info-64(SP)
-	MOVQ	DI, signum-72(SP)
-	CALL	runtime·sigtrampgo(SB)
+	// Set up ABIInternal environment: g in R14, cleared X15.
+	get_tls(R12)
+	MOVQ	g(R12), R14
+	PXOR	X15, X15
 
-	MOVQ	r15-48(SP), R15
-	MOVQ	r14-40(SP), R14
-	MOVQ	r13-32(SP), R13
-	MOVQ	r12-24(SP), R12
-	MOVQ	bp-16(SP),  BP
-	MOVQ	bx-8(SP),   BX
+	// Reserve space for spill slots.
+	NOP	SP		// disable vet stack checking
+	ADJSP   $24
+
+	// Call into the Go signal handler
+	MOVQ	DI, AX	// sig
+	MOVQ	SI, BX	// info
+	MOVQ	DX, CX	// ctx
+	CALL	·sigtrampgo<ABIInternal>(SB)
+
+	ADJSP	$-24
+
+	POP_REGS_HOST_TO_ABI0()
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
@@ -236,8 +258,15 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVQ	$0, R9			// arg 6 - pad
 	MOVL	$197, AX
 	SYSCALL
+	JCC	ok
 	ADDQ	$16, SP
-	MOVQ	AX, ret+32(FP)
+	MOVQ	$0, p+32(FP)
+	MOVQ	AX, err+40(FP)
+	RET
+ok:
+	ADDQ	$16, SP
+	MOVQ	AX, p+32(FP)
+	MOVQ	$0, err+40(FP)
 	RET
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
@@ -255,9 +284,11 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	flags+16(FP), DX
 	MOVQ	$75, AX	// madvise
 	SYSCALL
-	// ignore failure - maybe pages are locked
+	JCC	2(PC)
+	MOVL	$-1, AX
+	MOVL	AX, ret+24(FP)
 	RET
-	
+
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVQ	new+0(FP), DI
 	MOVQ	old+8(FP), SI

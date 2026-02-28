@@ -34,10 +34,11 @@ package ssa
 
 // TODO(matloob): Choose better names for Fun, Bloc, Goto, etc.
 // TODO(matloob): Write a parser for the Func disassembly. Maybe
-//                the parser can be used instead of Fun.
+// the parser can be used instead of Fun.
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"reflect"
@@ -140,6 +141,12 @@ var emptyPass pass = pass{
 	name: "empty pass",
 }
 
+// AuxCallLSym returns an AuxCall initialized with an LSym that should pass "check"
+// as the Aux of a static call.
+func AuxCallLSym(name string) *AuxCall {
+	return &AuxCall{Fn: &obj.LSym{}}
+}
+
 // Fun takes the name of an entry bloc and a series of Bloc calls, and
 // returns a fun containing the composed Func. entry must be a name
 // supplied to one of the Bloc functions. Each of the bloc names and
@@ -152,6 +159,7 @@ func (c *Conf) Fun(entry string, blocs ...bloc) fun {
 	// But not both.
 	f.Cache = new(Cache)
 	f.pass = &emptyPass
+	f.cachedLineStarts = newXposmap(map[int]lineRange{0: {0, 100}, 1: {0, 100}, 2: {0, 100}, 3: {0, 100}, 4: {0, 100}})
 
 	blocks := make(map[string]*Block)
 	values := make(map[string]*Value)
@@ -224,7 +232,7 @@ func Bloc(name string, entries ...interface{}) bloc {
 }
 
 // Valu defines a value in a block.
-func Valu(name string, op Op, t *types.Type, auxint int64, aux interface{}, args ...string) valu {
+func Valu(name string, op Op, t *types.Type, auxint int64, aux Aux, args ...string) valu {
 	return valu{name, op, t, auxint, aux, args}
 }
 
@@ -269,7 +277,7 @@ type valu struct {
 	op     Op
 	t      *types.Type
 	auxint int64
-	aux    interface{}
+	aux    Aux
 	args   []string
 }
 
@@ -394,12 +402,12 @@ func TestEquiv(t *testing.T) {
 			cfg.Fun("entry",
 				Bloc("entry",
 					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-					Valu("a", OpConst64, cfg.config.Types.Int64, 0, 14),
+					Valu("a", OpConstString, cfg.config.Types.String, 0, StringToAux("foo")),
 					Exit("mem"))),
 			cfg.Fun("entry",
 				Bloc("entry",
 					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-					Valu("a", OpConst64, cfg.config.Types.Int64, 0, 26),
+					Valu("a", OpConstString, cfg.config.Types.String, 0, StringToAux("bar")),
 					Exit("mem"))),
 		},
 		// value args different
@@ -437,12 +445,12 @@ func TestConstCache(t *testing.T) {
 		Bloc("entry",
 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
 			Exit("mem")))
-	v1 := f.f.ConstBool(src.NoXPos, c.config.Types.Bool, false)
-	v2 := f.f.ConstBool(src.NoXPos, c.config.Types.Bool, true)
+	v1 := f.f.ConstBool(c.config.Types.Bool, false)
+	v2 := f.f.ConstBool(c.config.Types.Bool, true)
 	f.f.freeValue(v1)
 	f.f.freeValue(v2)
-	v3 := f.f.ConstBool(src.NoXPos, c.config.Types.Bool, false)
-	v4 := f.f.ConstBool(src.NoXPos, c.config.Types.Bool, true)
+	v3 := f.f.ConstBool(c.config.Types.Bool, false)
+	v4 := f.f.ConstBool(c.config.Types.Bool, true)
 	if v3.AuxInt != 0 {
 		t.Errorf("expected %s to have auxint of 0\n", v3.LongString())
 	}

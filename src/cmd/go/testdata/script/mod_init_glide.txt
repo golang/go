@@ -1,0 +1,35 @@
+[!net] skip
+[!exec:git] skip
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=
+
+# Regression test for golang.org/issue/32161:
+# 'go mod init' did not locate tags when resolving a commit to a pseudo-version.
+go mod init x
+cmpenv go.mod go.mod.out
+
+-- main.go --
+package main
+
+import (
+	_ "github.com/rsc/legacytest"
+)
+
+func main() {}
+
+-- glide.lock --
+imports:
+- name: github.com/rsc/legacytest
+  version: fb3c628075e32f7f3c248a3abbdafd69ad6e21e1
+
+-- glide.yaml --
+package: x
+
+-- go.mod.out --
+module x
+
+go $goversion
+
+require github.com/rsc/legacytest v1.1.0-pre.0.20180717164849-fb3c628075e3

@@ -25,17 +25,18 @@ import (
 	"github.com/google/pprof/profile"
 )
 
-var tagFilterRangeRx = regexp.MustCompile("([[:digit:]]+)([[:alpha:]]+)")
+var tagFilterRangeRx = regexp.MustCompile("([+-]?[[:digit:]]+)([[:alpha:]]+)?")
 
 // applyFocus filters samples based on the focus/ignore options
-func applyFocus(prof *profile.Profile, v variables, ui plugin.UI) error {
-	focus, err := compileRegexOption("focus", v["focus"].value, nil)
-	ignore, err := compileRegexOption("ignore", v["ignore"].value, err)
-	hide, err := compileRegexOption("hide", v["hide"].value, err)
-	show, err := compileRegexOption("show", v["show"].value, err)
-	tagfocus, err := compileTagFilter("tagfocus", v["tagfocus"].value, ui, err)
-	tagignore, err := compileTagFilter("tagignore", v["tagignore"].value, ui, err)
-	prunefrom, err := compileRegexOption("prune_from", v["prune_from"].value, err)
+func applyFocus(prof *profile.Profile, numLabelUnits map[string]string, cfg config, ui plugin.UI) error {
+	focus, err := compileRegexOption("focus", cfg.Focus, nil)
+	ignore, err := compileRegexOption("ignore", cfg.Ignore, err)
+	hide, err := compileRegexOption("hide", cfg.Hide, err)
+	show, err := compileRegexOption("show", cfg.Show, err)
+	showfrom, err := compileRegexOption("show_from", cfg.ShowFrom, err)
+	tagfocus, err := compileTagFilter("tagfocus", cfg.TagFocus, numLabelUnits, ui, err)
+	tagignore, err := compileTagFilter("tagignore", cfg.TagIgnore, numLabelUnits, ui, err)
+	prunefrom, err := compileRegexOption("prune_from", cfg.PruneFrom, err)
 	if err != nil {
 		return err
 	}
@@ -46,20 +47,23 @@ func applyFocus(prof *profile.Profile, v variables, ui plugin.UI) error {
 	warnNoMatches(hide == nil || hm, "Hide", ui)
 	warnNoMatches(show == nil || hnm, "Show", ui)
 
+	sfm := prof.ShowFrom(showfrom)
+	warnNoMatches(showfrom == nil || sfm, "ShowFrom", ui)
+
 	tfm, tim := prof.FilterSamplesByTag(tagfocus, tagignore)
 	warnNoMatches(tagfocus == nil || tfm, "TagFocus", ui)
 	warnNoMatches(tagignore == nil || tim, "TagIgnore", ui)
 
-	tagshow, err := compileRegexOption("tagshow", v["tagshow"].value, err)
-	taghide, err := compileRegexOption("taghide", v["taghide"].value, err)
+	tagshow, err := compileRegexOption("tagshow", cfg.TagShow, err)
+	taghide, err := compileRegexOption("taghide", cfg.TagHide, err)
 	tns, tnh := prof.FilterTagsByName(tagshow, taghide)
 	warnNoMatches(tagshow == nil || tns, "TagShow", ui)
-	warnNoMatches(tagignore == nil || tnh, "TagHide", ui)
+	warnNoMatches(taghide == nil || tnh, "TagHide", ui)
 
 	if prunefrom != nil {
 		prof.PruneFrom(prunefrom)
 	}
-	return nil
+	return err
 }
 
 func compileRegexOption(name, value string, err error) (*regexp.Regexp, error) {
@@ -73,23 +77,49 @@ func compileRegexOption(name, value string, err error) (*regexp.Regexp, error) {
 	return rx, nil
 }
 
-func compileTagFilter(name, value string, ui plugin.UI, err error) (func(*profile.Sample) bool, error) {
+func compileTagFilter(name, value string, numLabelUnits map[string]string, ui plugin.UI, err error) (func(*profile.Sample) bool, error) {
 	if value == "" || err != nil {
 		return nil, err
 	}
+
+	tagValuePair := strings.SplitN(value, "=", 2)
+	var wantKey string
+	if len(tagValuePair) == 2 {
+		wantKey = tagValuePair[0]
+		value = tagValuePair[1]
+	}
+
 	if numFilter := parseTagFilterRange(value); numFilter != nil {
 		ui.PrintErr(name, ":Interpreted '", value, "' as range, not regexp")
-		return func(s *profile.Sample) bool {
-			for key, vals := range s.NumLabel {
-				for _, val := range vals {
-					if numFilter(val, key) {
+		labelFilter := func(vals []int64, unit string) bool {
+			for _, val := range vals {
+				if numFilter(val, unit) {
+					return true
+				}
+			}
+			return false
+		}
+		numLabelUnit := func(key string) string {
+			return numLabelUnits[key]
+		}
+		if wantKey == "" {
+			return func(s *profile.Sample) bool {
+				for key, vals := range s.NumLabel {
+					if labelFilter(vals, numLabelUnit(key)) {
 						return true
 					}
 				}
+				return false
+			}, nil
+		}
+		return func(s *profile.Sample) bool {
+			if vals, ok := s.NumLabel[wantKey]; ok {
+				return labelFilter(vals, numLabelUnit(wantKey))
 			}
 			return false
 		}, nil
 	}
+
 	var rfx []*regexp.Regexp
 	for _, tagf := range strings.Split(value, ",") {
 		fx, err := regexp.Compile(tagf)
@@ -98,19 +128,34 @@ func compileTagFilter(name, value string, ui plugin.UI, err error) (func(*profil
 		}
 		rfx = append(rfx, fx)
 	}
+	if wantKey == "" {
+		return func(s *profile.Sample) bool {
+		matchedrx:
+			for _, rx := range rfx {
+				for key, vals := range s.Label {
+					for _, val := range vals {
+						// TODO: Match against val, not key:val in future
+						if rx.MatchString(key + ":" + val) {
+							continue matchedrx
+						}
+					}
+				}
+				return false
+			}
+			return true
+		}, nil
+	}
 	return func(s *profile.Sample) bool {
-	matchedrx:
-		for _, rx := range rfx {
-			for key, vals := range s.Label {
+		if vals, ok := s.Label[wantKey]; ok {
+			for _, rx := range rfx {
 				for _, val := range vals {
-					if rx.MatchString(key + ":" + val) {
-						continue matchedrx
+					if rx.MatchString(val) {
+						return true
 					}
 				}
 			}
-			return false
 		}
-		return true
+		return false
 	}, nil
 }
 
@@ -128,7 +173,7 @@ func parseTagFilterRange(filter string) func(int64, string) bool {
 	}
 	v, err := strconv.ParseInt(ranges[0][1], 10, 64)
 	if err != nil {
-		panic(fmt.Errorf("Failed to parse int %s: %v", ranges[0][1], err))
+		panic(fmt.Errorf("failed to parse int %s: %v", ranges[0][1], err))
 	}
 	scaledValue, unit := measurement.Scale(v, ranges[0][2], ranges[0][2])
 	if len(ranges) == 1 {
@@ -155,7 +200,7 @@ func parseTagFilterRange(filter string) func(int64, string) bool {
 		return nil
 	}
 	if v, err = strconv.ParseInt(ranges[1][1], 10, 64); err != nil {
-		panic(fmt.Errorf("Failed to parse int %s: %v", ranges[1][1], err))
+		panic(fmt.Errorf("failed to parse int %s: %v", ranges[1][1], err))
 	}
 	scaledValue2, unit2 := measurement.Scale(v, ranges[1][2], unit)
 	if unit != unit2 {

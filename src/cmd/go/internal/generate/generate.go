@@ -2,17 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package generate implements the ``go generate'' command.
+// Package generate implements the “go generate” command.
 package generate
 
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
+	"go/parser"
+	"go/token"
+	exec "internal/execabs"
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -21,19 +24,21 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
+	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 )
 
 var CmdGenerate = &base.Command{
 	Run:       runGenerate,
-	UsageLine: "generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | packages]",
+	UsageLine: "go generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | packages]",
 	Short:     "generate Go files by processing source",
 	Long: `
 Generate runs commands described by directives within existing
 files. Those commands can run any process but the intent is to
 create or update Go source files.
 
-Go generate is never run automatically by go build, go get, go test,
+Go generate is never run automatically by go build, go test,
 and so on. It must be run explicitly.
 
 Go generate scans the file for directives, which are lines of
@@ -58,6 +63,15 @@ arguments when it is run.
 Quoted strings use Go syntax and are evaluated before execution; a
 quoted string appears as a single argument to the generator.
 
+To convey to humans and machine tools that code is generated,
+generated source should have a line that matches the following
+regular expression (in Go syntax):
+
+	^// Code generated .* DO NOT EDIT\.$
+
+This line must appear before the first non-comment, non-blank
+text in the file.
+
 Go generate sets several variables when it runs the generator:
 
 	$GOARCH
@@ -70,6 +84,9 @@ Go generate sets several variables when it runs the generator:
 		The line number of the directive in the source file.
 	$GOPACKAGE
 		The name of the package of the file containing the directive.
+	$GOROOT
+		The GOROOT directory for the 'go' command that invoked the
+		generator, containing the Go toolchain and standard library.
 	$DOLLAR
 		A dollar sign.
 
@@ -100,11 +117,16 @@ specifies that the command "foo" represents the generator
 "go tool foo".
 
 Generate processes packages in the order given on the command line,
-one at a time. If the command line lists .go files, they are treated
-as a single package. Within a package, generate processes the
+one at a time. If the command line lists .go files from a single directory,
+they are treated as a single package. Within a package, generate processes the
 source files in a package in file name order, one at a time. Within
 a source file, generate runs generators in the order they appear
-in the file, one at a time.
+in the file, one at a time. The go generate tool also sets the build
+tag "generate" so that files may be examined by go generate but ignored
+during build.
+
+For packages with invalid code, generate processes only source files with a
+valid package clause.
 
 If any generator returns an error exit status, "go generate" skips
 all further processing for that package.
@@ -137,13 +159,11 @@ var (
 )
 
 func init() {
-	work.AddBuildFlags(CmdGenerate)
+	work.AddBuildFlags(CmdGenerate, work.DefaultBuildFlags)
 	CmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
 }
 
-func runGenerate(cmd *base.Command, args []string) {
-	load.IgnoreImports = true
-
+func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
 	if generateRunFlag != "" {
 		var err error
 		generateRunRE, err = regexp.Compile(generateRunFlag)
@@ -151,10 +171,29 @@ func runGenerate(cmd *base.Command, args []string) {
 			log.Fatalf("generate: %s", err)
 		}
 	}
+
+	cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "generate")
+
 	// Even if the arguments are .go files, this loop suffices.
-	for _, pkg := range load.Packages(args) {
-		for _, file := range pkg.Internal.GoFiles {
-			if !generate(pkg.Name, file) {
+	printed := false
+	pkgOpts := load.PackageOpts{IgnoreImports: true}
+	for _, pkg := range load.PackagesAndErrors(ctx, pkgOpts, args) {
+		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
+			if !printed {
+				fmt.Fprintf(os.Stderr, "go: not generating in packages in dependency modules\n")
+				printed = true
+			}
+			continue
+		}
+
+		for _, file := range pkg.InternalGoFiles() {
+			if !generate(file) {
+				break
+			}
+		}
+
+		for _, file := range pkg.InternalXGoFiles() {
+			if !generate(file) {
 				break
 			}
 		}
@@ -162,16 +201,23 @@ func runGenerate(cmd *base.Command, args []string) {
 }
 
 // generate runs the generation directives for a single file.
-func generate(pkg, absFile string) bool {
-	fd, err := os.Open(absFile)
+func generate(absFile string) bool {
+	src, err := os.ReadFile(absFile)
 	if err != nil {
 		log.Fatalf("generate: %s", err)
 	}
-	defer fd.Close()
+
+	// Parse package clause
+	filePkg, err := parser.ParseFile(token.NewFileSet(), "", src, parser.PackageClauseOnly)
+	if err != nil {
+		// Invalid package clause - ignore file.
+		return true
+	}
+
 	g := &Generator{
-		r:        fd,
+		r:        bytes.NewReader(src),
 		path:     absFile,
-		pkg:      pkg,
+		pkg:      filePkg.Name.String(),
 		commands: make(map[string][]string),
 	}
 	return g.run()
@@ -283,6 +329,7 @@ func isGoGenerate(buf []byte) bool {
 // single go:generate command.
 func (g *Generator) setEnv() {
 	g.env = []string{
+		"GOROOT=" + cfg.GOROOT,
 		"GOARCH=" + cfg.BuildContext.GOARCH,
 		"GOOS=" + cfg.BuildContext.GOOS,
 		"GOFILE=" + g.file,
@@ -290,6 +337,7 @@ func (g *Generator) setEnv() {
 		"GOPACKAGE=" + g.pkg,
 		"DOLLAR=" + "$",
 	}
+	g.env = base.AppendPWD(g.env, g.dir)
 }
 
 // split breaks the line into words, evaluating quoted
@@ -345,7 +393,12 @@ Words:
 	// Substitute command if required.
 	if len(words) > 0 && g.commands[words[0]] != nil {
 		// Replace 0th word by command substitution.
-		words = append(g.commands[words[0]], words[1:]...)
+		//
+		// Force a copy of the command definition to
+		// ensure words doesn't end up as a reference
+		// to the g.commands content.
+		tmpCmdWords := append([]string(nil), (g.commands[words[0]])...)
+		words = append(tmpCmdWords, words[1:]...)
 	}
 	// Substitute environment variables.
 	for i, word := range words {
@@ -359,7 +412,7 @@ var stop = fmt.Errorf("error in generation")
 // errorf logs an error message prefixed with the file and line number.
 // It then exits the program (with exit status 1) because generation stops
 // at the first error.
-func (g *Generator) errorf(format string, args ...interface{}) {
+func (g *Generator) errorf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "%s:%d: %s\n", base.ShortPath(g.path), g.lineNum,
 		fmt.Sprintf(format, args...))
 	panic(stop)
@@ -385,7 +438,7 @@ func (g *Generator) setShorthand(words []string) {
 	}
 	command := words[1]
 	if g.commands[command] != nil {
-		g.errorf("command %q defined multiply defined", command)
+		g.errorf("command %q multiply defined", command)
 	}
 	g.commands[command] = words[2:len(words):len(words)] // force later append to make copy
 }
@@ -399,7 +452,7 @@ func (g *Generator) exec(words []string) {
 	cmd.Stderr = os.Stderr
 	// Run the command in the package directory.
 	cmd.Dir = g.dir
-	cmd.Env = base.MergeEnvLists(g.env, cfg.OrigEnv)
+	cmd.Env = str.StringList(cfg.OrigEnv, g.env)
 	err := cmd.Run()
 	if err != nil {
 		g.errorf("running %q: %s", words[0], err)

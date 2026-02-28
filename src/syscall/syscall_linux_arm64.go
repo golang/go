@@ -4,35 +4,38 @@
 
 package syscall
 
-const (
-	_SYS_dup       = SYS_DUP3
-	_SYS_getdents  = SYS_GETDENTS64
-	_SYS_setgroups = SYS_SETGROUPS
-)
+import "unsafe"
 
+const _SYS_setgroups = SYS_SETGROUPS
+
+func EpollCreate(size int) (fd int, err error) {
+	if size <= 0 {
+		return -1, EINVAL
+	}
+	return EpollCreate1(0)
+}
+
+//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Fstat(fd int, stat *Stat_t) (err error)
 //sys	Fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
+//sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error)
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
 //sysnb	Getegid() (egid int)
 //sysnb	Geteuid() (euid int)
 //sysnb	Getgid() (gid int)
-//sysnb	Getrlimit(resource int, rlim *Rlimit) (err error)
+//sysnb	getrlimit(resource int, rlim *Rlimit) (err error)
 //sysnb	Getuid() (uid int)
 //sys	Listen(s int, n int) (err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+//sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
-//sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS_PSELECT6
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
 //sys	Setfsgid(gid int) (err error)
 //sys	Setfsuid(uid int) (err error)
-//sysnb	Setregid(rgid int, egid int) (err error)
-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
-//sysnb	Setresuid(ruid int, euid int, suid int) (err error)
-//sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
-//sysnb	Setreuid(ruid int, euid int) (err error)
+//sysnb	setrlimit(resource int, rlim *Rlimit) (err error)
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
 
@@ -51,12 +54,10 @@ func Lstat(path string, stat *Stat_t) (err error) {
 //sys	Statfs(path string, buf *Statfs_t) (err error)
 //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error) = SYS_SYNC_FILE_RANGE2
 //sys	Truncate(path string, length int64) (err error)
-//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
 //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
 //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
 //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
 //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
-//sysnb	setgroups(n int, list *_Gid_t) (err error)
 //sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error)
 //sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error)
 //sysnb	socket(domain int, typ int, proto int) (fd int, err error)
@@ -69,8 +70,21 @@ func Lstat(path string, stat *Stat_t) (err error) {
 //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
 //sys	mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error)
 
+type sigset_t struct {
+	X__val [16]uint64
+}
+
+//sys	pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *sigset_t) (n int, err error) = SYS_PSELECT6
+
+func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) {
+	var ts *Timespec
+	if timeout != nil {
+		ts = &Timespec{Sec: timeout.Sec, Nsec: timeout.Usec * 1000}
+	}
+	return pselect(nfd, r, w, e, ts, nil)
+}
+
 //sysnb	Gettimeofday(tv *Timeval) (err error)
-//sysnb	Time(t *Time_t) (tt Time_t, err error)
 
 func setTimespec(sec, nsec int64) Timespec {
 	return Timespec{Sec: sec, Nsec: nsec}
@@ -80,28 +94,66 @@ func setTimeval(sec, usec int64) Timeval {
 	return Timeval{Sec: sec, Usec: usec}
 }
 
-func Pipe(p []int) (err error) {
-	if len(p) != 2 {
-		return EINVAL
+func futimesat(dirfd int, path string, tv *[2]Timeval) (err error) {
+	if tv == nil {
+		return utimensat(dirfd, path, nil, 0)
 	}
-	var pp [2]_C_int
-	err = pipe2(&pp, 0)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
-	return
+
+	ts := []Timespec{
+		NsecToTimespec(TimevalToNsec(tv[0])),
+		NsecToTimespec(TimevalToNsec(tv[1])),
+	}
+	return utimensat(dirfd, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
 }
 
-//sysnb pipe2(p *[2]_C_int, flags int) (err error)
-
-func Pipe2(p []int, flags int) (err error) {
-	if len(p) != 2 {
-		return EINVAL
+func Time(t *Time_t) (Time_t, error) {
+	var tv Timeval
+	err := Gettimeofday(&tv)
+	if err != nil {
+		return 0, err
 	}
-	var pp [2]_C_int
-	err = pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
-	return
+	if t != nil {
+		*t = Time_t(tv.Sec)
+	}
+	return Time_t(tv.Sec), nil
+}
+
+func Utime(path string, buf *Utimbuf) error {
+	tv := []Timeval{
+		{Sec: buf.Actime},
+		{Sec: buf.Modtime},
+	}
+	return Utimes(path, tv)
+}
+
+func utimes(path string, tv *[2]Timeval) (err error) {
+	if tv == nil {
+		return utimensat(_AT_FDCWD, path, nil, 0)
+	}
+
+	ts := []Timespec{
+		NsecToTimespec(TimevalToNsec(tv[0])),
+		NsecToTimespec(TimevalToNsec(tv[1])),
+	}
+	return utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+}
+
+// Getrlimit prefers the prlimit64 system call. See issue 38604.
+func Getrlimit(resource int, rlim *Rlimit) error {
+	err := prlimit(0, resource, nil, rlim)
+	if err != ENOSYS {
+		return err
+	}
+	return getrlimit(resource, rlim)
+}
+
+// Setrlimit prefers the prlimit64 system call. See issue 38604.
+func Setrlimit(resource int, rlim *Rlimit) error {
+	err := prlimit(0, resource, rlim, nil)
+	if err != ENOSYS {
+		return err
+	}
+	return setrlimit(resource, rlim)
 }
 
 func (r *PtraceRegs) PC() uint64 { return r.Pc }
@@ -124,22 +176,11 @@ func InotifyInit() (fd int, err error) {
 	return InotifyInit1(0)
 }
 
-// TODO(dfc): constants that should be in zsysnum_linux_arm64.go, remove
-// these when the deprecated syscalls that the syscall package relies on
-// are removed.
-const (
-	SYS_GETPGRP      = 1060
-	SYS_UTIMES       = 1037
-	SYS_FUTIMESAT    = 1066
-	SYS_PAUSE        = 1061
-	SYS_USTAT        = 1070
-	SYS_UTIME        = 1063
-	SYS_LCHOWN       = 1032
-	SYS_TIME         = 1062
-	SYS_EPOLL_CREATE = 1042
-	SYS_EPOLL_WAIT   = 1069
-)
+//sys	ppoll(fds *pollFd, nfds int, timeout *Timespec, sigmask *sigset_t) (n int, err error)
 
-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno) {
-	panic("not implemented")
+func Pause() error {
+	_, err := ppoll(nil, 0, nil, nil)
+	return err
 }
+
+func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

@@ -7,6 +7,8 @@ package time_test
 import (
 	"errors"
 	"fmt"
+	"internal/testenv"
+	"math/rand"
 	"runtime"
 	"strings"
 	"sync"
@@ -82,21 +84,36 @@ func TestAfterStress(t *testing.T) {
 }
 
 func benchmark(b *testing.B, bench func(n int)) {
-	garbage := make([]*Timer, 1<<17)
-	for i := 0; i < len(garbage); i++ {
-		garbage[i] = AfterFunc(Hour, nil)
-	}
-	b.ResetTimer()
 
+	// Create equal number of garbage timers on each P before starting
+	// the benchmark.
+	var wg sync.WaitGroup
+	garbageAll := make([][]*Timer, runtime.GOMAXPROCS(0))
+	for i := range garbageAll {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			garbage := make([]*Timer, 1<<15)
+			for j := range garbage {
+				garbage[j] = AfterFunc(Hour, nil)
+			}
+			garbageAll[i] = garbage
+		}(i)
+	}
+	wg.Wait()
+
+	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			bench(1000)
 		}
 	})
-
 	b.StopTimer()
-	for i := 0; i < len(garbage); i++ {
-		garbage[i].Stop()
+
+	for _, garbage := range garbageAll {
+		for _, t := range garbage {
+			t.Stop()
+		}
 	}
 }
 
@@ -158,6 +175,30 @@ func BenchmarkStartStop(b *testing.B) {
 	})
 }
 
+func BenchmarkReset(b *testing.B) {
+	benchmark(b, func(n int) {
+		t := NewTimer(Hour)
+		for i := 0; i < n; i++ {
+			t.Reset(Hour)
+		}
+		t.Stop()
+	})
+}
+
+func BenchmarkSleep(b *testing.B) {
+	benchmark(b, func(n int) {
+		var wg sync.WaitGroup
+		wg.Add(n)
+		for i := 0; i < n; i++ {
+			go func() {
+				Sleep(Nanosecond)
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+	})
+}
+
 func TestAfter(t *testing.T) {
 	const delay = 100 * Millisecond
 	start := Now()
@@ -196,28 +237,59 @@ func TestAfterTick(t *testing.T) {
 }
 
 func TestAfterStop(t *testing.T) {
-	AfterFunc(100*Millisecond, func() {})
-	t0 := NewTimer(50 * Millisecond)
-	c1 := make(chan bool, 1)
-	t1 := AfterFunc(150*Millisecond, func() { c1 <- true })
-	c2 := After(200 * Millisecond)
-	if !t0.Stop() {
-		t.Fatalf("failed to stop event 0")
+	// We want to test that we stop a timer before it runs.
+	// We also want to test that it didn't run after a longer timer.
+	// Since we don't want the test to run for too long, we don't
+	// want to use lengthy times. That makes the test inherently flaky.
+	// So only report an error if it fails five times in a row.
+
+	var errs []string
+	logErrs := func() {
+		for _, e := range errs {
+			t.Log(e)
+		}
 	}
-	if !t1.Stop() {
-		t.Fatalf("failed to stop event 1")
+
+	for i := 0; i < 5; i++ {
+		AfterFunc(100*Millisecond, func() {})
+		t0 := NewTimer(50 * Millisecond)
+		c1 := make(chan bool, 1)
+		t1 := AfterFunc(150*Millisecond, func() { c1 <- true })
+		c2 := After(200 * Millisecond)
+		if !t0.Stop() {
+			errs = append(errs, "failed to stop event 0")
+			continue
+		}
+		if !t1.Stop() {
+			errs = append(errs, "failed to stop event 1")
+			continue
+		}
+		<-c2
+		select {
+		case <-t0.C:
+			errs = append(errs, "event 0 was not stopped")
+			continue
+		case <-c1:
+			errs = append(errs, "event 1 was not stopped")
+			continue
+		default:
+		}
+		if t1.Stop() {
+			errs = append(errs, "Stop returned true twice")
+			continue
+		}
+
+		// Test passed, so all done.
+		if len(errs) > 0 {
+			t.Logf("saw %d errors, ignoring to avoid flakiness", len(errs))
+			logErrs()
+		}
+
+		return
 	}
-	<-c2
-	select {
-	case <-t0.C:
-		t.Fatalf("event 0 was not stopped")
-	case <-c1:
-		t.Fatalf("event 1 was not stopped")
-	default:
-	}
-	if t1.Stop() {
-		t.Fatalf("Stop returned true twice")
-	}
+
+	t.Errorf("saw %d errors", len(errs))
+	logErrs()
 }
 
 func TestAfterQueuing(t *testing.T) {
@@ -286,7 +358,7 @@ func TestTimerStopStress(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		go func(i int) {
 			timer := AfterFunc(2*Second, func() {
-				t.Fatalf("timer %d was not stopped", i)
+				t.Errorf("timer %d was not stopped", i)
 			})
 			Sleep(1 * Second)
 			timer.Stop()
@@ -320,7 +392,7 @@ func TestSleepZeroDeadlock(t *testing.T) {
 func testReset(d Duration) error {
 	t0 := NewTimer(2 * d)
 	Sleep(d)
-	if t0.Reset(3*d) != true {
+	if !t0.Reset(3 * d) {
 		return errors.New("resetting unfired timer returned false")
 	}
 	Sleep(2 * d)
@@ -336,7 +408,7 @@ func testReset(d Duration) error {
 		return errors.New("reset timer did not fire")
 	}
 
-	if t0.Reset(50*Millisecond) != false {
+	if t0.Reset(50 * Millisecond) {
 		return errors.New("resetting expired timer returned true")
 	}
 	return nil
@@ -364,17 +436,29 @@ func TestReset(t *testing.T) {
 	t.Error(err)
 }
 
-// Test that sleeping for an interval so large it overflows does not
-// result in a short sleep duration.
+// Test that sleeping (via Sleep or Timer) for an interval so large it
+// overflows does not result in a short sleep duration. Nor does it interfere
+// with execution of other timers. If it does, timers in this or subsequent
+// tests may not fire.
 func TestOverflowSleep(t *testing.T) {
 	const big = Duration(int64(1<<63 - 1))
+
+	go func() {
+		Sleep(big)
+		// On failure, this may return after the test has completed, so
+		// we need to panic instead.
+		panic("big sleep returned")
+	}()
+
 	select {
 	case <-After(big):
 		t.Fatalf("big timeout fired")
 	case <-After(25 * Millisecond):
 		// OK
 	}
+
 	const neg = Duration(-1 << 63)
+	Sleep(neg) // Returns immediately.
 	select {
 	case <-After(neg):
 		// OK
@@ -386,10 +470,6 @@ func TestOverflowSleep(t *testing.T) {
 // Test that a panic while deleting a timer does not leave
 // the timers mutex held, deadlocking a ticker.Stop in a defer.
 func TestIssue5745(t *testing.T) {
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
-		t.Skipf("skipping on %s/%s, see issue 10043", runtime.GOOS, runtime.GOARCH)
-	}
-
 	ticker := NewTicker(Hour)
 	defer func() {
 		// would deadlock here before the fix due to
@@ -407,13 +487,10 @@ func TestIssue5745(t *testing.T) {
 	t.Error("Should be unreachable.")
 }
 
-func TestOverflowRuntimeTimer(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in short mode, see issue 6874")
-	}
+func TestOverflowPeriodRuntimeTimer(t *testing.T) {
 	// This may hang forever if timers are broken. See comment near
 	// the end of CheckRuntimeTimerOverflow in internal_test.go.
-	CheckRuntimeTimerOverflow()
+	CheckRuntimeTimerPeriodOverflow()
 }
 
 func checkZeroPanicString(t *testing.T) {
@@ -434,4 +511,311 @@ func TestZeroTimerStopPanics(t *testing.T) {
 	defer checkZeroPanicString(t)
 	var tr Timer
 	tr.Stop()
+}
+
+// Test that zero duration timers aren't missed by the scheduler. Regression test for issue 44868.
+func TestZeroTimer(t *testing.T) {
+	if testing.Short() {
+		t.Skip("-short")
+	}
+
+	for i := 0; i < 1000000; i++ {
+		s := Now()
+		ti := NewTimer(0)
+		<-ti.C
+		if diff := Since(s); diff > 2*Second {
+			t.Errorf("Expected time to get value from Timer channel in less than 2 sec, took %v", diff)
+		}
+	}
+}
+
+// Test that rapidly moving a timer earlier doesn't cause it to get dropped.
+// Issue 47329.
+func TestTimerModifiedEarlier(t *testing.T) {
+	if runtime.GOOS == "plan9" && runtime.GOARCH == "arm" {
+		testenv.SkipFlaky(t, 50470)
+	}
+
+	past := Until(Unix(0, 0))
+	count := 1000
+	fail := 0
+	for i := 0; i < count; i++ {
+		timer := NewTimer(Hour)
+		for j := 0; j < 10; j++ {
+			if !timer.Stop() {
+				<-timer.C
+			}
+			timer.Reset(past)
+		}
+
+		deadline := NewTimer(10 * Second)
+		defer deadline.Stop()
+		now := Now()
+		select {
+		case <-timer.C:
+			if since := Since(now); since > 8*Second {
+				t.Errorf("timer took too long (%v)", since)
+				fail++
+			}
+		case <-deadline.C:
+			t.Error("deadline expired")
+		}
+	}
+
+	if fail > 0 {
+		t.Errorf("%d failures", fail)
+	}
+}
+
+// Test that rapidly moving timers earlier and later doesn't cause
+// some of the sleep times to be lost.
+// Issue 47762
+func TestAdjustTimers(t *testing.T) {
+	var rnd = rand.New(rand.NewSource(Now().UnixNano()))
+
+	timers := make([]*Timer, 100)
+	states := make([]int, len(timers))
+	indices := rnd.Perm(len(timers))
+
+	for len(indices) != 0 {
+		var ii = rnd.Intn(len(indices))
+		var i = indices[ii]
+
+		var timer = timers[i]
+		var state = states[i]
+		states[i]++
+
+		switch state {
+		case 0:
+			timers[i] = NewTimer(0)
+		case 1:
+			<-timer.C // Timer is now idle.
+
+		// Reset to various long durations, which we'll cancel.
+		case 2:
+			if timer.Reset(1 * Minute) {
+				panic("shouldn't be active (1)")
+			}
+		case 4:
+			if timer.Reset(3 * Minute) {
+				panic("shouldn't be active (3)")
+			}
+		case 6:
+			if timer.Reset(2 * Minute) {
+				panic("shouldn't be active (2)")
+			}
+
+		// Stop and drain a long-duration timer.
+		case 3, 5, 7:
+			if !timer.Stop() {
+				t.Logf("timer %d state %d Stop returned false", i, state)
+				<-timer.C
+			}
+
+		// Start a short-duration timer we expect to select without blocking.
+		case 8:
+			if timer.Reset(0) {
+				t.Fatal("timer.Reset returned true")
+			}
+		case 9:
+			now := Now()
+			<-timer.C
+			dur := Since(now)
+			if dur > 750*Millisecond {
+				t.Errorf("timer %d took %v to complete", i, dur)
+			}
+
+		// Timer is done. Swap with tail and remove.
+		case 10:
+			indices[ii] = indices[len(indices)-1]
+			indices = indices[:len(indices)-1]
+		}
+	}
+}
+
+// Benchmark timer latency when the thread that creates the timer is busy with
+// other work and the timers must be serviced by other threads.
+// https://golang.org/issue/38860
+func BenchmarkParallelTimerLatency(b *testing.B) {
+	gmp := runtime.GOMAXPROCS(0)
+	if gmp < 2 || runtime.NumCPU() < gmp {
+		b.Skip("skipping with GOMAXPROCS < 2 or NumCPU < GOMAXPROCS")
+	}
+
+	// allocate memory now to avoid GC interference later.
+	timerCount := gmp - 1
+	stats := make([]struct {
+		sum   float64
+		max   Duration
+		count int64
+		_     [5]int64 // cache line padding
+	}, timerCount)
+
+	// Ensure the time to start new threads to service timers will not pollute
+	// the results.
+	warmupScheduler(gmp)
+
+	// Note that other than the AfterFunc calls this benchmark is measuring it
+	// avoids using any other timers. In particular, the main goroutine uses
+	// doWork to spin for some durations because up through Go 1.15 if all
+	// threads are idle sysmon could leave deep sleep when we wake.
+
+	// Ensure sysmon is in deep sleep.
+	doWork(30 * Millisecond)
+
+	b.ResetTimer()
+
+	const delay = Millisecond
+	var wg sync.WaitGroup
+	var count int32
+	for i := 0; i < b.N; i++ {
+		wg.Add(timerCount)
+		atomic.StoreInt32(&count, 0)
+		for j := 0; j < timerCount; j++ {
+			j := j
+			expectedWakeup := Now().Add(delay)
+			AfterFunc(delay, func() {
+				late := Since(expectedWakeup)
+				if late < 0 {
+					late = 0
+				}
+				stats[j].count++
+				stats[j].sum += float64(late.Nanoseconds())
+				if late > stats[j].max {
+					stats[j].max = late
+				}
+				atomic.AddInt32(&count, 1)
+				for atomic.LoadInt32(&count) < int32(timerCount) {
+					// spin until all timers fired
+				}
+				wg.Done()
+			})
+		}
+
+		for atomic.LoadInt32(&count) < int32(timerCount) {
+			// spin until all timers fired
+		}
+		wg.Wait()
+
+		// Spin for a bit to let the other scheduler threads go idle before the
+		// next round.
+		doWork(Millisecond)
+	}
+	var total float64
+	var samples float64
+	max := Duration(0)
+	for _, s := range stats {
+		if s.max > max {
+			max = s.max
+		}
+		total += s.sum
+		samples += float64(s.count)
+	}
+	b.ReportMetric(0, "ns/op")
+	b.ReportMetric(total/samples, "avg-late-ns")
+	b.ReportMetric(float64(max.Nanoseconds()), "max-late-ns")
+}
+
+// Benchmark timer latency with staggered wakeup times and varying CPU bound
+// workloads. https://golang.org/issue/38860
+func BenchmarkStaggeredTickerLatency(b *testing.B) {
+	gmp := runtime.GOMAXPROCS(0)
+	if gmp < 2 || runtime.NumCPU() < gmp {
+		b.Skip("skipping with GOMAXPROCS < 2 or NumCPU < GOMAXPROCS")
+	}
+
+	const delay = 3 * Millisecond
+
+	for _, dur := range []Duration{300 * Microsecond, 2 * Millisecond} {
+		b.Run(fmt.Sprintf("work-dur=%s", dur), func(b *testing.B) {
+			for tickersPerP := 1; tickersPerP < int(delay/dur)+1; tickersPerP++ {
+				tickerCount := gmp * tickersPerP
+				b.Run(fmt.Sprintf("tickers-per-P=%d", tickersPerP), func(b *testing.B) {
+					// allocate memory now to avoid GC interference later.
+					stats := make([]struct {
+						sum   float64
+						max   Duration
+						count int64
+						_     [5]int64 // cache line padding
+					}, tickerCount)
+
+					// Ensure the time to start new threads to service timers
+					// will not pollute the results.
+					warmupScheduler(gmp)
+
+					b.ResetTimer()
+
+					var wg sync.WaitGroup
+					wg.Add(tickerCount)
+					for j := 0; j < tickerCount; j++ {
+						j := j
+						doWork(delay / Duration(gmp))
+						expectedWakeup := Now().Add(delay)
+						ticker := NewTicker(delay)
+						go func(c int, ticker *Ticker, firstWake Time) {
+							defer ticker.Stop()
+
+							for ; c > 0; c-- {
+								<-ticker.C
+								late := Since(expectedWakeup)
+								if late < 0 {
+									late = 0
+								}
+								stats[j].count++
+								stats[j].sum += float64(late.Nanoseconds())
+								if late > stats[j].max {
+									stats[j].max = late
+								}
+								expectedWakeup = expectedWakeup.Add(delay)
+								doWork(dur)
+							}
+							wg.Done()
+						}(b.N, ticker, expectedWakeup)
+					}
+					wg.Wait()
+
+					var total float64
+					var samples float64
+					max := Duration(0)
+					for _, s := range stats {
+						if s.max > max {
+							max = s.max
+						}
+						total += s.sum
+						samples += float64(s.count)
+					}
+					b.ReportMetric(0, "ns/op")
+					b.ReportMetric(total/samples, "avg-late-ns")
+					b.ReportMetric(float64(max.Nanoseconds()), "max-late-ns")
+				})
+			}
+		})
+	}
+}
+
+// warmupScheduler ensures the scheduler has at least targetThreadCount threads
+// in its thread pool.
+func warmupScheduler(targetThreadCount int) {
+	var wg sync.WaitGroup
+	var count int32
+	for i := 0; i < targetThreadCount; i++ {
+		wg.Add(1)
+		go func() {
+			atomic.AddInt32(&count, 1)
+			for atomic.LoadInt32(&count) < int32(targetThreadCount) {
+				// spin until all threads started
+			}
+
+			// spin a bit more to ensure they are all running on separate CPUs.
+			doWork(Millisecond)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
+
+func doWork(dur Duration) {
+	start := Now()
+	for Since(start) < dur {
+	}
 }

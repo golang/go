@@ -7,11 +7,6 @@
 // by the gc compilers.
 package gosym
 
-// The table format is a variant of the format used in Plan 9's a.out
-// format, documented at https://9p.io/magic/man2html/6/a.out.
-// The best reference for the differences between the Plan 9 format
-// and the Go format is the runtime source, specifically ../../runtime/symtab.c.
-
 import (
 	"bytes"
 	"encoding/binary"
@@ -37,38 +32,87 @@ type Sym struct {
 // Static reports whether this symbol is static (not visible outside its file).
 func (s *Sym) Static() bool { return s.Type >= 'a' }
 
+// nameWithoutInst returns s.Name if s.Name has no brackets (does not reference an
+// instantiated type, function, or method). If s.Name contains brackets, then it
+// returns s.Name with all the contents between (and including) the outermost left
+// and right bracket removed. This is useful to ignore any extra slashes or dots
+// inside the brackets from the string searches below, where needed.
+func (s *Sym) nameWithoutInst() string {
+	start := strings.Index(s.Name, "[")
+	if start < 0 {
+		return s.Name
+	}
+	end := strings.LastIndex(s.Name, "]")
+	if end < 0 {
+		// Malformed name, should contain closing bracket too.
+		return s.Name
+	}
+	return s.Name[0:start] + s.Name[end+1:]
+}
+
 // PackageName returns the package part of the symbol name,
 // or the empty string if there is none.
 func (s *Sym) PackageName() string {
-	pathend := strings.LastIndex(s.Name, "/")
+	name := s.nameWithoutInst()
+
+	// A prefix of "type." and "go." is a compiler-generated symbol that doesn't belong to any package.
+	// See variable reservedimports in cmd/compile/internal/gc/subr.go
+	if strings.HasPrefix(name, "go.") || strings.HasPrefix(name, "type.") {
+		return ""
+	}
+
+	pathend := strings.LastIndex(name, "/")
 	if pathend < 0 {
 		pathend = 0
 	}
 
-	if i := strings.Index(s.Name[pathend:], "."); i != -1 {
-		return s.Name[:pathend+i]
+	if i := strings.Index(name[pathend:], "."); i != -1 {
+		return name[:pathend+i]
 	}
 	return ""
 }
 
 // ReceiverName returns the receiver type name of this symbol,
-// or the empty string if there is none.
+// or the empty string if there is none.  A receiver name is only detected in
+// the case that s.Name is fully-specified with a package name.
 func (s *Sym) ReceiverName() string {
-	pathend := strings.LastIndex(s.Name, "/")
+	name := s.nameWithoutInst()
+	// If we find a slash in name, it should precede any bracketed expression
+	// that was removed, so pathend will apply correctly to name and s.Name.
+	pathend := strings.LastIndex(name, "/")
 	if pathend < 0 {
 		pathend = 0
 	}
-	l := strings.Index(s.Name[pathend:], ".")
-	r := strings.LastIndex(s.Name[pathend:], ".")
+	// Find the first dot after pathend (or from the beginning, if there was
+	// no slash in name).
+	l := strings.Index(name[pathend:], ".")
+	// Find the last dot after pathend (or the beginnng).
+	r := strings.LastIndex(name[pathend:], ".")
 	if l == -1 || r == -1 || l == r {
+		// There is no receiver if we didn't find two distinct dots after pathend.
 		return ""
 	}
+	// Given there is a trailing '.' that is in name, find it now in s.Name.
+	// pathend+l should apply to s.Name, because it should be the dot in the
+	// package name.
+	r = strings.LastIndex(s.Name[pathend:], ".")
 	return s.Name[pathend+l+1 : pathend+r]
 }
 
 // BaseName returns the symbol name without the package or receiver name.
 func (s *Sym) BaseName() string {
-	if i := strings.LastIndex(s.Name, "."); i != -1 {
+	name := s.nameWithoutInst()
+	if i := strings.LastIndex(name, "."); i != -1 {
+		if s.Name != name {
+			brack := strings.Index(s.Name, "[")
+			if i > brack {
+				// BaseName is a method name after the brackets, so
+				// recalculate for s.Name. Otherwise, i applies
+				// correctly to s.Name, since it is before the
+				// brackets.
+				i = strings.LastIndex(s.Name, ".")
+			}
+		}
 		return s.Name[i+1:]
 	}
 	return s.Name
@@ -79,8 +123,8 @@ type Func struct {
 	Entry uint64
 	*Sym
 	End       uint64
-	Params    []*Sym
-	Locals    []*Sym
+	Params    []*Sym // nil for Go 1.3 and later binaries
+	Locals    []*Sym // nil for Go 1.3 and later binaries
 	FrameSize int
 	LineTable *LineTable
 	Obj       *Obj
@@ -116,10 +160,10 @@ type Obj struct {
 // symbols decoded from the program and provides methods to translate
 // between symbols, names, and addresses.
 type Table struct {
-	Syms  []Sym
+	Syms  []Sym // nil for Go 1.3 and later binaries
 	Funcs []Func
-	Files map[string]*Obj // nil for Go 1.2 and later binaries
-	Objs  []Obj           // nil for Go 1.2 and later binaries
+	Files map[string]*Obj // for Go 1.2 and later all files map to one Obj
+	Objs  []Obj           // for Go 1.2 and later only one Obj in slice
 
 	go12line *LineTable // Go 1.2 line number table
 }
@@ -277,8 +321,9 @@ func walksymtab(data []byte, fn func(sym) error) error {
 	return nil
 }
 
-// NewTable decodes the Go symbol table in data,
+// NewTable decodes the Go symbol table (the ".gosymtab" section in ELF),
 // returning an in-memory representation.
+// Starting with Go 1.3, the Go symbol table no longer includes symbol data.
 func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 	var n int
 	err := walksymtab(symtab, func(s sym) error {
@@ -706,7 +751,7 @@ func (e *UnknownLineError) Error() string {
 type DecodingError struct {
 	off int
 	msg string
-	val interface{}
+	val any
 }
 
 func (e *DecodingError) Error() string {

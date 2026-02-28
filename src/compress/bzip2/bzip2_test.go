@@ -9,7 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -22,7 +22,7 @@ func mustDecodeHex(s string) []byte {
 }
 
 func mustLoadFile(f string) []byte {
-	b, err := ioutil.ReadFile(f)
+	b, err := os.ReadFile(f)
 	if err != nil {
 		panic(err)
 	}
@@ -133,7 +133,7 @@ func TestReader(t *testing.T) {
 
 	for i, v := range vectors {
 		rd := NewReader(bytes.NewReader(v.input))
-		buf, err := ioutil.ReadAll(rd)
+		buf, err := io.ReadAll(rd)
 
 		if fail := bool(err != nil); fail != v.fail {
 			if fail {
@@ -204,15 +204,23 @@ func TestMTF(t *testing.T) {
 	}
 }
 
+func TestZeroRead(t *testing.T) {
+	b := mustDecodeHex("425a6839314159265359b5aa5098000000600040000004200021008283177245385090b5aa5098")
+	r := NewReader(bytes.NewReader(b))
+	if n, err := r.Read(nil); n != 0 || err != nil {
+		t.Errorf("Read(nil) = (%d, %v), want (0, nil)", n, err)
+	}
+}
+
 var (
 	digits = mustLoadFile("testdata/e.txt.bz2")
-	twain  = mustLoadFile("testdata/Mark.Twain-Tom.Sawyer.txt.bz2")
+	newton = mustLoadFile("testdata/Isaac.Newton-Opticks.txt.bz2")
 	random = mustLoadFile("testdata/random.data.bz2")
 )
 
 func benchmarkDecode(b *testing.B, compressed []byte) {
 	// Determine the uncompressed size of testfile.
-	uncompressedSize, err := io.Copy(ioutil.Discard, NewReader(bytes.NewReader(compressed)))
+	uncompressedSize, err := io.Copy(io.Discard, NewReader(bytes.NewReader(compressed)))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -223,10 +231,10 @@ func benchmarkDecode(b *testing.B, compressed []byte) {
 
 	for i := 0; i < b.N; i++ {
 		r := bytes.NewReader(compressed)
-		io.Copy(ioutil.Discard, NewReader(r))
+		io.Copy(io.Discard, NewReader(r))
 	}
 }
 
 func BenchmarkDecodeDigits(b *testing.B) { benchmarkDecode(b, digits) }
-func BenchmarkDecodeTwain(b *testing.B)  { benchmarkDecode(b, twain) }
+func BenchmarkDecodeNewton(b *testing.B) { benchmarkDecode(b, newton) }
 func BenchmarkDecodeRand(b *testing.B)   { benchmarkDecode(b, random) }

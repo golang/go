@@ -118,19 +118,20 @@ func (h *huffmanEncoder) bitLength(freq []int32) int {
 
 const maxBitsLimit = 16
 
-// Return the number of literals assigned to each bit size in the Huffman encoding
-//
-// This method is only called when list.length >= 3
+// bitCounts computes the number of literals assigned to each bit size in the Huffman encoding.
+// It is only called when list.length >= 3.
 // The cases of 0, 1, and 2 literals are handled by special case code.
 //
-// list  An array of the literals with non-zero frequencies
-//             and their associated frequencies. The array is in order of increasing
-//             frequency, and has as its last element a special element with frequency
-//             MaxInt32
-// maxBits     The maximum number of bits that should be used to encode any literal.
-//             Must be less than 16.
-// return      An integer array in which array[i] indicates the number of literals
-//             that should be encoded in i bits.
+// list is an array of the literals with non-zero frequencies
+// and their associated frequencies. The array is in order of increasing
+// frequency and has as its last element a special element with frequency
+// MaxInt32.
+//
+// maxBits is the maximum number of bits that should be used to encode any literal.
+// It must be less than 16.
+//
+// bitCounts retruns an integer slice in which slice[i] indicates the number of literals
+// that should be encoded in i bits.
 func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 	if maxBits >= maxBitsLimit {
 		panic("flate: maxBits too large")
@@ -269,7 +270,7 @@ func (h *huffmanEncoder) assignEncodingAndSize(bitCount []int32, list []literalN
 
 // Update this Huffman Code object to be the minimum code for the specified frequency count.
 //
-// freq  An array of frequencies, in which frequency[i] gives the frequency of literal i.
+// freq is an array of frequencies, in which freq[i] gives the frequency of literal i.
 // maxBits  The maximum number of bits to use for any literal.
 func (h *huffmanEncoder) generate(freq []int32, maxBits int32) {
 	if h.freqcache == nil {

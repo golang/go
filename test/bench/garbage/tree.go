@@ -28,7 +28,7 @@ POSSIBILITY OF SUCH DAMAGE.
 */
 
 /* The Computer Language Benchmarks Game
- * http://shootout.alioth.debian.org/
+ * https://benchmarksgame-team.pages.debian.net/benchmarksgame/
  *
  * contributed by The Go Authors.
  * based on C program by Kevin Carson

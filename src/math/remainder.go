@@ -29,12 +29,18 @@ package math
 // Remainder returns the IEEE 754 floating-point remainder of x/y.
 //
 // Special cases are:
+//
 //	Remainder(±Inf, y) = NaN
 //	Remainder(NaN, y) = NaN
 //	Remainder(x, 0) = NaN
 //	Remainder(x, ±Inf) = x
 //	Remainder(x, NaN) = NaN
-func Remainder(x, y float64) float64
+func Remainder(x, y float64) float64 {
+	if haveArchRemainder {
+		return archRemainder(x, y)
+	}
+	return remainder(x, y)
+}
 
 func remainder(x, y float64) float64 {
 	const (
@@ -57,6 +63,10 @@ func remainder(x, y float64) float64 {
 		y = -y
 	}
 	if x == y {
+		if sign {
+			zero := 0.0
+			return -zero
+		}
 		return 0
 	}
 	if y <= HalfMax {

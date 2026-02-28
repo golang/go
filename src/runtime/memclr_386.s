@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !plan9
+//go:build !plan9
 
+#include "go_asm.h"
 #include "textflag.h"
 
-// NOTE: Windows externalthreadhandler expects memclr to preserve DX.
+// See memclrNoHeapPointers Go doc for important implementation constraints.
 
-// void runtime·memclrNoHeapPointers(void*, uintptr)
+// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-8
 	MOVL	ptr+0(FP), DI
 	MOVL	n+4(FP), BX
@@ -16,6 +17,7 @@ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-8
 
 	// MOVOU seems always faster than REP STOSL.
 tail:
+	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
 	TESTL	BX, BX
 	JEQ	_0
 	CMPL	BX, $2
@@ -27,8 +29,9 @@ tail:
 	JBE	_5through8
 	CMPL	BX, $16
 	JBE	_9through16
-	CMPB	runtime·support_sse2(SB), $1
-	JNE	nosse2
+#ifdef GO386_softfloat
+	JMP	nosse2
+#endif
 	PXOR	X0, X0
 	CMPL	BX, $32
 	JBE	_17through32
@@ -38,7 +41,6 @@ tail:
 	JBE	_65through128
 	CMPL	BX, $256
 	JBE	_129through256
-	// TODO: use branch table and BSR to make this just a single dispatch
 
 loop:
 	MOVOU	X0, 0(DI)

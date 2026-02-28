@@ -20,6 +20,18 @@ func ExampleWriter() {
 	// Output: Hello, world!
 }
 
+func ExampleWriter_AvailableBuffer() {
+	w := bufio.NewWriter(os.Stdout)
+	for _, i := range []int64{1, 2, 3, 4} {
+		b := w.AvailableBuffer()
+		b = strconv.AppendInt(b, i, 10)
+		b = append(b, ' ')
+		w.Write(b)
+	}
+	w.Flush()
+	// Output: 1 2 3 4
+}
+
 // The simplest use of a Scanner, to read standard input as a set of lines.
 func ExampleScanner_lines() {
 	scanner := bufio.NewScanner(os.Stdin)
@@ -29,6 +41,19 @@ func ExampleScanner_lines() {
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "reading standard input:", err)
 	}
+}
+
+// Return the most recent call to Scan as a []byte.
+func ExampleScanner_Bytes() {
+	scanner := bufio.NewScanner(strings.NewReader("gopher"))
+	for scanner.Scan() {
+		fmt.Println(len(scanner.Bytes()) == 6)
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "shouldn't see an error scanning a string")
+	}
+	// Output:
+	// true
 }
 
 // Use a Scanner to implement a simple word-count utility by scanning the
@@ -93,6 +118,9 @@ func ExampleScanner_emptyFinalToken() {
 			if data[i] == ',' {
 				return i + 1, data[:i], nil
 			}
+		}
+		if !atEOF {
+			return 0, nil, nil
 		}
 		// There is one final token to be delivered, which may be the empty string.
 		// Returning bufio.ErrFinalToken here tells Scan there are no more tokens after this

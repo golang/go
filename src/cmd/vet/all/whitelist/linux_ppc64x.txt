@@ -1,5 +1,0 @@
-// linux/ppc64-specific vet whitelist. See readme.txt for details.
-
-runtime/sys_linux_ppc64x.s: [GOARCH] _sigtramp: function _sigtramp missing Go declaration
-runtime/sys_linux_ppc64x.s: [GOARCH] _cgoSigtramp: function _cgoSigtramp missing Go declaration
-runtime/asm_ppc64x.s: [GOARCH] procyield: use of 24(R1) points beyond argument frame

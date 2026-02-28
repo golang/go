@@ -1,0 +1,9 @@
+Written by hand.
+The "latest" version of a module without any tags.
+
+-- .mod --
+module example.com/notags
+-- .info --
+{"Version":"v0.0.0-20190507143103-cc8cbe209b64","Time":"2019-05-07T07:31:03-07:00"}
+-- notags.go --
+package notags

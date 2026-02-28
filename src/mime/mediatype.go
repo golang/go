@@ -5,7 +5,6 @@
 package mime
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"sort"
@@ -19,14 +18,13 @@ import (
 // When any of the arguments result in a standard violation then
 // FormatMediaType returns the empty string.
 func FormatMediaType(t string, param map[string]string) string {
-	var b bytes.Buffer
-	if slash := strings.Index(t, "/"); slash == -1 {
+	var b strings.Builder
+	if major, sub, ok := strings.Cut(t, "/"); !ok {
 		if !isToken(t) {
 			return ""
 		}
 		b.WriteString(strings.ToLower(t))
 	} else {
-		major, sub := t[:slash], t[slash+1:]
 		if !isToken(major) || !isToken(sub) {
 			return ""
 		}
@@ -49,7 +47,38 @@ func FormatMediaType(t string, param map[string]string) string {
 			return ""
 		}
 		b.WriteString(strings.ToLower(attribute))
+
+		needEnc := needsEncoding(value)
+		if needEnc {
+			// RFC 2231 section 4
+			b.WriteByte('*')
+		}
 		b.WriteByte('=')
+
+		if needEnc {
+			b.WriteString("utf-8''")
+
+			offset := 0
+			for index := 0; index < len(value); index++ {
+				ch := value[index]
+				// {RFC 2231 section 7}
+				// attribute-char := <any (US-ASCII) CHAR except SPACE, CTLs, "*", "'", "%", or tspecials>
+				if ch <= ' ' || ch >= 0x7F ||
+					ch == '*' || ch == '\'' || ch == '%' ||
+					isTSpecial(rune(ch)) {
+
+					b.WriteString(value[offset:index])
+					offset = index + 1
+
+					b.WriteByte('%')
+					b.WriteByte(upperhex[ch>>4])
+					b.WriteByte(upperhex[ch&0x0F])
+				}
+			}
+			b.WriteString(value[offset:])
+			continue
+		}
+
 		if isToken(value) {
 			b.WriteString(value)
 			continue
@@ -57,14 +86,12 @@ func FormatMediaType(t string, param map[string]string) string {
 
 		b.WriteByte('"')
 		offset := 0
-		for index, character := range value {
+		for index := 0; index < len(value); index++ {
+			character := value[index]
 			if character == '"' || character == '\\' {
 				b.WriteString(value[offset:index])
 				offset = index
 				b.WriteByte('\\')
-			}
-			if character&0x80 != 0 {
-				return ""
 			}
 		}
 		b.WriteString(value[offset:])
@@ -110,11 +137,8 @@ var ErrInvalidMediaParameter = errors.New("mime: invalid media parameter")
 // The returned map, params, maps from the lowercase
 // attribute to the attribute value with its case preserved.
 func ParseMediaType(v string) (mediatype string, params map[string]string, err error) {
-	i := strings.Index(v, ";")
-	if i == -1 {
-		i = len(v)
-	}
-	mediatype = strings.TrimSpace(strings.ToLower(v[0:i]))
+	base, _, _ := strings.Cut(v, ";")
+	mediatype = strings.TrimSpace(strings.ToLower(base))
 
 	err = checkMediaTypeDisposition(mediatype)
 	if err != nil {
@@ -128,7 +152,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 	// Lazily initialized.
 	var continuation map[string]map[string]string
 
-	v = v[i:]
+	v = v[len(base):]
 	for len(v) > 0 {
 		v = strings.TrimLeftFunc(v, unicode.IsSpace)
 		if len(v) == 0 {
@@ -139,15 +163,14 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 			if strings.TrimSpace(rest) == ";" {
 				// Ignore trailing semicolons.
 				// Not an error.
-				return
+				break
 			}
 			// Parse error.
 			return mediatype, nil, ErrInvalidMediaParameter
 		}
 
 		pmap := params
-		if idx := strings.Index(key, "*"); idx != -1 {
-			baseName := key[:idx]
+		if baseName, _, ok := strings.Cut(key, "*"); ok {
 			if continuation == nil {
 				continuation = make(map[string]map[string]string)
 			}
@@ -167,12 +190,13 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 
 	// Stitch together any continuations or things with stars
 	// (i.e. RFC 2231 things with stars: "foo*0" or "foo*")
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for key, pieceMap := range continuation {
 		singlePartKey := key + "*"
 		if v, ok := pieceMap[singlePartKey]; ok {
-			decv := decode2231Enc(v)
-			params[key] = decv
+			if decv, ok := decode2231Enc(v); ok {
+				params[key] = decv
+			}
 			continue
 		}
 
@@ -186,16 +210,18 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 				continue
 			}
 			encodedPart := simplePart + "*"
-			if v, ok := pieceMap[encodedPart]; ok {
-				valid = true
-				if n == 0 {
-					buf.WriteString(decode2231Enc(v))
-				} else {
-					decv, _ := percentHexUnescape(v)
+			v, ok := pieceMap[encodedPart]
+			if !ok {
+				break
+			}
+			valid = true
+			if n == 0 {
+				if decv, ok := decode2231Enc(v); ok {
 					buf.WriteString(decv)
 				}
 			} else {
-				break
+				decv, _ := percentHexUnescape(v)
+				buf.WriteString(decv)
 			}
 		}
 		if valid {
@@ -206,21 +232,27 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 	return
 }
 
-func decode2231Enc(v string) string {
+func decode2231Enc(v string) (string, bool) {
 	sv := strings.SplitN(v, "'", 3)
 	if len(sv) != 3 {
-		return ""
+		return "", false
 	}
 	// TODO: ignoring lang in sv[1] for now. If anybody needs it we'll
 	// need to decide how to expose it in the API. But I'm not sure
 	// anybody uses it in practice.
 	charset := strings.ToLower(sv[0])
+	if len(charset) == 0 {
+		return "", false
+	}
 	if charset != "us-ascii" && charset != "utf-8" {
 		// TODO: unsupported encoding
-		return ""
+		return "", false
 	}
-	encv, _ := percentHexUnescape(sv[2])
-	return encv
+	encv, err := percentHexUnescape(sv[2])
+	if err != nil {
+		return "", false
+	}
+	return encv, true
 }
 
 func isNotTokenChar(r rune) bool {
@@ -256,7 +288,7 @@ func consumeValue(v string) (value, rest string) {
 	}
 
 	// parse a quoted-string
-	buffer := new(bytes.Buffer)
+	buffer := new(strings.Builder)
 	for i := 1; i < len(v); i++ {
 		r := v[i]
 		if r == '"' {
@@ -272,7 +304,7 @@ func consumeValue(v string) (value, rest string) {
 		// and intended as a literal backslash. This makes Go servers deal better
 		// with MSIE without affecting the way they handle conforming MIME
 		// generators.
-		if r == '\\' && i+1 < len(v) && !isTokenChar(rune(v[i+1])) {
+		if r == '\\' && i+1 < len(v) && isTSpecial(rune(v[i+1])) {
 			buffer.WriteByte(v[i+1])
 			i++
 			continue

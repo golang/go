@@ -28,15 +28,9 @@ func (check *Checker) isTerminating(s ast.Stmt, label string) bool {
 		return check.isTerminating(s.Stmt, s.Label.Name)
 
 	case *ast.ExprStmt:
-		// the predeclared (possibly parenthesized) panic() function is terminating
-		if call, _ := unparen(s.X).(*ast.CallExpr); call != nil {
-			if id, _ := call.Fun.(*ast.Ident); id != nil {
-				if _, obj := check.scope.LookupParent(id.Name, token.NoPos); obj != nil {
-					if b, _ := obj.(*Builtin); b != nil && b.id == _Panic {
-						return true
-					}
-				}
-			}
+		// calling the predeclared (possibly parenthesized) panic() function is terminating
+		if call, ok := unparen(s.X).(*ast.CallExpr); ok && check.isPanic[call] {
+			return true
 		}
 
 	case *ast.ReturnStmt:
@@ -107,8 +101,8 @@ func (check *Checker) isTerminatingSwitch(body *ast.BlockStmt, label string) boo
 }
 
 // TODO(gri) For nested breakable statements, the current implementation of hasBreak
-//	     will traverse the same subtree repeatedly, once for each label. Replace
-//           with a single-pass label/break matching phase.
+// will traverse the same subtree repeatedly, once for each label. Replace
+// with a single-pass label/break matching phase.
 
 // hasBreak reports if s is or contains a break statement
 // referring to the label-ed statement or implicit-ly the

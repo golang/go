@@ -7,9 +7,10 @@ package time
 import (
 	"errors"
 	"internal/syscall/windows/registry"
-	"runtime"
 	"syscall"
 )
+
+var platformZoneSources []string // none: Windows uses system calls instead
 
 // TODO(rsc): Fall back to copy of zoneinfo files.
 
@@ -63,7 +64,7 @@ func toEnglishName(stdname, dstname string) (string, error) {
 	}
 	defer k.Close()
 
-	names, err := k.ReadSubKeyNames(-1)
+	names, err := k.ReadSubKeyNames()
 	if err != nil {
 		return "", err
 	}
@@ -228,14 +229,6 @@ var aus = syscall.Timezoneinformation{
 	DaylightBias: -60,
 }
 
-func initTestingZone() {
-	initLocalFromTZI(&usPacific)
-}
-
-func initAusTestingZone() {
-	initLocalFromTZI(&aus)
-}
-
 func initLocal() {
 	var i syscall.Timezoneinformation
 	if _, err := syscall.GetTimeZoneInformation(&i); err != nil {
@@ -243,17 +236,4 @@ func initLocal() {
 		return
 	}
 	initLocalFromTZI(&i)
-}
-
-func loadLocation(name string) (*Location, error) {
-	z, err := loadZoneFile(runtime.GOROOT()+`\lib\time\zoneinfo.zip`, name)
-	if err != nil {
-		return nil, err
-	}
-	z.name = name
-	return z, nil
-}
-
-func forceZipFileForTesting(zipOnly bool) {
-	// We only use the zip file anyway.
 }

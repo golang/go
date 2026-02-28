@@ -107,5 +107,5 @@ const (
 	f96 = f95 * 96
 	f97 = f96 * 97
 	f98 = f97 * 98
-	f99 = f98 * 99 // ERROR "overflow"
+	f99 = f98 * 99 // GC_ERROR "overflow"
 )

@@ -16,7 +16,7 @@ type (
 	//   2. The CSS3 rule production, such as `a[href=~"https:"].foo#bar`.
 	//   3. CSS3 declaration productions, such as `color: red; margin: 2px`.
 	//   4. The CSS3 value production, such as `rgba(0, 0, 255, 127)`.
-	// See http://www.w3.org/TR/css3-syntax/#parsing and
+	// See https://www.w3.org/TR/css3-syntax/#parsing and
 	// https://web.archive.org/web/20090211114933/http://w3.org/TR/css3-syntax#style
 	//
 	// Use of this type presents a security risk:
@@ -83,6 +83,14 @@ type (
 	// the encapsulated content should come from a trusted source,
 	// as it will be included verbatim in the template output.
 	URL string
+
+	// Srcset encapsulates a known safe srcset attribute
+	// (see https://w3c.github.io/html/semantics-embedded-content.html#element-attrdef-img-srcset).
+	//
+	// Use of this type presents a security risk:
+	// the encapsulated content should come from a trusted source,
+	// as it will be included verbatim in the template output.
+	Srcset string
 )
 
 type contentType uint8
@@ -95,6 +103,7 @@ const (
 	contentTypeJS
 	contentTypeJSStr
 	contentTypeURL
+	contentTypeSrcset
 	// contentTypeUnsafe is used in attr.go for values that affect how
 	// embedded content and network messages are formed, vetted,
 	// or interpreted; or which credentials network messages carry.
@@ -103,16 +112,16 @@ const (
 
 // indirect returns the value, after dereferencing as many times
 // as necessary to reach the base type (or nil).
-func indirect(a interface{}) interface{} {
+func indirect(a any) any {
 	if a == nil {
 		return nil
 	}
-	if t := reflect.TypeOf(a); t.Kind() != reflect.Ptr {
+	if t := reflect.TypeOf(a); t.Kind() != reflect.Pointer {
 		// Avoid creating a reflect.Value if it's not a pointer.
 		return a
 	}
 	v := reflect.ValueOf(a)
-	for v.Kind() == reflect.Ptr && !v.IsNil() {
+	for v.Kind() == reflect.Pointer && !v.IsNil() {
 		v = v.Elem()
 	}
 	return v.Interface()
@@ -126,12 +135,12 @@ var (
 // indirectToStringerOrError returns the value, after dereferencing as many times
 // as necessary to reach the base type (or nil) or an implementation of fmt.Stringer
 // or error,
-func indirectToStringerOrError(a interface{}) interface{} {
+func indirectToStringerOrError(a any) any {
 	if a == nil {
 		return nil
 	}
 	v := reflect.ValueOf(a)
-	for !v.Type().Implements(fmtStringerType) && !v.Type().Implements(errorType) && v.Kind() == reflect.Ptr && !v.IsNil() {
+	for !v.Type().Implements(fmtStringerType) && !v.Type().Implements(errorType) && v.Kind() == reflect.Pointer && !v.IsNil() {
 		v = v.Elem()
 	}
 	return v.Interface()
@@ -139,7 +148,7 @@ func indirectToStringerOrError(a interface{}) interface{} {
 
 // stringify converts its arguments to a string and the type of the content.
 // All pointers are dereferenced, as in the text/template package.
-func stringify(args ...interface{}) (string, contentType) {
+func stringify(args ...any) (string, contentType) {
 	if len(args) == 1 {
 		switch s := indirect(args[0]).(type) {
 		case string:
@@ -156,10 +165,21 @@ func stringify(args ...interface{}) (string, contentType) {
 			return string(s), contentTypeJSStr
 		case URL:
 			return string(s), contentTypeURL
+		case Srcset:
+			return string(s), contentTypeSrcset
 		}
 	}
-	for i, arg := range args {
+	i := 0
+	for _, arg := range args {
+		// We skip untyped nil arguments for backward compatibility.
+		// Without this they would be output as <nil>, escaped.
+		// See issue 25875.
+		if arg == nil {
+			continue
+		}
+
 		args[i] = indirectToStringerOrError(arg)
+		i++
 	}
-	return fmt.Sprint(args...), contentTypePlain
+	return fmt.Sprint(args[:i]...), contentTypePlain
 }

@@ -47,17 +47,19 @@ type Pool struct {
 	local     unsafe.Pointer // local fixed-size per-P pool, actual type is [P]poolLocal
 	localSize uintptr        // size of the local array
 
+	victim     unsafe.Pointer // local from previous cycle
+	victimSize uintptr        // size of victims array
+
 	// New optionally specifies a function to generate
 	// a value when Get would otherwise return nil.
 	// It may not be changed concurrently with calls to Get.
-	New func() interface{}
+	New func() any
 }
 
 // Local per-P Pool appendix.
 type poolLocalInternal struct {
-	private interface{}   // Can be used only by the respective P.
-	shared  []interface{} // Can be used by any P.
-	Mutex                 // Protects shared.
+	private any       // Can be used only by the respective P.
+	shared  poolChain // Local P can pushHead/popHead; any P can popTail.
 }
 
 type poolLocal struct {
@@ -69,7 +71,7 @@ type poolLocal struct {
 }
 
 // from runtime
-func fastrand() uint32
+func fastrandn(n uint32) uint32
 
 var poolRaceHash [128]uint64
 
@@ -78,36 +80,34 @@ var poolRaceHash [128]uint64
 // directly, for fear of conflicting with other synchronization on that address.
 // Instead, we hash the pointer to get an index into poolRaceHash.
 // See discussion on golang.org/cl/31589.
-func poolRaceAddr(x interface{}) unsafe.Pointer {
+func poolRaceAddr(x any) unsafe.Pointer {
 	ptr := uintptr((*[2]unsafe.Pointer)(unsafe.Pointer(&x))[1])
 	h := uint32((uint64(uint32(ptr)) * 0x85ebca6b) >> 16)
 	return unsafe.Pointer(&poolRaceHash[h%uint32(len(poolRaceHash))])
 }
 
 // Put adds x to the pool.
-func (p *Pool) Put(x interface{}) {
+func (p *Pool) Put(x any) {
 	if x == nil {
 		return
 	}
 	if race.Enabled {
-		if fastrand()%4 == 0 {
+		if fastrandn(4) == 0 {
 			// Randomly drop x on floor.
 			return
 		}
 		race.ReleaseMerge(poolRaceAddr(x))
 		race.Disable()
 	}
-	l := p.pin()
+	l, _ := p.pin()
 	if l.private == nil {
 		l.private = x
 		x = nil
 	}
-	runtime_procUnpin()
 	if x != nil {
-		l.Lock()
-		l.shared = append(l.shared, x)
-		l.Unlock()
+		l.shared.pushHead(x)
 	}
+	runtime_procUnpin()
 	if race.Enabled {
 		race.Enable()
 	}
@@ -121,26 +121,23 @@ func (p *Pool) Put(x interface{}) {
 //
 // If Get would otherwise return nil and p.New is non-nil, Get returns
 // the result of calling p.New.
-func (p *Pool) Get() interface{} {
+func (p *Pool) Get() any {
 	if race.Enabled {
 		race.Disable()
 	}
-	l := p.pin()
+	l, pid := p.pin()
 	x := l.private
 	l.private = nil
-	runtime_procUnpin()
 	if x == nil {
-		l.Lock()
-		last := len(l.shared) - 1
-		if last >= 0 {
-			x = l.shared[last]
-			l.shared = l.shared[:last]
-		}
-		l.Unlock()
+		// Try to pop the head of the local shard. We prefer
+		// the head over the tail for temporal locality of
+		// reuse.
+		x, _ = l.shared.popHead()
 		if x == nil {
-			x = p.getSlow()
+			x = p.getSlow(pid)
 		}
 	}
+	runtime_procUnpin()
 	if race.Enabled {
 		race.Enable()
 		if x != nil {
@@ -153,45 +150,63 @@ func (p *Pool) Get() interface{} {
 	return x
 }
 
-func (p *Pool) getSlow() (x interface{}) {
+func (p *Pool) getSlow(pid int) any {
 	// See the comment in pin regarding ordering of the loads.
-	size := atomic.LoadUintptr(&p.localSize) // load-acquire
-	local := p.local                         // load-consume
+	size := runtime_LoadAcquintptr(&p.localSize) // load-acquire
+	locals := p.local                            // load-consume
 	// Try to steal one element from other procs.
-	pid := runtime_procPin()
-	runtime_procUnpin()
 	for i := 0; i < int(size); i++ {
-		l := indexLocal(local, (pid+i+1)%int(size))
-		l.Lock()
-		last := len(l.shared) - 1
-		if last >= 0 {
-			x = l.shared[last]
-			l.shared = l.shared[:last]
-			l.Unlock()
-			break
+		l := indexLocal(locals, (pid+i+1)%int(size))
+		if x, _ := l.shared.popTail(); x != nil {
+			return x
 		}
-		l.Unlock()
 	}
-	return x
+
+	// Try the victim cache. We do this after attempting to steal
+	// from all primary caches because we want objects in the
+	// victim cache to age out if at all possible.
+	size = atomic.LoadUintptr(&p.victimSize)
+	if uintptr(pid) >= size {
+		return nil
+	}
+	locals = p.victim
+	l := indexLocal(locals, pid)
+	if x := l.private; x != nil {
+		l.private = nil
+		return x
+	}
+	for i := 0; i < int(size); i++ {
+		l := indexLocal(locals, (pid+i)%int(size))
+		if x, _ := l.shared.popTail(); x != nil {
+			return x
+		}
+	}
+
+	// Mark the victim cache as empty for future gets don't bother
+	// with it.
+	atomic.StoreUintptr(&p.victimSize, 0)
+
+	return nil
 }
 
-// pin pins the current goroutine to P, disables preemption and returns poolLocal pool for the P.
+// pin pins the current goroutine to P, disables preemption and
+// returns poolLocal pool for the P and the P's id.
 // Caller must call runtime_procUnpin() when done with the pool.
-func (p *Pool) pin() *poolLocal {
+func (p *Pool) pin() (*poolLocal, int) {
 	pid := runtime_procPin()
-	// In pinSlow we store to localSize and then to local, here we load in opposite order.
+	// In pinSlow we store to local and then to localSize, here we load in opposite order.
 	// Since we've disabled preemption, GC cannot happen in between.
 	// Thus here we must observe local at least as large localSize.
 	// We can observe a newer/larger local, it is fine (we must observe its zero-initialized-ness).
-	s := atomic.LoadUintptr(&p.localSize) // load-acquire
-	l := p.local                          // load-consume
+	s := runtime_LoadAcquintptr(&p.localSize) // load-acquire
+	l := p.local                              // load-consume
 	if uintptr(pid) < s {
-		return indexLocal(l, pid)
+		return indexLocal(l, pid), pid
 	}
 	return p.pinSlow()
 }
 
-func (p *Pool) pinSlow() *poolLocal {
+func (p *Pool) pinSlow() (*poolLocal, int) {
 	// Retry under the mutex.
 	// Can not lock the mutex while pinned.
 	runtime_procUnpin()
@@ -202,7 +217,7 @@ func (p *Pool) pinSlow() *poolLocal {
 	s := p.localSize
 	l := p.local
 	if uintptr(pid) < s {
-		return indexLocal(l, pid)
+		return indexLocal(l, pid), pid
 	}
 	if p.local == nil {
 		allPools = append(allPools, p)
@@ -211,36 +226,47 @@ func (p *Pool) pinSlow() *poolLocal {
 	size := runtime.GOMAXPROCS(0)
 	local := make([]poolLocal, size)
 	atomic.StorePointer(&p.local, unsafe.Pointer(&local[0])) // store-release
-	atomic.StoreUintptr(&p.localSize, uintptr(size))         // store-release
-	return &local[pid]
+	runtime_StoreReluintptr(&p.localSize, uintptr(size))     // store-release
+	return &local[pid], pid
 }
 
 func poolCleanup() {
 	// This function is called with the world stopped, at the beginning of a garbage collection.
 	// It must not allocate and probably should not call any runtime functions.
-	// Defensively zero out everything, 2 reasons:
-	// 1. To prevent false retention of whole Pools.
-	// 2. If GC happens while a goroutine works with l.shared in Put/Get,
-	//    it will retain whole Pool. So next cycle memory consumption would be doubled.
-	for i, p := range allPools {
-		allPools[i] = nil
-		for i := 0; i < int(p.localSize); i++ {
-			l := indexLocal(p.local, i)
-			l.private = nil
-			for j := range l.shared {
-				l.shared[j] = nil
-			}
-			l.shared = nil
-		}
+
+	// Because the world is stopped, no pool user can be in a
+	// pinned section (in effect, this has all Ps pinned).
+
+	// Drop victim caches from all pools.
+	for _, p := range oldPools {
+		p.victim = nil
+		p.victimSize = 0
+	}
+
+	// Move primary cache to victim cache.
+	for _, p := range allPools {
+		p.victim = p.local
+		p.victimSize = p.localSize
 		p.local = nil
 		p.localSize = 0
 	}
-	allPools = []*Pool{}
+
+	// The pools with non-empty primary caches now have non-empty
+	// victim caches and no pools have primary caches.
+	oldPools, allPools = allPools, nil
 }
 
 var (
 	allPoolsMu Mutex
-	allPools   []*Pool
+
+	// allPools is the set of pools that have non-empty primary
+	// caches. Protected by either 1) allPoolsMu and pinning or 2)
+	// STW.
+	allPools []*Pool
+
+	// oldPools is the set of pools that may have non-empty victim
+	// caches. Protected by STW.
+	oldPools []*Pool
 )
 
 func init() {
@@ -256,3 +282,13 @@ func indexLocal(l unsafe.Pointer, i int) *poolLocal {
 func runtime_registerPoolCleanup(cleanup func())
 func runtime_procPin() int
 func runtime_procUnpin()
+
+// The below are implemented in runtime/internal/atomic and the
+// compiler also knows to intrinsify the symbol we linkname into this
+// package.
+
+//go:linkname runtime_LoadAcquintptr runtime/internal/atomic.LoadAcquintptr
+func runtime_LoadAcquintptr(ptr *uintptr) uintptr
+
+//go:linkname runtime_StoreReluintptr runtime/internal/atomic.StoreReluintptr
+func runtime_StoreReluintptr(ptr *uintptr, val uintptr) uintptr

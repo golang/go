@@ -6,7 +6,7 @@ package quotedprintable
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 )
@@ -128,7 +128,7 @@ func TestRoundTrip(t *testing.T) {
 	}
 
 	r := NewReader(buf)
-	gotBytes, err := ioutil.ReadAll(r)
+	gotBytes, err := io.ReadAll(r)
 	if err != nil {
 		t.Fatalf("Error while reading from Reader: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
-// From http://fr.wikipedia.org/wiki/Quoted-Printable
+// From https://fr.wikipedia.org/wiki/Quoted-Printable
 var testMsg = []byte("Quoted-Printable (QP) est un format d'encodage de données codées sur 8 bits, qui utilise exclusivement les caractères alphanumériques imprimables du code ASCII (7 bits).\r\n" +
 	"\r\n" +
 	"En effet, les différents codages comprennent de nombreux caractères qui ne sont pas représentables en ASCII (par exemple les caractères accentués), ainsi que des caractères dits « non-imprimables ».\r\n" +
@@ -151,7 +151,7 @@ var testMsg = []byte("Quoted-Printable (QP) est un format d'encodage de données
 
 func BenchmarkWriter(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		w := NewWriter(ioutil.Discard)
+		w := NewWriter(io.Discard)
 		w.Write(testMsg)
 		w.Close()
 	}

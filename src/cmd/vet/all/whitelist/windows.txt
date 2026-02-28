@@ -1,9 +1,0 @@
-// windows-specific vet whitelist. See readme.txt for details.
-
-// Issue 18609
-crypto/x509/root_windows.go: unreachable code
-
-path/filepath/path_windows_test.go: possible formatting directive in Fatal call
-
-runtime/sys_windows_ARCHSUFF.s: [GOARCH] sigtramp: function sigtramp missing Go declaration
-runtime/sys_windows_ARCHSUFF.s: [GOARCH] onosstack: unknown variable usec; offset 0 is fn+0(FP)

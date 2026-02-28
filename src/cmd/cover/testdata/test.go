@@ -13,6 +13,7 @@ package main
 import _ "unsafe" // for go:linkname
 
 //go:linkname some_name some_name
+var some_name int
 
 const anything = 1e9 // Just some unlikely value that means "we got here, don't care how often"
 
@@ -132,6 +133,10 @@ func testBlockRun() {
 
 func testSwitch() {
 	for i := 0; i < 5; func() { i++; check(LINE, 5) }() {
+		goto label2
+	label1:
+		goto label1
+	label2:
 		switch i {
 		case 0:
 			check(LINE, 1)
@@ -146,7 +151,7 @@ func testSwitch() {
 }
 
 func testTypeSwitch() {
-	var x = []interface{}{1, 2.0, "hi"}
+	var x = []any{1, 2.0, "hi"}
 	for _, v := range x {
 		switch func() { check(LINE, 3) }(); v.(type) {
 		case int:
@@ -210,7 +215,7 @@ func testEmptySwitches() {
 	switch 3 {
 	}
 	check(LINE, 1)
-	switch i := (interface{})(3).(int); i {
+	switch i := (any)(3).(int); i {
 	}
 	check(LINE, 1)
 	c := make(chan int)
@@ -282,7 +287,7 @@ loop:
 	}
 }
 
-// This comment shouldn't appear in generated go code.
+// This comment didn't appear in generated go code.
 func haha() {
 	// Needed for cover to add counter increment here.
 	_ = 42

@@ -22,7 +22,7 @@ func (p *pkgBuilder) error(pos token.Pos, msg string) {
 	p.errors.Add(p.fset.Position(pos), msg)
 }
 
-func (p *pkgBuilder) errorf(pos token.Pos, format string, args ...interface{}) {
+func (p *pkgBuilder) errorf(pos token.Pos, format string, args ...any) {
 	p.error(pos, fmt.Sprintf(format, args...))
 }
 
@@ -70,7 +70,6 @@ type Importer func(imports map[string]*Object, path string) (pkg *Object, err er
 // belong to different packages, one package name is selected and files with
 // different package names are reported and then ignored.
 // The result is a package node and a scanner.ErrorList if there were errors.
-//
 func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer, universe *Scope) (*Package, error) {
 	var p pkgBuilder
 	p.fset = fset

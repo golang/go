@@ -1,0 +1,8 @@
+The deprecated package is deleted in this version.
+
+-- .mod --
+module example.com/missingpkg
+-- .info --
+{"Version":"v1.0.1-beta"}
+-- lib.go --
+package lib

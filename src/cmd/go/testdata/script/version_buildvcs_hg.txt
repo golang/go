@@ -1,0 +1,91 @@
+# This test checks that VCS information is stamped into Go binaries by default,
+# controlled with -buildvcs. This test focuses on Mercurial specifics.
+# The Git test covers common functionality.
+
+[!exec:hg] skip
+[short] skip
+env GOBIN=$WORK/gopath/bin
+env oldpath=$PATH
+cd repo/a
+
+# If there's no local repository, there's no VCS info.
+go install
+go version -m $GOBIN/a$GOEXE
+! stdout hgrevision
+rm $GOBIN/a$GOEXE
+
+# If there is a repository, but it can't be used for some reason,
+# there should be an error. It should hint about -buildvcs=false.
+cd ..
+mkdir .hg
+env PATH=$WORK${/}fakebin${:}$oldpath
+chmod 0755 $WORK/fakebin/hg
+! exec hg help
+cd a
+! go install
+stderr '^error obtaining VCS status: exit status 1\n\tUse -buildvcs=false to disable VCS stamping.$'
+rm $GOBIN/a$GOEXE
+cd ..
+env PATH=$oldpath
+rm .hg
+
+# If there is an empty repository in a parent directory, only "uncommitted" is tagged.
+exec hg init
+cd a
+go install
+go version -m $GOBIN/a$GOEXE
+! stdout vcs.revision
+! stdout vcs.time
+stdout '^\tbuild\tvcs.modified=true$'
+cd ..
+
+# Revision and commit time are tagged for repositories with commits.
+exec hg add a README
+exec hg commit -m 'initial commit'
+cd a
+go install
+go version -m $GOBIN/a$GOEXE
+stdout '^\tbuild\tvcs.revision='
+stdout '^\tbuild\tvcs.time='
+stdout '^\tbuild\tvcs.modified=false$'
+rm $GOBIN/a$GOEXE
+
+# Building with -buildvcs=false suppresses the info.
+go install -buildvcs=false
+go version -m $GOBIN/a$GOEXE
+! stdout hgrevision
+rm $GOBIN/a$GOEXE
+
+# An untracked file is shown as uncommitted, even if it isn't part of the build.
+cp ../../outside/empty.txt .
+go install
+go version -m $GOBIN/a$GOEXE
+stdout '^\tbuild\tvcs.modified=true$'
+rm empty.txt
+rm $GOBIN/a$GOEXE
+
+# An edited file is shown as uncommitted, even if it isn't part of the build.
+cp ../../outside/empty.txt ../README
+go install
+go version -m $GOBIN/a$GOEXE
+stdout '^\tbuild\tvcs.modified=true$'
+exec hg revert ../README
+rm $GOBIN/a$GOEXE
+
+-- $WORK/fakebin/hg --
+#!/bin/sh
+exit 1
+-- $WORK/fakebin/hg.bat --
+exit 1
+-- repo/README --
+Far out in the uncharted backwaters of the unfashionable end of the western
+spiral arm of the Galaxy lies a small, unregarded yellow sun.
+-- repo/a/go.mod --
+module example.com/a
+
+go 1.18
+-- repo/a/a.go --
+package main
+
+func main() {}
+-- outside/empty.txt --

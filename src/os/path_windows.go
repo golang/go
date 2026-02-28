@@ -128,6 +128,10 @@ func dirname(path string) string {
 	return vol + dir
 }
 
+// This is set via go:linkname on runtime.canUseLongPaths, and is true when the OS
+// supports opting into proper long path handling without the need for fixups.
+var canUseLongPaths bool
+
 // fixLongPath returns the extended-length (\\?\-prefixed) form of
 // path when needed, in order to avoid the default 260 character file
 // path limit imposed by Windows. If path is not easily converted to
@@ -137,6 +141,9 @@ func dirname(path string) string {
 //
 // See https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#maxpath
 func fixLongPath(path string) string {
+	if canUseLongPaths {
+		return path
+	}
 	// Do nothing (and don't allocate) if the path is "short".
 	// Empirically (at least on the Windows Server 2013 builder),
 	// the kernel is arbitrarily okay with < 248 bytes. That
@@ -206,4 +213,15 @@ func fixLongPath(path string) string {
 		w++
 	}
 	return string(pathbuf[:w])
+}
+
+// fixRootDirectory fixes a reference to a drive's root directory to
+// have the required trailing slash.
+func fixRootDirectory(p string) string {
+	if len(p) == len(`\\?\c:`) {
+		if IsPathSeparator(p[0]) && IsPathSeparator(p[1]) && p[2] == '?' && IsPathSeparator(p[3]) && p[5] == ':' {
+			return p + `\`
+		}
+	}
+	return p
 }

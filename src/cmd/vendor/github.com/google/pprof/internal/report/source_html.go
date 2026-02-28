@@ -14,42 +14,33 @@
 
 package report
 
-const weblistPageHeader = `
-<!DOCTYPE html>
-<html>
-<head>
-<title>Pprof listing</title>
-<style type="text/css">
-body {
+import (
+	"html/template"
+)
+
+// AddSourceTemplates adds templates used by PrintWebList to t.
+func AddSourceTemplates(t *template.Template) {
+	template.Must(t.Parse(`{{define "weblistcss"}}` + weblistPageCSS + `{{end}}`))
+	template.Must(t.Parse(`{{define "weblistjs"}}` + weblistPageScript + `{{end}}`))
+}
+
+const weblistPageCSS = `<style type="text/css">
+body #content{
 font-family: sans-serif;
 }
 h1 {
   font-size: 1.5em;
-  margin-bottom: 4px;
 }
 .legend {
   font-size: 1.25em;
 }
-.line {
-color: #aaaaaa;
+.line, .nop, .unimportant {
+  color: #aaaaaa;
 }
-.nop {
-color: #aaaaaa;
-}
-.unimportant {
-color: #cccccc;
-}
-.disasmloc {
-color: #000000;
-}
-.deadsrc {
-cursor: pointer;
-}
-.deadsrc:hover {
-background-color: #eeeeee;
+.inlinesrc {
+  color: #000066;
 }
 .livesrc {
-color: #0000ff;
 cursor: pointer;
 }
 .livesrc:hover {
@@ -59,8 +50,9 @@ background-color: #eeeeee;
 color: #008800;
 display: none;
 }
-</style>
-<script type="text/javascript">
+</style>`
+
+const weblistPageScript = `<script type="text/javascript">
 function pprof_toggle_asm(e) {
   var target;
   if (!e) e = window.event;
@@ -76,12 +68,8 @@ function pprof_toggle_asm(e) {
     }
   }
 }
-</script>
-</head>
-<body>
-`
+</script>`
 
 const weblistPageClosing = `
 </body>
-</html>
-`
+</html>`

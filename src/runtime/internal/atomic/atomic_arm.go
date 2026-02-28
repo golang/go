@@ -2,14 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build arm
+//go:build arm
 
 package atomic
 
 import (
-	"runtime/internal/sys"
+	"internal/cpu"
 	"unsafe"
 )
+
+// Export some functions via linkname to assembly in sync/atomic.
+//
+//go:linkname Xchg
+//go:linkname Xchguintptr
 
 type spinlock struct {
 	v uint32
@@ -31,7 +36,7 @@ func (l *spinlock) unlock() {
 
 var locktab [57]struct {
 	l   spinlock
-	pad [sys.CacheLineSize - unsafe.Sizeof(spinlock{})]byte
+	pad [cpu.CacheLinePadSize - unsafe.Sizeof(spinlock{})]byte
 }
 
 func addrLock(addr *uint64) *spinlock {
@@ -39,6 +44,7 @@ func addrLock(addr *uint64) *spinlock {
 }
 
 // Atomic add and return new value.
+//
 //go:nosplit
 func Xadd(val *uint32, delta int32) uint32 {
 	for {
@@ -68,47 +74,24 @@ func Xchguintptr(addr *uintptr, v uintptr) uintptr {
 	return uintptr(Xchg((*uint32)(unsafe.Pointer(addr)), uint32(v)))
 }
 
-//go:nosplit
-func Load(addr *uint32) uint32 {
-	return Xadd(addr, 0)
-}
+// Not noescape -- it installs a pointer to addr.
+func StorepNoWB(addr unsafe.Pointer, v unsafe.Pointer)
 
-// Should be a built-in for unsafe.Pointer?
-//go:nosplit
-func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(p) + x)
-}
+//go:noescape
+func Store(addr *uint32, v uint32)
 
-//go:nosplit
-func Loadp(addr unsafe.Pointer) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(Xadd((*uint32)(addr), 0)))
-}
+//go:noescape
+func StoreRel(addr *uint32, v uint32)
+
+//go:noescape
+func StoreReluintptr(addr *uintptr, v uintptr)
 
 //go:nosplit
-func StorepNoWB(addr unsafe.Pointer, v unsafe.Pointer) {
-	for {
-		old := *(*unsafe.Pointer)(addr)
-		if Casp1((*unsafe.Pointer)(addr), old, v) {
-			return
-		}
-	}
-}
-
-//go:nosplit
-func Store(addr *uint32, v uint32) {
-	for {
-		old := *addr
-		if Cas(addr, old, v) {
-			return
-		}
-	}
-}
-
-//go:nosplit
-func Cas64(addr *uint64, old, new uint64) bool {
+func goCas64(addr *uint64, old, new uint64) bool {
 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
 		*(*int)(nil) = 0 // crash on unaligned uint64
 	}
+	_ = *addr // if nil, fault before taking the lock
 	var ok bool
 	addrLock(addr).lock()
 	if *addr == old {
@@ -120,10 +103,11 @@ func Cas64(addr *uint64, old, new uint64) bool {
 }
 
 //go:nosplit
-func Xadd64(addr *uint64, delta int64) uint64 {
+func goXadd64(addr *uint64, delta int64) uint64 {
 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
 		*(*int)(nil) = 0 // crash on unaligned uint64
 	}
+	_ = *addr // if nil, fault before taking the lock
 	var r uint64
 	addrLock(addr).lock()
 	r = *addr + uint64(delta)
@@ -133,10 +117,11 @@ func Xadd64(addr *uint64, delta int64) uint64 {
 }
 
 //go:nosplit
-func Xchg64(addr *uint64, v uint64) uint64 {
+func goXchg64(addr *uint64, v uint64) uint64 {
 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
 		*(*int)(nil) = 0 // crash on unaligned uint64
 	}
+	_ = *addr // if nil, fault before taking the lock
 	var r uint64
 	addrLock(addr).lock()
 	r = *addr
@@ -146,10 +131,11 @@ func Xchg64(addr *uint64, v uint64) uint64 {
 }
 
 //go:nosplit
-func Load64(addr *uint64) uint64 {
+func goLoad64(addr *uint64) uint64 {
 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
 		*(*int)(nil) = 0 // crash on unaligned uint64
 	}
+	_ = *addr // if nil, fault before taking the lock
 	var r uint64
 	addrLock(addr).lock()
 	r = *addr
@@ -158,10 +144,11 @@ func Load64(addr *uint64) uint64 {
 }
 
 //go:nosplit
-func Store64(addr *uint64, v uint64) {
+func goStore64(addr *uint64, v uint64) {
 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
 		*(*int)(nil) = 0 // crash on unaligned uint64
 	}
+	_ = *addr // if nil, fault before taking the lock
 	addrLock(addr).lock()
 	*addr = v
 	addrLock(addr).unlock()
@@ -198,4 +185,60 @@ func And8(addr *uint8, v uint8) {
 }
 
 //go:nosplit
+func Or(addr *uint32, v uint32) {
+	for {
+		old := *addr
+		if Cas(addr, old, old|v) {
+			return
+		}
+	}
+}
+
+//go:nosplit
+func And(addr *uint32, v uint32) {
+	for {
+		old := *addr
+		if Cas(addr, old, old&v) {
+			return
+		}
+	}
+}
+
+//go:nosplit
 func armcas(ptr *uint32, old, new uint32) bool
+
+//go:noescape
+func Load(addr *uint32) uint32
+
+// NO go:noescape annotation; *addr escapes if result escapes (#31525)
+func Loadp(addr unsafe.Pointer) unsafe.Pointer
+
+//go:noescape
+func Load8(addr *uint8) uint8
+
+//go:noescape
+func LoadAcq(addr *uint32) uint32
+
+//go:noescape
+func LoadAcquintptr(ptr *uintptr) uintptr
+
+//go:noescape
+func Cas64(addr *uint64, old, new uint64) bool
+
+//go:noescape
+func CasRel(addr *uint32, old, new uint32) bool
+
+//go:noescape
+func Xadd64(addr *uint64, delta int64) uint64
+
+//go:noescape
+func Xchg64(addr *uint64, v uint64) uint64
+
+//go:noescape
+func Load64(addr *uint64) uint64
+
+//go:noescape
+func Store8(addr *uint8, v uint8)
+
+//go:noescape
+func Store64(addr *uint64, v uint64)

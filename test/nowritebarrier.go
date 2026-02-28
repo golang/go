@@ -67,6 +67,7 @@ func d2() {
 	d3()
 }
 
+//go:noinline
 func d3() {
 	x.f = y // ERROR "write barrier prohibited by caller"
 	d4()
@@ -75,4 +76,19 @@ func d3() {
 //go:yeswritebarrierrec
 func d4() {
 	d2()
+}
+
+//go:noinline
+func systemstack(func()) {}
+
+//go:nowritebarrierrec
+func e1() {
+	systemstack(e2)
+	systemstack(func() {
+		x.f = y // ERROR "write barrier prohibited by caller"
+	})
+}
+
+func e2() {
+	x.f = y // ERROR "write barrier prohibited by caller"
 }

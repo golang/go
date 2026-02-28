@@ -5,9 +5,12 @@
 package os_test
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -28,6 +31,7 @@ func ExampleOpenFile_append() {
 		log.Fatal(err)
 	}
 	if _, err := f.Write([]byte("appended some data\n")); err != nil {
+		f.Close() // ignore error; Write error takes precedence
 		log.Fatal(err)
 	}
 	if err := f.Close(); err != nil {
@@ -55,35 +59,51 @@ func ExampleFileMode() {
 		log.Fatal(err)
 	}
 
+	fmt.Printf("permissions: %#o\n", fi.Mode().Perm()) // 0400, 0777, etc.
 	switch mode := fi.Mode(); {
 	case mode.IsRegular():
 		fmt.Println("regular file")
 	case mode.IsDir():
 		fmt.Println("directory")
-	case mode&os.ModeSymlink != 0:
+	case mode&fs.ModeSymlink != 0:
 		fmt.Println("symbolic link")
-	case mode&os.ModeNamedPipe != 0:
+	case mode&fs.ModeNamedPipe != 0:
 		fmt.Println("named pipe")
 	}
 }
 
-func ExampleIsNotExist() {
+func ExampleErrNotExist() {
 	filename := "a-nonexistent-file"
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		fmt.Printf("file does not exist")
+	if _, err := os.Stat(filename); errors.Is(err, fs.ErrNotExist) {
+		fmt.Println("file does not exist")
 	}
 	// Output:
 	// file does not exist
 }
 
-func init() {
-	os.Setenv("USER", "gopher")
-	os.Setenv("HOME", "/usr/gopher")
-	os.Unsetenv("GOPATH")
+func ExampleExpand() {
+	mapper := func(placeholderName string) string {
+		switch placeholderName {
+		case "DAY_PART":
+			return "morning"
+		case "NAME":
+			return "Gopher"
+		}
+
+		return ""
+	}
+
+	fmt.Println(os.Expand("Good ${DAY_PART}, $NAME!", mapper))
+
+	// Output:
+	// Good morning, Gopher!
 }
 
 func ExampleExpandEnv() {
-	fmt.Println(os.ExpandEnv("$USER lives in ${HOME}."))
+	os.Setenv("NAME", "gopher")
+	os.Setenv("BURROW", "/usr/gopher")
+
+	fmt.Println(os.ExpandEnv("$NAME lives in ${BURROW}."))
 
 	// Output:
 	// gopher lives in /usr/gopher.
@@ -99,16 +119,24 @@ func ExampleLookupEnv() {
 		}
 	}
 
-	show("USER")
-	show("GOPATH")
+	os.Setenv("SOME_KEY", "value")
+	os.Setenv("EMPTY_KEY", "")
+
+	show("SOME_KEY")
+	show("EMPTY_KEY")
+	show("MISSING_KEY")
 
 	// Output:
-	// USER=gopher
-	// GOPATH not set
+	// SOME_KEY=value
+	// EMPTY_KEY=
+	// MISSING_KEY not set
 }
 
 func ExampleGetenv() {
-	fmt.Printf("%s lives in %s.\n", os.Getenv("USER"), os.Getenv("HOME"))
+	os.Setenv("NAME", "gopher")
+	os.Setenv("BURROW", "/usr/gopher")
+
+	fmt.Printf("%s lives in %s.\n", os.Getenv("NAME"), os.Getenv("BURROW"))
 
 	// Output:
 	// gopher lives in /usr/gopher.
@@ -117,4 +145,121 @@ func ExampleGetenv() {
 func ExampleUnsetenv() {
 	os.Setenv("TMPDIR", "/my/tmp")
 	defer os.Unsetenv("TMPDIR")
+}
+
+func ExampleReadDir() {
+	files, err := os.ReadDir(".")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, file := range files {
+		fmt.Println(file.Name())
+	}
+}
+
+func ExampleMkdirTemp() {
+	dir, err := os.MkdirTemp("", "example")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(dir) // clean up
+
+	file := filepath.Join(dir, "tmpfile")
+	if err := os.WriteFile(file, []byte("content"), 0666); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleMkdirTemp_suffix() {
+	logsDir, err := os.MkdirTemp("", "*-logs")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(logsDir) // clean up
+
+	// Logs can be cleaned out earlier if needed by searching
+	// for all directories whose suffix ends in *-logs.
+	globPattern := filepath.Join(os.TempDir(), "*-logs")
+	matches, err := filepath.Glob(globPattern)
+	if err != nil {
+		log.Fatalf("Failed to match %q: %v", globPattern, err)
+	}
+
+	for _, match := range matches {
+		if err := os.RemoveAll(match); err != nil {
+			log.Printf("Failed to remove %q: %v", match, err)
+		}
+	}
+}
+
+func ExampleCreateTemp() {
+	f, err := os.CreateTemp("", "example")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(f.Name()) // clean up
+
+	if _, err := f.Write([]byte("content")); err != nil {
+		log.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleCreateTemp_suffix() {
+	f, err := os.CreateTemp("", "example.*.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(f.Name()) // clean up
+
+	if _, err := f.Write([]byte("content")); err != nil {
+		f.Close()
+		log.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleReadFile() {
+	data, err := os.ReadFile("testdata/hello")
+	if err != nil {
+		log.Fatal(err)
+	}
+	os.Stdout.Write(data)
+
+	// Output:
+	// Hello, Gophers!
+}
+
+func ExampleWriteFile() {
+	err := os.WriteFile("testdata/hello", []byte("Hello, Gophers!"), 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleMkdir() {
+	err := os.Mkdir("testdir", 0750)
+	if err != nil && !os.IsExist(err) {
+		log.Fatal(err)
+	}
+	err = os.WriteFile("testdir/testfile.txt", []byte("Hello, Gophers!"), 0660)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleMkdirAll() {
+	err := os.MkdirAll("test/subdir", 0750)
+	if err != nil && !os.IsExist(err) {
+		log.Fatal(err)
+	}
+	err = os.WriteFile("test/subdir/testfile.txt", []byte("Hello, Gophers!"), 0660)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

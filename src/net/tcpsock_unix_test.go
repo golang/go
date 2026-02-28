@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !plan9,!windows
+//go:build !js && !plan9 && !windows
 
 package net
 
 import (
 	"context"
-	"internal/testenv"
 	"math/rand"
 	"runtime"
 	"sync"
@@ -23,10 +22,7 @@ func TestTCPSpuriousConnSetupCompletion(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func(ln Listener) {
@@ -84,9 +80,9 @@ func TestTCPSpuriousConnSetupCompletion(t *testing.T) {
 // Issue 19289.
 // Test that a canceled Dial does not cause a subsequent Dial to succeed.
 func TestTCPSpuriousConnSetupCompletionWithCancel(t *testing.T) {
-	if testenv.Builder() == "" {
-		testenv.MustHaveExternalNetwork(t)
-	}
+	mustHaveExternalNetwork(t)
+
+	defer dnsWaitGroup.Wait()
 	t.Parallel()
 	const tries = 10000
 	var wg sync.WaitGroup

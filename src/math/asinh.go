@@ -33,10 +33,16 @@ package math
 // Asinh returns the inverse hyperbolic sine of x.
 //
 // Special cases are:
+//
 //	Asinh(±0) = ±0
 //	Asinh(±Inf) = ±Inf
 //	Asinh(NaN) = NaN
-func Asinh(x float64) float64
+func Asinh(x float64) float64 {
+	if haveArchAsinh {
+		return archAsinh(x)
+	}
+	return asinh(x)
+}
 
 func asinh(x float64) float64 {
 	const (

@@ -5,8 +5,8 @@
 package syntax
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 	"unicode"
 )
@@ -185,6 +185,7 @@ var parseTests = []parseTest{
 	{`(?-s).`, `dnl{}`},
 	{`(?:(?:^).)`, `cat{bol{}dot{}}`},
 	{`(?-s)(?:(?:^).)`, `cat{bol{}dnl{}}`},
+	{`[\s\S]a`, `cat{cc{0x0-0x10ffff}lit{a}}`},
 
 	// RE2 prefix_tests
 	{`abc|abd`, `cat{str{ab}cc{0x63-0x64}}`},
@@ -206,6 +207,11 @@ var parseTests = []parseTest{
 	// Valid repetitions.
 	{`((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}))`, ``},
 	{`((((((((((x{1}){2}){2}){2}){2}){2}){2}){2}){2}){2})`, ``},
+
+	// Valid nesting.
+	{strings.Repeat("(", 999) + strings.Repeat(")", 999), ``},
+	{strings.Repeat("(?:", 999) + strings.Repeat(")*", 999), ``},
+	{"(" + strings.Repeat("|", 12345) + ")", ``}, // not nested at all
 }
 
 const testFlags = MatchNL | PerlX | UnicodeGroups
@@ -282,7 +288,7 @@ func testParseDump(t *testing.T, tests []parseTest, flags Flags) {
 // dump prints a string representation of the regexp showing
 // the structure explicitly.
 func dump(re *Regexp) string {
-	var b bytes.Buffer
+	var b strings.Builder
 	dumpRegexp(&b, re)
 	return b.String()
 }
@@ -312,7 +318,7 @@ var opNames = []string{
 // dumpRegexp writes an encoding of the syntax tree for the regexp re to b.
 // It is used during testing to distinguish between parses that might print
 // the same using re's String method.
-func dumpRegexp(b *bytes.Buffer, re *Regexp) {
+func dumpRegexp(b *strings.Builder, re *Regexp) {
 	if int(re.Op) >= len(opNames) || opNames[re.Op] == "" {
 		fmt.Fprintf(b, "op%d", re.Op)
 	} else {
@@ -481,6 +487,8 @@ var invalidRegexps = []string{
 	`a{100000}`,
 	`a{100000,}`,
 	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",
+	strings.Repeat("(", 1000) + strings.Repeat(")", 1000),
+	strings.Repeat("(?:", 1000) + strings.Repeat(")*", 1000),
 	`\Q\E*`,
 }
 

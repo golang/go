@@ -1,0 +1,104 @@
+env GO111MODULE=on
+
+# Derive module path from import comment.
+cd $WORK/x
+exists x.go
+go mod init
+stderr 'module x'
+
+# Import comment works even with CRLF line endings.
+rm go.mod
+addcrlf x.go
+go mod init
+stderr 'module x'
+
+# Derive module path from location inside GOPATH.
+# 'go mod init' should succeed if modules are not explicitly disabled.
+cd $GOPATH/src/example.com/x/y
+go mod init
+stderr 'module example.com/x/y$'
+rm go.mod
+
+# go mod init rejects a zero-length go.mod file
+cp $devnull go.mod # can't use touch to create it because Windows
+! go mod init
+stderr 'go.mod already exists'
+
+# Module path from Godeps/Godeps.json overrides GOPATH.
+cd $GOPATH/src/example.com/x/y/z
+go mod init
+stderr 'unexpected.com/z'
+rm go.mod
+
+# Empty directory outside GOPATH fails.
+mkdir $WORK/empty
+cd $WORK/empty
+! go mod init
+stderr 'cannot determine module path for source directory'
+rm go.mod
+
+# Empty directory inside GOPATH/src uses location inside GOPATH.
+mkdir $GOPATH/src/empty
+cd $GOPATH/src/empty
+go mod init
+stderr 'empty'
+rm go.mod
+
+# In Plan 9, directories are automatically created in /n.
+# For example, /n/go.mod always exist, but it's a directory.
+# Test that we ignore directories when trying to find go.mod.
+cd $WORK/gomoddir
+! go list .
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+
+[!symlink] stop
+
+# gplink1/src/empty where gopathlink -> GOPATH
+symlink $WORK/gopathlink -> gopath
+cd $WORK/gopathlink/src/empty
+go mod init
+rm go.mod
+
+# GOPATH/src/link where link -> out of GOPATH
+symlink $GOPATH/src/link -> $WORK/empty
+cd $WORK/empty
+! go mod init
+cd $GOPATH/src/link
+go mod init
+stderr link
+rm go.mod
+
+# GOPATH/src/empty where GOPATH itself is a symlink
+env GOPATH=$WORK/gopathlink
+cd $GOPATH/src/empty
+go mod init
+rm go.mod
+cd $WORK/gopath/src/empty
+go mod init
+rm go.mod
+
+# GOPATH/src/link where GOPATH and link are both symlinks
+cd $GOPATH/src/link
+go mod init
+stderr link
+rm go.mod
+
+# Too hard: doesn't match unevaluated nor completely evaluated. (Only partially evaluated.)
+# Whether this works depends on which OS we are running on.
+# cd $WORK/gopath/src/link
+# ! go mod init
+
+-- $WORK/x/x.go --
+package x // import "x"
+
+-- $GOPATH/src/example.com/x/y/y.go --
+package y
+-- $GOPATH/src/example.com/x/y/z/z.go --
+package z
+-- $GOPATH/src/example.com/x/y/z/Godeps/Godeps.json --
+{"ImportPath": "unexpected.com/z"}
+
+-- $WORK/gomoddir/go.mod/README.txt --
+../go.mod is a directory, not a file.
+-- $WORK/gomoddir/p.go --
+package p

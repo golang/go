@@ -218,7 +218,7 @@ func main() {
 			}
 			fmt.Printf("%s: expected no error; got %q\n", t.name, err)
 		case t.err != "" && err != "":
-			if strings.Index(err, t.err) < 0 {
+			if !strings.Contains(err, t.err) {
 				if !bad {
 					bad = true
 					fmt.Printf("BUG\n")

@@ -203,7 +203,9 @@ func instPrefix(b byte, mode int) (Inst, error) {
 // For now we use instPrefix but perhaps later we will return
 // a specific error here.
 func truncated(src []byte, mode int) (Inst, error) {
-	//	return Inst{}, len(src), ErrTruncated
+	if len(src) == 0 {
+		return Inst{}, ErrTruncated
+	}
 	return instPrefix(src[0], mode) // too long
 }
 
@@ -216,7 +218,6 @@ var (
 
 // decoderCover records coverage information for which parts
 // of the byte code have been executed.
-// TODO(rsc): This is for testing. Only use this if a flag is given.
 var decoderCover []bool
 
 // Decode decodes the leading bytes in src as a single instruction.
@@ -406,7 +407,7 @@ ReadPrefixes:
 
 		//Group 5 - Vex encoding
 		case 0xC5:
-			if pos == 0 && (mode == 64 || (mode == 32 && pos+1 < len(src) && src[pos+1]&0xc0 == 0xc0)) {
+			if pos == 0 && pos+1 < len(src) && (mode == 64 || (mode == 32 && src[pos+1]&0xc0 == 0xc0)) {
 				vex = p
 				vexIndex = pos
 				inst.Prefix[pos] = p
@@ -418,7 +419,7 @@ ReadPrefixes:
 				break ReadPrefixes
 			}
 		case 0xC4:
-			if pos == 0 && (mode == 64 || (mode == 32 && pos+2 < len(src) && src[pos+1]&0xc0 == 0xc0)) {
+			if pos == 0 && pos+2 < len(src) && (mode == 64 || (mode == 32 && src[pos+1]&0xc0 == 0xc0)) {
 				vex = p
 				vexIndex = pos
 				inst.Prefix[pos] = p
@@ -460,9 +461,6 @@ ReadPrefixes:
 	// opshift gives the shift to use when saving the next
 	// opcode byte into inst.Opcode.
 	opshift = 24
-	if decoderCover == nil {
-		decoderCover = make([]bool, len(decoder))
-	}
 
 	// Decode loop, executing decoder program.
 	var oldPC, prevPC int
@@ -474,7 +472,9 @@ Decode:
 			println("run", pc)
 		}
 		x := decoder[pc]
-		decoderCover[pc] = true
+		if decoderCover != nil {
+			decoderCover[pc] = true
+		}
 		pc++
 
 		// Read and decode ModR/M if needed by opcode.

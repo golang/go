@@ -1,0 +1,39 @@
+env GO111MODULE=on
+
+# Regression test for golang.org/issue/27063:
+# 'go mod tidy' and 'go mod vendor' should not hide loading errors.
+
+! go mod tidy
+! stderr 'package nonexist is not in GOROOT'
+stderr '^issue27063 imports\n\tnonexist.example.com: cannot find module providing package nonexist.example.com'
+stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: cannot find module providing package other.example.com/nonexist'
+
+! go mod vendor
+! stderr 'package nonexist is not in GOROOT'
+stderr '^issue27063 imports\n\tnonexist.example.com: no required module provides package nonexist.example.com; to add it:\n\tgo get nonexist.example.com$'
+stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: no required module provides package other.example.com/nonexist; to add it:\n\tgo get other.example.com/nonexist$'
+
+-- go.mod --
+module issue27063
+
+go 1.13
+
+require issue27063/other v0.0.0
+replace issue27063/other => ./other
+-- x.go --
+package main
+
+import (
+	"nonexist"
+
+	"nonexist.example.com"
+	"issue27063/other"
+)
+
+func main() {}
+-- other/go.mod --
+module issue27063/other
+-- other/other.go --
+package other
+
+import "other.example.com/nonexist"

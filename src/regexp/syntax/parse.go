@@ -43,6 +43,7 @@ const (
 	ErrMissingRepeatArgument ErrorCode = "missing argument to repetition operator"
 	ErrTrailingBackslash     ErrorCode = "trailing backslash at end of expression"
 	ErrUnexpectedParen       ErrorCode = "unexpected )"
+	ErrNestingDepth          ErrorCode = "expression nests too deeply"
 )
 
 func (e ErrorCode) String() string {
@@ -76,13 +77,29 @@ const (
 	opVerticalBar
 )
 
+// maxHeight is the maximum height of a regexp parse tree.
+// It is somewhat arbitrarily chosen, but the idea is to be large enough
+// that no one will actually hit in real use but at the same time small enough
+// that recursion on the Regexp tree will not hit the 1GB Go stack limit.
+// The maximum amount of stack for a single recursive frame is probably
+// closer to 1kB, so this could potentially be raised, but it seems unlikely
+// that people have regexps nested even this deeply.
+// We ran a test on Google's C++ code base and turned up only
+// a single use case with depth > 100; it had depth 128.
+// Using depth 1000 should be plenty of margin.
+// As an optimization, we don't even bother calculating heights
+// until we've allocated at least maxHeight Regexp structures.
+const maxHeight = 1000
+
 type parser struct {
 	flags       Flags     // parse mode flags
 	stack       []*Regexp // stack of parsed expressions
 	free        *Regexp
 	numCap      int // number of capturing groups seen
 	wholeRegexp string
-	tmpClass    []rune // temporary char class work space
+	tmpClass    []rune          // temporary char class work space
+	numRegexp   int             // number of regexps allocated
+	height      map[*Regexp]int // regexp height for height limit check
 }
 
 func (p *parser) newRegexp(op Op) *Regexp {
@@ -92,14 +109,50 @@ func (p *parser) newRegexp(op Op) *Regexp {
 		*re = Regexp{}
 	} else {
 		re = new(Regexp)
+		p.numRegexp++
 	}
 	re.Op = op
 	return re
 }
 
 func (p *parser) reuse(re *Regexp) {
+	if p.height != nil {
+		delete(p.height, re)
+	}
 	re.Sub0[0] = p.free
 	p.free = re
+}
+
+func (p *parser) checkHeight(re *Regexp) {
+	if p.numRegexp < maxHeight {
+		return
+	}
+	if p.height == nil {
+		p.height = make(map[*Regexp]int)
+		for _, re := range p.stack {
+			p.checkHeight(re)
+		}
+	}
+	if p.calcHeight(re, true) > maxHeight {
+		panic(ErrNestingDepth)
+	}
+}
+
+func (p *parser) calcHeight(re *Regexp, force bool) int {
+	if !force {
+		if h, ok := p.height[re]; ok {
+			return h
+		}
+	}
+	h := 1
+	for _, sub := range re.Sub {
+		hsub := p.calcHeight(sub, false)
+		if h < 1+hsub {
+			h = 1 + hsub
+		}
+	}
+	p.height[re] = h
+	return h
 }
 
 // Parse stack manipulation.
@@ -137,6 +190,7 @@ func (p *parser) push(re *Regexp) *Regexp {
 	}
 
 	p.stack = append(p.stack, re)
+	p.checkHeight(re)
 	return re
 }
 
@@ -177,16 +231,16 @@ func (p *parser) maybeConcat(r rune, flags Flags) bool {
 	return false // did not push r
 }
 
-// newLiteral returns a new OpLiteral Regexp with the given flags
-func (p *parser) newLiteral(r rune, flags Flags) *Regexp {
+// literal pushes a literal regexp for the rune r on the stack.
+func (p *parser) literal(r rune) {
 	re := p.newRegexp(OpLiteral)
-	re.Flags = flags
-	if flags&FoldCase != 0 {
+	re.Flags = p.flags
+	if p.flags&FoldCase != 0 {
 		r = minFoldRune(r)
 	}
 	re.Rune0[0] = r
 	re.Rune = re.Rune0[:1]
-	return re
+	p.push(re)
 }
 
 // minFoldRune returns the minimum rune fold-equivalent to r.
@@ -202,12 +256,6 @@ func minFoldRune(r rune) rune {
 		}
 	}
 	return min
-}
-
-// literal pushes a literal regexp for the rune r on the stack
-// and returns that regexp.
-func (p *parser) literal(r rune) {
-	p.push(p.newLiteral(r, p.flags))
 }
 
 // op pushes a regexp with the given op onto the stack
@@ -252,6 +300,7 @@ func (p *parser) repeat(op Op, min, max int, before, after, lastRepeat string) (
 	re.Sub = re.Sub0[:1]
 	re.Sub[0] = sub
 	p.stack[n-1] = re
+	p.checkHeight(re)
 
 	if op == OpRepeat && (min >= 2 || max >= 2) && !repeatIsValid(re, 1000) {
 		return "", &Error{ErrInvalidRepeatSize, before[:len(before)-len(after)]}
@@ -396,12 +445,16 @@ func (p *parser) collapse(subs []*Regexp, op Op) *Regexp {
 // frees (passes to p.reuse) any removed *Regexps.
 //
 // For example,
-//     ABC|ABD|AEF|BCX|BCY
-// simplifies by literal prefix extraction to
-//     A(B(C|D)|EF)|BC(X|Y)
-// which simplifies by character class introduction to
-//     A(B[CD]|EF)|BC[XY]
 //
+//	ABC|ABD|AEF|BCX|BCY
+//
+// simplifies by literal prefix extraction to
+//
+//	A(B(C|D)|EF)|BC(X|Y)
+//
+// which simplifies by character class introduction to
+//
+//	A(B[CD]|EF)|BC[XY]
 func (p *parser) factor(sub []*Regexp) []*Regexp {
 	if len(sub) < 2 {
 		return sub
@@ -699,6 +752,21 @@ func literalRegexp(s string, flags Flags) *Regexp {
 // Flags, and returns a regular expression parse tree. The syntax is
 // described in the top-level comment.
 func Parse(s string, flags Flags) (*Regexp, error) {
+	return parse(s, flags)
+}
+
+func parse(s string, flags Flags) (_ *Regexp, err error) {
+	defer func() {
+		switch r := recover(); r {
+		default:
+			panic(r)
+		case nil:
+			// ok
+		case ErrNestingDepth:
+			err = &Error{Code: ErrNestingDepth, Expr: s}
+		}
+	}()
+
 	if flags&Literal != 0 {
 		// Trivial parser for literal string.
 		if err := checkUTF8(s); err != nil {
@@ -710,7 +778,6 @@ func Parse(s string, flags Flags) (*Regexp, error) {
 	// Otherwise, must do real work.
 	var (
 		p          parser
-		err        error
 		c          rune
 		op         Op
 		lastRepeat string
@@ -830,13 +897,7 @@ func Parse(s string, flags Flags) (*Regexp, error) {
 				case 'Q':
 					// \Q ... \E: the ... is always literals
 					var lit string
-					if i := strings.Index(t, `\E`); i < 0 {
-						lit = t[2:]
-						t = ""
-					} else {
-						lit = t[2:i]
-						t = t[i+2:]
-					}
+					lit, t, _ = strings.Cut(t[2:], `\E`)
 					for lit != "" {
 						c, rest, err := nextRune(lit)
 						if err != nil {

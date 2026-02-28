@@ -591,7 +591,7 @@ func TestEndToEnd(t *testing.T) {
 		B:        18,
 		C:        -5,
 		M:        map[string]*float64{"pi": &pi, "e": &e},
-		M2:       map[int]T3{4: T3{X: pi, Z: &meaning}, 10: T3{X: e, Z: &fingers}},
+		M2:       map[int]T3{4: {X: pi, Z: &meaning}, 10: {X: e, Z: &fingers}},
 		Mstring:  map[string]string{"pi": "3.14", "e": "2.71"},
 		Mintptr:  map[int]*int{meaning: &fingers, fingers: &meaning},
 		Mcomp:    map[complex128]complex128{comp1: comp2, comp2: comp1},
@@ -1178,13 +1178,13 @@ func TestInterface(t *testing.T) {
 
 // A struct with all basic types, stored in interfaces.
 type BasicInterfaceItem struct {
-	Int, Int8, Int16, Int32, Int64      interface{}
-	Uint, Uint8, Uint16, Uint32, Uint64 interface{}
-	Float32, Float64                    interface{}
-	Complex64, Complex128               interface{}
-	Bool                                interface{}
-	String                              interface{}
-	Bytes                               interface{}
+	Int, Int8, Int16, Int32, Int64      any
+	Uint, Uint8, Uint16, Uint32, Uint64 any
+	Float32, Float64                    any
+	Complex64, Complex128               any
+	Bool                                any
+	String                              any
+	Bytes                               any
 }
 
 func TestInterfaceBasic(t *testing.T) {
@@ -1223,8 +1223,8 @@ func TestInterfaceBasic(t *testing.T) {
 type String string
 
 type PtrInterfaceItem struct {
-	Str1 interface{} // basic
-	Str2 interface{} // derived
+	Str1 any // basic
+	Str2 any // derived
 }
 
 // We'll send pointers; should receive values.
@@ -1318,9 +1318,10 @@ func TestUnexportedFields(t *testing.T) {
 	}
 }
 
-var singletons = []interface{}{
+var singletons = []any{
 	true,
 	7,
+	uint(10),
 	3.2,
 	"hello",
 	[3]int{11, 22, 33},
@@ -1353,9 +1354,9 @@ type DT struct {
 	A     int
 	B     string
 	C     float64
-	I     interface{}
-	J     interface{}
-	I_nil interface{}
+	I     any
+	J     any
+	I_nil any
 	M     map[string]int
 	T     [3]int
 	S     []string
@@ -1395,7 +1396,7 @@ func TestDebugStruct(t *testing.T) {
 	debugFunc(debugBuffer)
 }
 
-func encFuzzDec(rng *rand.Rand, in interface{}) error {
+func encFuzzDec(rng *rand.Rand, in any) error {
 	buf := new(bytes.Buffer)
 	enc := NewEncoder(buf)
 	if err := enc.Encode(&in); err != nil {
@@ -1410,7 +1411,7 @@ func encFuzzDec(rng *rand.Rand, in interface{}) error {
 	}
 
 	dec := NewDecoder(buf)
-	var e interface{}
+	var e any
 	if err := dec.Decode(&e); err != nil {
 		return err
 	}
@@ -1420,12 +1421,11 @@ func encFuzzDec(rng *rand.Rand, in interface{}) error {
 // This does some "fuzz testing" by attempting to decode a sequence of random bytes.
 func TestFuzz(t *testing.T) {
 	if !*doFuzzTests {
-		t.Logf("disabled; run with -gob.fuzz to enable")
-		return
+		t.Skipf("disabled; run with -gob.fuzz to enable")
 	}
 
 	// all possible inputs
-	input := []interface{}{
+	input := []any{
 		new(int),
 		new(float32),
 		new(float64),
@@ -1440,8 +1440,7 @@ func TestFuzz(t *testing.T) {
 
 func TestFuzzRegressions(t *testing.T) {
 	if !*doFuzzTests {
-		t.Logf("disabled; run with -gob.fuzz to enable")
-		return
+		t.Skipf("disabled; run with -gob.fuzz to enable")
 	}
 
 	// An instance triggering a type name of length ~102 GB.
@@ -1451,7 +1450,7 @@ func TestFuzzRegressions(t *testing.T) {
 	testFuzz(t, 1330522872628565000, 100, new(int))
 }
 
-func testFuzz(t *testing.T, seed int64, n int, input ...interface{}) {
+func testFuzz(t *testing.T, seed int64, n int, input ...any) {
 	for _, e := range input {
 		t.Logf("seed=%d n=%d e=%T", seed, n, e)
 		rng := rand.New(rand.NewSource(seed))
@@ -1464,6 +1463,10 @@ func testFuzz(t *testing.T, seed int64, n int, input ...interface{}) {
 // TestFuzzOneByte tries to decode corrupted input sequences
 // and checks that no panic occurs.
 func TestFuzzOneByte(t *testing.T) {
+	if !*doFuzzTests {
+		t.Skipf("disabled; run with -gob.fuzz to enable")
+	}
+
 	buf := new(bytes.Buffer)
 	Register(OnTheFly{})
 	dt := newDT()
@@ -1476,6 +1479,10 @@ func TestFuzzOneByte(t *testing.T) {
 	for i := 0; i < len(s); i++ {
 		switch i {
 		case 14, 167, 231, 265: // a slice length, corruptions are not handled yet.
+			continue
+		case 248:
+			// Large map size, which currently causes an out of memory panic.
+			// See golang.org/issue/24308 and golang.org/issue/20221.
 			continue
 		}
 		indices = append(indices, i)

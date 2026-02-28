@@ -10,7 +10,7 @@ import (
 	"debug/dwarf"
 	"debug/macho"
 	"fmt"
-	"os"
+	"io"
 	"sort"
 )
 
@@ -20,7 +20,7 @@ type machoFile struct {
 	macho *macho.File
 }
 
-func openMacho(r *os.File) (rawFile, error) {
+func openMacho(r io.ReaderAt) (rawFile, error) {
 	f, err := macho.NewFile(r)
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func openMacho(r *os.File) (rawFile, error) {
 
 func (f *machoFile) symbols() ([]Sym, error) {
 	if f.macho.Symtab == nil {
-		return nil, fmt.Errorf("missing symbol table")
+		return nil, nil
 	}
 
 	// Build sorted list of addresses of all symbols.
@@ -60,7 +60,7 @@ func (f *machoFile) symbols() ([]Sym, error) {
 		} else if int(s.Sect) <= len(f.macho.Sections) {
 			sect := f.macho.Sections[s.Sect-1]
 			switch sect.Seg {
-			case "__TEXT":
+			case "__TEXT", "__DATA_CONST":
 				sym.Code = 'R'
 			case "__DATA":
 				sym.Code = 'D'
@@ -113,6 +113,8 @@ func (f *machoFile) goarch() string {
 		return "amd64"
 	case macho.CpuArm:
 		return "arm"
+	case macho.CpuArm64:
+		return "arm64"
 	case macho.CpuPpc64:
 		return "ppc64"
 	}

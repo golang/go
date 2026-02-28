@@ -1,44 +1,57 @@
 Go on iOS
 =========
 
-To build a cross compiling toolchain for iOS on OS X, first modify clangwrap.sh
-in misc/ios to match your setup. And then run:
+To run the standard library tests, run all.bash as usual, but with the compiler
+set to the clang wrapper that invokes clang for iOS. For example, this command runs
+ all.bash on the iOS emulator:
 
-	GOARM=7 CGO_ENABLED=1 GOARCH=arm CC_FOR_TARGET=`pwd`/../misc/ios/clangwrap.sh \
-	CXX_FOR_TARGET=`pwd`/../misc/ios/clangwrap.sh ./make.bash
+	GOOS=ios GOARCH=amd64 CGO_ENABLED=1 CC_FOR_TARGET=$(pwd)/../misc/ios/clangwrap.sh ./all.bash
 
-To build a program, use the normal go build command:
+If CC_FOR_TARGET is not set when the toolchain is built (make.bash or all.bash), CC
+can be set on the command line. For example,
 
-	CGO_ENABLED=1 GOARCH=arm go build import/path
+	GOOS=ios GOARCH=amd64 CGO_ENABLED=1 CC=$(go env GOROOT)/misc/ios/clangwrap.sh go build
 
-To run a program on an iDevice, first make sure you have a valid developer
-certificate and have setup your iDevice properly to run apps signed by your
-developer certificate. Then install https://github.com/phonegap/ios-deploy.
-At a first step, you can try building the famous hello world program to run
-on your test device.
-(The needed files are provided at https://github.com/minux/go-ios-examples.)
+Setting CC is not necessary if the toolchain is built with CC_FOR_TARGET set.
 
-	# assume your program binary is helloworld.go, build it into the
-	# example hello.app bundle.
-	CGO_ENABLED=1 GOARCH=arm go build -o hello.app/hello helloworld.go
-	# sign the executable using your developer certificate
-	codesign -f -s "iPhone Developer" --entitlements hello.app/Entitlements.plist hello.app/hello
-	# run the program inside lldb on iDevice, run `ios-deploy` for more
-	# command options
-	ios-deploy --debug --uninstall --bundle hello.app
-	# Depending on your ios-deploy version, you might need to enter "run"
-	# into lldb to run your program, and its output will be shown by lldb.
+To use the go tool to run individual programs and tests, put $GOROOT/bin into PATH to ensure
+the go_ios_$GOARCH_exec wrapper is found. For example, to run the archive/tar tests:
 
-Notes:
- - A dummy hello.app bundle is provided in this directory to help you get started.
- - Running the program on an iDevice requires code sign and thus external linking,
-   if your program uses cgo, then it will automatically use external linking.
-   However, if your program does not use cgo, please make sure to add
-	import _ "runtime/cgo"
-   so that external linking will be used.
+	export PATH=$GOROOT/bin:$PATH
+	GOOS=ios GOARCH=amd64 CGO_ENABLED=1 go test archive/tar
 
-Known issues
-============
- - crypto/x509 won't build, I don't yet know how to get system root on iOS.
- - Because I still want to be able to do native build, CGO_ENABLED=1 is not the
-   default, yet.
+The go_ios_exec wrapper uses GOARCH to select the emulator (amd64) or the device (arm64).
+However, further setup is required to run tests or programs directly on a device.
+
+First make sure you have a valid developer certificate and have setup your device properly
+to run apps signed by your developer certificate. Then install the libimobiledevice and
+ideviceinstaller tools from https://www.libimobiledevice.org/. Use the HEAD versions from
+source; the stable versions have bugs that prevents the Go exec wrapper to install and run
+apps.
+
+Second, the Go exec wrapper must be told the developer account signing identity, the team
+id and a provisioned bundle id to use. They're specified with the environment variables
+GOIOS_DEV_ID, GOIOS_TEAM_ID and GOIOS_APP_ID. The detect.go program in this directory will
+attempt to auto-detect suitable values. Run it as
+
+	go run detect.go
+
+which will output something similar to
+
+	export GOIOS_DEV_ID="iPhone Developer: xxx@yyy.zzz (XXXXXXXX)"
+	export GOIOS_APP_ID=YYYYYYYY.some.bundle.id
+	export GOIOS_TEAM_ID=ZZZZZZZZ
+
+If you have multiple devices connected, specify the device UDID with the GOIOS_DEVICE_ID
+variable. Use `idevice_id -l` to list all available UDIDs. Then, setting GOARCH to arm64
+will select the device:
+
+	GOOS=ios GOARCH=arm64 CGO_ENABLED=1 CC_FOR_TARGET=$(pwd)/../misc/ios/clangwrap.sh ./all.bash
+
+Note that the go_darwin_$GOARCH_exec wrapper uninstalls any existing app identified by
+the bundle id before installing a new app. If the uninstalled app is the last app by
+the developer identity, the device might also remove the permission to run apps from
+that developer, and the exec wrapper will fail to install the new app. To avoid that,
+install another app with the same developer identity but with a different bundle id.
+That way, the permission to install apps is held on to while the primary app is
+uninstalled.

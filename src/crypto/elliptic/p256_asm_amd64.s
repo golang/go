@@ -6,7 +6,7 @@
 // P256. The optimizations performed here are described in detail in:
 // S.Gueron and V.Krasnov, "Fast prime field elliptic-curve cryptography with
 //                          256-bit primes"
-// http://link.springer.com/article/10.1007%2Fs13389-014-0090-x
+// https://link.springer.com/article/10.1007%2Fs13389-014-0090-x
 // https://eprint.iacr.org/2013/816.pdf
 
 #include "textflag.h"
@@ -81,17 +81,23 @@ TEXT ·p256MovCond(SB),NOSPLIT,$0
 	PCMPEQL X13, X12
 
 	MOVOU X12, X0
-	PANDN (16*0)(x_ptr), X0
+	MOVOU (16*0)(x_ptr), X6
+	PANDN X6, X0
 	MOVOU X12, X1
-	PANDN (16*1)(x_ptr), X1
+	MOVOU (16*1)(x_ptr), X7
+	PANDN X7, X1
 	MOVOU X12, X2
-	PANDN (16*2)(x_ptr), X2
+	MOVOU (16*2)(x_ptr), X8
+	PANDN X8, X2
 	MOVOU X12, X3
-	PANDN (16*3)(x_ptr), X3
+	MOVOU (16*3)(x_ptr), X9
+	PANDN X9, X3
 	MOVOU X12, X4
-	PANDN (16*4)(x_ptr), X4
+	MOVOU (16*4)(x_ptr), X10
+	PANDN X10, X4
 	MOVOU X12, X5
-	PANDN (16*5)(x_ptr), X5
+	MOVOU (16*5)(x_ptr), X11
+	PANDN X11, X5
 
 	MOVOU (16*0)(y_ptr), X6
 	MOVOU (16*1)(y_ptr), X7
@@ -156,10 +162,14 @@ TEXT ·p256NegCond(SB),NOSPLIT,$0
 
 	RET
 /* ---------------------------------------*/
-// func p256Sqr(res, in []uint64)
+// func p256Sqr(res, in []uint64, n int)
 TEXT ·p256Sqr(SB),NOSPLIT,$0
 	MOVQ res+0(FP), res_ptr
 	MOVQ in+24(FP), x_ptr
+	MOVQ n+48(FP), BX
+
+sqrLoop:
+
 	// y[1:] * y[0]
 	MOVQ (8*0)(x_ptr), t0
 
@@ -310,6 +320,9 @@ TEXT ·p256Sqr(SB),NOSPLIT,$0
 	MOVQ acc1, (8*1)(res_ptr)
 	MOVQ acc2, (8*2)(res_ptr)
 	MOVQ acc3, (8*3)(res_ptr)
+	MOVQ res_ptr, x_ptr
+	DECQ BX
+	JNE  sqrLoop
 
 	RET
 /* ---------------------------------------*/
@@ -655,10 +668,10 @@ loop_select:
 	RET
 /* ---------------------------------------*/
 // Constant time point access to base point table.
-// func p256SelectBase(point, table []uint64, idx int)
+// func p256SelectBase(point *[12]uint64, table string, idx int)
 TEXT ·p256SelectBase(SB),NOSPLIT,$0
-	MOVQ idx+48(FP),AX
-	MOVQ table+24(FP),DI
+	MOVQ idx+24(FP),AX
+	MOVQ table+8(FP),DI
 	MOVQ point+0(FP),DX
 
 	PXOR X15, X15	// X15 = 0
@@ -671,7 +684,7 @@ TEXT ·p256SelectBase(SB),NOSPLIT,$0
 	PXOR X1, X1
 	PXOR X2, X2
 	PXOR X3, X3
-	MOVQ $32, AX
+	MOVQ $16, AX
 
 	MOVOU X15, X13
 
@@ -1323,7 +1336,7 @@ TEXT p256SubInternal(SB),NOSPLIT,$0
 
 	RET
 /* ---------------------------------------*/
-TEXT p256MulInternal(SB),NOSPLIT,$0
+TEXT p256MulInternal(SB),NOSPLIT,$8
 	MOVQ acc4, mul0
 	MULQ t0
 	MOVQ mul0, acc0
@@ -1480,7 +1493,7 @@ TEXT p256MulInternal(SB),NOSPLIT,$0
 	ADCQ mul0, acc2
 	ADCQ $0, mul1
 	MOVQ mul1, acc3
-	BYTE $0x48; BYTE $0xc7; BYTE $0xc5; BYTE $0x00; BYTE $0x00; BYTE $0x00; BYTE $0x00   // MOVQ $0, BP
+	MOVQ $0, BP
 	// Add bits [511:256] of the result
 	ADCQ acc0, acc4
 	ADCQ acc1, acc5
@@ -1506,7 +1519,7 @@ TEXT p256MulInternal(SB),NOSPLIT,$0
 
 	RET
 /* ---------------------------------------*/
-TEXT p256SqrInternal(SB),NOSPLIT,$0
+TEXT p256SqrInternal(SB),NOSPLIT,$8
 
 	MOVQ acc4, mul0
 	MULQ acc5
@@ -1622,7 +1635,7 @@ TEXT p256SqrInternal(SB),NOSPLIT,$0
 	ADCQ mul0, acc2
 	ADCQ $0, mul1
 	MOVQ mul1, acc3
-	BYTE $0x48; BYTE $0xc7; BYTE $0xc5; BYTE $0x00; BYTE $0x00; BYTE $0x00; BYTE $0x00   // MOVQ $0, BP
+	MOVQ $0, BP
 	// Add bits [511:256] of the result
 	ADCQ acc0, t0
 	ADCQ acc1, t1
@@ -1972,6 +1985,36 @@ TEXT ·p256PointAddAffineAsm(SB),0,$512-96
 #undef rptr
 #undef sel_save
 #undef zero_save
+
+// p256IsZero returns 1 in AX if [acc4..acc7] represents zero and zero
+// otherwise. It writes to [acc4..acc7], t0 and t1.
+TEXT p256IsZero(SB),NOSPLIT,$0
+	// AX contains a flag that is set if the input is zero.
+	XORQ AX, AX
+	MOVQ $1, t1
+
+	// Check whether [acc4..acc7] are all zero.
+	MOVQ acc4, t0
+	ORQ acc5, t0
+	ORQ acc6, t0
+	ORQ acc7, t0
+
+	// Set the zero flag if so. (CMOV of a constant to a register doesn't
+	// appear to be supported in Go. Thus t1 = 1.)
+	CMOVQEQ t1, AX
+
+	// XOR [acc4..acc7] with P and compare with zero again.
+	XORQ $-1, acc4
+	XORQ p256const0<>(SB), acc5
+	XORQ p256const1<>(SB), acc7
+	ORQ acc5, acc4
+	ORQ acc6, acc4
+	ORQ acc7, acc4
+
+	// Set the zero flag if so.
+	CMOVQEQ t1, AX
+	RET
+
 /* ---------------------------------------*/
 #define x1in(off) (32*0 + off)(SP)
 #define y1in(off) (32*1 + off)(SP)
@@ -1996,9 +2039,11 @@ TEXT ·p256PointAddAffineAsm(SB),0,$512-96
 #define rsqr(off)  (32*18 + off)(SP)
 #define hcub(off)  (32*19 + off)(SP)
 #define rptr       (32*20)(SP)
+#define points_eq  (32*20+8)(SP)
 
-//func p256PointAddAsm(res, in1, in2 []uint64)
-TEXT ·p256PointAddAsm(SB),0,$672-72
+//func p256PointAddAsm(res, in1, in2 []uint64) int
+TEXT ·p256PointAddAsm(SB),0,$680-80
+	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
 	// Move input to stack in order to free registers
 	MOVQ res+0(FP), AX
 	MOVQ in1+24(FP), BX
@@ -2055,6 +2100,8 @@ TEXT ·p256PointAddAsm(SB),0,$672-72
 	LDt (s1)
 	CALL p256SubInternal(SB)	// r = s2 - s1
 	ST (r)
+	CALL p256IsZero(SB)
+	MOVQ AX, points_eq
 
 	LDacc (z2sqr)
 	LDt (x1in)
@@ -2068,6 +2115,9 @@ TEXT ·p256PointAddAsm(SB),0,$672-72
 	LDt (u1)
 	CALL p256SubInternal(SB)	// h = u2 - u1
 	ST (h)
+	CALL p256IsZero(SB)
+	ANDQ points_eq, AX
+	MOVQ AX, points_eq
 
 	LDacc (r)
 	CALL p256SqrInternal(SB)	// rsqr = rˆ2
@@ -2134,6 +2184,9 @@ TEXT ·p256PointAddAsm(SB),0,$672-72
 	MOVOU X3, (16*3)(AX)
 	MOVOU X4, (16*4)(AX)
 	MOVOU X5, (16*5)(AX)
+
+	MOVQ points_eq, AX
+	MOVQ AX, ret+72(FP)
 
 	RET
 #undef x1in
@@ -2247,10 +2300,10 @@ TEXT ·p256PointDoubleAsm(SB),NOSPLIT,$256-48
 	CMOVQEQ t3, acc7
 	ANDQ t0, mul0
 
-	SHRQ $1, acc4:acc5
-	SHRQ $1, acc5:acc6
-	SHRQ $1, acc6:acc7
-	SHRQ $1, acc7:mul0
+	SHRQ $1, acc5, acc4
+	SHRQ $1, acc6, acc5
+	SHRQ $1, acc7, acc6
+	SHRQ $1, mul0, acc7
 	ST (y)
 	/////////////////////////
 	LDacc (x)
@@ -2292,4 +2345,3 @@ TEXT ·p256PointDoubleAsm(SB),NOSPLIT,$256-48
 
 	RET
 /* ---------------------------------------*/
-

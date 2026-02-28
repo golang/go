@@ -2,15 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build mips mipsle mips64 mips64le
-// +build linux
+//go:build (mips || mipsle || mips64 || mips64le) && linux
 
 package runtime
-
-type sigTabT struct {
-	flags int32
-	name  string
-}
 
 var sigtable = [...]sigTabT{
 	/*  0 */ {0, "SIGNONE: no trap"},
@@ -31,23 +25,23 @@ var sigtable = [...]sigTabT{
 	/*  15 */ {_SigNotify + _SigKill, "SIGTERM: termination"},
 	/*  16 */ {_SigNotify, "SIGUSR1: user-defined signal 1"},
 	/*  17 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
-	/*  18 */ {_SigNotify + _SigUnblock, "SIGCHLD: child status has changed"},
+	/*  18 */ {_SigNotify + _SigUnblock + _SigIgn, "SIGCHLD: child status has changed"},
 	/*  19 */ {_SigNotify, "SIGPWR: power failure restart"},
-	/*  20 */ {_SigNotify, "SIGWINCH: window size change"},
-	/*  21 */ {_SigNotify, "SIGURG: urgent condition on socket"},
+	/*  20 */ {_SigNotify + _SigIgn, "SIGWINCH: window size change"},
+	/*  21 */ {_SigNotify + _SigIgn, "SIGURG: urgent condition on socket"},
 	/*  22 */ {_SigNotify, "SIGIO: i/o now possible"},
 	/*  23 */ {0, "SIGSTOP: stop, unblockable"},
-	/*  24 */ {_SigNotify + _SigDefault, "SIGTSTP: keyboard stop"},
-	/*  25 */ {_SigNotify + _SigDefault, "SIGCONT: continue"},
-	/*  26 */ {_SigNotify + _SigDefault, "SIGTTIN: background read from tty"},
-	/*  27 */ {_SigNotify + _SigDefault, "SIGTTOU: background write to tty"},
+	/*  24 */ {_SigNotify + _SigDefault + _SigIgn, "SIGTSTP: keyboard stop"},
+	/*  25 */ {_SigNotify + _SigDefault + _SigIgn, "SIGCONT: continue"},
+	/*  26 */ {_SigNotify + _SigDefault + _SigIgn, "SIGTTIN: background read from tty"},
+	/*  27 */ {_SigNotify + _SigDefault + _SigIgn, "SIGTTOU: background write to tty"},
 	/*  28 */ {_SigNotify, "SIGVTALRM: virtual alarm clock"},
 	/*  29 */ {_SigNotify + _SigUnblock, "SIGPROF: profiling alarm clock"},
 	/*  30 */ {_SigNotify, "SIGXCPU: cpu limit exceeded"},
 	/*  31 */ {_SigNotify, "SIGXFSZ: file size limit exceeded"},
 	/*  32 */ {_SigSetStack + _SigUnblock, "signal 32"}, /* SIGCANCEL; see issue 6997 */
 	/*  33 */ {_SigSetStack + _SigUnblock, "signal 33"}, /* SIGSETXID; see issues 3871, 9400, 12498 */
-	/*  34 */ {_SigNotify, "signal 34"},
+	/*  34 */ {_SigSetStack + _SigUnblock, "signal 34"}, /* musl SIGSYNCCALL; see issue 39343 */
 	/*  35 */ {_SigNotify, "signal 35"},
 	/*  36 */ {_SigNotify, "signal 36"},
 	/*  37 */ {_SigNotify, "signal 37"},

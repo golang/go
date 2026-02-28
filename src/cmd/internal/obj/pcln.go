@@ -4,29 +4,31 @@
 
 package obj
 
-import "log"
-
-func addvarint(d *Pcdata, v uint32) {
-	for ; v >= 0x80; v >>= 7 {
-		d.P = append(d.P, uint8(v|0x80))
-	}
-	d.P = append(d.P, uint8(v))
-}
+import (
+	"cmd/internal/goobj"
+	"cmd/internal/objabi"
+	"encoding/binary"
+	"fmt"
+	"log"
+)
 
 // funcpctab writes to dst a pc-value table mapping the code in func to the values
 // returned by valfunc parameterized by arg. The invocation of valfunc to update the
 // current value is, for each p,
 //
-//	val = valfunc(func, val, p, 0, arg);
-//	record val as value at p->pc;
-//	val = valfunc(func, val, p, 1, arg);
+//	sym = valfunc(func, p, 0, arg);
+//	record sym.P as value at p->pc;
+//	sym = valfunc(func, p, 1, arg);
 //
 // where func is the function, val is the current value, p is the instruction being
 // considered, and arg can be used to further parameterize valfunc.
-func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*Link, *LSym, int32, *Prog, int32, interface{}) int32, arg interface{}) {
+func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym, int32, *Prog, int32, interface{}) int32, arg interface{}) *LSym {
 	dbg := desc == ctxt.Debugpcln
-
-	dst.P = dst.P[:0]
+	dst := []byte{}
+	sym := &LSym{
+		Type:      objabi.SRODATA,
+		Attribute: AttrContentAddressable | AttrPcdata,
+	}
 
 	if dbg {
 		ctxt.Logf("funcpctab %s [valfunc=%s]\n", func_.Name, desc)
@@ -34,19 +36,21 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 
 	val := int32(-1)
 	oldval := val
-	if func_.Func.Text == nil {
-		return
+	fn := func_.Func()
+	if fn.Text == nil {
+		// Return the empty symbol we've built so far.
+		return sym
 	}
 
-	pc := func_.Func.Text.Pc
+	pc := fn.Text.Pc
 
 	if dbg {
-		ctxt.Logf("%6x %6d %v\n", uint64(pc), val, func_.Func.Text)
+		ctxt.Logf("%6x %6d %v\n", uint64(pc), val, fn.Text)
 	}
 
+	buf := make([]byte, binary.MaxVarintLen32)
 	started := false
-	var delta uint32
-	for p := func_.Func.Text; p != nil; p = p.Link {
+	for p := fn.Text; p != nil; p = p.Link {
 		// Update val. If it's not changing, keep going.
 		val = valfunc(ctxt, func_, val, p, 0, arg)
 
@@ -89,17 +93,15 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		}
 
 		if started {
-			addvarint(dst, uint32((p.Pc-pc)/int64(ctxt.Arch.MinLC)))
+			pcdelta := (p.Pc - pc) / int64(ctxt.Arch.MinLC)
+			n := binary.PutUvarint(buf, uint64(pcdelta))
+			dst = append(dst, buf[:n]...)
 			pc = p.Pc
 		}
 
-		delta = uint32(val) - uint32(oldval)
-		if delta>>31 != 0 {
-			delta = 1 | ^(delta << 1)
-		} else {
-			delta <<= 1
-		}
-		addvarint(dst, delta)
+		delta := val - oldval
+		n := binary.PutVarint(buf, int64(delta))
+		dst = append(dst, buf[:n]...)
 		oldval = val
 		started = true
 		val = valfunc(ctxt, func_, val, p, 1, arg)
@@ -107,19 +109,29 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 
 	if started {
 		if dbg {
-			ctxt.Logf("%6x done\n", uint64(func_.Func.Text.Pc+func_.Size))
+			ctxt.Logf("%6x done\n", uint64(fn.Text.Pc+func_.Size))
 		}
-		addvarint(dst, uint32((func_.Size-pc)/int64(ctxt.Arch.MinLC)))
-		addvarint(dst, 0) // terminator
+		v := (func_.Size - pc) / int64(ctxt.Arch.MinLC)
+		if v < 0 {
+			ctxt.Diag("negative pc offset: %v", v)
+		}
+		n := binary.PutUvarint(buf, uint64(v))
+		dst = append(dst, buf[:n]...)
+		// add terminating varint-encoded 0, which is just 0
+		dst = append(dst, 0)
 	}
 
 	if dbg {
-		ctxt.Logf("wrote %d bytes to %p\n", len(dst.P), dst)
-		for i := 0; i < len(dst.P); i++ {
-			ctxt.Logf(" %02x", dst.P[i])
+		ctxt.Logf("wrote %d bytes to %p\n", len(dst), dst)
+		for _, p := range dst {
+			ctxt.Logf(" %02x", p)
 		}
 		ctxt.Logf("\n")
 	}
+
+	sym.Size = int64(len(dst))
+	sym.P = dst
+	return sym
 }
 
 // pctofileline computes either the file number (arg == 0)
@@ -130,28 +142,13 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
 	if p.As == ATEXT || p.As == ANOP || p.Pos.Line() == 0 || phase == 1 {
 		return oldval
 	}
-	f, l := linkgetlineFromPos(ctxt, p.Pos)
+	f, l := getFileIndexAndLine(ctxt, p.Pos)
 	if arg == nil {
 		return l
 	}
 	pcln := arg.(*Pcln)
-
-	if f == pcln.Lastfile {
-		return int32(pcln.Lastindex)
-	}
-
-	for i, file := range pcln.File {
-		if file == f {
-			pcln.Lastfile = f
-			pcln.Lastindex = i
-			return int32(i)
-		}
-	}
-	i := len(pcln.File)
-	pcln.File = append(pcln.File, f)
-	pcln.Lastfile = f
-	pcln.Lastindex = i
-	return int32(i)
+	pcln.UsedFiles[goobj.CUFileIndex(f)] = struct{}{}
+	return int32(f)
 }
 
 // pcinlineState holds the state used to create a function's inlining
@@ -183,6 +180,19 @@ func (s *pcinlineState) addBranch(ctxt *Link, globalIndex int) int {
 	s.localTree.nodes = append(s.localTree.nodes, call)
 	s.globalToLocal[globalIndex] = localIndex
 	return localIndex
+}
+
+func (s *pcinlineState) setParentPC(ctxt *Link, globalIndex int, pc int32) {
+	localIndex, ok := s.globalToLocal[globalIndex]
+	if !ok {
+		// We know where to unwind to when we need to unwind a body identified
+		// by globalIndex. But there may be no instructions generated by that
+		// body (it's empty, or its instructions were CSEd with other things, etc.).
+		// In that case, we don't need an unwind entry.
+		// TODO: is this really right? Seems to happen a whole lot...
+		return
+	}
+	s.localTree.setParentPC(localIndex, pc)
 }
 
 // pctoinline computes the index into the local inlining tree to use at p.
@@ -223,6 +233,7 @@ func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg in
 	}
 	if oldval+p.Spadj < -10000 || oldval+p.Spadj > 1100000000 {
 		ctxt.Diag("overflow in spadj: %d + %d = %d", oldval, p.Spadj, oldval+p.Spadj)
+		ctxt.DiagFlush()
 		log.Fatalf("bad code")
 	}
 
@@ -240,6 +251,7 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
 	}
 	if int64(int32(p.To.Offset)) != p.To.Offset {
 		ctxt.Diag("overflow in PCDATA instruction: %v", p)
+		ctxt.DiagFlush()
 		log.Fatalf("bad code")
 	}
 
@@ -247,11 +259,12 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
 }
 
 func linkpcln(ctxt *Link, cursym *LSym) {
-	pcln := &cursym.Func.Pcln
+	pcln := &cursym.Func().Pcln
+	pcln.UsedFiles = make(map[goobj.CUFileIndex]struct{})
 
 	npcdata := 0
 	nfuncdata := 0
-	for p := cursym.Func.Text; p != nil; p = p.Link {
+	for p := cursym.Func().Text; p != nil; p = p.Link {
 		// Find the highest ID of any used PCDATA table. This ignores PCDATA table
 		// that consist entirely of "-1", since that's the assumed default value.
 		//   From.Offset is table ID
@@ -266,18 +279,34 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 		}
 	}
 
-	pcln.Pcdata = make([]Pcdata, npcdata)
-	pcln.Pcdata = pcln.Pcdata[:npcdata]
+	pcln.Pcdata = make([]*LSym, npcdata)
 	pcln.Funcdata = make([]*LSym, nfuncdata)
-	pcln.Funcdataoff = make([]int64, nfuncdata)
-	pcln.Funcdataoff = pcln.Funcdataoff[:nfuncdata]
 
-	funcpctab(ctxt, &pcln.Pcsp, cursym, "pctospadj", pctospadj, nil)
-	funcpctab(ctxt, &pcln.Pcfile, cursym, "pctofile", pctofileline, pcln)
-	funcpctab(ctxt, &pcln.Pcline, cursym, "pctoline", pctofileline, nil)
+	pcln.Pcsp = funcpctab(ctxt, cursym, "pctospadj", pctospadj, nil)
+	pcln.Pcfile = funcpctab(ctxt, cursym, "pctofile", pctofileline, pcln)
+	pcln.Pcline = funcpctab(ctxt, cursym, "pctoline", pctofileline, nil)
+
+	// Check that all the Progs used as inline markers are still reachable.
+	// See issue #40473.
+	fn := cursym.Func()
+	inlMarkProgs := make(map[*Prog]struct{}, len(fn.InlMarks))
+	for _, inlMark := range fn.InlMarks {
+		inlMarkProgs[inlMark.p] = struct{}{}
+	}
+	for p := fn.Text; p != nil; p = p.Link {
+		if _, ok := inlMarkProgs[p]; ok {
+			delete(inlMarkProgs, p)
+		}
+	}
+	if len(inlMarkProgs) > 0 {
+		ctxt.Diag("one or more instructions used as inline markers are no longer reachable")
+	}
 
 	pcinlineState := new(pcinlineState)
-	funcpctab(ctxt, &pcln.Pcinline, cursym, "pctoinline", pcinlineState.pctoinline, nil)
+	pcln.Pcinline = funcpctab(ctxt, cursym, "pctoinline", pcinlineState.pctoinline, nil)
+	for _, inlMark := range fn.InlMarks {
+		pcinlineState.setParentPC(ctxt, int(inlMark.id), int32(inlMark.p.Pc))
+	}
 	pcln.InlTree = pcinlineState.localTree
 	if ctxt.Debugpcln == "pctoinline" && len(pcln.InlTree.nodes) > 0 {
 		ctxt.Logf("-- inlining tree for %s:\n", cursym)
@@ -288,7 +317,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 	// tabulate which pc and func data we have.
 	havepc := make([]uint32, (npcdata+31)/32)
 	havefunc := make([]uint32, (nfuncdata+31)/32)
-	for p := cursym.Func.Text; p != nil; p = p.Link {
+	for p := fn.Text; p != nil; p = p.Link {
 		if p.As == AFUNCDATA {
 			if (havefunc[p.From.Offset/32]>>uint64(p.From.Offset%32))&1 != 0 {
 				ctxt.Diag("multiple definitions for FUNCDATA $%d", p.From.Offset)
@@ -304,24 +333,93 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 	// pcdata.
 	for i := 0; i < npcdata; i++ {
 		if (havepc[i/32]>>uint(i%32))&1 == 0 {
-			continue
+			// use an empty symbol.
+			pcln.Pcdata[i] = &LSym{
+				Type:      objabi.SRODATA,
+				Attribute: AttrContentAddressable | AttrPcdata,
+			}
+		} else {
+			pcln.Pcdata[i] = funcpctab(ctxt, cursym, "pctopcdata", pctopcdata, interface{}(uint32(i)))
 		}
-		funcpctab(ctxt, &pcln.Pcdata[i], cursym, "pctopcdata", pctopcdata, interface{}(uint32(i)))
 	}
 
 	// funcdata
 	if nfuncdata > 0 {
-		var i int
-		for p := cursym.Func.Text; p != nil; p = p.Link {
-			if p.As == AFUNCDATA {
-				i = int(p.From.Offset)
-				pcln.Funcdataoff[i] = p.To.Offset
-				if p.To.Type != TYPE_CONST {
-					// TODO: Dedup.
-					//funcdata_bytes += p->to.sym->size;
-					pcln.Funcdata[i] = p.To.Sym
-				}
+		for p := fn.Text; p != nil; p = p.Link {
+			if p.As != AFUNCDATA {
+				continue
 			}
+			i := int(p.From.Offset)
+			if p.To.Type != TYPE_MEM || p.To.Offset != 0 {
+				panic(fmt.Sprintf("bad funcdata: %v", p))
+			}
+			pcln.Funcdata[i] = p.To.Sym
 		}
 	}
+}
+
+// PCIter iterates over encoded pcdata tables.
+type PCIter struct {
+	p       []byte
+	PC      uint32
+	NextPC  uint32
+	PCScale uint32
+	Value   int32
+	start   bool
+	Done    bool
+}
+
+// newPCIter creates a PCIter with a scale factor for the PC step size.
+func NewPCIter(pcScale uint32) *PCIter {
+	it := new(PCIter)
+	it.PCScale = pcScale
+	return it
+}
+
+// Next advances it to the Next pc.
+func (it *PCIter) Next() {
+	it.PC = it.NextPC
+	if it.Done {
+		return
+	}
+	if len(it.p) == 0 {
+		it.Done = true
+		return
+	}
+
+	// Value delta
+	val, n := binary.Varint(it.p)
+	if n <= 0 {
+		log.Fatalf("bad Value varint in pciterNext: read %v", n)
+	}
+	it.p = it.p[n:]
+
+	if val == 0 && !it.start {
+		it.Done = true
+		return
+	}
+
+	it.start = false
+	it.Value += int32(val)
+
+	// pc delta
+	pc, n := binary.Uvarint(it.p)
+	if n <= 0 {
+		log.Fatalf("bad pc varint in pciterNext: read %v", n)
+	}
+	it.p = it.p[n:]
+
+	it.NextPC = it.PC + uint32(pc)*it.PCScale
+}
+
+// init prepares it to iterate over p,
+// and advances it to the first pc.
+func (it *PCIter) Init(p []byte) {
+	it.p = p
+	it.PC = 0
+	it.NextPC = 0
+	it.Value = -1
+	it.start = true
+	it.Done = false
+	it.Next()
 }

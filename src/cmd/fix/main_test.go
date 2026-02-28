@@ -7,15 +7,17 @@ package main
 import (
 	"go/ast"
 	"go/parser"
+	"internal/diff"
 	"strings"
 	"testing"
 )
 
 type testCase struct {
-	Name string
-	Fn   func(*ast.File) bool
-	In   string
-	Out  string
+	Name    string
+	Fn      func(*ast.File) bool
+	Version int
+	In      string
+	Out     string
 }
 
 var testCases []testCase
@@ -37,19 +39,19 @@ func fnop(*ast.File) bool { return false }
 func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string, mustBeGofmt bool) (out string, fixed, ok bool) {
 	file, err := parser.ParseFile(fset, desc, in, parserMode)
 	if err != nil {
-		t.Errorf("%s: parsing: %v", desc, err)
+		t.Errorf("parsing: %v", err)
 		return
 	}
 
 	outb, err := gofmtFile(file)
 	if err != nil {
-		t.Errorf("%s: printing: %v", desc, err)
+		t.Errorf("printing: %v", err)
 		return
 	}
 	if s := string(outb); in != s && mustBeGofmt {
-		t.Errorf("%s: not gofmt-formatted.\n--- %s\n%s\n--- %s | gofmt\n%s",
-			desc, desc, in, desc, s)
-		tdiff(t, in, s)
+		t.Errorf("not gofmt-formatted.\n--- %s\n%s\n--- %s | gofmt\n%s",
+			desc, in, desc, s)
+		tdiff(t, "want", in, "have", s)
 		return
 	}
 
@@ -65,7 +67,7 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string, mustB
 
 	outb, err = gofmtFile(file)
 	if err != nil {
-		t.Errorf("%s: printing: %v", desc, err)
+		t.Errorf("printing: %v", err)
 		return
 	}
 
@@ -74,56 +76,67 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string, mustB
 
 func TestRewrite(t *testing.T) {
 	for _, tt := range testCases {
-		// Apply fix: should get tt.Out.
-		out, fixed, ok := parseFixPrint(t, tt.Fn, tt.Name, tt.In, true)
-		if !ok {
-			continue
-		}
-
-		// reformat to get printing right
-		out, _, ok = parseFixPrint(t, fnop, tt.Name, out, false)
-		if !ok {
-			continue
-		}
-
-		if out != tt.Out {
-			t.Errorf("%s: incorrect output.\n", tt.Name)
-			if !strings.HasPrefix(tt.Name, "testdata/") {
-				t.Errorf("--- have\n%s\n--- want\n%s", out, tt.Out)
+		tt := tt
+		t.Run(tt.Name, func(t *testing.T) {
+			if tt.Version == 0 {
+				t.Parallel()
+			} else {
+				old := goVersion
+				goVersion = tt.Version
+				defer func() {
+					goVersion = old
+				}()
 			}
-			tdiff(t, out, tt.Out)
-			continue
-		}
 
-		if changed := out != tt.In; changed != fixed {
-			t.Errorf("%s: changed=%v != fixed=%v", tt.Name, changed, fixed)
-			continue
-		}
+			// Apply fix: should get tt.Out.
+			out, fixed, ok := parseFixPrint(t, tt.Fn, tt.Name, tt.In, true)
+			if !ok {
+				return
+			}
 
-		// Should not change if run again.
-		out2, fixed2, ok := parseFixPrint(t, tt.Fn, tt.Name+" output", out, true)
-		if !ok {
-			continue
-		}
+			// reformat to get printing right
+			out, _, ok = parseFixPrint(t, fnop, tt.Name, out, false)
+			if !ok {
+				return
+			}
 
-		if fixed2 {
-			t.Errorf("%s: applied fixes during second round", tt.Name)
-			continue
-		}
+			if tt.Out == "" {
+				tt.Out = tt.In
+			}
+			if out != tt.Out {
+				t.Errorf("incorrect output.\n")
+				if !strings.HasPrefix(tt.Name, "testdata/") {
+					t.Errorf("--- have\n%s\n--- want\n%s", out, tt.Out)
+				}
+				tdiff(t, "have", out, "want", tt.Out)
+				return
+			}
 
-		if out2 != out {
-			t.Errorf("%s: changed output after second round of fixes.\n--- output after first round\n%s\n--- output after second round\n%s",
-				tt.Name, out, out2)
-			tdiff(t, out, out2)
-		}
+			if changed := out != tt.In; changed != fixed {
+				t.Errorf("changed=%v != fixed=%v", changed, fixed)
+				return
+			}
+
+			// Should not change if run again.
+			out2, fixed2, ok := parseFixPrint(t, tt.Fn, tt.Name+" output", out, true)
+			if !ok {
+				return
+			}
+
+			if fixed2 {
+				t.Errorf("applied fixes during second round")
+				return
+			}
+
+			if out2 != out {
+				t.Errorf("changed output after second round of fixes.\n--- output after first round\n%s\n--- output after second round\n%s",
+					out, out2)
+				tdiff(t, "first", out, "second", out2)
+			}
+		})
 	}
 }
 
-func tdiff(t *testing.T, a, b string) {
-	data, err := diff([]byte(a), []byte(b))
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	t.Error(string(data))
+func tdiff(t *testing.T, aname, a, bname, b string) {
+	t.Errorf("%s", diff.Diff(aname, []byte(a), bname, []byte(b)))
 }

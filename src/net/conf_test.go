@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 
 package net
 
 import (
-	"os"
+	"io/fs"
 	"strings"
 	"testing"
 )
@@ -26,13 +26,14 @@ var defaultResolvConf = &dnsConfig{
 	ndots:    1,
 	timeout:  5,
 	attempts: 2,
-	err:      os.ErrNotExist,
+	err:      fs.ErrNotExist,
 }
 
 func TestConfHostLookupOrder(t *testing.T) {
 	tests := []struct {
 		name      string
 		c         *conf
+		resolver  *Resolver
 		hostTests []nssHostTest
 	}{
 		{
@@ -105,7 +106,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			name: "solaris_no_nsswitch",
 			c: &conf{
 				goos:   "solaris",
-				nss:    &nssConf{err: os.ErrNotExist},
+				nss:    &nssConf{err: fs.ErrNotExist},
 				resolv: defaultResolvConf,
 			},
 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupCgo}},
@@ -169,16 +170,23 @@ func TestConfHostLookupOrder(t *testing.T) {
 			},
 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupDNSFiles}},
 		},
-		// glibc lacking an nsswitch.conf, per
-		// http://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html
 		{
 			name: "linux_no_nsswitch.conf",
 			c: &conf{
 				goos:   "linux",
-				nss:    &nssConf{err: os.ErrNotExist},
+				nss:    &nssConf{err: fs.ErrNotExist},
 				resolv: defaultResolvConf,
 			},
-			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupDNSFiles}},
+			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupFilesDNS}},
+		},
+		{
+			name: "linux_empty_nsswitch.conf",
+			c: &conf{
+				goos:   "linux",
+				nss:    nssStr(""),
+				resolv: defaultResolvConf,
+			},
+			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupFilesDNS}},
 		},
 		{
 			name: "files_mdns_dns",
@@ -322,6 +330,21 @@ func TestConfHostLookupOrder(t *testing.T) {
 				{"x.com", "myhostname", hostLookupCgo},
 			},
 		},
+		// Issue 24393: make sure "Resolver.PreferGo = true" acts like netgo.
+		{
+			name:     "resolver-prefergo",
+			resolver: &Resolver{PreferGo: true},
+			c: &conf{
+				goos:               "darwin",
+				forceCgoLookupHost: true, // always true for darwin
+				resolv:             defaultResolvConf,
+				nss:                nssStr(""),
+				netCgo:             true,
+			},
+			hostTests: []nssHostTest{
+				{"localhost", "myhostname", hostLookupFilesDNS},
+			},
+		},
 	}
 
 	origGetHostname := getHostname
@@ -331,7 +354,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 		for _, ht := range tt.hostTests {
 			getHostname = func() (string, error) { return ht.localhost, nil }
 
-			gotOrder := tt.c.hostLookupOrder(ht.host)
+			gotOrder := tt.c.hostLookupOrder(tt.resolver, ht.host)
 			if gotOrder != ht.want {
 				t.Errorf("%s: hostLookupOrder(%q) = %v; want %v", tt.name, ht.host, gotOrder, ht.want)
 			}

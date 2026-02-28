@@ -3,12 +3,14 @@
 // license that can be found in the LICENSE file.
 
 // +build cgo
-#define WIN64_LEAN_AND_MEAN
+
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <process.h>
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "libcgo.h"
 
@@ -69,7 +71,7 @@ _cgo_is_runtime_initialized() {
 }
 
 uintptr_t
-_cgo_wait_runtime_init_done() {
+_cgo_wait_runtime_init_done(void) {
 	void (*pfn)(struct context_arg*);
 
 	 _cgo_maybe_run_preinit();

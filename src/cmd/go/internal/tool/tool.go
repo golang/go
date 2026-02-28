@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package tool implements the ``go tool'' command.
+// Package tool implements the “go tool” command.
 package tool
 
 import (
+	"context"
 	"fmt"
+	exec "internal/execabs"
 	"os"
-	"os/exec"
+	"os/signal"
 	"sort"
 	"strings"
 
@@ -18,7 +20,7 @@ import (
 
 var CmdTool = &base.Command{
 	Run:       runTool,
-	UsageLine: "tool [-n] command [args...]",
+	UsageLine: "go tool [-n] command [args...]",
 	Short:     "run specified go tool",
 	Long: `
 Tool runs the go tool command identified by the arguments.
@@ -27,17 +29,28 @@ With no arguments it prints the list of known tools.
 The -n flag causes tool to print the command that would be
 executed but not execute it.
 
-For more about each tool command, see 'go tool command -h'.
+For more about each tool command, see 'go doc cmd/<command>'.
 `,
 }
 
 var toolN bool
 
+// Return whether tool can be expected in the gccgo tool directory.
+// Other binaries could be in the same directory so don't
+// show those with the 'go tool' command.
+func isGccgoTool(tool string) bool {
+	switch tool {
+	case "cgo", "fix", "cover", "godoc", "vet":
+		return true
+	}
+	return false
+}
+
 func init() {
 	CmdTool.Flag.BoolVar(&toolN, "n", false, "")
 }
 
-func runTool(cmd *base.Command, args []string) {
+func runTool(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 0 {
 		listTools()
 		return
@@ -48,7 +61,7 @@ func runTool(cmd *base.Command, args []string) {
 		switch {
 		case 'a' <= c && c <= 'z', '0' <= c && c <= '9', c == '_':
 		default:
-			fmt.Fprintf(os.Stderr, "go tool: bad tool name %q\n", toolName)
+			fmt.Fprintf(os.Stderr, "go: bad tool name %q\n", toolName)
 			base.SetExitStatus(2)
 			return
 		}
@@ -72,10 +85,20 @@ func runTool(cmd *base.Command, args []string) {
 		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
-		// Set $GOROOT, mainly for go tool dist.
-		Env: base.MergeEnvLists([]string{"GOROOT=" + cfg.GOROOT}, os.Environ()),
 	}
-	err := toolCmd.Run()
+	err := toolCmd.Start()
+	if err == nil {
+		c := make(chan os.Signal, 100)
+		signal.Notify(c)
+		go func() {
+			for sig := range c {
+				toolCmd.Process.Signal(sig)
+			}
+		}()
+		err = toolCmd.Wait()
+		signal.Stop(c)
+		close(c)
+	}
 	if err != nil {
 		// Only print about the exit status if the command
 		// didn't even run (not an ExitError) or it didn't exit cleanly
@@ -94,14 +117,14 @@ func runTool(cmd *base.Command, args []string) {
 func listTools() {
 	f, err := os.Open(base.ToolDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go tool: no tool directory: %s\n", err)
+		fmt.Fprintf(os.Stderr, "go: no tool directory: %s\n", err)
 		base.SetExitStatus(2)
 		return
 	}
 	defer f.Close()
 	names, err := f.Readdirnames(-1)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go tool: can't read directory: %s\n", err)
+		fmt.Fprintf(os.Stderr, "go: can't read tool directory: %s\n", err)
 		base.SetExitStatus(2)
 		return
 	}
@@ -113,6 +136,11 @@ func listTools() {
 		// If it's windows, don't show the .exe suffix.
 		if base.ToolIsWindows && strings.HasSuffix(name, base.ToolWindowsExtension) {
 			name = name[:len(name)-len(base.ToolWindowsExtension)]
+		}
+		// The tool directory used by gccgo will have other binaries
+		// in addition to go tools. Only display go tools here.
+		if cfg.BuildToolchainName == "gccgo" && !isGccgoTool(name) {
+			continue
 		}
 		fmt.Println(name)
 	}

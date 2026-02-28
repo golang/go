@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js
+
 package net
 
 import (
@@ -54,87 +56,85 @@ func TestTCPServer(t *testing.T) {
 	const N = 3
 
 	for i, tt := range tcpServerTests {
-		if !testableListenArgs(tt.snet, tt.saddr, tt.taddr) {
-			t.Logf("skipping %s test", tt.snet+" "+tt.saddr+"<-"+tt.taddr)
-			continue
-		}
+		t.Run(tt.snet+" "+tt.saddr+"<-"+tt.taddr, func(t *testing.T) {
+			if !testableListenArgs(tt.snet, tt.saddr, tt.taddr) {
+				t.Skip("not testable")
+			}
 
-		ln, err := Listen(tt.snet, tt.saddr)
-		if err != nil {
-			if perr := parseDialError(err); perr != nil {
-				t.Error(perr)
-			}
-			t.Fatal(err)
-		}
-
-		var lss []*localServer
-		var tpchs []chan error
-		defer func() {
-			for _, ls := range lss {
-				ls.teardown()
-			}
-		}()
-		for i := 0; i < N; i++ {
-			ls, err := (&streamListener{Listener: ln}).newLocalServer()
-			if err != nil {
-				t.Fatal(err)
-			}
-			lss = append(lss, ls)
-			tpchs = append(tpchs, make(chan error, 1))
-		}
-		for i := 0; i < N; i++ {
-			ch := tpchs[i]
-			handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
-			if err := lss[i].buildup(handler); err != nil {
-				t.Fatal(err)
-			}
-		}
-
-		var trchs []chan error
-		for i := 0; i < N; i++ {
-			_, port, err := SplitHostPort(lss[i].Listener.Addr().String())
-			if err != nil {
-				t.Fatal(err)
-			}
-			d := Dialer{Timeout: someTimeout}
-			c, err := d.Dial(tt.tnet, JoinHostPort(tt.taddr, port))
+			ln, err := Listen(tt.snet, tt.saddr)
 			if err != nil {
 				if perr := parseDialError(err); perr != nil {
 					t.Error(perr)
 				}
 				t.Fatal(err)
 			}
-			defer c.Close()
-			trchs = append(trchs, make(chan error, 1))
-			go transceiver(c, []byte("TCP SERVER TEST"), trchs[i])
-		}
 
-		for _, ch := range trchs {
-			for err := range ch {
-				t.Errorf("#%d: %v", i, err)
+			var lss []*localServer
+			var tpchs []chan error
+			defer func() {
+				for _, ls := range lss {
+					ls.teardown()
+				}
+			}()
+			for i := 0; i < N; i++ {
+				ls := (&streamListener{Listener: ln}).newLocalServer()
+				lss = append(lss, ls)
+				tpchs = append(tpchs, make(chan error, 1))
 			}
-		}
-		for _, ch := range tpchs {
-			for err := range ch {
-				t.Errorf("#%d: %v", i, err)
+			for i := 0; i < N; i++ {
+				ch := tpchs[i]
+				handler := func(ls *localServer, ln Listener) { ls.transponder(ln, ch) }
+				if err := lss[i].buildup(handler); err != nil {
+					t.Fatal(err)
+				}
 			}
-		}
+
+			var trchs []chan error
+			for i := 0; i < N; i++ {
+				_, port, err := SplitHostPort(lss[i].Listener.Addr().String())
+				if err != nil {
+					t.Fatal(err)
+				}
+				d := Dialer{Timeout: someTimeout}
+				c, err := d.Dial(tt.tnet, JoinHostPort(tt.taddr, port))
+				if err != nil {
+					if perr := parseDialError(err); perr != nil {
+						t.Error(perr)
+					}
+					t.Fatal(err)
+				}
+				defer c.Close()
+				trchs = append(trchs, make(chan error, 1))
+				go transceiver(c, []byte("TCP SERVER TEST"), trchs[i])
+			}
+
+			for _, ch := range trchs {
+				for err := range ch {
+					t.Errorf("#%d: %v", i, err)
+				}
+			}
+			for _, ch := range tpchs {
+				for err := range ch {
+					t.Errorf("#%d: %v", i, err)
+				}
+			}
+		})
 	}
-}
-
-var unixAndUnixpacketServerTests = []struct {
-	network, address string
-}{
-	{"unix", testUnixAddr()},
-	{"unix", "@nettest/go/unix"},
-
-	{"unixpacket", testUnixAddr()},
-	{"unixpacket", "@nettest/go/unixpacket"},
 }
 
 // TestUnixAndUnixpacketServer tests concurrent accept-read-write
 // servers
 func TestUnixAndUnixpacketServer(t *testing.T) {
+	var unixAndUnixpacketServerTests = []struct {
+		network, address string
+	}{
+		{"unix", testUnixAddr(t)},
+		{"unix", "@nettest/go/unix"},
+
+		{"unixpacket", testUnixAddr(t)},
+		{"unixpacket", "@nettest/go/unixpacket"},
+	}
+
 	const N = 3
 
 	for i, tt := range unixAndUnixpacketServerTests {
@@ -159,16 +159,13 @@ func TestUnixAndUnixpacketServer(t *testing.T) {
 			}
 		}()
 		for i := 0; i < N; i++ {
-			ls, err := (&streamListener{Listener: ln}).newLocalServer()
-			if err != nil {
-				t.Fatal(err)
-			}
+			ls := (&streamListener{Listener: ln}).newLocalServer()
 			lss = append(lss, ls)
 			tpchs = append(tpchs, make(chan error, 1))
 		}
 		for i := 0; i < N; i++ {
 			ch := tpchs[i]
-			handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
+			handler := func(ls *localServer, ln Listener) { ls.transponder(ln, ch) }
 			if err := lss[i].buildup(handler); err != nil {
 				t.Fatal(err)
 			}
@@ -184,7 +181,11 @@ func TestUnixAndUnixpacketServer(t *testing.T) {
 				}
 				t.Fatal(err)
 			}
-			defer os.Remove(c.LocalAddr().String())
+
+			if addr := c.LocalAddr(); addr != nil {
+				t.Logf("connected %s->%s", addr, lss[i].Listener.Addr())
+			}
+
 			defer c.Close()
 			trchs = append(trchs, make(chan error, 1))
 			go transceiver(c, []byte("UNIX AND UNIXPACKET SERVER TEST"), trchs[i])
@@ -263,10 +264,7 @@ func TestUDPServer(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ls, err := (&packetListener{PacketConn: c1}).newLocalServer()
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := (&packetListener{PacketConn: c1}).newLocalServer()
 		defer ls.teardown()
 		tpch := make(chan error, 1)
 		handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, tpch) }
@@ -315,18 +313,18 @@ func TestUDPServer(t *testing.T) {
 	}
 }
 
-var unixgramServerTests = []struct {
-	saddr string // server endpoint
-	caddr string // client endpoint
-	dial  bool   // test with Dial
-}{
-	{saddr: testUnixAddr(), caddr: testUnixAddr()},
-	{saddr: testUnixAddr(), caddr: testUnixAddr(), dial: true},
-
-	{saddr: "@nettest/go/unixgram/server", caddr: "@nettest/go/unixgram/client"},
-}
-
 func TestUnixgramServer(t *testing.T) {
+	var unixgramServerTests = []struct {
+		saddr string // server endpoint
+		caddr string // client endpoint
+		dial  bool   // test with Dial
+	}{
+		{saddr: testUnixAddr(t), caddr: testUnixAddr(t)},
+		{saddr: testUnixAddr(t), caddr: testUnixAddr(t), dial: true},
+
+		{saddr: "@nettest/go/unixgram/server", caddr: "@nettest/go/unixgram/client"},
+	}
+
 	for i, tt := range unixgramServerTests {
 		if !testableListenArgs("unixgram", tt.saddr, "") {
 			t.Logf("skipping %s test", "unixgram "+tt.saddr+"<-"+tt.caddr)
@@ -341,10 +339,7 @@ func TestUnixgramServer(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ls, err := (&packetListener{PacketConn: c1}).newLocalServer()
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := (&packetListener{PacketConn: c1}).newLocalServer()
 		defer ls.teardown()
 		tpch := make(chan error, 1)
 		handler := func(ls *localPacketServer, c PacketConn) { packetTransponder(c, tpch) }

@@ -1,0 +1,65 @@
+# Regression test for golang.org/issue/34189 and golang.org/issue/34165:
+# @latest, @upgrade, and @patch should prefer compatible versions over
+# +incompatible ones, even if offered by a proxy.
+
+[!net] skip
+
+env GO111MODULE=on
+env GOPROXY=
+env GOSUMDB=
+
+# github.com/russross/blackfriday v2.0.0+incompatible exists,
+# and should be resolved if we ask for v2.0 explicitly.
+
+go list -m github.com/russross/blackfriday@v2.0
+stdout '^github.com/russross/blackfriday v2\.0\.0\+incompatible$'
+
+# blackfriday v1.5.2 has a go.mod file, so v1.5.2 should be preferred over
+# v2.0.0+incompatible when resolving latest, upgrade, and patch.
+
+go list -m github.com/russross/blackfriday@latest
+stdout '^github.com/russross/blackfriday v1\.'
+
+go list -m github.com/russross/blackfriday@upgrade
+stdout '^github.com/russross/blackfriday v1\.'
+
+! go list -m github.com/russross/blackfriday@patch
+stderr '^go: github.com/russross/blackfriday@patch: can''t query version "patch" of module github.com/russross/blackfriday: no existing version is required$'
+
+# If we're fetching directly from version control, ignored +incompatible
+# versions should also be omitted by 'go list'.
+
+# (Note that they may still be included in results from a proxy: in proxy mode,
+# we would need to fetch the whole zipfile for the latest compatible version in
+# order to determine whether it contains a go.mod file, and part of the point of
+# the proxy is to avoid fetching unnecessary data.)
+
+[!exec:git] stop
+env GOPROXY=direct
+
+go list -versions -m github.com/russross/blackfriday github.com/russross/blackfriday
+stdout '^github.com/russross/blackfriday v1\.5\.1 v1\.5\.2' # and possibly others
+! stdout ' v2\.'
+
+# However, if the latest compatible version does not include a go.mod file,
+# +incompatible versions should still be listed, as they may still reflect the
+# intent of the module author.
+
+go list -versions -m github.com/rsc/legacytest
+stdout '^github.com/rsc/legacytest v1\.0\.0 v1\.1\.0-pre v1\.2\.0 v2\.0\.0\+incompatible'
+
+# If we're fetching directly from version control, asking for a commit hash
+# corresponding to a +incompatible version should continue to produce the
+# +incompatible version tagged for that commit, even if it is no longer listed.
+
+go list -m github.com/russross/blackfriday@cadec560ec52
+stdout '^github.com/russross/blackfriday v2\.0\.0\+incompatible$'
+
+# Similarly, requesting an untagged commit should continue to produce a +incompatible
+# pseudo-version.
+
+go list -m github.com/rsc/legacytest@7303f7796364
+stdout '^github.com/rsc/legacytest v2\.0\.1-0\.20180717164253-7303f7796364\+incompatible$'
+
+-- go.mod --
+module github.com/golang.org/issue/34165

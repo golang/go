@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -128,7 +127,7 @@ func ExampleCmd_StderrPipe() {
 		log.Fatal(err)
 	}
 
-	slurp, _ := ioutil.ReadAll(stderr)
+	slurp, _ := io.ReadAll(stderr)
 	fmt.Printf("%s\n", slurp)
 
 	if err := cmd.Wait(); err != nil {
@@ -143,6 +142,21 @@ func ExampleCmd_CombinedOutput() {
 		log.Fatal(err)
 	}
 	fmt.Printf("%s\n", stdoutStderr)
+}
+
+func ExampleCmd_Environ() {
+	cmd := exec.Command("pwd")
+
+	// Set Dir before calling cmd.Environ so that it will include an
+	// updated PWD variable (on platforms where that is used).
+	cmd.Dir = ".."
+	cmd.Env = append(cmd.Environ(), "POSIXLY_CORRECT=1")
+
+	out, err := cmd.Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s\n", out)
 }
 
 func ExampleCommandContext() {

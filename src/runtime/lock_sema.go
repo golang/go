@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin nacl netbsd openbsd plan9 solaris windows
+//go:build aix || darwin || netbsd || openbsd || plan9 || solaris || windows
 
 package runtime
 
@@ -23,7 +23,6 @@ import (
 //
 //	func semawakeup(mp *m)
 //		Wake up mp, which is or will soon be sleeping on its semaphore.
-//
 const (
 	locked uintptr = 1
 
@@ -33,6 +32,10 @@ const (
 )
 
 func lock(l *mutex) {
+	lockWithRank(l, getLockRank(l))
+}
+
+func lock2(l *mutex) {
 	gp := getg()
 	if gp.m.locks < 0 {
 		throw("runtime·lock: lock count")
@@ -71,7 +74,7 @@ Loop:
 			// for this lock, chained through m->nextwaitm.
 			// Queue this M.
 			for {
-				gp.m.nextwaitm = v &^ locked
+				gp.m.nextwaitm = muintptr(v &^ locked)
 				if atomic.Casuintptr(&l.key, v, uintptr(unsafe.Pointer(gp.m))|locked) {
 					break
 				}
@@ -89,9 +92,14 @@ Loop:
 	}
 }
 
-//go:nowritebarrier
-// We might not be holding a p in this code.
 func unlock(l *mutex) {
+	unlockWithRank(l)
+}
+
+// We might not be holding a p in this code.
+//
+//go:nowritebarrier
+func unlock2(l *mutex) {
 	gp := getg()
 	var mp *m
 	for {
@@ -103,8 +111,8 @@ func unlock(l *mutex) {
 		} else {
 			// Other M's are waiting for the lock.
 			// Dequeue an M.
-			mp = (*m)(unsafe.Pointer(v &^ locked))
-			if atomic.Casuintptr(&l.key, v, mp.nextwaitm) {
+			mp = muintptr(v &^ locked).ptr()
+			if atomic.Casuintptr(&l.key, v, uintptr(mp.nextwaitm)) {
 				// Dequeued an M.  Wake it.
 				semawakeup(mp)
 				break
@@ -122,7 +130,13 @@ func unlock(l *mutex) {
 
 // One-time notifications.
 func noteclear(n *note) {
-	n.key = 0
+	if GOOS == "aix" {
+		// On AIX, semaphores might not synchronize the memory in some
+		// rare cases. See issue #30189.
+		atomic.Storeuintptr(&n.key, 0)
+	} else {
+		n.key = 0
+	}
 }
 
 func notewakeup(n *note) {
@@ -140,7 +154,7 @@ func notewakeup(n *note) {
 	case v == 0:
 		// Nothing was waiting. Done.
 	case v == locked:
-		// Two notewakeups!  Not allowed.
+		// Two notewakeups! Not allowed.
 		throw("notewakeup - double wakeup")
 	default:
 		// Must be the waiting m. Wake it up.
@@ -262,7 +276,7 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
 
 func notetsleep(n *note, ns int64) bool {
 	gp := getg()
-	if gp != gp.m.g0 && gp.m.preemptoff != "" {
+	if gp != gp.m.g0 {
 		throw("notetsleep not on g0")
 	}
 	semacreate(gp.m)
@@ -277,8 +291,14 @@ func notetsleepg(n *note, ns int64) bool {
 		throw("notetsleepg on g0")
 	}
 	semacreate(gp.m)
-	entersyscallblock(0)
+	entersyscallblock()
 	ok := notetsleep_internal(n, ns, nil, 0)
-	exitsyscall(0)
+	exitsyscall()
 	return ok
 }
+
+func beforeIdle(int64, int64) (*g, bool) {
+	return nil, false
+}
+
+func checkTimeouts() {}

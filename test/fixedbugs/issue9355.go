@@ -1,3 +1,4 @@
+// +build !js,gc
 // run
 
 // Copyright 2014 The Go Authors. All rights reserved.
@@ -8,23 +9,26 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 )
 
 func main() {
-	if runtime.Compiler != "gc" || runtime.GOOS == "nacl" {
-		return
-	}
-
 	err := os.Chdir(filepath.Join("fixedbugs", "issue9355.dir"))
 	check(err)
 
-	out := run("go", "tool", "compile", "-S", "a.go")
-	os.Remove("a.o")
+	f, err := ioutil.TempFile("", "issue9355-*.o")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	f.Close()
+
+	out := run("go", "tool", "compile", "-p=p", "-o", f.Name(), "-S", "a.go")
+	os.Remove(f.Name())
 
 	// 6g/8g print the offset as dec, but 5g/9g print the offset as hex.
 	patterns := []string{

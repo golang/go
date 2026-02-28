@@ -13,7 +13,7 @@
 // Licence: I hereby disclaim the copyright on this code and place it
 // in the public domain.
 
-TEXT	·block(SB),NOSPLIT,$0-32
+TEXT	·block(SB),NOSPLIT,$8-32
 	MOVQ	dig+0(FP),	BP
 	MOVQ	p+8(FP),	SI
 	MOVQ	p_len+16(FP), DX
@@ -99,7 +99,7 @@ loop:
 	ROUND2(DX,AX,BX,CX, 7,0xfcefa3f8, 9);
 	ROUND2(CX,DX,AX,BX,12,0x676f02d9,14);
 	ROUND2(BX,CX,DX,AX, 0,0x8d2a4c8a,20);
- 
+
 	MOVL	(5*4)(SI),	R8
 	MOVL	CX,		R9
 
@@ -144,7 +144,7 @@ loop:
 	ROLL	$shift,		a; \
 	XORL	c,		R9; \
 	ADDL	b,		a
-	
+
 	ROUND4(AX,BX,CX,DX, 7,0xf4292244, 6);
 	ROUND4(DX,AX,BX,CX,14,0x432aff97,10);
 	ROUND4(CX,DX,AX,BX, 5,0xab9423a7,15);

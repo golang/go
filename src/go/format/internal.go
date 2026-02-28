@@ -72,7 +72,7 @@ func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
 				indent = 0
 			}
 			// Remove the wrapping.
-			// Gofmt has turned the ';' into a '\n'.
+			// Gofmt has turned the "; " into a "\n\n".
 			// There will be two non-blank lines with indent, hence 2*indent.
 			src = src[2*indent+len("package p\n\nfunc _() {"):]
 			// Remove only the "}\n" suffix: remaining whitespaces will be trimmed anyway

@@ -29,43 +29,11 @@ TEXT runtime·miniterrno(SB),NOSPLIT,$0
 	MOVQ	AX,	(m_mOS+mOS_perrno)(BX)
 	RET
 
-// int64 runtime·nanotime1(void);
-//
-// clock_gettime(3c) wrapper because Timespec is too large for
-// runtime·nanotime stack.
-//
-// Called using runtime·sysvicall6 from os_solaris.c:/nanotime.
-// NOT USING GO CALLING CONVENTION.
-TEXT runtime·nanotime1(SB),NOSPLIT,$0
-	// need space for the timespec argument.
-	SUBQ	$64, SP	// 16 bytes will do, but who knows in the future?
-	MOVQ	$3, DI	// CLOCK_REALTIME from <sys/time_impl.h>
-	MOVQ	SP, SI
-	LEAQ	libc_clock_gettime(SB), AX
-	CALL	AX
-	MOVQ	(SP), AX	// tv_sec from struct timespec
-	IMULQ	$1000000000, AX	// multiply into nanoseconds
-	ADDQ	8(SP), AX	// tv_nsec, offset should be stable.
-	ADDQ	$64, SP
-	RET
-
-// pipe(3c) wrapper that returns fds in AX, DX.
-// NOT USING GO CALLING CONVENTION.
-TEXT runtime·pipe1(SB),NOSPLIT,$0
-	SUBQ	$16, SP // 8 bytes will do, but stack has to be 16-byte aligned
-	MOVQ	SP, DI
-	LEAQ	libc_pipe(SB), AX
-	CALL	AX
-	MOVL	0(SP), AX
-	MOVL	4(SP), DX
-	ADDQ	$16, SP
-	RET
-
 // Call a library function with SysV calling conventions.
 // The called function can take a maximum of 6 INTEGER class arguments,
-// see 
+// see
 //   Michael Matz, Jan Hubicka, Andreas Jaeger, and Mark Mitchell
-//   System V Application Binary Interface 
+//   System V Application Binary Interface
 //   AMD64 Architecture Processor Supplement
 // section 3.2.3.
 //
@@ -119,7 +87,7 @@ skipargs:
 	MOVL	0(AX), AX
 	MOVQ	AX, libcall_err(DI)
 
-skiperrno2:	
+skiperrno2:
 	RET
 
 // uint32 tstart_sysvicall(M *newm);
@@ -183,13 +151,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	JMP	exit
 
 allgood:
-	// save g
-	MOVQ	R10, 80(SP)
-
 	// Save m->libcall and m->scratch. We need to do this because we
 	// might get interrupted by a signal in runtime·asmcgocall.
 
-	// save m->libcall 
+	// save m->libcall
 	MOVQ	g_m(R10), BP
 	LEAQ	m_libcall(BP), R11
 	MOVQ	libcall_fn(R11), R10
@@ -223,19 +188,11 @@ allgood:
 	MOVL	0(R10), R10
 	MOVQ	R10, 160(SP)
 
-	MOVQ	g(BX), R10
-	// g = m->gsignal
-	MOVQ	m_gsignal(BP), BP
-	MOVQ	BP, g(BX)
-
-	// TODO: If current SP is not in gsignal.stack, then adjust.
-
 	// prepare call
 	MOVQ	DI, 0(SP)
 	MOVQ	SI, 8(SP)
 	MOVQ	DX, 16(SP)
-	MOVQ	R10, 24(SP)
-	CALL	runtime·sighandler(SB)
+	CALL	runtime·sigtrampgo(SB)
 
 	get_tls(BX)
 	MOVQ	g(BX), BP
@@ -273,10 +230,6 @@ allgood:
 	MOVQ	160(SP), R10
 	MOVL	R10, 0(R11)
 
-	// restore g
-	MOVQ	80(SP), R10
-	MOVQ	R10, g(BX)
-
 exit:
 	// restore registers
 	MOVQ	32(SP), BX
@@ -306,7 +259,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 // can also be called in cgo callback path without a g->m.
 TEXT runtime·usleep1(SB),NOSPLIT,$0
 	MOVL	usec+0(FP), DI
-	MOVQ	$runtime·usleep2(SB), AX // to hide from 6l
+	MOVQ	$usleep2<>(SB), AX // to hide from 6l
 
 	// Execute call on m->g0.
 	get_tls(R15)
@@ -343,7 +296,7 @@ noswitch:
 	RET
 
 // Runs on OS stack. duration (in µs units) is in DI.
-TEXT runtime·usleep2(SB),NOSPLIT,$0
+TEXT usleep2<>(SB),NOSPLIT,$0
 	LEAQ	libc_usleep(SB), AX
 	CALL	AX
 	RET
@@ -352,24 +305,4 @@ TEXT runtime·usleep2(SB),NOSPLIT,$0
 TEXT runtime·osyield1(SB),NOSPLIT,$0
 	LEAQ	libc_sched_yield(SB), AX
 	CALL	AX
-	RET
-
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$8-12
-	CALL	runtime·nanotime(SB)
-	MOVQ	0(SP), AX
-
-	// generated code for
-	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
-	// adapted to reduce duplication
-	MOVQ	AX, CX
-	MOVQ	$1360296554856532783, AX
-	MULQ	CX
-	ADDQ	CX, DX
-	RCRQ	$1, DX
-	SHRQ	$29, DX
-	MOVQ	DX, sec+0(FP)
-	IMULQ	$1000000000, DX
-	SUBQ	DX, CX
-	MOVL	CX, nsec+8(FP)
 	RET

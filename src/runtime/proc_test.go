@@ -5,6 +5,9 @@
 package runtime_test
 
 import (
+	"fmt"
+	"internal/race"
+	"internal/testenv"
 	"math"
 	"net"
 	"runtime"
@@ -28,6 +31,9 @@ func perpetuumMobile() {
 }
 
 func TestStopTheWorldDeadlock(t *testing.T) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("no preemption on wasm yet")
+	}
 	if testing.Short() {
 		t.Skip("skipping during short test")
 	}
@@ -113,6 +119,10 @@ func TestGoroutineParallelism(t *testing.T) {
 	// since the goroutines can't be stopped/preempted.
 	// Disable GC for this test (see issue #10958).
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	// SetGCPercent waits until the mark phase is over, but the runtime
+	// also preempts at the start of the sweep phase, so make sure that's
+	// done too. See #45867.
+	runtime.GC()
 	for try := 0; try < N; try++ {
 		done := make(chan bool)
 		x := uint32(0)
@@ -157,6 +167,10 @@ func testGoroutineParallelism2(t *testing.T, load, netpoll bool) {
 	// since the goroutines can't be stopped/preempted.
 	// Disable GC for this test (see issue #10958).
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	// SetGCPercent waits until the mark phase is over, but the runtime
+	// also preempts at the start of the sweep phase, so make sure that's
+	// done too. See #45867.
+	runtime.GC()
 	for try := 0; try < N; try++ {
 		if load {
 			// Create P goroutines and wait until they all run.
@@ -230,6 +244,10 @@ func TestBlockLocked(t *testing.T) {
 }
 
 func TestTimerFairness(t *testing.T) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("no preemption on wasm yet")
+	}
+
 	done := make(chan bool)
 	c := make(chan bool)
 	for i := 0; i < 2; i++ {
@@ -256,6 +274,10 @@ func TestTimerFairness(t *testing.T) {
 }
 
 func TestTimerFairness2(t *testing.T) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("no preemption on wasm yet")
+	}
+
 	done := make(chan bool)
 	c := make(chan bool)
 	for i := 0; i < 2; i++ {
@@ -290,6 +312,10 @@ var preempt = func() int {
 }
 
 func TestPreemption(t *testing.T) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("no preemption on wasm yet")
+	}
+
 	// Test that goroutines are preempted at function calls.
 	N := 5
 	if testing.Short() {
@@ -313,6 +339,10 @@ func TestPreemption(t *testing.T) {
 }
 
 func TestPreemptionGC(t *testing.T) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("no preemption on wasm yet")
+	}
+
 	// Test that pending GC preempts running goroutines.
 	P := 5
 	N := 10
@@ -334,6 +364,17 @@ func TestPreemptionGC(t *testing.T) {
 		runtime.GC()
 	}
 	atomic.StoreUint32(&stop, 1)
+}
+
+func TestAsyncPreempt(t *testing.T) {
+	if !runtime.PreemptMSupported {
+		t.Skip("asynchronous preemption not supported on this platform")
+	}
+	output := runTestProg(t, "testprog", "AsyncPreempt")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
 }
 
 func TestGCFairness(t *testing.T) {
@@ -385,8 +426,16 @@ func TestNumGoroutine(t *testing.T) {
 }
 
 func TestPingPongHog(t *testing.T) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("no preemption on wasm yet")
+	}
 	if testing.Short() {
 		t.Skip("skipping in -short mode")
+	}
+	if race.Enabled {
+		// The race detector randomizes the scheduler,
+		// which causes this test to fail (#38266).
+		t.Skip("skipping in -race mode")
 	}
 
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
@@ -482,9 +531,17 @@ func BenchmarkPingPongHog(b *testing.B) {
 	<-done
 }
 
+var padData [128]uint64
+
 func stackGrowthRecursive(i int) {
 	var pad [128]uint64
-	if i != 0 && pad[0] == 0 {
+	pad = padData
+	for j := range pad {
+		if pad[j] != 0 {
+			return
+		}
+	}
+	if i != 0 {
 		stackGrowthRecursive(i - 1)
 	}
 }
@@ -574,6 +631,10 @@ func TestSchedLocalQueueEmpty(t *testing.T) {
 	// If runtime triggers a forced GC during this test then it will deadlock,
 	// since the goroutines can't be stopped/preempted during spin wait.
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	// SetGCPercent waits until the mark phase is over, but the runtime
+	// also preempts at the start of the sweep phase, so make sure that's
+	// done too. See #45867.
+	runtime.GC()
 
 	iters := int(1e5)
 	if testing.Short() {
@@ -643,6 +704,55 @@ func BenchmarkCreateGoroutinesCapture(b *testing.B) {
 	}
 }
 
+// warmupScheduler ensures the scheduler has at least targetThreadCount threads
+// in its thread pool.
+func warmupScheduler(targetThreadCount int) {
+	var wg sync.WaitGroup
+	var count int32
+	for i := 0; i < targetThreadCount; i++ {
+		wg.Add(1)
+		go func() {
+			atomic.AddInt32(&count, 1)
+			for atomic.LoadInt32(&count) < int32(targetThreadCount) {
+				// spin until all threads started
+			}
+
+			// spin a bit more to ensure they are all running on separate CPUs.
+			doWork(time.Millisecond)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
+
+func doWork(dur time.Duration) {
+	start := time.Now()
+	for time.Since(start) < dur {
+	}
+}
+
+// BenchmarkCreateGoroutinesSingle creates many goroutines, all from a single
+// producer (the main benchmark goroutine).
+//
+// Compared to BenchmarkCreateGoroutines, this causes different behavior in the
+// scheduler because Ms are much more likely to need to steal work from the
+// main P rather than having work in the local run queue.
+func BenchmarkCreateGoroutinesSingle(b *testing.B) {
+	// Since we are interested in stealing behavior, warm the scheduler to
+	// get all the Ps running first.
+	warmupScheduler(runtime.GOMAXPROCS(0))
+	b.ResetTimer()
+
+	var wg sync.WaitGroup
+	wg.Add(b.N)
+	for i := 0; i < b.N; i++ {
+		go func() {
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
+
 func BenchmarkClosureCall(b *testing.B) {
 	sum := 0
 	off1 := 1
@@ -653,6 +763,116 @@ func BenchmarkClosureCall(b *testing.B) {
 		}()
 	}
 	_ = sum
+}
+
+func benchmarkWakeupParallel(b *testing.B, spin func(time.Duration)) {
+	if runtime.GOMAXPROCS(0) == 1 {
+		b.Skip("skipping: GOMAXPROCS=1")
+	}
+
+	wakeDelay := 5 * time.Microsecond
+	for _, delay := range []time.Duration{
+		0,
+		1 * time.Microsecond,
+		2 * time.Microsecond,
+		5 * time.Microsecond,
+		10 * time.Microsecond,
+		20 * time.Microsecond,
+		50 * time.Microsecond,
+		100 * time.Microsecond,
+	} {
+		b.Run(delay.String(), func(b *testing.B) {
+			if b.N == 0 {
+				return
+			}
+			// Start two goroutines, which alternate between being
+			// sender and receiver in the following protocol:
+			//
+			// - The receiver spins for `delay` and then does a
+			// blocking receive on a channel.
+			//
+			// - The sender spins for `delay+wakeDelay` and then
+			// sends to the same channel. (The addition of
+			// `wakeDelay` improves the probability that the
+			// receiver will be blocking when the send occurs when
+			// the goroutines execute in parallel.)
+			//
+			// In each iteration of the benchmark, each goroutine
+			// acts once as sender and once as receiver, so each
+			// goroutine spins for delay twice.
+			//
+			// BenchmarkWakeupParallel is used to estimate how
+			// efficiently the scheduler parallelizes goroutines in
+			// the presence of blocking:
+			//
+			// - If both goroutines are executed on the same core,
+			// an increase in delay by N will increase the time per
+			// iteration by 4*N, because all 4 delays are
+			// serialized.
+			//
+			// - Otherwise, an increase in delay by N will increase
+			// the time per iteration by 2*N, and the time per
+			// iteration is 2 * (runtime overhead + chan
+			// send/receive pair + delay + wakeDelay). This allows
+			// the runtime overhead, including the time it takes
+			// for the unblocked goroutine to be scheduled, to be
+			// estimated.
+			ping, pong := make(chan struct{}), make(chan struct{})
+			start := make(chan struct{})
+			done := make(chan struct{})
+			go func() {
+				<-start
+				for i := 0; i < b.N; i++ {
+					// sender
+					spin(delay + wakeDelay)
+					ping <- struct{}{}
+					// receiver
+					spin(delay)
+					<-pong
+				}
+				done <- struct{}{}
+			}()
+			go func() {
+				for i := 0; i < b.N; i++ {
+					// receiver
+					spin(delay)
+					<-ping
+					// sender
+					spin(delay + wakeDelay)
+					pong <- struct{}{}
+				}
+				done <- struct{}{}
+			}()
+			b.ResetTimer()
+			start <- struct{}{}
+			<-done
+			<-done
+		})
+	}
+}
+
+func BenchmarkWakeupParallelSpinning(b *testing.B) {
+	benchmarkWakeupParallel(b, func(d time.Duration) {
+		end := time.Now().Add(d)
+		for time.Now().Before(end) {
+			// do nothing
+		}
+	})
+}
+
+// sysNanosleep is defined by OS-specific files (such as runtime_linux_test.go)
+// to sleep for the given duration. If nil, dependent tests are skipped.
+// The implementation should invoke a blocking system call and not
+// call time.Sleep, which would deschedule the goroutine.
+var sysNanosleep func(d time.Duration)
+
+func BenchmarkWakeupParallelSyscall(b *testing.B) {
+	if sysNanosleep == nil {
+		b.Skipf("skipping on %v; sysNanosleep not defined", runtime.GOOS)
+	}
+	benchmarkWakeupParallel(b, func(d time.Duration) {
+		sysNanosleep(d)
+	})
 }
 
 type Matrix [][]float64
@@ -721,4 +941,216 @@ func matmult(done chan<- struct{}, A, B, C Matrix, i0, i1, j0, j1, k0, k1, thres
 
 func TestStealOrder(t *testing.T) {
 	runtime.RunStealOrderTest()
+}
+
+func TestLockOSThreadNesting(t *testing.T) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("no threads on wasm yet")
+	}
+
+	go func() {
+		e, i := runtime.LockOSCounts()
+		if e != 0 || i != 0 {
+			t.Errorf("want locked counts 0, 0; got %d, %d", e, i)
+			return
+		}
+		runtime.LockOSThread()
+		runtime.LockOSThread()
+		runtime.UnlockOSThread()
+		e, i = runtime.LockOSCounts()
+		if e != 1 || i != 0 {
+			t.Errorf("want locked counts 1, 0; got %d, %d", e, i)
+			return
+		}
+		runtime.UnlockOSThread()
+		e, i = runtime.LockOSCounts()
+		if e != 0 || i != 0 {
+			t.Errorf("want locked counts 0, 0; got %d, %d", e, i)
+			return
+		}
+	}()
+}
+
+func TestLockOSThreadExit(t *testing.T) {
+	testLockOSThreadExit(t, "testprog")
+}
+
+func testLockOSThreadExit(t *testing.T, prog string) {
+	output := runTestProg(t, prog, "LockOSThreadMain", "GOMAXPROCS=1")
+	want := "OK\n"
+	if output != want {
+		t.Errorf("want %q, got %q", want, output)
+	}
+
+	output = runTestProg(t, prog, "LockOSThreadAlt")
+	if output != want {
+		t.Errorf("want %q, got %q", want, output)
+	}
+}
+
+func TestLockOSThreadAvoidsStatePropagation(t *testing.T) {
+	want := "OK\n"
+	skip := "unshare not permitted\n"
+	output := runTestProg(t, "testprog", "LockOSThreadAvoidsStatePropagation", "GOMAXPROCS=1")
+	if output == skip {
+		t.Skip("unshare syscall not permitted on this system")
+	} else if output != want {
+		t.Errorf("want %q, got %q", want, output)
+	}
+}
+
+func TestLockOSThreadTemplateThreadRace(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+
+	exe, err := buildTestProg(t, "testprog")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	iterations := 100
+	if testing.Short() {
+		// Reduce run time to ~100ms, with much lower probability of
+		// catching issues.
+		iterations = 5
+	}
+	for i := 0; i < iterations; i++ {
+		want := "OK\n"
+		output := runBuiltTestProg(t, exe, "LockOSThreadTemplateThreadRace")
+		if output != want {
+			t.Fatalf("run %d: want %q, got %q", i, want, output)
+		}
+	}
+}
+
+// fakeSyscall emulates a system call.
+//
+//go:nosplit
+func fakeSyscall(duration time.Duration) {
+	runtime.Entersyscall()
+	for start := runtime.Nanotime(); runtime.Nanotime()-start < int64(duration); {
+	}
+	runtime.Exitsyscall()
+}
+
+// Check that a goroutine will be preempted if it is calling short system calls.
+func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("no preemption on wasm yet")
+	}
+
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+
+	interations := 10
+	if testing.Short() {
+		interations = 1
+	}
+	const (
+		maxDuration = 5 * time.Second
+		nroutines   = 8
+	)
+
+	for i := 0; i < interations; i++ {
+		c := make(chan bool, nroutines)
+		stop := uint32(0)
+
+		start := time.Now()
+		for g := 0; g < nroutines; g++ {
+			go func(stop *uint32) {
+				c <- true
+				for atomic.LoadUint32(stop) == 0 {
+					fakeSyscall(syscallDuration)
+				}
+				c <- true
+			}(&stop)
+		}
+		// wait until all goroutines have started.
+		for g := 0; g < nroutines; g++ {
+			<-c
+		}
+		atomic.StoreUint32(&stop, 1)
+		// wait until all goroutines have finished.
+		for g := 0; g < nroutines; g++ {
+			<-c
+		}
+		duration := time.Since(start)
+
+		if duration > maxDuration {
+			t.Errorf("timeout exceeded: %v (%v)", duration, maxDuration)
+		}
+	}
+}
+
+func TestPreemptionAfterSyscall(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		testenv.SkipFlaky(t, 41015)
+	}
+
+	for _, i := range []time.Duration{10, 100, 1000} {
+		d := i * time.Microsecond
+		t.Run(fmt.Sprint(d), func(t *testing.T) {
+			testPreemptionAfterSyscall(t, d)
+		})
+	}
+}
+
+func TestGetgThreadSwitch(t *testing.T) {
+	runtime.RunGetgThreadSwitchTest()
+}
+
+// TestNetpollBreak tests that netpollBreak can break a netpoll.
+// This test is not particularly safe since the call to netpoll
+// will pick up any stray files that are ready, but it should work
+// OK as long it is not run in parallel.
+func TestNetpollBreak(t *testing.T) {
+	if runtime.GOMAXPROCS(0) == 1 {
+		t.Skip("skipping: GOMAXPROCS=1")
+	}
+
+	// Make sure that netpoll is initialized.
+	runtime.NetpollGenericInit()
+
+	start := time.Now()
+	c := make(chan bool, 2)
+	go func() {
+		c <- true
+		runtime.Netpoll(10 * time.Second.Nanoseconds())
+		c <- true
+	}()
+	<-c
+	// Loop because the break might get eaten by the scheduler.
+	// Break twice to break both the netpoll we started and the
+	// scheduler netpoll.
+loop:
+	for {
+		runtime.Usleep(100)
+		runtime.NetpollBreak()
+		runtime.NetpollBreak()
+		select {
+		case <-c:
+			break loop
+		default:
+		}
+	}
+	if dur := time.Since(start); dur > 5*time.Second {
+		t.Errorf("netpollBreak did not interrupt netpoll: slept for: %v", dur)
+	}
+}
+
+// TestBigGOMAXPROCS tests that setting GOMAXPROCS to a large value
+// doesn't cause a crash at startup. See issue 38474.
+func TestBigGOMAXPROCS(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprog", "NonexistentTest", "GOMAXPROCS=1024")
+	// Ignore error conditions on small machines.
+	for _, errstr := range []string{
+		"failed to create new OS thread",
+		"cannot allocate memory",
+	} {
+		if strings.Contains(output, errstr) {
+			t.Skipf("failed to create 1024 threads")
+		}
+	}
+	if !strings.Contains(output, "unknown function: NonexistentTest") {
+		t.Errorf("output:\n%s\nwanted:\nunknown function: NonexistentTest", output)
+	}
 }

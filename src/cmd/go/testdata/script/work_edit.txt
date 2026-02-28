@@ -1,0 +1,162 @@
+# Test editing go.work files.
+
+go work init m
+cmpenv go.work go.work.want_initial
+
+go work edit -use n
+cmpenv go.work go.work.want_use_n
+
+go work edit -go 1.18
+cmp go.work go.work.want_go_118
+
+go work edit -dropuse m
+cmp go.work go.work.want_dropuse_m
+
+go work edit -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z'
+cmp go.work go.work.want_add_replaces
+
+go work edit -use n -use ../a -use /b -use c -use c
+cmp go.work go.work.want_multiuse
+
+go work edit -dropuse /b -dropuse n
+cmp go.work go.work.want_multidropuse
+
+go work edit -dropreplace='x.1@v1.4.0'
+cmp go.work go.work.want_dropreplace
+
+go work edit -print -go 1.19 -use b -dropuse c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+cmp stdout go.work.want_print
+
+go work edit -json -go 1.19 -use b -dropuse c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+cmp stdout go.work.want_json
+
+env GOWORK=$GOPATH/src/unformatted
+go work edit -print -fmt
+cmp stdout formatted
+
+-- m/go.mod --
+module m
+
+go 1.18
+-- go.work.want_initial --
+go $goversion
+
+use ./m
+-- go.work.want_use_n --
+go $goversion
+
+use (
+	./m
+	./n
+)
+-- go.work.want_go_118 --
+go 1.18
+
+use (
+	./m
+	./n
+)
+-- go.work.want_dropuse_m --
+go 1.18
+
+use ./n
+-- go.work.want_add_replaces --
+go 1.18
+
+use ./n
+
+replace (
+	x.1 v1.3.0 => y.1 v1.4.0
+	x.1 v1.4.0 => ../z
+)
+-- go.work.want_multiuse --
+go 1.18
+
+use (
+	../a
+	./c
+	./n
+	/b
+)
+
+replace (
+	x.1 v1.3.0 => y.1 v1.4.0
+	x.1 v1.4.0 => ../z
+)
+-- go.work.want_multidropuse --
+go 1.18
+
+use (
+	../a
+	./c
+)
+
+replace (
+	x.1 v1.3.0 => y.1 v1.4.0
+	x.1 v1.4.0 => ../z
+)
+-- go.work.want_dropreplace --
+go 1.18
+
+use (
+	../a
+	./c
+)
+
+replace x.1 v1.3.0 => y.1 v1.4.0
+-- go.work.want_print --
+go 1.19
+
+use (
+	../a
+	./b
+)
+
+replace x.1 v1.4.0 => ../z
+-- go.work.want_json --
+{
+	"Go": "1.19",
+	"Use": [
+		{
+			"DiskPath": "../a"
+		},
+		{
+			"DiskPath": "./b"
+		}
+	],
+	"Replace": [
+		{
+			"Old": {
+				"Path": "x.1",
+				"Version": "v1.4.0"
+			},
+			"New": {
+				"Path": "../z"
+			}
+		}
+	]
+}
+-- unformatted --
+go 1.18
+ use (
+ a
+  b
+  c
+  )
+  replace (
+  x.1 v1.3.0 => y.1 v1.4.0
+                            x.1 v1.4.0 => ../z
+                            )
+-- formatted --
+go 1.18
+
+use (
+	a
+	b
+	c
+)
+
+replace (
+	x.1 v1.3.0 => y.1 v1.4.0
+	x.1 v1.4.0 => ../z
+)

@@ -7,13 +7,15 @@ package cipher_test
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"strconv"
 	"testing"
 )
 
-func benchmarkAESGCMSeal(b *testing.B, buf []byte) {
+func benchmarkAESGCMSeal(b *testing.B, buf []byte, keySize int) {
+	b.ReportAllocs()
 	b.SetBytes(int64(len(buf)))
 
-	var key [16]byte
+	var key = make([]byte, keySize)
 	var nonce [12]byte
 	var ad [13]byte
 	aes, _ := aes.NewCipher(key[:])
@@ -26,40 +28,55 @@ func benchmarkAESGCMSeal(b *testing.B, buf []byte) {
 	}
 }
 
-func benchmarkAESGCMOpen(b *testing.B, buf []byte) {
+func benchmarkAESGCMOpen(b *testing.B, buf []byte, keySize int) {
+	b.ReportAllocs()
 	b.SetBytes(int64(len(buf)))
 
-	var key [16]byte
+	var key = make([]byte, keySize)
 	var nonce [12]byte
 	var ad [13]byte
 	aes, _ := aes.NewCipher(key[:])
 	aesgcm, _ := cipher.NewGCM(aes)
 	var out []byte
-	out = aesgcm.Seal(out[:0], nonce[:], buf, ad[:])
+
+	ct := aesgcm.Seal(nil, nonce[:], buf[:], ad[:])
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := aesgcm.Open(buf[:0], nonce[:], out, ad[:])
-		if err != nil {
-			b.Errorf("Open: %v", err)
-		}
+		out, _ = aesgcm.Open(out[:0], nonce[:], ct, ad[:])
 	}
 }
 
-func BenchmarkAESGCMSeal1K(b *testing.B) {
-	benchmarkAESGCMSeal(b, make([]byte, 1024))
+func BenchmarkAESGCM(b *testing.B) {
+	for _, length := range []int{64, 1350, 8 * 1024} {
+		b.Run("Open-128-"+strconv.Itoa(length), func(b *testing.B) {
+			benchmarkAESGCMOpen(b, make([]byte, length), 128/8)
+		})
+		b.Run("Seal-128-"+strconv.Itoa(length), func(b *testing.B) {
+			benchmarkAESGCMSeal(b, make([]byte, length), 128/8)
+		})
+
+		b.Run("Open-256-"+strconv.Itoa(length), func(b *testing.B) {
+			benchmarkAESGCMOpen(b, make([]byte, length), 256/8)
+		})
+		b.Run("Seal-256-"+strconv.Itoa(length), func(b *testing.B) {
+			benchmarkAESGCMSeal(b, make([]byte, length), 256/8)
+		})
+	}
 }
 
-func BenchmarkAESGCMOpen1K(b *testing.B) {
-	benchmarkAESGCMOpen(b, make([]byte, 1024))
-}
+func benchmarkAESStream(b *testing.B, mode func(cipher.Block, []byte) cipher.Stream, buf []byte) {
+	b.SetBytes(int64(len(buf)))
 
-func BenchmarkAESGCMSeal8K(b *testing.B) {
-	benchmarkAESGCMSeal(b, make([]byte, 8*1024))
-}
+	var key [16]byte
+	var iv [16]byte
+	aes, _ := aes.NewCipher(key[:])
+	stream := mode(aes, iv[:])
 
-func BenchmarkAESGCMOpen8K(b *testing.B) {
-	benchmarkAESGCMOpen(b, make([]byte, 8*1024))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		stream.XORKeyStream(buf, buf)
+	}
 }
 
 // If we test exactly 1K blocks, we would generate exact multiples of
@@ -67,65 +84,30 @@ func BenchmarkAESGCMOpen8K(b *testing.B) {
 // always be wordsize aligned, whereas non-aligned is a more typical
 // use-case.
 const almost1K = 1024 - 5
+const almost8K = 8*1024 - 5
 
 func BenchmarkAESCFBEncrypt1K(b *testing.B) {
-	buf := make([]byte, almost1K)
-	b.SetBytes(int64(len(buf)))
-
-	var key [16]byte
-	var iv [16]byte
-	aes, _ := aes.NewCipher(key[:])
-	ctr := cipher.NewCFBEncrypter(aes, iv[:])
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		ctr.XORKeyStream(buf, buf)
-	}
+	benchmarkAESStream(b, cipher.NewCFBEncrypter, make([]byte, almost1K))
 }
 
 func BenchmarkAESCFBDecrypt1K(b *testing.B) {
-	buf := make([]byte, almost1K)
-	b.SetBytes(int64(len(buf)))
+	benchmarkAESStream(b, cipher.NewCFBDecrypter, make([]byte, almost1K))
+}
 
-	var key [16]byte
-	var iv [16]byte
-	aes, _ := aes.NewCipher(key[:])
-	ctr := cipher.NewCFBDecrypter(aes, iv[:])
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		ctr.XORKeyStream(buf, buf)
-	}
+func BenchmarkAESCFBDecrypt8K(b *testing.B) {
+	benchmarkAESStream(b, cipher.NewCFBDecrypter, make([]byte, almost8K))
 }
 
 func BenchmarkAESOFB1K(b *testing.B) {
-	buf := make([]byte, almost1K)
-	b.SetBytes(int64(len(buf)))
-
-	var key [16]byte
-	var iv [16]byte
-	aes, _ := aes.NewCipher(key[:])
-	ctr := cipher.NewOFB(aes, iv[:])
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		ctr.XORKeyStream(buf, buf)
-	}
+	benchmarkAESStream(b, cipher.NewOFB, make([]byte, almost1K))
 }
 
 func BenchmarkAESCTR1K(b *testing.B) {
-	buf := make([]byte, almost1K)
-	b.SetBytes(int64(len(buf)))
+	benchmarkAESStream(b, cipher.NewCTR, make([]byte, almost1K))
+}
 
-	var key [16]byte
-	var iv [16]byte
-	aes, _ := aes.NewCipher(key[:])
-	ctr := cipher.NewCTR(aes, iv[:])
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		ctr.XORKeyStream(buf, buf)
-	}
+func BenchmarkAESCTR8K(b *testing.B) {
+	benchmarkAESStream(b, cipher.NewCTR, make([]byte, almost8K))
 }
 
 func BenchmarkAESCBCEncrypt1K(b *testing.B) {

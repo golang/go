@@ -9,66 +9,57 @@ import "unicode"
 // A patchList is a list of instruction pointers that need to be filled in (patched).
 // Because the pointers haven't been filled in yet, we can reuse their storage
 // to hold the list. It's kind of sleazy, but works well in practice.
-// See http://swtch.com/~rsc/regexp/regexp1.html for inspiration.
+// See https://swtch.com/~rsc/regexp/regexp1.html for inspiration.
 //
 // These aren't really pointers: they're integers, so we can reinterpret them
-// this way without using package unsafe. A value l denotes
-// p.inst[l>>1].Out (l&1==0) or .Arg (l&1==1).
-// l == 0 denotes the empty list, okay because we start every program
+// this way without using package unsafe. A value l.head denotes
+// p.inst[l.head>>1].Out (l.head&1==0) or .Arg (l.head&1==1).
+// head == 0 denotes the empty list, okay because we start every program
 // with a fail instruction, so we'll never want to point at its output link.
-type patchList uint32
+type patchList struct {
+	head, tail uint32
+}
 
-func (l patchList) next(p *Prog) patchList {
-	i := &p.Inst[l>>1]
-	if l&1 == 0 {
-		return patchList(i.Out)
-	}
-	return patchList(i.Arg)
+func makePatchList(n uint32) patchList {
+	return patchList{n, n}
 }
 
 func (l patchList) patch(p *Prog, val uint32) {
-	for l != 0 {
-		i := &p.Inst[l>>1]
-		if l&1 == 0 {
-			l = patchList(i.Out)
+	head := l.head
+	for head != 0 {
+		i := &p.Inst[head>>1]
+		if head&1 == 0 {
+			head = i.Out
 			i.Out = val
 		} else {
-			l = patchList(i.Arg)
+			head = i.Arg
 			i.Arg = val
 		}
 	}
 }
 
 func (l1 patchList) append(p *Prog, l2 patchList) patchList {
-	if l1 == 0 {
+	if l1.head == 0 {
 		return l2
 	}
-	if l2 == 0 {
+	if l2.head == 0 {
 		return l1
 	}
 
-	last := l1
-	for {
-		next := last.next(p)
-		if next == 0 {
-			break
-		}
-		last = next
-	}
-
-	i := &p.Inst[last>>1]
-	if last&1 == 0 {
-		i.Out = uint32(l2)
+	i := &p.Inst[l1.tail>>1]
+	if l1.tail&1 == 0 {
+		i.Out = l2.head
 	} else {
-		i.Arg = uint32(l2)
+		i.Arg = l2.head
 	}
-	return l1
+	return patchList{l1.head, l2.tail}
 }
 
 // A frag represents a compiled program fragment.
 type frag struct {
-	i   uint32    // index of first instruction
-	out patchList // where to record end instruction
+	i        uint32    // index of first instruction
+	out      patchList // where to record end instruction
+	nullable bool      // whether fragment can match empty string
 }
 
 type compiler struct {
@@ -169,14 +160,14 @@ func (c *compiler) compile(re *Regexp) frag {
 
 func (c *compiler) inst(op InstOp) frag {
 	// TODO: impose length limit
-	f := frag{i: uint32(len(c.p.Inst))}
+	f := frag{i: uint32(len(c.p.Inst)), nullable: true}
 	c.p.Inst = append(c.p.Inst, Inst{Op: op})
 	return f
 }
 
 func (c *compiler) nop() frag {
 	f := c.inst(InstNop)
-	f.out = patchList(f.i << 1)
+	f.out = makePatchList(f.i << 1)
 	return f
 }
 
@@ -186,7 +177,7 @@ func (c *compiler) fail() frag {
 
 func (c *compiler) cap(arg uint32) frag {
 	f := c.inst(InstCapture)
-	f.out = patchList(f.i << 1)
+	f.out = makePatchList(f.i << 1)
 	c.p.Inst[f.i].Arg = arg
 
 	if c.p.NumCap < int(arg)+1 {
@@ -204,7 +195,7 @@ func (c *compiler) cat(f1, f2 frag) frag {
 	// TODO: elide nop
 
 	f1.out.patch(c.p, f2.i)
-	return frag{f1.i, f2.out}
+	return frag{f1.i, f2.out, f1.nullable && f2.nullable}
 }
 
 func (c *compiler) alt(f1, f2 frag) frag {
@@ -221,6 +212,7 @@ func (c *compiler) alt(f1, f2 frag) frag {
 	i.Out = f1.i
 	i.Arg = f2.i
 	f.out = f1.out.append(c.p, f2.out)
+	f.nullable = f1.nullable || f2.nullable
 	return f
 }
 
@@ -229,42 +221,57 @@ func (c *compiler) quest(f1 frag, nongreedy bool) frag {
 	i := &c.p.Inst[f.i]
 	if nongreedy {
 		i.Arg = f1.i
-		f.out = patchList(f.i << 1)
+		f.out = makePatchList(f.i << 1)
 	} else {
 		i.Out = f1.i
-		f.out = patchList(f.i<<1 | 1)
+		f.out = makePatchList(f.i<<1 | 1)
 	}
 	f.out = f.out.append(c.p, f1.out)
 	return f
 }
 
-func (c *compiler) star(f1 frag, nongreedy bool) frag {
+// loop returns the fragment for the main loop of a plus or star.
+// For plus, it can be used after changing the entry to f1.i.
+// For star, it can be used directly when f1 can't match an empty string.
+// (When f1 can match an empty string, f1* must be implemented as (f1+)?
+// to get the priority match order correct.)
+func (c *compiler) loop(f1 frag, nongreedy bool) frag {
 	f := c.inst(InstAlt)
 	i := &c.p.Inst[f.i]
 	if nongreedy {
 		i.Arg = f1.i
-		f.out = patchList(f.i << 1)
+		f.out = makePatchList(f.i << 1)
 	} else {
 		i.Out = f1.i
-		f.out = patchList(f.i<<1 | 1)
+		f.out = makePatchList(f.i<<1 | 1)
 	}
 	f1.out.patch(c.p, f.i)
 	return f
 }
 
+func (c *compiler) star(f1 frag, nongreedy bool) frag {
+	if f1.nullable {
+		// Use (f1+)? to get priority match order correct.
+		// See golang.org/issue/46123.
+		return c.quest(c.plus(f1, nongreedy), nongreedy)
+	}
+	return c.loop(f1, nongreedy)
+}
+
 func (c *compiler) plus(f1 frag, nongreedy bool) frag {
-	return frag{f1.i, c.star(f1, nongreedy).out}
+	return frag{f1.i, c.loop(f1, nongreedy).out, f1.nullable}
 }
 
 func (c *compiler) empty(op EmptyOp) frag {
 	f := c.inst(InstEmptyWidth)
 	c.p.Inst[f.i].Arg = uint32(op)
-	f.out = patchList(f.i << 1)
+	f.out = makePatchList(f.i << 1)
 	return f
 }
 
 func (c *compiler) rune(r []rune, flags Flags) frag {
 	f := c.inst(InstRune)
+	f.nullable = false
 	i := &c.p.Inst[f.i]
 	i.Rune = r
 	flags &= FoldCase // only relevant flag is FoldCase
@@ -273,7 +280,7 @@ func (c *compiler) rune(r []rune, flags Flags) frag {
 		flags &^= FoldCase
 	}
 	i.Arg = uint32(flags)
-	f.out = patchList(f.i << 1)
+	f.out = makePatchList(f.i << 1)
 
 	// Special cases for exec machine.
 	switch {

@@ -14,8 +14,6 @@ import (
 	"unsafe"
 )
 
-type MyBuffer bytes.Buffer
-
 func TestImplicitMapConversion(t *testing.T) {
 	// Test implicit conversions in MapIndex and SetMapIndex.
 	{
@@ -33,7 +31,7 @@ func TestImplicitMapConversion(t *testing.T) {
 	}
 	{
 		// convert interface key
-		m := make(map[interface{}]int)
+		m := make(map[any]int)
 		mv := ValueOf(m)
 		mv.SetMapIndex(ValueOf(1), ValueOf(2))
 		x, ok := m[1]
@@ -46,7 +44,7 @@ func TestImplicitMapConversion(t *testing.T) {
 	}
 	{
 		// convert interface value
-		m := make(map[int]interface{})
+		m := make(map[int]any)
 		mv := ValueOf(m)
 		mv.SetMapIndex(ValueOf(1), ValueOf(2))
 		x, ok := m[1]
@@ -59,7 +57,7 @@ func TestImplicitMapConversion(t *testing.T) {
 	}
 	{
 		// convert both interface key and interface value
-		m := make(map[interface{}]interface{})
+		m := make(map[any]any)
 		mv := ValueOf(m)
 		mv.SetMapIndex(ValueOf(1), ValueOf(2))
 		x, ok := m[1]
@@ -81,7 +79,7 @@ func TestImplicitMapConversion(t *testing.T) {
 		if x != b2 {
 			t.Errorf("#5 after SetMapIndex(b1, b2): %p (!= %p), %t (map=%v)", x, b2, ok, m)
 		}
-		if p := mv.MapIndex(ValueOf(b1)).Elem().Pointer(); p != uintptr(unsafe.Pointer(b2)) {
+		if p := mv.MapIndex(ValueOf(b1)).Elem().UnsafePointer(); p != unsafe.Pointer(b2) {
 			t.Errorf("#5 MapIndex(b1) = %#x want %p", p, b2)
 		}
 	}
@@ -96,16 +94,13 @@ func TestImplicitMapConversion(t *testing.T) {
 		if x != c2 {
 			t.Errorf("#6 after SetMapIndex(c1, c2): %p (!= %p), %t (map=%v)", x, c2, ok, m)
 		}
-		if p := mv.MapIndex(ValueOf(c1)).Pointer(); p != ValueOf(c2).Pointer() {
+		if p := mv.MapIndex(ValueOf(c1)).UnsafePointer(); p != ValueOf(c2).UnsafePointer() {
 			t.Errorf("#6 MapIndex(c1) = %#x want %p", p, c2)
 		}
 	}
 	{
 		// convert identical underlying types
-		// TODO(rsc): Should be able to define MyBuffer here.
-		// 6l prints very strange messages about .this.Bytes etc
-		// when we do that though, so MyBuffer is defined
-		// at top level.
+		type MyBuffer bytes.Buffer
 		m := make(map[*MyBuffer]*bytes.Buffer)
 		mv := ValueOf(m)
 		b1 := new(MyBuffer)
@@ -115,7 +110,7 @@ func TestImplicitMapConversion(t *testing.T) {
 		if x != b2 {
 			t.Errorf("#7 after SetMapIndex(b1, b2): %p (!= %p), %t (map=%v)", x, b2, ok, m)
 		}
-		if p := mv.MapIndex(ValueOf(b1)).Pointer(); p != uintptr(unsafe.Pointer(b2)) {
+		if p := mv.MapIndex(ValueOf(b1)).UnsafePointer(); p != unsafe.Pointer(b2) {
 			t.Errorf("#7 MapIndex(b1) = %#x want %p", p, b2)
 		}
 	}
@@ -165,8 +160,8 @@ func TestImplicitAppendConversion(t *testing.T) {
 }
 
 var implementsTests = []struct {
-	x interface{}
-	t interface{}
+	x any
+	t any
 	b bool
 }{
 	{new(*bytes.Buffer), new(io.Reader), true},
@@ -203,8 +198,8 @@ func TestImplements(t *testing.T) {
 }
 
 var assignableTests = []struct {
-	x interface{}
-	t interface{}
+	x any
+	t any
 	b bool
 }{
 	{new(chan int), new(<-chan int), true},
@@ -212,13 +207,13 @@ var assignableTests = []struct {
 	{new(*int), new(IntPtr), true},
 	{new(IntPtr), new(*int), true},
 	{new(IntPtr), new(IntPtr1), false},
-	{new(Ch), new(<-chan interface{}), true},
+	{new(Ch), new(<-chan any), true},
 	// test runs implementsTests too
 }
 
 type IntPtr *int
 type IntPtr1 *int
-type Ch <-chan interface{}
+type Ch <-chan any
 
 func TestAssignableTo(t *testing.T) {
 	for _, tt := range append(assignableTests, implementsTests...) {

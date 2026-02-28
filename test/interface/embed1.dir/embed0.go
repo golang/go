@@ -7,10 +7,11 @@
 package p
 
 type T int
+
 func (t T) m() {}
 
-type I interface { m() }
-type J interface { I }
+type I interface{ m() }
+type J interface{ I }
 
 func main() {
 	var i I

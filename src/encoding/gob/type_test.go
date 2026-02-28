@@ -7,6 +7,7 @@ package gob
 import (
 	"bytes"
 	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -167,7 +168,7 @@ type N2 struct{}
 // See comment in type.go/Register.
 func TestRegistrationNaming(t *testing.T) {
 	testCases := []struct {
-		t    interface{}
+		t    any
 		name string
 	}{
 		{&N1{}, "*gob.N1"},
@@ -183,7 +184,7 @@ func TestRegistrationNaming(t *testing.T) {
 			t.Errorf("nameToConcreteType[%q] = %v, want %v", tc.name, ct, tct)
 		}
 		// concreteTypeToName is keyed off the base type.
-		if tct.Kind() == reflect.Ptr {
+		if tct.Kind() == reflect.Pointer {
 			tct = tct.Elem()
 		}
 		if n, _ := concreteTypeToName.Load(tct); n != tc.name {
@@ -217,4 +218,45 @@ func TestStressParallel(t *testing.T) {
 	for i := 0; i < N; i++ {
 		<-c
 	}
+}
+
+// Issue 23328. Note that this test name is known to cmd/dist/test.go.
+func TestTypeRace(t *testing.T) {
+	c := make(chan bool)
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			var buf bytes.Buffer
+			enc := NewEncoder(&buf)
+			dec := NewDecoder(&buf)
+			var x any
+			switch i {
+			case 0:
+				x = &N1{}
+			case 1:
+				x = &N2{}
+			default:
+				t.Errorf("bad i %d", i)
+				return
+			}
+			m := make(map[string]string)
+			<-c
+			if err := enc.Encode(x); err != nil {
+				t.Error(err)
+				return
+			}
+			if err := enc.Encode(x); err != nil {
+				t.Error(err)
+				return
+			}
+			if err := dec.Decode(&m); err == nil {
+				t.Error("decode unexpectedly succeeded")
+				return
+			}
+		}(i)
+	}
+	close(c)
+	wg.Wait()
 }

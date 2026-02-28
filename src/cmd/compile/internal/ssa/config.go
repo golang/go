@@ -5,39 +5,49 @@
 package ssa
 
 import (
+	"cmd/compile/internal/abi"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
-	"os"
-	"strconv"
+	"internal/buildcfg"
 )
 
 // A Config holds readonly compilation information.
 // It is created once, early during compilation,
 // and shared across all compilations.
 type Config struct {
-	arch            string // "amd64", etc.
-	PtrSize         int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
-	RegSize         int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
-	Types           Types
-	lowerBlock      blockRewriter // lowering function
-	lowerValue      valueRewriter // lowering function
-	registers       []Register    // machine registers
-	gpRegMask       regMask       // general purpose integer register mask
-	fpRegMask       regMask       // floating point register mask
-	specialRegMask  regMask       // special register mask
-	FPReg           int8          // register number of frame pointer, -1 if not used
-	LinkReg         int8          // register number of link register if it is a general purpose register, -1 if not used
-	hasGReg         bool          // has hardware g register
-	ctxt            *obj.Link     // Generic arch information
-	optimize        bool          // Do optimization
-	noDuffDevice    bool          // Don't use Duff's device
-	nacl            bool          // GOOS=nacl
-	use387          bool          // GO386=387
-	NeedsFpScratch  bool          // No direct move between GP and FP register sets
-	BigEndian       bool          //
-	sparsePhiCutoff uint64        // Sparse phi location algorithm used above this #blocks*#variables score
+	arch           string // "amd64", etc.
+	PtrSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
+	RegSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
+	Types          Types
+	lowerBlock     blockRewriter  // lowering function
+	lowerValue     valueRewriter  // lowering function
+	splitLoad      valueRewriter  // function for splitting merged load ops; only used on some architectures
+	registers      []Register     // machine registers
+	gpRegMask      regMask        // general purpose integer register mask
+	fpRegMask      regMask        // floating point register mask
+	fp32RegMask    regMask        // floating point register mask
+	fp64RegMask    regMask        // floating point register mask
+	specialRegMask regMask        // special register mask
+	intParamRegs   []int8         // register numbers of integer param (in/out) registers
+	floatParamRegs []int8         // register numbers of floating param (in/out) registers
+	ABI1           *abi.ABIConfig // "ABIInternal" under development // TODO change comment when this becomes current
+	ABI0           *abi.ABIConfig
+	GCRegMap       []*Register // garbage collector register map, by GC register index
+	FPReg          int8        // register number of frame pointer, -1 if not used
+	LinkReg        int8        // register number of link register if it is a general purpose register, -1 if not used
+	hasGReg        bool        // has hardware g register
+	ctxt           *obj.Link   // Generic arch information
+	optimize       bool        // Do optimization
+	noDuffDevice   bool        // Don't use Duff's device
+	useSSE         bool        // Use SSE for non-float operations
+	useAvg         bool        // Use optimizations that need Avg* operations
+	useHmul        bool        // Use optimizations that need Hmul* operations
+	SoftFloat      bool        //
+	Race           bool        // race detector enabled
+	BigEndian      bool        //
+	UseFMA         bool        // Use hardware FMA operation
 }
 
 type (
@@ -58,6 +68,7 @@ type Types struct {
 	Int        *types.Type
 	Float32    *types.Type
 	Float64    *types.Type
+	UInt       *types.Type
 	Uintptr    *types.Type
 	String     *types.Type
 	BytePtr    *types.Type // TODO: use unsafe.Pointer instead?
@@ -70,11 +81,45 @@ type Types struct {
 	BytePtrPtr *types.Type
 }
 
+// NewTypes creates and populates a Types.
+func NewTypes() *Types {
+	t := new(Types)
+	t.SetTypPtrs()
+	return t
+}
+
+// SetTypPtrs populates t.
+func (t *Types) SetTypPtrs() {
+	t.Bool = types.Types[types.TBOOL]
+	t.Int8 = types.Types[types.TINT8]
+	t.Int16 = types.Types[types.TINT16]
+	t.Int32 = types.Types[types.TINT32]
+	t.Int64 = types.Types[types.TINT64]
+	t.UInt8 = types.Types[types.TUINT8]
+	t.UInt16 = types.Types[types.TUINT16]
+	t.UInt32 = types.Types[types.TUINT32]
+	t.UInt64 = types.Types[types.TUINT64]
+	t.Int = types.Types[types.TINT]
+	t.Float32 = types.Types[types.TFLOAT32]
+	t.Float64 = types.Types[types.TFLOAT64]
+	t.UInt = types.Types[types.TUINT]
+	t.Uintptr = types.Types[types.TUINTPTR]
+	t.String = types.Types[types.TSTRING]
+	t.BytePtr = types.NewPtr(types.Types[types.TUINT8])
+	t.Int32Ptr = types.NewPtr(types.Types[types.TINT32])
+	t.UInt32Ptr = types.NewPtr(types.Types[types.TUINT32])
+	t.IntPtr = types.NewPtr(types.Types[types.TINT])
+	t.UintptrPtr = types.NewPtr(types.Types[types.TUINTPTR])
+	t.Float32Ptr = types.NewPtr(types.Types[types.TFLOAT32])
+	t.Float64Ptr = types.NewPtr(types.Types[types.TFLOAT64])
+	t.BytePtrPtr = types.NewPtr(types.NewPtr(types.Types[types.TUINT8]))
+}
+
 type Logger interface {
 	// Logf logs a message from the compiler.
 	Logf(string, ...interface{})
 
-	// Log returns true if logging is not a no-op
+	// Log reports whether logging is not a no-op
 	// some logging calls account for more than a few heap allocations.
 	Log() bool
 
@@ -86,7 +131,6 @@ type Logger interface {
 
 	// Forwards the Debug flags from gc
 	Debug_checknil() bool
-	Debug_wb() bool
 }
 
 type Frontend interface {
@@ -95,27 +139,15 @@ type Frontend interface {
 	Logger
 
 	// StringData returns a symbol pointing to the given string's contents.
-	StringData(string) interface{} // returns *gc.Sym
+	StringData(string) *obj.LSym
 
 	// Auto returns a Node for an auto variable of the given type.
 	// The SSA compiler uses this function to allocate space for spills.
-	Auto(src.XPos, *types.Type) GCNode
+	Auto(src.XPos, *types.Type) *ir.Name
 
 	// Given the name for a compound type, returns the name we should use
 	// for the parts of that compound type.
-	SplitString(LocalSlot) (LocalSlot, LocalSlot)
-	SplitInterface(LocalSlot) (LocalSlot, LocalSlot)
-	SplitSlice(LocalSlot) (LocalSlot, LocalSlot, LocalSlot)
-	SplitComplex(LocalSlot) (LocalSlot, LocalSlot)
-	SplitStruct(LocalSlot, int) LocalSlot
-	SplitArray(LocalSlot) LocalSlot              // array must be length 1
-	SplitInt64(LocalSlot) (LocalSlot, LocalSlot) // returns (hi, lo)
-
-	// DerefItab dereferences an itab function
-	// entry, given the symbol of the itab and
-	// the byte offset of the function pointer.
-	// It may return nil.
-	DerefItab(sym *obj.LSym, offset int64) *obj.LSym
+	SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot
 
 	// Line returns a string describing the given position.
 	Line(src.XPos) string
@@ -127,49 +159,47 @@ type Frontend interface {
 	// given name.
 	Syslook(string) *obj.LSym
 
-	// UseWriteBarrier returns whether write barrier is enabled
+	// UseWriteBarrier reports whether write barrier is enabled
 	UseWriteBarrier() bool
-}
 
-// interface used to hold *gc.Node. We'd use *gc.Node directly but
-// that would lead to an import cycle.
-type GCNode interface {
-	Typ() *types.Type
-	String() string
+	// SetWBPos indicates that a write barrier has been inserted
+	// in this function at position pos.
+	SetWBPos(pos src.XPos)
+
+	// MyImportPath provides the import name (roughly, the package) for the function being compiled.
+	MyImportPath() string
+
+	// LSym returns the linker symbol of the function being compiled.
+	LSym() string
 }
 
 // NewConfig returns a new configuration object for the given architecture.
-func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config {
+func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat bool) *Config {
 	c := &Config{arch: arch, Types: types}
+	c.useAvg = true
+	c.useHmul = true
 	switch arch {
 	case "amd64":
 		c.PtrSize = 8
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
+		c.splitLoad = rewriteValueAMD64splitload
 		c.registers = registersAMD64[:]
 		c.gpRegMask = gpRegMaskAMD64
 		c.fpRegMask = fpRegMaskAMD64
+		c.specialRegMask = specialRegMaskAMD64
+		c.intParamRegs = paramIntRegAMD64
+		c.floatParamRegs = paramFloatRegAMD64
 		c.FPReg = framepointerRegAMD64
 		c.LinkReg = linkRegAMD64
-		c.hasGReg = false
-	case "amd64p32":
-		c.PtrSize = 4
-		c.RegSize = 8
-		c.lowerBlock = rewriteBlockAMD64
-		c.lowerValue = rewriteValueAMD64
-		c.registers = registersAMD64[:]
-		c.gpRegMask = gpRegMaskAMD64
-		c.fpRegMask = fpRegMaskAMD64
-		c.FPReg = framepointerRegAMD64
-		c.LinkReg = linkRegAMD64
-		c.hasGReg = false
-		c.noDuffDevice = true
+		c.hasGReg = true
 	case "386":
 		c.PtrSize = 4
 		c.RegSize = 4
 		c.lowerBlock = rewriteBlock386
 		c.lowerValue = rewriteValue386
+		c.splitLoad = rewriteValue386splitload
 		c.registers = registers386[:]
 		c.gpRegMask = gpRegMask386
 		c.fpRegMask = fpRegMask386
@@ -195,10 +225,12 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersARM64[:]
 		c.gpRegMask = gpRegMaskARM64
 		c.fpRegMask = fpRegMaskARM64
+		c.intParamRegs = paramIntRegARM64
+		c.floatParamRegs = paramFloatRegARM64
 		c.FPReg = framepointerRegARM64
 		c.LinkReg = linkRegARM64
 		c.hasGReg = true
-		c.noDuffDevice = objabi.GOOS == "darwin" // darwin linker cannot handle BR26 reloc with non-zero addend
+		c.noDuffDevice = buildcfg.GOOS == "darwin" || buildcfg.GOOS == "ios" // darwin linker cannot handle BR26 reloc with non-zero addend
 	case "ppc64":
 		c.BigEndian = true
 		fallthrough
@@ -210,9 +242,11 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersPPC64[:]
 		c.gpRegMask = gpRegMaskPPC64
 		c.fpRegMask = fpRegMaskPPC64
+		c.specialRegMask = specialRegMaskPPC64
+		c.intParamRegs = paramIntRegPPC64
+		c.floatParamRegs = paramFloatRegPPC64
 		c.FPReg = framepointerRegPPC64
 		c.LinkReg = linkRegPPC64
-		c.noDuffDevice = true // TODO: Resolve PPC64 DuffDevice (has zero, but not copy)
 		c.hasGReg = true
 	case "mips64":
 		c.BigEndian = true
@@ -258,49 +292,84 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.LinkReg = linkRegMIPS
 		c.hasGReg = true
 		c.noDuffDevice = true
+	case "riscv64":
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockRISCV64
+		c.lowerValue = rewriteValueRISCV64
+		c.registers = registersRISCV64[:]
+		c.gpRegMask = gpRegMaskRISCV64
+		c.fpRegMask = fpRegMaskRISCV64
+		c.intParamRegs = paramIntRegRISCV64
+		c.floatParamRegs = paramFloatRegRISCV64
+		c.FPReg = framepointerRegRISCV64
+		c.hasGReg = true
+	case "wasm":
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockWasm
+		c.lowerValue = rewriteValueWasm
+		c.registers = registersWasm[:]
+		c.gpRegMask = gpRegMaskWasm
+		c.fpRegMask = fpRegMaskWasm
+		c.fp32RegMask = fp32RegMaskWasm
+		c.fp64RegMask = fp64RegMaskWasm
+		c.FPReg = framepointerRegWasm
+		c.LinkReg = linkRegWasm
+		c.hasGReg = true
+		c.noDuffDevice = true
+		c.useAvg = false
+		c.useHmul = false
 	default:
 		ctxt.Diag("arch %s not implemented", arch)
 	}
 	c.ctxt = ctxt
 	c.optimize = optimize
-	c.nacl = objabi.GOOS == "nacl"
-
-	// Don't use Duff's device on Plan 9 AMD64, because floating
-	// point operations are not allowed in note handler.
-	if objabi.GOOS == "plan9" && arch == "amd64" {
-		c.noDuffDevice = true
+	c.useSSE = true
+	c.UseFMA = true
+	c.SoftFloat = softfloat
+	if softfloat {
+		c.floatParamRegs = nil // no FP registers in softfloat mode
 	}
 
-	if c.nacl {
-		c.noDuffDevice = true // Don't use Duff's device on NaCl
+	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.Arch.FixedFrameSize)
+	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.Arch.FixedFrameSize)
 
-		// runtime call clobber R12 on nacl
-		opcodeTable[OpARMCALLudiv].reg.clobbers |= 1 << 12 // R12
-	}
+	// On Plan 9, floating point operations are not allowed in note handler.
+	if buildcfg.GOOS == "plan9" {
+		// Don't use FMA on Plan 9
+		c.UseFMA = false
 
-	// cutoff is compared with product of numblocks and numvalues,
-	// if product is smaller than cutoff, use old non-sparse method.
-	// cutoff == 0 implies all sparse.
-	// cutoff == -1 implies none sparse.
-	// Good cutoff values seem to be O(million) depending on constant factor cost of sparse.
-	// TODO: get this from a flag, not an environment variable
-	c.sparsePhiCutoff = 2500000 // 0 for testing. // 2500000 determined with crude experiments w/ make.bash
-	ev := os.Getenv("GO_SSA_PHI_LOC_CUTOFF")
-	if ev != "" {
-		v, err := strconv.ParseInt(ev, 10, 64)
-		if err != nil {
-			ctxt.Diag("Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
+		// Don't use Duff's device and SSE on Plan 9 AMD64.
+		if arch == "amd64" {
+			c.noDuffDevice = true
+			c.useSSE = false
 		}
-		c.sparsePhiCutoff = uint64(v) // convert -1 to maxint, for never use sparse
+	}
+
+	if ctxt.Flag_shared {
+		// LoweredWB is secretly a CALL and CALLs on 386 in
+		// shared mode get rewritten by obj6.go to go through
+		// the GOT, which clobbers BX.
+		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 3 // BX
+	}
+
+	// Create the GC register map index.
+	// TODO: This is only used for debug printing. Maybe export config.registers?
+	gcRegMapSize := int16(0)
+	for _, r := range c.registers {
+		if r.gcNum+1 > gcRegMapSize {
+			gcRegMapSize = r.gcNum + 1
+		}
+	}
+	c.GCRegMap = make([]*Register, gcRegMapSize)
+	for i, r := range c.registers {
+		if r.gcNum != -1 {
+			c.GCRegMap[r.gcNum] = &c.registers[i]
+		}
 	}
 
 	return c
 }
 
-func (c *Config) Set387(b bool) {
-	c.NeedsFpScratch = b
-	c.use387 = b
-}
-
-func (c *Config) SparsePhiCutoff() uint64 { return c.sparsePhiCutoff }
-func (c *Config) Ctxt() *obj.Link         { return c.ctxt }
+func (c *Config) Ctxt() *obj.Link { return c.ctxt }

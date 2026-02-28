@@ -1,0 +1,28 @@
+[!net] skip
+[!exec:fossil] skip
+
+# Regression test for 'go get' to ensure repositories
+# provided by fossil v2.12 and up are able to be fetched
+# and parsed correctly.
+# Verifies golang.org/issue/42323.
+
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+
+# 'go get' for the fossil repo will fail if fossil
+# is unable to determine your fossil user. Easiest
+# way to set it for use by 'go get' is specifying
+# a any non-empty $USER; the value doesn't otherwise matter.
+env USER=fossiluser
+env FOSSIL_HOME=$WORK/home
+
+# Attempt to get the latest version of a fossil repo.
+go get vcs-test.golang.org/fossil/hello.fossil
+! stderr 'unexpected response from fossil info'
+grep 'vcs-test.golang.org/fossil/hello.fossil' go.mod
+
+-- go.mod --
+module x
+-- $WORK/home/.fossil --

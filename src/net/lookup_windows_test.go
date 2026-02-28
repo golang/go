@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"internal/testenv"
 	"os/exec"
 	"reflect"
@@ -18,8 +19,9 @@ import (
 )
 
 var nslookupTestServers = []string{"mail.golang.com", "gmail.com"}
+var lookupTestIPs = []string{"8.8.8.8", "1.1.1.1"}
 
-func toJson(v interface{}) string {
+func toJson(v any) string {
 	data, _ := json.Marshal(v)
 	return string(data)
 }
@@ -124,6 +126,54 @@ func TestNSLookupTXT(t *testing.T) {
 	}
 }
 
+func TestLookupLocalPTR(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	addr, err := localIP()
+	if err != nil {
+		t.Errorf("failed to get local ip: %s", err)
+	}
+	names, err := LookupAddr(addr.String())
+	if err != nil {
+		t.Errorf("failed %s: %s", addr, err)
+	}
+	if len(names) == 0 {
+		t.Errorf("no results")
+	}
+	expected, err := lookupPTR(addr.String())
+	if err != nil {
+		t.Logf("skipping failed lookup %s test: %s", addr.String(), err)
+	}
+	sort.Strings(expected)
+	sort.Strings(names)
+	if !reflect.DeepEqual(expected, names) {
+		t.Errorf("different results %s:\texp:%v\tgot:%v", addr, toJson(expected), toJson(names))
+	}
+}
+
+func TestLookupPTR(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	for _, addr := range lookupTestIPs {
+		names, err := LookupAddr(addr)
+		if err != nil {
+			t.Errorf("failed %s: %s", addr, err)
+		}
+		if len(names) == 0 {
+			t.Errorf("no results")
+		}
+		expected, err := lookupPTR(addr)
+		if err != nil {
+			t.Logf("skipping failed lookup %s test: %s", addr, err)
+		}
+		sort.Strings(expected)
+		sort.Strings(names)
+		if !reflect.DeepEqual(expected, names) {
+			t.Errorf("different results %s:\texp:%v\tgot:%v", addr, toJson(expected), toJson(names))
+		}
+	}
+}
+
 type byPrefAndHost []*MX
 
 func (s byPrefAndHost) Len() int { return len(s) }
@@ -150,7 +200,7 @@ func nslookup(qtype, name string) (string, error) {
 	if err := cmd.Run(); err != nil {
 		return "", err
 	}
-	r := strings.Replace(out.String(), "\r\n", "\n", -1)
+	r := strings.ReplaceAll(out.String(), "\r\n", "\n")
 	// nslookup stderr output contains also debug information such as
 	// "Non-authoritative answer" and it doesn't return the correct errcode
 	if strings.Contains(err.String(), "can't find") {
@@ -170,14 +220,14 @@ func nslookupMX(name string) (mx []*MX, err error) {
 	rx := regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+mail exchanger\s*=\s*([0-9]+)\s*([a-z0-9.\-]+)$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
 		pref, _, _ := dtoi(ans[2])
-		mx = append(mx, &MX{absDomainName([]byte(ans[3])), uint16(pref)})
+		mx = append(mx, &MX{absDomainName(ans[3]), uint16(pref)})
 	}
 	// windows nslookup syntax
 	// gmail.com       MX preference = 30, mail exchanger = alt3.gmail-smtp-in.l.google.com
 	rx = regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+MX preference\s*=\s*([0-9]+)\s*,\s*mail exchanger\s*=\s*([a-z0-9.\-]+)$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
 		pref, _, _ := dtoi(ans[2])
-		mx = append(mx, &MX{absDomainName([]byte(ans[3])), uint16(pref)})
+		mx = append(mx, &MX{absDomainName(ans[3]), uint16(pref)})
 	}
 	return
 }
@@ -191,7 +241,7 @@ func nslookupNS(name string) (ns []*NS, err error) {
 	// golang.org      nameserver = ns1.google.com.
 	rx := regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+nameserver\s*=\s*([a-z0-9.\-]+)$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
-		ns = append(ns, &NS{absDomainName([]byte(ans[2]))})
+		ns = append(ns, &NS{absDomainName(ans[2])})
 	}
 	return
 }
@@ -208,7 +258,7 @@ func nslookupCNAME(name string) (cname string, err error) {
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
 		last = ans[2]
 	}
-	return absDomainName([]byte(last)), nil
+	return absDomainName(last), nil
 }
 
 func nslookupTXT(name string) (txt []string, err error) {
@@ -229,4 +279,39 @@ func nslookupTXT(name string) (txt []string, err error) {
 		txt = append(txt, ans[2])
 	}
 	return
+}
+
+func ping(name string) (string, error) {
+	cmd := exec.Command("ping", "-n", "1", "-a", name)
+	stdoutStderr, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("%v: %v", err, string(stdoutStderr))
+	}
+	r := strings.ReplaceAll(string(stdoutStderr), "\r\n", "\n")
+	return r, nil
+}
+
+func lookupPTR(name string) (ptr []string, err error) {
+	var r string
+	if r, err = ping(name); err != nil {
+		return
+	}
+	ptr = make([]string, 0, 10)
+	rx := regexp.MustCompile(`(?m)^Pinging\s+([a-zA-Z0-9.\-]+)\s+\[.*$`)
+	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
+		ptr = append(ptr, absDomainName(ans[1]))
+	}
+	return
+}
+
+func localIP() (ip IP, err error) {
+	conn, err := Dial("udp", "golang.org:80")
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*UDPAddr)
+
+	return localAddr.IP, nil
 }

@@ -7,8 +7,11 @@
 package main
 
 import (
+	"cmd/go/internal/workcmd"
+	"context"
 	"flag"
 	"fmt"
+	"internal/buildcfg"
 	"log"
 	"os"
 	"path/filepath"
@@ -27,42 +30,59 @@ import (
 	"cmd/go/internal/get"
 	"cmd/go/internal/help"
 	"cmd/go/internal/list"
+	"cmd/go/internal/modcmd"
+	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modget"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/run"
 	"cmd/go/internal/test"
 	"cmd/go/internal/tool"
+	"cmd/go/internal/trace"
 	"cmd/go/internal/version"
 	"cmd/go/internal/vet"
 	"cmd/go/internal/work"
 )
 
 func init() {
-	base.Commands = []*base.Command{
+	base.Go.Commands = []*base.Command{
+		bug.CmdBug,
 		work.CmdBuild,
 		clean.CmdClean,
 		doc.CmdDoc,
 		envcmd.CmdEnv,
-		bug.CmdBug,
 		fix.CmdFix,
 		fmtcmd.CmdFmt,
 		generate.CmdGenerate,
-		get.CmdGet,
+		modget.CmdGet,
 		work.CmdInstall,
 		list.CmdList,
+		modcmd.CmdMod,
+		workcmd.CmdWork,
 		run.CmdRun,
 		test.CmdTest,
 		tool.CmdTool,
 		version.CmdVersion,
 		vet.CmdVet,
 
-		help.HelpC,
+		help.HelpBuildConstraint,
 		help.HelpBuildmode,
-		help.HelpFileType,
-		help.HelpGopath,
+		help.HelpC,
+		help.HelpCache,
 		help.HelpEnvironment,
+		help.HelpFileType,
+		modload.HelpGoMod,
+		help.HelpGopath,
+		get.HelpGopathGet,
+		modfetch.HelpGoproxy,
 		help.HelpImportPath,
+		modload.HelpModules,
+		modget.HelpModuleGet,
+		modfetch.HelpModuleAuth,
 		help.HelpPackages,
+		modfetch.HelpPrivate,
 		test.HelpTestflag,
 		test.HelpTestfunc,
+		modget.HelpVCS,
 	}
 }
 
@@ -77,8 +97,16 @@ func main() {
 		base.Usage()
 	}
 
+	if args[0] == "get" || args[0] == "help" {
+		if !modload.WillBeEnabled() {
+			// Replace module-aware get with GOPATH get if appropriate.
+			*modget.CmdGet = *get.CmdGet
+		}
+	}
+
+	cfg.CmdName = args[0] // for error messages
 	if args[0] == "help" {
-		help.Help(args[1:])
+		help.Help(os.Stdout, args[1:])
 		return
 	}
 
@@ -89,6 +117,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
 	} else {
 		for _, p := range filepath.SplitList(gopath) {
+			// Some GOPATHs have empty directory elements - ignore them.
+			// See issue 21928 for details.
+			if p == "" {
+				continue
+			}
 			// Note: using HasPrefix instead of Contains because a ~ can appear
 			// in the middle of directory elements, such as /tmp/git-1.8.2~rc3
 			// or C:\PROGRA~1. Only ~ as a path prefix has meaning to the shell.
@@ -97,15 +130,73 @@ func main() {
 				os.Exit(2)
 			}
 			if !filepath.IsAbs(p) {
-				fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nFor more details see: 'go help gopath'\n", p)
-				os.Exit(2)
+				if cfg.Getenv("GOPATH") == "" {
+					// We inferred $GOPATH from $HOME and did a bad job at it.
+					// Instead of dying, uninfer it.
+					cfg.BuildContext.GOPATH = ""
+				} else {
+					fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nFor more details see: 'go help gopath'\n", p)
+					os.Exit(2)
+				}
 			}
 		}
 	}
 
+	if cfg.GOROOT == "" {
+		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: 'go' binary is trimmed and GOROOT is not set\n")
+		os.Exit(2)
+	}
 	if fi, err := os.Stat(cfg.GOROOT); err != nil || !fi.IsDir() {
 		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
 		os.Exit(2)
+	}
+
+BigCmdLoop:
+	for bigCmd := base.Go; ; {
+		for _, cmd := range bigCmd.Commands {
+			if cmd.Name() != args[0] {
+				continue
+			}
+			if len(cmd.Commands) > 0 {
+				bigCmd = cmd
+				args = args[1:]
+				if len(args) == 0 {
+					help.PrintUsage(os.Stderr, bigCmd)
+					base.SetExitStatus(2)
+					base.Exit()
+				}
+				if args[0] == "help" {
+					// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
+					help.Help(os.Stdout, append(strings.Split(cfg.CmdName, " "), args[1:]...))
+					return
+				}
+				cfg.CmdName += " " + args[0]
+				continue BigCmdLoop
+			}
+			if !cmd.Runnable() {
+				continue
+			}
+			invoke(cmd, args)
+			base.Exit()
+			return
+		}
+		helpArg := ""
+		if i := strings.LastIndex(cfg.CmdName, " "); i >= 0 {
+			helpArg = " " + cfg.CmdName[:i]
+		}
+		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cfg.CmdName, helpArg)
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+}
+
+func invoke(cmd *base.Command, args []string) {
+	// 'go env' handles checking the build config
+	if cmd != envcmd.CmdEnv {
+		buildcfg.Check()
+		if cfg.ExperimentErr != nil {
+			base.Fatalf("go: %v", cfg.ExperimentErr)
+		}
 	}
 
 	// Set environment (GOOS, GOARCH, etc) explicitly.
@@ -121,24 +212,18 @@ func main() {
 		}
 	}
 
-	for _, cmd := range base.Commands {
-		if cmd.Name() == args[0] && cmd.Runnable() {
-			cmd.Flag.Usage = func() { cmd.Usage() }
-			if cmd.CustomFlags {
-				args = args[1:]
-			} else {
-				cmd.Flag.Parse(args[1:])
-				args = cmd.Flag.Args()
-			}
-			cmd.Run(cmd, args)
-			base.Exit()
-			return
-		}
+	cmd.Flag.Usage = func() { cmd.Usage() }
+	if cmd.CustomFlags {
+		args = args[1:]
+	} else {
+		base.SetFromGOFLAGS(&cmd.Flag)
+		cmd.Flag.Parse(args[1:])
+		args = cmd.Flag.Args()
 	}
-
-	fmt.Fprintf(os.Stderr, "go: unknown subcommand %q\nRun 'go help' for usage.\n", args[0])
-	base.SetExitStatus(2)
-	base.Exit()
+	ctx := maybeStartTrace(context.Background())
+	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
+	cmd.Run(ctx, cmd, args)
+	span.Done()
 }
 
 func init() {
@@ -146,10 +231,24 @@ func init() {
 }
 
 func mainUsage() {
-	// special case "go test -h"
-	if len(os.Args) > 1 && os.Args[1] == "test" {
-		test.Usage()
-	}
-	help.PrintUsage(os.Stderr)
+	help.PrintUsage(os.Stderr, base.Go)
 	os.Exit(2)
+}
+
+func maybeStartTrace(pctx context.Context) context.Context {
+	if cfg.DebugTrace == "" {
+		return pctx
+	}
+
+	ctx, close, err := trace.Start(pctx, cfg.DebugTrace)
+	if err != nil {
+		base.Fatalf("failed to start trace: %v", err)
+	}
+	base.AtExit(func() {
+		if err := close(); err != nil {
+			base.Fatalf("failed to stop trace: %v", err)
+		}
+	})
+
+	return ctx
 }

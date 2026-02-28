@@ -1,0 +1,151 @@
+! go work init doesnotexist
+stderr 'go: creating workspace file: no go.mod file exists in directory doesnotexist'
+go env GOWORK
+! stdout .
+
+go work init ./a ./b
+cmpenv go.work go.work.want
+go env GOWORK
+stdout '^'$WORK'(\\|/)gopath(\\|/)src(\\|/)go.work$'
+
+! go run  example.com/b
+stderr 'a(\\|/)a.go:4:8: no required module provides package rsc.io/quote; to add it:\n\tcd '$WORK(\\|/)gopath(\\|/)src(\\|/)a'\n\tgo get rsc.io/quote'
+cd a
+go get rsc.io/quote
+go env GOMOD # go env GOMOD reports the module in a single module context
+stdout $GOPATH(\\|/)src(\\|/)a(\\|/)go.mod
+cd ..
+go run example.com/b
+stdout 'Hello, world.'
+
+# And try from a different directory
+cd c
+go run  example.com/b
+stdout 'Hello, world.'
+cd $GOPATH/src
+
+go list all # all includes both modules
+stdout 'example.com/a'
+stdout 'example.com/b'
+
+# -mod can only be set to readonly in workspace mode
+go list -mod=readonly all
+! go list -mod=mod all
+stderr '^go: -mod may only be set to readonly when in workspace mode'
+env GOWORK=off
+go list -mod=mod all
+env GOWORK=
+
+# Test that duplicates in the use list return an error
+cp go.work go.work.backup
+cp go.work.dup go.work
+! go run example.com/b
+stderr 'reading go.work: path .* appears multiple times in workspace'
+cp go.work.backup go.work
+
+cp go.work.d go.work
+go run example.com/d
+
+# Test that we don't run into "newRequirements called with unsorted roots"
+# panic with unsorted main modules.
+cp go.work.backwards go.work
+go run example.com/d
+
+# Test that command-line-arguments work inside and outside modules.
+# This exercises the code that determines which module command-line-arguments
+# belongs to.
+go list ./b/main.go
+env GOWORK=off
+go build -n -o foo foo.go
+env GOWORK=
+go build -n -o foo foo.go
+
+-- go.work.dup --
+go 1.18
+
+use (
+  a
+  b
+  ../src/a
+)
+-- go.work.want --
+go $goversion
+
+use (
+	./a
+	./b
+)
+-- go.work.d --
+go 1.18
+
+use (
+	a
+	b
+	d
+)
+-- a/go.mod --
+
+module example.com/a
+
+-- a/a.go --
+package a
+
+import "fmt"
+import "rsc.io/quote"
+
+func HelloFromA() {
+  fmt.Println(quote.Hello())
+}
+
+-- b/go.mod --
+
+module example.com/b
+
+-- b/main.go --
+package main
+
+import "example.com/a"
+
+func main() {
+  a.HelloFromA()
+}
+-- b/lib/hello.go --
+package lib
+
+import "example.com/a"
+
+func Hello() {
+	a.HelloFromA()
+}
+
+-- c/README --
+Create this directory so we can cd to
+it and make sure paths are interpreted
+relative to the go.work, not the cwd.
+-- d/go.mod --
+module example.com/d
+
+-- d/main.go --
+package main
+
+import "example.com/b/lib"
+
+func main() {
+	lib.Hello()
+}
+
+-- go.work.backwards --
+go 1.18
+
+use (
+    d
+    b
+    a
+)
+
+-- foo.go --
+package main
+import "fmt"
+func main() {
+	fmt.Println("Hello, World")
+}

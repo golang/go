@@ -24,7 +24,7 @@ import (
 // "x = ++/foo/i" which is quite different than "x++/foo/i", but is not known to
 // fail on any known useful programs. It is based on the draft
 // JavaScript 2.0 lexical grammar and requires one token of lookbehind:
-// http://www.mozilla.org/js/language/js20-2000-07/rationale/syntax.html
+// https://www.mozilla.org/js/language/js20-2000-07/rationale/syntax.html
 func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
 	s = bytes.TrimRight(s, "\t\n\f\r \u2028\u2029")
 	if len(s) == 0 {
@@ -122,9 +122,17 @@ var jsonMarshalType = reflect.TypeOf((*json.Marshaler)(nil)).Elem()
 
 // indirectToJSONMarshaler returns the value, after dereferencing as many times
 // as necessary to reach the base type (or nil) or an implementation of json.Marshal.
-func indirectToJSONMarshaler(a interface{}) interface{} {
+func indirectToJSONMarshaler(a any) any {
+	// text/template now supports passing untyped nil as a func call
+	// argument, so we must support it. Otherwise we'd panic below, as one
+	// cannot call the Type or Interface methods on an invalid
+	// reflect.Value. See golang.org/issue/18716.
+	if a == nil {
+		return nil
+	}
+
 	v := reflect.ValueOf(a)
-	for !v.Type().Implements(jsonMarshalType) && v.Kind() == reflect.Ptr && !v.IsNil() {
+	for !v.Type().Implements(jsonMarshalType) && v.Kind() == reflect.Pointer && !v.IsNil() {
 		v = v.Elem()
 	}
 	return v.Interface()
@@ -132,8 +140,8 @@ func indirectToJSONMarshaler(a interface{}) interface{} {
 
 // jsValEscaper escapes its inputs to a JS Expression (section 11.14) that has
 // neither side-effects nor free variables outside (NaN, Infinity).
-func jsValEscaper(args ...interface{}) string {
-	var a interface{}
+func jsValEscaper(args ...any) string {
+	var a any
 	if len(args) == 1 {
 		a = indirectToJSONMarshaler(args[0])
 		switch t := a.(type) {
@@ -155,7 +163,6 @@ func jsValEscaper(args ...interface{}) string {
 	}
 	// TODO: detect cycles before calling Marshal which loops infinitely on
 	// cyclic data. This may be an unacceptable DoS risk.
-
 	b, err := json.Marshal(a)
 	if err != nil {
 		// Put a space before comment so that if it is flush against
@@ -164,14 +171,14 @@ func jsValEscaper(args ...interface{}) string {
 		// turning into
 		//     x//* error marshaling y:
 		//          second line of error message */null
-		return fmt.Sprintf(" /* %s */null ", strings.Replace(err.Error(), "*/", "* /", -1))
+		return fmt.Sprintf(" /* %s */null ", strings.ReplaceAll(err.Error(), "*/", "* /"))
 	}
 
 	// TODO: maybe post-process output to prevent it from containing
 	// "<!--", "-->", "<![CDATA[", "]]>", or "</script"
 	// in case custom marshalers produce output containing those.
-
-	// TODO: Maybe abbreviate \u00ab to \xab to produce more compact output.
+	// Note: Do not use \x escaping to save bytes because it is not JSON compatible and this escaper
+	// supports ld+json content-type.
 	if len(b) == 0 {
 		// In, `x=y/{{.}}*z` a json.Marshaler that produces "" should
 		// not cause the output `x=y/*z`.
@@ -179,7 +186,7 @@ func jsValEscaper(args ...interface{}) string {
 	}
 	first, _ := utf8.DecodeRune(b)
 	last, _ := utf8.DecodeLastRune(b)
-	var buf bytes.Buffer
+	var buf strings.Builder
 	// Prevent IdentifierNames and NumericLiterals from running into
 	// keywords: in, instanceof, typeof, void
 	pad := isJSIdentPart(first) || isJSIdentPart(last)
@@ -209,7 +216,7 @@ func jsValEscaper(args ...interface{}) string {
 		if pad {
 			buf.WriteByte(' ')
 		}
-		b = buf.Bytes()
+		return buf.String()
 	}
 	return string(b)
 }
@@ -217,7 +224,7 @@ func jsValEscaper(args ...interface{}) string {
 // jsStrEscaper produces a string that can be included between quotes in
 // JavaScript source, in JavaScript embedded in an HTML5 <script> element,
 // or in an HTML5 event handler attribute such as onclick.
-func jsStrEscaper(args ...interface{}) string {
+func jsStrEscaper(args ...any) string {
 	s, t := stringify(args...)
 	if t == contentTypeJSStr {
 		return replace(s, jsStrNormReplacementTable)
@@ -229,7 +236,7 @@ func jsStrEscaper(args ...interface{}) string {
 // specials so the result is treated literally when included in a regular
 // expression literal. /foo{{.X}}bar/ matches the string "foo" followed by
 // the literal text of {{.X}} followed by the string "bar".
-func jsRegexpEscaper(args ...interface{}) string {
+func jsRegexpEscaper(args ...any) string {
 	s, _ := stringify(args...)
 	s = replace(s, jsRegexpReplacementTable)
 	if s == "" {
@@ -245,13 +252,15 @@ func jsRegexpEscaper(args ...interface{}) string {
 // It also replaces runes U+2028 and U+2029 with the raw strings `\u2028` and
 // `\u2029`.
 func replace(s string, replacementTable []string) string {
-	var b bytes.Buffer
+	var b strings.Builder
 	r, w, written := rune(0), 0, 0
 	for i := 0; i < len(s); i += w {
 		// See comment in htmlEscaper.
 		r, w = utf8.DecodeRuneInString(s[i:])
 		var repl string
 		switch {
+		case int(r) < len(lowUnicodeReplacementTable):
+			repl = lowUnicodeReplacementTable[r]
 		case int(r) < len(replacementTable) && replacementTable[r] != "":
 			repl = replacementTable[r]
 		case r == '\u2028':
@@ -260,6 +269,9 @@ func replace(s string, replacementTable []string) string {
 			repl = `\u2029`
 		default:
 			continue
+		}
+		if written == 0 {
+			b.Grow(len(s))
 		}
 		b.WriteString(s[written:i])
 		b.WriteString(repl)
@@ -272,67 +284,80 @@ func replace(s string, replacementTable []string) string {
 	return b.String()
 }
 
-var jsStrReplacementTable = []string{
-	0:    `\0`,
+var lowUnicodeReplacementTable = []string{
+	0: `\u0000`, 1: `\u0001`, 2: `\u0002`, 3: `\u0003`, 4: `\u0004`, 5: `\u0005`, 6: `\u0006`,
+	'\a': `\u0007`,
+	'\b': `\u0008`,
 	'\t': `\t`,
 	'\n': `\n`,
-	'\v': `\x0b`, // "\v" == "v" on IE 6.
+	'\v': `\u000b`, // "\v" == "v" on IE 6.
+	'\f': `\f`,
+	'\r': `\r`,
+	0xe:  `\u000e`, 0xf: `\u000f`, 0x10: `\u0010`, 0x11: `\u0011`, 0x12: `\u0012`, 0x13: `\u0013`,
+	0x14: `\u0014`, 0x15: `\u0015`, 0x16: `\u0016`, 0x17: `\u0017`, 0x18: `\u0018`, 0x19: `\u0019`,
+	0x1a: `\u001a`, 0x1b: `\u001b`, 0x1c: `\u001c`, 0x1d: `\u001d`, 0x1e: `\u001e`, 0x1f: `\u001f`,
+}
+
+var jsStrReplacementTable = []string{
+	0:    `\u0000`,
+	'\t': `\t`,
+	'\n': `\n`,
+	'\v': `\u000b`, // "\v" == "v" on IE 6.
 	'\f': `\f`,
 	'\r': `\r`,
 	// Encode HTML specials as hex so the output can be embedded
 	// in HTML attributes without further encoding.
-	'"':  `\x22`,
-	'&':  `\x26`,
-	'\'': `\x27`,
-	'+':  `\x2b`,
+	'"':  `\u0022`,
+	'&':  `\u0026`,
+	'\'': `\u0027`,
+	'+':  `\u002b`,
 	'/':  `\/`,
-	'<':  `\x3c`,
-	'>':  `\x3e`,
+	'<':  `\u003c`,
+	'>':  `\u003e`,
 	'\\': `\\`,
 }
 
 // jsStrNormReplacementTable is like jsStrReplacementTable but does not
 // overencode existing escapes since this table has no entry for `\`.
 var jsStrNormReplacementTable = []string{
-	0:    `\0`,
+	0:    `\u0000`,
 	'\t': `\t`,
 	'\n': `\n`,
-	'\v': `\x0b`, // "\v" == "v" on IE 6.
+	'\v': `\u000b`, // "\v" == "v" on IE 6.
 	'\f': `\f`,
 	'\r': `\r`,
 	// Encode HTML specials as hex so the output can be embedded
 	// in HTML attributes without further encoding.
-	'"':  `\x22`,
-	'&':  `\x26`,
-	'\'': `\x27`,
-	'+':  `\x2b`,
+	'"':  `\u0022`,
+	'&':  `\u0026`,
+	'\'': `\u0027`,
+	'+':  `\u002b`,
 	'/':  `\/`,
-	'<':  `\x3c`,
-	'>':  `\x3e`,
+	'<':  `\u003c`,
+	'>':  `\u003e`,
 }
-
 var jsRegexpReplacementTable = []string{
-	0:    `\0`,
+	0:    `\u0000`,
 	'\t': `\t`,
 	'\n': `\n`,
-	'\v': `\x0b`, // "\v" == "v" on IE 6.
+	'\v': `\u000b`, // "\v" == "v" on IE 6.
 	'\f': `\f`,
 	'\r': `\r`,
 	// Encode HTML specials as hex so the output can be embedded
 	// in HTML attributes without further encoding.
-	'"':  `\x22`,
+	'"':  `\u0022`,
 	'$':  `\$`,
-	'&':  `\x26`,
-	'\'': `\x27`,
+	'&':  `\u0026`,
+	'\'': `\u0027`,
 	'(':  `\(`,
 	')':  `\)`,
 	'*':  `\*`,
-	'+':  `\x2b`,
+	'+':  `\u002b`,
 	'-':  `\-`,
 	'.':  `\.`,
 	'/':  `\/`,
-	'<':  `\x3c`,
-	'>':  `\x3e`,
+	'<':  `\u003c`,
+	'>':  `\u003e`,
 	'?':  `\?`,
 	'[':  `\[`,
 	'\\': `\\`,
@@ -363,7 +388,7 @@ func isJSIdentPart(r rune) bool {
 	return false
 }
 
-// isJSType returns true if the given MIME type should be considered JavaScript.
+// isJSType reports whether the given MIME type should be considered JavaScript.
 //
 // It is used to determine whether a script tag with a type attribute is a javascript container.
 func isJSType(mimeType string) bool {
@@ -372,19 +397,19 @@ func isJSType(mimeType string) bool {
 	//   https://tools.ietf.org/html/rfc7231#section-3.1.1
 	//   https://tools.ietf.org/html/rfc4329#section-3
 	//   https://www.ietf.org/rfc/rfc4627.txt
-	mimeType = strings.ToLower(mimeType)
 	// discard parameters
-	if i := strings.Index(mimeType, ";"); i >= 0 {
-		mimeType = mimeType[:i]
-	}
+	mimeType, _, _ = strings.Cut(mimeType, ";")
+	mimeType = strings.ToLower(mimeType)
 	mimeType = strings.TrimSpace(mimeType)
 	switch mimeType {
 	case
 		"application/ecmascript",
 		"application/javascript",
 		"application/json",
+		"application/ld+json",
 		"application/x-ecmascript",
 		"application/x-javascript",
+		"module",
 		"text/ecmascript",
 		"text/javascript",
 		"text/javascript1.0",

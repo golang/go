@@ -42,5 +42,5 @@ func main() {
 
 	const h float64 = 3.14;
 	i = h;  // ERROR "convert|incompatible|cannot"
-	i = int(h);	// ERROR "truncate"
+	i = int(h);	// ERROR "truncate|cannot convert"
 }

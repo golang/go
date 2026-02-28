@@ -26,7 +26,8 @@ void cpuHog() {
 	salt2 = foo;
 }
 
-static int cpuHogCount;
+void cpuHog2() {
+}
 
 struct cgoTracebackArg {
 	uintptr_t  context;
@@ -37,24 +38,19 @@ struct cgoTracebackArg {
 
 // pprofCgoTraceback is passed to runtime.SetCgoTraceback.
 // For testing purposes it pretends that all CPU hits in C code are in cpuHog.
+// Issue #29034: At least 2 frames are required to verify all frames are captured
+// since runtime/pprof ignores the runtime.goexit base frame if it exists.
 void pprofCgoTraceback(void* parg) {
 	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
 	arg->buf[0] = (uintptr_t)(cpuHog) + 0x10;
-	arg->buf[1] = 0;
-	++cpuHogCount;
-}
-
-// getCpuHogCount fetches the number of times we've seen cpuHog in the
-// traceback.
-int getCpuHogCount() {
-	return cpuHogCount;
+	arg->buf[1] = (uintptr_t)(cpuHog2) + 0x4;
+	arg->buf[2] = 0;
 }
 */
 import "C"
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -69,7 +65,7 @@ func init() {
 func CgoPprof() {
 	runtime.SetCgoTraceback(0, unsafe.Pointer(C.pprofCgoTraceback), nil, nil)
 
-	f, err := ioutil.TempFile("", "prof")
+	f, err := os.CreateTemp("", "prof")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
@@ -81,7 +77,7 @@ func CgoPprof() {
 	}
 
 	t0 := time.Now()
-	for C.getCpuHogCount() < 2 && time.Since(t0) < time.Second {
+	for time.Since(t0) < time.Second {
 		C.cpuHog()
 	}
 

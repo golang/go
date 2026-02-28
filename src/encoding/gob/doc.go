@@ -12,7 +12,7 @@ The implementation compiles a custom codec for each data type in the stream and
 is most efficient when a single Encoder is used to transmit a stream of values,
 amortizing the cost of compilation.
 
-Basics
+# Basics
 
 A stream of gobs is self-describing. Each data item in the stream is preceded by
 a specification of its type, expressed in terms of a small set of predefined
@@ -27,7 +27,7 @@ all type information is sent before it is needed. At the receive side, a
 Decoder retrieves values from the encoded stream and unpacks them into local
 variables.
 
-Types and Values
+# Types and Values
 
 The source and destination values/types need not correspond exactly. For structs,
 fields (identified by name) that are in the source but absent from the receiving
@@ -101,7 +101,7 @@ Gob can decode a value of any type implementing the GobDecoder or
 encoding.BinaryUnmarshaler interfaces by calling the corresponding method,
 again in that order of preference.
 
-Encoding Details
+# Encoding Details
 
 This section documents the encoding, details that are not important for most
 users. Details are presented bottom-up.
@@ -193,10 +193,14 @@ pair (-type id, encoded-type) where encoded-type is the gob encoding of a wireTy
 description, constructed from these types:
 
 	type wireType struct {
-		ArrayT  *ArrayType
-		SliceT  *SliceType
-		StructT *StructType
-		MapT    *MapType
+		ArrayT           *ArrayType
+		SliceT           *SliceType
+		StructT          *StructType
+		MapT             *MapType
+		GobEncoderT      *gobEncoderType
+		BinaryMarshalerT *gobEncoderType
+		TextMarshalerT   *gobEncoderType
+
 	}
 	type arrayType struct {
 		CommonType
@@ -223,6 +227,9 @@ description, constructed from these types:
 		CommonType
 		Key  typeId
 		Elem typeId
+	}
+	type gobEncoderType struct {
+		CommonType
 	}
 
 If there are nested type ids, the types for all inner type ids must be defined
@@ -381,7 +388,7 @@ Now we can send the Point value. Again the field number resets to -1:
 	07	// this value is 7 bytes long
 	ff 82	// the type number, 65 (1 byte (-FF) followed by 65<<1)
 	01	// add one to field number, yielding field 0
-	2c	// encoding of signed "22" (0x22 = 44 = 22<<1); Point.x = 22
+	2c	// encoding of signed "22" (0x2c = 44 = 22<<1); Point.x = 22
 	01	// add one to field number, yielding field 1
 	42	// encoding of signed "33" (0x42 = 66 = 33<<1); Point.y = 33
 	00	// end of structure

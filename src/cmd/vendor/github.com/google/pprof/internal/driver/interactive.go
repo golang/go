@@ -34,8 +34,8 @@ var tailDigitsRE = regexp.MustCompile("[0-9]+$")
 func interactive(p *profile.Profile, o *plugin.Options) error {
 	// Enter command processing loop.
 	o.UI.SetAutoComplete(newCompleter(functionNames(p)))
-	pprofVariables.set("compact_labels", "true")
-	pprofVariables["sample_index"].help += fmt.Sprintf("Or use sample_index=name, with name in %v.\n", sampleTypes(p))
+	configure("compact_labels", "true")
+	configHelp["sample_index"] += fmt.Sprintf("Or use sample_index=name, with name in %v.\n", sampleTypes(p))
 
 	// Do not wait for the visualizer to complete, to allow multiple
 	// graphs to be visualized simultaneously.
@@ -66,7 +66,12 @@ func interactive(p *profile.Profile, o *plugin.Options) error {
 					}
 					value = strings.TrimSpace(value)
 				}
-				if v := pprofVariables[name]; v != nil {
+				if isConfigurable(name) {
+					// All non-bool options require inputs
+					if len(s) == 1 && !isBoolConfig(name) {
+						o.UI.PrintErr(fmt.Errorf("please specify a value, e.g. %s=<val>", name))
+						continue
+					}
 					if name == "sample_index" {
 						// Error check sample_index=xxx to ensure xxx is a valid sample type.
 						index, err := p.SampleIndexByName(value)
@@ -74,16 +79,13 @@ func interactive(p *profile.Profile, o *plugin.Options) error {
 							o.UI.PrintErr(err)
 							continue
 						}
+						if index < 0 || index >= len(p.SampleType) {
+							o.UI.PrintErr(fmt.Errorf("invalid sample_index %q", value))
+							continue
+						}
 						value = p.SampleType[index].Type
 					}
-					if err := pprofVariables.set(name, value); err != nil {
-						o.UI.PrintErr(err)
-					}
-					continue
-				}
-				// Allow group=variable syntax by converting into variable="".
-				if v := pprofVariables[value]; v != nil && v.group == name {
-					if err := pprofVariables.set(value, ""); err != nil {
+					if err := configure(name, value); err != nil {
 						o.UI.PrintErr(err)
 					}
 					continue
@@ -99,16 +101,16 @@ func interactive(p *profile.Profile, o *plugin.Options) error {
 			case "o", "options":
 				printCurrentOptions(p, o.UI)
 				continue
-			case "exit", "quit":
+			case "exit", "quit", "q":
 				return nil
 			case "help":
 				commandHelp(strings.Join(tokens[1:], " "), o.UI)
 				continue
 			}
 
-			args, vars, err := parseCommandLine(tokens)
+			args, cfg, err := parseCommandLine(tokens)
 			if err == nil {
-				err = generateReportWrapper(p, args, vars, o)
+				err = generateReportWrapper(p, args, cfg, o)
 			}
 
 			if err != nil {
@@ -123,11 +125,17 @@ var generateReportWrapper = generateReport // For testing purposes.
 // greetings prints a brief welcome and some overall profile
 // information before accepting interactive commands.
 func greetings(p *profile.Profile, ui plugin.UI) {
-	ropt, err := reportOptions(p, pprofVariables)
+	numLabelUnits := identifyNumLabelUnits(p, ui)
+	ropt, err := reportOptions(p, numLabelUnits, currentConfig())
 	if err == nil {
-		ui.Print(strings.Join(report.ProfileLabels(report.New(p, ropt)), "\n"))
+		rpt := report.New(p, ropt)
+		ui.Print(strings.Join(report.ProfileLabels(rpt), "\n"))
+		if rpt.Total() == 0 && len(p.SampleType) > 1 {
+			ui.Print(`No samples were found with the default sample value type.`)
+			ui.Print(`Try "sample_index" command to analyze different sample values.`, "\n")
+		}
 	}
-	ui.Print("Entering interactive mode (type \"help\" for commands, \"o\" for options)")
+	ui.Print(`Entering interactive mode (type "help" for commands, "o" for options)`)
 }
 
 // shortcuts represents composite commands that expand into a sequence
@@ -171,27 +179,16 @@ func sampleTypes(p *profile.Profile) []string {
 
 func printCurrentOptions(p *profile.Profile, ui plugin.UI) {
 	var args []string
-	type groupInfo struct {
-		set    string
-		values []string
-	}
-	groups := make(map[string]*groupInfo)
-	for n, o := range pprofVariables {
-		v := o.stringValue()
+	current := currentConfig()
+	for _, f := range configFields {
+		n := f.name
+		v := current.get(f)
 		comment := ""
-		if g := o.group; g != "" {
-			gi, ok := groups[g]
-			if !ok {
-				gi = &groupInfo{}
-				groups[g] = gi
-			}
-			if o.boolValue() {
-				gi.set = n
-			}
-			gi.values = append(gi.values, n)
-			continue
-		}
 		switch {
+		case len(f.choices) > 0:
+			values := append([]string{}, f.choices...)
+			sort.Strings(values)
+			comment = "[" + strings.Join(values, " | ") + "]"
 		case n == "sample_index":
 			st := sampleTypes(p)
 			if v == "" {
@@ -213,18 +210,13 @@ func printCurrentOptions(p *profile.Profile, ui plugin.UI) {
 		}
 		args = append(args, fmt.Sprintf("  %-25s = %-20s %s", n, v, comment))
 	}
-	for g, vars := range groups {
-		sort.Strings(vars.values)
-		comment := commentStart + " [" + strings.Join(vars.values, " | ") + "]"
-		args = append(args, fmt.Sprintf("  %-25s = %-20s %s", g, vars.set, comment))
-	}
 	sort.Strings(args)
 	ui.Print(strings.Join(args, "\n"))
 }
 
 // parseCommandLine parses a command and returns the pprof command to
-// execute and a set of variables for the report.
-func parseCommandLine(input []string) ([]string, variables, error) {
+// execute and the configuration to use for the report.
+func parseCommandLine(input []string) ([]string, config, error) {
 	cmd, args := input[:1], input[1:]
 	name := cmd[0]
 
@@ -238,25 +230,32 @@ func parseCommandLine(input []string) ([]string, variables, error) {
 		}
 	}
 	if c == nil {
-		return nil, nil, fmt.Errorf("Unrecognized command: %q", name)
+		if _, ok := configHelp[name]; ok {
+			value := "<val>"
+			if len(args) > 0 {
+				value = args[0]
+			}
+			return nil, config{}, fmt.Errorf("did you mean: %s=%s", name, value)
+		}
+		return nil, config{}, fmt.Errorf("unrecognized command: %q", name)
 	}
 
 	if c.hasParam {
 		if len(args) == 0 {
-			return nil, nil, fmt.Errorf("command %s requires an argument", name)
+			return nil, config{}, fmt.Errorf("command %s requires an argument", name)
 		}
 		cmd = append(cmd, args[0])
 		args = args[1:]
 	}
 
-	// Copy the variables as options set in the command line are not persistent.
-	vcopy := pprofVariables.makeCopy()
+	// Copy config since options set in the command line should not persist.
+	vcopy := currentConfig()
 
 	var focus, ignore string
 	for i := 0; i < len(args); i++ {
 		t := args[i]
-		if _, err := strconv.ParseInt(t, 10, 32); err == nil {
-			vcopy.set("nodecount", t)
+		if n, err := strconv.ParseInt(t, 10, 32); err == nil {
+			vcopy.NodeCount = int(n)
 			continue
 		}
 		switch t[0] {
@@ -265,14 +264,14 @@ func parseCommandLine(input []string) ([]string, variables, error) {
 			if outputFile == "" {
 				i++
 				if i >= len(args) {
-					return nil, nil, fmt.Errorf("Unexpected end of line after >")
+					return nil, config{}, fmt.Errorf("unexpected end of line after >")
 				}
 				outputFile = args[i]
 			}
-			vcopy.set("output", outputFile)
+			vcopy.Output = outputFile
 		case '-':
 			if t == "--cum" || t == "-cum" {
-				vcopy.set("cum", "t")
+				vcopy.Sort = "cum"
 				continue
 			}
 			ignore = catRegex(ignore, t[1:])
@@ -282,28 +281,25 @@ func parseCommandLine(input []string) ([]string, variables, error) {
 	}
 
 	if name == "tags" {
-		updateFocusIgnore(vcopy, "tag", focus, ignore)
+		if focus != "" {
+			vcopy.TagFocus = focus
+		}
+		if ignore != "" {
+			vcopy.TagIgnore = ignore
+		}
 	} else {
-		updateFocusIgnore(vcopy, "", focus, ignore)
+		if focus != "" {
+			vcopy.Focus = focus
+		}
+		if ignore != "" {
+			vcopy.Ignore = ignore
+		}
 	}
-
-	if vcopy["nodecount"].intValue() == -1 && (name == "text" || name == "top") {
-		vcopy.set("nodecount", "10")
+	if vcopy.NodeCount == -1 && (name == "text" || name == "top") {
+		vcopy.NodeCount = 10
 	}
 
 	return cmd, vcopy, nil
-}
-
-func updateFocusIgnore(v variables, prefix, f, i string) {
-	if f != "" {
-		focus := prefix + "focus"
-		v.set(focus, catRegex(v[focus].value, f))
-	}
-
-	if i != "" {
-		ignore := prefix + "ignore"
-		v.set(ignore, catRegex(v[ignore].value, i))
-	}
 }
 
 func catRegex(a, b string) string {
@@ -333,8 +329,8 @@ func commandHelp(args string, ui plugin.UI) {
 		return
 	}
 
-	if v := pprofVariables[args]; v != nil {
-		ui.Print(v.help + "\n")
+	if help, ok := configHelp[args]; ok {
+		ui.Print(help + "\n")
 		return
 	}
 
@@ -344,18 +340,17 @@ func commandHelp(args string, ui plugin.UI) {
 // newCompleter creates an autocompletion function for a set of commands.
 func newCompleter(fns []string) func(string) string {
 	return func(line string) string {
-		v := pprofVariables
 		switch tokens := strings.Fields(line); len(tokens) {
 		case 0:
 			// Nothing to complete
 		case 1:
 			// Single token -- complete command name
-			if match := matchVariableOrCommand(v, tokens[0]); match != "" {
+			if match := matchVariableOrCommand(tokens[0]); match != "" {
 				return match
 			}
 		case 2:
 			if tokens[0] == "help" {
-				if match := matchVariableOrCommand(v, tokens[1]); match != "" {
+				if match := matchVariableOrCommand(tokens[1]); match != "" {
 					return tokens[0] + " " + match
 				}
 				return line
@@ -378,27 +373,20 @@ func newCompleter(fns []string) func(string) string {
 	}
 }
 
-// matchCommand attempts to match a string token to the prefix of a Command.
-func matchVariableOrCommand(v variables, token string) string {
+// matchVariableOrCommand attempts to match a string token to the prefix of a Command.
+func matchVariableOrCommand(token string) string {
 	token = strings.ToLower(token)
-	found := ""
+	var matches []string
 	for cmd := range pprofCommands {
 		if strings.HasPrefix(cmd, token) {
-			if found != "" {
-				return ""
-			}
-			found = cmd
+			matches = append(matches, cmd)
 		}
 	}
-	for variable := range v {
-		if strings.HasPrefix(variable, token) {
-			if found != "" {
-				return ""
-			}
-			found = variable
-		}
+	matches = append(matches, completeConfig(token)...)
+	if len(matches) == 1 {
+		return matches[0]
 	}
-	return found
+	return ""
 }
 
 // functionCompleter replaces provided substring with a function

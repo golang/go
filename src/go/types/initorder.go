@@ -7,6 +7,7 @@ package types
 import (
 	"container/heap"
 	"fmt"
+	"sort"
 )
 
 // initOrder computes the Info.InitOrder for package variables.
@@ -69,7 +70,7 @@ func (check *Checker) initOrder() {
 
 		// if n still depends on other nodes, we have a cycle
 		if n.ndeps > 0 {
-			cycle := findPath(check.objMap, n.obj, n.obj, make(objSet))
+			cycle := findPath(check.objMap, n.obj, n.obj, make(map[Object]bool))
 			// If n.obj is not part of the cycle (e.g., n.obj->b->c->d->c),
 			// cycle will be nil. Don't report anything in that case since
 			// the cycle is reported when the algorithm gets to an object
@@ -130,17 +131,17 @@ func (check *Checker) initOrder() {
 // findPath returns the (reversed) list of objects []Object{to, ... from}
 // such that there is a path of object dependencies from 'from' to 'to'.
 // If there is no such path, the result is nil.
-func findPath(objMap map[Object]*declInfo, from, to Object, visited objSet) []Object {
-	if visited[from] {
-		return nil // node already seen
+func findPath(objMap map[Object]*declInfo, from, to Object, seen map[Object]bool) []Object {
+	if seen[from] {
+		return nil
 	}
-	visited[from] = true
+	seen[from] = true
 
 	for d := range objMap[from].deps {
 		if d == to {
 			return []Object{d}
 		}
-		if P := findPath(objMap, d, to, visited); P != nil {
+		if P := findPath(objMap, d, to, seen); P != nil {
 			return append(P, d)
 		}
 	}
@@ -151,14 +152,14 @@ func findPath(objMap map[Object]*declInfo, from, to Object, visited objSet) []Ob
 // reportCycle reports an error for the given cycle.
 func (check *Checker) reportCycle(cycle []Object) {
 	obj := cycle[0]
-	check.errorf(obj.Pos(), "initialization cycle for %s", obj.Name())
+	check.errorf(obj, _InvalidInitCycle, "initialization cycle for %s", obj.Name())
 	// subtle loop: print cycle[i] for i = 0, n-1, n-2, ... 1 for len(cycle) = n
 	for i := len(cycle) - 1; i >= 0; i-- {
-		check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
+		check.errorf(obj, _InvalidInitCycle, "\t%s refers to", obj.Name()) // secondary error, \t indented
 		obj = cycle[i]
 	}
 	// print cycle[0] again to close the cycle
-	check.errorf(obj.Pos(), "\t%s", obj.Name())
+	check.errorf(obj, _InvalidInitCycle, "\t%s", obj.Name())
 }
 
 // ----------------------------------------------------------------------------
@@ -182,6 +183,12 @@ type graphNode struct {
 	pred, succ nodeSet    // consumers and dependencies of this node (lazily initialized)
 	index      int        // node index in graph slice/priority queue
 	ndeps      int        // number of outstanding dependencies before this object can be initialized
+}
+
+// cost returns the cost of removing this node, which involves copying each
+// predecessor to each successor (and vice-versa).
+func (n *graphNode) cost() int {
+	return len(n.pred) * len(n.succ)
 }
 
 type nodeSet map[*graphNode]bool
@@ -221,35 +228,48 @@ func dependencyGraph(objMap map[Object]*declInfo) []*graphNode {
 		}
 	}
 
+	var G, funcG []*graphNode // separate non-functions and functions
+	for _, n := range M {
+		if _, ok := n.obj.(*Func); ok {
+			funcG = append(funcG, n)
+		} else {
+			G = append(G, n)
+		}
+	}
+
 	// remove function nodes and collect remaining graph nodes in G
 	// (Mutually recursive functions may introduce cycles among themselves
 	// which are permitted. Yet such cycles may incorrectly inflate the dependency
 	// count for variables which in turn may not get scheduled for initialization
 	// in correct order.)
-	var G []*graphNode
-	for obj, n := range M {
-		if _, ok := obj.(*Func); ok {
-			// connect each predecessor p of n with each successor s
-			// and drop the function node (don't collect it in G)
-			for p := range n.pred {
-				// ignore self-cycles
-				if p != n {
-					// Each successor s of n becomes a successor of p, and
-					// each predecessor p of n becomes a predecessor of s.
-					for s := range n.succ {
-						// ignore self-cycles
-						if s != n {
-							p.succ.add(s)
-							s.pred.add(p)
-							delete(s.pred, n) // remove edge to n
-						}
+	//
+	// Note that because we recursively copy predecessors and successors
+	// throughout the function graph, the cost of removing a function at
+	// position X is proportional to cost * (len(funcG)-X). Therefore, we should
+	// remove high-cost functions last.
+	sort.Slice(funcG, func(i, j int) bool {
+		return funcG[i].cost() < funcG[j].cost()
+	})
+	for _, n := range funcG {
+		// connect each predecessor p of n with each successor s
+		// and drop the function node (don't collect it in G)
+		for p := range n.pred {
+			// ignore self-cycles
+			if p != n {
+				// Each successor s of n becomes a successor of p, and
+				// each predecessor p of n becomes a predecessor of s.
+				for s := range n.succ {
+					// ignore self-cycles
+					if s != n {
+						p.succ.add(s)
+						s.pred.add(p)
 					}
-					delete(p.succ, n) // remove edge to n
 				}
+				delete(p.succ, n) // remove edge to n
 			}
-		} else {
-			// collect non-function nodes
-			G = append(G, n)
+		}
+		for s := range n.succ {
+			delete(s.pred, n) // remove edge to n
 		}
 	}
 
@@ -284,11 +304,11 @@ func (a nodeQueue) Less(i, j int) bool {
 	return x.ndeps < y.ndeps || x.ndeps == y.ndeps && x.obj.order() < y.obj.order()
 }
 
-func (a *nodeQueue) Push(x interface{}) {
+func (a *nodeQueue) Push(x any) {
 	panic("unreachable")
 }
 
-func (a *nodeQueue) Pop() interface{} {
+func (a *nodeQueue) Pop() any {
 	n := len(*a)
 	x := (*a)[n-1]
 	x.index = -1 // for safety

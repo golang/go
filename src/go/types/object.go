@@ -7,21 +7,17 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
 	"go/constant"
 	"go/token"
 )
 
-// TODO(gri) Document factory, accessor methods, and fields. General clean-up.
-
 // An Object describes a named language entity such as a package,
 // constant, type, variable, function (incl. methods), or label.
 // All objects implement the Object interface.
-//
 type Object interface {
 	Parent() *Scope // scope in which this object is declared; nil for methods and struct fields
 	Pos() token.Pos // position of object identifier in declaration
-	Pkg() *Package  // nil for objects in the Universe scope and labels
+	Pkg() *Package  // package to which this object belongs; nil for labels and objects in the Universe scope
 	Name() string   // package local object name
 	Type() Type     // object type
 	Exported() bool // reports whether the name starts with a capital letter
@@ -36,8 +32,17 @@ type Object interface {
 	// 0 for all other objects (including objects in file scopes).
 	order() uint32
 
+	// color returns the object's color.
+	color() color
+
+	// setType sets the type of the object.
+	setType(Type)
+
 	// setOrder sets the order number of the object. It must be > 0.
 	setOrder(uint32)
+
+	// setColor sets the object's color. It must not be white.
+	setColor(color color)
 
 	// setParent sets the parent scope of the object.
 	setParent(*Scope)
@@ -55,7 +60,7 @@ type Object interface {
 // Id returns name if it is exported, otherwise it
 // returns the name qualified with the package path.
 func Id(pkg *Package, name string) string {
-	if ast.IsExported(name) {
+	if token.IsExported(name) {
 		return name
 	}
 	// unexported names need the package path for differentiation
@@ -80,22 +85,75 @@ type object struct {
 	name      string
 	typ       Type
 	order_    uint32
+	color_    color
 	scopePos_ token.Pos
 }
 
-func (obj *object) Parent() *Scope      { return obj.parent }
-func (obj *object) Pos() token.Pos      { return obj.pos }
-func (obj *object) Pkg() *Package       { return obj.pkg }
-func (obj *object) Name() string        { return obj.name }
-func (obj *object) Type() Type          { return obj.typ }
-func (obj *object) Exported() bool      { return ast.IsExported(obj.name) }
-func (obj *object) Id() string          { return Id(obj.pkg, obj.name) }
+// color encodes the color of an object (see Checker.objDecl for details).
+type color uint32
+
+// An object may be painted in one of three colors.
+// Color values other than white or black are considered grey.
+const (
+	white color = iota
+	black
+	grey // must be > white and black
+)
+
+func (c color) String() string {
+	switch c {
+	case white:
+		return "white"
+	case black:
+		return "black"
+	default:
+		return "grey"
+	}
+}
+
+// colorFor returns the (initial) color for an object depending on
+// whether its type t is known or not.
+func colorFor(t Type) color {
+	if t != nil {
+		return black
+	}
+	return white
+}
+
+// Parent returns the scope in which the object is declared.
+// The result is nil for methods and struct fields.
+func (obj *object) Parent() *Scope { return obj.parent }
+
+// Pos returns the declaration position of the object's identifier.
+func (obj *object) Pos() token.Pos { return obj.pos }
+
+// Pkg returns the package to which the object belongs.
+// The result is nil for labels and objects in the Universe scope.
+func (obj *object) Pkg() *Package { return obj.pkg }
+
+// Name returns the object's (package-local, unqualified) name.
+func (obj *object) Name() string { return obj.name }
+
+// Type returns the object's type.
+func (obj *object) Type() Type { return obj.typ }
+
+// Exported reports whether the object is exported (starts with a capital letter).
+// It doesn't take into account whether the object is in a local (function) scope
+// or not.
+func (obj *object) Exported() bool { return token.IsExported(obj.name) }
+
+// Id is a wrapper for Id(obj.Pkg(), obj.Name()).
+func (obj *object) Id() string { return Id(obj.pkg, obj.name) }
+
 func (obj *object) String() string      { panic("abstract") }
 func (obj *object) order() uint32       { return obj.order_ }
+func (obj *object) color() color        { return obj.color_ }
 func (obj *object) scopePos() token.Pos { return obj.scopePos_ }
 
 func (obj *object) setParent(parent *Scope)   { obj.parent = parent }
+func (obj *object) setType(typ Type)          { obj.typ = typ }
 func (obj *object) setOrder(order uint32)     { assert(order > 0); obj.order_ = order }
+func (obj *object) setColor(color color)      { assert(color != white); obj.color_ = color }
 func (obj *object) setScopePos(pos token.Pos) { obj.scopePos_ = pos }
 
 func (obj *object) sameId(pkg *Package, name string) bool {
@@ -121,14 +179,17 @@ func (obj *object) sameId(pkg *Package, name string) bool {
 }
 
 // A PkgName represents an imported Go package.
+// PkgNames don't have a type.
 type PkgName struct {
 	object
 	imported *Package
 	used     bool // set if the package was used
 }
 
+// NewPkgName returns a new PkgName object representing an imported package.
+// The remaining arguments set the attributes found with all Objects.
 func NewPkgName(pos token.Pos, pkg *Package, name string, imported *Package) *PkgName {
-	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, token.NoPos}, imported, false}
+	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, black, token.NoPos}, imported, false}
 }
 
 // Imported returns the package that was imported.
@@ -138,24 +199,54 @@ func (obj *PkgName) Imported() *Package { return obj.imported }
 // A Const represents a declared constant.
 type Const struct {
 	object
-	val     constant.Value
-	visited bool // for initialization cycle detection
+	val constant.Value
 }
 
+// NewConst returns a new constant with value val.
+// The remaining arguments set the attributes found with all Objects.
 func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.Value) *Const {
-	return &Const{object{nil, pos, pkg, name, typ, 0, token.NoPos}, val, false}
+	return &Const{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, val}
 }
 
+// Val returns the constant's value.
 func (obj *Const) Val() constant.Value { return obj.val }
-func (*Const) isDependency()           {} // a constant may be a dependency of an initialization expression
 
-// A TypeName represents a name for a (named or alias) type.
+func (*Const) isDependency() {} // a constant may be a dependency of an initialization expression
+
+// A TypeName represents a name for a (defined or alias) type.
 type TypeName struct {
 	object
 }
 
+// NewTypeName returns a new type name denoting the given typ.
+// The remaining arguments set the attributes found with all Objects.
+//
+// The typ argument may be a defined (Named) type or an alias type.
+// It may also be nil such that the returned TypeName can be used as
+// argument for NewNamed, which will set the TypeName's type as a side-
+// effect.
 func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
-	return &TypeName{object{nil, pos, pkg, name, typ, 0, token.NoPos}}
+	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}}
+}
+
+// _NewTypeNameLazy returns a new defined type like NewTypeName, but it
+// lazily calls resolve to finish constructing the Named object.
+func _NewTypeNameLazy(pos token.Pos, pkg *Package, name string, load func(named *Named) (tparams []*TypeParam, underlying Type, methods []*Func)) *TypeName {
+	obj := NewTypeName(pos, pkg, name, nil)
+
+	resolve := func(_ *Context, t *Named) (*TypeParamList, Type, *methodList) {
+		tparams, underlying, methods := load(t)
+
+		switch underlying.(type) {
+		case nil, *Named:
+			panic(fmt.Sprintf("invalid underlying type %T", t.underlying))
+		}
+
+		return bindTParams(tparams), underlying, newMethodList(methods)
+	}
+
+	NewNamed(obj, nil, nil).resolver = resolve
+	return obj
 }
 
 // IsAlias reports whether obj is an alias name for a type.
@@ -177,6 +268,8 @@ func (obj *TypeName) IsAlias() bool {
 		return obj.pkg != nil || t.name != obj.name || t == universeByte || t == universeRune
 	case *Named:
 		return obj != t.obj
+	case *TypeParam:
+		return obj != t.obj
 	default:
 		return true
 	}
@@ -185,42 +278,58 @@ func (obj *TypeName) IsAlias() bool {
 // A Variable represents a declared variable (including function parameters and results, and struct fields).
 type Var struct {
 	object
-	anonymous bool // if set, the variable is an anonymous struct field, and name is the type name
-	visited   bool // for initialization cycle detection
-	isField   bool // var is struct field
-	used      bool // set if the variable was used
+	embedded bool // if set, the variable is an embedded struct field, and name is the type name
+	isField  bool // var is struct field
+	used     bool // set if the variable was used
 }
 
+// NewVar returns a new variable.
+// The arguments set the attributes found with all Objects.
 func NewVar(pos token.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}}
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}}
 }
 
+// NewParam returns a new variable representing a function parameter.
 func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, used: true} // parameters are always 'used'
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, used: true} // parameters are always 'used'
 }
 
-func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, anonymous: anonymous, isField: true}
+// NewField returns a new variable representing a struct field.
+// For embedded fields, the name is the unqualified type name
+// under which the field is accessible.
+func NewField(pos token.Pos, pkg *Package, name string, typ Type, embedded bool) *Var {
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, embedded: embedded, isField: true}
 }
 
-func (obj *Var) Anonymous() bool { return obj.anonymous }
-func (obj *Var) IsField() bool   { return obj.isField }
-func (*Var) isDependency()       {} // a variable may be a dependency of an initialization expression
+// Anonymous reports whether the variable is an embedded field.
+// Same as Embedded; only present for backward-compatibility.
+func (obj *Var) Anonymous() bool { return obj.embedded }
+
+// Embedded reports whether the variable is an embedded field.
+func (obj *Var) Embedded() bool { return obj.embedded }
+
+// IsField reports whether the variable is a struct field.
+func (obj *Var) IsField() bool { return obj.isField }
+
+func (*Var) isDependency() {} // a variable may be a dependency of an initialization expression
 
 // A Func represents a declared function, concrete method, or abstract
 // (interface) method. Its Type() is always a *Signature.
 // An abstract method may belong to many interfaces due to embedding.
 type Func struct {
 	object
+	hasPtrRecv_ bool // only valid for methods that don't have a type yet; use hasPtrRecv() to read
 }
 
+// NewFunc returns a new function with the given signature, representing
+// the function's type.
 func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
-	// don't store a nil signature
+	// don't store a (typed) nil signature
 	var typ Type
 	if sig != nil {
 		typ = sig
 	}
-	return &Func{object{nil, pos, pkg, name, typ, 0, token.NoPos}}
+	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, false}
 }
 
 // FullName returns the package- or receiver-type-qualified name of
@@ -231,17 +340,42 @@ func (obj *Func) FullName() string {
 	return buf.String()
 }
 
+// Scope returns the scope of the function's body block.
+// The result is nil for imported or instantiated functions and methods
+// (but there is also no mechanism to get to an instantiated function).
 func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
-func (*Func) isDependency()     {} // a function may be a dependency of an initialization expression
+
+// hasPtrRecv reports whether the receiver is of the form *T for the given method obj.
+func (obj *Func) hasPtrRecv() bool {
+	// If a method's receiver type is set, use that as the source of truth for the receiver.
+	// Caution: Checker.funcDecl (decl.go) marks a function by setting its type to an empty
+	// signature. We may reach here before the signature is fully set up: we must explicitly
+	// check if the receiver is set (we cannot just look for non-nil obj.typ).
+	if sig, _ := obj.typ.(*Signature); sig != nil && sig.recv != nil {
+		_, isPtr := deref(sig.recv.typ)
+		return isPtr
+	}
+
+	// If a method's type is not set it may be a method/function that is:
+	// 1) client-supplied (via NewFunc with no signature), or
+	// 2) internally created but not yet type-checked.
+	// For case 1) we can't do anything; the client must know what they are doing.
+	// For case 2) we can use the information gathered by the resolver.
+	return obj.hasPtrRecv_
+}
+
+func (*Func) isDependency() {} // a function may be a dependency of an initialization expression
 
 // A Label represents a declared label.
+// Labels don't have a type.
 type Label struct {
 	object
 	used bool // set if the label was used
 }
 
+// NewLabel returns a new label.
 func NewLabel(pos token.Pos, pkg *Package, name string) *Label {
-	return &Label{object{pos: pos, pkg: pkg, name: name, typ: Typ[Invalid]}, false}
+	return &Label{object{pos: pos, pkg: pkg, name: name, typ: Typ[Invalid], color_: black}, false}
 }
 
 // A Builtin represents a built-in function.
@@ -252,7 +386,7 @@ type Builtin struct {
 }
 
 func newBuiltin(id builtinId) *Builtin {
-	return &Builtin{object{name: predeclaredFuncs[id].name, typ: Typ[Invalid]}, id}
+	return &Builtin{object{name: predeclaredFuncs[id].name, typ: Typ[Invalid], color_: black}, id}
 }
 
 // Nil represents the predeclared value nil.
@@ -278,6 +412,9 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 	case *TypeName:
 		tname = obj
 		buf.WriteString("type")
+		if isTypeParam(typ) {
+			buf.WriteString(" parameter")
+		}
 
 	case *Var:
 		if obj.isField {
@@ -323,17 +460,32 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 	}
 
 	if tname != nil {
-		// We have a type object: Don't print anything more for
-		// basic types since there's no more information (names
-		// are the same; see also comment in TypeName.IsAlias).
-		if _, ok := typ.(*Basic); ok {
+		switch t := typ.(type) {
+		case *Basic:
+			// Don't print anything more for basic types since there's
+			// no more information.
 			return
+		case *Named:
+			if t.TypeParams().Len() > 0 {
+				newTypeWriter(buf, qf).tParamList(t.TypeParams().list())
+			}
 		}
 		if tname.IsAlias() {
 			buf.WriteString(" =")
+		} else if t, _ := typ.(*TypeParam); t != nil {
+			typ = t.bound
 		} else {
-			typ = typ.Underlying()
+			// TODO(gri) should this be fromRHS for *Named?
+			typ = under(typ)
 		}
+	}
+
+	// Special handling for any: because WriteType will format 'any' as 'any',
+	// resulting in the object string `type any = any` rather than `type any =
+	// interface{}`. To avoid this, swap in a different empty interface.
+	if obj == universeAny {
+		assert(Identical(typ, &emptyInterface))
+		typ = &emptyInterface
 	}
 
 	buf.WriteByte(' ')

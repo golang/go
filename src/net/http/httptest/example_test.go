@@ -7,7 +7,6 @@ package httptest_test
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -23,7 +22,7 @@ func ExampleResponseRecorder() {
 	handler(w, req)
 
 	resp := w.Result()
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 
 	fmt.Println(resp.StatusCode)
 	fmt.Println(resp.Header.Get("Content-Type"))
@@ -45,7 +44,7 @@ func ExampleServer() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	greeting, err := ioutil.ReadAll(res.Body)
+	greeting, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		log.Fatal(err)
@@ -53,6 +52,28 @@ func ExampleServer() {
 
 	fmt.Printf("%s", greeting)
 	// Output: Hello, client
+}
+
+func ExampleServer_hTTP2() {
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Hello, %s", r.Proto)
+	}))
+	ts.EnableHTTP2 = true
+	ts.StartTLS()
+	defer ts.Close()
+
+	res, err := ts.Client().Get(ts.URL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	greeting, err := io.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s", greeting)
+
+	// Output: Hello, HTTP/2.0
 }
 
 func ExampleNewTLSServer() {
@@ -67,7 +88,7 @@ func ExampleNewTLSServer() {
 		log.Fatal(err)
 	}
 
-	greeting, err := ioutil.ReadAll(res.Body)
+	greeting, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		log.Fatal(err)

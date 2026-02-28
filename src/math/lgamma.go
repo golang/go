@@ -103,7 +103,7 @@ var _lgamA = [...]float64{
 	4.48640949618915160150e-05, // 0x3F07858E90A45837
 }
 var _lgamR = [...]float64{
-	1.0, // placeholder
+	1.0,                        // placeholder
 	1.39200533467621045958e+00, // 0x3FF645A762C4AB74
 	7.21935547567138069525e-01, // 0x3FE71A1893D3DCDC
 	1.71933865632803078993e-01, // 0x3FC601EDCCFBDF27
@@ -166,6 +166,7 @@ var _lgamW = [...]float64{
 // Lgamma returns the natural logarithm and sign (-1 or +1) of Gamma(x).
 //
 // Special cases are:
+//
 //	Lgamma(+Inf) = +Inf
 //	Lgamma(0) = +Inf
 //	Lgamma(-integer) = +Inf

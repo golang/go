@@ -59,8 +59,10 @@ func (z *Rat) GobDecode(buf []byte) error {
 
 // MarshalText implements the encoding.TextMarshaler interface.
 func (x *Rat) MarshalText() (text []byte, err error) {
-	// TODO(gri): get rid of the []byte/string conversion
-	return []byte(x.RatString()), nil
+	if x.IsInt() {
+		return x.a.MarshalText()
+	}
+	return x.marshal(), nil
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.

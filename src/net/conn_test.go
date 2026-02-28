@@ -5,6 +5,8 @@
 // This file implements API tests across platforms and will never have a build
 // tag.
 
+//go:build !js
+
 package net
 
 import (
@@ -15,7 +17,7 @@ import (
 // someTimeout is used just to test that net.Conn implementations
 // don't explode when their SetFooDeadline methods are called.
 // It isn't actually used for testing timeouts.
-const someTimeout = 10 * time.Second
+const someTimeout = 1 * time.Hour
 
 func TestConnAndListener(t *testing.T) {
 	for i, network := range []string{"tcp", "unix", "unixpacket"} {
@@ -24,13 +26,10 @@ func TestConnAndListener(t *testing.T) {
 			continue
 		}
 
-		ls, err := newLocalServer(network)
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := newLocalServer(t, network)
 		defer ls.teardown()
 		ch := make(chan error, 1)
-		handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
+		handler := func(ls *localServer, ln Listener) { ls.transponder(ln, ch) }
 		if err := ls.buildup(handler); err != nil {
 			t.Fatal(err)
 		}

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // The gen command generates Go code (in the parent directory) for all
@@ -15,25 +16,38 @@ import (
 	"go/format"
 	"io/ioutil"
 	"log"
+	"os"
 	"path"
 	"regexp"
+	"runtime"
+	"runtime/pprof"
+	"runtime/trace"
 	"sort"
 	"strings"
+	"sync"
 )
 
+// TODO: capitalize these types, so that we can more easily tell variable names
+// apart from type names, and avoid awkward func parameters like "arch arch".
+
 type arch struct {
-	name            string
-	pkg             string // obj package to import for this arch.
-	genfile         string // source file containing opcode code generation.
-	ops             []opData
-	blocks          []blockData
-	regnames        []string
-	gpregmask       regMask
-	fpregmask       regMask
-	specialregmask  regMask
-	framepointerreg int8
-	linkreg         int8
-	generic         bool
+	name               string
+	pkg                string // obj package to import for this arch.
+	genfile            string // source file containing opcode code generation.
+	ops                []opData
+	blocks             []blockData
+	regnames           []string
+	ParamIntRegNames   string
+	ParamFloatRegNames string
+	gpregmask          regMask
+	fpregmask          regMask
+	fp32regmask        regMask
+	fp64regmask        regMask
+	specialregmask     regMask
+	framepointerreg    int8
+	linkreg            int8
+	generic            bool
+	imports            []string
 }
 
 type opData struct {
@@ -49,22 +63,32 @@ type opData struct {
 	resultNotInArgs   bool   // outputs must not be allocated to the same registers as inputs
 	clobberFlags      bool   // this op clobbers flags register
 	call              bool   // is a function call
+	tailCall          bool   // is a tail call
 	nilCheck          bool   // this op is a nil check on arg0
 	faultOnNilArg0    bool   // this op will fault if arg0 is nil (and aux encodes a small offset)
 	faultOnNilArg1    bool   // this op will fault if arg1 is nil (and aux encodes a small offset)
-	usesScratch       bool   // this op requires scratch memory space
 	hasSideEffects    bool   // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
+	zeroWidth         bool   // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
+	unsafePoint       bool   // this op is an unsafe point, i.e. not safe for async preemption
 	symEffect         string // effect this op has on symbol in aux
+	scale             uint8  // amd64/386 indexed load scale
 }
 
 type blockData struct {
-	name string
+	name     string // the suffix for this block ("EQ", "LT", etc.)
+	controls int    // the number of control values this type of block requires
+	aux      string // the type of the Aux/AuxInt value, if any
 }
 
 type regInfo struct {
-	inputs   []regMask
+	// inputs[i] encodes the set of registers allowed for the i'th input.
+	// Inputs that don't use registers (flags, memory, etc.) should be 0.
+	inputs []regMask
+	// clobbers encodes the set of registers that are overwritten by
+	// the instruction (other than the output registers).
 	clobbers regMask
-	outputs  []regMask
+	// outputs[i] encodes the set of registers allowed for the i'th output.
+	outputs []regMask
 }
 
 type regMask uint64
@@ -86,11 +110,83 @@ func (a arch) regMaskComment(r regMask) string {
 
 var archs []arch
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
+var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
+var tracefile = flag.String("trace", "", "write trace to `file`")
+
 func main() {
 	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
+	}
+	if *tracefile != "" {
+		f, err := os.Create(*tracefile)
+		if err != nil {
+			log.Fatalf("failed to create trace output file: %v", err)
+		}
+		defer func() {
+			if err := f.Close(); err != nil {
+				log.Fatalf("failed to close trace file: %v", err)
+			}
+		}()
+
+		if err := trace.Start(f); err != nil {
+			log.Fatalf("failed to start trace: %v", err)
+		}
+		defer trace.Stop()
+	}
+
 	sort.Sort(ArchsByName(archs))
-	genOp()
-	genLower()
+
+	// The generate tasks are run concurrently, since they are CPU-intensive
+	// that can easily make use of many cores on a machine.
+	//
+	// Note that there is no limit on the concurrency at the moment. On a
+	// four-core laptop at the time of writing, peak RSS usually reaches
+	// ~200MiB, which seems doable by practically any machine nowadays. If
+	// that stops being the case, we can cap this func to a fixed number of
+	// architectures being generated at once.
+
+	tasks := []func(){
+		genOp,
+	}
+	for _, a := range archs {
+		a := a // the funcs are ran concurrently at a later time
+		tasks = append(tasks, func() {
+			genRules(a)
+			genSplitLoadRules(a)
+		})
+	}
+	var wg sync.WaitGroup
+	for _, task := range tasks {
+		task := task
+		wg.Add(1)
+		go func() {
+			task()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			log.Fatal("could not create memory profile: ", err)
+		}
+		defer f.Close()
+		runtime.GC() // get up-to-date statistics
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			log.Fatal("could not write memory profile: ", err)
+		}
+	}
 }
 
 func genOp() {
@@ -131,6 +227,21 @@ func genOp() {
 	fmt.Fprintln(w, "}")
 	fmt.Fprintln(w, "func (k BlockKind) String() string {return blockString[k]}")
 
+	// generate block kind auxint method
+	fmt.Fprintln(w, "func (k BlockKind) AuxIntType() string {")
+	fmt.Fprintln(w, "switch k {")
+	for _, a := range archs {
+		for _, b := range a.blocks {
+			if b.auxIntType() == "invalid" {
+				continue
+			}
+			fmt.Fprintf(w, "case Block%s%s: return \"%s\"\n", a.Name(), b.name, b.auxIntType())
+		}
+	}
+	fmt.Fprintln(w, "}")
+	fmt.Fprintln(w, "return \"\"")
+	fmt.Fprintln(w, "}")
+
 	// generate Op* declarations
 	fmt.Fprintln(w, "const (")
 	fmt.Fprintln(w, "OpInvalid Op = iota") // make sure OpInvalid is 0.
@@ -169,6 +280,9 @@ func genOp() {
 				if v.reg.clobbers != 0 {
 					log.Fatalf("%s is rematerializeable and clobbers registers", v.name)
 				}
+				if v.clobberFlags {
+					log.Fatalf("%s is rematerializeable and clobbers flags", v.name)
+				}
 				fmt.Fprintln(w, "rematerializeable: true,")
 			}
 			if v.commutative {
@@ -176,11 +290,13 @@ func genOp() {
 			}
 			if v.resultInArg0 {
 				fmt.Fprintln(w, "resultInArg0: true,")
-				if v.reg.inputs[0] != v.reg.outputs[0] {
-					log.Fatalf("input[0] and output[0] must use the same registers for %s", v.name)
+				// OpConvert's register mask is selected dynamically,
+				// so don't try to check it in the static table.
+				if v.name != "Convert" && v.reg.inputs[0] != v.reg.outputs[0] {
+					log.Fatalf("%s: input[0] and output[0] must use the same registers for %s", a.name, v.name)
 				}
-				if v.commutative && v.reg.inputs[1] != v.reg.outputs[0] {
-					log.Fatalf("input[1] and output[0] must use the same registers for %s", v.name)
+				if v.name != "Convert" && v.commutative && v.reg.inputs[1] != v.reg.outputs[0] {
+					log.Fatalf("%s: input[1] and output[0] must use the same registers for %s", a.name, v.name)
 				}
 			}
 			if v.resultNotInArgs {
@@ -192,33 +308,39 @@ func genOp() {
 			if v.call {
 				fmt.Fprintln(w, "call: true,")
 			}
+			if v.tailCall {
+				fmt.Fprintln(w, "tailCall: true,")
+			}
 			if v.nilCheck {
 				fmt.Fprintln(w, "nilCheck: true,")
 			}
 			if v.faultOnNilArg0 {
 				fmt.Fprintln(w, "faultOnNilArg0: true,")
-				if v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
+				if v.aux != "Sym" && v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
 					log.Fatalf("faultOnNilArg0 with aux %s not allowed", v.aux)
 				}
 			}
 			if v.faultOnNilArg1 {
 				fmt.Fprintln(w, "faultOnNilArg1: true,")
-				if v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
+				if v.aux != "Sym" && v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
 					log.Fatalf("faultOnNilArg1 with aux %s not allowed", v.aux)
 				}
 			}
-			if v.usesScratch {
-				fmt.Fprintln(w, "usesScratch: true,")
-			}
 			if v.hasSideEffects {
 				fmt.Fprintln(w, "hasSideEffects: true,")
+			}
+			if v.zeroWidth {
+				fmt.Fprintln(w, "zeroWidth: true,")
+			}
+			if v.unsafePoint {
+				fmt.Fprintln(w, "unsafePoint: true,")
 			}
 			needEffect := strings.HasPrefix(v.aux, "Sym")
 			if v.symEffect != "" {
 				if !needEffect {
 					log.Fatalf("symEffect with aux %s not allowed", v.aux)
 				}
-				fmt.Fprintf(w, "symEffect: Sym%s,\n", v.symEffect)
+				fmt.Fprintf(w, "symEffect: Sym%s,\n", strings.Replace(v.symEffect, ",", "|Sym", -1))
 			} else if needEffect {
 				log.Fatalf("symEffect needed for aux %s", v.aux)
 			}
@@ -230,6 +352,9 @@ func genOp() {
 			}
 			if v.asm != "" {
 				fmt.Fprintf(w, "asm: %s.A%s,\n", pkg, v.asm)
+			}
+			if v.scale != 0 {
+				fmt.Fprintf(w, "scale: %d,\n", v.scale)
 			}
 			fmt.Fprintln(w, "reg:regInfo{")
 
@@ -277,14 +402,17 @@ func genOp() {
 	fmt.Fprintln(w, "}")
 
 	fmt.Fprintln(w, "func (o Op) Asm() obj.As {return opcodeTable[o].asm}")
+	fmt.Fprintln(w, "func (o Op) Scale() int16 {return int16(opcodeTable[o].scale)}")
 
 	// generate op string method
 	fmt.Fprintln(w, "func (o Op) String() string {return opcodeTable[o].name }")
 
-	fmt.Fprintln(w, "func (o Op) UsesScratch() bool { return opcodeTable[o].usesScratch }")
-
 	fmt.Fprintln(w, "func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }")
 	fmt.Fprintln(w, "func (o Op) IsCall() bool { return opcodeTable[o].call }")
+	fmt.Fprintln(w, "func (o Op) IsTailCall() bool { return opcodeTable[o].tailCall }")
+	fmt.Fprintln(w, "func (o Op) HasSideEffects() bool { return opcodeTable[o].hasSideEffects }")
+	fmt.Fprintln(w, "func (o Op) UnsafePoint() bool { return opcodeTable[o].unsafePoint }")
+	fmt.Fprintln(w, "func (o Op) ResultInArg0() bool { return opcodeTable[o].resultInArg0 }")
 
 	// generate registers
 	for _, a := range archs {
@@ -292,7 +420,10 @@ func genOp() {
 			continue
 		}
 		fmt.Fprintf(w, "var registers%s = [...]Register {\n", a.name)
+		var gcRegN int
+		num := map[string]int8{}
 		for i, r := range a.regnames {
+			num[r] = int8(i)
 			pkg := a.pkg[len("cmd/internal/obj/"):]
 			var objname string // name in cmd/internal/obj/$ARCH
 			switch r {
@@ -306,11 +437,55 @@ func genOp() {
 			default:
 				objname = pkg + ".REG_" + r
 			}
-			fmt.Fprintf(w, "  {%d, %s, \"%s\"},\n", i, objname, r)
+			// Assign a GC register map index to registers
+			// that may contain pointers.
+			gcRegIdx := -1
+			if a.gpregmask&(1<<uint(i)) != 0 {
+				gcRegIdx = gcRegN
+				gcRegN++
+			}
+			fmt.Fprintf(w, "  {%d, %s, %d, \"%s\"},\n", i, objname, gcRegIdx, r)
+		}
+		parameterRegisterList := func(paramNamesString string) []int8 {
+			paramNamesString = strings.TrimSpace(paramNamesString)
+			if paramNamesString == "" {
+				return nil
+			}
+			paramNames := strings.Split(paramNamesString, " ")
+			var paramRegs []int8
+			for _, regName := range paramNames {
+				if regName == "" {
+					// forgive extra spaces
+					continue
+				}
+				if regNum, ok := num[regName]; ok {
+					paramRegs = append(paramRegs, regNum)
+					delete(num, regName)
+				} else {
+					log.Fatalf("parameter register %s for architecture %s not a register name (or repeated in parameter list)", regName, a.name)
+				}
+			}
+			return paramRegs
+		}
+
+		paramIntRegs := parameterRegisterList(a.ParamIntRegNames)
+		paramFloatRegs := parameterRegisterList(a.ParamFloatRegNames)
+
+		if gcRegN > 32 {
+			// Won't fit in a uint32 mask.
+			log.Fatalf("too many GC registers (%d > 32) on %s", gcRegN, a.name)
 		}
 		fmt.Fprintln(w, "}")
+		fmt.Fprintf(w, "var paramIntReg%s = %#v\n", a.name, paramIntRegs)
+		fmt.Fprintf(w, "var paramFloatReg%s = %#v\n", a.name, paramFloatRegs)
 		fmt.Fprintf(w, "var gpRegMask%s = regMask(%d)\n", a.name, a.gpregmask)
 		fmt.Fprintf(w, "var fpRegMask%s = regMask(%d)\n", a.name, a.fpregmask)
+		if a.fp32regmask != 0 {
+			fmt.Fprintf(w, "var fp32RegMask%s = regMask(%d)\n", a.name, a.fp32regmask)
+		}
+		if a.fp64regmask != 0 {
+			fmt.Fprintf(w, "var fp64RegMask%s = regMask(%d)\n", a.name, a.fp64regmask)
+		}
 		fmt.Fprintf(w, "var specialRegMask%s = regMask(%d)\n", a.name, a.specialregmask)
 		fmt.Fprintf(w, "var framepointerReg%s = int8(%d)\n", a.name, a.framepointerreg)
 		fmt.Fprintf(w, "var linkReg%s = int8(%d)\n", a.name, a.linkreg)
@@ -325,31 +500,38 @@ func genOp() {
 		panic(err)
 	}
 
-	err = ioutil.WriteFile("../opGen.go", b, 0666)
-	if err != nil {
+	if err := ioutil.WriteFile("../opGen.go", b, 0666); err != nil {
 		log.Fatalf("can't write output: %v\n", err)
 	}
 
 	// Check that the arch genfile handles all the arch-specific opcodes.
 	// This is very much a hack, but it is better than nothing.
+	//
+	// Do a single regexp pass to record all ops being handled in a map, and
+	// then compare that with the ops list. This is much faster than one
+	// regexp pass per opcode.
 	for _, a := range archs {
 		if a.genfile == "" {
 			continue
+		}
+
+		pattern := fmt.Sprintf(`\Wssa\.Op%s([a-zA-Z0-9_]+)\W`, a.name)
+		rxOp, err := regexp.Compile(pattern)
+		if err != nil {
+			log.Fatalf("bad opcode regexp %s: %v", pattern, err)
 		}
 
 		src, err := ioutil.ReadFile(a.genfile)
 		if err != nil {
 			log.Fatalf("can't read %s: %v", a.genfile, err)
 		}
-
-		for _, v := range a.ops {
-			pattern := fmt.Sprintf("\\Wssa[.]Op%s%s\\W", a.name, v.name)
-			match, err := regexp.Match(pattern, src)
-			if err != nil {
-				log.Fatalf("bad opcode regexp %s: %v", pattern, err)
-			}
-			if !match {
-				log.Fatalf("Op%s%s has no code generation in %s", a.name, v.name, a.genfile)
+		seen := make(map[string]bool, len(a.ops))
+		for _, m := range rxOp.FindAllSubmatch(src, -1) {
+			seen[string(m[1])] = true
+		}
+		for _, op := range a.ops {
+			if !seen[op.name] {
+				log.Fatalf("Op%s%s has no code generation in %s", a.name, op.name, a.genfile)
 			}
 		}
 	}
@@ -362,12 +544,6 @@ func (a arch) Name() string {
 		s = ""
 	}
 	return s
-}
-
-func genLower() {
-	for _, a := range archs {
-		genRules(a)
-	}
 }
 
 // countRegs returns the number of set bits in the register mask.

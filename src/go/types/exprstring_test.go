@@ -27,6 +27,33 @@ var testExprs = []testEntry{
 	{"func(x int) complex128 {}", "(func(x int) complex128 literal)"},
 	{"[]int{1, 2, 3}", "([]int literal)"},
 
+	// type expressions
+	dup("[1 << 10]byte"),
+	dup("[]int"),
+	dup("*int"),
+	dup("struct{x int}"),
+	dup("func()"),
+	dup("func(int, float32) string"),
+	dup("interface{m()}"),
+	dup("interface{m() string; n(x int)}"),
+	dup("interface{~int}"),
+
+	dup("map[string]int"),
+	dup("chan E"),
+	dup("<-chan E"),
+	dup("chan<- E"),
+
+	// new interfaces
+	dup("interface{int}"),
+	dup("interface{~int}"),
+	dup("interface{~int}"),
+	dup("interface{int | string}"),
+	dup("interface{~int | ~string; float64; m()}"),
+
+	// See above.
+	// dup("interface{type a, b, c; ~int | ~string; float64; m()}"),
+	dup("interface{~T[int, string] | string}"),
+
 	// non-type expressions
 	dup("(x)"),
 	dup("x.f"),

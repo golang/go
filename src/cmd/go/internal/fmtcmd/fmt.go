@@ -2,27 +2,33 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package fmtcmd implements the ``go fmt'' command.
+// Package fmtcmd implements the “go fmt” command.
 package fmtcmd
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
-	"cmd/go/internal/str"
+	"cmd/go/internal/modload"
+	"cmd/internal/sys"
 )
 
 func init() {
 	base.AddBuildFlagsNX(&CmdFmt.Flag)
+	base.AddModFlag(&CmdFmt.Flag)
+	base.AddModCommonFlags(&CmdFmt.Flag)
 }
 
 var CmdFmt = &base.Command{
 	Run:       runFmt,
-	UsageLine: "fmt [-n] [-x] [packages]",
-	Short:     "run gofmt on package sources",
+	UsageLine: "go fmt [-n] [-x] [packages]",
+	Short:     "gofmt (reformat) package sources",
 	Long: `
 Fmt runs the command 'gofmt -l -w' on the packages named
 by the import paths. It prints the names of the files that are modified.
@@ -33,20 +39,60 @@ For more about specifying packages, see 'go help packages'.
 The -n flag prints commands that would be executed.
 The -x flag prints commands as they are executed.
 
+The -mod flag's value sets which module download mode
+to use: readonly or vendor. See 'go help modules' for more.
+
 To run gofmt with specific options, run gofmt itself.
 
 See also: go fix, go vet.
 	`,
 }
 
-func runFmt(cmd *base.Command, args []string) {
+func runFmt(ctx context.Context, cmd *base.Command, args []string) {
+	printed := false
 	gofmt := gofmtPath()
-	for _, pkg := range load.Packages(args) {
+
+	gofmtArgs := []string{gofmt, "-l", "-w"}
+	gofmtArgLen := len(gofmt) + len(" -l -w")
+
+	baseGofmtArgs := len(gofmtArgs)
+	baseGofmtArgLen := gofmtArgLen
+
+	for _, pkg := range load.PackagesAndErrors(ctx, load.PackageOpts{}, args) {
+		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
+			if !printed {
+				fmt.Fprintf(os.Stderr, "go: not formatting packages in dependency modules\n")
+				printed = true
+			}
+			continue
+		}
+		if pkg.Error != nil {
+			var nogo *load.NoGoError
+			var embed *load.EmbedError
+			if (errors.As(pkg.Error, &nogo) || errors.As(pkg.Error, &embed)) && len(pkg.InternalAllGoFiles()) > 0 {
+				// Skip this error, as we will format
+				// all files regardless.
+			} else {
+				base.Errorf("%v", pkg.Error)
+				continue
+			}
+		}
 		// Use pkg.gofiles instead of pkg.Dir so that
 		// the command only applies to this package,
 		// not to packages in subdirectories.
-		files := base.FilterDotUnderscoreFiles(base.RelPaths(pkg.Internal.AllGoFiles))
-		base.Run(str.StringList(gofmt, "-l", "-w", files))
+		files := base.RelPaths(pkg.InternalAllGoFiles())
+		for _, file := range files {
+			gofmtArgs = append(gofmtArgs, file)
+			gofmtArgLen += 1 + len(file) // plus separator
+			if gofmtArgLen >= sys.ExecArgLengthLimit {
+				base.Run(gofmtArgs)
+				gofmtArgs = gofmtArgs[:baseGofmtArgs]
+				gofmtArgLen = baseGofmtArgLen
+			}
+		}
+	}
+	if len(gofmtArgs) > baseGofmtArgs {
+		base.Run(gofmtArgs)
 	}
 }
 

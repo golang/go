@@ -5,7 +5,7 @@
 // Package strconv implements conversions to and from string representations
 // of basic data types.
 //
-// Numeric Conversions
+// # Numeric Conversions
 //
 // The most common numeric conversions are Atoi (string to int) and Itoa (int to string).
 //
@@ -32,26 +32,25 @@
 //
 // FormatBool, FormatFloat, FormatInt, and FormatUint convert values to strings:
 //
-// 	s := strconv.FormatBool(true)
-// 	s := strconv.FormatFloat(3.1415, 'E', -1, 64)
-// 	s := strconv.FormatInt(-42, 16)
-// 	s := strconv.FormatUint(42, 16)
+//	s := strconv.FormatBool(true)
+//	s := strconv.FormatFloat(3.1415, 'E', -1, 64)
+//	s := strconv.FormatInt(-42, 16)
+//	s := strconv.FormatUint(42, 16)
 //
 // AppendBool, AppendFloat, AppendInt, and AppendUint are similar but
 // append the formatted value to a destination slice.
 //
-// String Conversions
+// # String Conversions
 //
 // Quote and QuoteToASCII convert strings to quoted Go string literals.
 // The latter guarantees that the result is an ASCII string, by escaping
 // any non-ASCII Unicode with \u:
 //
-//	q := Quote("Hello, 世界")
-//	q := QuoteToASCII("Hello, 世界")
+//	q := strconv.Quote("Hello, 世界")
+//	q := strconv.QuoteToASCII("Hello, 世界")
 //
 // QuoteRune and QuoteRuneToASCII are similar but accept runes and
 // return quoted Go rune literals.
 //
 // Unquote and UnquoteChar unquote Go string and rune literals.
-//
 package strconv

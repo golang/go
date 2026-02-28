@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/quick"
 )
@@ -16,21 +17,22 @@ import (
 type mapOp string
 
 const (
-	opLoad        = mapOp("Load")
-	opStore       = mapOp("Store")
-	opLoadOrStore = mapOp("LoadOrStore")
-	opDelete      = mapOp("Delete")
+	opLoad          = mapOp("Load")
+	opStore         = mapOp("Store")
+	opLoadOrStore   = mapOp("LoadOrStore")
+	opLoadAndDelete = mapOp("LoadAndDelete")
+	opDelete        = mapOp("Delete")
 )
 
-var mapOps = [...]mapOp{opLoad, opStore, opLoadOrStore, opDelete}
+var mapOps = [...]mapOp{opLoad, opStore, opLoadOrStore, opLoadAndDelete, opDelete}
 
 // mapCall is a quick.Generator for calls on mapInterface.
 type mapCall struct {
 	op   mapOp
-	k, v interface{}
+	k, v any
 }
 
-func (c mapCall) apply(m mapInterface) (interface{}, bool) {
+func (c mapCall) apply(m mapInterface) (any, bool) {
 	switch c.op {
 	case opLoad:
 		return m.Load(c.k)
@@ -39,6 +41,8 @@ func (c mapCall) apply(m mapInterface) (interface{}, bool) {
 		return nil, false
 	case opLoadOrStore:
 		return m.LoadOrStore(c.k, c.v)
+	case opLoadAndDelete:
+		return m.LoadAndDelete(c.k)
 	case opDelete:
 		m.Delete(c.k)
 		return nil, false
@@ -48,11 +52,11 @@ func (c mapCall) apply(m mapInterface) (interface{}, bool) {
 }
 
 type mapResult struct {
-	value interface{}
+	value any
 	ok    bool
 }
 
-func randValue(r *rand.Rand) interface{} {
+func randValue(r *rand.Rand) any {
 	b := make([]byte, r.Intn(4))
 	for i := range b {
 		b[i] = 'a' + byte(rand.Intn(26))
@@ -69,14 +73,14 @@ func (mapCall) Generate(r *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(c)
 }
 
-func applyCalls(m mapInterface, calls []mapCall) (results []mapResult, final map[interface{}]interface{}) {
+func applyCalls(m mapInterface, calls []mapCall) (results []mapResult, final map[any]any) {
 	for _, c := range calls {
 		v, ok := c.apply(m)
 		results = append(results, mapResult{v, ok})
 	}
 
-	final = make(map[interface{}]interface{})
-	m.Range(func(k, v interface{}) bool {
+	final = make(map[any]any)
+	m.Range(func(k, v any) bool {
 		final[k] = v
 		return true
 	})
@@ -84,15 +88,15 @@ func applyCalls(m mapInterface, calls []mapCall) (results []mapResult, final map
 	return results, final
 }
 
-func applyMap(calls []mapCall) ([]mapResult, map[interface{}]interface{}) {
+func applyMap(calls []mapCall) ([]mapResult, map[any]any) {
 	return applyCalls(new(sync.Map), calls)
 }
 
-func applyRWMutexMap(calls []mapCall) ([]mapResult, map[interface{}]interface{}) {
+func applyRWMutexMap(calls []mapCall) ([]mapResult, map[any]any) {
 	return applyCalls(new(RWMutexMap), calls)
 }
 
-func applyDeepCopyMap(calls []mapCall) ([]mapResult, map[interface{}]interface{}) {
+func applyDeepCopyMap(calls []mapCall) ([]mapResult, map[any]any) {
 	return applyCalls(new(DeepCopyMap), calls)
 }
 
@@ -151,7 +155,7 @@ func TestConcurrentRange(t *testing.T) {
 	for n := iters; n > 0; n-- {
 		seen := make(map[int64]bool, mapSize)
 
-		m.Range(func(ki, vi interface{}) bool {
+		m.Range(func(ki, vi any) bool {
 			k, v := ki.(int64), vi.(int64)
 			if v%k != 0 {
 				t.Fatalf("while Storing multiples of %v, Range saw value %v", k, v)
@@ -166,5 +170,78 @@ func TestConcurrentRange(t *testing.T) {
 		if len(seen) != mapSize {
 			t.Fatalf("Range visited %v elements of %v-element Map", len(seen), mapSize)
 		}
+	}
+}
+
+func TestIssue40999(t *testing.T) {
+	var m sync.Map
+
+	// Since the miss-counting in missLocked (via Delete)
+	// compares the miss count with len(m.dirty),
+	// add an initial entry to bias len(m.dirty) above the miss count.
+	m.Store(nil, struct{}{})
+
+	var finalized uint32
+
+	// Set finalizers that count for collected keys. A non-zero count
+	// indicates that keys have not been leaked.
+	for atomic.LoadUint32(&finalized) == 0 {
+		p := new(int)
+		runtime.SetFinalizer(p, func(*int) {
+			atomic.AddUint32(&finalized, 1)
+		})
+		m.Store(p, struct{}{})
+		m.Delete(p)
+		runtime.GC()
+	}
+}
+
+func TestMapRangeNestedCall(t *testing.T) { // Issue 46399
+	var m sync.Map
+	for i, v := range [3]string{"hello", "world", "Go"} {
+		m.Store(i, v)
+	}
+	m.Range(func(key, value any) bool {
+		m.Range(func(key, value any) bool {
+			// We should be able to load the key offered in the Range callback,
+			// because there are no concurrent Delete involved in this tested map.
+			if v, ok := m.Load(key); !ok || !reflect.DeepEqual(v, value) {
+				t.Fatalf("Nested Range loads unexpected value, got %+v want %+v", v, value)
+			}
+
+			// We didn't keep 42 and a value into the map before, if somehow we loaded
+			// a value from such a key, meaning there must be an internal bug regarding
+			// nested range in the Map.
+			if _, loaded := m.LoadOrStore(42, "dummy"); loaded {
+				t.Fatalf("Nested Range loads unexpected value, want store a new value")
+			}
+
+			// Try to Store then LoadAndDelete the corresponding value with the key
+			// 42 to the Map. In this case, the key 42 and associated value should be
+			// removed from the Map. Therefore any future range won't observe key 42
+			// as we checked in above.
+			val := "sync.Map"
+			m.Store(42, val)
+			if v, loaded := m.LoadAndDelete(42); !loaded || !reflect.DeepEqual(v, val) {
+				t.Fatalf("Nested Range loads unexpected value, got %v, want %v", v, val)
+			}
+			return true
+		})
+
+		// Remove key from Map on-the-fly.
+		m.Delete(key)
+		return true
+	})
+
+	// After a Range of Delete, all keys should be removed and any
+	// further Range won't invoke the callback. Hence length remains 0.
+	length := 0
+	m.Range(func(key, value any) bool {
+		length++
+		return true
+	})
+
+	if length != 0 {
+		t.Fatalf("Unexpected sync.Map size, got %v want %v", length, 0)
 	}
 }

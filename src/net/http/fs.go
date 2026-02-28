@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime"
 	"mime/multipart"
 	"net/textproto"
@@ -30,39 +31,43 @@ import (
 // value is a filename on the native file system, not a URL, so it is separated
 // by filepath.Separator, which isn't necessarily '/'.
 //
-// Note that Dir will allow access to files and directories starting with a
-// period, which could expose sensitive directories like a .git directory or
-// sensitive files like .htpasswd. To exclude files with a leading period,
-// remove the files/directories from the server or create a custom FileSystem
-// implementation.
+// Note that Dir could expose sensitive files and directories. Dir will follow
+// symlinks pointing out of the directory tree, which can be especially dangerous
+// if serving from a directory in which users are able to create arbitrary symlinks.
+// Dir will also allow access to files and directories starting with a period,
+// which could expose sensitive directories like .git or sensitive files like
+// .htpasswd. To exclude files with a leading period, remove the files/directories
+// from the server or create a custom FileSystem implementation.
 //
 // An empty Dir is treated as ".".
 type Dir string
 
-// mapDirOpenError maps the provided non-nil error from opening name
+// mapOpenError maps the provided non-nil error from opening name
 // to a possibly better non-nil error. In particular, it turns OS-specific errors
-// about opening files in non-directories into os.ErrNotExist. See Issue 18984.
-func mapDirOpenError(originalErr error, name string) error {
-	if os.IsNotExist(originalErr) || os.IsPermission(originalErr) {
+// about opening files in non-directories into fs.ErrNotExist. See Issues 18984 and 49552.
+func mapOpenError(originalErr error, name string, sep rune, stat func(string) (fs.FileInfo, error)) error {
+	if errors.Is(originalErr, fs.ErrNotExist) || errors.Is(originalErr, fs.ErrPermission) {
 		return originalErr
 	}
 
-	parts := strings.Split(name, string(filepath.Separator))
+	parts := strings.Split(name, string(sep))
 	for i := range parts {
 		if parts[i] == "" {
 			continue
 		}
-		fi, err := os.Stat(strings.Join(parts[:i+1], string(filepath.Separator)))
+		fi, err := stat(strings.Join(parts[:i+1], string(sep)))
 		if err != nil {
 			return originalErr
 		}
 		if !fi.IsDir() {
-			return os.ErrNotExist
+			return fs.ErrNotExist
 		}
 	}
 	return originalErr
 }
 
+// Open implements FileSystem using os.Open, opening files for reading rooted
+// and relative to the directory d.
 func (d Dir) Open(name string) (File, error) {
 	if filepath.Separator != '/' && strings.ContainsRune(name, filepath.Separator) {
 		return nil, errors.New("http: invalid character in file path")
@@ -74,7 +79,7 @@ func (d Dir) Open(name string) (File, error) {
 	fullName := filepath.Join(dir, filepath.FromSlash(path.Clean("/"+name)))
 	f, err := os.Open(fullName)
 	if err != nil {
-		return nil, mapDirOpenError(err, fullName)
+		return nil, mapOpenError(err, fullName, filepath.Separator, os.Stat)
 	}
 	return f, nil
 }
@@ -82,6 +87,10 @@ func (d Dir) Open(name string) (File, error) {
 // A FileSystem implements access to a collection of named files.
 // The elements in a file path are separated by slash ('/', U+002F)
 // characters, regardless of host operating system convention.
+// See the FileServer function to convert a FileSystem to a Handler.
+//
+// This interface predates the fs.FS interface, which can be used instead:
+// the FS adapter function converts an fs.FS to a FileSystem.
 type FileSystem interface {
 	Open(name string) (File, error)
 }
@@ -94,26 +103,56 @@ type File interface {
 	io.Closer
 	io.Reader
 	io.Seeker
-	Readdir(count int) ([]os.FileInfo, error)
-	Stat() (os.FileInfo, error)
+	Readdir(count int) ([]fs.FileInfo, error)
+	Stat() (fs.FileInfo, error)
 }
 
-func dirList(w ResponseWriter, f File) {
-	dirs, err := f.Readdir(-1)
+type anyDirs interface {
+	len() int
+	name(i int) string
+	isDir(i int) bool
+}
+
+type fileInfoDirs []fs.FileInfo
+
+func (d fileInfoDirs) len() int          { return len(d) }
+func (d fileInfoDirs) isDir(i int) bool  { return d[i].IsDir() }
+func (d fileInfoDirs) name(i int) string { return d[i].Name() }
+
+type dirEntryDirs []fs.DirEntry
+
+func (d dirEntryDirs) len() int          { return len(d) }
+func (d dirEntryDirs) isDir(i int) bool  { return d[i].IsDir() }
+func (d dirEntryDirs) name(i int) string { return d[i].Name() }
+
+func dirList(w ResponseWriter, r *Request, f File) {
+	// Prefer to use ReadDir instead of Readdir,
+	// because the former doesn't require calling
+	// Stat on every entry of a directory on Unix.
+	var dirs anyDirs
+	var err error
+	if d, ok := f.(fs.ReadDirFile); ok {
+		var list dirEntryDirs
+		list, err = d.ReadDir(-1)
+		dirs = list
+	} else {
+		var list fileInfoDirs
+		list, err = f.Readdir(-1)
+		dirs = list
+	}
+
 	if err != nil {
-		// TODO: log err.Error() to the Server.ErrorLog, once it's possible
-		// for a handler to get at its Server via the ResponseWriter. See
-		// Issue 12438.
+		logf(r, "http: error reading directory: %v", err)
 		Error(w, "Error reading directory", StatusInternalServerError)
 		return
 	}
-	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
+	sort.Slice(dirs, func(i, j int) bool { return dirs.name(i) < dirs.name(j) })
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, "<pre>\n")
-	for _, d := range dirs {
-		name := d.Name()
-		if d.IsDir() {
+	for i, n := 0, dirs.len(); i < n; i++ {
+		name := dirs.name(i)
+		if dirs.isDir(i) {
 			name += "/"
 		}
 		// name may contain '?' or '#', which must be escaped to remain
@@ -237,17 +276,17 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 		}
 		switch {
 		case len(ranges) == 1:
-			// RFC 2616, Section 14.16:
-			// "When an HTTP message includes the content of a single
-			// range (for example, a response to a request for a
-			// single range, or to a request for a set of ranges
-			// that overlap without any holes), this content is
-			// transmitted with a Content-Range header, and a
-			// Content-Length header showing the number of bytes
-			// actually transferred.
+			// RFC 7233, Section 4.1:
+			// "If a single part is being transferred, the server
+			// generating the 206 response MUST generate a
+			// Content-Range header field, describing what range
+			// of the selected representation is enclosed, and a
+			// payload consisting of the range.
 			// ...
-			// A response to a request for a single range MUST NOT
-			// be sent using the multipart/byteranges media type."
+			// A server MUST NOT generate a multipart response to
+			// a request for a single range, since a client that
+			// does not request multiple parts might not support
+			// multipart responses."
 			ra := ranges[0]
 			if _, err := content.Seek(ra.start, io.SeekStart); err != nil {
 				Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
@@ -319,7 +358,7 @@ func scanETag(s string) (etag string, remain string) {
 		// Character values allowed in ETags.
 		case c == 0x21 || c >= 0x23 && c <= 0x7E || c >= 0x80:
 		case c == '"':
-			return string(s[:i+1]), s[i+1:]
+			return s[:i+1], s[i+1:]
 		default:
 			return "", ""
 		}
@@ -384,15 +423,18 @@ func checkIfUnmodifiedSince(r *Request, modtime time.Time) condResult {
 	if ius == "" || isZeroTime(modtime) {
 		return condNone
 	}
-	if t, err := ParseTime(ius); err == nil {
-		// The Date-Modified header truncates sub-second precision, so
-		// use mtime < t+1s instead of mtime <= t to check for unmodified.
-		if modtime.Before(t.Add(1 * time.Second)) {
-			return condTrue
-		}
-		return condFalse
+	t, err := ParseTime(ius)
+	if err != nil {
+		return condNone
 	}
-	return condNone
+
+	// The Last-Modified header truncates sub-second precision so
+	// the modtime needs to be truncated too.
+	modtime = modtime.Truncate(time.Second)
+	if modtime.Before(t) || modtime.Equal(t) {
+		return condTrue
+	}
+	return condFalse
 }
 
 func checkIfNoneMatch(w ResponseWriter, r *Request) condResult {
@@ -408,6 +450,7 @@ func checkIfNoneMatch(w ResponseWriter, r *Request) condResult {
 		}
 		if buf[0] == ',' {
 			buf = buf[1:]
+			continue
 		}
 		if buf[0] == '*' {
 			return condFalse
@@ -436,16 +479,17 @@ func checkIfModifiedSince(r *Request, modtime time.Time) condResult {
 	if err != nil {
 		return condNone
 	}
-	// The Date-Modified header truncates sub-second precision, so
-	// use mtime < t+1s instead of mtime <= t to check for unmodified.
-	if modtime.Before(t.Add(1 * time.Second)) {
+	// The Last-Modified header truncates sub-second precision so
+	// the modtime needs to be truncated too.
+	modtime = modtime.Truncate(time.Second)
+	if modtime.Before(t) || modtime.Equal(t) {
 		return condFalse
 	}
 	return condTrue
 }
 
 func checkIfRange(w ResponseWriter, r *Request, modtime time.Time) condResult {
-	if r.Method != "GET" {
+	if r.Method != "GET" && r.Method != "HEAD" {
 		return condNone
 	}
 	ir := r.Header.get("If-Range")
@@ -532,10 +576,8 @@ func checkPreconditions(w ResponseWriter, r *Request, modtime time.Time) (done b
 	}
 
 	rangeHeader = r.Header.get("Range")
-	if rangeHeader != "" {
-		if checkIfRange(w, r, modtime) == condFalse {
-			rangeHeader = ""
-		}
+	if rangeHeader != "" && checkIfRange(w, r, modtime) == condFalse {
+		rangeHeader = ""
 	}
 	return false, rangeHeader
 }
@@ -584,17 +626,15 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 		}
 	}
 
-	// redirect if the directory name doesn't end in a slash
 	if d.IsDir() {
 		url := r.URL.Path
-		if url[len(url)-1] != '/' {
+		// redirect if the directory name doesn't end in a slash
+		if url == "" || url[len(url)-1] != '/' {
 			localRedirect(w, r, path.Base(url)+"/")
 			return
 		}
-	}
 
-	// use contents of index.html for directory, if present
-	if d.IsDir() {
+		// use contents of index.html for directory, if present
 		index := strings.TrimSuffix(name, "/") + indexPage
 		ff, err := fs.Open(index)
 		if err == nil {
@@ -614,8 +654,8 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 			writeNotModified(w)
 			return
 		}
-		w.Header().Set("Last-Modified", d.ModTime().UTC().Format(TimeFormat))
-		dirList(w, f)
+		setLastModified(w, d.ModTime())
+		dirList(w, r, f)
 		return
 	}
 
@@ -630,10 +670,10 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 // and historically Go's ServeContent always returned just "404 Not Found" for
 // all errors. We don't want to start leaking information in error messages.
 func toHTTPError(err error) (msg string, httpStatus int) {
-	if os.IsNotExist(err) {
+	if errors.Is(err, fs.ErrNotExist) {
 		return "404 page not found", StatusNotFound
 	}
-	if os.IsPermission(err) {
+	if errors.Is(err, fs.ErrPermission) {
 		return "403 Forbidden", StatusForbidden
 	}
 	// Default:
@@ -654,15 +694,23 @@ func localRedirect(w ResponseWriter, r *Request, newPath string) {
 // file or directory.
 //
 // If the provided file or directory name is a relative path, it is
-// interpreted relative to the current directory and may ascend to parent
-// directories. If the provided name is constructed from user input, it
-// should be sanitized before calling ServeFile. As a precaution, ServeFile
-// will reject requests where r.URL.Path contains a ".." path element.
+// interpreted relative to the current directory and may ascend to
+// parent directories. If the provided name is constructed from user
+// input, it should be sanitized before calling ServeFile.
 //
-// As a special case, ServeFile redirects any request where r.URL.Path
+// As a precaution, ServeFile will reject requests where r.URL.Path
+// contains a ".." path element; this protects against callers who
+// might unsafely use filepath.Join on r.URL.Path without sanitizing
+// it and then use that filepath.Join result as the name argument.
+//
+// As another special case, ServeFile redirects any request where r.URL.Path
 // ends in "/index.html" to the same path, without the final
 // "index.html". To avoid such redirects either modify the path or
 // use ServeContent.
+//
+// Outside of those two special cases, ServeFile does not use
+// r.URL.Path for selecting the file or directory to serve; only the
+// file or directory provided in the name argument is used.
 func ServeFile(w ResponseWriter, r *Request, name string) {
 	if containsDotDot(r.URL.Path) {
 		// Too many programs use r.URL.Path to construct the argument to
@@ -695,17 +743,99 @@ type fileHandler struct {
 	root FileSystem
 }
 
+type ioFS struct {
+	fsys fs.FS
+}
+
+type ioFile struct {
+	file fs.File
+}
+
+func (f ioFS) Open(name string) (File, error) {
+	if name == "/" {
+		name = "."
+	} else {
+		name = strings.TrimPrefix(name, "/")
+	}
+	file, err := f.fsys.Open(name)
+	if err != nil {
+		return nil, mapOpenError(err, name, '/', func(path string) (fs.FileInfo, error) {
+			return fs.Stat(f.fsys, path)
+		})
+	}
+	return ioFile{file}, nil
+}
+
+func (f ioFile) Close() error               { return f.file.Close() }
+func (f ioFile) Read(b []byte) (int, error) { return f.file.Read(b) }
+func (f ioFile) Stat() (fs.FileInfo, error) { return f.file.Stat() }
+
+var errMissingSeek = errors.New("io.File missing Seek method")
+var errMissingReadDir = errors.New("io.File directory missing ReadDir method")
+
+func (f ioFile) Seek(offset int64, whence int) (int64, error) {
+	s, ok := f.file.(io.Seeker)
+	if !ok {
+		return 0, errMissingSeek
+	}
+	return s.Seek(offset, whence)
+}
+
+func (f ioFile) ReadDir(count int) ([]fs.DirEntry, error) {
+	d, ok := f.file.(fs.ReadDirFile)
+	if !ok {
+		return nil, errMissingReadDir
+	}
+	return d.ReadDir(count)
+}
+
+func (f ioFile) Readdir(count int) ([]fs.FileInfo, error) {
+	d, ok := f.file.(fs.ReadDirFile)
+	if !ok {
+		return nil, errMissingReadDir
+	}
+	var list []fs.FileInfo
+	for {
+		dirs, err := d.ReadDir(count - len(list))
+		for _, dir := range dirs {
+			info, err := dir.Info()
+			if err != nil {
+				// Pretend it doesn't exist, like (*os.File).Readdir does.
+				continue
+			}
+			list = append(list, info)
+		}
+		if err != nil {
+			return list, err
+		}
+		if count < 0 || len(list) >= count {
+			break
+		}
+	}
+	return list, nil
+}
+
+// FS converts fsys to a FileSystem implementation,
+// for use with FileServer and NewFileTransport.
+func FS(fsys fs.FS) FileSystem {
+	return ioFS{fsys}
+}
+
 // FileServer returns a handler that serves HTTP requests
 // with the contents of the file system rooted at root.
-//
-// To use the operating system's file system implementation,
-// use http.Dir:
-//
-//     http.Handle("/", http.FileServer(http.Dir("/tmp")))
 //
 // As a special case, the returned file server redirects any request
 // ending in "/index.html" to the same path, without the final
 // "index.html".
+//
+// To use the operating system's file system implementation,
+// use http.Dir:
+//
+//	http.Handle("/", http.FileServer(http.Dir("/tmp")))
+//
+// To use an fs.FS implementation, use http.FS to convert it:
+//
+//	http.Handle("/", http.FileServer(http.FS(fsys)))
 func FileServer(root FileSystem) Handler {
 	return &fileHandler{root}
 }
@@ -735,7 +865,7 @@ func (r httpRange) mimeHeader(contentType string, size int64) textproto.MIMEHead
 	}
 }
 
-// parseRange parses a Range header string as per RFC 2616.
+// parseRange parses a Range header string as per RFC 7233.
 // errNoOverlap is returned if none of the ranges overlap.
 func parseRange(s string, size int64) ([]httpRange, error) {
 	if s == "" {
@@ -748,21 +878,27 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 	var ranges []httpRange
 	noOverlap := false
 	for _, ra := range strings.Split(s[len(b):], ",") {
-		ra = strings.TrimSpace(ra)
+		ra = textproto.TrimString(ra)
 		if ra == "" {
 			continue
 		}
-		i := strings.Index(ra, "-")
-		if i < 0 {
+		start, end, ok := strings.Cut(ra, "-")
+		if !ok {
 			return nil, errors.New("invalid range")
 		}
-		start, end := strings.TrimSpace(ra[:i]), strings.TrimSpace(ra[i+1:])
+		start, end = textproto.TrimString(start), textproto.TrimString(end)
 		var r httpRange
 		if start == "" {
 			// If no start is specified, end specifies the
-			// range start relative to the end of the file.
+			// range start relative to the end of the file,
+			// and we are dealing with <suffix-length>
+			// which has to be a non-negative integer as per
+			// RFC 7233 Section 2.1 "Byte-Ranges".
+			if end == "" || end[0] == '-' {
+				return nil, errors.New("invalid range")
+			}
 			i, err := strconv.ParseInt(end, 10, 64)
-			if err != nil {
+			if i < 0 || err != nil {
 				return nil, errors.New("invalid range")
 			}
 			if i > size {

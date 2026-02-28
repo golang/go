@@ -26,7 +26,7 @@ var crnl = []byte{'\r', '\n'}
 var dotcrnl = []byte{'.', '\r', '\n'}
 
 // PrintfLine writes the formatted output followed by \r\n.
-func (w *Writer) PrintfLine(format string, args ...interface{}) error {
+func (w *Writer) PrintfLine(format string, args ...any) error {
 	w.closeDot()
 	fmt.Fprintf(w.W, format, args...)
 	w.W.Write(crnl)
@@ -58,7 +58,8 @@ type dotWriter struct {
 }
 
 const (
-	wstateBeginLine = iota // beginning of line; initial state; must be zero
+	wstateBegin     = iota // initial state; must be zero
+	wstateBeginLine        // beginning of line
 	wstateCR               // wrote \r (possibly at end of line)
 	wstateData             // writing data in middle of line
 )
@@ -68,7 +69,7 @@ func (d *dotWriter) Write(b []byte) (n int, err error) {
 	for n < len(b) {
 		c := b[n]
 		switch d.state {
-		case wstateBeginLine:
+		case wstateBegin, wstateBeginLine:
 			d.state = wstateData
 			if c == '.' {
 				// escape leading dot

@@ -1,11 +1,19 @@
-// Copyright 2015 The Go Authors. All rights reserved.
+// Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build amd64 amd64p32
+//go:build 386 || amd64 || arm64 || ppc64 || ppc64le || s390x || wasm
 
 package math
 
-import "internal/cpu"
+const haveArchFloor = true
 
-var useSSE41 = cpu.X86.HasSSE41
+func archFloor(x float64) float64
+
+const haveArchCeil = true
+
+func archCeil(x float64) float64
+
+const haveArchTrunc = true
+
+func archTrunc(x float64) float64

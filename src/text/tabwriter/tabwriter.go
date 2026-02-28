@@ -12,7 +12,6 @@
 package tabwriter
 
 import (
-	"bytes"
 	"io"
 	"unicode/utf8"
 )
@@ -24,7 +23,6 @@ import (
 // The text itself is stored in a separate buffer; cell only describes the
 // segment's size in bytes, its width in runes, and whether it's an htab
 // ('\t') terminated cell.
-//
 type cell struct {
 	size  int  // cell size in bytes
 	width int  // cell width in runes
@@ -88,7 +86,6 @@ type cell struct {
 // The Writer must buffer input internally, because proper spacing
 // of one line may depend on the cells in future lines. Clients must
 // call Flush when done calling Write.
-//
 type Writer struct {
 	// configuration
 	output   io.Writer
@@ -99,25 +96,50 @@ type Writer struct {
 	flags    uint
 
 	// current state
-	buf     bytes.Buffer // collected text excluding tabs or line breaks
-	pos     int          // buffer position up to which cell.width of incomplete cell has been computed
-	cell    cell         // current incomplete cell; cell.width is up to buf[pos] excluding ignored sections
-	endChar byte         // terminating char of escaped sequence (Escape for escapes, '>', ';' for HTML tags/entities, or 0)
-	lines   [][]cell     // list of lines; each line is a list of cells
-	widths  []int        // list of column widths in runes - re-used during formatting
+	buf     []byte   // collected text excluding tabs or line breaks
+	pos     int      // buffer position up to which cell.width of incomplete cell has been computed
+	cell    cell     // current incomplete cell; cell.width is up to buf[pos] excluding ignored sections
+	endChar byte     // terminating char of escaped sequence (Escape for escapes, '>', ';' for HTML tags/entities, or 0)
+	lines   [][]cell // list of lines; each line is a list of cells
+	widths  []int    // list of column widths in runes - re-used during formatting
 }
 
-func (b *Writer) addLine() { b.lines = append(b.lines, []cell{}) }
+// addLine adds a new line.
+// flushed is a hint indicating whether the underlying writer was just flushed.
+// If so, the previous line is not likely to be a good indicator of the new line's cells.
+func (b *Writer) addLine(flushed bool) {
+	// Grow slice instead of appending,
+	// as that gives us an opportunity
+	// to re-use an existing []cell.
+	if n := len(b.lines) + 1; n <= cap(b.lines) {
+		b.lines = b.lines[:n]
+		b.lines[n-1] = b.lines[n-1][:0]
+	} else {
+		b.lines = append(b.lines, nil)
+	}
+
+	if !flushed {
+		// The previous line is probably a good indicator
+		// of how many cells the current line will have.
+		// If the current line's capacity is smaller than that,
+		// abandon it and make a new one.
+		if n := len(b.lines); n >= 2 {
+			if prev := len(b.lines[n-2]); prev > cap(b.lines[n-1]) {
+				b.lines[n-1] = make([]cell, 0, prev)
+			}
+		}
+	}
+}
 
 // Reset the current state.
 func (b *Writer) reset() {
-	b.buf.Reset()
+	b.buf = b.buf[:0]
 	b.pos = 0
 	b.cell = cell{}
 	b.endChar = 0
 	b.lines = b.lines[0:0]
 	b.widths = b.widths[0:0]
-	b.addLine()
+	b.addLine(true)
 }
 
 // Internal representation (current state):
@@ -183,7 +205,6 @@ const (
 //			(for correct-looking results, tabwidth must correspond
 //			to the tab width in the viewer displaying the result)
 //	flags		formatting control
-//
 func (b *Writer) Init(output io.Writer, minwidth, tabwidth, padding int, padchar byte, flags uint) *Writer {
 	if minwidth < 0 || tabwidth < 0 || padding < 0 {
 		panic("negative minwidth, tabwidth, or padding")
@@ -212,7 +233,7 @@ func (b *Writer) dump() {
 	for i, line := range b.lines {
 		print("(", i, ") ")
 		for _, c := range line {
-			print("[", string(b.buf.Bytes()[pos:pos+c.size]), "]")
+			print("[", string(b.buf[pos:pos+c.size]), "]")
 			pos += c.size
 		}
 		print("\n")
@@ -294,7 +315,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int) {
 				// non-empty cell
 				useTabs = false
 				if b.flags&AlignRight == 0 { // align left
-					b.write0(b.buf.Bytes()[pos : pos+c.size])
+					b.write0(b.buf[pos : pos+c.size])
 					pos += c.size
 					if j < len(b.widths) {
 						b.writePadding(c.width, b.widths[j], false)
@@ -303,7 +324,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int) {
 					if j < len(b.widths) {
 						b.writePadding(c.width, b.widths[j], false)
 					}
-					b.write0(b.buf.Bytes()[pos : pos+c.size])
+					b.write0(b.buf[pos : pos+c.size])
 					pos += c.size
 				}
 			}
@@ -312,7 +333,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int) {
 		if i+1 == len(b.lines) {
 			// last buffered line - we don't have a newline, so just write
 			// any outstanding buffered data
-			b.write0(b.buf.Bytes()[pos : pos+b.cell.size])
+			b.write0(b.buf[pos : pos+b.cell.size])
 			pos += b.cell.size
 		} else {
 			// not the last line - write newline
@@ -326,59 +347,58 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int) {
 // is the buffer position corresponding to the beginning of line0.
 // Returns the buffer position corresponding to the beginning of
 // line1 and an error, if any.
-//
 func (b *Writer) format(pos0 int, line0, line1 int) (pos int) {
 	pos = pos0
 	column := len(b.widths)
 	for this := line0; this < line1; this++ {
 		line := b.lines[this]
 
-		if column < len(line)-1 {
-			// cell exists in this column => this line
-			// has more cells than the previous line
-			// (the last cell per line is ignored because cells are
-			// tab-terminated; the last cell per line describes the
-			// text before the newline/formfeed and does not belong
-			// to a column)
-
-			// print unprinted lines until beginning of block
-			pos = b.writeLines(pos, line0, this)
-			line0 = this
-
-			// column block begin
-			width := b.minwidth // minimal column width
-			discardable := true // true if all cells in this column are empty and "soft"
-			for ; this < line1; this++ {
-				line = b.lines[this]
-				if column < len(line)-1 {
-					// cell exists in this column
-					c := line[column]
-					// update width
-					if w := c.width + b.padding; w > width {
-						width = w
-					}
-					// update discardable
-					if c.width > 0 || c.htab {
-						discardable = false
-					}
-				} else {
-					break
-				}
-			}
-			// column block end
-
-			// discard empty columns if necessary
-			if discardable && b.flags&DiscardEmptyColumns != 0 {
-				width = 0
-			}
-
-			// format and print all columns to the right of this column
-			// (we know the widths of this column and all columns to the left)
-			b.widths = append(b.widths, width) // push width
-			pos = b.format(pos, line0, this)
-			b.widths = b.widths[0 : len(b.widths)-1] // pop width
-			line0 = this
+		if column >= len(line)-1 {
+			continue
 		}
+		// cell exists in this column => this line
+		// has more cells than the previous line
+		// (the last cell per line is ignored because cells are
+		// tab-terminated; the last cell per line describes the
+		// text before the newline/formfeed and does not belong
+		// to a column)
+
+		// print unprinted lines until beginning of block
+		pos = b.writeLines(pos, line0, this)
+		line0 = this
+
+		// column block begin
+		width := b.minwidth // minimal column width
+		discardable := true // true if all cells in this column are empty and "soft"
+		for ; this < line1; this++ {
+			line = b.lines[this]
+			if column >= len(line)-1 {
+				break
+			}
+			// cell exists in this column
+			c := line[column]
+			// update width
+			if w := c.width + b.padding; w > width {
+				width = w
+			}
+			// update discardable
+			if c.width > 0 || c.htab {
+				discardable = false
+			}
+		}
+		// column block end
+
+		// discard empty columns if necessary
+		if discardable && b.flags&DiscardEmptyColumns != 0 {
+			width = 0
+		}
+
+		// format and print all columns to the right of this column
+		// (we know the widths of this column and all columns to the left)
+		b.widths = append(b.widths, width) // push width
+		pos = b.format(pos, line0, this)
+		b.widths = b.widths[0 : len(b.widths)-1] // pop width
+		line0 = this
 	}
 
 	// print unprinted lines until end
@@ -387,14 +407,14 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int) {
 
 // Append text to current cell.
 func (b *Writer) append(text []byte) {
-	b.buf.Write(text)
+	b.buf = append(b.buf, text...)
 	b.cell.size += len(text)
 }
 
 // Update the cell width.
 func (b *Writer) updateWidth() {
-	b.cell.width += utf8.RuneCount(b.buf.Bytes()[b.pos:b.buf.Len()])
-	b.pos = b.buf.Len()
+	b.cell.width += utf8.RuneCount(b.buf[b.pos:])
+	b.pos = len(b.buf)
 }
 
 // To escape a text segment, bracket it with Escape characters.
@@ -403,7 +423,6 @@ func (b *Writer) updateWidth() {
 // width one for formatting purposes.
 //
 // The value 0xff was chosen because it cannot appear in a valid UTF-8 sequence.
-//
 const Escape = '\xff'
 
 // Start escaped mode.
@@ -422,7 +441,6 @@ func (b *Writer) startEscape(ch byte) {
 // is assumed to be zero for formatting purposes; if it was an HTML entity,
 // its width is assumed to be one. In all other cases, the width is the
 // unicode width of the text.
-//
 func (b *Writer) endEscape() {
 	switch b.endChar {
 	case Escape:
@@ -434,13 +452,12 @@ func (b *Writer) endEscape() {
 	case ';':
 		b.cell.width++ // entity, count as one rune
 	}
-	b.pos = b.buf.Len()
+	b.pos = len(b.buf)
 	b.endChar = 0
 }
 
 // Terminate the current cell by adding it to the list of cells of the
 // current line. Returns the number of cells in that line.
-//
 func (b *Writer) terminateCell(htab bool) int {
 	b.cell.htab = htab
 	line := &b.lines[len(b.lines)-1]
@@ -449,8 +466,12 @@ func (b *Writer) terminateCell(htab bool) int {
 	return len(*line)
 }
 
-func handlePanic(err *error, op string) {
+func (b *Writer) handlePanic(err *error, op string) {
 	if e := recover(); e != nil {
+		if op == "Flush" {
+			// If Flush ran into a panic, we still need to reset.
+			b.reset()
+		}
 		if nerr, ok := e.(osError); ok {
 			*err = nerr.err
 			return
@@ -467,10 +488,18 @@ func (b *Writer) Flush() error {
 	return b.flush()
 }
 
+// flush is the internal version of Flush, with a named return value which we
+// don't want to expose.
 func (b *Writer) flush() (err error) {
-	defer b.reset() // even in the presence of errors
-	defer handlePanic(&err, "Flush")
+	defer b.handlePanic(&err, "Flush")
+	b.flushNoDefers()
+	return nil
+}
 
+// flushNoDefers is like flush, but without a deferred handlePanic call. This
+// can be called from other methods which already have their own deferred
+// handlePanic calls, such as Write, and avoid the extra defer work.
+func (b *Writer) flushNoDefers() {
 	// add current cell if not empty
 	if b.cell.size > 0 {
 		if b.endChar != 0 {
@@ -482,7 +511,7 @@ func (b *Writer) flush() (err error) {
 
 	// format contents of buffer
 	b.format(0, 0, len(b.lines))
-	return nil
+	b.reset()
 }
 
 var hbar = []byte("---\n")
@@ -490,9 +519,8 @@ var hbar = []byte("---\n")
 // Write writes buf to the writer b.
 // The only errors returned are ones encountered
 // while writing to the underlying output stream.
-//
 func (b *Writer) Write(buf []byte) (n int, err error) {
-	defer handlePanic(&err, "Write")
+	defer b.handlePanic(&err, "Write")
 
 	// split text into cells
 	n = 0
@@ -508,16 +536,14 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
 				ncells := b.terminateCell(ch == '\t')
 				if ch == '\n' || ch == '\f' {
 					// terminate line
-					b.addLine()
+					b.addLine(ch == '\f')
 					if ch == '\f' || ncells == 1 {
 						// A '\f' always forces a flush. Otherwise, if the previous
 						// line has only one cell which does not have an impact on
 						// the formatting of the following lines (the last cell per
 						// line is ignored by format()), thus we can flush the
 						// Writer contents.
-						if err = b.Flush(); err != nil {
-							return
-						}
+						b.flushNoDefers()
 						if ch == '\f' && b.flags&Debug != 0 {
 							// indicate section break
 							b.write0(hbar)
@@ -569,7 +595,6 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
 
 // NewWriter allocates and initializes a new tabwriter.Writer.
 // The parameters are the same as for the Init function.
-//
 func NewWriter(output io.Writer, minwidth, tabwidth, padding int, padchar byte, flags uint) *Writer {
 	return new(Writer).Init(output, minwidth, tabwidth, padding, padchar, flags)
 }

@@ -1,7 +1,7 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs -- -fsigned-char types_linux.go
 
-// +build arm64,linux
+//go:build arm64 && linux
 
 package syscall
 
@@ -564,6 +564,7 @@ type Ustat_t struct {
 
 type EpollEvent struct {
 	Events uint32
+	_      int32
 	Fd     int32
 	Pad    int32
 }
@@ -572,7 +573,14 @@ const (
 	_AT_FDCWD            = -0x64
 	_AT_REMOVEDIR        = 0x200
 	_AT_SYMLINK_NOFOLLOW = 0x100
+	_AT_EACCESS          = 0x200
 )
+
+type pollFd struct {
+	Fd      int32
+	Events  int16
+	Revents int16
+}
 
 type Termios struct {
 	Iflag     uint32

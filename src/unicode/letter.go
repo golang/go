@@ -6,9 +6,6 @@
 // Unicode code points.
 package unicode
 
-// Tables are regenerated each time we update the Unicode version.
-//go:generate go run maketables.go -tables=all -output tables.go
-
 const (
 	MaxRune         = '\U0010FFFF' // Maximum valid Unicode code point.
 	ReplacementChar = '\uFFFD'     // Represents invalid code points.
@@ -52,7 +49,9 @@ type Range32 struct {
 // means the character is in the corresponding case. There is a special
 // case representing sequences of alternating corresponding Upper and Lower
 // pairs. It appears with a fixed Delta of
+//
 //	{UpperLower, UpperLower, UpperLower}
+//
 // The constant UpperLower has an otherwise impossible delta value.
 type CaseRange struct {
 	Lo    uint32
@@ -97,7 +96,7 @@ func is16(ranges []Range16, r uint16) bool {
 				return false
 			}
 			if r <= range_.Hi {
-				return (r-range_.Lo)%range_.Stride == 0
+				return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
 			}
 		}
 		return false
@@ -110,7 +109,7 @@ func is16(ranges []Range16, r uint16) bool {
 		m := lo + (hi-lo)/2
 		range_ := &ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
-			return (r-range_.Lo)%range_.Stride == 0
+			return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
 		}
 		if r < range_.Lo {
 			hi = m
@@ -130,7 +129,7 @@ func is32(ranges []Range32, r uint32) bool {
 				return false
 			}
 			if r <= range_.Hi {
-				return (r-range_.Lo)%range_.Stride == 0
+				return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
 			}
 		}
 		return false
@@ -143,7 +142,7 @@ func is32(ranges []Range32, r uint32) bool {
 		m := lo + (hi-lo)/2
 		range_ := ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
-			return (r-range_.Lo)%range_.Stride == 0
+			return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
 		}
 		if r < range_.Lo {
 			hi = m
@@ -157,7 +156,8 @@ func is32(ranges []Range32, r uint32) bool {
 // Is reports whether the rune is in the specified table of ranges.
 func Is(rangeTab *RangeTable, r rune) bool {
 	r16 := rangeTab.R16
-	if len(r16) > 0 && r <= rune(r16[len(r16)-1].Hi) {
+	// Compare as uint32 to correctly handle negative runes.
+	if len(r16) > 0 && uint32(r) <= uint32(r16[len(r16)-1].Hi) {
 		return is16(r16, uint16(r))
 	}
 	r32 := rangeTab.R32
@@ -169,7 +169,8 @@ func Is(rangeTab *RangeTable, r rune) bool {
 
 func isExcludingLatin(rangeTab *RangeTable, r rune) bool {
 	r16 := rangeTab.R16
-	if off := rangeTab.LatinOffset; len(r16) > off && r <= rune(r16[len(r16)-1].Hi) {
+	// Compare as uint32 to correctly handle negative runes.
+	if off := rangeTab.LatinOffset; len(r16) > off && uint32(r) <= uint32(r16[len(r16)-1].Hi) {
 		return is16(r16[off:], uint16(r))
 	}
 	r32 := rangeTab.R32
@@ -206,9 +207,10 @@ func IsTitle(r rune) bool {
 }
 
 // to maps the rune using the specified case mapping.
-func to(_case int, r rune, caseRange []CaseRange) rune {
+// It additionally reports whether caseRange contained a mapping for r.
+func to(_case int, r rune, caseRange []CaseRange) (mappedRune rune, foundMapping bool) {
 	if _case < 0 || MaxCase <= _case {
-		return ReplacementChar // as reasonable an error as any
+		return ReplacementChar, false // as reasonable an error as any
 	}
 	// binary search over ranges
 	lo := 0
@@ -229,9 +231,9 @@ func to(_case int, r rune, caseRange []CaseRange) rune {
 				// bit in the sequence offset.
 				// The constants UpperCase and TitleCase are even while LowerCase
 				// is odd so we take the low bit from _case.
-				return rune(cr.Lo) + ((r-rune(cr.Lo))&^1 | rune(_case&1))
+				return rune(cr.Lo) + ((r-rune(cr.Lo))&^1 | rune(_case&1)), true
 			}
-			return r + delta
+			return r + delta, true
 		}
 		if r < rune(cr.Lo) {
 			hi = m
@@ -239,12 +241,13 @@ func to(_case int, r rune, caseRange []CaseRange) rune {
 			lo = m + 1
 		}
 	}
-	return r
+	return r, false
 }
 
 // To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase.
 func To(_case int, r rune) rune {
-	return to(_case, r, CaseRanges)
+	r, _ = to(_case, r, CaseRanges)
+	return r
 }
 
 // ToUpper maps the rune to upper case.
@@ -282,8 +285,8 @@ func ToTitle(r rune) rune {
 
 // ToUpper maps the rune to upper case giving priority to the special mapping.
 func (special SpecialCase) ToUpper(r rune) rune {
-	r1 := to(UpperCase, r, []CaseRange(special))
-	if r1 == r {
+	r1, hadMapping := to(UpperCase, r, []CaseRange(special))
+	if r1 == r && !hadMapping {
 		r1 = ToUpper(r)
 	}
 	return r1
@@ -291,8 +294,8 @@ func (special SpecialCase) ToUpper(r rune) rune {
 
 // ToTitle maps the rune to title case giving priority to the special mapping.
 func (special SpecialCase) ToTitle(r rune) rune {
-	r1 := to(TitleCase, r, []CaseRange(special))
-	if r1 == r {
+	r1, hadMapping := to(TitleCase, r, []CaseRange(special))
+	if r1 == r && !hadMapping {
 		r1 = ToTitle(r)
 	}
 	return r1
@@ -300,8 +303,8 @@ func (special SpecialCase) ToTitle(r rune) rune {
 
 // ToLower maps the rune to lower case giving priority to the special mapping.
 func (special SpecialCase) ToLower(r rune) rune {
-	r1 := to(LowerCase, r, []CaseRange(special))
-	if r1 == r {
+	r1, hadMapping := to(LowerCase, r, []CaseRange(special))
+	if r1 == r && !hadMapping {
 		r1 = ToLower(r)
 	}
 	return r1
@@ -323,6 +326,7 @@ type foldPair struct {
 // If r is not a valid Unicode code point, SimpleFold(r) returns r.
 //
 // For example:
+//
 //	SimpleFold('A') = 'a'
 //	SimpleFold('a') = 'A'
 //
@@ -333,7 +337,6 @@ type foldPair struct {
 //	SimpleFold('1') = '1'
 //
 //	SimpleFold(-2) = -2
-//
 func SimpleFold(r rune) rune {
 	if r < 0 || r > MaxRune {
 		return r

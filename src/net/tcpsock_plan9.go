@@ -14,23 +14,28 @@ func (c *TCPConn) readFrom(r io.Reader) (int64, error) {
 	return genericReadFrom(c, r)
 }
 
-func dialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+func (sd *sysDialer) dialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	if testHookDialTCP != nil {
-		return testHookDialTCP(ctx, net, laddr, raddr)
+		return testHookDialTCP(ctx, sd.network, laddr, raddr)
 	}
-	return doDialTCP(ctx, net, laddr, raddr)
+	return sd.doDialTCP(ctx, laddr, raddr)
 }
 
-func doDialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
-	switch net {
-	case "tcp", "tcp4", "tcp6":
+func (sd *sysDialer) doDialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
+	switch sd.network {
+	case "tcp4":
+		// Plan 9 doesn't complain about [::]:0->127.0.0.1, so it's up to us.
+		if laddr != nil && len(laddr.IP) != 0 && laddr.IP.To4() == nil {
+			return nil, &AddrError{Err: "non-IPv4 local address", Addr: laddr.String()}
+		}
+	case "tcp", "tcp6":
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, UnknownNetworkError(sd.network)
 	}
 	if raddr == nil {
 		return nil, errMissingAddress
 	}
-	fd, err := dialPlan9(ctx, net, laddr, raddr)
+	fd, err := dialPlan9(ctx, sd.network, laddr, raddr)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +49,16 @@ func (ln *TCPListener) accept() (*TCPConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newTCPConn(fd), nil
+	tc := newTCPConn(fd)
+	if ln.lc.KeepAlive >= 0 {
+		setKeepAlive(fd, true)
+		ka := ln.lc.KeepAlive
+		if ln.lc.KeepAlive == 0 {
+			ka = defaultTCPKeepAlive
+		}
+		setKeepAlivePeriod(fd, ka)
+	}
+	return tc, nil
 }
 
 func (ln *TCPListener) close() error {
@@ -69,10 +83,10 @@ func (ln *TCPListener) file() (*os.File, error) {
 	return f, nil
 }
 
-func listenTCP(ctx context.Context, network string, laddr *TCPAddr) (*TCPListener, error) {
-	fd, err := listenPlan9(ctx, network, laddr)
+func (sl *sysListener) listenTCP(ctx context.Context, laddr *TCPAddr) (*TCPListener, error) {
+	fd, err := listenPlan9(ctx, sl.network, laddr)
 	if err != nil {
 		return nil, err
 	}
-	return &TCPListener{fd}, nil
+	return &TCPListener{fd: fd, lc: sl.ListenConfig}, nil
 }

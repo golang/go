@@ -1,5 +1,5 @@
 // Inferno utils/6l/pass.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/pass.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/pass.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -36,8 +36,8 @@ package obj
 // In the case of an infinite loop, brloop returns nil.
 func brloop(p *Prog) *Prog {
 	c := 0
-	for q := p; q != nil; q = q.Pcond {
-		if q.As != AJMP || q.Pcond == nil {
+	for q := p; q != nil; q = q.To.Target() {
+		if q.As != AJMP || q.To.Target() == nil {
 			return q
 		}
 		c++
@@ -112,20 +112,21 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 			break
 		}
 		return
+	case TYPE_SPECIAL:
+		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Class != 0 || a.Sym != nil {
+			break
+		}
+		return
 	}
 
 	ctxt.Diag("invalid encoding for argument %v", p)
 }
 
 func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
-	var c int32
-	var name string
-	var q *Prog
-
-	for p := sym.Func.Text; p != nil; p = p.Link {
+	for p := sym.Func().Text; p != nil; p = p.Link {
 		checkaddr(ctxt, p, &p.From)
-		if p.From3 != nil {
-			checkaddr(ctxt, p, p.From3)
+		if p.GetFrom3() != nil {
+			checkaddr(ctxt, p, p.GetFrom3())
 		}
 		checkaddr(ctxt, p, &p.To)
 
@@ -136,20 +137,15 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 			continue
 		}
 		if p.To.Val != nil {
-			// TODO: Remove To.Val.(*Prog) in favor of p->pcond.
-			p.Pcond = p.To.Val.(*Prog)
 			continue
 		}
 
 		if p.To.Sym != nil {
 			continue
 		}
-		c = int32(p.To.Offset)
-		for q = sym.Func.Text; q != nil; {
-			if int64(c) == q.Pc {
-				break
-			}
-			if q.Forwd != nil && int64(c) >= q.Forwd.Pc {
+		q := sym.Func().Text
+		for q != nil && p.To.Offset != q.Pc {
+			if q.Forwd != nil && p.To.Offset >= q.Forwd.Pc {
 				q = q.Forwd
 			} else {
 				q = q.Link
@@ -157,16 +153,15 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 		}
 
 		if q == nil {
-			name = "<nil>"
+			name := "<nil>"
 			if p.To.Sym != nil {
 				name = p.To.Sym.Name
 			}
-			ctxt.Diag("branch out of range (%#x)\n%v [%s]", uint32(c), p, name)
+			ctxt.Diag("branch out of range (%#x)\n%v [%s]", uint32(p.To.Offset), p, name)
 			p.To.Type = TYPE_NONE
 		}
 
-		p.To.Val = q
-		p.Pcond = q
+		p.To.SetTarget(q)
 	}
 
 	if !ctxt.Flag_optimize {
@@ -174,13 +169,13 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 	}
 
 	// Collapse series of jumps to jumps.
-	for p := sym.Func.Text; p != nil; p = p.Link {
-		if p.Pcond == nil {
+	for p := sym.Func().Text; p != nil; p = p.Link {
+		if p.To.Target() == nil {
 			continue
 		}
-		p.Pcond = brloop(p.Pcond)
-		if p.Pcond != nil && p.To.Type == TYPE_BRANCH {
-			p.To.Offset = p.Pcond.Pc
+		p.To.SetTarget(brloop(p.To.Target()))
+		if p.To.Target() != nil && p.To.Type == TYPE_BRANCH {
+			p.To.Offset = p.To.Target().Pc
 		}
 	}
 }
