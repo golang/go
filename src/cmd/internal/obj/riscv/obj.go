@@ -4350,6 +4350,10 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		ins.rd, ins.rs1, ins.rs2 = REG_ZERO, REG_ZERO, obj.REG_NONE
 		ins.imm = 0x0ff
 
+	case APAUSE:
+		ins.as, ins.rd, ins.rs1, ins.rs2 = AFENCE, REG_ZERO, REG_ZERO, obj.REG_NONE
+		ins.imm = 0x010
+
 	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
 		// Set the default rounding mode in funct3 to round to zero.
 		if p.Scond&rmSuffixBit == 0 {
