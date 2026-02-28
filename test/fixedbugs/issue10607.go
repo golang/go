@@ -1,5 +1,6 @@
-// +build linux,!ppc64,!riscv64
 // run
+
+//go:build linux && !ppc64 && gc && cgo
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -7,9 +8,6 @@
 
 // Test that a -B option is passed through when using both internal
 // and external linking mode.
-
-// TODO(jsing): Re-enable on riscv64 when it has support for external
-// linking - see golang.org/issue/36739
 
 package main
 
@@ -22,7 +20,7 @@ import (
 
 func main() {
 	test("internal")
-	test("external")
+	test("external") // The 'cgo' build constraint should imply that a linker is available.
 }
 
 func test(linkmode string) {

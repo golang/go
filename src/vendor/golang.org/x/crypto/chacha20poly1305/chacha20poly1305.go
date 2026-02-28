@@ -5,7 +5,7 @@
 // Package chacha20poly1305 implements the ChaCha20-Poly1305 AEAD and its
 // extended nonce variant XChaCha20-Poly1305, as specified in RFC 8439 and
 // draft-irtf-cfrg-xchacha-01.
-package chacha20poly1305 // import "golang.org/x/crypto/chacha20poly1305"
+package chacha20poly1305
 
 import (
 	"crypto/cipher"
@@ -26,6 +26,10 @@ const (
 	// NonceSizeX is the size of the nonce used with the XChaCha20-Poly1305
 	// variant of this AEAD, in bytes.
 	NonceSizeX = 24
+
+	// Overhead is the size of the Poly1305 authentication tag, and the
+	// difference between a ciphertext length and its plaintext.
+	Overhead = 16
 )
 
 type chacha20poly1305 struct {
@@ -34,6 +38,9 @@ type chacha20poly1305 struct {
 
 // New returns a ChaCha20-Poly1305 AEAD that uses the given 256-bit key.
 func New(key []byte) (cipher.AEAD, error) {
+	if fips140Enforced() {
+		return nil, errors.New("chacha20poly1305: use of ChaCha20Poly1305 is not allowed in FIPS 140-only mode")
+	}
 	if len(key) != KeySize {
 		return nil, errors.New("chacha20poly1305: bad key length")
 	}
@@ -47,7 +54,7 @@ func (c *chacha20poly1305) NonceSize() int {
 }
 
 func (c *chacha20poly1305) Overhead() int {
-	return 16
+	return Overhead
 }
 
 func (c *chacha20poly1305) Seal(dst, nonce, plaintext, additionalData []byte) []byte {

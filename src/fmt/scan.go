@@ -51,7 +51,7 @@ type ScanState interface {
 // Scanner is implemented by any value that has a Scan method, which scans
 // the input for the representation of a value and stores the result in the
 // receiver, which must be a pointer to be useful. The Scan method is called
-// for any argument to Scan, Scanf, or Scanln that implements it.
+// for any argument to [Scan], [Scanf], or [Scanln] that implements it.
 type Scanner interface {
 	Scan(state ScanState, verb rune) error
 }
@@ -60,13 +60,13 @@ type Scanner interface {
 // space-separated values into successive arguments. Newlines count
 // as space. It returns the number of items successfully scanned.
 // If that is less than the number of arguments, err will report why.
-func Scan(a ...interface{}) (n int, err error) {
+func Scan(a ...any) (n int, err error) {
 	return Fscan(os.Stdin, a...)
 }
 
-// Scanln is similar to Scan, but stops scanning at a newline and
+// Scanln is similar to [Scan], but stops scanning at a newline and
 // after the final item there must be a newline or EOF.
-func Scanln(a ...interface{}) (n int, err error) {
+func Scanln(a ...any) (n int, err error) {
 	return Fscanln(os.Stdin, a...)
 }
 
@@ -77,7 +77,7 @@ func Scanln(a ...interface{}) (n int, err error) {
 // Newlines in the input must match newlines in the format.
 // The one exception: the verb %c always scans the next rune in the
 // input, even if it is a space (or tab etc.) or newline.
-func Scanf(format string, a ...interface{}) (n int, err error) {
+func Scanf(format string, a ...any) (n int, err error) {
 	return Fscanf(os.Stdin, format, a...)
 }
 
@@ -96,13 +96,13 @@ func (r *stringReader) Read(b []byte) (n int, err error) {
 // values into successive arguments. Newlines count as space. It
 // returns the number of items successfully scanned. If that is less
 // than the number of arguments, err will report why.
-func Sscan(str string, a ...interface{}) (n int, err error) {
+func Sscan(str string, a ...any) (n int, err error) {
 	return Fscan((*stringReader)(&str), a...)
 }
 
-// Sscanln is similar to Sscan, but stops scanning at a newline and
+// Sscanln is similar to [Sscan], but stops scanning at a newline and
 // after the final item there must be a newline or EOF.
-func Sscanln(str string, a ...interface{}) (n int, err error) {
+func Sscanln(str string, a ...any) (n int, err error) {
 	return Fscanln((*stringReader)(&str), a...)
 }
 
@@ -110,7 +110,7 @@ func Sscanln(str string, a ...interface{}) (n int, err error) {
 // values into successive arguments as determined by the format. It
 // returns the number of items successfully parsed.
 // Newlines in the input must match newlines in the format.
-func Sscanf(str string, format string, a ...interface{}) (n int, err error) {
+func Sscanf(str string, format string, a ...any) (n int, err error) {
 	return Fscanf((*stringReader)(&str), format, a...)
 }
 
@@ -118,16 +118,16 @@ func Sscanf(str string, format string, a ...interface{}) (n int, err error) {
 // values into successive arguments. Newlines count as space. It
 // returns the number of items successfully scanned. If that is less
 // than the number of arguments, err will report why.
-func Fscan(r io.Reader, a ...interface{}) (n int, err error) {
+func Fscan(r io.Reader, a ...any) (n int, err error) {
 	s, old := newScanState(r, true, false)
 	n, err = s.doScan(a)
 	s.free(old)
 	return
 }
 
-// Fscanln is similar to Fscan, but stops scanning at a newline and
+// Fscanln is similar to [Fscan], but stops scanning at a newline and
 // after the final item there must be a newline or EOF.
-func Fscanln(r io.Reader, a ...interface{}) (n int, err error) {
+func Fscanln(r io.Reader, a ...any) (n int, err error) {
 	s, old := newScanState(r, false, true)
 	n, err = s.doScan(a)
 	s.free(old)
@@ -138,7 +138,7 @@ func Fscanln(r io.Reader, a ...interface{}) (n int, err error) {
 // values into successive arguments as determined by the format. It
 // returns the number of items successfully parsed.
 // Newlines in the input must match newlines in the format.
-func Fscanf(r io.Reader, format string, a ...interface{}) (n int, err error) {
+func Fscanf(r io.Reader, format string, a ...any) (n int, err error) {
 	s, old := newScanState(r, false, false)
 	n, err = s.doScanf(format, a)
 	s.free(old)
@@ -376,7 +376,7 @@ func (r *readRune) UnreadRune() error {
 }
 
 var ssFree = sync.Pool{
-	New: func() interface{} { return new(ss) },
+	New: func() any { return new(ss) },
 }
 
 // newScanState allocates a new ss struct or grab a cached one.
@@ -416,7 +416,7 @@ func (s *ss) free(old ssave) {
 
 // SkipSpace provides Scan methods the ability to skip space and newline
 // characters in keeping with the current scanning mode set by format strings
-// and Scan/Scanln.
+// and [Scan]/[Scanln].
 func (s *ss) SkipSpace() {
 	for {
 		r := s.getRune()
@@ -462,8 +462,8 @@ func (s *ss) token(skipSpace bool, f func(rune) bool) []byte {
 	return s.buf
 }
 
-var complexError = errors.New("syntax error scanning complex number")
-var boolError = errors.New("syntax error scanning boolean")
+var errComplex = errors.New("syntax error scanning complex number")
+var errBool = errors.New("syntax error scanning boolean")
 
 func indexRune(s string, r rune) int {
 	for i, c := range s {
@@ -542,12 +542,12 @@ func (s *ss) scanBool(verb rune) bool {
 		return true
 	case 't', 'T':
 		if s.accept("rR") && (!s.accept("uU") || !s.accept("eE")) {
-			s.error(boolError)
+			s.error(errBool)
 		}
 		return true
 	case 'f', 'F':
 		if s.accept("aA") && (!s.accept("lL") || !s.accept("sS") || !s.accept("eE")) {
-			s.error(boolError)
+			s.error(errBool)
 		}
 		return false
 	}
@@ -747,16 +747,16 @@ func (s *ss) complexTokens() (real, imag string) {
 	s.buf = s.buf[:0]
 	// Must now have a sign.
 	if !s.accept("+-") {
-		s.error(complexError)
+		s.error(errComplex)
 	}
 	// Sign is now in buffer
 	imagSign := string(s.buf)
 	imag = s.floatToken()
 	if !s.accept("i") {
-		s.error(complexError)
+		s.error(errComplex)
 	}
 	if parens && !s.accept(")") {
-		s.error(complexError)
+		s.error(errComplex)
 	}
 	return real, imagSign + imag
 }
@@ -803,7 +803,7 @@ func (s *ss) convertFloat(str string, n int) float64 {
 	return f
 }
 
-// convertComplex converts the next token to a complex128 value.
+// scanComplex converts the next token to a complex128 value.
 // The atof argument is a type-specific reader for the underlying type.
 // If we're reading complex64, atof will parse float32s and convert them
 // to float64's to avoid reproducing this code for each complex type.
@@ -950,7 +950,7 @@ func (s *ss) scanPercent() {
 }
 
 // scanOne scans a single value, deriving the scanner from the type of the argument.
-func (s *ss) scanOne(verb rune, arg interface{}) {
+func (s *ss) scanOne(verb rune, arg any) {
 	s.buf = s.buf[:0]
 	var err error
 	// If the parameter has its own Scan method, use that.
@@ -1017,7 +1017,7 @@ func (s *ss) scanOne(verb rune, arg interface{}) {
 	default:
 		val := reflect.ValueOf(v)
 		ptr := val
-		if ptr.Kind() != reflect.Ptr {
+		if ptr.Kind() != reflect.Pointer {
 			s.errorString("type not a pointer: " + val.Type().String())
 			return
 		}
@@ -1067,7 +1067,7 @@ func errorHandler(errp *error) {
 }
 
 // doScan does the real work for scanning without a format string.
-func (s *ss) doScan(a []interface{}) (numProcessed int, err error) {
+func (s *ss) doScan(a []any) (numProcessed int, err error) {
 	defer errorHandler(&err)
 	for _, arg := range a {
 		s.scanOne('v', arg)
@@ -1178,7 +1178,7 @@ func (s *ss) advance(format string) (i int) {
 
 // doScanf does the real work when scanning with a format string.
 // At the moment, it handles only pointers to basic types.
-func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err error) {
+func (s *ss) doScanf(format string, a []any) (numProcessed int, err error) {
 	defer errorHandler(&err)
 	end := len(format) - 1
 	// We process one item per non-trivial format

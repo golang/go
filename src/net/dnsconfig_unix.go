@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build !windows
 
 // Read system DNS config from /etc/resolv.conf
 
@@ -10,31 +10,10 @@ package net
 
 import (
 	"internal/bytealg"
-	"os"
-	"sync/atomic"
+	"internal/stringslite"
+	"net/netip"
 	"time"
 )
-
-var (
-	defaultNS   = []string{"127.0.0.1:53", "[::1]:53"}
-	getHostname = os.Hostname // variable for testing
-)
-
-type dnsConfig struct {
-	servers       []string      // server addresses (in host:port form) to use
-	search        []string      // rooted suffixes to append to local name
-	ndots         int           // number of dots in name to trigger absolute lookup
-	timeout       time.Duration // wait before giving up on a query, including retries
-	attempts      int           // lost packets before giving up on server
-	rotate        bool          // round robin among servers
-	unknownOpt    bool          // anything unknown was encountered
-	lookup        []string      // OpenBSD top-level database "lookup" order
-	err           error         // any error that occurs during open of resolv.conf
-	mtime         time.Time     // time of resolv.conf modification
-	soffset       uint32        // used by serverOffset
-	singleRequest bool          // use sequential A and AAAA queries instead of parallel queries
-	useTCP        bool          // force usage of TCP for DNS resolutions
-}
 
 // See resolv.conf(5) on a Linux machine.
 func dnsReadConfig(filename string) *dnsConfig {
@@ -74,9 +53,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 				// One more check: make sure server name is
 				// just an IP address. Otherwise we need DNS
 				// to look it up.
-				if parseIPv4(f[1]) != nil {
-					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
-				} else if ip, _ := parseIPv6Zone(f[1]); ip != nil {
+				if _, err := netip.ParseAddr(f[1]); err == nil {
 					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
 				}
 			}
@@ -87,15 +64,19 @@ func dnsReadConfig(filename string) *dnsConfig {
 			}
 
 		case "search": // set search path to given servers
-			conf.search = make([]string, len(f)-1)
-			for i := 0; i < len(conf.search); i++ {
-				conf.search[i] = ensureRooted(f[i+1])
+			conf.search = make([]string, 0, len(f)-1)
+			for i := 1; i < len(f); i++ {
+				name := ensureRooted(f[i])
+				if name == "." {
+					continue
+				}
+				conf.search = append(conf.search, name)
 			}
 
 		case "options": // magic options
 			for _, s := range f[1:] {
 				switch {
-				case hasPrefix(s, "ndots:"):
+				case stringslite.HasPrefix(s, "ndots:"):
 					n, _, _ := dtoi(s[6:])
 					if n < 0 {
 						n = 0
@@ -103,13 +84,13 @@ func dnsReadConfig(filename string) *dnsConfig {
 						n = 15
 					}
 					conf.ndots = n
-				case hasPrefix(s, "timeout:"):
+				case stringslite.HasPrefix(s, "timeout:"):
 					n, _, _ := dtoi(s[8:])
 					if n < 1 {
 						n = 1
 					}
 					conf.timeout = time.Duration(n) * time.Second
-				case hasPrefix(s, "attempts:"):
+				case stringslite.HasPrefix(s, "attempts:"):
 					n, _, _ := dtoi(s[9:])
 					if n < 1 {
 						n = 1
@@ -132,6 +113,13 @@ func dnsReadConfig(filename string) *dnsConfig {
 					// https://www.freebsd.org/cgi/man.cgi?query=resolv.conf&sektion=5&manpath=freebsd-release-ports
 					// https://man.openbsd.org/resolv.conf.5
 					conf.useTCP = true
+				case s == "trust-ad":
+					conf.trustAD = true
+				case s == "edns0":
+					// We use EDNS by default.
+					// Ignore this option.
+				case s == "no-reload":
+					conf.noReload = true
 				default:
 					conf.unknownOpt = true
 				}
@@ -156,17 +144,6 @@ func dnsReadConfig(filename string) *dnsConfig {
 	return conf
 }
 
-// serverOffset returns an offset that can be used to determine
-// indices of servers in c.servers when making queries.
-// When the rotate option is enabled, this offset increases.
-// Otherwise it is always 0.
-func (c *dnsConfig) serverOffset() uint32 {
-	if c.rotate {
-		return atomic.AddUint32(&c.soffset, 1) - 1 // return 0 to start
-	}
-	return 0
-}
-
 func dnsDefaultSearch() []string {
 	hn, err := getHostname()
 	if err != nil {
@@ -177,10 +154,6 @@ func dnsDefaultSearch() []string {
 		return []string{ensureRooted(hn[i+1:])}
 	}
 	return nil
-}
-
-func hasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
 
 func ensureRooted(s string) string {

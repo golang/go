@@ -18,16 +18,20 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"io"
+	"maps"
 	"net"
 	"net/http"
 	gourl "net/url"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/pprof/internal/graph"
+	"github.com/google/pprof/internal/measurement"
 	"github.com/google/pprof/internal/plugin"
 	"github.com/google/pprof/internal/report"
 	"github.com/google/pprof/profile"
@@ -35,22 +39,25 @@ import (
 
 // webInterface holds the state needed for serving a browser based interface.
 type webInterface struct {
-	prof      *profile.Profile
-	options   *plugin.Options
-	help      map[string]string
-	templates *template.Template
+	prof         *profile.Profile
+	copier       profileCopier
+	options      *plugin.Options
+	help         map[string]string
+	settingsFile string
 }
 
-func makeWebInterface(p *profile.Profile, opt *plugin.Options) *webInterface {
-	templates := template.New("templategroup")
-	addTemplates(templates)
-	report.AddSourceTemplates(templates)
-	return &webInterface{
-		prof:      p,
-		options:   opt,
-		help:      make(map[string]string),
-		templates: templates,
+func makeWebInterface(p *profile.Profile, copier profileCopier, opt *plugin.Options) (*webInterface, error) {
+	settingsFile, err := settingsFileName()
+	if err != nil {
+		return nil, err
 	}
+	return &webInterface{
+		prof:         p,
+		copier:       copier,
+		options:      opt,
+		help:         make(map[string]string),
+		settingsFile: settingsFile,
+	}, nil
 }
 
 // maxEntries is the maximum number of entries to print for text interfaces.
@@ -74,12 +81,18 @@ type webArgs struct {
 	Total       int64
 	SampleTypes []string
 	Legend      []string
+	DocURL      string
+	Standalone  bool // True for command-line generation of HTML
 	Help        map[string]string
 	Nodes       []string
 	HTMLBody    template.HTML
 	TextBody    string
 	Top         []report.TextItem
+	Listing     report.WebListData
 	FlameGraph  template.JS
+	Stacks      template.JS
+	Configs     []configMenuEntry
+	UnitDefs    []measurement.UnitType
 }
 
 func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, disableBrowser bool) error {
@@ -88,16 +101,20 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 		return err
 	}
 	interactiveMode = true
-	ui := makeWebInterface(p, o)
+	copier := makeProfileCopier(p)
+	ui, err := makeWebInterface(p, copier, o)
+	if err != nil {
+		return err
+	}
 	for n, c := range pprofCommands {
 		ui.help[n] = c.description
 	}
-	for n, v := range pprofVariables {
-		ui.help[n] = v.help
-	}
+	maps.Copy(ui.help, configHelp)
 	ui.help["details"] = "Show information about the profile and this view"
 	ui.help["graph"] = "Display profile as a directed graph"
+	ui.help["flamegraph"] = "Display profile as a flame graph"
 	ui.help["reset"] = "Show the entire profile"
+	ui.help["save_config"] = "Save current settings"
 
 	server := o.HTTPServer
 	if server == nil {
@@ -108,12 +125,23 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 		Host:     host,
 		Port:     port,
 		Handlers: map[string]http.Handler{
-			"/":           http.HandlerFunc(ui.dot),
-			"/top":        http.HandlerFunc(ui.top),
-			"/disasm":     http.HandlerFunc(ui.disasm),
-			"/source":     http.HandlerFunc(ui.source),
-			"/peek":       http.HandlerFunc(ui.peek),
-			"/flamegraph": http.HandlerFunc(ui.flamegraph),
+			"/":             redirectWithQuery("flamegraph", http.StatusMovedPermanently),
+			"/graph":        http.HandlerFunc(ui.dot),
+			"/top":          http.HandlerFunc(ui.top),
+			"/disasm":       http.HandlerFunc(ui.disasm),
+			"/source":       http.HandlerFunc(ui.source),
+			"/peek":         http.HandlerFunc(ui.peek),
+			"/flamegraph":   http.HandlerFunc(ui.stackView),
+			"/saveconfig":   http.HandlerFunc(ui.saveConfig),
+			"/deleteconfig": http.HandlerFunc(ui.deleteConfig),
+			"/download": http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				w.Header().Set("Content-Type", "application/vnd.google.protobuf+gzip")
+				w.Header().Set("Content-Disposition", "attachment;filename=profile.pb.gz")
+				p.Write(w)
+			}),
+			// Keep legacy URLs working.
+			"/flamegraph2":   redirectWithQuery("flamegraph", http.StatusMovedPermanently),
+			"/flamegraphold": redirectWithQuery("flamegraph", http.StatusMovedPermanently),
 		},
 	}
 
@@ -183,44 +211,32 @@ func defaultWebServer(args *plugin.HTTPServerArgs) error {
 	// https://github.com/google/pprof/pull/348
 	mux := http.NewServeMux()
 	mux.Handle("/ui/", http.StripPrefix("/ui", handler))
-	mux.Handle("/", redirectWithQuery("/ui"))
+	mux.Handle("/", redirectWithQuery("/ui", http.StatusTemporaryRedirect))
 	s := &http.Server{Handler: mux}
 	return s.Serve(ln)
 }
 
-func redirectWithQuery(path string) http.HandlerFunc {
+// redirectWithQuery responds with a given redirect code, preserving query
+// parameters in the redirect URL. It does not convert relative paths to
+// absolute paths like http.Redirect does, so that HTTPServerArgs.Handlers can
+// generate relative redirects that work with the external prefixing.
+func redirectWithQuery(path string, code int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pathWithQuery := &gourl.URL{Path: path, RawQuery: r.URL.RawQuery}
-		http.Redirect(w, r, pathWithQuery.String(), http.StatusTemporaryRedirect)
+		w.Header().Set("Location", pathWithQuery.String())
+		w.WriteHeader(code)
 	}
 }
 
 func isLocalhost(host string) bool {
-	for _, v := range []string{"localhost", "127.0.0.1", "[::1]", "::1"} {
-		if host == v {
-			return true
-		}
-	}
-	return false
+	return slices.Contains([]string{"localhost", "127.0.0.1", "[::1]", "::1"}, host)
 }
 
 func openBrowser(url string, o *plugin.Options) {
 	// Construct URL.
-	u, _ := gourl.Parse(url)
-	q := u.Query()
-	for _, p := range []struct{ param, key string }{
-		{"f", "focus"},
-		{"s", "show"},
-		{"sf", "show_from"},
-		{"i", "ignore"},
-		{"h", "hide"},
-		{"si", "sample_index"},
-	} {
-		if v := pprofVariables[p.key].value; v != "" {
-			q.Set(p.param, v)
-		}
-	}
-	u.RawQuery = q.Encode()
+	baseURL, _ := gourl.Parse(url)
+	current := currentConfig()
+	u, _ := current.makeURL(*baseURL)
 
 	// Give server a little time to get ready.
 	time.Sleep(time.Millisecond * 500)
@@ -240,28 +256,23 @@ func openBrowser(url string, o *plugin.Options) {
 	o.UI.PrintErr(u.String())
 }
 
-func varsFromURL(u *gourl.URL) variables {
-	vars := pprofVariables.makeCopy()
-	vars["focus"].value = u.Query().Get("f")
-	vars["show"].value = u.Query().Get("s")
-	vars["show_from"].value = u.Query().Get("sf")
-	vars["ignore"].value = u.Query().Get("i")
-	vars["hide"].value = u.Query().Get("h")
-	vars["sample_index"].value = u.Query().Get("si")
-	return vars
-}
-
 // makeReport generates a report for the specified command.
+// If configEditor is not null, it is used to edit the config used for the report.
 func (ui *webInterface) makeReport(w http.ResponseWriter, req *http.Request,
-	cmd []string, vars ...string) (*report.Report, []string) {
-	v := varsFromURL(req.URL)
-	for i := 0; i+1 < len(vars); i += 2 {
-		v[vars[i]].value = vars[i+1]
+	cmd []string, configEditor func(*config)) (*report.Report, []string) {
+	cfg := currentConfig()
+	if err := cfg.applyURL(req.URL.Query()); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		ui.options.UI.PrintErr(err)
+		return nil, nil
+	}
+	if configEditor != nil {
+		configEditor(&cfg)
 	}
 	catcher := &errorCatcher{UI: ui.options.UI}
 	options := *ui.options
 	options.UI = catcher
-	_, rpt, err := generateRawReport(ui.prof, cmd, v, &options)
+	_, rpt, err := generateRawReport(ui.copier.newCopy(), cmd, cfg, &options)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		ui.options.UI.PrintErr(err)
@@ -270,19 +281,26 @@ func (ui *webInterface) makeReport(w http.ResponseWriter, req *http.Request,
 	return rpt, catcher.errors
 }
 
-// render generates html using the named template based on the contents of data.
-func (ui *webInterface) render(w http.ResponseWriter, tmpl string,
-	rpt *report.Report, errList, legend []string, data webArgs) {
+// renderHTML generates html using the named template based on the contents of data.
+func renderHTML(dst io.Writer, tmpl string, rpt *report.Report, errList, legend []string, data webArgs) error {
 	file := getFromLegend(legend, "File: ", "unknown")
 	profile := getFromLegend(legend, "Type: ", "unknown")
 	data.Title = file + " " + profile
 	data.Errors = errList
 	data.Total = rpt.Total()
-	data.SampleTypes = sampleTypes(ui.prof)
+	data.DocURL = rpt.DocURL()
 	data.Legend = legend
+	return getHTMLTemplates().ExecuteTemplate(dst, tmpl, data)
+}
+
+// render responds with html generated by passing data to the named template.
+func (ui *webInterface) render(w http.ResponseWriter, req *http.Request, tmpl string,
+	rpt *report.Report, errList, legend []string, data webArgs) {
+	data.SampleTypes = sampleTypes(ui.prof)
 	data.Help = ui.help
+	data.Configs = configMenu(ui.settingsFile, *req.URL)
 	html := &bytes.Buffer{}
-	if err := ui.templates.ExecuteTemplate(html, tmpl, data); err != nil {
+	if err := renderHTML(html, tmpl, rpt, errList, legend, data); err != nil {
 		http.Error(w, "internal template error", http.StatusInternalServerError)
 		ui.options.UI.PrintErr(err)
 		return
@@ -293,7 +311,7 @@ func (ui *webInterface) render(w http.ResponseWriter, tmpl string,
 
 // dot generates a web page containing an svg diagram.
 func (ui *webInterface) dot(w http.ResponseWriter, req *http.Request) {
-	rpt, errList := ui.makeReport(w, req, []string{"svg"})
+	rpt, errList := ui.makeReport(w, req, []string{"svg"}, nil)
 	if rpt == nil {
 		return // error already reported
 	}
@@ -320,7 +338,7 @@ func (ui *webInterface) dot(w http.ResponseWriter, req *http.Request) {
 		nodes = append(nodes, n.Info.Name)
 	}
 
-	ui.render(w, "graph", rpt, errList, legend, webArgs{
+	ui.render(w, req, "graph", rpt, errList, legend, webArgs{
 		HTMLBody: template.HTML(string(svg)),
 		Nodes:    nodes,
 	})
@@ -335,7 +353,7 @@ func dotToSvg(dot []byte) ([]byte, error) {
 	}
 
 	// Fix dot bug related to unquoted ampersands.
-	svg := bytes.Replace(out.Bytes(), []byte("&;"), []byte("&amp;;"), -1)
+	svg := bytes.ReplaceAll(out.Bytes(), []byte("&;"), []byte("&amp;;"))
 
 	// Cleanup for embedding by dropping stuff before the <svg> start.
 	if pos := bytes.Index(svg, []byte("<svg")); pos >= 0 {
@@ -345,7 +363,9 @@ func dotToSvg(dot []byte) ([]byte, error) {
 }
 
 func (ui *webInterface) top(w http.ResponseWriter, req *http.Request) {
-	rpt, errList := ui.makeReport(w, req, []string{"top"}, "nodecount", "500")
+	rpt, errList := ui.makeReport(w, req, []string{"top"}, func(cfg *config) {
+		cfg.NodeCount = 500
+	})
 	if rpt == nil {
 		return // error already reported
 	}
@@ -355,7 +375,7 @@ func (ui *webInterface) top(w http.ResponseWriter, req *http.Request) {
 		nodes = append(nodes, item.Name)
 	}
 
-	ui.render(w, "top", rpt, errList, legend, webArgs{
+	ui.render(w, req, "top", rpt, errList, legend, webArgs{
 		Top:   top,
 		Nodes: nodes,
 	})
@@ -364,7 +384,7 @@ func (ui *webInterface) top(w http.ResponseWriter, req *http.Request) {
 // disasm generates a web page containing disassembly.
 func (ui *webInterface) disasm(w http.ResponseWriter, req *http.Request) {
 	args := []string{"disasm", req.URL.Query().Get("f")}
-	rpt, errList := ui.makeReport(w, req, args)
+	rpt, errList := ui.makeReport(w, req, args, nil)
 	if rpt == nil {
 		return // error already reported
 	}
@@ -377,7 +397,7 @@ func (ui *webInterface) disasm(w http.ResponseWriter, req *http.Request) {
 	}
 
 	legend := report.ProfileLabels(rpt)
-	ui.render(w, "plaintext", rpt, errList, legend, webArgs{
+	ui.render(w, req, "plaintext", rpt, errList, legend, webArgs{
 		TextBody: out.String(),
 	})
 
@@ -387,29 +407,31 @@ func (ui *webInterface) disasm(w http.ResponseWriter, req *http.Request) {
 // data.
 func (ui *webInterface) source(w http.ResponseWriter, req *http.Request) {
 	args := []string{"weblist", req.URL.Query().Get("f")}
-	rpt, errList := ui.makeReport(w, req, args)
+	rpt, errList := ui.makeReport(w, req, args, nil)
 	if rpt == nil {
 		return // error already reported
 	}
 
 	// Generate source listing.
-	var body bytes.Buffer
-	if err := report.PrintWebList(&body, rpt, ui.options.Obj, maxEntries); err != nil {
+	listing, err := report.MakeWebList(rpt, ui.options.Obj, maxEntries)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		ui.options.UI.PrintErr(err)
 		return
 	}
 
 	legend := report.ProfileLabels(rpt)
-	ui.render(w, "sourcelisting", rpt, errList, legend, webArgs{
-		HTMLBody: template.HTML(body.String()),
+	ui.render(w, req, "sourcelisting", rpt, errList, legend, webArgs{
+		Listing: listing,
 	})
 }
 
 // peek generates a web page listing callers/callers.
 func (ui *webInterface) peek(w http.ResponseWriter, req *http.Request) {
 	args := []string{"peek", req.URL.Query().Get("f")}
-	rpt, errList := ui.makeReport(w, req, args, "lines", "t")
+	rpt, errList := ui.makeReport(w, req, args, func(cfg *config) {
+		cfg.Granularity = "lines"
+	})
 	if rpt == nil {
 		return // error already reported
 	}
@@ -422,9 +444,28 @@ func (ui *webInterface) peek(w http.ResponseWriter, req *http.Request) {
 	}
 
 	legend := report.ProfileLabels(rpt)
-	ui.render(w, "plaintext", rpt, errList, legend, webArgs{
+	ui.render(w, req, "plaintext", rpt, errList, legend, webArgs{
 		TextBody: out.String(),
 	})
+}
+
+// saveConfig saves URL configuration.
+func (ui *webInterface) saveConfig(w http.ResponseWriter, req *http.Request) {
+	if err := setConfig(ui.settingsFile, *req.URL); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		ui.options.UI.PrintErr(err)
+		return
+	}
+}
+
+// deleteConfig deletes a configuration.
+func (ui *webInterface) deleteConfig(w http.ResponseWriter, req *http.Request) {
+	name := req.URL.Query().Get("config")
+	if err := removeConfig(ui.settingsFile, name); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		ui.options.UI.PrintErr(err)
+		return
+	}
 }
 
 // getFromLegend returns the suffix of an entry in legend that starts

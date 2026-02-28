@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -20,8 +20,9 @@ var tNow = time.Date(2013, 1, 1, 12, 0, 0, 0, time.UTC)
 // testPSL implements PublicSuffixList with just two rules: "co.uk"
 // and the default rule "*".
 // The implementation has two intentional bugs:
-//    PublicSuffix("www.buggy.psl") == "xy"
-//    PublicSuffix("www2.buggy.psl") == "com"
+//
+//	PublicSuffix("www.buggy.psl") == "xy"
+//	PublicSuffix("www2.buggy.psl") == "com"
 type testPSL struct{}
 
 func (testPSL) String() string {
@@ -251,6 +252,7 @@ var isIPTests = map[string]bool{
 	"127.0.0.1":            true,
 	"1.2.3.4":              true,
 	"2001:4860:0:2001::68": true,
+	"::1%zone":             true,
 	"example.com":          false,
 	"1.1.1.300":            false,
 	"www.foo.bar.net":      false,
@@ -305,8 +307,8 @@ var domainAndTypeTests = [...]struct {
 	{"foo.sso.example.com", "sso.example.com", "sso.example.com", false, nil},
 	{"bar.co.uk", "bar.co.uk", "bar.co.uk", false, nil},
 	{"foo.bar.co.uk", ".bar.co.uk", "bar.co.uk", false, nil},
-	{"127.0.0.1", "127.0.0.1", "", false, errNoHostname},
-	{"2001:4860:0:2001::68", "2001:4860:0:2001::68", "2001:4860:0:2001::68", false, errNoHostname},
+	{"127.0.0.1", "127.0.0.1", "127.0.0.1", true, nil},
+	{"2001:4860:0:2001::68", "2001:4860:0:2001::68", "2001:4860:0:2001::68", true, nil},
 	{"www.example.com", ".", "", false, errMalformedDomain},
 	{"www.example.com", "..", "", false, errMalformedDomain},
 	{"www.example.com", "other.com", "", false, errIllegalDomain},
@@ -327,7 +329,7 @@ func TestDomainAndType(t *testing.T) {
 	for _, tc := range domainAndTypeTests {
 		domain, hostOnly, err := jar.domainAndType(tc.host, tc.domain)
 		if err != tc.wantErr {
-			t.Errorf("%q/%q: got %q error, want %q",
+			t.Errorf("%q/%q: got %q error, want %v",
 				tc.host, tc.domain, err, tc.wantErr)
 			continue
 		}
@@ -348,7 +350,7 @@ func expiresIn(delta int) string {
 	return "expires=" + t.Format(time.RFC1123)
 }
 
-// mustParseURL parses s to an URL and panics on error.
+// mustParseURL parses s to a URL and panics on error.
 func mustParseURL(s string) *url.URL {
 	u, err := url.Parse(s)
 	if err != nil || u.Scheme == "" || u.Host == "" {
@@ -358,13 +360,13 @@ func mustParseURL(s string) *url.URL {
 }
 
 // jarTest encapsulates the following actions on a jar:
-//   1. Perform SetCookies with fromURL and the cookies from setCookies.
-//      (Done at time tNow + 0 ms.)
-//   2. Check that the entries in the jar matches content.
-//      (Done at time tNow + 1001 ms.)
-//   3. For each query in tests: Check that Cookies with toURL yields the
-//      cookies in want.
-//      (Query n done at tNow + (n+2)*1001 ms.)
+//  1. Perform SetCookies with fromURL and the cookies from setCookies.
+//     (Done at time tNow + 0 ms.)
+//  2. Check that the entries in the jar matches content.
+//     (Done at time tNow + 1001 ms.)
+//  3. For each query in tests: Check that Cookies with toURL yields the
+//     cookies in want.
+//     (Query n done at tNow + (n+2)*1001 ms.)
 type jarTest struct {
 	description string   // The description of what this test is supposed to test
 	fromURL     string   // The full URL of the request from which Set-Cookie headers where received
@@ -402,10 +404,15 @@ func (test jarTest) run(t *testing.T, jar *Jar) {
 			if !cookie.Expires.After(now) {
 				continue
 			}
-			cs = append(cs, cookie.Name+"="+cookie.Value)
+
+			v := cookie.Value
+			if strings.ContainsAny(v, " ,") || cookie.Quoted {
+				v = `"` + v + `"`
+			}
+			cs = append(cs, cookie.Name+"="+v)
 		}
 	}
-	sort.Strings(cs)
+	slices.Sort(cs)
 	got := strings.Join(cs, " ")
 
 	// Make sure jar content matches our expectations.
@@ -419,7 +426,7 @@ func (test jarTest) run(t *testing.T, jar *Jar) {
 		now = now.Add(1001 * time.Millisecond)
 		var s []string
 		for _, c := range jar.cookies(mustParseURL(query.toURL), now) {
-			s = append(s, c.Name+"="+c.Value)
+			s = append(s, c.String())
 		}
 		if got := strings.Join(s, " "); got != query.want {
 			t.Errorf("Test %q #%d\ngot  %q\nwant %q", test.description, i, got, query.want)
@@ -462,6 +469,62 @@ var basicsTests = [...]jarTest{
 			{"https://www.host.test", "A=a"},
 			{"https://www.host.test/", "A=a"},
 			{"https://www.host.test/some/path", "A=a"},
+		},
+	},
+	{
+		"Secure cookies are sent for localhost",
+		"http://localhost:8910/",
+		[]string{"A=a; secure"},
+		"A=a",
+		[]query{
+			{"http://localhost:8910", "A=a"},
+			{"http://localhost:8910/", "A=a"},
+			{"http://localhost:8910/some/path", "A=a"},
+			{"https://localhost:8910", "A=a"},
+			{"https://localhost:8910/", "A=a"},
+			{"https://localhost:8910/some/path", "A=a"},
+		},
+	},
+	{
+		"Secure cookies are sent for localhost (tld)",
+		"http://example.LOCALHOST:8910/",
+		[]string{"A=a; secure"},
+		"A=a",
+		[]query{
+			{"http://example.LOCALHOST:8910", "A=a"},
+			{"http://example.LOCALHOST:8910/", "A=a"},
+			{"http://example.LOCALHOST:8910/some/path", "A=a"},
+			{"https://example.LOCALHOST:8910", "A=a"},
+			{"https://example.LOCALHOST:8910/", "A=a"},
+			{"https://example.LOCALHOST:8910/some/path", "A=a"},
+		},
+	},
+	{
+		"Secure cookies are sent for localhost (ipv6)",
+		"http://[::1]:8910/",
+		[]string{"A=a; secure"},
+		"A=a",
+		[]query{
+			{"http://[::1]:8910", "A=a"},
+			{"http://[::1]:8910/", "A=a"},
+			{"http://[::1]:8910/some/path", "A=a"},
+			{"https://[::1]:8910", "A=a"},
+			{"https://[::1]:8910/", "A=a"},
+			{"https://[::1]:8910/some/path", "A=a"},
+		},
+	},
+	{
+		"Localhost only if it's a segment",
+		"http://notlocalhost/",
+		[]string{"A=a; secure"},
+		"A=a",
+		[]query{
+			{"http://notlocalhost", ""},
+			{"http://notlocalhost/", ""},
+			{"http://notlocalhost/some/path", ""},
+			{"https://notlocalhost", "A=a"},
+			{"https://notlocalhost/", "A=a"},
+			{"https://notlocalhost/some/path", "A=a"},
 		},
 	},
 	{
@@ -593,6 +656,21 @@ var basicsTests = [...]jarTest{
 		[]query{{"http://192.168.0.10", "a=1"}},
 	},
 	{
+		"Domain cookies on IP.",
+		"http://192.168.0.10",
+		[]string{
+			"a=1; domain=192.168.0.10",  // allowed
+			"b=2; domain=172.31.9.9",    // rejected, can't set cookie for other IP
+			"c=3; domain=.192.168.0.10", // rejected like in most browsers
+		},
+		"a=1",
+		[]query{
+			{"http://192.168.0.10", "a=1"},
+			{"http://172.31.9.9", ""},
+			{"http://www.fancy.192.168.0.10", ""},
+		},
+	},
+	{
 		"Port is ignored #1.",
 		"http://www.host.test/",
 		[]string{"a=1"},
@@ -611,6 +689,32 @@ var basicsTests = [...]jarTest{
 			{"http://www.host.test", "a=1"},
 			{"http://www.host.test:8080/", "a=1"},
 			{"http://www.host.test:1234/", "a=1"},
+		},
+	},
+	{
+		"IPv6 zone is not treated as a host.",
+		"https://example.com/",
+		[]string{"a=1"},
+		"a=1",
+		[]query{
+			{"https://[::1%25.example.com]:80/", ""},
+		},
+	},
+	{
+		"Retrieval of cookies with quoted values", // issue #46443
+		"http://www.host.test/",
+		[]string{
+			`cookie-1="quoted"`,
+			`cookie-2="quoted with spaces"`,
+			`cookie-3="quoted,with,commas"`,
+			`cookie-4= ,`,
+		},
+		`cookie-1="quoted" cookie-2="quoted with spaces" cookie-3="quoted,with,commas" cookie-4=" ,"`,
+		[]query{
+			{
+				"http://www.host.test",
+				`cookie-1="quoted" cookie-2="quoted with spaces" cookie-3="quoted,with,commas" cookie-4=" ,"`,
+			},
 		},
 	},
 }
@@ -654,7 +758,7 @@ var updateAndDeleteTests = [...]jarTest{
 		},
 	},
 	{
-		"Clear Secure flag from a http.",
+		"Clear Secure flag from an http.",
 		"http://www.host.test/",
 		[]string{
 			"b=xx",
@@ -926,9 +1030,16 @@ var chromiumBasicsTests = [...]jarTest{
 	{
 		"TestIpAddress #3.",
 		"http://1.2.3.4/foo",
-		[]string{"a=1; domain=1.2.3.4"},
+		[]string{"a=1; domain=1.2.3.3"},
 		"",
 		[]query{{"http://1.2.3.4/foo", ""}},
+	},
+	{
+		"TestIpAddress #4.",
+		"http://1.2.3.4/foo",
+		[]string{"a=1; domain=1.2.3.4"},
+		"a=1",
+		[]query{{"http://1.2.3.4/foo", "a=1"}},
 	},
 	{
 		"TestNonDottedAndTLD #2.",

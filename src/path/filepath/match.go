@@ -6,9 +6,10 @@ package filepath
 
 import (
 	"errors"
+	"internal/filepathlite"
 	"os"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -27,20 +28,21 @@ var ErrBadPattern = errors.New("syntax error in pattern")
 //		'[' [ '^' ] { character-range } ']'
 //		            character class (must be non-empty)
 //		c           matches character c (c != '*', '?', '\\', '[')
-//		'\\' c      matches character c
+//		'\\' c      matches character c (except on Windows)
 //
 //	character-range:
 //		c           matches character c (c != '\\', '-', ']')
-//		'\\' c      matches character c
+//		'\\' c      matches character c (except on Windows)
 //		lo '-' hi   matches character c for lo <= c <= hi
 //
+// Path segments in the pattern must be separated by [Separator].
+//
 // Match requires pattern to match all of name, not just a substring.
-// The only possible returned error is ErrBadPattern, when pattern
+// The only possible returned error is [ErrBadPattern], when pattern
 // is malformed.
 //
 // On Windows, escaping is disabled. Instead, '\\' is treated as
 // path separator.
-//
 func Match(pattern, name string) (matched bool, err error) {
 Pattern:
 	for len(pattern) > 0 {
@@ -94,16 +96,12 @@ func scanChunk(pattern string) (star bool, chunk, rest string) {
 		star = true
 	}
 	inrange := false
-	var i int
-Scan:
-	for i = 0; i < len(pattern); i++ {
+	for i := 0; i < len(pattern); i++ {
 		switch pattern[i] {
 		case '\\':
-			if runtime.GOOS != "windows" {
-				// error check handled in matchChunk: bad pattern.
-				if i+1 < len(pattern) {
-					i++
-				}
+			// error check handled in matchChunk: bad pattern.
+			if runtime.GOOS != "windows" && i+1 < len(pattern) {
+				i++
 			}
 		case '[':
 			inrange = true
@@ -111,36 +109,37 @@ Scan:
 			inrange = false
 		case '*':
 			if !inrange {
-				break Scan
+				return star, pattern[:i], pattern[i:]
 			}
 		}
 	}
-	return star, pattern[0:i], pattern[i:]
+	return star, pattern, ""
 }
 
 // matchChunk checks whether chunk matches the beginning of s.
 // If so, it returns the remainder of s (after the match).
 // Chunk is all single-character operators: literals, char classes, and ?.
 func matchChunk(chunk, s string) (rest string, ok bool, err error) {
+	// failed records whether the match has failed.
+	// After the match fails, the loop continues on processing chunk,
+	// checking that the pattern is well-formed but no longer reading s.
+	failed := false
 	for len(chunk) > 0 {
-		if len(s) == 0 {
-			return
-		}
+		failed = failed || len(s) == 0
 		switch chunk[0] {
 		case '[':
 			// character class
-			r, n := utf8.DecodeRuneInString(s)
-			s = s[n:]
-			chunk = chunk[1:]
-			// We can't end right after '[', we're expecting at least
-			// a closing bracket and possibly a caret.
-			if len(chunk) == 0 {
-				err = ErrBadPattern
-				return
+			var r rune
+			if !failed {
+				var n int
+				r, n = utf8.DecodeRuneInString(s)
+				s = s[n:]
 			}
+			chunk = chunk[1:]
 			// possibly negated
-			negated := chunk[0] == '^'
-			if negated {
+			negated := false
+			if len(chunk) > 0 && chunk[0] == '^' {
+				negated = true
 				chunk = chunk[1:]
 			}
 			// parse all ranges
@@ -153,48 +152,46 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 				}
 				var lo, hi rune
 				if lo, chunk, err = getEsc(chunk); err != nil {
-					return
+					return "", false, err
 				}
 				hi = lo
 				if chunk[0] == '-' {
 					if hi, chunk, err = getEsc(chunk[1:]); err != nil {
-						return
+						return "", false, err
 					}
 				}
-				if lo <= r && r <= hi {
-					match = true
-				}
+				match = match || lo <= r && r <= hi
 				nrange++
 			}
-			if match == negated {
-				return
-			}
+			failed = failed || match == negated
 
 		case '?':
-			if s[0] == Separator {
-				return
+			if !failed {
+				failed = s[0] == Separator
+				_, n := utf8.DecodeRuneInString(s)
+				s = s[n:]
 			}
-			_, n := utf8.DecodeRuneInString(s)
-			s = s[n:]
 			chunk = chunk[1:]
 
 		case '\\':
 			if runtime.GOOS != "windows" {
 				chunk = chunk[1:]
 				if len(chunk) == 0 {
-					err = ErrBadPattern
-					return
+					return "", false, ErrBadPattern
 				}
 			}
 			fallthrough
 
 		default:
-			if chunk[0] != s[0] {
-				return
+			if !failed {
+				failed = chunk[0] != s[0]
+				s = s[1:]
 			}
-			s = s[1:]
 			chunk = chunk[1:]
 		}
+	}
+	if failed {
+		return "", false, nil
 	}
 	return s, true, nil
 }
@@ -225,13 +222,27 @@ func getEsc(chunk string) (r rune, nchunk string, err error) {
 
 // Glob returns the names of all files matching pattern or nil
 // if there is no matching file. The syntax of patterns is the same
-// as in Match. The pattern may describe hierarchical names such as
-// /usr/*/bin/ed (assuming the Separator is '/').
+// as in [Match]. The pattern may describe hierarchical names such as
+// /usr/*/bin/ed (assuming the [Separator] is '/').
 //
 // Glob ignores file system errors such as I/O errors reading directories.
-// The only possible returned error is ErrBadPattern, when pattern
+// The only possible returned error is [ErrBadPattern], when pattern
 // is malformed.
 func Glob(pattern string) (matches []string, err error) {
+	return globWithLimit(pattern, 0)
+}
+
+func globWithLimit(pattern string, depth int) (matches []string, err error) {
+	// This limit is used prevent stack exhaustion issues. See CVE-2022-30632.
+	const pathSeparatorsLimit = 10000
+	if depth == pathSeparatorsLimit {
+		return nil, ErrBadPattern
+	}
+
+	// Check pattern is well-formed.
+	if _, err := Match(pattern, ""); err != nil {
+		return nil, err
+	}
 	if !hasMeta(pattern) {
 		if _, err = os.Lstat(pattern); err != nil {
 			return nil, nil
@@ -257,7 +268,7 @@ func Glob(pattern string) (matches []string, err error) {
 	}
 
 	var m []string
-	m, err = Glob(dir)
+	m, err = globWithLimit(dir, depth+1)
 	if err != nil {
 		return
 	}
@@ -285,7 +296,7 @@ func cleanGlobPath(path string) string {
 
 // cleanGlobPathWindows is windows version of cleanGlobPath.
 func cleanGlobPathWindows(path string) (prefixLen int, cleaned string) {
-	vollen := volumeNameLen(path)
+	vollen := filepathlite.VolumeNameLen(path)
 	switch {
 	case path == "":
 		return 0, "."
@@ -310,19 +321,19 @@ func glob(dir, pattern string, matches []string) (m []string, e error) {
 	m = matches
 	fi, err := os.Stat(dir)
 	if err != nil {
-		return
+		return // ignore I/O error
 	}
 	if !fi.IsDir() {
-		return
+		return // ignore I/O error
 	}
 	d, err := os.Open(dir)
 	if err != nil {
-		return
+		return // ignore I/O error
 	}
 	defer d.Close()
 
 	names, _ := d.Readdirnames(-1)
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, n := range names {
 		matched, err := Match(pattern, n)

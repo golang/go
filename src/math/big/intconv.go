@@ -40,7 +40,7 @@ func (x *Int) String() string {
 	return x.Text(10)
 }
 
-// write count copies of text to s
+// write count copies of text to s.
 func writeMultiple(s fmt.State, text string, count int) {
 	if len(text) > 0 {
 		b := []byte(text)
@@ -52,7 +52,7 @@ func writeMultiple(s fmt.State, text string, count int) {
 
 var _ fmt.Formatter = intOne // *Int must implement fmt.Formatter
 
-// Format implements fmt.Formatter. It accepts the formats
+// Format implements [fmt.Formatter]. It accepts the formats
 // 'b' (binary), 'o' (octal with 0 prefix), 'O' (octal with 0o prefix),
 // 'd' (decimal), 'x' (lowercase hexadecimal), and
 // 'X' (uppercase hexadecimal).
@@ -63,7 +63,6 @@ var _ fmt.Formatter = intOne // *Int must implement fmt.Formatter
 // specification of minimum digits precision, output field
 // width, space or zero padding, and '-' for left or right
 // justification.
-//
 func (x *Int) Format(s fmt.State, ch rune) {
 	// determine base
 	var base int
@@ -175,10 +174,9 @@ func (x *Int) Format(s fmt.State, ch rune) {
 //
 // The base argument must be 0 or a value from 2 through MaxBase. If the base
 // is 0, the string prefix determines the actual conversion base. A prefix of
-// ``0b'' or ``0B'' selects base 2; a ``0'', ``0o'', or ``0O'' prefix selects
-// base 8, and a ``0x'' or ``0X'' prefix selects base 16. Otherwise the selected
+// “0b” or “0B” selects base 2; a “0”, “0o”, or “0O” prefix selects
+// base 8, and a “0x” or “0X” prefix selects base 16. Otherwise the selected
 // base is 10.
-//
 func (z *Int) scan(r io.ByteScanner, base int) (*Int, int, error) {
 	// determine sign
 	neg, err := scanSign(r)
@@ -232,7 +230,7 @@ func (r byteReader) UnreadByte() error {
 
 var _ fmt.Scanner = intOne // *Int must implement fmt.Scanner
 
-// Scan is a support routine for fmt.Scanner; it sets z to the value of
+// Scan is a support routine for [fmt.Scanner]; it sets z to the value of
 // the scanned number. It accepts the formats 'b' (binary), 'o' (octal),
 // 'd' (decimal), 'x' (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
 func (z *Int) Scan(s fmt.ScanState, ch rune) error {

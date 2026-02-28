@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix
-// +build ppc64 ppc64le
-
 //
 // System calls and other sys.stuff for ppc64, Aix
 //
@@ -25,10 +22,15 @@ TEXT callCfunction<>(SB),	NOSPLIT|NOFRAME,$0
 
 
 // asmsyscall6 calls a library function with a function descriptor
-// stored in libcall_fn and store the results in libcall struture
+// stored in libcall_fn and store the results in libcall structure
 // Up to 6 arguments can be passed to this C function
 // Called by runtime.asmcgocall
-// It reserves a stack of 288 bytes for the C function.
+// It reserves a stack of 288 bytes for the C function. It must
+// follow AIX convention, thus the first local variable must
+// be stored at the offset 112, after the linker area (48 bytes)
+// and the argument area (64).
+// The AIX convention is described here:
+// https://www.ibm.com/docs/en/aix/7.2?topic=overview-runtime-process-stack
 // NOT USING GO CALLING CONVENTION
 // runtime.asmsyscall6 is a function descriptor to the real asmsyscall6.
 DATA	runtime·asmsyscall6+0(SB)/8, $asmsyscall6<>(SB)
@@ -37,7 +39,8 @@ DATA	runtime·asmsyscall6+16(SB)/8, $0
 GLOBL	runtime·asmsyscall6(SB), NOPTR, $24
 
 TEXT asmsyscall6<>(SB),NOSPLIT,$256
-	MOVD	R3, 48(R1) // Save libcall for later
+	// Save libcall for later
+	MOVD	R3, 112(R1)
 	MOVD	libcall_fn(R3), R12
 	MOVD	libcall_args(R3), R9
 	MOVD	0(R9), R3
@@ -53,7 +56,7 @@ TEXT asmsyscall6<>(SB),NOSPLIT,$256
 	MOVD	40(R1), R2
 
 	// Store result in libcall
-	MOVD	48(R1), R5
+	MOVD	112(R1), R5
 	MOVD	R3, (libcall_r1)(R5)
 	MOVD	$-1, R6
 	CMP	R6, R3
@@ -98,7 +101,7 @@ GLOBL	runtime·sigtramp(SB), NOPTR, $24
 // This function must not have any frame as we want to control how
 // every registers are used.
 // TODO(aix): Implement SetCgoTraceback handler.
-TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
+TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	MOVD	LR, R0
 	MOVD	R0, 16(R1)
 	// initialize essential registers (just in case)
@@ -127,15 +130,15 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
 
 	// Save m->libcall. We need to do this because we
 	// might get interrupted by a signal in runtime·asmcgocall.
-	MOVD	(m_libcall+libcall_fn)(R6), R7
+	MOVD	(m_mOS+mOS_libcall+libcall_fn)(R6), R7
 	MOVD	R7, 96(R1)
-	MOVD	(m_libcall+libcall_args)(R6), R7
+	MOVD	(m_mOS+mOS_libcall+libcall_args)(R6), R7
 	MOVD	R7, 104(R1)
-	MOVD	(m_libcall+libcall_n)(R6), R7
+	MOVD	(m_mOS+mOS_libcall+libcall_n)(R6), R7
 	MOVD	R7, 112(R1)
-	MOVD	(m_libcall+libcall_r1)(R6), R7
+	MOVD	(m_mOS+mOS_libcall+libcall_r1)(R6), R7
 	MOVD	R7, 120(R1)
-	MOVD	(m_libcall+libcall_r2)(R6), R7
+	MOVD	(m_mOS+mOS_libcall+libcall_r2)(R6), R7
 	MOVD	R7, 128(R1)
 
 	// save errno, it might be EINTR; stuff we do here might reset it.
@@ -159,15 +162,15 @@ sigtramp:
 
 	// restore libcall
 	MOVD	96(R1), R7
-	MOVD	R7, (m_libcall+libcall_fn)(R6)
+	MOVD	R7, (m_mOS+mOS_libcall+libcall_fn)(R6)
 	MOVD	104(R1), R7
-	MOVD	R7, (m_libcall+libcall_args)(R6)
+	MOVD	R7, (m_mOS+mOS_libcall+libcall_args)(R6)
 	MOVD	112(R1), R7
-	MOVD	R7, (m_libcall+libcall_n)(R6)
+	MOVD	R7, (m_mOS+mOS_libcall+libcall_n)(R6)
 	MOVD	120(R1), R7
-	MOVD	R7, (m_libcall+libcall_r1)(R6)
+	MOVD	R7, (m_mOS+mOS_libcall+libcall_r1)(R6)
 	MOVD	128(R1), R7
-	MOVD	R7, (m_libcall+libcall_r2)(R6)
+	MOVD	R7, (m_mOS+mOS_libcall+libcall_r2)(R6)
 
 	// restore errno
 	MOVD	(m_mOS+mOS_perrno)(R6), R7
@@ -207,7 +210,7 @@ TEXT tstart<>(SB),NOSPLIT,$0
 	MOVD	R3, (g_stack+stack_hi)(g)
 	SUB	$(const_threadStackSize), R3		// stack size
 	MOVD	R3, (g_stack+stack_lo)(g)
-	ADD	$const__StackGuard, R3
+	ADD	$const_stackGuard, R3
 	MOVD	R3, g_stackguard0(g)
 	MOVD	R3, g_stackguard1(g)
 

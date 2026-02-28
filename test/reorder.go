@@ -20,6 +20,8 @@ func main() {
 	p7()
 	p8()
 	p9()
+	p10()
+	p11()
 }
 
 var gx []int
@@ -148,4 +150,18 @@ func checkOAS2XXX(x bool, s string) {
 		fmt.Printf("%s; got=(false); want=(true)\n", s)
 		panic("failed")
 	}
+}
+
+//go:noinline
+func fp() (*int, int) { return nil, 42 }
+
+func p10() {
+	p := new(int)
+	p, *p = fp()
+}
+
+func p11() {
+	var i interface{}
+	p := new(bool)
+	p, *p = i.(*bool)
 }

@@ -21,11 +21,43 @@ var testExprs = []testEntry{
 	dup(`'a'`),
 	dup(`"foo"`),
 	dup("`bar`"),
+	dup("any"),
 
 	// func and composite literals
 	{"func(){}", "(func() literal)"},
 	{"func(x int) complex128 {}", "(func(x int) complex128 literal)"},
-	{"[]int{1, 2, 3}", "([]int literal)"},
+	{"[]int{1, 2, 3}", "[]int{…}"},
+
+	// type expressions
+	dup("[1 << 10]byte"),
+	dup("[]int"),
+	dup("*int"),
+	dup("struct{x int}"),
+	dup("func()"),
+	dup("func(int, float32) string"),
+	dup("interface{m()}"),
+	dup("interface{m() string; n(x int)}"),
+	dup("interface{~int}"),
+
+	dup("map[string]int"),
+	dup("chan E"),
+	dup("<-chan E"),
+	dup("chan<- E"),
+
+	// new interfaces
+	dup("interface{int}"),
+	dup("interface{~int}"),
+
+	// generic constraints
+	dup("interface{~a | ~b | ~c; ~int | ~string; float64; m()}"),
+	dup("interface{int | string}"),
+	dup("interface{~int | ~string; float64; m()}"),
+	dup("interface{~T[int, string] | string}"),
+
+	// generic types
+	dup("x[T]"),
+	dup("x[N | A | S]"),
+	dup("x[N, A]"),
 
 	// non-type expressions
 	dup("(x)"),
@@ -73,6 +105,12 @@ var testExprs = []testEntry{
 	dup("f(x, x + y)"),
 	dup("f(s...)"),
 	dup("f(a, s...)"),
+
+	// generic functions
+	dup("f[T]()"),
+	dup("f[T](T)"),
+	dup("f[T, T1]()"),
+	dup("f[T, T1](T, T1)"),
 
 	dup("*x"),
 	dup("&x"),

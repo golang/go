@@ -22,6 +22,9 @@ type xchacha20poly1305 struct {
 // preferred when nonce uniqueness cannot be trivially ensured, or whenever
 // nonces are randomly generated.
 func NewX(key []byte) (cipher.AEAD, error) {
+	if fips140Enforced() {
+		return nil, errors.New("chacha20poly1305: use of ChaCha20Poly1305 is not allowed in FIPS 140-only mode")
+	}
 	if len(key) != KeySize {
 		return nil, errors.New("chacha20poly1305: bad key length")
 	}
@@ -35,7 +38,7 @@ func (*xchacha20poly1305) NonceSize() int {
 }
 
 func (*xchacha20poly1305) Overhead() int {
-	return 16
+	return Overhead
 }
 
 func (x *xchacha20poly1305) Seal(dst, nonce, plaintext, additionalData []byte) []byte {

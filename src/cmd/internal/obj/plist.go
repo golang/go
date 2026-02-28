@@ -6,20 +6,26 @@ package obj
 
 import (
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"fmt"
+	"internal/abi"
 	"strings"
 )
 
 type Plist struct {
 	Firstpc *Prog
-	Curfn   interface{} // holds a *gc.Node, if non-nil
+	Curfn   Func
 }
 
 // ProgAlloc is a function that allocates Progs.
 // It is used to provide access to cached/bulk-allocated Progs to the assemblers.
 type ProgAlloc func() *Prog
 
-func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string) {
+func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
+	if ctxt.Pkgpath == "" {
+		panic("Flushplist called without Pkgpath")
+	}
+
 	// Build list of symbols, and assign instructions to lists.
 	var curtext *LSym
 	var etext *Prog
@@ -54,11 +60,28 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 			if curtext == nil { // func _() {}
 				continue
 			}
-			if p.To.Sym.Name == "go_args_stackmap" {
-				if p.From.Type != TYPE_CONST || p.From.Offset != objabi.FUNCDATA_ArgsPointerMaps {
-					ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
+			switch p.To.Sym.Name {
+			case "go_args_stackmap":
+				if p.From.Type != TYPE_CONST || p.From.Offset != abi.FUNCDATA_ArgsPointerMaps {
+					ctxt.Diag("%v: FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps", p)
 				}
 				p.To.Sym = ctxt.LookupDerived(curtext, curtext.Name+".args_stackmap")
+			case "no_pointers_stackmap":
+				if p.From.Type != TYPE_CONST || p.From.Offset != abi.FUNCDATA_LocalsPointerMaps {
+					ctxt.Diag("%v: FUNCDATA use of no_pointers_stackmap(SB) without FUNCDATA_LocalsPointerMaps", p)
+				}
+				// funcdata for functions with no local variables in frame.
+				// Define two zero-length bitmaps, because the same index is used
+				// for the local variables as for the argument frame, and assembly
+				// frames have two argument bitmaps, one without results and one with results.
+				// Write []uint32{2, 0}.
+				b := make([]byte, 8)
+				ctxt.Arch.ByteOrder.PutUint32(b, 2)
+				s := ctxt.GCLocalsSym(b)
+				if !s.OnList() {
+					ctxt.Globl(s, int64(len(s.P)), int(RODATA|DUPOK))
+				}
+				p.To.Sym = s
 			}
 
 		}
@@ -75,33 +98,71 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 		newprog = ctxt.NewProg
 	}
 
-	// Add reference to Go arguments for C or assembly functions without them.
-	for _, s := range text {
-		if !strings.HasPrefix(s.Name, "\"\".") {
-			continue
-		}
-		found := false
-		for p := s.Func.Text; p != nil; p = p.Link {
-			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == objabi.FUNCDATA_ArgsPointerMaps {
-				found = true
-				break
+	// Add reference to Go arguments for assembly functions without them.
+	if ctxt.IsAsm {
+		pkgPrefix := objabi.PathToPrefix(ctxt.Pkgpath) + "."
+		for _, s := range text {
+			if !strings.HasPrefix(s.Name, pkgPrefix) {
+				continue
 			}
-		}
-
-		if !found {
-			p := Appendp(s.Func.Text, newprog)
-			p.As = AFUNCDATA
-			p.From.Type = TYPE_CONST
-			p.From.Offset = objabi.FUNCDATA_ArgsPointerMaps
-			p.To.Type = TYPE_MEM
-			p.To.Name = NAME_EXTERN
-			p.To.Sym = ctxt.LookupDerived(s, s.Name+".args_stackmap")
+			// The current args_stackmap generation in the compiler assumes
+			// that the function in question is ABI0, so avoid introducing
+			// an args_stackmap reference if the func is not ABI0 (better to
+			// have no stackmap than an incorrect/lying stackmap).
+			if s.ABI() != ABI0 {
+				continue
+			}
+			// runtime.addmoduledata is a host ABI function, so it doesn't
+			// need FUNCDATA anyway. Moreover, cmd/link has special logic
+			// for linking it in eccentric build modes, which breaks if it
+			// has FUNCDATA references (e.g., cmd/cgo/internal/testplugin).
+			//
+			// TODO(cherryyz): Fix cmd/link's handling of plugins (see
+			// discussion on CL 523355).
+			if s.Name == "runtime.addmoduledata" {
+				continue
+			}
+			foundArgMap, foundArgInfo := false, false
+			for p := s.Func().Text; p != nil; p = p.Link {
+				if p.As == AFUNCDATA && p.From.Type == TYPE_CONST {
+					if p.From.Offset == abi.FUNCDATA_ArgsPointerMaps {
+						foundArgMap = true
+					}
+					if p.From.Offset == abi.FUNCDATA_ArgInfo {
+						foundArgInfo = true
+					}
+					if foundArgMap && foundArgInfo {
+						break
+					}
+				}
+			}
+			if !foundArgMap {
+				p := Appendp(s.Func().Text, newprog)
+				p.As = AFUNCDATA
+				p.From.Type = TYPE_CONST
+				p.From.Offset = abi.FUNCDATA_ArgsPointerMaps
+				p.To.Type = TYPE_MEM
+				p.To.Name = NAME_EXTERN
+				p.To.Sym = ctxt.LookupDerived(s, s.Name+".args_stackmap")
+			}
+			if !foundArgInfo {
+				p := Appendp(s.Func().Text, newprog)
+				p.As = AFUNCDATA
+				p.From.Type = TYPE_CONST
+				p.From.Offset = abi.FUNCDATA_ArgInfo
+				p.To.Type = TYPE_MEM
+				p.To.Name = NAME_EXTERN
+				p.To.Sym = ctxt.LookupDerived(s, fmt.Sprintf("%s.arginfo%d", s.Name, s.ABI()))
+			}
 		}
 	}
 
 	// Turn functions into machine code images.
 	for _, s := range text {
 		mkfwd(s)
+		if ctxt.Arch.ErrorCheck != nil {
+			ctxt.Arch.ErrorCheck(ctxt, s)
+		}
 		linkpatch(ctxt, s, newprog)
 		ctxt.Arch.Preprocess(ctxt, s, newprog)
 		ctxt.Arch.Assemble(ctxt, s, newprog)
@@ -109,65 +170,74 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 			continue
 		}
 		linkpcln(ctxt, s)
-		if myimportpath != "" {
-			ctxt.populateDWARF(plist.Curfn, s, myimportpath)
+		ctxt.populateDWARF(plist.Curfn, s)
+		if ctxt.Headtype == objabi.Hwindows && ctxt.Arch.SEH != nil {
+			s.Func().sehUnwindInfoSym = ctxt.Arch.SEH(ctxt, s)
 		}
 	}
 }
 
-func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
 	if s == nil {
 		// func _() { }
 		return
 	}
-	if s.Func != nil {
-		ctxt.Diag("InitTextSym double init for %s", s.Name)
+	if s.Func() != nil {
+		ctxt.Diag("%s: symbol %s redeclared\n\t%s: other declaration of symbol %s", ctxt.PosTable.Pos(start), s.Name, ctxt.PosTable.Pos(s.Func().Text.Pos), s.Name)
+		return
 	}
-	s.Func = new(FuncInfo)
+	s.NewFuncInfo()
 	if s.OnList() {
-		ctxt.Diag("symbol %s listed multiple times", s.Name)
+		ctxt.Diag("%s: symbol %s redeclared", ctxt.PosTable.Pos(start), s.Name)
+		return
 	}
+	if strings.HasPrefix(s.Name, `"".`) {
+		ctxt.Diag("%s: unqualified symbol name: %s", ctxt.PosTable.Pos(start), s.Name)
+	}
+
+	// startLine should be the same line number that would be displayed via
+	// pcln, etc for the declaration (i.e., relative line number, as
+	// adjusted by //line).
+	_, startLine := ctxt.getFileIndexAndLine(start)
+
+	s.Func().FuncID = objabi.GetFuncID(s.Name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
+	s.Func().FuncFlag = ctxt.toFuncFlag(flag)
+	s.Func().StartLine = startLine
 	s.Set(AttrOnList, true)
 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
 	s.Set(AttrReflectMethod, flag&REFLECTMETHOD != 0)
 	s.Set(AttrWrapper, flag&WRAPPER != 0)
+	s.Set(AttrABIWrapper, flag&ABIWRAPPER != 0)
 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
-	s.Set(AttrTopFrame, flag&TOPFRAME != 0)
+	s.Set(AttrPkgInit, flag&PKGINIT != 0)
 	s.Type = objabi.STEXT
+	s.setFIPSType(ctxt)
 	ctxt.Text = append(ctxt.Text, s)
 
 	// Set up DWARF entries for s
-	info, loc, ranges, _, lines := ctxt.dwarfSym(s)
+	ctxt.dwarfSym(s)
+}
 
-	// When using new object files, the DWARF symbols are unnamed aux
-	// symbols and don't need to be added to ctxt.Data.
-	// But the old object file still needs them.
-	if !ctxt.Flag_go115newobj {
-		info.Type = objabi.SDWARFINFO
-		info.Set(AttrDuplicateOK, s.DuplicateOK())
-		if loc != nil {
-			loc.Type = objabi.SDWARFLOC
-			loc.Set(AttrDuplicateOK, s.DuplicateOK())
-			ctxt.Data = append(ctxt.Data, loc)
-		}
-		ranges.Type = objabi.SDWARFRANGE
-		ranges.Set(AttrDuplicateOK, s.DuplicateOK())
-		ctxt.Data = append(ctxt.Data, info, ranges)
-		lines.Type = objabi.SDWARFLINES
-		lines.Set(AttrDuplicateOK, s.DuplicateOK())
-		ctxt.Data = append(ctxt.Data, lines)
+func (ctxt *Link) toFuncFlag(flag int) abi.FuncFlag {
+	var out abi.FuncFlag
+	if flag&TOPFRAME != 0 {
+		out |= abi.FuncFlagTopFrame
 	}
+	if ctxt.IsAsm {
+		out |= abi.FuncFlagAsm
+	}
+	return out
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
-	if s.SeenGlobl() {
-		fmt.Printf("duplicate %v\n", s)
-	}
-	s.Set(AttrSeenGlobl, true)
+	ctxt.GloblPos(s, size, flag, src.NoXPos)
+}
+func (ctxt *Link) GloblPos(s *LSym, size int64, flag int, pos src.XPos) {
 	if s.OnList() {
-		ctxt.Diag("symbol %s listed multiple times", s.Name)
+		// TODO: print where the first declaration was.
+		ctxt.Diag("%s: symbol %s redeclared", ctxt.PosTable.Pos(pos), s.Name)
 	}
 	s.Set(AttrOnList, true)
 	ctxt.Data = append(ctxt.Data, s)
@@ -181,7 +251,7 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 	if flag&RODATA != 0 {
 		s.Type = objabi.SRODATA
 	} else if flag&NOPTR != 0 {
-		if s.Type == objabi.SDATA {
+		if s.Type.IsDATA() {
 			s.Type = objabi.SNOPTRDATA
 		} else {
 			s.Type = objabi.SNOPTRBSS
@@ -189,6 +259,7 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 	} else if flag&TLSBSS != 0 {
 		s.Type = objabi.STLSBSS
 	}
+	s.setFIPSType(ctxt)
 }
 
 // EmitEntryLiveness generates PCDATA Progs after p to switch to the
@@ -196,30 +267,30 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 // Prog generated.
 func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 	pcdata := ctxt.EmitEntryStackMap(s, p, newprog)
-	pcdata = ctxt.EmitEntryRegMap(s, pcdata, newprog)
+	pcdata = ctxt.EmitEntryUnsafePoint(s, pcdata, newprog)
 	return pcdata
 }
 
 // Similar to EmitEntryLiveness, but just emit stack map.
 func (ctxt *Link) EmitEntryStackMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 	pcdata := Appendp(p, newprog)
-	pcdata.Pos = s.Func.Text.Pos
+	pcdata.Pos = s.Func().Text.Pos
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+	pcdata.From.Offset = abi.PCDATA_StackMapIndex
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
 
 	return pcdata
 }
 
-// Similar to EmitEntryLiveness, but just emit register map.
-func (ctxt *Link) EmitEntryRegMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+// Similar to EmitEntryLiveness, but just emit unsafe point map.
+func (ctxt *Link) EmitEntryUnsafePoint(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 	pcdata := Appendp(p, newprog)
-	pcdata.Pos = s.Func.Text.Pos
+	pcdata.Pos = s.Func().Text.Pos
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
+	pcdata.From.Offset = abi.PCDATA_UnsafePoint
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = -1
 
@@ -234,42 +305,52 @@ func (ctxt *Link) StartUnsafePoint(p *Prog, newprog ProgAlloc) *Prog {
 	pcdata := Appendp(p, newprog)
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
+	pcdata.From.Offset = abi.PCDATA_UnsafePoint
 	pcdata.To.Type = TYPE_CONST
-	pcdata.To.Offset = -2 // pcdata -2 marks unsafe point
+	pcdata.To.Offset = abi.UnsafePointUnsafe
 
 	return pcdata
 }
 
 // EndUnsafePoint generates PCDATA Progs after p to mark the end of an
-// unsafe point, restoring the stack map index to oldval.
+// unsafe point, restoring the register map index to oldval.
 // The unsafe point ends right after p.
 // It returns the last Prog generated.
 func (ctxt *Link) EndUnsafePoint(p *Prog, newprog ProgAlloc, oldval int64) *Prog {
 	pcdata := Appendp(p, newprog)
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
+	pcdata.From.Offset = abi.PCDATA_UnsafePoint
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = oldval
-
-	// TODO: register map?
 
 	return pcdata
 }
 
-// MarkUnsafePoints inserts PCDATAs to mark nonpreemptible instruction
-// sequences, based on isUnsafePoint predicate. p0 is the start of the
-// instruction stream.
-func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint func(*Prog) bool) {
+// MarkUnsafePoints inserts PCDATAs to mark nonpreemptible and restartable
+// instruction sequences, based on isUnsafePoint and isRestartable predicate.
+// p0 is the start of the instruction stream.
+// isUnsafePoint(p) returns true if p is not safe for async preemption.
+// isRestartable(p) returns true if we can restart at the start of p (this Prog)
+// upon async preemption. (Currently multi-Prog restartable sequence is not
+// supported.)
+// isRestartable can be nil. In this case it is treated as always returning false.
+// If isUnsafePoint(p) and isRestartable(p) are both true, it is treated as
+// an unsafe point.
+func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint, isRestartable func(*Prog) bool) {
+	if isRestartable == nil {
+		// Default implementation: nothing is restartable.
+		isRestartable = func(*Prog) bool { return false }
+	}
 	prev := p0
-	oldval := int64(-1) // entry pcdata
+	prevPcdata := int64(-1) // entry PC data value
+	prevRestart := int64(0)
 	for p := prev.Link; p != nil; p, prev = p.Link, p {
-		if p.As == APCDATA && p.From.Offset == objabi.PCDATA_RegMapIndex {
-			oldval = p.To.Offset
+		if p.As == APCDATA && p.From.Offset == abi.PCDATA_UnsafePoint {
+			prevPcdata = p.To.Offset
 			continue
 		}
-		if oldval == -2 {
+		if prevPcdata == abi.UnsafePointUnsafe {
 			continue // already unsafe
 		}
 		if isUnsafePoint(p) {
@@ -283,7 +364,39 @@ func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint fun
 			if p.Link == nil {
 				break // Reached the end, don't bother marking the end
 			}
-			p = ctxt.EndUnsafePoint(p, newprog, oldval)
+			p = ctxt.EndUnsafePoint(p, newprog, prevPcdata)
+			p.Pc = p.Link.Pc
+			continue
+		}
+		if isRestartable(p) {
+			val := int64(abi.UnsafePointRestart1)
+			if val == prevRestart {
+				val = abi.UnsafePointRestart2
+			}
+			prevRestart = val
+			q := Appendp(prev, newprog)
+			q.As = APCDATA
+			q.From.Type = TYPE_CONST
+			q.From.Offset = abi.PCDATA_UnsafePoint
+			q.To.Type = TYPE_CONST
+			q.To.Offset = val
+			q.Pc = p.Pc
+			q.Link = p
+
+			if p.Link == nil {
+				break // Reached the end, don't bother marking the end
+			}
+			if isRestartable(p.Link) {
+				// Next Prog is also restartable. No need to mark the end
+				// of this sequence. We'll just go ahead mark the next one.
+				continue
+			}
+			p = Appendp(p, newprog)
+			p.As = APCDATA
+			p.From.Type = TYPE_CONST
+			p.From.Offset = abi.PCDATA_UnsafePoint
+			p.To.Type = TYPE_CONST
+			p.To.Offset = prevPcdata
 			p.Pc = p.Link.Pc
 		}
 	}

@@ -6,7 +6,7 @@ package pem
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -34,7 +34,7 @@ var getLineTests = []GetLineTest{
 
 func TestGetLine(t *testing.T) {
 	for i, test := range getLineTests {
-		x, y := getLine([]byte(test.in))
+		x, y, _ := getLine([]byte(test.in))
 		if string(x) != test.out1 || string(y) != test.out2 {
 			t.Errorf("#%d got:%+v,%+v want:%s,%s", i, x, y, test.out1, test.out2)
 		}
@@ -46,6 +46,7 @@ func TestDecode(t *testing.T) {
 	if !reflect.DeepEqual(result, certificate) {
 		t.Errorf("#0 got:%#v want:%#v", result, certificate)
 	}
+
 	result, remainder = Decode(remainder)
 	if !reflect.DeepEqual(result, privateKey) {
 		t.Errorf("#1 got:%#v want:%#v", result, privateKey)
@@ -68,7 +69,7 @@ func TestDecode(t *testing.T) {
 	}
 
 	result, remainder = Decode(remainder)
-	if result == nil || result.Type != "HEADERS" || len(result.Headers) != 1 {
+	if result == nil || result.Type != "VALID HEADERS" || len(result.Headers) != 1 {
 		t.Errorf("#5 expected single header block but got :%v", result)
 	}
 
@@ -107,6 +108,12 @@ const pemMissingEndingSpace = `
 dGVzdA==
 -----ENDBAR-----`
 
+const pemMissingEndLine = `
+-----BEGIN FOO-----
+Header: 1`
+
+var pemRepeatingBegin = strings.Repeat("-----BEGIN \n", 10)
+
 var badPEMTests = []struct {
 	name  string
 	input string
@@ -131,14 +138,34 @@ var badPEMTests = []struct {
 		"missing ending space",
 		pemMissingEndingSpace,
 	},
+	{
+		"repeating begin",
+		pemRepeatingBegin,
+	},
+	{
+		"missing end line",
+		pemMissingEndLine,
+	},
 }
 
 func TestBadDecode(t *testing.T) {
 	for _, test := range badPEMTests {
-		result, _ := Decode([]byte(test.input))
+		result, rest := Decode([]byte(test.input))
 		if result != nil {
 			t.Errorf("unexpected success while parsing %q", test.name)
 		}
+		if string(rest) != test.input {
+			t.Errorf("unexpected rest: %q; want = %q", rest, test.input)
+		}
+	}
+}
+
+func TestCVE202224675(t *testing.T) {
+	// Prior to CVE-2022-24675, this input would cause a stack overflow.
+	input := []byte(strings.Repeat("-----BEGIN \n", 10000000))
+	result, rest := Decode(input)
+	if result != nil || !bytes.Equal(rest, input) {
+		t.Errorf("Encode of %#v decoded as %#v", input, rest)
 	}
 }
 
@@ -166,7 +193,7 @@ var lineBreakerTests = []lineBreakerTest{
 
 func TestLineBreaker(t *testing.T) {
 	for i, test := range lineBreakerTests {
-		buf := new(bytes.Buffer)
+		buf := new(strings.Builder)
 		var breaker lineBreaker
 		breaker.out = buf
 		_, err := breaker.Write([]byte(test.in))
@@ -180,13 +207,13 @@ func TestLineBreaker(t *testing.T) {
 			continue
 		}
 
-		if string(buf.Bytes()) != test.out {
-			t.Errorf("#%d: got:%s want:%s", i, string(buf.Bytes()), test.out)
+		if got := buf.String(); got != test.out {
+			t.Errorf("#%d: got:%s want:%s", i, got, test.out)
 		}
 	}
 
 	for i, test := range lineBreakerTests {
-		buf := new(bytes.Buffer)
+		buf := new(strings.Builder)
 		var breaker lineBreaker
 		breaker.out = buf
 
@@ -203,8 +230,8 @@ func TestLineBreaker(t *testing.T) {
 			continue
 		}
 
-		if string(buf.Bytes()) != test.out {
-			t.Errorf("#%d: (byte by byte) got:%s want:%s", i, string(buf.Bytes()), test.out)
+		if got := buf.String(); got != test.out {
+			t.Errorf("#%d: (byte by byte) got:%s want:%s", i, got, test.out)
 		}
 	}
 }
@@ -271,7 +298,7 @@ func BenchmarkEncode(b *testing.B) {
 	data := &Block{Bytes: make([]byte, 65536)}
 	b.SetBytes(int64(len(data.Bytes)))
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, data)
+		Encode(io.Discard, data)
 	}
 }
 
@@ -355,15 +382,15 @@ ZWAaUoVtWIQ52aKS0p19G99hhb+IVANC4akkdHV4SP8i7MVNZhfUmg==
 
 # This shouldn't be recognised because of the missing newline after the
 headers.
------BEGIN HEADERS-----
+-----BEGIN INVALID HEADERS-----
 Header: 1
------END HEADERS-----
+-----END INVALID HEADERS-----
 
 # This should be valid, however.
------BEGIN HEADERS-----
+-----BEGIN VALID HEADERS-----
 Header: 1
 
------END HEADERS-----`)
+-----END VALID HEADERS-----`)
 
 var certificate = &Block{Type: "CERTIFICATE",
 	Headers: map[string]string{},
@@ -612,3 +639,104 @@ func TestBadEncode(t *testing.T) {
 }
 
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+
+func TestDecodeStrangeCases(t *testing.T) {
+	sentinelType := "TEST BLOCK"
+	sentinelBytes := []byte("hello")
+	for _, tc := range []struct {
+		name string
+		pem  string
+	}{
+		{
+			name: "invalid section (not base64)",
+			pem: `-----BEGIN COMMENT-----
+foo foo foo
+-----END COMMENT-----
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "leading garbage on block",
+			pem: `foo foo foo-----BEGIN CERTIFICATE-----
+MCowBQYDK2VwAyEApVjJeLW5MoP6uR3+OeITokM+rBDng6dgl1vvhcy+wws=
+-----END PUBLIC KEY-----
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "leading garbage",
+			pem: `foo foo foo
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "leading partial block",
+			pem: `foo foo foo
+-----END COMMENT-----
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "multiple BEGIN",
+			pem: `-----BEGIN TEST BLOCK-----
+-----BEGIN TEST BLOCK-----
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "multiple END",
+			pem: `-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----
+-----END TEST BLOCK-----
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "leading malformed BEGIN",
+			pem: `-----BEGIN PUBLIC KEY
+aGVsbG8=
+-----END PUBLIC KEY-----
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			block, _ := Decode([]byte(tc.pem))
+			if block == nil {
+				t.Fatal("expected valid block")
+			}
+			if block.Type != sentinelType {
+				t.Fatalf("unexpected block returned, got type %q, want type %q", block.Type, sentinelType)
+			}
+			if !bytes.Equal(block.Bytes, sentinelBytes) {
+				t.Fatalf("unexpected block content, got %x, want %x", block.Bytes, sentinelBytes)
+			}
+		})
+	}
+}
+
+func TestJustEnd(t *testing.T) {
+	pemData := `
+-----END PUBLIC KEY-----`
+
+	block, _ := Decode([]byte(pemData))
+	if block != nil {
+		t.Fatal("unexpected block")
+	}
+}
+
+func FuzzDecode(f *testing.F) {
+	f.Fuzz(func(t *testing.T, data []byte) {
+		Decode(data)
+	})
+}
+
+func TestMissingEndTrailer(t *testing.T) {
+	Decode([]byte{0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0xa, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x45, 0x4e, 0x44, 0x20})
+}

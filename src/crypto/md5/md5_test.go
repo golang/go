@@ -6,6 +6,7 @@ package md5
 
 import (
 	"bytes"
+	"crypto/internal/cryptotest"
 	"crypto/rand"
 	"encoding"
 	"fmt"
@@ -68,7 +69,7 @@ func TestGolden(t *testing.T) {
 			if j < 2 {
 				io.WriteString(c, g.in)
 			} else if j == 2 {
-				io.WriteString(c, g.in[0:len(g.in)/2])
+				io.WriteString(c, g.in[:len(g.in)/2])
 				c.Sum(nil)
 				io.WriteString(c, g.in[len(g.in)/2:])
 			} else if j > 2 {
@@ -99,8 +100,20 @@ func TestGoldenMarshal(t *testing.T) {
 			continue
 		}
 
+		stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
+		if err != nil {
+			t.Errorf("could not marshal: %v", err)
+			continue
+		}
+		stateAppend = stateAppend[4:]
+
 		if string(state) != g.halfState {
 			t.Errorf("md5(%q) state = %q, want %q", g.in, state, g.halfState)
+			continue
+		}
+
+		if string(stateAppend) != g.halfState {
+			t.Errorf("md5(%q) stateAppend = %q, want %q", g.in, stateAppend, g.halfState)
 			continue
 		}
 
@@ -120,10 +133,11 @@ func TestGoldenMarshal(t *testing.T) {
 
 func TestLarge(t *testing.T) {
 	const N = 10000
+	const offsets = 4
 	ok := "2bb571599a4180e1d542f76904adc3df" // md5sum of "0123456789" * 1000
-	block := make([]byte, 10004)
+	block := make([]byte, N+offsets)
 	c := New()
-	for offset := 0; offset < 4; offset++ {
+	for offset := 0; offset < offsets; offset++ {
 		for i := 0; i < N; i++ {
 			block[offset+i] = '0' + byte(i%10)
 		}
@@ -137,6 +151,31 @@ func TestLarge(t *testing.T) {
 			s := fmt.Sprintf("%x", c.Sum(nil))
 			if s != ok {
 				t.Fatalf("md5 TestLarge offset=%d, blockSize=%d = %s want %s", offset, blockSize, s, ok)
+			}
+		}
+	}
+}
+
+func TestExtraLarge(t *testing.T) {
+	const N = 100000
+	const offsets = 4
+	ok := "13572e9e296cff52b79c52148313c3a5" // md5sum of "0123456789" * 10000
+	block := make([]byte, N+offsets)
+	c := New()
+	for offset := 0; offset < offsets; offset++ {
+		for i := 0; i < N; i++ {
+			block[offset+i] = '0' + byte(i%10)
+		}
+		for blockSize := 10; blockSize <= N; blockSize *= 10 {
+			blocks := N / blockSize
+			b := block[offset : offset+blockSize]
+			c.Reset()
+			for i := 0; i < blocks; i++ {
+				c.Write(b)
+			}
+			s := fmt.Sprintf("%x", c.Sum(nil))
+			if s != ok {
+				t.Fatalf("md5 TestExtraLarge offset=%d, blockSize=%d = %s want %s", offset, blockSize, s, ok)
 			}
 		}
 	}
@@ -157,7 +196,7 @@ func TestBlockGeneric(t *testing.T) {
 // Tests for unmarshaling hashes that have hashed a large amount of data
 // The initial hash generation is omitted from the test, because it takes a long time.
 // The test contains some already-generated states, and their expected sums
-// Tests a problem that is outlined in Github issue #29541
+// Tests a problem that is outlined in GitHub issue #29541
 // The problem is triggered when an amount of data has been hashed for which
 // the data length has a 1 in the 32nd bit. When casted to int, this changes
 // the sign of the value, and causes the modulus operation to return a
@@ -211,8 +250,39 @@ func TestLargeHashes(t *testing.T) {
 	}
 }
 
+func TestAllocations(t *testing.T) {
+	cryptotest.SkipTestAllocations(t)
+	in := []byte("hello, world!")
+	out := make([]byte, 0, Size)
+	h := New()
+	n := int(testing.AllocsPerRun(10, func() {
+		h.Reset()
+		h.Write(in)
+		out = h.Sum(out[:0])
+	}))
+	if n > 0 {
+		t.Errorf("allocs = %d, want 0", n)
+	}
+}
+
+func TestMD5Hash(t *testing.T) {
+	cryptotest.TestHash(t, New)
+}
+
+func TestExtraMethods(t *testing.T) {
+	h := maybeCloner(New())
+	cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+}
+
+func maybeCloner(h hash.Hash) any {
+	if c, ok := h.(hash.Cloner); ok {
+		return &c
+	}
+	return &h
+}
+
 var bench = New()
-var buf = make([]byte, 8192+1)
+var buf = make([]byte, 1024*1024*8+1)
 var sum = make([]byte, bench.Size())
 
 func benchmarkSize(b *testing.B, size int, unaligned bool) {
@@ -235,12 +305,36 @@ func BenchmarkHash8Bytes(b *testing.B) {
 	benchmarkSize(b, 8, false)
 }
 
+func BenchmarkHash64(b *testing.B) {
+	benchmarkSize(b, 64, false)
+}
+
+func BenchmarkHash128(b *testing.B) {
+	benchmarkSize(b, 128, false)
+}
+
+func BenchmarkHash256(b *testing.B) {
+	benchmarkSize(b, 256, false)
+}
+
+func BenchmarkHash512(b *testing.B) {
+	benchmarkSize(b, 512, false)
+}
+
 func BenchmarkHash1K(b *testing.B) {
 	benchmarkSize(b, 1024, false)
 }
 
 func BenchmarkHash8K(b *testing.B) {
 	benchmarkSize(b, 8192, false)
+}
+
+func BenchmarkHash1M(b *testing.B) {
+	benchmarkSize(b, 1024*1024, false)
+}
+
+func BenchmarkHash8M(b *testing.B) {
+	benchmarkSize(b, 8*1024*1024, false)
 }
 
 func BenchmarkHash8BytesUnaligned(b *testing.B) {

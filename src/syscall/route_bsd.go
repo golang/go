@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd netbsd openbsd
+//go:build darwin || dragonfly || freebsd || netbsd || openbsd
 
 package syscall
 
@@ -325,7 +325,7 @@ func (m *InterfaceAddrMessage) sockaddr() ([]Sockaddr, error) {
 }
 
 // ParseRoutingMessage parses b as routing messages and returns the
-// slice containing the RoutingMessage interfaces.
+// slice containing the [RoutingMessage] interfaces.
 //
 // Deprecated: Use golang.org/x/net/route instead.
 func ParseRoutingMessage(b []byte) (msgs []RoutingMessage, err error) {
@@ -352,7 +352,7 @@ func ParseRoutingMessage(b []byte) (msgs []RoutingMessage, err error) {
 }
 
 // ParseRoutingSockaddr parses msg's payload as raw sockaddrs and
-// returns the slice containing the Sockaddr interfaces.
+// returns the slice containing the [Sockaddr] interfaces.
 //
 // Deprecated: Use golang.org/x/net/route instead.
 func ParseRoutingSockaddr(msg RoutingMessage) ([]Sockaddr, error) {

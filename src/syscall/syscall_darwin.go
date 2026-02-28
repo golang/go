@@ -13,27 +13,16 @@
 package syscall
 
 import (
-	errorspkg "errors"
+	"internal/abi"
 	"unsafe"
 )
 
-const ImplementsGetwd = true
+func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 
-func Getwd() (string, error) {
-	buf := make([]byte, 2048)
-	attrs, err := getAttrList(".", attrList{CommonAttr: attrCmnFullpath}, buf, 0)
-	if err == nil && len(attrs) == 1 && len(attrs[0]) >= 2 {
-		wd := string(attrs[0])
-		// Sanity check that it's an absolute path and ends
-		// in a null byte, which we then strip.
-		if wd[0] == '/' && wd[len(wd)-1] == 0 {
-			return wd[:len(wd)-1], nil
-		}
-	}
-	// If pkg/os/getwd.go gets ENOTSUP, it will fall back to the
-	// slow algorithm.
-	return "", ENOTSUP
-}
+var dupTrampoline = abi.FuncPCABI0(libc_dup2_trampoline)
 
 type SockaddrDatalink struct {
 	Len    uint8
@@ -90,83 +79,6 @@ func direntNamlen(buf []byte) (uint64, bool) {
 func PtraceAttach(pid int) (err error) { return ptrace(PT_ATTACH, pid, 0, 0) }
 func PtraceDetach(pid int) (err error) { return ptrace(PT_DETACH, pid, 0, 0) }
 
-const (
-	attrBitMapCount = 5
-	attrCmnModtime  = 0x00000400
-	attrCmnAcctime  = 0x00001000
-	attrCmnFullpath = 0x08000000
-)
-
-type attrList struct {
-	bitmapCount uint16
-	_           uint16
-	CommonAttr  uint32
-	VolAttr     uint32
-	DirAttr     uint32
-	FileAttr    uint32
-	Forkattr    uint32
-}
-
-func getAttrList(path string, attrList attrList, attrBuf []byte, options uint) (attrs [][]byte, err error) {
-	if len(attrBuf) < 4 {
-		return nil, errorspkg.New("attrBuf too small")
-	}
-	attrList.bitmapCount = attrBitMapCount
-
-	var _p0 *byte
-	_p0, err = BytePtrFromString(path)
-	if err != nil {
-		return nil, err
-	}
-
-	_, _, e1 := syscall6(
-		funcPC(libc_getattrlist_trampoline),
-		uintptr(unsafe.Pointer(_p0)),
-		uintptr(unsafe.Pointer(&attrList)),
-		uintptr(unsafe.Pointer(&attrBuf[0])),
-		uintptr(len(attrBuf)),
-		uintptr(options),
-		0,
-	)
-	if e1 != 0 {
-		return nil, e1
-	}
-	size := *(*uint32)(unsafe.Pointer(&attrBuf[0]))
-
-	// dat is the section of attrBuf that contains valid data,
-	// without the 4 byte length header. All attribute offsets
-	// are relative to dat.
-	dat := attrBuf
-	if int(size) < len(attrBuf) {
-		dat = dat[:size]
-	}
-	dat = dat[4:] // remove length prefix
-
-	for i := uint32(0); int(i) < len(dat); {
-		header := dat[i:]
-		if len(header) < 8 {
-			return attrs, errorspkg.New("truncated attribute header")
-		}
-		datOff := *(*int32)(unsafe.Pointer(&header[0]))
-		attrLen := *(*uint32)(unsafe.Pointer(&header[4]))
-		if datOff < 0 || uint32(datOff)+attrLen > uint32(len(dat)) {
-			return attrs, errorspkg.New("truncated results; attrBuf too small")
-		}
-		end := uint32(datOff) + attrLen
-		attrs = append(attrs, dat[datOff:end])
-		i = end
-		if r := i % 4; r != 0 {
-			i += (4 - r)
-		}
-	}
-	return
-}
-
-func libc_getattrlist_trampoline()
-
-//go:linkname libc_getattrlist libc_getattrlist
-//go:cgo_import_dynamic libc_getattrlist getattrlist "/usr/lib/libSystem.B.dylib"
-
 //sysnb pipe(p *[2]int32) (err error)
 
 func Pipe(p []int) (err error) {
@@ -175,8 +87,10 @@ func Pipe(p []int) (err error) {
 	}
 	var q [2]int32
 	err = pipe(&q)
-	p[0] = int(q[0])
-	p[1] = int(q[1])
+	if err == nil {
+		p[0] = int(q[0])
+		p[1] = int(q[1])
+	}
 	return
 }
 
@@ -187,7 +101,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 		_p0 = unsafe.Pointer(&buf[0])
 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
 	}
-	r0, _, e1 := syscall(funcPC(libc_getfsstat_trampoline), uintptr(_p0), bufsize, uintptr(flags))
+	r0, _, e1 := syscall(abi.FuncPCABI0(libc_getfsstat_trampoline), uintptr(_p0), bufsize, uintptr(flags))
 	n = int(r0)
 	if e1 != 0 {
 		err = e1
@@ -197,46 +111,18 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 
 func libc_getfsstat_trampoline()
 
-//go:linkname libc_getfsstat libc_getfsstat
 //go:cgo_import_dynamic libc_getfsstat getfsstat "/usr/lib/libSystem.B.dylib"
 
-func setattrlistTimes(path string, times []Timespec) error {
-	_p0, err := BytePtrFromString(path)
-	if err != nil {
-		return err
-	}
+// utimensat should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/tetratelabs/wazero
+//
+// See go.dev/issue/67401.
+//
+//go:linkname utimensat
 
-	var attrList attrList
-	attrList.bitmapCount = attrBitMapCount
-	attrList.CommonAttr = attrCmnModtime | attrCmnAcctime
-
-	// order is mtime, atime: the opposite of Chtimes
-	attributes := [2]Timespec{times[1], times[0]}
-	const options = 0
-	_, _, e1 := syscall6(
-		funcPC(libc_setattrlist_trampoline),
-		uintptr(unsafe.Pointer(_p0)),
-		uintptr(unsafe.Pointer(&attrList)),
-		uintptr(unsafe.Pointer(&attributes)),
-		uintptr(unsafe.Sizeof(attributes)),
-		uintptr(options),
-		0,
-	)
-	if e1 != 0 {
-		return e1
-	}
-	return nil
-}
-
-func libc_setattrlist_trampoline()
-
-//go:linkname libc_setattrlist libc_setattrlist
-//go:cgo_import_dynamic libc_setattrlist setattrlist "/usr/lib/libSystem.B.dylib"
-
-func utimensat(dirfd int, path string, times *[2]Timespec, flag int) error {
-	// Darwin doesn't support SYS_UTIMENSAT
-	return ENOSYS
-}
+//sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
 
 /*
  * Wrapped
@@ -294,12 +180,13 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Mlock(b []byte) (err error)
 //sys	Mlockall(flags int) (err error)
 //sys	Mprotect(b []byte, prot int) (err error)
+//sys	msync(b []byte, flags int) (err error)
 //sys	Munlock(b []byte) (err error)
 //sys	Munlockall() (err error)
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
 //sys	Pathconf(path string, name int) (val int, err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
+//sys	pread(fd int, p []byte, offset int64) (n int, err error)
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	readdir_r(dir uintptr, entry *Dirent, result **Dirent) (res Errno)
 //sys	Readlink(path string, buf []byte) (n int, err error)
@@ -317,7 +204,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	Setprivexec(flag int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
+//sysnb	setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
@@ -333,22 +220,20 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys   mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
 //sys   munmap(addr uintptr, length uintptr) (err error)
 //sysnb fork() (pid int, err error)
-//sysnb ioctl(fd int, req int, arg int) (err error)
-//sysnb ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_ioctl
 //sysnb execve(path *byte, argv **byte, envp **byte) (err error)
 //sysnb exit(res int) (err error)
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error)
-//sys	fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) = SYS_fcntl
 //sys   unlinkat(fd int, path string, flags int) (err error)
 //sys   openat(fd int, path string, flags int, perm uint32) (fdret int, err error)
+//sys	getcwd(buf []byte) (n int, err error)
 
 func init() {
-	execveDarwin = execve
+	execveLibc = execve
 }
 
 func fdopendir(fd int) (dir uintptr, err error) {
-	r0, _, e1 := syscallPtr(funcPC(libc_fdopendir_trampoline), uintptr(fd), 0, 0)
-	dir = uintptr(r0)
+	r0, _, e1 := syscallPtr(abi.FuncPCABI0(libc_fdopendir_trampoline), uintptr(fd), 0, 0)
+	dir = r0
 	if e1 != 0 {
 		err = errnoErr(e1)
 	}
@@ -357,20 +242,10 @@ func fdopendir(fd int) (dir uintptr, err error) {
 
 func libc_fdopendir_trampoline()
 
-//go:linkname libc_fdopendir libc_fdopendir
 //go:cgo_import_dynamic libc_fdopendir fdopendir "/usr/lib/libSystem.B.dylib"
 
 func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
-	r0, _, e1 := syscall(funcPC(libc_read_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
-	n = int(r0)
-	if e1 != 0 {
-		err = errnoErr(e1)
-	}
-	return
-}
-
-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
-	r0, _, e1 := syscall(funcPC(libc_write_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+	r0, _, e1 := syscall(abi.FuncPCABI0(libc_read_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
 	n = int(r0)
 	if e1 != 0 {
 		err = errnoErr(e1)
@@ -433,12 +308,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 			break
 		}
 		// Copy entry into return buffer.
-		s := struct {
-			ptr unsafe.Pointer
-			siz int
-			cap int
-		}{ptr: unsafe.Pointer(&entry), siz: reclen, cap: reclen}
-		copy(buf, *(*[]byte)(unsafe.Pointer(&s)))
+		copy(buf, unsafe.Slice((*byte)(unsafe.Pointer(&entry)), reclen))
 		buf = buf[reclen:]
 		n += reclen
 		cnt++
@@ -453,17 +323,126 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	return n, nil
 }
 
-// Implemented in the runtime package (runtime/sys_darwin.go)
-func syscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
-func syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
-func syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
-func rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
-func rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
-func syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
-
-// Find the entry point for f. See comments in runtime/proc.go for the
-// function of the same name.
+// errno return e if int32(r) is -1, else it returns 0.
+//
 //go:nosplit
-func funcPC(f func()) uintptr {
-	return **(**uintptr)(unsafe.Pointer(&f))
+func errno(r uintptr, e Errno) Errno {
+	if int32(r) == -1 {
+		return e
+	}
+	return 0
 }
+
+// errnoX return e if r is -1, else it returns 0.
+//
+//go:nosplit
+func errnoX(r uintptr, e Errno) Errno {
+	if r == ^uintptr(0) {
+		return e
+	}
+	return 0
+}
+
+// errnoPtr return e if r is 0, else it returns 0.
+//
+//go:nosplit
+func errnoPtr(r uintptr, e Errno) Errno {
+	if r == 0 {
+		return e
+	}
+	return 0
+}
+
+//go:cgo_import_dynamic libc_error __error "/usr/lib/libSystem.B.dylib"
+
+// golang.org/x/sys linknames the following syscalls.
+// Do not remove or change the type signature.
+
+//go:linkname syscall
+//go:nosplit
+//go:uintptrkeepalive
+func syscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
+	r1, r2, err = syscalln(fn, a1, a2, a3)
+	return r1, r2, errno(r1, err)
+}
+
+//go:linkname syscallX
+//go:nosplit
+//go:uintptrkeepalive
+func syscallX(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
+	r1, r2, err = syscalln(fn, a1, a2, a3)
+	return r1, r2, errnoX(r1, err)
+}
+
+// syscall.syscall6 is meant for package syscall (and x/sys),
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/tetratelabs/wazero
+//
+// See go.dev/issue/67401.
+//
+//go:linkname syscall6
+//go:nosplit
+//go:uintptrkeepalive
+func syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
+	r1, r2, err = syscalln(fn, a1, a2, a3, a4, a5, a6)
+	return r1, r2, errno(r1, err)
+}
+
+//go:linkname syscall6X
+//go:nosplit
+//go:uintptrkeepalive
+func syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
+	r1, r2, err = syscalln(fn, a1, a2, a3, a4, a5, a6)
+	return r1, r2, errnoX(r1, err)
+}
+
+// syscall9 is used in [internal/syscall/unix].
+//
+//go:linkname syscall9
+//go:nosplit
+//go:uintptrkeepalive
+func syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) {
+	r1, r2, err = syscalln(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+	return r1, r2, errno(r1, err)
+}
+
+//go:linkname rawSyscall
+//go:nosplit
+//go:uintptrkeepalive
+func rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
+	r1, r2, err = rawsyscalln(fn, a1, a2, a3)
+	return r1, r2, errno(r1, err)
+}
+
+//go:linkname rawSyscall6
+//go:nosplit
+//go:uintptrkeepalive
+func rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
+	r1, r2, err = rawsyscalln(fn, a1, a2, a3, a4, a5, a6)
+	return r1, r2, errno(r1, err)
+}
+
+//go:linkname rawSyscall9
+//go:nosplit
+//go:uintptrkeepalive
+func rawSyscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) {
+	r1, r2, err = rawsyscalln(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+	return r1, r2, errno(r1, err)
+}
+
+//go:linkname syscallPtr
+//go:nosplit
+//go:uintptrkeepalive
+func syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
+	r1, r2, e1 := syscalln(fn, a1, a2, a3)
+	return r1, r2, errnoPtr(r1, e1)
+}
+
+// Implemented in the runtime package (runtime/sys_darwin.go)
+
+//go:noescape
+func syscalln(fn uintptr, args ...uintptr) (r1, r2 uintptr, err Errno)
+
+//go:noescape
+func rawsyscalln(fn uintptr, args ...uintptr) (r1, r2 uintptr, err Errno)

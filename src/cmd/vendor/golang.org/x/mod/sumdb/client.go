@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"path"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -19,7 +18,7 @@ import (
 )
 
 // A ClientOps provides the external operations
-// (file caching, HTTP fetches, and so on) needed by the Client.
+// (file caching, HTTP fetches, and so on) needed by the [Client].
 // The methods must be safe for concurrent use by multiple goroutines.
 type ClientOps interface {
 	// ReadRemote reads and returns the content served at the given path
@@ -72,7 +71,7 @@ type ClientOps interface {
 // ErrWriteConflict signals a write conflict during Client.WriteConfig.
 var ErrWriteConflict = errors.New("write conflict")
 
-// ErrSecurity is returned by Client operations that invoke Client.SecurityError.
+// ErrSecurity is returned by [Client] operations that invoke Client.SecurityError.
 var ErrSecurity = errors.New("security error: misbehaving server")
 
 // A Client is a client connection to a checksum database.
@@ -102,14 +101,14 @@ type Client struct {
 	tileSaved   map[tlog.Tile]bool // which tiles have been saved using c.ops.WriteCache already
 }
 
-// NewClient returns a new Client using the given Client.
+// NewClient returns a new [Client] using the given [ClientOps].
 func NewClient(ops ClientOps) *Client {
 	return &Client{
 		ops: ops,
 	}
 }
 
-// init initiailzes the client (if not already initialized)
+// init initializes the client (if not already initialized)
 // and returns any initialization error.
 func (c *Client) init() error {
 	c.initOnce.Do(c.initWork)
@@ -143,6 +142,14 @@ func (c *Client) initWork() {
 	c.verifiers = note.VerifierList(verifier)
 	c.name = verifier.Name()
 
+	if c.latest.N == 0 {
+		c.latest.Hash, err = tlog.TreeHash(0, nil)
+		if err != nil {
+			c.initErr = err
+			return
+		}
+	}
+
 	data, err := c.ops.ReadConfig(c.name + "/latest")
 	if err != nil {
 		c.initErr = err
@@ -155,7 +162,7 @@ func (c *Client) initWork() {
 }
 
 // SetTileHeight sets the tile height for the Client.
-// Any call to SetTileHeight must happen before the first call to Lookup.
+// Any call to SetTileHeight must happen before the first call to [Client.Lookup].
 // If SetTileHeight is not called, the Client defaults to tile height 8.
 // SetTileHeight can be called at most once,
 // and if so it must be called before the first call to Lookup.
@@ -174,7 +181,7 @@ func (c *Client) SetTileHeight(height int) {
 
 // SetGONOSUMDB sets the list of comma-separated GONOSUMDB patterns for the Client.
 // For any module path matching one of the patterns,
-// Lookup will return ErrGONOSUMDB.
+// [Client.Lookup] will return ErrGONOSUMDB.
 // SetGONOSUMDB can be called at most once,
 // and if so it must be called before the first call to Lookup.
 func (c *Client) SetGONOSUMDB(list string) {
@@ -187,57 +194,13 @@ func (c *Client) SetGONOSUMDB(list string) {
 	c.nosumdb = list
 }
 
-// ErrGONOSUMDB is returned by Lookup for paths that match
-// a pattern listed in the GONOSUMDB list (set by SetGONOSUMDB,
+// ErrGONOSUMDB is returned by [Client.Lookup] for paths that match
+// a pattern listed in the GONOSUMDB list (set by [Client.SetGONOSUMDB],
 // usually from the environment variable).
 var ErrGONOSUMDB = errors.New("skipped (listed in GONOSUMDB)")
 
 func (c *Client) skip(target string) bool {
-	return globsMatchPath(c.nosumdb, target)
-}
-
-// globsMatchPath reports whether any path prefix of target
-// matches one of the glob patterns (as defined by path.Match)
-// in the comma-separated globs list.
-// It ignores any empty or malformed patterns in the list.
-func globsMatchPath(globs, target string) bool {
-	for globs != "" {
-		// Extract next non-empty glob in comma-separated list.
-		var glob string
-		if i := strings.Index(globs, ","); i >= 0 {
-			glob, globs = globs[:i], globs[i+1:]
-		} else {
-			glob, globs = globs, ""
-		}
-		if glob == "" {
-			continue
-		}
-
-		// A glob with N+1 path elements (N slashes) needs to be matched
-		// against the first N+1 path elements of target,
-		// which end just before the N+1'th slash.
-		n := strings.Count(glob, "/")
-		prefix := target
-		// Walk target, counting slashes, truncating at the N+1'th slash.
-		for i := 0; i < len(target); i++ {
-			if target[i] == '/' {
-				if n == 0 {
-					prefix = target[:i]
-					break
-				}
-				n--
-			}
-		}
-		if n > 0 {
-			// Not enough prefix elements.
-			continue
-		}
-		matched, _ := path.Match(glob, prefix)
-		if matched {
-			return true
-		}
-	}
-	return false
+	return module.MatchPrefixPatterns(c.nosumdb, target)
 }
 
 // Lookup returns the go.sum lines for the given module path and version.
@@ -281,7 +244,7 @@ func (c *Client) Lookup(path, vers string) (lines []string, err error) {
 		data []byte
 		err  error
 	}
-	result := c.record.Do(file, func() interface{} {
+	result := c.record.Do(file, func() any {
 		// Try the on-disk cache, or else get from web.
 		writeCache := false
 		data, err := c.ops.ReadCache(file)
@@ -321,7 +284,7 @@ func (c *Client) Lookup(path, vers string) (lines []string, err error) {
 	// (with or without /go.mod).
 	prefix := path + " " + vers + " "
 	var hashes []string
-	for _, line := range strings.Split(string(result.data), "\n") {
+	for line := range strings.SplitSeq(string(result.data), "\n") {
 		if strings.HasPrefix(line, prefix) {
 			hashes = append(hashes, line)
 		}
@@ -553,6 +516,11 @@ func (r *tileReader) ReadTiles(tiles []tlog.Tile) ([][]byte, error) {
 		wg.Add(1)
 		go func(i int, tile tlog.Tile) {
 			defer wg.Done()
+			defer func() {
+				if e := recover(); e != nil {
+					errs[i] = fmt.Errorf("panic: %v", e)
+				}
+			}()
 			data[i], errs[i] = r.c.readTile(tile)
 		}(i, tile)
 	}
@@ -584,7 +552,7 @@ func (c *Client) readTile(tile tlog.Tile) ([]byte, error) {
 		err  error
 	}
 
-	result := c.tileCache.Do(tile, func() interface{} {
+	result := c.tileCache.Do(tile, func() any {
 		// Try the requested tile in on-disk cache.
 		data, err := c.ops.ReadCache(c.tileCacheKey(tile))
 		if err == nil {

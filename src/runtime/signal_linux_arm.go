@@ -5,7 +5,7 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -54,5 +54,5 @@ func (c *sigctxt) set_r10(x uint32) { c.regs().r10 = x }
 
 func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
 func (c *sigctxt) set_sigaddr(x uint32) {
-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
+	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
 }

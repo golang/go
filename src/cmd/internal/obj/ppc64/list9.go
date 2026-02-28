@@ -35,8 +35,10 @@ import (
 )
 
 func init() {
-	obj.RegisterRegister(obj.RBasePPC64, REG_DCR0+1024, rconv)
-	obj.RegisterOpcode(obj.ABasePPC64, Anames)
+	obj.RegisterRegister(obj.RBasePPC64, REG_SPR0+1024, rconv)
+	// Note, the last entry in Anames is "LASTAOUT", it is not a real opcode.
+	obj.RegisterOpcode(obj.ABasePPC64, Anames[:len(Anames)-1])
+	obj.RegisterOpcode(AFIRSTGEN, GenAnames)
 }
 
 func rconv(r int) string {
@@ -62,6 +64,14 @@ func rconv(r int) string {
 	if REG_CR0 <= r && r <= REG_CR7 {
 		return fmt.Sprintf("CR%d", r-REG_CR0)
 	}
+	if REG_CR0LT <= r && r <= REG_CR7SO {
+		bits := [4]string{"LT", "GT", "EQ", "SO"}
+		crf := (r - REG_CR0LT) / 4
+		return fmt.Sprintf("CR%d%s", crf, bits[r%4])
+	}
+	if REG_A0 <= r && r <= REG_A7 {
+		return fmt.Sprintf("A%d", r-REG_A0)
+	}
 	if r == REG_CR {
 		return "CR"
 	}
@@ -80,9 +90,6 @@ func rconv(r int) string {
 		return fmt.Sprintf("SPR(%d)", r-REG_SPR0)
 	}
 
-	if REG_DCR0 <= r && r <= REG_DCR0+1023 {
-		return fmt.Sprintf("DCR(%d)", r-REG_DCR0)
-	}
 	if r == REG_FPSCR {
 		return "FPSCR"
 	}
@@ -101,4 +108,10 @@ func DRconv(a int) string {
 	var fp string
 	fp += s
 	return fp
+}
+
+func ConstantToCRbit(c int64) (int16, bool) {
+	reg64 := REG_CRBIT0 + c
+	success := reg64 >= REG_CR0LT && reg64 <= REG_CR7SO
+	return int16(reg64), success
 }

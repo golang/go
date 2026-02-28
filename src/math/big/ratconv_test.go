@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -104,6 +105,7 @@ var setStringTests = []StringTest{
 	{in: "4/3/"},
 	{in: "4/3."},
 	{in: "4/"},
+	{in: "13e-9223372036854775808"}, // CVE-2022-23772
 
 	// valid
 	{"0", "0", true},
@@ -201,6 +203,14 @@ func TestRatSetString(t *testing.T) {
 				t.Errorf("#%d SetString(%q) got %p want nil", i, test.in, x)
 			}
 		}
+	}
+}
+
+func TestRatSetStringZero(t *testing.T) {
+	got, _ := new(Rat).SetString("0")
+	want := new(Rat).SetInt64(0)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %#+v, want %#+v", got, want)
 	}
 }
 
@@ -587,5 +597,169 @@ func TestIssue31184(t *testing.T) {
 		if got != want {
 			t.Errorf("got %s, want %s", got, want)
 		}
+	}
+}
+
+func TestIssue45910(t *testing.T) {
+	var x Rat
+	for _, test := range []struct {
+		input string
+		want  bool
+	}{
+		{"1e-1000001", false},
+		{"1e-1000000", true},
+		{"1e+1000000", true},
+		{"1e+1000001", false},
+
+		{"0p1000000000000", true},
+		{"1p-10000001", false},
+		{"1p-10000000", true},
+		{"1p+10000000", true},
+		{"1p+10000001", false},
+		{"1.770p02041010010011001001", false}, // test case from issue
+	} {
+		_, got := x.SetString(test.input)
+		if got != test.want {
+			t.Errorf("SetString(%s) got ok = %v; want %v", test.input, got, test.want)
+		}
+	}
+}
+func TestFloatPrec(t *testing.T) {
+	var tests = []struct {
+		f    string
+		prec int
+		ok   bool
+		fdec string
+	}{
+		// examples from the issue #50489
+		{"10/100", 1, true, "0.1"},
+		{"3/100", 2, true, "0.03"},
+		{"10", 0, true, "10"},
+
+		// more examples
+		{"zero", 0, true, "0"},      // test uninitialized zero value for Rat
+		{"0", 0, true, "0"},         // 0
+		{"1", 0, true, "1"},         // 1
+		{"1/2", 1, true, "0.5"},     // 0.5
+		{"1/3", 0, false, "0"},      // 0.(3)
+		{"1/4", 2, true, "0.25"},    // 0.25
+		{"1/5", 1, true, "0.2"},     // 0.2
+		{"1/6", 1, false, "0.2"},    // 0.1(6)
+		{"1/7", 0, false, "0"},      // 0.(142857)
+		{"1/8", 3, true, "0.125"},   // 0.125
+		{"1/9", 0, false, "0"},      // 0.(1)
+		{"1/10", 1, true, "0.1"},    // 0.1
+		{"1/11", 0, false, "0"},     // 0.(09)
+		{"1/12", 2, false, "0.08"},  // 0.08(3)
+		{"1/13", 0, false, "0"},     // 0.(076923)
+		{"1/14", 1, false, "0.1"},   // 0.0(714285)
+		{"1/15", 1, false, "0.1"},   // 0.0(6)
+		{"1/16", 4, true, "0.0625"}, // 0.0625
+
+		{"10/2", 0, true, "5"},                    // 5
+		{"10/3", 0, false, "3"},                   // 3.(3)
+		{"10/6", 0, false, "2"},                   // 1.(6)
+		{"1/10000000", 7, true, "0.0000001"},      // 0.0000001
+		{"1/3125", 5, true, "0.00032"},            // "0.00032"
+		{"1/1024", 10, true, "0.0009765625"},      // 0.0009765625
+		{"1/304000", 7, false, "0.0000033"},       // 0.0000032(894736842105263157)
+		{"1/48828125", 11, true, "0.00000002048"}, // 0.00000002048
+	}
+
+	for _, test := range tests {
+		var f Rat
+
+		// check uninitialized zero value
+		if test.f != "zero" {
+			_, ok := f.SetString(test.f)
+			if !ok {
+				t.Fatalf("invalid test case: f = %s", test.f)
+			}
+		}
+
+		// results for f and -f must be the same
+		fdec := test.fdec
+		for i := 0; i < 2; i++ {
+			prec, ok := f.FloatPrec()
+			if prec != test.prec || ok != test.ok {
+				t.Errorf("%s: FloatPrec(%s): got prec, ok = %d, %v; want %d, %v", test.f, &f, prec, ok, test.prec, test.ok)
+			}
+			s := f.FloatString(test.prec)
+			if s != fdec {
+				t.Errorf("%s: FloatString(%s, %d): got %s; want %s", test.f, &f, prec, s, fdec)
+			}
+			// proceed with -f but don't add a "-" before a "0"
+			if f.Sign() > 0 {
+				f.Neg(&f)
+				fdec = "-" + fdec
+			}
+		}
+	}
+}
+
+func BenchmarkFloatPrecExact(b *testing.B) {
+	for _, n := range []int{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6} {
+		// d := 5^n
+		d := NewInt(5)
+		p := NewInt(int64(n))
+		d.Exp(d, p, nil)
+
+		// r := 1/d
+		var r Rat
+		r.SetFrac(NewInt(1), d)
+
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				prec, ok := r.FloatPrec()
+				if prec != n || !ok {
+					b.Fatalf("got exact, ok = %d, %v; want %d, %v", prec, ok, uint64(n), true)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkFloatPrecMixed(b *testing.B) {
+	for _, n := range []int{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6} {
+		// d := (3·5·7·11)^n
+		d := NewInt(3 * 5 * 7 * 11)
+		p := NewInt(int64(n))
+		d.Exp(d, p, nil)
+
+		// r := 1/d
+		var r Rat
+		r.SetFrac(NewInt(1), d)
+
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				prec, ok := r.FloatPrec()
+				if prec != n || ok {
+					b.Fatalf("got exact, ok = %d, %v; want %d, %v", prec, ok, uint64(n), false)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkFloatPrecInexact(b *testing.B) {
+	for _, n := range []int{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6} {
+		// d := 5^n + 1
+		d := NewInt(5)
+		p := NewInt(int64(n))
+		d.Exp(d, p, nil)
+		d.Add(d, NewInt(1))
+
+		// r := 1/d
+		var r Rat
+		r.SetFrac(NewInt(1), d)
+
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_, ok := r.FloatPrec()
+				if ok {
+					b.Fatalf("got unexpected ok")
+				}
+			}
+		})
 	}
 }

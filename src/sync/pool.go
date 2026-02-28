@@ -41,6 +41,13 @@ import (
 // free list.
 //
 // A Pool must not be copied after first use.
+//
+// In the terminology of [the Go memory model], a call to Put(x) “synchronizes before”
+// a call to [Pool.Get] returning that same value x.
+// Similarly, a call to New returning x “synchronizes before”
+// a call to Get returning that same value x.
+//
+// [the Go memory model]: https://go.dev/ref/mem
 type Pool struct {
 	noCopy noCopy
 
@@ -53,13 +60,13 @@ type Pool struct {
 	// New optionally specifies a function to generate
 	// a value when Get would otherwise return nil.
 	// It may not be changed concurrently with calls to Get.
-	New func() interface{}
+	New func() any
 }
 
 // Local per-P Pool appendix.
 type poolLocalInternal struct {
-	private interface{} // Can be used only by the respective P.
-	shared  poolChain   // Local P can pushHead/popHead; any P can popTail.
+	private any       // Can be used only by the respective P.
+	shared  poolChain // Local P can pushHead/popHead; any P can popTail.
 }
 
 type poolLocal struct {
@@ -71,7 +78,9 @@ type poolLocal struct {
 }
 
 // from runtime
-func fastrand() uint32
+//
+//go:linkname runtime_randn runtime.randn
+func runtime_randn(n uint32) uint32
 
 var poolRaceHash [128]uint64
 
@@ -80,19 +89,19 @@ var poolRaceHash [128]uint64
 // directly, for fear of conflicting with other synchronization on that address.
 // Instead, we hash the pointer to get an index into poolRaceHash.
 // See discussion on golang.org/cl/31589.
-func poolRaceAddr(x interface{}) unsafe.Pointer {
+func poolRaceAddr(x any) unsafe.Pointer {
 	ptr := uintptr((*[2]unsafe.Pointer)(unsafe.Pointer(&x))[1])
 	h := uint32((uint64(uint32(ptr)) * 0x85ebca6b) >> 16)
 	return unsafe.Pointer(&poolRaceHash[h%uint32(len(poolRaceHash))])
 }
 
 // Put adds x to the pool.
-func (p *Pool) Put(x interface{}) {
+func (p *Pool) Put(x any) {
 	if x == nil {
 		return
 	}
 	if race.Enabled {
-		if fastrand()%4 == 0 {
+		if runtime_randn(4) == 0 {
 			// Randomly drop x on floor.
 			return
 		}
@@ -102,9 +111,7 @@ func (p *Pool) Put(x interface{}) {
 	l, _ := p.pin()
 	if l.private == nil {
 		l.private = x
-		x = nil
-	}
-	if x != nil {
+	} else {
 		l.shared.pushHead(x)
 	}
 	runtime_procUnpin()
@@ -113,15 +120,15 @@ func (p *Pool) Put(x interface{}) {
 	}
 }
 
-// Get selects an arbitrary item from the Pool, removes it from the
+// Get selects an arbitrary item from the [Pool], removes it from the
 // Pool, and returns it to the caller.
 // Get may choose to ignore the pool and treat it as empty.
-// Callers should not assume any relation between values passed to Put and
+// Callers should not assume any relation between values passed to [Pool.Put] and
 // the values returned by Get.
 //
 // If Get would otherwise return nil and p.New is non-nil, Get returns
 // the result of calling p.New.
-func (p *Pool) Get() interface{} {
+func (p *Pool) Get() any {
 	if race.Enabled {
 		race.Disable()
 	}
@@ -150,10 +157,10 @@ func (p *Pool) Get() interface{} {
 	return x
 }
 
-func (p *Pool) getSlow(pid int) interface{} {
+func (p *Pool) getSlow(pid int) any {
 	// See the comment in pin regarding ordering of the loads.
-	size := atomic.LoadUintptr(&p.localSize) // load-acquire
-	locals := p.local                        // load-consume
+	size := runtime_LoadAcquintptr(&p.localSize) // load-acquire
+	locals := p.local                            // load-consume
 	// Try to steal one element from other procs.
 	for i := 0; i < int(size); i++ {
 		l := indexLocal(locals, (pid+i+1)%int(size))
@@ -193,13 +200,20 @@ func (p *Pool) getSlow(pid int) interface{} {
 // returns poolLocal pool for the P and the P's id.
 // Caller must call runtime_procUnpin() when done with the pool.
 func (p *Pool) pin() (*poolLocal, int) {
+	// Check whether p is nil to get a panic.
+	// Otherwise the nil dereference happens while the m is pinned,
+	// causing a fatal error rather than a panic.
+	if p == nil {
+		panic("nil Pool")
+	}
+
 	pid := runtime_procPin()
 	// In pinSlow we store to local and then to localSize, here we load in opposite order.
 	// Since we've disabled preemption, GC cannot happen in between.
 	// Thus here we must observe local at least as large localSize.
 	// We can observe a newer/larger local, it is fine (we must observe its zero-initialized-ness).
-	s := atomic.LoadUintptr(&p.localSize) // load-acquire
-	l := p.local                          // load-consume
+	s := runtime_LoadAcquintptr(&p.localSize) // load-acquire
+	l := p.local                              // load-consume
 	if uintptr(pid) < s {
 		return indexLocal(l, pid), pid
 	}
@@ -226,10 +240,20 @@ func (p *Pool) pinSlow() (*poolLocal, int) {
 	size := runtime.GOMAXPROCS(0)
 	local := make([]poolLocal, size)
 	atomic.StorePointer(&p.local, unsafe.Pointer(&local[0])) // store-release
-	atomic.StoreUintptr(&p.localSize, uintptr(size))         // store-release
+	runtime_StoreReluintptr(&p.localSize, uintptr(size))     // store-release
 	return &local[pid], pid
 }
 
+// poolCleanup should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/gopkg
+//   - github.com/songzhibin97/gkit
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname poolCleanup
 func poolCleanup() {
 	// This function is called with the world stopped, at the beginning of a garbage collection.
 	// It must not allocate and probably should not call any runtime functions.
@@ -282,3 +306,13 @@ func indexLocal(l unsafe.Pointer, i int) *poolLocal {
 func runtime_registerPoolCleanup(cleanup func())
 func runtime_procPin() int
 func runtime_procUnpin()
+
+// The below are implemented in internal/runtime/atomic and the
+// compiler also knows to intrinsify the symbol we linkname into this
+// package.
+
+//go:linkname runtime_LoadAcquintptr internal/runtime/atomic.LoadAcquintptr
+func runtime_LoadAcquintptr(ptr *uintptr) uintptr
+
+//go:linkname runtime_StoreReluintptr internal/runtime/atomic.StoreReluintptr
+func runtime_StoreReluintptr(ptr *uintptr, val uintptr)

@@ -24,22 +24,33 @@ import (
 	"io"
 )
 
-var config = printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 8}
+// Keep these in sync with cmd/gofmt/gofmt.go.
+const (
+	tabWidth    = 8
+	printerMode = printer.UseSpaces | printer.TabIndent | printerNormalizeNumbers
 
-const parserMode = parser.ParseComments
+	// printerNormalizeNumbers means to canonicalize number literal prefixes
+	// and exponents while printing. See https://golang.org/doc/go1.13#gofmt.
+	//
+	// This value is defined in go/printer specifically for go/format and cmd/gofmt.
+	printerNormalizeNumbers = 1 << 30
+)
+
+var config = printer.Config{Mode: printerMode, Tabwidth: tabWidth}
+
+const parserMode = parser.ParseComments | parser.SkipObjectResolution
 
 // Node formats node in canonical gofmt style and writes the result to dst.
 //
-// The node type must be *ast.File, *printer.CommentedNode, []ast.Decl,
-// []ast.Stmt, or assignment-compatible to ast.Expr, ast.Decl, ast.Spec,
-// or ast.Stmt. Node does not modify node. Imports are not sorted for
+// The node type must be *[ast.File], *[printer.CommentedNode], [][ast.Decl],
+// [][ast.Stmt], or assignment-compatible to [ast.Expr], [ast.Decl], [ast.Spec],
+// or [ast.Stmt]. Node does not modify node. Imports are not sorted for
 // nodes representing partial source files (for instance, if the node is
-// not an *ast.File or a *printer.CommentedNode not wrapping an *ast.File).
+// not an *[ast.File] or a *[printer.CommentedNode] not wrapping an *[ast.File]).
 //
 // The function may return early (before the entire result is written)
 // and return a formatting error, for instance due to an incorrect AST.
-//
-func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
+func Node(dst io.Writer, fset *token.FileSet, node any) error {
 	// Determine if we have a complete source file (file != nil).
 	var file *ast.File
 	var cnode *printer.CommentedNode
@@ -87,7 +98,6 @@ func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
 // is applied to the result (such that it has the same leading and trailing
 // space as src), and the result is indented by the same amount as the first
 // line of src containing code. Imports are not sorted for partial source files.
-//
 func Source(src []byte) ([]byte, error) {
 	fset := token.NewFileSet()
 	file, sourceAdj, indentAdj, err := parse(fset, "", src, true)

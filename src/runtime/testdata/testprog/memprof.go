@@ -7,7 +7,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -31,7 +30,7 @@ func MemProf() {
 
 	runtime.GC()
 
-	f, err := ioutil.TempFile("", "memprof")
+	f, err := os.CreateTemp("", "memprof")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)

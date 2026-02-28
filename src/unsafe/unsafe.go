@@ -3,10 +3,10 @@
 // license that can be found in the LICENSE file.
 
 /*
-	Package unsafe contains operations that step around the type safety of Go programs.
+Package unsafe contains operations that step around the type safety of Go programs.
 
-	Packages that import unsafe may be non-portable and are not protected by the
-	Go 1 compatibility guidelines.
+Packages that import unsafe may be non-portable and are not protected by the
+Go 1 compatibility guidelines.
 */
 package unsafe
 
@@ -14,12 +14,17 @@ package unsafe
 // part of the unsafe package. It represents the type of an arbitrary Go expression.
 type ArbitraryType int
 
+// IntegerType is here for the purposes of documentation only and is not actually
+// part of the unsafe package. It represents any arbitrary integer type.
+type IntegerType int
+
 // Pointer represents a pointer to an arbitrary type. There are four special operations
 // available for type Pointer that are not available for other types:
-//	- A pointer value of any type can be converted to a Pointer.
-//	- A Pointer can be converted to a pointer value of any type.
-//	- A uintptr can be converted to a Pointer.
-//	- A Pointer can be converted to a uintptr.
+//   - A pointer value of any type can be converted to a Pointer.
+//   - A Pointer can be converted to a pointer value of any type.
+//   - A uintptr can be converted to a Pointer.
+//   - A Pointer can be converted to a uintptr.
+//
 // Pointer therefore allows a program to defeat the type system and read and write
 // arbitrary memory. It should be used with extreme care.
 //
@@ -105,7 +110,7 @@ type ArbitraryType int
 //	u := unsafe.Pointer(nil)
 //	p := unsafe.Pointer(uintptr(u) + offset)
 //
-// (4) Conversion of a Pointer to a uintptr when calling syscall.Syscall.
+// (4) Conversion of a Pointer to a uintptr when calling functions like [syscall.Syscall].
 //
 // The Syscall functions in package syscall pass their uintptr arguments directly
 // to the operating system, which then may, depending on the details of the call,
@@ -132,7 +137,7 @@ type ArbitraryType int
 //	u := uintptr(unsafe.Pointer(p))
 //	syscall.Syscall(SYS_READ, uintptr(fd), u, uintptr(n))
 //
-// (5) Conversion of the result of reflect.Value.Pointer or reflect.Value.UnsafeAddr
+// (5) Conversion of the result of [reflect.Value.Pointer] or [reflect.Value.UnsafeAddr]
 // from uintptr to Pointer.
 //
 // Package reflect's Value methods named Pointer and UnsafeAddr return type uintptr
@@ -150,7 +155,7 @@ type ArbitraryType int
 //	u := reflect.ValueOf(new(int)).Pointer()
 //	p := (*int)(unsafe.Pointer(u))
 //
-// (6) Conversion of a reflect.SliceHeader or reflect.StringHeader Data field to or from Pointer.
+// (6) Conversion of a [reflect.SliceHeader] or [reflect.StringHeader] Data field to or from Pointer.
 //
 // As in the previous case, the reflect data structures SliceHeader and StringHeader
 // declare the field Data as a uintptr to keep callers from changing the result to
@@ -166,7 +171,7 @@ type ArbitraryType int
 // In this usage hdr.Data is really an alternate way to refer to the underlying
 // pointer in the string header, not a uintptr variable itself.
 //
-// In general, reflect.SliceHeader and reflect.StringHeader should be used
+// In general, [reflect.SliceHeader] and [reflect.StringHeader] should be used
 // only as *reflect.SliceHeader and *reflect.StringHeader pointing at actual
 // slices or strings, never as plain structs.
 // A program should not declare or allocate variables of these struct types.
@@ -176,30 +181,91 @@ type ArbitraryType int
 //	hdr.Data = uintptr(unsafe.Pointer(p))
 //	hdr.Len = n
 //	s := *(*string)(unsafe.Pointer(&hdr)) // p possibly already lost
-//
 type Pointer *ArbitraryType
 
 // Sizeof takes an expression x of any type and returns the size in bytes
 // of a hypothetical variable v as if v was declared via var v = x.
 // The size does not include any memory possibly referenced by x.
 // For instance, if x is a slice, Sizeof returns the size of the slice
-// descriptor, not the size of the memory referenced by the slice.
-// The return value of Sizeof is a Go constant.
+// descriptor, not the size of the memory referenced by the slice;
+// if x is an interface, Sizeof returns the size of the interface value itself,
+// not the size of the value stored in the interface.
+// For a struct, the size includes any padding introduced by field alignment.
+// The return value of Sizeof is a Go constant if the type of the argument x
+// does not have variable size.
+// (A type has variable size if it is a type parameter or if it is an array
+// or struct type with elements of variable size).
 func Sizeof(x ArbitraryType) uintptr
 
 // Offsetof returns the offset within the struct of the field represented by x,
 // which must be of the form structValue.field. In other words, it returns the
 // number of bytes between the start of the struct and the start of the field.
-// The return value of Offsetof is a Go constant.
+// The return value of Offsetof is a Go constant if the type of the argument x
+// does not have variable size.
+// (See the description of [Sizeof] for a definition of variable sized types.)
 func Offsetof(x ArbitraryType) uintptr
 
 // Alignof takes an expression x of any type and returns the required alignment
 // of a hypothetical variable v as if v was declared via var v = x.
 // It is the largest value m such that the address of v is always zero mod m.
-// It is the same as the value returned by reflect.TypeOf(x).Align().
+// It is the same as the value returned by [reflect.TypeOf](x).Align().
 // As a special case, if a variable s is of struct type and f is a field
 // within that struct, then Alignof(s.f) will return the required alignment
 // of a field of that type within a struct. This case is the same as the
-// value returned by reflect.TypeOf(s.f).FieldAlign().
-// The return value of Alignof is a Go constant.
+// value returned by [reflect.TypeOf](s.f).FieldAlign().
+// The return value of Alignof is a Go constant if the type of the argument
+// does not have variable size.
+// (See the description of [Sizeof] for a definition of variable sized types.)
 func Alignof(x ArbitraryType) uintptr
+
+// The function Add adds len to ptr and returns the updated pointer
+// [Pointer](uintptr(ptr) + uintptr(len)).
+// The len argument must be of integer type or an untyped constant.
+// A constant len argument must be representable by a value of type int;
+// if it is an untyped constant it is given type int.
+// The rules for valid uses of Pointer still apply.
+func Add(ptr Pointer, len IntegerType) Pointer
+
+// The function Slice returns a slice whose underlying array starts at ptr
+// and whose length and capacity are len.
+// Slice(ptr, len) is equivalent to
+//
+//	(*[len]ArbitraryType)(unsafe.Pointer(ptr))[:]
+//
+// except that, as a special case, if ptr is nil and len is zero,
+// Slice returns nil.
+//
+// The len argument must be of integer type or an untyped constant.
+// A constant len argument must be non-negative and representable by a value of type int;
+// if it is an untyped constant it is given type int.
+// At run time, if len is negative, or if ptr is nil and len is not zero,
+// a run-time panic occurs.
+func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType
+
+// SliceData returns a pointer to the underlying array of the argument
+// slice.
+//   - If cap(slice) > 0, SliceData returns &slice[:1][0].
+//   - If slice == nil, SliceData returns nil.
+//   - Otherwise, SliceData returns a non-nil pointer to an
+//     unspecified memory address.
+func SliceData(slice []ArbitraryType) *ArbitraryType
+
+// String returns a string value whose underlying bytes
+// start at ptr and whose length is len.
+//
+// The len argument must be of integer type or an untyped constant.
+// A constant len argument must be non-negative and representable by a value of type int;
+// if it is an untyped constant it is given type int.
+// At run time, if len is negative, or if ptr is nil and len is not zero,
+// a run-time panic occurs.
+//
+// Since Go strings are immutable, the bytes passed to String
+// must not be modified as long as the returned string value exists.
+func String(ptr *byte, len IntegerType) string
+
+// StringData returns a pointer to the underlying bytes of str.
+// For an empty string the return value is unspecified, and may be nil.
+//
+// Since Go strings are immutable, the bytes returned by StringData
+// must not be modified.
+func StringData(str string) *byte

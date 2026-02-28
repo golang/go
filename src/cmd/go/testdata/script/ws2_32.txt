@@ -1,0 +1,48 @@
+[!GOOS:windows] skip
+
+go run .
+stdout 'ws2_32.dll: not found'
+
+go run -tags net .
+stdout 'ws2_32.dll: found'
+
+-- go.mod --
+module m
+
+go 1.21
+
+-- utils.go --
+package main
+
+import (
+	"fmt"
+	"syscall"
+	"unsafe"
+)
+
+func hasModuleHandle() {
+	const ws2_32 = "ws2_32.dll"
+	getModuleHandle := syscall.MustLoadDLL("kernel32.dll").MustFindProc("GetModuleHandleW")
+	mod, _, _ := getModuleHandle.Call(uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(ws2_32))))
+	if mod != 0 {
+		fmt.Println(ws2_32+":", "found")
+	} else {
+		fmt.Println(ws2_32+":", "not found")
+	}
+}
+-- net.go --
+//go:build net
+package main
+
+import _ "net"
+
+func main() {
+    hasModuleHandle()
+}
+-- nonet.go --
+//go:build !net
+package main
+
+func main() {
+    hasModuleHandle()
+}

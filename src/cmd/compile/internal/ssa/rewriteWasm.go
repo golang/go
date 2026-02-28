@@ -1,10 +1,8 @@
-// Code generated from gen/Wasm.rules; DO NOT EDIT.
-// generated with: cd gen; go run *.go
+// Code generated from _gen/Wasm.rules using 'go generate'; DO NOT EDIT.
 
 package ssa
 
 import "math"
-import "cmd/internal/objabi"
 import "cmd/compile/internal/types"
 
 func rewriteValueWasm(v *Value) bool {
@@ -34,8 +32,7 @@ func rewriteValueWasm(v *Value) bool {
 		v.Op = OpWasmI64Add
 		return true
 	case OpAddr:
-		v.Op = OpWasmLoweredAddr
-		return true
+		return rewriteValueWasm_OpAddr(v)
 	case OpAnd16:
 		v.Op = OpWasmI64And
 		return true
@@ -51,8 +48,16 @@ func rewriteValueWasm(v *Value) bool {
 	case OpAndB:
 		v.Op = OpWasmI64And
 		return true
+	case OpAvg64u:
+		return rewriteValueWasm_OpAvg64u(v)
+	case OpBitLen16:
+		return rewriteValueWasm_OpBitLen16(v)
+	case OpBitLen32:
+		return rewriteValueWasm_OpBitLen32(v)
 	case OpBitLen64:
 		return rewriteValueWasm_OpBitLen64(v)
+	case OpBitLen8:
+		return rewriteValueWasm_OpBitLen8(v)
 	case OpCeil:
 		v.Op = OpWasmF64Ceil
 		return true
@@ -71,11 +76,9 @@ func rewriteValueWasm(v *Value) bool {
 		v.Op = OpWasmSelect
 		return true
 	case OpConst16:
-		v.Op = OpWasmI64Const
-		return true
+		return rewriteValueWasm_OpConst16(v)
 	case OpConst32:
-		v.Op = OpWasmI64Const
-		return true
+		return rewriteValueWasm_OpConst32(v)
 	case OpConst32F:
 		v.Op = OpWasmF32Const
 		return true
@@ -86,11 +89,9 @@ func rewriteValueWasm(v *Value) bool {
 		v.Op = OpWasmF64Const
 		return true
 	case OpConst8:
-		v.Op = OpWasmI64Const
-		return true
+		return rewriteValueWasm_OpConst8(v)
 	case OpConstBool:
-		v.Op = OpWasmI64Const
-		return true
+		return rewriteValueWasm_OpConstBool(v)
 	case OpConstNil:
 		return rewriteValueWasm_OpConstNil(v)
 	case OpConvert:
@@ -185,8 +186,7 @@ func rewriteValueWasm(v *Value) bool {
 	case OpDiv32u:
 		return rewriteValueWasm_OpDiv32u(v)
 	case OpDiv64:
-		v.Op = OpWasmI64DivS
-		return true
+		return rewriteValueWasm_OpDiv64(v)
 	case OpDiv64F:
 		v.Op = OpWasmF64Div
 		return true
@@ -221,12 +221,6 @@ func rewriteValueWasm(v *Value) bool {
 	case OpFloor:
 		v.Op = OpWasmF64Floor
 		return true
-	case OpGeq32F:
-		v.Op = OpWasmF32Ge
-		return true
-	case OpGeq64F:
-		v.Op = OpWasmF64Ge
-		return true
 	case OpGetCallerPC:
 		v.Op = OpWasmLoweredGetCallerPC
 		return true
@@ -236,12 +230,10 @@ func rewriteValueWasm(v *Value) bool {
 	case OpGetClosurePtr:
 		v.Op = OpWasmLoweredGetClosurePtr
 		return true
-	case OpGreater32F:
-		v.Op = OpWasmF32Gt
-		return true
-	case OpGreater64F:
-		v.Op = OpWasmF64Gt
-		return true
+	case OpHmul64:
+		return rewriteValueWasm_OpHmul64(v)
+	case OpHmul64u:
+		return rewriteValueWasm_OpHmul64u(v)
 	case OpInterCall:
 		v.Op = OpWasmLoweredInterCall
 		return true
@@ -253,6 +245,8 @@ func rewriteValueWasm(v *Value) bool {
 	case OpIsSliceInBounds:
 		v.Op = OpWasmI64LeU
 		return true
+	case OpLast:
+		return rewriteValueWasm_OpLast(v)
 	case OpLeq16:
 		return rewriteValueWasm_OpLeq16(v)
 	case OpLeq16U:
@@ -349,8 +343,7 @@ func rewriteValueWasm(v *Value) bool {
 	case OpMod32u:
 		return rewriteValueWasm_OpMod32u(v)
 	case OpMod64:
-		v.Op = OpWasmI64RemS
-		return true
+		return rewriteValueWasm_OpMod64(v)
 	case OpMod64u:
 		v.Op = OpWasmI64RemU
 		return true
@@ -529,6 +522,10 @@ func rewriteValueWasm(v *Value) bool {
 		return rewriteValueWasm_OpRsh8x64(v)
 	case OpRsh8x8:
 		return rewriteValueWasm_OpRsh8x8(v)
+	case OpSelect0:
+		return rewriteValueWasm_OpSelect0(v)
+	case OpSelect1:
+		return rewriteValueWasm_OpSelect1(v)
 	case OpSignExt16to32:
 		return rewriteValueWasm_OpSignExt16to32(v)
 	case OpSignExt16to64:
@@ -545,6 +542,9 @@ func rewriteValueWasm(v *Value) bool {
 		return rewriteValueWasm_OpSlicemask(v)
 	case OpSqrt:
 		v.Op = OpWasmF64Sqrt
+		return true
+	case OpSqrt32:
+		v.Op = OpWasmF32Sqrt
 		return true
 	case OpStaticCall:
 		v.Op = OpWasmLoweredStaticCall
@@ -571,6 +571,9 @@ func rewriteValueWasm(v *Value) bool {
 		return true
 	case OpSubPtr:
 		v.Op = OpWasmI64Sub
+		return true
+	case OpTailCall:
+		v.Op = OpWasmLoweredTailCall
 		return true
 	case OpTrunc:
 		v.Op = OpWasmF64Trunc
@@ -610,6 +613,8 @@ func rewriteValueWasm(v *Value) bool {
 		return rewriteValueWasm_OpWasmI64Eq(v)
 	case OpWasmI64Eqz:
 		return rewriteValueWasm_OpWasmI64Eqz(v)
+	case OpWasmI64LeU:
+		return rewriteValueWasm_OpWasmI64LeU(v)
 	case OpWasmI64Load:
 		return rewriteValueWasm_OpWasmI64Load(v)
 	case OpWasmI64Load16S:
@@ -624,6 +629,8 @@ func rewriteValueWasm(v *Value) bool {
 		return rewriteValueWasm_OpWasmI64Load8S(v)
 	case OpWasmI64Load8U:
 		return rewriteValueWasm_OpWasmI64Load8U(v)
+	case OpWasmI64LtU:
+		return rewriteValueWasm_OpWasmI64LtU(v)
 	case OpWasmI64Mul:
 		return rewriteValueWasm_OpWasmI64Mul(v)
 	case OpWasmI64Ne:
@@ -675,6 +682,71 @@ func rewriteValueWasm(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueWasm_OpAddr(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Addr {sym} base)
+	// result: (LoweredAddr {sym} [0] base)
+	for {
+		sym := auxToSym(v.Aux)
+		base := v_0
+		v.reset(OpWasmLoweredAddr)
+		v.AuxInt = int32ToAuxInt(0)
+		v.Aux = symToAux(sym)
+		v.AddArg(base)
+		return true
+	}
+}
+func rewriteValueWasm_OpAvg64u(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Avg64u x y)
+	// result: (I64Add (I64ShrU (I64Sub x y) (I64Const [1])) y)
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpWasmI64Add)
+		v0 := b.NewValue0(v.Pos, OpWasmI64ShrU, typ.Int64)
+		v1 := b.NewValue0(v.Pos, OpWasmI64Sub, typ.Int64)
+		v1.AddArg2(x, y)
+		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+		v2.AuxInt = int64ToAuxInt(1)
+		v0.AddArg2(v1, v2)
+		v.AddArg2(v0, y)
+		return true
+	}
+}
+func rewriteValueWasm_OpBitLen16(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (BitLen16 x)
+	// result: (BitLen64 (ZeroExt16to64 x))
+	for {
+		x := v_0
+		v.reset(OpBitLen64)
+		v0 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueWasm_OpBitLen32(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (BitLen32 x)
+	// result: (BitLen64 (ZeroExt32to64 x))
+	for {
+		x := v_0
+		v.reset(OpBitLen64)
+		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValueWasm_OpBitLen64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
@@ -685,10 +757,25 @@ func rewriteValueWasm_OpBitLen64(v *Value) bool {
 		x := v_0
 		v.reset(OpWasmI64Sub)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 64
+		v0.AuxInt = int64ToAuxInt(64)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Clz, typ.Int64)
 		v1.AddArg(x)
 		v.AddArg2(v0, v1)
+		return true
+	}
+}
+func rewriteValueWasm_OpBitLen8(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (BitLen8 x)
+	// result: (BitLen64 (ZeroExt8to64 x))
+	for {
+		x := v_0
+		v.reset(OpBitLen64)
+		v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -702,7 +789,7 @@ func rewriteValueWasm_OpCom16(v *Value) bool {
 		x := v_0
 		v.reset(OpWasmI64Xor)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = -1
+		v0.AuxInt = int64ToAuxInt(-1)
 		v.AddArg2(x, v0)
 		return true
 	}
@@ -717,7 +804,7 @@ func rewriteValueWasm_OpCom32(v *Value) bool {
 		x := v_0
 		v.reset(OpWasmI64Xor)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = -1
+		v0.AuxInt = int64ToAuxInt(-1)
 		v.AddArg2(x, v0)
 		return true
 	}
@@ -732,7 +819,7 @@ func rewriteValueWasm_OpCom64(v *Value) bool {
 		x := v_0
 		v.reset(OpWasmI64Xor)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = -1
+		v0.AuxInt = int64ToAuxInt(-1)
 		v.AddArg2(x, v0)
 		return true
 	}
@@ -747,8 +834,48 @@ func rewriteValueWasm_OpCom8(v *Value) bool {
 		x := v_0
 		v.reset(OpWasmI64Xor)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = -1
+		v0.AuxInt = int64ToAuxInt(-1)
 		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueWasm_OpConst16(v *Value) bool {
+	// match: (Const16 [c])
+	// result: (I64Const [int64(c)])
+	for {
+		c := auxIntToInt16(v.AuxInt)
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64ToAuxInt(int64(c))
+		return true
+	}
+}
+func rewriteValueWasm_OpConst32(v *Value) bool {
+	// match: (Const32 [c])
+	// result: (I64Const [int64(c)])
+	for {
+		c := auxIntToInt32(v.AuxInt)
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64ToAuxInt(int64(c))
+		return true
+	}
+}
+func rewriteValueWasm_OpConst8(v *Value) bool {
+	// match: (Const8 [c])
+	// result: (I64Const [int64(c)])
+	for {
+		c := auxIntToInt8(v.AuxInt)
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64ToAuxInt(int64(c))
+		return true
+	}
+}
+func rewriteValueWasm_OpConstBool(v *Value) bool {
+	// match: (ConstBool [c])
+	// result: (I64Const [b2i(c)])
+	for {
+		c := auxIntToBool(v.AuxInt)
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64ToAuxInt(b2i(c))
 		return true
 	}
 }
@@ -757,7 +884,7 @@ func rewriteValueWasm_OpConstNil(v *Value) bool {
 	// result: (I64Const [0])
 	for {
 		v.reset(OpWasmI64Const)
-		v.AuxInt = 0
+		v.AuxInt = int64ToAuxInt(0)
 		return true
 	}
 }
@@ -772,7 +899,7 @@ func rewriteValueWasm_OpCtz16(v *Value) bool {
 		v.reset(OpWasmI64Ctz)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Or, typ.Int64)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 0x10000
+		v1.AuxInt = int64ToAuxInt(0x10000)
 		v0.AddArg2(x, v1)
 		v.AddArg(v0)
 		return true
@@ -789,7 +916,7 @@ func rewriteValueWasm_OpCtz32(v *Value) bool {
 		v.reset(OpWasmI64Ctz)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Or, typ.Int64)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 0x100000000
+		v1.AuxInt = int64ToAuxInt(0x100000000)
 		v0.AddArg2(x, v1)
 		v.AddArg(v0)
 		return true
@@ -806,7 +933,7 @@ func rewriteValueWasm_OpCtz8(v *Value) bool {
 		v.reset(OpWasmI64Ctz)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Or, typ.Int64)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 0x100
+		v1.AuxInt = int64ToAuxInt(0x100)
 		v0.AddArg2(x, v1)
 		v.AddArg(v0)
 		return true
@@ -877,9 +1004,12 @@ func rewriteValueWasm_OpDiv16(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
-	// match: (Div16 x y)
+	// match: (Div16 [false] x y)
 	// result: (I64DivS (SignExt16to64 x) (SignExt16to64 y))
 	for {
+		if auxIntToBool(v.AuxInt) != false {
+			break
+		}
 		x := v_0
 		y := v_1
 		v.reset(OpWasmI64DivS)
@@ -890,6 +1020,7 @@ func rewriteValueWasm_OpDiv16(v *Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValueWasm_OpDiv16u(v *Value) bool {
 	v_1 := v.Args[1]
@@ -915,9 +1046,12 @@ func rewriteValueWasm_OpDiv32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
-	// match: (Div32 x y)
+	// match: (Div32 [false] x y)
 	// result: (I64DivS (SignExt32to64 x) (SignExt32to64 y))
 	for {
+		if auxIntToBool(v.AuxInt) != false {
+			break
+		}
 		x := v_0
 		y := v_1
 		v.reset(OpWasmI64DivS)
@@ -928,6 +1062,7 @@ func rewriteValueWasm_OpDiv32(v *Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValueWasm_OpDiv32u(v *Value) bool {
 	v_1 := v.Args[1]
@@ -947,6 +1082,23 @@ func rewriteValueWasm_OpDiv32u(v *Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+}
+func rewriteValueWasm_OpDiv64(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Div64 [false] x y)
+	// result: (I64DivS x y)
+	for {
+		if auxIntToBool(v.AuxInt) != false {
+			break
+		}
+		x := v_0
+		y := v_1
+		v.reset(OpWasmI64DivS)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
 }
 func rewriteValueWasm_OpDiv8(v *Value) bool {
 	v_1 := v.Args[1]
@@ -1043,6 +1195,108 @@ func rewriteValueWasm_OpEq8(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueWasm_OpHmul64(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Hmul64 <t> x y)
+	// result: (Last <t> x0: (ZeroExt32to64 x) x1: (I64ShrS x (I64Const [32])) y0: (ZeroExt32to64 y) y1: (I64ShrS y (I64Const [32])) x0y0: (I64Mul x0 y0) tt: (I64Add (I64Mul x1 y0) (I64ShrU x0y0 (I64Const [32]))) w1: (I64Add (I64Mul x0 y1) (ZeroExt32to64 tt)) w2: (I64ShrS tt (I64Const [32])) (I64Add (I64Add (I64Mul x1 y1) w2) (I64ShrS w1 (I64Const [32]))))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		v.reset(OpLast)
+		v.Type = t
+		x0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		x0.AddArg(x)
+		x1 := b.NewValue0(v.Pos, OpWasmI64ShrS, typ.Int64)
+		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+		v2.AuxInt = int64ToAuxInt(32)
+		x1.AddArg2(x, v2)
+		y0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		y0.AddArg(y)
+		y1 := b.NewValue0(v.Pos, OpWasmI64ShrS, typ.Int64)
+		y1.AddArg2(y, v2)
+		x0y0 := b.NewValue0(v.Pos, OpWasmI64Mul, typ.Int64)
+		x0y0.AddArg2(x0, y0)
+		tt := b.NewValue0(v.Pos, OpWasmI64Add, typ.Int64)
+		v7 := b.NewValue0(v.Pos, OpWasmI64Mul, typ.Int64)
+		v7.AddArg2(x1, y0)
+		v8 := b.NewValue0(v.Pos, OpWasmI64ShrU, typ.Int64)
+		v8.AddArg2(x0y0, v2)
+		tt.AddArg2(v7, v8)
+		w1 := b.NewValue0(v.Pos, OpWasmI64Add, typ.Int64)
+		v10 := b.NewValue0(v.Pos, OpWasmI64Mul, typ.Int64)
+		v10.AddArg2(x0, y1)
+		v11 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		v11.AddArg(tt)
+		w1.AddArg2(v10, v11)
+		w2 := b.NewValue0(v.Pos, OpWasmI64ShrS, typ.Int64)
+		w2.AddArg2(tt, v2)
+		v13 := b.NewValue0(v.Pos, OpWasmI64Add, typ.Int64)
+		v14 := b.NewValue0(v.Pos, OpWasmI64Add, typ.Int64)
+		v15 := b.NewValue0(v.Pos, OpWasmI64Mul, typ.Int64)
+		v15.AddArg2(x1, y1)
+		v14.AddArg2(v15, w2)
+		v16 := b.NewValue0(v.Pos, OpWasmI64ShrS, typ.Int64)
+		v16.AddArg2(w1, v2)
+		v13.AddArg2(v14, v16)
+		v.AddArgs(x0, x1, y0, y1, x0y0, tt, w1, w2, v13)
+		return true
+	}
+}
+func rewriteValueWasm_OpHmul64u(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Hmul64u <t> x y)
+	// result: (Last <t> x0: (ZeroExt32to64 x) x1: (I64ShrU x (I64Const [32])) y0: (ZeroExt32to64 y) y1: (I64ShrU y (I64Const [32])) w0: (I64Mul x0 y0) tt: (I64Add (I64Mul x1 y0) (I64ShrU w0 (I64Const [32]))) w1: (I64Add (I64Mul x0 y1) (ZeroExt32to64 tt)) w2: (I64ShrU tt (I64Const [32])) hi: (I64Add (I64Add (I64Mul x1 y1) w2) (I64ShrU w1 (I64Const [32]))))
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		v.reset(OpLast)
+		v.Type = t
+		x0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		x0.AddArg(x)
+		x1 := b.NewValue0(v.Pos, OpWasmI64ShrU, typ.Int64)
+		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+		v2.AuxInt = int64ToAuxInt(32)
+		x1.AddArg2(x, v2)
+		y0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		y0.AddArg(y)
+		y1 := b.NewValue0(v.Pos, OpWasmI64ShrU, typ.Int64)
+		y1.AddArg2(y, v2)
+		w0 := b.NewValue0(v.Pos, OpWasmI64Mul, typ.Int64)
+		w0.AddArg2(x0, y0)
+		tt := b.NewValue0(v.Pos, OpWasmI64Add, typ.Int64)
+		v7 := b.NewValue0(v.Pos, OpWasmI64Mul, typ.Int64)
+		v7.AddArg2(x1, y0)
+		v8 := b.NewValue0(v.Pos, OpWasmI64ShrU, typ.Int64)
+		v8.AddArg2(w0, v2)
+		tt.AddArg2(v7, v8)
+		w1 := b.NewValue0(v.Pos, OpWasmI64Add, typ.Int64)
+		v10 := b.NewValue0(v.Pos, OpWasmI64Mul, typ.Int64)
+		v10.AddArg2(x0, y1)
+		v11 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		v11.AddArg(tt)
+		w1.AddArg2(v10, v11)
+		w2 := b.NewValue0(v.Pos, OpWasmI64ShrU, typ.Int64)
+		w2.AddArg2(tt, v2)
+		hi := b.NewValue0(v.Pos, OpWasmI64Add, typ.Int64)
+		v14 := b.NewValue0(v.Pos, OpWasmI64Add, typ.Int64)
+		v15 := b.NewValue0(v.Pos, OpWasmI64Mul, typ.Int64)
+		v15.AddArg2(x1, y1)
+		v14.AddArg2(v15, w2)
+		v16 := b.NewValue0(v.Pos, OpWasmI64ShrU, typ.Int64)
+		v16.AddArg2(w1, v2)
+		hi.AddArg2(v14, v16)
+		v.AddArgs(x0, x1, y0, y1, w0, tt, w1, w2, hi)
+		return true
+	}
+}
 func rewriteValueWasm_OpIsNonNil(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1055,6 +1309,14 @@ func rewriteValueWasm_OpIsNonNil(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpWasmI64Eqz, typ.Bool)
 		v0.AddArg(p)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueWasm_OpLast(v *Value) bool {
+	// match: (Last ___)
+	// result: v.Args[len(v.Args)-1]
+	for {
+		v.copyOf(v.Args[len(v.Args)-1])
 		return true
 	}
 }
@@ -1418,17 +1680,44 @@ func rewriteValueWasm_OpLoad(v *Value) bool {
 	return false
 }
 func rewriteValueWasm_OpLocalAddr(v *Value) bool {
+	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (LocalAddr {sym} base _)
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (LocalAddr <t> {sym} base mem)
+	// cond: t.Elem().HasPointers()
+	// result: (LoweredAddr {sym} (SPanchored base mem))
+	for {
+		t := v.Type
+		sym := auxToSym(v.Aux)
+		base := v_0
+		mem := v_1
+		if !(t.Elem().HasPointers()) {
+			break
+		}
+		v.reset(OpWasmLoweredAddr)
+		v.Aux = symToAux(sym)
+		v0 := b.NewValue0(v.Pos, OpSPanchored, typ.Uintptr)
+		v0.AddArg2(base, mem)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (LocalAddr <t> {sym} base _)
+	// cond: !t.Elem().HasPointers()
 	// result: (LoweredAddr {sym} base)
 	for {
-		sym := v.Aux
+		t := v.Type
+		sym := auxToSym(v.Aux)
 		base := v_0
+		if !(!t.Elem().HasPointers()) {
+			break
+		}
 		v.reset(OpWasmLoweredAddr)
-		v.Aux = sym
+		v.Aux = symToAux(sym)
 		v.AddArg(base)
 		return true
 	}
+	return false
 }
 func rewriteValueWasm_OpLsh16x16(v *Value) bool {
 	v_1 := v.Args[1]
@@ -1438,11 +1727,11 @@ func rewriteValueWasm_OpLsh16x16(v *Value) bool {
 	// match: (Lsh16x16 [c] x y)
 	// result: (Lsh64x64 [c] x (ZeroExt16to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpLsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -1457,11 +1746,11 @@ func rewriteValueWasm_OpLsh16x32(v *Value) bool {
 	// match: (Lsh16x32 [c] x y)
 	// result: (Lsh64x64 [c] x (ZeroExt32to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpLsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -1476,11 +1765,11 @@ func rewriteValueWasm_OpLsh16x8(v *Value) bool {
 	// match: (Lsh16x8 [c] x y)
 	// result: (Lsh64x64 [c] x (ZeroExt8to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpLsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -1495,11 +1784,11 @@ func rewriteValueWasm_OpLsh32x16(v *Value) bool {
 	// match: (Lsh32x16 [c] x y)
 	// result: (Lsh64x64 [c] x (ZeroExt16to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpLsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -1514,11 +1803,11 @@ func rewriteValueWasm_OpLsh32x32(v *Value) bool {
 	// match: (Lsh32x32 [c] x y)
 	// result: (Lsh64x64 [c] x (ZeroExt32to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpLsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -1533,11 +1822,11 @@ func rewriteValueWasm_OpLsh32x8(v *Value) bool {
 	// match: (Lsh32x8 [c] x y)
 	// result: (Lsh64x64 [c] x (ZeroExt8to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpLsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -1552,11 +1841,11 @@ func rewriteValueWasm_OpLsh64x16(v *Value) bool {
 	// match: (Lsh64x16 [c] x y)
 	// result: (Lsh64x64 [c] x (ZeroExt16to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpLsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -1571,11 +1860,11 @@ func rewriteValueWasm_OpLsh64x32(v *Value) bool {
 	// match: (Lsh64x32 [c] x y)
 	// result: (Lsh64x64 [c] x (ZeroExt32to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpLsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -1608,13 +1897,13 @@ func rewriteValueWasm_OpLsh64x64(v *Value) bool {
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 64) {
 			break
 		}
 		v.reset(OpWasmI64Shl)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = c
+		v0.AuxInt = int64ToAuxInt(c)
 		v.AddArg2(x, v0)
 		return true
 	}
@@ -1625,12 +1914,12 @@ func rewriteValueWasm_OpLsh64x64(v *Value) bool {
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) >= 64) {
 			break
 		}
 		v.reset(OpWasmI64Const)
-		v.AuxInt = 0
+		v.AuxInt = int64ToAuxInt(0)
 		return true
 	}
 	// match: (Lsh64x64 x y)
@@ -1642,10 +1931,10 @@ func rewriteValueWasm_OpLsh64x64(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
 		v0.AddArg2(x, y)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 0
+		v1.AuxInt = int64ToAuxInt(0)
 		v2 := b.NewValue0(v.Pos, OpWasmI64LtU, typ.Bool)
 		v3 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v3.AuxInt = 64
+		v3.AuxInt = int64ToAuxInt(64)
 		v2.AddArg2(y, v3)
 		v.AddArg3(v0, v1, v2)
 		return true
@@ -1659,11 +1948,11 @@ func rewriteValueWasm_OpLsh64x8(v *Value) bool {
 	// match: (Lsh64x8 [c] x y)
 	// result: (Lsh64x64 [c] x (ZeroExt8to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpLsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -1678,11 +1967,11 @@ func rewriteValueWasm_OpLsh8x16(v *Value) bool {
 	// match: (Lsh8x16 [c] x y)
 	// result: (Lsh64x64 [c] x (ZeroExt16to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpLsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -1697,11 +1986,11 @@ func rewriteValueWasm_OpLsh8x32(v *Value) bool {
 	// match: (Lsh8x32 [c] x y)
 	// result: (Lsh64x64 [c] x (ZeroExt32to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpLsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -1716,11 +2005,11 @@ func rewriteValueWasm_OpLsh8x8(v *Value) bool {
 	// match: (Lsh8x8 [c] x y)
 	// result: (Lsh64x64 [c] x (ZeroExt8to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpLsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -1732,9 +2021,12 @@ func rewriteValueWasm_OpMod16(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
-	// match: (Mod16 x y)
+	// match: (Mod16 [false] x y)
 	// result: (I64RemS (SignExt16to64 x) (SignExt16to64 y))
 	for {
+		if auxIntToBool(v.AuxInt) != false {
+			break
+		}
 		x := v_0
 		y := v_1
 		v.reset(OpWasmI64RemS)
@@ -1745,6 +2037,7 @@ func rewriteValueWasm_OpMod16(v *Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValueWasm_OpMod16u(v *Value) bool {
 	v_1 := v.Args[1]
@@ -1770,9 +2063,12 @@ func rewriteValueWasm_OpMod32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
-	// match: (Mod32 x y)
+	// match: (Mod32 [false] x y)
 	// result: (I64RemS (SignExt32to64 x) (SignExt32to64 y))
 	for {
+		if auxIntToBool(v.AuxInt) != false {
+			break
+		}
 		x := v_0
 		y := v_1
 		v.reset(OpWasmI64RemS)
@@ -1783,6 +2079,7 @@ func rewriteValueWasm_OpMod32(v *Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValueWasm_OpMod32u(v *Value) bool {
 	v_1 := v.Args[1]
@@ -1802,6 +2099,23 @@ func rewriteValueWasm_OpMod32u(v *Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+}
+func rewriteValueWasm_OpMod64(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Mod64 [false] x y)
+	// result: (I64RemS x y)
+	for {
+		if auxIntToBool(v.AuxInt) != false {
+			break
+		}
+		x := v_0
+		y := v_1
+		v.reset(OpWasmI64RemS)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
 }
 func rewriteValueWasm_OpMod8(v *Value) bool {
 	v_1 := v.Args[1]
@@ -1850,7 +2164,7 @@ func rewriteValueWasm_OpMove(v *Value) bool {
 	// match: (Move [0] _ _ mem)
 	// result: mem
 	for {
-		if v.AuxInt != 0 {
+		if auxIntToInt64(v.AuxInt) != 0 {
 			break
 		}
 		mem := v_2
@@ -1860,7 +2174,7 @@ func rewriteValueWasm_OpMove(v *Value) bool {
 	// match: (Move [1] dst src mem)
 	// result: (I64Store8 dst (I64Load8U src mem) mem)
 	for {
-		if v.AuxInt != 1 {
+		if auxIntToInt64(v.AuxInt) != 1 {
 			break
 		}
 		dst := v_0
@@ -1875,7 +2189,7 @@ func rewriteValueWasm_OpMove(v *Value) bool {
 	// match: (Move [2] dst src mem)
 	// result: (I64Store16 dst (I64Load16U src mem) mem)
 	for {
-		if v.AuxInt != 2 {
+		if auxIntToInt64(v.AuxInt) != 2 {
 			break
 		}
 		dst := v_0
@@ -1890,7 +2204,7 @@ func rewriteValueWasm_OpMove(v *Value) bool {
 	// match: (Move [4] dst src mem)
 	// result: (I64Store32 dst (I64Load32U src mem) mem)
 	for {
-		if v.AuxInt != 4 {
+		if auxIntToInt64(v.AuxInt) != 4 {
 			break
 		}
 		dst := v_0
@@ -1905,7 +2219,7 @@ func rewriteValueWasm_OpMove(v *Value) bool {
 	// match: (Move [8] dst src mem)
 	// result: (I64Store dst (I64Load src mem) mem)
 	for {
-		if v.AuxInt != 8 {
+		if auxIntToInt64(v.AuxInt) != 8 {
 			break
 		}
 		dst := v_0
@@ -1920,16 +2234,16 @@ func rewriteValueWasm_OpMove(v *Value) bool {
 	// match: (Move [16] dst src mem)
 	// result: (I64Store [8] dst (I64Load [8] src mem) (I64Store dst (I64Load src mem) mem))
 	for {
-		if v.AuxInt != 16 {
+		if auxIntToInt64(v.AuxInt) != 16 {
 			break
 		}
 		dst := v_0
 		src := v_1
 		mem := v_2
 		v.reset(OpWasmI64Store)
-		v.AuxInt = 8
+		v.AuxInt = int64ToAuxInt(8)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Load, typ.UInt64)
-		v0.AuxInt = 8
+		v0.AuxInt = int64ToAuxInt(8)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
 		v2 := b.NewValue0(v.Pos, OpWasmI64Load, typ.UInt64)
@@ -1941,16 +2255,16 @@ func rewriteValueWasm_OpMove(v *Value) bool {
 	// match: (Move [3] dst src mem)
 	// result: (I64Store8 [2] dst (I64Load8U [2] src mem) (I64Store16 dst (I64Load16U src mem) mem))
 	for {
-		if v.AuxInt != 3 {
+		if auxIntToInt64(v.AuxInt) != 3 {
 			break
 		}
 		dst := v_0
 		src := v_1
 		mem := v_2
 		v.reset(OpWasmI64Store8)
-		v.AuxInt = 2
+		v.AuxInt = int64ToAuxInt(2)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Load8U, typ.UInt8)
-		v0.AuxInt = 2
+		v0.AuxInt = int64ToAuxInt(2)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Store16, types.TypeMem)
 		v2 := b.NewValue0(v.Pos, OpWasmI64Load16U, typ.UInt16)
@@ -1962,16 +2276,16 @@ func rewriteValueWasm_OpMove(v *Value) bool {
 	// match: (Move [5] dst src mem)
 	// result: (I64Store8 [4] dst (I64Load8U [4] src mem) (I64Store32 dst (I64Load32U src mem) mem))
 	for {
-		if v.AuxInt != 5 {
+		if auxIntToInt64(v.AuxInt) != 5 {
 			break
 		}
 		dst := v_0
 		src := v_1
 		mem := v_2
 		v.reset(OpWasmI64Store8)
-		v.AuxInt = 4
+		v.AuxInt = int64ToAuxInt(4)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Load8U, typ.UInt8)
-		v0.AuxInt = 4
+		v0.AuxInt = int64ToAuxInt(4)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Store32, types.TypeMem)
 		v2 := b.NewValue0(v.Pos, OpWasmI64Load32U, typ.UInt32)
@@ -1983,16 +2297,16 @@ func rewriteValueWasm_OpMove(v *Value) bool {
 	// match: (Move [6] dst src mem)
 	// result: (I64Store16 [4] dst (I64Load16U [4] src mem) (I64Store32 dst (I64Load32U src mem) mem))
 	for {
-		if v.AuxInt != 6 {
+		if auxIntToInt64(v.AuxInt) != 6 {
 			break
 		}
 		dst := v_0
 		src := v_1
 		mem := v_2
 		v.reset(OpWasmI64Store16)
-		v.AuxInt = 4
+		v.AuxInt = int64ToAuxInt(4)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Load16U, typ.UInt16)
-		v0.AuxInt = 4
+		v0.AuxInt = int64ToAuxInt(4)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Store32, types.TypeMem)
 		v2 := b.NewValue0(v.Pos, OpWasmI64Load32U, typ.UInt32)
@@ -2004,16 +2318,16 @@ func rewriteValueWasm_OpMove(v *Value) bool {
 	// match: (Move [7] dst src mem)
 	// result: (I64Store32 [3] dst (I64Load32U [3] src mem) (I64Store32 dst (I64Load32U src mem) mem))
 	for {
-		if v.AuxInt != 7 {
+		if auxIntToInt64(v.AuxInt) != 7 {
 			break
 		}
 		dst := v_0
 		src := v_1
 		mem := v_2
 		v.reset(OpWasmI64Store32)
-		v.AuxInt = 3
+		v.AuxInt = int64ToAuxInt(3)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Load32U, typ.UInt32)
-		v0.AuxInt = 3
+		v0.AuxInt = int64ToAuxInt(3)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Store32, types.TypeMem)
 		v2 := b.NewValue0(v.Pos, OpWasmI64Load32U, typ.UInt32)
@@ -2026,7 +2340,7 @@ func rewriteValueWasm_OpMove(v *Value) bool {
 	// cond: s > 8 && s < 16
 	// result: (I64Store [s-8] dst (I64Load [s-8] src mem) (I64Store dst (I64Load src mem) mem))
 	for {
-		s := v.AuxInt
+		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
@@ -2034,9 +2348,9 @@ func rewriteValueWasm_OpMove(v *Value) bool {
 			break
 		}
 		v.reset(OpWasmI64Store)
-		v.AuxInt = s - 8
+		v.AuxInt = int64ToAuxInt(s - 8)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Load, typ.UInt64)
-		v0.AuxInt = s - 8
+		v0.AuxInt = int64ToAuxInt(s - 8)
 		v0.AddArg2(src, mem)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
 		v2 := b.NewValue0(v.Pos, OpWasmI64Load, typ.UInt64)
@@ -2046,76 +2360,18 @@ func rewriteValueWasm_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 16 && s%16 != 0 && s%16 <= 8
-	// result: (Move [s-s%16] (OffPtr <dst.Type> dst [s%16]) (OffPtr <src.Type> src [s%16]) (I64Store dst (I64Load src mem) mem))
+	// cond: logLargeCopy(v, s)
+	// result: (LoweredMove [s] dst src mem)
 	for {
-		s := v.AuxInt
+		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 16 && s%16 != 0 && s%16 <= 8) {
-			break
-		}
-		v.reset(OpMove)
-		v.AuxInt = s - s%16
-		v0 := b.NewValue0(v.Pos, OpOffPtr, dst.Type)
-		v0.AuxInt = s % 16
-		v0.AddArg(dst)
-		v1 := b.NewValue0(v.Pos, OpOffPtr, src.Type)
-		v1.AuxInt = s % 16
-		v1.AddArg(src)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
-		v3 := b.NewValue0(v.Pos, OpWasmI64Load, typ.UInt64)
-		v3.AddArg2(src, mem)
-		v2.AddArg3(dst, v3, mem)
-		v.AddArg3(v0, v1, v2)
-		return true
-	}
-	// match: (Move [s] dst src mem)
-	// cond: s > 16 && s%16 != 0 && s%16 > 8
-	// result: (Move [s-s%16] (OffPtr <dst.Type> dst [s%16]) (OffPtr <src.Type> src [s%16]) (I64Store [8] dst (I64Load [8] src mem) (I64Store dst (I64Load src mem) mem)))
-	for {
-		s := v.AuxInt
-		dst := v_0
-		src := v_1
-		mem := v_2
-		if !(s > 16 && s%16 != 0 && s%16 > 8) {
-			break
-		}
-		v.reset(OpMove)
-		v.AuxInt = s - s%16
-		v0 := b.NewValue0(v.Pos, OpOffPtr, dst.Type)
-		v0.AuxInt = s % 16
-		v0.AddArg(dst)
-		v1 := b.NewValue0(v.Pos, OpOffPtr, src.Type)
-		v1.AuxInt = s % 16
-		v1.AddArg(src)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
-		v2.AuxInt = 8
-		v3 := b.NewValue0(v.Pos, OpWasmI64Load, typ.UInt64)
-		v3.AuxInt = 8
-		v3.AddArg2(src, mem)
-		v4 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
-		v5 := b.NewValue0(v.Pos, OpWasmI64Load, typ.UInt64)
-		v5.AddArg2(src, mem)
-		v4.AddArg3(dst, v5, mem)
-		v2.AddArg3(dst, v3, v4)
-		v.AddArg3(v0, v1, v2)
-		return true
-	}
-	// match: (Move [s] dst src mem)
-	// cond: s%8 == 0 && logLargeCopy(v, s)
-	// result: (LoweredMove [s/8] dst src mem)
-	for {
-		s := v.AuxInt
-		dst := v_0
-		src := v_1
-		mem := v_2
-		if !(s%8 == 0 && logLargeCopy(v, s)) {
+		if !(logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpWasmLoweredMove)
-		v.AuxInt = s / 8
+		v.AuxInt = int64ToAuxInt(s)
 		v.AddArg3(dst, src, mem)
 		return true
 	}
@@ -2131,7 +2387,7 @@ func rewriteValueWasm_OpNeg16(v *Value) bool {
 		x := v_0
 		v.reset(OpWasmI64Sub)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0
+		v0.AuxInt = int64ToAuxInt(0)
 		v.AddArg2(v0, x)
 		return true
 	}
@@ -2146,7 +2402,7 @@ func rewriteValueWasm_OpNeg32(v *Value) bool {
 		x := v_0
 		v.reset(OpWasmI64Sub)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0
+		v0.AuxInt = int64ToAuxInt(0)
 		v.AddArg2(v0, x)
 		return true
 	}
@@ -2161,7 +2417,7 @@ func rewriteValueWasm_OpNeg64(v *Value) bool {
 		x := v_0
 		v.reset(OpWasmI64Sub)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0
+		v0.AuxInt = int64ToAuxInt(0)
 		v.AddArg2(v0, x)
 		return true
 	}
@@ -2176,7 +2432,7 @@ func rewriteValueWasm_OpNeg8(v *Value) bool {
 		x := v_0
 		v.reset(OpWasmI64Sub)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0
+		v0.AuxInt = int64ToAuxInt(0)
 		v.AddArg2(v0, x)
 		return true
 	}
@@ -2296,15 +2552,15 @@ func rewriteValueWasm_OpRotateLeft16(v *Value) bool {
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		v.reset(OpOr16)
 		v0 := b.NewValue0(v.Pos, OpLsh16x64, t)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = c & 15
+		v1.AuxInt = int64ToAuxInt(c & 15)
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, OpRsh16Ux64, t)
 		v3 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v3.AuxInt = -c & 15
+		v3.AuxInt = int64ToAuxInt(-c & 15)
 		v2.AddArg2(x, v3)
 		v.AddArg2(v0, v2)
 		return true
@@ -2324,15 +2580,15 @@ func rewriteValueWasm_OpRotateLeft8(v *Value) bool {
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		v.reset(OpOr8)
 		v0 := b.NewValue0(v.Pos, OpLsh8x64, t)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = c & 7
+		v1.AuxInt = int64ToAuxInt(c & 7)
 		v0.AddArg2(x, v1)
 		v2 := b.NewValue0(v.Pos, OpRsh8Ux64, t)
 		v3 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v3.AuxInt = -c & 7
+		v3.AuxInt = int64ToAuxInt(-c & 7)
 		v2.AddArg2(x, v3)
 		v.AddArg2(v0, v2)
 		return true
@@ -2347,11 +2603,11 @@ func rewriteValueWasm_OpRsh16Ux16(v *Value) bool {
 	// match: (Rsh16Ux16 [c] x y)
 	// result: (Rsh64Ux64 [c] (ZeroExt16to64 x) (ZeroExt16to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64Ux64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
@@ -2368,11 +2624,11 @@ func rewriteValueWasm_OpRsh16Ux32(v *Value) bool {
 	// match: (Rsh16Ux32 [c] x y)
 	// result: (Rsh64Ux64 [c] (ZeroExt16to64 x) (ZeroExt32to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64Ux64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
@@ -2389,11 +2645,11 @@ func rewriteValueWasm_OpRsh16Ux64(v *Value) bool {
 	// match: (Rsh16Ux64 [c] x y)
 	// result: (Rsh64Ux64 [c] (ZeroExt16to64 x) y)
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64Ux64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
 		v0.AddArg(x)
 		v.AddArg2(v0, y)
@@ -2408,11 +2664,11 @@ func rewriteValueWasm_OpRsh16Ux8(v *Value) bool {
 	// match: (Rsh16Ux8 [c] x y)
 	// result: (Rsh64Ux64 [c] (ZeroExt16to64 x) (ZeroExt8to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64Ux64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
@@ -2429,11 +2685,11 @@ func rewriteValueWasm_OpRsh16x16(v *Value) bool {
 	// match: (Rsh16x16 [c] x y)
 	// result: (Rsh64x64 [c] (SignExt16to64 x) (ZeroExt16to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpSignExt16to64, typ.Int64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
@@ -2450,11 +2706,11 @@ func rewriteValueWasm_OpRsh16x32(v *Value) bool {
 	// match: (Rsh16x32 [c] x y)
 	// result: (Rsh64x64 [c] (SignExt16to64 x) (ZeroExt32to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpSignExt16to64, typ.Int64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
@@ -2471,11 +2727,11 @@ func rewriteValueWasm_OpRsh16x64(v *Value) bool {
 	// match: (Rsh16x64 [c] x y)
 	// result: (Rsh64x64 [c] (SignExt16to64 x) y)
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpSignExt16to64, typ.Int64)
 		v0.AddArg(x)
 		v.AddArg2(v0, y)
@@ -2490,11 +2746,11 @@ func rewriteValueWasm_OpRsh16x8(v *Value) bool {
 	// match: (Rsh16x8 [c] x y)
 	// result: (Rsh64x64 [c] (SignExt16to64 x) (ZeroExt8to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpSignExt16to64, typ.Int64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
@@ -2511,11 +2767,11 @@ func rewriteValueWasm_OpRsh32Ux16(v *Value) bool {
 	// match: (Rsh32Ux16 [c] x y)
 	// result: (Rsh64Ux64 [c] (ZeroExt32to64 x) (ZeroExt16to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64Ux64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
@@ -2532,11 +2788,11 @@ func rewriteValueWasm_OpRsh32Ux32(v *Value) bool {
 	// match: (Rsh32Ux32 [c] x y)
 	// result: (Rsh64Ux64 [c] (ZeroExt32to64 x) (ZeroExt32to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64Ux64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
@@ -2553,11 +2809,11 @@ func rewriteValueWasm_OpRsh32Ux64(v *Value) bool {
 	// match: (Rsh32Ux64 [c] x y)
 	// result: (Rsh64Ux64 [c] (ZeroExt32to64 x) y)
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64Ux64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v0.AddArg(x)
 		v.AddArg2(v0, y)
@@ -2572,11 +2828,11 @@ func rewriteValueWasm_OpRsh32Ux8(v *Value) bool {
 	// match: (Rsh32Ux8 [c] x y)
 	// result: (Rsh64Ux64 [c] (ZeroExt32to64 x) (ZeroExt8to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64Ux64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
@@ -2593,11 +2849,11 @@ func rewriteValueWasm_OpRsh32x16(v *Value) bool {
 	// match: (Rsh32x16 [c] x y)
 	// result: (Rsh64x64 [c] (SignExt32to64 x) (ZeroExt16to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
@@ -2614,11 +2870,11 @@ func rewriteValueWasm_OpRsh32x32(v *Value) bool {
 	// match: (Rsh32x32 [c] x y)
 	// result: (Rsh64x64 [c] (SignExt32to64 x) (ZeroExt32to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
@@ -2635,11 +2891,11 @@ func rewriteValueWasm_OpRsh32x64(v *Value) bool {
 	// match: (Rsh32x64 [c] x y)
 	// result: (Rsh64x64 [c] (SignExt32to64 x) y)
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
 		v0.AddArg(x)
 		v.AddArg2(v0, y)
@@ -2654,11 +2910,11 @@ func rewriteValueWasm_OpRsh32x8(v *Value) bool {
 	// match: (Rsh32x8 [c] x y)
 	// result: (Rsh64x64 [c] (SignExt32to64 x) (ZeroExt8to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
@@ -2675,11 +2931,11 @@ func rewriteValueWasm_OpRsh64Ux16(v *Value) bool {
 	// match: (Rsh64Ux16 [c] x y)
 	// result: (Rsh64Ux64 [c] x (ZeroExt16to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64Ux64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -2694,11 +2950,11 @@ func rewriteValueWasm_OpRsh64Ux32(v *Value) bool {
 	// match: (Rsh64Ux32 [c] x y)
 	// result: (Rsh64Ux64 [c] x (ZeroExt32to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64Ux64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -2731,13 +2987,13 @@ func rewriteValueWasm_OpRsh64Ux64(v *Value) bool {
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 64) {
 			break
 		}
 		v.reset(OpWasmI64ShrU)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = c
+		v0.AuxInt = int64ToAuxInt(c)
 		v.AddArg2(x, v0)
 		return true
 	}
@@ -2748,12 +3004,12 @@ func rewriteValueWasm_OpRsh64Ux64(v *Value) bool {
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) >= 64) {
 			break
 		}
 		v.reset(OpWasmI64Const)
-		v.AuxInt = 0
+		v.AuxInt = int64ToAuxInt(0)
 		return true
 	}
 	// match: (Rsh64Ux64 x y)
@@ -2765,10 +3021,10 @@ func rewriteValueWasm_OpRsh64Ux64(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpWasmI64ShrU, typ.Int64)
 		v0.AddArg2(x, y)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 0
+		v1.AuxInt = int64ToAuxInt(0)
 		v2 := b.NewValue0(v.Pos, OpWasmI64LtU, typ.Bool)
 		v3 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v3.AuxInt = 64
+		v3.AuxInt = int64ToAuxInt(64)
 		v2.AddArg2(y, v3)
 		v.AddArg3(v0, v1, v2)
 		return true
@@ -2782,11 +3038,11 @@ func rewriteValueWasm_OpRsh64Ux8(v *Value) bool {
 	// match: (Rsh64Ux8 [c] x y)
 	// result: (Rsh64Ux64 [c] x (ZeroExt8to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64Ux64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -2801,11 +3057,11 @@ func rewriteValueWasm_OpRsh64x16(v *Value) bool {
 	// match: (Rsh64x16 [c] x y)
 	// result: (Rsh64x64 [c] x (ZeroExt16to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -2820,11 +3076,11 @@ func rewriteValueWasm_OpRsh64x32(v *Value) bool {
 	// match: (Rsh64x32 [c] x y)
 	// result: (Rsh64x64 [c] x (ZeroExt32to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -2857,13 +3113,13 @@ func rewriteValueWasm_OpRsh64x64(v *Value) bool {
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 64) {
 			break
 		}
 		v.reset(OpWasmI64ShrS)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = c
+		v0.AuxInt = int64ToAuxInt(c)
 		v.AddArg2(x, v0)
 		return true
 	}
@@ -2875,13 +3131,13 @@ func rewriteValueWasm_OpRsh64x64(v *Value) bool {
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		c := v_1.AuxInt
+		c := auxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) >= 64) {
 			break
 		}
 		v.reset(OpWasmI64ShrS)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 63
+		v0.AuxInt = int64ToAuxInt(63)
 		v.AddArg2(x, v0)
 		return true
 	}
@@ -2893,10 +3149,10 @@ func rewriteValueWasm_OpRsh64x64(v *Value) bool {
 		v.reset(OpWasmI64ShrS)
 		v0 := b.NewValue0(v.Pos, OpWasmSelect, typ.Int64)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 63
+		v1.AuxInt = int64ToAuxInt(63)
 		v2 := b.NewValue0(v.Pos, OpWasmI64LtU, typ.Bool)
 		v3 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v3.AuxInt = 64
+		v3.AuxInt = int64ToAuxInt(64)
 		v2.AddArg2(y, v3)
 		v0.AddArg3(y, v1, v2)
 		v.AddArg2(x, v0)
@@ -2911,11 +3167,11 @@ func rewriteValueWasm_OpRsh64x8(v *Value) bool {
 	// match: (Rsh64x8 [c] x y)
 	// result: (Rsh64x64 [c] x (ZeroExt8to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
 		v0.AddArg(y)
 		v.AddArg2(x, v0)
@@ -2930,11 +3186,11 @@ func rewriteValueWasm_OpRsh8Ux16(v *Value) bool {
 	// match: (Rsh8Ux16 [c] x y)
 	// result: (Rsh64Ux64 [c] (ZeroExt8to64 x) (ZeroExt16to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64Ux64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
@@ -2951,11 +3207,11 @@ func rewriteValueWasm_OpRsh8Ux32(v *Value) bool {
 	// match: (Rsh8Ux32 [c] x y)
 	// result: (Rsh64Ux64 [c] (ZeroExt8to64 x) (ZeroExt32to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64Ux64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
@@ -2972,11 +3228,11 @@ func rewriteValueWasm_OpRsh8Ux64(v *Value) bool {
 	// match: (Rsh8Ux64 [c] x y)
 	// result: (Rsh64Ux64 [c] (ZeroExt8to64 x) y)
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64Ux64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
 		v0.AddArg(x)
 		v.AddArg2(v0, y)
@@ -2991,11 +3247,11 @@ func rewriteValueWasm_OpRsh8Ux8(v *Value) bool {
 	// match: (Rsh8Ux8 [c] x y)
 	// result: (Rsh64Ux64 [c] (ZeroExt8to64 x) (ZeroExt8to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64Ux64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
@@ -3012,11 +3268,11 @@ func rewriteValueWasm_OpRsh8x16(v *Value) bool {
 	// match: (Rsh8x16 [c] x y)
 	// result: (Rsh64x64 [c] (SignExt8to64 x) (ZeroExt16to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpSignExt8to64, typ.Int64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
@@ -3033,11 +3289,11 @@ func rewriteValueWasm_OpRsh8x32(v *Value) bool {
 	// match: (Rsh8x32 [c] x y)
 	// result: (Rsh64x64 [c] (SignExt8to64 x) (ZeroExt32to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpSignExt8to64, typ.Int64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
@@ -3054,11 +3310,11 @@ func rewriteValueWasm_OpRsh8x64(v *Value) bool {
 	// match: (Rsh8x64 [c] x y)
 	// result: (Rsh64x64 [c] (SignExt8to64 x) y)
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpSignExt8to64, typ.Int64)
 		v0.AddArg(x)
 		v.AddArg2(v0, y)
@@ -3073,11 +3329,11 @@ func rewriteValueWasm_OpRsh8x8(v *Value) bool {
 	// match: (Rsh8x8 [c] x y)
 	// result: (Rsh64x64 [c] (SignExt8to64 x) (ZeroExt8to64 y))
 	for {
-		c := v.AuxInt
+		c := auxIntToBool(v.AuxInt)
 		x := v_0
 		y := v_1
 		v.reset(OpRsh64x64)
-		v.AuxInt = c
+		v.AuxInt = boolToAuxInt(c)
 		v0 := b.NewValue0(v.Pos, OpSignExt8to64, typ.Int64)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
@@ -3086,10 +3342,42 @@ func rewriteValueWasm_OpRsh8x8(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueWasm_OpSelect0(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Select0 <t> (Mul64uhilo x y))
+	// result: (Hmul64u <t> x y)
+	for {
+		t := v.Type
+		if v_0.Op != OpMul64uhilo {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpHmul64u)
+		v.Type = t
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValueWasm_OpSelect1(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Select1 <t> (Mul64uhilo x y))
+	// result: (I64Mul x y)
+	for {
+		if v_0.Op != OpMul64uhilo {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpWasmI64Mul)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
 func rewriteValueWasm_OpSignExt16to32(v *Value) bool {
 	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (SignExt16to32 x:(I64Load16S _ _))
 	// result: x
 	for {
@@ -3101,36 +3389,16 @@ func rewriteValueWasm_OpSignExt16to32(v *Value) bool {
 		return true
 	}
 	// match: (SignExt16to32 x)
-	// cond: objabi.GOWASM.SignExt
 	// result: (I64Extend16S x)
 	for {
 		x := v_0
-		if !(objabi.GOWASM.SignExt) {
-			break
-		}
 		v.reset(OpWasmI64Extend16S)
 		v.AddArg(x)
-		return true
-	}
-	// match: (SignExt16to32 x)
-	// result: (I64ShrS (I64Shl x (I64Const [48])) (I64Const [48]))
-	for {
-		x := v_0
-		v.reset(OpWasmI64ShrS)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 48
-		v0.AddArg2(x, v1)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 48
-		v.AddArg2(v0, v2)
 		return true
 	}
 }
 func rewriteValueWasm_OpSignExt16to64(v *Value) bool {
 	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (SignExt16to64 x:(I64Load16S _ _))
 	// result: x
 	for {
@@ -3142,36 +3410,16 @@ func rewriteValueWasm_OpSignExt16to64(v *Value) bool {
 		return true
 	}
 	// match: (SignExt16to64 x)
-	// cond: objabi.GOWASM.SignExt
 	// result: (I64Extend16S x)
 	for {
 		x := v_0
-		if !(objabi.GOWASM.SignExt) {
-			break
-		}
 		v.reset(OpWasmI64Extend16S)
 		v.AddArg(x)
-		return true
-	}
-	// match: (SignExt16to64 x)
-	// result: (I64ShrS (I64Shl x (I64Const [48])) (I64Const [48]))
-	for {
-		x := v_0
-		v.reset(OpWasmI64ShrS)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 48
-		v0.AddArg2(x, v1)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 48
-		v.AddArg2(v0, v2)
 		return true
 	}
 }
 func rewriteValueWasm_OpSignExt32to64(v *Value) bool {
 	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (SignExt32to64 x:(I64Load32S _ _))
 	// result: x
 	for {
@@ -3183,36 +3431,16 @@ func rewriteValueWasm_OpSignExt32to64(v *Value) bool {
 		return true
 	}
 	// match: (SignExt32to64 x)
-	// cond: objabi.GOWASM.SignExt
 	// result: (I64Extend32S x)
 	for {
 		x := v_0
-		if !(objabi.GOWASM.SignExt) {
-			break
-		}
 		v.reset(OpWasmI64Extend32S)
 		v.AddArg(x)
-		return true
-	}
-	// match: (SignExt32to64 x)
-	// result: (I64ShrS (I64Shl x (I64Const [32])) (I64Const [32]))
-	for {
-		x := v_0
-		v.reset(OpWasmI64ShrS)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 32
-		v0.AddArg2(x, v1)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 32
-		v.AddArg2(v0, v2)
 		return true
 	}
 }
 func rewriteValueWasm_OpSignExt8to16(v *Value) bool {
 	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (SignExt8to16 x:(I64Load8S _ _))
 	// result: x
 	for {
@@ -3224,36 +3452,16 @@ func rewriteValueWasm_OpSignExt8to16(v *Value) bool {
 		return true
 	}
 	// match: (SignExt8to16 x)
-	// cond: objabi.GOWASM.SignExt
 	// result: (I64Extend8S x)
 	for {
 		x := v_0
-		if !(objabi.GOWASM.SignExt) {
-			break
-		}
 		v.reset(OpWasmI64Extend8S)
 		v.AddArg(x)
-		return true
-	}
-	// match: (SignExt8to16 x)
-	// result: (I64ShrS (I64Shl x (I64Const [56])) (I64Const [56]))
-	for {
-		x := v_0
-		v.reset(OpWasmI64ShrS)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 56
-		v0.AddArg2(x, v1)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 56
-		v.AddArg2(v0, v2)
 		return true
 	}
 }
 func rewriteValueWasm_OpSignExt8to32(v *Value) bool {
 	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (SignExt8to32 x:(I64Load8S _ _))
 	// result: x
 	for {
@@ -3265,36 +3473,16 @@ func rewriteValueWasm_OpSignExt8to32(v *Value) bool {
 		return true
 	}
 	// match: (SignExt8to32 x)
-	// cond: objabi.GOWASM.SignExt
 	// result: (I64Extend8S x)
 	for {
 		x := v_0
-		if !(objabi.GOWASM.SignExt) {
-			break
-		}
 		v.reset(OpWasmI64Extend8S)
 		v.AddArg(x)
-		return true
-	}
-	// match: (SignExt8to32 x)
-	// result: (I64ShrS (I64Shl x (I64Const [56])) (I64Const [56]))
-	for {
-		x := v_0
-		v.reset(OpWasmI64ShrS)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 56
-		v0.AddArg2(x, v1)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 56
-		v.AddArg2(v0, v2)
 		return true
 	}
 }
 func rewriteValueWasm_OpSignExt8to64(v *Value) bool {
 	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (SignExt8to64 x:(I64Load8S _ _))
 	// result: x
 	for {
@@ -3306,29 +3494,11 @@ func rewriteValueWasm_OpSignExt8to64(v *Value) bool {
 		return true
 	}
 	// match: (SignExt8to64 x)
-	// cond: objabi.GOWASM.SignExt
 	// result: (I64Extend8S x)
 	for {
 		x := v_0
-		if !(objabi.GOWASM.SignExt) {
-			break
-		}
 		v.reset(OpWasmI64Extend8S)
 		v.AddArg(x)
-		return true
-	}
-	// match: (SignExt8to64 x)
-	// result: (I64ShrS (I64Shl x (I64Const [56])) (I64Const [56]))
-	for {
-		x := v_0
-		v.reset(OpWasmI64ShrS)
-		v0 := b.NewValue0(v.Pos, OpWasmI64Shl, typ.Int64)
-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 56
-		v0.AddArg2(x, v1)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 56
-		v.AddArg2(v0, v2)
 		return true
 	}
 }
@@ -3343,10 +3513,10 @@ func rewriteValueWasm_OpSlicemask(v *Value) bool {
 		v.reset(OpWasmI64ShrS)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Sub, typ.Int64)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v1.AuxInt = 0
+		v1.AuxInt = int64ToAuxInt(0)
 		v0.AddArg2(v1, x)
 		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 63
+		v2.AuxInt = int64ToAuxInt(63)
 		v.AddArg2(v0, v2)
 		return true
 	}
@@ -3356,14 +3526,14 @@ func rewriteValueWasm_OpStore(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Store {t} ptr val mem)
-	// cond: is64BitFloat(t.(*types.Type))
+	// cond: is64BitFloat(t)
 	// result: (F64Store ptr val mem)
 	for {
-		t := v.Aux
+		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(is64BitFloat(t.(*types.Type))) {
+		if !(is64BitFloat(t)) {
 			break
 		}
 		v.reset(OpWasmF64Store)
@@ -3371,14 +3541,14 @@ func rewriteValueWasm_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: is32BitFloat(t.(*types.Type))
+	// cond: is32BitFloat(t)
 	// result: (F32Store ptr val mem)
 	for {
-		t := v.Aux
+		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(is32BitFloat(t.(*types.Type))) {
+		if !(is32BitFloat(t)) {
 			break
 		}
 		v.reset(OpWasmF32Store)
@@ -3386,14 +3556,14 @@ func rewriteValueWasm_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(*types.Type).Size() == 8
+	// cond: t.Size() == 8
 	// result: (I64Store ptr val mem)
 	for {
-		t := v.Aux
+		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.(*types.Type).Size() == 8) {
+		if !(t.Size() == 8) {
 			break
 		}
 		v.reset(OpWasmI64Store)
@@ -3401,14 +3571,14 @@ func rewriteValueWasm_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(*types.Type).Size() == 4
+	// cond: t.Size() == 4
 	// result: (I64Store32 ptr val mem)
 	for {
-		t := v.Aux
+		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.(*types.Type).Size() == 4) {
+		if !(t.Size() == 4) {
 			break
 		}
 		v.reset(OpWasmI64Store32)
@@ -3416,14 +3586,14 @@ func rewriteValueWasm_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(*types.Type).Size() == 2
+	// cond: t.Size() == 2
 	// result: (I64Store16 ptr val mem)
 	for {
-		t := v.Aux
+		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.(*types.Type).Size() == 2) {
+		if !(t.Size() == 2) {
 			break
 		}
 		v.reset(OpWasmI64Store16)
@@ -3431,14 +3601,14 @@ func rewriteValueWasm_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.(*types.Type).Size() == 1
+	// cond: t.Size() == 1
 	// result: (I64Store8 ptr val mem)
 	for {
-		t := v.Aux
+		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.(*types.Type).Size() == 1) {
+		if !(t.Size() == 1) {
 			break
 		}
 		v.reset(OpWasmI64Store8)
@@ -3453,18 +3623,18 @@ func rewriteValueWasm_OpWasmF64Add(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (F64Add (F64Const [x]) (F64Const [y]))
-	// result: (F64Const [auxFrom64F(auxTo64F(x) + auxTo64F(y))])
+	// result: (F64Const [x + y])
 	for {
 		if v_0.Op != OpWasmF64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToFloat64(v_0.AuxInt)
 		if v_1.Op != OpWasmF64Const {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToFloat64(v_1.AuxInt)
 		v.reset(OpWasmF64Const)
-		v.AuxInt = auxFrom64F(auxTo64F(x) + auxTo64F(y))
+		v.AuxInt = float64ToAuxInt(x + y)
 		return true
 	}
 	// match: (F64Add (F64Const [x]) y)
@@ -3474,14 +3644,14 @@ func rewriteValueWasm_OpWasmF64Add(v *Value) bool {
 		if v_0.Op != OpWasmF64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToFloat64(v_0.AuxInt)
 		y := v_1
 		if !(y.Op != OpWasmF64Const) {
 			break
 		}
 		v.reset(OpWasmF64Add)
 		v0 := b.NewValue0(v.Pos, OpWasmF64Const, typ.Float64)
-		v0.AuxInt = x
+		v0.AuxInt = float64ToAuxInt(x)
 		v.AddArg2(y, v0)
 		return true
 	}
@@ -3493,22 +3663,22 @@ func rewriteValueWasm_OpWasmF64Mul(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (F64Mul (F64Const [x]) (F64Const [y]))
-	// cond: !math.IsNaN(auxTo64F(x) * auxTo64F(y))
-	// result: (F64Const [auxFrom64F(auxTo64F(x) * auxTo64F(y))])
+	// cond: !math.IsNaN(x * y)
+	// result: (F64Const [x * y])
 	for {
 		if v_0.Op != OpWasmF64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToFloat64(v_0.AuxInt)
 		if v_1.Op != OpWasmF64Const {
 			break
 		}
-		y := v_1.AuxInt
-		if !(!math.IsNaN(auxTo64F(x) * auxTo64F(y))) {
+		y := auxIntToFloat64(v_1.AuxInt)
+		if !(!math.IsNaN(x * y)) {
 			break
 		}
 		v.reset(OpWasmF64Const)
-		v.AuxInt = auxFrom64F(auxTo64F(x) * auxTo64F(y))
+		v.AuxInt = float64ToAuxInt(x * y)
 		return true
 	}
 	// match: (F64Mul (F64Const [x]) y)
@@ -3518,14 +3688,14 @@ func rewriteValueWasm_OpWasmF64Mul(v *Value) bool {
 		if v_0.Op != OpWasmF64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToFloat64(v_0.AuxInt)
 		y := v_1
 		if !(y.Op != OpWasmF64Const) {
 			break
 		}
 		v.reset(OpWasmF64Mul)
 		v0 := b.NewValue0(v.Pos, OpWasmF64Const, typ.Float64)
-		v0.AuxInt = x
+		v0.AuxInt = float64ToAuxInt(x)
 		v.AddArg2(y, v0)
 		return true
 	}
@@ -3542,13 +3712,13 @@ func rewriteValueWasm_OpWasmI64Add(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		v.reset(OpWasmI64Const)
-		v.AuxInt = x + y
+		v.AuxInt = int64ToAuxInt(x + y)
 		return true
 	}
 	// match: (I64Add (I64Const [x]) y)
@@ -3558,27 +3728,32 @@ func rewriteValueWasm_OpWasmI64Add(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		y := v_1
 		if !(y.Op != OpWasmI64Const) {
 			break
 		}
 		v.reset(OpWasmI64Add)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = x
+		v0.AuxInt = int64ToAuxInt(x)
 		v.AddArg2(y, v0)
 		return true
 	}
-	// match: (I64Add x (I64Const [y]))
+	// match: (I64Add x (I64Const <t> [y]))
+	// cond: !t.IsPtr()
 	// result: (I64AddConst [y] x)
 	for {
 		x := v_0
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		y := v_1.AuxInt
+		t := v_1.Type
+		y := auxIntToInt64(v_1.AuxInt)
+		if !(!t.IsPtr()) {
+			break
+		}
 		v.reset(OpWasmI64AddConst)
-		v.AuxInt = y
+		v.AuxInt = int64ToAuxInt(y)
 		v.AddArg(x)
 		return true
 	}
@@ -3589,7 +3764,7 @@ func rewriteValueWasm_OpWasmI64AddConst(v *Value) bool {
 	// match: (I64AddConst [0] x)
 	// result: x
 	for {
-		if v.AuxInt != 0 {
+		if auxIntToInt64(v.AuxInt) != 0 {
 			break
 		}
 		x := v_0
@@ -3597,23 +3772,37 @@ func rewriteValueWasm_OpWasmI64AddConst(v *Value) bool {
 		return true
 	}
 	// match: (I64AddConst [off] (LoweredAddr {sym} [off2] base))
-	// cond: isU32Bit(off+off2)
-	// result: (LoweredAddr {sym} [off+off2] base)
+	// cond: isU32Bit(off+int64(off2))
+	// result: (LoweredAddr {sym} [int32(off)+off2] base)
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmLoweredAddr {
 			break
 		}
-		off2 := v_0.AuxInt
-		sym := v_0.Aux
+		off2 := auxIntToInt32(v_0.AuxInt)
+		sym := auxToSym(v_0.Aux)
 		base := v_0.Args[0]
-		if !(isU32Bit(off + off2)) {
+		if !(isU32Bit(off + int64(off2))) {
 			break
 		}
 		v.reset(OpWasmLoweredAddr)
-		v.AuxInt = off + off2
-		v.Aux = sym
+		v.AuxInt = int32ToAuxInt(int32(off) + off2)
+		v.Aux = symToAux(sym)
 		v.AddArg(base)
+		return true
+	}
+	// match: (I64AddConst [off] x:(SP))
+	// cond: isU32Bit(off)
+	// result: (LoweredAddr [int32(off)] x)
+	for {
+		off := auxIntToInt64(v.AuxInt)
+		x := v_0
+		if x.Op != OpSP || !(isU32Bit(off)) {
+			break
+		}
+		v.reset(OpWasmLoweredAddr)
+		v.AuxInt = int32ToAuxInt(int32(off))
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -3629,13 +3818,13 @@ func rewriteValueWasm_OpWasmI64And(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		v.reset(OpWasmI64Const)
-		v.AuxInt = x & y
+		v.AuxInt = int64ToAuxInt(x & y)
 		return true
 	}
 	// match: (I64And (I64Const [x]) y)
@@ -3645,14 +3834,14 @@ func rewriteValueWasm_OpWasmI64And(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		y := v_1
 		if !(y.Op != OpWasmI64Const) {
 			break
 		}
 		v.reset(OpWasmI64And)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = x
+		v0.AuxInt = int64ToAuxInt(x)
 		v.AddArg2(y, v0)
 		return true
 	}
@@ -3670,16 +3859,16 @@ func rewriteValueWasm_OpWasmI64Eq(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		if !(x == y) {
 			break
 		}
 		v.reset(OpWasmI64Const)
-		v.AuxInt = 1
+		v.AuxInt = int64ToAuxInt(1)
 		return true
 	}
 	// match: (I64Eq (I64Const [x]) (I64Const [y]))
@@ -3689,16 +3878,16 @@ func rewriteValueWasm_OpWasmI64Eq(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		if !(x != y) {
 			break
 		}
 		v.reset(OpWasmI64Const)
-		v.AuxInt = 0
+		v.AuxInt = int64ToAuxInt(0)
 		return true
 	}
 	// match: (I64Eq (I64Const [x]) y)
@@ -3708,14 +3897,14 @@ func rewriteValueWasm_OpWasmI64Eq(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		y := v_1
 		if !(y.Op != OpWasmI64Const) {
 			break
 		}
 		v.reset(OpWasmI64Eq)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = x
+		v0.AuxInt = int64ToAuxInt(x)
 		v.AddArg2(y, v0)
 		return true
 	}
@@ -3723,7 +3912,7 @@ func rewriteValueWasm_OpWasmI64Eq(v *Value) bool {
 	// result: (I64Eqz x)
 	for {
 		x := v_0
-		if v_1.Op != OpWasmI64Const || v_1.AuxInt != 0 {
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != 0 {
 			break
 		}
 		v.reset(OpWasmI64Eqz)
@@ -3751,6 +3940,37 @@ func rewriteValueWasm_OpWasmI64Eqz(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueWasm_OpWasmI64LeU(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (I64LeU x (I64Const [0]))
+	// result: (I64Eqz x)
+	for {
+		x := v_0
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != 0 {
+			break
+		}
+		v.reset(OpWasmI64Eqz)
+		v.AddArg(x)
+		return true
+	}
+	// match: (I64LeU (I64Const [1]) x)
+	// result: (I64Eqz (I64Eqz x))
+	for {
+		if v_0.Op != OpWasmI64Const || auxIntToInt64(v_0.AuxInt) != 1 {
+			break
+		}
+		x := v_1
+		v.reset(OpWasmI64Eqz)
+		v0 := b.NewValue0(v.Pos, OpWasmI64Eqz, typ.Bool)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
 func rewriteValueWasm_OpWasmI64Load(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -3760,37 +3980,37 @@ func rewriteValueWasm_OpWasmI64Load(v *Value) bool {
 	// cond: isU32Bit(off+off2)
 	// result: (I64Load [off+off2] ptr mem)
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmI64AddConst {
 			break
 		}
-		off2 := v_0.AuxInt
+		off2 := auxIntToInt64(v_0.AuxInt)
 		ptr := v_0.Args[0]
 		mem := v_1
 		if !(isU32Bit(off + off2)) {
 			break
 		}
 		v.reset(OpWasmI64Load)
-		v.AuxInt = off + off2
+		v.AuxInt = int64ToAuxInt(off + off2)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (I64Load [off] (LoweredAddr {sym} [off2] (SB)) _)
-	// cond: symIsRO(sym) && isU32Bit(off+off2)
-	// result: (I64Const [int64(read64(sym, off+off2, config.ctxt.Arch.ByteOrder))])
+	// cond: symIsRO(sym) && isU32Bit(off+int64(off2))
+	// result: (I64Const [int64(read64(sym, off+int64(off2), config.ctxt.Arch.ByteOrder))])
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmLoweredAddr {
 			break
 		}
-		off2 := v_0.AuxInt
-		sym := v_0.Aux
+		off2 := auxIntToInt32(v_0.AuxInt)
+		sym := auxToSym(v_0.Aux)
 		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpSB || !(symIsRO(sym) && isU32Bit(off+off2)) {
+		if v_0_0.Op != OpSB || !(symIsRO(sym) && isU32Bit(off+int64(off2))) {
 			break
 		}
 		v.reset(OpWasmI64Const)
-		v.AuxInt = int64(read64(sym, off+off2, config.ctxt.Arch.ByteOrder))
+		v.AuxInt = int64ToAuxInt(int64(read64(sym, off+int64(off2), config.ctxt.Arch.ByteOrder)))
 		return true
 	}
 	return false
@@ -3798,23 +4018,43 @@ func rewriteValueWasm_OpWasmI64Load(v *Value) bool {
 func rewriteValueWasm_OpWasmI64Load16S(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	config := b.Func.Config
 	// match: (I64Load16S [off] (I64AddConst [off2] ptr) mem)
 	// cond: isU32Bit(off+off2)
 	// result: (I64Load16S [off+off2] ptr mem)
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmI64AddConst {
 			break
 		}
-		off2 := v_0.AuxInt
+		off2 := auxIntToInt64(v_0.AuxInt)
 		ptr := v_0.Args[0]
 		mem := v_1
 		if !(isU32Bit(off + off2)) {
 			break
 		}
 		v.reset(OpWasmI64Load16S)
-		v.AuxInt = off + off2
+		v.AuxInt = int64ToAuxInt(off + off2)
 		v.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (I64Load16S [off] (LoweredAddr {sym} [off2] (SB)) _)
+	// cond: symIsRO(sym) && isU32Bit(off+int64(off2))
+	// result: (I64Const [int64(int16(read16(sym, off+int64(off2), config.ctxt.Arch.ByteOrder)))])
+	for {
+		off := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpWasmLoweredAddr {
+			break
+		}
+		off2 := auxIntToInt32(v_0.AuxInt)
+		sym := auxToSym(v_0.Aux)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpSB || !(symIsRO(sym) && isU32Bit(off+int64(off2))) {
+			break
+		}
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64ToAuxInt(int64(int16(read16(sym, off+int64(off2), config.ctxt.Arch.ByteOrder))))
 		return true
 	}
 	return false
@@ -3828,37 +4068,37 @@ func rewriteValueWasm_OpWasmI64Load16U(v *Value) bool {
 	// cond: isU32Bit(off+off2)
 	// result: (I64Load16U [off+off2] ptr mem)
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmI64AddConst {
 			break
 		}
-		off2 := v_0.AuxInt
+		off2 := auxIntToInt64(v_0.AuxInt)
 		ptr := v_0.Args[0]
 		mem := v_1
 		if !(isU32Bit(off + off2)) {
 			break
 		}
 		v.reset(OpWasmI64Load16U)
-		v.AuxInt = off + off2
+		v.AuxInt = int64ToAuxInt(off + off2)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (I64Load16U [off] (LoweredAddr {sym} [off2] (SB)) _)
-	// cond: symIsRO(sym) && isU32Bit(off+off2)
-	// result: (I64Const [int64(read16(sym, off+off2, config.ctxt.Arch.ByteOrder))])
+	// cond: symIsRO(sym) && isU32Bit(off+int64(off2))
+	// result: (I64Const [int64(read16(sym, off+int64(off2), config.ctxt.Arch.ByteOrder))])
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmLoweredAddr {
 			break
 		}
-		off2 := v_0.AuxInt
-		sym := v_0.Aux
+		off2 := auxIntToInt32(v_0.AuxInt)
+		sym := auxToSym(v_0.Aux)
 		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpSB || !(symIsRO(sym) && isU32Bit(off+off2)) {
+		if v_0_0.Op != OpSB || !(symIsRO(sym) && isU32Bit(off+int64(off2))) {
 			break
 		}
 		v.reset(OpWasmI64Const)
-		v.AuxInt = int64(read16(sym, off+off2, config.ctxt.Arch.ByteOrder))
+		v.AuxInt = int64ToAuxInt(int64(read16(sym, off+int64(off2), config.ctxt.Arch.ByteOrder)))
 		return true
 	}
 	return false
@@ -3866,23 +4106,43 @@ func rewriteValueWasm_OpWasmI64Load16U(v *Value) bool {
 func rewriteValueWasm_OpWasmI64Load32S(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	config := b.Func.Config
 	// match: (I64Load32S [off] (I64AddConst [off2] ptr) mem)
 	// cond: isU32Bit(off+off2)
 	// result: (I64Load32S [off+off2] ptr mem)
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmI64AddConst {
 			break
 		}
-		off2 := v_0.AuxInt
+		off2 := auxIntToInt64(v_0.AuxInt)
 		ptr := v_0.Args[0]
 		mem := v_1
 		if !(isU32Bit(off + off2)) {
 			break
 		}
 		v.reset(OpWasmI64Load32S)
-		v.AuxInt = off + off2
+		v.AuxInt = int64ToAuxInt(off + off2)
 		v.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (I64Load32S [off] (LoweredAddr {sym} [off2] (SB)) _)
+	// cond: symIsRO(sym) && isU32Bit(off+int64(off2))
+	// result: (I64Const [int64(int32(read32(sym, off+int64(off2), config.ctxt.Arch.ByteOrder)))])
+	for {
+		off := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpWasmLoweredAddr {
+			break
+		}
+		off2 := auxIntToInt32(v_0.AuxInt)
+		sym := auxToSym(v_0.Aux)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpSB || !(symIsRO(sym) && isU32Bit(off+int64(off2))) {
+			break
+		}
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64ToAuxInt(int64(int32(read32(sym, off+int64(off2), config.ctxt.Arch.ByteOrder))))
 		return true
 	}
 	return false
@@ -3896,37 +4156,37 @@ func rewriteValueWasm_OpWasmI64Load32U(v *Value) bool {
 	// cond: isU32Bit(off+off2)
 	// result: (I64Load32U [off+off2] ptr mem)
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmI64AddConst {
 			break
 		}
-		off2 := v_0.AuxInt
+		off2 := auxIntToInt64(v_0.AuxInt)
 		ptr := v_0.Args[0]
 		mem := v_1
 		if !(isU32Bit(off + off2)) {
 			break
 		}
 		v.reset(OpWasmI64Load32U)
-		v.AuxInt = off + off2
+		v.AuxInt = int64ToAuxInt(off + off2)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (I64Load32U [off] (LoweredAddr {sym} [off2] (SB)) _)
-	// cond: symIsRO(sym) && isU32Bit(off+off2)
-	// result: (I64Const [int64(read32(sym, off+off2, config.ctxt.Arch.ByteOrder))])
+	// cond: symIsRO(sym) && isU32Bit(off+int64(off2))
+	// result: (I64Const [int64(read32(sym, off+int64(off2), config.ctxt.Arch.ByteOrder))])
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmLoweredAddr {
 			break
 		}
-		off2 := v_0.AuxInt
-		sym := v_0.Aux
+		off2 := auxIntToInt32(v_0.AuxInt)
+		sym := auxToSym(v_0.Aux)
 		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpSB || !(symIsRO(sym) && isU32Bit(off+off2)) {
+		if v_0_0.Op != OpSB || !(symIsRO(sym) && isU32Bit(off+int64(off2))) {
 			break
 		}
 		v.reset(OpWasmI64Const)
-		v.AuxInt = int64(read32(sym, off+off2, config.ctxt.Arch.ByteOrder))
+		v.AuxInt = int64ToAuxInt(int64(read32(sym, off+int64(off2), config.ctxt.Arch.ByteOrder)))
 		return true
 	}
 	return false
@@ -3938,19 +4198,37 @@ func rewriteValueWasm_OpWasmI64Load8S(v *Value) bool {
 	// cond: isU32Bit(off+off2)
 	// result: (I64Load8S [off+off2] ptr mem)
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmI64AddConst {
 			break
 		}
-		off2 := v_0.AuxInt
+		off2 := auxIntToInt64(v_0.AuxInt)
 		ptr := v_0.Args[0]
 		mem := v_1
 		if !(isU32Bit(off + off2)) {
 			break
 		}
 		v.reset(OpWasmI64Load8S)
-		v.AuxInt = off + off2
+		v.AuxInt = int64ToAuxInt(off + off2)
 		v.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (I64Load8S [off] (LoweredAddr {sym} [off2] (SB)) _)
+	// cond: symIsRO(sym) && isU32Bit(off+int64(off2))
+	// result: (I64Const [int64(int8(read8(sym, off+int64(off2))))])
+	for {
+		off := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpWasmLoweredAddr {
+			break
+		}
+		off2 := auxIntToInt32(v_0.AuxInt)
+		sym := auxToSym(v_0.Aux)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpSB || !(symIsRO(sym) && isU32Bit(off+int64(off2))) {
+			break
+		}
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64ToAuxInt(int64(int8(read8(sym, off+int64(off2)))))
 		return true
 	}
 	return false
@@ -3962,37 +4240,68 @@ func rewriteValueWasm_OpWasmI64Load8U(v *Value) bool {
 	// cond: isU32Bit(off+off2)
 	// result: (I64Load8U [off+off2] ptr mem)
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmI64AddConst {
 			break
 		}
-		off2 := v_0.AuxInt
+		off2 := auxIntToInt64(v_0.AuxInt)
 		ptr := v_0.Args[0]
 		mem := v_1
 		if !(isU32Bit(off + off2)) {
 			break
 		}
 		v.reset(OpWasmI64Load8U)
-		v.AuxInt = off + off2
+		v.AuxInt = int64ToAuxInt(off + off2)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (I64Load8U [off] (LoweredAddr {sym} [off2] (SB)) _)
-	// cond: symIsRO(sym) && isU32Bit(off+off2)
-	// result: (I64Const [int64(read8(sym, off+off2))])
+	// cond: symIsRO(sym) && isU32Bit(off+int64(off2))
+	// result: (I64Const [int64(read8(sym, off+int64(off2)))])
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmLoweredAddr {
 			break
 		}
-		off2 := v_0.AuxInt
-		sym := v_0.Aux
+		off2 := auxIntToInt32(v_0.AuxInt)
+		sym := auxToSym(v_0.Aux)
 		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpSB || !(symIsRO(sym) && isU32Bit(off+off2)) {
+		if v_0_0.Op != OpSB || !(symIsRO(sym) && isU32Bit(off+int64(off2))) {
 			break
 		}
 		v.reset(OpWasmI64Const)
-		v.AuxInt = int64(read8(sym, off+off2))
+		v.AuxInt = int64ToAuxInt(int64(read8(sym, off+int64(off2))))
+		return true
+	}
+	return false
+}
+func rewriteValueWasm_OpWasmI64LtU(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (I64LtU (I64Const [0]) x)
+	// result: (I64Eqz (I64Eqz x))
+	for {
+		if v_0.Op != OpWasmI64Const || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_1
+		v.reset(OpWasmI64Eqz)
+		v0 := b.NewValue0(v.Pos, OpWasmI64Eqz, typ.Bool)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (I64LtU x (I64Const [1]))
+	// result: (I64Eqz x)
+	for {
+		x := v_0
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != 1 {
+			break
+		}
+		v.reset(OpWasmI64Eqz)
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -4008,13 +4317,13 @@ func rewriteValueWasm_OpWasmI64Mul(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		v.reset(OpWasmI64Const)
-		v.AuxInt = x * y
+		v.AuxInt = int64ToAuxInt(x * y)
 		return true
 	}
 	// match: (I64Mul (I64Const [x]) y)
@@ -4024,14 +4333,14 @@ func rewriteValueWasm_OpWasmI64Mul(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		y := v_1
 		if !(y.Op != OpWasmI64Const) {
 			break
 		}
 		v.reset(OpWasmI64Mul)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = x
+		v0.AuxInt = int64ToAuxInt(x)
 		v.AddArg2(y, v0)
 		return true
 	}
@@ -4049,16 +4358,16 @@ func rewriteValueWasm_OpWasmI64Ne(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		if !(x == y) {
 			break
 		}
 		v.reset(OpWasmI64Const)
-		v.AuxInt = 0
+		v.AuxInt = int64ToAuxInt(0)
 		return true
 	}
 	// match: (I64Ne (I64Const [x]) (I64Const [y]))
@@ -4068,16 +4377,16 @@ func rewriteValueWasm_OpWasmI64Ne(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		if !(x != y) {
 			break
 		}
 		v.reset(OpWasmI64Const)
-		v.AuxInt = 1
+		v.AuxInt = int64ToAuxInt(1)
 		return true
 	}
 	// match: (I64Ne (I64Const [x]) y)
@@ -4087,14 +4396,14 @@ func rewriteValueWasm_OpWasmI64Ne(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		y := v_1
 		if !(y.Op != OpWasmI64Const) {
 			break
 		}
 		v.reset(OpWasmI64Ne)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = x
+		v0.AuxInt = int64ToAuxInt(x)
 		v.AddArg2(y, v0)
 		return true
 	}
@@ -4102,7 +4411,7 @@ func rewriteValueWasm_OpWasmI64Ne(v *Value) bool {
 	// result: (I64Eqz (I64Eqz x))
 	for {
 		x := v_0
-		if v_1.Op != OpWasmI64Const || v_1.AuxInt != 0 {
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != 0 {
 			break
 		}
 		v.reset(OpWasmI64Eqz)
@@ -4124,13 +4433,13 @@ func rewriteValueWasm_OpWasmI64Or(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		v.reset(OpWasmI64Const)
-		v.AuxInt = x | y
+		v.AuxInt = int64ToAuxInt(x | y)
 		return true
 	}
 	// match: (I64Or (I64Const [x]) y)
@@ -4140,14 +4449,14 @@ func rewriteValueWasm_OpWasmI64Or(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		y := v_1
 		if !(y.Op != OpWasmI64Const) {
 			break
 		}
 		v.reset(OpWasmI64Or)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = x
+		v0.AuxInt = int64ToAuxInt(x)
 		v.AddArg2(y, v0)
 		return true
 	}
@@ -4162,13 +4471,13 @@ func rewriteValueWasm_OpWasmI64Shl(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		v.reset(OpWasmI64Const)
-		v.AuxInt = x << uint64(y)
+		v.AuxInt = int64ToAuxInt(x << uint64(y))
 		return true
 	}
 	return false
@@ -4182,13 +4491,13 @@ func rewriteValueWasm_OpWasmI64ShrS(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		v.reset(OpWasmI64Const)
-		v.AuxInt = x >> uint64(y)
+		v.AuxInt = int64ToAuxInt(x >> uint64(y))
 		return true
 	}
 	return false
@@ -4202,13 +4511,13 @@ func rewriteValueWasm_OpWasmI64ShrU(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		v.reset(OpWasmI64Const)
-		v.AuxInt = int64(uint64(x) >> uint64(y))
+		v.AuxInt = int64ToAuxInt(int64(uint64(x) >> uint64(y)))
 		return true
 	}
 	return false
@@ -4221,11 +4530,11 @@ func rewriteValueWasm_OpWasmI64Store(v *Value) bool {
 	// cond: isU32Bit(off+off2)
 	// result: (I64Store [off+off2] ptr val mem)
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmI64AddConst {
 			break
 		}
-		off2 := v_0.AuxInt
+		off2 := auxIntToInt64(v_0.AuxInt)
 		ptr := v_0.Args[0]
 		val := v_1
 		mem := v_2
@@ -4233,7 +4542,7 @@ func rewriteValueWasm_OpWasmI64Store(v *Value) bool {
 			break
 		}
 		v.reset(OpWasmI64Store)
-		v.AuxInt = off + off2
+		v.AuxInt = int64ToAuxInt(off + off2)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
@@ -4247,11 +4556,11 @@ func rewriteValueWasm_OpWasmI64Store16(v *Value) bool {
 	// cond: isU32Bit(off+off2)
 	// result: (I64Store16 [off+off2] ptr val mem)
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmI64AddConst {
 			break
 		}
-		off2 := v_0.AuxInt
+		off2 := auxIntToInt64(v_0.AuxInt)
 		ptr := v_0.Args[0]
 		val := v_1
 		mem := v_2
@@ -4259,7 +4568,7 @@ func rewriteValueWasm_OpWasmI64Store16(v *Value) bool {
 			break
 		}
 		v.reset(OpWasmI64Store16)
-		v.AuxInt = off + off2
+		v.AuxInt = int64ToAuxInt(off + off2)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
@@ -4273,11 +4582,11 @@ func rewriteValueWasm_OpWasmI64Store32(v *Value) bool {
 	// cond: isU32Bit(off+off2)
 	// result: (I64Store32 [off+off2] ptr val mem)
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmI64AddConst {
 			break
 		}
-		off2 := v_0.AuxInt
+		off2 := auxIntToInt64(v_0.AuxInt)
 		ptr := v_0.Args[0]
 		val := v_1
 		mem := v_2
@@ -4285,7 +4594,7 @@ func rewriteValueWasm_OpWasmI64Store32(v *Value) bool {
 			break
 		}
 		v.reset(OpWasmI64Store32)
-		v.AuxInt = off + off2
+		v.AuxInt = int64ToAuxInt(off + off2)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
@@ -4299,11 +4608,11 @@ func rewriteValueWasm_OpWasmI64Store8(v *Value) bool {
 	// cond: isU32Bit(off+off2)
 	// result: (I64Store8 [off+off2] ptr val mem)
 	for {
-		off := v.AuxInt
+		off := auxIntToInt64(v.AuxInt)
 		if v_0.Op != OpWasmI64AddConst {
 			break
 		}
-		off2 := v_0.AuxInt
+		off2 := auxIntToInt64(v_0.AuxInt)
 		ptr := v_0.Args[0]
 		val := v_1
 		mem := v_2
@@ -4311,7 +4620,7 @@ func rewriteValueWasm_OpWasmI64Store8(v *Value) bool {
 			break
 		}
 		v.reset(OpWasmI64Store8)
-		v.AuxInt = off + off2
+		v.AuxInt = int64ToAuxInt(off + off2)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
@@ -4328,13 +4637,13 @@ func rewriteValueWasm_OpWasmI64Xor(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
-		y := v_1.AuxInt
+		y := auxIntToInt64(v_1.AuxInt)
 		v.reset(OpWasmI64Const)
-		v.AuxInt = x ^ y
+		v.AuxInt = int64ToAuxInt(x ^ y)
 		return true
 	}
 	// match: (I64Xor (I64Const [x]) y)
@@ -4344,14 +4653,14 @@ func rewriteValueWasm_OpWasmI64Xor(v *Value) bool {
 		if v_0.Op != OpWasmI64Const {
 			break
 		}
-		x := v_0.AuxInt
+		x := auxIntToInt64(v_0.AuxInt)
 		y := v_1
 		if !(y.Op != OpWasmI64Const) {
 			break
 		}
 		v.reset(OpWasmI64Xor)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = x
+		v0.AuxInt = int64ToAuxInt(x)
 		v.AddArg2(y, v0)
 		return true
 	}
@@ -4365,7 +4674,7 @@ func rewriteValueWasm_OpZero(v *Value) bool {
 	// match: (Zero [0] _ mem)
 	// result: mem
 	for {
-		if v.AuxInt != 0 {
+		if auxIntToInt64(v.AuxInt) != 0 {
 			break
 		}
 		mem := v_1
@@ -4375,153 +4684,145 @@ func rewriteValueWasm_OpZero(v *Value) bool {
 	// match: (Zero [1] destptr mem)
 	// result: (I64Store8 destptr (I64Const [0]) mem)
 	for {
-		if v.AuxInt != 1 {
+		if auxIntToInt64(v.AuxInt) != 1 {
 			break
 		}
 		destptr := v_0
 		mem := v_1
 		v.reset(OpWasmI64Store8)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0
+		v0.AuxInt = int64ToAuxInt(0)
 		v.AddArg3(destptr, v0, mem)
 		return true
 	}
 	// match: (Zero [2] destptr mem)
 	// result: (I64Store16 destptr (I64Const [0]) mem)
 	for {
-		if v.AuxInt != 2 {
+		if auxIntToInt64(v.AuxInt) != 2 {
 			break
 		}
 		destptr := v_0
 		mem := v_1
 		v.reset(OpWasmI64Store16)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0
+		v0.AuxInt = int64ToAuxInt(0)
 		v.AddArg3(destptr, v0, mem)
 		return true
 	}
 	// match: (Zero [4] destptr mem)
 	// result: (I64Store32 destptr (I64Const [0]) mem)
 	for {
-		if v.AuxInt != 4 {
+		if auxIntToInt64(v.AuxInt) != 4 {
 			break
 		}
 		destptr := v_0
 		mem := v_1
 		v.reset(OpWasmI64Store32)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0
+		v0.AuxInt = int64ToAuxInt(0)
 		v.AddArg3(destptr, v0, mem)
 		return true
 	}
 	// match: (Zero [8] destptr mem)
 	// result: (I64Store destptr (I64Const [0]) mem)
 	for {
-		if v.AuxInt != 8 {
+		if auxIntToInt64(v.AuxInt) != 8 {
 			break
 		}
 		destptr := v_0
 		mem := v_1
 		v.reset(OpWasmI64Store)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0
+		v0.AuxInt = int64ToAuxInt(0)
 		v.AddArg3(destptr, v0, mem)
 		return true
 	}
 	// match: (Zero [3] destptr mem)
 	// result: (I64Store8 [2] destptr (I64Const [0]) (I64Store16 destptr (I64Const [0]) mem))
 	for {
-		if v.AuxInt != 3 {
+		if auxIntToInt64(v.AuxInt) != 3 {
 			break
 		}
 		destptr := v_0
 		mem := v_1
 		v.reset(OpWasmI64Store8)
-		v.AuxInt = 2
+		v.AuxInt = int64ToAuxInt(2)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0
+		v0.AuxInt = int64ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Store16, types.TypeMem)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 0
-		v1.AddArg3(destptr, v2, mem)
+		v1.AddArg3(destptr, v0, mem)
 		v.AddArg3(destptr, v0, v1)
 		return true
 	}
 	// match: (Zero [5] destptr mem)
 	// result: (I64Store8 [4] destptr (I64Const [0]) (I64Store32 destptr (I64Const [0]) mem))
 	for {
-		if v.AuxInt != 5 {
+		if auxIntToInt64(v.AuxInt) != 5 {
 			break
 		}
 		destptr := v_0
 		mem := v_1
 		v.reset(OpWasmI64Store8)
-		v.AuxInt = 4
+		v.AuxInt = int64ToAuxInt(4)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0
+		v0.AuxInt = int64ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Store32, types.TypeMem)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 0
-		v1.AddArg3(destptr, v2, mem)
+		v1.AddArg3(destptr, v0, mem)
 		v.AddArg3(destptr, v0, v1)
 		return true
 	}
 	// match: (Zero [6] destptr mem)
 	// result: (I64Store16 [4] destptr (I64Const [0]) (I64Store32 destptr (I64Const [0]) mem))
 	for {
-		if v.AuxInt != 6 {
+		if auxIntToInt64(v.AuxInt) != 6 {
 			break
 		}
 		destptr := v_0
 		mem := v_1
 		v.reset(OpWasmI64Store16)
-		v.AuxInt = 4
+		v.AuxInt = int64ToAuxInt(4)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0
+		v0.AuxInt = int64ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Store32, types.TypeMem)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 0
-		v1.AddArg3(destptr, v2, mem)
+		v1.AddArg3(destptr, v0, mem)
 		v.AddArg3(destptr, v0, v1)
 		return true
 	}
 	// match: (Zero [7] destptr mem)
 	// result: (I64Store32 [3] destptr (I64Const [0]) (I64Store32 destptr (I64Const [0]) mem))
 	for {
-		if v.AuxInt != 7 {
+		if auxIntToInt64(v.AuxInt) != 7 {
 			break
 		}
 		destptr := v_0
 		mem := v_1
 		v.reset(OpWasmI64Store32)
-		v.AuxInt = 3
+		v.AuxInt = int64ToAuxInt(3)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0
+		v0.AuxInt = int64ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Store32, types.TypeMem)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 0
-		v1.AddArg3(destptr, v2, mem)
+		v1.AddArg3(destptr, v0, mem)
 		v.AddArg3(destptr, v0, v1)
 		return true
 	}
 	// match: (Zero [s] destptr mem)
-	// cond: s%8 != 0 && s > 8
+	// cond: s%8 != 0 && s > 8 && s < 32
 	// result: (Zero [s-s%8] (OffPtr <destptr.Type> destptr [s%8]) (I64Store destptr (I64Const [0]) mem))
 	for {
-		s := v.AuxInt
+		s := auxIntToInt64(v.AuxInt)
 		destptr := v_0
 		mem := v_1
-		if !(s%8 != 0 && s > 8) {
+		if !(s%8 != 0 && s > 8 && s < 32) {
 			break
 		}
 		v.reset(OpZero)
-		v.AuxInt = s - s%8
+		v.AuxInt = int64ToAuxInt(s - s%8)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
-		v0.AuxInt = s % 8
+		v0.AuxInt = int64ToAuxInt(s % 8)
 		v0.AddArg(destptr)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
 		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 0
+		v2.AuxInt = int64ToAuxInt(0)
 		v1.AddArg3(destptr, v2, mem)
 		v.AddArg2(v0, v1)
 		return true
@@ -4529,91 +4830,74 @@ func rewriteValueWasm_OpZero(v *Value) bool {
 	// match: (Zero [16] destptr mem)
 	// result: (I64Store [8] destptr (I64Const [0]) (I64Store destptr (I64Const [0]) mem))
 	for {
-		if v.AuxInt != 16 {
+		if auxIntToInt64(v.AuxInt) != 16 {
 			break
 		}
 		destptr := v_0
 		mem := v_1
 		v.reset(OpWasmI64Store)
-		v.AuxInt = 8
+		v.AuxInt = int64ToAuxInt(8)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0
+		v0.AuxInt = int64ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 0
-		v1.AddArg3(destptr, v2, mem)
+		v1.AddArg3(destptr, v0, mem)
 		v.AddArg3(destptr, v0, v1)
 		return true
 	}
 	// match: (Zero [24] destptr mem)
 	// result: (I64Store [16] destptr (I64Const [0]) (I64Store [8] destptr (I64Const [0]) (I64Store destptr (I64Const [0]) mem)))
 	for {
-		if v.AuxInt != 24 {
+		if auxIntToInt64(v.AuxInt) != 24 {
 			break
 		}
 		destptr := v_0
 		mem := v_1
 		v.reset(OpWasmI64Store)
-		v.AuxInt = 16
+		v.AuxInt = int64ToAuxInt(16)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0
+		v0.AuxInt = int64ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
-		v1.AuxInt = 8
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 0
-		v3 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
-		v4 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v4.AuxInt = 0
-		v3.AddArg3(destptr, v4, mem)
-		v1.AddArg3(destptr, v2, v3)
+		v1.AuxInt = int64ToAuxInt(8)
+		v2 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
+		v2.AddArg3(destptr, v0, mem)
+		v1.AddArg3(destptr, v0, v2)
 		v.AddArg3(destptr, v0, v1)
 		return true
 	}
 	// match: (Zero [32] destptr mem)
 	// result: (I64Store [24] destptr (I64Const [0]) (I64Store [16] destptr (I64Const [0]) (I64Store [8] destptr (I64Const [0]) (I64Store destptr (I64Const [0]) mem))))
 	for {
-		if v.AuxInt != 32 {
+		if auxIntToInt64(v.AuxInt) != 32 {
 			break
 		}
 		destptr := v_0
 		mem := v_1
 		v.reset(OpWasmI64Store)
-		v.AuxInt = 24
+		v.AuxInt = int64ToAuxInt(24)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0
+		v0.AuxInt = int64ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
-		v1.AuxInt = 16
-		v2 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v2.AuxInt = 0
+		v1.AuxInt = int64ToAuxInt(16)
+		v2 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
+		v2.AuxInt = int64ToAuxInt(8)
 		v3 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
-		v3.AuxInt = 8
-		v4 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v4.AuxInt = 0
-		v5 := b.NewValue0(v.Pos, OpWasmI64Store, types.TypeMem)
-		v6 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v6.AuxInt = 0
-		v5.AddArg3(destptr, v6, mem)
-		v3.AddArg3(destptr, v4, v5)
-		v1.AddArg3(destptr, v2, v3)
+		v3.AddArg3(destptr, v0, mem)
+		v2.AddArg3(destptr, v0, v3)
+		v1.AddArg3(destptr, v0, v2)
 		v.AddArg3(destptr, v0, v1)
 		return true
 	}
 	// match: (Zero [s] destptr mem)
-	// cond: s%8 == 0 && s > 32
-	// result: (LoweredZero [s/8] destptr mem)
+	// result: (LoweredZero [s] destptr mem)
 	for {
-		s := v.AuxInt
+		s := auxIntToInt64(v.AuxInt)
 		destptr := v_0
 		mem := v_1
-		if !(s%8 == 0 && s > 32) {
-			break
-		}
 		v.reset(OpWasmLoweredZero)
-		v.AuxInt = s / 8
+		v.AuxInt = int64ToAuxInt(s)
 		v.AddArg2(destptr, mem)
 		return true
 	}
-	return false
 }
 func rewriteValueWasm_OpZeroExt16to32(v *Value) bool {
 	v_0 := v.Args[0]
@@ -4635,7 +4919,7 @@ func rewriteValueWasm_OpZeroExt16to32(v *Value) bool {
 		x := v_0
 		v.reset(OpWasmI64And)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0xffff
+		v0.AuxInt = int64ToAuxInt(0xffff)
 		v.AddArg2(x, v0)
 		return true
 	}
@@ -4660,7 +4944,7 @@ func rewriteValueWasm_OpZeroExt16to64(v *Value) bool {
 		x := v_0
 		v.reset(OpWasmI64And)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0xffff
+		v0.AuxInt = int64ToAuxInt(0xffff)
 		v.AddArg2(x, v0)
 		return true
 	}
@@ -4685,7 +4969,7 @@ func rewriteValueWasm_OpZeroExt32to64(v *Value) bool {
 		x := v_0
 		v.reset(OpWasmI64And)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0xffffffff
+		v0.AuxInt = int64ToAuxInt(0xffffffff)
 		v.AddArg2(x, v0)
 		return true
 	}
@@ -4710,7 +4994,7 @@ func rewriteValueWasm_OpZeroExt8to16(v *Value) bool {
 		x := v_0
 		v.reset(OpWasmI64And)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0xff
+		v0.AuxInt = int64ToAuxInt(0xff)
 		v.AddArg2(x, v0)
 		return true
 	}
@@ -4735,7 +5019,7 @@ func rewriteValueWasm_OpZeroExt8to32(v *Value) bool {
 		x := v_0
 		v.reset(OpWasmI64And)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0xff
+		v0.AuxInt = int64ToAuxInt(0xff)
 		v.AddArg2(x, v0)
 		return true
 	}
@@ -4760,13 +5044,11 @@ func rewriteValueWasm_OpZeroExt8to64(v *Value) bool {
 		x := v_0
 		v.reset(OpWasmI64And)
 		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
-		v0.AuxInt = 0xff
+		v0.AuxInt = int64ToAuxInt(0xff)
 		v.AddArg2(x, v0)
 		return true
 	}
 }
 func rewriteBlockWasm(b *Block) bool {
-	switch b.Kind {
-	}
 	return false
 }

@@ -11,5 +11,5 @@ package p
 func f() {
 _:
 _:
-	goto _ // ERROR "not defined"
+	goto _ // ERROR "not defined|undefined label"
 }

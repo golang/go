@@ -32,14 +32,17 @@ type ErrorCode int
 //
 // Output: "ZgotmplZ"
 // Example:
-//   <img src="{{.X}}">
-//   where {{.X}} evaluates to `javascript:...`
+//
+//	<img src="{{.X}}">
+//	where {{.X}} evaluates to `javascript:...`
+//
 // Discussion:
-//   "ZgotmplZ" is a special value that indicates that unsafe content reached a
-//   CSS or URL context at runtime. The output of the example will be
-//     <img src="#ZgotmplZ">
-//   If the data comes from a trusted source, use content types to exempt it
-//   from filtering: URL(`javascript:...`).
+//
+//	"ZgotmplZ" is a special value that indicates that unsafe content reached a
+//	CSS or URL context at runtime. The output of the example will be
+//	  <img src="#ZgotmplZ">
+//	If the data comes from a trusted source, use content types to exempt it
+//	from filtering: URL(`javascript:...`).
 const (
 	// OK indicates the lack of an error.
 	OK ErrorCode = iota
@@ -76,15 +79,18 @@ const (
 	ErrBadHTML
 
 	// ErrBranchEnd: "{{if}} branches end in different contexts"
-	// Example:
+	// Examples:
 	//   {{if .C}}<a href="{{end}}{{.X}}
+	//   <script {{with .T}}type="{{.}}"{{end}}>
 	// Discussion:
 	//   Package html/template statically examines each path through an
 	//   {{if}}, {{range}}, or {{with}} to escape any following pipelines.
-	//   The example is ambiguous since {{.X}} might be an HTML text node,
+	//   The first example is ambiguous since {{.X}} might be an HTML text node,
 	//   or a URL prefix in an HTML attribute. The context of {{.X}} is
 	//   used to figure out how to escape it, but that context depends on
 	//   the run-time value of {{.C}} which is not statically known.
+	//   The second example is ambiguous as the script type attribute
+	//   can change the type of escaping needed for the script contents.
 	//
 	//   The problem is usually something like missing quotes or angle
 	//   brackets, or can be avoided by refactoring to put the two contexts
@@ -211,6 +217,18 @@ const (
 	//   pipeline occurs in an unquoted attribute value context, "html" is
 	//   disallowed. Avoid using "html" and "urlquery" entirely in new templates.
 	ErrPredefinedEscaper
+
+	// ErrJSTemplate: "... appears in a JS template literal"
+	// Example:
+	//     <script>var tmpl = `{{.Interp}}`</script>
+	// Discussion:
+	//   Package html/template does not support actions inside of JS template
+	//   literals.
+	//
+	// Deprecated: ErrJSTemplate is no longer returned when an action is present
+	// in a JS template literal. Actions inside of JS template literals are now
+	// escaped as expected.
+	ErrJSTemplate
 )
 
 func (e *Error) Error() string {
@@ -228,6 +246,6 @@ func (e *Error) Error() string {
 
 // errorf creates an error given a format string f and args.
 // The template Name still needs to be supplied.
-func errorf(k ErrorCode, node parse.Node, line int, f string, args ...interface{}) *Error {
+func errorf(k ErrorCode, node parse.Node, line int, f string, args ...any) *Error {
 	return &Error{k, node, "", line, fmt.Sprintf(f, args...)}
 }

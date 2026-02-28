@@ -25,6 +25,7 @@ var pow10negtab32 = [...]float64{
 // Pow10 returns 10**n, the base-10 exponential of n.
 //
 // Special cases are:
+//
 //	Pow10(n) =    0 for n < -323
 //	Pow10(n) = +Inf for n > 308
 func Pow10(n int) float64 {
@@ -32,7 +33,7 @@ func Pow10(n int) float64 {
 		return pow10postab32[uint(n)/32] * pow10tab[uint(n)%32]
 	}
 
-	if -323 <= n && n <= 0 {
+	if -323 <= n && n < 0 {
 		return pow10negtab32[uint(-n)/32] / pow10tab[uint(-n)%32]
 	}
 

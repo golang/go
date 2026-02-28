@@ -7,8 +7,9 @@ package ssa
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 )
 
 // cse does common-subexpression elimination on the Function.
@@ -31,7 +32,11 @@ func cse(f *Func) {
 	// until it reaches a fixed point.
 
 	// Make initial coarse partitions by using a subset of the conditions above.
-	a := make([]*Value, 0, f.NumValues())
+	a := f.Cache.allocValueSlice(f.NumValues())
+	defer func() { f.Cache.freeValueSlice(a) }() // inside closure to use final value of a
+	a = a[:0]
+	o := f.Cache.allocInt32Slice(f.NumValues()) // the ordering score for stores
+	defer func() { f.Cache.freeInt32Slice(o) }()
 	if f.auxmap == nil {
 		f.auxmap = auxmap{}
 	}
@@ -49,7 +54,8 @@ func cse(f *Func) {
 	partition := partitionValues(a, f.auxmap)
 
 	// map from value id back to eqclass id
-	valueEqClass := make([]ID, f.NumValues())
+	valueEqClass := f.Cache.allocIDSlice(f.NumValues())
+	defer f.Cache.freeIDSlice(valueEqClass)
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			// Use negative equivalence class #s for unique values.
@@ -79,11 +85,15 @@ func cse(f *Func) {
 		pNum++
 	}
 
+	// Keep a table to remap memory operand of any memory user which does not have a memory result (such as a regular load),
+	// to some dominating memory operation, skipping the memory defs that do not alias with it.
+	memTable := f.Cache.allocInt32Slice(f.NumValues())
+	defer f.Cache.freeInt32Slice(memTable)
+
 	// Split equivalence classes at points where they have
 	// non-equivalent arguments.  Repeat until we can't find any
 	// more splits.
 	var splitPoints []int
-	byArgClass := new(partitionByArgClass) // reuseable partitionByArgClass to reduce allocations
 	for {
 		changed := false
 
@@ -102,9 +112,29 @@ func cse(f *Func) {
 			}
 
 			// Sort by eq class of arguments.
-			byArgClass.a = e
-			byArgClass.eqClass = valueEqClass
-			sort.Sort(byArgClass)
+			slices.SortFunc(e, func(v, w *Value) int {
+				_, idxMem, _, _ := isMemUser(v)
+				for i, a := range v.Args {
+					var aId, bId ID
+					if i != idxMem {
+						b := w.Args[i]
+						aId = a.ID
+						bId = b.ID
+					} else {
+						// A memory user's mem argument may be remapped to allow matching
+						// identical load-like instructions across disjoint stores.
+						aId, _ = getEffectiveMemoryArg(memTable, v)
+						bId, _ = getEffectiveMemoryArg(memTable, w)
+					}
+					if valueEqClass[aId] < valueEqClass[bId] {
+						return -1
+					}
+					if valueEqClass[aId] > valueEqClass[bId] {
+						return +1
+					}
+				}
+				return 0
+			})
 
 			// Find split points.
 			splitPoints = append(splitPoints[:0], 0)
@@ -112,9 +142,23 @@ func cse(f *Func) {
 				v, w := e[j-1], e[j]
 				// Note: commutative args already correctly ordered by byArgClass.
 				eqArgs := true
+				_, idxMem, _, _ := isMemUser(v)
 				for k, a := range v.Args {
-					b := w.Args[k]
-					if valueEqClass[a.ID] != valueEqClass[b.ID] {
+					if v.Op == OpLocalAddr && k == 1 {
+						continue
+					}
+					var aId, bId ID
+					if k != idxMem {
+						b := w.Args[k]
+						aId = a.ID
+						bId = b.ID
+					} else {
+						// A memory user's mem argument may be remapped to allow matching
+						// identical load-like instructions across disjoint stores.
+						aId, _ = getEffectiveMemoryArg(memTable, v)
+						bId, _ = getEffectiveMemoryArg(memTable, w)
+					}
+					if valueEqClass[aId] != valueEqClass[bId] {
 						eqArgs = false
 						break
 					}
@@ -159,12 +203,61 @@ func cse(f *Func) {
 
 	// Compute substitutions we would like to do. We substitute v for w
 	// if v and w are in the same equivalence class and v dominates w.
-	rewrite := make([]*Value, f.NumValues())
-	byDom := new(partitionByDom) // reusable partitionByDom to reduce allocs
+	rewrite := f.Cache.allocValueSlice(f.NumValues())
+	defer f.Cache.freeValueSlice(rewrite)
 	for _, e := range partition {
-		byDom.a = e
-		byDom.sdom = sdom
-		sort.Sort(byDom)
+		slices.SortFunc(e, func(v, w *Value) int {
+			if c := cmp.Compare(sdom.domorder(v.Block), sdom.domorder(w.Block)); c != 0 {
+				return c
+			}
+			if _, _, _, ok := isMemUser(v); ok {
+				// Additional ordering among the memory users within one block: prefer the earliest
+				// possible value among the set of equivalent values, that is the one with the lowest
+				// skip count (lowest number of memory defs skipped until their common def).
+				_, vSkips := getEffectiveMemoryArg(memTable, v)
+				_, wSkips := getEffectiveMemoryArg(memTable, w)
+				if c := cmp.Compare(vSkips, wSkips); c != 0 {
+					return c
+				}
+			}
+			if v.Op == OpLocalAddr {
+				// compare the memory args for OpLocalAddrs in the same block
+				vm := v.Args[1]
+				wm := w.Args[1]
+				if vm == wm {
+					return 0
+				}
+				// if the two OpLocalAddrs are in the same block, and one's memory
+				// arg also in the same block, but the other one's memory arg not,
+				// the latter must be in an ancestor block
+				if vm.Block != v.Block {
+					return -1
+				}
+				if wm.Block != w.Block {
+					return +1
+				}
+				// use store order if the memory args are in the same block
+				vs := storeOrdering(vm, o)
+				ws := storeOrdering(wm, o)
+				if vs <= 0 {
+					f.Fatalf("unable to determine the order of %s", vm.LongString())
+				}
+				if ws <= 0 {
+					f.Fatalf("unable to determine the order of %s", wm.LongString())
+				}
+				return cmp.Compare(vs, ws)
+			}
+			vStmt := v.Pos.IsStmt() == src.PosIsStmt
+			wStmt := w.Pos.IsStmt() == src.PosIsStmt
+			if vStmt != wStmt {
+				if vStmt {
+					return -1
+				}
+				return +1
+			}
+			return 0
+		})
+
 		for i := 0; i < len(e)-1; i++ {
 			// e is sorted by domorder, so a maximal dominant element is first in the slice
 			v := e[i]
@@ -190,43 +283,6 @@ func cse(f *Func) {
 		}
 	}
 
-	// if we rewrite a tuple generator to a new one in a different block,
-	// copy its selectors to the new generator's block, so tuple generator
-	// and selectors stay together.
-	// be careful not to copy same selectors more than once (issue 16741).
-	copiedSelects := make(map[ID][]*Value)
-	for _, b := range f.Blocks {
-	out:
-		for _, v := range b.Values {
-			// New values are created when selectors are copied to
-			// a new block. We can safely ignore those new values,
-			// since they have already been copied (issue 17918).
-			if int(v.ID) >= len(rewrite) || rewrite[v.ID] != nil {
-				continue
-			}
-			if v.Op != OpSelect0 && v.Op != OpSelect1 {
-				continue
-			}
-			if !v.Args[0].Type.IsTuple() {
-				f.Fatalf("arg of tuple selector %s is not a tuple: %s", v.String(), v.Args[0].LongString())
-			}
-			t := rewrite[v.Args[0].ID]
-			if t != nil && t.Block != b {
-				// v.Args[0] is tuple generator, CSE'd into a different block as t, v is left behind
-				for _, c := range copiedSelects[t.ID] {
-					if v.Op == c.Op {
-						// an equivalent selector is already copied
-						rewrite[v.ID] = c
-						continue out
-					}
-				}
-				c := v.copyInto(t.Block)
-				rewrite[v.ID] = c
-				copiedSelects[t.ID] = append(copiedSelects[t.ID], c)
-			}
-		}
-	}
-
 	rewrites := int64(0)
 
 	// Apply substitutions
@@ -234,7 +290,7 @@ func cse(f *Func) {
 		for _, v := range b.Values {
 			for i, w := range v.Args {
 				if x := rewrite[w.ID]; x != nil {
-					if w.Pos.IsStmt() == src.PosIsStmt {
+					if w.Pos.IsStmt() == src.PosIsStmt && w.Op != OpNilCheck {
 						// about to lose a statement marker, w
 						// w is an input to v; if they're in the same block
 						// and the same line, v is a good-enough new statement boundary.
@@ -259,9 +315,45 @@ func cse(f *Func) {
 			}
 		}
 	}
+
 	if f.pass.stats > 0 {
 		f.LogStat("CSE REWRITES", rewrites)
 	}
+}
+
+// storeOrdering computes the order for stores by iterate over the store
+// chain, assigns a score to each store. The scores only make sense for
+// stores within the same block, and the first store by store order has
+// the lowest score. The cache was used to ensure only compute once.
+func storeOrdering(v *Value, cache []int32) int32 {
+	const minScore int32 = 1
+	score := minScore
+	w := v
+	for {
+		if s := cache[w.ID]; s >= minScore {
+			score += s
+			break
+		}
+		if w.Op == OpPhi || w.Op == OpInitMem {
+			break
+		}
+		a := w.MemoryArg()
+		if a.Block != w.Block {
+			break
+		}
+		w = a
+		score++
+	}
+	w = v
+	for cache[w.ID] == 0 {
+		cache[w.ID] = score
+		if score == minScore {
+			break
+		}
+		w = w.MemoryArg()
+		score--
+	}
+	return cache[v.ID]
 }
 
 // An eqclass approximates an equivalence class. During the
@@ -271,20 +363,31 @@ type eqclass []*Value
 
 // partitionValues partitions the values into equivalence classes
 // based on having all the following features match:
-//  - opcode
-//  - type
-//  - auxint
-//  - aux
-//  - nargs
-//  - block # if a phi op
-//  - first two arg's opcodes and auxint
-//  - NOT first two arg's aux; that can break CSE.
+//   - opcode
+//   - type
+//   - auxint
+//   - aux
+//   - nargs
+//   - block # if a phi op
+//   - first two arg's opcodes and auxint
+//   - NOT first two arg's aux; that can break CSE.
+//
 // partitionValues returns a list of equivalence classes, each
 // being a sorted by ID list of *Values. The eqclass slices are
 // backed by the same storage as the input slice.
 // Equivalence classes of size 1 are ignored.
 func partitionValues(a []*Value, auxIDs auxmap) []eqclass {
-	sort.Sort(sortvalues{a, auxIDs})
+	slices.SortFunc(a, func(v, w *Value) int {
+		switch cmpVal(v, w, auxIDs) {
+		case types.CMPlt:
+			return -1
+		case types.CMPgt:
+			return +1
+		default:
+			// Sort by value ID last to keep the sort result deterministic.
+			return cmp.Compare(v.ID, w.ID)
+		}
+	})
 
 	var partition []eqclass
 	for len(a) > 0 {
@@ -311,7 +414,7 @@ func lt2Cmp(isLt bool) types.Cmp {
 	return types.CMPgt
 }
 
-type auxmap map[interface{}]int32
+type auxmap map[Aux]int32
 
 func cmpVal(v, w *Value, auxIDs auxmap) types.Cmp {
 	// Try to order these comparison by cost (cheaper first)
@@ -335,7 +438,7 @@ func cmpVal(v, w *Value, auxIDs auxmap) types.Cmp {
 	// OpSelect is a pseudo-op. We need to be more aggressive
 	// regarding CSE to keep multiple OpSelect's of the same
 	// argument from existing.
-	if v.Op != OpSelect0 && v.Op != OpSelect1 {
+	if v.Op != OpSelect0 && v.Op != OpSelect1 && v.Op != OpSelectN {
 		if tc := v.Type.Compare(w.Type); tc != types.CMPeq {
 			return tc
 		}
@@ -354,56 +457,81 @@ func cmpVal(v, w *Value, auxIDs auxmap) types.Cmp {
 	return types.CMPeq
 }
 
-// Sort values to make the initial partition.
-type sortvalues struct {
-	a      []*Value // array of values
-	auxIDs auxmap   // aux -> aux ID map
-}
-
-func (sv sortvalues) Len() int      { return len(sv.a) }
-func (sv sortvalues) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
-func (sv sortvalues) Less(i, j int) bool {
-	v := sv.a[i]
-	w := sv.a[j]
-	if cmp := cmpVal(v, w, sv.auxIDs); cmp != types.CMPeq {
-		return cmp == types.CMPlt
+// Query if the given instruction only uses "memory" argument and we may try to skip some memory "defs" if they do not alias with its address.
+// Return index of pointer argument, index of "memory" argument, the access width and true on such instructions, otherwise return (-1, -1, 0, false).
+func isMemUser(v *Value) (int, int, int64, bool) {
+	switch v.Op {
+	case OpLoad:
+		return 0, 1, v.Type.Size(), true
+	case OpNilCheck:
+		return 0, 1, 0, true
+	default:
+		return -1, -1, 0, false
 	}
-
-	// Sort by value ID last to keep the sort result deterministic.
-	return v.ID < w.ID
 }
 
-type partitionByDom struct {
-	a    []*Value // array of values
-	sdom SparseTree
-}
-
-func (sv partitionByDom) Len() int      { return len(sv.a) }
-func (sv partitionByDom) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
-func (sv partitionByDom) Less(i, j int) bool {
-	v := sv.a[i]
-	w := sv.a[j]
-	return sv.sdom.domorder(v.Block) < sv.sdom.domorder(w.Block)
-}
-
-type partitionByArgClass struct {
-	a       []*Value // array of values
-	eqClass []ID     // equivalence class IDs of values
-}
-
-func (sv partitionByArgClass) Len() int      { return len(sv.a) }
-func (sv partitionByArgClass) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
-func (sv partitionByArgClass) Less(i, j int) bool {
-	v := sv.a[i]
-	w := sv.a[j]
-	for i, a := range v.Args {
-		b := w.Args[i]
-		if sv.eqClass[a.ID] < sv.eqClass[b.ID] {
-			return true
-		}
-		if sv.eqClass[a.ID] > sv.eqClass[b.ID] {
-			return false
-		}
+// Query if the given "memory"-defining instruction's memory destination can be analyzed for aliasing with a memory "user" instructions.
+// Return index of pointer argument, index of "memory" argument, the access width and true on such instructions, otherwise return (-1, -1, 0, false).
+func isMemDef(v *Value) (int, int, int64, bool) {
+	switch v.Op {
+	case OpStore:
+		return 0, 2, auxToType(v.Aux).Size(), true
+	default:
+		return -1, -1, 0, false
 	}
-	return false
+}
+
+// Mem table keeps memTableSkipBits lower bits to store the number of skips of "memory" operand
+// and the rest to store the ID of the destination "memory"-producing instruction.
+const memTableSkipBits = 8
+
+// The maximum ID value we are able to store in the memTable, otherwise fall back to v.ID
+const maxId = ID(1<<(31-memTableSkipBits)) - 1
+
+// Return the first possibly-aliased store along the memory chain starting at v's memory argument and the number of not-aliased stores skipped.
+func getEffectiveMemoryArg(memTable []int32, v *Value) (ID, uint32) {
+	if code := uint32(memTable[v.ID]); code != 0 {
+		return ID(code >> memTableSkipBits), code & ((1 << memTableSkipBits) - 1)
+	}
+	if idxPtr, idxMem, width, ok := isMemUser(v); ok {
+		// TODO: We could early return some predefined value if width==0
+		memId := v.Args[idxMem].ID
+		if memId > maxId {
+			return memId, 0
+		}
+		mem, skips := skipDisjointMemDefs(v, idxPtr, idxMem, width)
+		if mem.ID <= maxId {
+			memId = mem.ID
+		} else {
+			skips = 0 // avoid the skip
+		}
+		memTable[v.ID] = int32(memId<<memTableSkipBits) | int32(skips)
+		return memId, skips
+	} else {
+		v.Block.Func.Fatalf("expected memory user instruction: %v", v.LongString())
+	}
+	return 0, 0
+}
+
+// Find a memory def that's not trivially disjoint with the user instruction, count the number
+// of "skips" along the path. Return the corresponding memory def's value and the number of skips.
+func skipDisjointMemDefs(user *Value, idxUserPtr, idxUserMem int, useWidth int64) (*Value, uint32) {
+	usePtr, mem := user.Args[idxUserPtr], user.Args[idxUserMem]
+	const maxSkips = (1 << memTableSkipBits) - 1
+	var skips uint32
+	for skips = 0; skips < maxSkips; skips++ {
+		if idxPtr, idxMem, width, ok := isMemDef(mem); ok {
+			if mem.Args[idxMem].Uses > 50 {
+				// Skipping a memory def with a lot of uses may potentially increase register pressure.
+				break
+			}
+			defPtr := mem.Args[idxPtr]
+			if disjoint(defPtr, width, usePtr, useWidth) {
+				mem = mem.Args[idxMem]
+				continue
+			}
+		}
+		break
+	}
+	return mem, skips
 }

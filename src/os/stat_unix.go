@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
+//go:build unix || (js && wasm) || wasip1
 
 package os
 
@@ -10,8 +10,8 @@ import (
 	"syscall"
 )
 
-// Stat returns the FileInfo structure describing file.
-// If there is an error, it will be of type *PathError.
+// Stat returns the [FileInfo] structure describing file.
+// If there is an error, it will be of type [*PathError].
 func (f *File) Stat() (FileInfo, error) {
 	if f == nil {
 		return nil, ErrInvalid
@@ -19,7 +19,7 @@ func (f *File) Stat() (FileInfo, error) {
 	var fs fileStat
 	err := f.pfd.Fstat(&fs.sys)
 	if err != nil {
-		return nil, &PathError{"stat", f.name, err}
+		return nil, f.wrapErr("stat", err)
 	}
 	fillFileStatFromSys(&fs, f.name)
 	return &fs, nil
@@ -28,9 +28,11 @@ func (f *File) Stat() (FileInfo, error) {
 // statNolog stats a file with no test logging.
 func statNolog(name string) (FileInfo, error) {
 	var fs fileStat
-	err := syscall.Stat(name, &fs.sys)
+	err := ignoringEINTR(func() error {
+		return syscall.Stat(name, &fs.sys)
+	})
 	if err != nil {
-		return nil, &PathError{"stat", name, err}
+		return nil, &PathError{Op: "stat", Path: name, Err: err}
 	}
 	fillFileStatFromSys(&fs, name)
 	return &fs, nil
@@ -39,9 +41,11 @@ func statNolog(name string) (FileInfo, error) {
 // lstatNolog lstats a file with no test logging.
 func lstatNolog(name string) (FileInfo, error) {
 	var fs fileStat
-	err := syscall.Lstat(name, &fs.sys)
+	err := ignoringEINTR(func() error {
+		return syscall.Lstat(name, &fs.sys)
+	})
 	if err != nil {
-		return nil, &PathError{"lstat", name, err}
+		return nil, &PathError{Op: "lstat", Path: name, Err: err}
 	}
 	fillFileStatFromSys(&fs, name)
 	return &fs, nil

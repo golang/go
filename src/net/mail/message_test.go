@@ -7,9 +7,9 @@ package mail
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"mime"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -40,6 +40,47 @@ So, "Hello".
 		},
 		body: "This is a message just to say hello.\nSo, \"Hello\".\n",
 	},
+	{
+		// RFC 5965, Appendix B.1, a part of the multipart message (a header-only sub message)
+		in: `Feedback-Type: abuse
+User-Agent: SomeGenerator/1.0
+Version: 1
+`,
+		header: Header{
+			"Feedback-Type": []string{"abuse"},
+			"User-Agent":    []string{"SomeGenerator/1.0"},
+			"Version":       []string{"1"},
+		},
+		body: "",
+	},
+	{
+		// RFC 5322 permits any printable ASCII character,
+		// except colon, in a header key. Issue #58862.
+		in: `From: iant@golang.org
+Custom/Header: v
+
+Body
+`,
+		header: Header{
+			"From":          []string{"iant@golang.org"},
+			"Custom/Header": []string{"v"},
+		},
+		body: "Body\n",
+	},
+	{
+		// RFC 4155 mbox format. We've historically permitted this,
+		// so we continue to permit it. Issue #60332.
+		in: `From iant@golang.org Mon Jun 19 00:00:00 2023
+From: iant@golang.org
+
+Hello, gophers!
+`,
+		header: Header{
+			"From":                               []string{"iant@golang.org"},
+			"From iant@golang.org Mon Jun 19 00": []string{"00:00 2023"},
+		},
+		body: "Hello, gophers!\n",
+	},
 }
 
 func TestParsing(t *testing.T) {
@@ -53,7 +94,7 @@ func TestParsing(t *testing.T) {
 			t.Errorf("test #%d: Incorrectly parsed message header.\nGot:\n%+v\nWant:\n%+v",
 				i, msg.Header, test.header)
 		}
-		body, err := ioutil.ReadAll(msg.Body)
+		body, err := io.ReadAll(msg.Body)
 		if err != nil {
 			t.Errorf("test #%d: Failed reading body: %v", i, err)
 			continue
@@ -75,7 +116,7 @@ func headerEq(a, b Header) bool {
 		if !ok {
 			return false
 		}
-		if !reflect.DeepEqual(as, bs) {
+		if !slices.Equal(as, bs) {
 			return false
 		}
 	}
@@ -102,6 +143,18 @@ func TestDateParsing(t *testing.T) {
 		{
 			"Fri, 21 Nov 1997 09:55:06 -0600 (MDT)",
 			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+		},
+		{
+			"Thu, 20 Nov 1997 09:55:06 -0600 (MDT)",
+			time.Date(1997, 11, 20, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+		},
+		{
+			"Thu, 20 Nov 1997 09:55:06 GMT (GMT)",
+			time.Date(1997, 11, 20, 9, 55, 6, 0, time.UTC),
+		},
+		{
+			"Fri, 21 Nov 1997 09:55:06 +1300 (TOT)",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", +13*60*60)),
 		},
 	}
 	for _, test := range tests {
@@ -244,6 +297,43 @@ func TestDateParsingCFWS(t *testing.T) {
 			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
 			false,
 		},
+		// Ensure that the presence of "T" in the date
+		// doesn't trip out ParseDate, as per issue 39260.
+		{
+			"Tue, 26 May 2020 14:04:40 GMT",
+			time.Date(2020, 05, 26, 14, 04, 40, 0, time.UTC),
+			true,
+		},
+		{
+			"Tue, 26 May 2020 14:04:40 UT",
+			time.Date(2020, 05, 26, 14, 04, 40, 0, time.UTC),
+			true,
+		},
+		{
+			"Thu, 21 May 2020 14:04:40 UT",
+			time.Date(2020, 05, 21, 14, 04, 40, 0, time.UTC),
+			true,
+		},
+		{
+			"Tue, 26 May 2020 14:04:40 XT",
+			time.Date(2020, 05, 26, 14, 04, 40, 0, time.UTC),
+			false,
+		},
+		{
+			"Thu, 21 May 2020 14:04:40 XT",
+			time.Date(2020, 05, 21, 14, 04, 40, 0, time.UTC),
+			false,
+		},
+		{
+			"Thu, 21 May 2020 14:04:40 UTC",
+			time.Date(2020, 05, 21, 14, 04, 40, 0, time.UTC),
+			true,
+		},
+		{
+			"Fri, 21 Nov 1997 09:55:06 GMT (GMT)",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.UTC),
+			true,
+		},
 	}
 	for _, test := range tests {
 		hdr := Header{
@@ -296,8 +386,15 @@ func TestAddressParsingError(t *testing.T) {
 		13: {"group not closed: null@example.com", "expected comma"},
 		14: {"group: first@example.com, second@example.com;", "group with multiple addresses"},
 		15: {"john.doe", "missing '@' or angle-addr"},
-		16: {"john.doe@", "no angle-addr"},
+		16: {"john.doe@", "missing '@' or angle-addr"},
 		17: {"John Doe@foo.bar", "no angle-addr"},
+		18: {" group: null@example.com; (asd", "misformatted parenthetical comment"},
+		19: {" group: ; (asd", "misformatted parenthetical comment"},
+		20: {`(John) Doe <jdoe@machine.example>`, "missing word in phrase:"},
+		21: {"<jdoe@[" + string([]byte{0xed, 0xa0, 0x80}) + "192.168.0.1]>", "invalid utf-8 in domain-literal"},
+		22: {"<jdoe@[[192.168.0.1]>", "bad character in domain-literal"},
+		23: {"<jdoe@[192.168.0.1>", "unclosed domain-literal"},
+		24: {"<jdoe@[256.0.0.1]>", "invalid IP address in domain-literal"},
 	}
 
 	for i, tc := range mustErrTestCases {
@@ -306,6 +403,17 @@ func TestAddressParsingError(t *testing.T) {
 			t.Errorf(`mail.ParseAddress(%q) #%d want %q, got %v`, tc.text, i, tc.wantErrText, err)
 		}
 	}
+
+	t.Run("CustomWordDecoder", func(t *testing.T) {
+		p := &AddressParser{WordDecoder: &mime.WordDecoder{}}
+		for i, tc := range mustErrTestCases {
+			_, err := p.Parse(tc.text)
+			if err == nil || !strings.Contains(err.Error(), tc.wantErrText) {
+				t.Errorf(`p.Parse(%q) #%d want %q, got %v`, tc.text, i, tc.wantErrText, err)
+			}
+		}
+	})
+
 }
 
 func TestAddressParsing(t *testing.T) {
@@ -336,24 +444,19 @@ func TestAddressParsing(t *testing.T) {
 				Address: "john.q.public@example.com",
 			}},
 		},
+		// Comment in display name
+		{
+			`John (middle) Doe <jdoe@machine.example>`,
+			[]*Address{{
+				Name:    "John Doe",
+				Address: "jdoe@machine.example",
+			}},
+		},
+		// Display name is quoted string, so comment is not a comment
 		{
 			`"John (middle) Doe" <jdoe@machine.example>`,
 			[]*Address{{
 				Name:    "John (middle) Doe",
-				Address: "jdoe@machine.example",
-			}},
-		},
-		{
-			`John (middle) Doe <jdoe@machine.example>`,
-			[]*Address{{
-				Name:    "John (middle) Doe",
-				Address: "jdoe@machine.example",
-			}},
-		},
-		{
-			`John !@M@! Doe <jdoe@machine.example>`,
-			[]*Address{{
-				Name:    "John !@M@! Doe",
 				Address: "jdoe@machine.example",
 			}},
 		},
@@ -434,6 +537,19 @@ func TestAddressParsing(t *testing.T) {
 		// RFC5322 4.4 obs-addr-list
 		{
 			` , joe@where.test,,John <jdoe@one.test>,`,
+			[]*Address{
+				{
+					Name:    "",
+					Address: "joe@where.test",
+				},
+				{
+					Name:    "John",
+					Address: "jdoe@one.test",
+				},
+			},
+		},
+		{
+			` , joe@where.test,,John <jdoe@one.test>,,`,
 			[]*Address{
 				{
 					Name:    "",
@@ -675,6 +791,40 @@ func TestAddressParsing(t *testing.T) {
 				},
 			},
 		},
+		// Comment in group display name
+		{
+			`group (comment:): a@example.com, b@example.com;`,
+			[]*Address{
+				{
+					Address: "a@example.com",
+				},
+				{
+					Address: "b@example.com",
+				},
+			},
+		},
+		{
+			`x(:"):"@a.example;("@b.example;`,
+			[]*Address{
+				{
+					Address: `@a.example;(@b.example`,
+				},
+			},
+		},
+		// Domain-literal
+		{
+			`jdoe@[192.168.0.1]`,
+			[]*Address{{
+				Address: "jdoe@[192.168.0.1]",
+			}},
+		},
+		{
+			`John Doe <jdoe@[192.168.0.1]>`,
+			[]*Address{{
+				Name:    "John Doe",
+				Address: "jdoe@[192.168.0.1]",
+			}},
+		},
 	}
 	for _, test := range tests {
 		if len(test.exp) == 1 {
@@ -825,11 +975,25 @@ func TestAddressParser(t *testing.T) {
 				},
 			},
 		},
+		// Domain-literal
+		{
+			`jdoe@[192.168.0.1]`,
+			[]*Address{{
+				Address: "jdoe@[192.168.0.1]",
+			}},
+		},
+		{
+			`John Doe <jdoe@[192.168.0.1]>`,
+			[]*Address{{
+				Name:    "John Doe",
+				Address: "jdoe@[192.168.0.1]",
+			}},
+		},
 	}
 
 	ap := AddressParser{WordDecoder: &mime.WordDecoder{
 		CharsetReader: func(charset string, input io.Reader) (io.Reader, error) {
-			in, err := ioutil.ReadAll(input)
+			in, err := io.ReadAll(input)
 			if err != nil {
 				return nil, err
 			}
@@ -931,6 +1095,15 @@ func TestAddressString(t *testing.T) {
 			&Address{Name: string([]byte{0xed, 0xa0, 0x80}), Address: "invalid-utf8@example.net"},
 			"=?utf-8?q?=ED=A0=80?= <invalid-utf8@example.net>",
 		},
+		// Domain-literal
+		{
+			&Address{Address: "bob@[192.168.0.1]"},
+			"<bob@[192.168.0.1]>",
+		},
+		{
+			&Address{Name: "Bob", Address: "bob@[192.168.0.1]"},
+			`"Bob" <bob@[192.168.0.1]>`,
+		},
 	}
 	for _, test := range tests {
 		s := test.addr.String()
@@ -984,6 +1157,7 @@ func TestAddressParsingAndFormatting(t *testing.T) {
 		`<"."@example.com>`,
 		`<".."@example.com>`,
 		`<"0:"@0>`,
+		`<Bob@[192.168.0.1]>`,
 	}
 
 	for _, test := range tests {
@@ -1065,5 +1239,24 @@ func TestAddressFormattingAndParsing(t *testing.T) {
 		if parsed.Address != test.Address {
 			t.Errorf("test #%d: Parsed address = %q; want %q", i, parsed.Address, test.Address)
 		}
+	}
+}
+
+func TestEmptyAddress(t *testing.T) {
+	parsed, err := ParseAddress("")
+	if parsed != nil || err == nil {
+		t.Errorf(`ParseAddress("") = %v, %v, want nil, error`, parsed, err)
+	}
+	list, err := ParseAddressList("")
+	if len(list) > 0 || err == nil {
+		t.Errorf(`ParseAddressList("") = %v, %v, want nil, error`, list, err)
+	}
+	list, err = ParseAddressList(",")
+	if len(list) > 0 || err == nil {
+		t.Errorf(`ParseAddressList("") = %v, %v, want nil, error`, list, err)
+	}
+	list, err = ParseAddressList("a@b c@d")
+	if len(list) > 0 || err == nil {
+		t.Errorf(`ParseAddressList("") = %v, %v, want nil, error`, list, err)
 	}
 }

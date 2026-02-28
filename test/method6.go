@@ -18,5 +18,5 @@ func (*B) g() {}
 
 var _ = func() {
 	var a A
-	A(a).g() // ERROR "cannot call pointer method on|cannot take the address of"
+	A(a).g() // ERROR "cannot call pointer method .*on|cannot take the address of"
 }

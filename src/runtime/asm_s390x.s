@@ -84,7 +84,7 @@ GLOBL _rt0_s390x_lib_argc<>(SB), NOPTR, $8
 DATA _rt0_s90x_lib_argv<>(SB)/8, $0
 GLOBL _rt0_s390x_lib_argv<>(SB), NOPTR, $8
 
-TEXT runtime·rt0_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// R2 = argc; R3 = argv; R11 = temp; R13 = g; R15 = stack pointer
 	// C TLS base pointer in AR0:AR1
 
@@ -126,7 +126,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 nocgo:
 	// update stackguard after _cgo_init
 	MOVD	(g_stack+stack_lo)(g), R2
-	ADD	$const__StackGuard, R2
+	ADD	$const_stackGuard, R2
 	MOVD	R2, g_stackguard0(g)
 	MOVD	R2, g_stackguard1(g)
 
@@ -142,17 +142,17 @@ nocgo:
 
 	// argc/argv are already prepared on stack
 	BL	runtime·args(SB)
+	BL	runtime·checkS390xCPU(SB)
 	BL	runtime·osinit(SB)
 	BL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
 	MOVD	$runtime·mainPC(SB), R2		// entry
-	SUB     $24, R15
-	MOVD 	R2, 16(R15)
-	MOVD 	$0, 8(R15)
+	SUB     $16, R15
+	MOVD 	R2, 8(R15)
 	MOVD 	$0, 0(R15)
 	BL	runtime·newproc(SB)
-	ADD	$24, R15
+	ADD	$16, R15
 
 	// start this M
 	BL	runtime·mstart(SB)
@@ -160,49 +160,41 @@ nocgo:
 	MOVD	$0, 1(R0)
 	RET
 
-DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
+DATA	runtime·mainPC+0(SB)/8,$runtime·main<ABIInternal>(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$8
 
 TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
-	MOVD	$0, 2(R0)
+	BRRK
 	RET
 
 TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 	RET
 
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	runtime·mstart0(SB)
+	RET // not reached
+
 /*
  *  go-routine
  */
 
-// void gosave(Gobuf*)
-// save state in Gobuf; setjmp
-TEXT runtime·gosave(SB), NOSPLIT, $-8-8
-	MOVD	buf+0(FP), R3
-	MOVD	R15, gobuf_sp(R3)
-	MOVD	LR, gobuf_pc(R3)
-	MOVD	g, gobuf_g(R3)
-	MOVD	$0, gobuf_lr(R3)
-	MOVD	$0, gobuf_ret(R3)
-	// Assert ctxt is zero. See func save.
-	MOVD	gobuf_ctxt(R3), R3
-	CMPBEQ	R3, $0, 2(PC)
-	BL	runtime·badctxt(SB)
-	RET
-
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB), NOSPLIT, $16-8
+TEXT runtime·gogo(SB), NOSPLIT|NOFRAME, $0-8
 	MOVD	buf+0(FP), R5
-	MOVD	gobuf_g(R5), g	// make sure g is not nil
+	MOVD	gobuf_g(R5), R6
+	MOVD	0(R6), R7	// make sure g != nil
+	BR	gogo<>(SB)
+
+TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+	MOVD	R6, g
 	BL	runtime·save_g(SB)
 
 	MOVD	0(g), R4
 	MOVD	gobuf_sp(R5), R15
 	MOVD	gobuf_lr(R5), LR
-	MOVD	gobuf_ret(R5), R3
 	MOVD	gobuf_ctxt(R5), R12
 	MOVD	$0, gobuf_sp(R5)
-	MOVD	$0, gobuf_ret(R5)
 	MOVD	$0, gobuf_lr(R5)
 	MOVD	$0, gobuf_ctxt(R5)
 	CMP	R0, R0 // set condition codes for == test, needed by stack split
@@ -213,26 +205,29 @@ TEXT runtime·gogo(SB), NOSPLIT, $16-8
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return.  It should gogo(&g->sched)
 // to keep running g.
-TEXT runtime·mcall(SB), NOSPLIT, $-8-8
+TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT, $-8-8
+#ifdef GOEXPERIMENT_regabiargs
+	MOVD	R2, R12				// context
+#else
+	MOVD	fn+0(FP), R12			// context
+#endif
 	// Save caller state in g->sched
 	MOVD	R15, (g_sched+gobuf_sp)(g)
 	MOVD	LR, (g_sched+gobuf_pc)(g)
 	MOVD	$0, (g_sched+gobuf_lr)(g)
-	MOVD	g, (g_sched+gobuf_g)(g)
 
 	// Switch to m->g0 & its stack, call fn.
-	MOVD	g, R3
-	MOVD	g_m(g), R8
-	MOVD	m_g0(R8), g
+	MOVD	g, R2
+	MOVD	g_m(g), R4
+	MOVD	m_g0(R4), g
 	BL	runtime·save_g(SB)
-	CMP	g, R3
+	CMP	g, R2
 	BNE	2(PC)
 	BR	runtime·badmcall(SB)
-	MOVD	fn+0(FP), R12			// context
 	MOVD	0(R12), R4			// code pointer
 	MOVD	(g_sched+gobuf_sp)(g), R15	// sp = m->g0->sched.sp
 	SUB	$16, R15
-	MOVD	R3, 8(R15)
+	MOVD	R2, 8(R15)
 	MOVD	$0, 0(R15)
 	BL	(R4)
 	BR	runtime·badmcall2(SB)
@@ -271,22 +266,12 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 switch:
 	// save our state in g->sched.  Pretend to
 	// be systemstack_switch if the G stack is scanned.
-	MOVD	$runtime·systemstack_switch(SB), R6
-	ADD	$16, R6	// get past prologue
-	MOVD	R6, (g_sched+gobuf_pc)(g)
-	MOVD	R15, (g_sched+gobuf_sp)(g)
-	MOVD	$0, (g_sched+gobuf_lr)(g)
-	MOVD	g, (g_sched+gobuf_g)(g)
+	BL	gosave_systemstack_switch<>(SB)
 
 	// switch to g0
 	MOVD	R5, g
 	BL	runtime·save_g(SB)
-	MOVD	(g_sched+gobuf_sp)(g), R3
-	// make it look like mstart called systemstack on g0, to stop traceback
-	SUB	$8, R3
-	MOVD	$runtime·mstart(SB), R4
-	MOVD	R4, 0(R3)
-	MOVD	R3, R15
+	MOVD	(g_sched+gobuf_sp)(g), R15
 
 	// call target function
 	MOVD	0(R12), R3	// code pointer
@@ -309,6 +294,29 @@ noswitch:
 	ADD	$8, R15
 	BR	(R3)
 
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
+	MOVD	R2, R12		// context
+	MOVD	g_m(g), R2	// curm
+
+	// set g to gcrash
+	MOVD	$runtime·gcrash(SB), g	// g = &gcrash
+	BL	runtime·save_g(SB)
+	MOVD	R2, g_m(g)	// g.m = curm
+	MOVD	g, m_g0(R2)	// curm.g0 = g
+
+	// switch to crashstack
+	MOVD	(g_stack+stack_hi)(g), R2
+	ADD	$(-4*8), R2, R15
+
+	// call target function
+	MOVD	0(R12), R3	// code pointer
+	BL	(R3)
+
+	// should never return
+	BL	runtime·abort(SB)
+	UNDEF
+
 /*
  * support for morestack
  */
@@ -322,6 +330,14 @@ noswitch:
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
 TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+	// Called from f.
+	// Set g->sched to context in f.
+	MOVD	R15, (g_sched+gobuf_sp)(g)
+	MOVD	LR, R8
+	MOVD	R8, (g_sched+gobuf_pc)(g)
+	MOVD	R5, (g_sched+gobuf_lr)(g)
+	MOVD	R12, (g_sched+gobuf_ctxt)(g)
+
 	// Cannot grow scheduler stack (m->g0).
 	MOVD	g_m(g), R7
 	MOVD	m_g0(R7), R8
@@ -335,14 +351,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	BNE	3(PC)
 	BL	runtime·badmorestackgsignal(SB)
 	BL	runtime·abort(SB)
-
-	// Called from f.
-	// Set g->sched to context in f.
-	MOVD	R15, (g_sched+gobuf_sp)(g)
-	MOVD	LR, R8
-	MOVD	R8, (g_sched+gobuf_pc)(g)
-	MOVD	R5, (g_sched+gobuf_lr)(g)
-	MOVD	R12, (g_sched+gobuf_ctxt)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
@@ -364,11 +372,18 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	UNDEF
 
 TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
+	// Force SPWRITE. This function doesn't actually write SP,
+	// but it is called with a special calling convention where
+	// the caller doesn't save LR on stack but passes it as a
+	// register (R5), and the unwinder currently doesn't understand.
+	// Make it SPWRITE to stop unwinding. (See issue 54332)
+	MOVD	R15, R15
+
 	MOVD	$0, R12
 	BR	runtime·morestack(SB)
 
 // reflectcall: call a function with the given argument list
-// func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
+// func call(stackArgsType *_type, f *FuncVal, stackArgs *byte, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
 // Caution: ugly multiline assembly macros in your future!
@@ -381,8 +396,9 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	BR	(R5)
 // Note: can't just "BR NAME(SB)" - bad inlining results.
 
-TEXT ·reflectcall(SB), NOSPLIT, $-8-32
-	MOVWZ argsize+24(FP), R3
+TEXT ·reflectcall(SB), NOSPLIT, $-8-48
+	MOVWZ	frameSize+32(FP), R3
+	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
 	DISPATCH(runtime·call128, 128)
@@ -413,11 +429,11 @@ TEXT ·reflectcall(SB), NOSPLIT, $-8-32
 	BR	(R5)
 
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
+TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
-	MOVD	arg+16(FP), R4;			\
-	MOVWZ	argsize+24(FP), R5;		\
+	MOVD	stackArgs+16(FP), R4;			\
+	MOVWZ	stackArgsSize+24(FP), R5;		\
 	MOVD	$stack-MAXSIZE(SP), R6;		\
 loopArgs: /* copy 256 bytes at a time */	\
 	CMP	R5, $256;			\
@@ -434,15 +450,19 @@ tailArgs: /* copy remaining bytes */		\
 	EXRL	$callfnMVC<>(SB), R5;		\
 callFunction:					\
 	MOVD	f+8(FP), R12;			\
-	MOVD	(R12), R8;			\
+	MOVD    regArgs+40(FP), R10;		\
+	BL      ·unspillArgs(SB);		\
+	MOVD	(R12), R10;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
-	BL	(R8);				\
+	BL	(R10);				\
 	/* copy return values back */		\
-	MOVD	argtype+0(FP), R7;		\
-	MOVD	arg+16(FP), R6;			\
-	MOVWZ	n+24(FP), R5;			\
+	MOVD    regArgs+40(FP), R10;		\
+	BL      ·spillArgs(SB);		\
+	MOVD	stackArgsType+0(FP), R7;		\
+	MOVD	stackArgs+16(FP), R6;			\
+	MOVWZ	stackArgsSize+24(FP), R5;			\
 	MOVD	$stack-MAXSIZE(SP), R4;		\
-	MOVWZ	retoffset+28(FP), R1;		\
+	MOVWZ	stackRetOffset+28(FP), R1;		\
 	ADD	R1, R4;				\
 	ADD	R1, R6;				\
 	SUB	R1, R5;				\
@@ -453,14 +473,17 @@ callFunction:					\
 // separate function so it can allocate stack space for the arguments
 // to reflectcallmove. It does not follow the Go ABI; it expects its
 // arguments in registers.
-TEXT callRet<>(SB), NOSPLIT, $32-0
+TEXT callRet<>(SB), NOSPLIT, $40-0
+	NO_LOCAL_POINTERS;
 	MOVD	R7, 8(R15)
 	MOVD	R6, 16(R15)
 	MOVD	R4, 24(R15)
 	MOVD	R5, 32(R15)
+	MOVD	R10, 40(R15)
 	BL	runtime·reflectcallmove(SB)
 	RET
 
+CALLFN(·call16, 16)
 CALLFN(·call32, 32)
 CALLFN(·call64, 64)
 CALLFN(·call128, 128)
@@ -492,34 +515,24 @@ CALLFN(·call1073741824, 1073741824)
 TEXT callfnMVC<>(SB),NOSPLIT|NOFRAME,$0-0
 	MVC	$1, 0(R4), 0(R6)
 
-TEXT runtime·procyield(SB),NOSPLIT,$0-0
+TEXT runtime·procyieldAsm(SB),NOSPLIT,$0-0
 	RET
 
-// void jmpdefer(fv, sp);
-// called from deferreturn.
-// 1. grab stored LR for caller
-// 2. sub 6 bytes to get back to BL deferreturn (size of BRASL instruction)
-// 3. BR to fn
-TEXT runtime·jmpdefer(SB),NOSPLIT|NOFRAME,$0-16
-	MOVD	0(R15), R1
-	SUB	$6, R1, LR
-
-	MOVD	fv+0(FP), R12
-	MOVD	argp+8(FP), R15
-	SUB	$8, R15
-	MOVD	0(R12), R3
-	BR	(R3)
-
-// Save state of caller into g->sched. Smashes R1.
-TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
-	MOVD	LR, (g_sched+gobuf_pc)(g)
+// Save state of caller into g->sched,
+// but using fake PC from systemstack_switch.
+// Must only be called from functions with no locals ($0)
+// or else unwinding from systemstack_switch is incorrect.
+// Smashes R1.
+TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+	MOVD	$runtime·systemstack_switch(SB), R1
+	ADD	$16, R1	// get past prologue
+	MOVD	R1, (g_sched+gobuf_pc)(g)
 	MOVD	R15, (g_sched+gobuf_sp)(g)
 	MOVD	$0, (g_sched+gobuf_lr)(g)
-	MOVD	$0, (g_sched+gobuf_ret)(g)
 	// Assert ctxt is zero. See func save.
 	MOVD	(g_sched+gobuf_ctxt)(g), R1
 	CMPBEQ	R1, $0, 2(PC)
-	BL	runtime·badctxt(SB)
+	BL	runtime·abort(SB)
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -537,12 +550,15 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
-	// come in on the m->g0 stack already.
+	// come in on the m->g0 stack already. Or we might already
+	// be on the m->gsignal stack.
 	MOVD	g_m(g), R6
-	MOVD	m_g0(R6), R6
-	CMPBEQ	R6, g, g0
-	BL	gosave<>(SB)
-	MOVD	R6, g
+	MOVD	m_gsignal(R6), R7
+	CMPBEQ	R7, g, g0
+	MOVD	m_g0(R6), R7
+	CMPBEQ	R7, g, g0
+	BL	gosave_systemstack_switch<>(SB)
+	MOVD	R7, g
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R15
 
@@ -573,34 +589,28 @@ g0:
 	MOVW	R2, ret+16(FP)
 	RET
 
-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
-// Turn the fn into a Go func (by taking its address) and call
-// cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),NOSPLIT,$32-32
-	MOVD	$fn+0(FP), R3
-	MOVD	R3, 8(R15)
-	MOVD	frame+8(FP), R3
-	MOVD	R3, 16(R15)
-	MOVD	framesize+16(FP), R3
-	MOVD	R3, 24(R15)
-	MOVD	ctxt+24(FP), R3
-	MOVD	R3, 32(R15)
-	MOVD	$runtime·cgocallback_gofunc(SB), R3
-	BL	(R3)
-	RET
-
-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
+// cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-32
+TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
+	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+	// It is used to dropm while thread is exiting.
+	MOVD	fn+0(FP), R1
+	CMPBNE	R1, $0, loadg
+	// Restore the g from frame.
+	MOVD	frame+8(FP), g
+	BR	dropm
+
+loadg:
 	// Load m and g from thread-local storage.
 	MOVB	runtime·iscgo(SB), R3
 	CMPBEQ	R3, $0, nocgo
 	BL	runtime·load_g(SB)
 
 nocgo:
-	// If g is nil, Go did not create the current thread.
+	// If g is nil, Go did not create the current thread,
+	// or if this thread never called into Go on pthread platforms.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
 	// lots of space, but the linker doesn't know. Hide the call from
@@ -613,7 +623,7 @@ nocgo:
 
 needm:
 	MOVD	g, savedm-8(SP) // g is zero, so is m.
-	MOVD	$runtime·needm(SB), R3
+	MOVD	$runtime·needAndBindM(SB), R3
 	BL	(R3)
 
 	// Set m->sched.sp = SP, so that if a panic happens
@@ -639,7 +649,7 @@ havem:
 	// NOTE: unwindm knows that the saved g->sched.sp is at 8(R1) aka savedsp-16(SP).
 	MOVD	m_g0(R8), R3
 	MOVD	(g_sched+gobuf_sp)(R3), R4
-	MOVD	R4, savedsp-16(SP)
+	MOVD	R4, savedsp-24(SP)	// must match frame size
 	MOVD	R15, (g_sched+gobuf_sp)(R3)
 
 	// Switch to m->curg stack and call runtime.cgocallbackg.
@@ -648,30 +658,30 @@ havem:
 	// save that information (m->curg->sched) so we can restore it.
 	// We can restore m->curg->sched.sp easily, because calling
 	// runtime.cgocallbackg leaves SP unchanged upon return.
-	// To save m->curg->sched.pc, we push it onto the stack.
-	// This has the added benefit that it looks to the traceback
-	// routine like cgocallbackg is going to return to that
-	// PC (because the frame we allocate below has the same
-	// size as cgocallback_gofunc's frame declared above)
-	// so that the traceback will seamlessly trace back into
-	// the earlier calls.
-	//
-	// In the new goroutine, -8(SP) is unused (where SP refers to
-	// m->curg's SP while we're setting it up, before we've adjusted it).
+	// To save m->curg->sched.pc, we push it onto the curg stack and
+	// open a frame the same size as cgocallback's g0 frame.
+	// Once we switch to the curg stack, the pushed PC will appear
+	// to be the return PC of cgocallback, so that the traceback
+	// will seamlessly trace back into the earlier calls.
 	MOVD	m_curg(R8), g
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 	MOVD	(g_sched+gobuf_pc)(g), R5
-	MOVD	R5, -24(R4)
-	MOVD	ctxt+24(FP), R5
-	MOVD	R5, -16(R4)
-	MOVD	$-24(R4), R15
+	MOVD	R5, -(24+8)(R4)	// "saved LR"; must match frame size
+	// Gather our arguments into registers.
+	MOVD	fn+0(FP), R1
+	MOVD	frame+8(FP), R2
+	MOVD	ctxt+16(FP), R3
+	MOVD	$-(24+8)(R4), R15	// switch stack; must match frame size
+	MOVD	R1, 8(R15)
+	MOVD	R2, 16(R15)
+	MOVD	R3, 24(R15)
 	BL	runtime·cgocallbackg(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	MOVD	0(R15), R5
 	MOVD	R5, (g_sched+gobuf_pc)(g)
-	MOVD	$24(R15), R4
+	MOVD	$(24+8)(R15), R4	// must match frame size
 	MOVD	R4, (g_sched+gobuf_sp)(g)
 
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.
@@ -681,13 +691,27 @@ havem:
 	MOVD	m_g0(R8), g
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R15
-	MOVD	savedsp-16(SP), R4
+	MOVD	savedsp-24(SP), R4	// must match frame size
 	MOVD	R4, (g_sched+gobuf_sp)(g)
 
-	// If the m on entry was nil, we called needm above to borrow an m
-	// for the duration of the call. Since the call is over, return it with dropm.
+	// If the m on entry was nil, we called needm above to borrow an m,
+	// 1. for the duration of the call on non-pthread platforms,
+	// 2. or the duration of the C thread alive on pthread platforms.
+	// If the m on entry wasn't nil,
+	// 1. the thread might be a Go thread,
+	// 2. or it wasn't the first call from a C thread on pthread platforms,
+	//    since then we skip dropm to reuse the m in the first call.
 	MOVD	savedm-8(SP), R6
 	CMPBNE	R6, $0, droppedm
+
+	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+	MOVD	_cgo_pthread_key_created(SB), R6
+	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+	CMPBEQ	R6, $0, dropm
+	MOVD	(R6), R6
+	CMPBNE	R6, $0, droppedm
+
+dropm:
 	MOVD	$runtime·dropm(SB), R3
 	BL	(R3)
 droppedm:
@@ -739,19 +763,80 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	MOVD	R3, ret+0(FP)
 	RET
 
-// AES hashing not implemented for s390x
-TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
-	JMP	runtime·memhashFallback(SB)
-TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
-	JMP	runtime·strhashFallback(SB)
-TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
-	JMP	runtime·memhash32Fallback(SB)
-TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
-	JMP	runtime·memhash64Fallback(SB)
-
-TEXT runtime·return0(SB), NOSPLIT, $0
-	MOVW	$0, R3
+#ifdef GOEXPERIMENT_regabiargs
+// spillArgs stores return values from registers to a *internal/abi.RegArgs in R10.
+TEXT runtime·spillArgs(SB),NOSPLIT,$0-0
+	MOVD	R2, 0(R10)
+	MOVD	R3, 8(R10)
+	MOVD	R4, 16(R10)
+	MOVD	R5, 24(R10)
+	MOVD	R6, 32(R10)
+	MOVD	R7, 40(R10)
+	MOVD	R8, 48(R10)
+	MOVD	R9, 56(R10)
+	FMOVD	F0, 64(R10)
+	FMOVD	F1, 72(R10)
+	FMOVD	F2, 80(R10)
+	FMOVD	F3, 88(R10)
+	FMOVD	F4, 96(R10)
+	FMOVD	F5, 104(R10)
+	FMOVD	F6, 112(R10)
+	FMOVD	F7, 120(R10)
+	FMOVD	F8, 128(R10)
+	FMOVD	F9, 136(R10)
+	FMOVD	F10, 144(R10)
+	FMOVD	F11, 152(R10)
+	FMOVD	F12, 160(R10)
+	FMOVD	F13, 168(R10)
+	FMOVD	F14, 176(R10)
+	FMOVD	F15, 184(R10)
 	RET
+
+// unspillArgs loads args into registers from a *internal/abi.RegArgs in R10.
+TEXT runtime·unspillArgs(SB),NOSPLIT,$0-0
+	MOVD	0(R10), R2
+	MOVD	8(R10), R3
+	MOVD	16(R10), R4
+	MOVD	24(R10), R5
+	MOVD	32(R10), R6
+	MOVD	40(R10), R7
+	MOVD	48(R10), R8
+	MOVD	56(R10), R9
+	FMOVD	64(R10), F0
+	FMOVD	72(R10), F1
+	FMOVD	80(R10), F2
+	FMOVD	88(R10), F3
+	FMOVD	96(R10), F4
+	FMOVD	104(R10), F5
+	FMOVD	112(R10), F6
+	FMOVD	120(R10), F7
+	FMOVD	128(R10), F8
+	FMOVD	136(R10), F9
+	FMOVD	144(R10), F10
+	FMOVD	152(R10), F11
+	FMOVD	160(R10), F12
+	FMOVD	168(R10), F13
+	FMOVD	176(R10), F14
+	FMOVD	184(R10), F15
+	RET
+#else
+
+TEXT runtime·spillArgs(SB),NOSPLIT,$0-0
+        RET
+
+TEXT runtime·unspillArgs(SB),NOSPLIT,$0-0
+        RET
+#endif
+
+// AES hashing not implemented for s390x
+TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
+	JMP	runtime·memhashFallback<ABIInternal>(SB)
+TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+	JMP	runtime·strhashFallback<ABIInternal>(SB)
+TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+	JMP	runtime·memhash32Fallback<ABIInternal>(SB)
+TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+	JMP	runtime·memhash64Fallback<ABIInternal>(SB)
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
@@ -809,42 +894,38 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVB	$1, ret+0(FP)
 	RET
 
-// gcWriteBarrier performs a heap pointer write and informs the GC.
+// gcWriteBarrier informs the GC about heap pointer writes.
 //
-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
-// - R2 is the destination of the write
-// - R3 is the value being written at R2.
-// It clobbers R10 (the temp register).
+// gcWriteBarrier does NOT follow the Go ABI. It accepts the
+// number of bytes of buffer needed in R9, and returns a pointer
+// to the buffer space in R9.
+// It clobbers R10 (the temp register) and R1 (used by PLT stub).
 // It does not clobber any other general-purpose registers,
 // but may clobber others (e.g., floating point registers).
-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$104
+TEXT gcWriteBarrier<>(SB),NOSPLIT,$96
 	// Save the registers clobbered by the fast path.
-	MOVD	R1, 96(R15)
-	MOVD	R4, 104(R15)
+	MOVD	R4, 96(R15)
+retry:
 	MOVD	g_m(g), R1
 	MOVD	m_p(R1), R1
 	// Increment wbBuf.next position.
-	MOVD	$16, R4
+	MOVD	R9, R4
 	ADD	(p_wbBuf+wbBuf_next)(R1), R4
-	MOVD	R4, (p_wbBuf+wbBuf_next)(R1)
-	MOVD	(p_wbBuf+wbBuf_end)(R1), R1
-	// Record the write.
-	MOVD	R3, -16(R4) // Record value
-	MOVD	(R2), R10   // TODO: This turns bad writes into bad reads.
-	MOVD	R10, -8(R4) // Record *slot
 	// Is the buffer full?
-	CMPBEQ	R4, R1, flush
-ret:
-	MOVD	96(R15), R1
-	MOVD	104(R15), R4
-	// Do the write.
-	MOVD	R3, (R2)
+	MOVD	(p_wbBuf+wbBuf_end)(R1), R10
+	CMPUBGT	R4, R10, flush
+	// Commit to the larger buffer.
+	MOVD	R4, (p_wbBuf+wbBuf_next)(R1)
+	// Make return value (the original next position)
+	SUB	R9, R4, R9
+	// Restore registers.
+	MOVD	96(R15), R4
 	RET
 
 flush:
 	// Save all general purpose registers since these could be
 	// clobbered by wbBufFlush and were not saved by the caller.
-	STMG	R2, R3, 8(R15)   // set R2 and R3 as arguments for wbBufFlush
+	STMG	R2, R3, 8(R15)
 	MOVD	R0, 24(R15)
 	// R1 already saved.
 	// R4 already saved.
@@ -853,80 +934,49 @@ flush:
 	// R14 is LR.
 	// R15 is SP.
 
-	// This takes arguments R2 and R3.
 	CALL	runtime·wbBufFlush(SB)
 
 	LMG	8(R15), R2, R3   // restore R2 - R3
 	MOVD	24(R15), R0      // restore R0
 	LMG	32(R15), R5, R12 // restore R5 - R12
-	JMP	ret
+	JMP	retry
 
-// Note: these functions use a special calling convention to save generated code space.
-// Arguments are passed in registers, but the space for those arguments are allocated
-// in the caller's stack frame. These stubs write the args into that stack space and
-// then tail call to the corresponding runtime handler.
-// The tail call makes these stubs disappear in backtraces.
-TEXT runtime·panicIndex(SB),NOSPLIT,$0-16
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-	JMP	runtime·goPanicIndex(SB)
-TEXT runtime·panicIndexU(SB),NOSPLIT,$0-16
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-	JMP	runtime·goPanicIndexU(SB)
-TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-16
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-	JMP	runtime·goPanicSliceAlen(SB)
-TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-16
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-	JMP	runtime·goPanicSliceAlenU(SB)
-TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-16
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-	JMP	runtime·goPanicSliceAcap(SB)
-TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-16
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-	JMP	runtime·goPanicSliceAcapU(SB)
-TEXT runtime·panicSliceB(SB),NOSPLIT,$0-16
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-	JMP	runtime·goPanicSliceB(SB)
-TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-16
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-	JMP	runtime·goPanicSliceBU(SB)
-TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-16
-	MOVD	R2, x+0(FP)
-	MOVD	R3, y+8(FP)
-	JMP	runtime·goPanicSlice3Alen(SB)
-TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-16
-	MOVD	R2, x+0(FP)
-	MOVD	R3, y+8(FP)
-	JMP	runtime·goPanicSlice3AlenU(SB)
-TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-16
-	MOVD	R2, x+0(FP)
-	MOVD	R3, y+8(FP)
-	JMP	runtime·goPanicSlice3Acap(SB)
-TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-16
-	MOVD	R2, x+0(FP)
-	MOVD	R3, y+8(FP)
-	JMP	runtime·goPanicSlice3AcapU(SB)
-TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-16
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-	JMP	runtime·goPanicSlice3B(SB)
-TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-16
-	MOVD	R1, x+0(FP)
-	MOVD	R2, y+8(FP)
-	JMP	runtime·goPanicSlice3BU(SB)
-TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-16
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-	JMP	runtime·goPanicSlice3C(SB)
-TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
-	MOVD	R0, x+0(FP)
-	MOVD	R1, y+8(FP)
-	JMP	runtime·goPanicSlice3CU(SB)
+TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$8, R9
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$16, R9
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$24, R9
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$32, R9
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$40, R9
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$48, R9
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$56, R9
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$64, R9
+	JMP	gcWriteBarrier<>(SB)
+
+TEXT runtime·panicBounds<ABIInternal>(SB),NOSPLIT,$144-0
+	NO_LOCAL_POINTERS
+	// Save all 16 int registers that could have an index in them.
+	// They may be pointers, but if they are they are dead.
+	STMG	R0, R12, 24(R15)
+	// Note that R10 @ 104 is not needed, it is an assembler temp
+	// skip R13 aka G @ 128
+	// skip R14 aka LR @ 136
+	// skip R15 aka SP @ 144
+
+	MOVD	R14, R2		// PC immediately after call to panicBounds
+	ADD     $24, R15, R3	// pointer to save area
+	CALL	runtime·panicBounds64<ABIInternal>(SB)
+	RET

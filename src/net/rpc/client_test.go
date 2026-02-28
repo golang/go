@@ -17,8 +17,8 @@ type shutdownCodec struct {
 	closed    bool
 }
 
-func (c *shutdownCodec) WriteRequest(*Request, interface{}) error { return nil }
-func (c *shutdownCodec) ReadResponseBody(interface{}) error       { return nil }
+func (c *shutdownCodec) WriteRequest(*Request, any) error { return nil }
+func (c *shutdownCodec) ReadResponseBody(any) error       { return nil }
 func (c *shutdownCodec) ReadResponseHeader(*Response) error {
 	c.responded <- 1
 	return errors.New("shutdownCodec ReadResponseHeader")
@@ -57,8 +57,8 @@ func TestGobError(t *testing.T) {
 		if err == nil {
 			t.Fatal("no error")
 		}
-		if !strings.Contains(err.(error).Error(), "reading body EOF") {
-			t.Fatal("expected `reading body EOF', got", err)
+		if !strings.Contains(err.(error).Error(), "reading body unexpected EOF") {
+			t.Fatal("expected `reading body unexpected EOF', got", err)
 		}
 	}()
 	Register(new(S))

@@ -6,7 +6,7 @@ go build mycmd
 
 # cross-compile install with implicit GOBIN=$GOPATH/bin can make subdirectory
 env GOARCH=386
-[386] env GOARCH=amd64
+[GOARCH:386] env GOARCH=amd64
 env GOOS=linux
 go install mycmd
 exists $GOPATH/bin/linux_$GOARCH/mycmd

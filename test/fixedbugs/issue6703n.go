@@ -21,5 +21,5 @@ func f() T {
 
 var (
 	t T
-	x = f().m() // ERROR "initialization loop|depends upon itself"
+	x = f().m() // ERROR "initialization cycle|depends upon itself"
 )

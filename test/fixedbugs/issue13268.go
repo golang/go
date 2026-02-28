@@ -1,5 +1,7 @@
 // run
 
+//go:build gc
+
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -17,16 +19,10 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 )
 
 func main() {
-	// cannot use temp file on nacl via child process
-	if runtime.GOOS == "nacl" {
-		return
-	}
-
 	// create source
 	f, err := ioutil.TempFile("", "issue13268-")
 	if err != nil {

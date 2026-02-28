@@ -5,14 +5,19 @@
 package os_test
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
+	"path/filepath"
+	"sync"
 	"time"
 )
 
 func ExampleOpenFile() {
-	f, err := os.OpenFile("notes.txt", os.O_RDWR|os.O_CREATE, 0755)
+	f, err := os.OpenFile("notes.txt", os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -56,22 +61,22 @@ func ExampleFileMode() {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("permissions: %#o\n", fi.Mode().Perm()) // 0400, 0777, etc.
+	fmt.Printf("permissions: %#o\n", fi.Mode().Perm()) // 0o400, 0o777, etc.
 	switch mode := fi.Mode(); {
 	case mode.IsRegular():
 		fmt.Println("regular file")
 	case mode.IsDir():
 		fmt.Println("directory")
-	case mode&os.ModeSymlink != 0:
+	case mode&fs.ModeSymlink != 0:
 		fmt.Println("symbolic link")
-	case mode&os.ModeNamedPipe != 0:
+	case mode&fs.ModeNamedPipe != 0:
 		fmt.Println("named pipe")
 	}
 }
 
-func ExampleIsNotExist() {
+func ExampleErrNotExist() {
 	filename := "a-nonexistent-file"
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
+	if _, err := os.Stat(filename); errors.Is(err, fs.ErrNotExist) {
 		fmt.Println("file does not exist")
 	}
 	// Output:
@@ -142,4 +147,249 @@ func ExampleGetenv() {
 func ExampleUnsetenv() {
 	os.Setenv("TMPDIR", "/my/tmp")
 	defer os.Unsetenv("TMPDIR")
+}
+
+func ExampleReadDir() {
+	files, err := os.ReadDir(".")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, file := range files {
+		fmt.Println(file.Name())
+	}
+}
+
+func ExampleMkdirTemp() {
+	dir, err := os.MkdirTemp("", "example")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(dir) // clean up
+
+	file := filepath.Join(dir, "tmpfile")
+	if err := os.WriteFile(file, []byte("content"), 0666); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleMkdirTemp_suffix() {
+	logsDir, err := os.MkdirTemp("", "*-logs")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(logsDir) // clean up
+
+	// Logs can be cleaned out earlier if needed by searching
+	// for all directories whose suffix ends in *-logs.
+	globPattern := filepath.Join(os.TempDir(), "*-logs")
+	matches, err := filepath.Glob(globPattern)
+	if err != nil {
+		log.Fatalf("Failed to match %q: %v", globPattern, err)
+	}
+
+	for _, match := range matches {
+		if err := os.RemoveAll(match); err != nil {
+			log.Printf("Failed to remove %q: %v", match, err)
+		}
+	}
+}
+
+func ExampleCreateTemp() {
+	f, err := os.CreateTemp("", "example")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(f.Name()) // clean up
+
+	if _, err := f.Write([]byte("content")); err != nil {
+		log.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleCreateTemp_suffix() {
+	f, err := os.CreateTemp("", "example.*.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(f.Name()) // clean up
+
+	if _, err := f.Write([]byte("content")); err != nil {
+		f.Close()
+		log.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleReadFile() {
+	data, err := os.ReadFile("testdata/hello")
+	if err != nil {
+		log.Fatal(err)
+	}
+	os.Stdout.Write(data)
+
+	// Output:
+	// Hello, Gophers!
+}
+
+func ExampleWriteFile() {
+	err := os.WriteFile("testdata/hello", []byte("Hello, Gophers!"), 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleMkdir() {
+	err := os.Mkdir("testdir", 0750)
+	if err != nil && !os.IsExist(err) {
+		log.Fatal(err)
+	}
+	err = os.WriteFile("testdir/testfile.txt", []byte("Hello, Gophers!"), 0660)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleMkdirAll() {
+	err := os.MkdirAll("test/subdir", 0750)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = os.WriteFile("test/subdir/testfile.txt", []byte("Hello, Gophers!"), 0660)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleReadlink() {
+	// First, we create a relative symlink to a file.
+	d, err := os.MkdirTemp("", "")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(d)
+	targetPath := filepath.Join(d, "hello.txt")
+	if err := os.WriteFile(targetPath, []byte("Hello, Gophers!"), 0644); err != nil {
+		log.Fatal(err)
+	}
+	linkPath := filepath.Join(d, "hello.link")
+	if err := os.Symlink("hello.txt", filepath.Join(d, "hello.link")); err != nil {
+		if errors.Is(err, errors.ErrUnsupported) {
+			// Allow the example to run on platforms that do not support symbolic links.
+			fmt.Printf("%s links to %s\n", filepath.Base(linkPath), "hello.txt")
+			return
+		}
+		log.Fatal(err)
+	}
+
+	// Readlink returns the relative path as passed to os.Symlink.
+	dst, err := os.Readlink(linkPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s links to %s\n", filepath.Base(linkPath), dst)
+
+	var dstAbs string
+	if filepath.IsAbs(dst) {
+		dstAbs = dst
+	} else {
+		// Symlink targets are relative to the directory containing the link.
+		dstAbs = filepath.Join(filepath.Dir(linkPath), dst)
+	}
+
+	// Check that the target is correct by comparing it with os.Stat
+	// on the original target path.
+	dstInfo, err := os.Stat(dstAbs)
+	if err != nil {
+		log.Fatal(err)
+	}
+	targetInfo, err := os.Stat(targetPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if !os.SameFile(dstInfo, targetInfo) {
+		log.Fatalf("link destination (%s) is not the same file as %s", dstAbs, targetPath)
+	}
+
+	// Output:
+	// hello.link links to hello.txt
+}
+
+func ExampleUserCacheDir() {
+	dir, dirErr := os.UserCacheDir()
+	if dirErr == nil {
+		dir = filepath.Join(dir, "ExampleUserCacheDir")
+	}
+
+	getCache := func(name string) ([]byte, error) {
+		if dirErr != nil {
+			return nil, &os.PathError{Op: "getCache", Path: name, Err: os.ErrNotExist}
+		}
+		return os.ReadFile(filepath.Join(dir, name))
+	}
+
+	var mkdirOnce sync.Once
+	putCache := func(name string, b []byte) error {
+		if dirErr != nil {
+			return &os.PathError{Op: "putCache", Path: name, Err: dirErr}
+		}
+		mkdirOnce.Do(func() {
+			if err := os.MkdirAll(dir, 0700); err != nil {
+				log.Printf("can't create user cache dir: %v", err)
+			}
+		})
+		return os.WriteFile(filepath.Join(dir, name), b, 0600)
+	}
+
+	// Read and store cached data.
+	// …
+	_ = getCache
+	_ = putCache
+
+	// Output:
+}
+
+func ExampleUserConfigDir() {
+	dir, dirErr := os.UserConfigDir()
+
+	var (
+		configPath string
+		origConfig []byte
+	)
+	if dirErr == nil {
+		configPath = filepath.Join(dir, "ExampleUserConfigDir", "example.conf")
+		var err error
+		origConfig, err = os.ReadFile(configPath)
+		if err != nil && !os.IsNotExist(err) {
+			// The user has a config file but we couldn't read it.
+			// Report the error instead of ignoring their configuration.
+			log.Fatal(err)
+		}
+	}
+
+	// Use and perhaps make changes to the config.
+	config := bytes.Clone(origConfig)
+	// …
+
+	// Save changes.
+	if !bytes.Equal(config, origConfig) {
+		if configPath == "" {
+			log.Printf("not saving config changes: %v", dirErr)
+		} else {
+			err := os.MkdirAll(filepath.Dir(configPath), 0700)
+			if err == nil {
+				err = os.WriteFile(configPath, config, 0600)
+			}
+			if err != nil {
+				log.Printf("error saving config changes: %v", err)
+			}
+		}
+	}
+
+	// Output:
 }

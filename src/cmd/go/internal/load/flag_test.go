@@ -5,6 +5,7 @@
 package load
 
 import (
+	"cmd/go/internal/modload"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -125,7 +126,7 @@ func TestPerPackageFlag(t *testing.T) {
 			}
 			for _, p := range tt.pkgs {
 				dir := nativeDir(p.dir)
-				flags := ppFlags.For(&Package{PackagePublic: PackagePublic{ImportPath: p.path, Dir: dir}, Internal: PackageInternal{CmdlinePkg: p.cmdline}})
+				flags := ppFlags.For(modload.NewState(), &Package{PackagePublic: PackagePublic{ImportPath: p.path, Dir: dir}, Internal: PackageInternal{CmdlinePkg: p.cmdline}})
 				if !reflect.DeepEqual(flags, p.flags) {
 					t.Errorf("For(%v, %v, %v) = %v, want %v", p.path, dir, p.cmdline, flags, p.flags)
 				}

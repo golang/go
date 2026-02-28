@@ -22,74 +22,38 @@ timing side-channels:
 package hmac
 
 import (
+	"crypto/internal/boring"
+	"crypto/internal/fips140/hmac"
+	"crypto/internal/fips140hash"
+	"crypto/internal/fips140only"
 	"crypto/subtle"
 	"hash"
 )
 
-// FIPS 198-1:
-// https://csrc.nist.gov/publications/fips/fips198-1/FIPS-198-1_final.pdf
-
-// key is zero padded to the block size of the hash function
-// ipad = 0x36 byte repeated for key length
-// opad = 0x5c byte repeated for key length
-// hmac = H([key ^ opad] H([key ^ ipad] text))
-
-type hmac struct {
-	size         int
-	blocksize    int
-	opad, ipad   []byte
-	outer, inner hash.Hash
-}
-
-func (h *hmac) Sum(in []byte) []byte {
-	origLen := len(in)
-	in = h.inner.Sum(in)
-	h.outer.Reset()
-	h.outer.Write(h.opad)
-	h.outer.Write(in[origLen:])
-	return h.outer.Sum(in[:origLen])
-}
-
-func (h *hmac) Write(p []byte) (n int, err error) {
-	return h.inner.Write(p)
-}
-
-func (h *hmac) Size() int { return h.size }
-
-func (h *hmac) BlockSize() int { return h.blocksize }
-
-func (h *hmac) Reset() {
-	h.inner.Reset()
-	h.inner.Write(h.ipad)
-}
-
-// New returns a new HMAC hash using the given hash.Hash type and key.
+// New returns a new HMAC hash using the given [hash.Hash] type and key.
+// New functions like [crypto/sha256.New] can be used as h.
+// h must return a new Hash every time it is called.
 // Note that unlike other hash implementations in the standard library,
-// the returned Hash does not implement encoding.BinaryMarshaler
-// or encoding.BinaryUnmarshaler.
+// the returned Hash does not implement [encoding.BinaryMarshaler]
+// or [encoding.BinaryUnmarshaler].
 func New(h func() hash.Hash, key []byte) hash.Hash {
-	hm := new(hmac)
-	hm.outer = h()
-	hm.inner = h()
-	hm.size = hm.inner.Size()
-	hm.blocksize = hm.inner.BlockSize()
-	hm.ipad = make([]byte, hm.blocksize)
-	hm.opad = make([]byte, hm.blocksize)
-	if len(key) > hm.blocksize {
-		// If key is too big, hash it.
-		hm.outer.Write(key)
-		key = hm.outer.Sum(nil)
+	if boring.Enabled {
+		hm := boring.NewHMAC(h, key)
+		if hm != nil {
+			return hm
+		}
+		// BoringCrypto did not recognize h, so fall through to standard Go code.
 	}
-	copy(hm.ipad, key)
-	copy(hm.opad, key)
-	for i := range hm.ipad {
-		hm.ipad[i] ^= 0x36
+	h = fips140hash.UnwrapNew(h)
+	if fips140only.Enforced() {
+		if len(key) < 112/8 {
+			panic("crypto/hmac: use of keys shorter than 112 bits is not allowed in FIPS 140-only mode")
+		}
+		if !fips140only.ApprovedHash(h()) {
+			panic("crypto/hmac: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+		}
 	}
-	for i := range hm.opad {
-		hm.opad[i] ^= 0x5c
-	}
-	hm.inner.Write(hm.ipad)
-	return hm
+	return hmac.New(h, key)
 }
 
 // Equal compares two MACs for equality without leaking timing information.

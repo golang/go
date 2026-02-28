@@ -25,7 +25,7 @@ cd $GOPATH/foo/bar/baz
 go env GOMOD
 stdout foo[/\\]go.mod
 
-# GO111MODULE unset should be equivalent to auto.
+# GO111MODULE unset should be equivalent to on.
 env GO111MODULE=
 
 cd $GOPATH/src/x/y/z
@@ -34,7 +34,7 @@ stdout $GOPATH[/\\]src[/\\]x[/\\]y[/\\]z[/\\]go.mod
 
 cd $GOPATH/src/x/y
 go env GOMOD
-! stdout .
+stdout 'NUL|/dev/null'
 
 # GO111MODULE=on should trigger everywhere
 env GO111MODULE=on

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rand
+package rand_test
 
 import (
 	"bytes"
@@ -11,8 +11,11 @@ import (
 	"internal/testenv"
 	"io"
 	"math"
+	. "math/rand"
 	"os"
 	"runtime"
+	"strings"
+	"sync"
 	"testing"
 	"testing/iotest"
 )
@@ -21,18 +24,14 @@ const (
 	numTestSamples = 10000
 )
 
+var rn, kn, wn, fn = GetNormalDistributionParameters()
+var re, ke, we, fe = GetExponentialDistributionParameters()
+
 type statsResults struct {
 	mean        float64
 	stddev      float64
 	closeEnough float64
 	maxError    float64
-}
-
-func max(a, b float64) float64 {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func nearEqual(a, b, closeEnough, maxError float64) bool {
@@ -47,14 +46,14 @@ var testSeeds = []int64{1, 1754801282, 1698661970, 1550503961}
 
 // checkSimilarDistribution returns success if the mean and stddev of the
 // two statsResults are similar.
-func (this *statsResults) checkSimilarDistribution(expected *statsResults) error {
-	if !nearEqual(this.mean, expected.mean, expected.closeEnough, expected.maxError) {
-		s := fmt.Sprintf("mean %v != %v (allowed error %v, %v)", this.mean, expected.mean, expected.closeEnough, expected.maxError)
+func (sr *statsResults) checkSimilarDistribution(expected *statsResults) error {
+	if !nearEqual(sr.mean, expected.mean, expected.closeEnough, expected.maxError) {
+		s := fmt.Sprintf("mean %v != %v (allowed error %v, %v)", sr.mean, expected.mean, expected.closeEnough, expected.maxError)
 		fmt.Println(s)
 		return errors.New(s)
 	}
-	if !nearEqual(this.stddev, expected.stddev, expected.closeEnough, expected.maxError) {
-		s := fmt.Sprintf("stddev %v != %v (allowed error %v, %v)", this.stddev, expected.stddev, expected.closeEnough, expected.maxError)
+	if !nearEqual(sr.stddev, expected.stddev, expected.closeEnough, expected.maxError) {
+		s := fmt.Sprintf("stddev %v != %v (allowed error %v, %v)", sr.stddev, expected.stddev, expected.closeEnough, expected.maxError)
 		fmt.Println(s)
 		return errors.New(s)
 	}
@@ -78,7 +77,7 @@ func checkSampleDistribution(t *testing.T, samples []float64, expected *statsRes
 	actual := getStatsResults(samples)
 	err := actual.checkSimilarDistribution(expected)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err)
 	}
 }
 
@@ -333,7 +332,7 @@ func TestExpTables(t *testing.T) {
 func hasSlowFloatingPoint() bool {
 	switch runtime.GOARCH {
 	case "arm":
-		return os.Getenv("GOARM") == "5"
+		return os.Getenv("GOARM") == "5" || strings.HasSuffix(os.Getenv("GOARM"), ",softfloat")
 	case "mips", "mipsle", "mips64", "mips64le":
 		// Be conservative and assume that all mips boards
 		// have emulated floating point.
@@ -503,7 +502,7 @@ func TestUniformFactorial(t *testing.T) {
 				fn   func() int
 			}{
 				{name: "Int31n", fn: func() int { return int(r.Int31n(int32(nfact))) }},
-				{name: "int31n", fn: func() int { return int(r.int31n(int32(nfact))) }},
+				{name: "int31n", fn: func() int { return int(Int31nForTest(r, int32(nfact))) }},
 				{name: "Perm", fn: func() int { return encodePerm(r.Perm(n)) }},
 				{name: "Shuffle", fn: func() int {
 					// Generate permutation using Shuffle.
@@ -555,6 +554,42 @@ func TestUniformFactorial(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSeedNop(t *testing.T) {
+	// If the global Seed takes effect, then resetting it to a certain value
+	// should provide predictable output to functions using it.
+	t.Run("randseednop=0", func(t *testing.T) {
+		t.Setenv("GODEBUG", "randseednop=0")
+		Seed(1)
+		before := Int63()
+		Seed(1)
+		after := Int63()
+		if before != after {
+			t.Fatal("global Seed should take effect")
+		}
+	})
+	// If calls to the global Seed are no-op then functions using it should
+	// provide different output, even if it was reset to the same value.
+	t.Run("randseednop=1", func(t *testing.T) {
+		t.Setenv("GODEBUG", "randseednop=1")
+		Seed(1)
+		before := Int63()
+		Seed(1)
+		after := Int63()
+		if before == after {
+			t.Fatal("global Seed should be a no-op")
+		}
+	})
+	t.Run("GODEBUG unset", func(t *testing.T) {
+		Seed(1)
+		before := Int63()
+		Seed(1)
+		after := Int63()
+		if before == after {
+			t.Fatal("global Seed should default to being a no-op")
+		}
+	})
 }
 
 // Benchmarks
@@ -678,4 +713,19 @@ func BenchmarkRead1000(b *testing.B) {
 	for n := b.N; n > 0; n-- {
 		r.Read(buf)
 	}
+}
+
+func BenchmarkConcurrent(b *testing.B) {
+	const goroutines = 4
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			defer wg.Done()
+			for n := b.N; n > 0; n-- {
+				Int63()
+			}
+		}()
+	}
+	wg.Wait()
 }

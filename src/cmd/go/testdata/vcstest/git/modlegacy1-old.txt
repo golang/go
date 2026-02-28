@@ -1,0 +1,27 @@
+handle git
+
+env GIT_AUTHOR_NAME='Russ Cox'
+env GIT_AUTHOR_EMAIL='rsc@golang.org'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+
+at 2018-04-25T10:59:24-04:00
+git add p1 p2
+git commit -m 'initial commit'
+git branch -m master
+
+git log --oneline --decorate=short
+cmp stdout .git-log
+
+-- .git-log --
+6b4ba8b (HEAD -> master) initial commit
+-- p1/p1.go --
+package p1
+
+import _ "vcs-test.golang.org/git/modlegacy1-old.git/p2"
+import _ "vcs-test.golang.org/git/modlegacy1-new.git/p1"
+import _ "vcs-test.golang.org/git/modlegacy1-new.git"
+-- p2/p2.go --
+package p2

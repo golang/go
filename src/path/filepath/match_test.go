@@ -7,12 +7,10 @@ package filepath_test
 import (
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	. "path/filepath"
-	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -75,8 +73,10 @@ var matchTests = []MatchTest{
 	{"[", "a", false, ErrBadPattern},
 	{"[^", "a", false, ErrBadPattern},
 	{"[^bc", "a", false, ErrBadPattern},
-	{"a[", "a", false, nil},
+	{"a[", "a", false, ErrBadPattern},
 	{"a[", "ab", false, ErrBadPattern},
+	{"a[", "x", false, ErrBadPattern},
+	{"a/b[", "x", false, ErrBadPattern},
 	{"*x", "xxx", true, nil},
 }
 
@@ -106,15 +106,22 @@ func TestMatch(t *testing.T) {
 	}
 }
 
-// contains reports whether vector contains the string s.
-func contains(vector []string, s string) bool {
-	for _, elem := range vector {
-		if elem == s {
-			return true
-		}
+func BenchmarkMatch(b *testing.B) {
+	for _, tt := range matchTests {
+		name := fmt.Sprintf("%q %q", tt.pattern, tt.s)
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for range b.N {
+				bSink, errSink = Match(tt.pattern, tt.s)
+			}
+		})
 	}
-	return false
 }
+
+var (
+	bSink   bool
+	errSink error
+)
 
 var globTests = []struct {
 	pattern, result string
@@ -138,7 +145,7 @@ func TestGlob(t *testing.T) {
 			t.Errorf("Glob error for %q: %s", pattern, err)
 			continue
 		}
-		if !contains(matches, result) {
+		if !slices.Contains(matches, result) {
 			t.Errorf("Glob(%#q) = %#v want %v", pattern, matches, result)
 		}
 	}
@@ -154,10 +161,22 @@ func TestGlob(t *testing.T) {
 	}
 }
 
+func TestCVE202230632(t *testing.T) {
+	// Prior to CVE-2022-30632, this would cause a stack exhaustion given a
+	// large number of separators (more than 4,000,000). There is now a limit
+	// of 10,000.
+	_, err := Glob("/*" + strings.Repeat("/", 10001))
+	if err != ErrBadPattern {
+		t.Fatalf("Glob returned err=%v, want ErrBadPattern", err)
+	}
+}
+
 func TestGlobError(t *testing.T) {
-	_, err := Glob("[]")
-	if err == nil {
-		t.Error("expected error for bad pattern; got none")
+	bad := []string{`[]`, `nonexist/[]`}
+	for _, pattern := range bad {
+		if _, err := Glob(pattern); err != ErrBadPattern {
+			t.Errorf("Glob(%#q) returned err=%v, want ErrBadPattern", pattern, err)
+		}
 	}
 }
 
@@ -178,12 +197,7 @@ var globSymlinkTests = []struct {
 func TestGlobSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := ioutil.TempDir("", "globsymlink")
-	if err != nil {
-		t.Fatal("creating temp dir:", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
+	tmpDir := t.TempDir()
 	for _, tt := range globSymlinkTests {
 		path := Join(tmpDir, tt.path)
 		dest := Join(tmpDir, tt.dest)
@@ -206,7 +220,7 @@ func TestGlobSymlink(t *testing.T) {
 		if err != nil {
 			t.Errorf("GlobSymlink error for %q: %s", dest, err)
 		}
-		if !contains(matches, dest) {
+		if !slices.Contains(matches, dest) {
 			t.Errorf("Glob(%#q) = %#v want %v", dest, matches, dest)
 		}
 	}
@@ -222,7 +236,7 @@ func (test *globTest) buildWant(root string) []string {
 	for _, m := range test.matches {
 		want = append(want, root+FromSlash(m))
 	}
-	sort.Strings(want)
+	slices.Sort(want)
 	return want
 }
 
@@ -232,9 +246,9 @@ func (test *globTest) globAbs(root, rootPattern string) error {
 	if err != nil {
 		return err
 	}
-	sort.Strings(have)
+	slices.Sort(have)
 	want := test.buildWant(root + `\`)
-	if strings.Join(want, "_") == strings.Join(have, "_") {
+	if slices.Equal(want, have) {
 		return nil
 	}
 	return fmt.Errorf("Glob(%q) returns %q, but %q expected", p, have, want)
@@ -246,14 +260,14 @@ func (test *globTest) globRel(root string) error {
 	if err != nil {
 		return err
 	}
-	sort.Strings(have)
+	slices.Sort(have)
 	want := test.buildWant(root)
-	if strings.Join(want, "_") == strings.Join(have, "_") {
+	if slices.Equal(want, have) {
 		return nil
 	}
 	// try also matching version without root prefix
 	wantWithNoRoot := test.buildWant("")
-	if strings.Join(wantWithNoRoot, "_") == strings.Join(have, "_") {
+	if slices.Equal(wantWithNoRoot, have) {
 		return nil
 	}
 	return fmt.Errorf("Glob(%q) returns %q, but %q expected", p, have, want)
@@ -264,18 +278,7 @@ func TestWindowsGlob(t *testing.T) {
 		t.Skipf("skipping windows specific test")
 	}
 
-	tmpDir, err := ioutil.TempDir("", "TestWindowsGlob")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// /tmp may itself be a symlink
-	tmpDir, err = EvalSymlinks(tmpDir)
-	if err != nil {
-		t.Fatal("eval symlink for tmp dir:", err)
-	}
-
+	tmpDir := tempDirCanonical(t)
 	if len(tmpDir) < 3 {
 		t.Fatalf("tmpDir path %q is too short", tmpDir)
 	}
@@ -298,7 +301,7 @@ func TestWindowsGlob(t *testing.T) {
 		}
 	}
 	for _, file := range files {
-		err := ioutil.WriteFile(Join(tmpDir, file), nil, 0666)
+		err := os.WriteFile(Join(tmpDir, file), nil, 0666)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -320,15 +323,13 @@ func TestWindowsGlob(t *testing.T) {
 	// test absolute paths
 	for _, test := range tests {
 		var p string
-		err = test.globAbs(tmpDir, tmpDir)
-		if err != nil {
+		if err := test.globAbs(tmpDir, tmpDir); err != nil {
 			t.Error(err)
 		}
 		// test C:\*Documents and Settings\...
 		p = tmpDir
 		p = strings.Replace(p, `:\`, `:\*`, 1)
-		err = test.globAbs(tmpDir, p)
-		if err != nil {
+		if err := test.globAbs(tmpDir, p); err != nil {
 			t.Error(err)
 		}
 		// test C:\Documents and Settings*\...
@@ -336,27 +337,13 @@ func TestWindowsGlob(t *testing.T) {
 		p = strings.Replace(p, `:\`, `:`, 1)
 		p = strings.Replace(p, `\`, `*\`, 1)
 		p = strings.Replace(p, `:`, `:\`, 1)
-		err = test.globAbs(tmpDir, p)
-		if err != nil {
+		if err := test.globAbs(tmpDir, p); err != nil {
 			t.Error(err)
 		}
 	}
 
 	// test relative paths
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = os.Chdir(tmpDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		err := os.Chdir(wd)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
+	t.Chdir(tmpDir)
 	for _, test := range tests {
 		err := test.globRel("")
 		if err != nil {
@@ -383,7 +370,7 @@ func TestNonWindowsGlobEscape(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Glob error for %q: %s", pattern, err)
 	}
-	if !reflect.DeepEqual(matches, want) {
+	if !slices.Equal(matches, want) {
 		t.Fatalf("Glob(%#q) = %v want %v", pattern, matches, want)
 	}
 }

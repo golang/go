@@ -1,5 +1,0 @@
-[!net] skip
-[!exec:git] skip
-
-go get -u rsc.io/pdf/...
-exists $GOPATH/bin/pdfpasswd$GOEXE

@@ -1,10 +1,12 @@
-/*
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
+/*
 Package analysis defines the interface between a modular static
 analysis and an analysis driver program.
 
-
-Background
+# Background
 
 A static analysis is a function that inspects a package of Go code and
 reports a set of diagnostics (typically mistakes in the code), and
@@ -28,10 +30,9 @@ frameworks, code review tools, code-base indexers (such as SourceGraph),
 documentation viewers (such as godoc), batch pipelines for large code
 bases, and so on.
 
+# Analyzer
 
-Analyzer
-
-The primary type in the API is Analyzer. An Analyzer statically
+The primary type in the API is [Analyzer]. An Analyzer statically
 describes an analysis function: its name, documentation, flags,
 relationship to other analyzers, and of course, its logic.
 
@@ -71,7 +72,7 @@ help that describes the analyses it performs.
 The doc comment contains a brief one-line summary,
 optionally followed by paragraphs of explanation.
 
-The Analyzer type has more fields besides those shown above:
+The [Analyzer] type has more fields besides those shown above:
 
 	type Analyzer struct {
 		Name             string
@@ -111,33 +112,37 @@ Finally, the Run field contains a function to be called by the driver to
 execute the analysis on a single package. The driver passes it an
 instance of the Pass type.
 
+# Pass
 
-Pass
-
-A Pass describes a single unit of work: the application of a particular
+A [Pass] describes a single unit of work: the application of a particular
 Analyzer to a particular package of Go code.
 The Pass provides information to the Analyzer's Run function about the
 package being analyzed, and provides operations to the Run function for
 reporting diagnostics and other information back to the driver.
 
 	type Pass struct {
-		Fset       *token.FileSet
-		Files      []*ast.File
-		OtherFiles []string
-		Pkg        *types.Package
-		TypesInfo  *types.Info
-		ResultOf   map[*Analyzer]interface{}
-		Report     func(Diagnostic)
+		Fset         *token.FileSet
+		Files        []*ast.File
+		OtherFiles   []string
+		IgnoredFiles []string
+		Pkg          *types.Package
+		TypesInfo    *types.Info
+		ResultOf     map[*Analyzer]interface{}
+		Report       func(Diagnostic)
 		...
 	}
 
 The Fset, Files, Pkg, and TypesInfo fields provide the syntax trees,
 type information, and source positions for a single package of Go code.
 
-The OtherFiles field provides the names, but not the contents, of non-Go
-files such as assembly that are part of this package. See the "asmdecl"
-or "buildtags" analyzers for examples of loading non-Go files and reporting
-diagnostics against them.
+The OtherFiles field provides the names of non-Go
+files such as assembly that are part of this package.
+Similarly, the IgnoredFiles field provides the names of Go and non-Go
+source files that are not part of this package with the current build
+configuration but may be part of other build configurations.
+The contents of these files may be read using Pass.ReadFile;
+see the "asmdecl" or "buildtags" analyzers for examples of loading
+non-Go files and reporting diagnostics against them.
 
 The ResultOf field provides the results computed by the analyzers
 required by this one, as expressed in its Analyzer.Requires field. The
@@ -170,20 +175,28 @@ Diagnostic is defined as:
 The optional Category field is a short identifier that classifies the
 kind of message when an analysis produces several kinds of diagnostic.
 
+The [Diagnostic] struct does not have a field to indicate its severity
+because opinions about the relative importance of Analyzers and their
+diagnostics vary widely among users. The design of this framework does
+not hold each Analyzer responsible for identifying the severity of its
+diagnostics. Instead, we expect that drivers will allow the user to
+customize the filtering and prioritization of diagnostics based on the
+producing Analyzer and optional Category, according to the user's
+preferences.
+
 Most Analyzers inspect typed Go syntax trees, but a few, such as asmdecl
 and buildtag, inspect the raw text of Go source files or even non-Go
 files such as assembly. To report a diagnostic against a line of a
 raw text file, use the following sequence:
 
-	content, err := ioutil.ReadFile(filename)
+	content, err := pass.ReadFile(filename)
 	if err != nil { ... }
 	tf := fset.AddFile(filename, -1, len(content))
 	tf.SetLinesForContent(content)
 	...
 	pass.Reportf(tf.LineStart(line), "oops")
 
-
-Modular analysis with Facts
+# Modular analysis with Facts
 
 To improve efficiency and scalability, large programs are routinely
 built using separate compilation: units of the program are compiled
@@ -201,7 +214,7 @@ addition, it records which functions are printf wrappers for use by
 later analysis passes to identify other printf wrappers by induction.
 A result such as “f is a printf wrapper” that is not interesting by
 itself but serves as a stepping stone to an interesting result (such as
-a diagnostic) is called a "fact".
+a diagnostic) is called a [Fact].
 
 The analysis API allows an analysis to define new types of facts, to
 associate facts of these types with objects (named entities) declared
@@ -226,6 +239,12 @@ Consequently, Facts must be serializable. The API requires that drivers
 use the gob encoding, an efficient, robust, self-describing binary
 protocol. A fact type may implement the GobEncoder/GobDecoder interfaces
 if the default encoding is unsuitable. Facts should be stateless.
+Because serialized facts may appear within build outputs, the gob encoding
+of a fact must be deterministic, to avoid spurious cache misses in
+build systems that use content-addressable caches.
+The driver makes a single call to the gob encoder for all facts
+exported by a given analysis pass, so that the topology of
+shared data structures referenced by multiple facts is preserved.
 
 The Pass type has functions to import and export facts,
 associated either with an object or with a package:
@@ -260,8 +279,7 @@ this fact is built in to the analyzer so that it correctly checks
 calls to log.Printf even when run in a driver that does not apply
 it to standard packages. We would like to remove this limitation in future.
 
-
-Testing an Analyzer
+# Testing an Analyzer
 
 The analysistest subpackage provides utilities for testing an Analyzer.
 In a few lines of code, it is possible to run an analyzer on a package
@@ -269,8 +287,7 @@ of testdata files and check that it reported all the expected
 diagnostics and facts (and no more). Expectations are expressed using
 "// want ..." comments in the input code.
 
-
-Standalone commands
+# Standalone commands
 
 Analyzers are provided in the form of packages that a driver program is
 expected to import. The vet command imports a set of several analyzers,
@@ -281,7 +298,7 @@ singlechecker and multichecker subpackages.
 
 The singlechecker package provides the main function for a command that
 runs one analyzer. By convention, each analyzer such as
-go/passes/findcall should be accompanied by a singlechecker-based
+go/analysis/passes/findcall should be accompanied by a singlechecker-based
 command such as go/analysis/passes/findcall/cmd/findcall, defined in its
 entirety as:
 
@@ -296,6 +313,5 @@ entirety as:
 
 A tool that provides multiple analyzers can use multichecker in a
 similar way, giving it the list of Analyzers.
-
 */
 package analysis

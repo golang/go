@@ -5,14 +5,14 @@ cd $WORK
 mkdir tmp
 env GOTMPDIR=tmp
 go build -work a
-stderr 'WORK=\$WORK' # the test script itself converts the absolute directory back to $WORK
+stderr 'WORK='$WORK
 
 # Similarly if TMP/TMPDIR is relative.
 env GOTMPDIR=
 env TMP=tmp    # Windows
 env TMPDIR=tmp # Unix
 go build -work a
-stderr 'WORK=\$WORK'
+stderr 'WORK='$WORK
 
 -- a/a.go --
 package a

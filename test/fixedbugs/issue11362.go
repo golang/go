@@ -8,8 +8,7 @@
 
 package main
 
-import _ "unicode//utf8" // ERROR "non-canonical import path .unicode//utf8. \(should be .unicode/utf8.\)" "can't find import: .unicode//utf8."
+import _ "unicode//utf8" // GC_ERROR "non-canonical import path .unicode//utf8. \(should be .unicode/utf8.\)"
 
 func main() {
 }
-

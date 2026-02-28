@@ -6,24 +6,63 @@
 // random number generator.
 package rand
 
-import "io"
+import (
+	"crypto/internal/boring"
+	"crypto/internal/fips140/drbg"
+	"crypto/internal/rand"
+	"io"
+	_ "unsafe"
+
+	// Ensure the go:linkname from testing/cryptotest to
+	// crypto/internal/rand.SetTestingReader works.
+	_ "crypto/internal/rand"
+)
 
 // Reader is a global, shared instance of a cryptographically
-// secure random number generator.
+// secure random number generator. It is safe for concurrent use.
 //
-// On Linux and FreeBSD, Reader uses getrandom(2) if available, /dev/urandom otherwise.
-// On OpenBSD, Reader uses getentropy(2).
-// On other Unix-like systems, Reader reads from /dev/urandom.
-// On Windows systems, Reader uses the CryptGenRandom API.
-// On Wasm, Reader uses the Web Crypto API.
-var Reader io.Reader
+//   - On Linux, FreeBSD, Dragonfly, and Solaris, Reader uses getrandom(2).
+//   - On legacy Linux (< 3.17), Reader opens /dev/urandom on first use.
+//   - On macOS, iOS, and OpenBSD Reader, uses arc4random_buf(3).
+//   - On NetBSD, Reader uses the kern.arandom sysctl.
+//   - On Windows, Reader uses the ProcessPrng API.
+//   - On js/wasm, Reader uses the Web Crypto API.
+//   - On wasip1/wasm, Reader uses random_get.
+//
+// In FIPS 140-3 mode, the output passes through an SP 800-90A Rev. 1
+// Deterministric Random Bit Generator (DRBG).
+var Reader io.Reader = rand.Reader
 
-// Read is a helper function that calls Reader.Read using io.ReadFull.
-// On return, n == len(b) if and only if err == nil.
+// fatal is [runtime.fatal], pushed via linkname.
+//
+//go:linkname fatal
+func fatal(string)
+
+// Read fills b with cryptographically secure random bytes. It never returns an
+// error, and always fills b entirely.
+//
+// Read calls [io.ReadFull] on [Reader] and crashes the program irrecoverably if
+// an error is returned. The default Reader uses operating system APIs that are
+// documented to never return an error on all but legacy Linux systems.
 func Read(b []byte) (n int, err error) {
-	return io.ReadFull(Reader, b)
-}
-
-func warnBlocked() {
-	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
+	// We don't want b to escape to the heap, but escape analysis can't see
+	// through a potentially overridden Reader, so we special-case the default
+	// case which we can keep non-escaping, and in the general case we read into
+	// a heap buffer and copy from it.
+	if rand.IsDefaultReader(Reader) {
+		if boring.Enabled {
+			_, err = io.ReadFull(boring.RandReader, b)
+		} else {
+			drbg.Read(b)
+		}
+	} else {
+		bb := make([]byte, len(b))
+		_, err = io.ReadFull(Reader, bb)
+		copy(b, bb)
+	}
+	if err != nil {
+		fatal("crypto/rand: failed to read random data (see https://go.dev/issue/66821): " + err.Error())
+		panic("unreachable") // To be sure.
+	}
+	return len(b), nil
 }

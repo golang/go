@@ -12,10 +12,11 @@ stdout 'incomplete'
 stdout 'bad dep: .*example.com/notfound'
 
 # Listing with -deps should also fail.
-# BUG: Today, it does not.
-# ! go list -deps example.com/direct
-# stderr example.com/notfound
-go list -deps example.com/direct
+! go list -deps example.com/direct
+stderr example.com/notfound
+
+# But -e -deps should succeed.
+go list -e -deps example.com/direct
 stdout example.com/notfound
 
 
@@ -28,16 +29,17 @@ stdout incomplete
 stdout 'bad dep: .*example.com/notfound'
 
 # Again, -deps should fail.
-# BUG: Again, it does not.
-# ! go list -deps example.com/indirect
-# stderr example.com/notfound
-go list -deps example.com/indirect
+! go list -deps example.com/indirect
+stderr example.com/notfound
+
+# But -e -deps should succeed.
+go list -e -deps example.com/indirect
 stdout example.com/notfound
 
 
 # Listing the missing dependency directly should fail outright...
 ! go list -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}}' example.com/notfound
-stderr 'cannot find module providing package example.com/notfound'
+stderr 'no required module provides package example.com/notfound; to add it:\n\tgo get example.com/notfound'
 ! stdout error
 ! stdout incomplete
 

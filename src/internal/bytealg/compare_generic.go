@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !386,!amd64,!s390x,!arm,!arm64,!ppc64,!ppc64le,!mips,!mipsle,!wasm,!mips64,!mips64le
+//go:build !386 && !amd64 && !s390x && !arm && !arm64 && !loong64 && !ppc64 && !ppc64le && !mips && !mipsle && !wasm && !mips64 && !mips64le && !riscv64
 
 package bytealg
 
@@ -35,6 +35,22 @@ samebytes:
 	return 0
 }
 
+func CompareString(a, b string) int {
+	return runtime_cmpstring(a, b)
+}
+
+// runtime.cmpstring calls are emitted by the compiler.
+//
+// runtime.cmpstring should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gitee.com/zhaochuninhefei/gmgo
+//   - github.com/bytedance/gopkg
+//   - github.com/songzhibin97/gkit
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname runtime_cmpstring runtime.cmpstring
 func runtime_cmpstring(a, b string) int {
 	l := len(a)

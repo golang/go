@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -33,6 +34,7 @@ func TestPanic(t *testing.T) {
 		want: `
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
+    TestPanicHelper
 `,
 	}, {
 		desc:  "subtest panics",
@@ -40,8 +42,10 @@ func TestPanic(t *testing.T) {
 		want: `
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
+    TestPanicHelper
     --- FAIL: TestPanicHelper/1 (N.NNs)
         panic_test.go:NNN: TestPanicHelper/1
+        TestPanicHelper/1
 `,
 	}, {
 		desc:  "subtest panics with cleanup",
@@ -52,8 +56,10 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
+    TestPanicHelper
     --- FAIL: TestPanicHelper/1 (N.NNs)
         panic_test.go:NNN: TestPanicHelper/1
+        TestPanicHelper/1
 `,
 	}, {
 		desc:  "subtest panics with outer cleanup panic",
@@ -64,6 +70,7 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
+    TestPanicHelper
 `,
 	}, {
 		desc:  "subtest panics with middle cleanup panic",
@@ -74,8 +81,10 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
+    TestPanicHelper
     --- FAIL: TestPanicHelper/1 (N.NNs)
         panic_test.go:NNN: TestPanicHelper/1
+        TestPanicHelper/1
 `,
 	}, {
 		desc:  "subtest panics with inner cleanup panic",
@@ -86,8 +95,10 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
+    TestPanicHelper
     --- FAIL: TestPanicHelper/1 (N.NNs)
         panic_test.go:NNN: TestPanicHelper/1
+        TestPanicHelper/1
 `,
 	}, {
 		desc:  "parallel subtest panics with cleanup",
@@ -98,8 +109,10 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
+    TestPanicHelper
     --- FAIL: TestPanicHelper/1 (N.NNs)
         panic_test.go:NNN: TestPanicHelper/1
+        TestPanicHelper/1
 `,
 	}, {
 		desc:  "parallel subtest panics with outer cleanup panic",
@@ -110,6 +123,7 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
+    TestPanicHelper
 `,
 	}, {
 		desc:  "parallel subtest panics with middle cleanup panic",
@@ -120,8 +134,10 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
+    TestPanicHelper
     --- FAIL: TestPanicHelper/1 (N.NNs)
         panic_test.go:NNN: TestPanicHelper/1
+        TestPanicHelper/1
 `,
 	}, {
 		desc:  "parallel subtest panics with inner cleanup panic",
@@ -132,13 +148,15 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
+    TestPanicHelper
     --- FAIL: TestPanicHelper/1 (N.NNs)
         panic_test.go:NNN: TestPanicHelper/1
+        TestPanicHelper/1
 `,
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			cmd := exec.Command(os.Args[0], "-test.run=TestPanicHelper")
+			cmd := exec.Command(testenv.Executable(t), "-test.run=^TestPanicHelper$")
 			cmd.Args = append(cmd.Args, tc.flags...)
 			cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 			b, _ := cmd.CombinedOutput()
@@ -164,6 +182,7 @@ func TestPanicHelper(t *testing.T) {
 		return
 	}
 	t.Log(t.Name())
+	t.Output().Write([]byte(t.Name()))
 	if t.Name() == *testPanicTest {
 		panic("panic")
 	}
@@ -179,7 +198,6 @@ func TestPanicHelper(t *testing.T) {
 		}
 	})
 	for i := 0; i < 3; i++ {
-		i := i
 		t.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
 			chosen := t.Name() == *testPanicTest
 			if chosen && *testPanicCleanup {
@@ -194,6 +212,7 @@ func TestPanicHelper(t *testing.T) {
 				t.Parallel()
 			}
 			t.Log(t.Name())
+			t.Output().Write([]byte(t.Name()))
 			if chosen {
 				if *testPanicCleanup {
 					t.Cleanup(func() {
@@ -207,4 +226,60 @@ func TestPanicHelper(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMorePanic(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	testCases := []struct {
+		desc  string
+		flags []string
+		want  string
+	}{
+		{
+			desc:  "Issue 48502: call runtime.Goexit in t.Cleanup after panic",
+			flags: []string{"-test.run=^TestGoexitInCleanupAfterPanicHelper$"},
+			want: `panic: die
+	panic: test executed panic(nil) or runtime.Goexit`,
+		},
+		{
+			desc:  "Issue 48515: call t.Run in t.Cleanup should trigger panic",
+			flags: []string{"-test.run=^TestCallRunInCleanupHelper$"},
+			want:  `panic: testing: t.Run called during t.Cleanup`,
+		},
+	}
+
+	for _, tc := range testCases {
+		cmd := exec.Command(testenv.Executable(t), tc.flags...)
+		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+		b, _ := cmd.CombinedOutput()
+		got := string(b)
+		want := tc.want
+		re := makeRegexp(want)
+		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
+			t.Errorf("output:\ngot:\n%s\nwant:\n%s", got, want)
+		}
+	}
+}
+
+func TestCallRunInCleanupHelper(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	t.Cleanup(func() {
+		t.Run("in-cleanup", func(t *testing.T) {
+			t.Log("must not be executed")
+		})
+	})
+}
+
+func TestGoexitInCleanupAfterPanicHelper(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	t.Cleanup(func() { runtime.Goexit() })
+	t.Parallel()
+	panic("die")
 }

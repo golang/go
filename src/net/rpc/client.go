@@ -27,11 +27,11 @@ var ErrShutdown = errors.New("connection is shut down")
 
 // Call represents an active RPC.
 type Call struct {
-	ServiceMethod string      // The name of the service and method to call.
-	Args          interface{} // The argument to the function (*struct).
-	Reply         interface{} // The reply from the function (*struct).
-	Error         error       // After completion, the error status.
-	Done          chan *Call  // Strobes when call is complete.
+	ServiceMethod string     // The name of the service and method to call.
+	Args          any        // The argument to the function (*struct).
+	Reply         any        // The reply from the function (*struct).
+	Error         error      // After completion, the error status.
+	Done          chan *Call // Receives *Call when Go is complete.
 }
 
 // Client represents an RPC Client.
@@ -53,17 +53,17 @@ type Client struct {
 
 // A ClientCodec implements writing of RPC requests and
 // reading of RPC responses for the client side of an RPC session.
-// The client calls WriteRequest to write a request to the connection
-// and calls ReadResponseHeader and ReadResponseBody in pairs
-// to read responses. The client calls Close when finished with the
+// The client calls [ClientCodec.WriteRequest] to write a request to the connection
+// and calls [ClientCodec.ReadResponseHeader] and [ClientCodec.ReadResponseBody] in pairs
+// to read responses. The client calls [ClientCodec.Close] when finished with the
 // connection. ReadResponseBody may be called with a nil
 // argument to force the body of the response to be read and then
 // discarded.
-// See NewClient's comment for information about concurrent access.
+// See [NewClient]'s comment for information about concurrent access.
 type ClientCodec interface {
-	WriteRequest(*Request, interface{}) error
+	WriteRequest(*Request, any) error
 	ReadResponseHeader(*Response) error
-	ReadResponseBody(interface{}) error
+	ReadResponseBody(any) error
 
 	Close() error
 }
@@ -181,7 +181,7 @@ func (call *Call) done() {
 	}
 }
 
-// NewClient returns a new Client to handle requests to the
+// NewClient returns a new [Client] to handle requests to the
 // set of services at the other end of the connection.
 // It adds a buffer to the write side of the connection so
 // the header and payload are sent as a unit.
@@ -196,7 +196,7 @@ func NewClient(conn io.ReadWriteCloser) *Client {
 	return NewClientWithCodec(client)
 }
 
-// NewClientWithCodec is like NewClient but uses the specified
+// NewClientWithCodec is like [NewClient] but uses the specified
 // codec to encode requests and decode responses.
 func NewClientWithCodec(codec ClientCodec) *Client {
 	client := &Client{
@@ -214,7 +214,7 @@ type gobClientCodec struct {
 	encBuf *bufio.Writer
 }
 
-func (c *gobClientCodec) WriteRequest(r *Request, body interface{}) (err error) {
+func (c *gobClientCodec) WriteRequest(r *Request, body any) (err error) {
 	if err = c.enc.Encode(r); err != nil {
 		return
 	}
@@ -228,7 +228,7 @@ func (c *gobClientCodec) ReadResponseHeader(r *Response) error {
 	return c.dec.Decode(r)
 }
 
-func (c *gobClientCodec) ReadResponseBody(body interface{}) error {
+func (c *gobClientCodec) ReadResponseBody(body any) error {
 	return c.dec.Decode(body)
 }
 
@@ -245,7 +245,6 @@ func DialHTTP(network, address string) (*Client, error) {
 // DialHTTPPath connects to an HTTP RPC server
 // at the specified network address and path.
 func DialHTTPPath(network, address, path string) (*Client, error) {
-	var err error
 	conn, err := net.Dial(network, address)
 	if err != nil {
 		return nil, err
@@ -280,7 +279,7 @@ func Dial(network, address string) (*Client, error) {
 }
 
 // Close calls the underlying codec's Close method. If the connection is already
-// shutting down, ErrShutdown is returned.
+// shutting down, [ErrShutdown] is returned.
 func (client *Client) Close() error {
 	client.mutex.Lock()
 	if client.closing {
@@ -292,11 +291,11 @@ func (client *Client) Close() error {
 	return client.codec.Close()
 }
 
-// Go invokes the function asynchronously. It returns the Call structure representing
+// Go invokes the function asynchronously. It returns the [Call] structure representing
 // the invocation. The done channel will signal when the call is complete by returning
 // the same Call object. If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
-func (client *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
+func (client *Client) Go(serviceMethod string, args any, reply any, done chan *Call) *Call {
 	call := new(Call)
 	call.ServiceMethod = serviceMethod
 	call.Args = args
@@ -318,7 +317,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
-func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) error {
+func (client *Client) Call(serviceMethod string, args any, reply any) error {
 	call := <-client.Go(serviceMethod, args, reply, make(chan *Call, 1)).Done
 	return call.Error
 }

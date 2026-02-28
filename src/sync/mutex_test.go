@@ -60,6 +60,12 @@ func BenchmarkContendedSemaphore(b *testing.B) {
 
 func HammerMutex(m *Mutex, loops int, cdone chan bool) {
 	for i := 0; i < loops; i++ {
+		if i%3 == 0 {
+			if m.TryLock() {
+				m.Unlock()
+			}
+			continue
+		}
 		m.Lock()
 		m.Unlock()
 	}
@@ -71,7 +77,19 @@ func TestMutex(t *testing.T) {
 		t.Logf("got mutexrate %d expected 0", n)
 	}
 	defer runtime.SetMutexProfileFraction(0)
+
 	m := new(Mutex)
+
+	m.Lock()
+	if m.TryLock() {
+		t.Fatalf("TryLock succeeded with mutex locked")
+	}
+	m.Unlock()
+	if !m.TryLock() {
+		t.Fatalf("TryLock failed with mutex unlocked")
+	}
+	m.Unlock()
+
 	c := make(chan bool)
 	for i := 0; i < 10; i++ {
 		go HammerMutex(m, 1000, c)
@@ -169,9 +187,8 @@ func init() {
 }
 
 func TestMutexMisuse(t *testing.T) {
-	testenv.MustHaveExec(t)
 	for _, test := range misuseTests {
-		out, err := exec.Command(os.Args[0], "TESTMISUSE", test.name).CombinedOutput()
+		out, err := exec.Command(testenv.Executable(t), "TESTMISUSE", test.name).CombinedOutput()
 		if err == nil || !strings.Contains(string(out), "unlocked") {
 			t.Errorf("%s: did not find failure with message about unlocked lock: %s\n%s\n", test.name, err, out)
 		}
@@ -194,7 +211,7 @@ func TestMutexFairness(t *testing.T) {
 			}
 		}
 	}()
-	done := make(chan bool)
+	done := make(chan bool, 1)
 	go func() {
 		for i := 0; i < 10; i++ {
 			time.Sleep(100 * time.Microsecond)

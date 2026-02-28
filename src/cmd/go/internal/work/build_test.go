@@ -5,9 +5,8 @@
 package work
 
 import (
-	"bytes"
-	"fmt"
-	"io/ioutil"
+	"internal/testenv"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -42,19 +41,20 @@ func TestSplitPkgConfigOutput(t *testing.T) {
 	}{
 		{[]byte(`-r:foo -L/usr/white\ space/lib -lfoo\ bar -lbar\ baz`), []string{"-r:foo", "-L/usr/white space/lib", "-lfoo bar", "-lbar baz"}},
 		{[]byte(`-lextra\ fun\ arg\\`), []string{`-lextra fun arg\`}},
-		{[]byte("\textra     whitespace\r\n"), []string{"extra", "whitespace"}},
-		{[]byte("     \r\n      "), nil},
+		{[]byte("\textra     whitespace\r\n"), []string{"extra", "whitespace\r"}},
+		{[]byte("     \r\n      "), []string{"\r"}},
 		{[]byte(`"-r:foo" "-L/usr/white space/lib" "-lfoo bar" "-lbar baz"`), []string{"-r:foo", "-L/usr/white space/lib", "-lfoo bar", "-lbar baz"}},
 		{[]byte(`"-lextra fun arg\\"`), []string{`-lextra fun arg\`}},
 		{[]byte(`"     \r\n\      "`), []string{`     \r\n\      `}},
-		{[]byte(`""`), nil},
+		{[]byte(`""`), []string{""}},
 		{[]byte(``), nil},
 		{[]byte(`"\\"`), []string{`\`}},
 		{[]byte(`"\x"`), []string{`\x`}},
 		{[]byte(`"\\x"`), []string{`\x`}},
-		{[]byte(`'\\'`), []string{`\`}},
+		{[]byte(`'\\'`), []string{`\\`}},
 		{[]byte(`'\x'`), []string{`\x`}},
 		{[]byte(`"\\x"`), []string{`\x`}},
+		{[]byte("\\\n"), nil},
 		{[]byte(`-fPIC -I/test/include/foo -DQUOTED='"/test/share/doc"'`), []string{"-fPIC", "-I/test/include/foo", `-DQUOTED="/test/share/doc"`}},
 		{[]byte(`-fPIC -I/test/include/foo -DQUOTED="/test/share/doc"`), []string{"-fPIC", "-I/test/include/foo", "-DQUOTED=/test/share/doc"}},
 		{[]byte(`-fPIC -I/test/include/foo -DQUOTED=\"/test/share/doc\"`), []string{"-fPIC", "-I/test/include/foo", `-DQUOTED="/test/share/doc"`}},
@@ -65,11 +65,11 @@ func TestSplitPkgConfigOutput(t *testing.T) {
 	} {
 		got, err := splitPkgConfigOutput(test.in)
 		if err != nil {
-			t.Errorf("splitPkgConfigOutput on %v failed with error %v", test.in, err)
+			t.Errorf("splitPkgConfigOutput on %#q failed with error %v", test.in, err)
 			continue
 		}
 		if !reflect.DeepEqual(got, test.want) {
-			t.Errorf("splitPkgConfigOutput(%v) = %v; want %v", test.in, got, test.want)
+			t.Errorf("splitPkgConfigOutput(%#q) = %#q; want %#q", test.in, got, test.want)
 		}
 	}
 
@@ -169,14 +169,15 @@ func TestSharedLibName(t *testing.T) {
 	for _, data := range testData {
 		func() {
 			if data.rootedAt != "" {
-				tmpGopath, err := ioutil.TempDir("", "gopath")
+				tmpGopath, err := os.MkdirTemp("", "gopath")
 				if err != nil {
 					t.Fatal(err)
 				}
+				cwd := base.Cwd()
 				oldGopath := cfg.BuildContext.GOPATH
 				defer func() {
 					cfg.BuildContext.GOPATH = oldGopath
-					os.Chdir(base.Cwd)
+					os.Chdir(cwd)
 					err := os.RemoveAll(tmpGopath)
 					if err != nil {
 						t.Error(err)
@@ -220,59 +221,53 @@ func pkgImportPath(pkgpath string) *load.Package {
 // directory.
 // See https://golang.org/issue/18878.
 func TestRespectSetgidDir(t *testing.T) {
-	switch runtime.GOOS {
-	case "darwin":
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-			t.Skip("can't set SetGID bit with chmod on iOS")
-		}
-	case "windows", "plan9":
-		t.Skip("chown/chmod setgid are not supported on Windows or Plan 9")
-	}
-
-	var b Builder
-
 	// Check that `cp` is called instead of `mv` by looking at the output
-	// of `(*Builder).ShowCmd` afterwards as a sanity check.
+	// of `(*Shell).ShowCmd` afterwards as a sanity check.
 	cfg.BuildX = true
-	var cmdBuf bytes.Buffer
-	b.Print = func(a ...interface{}) (int, error) {
-		return cmdBuf.WriteString(fmt.Sprint(a...))
-	}
+	var cmdBuf strings.Builder
+	sh := NewShell("", &load.TextPrinter{Writer: &cmdBuf})
 
-	setgiddir, err := ioutil.TempDir("", "SetGroupID")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(setgiddir)
+	setgiddir := t.TempDir()
 
 	// BSD mkdir(2) inherits the parent directory group, and other platforms
 	// can inherit the parent directory group via setgid. The test setup (chmod
 	// setgid) will fail if the process does not have the group permission to
 	// the new temporary directory.
-	err = os.Chown(setgiddir, os.Getuid(), os.Getgid())
+	err := os.Chown(setgiddir, os.Getuid(), os.Getgid())
 	if err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skip("skipping: chown is not supported on " + runtime.GOOS)
+		}
 		t.Fatal(err)
 	}
 
 	// Change setgiddir's permissions to include the SetGID bit.
-	if err := os.Chmod(setgiddir, 0755|os.ModeSetgid); err != nil {
+	if err := os.Chmod(setgiddir, 0755|fs.ModeSetgid); err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skip("skipping: chmod is not supported on " + runtime.GOOS)
+		}
 		t.Fatal(err)
 	}
+	if fi, err := os.Stat(setgiddir); err != nil {
+		t.Fatal(err)
+	} else if fi.Mode()&fs.ModeSetgid == 0 {
+		t.Skip("skipping: Chmod ignored ModeSetgid on " + runtime.GOOS)
+	}
 
-	pkgfile, err := ioutil.TempFile("", "pkgfile")
+	pkgfile, err := os.CreateTemp("", "pkgfile")
 	if err != nil {
-		t.Fatalf("ioutil.TempFile(\"\", \"pkgfile\"): %v", err)
+		t.Fatalf("os.CreateTemp(\"\", \"pkgfile\"): %v", err)
 	}
 	defer os.Remove(pkgfile.Name())
 	defer pkgfile.Close()
 
 	dirGIDFile := filepath.Join(setgiddir, "setgid")
-	if err := b.moveOrCopyFile(dirGIDFile, pkgfile.Name(), 0666, true); err != nil {
+	if err := sh.moveOrCopyFile(dirGIDFile, pkgfile.Name(), 0666, true); err != nil {
 		t.Fatalf("moveOrCopyFile: %v", err)
 	}
 
 	got := strings.TrimSpace(cmdBuf.String())
-	want := b.fmtcmd("", "cp %s %s", pkgfile.Name(), dirGIDFile)
+	want := sh.fmtCmd("", "cp %s %s", pkgfile.Name(), dirGIDFile)
 	if got != want {
 		t.Fatalf("moveOrCopyFile(%q, %q): want %q, got %q", dirGIDFile, pkgfile.Name(), want, got)
 	}

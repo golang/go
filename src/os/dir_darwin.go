@@ -24,17 +24,25 @@ func (d *dirInfo) close() {
 	d.dir = 0
 }
 
-func (f *File) readdirnames(n int) (names []string, err error) {
-	if f.dirinfo == nil {
+func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+	// If this file has no dirinfo, create one.
+	var d *dirInfo
+	for {
+		d = f.dirinfo.Load()
+		if d != nil {
+			break
+		}
 		dir, call, errno := f.pfd.OpenDir()
 		if errno != nil {
-			return nil, wrapSyscallError(call, errno)
+			return nil, nil, nil, &PathError{Op: call, Path: f.name, Err: errno}
 		}
-		f.dirinfo = &dirInfo{
-			dir: dir,
+		d = &dirInfo{dir: dir}
+		if f.dirinfo.CompareAndSwap(nil, d) {
+			break
 		}
+		// We lost the race: try again.
+		d.close()
 	}
-	d := f.dirinfo
 
 	size := n
 	if size <= 0 {
@@ -42,16 +50,27 @@ func (f *File) readdirnames(n int) (names []string, err error) {
 		n = -1
 	}
 
-	names = make([]string, 0, size)
 	var dirent syscall.Dirent
 	var entptr *syscall.Dirent
-	for len(names) < size || n == -1 {
-		if res := readdir_r(d.dir, &dirent, &entptr); res != 0 {
-			return names, wrapSyscallError("readdir", syscall.Errno(res))
+	for len(names)+len(dirents)+len(infos) < size || n == -1 {
+		if errno := readdir_r(d.dir, &dirent, &entptr); errno != 0 {
+			if errno == syscall.EINTR {
+				continue
+			}
+			return names, dirents, infos, &PathError{Op: "readdir", Path: f.name, Err: errno}
 		}
 		if entptr == nil { // EOF
 			break
 		}
+		// Darwin may return a zero inode when a directory entry has been
+		// deleted but not yet removed from the directory. The man page for
+		// getdirentries(2) states that programs are responsible for skipping
+		// those entries:
+		//
+		//   Users of getdirentries() should skip entries with d_fileno = 0,
+		//   as such entries represent files which have been deleted but not
+		//   yet removed from the directory entry.
+		//
 		if dirent.Ino == 0 {
 			continue
 		}
@@ -66,13 +85,58 @@ func (f *File) readdirnames(n int) (names []string, err error) {
 		if string(name) == "." || string(name) == ".." {
 			continue
 		}
-		names = append(names, string(name))
+		if mode == readdirName {
+			names = append(names, string(name))
+		} else if mode == readdirDirEntry {
+			de, err := newUnixDirent(f, string(name), dtToType(dirent.Type))
+			if IsNotExist(err) {
+				// File disappeared between readdir and stat.
+				// Treat as if it didn't exist.
+				continue
+			}
+			if err != nil {
+				return nil, dirents, nil, err
+			}
+			dirents = append(dirents, de)
+		} else {
+			info, err := f.lstatat(string(name))
+			if IsNotExist(err) {
+				// File disappeared between readdir + stat.
+				// Treat as if it didn't exist.
+				continue
+			}
+			if err != nil {
+				return nil, nil, infos, err
+			}
+			infos = append(infos, info)
+		}
 		runtime.KeepAlive(f)
 	}
-	if n >= 0 && len(names) == 0 {
-		return names, io.EOF
+
+	if n > 0 && len(names)+len(dirents)+len(infos) == 0 {
+		return nil, nil, nil, io.EOF
 	}
-	return names, nil
+	return names, dirents, infos, nil
+}
+
+func dtToType(typ uint8) FileMode {
+	switch typ {
+	case syscall.DT_BLK:
+		return ModeDevice
+	case syscall.DT_CHR:
+		return ModeDevice | ModeCharDevice
+	case syscall.DT_DIR:
+		return ModeDir
+	case syscall.DT_FIFO:
+		return ModeNamedPipe
+	case syscall.DT_LNK:
+		return ModeSymlink
+	case syscall.DT_REG:
+		return 0
+	case syscall.DT_SOCK:
+		return ModeSocket
+	}
+	return ^FileMode(0)
 }
 
 // Implemented in syscall/syscall_darwin.go.
@@ -81,4 +145,4 @@ func (f *File) readdirnames(n int) (names []string, err error) {
 func closedir(dir uintptr) (err error)
 
 //go:linkname readdir_r syscall.readdir_r
-func readdir_r(dir uintptr, entry *syscall.Dirent, result **syscall.Dirent) (res int)
+func readdir_r(dir uintptr, entry *syscall.Dirent, result **syscall.Dirent) (res syscall.Errno)

@@ -2,25 +2,27 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build amd64
-// +build linux
+//go:build (amd64 || arm64 || loong64 || ppc64le) && linux
 
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/stringslite"
 	"unsafe"
 )
 
-// InjectDebugCall injects a debugger call to fn into g. args must be
-// a pointer to a valid call frame (including arguments and return
-// space) for fn, or nil. tkill must be a function that will send
-// SIGTRAP to thread ID tid. gp must be locked to its OS thread and
+// InjectDebugCall injects a debugger call to fn into g. regArgs must
+// contain any arguments to fn that are passed in registers, according
+// to the internal Go ABI. It may be nil if no arguments are passed in
+// registers to fn. args must be a pointer to a valid call frame (including
+// arguments and return space) for fn, or nil. tkill must be a function that
+// will send SIGTRAP to thread ID tid. gp must be locked to its OS thread and
 // running.
 //
 // On success, InjectDebugCall returns the panic value of fn or nil.
 // If fn did not panic, its results will be available in args.
-func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error, returnOnUnsafePoint bool) (interface{}, error) {
+func InjectDebugCall(gp *g, fn any, regArgs *abi.RegArgs, stackArgs any, tkill func(tid int) error, returnOnUnsafePoint bool) (any, error) {
 	if gp.lockedm == 0 {
 		return nil, plainError("goroutine not locked to thread")
 	}
@@ -31,24 +33,27 @@ func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error, ret
 	}
 
 	f := efaceOf(&fn)
-	if f._type == nil || f._type.kind&kindMask != kindFunc {
+	if f._type == nil || f._type.Kind() != abi.Func {
 		return nil, plainError("fn must be a function")
 	}
 	fv := (*funcval)(f.data)
 
-	a := efaceOf(&args)
-	if a._type != nil && a._type.kind&kindMask != kindPtr {
+	a := efaceOf(&stackArgs)
+	if a._type != nil && a._type.Kind() != abi.Pointer {
 		return nil, plainError("args must be a pointer or nil")
 	}
 	argp := a.data
 	var argSize uintptr
 	if argp != nil {
-		argSize = (*ptrtype)(unsafe.Pointer(a._type)).elem.size
+		argSize = (*ptrtype)(unsafe.Pointer(a._type)).Elem.Size_
 	}
 
 	h := new(debugCallHandler)
 	h.gp = gp
-	h.fv, h.argp, h.argSize = fv, argp, argSize
+	// gp may not be running right now, but we can still get the M
+	// it will run on since it's locked.
+	h.mp = gp.lockedm.ptr()
+	h.fv, h.regArgs, h.argp, h.argSize = fv, regArgs, argp, argSize
 	h.handleF = h.handle // Avoid allocating closure during signal
 
 	defer func() { testSigtrap = nil }()
@@ -86,38 +91,35 @@ func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error, ret
 
 type debugCallHandler struct {
 	gp      *g
+	mp      *m
 	fv      *funcval
+	regArgs *abi.RegArgs
 	argp    unsafe.Pointer
 	argSize uintptr
-	panic   interface{}
+	panic   any
 
 	handleF func(info *siginfo, ctxt *sigctxt, gp2 *g) bool
 
-	err       plainError
-	done      note
-	savedRegs sigcontext
-	savedFP   fpstate1
+	err     plainError
+	done    note
+	sigCtxt sigContext
 }
 
 func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
-	switch h.gp.atomicstatus {
+	// TODO(49370): This code is riddled with write barriers, but called from
+	// a signal handler. Add the go:nowritebarrierrec annotation and restructure
+	// this to avoid write barriers.
+
+	switch h.gp.atomicstatus.Load() {
 	case _Grunning:
-		if getg().m != h.gp.m {
-			println("trap on wrong M", getg().m, h.gp.m)
+		if getg().m != h.mp {
+			println("trap on wrong M", getg().m, h.mp)
 			return false
 		}
-		// Push current PC on the stack.
-		rsp := ctxt.rsp() - sys.PtrSize
-		*(*uint64)(unsafe.Pointer(uintptr(rsp))) = ctxt.rip()
-		ctxt.set_rsp(rsp)
-		// Write the argument frame size.
-		*(*uintptr)(unsafe.Pointer(uintptr(rsp - 16))) = h.argSize
-		// Save current registers.
-		h.savedRegs = *ctxt.regs()
-		h.savedFP = *h.savedRegs.fpstate
-		h.savedRegs.fpstate = nil
-		// Set PC to debugCallV1.
-		ctxt.set_rip(uint64(funcPC(debugCallV1)))
+		// Save the signal context
+		h.saveSigContext(ctxt)
+		// Set PC to debugCallV2.
+		ctxt.setsigpc(uint64(abi.FuncPCABIInternal(debugCallV2)))
 		// Call injected. Switch to the debugCall protocol.
 		testSigtrap = h.handleF
 	case _Grunnable:
@@ -134,60 +136,46 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 }
 
 func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
-	// Sanity check.
-	if getg().m != h.gp.m {
-		println("trap on wrong M", getg().m, h.gp.m)
+	// TODO(49370): This code is riddled with write barriers, but called from
+	// a signal handler. Add the go:nowritebarrierrec annotation and restructure
+	// this to avoid write barriers.
+
+	// Double-check m.
+	if getg().m != h.mp {
+		println("trap on wrong M", getg().m, h.mp)
 		return false
 	}
-	f := findfunc(uintptr(ctxt.rip()))
-	if !(hasPrefix(funcname(f), "runtime.debugCall") || hasPrefix(funcname(f), "debugCall")) {
+	f := findfunc(ctxt.sigpc())
+	if !(stringslite.HasPrefix(funcname(f), "runtime.debugCall") || stringslite.HasPrefix(funcname(f), "debugCall")) {
 		println("trap in unknown function", funcname(f))
 		return false
 	}
-	if *(*byte)(unsafe.Pointer(uintptr(ctxt.rip() - 1))) != 0xcc {
-		println("trap at non-INT3 instruction pc =", hex(ctxt.rip()))
+	if !sigctxtAtTrapInstruction(ctxt) {
+		println("trap at non-INT3 instruction pc =", hex(ctxt.sigpc()))
 		return false
 	}
 
-	switch status := ctxt.rax(); status {
+	switch status := sigctxtStatus(ctxt); status {
 	case 0:
-		// Frame is ready. Copy the arguments to the frame.
-		sp := ctxt.rsp()
-		memmove(unsafe.Pointer(uintptr(sp)), h.argp, h.argSize)
-		// Push return PC.
-		sp -= sys.PtrSize
-		ctxt.set_rsp(sp)
-		*(*uint64)(unsafe.Pointer(uintptr(sp))) = ctxt.rip()
-		// Set PC to call and context register.
-		ctxt.set_rip(uint64(h.fv.fn))
-		ctxt.regs().rcx = uint64(uintptr(unsafe.Pointer(h.fv)))
+		// Frame is ready. Copy the arguments to the frame and to registers.
+		// Call the debug function.
+		h.debugCallRun(ctxt)
 	case 1:
-		// Function returned. Copy frame back out.
-		sp := ctxt.rsp()
-		memmove(h.argp, unsafe.Pointer(uintptr(sp)), h.argSize)
+		// Function returned. Copy frame and result registers back out.
+		h.debugCallReturn(ctxt)
 	case 2:
 		// Function panicked. Copy panic out.
-		sp := ctxt.rsp()
-		memmove(unsafe.Pointer(&h.panic), unsafe.Pointer(uintptr(sp)), 2*sys.PtrSize)
+		h.debugCallPanicOut(ctxt)
 	case 8:
 		// Call isn't safe. Get the reason.
-		sp := ctxt.rsp()
-		reason := *(*string)(unsafe.Pointer(uintptr(sp)))
-		h.err = plainError(reason)
+		h.debugCallUnsafe(ctxt)
 		// Don't wake h.done. We need to transition to status 16 first.
 	case 16:
-		// Restore all registers except RIP and RSP.
-		rip, rsp := ctxt.rip(), ctxt.rsp()
-		fp := ctxt.regs().fpstate
-		*ctxt.regs() = h.savedRegs
-		ctxt.regs().fpstate = fp
-		*fp = h.savedFP
-		ctxt.set_rip(rip)
-		ctxt.set_rsp(rsp)
+		h.restoreSigContext(ctxt)
 		// Done
 		notewakeup(&h.done)
 	default:
-		h.err = plainError("unexpected debugCallV1 status")
+		h.err = plainError("unexpected debugCallV2 status")
 		notewakeup(&h.done)
 	}
 	// Resume execution.

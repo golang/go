@@ -10,12 +10,14 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
+	"io/fs"
+	"maps"
 	"math"
 	"os"
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -23,7 +25,7 @@ import (
 
 type testError struct{ error }
 
-type fileOps []interface{} // []T where T is (string | int64)
+type fileOps []any // []T where T is (string | int64)
 
 // testFile is an io.ReadWriteSeeker where the IO operations performed
 // on it must match the list of operations in ops.
@@ -96,10 +98,6 @@ func (f *testFile) Seek(pos int64, whence int) (int64, error) {
 	f.pos += s
 	f.ops = f.ops[1:]
 	return f.pos, nil
-}
-
-func equalSparseEntries(x, y []sparseEntry) bool {
-	return (len(x) == 0 && len(y) == 0) || reflect.DeepEqual(x, y)
 }
 
 func TestSparseEntries(t *testing.T) {
@@ -198,11 +196,11 @@ func TestSparseEntries(t *testing.T) {
 			continue
 		}
 		gotAligned := alignSparseEntries(append([]sparseEntry{}, v.in...), v.size)
-		if !equalSparseEntries(gotAligned, v.wantAligned) {
+		if !slices.Equal(gotAligned, v.wantAligned) {
 			t.Errorf("test %d, alignSparseEntries():\ngot  %v\nwant %v", i, gotAligned, v.wantAligned)
 		}
 		gotInverted := invertSparseEntries(append([]sparseEntry{}, v.in...), v.size)
-		if !equalSparseEntries(gotInverted, v.wantInverted) {
+		if !slices.Equal(gotInverted, v.wantInverted) {
 			t.Errorf("test %d, inverseSparseEntries():\ngot  %v\nwant %v", i, gotInverted, v.wantInverted)
 		}
 	}
@@ -262,16 +260,11 @@ func TestFileInfoHeaderDir(t *testing.T) {
 func TestFileInfoHeaderSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpdir, err := ioutil.TempDir("", "TestFileInfoHeaderSymlink")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	link := filepath.Join(tmpdir, "link")
 	target := tmpdir
-	err = os.Symlink(target, link)
-	if err != nil {
+	if err := os.Symlink(target, link); err != nil {
 		t.Fatal(err)
 	}
 	fi, err := os.Lstat(link)
@@ -327,7 +320,7 @@ func TestRoundTrip(t *testing.T) {
 	if !reflect.DeepEqual(rHdr, hdr) {
 		t.Errorf("Header mismatch.\n got %+v\nwant %+v", rHdr, hdr)
 	}
-	rData, err := ioutil.ReadAll(tr)
+	rData, err := io.ReadAll(tr)
 	if err != nil {
 		t.Fatalf("Read: %v", err)
 	}
@@ -338,7 +331,7 @@ func TestRoundTrip(t *testing.T) {
 
 type headerRoundTripTest struct {
 	h  *Header
-	fm os.FileMode
+	fm fs.FileMode
 }
 
 func TestHeaderRoundTrip(t *testing.T) {
@@ -361,7 +354,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360600852, 0),
 			Typeflag: TypeSymlink,
 		},
-		fm: 0777 | os.ModeSymlink,
+		fm: 0777 | fs.ModeSymlink,
 	}, {
 		// character device node.
 		h: &Header{
@@ -371,7 +364,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360578951, 0),
 			Typeflag: TypeChar,
 		},
-		fm: 0666 | os.ModeDevice | os.ModeCharDevice,
+		fm: 0666 | fs.ModeDevice | fs.ModeCharDevice,
 	}, {
 		// block device node.
 		h: &Header{
@@ -381,7 +374,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360578954, 0),
 			Typeflag: TypeBlock,
 		},
-		fm: 0660 | os.ModeDevice,
+		fm: 0660 | fs.ModeDevice,
 	}, {
 		// directory.
 		h: &Header{
@@ -391,7 +384,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360601116, 0),
 			Typeflag: TypeDir,
 		},
-		fm: 0755 | os.ModeDir,
+		fm: 0755 | fs.ModeDir,
 	}, {
 		// fifo node.
 		h: &Header{
@@ -401,7 +394,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360578949, 0),
 			Typeflag: TypeFifo,
 		},
-		fm: 0600 | os.ModeNamedPipe,
+		fm: 0600 | fs.ModeNamedPipe,
 	}, {
 		// setuid.
 		h: &Header{
@@ -411,7 +404,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1355405093, 0),
 			Typeflag: TypeReg,
 		},
-		fm: 0755 | os.ModeSetuid,
+		fm: 0755 | fs.ModeSetuid,
 	}, {
 		// setguid.
 		h: &Header{
@@ -421,7 +414,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360602346, 0),
 			Typeflag: TypeReg,
 		},
-		fm: 0750 | os.ModeSetgid,
+		fm: 0750 | fs.ModeSetgid,
 	}, {
 		// sticky.
 		h: &Header{
@@ -431,7 +424,7 @@ func TestHeaderRoundTrip(t *testing.T) {
 			ModTime:  time.Unix(1360602540, 0),
 			Typeflag: TypeReg,
 		},
-		fm: 0600 | os.ModeSticky,
+		fm: 0600 | fs.ModeSticky,
 	}, {
 		// hard link.
 		h: &Header{
@@ -749,7 +742,7 @@ func TestHeaderAllowedFormats(t *testing.T) {
 		if formats != v.formats {
 			t.Errorf("test %d, allowedFormats(): got %v, want %v", i, formats, v.formats)
 		}
-		if formats&FormatPAX > 0 && !reflect.DeepEqual(paxHdrs, v.paxHdrs) && !(len(paxHdrs) == 0 && len(v.paxHdrs) == 0) {
+		if formats&FormatPAX > 0 && !maps.Equal(paxHdrs, v.paxHdrs) && !(len(paxHdrs) == 0 && len(v.paxHdrs) == 0) {
 			t.Errorf("test %d, allowedFormats():\ngot  %v\nwant %s", i, paxHdrs, v.paxHdrs)
 		}
 		if (formats != FormatUnknown) && (err != nil) {
@@ -804,9 +797,9 @@ func Benchmark(b *testing.B) {
 			b.Run(v.label, func(b *testing.B) {
 				b.ReportAllocs()
 				for i := 0; i < b.N; i++ {
-					// Writing to ioutil.Discard because we want to
+					// Writing to io.Discard because we want to
 					// test purely the writer code and not bring in disk performance into this.
-					tw := NewWriter(ioutil.Discard)
+					tw := NewWriter(io.Discard)
 					for _, file := range v.files {
 						if err := tw.WriteHeader(file.hdr); err != nil {
 							b.Errorf("unexpected WriteHeader error: %v", err)
@@ -844,7 +837,7 @@ func Benchmark(b *testing.B) {
 					if _, err := tr.Next(); err != nil {
 						b.Errorf("unexpected Next error: %v", err)
 					}
-					if _, err := io.Copy(ioutil.Discard, tr); err != nil {
+					if _, err := io.Copy(io.Discard, tr); err != nil {
 						b.Errorf("unexpected Copy error : %v", err)
 					}
 				}
@@ -852,4 +845,54 @@ func Benchmark(b *testing.B) {
 		}
 	})
 
+}
+
+var _ fileInfoNames = fileInfoNames{}
+
+type fileInfoNames struct{}
+
+func (f *fileInfoNames) Name() string {
+	return "tmp"
+}
+
+func (f *fileInfoNames) Size() int64 {
+	return 0
+}
+
+func (f *fileInfoNames) Mode() fs.FileMode {
+	return 0777
+}
+
+func (f *fileInfoNames) ModTime() time.Time {
+	return time.Time{}
+}
+
+func (f *fileInfoNames) IsDir() bool {
+	return false
+}
+
+func (f *fileInfoNames) Sys() any {
+	return nil
+}
+
+func (f *fileInfoNames) Uname() (string, error) {
+	return "Uname", nil
+}
+
+func (f *fileInfoNames) Gname() (string, error) {
+	return "Gname", nil
+}
+
+func TestFileInfoHeaderUseFileInfoNames(t *testing.T) {
+	info := &fileInfoNames{}
+	header, err := FileInfoHeader(info, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if header.Uname != "Uname" {
+		t.Fatalf("header.Uname: got %s, want %s", header.Uname, "Uname")
+	}
+	if header.Gname != "Gname" {
+		t.Fatalf("header.Gname: got %s, want %s", header.Gname, "Gname")
+	}
 }

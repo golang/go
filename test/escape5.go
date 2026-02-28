@@ -22,19 +22,19 @@ func leaktoret(p *int) *int { // ERROR "leaking param: p to result"
 	return p
 }
 
-func leaktoret2(p *int) (*int, *int) { // ERROR "leaking param: p to result ~r1" "leaking param: p to result ~r2"
+func leaktoret2(p *int) (*int, *int) { // ERROR "leaking param: p to result ~r0" "leaking param: p to result ~r1"
 	return p, p
 }
 
-func leaktoret22(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r2" "leaking param: q to result ~r3"
+func leaktoret22(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r0" "leaking param: q to result ~r1"
 	return p, q
 }
 
-func leaktoret22b(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r3" "leaking param: q to result ~r2"
+func leaktoret22b(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r1" "leaking param: q to result ~r0"
 	return leaktoret22(q, p)
 }
 
-func leaktoret22c(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r3" "leaking param: q to result ~r2"
+func leaktoret22c(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r1" "leaking param: q to result ~r0"
 	r, s := leaktoret22(q, p)
 	return r, s
 }
@@ -151,7 +151,7 @@ func f9() {
 func f10() {
 	// These don't escape but are too big for the stack
 	var x [1 << 30]byte         // ERROR "moved to heap: x"
-	var y = make([]byte, 1<<30) // ERROR "make\(\[\]byte, 1 << 30\) escapes to heap"
+	var y = make([]byte, 1<<30) // ERROR "make\(\[\]byte, 1073741824\) escapes to heap"
 	_ = x[0] + y[0]
 }
 
@@ -173,10 +173,16 @@ type U int
 func (*U) M()   {}
 func (_ *U) N() {}
 
-func _() {
+func fbad24305a() {
 	var u U
 	u.M()
 	u.N()
+}
+
+func fbad24305b() {
+	var u U
+	(*U).M(&u)
+	(*U).N(&u)
 }
 
 // Issue 24730: taking address in a loop causes unnecessary escape
@@ -246,7 +252,7 @@ func f29000(_ int, x interface{}) { // ERROR "leaking param: x"
 
 func g29000() {
 	x := 1
-	f29000(2, x) // ERROR "x escapes to heap"
+	f29000(2, x) // ERROR "1 escapes to heap"
 }
 
 // Issue 28369: taking an address of a parameter and converting it into a uintptr causes an
@@ -261,4 +267,15 @@ func f28369(n int) int {
 	}
 
 	return 1 + f28369(n-1)
+}
+
+// Issue 44614: parameters that flow to a heap-allocated result
+// parameter must be recorded as a heap-flow rather than a
+// result-flow.
+
+// N.B., must match "leaking param: p",
+// but *not* "leaking param: p to result r level=0".
+func f(p *int) (r *int) { // ERROR "leaking param: p$" "moved to heap: r"
+	sink4 = &r
+	return p
 }

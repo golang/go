@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"internal/buildcfg"
 	"log"
 	"os"
 
@@ -19,28 +20,37 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/telemetry/counter"
 )
 
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("asm: ")
+	counter.Open()
 
-	GOARCH := objabi.GOARCH
+	buildcfg.Check()
+	GOARCH := buildcfg.GOARCH
 
-	architecture := arch.Set(GOARCH)
+	flags.Parse()
+	counter.Inc("asm/invocations")
+	counter.CountFlags("asm/flag:", *flag.CommandLine)
+
+	architecture := arch.Set(GOARCH, *flags.Shared || *flags.Dynlink)
 	if architecture == nil {
 		log.Fatalf("unrecognized architecture %s", GOARCH)
 	}
-
-	flags.Parse()
-
 	ctxt := obj.Linknew(architecture.LinkArch)
-	if *flags.PrintOut {
-		ctxt.Debugasm = 1
-	}
+	ctxt.CompressInstructions = flags.DebugFlags.CompressInstructions != 0
+	ctxt.Debugasm = flags.PrintOut
+	ctxt.Debugvlog = flags.DebugV
 	ctxt.Flag_dynlink = *flags.Dynlink
+	ctxt.Flag_linkshared = *flags.Linkshared
 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
-	ctxt.Flag_go115newobj = *flags.Go115Newobj
+	ctxt.Flag_maymorestack = flags.DebugFlags.MayMoreStack
+	ctxt.Debugpcln = flags.DebugFlags.PCTab
+	ctxt.IsAsm = true
+	ctxt.Pkgpath = *flags.Importpath
+	ctxt.DwTextCount = objabi.DummyDwarfFunctionCountForAssembler()
 	switch *flags.Spectre {
 	default:
 		log.Printf("unknown setting -spectre=%s", *flags.Spectre)
@@ -49,7 +59,7 @@ func main() {
 		// nothing
 	case "index":
 		// known to compiler; ignore here so people can use
-		// the same list with -gcflags=-spectre=LIST and -asmflags=-spectrre=LIST
+		// the same list with -gcflags=-spectre=LIST and -asmflags=-spectre=LIST
 	case "all", "ret":
 		ctxt.Retpoline = true
 	}
@@ -67,8 +77,16 @@ func main() {
 	defer buf.Close()
 
 	if !*flags.SymABIs {
-		fmt.Fprintf(buf, "go object %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version)
+		buf.WriteString(objabi.HeaderString())
 		fmt.Fprintf(buf, "!\n")
+	}
+
+	// Set macros for GOEXPERIMENTs so we can easily switch
+	// runtime assembly code based on them.
+	if objabi.LookupPkgSpecial(ctxt.Pkgpath).AllowAsmABI {
+		for _, exp := range buildcfg.Experiment.Enabled() {
+			flags.D = append(flags.D, "GOEXPERIMENT_"+exp)
+		}
 	}
 
 	var ok, diag bool
@@ -76,7 +94,7 @@ func main() {
 	for _, f := range flag.Args() {
 		lexer := lex.NewLexer(f)
 		parser := asm.NewParser(ctxt, architecture, lexer)
-		ctxt.DiagFunc = func(format string, args ...interface{}) {
+		ctxt.DiagFunc = func(format string, args ...any) {
 			diag = true
 			log.Printf(format, args...)
 		}
@@ -87,7 +105,7 @@ func main() {
 			pList.Firstpc, ok = parser.Parse()
 			// reports errors to parser.Errorf
 			if ok {
-				obj.Flushplist(ctxt, pList, nil, *flags.Importpath)
+				obj.Flushplist(ctxt, pList, nil)
 			}
 		}
 		if !ok {
@@ -96,8 +114,8 @@ func main() {
 		}
 	}
 	if ok && !*flags.SymABIs {
-		ctxt.NumberSyms(true)
-		obj.WriteObjFile(ctxt, buf, "")
+		ctxt.NumberSyms()
+		obj.WriteObjFile(ctxt, buf)
 	}
 	if !ok || diag {
 		if failedFile != "" {

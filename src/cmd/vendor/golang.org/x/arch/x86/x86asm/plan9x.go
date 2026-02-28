@@ -66,6 +66,10 @@ func GoSyntax(inst Inst, pc uint64, symname SymLookup) string {
 		s := inst.DataSize
 		if inst.MemBytes != 0 {
 			s = inst.MemBytes * 8
+		} else if inst.Args[1] == nil { // look for register-only 64-bit instruction, like PUSHQ AX
+			if r, ok := inst.Args[0].(Reg); ok && RAX <= r && r <= R15 {
+				s = 64
+			}
 		}
 		switch s {
 		case 8:
@@ -77,6 +81,12 @@ func GoSyntax(inst Inst, pc uint64, symname SymLookup) string {
 		case 64:
 			op += "Q"
 		}
+	}
+
+	if inst.Op == CMP {
+		// Use reads-left-to-right ordering for comparisons.
+		// See issue 60920.
+		args[0], args[1] = args[1], args[0]
 	}
 
 	if args != nil {
@@ -106,12 +116,23 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 		return fmt.Sprintf("%#x", addr)
 
 	case Imm:
-		if s, base := symname(uint64(a)); s != "" {
-			suffix := ""
-			if uint64(a) != base {
-				suffix = fmt.Sprintf("%+d", uint64(a)-base)
+		if (inst.Op == MOV || inst.Op == PUSH) && inst.DataSize == 32 {
+			// Only try to convert an immediate to a symbol in certain
+			// special circumstances. See issue 72942.
+			//
+			// On 64-bit, symbol addresses always hit the Mem case below.
+			// Particularly, we use LEAQ to materialize the address of
+			// a global or function.
+			//
+			// On 32-bit, we sometimes use MOVL. Still try to symbolize
+			// those immediates.
+			if s, base := symname(uint64(a)); s != "" {
+				suffix := ""
+				if uint64(a) != base {
+					suffix = fmt.Sprintf("%+d", uint64(a)-base)
+				}
+				return fmt.Sprintf("$%s%s(SB)", s, suffix)
 			}
-			return fmt.Sprintf("$%s%s(SB)", s, suffix)
 		}
 		if inst.Mode == 32 {
 			return fmt.Sprintf("$%#x", uint32(a))
@@ -204,6 +225,7 @@ var plan9Suffix = [maxOp + 1]bool{
 	OUT:       true,
 	POP:       true,
 	POPA:      true,
+	POPCNT:    true,
 	PUSH:      true,
 	PUSHA:     true,
 	RCL:       true,

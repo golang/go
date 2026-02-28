@@ -9,14 +9,10 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
+#include "cgo/abi_arm64.h"
 
 #define CLOCK_REALTIME		0
 #define CLOCK_MONOTONIC		3
-#define FD_CLOEXEC		1
-#define F_SETFD			2
-#define F_GETFL			3
-#define F_SETFL			4
-#define O_NONBLOCK		4
 
 #define SYS_exit			1
 #define SYS_read			3
@@ -32,6 +28,7 @@
 #define SYS___sysctl			202
 #define SYS___sigaltstack14		281
 #define SYS___sigprocmask14		293
+#define SYS_issetugid			305
 #define SYS_getcontext			307
 #define SYS_setcontext			308
 #define SYS__lwp_create			309
@@ -76,6 +73,10 @@ nog:
 	MOVD	$0, R0  // crash (not reached)
 	MOVD	R0, (R8)
 
+TEXT ·netbsdMstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	·netbsdMstart0(SB)
+	RET // not reached
+
 TEXT runtime·osyield(SB),NOSPLIT,$0
 	SVC	$SYS_sched_yield
 	RET
@@ -110,7 +111,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
 	MOVD	$0, R0			// If we're still running,
 	MOVD	R0, (R0)		// crash
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-8
 	MOVD	wait+0(FP), R0
 	// We're done using the stack.
@@ -150,30 +151,14 @@ ok:
 	MOVW	R0, ret+24(FP)
 	RET
 
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	MOVW	$0, R0
-	SVC	$SYS_pipe2
-	BCC	pipeok
-	MOVW	$-1,R1
-	MOVW	R1, r+0(FP)
-	MOVW	R1, w+4(FP)
-	NEG	R0, R0
-	MOVW	R0, errno+8(FP)
-	RET
-pipeok:
-	MOVW	R0, r+0(FP)
-	MOVW	R1, w+4(FP)
-	MOVW	ZR, errno+8(FP)
-	RET
-
 // func pipe2(flags int32) (r, w int32, errno int32)
 TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
-	ADD	$8, RSP, R0
+	ADD	$16, RSP, R0
 	MOVW	flags+0(FP), R1
 	SVC	$SYS_pipe2
-	BCC	2(PC)
+	BCC	pipe2ok
 	NEG	R0, R0
+pipe2ok:
 	MOVW	R0, errno+16(FP)
 	RET
 
@@ -225,8 +210,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
 	SVC	$SYS___setitimer50
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB), NOSPLIT, $32
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVW	$CLOCK_REALTIME, R0	// arg 1 - clock_id
 	MOVD	$8(RSP), R1		// arg 2 - tp
 	SVC	$SYS___clock_gettime50
@@ -280,8 +265,8 @@ fail:
 TEXT sigreturn_tramp<>(SB),NOSPLIT,$-8
 	MOVD	g, R0
 	SVC	$SYS_setcontext
-	MOVD	$0x4242, R0		// Something failed, return magic number
-	SVC	$SYS_exit
+	MOVD	$0, R0
+	MOVD	R0, (R0)		// crash
 
 TEXT runtime·sigaction(SB),NOSPLIT,$-8
 	MOVW	sig+0(FP), R0		// arg 1 - signum
@@ -306,28 +291,17 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	BL	(R11)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$192
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$176
 	// Save callee-save registers in the case of signal forwarding.
 	// Please refer to https://golang.org/issue/31827 .
-	MOVD	R19, 8*4(RSP)
-	MOVD	R20, 8*5(RSP)
-	MOVD	R21, 8*6(RSP)
-	MOVD	R22, 8*7(RSP)
-	MOVD	R23, 8*8(RSP)
-	MOVD	R24, 8*9(RSP)
-	MOVD	R25, 8*10(RSP)
-	MOVD	R26, 8*11(RSP)
-	MOVD	R27, 8*12(RSP)
-	MOVD	g, 8*13(RSP)
-	MOVD	R29, 8*14(RSP)
-	FMOVD	F8, 8*15(RSP)
-	FMOVD	F9, 8*16(RSP)
-	FMOVD	F10, 8*17(RSP)
-	FMOVD	F11, 8*18(RSP)
-	FMOVD	F12, 8*19(RSP)
-	FMOVD	F13, 8*20(RSP)
-	FMOVD	F14, 8*21(RSP)
-	FMOVD	F15, 8*22(RSP)
+	SAVE_R19_TO_R28(8*4)
+	SAVE_F8_TO_F15(8*14)
+	// Unclobber g for now (kernel uses it as ucontext ptr)
+	// See https://github.com/golang/go/issues/30824#issuecomment-492772426
+	// This is only correct in the non-cgo case.
+	// XXX should use lwp_getprivate as suggested.
+	// 8*36 is ucontext.uc_mcontext.__gregs[_REG_X28]
+	MOVD	8*36(g), g
 
 	// this might be called in external code context,
 	// where g is not set.
@@ -339,30 +313,14 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$192
 	BEQ	2(PC)
 	BL	runtime·load_g(SB)
 
-	MOVD	R1, 16(RSP)
-	MOVD	R2, 24(RSP)
-	BL	runtime·sigtrampgo(SB)
+	// Restore signum to R0.
+	MOVW	8(RSP), R0
+	// R1 and R2 already contain info and ctx, respectively.
+	BL	runtime·sigtrampgo<ABIInternal>(SB)
 
 	// Restore callee-save registers.
-	MOVD	8*4(RSP), R19
-	MOVD	8*5(RSP), R20
-	MOVD	8*6(RSP), R21
-	MOVD	8*7(RSP), R22
-	MOVD	8*8(RSP), R23
-	MOVD	8*9(RSP), R24
-	MOVD	8*10(RSP), R25
-	MOVD	8*11(RSP), R26
-	MOVD	8*12(RSP), R27
-	MOVD	8*13(RSP), g
-	MOVD	8*14(RSP), R29
-	FMOVD	8*15(RSP), F8
-	FMOVD	8*16(RSP), F9
-	FMOVD	8*17(RSP), F10
-	FMOVD	8*18(RSP), F11
-	FMOVD	8*19(RSP), F12
-	FMOVD	8*20(RSP), F13
-	FMOVD	8*21(RSP), F14
-	FMOVD	8*22(RSP), F15
+	RESTORE_R19_TO_R28(8*4)
+	RESTORE_F8_TO_F15(8*14)
 
 	RET
 
@@ -454,23 +412,24 @@ ok:
 	MOVW	R0, ret+48(FP)
 	RET
 
-// void runtime·closeonexec(int32 fd)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVW	fd+0(FP), R0		// arg 1 - fd
-	MOVW	$F_SETFD, R1
-	MOVW	$FD_CLOEXEC, R2
+// func fcntl(fd, cmd, arg int32) (int32, int32)
+TEXT runtime·fcntl(SB),NOSPLIT,$0
+	MOVW	fd+0(FP), R0	// fd
+	MOVW	cmd+4(FP), R1	// cmd
+	MOVW	arg+8(FP), R2	// arg
 	SVC	$SYS_fcntl
+	BCC	noerr
+	MOVW	$-1, R1
+	MOVW	R1, ret+16(FP)
+	MOVW	R0, errno+20(FP)
+	RET
+noerr:
+	MOVW	R0, ret+16(FP)
+	MOVW	$0, errno+20(FP)
 	RET
 
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	fd+0(FP), R0		// arg 1 - fd
-	MOVD	$F_GETFL, R1		// arg 2 - cmd
-	MOVD	$0, R2			// arg 3
-	SVC	$SYS_fcntl
-	MOVD	$O_NONBLOCK, R2
-	EOR	R0, R2			// arg 3 - flags
-	MOVW	fd+0(FP), R0		// arg 1 - fd
-	MOVD	$F_SETFL, R1		// arg 2 - cmd
-	SVC	$SYS_fcntl
+// func issetugid() int32
+TEXT runtime·issetugid(SB),NOSPLIT|NOFRAME,$0
+	SVC $SYS_issetugid
+	MOVW	R0, ret+0(FP)
 	RET

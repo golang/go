@@ -35,6 +35,9 @@ go clean -modcache
 ! stderr 'finding rsc.io'
 go mod edit -droprequire rsc.io/quote
 
+! go clean -modcache m
+stderr 'go: clean -modcache cannot be used with package arguments'
+
 -- go.mod --
 module m
 -- m.go --

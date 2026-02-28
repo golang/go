@@ -1,0 +1,72 @@
+
+# Testcase for issue 64661.  This testcase is intended to verify that
+# we don't try to send swig-generated Go files through the cover tool
+# for "go test -cover" runs on packages that have *.swig source files.
+
+[!exec:swig] skip
+[!cgo] skip
+
+go test -v -count=1 -coverprofile=foo.p
+stdout 'coverage: 100.0% of statements'
+
+-- go.mod --
+module simple
+
+go 1.21
+-- main.c --
+/* A global variable */
+double Foo = 3.0;
+
+/* Compute the greatest common divisor of positive integers */
+int gcd(int x, int y) {
+  int g;
+  g = y;
+  while (x > 0) {
+    g = x;
+    x = y % x;
+    y = g;
+  }
+  return g;
+}
+
+
+-- main.go --
+package main
+
+import (
+	"fmt"
+)
+
+func main() {
+	// Call our gcd() function
+	x := 42
+	y := 105
+	g := Gcd(x, y)
+	fmt.Println("The gcd of", x, "and", y, "is", g)
+
+	// Manipulate the Foo global variable
+
+	// Output its current value
+	fmt.Println("Foo =", GetFoo())
+
+	// Change its value
+	SetFoo(3.1415926)
+
+	// See if the change took effect
+	fmt.Println("Foo =", GetFoo())
+}
+-- main.swig --
+%module main
+
+%inline %{
+extern int    gcd(int x, int y);
+extern double Foo;
+%}
+-- main_test.go --
+package main
+
+import "testing"
+
+func TestSwigFuncs(t *testing.T) {
+	main()
+}

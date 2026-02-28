@@ -1,5 +1,6 @@
-// +build !nacl,!js,!windows
 // run
+
+//go:build !nacl && !js && !wasip1 && gc
 
 // Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -29,10 +30,17 @@ func main() {
 		return filepath.Join(tmpDir, name)
 	}
 
-	run("go", "tool", "compile", "-N", "-o", tmp("slow.o"), "pkg.go")
-	run("go", "tool", "compile", "-o", tmp("fast.o"), "pkg.go")
-	run("go", "tool", "compile", "-D", tmpDir, "-o", tmp("main.o"), "main.go")
-	run("go", "tool", "link", "-o", tmp("a.exe"), tmp("main.o"))
+	check(os.Mkdir(tmp("test"), 0777))
+
+	stdlibimportcfg, err := os.ReadFile(os.Getenv("STDLIB_IMPORTCFG"))
+	check(err)
+	importcfg := string(stdlibimportcfg) + "\npackagefile test/slow=" + tmp("test/slow.o") + "\npackagefile test/fast=" + tmp("test/fast.o")
+	os.WriteFile(tmp("importcfg"), []byte(importcfg), 0644)
+
+	run("go", "tool", "compile", "-importcfg="+tmp("importcfg"), "-p=test/slow", "-N", "-o", tmp("test/slow.o"), "pkg.go")
+	run("go", "tool", "compile", "-importcfg="+tmp("importcfg"), "-p=test/fast", "-o", tmp("test/fast.o"), "pkg.go")
+	run("go", "tool", "compile", "-importcfg="+tmp("importcfg"), "-p=main", "-D", "test", "-o", tmp("main.o"), "main.go")
+	run("go", "tool", "link", "-importcfg="+tmp("importcfg"), "-o", tmp("a.exe"), tmp("main.o"))
 	run(tmp("a.exe"))
 }
 

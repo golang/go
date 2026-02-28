@@ -20,7 +20,7 @@ func medium(a []int) int { // ERROR "can inline medium with cost .* as:.*" "a do
 	return a[0] + a[1] + a[2] + a[3] + a[4] + a[5] + a[6] + a[7]
 }
 
-func f(a []int) int { // ERROR "cannot inline f:.*" "a does not escape"
+func f(a []int) int { // ERROR "cannot inline f:.*" "a does not escape" "function f considered 'big'"
 	// Add lots of nodes to f's body. We need >5000.
 	// See cmd/compile/internal/gc/inl.go:inlineBigFunction*
 	a[0] = 0
@@ -1023,7 +1023,7 @@ func f(a []int) int { // ERROR "cannot inline f:.*" "a does not escape"
 	a[997] = 0
 	a[998] = 0
 	a[999] = 0
-	x := small(a)  // ERROR "inlining call to small .*"
+	x := small(a)  // ERROR "inlining call to small"
 	y := medium(a) // The crux of this test: medium is not inlined.
 	return x + y
 }

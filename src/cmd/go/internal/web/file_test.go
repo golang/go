@@ -6,7 +6,7 @@ package web
 
 import (
 	"errors"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,7 +15,7 @@ import (
 func TestGetFileURL(t *testing.T) {
 	const content = "Hello, file!\n"
 
-	f, err := ioutil.TempFile("", "web-TestGetFileURL")
+	f, err := os.CreateTemp("", "web-TestGetFileURL")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestGetNonexistentFile(t *testing.T) {
 	}
 
 	b, err := GetBytes(u)
-	if !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("GetBytes(%v) = %q, %v; want _, os.ErrNotExist", u, b, err)
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("GetBytes(%v) = %q, %v; want _, fs.ErrNotExist", u, b, err)
 	}
 }

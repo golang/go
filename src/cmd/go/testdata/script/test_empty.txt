@@ -23,6 +23,10 @@ go test -cover -coverpkg=. -race
 cd $GOPATH/src/empty/testxtest
 go test -cover -coverpkg=. -race
 
+-- empty/go.mod --
+module empty
+
+go 1.16
 -- empty/pkg/pkg.go --
 package p
 -- empty/pkgtest/pkg.go --

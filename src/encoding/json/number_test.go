@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !goexperiment.jsonv2
+
 package json
 
 import (
@@ -114,20 +116,5 @@ func TestNumberIsValid(t *testing.T) {
 		if jsonNumberRegexp.MatchString(test) {
 			t.Errorf("%s should be invalid but matches regexp", test)
 		}
-	}
-}
-
-func BenchmarkNumberIsValid(b *testing.B) {
-	s := "-61657.61667E+61673"
-	for i := 0; i < b.N; i++ {
-		isValidNumber(s)
-	}
-}
-
-func BenchmarkNumberIsValidRegexp(b *testing.B) {
-	var jsonNumberRegexp = regexp.MustCompile(`^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$`)
-	s := "-61657.61667E+61673"
-	for i := 0; i < b.N; i++ {
-		jsonNumberRegexp.MatchString(s)
 	}
 }

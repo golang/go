@@ -36,8 +36,9 @@ TEXT cmpbody<>(SB),NOSPLIT,$0-0
 	JEQ	allsame
 	CMPL	BP, $4
 	JB	small
-	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
-	JNE	mediumloop
+#ifdef GO386_softfloat
+	JMP	mediumloop
+#endif
 largeloop:
 	CMPL	BP, $16
 	JB	mediumloop

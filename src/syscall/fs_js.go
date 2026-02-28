@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build js,wasm
+//go:build js && wasm
 
 package syscall
 
 import (
 	"errors"
-	"io"
 	"sync"
 	"syscall/js"
 )
@@ -17,6 +16,7 @@ import (
 func now() (sec int64, nsec int32)
 
 var jsProcess = js.Global().Get("process")
+var jsPath = js.Global().Get("path")
 var jsFS = js.Global().Get("fs")
 var constants = jsFS.Get("constants")
 
@@ -29,7 +29,19 @@ var (
 	nodeTRUNC  = constants.Get("O_TRUNC").Int()
 	nodeAPPEND = constants.Get("O_APPEND").Int()
 	nodeEXCL   = constants.Get("O_EXCL").Int()
+
+	// NodeJS on Windows does not support O_DIRECTORY, so we default
+	// to -1 and assign it in init if available.
+	// See https://nodejs.org/docs/latest/api/fs.html#file-open-constants.
+	nodeDIRECTORY = -1
 )
+
+func init() {
+	oDir := constants.Get("O_DIRECTORY")
+	if !oDir.IsUndefined() {
+		nodeDIRECTORY = oDir.Int()
+	}
+}
 
 type jsFile struct {
 	path    string
@@ -83,6 +95,13 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 	if openmode&O_SYNC != 0 {
 		return 0, errors.New("syscall.Open: O_SYNC is not supported by js/wasm")
 	}
+	if openmode&O_DIRECTORY != 0 {
+		if nodeDIRECTORY != -1 {
+			flags |= nodeDIRECTORY
+		} else {
+			return 0, errors.New("syscall.Open: O_DIRECTORY is not supported on Windows")
+		}
+	}
 
 	jsFD, err := fsCall("open", path, flags, perm)
 	if err != nil {
@@ -102,10 +121,8 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 		}
 	}
 
-	if path[0] != '/' {
-		cwd := jsProcess.Call("cwd").String()
-		path = cwd + "/" + path
-	}
+	path = jsPath.Call("resolve", path).String()
+
 	f := &jsFile{
 		path:    path,
 		entries: entries,
@@ -274,6 +291,8 @@ func Lchown(path string, uid, gid int) error {
 }
 
 func UtimesNano(path string, ts []Timespec) error {
+	// UTIME_OMIT value must match internal/syscall/unix/at_js.go
+	const UTIME_OMIT = -0x2
 	if err := checkPath(path); err != nil {
 		return err
 	}
@@ -282,6 +301,18 @@ func UtimesNano(path string, ts []Timespec) error {
 	}
 	atime := ts[0].Sec
 	mtime := ts[1].Sec
+	if atime == UTIME_OMIT || mtime == UTIME_OMIT {
+		var st Stat_t
+		if err := Stat(path, &st); err != nil {
+			return err
+		}
+		if atime == UTIME_OMIT {
+			atime = st.Atime
+		}
+		if mtime == UTIME_OMIT {
+			mtime = st.Mtime
+		}
+	}
 	_, err := fsCall("utimes", path, atime, mtime)
 	return err
 }
@@ -456,11 +487,11 @@ func Seek(fd int, offset int64, whence int) (int64, error) {
 
 	var newPos int64
 	switch whence {
-	case io.SeekStart:
+	case 0:
 		newPos = offset
-	case io.SeekCurrent:
+	case 1:
 		newPos = f.pos + offset
-	case io.SeekEnd:
+	case 2:
 		var st Stat_t
 		if err := Fstat(fd, &st); err != nil {
 			return 0, err
@@ -492,14 +523,14 @@ func Pipe(fd []int) error {
 	return ENOSYS
 }
 
-func fsCall(name string, args ...interface{}) (js.Value, error) {
+func fsCall(name string, args ...any) (js.Value, error) {
 	type callResult struct {
 		val js.Value
 		err error
 	}
 
 	c := make(chan callResult, 1)
-	f := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	f := js.FuncOf(func(this js.Value, args []js.Value) any {
 		var res callResult
 
 		if len(args) >= 1 { // on Node.js 8, fs.utimes calls the callback without any arguments
@@ -545,7 +576,7 @@ func recoverErr(errPtr *error) {
 	}
 }
 
-// mapJSError maps an error given by Node.js to the appropriate Go error
+// mapJSError maps an error given by Node.js to the appropriate Go error.
 func mapJSError(jsErr js.Value) error {
 	errno, ok := errnoByCode[jsErr.Get("code").String()]
 	if !ok {

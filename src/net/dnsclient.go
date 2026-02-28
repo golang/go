@@ -5,11 +5,27 @@
 package net
 
 import (
-	"math/rand"
-	"sort"
+	"cmp"
+	"internal/bytealg"
+	"internal/strconv"
+	"slices"
+	_ "unsafe" // for go:linkname
 
 	"golang.org/x/net/dns/dnsmessage"
 )
+
+// provided by runtime
+//
+//go:linkname runtime_rand runtime.rand
+func runtime_rand() uint64
+
+func randInt() int {
+	return int(uint(runtime_rand()) >> 1) // clear sign bit
+}
+
+func randIntn(n int) int {
+	return randInt() % n
+}
 
 // reverseaddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
 // address addr suitable for rDNS (PTR) record lookup or an error if it fails
@@ -20,7 +36,7 @@ func reverseaddr(addr string) (arpa string, err error) {
 		return "", &DNSError{Err: "unrecognized address", Name: addr}
 	}
 	if ip.To4() != nil {
-		return uitoa(uint(ip[15])) + "." + uitoa(uint(ip[14])) + "." + uitoa(uint(ip[13])) + "." + uitoa(uint(ip[12])) + ".in-addr.arpa.", nil
+		return strconv.Itoa(int(ip[15])) + "." + strconv.Itoa(int(ip[14])) + "." + strconv.Itoa(int(ip[13])) + "." + strconv.Itoa(int(ip[12])) + ".in-addr.arpa.", nil
 	}
 	// Must be IPv6
 	buf := make([]byte, 0, len(ip)*4+len("ip6.arpa."))
@@ -60,7 +76,22 @@ func equalASCIIName(x, y dnsmessage.Name) bool {
 // isDomainName checks if a string is a presentation-format domain name
 // (currently restricted to hostname-compatible "preferred name" LDH labels and
 // SRV-like "underscore labels"; see golang.org/issue/12421).
+//
+// isDomainName should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/sagernet/sing
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname isDomainName
 func isDomainName(s string) bool {
+	// The root domain name is valid. See golang.org/issue/45715.
+	if s == "." {
+		return true
+	}
+
 	// See RFC 1035, RFC 3696.
 	// Presentation format has dots before every label except the first, and the
 	// terminal empty label is optional here because we assume fully-qualified
@@ -122,18 +153,11 @@ func isDomainName(s string) bool {
 // It's hard to tell so we settle on the heuristic that names without dots
 // (like "localhost" or "myhost") do not get trailing dots, but any other
 // names do.
-func absDomainName(b []byte) string {
-	hasDots := false
-	for _, x := range b {
-		if x == '.' {
-			hasDots = true
-			break
-		}
+func absDomainName(s string) string {
+	if bytealg.IndexByteString(s, '.') != -1 && s[len(s)-1] != '.' {
+		s += "."
 	}
-	if hasDots && b[len(b)-1] != '.' {
-		b = append(b, '.')
-	}
-	return string(b)
+	return s
 }
 
 // An SRV represents a single DNS SRV record.
@@ -147,12 +171,6 @@ type SRV struct {
 // byPriorityWeight sorts SRV records by ascending priority and weight.
 type byPriorityWeight []*SRV
 
-func (s byPriorityWeight) Len() int { return len(s) }
-func (s byPriorityWeight) Less(i, j int) bool {
-	return s[i].Priority < s[j].Priority || (s[i].Priority == s[j].Priority && s[i].Weight < s[j].Weight)
-}
-func (s byPriorityWeight) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
 // shuffleByWeight shuffles SRV records by weight using the algorithm
 // described in RFC 2782.
 func (addrs byPriorityWeight) shuffleByWeight() {
@@ -162,7 +180,7 @@ func (addrs byPriorityWeight) shuffleByWeight() {
 	}
 	for sum > 0 && len(addrs) > 1 {
 		s := 0
-		n := rand.Intn(sum)
+		n := randIntn(sum)
 		for i := range addrs {
 			s += int(addrs[i].Weight)
 			if s > n {
@@ -179,7 +197,12 @@ func (addrs byPriorityWeight) shuffleByWeight() {
 
 // sort reorders SRV records as specified in RFC 2782.
 func (addrs byPriorityWeight) sort() {
-	sort.Sort(addrs)
+	slices.SortFunc(addrs, func(a, b *SRV) int {
+		if r := cmp.Compare(a.Priority, b.Priority); r != 0 {
+			return r
+		}
+		return cmp.Compare(a.Weight, b.Weight)
+	})
 	i := 0
 	for j := 1; j < len(addrs); j++ {
 		if addrs[i].Priority != addrs[j].Priority {
@@ -196,20 +219,18 @@ type MX struct {
 	Pref uint16
 }
 
-// byPref implements sort.Interface to sort MX records by preference
+// byPref sorts MX records by preference
 type byPref []*MX
-
-func (s byPref) Len() int           { return len(s) }
-func (s byPref) Less(i, j int) bool { return s[i].Pref < s[j].Pref }
-func (s byPref) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // sort reorders MX records as specified in RFC 5321.
 func (s byPref) sort() {
 	for i := range s {
-		j := rand.Intn(i + 1)
+		j := randIntn(i + 1)
 		s[i], s[j] = s[j], s[i]
 	}
-	sort.Sort(s)
+	slices.SortFunc(s, func(a, b *MX) int {
+		return cmp.Compare(a.Pref, b.Pref)
+	})
 }
 
 // An NS represents a single DNS NS record.

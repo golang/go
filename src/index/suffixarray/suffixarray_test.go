@@ -7,11 +7,12 @@ package suffixarray
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -141,7 +142,7 @@ func testLookup(t *testing.T, tc *testCase, x *Index, s string, n int) {
 	// we cannot simply check that the res and exp lists are equal
 
 	// check that each result is in fact a correct match and there are no duplicates
-	sort.Ints(res)
+	slices.Sort(res)
 	for i, r := range res {
 		if r < 0 || len(tc.source) <= r {
 			t.Errorf("test %q, lookup %q, result %d (n = %d): index %d out of range [0, %d[", tc.name, s, i, n, r, len(tc.source))
@@ -498,14 +499,14 @@ func makeText(name string) ([]byte, error) {
 	switch name {
 	case "opticks":
 		var err error
-		data, err = ioutil.ReadFile("../../testdata/Isaac.Newton-Opticks.txt")
+		data, err = os.ReadFile("../../testdata/Isaac.Newton-Opticks.txt")
 		if err != nil {
 			return nil, err
 		}
 	case "go":
-		err := filepath.Walk("../..", func(path string, info os.FileInfo, err error) error {
+		err := filepath.WalkDir("../..", func(path string, info fs.DirEntry, err error) error {
 			if err == nil && strings.HasSuffix(path, ".go") && !info.IsDir() {
-				file, err := ioutil.ReadFile(path)
+				file, err := os.ReadFile(path)
 				if err != nil {
 					return err
 				}

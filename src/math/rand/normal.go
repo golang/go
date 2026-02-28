@@ -28,13 +28,12 @@ func absInt32(i int32) uint32 {
 }
 
 // NormFloat64 returns a normally distributed float64 in
-// the range -math.MaxFloat64 through +math.MaxFloat64 inclusive,
+// the range -[math.MaxFloat64] through +[math.MaxFloat64] inclusive,
 // with standard normal distribution (mean = 0, stddev = 1).
 // To produce a different normal distribution, callers can
 // adjust the output using:
 //
-//  sample = NormFloat64() * desiredStdDev + desiredMean
-//
+//	sample = NormFloat64() * desiredStdDev + desiredMean
 func (r *Rand) NormFloat64() float64 {
 	for {
 		j := int32(r.Uint32()) // Possibly negative

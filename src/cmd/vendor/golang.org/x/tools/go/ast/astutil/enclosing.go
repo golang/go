@@ -20,9 +20,9 @@ import (
 // additional whitespace abutting a node to be enclosed by it.
 // In this example:
 //
-//              z := x + y // add them
-//                   <-A->
-//                  <----B----->
+//	z := x + y // add them
+//	     <-A->
+//	    <----B----->
 //
 // the ast.BinaryExpr(+) node is considered to enclose interval B
 // even though its [Pos()..End()) is actually only interval A.
@@ -41,10 +41,10 @@ import (
 // interior whitespace of path[0].
 // In this example:
 //
-//              z := x + y // add them
-//                <--C-->     <---E-->
-//                  ^
-//                  D
+//	z := x + y // add them
+//	  <--C-->     <---E-->
+//	    ^
+//	    D
 //
 // intervals C, D and E are inexact.  C is contained by the
 // z-assignment statement, because it spans three of its children (:=,
@@ -52,12 +52,11 @@ import (
 // interior whitespace of the assignment.  E is considered interior
 // whitespace of the BlockStmt containing the assignment.
 //
-// Precondition: [start, end) both lie within the same file as root.
-// TODO(adonovan): return (nil, false) in this case and remove precond.
-// Requires FileSet; see loader.tokenFileContainsPos.
-//
-// Postcondition: path is never nil; it always contains at least 'root'.
-//
+// The resulting path is never empty; it always contains at least the
+// 'root' *ast.File.  Ideally PathEnclosingInterval would reject
+// intervals that lie wholly or partially outside the range of the
+// file, but unfortunately ast.File records only the token.Pos of
+// the 'package' keyword, but not of the start of the file itself.
 func PathEnclosingInterval(root *ast.File, start, end token.Pos) (path []ast.Node, exact bool) {
 	// fmt.Printf("EnclosingInterval %d %d\n", start, end) // debugging
 
@@ -107,8 +106,21 @@ func PathEnclosingInterval(root *ast.File, start, end token.Pos) (path []ast.Nod
 
 			// Does augmented child strictly contain [start, end)?
 			if augPos <= start && end <= augEnd {
-				_, isToken := child.(tokenNode)
-				return isToken || visit(child)
+				if is[tokenNode](child) {
+					return true
+				}
+
+				// childrenOf elides the FuncType node beneath FuncDecl.
+				// Add it back here for TypeParams, Params, Results,
+				// all FieldLists). But we don't add it back for the "func" token
+				// even though it is the tree at FuncDecl.Type.Func.
+				if decl, ok := node.(*ast.FuncDecl); ok {
+					if fields, ok := child.(*ast.FieldList); ok && fields != decl.Recv {
+						path = append(path, decl.Type)
+					}
+				}
+
+				return visit(child)
 			}
 
 			// Does [start, end) overlap multiple children?
@@ -133,6 +145,7 @@ func PathEnclosingInterval(root *ast.File, start, end token.Pos) (path []ast.Nod
 		return false // inexact: overlaps multiple children
 	}
 
+	// Ensure [start,end) is nondecreasing.
 	if start > end {
 		start, end = end, start
 	}
@@ -160,7 +173,6 @@ func PathEnclosingInterval(root *ast.File, start, end token.Pos) (path []ast.Nod
 // tokenNode is a dummy implementation of ast.Node for a single token.
 // They are used transiently by PathEnclosingInterval but never escape
 // this package.
-//
 type tokenNode struct {
 	pos token.Pos
 	end token.Pos
@@ -181,7 +193,6 @@ func tok(pos token.Pos, len int) ast.Node {
 // childrenOf returns the direct non-nil children of ast.Node n.
 // It may include fake ast.Node implementations for bare tokens.
 // it is not safe to call (e.g.) ast.Walk on such nodes.
-//
 func childrenOf(n ast.Node) []ast.Node {
 	var children []ast.Node
 
@@ -195,6 +206,9 @@ func childrenOf(n ast.Node) []ast.Node {
 		}
 		return false // no recursion
 	})
+
+	// TODO(adonovan): be more careful about missing (!Pos.Valid)
+	// tokens in trees produced from invalid input.
 
 	// Then add fake Nodes for bare tokens.
 	switch n := n.(type) {
@@ -215,9 +229,12 @@ func childrenOf(n ast.Node) []ast.Node {
 		children = append(children, tok(n.OpPos, len(n.Op.String())))
 
 	case *ast.BlockStmt:
-		children = append(children,
-			tok(n.Lbrace, len("{")),
-			tok(n.Rbrace, len("}")))
+		if n.Lbrace.IsValid() {
+			children = append(children, tok(n.Lbrace, len("{")))
+		}
+		if n.Rbrace.IsValid() {
+			children = append(children, tok(n.Rbrace, len("}")))
+		}
 
 	case *ast.BranchStmt:
 		children = append(children,
@@ -293,9 +310,12 @@ func childrenOf(n ast.Node) []ast.Node {
 		// TODO(adonovan): Field.{Doc,Comment,Tag}?
 
 	case *ast.FieldList:
-		children = append(children,
-			tok(n.Opening, len("(")),
-			tok(n.Closing, len(")")))
+		if n.Opening.IsValid() {
+			children = append(children, tok(n.Opening, len("(")))
+		}
+		if n.Closing.IsValid() {
+			children = append(children, tok(n.Closing, len(")")))
+		}
 
 	case *ast.File:
 		// TODO test: Doc
@@ -315,6 +335,8 @@ func childrenOf(n ast.Node) []ast.Node {
 		//
 		// As a workaround, we inline the case for FuncType
 		// here and order things correctly.
+		// We also need to insert the elided FuncType just
+		// before the 'visit' recursion.
 		//
 		children = nil // discard ast.Walk(FuncDecl) info subtrees
 		children = append(children, tok(n.Type.Func, len("func")))
@@ -322,6 +344,9 @@ func childrenOf(n ast.Node) []ast.Node {
 			children = append(children, n.Recv)
 		}
 		children = append(children, n.Name)
+		if tparams := n.Type.TypeParams; tparams != nil {
+			children = append(children, tparams)
+		}
 		if n.Type.Params != nil {
 			children = append(children, n.Type.Params)
 		}
@@ -371,8 +396,13 @@ func childrenOf(n ast.Node) []ast.Node {
 
 	case *ast.IndexExpr:
 		children = append(children,
-			tok(n.Lbrack, len("{")),
-			tok(n.Rbrack, len("}")))
+			tok(n.Lbrack, len("[")),
+			tok(n.Rbrack, len("]")))
+
+	case *ast.IndexListExpr:
+		children = append(children,
+			tok(n.Lbrack, len("[")),
+			tok(n.Rbrack, len("]")))
 
 	case *ast.InterfaceType:
 		children = append(children,
@@ -478,7 +508,6 @@ func (sl byPos) Swap(i, j int) {
 // TODO(adonovan): in some cases (e.g. Field, FieldList, Ident,
 // StarExpr) we could be much more specific given the path to the AST
 // root.  Perhaps we should do that.
-//
 func NodeDescription(n ast.Node) string {
 	switch n := n.(type) {
 	case *ast.ArrayType:
@@ -581,6 +610,8 @@ func NodeDescription(n ast.Node) string {
 		return "decrement statement"
 	case *ast.IndexExpr:
 		return "index expression"
+	case *ast.IndexListExpr:
+		return "index list expression"
 	case *ast.InterfaceType:
 		return "interface type"
 	case *ast.KeyValueExpr:
@@ -624,4 +655,9 @@ func NodeDescription(n ast.Node) string {
 
 	}
 	panic(fmt.Sprintf("unexpected node type: %T", n))
+}
+
+func is[T any](x any) bool {
+	_, ok := x.(T)
+	return ok
 }

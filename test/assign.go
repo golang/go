@@ -9,7 +9,10 @@
 
 package main
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 type T struct {
 	int
@@ -38,7 +41,7 @@ func main() {
 		_ = x
 	}
 	{
-		x := sync.Mutex{0, 0} // ERROR "assignment.*Mutex"
+		x := time.Time{0, 0, nil} // ERROR "assignment.*Time"
 		_ = x
 	}
 	{
@@ -56,13 +59,13 @@ func main() {
 	{
 		var x = 1
 		{
-			x, x := 2, 3 // ERROR "x repeated on left side of :="
+			x, x := 2, 3 // ERROR ".*x.* repeated on left side of :=|x redeclared in this block"
 			_ = x
 		}
 		_ = x
 	}
 	{
-		a, a := 1, 2 // ERROR "a repeated on left side of :="
+		a, a := 1, 2 // ERROR ".*a.* repeated on left side of :=|a redeclared in this block"
 		_ = a
 	}
 }

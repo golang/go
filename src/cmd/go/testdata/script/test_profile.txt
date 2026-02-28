@@ -1,4 +1,4 @@
-[gccgo] skip 'gccgo has no standard packages'
+[compiler:gccgo] skip 'gccgo has no standard packages'
 [short] skip
 
 # Check go test -cpuprofile creates errors.test

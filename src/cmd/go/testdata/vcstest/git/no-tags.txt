@@ -1,0 +1,27 @@
+handle git
+
+env GIT_AUTHOR_NAME='Bryan C. Mills'
+env GIT_AUTHOR_EMAIL='bcmills@google.com'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+
+at 2019-07-15T17:20:47-04:00
+git add go.mod main.go
+git commit -m 'all: add go.mod and main.go'
+git branch -m master
+
+git log --oneline --decorate=short
+cmp stdout .git-log
+
+-- .git-log --
+e706ba1 (HEAD -> master) all: add go.mod and main.go
+-- go.mod --
+module vcs-test.golang.org/git/no-tags.git
+
+go 1.13
+-- main.go --
+package main
+
+func main() {}

@@ -1,0 +1,14 @@
+-- input --
+Doc text.
+
+[Go home page]: https://go.dev
+-- gofmt --
+Doc text.
+
+[Go home page]: https://go.dev
+-- text --
+Doc text.
+-- markdown --
+Doc text.
+-- html --
+<p>Doc text.

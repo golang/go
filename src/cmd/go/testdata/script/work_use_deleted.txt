@@ -1,0 +1,22 @@
+go work use -r .
+cmp go.work go.work.want
+
+-- go.work --
+go 1.18
+
+use (
+	.
+	./sub
+	./sub/dir/deleted
+)
+-- go.work.want --
+go 1.18
+
+use ./sub/dir
+-- sub/README.txt --
+A go.mod file has been deleted from this directory.
+In addition, the entire subdirectory sub/dir/deleted
+has been deleted, along with sub/dir/deleted/go.mod.
+-- sub/dir/go.mod --
+module example/sub/dir
+go 1.18

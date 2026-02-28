@@ -5,22 +5,21 @@
 package os_test
 
 import (
+	"bytes"
 	"fmt"
-	"io/ioutil"
+	"internal/testenv"
 	. "os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
 
 func TestRemoveAll(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "TestRemoveAll-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(tmpDir)
+	t.Parallel()
 
+	tmpDir := t.TempDir()
 	if err := RemoveAll(""); err != nil {
 		t.Errorf("RemoveAll(\"\"): %v; want nil", err)
 	}
@@ -80,8 +79,8 @@ func TestRemoveAll(t *testing.T) {
 		t.Fatalf("Lstat %q succeeded after RemoveAll (third)", path)
 	}
 
-	// Chmod is not supported under Windows and test fails as root.
-	if runtime.GOOS != "windows" && Getuid() != 0 {
+	// Chmod is not supported under Windows or wasip1 and test fails as root.
+	if runtime.GOOS != "windows" && runtime.GOOS != "wasip1" && Getuid() != 0 {
 		// Make directory with file and subdirectory and trigger error.
 		if err = MkdirAll(dpath, 0777); err != nil {
 			t.Fatalf("MkdirAll %q: %s", dpath, err)
@@ -127,13 +126,9 @@ func TestRemoveAllLarge(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
+	t.Parallel()
 
-	tmpDir, err := ioutil.TempDir("", "TestRemoveAll-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(tmpDir)
-
+	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "_TestRemoveAllLarge_")
 
 	// Make directory with 1000 files and remove.
@@ -158,46 +153,31 @@ func TestRemoveAllLarge(t *testing.T) {
 
 func TestRemoveAllLongPath(t *testing.T) {
 	switch runtime.GOOS {
-	case "aix", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "illumos", "solaris":
+	case "aix", "darwin", "ios", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "illumos", "solaris":
 		break
 	default:
 		t.Skip("skipping for not implemented platforms")
 	}
 
-	prevDir, err := Getwd()
-	if err != nil {
-		t.Fatalf("Could not get wd: %s", err)
-	}
+	startPath := t.TempDir()
+	t.Chdir(startPath)
 
-	startPath, err := ioutil.TempDir("", "TestRemoveAllLongPath-")
-	if err != nil {
-		t.Fatalf("Could not create TempDir: %s", err)
-	}
-	defer RemoveAll(startPath)
-
-	err = Chdir(startPath)
-	if err != nil {
-		t.Fatalf("Could not chdir %s: %s", startPath, err)
-	}
-
-	// Removing paths with over 4096 chars commonly fails
+	// Removing paths with over 4096 chars commonly fails.
+	name := strings.Repeat("a", 100)
 	for i := 0; i < 41; i++ {
-		name := strings.Repeat("a", 100)
-
-		err = Mkdir(name, 0755)
-		if err != nil {
+		if err := Mkdir(name, 0755); err != nil {
 			t.Fatalf("Could not mkdir %s: %s", name, err)
 		}
-
-		err = Chdir(name)
-		if err != nil {
+		if err := Chdir(name); err != nil {
 			t.Fatalf("Could not chdir %s: %s", name, err)
 		}
 	}
 
-	err = Chdir(prevDir)
+	// Chdir out of startPath before attempting to remove it,
+	// otherwise RemoveAll fails on aix, illumos and solaris.
+	err := Chdir(filepath.Join(startPath, ".."))
 	if err != nil {
-		t.Fatalf("Could not chdir %s: %s", prevDir, err)
+		t.Fatalf("Could not chdir: %s", err)
 	}
 
 	err = RemoveAll(startPath)
@@ -207,41 +187,17 @@ func TestRemoveAllLongPath(t *testing.T) {
 }
 
 func TestRemoveAllDot(t *testing.T) {
-	prevDir, err := Getwd()
-	if err != nil {
-		t.Fatalf("Could not get wd: %s", err)
-	}
-	tempDir, err := ioutil.TempDir("", "TestRemoveAllDot-")
-	if err != nil {
-		t.Fatalf("Could not create TempDir: %s", err)
-	}
-	defer RemoveAll(tempDir)
+	t.Chdir(t.TempDir())
 
-	err = Chdir(tempDir)
-	if err != nil {
-		t.Fatalf("Could not chdir to tempdir: %s", err)
-	}
-
-	err = RemoveAll(".")
-	if err == nil {
+	if err := RemoveAll("."); err == nil {
 		t.Errorf("RemoveAll succeed to remove .")
-	}
-
-	err = Chdir(prevDir)
-	if err != nil {
-		t.Fatalf("Could not chdir %s: %s", prevDir, err)
 	}
 }
 
 func TestRemoveAllDotDot(t *testing.T) {
 	t.Parallel()
 
-	tempDir, err := ioutil.TempDir("", "TestRemoveAllDotDot-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(tempDir)
-
+	tempDir := t.TempDir()
 	subdir := filepath.Join(tempDir, "x")
 	subsubdir := filepath.Join(subdir, "y")
 	if err := MkdirAll(subsubdir, 0777); err != nil {
@@ -261,12 +217,7 @@ func TestRemoveAllDotDot(t *testing.T) {
 func TestRemoveReadOnlyDir(t *testing.T) {
 	t.Parallel()
 
-	tempDir, err := ioutil.TempDir("", "TestRemoveReadOnlyDir-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(tempDir)
-
+	tempDir := t.TempDir()
 	subdir := filepath.Join(tempDir, "x")
 	if err := Mkdir(subdir, 0); err != nil {
 		t.Fatal(err)
@@ -288,7 +239,7 @@ func TestRemoveReadOnlyDir(t *testing.T) {
 // Issue #29983.
 func TestRemoveAllButReadOnlyAndPathError(t *testing.T) {
 	switch runtime.GOOS {
-	case "js", "windows":
+	case "js", "wasip1", "windows":
 		t.Skipf("skipping test on %s", runtime.GOOS)
 	}
 
@@ -298,12 +249,7 @@ func TestRemoveAllButReadOnlyAndPathError(t *testing.T) {
 
 	t.Parallel()
 
-	tempDir, err := ioutil.TempDir("", "TestRemoveAllButReadOnly-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(tempDir)
-
+	tempDir := t.TempDir()
 	dirs := []string{
 		"a",
 		"a/x",
@@ -347,7 +293,7 @@ func TestRemoveAllButReadOnlyAndPathError(t *testing.T) {
 		defer Chmod(d, 0777)
 	}
 
-	err = RemoveAll(tempDir)
+	err := RemoveAll(tempDir)
 	if err == nil {
 		t.Fatal("RemoveAll succeeded unexpectedly")
 	}
@@ -355,11 +301,12 @@ func TestRemoveAllButReadOnlyAndPathError(t *testing.T) {
 	// The error should be of type *PathError.
 	// see issue 30491 for details.
 	if pathErr, ok := err.(*PathError); ok {
-		if g, w := pathErr.Path, filepath.Join(tempDir, "b", "y"); g != w {
-			t.Errorf("got %q, expected pathErr.path %q", g, w)
+		want := filepath.Join(tempDir, "b", "y")
+		if pathErr.Path != want {
+			t.Errorf("RemoveAll(%q): err.Path=%q, want %q", tempDir, pathErr.Path, want)
 		}
 	} else {
-		t.Errorf("got %T, expected *os.PathError", err)
+		t.Errorf("RemoveAll(%q): error has type %T, want *fs.PathError", tempDir, err)
 	}
 
 	for _, dir := range dirs {
@@ -388,12 +335,7 @@ func TestRemoveUnreadableDir(t *testing.T) {
 
 	t.Parallel()
 
-	tempDir, err := ioutil.TempDir("", "TestRemoveAllButReadOnly-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(tempDir)
-
+	tempDir := t.TempDir()
 	target := filepath.Join(tempDir, "d0", "d1", "d2")
 	if err := MkdirAll(target, 0755); err != nil {
 		t.Fatal(err)
@@ -411,13 +353,9 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
+	t.Parallel()
 
-	tmpDir, err := ioutil.TempDir("", "TestRemoveAll-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(tmpDir)
-
+	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "_TestRemoveAllWithMoreErrorThanReqSize_")
 
 	// Make directory with 1025 read-only files.
@@ -434,7 +372,7 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
 	}
 
 	// Make the parent directory read-only. On some platforms, this is what
-	// prevents os.Remove from removing the files within that directory.
+	// prevents Remove from removing the files within that directory.
 	if err := Chmod(path, 0555); err != nil {
 		t.Fatal(err)
 	}
@@ -442,16 +380,19 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
 
 	// This call should not hang, even on a platform that disallows file deletion
 	// from read-only directories.
-	err = RemoveAll(path)
+	err := RemoveAll(path)
 
 	if Getuid() == 0 {
 		// On many platforms, root can remove files from read-only directories.
 		return
 	}
 	if err == nil {
-		if runtime.GOOS == "windows" {
+		if runtime.GOOS == "windows" || runtime.GOOS == "wasip1" {
 			// Marking a directory as read-only in Windows does not prevent the RemoveAll
 			// from creating or removing files within it.
+			//
+			// For wasip1, there is no support for file permissions so we cannot prevent
+			// RemoveAll from removing the files.
 			return
 		}
 		t.Fatal("RemoveAll(<read-only directory>) = nil; want error")
@@ -466,5 +407,104 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
 	names, _ := dir.Readdirnames(1025)
 	if len(names) < 1025 {
 		t.Fatalf("RemoveAll(<read-only directory>) unexpectedly removed %d read-only files from that directory", 1025-len(names))
+	}
+}
+
+func TestRemoveAllNoFcntl(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
+	const env = "GO_TEST_REMOVE_ALL_NO_FCNTL"
+	if dir := Getenv(env); dir != "" {
+		if err := RemoveAll(dir); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+
+	// Only test on Linux so that we can assume we have strace.
+	// The code is OS-independent so if it passes on Linux
+	// it should pass on other Unix systems.
+	if runtime.GOOS != "linux" {
+		t.Skipf("skipping test on %s", runtime.GOOS)
+	}
+	if _, err := Stat("/bin/strace"); err != nil {
+		t.Skipf("skipping test because /bin/strace not found: %v", err)
+	}
+	me, err := Executable()
+	if err != nil {
+		t.Skipf("skipping because Executable failed: %v", err)
+	}
+
+	// Create 100 directories.
+	// The test is that we can remove them without calling fcntl
+	// on each one.
+	tmpdir := t.TempDir()
+	subdir := filepath.Join(tmpdir, "subdir")
+	if err := Mkdir(subdir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 100; i++ {
+		subsubdir := filepath.Join(subdir, strconv.Itoa(i))
+		if err := Mkdir(filepath.Join(subdir, strconv.Itoa(i)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := WriteFile(filepath.Join(subsubdir, "file"), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cmd := testenv.Command(t, "/bin/strace", "-f", "-e", "fcntl", me, "-test.run=^TestRemoveAllNoFcntl$")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, env+"="+subdir)
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := bytes.Count(out, []byte("fcntl")); got >= 100 {
+		t.Errorf("found %d fcntl calls, want < 100", got)
+	}
+}
+
+func TestRemoveAllTrailingSlash(t *testing.T) {
+	slashes := []string{"/"}
+	if runtime.GOOS == "windows" {
+		slashes = append(slashes, `\`)
+	}
+	for _, slash := range slashes {
+		dir := makefs(t, []string{
+			"dir/a/file1",
+			"dir/a/file2",
+			"dir/file3",
+		})
+		path := dir + "/dir"
+		if err := RemoveAll(path + slash); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Stat(path); !IsNotExist(err) {
+			t.Errorf("after RemoveAll(%q), directory still exists", path+slash)
+		}
+	}
+}
+
+func BenchmarkRemoveAll(b *testing.B) {
+	tmpDir := filepath.Join(b.TempDir(), "target")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		err := CopyFS(tmpDir, DirFS("."))
+		if err != nil {
+			b.Fatal(err)
+		}
+		b.StartTimer()
+		if err := RemoveAll(tmpDir); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

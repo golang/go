@@ -1,0 +1,87 @@
+handle svn
+
+mkdir db/transactions
+mkdir db/txn-protorevs
+chmod 0755 hooks/pre-revprop-change
+
+env ROOT=$PWD
+cd .checkout
+[GOOS:windows] svn checkout file:///$ROOT .
+[!GOOS:windows] svn checkout file://$ROOT .
+
+svn add hello.go
+svn commit --file MSG
+svn propset svn:author 'rsc' --revprop -r1
+svn propset svn:date '2017-09-22T01:12:45.861368Z' --revprop -r1
+
+svn update
+svn log --xml
+
+[GOOS:windows] replace '\n' '\r\n' .svn-log
+cmp stdout .svn-log
+
+-- .checkout/MSG --
+hello world
+
+-- .checkout/hello.go --
+package main
+
+func main() {
+	println("hello, world")
+}
+-- .checkout/.svn-log --
+<?xml version="1.0" encoding="UTF-8"?>
+<log>
+<logentry
+   revision="1">
+<author>rsc</author>
+<date>2017-09-22T01:12:45.861368Z</date>
+<msg>hello world
+
+</msg>
+</logentry>
+</log>
+-- conf/authz --
+-- conf/passwd --
+-- conf/svnserve.conf --
+-- db/current --
+0
+-- db/format --
+6
+layout sharded 1000
+-- db/fs-type --
+fsfs
+-- db/fsfs.conf --
+-- db/min-unpacked-rev --
+0
+-- db/revprops/0/0 --
+K 8
+svn:date
+V 27
+2017-09-22T01:11:53.895835Z
+END
+-- db/revs/0/0 --
+PLAIN
+END
+ENDREP
+id: 0.0.r0/17
+type: dir
+count: 0
+text: 0 0 4 4 2d2977d1c96f487abe4a1e202dd03b4e
+cpath: /
+
+
+17 107
+-- db/txn-current --
+0
+-- db/txn-current-lock --
+-- db/uuid --
+53cccb44-0fca-40a2-b0c5-acaf9e75039a
+-- db/write-lock --
+-- format --
+5
+-- hooks/pre-revprop-change --
+#!/bin/sh
+
+-- hooks/pre-revprop-change.bat --
+@exit

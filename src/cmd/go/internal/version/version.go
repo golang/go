@@ -2,28 +2,31 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package version implements the ``go version'' command.
+// Package version implements the “go version” command.
 package version
 
 import (
-	"bytes"
-	"encoding/binary"
+	"context"
+	"debug/buildinfo"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/gover"
 )
 
 var CmdVersion = &base.Command{
-	UsageLine: "go version [-m] [-v] [file ...]",
+	UsageLine: "go version [-m] [-v] [-json] [file ...]",
 	Short:     "print Go version",
-	Long: `Version prints the build information for Go executables.
+	Long: `Version prints the build information for Go binary files.
 
-Go version reports the Go version used to build each of the named
-executable files.
+Go version reports the Go version used to build each of the named files.
 
 If no files are named on the command line, go version prints its own
 version information.
@@ -33,32 +36,65 @@ looking for recognized Go binaries and reporting their versions.
 By default, go version does not report unrecognized files found
 during a directory scan. The -v flag causes it to report unrecognized files.
 
-The -m flag causes go version to print each executable's embedded
+The -m flag causes go version to print each file's embedded
 module version information, when available. In the output, the module
 information consists of multiple lines following the version line, each
 indented by a leading tab character.
+
+The -json flag is similar to -m but outputs the runtime/debug.BuildInfo in JSON format.
+If flag -json is specified without -m, go version reports an error.
 
 See also: go doc runtime/debug.BuildInfo.
 `,
 }
 
 func init() {
+	base.AddChdirFlag(&CmdVersion.Flag)
 	CmdVersion.Run = runVersion // break init cycle
 }
 
 var (
-	versionM = CmdVersion.Flag.Bool("m", false, "")
-	versionV = CmdVersion.Flag.Bool("v", false, "")
+	versionM    = CmdVersion.Flag.Bool("m", false, "")
+	versionV    = CmdVersion.Flag.Bool("v", false, "")
+	versionJson = CmdVersion.Flag.Bool("json", false, "")
 )
 
-func runVersion(cmd *base.Command, args []string) {
+func runVersion(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 0 {
-		if *versionM || *versionV {
-			fmt.Fprintf(os.Stderr, "go version: flags can only be used with arguments\n")
+		// If any of this command's flags were passed explicitly, error
+		// out, because they only make sense with arguments.
+		//
+		// Don't error if the flags came from GOFLAGS, since that can be
+		// a reasonable use case. For example, imagine GOFLAGS=-v to
+		// turn "verbose mode" on for all Go commands, which should not
+		// break "go version".
+		var argOnlyFlag string
+		if !base.InGOFLAGS("-m") && *versionM {
+			argOnlyFlag = "-m"
+		} else if !base.InGOFLAGS("-v") && *versionV {
+			argOnlyFlag = "-v"
+		} else if !base.InGOFLAGS("-json") && *versionJson {
+			// Even though '-json' without '-m' should report an error,
+			// it reports 'no arguments' issue only because that error will be reported
+			// once the 'no arguments' issue is fixed by users.
+			argOnlyFlag = "-json"
+		}
+		if argOnlyFlag != "" {
+			fmt.Fprintf(os.Stderr, "go: 'go version' only accepts %s flag with arguments\n", argOnlyFlag)
 			base.SetExitStatus(2)
 			return
 		}
-		fmt.Printf("go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+		v := runtime.Version()
+		if gover.TestVersion != "" {
+			v = gover.TestVersion + " (TESTGO_VERSION)"
+		}
+		fmt.Printf("go version %s %s/%s\n", v, runtime.GOOS, runtime.GOARCH)
+		return
+	}
+
+	if !*versionM && *versionJson {
+		fmt.Fprintf(os.Stderr, "go: 'go version' with -json flag requires -m flag\n")
+		base.SetExitStatus(2)
 		return
 	}
 
@@ -72,136 +108,95 @@ func runVersion(cmd *base.Command, args []string) {
 		if info.IsDir() {
 			scanDir(arg)
 		} else {
-			scanFile(arg, info, true)
+			ok := scanFile(arg, info, true)
+			if !ok && *versionM {
+				base.SetExitStatus(1)
+			}
 		}
 	}
 }
 
-// scanDir scans a directory for executables to run scanFile on.
+// scanDir scans a directory for binary to run scanFile on.
 func scanDir(dir string) {
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if d.Type().IsRegular() || d.Type()&fs.ModeSymlink != 0 {
+			info, err := d.Info()
+			if err != nil {
+				if *versionV {
+					fmt.Fprintf(os.Stderr, "%s: %v\n", path, err)
+				}
+				return nil
+			}
 			scanFile(path, info, *versionV)
 		}
 		return nil
 	})
 }
 
-// isExe reports whether the file should be considered executable.
-func isExe(file string, info os.FileInfo) bool {
-	if runtime.GOOS == "windows" {
-		return strings.HasSuffix(strings.ToLower(file), ".exe")
+// isGoBinaryCandidate reports whether the file is a candidate to be a Go binary.
+func isGoBinaryCandidate(file string, info fs.FileInfo) bool {
+	if info.Mode().IsRegular() && info.Mode()&0111 != 0 {
+		return true
 	}
-	return info.Mode().IsRegular() && info.Mode()&0111 != 0
+	name := strings.ToLower(file)
+	switch filepath.Ext(name) {
+	case ".so", ".exe", ".dll":
+		return true
+	default:
+		return strings.Contains(name, ".so.")
+	}
 }
 
 // scanFile scans file to try to report the Go and module versions.
 // If mustPrint is true, scanFile will report any error reading file.
 // Otherwise (mustPrint is false, because scanFile is being called
-// by scanDir) scanFile prints nothing for non-Go executables.
-func scanFile(file string, info os.FileInfo, mustPrint bool) {
-	if info.Mode()&os.ModeSymlink != 0 {
+// by scanDir) scanFile prints nothing for non-Go binaries.
+// scanFile reports whether the file is a Go binary.
+func scanFile(file string, info fs.FileInfo, mustPrint bool) bool {
+	if info.Mode()&fs.ModeSymlink != 0 {
 		// Accept file symlinks only.
 		i, err := os.Stat(file)
 		if err != nil || !i.Mode().IsRegular() {
 			if mustPrint {
 				fmt.Fprintf(os.Stderr, "%s: symlink\n", file)
 			}
-			return
+			return false
 		}
 		info = i
 	}
-	if !isExe(file, info) {
-		if mustPrint {
-			fmt.Fprintf(os.Stderr, "%s: not executable file\n", file)
-		}
-		return
-	}
 
-	x, err := openExe(file)
+	bi, err := buildinfo.ReadFile(file)
 	if err != nil {
 		if mustPrint {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", file, err)
+			if pathErr, ok := errors.AsType[*os.PathError](err); ok && filepath.Clean(pathErr.Path) == filepath.Clean(file) {
+				fmt.Fprintf(os.Stderr, "%v\n", file)
+			} else {
+				// Skip errors for non-Go binaries.
+				// buildinfo.ReadFile errors are not fine-grained enough
+				// to know if the file is a Go binary or not,
+				// so try to infer it from the file mode and extension.
+				if isGoBinaryCandidate(file, info) {
+					fmt.Fprintf(os.Stderr, "%s: %v\n", file, err)
+				}
+			}
 		}
-		return
+		return false
 	}
-	defer x.Close()
 
-	vers, mod := findVers(x)
-	if vers == "" {
-		if mustPrint {
-			fmt.Fprintf(os.Stderr, "%s: go version not found\n", file)
+	if *versionM && *versionJson {
+		bs, err := json.MarshalIndent(bi, "", "\t")
+		if err != nil {
+			base.Fatal(err)
 		}
-		return
+		fmt.Printf("%s\n", bs)
+		return true
 	}
 
-	fmt.Printf("%s: %s\n", file, vers)
-	if *versionM && mod != "" {
-		fmt.Printf("\t%s\n", strings.Replace(mod[:len(mod)-1], "\n", "\n\t", -1))
+	fmt.Printf("%s: %s\n", file, bi.GoVersion)
+	bi.GoVersion = "" // suppress printing go version again
+	mod := bi.String()
+	if *versionM && len(mod) > 0 {
+		fmt.Printf("\t%s\n", strings.ReplaceAll(mod[:len(mod)-1], "\n", "\n\t"))
 	}
-}
-
-// The build info blob left by the linker is identified by
-// a 16-byte header, consisting of buildInfoMagic (14 bytes),
-// the binary's pointer size (1 byte),
-// and whether the binary is big endian (1 byte).
-var buildInfoMagic = []byte("\xff Go buildinf:")
-
-// findVers finds and returns the Go version and module version information
-// in the executable x.
-func findVers(x exe) (vers, mod string) {
-	// Read the first 64kB of text to find the build info blob.
-	text := x.DataStart()
-	data, err := x.ReadData(text, 64*1024)
-	if err != nil {
-		return
-	}
-	for ; !bytes.HasPrefix(data, buildInfoMagic); data = data[32:] {
-		if len(data) < 32 {
-			return
-		}
-	}
-
-	// Decode the blob.
-	ptrSize := int(data[14])
-	bigEndian := data[15] != 0
-	var bo binary.ByteOrder
-	if bigEndian {
-		bo = binary.BigEndian
-	} else {
-		bo = binary.LittleEndian
-	}
-	var readPtr func([]byte) uint64
-	if ptrSize == 4 {
-		readPtr = func(b []byte) uint64 { return uint64(bo.Uint32(b)) }
-	} else {
-		readPtr = bo.Uint64
-	}
-	vers = readString(x, ptrSize, readPtr, readPtr(data[16:]))
-	if vers == "" {
-		return
-	}
-	mod = readString(x, ptrSize, readPtr, readPtr(data[16+ptrSize:]))
-	if len(mod) >= 33 && mod[len(mod)-17] == '\n' {
-		// Strip module framing.
-		mod = mod[16 : len(mod)-16]
-	} else {
-		mod = ""
-	}
-	return
-}
-
-// readString returns the string at address addr in the executable x.
-func readString(x exe, ptrSize int, readPtr func([]byte) uint64, addr uint64) string {
-	hdr, err := x.ReadData(addr, uint64(2*ptrSize))
-	if err != nil || len(hdr) < 2*ptrSize {
-		return ""
-	}
-	dataAddr := readPtr(hdr)
-	dataLen := readPtr(hdr[ptrSize:])
-	data, err := x.ReadData(dataAddr, dataLen)
-	if err != nil || uint64(len(data)) < dataLen {
-		return ""
-	}
-	return string(data)
+	return true
 }

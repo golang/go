@@ -1,0 +1,29 @@
+handle auth
+
+modzip vcs-test.golang.org/auth/or401/@v/v0.0.0-20190405155051-52df474c8a8b.zip vcs-test.golang.org/auth/or401@v0.0.0-20190405155051-52df474c8a8b .moddir
+
+-- .access --
+{
+	"Username": "aladdin",
+	"Password": "opensesame",
+	"StatusCode": 401,
+	"Message": "ACCESS DENIED, buddy"
+}
+-- index.html --
+<!DOCTYPE html>
+<html>
+<meta name="go-import" content="vcs-test.golang.org/auth/or401 mod https://vcs-test.golang.org/auth/or401">
+-- vcs-test.golang.org/auth/or401/@v/list --
+v0.0.0-20190405155051-52df474c8a8b
+-- vcs-test.golang.org/auth/or401/@v/v0.0.0-20190405155051-52df474c8a8b.info --
+{"Version":"v0.0.0-20190405155051-52df474c8a8b","Time":"2019-04-05T15:50:51Z"}
+-- vcs-test.golang.org/auth/or401/@v/v0.0.0-20190405155051-52df474c8a8b.mod --
+module vcs-test.golang.org/auth/or401
+
+go 1.13
+-- .moddir/go.mod --
+module vcs-test.golang.org/auth/or401
+
+go 1.13
+-- .moddir/or401.go --
+package or401

@@ -2,17 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements API tests across platforms and will never have a build
-// tag.
-
-// +build !js
+// This file implements API tests across platforms and should never have a build
+// constraint.
 
 package net
 
 import (
 	"os"
 	"testing"
-	"time"
 )
 
 // The full stack test cases for IPConn have been moved to the
@@ -28,16 +25,16 @@ func packetConnTestData(t *testing.T, network string) ([]byte, func()) {
 	return []byte("PACKETCONN TEST"), nil
 }
 
-var packetConnTests = []struct {
-	net   string
-	addr1 string
-	addr2 string
-}{
-	{"udp", "127.0.0.1:0", "127.0.0.1:0"},
-	{"unixgram", testUnixAddr(), testUnixAddr()},
-}
-
 func TestPacketConn(t *testing.T) {
+	var packetConnTests = []struct {
+		net   string
+		addr1 string
+		addr2 string
+	}{
+		{"udp", "127.0.0.1:0", "127.0.0.1:0"},
+		{"unixgram", testUnixAddr(t), testUnixAddr(t)},
+	}
+
 	closer := func(c PacketConn, net, addr1, addr2 string) {
 		c.Close()
 		switch net {
@@ -60,9 +57,6 @@ func TestPacketConn(t *testing.T) {
 		}
 		defer closer(c1, tt.net, tt.addr1, tt.addr2)
 		c1.LocalAddr()
-		c1.SetDeadline(time.Now().Add(500 * time.Millisecond))
-		c1.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-		c1.SetWriteDeadline(time.Now().Add(500 * time.Millisecond))
 
 		c2, err := ListenPacket(tt.net, tt.addr2)
 		if err != nil {
@@ -70,9 +64,6 @@ func TestPacketConn(t *testing.T) {
 		}
 		defer closer(c2, tt.net, tt.addr1, tt.addr2)
 		c2.LocalAddr()
-		c2.SetDeadline(time.Now().Add(500 * time.Millisecond))
-		c2.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-		c2.SetWriteDeadline(time.Now().Add(500 * time.Millisecond))
 		rb2 := make([]byte, 128)
 
 		if _, err := c1.WriteTo(wb, c2.LocalAddr()); err != nil {
@@ -92,6 +83,15 @@ func TestPacketConn(t *testing.T) {
 }
 
 func TestConnAndPacketConn(t *testing.T) {
+	var packetConnTests = []struct {
+		net   string
+		addr1 string
+		addr2 string
+	}{
+		{"udp", "127.0.0.1:0", "127.0.0.1:0"},
+		{"unixgram", testUnixAddr(t), testUnixAddr(t)},
+	}
+
 	closer := func(c PacketConn, net, addr1, addr2 string) {
 		c.Close()
 		switch net {
@@ -115,9 +115,6 @@ func TestConnAndPacketConn(t *testing.T) {
 		}
 		defer closer(c1, tt.net, tt.addr1, tt.addr2)
 		c1.LocalAddr()
-		c1.SetDeadline(time.Now().Add(500 * time.Millisecond))
-		c1.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-		c1.SetWriteDeadline(time.Now().Add(500 * time.Millisecond))
 
 		c2, err := Dial(tt.net, c1.LocalAddr().String())
 		if err != nil {
@@ -126,9 +123,6 @@ func TestConnAndPacketConn(t *testing.T) {
 		defer c2.Close()
 		c2.LocalAddr()
 		c2.RemoteAddr()
-		c2.SetDeadline(time.Now().Add(500 * time.Millisecond))
-		c2.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-		c2.SetWriteDeadline(time.Now().Add(500 * time.Millisecond))
 
 		if _, err := c2.Write(wb); err != nil {
 			t.Fatal(err)

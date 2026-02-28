@@ -66,5 +66,8 @@ func StackMemory() {
 	if err != nil {
 		panic(err)
 	}
-	print((mem2 - mem1) / threadCount)
+	// assumes that this process creates 1 thread for each
+	// thread locked goroutine plus extra 10 threads
+	// like sysmon and others
+	print((mem2 - mem1) / (threadCount + 10))
 }

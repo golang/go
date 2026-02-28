@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"math/big"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -97,7 +98,7 @@ type testSET []int
 var PST = time.FixedZone("PST", -8*60*60)
 
 type marshalTest struct {
-	in  interface{}
+	in  any
 	out string // hex encoded
 }
 
@@ -196,7 +197,7 @@ func TestMarshal(t *testing.T) {
 }
 
 type marshalWithParamsTest struct {
-	in     interface{}
+	in     any
 	params string
 	out    string // hex encoded
 }
@@ -222,7 +223,7 @@ func TestMarshalWithParams(t *testing.T) {
 }
 
 type marshalErrTest struct {
-	in  interface{}
+	in  any
 	err string
 }
 
@@ -276,7 +277,7 @@ func TestMarshalOID(t *testing.T) {
 
 func TestIssue11130(t *testing.T) {
 	data := []byte("\x06\x010") // == \x06\x01\x30 == OID = 0 (the figure)
-	var v interface{}
+	var v any
 	// v has Zero value here and Elem() would panic
 	_, err := Unmarshal(data, &v)
 	if err != nil {
@@ -299,14 +300,34 @@ func TestIssue11130(t *testing.T) {
 		return
 	}
 
-	var v1 interface{}
+	var v1 any
 	_, err = Unmarshal(data1, &v1)
 	if err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 	if !reflect.DeepEqual(v, v1) {
-		t.Errorf("got: %#v data=%q , want : %#v data=%q\n ", v1, data1, v, data)
+		t.Errorf("got: %#v data=%q, want : %#v data=%q\n ", v1, data1, v, data)
+	}
+}
+
+func TestIssue68241(t *testing.T) {
+	for i, want := range []any{false, true} {
+		data, err := Marshal(want)
+		if err != nil {
+			t.Errorf("cannot Marshal: %v", err)
+			return
+		}
+
+		var got any
+		_, err = Unmarshal(data, &got)
+		if err != nil {
+			t.Errorf("cannot Unmarshal: %v", err)
+			return
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("#%d Unmarshal, got: %v, want: %v", i, got, want)
+		}
 	}
 }
 
@@ -316,6 +337,91 @@ func BenchmarkMarshal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, test := range marshalTests {
 			Marshal(test.in)
+		}
+	}
+}
+
+func TestSetEncoder(t *testing.T) {
+	testStruct := struct {
+		Strings []string `asn1:"set"`
+	}{
+		Strings: []string{"a", "aa", "b", "bb", "c", "cc"},
+	}
+
+	// Expected ordering of the SET should be:
+	// a, b, c, aa, bb, cc
+
+	output, err := Marshal(testStruct)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	expectedOrder := []string{"a", "b", "c", "aa", "bb", "cc"}
+	var resultStruct struct {
+		Strings []string `asn1:"set"`
+	}
+	rest, err := Unmarshal(output, &resultStruct)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+	if len(rest) != 0 {
+		t.Error("Unmarshal returned extra garbage")
+	}
+	if !slices.Equal(expectedOrder, resultStruct.Strings) {
+		t.Errorf("Unexpected SET content. got: %s, want: %s", resultStruct.Strings, expectedOrder)
+	}
+}
+
+func TestSetEncoderSETSliceSuffix(t *testing.T) {
+	type testSetSET []string
+	testSet := testSetSET{"a", "aa", "b", "bb", "c", "cc"}
+
+	// Expected ordering of the SET should be:
+	// a, b, c, aa, bb, cc
+
+	output, err := Marshal(testSet)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	expectedOrder := testSetSET{"a", "b", "c", "aa", "bb", "cc"}
+	var resultSet testSetSET
+	rest, err := Unmarshal(output, &resultSet)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+	if len(rest) != 0 {
+		t.Error("Unmarshal returned extra garbage")
+	}
+	if !reflect.DeepEqual(expectedOrder, resultSet) {
+		t.Errorf("Unexpected SET content. got: %s, want: %s", resultSet, expectedOrder)
+	}
+}
+
+func BenchmarkUnmarshal(b *testing.B) {
+	b.ReportAllocs()
+
+	type testCase struct {
+		in  []byte
+		out any
+	}
+	var testData []testCase
+	for _, test := range unmarshalTestData {
+		pv := reflect.New(reflect.TypeOf(test.out).Elem())
+		inCopy := make([]byte, len(test.in))
+		copy(inCopy, test.in)
+		outCopy := pv.Interface()
+
+		testData = append(testData, testCase{
+			in:  inCopy,
+			out: outCopy,
+		})
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, testCase := range testData {
+			_, _ = Unmarshal(testCase.in, testCase.out)
 		}
 	}
 }

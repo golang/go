@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris windows
+//go:build unix || js || wasip1 || windows
 
 package net
 
@@ -74,7 +74,7 @@ func stripIPv4Header(n int, b []byte) int {
 
 func (c *IPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err error) {
 	var sa syscall.Sockaddr
-	n, oobn, flags, sa, err = c.fd.readMsg(b, oob)
+	n, oobn, flags, sa, err = c.fd.readMsg(b, oob, 0)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
 		addr = &IPAddr{IP: sa.Addr[0:]}
@@ -122,7 +122,13 @@ func (sd *sysDialer) dialIP(ctx context.Context, laddr, raddr *IPAddr) (*IPConn,
 	default:
 		return nil, UnknownNetworkError(sd.network)
 	}
-	fd, err := internetSocket(ctx, network, laddr, raddr, syscall.SOCK_RAW, proto, "dial", sd.Dialer.Control)
+	ctrlCtxFn := sd.Dialer.ControlContext
+	if ctrlCtxFn == nil && sd.Dialer.Control != nil {
+		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
+			return sd.Dialer.Control(network, address, c)
+		}
+	}
+	fd, err := internetSocket(ctx, network, laddr, raddr, syscall.SOCK_RAW, proto, "dial", ctrlCtxFn)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +145,13 @@ func (sl *sysListener) listenIP(ctx context.Context, laddr *IPAddr) (*IPConn, er
 	default:
 		return nil, UnknownNetworkError(sl.network)
 	}
-	fd, err := internetSocket(ctx, network, laddr, nil, syscall.SOCK_RAW, proto, "listen", sl.ListenConfig.Control)
+	var ctrlCtxFn func(ctx context.Context, network, address string, c syscall.RawConn) error
+	if sl.ListenConfig.Control != nil {
+		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
+			return sl.ListenConfig.Control(network, address, c)
+		}
+	}
+	fd, err := internetSocket(ctx, network, laddr, nil, syscall.SOCK_RAW, proto, "listen", ctrlCtxFn)
 	if err != nil {
 		return nil, err
 	}

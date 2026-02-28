@@ -4,34 +4,53 @@
 
 package sort
 
-// Slice sorts the provided slice given the provided less function.
+import (
+	"internal/reflectlite"
+	"math/bits"
+)
+
+// Slice sorts the slice x given the provided less function.
+// It panics if x is not a slice.
 //
-// The sort is not guaranteed to be stable. For a stable sort, use
-// SliceStable.
+// The sort is not guaranteed to be stable: equal elements
+// may be reversed from their original order.
+// For a stable sort, use [SliceStable].
 //
-// The function panics if the provided interface is not a slice.
-func Slice(slice interface{}, less func(i, j int) bool) {
-	rv := reflectValueOf(slice)
-	swap := reflectSwapper(slice)
+// The less function must satisfy the same requirements as
+// the Interface type's Less method.
+//
+// Note: in many situations, the newer [slices.SortFunc] function is more
+// ergonomic and runs faster.
+func Slice(x any, less func(i, j int) bool) {
+	rv := reflectlite.ValueOf(x)
+	swap := reflectlite.Swapper(x)
 	length := rv.Len()
-	quickSort_func(lessSwap{less, swap}, 0, length, maxDepth(length))
+	limit := bits.Len(uint(length))
+	pdqsort_func(lessSwap{less, swap}, 0, length, limit)
 }
 
-// SliceStable sorts the provided slice given the provided less
-// function while keeping the original order of equal elements.
+// SliceStable sorts the slice x using the provided less
+// function, keeping equal elements in their original order.
+// It panics if x is not a slice.
 //
-// The function panics if the provided interface is not a slice.
-func SliceStable(slice interface{}, less func(i, j int) bool) {
-	rv := reflectValueOf(slice)
-	swap := reflectSwapper(slice)
+// The less function must satisfy the same requirements as
+// the Interface type's Less method.
+//
+// Note: in many situations, the newer [slices.SortStableFunc] function is more
+// ergonomic and runs faster.
+func SliceStable(x any, less func(i, j int) bool) {
+	rv := reflectlite.ValueOf(x)
+	swap := reflectlite.Swapper(x)
 	stable_func(lessSwap{less, swap}, rv.Len())
 }
 
-// SliceIsSorted tests whether a slice is sorted.
+// SliceIsSorted reports whether the slice x is sorted according to the provided less function.
+// It panics if x is not a slice.
 //
-// The function panics if the provided interface is not a slice.
-func SliceIsSorted(slice interface{}, less func(i, j int) bool) bool {
-	rv := reflectValueOf(slice)
+// Note: in many situations, the newer [slices.IsSortedFunc] function is more
+// ergonomic and runs faster.
+func SliceIsSorted(x any, less func(i, j int) bool) bool {
+	rv := reflectlite.ValueOf(x)
 	n := rv.Len()
 	for i := n - 1; i > 0; i-- {
 		if less(i, i-1) {

@@ -2,33 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// js does not support inter-process file locking.
-// +build !js
+// js and wasip1 do not support inter-process file locking.
+//
+//go:build !js && !wasip1
 
 package lockedfile_test
 
 import (
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"cmd/go/internal/lockedfile"
 )
-
-func mustTempDir(t *testing.T) (dir string, remove func()) {
-	t.Helper()
-
-	dir, err := ioutil.TempDir("", filepath.Base(t.Name()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return dir, func() { os.RemoveAll(dir) }
-}
 
 const (
 	quiescent            = 10 * time.Millisecond
@@ -44,19 +33,32 @@ func mustBlock(t *testing.T, desc string, f func()) (wait func(*testing.T)) {
 		close(done)
 	}()
 
+	timer := time.NewTimer(quiescent)
+	defer timer.Stop()
 	select {
 	case <-done:
 		t.Fatalf("%s unexpectedly did not block", desc)
-		return nil
+	case <-timer.C:
+	}
 
-	case <-time.After(quiescent):
-		return func(t *testing.T) {
+	return func(t *testing.T) {
+		logTimer := time.NewTimer(quiescent)
+		defer logTimer.Stop()
+
+		select {
+		case <-logTimer.C:
+			// We expect the operation to have unblocked by now,
+			// but maybe it's just slow. Write to the test log
+			// in case the test times out, but don't fail it.
 			t.Helper()
-			select {
-			case <-time.After(probablyStillBlocked):
-				t.Fatalf("%s is unexpectedly still blocked after %v", desc, probablyStillBlocked)
-			case <-done:
-			}
+			t.Logf("%s is unexpectedly still blocked after %v", desc, quiescent)
+
+			// Wait for the operation to actually complete, no matter how long it
+			// takes. If the test has deadlocked, this will cause the test to time out
+			// and dump goroutines.
+			<-done
+
+		case <-done:
 		}
 	}
 }
@@ -64,11 +66,7 @@ func mustBlock(t *testing.T, desc string, f func()) (wait func(*testing.T)) {
 func TestMutexExcludes(t *testing.T) {
 	t.Parallel()
 
-	dir, remove := mustTempDir(t)
-	defer remove()
-
-	path := filepath.Join(dir, "lock")
-
+	path := filepath.Join(t.TempDir(), "lock")
 	mu := lockedfile.MutexAt(path)
 	t.Logf("mu := MutexAt(_)")
 
@@ -100,11 +98,7 @@ func TestMutexExcludes(t *testing.T) {
 func TestReadWaitsForLock(t *testing.T) {
 	t.Parallel()
 
-	dir, remove := mustTempDir(t)
-	defer remove()
-
-	path := filepath.Join(dir, "timestamp.txt")
-
+	path := filepath.Join(t.TempDir(), "timestamp.txt")
 	f, err := lockedfile.Create(path)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -151,12 +145,9 @@ func TestReadWaitsForLock(t *testing.T) {
 func TestCanLockExistingFile(t *testing.T) {
 	t.Parallel()
 
-	dir, remove := mustTempDir(t)
-	defer remove()
-	path := filepath.Join(dir, "existing.txt")
-
-	if err := ioutil.WriteFile(path, []byte("ok"), 0777); err != nil {
-		t.Fatalf("ioutil.WriteFile: %v", err)
+	path := filepath.Join(t.TempDir(), "existing.txt")
+	if err := os.WriteFile(path, []byte("ok"), 0777); err != nil {
+		t.Fatalf("os.WriteFile: %v", err)
 	}
 
 	f, err := lockedfile.Edit(path)
@@ -189,8 +180,6 @@ func TestSpuriousEDEADLK(t *testing.T) {
 	// 	P.2 unblocks and locks file B.
 	// 	P.2 unlocks file B.
 
-	testenv.MustHaveExec(t)
-
 	dirVar := t.Name() + "DIR"
 
 	if dir := os.Getenv(dirVar); dir != "" {
@@ -201,7 +190,7 @@ func TestSpuriousEDEADLK(t *testing.T) {
 		}
 		defer b.Close()
 
-		if err := ioutil.WriteFile(filepath.Join(dir, "locked"), []byte("ok"), 0666); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "locked"), []byte("ok"), 0666); err != nil {
 			t.Fatal(err)
 		}
 
@@ -217,8 +206,7 @@ func TestSpuriousEDEADLK(t *testing.T) {
 		return
 	}
 
-	dir, remove := mustTempDir(t)
-	defer remove()
+	dir := t.TempDir()
 
 	// P.1 locks file A.
 	a, err := lockedfile.Edit(filepath.Join(dir, "A"))
@@ -226,7 +214,7 @@ func TestSpuriousEDEADLK(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run="+t.Name())
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$")
 	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", dirVar, dir))
 
 	qDone := make(chan struct{})
@@ -245,10 +233,12 @@ locked:
 		if _, err := os.Stat(filepath.Join(dir, "locked")); !os.IsNotExist(err) {
 			break locked
 		}
+		timer := time.NewTimer(1 * time.Millisecond)
 		select {
 		case <-qDone:
+			timer.Stop()
 			break locked
-		case <-time.After(1 * time.Millisecond):
+		case <-timer.C:
 		}
 	}
 

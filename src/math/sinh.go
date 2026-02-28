@@ -19,10 +19,16 @@ package math
 // Sinh returns the hyperbolic sine of x.
 //
 // Special cases are:
+//
 //	Sinh(±0) = ±0
 //	Sinh(±Inf) = ±Inf
 //	Sinh(NaN) = NaN
-func Sinh(x float64) float64
+func Sinh(x float64) float64 {
+	if haveArchSinh {
+		return archSinh(x)
+	}
+	return sinh(x)
+}
 
 func sinh(x float64) float64 {
 	// The coefficients are #2029 from Hart & Cheney. (20.36D)
@@ -66,10 +72,16 @@ func sinh(x float64) float64 {
 // Cosh returns the hyperbolic cosine of x.
 //
 // Special cases are:
+//
 //	Cosh(±0) = 1
 //	Cosh(±Inf) = +Inf
 //	Cosh(NaN) = NaN
-func Cosh(x float64) float64
+func Cosh(x float64) float64 {
+	if haveArchCosh {
+		return archCosh(x)
+	}
+	return cosh(x)
+}
 
 func cosh(x float64) float64 {
 	x = Abs(x)

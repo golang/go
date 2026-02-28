@@ -1,4 +1,5 @@
 [!symlink] skip
+env GO111MODULE=off
 
 mkdir $WORK/tmp/gopath/src/x/y/_vendor/src/x
 symlink $WORK/tmp/gopath/src/x/y/_vendor/src/x/y -> ../../..

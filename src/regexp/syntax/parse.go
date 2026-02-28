@@ -7,6 +7,7 @@ package syntax
 import (
 	"sort"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 )
@@ -43,6 +44,8 @@ const (
 	ErrMissingRepeatArgument ErrorCode = "missing argument to repetition operator"
 	ErrTrailingBackslash     ErrorCode = "trailing backslash at end of expression"
 	ErrUnexpectedParen       ErrorCode = "unexpected )"
+	ErrNestingDepth          ErrorCode = "expression nests too deeply"
+	ErrLarge                 ErrorCode = "expression too large"
 )
 
 func (e ErrorCode) String() string {
@@ -76,13 +79,63 @@ const (
 	opVerticalBar
 )
 
+// maxHeight is the maximum height of a regexp parse tree.
+// It is somewhat arbitrarily chosen, but the idea is to be large enough
+// that no one will actually hit in real use but at the same time small enough
+// that recursion on the Regexp tree will not hit the 1GB Go stack limit.
+// The maximum amount of stack for a single recursive frame is probably
+// closer to 1kB, so this could potentially be raised, but it seems unlikely
+// that people have regexps nested even this deeply.
+// We ran a test on Google's C++ code base and turned up only
+// a single use case with depth > 100; it had depth 128.
+// Using depth 1000 should be plenty of margin.
+// As an optimization, we don't even bother calculating heights
+// until we've allocated at least maxHeight Regexp structures.
+const maxHeight = 1000
+
+// maxSize is the maximum size of a compiled regexp in Insts.
+// It too is somewhat arbitrarily chosen, but the idea is to be large enough
+// to allow significant regexps while at the same time small enough that
+// the compiled form will not take up too much memory.
+// 128 MB is enough for a 3.3 million Inst structures, which roughly
+// corresponds to a 3.3 MB regexp.
+const (
+	maxSize  = 128 << 20 / instSize
+	instSize = 5 * 8 // byte, 2 uint32, slice is 5 64-bit words
+)
+
+// maxRunes is the maximum number of runes allowed in a regexp tree
+// counting the runes in all the nodes.
+// Ignoring character classes p.numRunes is always less than the length of the regexp.
+// Character classes can make it much larger: each \pL adds 1292 runes.
+// 128 MB is enough for 32M runes, which is over 26k \pL instances.
+// Note that repetitions do not make copies of the rune slices,
+// so \pL{1000} is only one rune slice, not 1000.
+// We could keep a cache of character classes we've seen,
+// so that all the \pL we see use the same rune list,
+// but that doesn't remove the problem entirely:
+// consider something like [\pL01234][\pL01235][\pL01236]...[\pL^&*()].
+// And because the Rune slice is exposed directly in the Regexp,
+// there is not an opportunity to change the representation to allow
+// partial sharing between different character classes.
+// So the limit is the best we can do.
+const (
+	maxRunes = 128 << 20 / runeSize
+	runeSize = 4 // rune is int32
+)
+
 type parser struct {
 	flags       Flags     // parse mode flags
 	stack       []*Regexp // stack of parsed expressions
 	free        *Regexp
 	numCap      int // number of capturing groups seen
 	wholeRegexp string
-	tmpClass    []rune // temporary char class work space
+	tmpClass    []rune            // temporary char class work space
+	numRegexp   int               // number of regexps allocated
+	numRunes    int               // number of runes in char classes
+	repeats     int64             // product of all repetitions seen
+	height      map[*Regexp]int   // regexp height, for height limit check
+	size        map[*Regexp]int64 // regexp compiled size, for size limit check
 }
 
 func (p *parser) newRegexp(op Op) *Regexp {
@@ -92,20 +145,153 @@ func (p *parser) newRegexp(op Op) *Regexp {
 		*re = Regexp{}
 	} else {
 		re = new(Regexp)
+		p.numRegexp++
 	}
 	re.Op = op
 	return re
 }
 
 func (p *parser) reuse(re *Regexp) {
+	if p.height != nil {
+		delete(p.height, re)
+	}
 	re.Sub0[0] = p.free
 	p.free = re
+}
+
+func (p *parser) checkLimits(re *Regexp) {
+	if p.numRunes > maxRunes {
+		panic(ErrLarge)
+	}
+	p.checkSize(re)
+	p.checkHeight(re)
+}
+
+func (p *parser) checkSize(re *Regexp) {
+	if p.size == nil {
+		// We haven't started tracking size yet.
+		// Do a relatively cheap check to see if we need to start.
+		// Maintain the product of all the repeats we've seen
+		// and don't track if the total number of regexp nodes
+		// we've seen times the repeat product is in budget.
+		if p.repeats == 0 {
+			p.repeats = 1
+		}
+		if re.Op == OpRepeat {
+			n := re.Max
+			if n == -1 {
+				n = re.Min
+			}
+			if n <= 0 {
+				n = 1
+			}
+			if int64(n) > maxSize/p.repeats {
+				p.repeats = maxSize
+			} else {
+				p.repeats *= int64(n)
+			}
+		}
+		if int64(p.numRegexp) < maxSize/p.repeats {
+			return
+		}
+
+		// We need to start tracking size.
+		// Make the map and belatedly populate it
+		// with info about everything we've constructed so far.
+		p.size = make(map[*Regexp]int64)
+		for _, re := range p.stack {
+			p.checkSize(re)
+		}
+	}
+
+	if p.calcSize(re, true) > maxSize {
+		panic(ErrLarge)
+	}
+}
+
+func (p *parser) calcSize(re *Regexp, force bool) int64 {
+	if !force {
+		if size, ok := p.size[re]; ok {
+			return size
+		}
+	}
+
+	var size int64
+	switch re.Op {
+	case OpLiteral:
+		size = int64(len(re.Rune))
+	case OpCapture, OpStar:
+		// star can be 1+ or 2+; assume 2 pessimistically
+		size = 2 + p.calcSize(re.Sub[0], false)
+	case OpPlus, OpQuest:
+		size = 1 + p.calcSize(re.Sub[0], false)
+	case OpConcat:
+		for _, sub := range re.Sub {
+			size += p.calcSize(sub, false)
+		}
+	case OpAlternate:
+		for _, sub := range re.Sub {
+			size += p.calcSize(sub, false)
+		}
+		if len(re.Sub) > 1 {
+			size += int64(len(re.Sub)) - 1
+		}
+	case OpRepeat:
+		sub := p.calcSize(re.Sub[0], false)
+		if re.Max == -1 {
+			if re.Min == 0 {
+				size = 2 + sub // x*
+			} else {
+				size = 1 + int64(re.Min)*sub // xxx+
+			}
+			break
+		}
+		// x{2,5} = xx(x(x(x)?)?)?
+		size = int64(re.Max)*sub + int64(re.Max-re.Min)
+	}
+
+	size = max(1, size)
+	p.size[re] = size
+	return size
+}
+
+func (p *parser) checkHeight(re *Regexp) {
+	if p.numRegexp < maxHeight {
+		return
+	}
+	if p.height == nil {
+		p.height = make(map[*Regexp]int)
+		for _, re := range p.stack {
+			p.checkHeight(re)
+		}
+	}
+	if p.calcHeight(re, true) > maxHeight {
+		panic(ErrNestingDepth)
+	}
+}
+
+func (p *parser) calcHeight(re *Regexp, force bool) int {
+	if !force {
+		if h, ok := p.height[re]; ok {
+			return h
+		}
+	}
+	h := 1
+	for _, sub := range re.Sub {
+		hsub := p.calcHeight(sub, false)
+		if h < 1+hsub {
+			h = 1 + hsub
+		}
+	}
+	p.height[re] = h
+	return h
 }
 
 // Parse stack manipulation.
 
 // push pushes the regexp re onto the parse stack and returns the regexp.
 func (p *parser) push(re *Regexp) *Regexp {
+	p.numRunes += len(re.Rune)
 	if re.Op == OpCharClass && len(re.Rune) == 2 && re.Rune[0] == re.Rune[1] {
 		// Single rune.
 		if p.maybeConcat(re.Rune[0], p.flags&^FoldCase) {
@@ -137,6 +323,7 @@ func (p *parser) push(re *Regexp) *Regexp {
 	}
 
 	p.stack = append(p.stack, re)
+	p.checkLimits(re)
 	return re
 }
 
@@ -177,16 +364,16 @@ func (p *parser) maybeConcat(r rune, flags Flags) bool {
 	return false // did not push r
 }
 
-// newLiteral returns a new OpLiteral Regexp with the given flags
-func (p *parser) newLiteral(r rune, flags Flags) *Regexp {
+// literal pushes a literal regexp for the rune r on the stack.
+func (p *parser) literal(r rune) {
 	re := p.newRegexp(OpLiteral)
-	re.Flags = flags
-	if flags&FoldCase != 0 {
+	re.Flags = p.flags
+	if p.flags&FoldCase != 0 {
 		r = minFoldRune(r)
 	}
 	re.Rune0[0] = r
 	re.Rune = re.Rune0[:1]
-	return re
+	p.push(re)
 }
 
 // minFoldRune returns the minimum rune fold-equivalent to r.
@@ -194,20 +381,12 @@ func minFoldRune(r rune) rune {
 	if r < minFold || r > maxFold {
 		return r
 	}
-	min := r
+	m := r
 	r0 := r
 	for r = unicode.SimpleFold(r); r != r0; r = unicode.SimpleFold(r) {
-		if min > r {
-			min = r
-		}
+		m = min(m, r)
 	}
-	return min
-}
-
-// literal pushes a literal regexp for the rune r on the stack
-// and returns that regexp.
-func (p *parser) literal(r rune) {
-	p.push(p.newLiteral(r, p.flags))
+	return m
 }
 
 // op pushes a regexp with the given op onto the stack
@@ -252,6 +431,7 @@ func (p *parser) repeat(op Op, min, max int, before, after, lastRepeat string) (
 	re.Sub = re.Sub0[:1]
 	re.Sub[0] = sub
 	p.stack[n-1] = re
+	p.checkLimits(re)
 
 	if op == OpRepeat && (min >= 2 || max >= 2) && !repeatIsValid(re, 1000) {
 		return "", &Error{ErrInvalidRepeatSize, before[:len(before)-len(after)]}
@@ -396,12 +576,16 @@ func (p *parser) collapse(subs []*Regexp, op Op) *Regexp {
 // frees (passes to p.reuse) any removed *Regexps.
 //
 // For example,
-//     ABC|ABD|AEF|BCX|BCY
-// simplifies by literal prefix extraction to
-//     A(B(C|D)|EF)|BC(X|Y)
-// which simplifies by character class introduction to
-//     A(B[CD]|EF)|BC[XY]
 //
+//	ABC|ABD|AEF|BCX|BCY
+//
+// simplifies by literal prefix extraction to
+//
+//	A(B(C|D)|EF)|BC(X|Y)
+//
+// which simplifies by character class introduction to
+//
+//	A(B[CD]|EF)|BC[XY]
 func (p *parser) factor(sub []*Regexp) []*Regexp {
 	if len(sub) < 2 {
 		return sub
@@ -438,7 +622,7 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 		}
 
 		// Found end of a run with common leading literal string:
-		// sub[start:i] all begin with str[0:len(str)], but sub[i]
+		// sub[start:i] all begin with str[:len(str)], but sub[i]
 		// does not even begin with str[0].
 		//
 		// Factor out common string and append factored expression to out.
@@ -455,6 +639,7 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 
 			for j := start; j < i; j++ {
 				sub[j] = p.removeLeadingString(sub[j], len(str))
+				p.checkLimits(sub[j])
 			}
 			suffix := p.collapse(sub[start:i], OpAlternate) // recurse
 
@@ -512,6 +697,7 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 			for j := start; j < i; j++ {
 				reuse := j != start // prefix came from sub[start]
 				sub[j] = p.removeLeadingRegexp(sub[j], reuse)
+				p.checkLimits(sub[j])
 			}
 			suffix := p.collapse(sub[start:i], OpAlternate) // recurse
 
@@ -699,6 +885,23 @@ func literalRegexp(s string, flags Flags) *Regexp {
 // Flags, and returns a regular expression parse tree. The syntax is
 // described in the top-level comment.
 func Parse(s string, flags Flags) (*Regexp, error) {
+	return parse(s, flags)
+}
+
+func parse(s string, flags Flags) (_ *Regexp, err error) {
+	defer func() {
+		switch r := recover(); r {
+		default:
+			panic(r)
+		case nil:
+			// ok
+		case ErrLarge: // too big
+			err = &Error{Code: ErrLarge, Expr: s}
+		case ErrNestingDepth:
+			err = &Error{Code: ErrNestingDepth, Expr: s}
+		}
+	}()
+
 	if flags&Literal != 0 {
 		// Trivial parser for literal string.
 		if err := checkUTF8(s); err != nil {
@@ -710,7 +913,6 @@ func Parse(s string, flags Flags) (*Regexp, error) {
 	// Otherwise, must do real work.
 	var (
 		p          parser
-		err        error
 		c          rune
 		op         Op
 		lastRepeat string
@@ -740,9 +942,7 @@ func Parse(s string, flags Flags) (*Regexp, error) {
 			p.op(opLeftParen).Cap = p.numCap
 			t = t[1:]
 		case '|':
-			if err = p.parseVerticalBar(); err != nil {
-				return nil, err
-			}
+			p.parseVerticalBar()
 			t = t[1:]
 		case ')':
 			if err = p.parseRightParen(); err != nil {
@@ -830,13 +1030,7 @@ func Parse(s string, flags Flags) (*Regexp, error) {
 				case 'Q':
 					// \Q ... \E: the ... is always literals
 					var lit string
-					if i := strings.Index(t, `\E`); i < 0 {
-						lit = t[2:]
-						t = ""
-					} else {
-						lit = t[2:i]
-						t = t[i+2:]
-					}
+					lit, t, _ = strings.Cut(t[2:], `\E`)
 					for lit != "" {
 						c, rest, err := nextRune(lit)
 						if err != nil {
@@ -960,9 +1154,18 @@ func (p *parser) parsePerlFlags(s string) (rest string, err error) {
 	// support all three as well. EcmaScript 4 uses only the Python form.
 	//
 	// In both the open source world (via Code Search) and the
-	// Google source tree, (?P<expr>name) is the dominant form,
-	// so that's the one we implement. One is enough.
-	if len(t) > 4 && t[2] == 'P' && t[3] == '<' {
+	// Google source tree, (?P<expr>name) and (?<expr>name) are the
+	// dominant forms of named captures and both are supported.
+	startsWithP := len(t) > 4 && t[2] == 'P' && t[3] == '<'
+	startsWithName := len(t) > 3 && t[2] == '<'
+
+	if startsWithP || startsWithName {
+		// position of expr start
+		exprStartPos := 4
+		if startsWithName {
+			exprStartPos = 3
+		}
+
 		// Pull out name.
 		end := strings.IndexRune(t, '>')
 		if end < 0 {
@@ -972,8 +1175,8 @@ func (p *parser) parsePerlFlags(s string) (rest string, err error) {
 			return "", &Error{ErrInvalidNamedCapture, s}
 		}
 
-		capture := t[:end+1] // "(?P<name>"
-		name := t[4:end]     // "name"
+		capture := t[:end+1]        // "(?P<name>" or "(?<name>"
+		name := t[exprStartPos:end] // "name"
 		if err = checkUTF8(name); err != nil {
 			return "", err
 		}
@@ -1124,7 +1327,7 @@ func matchRune(re *Regexp, r rune) bool {
 }
 
 // parseVerticalBar handles a | in the input.
-func (p *parser) parseVerticalBar() error {
+func (p *parser) parseVerticalBar() {
 	p.concat()
 
 	// The concatenation we just parsed is on top of the stack.
@@ -1134,8 +1337,6 @@ func (p *parser) parseVerticalBar() error {
 	if !p.swapVerticalBar() {
 		p.op(opVerticalBar)
 	}
-
-	return nil
 }
 
 // mergeCharClass makes dst = dst|src.
@@ -1376,6 +1577,8 @@ type charGroup struct {
 	class []rune
 }
 
+//go:generate perl make_perl_groups.pl perl_groups.go
+
 // parsePerlClassEscape parses a leading Perl character class escape like \d
 // from the beginning of s. If one is present, it appends the characters to r
 // and returns the new slice r and the remainder of the string.
@@ -1437,20 +1640,109 @@ var anyTable = &unicode.RangeTable{
 	R32: []unicode.Range32{{Lo: 1 << 16, Hi: unicode.MaxRune, Stride: 1}},
 }
 
+var asciiTable = &unicode.RangeTable{
+	R16: []unicode.Range16{{Lo: 0, Hi: 0x7F, Stride: 1}},
+}
+
+var asciiFoldTable = &unicode.RangeTable{
+	R16: []unicode.Range16{
+		{Lo: 0, Hi: 0x7F, Stride: 1},
+		{Lo: 0x017F, Hi: 0x017F, Stride: 1}, // Old English long s (ſ), folds to S/s.
+		{Lo: 0x212A, Hi: 0x212A, Stride: 1}, // Kelvin K, folds to K/k.
+	},
+}
+
+// categoryAliases is a lazily constructed copy of unicode.CategoryAliases
+// but with the keys passed through canonicalName, to support inexact matches.
+var categoryAliases struct {
+	once sync.Once
+	m    map[string]string
+}
+
+// initCategoryAliases initializes categoryAliases by canonicalizing unicode.CategoryAliases.
+func initCategoryAliases() {
+	categoryAliases.m = make(map[string]string)
+	for name, actual := range unicode.CategoryAliases {
+		categoryAliases.m[canonicalName(name)] = actual
+	}
+}
+
+// canonicalName returns the canonical lookup string for name.
+// The canonical name has a leading uppercase letter and then lowercase letters,
+// and it omits all underscores, spaces, and hyphens.
+// (We could have used all lowercase, but this way most package unicode
+// map keys are already canonical.)
+func canonicalName(name string) string {
+	var b []byte
+	first := true
+	for i := range len(name) {
+		c := name[i]
+		switch {
+		case c == '_' || c == '-' || c == ' ':
+			c = ' '
+		case first:
+			if 'a' <= c && c <= 'z' {
+				c -= 'a' - 'A'
+			}
+			first = false
+		default:
+			if 'A' <= c && c <= 'Z' {
+				c += 'a' - 'A'
+			}
+		}
+		if b == nil {
+			if c == name[i] && c != ' ' {
+				// No changes so far, avoid allocating b.
+				continue
+			}
+			b = make([]byte, i, len(name))
+			copy(b, name[:i])
+		}
+		if c == ' ' {
+			continue
+		}
+		b = append(b, c)
+	}
+	if b == nil {
+		return name
+	}
+	return string(b)
+}
+
 // unicodeTable returns the unicode.RangeTable identified by name
 // and the table of additional fold-equivalent code points.
-func unicodeTable(name string) (*unicode.RangeTable, *unicode.RangeTable) {
-	// Special case: "Any" means any.
-	if name == "Any" {
-		return anyTable, anyTable
+// If sign < 0, the result should be inverted.
+func unicodeTable(name string) (tab, fold *unicode.RangeTable, sign int) {
+	name = canonicalName(name)
+
+	// Special cases: Any, Assigned, and ASCII.
+	// Also LC is the only non-canonical Categories key, so handle it here.
+	switch name {
+	case "Any":
+		return anyTable, anyTable, +1
+	case "Assigned":
+		return unicode.Cn, unicode.Cn, -1 // invert Cn (unassigned)
+	case "Ascii":
+		return asciiTable, asciiFoldTable, +1
+	case "Lc":
+		return unicode.Categories["LC"], unicode.FoldCategory["LC"], +1
 	}
 	if t := unicode.Categories[name]; t != nil {
-		return t, unicode.FoldCategory[name]
+		return t, unicode.FoldCategory[name], +1
 	}
 	if t := unicode.Scripts[name]; t != nil {
-		return t, unicode.FoldScript[name]
+		return t, unicode.FoldScript[name], +1
 	}
-	return nil, nil
+
+	// unicode.CategoryAliases makes liberal use of underscores in its names
+	// (they are defined that way by Unicode), but we want to match ignoring
+	// the underscores, so make our own map with canonical names.
+	categoryAliases.once.Do(initCategoryAliases)
+	if actual := categoryAliases.m[name]; actual != "" {
+		t := unicode.Categories[actual]
+		return t, unicode.FoldCategory[actual], +1
+	}
+	return nil, nil, 0
 }
 
 // parseUnicodeClass parses a leading Unicode character class like \p{Han}
@@ -1498,9 +1790,12 @@ func (p *parser) parseUnicodeClass(s string, r []rune) (out []rune, rest string,
 		name = name[1:]
 	}
 
-	tab, fold := unicodeTable(name)
+	tab, fold, tsign := unicodeTable(name)
 	if tab == nil {
 		return nil, "", &Error{ErrInvalidCharRange, seq}
+	}
+	if tsign < 0 {
+		sign = -sign
 	}
 
 	if p.flags&FoldCase == 0 || fold == nil {
@@ -1655,6 +1950,22 @@ func cleanClass(rp *[]rune) []rune {
 	return r[:w]
 }
 
+// inCharClass reports whether r is in the class.
+// It assumes the class has been cleaned by cleanClass.
+func inCharClass(r rune, class []rune) bool {
+	_, ok := sort.Find(len(class)/2, func(i int) int {
+		lo, hi := class[2*i], class[2*i+1]
+		if r > hi {
+			return +1
+		}
+		if r < lo {
+			return -1
+		}
+		return 0
+	})
+	return ok
+}
+
 // appendLiteral returns the result of appending the literal x to the class r.
 func appendLiteral(r []rune, x rune, flags Flags) []rune {
 	if flags&FoldCase != 0 {
@@ -1739,7 +2050,7 @@ func appendClass(r []rune, x []rune) []rune {
 	return r
 }
 
-// appendFolded returns the result of appending the case folding of the class x to the class r.
+// appendFoldedClass returns the result of appending the case folding of the class x to the class r.
 func appendFoldedClass(r []rune, x []rune) []rune {
 	for i := 0; i < len(x); i += 2 {
 		r = appendFoldedRange(r, x[i], x[i+1])

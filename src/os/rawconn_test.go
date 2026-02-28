@@ -3,7 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Test use of raw connections.
-// +build !plan9,!js
+//
+//go:build !plan9 && !js && !wasip1
 
 package os_test
 

@@ -2,23 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd netbsd openbsd
+//go:build darwin || dragonfly || freebsd || netbsd || openbsd
 
 package runtime
 
 // Integrated network poller (kqueue-based implementation).
 
 import (
-	"runtime/internal/atomic"
+	"internal/goarch"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
 var (
-	kq int32 = -1
-
-	netpollBreakRd, netpollBreakWr uintptr // for netpollBreak
-
-	netpollWakeSig uintptr // used to avoid duplicate calls of netpollBreak
+	kq             int32         = -1
+	netpollWakeSig atomic.Uint32 // used to avoid duplicate calls of netpollBreak
 )
 
 func netpollinit() {
@@ -28,27 +26,7 @@ func netpollinit() {
 		throw("runtime: netpollinit failed")
 	}
 	closeonexec(kq)
-	r, w, errno := nonblockingPipe()
-	if errno != 0 {
-		println("runtime: pipe failed with", -errno)
-		throw("runtime: pipe failed")
-	}
-	ev := keventt{
-		filter: _EVFILT_READ,
-		flags:  _EV_ADD,
-	}
-	*(*uintptr)(unsafe.Pointer(&ev.ident)) = uintptr(r)
-	n := kevent(kq, &ev, 1, nil, 0, nil)
-	if n < 0 {
-		println("runtime: kevent failed with", -n)
-		throw("runtime: kevent failed")
-	}
-	netpollBreakRd = uintptr(r)
-	netpollBreakWr = uintptr(w)
-}
-
-func netpollIsPollDescriptor(fd uintptr) bool {
-	return fd == uintptr(kq) || fd == netpollBreakRd || fd == netpollBreakWr
+	addWakeupEvent(kq)
 }
 
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
@@ -61,7 +39,17 @@ func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	ev[0].flags = _EV_ADD | _EV_CLEAR
 	ev[0].fflags = 0
 	ev[0].data = 0
-	ev[0].udata = (*byte)(unsafe.Pointer(pd))
+
+	if goarch.PtrSize == 4 {
+		// We only have a pointer-sized field to store into,
+		// so on a 32-bit system we get no sequence protection.
+		// TODO(iant): If we notice any problems we could at least
+		// steal the low-order 2 bits for a tiny sequence number.
+		ev[0].udata = (*byte)(unsafe.Pointer(pd))
+	} else {
+		tp := taggedPointerPack(unsafe.Pointer(pd), pd.fdseq.Load())
+		ev[0].udata = (*byte)(unsafe.Pointer(uintptr(tp)))
+	}
 	ev[1] = ev[0]
 	ev[1].filter = _EVFILT_WRITE
 	n := kevent(kq, &ev[0], 2, nil, 0, nil)
@@ -83,30 +71,25 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // netpollBreak interrupts a kevent.
 func netpollBreak() {
-	if atomic.Casuintptr(&netpollWakeSig, 0, 1) {
-		for {
-			var b byte
-			n := write(netpollBreakWr, unsafe.Pointer(&b), 1)
-			if n == 1 || n == -_EAGAIN {
-				break
-			}
-			if n == -_EINTR {
-				continue
-			}
-			println("runtime: netpollBreak write failed with", -n)
-			throw("runtime: netpollBreak write failed")
-		}
+	// Failing to cas indicates there is an in-flight wakeup, so we're done here.
+	if !netpollWakeSig.CompareAndSwap(0, 1) {
+		return
 	}
+
+	wakeNetpoll(kq)
 }
 
 // netpoll checks for ready network connections.
-// Returns list of goroutines that become runnable.
+// Returns a list of goroutines that become runnable,
+// and a delta to add to netpollWaiters.
+// This must never return an empty list with a non-zero delta.
+//
 // delay < 0: blocks indefinitely
 // delay == 0: does not block, just polls
 // delay > 0: block for up to that many nanoseconds
-func netpoll(delay int64) gList {
+func netpoll(delay int64) (gList, int32) {
 	if kq == -1 {
-		return gList{}
+		return gList{}, 0
 	}
 	var tp *timespec
 	var ts timespec
@@ -126,33 +109,32 @@ func netpoll(delay int64) gList {
 retry:
 	n := kevent(kq, nil, 0, &events[0], int32(len(events)), tp)
 	if n < 0 {
-		if n != -_EINTR {
+		// Ignore the ETIMEDOUT error for now, but try to dive deep and
+		// figure out what really happened with n == ETIMEOUT,
+		// see https://go.dev/issue/59679 for details.
+		if n != -_EINTR && n != -_ETIMEDOUT {
 			println("runtime: kevent on fd", kq, "failed with", -n)
 			throw("runtime: netpoll failed")
 		}
 		// If a timed sleep was interrupted, just return to
 		// recalculate how long we should sleep now.
 		if delay > 0 {
-			return gList{}
+			return gList{}, 0
 		}
 		goto retry
 	}
 	var toRun gList
+	delta := int32(0)
 	for i := 0; i < int(n); i++ {
 		ev := &events[i]
 
-		if uintptr(ev.ident) == netpollBreakRd {
-			if ev.filter != _EVFILT_READ {
-				println("runtime: netpoll: break fd ready for", ev.filter)
-				throw("runtime: netpoll: break fd ready for something unexpected")
-			}
-			if delay != 0 {
-				// netpollBreak could be picked up by a
-				// nonblocking poll. Only read the byte
-				// if blocking.
-				var tmp [16]byte
-				read(int32(netpollBreakRd), noescape(unsafe.Pointer(&tmp[0])), int32(len(tmp)))
-				atomic.Storeuintptr(&netpollWakeSig, 0)
+		if isWakeup(ev) {
+			isBlocking := delay != 0
+			processWakeupEvent(kq, isBlocking)
+			if isBlocking {
+				// netpollBreak could be picked up by a nonblocking poll.
+				// Only reset the netpollWakeSig if blocking.
+				netpollWakeSig.Store(0)
 			}
 			continue
 		}
@@ -178,13 +160,24 @@ retry:
 			mode += 'w'
 		}
 		if mode != 0 {
-			pd := (*pollDesc)(unsafe.Pointer(ev.udata))
-			pd.everr = false
-			if ev.flags == _EV_ERROR {
-				pd.everr = true
+			var pd *pollDesc
+			var tag uintptr
+			if goarch.PtrSize == 4 {
+				// No sequence protection on 32-bit systems.
+				// See netpollopen for details.
+				pd = (*pollDesc)(unsafe.Pointer(ev.udata))
+				tag = 0
+			} else {
+				tp := taggedPointer(uintptr(unsafe.Pointer(ev.udata)))
+				pd = (*pollDesc)(tp.pointer())
+				tag = tp.tag()
+				if pd.fdseq.Load() != tag {
+					continue
+				}
 			}
-			netpollready(&toRun, pd, mode)
+			pd.setEventErr(ev.flags == _EV_ERROR, tag)
+			delta += netpollready(&toRun, pd, mode)
 		}
 	}
-	return toRun
+	return toRun, delta
 }

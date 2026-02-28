@@ -7,6 +7,8 @@
 package reflect
 
 import (
+	"internal/abi"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -16,35 +18,32 @@ import (
 // methodValue and runtime.reflectMethodValue.
 // Any changes should be reflected in all three.
 type makeFuncImpl struct {
-	code   uintptr
-	stack  *bitVector // ptrmap for both args and results
-	argLen uintptr    // just args
-	ftyp   *funcType
-	fn     func([]Value) []Value
+	makeFuncCtxt
+	ftyp *funcType
+	fn   func([]Value) []Value
 }
 
-// MakeFunc returns a new function of the given Type
+// MakeFunc returns a new function of the given [Type]
 // that wraps the function fn. When called, that new function
 // does the following:
 //
-//	- converts its arguments to a slice of Values.
-//	- runs results := fn(args).
-//	- returns the results as a slice of Values, one per formal result.
+//   - converts its arguments to a slice of Values.
+//   - runs results := fn(args).
+//   - returns the results as a slice of Values, one per formal result.
 //
-// The implementation fn can assume that the argument Value slice
+// The implementation fn can assume that the argument [Value] slice
 // has the number and type of arguments given by typ.
 // If typ describes a variadic function, the final Value is itself
 // a slice representing the variadic arguments, as in the
 // body of a variadic function. The result Value slice returned by fn
 // must have the number and type of results given by typ.
 //
-// The Value.Call method allows the caller to invoke a typed function
+// The [Value.Call] method allows the caller to invoke a typed function
 // in terms of Values; in contrast, MakeFunc allows the caller to implement
 // a typed function in terms of Values.
 //
 // The Examples section of the documentation includes an illustration
 // of how to use MakeFunc to build a swap function for different types.
-//
 func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 	if typ.Kind() != Func {
 		panic("reflect: call of MakeFunc with non-Func type")
@@ -53,16 +52,21 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 	t := typ.common()
 	ftyp := (*funcType)(unsafe.Pointer(t))
 
-	// Indirect Go func value (dummy) to obtain
-	// actual code address. (A Go func value is a pointer
-	// to a C function pointer. https://golang.org/s/go11func.)
-	dummy := makeFuncStub
-	code := **(**uintptr)(unsafe.Pointer(&dummy))
+	code := abi.FuncPCABI0(makeFuncStub)
 
 	// makeFuncImpl contains a stack map for use by the runtime
-	_, argLen, _, stack, _ := funcLayout(ftyp, nil)
+	_, _, abid := funcLayout(ftyp, nil)
 
-	impl := &makeFuncImpl{code: code, stack: stack, argLen: argLen, ftyp: ftyp, fn: fn}
+	impl := &makeFuncImpl{
+		makeFuncCtxt: makeFuncCtxt{
+			fn:      code,
+			stack:   abid.stackPtrs,
+			argLen:  abid.stackCallArgsSize,
+			regPtrs: abid.inRegPtrs,
+		},
+		ftyp: ftyp,
+		fn:   fn,
+	}
 
 	return Value{t, unsafe.Pointer(impl), flag(Func)}
 }
@@ -78,9 +82,7 @@ func makeFuncStub()
 // makeFuncImpl and runtime.reflectMethodValue.
 // Any changes should be reflected in all three.
 type methodValue struct {
-	fn     uintptr
-	stack  *bitVector // ptrmap for both args and results
-	argLen uintptr    // just args
+	makeFuncCtxt
 	method int
 	rcvr   Value
 }
@@ -99,25 +101,23 @@ func makeMethodValue(op string, v Value) Value {
 
 	// Ignoring the flagMethod bit, v describes the receiver, not the method type.
 	fl := v.flag & (flagRO | flagAddr | flagIndir)
-	fl |= flag(v.typ.Kind())
-	rcvr := Value{v.typ, v.ptr, fl}
+	fl |= flag(v.typ().Kind())
+	rcvr := Value{v.typ(), v.ptr, fl}
 
 	// v.Type returns the actual type of the method value.
 	ftyp := (*funcType)(unsafe.Pointer(v.Type().(*rtype)))
 
-	// Indirect Go func value (dummy) to obtain
-	// actual code address. (A Go func value is a pointer
-	// to a C function pointer. https://golang.org/s/go11func.)
-	dummy := methodValueCall
-	code := **(**uintptr)(unsafe.Pointer(&dummy))
+	code := methodValueCallCodePtr()
 
 	// methodValue contains a stack map for use by the runtime
-	_, argLen, _, stack, _ := funcLayout(ftyp, nil)
-
+	_, _, abid := funcLayout(ftyp, nil)
 	fv := &methodValue{
-		fn:     code,
-		stack:  stack,
-		argLen: argLen,
+		makeFuncCtxt: makeFuncCtxt{
+			fn:      code,
+			stack:   abid.stackPtrs,
+			argLen:  abid.stackCallArgsSize,
+			regPtrs: abid.inRegPtrs,
+		},
 		method: int(v.flag) >> flagMethodShift,
 		rcvr:   rcvr,
 	}
@@ -127,7 +127,11 @@ func makeMethodValue(op string, v Value) Value {
 	// but we want Interface() and other operations to fail early.
 	methodReceiver(op, fv.rcvr, fv.method)
 
-	return Value{&ftyp.rtype, unsafe.Pointer(fv), v.flag&flagRO | flag(Func)}
+	return Value{ftyp.Common(), unsafe.Pointer(fv), v.flag&flagRO | flag(Func)}
+}
+
+func methodValueCallCodePtr() uintptr {
+	return abi.FuncPCABI0(methodValueCall)
 }
 
 // methodValueCall is an assembly function that is the code half of
@@ -136,3 +140,43 @@ func makeMethodValue(op string, v Value) Value {
 // where ctxt is the context register and frame is a pointer to the first
 // word in the passed-in argument frame.
 func methodValueCall()
+
+// This structure must be kept in sync with runtime.reflectMethodValue.
+// Any changes should be reflected in all both.
+type makeFuncCtxt struct {
+	fn      uintptr
+	stack   *bitVector // ptrmap for both stack args and results
+	argLen  uintptr    // just args
+	regPtrs abi.IntArgRegBitmap
+}
+
+// moveMakeFuncArgPtrs uses ctxt.regPtrs to copy integer pointer arguments
+// in args.Ints to args.Ptrs where the GC can see them.
+//
+// This is similar to what reflectcallmove does in the runtime, except
+// that happens on the return path, whereas this happens on the call path.
+//
+// nosplit because pointers are being held in uintptr slots in args, so
+// having our stack scanned now could lead to accidentally freeing
+// memory.
+//
+//go:nosplit
+func moveMakeFuncArgPtrs(ctxt *makeFuncCtxt, args *abi.RegArgs) {
+	for i, arg := range args.Ints {
+		// Avoid write barriers! Because our write barrier enqueues what
+		// was there before, we might enqueue garbage.
+		// Also avoid bounds checks, we don't have the stack space for it.
+		// (Normally the prove pass removes them, but for -N builds we
+		// use too much stack.)
+		// ptr := &args.Ptrs[i] (but cast from *unsafe.Pointer to *uintptr)
+		ptr := (*uintptr)(add(unsafe.Pointer(unsafe.SliceData(args.Ptrs[:])), uintptr(i)*goarch.PtrSize, "always in [0:IntArgRegs]"))
+		if ctxt.regPtrs.Get(i) {
+			*ptr = arg
+		} else {
+			// We *must* zero this space ourselves because it's defined in
+			// assembly code and the GC will scan these pointers. Otherwise,
+			// there will be garbage here.
+			*ptr = 0
+		}
+	}
+}

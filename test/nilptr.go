@@ -7,8 +7,8 @@
 // Test that the implementation catches nil ptr indirection
 // in a large address space.
 
-// +build !aix
-// Address space starts at 1<<32 on AIX, so dummy is too far.
+// Address space starts at 1<<32 on AIX and on darwin/arm64 and on windows/[amd64/arm64], so dummy is too far.
+//go:build !aix && (!darwin || !arm64) && (!windows || (!amd64 && !arm64))
 
 package main
 

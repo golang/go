@@ -64,6 +64,14 @@ func (f *file) readLine() (s string, ok bool) {
 	return
 }
 
+func (f *file) stat() (mtime time.Time, size int64, err error) {
+	st, err := f.file.Stat()
+	if err != nil {
+		return time.Time{}, 0, err
+	}
+	return st.ModTime(), st.Size(), nil
+}
+
 func open(name string) (*file, error) {
 	fd, err := os.Open(name)
 	if err != nil {
@@ -172,66 +180,14 @@ func xtoi2(s string, e byte) (byte, bool) {
 	return byte(n), ok && ei == 2
 }
 
-// Convert integer to decimal string.
-func itoa(val int) string {
-	if val < 0 {
-		return "-" + uitoa(uint(-val))
-	}
-	return uitoa(uint(val))
-}
-
-// Convert unsigned integer to decimal string.
-func uitoa(val uint) string {
-	if val == 0 { // avoid string allocation
-		return "0"
-	}
-	var buf [20]byte // big enough for 64bit value base 10
-	i := len(buf) - 1
-	for val >= 10 {
-		q := val / 10
-		buf[i] = byte('0' + val - q*10)
-		i--
-		val = q
-	}
-	// val < 10
-	buf[i] = byte('0' + val)
-	return string(buf[i:])
-}
-
-// Convert i to a hexadecimal string. Leading zeros are not printed.
-func appendHex(dst []byte, i uint32) []byte {
-	if i == 0 {
-		return append(dst, '0')
-	}
-	for j := 7; j >= 0; j-- {
-		v := i >> uint(j*4)
-		if v > 0 {
-			dst = append(dst, hexDigit[v&0xf])
+// hasUpperCase tells whether the given string contains at least one upper-case.
+func hasUpperCase(s string) bool {
+	for i := range s {
+		if 'A' <= s[i] && s[i] <= 'Z' {
+			return true
 		}
 	}
-	return dst
-}
-
-// Number of occurrences of b in s.
-func count(s string, b byte) int {
-	n := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == b {
-			n++
-		}
-	}
-	return n
-}
-
-// Index of rightmost occurrence of b in s.
-func last(s string, b byte) int {
-	i := len(s)
-	for i--; i >= 0; i-- {
-		if s[i] == b {
-			break
-		}
-	}
-	return i
+	return false
 }
 
 // lowerASCIIBytes makes x ASCII lowercase in-place.
@@ -252,7 +208,7 @@ func lowerASCII(b byte) byte {
 }
 
 // trimSpace returns x without any leading or trailing ASCII whitespace.
-func trimSpace(x []byte) []byte {
+func trimSpace(x string) string {
 	for len(x) > 0 && isSpace(x[0]) {
 		x = x[1:]
 	}
@@ -269,37 +225,19 @@ func isSpace(b byte) bool {
 
 // removeComment returns line, removing any '#' byte and any following
 // bytes.
-func removeComment(line []byte) []byte {
-	if i := bytealg.IndexByte(line, '#'); i != -1 {
+func removeComment(line string) string {
+	if i := bytealg.IndexByteString(line, '#'); i != -1 {
 		return line[:i]
 	}
 	return line
 }
 
-// foreachLine runs fn on each line of x.
-// Each line (except for possibly the last) ends in '\n'.
-// It returns the first non-nil error returned by fn.
-func foreachLine(x []byte, fn func(line []byte) error) error {
-	for len(x) > 0 {
-		nl := bytealg.IndexByte(x, '\n')
-		if nl == -1 {
-			return fn(x)
-		}
-		line := x[:nl+1]
-		x = x[nl+1:]
-		if err := fn(line); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // foreachField runs fn on each non-empty run of non-space bytes in x.
 // It returns the first non-nil error returned by fn.
-func foreachField(x []byte, fn func(field []byte) error) error {
+func foreachField(x string, fn func(field string) error) error {
 	x = trimSpace(x)
 	for len(x) > 0 {
-		sp := bytealg.IndexByte(x, ' ')
+		sp := bytealg.IndexByteString(x, ' ')
 		if sp == -1 {
 			return fn(x)
 		}
@@ -313,21 +251,10 @@ func foreachField(x []byte, fn func(field []byte) error) error {
 	return nil
 }
 
-// stringsHasSuffix is strings.HasSuffix. It reports whether s ends in
-// suffix.
-func stringsHasSuffix(s, suffix string) bool {
-	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
-}
-
 // stringsHasSuffixFold reports whether s ends in suffix,
 // ASCII-case-insensitively.
 func stringsHasSuffixFold(s, suffix string) bool {
 	return len(s) >= len(suffix) && stringsEqualFold(s[len(s)-len(suffix):], suffix)
-}
-
-// stringsHasPrefix is strings.HasPrefix. It reports whether s begins with prefix.
-func stringsHasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
 
 // stringsEqualFold is strings.EqualFold, ASCII only. It reports whether s and t
@@ -342,41 +269,4 @@ func stringsEqualFold(s, t string) bool {
 		}
 	}
 	return true
-}
-
-func readFull(r io.Reader) (all []byte, err error) {
-	buf := make([]byte, 1024)
-	for {
-		n, err := r.Read(buf)
-		all = append(all, buf[:n]...)
-		if err == io.EOF {
-			return all, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-	}
-}
-
-// goDebugString returns the value of the named GODEBUG key.
-// GODEBUG is of the form "key=val,key2=val2"
-func goDebugString(key string) string {
-	s := os.Getenv("GODEBUG")
-	for i := 0; i < len(s)-len(key)-1; i++ {
-		if i > 0 && s[i-1] != ',' {
-			continue
-		}
-		afterKey := s[i+len(key):]
-		if afterKey[0] != '=' || s[i:i+len(key)] != key {
-			continue
-		}
-		val := afterKey[1:]
-		for i, b := range val {
-			if b == ',' {
-				return val[:i]
-			}
-		}
-		return val
-	}
-	return ""
 }

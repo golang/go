@@ -8,17 +8,31 @@ import (
 	"internal/cpu"
 )
 
-var useAVXmemmove bool
+var memmoveBits uint8
+
+const (
+	// avxSupported indicates that the CPU supports AVX instructions.
+	avxSupported = 1 << 0
+
+	// repmovsPreferred indicates that REP MOVSx instruction is more
+	// efficient on the CPU.
+	repmovsPreferred = 1 << 1
+)
 
 func init() {
-	// Let's remove stepping and reserved fields
-	processor := processorVersionInfo & 0x0FFF3FF0
-
-	isIntelBridgeFamily := isIntel &&
-		processor == 0x206A0 ||
-		processor == 0x206D0 ||
-		processor == 0x306A0 ||
-		processor == 0x306E0
-
-	useAVXmemmove = cpu.X86.HasAVX && !isIntelBridgeFamily
+	// Here we assume that on modern CPUs with both FSRM and ERMS features,
+	// copying data blocks of 2KB or larger using the REP MOVSB instruction
+	// will be more efficient to avoid having to keep up with CPU generations.
+	// Therefore, we may retain a BlockList mechanism to ensure that microarchitectures
+	// that do not fit this case may appear in the future.
+	// We enable it on Intel CPUs first, and we may support more platforms
+	// in the future.
+	isERMSNiceCPU := isIntel
+	useREPMOV := isERMSNiceCPU && cpu.X86.HasERMS && cpu.X86.HasFSRM
+	if cpu.X86.HasAVX {
+		memmoveBits |= avxSupported
+	}
+	if useREPMOV {
+		memmoveBits |= repmovsPreferred
+	}
 }

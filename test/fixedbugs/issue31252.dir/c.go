@@ -5,8 +5,8 @@
 package c
 
 import (
-	"a"
-	"b"
+	"./a"
+	"./b"
 )
 
 type HandlerFunc func(*string)

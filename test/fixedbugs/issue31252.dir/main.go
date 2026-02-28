@@ -4,7 +4,7 @@
 
 package main
 
-import "c"
+import "./c"
 
 func main() {
 	c.RouterInit()

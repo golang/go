@@ -4,6 +4,11 @@
 
 package cpu
 
+import (
+	"strings"
+	"syscall"
+)
+
 // HWCAP/HWCAP2 bits. These are exposed by Linux.
 const (
 	hwcap_FP       = 1 << 0
@@ -30,12 +35,51 @@ const (
 	hwcap_SHA512   = 1 << 21
 	hwcap_SVE      = 1 << 22
 	hwcap_ASIMDFHM = 1 << 23
+	hwcap_DIT      = 1 << 24
+
+	hwcap2_SVE2 = 1 << 1
+	hwcap2_I8MM = 1 << 13
 )
+
+// linuxKernelCanEmulateCPUID reports whether we're running
+// on Linux 4.11+. Ideally we'd like to ask the question about
+// whether the current kernel contains
+// https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=77c97b4ee21290f5f083173d957843b615abbff2
+// but the version number will have to do.
+func linuxKernelCanEmulateCPUID() bool {
+	var un syscall.Utsname
+	syscall.Uname(&un)
+	var sb strings.Builder
+	for _, b := range un.Release[:] {
+		if b == 0 {
+			break
+		}
+		sb.WriteByte(byte(b))
+	}
+	major, minor, _, ok := parseRelease(sb.String())
+	return ok && (major > 4 || major == 4 && minor >= 11)
+}
 
 func doinit() {
 	if err := readHWCAP(); err != nil {
-		// failed to read /proc/self/auxv, try reading registers directly
-		readARM64Registers()
+		// We failed to read /proc/self/auxv. This can happen if the binary has
+		// been given extra capabilities(7) with /bin/setcap.
+		//
+		// When this happens, we have two options. If the Linux kernel is new
+		// enough (4.11+), we can read the arm64 registers directly which'll
+		// trap into the kernel and then return back to userspace.
+		//
+		// But on older kernels, such as Linux 4.4.180 as used on many Synology
+		// devices, calling readARM64Registers (specifically getisar0) will
+		// cause a SIGILL and we'll die. So for older kernels, parse /proc/cpuinfo
+		// instead.
+		//
+		// See golang/go#57336.
+		if linuxKernelCanEmulateCPUID() {
+			readARM64Registers()
+		} else {
+			readLinuxProcCPUInfo()
+		}
 		return
 	}
 
@@ -64,6 +108,11 @@ func doinit() {
 	ARM64.HasSHA512 = isSet(hwCap, hwcap_SHA512)
 	ARM64.HasSVE = isSet(hwCap, hwcap_SVE)
 	ARM64.HasASIMDFHM = isSet(hwCap, hwcap_ASIMDFHM)
+	ARM64.HasDIT = isSet(hwCap, hwcap_DIT)
+
+	// HWCAP2 feature bits
+	ARM64.HasSVE2 = isSet(hwCap2, hwcap2_SVE2)
+	ARM64.HasI8MM = isSet(hwCap2, hwcap2_I8MM)
 }
 
 func isSet(hwc uint, value uint) bool {

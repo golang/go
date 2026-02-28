@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build windows
+//go:build windows
 
 package registry_test
 
@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"os"
+	"slices"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -34,7 +35,7 @@ func TestReadSubKeyNames(t *testing.T) {
 	}
 	defer k.Close()
 
-	names, err := k.ReadSubKeyNames(-1)
+	names, err := k.ReadSubKeyNames()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,25 +101,10 @@ func TestCreateOpenDeleteKey(t *testing.T) {
 	}
 }
 
-func equalStringSlice(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	if a == nil {
-		return true
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 type ValueTest struct {
 	Type     uint32
 	Name     string
-	Value    interface{}
+	Value    any
 	WillFail bool
 }
 
@@ -190,7 +176,7 @@ func setValues(t *testing.T, k registry.Key) {
 }
 
 func enumerateValues(t *testing.T, k registry.Key) {
-	names, err := k.ReadValueNames(-1)
+	names, err := k.ReadValueNames()
 	if err != nil {
 		t.Error(err)
 		return
@@ -304,7 +290,7 @@ func testGetStringsValue(t *testing.T, k registry.Key, test ValueTest) {
 		t.Errorf("GetStringsValue(%s) failed: %v", test.Name, err)
 		return
 	}
-	if !equalStringSlice(got, test.Value.([]string)) {
+	if !slices.Equal(got, test.Value.([]string)) {
 		t.Errorf("want %s value %#v, got %#v", test.Name, test.Value, got)
 		return
 	}
@@ -480,7 +466,7 @@ func deleteValues(t *testing.T, k registry.Key) {
 			continue
 		}
 	}
-	names, err := k.ReadValueNames(-1)
+	names, err := k.ReadValueNames()
 	if err != nil {
 		t.Error(err)
 		return
@@ -599,12 +585,6 @@ func TestInvalidValues(t *testing.T) {
 }
 
 func TestGetMUIStringValue(t *testing.T) {
-	if err := registry.LoadRegLoadMUIString(); err != nil {
-		t.Skip("regLoadMUIString not supported; skipping")
-	}
-	if err := procGetDynamicTimeZoneInformation.Find(); err != nil {
-		t.Skipf("%s not supported; skipping", procGetDynamicTimeZoneInformation.Name)
-	}
 	var dtzi DynamicTimezoneinformation
 	if _, err := GetDynamicTimeZoneInformation(&dtzi); err != nil {
 		t.Fatal(err)
@@ -653,9 +633,9 @@ type DynamicTimezoneinformation struct {
 }
 
 var (
-	kernel32DLL = syscall.NewLazyDLL("kernel32")
+	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
 
-	procGetDynamicTimeZoneInformation = kernel32DLL.NewProc("GetDynamicTimeZoneInformation")
+	procGetDynamicTimeZoneInformation = modkernel32.NewProc("GetDynamicTimeZoneInformation")
 )
 
 func GetDynamicTimeZoneInformation(dtzi *DynamicTimezoneinformation) (rc uint32, err error) {

@@ -5,10 +5,12 @@
 package asn1
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
+	"slices"
 	"time"
 	"unicode/utf8"
 )
@@ -75,6 +77,46 @@ func (m multiEncoder) Encode(dst []byte) {
 	for _, e := range m {
 		e.Encode(dst[off:])
 		off += e.Len()
+	}
+}
+
+type setEncoder []encoder
+
+func (s setEncoder) Len() int {
+	var size int
+	for _, e := range s {
+		size += e.Len()
+	}
+	return size
+}
+
+func (s setEncoder) Encode(dst []byte) {
+	// Per X690 Section 11.6: The encodings of the component values of a
+	// set-of value shall appear in ascending order, the encodings being
+	// compared as octet strings with the shorter components being padded
+	// at their trailing end with 0-octets.
+	//
+	// First we encode each element to its TLV encoding and then use
+	// octetSort to get the ordering expected by X690 DER rules before
+	// writing the sorted encodings out to dst.
+	l := make([][]byte, len(s))
+	for i, e := range s {
+		l[i] = make([]byte, e.Len())
+		e.Encode(l[i])
+	}
+
+	// Since we are using bytes.Compare to compare TLV encodings we
+	// don't need to right pad s[i] and s[j] to the same length as
+	// suggested in X690. If len(s[i]) < len(s[j]) the length octet of
+	// s[i], which is the first determining byte, will inherently be
+	// smaller than the length octet of s[j]. This lets us skip the
+	// padding step.
+	slices.SortFunc(l, bytes.Compare)
+
+	var off int
+	for _, b := range l {
+		copy(dst[off:], b)
+		off += len(b)
 	}
 }
 
@@ -311,12 +353,11 @@ func appendTwoDigits(dst []byte, v int) []byte {
 }
 
 func appendFourDigits(dst []byte, v int) []byte {
-	var bytes [4]byte
-	for i := range bytes {
-		bytes[3-i] = '0' + byte(v%10)
-		v /= 10
-	}
-	return append(dst, bytes[:]...)
+	return append(dst,
+		byte('0'+(v/1000)%10),
+		byte('0'+(v/100)%10),
+		byte('0'+(v/10)%10),
+		byte('0'+v%10))
 }
 
 func outsideUTCRange(t time.Time) bool {
@@ -419,17 +460,20 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
 	case flagType:
 		return bytesEncoder(nil), nil
 	case timeType:
-		t := value.Interface().(time.Time)
+		t, _ := reflect.TypeAssert[time.Time](value)
 		if params.timeType == TagGeneralizedTime || outsideUTCRange(t) {
 			return makeGeneralizedTime(t)
 		}
 		return makeUTCTime(t)
 	case bitStringType:
-		return bitStringEncoder(value.Interface().(BitString)), nil
+		v, _ := reflect.TypeAssert[BitString](value)
+		return bitStringEncoder(v), nil
 	case objectIdentifierType:
-		return makeObjectIdentifier(value.Interface().(ObjectIdentifier))
+		v, _ := reflect.TypeAssert[ObjectIdentifier](value)
+		return makeObjectIdentifier(v)
 	case bigIntType:
-		return makeBigInt(value.Interface().(*big.Int))
+		v, _ := reflect.TypeAssert[*big.Int](value)
+		return makeBigInt(v)
 	}
 
 	switch v := value; v.Kind() {
@@ -444,7 +488,7 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
 		t := v.Type()
 
 		for i := 0; i < t.NumField(); i++ {
-			if t.Field(i).PkgPath != "" {
+			if !t.Field(i).IsExported() {
 				return nil, StructuralError{"struct contains unexported fields"}
 			}
 		}
@@ -511,6 +555,9 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
 				}
 			}
 
+			if params.set {
+				return setEncoder(m), nil
+			}
 			return multiEncoder(m), nil
 		}
 	case reflect.String:
@@ -561,7 +608,7 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 	}
 
 	if v.Type() == rawValueType {
-		rv := v.Interface().(RawValue)
+		rv, _ := reflect.TypeAssert[RawValue](v)
 		if len(rv.FullBytes) != 0 {
 			return bytesEncoder(rv.FullBytes), nil
 		}
@@ -606,7 +653,8 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 			tag = params.stringType
 		}
 	case TagUTCTime:
-		if params.timeType == TagGeneralizedTime || outsideUTCRange(v.Interface().(time.Time)) {
+		t, _ := reflect.TypeAssert[time.Time](v)
+		if params.timeType == TagGeneralizedTime || outsideUTCRange(t) {
 			tag = TagGeneralizedTime
 		}
 	}
@@ -616,6 +664,15 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 			return nil, StructuralError{"non sequence tagged as set"}
 		}
 		tag = TagSet
+	}
+
+	// makeField can be called for a slice that should be treated as a SET
+	// but doesn't have params.set set, for instance when using a slice
+	// with the SET type name suffix. In this case getUniversalType returns
+	// TagSet, but makeBody doesn't know about that so will treat the slice
+	// as a sequence. To work around this we set params.set.
+	if tag == TagSet && !params.set {
+		params.set = true
 	}
 
 	t := new(taggedEncoder)
@@ -665,22 +722,23 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 
 // Marshal returns the ASN.1 encoding of val.
 //
-// In addition to the struct tags recognised by Unmarshal, the following can be
+// In addition to the struct tags recognized by Unmarshal, the following can be
 // used:
 //
 //	ia5:         causes strings to be marshaled as ASN.1, IA5String values
 //	omitempty:   causes empty slices to be skipped
 //	printable:   causes strings to be marshaled as ASN.1, PrintableString values
 //	utf8:        causes strings to be marshaled as ASN.1, UTF8String values
+//	numeric:     causes strings to be marshaled as ASN.1, NumericString values
 //	utc:         causes time.Time to be marshaled as ASN.1, UTCTime values
 //	generalized: causes time.Time to be marshaled as ASN.1, GeneralizedTime values
-func Marshal(val interface{}) ([]byte, error) {
+func Marshal(val any) ([]byte, error) {
 	return MarshalWithParams(val, "")
 }
 
 // MarshalWithParams allows field parameters to be specified for the
 // top-level element. The form of the params is the same as the field tags.
-func MarshalWithParams(val interface{}, params string) ([]byte, error) {
+func MarshalWithParams(val any, params string) ([]byte, error) {
 	e, err := makeField(reflect.ValueOf(val), parseFieldParameters(params))
 	if err != nil {
 		return nil, err

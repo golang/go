@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build solaris
+//go:build solaris
 
 // Package lif provides basic functions for the manipulation of
 // logical network interfaces and interface addresses on Solaris.
@@ -10,7 +10,9 @@
 // The package supports Solaris 11 or above.
 package lif
 
-import "syscall"
+import (
+	"syscall"
+)
 
 type endpoint struct {
 	af int
@@ -24,12 +26,12 @@ func (ep *endpoint) close() error {
 func newEndpoints(af int) ([]endpoint, error) {
 	var lastErr error
 	var eps []endpoint
-	afs := []int{sysAF_INET, sysAF_INET6}
-	if af != sysAF_UNSPEC {
+	afs := []int{syscall.AF_INET, syscall.AF_INET6}
+	if af != syscall.AF_UNSPEC {
 		afs = []int{af}
 	}
 	for _, af := range afs {
-		s, err := syscall.Socket(af, sysSOCK_DGRAM, 0)
+		s, err := syscall.Socket(af, syscall.SOCK_DGRAM, 0)
 		if err != nil {
 			lastErr = err
 			continue

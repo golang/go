@@ -24,20 +24,33 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archinit:         archinit,
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
-		Asmb:             asmb,
-		Asmb2:            asmb2,
-		Elfreloc1:        elfreloc1,
-		Elfsetupplt:      elfsetupplt,
-		Gentext:          gentext,
-		Machoreloc1:      machoreloc1,
+		Extreloc:         extreloc,
 
-		Linuxdynld: "/lib/ld.so.1",
+		// TrampLimit is set such that we always run the trampoline
+		// generation code. This is necessary since calls to external
+		// symbols require the use of trampolines, regardless of the
+		// text size.
+		TrampLimit: 1,
+		Trampoline: trampoline,
 
-		Freebsddynld:   "XXX",
-		Netbsddynld:    "XXX",
-		Openbsddynld:   "XXX",
-		Dragonflydynld: "XXX",
-		Solarisdynld:   "XXX",
+		Gentext:     gentext,
+		GenSymsLate: genSymsLate,
+		Machoreloc1: machoreloc1,
+
+		ELF: ld.ELFArch{
+			Linuxdynld:     "/lib/ld-linux-riscv64-lp64d.so.1",
+			LinuxdynldMusl: "/lib/ld-musl-riscv64.so.1",
+
+			Freebsddynld:   "/usr/libexec/ld-elf.so.1",
+			Netbsddynld:    "XXX",
+			Openbsddynld:   "/usr/libexec/ld.so",
+			Dragonflydynld: "XXX",
+			Solarisdynld:   "XXX",
+
+			Reloc1:    elfreloc1,
+			RelocSize: 24,
+			SetupPLT:  elfsetupplt,
+		},
 	}
 
 	return arch, theArch
@@ -45,14 +58,14 @@ func Init() (*sys.Arch, ld.Arch) {
 
 func archinit(ctxt *ld.Link) {
 	switch ctxt.HeadType {
-	case objabi.Hlinux:
+	case objabi.Hlinux, objabi.Hfreebsd, objabi.Hopenbsd:
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 0x10000
+		}
+		if *ld.FlagTextAddr == -1 {
+			*ld.FlagTextAddr = ld.Rnd(0x10000, *ld.FlagRound) + int64(ld.HEADR)
 		}
 	default:
 		ld.Exitf("unknown -H option: %v", ctxt.HeadType)

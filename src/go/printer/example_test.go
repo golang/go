@@ -12,11 +12,7 @@ import (
 	"go/printer"
 	"go/token"
 	"strings"
-	"testing"
 )
-
-// Dummy test function so that godoc does not use the entire file as example.
-func Test(*testing.T) {}
 
 func parseFunc(filename, functionname string) (fun *ast.FuncDecl, fset *token.FileSet) {
 	fset = token.NewFileSet()
@@ -31,11 +27,11 @@ func parseFunc(filename, functionname string) (fun *ast.FuncDecl, fset *token.Fi
 	panic("function not found")
 }
 
-func ExampleFprint() {
+func printSelf() {
 	// Parse source file and extract the AST without comments for
 	// this function, with position information referring to the
 	// file set fset.
-	funcAST, fset := parseFunc("example_test.go", "ExampleFprint")
+	funcAST, fset := parseFunc("example_test.go", "printSelf")
 
 	// Print the function body into buffer buf.
 	// The file set is provided to the printer so that it knows
@@ -52,9 +48,13 @@ func ExampleFprint() {
 
 	// Print the cleaned-up body text to stdout.
 	fmt.Println(s)
+}
 
-	// output:
-	// funcAST, fset := parseFunc("example_test.go", "ExampleFprint")
+func ExampleFprint() {
+	printSelf()
+
+	// Output:
+	// funcAST, fset := parseFunc("example_test.go", "printSelf")
 	//
 	// var buf bytes.Buffer
 	// printer.Fprint(&buf, fset, funcAST.Body)

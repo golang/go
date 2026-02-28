@@ -2,11 +2,14 @@
 # module within the module cache.
 # Verifies golang.org/issue/29548
 
-env GO111MODULE=on
-go mod download rsc.io/quote@v1.5.1 rsc.io/quote@v1.5.2
+# Populate go.sum and download dependencies.
+go get
+
+# Ensure v1.5.2 is also in the cache so we can list it.
+go mod download rsc.io/quote@v1.5.2
 
 ! go list $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
-stderr '^directory ..[/\\]pkg[/\\]mod[/\\]rsc.io[/\\]quote@v1.5.2 outside available modules$'
+stderr '^directory ..[/\\]pkg[/\\]mod[/\\]rsc.io[/\\]quote@v1.5.2 outside main module or its selected dependencies$'
 
 go list $GOPATH/pkg/mod/rsc.io/quote@v1.5.1
 stdout 'rsc.io/quote'
@@ -17,3 +20,8 @@ module example.com/quoter
 require rsc.io/quote v1.5.2
 
 replace rsc.io/quote => rsc.io/quote v1.5.1
+
+-- use.go --
+package use
+
+import _ "rsc.io/quote"

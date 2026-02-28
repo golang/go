@@ -469,7 +469,7 @@ func (rea RegExtshiftAmount) String() string {
 		if rea.amount != 0 {
 			buf += fmt.Sprintf(" #%d", rea.amount)
 		} else {
-			if rea.show_zero == true {
+			if rea.show_zero {
 				buf += fmt.Sprintf(" #%d", rea.amount)
 			}
 		}
@@ -527,7 +527,7 @@ func (m MemImmediate) String() string {
 		postR := post.String()
 		return fmt.Sprintf("[%s], %s", R, postR)
 	}
-	return fmt.Sprintf("unimplemented!")
+	return "unimplemented!"
 }
 
 // A MemExtend is a memory reference made up of a base R and index expression X.
@@ -538,10 +538,12 @@ type MemExtend struct {
 	Extend ExtShift
 	// Amount indicates the index shift amount (but also see ShiftMustBeZero field below).
 	Amount uint8
-	// ShiftMustBeZero is set to true when the shift amount must be 0, even if the
-	// Amount field is not 0. In GNU syntax, a #0 shift amount is printed if Amount
-	// is not 0 but ShiftMustBeZero is true; #0 is not printed if Amount is 0 and
-	// ShiftMustBeZero is true. Both cases represent shift by 0 bit.
+	// Refer to ARM reference manual, for byte load/store(register), the index
+	// shift amount must be 0, encoded in "S" as 0 if omitted, or as 1 if present.
+	// a.ShiftMustBeZero is set true indicates the index shift amount must be 0.
+	// In GNU syntax, a #0 shift amount is printed if Amount is 1 but ShiftMustBeZero
+	// is true; #0 is not printed if Amount is 0 and ShiftMustBeZero is true.
+	// Both cases represent shift by 0 bit.
 	ShiftMustBeZero bool
 }
 
@@ -932,8 +934,10 @@ func (r RegisterWithArrangement) String() string {
 	return result
 }
 
-// Register with arrangement and index: <Vm>.<Ts>[<index>],
-//   { <Vt>.B, <Vt2>.B }[<index>].
+// Register with arrangement and index:
+//
+//	<Vm>.<Ts>[<index>],
+//	{ <Vt>.B, <Vt2>.B }[<index>].
 type RegisterWithArrangementAndIndex struct {
 	r     Reg
 	a     Arrangement
@@ -965,4 +969,162 @@ func (r RegisterWithArrangementAndIndex) String() string {
 		result += "}"
 	}
 	return fmt.Sprintf("%s[%d]", result, r.index)
+}
+
+type sysOp struct {
+	op          sysInstFields
+	r           Reg
+	hasOperand2 bool
+}
+
+func (s sysOp) isArg() {}
+
+func (s sysOp) String() string {
+	result := s.op.String()
+	// If s.hasOperand2 is false, the value in the register
+	// specified by s.r is ignored.
+	if s.hasOperand2 {
+		result += ", " + s.r.String()
+	}
+	return result
+}
+
+type sysInstFields struct {
+	op1 uint8
+	cn  uint8
+	cm  uint8
+	op2 uint8
+}
+
+type sysInstAttrs struct {
+	typ         sys
+	name        string
+	hasOperand2 bool
+}
+
+func (s sysInstFields) isArg() {}
+
+func (s sysInstFields) getAttrs() sysInstAttrs {
+	attrs, ok := sysInstsAttrs[sysInstFields{s.op1, s.cn, s.cm, s.op2}]
+	if !ok {
+		return sysInstAttrs{typ: sys_SYS}
+	}
+	return attrs
+}
+
+func (s sysInstFields) String() string {
+	return s.getAttrs().name
+}
+
+func (s sysInstFields) getType() sys {
+	return s.getAttrs().typ
+}
+
+var sysInstsAttrs = map[sysInstFields]sysInstAttrs{
+	{0, 8, 3, 0}:  {sys_TLBI, "VMALLE1IS", false},
+	{0, 8, 3, 1}:  {sys_TLBI, "VAE1IS", true},
+	{0, 8, 3, 2}:  {sys_TLBI, "ASIDE1IS", true},
+	{0, 8, 3, 3}:  {sys_TLBI, "VAAE1IS", true},
+	{0, 8, 3, 5}:  {sys_TLBI, "VALE1IS", true},
+	{0, 8, 3, 7}:  {sys_TLBI, "VAALE1IS", true},
+	{0, 8, 7, 0}:  {sys_TLBI, "VMALLE1", false},
+	{0, 8, 7, 1}:  {sys_TLBI, "VAE1", true},
+	{0, 8, 7, 2}:  {sys_TLBI, "ASIDE1", true},
+	{0, 8, 7, 3}:  {sys_TLBI, "VAAE1", true},
+	{0, 8, 7, 5}:  {sys_TLBI, "VALE1", true},
+	{0, 8, 7, 7}:  {sys_TLBI, "VAALE1", true},
+	{4, 8, 0, 1}:  {sys_TLBI, "IPAS2E1IS", true},
+	{4, 8, 0, 5}:  {sys_TLBI, "IPAS2LE1IS", true},
+	{4, 8, 3, 0}:  {sys_TLBI, "ALLE2IS", false},
+	{4, 8, 3, 1}:  {sys_TLBI, "VAE2IS", true},
+	{4, 8, 3, 4}:  {sys_TLBI, "ALLE1IS", false},
+	{4, 8, 3, 5}:  {sys_TLBI, "VALE2IS", true},
+	{4, 8, 3, 6}:  {sys_TLBI, "VMALLS12E1IS", false},
+	{4, 8, 4, 1}:  {sys_TLBI, "IPAS2E1", true},
+	{4, 8, 4, 5}:  {sys_TLBI, "IPAS2LE1", true},
+	{4, 8, 7, 0}:  {sys_TLBI, "ALLE2", false},
+	{4, 8, 7, 1}:  {sys_TLBI, "VAE2", true},
+	{4, 8, 7, 4}:  {sys_TLBI, "ALLE1", false},
+	{4, 8, 7, 5}:  {sys_TLBI, "VALE2", true},
+	{4, 8, 7, 6}:  {sys_TLBI, "VMALLS12E1", false},
+	{6, 8, 3, 0}:  {sys_TLBI, "ALLE3IS", false},
+	{6, 8, 3, 1}:  {sys_TLBI, "VAE3IS", true},
+	{6, 8, 3, 5}:  {sys_TLBI, "VALE3IS", true},
+	{6, 8, 7, 0}:  {sys_TLBI, "ALLE3", false},
+	{6, 8, 7, 1}:  {sys_TLBI, "VAE3", true},
+	{6, 8, 7, 5}:  {sys_TLBI, "VALE3", true},
+	{0, 8, 1, 0}:  {sys_TLBI, "VMALLE1OS", false},
+	{0, 8, 1, 1}:  {sys_TLBI, "VAE1OS", true},
+	{0, 8, 1, 2}:  {sys_TLBI, "ASIDE1OS", true},
+	{0, 8, 1, 3}:  {sys_TLBI, "VAAE1OS", true},
+	{0, 8, 1, 5}:  {sys_TLBI, "VALE1OS", true},
+	{0, 8, 1, 7}:  {sys_TLBI, "VAALE1OS", true},
+	{0, 8, 2, 1}:  {sys_TLBI, "RVAE1IS", true},
+	{0, 8, 2, 3}:  {sys_TLBI, "RVAAE1IS", true},
+	{0, 8, 2, 5}:  {sys_TLBI, "RVALE1IS", true},
+	{0, 8, 2, 7}:  {sys_TLBI, "RVAALE1IS", true},
+	{0, 8, 5, 1}:  {sys_TLBI, "RVAE1OS", true},
+	{0, 8, 5, 3}:  {sys_TLBI, "RVAAE1OS", true},
+	{0, 8, 5, 5}:  {sys_TLBI, "RVALE1OS", true},
+	{0, 8, 5, 7}:  {sys_TLBI, "RVAALE1OS", true},
+	{0, 8, 6, 1}:  {sys_TLBI, "RVAE1", true},
+	{0, 8, 6, 3}:  {sys_TLBI, "RVAAE1", true},
+	{0, 8, 6, 5}:  {sys_TLBI, "RVALE1", true},
+	{0, 8, 6, 7}:  {sys_TLBI, "RVAALE1", true},
+	{4, 8, 0, 2}:  {sys_TLBI, "RIPAS2E1IS", true},
+	{4, 8, 0, 6}:  {sys_TLBI, "RIPAS2LE1IS", true},
+	{4, 8, 1, 0}:  {sys_TLBI, "ALLE2OS", false},
+	{4, 8, 1, 1}:  {sys_TLBI, "VAE2OS", true},
+	{4, 8, 1, 4}:  {sys_TLBI, "ALLE1OS", false},
+	{4, 8, 1, 5}:  {sys_TLBI, "VALE2OS", true},
+	{4, 8, 1, 6}:  {sys_TLBI, "VMALLS12E1OS", false},
+	{4, 8, 2, 1}:  {sys_TLBI, "RVAE2IS", true},
+	{4, 8, 2, 5}:  {sys_TLBI, "RVALE2IS", true},
+	{4, 8, 4, 0}:  {sys_TLBI, "IPAS2E1OS", true},
+	{4, 8, 4, 2}:  {sys_TLBI, "RIPAS2E1", true},
+	{4, 8, 4, 3}:  {sys_TLBI, "RIPAS2E1OS", true},
+	{4, 8, 4, 4}:  {sys_TLBI, "IPAS2LE1OS", true},
+	{4, 8, 4, 6}:  {sys_TLBI, "RIPAS2LE1", true},
+	{4, 8, 4, 7}:  {sys_TLBI, "RIPAS2LE1OS", true},
+	{4, 8, 5, 1}:  {sys_TLBI, "RVAE2OS", true},
+	{4, 8, 5, 5}:  {sys_TLBI, "RVALE2OS", true},
+	{4, 8, 6, 1}:  {sys_TLBI, "RVAE2", true},
+	{4, 8, 6, 5}:  {sys_TLBI, "RVALE2", true},
+	{6, 8, 1, 0}:  {sys_TLBI, "ALLE3OS", false},
+	{6, 8, 1, 1}:  {sys_TLBI, "VAE3OS", true},
+	{6, 8, 1, 5}:  {sys_TLBI, "VALE3OS", true},
+	{6, 8, 2, 1}:  {sys_TLBI, "RVAE3IS", true},
+	{6, 8, 2, 5}:  {sys_TLBI, "RVALE3IS", true},
+	{6, 8, 5, 1}:  {sys_TLBI, "RVAE3OS", true},
+	{6, 8, 5, 5}:  {sys_TLBI, "RVALE3OS", true},
+	{6, 8, 6, 1}:  {sys_TLBI, "RVAE3", true},
+	{6, 8, 6, 5}:  {sys_TLBI, "RVALE3", true},
+	{0, 7, 6, 1}:  {sys_DC, "IVAC", true},
+	{0, 7, 6, 2}:  {sys_DC, "ISW", true},
+	{0, 7, 10, 2}: {sys_DC, "CSW", true},
+	{0, 7, 14, 2}: {sys_DC, "CISW", true},
+	{3, 7, 4, 1}:  {sys_DC, "ZVA", true},
+	{3, 7, 10, 1}: {sys_DC, "CVAC", true},
+	{3, 7, 11, 1}: {sys_DC, "CVAU", true},
+	{3, 7, 14, 1}: {sys_DC, "CIVAC", true},
+	{0, 7, 6, 3}:  {sys_DC, "IGVAC", true},
+	{0, 7, 6, 4}:  {sys_DC, "IGSW", true},
+	{0, 7, 6, 5}:  {sys_DC, "IGDVAC", true},
+	{0, 7, 6, 6}:  {sys_DC, "IGDSW", true},
+	{0, 7, 10, 4}: {sys_DC, "CGSW", true},
+	{0, 7, 10, 6}: {sys_DC, "CGDSW", true},
+	{0, 7, 14, 4}: {sys_DC, "CIGSW", true},
+	{0, 7, 14, 6}: {sys_DC, "CIGDSW", true},
+	{3, 7, 4, 3}:  {sys_DC, "GVA", true},
+	{3, 7, 4, 4}:  {sys_DC, "GZVA", true},
+	{3, 7, 10, 3}: {sys_DC, "CGVAC", true},
+	{3, 7, 10, 5}: {sys_DC, "CGDVAC", true},
+	{3, 7, 12, 3}: {sys_DC, "CGVAP", true},
+	{3, 7, 12, 5}: {sys_DC, "CGDVAP", true},
+	{3, 7, 13, 3}: {sys_DC, "CGVADP", true},
+	{3, 7, 13, 5}: {sys_DC, "CGDVADP", true},
+	{3, 7, 14, 3}: {sys_DC, "CIGVAC", true},
+	{3, 7, 14, 5}: {sys_DC, "CIGDVAC", true},
+	{3, 7, 12, 1}: {sys_DC, "CVAP", true},
+	{3, 7, 13, 1}: {sys_DC, "CVADP", true},
 }

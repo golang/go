@@ -1,0 +1,5 @@
+// doc comment
+package p
+
+// +build x y
+// +build z

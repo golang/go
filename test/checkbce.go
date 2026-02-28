@@ -1,5 +1,6 @@
-// +build amd64,!gcflags_noopt
 // errorcheck -0 -d=ssa/check_bce/debug=3
+
+//go:build amd64 && !gcflags_noopt
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -25,7 +26,7 @@ func f1(a [256]int, i int) {
 	var j int
 	useInt(a[i]) // ERROR "Found IsInBounds$"
 	j = i % 256
-	useInt(a[j]) // ERROR "Found IsInBounds$"
+	useInt(a[j])
 	j = i & 255
 	useInt(a[j])
 	j = i & 17
@@ -137,6 +138,10 @@ func g4(a [100]int) {
 		useInt(a[i+50])
 
 		// The following are out of bounds.
+		if a[0] == 0xdeadbeef {
+			// This is a trick to prohibit sccp to optimize out the following out of bound check
+			continue
+		}
 		useInt(a[i-11]) // ERROR "Found IsInBounds$"
 		useInt(a[i+51]) // ERROR "Found IsInBounds$"
 	}
@@ -154,16 +159,14 @@ func decode1(data []byte) (x uint64) {
 }
 
 func decode2(data []byte) (x uint64) {
-	// TODO(rasky): this should behave like decode1 and compile to no
-	// boundchecks. We're currently not able to remove all of them.
 	for len(data) >= 32 {
 		x += binary.BigEndian.Uint64(data)
 		data = data[8:]
-		x += binary.BigEndian.Uint64(data) // ERROR "Found IsInBounds$"
+		x += binary.BigEndian.Uint64(data)
 		data = data[8:]
-		x += binary.BigEndian.Uint64(data) // ERROR "Found IsInBounds$"
+		x += binary.BigEndian.Uint64(data)
 		data = data[8:]
-		x += binary.BigEndian.Uint64(data) // ERROR "Found IsInBounds$"
+		x += binary.BigEndian.Uint64(data)
 		data = data[8:]
 	}
 	return x

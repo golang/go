@@ -1,0 +1,78 @@
+# go mod tidy should skip 'ignore' directives
+# See golang.org/issue/42965
+env ROOT=$WORK${/}gopath${/}src
+
+# no ignore directive; should not skip any directories.
+cp go.mod.orig go.mod
+go mod tidy -x
+! stderr 'ignoring directory'
+
+# ignored ./foo should be skipped.
+cp go.mod.relative go.mod
+go mod tidy -x
+stderr 'ignoring directory '$ROOT''${/}'foo'
+! stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
+! stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'fo$'
+
+# ignored foo; any foo should be skipped.
+cp go.mod.any go.mod
+go mod tidy -x
+stderr 'ignoring directory '$ROOT''${/}'foo'
+stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
+! stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'fo$'
+
+# non-existent ignore; should not skip any directories.
+cp go.mod.dne go.mod
+go mod tidy -x
+! stderr 'ignoring directory'
+
+# ignored fo; should not skip foo/ but should skip fo/
+cp go.mod.partial go.mod
+go mod tidy -x
+stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'fo$'
+! stderr 'ignoring directory '$ROOT''${/}'pkg'${/}'foo'
+-- foo/secret/secret.go --
+package secret
+
+const Secret = "this should be ignored"
+-- pkg/foo/foo.go --
+package example/pkg/foo
+
+const Bar = "Hello from foo!"
+-- pkg/fo/fo.go --
+package fo
+
+const Gar = "Hello from fo!"
+-- go.mod.orig --
+module example
+
+go 1.24
+-- go.mod.relative --
+module example
+
+go 1.24
+
+ignore ./foo
+-- go.mod.any --
+module example
+
+go 1.24
+
+ignore foo
+-- go.mod.dne --
+module example
+
+go 1.24
+
+ignore bar
+-- go.mod.partial --
+module example
+
+go 1.24
+
+ignore fo
+
+-- main.go --
+package main
+
+func main() {}

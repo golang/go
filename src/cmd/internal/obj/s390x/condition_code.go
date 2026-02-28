@@ -50,6 +50,12 @@ const (
 
 	// 4-bit mask
 	Always CCMask = Equal | Less | Greater | Unordered
+
+	// useful aliases
+	Carry    CCMask = GreaterOrUnordered
+	NoCarry  CCMask = LessOrEqual
+	Borrow   CCMask = NoCarry
+	NoBorrow CCMask = Carry
 )
 
 // Inverse returns the complement of the condition code mask.
@@ -116,5 +122,7 @@ func (c CCMask) String() string {
 	}
 
 	// invalid
-	return fmt.Sprintf("Invalid (%#x)", c)
+	return fmt.Sprintf("Invalid (%#x)", uint8(c))
 }
+
+func (CCMask) CanBeAnSSAAux() {}

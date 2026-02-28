@@ -67,7 +67,7 @@ func (b *buf) uint8() uint8 {
 }
 
 func (b *buf) bytes(n int) []byte {
-	if len(b.data) < n {
+	if n < 0 || len(b.data) < n {
 		b.error("underflow")
 		return nil
 	}

@@ -6,16 +6,22 @@
 
 // Package bits implements bit counting and manipulation
 // functions for the predeclared unsigned integer types.
+//
+// Functions in this package may be implemented directly by
+// the compiler, for better performance. For those functions
+// the code in this package will not be used. Which
+// functions are implemented by the compiler depends on the
+// architecture and the Go release.
 package bits
 
-const uintSize = 32 << (^uint(0) >> 32 & 1) // 32 or 64
+const uintSize = 32 << (^uint(0) >> 63) // 32 or 64
 
 // UintSize is the size of a uint in bits.
 const UintSize = uintSize
 
 // --- LeadingZeros ---
 
-// LeadingZeros returns the number of leading zero bits in x; the result is UintSize for x == 0.
+// LeadingZeros returns the number of leading zero bits in x; the result is [UintSize] for x == 0.
 func LeadingZeros(x uint) int { return UintSize - Len(x) }
 
 // LeadingZeros8 returns the number of leading zero bits in x; the result is 8 for x == 0.
@@ -32,7 +38,7 @@ func LeadingZeros64(x uint64) int { return 64 - Len64(x) }
 
 // --- TrailingZeros ---
 
-// See http://supertech.csail.mit.edu/papers/debruijn.pdf
+// See http://keithandkatie.com/keith/papers/debruijn.html
 const deBruijn32 = 0x077CB531
 
 var deBruijn32tab = [32]byte{
@@ -49,7 +55,7 @@ var deBruijn64tab = [64]byte{
 	54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9, 13, 8, 7, 6,
 }
 
-// TrailingZeros returns the number of trailing zero bits in x; the result is UintSize for x == 0.
+// TrailingZeros returns the number of trailing zero bits in x; the result is [UintSize] for x == 0.
 func TrailingZeros(x uint) int {
 	if UintSize == 32 {
 		return TrailingZeros32(uint32(x))
@@ -163,7 +169,7 @@ func OnesCount64(x uint64) int {
 
 // --- RotateLeft ---
 
-// RotateLeft returns the value of x rotated left by (k mod UintSize) bits.
+// RotateLeft returns the value of x rotated left by (k mod [UintSize]) bits.
 // To rotate x right by k bits, call RotateLeft(x, -k).
 //
 // This function's execution time does not depend on the inputs.
@@ -311,7 +317,7 @@ func Len16(x uint16) (n int) {
 		x >>= 8
 		n = 8
 	}
-	return n + int(len8tab[x])
+	return n + int(len8tab[uint8(x)])
 }
 
 // Len32 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
@@ -324,7 +330,7 @@ func Len32(x uint32) (n int) {
 		x >>= 8
 		n += 8
 	}
-	return n + int(len8tab[x])
+	return n + int(len8tab[uint8(x)])
 }
 
 // Len64 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
@@ -341,7 +347,7 @@ func Len64(x uint64) (n int) {
 		x >>= 8
 		n += 8
 	}
-	return n + int(len8tab[x])
+	return n + int(len8tab[uint8(x)])
 }
 
 // --- Add with carry ---
@@ -510,10 +516,6 @@ func Div32(hi, lo, y uint32) (quo, rem uint32) {
 // half in parameter hi and the lower half in parameter lo.
 // Div64 panics for y == 0 (division by zero) or y <= hi (quotient overflow).
 func Div64(hi, lo, y uint64) (quo, rem uint64) {
-	const (
-		two32  = 1 << 32
-		mask32 = two32 - 1
-	)
 	if y == 0 {
 		panic(divideError)
 	}
@@ -521,9 +523,18 @@ func Div64(hi, lo, y uint64) (quo, rem uint64) {
 		panic(overflowError)
 	}
 
+	// If high part is zero, we can directly return the results.
+	if hi == 0 {
+		return lo / y, lo % y
+	}
+
 	s := uint(LeadingZeros64(y))
 	y <<= s
 
+	const (
+		two32  = 1 << 32
+		mask32 = two32 - 1
+	)
 	yn1 := y >> 32
 	yn0 := y & mask32
 	un32 := hi<<s | lo>>(64-s)
@@ -567,14 +578,14 @@ func Rem(hi, lo, y uint) uint {
 }
 
 // Rem32 returns the remainder of (hi, lo) divided by y. Rem32 panics
-// for y == 0 (division by zero) but, unlike Div32, it doesn't panic
+// for y == 0 (division by zero) but, unlike [Div32], it doesn't panic
 // on a quotient overflow.
 func Rem32(hi, lo, y uint32) uint32 {
 	return uint32((uint64(hi)<<32 | uint64(lo)) % uint64(y))
 }
 
 // Rem64 returns the remainder of (hi, lo) divided by y. Rem64 panics
-// for y == 0 (division by zero) but, unlike Div64, it doesn't panic
+// for y == 0 (division by zero) but, unlike [Div64], it doesn't panic
 // on a quotient overflow.
 func Rem64(hi, lo, y uint64) uint64 {
 	// We scale down hi so that hi < y, then use Div64 to compute the

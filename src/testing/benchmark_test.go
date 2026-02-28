@@ -6,8 +6,15 @@ package testing_test
 
 import (
 	"bytes"
+	"cmp"
+	"context"
+	"errors"
+	"internal/asan"
+	"internal/msan"
+	"internal/race"
+	"internal/testenv"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -22,13 +29,14 @@ var prettyPrintTests = []struct {
 	{0, "         0 x"},
 	{1234.1, "      1234 x"},
 	{-1234.1, "     -1234 x"},
-	{99.950001, "       100 x"},
-	{99.949999, "        99.9 x"},
-	{9.9950001, "        10.0 x"},
-	{9.9949999, "         9.99 x"},
-	{-9.9949999, "        -9.99 x"},
-	{0.0099950001, "         0.0100 x"},
-	{0.0099949999, "         0.00999 x"},
+	{999.950001, "      1000 x"},
+	{999.949999, "       999.9 x"},
+	{99.9950001, "       100.0 x"},
+	{99.9949999, "        99.99 x"},
+	{-99.9949999, "       -99.99 x"},
+	{0.000999950001, "         0.001000 x"},
+	{0.000999949999, "         0.0009999 x"}, // smallest case
+	{0.0000999949999, "         0.0001000 x"},
 }
 
 func TestPrettyPrint(t *testing.T) {
@@ -50,13 +58,13 @@ func TestResultString(t *testing.T) {
 	if r.NsPerOp() != 2 {
 		t.Errorf("NsPerOp: expected 2, actual %v", r.NsPerOp())
 	}
-	if want, got := "     100\t         2.40 ns/op", r.String(); want != got {
+	if want, got := "     100\t         2.400 ns/op", r.String(); want != got {
 		t.Errorf("String: expected %q, actual %q", want, got)
 	}
 
 	// Test sub-1 ns/op (issue #31005)
 	r.T = 40 * time.Nanosecond
-	if want, got := "     100\t         0.400 ns/op", r.String(); want != got {
+	if want, got := "     100\t         0.4000 ns/op", r.String(); want != got {
 		t.Errorf("String: expected %q, actual %q", want, got)
 	}
 
@@ -101,6 +109,115 @@ func TestRunParallelFail(t *testing.T) {
 	})
 }
 
+func TestRunParallelFatal(t *testing.T) {
+	testing.Benchmark(func(b *testing.B) {
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				if b.N > 1 {
+					b.Fatal("error")
+				}
+			}
+		})
+	})
+}
+
+func TestRunParallelSkipNow(t *testing.T) {
+	testing.Benchmark(func(b *testing.B) {
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				if b.N > 1 {
+					b.SkipNow()
+				}
+			}
+		})
+	})
+}
+
+func TestBenchmarkContext(t *testing.T) {
+	testing.Benchmark(func(b *testing.B) {
+		ctx := b.Context()
+		if err := ctx.Err(); err != nil {
+			b.Fatalf("expected non-canceled context, got %v", err)
+		}
+
+		var innerCtx context.Context
+		b.Run("inner", func(b *testing.B) {
+			innerCtx = b.Context()
+			if err := innerCtx.Err(); err != nil {
+				b.Fatalf("expected inner benchmark to not inherit canceled context, got %v", err)
+			}
+		})
+		b.Run("inner2", func(b *testing.B) {
+			if !errors.Is(innerCtx.Err(), context.Canceled) {
+				t.Fatal("expected context of sibling benchmark to be canceled after its test function finished")
+			}
+		})
+
+		t.Cleanup(func() {
+			if !errors.Is(ctx.Err(), context.Canceled) {
+				t.Fatal("expected context canceled before cleanup")
+			}
+		})
+	})
+}
+
+// Some auxiliary functions for measuring allocations in a b.Loop benchmark below,
+// where in this case mid-stack inlining allows stack allocation of a slice.
+// This is based on the example in go.dev/issue/73137.
+
+func newX() []byte {
+	out := make([]byte, 8)
+	return use1(out)
+}
+
+//go:noinline
+func use1(out []byte) []byte {
+	return out
+}
+
+// An auxiliary function for measuring allocations with a simple function argument
+// in the b.Loop body.
+
+//go:noinline
+func use2(x any) {}
+
+func TestBenchmarkBLoopAllocs(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	if race.Enabled || asan.Enabled || msan.Enabled {
+		t.Skip("skipping in case sanitizers alter allocation behavior")
+	}
+
+	t.Run("call-result", func(t *testing.T) {
+		bRet := testing.Benchmark(func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				newX()
+			}
+		})
+		if bRet.N == 0 {
+			t.Fatalf("benchmark reported 0 iterations")
+		}
+		if bRet.AllocsPerOp() != 0 {
+			t.Errorf("want 0 allocs, got %d", bRet.AllocsPerOp())
+		}
+	})
+
+	t.Run("call-arg", func(t *testing.T) {
+		bRet := testing.Benchmark(func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				use2(make([]byte, 1000))
+			}
+		})
+		if bRet.N == 0 {
+			t.Fatalf("benchmark reported 0 iterations")
+		}
+		if bRet.AllocsPerOp() != 0 {
+			t.Errorf("want 0 allocs, got %d", bRet.AllocsPerOp())
+		}
+	})
+}
+
 func ExampleB_RunParallel() {
 	// Parallel benchmark for text/template.Template.Execute on a single object.
 	testing.Benchmark(func(b *testing.B) {
@@ -130,7 +247,7 @@ func TestReportMetric(t *testing.T) {
 	}
 	// Test stringing.
 	res.N = 1 // Make the output stable
-	want := "       1\t     12345 ns/op\t         0.200 frobs/op"
+	want := "       1\t     12345 ns/op\t         0.2000 frobs/op"
 	if want != res.String() {
 		t.Errorf("expected %q, actual %q", want, res.String())
 	}
@@ -141,15 +258,48 @@ func ExampleB_ReportMetric() {
 	// specific algorithm (in this case, sorting).
 	testing.Benchmark(func(b *testing.B) {
 		var compares int64
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			s := []int{5, 4, 3, 2, 1}
-			sort.Slice(s, func(i, j int) bool {
+			slices.SortFunc(s, func(a, b int) int {
 				compares++
-				return s[i] < s[j]
+				return cmp.Compare(a, b)
 			})
 		}
 		// This metric is per-operation, so divide by b.N and
 		// report it as a "/op" unit.
 		b.ReportMetric(float64(compares)/float64(b.N), "compares/op")
+		// This metric is per-time, so divide by b.Elapsed and
+		// report it as a "/ns" unit.
+		b.ReportMetric(float64(compares)/float64(b.Elapsed().Nanoseconds()), "compares/ns")
+	})
+}
+
+func ExampleB_ReportMetric_parallel() {
+	// This reports a custom benchmark metric relevant to a
+	// specific algorithm (in this case, sorting) in parallel.
+	testing.Benchmark(func(b *testing.B) {
+		var compares atomic.Int64
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				s := []int{5, 4, 3, 2, 1}
+				slices.SortFunc(s, func(a, b int) int {
+					// Because RunParallel runs the function many
+					// times in parallel, we must increment the
+					// counter atomically to avoid racing writes.
+					compares.Add(1)
+					return cmp.Compare(a, b)
+				})
+			}
+		})
+
+		// NOTE: Report each metric once, after all of the parallel
+		// calls have completed.
+
+		// This metric is per-operation, so divide by b.N and
+		// report it as a "/op" unit.
+		b.ReportMetric(float64(compares.Load())/float64(b.N), "compares/op")
+		// This metric is per-time, so divide by b.Elapsed and
+		// report it as a "/ns" unit.
+		b.ReportMetric(float64(compares.Load())/float64(b.Elapsed().Nanoseconds()), "compares/ns")
 	})
 }

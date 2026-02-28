@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 )
@@ -38,6 +37,11 @@ func TestEncode(t *testing.T) {
 		if string(dst) != test.enc {
 			t.Errorf("#%d: got: %#v want: %#v", i, dst, test.enc)
 		}
+		dst = []byte("lead")
+		dst = AppendEncode(dst, test.dec)
+		if string(dst) != "lead"+test.enc {
+			t.Errorf("#%d: got: %#v want: %#v", i, dst, "lead"+test.enc)
+		}
 	}
 }
 
@@ -52,6 +56,13 @@ func TestDecode(t *testing.T) {
 			t.Errorf("#%d: bad return value: got:%d want:%d", i, n, len(dst))
 		} else if !bytes.Equal(dst, test.dec) {
 			t.Errorf("#%d: got: %#v want: %#v", i, dst, test.dec)
+		}
+		dst = []byte("lead")
+		dst, err = AppendDecode(dst, []byte(test.enc))
+		if err != nil {
+			t.Errorf("#%d: AppendDecode error: %v", i, err)
+		} else if string(dst) != "lead"+string(test.dec) {
+			t.Errorf("#%d: got: %#v want: %#v", i, dst, "lead"+string(test.dec))
 		}
 	}
 }
@@ -150,7 +161,7 @@ func TestEncoderDecoder(t *testing.T) {
 func TestDecoderErr(t *testing.T) {
 	for _, tt := range errTests {
 		dec := NewDecoder(strings.NewReader(tt.in))
-		out, err := ioutil.ReadAll(dec)
+		out, err := io.ReadAll(dec)
 		wantErr := tt.err
 		// Decoder is reading from stream, so it reports io.ErrUnexpectedEOF instead of ErrLength.
 		if wantErr == ErrLength {
@@ -189,7 +200,7 @@ func TestDumper(t *testing.T) {
 }
 
 func TestDumper_doubleclose(t *testing.T) {
-	var out bytes.Buffer
+	var out strings.Builder
 	dumper := Dumper(&out)
 
 	dumper.Write([]byte(`gopher`))
@@ -205,7 +216,7 @@ func TestDumper_doubleclose(t *testing.T) {
 }
 
 func TestDumper_earlyclose(t *testing.T) {
-	var out bytes.Buffer
+	var out strings.Builder
 	dumper := Dumper(&out)
 
 	dumper.Close()
@@ -259,6 +270,18 @@ func BenchmarkDecode(b *testing.B) {
 			b.SetBytes(int64(size))
 			for i := 0; i < b.N; i++ {
 				Decode(sink, src)
+			}
+		})
+	}
+}
+
+func BenchmarkDecodeString(b *testing.B) {
+	for _, size := range []int{256, 1024, 4096, 16384} {
+		src := strings.Repeat("2b744faa", size/8)
+		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
+			b.SetBytes(int64(size))
+			for i := 0; i < b.N; i++ {
+				sink, _ = DecodeString(src)
 			}
 		})
 	}

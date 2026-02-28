@@ -18,6 +18,7 @@ func softfloat(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Type.IsFloat() {
+				f.unCache(v)
 				switch v.Op {
 				case OpPhi, OpLoad, OpArg:
 					if v.Type.Size() == 4 {
@@ -62,6 +63,7 @@ func softfloat(f *Func) {
 					v.Aux = f.Config.Types.UInt32
 				case 8:
 					v.Aux = f.Config.Types.UInt64
+					newInt64 = true
 				default:
 					v.Fatalf("bad float type with size %d", size)
 				}
@@ -71,8 +73,8 @@ func softfloat(f *Func) {
 
 	if newInt64 && f.Config.RegSize == 4 {
 		// On 32bit arch, decompose Uint64 introduced in the switch above.
-		decomposeBuiltIn(f)
-		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64)
+		decomposeBuiltin(f)
+		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64, removeDeadValues)
 	}
 
 }

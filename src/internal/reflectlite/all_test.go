@@ -7,6 +7,7 @@ package reflectlite_test
 import (
 	"encoding/base64"
 	"fmt"
+	"internal/abi"
 	. "internal/reflectlite"
 	"math"
 	"reflect"
@@ -32,7 +33,7 @@ type T struct {
 }
 
 type pair struct {
-	i interface{}
+	i any
 	s string
 }
 
@@ -240,37 +241,37 @@ func TestSetValue(t *testing.T) {
 	for i, tt := range valueTests {
 		v := ValueOf(tt.i).Elem()
 		switch v.Kind() {
-		case Int:
+		case abi.Int:
 			v.Set(ValueOf(int(132)))
-		case Int8:
+		case abi.Int8:
 			v.Set(ValueOf(int8(8)))
-		case Int16:
+		case abi.Int16:
 			v.Set(ValueOf(int16(16)))
-		case Int32:
+		case abi.Int32:
 			v.Set(ValueOf(int32(32)))
-		case Int64:
+		case abi.Int64:
 			v.Set(ValueOf(int64(64)))
-		case Uint:
+		case abi.Uint:
 			v.Set(ValueOf(uint(132)))
-		case Uint8:
+		case abi.Uint8:
 			v.Set(ValueOf(uint8(8)))
-		case Uint16:
+		case abi.Uint16:
 			v.Set(ValueOf(uint16(16)))
-		case Uint32:
+		case abi.Uint32:
 			v.Set(ValueOf(uint32(32)))
-		case Uint64:
+		case abi.Uint64:
 			v.Set(ValueOf(uint64(64)))
-		case Float32:
+		case abi.Float32:
 			v.Set(ValueOf(float32(256.25)))
-		case Float64:
+		case abi.Float64:
 			v.Set(ValueOf(512.125))
-		case Complex64:
+		case abi.Complex64:
 			v.Set(ValueOf(complex64(532.125 + 10i)))
-		case Complex128:
+		case abi.Complex128:
 			v.Set(ValueOf(complex128(564.25 + 1i)))
-		case String:
+		case abi.String:
 			v.Set(ValueOf("stringy cheese"))
-		case Bool:
+		case abi.Bool:
 			v.Set(ValueOf(true))
 		}
 		s := valueToString(v)
@@ -421,7 +422,7 @@ func TestAll(t *testing.T) {
 
 func TestInterfaceValue(t *testing.T) {
 	var inter struct {
-		E interface{}
+		E any
 	}
 	inter.E = 123.456
 	v1 := ValueOf(&inter)
@@ -437,7 +438,7 @@ func TestInterfaceValue(t *testing.T) {
 }
 
 func TestFunctionValue(t *testing.T) {
-	var x interface{} = func() {}
+	var x any = func() {}
 	v := ValueOf(x)
 	if fmt.Sprint(ToInterface(v)) != fmt.Sprint(x) {
 		t.Fatalf("TestFunction returned wrong pointer")
@@ -496,7 +497,7 @@ type Basic struct {
 type NotBasic Basic
 
 type DeepEqualTest struct {
-	a, b interface{}
+	a, b any
 	eq   bool
 }
 
@@ -510,7 +511,7 @@ var (
 type self struct{}
 
 type Loop *Loop
-type Loopy interface{}
+type Loopy any
 
 var loop1, loop2 Loop
 var loopy1, loopy2 Loopy
@@ -578,7 +579,7 @@ var typeOfTests = []DeepEqualTest{
 	{int32(1), int64(1), false},
 	{0.5, "hello", false},
 	{[]int{1, 2, 3}, [3]int{1, 2, 3}, false},
-	{&[3]interface{}{1, 2, 4}, &[3]interface{}{1, 2, "s"}, false},
+	{&[3]any{1, 2, 4}, &[3]any{1, 2, "s"}, false},
 	{Basic{1, 0.5}, NotBasic{1, 0.5}, false},
 	{map[uint]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, false},
 
@@ -606,14 +607,14 @@ func TestTypeOf(t *testing.T) {
 	}
 }
 
-func Nil(a interface{}, t *testing.T) {
+func Nil(a any, t *testing.T) {
 	n := Field(ValueOf(a), 0)
 	if !n.IsNil() {
 		t.Errorf("%v should be nil", a)
 	}
 }
 
-func NotNil(a interface{}, t *testing.T) {
+func NotNil(a any, t *testing.T) {
 	n := Field(ValueOf(a), 0)
 	if n.IsNil() {
 		t.Errorf("value of type %v should not be nil", TypeString(ValueOf(a).Type()))
@@ -623,9 +624,9 @@ func NotNil(a interface{}, t *testing.T) {
 func TestIsNil(t *testing.T) {
 	// These implement IsNil.
 	// Wrap in extra struct to hide interface type.
-	doNil := []interface{}{
+	doNil := []any{
 		struct{ x *int }{},
-		struct{ x interface{} }{},
+		struct{ x any }{},
 		struct{ x map[string]int }{},
 		struct{ x func() bool }{},
 		struct{ x chan int }{},
@@ -668,7 +669,7 @@ func TestIsNil(t *testing.T) {
 	NotNil(mi, t)
 
 	var ii struct {
-		x interface{}
+		x any
 	}
 	Nil(ii, t)
 	ii.x = 2
@@ -770,7 +771,7 @@ func TestImportPath(t *testing.T) {
 		{TypeOf([]byte(nil)), ""},
 		{TypeOf([]rune(nil)), ""},
 		{TypeOf(string("")), ""},
-		{TypeOf((*interface{})(nil)).Elem(), ""},
+		{TypeOf((*any)(nil)).Elem(), ""},
 		{TypeOf((*byte)(nil)), ""},
 		{TypeOf((*rune)(nil)), ""},
 		{TypeOf((*int64)(nil)), ""},
@@ -805,18 +806,18 @@ func noAlloc(t *testing.T, n int, f func(int)) {
 
 func TestAllocations(t *testing.T) {
 	noAlloc(t, 100, func(j int) {
-		var i interface{}
+		var i any
 		var v Value
 
-		// We can uncomment this when compiler escape analysis
-		// is good enough to see that the integer assigned to i
-		// does not escape and therefore need not be allocated.
-		//
-		// i = 42 + j
-		// v = ValueOf(i)
-		// if int(v.Int()) != 42+j {
-		// 	panic("wrong int")
-		// }
+		i = []int{j, j, j}
+		v = ValueOf(i)
+		if v.Len() != 3 {
+			panic("wrong length")
+		}
+	})
+	noAlloc(t, 100, func(j int) {
+		var i any
+		var v Value
 
 		i = func(j int) int { return j }
 		v = ValueOf(i)
@@ -939,14 +940,14 @@ func TestBigZero(t *testing.T) {
 
 func TestInvalid(t *testing.T) {
 	// Used to have inconsistency between IsValid() and Kind() != Invalid.
-	type T struct{ v interface{} }
+	type T struct{ v any }
 
 	v := Field(ValueOf(T{}), 0)
 	if v.IsValid() != true || v.Kind() != Interface {
 		t.Errorf("field: IsValid=%v, Kind=%v, want true, Interface", v.IsValid(), v.Kind())
 	}
 	v = v.Elem()
-	if v.IsValid() != false || v.Kind() != Invalid {
+	if v.IsValid() != false || v.Kind() != abi.Invalid {
 		t.Errorf("field elem: IsValid=%v, Kind=%v, want false, Invalid", v.IsValid(), v.Kind())
 	}
 }
@@ -954,9 +955,12 @@ func TestInvalid(t *testing.T) {
 type TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678 int
 
 type nameTest struct {
-	v    interface{}
+	v    any
 	want string
 }
+
+type A struct{}
+type B[T any] struct{}
 
 var nameTests = []nameTest{
 	{(*int32)(nil), "int32"},
@@ -966,11 +970,13 @@ var nameTests = []nameTest{
 	{(*func() D1)(nil), ""},
 	{(*<-chan D1)(nil), ""},
 	{(*chan<- D1)(nil), ""},
-	{(*interface{})(nil), ""},
+	{(*any)(nil), ""},
 	{(*interface {
 		F()
 	})(nil), ""},
 	{(*TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678)(nil), "TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678"},
+	{(*B[A])(nil), "B[internal/reflectlite_test.A]"},
+	{(*B[B[A]])(nil), "B[internal/reflectlite_test.B[internal/reflectlite_test.A]]"},
 }
 
 func TestNames(t *testing.T) {
@@ -979,19 +985,6 @@ func TestNames(t *testing.T) {
 		if got := typ.Name(); got != test.want {
 			t.Errorf("%v Name()=%q, want %q", typ, got, test.want)
 		}
-	}
-}
-
-type embed struct {
-	EmbedWithUnexpMeth
-}
-
-func TestNameBytesAreAligned(t *testing.T) {
-	typ := TypeOf(embed{})
-	b := FirstMethodNameBytes(typ)
-	v := uintptr(unsafe.Pointer(b))
-	if v%unsafe.Alignof((*byte)(nil)) != 0 {
-		t.Errorf("reflect.name.bytes pointer is not aligned: %x", v)
 	}
 }
 

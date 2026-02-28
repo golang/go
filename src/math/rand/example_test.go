@@ -16,10 +16,6 @@ import (
 // the output of the random number generator when given a fixed seed.
 
 func Example() {
-	// Seeding with the same value results in the same random sequence each run.
-	// For different numbers, seed with a different value, such as
-	// time.Now().UnixNano(), which yields a constantly-changing number.
-	rand.Seed(42)
 	answers := []string{
 		"It is certain",
 		"It is decidedly so",
@@ -43,7 +39,6 @@ func Example() {
 		"Very doubtful",
 	}
 	fmt.Println("Magic 8-Ball says:", answers[rand.Intn(len(answers))])
-	// Output: Magic 8-Ball says: As I see it yes
 }
 
 // This example shows the use of each of the methods on a *Rand.
@@ -57,7 +52,7 @@ func Example_rand() {
 	// The tabwriter here helps us generate aligned output.
 	w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
 	defer w.Flush()
-	show := func(name string, v1, v2, v3 interface{}) {
+	show := func(name string, v1, v2, v3 any) {
 		fmt.Fprintf(w, "%s\t%v\t%v\t%v\n", name, v1, v2, v3)
 	}
 
@@ -116,9 +111,6 @@ func ExampleShuffle() {
 		words[i], words[j] = words[j], words[i]
 	})
 	fmt.Println(words)
-
-	// Output:
-	// [mouth my the of runs corners from ink]
 }
 
 func ExampleShuffle_slicesInUnison() {
@@ -132,26 +124,10 @@ func ExampleShuffle_slicesInUnison() {
 	for i := range numbers {
 		fmt.Printf("%c: %c\n", letters[i], numbers[i])
 	}
-
-	// Output:
-	// C: 3
-	// D: 4
-	// A: 1
-	// E: 5
-	// B: 2
 }
 
 func ExampleIntn() {
-	// Seeding with the same value results in the same random sequence each run.
-	// For different numbers, seed with a different value, such as
-	// time.Now().UnixNano(), which yields a constantly-changing number.
-	rand.Seed(86)
 	fmt.Println(rand.Intn(100))
 	fmt.Println(rand.Intn(100))
 	fmt.Println(rand.Intn(100))
-
-	// Output:
-	// 42
-	// 76
-	// 30
 }

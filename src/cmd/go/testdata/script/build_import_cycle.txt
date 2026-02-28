@@ -1,3 +1,6 @@
+# mod_import_cycle covers this error in module mode.
+env GO111MODULE=off
+
 ! go build selfimport
 stderr -count=1 'import cycle not allowed'
 

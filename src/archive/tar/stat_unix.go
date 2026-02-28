@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix linux darwin dragonfly freebsd openbsd netbsd solaris
+//go:build unix
 
 package tar
 
 import (
-	"os"
+	"io/fs"
 	"os/user"
 	"runtime"
 	"strconv"
@@ -19,34 +19,34 @@ func init() {
 	sysStat = statUnix
 }
 
-// userMap and groupMap caches UID and GID lookups for performance reasons.
+// userMap and groupMap cache UID and GID lookups for performance reasons.
 // The downside is that renaming uname or gname by the OS never takes effect.
 var userMap, groupMap sync.Map // map[int]string
 
-func statUnix(fi os.FileInfo, h *Header) error {
+func statUnix(fi fs.FileInfo, h *Header, doNameLookups bool) error {
 	sys, ok := fi.Sys().(*syscall.Stat_t)
 	if !ok {
 		return nil
 	}
 	h.Uid = int(sys.Uid)
 	h.Gid = int(sys.Gid)
-
-	// Best effort at populating Uname and Gname.
-	// The os/user functions may fail for any number of reasons
-	// (not implemented on that platform, cgo not enabled, etc).
-	if u, ok := userMap.Load(h.Uid); ok {
-		h.Uname = u.(string)
-	} else if u, err := user.LookupId(strconv.Itoa(h.Uid)); err == nil {
-		h.Uname = u.Username
-		userMap.Store(h.Uid, h.Uname)
+	if doNameLookups {
+		// Best effort at populating Uname and Gname.
+		// The os/user functions may fail for any number of reasons
+		// (not implemented on that platform, cgo not enabled, etc).
+		if u, ok := userMap.Load(h.Uid); ok {
+			h.Uname = u.(string)
+		} else if u, err := user.LookupId(strconv.Itoa(h.Uid)); err == nil {
+			h.Uname = u.Username
+			userMap.Store(h.Uid, h.Uname)
+		}
+		if g, ok := groupMap.Load(h.Gid); ok {
+			h.Gname = g.(string)
+		} else if g, err := user.LookupGroupId(strconv.Itoa(h.Gid)); err == nil {
+			h.Gname = g.Name
+			groupMap.Store(h.Gid, h.Gname)
+		}
 	}
-	if g, ok := groupMap.Load(h.Gid); ok {
-		h.Gname = g.(string)
-	} else if g, err := user.LookupGroupId(strconv.Itoa(h.Gid)); err == nil {
-		h.Gname = g.Name
-		groupMap.Store(h.Gid, h.Gname)
-	}
-
 	h.AccessTime = statAtime(sys)
 	h.ChangeTime = statCtime(sys)
 
@@ -66,7 +66,7 @@ func statUnix(fi os.FileInfo, h *Header) error {
 			minor := uint32((dev & 0x00000000000000ff) >> 0)
 			minor |= uint32((dev & 0x00000ffffff00000) >> 12)
 			h.Devmajor, h.Devminor = int64(major), int64(minor)
-		case "darwin":
+		case "darwin", "ios":
 			// Copied from golang.org/x/sys/unix/dev_darwin.go.
 			major := uint32((dev >> 24) & 0xff)
 			minor := uint32(dev & 0xffffff)

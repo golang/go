@@ -7,18 +7,44 @@ package runtime
 import "unsafe"
 
 func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
+	// nil pointer is always suitably aligned (#47430).
+	if p == nil {
+		return
+	}
+
 	// Check that (*[n]elem)(p) is appropriately aligned.
 	// Note that we allow unaligned pointers if the types they point to contain
 	// no pointers themselves. See issue 37298.
 	// TODO(mdempsky): What about fieldAlign?
-	if elem.ptrdata != 0 && uintptr(p)&(uintptr(elem.align)-1) != 0 {
+	if elem.Pointers() && uintptr(p)&(uintptr(elem.Align_)-1) != 0 {
 		throw("checkptr: misaligned pointer conversion")
 	}
 
 	// Check that (*[n]elem)(p) doesn't straddle multiple heap objects.
-	if size := n * elem.size; size > 1 && checkptrBase(p) != checkptrBase(add(p, size-1)) {
+	// TODO(mdempsky): Fix #46938 so we don't need to worry about overflow here.
+	if checkptrStraddles(p, n*elem.Size_) {
 		throw("checkptr: converted pointer straddles multiple allocations")
 	}
+}
+
+// checkptrStraddles reports whether the first size-bytes of memory
+// addressed by ptr is known to straddle more than one Go allocation.
+func checkptrStraddles(ptr unsafe.Pointer, size uintptr) bool {
+	if size <= 1 {
+		return false
+	}
+
+	// Check that add(ptr, size-1) won't overflow. This avoids the risk
+	// of producing an illegal pointer value (assuming ptr is legal).
+	if uintptr(ptr) >= -(size - 1) {
+		return true
+	}
+	end := add(ptr, size-1)
+
+	// TODO(mdempsky): Detect when [ptr, end] contains Go allocations,
+	// but neither ptr nor end point into one themselves.
+
+	return checkptrBase(ptr) != checkptrBase(end)
 }
 
 func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
@@ -50,6 +76,16 @@ func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
 // checkptrBase(p1) == checkptrBase(p2). However, the converse/inverse
 // is not necessarily true as allocations can have trailing padding,
 // and multiple variables may be packed into a single allocation.
+//
+// checkptrBase should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname checkptrBase
 func checkptrBase(p unsafe.Pointer) uintptr {
 	// stack
 	if gp := getg(); gp.stack.lo <= uintptr(p) && uintptr(p) < gp.stack.hi {

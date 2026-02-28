@@ -133,7 +133,7 @@ DATA ·powtm<> + 176(SB)/8, $0xe00003d4a9c6f
 DATA ·powtm<> + 184(SB)/8, $0xf00003d846c66
 GLOBL ·powtm<> + 0(SB), RODATA, $192
 
-// Table of indeces into multiplier tables
+// Table of indices into multiplier tables
 // Adjusted from asm to remove offset and convert
 DATA ·powtabi<> + 0(SB)/8, $0x1010101
 DATA ·powtabi<> + 8(SB)/8, $0x101020202020203
@@ -492,10 +492,10 @@ L9:
 	FMOVD	F2, F1
 	BR	L1
 L46:
-	WORD	$0xB3130040	//lcdbr	%f4,%f0
+	LCDBR	F0, F4
 	BR	L3
 L44:
-	WORD	$0xB3130030	//lcdbr	%f3,%f0
+	LCDBR   F0, F3
 	BR	L7
 L35:
 	FMOVD	F0, F1
@@ -590,7 +590,7 @@ L32:
 	FMOVD	8(R9), F4
 	BR	L17
 L50:
-	WORD	$0xB3130042	//lcdbr	%f4,%f2
+	LCDBR   F2, F4
 	BR	L14
 xIsOne:			// Pow(1, y) = 1 for any y
 yIsOne:			// Pow(x, 1) = x for any x

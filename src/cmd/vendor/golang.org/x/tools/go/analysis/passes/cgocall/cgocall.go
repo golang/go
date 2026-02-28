@@ -18,7 +18,7 @@ import (
 	"strconv"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 const debug = false
@@ -35,12 +35,13 @@ or slice to C, either directly, or via a pointer, array, or struct.`
 var Analyzer = &analysis.Analyzer{
 	Name:             "cgocall",
 	Doc:              Doc,
+	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/cgocall",
 	RunDespiteErrors: true,
 	Run:              run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
-	if !analysisutil.Imports(pass.Pkg, "runtime/cgo") {
+func run(pass *analysis.Pass) (any, error) {
+	if !typesinternal.Imports(pass.Pkg, "runtime/cgo") {
 		return nil, nil // doesn't use cgo
 	}
 
@@ -54,7 +55,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(token.Pos, string, ...interface{})) {
+func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(token.Pos, string, ...any)) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
@@ -63,7 +64,7 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
 
 		// Is this a C.f() call?
 		var name string
-		if sel, ok := analysisutil.Unparen(call.Fun).(*ast.SelectorExpr); ok {
+		if sel, ok := ast.Unparen(call.Fun).(*ast.SelectorExpr); ok {
 			if id, ok := sel.X.(*ast.Ident); ok && id.Name == "C" {
 				name = sel.Sel.Name
 			}
@@ -122,8 +123,8 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
 // For example, for each raw cgo source file in the original package,
 // such as this one:
 //
-// 	package p
-// 	import "C"
+//	package p
+//	import "C"
 //	import "fmt"
 //	type T int
 //	const k = 3
@@ -147,9 +148,9 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
 // the receiver into the first parameter;
 // and all functions are renamed to "_".
 //
-// 	package p
-// 	import . "·this·" // declares T, k, x, y, f, g, T.f
-// 	import "C"
+//	package p
+//	import . "·this·" // declares T, k, x, y, f, g, T.f
+//	import "C"
 //	import "fmt"
 //	const _ = 3
 //	var _, _ = fmt.Println()
@@ -169,7 +170,6 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
 // C.f would resolve to "·this·"._C_func_f, for example. But we have
 // limited ourselves here to preserving function bodies and initializer
 // expressions since that is all that the cgocall analyzer needs.
-//
 func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*ast.File, info *types.Info, sizes types.Sizes) ([]*ast.File, *types.Info, error) {
 	const thispkg = "·this·"
 
@@ -179,8 +179,8 @@ func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*a
 	for _, raw := range files {
 		// If f is a cgo-generated file, Position reports
 		// the original file, honoring //line directives.
-		filename := fset.Position(raw.Pos()).Filename
-		f, err := parser.ParseFile(fset, filename, nil, parser.Mode(0))
+		filename := fset.Position(raw.Pos()).Filename // sic: Pos, not FileStart
+		f, err := parser.ParseFile(fset, filename, nil, parser.SkipObjectResolution)
 		if err != nil {
 			return nil, nil, fmt.Errorf("can't parse raw cgo file: %v", err)
 		}
@@ -271,6 +271,7 @@ func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*a
 		Sizes: sizes,
 		Error: func(error) {}, // ignore errors (e.g. unused import)
 	}
+	setGoVersion(tc, pkg)
 
 	// It's tempting to record the new types in the
 	// existing pass.TypesInfo, but we don't own it.
@@ -284,8 +285,9 @@ func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*a
 
 // cgoBaseType tries to look through type conversions involving
 // unsafe.Pointer to find the real type. It converts:
-//   unsafe.Pointer(x) => x
-//   *(*unsafe.Pointer)(unsafe.Pointer(&x)) => x
+//
+//	unsafe.Pointer(x) => x
+//	*(*unsafe.Pointer)(unsafe.Pointer(&x)) => x
 func cgoBaseType(info *types.Info, arg ast.Expr) types.Type {
 	switch arg := arg.(type) {
 	case *ast.CallExpr:
@@ -348,8 +350,8 @@ func typeOKForCgoCall(t types.Type, m map[types.Type]bool) bool {
 	case *types.Array:
 		return typeOKForCgoCall(t.Elem(), m)
 	case *types.Struct:
-		for i := 0; i < t.NumFields(); i++ {
-			if !typeOKForCgoCall(t.Field(i).Type(), m) {
+		for field := range t.Fields() {
+			if !typeOKForCgoCall(field.Type(), m) {
 				return false
 			}
 		}

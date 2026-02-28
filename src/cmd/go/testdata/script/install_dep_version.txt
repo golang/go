@@ -1,0 +1,8 @@
+# Regression test for Issue #54908. When running a go install module@version
+# with --mod=readonly moduleInfo was not setting the GoVersion for the module
+# because the checksumOk function was failing because modfetch.GoSumFile
+# was not set when running outside of a module.
+
+env GOTOOLCHAIN=local
+
+go install --mod=readonly example.com/depends/on/generics@v1.0.0

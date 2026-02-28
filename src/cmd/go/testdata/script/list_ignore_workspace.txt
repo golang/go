@@ -1,0 +1,89 @@
+# go list should skip 'ignore' directives in workspaces
+# See golang.org/issue/42965
+
+env ROOT=$WORK${/}gopath${/}src
+
+# go list ./... should only consider the current module's ignore directive
+cd moduleA
+go list -x ./...
+stdout 'moduleA$'
+stdout 'moduleA/pkg$'
+stderr 'ignoring directory '$ROOT''${/}'moduleA'${/}'node_modules'
+
+# go list ./... should only consider the current module's ignore directive
+cd ../moduleB
+go list -x ./...
+stdout 'moduleB$'
+! stdout 'moduleB/pkg/helper'
+stderr 'ignoring directory '$ROOT''${/}'moduleB'${/}'pkg'
+
+# go list should respect module boundaries for ignore directives.
+# moduleA ignores './node_modules', moduleB ignores 'pkg'
+cd ..
+go list -x all
+stderr 'ignoring directory '$ROOT''${/}'moduleA'${/}'node_modules'
+stderr 'ignoring directory '$ROOT''${/}'moduleB'${/}'pkg'
+! stderr 'ignoring directory '$ROOT''${/}'moduleA'${/}'pkg'
+stdout 'moduleA$'
+stdout 'moduleA/pkg$'
+stdout 'moduleB$'
+stdout 'moduleB/pkg/helper'
+
+-- go.work --
+go 1.24
+
+use (
+    ./moduleA
+    ./moduleB
+)
+
+-- moduleA/go.mod --
+module moduleA
+
+go 1.24
+
+ignore ./node_modules
+
+-- moduleA/main.go --
+package main
+
+import (
+        "fmt"
+        "moduleB/pkg/helper"
+)
+
+func main() {
+        fmt.Println("Running moduleA")
+        fmt.Println(helper.Message())
+        fmt.Println(hello.Hello())
+}
+-- moduleA/node_modules/some_pkg/index.js --
+console.log("This should be ignored!");
+-- moduleA/pkg/hello.go --
+package hello
+
+func Hello() string {
+        return "Hello from moduleA"
+}
+-- moduleB/go.mod --
+module moduleB
+
+go 1.24
+
+ignore pkg
+
+-- moduleB/main.go --
+package main
+
+import "fmt"
+
+func main() {
+        fmt.Println("Running moduleB")
+}
+
+-- moduleB/pkg/helper/helper.go --
+package helper
+
+func Message() string {
+        return "Helper from moduleB"
+}

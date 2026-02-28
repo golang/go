@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	. "io"
-	"io/ioutil"
 	"runtime"
 	"strings"
 	"testing"
@@ -62,6 +61,31 @@ func TestMultiReader(t *testing.T) {
 	withFooBar(func() {
 		expectRead(5, "foo ", nil)
 	})
+}
+
+func TestMultiReaderAsWriterTo(t *testing.T) {
+	mr := MultiReader(
+		strings.NewReader("foo "),
+		MultiReader( // Tickle the buffer reusing codepath
+			strings.NewReader(""),
+			strings.NewReader("bar"),
+		),
+	)
+	mrAsWriterTo, ok := mr.(WriterTo)
+	if !ok {
+		t.Fatalf("expected cast to WriterTo to succeed")
+	}
+	sink := &strings.Builder{}
+	n, err := mrAsWriterTo.WriteTo(sink)
+	if err != nil {
+		t.Fatalf("expected no error; got %v", err)
+	}
+	if n != 7 {
+		t.Errorf("expected read 7 bytes; got %d", n)
+	}
+	if result := sink.String(); result != "foo bar" {
+		t.Errorf(`expected "foo bar"; got %q`, result)
+	}
 }
 
 func TestMultiWriter(t *testing.T) {
@@ -142,7 +166,7 @@ func testMultiWriter(t *testing.T, sink interface {
 	}
 }
 
-// writerFunc is an io.Writer implemented by the underlying func.
+// writerFunc is a Writer implemented by the underlying func.
 type writerFunc func(p []byte) (int, error)
 
 func (f writerFunc) Write(p []byte) (int, error) {
@@ -196,7 +220,7 @@ func TestMultiReaderCopy(t *testing.T) {
 	slice := []Reader{strings.NewReader("hello world")}
 	r := MultiReader(slice...)
 	slice[0] = nil
-	data, err := ioutil.ReadAll(r)
+	data, err := ReadAll(r)
 	if err != nil || string(data) != "hello world" {
 		t.Errorf("ReadAll() = %q, %v, want %q, nil", data, err, "hello world")
 	}
@@ -204,7 +228,7 @@ func TestMultiReaderCopy(t *testing.T) {
 
 // Test that MultiWriter copies the input slice and is insulated from future modification.
 func TestMultiWriterCopy(t *testing.T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	slice := []Writer{&buf}
 	w := MultiWriter(slice...)
 	slice[0] = nil
@@ -217,7 +241,7 @@ func TestMultiWriterCopy(t *testing.T) {
 	}
 }
 
-// readerFunc is an io.Reader implemented by the underlying func.
+// readerFunc is a Reader implemented by the underlying func.
 type readerFunc func(p []byte) (int, error)
 
 func (f readerFunc) Read(p []byte) (int, error) {
@@ -261,7 +285,7 @@ func TestMultiReaderFlatten(t *testing.T) {
 }
 
 // byteAndEOFReader is a Reader which reads one byte (the underlying
-// byte) and io.EOF at once in its Read call.
+// byte) and EOF at once in its Read call.
 type byteAndEOFReader byte
 
 func (b byteAndEOFReader) Read(p []byte) (n int, err error) {
@@ -276,7 +300,7 @@ func (b byteAndEOFReader) Read(p []byte) (n int, err error) {
 
 // This used to yield bytes forever; issue 16795.
 func TestMultiReaderSingleByteWithEOF(t *testing.T) {
-	got, err := ioutil.ReadAll(LimitReader(MultiReader(byteAndEOFReader('a'), byteAndEOFReader('b')), 10))
+	got, err := ReadAll(LimitReader(MultiReader(byteAndEOFReader('a'), byteAndEOFReader('b')), 10))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,9 +332,7 @@ func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
 		buf1 := bytes.NewReader([]byte("foo"))
 		buf2 := bytes.NewReader([]byte("bar"))
 		mr = MultiReader(buf1, buf2)
-		runtime.SetFinalizer(buf1, func(*bytes.Reader) {
-			close(closed)
-		})
+		runtime.AddCleanup(buf1, func(ch chan struct{}) { close(ch) }, closed)
 	}()
 
 	buf := make([]byte, 4)

@@ -1,4 +1,5 @@
 [!symlink] skip
+env GO111MODULE=off
 
 mkdir $WORK/tmp/gopath/src/dir1/internal/v
 cp p.go $WORK/tmp/gopath/src/dir1/p.go

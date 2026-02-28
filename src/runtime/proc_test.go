@@ -5,11 +5,18 @@
 package runtime_test
 
 import (
+	"bytes"
 	"fmt"
+	"internal/race"
+	"internal/testenv"
+	"internal/trace"
+	"internal/trace/testtrace"
+	"io"
 	"math"
 	"net"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -117,6 +124,10 @@ func TestGoroutineParallelism(t *testing.T) {
 	// since the goroutines can't be stopped/preempted.
 	// Disable GC for this test (see issue #10958).
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	// SetGCPercent waits until the mark phase is over, but the runtime
+	// also preempts at the start of the sweep phase, so make sure that's
+	// done too. See #45867.
+	runtime.GC()
 	for try := 0; try < N; try++ {
 		done := make(chan bool)
 		x := uint32(0)
@@ -161,6 +172,10 @@ func testGoroutineParallelism2(t *testing.T, load, netpoll bool) {
 	// since the goroutines can't be stopped/preempted.
 	// Disable GC for this test (see issue #10958).
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	// SetGCPercent waits until the mark phase is over, but the runtime
+	// also preempts at the start of the sweep phase, so make sure that's
+	// done too. See #45867.
+	runtime.GC()
 	for try := 0; try < N; try++ {
 		if load {
 			// Create P goroutines and wait until they all run.
@@ -190,7 +205,7 @@ func testGoroutineParallelism2(t *testing.T, load, netpoll bool) {
 				laddr = "127.0.0.1:0"
 			}
 			ln, err := net.Listen("tcp", laddr)
-			if err != nil {
+			if err == nil {
 				defer ln.Close() // yup, defer in a loop
 			}
 		}
@@ -405,7 +420,10 @@ func TestNumGoroutine(t *testing.T) {
 		n := runtime.NumGoroutine()
 		buf = buf[:runtime.Stack(buf, true)]
 
-		nstk := strings.Count(string(buf), "goroutine ")
+		// To avoid double-counting "goroutine" in "goroutine $m [running]:"
+		// and "created by $func in goroutine $n", remove the latter
+		output := strings.ReplaceAll(string(buf), "in goroutine", "")
+		nstk := strings.Count(output, "goroutine ")
 		if n == nstk {
 			break
 		}
@@ -421,6 +439,11 @@ func TestPingPongHog(t *testing.T) {
 	}
 	if testing.Short() {
 		t.Skip("skipping in -short mode")
+	}
+	if race.Enabled {
+		// The race detector randomizes the scheduler,
+		// which causes this test to fail (#38266).
+		t.Skip("skipping in -race mode")
 	}
 
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
@@ -462,12 +485,13 @@ func TestPingPongHog(t *testing.T) {
 	<-lightChan
 
 	// Check that hogCount and lightCount are within a factor of
-	// 5, which indicates that both pairs of goroutines handed off
+	// 20, which indicates that both pairs of goroutines handed off
 	// the P within a time-slice to their buddy. We can use a
 	// fairly large factor here to make this robust: if the
-	// scheduler isn't working right, the gap should be ~1000X.
-	const factor = 5
-	if hogCount > lightCount*factor || lightCount > hogCount*factor {
+	// scheduler isn't working right, the gap should be ~1000X
+	// (was 5, increased to 20, see issue 52207).
+	const factor = 20
+	if hogCount/factor > lightCount || lightCount/factor > hogCount {
 		t.Fatalf("want hogCount/lightCount in [%v, %v]; got %d/%d = %g", 1.0/factor, factor, hogCount, lightCount, float64(hogCount)/float64(lightCount))
 	}
 }
@@ -516,9 +540,17 @@ func BenchmarkPingPongHog(b *testing.B) {
 	<-done
 }
 
+var padData [128]uint64
+
 func stackGrowthRecursive(i int) {
 	var pad [128]uint64
-	if i != 0 && pad[0] == 0 {
+	pad = padData
+	for j := range pad {
+		if pad[j] != 0 {
+			return
+		}
+	}
+	if i != 0 {
 		stackGrowthRecursive(i - 1)
 	}
 }
@@ -608,6 +640,10 @@ func TestSchedLocalQueueEmpty(t *testing.T) {
 	// If runtime triggers a forced GC during this test then it will deadlock,
 	// since the goroutines can't be stopped/preempted during spin wait.
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	// SetGCPercent waits until the mark phase is over, but the runtime
+	// also preempts at the start of the sweep phase, so make sure that's
+	// done too. See #45867.
+	runtime.GC()
 
 	iters := int(1e5)
 	if testing.Short() {
@@ -665,7 +701,6 @@ func BenchmarkCreateGoroutinesCapture(b *testing.B) {
 		var wg sync.WaitGroup
 		wg.Add(N)
 		for i := 0; i < N; i++ {
-			i := i
 			go func() {
 				if i >= N {
 					b.Logf("bad") // just to capture b
@@ -675,6 +710,55 @@ func BenchmarkCreateGoroutinesCapture(b *testing.B) {
 		}
 		wg.Wait()
 	}
+}
+
+// warmupScheduler ensures the scheduler has at least targetThreadCount threads
+// in its thread pool.
+func warmupScheduler(targetThreadCount int) {
+	var wg sync.WaitGroup
+	var count int32
+	for i := 0; i < targetThreadCount; i++ {
+		wg.Add(1)
+		go func() {
+			atomic.AddInt32(&count, 1)
+			for atomic.LoadInt32(&count) < int32(targetThreadCount) {
+				// spin until all threads started
+			}
+
+			// spin a bit more to ensure they are all running on separate CPUs.
+			doWork(time.Millisecond)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
+
+func doWork(dur time.Duration) {
+	start := time.Now()
+	for time.Since(start) < dur {
+	}
+}
+
+// BenchmarkCreateGoroutinesSingle creates many goroutines, all from a single
+// producer (the main benchmark goroutine).
+//
+// Compared to BenchmarkCreateGoroutines, this causes different behavior in the
+// scheduler because Ms are much more likely to need to steal work from the
+// main P rather than having work in the local run queue.
+func BenchmarkCreateGoroutinesSingle(b *testing.B) {
+	// Since we are interested in stealing behavior, warm the scheduler to
+	// get all the Ps running first.
+	warmupScheduler(runtime.GOMAXPROCS(0))
+	b.ResetTimer()
+
+	var wg sync.WaitGroup
+	wg.Add(b.N)
+	for i := 0; i < b.N; i++ {
+		go func() {
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }
 
 func BenchmarkClosureCall(b *testing.B) {
@@ -923,7 +1007,42 @@ func TestLockOSThreadAvoidsStatePropagation(t *testing.T) {
 	}
 }
 
+func TestLockOSThreadTemplateThreadRace(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+
+	exe, err := buildTestProg(t, "testprog")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	iterations := 100
+	if testing.Short() {
+		// Reduce run time to ~100ms, with much lower probability of
+		// catching issues.
+		iterations = 5
+	}
+	for i := 0; i < iterations; i++ {
+		want := "OK\n"
+		output := runBuiltTestProg(t, exe, "LockOSThreadTemplateThreadRace")
+		if output != want {
+			t.Fatalf("run %d: want %q, got %q", i, want, output)
+		}
+	}
+}
+
+func TestLockOSThreadVgetrandom(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skipf("vgetrandom only relevant on Linux")
+	}
+	output := runTestProg(t, "testprog", "LockOSThreadVgetrandom")
+	want := "OK\n"
+	if output != want {
+		t.Errorf("want %q, got %q", want, output)
+	}
+}
+
 // fakeSyscall emulates a system call.
+//
 //go:nosplit
 func fakeSyscall(duration time.Duration) {
 	runtime.Entersyscall()
@@ -940,16 +1059,16 @@ func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
 
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
 
-	interations := 10
+	iterations := 10
 	if testing.Short() {
-		interations = 1
+		iterations = 1
 	}
 	const (
-		maxDuration = 3 * time.Second
+		maxDuration = 5 * time.Second
 		nroutines   = 8
 	)
 
-	for i := 0; i < interations; i++ {
+	for i := 0; i < iterations; i++ {
 		c := make(chan bool, nroutines)
 		stop := uint32(0)
 
@@ -981,6 +1100,10 @@ func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
 }
 
 func TestPreemptionAfterSyscall(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		testenv.SkipFlaky(t, 41015)
+	}
+
 	for _, i := range []time.Duration{10, 100, 1000} {
 		d := i * time.Microsecond
 		t.Run(fmt.Sprint(d), func(t *testing.T) {
@@ -1029,5 +1152,424 @@ loop:
 	}
 	if dur := time.Since(start); dur > 5*time.Second {
 		t.Errorf("netpollBreak did not interrupt netpoll: slept for: %v", dur)
+	}
+}
+
+// TestBigGOMAXPROCS tests that setting GOMAXPROCS to a large value
+// doesn't cause a crash at startup. See issue 38474.
+func TestBigGOMAXPROCS(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprog", "NonexistentTest", "GOMAXPROCS=1024")
+	// Ignore error conditions on small machines.
+	for _, errstr := range []string{
+		"failed to create new OS thread",
+		"cannot allocate memory",
+	} {
+		if strings.Contains(output, errstr) {
+			t.Skipf("failed to create 1024 threads")
+		}
+	}
+	if !strings.Contains(output, "unknown function: NonexistentTest") {
+		t.Errorf("output:\n%s\nwanted:\nunknown function: NonexistentTest", output)
+	}
+}
+
+type goroutineState struct {
+	G trace.GoID     // This goroutine.
+	P trace.ProcID   // Most recent P this goroutine ran on.
+	M trace.ThreadID // Most recent M this goroutine ran on.
+}
+
+func newGoroutineState(g trace.GoID) *goroutineState {
+	return &goroutineState{
+		G: g,
+		P: trace.NoProc,
+		M: trace.NoThread,
+	}
+}
+
+// TestTraceSTW verifies that goroutines continue running on the same M and P
+// after a STW.
+func TestTraceSTW(t *testing.T) {
+	// Across STW, the runtime attempts to keep goroutines running on the
+	// same P and the P running on the same M. It does this by keeping
+	// goroutines in the P's local runq, and remembering which M the P ran
+	// on before STW and preferring that M when restarting.
+	//
+	// This test verifies that affinity by analyzing a trace of testprog
+	// TraceSTW.
+	//
+	// The affinity across STW is best-effort, so have to allow some
+	// failure rate, thus we test many times and ensure the error rate is
+	// low.
+	//
+	// The expected affinity can fail for a variety of reasons. The most
+	// obvious is that while procresize assigns Ps back to their original
+	// M, startTheWorldWithSema calls wakep to start a spinning M. The
+	// spinning M may steal a goroutine from another P if that P is too
+	// slow to start.
+
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
+
+	if runtime.NumCPU() < 4 {
+		t.Skip("This test sets GOMAXPROCS=4 and wants to avoid thread descheduling as much as possible. Skip on machines with less than 4 CPUs")
+	}
+
+	const runs = 50
+
+	var errors int
+	for i := range runs {
+		err := runTestTracesSTW(t, i, "TraceSTW", "stop-the-world (read mem stats)")
+		if err != nil {
+			t.Logf("Run %d failed: %v", i, err)
+			errors++
+		}
+	}
+
+	pct := float64(errors) / float64(runs)
+	t.Logf("Errors: %d/%d = %f%%", errors, runs, 100*pct)
+	if pct > 0.25 {
+		t.Errorf("Error rate too high")
+	}
+}
+
+// TestTraceGCSTW verifies that goroutines continue running on the same M and P
+// after a GC STW.
+func TestTraceGCSTW(t *testing.T) {
+	// Very similar to TestTraceSTW, but using a STW that starts the GC.
+	// When the GC starts, the background GC mark workers start running,
+	// which provide an additional source of disturbance to the scheduler.
+	//
+	// procresize assigns GC workers to previously-idle Ps to avoid
+	// changing what the previously-running Ps are doing.
+
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
+
+	if runtime.NumCPU() < 8 {
+		t.Skip("This test sets GOMAXPROCS=8 and wants to avoid thread descheduling as much as possible. Skip on machines with less than 8 CPUs")
+	}
+
+	const runs = 50
+
+	var errors int
+	for i := range runs {
+		err := runTestTracesSTW(t, i, "TraceGCSTW", "stop-the-world (GC sweep termination)")
+		if err != nil {
+			t.Logf("Run %d failed: %v", i, err)
+			errors++
+		}
+	}
+
+	pct := float64(errors) / float64(runs)
+	t.Logf("Errors: %d/%d = %f%%", errors, runs, 100*pct)
+	if pct > 0.25 {
+		t.Errorf("Error rate too high")
+	}
+}
+
+func runTestTracesSTW(t *testing.T, run int, name, stwType string) (err error) {
+	t.Logf("Run %d", run)
+
+	// By default, TSAN sleeps for 1s at exit to allow background
+	// goroutines to race. This slows down execution for this test far too
+	// much, since we are running 50 iterations, so disable the sleep.
+	//
+	// Outside of race mode, GORACE does nothing.
+	buf := []byte(runTestProg(t, "testprog", name, "GORACE=atexit_sleep_ms=0"))
+
+	// We locally "fail" the run (return an error) if the trace exhibits
+	// unwanted scheduling. i.e., the target goroutines did not remain on
+	// the same P/M.
+	//
+	// We fail the entire test (t.Fatal) for other cases that should never
+	// occur, such as a trace parse error.
+	defer func() {
+		if err != nil || t.Failed() {
+			testtrace.Dump(t, fmt.Sprintf("Test%s-run%d", name, run), []byte(buf), false)
+		}
+	}()
+
+	br, err := trace.NewReader(bytes.NewReader(buf))
+	if err != nil {
+		t.Fatalf("NewReader got err %v want nil", err)
+	}
+
+	var targetGoroutines []*goroutineState
+	findGoroutine := func(goid trace.GoID) *goroutineState {
+		for _, gs := range targetGoroutines {
+			if gs.G == goid {
+				return gs
+			}
+		}
+		return nil
+	}
+	findProc := func(pid trace.ProcID) *goroutineState {
+		for _, gs := range targetGoroutines {
+			if gs.P == pid {
+				return gs
+			}
+		}
+		return nil
+	}
+
+	// 1. Find the goroutine IDs for the target goroutines. This will be in
+	// the StateTransition from NotExist.
+	//
+	// 2. Once found, track which M and P the target goroutines run on until...
+	//
+	// 3. Look for the first STW after the "TraceSTW" "start" log message,
+	// where we commit the target goroutines' "before" M and P.
+	//
+	// N.B. We must do (1) and (2) together because the first target
+	// goroutine may start running before the second is created.
+	var startLogSeen bool
+	var stwSeen bool
+findStart:
+	for {
+		ev, err := br.ReadEvent()
+		if err == io.EOF {
+			// Reached the end of the trace without finding case (3).
+			t.Fatalf("Trace missing start log message")
+		}
+		if err != nil {
+			t.Fatalf("ReadEvent got err %v want nil", err)
+		}
+		t.Logf("Event: %s", ev.String())
+
+		switch ev.Kind() {
+		case trace.EventStateTransition:
+			st := ev.StateTransition()
+			if st.Resource.Kind != trace.ResourceGoroutine {
+				continue
+			}
+
+			goid := st.Resource.Goroutine()
+			from, to := st.Goroutine()
+
+			// Potentially case (1): Goroutine creation.
+			if from == trace.GoNotExist {
+				for sf := range st.Stack.Frames() {
+					if sf.Func == "main.traceSTWTarget" {
+						targetGoroutines = append(targetGoroutines, newGoroutineState(goid))
+						t.Logf("Identified target goroutine id %d", goid)
+					}
+
+					// Always break, the goroutine entrypoint is always the
+					// first frame.
+					break
+				}
+			}
+
+			// Potentially case (2): Goroutine running.
+			if to == trace.GoRunning {
+				gs := findGoroutine(goid)
+				if gs == nil {
+					continue
+				}
+				gs.P = ev.Proc()
+				gs.M = ev.Thread()
+				t.Logf("G %d running on P %d M %d", gs.G, gs.P, gs.M)
+			}
+		case trace.EventLog:
+			// Potentially case (3): Start log event.
+			log := ev.Log()
+			if log.Category != "TraceSTW" {
+				continue
+			}
+			if log.Message != "start" {
+				t.Fatalf("Log message got %s want start", log.Message)
+			}
+
+			// Found start point, move on to next stage.
+			t.Logf("Found start message")
+			startLogSeen = true
+		case trace.EventRangeBegin:
+			if !startLogSeen {
+				// Ignore spurious STW before we expect.
+				continue
+			}
+
+			r := ev.Range()
+			if r.Name == stwType {
+				t.Logf("Found STW")
+				stwSeen = true
+				break findStart
+			}
+		}
+	}
+
+	if !stwSeen {
+		t.Fatal("Can't find STW in the test trace")
+	}
+
+	t.Log("Target goroutines:")
+	for _, gs := range targetGoroutines {
+		t.Logf("%+v", gs)
+	}
+
+	if len(targetGoroutines) != 2 {
+		t.Fatalf("len(targetGoroutines) got %d want 2", len(targetGoroutines))
+	}
+
+	for _, gs := range targetGoroutines {
+		if gs.P == trace.NoProc {
+			t.Fatalf("Goroutine %+v not running on a P", gs)
+		}
+		if gs.M == trace.NoThread {
+			t.Fatalf("Goroutine %+v not running on an M", gs)
+		}
+	}
+
+	// The test continues until we see the "end" log message.
+	//
+	// What we want to observe is that the target goroutines run only on
+	// the original P and M.
+	//
+	// They will be stopped by STW [1], but should resume on the original P
+	// and M.
+	//
+	// However, this is best effort. For example, startTheWorld wakep's a
+	// spinning M. If the original M is slow to restart (e.g., due to poor
+	// kernel scheduling), the spinning M may legally steal the goroutine
+	// and run it instead.
+	//
+	// In practice, we see this occur frequently on builders, likely
+	// because they are overcommitted on CPU. Thus, we instead check
+	// slightly more constrained properties:
+	// - The original P must run on the original M (if it runs at all).
+	// - The original P must run the original G before anything else,
+	//   unless that G has already run elsewhere.
+	//
+	// This allows a spinning M to steal the G from a slow-to-start M, but
+	// does not allow the original P to just flat out run something
+	// completely different from expected.
+	//
+	// Note this is still somewhat racy: the spinning M may steal the
+	// target G, but before it marks the target G as running, the original
+	// P runs an alternative G. This test will fail that case, even though
+	// it is legitimate. We allow that failure because such a race should
+	// be very rare, particularly because the test process usually has no
+	// other runnable goroutines.
+	//
+	// [1] This is slightly fragile because there is a small window between
+	// the "start" log and actual STW during which the target goroutines
+	// could legitimately migrate.
+	var pRunning []trace.ProcID
+	var gRunning []trace.GoID
+findEnd:
+	for {
+		ev, err := br.ReadEvent()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("ReadEvent got err %v want nil", err)
+		}
+		t.Logf("Event: %s", ev.String())
+
+		switch ev.Kind() {
+		case trace.EventStateTransition:
+			st := ev.StateTransition()
+			switch st.Resource.Kind {
+			case trace.ResourceProc:
+				p := st.Resource.Proc()
+				_, to := st.Proc()
+
+				// Proc running. Ensure it didn't migrate.
+				if to == trace.ProcRunning {
+					gs := findProc(p)
+					if gs == nil {
+						continue
+					}
+
+					if slices.Contains(pRunning, p) {
+						// Only check the first
+						// transition to running.
+						// Afterwards it is free to
+						// migrate anywhere.
+						continue
+					}
+					pRunning = append(pRunning, p)
+
+					m := ev.Thread()
+					if m != gs.M {
+						t.Logf("Proc %d running on M %d want M %d", p, m, gs.M)
+						return fmt.Errorf("P did not remain on M")
+					}
+				}
+			case trace.ResourceGoroutine:
+				goid := st.Resource.Goroutine()
+				_, to := st.Goroutine()
+
+				// Goroutine running. Ensure it didn't migrate.
+				if to == trace.GoRunning {
+					p := ev.Proc()
+					m := ev.Thread()
+
+					gs := findGoroutine(goid)
+					if gs == nil {
+						// This isn't a target
+						// goroutine. Is it a target P?
+						// That shouldn't run anything
+						// other than the target G.
+						gs = findProc(p)
+						if gs == nil {
+							continue
+						}
+
+						if slices.Contains(gRunning, gs.G) {
+							// This P's target G ran elsewhere. This probably
+							// means that this P was slow to start, so
+							// another P stole it. That isn't ideal, but
+							// we'll allow it.
+							continue
+						}
+
+						t.Logf("Goroutine %d running on P %d M %d want this P to run G %d", goid, p, m, gs.G)
+						return fmt.Errorf("P ran incorrect goroutine")
+					}
+
+					if !slices.Contains(gRunning, goid) {
+						gRunning = append(gRunning, goid)
+					}
+
+					if p != gs.P || m != gs.M {
+						t.Logf("Goroutine %d running on P %d M %d want P %d M %d", goid, p, m, gs.P, gs.M)
+						// We don't want this to occur,
+						// but allow it for cases of
+						// bad kernel scheduling. See
+						// "The test continues" comment
+						// above.
+					}
+				}
+			}
+		case trace.EventLog:
+			// Potentially end log event.
+			log := ev.Log()
+			if log.Category != "TraceSTW" {
+				continue
+			}
+			if log.Message != "end" {
+				t.Fatalf("Log message got %s want end", log.Message)
+			}
+
+			// Found end point.
+			t.Logf("Found end message")
+			break findEnd
+		}
+	}
+
+	return nil
+}
+
+func TestMexitSTW(t *testing.T) {
+	got := runTestProg(t, "testprog", "mexitSTW")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got:\n%s", want, got)
 	}
 }

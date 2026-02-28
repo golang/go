@@ -4,10 +4,9 @@
 mkdir $WORKDIR/tmp/pkg
 go install -race -pkgdir=$WORKDIR/tmp/pkg std
 
-# Make sure go test -i -race doesn't rebuild cached packages
-go test -race -pkgdir=$WORKDIR/tmp/pkg -i -v empty/pkg
-! stderr .
+-- go.mod --
+module empty
 
--- empty/pkg/pkg.go --
+go 1.16
+-- pkg/pkg.go --
 package p
-

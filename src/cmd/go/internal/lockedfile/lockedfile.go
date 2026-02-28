@@ -9,7 +9,7 @@ package lockedfile
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"runtime"
 )
@@ -24,6 +24,8 @@ import (
 type File struct {
 	osFile
 	closed bool
+	// cleanup panics when the file is no longer referenced and it has not been closed.
+	cleanup runtime.Cleanup
 }
 
 // osFile embeds a *os.File while keeping the pointer itself unexported.
@@ -35,7 +37,7 @@ type osFile struct {
 // OpenFile is like os.OpenFile, but returns a locked file.
 // If flag includes os.O_WRONLY or os.O_RDWR, the file is write-locked;
 // otherwise, it is read-locked.
-func OpenFile(name string, flag int, perm os.FileMode) (*File, error) {
+func OpenFile(name string, flag int, perm fs.FileMode) (*File, error) {
 	var (
 		f   = new(File)
 		err error
@@ -48,11 +50,11 @@ func OpenFile(name string, flag int, perm os.FileMode) (*File, error) {
 	// Although the operating system will drop locks for open files when the go
 	// command exits, we want to hold locks for as little time as possible, and we
 	// especially don't want to leave a file locked after we're done with it. Our
-	// Close method is what releases the locks, so use a finalizer to report
+	// Close method is what releases the locks, so use a cleanup to report
 	// missing Close calls on a best-effort basis.
-	runtime.SetFinalizer(f, func(f *File) {
-		panic(fmt.Sprintf("lockedfile.File %s became unreachable without a call to Close", f.Name()))
-	})
+	f.cleanup = runtime.AddCleanup(f, func(fileName string) {
+		panic(fmt.Sprintf("lockedfile.File %s became unreachable without a call to Close", fileName))
+	}, f.Name())
 
 	return f, nil
 }
@@ -82,16 +84,21 @@ func Edit(name string) (*File, error) {
 // non-nil error.
 func (f *File) Close() error {
 	if f.closed {
-		return &os.PathError{
+		return &fs.PathError{
 			Op:   "close",
 			Path: f.Name(),
-			Err:  os.ErrClosed,
+			Err:  fs.ErrClosed,
 		}
 	}
 	f.closed = true
 
 	err := closeFile(f.osFile.File)
-	runtime.SetFinalizer(f, nil)
+	f.cleanup.Stop()
+	// f may be dead at the moment after we access f.cleanup,
+	// so the cleanup can fire before Stop completes. Keep f
+	// alive while we call Stop. See the documentation for
+	// runtime.Cleanup.Stop.
+	runtime.KeepAlive(f)
 	return err
 }
 
@@ -103,12 +110,12 @@ func Read(name string) ([]byte, error) {
 	}
 	defer f.Close()
 
-	return ioutil.ReadAll(f)
+	return io.ReadAll(f)
 }
 
 // Write opens the named file (creating it with the given permissions if needed),
 // then write-locks it and overwrites it with the given content.
-func Write(name string, content io.Reader, perm os.FileMode) (err error) {
+func Write(name string, content io.Reader, perm fs.FileMode) (err error) {
 	f, err := OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {
 		return err
@@ -135,7 +142,7 @@ func Transform(name string, t func([]byte) ([]byte, error)) (err error) {
 	}
 	defer f.Close()
 
-	old, err := ioutil.ReadAll(f)
+	old, err := io.ReadAll(f)
 	if err != nil {
 		return err
 	}

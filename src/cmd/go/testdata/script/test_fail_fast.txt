@@ -48,6 +48,15 @@ stdout -count=1 'FAIL - '
 ! go test ./failfast_test.go -run='TestFatal[CD]' -failfast=false
 stdout -count=2 'FAIL - '
 
+# cross package failfast
+! go test -p 1 -failfast ./a ./b ./c
+stdout -count=1 'FAIL - '
+stdout -count=1 'FAIL - TestFailingPkgA'
+
+-- go.mod --
+module m
+
+go 1.21.0
 -- failfast_test.go --
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -110,4 +119,28 @@ func TestFatalC(t *testing.T) {
 
 func TestFatalD(t *testing.T) {
 	t.Fatalf("FAIL - %s", t.Name())
+}
+-- a/a_test.go --
+package a
+
+import "testing"
+
+func TestFailingPkgA(t *testing.T) {
+	t.Errorf("FAIL - %s", t.Name())
+}
+-- b/b_test.go --
+package b
+
+import "testing"
+
+func TestFailingPkgB(t *testing.T) {
+	t.Errorf("FAIL - %s", t.Name())
+}
+-- c/c_test.go --
+package c
+
+import "testing"
+
+func TestFailingPkgC(t *testing.T) {
+	t.Errorf("FAIL - %s", t.Name())
 }

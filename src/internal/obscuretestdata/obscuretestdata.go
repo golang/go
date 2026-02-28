@@ -10,9 +10,23 @@ package obscuretestdata
 import (
 	"encoding/base64"
 	"io"
-	"io/ioutil"
 	"os"
 )
+
+// Rot13 returns the rot13 encoding or decoding of its input.
+func Rot13(data []byte) []byte {
+	out := make([]byte, len(data))
+	copy(out, data)
+	for i, c := range out {
+		switch {
+		case 'A' <= c && c <= 'M' || 'a' <= c && c <= 'm':
+			out[i] = c + 13
+		case 'N' <= c && c <= 'Z' || 'n' <= c && c <= 'z':
+			out[i] = c - 13
+		}
+	}
+	return out
+}
 
 // DecodeToTempFile decodes the named file to a temporary location.
 // If successful, it returns the path of the decoded file.
@@ -24,7 +38,7 @@ func DecodeToTempFile(name string) (path string, err error) {
 	}
 	defer f.Close()
 
-	tmp, err := ioutil.TempFile("", "obscuretestdata-decoded-")
+	tmp, err := os.CreateTemp("", "obscuretestdata-decoded-")
 	if err != nil {
 		return "", err
 	}
@@ -47,5 +61,5 @@ func ReadFile(name string) ([]byte, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, f))
+	return io.ReadAll(base64.NewDecoder(base64.StdEncoding, f))
 }

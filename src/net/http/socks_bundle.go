@@ -445,7 +445,7 @@ func (up *socksUsernamePassword) Authenticate(ctx context.Context, rw io.ReadWri
 	case socksAuthMethodNotRequired:
 		return nil
 	case socksAuthMethodUsernamePassword:
-		if len(up.Username) == 0 || len(up.Username) > 255 || len(up.Password) == 0 || len(up.Password) > 255 {
+		if len(up.Username) == 0 || len(up.Username) > 255 || len(up.Password) > 255 {
 			return errors.New("invalid username/password")
 		}
 		b := []byte{socksauthUsernamePasswordVersion}
@@ -453,7 +453,7 @@ func (up *socksUsernamePassword) Authenticate(ctx context.Context, rw io.ReadWri
 		b = append(b, up.Username...)
 		b = append(b, byte(len(up.Password)))
 		b = append(b, up.Password...)
-		// TODO(mikio): handle IO deadlines and cancelation if
+		// TODO(mikio): handle IO deadlines and cancellation if
 		// necessary
 		if _, err := rw.Write(b); err != nil {
 			return err

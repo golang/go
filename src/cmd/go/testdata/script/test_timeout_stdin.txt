@@ -1,0 +1,88 @@
+# Regression test for https://go.dev/issue/24050:
+# a test that exits with an I/O stream held open
+# should fail after a reasonable delay, not wait forever.
+# (As of the time of writing, that delay is 10% of the timeout,
+# but this test does not depend on its specific value.)
+
+[short] skip 'runs a test that hangs until its WaitDelay expires'
+
+! go test -v -timeout=1m .
+
+	# After the test process itself prints PASS and exits,
+	# the kernel closes its stdin pipe to to the orphaned subprocess.
+	# At that point, we expect the subprocess to print 'stdin closed'
+	# and periodically log to stderr until the WaitDelay expires.
+	#
+	# Once the WaitDelay expires, the copying goroutine for 'go test' stops and
+	# closes the read side of the stderr pipe, and the subprocess will eventually
+	# exit due to a failed write to that pipe.
+
+stdout '^--- PASS: TestOrphanCmd .*\nPASS\nstdin closed'
+stdout '^\*\*\* Test I/O incomplete \d+.* after exiting\.\nexec: WaitDelay expired before I/O complete\nFAIL\s+example\s+\d+(\.\d+)?s'
+
+-- go.mod --
+module example
+
+go 1.20
+-- main_test.go --
+package main
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"testing"
+	"time"
+)
+
+func TestMain(m *testing.M) {
+	if os.Getenv("TEST_TIMEOUT_HANG") == "1" {
+		io.Copy(io.Discard, os.Stdin)
+		if _, err := os.Stderr.WriteString("stdin closed\n"); err != nil {
+			os.Exit(1)
+		}
+
+		ticker := time.NewTicker(100 * time.Millisecond)
+		for t := range ticker.C {
+			_, err := fmt.Fprintf(os.Stderr, "still alive at %v\n", t)
+			if err != nil {
+				os.Exit(1)
+			}
+		}
+	}
+
+	m.Run()
+}
+
+func TestOrphanCmd(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(exe)
+	cmd.Env = append(cmd.Environ(), "TEST_TIMEOUT_HANG=1")
+
+	// Hold stdin open until this (parent) process exits.
+	if _, err := cmd.StdinPipe(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Forward stderr to the subprocess so that it can hold the stream open.
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("started %v", cmd)
+
+	// Intentionally leak cmd when the test completes.
+	// This will allow the test process itself to exit, but (at least on Unix
+	// platforms) will keep the parent process's stderr stream open.
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			os.Exit(3)
+		}
+	}()
+}

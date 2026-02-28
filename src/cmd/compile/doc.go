@@ -15,7 +15,7 @@ the package and about types used by symbols imported by the package from
 other packages. It is therefore not necessary when compiling client C of
 package P to read the files of P's dependencies, only the compiled output of P.
 
-Command Line
+# Command Line
 
 Usage:
 
@@ -44,6 +44,8 @@ Flags:
 		Print compiler version and exit.
 	-asmhdr file
 		Write assembly header to file.
+	-asan
+		Insert calls to C/C++ address sanitizer.
 	-buildid id
 		Record id as the build id in the export metadata.
 	-blockprofile file
@@ -58,6 +60,11 @@ Flags:
 		Allow references to Go symbols in shared libraries (experimental).
 	-e
 		Remove the limit on the number of errors reported (default limit is 10).
+	-embedcfg file
+		Read go:embed configuration from file.
+		This is required if any //go:embed directives are used.
+		The file is a JSON file mapping patterns to lists of filenames
+		and filenames to full path names.
 	-goversion string
 		Specify required go tool version of the runtime.
 		Exits when the runtime go version does not match goversion.
@@ -66,9 +73,6 @@ Flags:
 	-importcfg file
 		Read import configuration from file.
 		In the file, set importmap, packagefile to specify import resolution.
-	-importmap old=new
-		Interpret import "old" as import "new" during compilation.
-		The option may be repeated to add multiple mappings.
 	-installsuffix suffix
 		Look for packages in $GOROOT/pkg/$GOOS_$GOARCH_suffix
 		instead of $GOROOT/pkg/$GOOS_$GOARCH.
@@ -83,7 +87,8 @@ Flags:
 		Without this flag, the -o output is a combination of both
 		linker and compiler input.
 	-m
-		Print optimization decisions.
+		Print optimization decisions. Higher values or repetition
+		produce more detail.
 	-memprofile file
 		Write memory profile for the compilation to file.
 	-memprofilerate rate
@@ -107,6 +112,8 @@ Flags:
 		Warn about composite literals that can be simplified.
 	-shared
 		Generate code that can be linked into a shared library.
+	-spectre list
+		Enable spectre mitigations in list (all, index, ret).
 	-traceprofile file
 		Write an execution trace to file.
 	-trimpath prefix
@@ -148,14 +155,21 @@ Flags to debug the compiler itself:
 	-w
 		Debug type checking.
 
-Compiler Directives
+# Compiler Directives
 
 The compiler accepts directives in the form of comments.
-To distinguish them from non-directive comments, directives
-require no space between the comment opening and the name of the directive. However, since
-they are comments, tools unaware of the directive convention or of a particular
+Each directive must be placed its own line, with only leading spaces and tabs
+allowed before the comment, and there must be no space between the comment
+opening and the name of the directive, to distinguish it from a regular comment.
+Tools unaware of the directive convention or of a particular
 directive can skip over a directive like any other comment.
+
+Other than the line directive, which is a historical special case;
+all other compiler directives are of the form
+//go:name, indicating that they are defined by the Go toolchain.
 */
+// # Line Directives
+//
 // Line directives come in several forms:
 //
 // 	//line :line
@@ -195,34 +209,152 @@ directive can skip over a directive like any other comment.
 // Line directives typically appear in machine-generated code, so that compilers and debuggers
 // will report positions in the original input to the generator.
 /*
-The line directive is an historical special case; all other directives are of the form
-//go:name and must start at the beginning of a line, indicating that the directive is defined
-by the Go toolchain.
+# Function Directives
+
+A function directive applies to the Go function that immediately follows it.
 
 	//go:noescape
 
-The //go:noescape directive specifies that the next declaration in the file, which
-must be a func without a body (meaning that it has an implementation not written
-in Go) does not allow any of the pointers passed as arguments to escape into the
-heap or into the values returned from the function. This information can be used
-during the compiler's escape analysis of Go code calling the function.
+The //go:noescape directive must be followed by a function declaration without
+a body (meaning that the function has an implementation not written in Go).
+It specifies that the function does not allow any of the pointers passed as
+arguments to escape into the heap or into the values returned from the function.
+This information can be used during the compiler's escape analysis of Go code
+calling the function.
+
+	//go:uintptrescapes
+
+The //go:uintptrescapes directive must be followed by a function declaration.
+It specifies that the function's uintptr arguments may be pointer values that
+have been converted to uintptr and must be on the heap and kept alive for the
+duration of the call, even though from the types alone it would appear that the
+object is no longer needed during the call. The conversion from pointer to
+uintptr must appear in the argument list of any call to this function. This
+directive is necessary for some low-level system call implementations and
+should be avoided otherwise.
+
+	//go:noinline
+
+The //go:noinline directive must be followed by a function declaration.
+It specifies that calls to the function should not be inlined, overriding
+the compiler's usual optimization rules. This is typically only needed
+for special runtime functions or when debugging the compiler.
+
+	//go:norace
+
+The //go:norace directive must be followed by a function declaration.
+It specifies that the function's memory accesses must be ignored by the
+race detector. This is most commonly used in low-level code invoked
+at times when it is unsafe to call into the race detector runtime.
 
 	//go:nosplit
 
-The //go:nosplit directive specifies that the next function declared in the file must
-not include a stack overflow check. This is most commonly used by low-level
-runtime sources invoked at times when it is unsafe for the calling goroutine to be
-preempted.
+The //go:nosplit directive must be followed by a function declaration.
+It specifies that the function must omit its usual stack overflow check.
+This is most commonly used by low-level runtime code invoked
+at times when it is unsafe for the calling goroutine to be preempted.
+Using this directive outside of low-level runtime code is not safe,
+because it permits the nosplit function to overwrite the end of stack,
+leading to memory corruption and arbitrary program failure.
+
+# Linkname Directive
 
 	//go:linkname localname [importpath.name]
 
-The //go:linkname directive instructs the compiler to use ``importpath.name'' as the
-object file symbol name for the variable or function declared as ``localname'' in the
-source code.
-If the ``importpath.name'' argument is omitted, the directive uses the
-symbol's default object file symbol name and only has the effect of making
-the symbol accessible to other packages.
-Because this directive can subvert the type system and package
-modularity, it is only enabled in files that have imported "unsafe".
+The //go:linkname directive conventionally precedes the var or func
+declaration named by ``localname``, though its position does not
+change its effect.
+This directive determines the object-file symbol used for a Go var or
+func declaration, allowing two Go symbols to alias the same
+object-file symbol, thereby enabling one package to access a symbol in
+another package even when this would violate the usual encapsulation
+of unexported declarations, or even type safety.
+For that reason, it is only enabled in files that have imported "unsafe".
+
+It may be used in two scenarios. Let's assume that package upper
+imports package lower, perhaps indirectly. In the first scenario,
+package lower defines a symbol whose object file name belongs to
+package upper. Both packages contain a linkname directive: package
+lower uses the two-argument form and package upper uses the
+one-argument form. In the example below, lower.f is an alias for the
+function upper.g:
+
+    package upper
+    import _ "unsafe"
+    //go:linkname g
+    func g()
+
+    package lower
+    import _ "unsafe"
+    //go:linkname f upper.g
+    func f() { ... }
+
+The linkname directive in package upper suppresses the usual error for
+a function that lacks a body. (That check may alternatively be
+suppressed by including a .s file, even an empty one, in the package.)
+
+In the second scenario, package upper unilaterally creates an alias
+for a symbol in package lower. In the example below, upper.g is an alias
+for the function lower.f.
+
+    package upper
+    import _ "unsafe"
+    //go:linkname g lower.f
+    func g()
+
+    package lower
+    func f() { ... }
+
+The declaration of lower.f may also have a linkname directive with a
+single argument, f. This is optional, but helps alert the reader that
+the function is accessed from outside the package.
+
+# WebAssembly Directives
+
+	//go:wasmimport importmodule importname
+
+The //go:wasmimport directive is wasm-only and must be followed by a
+function declaration with no body.
+It specifies that the function is provided by a wasm module identified
+by ``importmodule'' and ``importname''. For example,
+
+	//go:wasmimport a_module f
+	func g()
+
+causes g to refer to the WebAssembly function f from module a_module.
+
+	//go:wasmexport exportname
+
+The //go:wasmexport directive is wasm-only and must be followed by a
+function definition.
+It specifies that the function is exported to the wasm host as ``exportname''.
+For example,
+
+	//go:wasmexport h
+	func hWasm() { ... }
+
+make Go function hWasm available outside this WebAssembly module as h.
+
+For both go:wasmimport and go:wasmexport,
+the types of parameters and return values to the Go function are translated to
+Wasm according to the following table:
+
+    Go types        Wasm types
+    bool            i32
+    int32, uint32   i32
+    int64, uint64   i64
+    float32         f32
+    float64         f64
+    unsafe.Pointer  i32
+    pointer         i32 (more restrictions below)
+    string          (i32, i32) (only permitted as a parameters, not a result)
+
+Any other parameter types are disallowed by the compiler.
+
+For a pointer type, its element type must be a bool, int8, uint8, int16, uint16,
+int32, uint32, int64, uint64, float32, float64, an array whose element type is
+a permitted pointer element type, or a struct, which, if non-empty, embeds
+[structs.HostLayout], and contains only fields whose types are permitted pointer
+element types.
 */
 package main

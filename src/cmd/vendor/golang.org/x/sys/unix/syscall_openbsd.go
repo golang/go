@@ -31,6 +31,10 @@ type SockaddrDatalink struct {
 	raw    RawSockaddrDatalink
 }
 
+func anyToSockaddrGOOS(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
+	return nil, EAFNOSUPPORT
+}
+
 func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err syscall.Errno)
 
 func nametomib(name string) (mib []_C_int, err error) {
@@ -77,18 +81,22 @@ func Pipe(p []int) (err error) {
 }
 
 //sysnb	pipe2(p *[2]_C_int, flags int) (err error)
+
 func Pipe2(p []int, flags int) error {
 	if len(p) != 2 {
 		return EINVAL
 	}
 	var pp [2]_C_int
 	err := pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
 	return err
 }
 
-//sys Getdents(fd int, buf []byte) (n int, err error)
+//sys	Getdents(fd int, buf []byte) (n int, err error)
+
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	n, err = Getdents(fd, buf)
 	if err != nil || basep == nil {
@@ -114,22 +122,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	return
 }
 
-const ImplementsGetwd = true
-
 //sys	Getcwd(buf []byte) (n int, err error) = SYS___GETCWD
-
-func Getwd() (string, error) {
-	var buf [PathMax]byte
-	_, err := Getcwd(buf[0:])
-	if err != nil {
-		return "", err
-	}
-	n := clen(buf[:])
-	if n < 1 {
-		return "", EINVAL
-	}
-	return string(buf[:n]), nil
-}
 
 func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
 	if raceenabled {
@@ -144,28 +137,48 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 }
 
 func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
-	var _p0 unsafe.Pointer
+	var bufptr *Statfs_t
 	var bufsize uintptr
 	if len(buf) > 0 {
-		_p0 = unsafe.Pointer(&buf[0])
+		bufptr = &buf[0]
 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
 	}
-	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(_p0), bufsize, uintptr(flags))
-	n = int(r0)
-	if e1 != 0 {
-		err = e1
-	}
-	return
+	return getfsstat(bufptr, bufsize, flags)
 }
 
-func setattrlistTimes(path string, times []Timespec, flags int) error {
-	// used on Darwin for UtimesNano
-	return ENOSYS
+//sysnb	getresuid(ruid *_C_int, euid *_C_int, suid *_C_int)
+//sysnb	getresgid(rgid *_C_int, egid *_C_int, sgid *_C_int)
+
+func Getresuid() (ruid, euid, suid int) {
+	var r, e, s _C_int
+	getresuid(&r, &e, &s)
+	return int(r), int(e), int(s)
+}
+
+func Getresgid() (rgid, egid, sgid int) {
+	var r, e, s _C_int
+	getresgid(&r, &e, &s)
+	return int(r), int(e), int(s)
 }
 
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)
+//sys	ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_IOCTL
 
-//sys   sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
+//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
+
+//sys	fcntl(fd int, cmd int, arg int) (n int, err error)
+//sys	fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (n int, err error) = SYS_FCNTL
+
+// FcntlInt performs a fcntl syscall on fd with the provided command and argument.
+func FcntlInt(fd uintptr, cmd, arg int) (int, error) {
+	return fcntl(int(fd), cmd, arg)
+}
+
+// FcntlFlock performs a fcntl syscall for the F_GETLK, F_SETLK or F_SETLKW command.
+func FcntlFlock(fd uintptr, cmd int, lk *Flock_t) error {
+	_, err := fcntlPtr(int(fd), cmd, unsafe.Pointer(lk))
+	return err
+}
 
 //sys	ppoll(fds *PollFd, nfds int, timeout *Timespec, sigmask *Sigset_t) (n int, err error)
 
@@ -232,6 +245,7 @@ func Uname(uname *Utsname) error {
 //sys	Chmod(path string, mode uint32) (err error)
 //sys	Chown(path string, uid int, gid int) (err error)
 //sys	Chroot(path string) (err error)
+//sys	ClockGettime(clockid int32, time *Timespec) (err error)
 //sys	Close(fd int) (err error)
 //sys	Dup(fd int) (nfd int, err error)
 //sys	Dup2(from int, to int) (err error)
@@ -279,12 +293,13 @@ func Uname(uname *Utsname) error {
 //sys	Mkfifoat(dirfd int, path string, mode uint32) (err error)
 //sys	Mknod(path string, mode uint32, dev int) (err error)
 //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (err error)
+//sys	Mount(fsType string, dir string, flags int, data unsafe.Pointer) (err error)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
 //sys	Openat(dirfd int, path string, mode int, perm uint32) (fd int, err error)
 //sys	Pathconf(path string, name int) (val int, err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
+//sys	pread(fd int, p []byte, offset int64) (n int, err error)
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Readlink(path string, buf []byte) (n int, err error)
 //sys	Readlinkat(dirfd int, path string, buf []byte) (n int, err error)
@@ -304,7 +319,6 @@ func Uname(uname *Utsname) error {
 //sysnb	Setreuid(ruid int, euid int) (err error)
 //sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
 //sysnb	Setresuid(ruid int, euid int, suid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setrtable(rtable int) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
@@ -322,80 +336,7 @@ func Uname(uname *Utsname) error {
 //sys	write(fd int, p []byte) (n int, err error)
 //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
 //sys	munmap(addr uintptr, length uintptr) (err error)
-//sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+//sys	getfsstat(stat *Statfs_t, bufsize uintptr, flags int) (n int, err error)
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
-
-/*
- * Unimplemented
- */
-// __getcwd
-// __semctl
-// __syscall
-// __sysctl
-// adjfreq
-// break
-// clock_getres
-// clock_gettime
-// clock_settime
-// closefrom
-// execve
-// fhopen
-// fhstat
-// fhstatfs
-// fork
-// futimens
-// getfh
-// getgid
-// getitimer
-// getlogin
-// getresgid
-// getresuid
-// getthrid
-// ktrace
-// lfs_bmapv
-// lfs_markv
-// lfs_segclean
-// lfs_segwait
-// mincore
-// minherit
-// mount
-// mquery
-// msgctl
-// msgget
-// msgrcv
-// msgsnd
-// nfssvc
-// nnpfspioctl
-// preadv
-// profil
-// pwritev
-// quotactl
-// readv
-// reboot
-// renameat
-// rfork
-// sched_yield
-// semget
-// semop
-// setgroups
-// setitimer
-// setsockopt
-// shmat
-// shmctl
-// shmdt
-// shmget
-// sigaction
-// sigaltstack
-// sigpending
-// sigprocmask
-// sigreturn
-// sigsuspend
-// sysarch
-// syscall
-// threxit
-// thrsigdivert
-// thrsleep
-// thrwakeup
-// vfork
-// writev
+//sys	pledge(promises *byte, execpromises *byte) (err error)
+//sys	unveil(path *byte, flags *byte) (err error)

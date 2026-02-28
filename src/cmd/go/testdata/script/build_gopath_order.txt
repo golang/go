@@ -3,6 +3,7 @@
 # -I arguments to compiler could end up not in GOPATH order,
 # leading to unexpected import resolution in the compiler.
 
+env GO111MODULE=off
 env GOPATH=$WORK/p1${:}$WORK/p2
 mkdir $WORK/p1/src/foo $WORK/p2/src/baz
 mkdir $WORK/p2/pkg/${GOOS}_${GOARCH} $WORK/p1/src/bar

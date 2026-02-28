@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"io"
-	"io/ioutil"
 	"testing"
 )
 
@@ -30,7 +30,7 @@ func diff(m0, m1 image.Image) error {
 			r0, g0, b0, a0 := c0.RGBA()
 			r1, g1, b1, a1 := c1.RGBA()
 			if r0 != r1 || g0 != g1 || b0 != b1 || a0 != a1 {
-				return fmt.Errorf("colors differ at (%d, %d): %v vs %v", x, y, c0, c1)
+				return fmt.Errorf("colors differ at (%d, %d): %T%v vs %T%v", x, y, c0, c0, c1, c1)
 			}
 		}
 	}
@@ -44,6 +44,13 @@ func encodeDecode(m image.Image) (image.Image, error) {
 		return nil, err
 	}
 	return Decode(&b)
+}
+
+func convertToNRGBA(m image.Image) *image.NRGBA {
+	b := m.Bounds()
+	ret := image.NewNRGBA(b)
+	draw.Draw(ret, b, m, b.Min, draw.Src)
+	return ret
 }
 
 func TestWriter(t *testing.T) {
@@ -169,7 +176,7 @@ func TestWriterPaletted(t *testing.T) {
 						t.Error(err)
 						return
 					}
-					n, err := io.Copy(ioutil.Discard, r)
+					n, err := io.Copy(io.Discard, r)
 					if err != nil {
 						t.Errorf("got error while reading image data: %v", err)
 					}
@@ -228,13 +235,56 @@ func TestSubImage(t *testing.T) {
 	}
 }
 
+func TestWriteRGBA(t *testing.T) {
+	const width, height = 640, 480
+	transparentImg := image.NewRGBA(image.Rect(0, 0, width, height))
+	opaqueImg := image.NewRGBA(image.Rect(0, 0, width, height))
+	mixedImg := image.NewRGBA(image.Rect(0, 0, width, height))
+	translucentImg := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			opaqueColor := color.RGBA{uint8(x), uint8(y), uint8(y + x), 255}
+			translucentColor := color.RGBA{uint8(x) % 128, uint8(y) % 128, uint8(y+x) % 128, 128}
+			opaqueImg.Set(x, y, opaqueColor)
+			translucentImg.Set(x, y, translucentColor)
+			if y%2 == 0 {
+				mixedImg.Set(x, y, opaqueColor)
+			}
+		}
+	}
+
+	testCases := []struct {
+		name string
+		img  image.Image
+	}{
+		{"Transparent RGBA", transparentImg},
+		{"Opaque RGBA", opaqueImg},
+		{"50/50 Transparent/Opaque RGBA", mixedImg},
+		{"RGBA with variable alpha", translucentImg},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			m0 := tc.img
+			m1, err := encodeDecode(m0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = diff(convertToNRGBA(m0), m1)
+			if err != nil {
+				t.Error(err)
+			}
+		})
+	}
+}
+
 func BenchmarkEncodeGray(b *testing.B) {
 	img := image.NewGray(image.Rect(0, 0, 640, 480))
 	b.SetBytes(640 * 480 * 1)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, img)
+		Encode(io.Discard, img)
 	}
 }
 
@@ -259,7 +309,7 @@ func BenchmarkEncodeGrayWithBufferPool(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		e.Encode(ioutil.Discard, img)
+		e.Encode(io.Discard, img)
 	}
 }
 
@@ -279,7 +329,7 @@ func BenchmarkEncodeNRGBOpaque(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, img)
+		Encode(io.Discard, img)
 	}
 }
 
@@ -292,7 +342,7 @@ func BenchmarkEncodeNRGBA(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, img)
+		Encode(io.Discard, img)
 	}
 }
 
@@ -305,7 +355,7 @@ func BenchmarkEncodePaletted(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, img)
+		Encode(io.Discard, img)
 	}
 }
 
@@ -325,19 +375,33 @@ func BenchmarkEncodeRGBOpaque(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, img)
+		Encode(io.Discard, img)
 	}
 }
 
 func BenchmarkEncodeRGBA(b *testing.B) {
-	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
+	const width, height = 640, 480
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			percent := (x + y) % 100
+			switch {
+			case percent < 10: // 10% of pixels are translucent (have alpha >0 and <255)
+				img.Set(x, y, color.NRGBA{uint8(x), uint8(y), uint8(x * y), uint8(percent)})
+			case percent < 40: // 30% of pixels are transparent (have alpha == 0)
+				img.Set(x, y, color.NRGBA{uint8(x), uint8(y), uint8(x * y), 0})
+			default: // 60% of pixels are opaque (have alpha == 255)
+				img.Set(x, y, color.NRGBA{uint8(x), uint8(y), uint8(x * y), 255})
+			}
+		}
+	}
 	if img.Opaque() {
 		b.Fatal("expected image not to be opaque")
 	}
-	b.SetBytes(640 * 480 * 4)
+	b.SetBytes(width * height * 4)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, img)
+		Encode(io.Discard, img)
 	}
 }

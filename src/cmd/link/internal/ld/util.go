@@ -6,7 +6,6 @@ package ld
 
 import (
 	"cmd/link/internal/loader"
-	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -33,9 +32,12 @@ func Exit(code int) {
 }
 
 // Exitf logs an error message then calls Exit(2).
-func Exitf(format string, a ...interface{}) {
+func Exitf(format string, a ...any) {
 	fmt.Fprintf(os.Stderr, os.Args[0]+": "+format+"\n", a...)
 	nerrors++
+	if *flagH {
+		panic("error")
+	}
 	Exit(2)
 }
 
@@ -46,21 +48,19 @@ func afterErrorAction() {
 	if *flagH {
 		panic("error")
 	}
-	if nerrors > 20 {
+	if nerrors > 20 && !*flagAllErrors {
 		Exitf("too many errors")
 	}
 }
 
-// Errorf logs an error message.
+// Errorf logs an error message without a specific symbol for context.
+// Use ctxt.Errorf when possible.
 //
 // If more than 20 errors have been printed, exit with an error.
 //
 // Logging an error means that on exit cmd/link will delete any
 // output file and return a non-zero error code.
-func Errorf(s *sym.Symbol, format string, args ...interface{}) {
-	if s != nil {
-		format = s.Name + ": " + format
-	}
+func Errorf(format string, args ...any) {
 	format += "\n"
 	fmt.Fprintf(os.Stderr, format, args...)
 	afterErrorAction()
@@ -72,13 +72,13 @@ func Errorf(s *sym.Symbol, format string, args ...interface{}) {
 //
 // Logging an error means that on exit cmd/link will delete any
 // output file and return a non-zero error code.
-func (ctxt *Link) Errorf(s loader.Sym, format string, args ...interface{}) {
-	if s != 0 && ctxt.loader != nil {
-		sn := ctxt.loader.SymName(s)
-		format = sn + ": " + format
-	} else {
-		format = fmt.Sprintf("sym %d: %s", s, format)
+func (ctxt *Link) Errorf(s loader.Sym, format string, args ...any) {
+	if ctxt.loader != nil {
+		ctxt.loader.Errorf(s, format, args...)
+		return
 	}
+	// Note: this is not expected to happen very often.
+	format = fmt.Sprintf("sym %d: %s", s, format)
 	format += "\n"
 	fmt.Fprintf(os.Stderr, format, args...)
 	afterErrorAction()
@@ -103,20 +103,3 @@ func stringtouint32(x []uint32, s string) {
 		x[i] = binary.LittleEndian.Uint32(buf[:])
 	}
 }
-
-// contains reports whether v is in s.
-func contains(s []string, v string) bool {
-	for _, x := range s {
-		if x == v {
-			return true
-		}
-	}
-	return false
-}
-
-// implements sort.Interface, for sorting symbols by name.
-type byName []*sym.Symbol
-
-func (s byName) Len() int           { return len(s) }
-func (s byName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s byName) Less(i, j int) bool { return s[i].Name < s[j].Name }

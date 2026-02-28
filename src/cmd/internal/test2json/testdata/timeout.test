@@ -1,0 +1,5 @@
+=== RUN   Test
+panic: test timed out after 1s
+
+FAIL	p	1.111s
+FAIL

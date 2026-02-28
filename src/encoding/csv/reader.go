@@ -4,7 +4,8 @@
 
 // Package csv reads and writes comma-separated values (CSV) files.
 // There are many kinds of CSV files; this package supports the format
-// described in RFC 4180.
+// described in RFC 4180, except that [Writer] uses LF
+// instead of CRLF as newline character by default.
 //
 // A csv file contains zero or more records of one or more fields per record.
 // Each record is separated by the newline character. The final record may
@@ -62,11 +63,11 @@ import (
 )
 
 // A ParseError is returned for parsing errors.
-// Line numbers are 1-indexed and columns are 0-indexed.
+// Line and column numbers are 1-indexed.
 type ParseError struct {
 	StartLine int   // Line where the record starts
 	Line      int   // Line where the error occurred
-	Column    int   // Column (rune index) where the error occurred
+	Column    int   // Column (1-based byte index) where the error occurred
 	Err       error // The actual error
 }
 
@@ -82,12 +83,14 @@ func (e *ParseError) Error() string {
 
 func (e *ParseError) Unwrap() error { return e.Err }
 
-// These are the errors that can be returned in ParseError.Err.
+// These are the errors that can be returned in [ParseError.Err].
 var (
-	ErrTrailingComma = errors.New("extra delimiter at end of line") // Deprecated: No longer used.
-	ErrBareQuote     = errors.New("bare \" in non-quoted-field")
-	ErrQuote         = errors.New("extraneous or missing \" in quoted-field")
-	ErrFieldCount    = errors.New("wrong number of fields")
+	ErrBareQuote  = errors.New("bare \" in non-quoted-field")
+	ErrQuote      = errors.New("extraneous or missing \" in quoted-field")
+	ErrFieldCount = errors.New("wrong number of fields")
+
+	// Deprecated: ErrTrailingComma is no longer used.
+	ErrTrailingComma = errors.New("extra delimiter at end of line")
 )
 
 var errInvalidDelim = errors.New("csv: invalid field or comment delimiter")
@@ -98,9 +101,9 @@ func validDelim(r rune) bool {
 
 // A Reader reads records from a CSV-encoded file.
 //
-// As returned by NewReader, a Reader expects input conforming to RFC 4180.
+// As returned by [NewReader], a Reader expects input conforming to RFC 4180.
 // The exported fields can be changed to customize the details before the
-// first call to Read or ReadAll.
+// first call to [Reader.Read] or [Reader.ReadAll].
 //
 // The Reader converts all \r\n sequences in its input to plain \n,
 // including in multiline field values, so that the returned data does
@@ -142,12 +145,16 @@ type Reader struct {
 	// By default, each call to Read returns newly allocated memory owned by the caller.
 	ReuseRecord bool
 
-	TrailingComma bool // Deprecated: No longer used.
+	// Deprecated: TrailingComma is no longer used.
+	TrailingComma bool
 
 	r *bufio.Reader
 
 	// numLine is the current line being read in the CSV file.
 	numLine int
+
+	// offset is the input stream byte offset of the current reader position.
+	offset int64
 
 	// rawBuffer is a line buffer only used by the readLine method.
 	rawBuffer []byte
@@ -161,6 +168,10 @@ type Reader struct {
 	// fieldIndexes is an index of fields inside recordBuffer.
 	// The i'th field ends at offset fieldIndexes[i] in recordBuffer.
 	fieldIndexes []int
+
+	// fieldPositions is an index of field positions for the
+	// last record returned by Read.
+	fieldPositions []position
 
 	// lastRecord is a record cache and only used when ReuseRecord == true.
 	lastRecord []string
@@ -176,11 +187,12 @@ func NewReader(r io.Reader) *Reader {
 
 // Read reads one record (a slice of fields) from r.
 // If the record has an unexpected number of fields,
-// Read returns the record along with the error ErrFieldCount.
-// Except for that case, Read always returns either a non-nil
-// record or a non-nil error, but not both.
-// If there is no data left to be read, Read returns nil, io.EOF.
-// If ReuseRecord is true, the returned slice may be shared
+// Read returns the record along with the error [ErrFieldCount].
+// If the record contains a field that cannot be parsed,
+// Read returns a partial record along with the parse error.
+// The partial record contains all fields read before the error.
+// If there is no data left to be read, Read returns nil, [io.EOF].
+// If [Reader.ReuseRecord] is true, the returned slice may be shared
 // between multiple calls to Read.
 func (r *Reader) Read() (record []string, err error) {
 	if r.ReuseRecord {
@@ -192,9 +204,35 @@ func (r *Reader) Read() (record []string, err error) {
 	return record, err
 }
 
+// FieldPos returns the line and column corresponding to
+// the start of the field with the given index in the slice most recently
+// returned by [Reader.Read]. Numbering of lines and columns starts at 1;
+// columns are counted in bytes, not runes.
+//
+// If this is called with an out-of-bounds index, it panics.
+func (r *Reader) FieldPos(field int) (line, column int) {
+	if field < 0 || field >= len(r.fieldPositions) {
+		panic("out of range index passed to FieldPos")
+	}
+	p := &r.fieldPositions[field]
+	return p.line, p.col
+}
+
+// InputOffset returns the input stream byte offset of the current reader
+// position. The offset gives the location of the end of the most recently
+// read row and the beginning of the next row.
+func (r *Reader) InputOffset() int64 {
+	return r.offset
+}
+
+// pos holds the position of a field in the current line.
+type position struct {
+	line, col int
+}
+
 // ReadAll reads all the remaining records from r.
 // Each record is a slice of fields.
-// A successful call returns err == nil, not err == io.EOF. Because ReadAll is
+// A successful call returns err == nil, not err == [io.EOF]. Because ReadAll is
 // defined to read until EOF, it does not treat end of file as an error to be
 // reported.
 func (r *Reader) ReadAll() (records [][]string, err error) {
@@ -212,7 +250,7 @@ func (r *Reader) ReadAll() (records [][]string, err error) {
 
 // readLine reads the next line (with the trailing endline).
 // If EOF is hit without a trailing endline, it will be omitted.
-// If some bytes were read, then the error is never io.EOF.
+// If some bytes were read, then the error is never [io.EOF].
 // The result is only valid until the next call to readLine.
 func (r *Reader) readLine() ([]byte, error) {
 	line, err := r.r.ReadSlice('\n')
@@ -224,14 +262,16 @@ func (r *Reader) readLine() ([]byte, error) {
 		}
 		line = r.rawBuffer
 	}
-	if len(line) > 0 && err == io.EOF {
+	readSize := len(line)
+	if readSize > 0 && err == io.EOF {
 		err = nil
 		// For backwards compatibility, drop trailing \r before EOF.
-		if line[len(line)-1] == '\r' {
-			line = line[:len(line)-1]
+		if line[readSize-1] == '\r' {
+			line = line[:readSize-1]
 		}
 	}
 	r.numLine++
+	r.offset += int64(readSize)
 	// Normalize \r\n to \n on all input lines.
 	if n := len(line); n >= 2 && line[n-2] == '\r' && line[n-1] == '\n' {
 		line[n-2] = '\n'
@@ -260,7 +300,7 @@ func (r *Reader) readRecord(dst []string) ([]string, error) {
 	}
 
 	// Read line (automatically skipping past empty lines and any comments).
-	var line, fullLine []byte
+	var line []byte
 	var errRead error
 	for errRead == nil {
 		line, errRead = r.readLine()
@@ -272,7 +312,6 @@ func (r *Reader) readRecord(dst []string) ([]string, error) {
 			line = nil
 			continue // Skip empty lines
 		}
-		fullLine = line
 		break
 	}
 	if errRead == io.EOF {
@@ -286,10 +325,20 @@ func (r *Reader) readRecord(dst []string) ([]string, error) {
 	recLine := r.numLine // Starting line for record
 	r.recordBuffer = r.recordBuffer[:0]
 	r.fieldIndexes = r.fieldIndexes[:0]
+	r.fieldPositions = r.fieldPositions[:0]
+	pos := position{line: r.numLine, col: 1}
 parseField:
 	for {
 		if r.TrimLeadingSpace {
-			line = bytes.TrimLeftFunc(line, unicode.IsSpace)
+			i := bytes.IndexFunc(line, func(r rune) bool {
+				return !unicode.IsSpace(r)
+			})
+			if i < 0 {
+				i = len(line)
+				pos.col -= lengthNL(line)
+			}
+			line = line[i:]
+			pos.col += i
 		}
 		if len(line) == 0 || line[0] != '"' {
 			// Non-quoted string field
@@ -303,48 +352,56 @@ parseField:
 			// Check to make sure a quote does not appear in field.
 			if !r.LazyQuotes {
 				if j := bytes.IndexByte(field, '"'); j >= 0 {
-					col := utf8.RuneCount(fullLine[:len(fullLine)-len(line[j:])])
+					col := pos.col + j
 					err = &ParseError{StartLine: recLine, Line: r.numLine, Column: col, Err: ErrBareQuote}
 					break parseField
 				}
 			}
 			r.recordBuffer = append(r.recordBuffer, field...)
 			r.fieldIndexes = append(r.fieldIndexes, len(r.recordBuffer))
+			r.fieldPositions = append(r.fieldPositions, pos)
 			if i >= 0 {
 				line = line[i+commaLen:]
+				pos.col += i + commaLen
 				continue parseField
 			}
 			break parseField
 		} else {
 			// Quoted string field
+			fieldPos := pos
 			line = line[quoteLen:]
+			pos.col += quoteLen
 			for {
 				i := bytes.IndexByte(line, '"')
 				if i >= 0 {
 					// Hit next quote.
 					r.recordBuffer = append(r.recordBuffer, line[:i]...)
 					line = line[i+quoteLen:]
+					pos.col += i + quoteLen
 					switch rn := nextRune(line); {
 					case rn == '"':
 						// `""` sequence (append quote).
 						r.recordBuffer = append(r.recordBuffer, '"')
 						line = line[quoteLen:]
+						pos.col += quoteLen
 					case rn == r.Comma:
 						// `",` sequence (end of field).
 						line = line[commaLen:]
+						pos.col += commaLen
 						r.fieldIndexes = append(r.fieldIndexes, len(r.recordBuffer))
+						r.fieldPositions = append(r.fieldPositions, fieldPos)
 						continue parseField
 					case lengthNL(line) == len(line):
 						// `"\n` sequence (end of line).
 						r.fieldIndexes = append(r.fieldIndexes, len(r.recordBuffer))
+						r.fieldPositions = append(r.fieldPositions, fieldPos)
 						break parseField
 					case r.LazyQuotes:
 						// `"` sequence (bare quote).
 						r.recordBuffer = append(r.recordBuffer, '"')
 					default:
 						// `"*` sequence (invalid non-escaped quote).
-						col := utf8.RuneCount(fullLine[:len(fullLine)-len(line)-quoteLen])
-						err = &ParseError{StartLine: recLine, Line: r.numLine, Column: col, Err: ErrQuote}
+						err = &ParseError{StartLine: recLine, Line: r.numLine, Column: pos.col - quoteLen, Err: ErrQuote}
 						break parseField
 					}
 				} else if len(line) > 0 {
@@ -353,19 +410,23 @@ parseField:
 					if errRead != nil {
 						break parseField
 					}
+					pos.col += len(line)
 					line, errRead = r.readLine()
+					if len(line) > 0 {
+						pos.line++
+						pos.col = 1
+					}
 					if errRead == io.EOF {
 						errRead = nil
 					}
-					fullLine = line
 				} else {
 					// Abrupt end of file (EOF or error).
 					if !r.LazyQuotes && errRead == nil {
-						col := utf8.RuneCount(fullLine)
-						err = &ParseError{StartLine: recLine, Line: r.numLine, Column: col, Err: ErrQuote}
+						err = &ParseError{StartLine: recLine, Line: pos.line, Column: pos.col, Err: ErrQuote}
 						break parseField
 					}
 					r.fieldIndexes = append(r.fieldIndexes, len(r.recordBuffer))
+					r.fieldPositions = append(r.fieldPositions, fieldPos)
 					break parseField
 				}
 			}
@@ -392,7 +453,12 @@ parseField:
 	// Check or update the expected fields per record.
 	if r.FieldsPerRecord > 0 {
 		if len(dst) != r.FieldsPerRecord && err == nil {
-			err = &ParseError{StartLine: recLine, Line: recLine, Err: ErrFieldCount}
+			err = &ParseError{
+				StartLine: recLine,
+				Line:      recLine,
+				Column:    1,
+				Err:       ErrFieldCount,
+			}
 		}
 	} else if r.FieldsPerRecord == 0 {
 		r.FieldsPerRecord = len(dst)

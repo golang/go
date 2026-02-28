@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build js,wasm
+//go:build js && wasm
 
 package poll
 
@@ -42,10 +42,10 @@ func (pd *pollDesc) wait(mode int, isFile bool) error {
 	if pd.closing {
 		return errClosing(isFile)
 	}
-	if isFile { // TODO(neelance): wasm: Use callbacks from JS to block until the read/write finished.
+	if isFile { // TODO(neelance): js/wasm: Use callbacks from JS to block until the read/write finished.
 		return nil
 	}
-	return ErrTimeout
+	return ErrDeadlineExceeded
 }
 
 func (pd *pollDesc) waitRead(isFile bool) error { return pd.wait('r', isFile) }

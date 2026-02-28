@@ -7,10 +7,16 @@ package math
 // Floor returns the greatest integer value less than or equal to x.
 //
 // Special cases are:
+//
 //	Floor(±0) = ±0
 //	Floor(±Inf) = ±Inf
 //	Floor(NaN) = NaN
-func Floor(x float64) float64
+func Floor(x float64) float64 {
+	if haveArchFloor {
+		return archFloor(x)
+	}
+	return floor(x)
+}
 
 func floor(x float64) float64 {
 	if x == 0 || IsNaN(x) || IsInf(x, 0) {
@@ -30,10 +36,16 @@ func floor(x float64) float64 {
 // Ceil returns the least integer value greater than or equal to x.
 //
 // Special cases are:
+//
 //	Ceil(±0) = ±0
 //	Ceil(±Inf) = ±Inf
 //	Ceil(NaN) = NaN
-func Ceil(x float64) float64
+func Ceil(x float64) float64 {
+	if haveArchCeil {
+		return archCeil(x)
+	}
+	return ceil(x)
+}
 
 func ceil(x float64) float64 {
 	return -Floor(-x)
@@ -42,22 +54,36 @@ func ceil(x float64) float64 {
 // Trunc returns the integer value of x.
 //
 // Special cases are:
+//
 //	Trunc(±0) = ±0
 //	Trunc(±Inf) = ±Inf
 //	Trunc(NaN) = NaN
-func Trunc(x float64) float64
+func Trunc(x float64) float64 {
+	if haveArchTrunc {
+		return archTrunc(x)
+	}
+	return trunc(x)
+}
 
 func trunc(x float64) float64 {
-	if x == 0 || IsNaN(x) || IsInf(x, 0) {
-		return x
+	if Abs(x) < 1 {
+		return Copysign(0, x)
 	}
-	d, _ := Modf(x)
-	return d
+
+	b := Float64bits(x)
+	e := uint(b>>shift)&mask - bias
+
+	// Keep the top 12+e bits, the integer part; clear the rest.
+	if e < 64-12 {
+		b &^= 1<<(64-12-e) - 1
+	}
+	return Float64frombits(b)
 }
 
 // Round returns the nearest integer, rounding half away from zero.
 //
 // Special cases are:
+//
 //	Round(±0) = ±0
 //	Round(±Inf) = ±Inf
 //	Round(NaN) = NaN
@@ -95,6 +121,7 @@ func Round(x float64) float64 {
 // RoundToEven returns the nearest integer, rounding ties to even.
 //
 // Special cases are:
+//
 //	RoundToEven(±0) = ±0
 //	RoundToEven(±Inf) = ±Inf
 //	RoundToEven(NaN) = NaN

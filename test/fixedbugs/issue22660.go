@@ -1,5 +1,7 @@
 // run
 
+//go:build !js && !wasip1 && gc
+
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -14,15 +16,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
 func main() {
-	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
-		return // no file system available on builders
-	}
-
 	f, err := ioutil.TempFile("", "issue22660.go")
 	if err != nil {
 		log.Fatal(err)
@@ -39,7 +36,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	out, err := exec.Command("go", "tool", "compile", fmt.Sprintf("-trimpath=%s", path), f.Name()).CombinedOutput()
+	out, err := exec.Command("go", "tool", "compile", "-p=p", fmt.Sprintf("-trimpath=%s", path), f.Name()).CombinedOutput()
 	if err == nil {
 		log.Fatalf("expected compiling %s to fail", f.Name())
 	}

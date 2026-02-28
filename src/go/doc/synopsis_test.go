@@ -18,8 +18,8 @@ var tests = []struct {
 	{"  foo.  ", 6, "foo."},
 	{"  foo\t  bar.\n", 12, "foo bar."},
 	{"  foo\t  bar.\n", 12, "foo bar."},
-	{"a  b\n\nc\r\rd\t\t", 12, "a b c d"},
-	{"a  b\n\nc\r\rd\t\t  . BLA", 15, "a b c d ."},
+	{"a  b\n\nc\r\rd\t\t", 12, "a b"},
+	{"a  b\n\nc\r\rd\t\t  . BLA", 15, "a b"},
 	{"Package poems by T.S.Eliot. To rhyme...", 27, "Package poems by T.S.Eliot."},
 	{"Package poems by T. S. Eliot. To rhyme...", 29, "Package poems by T. S. Eliot."},
 	{"foo implements the foo ABI. The foo ABI is...", 27, "foo implements the foo ABI."},
@@ -35,18 +35,18 @@ var tests = []struct {
 	{"All Rights reserved. Package foo does bar.", 20, ""},
 	{"All rights reserved. Package foo does bar.", 20, ""},
 	{"Authors: foo@bar.com. Package foo does bar.", 21, ""},
-	{"typically invoked as ``go tool asm'',", 37, "typically invoked as " + ulquo + "go tool asm" + urquo + ","},
+	{"typically invoked as ``go tool asm'',", 37, "typically invoked as “go tool asm”,"},
 }
 
 func TestSynopsis(t *testing.T) {
 	for _, e := range tests {
-		fsl := firstSentenceLen(e.txt)
-		if fsl != e.fsl {
-			t.Errorf("got fsl = %d; want %d for %q\n", fsl, e.fsl, e.txt)
+		fs := firstSentence(e.txt)
+		if fs != e.txt[:e.fsl] {
+			t.Errorf("firstSentence(%q) = %q, want %q", e.txt, fs, e.txt[:e.fsl])
 		}
 		syn := Synopsis(e.txt)
 		if syn != e.syn {
-			t.Errorf("got syn = %q; want %q for %q\n", syn, e.syn, e.txt)
+			t.Errorf("Synopsis(%q) = %q, want %q", e.txt, syn, e.syn)
 		}
 	}
 }

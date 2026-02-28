@@ -4,11 +4,11 @@
 
 // Solaris code that doesn't also apply to illumos.
 
-// +build !illumos
+//go:build !illumos
 
 package runtime
 
-func getncpu() int32 {
+func getCPUCount() int32 {
 	n := int32(sysconf(__SC_NPROCESSORS_ONLN))
 	if n < 1 {
 		return 1

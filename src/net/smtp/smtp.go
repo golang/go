@@ -4,15 +4,17 @@
 
 // Package smtp implements the Simple Mail Transfer Protocol as defined in RFC 5321.
 // It also implements the following extensions:
+//
 //	8BITMIME  RFC 1652
 //	AUTH      RFC 2554
 //	STARTTLS  RFC 3207
+//
 // Additional extensions may be handled by clients.
 //
 // The smtp package is frozen and is not accepting new features.
 // Some external packages provide more functionality. See:
 //
-//   https://godoc.org/?q=smtp
+//	https://godoc.org/?q=smtp
 package smtp
 
 import (
@@ -46,7 +48,7 @@ type Client struct {
 	helloError error  // the error from the hello
 }
 
-// Dial returns a new Client connected to an SMTP server at addr.
+// Dial returns a new [Client] connected to an SMTP server at addr.
 // The addr must include a port, as in "mail.example.com:smtp".
 func Dial(addr string) (*Client, error) {
 	conn, err := net.Dial("tcp", addr)
@@ -57,7 +59,7 @@ func Dial(addr string) (*Client, error) {
 	return NewClient(conn, host)
 }
 
-// NewClient returns a new Client using an existing connection and host as a
+// NewClient returns a new [Client] using an existing connection and host as a
 // server name to be used when authenticating.
 func NewClient(conn net.Conn, host string) (*Client, error) {
 	text := textproto.NewConn(conn)
@@ -105,7 +107,7 @@ func (c *Client) Hello(localName string) error {
 }
 
 // cmd is a convenience function that sends a command and returns the response
-func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, string, error) {
+func (c *Client) cmd(expectCode int, format string, args ...any) (int, string, error) {
 	id, err := c.Text.Cmd(format, args...)
 	if err != nil {
 		return 0, "", err
@@ -136,12 +138,8 @@ func (c *Client) ehlo() error {
 	if len(extList) > 1 {
 		extList = extList[1:]
 		for _, line := range extList {
-			args := strings.SplitN(line, " ", 2)
-			if len(args) > 1 {
-				ext[args[0]] = args[1]
-			} else {
-				ext[args[0]] = ""
-			}
+			k, v, _ := strings.Cut(line, " ")
+			ext[k] = v
 		}
 	}
 	if mechs, ok := ext["AUTH"]; ok {
@@ -168,7 +166,7 @@ func (c *Client) StartTLS(config *tls.Config) error {
 }
 
 // TLSConnectionState returns the client's TLS connection state.
-// The return values are their zero values if StartTLS did
+// The return values are their zero values if [Client.StartTLS] did
 // not succeed.
 func (c *Client) TLSConnectionState() (state tls.ConnectionState, ok bool) {
 	tc, ok := c.conn.(*tls.Conn)
@@ -208,7 +206,7 @@ func (c *Client) Auth(a Auth) error {
 	}
 	resp64 := make([]byte, encoding.EncodedLen(len(resp)))
 	encoding.Encode(resp64, resp)
-	code, msg64, err := c.cmd(0, strings.TrimSpace(fmt.Sprintf("AUTH %s %s", mech, resp64)))
+	code, msg64, err := c.cmd(0, "%s", strings.TrimSpace(fmt.Sprintf("AUTH %s %s", mech, resp64)))
 	for err == nil {
 		var msg []byte
 		switch code {
@@ -234,15 +232,16 @@ func (c *Client) Auth(a Auth) error {
 		}
 		resp64 = make([]byte, encoding.EncodedLen(len(resp)))
 		encoding.Encode(resp64, resp)
-		code, msg64, err = c.cmd(0, string(resp64))
+		code, msg64, err = c.cmd(0, "%s", resp64)
 	}
 	return err
 }
 
 // Mail issues a MAIL command to the server using the provided email address.
 // If the server supports the 8BITMIME extension, Mail adds the BODY=8BITMIME
-// parameter.
-// This initiates a mail transaction and is followed by one or more Rcpt calls.
+// parameter. If the server supports the SMTPUTF8 extension, Mail adds the
+// SMTPUTF8 parameter.
+// This initiates a mail transaction and is followed by one or more [Client.Rcpt] calls.
 func (c *Client) Mail(from string) error {
 	if err := validateLine(from); err != nil {
 		return err
@@ -255,14 +254,17 @@ func (c *Client) Mail(from string) error {
 		if _, ok := c.ext["8BITMIME"]; ok {
 			cmdStr += " BODY=8BITMIME"
 		}
+		if _, ok := c.ext["SMTPUTF8"]; ok {
+			cmdStr += " SMTPUTF8"
+		}
 	}
 	_, _, err := c.cmd(250, cmdStr, from)
 	return err
 }
 
 // Rcpt issues a RCPT command to the server using the provided email address.
-// A call to Rcpt must be preceded by a call to Mail and may be followed by
-// a Data call or another Rcpt call.
+// A call to Rcpt must be preceded by a call to [Client.Mail] and may be followed by
+// a [Client.Data] call or another Rcpt call.
 func (c *Client) Rcpt(to string) error {
 	if err := validateLine(to); err != nil {
 		return err
@@ -285,7 +287,7 @@ func (d *dataCloser) Close() error {
 // Data issues a DATA command to the server and returns a writer that
 // can be used to write the mail headers and body. The caller should
 // close the writer before calling any more methods on c. A call to
-// Data must be preceded by one or more calls to Rcpt.
+// Data must be preceded by one or more calls to [Client.Rcpt].
 func (c *Client) Data() (io.WriteCloser, error) {
 	_, _, err := c.cmd(354, "DATA")
 	if err != nil {
@@ -411,9 +413,7 @@ func (c *Client) Noop() error {
 
 // Quit sends the QUIT command and closes the connection to the server.
 func (c *Client) Quit() error {
-	if err := c.hello(); err != nil {
-		return err
-	}
+	c.hello() // ignore error; we're quitting anyhow
 	_, _, err := c.cmd(221, "QUIT")
 	if err != nil {
 		return err
@@ -421,7 +421,7 @@ func (c *Client) Quit() error {
 	return c.Text.Close()
 }
 
-// validateLine checks to see if a line has CR or LF as per RFC 5321
+// validateLine checks to see if a line has CR or LF as per RFC 5321.
 func validateLine(line string) error {
 	if strings.ContainsAny(line, "\n\r") {
 		return errors.New("smtp: A line must not contain CR or LF")

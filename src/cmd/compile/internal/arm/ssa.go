@@ -6,16 +6,19 @@ package arm
 
 import (
 	"fmt"
+	"internal/buildcfg"
 	"math"
 	"math/bits"
 
-	"cmd/compile/internal/gc"
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
-	"cmd/internal/objabi"
+	"internal/abi"
 )
 
 // loadByType returns the load instruction of the given type.
@@ -70,7 +73,7 @@ func storeByType(t *types.Type) obj.As {
 	panic("bad store type")
 }
 
-// shift type is used as Offset in obj.TYPE_SHIFT operands to encode shifted register operands
+// shift type is used as Offset in obj.TYPE_SHIFT operands to encode shifted register operands.
 type shift int64
 
 // copied from ../../../internal/obj/util.go:/TYPE_SHIFT
@@ -85,16 +88,19 @@ func (v shift) String() string {
 	}
 }
 
-// makeshift encodes a register shifted by a constant
-func makeshift(reg int16, typ int64, s int64) shift {
+// makeshift encodes a register shifted by a constant.
+func makeshift(v *ssa.Value, reg int16, typ int64, s int64) shift {
+	if s < 0 || s >= 32 {
+		v.Fatalf("shift out of range: %d", s)
+	}
 	return shift(int64(reg&0xf) | typ | (s&31)<<7)
 }
 
-// genshift generates a Prog for r = r0 op (r1 shifted by n)
-func genshift(s *gc.SSAGenState, as obj.As, r0, r1, r int16, typ int64, n int64) *obj.Prog {
+// genshift generates a Prog for r = r0 op (r1 shifted by n).
+func genshift(s *ssagen.State, v *ssa.Value, as obj.As, r0, r1, r int16, typ int64, n int64) *obj.Prog {
 	p := s.Prog(as)
 	p.From.Type = obj.TYPE_SHIFT
-	p.From.Offset = int64(makeshift(r1, typ, n))
+	p.From.Offset = int64(makeshift(v, r1, typ, n))
 	p.Reg = r0
 	if r != 0 {
 		p.To.Type = obj.TYPE_REG
@@ -103,13 +109,13 @@ func genshift(s *gc.SSAGenState, as obj.As, r0, r1, r int16, typ int64, n int64)
 	return p
 }
 
-// makeregshift encodes a register shifted by a register
+// makeregshift encodes a register shifted by a register.
 func makeregshift(r1 int16, typ int64, r2 int16) shift {
 	return shift(int64(r1&0xf) | typ | int64(r2&0xf)<<8 | 1<<4)
 }
 
-// genregshift generates a Prog for r = r0 op (r1 shifted by r2)
-func genregshift(s *gc.SSAGenState, as obj.As, r0, r1, r2, r int16, typ int64) *obj.Prog {
+// genregshift generates a Prog for r = r0 op (r1 shifted by r2).
+func genregshift(s *ssagen.State, as obj.As, r0, r1, r2, r int16, typ int64) *obj.Prog {
 	p := s.Prog(as)
 	p.From.Type = obj.TYPE_SHIFT
 	p.From.Offset = int64(makeregshift(r1, typ, r2))
@@ -143,7 +149,7 @@ func getBFC(v uint32) (uint32, uint32) {
 	return 0xffffffff, 0
 }
 
-func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
 	case ssa.OpCopy, ssa.OpARMMOVWreg:
 		if v.Type.IsMemory() {
@@ -171,9 +177,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = y
 	case ssa.OpARMMOVWnop:
-		if v.Reg() != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
 		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
@@ -181,7 +184,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			return
 		}
 		p := s.Prog(loadByType(v.Type))
-		gc.AddrAuto(&p.From, v.Args[0])
+		ssagen.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpStoreReg:
@@ -192,7 +195,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(storeByType(v.Type))
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
-		gc.AddrAuto(&p.To, v)
+		ssagen.AddrAuto(&p.To, v)
 	case ssa.OpARMADD,
 		ssa.OpARMADC,
 		ssa.OpARMSUB,
@@ -242,6 +245,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpARMADDS,
+		ssa.OpARMADCS,
 		ssa.OpARMSUBS:
 		r := v.Reg0()
 		r1 := v.Args[0].Reg()
@@ -280,14 +284,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt >> 8
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt & 0xff})
+		p.AddRestSourceConst(v.AuxInt & 0xff)
 		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpARMANDconst, ssa.OpARMBICconst:
 		// try to optimize ANDconst and BICconst to BFC, which saves bytes and ticks
 		// BFC is only available on ARMv7, and its result and source are in the same register
-		if objabi.GOARM == 7 && v.Reg() == v.Args[0].Reg() {
+		if buildcfg.GOARM.Version == 7 && v.Reg() == v.Args[0].Reg() {
 			var val uint32
 			if v.Op == ssa.OpARMANDconst {
 				val = ^uint32(v.AuxInt)
@@ -300,7 +304,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				p := s.Prog(arm.ABFC)
 				p.From.Type = obj.TYPE_CONST
 				p.From.Offset = int64(width)
-				p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(lsb)})
+				p.AddRestSourceConst(int64(lsb))
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = v.Reg()
 				break
@@ -336,7 +340,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
 	case ssa.OpARMSRRconst:
-		genshift(s, arm.AMOVW, 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, v.AuxInt)
+		genshift(s, v, arm.AMOVW, 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, v.AuxInt)
 	case ssa.OpARMADDshiftLL,
 		ssa.OpARMADCshiftLL,
 		ssa.OpARMSUBshiftLL,
@@ -347,11 +351,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMORshiftLL,
 		ssa.OpARMXORshiftLL,
 		ssa.OpARMBICshiftLL:
-		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_LL, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_LL, v.AuxInt)
 	case ssa.OpARMADDSshiftLL,
 		ssa.OpARMSUBSshiftLL,
 		ssa.OpARMRSBSshiftLL:
-		p := genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg0(), arm.SHIFT_LL, v.AuxInt)
+		p := genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg0(), arm.SHIFT_LL, v.AuxInt)
 		p.Scond = arm.C_SBIT
 	case ssa.OpARMADDshiftRL,
 		ssa.OpARMADCshiftRL,
@@ -363,11 +367,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMORshiftRL,
 		ssa.OpARMXORshiftRL,
 		ssa.OpARMBICshiftRL:
-		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_LR, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_LR, v.AuxInt)
 	case ssa.OpARMADDSshiftRL,
 		ssa.OpARMSUBSshiftRL,
 		ssa.OpARMRSBSshiftRL:
-		p := genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg0(), arm.SHIFT_LR, v.AuxInt)
+		p := genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg0(), arm.SHIFT_LR, v.AuxInt)
 		p.Scond = arm.C_SBIT
 	case ssa.OpARMADDshiftRA,
 		ssa.OpARMADCshiftRA,
@@ -379,20 +383,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMORshiftRA,
 		ssa.OpARMXORshiftRA,
 		ssa.OpARMBICshiftRA:
-		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_AR, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_AR, v.AuxInt)
 	case ssa.OpARMADDSshiftRA,
 		ssa.OpARMSUBSshiftRA,
 		ssa.OpARMRSBSshiftRA:
-		p := genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg0(), arm.SHIFT_AR, v.AuxInt)
+		p := genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg0(), arm.SHIFT_AR, v.AuxInt)
 		p.Scond = arm.C_SBIT
 	case ssa.OpARMXORshiftRR:
-		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_RR, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_RR, v.AuxInt)
 	case ssa.OpARMMVNshiftLL:
-		genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_LL, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_LL, v.AuxInt)
 	case ssa.OpARMMVNshiftRL:
-		genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_LR, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_LR, v.AuxInt)
 	case ssa.OpARMMVNshiftRA:
-		genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_AR, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_AR, v.AuxInt)
 	case ssa.OpARMMVNshiftLLreg:
 		genregshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_LL)
 	case ssa.OpARMMVNshiftRLreg:
@@ -514,11 +518,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 	case ssa.OpARMCMPshiftLL, ssa.OpARMCMNshiftLL, ssa.OpARMTSTshiftLL, ssa.OpARMTEQshiftLL:
-		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm.SHIFT_LL, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm.SHIFT_LL, v.AuxInt)
 	case ssa.OpARMCMPshiftRL, ssa.OpARMCMNshiftRL, ssa.OpARMTSTshiftRL, ssa.OpARMTEQshiftRL:
-		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm.SHIFT_LR, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm.SHIFT_LR, v.AuxInt)
 	case ssa.OpARMCMPshiftRA, ssa.OpARMCMNshiftRA, ssa.OpARMTSTshiftRA, ssa.OpARMTEQshiftRA:
-		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm.SHIFT_AR, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm.SHIFT_AR, v.AuxInt)
 	case ssa.OpARMCMPshiftLLreg, ssa.OpARMCMNshiftLLreg, ssa.OpARMTSTshiftLLreg, ssa.OpARMTEQshiftLLreg:
 		genregshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Args[2].Reg(), 0, arm.SHIFT_LL)
 	case ssa.OpARMCMPshiftRLreg, ssa.OpARMCMNshiftRLreg, ssa.OpARMTSTshiftRLreg, ssa.OpARMTEQshiftRLreg:
@@ -543,10 +547,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			v.Fatalf("aux is of unknown type %T", v.Aux)
 		case *obj.LSym:
 			wantreg = "SB"
-			gc.AddAux(&p.From, v)
-		case *gc.Node:
+			ssagen.AddAux(&p.From, v)
+		case *ir.Name:
 			wantreg = "SP"
-			gc.AddAux(&p.From, v)
+			ssagen.AddAux(&p.From, v)
 		case nil:
 			// No sym, just MOVW $off(SP), R
 			wantreg = "SP"
@@ -566,7 +570,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.From, v)
+		ssagen.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpARMMOVBstore,
@@ -579,18 +583,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.To, v)
+		ssagen.AddAux(&p.To, v)
 	case ssa.OpARMMOVWloadidx, ssa.OpARMMOVBUloadidx, ssa.OpARMMOVBloadidx, ssa.OpARMMOVHUloadidx, ssa.OpARMMOVHloadidx:
 		// this is just shift 0 bits
 		fallthrough
 	case ssa.OpARMMOVWloadshiftLL:
-		p := genshift(s, v.Op.Asm(), 0, v.Args[1].Reg(), v.Reg(), arm.SHIFT_LL, v.AuxInt)
+		p := genshift(s, v, v.Op.Asm(), 0, v.Args[1].Reg(), v.Reg(), arm.SHIFT_LL, v.AuxInt)
 		p.From.Reg = v.Args[0].Reg()
 	case ssa.OpARMMOVWloadshiftRL:
-		p := genshift(s, v.Op.Asm(), 0, v.Args[1].Reg(), v.Reg(), arm.SHIFT_LR, v.AuxInt)
+		p := genshift(s, v, v.Op.Asm(), 0, v.Args[1].Reg(), v.Reg(), arm.SHIFT_LR, v.AuxInt)
 		p.From.Reg = v.Args[0].Reg()
 	case ssa.OpARMMOVWloadshiftRA:
-		p := genshift(s, v.Op.Asm(), 0, v.Args[1].Reg(), v.Reg(), arm.SHIFT_AR, v.AuxInt)
+		p := genshift(s, v, v.Op.Asm(), 0, v.Args[1].Reg(), v.Reg(), arm.SHIFT_AR, v.AuxInt)
 		p.From.Reg = v.Args[0].Reg()
 	case ssa.OpARMMOVWstoreidx, ssa.OpARMMOVBstoreidx, ssa.OpARMMOVHstoreidx:
 		// this is just shift 0 bits
@@ -601,21 +605,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = v.Args[2].Reg()
 		p.To.Type = obj.TYPE_SHIFT
 		p.To.Reg = v.Args[0].Reg()
-		p.To.Offset = int64(makeshift(v.Args[1].Reg(), arm.SHIFT_LL, v.AuxInt))
+		p.To.Offset = int64(makeshift(v, v.Args[1].Reg(), arm.SHIFT_LL, v.AuxInt))
 	case ssa.OpARMMOVWstoreshiftRL:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[2].Reg()
 		p.To.Type = obj.TYPE_SHIFT
 		p.To.Reg = v.Args[0].Reg()
-		p.To.Offset = int64(makeshift(v.Args[1].Reg(), arm.SHIFT_LR, v.AuxInt))
+		p.To.Offset = int64(makeshift(v, v.Args[1].Reg(), arm.SHIFT_LR, v.AuxInt))
 	case ssa.OpARMMOVWstoreshiftRA:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[2].Reg()
 		p.To.Type = obj.TYPE_SHIFT
 		p.To.Reg = v.Args[0].Reg()
-		p.To.Offset = int64(makeshift(v.Args[1].Reg(), arm.SHIFT_AR, v.AuxInt))
+		p.To.Offset = int64(makeshift(v, v.Args[1].Reg(), arm.SHIFT_AR, v.AuxInt))
 	case ssa.OpARMMOVBreg,
 		ssa.OpARMMOVBUreg,
 		ssa.OpARMMOVHreg,
@@ -644,9 +648,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			default:
 			}
 		}
-		if objabi.GOARM >= 6 {
+		if buildcfg.GOARM.Version >= 6 {
 			// generate more efficient "MOVB/MOVBU/MOVH/MOVHU Reg@>0, Reg" on ARMv6 & ARMv7
-			genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, 0)
+			genshift(s, v, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, 0)
 			return
 		}
 		fallthrough
@@ -655,6 +659,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMREV,
 		ssa.OpARMREV16,
 		ssa.OpARMRBIT,
+		ssa.OpARMSQRTF,
 		ssa.OpARMSQRTD,
 		ssa.OpARMNEGF,
 		ssa.OpARMNEGD,
@@ -696,53 +701,205 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpARMCALLstatic, ssa.OpARMCALLclosure, ssa.OpARMCALLinter:
 		s.Call(v)
+	case ssa.OpARMCALLtail:
+		s.TailCall(v)
 	case ssa.OpARMCALLudiv:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.Udiv
+		p.To.Sym = ir.Syms.Udiv
 	case ssa.OpARMLoweredWB:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = v.Aux.(*obj.LSym)
-	case ssa.OpARMLoweredPanicBoundsA, ssa.OpARMLoweredPanicBoundsB, ssa.OpARMLoweredPanicBoundsC:
-		p := s.Prog(obj.ACALL)
+		// AuxInt encodes how many buffer entries we need.
+		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
+
+	case ssa.OpARMLoweredPanicBoundsRR, ssa.OpARMLoweredPanicBoundsRC, ssa.OpARMLoweredPanicBoundsCR, ssa.OpARMLoweredPanicBoundsCC,
+		ssa.OpARMLoweredPanicExtendRR, ssa.OpARMLoweredPanicExtendRC:
+		// Compute the constant we put in the PCData entry for this call.
+		code, signed := ssa.BoundsKind(v.AuxInt).Code()
+		xIsReg := false
+		yIsReg := false
+		xVal := 0
+		yVal := 0
+		extend := false
+		switch v.Op {
+		case ssa.OpARMLoweredPanicBoundsRR:
+			xIsReg = true
+			xVal = int(v.Args[0].Reg() - arm.REG_R0)
+			yIsReg = true
+			yVal = int(v.Args[1].Reg() - arm.REG_R0)
+		case ssa.OpARMLoweredPanicExtendRR:
+			extend = true
+			xIsReg = true
+			hi := int(v.Args[0].Reg() - arm.REG_R0)
+			lo := int(v.Args[1].Reg() - arm.REG_R0)
+			xVal = hi<<2 + lo // encode 2 register numbers
+			yIsReg = true
+			yVal = int(v.Args[2].Reg() - arm.REG_R0)
+		case ssa.OpARMLoweredPanicBoundsRC:
+			xIsReg = true
+			xVal = int(v.Args[0].Reg() - arm.REG_R0)
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				yIsReg = true
+				if yVal == xVal {
+					yVal = 1
+				}
+				p := s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(yVal)
+			}
+		case ssa.OpARMLoweredPanicExtendRC:
+			extend = true
+			xIsReg = true
+			hi := int(v.Args[0].Reg() - arm.REG_R0)
+			lo := int(v.Args[1].Reg() - arm.REG_R0)
+			xVal = hi<<2 + lo // encode 2 register numbers
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				for yVal == hi || yVal == lo {
+					yVal++
+				}
+				p := s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(yVal)
+			}
+		case ssa.OpARMLoweredPanicBoundsCR:
+			yIsReg = true
+			yVal = int(v.Args[0].Reg() - arm.REG_R0)
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				xVal = int(c)
+			} else if signed && int64(int32(c)) == c || !signed && int64(uint32(c)) == c {
+				// Move constant to a register
+				xIsReg = true
+				if xVal == yVal {
+					xVal = 1
+				}
+				p := s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(xVal)
+			} else {
+				// Move constant to two registers
+				extend = true
+				xIsReg = true
+				hi := 0
+				lo := 1
+				if hi == yVal {
+					hi = 2
+				}
+				if lo == yVal {
+					lo = 2
+				}
+				xVal = hi<<2 + lo
+				p := s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c >> 32
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(hi)
+				p = s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = int64(int32(c))
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(lo)
+			}
+		case ssa.OpARMLoweredPanicBoundsCC:
+			c := v.Aux.(ssa.PanicBoundsCC).Cx
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				xVal = int(c)
+			} else if signed && int64(int32(c)) == c || !signed && int64(uint32(c)) == c {
+				// Move constant to a register
+				xIsReg = true
+				p := s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(xVal)
+			} else {
+				// Move constant to two registers
+				extend = true
+				xIsReg = true
+				hi := 0
+				lo := 1
+				xVal = hi<<2 + lo
+				p := s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c >> 32
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(hi)
+				p = s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = int64(int32(c))
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(lo)
+			}
+			c = v.Aux.(ssa.PanicBoundsCC).Cy
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				yIsReg = true
+				yVal = 2
+				p := s.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm.REG_R0 + int16(yVal)
+			}
+		}
+		c := abi.BoundsEncode(code, signed, xIsReg, yIsReg, xVal, yVal)
+
+		p := s.Prog(obj.APCDATA)
+		p.From.SetConst(abi.PCDATA_PanicBounds)
+		p.To.SetConst(int64(c))
+		p = s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
-		s.UseArgs(8) // space used in callee args area by assembly stubs
-	case ssa.OpARMLoweredPanicExtendA, ssa.OpARMLoweredPanicExtendB, ssa.OpARMLoweredPanicExtendC:
-		p := s.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.ExtendCheckFunc[v.AuxInt]
-		s.UseArgs(12) // space used in callee args area by assembly stubs
+		if extend {
+			p.To.Sym = ir.Syms.PanicExtend
+		} else {
+			p.To.Sym = ir.Syms.PanicBounds
+		}
+
 	case ssa.OpARMDUFFZERO:
 		p := s.Prog(obj.ADUFFZERO)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.Duffzero
+		p.To.Sym = ir.Syms.Duffzero
 		p.To.Offset = v.AuxInt
 	case ssa.OpARMDUFFCOPY:
 		p := s.Prog(obj.ADUFFCOPY)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.Duffcopy
+		p.To.Sym = ir.Syms.Duffcopy
 		p.To.Offset = v.AuxInt
 	case ssa.OpARMLoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
 		p := s.Prog(arm.AMOVB)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.From, v)
+		ssagen.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = arm.REGTMP
 		if logopt.Enabled() {
 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
 		}
-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
-			gc.Warnl(v.Pos, "generated nil check")
+		if base.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+			base.WarnfAt(v.Pos, "generated nil check")
 		}
 	case ssa.OpARMLoweredZero:
 		// MOVW.P	Rarg2, 4(R1)
@@ -777,7 +934,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p2.Reg = arm.REG_R1
 		p3 := s.Prog(arm.ABLE)
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 	case ssa.OpARMLoweredMove:
 		// MOVW.P	4(R1), Rtmp
 		// MOVW.P	Rtmp, 4(R2)
@@ -818,7 +975,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.Reg = arm.REG_R1
 		p4 := s.Prog(arm.ABLE)
 		p4.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p4, p)
+		p4.To.SetTarget(p)
 	case ssa.OpARMEqual,
 		ssa.OpARMNotEqual,
 		ssa.OpARMLessThan,
@@ -844,12 +1001,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpARMLoweredGetClosurePtr:
 		// Closure pointer is R7 (arm.REGCTXT).
-		gc.CheckLoweredGetClosurePtr(v)
+		ssagen.CheckLoweredGetClosurePtr(v)
 	case ssa.OpARMLoweredGetCallerSP:
 		// caller's SP is FixedFrameSize below the address of the first arg
 		p := s.Prog(arm.AMOVW)
 		p.From.Type = obj.TYPE_ADDR
-		p.From.Offset = -gc.Ctxt.FixedFrameSize()
+		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize
 		p.From.Name = obj.NAME_PARAM
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -857,15 +1014,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(obj.AGETCALLERPC)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpARMFlagEQ,
-		ssa.OpARMFlagLT_ULT,
-		ssa.OpARMFlagLT_UGT,
-		ssa.OpARMFlagGT_ULT,
-		ssa.OpARMFlagGT_UGT:
-		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
+	case ssa.OpARMFlagConstant:
+		v.Fatalf("FlagConstant op should never make it to codegen %v", v.LongString())
 	case ssa.OpARMInvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
-	case ssa.OpClobber:
+	case ssa.OpClobber, ssa.OpClobberReg:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:
 		v.Fatalf("genValue not implemented: %s", v.LongString())
@@ -888,60 +1041,52 @@ var condBits = map[ssa.Op]uint8{
 var blockJump = map[ssa.BlockKind]struct {
 	asm, invasm obj.As
 }{
-	ssa.BlockARMEQ:  {arm.ABEQ, arm.ABNE},
-	ssa.BlockARMNE:  {arm.ABNE, arm.ABEQ},
-	ssa.BlockARMLT:  {arm.ABLT, arm.ABGE},
-	ssa.BlockARMGE:  {arm.ABGE, arm.ABLT},
-	ssa.BlockARMLE:  {arm.ABLE, arm.ABGT},
-	ssa.BlockARMGT:  {arm.ABGT, arm.ABLE},
-	ssa.BlockARMULT: {arm.ABLO, arm.ABHS},
-	ssa.BlockARMUGE: {arm.ABHS, arm.ABLO},
-	ssa.BlockARMUGT: {arm.ABHI, arm.ABLS},
-	ssa.BlockARMULE: {arm.ABLS, arm.ABHI},
+	ssa.BlockARMEQ:     {arm.ABEQ, arm.ABNE},
+	ssa.BlockARMNE:     {arm.ABNE, arm.ABEQ},
+	ssa.BlockARMLT:     {arm.ABLT, arm.ABGE},
+	ssa.BlockARMGE:     {arm.ABGE, arm.ABLT},
+	ssa.BlockARMLE:     {arm.ABLE, arm.ABGT},
+	ssa.BlockARMGT:     {arm.ABGT, arm.ABLE},
+	ssa.BlockARMULT:    {arm.ABLO, arm.ABHS},
+	ssa.BlockARMUGE:    {arm.ABHS, arm.ABLO},
+	ssa.BlockARMUGT:    {arm.ABHI, arm.ABLS},
+	ssa.BlockARMULE:    {arm.ABLS, arm.ABHI},
+	ssa.BlockARMLTnoov: {arm.ABMI, arm.ABPL},
+	ssa.BlockARMGEnoov: {arm.ABPL, arm.ABMI},
 }
 
-func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+// To model a 'LEnoov' ('<=' without overflow checking) branching.
+var leJumps = [2][2]ssagen.IndexJump{
+	{{Jump: arm.ABEQ, Index: 0}, {Jump: arm.ABPL, Index: 1}}, // next == b.Succs[0]
+	{{Jump: arm.ABMI, Index: 0}, {Jump: arm.ABEQ, Index: 0}}, // next == b.Succs[1]
+}
+
+// To model a 'GTnoov' ('>' without overflow checking) branching.
+var gtJumps = [2][2]ssagen.IndexJump{
+	{{Jump: arm.ABMI, Index: 1}, {Jump: arm.ABEQ, Index: 1}}, // next == b.Succs[0]
+	{{Jump: arm.ABEQ, Index: 1}, {Jump: arm.ABPL, Index: 0}}, // next == b.Succs[1]
+}
+
+func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
-	case ssa.BlockPlain:
+	case ssa.BlockPlain, ssa.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
 
-	case ssa.BlockDefer:
-		// defer returns in R0:
-		// 0 if we should continue executing
-		// 1 if we should jump to deferreturn call
-		p := s.Prog(arm.ACMP)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 0
-		p.Reg = arm.REG_R0
-		p = s.Prog(arm.ABNE)
-		p.To.Type = obj.TYPE_BRANCH
-		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
-		if b.Succs[0].Block() != next {
-			p := s.Prog(obj.AJMP)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
-		}
-
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-
-	case ssa.BlockRetJmp:
-		p := s.Prog(obj.ARET)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
 
 	case ssa.BlockARMEQ, ssa.BlockARMNE,
 		ssa.BlockARMLT, ssa.BlockARMGE,
 		ssa.BlockARMLE, ssa.BlockARMGT,
 		ssa.BlockARMULT, ssa.BlockARMUGT,
-		ssa.BlockARMULE, ssa.BlockARMUGE:
+		ssa.BlockARMULE, ssa.BlockARMUGE,
+		ssa.BlockARMLTnoov, ssa.BlockARMGEnoov:
 		jmp := blockJump[b.Kind]
 		switch next {
 		case b.Succs[0].Block():
@@ -957,6 +1102,12 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 				s.Br(obj.AJMP, b.Succs[0].Block())
 			}
 		}
+
+	case ssa.BlockARMLEnoov:
+		s.CombJump(b, next, &leJumps)
+
+	case ssa.BlockARMGTnoov:
+		s.CombJump(b, next, &gtJumps)
 
 	default:
 		b.Fatalf("branch not implemented: %s", b.LongString())

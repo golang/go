@@ -7,13 +7,14 @@ package filepath_test
 import (
 	"flag"
 	"fmt"
+	"internal/godebug"
 	"internal/testenv"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -34,15 +35,10 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 
 	const (
 		cmdfile             = `printdir.cmd`
-		perm    os.FileMode = 0700
+		perm    fs.FileMode = 0700
 	)
 
-	tmp, err := ioutil.TempDir("", "testWinSplitListTestIsValid")
-	if err != nil {
-		t.Fatalf("TempDir failed: %v", err)
-	}
-	defer os.RemoveAll(tmp)
-
+	tmp := t.TempDir()
 	for i, d := range tt.result {
 		if d == "" {
 			continue
@@ -57,12 +53,12 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 			t.Errorf("%d,%d: %#q already exists", ti, i, d)
 			return
 		}
-		if err = os.MkdirAll(dd, perm); err != nil {
+		if err := os.MkdirAll(dd, perm); err != nil {
 			t.Errorf("%d,%d: MkdirAll(%#q) failed: %v", ti, i, dd, err)
 			return
 		}
 		fn, data := filepath.Join(dd, cmdfile), []byte("@echo "+d+"\r\n")
-		if err = ioutil.WriteFile(fn, data, perm); err != nil {
+		if err := os.WriteFile(fn, data, perm); err != nil {
 			t.Errorf("%d,%d: WriteFile(%#q) failed: %v", ti, i, fn, err)
 			return
 		}
@@ -87,7 +83,7 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 		case err != nil:
 			t.Errorf("%d,%d: execution error %v\n%q", ti, i, err, out)
 			return
-		case !reflect.DeepEqual(out, exp):
+		case !slices.Equal(out, exp):
 			t.Errorf("%d,%d: expected %#q, got %#q", ti, i, exp, out)
 			return
 		default:
@@ -103,18 +99,7 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 func TestWindowsEvalSymlinks(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := ioutil.TempDir("", "TestWindowsEvalSymlinks")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// /tmp may itself be a symlink! Avoid the confusion, although
-	// it means trusting the thing we're testing.
-	tmpDir, err = filepath.EvalSymlinks(tmpDir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	tmpDir := tempDirCanonical(t)
 
 	if len(tmpDir) < 3 {
 		t.Fatalf("tmpDir path %q is too short", tmpDir)
@@ -161,18 +146,7 @@ func TestWindowsEvalSymlinks(t *testing.T) {
 // TestEvalSymlinksCanonicalNames verify that EvalSymlinks
 // returns "canonical" path names on windows.
 func TestEvalSymlinksCanonicalNames(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "evalsymlinkcanonical")
-	if err != nil {
-		t.Fatal("creating temp dir:", err)
-	}
-	defer os.RemoveAll(tmp)
-
-	// ioutil.TempDir might return "non-canonical" name.
-	cTmpName, err := filepath.EvalSymlinks(tmp)
-	if err != nil {
-		t.Errorf("EvalSymlinks(%q) error: %v", tmp, err)
-	}
-
+	ctmp := tempDirCanonical(t)
 	dirs := []string{
 		"test",
 		"test/dir",
@@ -181,7 +155,7 @@ func TestEvalSymlinksCanonicalNames(t *testing.T) {
 	}
 
 	for _, d := range dirs {
-		dir := filepath.Join(cTmpName, d)
+		dir := filepath.Join(ctmp, d)
 		err := os.Mkdir(dir, 0755)
 		if err != nil {
 			t.Fatal(err)
@@ -224,13 +198,17 @@ func TestEvalSymlinksCanonicalNames(t *testing.T) {
 // (where c: is vol parameter) to discover "8dot3 name creation state".
 // The state is combination of 2 flags. The global flag controls if it
 // is per volume or global setting:
-//   0 - Enable 8dot3 name creation on all volumes on the system
-//   1 - Disable 8dot3 name creation on all volumes on the system
-//   2 - Set 8dot3 name creation on a per volume basis
-//   3 - Disable 8dot3 name creation on all volumes except the system volume
+//
+//	0 - Enable 8dot3 name creation on all volumes on the system
+//	1 - Disable 8dot3 name creation on all volumes on the system
+//	2 - Set 8dot3 name creation on a per volume basis
+//	3 - Disable 8dot3 name creation on all volumes except the system volume
+//
 // If global flag is set to 2, then per-volume flag needs to be examined:
-//   0 - Enable 8dot3 name creation on this volume
-//   1 - Disable 8dot3 name creation on this volume
+//
+//	0 - Enable 8dot3 name creation on this volume
+//	1 - Disable 8dot3 name creation on this volume
+//
 // checkVolume8dot3Setting verifies that "8dot3 name creation" flags
 // are set to 2 and 0, if enabled parameter is true, or 2 and 1, if enabled
 // is false. Otherwise checkVolume8dot3Setting returns error.
@@ -370,7 +348,11 @@ func TestToNorm(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got, err := filepath.ToNorm(test.arg, stubBase)
+		var path string
+		if test.arg != "" {
+			path = filepath.Clean(test.arg)
+		}
+		got, err := filepath.ToNorm(path, stubBase)
 		if err != nil {
 			t.Errorf("toNorm(%s) failed: %v\n", test.arg, err)
 		} else if got != test.want {
@@ -412,27 +394,13 @@ func TestToNorm(t *testing.T) {
 		{`{{tmp}}\test`, `.\foo\bar`, `foo\bar`},
 		{`{{tmp}}\test`, `foo\..\foo\bar`, `foo\bar`},
 		{`{{tmp}}\test`, `FOO\BAR`, `foo\bar`},
+
+		// test UNC paths
+		{".", `\\localhost\c$`, `\\localhost\c$`},
 	}
 
-	tmp, err := ioutil.TempDir("", "testToNorm")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		err := os.RemoveAll(tmp)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	// ioutil.TempDir might return "non-canonical" name.
-	ctmp, err := filepath.EvalSymlinks(tmp)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = os.MkdirAll(strings.ReplaceAll(testPath, "{{tmp}}", ctmp), 0777)
-	if err != nil {
+	ctmp := tempDirCanonical(t)
+	if err := os.MkdirAll(strings.ReplaceAll(testPath, "{{tmp}}", ctmp), 0777); err != nil {
 		t.Fatal(err)
 	}
 
@@ -440,12 +408,7 @@ func TestToNorm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		err := os.Chdir(cwd)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
+	t.Chdir(".") // Ensure cwd is restored after the test.
 
 	tmpVol := filepath.VolumeName(ctmp)
 	if len(tmpVol) != 2 {
@@ -476,7 +439,9 @@ func TestToNorm(t *testing.T) {
 				continue
 			}
 		}
-
+		if arg != "" {
+			arg = filepath.Clean(arg)
+		}
 		got, err := filepath.ToNorm(arg, filepath.NormBase)
 		if err != nil {
 			t.Errorf("toNorm(%s) failed: %v (wd=%s)\n", arg, err, wd)
@@ -517,26 +482,120 @@ func TestWalkDirectorySymlink(t *testing.T) {
 	testWalkMklink(t, "D")
 }
 
+func createMountPartition(t *testing.T, vhd string, args string) []byte {
+	testenv.MustHaveExecPath(t, "powershell")
+	t.Cleanup(func() {
+		cmd := testenv.Command(t, "powershell", "-Command", fmt.Sprintf("Dismount-VHD %q", vhd))
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			if t.Skipped() {
+				// Probably failed to dismount because we never mounted it in
+				// the first place. Log the error, but ignore it.
+				t.Logf("%v: %v (skipped)\n%s", cmd, err, out)
+			} else {
+				// Something went wrong, and we don't want to leave dangling VHDs.
+				// Better to fail the test than to just log the error and continue.
+				t.Errorf("%v: %v\n%s", cmd, err, out)
+			}
+		}
+	})
+
+	script := filepath.Join(t.TempDir(), "test.ps1")
+	cmd := strings.Join([]string{
+		"$ErrorActionPreference = \"Stop\"",
+		fmt.Sprintf("$vhd = New-VHD -Path %q -SizeBytes 3MB -Fixed", vhd),
+		"$vhd | Mount-VHD",
+		fmt.Sprintf("$vhd = Get-VHD %q", vhd),
+		"$vhd | Get-Disk | Initialize-Disk -PartitionStyle GPT",
+		"$part = $vhd | Get-Disk | New-Partition -UseMaximumSize -AssignDriveLetter:$false",
+		"$vol = $part | Format-Volume -FileSystem NTFS",
+		args,
+	}, "\n")
+
+	err := os.WriteFile(script, []byte(cmd), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := testenv.Command(t, "powershell", "-File", script).CombinedOutput()
+	if err != nil {
+		// This can happen if Hyper-V is not installed or enabled.
+		t.Skip("skipping test because failed to create VHD: ", err, string(output))
+	}
+	return output
+}
+
+var winsymlink = godebug.New("winsymlink")
+var winreadlinkvolume = godebug.New("winreadlinkvolume")
+
+func TestEvalSymlinksJunctionToVolumeID(t *testing.T) {
+	// Test that EvalSymlinks resolves a directory junction which
+	// is mapped to volumeID (instead of drive letter). See go.dev/issue/39786.
+	if winsymlink.Value() == "0" {
+		t.Skip("skipping test because winsymlink is not enabled")
+	}
+	t.Parallel()
+
+	output, _ := exec.Command("cmd", "/c", "mklink", "/?").Output()
+	if !strings.Contains(string(output), " /J ") {
+		t.Skip("skipping test because mklink command does not support junctions")
+	}
+
+	tmpdir := tempDirCanonical(t)
+	vhd := filepath.Join(tmpdir, "Test.vhdx")
+	output = createMountPartition(t, vhd, "Write-Host $vol.Path -NoNewline")
+	vol := string(output)
+
+	dirlink := filepath.Join(tmpdir, "dirlink")
+	output, err := testenv.Command(t, "cmd", "/c", "mklink", "/J", dirlink, vol).CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run mklink %v %v: %v %q", dirlink, vol, err, output)
+	}
+	got, err := filepath.EvalSymlinks(dirlink)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != dirlink {
+		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, dirlink, got, dirlink)
+	}
+}
+
+func TestEvalSymlinksMountPointRecursion(t *testing.T) {
+	// Test that EvalSymlinks doesn't follow recursive mount points.
+	// See go.dev/issue/40176.
+	if winsymlink.Value() == "0" {
+		t.Skip("skipping test because winsymlink is not enabled")
+	}
+	t.Parallel()
+
+	tmpdir := tempDirCanonical(t)
+	dirlink := filepath.Join(tmpdir, "dirlink")
+	err := os.Mkdir(dirlink, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vhd := filepath.Join(tmpdir, "Test.vhdx")
+	createMountPartition(t, vhd, fmt.Sprintf("$part | Add-PartitionAccessPath -AccessPath %q\n", dirlink))
+
+	got, err := filepath.EvalSymlinks(dirlink)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != dirlink {
+		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, dirlink, got, dirlink)
+	}
+}
+
 func TestNTNamespaceSymlink(t *testing.T) {
 	output, _ := exec.Command("cmd", "/c", "mklink", "/?").Output()
 	if !strings.Contains(string(output), " /J ") {
 		t.Skip("skipping test because mklink command does not support junctions")
 	}
 
-	tmpdir, err := ioutil.TempDir("", "TestNTNamespaceSymlink")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	// Make sure tmpdir is not a symlink, otherwise tests will fail.
-	tmpdir, err = filepath.EvalSymlinks(tmpdir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	tmpdir := tempDirCanonical(t)
 
 	vol := filepath.VolumeName(tmpdir)
-	output, err = exec.Command("cmd", "/c", "mountvol", vol, "/L").CombinedOutput()
+	output, err := exec.Command("cmd", "/c", "mountvol", vol, "/L").CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to run mountvol %v /L: %v %q", vol, err, output)
 	}
@@ -552,7 +611,17 @@ func TestNTNamespaceSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := vol + `\`; got != want {
+	var want string
+	if winsymlink.Value() == "0" {
+		if winreadlinkvolume.Value() == "0" {
+			want = vol + `\`
+		} else {
+			want = target
+		}
+	} else {
+		want = dirlink
+	}
+	if got != want {
 		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, dirlink, got, want)
 	}
 
@@ -560,12 +629,12 @@ func TestNTNamespaceSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
 	file := filepath.Join(tmpdir, "file")
-	err = ioutil.WriteFile(file, []byte(""), 0666)
+	err = os.WriteFile(file, []byte(""), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	target += file[len(filepath.VolumeName(file)):]
+	target = filepath.Join(target, file[len(filepath.VolumeName(file)):])
 
 	filelink := filepath.Join(tmpdir, "filelink")
 	output, err = exec.Command("cmd", "/c", "mklink", filelink, target).CombinedOutput()
@@ -577,7 +646,59 @@ func TestNTNamespaceSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := file; got != want {
+
+	if winreadlinkvolume.Value() == "0" {
+		want = file
+	} else {
+		want = target
+	}
+	if got != want {
 		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, filelink, got, want)
+	}
+}
+
+func TestIssue52476(t *testing.T) {
+	tests := []struct {
+		lhs, rhs string
+		want     string
+	}{
+		{`..\.`, `C:`, `..\C:`},
+		{`..`, `C:`, `..\C:`},
+		{`.`, `:`, `.\:`},
+		{`.`, `C:`, `.\C:`},
+		{`.`, `C:/a/b/../c`, `.\C:\a\c`},
+		{`.`, `\C:`, `.\C:`},
+		{`C:\`, `.`, `C:\`},
+		{`C:\`, `C:\`, `C:\C:`},
+		{`C`, `:`, `C\:`},
+		{`\.`, `C:`, `\C:`},
+		{`\`, `C:`, `\C:`},
+	}
+
+	for _, test := range tests {
+		got := filepath.Join(test.lhs, test.rhs)
+		if got != test.want {
+			t.Errorf(`Join(%q, %q): got %q, want %q`, test.lhs, test.rhs, got, test.want)
+		}
+	}
+}
+
+func TestAbsWindows(t *testing.T) {
+	for _, test := range []struct {
+		path string
+		want string
+	}{
+		{`C:\foo`, `C:\foo`},
+		{`\\host\share\foo`, `\\host\share\foo`},
+		{`\\host`, `\\host`},
+		{`\\.\NUL`, `\\.\NUL`},
+		{`NUL`, `\\.\NUL`},
+		{`COM1`, `\\.\COM1`},
+		{`a/NUL`, `\\.\NUL`},
+	} {
+		got, err := filepath.Abs(test.path)
+		if err != nil || got != test.want {
+			t.Errorf("Abs(%q) = %q, %v; want %q, nil", test.path, got, err, test.want)
+		}
 	}
 }

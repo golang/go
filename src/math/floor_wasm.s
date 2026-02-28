@@ -4,21 +4,21 @@
 
 #include "textflag.h"
 
-TEXT ·Floor(SB),NOSPLIT,$0
+TEXT ·archFloor(SB),NOSPLIT,$0
 	Get SP
 	F64Load x+0(FP)
 	F64Floor
 	F64Store ret+8(FP)
 	RET
 
-TEXT ·Ceil(SB),NOSPLIT,$0
+TEXT ·archCeil(SB),NOSPLIT,$0
 	Get SP
 	F64Load x+0(FP)
 	F64Ceil
 	F64Store ret+8(FP)
 	RET
 
-TEXT ·Trunc(SB),NOSPLIT,$0
+TEXT ·archTrunc(SB),NOSPLIT,$0
 	Get SP
 	F64Load x+0(FP)
 	F64Trunc

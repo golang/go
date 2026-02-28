@@ -6,23 +6,23 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"cmd/internal/browser"
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/tools/cover"
 )
 
 // htmlOutput reads the profile data from profile and generates an HTML
 // coverage report, writing it to outfile. If outfile is empty,
 // it writes the report to a temporary file and opens it in a web browser.
 func htmlOutput(profile, outfile string) error {
-	profiles, err := ParseProfiles(profile)
+	profiles, err := cover.ParseProfiles(profile)
 	if err != nil {
 		return err
 	}
@@ -43,7 +43,7 @@ func htmlOutput(profile, outfile string) error {
 		if err != nil {
 			return err
 		}
-		src, err := ioutil.ReadFile(file)
+		src, err := os.ReadFile(file)
 		if err != nil {
 			return fmt.Errorf("can't read %q: %v", fn, err)
 		}
@@ -62,7 +62,7 @@ func htmlOutput(profile, outfile string) error {
 	var out *os.File
 	if outfile == "" {
 		var dir string
-		dir, err = ioutil.TempDir("", "cover")
+		dir, err = os.MkdirTemp("", "cover")
 		if err != nil {
 			return err
 		}
@@ -93,7 +93,7 @@ func htmlOutput(profile, outfile string) error {
 // percentCovered returns, as a percentage, the fraction of the statements in
 // the profile covered by the test run.
 // In effect, it reports the coverage of a given source file.
-func percentCovered(p *Profile) float64 {
+func percentCovered(p *cover.Profile) float64 {
 	var total, covered int64
 	for _, b := range p.Blocks {
 		total += int64(b.NumStmt)
@@ -109,7 +109,7 @@ func percentCovered(p *Profile) float64 {
 
 // htmlGen generates an HTML coverage report with the provided filename,
 // source code, and tokens, and writes it to the given Writer.
-func htmlGen(w io.Writer, src []byte, boundaries []Boundary) error {
+func htmlGen(w io.Writer, src []byte, boundaries []cover.Boundary) error {
 	dst := bufio.NewWriter(w)
 	for i := range src {
 		for len(boundaries) > 0 && boundaries[0].Offset == i {
@@ -156,7 +156,7 @@ func rgb(n int) string {
 
 // colors generates the CSS rules for coverage colors.
 func colors() template.CSS {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i := 0; i < 11; i++ {
 		fmt.Fprintf(&buf, ".cov%v { color: %v }\n", i, rgb(i))
 	}
@@ -172,6 +172,27 @@ type templateData struct {
 	Set   bool
 }
 
+// PackageName returns a name for the package being shown.
+// It does this by choosing the penultimate element of the path
+// name, so foo.bar/baz/foo.go chooses 'baz'. This is cheap
+// and easy, avoids parsing the Go file, and gets a better answer
+// for package main. It returns the empty string if there is
+// a problem.
+func (td templateData) PackageName() string {
+	if len(td.Files) == 0 {
+		return ""
+	}
+	fileName := td.Files[0].Name
+	elems := strings.Split(fileName, "/") // Package path is always slash-separated.
+	// Return the penultimate non-empty element.
+	for i := len(elems) - 2; i >= 0; i-- {
+		if elems[i] != "" {
+			return elems[i]
+		}
+	}
+	return ""
+}
+
 type templateFile struct {
 	Name     string
 	Body     template.HTML
@@ -183,6 +204,7 @@ const tmplHTML = `
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>{{$pkg := .PackageName}}{{if $pkg}}{{$pkg}}: {{end}}Go Coverage Report</title>
 		<style>
 			body {
 				background: black;

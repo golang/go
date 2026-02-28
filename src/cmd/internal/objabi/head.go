@@ -1,5 +1,5 @@
 // Derived from Inferno utils/6l/l.h and related files.
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -46,6 +46,7 @@ const (
 	Hopenbsd
 	Hplan9
 	Hsolaris
+	Hwasip1
 	Hwindows
 	Haix
 )
@@ -54,7 +55,7 @@ func (h *HeadType) Set(s string) error {
 	switch s {
 	case "aix":
 		*h = Haix
-	case "darwin":
+	case "darwin", "ios":
 		*h = Hdarwin
 	case "dragonfly":
 		*h = Hdragonfly
@@ -72,6 +73,8 @@ func (h *HeadType) Set(s string) error {
 		*h = Hplan9
 	case "illumos", "solaris":
 		*h = Hsolaris
+	case "wasip1":
+		*h = Hwasip1
 	case "windows":
 		*h = Hwindows
 	default:
@@ -80,8 +83,8 @@ func (h *HeadType) Set(s string) error {
 	return nil
 }
 
-func (h *HeadType) String() string {
-	switch *h {
+func (h HeadType) String() string {
+	switch h {
 	case Haix:
 		return "aix"
 	case Hdarwin:
@@ -102,8 +105,10 @@ func (h *HeadType) String() string {
 		return "plan9"
 	case Hsolaris:
 		return "solaris"
+	case Hwasip1:
+		return "wasip1"
 	case Hwindows:
 		return "windows"
 	}
-	return fmt.Sprintf("HeadType(%d)", *h)
+	return fmt.Sprintf("HeadType(%d)", h)
 }

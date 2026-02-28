@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !windows,!plan9
+//go:build !windows && !plan9
 
 package filepath_test
 
@@ -72,12 +72,16 @@ func ExampleJoin() {
 	fmt.Println(filepath.Join("a", "b/c"))
 	fmt.Println(filepath.Join("a/b", "c"))
 	fmt.Println(filepath.Join("a/b", "/c"))
+
+	fmt.Println(filepath.Join("a/b", "../../../xyz"))
+
 	// Output:
 	// On Unix:
 	// a/b/c
 	// a/b/c
 	// a/b/c
 	// a/b/c
+	// ../xyz
 }
 
 func ExampleMatch() {

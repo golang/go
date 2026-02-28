@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin js,wasm netbsd openbsd
+//go:build !(linux || (darwin && !ios) || dragonfly || freebsd || solaris || windows)
 
 package net
 
 import "io"
+
+func supportsSendfile() bool {
+	return false
+}
 
 func sendFile(c *netFD, r io.Reader) (n int64, err error, handled bool) {
 	return 0, nil, false

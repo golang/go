@@ -9,6 +9,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
+#include "cgo/abi_arm64.h"
 
 #define AT_FDCWD -100
 
@@ -21,7 +22,6 @@
 #define SYS_openat		56
 #define SYS_close		57
 #define SYS_pipe2		59
-#define SYS_fcntl		25
 #define SYS_nanosleep		101
 #define SYS_mmap		222
 #define SYS_munmap		215
@@ -41,14 +41,14 @@
 #define SYS_futex		98
 #define SYS_sched_getaffinity	123
 #define SYS_exit_group		94
-#define SYS_epoll_create1	20
-#define SYS_epoll_ctl		21
-#define SYS_epoll_pwait		22
 #define SYS_clock_gettime	113
 #define SYS_faccessat		48
 #define SYS_socket		198
 #define SYS_connect		203
 #define SYS_brk			214
+#define SYS_timer_create	107
+#define SYS_timer_settime	110
+#define SYS_timer_delete	111
 
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	code+0(FP), R0
@@ -56,7 +56,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	SVC
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
 	MOVD	wait+0(FP), R0
 	// We're done using the stack.
@@ -108,15 +108,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	MOVD	$SYS_read, R8
 	SVC
 	MOVW	R0, ret+24(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	MOVD	$r+0(FP), R0
-	MOVW	$0, R1
-	MOVW	$SYS_pipe2, R8
-	SVC
-	MOVW	R0, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -197,6 +188,32 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	SVC
 	RET
 
+TEXT runtime·timer_create(SB),NOSPLIT,$0-28
+	MOVW	clockid+0(FP), R0
+	MOVD	sevp+8(FP), R1
+	MOVD	timerid+16(FP), R2
+	MOVD	$SYS_timer_create, R8
+	SVC
+	MOVW	R0, ret+24(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
+	MOVW	timerid+0(FP), R0
+	MOVW	flags+4(FP), R1
+	MOVD	new+8(FP), R2
+	MOVD	old+16(FP), R3
+	MOVD	$SYS_timer_settime, R8
+	SVC
+	MOVW	R0, ret+24(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
+	MOVW	timerid+0(FP), R0
+	MOVD	$SYS_timer_delete, R8
+	SVC
+	MOVW	R0, ret+8(FP)
+	RET
+
 TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVD	addr+0(FP), R0
 	MOVD	n+8(FP), R1
@@ -206,16 +223,31 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	R0, ret+24(FP)
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB),NOSPLIT,$24-12
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB),NOSPLIT,$24-12
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW 	g_secret(g), R20
+	CBZ 	R20, nosecret
+	BL	·secretEraseRegisters(SB)
+
+nosecret:
+#endif
 	MOVD	RSP, R20	// R20 is unchanged by C code
 	MOVD	RSP, R1
 
 	MOVD	g_m(g), R21	// R21 = m
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	// Save the old values on stack and restore them on exit,
+	// so this function is reentrant.
+	MOVD	m_vdsoPC(R21), R2
+	MOVD	m_vdsoSP(R21), R3
+	MOVD	R2, 8(RSP)
+	MOVD	R3, 16(RSP)
+
+	MOVD	$ret-8(FP), R2 // caller's SP
 	MOVD	LR, m_vdsoPC(R21)
-	MOVD	R20, m_vdsoSP(R21)
+	MOVD	R2, m_vdsoSP(R21)
 
 	MOVD	m_curg(R21), R0
 	CMP	g, R0
@@ -269,21 +301,44 @@ finish:
 	MOVD	8(RSP), R5	// nsec
 
 	MOVD	R20, RSP	// restore SP
-	MOVD	$0, m_vdsoSP(R21)	// clear vdsoSP
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVD	16(RSP), R1
+	MOVD	R1, m_vdsoSP(R21)
+	MOVD	8(RSP), R1
+	MOVD	R1, m_vdsoPC(R21)
 
 	MOVD	R3, sec+0(FP)
 	MOVW	R5, nsec+8(FP)
 	RET
 
 TEXT runtime·nanotime1(SB),NOSPLIT,$24-8
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), R20
+	CBZ	R20, nosecret
+	BL	·secretEraseRegisters(SB)
+
+nosecret:
+#endif
 	MOVD	RSP, R20	// R20 is unchanged by C code
 	MOVD	RSP, R1
 
 	MOVD	g_m(g), R21	// R21 = m
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	// Save the old values on stack and restore them on exit,
+	// so this function is reentrant.
+	MOVD	m_vdsoPC(R21), R2
+	MOVD	m_vdsoSP(R21), R3
+	MOVD	R2, 8(RSP)
+	MOVD	R3, 16(RSP)
+
+	MOVD	$ret-8(FP), R2 // caller's SP
 	MOVD	LR, m_vdsoPC(R21)
-	MOVD	R20, m_vdsoSP(R21)
+	MOVD	R2, m_vdsoSP(R21)
 
 	MOVD	m_curg(R21), R0
 	CMP	g, R0
@@ -337,7 +392,15 @@ finish:
 	MOVD	8(RSP), R5	// nsec
 
 	MOVD	R20, RSP	// restore SP
-	MOVD	$0, m_vdsoSP(R21)	// clear vdsoSP
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVD	16(RSP), R1
+	MOVD	R1, m_vdsoSP(R21)
+	MOVD	8(RSP), R1
+	MOVD	R1, m_vdsoPC(R21)
 
 	// sec is in R3, nsec in R5
 	// return nsec in R3
@@ -391,28 +454,12 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	BL	(R11)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$192
+// Called from c-abi, R0: sig, R1: info, R2: cxt
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$176
 	// Save callee-save registers in the case of signal forwarding.
 	// Please refer to https://golang.org/issue/31827 .
-	MOVD	R19, 8*4(RSP)
-	MOVD	R20, 8*5(RSP)
-	MOVD	R21, 8*6(RSP)
-	MOVD	R22, 8*7(RSP)
-	MOVD	R23, 8*8(RSP)
-	MOVD	R24, 8*9(RSP)
-	MOVD	R25, 8*10(RSP)
-	MOVD	R26, 8*11(RSP)
-	MOVD	R27, 8*12(RSP)
-	MOVD	g, 8*13(RSP)
-	MOVD	R29, 8*14(RSP)
-	FMOVD	F8, 8*15(RSP)
-	FMOVD	F9, 8*16(RSP)
-	FMOVD	F10, 8*17(RSP)
-	FMOVD	F11, 8*18(RSP)
-	FMOVD	F12, 8*19(RSP)
-	FMOVD	F13, 8*20(RSP)
-	FMOVD	F14, 8*21(RSP)
-	FMOVD	F15, 8*22(RSP)
+	SAVE_R19_TO_R28(8*4)
+	SAVE_F8_TO_F15(8*14)
 
 	// this might be called in external code context,
 	// where g is not set.
@@ -422,37 +469,120 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$192
 	CBZ	R0, 2(PC)
 	BL	runtime·load_g(SB)
 
-	MOVD	R1, 16(RSP)
-	MOVD	R2, 24(RSP)
-	MOVD	$runtime·sigtrampgo(SB), R0
-	BL	(R0)
+	// Restore signum to R0.
+	MOVW	8(RSP), R0
+	// R1 and R2 already contain info and ctx, respectively.
+	MOVD	$runtime·sigtrampgo<ABIInternal>(SB), R3
+	BL	(R3)
 
 	// Restore callee-save registers.
-	MOVD	8*4(RSP), R19
-	MOVD	8*5(RSP), R20
-	MOVD	8*6(RSP), R21
-	MOVD	8*7(RSP), R22
-	MOVD	8*8(RSP), R23
-	MOVD	8*9(RSP), R24
-	MOVD	8*10(RSP), R25
-	MOVD	8*11(RSP), R26
-	MOVD	8*12(RSP), R27
-	MOVD	8*13(RSP), g
-	MOVD	8*14(RSP), R29
-	FMOVD	8*15(RSP), F8
-	FMOVD	8*16(RSP), F9
-	FMOVD	8*17(RSP), F10
-	FMOVD	8*18(RSP), F11
-	FMOVD	8*19(RSP), F12
-	FMOVD	8*20(RSP), F13
-	FMOVD	8*21(RSP), F14
-	FMOVD	8*22(RSP), F15
+	RESTORE_R19_TO_R28(8*4)
+	RESTORE_F8_TO_F15(8*14)
 
 	RET
 
-TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
-	MOVD	$runtime·sigtramp(SB), R3
-	B	(R3)
+// Called from c-abi, R0: sig, R1: info, R2: cxt
+TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$176
+	// Save callee-save registers because it's a callback from c code.
+	SAVE_R19_TO_R28(8*4)
+	SAVE_F8_TO_F15(8*14)
+
+	// R0, R1 and R2 already contain sig, info and ctx, respectively.
+	CALL	runtime·sigprofNonGo<ABIInternal>(SB)
+
+	// Restore callee-save registers.
+	RESTORE_R19_TO_R28(8*4)
+	RESTORE_F8_TO_F15(8*14)
+	RET
+
+// Called from c-abi, R0: sig, R1: info, R2: cxt
+TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
+	// The stack unwinder, presumably written in C, may not be able to
+	// handle Go frame correctly. So, this function is NOFRAME, and we
+	// save/restore LR manually.
+	MOVD	LR, R10
+	// Save R27, g because they will be clobbered,
+	// we need to restore them before jump to sigtramp.
+	MOVD	R27, R11
+	MOVD	g, R12
+
+	// If no traceback function, do usual sigtramp.
+	MOVD	runtime·cgoTraceback(SB), R6
+	CBZ	R6, sigtramp
+
+	// If no traceback support function, which means that
+	// runtime/cgo was not linked in, do usual sigtramp.
+	MOVD	_cgo_callers(SB), R7
+	CBZ	R7, sigtramp
+
+	// Figure out if we are currently in a cgo call.
+	// If not, just do usual sigtramp.
+	// first save R0, because runtime·load_g will clobber it.
+	MOVD	R0, R8
+	// Set up g register.
+	CALL	runtime·load_g(SB)
+	MOVD	R8, R0
+
+	CBZ	g, sigtrampnog // g == nil
+	MOVD	g_m(g), R6
+	CBZ	R6, sigtramp    // g.m == nil
+	MOVW	m_ncgo(R6), R7
+	CBZW	R7, sigtramp    // g.m.ncgo = 0
+	MOVD	m_curg(R6), R8
+	CBZ	R8, sigtramp    // g.m.curg == nil
+	MOVD	g_syscallsp(R8), R7
+	CBZ	R7,	sigtramp    // g.m.curg.syscallsp == 0
+	MOVD	m_cgoCallers(R6), R4 // R4 is the fifth arg in C calling convention.
+	CBZ	R4,	sigtramp    // g.m.cgoCallers == nil
+	MOVW	m_cgoCallersUse(R6), R8
+	CBNZW	R8, sigtramp    // g.m.cgoCallersUse != 0
+
+	// Jump to a function in runtime/cgo.
+	// That function, written in C, will call the user's traceback
+	// function with proper unwind info, and will then call back here.
+	// The first three arguments, and the fifth, are already in registers.
+	// Set the two remaining arguments now.
+	MOVD	runtime·cgoTraceback(SB), R3
+	MOVD	$runtime·sigtramp(SB), R5
+	MOVD	_cgo_callers(SB), R13
+	MOVD	R10, LR // restore
+	MOVD	R11, R27
+	MOVD	R12, g
+	B	(R13)
+
+sigtramp:
+	MOVD	R10, LR // restore
+	MOVD	R11, R27
+	MOVD	R12, g
+	B	runtime·sigtramp(SB)
+
+sigtrampnog:
+	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
+	// stack trace.
+	CMPW	$27, R0 // 27 == SIGPROF
+	BNE	sigtramp
+
+	// Lock sigprofCallersUse (cas from 0 to 1).
+	MOVW	$1, R7
+	MOVD	$runtime·sigprofCallersUse(SB), R8
+load_store_loop:
+	LDAXRW	(R8), R9
+	CBNZW	R9, sigtramp // Skip stack trace if already locked.
+	STLXRW	R7, (R8), R9
+	CBNZ	R9, load_store_loop
+
+	// Jump to the traceback function in runtime/cgo.
+	// It will call back to sigprofNonGo, which will ignore the
+	// arguments passed in registers.
+	// First three arguments to traceback function are in registers already.
+	MOVD	runtime·cgoTraceback(SB), R3
+	MOVD	$runtime·sigprofCallers(SB), R4
+	MOVD	$runtime·sigprofNonGoWrapper<>(SB), R5
+	MOVD	_cgo_callers(SB), R13
+	MOVD	R10, LR // restore
+	MOVD	R11, R27
+	MOVD	R12, g
+	B	(R13)
 
 TEXT runtime·sysMmap(SB),NOSPLIT|NOFRAME,$0
 	MOVD	addr+0(FP), R0
@@ -631,69 +761,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R0, ret+24(FP)
 	RET
 
-// int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
-	MOVW	$0, R0
-	MOVD	$SYS_epoll_create1, R8
-	SVC
-	MOVW	R0, ret+8(FP)
-	RET
-
-// int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
-	MOVW	flags+0(FP), R0
-	MOVD	$SYS_epoll_create1, R8
-	SVC
-	MOVW	R0, ret+8(FP)
-	RET
-
-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), R0
-	MOVW	op+4(FP), R1
-	MOVW	fd+8(FP), R2
-	MOVD	ev+16(FP), R3
-	MOVD	$SYS_epoll_ctl, R8
-	SVC
-	MOVW	R0, ret+24(FP)
-	RET
-
-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), R0
-	MOVD	ev+8(FP), R1
-	MOVW	nev+16(FP), R2
-	MOVW	timeout+20(FP), R3
-	MOVD	$0, R4
-	MOVD	$SYS_epoll_pwait, R8
-	SVC
-	MOVW	R0, ret+24(FP)
-	RET
-
-// void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
-	MOVW	fd+0(FP), R0  // fd
-	MOVD	$2, R1	// F_SETFD
-	MOVD	$1, R2	// FD_CLOEXEC
-	MOVD	$SYS_fcntl, R8
-	SVC
-	RET
-
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	fd+0(FP), R0 // fd
-	MOVD	$3, R1	// F_GETFL
-	MOVD	$0, R2
-	MOVD	$SYS_fcntl, R8
-	SVC
-	MOVD	$0x800, R2 // O_NONBLOCK
-	ORR	R0, R2
-	MOVW	fd+0(FP), R0 // fd
-	MOVD	$4, R1	// F_SETFL
-	MOVD	$SYS_fcntl, R8
-	SVC
-	RET
-
 // int access(const char *name, int mode)
 TEXT runtime·access(SB),NOSPLIT,$0-20
 	MOVD	$AT_FDCWD, R0
@@ -733,5 +800,47 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
 	MOVD	R0, ret+0(FP)
 	RET
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+// func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
+TEXT runtime·vgetrandom1<ABIInternal>(SB),NOSPLIT,$16-48
+	MOVD	RSP, R20
+
+	MOVD	runtime·vdsoGetrandomSym(SB), R8
+	MOVD	g_m(g), R21
+
+	MOVD	m_vdsoPC(R21), R9
+	MOVD	R9, 8(RSP)
+	MOVD	m_vdsoSP(R21), R9
+	MOVD	R9, 16(RSP)
+	MOVD	LR, m_vdsoPC(R21)
+	MOVD	$buf-8(FP), R9
+	MOVD	R9, m_vdsoSP(R21)
+
+	MOVD	RSP, R9
+	BIC	$15, R9
+	MOVD	R9, RSP
+
+	MOVBU	runtime·iscgo(SB), R9
+	CBNZ	R9, nosaveg
+	MOVD	m_gsignal(R21), R9
+	CBZ	R9, nosaveg
+	CMP	g, R9
+	BEQ	nosaveg
+	MOVD	(g_stack+stack_lo)(R9), R22
+	MOVD	g, (R22)
+
+	BL	(R8)
+
+	MOVD	ZR, (R22)
+	B	restore
+
+nosaveg:
+	BL	(R8)
+
+restore:
+	MOVD	R20, RSP
+	MOVD	16(RSP), R1
+	MOVD	R1, m_vdsoSP(R21)
+	MOVD	8(RSP), R1
+	MOVD	R1, m_vdsoPC(R21)
+	NOP	R0 // Satisfy go vet, since the return value comes from the vDSO function.
 	RET

@@ -8,7 +8,6 @@ package windows
 
 import (
 	"syscall"
-	"unicode/utf16"
 	"unsafe"
 )
 
@@ -38,20 +37,17 @@ func (token Token) Environ(inheritExisting bool) (env []string, err error) {
 		return nil, err
 	}
 	defer DestroyEnvironmentBlock(block)
-	blockp := uintptr(unsafe.Pointer(block))
-	for {
-		entry := (*[(1 << 30) - 1]uint16)(unsafe.Pointer(blockp))[:]
-		for i, v := range entry {
-			if v == 0 {
-				entry = entry[:i]
-				break
-			}
+	size := unsafe.Sizeof(*block)
+	for *block != 0 {
+		// find NUL terminator
+		end := unsafe.Pointer(block)
+		for *(*uint16)(end) != 0 {
+			end = unsafe.Add(end, size)
 		}
-		if len(entry) == 0 {
-			break
-		}
-		env = append(env, string(utf16.Decode(entry)))
-		blockp += 2 * (uintptr(len(entry)) + 1)
+
+		entry := unsafe.Slice(block, (uintptr(end)-uintptr(unsafe.Pointer(block)))/size)
+		env = append(env, UTF16ToString(entry))
+		block = (*uint16)(unsafe.Add(end, size))
 	}
 	return env, nil
 }

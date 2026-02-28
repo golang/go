@@ -44,30 +44,30 @@ type mark struct {
 //
 // Typical usage should look like:
 //
-// func main() {
-//   filename := "" // Set to enable per-phase pprof file output.
-//   bench := benchmark.New(benchmark.GC, filename)
-//   defer bench.Report(os.Stdout)
-//   // etc
-//   bench.Start("foo")
-//   foo()
-//   bench.Start("bar")
-//   bar()
-// }
+//	func main() {
+//	  filename := "" // Set to enable per-phase pprof file output.
+//	  bench := benchmark.New(benchmark.GC, filename)
+//	  defer bench.Report(os.Stdout)
+//	  // etc
+//	  bench.Start("foo")
+//	  foo()
+//	  bench.Start("bar")
+//	  bar()
+//	}
 //
 // Note that a nil Metrics object won't cause any errors, so one could write
 // code like:
 //
-//  func main() {
-//    enableBenchmarking := flag.Bool("enable", true, "enables benchmarking")
-//    flag.Parse()
-//    var bench *benchmark.Metrics
-//    if *enableBenchmarking {
-//      bench = benchmark.New(benchmark.GC)
-//    }
-//    bench.Start("foo")
-//    // etc.
-//  }
+//	func main() {
+//	  enableBenchmarking := flag.Bool("enable", true, "enables benchmarking")
+//	  flag.Parse()
+//	  var bench *benchmark.Metrics
+//	  if *enableBenchmarking {
+//	    bench = benchmark.New(benchmark.GC)
+//	  }
+//	  bench.Start("foo")
+//	  // etc.
+//	}
 func New(gc Flags, filebase string) *Metrics {
 	if gc == GC {
 		runtime.GC()
@@ -106,7 +106,7 @@ func (m *Metrics) Report(w io.Writer) {
 	fmt.Fprintf(w, "%s 1 %d ns/op\n", makeBenchString("total time"+gcString), totTime.Nanoseconds())
 }
 
-// Starts marks the beginning of a new measurement phase.
+// Start marks the beginning of a new measurement phase.
 // Once a metric is started, it continues until either a Report is issued, or another Start is called.
 func (m *Metrics) Start(name string) {
 	if m == nil {

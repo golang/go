@@ -1,0 +1,48 @@
+env GO111MODULE=on
+
+# Testing stderr for git ls-remote; turn off proxy.
+[!net:github.com] skip
+[!git] skip
+env GOPROXY=direct
+
+# Redirect git to a test-specific .gitconfig.
+# GIT_CONFIG_GLOBAL suffices for git 2.32.0 and newer.
+# For older git versions we also set $HOME.
+env GIT_CONFIG_GLOBAL=$WORK${/}home${/}gopher${/}.gitconfig
+env HOME=$WORK${/}home${/}gopher
+exec git config --global --show-origin user.name
+stdout 'Go Gopher'
+
+! go mod download github.com/golang/nonexist@latest
+stderr 'Confirm the import path was entered correctly.'
+stderr 'If this is a private repository, see https://golang.org/doc/faq#git_https for additional information.'
+! stdout .
+
+# Fetching a nonexistent commit should return an "unknown revision"
+# error message.
+! go mod download github.com/golang/term@86186f3aba07ed0212cfb944f3398997d2d07c6b
+stderr '^go: github.com/golang/term@86186f3aba07ed0212cfb944f3398997d2d07c6b: invalid version: unknown revision 86186f3aba07ed0212cfb944f3398997d2d07c6b$'
+! stdout .
+
+! go mod download github.com/golang/nonexist@master
+stderr '^Confirm the import path was entered correctly.$'
+stderr '^If this is a private repository, see https://golang.org/doc/faq#git_https for additional information.$'
+! stderr 'unknown revision'
+! stdout .
+
+[!exec:false] stop
+
+# Test that Git clone errors will be shown to the user instead of a generic
+# "unknown revision" error. To do this we want to force git ls-remote to return
+# an error we don't already have special handling for. See golang/go#42751.
+exec git config --global url.git@github.com.insteadOf https://github.com/
+env GIT_SSH_COMMAND=false
+! go install github.com/golang/nonexist@master
+stderr 'fatal: Could not read from remote repository.'
+! stderr 'unknown revision'
+! stdout .
+
+-- $WORK/home/gopher/.gitconfig --
+[user]
+	name = Go Gopher
+	email = gopher@golang.org

@@ -6,9 +6,9 @@ package race_test
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"os"
 	"runtime"
@@ -255,7 +255,7 @@ func TestRaceCaseIssue6418(t *testing.T) {
 
 func TestRaceCaseType(t *testing.T) {
 	var x, y int
-	var i interface{} = x
+	var i any = x
 	c := make(chan int, 1)
 	go func() {
 		switch i.(type) {
@@ -270,7 +270,7 @@ func TestRaceCaseType(t *testing.T) {
 
 func TestRaceCaseTypeBody(t *testing.T) {
 	var x, y int
-	var i interface{} = &x
+	var i any = &x
 	c := make(chan int, 1)
 	go func() {
 		switch i := i.(type) {
@@ -288,8 +288,8 @@ func TestRaceCaseTypeIssue5890(t *testing.T) {
 	// spurious extra instrumentation of the initial interface
 	// value.
 	var x, y int
-	m := make(map[int]map[int]interface{})
-	m[0] = make(map[int]interface{})
+	m := make(map[int]map[int]any)
+	m[0] = make(map[int]any)
 	c := make(chan int, 1)
 	go func() {
 		switch i := m[0][1].(type) {
@@ -331,7 +331,8 @@ func TestRaceRange(t *testing.T) {
 	var x, y int
 	_ = x + y
 	done := make(chan bool, N)
-	for i, v := range a {
+	var i, v int // declare here (not in for stmt) so that i and v are shared w/ or w/o loop variable sharing change
+	for i, v = range a {
 		go func(i int) {
 			// we don't want a write-vs-write race
 			// so there is no array b here
@@ -611,6 +612,8 @@ func TestNoRaceEnoughRegisters(t *testing.T) {
 }
 
 // emptyFunc should not be inlined.
+//
+//go:noinline
 func emptyFunc(x int) {
 	if false {
 		fmt.Println(x)
@@ -758,7 +761,7 @@ func TestRaceStructFieldRW3(t *testing.T) {
 }
 
 func TestRaceEfaceWW(t *testing.T) {
-	var a, b interface{}
+	var a, b any
 	ch := make(chan bool, 1)
 	go func() {
 		a = 1
@@ -810,7 +813,7 @@ func TestRaceEfaceConv(t *testing.T) {
 	c := make(chan bool)
 	v := 0
 	go func() {
-		go func(x interface{}) {
+		go func(x any) {
 		}(v)
 		c <- true
 	}()
@@ -1127,7 +1130,7 @@ func TestRaceRune(t *testing.T) {
 
 func TestRaceEmptyInterface1(t *testing.T) {
 	c := make(chan bool)
-	var x interface{}
+	var x any
 	go func() {
 		x = nil
 		c <- true
@@ -1138,7 +1141,7 @@ func TestRaceEmptyInterface1(t *testing.T) {
 
 func TestRaceEmptyInterface2(t *testing.T) {
 	c := make(chan bool)
-	var x interface{}
+	var x any
 	go func() {
 		x = &Point{}
 		c <- true
@@ -1175,7 +1178,7 @@ func TestNoRaceHeapReallocation(t *testing.T) {
 	// others.
 	const n = 2
 	done := make(chan bool, n)
-	empty := func(p *int) {}
+	empty := func(p *int) { _ = p }
 	for i := 0; i < n; i++ {
 		ms := i
 		go func() {
@@ -1416,7 +1419,7 @@ func TestRaceInterCall2(t *testing.T) {
 
 func TestRaceFuncCall(t *testing.T) {
 	c := make(chan bool, 1)
-	f := func(x, y int) {}
+	f := func(x, y int) { _ = y }
 	x, y := 0, 0
 	go func() {
 		y = 42
@@ -1579,7 +1582,7 @@ func TestRaceAddrExpr(t *testing.T) {
 func TestRaceTypeAssert(t *testing.T) {
 	c := make(chan bool, 1)
 	x := 0
-	var i interface{} = x
+	var i any = x
 	go func() {
 		y := 0
 		i = y
@@ -1803,6 +1806,7 @@ func TestRaceAsFunc2(t *testing.T) {
 	x := 0
 	go func() {
 		func(x int) {
+			_ = x
 		}(x)
 		c <- true
 	}()
@@ -1816,6 +1820,7 @@ func TestRaceAsFunc3(t *testing.T) {
 	x := 0
 	go func() {
 		func(x int) {
+			_ = x
 			mu.Lock()
 		}(x) // Read of x must be outside of the mutex.
 		mu.Unlock()
@@ -1896,6 +1901,14 @@ func TestRaceNestedStruct(t *testing.T) {
 }
 
 func TestRaceIssue5567(t *testing.T) {
+	testRaceRead(t, false)
+}
+
+func TestRaceIssue51618(t *testing.T) {
+	testRaceRead(t, true)
+}
+
+func testRaceRead(t *testing.T, pread bool) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
 	in := make(chan []byte)
 	res := make(chan error)
@@ -1914,7 +1927,11 @@ func TestRaceIssue5567(t *testing.T) {
 		var n, total int
 		b := make([]byte, 17) // the race is on b buffer
 		for err == nil {
-			n, err = f.Read(b)
+			if pread {
+				n, err = f.ReadAt(b, int64(total))
+			} else {
+				n, err = f.Read(b)
+			}
 			total += n
 			if n > 0 {
 				in <- b[:n]
@@ -1924,7 +1941,7 @@ func TestRaceIssue5567(t *testing.T) {
 			err = nil
 		}
 	}()
-	h := sha1.New()
+	h := crc32.New(crc32.MakeTable(0x12345678))
 	for b := range in {
 		h.Write(b)
 	}
@@ -2079,4 +2096,41 @@ func TestNoRaceTinyAlloc(t *testing.T) {
 	for p := 0; p < P; p++ {
 		<-done
 	}
+}
+
+func TestNoRaceIssue60934(t *testing.T) {
+	// Test that runtime.RaceDisable state doesn't accidentally get applied to
+	// new goroutines.
+
+	// Create several goroutines that end after calling runtime.RaceDisable.
+	var wg sync.WaitGroup
+	ready := make(chan struct{})
+	wg.Add(32)
+	for i := 0; i < 32; i++ {
+		go func() {
+			<-ready // ensure we have multiple goroutines running at the same time
+			runtime.RaceDisable()
+			wg.Done()
+		}()
+	}
+	close(ready)
+	wg.Wait()
+
+	// Make sure race detector still works. If the runtime.RaceDisable state
+	// leaks, the happens-before edges here will be ignored and a race on x will
+	// be reported.
+	var x int
+	ch := make(chan struct{}, 0)
+	wg.Add(2)
+	go func() {
+		x = 1
+		ch <- struct{}{}
+		wg.Done()
+	}()
+	go func() {
+		<-ch
+		_ = x
+		wg.Done()
+	}()
+	wg.Wait()
 }

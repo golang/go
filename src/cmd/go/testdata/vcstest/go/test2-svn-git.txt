@@ -1,0 +1,26 @@
+handle dir
+
+-- test2main/index.html --
+<!DOCTYPE html>
+<html>
+<meta name="go-import" content="vcs-test.golang.org/go/test2-svn-git/test2main git https://vcs-test.golang.org/git/test2main">
+-- test2pkg/index.html --
+<!DOCTYPE html>
+<html>
+<meta name="go-import" content="vcs-test.golang.org/go/test2-svn-git/test2pkg git https://vcs-test.golang.org/git/README-only">
+-- test2pkg/pkg/index.html --
+<!DOCTYPE html>
+<html>
+<meta name="go-import" content="vcs-test.golang.org/go/test2-svn-git/test2pkg git https://vcs-test.golang.org/git/README-only">
+-- test2PKG/index.html --
+<!DOCTYPE html>
+<html>
+<meta name="go-import" content="vcs-test.golang.org/go/test2-svn-git/test2PKG svn https://vcs-test.golang.org/svn/test2-svn-git">
+-- test2PKG/p1/index.html --
+<!DOCTYPE html>
+<html>
+<meta name="go-import" content="vcs-test.golang.org/go/test2-svn-git/test2PKG svn https://vcs-test.golang.org/svn/test2-svn-git">
+-- test2PKG/pkg/index.html --
+<!DOCTYPE html>
+<html>
+<meta name="go-import" content="vcs-test.golang.org/go/test2-svn-git/test2PKG svn https://vcs-test.golang.org/svn/test2-svn-git">

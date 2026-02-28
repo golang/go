@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !windows,!plan9,!js
+//go:build !windows && !plan9 && !js && !wasip1
 
 package syslog
 
@@ -10,10 +10,9 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"testing"
@@ -51,12 +50,7 @@ func testableNetwork(network string) bool {
 	switch network {
 	case "unix", "unixgram":
 		switch runtime.GOOS {
-		case "darwin":
-			switch runtime.GOARCH {
-			case "arm", "arm64":
-				return false
-			}
-		case "android":
+		case "ios", "android":
 			return false
 		}
 	}
@@ -87,28 +81,36 @@ func runStreamSyslog(l net.Listener, done chan<- string, wg *sync.WaitGroup) {
 	}
 }
 
-func startServer(n, la string, done chan<- string) (addr string, sock io.Closer, wg *sync.WaitGroup) {
+func startServer(t *testing.T, n, la string, done chan<- string) (addr string, sock io.Closer, wg *sync.WaitGroup) {
 	if n == "udp" || n == "tcp" {
 		la = "127.0.0.1:0"
 	} else {
-		// unix and unixgram: choose an address if none given
+		// unix and unixgram: choose an address if none given.
 		if la == "" {
-			// use ioutil.TempFile to get a name that is unique
-			f, err := ioutil.TempFile("", "syslogtest")
+			// The address must be short to fit in the sun_path field of the
+			// sockaddr_un passed to the underlying system calls, so we use
+			// os.MkdirTemp instead of t.TempDir: t.TempDir generally includes all or
+			// part of the test name in the directory, which can be much more verbose
+			// and risks running up against the limit.
+			dir, err := os.MkdirTemp("", "")
 			if err != nil {
-				log.Fatal("TempFile: ", err)
+				t.Fatal(err)
 			}
-			f.Close()
-			la = f.Name()
+			t.Cleanup(func() {
+				if err := os.RemoveAll(dir); err != nil {
+					t.Errorf("failed to remove socket temp directory: %v", err)
+				}
+			})
+			la = filepath.Join(dir, "sock")
 		}
-		os.Remove(la)
 	}
 
 	wg = new(sync.WaitGroup)
 	if n == "udp" || n == "unixgram" {
 		l, e := net.ListenPacket(n, la)
 		if e != nil {
-			log.Fatalf("startServer failed: %v", e)
+			t.Helper()
+			t.Fatalf("startServer failed: %v", e)
 		}
 		addr = l.LocalAddr().String()
 		sock = l
@@ -120,7 +122,8 @@ func startServer(n, la string, done chan<- string) (addr string, sock io.Closer,
 	} else {
 		l, e := net.Listen(n, la)
 		if e != nil {
-			log.Fatalf("startServer failed: %v", e)
+			t.Helper()
+			t.Fatalf("startServer failed: %v", e)
 		}
 		addr = l.Addr().String()
 		sock = l
@@ -135,32 +138,34 @@ func startServer(n, la string, done chan<- string) (addr string, sock io.Closer,
 
 func TestWithSimulated(t *testing.T) {
 	t.Parallel()
-	msg := "Test 123"
-	var transport []string
-	for _, n := range []string{"unix", "unixgram", "udp", "tcp"} {
-		if testableNetwork(n) {
-			transport = append(transport, n)
-		}
-	}
 
-	for _, tr := range transport {
-		done := make(chan string)
-		addr, sock, srvWG := startServer(tr, "", done)
-		defer srvWG.Wait()
-		defer sock.Close()
-		if tr == "unix" || tr == "unixgram" {
-			defer os.Remove(addr)
+	msg := "Test 123"
+	for _, tr := range []string{"unix", "unixgram", "udp", "tcp"} {
+		if !testableNetwork(tr) {
+			continue
 		}
-		s, err := Dial(tr, addr, LOG_INFO|LOG_USER, "syslog_test")
-		if err != nil {
-			t.Fatalf("Dial() failed: %v", err)
-		}
-		err = s.Info(msg)
-		if err != nil {
-			t.Fatalf("log failed: %v", err)
-		}
-		check(t, msg, <-done)
-		s.Close()
+
+		t.Run(tr, func(t *testing.T) {
+			t.Parallel()
+
+			done := make(chan string)
+			addr, sock, srvWG := startServer(t, tr, "", done)
+			defer srvWG.Wait()
+			defer sock.Close()
+			if tr == "unix" || tr == "unixgram" {
+				defer os.Remove(addr)
+			}
+			s, err := Dial(tr, addr, LOG_INFO|LOG_USER, "syslog_test")
+			if err != nil {
+				t.Fatalf("Dial() failed: %v", err)
+			}
+			err = s.Info(msg)
+			if err != nil {
+				t.Fatalf("log failed: %v", err)
+			}
+			check(t, msg, <-done, tr)
+			s.Close()
+		})
 	}
 }
 
@@ -171,7 +176,7 @@ func TestFlap(t *testing.T) {
 	}
 
 	done := make(chan string)
-	addr, sock, srvWG := startServer(net, "", done)
+	addr, sock, srvWG := startServer(t, net, "", done)
 	defer srvWG.Wait()
 	defer os.Remove(addr)
 	defer sock.Close()
@@ -185,10 +190,13 @@ func TestFlap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("log failed: %v", err)
 	}
-	check(t, msg, <-done)
+	check(t, msg, <-done, net)
 
 	// restart the server
-	_, sock2, srvWG2 := startServer(net, addr, done)
+	if err := os.Remove(addr); err != nil {
+		t.Fatal(err)
+	}
+	_, sock2, srvWG2 := startServer(t, net, addr, done)
 	defer srvWG2.Wait()
 	defer sock2.Close()
 
@@ -198,7 +206,7 @@ func TestFlap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("log failed: %v", err)
 	}
-	check(t, msg, <-done)
+	check(t, msg, <-done, net)
 
 	s.Close()
 }
@@ -258,21 +266,40 @@ func TestDial(t *testing.T) {
 	l.Close()
 }
 
-func check(t *testing.T, in, out string) {
-	tmpl := fmt.Sprintf("<%d>%%s %%s syslog_test[%%d]: %s\n", LOG_USER+LOG_INFO, in)
-	if hostname, err := os.Hostname(); err != nil {
-		t.Error("Error retrieving hostname")
-	} else {
-		var parsedHostname, timestamp string
+func check(t *testing.T, in, out, transport string) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		t.Errorf("Error retrieving hostname: %v", err)
+		return
+	}
+
+	if transport == "unixgram" || transport == "unix" {
+		var month, date, ts string
 		var pid int
-		if n, err := fmt.Sscanf(out, tmpl, &timestamp, &parsedHostname, &pid); n != 3 || err != nil || hostname != parsedHostname {
+		tmpl := fmt.Sprintf("<%d>%%s %%s %%s syslog_test[%%d]: %s\n", LOG_USER+LOG_INFO, in)
+		n, err := fmt.Sscanf(out, tmpl, &month, &date, &ts, &pid)
+		if n != 4 || err != nil {
 			t.Errorf("Got %q, does not match template %q (%d %s)", out, tmpl, n, err)
 		}
+		return
+	}
+
+	// Non-UNIX domain transports.
+	var parsedHostname, timestamp string
+	var pid int
+	tmpl := fmt.Sprintf("<%d>%%s %%s syslog_test[%%d]: %s\n", LOG_USER+LOG_INFO, in)
+	n, err := fmt.Sscanf(out, tmpl, &timestamp, &parsedHostname, &pid)
+	if n != 3 || err != nil {
+		t.Errorf("Got %q, does not match template %q (%d %s)", out, tmpl, n, err)
+	}
+	if hostname != parsedHostname {
+		t.Errorf("Hostname got %q want %q in %q", parsedHostname, hostname, out)
 	}
 }
 
 func TestWrite(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		pri Priority
 		pre string
@@ -290,7 +317,7 @@ func TestWrite(t *testing.T) {
 	} else {
 		for _, test := range tests {
 			done := make(chan string)
-			addr, sock, srvWG := startServer("udp", "", done)
+			addr, sock, srvWG := startServer(t, "udp", "", done)
 			defer srvWG.Wait()
 			defer sock.Close()
 			l, err := Dial("udp", addr, test.pri, test.pre)
@@ -314,7 +341,7 @@ func TestWrite(t *testing.T) {
 }
 
 func TestConcurrentWrite(t *testing.T) {
-	addr, sock, srvWG := startServer("udp", "", make(chan string, 1))
+	addr, sock, srvWG := startServer(t, "udp", "", make(chan string, 1))
 	defer srvWG.Wait()
 	defer sock.Close()
 	w, err := Dial("udp", addr, LOG_USER|LOG_ERR, "how's it going?")
@@ -350,7 +377,7 @@ func TestConcurrentReconnect(t *testing.T) {
 		}
 	}
 	done := make(chan string, N*M)
-	addr, sock, srvWG := startServer(net, "", done)
+	addr, sock, srvWG := startServer(t, net, "", done)
 	if net == "unix" {
 		defer os.Remove(addr)
 	}

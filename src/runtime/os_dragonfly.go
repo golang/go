@@ -5,7 +5,8 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -18,7 +19,9 @@ const (
 	_SIG_SETMASK = 3
 )
 
-type mOS struct{}
+type mOS struct {
+	waitsema uint32 // semaphore for parking on locks
+}
 
 //go:noescape
 func lwp_create(param *lwpparams) int32
@@ -51,16 +54,20 @@ func sys_umtx_wakeup(addr *uint32, val int32) int32
 
 func osyield()
 
+//go:nosplit
+func osyield_no_g() {
+	osyield()
+}
+
 func kqueue() int32
 
 //go:noescape
 func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
-func closeonexec(fd int32)
-func setNonblock(fd int32)
 
-func pipe() (r, w int32, errno int32)
+func pipe2(flags int32) (r, w int32, errno int32)
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32)
 
-const stackSystem = 0
+func issetugid() int32
 
 // From DragonFly's <sys/sysctl.h>
 const (
@@ -71,7 +78,7 @@ const (
 
 var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
 
-func getncpu() int32 {
+func getCPUCount() int32 {
 	mib := [2]uint32{_CTL_HW, _HW_NCPU}
 	out := uint32(0)
 	nout := unsafe.Sizeof(out)
@@ -106,7 +113,7 @@ func futexsleep1(addr *uint32, val uint32, ns int64) {
 		// The timeout is specified in microseconds - ensure that we
 		// do not end up dividing to zero, which would put us to sleep
 		// indefinitely...
-		timeout = timediv(ns, 1000, nil)
+		timeout = int32(ns / 1000)
 		if timeout == 0 {
 			timeout = 1
 		}
@@ -139,18 +146,19 @@ func futexwakeup(addr *uint32, cnt uint32) {
 func lwp_start(uintptr)
 
 // May run with m.p==nil, so write barriers are not allowed.
+//
 //go:nowritebarrier
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " lwp_start=", funcPC(lwp_start), " id=", mp.id, " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " lwp_start=", abi.FuncPCABI0(lwp_start), " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 
 	params := lwpparams{
-		start_func: funcPC(lwp_start),
+		start_func: abi.FuncPCABI0(lwp_start),
 		arg:        unsafe.Pointer(mp),
 		stack:      uintptr(stk),
 		tid1:       nil, // minit will record tid
@@ -158,12 +166,15 @@ func newosproc(mp *m) {
 	}
 
 	// TODO: Check for error.
-	lwp_create(&params)
+	retryOnEAGAIN(func() int32 {
+		lwp_create(&params)
+		return 0
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 }
 
 func osinit() {
-	ncpu = getncpu()
+	numCPUStartup = getCPUCount()
 	if physPageSize == 0 {
 		physPageSize = getPageSize()
 	}
@@ -172,11 +183,11 @@ func osinit() {
 var urandom_dev = []byte("/dev/urandom\x00")
 
 //go:nosplit
-func getRandomData(r []byte) {
+func readRandom(r []byte) int {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
 	closefd(fd)
-	extendRandom(r, int(n))
+	return int(n)
 }
 
 func goenvs() {
@@ -198,9 +209,20 @@ func minit() {
 }
 
 // Called from dropm to undo the effect of an minit.
+//
 //go:nosplit
 func unminit() {
 	unminitSignals()
+	getg().m.procid = 0
+}
+
+// Called from mexit, but not from dropm, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+//
+// This always runs without a P, so //go:nowritebarrierrec is required.
+//
+//go:nowritebarrierrec
+func mdestroy(mp *m) {
 }
 
 func sigtramp()
@@ -217,8 +239,8 @@ func setsig(i uint32, fn uintptr) {
 	var sa sigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = sigset_all
-	if fn == funcPC(sighandler) {
-		fn = funcPC(sigtramp)
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+		fn = abi.FuncPCABI0(sigtramp)
 	}
 	sa.sa_sigaction = fn
 	sigaction(i, &sa, nil)
@@ -238,7 +260,8 @@ func getsig(i uint32) uintptr {
 	return sa.sa_sigaction
 }
 
-// setSignaltstackSP sets the ss_sp field of a stackt.
+// setSignalstackSP sets the ss_sp field of a stackt.
+//
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
 	s.ss_sp = sp
@@ -258,6 +281,19 @@ func sigdelset(mask *sigset, i int) {
 func (c *sigctxt) fixsigcode(sig uint32) {
 }
 
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	setThreadCPUProfilerHz(hz)
+}
+
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	return true
+}
+
 func sysargs(argc int32, argv **byte) {
 	n := argc + 1
 
@@ -269,8 +305,9 @@ func sysargs(argc int32, argv **byte) {
 	// skip NULL separator
 	n++
 
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
-	sysauxv(auxv[:])
+	auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+	pairs := sysauxv(auxvp[:])
+	auxv = auxvp[: pairs*2 : pairs*2]
 }
 
 const (
@@ -278,14 +315,16 @@ const (
 	_AT_PAGESZ = 6
 )
 
-func sysauxv(auxv []uintptr) {
-	for i := 0; auxv[i] != _AT_NULL; i += 2 {
+func sysauxv(auxv []uintptr) (pairs int) {
+	var i int
+	for i = 0; auxv[i] != _AT_NULL; i += 2 {
 		tag, val := auxv[i], auxv[i+1]
 		switch tag {
 		case _AT_PAGESZ:
 			physPageSize = val
 		}
 	}
+	return i / 2
 }
 
 // raise sends a signal to the calling thread.
@@ -300,4 +339,13 @@ func raise(sig uint32) {
 
 func signalM(mp *m, sig int) {
 	lwp_kill(-1, int32(mp.procid), sig)
+}
+
+// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
+// number.
+const sigPerThreadSyscall = 1 << 31
+
+//go:nosplit
+func runPerThreadSyscall() {
+	throw("runPerThreadSyscall only valid on linux")
 }

@@ -8,7 +8,8 @@ package sha1
 
 import (
 	"bytes"
-	"crypto/rand"
+	"crypto/internal/boring"
+	"crypto/internal/cryptotest"
 	"encoding"
 	"fmt"
 	"hash"
@@ -58,6 +59,9 @@ var golden = []sha1Test{
 }
 
 func TestGolden(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha1", testGolden)
+}
+func testGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i]
 		s := fmt.Sprintf("%x", Sum([]byte(g.in)))
@@ -72,12 +76,15 @@ func TestGolden(t *testing.T) {
 				io.WriteString(c, g.in)
 				sum = c.Sum(nil)
 			case 2:
-				io.WriteString(c, g.in[0:len(g.in)/2])
+				io.WriteString(c, g.in[:len(g.in)/2])
 				c.Sum(nil)
 				io.WriteString(c, g.in[len(g.in)/2:])
 				sum = c.Sum(nil)
 			case 3:
-				io.WriteString(c, g.in[0:len(g.in)/2])
+				if boring.Enabled {
+					continue
+				}
+				io.WriteString(c, g.in[:len(g.in)/2])
 				c.(*digest).ConstantTimeSum(nil)
 				io.WriteString(c, g.in[len(g.in)/2:])
 				sum = c.(*digest).ConstantTimeSum(nil)
@@ -92,6 +99,9 @@ func TestGolden(t *testing.T) {
 }
 
 func TestGoldenMarshal(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha1", testGoldenMarshal)
+}
+func testGoldenMarshal(t *testing.T) {
 	h := New()
 	h2 := New()
 	for _, g := range golden {
@@ -106,8 +116,20 @@ func TestGoldenMarshal(t *testing.T) {
 			continue
 		}
 
+		stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
+		if err != nil {
+			t.Errorf("could not marshal: %v", err)
+			continue
+		}
+		stateAppend = stateAppend[4:]
+
 		if string(state) != g.halfState {
 			t.Errorf("sha1(%q) state = %+q, want %+q", g.in, state, g.halfState)
+			continue
+		}
+
+		if string(stateAppend) != g.halfState {
+			t.Errorf("sha1(%q) stateAppend = %+q, want %+q", g.in, stateAppend, g.halfState)
 			continue
 		}
 
@@ -139,24 +161,10 @@ func TestBlockSize(t *testing.T) {
 	}
 }
 
-// Tests that blockGeneric (pure Go) and block (in assembly for some architectures) match.
-func TestBlockGeneric(t *testing.T) {
-	for i := 1; i < 30; i++ { // arbitrary factor
-		gen, asm := New().(*digest), New().(*digest)
-		buf := make([]byte, BlockSize*i)
-		rand.Read(buf)
-		blockGeneric(gen, buf)
-		block(asm, buf)
-		if *gen != *asm {
-			t.Errorf("For %#v block and blockGeneric resulted in different states", buf)
-		}
-	}
-}
-
 // Tests for unmarshaling hashes that have hashed a large amount of data
 // The initial hash generation is omitted from the test, because it takes a long time.
 // The test contains some already-generated states, and their expected sums
-// Tests a problem that is outlined in Github issue #29543
+// Tests a problem that is outlined in GitHub issue #29543
 // The problem is triggered when an amount of data has been hashed for which
 // the data length has a 1 in the 32nd bit. When casted to int, this changes
 // the sign of the value, and causes the modulus operation to return a
@@ -190,8 +198,10 @@ func safeSum(h hash.Hash) (sum []byte, err error) {
 }
 
 func TestLargeHashes(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha1", testLargeHashes)
+}
+func testLargeHashes(t *testing.T) {
 	for i, test := range largeUnmarshalTests {
-
 		h := New()
 		if err := h.(encoding.BinaryUnmarshaler).UnmarshalBinary([]byte(test.state)); err != nil {
 			t.Errorf("test %d could not unmarshal: %v", i, err)
@@ -210,17 +220,61 @@ func TestLargeHashes(t *testing.T) {
 	}
 }
 
+func TestAllocations(t *testing.T) {
+	cryptotest.SkipTestAllocations(t)
+	in := []byte("hello, world!")
+	out := make([]byte, 0, Size)
+	h := New()
+	n := int(testing.AllocsPerRun(10, func() {
+		h.Reset()
+		h.Write(in)
+		out = h.Sum(out[:0])
+	}))
+	if n > 0 {
+		t.Errorf("allocs = %d, want 0", n)
+	}
+}
+
+func TestSHA1Hash(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha1", func(t *testing.T) {
+		cryptotest.TestHash(t, New)
+	})
+}
+
+func TestExtraMethods(t *testing.T) {
+	h := maybeCloner(New())
+	cryptotest.NoExtraMethods(t, &h, "ConstantTimeSum",
+		"MarshalBinary", "UnmarshalBinary", "AppendBinary")
+}
+
+func maybeCloner(h hash.Hash) any {
+	if c, ok := h.(hash.Cloner); ok {
+		return &c
+	}
+	return &h
+}
+
 var bench = New()
 var buf = make([]byte, 8192)
 
 func benchmarkSize(b *testing.B, size int) {
-	b.SetBytes(int64(size))
 	sum := make([]byte, bench.Size())
-	for i := 0; i < b.N; i++ {
-		bench.Reset()
-		bench.Write(buf[:size])
-		bench.Sum(sum[:0])
-	}
+	b.Run("New", func(b *testing.B) {
+		b.ReportAllocs()
+		b.SetBytes(int64(size))
+		for i := 0; i < b.N; i++ {
+			bench.Reset()
+			bench.Write(buf[:size])
+			bench.Sum(sum[:0])
+		}
+	})
+	b.Run("Sum", func(b *testing.B) {
+		b.ReportAllocs()
+		b.SetBytes(int64(size))
+		for i := 0; i < b.N; i++ {
+			Sum(buf[:size])
+		}
+	})
 }
 
 func BenchmarkHash8Bytes(b *testing.B) {

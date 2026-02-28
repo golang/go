@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !linux
 // +build !linux
 
 package main
@@ -10,8 +11,8 @@ func gettid() int {
 	return 0
 }
 
-func tidExists(tid int) (exists, supported bool) {
-	return false, false
+func tidExists(tid int) (exists, supported bool, err error) {
+	return false, false, nil
 }
 
 func getcwd() (string, error) {

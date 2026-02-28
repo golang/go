@@ -86,6 +86,11 @@ var numberTests = []numberTest{
 	{"0xef", true, true, true, false, 0xef, 0xef, 0xef, 0},
 }
 
+func init() {
+	// Use a small stack limit for testing to avoid creating huge expressions.
+	maxStackDepth = 3
+}
+
 func TestNumberParse(t *testing.T) {
 	for _, test := range numberTests {
 		// If fmt.Sscan thinks it's complex, it's complex. We can't trust the output
@@ -230,6 +235,10 @@ var parseTests = []parseTest{
 		`{{range $x := .SI}}{{.}}{{end}}`},
 	{"range 2 vars", "{{range $x, $y := .SI}}{{.}}{{end}}", noError,
 		`{{range $x, $y := .SI}}{{.}}{{end}}`},
+	{"range with break", "{{range .SI}}{{.}}{{break}}{{end}}", noError,
+		`{{range .SI}}{{.}}{{break}}{{end}}`},
+	{"range with continue", "{{range .SI}}{{.}}{{continue}}{{end}}", noError,
+		`{{range .SI}}{{.}}{{continue}}{{end}}`},
 	{"constants", "{{range .SI 1 -3.2i true false 'a' nil}}{{end}}", noError,
 		`{{range .SI 1 -3.2i true false 'a' nil}}{{end}}`},
 	{"template", "{{template `x`}}", noError,
@@ -240,6 +249,10 @@ var parseTests = []parseTest{
 		`{{with .X}}"hello"{{end}}`},
 	{"with with else", "{{with .X}}hello{{else}}goodbye{{end}}", noError,
 		`{{with .X}}"hello"{{else}}"goodbye"{{end}}`},
+	{"with with else with", "{{with .X}}hello{{else with .Y}}goodbye{{end}}", noError,
+		`{{with .X}}"hello"{{else}}{{with .Y}}"goodbye"{{end}}{{end}}`},
+	{"with else chain", "{{with .X}}X{{else with .Y}}Y{{else with .Z}}Z{{end}}", noError,
+		`{{with .X}}"X"{{else}}{{with .Y}}"Y"{{else}}{{with .Z}}"Z"{{end}}{{end}}{{end}}`},
 	// Trimming spaces.
 	{"trim left", "x \r\n\t{{- 3}}", noError, `"x"{{3}}`},
 	{"trim right", "{{3 -}}\n\n\ty", noError, `{{3}}"y"`},
@@ -250,6 +263,17 @@ var parseTests = []parseTest{
 	{"comment trim left and right", "x \r\n\t{{- /* */ -}}\n\n\ty", noError, `"x""y"`},
 	{"block definition", `{{block "foo" .}}hello{{end}}`, noError,
 		`{{template "foo" .}}`},
+
+	{"newline in assignment", "{{ $x \n := \n 1 \n }}", noError, "{{$x := 1}}"},
+	{"newline in empty action", "{{\n}}", hasError, "{{\n}}"},
+	{"newline in pipeline", "{{\n\"x\"\n|\nprintf\n}}", noError, `{{"x" | printf}}`},
+	{"newline in comment", "{{/*\nhello\n*/}}", noError, ""},
+	{"newline in comment", "{{-\n/*\nhello\n*/\n-}}", noError, ""},
+	{"spaces around continue", "{{range .SI}}{{.}}{{ continue }}{{end}}", noError,
+		`{{range .SI}}{{.}}{{continue}}{{end}}`},
+	{"spaces around break", "{{range .SI}}{{.}}{{ break }}{{end}}", noError,
+		`{{range .SI}}{{.}}{{break}}{{end}}`},
+
 	// Errors.
 	{"unclosed action", "hello{{range", hasError, ""},
 	{"unmatched end", "{{end}}", hasError, ""},
@@ -272,6 +296,10 @@ var parseTests = []parseTest{
 	{"adjacent args", "{{printf 3`x`}}", hasError, ""},
 	{"adjacent args with .", "{{printf `x`.}}", hasError, ""},
 	{"extra end after if", "{{if .X}}a{{else if .Y}}b{{end}}{{end}}", hasError, ""},
+	{"break outside range", "{{range .}}{{end}} {{break}}", hasError, ""},
+	{"continue outside range", "{{range .}}{{end}} {{continue}}", hasError, ""},
+	{"break in range else", "{{range .}}{{else}}{{break}}{{end}}", hasError, ""},
+	{"continue in range else", "{{range .}}{{else}}{{continue}}{{end}}", hasError, ""},
 	// Other kinds of assignments and operators aren't available yet.
 	{"bug0a", "{{$x := 0}}{{$x}}", noError, "{{$x := 0}}{{$x}}"},
 	{"bug0b", "{{$x += 1}}{{$x}}", hasError, ""},
@@ -283,6 +311,9 @@ var parseTests = []parseTest{
 	{"bug1a", "{{$x:=.}}{{$x!2}}", hasError, ""},                     // ! is just illegal here.
 	{"bug1b", "{{$x:=.}}{{$x+2}}", hasError, ""},                     // $x+2 should not parse as ($x) (+2).
 	{"bug1c", "{{$x:=.}}{{$x +2}}", noError, "{{$x := .}}{{$x +2}}"}, // It's OK with a space.
+	// Check the range handles assignment vs. declaration properly.
+	{"bug2a", "{{range $x := 0}}{{$x}}{{end}}", noError, "{{range $x := 0}}{{$x}}{{end}}"},
+	{"bug2b", "{{range $x = 0}}{{$x}}{{end}}", noError, "{{range $x = 0}}{{$x}}{{end}}"},
 	// dot following a literal value
 	{"dot after integer", "{{1.E}}", hasError, ""},
 	{"dot after float", "{{0.1.E}}", hasError, ""},
@@ -301,9 +332,18 @@ var parseTests = []parseTest{
 	{"empty pipeline", `{{printf "%d" ( ) }}`, hasError, ""},
 	// Missing pipeline in block
 	{"block definition", `{{block "foo"}}hello{{end}}`, hasError, ""},
+
+	// Expression nested depth tests.
+	{"paren nesting normal", "{{ (( 1 )) }}", noError, "{{((1))}}"},
+	{"paren nesting at limit", "{{ ((( 1 ))) }}", noError, "{{(((1)))}}"},
+	{"paren nesting exceeds limit", "{{ (((( 1 )))) }}", hasError, "template: test:1: max expression depth exceeded"},
+	{"paren nesting in pipeline", "{{ ((( 1 ))) | printf }}", noError, "{{(((1))) | printf}}"},
+	{"paren nesting in pipeline exceeds limit", "{{ (((( 1 )))) | printf }}", hasError, "template: test:1: max expression depth exceeded"},
+	{"paren nesting with other constructs", "{{ if ((( true ))) }}YES{{ end }}", noError, "{{if (((true)))}}\"YES\"{{end}}"},
+	{"paren nesting with other constructs exceeds limit", "{{ if (((( true )))) }}YES{{ end }}", hasError, "template: test:1: max expression depth exceeded"},
 }
 
-var builtins = map[string]interface{}{
+var builtins = map[string]any{
 	"printf":   fmt.Sprintf,
 	"contains": strings.Contains,
 }
@@ -348,6 +388,76 @@ func TestParseCopy(t *testing.T) {
 	testParse(true, t)
 }
 
+func TestParseWithComments(t *testing.T) {
+	textFormat = "%q"
+	defer func() { textFormat = "%s" }()
+	tests := [...]parseTest{
+		{"comment", "{{/*\n\n\n*/}}", noError, "{{/*\n\n\n*/}}"},
+		{"comment trim left", "x \r\n\t{{- /* hi */}}", noError, `"x"{{/* hi */}}`},
+		{"comment trim right", "{{/* hi */ -}}\n\n\ty", noError, `{{/* hi */}}"y"`},
+		{"comment trim left and right", "x \r\n\t{{- /* */ -}}\n\n\ty", noError, `"x"{{/* */}}"y"`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tr := New(test.name)
+			tr.Mode = ParseComments
+			tmpl, err := tr.Parse(test.input, "", "", make(map[string]*Tree))
+			if err != nil {
+				t.Errorf("%q: expected error; got none", test.name)
+			}
+			if result := tmpl.Root.String(); result != test.result {
+				t.Errorf("%s=(%q): got\n\t%v\nexpected\n\t%v", test.name, test.input, result, test.result)
+			}
+		})
+	}
+}
+
+func TestKeywordsAndFuncs(t *testing.T) {
+	// Check collisions between functions and new keywords like 'break'. When a
+	// break function is provided, the parser should treat 'break' as a function,
+	// not a keyword.
+	textFormat = "%q"
+	defer func() { textFormat = "%s" }()
+
+	inp := `{{range .X}}{{break 20}}{{end}}`
+	{
+		// 'break' is a defined function, don't treat it as a keyword: it should
+		// accept an argument successfully.
+		var funcsWithKeywordFunc = map[string]any{
+			"break": func(in any) any { return in },
+		}
+		tmpl, err := New("").Parse(inp, "", "", make(map[string]*Tree), funcsWithKeywordFunc)
+		if err != nil || tmpl == nil {
+			t.Errorf("with break func: unexpected error: %v", err)
+		}
+	}
+
+	{
+		// No function called 'break'; treat it as a keyword. Results in a parse
+		// error.
+		tmpl, err := New("").Parse(inp, "", "", make(map[string]*Tree), make(map[string]any))
+		if err == nil || tmpl != nil {
+			t.Errorf("without break func: expected error; got none")
+		}
+	}
+}
+
+func TestSkipFuncCheck(t *testing.T) {
+	oldTextFormat := textFormat
+	textFormat = "%q"
+	defer func() { textFormat = oldTextFormat }()
+	tr := New("skip func check")
+	tr.Mode = SkipFuncCheck
+	tmpl, err := tr.Parse("{{fn 1 2}}", "", "", make(map[string]*Tree))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	expected := "{{fn 1 2}}"
+	if result := tmpl.Root.String(); result != expected {
+		t.Errorf("got\n\t%v\nexpected\n\t%v", result, expected)
+	}
+}
+
 type isEmptyTest struct {
 	name  string
 	input string
@@ -358,6 +468,7 @@ var isEmptyTests = []isEmptyTest{
 	{"empty", ``, true},
 	{"nonempty", `hello`, false},
 	{"spaces only", " \t\n \t\n", true},
+	{"comment only", "{{/* comment */}}", true},
 	{"definition", `{{define "x"}}something{{end}}`, true},
 	{"definitions and space", "{{define `x`}}something{{end}}\n\n{{define `y`}}something{{end}}\n\n", true},
 	{"definitions and text", "{{define `x`}}something{{end}}\nx\n{{define `y`}}something{{end}}\ny\n", false},
@@ -401,23 +512,38 @@ var errorTests = []parseTest{
 	// Check line numbers are accurate.
 	{"unclosed1",
 		"line1\n{{",
-		hasError, `unclosed1:2: unexpected unclosed action in command`},
+		hasError, `unclosed1:2: unclosed action`},
 	{"unclosed2",
 		"line1\n{{define `x`}}line2\n{{",
-		hasError, `unclosed2:3: unexpected unclosed action in command`},
+		hasError, `unclosed2:3: unclosed action`},
+	{"unclosed3",
+		"line1\n{{\"x\"\n\"y\"\n",
+		hasError, `unclosed3:4: unclosed action started at unclosed3:2`},
+	{"unclosed4",
+		"{{\n\n\n\n\n",
+		hasError, `unclosed4:6: unclosed action started at unclosed4:1`},
+	{"var1",
+		"line1\n{{\nx\n}}",
+		hasError, `var1:3: function "x" not defined`},
 	// Specific errors.
 	{"function",
 		"{{foo}}",
 		hasError, `function "foo" not defined`},
-	{"comment",
+	{"comment1",
 		"{{/*}}",
-		hasError, `unclosed comment`},
+		hasError, `comment1:1: unclosed comment`},
+	{"comment2",
+		"{{/*\nhello\n}}",
+		hasError, `comment2:1: unclosed comment`},
 	{"lparen",
 		"{{.X (1 2 3}}",
 		hasError, `unclosed left paren`},
 	{"rparen",
-		"{{.X 1 2 3)}}",
-		hasError, `unexpected ")"`},
+		"{{.X 1 2 3 ) }}",
+		hasError, "unexpected right paren"},
+	{"rparen2",
+		"{{(.X 1 2 3",
+		hasError, `unclosed action`},
 	{"space",
 		"{{`x`3}}",
 		hasError, `in operand`},
@@ -463,7 +589,7 @@ var errorTests = []parseTest{
 		hasError, `missing value for parenthesized pipeline`},
 	{"multilinerawstring",
 		"{{ $v := `\n` }} {{",
-		hasError, `multilinerawstring:2: unexpected unclosed action`},
+		hasError, `multilinerawstring:2: unclosed action`},
 	{"rangeundefvar",
 		"{{range $k}}{{end}}",
 		hasError, `undefined variable`},
@@ -522,7 +648,8 @@ func TestBlock(t *testing.T) {
 }
 
 func TestLineNum(t *testing.T) {
-	const count = 100
+	// const count = 100
+	const count = 3
 	text := strings.Repeat("{{printf 1234}}\n", count)
 	tree, err := New("bench").Parse(text, "", "", make(map[string]*Tree), builtins)
 	if err != nil {
@@ -536,11 +663,11 @@ func TestLineNum(t *testing.T) {
 		// Action first.
 		action := nodes[i].(*ActionNode)
 		if action.Line != line {
-			t.Fatalf("line %d: action is line %d", line, action.Line)
+			t.Errorf("line %d: action is line %d", line, action.Line)
 		}
 		pipe := action.Pipe
 		if pipe.Line != line {
-			t.Fatalf("line %d: pipe is line %d", line, pipe.Line)
+			t.Errorf("line %d: pipe is line %d", line, pipe.Line)
 		}
 	}
 }

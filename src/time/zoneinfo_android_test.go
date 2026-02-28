@@ -10,8 +10,8 @@ import (
 )
 
 func TestAndroidTzdata(t *testing.T) {
-	ForceAndroidTzdataForTest(true)
-	defer ForceAndroidTzdataForTest(false)
+	undo := ForceAndroidTzdataForTest()
+	defer undo()
 	if _, err := LoadLocation("America/Los_Angeles"); err != nil {
 		t.Error(err)
 	}

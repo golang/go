@@ -2,21 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// We only build this file with the tag "threadprof", since it starts
-// a thread running a busy loop at constructor time.
-
+//go:build !plan9 && !windows
 // +build !plan9,!windows
-// +build threadprof
 
 package main
 
 /*
 #include <stdint.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <pthread.h>
 
 volatile int32_t spinlock;
 
+// Note that this thread is only started if GO_START_SIGPROF_THREAD
+// is set in the environment, which is only done when running the
+// CgoExternalThreadSIGPROF test.
 static void *thread1(void *p) {
 	(void)p;
 	while (spinlock == 0)
@@ -26,15 +27,19 @@ static void *thread1(void *p) {
 	return NULL;
 }
 
+// This constructor function is run when the program starts.
+// It is used for the CgoExternalThreadSIGPROF test.
 __attribute__((constructor)) void issue9456() {
-	pthread_t tid;
-	pthread_create(&tid, 0, thread1, NULL);
+	if (getenv("GO_START_SIGPROF_THREAD") != NULL) {
+		pthread_t tid;
+		pthread_create(&tid, 0, thread1, NULL);
+	}
 }
 
-void **nullptr;
+void **nullpointer;
 
 void *crash(void *p) {
-	*nullptr = p;
+	*nullpointer = p;
 	return 0;
 }
 
@@ -87,7 +92,9 @@ func CgoExternalThreadSignal() {
 		return
 	}
 
-	out, err := exec.Command(os.Args[0], "CgoExternalThreadSignal", "crash").CombinedOutput()
+	cmd := exec.Command(os.Args[0], "CgoExternalThreadSignal", "crash")
+	cmd.Dir = os.TempDir() // put any core file in tempdir
+	out, err := cmd.CombinedOutput()
 	if err == nil {
 		fmt.Println("C signal did not crash as expected")
 		fmt.Printf("\n%s\n", out)

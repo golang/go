@@ -1,0 +1,23 @@
+{
+  "scripts": {
+    "eslint": "eslint . --fix",
+    "stylelint": "stylelint '**/*.css' --fix",
+    "prettier": "prettier --write **/*.{css,ts,md,yaml} !**/*.min.css",
+    "all": "run-s --continue-on-error eslint stylelint prettier"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "5.59.6",
+    "@typescript-eslint/parser": "5.59.6",
+    "eslint": "8.40.0",
+    "eslint-config-prettier": "8.8.0",
+    "npm-run-all": "4.1.5",
+    "prettier": "2.8.8",
+    "stylelint": "15.6.2",
+    "stylelint-config-standard": "33.0.0",
+    "typescript": "5.0.4"
+  },
+  "dependencies": {
+    "@observablehq/plot": "0.6.9",
+    "d3": "7.8.5"
+  }
+}

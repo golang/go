@@ -10,6 +10,10 @@ import (
 	"unsafe"
 )
 
+// NTStatus corresponds with NTSTATUS, error values returned by ntdll.dll and
+// other native functions.
+type NTStatus uint32
+
 const (
 	// Invented values to support what package os expects.
 	O_RDONLY   = 0x00000
@@ -61,10 +65,38 @@ var signals = [...]string{
 	15: "terminated",
 }
 
+// File flags for [os.OpenFile]. The O_ prefix is used to indicate
+// that these flags are specific to the OpenFile function.
 const (
-	FILE_LIST_DIRECTORY   = 0x00000001
-	FILE_APPEND_DATA      = 0x00000004
+	O_FILE_FLAG_OPEN_NO_RECALL     = FILE_FLAG_OPEN_NO_RECALL
+	O_FILE_FLAG_OPEN_REPARSE_POINT = FILE_FLAG_OPEN_REPARSE_POINT
+	O_FILE_FLAG_SESSION_AWARE      = FILE_FLAG_SESSION_AWARE
+	O_FILE_FLAG_POSIX_SEMANTICS    = FILE_FLAG_POSIX_SEMANTICS
+	O_FILE_FLAG_BACKUP_SEMANTICS   = FILE_FLAG_BACKUP_SEMANTICS
+	O_FILE_FLAG_DELETE_ON_CLOSE    = FILE_FLAG_DELETE_ON_CLOSE
+	O_FILE_FLAG_SEQUENTIAL_SCAN    = FILE_FLAG_SEQUENTIAL_SCAN
+	O_FILE_FLAG_RANDOM_ACCESS      = FILE_FLAG_RANDOM_ACCESS
+	O_FILE_FLAG_NO_BUFFERING       = FILE_FLAG_NO_BUFFERING
+	O_FILE_FLAG_OVERLAPPED         = FILE_FLAG_OVERLAPPED
+	O_FILE_FLAG_WRITE_THROUGH      = FILE_FLAG_WRITE_THROUGH
+)
+
+const (
+	FILE_READ_DATA        = 0x00000001
+	FILE_READ_ATTRIBUTES  = 0x00000080
+	FILE_READ_EA          = 0x00000008
+	FILE_WRITE_DATA       = 0x00000002
 	FILE_WRITE_ATTRIBUTES = 0x00000100
+	FILE_WRITE_EA         = 0x00000010
+	FILE_APPEND_DATA      = 0x00000004
+	FILE_EXECUTE          = 0x00000020
+
+	FILE_GENERIC_READ    = STANDARD_RIGHTS_READ | FILE_READ_DATA | FILE_READ_ATTRIBUTES | FILE_READ_EA | SYNCHRONIZE
+	FILE_GENERIC_WRITE   = STANDARD_RIGHTS_WRITE | FILE_WRITE_DATA | FILE_WRITE_ATTRIBUTES | FILE_WRITE_EA | FILE_APPEND_DATA | SYNCHRONIZE
+	FILE_GENERIC_EXECUTE = STANDARD_RIGHTS_EXECUTE | FILE_READ_ATTRIBUTES | FILE_EXECUTE | SYNCHRONIZE
+
+	FILE_LIST_DIRECTORY = 0x00000001
+	FILE_TRAVERSE       = 0x00000020
 
 	FILE_SHARE_READ   = 0x00000001
 	FILE_SHARE_WRITE  = 0x00000002
@@ -140,7 +172,13 @@ const (
 	MAX_PATH      = 260
 	MAX_LONG_PATH = 32768
 
+	MAX_MODULE_NAME32 = 255
+
 	MAX_COMPUTERNAME_LENGTH = 15
+
+	MAX_DHCPV6_DUID_LENGTH = 130
+
+	MAX_DNS_SUFFIX_STRING_LENGTH = 256
 
 	TIME_ZONE_ID_UNKNOWN  = 0
 	TIME_ZONE_ID_STANDARD = 1
@@ -154,6 +192,7 @@ const (
 	WAIT_FAILED    = 0xFFFFFFFF
 
 	// Access rights for process.
+	PROCESS_ALL_ACCESS                = 0xFFFF
 	PROCESS_CREATE_PROCESS            = 0x0080
 	PROCESS_CREATE_THREAD             = 0x0002
 	PROCESS_DUP_HANDLE                = 0x0040
@@ -216,6 +255,19 @@ const (
 )
 
 const (
+	// attributes for ProcThreadAttributeList
+	PROC_THREAD_ATTRIBUTE_PARENT_PROCESS    = 0x00020000
+	PROC_THREAD_ATTRIBUTE_HANDLE_LIST       = 0x00020002
+	PROC_THREAD_ATTRIBUTE_GROUP_AFFINITY    = 0x00030003
+	PROC_THREAD_ATTRIBUTE_PREFERRED_NODE    = 0x00020004
+	PROC_THREAD_ATTRIBUTE_IDEAL_PROCESSOR   = 0x00030005
+	PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY = 0x00020007
+	PROC_THREAD_ATTRIBUTE_UMS_THREAD        = 0x00030006
+	PROC_THREAD_ATTRIBUTE_PROTECTION_LEVEL  = 0x0002000b
+	PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE     = 0x00020016
+)
+
+const (
 	// flags for CreateToolhelp32Snapshot
 	TH32CS_SNAPHEAPLIST = 0x01
 	TH32CS_SNAPPROCESS  = 0x02
@@ -227,7 +279,15 @@ const (
 )
 
 const (
-	// filters for ReadDirectoryChangesW
+	// flags for EnumProcessModulesEx
+	LIST_MODULES_32BIT   = 0x01
+	LIST_MODULES_64BIT   = 0x02
+	LIST_MODULES_ALL     = 0x03
+	LIST_MODULES_DEFAULT = 0x00
+)
+
+const (
+	// filters for ReadDirectoryChangesW and FindFirstChangeNotificationW
 	FILE_NOTIFY_CHANGE_FILE_NAME   = 0x001
 	FILE_NOTIFY_CHANGE_DIR_NAME    = 0x002
 	FILE_NOTIFY_CHANGE_ATTRIBUTES  = 0x004
@@ -249,24 +309,27 @@ const (
 
 const (
 	// wincrypt.h
-	PROV_RSA_FULL                    = 1
-	PROV_RSA_SIG                     = 2
-	PROV_DSS                         = 3
-	PROV_FORTEZZA                    = 4
-	PROV_MS_EXCHANGE                 = 5
-	PROV_SSL                         = 6
-	PROV_RSA_SCHANNEL                = 12
-	PROV_DSS_DH                      = 13
-	PROV_EC_ECDSA_SIG                = 14
-	PROV_EC_ECNRA_SIG                = 15
-	PROV_EC_ECDSA_FULL               = 16
-	PROV_EC_ECNRA_FULL               = 17
-	PROV_DH_SCHANNEL                 = 18
-	PROV_SPYRUS_LYNKS                = 20
-	PROV_RNG                         = 21
-	PROV_INTEL_SEC                   = 22
-	PROV_REPLACE_OWF                 = 23
-	PROV_RSA_AES                     = 24
+	/* certenrolld_begin -- PROV_RSA_*/
+	PROV_RSA_FULL      = 1
+	PROV_RSA_SIG       = 2
+	PROV_DSS           = 3
+	PROV_FORTEZZA      = 4
+	PROV_MS_EXCHANGE   = 5
+	PROV_SSL           = 6
+	PROV_RSA_SCHANNEL  = 12
+	PROV_DSS_DH        = 13
+	PROV_EC_ECDSA_SIG  = 14
+	PROV_EC_ECNRA_SIG  = 15
+	PROV_EC_ECDSA_FULL = 16
+	PROV_EC_ECNRA_FULL = 17
+	PROV_DH_SCHANNEL   = 18
+	PROV_SPYRUS_LYNKS  = 20
+	PROV_RNG           = 21
+	PROV_INTEL_SEC     = 22
+	PROV_REPLACE_OWF   = 23
+	PROV_RSA_AES       = 24
+
+	/* dwFlags definitions for CryptAcquireContext */
 	CRYPT_VERIFYCONTEXT              = 0xF0000000
 	CRYPT_NEWKEYSET                  = 0x00000008
 	CRYPT_DELETEKEYSET               = 0x00000010
@@ -274,6 +337,34 @@ const (
 	CRYPT_SILENT                     = 0x00000040
 	CRYPT_DEFAULT_CONTAINER_OPTIONAL = 0x00000080
 
+	/* Flags for PFXImportCertStore */
+	CRYPT_EXPORTABLE                   = 0x00000001
+	CRYPT_USER_PROTECTED               = 0x00000002
+	CRYPT_USER_KEYSET                  = 0x00001000
+	PKCS12_PREFER_CNG_KSP              = 0x00000100
+	PKCS12_ALWAYS_CNG_KSP              = 0x00000200
+	PKCS12_ALLOW_OVERWRITE_KEY         = 0x00004000
+	PKCS12_NO_PERSIST_KEY              = 0x00008000
+	PKCS12_INCLUDE_EXTENDED_PROPERTIES = 0x00000010
+
+	/* Flags for CryptAcquireCertificatePrivateKey */
+	CRYPT_ACQUIRE_CACHE_FLAG             = 0x00000001
+	CRYPT_ACQUIRE_USE_PROV_INFO_FLAG     = 0x00000002
+	CRYPT_ACQUIRE_COMPARE_KEY_FLAG       = 0x00000004
+	CRYPT_ACQUIRE_NO_HEALING             = 0x00000008
+	CRYPT_ACQUIRE_SILENT_FLAG            = 0x00000040
+	CRYPT_ACQUIRE_WINDOW_HANDLE_FLAG     = 0x00000080
+	CRYPT_ACQUIRE_NCRYPT_KEY_FLAGS_MASK  = 0x00070000
+	CRYPT_ACQUIRE_ALLOW_NCRYPT_KEY_FLAG  = 0x00010000
+	CRYPT_ACQUIRE_PREFER_NCRYPT_KEY_FLAG = 0x00020000
+	CRYPT_ACQUIRE_ONLY_NCRYPT_KEY_FLAG   = 0x00040000
+
+	/* pdwKeySpec for CryptAcquireCertificatePrivateKey */
+	AT_KEYEXCHANGE       = 1
+	AT_SIGNATURE         = 2
+	CERT_NCRYPT_KEY_SPEC = 0xFFFFFFFF
+
+	/* Default usage match type is AND with value zero */
 	USAGE_MATCH_TYPE_AND = 0
 	USAGE_MATCH_TYPE_OR  = 1
 
@@ -398,6 +489,89 @@ const (
 	CERT_TRUST_IS_CA_TRUSTED                 = 0x00004000
 	CERT_TRUST_IS_COMPLEX_CHAIN              = 0x00010000
 
+	/* Certificate Information Flags */
+	CERT_INFO_VERSION_FLAG                 = 1
+	CERT_INFO_SERIAL_NUMBER_FLAG           = 2
+	CERT_INFO_SIGNATURE_ALGORITHM_FLAG     = 3
+	CERT_INFO_ISSUER_FLAG                  = 4
+	CERT_INFO_NOT_BEFORE_FLAG              = 5
+	CERT_INFO_NOT_AFTER_FLAG               = 6
+	CERT_INFO_SUBJECT_FLAG                 = 7
+	CERT_INFO_SUBJECT_PUBLIC_KEY_INFO_FLAG = 8
+	CERT_INFO_ISSUER_UNIQUE_ID_FLAG        = 9
+	CERT_INFO_SUBJECT_UNIQUE_ID_FLAG       = 10
+	CERT_INFO_EXTENSION_FLAG               = 11
+
+	/* dwFindType for CertFindCertificateInStore  */
+	CERT_COMPARE_MASK                     = 0xFFFF
+	CERT_COMPARE_SHIFT                    = 16
+	CERT_COMPARE_ANY                      = 0
+	CERT_COMPARE_SHA1_HASH                = 1
+	CERT_COMPARE_NAME                     = 2
+	CERT_COMPARE_ATTR                     = 3
+	CERT_COMPARE_MD5_HASH                 = 4
+	CERT_COMPARE_PROPERTY                 = 5
+	CERT_COMPARE_PUBLIC_KEY               = 6
+	CERT_COMPARE_HASH                     = CERT_COMPARE_SHA1_HASH
+	CERT_COMPARE_NAME_STR_A               = 7
+	CERT_COMPARE_NAME_STR_W               = 8
+	CERT_COMPARE_KEY_SPEC                 = 9
+	CERT_COMPARE_ENHKEY_USAGE             = 10
+	CERT_COMPARE_CTL_USAGE                = CERT_COMPARE_ENHKEY_USAGE
+	CERT_COMPARE_SUBJECT_CERT             = 11
+	CERT_COMPARE_ISSUER_OF                = 12
+	CERT_COMPARE_EXISTING                 = 13
+	CERT_COMPARE_SIGNATURE_HASH           = 14
+	CERT_COMPARE_KEY_IDENTIFIER           = 15
+	CERT_COMPARE_CERT_ID                  = 16
+	CERT_COMPARE_CROSS_CERT_DIST_POINTS   = 17
+	CERT_COMPARE_PUBKEY_MD5_HASH          = 18
+	CERT_COMPARE_SUBJECT_INFO_ACCESS      = 19
+	CERT_COMPARE_HASH_STR                 = 20
+	CERT_COMPARE_HAS_PRIVATE_KEY          = 21
+	CERT_FIND_ANY                         = (CERT_COMPARE_ANY << CERT_COMPARE_SHIFT)
+	CERT_FIND_SHA1_HASH                   = (CERT_COMPARE_SHA1_HASH << CERT_COMPARE_SHIFT)
+	CERT_FIND_MD5_HASH                    = (CERT_COMPARE_MD5_HASH << CERT_COMPARE_SHIFT)
+	CERT_FIND_SIGNATURE_HASH              = (CERT_COMPARE_SIGNATURE_HASH << CERT_COMPARE_SHIFT)
+	CERT_FIND_KEY_IDENTIFIER              = (CERT_COMPARE_KEY_IDENTIFIER << CERT_COMPARE_SHIFT)
+	CERT_FIND_HASH                        = CERT_FIND_SHA1_HASH
+	CERT_FIND_PROPERTY                    = (CERT_COMPARE_PROPERTY << CERT_COMPARE_SHIFT)
+	CERT_FIND_PUBLIC_KEY                  = (CERT_COMPARE_PUBLIC_KEY << CERT_COMPARE_SHIFT)
+	CERT_FIND_SUBJECT_NAME                = (CERT_COMPARE_NAME<<CERT_COMPARE_SHIFT | CERT_INFO_SUBJECT_FLAG)
+	CERT_FIND_SUBJECT_ATTR                = (CERT_COMPARE_ATTR<<CERT_COMPARE_SHIFT | CERT_INFO_SUBJECT_FLAG)
+	CERT_FIND_ISSUER_NAME                 = (CERT_COMPARE_NAME<<CERT_COMPARE_SHIFT | CERT_INFO_ISSUER_FLAG)
+	CERT_FIND_ISSUER_ATTR                 = (CERT_COMPARE_ATTR<<CERT_COMPARE_SHIFT | CERT_INFO_ISSUER_FLAG)
+	CERT_FIND_SUBJECT_STR_A               = (CERT_COMPARE_NAME_STR_A<<CERT_COMPARE_SHIFT | CERT_INFO_SUBJECT_FLAG)
+	CERT_FIND_SUBJECT_STR_W               = (CERT_COMPARE_NAME_STR_W<<CERT_COMPARE_SHIFT | CERT_INFO_SUBJECT_FLAG)
+	CERT_FIND_SUBJECT_STR                 = CERT_FIND_SUBJECT_STR_W
+	CERT_FIND_ISSUER_STR_A                = (CERT_COMPARE_NAME_STR_A<<CERT_COMPARE_SHIFT | CERT_INFO_ISSUER_FLAG)
+	CERT_FIND_ISSUER_STR_W                = (CERT_COMPARE_NAME_STR_W<<CERT_COMPARE_SHIFT | CERT_INFO_ISSUER_FLAG)
+	CERT_FIND_ISSUER_STR                  = CERT_FIND_ISSUER_STR_W
+	CERT_FIND_KEY_SPEC                    = (CERT_COMPARE_KEY_SPEC << CERT_COMPARE_SHIFT)
+	CERT_FIND_ENHKEY_USAGE                = (CERT_COMPARE_ENHKEY_USAGE << CERT_COMPARE_SHIFT)
+	CERT_FIND_CTL_USAGE                   = CERT_FIND_ENHKEY_USAGE
+	CERT_FIND_SUBJECT_CERT                = (CERT_COMPARE_SUBJECT_CERT << CERT_COMPARE_SHIFT)
+	CERT_FIND_ISSUER_OF                   = (CERT_COMPARE_ISSUER_OF << CERT_COMPARE_SHIFT)
+	CERT_FIND_EXISTING                    = (CERT_COMPARE_EXISTING << CERT_COMPARE_SHIFT)
+	CERT_FIND_CERT_ID                     = (CERT_COMPARE_CERT_ID << CERT_COMPARE_SHIFT)
+	CERT_FIND_CROSS_CERT_DIST_POINTS      = (CERT_COMPARE_CROSS_CERT_DIST_POINTS << CERT_COMPARE_SHIFT)
+	CERT_FIND_PUBKEY_MD5_HASH             = (CERT_COMPARE_PUBKEY_MD5_HASH << CERT_COMPARE_SHIFT)
+	CERT_FIND_SUBJECT_INFO_ACCESS         = (CERT_COMPARE_SUBJECT_INFO_ACCESS << CERT_COMPARE_SHIFT)
+	CERT_FIND_HASH_STR                    = (CERT_COMPARE_HASH_STR << CERT_COMPARE_SHIFT)
+	CERT_FIND_HAS_PRIVATE_KEY             = (CERT_COMPARE_HAS_PRIVATE_KEY << CERT_COMPARE_SHIFT)
+	CERT_FIND_OPTIONAL_ENHKEY_USAGE_FLAG  = 0x1
+	CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG  = 0x2
+	CERT_FIND_PROP_ONLY_ENHKEY_USAGE_FLAG = 0x4
+	CERT_FIND_NO_ENHKEY_USAGE_FLAG        = 0x8
+	CERT_FIND_OR_ENHKEY_USAGE_FLAG        = 0x10
+	CERT_FIND_VALID_ENHKEY_USAGE_FLAG     = 0x20
+	CERT_FIND_OPTIONAL_CTL_USAGE_FLAG     = CERT_FIND_OPTIONAL_ENHKEY_USAGE_FLAG
+	CERT_FIND_EXT_ONLY_CTL_USAGE_FLAG     = CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG
+	CERT_FIND_PROP_ONLY_CTL_USAGE_FLAG    = CERT_FIND_PROP_ONLY_ENHKEY_USAGE_FLAG
+	CERT_FIND_NO_CTL_USAGE_FLAG           = CERT_FIND_NO_ENHKEY_USAGE_FLAG
+	CERT_FIND_OR_CTL_USAGE_FLAG           = CERT_FIND_OR_ENHKEY_USAGE_FLAG
+	CERT_FIND_VALID_CTL_USAGE_FLAG        = CERT_FIND_VALID_ENHKEY_USAGE_FLAG
+
 	/* policyOID values for CertVerifyCertificateChainPolicy function */
 	CERT_CHAIN_POLICY_BASE              = 1
 	CERT_CHAIN_POLICY_AUTHENTICODE      = 2
@@ -409,6 +583,82 @@ const (
 	CERT_CHAIN_POLICY_EV                = 8
 	CERT_CHAIN_POLICY_SSL_F12           = 9
 
+	/* flag for dwFindType CertFindChainInStore  */
+	CERT_CHAIN_FIND_BY_ISSUER = 1
+
+	/* dwFindFlags for CertFindChainInStore when dwFindType == CERT_CHAIN_FIND_BY_ISSUER */
+	CERT_CHAIN_FIND_BY_ISSUER_COMPARE_KEY_FLAG    = 0x0001
+	CERT_CHAIN_FIND_BY_ISSUER_COMPLEX_CHAIN_FLAG  = 0x0002
+	CERT_CHAIN_FIND_BY_ISSUER_CACHE_ONLY_URL_FLAG = 0x0004
+	CERT_CHAIN_FIND_BY_ISSUER_LOCAL_MACHINE_FLAG  = 0x0008
+	CERT_CHAIN_FIND_BY_ISSUER_NO_KEY_FLAG         = 0x4000
+	CERT_CHAIN_FIND_BY_ISSUER_CACHE_ONLY_FLAG     = 0x8000
+
+	/* Certificate Store close flags */
+	CERT_CLOSE_STORE_FORCE_FLAG = 0x00000001
+	CERT_CLOSE_STORE_CHECK_FLAG = 0x00000002
+
+	/* CryptQueryObject object type */
+	CERT_QUERY_OBJECT_FILE = 1
+	CERT_QUERY_OBJECT_BLOB = 2
+
+	/* CryptQueryObject content type flags */
+	CERT_QUERY_CONTENT_CERT                    = 1
+	CERT_QUERY_CONTENT_CTL                     = 2
+	CERT_QUERY_CONTENT_CRL                     = 3
+	CERT_QUERY_CONTENT_SERIALIZED_STORE        = 4
+	CERT_QUERY_CONTENT_SERIALIZED_CERT         = 5
+	CERT_QUERY_CONTENT_SERIALIZED_CTL          = 6
+	CERT_QUERY_CONTENT_SERIALIZED_CRL          = 7
+	CERT_QUERY_CONTENT_PKCS7_SIGNED            = 8
+	CERT_QUERY_CONTENT_PKCS7_UNSIGNED          = 9
+	CERT_QUERY_CONTENT_PKCS7_SIGNED_EMBED      = 10
+	CERT_QUERY_CONTENT_PKCS10                  = 11
+	CERT_QUERY_CONTENT_PFX                     = 12
+	CERT_QUERY_CONTENT_CERT_PAIR               = 13
+	CERT_QUERY_CONTENT_PFX_AND_LOAD            = 14
+	CERT_QUERY_CONTENT_FLAG_CERT               = (1 << CERT_QUERY_CONTENT_CERT)
+	CERT_QUERY_CONTENT_FLAG_CTL                = (1 << CERT_QUERY_CONTENT_CTL)
+	CERT_QUERY_CONTENT_FLAG_CRL                = (1 << CERT_QUERY_CONTENT_CRL)
+	CERT_QUERY_CONTENT_FLAG_SERIALIZED_STORE   = (1 << CERT_QUERY_CONTENT_SERIALIZED_STORE)
+	CERT_QUERY_CONTENT_FLAG_SERIALIZED_CERT    = (1 << CERT_QUERY_CONTENT_SERIALIZED_CERT)
+	CERT_QUERY_CONTENT_FLAG_SERIALIZED_CTL     = (1 << CERT_QUERY_CONTENT_SERIALIZED_CTL)
+	CERT_QUERY_CONTENT_FLAG_SERIALIZED_CRL     = (1 << CERT_QUERY_CONTENT_SERIALIZED_CRL)
+	CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED       = (1 << CERT_QUERY_CONTENT_PKCS7_SIGNED)
+	CERT_QUERY_CONTENT_FLAG_PKCS7_UNSIGNED     = (1 << CERT_QUERY_CONTENT_PKCS7_UNSIGNED)
+	CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED = (1 << CERT_QUERY_CONTENT_PKCS7_SIGNED_EMBED)
+	CERT_QUERY_CONTENT_FLAG_PKCS10             = (1 << CERT_QUERY_CONTENT_PKCS10)
+	CERT_QUERY_CONTENT_FLAG_PFX                = (1 << CERT_QUERY_CONTENT_PFX)
+	CERT_QUERY_CONTENT_FLAG_CERT_PAIR          = (1 << CERT_QUERY_CONTENT_CERT_PAIR)
+	CERT_QUERY_CONTENT_FLAG_PFX_AND_LOAD       = (1 << CERT_QUERY_CONTENT_PFX_AND_LOAD)
+	CERT_QUERY_CONTENT_FLAG_ALL                = (CERT_QUERY_CONTENT_FLAG_CERT | CERT_QUERY_CONTENT_FLAG_CTL | CERT_QUERY_CONTENT_FLAG_CRL | CERT_QUERY_CONTENT_FLAG_SERIALIZED_STORE | CERT_QUERY_CONTENT_FLAG_SERIALIZED_CERT | CERT_QUERY_CONTENT_FLAG_SERIALIZED_CTL | CERT_QUERY_CONTENT_FLAG_SERIALIZED_CRL | CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED | CERT_QUERY_CONTENT_FLAG_PKCS7_UNSIGNED | CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED | CERT_QUERY_CONTENT_FLAG_PKCS10 | CERT_QUERY_CONTENT_FLAG_PFX | CERT_QUERY_CONTENT_FLAG_CERT_PAIR)
+	CERT_QUERY_CONTENT_FLAG_ALL_ISSUER_CERT    = (CERT_QUERY_CONTENT_FLAG_CERT | CERT_QUERY_CONTENT_FLAG_SERIALIZED_STORE | CERT_QUERY_CONTENT_FLAG_SERIALIZED_CERT | CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED | CERT_QUERY_CONTENT_FLAG_PKCS7_UNSIGNED)
+
+	/* CryptQueryObject format type flags */
+	CERT_QUERY_FORMAT_BINARY                     = 1
+	CERT_QUERY_FORMAT_BASE64_ENCODED             = 2
+	CERT_QUERY_FORMAT_ASN_ASCII_HEX_ENCODED      = 3
+	CERT_QUERY_FORMAT_FLAG_BINARY                = (1 << CERT_QUERY_FORMAT_BINARY)
+	CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED        = (1 << CERT_QUERY_FORMAT_BASE64_ENCODED)
+	CERT_QUERY_FORMAT_FLAG_ASN_ASCII_HEX_ENCODED = (1 << CERT_QUERY_FORMAT_ASN_ASCII_HEX_ENCODED)
+	CERT_QUERY_FORMAT_FLAG_ALL                   = (CERT_QUERY_FORMAT_FLAG_BINARY | CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED | CERT_QUERY_FORMAT_FLAG_ASN_ASCII_HEX_ENCODED)
+
+	/* CertGetNameString name types */
+	CERT_NAME_EMAIL_TYPE            = 1
+	CERT_NAME_RDN_TYPE              = 2
+	CERT_NAME_ATTR_TYPE             = 3
+	CERT_NAME_SIMPLE_DISPLAY_TYPE   = 4
+	CERT_NAME_FRIENDLY_DISPLAY_TYPE = 5
+	CERT_NAME_DNS_TYPE              = 6
+	CERT_NAME_URL_TYPE              = 7
+	CERT_NAME_UPN_TYPE              = 8
+
+	/* CertGetNameString flags */
+	CERT_NAME_ISSUER_FLAG              = 0x1
+	CERT_NAME_DISABLE_IE4_UTF8_FLAG    = 0x10000
+	CERT_NAME_SEARCH_ALL_NAMES_FLAG    = 0x2
+	CERT_NAME_STR_ENABLE_PUNYCODE_FLAG = 0x00200000
+
 	/* AuthType values for SSLExtraCertChainPolicyPara struct */
 	AUTHTYPE_CLIENT = 1
 	AUTHTYPE_SERVER = 2
@@ -419,6 +669,22 @@ const (
 	SECURITY_FLAG_IGNORE_WRONG_USAGE       = 0x00000200
 	SECURITY_FLAG_IGNORE_CERT_CN_INVALID   = 0x00001000
 	SECURITY_FLAG_IGNORE_CERT_DATE_INVALID = 0x00002000
+
+	/* Flags for Crypt[Un]ProtectData */
+	CRYPTPROTECT_UI_FORBIDDEN      = 0x1
+	CRYPTPROTECT_LOCAL_MACHINE     = 0x4
+	CRYPTPROTECT_CRED_SYNC         = 0x8
+	CRYPTPROTECT_AUDIT             = 0x10
+	CRYPTPROTECT_NO_RECOVERY       = 0x20
+	CRYPTPROTECT_VERIFY_PROTECTION = 0x40
+	CRYPTPROTECT_CRED_REGENERATE   = 0x80
+
+	/* Flags for CryptProtectPromptStruct */
+	CRYPTPROTECT_PROMPT_ON_UNPROTECT   = 1
+	CRYPTPROTECT_PROMPT_ON_PROTECT     = 2
+	CRYPTPROTECT_PROMPT_RESERVED       = 4
+	CRYPTPROTECT_PROMPT_STRONG         = 8
+	CRYPTPROTECT_PROMPT_REQUIRE_STRONG = 16
 )
 
 const (
@@ -441,10 +707,58 @@ const (
 	REALTIME_PRIORITY_CLASS       = 0x00000100
 )
 
+/* wintrust.h constants for WinVerifyTrustEx */
+const (
+	WTD_UI_ALL    = 1
+	WTD_UI_NONE   = 2
+	WTD_UI_NOBAD  = 3
+	WTD_UI_NOGOOD = 4
+
+	WTD_REVOKE_NONE       = 0
+	WTD_REVOKE_WHOLECHAIN = 1
+
+	WTD_CHOICE_FILE    = 1
+	WTD_CHOICE_CATALOG = 2
+	WTD_CHOICE_BLOB    = 3
+	WTD_CHOICE_SIGNER  = 4
+	WTD_CHOICE_CERT    = 5
+
+	WTD_STATEACTION_IGNORE           = 0x00000000
+	WTD_STATEACTION_VERIFY           = 0x00000001
+	WTD_STATEACTION_CLOSE            = 0x00000002
+	WTD_STATEACTION_AUTO_CACHE       = 0x00000003
+	WTD_STATEACTION_AUTO_CACHE_FLUSH = 0x00000004
+
+	WTD_USE_IE4_TRUST_FLAG                  = 0x1
+	WTD_NO_IE4_CHAIN_FLAG                   = 0x2
+	WTD_NO_POLICY_USAGE_FLAG                = 0x4
+	WTD_REVOCATION_CHECK_NONE               = 0x10
+	WTD_REVOCATION_CHECK_END_CERT           = 0x20
+	WTD_REVOCATION_CHECK_CHAIN              = 0x40
+	WTD_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT = 0x80
+	WTD_SAFER_FLAG                          = 0x100
+	WTD_HASH_ONLY_FLAG                      = 0x200
+	WTD_USE_DEFAULT_OSVER_CHECK             = 0x400
+	WTD_LIFETIME_SIGNING_FLAG               = 0x800
+	WTD_CACHE_ONLY_URL_RETRIEVAL            = 0x1000
+	WTD_DISABLE_MD2_MD4                     = 0x2000
+	WTD_MOTW                                = 0x4000
+
+	WTD_UICONTEXT_EXECUTE = 0
+	WTD_UICONTEXT_INSTALL = 1
+)
+
 var (
 	OID_PKIX_KP_SERVER_AUTH = []byte("1.3.6.1.5.5.7.3.1\x00")
 	OID_SERVER_GATED_CRYPTO = []byte("1.3.6.1.4.1.311.10.3.3\x00")
 	OID_SGC_NETSCAPE        = []byte("2.16.840.1.113730.4.1\x00")
+
+	WINTRUST_ACTION_GENERIC_VERIFY_V2 = GUID{
+		Data1: 0xaac56b,
+		Data2: 0xcd44,
+		Data3: 0x11d0,
+		Data4: [8]byte{0x8c, 0xc2, 0x0, 0xc0, 0x4f, 0xc2, 0x95, 0xee},
+	}
 )
 
 // Pointer represents a pointer to an arbitrary Windows type.
@@ -540,6 +854,14 @@ type win32finddata1 struct {
 	Reserved1         uint32
 	FileName          [MAX_PATH]uint16
 	AlternateFileName [14]uint16
+
+	// The Microsoft documentation for this struct¹ describes three additional
+	// fields: dwFileType, dwCreatorType, and wFinderFlags. However, those fields
+	// are empirically only present in the macOS port of the Win32 API,² and thus
+	// not needed for binaries built for Windows.
+	//
+	// ¹ https://docs.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-win32_find_dataw describe
+	// ² https://golang.org/issue/42637#issuecomment-760715755.
 }
 
 func copyFindData(dst *Win32finddata, src *win32finddata1) {
@@ -624,6 +946,24 @@ type StartupInfo struct {
 	StdErr        Handle
 }
 
+type StartupInfoEx struct {
+	StartupInfo
+	ProcThreadAttributeList *ProcThreadAttributeList
+}
+
+// ProcThreadAttributeList is a placeholder type to represent a PROC_THREAD_ATTRIBUTE_LIST.
+//
+// To create a *ProcThreadAttributeList, use NewProcThreadAttributeList, update
+// it with ProcThreadAttributeListContainer.Update, free its memory using
+// ProcThreadAttributeListContainer.Delete, and access the list itself using
+// ProcThreadAttributeListContainer.List.
+type ProcThreadAttributeList struct{}
+
+type ProcThreadAttributeListContainer struct {
+	data     *ProcThreadAttributeList
+	pointers []unsafe.Pointer
+}
+
 type ProcessInformation struct {
 	Process   Handle
 	Thread    Handle
@@ -653,6 +993,21 @@ type ThreadEntry32 struct {
 	DeltaPri       int32
 	Flags          uint32
 }
+
+type ModuleEntry32 struct {
+	Size         uint32
+	ModuleID     uint32
+	ProcessID    uint32
+	GlblcntUsage uint32
+	ProccntUsage uint32
+	ModBaseAddr  uintptr
+	ModBaseSize  uint32
+	ModuleHandle Handle
+	Module       [MAX_MODULE_NAME32 + 1]uint16
+	ExePath      [MAX_PATH]uint16
+}
+
+const SizeofModuleEntry32 = unsafe.Sizeof(ModuleEntry32{})
 
 type Systemtime struct {
 	Year         uint16
@@ -722,9 +1077,11 @@ const (
 	SIO_GET_EXTENSION_FUNCTION_POINTER = IOC_INOUT | IOC_WS2 | 6
 	SIO_KEEPALIVE_VALS                 = IOC_IN | IOC_VENDOR | 4
 	SIO_UDP_CONNRESET                  = IOC_IN | IOC_VENDOR | 12
+	SIO_UDP_NETRESET                   = IOC_IN | IOC_VENDOR | 15
 
 	// cf. http://support.microsoft.com/default.aspx?scid=kb;en-us;257460
 
+	IP_HDRINCL         = 0x2
 	IP_TOS             = 0x3
 	IP_TTL             = 0x4
 	IP_MULTICAST_IF    = 0x9
@@ -732,6 +1089,8 @@ const (
 	IP_MULTICAST_LOOP  = 0xb
 	IP_ADD_MEMBERSHIP  = 0xc
 	IP_DROP_MEMBERSHIP = 0xd
+	IP_PKTINFO         = 0x13
+	IP_MTU_DISCOVER    = 0x47
 
 	IPV6_V6ONLY         = 0x1b
 	IPV6_UNICAST_HOPS   = 0x4
@@ -740,6 +1099,8 @@ const (
 	IPV6_MULTICAST_LOOP = 0xb
 	IPV6_JOIN_GROUP     = 0xc
 	IPV6_LEAVE_GROUP    = 0xd
+	IPV6_PKTINFO        = 0x13
+	IPV6_MTU_DISCOVER   = 0x47
 
 	MSG_OOB       = 0x1
 	MSG_PEEK      = 0x2
@@ -753,7 +1114,33 @@ const (
 
 	SOMAXCONN = 0x7fffffff
 
-	TCP_NODELAY = 1
+	TCP_NODELAY                    = 1
+	TCP_EXPEDITED_1122             = 2
+	TCP_KEEPALIVE                  = 3
+	TCP_MAXSEG                     = 4
+	TCP_MAXRT                      = 5
+	TCP_STDURG                     = 6
+	TCP_NOURG                      = 7
+	TCP_ATMARK                     = 8
+	TCP_NOSYNRETRIES               = 9
+	TCP_TIMESTAMPS                 = 10
+	TCP_OFFLOAD_PREFERENCE         = 11
+	TCP_CONGESTION_ALGORITHM       = 12
+	TCP_DELAY_FIN_ACK              = 13
+	TCP_MAXRTMS                    = 14
+	TCP_FASTOPEN                   = 15
+	TCP_KEEPCNT                    = 16
+	TCP_KEEPIDLE                   = TCP_KEEPALIVE
+	TCP_KEEPINTVL                  = 17
+	TCP_FAIL_CONNECT_ON_ICMP_ERROR = 18
+	TCP_ICMP_ERROR_INFO            = 19
+
+	UDP_NOCHECKSUM              = 1
+	UDP_SEND_MSG_SIZE           = 2
+	UDP_RECV_MAX_COALESCED_SIZE = 3
+	UDP_CHECKSUM_COVERAGE       = 20
+
+	UDP_COALESCED_INFO = 3
 
 	SHUT_RD   = 0
 	SHUT_WR   = 1
@@ -761,6 +1148,15 @@ const (
 
 	WSADESCRIPTION_LEN = 256
 	WSASYS_STATUS_LEN  = 128
+)
+
+// enum PMTUD_STATE from ws2ipdef.h
+const (
+	IP_PMTUDISC_NOT_SET = 0
+	IP_PMTUDISC_DO      = 1
+	IP_PMTUDISC_DONT    = 2
+	IP_PMTUDISC_PROBE   = 3
+	IP_PMTUDISC_MAX     = 4
 )
 
 type WSABuf struct {
@@ -776,6 +1172,34 @@ type WSAMsg struct {
 	Control     WSABuf
 	Flags       uint32
 }
+
+type WSACMSGHDR struct {
+	Len   uintptr
+	Level int32
+	Type  int32
+}
+
+type IN_PKTINFO struct {
+	Addr    [4]byte
+	Ifindex uint32
+}
+
+type IN6_PKTINFO struct {
+	Addr    [16]byte
+	Ifindex uint32
+}
+
+// Flags for WSASocket
+const (
+	WSA_FLAG_OVERLAPPED             = 0x01
+	WSA_FLAG_MULTIPOINT_C_ROOT      = 0x02
+	WSA_FLAG_MULTIPOINT_C_LEAF      = 0x04
+	WSA_FLAG_MULTIPOINT_D_ROOT      = 0x08
+	WSA_FLAG_MULTIPOINT_D_LEAF      = 0x10
+	WSA_FLAG_ACCESS_SYSTEM_SECURITY = 0x40
+	WSA_FLAG_NO_HANDLE_INHERIT      = 0x80
+	WSA_FLAG_REGISTERED_IO          = 0x100
+)
 
 // Invented values to support what package os expects.
 const (
@@ -889,6 +1313,51 @@ const (
 	DnsSectionAnswer     = 0x0001
 	DnsSectionAuthority  = 0x0002
 	DnsSectionAdditional = 0x0003
+)
+
+const (
+	// flags of WSALookupService
+	LUP_DEEP                = 0x0001
+	LUP_CONTAINERS          = 0x0002
+	LUP_NOCONTAINERS        = 0x0004
+	LUP_NEAREST             = 0x0008
+	LUP_RETURN_NAME         = 0x0010
+	LUP_RETURN_TYPE         = 0x0020
+	LUP_RETURN_VERSION      = 0x0040
+	LUP_RETURN_COMMENT      = 0x0080
+	LUP_RETURN_ADDR         = 0x0100
+	LUP_RETURN_BLOB         = 0x0200
+	LUP_RETURN_ALIASES      = 0x0400
+	LUP_RETURN_QUERY_STRING = 0x0800
+	LUP_RETURN_ALL          = 0x0FF0
+	LUP_RES_SERVICE         = 0x8000
+
+	LUP_FLUSHCACHE    = 0x1000
+	LUP_FLUSHPREVIOUS = 0x2000
+
+	LUP_NON_AUTHORITATIVE      = 0x4000
+	LUP_SECURE                 = 0x8000
+	LUP_RETURN_PREFERRED_NAMES = 0x10000
+	LUP_DNS_ONLY               = 0x20000
+
+	LUP_ADDRCONFIG           = 0x100000
+	LUP_DUAL_ADDR            = 0x200000
+	LUP_FILESERVER           = 0x400000
+	LUP_DISABLE_IDN_ENCODING = 0x00800000
+	LUP_API_ANSI             = 0x01000000
+
+	LUP_RESOLUTION_HANDLE = 0x80000000
+)
+
+const (
+	// values of WSAQUERYSET's namespace
+	NS_ALL       = 0
+	NS_DNS       = 12
+	NS_NLA       = 15
+	NS_BTH       = 16
+	NS_EMAIL     = 37
+	NS_PNRPNAME  = 38
+	NS_PNRPCLOUD = 39
 )
 
 type DNSSRVData struct {
@@ -1033,7 +1502,57 @@ type MibIfRow struct {
 }
 
 type CertInfo struct {
-	// Not implemented
+	Version              uint32
+	SerialNumber         CryptIntegerBlob
+	SignatureAlgorithm   CryptAlgorithmIdentifier
+	Issuer               CertNameBlob
+	NotBefore            Filetime
+	NotAfter             Filetime
+	Subject              CertNameBlob
+	SubjectPublicKeyInfo CertPublicKeyInfo
+	IssuerUniqueId       CryptBitBlob
+	SubjectUniqueId      CryptBitBlob
+	CountExtensions      uint32
+	Extensions           *CertExtension
+}
+
+type CertExtension struct {
+	ObjId    *byte
+	Critical int32
+	Value    CryptObjidBlob
+}
+
+type CryptAlgorithmIdentifier struct {
+	ObjId      *byte
+	Parameters CryptObjidBlob
+}
+
+type CertPublicKeyInfo struct {
+	Algorithm CryptAlgorithmIdentifier
+	PublicKey CryptBitBlob
+}
+
+type DataBlob struct {
+	Size uint32
+	Data *byte
+}
+type CryptIntegerBlob DataBlob
+type CryptUintBlob DataBlob
+type CryptObjidBlob DataBlob
+type CertNameBlob DataBlob
+type CertRdnValueBlob DataBlob
+type CertBlob DataBlob
+type CrlBlob DataBlob
+type CryptDataBlob DataBlob
+type CryptHashBlob DataBlob
+type CryptDigestBlob DataBlob
+type CryptDerBlob DataBlob
+type CryptAttrBlob DataBlob
+
+type CryptBitBlob struct {
+	Size       uint32
+	Data       *byte
+	UnusedBits uint32
 }
 
 type CertContext struct {
@@ -1137,6 +1656,79 @@ type CertChainPolicyStatus struct {
 	ChainIndex        uint32
 	ElementIndex      uint32
 	ExtraPolicyStatus Pointer
+}
+
+type CertPolicyInfo struct {
+	Identifier      *byte
+	CountQualifiers uint32
+	Qualifiers      *CertPolicyQualifierInfo
+}
+
+type CertPoliciesInfo struct {
+	Count       uint32
+	PolicyInfos *CertPolicyInfo
+}
+
+type CertPolicyQualifierInfo struct {
+	// Not implemented
+}
+
+type CertStrongSignPara struct {
+	Size                      uint32
+	InfoChoice                uint32
+	InfoOrSerializedInfoOrOID unsafe.Pointer
+}
+
+type CryptProtectPromptStruct struct {
+	Size        uint32
+	PromptFlags uint32
+	App         HWND
+	Prompt      *uint16
+}
+
+type CertChainFindByIssuerPara struct {
+	Size                   uint32
+	UsageIdentifier        *byte
+	KeySpec                uint32
+	AcquirePrivateKeyFlags uint32
+	IssuerCount            uint32
+	Issuer                 Pointer
+	FindCallback           Pointer
+	FindArg                Pointer
+	IssuerChainIndex       *uint32
+	IssuerElementIndex     *uint32
+}
+
+type WinTrustData struct {
+	Size                            uint32
+	PolicyCallbackData              uintptr
+	SIPClientData                   uintptr
+	UIChoice                        uint32
+	RevocationChecks                uint32
+	UnionChoice                     uint32
+	FileOrCatalogOrBlobOrSgnrOrCert unsafe.Pointer
+	StateAction                     uint32
+	StateData                       Handle
+	URLReference                    *uint16
+	ProvFlags                       uint32
+	UIContext                       uint32
+	SignatureSettings               *WinTrustSignatureSettings
+}
+
+type WinTrustFileInfo struct {
+	Size         uint32
+	FilePath     *uint16
+	File         Handle
+	KnownSubject *GUID
+}
+
+type WinTrustSignatureSettings struct {
+	Size             uint32
+	Index            uint32
+	Flags            uint32
+	SecondarySigs    uint32
+	VerifiedSigIndex uint32
+	CryptoPolicy     *CertStrongSignPara
 }
 
 const (
@@ -1347,12 +1939,64 @@ type reparseDataBuffer struct {
 }
 
 const (
-	FSCTL_GET_REPARSE_POINT          = 0x900A8
+	FSCTL_CREATE_OR_GET_OBJECT_ID             = 0x0900C0
+	FSCTL_DELETE_OBJECT_ID                    = 0x0900A0
+	FSCTL_DELETE_REPARSE_POINT                = 0x0900AC
+	FSCTL_DUPLICATE_EXTENTS_TO_FILE           = 0x098344
+	FSCTL_DUPLICATE_EXTENTS_TO_FILE_EX        = 0x0983E8
+	FSCTL_FILESYSTEM_GET_STATISTICS           = 0x090060
+	FSCTL_FILE_LEVEL_TRIM                     = 0x098208
+	FSCTL_FIND_FILES_BY_SID                   = 0x09008F
+	FSCTL_GET_COMPRESSION                     = 0x09003C
+	FSCTL_GET_INTEGRITY_INFORMATION           = 0x09027C
+	FSCTL_GET_NTFS_VOLUME_DATA                = 0x090064
+	FSCTL_GET_REFS_VOLUME_DATA                = 0x0902D8
+	FSCTL_GET_OBJECT_ID                       = 0x09009C
+	FSCTL_GET_REPARSE_POINT                   = 0x0900A8
+	FSCTL_GET_RETRIEVAL_POINTER_COUNT         = 0x09042B
+	FSCTL_GET_RETRIEVAL_POINTERS              = 0x090073
+	FSCTL_GET_RETRIEVAL_POINTERS_AND_REFCOUNT = 0x0903D3
+	FSCTL_IS_PATHNAME_VALID                   = 0x09002C
+	FSCTL_LMR_SET_LINK_TRACKING_INFORMATION   = 0x1400EC
+	FSCTL_MARK_HANDLE                         = 0x0900FC
+	FSCTL_OFFLOAD_READ                        = 0x094264
+	FSCTL_OFFLOAD_WRITE                       = 0x098268
+	FSCTL_PIPE_PEEK                           = 0x11400C
+	FSCTL_PIPE_TRANSCEIVE                     = 0x11C017
+	FSCTL_PIPE_WAIT                           = 0x110018
+	FSCTL_QUERY_ALLOCATED_RANGES              = 0x0940CF
+	FSCTL_QUERY_FAT_BPB                       = 0x090058
+	FSCTL_QUERY_FILE_REGIONS                  = 0x090284
+	FSCTL_QUERY_ON_DISK_VOLUME_INFO           = 0x09013C
+	FSCTL_QUERY_SPARING_INFO                  = 0x090138
+	FSCTL_READ_FILE_USN_DATA                  = 0x0900EB
+	FSCTL_RECALL_FILE                         = 0x090117
+	FSCTL_REFS_STREAM_SNAPSHOT_MANAGEMENT     = 0x090440
+	FSCTL_SET_COMPRESSION                     = 0x09C040
+	FSCTL_SET_DEFECT_MANAGEMENT               = 0x098134
+	FSCTL_SET_ENCRYPTION                      = 0x0900D7
+	FSCTL_SET_INTEGRITY_INFORMATION           = 0x09C280
+	FSCTL_SET_INTEGRITY_INFORMATION_EX        = 0x090380
+	FSCTL_SET_OBJECT_ID                       = 0x090098
+	FSCTL_SET_OBJECT_ID_EXTENDED              = 0x0900BC
+	FSCTL_SET_REPARSE_POINT                   = 0x0900A4
+	FSCTL_SET_SPARSE                          = 0x0900C4
+	FSCTL_SET_ZERO_DATA                       = 0x0980C8
+	FSCTL_SET_ZERO_ON_DEALLOCATION            = 0x090194
+	FSCTL_SIS_COPYFILE                        = 0x090100
+	FSCTL_WRITE_USN_CLOSE_RECORD              = 0x0900EF
+
 	MAXIMUM_REPARSE_DATA_BUFFER_SIZE = 16 * 1024
 	IO_REPARSE_TAG_MOUNT_POINT       = 0xA0000003
 	IO_REPARSE_TAG_SYMLINK           = 0xA000000C
 	SYMBOLIC_LINK_FLAG_DIRECTORY     = 0x1
 )
+
+// FILE_ZERO_DATA_INFORMATION from winioctl.h
+type FileZeroDataInformation struct {
+	FileOffset      int64
+	BeyondFinalZero int64
+}
 
 const (
 	ComputerNameNetBIOS                   = 0
@@ -1410,7 +2054,21 @@ const (
 	MOVEFILE_FAIL_IF_NOT_TRACKABLE = 0x20
 )
 
-const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
+// Flags for GetAdaptersAddresses, see
+// https://learn.microsoft.com/en-us/windows/win32/api/iphlpapi/nf-iphlpapi-getadaptersaddresses.
+const (
+	GAA_FLAG_SKIP_UNICAST                = 0x1
+	GAA_FLAG_SKIP_ANYCAST                = 0x2
+	GAA_FLAG_SKIP_MULTICAST              = 0x4
+	GAA_FLAG_SKIP_DNS_SERVER             = 0x8
+	GAA_FLAG_INCLUDE_PREFIX              = 0x10
+	GAA_FLAG_SKIP_FRIENDLY_NAME          = 0x20
+	GAA_FLAG_INCLUDE_WINS_INFO           = 0x40
+	GAA_FLAG_INCLUDE_GATEWAYS            = 0x80
+	GAA_FLAG_INCLUDE_ALL_INTERFACES      = 0x100
+	GAA_FLAG_INCLUDE_ALL_COMPARTMENTS    = 0x200
+	GAA_FLAG_INCLUDE_TUNNEL_BINDINGORDER = 0x400
+)
 
 const (
 	IF_TYPE_OTHER              = 1
@@ -1422,6 +2080,50 @@ const (
 	IF_TYPE_IEEE80211          = 71
 	IF_TYPE_TUNNEL             = 131
 	IF_TYPE_IEEE1394           = 144
+)
+
+// Enum NL_PREFIX_ORIGIN for [IpAdapterUnicastAddress], see
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_prefix_origin
+const (
+	IpPrefixOriginOther               = 0
+	IpPrefixOriginManual              = 1
+	IpPrefixOriginWellKnown           = 2
+	IpPrefixOriginDhcp                = 3
+	IpPrefixOriginRouterAdvertisement = 4
+	IpPrefixOriginUnchanged           = 1 << 4
+)
+
+// Enum NL_SUFFIX_ORIGIN for [IpAdapterUnicastAddress], see
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_suffix_origin
+const (
+	NlsoOther                      = 0
+	NlsoManual                     = 1
+	NlsoWellKnown                  = 2
+	NlsoDhcp                       = 3
+	NlsoLinkLayerAddress           = 4
+	NlsoRandom                     = 5
+	IpSuffixOriginOther            = 0
+	IpSuffixOriginManual           = 1
+	IpSuffixOriginWellKnown        = 2
+	IpSuffixOriginDhcp             = 3
+	IpSuffixOriginLinkLayerAddress = 4
+	IpSuffixOriginRandom           = 5
+	IpSuffixOriginUnchanged        = 1 << 4
+)
+
+// Enum NL_DAD_STATE for [IpAdapterUnicastAddress], see
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_dad_state
+const (
+	NldsInvalid          = 0
+	NldsTentative        = 1
+	NldsDuplicate        = 2
+	NldsDeprecated       = 3
+	NldsPreferred        = 4
+	IpDadStateInvalid    = 0
+	IpDadStateTentative  = 1
+	IpDadStateDuplicate  = 2
+	IpDadStateDeprecated = 3
+	IpDadStatePreferred  = 4
 )
 
 type SocketAddress struct {
@@ -1483,27 +2185,62 @@ type IpAdapterPrefix struct {
 }
 
 type IpAdapterAddresses struct {
-	Length                uint32
-	IfIndex               uint32
-	Next                  *IpAdapterAddresses
-	AdapterName           *byte
-	FirstUnicastAddress   *IpAdapterUnicastAddress
-	FirstAnycastAddress   *IpAdapterAnycastAddress
-	FirstMulticastAddress *IpAdapterMulticastAddress
-	FirstDnsServerAddress *IpAdapterDnsServerAdapter
-	DnsSuffix             *uint16
-	Description           *uint16
-	FriendlyName          *uint16
-	PhysicalAddress       [syscall.MAX_ADAPTER_ADDRESS_LENGTH]byte
-	PhysicalAddressLength uint32
-	Flags                 uint32
-	Mtu                   uint32
-	IfType                uint32
-	OperStatus            uint32
-	Ipv6IfIndex           uint32
-	ZoneIndices           [16]uint32
-	FirstPrefix           *IpAdapterPrefix
-	/* more fields might be present here. */
+	Length                 uint32
+	IfIndex                uint32
+	Next                   *IpAdapterAddresses
+	AdapterName            *byte
+	FirstUnicastAddress    *IpAdapterUnicastAddress
+	FirstAnycastAddress    *IpAdapterAnycastAddress
+	FirstMulticastAddress  *IpAdapterMulticastAddress
+	FirstDnsServerAddress  *IpAdapterDnsServerAdapter
+	DnsSuffix              *uint16
+	Description            *uint16
+	FriendlyName           *uint16
+	PhysicalAddress        [syscall.MAX_ADAPTER_ADDRESS_LENGTH]byte
+	PhysicalAddressLength  uint32
+	Flags                  uint32
+	Mtu                    uint32
+	IfType                 uint32
+	OperStatus             uint32
+	Ipv6IfIndex            uint32
+	ZoneIndices            [16]uint32
+	FirstPrefix            *IpAdapterPrefix
+	TransmitLinkSpeed      uint64
+	ReceiveLinkSpeed       uint64
+	FirstWinsServerAddress *IpAdapterWinsServerAddress
+	FirstGatewayAddress    *IpAdapterGatewayAddress
+	Ipv4Metric             uint32
+	Ipv6Metric             uint32
+	Luid                   uint64
+	Dhcpv4Server           SocketAddress
+	CompartmentId          uint32
+	NetworkGuid            GUID
+	ConnectionType         uint32
+	TunnelType             uint32
+	Dhcpv6Server           SocketAddress
+	Dhcpv6ClientDuid       [MAX_DHCPV6_DUID_LENGTH]byte
+	Dhcpv6ClientDuidLength uint32
+	Dhcpv6Iaid             uint32
+	FirstDnsSuffix         *IpAdapterDNSSuffix
+}
+
+type IpAdapterWinsServerAddress struct {
+	Length   uint32
+	Reserved uint32
+	Next     *IpAdapterWinsServerAddress
+	Address  SocketAddress
+}
+
+type IpAdapterGatewayAddress struct {
+	Length   uint32
+	Reserved uint32
+	Next     *IpAdapterGatewayAddress
+	Address  SocketAddress
+}
+
+type IpAdapterDNSSuffix struct {
+	Next   *IpAdapterDNSSuffix
+	String [MAX_DNS_SUFFIX_STRING_LENGTH]uint16
 }
 
 const (
@@ -1515,6 +2252,208 @@ const (
 	IfOperStatusNotPresent     = 6
 	IfOperStatusLowerLayerDown = 7
 )
+
+const (
+	IF_MAX_PHYS_ADDRESS_LENGTH = 32
+	IF_MAX_STRING_SIZE         = 256
+)
+
+// MIB_IF_ENTRY_LEVEL enumeration from netioapi.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/nf-netioapi-getifentry2ex.
+const (
+	MibIfEntryNormal                  = 0
+	MibIfEntryNormalWithoutStatistics = 2
+)
+
+// MIB_NOTIFICATION_TYPE enumeration from netioapi.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ne-netioapi-mib_notification_type.
+const (
+	MibParameterNotification = 0
+	MibAddInstance           = 1
+	MibDeleteInstance        = 2
+	MibInitialNotification   = 3
+)
+
+// MibIfRow2 stores information about a particular interface. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_if_row2.
+type MibIfRow2 struct {
+	InterfaceLuid               uint64
+	InterfaceIndex              uint32
+	InterfaceGuid               GUID
+	Alias                       [IF_MAX_STRING_SIZE + 1]uint16
+	Description                 [IF_MAX_STRING_SIZE + 1]uint16
+	PhysicalAddressLength       uint32
+	PhysicalAddress             [IF_MAX_PHYS_ADDRESS_LENGTH]uint8
+	PermanentPhysicalAddress    [IF_MAX_PHYS_ADDRESS_LENGTH]uint8
+	Mtu                         uint32
+	Type                        uint32
+	TunnelType                  uint32
+	MediaType                   uint32
+	PhysicalMediumType          uint32
+	AccessType                  uint32
+	DirectionType               uint32
+	InterfaceAndOperStatusFlags uint8
+	OperStatus                  uint32
+	AdminStatus                 uint32
+	MediaConnectState           uint32
+	NetworkGuid                 GUID
+	ConnectionType              uint32
+	TransmitLinkSpeed           uint64
+	ReceiveLinkSpeed            uint64
+	InOctets                    uint64
+	InUcastPkts                 uint64
+	InNUcastPkts                uint64
+	InDiscards                  uint64
+	InErrors                    uint64
+	InUnknownProtos             uint64
+	InUcastOctets               uint64
+	InMulticastOctets           uint64
+	InBroadcastOctets           uint64
+	OutOctets                   uint64
+	OutUcastPkts                uint64
+	OutNUcastPkts               uint64
+	OutDiscards                 uint64
+	OutErrors                   uint64
+	OutUcastOctets              uint64
+	OutMulticastOctets          uint64
+	OutBroadcastOctets          uint64
+	OutQLen                     uint64
+}
+
+// IP_ADDRESS_PREFIX stores an IP address prefix. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-ip_address_prefix.
+type IpAddressPrefix struct {
+	Prefix       RawSockaddrInet
+	PrefixLength uint8
+}
+
+// NL_ROUTE_ORIGIN enumeration from nldef.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_route_origin.
+const (
+	NlroManual              = 0
+	NlroWellKnown           = 1
+	NlroDHCP                = 2
+	NlroRouterAdvertisement = 3
+	Nlro6to4                = 4
+)
+
+// NL_ROUTE_ORIGIN enumeration from nldef.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_route_protocol.
+const (
+	MIB_IPPROTO_OTHER             = 1
+	MIB_IPPROTO_LOCAL             = 2
+	MIB_IPPROTO_NETMGMT           = 3
+	MIB_IPPROTO_ICMP              = 4
+	MIB_IPPROTO_EGP               = 5
+	MIB_IPPROTO_GGP               = 6
+	MIB_IPPROTO_HELLO             = 7
+	MIB_IPPROTO_RIP               = 8
+	MIB_IPPROTO_IS_IS             = 9
+	MIB_IPPROTO_ES_IS             = 10
+	MIB_IPPROTO_CISCO             = 11
+	MIB_IPPROTO_BBN               = 12
+	MIB_IPPROTO_OSPF              = 13
+	MIB_IPPROTO_BGP               = 14
+	MIB_IPPROTO_IDPR              = 15
+	MIB_IPPROTO_EIGRP             = 16
+	MIB_IPPROTO_DVMRP             = 17
+	MIB_IPPROTO_RPL               = 18
+	MIB_IPPROTO_DHCP              = 19
+	MIB_IPPROTO_NT_AUTOSTATIC     = 10002
+	MIB_IPPROTO_NT_STATIC         = 10006
+	MIB_IPPROTO_NT_STATIC_NON_DOD = 10007
+)
+
+// MIB_IPFORWARD_ROW2 stores information about an IP route entry. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_ipforward_row2.
+type MibIpForwardRow2 struct {
+	InterfaceLuid        uint64
+	InterfaceIndex       uint32
+	DestinationPrefix    IpAddressPrefix
+	NextHop              RawSockaddrInet
+	SitePrefixLength     uint8
+	ValidLifetime        uint32
+	PreferredLifetime    uint32
+	Metric               uint32
+	Protocol             uint32
+	Loopback             uint8
+	AutoconfigureAddress uint8
+	Publish              uint8
+	Immortal             uint8
+	Age                  uint32
+	Origin               uint32
+}
+
+// MIB_IPFORWARD_TABLE2 contains a table of IP route entries. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_ipforward_table2.
+type MibIpForwardTable2 struct {
+	NumEntries uint32
+	Table      [1]MibIpForwardRow2
+}
+
+// Rows returns the IP route entries in the table.
+func (t *MibIpForwardTable2) Rows() []MibIpForwardRow2 {
+	return unsafe.Slice(&t.Table[0], t.NumEntries)
+}
+
+// MIB_UNICASTIPADDRESS_ROW stores information about a unicast IP address. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_unicastipaddress_row.
+type MibUnicastIpAddressRow struct {
+	Address            RawSockaddrInet6 // SOCKADDR_INET union
+	InterfaceLuid      uint64
+	InterfaceIndex     uint32
+	PrefixOrigin       uint32
+	SuffixOrigin       uint32
+	ValidLifetime      uint32
+	PreferredLifetime  uint32
+	OnLinkPrefixLength uint8
+	SkipAsSource       uint8
+	DadState           uint32
+	ScopeId            uint32
+	CreationTimeStamp  Filetime
+}
+
+const ScopeLevelCount = 16
+
+// MIB_IPINTERFACE_ROW stores interface management information for a particular IP address family on a network interface.
+// See https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_ipinterface_row.
+type MibIpInterfaceRow struct {
+	Family                               uint16
+	InterfaceLuid                        uint64
+	InterfaceIndex                       uint32
+	MaxReassemblySize                    uint32
+	InterfaceIdentifier                  uint64
+	MinRouterAdvertisementInterval       uint32
+	MaxRouterAdvertisementInterval       uint32
+	AdvertisingEnabled                   uint8
+	ForwardingEnabled                    uint8
+	WeakHostSend                         uint8
+	WeakHostReceive                      uint8
+	UseAutomaticMetric                   uint8
+	UseNeighborUnreachabilityDetection   uint8
+	ManagedAddressConfigurationSupported uint8
+	OtherStatefulConfigurationSupported  uint8
+	AdvertiseDefaultRoute                uint8
+	RouterDiscoveryBehavior              uint32
+	DadTransmits                         uint32
+	BaseReachableTime                    uint32
+	RetransmitTime                       uint32
+	PathMtuDiscoveryTimeout              uint32
+	LinkLocalAddressBehavior             uint32
+	LinkLocalAddressTimeout              uint32
+	ZoneIndices                          [ScopeLevelCount]uint32
+	SitePrefixLength                     uint32
+	Metric                               uint32
+	NlMtu                                uint32
+	Connected                            uint8
+	SupportsWakeUpPatterns               uint8
+	SupportsNeighborDiscovery            uint8
+	SupportsRouterDiscovery              uint8
+	ReachableTime                        uint32
+	TransmitOffload                      uint32
+	ReceiveOffload                       uint32
+	DisableDefaultRoutes                 uint8
+}
 
 // Console related constants used for the mode parameter to SetConsoleMode. See
 // https://docs.microsoft.com/en-us/windows/console/setconsolemode for details.
@@ -1536,6 +2475,12 @@ const (
 	ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x4
 	DISABLE_NEWLINE_AUTO_RETURN        = 0x8
 	ENABLE_LVB_GRID_WORLDWIDE          = 0x10
+)
+
+// Pseudo console related constants used for the flags parameter to
+// CreatePseudoConsole. See: https://learn.microsoft.com/en-us/windows/console/createpseudoconsole
+const (
+	PSEUDOCONSOLE_INHERIT_CURSOR = 0x1
 )
 
 type Coord struct {
@@ -1584,18 +2529,6 @@ const (
 	JOB_OBJECT_LIMIT_WORKINGSET                 = 0x00000001
 )
 
-type JOBOBJECT_BASIC_LIMIT_INFORMATION struct {
-	PerProcessUserTimeLimit int64
-	PerJobUserTimeLimit     int64
-	LimitFlags              uint32
-	MinimumWorkingSetSize   uintptr
-	MaximumWorkingSetSize   uintptr
-	ActiveProcessLimit      uint32
-	Affinity                uintptr
-	PriorityClass           uint32
-	SchedulingClass         uint32
-}
-
 type IO_COUNTERS struct {
 	ReadOperationCount  uint64
 	WriteOperationCount uint64
@@ -1631,19 +2564,23 @@ type JOBOBJECT_BASIC_UI_RESTRICTIONS struct {
 }
 
 const (
-	// JobObjectInformationClass
+	// JobObjectInformationClass for QueryInformationJobObject and SetInformationJobObject
 	JobObjectAssociateCompletionPortInformation = 7
+	JobObjectBasicAccountingInformation         = 1
+	JobObjectBasicAndIoAccountingInformation    = 8
 	JobObjectBasicLimitInformation              = 2
+	JobObjectBasicProcessIdList                 = 3
 	JobObjectBasicUIRestrictions                = 4
 	JobObjectCpuRateControlInformation          = 15
 	JobObjectEndOfJobTimeInformation            = 6
 	JobObjectExtendedLimitInformation           = 9
 	JobObjectGroupInformation                   = 11
 	JobObjectGroupInformationEx                 = 14
-	JobObjectLimitViolationInformation2         = 35
+	JobObjectLimitViolationInformation          = 13
+	JobObjectLimitViolationInformation2         = 34
 	JobObjectNetRateControlInformation          = 32
 	JobObjectNotificationLimitInformation       = 12
-	JobObjectNotificationLimitInformation2      = 34
+	JobObjectNotificationLimitInformation2      = 33
 	JobObjectSecurityLimitInformation           = 5
 )
 
@@ -1783,4 +2720,1221 @@ const (
 	MUI_LIP_LANGUAGE       = 0x04
 	MUI_LANGUAGE_INSTALLED = 0x20
 	MUI_LANGUAGE_LICENSED  = 0x40
+)
+
+// FILE_INFO_BY_HANDLE_CLASS constants for SetFileInformationByHandle/GetFileInformationByHandleEx
+const (
+	FileBasicInfo                  = 0
+	FileStandardInfo               = 1
+	FileNameInfo                   = 2
+	FileRenameInfo                 = 3
+	FileDispositionInfo            = 4
+	FileAllocationInfo             = 5
+	FileEndOfFileInfo              = 6
+	FileStreamInfo                 = 7
+	FileCompressionInfo            = 8
+	FileAttributeTagInfo           = 9
+	FileIdBothDirectoryInfo        = 10
+	FileIdBothDirectoryRestartInfo = 11
+	FileIoPriorityHintInfo         = 12
+	FileRemoteProtocolInfo         = 13
+	FileFullDirectoryInfo          = 14
+	FileFullDirectoryRestartInfo   = 15
+	FileStorageInfo                = 16
+	FileAlignmentInfo              = 17
+	FileIdInfo                     = 18
+	FileIdExtdDirectoryInfo        = 19
+	FileIdExtdDirectoryRestartInfo = 20
+	FileDispositionInfoEx          = 21
+	FileRenameInfoEx               = 22
+	FileCaseSensitiveInfo          = 23
+	FileNormalizedNameInfo         = 24
+)
+
+// LoadLibrary flags for determining from where to search for a DLL
+const (
+	DONT_RESOLVE_DLL_REFERENCES               = 0x1
+	LOAD_LIBRARY_AS_DATAFILE                  = 0x2
+	LOAD_WITH_ALTERED_SEARCH_PATH             = 0x8
+	LOAD_IGNORE_CODE_AUTHZ_LEVEL              = 0x10
+	LOAD_LIBRARY_AS_IMAGE_RESOURCE            = 0x20
+	LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE        = 0x40
+	LOAD_LIBRARY_REQUIRE_SIGNED_TARGET        = 0x80
+	LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR          = 0x100
+	LOAD_LIBRARY_SEARCH_APPLICATION_DIR       = 0x200
+	LOAD_LIBRARY_SEARCH_USER_DIRS             = 0x400
+	LOAD_LIBRARY_SEARCH_SYSTEM32              = 0x800
+	LOAD_LIBRARY_SEARCH_DEFAULT_DIRS          = 0x1000
+	LOAD_LIBRARY_SAFE_CURRENT_DIRS            = 0x00002000
+	LOAD_LIBRARY_SEARCH_SYSTEM32_NO_FORWARDER = 0x00004000
+	LOAD_LIBRARY_OS_INTEGRITY_CONTINUITY      = 0x00008000
+)
+
+// RegNotifyChangeKeyValue notifyFilter flags.
+const (
+	// REG_NOTIFY_CHANGE_NAME notifies the caller if a subkey is added or deleted.
+	REG_NOTIFY_CHANGE_NAME = 0x00000001
+
+	// REG_NOTIFY_CHANGE_ATTRIBUTES notifies the caller of changes to the attributes of the key, such as the security descriptor information.
+	REG_NOTIFY_CHANGE_ATTRIBUTES = 0x00000002
+
+	// REG_NOTIFY_CHANGE_LAST_SET notifies the caller of changes to a value of the key. This can include adding or deleting a value, or changing an existing value.
+	REG_NOTIFY_CHANGE_LAST_SET = 0x00000004
+
+	// REG_NOTIFY_CHANGE_SECURITY notifies the caller of changes to the security descriptor of the key.
+	REG_NOTIFY_CHANGE_SECURITY = 0x00000008
+
+	// REG_NOTIFY_THREAD_AGNOSTIC indicates that the lifetime of the registration must not be tied to the lifetime of the thread issuing the RegNotifyChangeKeyValue call. Note: This flag value is only supported in Windows 8 and later.
+	REG_NOTIFY_THREAD_AGNOSTIC = 0x10000000
+)
+
+type CommTimeouts struct {
+	ReadIntervalTimeout         uint32
+	ReadTotalTimeoutMultiplier  uint32
+	ReadTotalTimeoutConstant    uint32
+	WriteTotalTimeoutMultiplier uint32
+	WriteTotalTimeoutConstant   uint32
+}
+
+// NTUnicodeString is a UTF-16 string for NT native APIs, corresponding to UNICODE_STRING.
+type NTUnicodeString struct {
+	// Note: Length and MaximumLength are in *bytes*, not uint16s.
+	// They should always be even.
+	Length        uint16
+	MaximumLength uint16
+	Buffer        *uint16
+}
+
+// NTString is an ANSI string for NT native APIs, corresponding to STRING.
+type NTString struct {
+	Length        uint16
+	MaximumLength uint16
+	Buffer        *byte
+}
+
+type LIST_ENTRY struct {
+	Flink *LIST_ENTRY
+	Blink *LIST_ENTRY
+}
+
+type RUNTIME_FUNCTION struct {
+	BeginAddress uint32
+	EndAddress   uint32
+	UnwindData   uint32
+}
+
+type LDR_DATA_TABLE_ENTRY struct {
+	reserved1          [2]uintptr
+	InMemoryOrderLinks LIST_ENTRY
+	reserved2          [2]uintptr
+	DllBase            uintptr
+	reserved3          [2]uintptr
+	FullDllName        NTUnicodeString
+	reserved4          [8]byte
+	reserved5          [3]uintptr
+	reserved6          uintptr
+	TimeDateStamp      uint32
+}
+
+type PEB_LDR_DATA struct {
+	reserved1               [8]byte
+	reserved2               [3]uintptr
+	InMemoryOrderModuleList LIST_ENTRY
+}
+
+type CURDIR struct {
+	DosPath NTUnicodeString
+	Handle  Handle
+}
+
+type RTL_DRIVE_LETTER_CURDIR struct {
+	Flags     uint16
+	Length    uint16
+	TimeStamp uint32
+	DosPath   NTString
+}
+
+type RTL_USER_PROCESS_PARAMETERS struct {
+	MaximumLength, Length uint32
+
+	Flags, DebugFlags uint32
+
+	ConsoleHandle                                Handle
+	ConsoleFlags                                 uint32
+	StandardInput, StandardOutput, StandardError Handle
+
+	CurrentDirectory CURDIR
+	DllPath          NTUnicodeString
+	ImagePathName    NTUnicodeString
+	CommandLine      NTUnicodeString
+	Environment      unsafe.Pointer
+
+	StartingX, StartingY, CountX, CountY, CountCharsX, CountCharsY, FillAttribute uint32
+
+	WindowFlags, ShowWindowFlags                     uint32
+	WindowTitle, DesktopInfo, ShellInfo, RuntimeData NTUnicodeString
+	CurrentDirectories                               [32]RTL_DRIVE_LETTER_CURDIR
+
+	EnvironmentSize, EnvironmentVersion uintptr
+
+	PackageDependencyData unsafe.Pointer
+	ProcessGroupId        uint32
+	LoaderThreads         uint32
+
+	RedirectionDllName               NTUnicodeString
+	HeapPartitionName                NTUnicodeString
+	DefaultThreadpoolCpuSetMasks     uintptr
+	DefaultThreadpoolCpuSetMaskCount uint32
+}
+
+type PEB struct {
+	reserved1              [2]byte
+	BeingDebugged          byte
+	BitField               byte
+	reserved3              uintptr
+	ImageBaseAddress       uintptr
+	Ldr                    *PEB_LDR_DATA
+	ProcessParameters      *RTL_USER_PROCESS_PARAMETERS
+	reserved4              [3]uintptr
+	AtlThunkSListPtr       uintptr
+	reserved5              uintptr
+	reserved6              uint32
+	reserved7              uintptr
+	reserved8              uint32
+	AtlThunkSListPtr32     uint32
+	reserved9              [45]uintptr
+	reserved10             [96]byte
+	PostProcessInitRoutine uintptr
+	reserved11             [128]byte
+	reserved12             [1]uintptr
+	SessionId              uint32
+}
+
+type OBJECT_ATTRIBUTES struct {
+	Length             uint32
+	RootDirectory      Handle
+	ObjectName         *NTUnicodeString
+	Attributes         uint32
+	SecurityDescriptor *SECURITY_DESCRIPTOR
+	SecurityQoS        *SECURITY_QUALITY_OF_SERVICE
+}
+
+// Values for the Attributes member of OBJECT_ATTRIBUTES.
+const (
+	OBJ_INHERIT                       = 0x00000002
+	OBJ_PERMANENT                     = 0x00000010
+	OBJ_EXCLUSIVE                     = 0x00000020
+	OBJ_CASE_INSENSITIVE              = 0x00000040
+	OBJ_OPENIF                        = 0x00000080
+	OBJ_OPENLINK                      = 0x00000100
+	OBJ_KERNEL_HANDLE                 = 0x00000200
+	OBJ_FORCE_ACCESS_CHECK            = 0x00000400
+	OBJ_IGNORE_IMPERSONATED_DEVICEMAP = 0x00000800
+	OBJ_DONT_REPARSE                  = 0x00001000
+	OBJ_VALID_ATTRIBUTES              = 0x00001FF2
+)
+
+type IO_STATUS_BLOCK struct {
+	Status      NTStatus
+	Information uintptr
+}
+
+type RTLP_CURDIR_REF struct {
+	RefCount int32
+	Handle   Handle
+}
+
+type RTL_RELATIVE_NAME struct {
+	RelativeName        NTUnicodeString
+	ContainingDirectory Handle
+	CurDirRef           *RTLP_CURDIR_REF
+}
+
+const (
+	// CreateDisposition flags for NtCreateFile and NtCreateNamedPipeFile.
+	FILE_SUPERSEDE           = 0x00000000
+	FILE_OPEN                = 0x00000001
+	FILE_CREATE              = 0x00000002
+	FILE_OPEN_IF             = 0x00000003
+	FILE_OVERWRITE           = 0x00000004
+	FILE_OVERWRITE_IF        = 0x00000005
+	FILE_MAXIMUM_DISPOSITION = 0x00000005
+
+	// CreateOptions flags for NtCreateFile and NtCreateNamedPipeFile.
+	FILE_DIRECTORY_FILE            = 0x00000001
+	FILE_WRITE_THROUGH             = 0x00000002
+	FILE_SEQUENTIAL_ONLY           = 0x00000004
+	FILE_NO_INTERMEDIATE_BUFFERING = 0x00000008
+	FILE_SYNCHRONOUS_IO_ALERT      = 0x00000010
+	FILE_SYNCHRONOUS_IO_NONALERT   = 0x00000020
+	FILE_NON_DIRECTORY_FILE        = 0x00000040
+	FILE_CREATE_TREE_CONNECTION    = 0x00000080
+	FILE_COMPLETE_IF_OPLOCKED      = 0x00000100
+	FILE_NO_EA_KNOWLEDGE           = 0x00000200
+	FILE_OPEN_REMOTE_INSTANCE      = 0x00000400
+	FILE_RANDOM_ACCESS             = 0x00000800
+	FILE_DELETE_ON_CLOSE           = 0x00001000
+	FILE_OPEN_BY_FILE_ID           = 0x00002000
+	FILE_OPEN_FOR_BACKUP_INTENT    = 0x00004000
+	FILE_NO_COMPRESSION            = 0x00008000
+	FILE_OPEN_REQUIRING_OPLOCK     = 0x00010000
+	FILE_DISALLOW_EXCLUSIVE        = 0x00020000
+	FILE_RESERVE_OPFILTER          = 0x00100000
+	FILE_OPEN_REPARSE_POINT        = 0x00200000
+	FILE_OPEN_NO_RECALL            = 0x00400000
+	FILE_OPEN_FOR_FREE_SPACE_QUERY = 0x00800000
+
+	// Parameter constants for NtCreateNamedPipeFile.
+
+	FILE_PIPE_BYTE_STREAM_TYPE = 0x00000000
+	FILE_PIPE_MESSAGE_TYPE     = 0x00000001
+
+	FILE_PIPE_ACCEPT_REMOTE_CLIENTS = 0x00000000
+	FILE_PIPE_REJECT_REMOTE_CLIENTS = 0x00000002
+
+	FILE_PIPE_TYPE_VALID_MASK = 0x00000003
+
+	FILE_PIPE_BYTE_STREAM_MODE = 0x00000000
+	FILE_PIPE_MESSAGE_MODE     = 0x00000001
+
+	FILE_PIPE_QUEUE_OPERATION    = 0x00000000
+	FILE_PIPE_COMPLETE_OPERATION = 0x00000001
+
+	FILE_PIPE_INBOUND     = 0x00000000
+	FILE_PIPE_OUTBOUND    = 0x00000001
+	FILE_PIPE_FULL_DUPLEX = 0x00000002
+
+	FILE_PIPE_DISCONNECTED_STATE = 0x00000001
+	FILE_PIPE_LISTENING_STATE    = 0x00000002
+	FILE_PIPE_CONNECTED_STATE    = 0x00000003
+	FILE_PIPE_CLOSING_STATE      = 0x00000004
+
+	FILE_PIPE_CLIENT_END = 0x00000000
+	FILE_PIPE_SERVER_END = 0x00000001
+)
+
+const (
+	// FileInformationClass for NtSetInformationFile
+	FileBasicInformation                         = 4
+	FileRenameInformation                        = 10
+	FileDispositionInformation                   = 13
+	FilePositionInformation                      = 14
+	FileEndOfFileInformation                     = 20
+	FileValidDataLengthInformation               = 39
+	FileShortNameInformation                     = 40
+	FileIoPriorityHintInformation                = 43
+	FileReplaceCompletionInformation             = 61
+	FileDispositionInformationEx                 = 64
+	FileCaseSensitiveInformation                 = 71
+	FileLinkInformation                          = 72
+	FileCaseSensitiveInformationForceAccessCheck = 75
+	FileKnownFolderInformation                   = 76
+
+	// Flags for FILE_RENAME_INFORMATION
+	FILE_RENAME_REPLACE_IF_EXISTS                    = 0x00000001
+	FILE_RENAME_POSIX_SEMANTICS                      = 0x00000002
+	FILE_RENAME_SUPPRESS_PIN_STATE_INHERITANCE       = 0x00000004
+	FILE_RENAME_SUPPRESS_STORAGE_RESERVE_INHERITANCE = 0x00000008
+	FILE_RENAME_NO_INCREASE_AVAILABLE_SPACE          = 0x00000010
+	FILE_RENAME_NO_DECREASE_AVAILABLE_SPACE          = 0x00000020
+	FILE_RENAME_PRESERVE_AVAILABLE_SPACE             = 0x00000030
+	FILE_RENAME_IGNORE_READONLY_ATTRIBUTE            = 0x00000040
+	FILE_RENAME_FORCE_RESIZE_TARGET_SR               = 0x00000080
+	FILE_RENAME_FORCE_RESIZE_SOURCE_SR               = 0x00000100
+	FILE_RENAME_FORCE_RESIZE_SR                      = 0x00000180
+
+	// Flags for FILE_DISPOSITION_INFORMATION_EX
+	FILE_DISPOSITION_DO_NOT_DELETE             = 0x00000000
+	FILE_DISPOSITION_DELETE                    = 0x00000001
+	FILE_DISPOSITION_POSIX_SEMANTICS           = 0x00000002
+	FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK = 0x00000004
+	FILE_DISPOSITION_ON_CLOSE                  = 0x00000008
+	FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE = 0x00000010
+
+	// Flags for FILE_CASE_SENSITIVE_INFORMATION
+	FILE_CS_FLAG_CASE_SENSITIVE_DIR = 0x00000001
+
+	// Flags for FILE_LINK_INFORMATION
+	FILE_LINK_REPLACE_IF_EXISTS                    = 0x00000001
+	FILE_LINK_POSIX_SEMANTICS                      = 0x00000002
+	FILE_LINK_SUPPRESS_STORAGE_RESERVE_INHERITANCE = 0x00000008
+	FILE_LINK_NO_INCREASE_AVAILABLE_SPACE          = 0x00000010
+	FILE_LINK_NO_DECREASE_AVAILABLE_SPACE          = 0x00000020
+	FILE_LINK_PRESERVE_AVAILABLE_SPACE             = 0x00000030
+	FILE_LINK_IGNORE_READONLY_ATTRIBUTE            = 0x00000040
+	FILE_LINK_FORCE_RESIZE_TARGET_SR               = 0x00000080
+	FILE_LINK_FORCE_RESIZE_SOURCE_SR               = 0x00000100
+	FILE_LINK_FORCE_RESIZE_SR                      = 0x00000180
+)
+
+// ProcessInformationClasses for NtQueryInformationProcess and NtSetInformationProcess.
+const (
+	ProcessBasicInformation = iota
+	ProcessQuotaLimits
+	ProcessIoCounters
+	ProcessVmCounters
+	ProcessTimes
+	ProcessBasePriority
+	ProcessRaisePriority
+	ProcessDebugPort
+	ProcessExceptionPort
+	ProcessAccessToken
+	ProcessLdtInformation
+	ProcessLdtSize
+	ProcessDefaultHardErrorMode
+	ProcessIoPortHandlers
+	ProcessPooledUsageAndLimits
+	ProcessWorkingSetWatch
+	ProcessUserModeIOPL
+	ProcessEnableAlignmentFaultFixup
+	ProcessPriorityClass
+	ProcessWx86Information
+	ProcessHandleCount
+	ProcessAffinityMask
+	ProcessPriorityBoost
+	ProcessDeviceMap
+	ProcessSessionInformation
+	ProcessForegroundInformation
+	ProcessWow64Information
+	ProcessImageFileName
+	ProcessLUIDDeviceMapsEnabled
+	ProcessBreakOnTermination
+	ProcessDebugObjectHandle
+	ProcessDebugFlags
+	ProcessHandleTracing
+	ProcessIoPriority
+	ProcessExecuteFlags
+	ProcessTlsInformation
+	ProcessCookie
+	ProcessImageInformation
+	ProcessCycleTime
+	ProcessPagePriority
+	ProcessInstrumentationCallback
+	ProcessThreadStackAllocation
+	ProcessWorkingSetWatchEx
+	ProcessImageFileNameWin32
+	ProcessImageFileMapping
+	ProcessAffinityUpdateMode
+	ProcessMemoryAllocationMode
+	ProcessGroupInformation
+	ProcessTokenVirtualizationEnabled
+	ProcessConsoleHostProcess
+	ProcessWindowInformation
+	ProcessHandleInformation
+	ProcessMitigationPolicy
+	ProcessDynamicFunctionTableInformation
+	ProcessHandleCheckingMode
+	ProcessKeepAliveCount
+	ProcessRevokeFileHandles
+	ProcessWorkingSetControl
+	ProcessHandleTable
+	ProcessCheckStackExtentsMode
+	ProcessCommandLineInformation
+	ProcessProtectionInformation
+	ProcessMemoryExhaustion
+	ProcessFaultInformation
+	ProcessTelemetryIdInformation
+	ProcessCommitReleaseInformation
+	ProcessDefaultCpuSetsInformation
+	ProcessAllowedCpuSetsInformation
+	ProcessSubsystemProcess
+	ProcessJobMemoryInformation
+	ProcessInPrivate
+	ProcessRaiseUMExceptionOnInvalidHandleClose
+	ProcessIumChallengeResponse
+	ProcessChildProcessInformation
+	ProcessHighGraphicsPriorityInformation
+	ProcessSubsystemInformation
+	ProcessEnergyValues
+	ProcessActivityThrottleState
+	ProcessActivityThrottlePolicy
+	ProcessWin32kSyscallFilterInformation
+	ProcessDisableSystemAllowedCpuSets
+	ProcessWakeInformation
+	ProcessEnergyTrackingState
+	ProcessManageWritesToExecutableMemory
+	ProcessCaptureTrustletLiveDump
+	ProcessTelemetryCoverage
+	ProcessEnclaveInformation
+	ProcessEnableReadWriteVmLogging
+	ProcessUptimeInformation
+	ProcessImageSection
+	ProcessDebugAuthInformation
+	ProcessSystemResourceManagement
+	ProcessSequenceNumber
+	ProcessLoaderDetour
+	ProcessSecurityDomainInformation
+	ProcessCombineSecurityDomainsInformation
+	ProcessEnableLogging
+	ProcessLeapSecondInformation
+	ProcessFiberShadowStackAllocation
+	ProcessFreeFiberShadowStackAllocation
+	ProcessAltSystemCallInformation
+	ProcessDynamicEHContinuationTargets
+	ProcessDynamicEnforcedCetCompatibleRanges
+)
+
+type PROCESS_BASIC_INFORMATION struct {
+	ExitStatus                   NTStatus
+	PebBaseAddress               *PEB
+	AffinityMask                 uintptr
+	BasePriority                 int32
+	UniqueProcessId              uintptr
+	InheritedFromUniqueProcessId uintptr
+}
+
+type SYSTEM_PROCESS_INFORMATION struct {
+	NextEntryOffset              uint32
+	NumberOfThreads              uint32
+	WorkingSetPrivateSize        int64
+	HardFaultCount               uint32
+	NumberOfThreadsHighWatermark uint32
+	CycleTime                    uint64
+	CreateTime                   int64
+	UserTime                     int64
+	KernelTime                   int64
+	ImageName                    NTUnicodeString
+	BasePriority                 int32
+	UniqueProcessID              uintptr
+	InheritedFromUniqueProcessID uintptr
+	HandleCount                  uint32
+	SessionID                    uint32
+	UniqueProcessKey             *uint32
+	PeakVirtualSize              uintptr
+	VirtualSize                  uintptr
+	PageFaultCount               uint32
+	PeakWorkingSetSize           uintptr
+	WorkingSetSize               uintptr
+	QuotaPeakPagedPoolUsage      uintptr
+	QuotaPagedPoolUsage          uintptr
+	QuotaPeakNonPagedPoolUsage   uintptr
+	QuotaNonPagedPoolUsage       uintptr
+	PagefileUsage                uintptr
+	PeakPagefileUsage            uintptr
+	PrivatePageCount             uintptr
+	ReadOperationCount           int64
+	WriteOperationCount          int64
+	OtherOperationCount          int64
+	ReadTransferCount            int64
+	WriteTransferCount           int64
+	OtherTransferCount           int64
+}
+
+// SystemInformationClasses for NtQuerySystemInformation and NtSetSystemInformation
+const (
+	SystemBasicInformation = iota
+	SystemProcessorInformation
+	SystemPerformanceInformation
+	SystemTimeOfDayInformation
+	SystemPathInformation
+	SystemProcessInformation
+	SystemCallCountInformation
+	SystemDeviceInformation
+	SystemProcessorPerformanceInformation
+	SystemFlagsInformation
+	SystemCallTimeInformation
+	SystemModuleInformation
+	SystemLocksInformation
+	SystemStackTraceInformation
+	SystemPagedPoolInformation
+	SystemNonPagedPoolInformation
+	SystemHandleInformation
+	SystemObjectInformation
+	SystemPageFileInformation
+	SystemVdmInstemulInformation
+	SystemVdmBopInformation
+	SystemFileCacheInformation
+	SystemPoolTagInformation
+	SystemInterruptInformation
+	SystemDpcBehaviorInformation
+	SystemFullMemoryInformation
+	SystemLoadGdiDriverInformation
+	SystemUnloadGdiDriverInformation
+	SystemTimeAdjustmentInformation
+	SystemSummaryMemoryInformation
+	SystemMirrorMemoryInformation
+	SystemPerformanceTraceInformation
+	systemObsolete0
+	SystemExceptionInformation
+	SystemCrashDumpStateInformation
+	SystemKernelDebuggerInformation
+	SystemContextSwitchInformation
+	SystemRegistryQuotaInformation
+	SystemExtendServiceTableInformation
+	SystemPrioritySeperation
+	SystemVerifierAddDriverInformation
+	SystemVerifierRemoveDriverInformation
+	SystemProcessorIdleInformation
+	SystemLegacyDriverInformation
+	SystemCurrentTimeZoneInformation
+	SystemLookasideInformation
+	SystemTimeSlipNotification
+	SystemSessionCreate
+	SystemSessionDetach
+	SystemSessionInformation
+	SystemRangeStartInformation
+	SystemVerifierInformation
+	SystemVerifierThunkExtend
+	SystemSessionProcessInformation
+	SystemLoadGdiDriverInSystemSpace
+	SystemNumaProcessorMap
+	SystemPrefetcherInformation
+	SystemExtendedProcessInformation
+	SystemRecommendedSharedDataAlignment
+	SystemComPlusPackage
+	SystemNumaAvailableMemory
+	SystemProcessorPowerInformation
+	SystemEmulationBasicInformation
+	SystemEmulationProcessorInformation
+	SystemExtendedHandleInformation
+	SystemLostDelayedWriteInformation
+	SystemBigPoolInformation
+	SystemSessionPoolTagInformation
+	SystemSessionMappedViewInformation
+	SystemHotpatchInformation
+	SystemObjectSecurityMode
+	SystemWatchdogTimerHandler
+	SystemWatchdogTimerInformation
+	SystemLogicalProcessorInformation
+	SystemWow64SharedInformationObsolete
+	SystemRegisterFirmwareTableInformationHandler
+	SystemFirmwareTableInformation
+	SystemModuleInformationEx
+	SystemVerifierTriageInformation
+	SystemSuperfetchInformation
+	SystemMemoryListInformation
+	SystemFileCacheInformationEx
+	SystemThreadPriorityClientIdInformation
+	SystemProcessorIdleCycleTimeInformation
+	SystemVerifierCancellationInformation
+	SystemProcessorPowerInformationEx
+	SystemRefTraceInformation
+	SystemSpecialPoolInformation
+	SystemProcessIdInformation
+	SystemErrorPortInformation
+	SystemBootEnvironmentInformation
+	SystemHypervisorInformation
+	SystemVerifierInformationEx
+	SystemTimeZoneInformation
+	SystemImageFileExecutionOptionsInformation
+	SystemCoverageInformation
+	SystemPrefetchPatchInformation
+	SystemVerifierFaultsInformation
+	SystemSystemPartitionInformation
+	SystemSystemDiskInformation
+	SystemProcessorPerformanceDistribution
+	SystemNumaProximityNodeInformation
+	SystemDynamicTimeZoneInformation
+	SystemCodeIntegrityInformation
+	SystemProcessorMicrocodeUpdateInformation
+	SystemProcessorBrandString
+	SystemVirtualAddressInformation
+	SystemLogicalProcessorAndGroupInformation
+	SystemProcessorCycleTimeInformation
+	SystemStoreInformation
+	SystemRegistryAppendString
+	SystemAitSamplingValue
+	SystemVhdBootInformation
+	SystemCpuQuotaInformation
+	SystemNativeBasicInformation
+	systemSpare1
+	SystemLowPriorityIoInformation
+	SystemTpmBootEntropyInformation
+	SystemVerifierCountersInformation
+	SystemPagedPoolInformationEx
+	SystemSystemPtesInformationEx
+	SystemNodeDistanceInformation
+	SystemAcpiAuditInformation
+	SystemBasicPerformanceInformation
+	SystemQueryPerformanceCounterInformation
+	SystemSessionBigPoolInformation
+	SystemBootGraphicsInformation
+	SystemScrubPhysicalMemoryInformation
+	SystemBadPageInformation
+	SystemProcessorProfileControlArea
+	SystemCombinePhysicalMemoryInformation
+	SystemEntropyInterruptTimingCallback
+	SystemConsoleInformation
+	SystemPlatformBinaryInformation
+	SystemThrottleNotificationInformation
+	SystemHypervisorProcessorCountInformation
+	SystemDeviceDataInformation
+	SystemDeviceDataEnumerationInformation
+	SystemMemoryTopologyInformation
+	SystemMemoryChannelInformation
+	SystemBootLogoInformation
+	SystemProcessorPerformanceInformationEx
+	systemSpare0
+	SystemSecureBootPolicyInformation
+	SystemPageFileInformationEx
+	SystemSecureBootInformation
+	SystemEntropyInterruptTimingRawInformation
+	SystemPortableWorkspaceEfiLauncherInformation
+	SystemFullProcessInformation
+	SystemKernelDebuggerInformationEx
+	SystemBootMetadataInformation
+	SystemSoftRebootInformation
+	SystemElamCertificateInformation
+	SystemOfflineDumpConfigInformation
+	SystemProcessorFeaturesInformation
+	SystemRegistryReconciliationInformation
+	SystemEdidInformation
+	SystemManufacturingInformation
+	SystemEnergyEstimationConfigInformation
+	SystemHypervisorDetailInformation
+	SystemProcessorCycleStatsInformation
+	SystemVmGenerationCountInformation
+	SystemTrustedPlatformModuleInformation
+	SystemKernelDebuggerFlags
+	SystemCodeIntegrityPolicyInformation
+	SystemIsolatedUserModeInformation
+	SystemHardwareSecurityTestInterfaceResultsInformation
+	SystemSingleModuleInformation
+	SystemAllowedCpuSetsInformation
+	SystemDmaProtectionInformation
+	SystemInterruptCpuSetsInformation
+	SystemSecureBootPolicyFullInformation
+	SystemCodeIntegrityPolicyFullInformation
+	SystemAffinitizedInterruptProcessorInformation
+	SystemRootSiloInformation
+)
+
+type RTL_PROCESS_MODULE_INFORMATION struct {
+	Section          Handle
+	MappedBase       uintptr
+	ImageBase        uintptr
+	ImageSize        uint32
+	Flags            uint32
+	LoadOrderIndex   uint16
+	InitOrderIndex   uint16
+	LoadCount        uint16
+	OffsetToFileName uint16
+	FullPathName     [256]byte
+}
+
+type RTL_PROCESS_MODULES struct {
+	NumberOfModules uint32
+	Modules         [1]RTL_PROCESS_MODULE_INFORMATION
+}
+
+// Constants for LocalAlloc flags.
+const (
+	LMEM_FIXED          = 0x0
+	LMEM_MOVEABLE       = 0x2
+	LMEM_NOCOMPACT      = 0x10
+	LMEM_NODISCARD      = 0x20
+	LMEM_ZEROINIT       = 0x40
+	LMEM_MODIFY         = 0x80
+	LMEM_DISCARDABLE    = 0xf00
+	LMEM_VALID_FLAGS    = 0xf72
+	LMEM_INVALID_HANDLE = 0x8000
+	LHND                = LMEM_MOVEABLE | LMEM_ZEROINIT
+	LPTR                = LMEM_FIXED | LMEM_ZEROINIT
+	NONZEROLHND         = LMEM_MOVEABLE
+	NONZEROLPTR         = LMEM_FIXED
+)
+
+// Constants for the CreateNamedPipe-family of functions.
+const (
+	PIPE_ACCESS_INBOUND  = 0x1
+	PIPE_ACCESS_OUTBOUND = 0x2
+	PIPE_ACCESS_DUPLEX   = 0x3
+
+	PIPE_CLIENT_END = 0x0
+	PIPE_SERVER_END = 0x1
+
+	PIPE_WAIT                  = 0x0
+	PIPE_NOWAIT                = 0x1
+	PIPE_READMODE_BYTE         = 0x0
+	PIPE_READMODE_MESSAGE      = 0x2
+	PIPE_TYPE_BYTE             = 0x0
+	PIPE_TYPE_MESSAGE          = 0x4
+	PIPE_ACCEPT_REMOTE_CLIENTS = 0x0
+	PIPE_REJECT_REMOTE_CLIENTS = 0x8
+
+	PIPE_UNLIMITED_INSTANCES = 255
+)
+
+// Constants for security attributes when opening named pipes.
+const (
+	SECURITY_ANONYMOUS      = SecurityAnonymous << 16
+	SECURITY_IDENTIFICATION = SecurityIdentification << 16
+	SECURITY_IMPERSONATION  = SecurityImpersonation << 16
+	SECURITY_DELEGATION     = SecurityDelegation << 16
+
+	SECURITY_CONTEXT_TRACKING = 0x40000
+	SECURITY_EFFECTIVE_ONLY   = 0x80000
+
+	SECURITY_SQOS_PRESENT     = 0x100000
+	SECURITY_VALID_SQOS_FLAGS = 0x1f0000
+)
+
+// ResourceID represents a 16-bit resource identifier, traditionally created with the MAKEINTRESOURCE macro.
+type ResourceID uint16
+
+// ResourceIDOrString must be either a ResourceID, to specify a resource or resource type by ID,
+// or a string, to specify a resource or resource type by name.
+type ResourceIDOrString interface{}
+
+// Predefined resource names and types.
+var (
+	// Predefined names.
+	CREATEPROCESS_MANIFEST_RESOURCE_ID                 ResourceID = 1
+	ISOLATIONAWARE_MANIFEST_RESOURCE_ID                ResourceID = 2
+	ISOLATIONAWARE_NOSTATICIMPORT_MANIFEST_RESOURCE_ID ResourceID = 3
+	ISOLATIONPOLICY_MANIFEST_RESOURCE_ID               ResourceID = 4
+	ISOLATIONPOLICY_BROWSER_MANIFEST_RESOURCE_ID       ResourceID = 5
+	MINIMUM_RESERVED_MANIFEST_RESOURCE_ID              ResourceID = 1  // inclusive
+	MAXIMUM_RESERVED_MANIFEST_RESOURCE_ID              ResourceID = 16 // inclusive
+
+	// Predefined types.
+	RT_CURSOR       ResourceID = 1
+	RT_BITMAP       ResourceID = 2
+	RT_ICON         ResourceID = 3
+	RT_MENU         ResourceID = 4
+	RT_DIALOG       ResourceID = 5
+	RT_STRING       ResourceID = 6
+	RT_FONTDIR      ResourceID = 7
+	RT_FONT         ResourceID = 8
+	RT_ACCELERATOR  ResourceID = 9
+	RT_RCDATA       ResourceID = 10
+	RT_MESSAGETABLE ResourceID = 11
+	RT_GROUP_CURSOR ResourceID = 12
+	RT_GROUP_ICON   ResourceID = 14
+	RT_VERSION      ResourceID = 16
+	RT_DLGINCLUDE   ResourceID = 17
+	RT_PLUGPLAY     ResourceID = 19
+	RT_VXD          ResourceID = 20
+	RT_ANICURSOR    ResourceID = 21
+	RT_ANIICON      ResourceID = 22
+	RT_HTML         ResourceID = 23
+	RT_MANIFEST     ResourceID = 24
+)
+
+type VS_FIXEDFILEINFO struct {
+	Signature        uint32
+	StrucVersion     uint32
+	FileVersionMS    uint32
+	FileVersionLS    uint32
+	ProductVersionMS uint32
+	ProductVersionLS uint32
+	FileFlagsMask    uint32
+	FileFlags        uint32
+	FileOS           uint32
+	FileType         uint32
+	FileSubtype      uint32
+	FileDateMS       uint32
+	FileDateLS       uint32
+}
+
+type COAUTHIDENTITY struct {
+	User           *uint16
+	UserLength     uint32
+	Domain         *uint16
+	DomainLength   uint32
+	Password       *uint16
+	PasswordLength uint32
+	Flags          uint32
+}
+
+type COAUTHINFO struct {
+	AuthnSvc           uint32
+	AuthzSvc           uint32
+	ServerPrincName    *uint16
+	AuthnLevel         uint32
+	ImpersonationLevel uint32
+	AuthIdentityData   *COAUTHIDENTITY
+	Capabilities       uint32
+}
+
+type COSERVERINFO struct {
+	Reserved1 uint32
+	Aame      *uint16
+	AuthInfo  *COAUTHINFO
+	Reserved2 uint32
+}
+
+type BIND_OPTS3 struct {
+	CbStruct          uint32
+	Flags             uint32
+	Mode              uint32
+	TickCountDeadline uint32
+	TrackFlags        uint32
+	ClassContext      uint32
+	Locale            uint32
+	ServerInfo        *COSERVERINFO
+	Hwnd              HWND
+}
+
+const (
+	CLSCTX_INPROC_SERVER          = 0x1
+	CLSCTX_INPROC_HANDLER         = 0x2
+	CLSCTX_LOCAL_SERVER           = 0x4
+	CLSCTX_INPROC_SERVER16        = 0x8
+	CLSCTX_REMOTE_SERVER          = 0x10
+	CLSCTX_INPROC_HANDLER16       = 0x20
+	CLSCTX_RESERVED1              = 0x40
+	CLSCTX_RESERVED2              = 0x80
+	CLSCTX_RESERVED3              = 0x100
+	CLSCTX_RESERVED4              = 0x200
+	CLSCTX_NO_CODE_DOWNLOAD       = 0x400
+	CLSCTX_RESERVED5              = 0x800
+	CLSCTX_NO_CUSTOM_MARSHAL      = 0x1000
+	CLSCTX_ENABLE_CODE_DOWNLOAD   = 0x2000
+	CLSCTX_NO_FAILURE_LOG         = 0x4000
+	CLSCTX_DISABLE_AAA            = 0x8000
+	CLSCTX_ENABLE_AAA             = 0x10000
+	CLSCTX_FROM_DEFAULT_CONTEXT   = 0x20000
+	CLSCTX_ACTIVATE_32_BIT_SERVER = 0x40000
+	CLSCTX_ACTIVATE_64_BIT_SERVER = 0x80000
+	CLSCTX_ENABLE_CLOAKING        = 0x100000
+	CLSCTX_APPCONTAINER           = 0x400000
+	CLSCTX_ACTIVATE_AAA_AS_IU     = 0x800000
+	CLSCTX_PS_DLL                 = 0x80000000
+
+	COINIT_MULTITHREADED     = 0x0
+	COINIT_APARTMENTTHREADED = 0x2
+	COINIT_DISABLE_OLE1DDE   = 0x4
+	COINIT_SPEED_OVER_MEMORY = 0x8
+)
+
+// Flag for QueryFullProcessImageName.
+const PROCESS_NAME_NATIVE = 1
+
+type ModuleInfo struct {
+	BaseOfDll   uintptr
+	SizeOfImage uint32
+	EntryPoint  uintptr
+}
+
+const ALL_PROCESSOR_GROUPS = 0xFFFF
+
+type Rect struct {
+	Left   int32
+	Top    int32
+	Right  int32
+	Bottom int32
+}
+
+type GUIThreadInfo struct {
+	Size        uint32
+	Flags       uint32
+	Active      HWND
+	Focus       HWND
+	Capture     HWND
+	MenuOwner   HWND
+	MoveSize    HWND
+	CaretHandle HWND
+	CaretRect   Rect
+}
+
+const (
+	DWMWA_NCRENDERING_ENABLED            = 1
+	DWMWA_NCRENDERING_POLICY             = 2
+	DWMWA_TRANSITIONS_FORCEDISABLED      = 3
+	DWMWA_ALLOW_NCPAINT                  = 4
+	DWMWA_CAPTION_BUTTON_BOUNDS          = 5
+	DWMWA_NONCLIENT_RTL_LAYOUT           = 6
+	DWMWA_FORCE_ICONIC_REPRESENTATION    = 7
+	DWMWA_FLIP3D_POLICY                  = 8
+	DWMWA_EXTENDED_FRAME_BOUNDS          = 9
+	DWMWA_HAS_ICONIC_BITMAP              = 10
+	DWMWA_DISALLOW_PEEK                  = 11
+	DWMWA_EXCLUDED_FROM_PEEK             = 12
+	DWMWA_CLOAK                          = 13
+	DWMWA_CLOAKED                        = 14
+	DWMWA_FREEZE_REPRESENTATION          = 15
+	DWMWA_PASSIVE_UPDATE_MODE            = 16
+	DWMWA_USE_HOSTBACKDROPBRUSH          = 17
+	DWMWA_USE_IMMERSIVE_DARK_MODE        = 20
+	DWMWA_WINDOW_CORNER_PREFERENCE       = 33
+	DWMWA_BORDER_COLOR                   = 34
+	DWMWA_CAPTION_COLOR                  = 35
+	DWMWA_TEXT_COLOR                     = 36
+	DWMWA_VISIBLE_FRAME_BORDER_THICKNESS = 37
+)
+
+type WSAQUERYSET struct {
+	Size                uint32
+	ServiceInstanceName *uint16
+	ServiceClassId      *GUID
+	Version             *WSAVersion
+	Comment             *uint16
+	NameSpace           uint32
+	NSProviderId        *GUID
+	Context             *uint16
+	NumberOfProtocols   uint32
+	AfpProtocols        *AFProtocols
+	QueryString         *uint16
+	NumberOfCsAddrs     uint32
+	SaBuffer            *CSAddrInfo
+	OutputFlags         uint32
+	Blob                *BLOB
+}
+
+type WSAVersion struct {
+	Version                 uint32
+	EnumerationOfComparison int32
+}
+
+type AFProtocols struct {
+	AddressFamily int32
+	Protocol      int32
+}
+
+type CSAddrInfo struct {
+	LocalAddr  SocketAddress
+	RemoteAddr SocketAddress
+	SocketType int32
+	Protocol   int32
+}
+
+type BLOB struct {
+	Size     uint32
+	BlobData *byte
+}
+
+type ComStat struct {
+	Flags    uint32
+	CBInQue  uint32
+	CBOutQue uint32
+}
+
+type DCB struct {
+	DCBlength  uint32
+	BaudRate   uint32
+	Flags      uint32
+	wReserved  uint16
+	XonLim     uint16
+	XoffLim    uint16
+	ByteSize   uint8
+	Parity     uint8
+	StopBits   uint8
+	XonChar    byte
+	XoffChar   byte
+	ErrorChar  byte
+	EofChar    byte
+	EvtChar    byte
+	wReserved1 uint16
+}
+
+// Keyboard Layout Flags.
+// See https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadkeyboardlayoutw
+const (
+	KLF_ACTIVATE      = 0x00000001
+	KLF_SUBSTITUTE_OK = 0x00000002
+	KLF_REORDER       = 0x00000008
+	KLF_REPLACELANG   = 0x00000010
+	KLF_NOTELLSHELL   = 0x00000080
+	KLF_SETFORPROCESS = 0x00000100
+)
+
+// Virtual Key codes
+// https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
+const (
+	VK_LBUTTON             = 0x01
+	VK_RBUTTON             = 0x02
+	VK_CANCEL              = 0x03
+	VK_MBUTTON             = 0x04
+	VK_XBUTTON1            = 0x05
+	VK_XBUTTON2            = 0x06
+	VK_BACK                = 0x08
+	VK_TAB                 = 0x09
+	VK_CLEAR               = 0x0C
+	VK_RETURN              = 0x0D
+	VK_SHIFT               = 0x10
+	VK_CONTROL             = 0x11
+	VK_MENU                = 0x12
+	VK_PAUSE               = 0x13
+	VK_CAPITAL             = 0x14
+	VK_KANA                = 0x15
+	VK_HANGEUL             = 0x15
+	VK_HANGUL              = 0x15
+	VK_IME_ON              = 0x16
+	VK_JUNJA               = 0x17
+	VK_FINAL               = 0x18
+	VK_HANJA               = 0x19
+	VK_KANJI               = 0x19
+	VK_IME_OFF             = 0x1A
+	VK_ESCAPE              = 0x1B
+	VK_CONVERT             = 0x1C
+	VK_NONCONVERT          = 0x1D
+	VK_ACCEPT              = 0x1E
+	VK_MODECHANGE          = 0x1F
+	VK_SPACE               = 0x20
+	VK_PRIOR               = 0x21
+	VK_NEXT                = 0x22
+	VK_END                 = 0x23
+	VK_HOME                = 0x24
+	VK_LEFT                = 0x25
+	VK_UP                  = 0x26
+	VK_RIGHT               = 0x27
+	VK_DOWN                = 0x28
+	VK_SELECT              = 0x29
+	VK_PRINT               = 0x2A
+	VK_EXECUTE             = 0x2B
+	VK_SNAPSHOT            = 0x2C
+	VK_INSERT              = 0x2D
+	VK_DELETE              = 0x2E
+	VK_HELP                = 0x2F
+	VK_LWIN                = 0x5B
+	VK_RWIN                = 0x5C
+	VK_APPS                = 0x5D
+	VK_SLEEP               = 0x5F
+	VK_NUMPAD0             = 0x60
+	VK_NUMPAD1             = 0x61
+	VK_NUMPAD2             = 0x62
+	VK_NUMPAD3             = 0x63
+	VK_NUMPAD4             = 0x64
+	VK_NUMPAD5             = 0x65
+	VK_NUMPAD6             = 0x66
+	VK_NUMPAD7             = 0x67
+	VK_NUMPAD8             = 0x68
+	VK_NUMPAD9             = 0x69
+	VK_MULTIPLY            = 0x6A
+	VK_ADD                 = 0x6B
+	VK_SEPARATOR           = 0x6C
+	VK_SUBTRACT            = 0x6D
+	VK_DECIMAL             = 0x6E
+	VK_DIVIDE              = 0x6F
+	VK_F1                  = 0x70
+	VK_F2                  = 0x71
+	VK_F3                  = 0x72
+	VK_F4                  = 0x73
+	VK_F5                  = 0x74
+	VK_F6                  = 0x75
+	VK_F7                  = 0x76
+	VK_F8                  = 0x77
+	VK_F9                  = 0x78
+	VK_F10                 = 0x79
+	VK_F11                 = 0x7A
+	VK_F12                 = 0x7B
+	VK_F13                 = 0x7C
+	VK_F14                 = 0x7D
+	VK_F15                 = 0x7E
+	VK_F16                 = 0x7F
+	VK_F17                 = 0x80
+	VK_F18                 = 0x81
+	VK_F19                 = 0x82
+	VK_F20                 = 0x83
+	VK_F21                 = 0x84
+	VK_F22                 = 0x85
+	VK_F23                 = 0x86
+	VK_F24                 = 0x87
+	VK_NUMLOCK             = 0x90
+	VK_SCROLL              = 0x91
+	VK_OEM_NEC_EQUAL       = 0x92
+	VK_OEM_FJ_JISHO        = 0x92
+	VK_OEM_FJ_MASSHOU      = 0x93
+	VK_OEM_FJ_TOUROKU      = 0x94
+	VK_OEM_FJ_LOYA         = 0x95
+	VK_OEM_FJ_ROYA         = 0x96
+	VK_LSHIFT              = 0xA0
+	VK_RSHIFT              = 0xA1
+	VK_LCONTROL            = 0xA2
+	VK_RCONTROL            = 0xA3
+	VK_LMENU               = 0xA4
+	VK_RMENU               = 0xA5
+	VK_BROWSER_BACK        = 0xA6
+	VK_BROWSER_FORWARD     = 0xA7
+	VK_BROWSER_REFRESH     = 0xA8
+	VK_BROWSER_STOP        = 0xA9
+	VK_BROWSER_SEARCH      = 0xAA
+	VK_BROWSER_FAVORITES   = 0xAB
+	VK_BROWSER_HOME        = 0xAC
+	VK_VOLUME_MUTE         = 0xAD
+	VK_VOLUME_DOWN         = 0xAE
+	VK_VOLUME_UP           = 0xAF
+	VK_MEDIA_NEXT_TRACK    = 0xB0
+	VK_MEDIA_PREV_TRACK    = 0xB1
+	VK_MEDIA_STOP          = 0xB2
+	VK_MEDIA_PLAY_PAUSE    = 0xB3
+	VK_LAUNCH_MAIL         = 0xB4
+	VK_LAUNCH_MEDIA_SELECT = 0xB5
+	VK_LAUNCH_APP1         = 0xB6
+	VK_LAUNCH_APP2         = 0xB7
+	VK_OEM_1               = 0xBA
+	VK_OEM_PLUS            = 0xBB
+	VK_OEM_COMMA           = 0xBC
+	VK_OEM_MINUS           = 0xBD
+	VK_OEM_PERIOD          = 0xBE
+	VK_OEM_2               = 0xBF
+	VK_OEM_3               = 0xC0
+	VK_OEM_4               = 0xDB
+	VK_OEM_5               = 0xDC
+	VK_OEM_6               = 0xDD
+	VK_OEM_7               = 0xDE
+	VK_OEM_8               = 0xDF
+	VK_OEM_AX              = 0xE1
+	VK_OEM_102             = 0xE2
+	VK_ICO_HELP            = 0xE3
+	VK_ICO_00              = 0xE4
+	VK_PROCESSKEY          = 0xE5
+	VK_ICO_CLEAR           = 0xE6
+	VK_OEM_RESET           = 0xE9
+	VK_OEM_JUMP            = 0xEA
+	VK_OEM_PA1             = 0xEB
+	VK_OEM_PA2             = 0xEC
+	VK_OEM_PA3             = 0xED
+	VK_OEM_WSCTRL          = 0xEE
+	VK_OEM_CUSEL           = 0xEF
+	VK_OEM_ATTN            = 0xF0
+	VK_OEM_FINISH          = 0xF1
+	VK_OEM_COPY            = 0xF2
+	VK_OEM_AUTO            = 0xF3
+	VK_OEM_ENLW            = 0xF4
+	VK_OEM_BACKTAB         = 0xF5
+	VK_ATTN                = 0xF6
+	VK_CRSEL               = 0xF7
+	VK_EXSEL               = 0xF8
+	VK_EREOF               = 0xF9
+	VK_PLAY                = 0xFA
+	VK_ZOOM                = 0xFB
+	VK_NONAME              = 0xFC
+	VK_PA1                 = 0xFD
+	VK_OEM_CLEAR           = 0xFE
+)
+
+// Mouse button constants.
+// https://docs.microsoft.com/en-us/windows/console/mouse-event-record-str
+const (
+	FROM_LEFT_1ST_BUTTON_PRESSED = 0x0001
+	RIGHTMOST_BUTTON_PRESSED     = 0x0002
+	FROM_LEFT_2ND_BUTTON_PRESSED = 0x0004
+	FROM_LEFT_3RD_BUTTON_PRESSED = 0x0008
+	FROM_LEFT_4TH_BUTTON_PRESSED = 0x0010
+)
+
+// Control key state constaints.
+// https://docs.microsoft.com/en-us/windows/console/key-event-record-str
+// https://docs.microsoft.com/en-us/windows/console/mouse-event-record-str
+const (
+	CAPSLOCK_ON        = 0x0080
+	ENHANCED_KEY       = 0x0100
+	LEFT_ALT_PRESSED   = 0x0002
+	LEFT_CTRL_PRESSED  = 0x0008
+	NUMLOCK_ON         = 0x0020
+	RIGHT_ALT_PRESSED  = 0x0001
+	RIGHT_CTRL_PRESSED = 0x0004
+	SCROLLLOCK_ON      = 0x0040
+	SHIFT_PRESSED      = 0x0010
+)
+
+// Mouse event record event flags.
+// https://docs.microsoft.com/en-us/windows/console/mouse-event-record-str
+const (
+	MOUSE_MOVED    = 0x0001
+	DOUBLE_CLICK   = 0x0002
+	MOUSE_WHEELED  = 0x0004
+	MOUSE_HWHEELED = 0x0008
+)
+
+// Input Record Event Types
+// https://learn.microsoft.com/en-us/windows/console/input-record-str
+const (
+	FOCUS_EVENT              = 0x0010
+	KEY_EVENT                = 0x0001
+	MENU_EVENT               = 0x0008
+	MOUSE_EVENT              = 0x0002
+	WINDOW_BUFFER_SIZE_EVENT = 0x0004
 )

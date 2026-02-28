@@ -12,6 +12,17 @@ import (
 func init() {
 	register("Crash", Crash)
 	register("DoublePanic", DoublePanic)
+	register("ErrorPanic", ErrorPanic)
+	register("StringerPanic", StringerPanic)
+	register("DoubleErrorPanic", DoubleErrorPanic)
+	register("DoubleStringerPanic", DoubleStringerPanic)
+	register("StringPanic", StringPanic)
+	register("NilPanic", NilPanic)
+	register("CircularPanic", CircularPanic)
+	register("RepanickedPanic", RepanickedPanic)
+	register("RepanickedMiddlePanic", RepanickedMiddlePanic)
+	register("RepanickedPanicSandwich", RepanickedPanicSandwich)
+	register("DoublePanicWithSameValue", DoublePanicWithSameValue)
 }
 
 func test(name string) {
@@ -63,4 +74,129 @@ func DoublePanic() {
 		panic(P("YYY"))
 	}()
 	panic(P("XXX"))
+}
+
+// Test that panic while panicking discards error message
+// See issue 52257
+type exampleError struct{}
+
+func (e exampleError) Error() string {
+	panic("important multi-line\nerror message")
+}
+
+func ErrorPanic() {
+	panic(exampleError{})
+}
+
+type examplePanicError struct{}
+
+func (e examplePanicError) Error() string {
+	panic(exampleError{})
+}
+
+func DoubleErrorPanic() {
+	panic(examplePanicError{})
+}
+
+type exampleStringer struct{}
+
+func (s exampleStringer) String() string {
+	panic("important multi-line\nstringer message")
+}
+
+func StringerPanic() {
+	panic(exampleStringer{})
+}
+
+type examplePanicStringer struct{}
+
+func (s examplePanicStringer) String() string {
+	panic(exampleStringer{})
+}
+
+func DoubleStringerPanic() {
+	panic(examplePanicStringer{})
+}
+
+func StringPanic() {
+	panic("important multi-line\nstring message")
+}
+
+func NilPanic() {
+	panic(nil)
+}
+
+type exampleCircleStartError struct{}
+
+func (e exampleCircleStartError) Error() string {
+	panic(exampleCircleEndError{})
+}
+
+type exampleCircleEndError struct{}
+
+func (e exampleCircleEndError) Error() string {
+	panic(exampleCircleStartError{})
+}
+
+func CircularPanic() {
+	panic(exampleCircleStartError{})
+}
+
+func RepanickedPanic() {
+	defer func() {
+		panic(recover())
+	}()
+	panic("message")
+}
+
+func RepanickedMiddlePanic() {
+	defer func() {
+		recover()
+		panic("outer")
+	}()
+	func() {
+		defer func() {
+			panic(recover())
+		}()
+		func() {
+			defer func() {
+				recover()
+				panic("middle")
+			}()
+			panic("inner")
+		}()
+	}()
+}
+
+// Panic sandwich:
+//
+//	panic("outer") =>
+//	recovered, panic("inner") =>
+//	panic(recovered outer panic value)
+//
+// Exercises the edge case where we repanic a panic value,
+// but with another panic in the middle.
+func RepanickedPanicSandwich() {
+	var outer any
+	defer func() {
+		recover()
+		panic(outer)
+	}()
+	func() {
+		defer func() {
+			outer = recover()
+			panic("inner")
+		}()
+		panic("outer")
+	}()
+}
+
+// Double panic with same value and not recovered.
+// See issue 76099.
+func DoublePanicWithSameValue() {
+	var e any = "message"
+	defer func() {
+		panic(e)
+	}()
+	panic(e)
 }

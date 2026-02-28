@@ -11,7 +11,7 @@ import (
 
 const bitSize16 = 2
 
-func fileInfoFromStat(d *syscall.Dir) FileInfo {
+func fileInfoFromStat(d *syscall.Dir) *fileStat {
 	fs := &fileStat{
 		name:    d.Name,
 		size:    d.Length,
@@ -43,7 +43,7 @@ func fileInfoFromStat(d *syscall.Dir) FileInfo {
 }
 
 // arg is an open *File or a path string.
-func dirstat(arg interface{}) (*syscall.Dir, error) {
+func dirstat(arg any) (*syscall.Dir, error) {
 	var name string
 	var err error
 
@@ -56,7 +56,11 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 		switch a := arg.(type) {
 		case *File:
 			name = a.name
-			n, err = syscall.Fstat(a.fd, buf)
+			if err := a.incref("fstat"); err != nil {
+				return nil, err
+			}
+			n, err = syscall.Fstat(a.sysfd, buf)
+			a.decref()
 		case string:
 			name = a
 			n, err = syscall.Stat(a, buf)
@@ -65,7 +69,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 		}
 
 		if n < bitSize16 {
-			return nil, &PathError{"stat", name, err}
+			return nil, &PathError{Op: "stat", Path: name, Err: err}
 		}
 
 		// Pull the real size out of the stat message.
@@ -76,7 +80,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 		if size <= n {
 			d, err := syscall.UnmarshalDir(buf[:n])
 			if err != nil {
-				return nil, &PathError{"stat", name, err}
+				return nil, &PathError{Op: "stat", Path: name, Err: err}
 			}
 			return d, nil
 		}
@@ -87,7 +91,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
 		err = syscall.ErrBadStat
 	}
 
-	return nil, &PathError{"stat", name, err}
+	return nil, &PathError{Op: "stat", Path: name, Err: err}
 }
 
 // statNolog implements Stat for Plan 9.

@@ -4,6 +4,8 @@
 
 package runtime
 
+import "internal/abi"
+
 func cgoSigtramp()
 
 //go:nosplit
@@ -12,11 +14,11 @@ func setsig(i uint32, fn uintptr) {
 	var sa sigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = sigset_all
-	if fn == funcPC(sighandler) {
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
 		if iscgo {
-			fn = funcPC(cgoSigtramp)
+			fn = abi.FuncPCABI0(cgoSigtramp)
 		} else {
-			fn = funcPC(sigtramp)
+			fn = abi.FuncPCABI0(sigtramp)
 		}
 	}
 	sa.sa_handler = fn

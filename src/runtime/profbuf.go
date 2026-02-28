@@ -1,11 +1,11 @@
-// Copyright 2017 The Go Authors.  All rights reserved.
+// Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -37,6 +37,10 @@ import (
 // that data at the next read. The read offset rNext tracks the next offset to
 // be returned by read. By definition, r ≤ rNext ≤ w (before wraparound),
 // and rNext is only used by the reader, so it can be accessed without atomics.
+//
+// If the reader is blocked waiting for more data, the writer will wake it up if
+// either the buffer is more than half full, or when the writer sets the eof
+// marker or writes overflow entries (described below.)
 //
 // If the writer gets ahead of the reader, so that the buffer fills,
 // future writes are discarded and replaced in the output stream by an
@@ -84,13 +88,12 @@ import (
 //	if uint32(overflow) > 0 {
 //		emit entry for uint32(overflow), time
 //	}
-//
 type profBuf struct {
 	// accessed atomically
 	r, w         profAtomic
-	overflow     uint64
-	overflowTime uint64
-	eof          uint32
+	overflow     atomic.Uint64
+	overflowTime atomic.Uint64
+	eof          atomic.Uint32
 
 	// immutable (excluding slice content)
 	hdrsize uintptr
@@ -151,15 +154,15 @@ func (x profIndex) addCountsAndClearFlags(data, tag int) profIndex {
 
 // hasOverflow reports whether b has any overflow records pending.
 func (b *profBuf) hasOverflow() bool {
-	return uint32(atomic.Load64(&b.overflow)) > 0
+	return uint32(b.overflow.Load()) > 0
 }
 
 // takeOverflow consumes the pending overflow records, returning the overflow count
 // and the time of the first overflow.
 // When called by the reader, it is racing against incrementOverflow.
 func (b *profBuf) takeOverflow() (count uint32, time uint64) {
-	overflow := atomic.Load64(&b.overflow)
-	time = atomic.Load64(&b.overflowTime)
+	overflow := b.overflow.Load()
+	time = b.overflowTime.Load()
 	for {
 		count = uint32(overflow)
 		if count == 0 {
@@ -167,11 +170,11 @@ func (b *profBuf) takeOverflow() (count uint32, time uint64) {
 			break
 		}
 		// Increment generation, clear overflow count in low bits.
-		if atomic.Cas64(&b.overflow, overflow, ((overflow>>32)+1)<<32) {
+		if b.overflow.CompareAndSwap(overflow, ((overflow>>32)+1)<<32) {
 			break
 		}
-		overflow = atomic.Load64(&b.overflow)
-		time = atomic.Load64(&b.overflowTime)
+		overflow = b.overflow.Load()
+		time = b.overflowTime.Load()
 	}
 	return uint32(overflow), time
 }
@@ -180,14 +183,14 @@ func (b *profBuf) takeOverflow() (count uint32, time uint64) {
 // It is racing against a possible takeOverflow in the reader.
 func (b *profBuf) incrementOverflow(now int64) {
 	for {
-		overflow := atomic.Load64(&b.overflow)
+		overflow := b.overflow.Load()
 
 		// Once we see b.overflow reach 0, it's stable: no one else is changing it underfoot.
 		// We need to set overflowTime if we're incrementing b.overflow from 0.
 		if uint32(overflow) == 0 {
 			// Store overflowTime first so it's always available when overflow != 0.
-			atomic.Store64(&b.overflowTime, uint64(now))
-			atomic.Store64(&b.overflow, (((overflow>>32)+1)<<32)+1)
+			b.overflowTime.Store(uint64(now))
+			b.overflow.Store((((overflow >> 32) + 1) << 32) + 1)
 			break
 		}
 		// Otherwise we're racing to increment against reader
@@ -197,7 +200,7 @@ func (b *profBuf) incrementOverflow(now int64) {
 		if int32(overflow) == -1 {
 			break
 		}
-		if atomic.Cas64(&b.overflow, overflow, overflow+1) {
+		if b.overflow.CompareAndSwap(overflow, overflow+1) {
 			break
 		}
 	}
@@ -349,7 +352,7 @@ func (b *profBuf) write(tagPtr *unsafe.Pointer, now int64, hdr []uint64, stk []u
 	// so there is no need for a deletion barrier on b.tags[wt].
 	wt := int(bw.tagCount() % uint32(len(b.tags)))
 	if tagPtr != nil {
-		*(*uintptr)(unsafe.Pointer(&b.tags[wt])) = uintptr(unsafe.Pointer(*tagPtr))
+		*(*uintptr)(unsafe.Pointer(&b.tags[wt])) = uintptr(*tagPtr)
 	}
 
 	// Main record.
@@ -368,10 +371,8 @@ func (b *profBuf) write(tagPtr *unsafe.Pointer, now int64, hdr []uint64, stk []u
 	data[0] = uint64(2 + b.hdrsize + uintptr(len(stk))) // length
 	data[1] = uint64(now)                               // time stamp
 	// header, zero-padded
-	i := uintptr(copy(data[2:2+b.hdrsize], hdr))
-	for ; i < b.hdrsize; i++ {
-		data[2+i] = 0
-	}
+	i := copy(data[2:2+b.hdrsize], hdr)
+	clear(data[2+i : 2+b.hdrsize])
 	for i, pc := range stk {
 		data[2+b.hdrsize+uintptr(i)] = uint64(pc)
 	}
@@ -381,11 +382,28 @@ func (b *profBuf) write(tagPtr *unsafe.Pointer, now int64, hdr []uint64, stk []u
 		// Racing with reader setting flag bits in b.w, to avoid lost wakeups.
 		old := b.w.load()
 		new := old.addCountsAndClearFlags(skip+2+len(stk)+int(b.hdrsize), 1)
+		// We re-load b.r here to reduce the likelihood of early wakeups
+		// if the reader already consumed some data between the last
+		// time we read b.r and now. This isn't strictly necessary.
+		unread := countSub(new.dataCount(), b.r.load().dataCount())
+		if unread < 0 {
+			// The new count overflowed and wrapped around.
+			unread += len(b.data)
+		}
+		wakeupThreshold := len(b.data) / 2
+		if unread < wakeupThreshold {
+			// Carry over the sleeping flag since we're not planning
+			// to wake the reader yet
+			new |= old & profReaderSleeping
+		}
 		if !b.w.cas(old, new) {
 			continue
 		}
-		// If there was a reader, wake it up.
-		if old&profReaderSleeping != 0 {
+		// If we've hit our high watermark for data in the buffer,
+		// and there is a reader, wake it up.
+		if unread >= wakeupThreshold && old&profReaderSleeping != 0 {
+			// NB: if we reach this point, then the sleeping bit is
+			// cleared in the new b.w value
 			notewakeup(&b.wait)
 		}
 		break
@@ -395,10 +413,10 @@ func (b *profBuf) write(tagPtr *unsafe.Pointer, now int64, hdr []uint64, stk []u
 // close signals that there will be no more writes on the buffer.
 // Once all the data has been read from the buffer, reads will return eof=true.
 func (b *profBuf) close() {
-	if atomic.Load(&b.eof) > 0 {
+	if b.eof.Load() > 0 {
 		throw("runtime: profBuf already closed")
 	}
-	atomic.Store(&b.eof, 1)
+	b.eof.Store(1)
 	b.wakeupExtra()
 }
 
@@ -409,6 +427,11 @@ func (b *profBuf) wakeupExtra() {
 	for {
 		old := b.w.load()
 		new := old | profWriteExtra
+		// Clear profReaderSleeping. We're going to wake up the reader
+		// if it was sleeping and we don't want double wakeups in case
+		// we, for example, attempt to write into a full buffer multiple
+		// times before the reader wakes up.
+		new &^= profReaderSleeping
 		if !b.w.cas(old, new) {
 			continue
 		}
@@ -469,14 +492,12 @@ Read:
 			// Won the race, report overflow.
 			dst := b.overflowBuf
 			dst[0] = uint64(2 + b.hdrsize + 1)
-			dst[1] = uint64(time)
-			for i := uintptr(0); i < b.hdrsize; i++ {
-				dst[2+i] = 0
-			}
+			dst[1] = time
+			clear(dst[2 : 2+b.hdrsize])
 			dst[2+b.hdrsize] = uint64(count)
 			return dst[:2+b.hdrsize+1], overflowTag[:1], false
 		}
-		if atomic.Load(&b.eof) > 0 {
+		if b.eof.Load() > 0 {
 			// No data, no overflow, EOF set: done.
 			return nil, nil, true
 		}
@@ -492,6 +513,7 @@ Read:
 		// Nothing to read right now.
 		// Return or sleep according to mode.
 		if mode == profBufNonBlocking {
+			// Necessary on Darwin, notetsleepg below does not work in signal handler, root cause of #61768.
 			return nil, nil, false
 		}
 		if !b.w.cas(bw, bw|profReaderSleeping) {

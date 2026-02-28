@@ -7,11 +7,18 @@ package math
 // Exp returns e**x, the base-e exponential of x.
 //
 // Special cases are:
+//
 //	Exp(+Inf) = +Inf
 //	Exp(NaN) = NaN
+//
 // Very large values overflow to 0 or +Inf.
 // Very small values underflow to 1.
-func Exp(x float64) float64
+func Exp(x float64) float64 {
+	if haveArchExp {
+		return archExp(x)
+	}
+	return exp(x)
+}
 
 // The original C code, the long comment, and the constants
 // below are from FreeBSD's /usr/src/lib/msun/src/e_exp.c
@@ -102,13 +109,11 @@ func exp(x float64) float64 {
 
 	// special cases
 	switch {
-	case IsNaN(x) || IsInf(x, 1):
+	case IsNaN(x):
 		return x
-	case IsInf(x, -1):
-		return 0
-	case x > Overflow:
+	case x > Overflow: // handles case where x is +∞
 		return Inf(1)
-	case x < Underflow:
+	case x < Underflow: // handles case where x is -∞
 		return 0
 	case -NearZero < x && x < NearZero:
 		return 1 + x
@@ -131,8 +136,13 @@ func exp(x float64) float64 {
 
 // Exp2 returns 2**x, the base-2 exponential of x.
 //
-// Special cases are the same as Exp.
-func Exp2(x float64) float64
+// Special cases are the same as [Exp].
+func Exp2(x float64) float64 {
+	if haveArchExp2 {
+		return archExp2(x)
+	}
+	return exp2(x)
+}
 
 func exp2(x float64) float64 {
 	const (
@@ -145,13 +155,11 @@ func exp2(x float64) float64 {
 
 	// special cases
 	switch {
-	case IsNaN(x) || IsInf(x, 1):
+	case IsNaN(x):
 		return x
-	case IsInf(x, -1):
-		return 0
-	case x > Overflow:
+	case x > Overflow: // handles case where x is +∞
 		return Inf(1)
-	case x < Underflow:
+	case x < Underflow: // handles case where x is -∞
 		return 0
 	}
 

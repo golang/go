@@ -8,12 +8,12 @@ Package mail implements parsing of mail messages.
 For the most part, this package follows the syntax as specified by RFC 5322 and
 extended by RFC 6532.
 Notable divergences:
-	* Obsolete address formats are not parsed, including addresses with
-	  embedded route information.
-	* The full range of spacing (the CFWS syntax element) is not supported,
-	  such as breaking addresses across lines.
-	* No unicode normalization is performed.
-	* The special characters ()[]:;@\, are allowed to appear unquoted in names.
+  - Obsolete address formats are not parsed, including addresses with
+    embedded route information.
+  - The full range of spacing (the CFWS syntax element) is not supported,
+    such as breaking addresses across lines.
+  - No unicode normalization is performed.
+  - A leading From line is permitted, as in mbox format (RFC 4155).
 */
 package mail
 
@@ -24,6 +24,7 @@ import (
 	"io"
 	"log"
 	"mime"
+	"net"
 	"net/textproto"
 	"strings"
 	"sync"
@@ -35,7 +36,7 @@ var debug = debugT(false)
 
 type debugT bool
 
-func (d debugT) Printf(format string, args ...interface{}) {
+func (d debugT) Printf(format string, args ...any) {
 	if d {
 		log.Printf(format, args...)
 	}
@@ -53,8 +54,8 @@ type Message struct {
 func ReadMessage(r io.Reader) (msg *Message, err error) {
 	tp := textproto.NewReader(bufio.NewReader(r))
 
-	hdr, err := tp.ReadMIMEHeader()
-	if err != nil {
+	hdr, err := readHeader(tp)
+	if err != nil && (err != io.EOF || len(hdr) == 0) {
 		return nil, err
 	}
 
@@ -64,14 +65,57 @@ func ReadMessage(r io.Reader) (msg *Message, err error) {
 	}, nil
 }
 
+// readHeader reads the message headers from r.
+// This is like textproto.ReadMIMEHeader, but doesn't validate.
+// The fix for issue #53188 tightened up net/textproto to enforce
+// restrictions of RFC 7230.
+// This package implements RFC 5322, which does not have those restrictions.
+// This function copies the relevant code from net/textproto,
+// simplified for RFC 5322.
+func readHeader(r *textproto.Reader) (map[string][]string, error) {
+	m := make(map[string][]string)
+
+	// The first line cannot start with a leading space.
+	if buf, err := r.R.Peek(1); err == nil && (buf[0] == ' ' || buf[0] == '\t') {
+		line, err := r.ReadLine()
+		if err != nil {
+			return m, err
+		}
+		return m, errors.New("malformed initial line: " + line)
+	}
+
+	for {
+		kv, err := r.ReadContinuedLine()
+		if kv == "" {
+			return m, err
+		}
+
+		// Key ends at first colon.
+		k, v, ok := strings.Cut(kv, ":")
+		if !ok {
+			return m, errors.New("malformed header line: " + kv)
+		}
+		key := textproto.CanonicalMIMEHeaderKey(k)
+
+		// Permit empty key, because that is what we did in the past.
+		if key == "" {
+			continue
+		}
+
+		// Skip initial spaces in value.
+		value := strings.TrimLeft(v, " \t")
+
+		m[key] = append(m[key], value)
+
+		if err != nil {
+			return m, err
+		}
+	}
+}
+
 // Layouts suitable for passing to time.Parse.
 // These are tried in order.
-var (
-	dateLayoutsBuildOnce sync.Once
-	dateLayouts          []string
-)
-
-func buildDateLayouts() {
+var dateLayouts = sync.OnceValue(func() []string {
 	// Generate layouts based on RFC 5322, section 3.3.
 
 	dows := [...]string{"", "Mon, "}   // day-of-week
@@ -79,7 +123,10 @@ func buildDateLayouts() {
 	years := [...]string{"2006", "06"} // year = 4*DIGIT / 2*DIGIT
 	seconds := [...]string{":05", ""}  // second
 	// "-0700 (MST)" is not in RFC 5322, but is common.
-	zones := [...]string{"-0700", "MST"} // zone = (("+" / "-") 4DIGIT) / "GMT" / ...
+	zones := [...]string{"-0700", "MST", "UT"} // zone = (("+" / "-") 4DIGIT) / "UT" / "GMT" / ...
+
+	total := len(dows) * len(days) * len(years) * len(seconds) * len(zones)
+	layouts := make([]string, 0, total)
 
 	for _, dow := range dows {
 		for _, day := range days {
@@ -87,20 +134,21 @@ func buildDateLayouts() {
 				for _, second := range seconds {
 					for _, zone := range zones {
 						s := dow + day + " Jan " + year + " 15:04" + second + " " + zone
-						dateLayouts = append(dateLayouts, s)
+						layouts = append(layouts, s)
 					}
 				}
 			}
 		}
 	}
-}
+
+	return layouts
+})
 
 // ParseDate parses an RFC 5322 date string.
 func ParseDate(date string) (time.Time, error) {
-	dateLayoutsBuildOnce.Do(buildDateLayouts)
 	// CR and LF must match and are tolerated anywhere in the date field.
 	date = strings.ReplaceAll(date, "\r\n", "")
-	if strings.Index(date, "\r") != -1 {
+	if strings.Contains(date, "\r") {
 		return time.Time{}, errors.New("mail: header has a CR without LF")
 	}
 	// Re-using some addrParser methods which support obsolete text, i.e. non-printable ASCII
@@ -112,16 +160,30 @@ func ParseDate(date string) (time.Time, error) {
 	if ind := strings.IndexAny(p.s, "+-"); ind != -1 && len(p.s) >= ind+5 {
 		date = p.s[:ind+5]
 		p.s = p.s[ind+5:]
-	} else if ind := strings.Index(p.s, "T"); ind != -1 && len(p.s) >= ind+1 {
-		// The last letter T of the obsolete time zone is checked when no standard time zone is found.
-		// If T is misplaced, the date to parse is garbage.
-		date = p.s[:ind+1]
-		p.s = p.s[ind+1:]
+	} else {
+		ind := strings.Index(p.s, "T")
+		if ind == 0 {
+			// In this case we have the following date formats:
+			// * Thu, 20 Nov 1997 09:55:06 MDT
+			// * Thu, 20 Nov 1997 09:55:06 MDT (MDT)
+			// * Thu, 20 Nov 1997 09:55:06 MDT (This comment)
+			ind = strings.Index(p.s[1:], "T")
+			if ind != -1 {
+				ind++
+			}
+		}
+
+		if ind != -1 && len(p.s) >= ind+5 {
+			// The last letter T of the obsolete time zone is checked when no standard time zone is found.
+			// If T is misplaced, the date to parse is garbage.
+			date = p.s[:ind+1]
+			p.s = p.s[ind+1:]
+		}
 	}
 	if !p.skipCFWS() {
 		return time.Time{}, errors.New("mail: misformatted parenthetical comment")
 	}
-	for _, layout := range dateLayouts {
+	for _, layout := range dateLayouts() {
 		t, err := time.Parse(layout, date)
 		if err == nil {
 			return t, nil
@@ -217,7 +279,7 @@ func (a *Address) String() string {
 	// Add quotes if needed
 	quoteLocal := false
 	for i, r := range local {
-		if isAtext(r, false, false) {
+		if isAtext(r, false) {
 			continue
 		}
 		if r == '.' {
@@ -279,9 +341,6 @@ func (p *addrParser) parseAddressList() ([]*Address, error) {
 		if p.consume(',') {
 			continue
 		}
-		if p.empty() {
-			break
-		}
 
 		addrs, err := p.parseAddress(true)
 		if err != nil {
@@ -295,8 +354,16 @@ func (p *addrParser) parseAddressList() ([]*Address, error) {
 		if p.empty() {
 			break
 		}
-		if !p.consume(',') {
+		if p.peek() != ',' {
 			return nil, errors.New("mail: expected comma")
+		}
+
+		// Skip empty entries for obs-addr-list.
+		for p.consume(',') {
+			p.skipSpace()
+		}
+		if p.empty() {
+			break
 		}
 	}
 	return list, nil
@@ -376,7 +443,7 @@ func (p *addrParser) parseAddress(handleGroup bool) ([]*Address, error) {
 	if !p.consume('<') {
 		atext := true
 		for _, r := range displayName {
-			if !isAtext(r, true, false) {
+			if !isAtext(r, true) {
 				atext = false
 				break
 			}
@@ -411,7 +478,9 @@ func (p *addrParser) consumeGroupList() ([]*Address, error) {
 	// handle empty group.
 	p.skipSpace()
 	if p.consume(';') {
-		p.skipCFWS()
+		if !p.skipCFWS() {
+			return nil, errors.New("mail: misformatted parenthetical comment")
+		}
 		return group, nil
 	}
 
@@ -428,7 +497,9 @@ func (p *addrParser) consumeGroupList() ([]*Address, error) {
 			return nil, errors.New("mail: misformatted parenthetical comment")
 		}
 		if p.consume(';') {
-			p.skipCFWS()
+			if !p.skipCFWS() {
+				return nil, errors.New("mail: misformatted parenthetical comment")
+			}
 			break
 		}
 		if !p.consume(',') {
@@ -482,10 +553,19 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
 	if p.empty() {
 		return "", errors.New("mail: no domain in addr-spec")
 	}
-	// TODO(dsymonds): Handle domain-literal
-	domain, err = p.consumeAtom(true, false)
-	if err != nil {
-		return "", err
+
+	if p.peek() == '[' {
+		// domain-literal
+		domain, err = p.consumeDomainLiteral()
+		if err != nil {
+			return "", err
+		}
+	} else {
+		// dot-atom
+		domain, err = p.consumeAtom(true, false)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	return localPart + "@" + domain, nil
@@ -498,6 +578,12 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
 	var words []string
 	var isPrevEncoded bool
 	for {
+		// obs-phrase allows CFWS after one word
+		if len(words) > 0 {
+			if !p.skipCFWS() {
+				return "", errors.New("mail: misformatted parenthetical comment")
+			}
+		}
 		// word = atom / quoted-string
 		var word string
 		p.skipSpace()
@@ -593,7 +679,6 @@ Loop:
 // If dot is true, consumeAtom parses an RFC 5322 dot-atom instead.
 // If permissive is true, consumeAtom will not fail on:
 // - leading/trailing/double dots in the atom (see golang.org/issue/4938)
-// - special characters (RFC 5322 3.2.3) except '<', '>', ':' and '"' (see golang.org/issue/21018)
 func (p *addrParser) consumeAtom(dot bool, permissive bool) (atom string, err error) {
 	i := 0
 
@@ -604,7 +689,7 @@ Loop:
 		case size == 1 && r == utf8.RuneError:
 			return "", fmt.Errorf("mail: invalid utf-8 in address: %q", p.s)
 
-		case size == 0 || !isAtext(r, dot, permissive):
+		case size == 0 || !isAtext(r, dot):
 			break Loop
 
 		default:
@@ -629,6 +714,50 @@ Loop:
 		}
 	}
 	return atom, nil
+}
+
+// consumeDomainLiteral parses an RFC 5322 domain-literal at the start of p.
+func (p *addrParser) consumeDomainLiteral() (string, error) {
+	// Skip the leading [
+	if !p.consume('[') {
+		return "", errors.New(`mail: missing "[" in domain-literal`)
+	}
+
+	// Parse the dtext
+	dtext := p.s
+	dtextLen := 0
+	for {
+		if p.empty() {
+			return "", errors.New("mail: unclosed domain-literal")
+		}
+		if p.peek() == ']' {
+			break
+		}
+
+		r, size := utf8.DecodeRuneInString(p.s)
+		if size == 1 && r == utf8.RuneError {
+			return "", fmt.Errorf("mail: invalid utf-8 in domain-literal: %q", p.s)
+		}
+		if !isDtext(r) {
+			return "", fmt.Errorf("mail: bad character in domain-literal: %q", r)
+		}
+
+		dtextLen += size
+		p.s = p.s[size:]
+	}
+	dtext = dtext[:dtextLen]
+
+	// Skip the trailing ]
+	if !p.consume(']') {
+		return "", errors.New("mail: unclosed domain-literal")
+	}
+
+	// Check if the domain literal is an IP address
+	if net.ParseIP(dtext) == nil {
+		return "", fmt.Errorf("mail: invalid IP address in domain-literal: %q", dtext)
+	}
+
+	return "[" + dtext + "]", nil
 }
 
 func (p *addrParser) consumeDisplayNameComment() (string, error) {
@@ -726,17 +855,41 @@ func (p *addrParser) consumeComment() (string, bool) {
 }
 
 func (p *addrParser) decodeRFC2047Word(s string) (word string, isEncoded bool, err error) {
-	if p.dec != nil {
-		word, err = p.dec.Decode(s)
-	} else {
-		word, err = rfc2047Decoder.Decode(s)
+	dec := p.dec
+	if dec == nil {
+		dec = &rfc2047Decoder
 	}
 
+	// Substitute our own CharsetReader function so that we can tell
+	// whether an error from the Decode method was due to the
+	// CharsetReader (meaning the charset is invalid).
+	// We used to look for the charsetError type in the error result,
+	// but that behaves badly with CharsetReaders other than the
+	// one in rfc2047Decoder.
+	adec := *dec
+	charsetReaderError := false
+	adec.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
+		if dec.CharsetReader == nil {
+			charsetReaderError = true
+			return nil, charsetError(charset)
+		}
+		r, err := dec.CharsetReader(charset, input)
+		if err != nil {
+			charsetReaderError = true
+		}
+		return r, err
+	}
+	word, err = adec.Decode(s)
 	if err == nil {
 		return word, true, nil
 	}
 
-	if _, ok := err.(charsetError); ok {
+	// If the error came from the character set reader
+	// (meaning the character set itself is invalid
+	// but the decoding worked fine until then),
+	// return the original text and the error,
+	// with isEncoded=true.
+	if charsetReaderError {
 		return s, true, err
 	}
 
@@ -758,18 +911,13 @@ func (e charsetError) Error() string {
 
 // isAtext reports whether r is an RFC 5322 atext character.
 // If dot is true, period is included.
-// If permissive is true, RFC 5322 3.2.3 specials is included,
-// except '<', '>', ':' and '"'.
-func isAtext(r rune, dot, permissive bool) bool {
+func isAtext(r rune, dot bool) bool {
 	switch r {
 	case '.':
 		return dot
 
 	// RFC 5322 3.2.3. specials
-	case '(', ')', '[', ']', ';', '@', '\\', ',':
-		return permissive
-
-	case '<', '>', '"', ':':
+	case '(', ')', '<', '>', '[', ']', ':', ';', '@', '\\', ',', '"': // RFC 5322 3.2.3. specials
 		return false
 	}
 	return isVchar(r)
@@ -786,18 +934,18 @@ func isQtext(r rune) bool {
 
 // quoteString renders a string as an RFC 5322 quoted-string.
 func quoteString(s string) string {
-	var buf strings.Builder
-	buf.WriteByte('"')
+	var b strings.Builder
+	b.WriteByte('"')
 	for _, r := range s {
 		if isQtext(r) || isWSP(r) {
-			buf.WriteRune(r)
+			b.WriteRune(r)
 		} else if isVchar(r) {
-			buf.WriteByte('\\')
-			buf.WriteRune(r)
+			b.WriteByte('\\')
+			b.WriteRune(r)
 		}
 	}
-	buf.WriteByte('"')
-	return buf.String()
+	b.WriteByte('"')
+	return b.String()
 }
 
 // isVchar reports whether r is an RFC 5322 VCHAR character.
@@ -807,7 +955,7 @@ func isVchar(r rune) bool {
 }
 
 // isMultibyte reports whether r is a multi-byte UTF-8 character
-// as supported by RFC 6532
+// as supported by RFC 6532.
 func isMultibyte(r rune) bool {
 	return r >= utf8.RuneSelf
 }
@@ -816,4 +964,13 @@ func isMultibyte(r rune) bool {
 // WSP is a space or horizontal tab (RFC 5234 Appendix B).
 func isWSP(r rune) bool {
 	return r == ' ' || r == '\t'
+}
+
+// isDtext reports whether r is an RFC 5322 dtext character.
+func isDtext(r rune) bool {
+	// Printable US-ASCII, excluding "[", "]", or "\".
+	if r == '[' || r == ']' || r == '\\' {
+		return false
+	}
+	return isVchar(r)
 }

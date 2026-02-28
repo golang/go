@@ -55,28 +55,14 @@ const (
 // such as whether one block dominates another.
 type SparseTree []SparseTreeNode
 
-// newSparseTree creates a SparseTree from a block-to-parent map (array indexed by Block.ID)
+// newSparseTree creates a SparseTree from a block-to-parent map (array indexed by Block.ID).
+// The children of a given node are in reverse postorder.
+// This has the nice property that for a given tree walk, the source block of all
+// non-retreating edges are visited before their destination block.
 func newSparseTree(f *Func, parentOf []*Block) SparseTree {
+	po := f.postorder()
 	t := make(SparseTree, f.NumBlocks())
-	for _, b := range f.Blocks {
-		n := &t[b.ID]
-		if p := parentOf[b.ID]; p != nil {
-			n.parent = p
-			n.sibling = t[p.ID].child
-			t[p.ID].child = b
-		}
-	}
-	t.numberBlock(f.Entry, 1)
-	return t
-}
-
-// newSparseOrderedTree creates a SparseTree from a block-to-parent map (array indexed by Block.ID)
-// children will appear in the reverse of their order in reverseOrder
-// in particular, if reverseOrder is a dfs-reversePostOrder, then the root-to-children
-// walk of the tree will yield a pre-order.
-func newSparseOrderedTree(f *Func, parentOf, reverseOrder []*Block) SparseTree {
-	t := make(SparseTree, f.NumBlocks())
-	for _, b := range reverseOrder {
+	for _, b := range po {
 		n := &t[b.ID]
 		if p := parentOf[b.ID]; p != nil {
 			n.parent = p
@@ -178,7 +164,13 @@ func (t SparseTree) Child(x *Block) *Block {
 	return t[x.ID].child
 }
 
-// isAncestorEq reports whether x is an ancestor of or equal to y.
+// Parent returns the parent of x in the dominator tree, or
+// nil if x is the function's entry.
+func (t SparseTree) Parent(x *Block) *Block {
+	return t[x.ID].parent
+}
+
+// IsAncestorEq reports whether x is an ancestor of or equal to y.
 func (t SparseTree) IsAncestorEq(x, y *Block) bool {
 	if x == y {
 		return true
@@ -201,9 +193,10 @@ func (t SparseTree) isAncestor(x, y *Block) bool {
 // domorder returns a value for dominator-oriented sorting.
 // Block domination does not provide a total ordering,
 // but domorder two has useful properties.
-// (1) If domorder(x) > domorder(y) then x does not dominate y.
-// (2) If domorder(x) < domorder(y) and domorder(y) < domorder(z) and x does not dominate y,
+//  1. If domorder(x) > domorder(y) then x does not dominate y.
+//  2. If domorder(x) < domorder(y) and domorder(y) < domorder(z) and x does not dominate y,
 //     then x does not dominate z.
+//
 // Property (1) means that blocks sorted by domorder always have a maximal dominant block first.
 // Property (2) allows searches for dominated blocks to exit early.
 func (t SparseTree) domorder(x *Block) int32 {

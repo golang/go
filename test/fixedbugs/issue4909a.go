@@ -27,8 +27,8 @@ type B struct {
 var t T
 var p *T
 
-const N1 = unsafe.Offsetof(t.X)      // ERROR "indirection"
-const N2 = unsafe.Offsetof(p.X)      // ERROR "indirection"
+const N1 = unsafe.Offsetof(t.X)      // ERROR "indirection|field X is embedded via a pointer in T"
+const N2 = unsafe.Offsetof(p.X)      // ERROR "indirection|field X is embedded via a pointer in T"
 const N3 = unsafe.Offsetof(t.B.X)    // valid
 const N4 = unsafe.Offsetof(p.B.X)    // valid
 const N5 = unsafe.Offsetof(t.Method) // ERROR "method value"

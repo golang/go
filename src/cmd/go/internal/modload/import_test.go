@@ -5,35 +5,49 @@
 package modload
 
 import (
+	"context"
 	"internal/testenv"
 	"regexp"
 	"strings"
 	"testing"
+
+	"golang.org/x/mod/module"
 )
 
 var importTests = []struct {
 	path string
+	m    module.Version
 	err  string
 }{
 	{
 		path: "golang.org/x/net/context",
-		err:  "missing module for import: golang.org/x/net@.* provides golang.org/x/net/context",
+		m: module.Version{
+			Path: "golang.org/x/net",
+		},
 	},
 	{
 		path: "golang.org/x/net",
-		err:  `module golang.org/x/net@.* found \(v0.0.0-.*\), but does not contain package golang.org/x/net`,
+		err:  `module golang.org/x/net@.* found \(v[01]\.\d+\.\d+\), but does not contain package golang.org/x/net`,
 	},
 	{
 		path: "golang.org/x/text",
-		err:  "missing module for import: golang.org/x/text@.* provides golang.org/x/text",
+		m: module.Version{
+			Path: "golang.org/x/text",
+		},
 	},
 	{
 		path: "github.com/rsc/quote/buggy",
-		err:  "missing module for import: github.com/rsc/quote@v1.5.2 provides github.com/rsc/quote/buggy",
+		m: module.Version{
+			Path:    "github.com/rsc/quote",
+			Version: "v1.5.2",
+		},
 	},
 	{
 		path: "github.com/rsc/quote",
-		err:  "missing module for import: github.com/rsc/quote@v1.5.2 provides github.com/rsc/quote",
+		m: module.Version{
+			Path:    "github.com/rsc/quote",
+			Version: "v1.5.2",
+		},
 	},
 	{
 		path: "golang.org/x/foo/bar",
@@ -41,23 +55,37 @@ var importTests = []struct {
 	},
 }
 
-func TestImport(t *testing.T) {
+func TestQueryImport(t *testing.T) {
+	loaderstate := NewState()
+	loaderstate.RootMode = NoRoot
+	loaderstate.AllowMissingModuleImports()
+
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
-	defer func(old bool) {
-		allowMissingModuleImports = old
-	}(allowMissingModuleImports)
-	AllowMissingModuleImports()
+
+	ctx := context.Background()
+	rs := LoadModFile(loaderstate, ctx)
 
 	for _, tt := range importTests {
 		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
 			// Note that there is no build list, so Import should always fail.
-			m, dir, err := Import(tt.path)
-			if err == nil {
-				t.Fatalf("Import(%q) = %v, %v, nil; expected error", tt.path, m, dir)
+			m, err := queryImport(loaderstate, ctx, tt.path, rs)
+
+			if tt.err == "" {
+				if err != nil {
+					t.Fatalf("queryImport(_, %q): %v", tt.path, err)
+				}
+			} else {
+				if err == nil {
+					t.Fatalf("queryImport(_, %q) = %v, nil; expected error", tt.path, m)
+				}
+				if !regexp.MustCompile(tt.err).MatchString(err.Error()) {
+					t.Fatalf("queryImport(_, %q): error %q, want error matching %#q", tt.path, err, tt.err)
+				}
 			}
-			if !regexp.MustCompile(tt.err).MatchString(err.Error()) {
-				t.Fatalf("Import(%q): error %q, want error matching %#q", tt.path, err, tt.err)
+
+			if m.Path != tt.m.Path || (tt.m.Version != "" && m.Version != tt.m.Version) {
+				t.Errorf("queryImport(_, %q) = %v, _; want %v", tt.path, m, tt.m)
 			}
 		})
 	}

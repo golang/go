@@ -19,7 +19,7 @@ func archAvailableCastagnoli() bool {
 
 func archInitCastagnoli() {
 	if !cpu.ARM64.HasCRC32 {
-		panic("arch-specific crc32 instruction for Catagnoli not available")
+		panic("arch-specific crc32 instruction for Castagnoli not available")
 	}
 }
 

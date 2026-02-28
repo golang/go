@@ -1,0 +1,5 @@
+! go build -p=-1 example.go
+stderr 'go: -p must be a positive integer: -1'
+
+-- example.go --
+package example

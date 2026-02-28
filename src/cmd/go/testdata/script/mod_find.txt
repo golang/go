@@ -8,7 +8,7 @@ stderr 'module x'
 
 # Import comment works even with CRLF line endings.
 rm go.mod
-addcrlf x.go
+replace '\n' '\r\n' x.go
 go mod init
 stderr 'module x'
 
@@ -19,11 +19,10 @@ go mod init
 stderr 'module example.com/x/y$'
 rm go.mod
 
-# Module path from Godeps/Godeps.json overrides GOPATH.
-cd $GOPATH/src/example.com/x/y/z
-go mod init
-stderr 'unexpected.com/z'
-rm go.mod
+# go mod init rejects a zero-length go.mod file
+cp $devnull go.mod # can't use touch to create it because Windows
+! go mod init
+stderr 'go.mod already exists'
 
 # Empty directory outside GOPATH fails.
 mkdir $WORK/empty
@@ -44,7 +43,7 @@ rm go.mod
 # Test that we ignore directories when trying to find go.mod.
 cd $WORK/gomoddir
 ! go list .
-stderr 'cannot find main module'
+stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
 [!symlink] stop
 

@@ -75,7 +75,8 @@ type huffmanBitWriter struct {
 	writer io.Writer
 
 	// Data waiting to be written is bytes[0:nbytes]
-	// and then the low nbits of bits.
+	// and then the low nbits of bits.  Data is always written
+	// sequentially into the bytes array.
 	bits            uint64
 	nbits           uint
 	bytes           [bufferSize]byte
@@ -105,7 +106,6 @@ func newHuffmanBitWriter(w io.Writer) *huffmanBitWriter {
 func (w *huffmanBitWriter) reset(writer io.Writer) {
 	w.writer = writer
 	w.bits, w.nbits, w.nbytes, w.err = 0, 0, 0, nil
-	w.bytes = [bufferSize]byte{}
 }
 
 func (w *huffmanBitWriter) flush() {
@@ -194,13 +194,11 @@ func (w *huffmanBitWriter) writeBytes(bytes []byte) {
 // Codes 0-15 are single byte codes. Codes 16-18 are followed by additional
 // information. Code badCode is an end marker
 //
-//  numLiterals      The number of literals in literalEncoding
-//  numOffsets       The number of offsets in offsetEncoding
-//  litenc, offenc   The literal and offset encoder to use
+//	numLiterals      The number of literals in literalEncoding
+//	numOffsets       The number of offsets in offsetEncoding
+//	litenc, offenc   The literal and offset encoder to use
 func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int, litEnc, offEnc *huffmanEncoder) {
-	for i := range w.codegenFreq {
-		w.codegenFreq[i] = 0
-	}
+	clear(w.codegenFreq[:])
 	// Note that we are using codegen both as a temporary variable for holding
 	// a copy of the frequencies, and as the place where we put the result.
 	// This is fine because the output is always shorter than the input used
@@ -353,9 +351,9 @@ func (w *huffmanBitWriter) writeCode(c hcode) {
 
 // Write the header of a dynamic Huffman block to the output stream.
 //
-//  numLiterals  The number of literals specified in codegen
-//  numOffsets   The number of offsets specified in codegen
-//  numCodegens  The number of codegens used in codegen
+//	numLiterals  The number of literals specified in codegen
+//	numOffsets   The number of offsets specified in codegen
+//	numCodegens  The number of codegens used in codegen
 func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, numCodegens int, isEof bool) {
 	if w.err != nil {
 		return
@@ -387,15 +385,12 @@ func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, n
 		case 16:
 			w.writeBits(int32(w.codegen[i]), 2)
 			i++
-			break
 		case 17:
 			w.writeBits(int32(w.codegen[i]), 3)
 			i++
-			break
 		case 18:
 			w.writeBits(int32(w.codegen[i]), 7)
 			i++
-			break
 		}
 	}
 }
@@ -533,12 +528,8 @@ func (w *huffmanBitWriter) writeBlockDynamic(tokens []token, eof bool, input []b
 // and offsetEncoding.
 // The number of literal and offset tokens is returned.
 func (w *huffmanBitWriter) indexTokens(tokens []token) (numLiterals, numOffsets int) {
-	for i := range w.literalFreq {
-		w.literalFreq[i] = 0
-	}
-	for i := range w.offsetFreq {
-		w.offsetFreq[i] = 0
-	}
+	clear(w.literalFreq)
+	clear(w.offsetFreq)
 
 	for _, t := range tokens {
 		if t < matchType {
@@ -624,9 +615,7 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
 	}
 
 	// Clear histogram
-	for i := range w.literalFreq {
-		w.literalFreq[i] = 0
-	}
+	clear(w.literalFreq)
 
 	// Add everything as literals
 	histogram(input, w.literalFreq)
@@ -634,6 +623,7 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
 	w.literalFreq[endBlockMarker] = 1
 
 	const numLiterals = endBlockMarker + 1
+	w.offsetFreq[0] = 1
 	const numOffsets = 1
 
 	w.literalEncoding.generate(w.literalFreq, 15)

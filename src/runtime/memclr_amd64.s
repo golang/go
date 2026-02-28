@@ -2,20 +2,23 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !plan9
+//go:build !plan9
 
 #include "go_asm.h"
 #include "textflag.h"
+#include "asm_amd64.h"
 
-// NOTE: Windows externalthreadhandler expects memclr to preserve DX.
+// See memclrNoHeapPointers Go doc for important implementation constraints.
 
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
-TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-16
-	MOVQ	ptr+0(FP), DI
-	MOVQ	n+8(FP), BX
+// ABIInternal for performance.
+TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB), NOSPLIT, $0-16
+	// AX = ptr
+	// BX = n
+	MOVQ	AX, DI	// DI = ptr
 	XORQ	AX, AX
 
-	// MOVOU seems always faster than REP STOSQ.
+	// MOVOU seems always faster than REP STOSQ when Enhanced REP STOSQ is not available.
 tail:
 	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
 	TESTQ	BX, BX
@@ -29,7 +32,6 @@ tail:
 	JE	_8
 	CMPQ	BX, $16
 	JBE	_9through16
-	PXOR	X0, X0
 	CMPQ	BX, $32
 	JBE	_17through32
 	CMPQ	BX, $64
@@ -38,40 +40,55 @@ tail:
 	JBE	_65through128
 	CMPQ	BX, $256
 	JBE	_129through256
+
+	CMPB	internal∕cpu·X86+const_offsetX86HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
+	JNE	skip_erms
+
+	// If the size is less than 2kb, do not use ERMS as it has a big start-up cost.
+	// Table 3-4. Relative Performance of Memcpy() Using ERMSB Vs. 128-bit AVX
+	// in the Intel Optimization Guide shows better performance for ERMSB starting
+	// from 2KB. Benchmarks show the similar threshold for REP STOS vs AVX.
+	CMPQ    BX, $2048
+	JAE	loop_preheader_erms
+
+skip_erms:
+#ifndef hasAVX2
 	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
-	JE loop_preheader_avx2
+	JE	loop_preheader_avx2
 	// TODO: for really big clears, use MOVNTDQ, even without AVX2.
 
 loop:
-	MOVOU	X0, 0(DI)
-	MOVOU	X0, 16(DI)
-	MOVOU	X0, 32(DI)
-	MOVOU	X0, 48(DI)
-	MOVOU	X0, 64(DI)
-	MOVOU	X0, 80(DI)
-	MOVOU	X0, 96(DI)
-	MOVOU	X0, 112(DI)
-	MOVOU	X0, 128(DI)
-	MOVOU	X0, 144(DI)
-	MOVOU	X0, 160(DI)
-	MOVOU	X0, 176(DI)
-	MOVOU	X0, 192(DI)
-	MOVOU	X0, 208(DI)
-	MOVOU	X0, 224(DI)
-	MOVOU	X0, 240(DI)
+	MOVOU	X15, 0(DI)
+	MOVOU	X15, 16(DI)
+	MOVOU	X15, 32(DI)
+	MOVOU	X15, 48(DI)
+	MOVOU	X15, 64(DI)
+	MOVOU	X15, 80(DI)
+	MOVOU	X15, 96(DI)
+	MOVOU	X15, 112(DI)
+	MOVOU	X15, 128(DI)
+	MOVOU	X15, 144(DI)
+	MOVOU	X15, 160(DI)
+	MOVOU	X15, 176(DI)
+	MOVOU	X15, 192(DI)
+	MOVOU	X15, 208(DI)
+	MOVOU	X15, 224(DI)
+	MOVOU	X15, 240(DI)
 	SUBQ	$256, BX
 	ADDQ	$256, DI
 	CMPQ	BX, $256
 	JAE	loop
 	JMP	tail
+#endif
 
 loop_preheader_avx2:
-	VPXOR Y0, Y0, Y0
+	VPXOR X0, X0, X0
 	// For smaller sizes MOVNTDQ may be faster or slower depending on hardware.
 	// For larger sizes it is always faster, even on dual Xeons with 30M cache.
 	// TODO take into account actual LLC size. E. g. glibc uses LLC size/2.
 	CMPQ    BX, $0x2000000
-	JAE     loop_preheader_avx2_huge
+	JAE	loop_preheader_avx2_huge
+
 loop_avx2:
 	VMOVDQU	Y0, 0(DI)
 	VMOVDQU	Y0, 32(DI)
@@ -87,6 +104,29 @@ loop_avx2:
 	VMOVDQU  Y0, -128(DI)(BX*1)
 	VZEROUPPER
 	RET
+
+loop_preheader_erms:
+#ifndef hasAVX2
+	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
+	JNE	loop_erms
+#endif
+
+	VPXOR X0, X0, X0
+	// At this point both ERMS and AVX2 is supported. While REP STOS can use a no-RFO
+	// write protocol, ERMS could show the same or slower performance comparing to
+	// Non-Temporal Stores when the size is bigger than LLC depending on hardware.
+	CMPQ	BX, $0x2000000
+	JAE	loop_preheader_avx2_huge
+
+loop_erms:
+	// STOSQ is used to guarantee that the whole zeroed pointer-sized word is visible
+	// for a memory subsystem as the GC requires this.
+	MOVQ	BX, CX
+	SHRQ	$3, CX
+	ANDQ	$7, BX
+	REP;	STOSQ
+	JMP	tail
+
 loop_preheader_avx2_huge:
 	// Align to 32 byte boundary
 	VMOVDQU  Y0, 0(DI)
@@ -139,40 +179,40 @@ _9through16:
 	MOVQ	AX, -8(DI)(BX*1)
 	RET
 _17through32:
-	MOVOU	X0, (DI)
-	MOVOU	X0, -16(DI)(BX*1)
+	MOVOU	X15, (DI)
+	MOVOU	X15, -16(DI)(BX*1)
 	RET
 _33through64:
-	MOVOU	X0, (DI)
-	MOVOU	X0, 16(DI)
-	MOVOU	X0, -32(DI)(BX*1)
-	MOVOU	X0, -16(DI)(BX*1)
+	MOVOU	X15, (DI)
+	MOVOU	X15, 16(DI)
+	MOVOU	X15, -32(DI)(BX*1)
+	MOVOU	X15, -16(DI)(BX*1)
 	RET
 _65through128:
-	MOVOU	X0, (DI)
-	MOVOU	X0, 16(DI)
-	MOVOU	X0, 32(DI)
-	MOVOU	X0, 48(DI)
-	MOVOU	X0, -64(DI)(BX*1)
-	MOVOU	X0, -48(DI)(BX*1)
-	MOVOU	X0, -32(DI)(BX*1)
-	MOVOU	X0, -16(DI)(BX*1)
+	MOVOU	X15, (DI)
+	MOVOU	X15, 16(DI)
+	MOVOU	X15, 32(DI)
+	MOVOU	X15, 48(DI)
+	MOVOU	X15, -64(DI)(BX*1)
+	MOVOU	X15, -48(DI)(BX*1)
+	MOVOU	X15, -32(DI)(BX*1)
+	MOVOU	X15, -16(DI)(BX*1)
 	RET
 _129through256:
-	MOVOU	X0, (DI)
-	MOVOU	X0, 16(DI)
-	MOVOU	X0, 32(DI)
-	MOVOU	X0, 48(DI)
-	MOVOU	X0, 64(DI)
-	MOVOU	X0, 80(DI)
-	MOVOU	X0, 96(DI)
-	MOVOU	X0, 112(DI)
-	MOVOU	X0, -128(DI)(BX*1)
-	MOVOU	X0, -112(DI)(BX*1)
-	MOVOU	X0, -96(DI)(BX*1)
-	MOVOU	X0, -80(DI)(BX*1)
-	MOVOU	X0, -64(DI)(BX*1)
-	MOVOU	X0, -48(DI)(BX*1)
-	MOVOU	X0, -32(DI)(BX*1)
-	MOVOU	X0, -16(DI)(BX*1)
+	MOVOU	X15, (DI)
+	MOVOU	X15, 16(DI)
+	MOVOU	X15, 32(DI)
+	MOVOU	X15, 48(DI)
+	MOVOU	X15, 64(DI)
+	MOVOU	X15, 80(DI)
+	MOVOU	X15, 96(DI)
+	MOVOU	X15, 112(DI)
+	MOVOU	X15, -128(DI)(BX*1)
+	MOVOU	X15, -112(DI)(BX*1)
+	MOVOU	X15, -96(DI)(BX*1)
+	MOVOU	X15, -80(DI)(BX*1)
+	MOVOU	X15, -64(DI)(BX*1)
+	MOVOU	X15, -48(DI)(BX*1)
+	MOVOU	X15, -32(DI)(BX*1)
+	MOVOU	X15, -16(DI)(BX*1)
 	RET

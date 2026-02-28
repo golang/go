@@ -19,5 +19,5 @@ type E struct{ T }
 
 var (
 	e E
-	x = e.m // ERROR "initialization loop|depends upon itself" 
+	x = e.m // ERROR "initialization cycle|depends upon itself" 
 )

@@ -11,7 +11,7 @@ func testLCAgen(t *testing.T, bg blockGen, size int) {
 	fun := c.Fun("entry", bg(size)...)
 	CheckFunc(fun.f)
 	if size == 4 {
-		t.Logf(fun.f.String())
+		t.Log(fun.f.String())
 	}
 	lca1 := makeLCArange(fun.f)
 	lca2 := makeLCAeasy(fun.f)

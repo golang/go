@@ -54,7 +54,7 @@ func randInt64(rand *rand.Rand) int64 {
 const complexSize = 50
 
 // Value returns an arbitrary value of the given type.
-// If the type implements the Generator interface, that will be used.
+// If the type implements the [Generator] interface, that will be used.
 // Note: To create arbitrary values for structs, all the fields must be exported.
 func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 	return sizedValue(t, rand, complexSize)
@@ -64,7 +64,7 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 // hint is used for shrinking as a function of indirection level so
 // that recursive data structures will terminate.
 func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value, ok bool) {
-	if m, ok := reflect.Zero(t).Interface().(Generator); ok {
+	if m, ok := reflect.TypeAssert[Generator](reflect.Zero(t)); ok {
 		return m.Generate(rand, size), true
 	}
 
@@ -113,9 +113,9 @@ func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value,
 			}
 			v.SetMapIndex(key, value)
 		}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if rand.Intn(size) == 0 {
-			v.Set(reflect.Zero(concrete)) // Generate nil pointer.
+			v.SetZero() // Generate nil pointer.
 		} else {
 			elem, ok := sizedValue(concrete.Elem(), rand, size)
 			if !ok {
@@ -227,18 +227,18 @@ func (s SetupError) Error() string { return string(s) }
 // A CheckError is the result of Check finding an error.
 type CheckError struct {
 	Count int
-	In    []interface{}
+	In    []any
 }
 
 func (s *CheckError) Error() string {
 	return fmt.Sprintf("#%d: failed on input %s", s.Count, toString(s.In))
 }
 
-// A CheckEqualError is the result CheckEqual finding an error.
+// A CheckEqualError is the result [CheckEqual] finding an error.
 type CheckEqualError struct {
 	CheckError
-	Out1 []interface{}
-	Out2 []interface{}
+	Out1 []any
+	Out2 []any
 }
 
 func (s *CheckEqualError) Error() string {
@@ -248,19 +248,19 @@ func (s *CheckEqualError) Error() string {
 // Check looks for an input to f, any function that returns bool,
 // such that f returns false. It calls f repeatedly, with arbitrary
 // values for each argument. If f returns false on a given input,
-// Check returns that input as a *CheckError.
+// Check returns that input as a *[CheckError].
 // For example:
 //
-// 	func TestOddMultipleOfThree(t *testing.T) {
-// 		f := func(x int) bool {
-// 			y := OddMultipleOfThree(x)
-// 			return y%2 == 1 && y%3 == 0
-// 		}
-// 		if err := quick.Check(f, nil); err != nil {
-// 			t.Error(err)
-// 		}
-// 	}
-func Check(f interface{}, config *Config) error {
+//	func TestOddMultipleOfThree(t *testing.T) {
+//		f := func(x int) bool {
+//			y := OddMultipleOfThree(x)
+//			return y%2 == 1 && y%3 == 0
+//		}
+//		if err := quick.Check(f, nil); err != nil {
+//			t.Error(err)
+//		}
+//	}
+func Check(f any, config *Config) error {
 	if config == nil {
 		config = &defaultConfig
 	}
@@ -297,9 +297,9 @@ func Check(f interface{}, config *Config) error {
 
 // CheckEqual looks for an input on which f and g return different results.
 // It calls f and g repeatedly with arbitrary values for each argument.
-// If f and g return different answers, CheckEqual returns a *CheckEqualError
+// If f and g return different answers, CheckEqual returns a *[CheckEqualError]
 // describing the input and the outputs.
-func CheckEqual(f, g interface{}, config *Config) error {
+func CheckEqual(f, g any, config *Config) error {
 	if config == nil {
 		config = &defaultConfig
 	}
@@ -358,7 +358,7 @@ func arbitraryValues(args []reflect.Value, f reflect.Type, config *Config, rand 
 	return
 }
 
-func functionAndType(f interface{}) (v reflect.Value, t reflect.Type, ok bool) {
+func functionAndType(f any) (v reflect.Value, t reflect.Type, ok bool) {
 	v = reflect.ValueOf(f)
 	ok = v.Kind() == reflect.Func
 	if !ok {
@@ -368,15 +368,15 @@ func functionAndType(f interface{}) (v reflect.Value, t reflect.Type, ok bool) {
 	return
 }
 
-func toInterfaces(values []reflect.Value) []interface{} {
-	ret := make([]interface{}, len(values))
+func toInterfaces(values []reflect.Value) []any {
+	ret := make([]any, len(values))
 	for i, v := range values {
 		ret[i] = v.Interface()
 	}
 	return ret
 }
 
-func toString(interfaces []interface{}) string {
+func toString(interfaces []any) string {
 	s := make([]string, len(interfaces))
 	for i, v := range interfaces {
 		s[i] = fmt.Sprintf("%#v", v)

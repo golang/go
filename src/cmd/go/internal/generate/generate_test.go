@@ -5,7 +5,9 @@
 package generate
 
 import (
+	"internal/testenv"
 	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"testing"
@@ -41,10 +43,11 @@ var splitTests = []splitTest{
 }
 
 func TestGenerateCommandParse(t *testing.T) {
+	dir := filepath.Join(testenv.GOROOT(t), "src", "sys")
 	g := &Generator{
 		r:        nil, // Unused here.
-		path:     "/usr/ken/sys/proc.go",
-		dir:      "/usr/ken/sys",
+		path:     filepath.Join(dir, "proc.go"),
+		dir:      dir,
 		file:     "proc.go",
 		pkg:      "sys",
 		commands: make(map[string][]string),
@@ -76,18 +79,19 @@ var defEnvMap = map[string]string{
 	"_X":      "Y",
 }
 
-// TestGenerateCommandShortHand - similar to TestGenerateCommandParse,
+// TestGenerateCommandShorthand - similar to TestGenerateCommandParse,
 // except:
-//    1. if the result starts with -command, record that shorthand
-//       before moving on to the next test.
-//    2. If a source line number is specified, set that in the parser
-//       before executing the test.  i.e., execute the split as if it
-//       processing that source line.
+//  1. if the result starts with -command, record that shorthand
+//     before moving on to the next test.
+//  2. If a source line number is specified, set that in the parser
+//     before executing the test.  i.e., execute the split as if it
+//     processing that source line.
 func TestGenerateCommandShorthand(t *testing.T) {
+	dir := filepath.Join(testenv.GOROOT(t), "src", "sys")
 	g := &Generator{
 		r:        nil, // Unused here.
-		path:     "/usr/ken/sys/proc.go",
-		dir:      "/usr/ken/sys",
+		path:     filepath.Join(dir, "proc.go"),
+		dir:      dir,
 		file:     "proc.go",
 		pkg:      "sys",
 		commands: make(map[string][]string),
@@ -204,7 +208,7 @@ func TestGenerateCommandShorthand(t *testing.T) {
 }
 
 // Command-related tests for TestGenerateCommandShortHand2
-// -- Note line numbers included to check substitutions from "build-in" variable - $GOLINE
+// -- Note line numbers included to check substitutions from "built-in" variable - $GOLINE
 var splitTestsLines = []splitTestWithLine{
 	{"-command TEST1 $GOLINE", []string{"-command", "TEST1", "22"}, 22},
 	{"-command TEST2 ${DOLLAR}GOLINE", []string{"-command", "TEST2", "$GOLINE"}, 26},
@@ -214,18 +218,19 @@ var splitTestsLines = []splitTestWithLine{
 	{"TEST2 ''", []string{"44", "''"}, 44},
 }
 
-// TestGenerateCommandShortHand - similar to TestGenerateCommandParse,
+// TestGenerateCommandShortHand2 - similar to TestGenerateCommandParse,
 // except:
-//    1. if the result starts with -command, record that shorthand
-//       before moving on to the next test.
-//    2. If a source line number is specified, set that in the parser
-//       before executing the test.  i.e., execute the split as if it
-//       processing that source line.
+//  1. if the result starts with -command, record that shorthand
+//     before moving on to the next test.
+//  2. If a source line number is specified, set that in the parser
+//     before executing the test.  i.e., execute the split as if it
+//     processing that source line.
 func TestGenerateCommandShortHand2(t *testing.T) {
+	dir := filepath.Join(testenv.GOROOT(t), "src", "sys")
 	g := &Generator{
 		r:        nil, // Unused here.
-		path:     "/usr/ken/sys/proc.go",
-		dir:      "/usr/ken/sys",
+		path:     filepath.Join(dir, "proc.go"),
+		dir:      dir,
 		file:     "proc.go",
 		pkg:      "sys",
 		commands: make(map[string][]string),

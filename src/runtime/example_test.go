@@ -6,18 +6,22 @@ package runtime_test
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"strings"
 )
 
 func ExampleFrames() {
 	c := func() {
-		// Ask runtime.Callers for up to 10 pcs, including runtime.Callers itself.
+		// Ask runtime.Callers for up to 10 PCs, including runtime.Callers itself.
 		pc := make([]uintptr, 10)
 		n := runtime.Callers(0, pc)
 		if n == 0 {
-			// No pcs available. Stop now.
-			// This can happen if the first argument to runtime.Callers is large.
+			// No PCs available. This can happen if the first argument to
+			// runtime.Callers is large.
+			//
+			// Return now to avoid processing the zero Frame that would
+			// otherwise be returned by frames.Next below.
 			return
 		}
 
@@ -25,16 +29,20 @@ func ExampleFrames() {
 		frames := runtime.CallersFrames(pc)
 
 		// Loop to get frames.
-		// A fixed number of pcs can expand to an indefinite number of Frames.
+		// A fixed number of PCs can expand to an indefinite number of Frames.
 		for {
 			frame, more := frames.Next()
-			// To keep this example's output stable
-			// even if there are changes in the testing package,
-			// stop unwinding when we leave package runtime.
-			if !strings.Contains(frame.File, "runtime/") {
+
+			// Canonicalize function name and skip callers of this function
+			// for predictable example output.
+			// You probably don't need this in your own code.
+			function := strings.ReplaceAll(frame.Function, "main.main", "runtime_test.ExampleFrames")
+			fmt.Printf("- more:%v | %s\n", more, function)
+			if function == "runtime_test.ExampleFrames" {
 				break
 			}
-			fmt.Printf("- more:%v | %s\n", more, frame.Function)
+
+			// Check whether there are more frames to process after this one.
 			if !more {
 				break
 			}
@@ -51,4 +59,37 @@ func ExampleFrames() {
 	// - more:true | runtime_test.ExampleFrames.func2
 	// - more:true | runtime_test.ExampleFrames.func3
 	// - more:true | runtime_test.ExampleFrames
+}
+
+func ExampleAddCleanup() {
+	tempFile, err := os.CreateTemp(os.TempDir(), "file.*")
+	if err != nil {
+		fmt.Println("failed to create temp file:", err)
+		return
+	}
+
+	ch := make(chan struct{})
+
+	// Attach a cleanup function to the file object.
+	runtime.AddCleanup(&tempFile, func(fileName string) {
+		if err := os.Remove(fileName); err == nil {
+			fmt.Println("temp file has been removed")
+		}
+		ch <- struct{}{}
+	}, tempFile.Name())
+
+	if err := tempFile.Close(); err != nil {
+		fmt.Println("failed to close temp file:", err)
+		return
+	}
+
+	// Run the garbage collector to reclaim unreachable objects
+	// and enqueue their cleanup functions.
+	runtime.GC()
+
+	// Wait until cleanup function is done.
+	<-ch
+
+	// Output:
+	// temp file has been removed
 }

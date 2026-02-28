@@ -28,10 +28,11 @@
 #define TLSBSS	256
 // Do not insert instructions to allocate a stack frame for this function.
 // Only valid on functions that declare a frame size of 0.
-// TODO(mwhudson): only implemented for ppc64x at present.
 #define NOFRAME 512
 // Function can call reflect.Type.Method or reflect.Type.MethodByName.
 #define REFLECTMETHOD 1024
-// Function is the top of the call stack. Call stack unwinders should stop
-// at this function.
+// Function is the outermost frame of the call stack. Call stack unwinders
+// should stop at this function.
 #define TOPFRAME 2048
+// Function is an ABI wrapper.
+#define ABIWRAPPER 4096

@@ -2,14 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package clean implements the ``go clean'' command.
+// Package clean implements the “go clean” command.
 package clean
 
 import (
+	"context"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -21,11 +25,12 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 )
 
 var CmdClean = &base.Command{
-	UsageLine: "go clean [clean flags] [build flags] [packages]",
+	UsageLine: "go clean [-i] [-r] [-cache] [-testcache] [-modcache] [-fuzzcache] [build flags] [packages]",
 	Short:     "remove object files and cached files",
 	Long: `
 Clean removes object files from package source directories.
@@ -74,6 +79,13 @@ The -modcache flag causes clean to remove the entire module
 download cache, including unpacked source code of versioned
 dependencies.
 
+The -fuzzcache flag causes clean to remove files stored in the Go build
+cache for fuzz testing. The fuzzing engine caches files that expand
+code coverage, so removing them may make fuzzing less effective until
+new inputs are found that provide the same coverage. These files are
+distinct from those stored in testdata directory; clean does not remove
+those files.
+
 For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
@@ -84,6 +96,7 @@ var (
 	cleanI         bool // clean -i flag
 	cleanR         bool // clean -r flag
 	cleanCache     bool // clean -cache flag
+	cleanFuzzcache bool // clean -fuzzcache flag
 	cleanModcache  bool // clean -modcache flag
 	cleanTestcache bool // clean -testcache flag
 )
@@ -95,6 +108,7 @@ func init() {
 	CmdClean.Flag.BoolVar(&cleanI, "i", false, "")
 	CmdClean.Flag.BoolVar(&cleanR, "r", false, "")
 	CmdClean.Flag.BoolVar(&cleanCache, "cache", false, "")
+	CmdClean.Flag.BoolVar(&cleanFuzzcache, "fuzzcache", false, "")
 	CmdClean.Flag.BoolVar(&cleanModcache, "modcache", false, "")
 	CmdClean.Flag.BoolVar(&cleanTestcache, "testcache", false, "")
 
@@ -102,55 +116,69 @@ func init() {
 	// mentioned explicitly in the docs but they
 	// are part of the build flags.
 
-	work.AddBuildFlags(CmdClean, work.DefaultBuildFlags)
+	work.AddBuildFlags(CmdClean, work.OmitBuildOnlyFlags)
 }
 
-func runClean(cmd *base.Command, args []string) {
+func runClean(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
+	moduleLoaderState.InitWorkfile()
+	if len(args) > 0 {
+		cacheFlag := ""
+		switch {
+		case cleanCache:
+			cacheFlag = "-cache"
+		case cleanTestcache:
+			cacheFlag = "-testcache"
+		case cleanFuzzcache:
+			cacheFlag = "-fuzzcache"
+		case cleanModcache:
+			cacheFlag = "-modcache"
+		}
+		if cacheFlag != "" {
+			base.Fatalf("go: clean %s cannot be used with package arguments", cacheFlag)
+		}
+	}
+
 	// golang.org/issue/29925: only load packages before cleaning if
 	// either the flags and arguments explicitly imply a package,
 	// or no other target (such as a cache) was requested to be cleaned.
 	cleanPkg := len(args) > 0 || cleanI || cleanR
-	if (!modload.Enabled() || modload.HasModRoot()) &&
-		!cleanCache && !cleanModcache && !cleanTestcache {
+	if (!moduleLoaderState.Enabled() || moduleLoaderState.HasModRoot()) &&
+		!cleanCache && !cleanModcache && !cleanTestcache && !cleanFuzzcache {
 		cleanPkg = true
 	}
 
 	if cleanPkg {
-		for _, pkg := range load.PackagesAndErrors(args) {
+		for _, pkg := range load.PackagesAndErrors(moduleLoaderState, ctx, load.PackageOpts{}, args) {
 			clean(pkg)
 		}
 	}
 
-	var b work.Builder
-	b.Print = fmt.Print
+	sh := work.NewShell("", &load.TextPrinter{Writer: os.Stdout})
 
 	if cleanCache {
-		dir := cache.DefaultDir()
+		dir, _, err := cache.DefaultDir()
+		if err != nil {
+			base.Fatal(err)
+		}
 		if dir != "off" {
 			// Remove the cache subdirectories but not the top cache directory.
 			// The top cache directory may have been created with special permissions
 			// and not something that we want to remove. Also, we'd like to preserve
 			// the access log for future analysis, even if the cache is cleared.
-			subdirs, _ := filepath.Glob(filepath.Join(dir, "[0-9a-f][0-9a-f]"))
+			subdirs, _ := filepath.Glob(filepath.Join(str.QuoteGlob(dir), "[0-9a-f][0-9a-f]"))
 			printedErrors := false
 			if len(subdirs) > 0 {
-				if cfg.BuildN || cfg.BuildX {
-					b.Showcmd("", "rm -r %s", strings.Join(subdirs, " "))
-				}
-				for _, d := range subdirs {
-					// Only print the first error - there may be many.
-					// This also mimics what os.RemoveAll(dir) would do.
-					if err := os.RemoveAll(d); err != nil && !printedErrors {
-						printedErrors = true
-						base.Errorf("go clean -cache: %v", err)
-					}
+				if err := sh.RemoveAll(subdirs...); err != nil && !printedErrors {
+					printedErrors = true
+					base.Error(err)
 				}
 			}
 
 			logFile := filepath.Join(dir, "log.txt")
-			if err := os.RemoveAll(logFile); err != nil && !printedErrors {
+			if err := sh.RemoveAll(logFile); err != nil && !printedErrors {
 				printedErrors = true
-				base.Errorf("go clean -cache: %v", err)
+				base.Error(err)
 			}
 		}
 	}
@@ -159,12 +187,15 @@ func runClean(cmd *base.Command, args []string) {
 		// Instead of walking through the entire cache looking for test results,
 		// we write a file to the cache indicating that all test results from before
 		// right now are to be ignored.
-		dir := cache.DefaultDir()
+		dir, _, err := cache.DefaultDir()
+		if err != nil {
+			base.Fatal(err)
+		}
 		if dir != "off" {
 			f, err := lockedfile.Edit(filepath.Join(dir, "testexpire.txt"))
 			if err == nil {
 				now := time.Now().UnixNano()
-				buf, _ := ioutil.ReadAll(f)
+				buf, _ := io.ReadAll(f)
 				prev, _ := strconv.ParseInt(strings.TrimSpace(string(buf)), 10, 64)
 				if now > prev {
 					if err = f.Truncate(0); err == nil {
@@ -179,25 +210,64 @@ func runClean(cmd *base.Command, args []string) {
 			}
 			if err != nil {
 				if _, statErr := os.Stat(dir); !os.IsNotExist(statErr) {
-					base.Errorf("go clean -testcache: %v", err)
+					base.Error(err)
 				}
 			}
 		}
 	}
 
 	if cleanModcache {
-		if modfetch.PkgMod == "" {
-			base.Fatalf("go clean -modcache: no module cache")
+		if cfg.GOMODCACHE == "" {
+			base.Fatalf("go: cannot clean -modcache without a module cache")
 		}
 		if cfg.BuildN || cfg.BuildX {
-			b.Showcmd("", "rm -rf %s", modfetch.PkgMod)
+			sh.ShowCmd("", "rm -rf %s", cfg.GOMODCACHE)
 		}
 		if !cfg.BuildN {
-			if err := modfetch.RemoveAll(modfetch.PkgMod); err != nil {
-				base.Errorf("go clean -modcache: %v", err)
+			if err := modfetch.RemoveAll(cfg.GOMODCACHE); err != nil {
+				base.Error(err)
+
+				// Add extra logging for the purposes of debugging #68087.
+				// We're getting ENOTEMPTY errors on openbsd from RemoveAll.
+				// Check for os.ErrExist, which can match syscall.ENOTEMPTY
+				// and syscall.EEXIST, because syscall.ENOTEMPTY is not defined
+				// on all platforms.
+				if runtime.GOOS == "openbsd" && errors.Is(err, fs.ErrExist) {
+					logFilesInGOMODCACHE()
+				}
 			}
 		}
 	}
+
+	if cleanFuzzcache {
+		fuzzDir := cache.Default().FuzzDir()
+		if err := sh.RemoveAll(fuzzDir); err != nil {
+			base.Error(err)
+		}
+	}
+}
+
+// logFilesInGOMODCACHE reports the file names and modes for the files in GOMODCACHE using base.Error.
+func logFilesInGOMODCACHE() {
+	var found []string
+	werr := filepath.WalkDir(cfg.GOMODCACHE, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		var mode string
+		info, err := d.Info()
+		if err == nil {
+			mode = info.Mode().String()
+		} else {
+			mode = fmt.Sprintf("<err: %s>", info.Mode())
+		}
+		found = append(found, fmt.Sprintf("%s (mode: %s)", path, mode))
+		return nil
+	})
+	if werr != nil {
+		base.Errorf("walking files in GOMODCACHE (for debugging go.dev/issue/68087): %v", werr)
+	}
+	base.Errorf("files in GOMODCACHE (for debugging go.dev/issue/68087):\n%s", strings.Join(found, "\n"))
 }
 
 var cleaned = map[*load.Package]bool{}
@@ -235,14 +305,13 @@ func clean(p *load.Package) {
 		base.Errorf("%v", p.Error)
 		return
 	}
-	dirs, err := ioutil.ReadDir(p.Dir)
+	dirs, err := os.ReadDir(p.Dir)
 	if err != nil {
-		base.Errorf("go clean %s: %v", p.Dir, err)
+		base.Errorf("go: %s: %v", p.Dir, err)
 		return
 	}
 
-	var b work.Builder
-	b.Print = fmt.Print
+	sh := work.NewShell("", &load.TextPrinter{Writer: os.Stdout})
 
 	packageFile := map[string]bool{}
 	if p.Name != "main" {
@@ -267,6 +336,8 @@ func clean(p *load.Package) {
 		allRemove = append(allRemove,
 			elem,
 			elem+".exe",
+			p.DefaultExecName(),
+			p.DefaultExecName()+".exe",
 		)
 	}
 
@@ -274,26 +345,36 @@ func clean(p *load.Package) {
 	allRemove = append(allRemove,
 		elem+".test",
 		elem+".test.exe",
+		p.DefaultExecName()+".test",
+		p.DefaultExecName()+".test.exe",
 	)
 
-	// Remove a potential executable for each .go file in the directory that
+	// Remove a potential executable, test executable for each .go file in the directory that
 	// is not part of the directory's package.
 	for _, dir := range dirs {
 		name := dir.Name()
 		if packageFile[name] {
 			continue
 		}
-		if !dir.IsDir() && strings.HasSuffix(name, ".go") {
+
+		if dir.IsDir() {
+			continue
+		}
+
+		if base, found := strings.CutSuffix(name, "_test.go"); found {
+			allRemove = append(allRemove, base+".test", base+".test.exe")
+		}
+
+		if base, found := strings.CutSuffix(name, ".go"); found {
 			// TODO(adg,rsc): check that this .go file is actually
 			// in "package main", and therefore capable of building
 			// to an executable file.
-			base := name[:len(name)-len(".go")]
 			allRemove = append(allRemove, base, base+".exe")
 		}
 	}
 
 	if cfg.BuildN || cfg.BuildX {
-		b.Showcmd(p.Dir, "rm -f %s", strings.Join(allRemove, " "))
+		sh.ShowCmd(p.Dir, "rm -f %s", strings.Join(allRemove, " "))
 	}
 
 	toRemove := map[string]bool{}
@@ -305,14 +386,8 @@ func clean(p *load.Package) {
 		if dir.IsDir() {
 			// TODO: Remove once Makefiles are forgotten.
 			if cleanDir[name] {
-				if cfg.BuildN || cfg.BuildX {
-					b.Showcmd(p.Dir, "rm -r %s", name)
-					if cfg.BuildN {
-						continue
-					}
-				}
-				if err := os.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
-					base.Errorf("go clean: %v", err)
+				if err := sh.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
+					base.Error(err)
 				}
 			}
 			continue
@@ -329,7 +404,7 @@ func clean(p *load.Package) {
 
 	if cleanI && p.Target != "" {
 		if cfg.BuildN || cfg.BuildX {
-			b.Showcmd("", "rm -f %s", p.Target)
+			sh.ShowCmd("", "rm -f %s", p.Target)
 		}
 		if !cfg.BuildN {
 			removeFile(p.Target)
@@ -351,7 +426,7 @@ func removeFile(f string) {
 		return
 	}
 	// Windows does not allow deletion of a binary file while it is executing.
-	if base.ToolIsWindows {
+	if runtime.GOOS == "windows" {
 		// Remove lingering ~ file from last attempt.
 		if _, err2 := os.Stat(f + "~"); err2 == nil {
 			os.Remove(f + "~")
@@ -364,5 +439,5 @@ func removeFile(f string) {
 			return
 		}
 	}
-	base.Errorf("go clean: %v", err)
+	base.Error(err)
 }

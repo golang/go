@@ -15,6 +15,11 @@ import (
 	"unsafe"
 )
 
+func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+
 // Implemented in runtime/syscall_aix.go.
 func rawSyscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 func syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
@@ -31,6 +36,8 @@ const (
 	F_DUPFD_CLOEXEC = 0
 	// AF_LOCAL doesn't exist on AIX
 	AF_LOCAL = AF_UNIX
+
+	_F_DUP2FD_CLOEXEC = 0
 )
 
 func (ts *StTimespec_t) Unix() (sec int64, nsec int64) {
@@ -45,6 +52,10 @@ func (ts *StTimespec_t) Nano() int64 {
  * Wrapped
  */
 
+func Access(path string, mode uint32) (err error) {
+	return Faccessat(_AT_FDCWD, path, mode, 0)
+}
+
 // fcntl must never be called with cmd=F_DUP2FD because it doesn't work on AIX
 // There is no way to create a custom fcntl and to keep //sys fcntl easily,
 // because we need fcntl name for its libc symbol. This is linked with the script.
@@ -54,24 +65,29 @@ func (ts *StTimespec_t) Nano() int64 {
 //sys	Dup2(old int, new int) (err error)
 
 //sysnb pipe(p *[2]_C_int) (err error)
+
 func Pipe(p []int) (err error) {
 	if len(p) != 2 {
 		return EINVAL
 	}
 	var pp [2]_C_int
 	err = pipe(&pp)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
 	return
 }
 
 //sys	readlink(path string, buf []byte, bufSize uint64) (n int, err error)
+
 func Readlink(path string, buf []byte) (n int, err error) {
 	s := uint64(len(buf))
 	return readlink(path, buf, s)
 }
 
 //sys	utimes(path string, times *[2]Timeval) (err error)
+
 func Utimes(path string, tv []Timeval) error {
 	if len(tv) != 2 {
 		return EINVAL
@@ -80,6 +96,7 @@ func Utimes(path string, tv []Timeval) error {
 }
 
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+
 func UtimesNano(path string, ts []Timespec) error {
 	if len(ts) != 2 {
 		return EINVAL
@@ -88,6 +105,7 @@ func UtimesNano(path string, ts []Timespec) error {
 }
 
 //sys	unlinkat(dirfd int, path string, flags int) (err error)
+
 func Unlinkat(dirfd int, path string) (err error) {
 	return unlinkat(dirfd, path, 0)
 }
@@ -101,11 +119,11 @@ func Getwd() (ret string, err error) {
 		b := make([]byte, len)
 		err := getcwd(&b[0], len)
 		if err == nil {
-			i := 0
-			for b[i] != 0 {
-				i++
+			n := clen(b[:])
+			if n < 1 {
+				return "", EINVAL
 			}
-			return string(b[0:i]), nil
+			return string(b[:n]), nil
 		}
 		if err != ERANGE {
 			return "", err
@@ -193,16 +211,18 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 }
 
 //sys	getdirent(fd int, buf []byte) (n int, err error)
+
 func ReadDirent(fd int, buf []byte) (n int, err error) {
 	return getdirent(fd, buf)
 }
 
 //sys  wait4(pid _Pid_t, status *_C_int, options int, rusage *Rusage) (wpid _Pid_t, err error)
+
 func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, err error) {
 	var status _C_int
 	var r _Pid_t
 	err = ERESTART
-	// AIX wait4 may return with ERESTART errno, while the processus is still
+	// AIX wait4 may return with ERESTART errno, while the process is still
 	// active.
 	for err == ERESTART {
 		r, err = wait4(_Pid_t(pid), &status, options, rusage)
@@ -212,6 +232,12 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 		*wstatus = WaitStatus(status)
 	}
 	return
+}
+
+//sys	fsyncRange(fd int, how int, start int64, length int64) (err error) = fsync_range
+
+func Fsync(fd int) error {
+	return fsyncRange(fd, O_SYNC, 0, 0)
 }
 
 /*
@@ -244,9 +270,7 @@ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet4, nil
 }
 
@@ -259,9 +283,7 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
 	sa.raw.Scope_id = sa.ZoneId
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet6, nil
 }
 
@@ -299,6 +321,7 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
 }
 
 //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+
 func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
@@ -314,14 +337,13 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	return
 }
 
-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) {
 	var msg Msghdr
-	var rsa RawSockaddrAny
-	msg.Name = (*byte)(unsafe.Pointer(&rsa))
+	msg.Name = (*byte)(unsafe.Pointer(rsa))
 	msg.Namelen = uint32(SizeofSockaddrAny)
 	var iov Iovec
 	if len(p) > 0 {
-		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
+		iov.Base = &p[0]
 		iov.SetLen(len(p))
 	}
 	var dummy byte
@@ -336,7 +358,7 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 			iov.Base = &dummy
 			iov.SetLen(1)
 		}
-		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
+		msg.Control = &oob[0]
 		msg.SetControllen(len(oob))
 	}
 	msg.Iov = &iov
@@ -346,33 +368,16 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 	}
 	oobn = int(msg.Controllen)
 	recvflags = int(msg.Flags)
-	// source address is only specified if the socket is unconnected
-	if rsa.Addr.Family != AF_UNSPEC {
-		from, err = anyToSockaddr(&rsa)
-	}
 	return
 }
 
-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
-	_, err = SendmsgN(fd, p, oob, to, flags)
-	return
-}
-
-func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
-	var ptr unsafe.Pointer
-	var salen _Socklen
-	if to != nil {
-		ptr, salen, err = to.sockaddr()
-		if err != nil {
-			return 0, err
-		}
-	}
+func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) {
 	var msg Msghdr
-	msg.Name = (*byte)(unsafe.Pointer(ptr))
+	msg.Name = (*byte)(ptr)
 	msg.Namelen = uint32(salen)
 	var iov Iovec
 	if len(p) > 0 {
-		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
+		iov.Base = &p[0]
 		iov.SetLen(len(p))
 	}
 	var dummy byte
@@ -387,7 +392,7 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) 
 			iov.Base = &dummy
 			iov.SetLen(1)
 		}
-		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
+		msg.Control = &oob[0]
 		msg.SetControllen(len(oob))
 	}
 	msg.Iov = &iov
@@ -423,8 +428,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 		if err != nil {
 			return nil, err
 		}
-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))
-		sa.Name = string(bytes[0:n])
+		sa.Name = string(unsafe.Slice((*byte)(unsafe.Pointer(&pp.Path[0])), n))
 		return sa, nil
 
 	case AF_INET:
@@ -432,9 +436,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 		sa := new(SockaddrInet4)
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 
 	case AF_INET6:
@@ -442,9 +444,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 		sa := new(SockaddrInet6)
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 	}
 	return nil, EAFNOSUPPORT
@@ -504,6 +504,7 @@ func (w WaitStatus) TrapCause() int { return -1 }
 
 //sys	Openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
 //sys	ptrace64(request int, id int64, addr int64, data int, buff uintptr) (err error)
+//sys	ptrace64Ptr(request int, id int64, addr int64, data int, buff unsafe.Pointer) (err error) = ptrace64
 
 func raw_ptrace(request int, pid int, addr *byte, data *byte) Errno {
 	if request == PTRACE_TRACEME {
@@ -524,7 +525,7 @@ func ptracePeek(pid int, addr uintptr, out []byte) (count int, err error) {
 		if bsize > 1024 {
 			bsize = 1024
 		}
-		err = ptrace64(PT_READ_BLOCK, int64(pid), int64(addr), bsize, uintptr(unsafe.Pointer(&out[0])))
+		err = ptrace64Ptr(PT_READ_BLOCK, int64(pid), int64(addr), bsize, unsafe.Pointer(&out[0]))
 		if err != nil {
 			return 0, err
 		}
@@ -550,7 +551,7 @@ func ptracePoke(pid int, addr uintptr, data []byte) (count int, err error) {
 		if bsize > 1024 {
 			bsize = 1024
 		}
-		err = ptrace64(PT_WRITE_BLOCK, int64(pid), int64(addr), bsize, uintptr(unsafe.Pointer(&data[0])))
+		err = ptrace64Ptr(PT_WRITE_BLOCK, int64(pid), int64(addr), bsize, unsafe.Pointer(&data[0]))
 		if err != nil {
 			return 0, err
 		}
@@ -600,7 +601,6 @@ func PtraceDetach(pid int) (err error) { return ptrace64(PT_DETACH, int64(pid), 
 //sys	Fstat(fd int, stat *Stat_t) (err error)
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
-//sys	Fsync(fd int) (err error)
 //sysnb	Getgid() (gid int)
 //sysnb	Getpid() (pid int)
 //sys	Geteuid() (euid int)
@@ -608,6 +608,7 @@ func PtraceDetach(pid int) (err error) { return ptrace64(PT_DETACH, int64(pid), 
 //sys	Getppid() (ppid int)
 //sys	Getpriority(which int, who int) (n int, err error)
 //sysnb	Getrlimit(which int, lim *Rlimit) (err error)
+//sysnb	Getrusage(who int, rusage *Rusage) (err error)
 //sysnb	Getuid() (uid int)
 //sys	Kill(pid int, signum Signal) (err error)
 //sys	Lchown(path string, uid int, gid int) (err error)
@@ -617,8 +618,8 @@ func PtraceDetach(pid int) (err error) { return ptrace64(PT_DETACH, int64(pid), 
 //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
 //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (err error)
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
+//sys	pread(fd int, p []byte, offset int64) (n int, err error)
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Reboot(how int) (err error)
 //sys	Rename(from string, to string) (err error)
@@ -628,11 +629,12 @@ func PtraceDetach(pid int) (err error) { return ptrace64(PT_DETACH, int64(pid), 
 //sysnb	Setegid(egid int) (err error)
 //sysnb	Seteuid(euid int) (err error)
 //sysnb	Setgid(gid int) (err error)
+//sysnb	Setuid(uid int) (err error)
 //sysnb	Setpgid(pid int, pgid int) (err error)
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
+//sysnb	setrlimit(which int, lim *Rlimit) (err error)
 //sys	Stat(path string, stat *Stat_t) (err error)
 //sys	Statfs(path string, buf *Statfs_t) (err error)
 //sys	Symlink(path string, link string) (err error)
@@ -641,6 +643,7 @@ func PtraceDetach(pid int) (err error) { return ptrace64(PT_DETACH, int64(pid), 
 //sys	Unlink(path string) (err error)
 //sysnb	Uname(buf *Utsname) (err error)
 //sys	write(fd int, p []byte) (n int, err error)
+//sys	writev(fd int, iovecs []Iovec) (n uintptr, err error)
 
 //sys	gettimeofday(tv *Timeval, tzp *Timezone) (err error)
 

@@ -19,6 +19,7 @@ package profile
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -40,13 +41,7 @@ func simplifyFunc(f string) string {
 	// Account for unsimplified names -- try  to remove the argument list by trimming
 	// starting from the first '(', but skipping reserved names that have '('.
 	for _, ind := range bracketRx.FindAllStringSubmatchIndex(funcName, -1) {
-		foundReserved := false
-		for _, res := range reservedNames {
-			if funcName[ind[0]:ind[1]] == res {
-				foundReserved = true
-				break
-			}
-		}
+		foundReserved := slices.Contains(reservedNames, funcName[ind[0]:ind[1]])
 		if !foundReserved {
 			funcName = funcName[:ind[0]]
 			break
@@ -62,15 +57,31 @@ func (p *Profile) Prune(dropRx, keepRx *regexp.Regexp) {
 	prune := make(map[uint64]bool)
 	pruneBeneath := make(map[uint64]bool)
 
+	// simplifyFunc can be expensive, so cache results.
+	// Note that the same function name can be encountered many times due
+	// different lines and addresses in the same function.
+	pruneCache := map[string]bool{} // Map from function to whether or not to prune
+	pruneFromHere := func(s string) bool {
+		if r, ok := pruneCache[s]; ok {
+			return r
+		}
+		funcName := simplifyFunc(s)
+		if dropRx.MatchString(funcName) {
+			if keepRx == nil || !keepRx.MatchString(funcName) {
+				pruneCache[s] = true
+				return true
+			}
+		}
+		pruneCache[s] = false
+		return false
+	}
+
 	for _, loc := range p.Location {
 		var i int
 		for i = len(loc.Line) - 1; i >= 0; i-- {
 			if fn := loc.Line[i].Function; fn != nil && fn.Name != "" {
-				funcName := simplifyFunc(fn.Name)
-				if dropRx.MatchString(funcName) {
-					if keepRx == nil || !keepRx.MatchString(funcName) {
-						break
-					}
+				if pruneFromHere(fn.Name) {
+					break
 				}
 			}
 		}

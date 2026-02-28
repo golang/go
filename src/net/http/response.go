@@ -29,7 +29,7 @@ var respExcludeHeader = map[string]bool{
 
 // Response represents the response from an HTTP request.
 //
-// The Client and Transport return Responses from servers once
+// The [Client] and [Transport] return Responses from servers once
 // the response headers have been received. The response body
 // is streamed on demand as the Body field is read.
 type Response struct {
@@ -61,7 +61,10 @@ type Response struct {
 	// a zero-length body. It is the caller's responsibility to
 	// close Body. The default HTTP client's Transport may not
 	// reuse HTTP/1.x "keep-alive" TCP connections if the Body is
-	// not read to completion and closed.
+	// not read to completion and closed; however, manually reading
+	// the body to completion should not be needed in most cases,
+	// as closing the body will also cause the body to be read to
+	// completion asynchronously, up to a conservative limit.
 	//
 	// The Body is automatically dechunked if the server replied
 	// with a "chunked" Transfer-Encoding.
@@ -126,13 +129,13 @@ func (r *Response) Cookies() []*Cookie {
 	return readSetCookies(r.Header)
 }
 
-// ErrNoLocation is returned by Response's Location method
+// ErrNoLocation is returned by the [Response.Location] method
 // when no Location header is present.
 var ErrNoLocation = errors.New("http: no Location header in response")
 
 // Location returns the URL of the response's "Location" header,
 // if present. Relative redirects are resolved relative to
-// the Response's Request. ErrNoLocation is returned if no
+// [Response.Request]. [ErrNoLocation] is returned if no
 // Location header is present.
 func (r *Response) Location() (*url.URL, error) {
 	lv := r.Header.Get("Location")
@@ -146,8 +149,8 @@ func (r *Response) Location() (*url.URL, error) {
 }
 
 // ReadResponse reads and returns an HTTP response from r.
-// The req parameter optionally specifies the Request that corresponds
-// to this Response. If nil, a GET request is assumed.
+// The req parameter optionally specifies the [Request] that corresponds
+// to this [Response]. If nil, a GET request is assumed.
 // Clients must call resp.Body.Close when finished reading resp.Body.
 // After that call, clients can inspect resp.Trailer to find key/value
 // pairs included in the response trailer.
@@ -165,26 +168,23 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 		}
 		return nil, err
 	}
-	if i := strings.IndexByte(line, ' '); i == -1 {
-		return nil, &badStringError{"malformed HTTP response", line}
-	} else {
-		resp.Proto = line[:i]
-		resp.Status = strings.TrimLeft(line[i+1:], " ")
+	proto, status, ok := strings.Cut(line, " ")
+	if !ok {
+		return nil, badStringError("malformed HTTP response", line)
 	}
-	statusCode := resp.Status
-	if i := strings.IndexByte(resp.Status, ' '); i != -1 {
-		statusCode = resp.Status[:i]
-	}
+	resp.Proto = proto
+	resp.Status = strings.TrimLeft(status, " ")
+
+	statusCode, _, _ := strings.Cut(resp.Status, " ")
 	if len(statusCode) != 3 {
-		return nil, &badStringError{"malformed HTTP status code", statusCode}
+		return nil, badStringError("malformed HTTP status code", statusCode)
 	}
 	resp.StatusCode, err = strconv.Atoi(statusCode)
 	if err != nil || resp.StatusCode < 0 {
-		return nil, &badStringError{"malformed HTTP status code", statusCode}
+		return nil, badStringError("malformed HTTP status code", statusCode)
 	}
-	var ok bool
 	if resp.ProtoMajor, resp.ProtoMinor, ok = ParseHTTPVersion(resp.Proto); !ok {
-		return nil, &badStringError{"malformed HTTP version", resp.Proto}
+		return nil, badStringError("malformed HTTP version", resp.Proto)
 	}
 
 	// Parse the response headers.
@@ -208,8 +208,11 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 }
 
 // RFC 7234, section 5.4: Should treat
+//
 //	Pragma: no-cache
+//
 // like
+//
 //	Cache-Control: no-cache
 func fixPragmaCacheControl(header Header) {
 	if hp, ok := header["Pragma"]; ok && len(hp) > 0 && hp[0] == "no-cache" {
@@ -231,24 +234,23 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
 //
 // This method consults the following fields of the response r:
 //
-//  StatusCode
-//  ProtoMajor
-//  ProtoMinor
-//  Request.Method
-//  TransferEncoding
-//  Trailer
-//  Body
-//  ContentLength
-//  Header, values for non-canonical keys will have unpredictable behavior
+//	StatusCode
+//	ProtoMajor
+//	ProtoMinor
+//	Request.Method
+//	TransferEncoding
+//	Trailer
+//	Body
+//	ContentLength
+//	Header, values for non-canonical keys will have unpredictable behavior
 //
 // The Response Body is closed after it is sent.
 func (r *Response) Write(w io.Writer) error {
 	// Status line
 	text := r.Status
 	if text == "" {
-		var ok bool
-		text, ok = statusText[r.StatusCode]
-		if !ok {
+		text = StatusText(r.StatusCode)
+		if text == "" {
 			text = "status code " + strconv.Itoa(r.StatusCode)
 		}
 	} else {
@@ -352,10 +354,21 @@ func (r *Response) bodyIsWritable() bool {
 	return ok
 }
 
-// isProtocolSwitch reports whether r is a response to a successful
-// protocol upgrade.
+// isProtocolSwitch reports whether the response code and header
+// indicate a successful protocol upgrade response.
 func (r *Response) isProtocolSwitch() bool {
-	return r.StatusCode == StatusSwitchingProtocols &&
-		r.Header.Get("Upgrade") != "" &&
-		httpguts.HeaderValuesContainsToken(r.Header["Connection"], "Upgrade")
+	return isProtocolSwitchResponse(r.StatusCode, r.Header)
+}
+
+// isProtocolSwitchResponse reports whether the response code and
+// response header indicate a successful protocol upgrade response.
+func isProtocolSwitchResponse(code int, h Header) bool {
+	return code == StatusSwitchingProtocols && isProtocolSwitchHeader(h)
+}
+
+// isProtocolSwitchHeader reports whether the request or response header
+// is for a protocol switch.
+func isProtocolSwitchHeader(h Header) bool {
+	return h.Get("Upgrade") != "" &&
+		httpguts.HeaderValuesContainsToken(h["Connection"], "Upgrade")
 }

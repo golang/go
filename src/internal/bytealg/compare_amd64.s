@@ -3,22 +3,28 @@
 // license that can be found in the LICENSE file.
 
 #include "go_asm.h"
+#include "asm_amd64.h"
 #include "textflag.h"
 
-TEXT ·Compare(SB),NOSPLIT,$0-56
-	MOVQ	a_base+0(FP), SI
-	MOVQ	a_len+8(FP), BX
-	MOVQ	b_base+24(FP), DI
-	MOVQ	b_len+32(FP), DX
-	LEAQ	ret+48(FP), R9
+TEXT ·Compare<ABIInternal>(SB),NOSPLIT,$0-56
+	// AX = a_base (want in SI)
+	// BX = a_len  (want in BX)
+	// CX = a_cap  (unused)
+	// DI = b_base (want in DI)
+	// SI = b_len  (want in DX)
+	// R8 = b_cap  (unused)
+	MOVQ	SI, DX
+	MOVQ	AX, SI
 	JMP	cmpbody<>(SB)
 
-TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
-	MOVQ	a_base+0(FP), SI
-	MOVQ	a_len+8(FP), BX
-	MOVQ	b_base+16(FP), DI
-	MOVQ	b_len+24(FP), DX
-	LEAQ	ret+32(FP), R9
+TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT,$0-40
+	// AX = a_base (want in SI)
+	// BX = a_len  (want in BX)
+	// CX = b_base (want in DI)
+	// DI = b_len  (want in DX)
+	MOVQ	AX, SI
+	MOVQ	DI, DX
+	MOVQ	CX, DI
 	JMP	cmpbody<>(SB)
 
 // input:
@@ -26,7 +32,8 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
 //   DI = b
 //   BX = alen
 //   DX = blen
-//   R9 = address of output word (stores -1/0/1 here)
+// output:
+//   AX = output (-1/0/1)
 TEXT cmpbody<>(SB),NOSPLIT,$0-0
 	CMPQ	SI, DI
 	JEQ	allsame
@@ -38,9 +45,13 @@ TEXT cmpbody<>(SB),NOSPLIT,$0-0
 
 	CMPQ	R8, $63
 	JBE	loop
+#ifndef hasAVX2
 	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JEQ     big_loop_avx2
 	JMP	big_loop
+#else
+	JMP	big_loop_avx2
+#endif
 loop:
 	CMPQ	R8, $16
 	JBE	_0through16
@@ -74,7 +85,6 @@ diff16:
 	CMPB	CX, (DI)(BX*1)
 	SETHI	AX
 	LEAQ	-1(AX*2), AX	// convert 1/0 to +1/-1
-	MOVQ	AX, (R9)
 	RET
 
 	// 0 through 16 bytes left, alen>=8, blen>=8
@@ -100,7 +110,6 @@ diff8:
 	SHRQ	CX, AX	// move a's bit to bottom
 	ANDQ	$1, AX	// mask bit
 	LEAQ	-1(AX*2), AX // 1/0 => +1/-1
-	MOVQ	AX, (R9)
 	RET
 
 	// 0-7 bytes in common
@@ -139,7 +148,6 @@ di_finish:
 	SHRQ	CX, SI	// move a's bit to bottom
 	ANDQ	$1, SI	// mask bit
 	LEAQ	-1(SI*2), AX // 1/0 => +1/-1
-	MOVQ	AX, (R9)
 	RET
 
 allsame:
@@ -149,10 +157,10 @@ allsame:
 	SETGT	AX	// 1 if alen > blen
 	SETEQ	CX	// 1 if alen == blen
 	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
-	MOVQ	AX, (R9)
 	RET
 
 	// this works for >= 64 bytes of data.
+#ifndef hasAVX2
 big_loop:
 	MOVOU	(SI), X0
 	MOVOU	(DI), X1
@@ -188,6 +196,7 @@ big_loop:
 	CMPQ	R8, $64
 	JBE	loop
 	JMP	big_loop
+#endif
 
 	// Compare 64-bytes per loop iteration.
 	// Loop is unrolled and uses AVX2.

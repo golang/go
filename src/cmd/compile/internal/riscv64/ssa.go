@@ -5,11 +5,16 @@
 package riscv64
 
 import (
-	"cmd/compile/internal/gc"
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
+	"cmd/compile/internal/logopt"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/riscv"
+	"internal/abi"
 )
 
 // ssaRegToReg maps ssa register numbers to obj register numbers.
@@ -91,7 +96,7 @@ func loadByType(t *types.Type) obj.As {
 		case 8:
 			return riscv.AMOVD
 		default:
-			gc.Fatalf("unknown float width for load %d in type %v", width, t)
+			base.Fatalf("unknown float width for load %d in type %v", width, t)
 			return 0
 		}
 	}
@@ -118,7 +123,7 @@ func loadByType(t *types.Type) obj.As {
 	case 8:
 		return riscv.AMOV
 	default:
-		gc.Fatalf("unknown width for load %d in type %v", width, t)
+		base.Fatalf("unknown width for load %d in type %v", width, t)
 		return 0
 	}
 }
@@ -134,7 +139,7 @@ func storeByType(t *types.Type) obj.As {
 		case 8:
 			return riscv.AMOVD
 		default:
-			gc.Fatalf("unknown float width for store %d in type %v", width, t)
+			base.Fatalf("unknown float width for store %d in type %v", width, t)
 			return 0
 		}
 	}
@@ -149,7 +154,7 @@ func storeByType(t *types.Type) obj.As {
 	case 8:
 		return riscv.AMOV
 	default:
-		gc.Fatalf("unknown width for store %d in type %v", width, t)
+		base.Fatalf("unknown width for store %d in type %v", width, t)
 		return 0
 	}
 }
@@ -176,11 +181,13 @@ func largestMove(alignment int64) (obj.As, int64) {
 	}
 }
 
-// markMoves marks any MOVXconst ops that need to avoid clobbering flags.
-// RISC-V has no flags, so this is a no-op.
-func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {}
+var fracMovOps = []obj.As{riscv.AMOVB, riscv.AMOVH, riscv.AMOVW, riscv.AMOV}
 
-func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+// ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
+// RISC-V has no flags, so this is a no-op.
+func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {}
+
+func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	s.SetPos(v.Pos)
 
 	switch v.Op {
@@ -189,8 +196,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpArg:
 		// input args need no code
 	case ssa.OpPhi:
-		gc.CheckLoweredPhi(v)
-	case ssa.OpCopy, ssa.OpRISCV64MOVconvert:
+		ssagen.CheckLoweredPhi(v)
+	case ssa.OpCopy, ssa.OpRISCV64MOVDreg:
 		if v.Type.IsMemory() {
 			return
 		}
@@ -208,13 +215,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = rs
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = rd
+	case ssa.OpRISCV64MOVDnop:
+		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("load flags not implemented: %v", v.LongString())
 			return
 		}
 		p := s.Prog(loadByType(v.Type))
-		gc.AddrAuto(&p.From, v.Args[0])
+		ssagen.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpStoreReg:
@@ -225,19 +234,68 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(storeByType(v.Type))
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
-		gc.AddrAuto(&p.To, v)
+		ssagen.AddrAuto(&p.To, v)
+	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
+		// The assembler needs to wrap the entry safepoint/stack growth code with spill/unspill
+		// The loop only runs once.
+		for _, a := range v.Block.Func.RegArgs {
+			// Pass the spill/unspill information along to the assembler, offset by size of
+			// the saved LR slot.
+			addr := ssagen.SpillSlotAddr(a, riscv.REG_SP, base.Ctxt.Arch.FixedFrameSize)
+			s.FuncInfo().AddSpill(
+				obj.RegSpill{Reg: a.Reg, Addr: addr, Unspill: loadByType(a.Type), Spill: storeByType(a.Type)})
+		}
+		v.Block.Func.RegArgs = nil
+
+		ssagen.CheckArgReg(v)
 	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
 		// nothing to do
-	case ssa.OpRISCV64ADD, ssa.OpRISCV64SUB, ssa.OpRISCV64SUBW, ssa.OpRISCV64XOR, ssa.OpRISCV64OR, ssa.OpRISCV64AND,
-		ssa.OpRISCV64SLL, ssa.OpRISCV64SRA, ssa.OpRISCV64SRL,
+	case ssa.OpRISCV64MOVBreg, ssa.OpRISCV64MOVHreg, ssa.OpRISCV64MOVWreg,
+		ssa.OpRISCV64MOVBUreg, ssa.OpRISCV64MOVHUreg, ssa.OpRISCV64MOVWUreg:
+		a := v.Args[0]
+		for a.Op == ssa.OpCopy || a.Op == ssa.OpRISCV64MOVDreg {
+			a = a.Args[0]
+		}
+		as := v.Op.Asm()
+		rs := v.Args[0].Reg()
+		rd := v.Reg()
+		if a.Op == ssa.OpLoadReg {
+			t := a.Type
+			switch {
+			case v.Op == ssa.OpRISCV64MOVBreg && t.Size() == 1 && t.IsSigned(),
+				v.Op == ssa.OpRISCV64MOVHreg && t.Size() == 2 && t.IsSigned(),
+				v.Op == ssa.OpRISCV64MOVWreg && t.Size() == 4 && t.IsSigned(),
+				v.Op == ssa.OpRISCV64MOVBUreg && t.Size() == 1 && !t.IsSigned(),
+				v.Op == ssa.OpRISCV64MOVHUreg && t.Size() == 2 && !t.IsSigned(),
+				v.Op == ssa.OpRISCV64MOVWUreg && t.Size() == 4 && !t.IsSigned():
+				// arg is a proper-typed load and already sign/zero-extended
+				if rs == rd {
+					return
+				}
+				as = riscv.AMOV
+			default:
+			}
+		}
+		p := s.Prog(as)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = rs
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = rd
+	case ssa.OpRISCV64ADD, ssa.OpRISCV64SUB, ssa.OpRISCV64SUBW, ssa.OpRISCV64XNOR, ssa.OpRISCV64XOR,
+		ssa.OpRISCV64OR, ssa.OpRISCV64ORN, ssa.OpRISCV64AND, ssa.OpRISCV64ANDN,
+		ssa.OpRISCV64SLL, ssa.OpRISCV64SLLW, ssa.OpRISCV64SRA, ssa.OpRISCV64SRAW, ssa.OpRISCV64SRL, ssa.OpRISCV64SRLW,
 		ssa.OpRISCV64SLT, ssa.OpRISCV64SLTU, ssa.OpRISCV64MUL, ssa.OpRISCV64MULW, ssa.OpRISCV64MULH,
 		ssa.OpRISCV64MULHU, ssa.OpRISCV64DIV, ssa.OpRISCV64DIVU, ssa.OpRISCV64DIVW,
 		ssa.OpRISCV64DIVUW, ssa.OpRISCV64REM, ssa.OpRISCV64REMU, ssa.OpRISCV64REMW,
 		ssa.OpRISCV64REMUW,
+		ssa.OpRISCV64ROL, ssa.OpRISCV64ROLW, ssa.OpRISCV64ROR, ssa.OpRISCV64RORW,
 		ssa.OpRISCV64FADDS, ssa.OpRISCV64FSUBS, ssa.OpRISCV64FMULS, ssa.OpRISCV64FDIVS,
 		ssa.OpRISCV64FEQS, ssa.OpRISCV64FNES, ssa.OpRISCV64FLTS, ssa.OpRISCV64FLES,
 		ssa.OpRISCV64FADDD, ssa.OpRISCV64FSUBD, ssa.OpRISCV64FMULD, ssa.OpRISCV64FDIVD,
-		ssa.OpRISCV64FEQD, ssa.OpRISCV64FNED, ssa.OpRISCV64FLTD, ssa.OpRISCV64FLED:
+		ssa.OpRISCV64FEQD, ssa.OpRISCV64FNED, ssa.OpRISCV64FLTD, ssa.OpRISCV64FLED, ssa.OpRISCV64FSGNJD,
+		ssa.OpRISCV64MIN, ssa.OpRISCV64MAX, ssa.OpRISCV64MINU, ssa.OpRISCV64MAXU,
+		ssa.OpRISCV64SH1ADD, ssa.OpRISCV64SH2ADD, ssa.OpRISCV64SH3ADD,
+		ssa.OpRISCV64CZEROEQZ, ssa.OpRISCV64CZERONEZ:
 		r := v.Reg()
 		r1 := v.Args[0].Reg()
 		r2 := v.Args[1].Reg()
@@ -247,29 +305,154 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpRISCV64FSQRTS, ssa.OpRISCV64FNEGS, ssa.OpRISCV64FSQRTD, ssa.OpRISCV64FNEGD,
-		ssa.OpRISCV64FMVSX, ssa.OpRISCV64FMVDX,
+
+	case ssa.OpRISCV64LoweredFMAXD, ssa.OpRISCV64LoweredFMIND, ssa.OpRISCV64LoweredFMAXS, ssa.OpRISCV64LoweredFMINS:
+		// Most of FMIN/FMAX result match Go's required behaviour, unless one of the
+		// inputs is a NaN. As such, we need to explicitly test for NaN
+		// before using FMIN/FMAX.
+
+		// FADD Rarg0, Rarg1, Rout // FADD is used to propagate a NaN to the result in these cases.
+		// FEQ  Rarg0, Rarg0, Rtmp
+		// BEQZ Rtmp, end
+		// FEQ  Rarg1, Rarg1, Rtmp
+		// BEQZ Rtmp, end
+		// F(MIN | MAX)
+
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		out := v.Reg()
+		add, feq := riscv.AFADDD, riscv.AFEQD
+		if v.Op == ssa.OpRISCV64LoweredFMAXS || v.Op == ssa.OpRISCV64LoweredFMINS {
+			add = riscv.AFADDS
+			feq = riscv.AFEQS
+		}
+
+		p1 := s.Prog(add)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r0
+		p1.Reg = r1
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = out
+
+		p2 := s.Prog(feq)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = r0
+		p2.Reg = r0
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = riscv.REG_TMP
+
+		p3 := s.Prog(riscv.ABEQ)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = riscv.REG_ZERO
+		p3.Reg = riscv.REG_TMP
+		p3.To.Type = obj.TYPE_BRANCH
+
+		p4 := s.Prog(feq)
+		p4.From.Type = obj.TYPE_REG
+		p4.From.Reg = r1
+		p4.Reg = r1
+		p4.To.Type = obj.TYPE_REG
+		p4.To.Reg = riscv.REG_TMP
+
+		p5 := s.Prog(riscv.ABEQ)
+		p5.From.Type = obj.TYPE_REG
+		p5.From.Reg = riscv.REG_ZERO
+		p5.Reg = riscv.REG_TMP
+		p5.To.Type = obj.TYPE_BRANCH
+
+		p6 := s.Prog(v.Op.Asm())
+		p6.From.Type = obj.TYPE_REG
+		p6.From.Reg = r1
+		p6.Reg = r0
+		p6.To.Type = obj.TYPE_REG
+		p6.To.Reg = out
+
+		nop := s.Prog(obj.ANOP)
+		p3.To.SetTarget(nop)
+		p5.To.SetTarget(nop)
+
+	case ssa.OpRISCV64LoweredMuluhilo:
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		p := s.Prog(riscv.AMULHU)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r1
+		p.Reg = r0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+		p1 := s.Prog(riscv.AMUL)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r1
+		p1.Reg = r0
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = v.Reg1()
+	case ssa.OpRISCV64LoweredMuluover:
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		p := s.Prog(riscv.AMULHU)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r1
+		p.Reg = r0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg1()
+		p1 := s.Prog(riscv.AMUL)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r1
+		p1.Reg = r0
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = v.Reg0()
+		p2 := s.Prog(riscv.ASNEZ)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = v.Reg1()
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = v.Reg1()
+	case ssa.OpRISCV64FMADDD, ssa.OpRISCV64FMSUBD, ssa.OpRISCV64FNMADDD, ssa.OpRISCV64FNMSUBD,
+		ssa.OpRISCV64FMADDS, ssa.OpRISCV64FMSUBS, ssa.OpRISCV64FNMADDS, ssa.OpRISCV64FNMSUBS:
+		r := v.Reg()
+		r1 := v.Args[0].Reg()
+		r2 := v.Args[1].Reg()
+		r3 := v.Args[2].Reg()
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r2
+		p.Reg = r1
+		p.AddRestSource(obj.Addr{Type: obj.TYPE_REG, Reg: r3})
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	case ssa.OpRISCV64FSQRTS, ssa.OpRISCV64FNEGS, ssa.OpRISCV64FABSD, ssa.OpRISCV64FSQRTD, ssa.OpRISCV64FNEGD,
+		ssa.OpRISCV64FMVSX, ssa.OpRISCV64FMVXS, ssa.OpRISCV64FMVDX, ssa.OpRISCV64FMVXD,
 		ssa.OpRISCV64FCVTSW, ssa.OpRISCV64FCVTSL, ssa.OpRISCV64FCVTWS, ssa.OpRISCV64FCVTLS,
 		ssa.OpRISCV64FCVTDW, ssa.OpRISCV64FCVTDL, ssa.OpRISCV64FCVTWD, ssa.OpRISCV64FCVTLD, ssa.OpRISCV64FCVTDS, ssa.OpRISCV64FCVTSD,
-		ssa.OpRISCV64NOT, ssa.OpRISCV64NEG, ssa.OpRISCV64NEGW:
+		ssa.OpRISCV64FCLASSS, ssa.OpRISCV64FCLASSD,
+		ssa.OpRISCV64NOT, ssa.OpRISCV64NEG, ssa.OpRISCV64NEGW, ssa.OpRISCV64CLZ, ssa.OpRISCV64CLZW, ssa.OpRISCV64CTZ, ssa.OpRISCV64CTZW,
+		ssa.OpRISCV64REV8, ssa.OpRISCV64CPOP, ssa.OpRISCV64CPOPW:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpRISCV64ADDI, ssa.OpRISCV64ADDIW, ssa.OpRISCV64XORI, ssa.OpRISCV64ORI, ssa.OpRISCV64ANDI,
-		ssa.OpRISCV64SLLI, ssa.OpRISCV64SRAI, ssa.OpRISCV64SRLI, ssa.OpRISCV64SLTI,
-		ssa.OpRISCV64SLTIU:
+		ssa.OpRISCV64SLLI, ssa.OpRISCV64SLLIW, ssa.OpRISCV64SRAI, ssa.OpRISCV64SRAIW,
+		ssa.OpRISCV64SRLI, ssa.OpRISCV64SRLIW, ssa.OpRISCV64SLTI, ssa.OpRISCV64SLTIU,
+		ssa.OpRISCV64RORI, ssa.OpRISCV64RORIW:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpRISCV64MOVBconst, ssa.OpRISCV64MOVHconst, ssa.OpRISCV64MOVWconst, ssa.OpRISCV64MOVDconst:
+	case ssa.OpRISCV64MOVDconst:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssa.OpRISCV64FMOVDconst, ssa.OpRISCV64FMOVFconst:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_FCONST
+		p.From.Val = v.AuxFloat()
+		p.From.Name = obj.NAME_NONE
+		p.From.Reg = obj.REG_NONE
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpRISCV64MOVaddr:
@@ -285,10 +468,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			v.Fatalf("aux is of unknown type %T", v.Aux)
 		case *obj.LSym:
 			wantreg = "SB"
-			gc.AddAux(&p.From, v)
-		case *gc.Node:
+			ssagen.AddAux(&p.From, v)
+		case *ir.Name:
 			wantreg = "SP"
-			gc.AddAux(&p.From, v)
+			ssagen.AddAux(&p.From, v)
 		case nil:
 			// No sym, just MOVW $off(SP), R
 			wantreg = "SP"
@@ -304,7 +487,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.From, v)
+		ssagen.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpRISCV64MOVBstore, ssa.OpRISCV64MOVHstore, ssa.OpRISCV64MOVWstore, ssa.OpRISCV64MOVDstore,
@@ -314,14 +497,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.To, v)
+		ssagen.AddAux(&p.To, v)
 	case ssa.OpRISCV64MOVBstorezero, ssa.OpRISCV64MOVHstorezero, ssa.OpRISCV64MOVWstorezero, ssa.OpRISCV64MOVDstorezero:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = riscv.REG_ZERO
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.To, v)
+		ssagen.AddAux(&p.To, v)
 	case ssa.OpRISCV64SEQZ, ssa.OpRISCV64SNEZ:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
@@ -330,17 +513,99 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpRISCV64CALLstatic, ssa.OpRISCV64CALLclosure, ssa.OpRISCV64CALLinter:
 		s.Call(v)
+	case ssa.OpRISCV64CALLtail:
+		s.TailCall(v)
 	case ssa.OpRISCV64LoweredWB:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = v.Aux.(*obj.LSym)
-	case ssa.OpRISCV64LoweredPanicBoundsA, ssa.OpRISCV64LoweredPanicBoundsB, ssa.OpRISCV64LoweredPanicBoundsC:
-		p := s.Prog(obj.ACALL)
+		// AuxInt encodes how many buffer entries we need.
+		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
+
+	case ssa.OpRISCV64LoweredPanicBoundsRR, ssa.OpRISCV64LoweredPanicBoundsRC, ssa.OpRISCV64LoweredPanicBoundsCR, ssa.OpRISCV64LoweredPanicBoundsCC:
+		// Compute the constant we put in the PCData entry for this call.
+		code, signed := ssa.BoundsKind(v.AuxInt).Code()
+		xIsReg := false
+		yIsReg := false
+		xVal := 0
+		yVal := 0
+		switch v.Op {
+		case ssa.OpRISCV64LoweredPanicBoundsRR:
+			xIsReg = true
+			xVal = int(v.Args[0].Reg() - riscv.REG_X5)
+			yIsReg = true
+			yVal = int(v.Args[1].Reg() - riscv.REG_X5)
+		case ssa.OpRISCV64LoweredPanicBoundsRC:
+			xIsReg = true
+			xVal = int(v.Args[0].Reg() - riscv.REG_X5)
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				yIsReg = true
+				if yVal == xVal {
+					yVal = 1
+				}
+				p := s.Prog(riscv.AMOV)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = riscv.REG_X5 + int16(yVal)
+			}
+		case ssa.OpRISCV64LoweredPanicBoundsCR:
+			yIsReg = true
+			yVal = int(v.Args[0].Reg() - riscv.REG_X5)
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				xVal = int(c)
+			} else {
+				// Move constant to a register
+				if xVal == yVal {
+					xVal = 1
+				}
+				p := s.Prog(riscv.AMOV)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = riscv.REG_X5 + int16(xVal)
+			}
+		case ssa.OpRISCV64LoweredPanicBoundsCC:
+			c := v.Aux.(ssa.PanicBoundsCC).Cx
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				xVal = int(c)
+			} else {
+				// Move constant to a register
+				xIsReg = true
+				p := s.Prog(riscv.AMOV)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = riscv.REG_X5 + int16(xVal)
+			}
+			c = v.Aux.(ssa.PanicBoundsCC).Cy
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				yIsReg = true
+				yVal = 1
+				p := s.Prog(riscv.AMOV)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = riscv.REG_X5 + int16(yVal)
+			}
+		}
+		c := abi.BoundsEncode(code, signed, xIsReg, yIsReg, xVal, yVal)
+
+		p := s.Prog(obj.APCDATA)
+		p.From.SetConst(abi.PCDATA_PanicBounds)
+		p.To.SetConst(int64(c))
+		p = s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
-		s.UseArgs(16) // space used in callee args area by assembly stubs
+		p.To.Sym = ir.Syms.PanicBounds
 
 	case ssa.OpRISCV64LoweredAtomicLoad8:
 		s.Prog(riscv.AFENCE)
@@ -464,7 +729,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p4.From.Reg = riscv.REG_TMP
 		p4.Reg = riscv.REG_ZERO
 		p4.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p4, p1)
+		p4.To.SetTarget(p1)
 
 		p5 := s.Prog(riscv.AMOV)
 		p5.From.Type = obj.TYPE_CONST
@@ -473,96 +738,217 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p5.To.Reg = out
 
 		p6 := s.Prog(obj.ANOP)
-		gc.Patch(p2, p6)
+		p2.To.SetTarget(p6)
 
-	case ssa.OpRISCV64LoweredZero:
-		mov, sz := largestMove(v.AuxInt)
-
-		//	mov	ZERO, (Rarg0)
-		//	ADD	$sz, Rarg0
-		//	BGEU	Rarg1, Rarg0, -2(PC)
-
-		p := s.Prog(mov)
+	case ssa.OpRISCV64LoweredAtomicAnd32, ssa.OpRISCV64LoweredAtomicOr32:
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = riscv.REG_ZERO
+		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
+		p.RegTo2 = riscv.REG_ZERO
+
+	case ssa.OpRISCV64LoweredZero:
+		ptr := v.Args[0].Reg()
+		sc := v.AuxValAndOff()
+		n := sc.Val64()
+
+		mov, sz := largestMove(sc.Off64())
+
+		// mov	ZERO, (offset)(Rarg0)
+		var off int64
+		for n >= sz {
+			zeroOp(s, mov, ptr, off)
+			off += sz
+			n -= sz
+		}
+
+		for i := len(fracMovOps) - 1; i >= 0; i-- {
+			tsz := int64(1 << i)
+			if n < tsz {
+				continue
+			}
+			zeroOp(s, fracMovOps[i], ptr, off)
+			off += tsz
+			n -= tsz
+		}
+
+	case ssa.OpRISCV64LoweredZeroLoop:
+		ptr := v.Args[0].Reg()
+		sc := v.AuxValAndOff()
+		n := sc.Val64()
+		mov, sz := largestMove(sc.Off64())
+		chunk := 8 * sz
+
+		if n <= 3*chunk {
+			v.Fatalf("ZeroLoop too small:%d, expect:%d", n, 3*chunk)
+		}
+
+		tmp := v.RegTmp()
+
+		p := s.Prog(riscv.AADD)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = n - n%chunk
+		p.Reg = ptr
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = tmp
+
+		for i := int64(0); i < 8; i++ {
+			zeroOp(s, mov, ptr, sz*i)
+		}
 
 		p2 := s.Prog(riscv.AADD)
 		p2.From.Type = obj.TYPE_CONST
-		p2.From.Offset = sz
+		p2.From.Offset = chunk
 		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = v.Args[0].Reg()
+		p2.To.Reg = ptr
 
-		p3 := s.Prog(riscv.ABGEU)
-		p3.To.Type = obj.TYPE_BRANCH
-		p3.Reg = v.Args[0].Reg()
+		p3 := s.Prog(riscv.ABNE)
+		p3.From.Reg = tmp
 		p3.From.Type = obj.TYPE_REG
-		p3.From.Reg = v.Args[1].Reg()
-		gc.Patch(p3, p)
+		p3.Reg = ptr
+		p3.To.Type = obj.TYPE_BRANCH
+		p3.To.SetTarget(p.Link)
+
+		n %= chunk
+
+		// mov	ZERO, (offset)(Rarg0)
+		var off int64
+		for n >= sz {
+			zeroOp(s, mov, ptr, off)
+			off += sz
+			n -= sz
+		}
+
+		for i := len(fracMovOps) - 1; i >= 0; i-- {
+			tsz := int64(1 << i)
+			if n < tsz {
+				continue
+			}
+			zeroOp(s, fracMovOps[i], ptr, off)
+			off += tsz
+			n -= tsz
+		}
 
 	case ssa.OpRISCV64LoweredMove:
-		mov, sz := largestMove(v.AuxInt)
+		dst := v.Args[0].Reg()
+		src := v.Args[1].Reg()
+		if dst == src {
+			break
+		}
 
-		//	mov	(Rarg1), T2
-		//	mov	T2, (Rarg0)
-		//	ADD	$sz, Rarg0
-		//	ADD	$sz, Rarg1
-		//	BGEU	Rarg2, Rarg0, -4(PC)
+		sa := v.AuxValAndOff()
+		n := sa.Val64()
+		mov, sz := largestMove(sa.Off64())
 
-		p := s.Prog(mov)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = v.Args[1].Reg()
+		var off int64
+		tmp := int16(riscv.REG_X5)
+		for n >= sz {
+			moveOp(s, mov, dst, src, tmp, off)
+			off += sz
+			n -= sz
+		}
+
+		for i := len(fracMovOps) - 1; i >= 0; i-- {
+			tsz := int64(1 << i)
+			if n < tsz {
+				continue
+			}
+			moveOp(s, fracMovOps[i], dst, src, tmp, off)
+			off += tsz
+			n -= tsz
+		}
+
+	case ssa.OpRISCV64LoweredMoveLoop:
+		dst := v.Args[0].Reg()
+		src := v.Args[1].Reg()
+		if dst == src {
+			break
+		}
+
+		sc := v.AuxValAndOff()
+		n := sc.Val64()
+		mov, sz := largestMove(sc.Off64())
+		chunk := 8 * sz
+
+		if n <= 3*chunk {
+			v.Fatalf("MoveLoop too small:%d, expect:%d", n, 3*chunk)
+		}
+		tmp := int16(riscv.REG_X5)
+
+		p := s.Prog(riscv.AADD)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = n - n%chunk
+		p.Reg = src
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = riscv.REG_T2
+		p.To.Reg = riscv.REG_X6
 
-		p2 := s.Prog(mov)
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = riscv.REG_T2
-		p2.To.Type = obj.TYPE_MEM
-		p2.To.Reg = v.Args[0].Reg()
+		for i := int64(0); i < 8; i++ {
+			moveOp(s, mov, dst, src, tmp, sz*i)
+		}
 
-		p3 := s.Prog(riscv.AADD)
-		p3.From.Type = obj.TYPE_CONST
-		p3.From.Offset = sz
-		p3.To.Type = obj.TYPE_REG
-		p3.To.Reg = v.Args[0].Reg()
+		p1 := s.Prog(riscv.AADD)
+		p1.From.Type = obj.TYPE_CONST
+		p1.From.Offset = chunk
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = src
 
-		p4 := s.Prog(riscv.AADD)
-		p4.From.Type = obj.TYPE_CONST
-		p4.From.Offset = sz
-		p4.To.Type = obj.TYPE_REG
-		p4.To.Reg = v.Args[1].Reg()
+		p2 := s.Prog(riscv.AADD)
+		p2.From.Type = obj.TYPE_CONST
+		p2.From.Offset = chunk
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = dst
 
-		p5 := s.Prog(riscv.ABGEU)
-		p5.To.Type = obj.TYPE_BRANCH
-		p5.Reg = v.Args[1].Reg()
-		p5.From.Type = obj.TYPE_REG
-		p5.From.Reg = v.Args[2].Reg()
-		gc.Patch(p5, p)
+		p3 := s.Prog(riscv.ABNE)
+		p3.From.Reg = riscv.REG_X6
+		p3.From.Type = obj.TYPE_REG
+		p3.Reg = src
+		p3.To.Type = obj.TYPE_BRANCH
+		p3.To.SetTarget(p.Link)
+
+		n %= chunk
+
+		var off int64
+		for n >= sz {
+			moveOp(s, mov, dst, src, tmp, off)
+			off += sz
+			n -= sz
+		}
+
+		for i := len(fracMovOps) - 1; i >= 0; i-- {
+			tsz := int64(1 << i)
+			if n < tsz {
+				continue
+			}
+			moveOp(s, fracMovOps[i], dst, src, tmp, off)
+			off += tsz
+			n -= tsz
+		}
 
 	case ssa.OpRISCV64LoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
-		// TODO: optimizations. See arm and amd64 LoweredNilCheck.
 		p := s.Prog(riscv.AMOVB)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.From, v)
+		ssagen.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = riscv.REG_ZERO
-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos == 1 in generated wrappers
-			gc.Warnl(v.Pos, "generated nil check")
+		if logopt.Enabled() {
+			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+		}
+		if base.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos == 1 in generated wrappers
+			base.WarnfAt(v.Pos, "generated nil check")
 		}
 
 	case ssa.OpRISCV64LoweredGetClosurePtr:
-		// Closure pointer is S4 (riscv.REG_CTXT).
-		gc.CheckLoweredGetClosurePtr(v)
+		// Closure pointer is S10 (riscv.REG_CTXT).
+		ssagen.CheckLoweredGetClosurePtr(v)
 
 	case ssa.OpRISCV64LoweredGetCallerSP:
 		// caller's SP is FixedFrameSize below the address of the first arg
 		p := s.Prog(riscv.AMOV)
 		p.From.Type = obj.TYPE_ADDR
-		p.From.Offset = -gc.Ctxt.FixedFrameSize()
+		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize
 		p.From.Name = obj.NAME_PARAM
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -572,67 +958,136 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
+	case ssa.OpRISCV64LoweredPubBarrier:
+		// FENCE
+		s.Prog(v.Op.Asm())
+
+	case ssa.OpRISCV64LoweredRound32F, ssa.OpRISCV64LoweredRound64F:
+		// input is already rounded
+
+	case ssa.OpClobber, ssa.OpClobberReg:
+		// TODO: implement for clobberdead experiment. Nop is ok for now.
+
 	default:
 		v.Fatalf("Unhandled op %v", v.Op)
 	}
 }
 
-func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+var blockBranch = [...]obj.As{
+	ssa.BlockRISCV64BEQ:  riscv.ABEQ,
+	ssa.BlockRISCV64BEQZ: riscv.ABEQZ,
+	ssa.BlockRISCV64BGE:  riscv.ABGE,
+	ssa.BlockRISCV64BGEU: riscv.ABGEU,
+	ssa.BlockRISCV64BGEZ: riscv.ABGEZ,
+	ssa.BlockRISCV64BGTZ: riscv.ABGTZ,
+	ssa.BlockRISCV64BLEZ: riscv.ABLEZ,
+	ssa.BlockRISCV64BLT:  riscv.ABLT,
+	ssa.BlockRISCV64BLTU: riscv.ABLTU,
+	ssa.BlockRISCV64BLTZ: riscv.ABLTZ,
+	ssa.BlockRISCV64BNE:  riscv.ABNE,
+	ssa.BlockRISCV64BNEZ: riscv.ABNEZ,
+}
+
+func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	s.SetPos(b.Pos)
 
 	switch b.Kind {
-	case ssa.BlockDefer:
-		// defer returns in A0:
-		// 0 if we should continue executing
-		// 1 if we should jump to deferreturn call
-		p := s.Prog(riscv.ABNE)
-		p.To.Type = obj.TYPE_BRANCH
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = riscv.REG_ZERO
-		p.Reg = riscv.REG_A0
-		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+	case ssa.BlockPlain, ssa.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockPlain:
-		if b.Succs[0].Block() != next {
-			p := s.Prog(obj.AJMP)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
-		}
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockRetJmp:
-		p := s.Prog(obj.ARET)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
-	case ssa.BlockRISCV64BNE:
+	case ssa.BlockRISCV64BEQ, ssa.BlockRISCV64BEQZ, ssa.BlockRISCV64BNE, ssa.BlockRISCV64BNEZ,
+		ssa.BlockRISCV64BLT, ssa.BlockRISCV64BLEZ, ssa.BlockRISCV64BGE, ssa.BlockRISCV64BGEZ,
+		ssa.BlockRISCV64BLTZ, ssa.BlockRISCV64BGTZ, ssa.BlockRISCV64BLTU, ssa.BlockRISCV64BGEU:
+
+		as := blockBranch[b.Kind]
+		invAs := riscv.InvertBranch(as)
+
 		var p *obj.Prog
 		switch next {
 		case b.Succs[0].Block():
-			p = s.Br(riscv.ABNE, b.Succs[1].Block())
-			p.As = riscv.InvertBranch(p.As)
+			p = s.Br(invAs, b.Succs[1].Block())
 		case b.Succs[1].Block():
-			p = s.Br(riscv.ABNE, b.Succs[0].Block())
+			p = s.Br(as, b.Succs[0].Block())
 		default:
 			if b.Likely != ssa.BranchUnlikely {
-				p = s.Br(riscv.ABNE, b.Succs[0].Block())
+				p = s.Br(as, b.Succs[0].Block())
 				s.Br(obj.AJMP, b.Succs[1].Block())
 			} else {
-				p = s.Br(riscv.ABNE, b.Succs[1].Block())
-				p.As = riscv.InvertBranch(p.As)
+				p = s.Br(invAs, b.Succs[1].Block())
 				s.Br(obj.AJMP, b.Succs[0].Block())
 			}
 		}
-		p.Reg = b.Controls[0].Reg()
+
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = riscv.REG_ZERO
+		switch b.Kind {
+		case ssa.BlockRISCV64BEQ, ssa.BlockRISCV64BNE, ssa.BlockRISCV64BLT, ssa.BlockRISCV64BGE, ssa.BlockRISCV64BLTU, ssa.BlockRISCV64BGEU:
+			if b.NumControls() != 2 {
+				b.Fatalf("Unexpected number of controls (%d != 2): %s", b.NumControls(), b.LongString())
+			}
+			p.From.Reg = b.Controls[0].Reg()
+			p.Reg = b.Controls[1].Reg()
+
+		case ssa.BlockRISCV64BEQZ, ssa.BlockRISCV64BNEZ, ssa.BlockRISCV64BGEZ, ssa.BlockRISCV64BLEZ, ssa.BlockRISCV64BLTZ, ssa.BlockRISCV64BGTZ:
+			if b.NumControls() != 1 {
+				b.Fatalf("Unexpected number of controls (%d != 1): %s", b.NumControls(), b.LongString())
+			}
+			p.From.Reg = b.Controls[0].Reg()
+		}
 
 	default:
 		b.Fatalf("Unhandled block: %s", b.LongString())
 	}
+}
+
+func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+	p := s.Prog(loadByType(t))
+	p.From.Type = obj.TYPE_MEM
+	p.From.Name = obj.NAME_AUTO
+	p.From.Sym = n.Linksym()
+	p.From.Offset = n.FrameOffset() + off
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = reg
+	return p
+}
+
+func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+	p = pp.Append(p, storeByType(t), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
+	p.To.Name = obj.NAME_PARAM
+	p.To.Sym = n.Linksym()
+	p.Pos = p.Pos.WithNotStmt()
+	return p
+}
+
+func zeroOp(s *ssagen.State, mov obj.As, reg int16, off int64) {
+	p := s.Prog(mov)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = riscv.REG_ZERO
+	p.To.Type = obj.TYPE_MEM
+	p.To.Reg = reg
+	p.To.Offset = off
+	return
+}
+
+func moveOp(s *ssagen.State, mov obj.As, dst int16, src int16, tmp int16, off int64) {
+	p := s.Prog(mov)
+	p.From.Type = obj.TYPE_MEM
+	p.From.Reg = src
+	p.From.Offset = off
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = tmp
+
+	p1 := s.Prog(mov)
+	p1.From.Type = obj.TYPE_REG
+	p1.From.Reg = tmp
+	p1.To.Type = obj.TYPE_MEM
+	p1.To.Reg = dst
+	p1.To.Offset = off
+
+	return
 }

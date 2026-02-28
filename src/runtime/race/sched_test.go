@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build race
+//go:build race
 
 package race_test
 
 import (
-	"bytes"
 	"fmt"
-	"reflect"
 	"runtime"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -35,12 +35,12 @@ func TestRandomScheduling(t *testing.T) {
 	}
 
 	for i := 0; i < N; i++ {
-		if !reflect.DeepEqual(out[0], out[i]) {
+		if !slices.Equal(out[0], out[i]) {
 			return // found a different order
 		}
 	}
 
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i := 0; i < N; i++ {
 		fmt.Fprintf(&buf, "%v\n", out[i])
 	}

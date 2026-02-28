@@ -6,6 +6,7 @@ package debug_test
 
 import (
 	"internal/testenv"
+	"os"
 	"runtime"
 	. "runtime/debug"
 	"testing"
@@ -17,7 +18,7 @@ func TestReadGCStats(t *testing.T) {
 
 	var stats GCStats
 	var mstats runtime.MemStats
-	var min, max time.Duration
+	var minimum, maximum time.Duration
 
 	// First ReadGCStats will allocate, second should not,
 	// especially if we follow up with an explicit garbage collection.
@@ -51,11 +52,11 @@ func TestReadGCStats(t *testing.T) {
 			if dt != time.Duration(mstats.PauseNs[off]) {
 				t.Errorf("stats.Pause[%d] = %d, want %d", i, dt, mstats.PauseNs[off])
 			}
-			if max < dt {
-				max = dt
-			}
-			if min > dt || i == 0 {
-				min = dt
+			maximum = max(maximum, dt)
+			if i == 0 {
+				minimum = dt
+			} else {
+				minimum = min(minimum, dt)
 			}
 			off = (off + len(mstats.PauseNs) - 1) % len(mstats.PauseNs)
 		}
@@ -63,8 +64,8 @@ func TestReadGCStats(t *testing.T) {
 
 	q := stats.PauseQuantiles
 	nq := len(q)
-	if q[0] != min || q[nq-1] != max {
-		t.Errorf("stats.PauseQuantiles = [%d, ..., %d], want [%d, ..., %d]", q[0], q[nq-1], min, max)
+	if q[0] != minimum || q[nq-1] != maximum {
+		t.Errorf("stats.PauseQuantiles = [%d, ..., %d], want [%d, ..., %d]", q[0], q[nq-1], minimum, maximum)
 	}
 
 	for i := 0; i < nq-1; i++ {
@@ -87,27 +88,71 @@ func TestReadGCStats(t *testing.T) {
 	}
 }
 
-var big = make([]byte, 1<<20)
+var big []byte
 
 func TestFreeOSMemory(t *testing.T) {
-	var ms1, ms2 runtime.MemStats
+	// Tests FreeOSMemory by making big susceptible to collection
+	// and checking that at least that much memory is returned to
+	// the OS after.
 
-	if big == nil {
-		t.Skip("test is not reliable when run multiple times")
-	}
-	big = nil
+	const bigBytes = 32 << 20
+	big = make([]byte, bigBytes)
+
+	// Make sure any in-progress GCs are complete.
 	runtime.GC()
-	runtime.ReadMemStats(&ms1)
+
+	var before runtime.MemStats
+	runtime.ReadMemStats(&before)
+
+	// Clear the last reference to the big allocation, making it
+	// susceptible to collection.
+	big = nil
+
+	// FreeOSMemory runs a GC cycle before releasing memory,
+	// so it's fine to skip a GC here.
+	//
+	// It's possible the background scavenger runs concurrently
+	// with this function and does most of the work for it.
+	// If that happens, it's OK. What we want is a test that fails
+	// often if FreeOSMemory does not work correctly, and a test
+	// that passes every time if it does.
 	FreeOSMemory()
-	runtime.ReadMemStats(&ms2)
-	if ms1.HeapReleased >= ms2.HeapReleased {
-		t.Errorf("released before=%d; released after=%d; did not go up", ms1.HeapReleased, ms2.HeapReleased)
+
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
+
+	// Check to make sure that the big allocation (now freed)
+	// had its memory shift into HeapReleased as a result of that
+	// FreeOSMemory.
+	if after.HeapReleased <= before.HeapReleased {
+		t.Fatalf("no memory released: %d -> %d", before.HeapReleased, after.HeapReleased)
+	}
+
+	// Check to make sure bigBytes was released, plus some slack. Pages may get
+	// allocated in between the two measurements above for a variety for reasons,
+	// most commonly for GC work bufs. Since this can get fairly high, depending
+	// on scheduling and what GOMAXPROCS is, give a lot of slack up-front.
+	//
+	// Add a little more slack too if the page size is bigger than the runtime page size.
+	// "big" could end up unaligned on its ends, forcing the scavenger to skip at worst
+	// 2x pages.
+	slack := uint64(bigBytes / 2)
+	pageSize := uint64(os.Getpagesize())
+	if pageSize > 8<<10 {
+		slack += pageSize * 2
+	}
+	if slack > bigBytes {
+		// We basically already checked this.
+		return
+	}
+	if after.HeapReleased-before.HeapReleased < bigBytes-slack {
+		t.Fatalf("less than %d released: %d -> %d", bigBytes-slack, before.HeapReleased, after.HeapReleased)
 	}
 }
 
 var (
-	setGCPercentBallast interface{}
-	setGCPercentSink    interface{}
+	setGCPercentBallast any
+	setGCPercentSink    any
 )
 
 func TestSetGCPercent(t *testing.T) {

@@ -6,20 +6,19 @@ package x509
 
 import (
 	"bytes"
+	"crypto"
+	"crypto/x509/pkix"
 	"errors"
 	"fmt"
+	"iter"
+	"maps"
 	"net"
-	"net/url"
-	"os"
-	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
-
-// ignoreCN disables interpreting Common Name as a hostname. See issue 24151.
-var ignoreCN = strings.Contains(os.Getenv("GODEBUG"), "x509ignoreCN=1")
 
 type InvalidReason int
 
@@ -43,14 +42,7 @@ const (
 	// NameMismatch results when the subject name of a parent certificate
 	// does not match the issuer name in the child.
 	NameMismatch
-	// NameConstraintsWithoutSANs results when a leaf certificate doesn't
-	// contain a Subject Alternative Name extension, but a CA certificate
-	// contains name constraints, and the Common Name can be interpreted as
-	// a hostname.
-	//
-	// You can avoid this error by setting the experimental GODEBUG environment
-	// variable to "x509ignoreCN=1", disabling Common Name matching entirely.
-	// This behavior might become the default in the future.
+	// NameConstraintsWithoutSANs is a legacy error and is no longer returned.
 	NameConstraintsWithoutSANs
 	// UnconstrainedName results when a CA certificate contains permitted
 	// name constraints, but leaf certificate contains a name of an
@@ -65,6 +57,8 @@ const (
 	// CANotAuthorizedForExtKeyUsage results when an intermediate or root
 	// certificate does not permit a requested extended key usage.
 	CANotAuthorizedForExtKeyUsage
+	// NoValidChains results when there are no valid chains to return.
+	NoValidChains
 )
 
 // CertificateInvalidError results when an odd error occurs. Users of this
@@ -95,6 +89,12 @@ func (e CertificateInvalidError) Error() string {
 		return "x509: issuer has name constraints but leaf doesn't have a SAN extension"
 	case UnconstrainedName:
 		return "x509: issuer has name constraints but leaf contains unknown or unconstrained name: " + e.Detail
+	case NoValidChains:
+		s := "x509: no valid chains built"
+		if e.Detail != "" {
+			s = fmt.Sprintf("%s: %s", s, e.Detail)
+		}
+		return s
 	}
 	return "x509: unknown error"
 }
@@ -108,37 +108,38 @@ type HostnameError struct {
 
 func (h HostnameError) Error() string {
 	c := h.Certificate
+	maxNamesIncluded := 100
 
-	if !c.hasSANExtension() && !validHostname(c.Subject.CommonName) &&
-		matchHostnames(toLowerCaseASCII(c.Subject.CommonName), toLowerCaseASCII(h.Host)) {
-		// This would have validated, if it weren't for the validHostname check on Common Name.
-		return "x509: Common Name is not a valid hostname: " + c.Subject.CommonName
+	if !c.hasSANExtension() && matchHostnames(c.Subject.CommonName, h.Host) {
+		return "x509: certificate relies on legacy Common Name field, use SANs instead"
 	}
 
-	var valid string
+	var valid strings.Builder
 	if ip := net.ParseIP(h.Host); ip != nil {
 		// Trying to validate an IP
 		if len(c.IPAddresses) == 0 {
 			return "x509: cannot validate certificate for " + h.Host + " because it doesn't contain any IP SANs"
 		}
+		if len(c.IPAddresses) >= maxNamesIncluded {
+			return fmt.Sprintf("x509: certificate is valid for %d IP SANs, but none matched %s", len(c.IPAddresses), h.Host)
+		}
 		for _, san := range c.IPAddresses {
-			if len(valid) > 0 {
-				valid += ", "
+			if valid.Len() > 0 {
+				valid.WriteString(", ")
 			}
-			valid += san.String()
+			valid.WriteString(san.String())
 		}
 	} else {
-		if c.commonNameAsHostname() {
-			valid = c.Subject.CommonName
-		} else {
-			valid = strings.Join(c.DNSNames, ", ")
+		if len(c.DNSNames) >= maxNamesIncluded {
+			return fmt.Sprintf("x509: certificate is valid for %d names, but none matched %s", len(c.DNSNames), h.Host)
 		}
+		valid.WriteString(strings.Join(c.DNSNames, ", "))
 	}
 
-	if len(valid) == 0 {
+	if valid.Len() == 0 {
 		return "x509: certificate is not valid for any names, but wanted to match " + h.Host
 	}
-	return "x509: certificate is valid for " + valid + ", not " + h.Host
+	return "x509: certificate is valid for " + valid.String() + ", not " + h.Host
 }
 
 // UnknownAuthorityError results when the certificate issuer is unknown
@@ -181,31 +182,62 @@ func (se SystemRootsError) Error() string {
 	return msg
 }
 
+func (se SystemRootsError) Unwrap() error { return se.Err }
+
 // errNotParsed is returned when a certificate without ASN.1 contents is
 // verified. Platform-specific verification needs the ASN.1 contents.
 var errNotParsed = errors.New("x509: missing ASN.1 contents; use ParseCertificate")
 
-// VerifyOptions contains parameters for Certificate.Verify. It's a structure
-// because other PKIX verification APIs have ended up needing many options.
+// VerifyOptions contains parameters for Certificate.Verify.
 type VerifyOptions struct {
-	DNSName       string
+	// DNSName, if set, is checked against the leaf certificate with
+	// Certificate.VerifyHostname or the platform verifier.
+	DNSName string
+
+	// Intermediates is an optional pool of certificates that are not trust
+	// anchors, but can be used to form a chain from the leaf certificate to a
+	// root certificate.
 	Intermediates *CertPool
-	Roots         *CertPool // if nil, the system roots are used
-	CurrentTime   time.Time // if zero, the current time is used
-	// KeyUsage specifies which Extended Key Usage values are acceptable. A leaf
-	// certificate is accepted if it contains any of the listed values. An empty
-	// list means ExtKeyUsageServerAuth. To accept any key usage, include
-	// ExtKeyUsageAny.
-	//
-	// Certificate chains are required to nest these extended key usage values.
-	// (This matches the Windows CryptoAPI behavior, but not the spec.)
+	// Roots is the set of trusted root certificates the leaf certificate needs
+	// to chain up to. If nil, the system roots or the platform verifier are used.
+	Roots *CertPool
+
+	// CurrentTime is used to check the validity of all certificates in the
+	// chain. If zero, the current time is used.
+	CurrentTime time.Time
+
+	// KeyUsages specifies which Extended Key Usage values are acceptable. A
+	// chain is accepted if it allows any of the listed values. An empty list
+	// means ExtKeyUsageServerAuth. To accept any key usage, include ExtKeyUsageAny.
 	KeyUsages []ExtKeyUsage
+
 	// MaxConstraintComparisions is the maximum number of comparisons to
 	// perform when checking a given certificate's name constraints. If
 	// zero, a sensible default is used. This limit prevents pathological
 	// certificates from consuming excessive amounts of CPU time when
-	// validating.
+	// validating. It does not apply to the platform verifier.
 	MaxConstraintComparisions int
+
+	// CertificatePolicies specifies which certificate policy OIDs are
+	// acceptable during policy validation. An empty CertificatePolices
+	// field implies any valid policy is acceptable.
+	CertificatePolicies []OID
+
+	// The following policy fields are unexported, because we do not expect
+	// users to actually need to use them, but are useful for testing the
+	// policy validation code.
+
+	// inhibitPolicyMapping indicates if policy mapping should be allowed
+	// during path validation.
+	inhibitPolicyMapping bool
+
+	// requireExplicitPolicy indidicates if explicit policies must be present
+	// for each certificate being validated.
+	requireExplicitPolicy bool
+
+	// inhibitAnyPolicy indicates if the anyPolicy policy should be
+	// processed if present in a certificate being validated.
+	inhibitAnyPolicy bool
 }
 
 const (
@@ -364,6 +396,7 @@ func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
 // domainToReverseLabels converts a textual domain name like foo.example.com to
 // the list of labels in reverse order, e.g. ["com", "example", "foo"].
 func domainToReverseLabels(domain string) (reverseLabels []string, ok bool) {
+	reverseLabels = make([]string, 0, strings.Count(domain, ".")+1)
 	for len(domain) > 0 {
 		if i := strings.LastIndexByte(domain, '.'); i == -1 {
 			reverseLabels = append(reverseLabels, domain)
@@ -371,6 +404,11 @@ func domainToReverseLabels(domain string) (reverseLabels []string, ok bool) {
 		} else {
 			reverseLabels = append(reverseLabels, domain[i+1:])
 			domain = domain[:i]
+			if i == 0 { // domain == ""
+				// domain is prefixed with an empty label, append an empty
+				// string to reverseLabels to indicate this.
+				reverseLabels = append(reverseLabels, "")
+			}
 		}
 	}
 
@@ -394,168 +432,6 @@ func domainToReverseLabels(domain string) (reverseLabels []string, ok bool) {
 	}
 
 	return reverseLabels, true
-}
-
-func matchEmailConstraint(mailbox rfc2821Mailbox, constraint string) (bool, error) {
-	// If the constraint contains an @, then it specifies an exact mailbox
-	// name.
-	if strings.Contains(constraint, "@") {
-		constraintMailbox, ok := parseRFC2821Mailbox(constraint)
-		if !ok {
-			return false, fmt.Errorf("x509: internal error: cannot parse constraint %q", constraint)
-		}
-		return mailbox.local == constraintMailbox.local && strings.EqualFold(mailbox.domain, constraintMailbox.domain), nil
-	}
-
-	// Otherwise the constraint is like a DNS constraint of the domain part
-	// of the mailbox.
-	return matchDomainConstraint(mailbox.domain, constraint)
-}
-
-func matchURIConstraint(uri *url.URL, constraint string) (bool, error) {
-	// From RFC 5280, Section 4.2.1.10:
-	// “a uniformResourceIdentifier that does not include an authority
-	// component with a host name specified as a fully qualified domain
-	// name (e.g., if the URI either does not include an authority
-	// component or includes an authority component in which the host name
-	// is specified as an IP address), then the application MUST reject the
-	// certificate.”
-
-	host := uri.Host
-	if len(host) == 0 {
-		return false, fmt.Errorf("URI with empty host (%q) cannot be matched against constraints", uri.String())
-	}
-
-	if strings.Contains(host, ":") && !strings.HasSuffix(host, "]") {
-		var err error
-		host, _, err = net.SplitHostPort(uri.Host)
-		if err != nil {
-			return false, err
-		}
-	}
-
-	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") ||
-		net.ParseIP(host) != nil {
-		return false, fmt.Errorf("URI with IP (%q) cannot be matched against constraints", uri.String())
-	}
-
-	return matchDomainConstraint(host, constraint)
-}
-
-func matchIPConstraint(ip net.IP, constraint *net.IPNet) (bool, error) {
-	if len(ip) != len(constraint.IP) {
-		return false, nil
-	}
-
-	for i := range ip {
-		if mask := constraint.Mask[i]; ip[i]&mask != constraint.IP[i]&mask {
-			return false, nil
-		}
-	}
-
-	return true, nil
-}
-
-func matchDomainConstraint(domain, constraint string) (bool, error) {
-	// The meaning of zero length constraints is not specified, but this
-	// code follows NSS and accepts them as matching everything.
-	if len(constraint) == 0 {
-		return true, nil
-	}
-
-	domainLabels, ok := domainToReverseLabels(domain)
-	if !ok {
-		return false, fmt.Errorf("x509: internal error: cannot parse domain %q", domain)
-	}
-
-	// RFC 5280 says that a leading period in a domain name means that at
-	// least one label must be prepended, but only for URI and email
-	// constraints, not DNS constraints. The code also supports that
-	// behaviour for DNS constraints.
-
-	mustHaveSubdomains := false
-	if constraint[0] == '.' {
-		mustHaveSubdomains = true
-		constraint = constraint[1:]
-	}
-
-	constraintLabels, ok := domainToReverseLabels(constraint)
-	if !ok {
-		return false, fmt.Errorf("x509: internal error: cannot parse domain %q", constraint)
-	}
-
-	if len(domainLabels) < len(constraintLabels) ||
-		(mustHaveSubdomains && len(domainLabels) == len(constraintLabels)) {
-		return false, nil
-	}
-
-	for i, constraintLabel := range constraintLabels {
-		if !strings.EqualFold(constraintLabel, domainLabels[i]) {
-			return false, nil
-		}
-	}
-
-	return true, nil
-}
-
-// checkNameConstraints checks that c permits a child certificate to claim the
-// given name, of type nameType. The argument parsedName contains the parsed
-// form of name, suitable for passing to the match function. The total number
-// of comparisons is tracked in the given count and should not exceed the given
-// limit.
-func (c *Certificate) checkNameConstraints(count *int,
-	maxConstraintComparisons int,
-	nameType string,
-	name string,
-	parsedName interface{},
-	match func(parsedName, constraint interface{}) (match bool, err error),
-	permitted, excluded interface{}) error {
-
-	excludedValue := reflect.ValueOf(excluded)
-
-	*count += excludedValue.Len()
-	if *count > maxConstraintComparisons {
-		return CertificateInvalidError{c, TooManyConstraints, ""}
-	}
-
-	for i := 0; i < excludedValue.Len(); i++ {
-		constraint := excludedValue.Index(i).Interface()
-		match, err := match(parsedName, constraint)
-		if err != nil {
-			return CertificateInvalidError{c, CANotAuthorizedForThisName, err.Error()}
-		}
-
-		if match {
-			return CertificateInvalidError{c, CANotAuthorizedForThisName, fmt.Sprintf("%s %q is excluded by constraint %q", nameType, name, constraint)}
-		}
-	}
-
-	permittedValue := reflect.ValueOf(permitted)
-
-	*count += permittedValue.Len()
-	if *count > maxConstraintComparisons {
-		return CertificateInvalidError{c, TooManyConstraints, ""}
-	}
-
-	ok := true
-	for i := 0; i < permittedValue.Len(); i++ {
-		constraint := permittedValue.Index(i).Interface()
-
-		var err error
-		if ok, err = match(parsedName, constraint); err != nil {
-			return CertificateInvalidError{c, CANotAuthorizedForThisName, err.Error()}
-		}
-
-		if ok {
-			break
-		}
-	}
-
-	if !ok {
-		return CertificateInvalidError{c, CANotAuthorizedForThisName, fmt.Sprintf("%s %q is not permitted by any constraint", nameType, name)}
-	}
-
-	return nil
 }
 
 // isValid performs validity checks on c given that it is a candidate to append
@@ -590,94 +466,9 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		}
 	}
 
-	maxConstraintComparisons := opts.MaxConstraintComparisions
-	if maxConstraintComparisons == 0 {
-		maxConstraintComparisons = 250000
-	}
-	comparisonCount := 0
-
-	var leaf *Certificate
 	if certType == intermediateCertificate || certType == rootCertificate {
 		if len(currentChain) == 0 {
 			return errors.New("x509: internal error: empty chain when appending CA cert")
-		}
-		leaf = currentChain[0]
-	}
-
-	checkNameConstraints := (certType == intermediateCertificate || certType == rootCertificate) && c.hasNameConstraints()
-	if checkNameConstraints && leaf.commonNameAsHostname() {
-		// This is the deprecated, legacy case of depending on the commonName as
-		// a hostname. We don't enforce name constraints against the CN, but
-		// VerifyHostname will look for hostnames in there if there are no SANs.
-		// In order to ensure VerifyHostname will not accept an unchecked name,
-		// return an error here.
-		return CertificateInvalidError{c, NameConstraintsWithoutSANs, ""}
-	} else if checkNameConstraints && leaf.hasSANExtension() {
-		err := forEachSAN(leaf.getSANExtension(), func(tag int, data []byte) error {
-			switch tag {
-			case nameTypeEmail:
-				name := string(data)
-				mailbox, ok := parseRFC2821Mailbox(name)
-				if !ok {
-					return fmt.Errorf("x509: cannot parse rfc822Name %q", mailbox)
-				}
-
-				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "email address", name, mailbox,
-					func(parsedName, constraint interface{}) (bool, error) {
-						return matchEmailConstraint(parsedName.(rfc2821Mailbox), constraint.(string))
-					}, c.PermittedEmailAddresses, c.ExcludedEmailAddresses); err != nil {
-					return err
-				}
-
-			case nameTypeDNS:
-				name := string(data)
-				if _, ok := domainToReverseLabels(name); !ok {
-					return fmt.Errorf("x509: cannot parse dnsName %q", name)
-				}
-
-				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "DNS name", name, name,
-					func(parsedName, constraint interface{}) (bool, error) {
-						return matchDomainConstraint(parsedName.(string), constraint.(string))
-					}, c.PermittedDNSDomains, c.ExcludedDNSDomains); err != nil {
-					return err
-				}
-
-			case nameTypeURI:
-				name := string(data)
-				uri, err := url.Parse(name)
-				if err != nil {
-					return fmt.Errorf("x509: internal error: URI SAN %q failed to parse", name)
-				}
-
-				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "URI", name, uri,
-					func(parsedName, constraint interface{}) (bool, error) {
-						return matchURIConstraint(parsedName.(*url.URL), constraint.(string))
-					}, c.PermittedURIDomains, c.ExcludedURIDomains); err != nil {
-					return err
-				}
-
-			case nameTypeIP:
-				ip := net.IP(data)
-				if l := len(ip); l != net.IPv4len && l != net.IPv6len {
-					return fmt.Errorf("x509: internal error: IP SAN %x failed to parse", data)
-				}
-
-				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "IP address", ip.String(), ip,
-					func(parsedName, constraint interface{}) (bool, error) {
-						return matchIPConstraint(parsedName.(net.IP), constraint.(*net.IPNet))
-					}, c.PermittedIPRanges, c.ExcludedIPRanges); err != nil {
-					return err
-				}
-
-			default:
-				// Unknown SAN types are ignored.
-			}
-
-			return nil
-		})
-
-		if err != nil {
-			return err
 		}
 	}
 
@@ -717,8 +508,9 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // needed. If successful, it returns one or more chains where the first
 // element of the chain is c and the last element is from opts.Roots.
 //
-// If opts.Roots is nil and system roots are unavailable the returned error
-// will be of type SystemRootsError.
+// If opts.Roots is nil, the platform verifier might be used, and
+// verification details might differ from what is described below. If system
+// roots are unavailable the returned error will be of type SystemRootsError.
 //
 // Name constraints in the intermediates will be applied to all names claimed
 // in the chain, not just opts.DNSName. Thus it is invalid for a leaf to claim
@@ -726,28 +518,56 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // the name being validated. Note that DirectoryName constraints are not
 // supported.
 //
-// Extended Key Usage values are enforced down a chain, so an intermediate or
-// root that enumerates EKUs prevents a leaf from asserting an EKU not in that
-// list.
+// Name constraint validation follows the rules from RFC 5280, with the
+// addition that DNS name constraints may use the leading period format
+// defined for emails and URIs. When a constraint has a leading period
+// it indicates that at least one additional label must be prepended to
+// the constrained name to be considered valid.
+//
+// Extended Key Usage values are enforced nested down a chain, so an intermediate
+// or root that enumerates EKUs prevents a leaf from asserting an EKU not in that
+// list. (While this is not specified, it is common practice in order to limit
+// the types of certificates a CA can issue.)
+//
+// Certificates that use SHA1WithRSA and ECDSAWithSHA1 signatures are not supported,
+// and will not be used to build chains.
+//
+// Certificates other than c in the returned chains should not be modified.
 //
 // WARNING: this function doesn't do any revocation checking.
-func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
+func (c *Certificate) Verify(opts VerifyOptions) ([][]*Certificate, error) {
 	// Platform-specific verification needs the ASN.1 contents so
 	// this makes the behavior consistent across platforms.
 	if len(c.Raw) == 0 {
 		return nil, errNotParsed
 	}
-	if opts.Intermediates != nil {
-		for _, intermediate := range opts.Intermediates.certs {
-			if len(intermediate.Raw) == 0 {
-				return nil, errNotParsed
-			}
+	for i := 0; i < opts.Intermediates.len(); i++ {
+		c, _, err := opts.Intermediates.cert(i)
+		if err != nil {
+			return nil, fmt.Errorf("crypto/x509: error fetching intermediate: %w", err)
+		}
+		if len(c.Raw) == 0 {
+			return nil, errNotParsed
 		}
 	}
 
-	// Use Windows's own verification and chain building.
-	if opts.Roots == nil && runtime.GOOS == "windows" {
-		return c.systemVerify(&opts)
+	// Use platform verifiers, where available, if Roots is from SystemCertPool.
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+		// Don't use the system verifier if the system pool was replaced with a non-system pool,
+		// i.e. if SetFallbackRoots was called with x509usefallbackroots=1.
+		systemPool := systemRootsPool()
+		if opts.Roots == nil && (systemPool == nil || systemPool.systemPool) {
+			return c.systemVerify(&opts)
+		}
+		if opts.Roots != nil && opts.Roots.systemPool {
+			platformChains, err := c.systemVerify(&opts)
+			// If the platform verifier succeeded, or there are no additional
+			// roots, return the platform verifier result. Otherwise, continue
+			// with the Go verifier.
+			if err == nil || opts.Roots.len() == 0 {
+				return platformChains, err
+			}
+		}
 	}
 
 	if opts.Roots == nil {
@@ -757,50 +577,83 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
-	err = c.isValid(leafCertificate, nil, &opts)
+	err := c.isValid(leafCertificate, nil, &opts)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	if len(opts.DNSName) > 0 {
 		err = c.VerifyHostname(opts.DNSName)
 		if err != nil {
-			return
+			return nil, err
 		}
 	}
 
 	var candidateChains [][]*Certificate
 	if opts.Roots.contains(c) {
-		candidateChains = append(candidateChains, []*Certificate{c})
+		candidateChains = [][]*Certificate{{c}}
 	} else {
-		if candidateChains, err = c.buildChains(nil, []*Certificate{c}, nil, &opts); err != nil {
+		candidateChains, err = c.buildChains([]*Certificate{c}, nil, &opts)
+		if err != nil {
 			return nil, err
 		}
 	}
 
-	keyUsages := opts.KeyUsages
-	if len(keyUsages) == 0 {
-		keyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
-	}
-
-	// If any key usage is acceptable then we're done.
-	for _, usage := range keyUsages {
-		if usage == ExtKeyUsageAny {
-			return candidateChains, nil
+	anyKeyUsage := false
+	for _, eku := range opts.KeyUsages {
+		if eku == ExtKeyUsageAny {
+			// The presence of anyExtendedKeyUsage overrides any other key usage.
+			anyKeyUsage = true
+			break
 		}
 	}
 
-	for _, candidate := range candidateChains {
-		if checkChainForKeyUsage(candidate, keyUsages) {
-			chains = append(chains, candidate)
+	if len(opts.KeyUsages) == 0 {
+		opts.KeyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
+	}
+
+	var invalidPoliciesChains int
+	var incompatibleKeyUsageChains int
+	var constraintsHintErr error
+	candidateChains = slices.DeleteFunc(candidateChains, func(chain []*Certificate) bool {
+		if !policiesValid(chain, opts) {
+			invalidPoliciesChains++
+			return true
 		}
+		// If any key usage is acceptable, no need to check the chain for
+		// key usages.
+		if !anyKeyUsage && !checkChainForKeyUsage(chain, opts.KeyUsages) {
+			incompatibleKeyUsageChains++
+			return true
+		}
+		if err := checkChainConstraints(chain); err != nil {
+			if constraintsHintErr == nil {
+				constraintsHintErr = CertificateInvalidError{c, CANotAuthorizedForThisName, err.Error()}
+			}
+			return true
+		}
+		return false
+	})
+
+	if len(candidateChains) == 0 {
+		if constraintsHintErr != nil {
+			return nil, constraintsHintErr // Preserve previous constraint behavior
+		}
+		var details []string
+		if incompatibleKeyUsageChains > 0 {
+			if invalidPoliciesChains == 0 {
+				return nil, CertificateInvalidError{c, IncompatibleUsage, ""}
+			}
+			details = append(details, fmt.Sprintf("%d candidate chains with incompatible key usage", incompatibleKeyUsageChains))
+		}
+		if invalidPoliciesChains > 0 {
+			details = append(details, fmt.Sprintf("%d candidate chains with invalid policies", invalidPoliciesChains))
+		}
+		err = CertificateInvalidError{c, NoValidChains, strings.Join(details, ", ")}
+		return nil, err
 	}
 
-	if len(chains) == 0 {
-		return nil, CertificateInvalidError{c, IncompatibleUsage, ""}
-	}
-
-	return chains, nil
+	return candidateChains, nil
 }
 
 func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate {
@@ -810,23 +663,68 @@ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate 
 	return n
 }
 
+// alreadyInChain checks whether a candidate certificate is present in a chain.
+// Rather than doing a direct byte for byte equivalency check, we check if the
+// subject, public key, and SAN, if present, are equal. This prevents loops that
+// are created by mutual cross-signatures, or other cross-signature bridge
+// oddities.
+func alreadyInChain(candidate *Certificate, chain []*Certificate) bool {
+	type pubKeyEqual interface {
+		Equal(crypto.PublicKey) bool
+	}
+
+	var candidateSAN *pkix.Extension
+	for _, ext := range candidate.Extensions {
+		if ext.Id.Equal(oidExtensionSubjectAltName) {
+			candidateSAN = &ext
+			break
+		}
+	}
+
+	for _, cert := range chain {
+		if !bytes.Equal(candidate.RawSubject, cert.RawSubject) {
+			continue
+		}
+		// We enforce the canonical encoding of SPKI (by only allowing the
+		// correct AI paremeter encodings in parseCertificate), so it's safe to
+		// directly compare the raw bytes.
+		if !bytes.Equal(candidate.RawSubjectPublicKeyInfo, cert.RawSubjectPublicKeyInfo) {
+			continue
+		}
+		var certSAN *pkix.Extension
+		for _, ext := range cert.Extensions {
+			if ext.Id.Equal(oidExtensionSubjectAltName) {
+				certSAN = &ext
+				break
+			}
+		}
+		if candidateSAN == nil && certSAN == nil {
+			return true
+		} else if candidateSAN == nil || certSAN == nil {
+			return false
+		}
+		if bytes.Equal(candidateSAN.Value, certSAN.Value) {
+			return true
+		}
+	}
+	return false
+}
+
 // maxChainSignatureChecks is the maximum number of CheckSignatureFrom calls
-// that an invocation of buildChains will (tranistively) make. Most chains are
+// that an invocation of buildChains will (transitively) make. Most chains are
 // less than 15 certificates long, so this leaves space for multiple chains and
 // for failed checks due to different intermediates having the same Subject.
 const maxChainSignatureChecks = 100
 
-func (c *Certificate) buildChains(cache map[*Certificate][][]*Certificate, currentChain []*Certificate, sigChecks *int, opts *VerifyOptions) (chains [][]*Certificate, err error) {
+func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	var (
 		hintErr  error
 		hintCert *Certificate
 	)
 
-	considerCandidate := func(certType int, candidate *Certificate) {
-		for _, cert := range currentChain {
-			if cert.Equal(candidate) {
-				return
-			}
+	considerCandidate := func(certType int, candidate potentialParent) {
+		if candidate.cert.PublicKey == nil || alreadyInChain(candidate.cert, currentChain) {
+			return
 		}
 
 		if sigChecks == nil {
@@ -838,40 +736,48 @@ func (c *Certificate) buildChains(cache map[*Certificate][][]*Certificate, curre
 			return
 		}
 
-		if err := c.CheckSignatureFrom(candidate); err != nil {
+		if err := c.CheckSignatureFrom(candidate.cert); err != nil {
 			if hintErr == nil {
 				hintErr = err
-				hintCert = candidate
+				hintCert = candidate.cert
 			}
 			return
 		}
 
-		err = candidate.isValid(certType, currentChain, opts)
+		err = candidate.cert.isValid(certType, currentChain, opts)
 		if err != nil {
+			if hintErr == nil {
+				hintErr = err
+				hintCert = candidate.cert
+			}
 			return
+		}
+
+		if candidate.constraint != nil {
+			if err := candidate.constraint(currentChain); err != nil {
+				if hintErr == nil {
+					hintErr = err
+					hintCert = candidate.cert
+				}
+				return
+			}
 		}
 
 		switch certType {
 		case rootCertificate:
-			chains = append(chains, appendToFreshChain(currentChain, candidate))
+			chains = append(chains, appendToFreshChain(currentChain, candidate.cert))
 		case intermediateCertificate:
-			if cache == nil {
-				cache = make(map[*Certificate][][]*Certificate)
-			}
-			childChains, ok := cache[candidate]
-			if !ok {
-				childChains, err = candidate.buildChains(cache, appendToFreshChain(currentChain, candidate), sigChecks, opts)
-				cache[candidate] = childChains
-			}
+			var childChains [][]*Certificate
+			childChains, err = candidate.cert.buildChains(appendToFreshChain(currentChain, candidate.cert), sigChecks, opts)
 			chains = append(chains, childChains...)
 		}
 	}
 
-	for _, rootNum := range opts.Roots.findPotentialParents(c) {
-		considerCandidate(rootCertificate, opts.Roots.certs[rootNum])
+	for _, root := range opts.Roots.findPotentialParents(c) {
+		considerCandidate(rootCertificate, root)
 	}
-	for _, intermediateNum := range opts.Intermediates.findPotentialParents(c) {
-		considerCandidate(intermediateCertificate, opts.Intermediates.certs[intermediateNum])
+	for _, intermediate := range opts.Intermediates.findPotentialParents(c) {
+		considerCandidate(intermediateCertificate, intermediate)
 	}
 
 	if len(chains) > 0 {
@@ -884,13 +790,22 @@ func (c *Certificate) buildChains(cache map[*Certificate][][]*Certificate, curre
 	return
 }
 
+func validHostnamePattern(host string) bool { return validHostname(host, true) }
+func validHostnameInput(host string) bool   { return validHostname(host, false) }
+
 // validHostname reports whether host is a valid hostname that can be matched or
 // matched against according to RFC 6125 2.2, with some leniency to accommodate
 // legacy values.
-func validHostname(host string) bool {
-	host = strings.TrimSuffix(host, ".")
-
+func validHostname(host string, isPattern bool) bool {
+	if !isPattern {
+		host = strings.TrimSuffix(host, ".")
+	}
 	if len(host) == 0 {
+		return false
+	}
+	if host == "*" {
+		// Bare wildcards are not allowed, they are not valid DNS names,
+		// nor are they allowed per RFC 6125.
 		return false
 	}
 
@@ -899,7 +814,7 @@ func validHostname(host string) bool {
 			// Empty label.
 			return false
 		}
-		if i == 0 && part == "*" {
+		if isPattern && i == 0 && part == "*" {
 			// Only allow full left-most wildcards, as those are the only ones
 			// we match, and matching literal '*' characters is probably never
 			// the expected behavior.
@@ -918,8 +833,8 @@ func validHostname(host string) bool {
 			if c == '-' && j != 0 {
 				continue
 			}
-			if c == '_' || c == ':' {
-				// Not valid characters in hostnames, but commonly
+			if c == '_' {
+				// Not a valid character in hostnames, but commonly
 				// found in deployments outside the WebPKI.
 				continue
 			}
@@ -930,21 +845,16 @@ func validHostname(host string) bool {
 	return true
 }
 
-// commonNameAsHostname reports whether the Common Name field should be
-// considered the hostname that the certificate is valid for. This is a legacy
-// behavior, disabled if the Subject Alt Name extension is present.
-//
-// It applies the strict validHostname check to the Common Name field, so that
-// certificates without SANs can still be validated against CAs with name
-// constraints if there is no risk the CN would be matched as a hostname.
-// See NameConstraintsWithoutSANs and issue 24151.
-func (c *Certificate) commonNameAsHostname() bool {
-	return !ignoreCN && !c.hasSANExtension() && validHostname(c.Subject.CommonName)
+func matchExactly(hostA, hostB string) bool {
+	if hostA == "" || hostA == "." || hostB == "" || hostB == "." {
+		return false
+	}
+	return toLowerCaseASCII(hostA) == toLowerCaseASCII(hostB)
 }
 
 func matchHostnames(pattern, host string) bool {
-	host = strings.TrimSuffix(host, ".")
-	pattern = strings.TrimSuffix(pattern, ".")
+	pattern = toLowerCaseASCII(pattern)
+	host = toLowerCaseASCII(strings.TrimSuffix(host, "."))
 
 	if len(pattern) == 0 || len(host) == 0 {
 		return false
@@ -1003,6 +913,13 @@ func toLowerCaseASCII(in string) string {
 
 // VerifyHostname returns nil if c is a valid certificate for the named host.
 // Otherwise it returns an error describing the mismatch.
+//
+// IP addresses can be optionally enclosed in square brackets and are checked
+// against the IPAddresses field. Other names are checked case insensitively
+// against the DNSNames field. If the names are valid hostnames, the certificate
+// fields can have a wildcard as the complete left-most label (e.g. *.example.com).
+//
+// Note that the legacy Common Name field is ignored.
 func (c *Certificate) VerifyHostname(h string) error {
 	// IP addresses may be written in [ ].
 	candidateIP := h
@@ -1020,15 +937,21 @@ func (c *Certificate) VerifyHostname(h string) error {
 		return HostnameError{c, candidateIP}
 	}
 
-	lowered := toLowerCaseASCII(h)
+	candidateName := toLowerCaseASCII(h) // Save allocations inside the loop.
+	validCandidateName := validHostnameInput(candidateName)
 
-	if c.commonNameAsHostname() {
-		if matchHostnames(toLowerCaseASCII(c.Subject.CommonName), lowered) {
-			return nil
-		}
-	} else {
-		for _, match := range c.DNSNames {
-			if matchHostnames(toLowerCaseASCII(match), lowered) {
+	for _, match := range c.DNSNames {
+		// Ideally, we'd only match valid hostnames according to RFC 6125 like
+		// browsers (more or less) do, but in practice Go is used in a wider
+		// array of contexts and can't even assume DNS resolution. Instead,
+		// always allow perfect matches, and only apply wildcard and trailing
+		// dot processing to valid hostnames.
+		if validCandidateName && validHostnamePattern(match) {
+			if matchHostnames(match, candidateName) {
+				return nil
+			}
+		} else {
+			if matchExactly(match, candidateName) {
 				return nil
 			}
 		}
@@ -1066,7 +989,7 @@ NextCert:
 			}
 		}
 
-		const invalidUsage ExtKeyUsage = -1
+		const invalidUsage = -1
 
 	NextRequestedUsage:
 		for i, requestedUsage := range usages {
@@ -1077,14 +1000,6 @@ NextCert:
 			for _, usage := range cert.ExtKeyUsage {
 				if requestedUsage == usage {
 					continue NextRequestedUsage
-				} else if requestedUsage == ExtKeyUsageServerAuth &&
-					(usage == ExtKeyUsageNetscapeServerGatedCrypto ||
-						usage == ExtKeyUsageMicrosoftServerGatedCrypto) {
-					// In order to support COMODO
-					// certificate chains, we have to
-					// accept Netscape or Microsoft SGC
-					// usages as equal to ServerAuth.
-					continue NextRequestedUsage
 				}
 			}
 
@@ -1094,6 +1009,372 @@ NextCert:
 				return false
 			}
 		}
+	}
+
+	return true
+}
+
+func mustNewOIDFromInts(ints []uint64) OID {
+	oid, err := OIDFromInts(ints)
+	if err != nil {
+		panic(fmt.Sprintf("OIDFromInts(%v) unexpected error: %v", ints, err))
+	}
+	return oid
+}
+
+type policyGraphNode struct {
+	validPolicy       OID
+	expectedPolicySet []OID
+	// we do not implement qualifiers, so we don't track qualifier_set
+
+	parents  map[*policyGraphNode]bool
+	children map[*policyGraphNode]bool
+}
+
+func newPolicyGraphNode(valid OID, parents []*policyGraphNode) *policyGraphNode {
+	n := &policyGraphNode{
+		validPolicy:       valid,
+		expectedPolicySet: []OID{valid},
+		children:          map[*policyGraphNode]bool{},
+		parents:           map[*policyGraphNode]bool{},
+	}
+	for _, p := range parents {
+		p.children[n] = true
+		n.parents[p] = true
+	}
+	return n
+}
+
+type policyGraph struct {
+	strata []map[string]*policyGraphNode
+	// map of OID -> nodes at strata[depth-1] with OID in their expectedPolicySet
+	parentIndex map[string][]*policyGraphNode
+	depth       int
+}
+
+var anyPolicyOID = mustNewOIDFromInts([]uint64{2, 5, 29, 32, 0})
+
+func newPolicyGraph() *policyGraph {
+	root := policyGraphNode{
+		validPolicy:       anyPolicyOID,
+		expectedPolicySet: []OID{anyPolicyOID},
+		children:          map[*policyGraphNode]bool{},
+		parents:           map[*policyGraphNode]bool{},
+	}
+	return &policyGraph{
+		depth:  0,
+		strata: []map[string]*policyGraphNode{{string(anyPolicyOID.der): &root}},
+	}
+}
+
+func (pg *policyGraph) insert(n *policyGraphNode) {
+	pg.strata[pg.depth][string(n.validPolicy.der)] = n
+}
+
+func (pg *policyGraph) parentsWithExpected(expected OID) []*policyGraphNode {
+	if pg.depth == 0 {
+		return nil
+	}
+	return pg.parentIndex[string(expected.der)]
+}
+
+func (pg *policyGraph) parentWithAnyPolicy() *policyGraphNode {
+	if pg.depth == 0 {
+		return nil
+	}
+	return pg.strata[pg.depth-1][string(anyPolicyOID.der)]
+}
+
+func (pg *policyGraph) parents() iter.Seq[*policyGraphNode] {
+	if pg.depth == 0 {
+		return nil
+	}
+	return maps.Values(pg.strata[pg.depth-1])
+}
+
+func (pg *policyGraph) leaves() map[string]*policyGraphNode {
+	return pg.strata[pg.depth]
+}
+
+func (pg *policyGraph) leafWithPolicy(policy OID) *policyGraphNode {
+	return pg.strata[pg.depth][string(policy.der)]
+}
+
+func (pg *policyGraph) deleteLeaf(policy OID) {
+	n := pg.strata[pg.depth][string(policy.der)]
+	if n == nil {
+		return
+	}
+	for p := range n.parents {
+		delete(p.children, n)
+	}
+	for c := range n.children {
+		delete(c.parents, n)
+	}
+	delete(pg.strata[pg.depth], string(policy.der))
+}
+
+func (pg *policyGraph) validPolicyNodes() []*policyGraphNode {
+	var validNodes []*policyGraphNode
+	for i := pg.depth; i >= 0; i-- {
+		for _, n := range pg.strata[i] {
+			if n.validPolicy.Equal(anyPolicyOID) {
+				continue
+			}
+
+			if len(n.parents) == 1 {
+				for p := range n.parents {
+					if p.validPolicy.Equal(anyPolicyOID) {
+						validNodes = append(validNodes, n)
+					}
+				}
+			}
+		}
+	}
+	return validNodes
+}
+
+func (pg *policyGraph) prune() {
+	for i := pg.depth - 1; i > 0; i-- {
+		for _, n := range pg.strata[i] {
+			if len(n.children) == 0 {
+				for p := range n.parents {
+					delete(p.children, n)
+				}
+				delete(pg.strata[i], string(n.validPolicy.der))
+			}
+		}
+	}
+}
+
+func (pg *policyGraph) incrDepth() {
+	pg.parentIndex = map[string][]*policyGraphNode{}
+	for _, n := range pg.strata[pg.depth] {
+		for _, e := range n.expectedPolicySet {
+			pg.parentIndex[string(e.der)] = append(pg.parentIndex[string(e.der)], n)
+		}
+	}
+
+	pg.depth++
+	pg.strata = append(pg.strata, map[string]*policyGraphNode{})
+}
+
+func policiesValid(chain []*Certificate, opts VerifyOptions) bool {
+	// The following code implements the policy verification algorithm as
+	// specified in RFC 5280 and updated by RFC 9618. In particular the
+	// following sections are replaced by RFC 9618:
+	//	* 6.1.2 (a)
+	//	* 6.1.3 (d)
+	//	* 6.1.3 (e)
+	//	* 6.1.3 (f)
+	//	* 6.1.4 (b)
+	//	* 6.1.5 (g)
+
+	if len(chain) == 1 {
+		return true
+	}
+
+	// n is the length of the chain minus the trust anchor
+	n := len(chain) - 1
+
+	pg := newPolicyGraph()
+	var inhibitAnyPolicy, explicitPolicy, policyMapping int
+	if !opts.inhibitAnyPolicy {
+		inhibitAnyPolicy = n + 1
+	}
+	if !opts.requireExplicitPolicy {
+		explicitPolicy = n + 1
+	}
+	if !opts.inhibitPolicyMapping {
+		policyMapping = n + 1
+	}
+
+	initialUserPolicySet := map[string]bool{}
+	for _, p := range opts.CertificatePolicies {
+		initialUserPolicySet[string(p.der)] = true
+	}
+	// If the user does not pass any policies, we consider
+	// that equivalent to passing anyPolicyOID.
+	if len(initialUserPolicySet) == 0 {
+		initialUserPolicySet[string(anyPolicyOID.der)] = true
+	}
+
+	for i := n - 1; i >= 0; i-- {
+		cert := chain[i]
+
+		isSelfSigned := bytes.Equal(cert.RawIssuer, cert.RawSubject)
+
+		// 6.1.3 (e) -- as updated by RFC 9618
+		if len(cert.Policies) == 0 {
+			pg = nil
+		}
+
+		// 6.1.3 (f) -- as updated by RFC 9618
+		if explicitPolicy == 0 && pg == nil {
+			return false
+		}
+
+		if pg != nil {
+			pg.incrDepth()
+
+			policies := map[string]bool{}
+
+			// 6.1.3 (d) (1) -- as updated by RFC 9618
+			for _, policy := range cert.Policies {
+				policies[string(policy.der)] = true
+
+				if policy.Equal(anyPolicyOID) {
+					continue
+				}
+
+				// 6.1.3 (d) (1) (i) -- as updated by RFC 9618
+				parents := pg.parentsWithExpected(policy)
+				if len(parents) == 0 {
+					// 6.1.3 (d) (1) (ii) -- as updated by RFC 9618
+					if anyParent := pg.parentWithAnyPolicy(); anyParent != nil {
+						parents = []*policyGraphNode{anyParent}
+					}
+				}
+				if len(parents) > 0 {
+					pg.insert(newPolicyGraphNode(policy, parents))
+				}
+			}
+
+			// 6.1.3 (d) (2) -- as updated by RFC 9618
+			// NOTE: in the check "n-i < n" our i is different from the i in the specification.
+			// In the specification chains go from the trust anchor to the leaf, whereas our
+			// chains go from the leaf to the trust anchor, so our i's our inverted. Our
+			// check here matches the check "i < n" in the specification.
+			if policies[string(anyPolicyOID.der)] && (inhibitAnyPolicy > 0 || (n-i < n && isSelfSigned)) {
+				missing := map[string][]*policyGraphNode{}
+				leaves := pg.leaves()
+				for p := range pg.parents() {
+					for _, expected := range p.expectedPolicySet {
+						if leaves[string(expected.der)] == nil {
+							missing[string(expected.der)] = append(missing[string(expected.der)], p)
+						}
+					}
+				}
+
+				for oidStr, parents := range missing {
+					pg.insert(newPolicyGraphNode(OID{der: []byte(oidStr)}, parents))
+				}
+			}
+
+			// 6.1.3 (d) (3) -- as updated by RFC 9618
+			pg.prune()
+
+			if i != 0 {
+				// 6.1.4 (b) -- as updated by RFC 9618
+				if len(cert.PolicyMappings) > 0 {
+					// collect map of issuer -> []subject
+					mappings := map[string][]OID{}
+
+					for _, mapping := range cert.PolicyMappings {
+						if policyMapping > 0 {
+							if mapping.IssuerDomainPolicy.Equal(anyPolicyOID) || mapping.SubjectDomainPolicy.Equal(anyPolicyOID) {
+								// Invalid mapping
+								return false
+							}
+							mappings[string(mapping.IssuerDomainPolicy.der)] = append(mappings[string(mapping.IssuerDomainPolicy.der)], mapping.SubjectDomainPolicy)
+						} else {
+							// 6.1.4 (b) (3) (i) -- as updated by RFC 9618
+							pg.deleteLeaf(mapping.IssuerDomainPolicy)
+
+							// 6.1.4 (b) (3) (ii) -- as updated by RFC 9618
+							pg.prune()
+						}
+					}
+
+					for issuerStr, subjectPolicies := range mappings {
+						// 6.1.4 (b) (1) -- as updated by RFC 9618
+						if matching := pg.leafWithPolicy(OID{der: []byte(issuerStr)}); matching != nil {
+							matching.expectedPolicySet = subjectPolicies
+						} else if matching := pg.leafWithPolicy(anyPolicyOID); matching != nil {
+							// 6.1.4 (b) (2) -- as updated by RFC 9618
+							n := newPolicyGraphNode(OID{der: []byte(issuerStr)}, []*policyGraphNode{matching})
+							n.expectedPolicySet = subjectPolicies
+							pg.insert(n)
+						}
+					}
+				}
+			}
+		}
+
+		if i != 0 {
+			// 6.1.4 (h)
+			if !isSelfSigned {
+				if explicitPolicy > 0 {
+					explicitPolicy--
+				}
+				if policyMapping > 0 {
+					policyMapping--
+				}
+				if inhibitAnyPolicy > 0 {
+					inhibitAnyPolicy--
+				}
+			}
+
+			// 6.1.4 (i)
+			if (cert.RequireExplicitPolicy > 0 || cert.RequireExplicitPolicyZero) && cert.RequireExplicitPolicy < explicitPolicy {
+				explicitPolicy = cert.RequireExplicitPolicy
+			}
+			if (cert.InhibitPolicyMapping > 0 || cert.InhibitPolicyMappingZero) && cert.InhibitPolicyMapping < policyMapping {
+				policyMapping = cert.InhibitPolicyMapping
+			}
+			// 6.1.4 (j)
+			if (cert.InhibitAnyPolicy > 0 || cert.InhibitAnyPolicyZero) && cert.InhibitAnyPolicy < inhibitAnyPolicy {
+				inhibitAnyPolicy = cert.InhibitAnyPolicy
+			}
+		}
+	}
+
+	// 6.1.5 (a)
+	if explicitPolicy > 0 {
+		explicitPolicy--
+	}
+
+	// 6.1.5 (b)
+	if chain[0].RequireExplicitPolicyZero {
+		explicitPolicy = 0
+	}
+
+	// 6.1.5 (g) (1) -- as updated by RFC 9618
+	var validPolicyNodeSet []*policyGraphNode
+	// 6.1.5 (g) (2) -- as updated by RFC 9618
+	if pg != nil {
+		validPolicyNodeSet = pg.validPolicyNodes()
+		// 6.1.5 (g) (3) -- as updated by RFC 9618
+		if currentAny := pg.leafWithPolicy(anyPolicyOID); currentAny != nil {
+			validPolicyNodeSet = append(validPolicyNodeSet, currentAny)
+		}
+	}
+
+	// 6.1.5 (g) (4) -- as updated by RFC 9618
+	authorityConstrainedPolicySet := map[string]bool{}
+	for _, n := range validPolicyNodeSet {
+		authorityConstrainedPolicySet[string(n.validPolicy.der)] = true
+	}
+	// 6.1.5 (g) (5) -- as updated by RFC 9618
+	userConstrainedPolicySet := maps.Clone(authorityConstrainedPolicySet)
+	// 6.1.5 (g) (6) -- as updated by RFC 9618
+	if len(initialUserPolicySet) != 1 || !initialUserPolicySet[string(anyPolicyOID.der)] {
+		// 6.1.5 (g) (6) (i) -- as updated by RFC 9618
+		for p := range userConstrainedPolicySet {
+			if !initialUserPolicySet[p] {
+				delete(userConstrainedPolicySet, p)
+			}
+		}
+		// 6.1.5 (g) (6) (ii) -- as updated by RFC 9618
+		if authorityConstrainedPolicySet[string(anyPolicyOID.der)] {
+			for policy := range initialUserPolicySet {
+				userConstrainedPolicySet[policy] = true
+			}
+		}
+	}
+
+	if explicitPolicy == 0 && len(userConstrainedPolicySet) == 0 {
+		return false
 	}
 
 	return true

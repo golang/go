@@ -7,8 +7,9 @@ package template
 // Tests for multiple-template parsing and execution.
 
 import (
-	"bytes"
 	"fmt"
+	"os"
+	"strings"
 	"testing"
 	"text/template/parse"
 )
@@ -153,6 +154,35 @@ func TestParseGlob(t *testing.T) {
 	testExecute(multiExecTests, template, t)
 }
 
+func TestParseFS(t *testing.T) {
+	fs := os.DirFS("testdata")
+
+	{
+		_, err := ParseFS(fs, "DOES NOT EXIST")
+		if err == nil {
+			t.Error("expected error for non-existent file; got none")
+		}
+	}
+
+	{
+		template := New("root")
+		_, err := template.ParseFS(fs, "file1.tmpl", "file2.tmpl")
+		if err != nil {
+			t.Fatalf("error parsing files: %v", err)
+		}
+		testExecute(multiExecTests, template, t)
+	}
+
+	{
+		template := New("root")
+		_, err := template.ParseFS(fs, "file*.tmpl")
+		if err != nil {
+			t.Fatalf("error parsing files: %v", err)
+		}
+		testExecute(multiExecTests, template, t)
+	}
+}
+
 // In these tests, actual content (not just template definitions) comes from the parsed files.
 
 var templateFileExecTests = []execTest{
@@ -180,6 +210,7 @@ const (
 	cloneText2 = `{{define "b"}}b{{end}}`
 	cloneText3 = `{{define "c"}}root{{end}}`
 	cloneText4 = `{{define "c"}}clone{{end}}`
+	cloneText5 = `{{define "e"}}{{.Foo}}{{end}}`
 )
 
 func TestClone(t *testing.T) {
@@ -192,6 +223,8 @@ func TestClone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	root.Parse(cloneText5)
+	root.Option("missingkey=error")
 	clone := Must(root.Clone())
 	// Add variants to both.
 	_, err = root.Parse(cloneText3)
@@ -212,7 +245,7 @@ func TestClone(t *testing.T) {
 		}
 	}
 	// Execute root.
-	var b bytes.Buffer
+	var b strings.Builder
 	err = root.ExecuteTemplate(&b, "a", 0)
 	if err != nil {
 		t.Fatal(err)
@@ -229,6 +262,14 @@ func TestClone(t *testing.T) {
 	if b.String() != "bclone" {
 		t.Errorf("expected %q got %q", "bclone", b.String())
 	}
+	b.Reset()
+	rootErr := root.ExecuteTemplate(&b, "e", map[string]any{})
+	cloneErr := clone.ExecuteTemplate(&b, "e", map[string]any{})
+	if cloneErr == nil {
+		t.Errorf("expected error from missing key in cloned template")
+	} else if got, want := cloneErr.Error(), rootErr.Error(); got != want {
+		t.Errorf("got %q, wan t %q", got, want)
+	}
 }
 
 func TestAddParseTree(t *testing.T) {
@@ -242,7 +283,7 @@ func TestAddParseTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Add a new parse tree.
-	tree, err := parse.Parse("cloneText3", cloneText3, "", "", nil, builtins)
+	tree, err := parse.Parse("cloneText3", cloneText3, "", "", nil, builtins())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +292,7 @@ func TestAddParseTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Execute.
-	var b bytes.Buffer
+	var b strings.Builder
 	err = added.ExecuteTemplate(&b, "a", 0)
 	if err != nil {
 		t.Fatal(err)
@@ -359,6 +400,7 @@ func TestEmptyTemplate(t *testing.T) {
 		in   string
 		want string
 	}{
+		{[]string{"x", "y"}, "", "y"},
 		{[]string{""}, "once", ""},
 		{[]string{"", ""}, "twice", ""},
 		{[]string{"{{.}}", "{{.}}"}, "twice", "twice"},
@@ -379,7 +421,7 @@ func TestEmptyTemplate(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		buf := &bytes.Buffer{}
+		buf := &strings.Builder{}
 		if err := m.Execute(buf, c.in); err != nil {
 			t.Error(i, err)
 			continue
@@ -414,10 +456,20 @@ func TestIssue19294(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		var buf bytes.Buffer
+		var buf strings.Builder
 		res.Execute(&buf, 0)
 		if buf.String() != "stylesheet" {
 			t.Fatalf("iteration %d: got %q; expected %q", i, buf.String(), "stylesheet")
 		}
 	}
+}
+
+// Issue 48436
+func TestAddToZeroTemplate(t *testing.T) {
+	tree, err := parse.Parse("c", cloneText3, "", "", nil, builtins())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var tmpl Template
+	tmpl.AddParseTree("x", tree["c"])
 }

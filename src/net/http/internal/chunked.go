@@ -22,7 +22,7 @@ var ErrLineTooLong = errors.New("header line too long")
 
 // NewChunkedReader returns a new chunkedReader that translates the data read from r
 // out of HTTP "chunked" format before returning it.
-// The chunkedReader returns io.EOF when the final 0-length chunk is read.
+// The chunkedReader returns [io.EOF] when the final 0-length chunk is read.
 //
 // NewChunkedReader is not needed by normal applications. The http package
 // automatically decodes chunking when reading response bodies.
@@ -39,7 +39,8 @@ type chunkedReader struct {
 	n        uint64 // unread bytes in chunk
 	err      error
 	buf      [2]byte
-	checkEnd bool // whether need to check for \r\n chunk footer
+	checkEnd bool  // whether need to check for \r\n chunk footer
+	excess   int64 // "excessive" chunk overhead, for malicious sender detection
 }
 
 func (cr *chunkedReader) beginChunk() {
@@ -49,9 +50,35 @@ func (cr *chunkedReader) beginChunk() {
 	if cr.err != nil {
 		return
 	}
+	cr.excess += int64(len(line)) + 2 // header, plus \r\n after the chunk data
+	line = trimTrailingWhitespace(line)
+	line, cr.err = removeChunkExtension(line)
+	if cr.err != nil {
+		return
+	}
 	cr.n, cr.err = parseHexUint(line)
 	if cr.err != nil {
 		return
+	}
+	// A sender who sends one byte per chunk will send 5 bytes of overhead
+	// for every byte of data. ("1\r\nX\r\n" to send "X".)
+	// We want to allow this, since streaming a byte at a time can be legitimate.
+	//
+	// A sender can use chunk extensions to add arbitrary amounts of additional
+	// data per byte read. ("1;very long extension\r\nX\r\n" to send "X".)
+	// We don't want to disallow extensions (although we discard them),
+	// but we also don't want to allow a sender to reduce the signal/noise ratio
+	// arbitrarily.
+	//
+	// We track the amount of excess overhead read,
+	// and produce an error if it grows too large.
+	//
+	// Currently, we say that we're willing to accept 16 bytes of overhead per chunk,
+	// plus twice the amount of real data in the chunk.
+	cr.excess -= 16 + (2 * int64(cr.n))
+	cr.excess = max(cr.excess, 0)
+	if cr.excess > 16*1024 {
+		cr.err = errors.New("chunked encoding contains too much non-data")
 	}
 	if cr.n == 0 {
 		cr.err = io.EOF
@@ -81,6 +108,11 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
 					cr.err = errors.New("malformed chunked encoding")
 					break
 				}
+			} else {
+				if cr.err == io.EOF {
+					cr.err = io.ErrUnexpectedEOF
+				}
+				break
 			}
 			cr.checkEnd = false
 		}
@@ -109,6 +141,8 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
 		// bytes to verify they are "\r\n".
 		if cr.n == 0 && cr.err == nil {
 			cr.checkEnd = true
+		} else if cr.err == io.EOF {
+			cr.err = io.ErrUnexpectedEOF
 		}
 	}
 	return n, cr.err
@@ -130,43 +164,51 @@ func readChunkLine(b *bufio.Reader) ([]byte, error) {
 		}
 		return nil, err
 	}
+
+	// RFC 9112 permits parsers to accept a bare \n as a line ending in headers,
+	// but not in chunked encoding lines. See https://www.rfc-editor.org/errata/eid7633,
+	// which explicitly rejects a clarification permitting \n as a chunk terminator.
+	//
+	// Verify that the line ends in a CRLF, and that no CRs appear before the end.
+	if idx := bytes.IndexByte(p, '\r'); idx == -1 {
+		return nil, errors.New("chunked line ends with bare LF")
+	} else if idx != len(p)-2 {
+		return nil, errors.New("invalid CR in chunked line")
+	}
+	p = p[:len(p)-2] // trim CRLF
+
 	if len(p) >= maxLineLength {
 		return nil, ErrLineTooLong
-	}
-	p = trimTrailingWhitespace(p)
-	p, err = removeChunkExtension(p)
-	if err != nil {
-		return nil, err
 	}
 	return p, nil
 }
 
 func trimTrailingWhitespace(b []byte) []byte {
-	for len(b) > 0 && isASCIISpace(b[len(b)-1]) {
+	for len(b) > 0 && isOWS(b[len(b)-1]) {
 		b = b[:len(b)-1]
 	}
 	return b
 }
 
-func isASCIISpace(b byte) bool {
-	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+func isOWS(b byte) bool {
+	return b == ' ' || b == '\t'
 }
+
+var semi = []byte(";")
 
 // removeChunkExtension removes any chunk-extension from p.
 // For example,
-//     "0" => "0"
-//     "0;token" => "0"
-//     "0;token=val" => "0"
-//     `0;token="quoted string"` => "0"
+//
+//	"0" => "0"
+//	"0;token" => "0"
+//	"0;token=val" => "0"
+//	`0;token="quoted string"` => "0"
 func removeChunkExtension(p []byte) ([]byte, error) {
-	semi := bytes.IndexByte(p, ';')
-	if semi == -1 {
-		return p, nil
-	}
+	p, _, _ = bytes.Cut(p, semi)
 	// TODO: care about exact syntax of chunk extensions? We're
 	// ignoring and stripping them anyway. For now just never
 	// return an error.
-	return p[:semi], nil
+	return p, nil
 }
 
 // NewChunkedWriter returns a new chunkedWriter that translates writes into HTTP
@@ -192,7 +234,7 @@ type chunkedWriter struct {
 
 // Write the contents of data as one chunk to Wire.
 // NOTE: Note that the corresponding chunk-writing procedure in Conn.Write has
-// a bug since it does not check for success of io.WriteString
+// a bug since it does not check for success of [io.WriteString]
 func (cw *chunkedWriter) Write(data []byte) (n int, err error) {
 
 	// Don't send 0-length data. It looks like EOF for chunked encoding.
@@ -224,9 +266,9 @@ func (cw *chunkedWriter) Close() error {
 	return err
 }
 
-// FlushAfterChunkWriter signals from the caller of NewChunkedWriter
+// FlushAfterChunkWriter signals from the caller of [NewChunkedWriter]
 // that each chunk should be followed by a flush. It is used by the
-// http.Transport code to keep the buffering behavior for headers and
+// [net/http.Transport] code to keep the buffering behavior for headers and
 // trailers, but flush out chunks aggressively in the middle for
 // request bodies which may be generated slowly. See Issue 6574.
 type FlushAfterChunkWriter struct {
@@ -234,6 +276,9 @@ type FlushAfterChunkWriter struct {
 }
 
 func parseHexUint(v []byte) (n uint64, err error) {
+	if len(v) == 0 {
+		return 0, errors.New("empty hex number for chunk length")
+	}
 	for i, b := range v {
 		switch {
 		case '0' <= b && b <= '9':

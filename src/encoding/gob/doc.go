@@ -4,15 +4,15 @@
 
 /*
 Package gob manages streams of gobs - binary values exchanged between an
-Encoder (transmitter) and a Decoder (receiver). A typical use is transporting
+[Encoder] (transmitter) and a [Decoder] (receiver). A typical use is transporting
 arguments and results of remote procedure calls (RPCs) such as those provided by
-package "net/rpc".
+[net/rpc].
 
 The implementation compiles a custom codec for each data type in the stream and
-is most efficient when a single Encoder is used to transmit a stream of values,
+is most efficient when a single [Encoder] is used to transmit a stream of values,
 amortizing the cost of compilation.
 
-Basics
+# Basics
 
 A stream of gobs is self-describing. Each data item in the stream is preceded by
 a specification of its type, expressed in terms of a small set of predefined
@@ -21,13 +21,13 @@ transmitted; that is, the values are flattened. Nil pointers are not permitted,
 as they have no value. Recursive types work fine, but
 recursive values (data with cycles) are problematic. This may change.
 
-To use gobs, create an Encoder and present it with a series of data items as
-values or addresses that can be dereferenced to values. The Encoder makes sure
+To use gobs, create an [Encoder] and present it with a series of data items as
+values or addresses that can be dereferenced to values. The [Encoder] makes sure
 all type information is sent before it is needed. At the receive side, a
-Decoder retrieves values from the encoded stream and unpacks them into local
+[Decoder] retrieves values from the encoded stream and unpacks them into local
 variables.
 
-Types and Values
+# Types and Values
 
 The source and destination values/types need not correspond exactly. For structs,
 fields (identified by name) that are in the source but absent from the receiving
@@ -67,7 +67,7 @@ arbitrary precision unsigned integers. There is no int8, int16 etc.
 discrimination in the gob format; there are only signed and unsigned integers. As
 described below, the transmitter sends the value in a variable-length encoding;
 the receiver accepts the value and stores it in the destination variable.
-Floating-point numbers are always sent using IEEE-754 64-bit precision (see
+Floating-point numbers are always sent using IEEE 754 64-bit precision (see
 below).
 
 Signed integers may be received into any signed integer variable: int, int16, etc.;
@@ -93,15 +93,15 @@ Functions and channels will not be sent in a gob. Attempting to encode such a va
 at the top level will fail. A struct field of chan or func type is treated exactly
 like an unexported field and is ignored.
 
-Gob can encode a value of any type implementing the GobEncoder or
-encoding.BinaryMarshaler interfaces by calling the corresponding method,
+Gob can encode a value of any type implementing the [GobEncoder] or
+[encoding.BinaryMarshaler] interfaces by calling the corresponding method,
 in that order of preference.
 
-Gob can decode a value of any type implementing the GobDecoder or
-encoding.BinaryUnmarshaler interfaces by calling the corresponding method,
+Gob can decode a value of any type implementing the [GobDecoder] or
+[encoding.BinaryUnmarshaler] interfaces by calling the corresponding method,
 again in that order of preference.
 
-Encoding Details
+# Encoding Details
 
 This section documents the encoding, details that are not important for most
 users. Details are presented bottom-up.
@@ -131,7 +131,7 @@ instead guarantees that the largest negative integer is not a special case. For
 example, -129=^128=(^256>>1) encodes as (FE 01 01).
 
 Floating-point numbers are always sent as a representation of a float64 value.
-That value is converted to a uint64 using math.Float64bits. The uint64 is then
+That value is converted to a uint64 using [math.Float64bits]. The uint64 is then
 byte-reversed and sent as a regular unsigned integer. The byte-reversal means the
 exponent and high-precision part of the mantissa go first. Since the low bits are
 often zero, this can save encoding bytes. For instance, 17.0 is encoded in only
@@ -153,37 +153,37 @@ are transmitted, even if all the elements are zero.
 
 Structs are sent as a sequence of (field number, field value) pairs. The field
 value is sent using the standard gob encoding for its type, recursively. If a
-field has the zero value for its type (except for arrays; see above), it is omitted
-from the transmission. The field number is defined by the type of the encoded
-struct: the first field of the encoded type is field 0, the second is field 1,
-etc. When encoding a value, the field numbers are delta encoded for efficiency
-and the fields are always sent in order of increasing field number; the deltas are
-therefore unsigned. The initialization for the delta encoding sets the field
-number to -1, so an unsigned integer field 0 with value 7 is transmitted as unsigned
-delta = 1, unsigned value = 7 or (01 07). Finally, after all the fields have been
-sent a terminating mark denotes the end of the struct. That mark is a delta=0
-value, which has representation (00).
+field has the zero value for its type (except for arrays; see above) or it's a
+pointer to a zero value, it is omitted from the transmission. The field number
+is defined by the type of the encoded struct: the first field of the encoded type
+is field 0, the second is field 1, etc. When encoding a value, the field numbers
+are delta encoded for efficiency and the fields are always sent in order of
+increasing field number; the deltas are therefore unsigned. The initialization
+for the delta encoding sets the field number to -1, so an unsigned integer field 0
+with value 7 is transmitted as unsigned delta = 1, unsigned value = 7 or (01 07).
+Finally, after all the fields have been sent a terminating mark denotes the end
+of the struct. That mark is a delta=0 value, which has representation (00).
 
 Interface types are not checked for compatibility; all interface types are
 treated, for transmission, as members of a single "interface" type, analogous to
 int or []byte - in effect they're all treated as interface{}. Interface values
 are transmitted as a string identifying the concrete type being sent (a name
-that must be pre-defined by calling Register), followed by a byte count of the
+that must be pre-defined by calling [Register]), followed by a byte count of the
 length of the following data (so the value can be skipped if it cannot be
 stored), followed by the usual encoding of concrete (dynamic) value stored in
 the interface value. (A nil interface value is identified by the empty string
 and transmits no value.) Upon receipt, the decoder verifies that the unpacked
 concrete item satisfies the interface of the receiving variable.
 
-If a value is passed to Encode and the type is not a struct (or pointer to struct,
+If a value is passed to [Encoder.Encode] and the type is not a struct (or pointer to struct,
 etc.), for simplicity of processing it is represented as a struct of one field.
 The only visible effect of this is to encode a zero byte after the value, just as
 after the last field of an encoded struct, so that the decode algorithm knows when
 the top-level value is complete.
 
 The representation of types is described below. When a type is defined on a given
-connection between an Encoder and Decoder, it is assigned a signed integer type
-id. When Encoder.Encode(v) is called, it makes sure there is an id assigned for
+connection between an [Encoder] and [Decoder], it is assigned a signed integer type
+id. When [Encoder.Encode](v) is called, it makes sure there is an id assigned for
 the type of v and all its elements and then it sends the pair (typeid, encoded-v)
 where typeid is the type id of the encoded type of v and encoded-v is the gob
 encoding of the value v.
@@ -193,14 +193,13 @@ pair (-type id, encoded-type) where encoded-type is the gob encoding of a wireTy
 description, constructed from these types:
 
 	type wireType struct {
-		ArrayT           *ArrayType
-		SliceT           *SliceType
-		StructT          *StructType
-		MapT             *MapType
+		ArrayT           *arrayType
+		SliceT           *sliceType
+		StructT          *structType
+		MapT             *mapType
 		GobEncoderT      *gobEncoderType
 		BinaryMarshalerT *gobEncoderType
 		TextMarshalerT   *gobEncoderType
-
 	}
 	type arrayType struct {
 		CommonType
@@ -217,7 +216,7 @@ description, constructed from these types:
 	}
 	type structType struct {
 		CommonType
-		Field []*fieldType // the fields of the struct.
+		Field []fieldType // the fields of the struct.
 	}
 	type fieldType struct {
 		Name string // the name of the field.
@@ -275,7 +274,15 @@ released version, subject to issues such as security fixes. See the Go compatibi
 document for background: https://golang.org/doc/go1compat
 
 See "Gobs of data" for a design discussion of the gob wire format:
-https://blog.golang.org/gobs-of-data
+https://go.dev/blog/gob
+
+# Security
+
+This package is not designed to be hardened against adversarial inputs, and is
+outside the scope of https://go.dev/security/policy. In particular, the [Decoder]
+does only basic sanity checking on decoded input sizes, and its limits are not
+configurable. Care should be taken when decoding gob data from untrusted
+sources, which may consume significant resources.
 */
 package gob
 

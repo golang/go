@@ -1,0 +1,129 @@
+-- input --
+Text.
+ - List immediately after.
+ - Another.
+
+More text.
+
+ - List after blank line.
+ - Another.
+
+Even more text.
+ - List immediately after.
+
+ - Blank line between items.
+
+Yet more text.
+
+ - Another list after blank line.
+
+ - Blank line between items.
+
+Still more text.
+ - One list item.
+
+   Multiple paragraphs.
+-- dump --
+Doc
+	Paragraph
+		Plain "Text."
+	List ForceBlankBefore=false ForceBlankBetween=false
+		Item Number=""
+			Paragraph
+				Plain "List immediately after."
+		Item Number=""
+			Paragraph
+				Plain "Another."
+	Paragraph
+		Plain "More text."
+	List ForceBlankBefore=true ForceBlankBetween=false
+		Item Number=""
+			Paragraph
+				Plain "List after blank line."
+		Item Number=""
+			Paragraph
+				Plain "Another."
+	Paragraph
+		Plain "Even more text."
+	List ForceBlankBefore=false ForceBlankBetween=true
+		Item Number=""
+			Paragraph
+				Plain "List immediately after."
+		Item Number=""
+			Paragraph
+				Plain "Blank line between items."
+	Paragraph
+		Plain "Yet more text."
+	List ForceBlankBefore=true ForceBlankBetween=true
+		Item Number=""
+			Paragraph
+				Plain "Another list after blank line."
+		Item Number=""
+			Paragraph
+				Plain "Blank line between items."
+	Paragraph
+		Plain "Still more text."
+	List ForceBlankBefore=false ForceBlankBetween=true
+		Item Number=""
+			Paragraph
+				Plain "One list item."
+			Paragraph
+				Plain "Multiple paragraphs."
+
+-- gofmt --
+Text.
+  - List immediately after.
+  - Another.
+
+More text.
+
+  - List after blank line.
+  - Another.
+
+Even more text.
+
+  - List immediately after.
+
+  - Blank line between items.
+
+Yet more text.
+
+  - Another list after blank line.
+
+  - Blank line between items.
+
+Still more text.
+
+  - One list item.
+
+    Multiple paragraphs.
+
+-- markdown --
+Text.
+
+  - List immediately after.
+  - Another.
+
+More text.
+
+  - List after blank line.
+  - Another.
+
+Even more text.
+
+  - List immediately after.
+
+  - Blank line between items.
+
+Yet more text.
+
+  - Another list after blank line.
+
+  - Blank line between items.
+
+Still more text.
+
+  - One list item.
+
+    Multiple paragraphs.
+

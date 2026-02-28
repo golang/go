@@ -3,7 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Test broken pipes on Unix systems.
-// +build !plan9,!js
+//
+//go:build !plan9 && !js && !wasip1
 
 package os_test
 
@@ -13,9 +14,9 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
-	osexec "os/exec"
+	"os/exec"
 	"os/signal"
 	"runtime"
 	"strconv"
@@ -27,6 +28,16 @@ import (
 )
 
 func TestEPIPE(t *testing.T) {
+	// This test cannot be run in parallel because of a race similar
+	// to the one reported in https://go.dev/issue/22315.
+	//
+	// Even though the pipe is opened with O_CLOEXEC, if another test forks in
+	// between the call to os.Pipe and the call to r.Close, that child process can
+	// retain an open copy of r's file descriptor until it execs. If one of our
+	// Write calls occurs during that interval it can spuriously succeed,
+	// buffering the write to the child's copy of the pipe (even though the child
+	// will not actually read the buffered bytes).
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -46,7 +57,7 @@ func TestEPIPE(t *testing.T) {
 		if err == nil {
 			t.Fatal("unexpected success of Write to broken pipe")
 		}
-		if pe, ok := err.(*os.PathError); ok {
+		if pe, ok := err.(*fs.PathError); ok {
 			err = pe.Err
 		}
 		if se, ok := err.(*os.SyscallError); ok {
@@ -63,7 +74,35 @@ func TestStdPipe(t *testing.T) {
 	case "windows":
 		t.Skip("Windows doesn't support SIGPIPE")
 	}
+
+	if os.Getenv("GO_TEST_STD_PIPE_HELPER") != "" {
+		if os.Getenv("GO_TEST_STD_PIPE_HELPER_SIGNAL") != "" {
+			signal.Notify(make(chan os.Signal, 1), syscall.SIGPIPE)
+		}
+		switch os.Getenv("GO_TEST_STD_PIPE_HELPER") {
+		case "1":
+			os.Stdout.Write([]byte("stdout"))
+		case "2":
+			os.Stderr.Write([]byte("stderr"))
+		case "3":
+			if _, err := os.NewFile(3, "3").Write([]byte("3")); err == nil {
+				os.Exit(3)
+			}
+		default:
+			panic("unrecognized value for GO_TEST_STD_PIPE_HELPER")
+		}
+		// For stdout/stderr, we should have crashed with a broken pipe error.
+		// The caller will be looking for that exit status,
+		// so just exit normally here to cause a failure in the caller.
+		// For descriptor 3, a normal exit is expected.
+		os.Exit(0)
+	}
+
 	testenv.MustHaveExec(t)
+	// This test cannot be run in parallel due to the same race as for TestEPIPE.
+	// (We expect a write to a closed pipe can fail, but a concurrent fork of a
+	// child process can cause the pipe to unexpectedly remain open.)
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -79,7 +118,7 @@ func TestStdPipe(t *testing.T) {
 	// all writes should fail with EPIPE and then exit 0.
 	for _, sig := range []bool{false, true} {
 		for dest := 1; dest < 4; dest++ {
-			cmd := osexec.Command(os.Args[0], "-test.run", "TestStdPipeHelper")
+			cmd := testenv.Command(t, testenv.Executable(t), "-test.run", "TestStdPipe")
 			cmd.Stdout = w
 			cmd.Stderr = w
 			cmd.ExtraFiles = []*os.File{w}
@@ -91,7 +130,7 @@ func TestStdPipe(t *testing.T) {
 				if !sig && dest < 3 {
 					t.Errorf("unexpected success of write to closed pipe %d sig %t in child", dest, sig)
 				}
-			} else if ee, ok := err.(*osexec.ExitError); !ok {
+			} else if ee, ok := err.(*exec.ExitError); !ok {
 				t.Errorf("unexpected exec error type %T: %v", err, err)
 			} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
 				t.Errorf("unexpected wait status type %T: %v", ee.Sys(), ee.Sys())
@@ -104,44 +143,38 @@ func TestStdPipe(t *testing.T) {
 			}
 		}
 	}
-}
 
-// This is a helper for TestStdPipe. It's not a test in itself.
-func TestStdPipeHelper(t *testing.T) {
-	if os.Getenv("GO_TEST_STD_PIPE_HELPER_SIGNAL") != "" {
-		signal.Notify(make(chan os.Signal, 1), syscall.SIGPIPE)
+	// Test redirecting stdout but not stderr.  Issue 40076.
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run", "TestStdPipe")
+	cmd.Stdout = w
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	cmd.Env = append(cmd.Environ(), "GO_TEST_STD_PIPE_HELPER=1")
+	if err := cmd.Run(); err == nil {
+		t.Errorf("unexpected success of write to closed stdout")
+	} else if ee, ok := err.(*exec.ExitError); !ok {
+		t.Errorf("unexpected exec error type %T: %v", err, err)
+	} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
+		t.Errorf("unexpected wait status type %T: %v", ee.Sys(), ee.Sys())
+	} else if !ws.Signaled() || ws.Signal() != syscall.SIGPIPE {
+		t.Errorf("unexpected exit status %v for write to closed stdout", err)
 	}
-	switch os.Getenv("GO_TEST_STD_PIPE_HELPER") {
-	case "1":
-		os.Stdout.Write([]byte("stdout"))
-	case "2":
-		os.Stderr.Write([]byte("stderr"))
-	case "3":
-		if _, err := os.NewFile(3, "3").Write([]byte("3")); err == nil {
-			os.Exit(3)
-		}
-	default:
-		t.Skip("skipping test helper")
+	if output := stderr.Bytes(); len(output) > 0 {
+		t.Errorf("unexpected output on stderr: %s", output)
 	}
-	// For stdout/stderr, we should have crashed with a broken pipe error.
-	// The caller will be looking for that exit status,
-	// so just exit normally here to cause a failure in the caller.
-	// For descriptor 3, a normal exit is expected.
-	os.Exit(0)
 }
 
 func testClosedPipeRace(t *testing.T, read bool) {
-	switch runtime.GOOS {
-	case "freebsd":
-		t.Skip("FreeBSD does not use the poller; issue 19093")
-	}
+	// This test cannot be run in parallel due to the same race as for TestEPIPE.
+	// (We expect a write to a closed pipe can fail, but a concurrent fork of a
+	// child process can cause the pipe to unexpectedly remain open.)
 
 	limit := 1
 	if !read {
 		// Get the amount we have to write to overload a pipe
 		// with no reader.
 		limit = 131073
-		if b, err := ioutil.ReadFile("/proc/sys/fs/pipe-max-size"); err == nil {
+		if b, err := os.ReadFile("/proc/sys/fs/pipe-max-size"); err == nil {
 			if i, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
 				limit = i + 1
 			}
@@ -183,10 +216,10 @@ func testClosedPipeRace(t *testing.T, read bool) {
 	}
 	if err == nil {
 		t.Error("I/O on closed pipe unexpectedly succeeded")
-	} else if pe, ok := err.(*os.PathError); !ok {
-		t.Errorf("I/O on closed pipe returned unexpected error type %T; expected os.PathError", pe)
-	} else if pe.Err != os.ErrClosed {
-		t.Errorf("got error %q but expected %q", pe.Err, os.ErrClosed)
+	} else if pe, ok := err.(*fs.PathError); !ok {
+		t.Errorf("I/O on closed pipe returned unexpected error type %T; expected fs.PathError", pe)
+	} else if pe.Err != fs.ErrClosed {
+		t.Errorf("got error %q but expected %q", pe.Err, fs.ErrClosed)
 	} else {
 		t.Logf("I/O returned expected error %q", err)
 	}
@@ -214,7 +247,7 @@ func TestReadNonblockingFd(t *testing.T) {
 		defer syscall.SetNonblock(fd, false)
 		_, err := os.Stdin.Read(make([]byte, 1))
 		if err != nil {
-			if perr, ok := err.(*os.PathError); !ok || perr.Err != syscall.EAGAIN {
+			if perr, ok := err.(*fs.PathError); !ok || perr.Err != syscall.EAGAIN {
 				t.Fatalf("read on nonblocking stdin got %q, should have gotten EAGAIN", err)
 			}
 		}
@@ -222,14 +255,16 @@ func TestReadNonblockingFd(t *testing.T) {
 	}
 
 	testenv.MustHaveExec(t)
+	t.Parallel()
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer r.Close()
 	defer w.Close()
-	cmd := osexec.Command(os.Args[0], "-test.run="+t.Name())
-	cmd.Env = append(os.Environ(), "GO_WANT_READ_NONBLOCKING_FD=1")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$")
+	cmd.Env = append(cmd.Environ(), "GO_WANT_READ_NONBLOCKING_FD=1")
 	cmd.Stdin = r
 	output, err := cmd.CombinedOutput()
 	t.Logf("%s", output)
@@ -239,6 +274,8 @@ func TestReadNonblockingFd(t *testing.T) {
 }
 
 func TestCloseWithBlockingReadByNewFile(t *testing.T) {
+	t.Parallel()
+
 	var p [2]syscallDescriptor
 	err := syscall.Pipe(p[:])
 	if err != nil {
@@ -249,6 +286,8 @@ func TestCloseWithBlockingReadByNewFile(t *testing.T) {
 }
 
 func TestCloseWithBlockingReadByFd(t *testing.T) {
+	t.Parallel()
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -260,137 +299,118 @@ func TestCloseWithBlockingReadByFd(t *testing.T) {
 
 // Test that we don't let a blocking read prevent a close.
 func testCloseWithBlockingRead(t *testing.T, r, w *os.File) {
-	defer r.Close()
-	defer w.Close()
-
-	c1, c2 := make(chan bool), make(chan bool)
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-	go func(c chan bool) {
-		defer wg.Done()
-		// Give the other goroutine a chance to enter the Read
-		// or Write call. This is sloppy but the test will
-		// pass even if we close before the read/write.
-		time.Sleep(20 * time.Millisecond)
-
-		if err := r.Close(); err != nil {
-			t.Error(err)
-		}
-		close(c)
-	}(c1)
-
-	wg.Add(1)
-	go func(c chan bool) {
-		defer wg.Done()
+	var (
+		enteringRead = make(chan struct{})
+		done         = make(chan struct{})
+	)
+	go func() {
 		var b [1]byte
+		close(enteringRead)
 		_, err := r.Read(b[:])
-		close(c)
 		if err == nil {
 			t.Error("I/O on closed pipe unexpectedly succeeded")
 		}
-		if pe, ok := err.(*os.PathError); ok {
+
+		if pe, ok := err.(*fs.PathError); ok {
 			err = pe.Err
 		}
-		if err != io.EOF && err != os.ErrClosed {
+		if err != io.EOF && err != fs.ErrClosed {
 			t.Errorf("got %v, expected EOF or closed", err)
 		}
-	}(c2)
+		close(done)
+	}()
 
-	for c1 != nil || c2 != nil {
-		select {
-		case <-c1:
-			c1 = nil
-			// r.Close has completed, but the blocking Read
-			// is hanging. Close the writer to unblock it.
-			w.Close()
-		case <-c2:
-			c2 = nil
-		case <-time.After(1 * time.Second):
-			switch {
-			case c1 != nil && c2 != nil:
-				t.Error("timed out waiting for Read and Close")
-				w.Close()
-			case c1 != nil:
-				t.Error("timed out waiting for Close")
-			case c2 != nil:
-				t.Error("timed out waiting for Read")
-			default:
-				t.Error("impossible case")
-			}
-		}
+	// Give the goroutine a chance to enter the Read
+	// or Write call. This is sloppy but the test will
+	// pass even if we close before the read/write.
+	<-enteringRead
+	time.Sleep(20 * time.Millisecond)
+
+	if err := r.Close(); err != nil {
+		t.Error(err)
 	}
-
-	wg.Wait()
+	// r.Close has completed, but since we assume r is in blocking mode that
+	// probably didn't unblock the call to r.Read. Close w to unblock it.
+	w.Close()
+	<-done
 }
 
-// Issue 24164, for pipes.
 func TestPipeEOF(t *testing.T) {
+	t.Parallel()
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	testPipeEOF(t, r, w)
+}
+
+// testPipeEOF tests that when the write side of a pipe or FIFO is closed,
+// a blocked Read call on the reader side returns io.EOF.
+//
+// This scenario previously failed to unblock the Read call on darwin.
+// (See https://go.dev/issue/24164.)
+func testPipeEOF(t *testing.T, r io.ReadCloser, w io.WriteCloser) {
+	// parkDelay is an arbitrary delay we wait for a pipe-reader goroutine to park
+	// before issuing the corresponding write. The test should pass no matter what
+	// delay we use, but with a longer delay is has a higher chance of detecting
+	// poller bugs.
+	parkDelay := 10 * time.Millisecond
+	if testing.Short() {
+		parkDelay = 100 * time.Microsecond
+	}
+	writerDone := make(chan struct{})
+	defer func() {
+		if err := r.Close(); err != nil {
+			t.Errorf("error closing reader: %v", err)
+		}
+		<-writerDone
+	}()
+
+	write := make(chan int, 1)
 	go func() {
-		defer wg.Done()
+		defer close(writerDone)
 
-		defer func() {
-			if err := w.Close(); err != nil {
-				t.Errorf("error closing writer: %v", err)
-			}
-		}()
-
-		for i := 0; i < 3; i++ {
-			time.Sleep(10 * time.Millisecond)
+		for i := range write {
+			time.Sleep(parkDelay)
 			_, err := fmt.Fprintf(w, "line %d\n", i)
 			if err != nil {
 				t.Errorf("error writing to fifo: %v", err)
 				return
 			}
 		}
-		time.Sleep(10 * time.Millisecond)
-	}()
 
-	defer wg.Wait()
-
-	done := make(chan bool)
-	go func() {
-		defer close(done)
-
-		defer func() {
-			if err := r.Close(); err != nil {
-				t.Errorf("error closing reader: %v", err)
-			}
-		}()
-
-		rbuf := bufio.NewReader(r)
-		for {
-			b, err := rbuf.ReadBytes('\n')
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				t.Error(err)
-				return
-			}
-			t.Logf("%s\n", bytes.TrimSpace(b))
+		time.Sleep(parkDelay)
+		if err := w.Close(); err != nil {
+			t.Errorf("error closing writer: %v", err)
 		}
 	}()
 
-	select {
-	case <-done:
-		// Test succeeded.
-	case <-time.After(time.Second):
-		t.Error("timed out waiting for read")
-		// Close the reader to force the read to complete.
-		r.Close()
+	rbuf := bufio.NewReader(r)
+	for i := 0; i < 3; i++ {
+		write <- i
+		b, err := rbuf.ReadBytes('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("%s\n", bytes.TrimSpace(b))
+	}
+
+	close(write)
+	b, err := rbuf.ReadBytes('\n')
+	if err != io.EOF || len(b) != 0 {
+		t.Errorf(`ReadBytes: %q, %v; want "", io.EOF`, b, err)
 	}
 }
 
 // Issue 24481.
 func TestFdRace(t *testing.T) {
+	// This test starts 100 simultaneous goroutines, which could bury a more
+	// interesting stack if this or some other test happens to panic. It is also
+	// nearly instantaneous, so any latency benefit from running it in parallel
+	// would be minimal.
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -422,12 +442,14 @@ func TestFdReadRace(t *testing.T) {
 	defer r.Close()
 	defer w.Close()
 
-	c := make(chan bool)
+	const count = 10
+
+	c := make(chan bool, 1)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		var buf [10]byte
+		var buf [count]byte
 		r.SetReadDeadline(time.Now().Add(time.Minute))
 		c <- true
 		if _, err := r.Read(buf[:]); os.IsTimeout(err) {
@@ -446,8 +468,9 @@ func TestFdReadRace(t *testing.T) {
 		r.Fd()
 
 		// The bug was that Fd would hang until Read timed out.
-		// If the bug is fixed, then closing r here will cause
-		// the Read to exit before the timeout expires.
+		// If the bug is fixed, then writing to w and closing r here
+		// will cause the Read to exit before the timeout expires.
+		w.Write(make([]byte, count))
 		r.Close()
 	}()
 

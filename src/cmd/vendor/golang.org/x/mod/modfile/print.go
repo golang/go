@@ -16,7 +16,13 @@ import (
 func Format(f *FileSyntax) []byte {
 	pr := &printer{}
 	pr.file(f)
-	return pr.Bytes()
+
+	// remove trailing blank lines
+	b := pr.Bytes()
+	for len(b) > 0 && b[len(b)-1] == '\n' && (len(b) == 1 || b[len(b)-2] == '\n') {
+		b = b[:len(b)-1]
+	}
+	return b
 }
 
 // A printer collects the state during printing of a file or expression.
@@ -27,7 +33,7 @@ type printer struct {
 }
 
 // printf prints to the buffer.
-func (p *printer) printf(format string, args ...interface{}) {
+func (p *printer) printf(format string, args ...any) {
 	fmt.Fprintf(p, format, args...)
 }
 
@@ -59,7 +65,11 @@ func (p *printer) newline() {
 	}
 
 	p.trim()
-	p.printf("\n")
+	if b := p.Bytes(); len(b) == 0 || (len(b) >= 2 && b[len(b)-1] == '\n' && b[len(b)-2] == '\n') {
+		// skip the blank line at top of file or after a blank line
+	} else {
+		p.printf("\n")
+	}
 	for i := 0; i < p.margin; i++ {
 		p.printf("\t")
 	}
@@ -138,16 +148,11 @@ func (p *printer) expr(x Expr) {
 		p.printf(")")
 
 	case *Line:
-		sep := ""
-		for _, tok := range x.Token {
-			p.printf("%s%s", sep, tok)
-			sep = " "
-		}
+		p.tokens(x.Token)
 
 	case *LineBlock:
-		for _, tok := range x.Token {
-			p.printf("%s ", tok)
-		}
+		p.tokens(x.Token)
+		p.printf(" ")
 		p.expr(&x.LParen)
 		p.margin++
 		for _, l := range x.Line {
@@ -162,4 +167,18 @@ func (p *printer) expr(x Expr) {
 	// Queue end-of-line comments for printing when we
 	// reach the end of the line.
 	p.comment = append(p.comment, x.Comment().Suffix...)
+}
+
+func (p *printer) tokens(tokens []string) {
+	sep := ""
+	for _, t := range tokens {
+		if t == "," || t == ")" || t == "]" || t == "}" {
+			sep = ""
+		}
+		p.printf("%s%s", sep, t)
+		sep = " "
+		if t == "(" || t == "[" || t == "{" {
+			sep = ""
+		}
+	}
 }

@@ -1,5 +1,5 @@
 // Inferno's libkern/vlrt-arm.c
-// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/vlrt-arm.c
+// https://bitbucket.org/inferno-os/inferno-os/src/master/libkern/vlrt-arm.c
 //
 //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
@@ -23,7 +23,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// +build arm 386 mips mipsle
+//go:build arm || 386 || mips || mipsle
 
 package runtime
 
@@ -56,6 +56,36 @@ func uint64tofloat64(y uint64) float64 {
 	lo := float64(uint32(y))
 	d := hi*(1<<32) + lo
 	return d
+}
+
+func int64tofloat32(y int64) float32 {
+	if y < 0 {
+		return -uint64tofloat32(-uint64(y))
+	}
+	return uint64tofloat32(uint64(y))
+}
+
+func uint64tofloat32(y uint64) float32 {
+	// divide into top 18, mid 23, and bottom 23 bits.
+	// (23-bit integers fit into a float32 without loss.)
+	top := uint32(y >> 46)
+	mid := uint32(y >> 23 & (1<<23 - 1))
+	bot := uint32(y & (1<<23 - 1))
+	if top == 0 {
+		return float32(mid)*(1<<23) + float32(bot)
+	}
+	if bot != 0 {
+		// Top is not zero, so the bits in bot
+		// won't make it into the final mantissa.
+		// In fact, the bottom bit of mid won't
+		// make it into the mantissa either.
+		// We only need to make sure that if top+mid
+		// is about to round down in a round-to-even
+		// scenario, and bot is not zero, we make it
+		// round up instead.
+		mid |= 1
+	}
+	return float32(top)*(1<<46) + float32(mid)*(1<<23)
 }
 
 func _d2v(y *uint64, d float64) {
@@ -130,9 +160,6 @@ func uint64mod(n, d uint64) uint64 {
 	return r
 }
 
-//go:nosplit
-// nosplit because division is used in syscall context in nanotime on darwin/386
-// and darwin/arm where stack splits are not allowed.
 func int64div(n, d int64) int64 {
 	// Check for 32 bit operands
 	if int64(int32(n)) == n && int64(int32(d)) == d {
@@ -266,16 +293,18 @@ func slowdodiv(n, d uint64) (q, r uint64) {
 	return q, n
 }
 
-// Floating point control word values for GOARCH=386 GO386=387.
+// Floating point control word values.
 // Bits 0-5 are bits to disable floating-point exceptions.
 // Bits 8-9 are the precision control:
-//   0 = single precision a.k.a. float32
-//   2 = double precision a.k.a. float64
+//
+//	0 = single precision a.k.a. float32
+//	2 = double precision a.k.a. float64
+//
 // Bits 10-11 are the rounding mode:
-//   0 = round to nearest (even on a tie)
-//   3 = round toward zero
+//
+//	0 = round to nearest (even on a tie)
+//	3 = round toward zero
 var (
 	controlWord64      uint16 = 0x3f + 2<<8 + 0<<10
-	controlWord32             = 0x3f + 0<<8 + 0<<10
-	controlWord64trunc        = 0x3f + 2<<8 + 3<<10
+	controlWord64trunc uint16 = 0x3f + 2<<8 + 3<<10
 )

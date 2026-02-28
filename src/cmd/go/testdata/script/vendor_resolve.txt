@@ -1,3 +1,4 @@
+env GO111MODULE=off
 ! go build p
 stderr 'must be imported as x'
 

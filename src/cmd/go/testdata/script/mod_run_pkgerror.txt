@@ -1,0 +1,32 @@
+# https://golang.org/issue/39986: files reported as invalid by go/build should
+# be listed in InvalidGoFiles.
+
+go list -e -f '{{.Incomplete}}{{"\n"}}{{.Error}}{{"\n"}}{{.InvalidGoFiles}}{{"\n"}}' .
+stdout '^true\nfound packages m \(m\.go\) and main \(main\.go\) in '$PWD'\n\[main.go\]\n'
+
+
+# https://golang.org/issue/45827: 'go run .' should report the same package
+# errors as 'go build' and 'go list'.
+
+! go build
+stderr '^found packages m \(m\.go\) and main \(main\.go\) in '$PWD'$'
+
+! go list .
+stderr '^found packages m \(m\.go\) and main \(main\.go\) in '$PWD'$'
+
+! go run .
+! stderr 'no packages loaded'
+stderr '^found packages m \(m\.go\) and main \(main\.go\) in '$PWD'$'
+
+! go run ./...
+! stderr 'no packages loaded'
+stderr '^found packages m \(m\.go\) and main \(main\.go\) in '$PWD'$'
+
+-- go.mod --
+module m
+
+go 1.17
+-- m.go --
+package m
+-- main.go --
+package main

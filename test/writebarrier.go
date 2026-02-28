@@ -148,12 +148,12 @@ func f16(x []T8, y T8) []T8 {
 func t1(i interface{}) **int {
 	// From issue 14306, make sure we have write barriers in a type switch
 	// where the assigned variable escapes.
-	switch x := i.(type) { // ERROR "write barrier"
-	case *int:
+	switch x := i.(type) {
+	case *int: // ERROR "write barrier"
 		return &x
 	}
-	switch y := i.(type) { // no write barrier here
-	case **int:
+	switch y := i.(type) {
+	case **int: // no write barrier here
 		return y
 	}
 	return nil
@@ -287,5 +287,19 @@ func f27(p *int) []interface{} {
 		&g26,        // no write barrier: zeroed memory, type ptr & global ptr
 		7,           // no write barrier: zeroed memory, type ptr & global ptr
 		p,           // ERROR "write barrier"
+	}
+}
+
+var g28 [256]uint64
+
+func f28() []interface{} {
+	return []interface{}{
+		false,      // no write barrier
+		true,       // no write barrier
+		0,          // no write barrier
+		1,          // no write barrier
+		uint8(127), // no write barrier
+		int8(-4),   // no write barrier
+		&g28[5],    // no write barrier
 	}
 }

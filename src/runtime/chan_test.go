@@ -226,11 +226,13 @@ func TestNonblockRecvRace(t *testing.T) {
 // This test checks that select acts on the state of the channels at one
 // moment in the execution, not over a smeared time window.
 // In the test, one goroutine does:
+//
 //	create c1, c2
 //	make c1 ready for receiving
 //	create second goroutine
 //	make c2 ready for receiving
 //	make c1 no longer ready for receiving (if possible)
+//
 // The second goroutine does a non-blocking select receiving from c1 and c2.
 // From the time the second goroutine is created, at least one of c1 and c2
 // is always ready for receiving, so the select in the second goroutine must
@@ -307,7 +309,6 @@ func TestSelfSelect(t *testing.T) {
 		wg.Add(2)
 		c := make(chan int, chanCap)
 		for p := 0; p < 2; p++ {
-			p := p
 			go func() {
 				defer wg.Done()
 				for i := 0; i < 1000; i++ {
@@ -357,7 +358,6 @@ func TestSelectStress(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(10)
 	for k := 0; k < 4; k++ {
-		k := k
 		go func() {
 			for i := 0; i < N; i++ {
 				c[k] <- 0
@@ -479,12 +479,13 @@ func TestSelectFairness(t *testing.T) {
 	}
 	// If the select in the goroutine is fair,
 	// cnt1 and cnt2 should be about the same value.
-	// With 10,000 trials, the expected margin of error at
-	// a confidence level of six nines is 4.891676 / (2 * Sqrt(10000)).
-	r := float64(cnt1) / trials
-	e := math.Abs(r - 0.5)
-	t.Log(cnt1, cnt2, r, e)
-	if e > 4.891676/(2*math.Sqrt(trials)) {
+	// See if we're more than 10 sigma away from the expected value.
+	// 10 sigma is a lot, but we're ok with some systematic bias as
+	// long as it isn't too severe.
+	const mean = trials * 0.5
+	const variance = trials * 0.5 * (1 - 0.5)
+	stddev := math.Sqrt(variance)
+	if math.Abs(float64(cnt1-mean)) > 10*stddev {
 		t.Errorf("unfair select: in %d trials, results were %d, %d", trials, cnt1, cnt2)
 	}
 	close(done)
@@ -494,7 +495,7 @@ func TestSelectFairness(t *testing.T) {
 func TestChanSendInterface(t *testing.T) {
 	type mt struct{}
 	m := &mt{}
-	c := make(chan interface{}, 1)
+	c := make(chan any, 1)
 	c <- m
 	select {
 	case c <- m:
@@ -623,6 +624,69 @@ func TestShrinkStackDuringBlockedSend(t *testing.T) {
 	<-done
 }
 
+func TestNoShrinkStackWhileParking(t *testing.T) {
+	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm64" {
+		testenv.SkipFlaky(t, 49382)
+	}
+	if runtime.GOOS == "openbsd" {
+		testenv.SkipFlaky(t, 51482)
+	}
+
+	// The goal of this test is to trigger a "racy sudog adjustment"
+	// throw. Basically, there's a window between when a goroutine
+	// becomes available for preemption for stack scanning (and thus,
+	// stack shrinking) but before the goroutine has fully parked on a
+	// channel. See issue 40641 for more details on the problem.
+	//
+	// The way we try to induce this failure is to set up two
+	// goroutines: a sender and a receiver that communicate across
+	// a channel. We try to set up a situation where the sender
+	// grows its stack temporarily then *fully* blocks on a channel
+	// often. Meanwhile a GC is triggered so that we try to get a
+	// mark worker to shrink the sender's stack and race with the
+	// sender parking.
+	//
+	// Unfortunately the race window here is so small that we
+	// either need a ridiculous number of iterations, or we add
+	// "usleep(1000)" to park_m, just before the unlockf call.
+	const n = 10
+	send := func(c chan<- int, done chan struct{}) {
+		for i := 0; i < n; i++ {
+			c <- i
+			// Use lots of stack briefly so that
+			// the GC is going to want to shrink us
+			// when it scans us. Make sure not to
+			// do any function calls otherwise
+			// in order to avoid us shrinking ourselves
+			// when we're preempted.
+			stackGrowthRecursive(20)
+		}
+		done <- struct{}{}
+	}
+	recv := func(c <-chan int, done chan struct{}) {
+		for i := 0; i < n; i++ {
+			// Sleep here so that the sender always
+			// fully blocks.
+			time.Sleep(10 * time.Microsecond)
+			<-c
+		}
+		done <- struct{}{}
+	}
+	for i := 0; i < n*20; i++ {
+		c := make(chan int)
+		done := make(chan struct{})
+		go recv(c, done)
+		go send(c, done)
+		// Wait a little bit before triggering
+		// the GC to make sure the sender and
+		// receiver have gotten into their groove.
+		time.Sleep(50 * time.Microsecond)
+		runtime.GC()
+		<-done
+		<-done
+	}
+}
+
 func TestSelectDuplicateChannel(t *testing.T) {
 	// This test makes sure we can queue a G on
 	// the same channel multiple times.
@@ -651,8 +715,6 @@ func TestSelectDuplicateChannel(t *testing.T) {
 	<-e    // A tells us it's done
 	c <- 8 // wake up B.  This operation used to fail because c.recvq was corrupted (it tries to wake up an already running G instead of B)
 }
-
-var selectSink interface{}
 
 func TestSelectStackAdjust(t *testing.T) {
 	// Test that channel receive slots that contain local stack
@@ -710,20 +772,8 @@ func TestSelectStackAdjust(t *testing.T) {
 	<-ready2
 	time.Sleep(10 * time.Millisecond)
 
-	// Force concurrent GC a few times.
-	var before, after runtime.MemStats
-	runtime.ReadMemStats(&before)
-	for i := 0; i < 100; i++ {
-		selectSink = new([1 << 20]byte)
-		runtime.ReadMemStats(&after)
-		if after.NumGC-before.NumGC >= 2 {
-			goto done
-		}
-		runtime.Gosched()
-	}
-	t.Fatal("failed to trigger concurrent GC")
-done:
-	selectSink = nil
+	// Force concurrent GC to shrink the stacks.
+	runtime.GC()
 
 	// Wake selects.
 	close(d)
@@ -1076,6 +1126,19 @@ func BenchmarkSelectProdCons(b *testing.B) {
 	for p := 0; p < procs; p++ {
 		<-c
 		<-c
+	}
+}
+
+func BenchmarkReceiveDataFromClosedChan(b *testing.B) {
+	count := b.N
+	ch := make(chan struct{}, count)
+	for i := 0; i < count; i++ {
+		ch <- struct{}{}
+	}
+	close(ch)
+
+	b.ResetTimer()
+	for range ch {
 	}
 }
 

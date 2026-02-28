@@ -9,39 +9,29 @@ package dwarf
 
 import (
 	"bytes"
-	"cmd/internal/objabi"
+	"cmd/internal/src"
+	"cmp"
 	"errors"
 	"fmt"
+	"internal/buildcfg"
 	"os/exec"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
 
-// TODO(go115newobj): clean up. Some constant prefixes here are no longer
-// needed in the new object files.
-
 // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
-const InfoPrefix = "go.info."
-
-// RangePrefix is the prefix for all the symbols containing DWARF location lists.
-const LocPrefix = "go.loc."
-
-// RangePrefix is the prefix for all the symbols containing DWARF range lists.
-const RangePrefix = "go.range."
-
-// DebugLinesPrefix is the prefix for all the symbols containing DWARF debug_line information from the compiler.
-const DebugLinesPrefix = "go.debuglines."
+const InfoPrefix = "go:info."
 
 // ConstInfoPrefix is the prefix for all symbols containing DWARF info
 // entries that contain constants.
-const ConstInfoPrefix = "go.constinfo."
+const ConstInfoPrefix = "go:constinfo."
 
 // CUInfoPrefix is the prefix for symbols containing information to
 // populate the DWARF compilation unit info entries.
-const CUInfoPrefix = "go.cuinfo."
+const CUInfoPrefix = "go:cuinfo."
 
-// Used to form the symbol name assigned to the DWARF 'abstract subprogram"
+// Used to form the symbol name assigned to the DWARF "abstract subprogram"
 // info entry for a function
 const AbstractFuncSuffix = "$abstract"
 
@@ -50,16 +40,16 @@ const AbstractFuncSuffix = "$abstract"
 var logDwarf bool
 
 // Sym represents a symbol.
-type Sym interface {
-	Length(dwarfContext interface{}) int64
-}
+type Sym any
 
 // A Var represents a local variable or a function parameter.
 type Var struct {
 	Name          string
-	Abbrev        int // Either DW_ABRV_AUTO[_LOCLIST] or DW_ABRV_PARAM[_LOCLIST]
+	Tag           int // Either DW_TAG_variable or DW_TAG_formal_parameter
+	WithLoclist   bool
 	IsReturnValue bool
 	IsInlFormal   bool
+	DictIndex     uint16 // index of the dictionary entry describing the type of this variable
 	StackOffset   int32
 	// This package can't use the ssa package, so it can't mention ssa.FuncDebug,
 	// so indirect through a closure.
@@ -72,6 +62,7 @@ type Var struct {
 	InlIndex        int32 // subtract 1 to form real index into InlTree
 	ChildIndex      int32 // child DIE index in abstract function
 	IsInAbstract    bool  // variable exists in abstract function
+	ClosureOffset   int64 // if non-zero this is the offset of this variable in the closure struct
 }
 
 // A Scope represents a lexical scope. All variables declared within a
@@ -95,44 +86,45 @@ type Range struct {
 // creating the DWARF subprogram DIE(s) for a function.
 type FnState struct {
 	Name          string
-	Importpath    string
 	Info          Sym
-	Filesym       Sym
 	Loc           Sym
 	Ranges        Sym
 	Absfn         Sym
 	StartPC       Sym
+	StartPos      src.Pos
 	Size          int64
 	External      bool
 	Scopes        []Scope
 	InlCalls      InlCalls
 	UseBASEntries bool
+
+	dictIndexToOffset []int64
 }
 
 func EnableLogging(doit bool) {
 	logDwarf = doit
 }
 
-// UnifyRanges merges the list of ranges of c into the list of ranges of s
-func (s *Scope) UnifyRanges(c *Scope) {
-	out := make([]Range, 0, len(s.Ranges)+len(c.Ranges))
-
+// MergeRanges creates a new range list by merging the ranges from
+// its two arguments, then returns the new list.
+func MergeRanges(in1, in2 []Range) []Range {
+	out := make([]Range, 0, len(in1)+len(in2))
 	i, j := 0, 0
 	for {
 		var cur Range
-		if i < len(s.Ranges) && j < len(c.Ranges) {
-			if s.Ranges[i].Start < c.Ranges[j].Start {
-				cur = s.Ranges[i]
+		if i < len(in2) && j < len(in1) {
+			if in2[i].Start < in1[j].Start {
+				cur = in2[i]
 				i++
 			} else {
-				cur = c.Ranges[j]
+				cur = in1[j]
 				j++
 			}
-		} else if i < len(s.Ranges) {
-			cur = s.Ranges[i]
+		} else if i < len(in2) {
+			cur = in2[i]
 			i++
-		} else if j < len(c.Ranges) {
-			cur = c.Ranges[j]
+		} else if j < len(in1) {
+			cur = in1[j]
 			j++
 		} else {
 			break
@@ -145,7 +137,12 @@ func (s *Scope) UnifyRanges(c *Scope) {
 		}
 	}
 
-	s.Ranges = out
+	return out
+}
+
+// UnifyRanges merges the ranges from 'c' into the list of ranges for 's'.
+func (s *Scope) UnifyRanges(c *Scope) {
+	s.Ranges = MergeRanges(s.Ranges, c.Ranges)
 }
 
 // AppendRange adds r to s, if r is non-empty.
@@ -170,11 +167,8 @@ type InlCall struct {
 	// index into ctx.InlTree describing the call inlined here
 	InlIndex int
 
-	// Symbol of file containing inlined call site (really *obj.LSym).
-	CallFile Sym
-
-	// Line number of inlined call site.
-	CallLine uint32
+	// Position of the inlined call site.
+	CallPos src.Pos
 
 	// Dwarf abstract subroutine symbol (really *obj.LSym).
 	AbsFunSym Sym
@@ -196,18 +190,19 @@ type InlCall struct {
 // A Context specifies how to add data to a Sym.
 type Context interface {
 	PtrSize() int
+	Size(s Sym) int64
 	AddInt(s Sym, size int, i int64)
 	AddBytes(s Sym, b []byte)
-	AddAddress(s Sym, t interface{}, ofs int64)
-	AddCURelativeAddress(s Sym, t interface{}, ofs int64)
-	AddSectionOffset(s Sym, size int, t interface{}, ofs int64)
-	AddDWARFAddrSectionOffset(s Sym, t interface{}, ofs int64)
+	AddAddress(s Sym, t any, ofs int64)
+	AddCURelativeAddress(s Sym, t any, ofs int64)
+	AddSectionOffset(s Sym, size int, t any, ofs int64)
+	AddDWARFAddrSectionOffset(s Sym, t any, ofs int64)
+	AddIndirectTextRef(s Sym, t any)
 	CurrentOffset(s Sym) int64
 	RecordDclReference(from Sym, to Sym, dclIdx int, inlIndex int)
 	RecordChildDieOffsets(s Sym, vars []*Var, offsets []int32)
 	AddString(s Sym, v string)
-	AddFileRef(s Sym, f interface{})
-	Logf(format string, args ...interface{})
+	Logf(format string, args ...any)
 }
 
 // AppendUleb128 appends v to b using DWARF's unsigned LEB128 encoding.
@@ -319,39 +314,32 @@ const (
 	DW_AT_go_embedded_field = 0x2903
 	DW_AT_go_runtime_type   = 0x2904
 
-	DW_AT_go_package_name = 0x2905 // Attribute for DW_TAG_compile_unit
+	DW_AT_go_package_name   = 0x2905 // Attribute for DW_TAG_compile_unit
+	DW_AT_go_dict_index     = 0x2906 // Attribute for DW_TAG_typedef_type, index of the dictionary entry describing the real type of this type shape
+	DW_AT_go_closure_offset = 0x2907 // Attribute for DW_TAG_variable, offset in the closure struct where this captured variable resides
 
 	DW_AT_internal_location = 253 // params and locals; not emitted
 )
 
 // Index into the abbrevs table below.
-// Keep in sync with ispubname() and ispubtype() in ld/dwarf.go.
-// ispubtype considers >= NULLTYPE public
 const (
 	DW_ABRV_NULL = iota
 	DW_ABRV_COMPUNIT
 	DW_ABRV_COMPUNIT_TEXTLESS
 	DW_ABRV_FUNCTION
+	DW_ABRV_WRAPPER
 	DW_ABRV_FUNCTION_ABSTRACT
 	DW_ABRV_FUNCTION_CONCRETE
+	DW_ABRV_WRAPPER_CONCRETE
 	DW_ABRV_INLINED_SUBROUTINE
 	DW_ABRV_INLINED_SUBROUTINE_RANGES
 	DW_ABRV_VARIABLE
 	DW_ABRV_INT_CONSTANT
-	DW_ABRV_AUTO
-	DW_ABRV_AUTO_LOCLIST
-	DW_ABRV_AUTO_ABSTRACT
-	DW_ABRV_AUTO_CONCRETE
-	DW_ABRV_AUTO_CONCRETE_LOCLIST
-	DW_ABRV_PARAM
-	DW_ABRV_PARAM_LOCLIST
-	DW_ABRV_PARAM_ABSTRACT
-	DW_ABRV_PARAM_CONCRETE
-	DW_ABRV_PARAM_CONCRETE_LOCLIST
 	DW_ABRV_LEXICAL_BLOCK_RANGES
 	DW_ABRV_LEXICAL_BLOCK_SIMPLE
 	DW_ABRV_STRUCTFIELD
 	DW_ABRV_FUNCTYPEPARAM
+	DW_ABRV_FUNCTYPEOUTPARAM
 	DW_ABRV_DOTDOTDOT
 	DW_ABRV_ARRAYRANGE
 	DW_ABRV_NULLTYPE
@@ -367,7 +355,8 @@ const (
 	DW_ABRV_STRINGTYPE
 	DW_ABRV_STRUCTTYPE
 	DW_ABRV_TYPEDECL
-	DW_NABRV
+	DW_ABRV_DICT_INDEX
+	DW_ABRV_PUTVAR_START
 )
 
 type dwAbbrev struct {
@@ -379,34 +368,68 @@ type dwAbbrev struct {
 var abbrevsFinalized bool
 
 // expandPseudoForm takes an input DW_FORM_xxx value and translates it
-// into a platform-appropriate concrete form. Existing concrete/real
-// DW_FORM values are left untouched. For the moment the only
-// pseudo-form is DW_FORM_udata_pseudo, which gets expanded to
-// DW_FORM_data4 on Darwin and DW_FORM_udata everywhere else. See
-// issue #31459 for more context.
+// into a version- and platform-appropriate concrete form. Existing
+// concrete/real DW_FORM values are left untouched. For the moment the
+// only platform-specific pseudo-form is DW_FORM_udata_pseudo, which
+// gets expanded to DW_FORM_data4 on Darwin and DW_FORM_udata
+// everywhere else. See issue #31459 for more context. Then we have a
+// pair of pseudo-forms for lo and hi PC attributes, which are
+// expanded differently depending on whether we're generating DWARF
+// version 4 or 5.
 func expandPseudoForm(form uint8) uint8 {
-	// Is this a pseudo-form?
-	if form != DW_FORM_udata_pseudo {
+	switch form {
+	case DW_FORM_udata_pseudo:
+		expandedForm := DW_FORM_udata
+		if buildcfg.GOOS == "darwin" || buildcfg.GOOS == "ios" {
+			expandedForm = DW_FORM_data4
+		}
+		return uint8(expandedForm)
+	case DW_FORM_lo_pc_pseudo:
+		if buildcfg.Experiment.Dwarf5 {
+			return DW_FORM_addrx
+		}
+		return DW_FORM_addr
+	case DW_FORM_hi_pc_pseudo:
+		if buildcfg.Experiment.Dwarf5 {
+			return DW_FORM_udata
+		}
+		return DW_FORM_addr
+	default:
 		return form
 	}
-	expandedForm := DW_FORM_udata
-	if objabi.GOOS == "darwin" {
-		expandedForm = DW_FORM_data4
-	}
-	return uint8(expandedForm)
 }
 
-// Abbrevs() returns the finalized abbrev array for the platform,
+// Abbrevs returns the finalized abbrev array for the platform,
 // expanding any DW_FORM pseudo-ops to real values.
-func Abbrevs() [DW_NABRV]dwAbbrev {
+func Abbrevs() []dwAbbrev {
 	if abbrevsFinalized {
 		return abbrevs
 	}
-	for i := 1; i < DW_NABRV; i++ {
+	abbrevs = append(abbrevs, putvarAbbrevs...)
+	for i := 1; i < len(abbrevs); i++ {
 		for j := 0; j < len(abbrevs[i].attr); j++ {
 			abbrevs[i].attr[j].form = expandPseudoForm(abbrevs[i].attr[j].form)
 		}
 	}
+	if buildcfg.Experiment.Dwarf5 {
+		// Tack on a new DW_AT_addr_base attribute to the compunit DIE,
+		// which will point to the offset in the .debug_addr section
+		// containing entries for this comp unit (this attr gets
+		// fixed up in the linker).
+		for i := 1; i < len(abbrevs); i++ {
+			haveLo := false
+			for j := 0; j < len(abbrevs[i].attr); j++ {
+				if abbrevs[i].attr[j].attr == DW_AT_low_pc {
+					haveLo = true
+				}
+			}
+			if abbrevs[i].tag == DW_TAG_compile_unit && haveLo {
+				abbrevs[i].attr = append(abbrevs[i].attr,
+					dwAttrForm{DW_AT_addr_base, DW_FORM_sec_offset})
+			}
+		}
+	}
+
 	abbrevsFinalized = true
 	return abbrevs
 }
@@ -415,7 +438,7 @@ func Abbrevs() [DW_NABRV]dwAbbrev {
 // by the Abbrevs() function above prior to being consumed, to expand
 // the 'pseudo-form' entries below to real DWARF form values.
 
-var abbrevs = [DW_NABRV]dwAbbrev{
+var abbrevs = []dwAbbrev{
 	/* The mandatory DW_ABRV_NULL entry. */
 	{0, 0, []dwAttrForm{}},
 
@@ -432,6 +455,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_comp_dir, DW_FORM_string},
 			{DW_AT_producer, DW_FORM_string},
 			{DW_AT_go_package_name, DW_FORM_string},
+			// NB: DWARF5 adds DW_AT_addr_base here.
 		},
 	},
 
@@ -454,11 +478,25 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_CHILDREN_yes,
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
-			{DW_AT_low_pc, DW_FORM_addr},
-			{DW_AT_high_pc, DW_FORM_addr},
+			{DW_AT_low_pc, DW_FORM_lo_pc_pseudo},
+			{DW_AT_high_pc, DW_FORM_hi_pc_pseudo},
 			{DW_AT_frame_base, DW_FORM_block1},
 			{DW_AT_decl_file, DW_FORM_data4},
+			{DW_AT_decl_line, DW_FORM_udata},
 			{DW_AT_external, DW_FORM_flag},
+		},
+	},
+
+	/* WRAPPER */
+	{
+		DW_TAG_subprogram,
+		DW_CHILDREN_yes,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_low_pc, DW_FORM_lo_pc_pseudo},
+			{DW_AT_high_pc, DW_FORM_hi_pc_pseudo},
+			{DW_AT_frame_base, DW_FORM_block1},
+			{DW_AT_trampoline, DW_FORM_flag},
 		},
 	},
 
@@ -469,6 +507,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_inline, DW_FORM_data1},
+			{DW_AT_decl_line, DW_FORM_udata},
 			{DW_AT_external, DW_FORM_flag},
 		},
 	},
@@ -479,9 +518,22 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_CHILDREN_yes,
 		[]dwAttrForm{
 			{DW_AT_abstract_origin, DW_FORM_ref_addr},
-			{DW_AT_low_pc, DW_FORM_addr},
-			{DW_AT_high_pc, DW_FORM_addr},
+			{DW_AT_low_pc, DW_FORM_lo_pc_pseudo},
+			{DW_AT_high_pc, DW_FORM_hi_pc_pseudo},
 			{DW_AT_frame_base, DW_FORM_block1},
+		},
+	},
+
+	/* WRAPPER_CONCRETE */
+	{
+		DW_TAG_subprogram,
+		DW_CHILDREN_yes,
+		[]dwAttrForm{
+			{DW_AT_abstract_origin, DW_FORM_ref_addr},
+			{DW_AT_low_pc, DW_FORM_lo_pc_pseudo},
+			{DW_AT_high_pc, DW_FORM_hi_pc_pseudo},
+			{DW_AT_frame_base, DW_FORM_block1},
+			{DW_AT_trampoline, DW_FORM_flag},
 		},
 	},
 
@@ -491,8 +543,8 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_CHILDREN_yes,
 		[]dwAttrForm{
 			{DW_AT_abstract_origin, DW_FORM_ref_addr},
-			{DW_AT_low_pc, DW_FORM_addr},
-			{DW_AT_high_pc, DW_FORM_addr},
+			{DW_AT_low_pc, DW_FORM_lo_pc_pseudo},
+			{DW_AT_high_pc, DW_FORM_hi_pc_pseudo},
 			{DW_AT_call_file, DW_FORM_data4},
 			{DW_AT_call_line, DW_FORM_udata_pseudo}, // pseudo-form
 		},
@@ -533,118 +585,6 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		},
 	},
 
-	/* AUTO */
-	{
-		DW_TAG_variable,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_name, DW_FORM_string},
-			{DW_AT_decl_line, DW_FORM_udata},
-			{DW_AT_type, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_block1},
-		},
-	},
-
-	/* AUTO_LOCLIST */
-	{
-		DW_TAG_variable,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_name, DW_FORM_string},
-			{DW_AT_decl_line, DW_FORM_udata},
-			{DW_AT_type, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_sec_offset},
-		},
-	},
-
-	/* AUTO_ABSTRACT */
-	{
-		DW_TAG_variable,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_name, DW_FORM_string},
-			{DW_AT_decl_line, DW_FORM_udata},
-			{DW_AT_type, DW_FORM_ref_addr},
-		},
-	},
-
-	/* AUTO_CONCRETE */
-	{
-		DW_TAG_variable,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_abstract_origin, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_block1},
-		},
-	},
-
-	/* AUTO_CONCRETE_LOCLIST */
-	{
-		DW_TAG_variable,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_abstract_origin, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_sec_offset},
-		},
-	},
-
-	/* PARAM */
-	{
-		DW_TAG_formal_parameter,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_name, DW_FORM_string},
-			{DW_AT_variable_parameter, DW_FORM_flag},
-			{DW_AT_decl_line, DW_FORM_udata},
-			{DW_AT_type, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_block1},
-		},
-	},
-
-	/* PARAM_LOCLIST */
-	{
-		DW_TAG_formal_parameter,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_name, DW_FORM_string},
-			{DW_AT_variable_parameter, DW_FORM_flag},
-			{DW_AT_decl_line, DW_FORM_udata},
-			{DW_AT_type, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_sec_offset},
-		},
-	},
-
-	/* PARAM_ABSTRACT */
-	{
-		DW_TAG_formal_parameter,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_name, DW_FORM_string},
-			{DW_AT_variable_parameter, DW_FORM_flag},
-			{DW_AT_type, DW_FORM_ref_addr},
-		},
-	},
-
-	/* PARAM_CONCRETE */
-	{
-		DW_TAG_formal_parameter,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_abstract_origin, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_block1},
-		},
-	},
-
-	/* PARAM_CONCRETE_LOCLIST */
-	{
-		DW_TAG_formal_parameter,
-		DW_CHILDREN_no,
-		[]dwAttrForm{
-			{DW_AT_abstract_origin, DW_FORM_ref_addr},
-			{DW_AT_location, DW_FORM_sec_offset},
-		},
-	},
-
 	/* LEXICAL_BLOCK_RANGES */
 	{
 		DW_TAG_lexical_block,
@@ -659,6 +599,8 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_TAG_lexical_block,
 		DW_CHILDREN_yes,
 		[]dwAttrForm{
+			// Note: unused if we are generating DWARF 5, we
+			// use the ranges form even if there is a singleton range.
 			{DW_AT_low_pc, DW_FORM_addr},
 			{DW_AT_high_pc, DW_FORM_addr},
 		},
@@ -668,6 +610,8 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 	{
 		DW_TAG_member,
 		DW_CHILDREN_no,
+		// This abbrev is special-cased by the linker (unlike other DIEs
+		// we don't want a loader.Sym created for this DIE).
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_data_member_location, DW_FORM_udata},
@@ -682,7 +626,23 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_CHILDREN_no,
 
 		// No name!
+		// This abbrev is special-cased by the linker (unlike other DIEs
+		// we don't want a loader.Sym created for this DIE).
 		[]dwAttrForm{
+			{DW_AT_type, DW_FORM_ref_addr},
+		},
+	},
+
+	/* FUNCTYPEOUTPARAM */
+	{
+		DW_TAG_formal_parameter,
+		DW_CHILDREN_no,
+
+		// No name!
+		// This abbrev is special-cased by the linker (unlike other DIEs
+		// we don't want a loader.Sym created for this DIE).
+		[]dwAttrForm{
+			{DW_AT_variable_parameter, DW_FORM_flag},
 			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
@@ -691,6 +651,9 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 	{
 		DW_TAG_unspecified_parameters,
 		DW_CHILDREN_no,
+		// No name.
+		// This abbrev is special-cased by the linker (unlike other DIEs
+		// we don't want a loader.Sym created for this DIE).
 		[]dwAttrForm{},
 	},
 
@@ -700,6 +663,8 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_CHILDREN_no,
 
 		// No name!
+		// This abbrev is special-cased by the linker (unlike other DIEs
+		// we don't want a loader.Sym created for this DIE).
 		[]dwAttrForm{
 			{DW_AT_type, DW_FORM_ref_addr},
 			{DW_AT_count, DW_FORM_udata},
@@ -812,6 +777,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		DW_CHILDREN_no,
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
+			{DW_AT_go_runtime_type, DW_FORM_addr},
 		},
 	},
 
@@ -861,13 +827,24 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
+
+	/* DICT_INDEX */
+	{
+		DW_TAG_typedef,
+		DW_CHILDREN_no,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_go_dict_index, DW_FORM_udata},
+		},
+	},
 }
 
 // GetAbbrev returns the contents of the .debug_abbrev section.
 func GetAbbrev() []byte {
 	abbrevs := Abbrevs()
 	var buf []byte
-	for i := 1; i < DW_NABRV; i++ {
+	for i := 1; i < len(abbrevs); i++ {
 		// See section 7.5.3
 		buf = AppendUleb128(buf, uint64(i))
 		buf = AppendUleb128(buf, uint64(abbrevs[i].tag))
@@ -896,7 +873,7 @@ type DWAttr struct {
 	Atr   uint16 // DW_AT_
 	Cls   uint8  // DW_CLS_
 	Value int64
-	Data  interface{}
+	Data  any
 }
 
 // DWDie represents a DWARF debug info entry.
@@ -908,7 +885,7 @@ type DWDie struct {
 	Sym    Sym
 }
 
-func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, data interface{}) error {
+func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, data any) error {
 	switch form {
 	case DW_FORM_addr: // address
 		// Allow nil addresses for DW_AT_go_runtime_type.
@@ -1002,6 +979,9 @@ func putattr(ctxt Context, s Sym, abbrev int, form int, cls int, value int64, da
 		}
 		ctxt.AddDWARFAddrSectionOffset(s, data, value)
 
+	case DW_FORM_addrx: // index into .debug_addr section
+		ctxt.AddIndirectTextRef(s, data)
+
 	case DW_FORM_ref1, // reference within the compilation unit
 		DW_FORM_ref2,      // reference
 		DW_FORM_ref4,      // reference
@@ -1050,6 +1030,15 @@ func PutIntConst(ctxt Context, info, typ Sym, name string, val int64) {
 	putattr(ctxt, info, DW_ABRV_INT_CONSTANT, DW_FORM_sdata, DW_CLS_CONSTANT, val, nil)
 }
 
+// PutGlobal writes a DIE for a global variable.
+func PutGlobal(ctxt Context, info, typ, gvar Sym, name string) {
+	Uleb128put(ctxt, info, DW_ABRV_VARIABLE)
+	putattr(ctxt, info, DW_ABRV_VARIABLE, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
+	putattr(ctxt, info, DW_ABRV_VARIABLE, DW_FORM_block1, DW_CLS_ADDRESS, 0, gvar)
+	putattr(ctxt, info, DW_ABRV_VARIABLE, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, typ)
+	putattr(ctxt, info, DW_ABRV_VARIABLE, DW_FORM_flag, DW_CLS_FLAG, 1, nil)
+}
+
 // PutBasedRanges writes a range table to sym. All addresses in ranges are
 // relative to some base address, which must be arranged by the caller
 // (e.g., with a DW_AT_low_pc attribute, or in a BASE-prefixed range).
@@ -1065,11 +1054,40 @@ func PutBasedRanges(ctxt Context, sym Sym, ranges []Range) {
 	ctxt.AddInt(sym, ps, 0)
 }
 
+// PutRngListRanges writes a DWARF5-style set of rangelist entries to sym,
+// using base as a starting/base address.
+func PutRngListRanges(ctxt Context, sym Sym, base Sym, ranges []Range) {
+	addULEB128 := func(v int64) {
+		b := sevenBitU(v)
+		if b == nil {
+			var encbuf [20]byte
+			b = AppendUleb128(encbuf[:0], uint64(v))
+		}
+		ctxt.AddBytes(sym, b)
+	}
+	// First entry is base address.
+	ctxt.AddInt(sym, 1, DW_RLE_base_addressx)
+	ctxt.AddIndirectTextRef(sym, base)
+	// Remaining entries are .debug_rnglist offset pairs
+	for _, r := range ranges {
+		ctxt.AddInt(sym, 1, DW_RLE_offset_pair)
+		addULEB128(r.Start)
+		addULEB128(r.End)
+	}
+	// Terminator to mark end of list
+	ctxt.AddInt(sym, 1, DW_RLE_end_of_list)
+}
+
 // PutRanges writes a range table to s.Ranges.
 // All addresses in ranges are relative to s.base.
 func (s *FnState) PutRanges(ctxt Context, ranges []Range) {
 	ps := ctxt.PtrSize()
 	sym, base := s.Ranges, s.StartPC
+
+	if buildcfg.Experiment.Dwarf5 {
+		PutRngListRanges(ctxt, sym, base, ranges)
+		return
+	}
 
 	if s.UseBASEntries {
 		// Using a Base Address Selection Entry reduces the number of relocations, but
@@ -1113,8 +1131,8 @@ func isEmptyInlinedCall(slot int, calls *InlCalls) bool {
 	return !live
 }
 
-// Slot -1:    return top-level inlines
-// Slot >= 0:  return children of that slot
+// Slot -1:    return top-level inlines.
+// Slot >= 0:  return children of that slot.
 func inlChildren(slot int, calls *InlCalls) []int {
 	var kids []int
 	if slot != -1 {
@@ -1163,9 +1181,12 @@ func putPrunedScopes(ctxt Context, s *FnState, fnabbrev int) error {
 				pruned.Vars = append(pruned.Vars, s.Vars[i])
 			}
 		}
-		sort.Sort(byChildIndex(pruned.Vars))
+		slices.SortFunc(pruned.Vars, byChildIndexCmp)
 		scopes[k] = pruned
 	}
+
+	s.dictIndexToOffset = putparamtypes(ctxt, s, scopes, fnabbrev)
+
 	var encbuf [20]byte
 	if putscope(ctxt, s, scopes, 0, fnabbrev, encbuf[:0]) < int32(len(scopes)) {
 		return errors.New("multiple toplevel scopes")
@@ -1181,7 +1202,6 @@ func putPrunedScopes(ctxt Context, s *FnState, fnabbrev int) error {
 // DIE (as a space-saving measure, so that name/type etc doesn't have
 // to be repeated for each inlined copy).
 func PutAbstractFunc(ctxt Context, s *FnState) error {
-
 	if logDwarf {
 		ctxt.Logf("PutAbstractFunc(%v)\n", s.Absfn)
 	}
@@ -1190,20 +1210,16 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
 	Uleb128put(ctxt, s.Absfn, int64(abbrev))
 
 	fullname := s.Name
-	if strings.HasPrefix(s.Name, "\"\".") {
-		// Generate a fully qualified name for the function in the
-		// abstract case. This is so as to avoid the need for the
-		// linker to process the DIE with patchDWARFName(); we can't
-		// allow the name attribute of an abstract subprogram DIE to
-		// be rewritten, since it would change the offsets of the
-		// child DIEs (which we're relying on in order for abstract
-		// origin references to work).
-		fullname = objabi.PathToPrefix(s.Importpath) + "." + s.Name[3:]
+	if strings.HasPrefix(s.Name, `"".`) {
+		return fmt.Errorf("unqualified symbol name: %v", s.Name)
 	}
 	putattr(ctxt, s.Absfn, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(fullname)), fullname)
 
 	// DW_AT_inlined value
 	putattr(ctxt, s.Absfn, abbrev, DW_FORM_data1, DW_CLS_CONSTANT, int64(DW_INL_inlined), nil)
+
+	// TODO(mdempsky): Shouldn't we write out StartPos.FileIndex() too?
+	putattr(ctxt, s.Absfn, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartPos.RelLine()), nil)
 
 	var ev int64
 	if s.External {
@@ -1234,7 +1250,7 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
 			}
 		}
 		if len(flattened) > 0 {
-			sort.Sort(byChildIndex(flattened))
+			slices.SortFunc(flattened, byChildIndexCmp)
 
 			if logDwarf {
 				ctxt.Logf("putAbstractScope(%v): vars:", s.Info)
@@ -1259,46 +1275,54 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
 	return nil
 }
 
+// dwarfFileIndex returns the DWARF file index value for the file associated
+// with pos.
+func dwarfFileIndex(pos src.Pos) int64 {
+	return int64(1 + pos.FileIndex())
+}
+
 // Emit DWARF attributes and child DIEs for an inlined subroutine. The
 // first attribute of an inlined subroutine DIE is a reference back to
 // its corresponding 'abstract' DIE (containing location-independent
 // attributes such as name, type, etc). Inlined subroutine DIEs can
 // have other inlined subroutine DIEs as children.
-func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error {
+func putInlinedFunc(ctxt Context, s *FnState, callIdx int) error {
 	ic := s.InlCalls.Calls[callIdx]
 	callee := ic.AbsFunSym
 
+	// For DWARF 5, we always use the ranges form of the abbrev, since
+	// it is more compact than using explicit hi/lo PC attrs.  See
+	// issue #72821 for more on why this makes sense.
 	abbrev := DW_ABRV_INLINED_SUBROUTINE_RANGES
-	if len(ic.Ranges) == 1 {
+	if len(ic.Ranges) == 1 && !buildcfg.Experiment.Dwarf5 {
 		abbrev = DW_ABRV_INLINED_SUBROUTINE
 	}
 	Uleb128put(ctxt, s.Info, int64(abbrev))
 
 	if logDwarf {
-		ctxt.Logf("PutInlinedFunc(caller=%v,callee=%v,abbrev=%d)\n", callersym, callee, abbrev)
+		ctxt.Logf("putInlinedFunc(callee=%v,abbrev=%d)\n", callee, abbrev)
 	}
 
 	// Abstract origin.
 	putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, callee)
 
 	if abbrev == DW_ABRV_INLINED_SUBROUTINE_RANGES {
-		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, s.Ranges.Length(ctxt), s.Ranges)
+		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, ctxt.Size(s.Ranges), s.Ranges)
 		s.PutRanges(ctxt, ic.Ranges)
 	} else {
 		st := ic.Ranges[0].Start
 		en := ic.Ranges[0].End
-		putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, st, s.StartPC)
-		putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, en, s.StartPC)
+		emitHiLoPc(ctxt, abbrev, s, st, en)
 	}
 
 	// Emit call file, line attrs.
-	ctxt.AddFileRef(s.Info, ic.CallFile)
+	putattr(ctxt, s.Info, abbrev, DW_FORM_data4, DW_CLS_CONSTANT, dwarfFileIndex(ic.CallPos), nil)
 	form := int(expandPseudoForm(DW_FORM_udata_pseudo))
-	putattr(ctxt, s.Info, abbrev, form, DW_CLS_CONSTANT, int64(ic.CallLine), nil)
+	putattr(ctxt, s.Info, abbrev, form, DW_CLS_CONSTANT, int64(ic.CallPos.RelLine()), nil)
 
 	// Variables associated with this inlined routine instance.
 	vars := ic.InlVars
-	sort.Sort(byChildIndex(vars))
+	slices.SortFunc(vars, byChildIndexCmp)
 	inlIndex := ic.InlIndex
 	var encbuf [20]byte
 	for _, v := range vars {
@@ -1310,8 +1334,7 @@ func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error 
 
 	// Children of this inline.
 	for _, sib := range inlChildren(callIdx, &s.InlCalls) {
-		absfn := s.InlCalls.Calls[sib].AbsFunSym
-		err := PutInlinedFunc(ctxt, s, absfn, sib)
+		err := putInlinedFunc(ctxt, s, sib)
 		if err != nil {
 			return err
 		}
@@ -1321,6 +1344,16 @@ func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error 
 	return nil
 }
 
+func emitHiLoPc(ctxt Context, abbrev int, fns *FnState, st int64, en int64) {
+	if buildcfg.Experiment.Dwarf5 {
+		putattr(ctxt, fns.Info, abbrev, DW_FORM_addrx, DW_CLS_CONSTANT, st, fns.StartPC)
+		putattr(ctxt, fns.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, en, 0)
+	} else {
+		putattr(ctxt, fns.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, st, fns.StartPC)
+		putattr(ctxt, fns.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, en, fns.StartPC)
+	}
+}
+
 // Emit DWARF attributes and child DIEs for a 'concrete' subprogram,
 // meaning the out-of-line copy of a function that was inlined at some
 // point during the compilation of its containing package. The first
@@ -1328,22 +1361,28 @@ func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error 
 // for the function (which holds location-independent attributes such
 // as name, type), then the remainder of the attributes are specific
 // to this instance (location, frame base, etc).
-func PutConcreteFunc(ctxt Context, s *FnState) error {
+func PutConcreteFunc(ctxt Context, s *FnState, isWrapper bool, fncount int) error {
 	if logDwarf {
 		ctxt.Logf("PutConcreteFunc(%v)\n", s.Info)
 	}
 	abbrev := DW_ABRV_FUNCTION_CONCRETE
+	if isWrapper {
+		abbrev = DW_ABRV_WRAPPER_CONCRETE
+	}
 	Uleb128put(ctxt, s.Info, int64(abbrev))
 
 	// Abstract origin.
 	putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, s.Absfn)
 
 	// Start/end PC.
-	putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, 0, s.StartPC)
-	putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, s.Size, s.StartPC)
+	emitHiLoPc(ctxt, abbrev, s, 0, s.Size)
 
 	// cfa / frame base
 	putattr(ctxt, s.Info, abbrev, DW_FORM_block1, DW_CLS_BLOCK, 1, []byte{DW_OP_call_frame_cfa})
+
+	if isWrapper {
+		putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, int64(1), 0)
+	}
 
 	// Scopes
 	if err := putPrunedScopes(ctxt, s, abbrev); err != nil {
@@ -1352,8 +1391,7 @@ func PutConcreteFunc(ctxt Context, s *FnState) error {
 
 	// Inlined subroutines.
 	for _, sib := range inlChildren(-1, &s.InlCalls) {
-		absfn := s.InlCalls.Calls[sib].AbsFunSym
-		err := PutInlinedFunc(ctxt, s, absfn, sib)
+		err := putInlinedFunc(ctxt, s, sib)
 		if err != nil {
 			return err
 		}
@@ -1368,30 +1406,36 @@ func PutConcreteFunc(ctxt Context, s *FnState) error {
 // when its containing package was compiled (hence there is no need to
 // emit an abstract version for it to use as a base for inlined
 // routine records).
-func PutDefaultFunc(ctxt Context, s *FnState) error {
+func PutDefaultFunc(ctxt Context, s *FnState, isWrapper bool) error {
 	if logDwarf {
 		ctxt.Logf("PutDefaultFunc(%v)\n", s.Info)
 	}
 	abbrev := DW_ABRV_FUNCTION
+	if isWrapper {
+		abbrev = DW_ABRV_WRAPPER
+	}
 	Uleb128put(ctxt, s.Info, int64(abbrev))
 
-	// Expand '"".' to import path.
 	name := s.Name
-	if s.Importpath != "" {
-		name = strings.Replace(name, "\"\".", objabi.PathToPrefix(s.Importpath)+".", -1)
+	if strings.HasPrefix(name, `"".`) {
+		return fmt.Errorf("unqualified symbol name: %v", name)
 	}
 
 	putattr(ctxt, s.Info, DW_ABRV_FUNCTION, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
-	putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, 0, s.StartPC)
-	putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, s.Size, s.StartPC)
+	emitHiLoPc(ctxt, abbrev, s, 0, s.Size)
 	putattr(ctxt, s.Info, abbrev, DW_FORM_block1, DW_CLS_BLOCK, 1, []byte{DW_OP_call_frame_cfa})
-	ctxt.AddFileRef(s.Info, s.Filesym)
+	if isWrapper {
+		putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, int64(1), 0)
+	} else {
+		putattr(ctxt, s.Info, abbrev, DW_FORM_data4, DW_CLS_CONSTANT, dwarfFileIndex(s.StartPos), nil)
+		putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartPos.RelLine()), nil)
 
-	var ev int64
-	if s.External {
-		ev = 1
+		var ev int64
+		if s.External {
+			ev = 1
+		}
+		putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, ev, 0)
 	}
-	putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, ev, 0)
 
 	// Scopes
 	if err := putPrunedScopes(ctxt, s, abbrev); err != nil {
@@ -1400,8 +1444,7 @@ func PutDefaultFunc(ctxt Context, s *FnState) error {
 
 	// Inlined subroutines.
 	for _, sib := range inlChildren(-1, &s.InlCalls) {
-		absfn := s.InlCalls.Calls[sib].AbsFunSym
-		err := PutInlinedFunc(ctxt, s, absfn, sib)
+		err := putInlinedFunc(ctxt, s, sib)
 		if err != nil {
 			return err
 		}
@@ -1409,6 +1452,47 @@ func PutDefaultFunc(ctxt Context, s *FnState) error {
 
 	Uleb128put(ctxt, s.Info, 0)
 	return nil
+}
+
+// putparamtypes writes typedef DIEs for any parametric types that are used by this function.
+func putparamtypes(ctxt Context, s *FnState, scopes []Scope, fnabbrev int) []int64 {
+	if fnabbrev == DW_ABRV_FUNCTION_CONCRETE {
+		return nil
+	}
+
+	maxDictIndex := uint16(0)
+
+	for i := range scopes {
+		for _, v := range scopes[i].Vars {
+			if v.DictIndex > maxDictIndex {
+				maxDictIndex = v.DictIndex
+			}
+		}
+	}
+
+	if maxDictIndex == 0 {
+		return nil
+	}
+
+	dictIndexToOffset := make([]int64, maxDictIndex)
+
+	for i := range scopes {
+		for _, v := range scopes[i].Vars {
+			if v.DictIndex == 0 || dictIndexToOffset[v.DictIndex-1] != 0 {
+				continue
+			}
+
+			dictIndexToOffset[v.DictIndex-1] = ctxt.CurrentOffset(s.Info)
+
+			Uleb128put(ctxt, s.Info, int64(DW_ABRV_DICT_INDEX))
+			n := fmt.Sprintf(".param%d", v.DictIndex-1)
+			putattr(ctxt, s.Info, DW_ABRV_DICT_INDEX, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
+			putattr(ctxt, s.Info, DW_ABRV_DICT_INDEX, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
+			putattr(ctxt, s.Info, DW_ABRV_DICT_INDEX, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DictIndex-1), nil)
+		}
+	}
+
+	return dictIndexToOffset
 }
 
 func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev int, encbuf []byte) int32 {
@@ -1437,13 +1521,16 @@ func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev
 			continue
 		}
 
-		if len(scope.Ranges) == 1 {
+		// For DWARF 5, we always use the ranges form of the abbrev, since
+		// it is more compact than using explicit hi/lo PC attrs.  See
+		// issue #72821 for more on why this makes sense.
+		if len(scope.Ranges) == 1 && !buildcfg.Experiment.Dwarf5 {
 			Uleb128put(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE)
 			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].Start, s.StartPC)
 			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].End, s.StartPC)
 		} else {
 			Uleb128put(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_RANGES)
-			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_RANGES, DW_FORM_sec_offset, DW_CLS_PTR, s.Ranges.Length(ctxt), s.Ranges)
+			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_RANGES, DW_FORM_sec_offset, DW_CLS_PTR, ctxt.Size(s.Ranges), s.Ranges)
 
 			s.PutRanges(ctxt, scope.Ranges)
 		}
@@ -1455,45 +1542,12 @@ func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev
 	return curscope
 }
 
-// Given a default var abbrev code, select corresponding concrete code.
-func concreteVarAbbrev(varAbbrev int) int {
-	switch varAbbrev {
-	case DW_ABRV_AUTO:
-		return DW_ABRV_AUTO_CONCRETE
-	case DW_ABRV_PARAM:
-		return DW_ABRV_PARAM_CONCRETE
-	case DW_ABRV_AUTO_LOCLIST:
-		return DW_ABRV_AUTO_CONCRETE_LOCLIST
-	case DW_ABRV_PARAM_LOCLIST:
-		return DW_ABRV_PARAM_CONCRETE_LOCLIST
-	default:
-		panic("should never happen")
-	}
-}
-
-// Pick the correct abbrev code for variable or parameter DIE.
-func determineVarAbbrev(v *Var, fnabbrev int) (int, bool, bool) {
-	abbrev := v.Abbrev
-
-	// If the variable was entirely optimized out, don't emit a location list;
-	// convert to an inline abbreviation and emit an empty location.
-	missing := false
-	switch {
-	case abbrev == DW_ABRV_AUTO_LOCLIST && v.PutLocationList == nil:
-		missing = true
-		abbrev = DW_ABRV_AUTO
-	case abbrev == DW_ABRV_PARAM_LOCLIST && v.PutLocationList == nil:
-		missing = true
-		abbrev = DW_ABRV_PARAM
-	}
-
-	// Determine whether to use a concrete variable or regular variable DIE.
+func concreteVar(fnabbrev int, v *Var) bool {
 	concrete := true
 	switch fnabbrev {
-	case DW_ABRV_FUNCTION:
+	case DW_ABRV_FUNCTION, DW_ABRV_WRAPPER:
 		concrete = false
-		break
-	case DW_ABRV_FUNCTION_CONCRETE:
+	case DW_ABRV_FUNCTION_CONCRETE, DW_ABRV_WRAPPER_CONCRETE:
 		// If we're emitting a concrete subprogram DIE and the variable
 		// in question is not part of the corresponding abstract function DIE,
 		// then use the default (non-concrete) abbrev for this param.
@@ -1504,64 +1558,44 @@ func determineVarAbbrev(v *Var, fnabbrev int) (int, bool, bool) {
 	default:
 		panic("should never happen")
 	}
-
-	// Select proper abbrev based on concrete/non-concrete
-	if concrete {
-		abbrev = concreteVarAbbrev(abbrev)
-	}
-
-	return abbrev, missing, concrete
-}
-
-func abbrevUsesLoclist(abbrev int) bool {
-	switch abbrev {
-	case DW_ABRV_AUTO_LOCLIST, DW_ABRV_AUTO_CONCRETE_LOCLIST,
-		DW_ABRV_PARAM_LOCLIST, DW_ABRV_PARAM_CONCRETE_LOCLIST:
-		return true
-	default:
-		return false
-	}
+	return concrete
 }
 
 // Emit DWARF attributes for a variable belonging to an 'abstract' subprogram.
 func putAbstractVar(ctxt Context, info Sym, v *Var) {
-	// Remap abbrev
-	abbrev := v.Abbrev
-	switch abbrev {
-	case DW_ABRV_AUTO, DW_ABRV_AUTO_LOCLIST:
-		abbrev = DW_ABRV_AUTO_ABSTRACT
-	case DW_ABRV_PARAM, DW_ABRV_PARAM_LOCLIST:
-		abbrev = DW_ABRV_PARAM_ABSTRACT
-	}
-
+	// The contents of this functions are used to generate putAbstractVarAbbrev automatically, see TestPutVarAbbrevGenerator.
+	abbrev := putAbstractVarAbbrev(v)
 	Uleb128put(ctxt, info, int64(abbrev))
-	putattr(ctxt, info, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(v.Name)), v.Name)
+	putattr(ctxt, info, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(v.Name)), v.Name) // DW_AT_name
 
 	// Isreturn attribute if this is a param
-	if abbrev == DW_ABRV_PARAM_ABSTRACT {
+	if v.Tag == DW_TAG_formal_parameter {
 		var isReturn int64
 		if v.IsReturnValue {
 			isReturn = 1
 		}
-		putattr(ctxt, info, abbrev, DW_FORM_flag, DW_CLS_FLAG, isReturn, nil)
+		putattr(ctxt, info, abbrev, DW_FORM_flag, DW_CLS_FLAG, isReturn, nil) // DW_AT_variable_parameter
 	}
 
 	// Line
-	if abbrev != DW_ABRV_PARAM_ABSTRACT {
+	if v.Tag == DW_TAG_variable {
 		// See issue 23374 for more on why decl line is skipped for abs params.
-		putattr(ctxt, info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
+		putattr(ctxt, info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil) // DW_AT_decl_line
 	}
 
 	// Type
-	putattr(ctxt, info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
+	putattr(ctxt, info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type) // DW_AT_type
 
 	// Var has no children => no terminator
 }
 
 func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int, encbuf []byte) {
-	// Remap abbrev according to parent DIE abbrev
-	abbrev, missing, concrete := determineVarAbbrev(v, fnabbrev)
+	// The contents of this functions are used to generate putvarAbbrev automatically, see TestPutVarAbbrevGenerator.
+	concrete := concreteVar(fnabbrev, v)
+	hasParametricType := !concrete && (v.DictIndex > 0 && s.dictIndexToOffset != nil && s.dictIndexToOffset[v.DictIndex-1] != 0)
+	withLoclist := v.WithLoclist && v.PutLocationList != nil
 
+	abbrev := putvarAbbrev(v, concrete, withLoclist)
 	Uleb128put(ctxt, s.Info, int64(abbrev))
 
 	// Abstract origin for concrete / inlined case
@@ -1570,30 +1604,39 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
 		// function subprogram DIE. The child DIE has no LSym, so instead
 		// after the call to 'putattr' below we make a call to register
 		// the child DIE reference.
-		putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, absfn)
+		putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, absfn) // DW_AT_abstract_origin
 		ctxt.RecordDclReference(s.Info, absfn, int(v.ChildIndex), inlIndex)
 	} else {
 		// Var name, line for abstract and default cases
 		n := v.Name
-		putattr(ctxt, s.Info, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
-		if abbrev == DW_ABRV_PARAM || abbrev == DW_ABRV_PARAM_LOCLIST || abbrev == DW_ABRV_PARAM_ABSTRACT {
+		putattr(ctxt, s.Info, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n) // DW_AT_name
+		if v.Tag == DW_TAG_formal_parameter {
 			var isReturn int64
 			if v.IsReturnValue {
 				isReturn = 1
 			}
-			putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, isReturn, nil)
+			putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, isReturn, nil) // DW_AT_variable_parameter
 		}
-		putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
-		putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
+		putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil) // DW_AT_decl_line
+		if hasParametricType {
+			// If the type of this variable is parametric use the entry emitted by putparamtypes
+			putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, s.dictIndexToOffset[v.DictIndex-1], s.Info) // DW_AT_type
+		} else {
+			putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type) // DW_AT_type
+		}
+
+		if v.ClosureOffset > 0 {
+			putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, v.ClosureOffset, nil) // DW_AT_go_closure_offset
+		}
 	}
 
-	if abbrevUsesLoclist(abbrev) {
-		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, s.Loc.Length(ctxt), s.Loc)
+	if withLoclist {
+		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, ctxt.Size(s.Loc), s.Loc) // DW_AT_location
 		v.PutLocationList(s.Loc, s.StartPC)
 	} else {
 		loc := encbuf[:0]
 		switch {
-		case missing:
+		case v.WithLoclist:
 			break // no location
 		case v.StackOffset == 0:
 			loc = append(loc, DW_OP_call_frame_cfa)
@@ -1601,33 +1644,23 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
 			loc = append(loc, DW_OP_fbreg)
 			loc = AppendSleb128(loc, int64(v.StackOffset))
 		}
-		putattr(ctxt, s.Info, abbrev, DW_FORM_block1, DW_CLS_BLOCK, int64(len(loc)), loc)
+		putattr(ctxt, s.Info, abbrev, DW_FORM_block1, DW_CLS_BLOCK, int64(len(loc)), loc) // DW_AT_location
 	}
 
 	// Var has no children => no terminator
 }
 
-// VarsByOffset attaches the methods of sort.Interface to []*Var,
-// sorting in increasing StackOffset.
-type VarsByOffset []*Var
+// byChildIndexCmp compares two *dwarf.Var by child index.
+func byChildIndexCmp(a, b *Var) int { return cmp.Compare(a.ChildIndex, b.ChildIndex) }
 
-func (s VarsByOffset) Len() int           { return len(s) }
-func (s VarsByOffset) Less(i, j int) bool { return s[i].StackOffset < s[j].StackOffset }
-func (s VarsByOffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-
-// byChildIndex implements sort.Interface for []*dwarf.Var by child index.
-type byChildIndex []*Var
-
-func (s byChildIndex) Len() int           { return len(s) }
-func (s byChildIndex) Less(i, j int) bool { return s[i].ChildIndex < s[j].ChildIndex }
-func (s byChildIndex) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-
-// IsDWARFEnabledOnAIX returns true if DWARF is possible on the
+// IsDWARFEnabledOnAIXLd returns true if DWARF is possible on the
 // current extld.
 // AIX ld doesn't support DWARF with -bnoobjreorder with version
 // prior to 7.2.2.
-func IsDWARFEnabledOnAIXLd(extld string) (bool, error) {
-	out, err := exec.Command(extld, "-Wl,-V").CombinedOutput()
+func IsDWARFEnabledOnAIXLd(extld []string) (bool, error) {
+	name, args := extld[0], extld[1:]
+	args = append(args, "-Wl,-V")
+	out, err := exec.Command(name, args...).CombinedOutput()
 	if err != nil {
 		// The normal output should display ld version and
 		// then fails because ".main" is not defined:

@@ -16,6 +16,10 @@ stderr 'no Go files in '
 ! go build ./exclude/empty
 stderr 'no Go files in '
 
+-- go.mod --
+module m
+
+go 1.16
 -- empty/test/test_test.go --
 package p
 -- empty/testxtest/test_test.go --

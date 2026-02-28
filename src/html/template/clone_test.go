@@ -5,24 +5,23 @@
 package template
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 	"sync"
 	"testing"
 	"text/template/parse"
 )
 
-func TestAddParseTree(t *testing.T) {
+func TestAddParseTreeHTML(t *testing.T) {
 	root := Must(New("root").Parse(`{{define "a"}} {{.}} {{template "b"}} {{.}} "></a>{{end}}`))
 	tree, err := parse.Parse("t", `{{define "b"}}<a href="{{end}}`, "", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	added := Must(root.AddParseTree("b", tree["b"]))
-	b := new(bytes.Buffer)
+	b := new(strings.Builder)
 	err = added.ExecuteTemplate(b, "a", "1>0")
 	if err != nil {
 		t.Fatal(err)
@@ -39,7 +38,7 @@ func TestClone(t *testing.T) {
 	// In the t2 template, it will be in a JavaScript context.
 	// In the t3 template, it will be in a CSS context.
 	const tmpl = `{{define "a"}}{{template "lhs"}}{{.}}{{template "rhs"}}{{end}}`
-	b := new(bytes.Buffer)
+	b := new(strings.Builder)
 
 	// Create an incomplete template t0.
 	t0 := Must(New("t0").Parse(tmpl))
@@ -171,7 +170,7 @@ func TestCloneThenParse(t *testing.T) {
 		t.Error("adding a template to a clone added it to the original")
 	}
 	// double check that the embedded template isn't available in the original
-	err := t0.ExecuteTemplate(ioutil.Discard, "a", nil)
+	err := t0.ExecuteTemplate(io.Discard, "a", nil)
 	if err == nil {
 		t.Error("expected 'no such template' error")
 	}
@@ -185,13 +184,13 @@ func TestFuncMapWorksAfterClone(t *testing.T) {
 
 	// get the expected error output (no clone)
 	uncloned := Must(New("").Funcs(funcs).Parse("{{customFunc}}"))
-	wantErr := uncloned.Execute(ioutil.Discard, nil)
+	wantErr := uncloned.Execute(io.Discard, nil)
 
 	// toClone must be the same as uncloned. It has to be recreated from scratch,
 	// since cloning cannot occur after execution.
 	toClone := Must(New("").Funcs(funcs).Parse("{{customFunc}}"))
 	cloned := Must(toClone.Clone())
-	gotErr := cloned.Execute(ioutil.Discard, nil)
+	gotErr := cloned.Execute(io.Discard, nil)
 
 	if wantErr.Error() != gotErr.Error() {
 		t.Errorf("clone error message mismatch want %q got %q", wantErr, gotErr)
@@ -213,7 +212,7 @@ func TestTemplateCloneExecuteRace(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < 100; i++ {
-				if err := tmpl.Execute(ioutil.Discard, "data"); err != nil {
+				if err := tmpl.Execute(io.Discard, "data"); err != nil {
 					panic(err)
 				}
 			}
@@ -237,7 +236,7 @@ func TestCloneGrowth(t *testing.T) {
 	tmpl = Must(tmpl.Clone())
 	Must(tmpl.Parse(`{{define "B"}}Text{{end}}`))
 	for i := 0; i < 10; i++ {
-		tmpl.Execute(ioutil.Discard, nil)
+		tmpl.Execute(io.Discard, nil)
 	}
 	if len(tmpl.DefinedTemplates()) > 200 {
 		t.Fatalf("too many templates: %v", len(tmpl.DefinedTemplates()))
@@ -257,7 +256,7 @@ func TestCloneRedefinedName(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		t2 := Must(t1.Clone())
 		t2 = Must(t2.New(fmt.Sprintf("%d", i)).Parse(page))
-		err := t2.Execute(ioutil.Discard, nil)
+		err := t2.Execute(io.Discard, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

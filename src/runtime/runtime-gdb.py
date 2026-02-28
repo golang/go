@@ -18,6 +18,7 @@ path to this file based on the path to the runtime package.
 from __future__ import print_function
 import re
 import sys
+import gdb
 
 print("Loading Go Runtime support.", file=sys.stderr)
 #http://python3porting.com/differences.html
@@ -45,11 +46,13 @@ G_MORIBUND_UNUSED = read_runtime_const("'runtime._Gmoribund_unused'", 5)
 G_DEAD = read_runtime_const("'runtime._Gdead'", 6)
 G_ENQUEUE_UNUSED = read_runtime_const("'runtime._Genqueue_unused'", 7)
 G_COPYSTACK = read_runtime_const("'runtime._Gcopystack'", 8)
+G_DEADEXTRA = read_runtime_const("'runtime._Gdeadextra'", 10)
 G_SCAN = read_runtime_const("'runtime._Gscan'", 0x1000)
 G_SCANRUNNABLE = G_SCAN+G_RUNNABLE
 G_SCANRUNNING = G_SCAN+G_RUNNING
 G_SCANSYSCALL = G_SCAN+G_SYSCALL
 G_SCANWAITING = G_SCAN+G_WAITING
+G_SCANEXTRA = G_SCAN+G_DEADEXTRA
 
 sts = {
     G_IDLE: 'idle',
@@ -61,11 +64,13 @@ sts = {
     G_DEAD: 'dead',
     G_ENQUEUE_UNUSED: 'enqueue',
     G_COPYSTACK: 'copystack',
+    G_DEADEXTRA: 'extra',
     G_SCAN: 'scan',
     G_SCANRUNNABLE: 'runnable+s',
     G_SCANRUNNING: 'running+s',
     G_SCANSYSCALL: 'syscall+s',
     G_SCANWAITING: 'waiting+s',
+    G_SCANEXTRA: 'extra+s',
 }
 
 
@@ -98,11 +103,11 @@ class SliceValue:
 #  Pretty Printers
 #
 
-
+# The patterns for matching types are permissive because gdb 8.2 switched to matching on (we think) typedef names instead of C syntax names.
 class StringTypePrinter:
 	"Pretty print Go strings."
 
-	pattern = re.compile(r'^struct string( \*)?$')
+	pattern = re.compile(r'^(struct string( \*)?|string)$')
 
 	def __init__(self, val):
 		self.val = val
@@ -118,7 +123,7 @@ class StringTypePrinter:
 class SliceTypePrinter:
 	"Pretty print slices."
 
-	pattern = re.compile(r'^struct \[\]')
+	pattern = re.compile(r'^(struct \[\]|\[\])')
 
 	def __init__(self, val):
 		self.val = val
@@ -127,7 +132,10 @@ class SliceTypePrinter:
 		return 'array'
 
 	def to_string(self):
-		return str(self.val.type)[6:]  # skip 'struct '
+		t = str(self.val.type)
+		if (t.startswith("struct ")):
+			return t[len("struct "):]
+		return t
 
 	def children(self):
 		sval = SliceValue(self.val)
@@ -156,36 +164,107 @@ class MapTypePrinter:
 		return str(self.val.type)
 
 	def children(self):
-		B = self.val['B']
-		buckets = self.val['buckets']
-		oldbuckets = self.val['oldbuckets']
-		flags = self.val['flags']
-		inttype = self.val['hash0'].type
+		MapGroupSlots = 8 # see internal/abi:MapGroupSlots
+
 		cnt = 0
-		for bucket in xrange(2 ** int(B)):
-			bp = buckets + bucket
-			if oldbuckets:
-				oldbucket = bucket & (2 ** (B - 1) - 1)
-				oldbp = oldbuckets + oldbucket
-				oldb = oldbp.dereference()
-				if (oldb['overflow'].cast(inttype) & 1) == 0:  # old bucket not evacuated yet
-					if bucket >= 2 ** (B - 1):
-						continue    # already did old bucket
-					bp = oldbp
-			while bp:
-				b = bp.dereference()
-				for i in xrange(8):
-					if b['tophash'][i] != 0:
-						k = b['keys'][i]
-						v = b['values'][i]
-						if flags & 1:
-							k = k.dereference()
-						if flags & 2:
-							v = v.dereference()
-						yield str(cnt), k
-						yield str(cnt + 1), v
-						cnt += 2
-				bp = b['overflow']
+		# Yield keys and elements in group.
+		# group is a value of type *group[K,V]
+		def group_slots(group):
+			ctrl = group['ctrl']
+
+			for i in xrange(MapGroupSlots):
+				c = (ctrl >> (8*i)) & 0xff
+				if (c & 0x80) != 0:
+					# Empty or deleted
+					continue
+
+				# Full
+				yield str(cnt), group['slots'][i]['key']
+				yield str(cnt+1), group['slots'][i]['elem']
+
+		# The linker DWARF generation
+		# (cmd/link/internal/ld.(*dwctxt).synthesizemaptypes) records
+		# dirPtr as a **table[K,V], but it may actually be two different types:
+		#
+		# For "full size" maps (dirLen > 0), dirPtr is actually a pointer to
+		# variable length array *[dirLen]*table[K,V]. In other words, dirPtr +
+		# dirLen are a deconstructed slice []*table[K,V].
+		#
+		# For "small" maps (dirLen <= 0), dirPtr is a pointer directly to a
+		# single group *group[K,V] containing the map slots.
+		#
+		# N.B. array() takes an _inclusive_ upper bound.
+
+		# table[K,V]
+		table_type = self.val['dirPtr'].type.target().target()
+
+		if self.val['dirLen'] <= 0:
+			# Small map
+
+			# We need to find the group type we'll cast to. Since dirPtr isn't
+			# actually **table[K,V], we can't use the nice API of
+			# obj['field'].type, as that actually wants to dereference obj.
+			# Instead, search only via the type API.
+			ptr_group_type = None
+			for tf in table_type.fields():
+				if tf.name != 'groups':
+					continue
+				groups_type = tf.type
+				for gf in groups_type.fields():
+					if gf.name != 'data':
+						continue
+					# *group[K,V]
+					ptr_group_type = gf.type
+
+			if ptr_group_type is None:
+				raise TypeError("unable to find table[K,V].groups.data")
+
+			# group = (*group[K,V])(dirPtr)
+			group = self.val['dirPtr'].cast(ptr_group_type)
+
+			yield from group_slots(group)
+
+			return
+
+		# Full size map.
+
+		# *table[K,V]
+		ptr_table_type = table_type.pointer()
+		# [dirLen]*table[K,V]
+		array_ptr_table_type = ptr_table_type.array(self.val['dirLen']-1)
+		# *[dirLen]*table[K,V]
+		ptr_array_ptr_table_type = array_ptr_table_type.pointer()
+		# tables = (*[dirLen]*table[K,V])(dirPtr)
+		tables = self.val['dirPtr'].cast(ptr_array_ptr_table_type)
+
+		cnt = 0
+		for t in xrange(self.val['dirLen']):
+			table = tables[t]
+			table = table.dereference()
+
+			groups = table['groups']['data']
+			length = table['groups']['lengthMask'] + 1
+
+			# The linker DWARF generation
+			# (cmd/link/internal/ld.(*dwctxt).synthesizemaptypes) records
+			# groups.data as a *group[K,V], but it is actually a pointer to
+			# variable length array *[length]group[K,V].
+			#
+			# N.B. array() takes an _inclusive_ upper bound.
+
+			# group[K,V]
+			group_type = groups.type.target()
+			# [length]group[K,V]
+			array_group_type = group_type.array(length-1)
+			# *[length]group[K,V]
+			ptr_array_group_type = array_group_type.pointer()
+			# groups = (*[length]group[K,V])(groups.data)
+			groups = groups.cast(ptr_array_group_type)
+			groups = groups.dereference()
+
+			for i in xrange(length):
+				group = groups[i]
+				yield from group_slots(group)
 
 
 class ChanTypePrinter:
@@ -195,7 +274,7 @@ class ChanTypePrinter:
 	to inspect their contents with this pretty printer.
 	"""
 
-	pattern = re.compile(r'^struct hchan<.*>$')
+	pattern = re.compile(r'^chan ')
 
 	def __init__(self, val):
 		self.val = val
@@ -209,11 +288,14 @@ class ChanTypePrinter:
 	def children(self):
 		# see chan.c chanbuf(). et is the type stolen from hchan<T>::recvq->first->elem
 		et = [x.type for x in self.val['recvq']['first'].type.target().fields() if x.name == 'elem'][0]
-		ptr = (self.val.address + 1).cast(et.pointer())
+		ptr = (self.val.address["buf"]).cast(et)
 		for i in range(self.val["qcount"]):
 			j = (self.val["recvx"] + i) % self.val["dataqsiz"]
 			yield ('[{0}]'.format(i), (ptr + j).dereference())
 
+
+def paramtypematch(t, pattern):
+	return t.code == gdb.TYPE_CODE_TYPEDEF and str(t).startswith(".param") and pattern.match(str(t.target()))
 
 #
 #  Register all the *Printer classes above.
@@ -224,13 +306,13 @@ def makematcher(klass):
 		try:
 			if klass.pattern.match(str(val.type)):
 				return klass(val)
+			elif paramtypematch(val.type, klass.pattern):
+				return klass(val.cast(val.type.target()))
 		except Exception:
 			pass
 	return matcher
 
 goobjfile.pretty_printers.extend([makematcher(var) for var in vars().values() if hasattr(var, 'pattern')])
-
-
 #
 #  Utilities
 #
@@ -317,7 +399,7 @@ def iface_dtype(obj):
 		return
 
 	type_size = int(dynamic_go_type['size'])
-	uintptr_size = int(dynamic_go_type['size'].type.sizeof)	 # size is itself an uintptr
+	uintptr_size = int(dynamic_go_type['size'].type.sizeof)	 # size is itself a uintptr
 	if type_size > uintptr_size:
 			dynamic_gdb_type = dynamic_gdb_type.pointer()
 
@@ -377,7 +459,7 @@ goobjfile.pretty_printers.append(ifacematcher)
 class GoLenFunc(gdb.Function):
 	"Length of strings, slices, maps or channels"
 
-	how = ((StringTypePrinter, 'len'), (SliceTypePrinter, 'len'), (MapTypePrinter, 'count'), (ChanTypePrinter, 'qcount'))
+	how = ((StringTypePrinter, 'len'), (SliceTypePrinter, 'len'), (MapTypePrinter, 'used'), (ChanTypePrinter, 'qcount'))
 
 	def __init__(self):
 		gdb.Function.__init__(self, "len")
@@ -385,7 +467,13 @@ class GoLenFunc(gdb.Function):
 	def invoke(self, obj):
 		typename = str(obj.type)
 		for klass, fld in self.how:
-			if klass.pattern.match(typename):
+			if klass.pattern.match(typename) or paramtypematch(obj.type, klass.pattern):
+				if klass == MapTypePrinter:
+					fields = [f.name for f in self.val.type.strip_typedefs().target().fields()]
+					if 'buckets' in fields:
+						# Old maps.
+						fld = 'count'
+
 				return obj[fld]
 
 
@@ -400,7 +488,7 @@ class GoCapFunc(gdb.Function):
 	def invoke(self, obj):
 		typename = str(obj.type)
 		for klass, fld in self.how:
-			if klass.pattern.match(typename):
+			if klass.pattern.match(typename) or paramtypematch(obj.type, klass.pattern):
 				return obj[fld]
 
 
@@ -440,7 +528,7 @@ class GoroutinesCmd(gdb.Command):
 		# args = gdb.string_to_argv(arg)
 		vp = gdb.lookup_type('void').pointer()
 		for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
-			if ptr['atomicstatus'] == G_DEAD:
+			if ptr['atomicstatus']['value'] in [G_DEAD, G_DEADEXTRA]:
 				continue
 			s = ' '
 			if ptr['m']:
@@ -448,7 +536,7 @@ class GoroutinesCmd(gdb.Command):
 			pc = ptr['sched']['pc'].cast(vp)
 			pc = pc_to_int(pc)
 			blk = gdb.block_for_pc(pc)
-			status = int(ptr['atomicstatus'])
+			status = int(ptr['atomicstatus']['value'])
 			st = sts.get(status, "unknown(%d)" % status)
 			print(s, ptr['goid'], "{0:8s}".format(st), blk.function)
 
@@ -465,7 +553,7 @@ def find_goroutine(goid):
 	"""
 	vp = gdb.lookup_type('void').pointer()
 	for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
-		if ptr['atomicstatus'] == G_DEAD:
+		if ptr['atomicstatus']['value'] in [G_DEAD, G_DEADEXTRA]:
 			continue
 		if ptr['goid'] == goid:
 			break
@@ -473,7 +561,7 @@ def find_goroutine(goid):
 		return None, None
 	# Get the goroutine's saved state.
 	pc, sp = ptr['sched']['pc'], ptr['sched']['sp']
-	status = ptr['atomicstatus']&~G_SCAN
+	status = ptr['atomicstatus']['value']&~G_SCAN
 	# Goroutine is not running nor in syscall, so use the info in goroutine
 	if status != G_RUNNING and status != G_SYSCALL:
 		return pc.cast(vp), sp.cast(vp)

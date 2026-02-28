@@ -8,12 +8,12 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -100,7 +100,7 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
 	defer ln.Close()
 
 	// Start child process that connects to our listener.
-	cmd := exec.Command(os.Args[0], "-test.run=TestAcceptIgnoreSomeErrors")
+	cmd := exec.Command(testenv.Executable(t), "-test.run=^TestAcceptIgnoreSomeErrors$")
 	cmd.Env = append(os.Environ(), "GOTEST_DIAL_ADDR="+ln.Addr().String())
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -176,7 +176,7 @@ func runCmd(args ...string) ([]byte, error) {
 		}
 		return b
 	}
-	f, err := ioutil.TempFile("", "netcmd")
+	f, err := os.CreateTemp("", "netcmd")
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +189,7 @@ func runCmd(args ...string) ([]byte, error) {
 			return nil, fmt.Errorf("%s failed: %v: %q", args[0], err, string(removeUTF8BOM(out)))
 		}
 		var err2 error
-		out, err2 = ioutil.ReadFile(f.Name())
+		out, err2 = os.ReadFile(f.Name())
 		if err2 != nil {
 			return nil, err2
 		}
@@ -198,19 +198,31 @@ func runCmd(args ...string) ([]byte, error) {
 		}
 		return nil, fmt.Errorf("%s failed: %v", args[0], err)
 	}
-	out, err = ioutil.ReadFile(f.Name())
+	out, err = os.ReadFile(f.Name())
 	if err != nil {
 		return nil, err
 	}
 	return removeUTF8BOM(out), nil
 }
 
-func netshSpeaksEnglish(t *testing.T) bool {
+func checkNetsh(t *testing.T) {
+	if testenv.Builder() == "windows-arm64-10" {
+		// netsh was observed to sometimes hang on this builder.
+		// We have not observed failures on windows-arm64-11, so for the
+		// moment we are leaving the test enabled elsewhere on the theory
+		// that it may have been a platform bug fixed in Windows 11.
+		testenv.SkipFlaky(t, 52082)
+	}
 	out, err := runCmd("netsh", "help")
 	if err != nil {
 		t.Fatal(err)
 	}
-	return bytes.Contains(out, []byte("The following commands are available:"))
+	if bytes.Contains(out, []byte("The following helper DLL cannot be loaded")) {
+		t.Skipf("powershell failure:\n%s", err)
+	}
+	if !bytes.Contains(out, []byte("The following commands are available:")) {
+		t.Skipf("powershell does not speak English:\n%s", out)
+	}
 }
 
 func netshInterfaceIPShowInterface(ipver string, ifaces map[string]bool) error {
@@ -228,8 +240,7 @@ func netshInterfaceIPShowInterface(ipver string, ifaces map[string]bool) error {
 	//Metric                             : 10
 	//...
 	var name string
-	lines := bytes.Split(out, []byte{'\r', '\n'})
-	for _, line := range lines {
+	for line := range bytes.SplitSeq(out, []byte{'\r', '\n'}) {
 		if bytes.HasPrefix(line, []byte("Interface ")) && bytes.HasSuffix(line, []byte(" Parameters")) {
 			f := line[len("Interface "):]
 			f = f[:len(f)-len(" Parameters")]
@@ -257,9 +268,7 @@ func netshInterfaceIPShowInterface(ipver string, ifaces map[string]bool) error {
 }
 
 func TestInterfacesWithNetsh(t *testing.T) {
-	if !netshSpeaksEnglish(t) {
-		t.Skip("English version of netsh required for this test")
-	}
+	checkNetsh(t)
 
 	toString := func(name string, isup bool) string {
 		if isup {
@@ -276,7 +285,7 @@ func TestInterfacesWithNetsh(t *testing.T) {
 	for _, ifi := range ift {
 		have = append(have, toString(ifi.Name, ifi.Flags&FlagUp != 0))
 	}
-	sort.Strings(have)
+	slices.Sort(have)
 
 	ifaces := make(map[string]bool)
 	err = netshInterfaceIPShowInterface("ipv6", ifaces)
@@ -291,9 +300,9 @@ func TestInterfacesWithNetsh(t *testing.T) {
 	for name, isup := range ifaces {
 		want = append(want, toString(name, isup))
 	}
-	sort.Strings(want)
+	slices.Sort(want)
 
-	if strings.Join(want, "/") != strings.Join(have, "/") {
+	if !slices.Equal(want, have) {
 		t.Fatalf("unexpected interface list %q, want %q", have, want)
 	}
 }
@@ -320,8 +329,7 @@ func netshInterfaceIPv4ShowAddress(name string, netshOutput []byte) []string {
 	addrs := make([]string, 0)
 	var addr, subnetprefix string
 	var processingOurInterface bool
-	lines := bytes.Split(netshOutput, []byte{'\r', '\n'})
-	for _, line := range lines {
+	for line := range bytes.SplitSeq(netshOutput, []byte{'\r', '\n'}) {
 		if !processingOurInterface {
 			if !bytes.HasPrefix(line, []byte("Configuration for interface")) {
 				continue
@@ -388,8 +396,7 @@ func netshInterfaceIPv6ShowAddress(name string, netshOutput []byte) []string {
 	// TODO: need to test ipv6 netmask too, but netsh does not outputs it
 	var addr string
 	addrs := make([]string, 0)
-	lines := bytes.Split(netshOutput, []byte{'\r', '\n'})
-	for _, line := range lines {
+	for line := range bytes.SplitSeq(netshOutput, []byte{'\r', '\n'}) {
 		if addr != "" {
 			if len(line) == 0 {
 				addr = ""
@@ -428,9 +435,7 @@ func netshInterfaceIPv6ShowAddress(name string, netshOutput []byte) []string {
 }
 
 func TestInterfaceAddrsWithNetsh(t *testing.T) {
-	if !netshSpeaksEnglish(t) {
-		t.Skip("English version of netsh required for this test")
-	}
+	checkNetsh(t)
 
 	outIPV4, err := runCmd("netsh", "interface", "ipv4", "show", "address")
 	if err != nil {
@@ -475,14 +480,14 @@ func TestInterfaceAddrsWithNetsh(t *testing.T) {
 				}
 			}
 		}
-		sort.Strings(have)
+		slices.Sort(have)
 
 		want := netshInterfaceIPv4ShowAddress(ifi.Name, outIPV4)
 		wantIPv6 := netshInterfaceIPv6ShowAddress(ifi.Name, outIPV6)
 		want = append(want, wantIPv6...)
-		sort.Strings(want)
+		slices.Sort(want)
 
-		if strings.Join(want, "/") != strings.Join(have, "/") {
+		if !slices.Equal(want, have) {
 			t.Errorf("%s: unexpected addresses list %q, want %q", ifi.Name, have, want)
 		}
 	}
@@ -576,8 +581,7 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 		want[cname] = addr
 		group = make(map[string]string)
 	}
-	lines := bytes.Split(out, []byte{'\r', '\n'})
-	for _, line := range lines {
+	for line := range bytes.SplitSeq(out, []byte{'\r', '\n'}) {
 		if len(line) == 0 {
 			processGroup()
 			continue

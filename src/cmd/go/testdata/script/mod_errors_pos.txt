@@ -1,0 +1,11 @@
+# Test case for #67623 in go.mod files: make sure the error for
+# an unknown godebug is printed on a line starting with the file
+# and line number, so it can be easily parsed by tools.
+
+! go list
+stderr '^go.mod:3: unknown godebug "foo"$'
+
+-- go.mod --
+module example.com/bar
+
+godebug foo=1

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !js
+//go:build !js && !wasip1
 
 // TODO(@musiol, @odeke-em): re-unify this entire file back into
 // example.go when js/wasm gets an os.Pipe implementation
@@ -19,8 +19,8 @@ import (
 )
 
 func runExample(eg InternalExample) (ok bool) {
-	if *chatty {
-		fmt.Printf("=== RUN   %s\n", eg.Name)
+	if chatty.on {
+		fmt.Printf("%s=== RUN   %s\n", chatty.prefix(), eg.Name)
 	}
 
 	// Capture stdout.
@@ -43,6 +43,7 @@ func runExample(eg InternalExample) (ok bool) {
 		outC <- buf.String()
 	}()
 
+	finished := false
 	start := time.Now()
 
 	// Clean up in a deferred call so we can recover if the example panics.
@@ -55,10 +56,11 @@ func runExample(eg InternalExample) (ok bool) {
 		out := <-outC
 
 		err := recover()
-		ok = eg.processRunResult(out, timeSpent, err)
+		ok = eg.processRunResult(out, timeSpent, finished, err)
 	}()
 
 	// Run example.
 	eg.F()
+	finished = true
 	return
 }

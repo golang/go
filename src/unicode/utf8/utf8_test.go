@@ -6,20 +6,11 @@ package utf8_test
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 	"unicode"
 	. "unicode/utf8"
 )
-
-// Validate the constants redefined from unicode.
-func init() {
-	if MaxRune != unicode.MaxRune {
-		panic("utf8.MaxRune is wrong")
-	}
-	if RuneError != unicode.ReplacementChar {
-		panic("utf8.RuneError is wrong")
-	}
-}
 
 // Validate the constants redefined from unicode.
 func TestConstants(t *testing.T) {
@@ -127,6 +118,17 @@ func TestEncodeRune(t *testing.T) {
 	}
 }
 
+func TestAppendRune(t *testing.T) {
+	for _, m := range utf8map {
+		if buf := AppendRune(nil, m.r); string(buf) != m.str {
+			t.Errorf("AppendRune(nil, %#04x) = %s, want %s", m.r, buf, m.str)
+		}
+		if buf := AppendRune([]byte("init"), m.r); string(buf) != "init"+m.str {
+			t.Errorf("AppendRune(init, %#04x) = %s, want %s", m.r, buf, "init"+m.str)
+		}
+	}
+}
+
 func TestDecodeRune(t *testing.T) {
 	for _, m := range utf8map {
 		b := []byte(m.str)
@@ -158,7 +160,7 @@ func TestDecodeRune(t *testing.T) {
 		}
 		r, size = DecodeRune(b[0 : len(b)-1])
 		if r != RuneError || size != wantsize {
-			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b[0:len(b)-1], r, size, RuneError, wantsize)
+			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b[:len(b)-1], r, size, RuneError, wantsize)
 		}
 		s = m.str[0 : len(m.str)-1]
 		r, size = DecodeRuneInString(s)
@@ -426,6 +428,15 @@ func TestRuneCount(t *testing.T) {
 	}
 }
 
+func TestRuneCountNonASCIIAllocation(t *testing.T) {
+	if n := testing.AllocsPerRun(10, func() {
+		s := []byte("日本語日本語日本語日")
+		_ = RuneCount(s)
+	}); n > 0 {
+		t.Errorf("unexpected RuneCount allocation, got %v, want 0", n)
+	}
+}
+
 type RuneLenTest struct {
 	r    rune
 	size int
@@ -476,6 +487,16 @@ var validTests = []ValidTest{
 	{string("\xc0\x80"), false},             // U+0000 encoded in two bytes: incorrect
 	{string("\xed\xa0\x80"), false},         // U+D800 high surrogate (sic)
 	{string("\xed\xbf\xbf"), false},         // U+DFFF low surrogate (sic)
+}
+
+func init() {
+	for i := range 100 {
+		validTests = append(validTests, ValidTest{in: strings.Repeat("a", i), out: true})
+		validTests = append(validTests, ValidTest{in: strings.Repeat("a", i) + "Ж", out: true})
+		validTests = append(validTests, ValidTest{in: strings.Repeat("a", i) + "\xe2", out: false})
+		validTests = append(validTests, ValidTest{in: strings.Repeat("a", i) + "Ж" + strings.Repeat("b", i), out: true})
+		validTests = append(validTests, ValidTest{in: strings.Repeat("a", i) + "\xe2" + strings.Repeat("b", i), out: false})
+	}
 }
 
 func TestValid(t *testing.T) {
@@ -543,8 +564,17 @@ func BenchmarkRuneCountInStringTenJapaneseChars(b *testing.B) {
 	}
 }
 
+var ascii100000 = strings.Repeat("0123456789", 10000)
+
 func BenchmarkValidTenASCIIChars(b *testing.B) {
 	s := []byte("0123456789")
+	for i := 0; i < b.N; i++ {
+		Valid(s)
+	}
+}
+
+func BenchmarkValid100KASCIIChars(b *testing.B) {
+	s := []byte(ascii100000)
 	for i := 0; i < b.N; i++ {
 		Valid(s)
 	}
@@ -556,10 +586,29 @@ func BenchmarkValidTenJapaneseChars(b *testing.B) {
 		Valid(s)
 	}
 }
+func BenchmarkValidLongMostlyASCII(b *testing.B) {
+	longMostlyASCII := []byte(longStringMostlyASCII)
+	for i := 0; i < b.N; i++ {
+		Valid(longMostlyASCII)
+	}
+}
+
+func BenchmarkValidLongJapanese(b *testing.B) {
+	longJapanese := []byte(longStringJapanese)
+	for i := 0; i < b.N; i++ {
+		Valid(longJapanese)
+	}
+}
 
 func BenchmarkValidStringTenASCIIChars(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		ValidString("0123456789")
+	}
+}
+
+func BenchmarkValidString100KASCIIChars(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ValidString(ascii100000)
 	}
 }
 
@@ -569,44 +618,184 @@ func BenchmarkValidStringTenJapaneseChars(b *testing.B) {
 	}
 }
 
+func BenchmarkValidStringLongMostlyASCII(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ValidString(longStringMostlyASCII)
+	}
+}
+
+func BenchmarkValidStringLongJapanese(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ValidString(longStringJapanese)
+	}
+}
+
+var longStringMostlyASCII string // ~100KB, ~97% ASCII
+var longStringJapanese string    // ~100KB, non-ASCII
+
+func init() {
+	const japanese = "日本語日本語日本語日"
+	var b strings.Builder
+	for i := 0; b.Len() < 100_000; i++ {
+		if i%100 == 0 {
+			b.WriteString(japanese)
+		} else {
+			b.WriteString("0123456789")
+		}
+	}
+	longStringMostlyASCII = b.String()
+	longStringJapanese = strings.Repeat(japanese, 100_000/len(japanese))
+}
+
 func BenchmarkEncodeASCIIRune(b *testing.B) {
 	buf := make([]byte, UTFMax)
 	for i := 0; i < b.N; i++ {
-		EncodeRune(buf, 'a')
+		EncodeRune(buf, 'a') // 1 byte
+	}
+}
+
+func BenchmarkEncodeSpanishRune(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		EncodeRune(buf, 'Ñ') // 2 bytes
 	}
 }
 
 func BenchmarkEncodeJapaneseRune(b *testing.B) {
 	buf := make([]byte, UTFMax)
 	for i := 0; i < b.N; i++ {
-		EncodeRune(buf, '本')
+		EncodeRune(buf, '本') // 3 bytes
+	}
+}
+
+func BenchmarkEncodeMaxRune(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		EncodeRune(buf, MaxRune) // 4 bytes
+	}
+}
+
+func BenchmarkEncodeInvalidRuneMaxPlusOne(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		EncodeRune(buf, MaxRune+1) // 3 bytes: RuneError
+	}
+}
+
+func BenchmarkEncodeInvalidRuneSurrogate(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		EncodeRune(buf, 0xD800) // 3 bytes: RuneError
+	}
+}
+
+func BenchmarkEncodeInvalidRuneNegative(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		EncodeRune(buf, -1) // 3 bytes: RuneError
+	}
+}
+
+func BenchmarkAppendASCIIRune(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		AppendRune(buf[:0], 'a') // 1 byte
+	}
+}
+
+func BenchmarkAppendSpanishRune(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		AppendRune(buf[:0], 'Ñ') // 2 bytes
+	}
+}
+
+func BenchmarkAppendJapaneseRune(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		AppendRune(buf[:0], '本') // 3 bytes
+	}
+}
+
+func BenchmarkAppendMaxRune(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		AppendRune(buf[:0], MaxRune) // 4 bytes
+	}
+}
+
+func BenchmarkAppendInvalidRuneMaxPlusOne(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		AppendRune(buf[:0], MaxRune+1) // 3 bytes: RuneError
+	}
+}
+
+func BenchmarkAppendInvalidRuneSurrogate(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		AppendRune(buf[:0], 0xD800) // 3 bytes: RuneError
+	}
+}
+
+func BenchmarkAppendInvalidRuneNegative(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		AppendRune(buf[:0], -1) // 3 bytes: RuneError
 	}
 }
 
 func BenchmarkDecodeASCIIRune(b *testing.B) {
 	a := []byte{'a'}
-	for i := 0; i < b.N; i++ {
-		DecodeRune(a)
+	for range b.N {
+		runeSink, sizeSink = DecodeRune(a)
 	}
 }
 
 func BenchmarkDecodeJapaneseRune(b *testing.B) {
 	nihon := []byte("本")
-	for i := 0; i < b.N; i++ {
-		DecodeRune(nihon)
+	for range b.N {
+		runeSink, sizeSink = DecodeRune(nihon)
 	}
 }
 
-func BenchmarkFullASCIIRune(b *testing.B) {
-	a := []byte{'a'}
-	for i := 0; i < b.N; i++ {
-		FullRune(a)
+func BenchmarkDecodeASCIIRuneInString(b *testing.B) {
+	a := "a"
+	for range b.N {
+		runeSink, sizeSink = DecodeRuneInString(a)
 	}
 }
 
-func BenchmarkFullJapaneseRune(b *testing.B) {
-	nihon := []byte("本")
-	for i := 0; i < b.N; i++ {
-		FullRune(nihon)
+func BenchmarkDecodeJapaneseRuneInString(b *testing.B) {
+	nihon := "本"
+	for range b.N {
+		runeSink, sizeSink = DecodeRuneInString(nihon)
+	}
+}
+
+var (
+	runeSink rune
+	sizeSink int
+)
+
+// boolSink is used to reference the return value of benchmarked
+// functions to avoid dead code elimination.
+var boolSink bool
+
+func BenchmarkFullRune(b *testing.B) {
+	benchmarks := []struct {
+		name string
+		data []byte
+	}{
+		{"ASCII", []byte("a")},
+		{"Incomplete", []byte("\xf0\x90\x80")},
+		{"Japanese", []byte("本")},
+	}
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				boolSink = FullRune(bm.data)
+			}
+		})
 	}
 }

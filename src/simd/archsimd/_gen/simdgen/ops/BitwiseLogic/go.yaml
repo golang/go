@@ -1,0 +1,142 @@
+!sum
+# In the XED data, *all* floating point bitwise logic operation has their
+# operand type marked as uint. We are not trying to understand why Intel
+# decided that they want FP bit-wise logic operations, but this irregularity
+# has to be dealed with in separate rules with some overwrites.
+
+# For many bit-wise operations, we have the following non-orthogonal
+# choices:
+#
+# - Non-masked AVX operations have no element width (because it
+# doesn't matter), but only cover 128 and 256 bit vectors.
+#
+# - Masked AVX-512 operations have an element width (because it needs
+# to know how to interpret the mask), and cover 128, 256, and 512 bit
+# vectors. These only cover 32- and 64-bit element widths.
+#
+# - Non-masked AVX-512 operations still have an element width (because
+# they're just the masked operations with an implicit K0 mask) but it
+# doesn't matter! This is the only option for non-masked 512 bit
+# operations, and we can pick any of the element widths.
+#
+# We unify with ALL of these operations and the compiler generator
+# picks when there are multiple options.
+
+# TODO: We don't currently generate unmasked bit-wise operations on 512 bit
+# vectors of 8- or 16-bit elements. AVX-512 only has *masked* bit-wise
+# operations for 32- and 64-bit elements; while the element width doesn't matter
+# for unmasked operations, right now we don't realize that we can just use the
+# 32- or 64-bit version for the unmasked form. Maybe in the XED decoder we
+# should recognize bit-wise operations when generating unmasked versions and
+# omit the element width.
+
+# For binary operations, we constrain their two inputs and one output to the
+# same Go type using a variable.
+
+- go: And
+  asm: "VPAND[DQ]?"
+  in:
+  - &any
+    go: $t
+  - *any
+  out:
+  - *any
+
+- go: And
+  asm: "VPANDD" # Fill in the gap, And is missing for Uint8x64 and Int8x64
+  inVariant: []
+  in: &twoI8x64
+  - &i8x64
+    go: $t
+    overwriteElementBits: 8
+  - *i8x64
+  out: &oneI8x64
+  - *i8x64
+
+- go: And
+  asm: "VPANDD" # Fill in the gap, And is missing for Uint16x32 and Int16x32
+  inVariant: []
+  in: &twoI16x32
+  - &i16x32
+    go: $t
+    overwriteElementBits: 16
+  - *i16x32
+  out: &oneI16x32
+  - *i16x32
+
+- go: AndNot
+  asm: "VPANDN[DQ]?"
+  operandOrder: "21" # switch the arg order
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+
+- go: AndNot
+  asm: "VPANDND" # Fill in the gap, AndNot is missing for Uint8x64 and Int8x64
+  operandOrder: "21" # switch the arg order
+  inVariant: []
+  in: *twoI8x64
+  out: *oneI8x64
+
+- go: AndNot
+  asm: "VPANDND" # Fill in the gap, AndNot is missing for Uint16x32 and Int16x32
+  operandOrder: "21" # switch the arg order
+  inVariant: []
+  in: *twoI16x32
+  out: *oneI16x32
+
+- go: Or
+  asm: "VPOR[DQ]?"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+
+- go: Or
+  asm: "VPORD" # Fill in the gap, Or is missing for Uint8x64 and Int8x64
+  inVariant: []
+  in: *twoI8x64
+  out: *oneI8x64
+
+- go: Or
+  asm: "VPORD" # Fill in the gap, Or is missing for Uint16x32 and Int16x32
+  inVariant: []
+  in: *twoI16x32
+  out: *oneI16x32
+
+- go: Xor
+  asm: "VPXOR[DQ]?"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+
+- go: Xor
+  asm: "VPXORD" # Fill in the gap, Or is missing for Uint8x64 and Int8x64
+  inVariant: []
+  in: *twoI8x64
+  out: *oneI8x64
+
+- go: Xor
+  asm: "VPXORD" # Fill in the gap, Or is missing for Uint16x32 and Int16x32
+  inVariant: []
+  in: *twoI16x32
+  out: *oneI16x32
+
+- go: tern
+  asm: "VPTERNLOGD|VPTERNLOGQ"
+  in:
+  - &tern_op
+    go: $t
+  - *tern_op
+  - *tern_op
+  - class: immediate
+    immOffset: 0
+    name: table
+  inVariant: []
+  out:
+  - *tern_op

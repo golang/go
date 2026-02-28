@@ -41,6 +41,6 @@ func ExampleScanner_Scan() {
 	// 1:16	(	""
 	// 1:17	IDENT	"x"
 	// 1:18	)	""
-	// 1:20	;	"\n"
 	// 1:20	COMMENT	"// Euler"
+	// 1:28	;	"\n"
 }

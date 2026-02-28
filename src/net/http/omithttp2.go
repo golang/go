@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build nethttpomithttp2
+//go:build nethttpomithttp2
 
 package http
 
@@ -26,15 +26,11 @@ const http2NextProtoTLS = "h2"
 
 type http2Transport struct {
 	MaxHeaderListSize uint32
-	ConnPool          interface{}
+	ConnPool          any
 }
 
 func (*http2Transport) RoundTrip(*Request) (*Response, error) { panic(noHTTP2) }
 func (*http2Transport) CloseIdleConnections()                 {}
-
-type http2erringRoundTripper struct{ err error }
-
-func (http2erringRoundTripper) RoundTrip(*Request) (*Response, error) { panic(noHTTP2) }
 
 type http2noDialH2RoundTripper struct{}
 
@@ -46,10 +42,18 @@ type http2noDialClientConnPool struct {
 
 type http2clientConnPool struct {
 	mu    *sync.Mutex
-	conns map[string][]struct{}
+	conns map[string][]*http2clientConn
 }
 
-func http2configureTransport(*Transport) (*http2Transport, error) { panic(noHTTP2) }
+type http2clientConn struct{}
+
+type http2clientConnIdleState struct {
+	canTakeNewRequest bool
+}
+
+func (cc *http2clientConn) idleState() http2clientConnIdleState { return http2clientConnIdleState{} }
+
+func http2configureTransports(*Transport) (*http2Transport, error) { panic(noHTTP2) }
 
 func http2isNoCachedConnError(err error) bool {
 	_, ok := err.(interface{ IsHTTP2NoCachedConnError() })
@@ -60,9 +64,9 @@ type http2Server struct {
 	NewWriteScheduler func() http2WriteScheduler
 }
 
-type http2WriteScheduler interface{}
+type http2WriteScheduler any
 
-func http2NewPriorityWriteScheduler(interface{}) http2WriteScheduler { panic(noHTTP2) }
+func http2NewPriorityWriteScheduler(any) http2WriteScheduler { panic(noHTTP2) }
 
 func http2ConfigureServer(s *Server, conf *http2Server) error { panic(noHTTP2) }
 

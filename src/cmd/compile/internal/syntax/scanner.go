@@ -34,12 +34,13 @@ type scanner struct {
 
 	// current token, valid after calling next()
 	line, col uint
+	blank     bool // line is blank up to col
 	tok       token
 	lit       string   // valid if tok is _Name, _Literal, or _Semi ("semicolon", "newline", or "EOF"); may be malformed if bad is true
 	bad       bool     // valid if tok is _Literal, true if a syntax error occurred, lit may be malformed
 	kind      LitKind  // valid if tok is _Literal
-	op        Operator // valid if tok is _Operator, _AssignOp, or _IncOp
-	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
+	op        Operator // valid if tok is _Operator, _Star, _AssignOp, or _IncOp
+	prec      int      // valid if tok is _Operator, _Star, _AssignOp, or _IncOp
 }
 
 func (s *scanner) init(src io.Reader, errh func(line, col uint, msg string), mode uint) {
@@ -49,12 +50,12 @@ func (s *scanner) init(src io.Reader, errh func(line, col uint, msg string), mod
 }
 
 // errorf reports an error at the most recently read character position.
-func (s *scanner) errorf(format string, args ...interface{}) {
+func (s *scanner) errorf(format string, args ...any) {
 	s.error(fmt.Sprintf(format, args...))
 }
 
 // errorAtf reports an error at a byte column offset relative to the current token start.
-func (s *scanner) errorAtf(offset int, format string, args ...interface{}) {
+func (s *scanner) errorAtf(offset int, format string, args ...any) {
 	s.errh(s.line, s.col+uint(offset), fmt.Sprintf(format, args...))
 }
 
@@ -83,10 +84,7 @@ func (s *scanner) setLit(kind LitKind, ok bool) {
 //
 // If the scanner mode includes the directives (but not the comments)
 // flag, only comments containing a //line, /*line, or //go: directive
-// are reported, in the same way as regular comments. Directives in
-// //-style comments are only recognized if they are at the beginning
-// of a line.
-//
+// are reported, in the same way as regular comments.
 func (s *scanner) next() {
 	nlsemi := s.nlsemi
 	s.nlsemi = false
@@ -94,12 +92,14 @@ func (s *scanner) next() {
 redo:
 	// skip white space
 	s.stop()
+	startLine, startCol := s.pos()
 	for s.ch == ' ' || s.ch == '\t' || s.ch == '\n' && !nlsemi || s.ch == '\r' {
 		s.nextch()
 	}
 
 	// token start
 	s.line, s.col = s.pos()
+	s.blank = s.line > startLine || startCol == colbase
 	s.start()
 	if isLetter(s.ch) || s.ch >= utf8.RuneSelf && s.atIdentChar(true) {
 		s.nextch()
@@ -341,6 +341,11 @@ redo:
 			break
 		}
 		s.op, s.prec = Not, 0
+		s.tok = _Operator
+
+	case '~':
+		s.nextch()
+		s.op, s.prec = Tilde, 0
 		s.tok = _Operator
 
 	default:
@@ -741,8 +746,8 @@ func (s *scanner) lineComment() {
 		return
 	}
 
-	// directives must start at the beginning of the line (s.col == colbase)
-	if s.mode&directives == 0 || s.col != colbase || (s.ch != 'g' && s.ch != 'l') {
+	// are we saving directives? or is this definitely not a directive?
+	if s.mode&directives == 0 || (s.ch != 'g' && s.ch != 'l') {
 		s.stop()
 		s.skipLine()
 		return

@@ -10,11 +10,11 @@ var Runtime_Semrelease = runtime_Semrelease
 var Runtime_procPin = runtime_procPin
 var Runtime_procUnpin = runtime_procUnpin
 
-// poolDequeue testing.
+// PoolDequeue exports an interface for pollDequeue testing.
 type PoolDequeue interface {
-	PushHead(val interface{}) bool
-	PopHead() (interface{}, bool)
-	PopTail() (interface{}, bool)
+	PushHead(val any) bool
+	PopHead() (any, bool)
+	PopTail() (any, bool)
 }
 
 func NewPoolDequeue(n int) PoolDequeue {
@@ -23,19 +23,19 @@ func NewPoolDequeue(n int) PoolDequeue {
 	}
 	// For testing purposes, set the head and tail indexes close
 	// to wrapping around.
-	d.headTail = d.pack(1<<dequeueBits-500, 1<<dequeueBits-500)
+	d.headTail.Store(d.pack(1<<dequeueBits-500, 1<<dequeueBits-500))
 	return d
 }
 
-func (d *poolDequeue) PushHead(val interface{}) bool {
+func (d *poolDequeue) PushHead(val any) bool {
 	return d.pushHead(val)
 }
 
-func (d *poolDequeue) PopHead() (interface{}, bool) {
+func (d *poolDequeue) PopHead() (any, bool) {
 	return d.popHead()
 }
 
-func (d *poolDequeue) PopTail() (interface{}, bool) {
+func (d *poolDequeue) PopTail() (any, bool) {
 	return d.popTail()
 }
 
@@ -43,15 +43,15 @@ func NewPoolChain() PoolDequeue {
 	return new(poolChain)
 }
 
-func (c *poolChain) PushHead(val interface{}) bool {
+func (c *poolChain) PushHead(val any) bool {
 	c.pushHead(val)
 	return true
 }
 
-func (c *poolChain) PopHead() (interface{}, bool) {
+func (c *poolChain) PopHead() (any, bool) {
 	return c.popHead()
 }
 
-func (c *poolChain) PopTail() (interface{}, bool) {
+func (c *poolChain) PopTail() (any, bool) {
 	return c.popTail()
 }

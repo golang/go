@@ -4,7 +4,7 @@
 
 // Go checksum database lookup
 
-// +build !cmd_go_bootstrap
+//go:build !cmd_go_bootstrap
 
 package modfetch
 
@@ -12,7 +12,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -22,9 +23,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/get"
 	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/str"
 	"cmd/go/internal/web"
 
 	"golang.org/x/mod/module"
@@ -34,7 +33,37 @@ import (
 
 // useSumDB reports whether to use the Go checksum database for the given module.
 func useSumDB(mod module.Version) bool {
-	return cfg.GOSUMDB != "off" && !get.Insecure && !str.GlobsMatchPath(cfg.GONOSUMDB, mod.Path)
+	if mod.Path == "golang.org/toolchain" {
+		must := true
+		// Downloaded toolchains cannot be listed in go.sum,
+		// so we require checksum database lookups even if
+		// GOSUMDB=off or GONOSUMDB matches the pattern.
+		// If GOSUMDB=off, then the eventual lookup will fail
+		// with a good error message.
+
+		// Exception #1: using GOPROXY=file:// to test a distpack.
+		if strings.HasPrefix(cfg.GOPROXY, "file://") && !strings.ContainsAny(cfg.GOPROXY, ",|") {
+			must = false
+		}
+		// Exception #2: the Go proxy+checksum database cannot check itself
+		// while doing the initial download.
+		if strings.Contains(os.Getenv("GIT_HTTP_USER_AGENT"), "proxy.golang.org") {
+			must = false
+		}
+
+		// Another potential exception would be GOPROXY=direct,
+		// but that would make toolchain downloads only as secure
+		// as HTTPS, and in particular they'd be susceptible to MITM
+		// attacks on systems with less-than-trustworthy root certificates.
+		// The checksum database provides a stronger guarantee,
+		// so we don't make that exception.
+
+		// Otherwise, require the checksum database.
+		if must {
+			return true
+		}
+	}
+	return cfg.GOSUMDB != "off" && !module.MatchPrefixPatterns(cfg.GONOSUMDB, mod.Path)
 }
 
 // lookupSumDB returns the Go checksum database's go.sum lines for the given module,
@@ -69,6 +98,10 @@ func dbDial() (dbName string, db *sumdb.Client, err error) {
 	gosumdb := cfg.GOSUMDB
 	if gosumdb == "sum.golang.google.cn" {
 		gosumdb = "sum.golang.org https://sum.golang.google.cn"
+	}
+
+	if gosumdb == "off" {
+		return "", nil, fmt.Errorf("checksum database disabled by GOSUMDB=off")
 	}
 
 	key := strings.Fields(gosumdb)
@@ -131,7 +164,7 @@ func (c *dbClient) ReadRemote(path string) ([]byte, error) {
 	targ := web.Join(c.base, path)
 	data, err := web.GetBytes(targ)
 	if false {
-		fmt.Fprintf(os.Stderr, "%.3fs %s\n", time.Since(start).Seconds(), web.Redacted(targ))
+		fmt.Fprintf(os.Stderr, "%.3fs %s\n", time.Since(start).Seconds(), targ.Redacted())
 	}
 	return data, err
 }
@@ -184,8 +217,8 @@ func (c *dbClient) initBase() {
 			return nil
 		}
 	})
-	if errors.Is(err, os.ErrNotExist) {
-		// No proxies, or all proxies failed (with 404, 410, or were were allowed
+	if errors.Is(err, fs.ErrNotExist) {
+		// No proxies, or all proxies failed (with 404, 410, or were allowed
 		// to fall back), or we reached an explicit "direct" or "off".
 		c.base = c.direct
 	} else if err != nil {
@@ -200,10 +233,13 @@ func (c *dbClient) ReadConfig(file string) (data []byte, err error) {
 		return []byte(c.key), nil
 	}
 
-	// GOPATH/pkg is PkgMod/..
-	targ := filepath.Join(PkgMod, "../sumdb/"+file)
+	if cfg.SumdbDir == "" {
+		return nil, fmt.Errorf("could not locate sumdb file: missing $GOPATH: %s",
+			cfg.GoPathError)
+	}
+	targ := filepath.Join(cfg.SumdbDir, file)
 	data, err = lockedfile.Read(targ)
-	if errors.Is(err, os.ErrNotExist) {
+	if errors.Is(err, fs.ErrNotExist) {
 		// Treat non-existent as empty, to bootstrap the "latest" file
 		// the first time we connect to a given database.
 		return []byte{}, nil
@@ -217,14 +253,18 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
 		// Should not happen.
 		return fmt.Errorf("cannot write key")
 	}
-	targ := filepath.Join(PkgMod, "../sumdb/"+file)
+	if cfg.SumdbDir == "" {
+		return fmt.Errorf("could not locate sumdb file: missing $GOPATH: %s",
+			cfg.GoPathError)
+	}
+	targ := filepath.Join(cfg.SumdbDir, file)
 	os.MkdirAll(filepath.Dir(targ), 0777)
 	f, err := lockedfile.Edit(targ)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	data, err := ioutil.ReadAll(f)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		return err
 	}
@@ -247,21 +287,21 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
 // GOPATH/pkg/mod/cache/download/sumdb,
 // which will be deleted by "go clean -modcache".
 func (*dbClient) ReadCache(file string) ([]byte, error) {
-	targ := filepath.Join(PkgMod, "cache/download/sumdb", file)
+	targ := filepath.Join(cfg.GOMODCACHE, "cache/download/sumdb", file)
 	data, err := lockedfile.Read(targ)
 	// lockedfile.Write does not atomically create the file with contents.
 	// There is a moment between file creation and locking the file for writing,
 	// during which the empty file can be locked for reading.
 	// Treat observing an empty file as file not found.
 	if err == nil && len(data) == 0 {
-		err = &os.PathError{Op: "read", Path: targ, Err: os.ErrNotExist}
+		err = &fs.PathError{Op: "read", Path: targ, Err: fs.ErrNotExist}
 	}
 	return data, err
 }
 
 // WriteCache updates cached lookups or tiles.
 func (*dbClient) WriteCache(file string, data []byte) {
-	targ := filepath.Join(PkgMod, "cache/download/sumdb", file)
+	targ := filepath.Join(cfg.GOMODCACHE, "cache/download/sumdb", file)
 	os.MkdirAll(filepath.Dir(targ), 0777)
 	lockedfile.Write(targ, bytes.NewReader(data), 0666)
 }

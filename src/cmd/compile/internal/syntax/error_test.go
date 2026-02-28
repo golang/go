@@ -32,7 +32,6 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -150,19 +149,19 @@ func testSyntaxErrors(t *testing.T, filename string) {
 		if found {
 			rx, err := regexp.Compile(pattern)
 			if err != nil {
-				t.Errorf("%s: %v", pos, err)
+				t.Errorf("%s:%s: %v", filename, pos, err)
 				return
 			}
 			if match := rx.MatchString(e.Msg); !match {
-				t.Errorf("%s: %q does not match %q", pos, e.Msg, pattern)
+				t.Errorf("%s:%s: %q does not match %q", filename, pos, e.Msg, pattern)
 				return
 			}
 			// we have a match - eliminate this error
 			delete(declared, pos)
 		} else {
-			t.Errorf("%s: unexpected error: %s", orig, e.Msg)
+			t.Errorf("%s:%s: unexpected error: %s", filename, orig, e.Msg)
 		}
-	}, nil, 0)
+	}, nil, CheckBranches)
 
 	if *print {
 		fmt.Println()
@@ -171,14 +170,14 @@ func testSyntaxErrors(t *testing.T, filename string) {
 
 	// report expected but not reported errors
 	for pos, pattern := range declared {
-		t.Errorf("%s: missing error: %s", pos, pattern)
+		t.Errorf("%s:%s: missing error: %s", filename, pos, pattern)
 	}
 }
 
 func TestSyntaxErrors(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // we need access to source (testdata)
 
-	list, err := ioutil.ReadDir(testdata)
+	list, err := os.ReadDir(testdata)
 	if err != nil {
 		t.Fatal(err)
 	}

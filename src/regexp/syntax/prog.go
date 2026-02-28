@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // Compiled program.
@@ -101,11 +102,13 @@ func EmptyOpContext(r1, r2 rune) EmptyOp {
 	return op
 }
 
-// IsWordChar reports whether r is consider a ``word character''
+// IsWordChar reports whether r is considered a “word character”
 // during the evaluation of the \b and \B zero-width assertions.
 // These assertions are ASCII-only: the word characters are [A-Za-z0-9_].
 func IsWordChar(r rune) bool {
-	return 'A' <= r && r <= 'Z' || 'a' <= r && r <= 'z' || '0' <= r && r <= '9' || r == '_'
+	// Test for lowercase letters first, as these occur more
+	// frequently than uppercase letters in common cases.
+	return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || '0' <= r && r <= '9' || r == '_'
 }
 
 // An Inst is a single instruction in a regular expression program.
@@ -154,7 +157,7 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
 
 	// Have prefix; gather characters.
 	var buf strings.Builder
-	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 {
+	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 && i.Rune[0] != utf8.RuneError {
 		buf.WriteRune(i.Rune[0])
 		i = p.skipNop(i.Out)
 	}
@@ -188,7 +191,7 @@ Loop:
 const noMatch = -1
 
 // MatchRune reports whether the instruction matches (and consumes) r.
-// It should only be called when i.Op == InstRune.
+// It should only be called when i.Op == [InstRune].
 func (i *Inst) MatchRune(r rune) bool {
 	return i.MatchRunePos(r) != noMatch
 }
@@ -197,7 +200,7 @@ func (i *Inst) MatchRune(r rune) bool {
 // If so, MatchRunePos returns the index of the matching rune pair
 // (or, when len(i.Rune) == 1, rune singleton).
 // If not, MatchRunePos returns -1.
-// MatchRunePos should only be called when i.Op == InstRune.
+// MatchRunePos should only be called when i.Op == [InstRune].
 func (i *Inst) MatchRunePos(r rune) int {
 	rune := i.Rune
 
@@ -244,7 +247,7 @@ func (i *Inst) MatchRunePos(r rune) int {
 	lo := 0
 	hi := len(rune) / 2
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		if c := rune[2*m]; c <= r {
 			if r <= rune[2*m+1] {
 				return m
@@ -259,7 +262,7 @@ func (i *Inst) MatchRunePos(r rune) int {
 
 // MatchEmptyWidth reports whether the instruction matches
 // an empty string between the runes before and after.
-// It should only be called when i.Op == InstEmptyWidth.
+// It should only be called when i.Op == [InstEmptyWidth].
 func (i *Inst) MatchEmptyWidth(before rune, after rune) bool {
 	switch EmptyOp(i.Arg) {
 	case EmptyBeginLine:

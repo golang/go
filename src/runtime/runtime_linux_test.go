@@ -45,7 +45,7 @@ func TestLockOSThread(t *testing.T) {
 // Use a misaligned pointer to get -EINVAL.
 func TestMincoreErrorSign(t *testing.T) {
 	var dst byte
-	v := Mincore(Add(unsafe.Pointer(new(int32)), 1), 1, &dst)
+	v := Mincore(unsafe.Add(unsafe.Pointer(new(int32)), 1), 1, &dst)
 
 	const EINVAL = 0x16
 	if v != -EINVAL {
@@ -53,11 +53,13 @@ func TestMincoreErrorSign(t *testing.T) {
 	}
 }
 
-func TestEpollctlErrorSign(t *testing.T) {
-	v := Epollctl(-1, 1, -1, unsafe.Pointer(&EpollEvent{}))
-
-	const EBADF = 0x09
-	if v != -EBADF {
-		t.Errorf("epollctl = %v, want %v", v, -EBADF)
+func TestKernelStructSize(t *testing.T) {
+	// Check that the Go definitions of structures exchanged with the kernel are
+	// the same size as what the kernel defines.
+	if have, want := unsafe.Sizeof(Siginfo{}), uintptr(SiginfoMaxSize); have != want {
+		t.Errorf("Go's siginfo struct is %d bytes long; kernel expects %d", have, want)
+	}
+	if have, want := unsafe.Sizeof(Sigevent{}), uintptr(SigeventMaxSize); have != want {
+		t.Errorf("Go's sigevent struct is %d bytes long; kernel expects %d", have, want)
 	}
 }

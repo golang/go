@@ -1,0 +1,17 @@
+go work use -r .
+cmp go.work go.work.want
+
+-- go.mod --
+module example
+go 1.18
+-- go.work --
+go 1.18
+
+use sub
+-- go.work.want --
+go 1.18
+
+use .
+-- sub/README.txt --
+This directory no longer contains a go.mod file.
+

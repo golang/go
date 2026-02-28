@@ -1,0 +1,56 @@
+name: Gopls bugs or feature requests
+description: Issues or feature requests for the Go language server (gopls)
+title: "x/tools/gopls: issue title"
+labels: ["gopls", "Tools"]
+body:
+  - type: markdown
+    attributes:
+      value: "Please answer these questions before submitting your issue. Thanks!"
+  - type: textarea
+    id: gopls-version
+    attributes:
+      label: "gopls version"
+      description: "Output of `gopls -v version` on the command line"
+    validations:
+      required: true
+  - type: textarea
+    id: go-env
+    attributes:
+      label: "go env"
+      description: "Output of `go env` on the command line in your workspace directory"
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: what-did-you-do
+    attributes:
+      label: "What did you do?"
+      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on [go.dev/play](https://go.dev/play) is better. A failing unit test is the best."
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: "What did you see happen?"
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: "What did you expect to see?"
+    validations:
+      required: true
+  - type: textarea
+    id: editor-and-settings
+    attributes:
+      label: "Editor and settings"
+      description: "Your editor and any settings you have configured (for example, your VSCode settings.json file)"
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs"
+      description: "If possible please include gopls logs. Instructions for capturing them can be found here: https://github.com/golang/tools/blob/master/gopls/doc/troubleshooting.md#capture-logs"
+    validations:
+      required: false

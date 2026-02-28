@@ -14,8 +14,8 @@
 # "go build <pkg>" assembly output for each package
 # and lists the packages with differences.
 #
-# It leaves and old.txt and new.txt file in the package
-# directories for the packages with differences.
+# For packages with differences it leaves files named
+# old.txt and new.txt.
 
 FLAGS1="-newexport=0"
 FLAGS2="-newexport=1"

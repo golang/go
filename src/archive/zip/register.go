@@ -8,7 +8,6 @@ import (
 	"compress/flate"
 	"errors"
 	"io"
-	"io/ioutil"
 	"sync"
 )
 
@@ -20,7 +19,7 @@ import (
 type Compressor func(w io.Writer) (io.WriteCloser, error)
 
 // A Decompressor returns a new decompressing reader, reading from r.
-// The ReadCloser's Close method must be used to release associated resources.
+// The [io.ReadCloser]'s Close method must be used to release associated resources.
 // The Decompressor itself must be safe to invoke from multiple goroutines
 // simultaneously, but each returned reader will be used only by
 // one goroutine at a time.
@@ -111,12 +110,12 @@ func init() {
 	compressors.Store(Store, Compressor(func(w io.Writer) (io.WriteCloser, error) { return &nopCloser{w}, nil }))
 	compressors.Store(Deflate, Compressor(func(w io.Writer) (io.WriteCloser, error) { return newFlateWriter(w), nil }))
 
-	decompressors.Store(Store, Decompressor(ioutil.NopCloser))
+	decompressors.Store(Store, Decompressor(io.NopCloser))
 	decompressors.Store(Deflate, Decompressor(newFlateReader))
 }
 
 // RegisterDecompressor allows custom decompressors for a specified method ID.
-// The common methods Store and Deflate are built in.
+// The common methods [Store] and [Deflate] are built in.
 func RegisterDecompressor(method uint16, dcomp Decompressor) {
 	if _, dup := decompressors.LoadOrStore(method, dcomp); dup {
 		panic("decompressor already registered")
@@ -124,7 +123,7 @@ func RegisterDecompressor(method uint16, dcomp Decompressor) {
 }
 
 // RegisterCompressor registers custom compressors for a specified method ID.
-// The common methods Store and Deflate are built in.
+// The common methods [Store] and [Deflate] are built in.
 func RegisterCompressor(method uint16, comp Compressor) {
 	if _, dup := compressors.LoadOrStore(method, comp); dup {
 		panic("compressor already registered")

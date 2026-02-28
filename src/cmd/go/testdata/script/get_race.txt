@@ -1,7 +1,0 @@
-# Tests issue #20502
-
-[!net] skip
-[!exec:git] skip
-[!race] skip
-
-go get -race github.com/rsc/go-get-issue-9224-cmd

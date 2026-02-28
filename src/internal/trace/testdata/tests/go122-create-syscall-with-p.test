@@ -1,0 +1,22 @@
+-- expect --
+FAILURE ".*expected a proc but didn't have one.*"
+-- trace --
+Trace Go1.22
+EventBatch gen=1 m=0 time=0 size=34
+GoCreateSyscall dt=1 new_g=4
+ProcStatus dt=1 p=0 pstatus=2
+ProcStart dt=1 p=0 p_seq=1
+GoSyscallEndBlocked dt=1
+GoStart dt=1 g=4 g_seq=1
+GoSyscallBegin dt=1 p_seq=2 stack=0
+GoDestroySyscall dt=1
+GoCreateSyscall dt=1 new_g=4
+GoSyscallEnd dt=1
+GoSyscallBegin dt=1 p_seq=3 stack=0
+GoDestroySyscall dt=1
+EventBatch gen=1 m=18446744073709551615 time=0 size=5
+Frequency freq=15625000
+EventBatch gen=1 m=18446744073709551615 time=0 size=1
+Stacks
+EventBatch gen=1 m=18446744073709551615 time=0 size=1
+Strings

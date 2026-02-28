@@ -33,7 +33,7 @@ type clientCodec struct {
 	pending map[uint64]string // map request id to method name
 }
 
-// NewClientCodec returns a new rpc.ClientCodec using JSON-RPC on conn.
+// NewClientCodec returns a new [rpc.ClientCodec] using JSON-RPC on conn.
 func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
 	return &clientCodec{
 		dec:     json.NewDecoder(conn),
@@ -44,12 +44,12 @@ func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
 }
 
 type clientRequest struct {
-	Method string         `json:"method"`
-	Params [1]interface{} `json:"params"`
-	Id     uint64         `json:"id"`
+	Method string `json:"method"`
+	Params [1]any `json:"params"`
+	Id     uint64 `json:"id"`
 }
 
-func (c *clientCodec) WriteRequest(r *rpc.Request, param interface{}) error {
+func (c *clientCodec) WriteRequest(r *rpc.Request, param any) error {
 	c.mutex.Lock()
 	c.pending[r.Seq] = r.ServiceMethod
 	c.mutex.Unlock()
@@ -62,7 +62,7 @@ func (c *clientCodec) WriteRequest(r *rpc.Request, param interface{}) error {
 type clientResponse struct {
 	Id     uint64           `json:"id"`
 	Result *json.RawMessage `json:"result"`
-	Error  interface{}      `json:"error"`
+	Error  any              `json:"error"`
 }
 
 func (r *clientResponse) reset() {
@@ -97,7 +97,7 @@ func (c *clientCodec) ReadResponseHeader(r *rpc.Response) error {
 	return nil
 }
 
-func (c *clientCodec) ReadResponseBody(x interface{}) error {
+func (c *clientCodec) ReadResponseBody(x any) error {
 	if x == nil {
 		return nil
 	}
@@ -108,7 +108,7 @@ func (c *clientCodec) Close() error {
 	return c.c.Close()
 }
 
-// NewClient returns a new rpc.Client to handle requests to the
+// NewClient returns a new [rpc.Client] to handle requests to the
 // set of services at the other end of the connection.
 func NewClient(conn io.ReadWriteCloser) *rpc.Client {
 	return rpc.NewClientWithCodec(NewClientCodec(conn))
@@ -120,5 +120,5 @@ func Dial(network, address string) (*rpc.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewClient(conn), err
+	return NewClient(conn), nil
 }

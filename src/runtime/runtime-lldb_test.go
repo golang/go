@@ -6,7 +6,6 @@ package runtime_test
 
 import (
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -136,27 +135,20 @@ intvar = 42
 
 func TestLldbPython(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
-		t.Skip("gdb test can fail with GOROOT_FINAL pending")
-	}
 	testenv.SkipFlaky(t, 31188)
 
 	checkLldbPython(t)
 
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatalf("failed to create temp directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	src := filepath.Join(dir, "main.go")
-	err = ioutil.WriteFile(src, []byte(lldbHelloSource), 0644)
+	err := os.WriteFile(src, []byte(lldbHelloSource), 0644)
 	if err != nil {
 		t.Fatalf("failed to create src file: %v", err)
 	}
 
 	mod := filepath.Join(dir, "go.mod")
-	err = ioutil.WriteFile(mod, []byte("module lldbtest"), 0644)
+	err = os.WriteFile(mod, []byte("module lldbtest"), 0644)
 	if err != nil {
 		t.Fatalf("failed to create mod file: %v", err)
 	}
@@ -172,7 +164,7 @@ func TestLldbPython(t *testing.T) {
 	}
 
 	src = filepath.Join(dir, "script.py")
-	err = ioutil.WriteFile(src, []byte(lldbScriptSource), 0755)
+	err = os.WriteFile(src, []byte(lldbScriptSource), 0755)
 	if err != nil {
 		t.Fatalf("failed to create script: %v", err)
 	}

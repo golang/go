@@ -1,0 +1,18 @@
+# Issue 66207: provide a better error message when there's no
+# go directive in a go.work file so 1.18 is implicitly required.
+
+! go list
+stderr 'go: module . listed in go.work file requires go >= 1.21, but go.work implicitly requires go 1.18; to update it:\s+go work use'
+
+go work use
+go list
+stdout foo
+
+-- go.work --
+use .
+-- go.mod --
+module foo
+
+go 1.21
+-- foo.go --
+package foo

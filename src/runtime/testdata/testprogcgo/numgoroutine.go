@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !plan9 && !windows
 // +build !plan9,!windows
 
 package main
@@ -69,7 +70,7 @@ func checkNumGoroutine(label string, want int) (string, bool) {
 	sbuf = sbuf[:runtime.Stack(sbuf, true)]
 	n = strings.Count(string(sbuf), "goroutine ")
 	if n != want {
-		fmt.Printf("%s Stack: want %d; got %d:\n%s\n", label, want, n, string(sbuf))
+		fmt.Printf("%s Stack: want %d; got %d:\n%s\n", label, want, n, sbuf)
 		return "", false
 	}
 	return string(sbuf), true

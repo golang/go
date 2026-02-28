@@ -36,7 +36,11 @@ func main() {
 		{"type assertion", "", func() { _ = x == x.(*int) }},
 		{"out of bounds", "", func() { _ = x == s[1] }},
 		{"nil pointer dereference #1", "", func() { _ = x == *p }},
-		{"nil pointer dereference #2", "nil pointer dereference", func() { _ = *l == r[0] }},
+		// TODO(mdempsky): Restore "nil pointer dereference" check. The Go
+		// spec doesn't mandate an order for panics (or even panic
+		// messages), but left-to-right is less confusing to users.
+		{"nil pointer dereference #2", "", func() { _ = *l == r[0] }},
+		{"nil pointer dereference #3", "", func() { _ = *l == any(r[0]) }},
 	}
 
 	for _, tc := range tests {
@@ -44,16 +48,14 @@ func main() {
 	}
 }
 
-func testFuncShouldPanic(name, errStr string, f func()) {
+func testFuncShouldPanic(name, want string, f func()) {
 	defer func() {
 		e := recover()
 		if e == nil {
 			log.Fatalf("%s: comparison did not panic\n", name)
 		}
-		if errStr != "" {
-			if !strings.Contains(e.(error).Error(), errStr) {
-				log.Fatalf("%s: wrong panic message\n", name)
-			}
+		if have := e.(error).Error(); !strings.Contains(have, want) {
+			log.Fatalf("%s: wrong panic message: have %q, want %q\n", name, have, want)
 		}
 	}()
 	f()

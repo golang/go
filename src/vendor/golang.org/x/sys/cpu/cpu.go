@@ -6,6 +6,11 @@
 // various CPU architectures.
 package cpu
 
+import (
+	"os"
+	"strings"
+)
+
 // Initialized reports whether the CPU features were initialized.
 //
 // For some GOOS/GOARCH combinations initialization of the CPU features depends
@@ -24,26 +29,53 @@ type CacheLinePad struct{ _ [cacheLineSize]byte }
 // and HasAVX2 are only set if the OS supports XMM and YMM
 // registers in addition to the CPUID feature bit being set.
 var X86 struct {
-	_            CacheLinePad
-	HasAES       bool // AES hardware implementation (AES NI)
-	HasADX       bool // Multi-precision add-carry instruction extensions
-	HasAVX       bool // Advanced vector extension
-	HasAVX2      bool // Advanced vector extension 2
-	HasBMI1      bool // Bit manipulation instruction set 1
-	HasBMI2      bool // Bit manipulation instruction set 2
-	HasERMS      bool // Enhanced REP for MOVSB and STOSB
-	HasFMA       bool // Fused-multiply-add instructions
-	HasOSXSAVE   bool // OS supports XSAVE/XRESTOR for saving/restoring XMM registers.
-	HasPCLMULQDQ bool // PCLMULQDQ instruction - most often used for AES-GCM
-	HasPOPCNT    bool // Hamming weight instruction POPCNT.
-	HasRDRAND    bool // RDRAND instruction (on-chip random number generator)
-	HasRDSEED    bool // RDSEED instruction (on-chip random number generator)
-	HasSSE2      bool // Streaming SIMD extension 2 (always available on amd64)
-	HasSSE3      bool // Streaming SIMD extension 3
-	HasSSSE3     bool // Supplemental streaming SIMD extension 3
-	HasSSE41     bool // Streaming SIMD extension 4 and 4.1
-	HasSSE42     bool // Streaming SIMD extension 4 and 4.2
-	_            CacheLinePad
+	_                   CacheLinePad
+	HasAES              bool // AES hardware implementation (AES NI)
+	HasADX              bool // Multi-precision add-carry instruction extensions
+	HasAVX              bool // Advanced vector extension
+	HasAVX2             bool // Advanced vector extension 2
+	HasAVX512           bool // Advanced vector extension 512
+	HasAVX512F          bool // Advanced vector extension 512 Foundation Instructions
+	HasAVX512CD         bool // Advanced vector extension 512 Conflict Detection Instructions
+	HasAVX512ER         bool // Advanced vector extension 512 Exponential and Reciprocal Instructions
+	HasAVX512PF         bool // Advanced vector extension 512 Prefetch Instructions
+	HasAVX512VL         bool // Advanced vector extension 512 Vector Length Extensions
+	HasAVX512BW         bool // Advanced vector extension 512 Byte and Word Instructions
+	HasAVX512DQ         bool // Advanced vector extension 512 Doubleword and Quadword Instructions
+	HasAVX512IFMA       bool // Advanced vector extension 512 Integer Fused Multiply Add
+	HasAVX512VBMI       bool // Advanced vector extension 512 Vector Byte Manipulation Instructions
+	HasAVX5124VNNIW     bool // Advanced vector extension 512 Vector Neural Network Instructions Word variable precision
+	HasAVX5124FMAPS     bool // Advanced vector extension 512 Fused Multiply Accumulation Packed Single precision
+	HasAVX512VPOPCNTDQ  bool // Advanced vector extension 512 Double and quad word population count instructions
+	HasAVX512VPCLMULQDQ bool // Advanced vector extension 512 Vector carry-less multiply operations
+	HasAVX512VNNI       bool // Advanced vector extension 512 Vector Neural Network Instructions
+	HasAVX512GFNI       bool // Advanced vector extension 512 Galois field New Instructions
+	HasAVX512VAES       bool // Advanced vector extension 512 Vector AES instructions
+	HasAVX512VBMI2      bool // Advanced vector extension 512 Vector Byte Manipulation Instructions 2
+	HasAVX512BITALG     bool // Advanced vector extension 512 Bit Algorithms
+	HasAVX512BF16       bool // Advanced vector extension 512 BFloat16 Instructions
+	HasAMXTile          bool // Advanced Matrix Extension Tile instructions
+	HasAMXInt8          bool // Advanced Matrix Extension Int8 instructions
+	HasAMXBF16          bool // Advanced Matrix Extension BFloat16 instructions
+	HasBMI1             bool // Bit manipulation instruction set 1
+	HasBMI2             bool // Bit manipulation instruction set 2
+	HasCX16             bool // Compare and exchange 16 Bytes
+	HasERMS             bool // Enhanced REP for MOVSB and STOSB
+	HasFMA              bool // Fused-multiply-add instructions
+	HasOSXSAVE          bool // OS supports XSAVE/XRESTOR for saving/restoring XMM registers.
+	HasPCLMULQDQ        bool // PCLMULQDQ instruction - most often used for AES-GCM
+	HasPOPCNT           bool // Hamming weight instruction POPCNT.
+	HasRDRAND           bool // RDRAND instruction (on-chip random number generator)
+	HasRDSEED           bool // RDSEED instruction (on-chip random number generator)
+	HasSSE2             bool // Streaming SIMD extension 2 (always available on amd64)
+	HasSSE3             bool // Streaming SIMD extension 3
+	HasSSSE3            bool // Supplemental streaming SIMD extension 3
+	HasSSE41            bool // Streaming SIMD extension 4 and 4.1
+	HasSSE42            bool // Streaming SIMD extension 4 and 4.2
+	HasAVXIFMA          bool // Advanced vector extension Integer Fused Multiply Add
+	HasAVXVNNI          bool // Advanced vector extension Vector Neural Network Instructions
+	HasAVXVNNIInt8      bool // Advanced vector extension Vector Neural Network Int8 instructions
+	_                   CacheLinePad
 }
 
 // ARM64 contains the supported CPU features of the
@@ -74,14 +106,17 @@ var ARM64 struct {
 	HasASIMDDP  bool // Advanced SIMD double precision instruction set
 	HasSHA512   bool // SHA512 hardware implementation
 	HasSVE      bool // Scalable Vector Extensions
+	HasSVE2     bool // Scalable Vector Extensions 2
 	HasASIMDFHM bool // Advanced SIMD multiplication FP16 to FP32
+	HasDIT      bool // Data Independent Timing support
+	HasI8MM     bool // Advanced SIMD Int8 matrix multiplication instructions
 	_           CacheLinePad
 }
 
 // ARM contains the supported CPU features of the current ARM (32-bit) platform.
 // All feature flags are false if:
-//   1. the current platform is not arm, or
-//   2. the current operating system is not Linux.
+//  1. the current platform is not arm, or
+//  2. the current operating system is not Linux.
 var ARM struct {
 	_           CacheLinePad
 	HasSWP      bool // SWP instruction support
@@ -114,20 +149,40 @@ var ARM struct {
 	_           CacheLinePad
 }
 
+// The booleans in Loong64 contain the correspondingly named cpu feature bit.
+// The struct is padded to avoid false sharing.
+var Loong64 struct {
+	_         CacheLinePad
+	HasLSX    bool // support 128-bit vector extension
+	HasLASX   bool // support 256-bit vector extension
+	HasCRC32  bool // support CRC instruction
+	HasLAM_BH bool // support AM{SWAP/ADD}[_DB].{B/H} instruction
+	HasLAMCAS bool // support AMCAS[_DB].{B/H/W/D} instruction
+	_         CacheLinePad
+}
+
+// MIPS64X contains the supported CPU features of the current mips64/mips64le
+// platforms. If the current platform is not mips64/mips64le or the current
+// operating system is not Linux then all feature flags are false.
+var MIPS64X struct {
+	_      CacheLinePad
+	HasMSA bool // MIPS SIMD architecture
+	_      CacheLinePad
+}
+
 // PPC64 contains the supported CPU features of the current ppc64/ppc64le platforms.
 // If the current platform is not ppc64/ppc64le then all feature flags are false.
 //
 // For ppc64/ppc64le, it is safe to check only for ISA level starting on ISA v3.00,
 // since there are no optional categories. There are some exceptions that also
 // require kernel support to work (DARN, SCV), so there are feature bits for
-// those as well. The minimum processor requirement is POWER8 (ISA 2.07).
-// The struct is padded to avoid false sharing.
+// those as well. The struct is padded to avoid false sharing.
 var PPC64 struct {
 	_        CacheLinePad
 	HasDARN  bool // Hardware random number generator (requires kernel enablement)
 	HasSCV   bool // Syscall vectored (requires kernel enablement)
 	IsPOWER8 bool // ISA v2.07 (POWER8)
-	IsPOWER9 bool // ISA v3.00 (POWER9)
+	IsPOWER9 bool // ISA v3.00 (POWER9), implies IsPOWER8
 	_        CacheLinePad
 }
 
@@ -159,4 +214,125 @@ var S390X struct {
 	HasVX     bool // vector facility
 	HasVXE    bool // vector-enhancements facility 1
 	_         CacheLinePad
+}
+
+// RISCV64 contains the supported CPU features and performance characteristics for riscv64
+// platforms. The booleans in RISCV64, with the exception of HasFastMisaligned, indicate
+// the presence of RISC-V extensions.
+//
+// It is safe to assume that all the RV64G extensions are supported and so they are omitted from
+// this structure. As riscv64 Go programs require at least RV64G, the code that populates
+// this structure cannot run successfully if some of the RV64G extensions are missing.
+// The struct is padded to avoid false sharing.
+var RISCV64 struct {
+	_                 CacheLinePad
+	HasFastMisaligned bool // Fast misaligned accesses
+	HasC              bool // Compressed instruction-set extension
+	HasV              bool // Vector extension compatible with RVV 1.0
+	HasZba            bool // Address generation instructions extension
+	HasZbb            bool // Basic bit-manipulation extension
+	HasZbs            bool // Single-bit instructions extension
+	HasZvbb           bool // Vector Basic Bit-manipulation
+	HasZvbc           bool // Vector Carryless Multiplication
+	HasZvkb           bool // Vector Cryptography Bit-manipulation
+	HasZvkt           bool // Vector Data-Independent Execution Latency
+	HasZvkg           bool // Vector GCM/GMAC
+	HasZvkn           bool // NIST Algorithm Suite (AES/SHA256/SHA512)
+	HasZvknc          bool // NIST Algorithm Suite with carryless multiply
+	HasZvkng          bool // NIST Algorithm Suite with GCM
+	HasZvks           bool // ShangMi Algorithm Suite
+	HasZvksc          bool // ShangMi Algorithm Suite with carryless multiplication
+	HasZvksg          bool // ShangMi Algorithm Suite with GCM
+	_                 CacheLinePad
+}
+
+func init() {
+	archInit()
+	initOptions()
+	processOptions()
+}
+
+// options contains the cpu debug options that can be used in GODEBUG.
+// Options are arch dependent and are added by the arch specific initOptions functions.
+// Features that are mandatory for the specific GOARCH should have the Required field set
+// (e.g. SSE2 on amd64).
+var options []option
+
+// Option names should be lower case. e.g. avx instead of AVX.
+type option struct {
+	Name      string
+	Feature   *bool
+	Specified bool // whether feature value was specified in GODEBUG
+	Enable    bool // whether feature should be enabled
+	Required  bool // whether feature is mandatory and can not be disabled
+}
+
+func processOptions() {
+	env := os.Getenv("GODEBUG")
+field:
+	for env != "" {
+		field := ""
+		i := strings.IndexByte(env, ',')
+		if i < 0 {
+			field, env = env, ""
+		} else {
+			field, env = env[:i], env[i+1:]
+		}
+		if len(field) < 4 || field[:4] != "cpu." {
+			continue
+		}
+		i = strings.IndexByte(field, '=')
+		if i < 0 {
+			print("GODEBUG sys/cpu: no value specified for \"", field, "\"\n")
+			continue
+		}
+		key, value := field[4:i], field[i+1:] // e.g. "SSE2", "on"
+
+		var enable bool
+		switch value {
+		case "on":
+			enable = true
+		case "off":
+			enable = false
+		default:
+			print("GODEBUG sys/cpu: value \"", value, "\" not supported for cpu option \"", key, "\"\n")
+			continue field
+		}
+
+		if key == "all" {
+			for i := range options {
+				options[i].Specified = true
+				options[i].Enable = enable || options[i].Required
+			}
+			continue field
+		}
+
+		for i := range options {
+			if options[i].Name == key {
+				options[i].Specified = true
+				options[i].Enable = enable
+				continue field
+			}
+		}
+
+		print("GODEBUG sys/cpu: unknown cpu feature \"", key, "\"\n")
+	}
+
+	for _, o := range options {
+		if !o.Specified {
+			continue
+		}
+
+		if o.Enable && !*o.Feature {
+			print("GODEBUG sys/cpu: can not enable \"", o.Name, "\", missing CPU support\n")
+			continue
+		}
+
+		if !o.Enable && o.Required {
+			print("GODEBUG sys/cpu: can not disable \"", o.Name, "\", required CPU feature\n")
+			continue
+		}
+
+		*o.Feature = o.Enable
+	}
 }

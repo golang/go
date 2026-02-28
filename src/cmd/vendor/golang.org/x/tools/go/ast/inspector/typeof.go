@@ -1,3 +1,7 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package inspector
 
 // This file defines func typeOf(ast.Node) uint64.
@@ -5,7 +9,10 @@ package inspector
 // The initial map-based implementation was too slow;
 // see https://go-review.googlesource.com/c/tools/+/135655/1/go/ast/inspector/inspector.go#196
 
-import "go/ast"
+import (
+	"go/ast"
+	"math"
+)
 
 const (
 	nArrayType = iota
@@ -43,6 +50,7 @@ const (
 	nImportSpec
 	nIncDecStmt
 	nIndexExpr
+	nIndexListExpr
 	nInterfaceType
 	nKeyValueExpr
 	nLabeledStmt
@@ -68,12 +76,14 @@ const (
 // typeOf returns a distinct single-bit value that represents the type of n.
 //
 // Various implementations were benchmarked with BenchmarkNewInspector:
-//								GOGC=off
-// - type switch				4.9-5.5ms	2.1ms
-// - binary search over a sorted list of types  5.5-5.9ms	2.5ms
-// - linear scan, frequency-ordered list 	5.9-6.1ms	2.7ms
-// - linear scan, unordered list		6.4ms		2.7ms
-// - hash table					6.5ms		3.1ms
+//
+//	                                                                GOGC=off
+//	- type switch					4.9-5.5ms	2.1ms
+//	- binary search over a sorted list of types	5.5-5.9ms	2.5ms
+//	- linear scan, frequency-ordered list		5.9-6.1ms	2.7ms
+//	- linear scan, unordered list			6.4ms		2.7ms
+//	- hash table					6.5ms		3.1ms
+//
 // A perfect hash seemed like overkill.
 //
 // The compiler's switch statement is the clear winner
@@ -81,7 +91,6 @@ const (
 // with constant conditions and good branch prediction.
 // (Sadly it is the most verbose in source code.)
 // Binary search suffered from poor branch prediction.
-//
 func typeOf(n ast.Node) uint64 {
 	// Fast path: nearly half of all nodes are identifiers.
 	if _, ok := n.(*ast.Ident); ok {
@@ -160,6 +169,8 @@ func typeOf(n ast.Node) uint64 {
 		return 1 << nIncDecStmt
 	case *ast.IndexExpr:
 		return 1 << nIndexExpr
+	case *ast.IndexListExpr:
+		return 1 << nIndexListExpr
 	case *ast.InterfaceType:
 		return 1 << nInterfaceType
 	case *ast.KeyValueExpr:
@@ -205,8 +216,8 @@ func typeOf(n ast.Node) uint64 {
 }
 
 func maskOf(nodes []ast.Node) uint64 {
-	if nodes == nil {
-		return 1<<64 - 1 // match all node types
+	if len(nodes) == 0 {
+		return math.MaxUint64 // match all node types
 	}
 	var mask uint64
 	for _, n := range nodes {

@@ -1,6 +1,7 @@
 // Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
 package sync_test
 
 import (
@@ -8,7 +9,6 @@ import (
 	"runtime"
 	. "sync"
 	"testing"
-	"time"
 )
 
 func TestCondSignal(t *testing.T) {
@@ -227,11 +227,7 @@ func TestCondSignalStealing(t *testing.T) {
 		}()
 
 		// Check that the first waiter does get signaled.
-		select {
-		case <-ch:
-		case <-time.After(2 * time.Second):
-			t.Fatalf("First waiter didn't get broadcast.")
-		}
+		<-ch
 
 		// Release the second waiter in case it didn't get the
 		// broadcast.

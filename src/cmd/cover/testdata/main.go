@@ -94,18 +94,25 @@ func count(line uint32) (uint32, int) {
 	// and we don't want that brace to steal the count for the condition on the "if".
 	// Therefore we test for a perfect (lo==line && hi==line) match, but if we can't
 	// find that we take the first imperfect match.
+	// When multiple perfect matches exist (e.g., an outer block counter and an inner
+	// function literal counter on the same line), prefer the last one: it corresponds
+	// to the innermost scope, which is the most specific counter for that line.
 	index := -1
 	indexLo := uint32(1e9)
+	perfectIndex := -1
 	for i := range coverTest.Count {
 		lo, hi := coverTest.Pos[3*i], coverTest.Pos[3*i+1]
 		if lo == line && line == hi {
-			return coverTest.Count[i], i
+			perfectIndex = i
 		}
 		// Choose the earliest match (the counters are in unpredictable order).
 		if lo <= line && line <= hi && indexLo > lo {
 			index = i
 			indexLo = lo
 		}
+	}
+	if perfectIndex >= 0 {
+		return coverTest.Count[perfectIndex], perfectIndex
 	}
 	if index == -1 {
 		fmt.Fprintln(os.Stderr, "cover_test: no counter for line", line)

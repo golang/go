@@ -13,4 +13,4 @@ func fx() int {
 	return 0
 }
 
-var x = fx // ERROR "initialization loop|depends upon itself"
+var x = fx // ERROR "initialization cycle|depends upon itself"

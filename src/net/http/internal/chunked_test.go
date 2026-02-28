@@ -9,9 +9,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
+	"testing/iotest"
 )
 
 func TestChunk(t *testing.T) {
@@ -29,7 +29,7 @@ func TestChunk(t *testing.T) {
 	}
 
 	r := NewChunkedReader(&b)
-	data, err := ioutil.ReadAll(r)
+	data, err := io.ReadAll(r)
 	if err != nil {
 		t.Logf(`data: "%s"`, data)
 		t.Fatalf("ReadAll from reader: %v", err)
@@ -153,6 +153,7 @@ func TestParseHexUint(t *testing.T) {
 		{"00000000000000000", 0, "http chunk length too large"}, // could accept if we wanted
 		{"10000000000000000", 0, "http chunk length too large"},
 		{"00000000000000001", 0, "http chunk length too large"}, // could accept if we wanted
+		{"", 0, "empty hex number for chunk length"},
 	}
 	for i := uint64(0); i <= 1234; i++ {
 		tests = append(tests, testCase{in: fmt.Sprintf("%x", i), want: i})
@@ -177,7 +178,7 @@ func TestChunkReadingIgnoresExtensions(t *testing.T) {
 		"17;someext\r\n" + // token without value
 		"world! 0123456789abcdef\r\n" +
 		"0;someextension=sometoken\r\n" // token=token
-	data, err := ioutil.ReadAll(NewChunkedReader(strings.NewReader(in)))
+	data, err := io.ReadAll(NewChunkedReader(strings.NewReader(in)))
 	if err != nil {
 		t.Fatalf("ReadAll = %q, %v", data, err)
 	}
@@ -211,4 +212,117 @@ func TestChunkReadPartial(t *testing.T) {
 		t.Fatalf("second read = %v; want malformed error", err)
 	}
 
+}
+
+// Issue 48861: ChunkedReader should report incomplete chunks
+func TestIncompleteChunk(t *testing.T) {
+	const valid = "4\r\nabcd\r\n" + "5\r\nabc\r\n\r\n" + "0\r\n"
+
+	for i := 0; i < len(valid); i++ {
+		incomplete := valid[:i]
+		r := NewChunkedReader(strings.NewReader(incomplete))
+		if _, err := io.ReadAll(r); err != io.ErrUnexpectedEOF {
+			t.Errorf("expected io.ErrUnexpectedEOF for %q, got %v", incomplete, err)
+		}
+	}
+
+	r := NewChunkedReader(strings.NewReader(valid))
+	if _, err := io.ReadAll(r); err != nil {
+		t.Errorf("unexpected error for %q: %v", valid, err)
+	}
+}
+
+func TestChunkEndReadError(t *testing.T) {
+	readErr := fmt.Errorf("chunk end read error")
+
+	r := NewChunkedReader(io.MultiReader(strings.NewReader("4\r\nabcd"), iotest.ErrReader(readErr)))
+	if _, err := io.ReadAll(r); err != readErr {
+		t.Errorf("expected %v, got %v", readErr, err)
+	}
+}
+
+func TestChunkReaderTooMuchOverhead(t *testing.T) {
+	// If the sender is sending 100x as many chunk header bytes as chunk data,
+	// we should reject the stream at some point.
+	chunk := []byte("1;")
+	for i := 0; i < 100; i++ {
+		chunk = append(chunk, 'a') // chunk extension
+	}
+	chunk = append(chunk, "\r\nX\r\n"...)
+	const bodylen = 1 << 20
+	r := NewChunkedReader(&funcReader{f: func(i int) ([]byte, error) {
+		if i < bodylen {
+			return chunk, nil
+		}
+		return []byte("0\r\n"), nil
+	}})
+	_, err := io.ReadAll(r)
+	if err == nil {
+		t.Fatalf("successfully read body with excessive overhead; want error")
+	}
+}
+
+func TestChunkReaderByteAtATime(t *testing.T) {
+	// Sending one byte per chunk should not trip the excess-overhead detection.
+	const bodylen = 1 << 20
+	r := NewChunkedReader(&funcReader{f: func(i int) ([]byte, error) {
+		if i < bodylen {
+			return []byte("1\r\nX\r\n"), nil
+		}
+		return []byte("0\r\n"), nil
+	}})
+	got, err := io.ReadAll(r)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if len(got) != bodylen {
+		t.Errorf("read %v bytes, want %v", len(got), bodylen)
+	}
+}
+
+func TestChunkInvalidInputs(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		b    string
+	}{{
+		name: "bare LF in chunk size",
+		b:    "1\na\r\n0\r\n",
+	}, {
+		name: "extra LF in chunk size",
+		b:    "1\r\r\na\r\n0\r\n",
+	}, {
+		name: "bare LF in chunk data",
+		b:    "1\r\na\n0\r\n",
+	}, {
+		name: "bare LF in chunk extension",
+		b:    "1;\na\r\n0\r\n",
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			r := NewChunkedReader(strings.NewReader(test.b))
+			got, err := io.ReadAll(r)
+			if err == nil {
+				t.Fatalf("unexpectedly parsed invalid chunked data:\n%q", got)
+			}
+		})
+	}
+}
+
+type funcReader struct {
+	f   func(iteration int) ([]byte, error)
+	i   int
+	b   []byte
+	err error
+}
+
+func (r *funcReader) Read(p []byte) (n int, err error) {
+	if len(r.b) == 0 && r.err == nil {
+		r.b, r.err = r.f(r.i)
+		r.i++
+	}
+	n = copy(p, r.b)
+	r.b = r.b[n:]
+	if len(r.b) > 0 {
+		return n, nil
+	}
+	return n, r.err
 }

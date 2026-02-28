@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 
 package unix
 
@@ -76,7 +76,7 @@ func SignalName(s syscall.Signal) string {
 // The signal name should start with "SIG".
 func SignalNum(s string) syscall.Signal {
 	signalNameMapOnce.Do(func() {
-		signalNameMap = make(map[string]syscall.Signal)
+		signalNameMap = make(map[string]syscall.Signal, len(signalList))
 		for _, signal := range signalList {
 			signalNameMap[signal.name] = signal.num
 		}
@@ -113,15 +113,8 @@ func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (d
 		return nil, errno
 	}
 
-	// Slice memory layout
-	var sl = struct {
-		addr uintptr
-		len  int
-		cap  int
-	}{addr, length, length}
-
-	// Use unsafe to turn sl into a []byte.
-	b := *(*[]byte)(unsafe.Pointer(&sl))
+	// Use unsafe to convert addr into a []byte.
+	b := unsafe.Slice((*byte)(unsafe.Pointer(addr)), length)
 
 	// Register mapping in m and return it.
 	p := &b[cap(b)-1]
@@ -153,6 +146,23 @@ func (m *mmapper) Munmap(data []byte) (err error) {
 	return nil
 }
 
+func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
+	return mapper.Mmap(fd, offset, length, prot, flags)
+}
+
+func Munmap(b []byte) (err error) {
+	return mapper.Munmap(b)
+}
+
+func MmapPtr(fd int, offset int64, addr unsafe.Pointer, length uintptr, prot int, flags int) (ret unsafe.Pointer, err error) {
+	xaddr, err := mapper.mmap(uintptr(addr), length, prot, flags, fd, offset)
+	return unsafe.Pointer(xaddr), err
+}
+
+func MunmapPtr(addr unsafe.Pointer, length uintptr) (err error) {
+	return mapper.munmap(uintptr(addr), length)
+}
+
 func Read(fd int, p []byte) (n int, err error) {
 	n, err = read(fd, p)
 	if raceenabled {
@@ -171,6 +181,30 @@ func Write(fd int, p []byte) (n int, err error) {
 		raceReleaseMerge(unsafe.Pointer(&ioSync))
 	}
 	n, err = write(fd, p)
+	if raceenabled && n > 0 {
+		raceReadRange(unsafe.Pointer(&p[0]), n)
+	}
+	return
+}
+
+func Pread(fd int, p []byte, offset int64) (n int, err error) {
+	n, err = pread(fd, p, offset)
+	if raceenabled {
+		if n > 0 {
+			raceWriteRange(unsafe.Pointer(&p[0]), n)
+		}
+		if err == nil {
+			raceAcquire(unsafe.Pointer(&ioSync))
+		}
+	}
+	return
+}
+
+func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+	if raceenabled {
+		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	n, err = pwrite(fd, p, offset)
 	if raceenabled && n > 0 {
 		raceReadRange(unsafe.Pointer(&p[0]), n)
 	}
@@ -313,12 +347,146 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
 	return
 }
 
-func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
-	ptr, n, err := to.sockaddr()
-	if err != nil {
-		return err
+// Recvmsg receives a message from a socket using the recvmsg system call. The
+// received non-control data will be written to p, and any "out of band"
+// control data will be written to oob. The flags are passed to recvmsg.
+//
+// The results are:
+//   - n is the number of non-control data bytes read into p
+//   - oobn is the number of control data bytes read into oob; this may be interpreted using [ParseSocketControlMessage]
+//   - recvflags is flags returned by recvmsg
+//   - from is the address of the sender
+//
+// If the underlying socket type is not SOCK_DGRAM, a received message
+// containing oob data and a single '\0' of non-control data is treated as if
+// the message contained only control data, i.e. n will be zero on return.
+func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+	var iov [1]Iovec
+	if len(p) > 0 {
+		iov[0].Base = &p[0]
+		iov[0].SetLen(len(p))
 	}
-	return sendto(fd, p, flags, ptr, n)
+	var rsa RawSockaddrAny
+	if n, oobn, recvflags, err = recvmsgRaw(fd, iov[:], oob, flags, &rsa); err != nil {
+		return
+	}
+	// source address is only specified if the socket is unconnected
+	if rsa.Addr.Family != AF_UNSPEC {
+		from, err = anyToSockaddr(fd, &rsa)
+	}
+	return
+}
+
+// RecvmsgBuffers receives a message from a socket using the recvmsg system
+// call. This function is equivalent to Recvmsg, but non-control data read is
+// scattered into the buffers slices.
+func RecvmsgBuffers(fd int, buffers [][]byte, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+	iov := make([]Iovec, len(buffers))
+	for i := range buffers {
+		if len(buffers[i]) > 0 {
+			iov[i].Base = &buffers[i][0]
+			iov[i].SetLen(len(buffers[i]))
+		} else {
+			iov[i].Base = (*byte)(unsafe.Pointer(&_zero))
+		}
+	}
+	var rsa RawSockaddrAny
+	if n, oobn, recvflags, err = recvmsgRaw(fd, iov, oob, flags, &rsa); err != nil {
+		return
+	}
+	if rsa.Addr.Family != AF_UNSPEC {
+		from, err = anyToSockaddr(fd, &rsa)
+	}
+	return
+}
+
+// Sendmsg sends a message on a socket to an address using the sendmsg system
+// call. This function is equivalent to SendmsgN, but does not return the
+// number of bytes actually sent.
+func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+	_, err = SendmsgN(fd, p, oob, to, flags)
+	return
+}
+
+// SendmsgN sends a message on a socket to an address using the sendmsg system
+// call. p contains the non-control data to send, and oob contains the "out of
+// band" control data. The flags are passed to sendmsg. The number of
+// non-control bytes actually written to the socket is returned.
+//
+// Some socket types do not support sending control data without accompanying
+// non-control data. If p is empty, and oob contains control data, and the
+// underlying socket type is not SOCK_DGRAM, p will be treated as containing a
+// single '\0' and the return value will indicate zero bytes sent.
+//
+// The Go function Recvmsg, if called with an empty p and a non-empty oob,
+// will read and ignore this additional '\0'.  If the message is received by
+// code that does not use Recvmsg, or that does not use Go at all, that code
+// will need to be written to expect and ignore the additional '\0'.
+//
+// If you need to send non-empty oob with p actually empty, and if the
+// underlying socket type supports it, you can do so via a raw system call as
+// follows:
+//
+//	msg := &unix.Msghdr{
+//	    Control: &oob[0],
+//	}
+//	msg.SetControllen(len(oob))
+//	n, _, errno := unix.Syscall(unix.SYS_SENDMSG, uintptr(fd), uintptr(unsafe.Pointer(msg)), flags)
+func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
+	var iov [1]Iovec
+	if len(p) > 0 {
+		iov[0].Base = &p[0]
+		iov[0].SetLen(len(p))
+	}
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return 0, err
+		}
+	}
+	return sendmsgN(fd, iov[:], oob, ptr, salen, flags)
+}
+
+// SendmsgBuffers sends a message on a socket to an address using the sendmsg
+// system call. This function is equivalent to SendmsgN, but the non-control
+// data is gathered from buffers.
+func SendmsgBuffers(fd int, buffers [][]byte, oob []byte, to Sockaddr, flags int) (n int, err error) {
+	iov := make([]Iovec, len(buffers))
+	for i := range buffers {
+		if len(buffers[i]) > 0 {
+			iov[i].Base = &buffers[i][0]
+			iov[i].SetLen(len(buffers[i]))
+		} else {
+			iov[i].Base = (*byte)(unsafe.Pointer(&_zero))
+		}
+	}
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return 0, err
+		}
+	}
+	return sendmsgN(fd, iov, oob, ptr, salen, flags)
+}
+
+func Send(s int, buf []byte, flags int) (err error) {
+	return sendto(s, buf, flags, nil, 0)
+}
+
+func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return err
+		}
+	}
+	return sendto(fd, p, flags, ptr, salen)
 }
 
 func SetsockoptByte(fd, level, opt int, value byte) (err error) {
@@ -393,6 +561,9 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
 	if err != nil {
 		return err
 	}
+	if (flag&O_NONBLOCK != 0) == nonblocking {
+		return nil
+	}
 	if nonblocking {
 		flag |= O_NONBLOCK
 	} else {
@@ -428,4 +599,21 @@ func Lutimes(path string, tv []Timeval) error {
 		NsecToTimespec(TimevalToNsec(tv[1])),
 	}
 	return UtimesNanoAt(AT_FDCWD, path, ts, AT_SYMLINK_NOFOLLOW)
+}
+
+// emptyIovecs reports whether there are no bytes in the slice of Iovec.
+func emptyIovecs(iov []Iovec) bool {
+	for i := range iov {
+		if iov[i].Len > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// Setrlimit sets a resource limit.
+func Setrlimit(resource int, rlim *Rlimit) error {
+	// Just call the syscall version, because as of Go 1.21
+	// it will affect starting a new process.
+	return syscall.Setrlimit(resource, (*syscall.Rlimit)(rlim))
 }

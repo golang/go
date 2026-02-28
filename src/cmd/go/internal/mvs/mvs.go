@@ -8,12 +8,11 @@ package mvs
 
 import (
 	"fmt"
+	"slices"
 	"sort"
-	"strings"
 	"sync"
-	"sync/atomic"
 
-	"cmd/go/internal/par"
+	"cmd/internal/par"
 
 	"golang.org/x/mod/module"
 )
@@ -33,7 +32,8 @@ type Reqs interface {
 	// The caller must not modify the returned list.
 	Required(m module.Version) ([]module.Version, error)
 
-	// Max returns the maximum of v1 and v2 (it returns either v1 or v2).
+	// Max returns the maximum of v1 and v2 (it returns either v1 or v2)
+	// in the module with path p.
 	//
 	// For all versions v, Max(v, "none") must be v,
 	// and for the target passed as the first argument to MVS functions,
@@ -41,7 +41,12 @@ type Reqs interface {
 	//
 	// Note that v1 < v2 can be written Max(v1, v2) != v1
 	// and similarly v1 <= v2 can be written Max(v1, v2) == v2.
-	Max(v1, v2 string) string
+	Max(p, v1, v2 string) string
+}
+
+// An UpgradeReqs is a Reqs that can also identify available upgrades.
+type UpgradeReqs interface {
+	Reqs
 
 	// Upgrade returns the upgraded version of m,
 	// for use during an UpgradeAll operation.
@@ -55,207 +60,132 @@ type Reqs interface {
 	// TODO(rsc): Upgrade must be able to return errors,
 	// but should "no latest version" just return m instead?
 	Upgrade(m module.Version) (module.Version, error)
+}
+
+// A DowngradeReqs is a Reqs that can also identify available downgrades.
+type DowngradeReqs interface {
+	Reqs
 
 	// Previous returns the version of m.Path immediately prior to m.Version,
 	// or "none" if no such version is known.
 	Previous(m module.Version) (module.Version, error)
 }
 
-// BuildListError decorates an error that occurred gathering requirements
-// while constructing a build list. BuildListError prints the chain
-// of requirements to the module where the error occurred.
-type BuildListError struct {
-	Err   error
-	stack []buildListErrorElem
-}
-
-type buildListErrorElem struct {
-	m module.Version
-
-	// nextReason is the reason this module depends on the next module in the
-	// stack. Typically either "requires", or "upgraded to".
-	nextReason string
-}
-
-// Module returns the module where the error occurred. If the module stack
-// is empty, this returns a zero value.
-func (e *BuildListError) Module() module.Version {
-	if len(e.stack) == 0 {
-		return module.Version{}
-	}
-	return e.stack[0].m
-}
-
-func (e *BuildListError) Error() string {
-	b := &strings.Builder{}
-	stack := e.stack
-
-	// Don't print modules at the beginning of the chain without a
-	// version. These always seem to be the main module or a
-	// synthetic module ("target@").
-	for len(stack) > 0 && stack[len(stack)-1].m.Version == "" {
-		stack = stack[:len(stack)-1]
-	}
-
-	for i := len(stack) - 1; i >= 1; i-- {
-		fmt.Fprintf(b, "%s@%s %s\n\t", stack[i].m.Path, stack[i].m.Version, stack[i].nextReason)
-	}
-	if len(stack) == 0 {
-		b.WriteString(e.Err.Error())
-	} else {
-		// Ensure that the final module path and version are included as part of the
-		// error message.
-		if _, ok := e.Err.(*module.ModuleError); ok {
-			fmt.Fprintf(b, "%v", e.Err)
-		} else {
-			fmt.Fprintf(b, "%v", module.VersionError(stack[0].m, e.Err))
-		}
-	}
-	return b.String()
-}
-
 // BuildList returns the build list for the target module.
-// The first element is the target itself, with the remainder of the list sorted by path.
-func BuildList(target module.Version, reqs Reqs) ([]module.Version, error) {
-	return buildList(target, reqs, nil)
+//
+// target is the root vertex of a module requirement graph. For cmd/go, this is
+// typically the main module, but note that this algorithm is not intended to
+// be Go-specific: module paths and versions are treated as opaque values.
+//
+// reqs describes the module requirement graph and provides an opaque method
+// for comparing versions.
+//
+// BuildList traverses the graph and returns a list containing the highest
+// version for each visited module. The first element of the returned list is
+// target itself; reqs.Max requires target.Version to compare higher than all
+// other versions, so no other version can be selected. The remaining elements
+// of the list are sorted by path.
+//
+// See https://research.swtch.com/vgo-mvs for details.
+func BuildList(targets []module.Version, reqs Reqs) ([]module.Version, error) {
+	return buildList(targets, reqs, nil)
 }
 
-func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) (module.Version, error)) ([]module.Version, error) {
-	// Explore work graph in parallel in case reqs.Required
-	// does high-latency network operations.
-	type modGraphNode struct {
-		m        module.Version
-		required []module.Version
-		upgrade  module.Version
-		err      error
+func buildList(targets []module.Version, reqs Reqs, upgrade func(module.Version) (module.Version, error)) ([]module.Version, error) {
+	cmp := func(p, v1, v2 string) int {
+		if reqs.Max(p, v1, v2) != v1 {
+			return -1
+		}
+		if reqs.Max(p, v2, v1) != v2 {
+			return 1
+		}
+		return 0
 	}
+
 	var (
 		mu       sync.Mutex
-		modGraph = map[module.Version]*modGraphNode{}
-		min      = map[string]string{} // maps module path to minimum required version
-		haveErr  int32
+		g        = NewGraph(cmp, targets)
+		upgrades = map[module.Version]module.Version{}
+		errs     = map[module.Version]error{} // (non-nil errors only)
 	)
-	setErr := func(n *modGraphNode, err error) {
-		n.err = err
-		atomic.StoreInt32(&haveErr, 1)
+
+	// Explore work graph in parallel in case reqs.Required
+	// does high-latency network operations.
+	var work par.Work[module.Version]
+	for _, target := range targets {
+		work.Add(target)
 	}
+	work.Do(10, func(m module.Version) {
 
-	var work par.Work
-	work.Add(target)
-	work.Do(10, func(item interface{}) {
-		m := item.(module.Version)
-
-		node := &modGraphNode{m: m}
-		mu.Lock()
-		modGraph[m] = node
-		if v, ok := min[m.Path]; !ok || reqs.Max(v, m.Version) != v {
-			min[m.Path] = m.Version
+		var required []module.Version
+		var err error
+		if m.Version != "none" {
+			required, err = reqs.Required(m)
 		}
+
+		u := m
+		if upgrade != nil {
+			upgradeTo, upErr := upgrade(m)
+			if upErr == nil {
+				u = upgradeTo
+			} else if err == nil {
+				err = upErr
+			}
+		}
+
+		mu.Lock()
+		if err != nil {
+			errs[m] = err
+		}
+		if u != m {
+			upgrades[m] = u
+			required = append([]module.Version{u}, required...)
+		}
+		g.Require(m, required)
 		mu.Unlock()
 
-		required, err := reqs.Required(m)
-		if err != nil {
-			setErr(node, err)
-			return
-		}
-		node.required = required
-		for _, r := range node.required {
+		for _, r := range required {
 			work.Add(r)
-		}
-
-		if upgrade != nil {
-			u, err := upgrade(m)
-			if err != nil {
-				setErr(node, err)
-				return
-			}
-			if u != m {
-				node.upgrade = u
-				work.Add(u)
-			}
 		}
 	})
 
 	// If there was an error, find the shortest path from the target to the
 	// node where the error occurred so we can report a useful error message.
-	if haveErr != 0 {
-		// neededBy[a] = b means a was added to the module graph by b.
-		neededBy := make(map[*modGraphNode]*modGraphNode)
-		q := make([]*modGraphNode, 0, len(modGraph))
-		q = append(q, modGraph[target])
-		for len(q) > 0 {
-			node := q[0]
-			q = q[1:]
-
-			if node.err != nil {
-				err := &BuildListError{
-					Err:   node.err,
-					stack: []buildListErrorElem{{m: node.m}},
-				}
-				for n, prev := neededBy[node], node; n != nil; n, prev = neededBy[n], n {
-					reason := "requires"
-					if n.upgrade == prev.m {
-						reason = "updating to"
-					}
-					err.stack = append(err.stack, buildListErrorElem{m: n.m, nextReason: reason})
-				}
-				return nil, err
-			}
-
-			neighbors := node.required
-			if node.upgrade.Path != "" {
-				neighbors = append(neighbors, node.upgrade)
-			}
-			for _, neighbor := range neighbors {
-				nn := modGraph[neighbor]
-				if neededBy[nn] != nil {
-					continue
-				}
-				neededBy[nn] = node
-				q = append(q, nn)
-			}
+	if len(errs) > 0 {
+		errPath := g.FindPath(func(m module.Version) bool {
+			return errs[m] != nil
+		})
+		if len(errPath) == 0 {
+			panic("internal error: could not reconstruct path to module with error")
 		}
+
+		err := errs[errPath[len(errPath)-1]]
+		isUpgrade := func(from, to module.Version) bool {
+			if u, ok := upgrades[from]; ok {
+				return u == to
+			}
+			return false
+		}
+		return nil, NewBuildListError(err, errPath, isUpgrade)
 	}
 
 	// The final list is the minimum version of each module found in the graph.
-
-	if v := min[target.Path]; v != target.Version {
-		// TODO(jayconrod): there is a special case in modload.mvsReqs.Max
-		// that prevents us from selecting a newer version of a module
-		// when the module has no version. This may only be the case for target.
-		// Should we always panic when target has a version?
+	list := g.BuildList()
+	if vs := list[:len(targets)]; !slices.Equal(vs, targets) {
+		// target.Version will be "" for modload, the main client of MVS.
+		// "" denotes the main module, which has no version. However, MVS treats
+		// version strings as opaque, so "" is not a special value here.
 		// See golang.org/issue/31491, golang.org/issue/29773.
-		panic(fmt.Sprintf("mistake: chose version %q instead of target %+v", v, target)) // TODO: Don't panic.
+		panic(fmt.Sprintf("mistake: chose versions %+v instead of targets %+v", vs, targets))
 	}
-
-	list := []module.Version{target}
-	for path, vers := range min {
-		if path != target.Path {
-			list = append(list, module.Version{Path: path, Version: vers})
-		}
-
-		n := modGraph[module.Version{Path: path, Version: vers}]
-		required := n.required
-		for _, r := range required {
-			v := min[r.Path]
-			if r.Path != target.Path && reqs.Max(v, r.Version) != v {
-				panic(fmt.Sprintf("mistake: version %q does not satisfy requirement %+v", v, r)) // TODO: Don't panic.
-			}
-		}
-	}
-
-	tail := list[1:]
-	sort.Slice(tail, func(i, j int) bool {
-		return tail[i].Path < tail[j].Path
-	})
 	return list, nil
 }
 
 // Req returns the minimal requirement list for the target module,
 // with the constraint that all module paths listed in base must
 // appear in the returned list.
-func Req(target module.Version, base []string, reqs Reqs) ([]module.Version, error) {
-	list, err := BuildList(target, reqs)
+func Req(mainModule module.Version, base []string, reqs Reqs) ([]module.Version, error) {
+	list, err := BuildList([]module.Version{mainModule}, reqs)
 	if err != nil {
 		return nil, err
 	}
@@ -264,10 +194,16 @@ func Req(target module.Version, base []string, reqs Reqs) ([]module.Version, err
 	// that list came from a previous operation that paged
 	// in all the requirements, so there's no I/O to overlap now.
 
+	max := map[string]string{}
+	for _, m := range list {
+		max[m.Path] = m.Version
+	}
+
 	// Compute postorder, cache requirements.
 	var postorder []module.Version
 	reqCache := map[module.Version][]module.Version{}
-	reqCache[target] = nil
+	reqCache[mainModule] = nil
+
 	var walk func(module.Version) error
 	walk = func(m module.Version) error {
 		_, ok := reqCache[m]
@@ -305,20 +241,17 @@ func Req(target module.Version, base []string, reqs Reqs) ([]module.Version, err
 		}
 		return nil
 	}
-	max := map[string]string{}
-	for _, m := range list {
-		if v, ok := max[m.Path]; ok {
-			max[m.Path] = reqs.Max(m.Version, v)
-		} else {
-			max[m.Path] = m.Version
-		}
-	}
 	// First walk the base modules that must be listed.
 	var min []module.Version
+	haveBase := map[string]bool{}
 	for _, path := range base {
+		if haveBase[path] {
+			continue
+		}
 		m := module.Version{Path: path, Version: max[path]}
 		min = append(min, m)
 		walk(m)
+		haveBase[path] = true
 	}
 	// Now the reverse postorder to bring in anything else.
 	for i := len(postorder) - 1; i >= 0; i-- {
@@ -340,8 +273,8 @@ func Req(target module.Version, base []string, reqs Reqs) ([]module.Version, err
 
 // UpgradeAll returns a build list for the target module
 // in which every module is upgraded to its latest version.
-func UpgradeAll(target module.Version, reqs Reqs) ([]module.Version, error) {
-	return buildList(target, reqs, func(m module.Version) (module.Version, error) {
+func UpgradeAll(target module.Version, reqs UpgradeReqs) ([]module.Version, error) {
+	return buildList([]module.Version{target}, reqs, func(m module.Version) (module.Version, error) {
 		if m.Path == target.Path {
 			return target, nil
 		}
@@ -352,36 +285,65 @@ func UpgradeAll(target module.Version, reqs Reqs) ([]module.Version, error) {
 
 // Upgrade returns a build list for the target module
 // in which the given additional modules are upgraded.
-func Upgrade(target module.Version, reqs Reqs, upgrade ...module.Version) ([]module.Version, error) {
+func Upgrade(target module.Version, reqs UpgradeReqs, upgrade ...module.Version) ([]module.Version, error) {
 	list, err := reqs.Required(target)
 	if err != nil {
 		return nil, err
 	}
-	// TODO: Maybe if an error is given,
-	// rerun with BuildList(upgrade[0], reqs) etc
-	// to find which ones are the buggy ones.
+
+	pathInList := make(map[string]bool, len(list))
+	for _, m := range list {
+		pathInList[m.Path] = true
+	}
 	list = append([]module.Version(nil), list...)
-	list = append(list, upgrade...)
-	return BuildList(target, &override{target, list, reqs})
+
+	upgradeTo := make(map[string]string, len(upgrade))
+	for _, u := range upgrade {
+		if !pathInList[u.Path] {
+			list = append(list, module.Version{Path: u.Path, Version: "none"})
+		}
+		if prev, dup := upgradeTo[u.Path]; dup {
+			upgradeTo[u.Path] = reqs.Max(u.Path, prev, u.Version)
+		} else {
+			upgradeTo[u.Path] = u.Version
+		}
+	}
+
+	return buildList([]module.Version{target}, &override{target, list, reqs}, func(m module.Version) (module.Version, error) {
+		if v, ok := upgradeTo[m.Path]; ok {
+			return module.Version{Path: m.Path, Version: v}, nil
+		}
+		return m, nil
+	})
 }
 
 // Downgrade returns a build list for the target module
-// in which the given additional modules are downgraded.
+// in which the given additional modules are downgraded,
+// potentially overriding the requirements of the target.
 //
 // The versions to be downgraded may be unreachable from reqs.Latest and
 // reqs.Previous, but the methods of reqs must otherwise handle such versions
 // correctly.
-func Downgrade(target module.Version, reqs Reqs, downgrade ...module.Version) ([]module.Version, error) {
-	list, err := reqs.Required(target)
+func Downgrade(target module.Version, reqs DowngradeReqs, downgrade ...module.Version) ([]module.Version, error) {
+	// Per https://research.swtch.com/vgo-mvs#algorithm_4:
+	// “To avoid an unnecessary downgrade to E 1.1, we must also add a new
+	// requirement on E 1.2. We can apply Algorithm R to find the minimal set of
+	// new requirements to write to go.mod.”
+	//
+	// In order to generate those new requirements, we need to identify versions
+	// for every module in the build list — not just reqs.Required(target).
+	list, err := BuildList([]module.Version{target}, reqs)
 	if err != nil {
 		return nil, err
 	}
+	list = list[1:] // remove target
+
 	max := make(map[string]string)
 	for _, r := range list {
 		max[r.Path] = r.Version
 	}
 	for _, d := range downgrade {
-		if v, ok := max[d.Path]; !ok || reqs.Max(v, d.Version) != d.Version {
+		if v, ok := max[d.Path]; !ok || reqs.Max(d.Path, v, d.Version) != d.Version {
 			max[d.Path] = d.Version
 		}
 	}
@@ -407,7 +369,10 @@ func Downgrade(target module.Version, reqs Reqs, downgrade ...module.Version) ([
 			return
 		}
 		added[m] = true
-		if v, ok := max[m.Path]; ok && reqs.Max(m.Version, v) != v {
+		if v, ok := max[m.Path]; ok && reqs.Max(m.Path, m.Version, v) != v {
+			// m would upgrade an existing dependency — it is not a strict downgrade,
+			// and because it was already present as a dependency, it could affect the
+			// behavior of other relevant packages.
 			exclude(m)
 			return
 		}
@@ -424,6 +389,7 @@ func Downgrade(target module.Version, reqs Reqs, downgrade ...module.Version) ([
 			// is transient (we couldn't download go.mod), return the error from
 			// Downgrade. Currently, we can't tell what kind of error it is.
 			exclude(m)
+			return
 		}
 		for _, r := range list {
 			add(r)
@@ -435,8 +401,8 @@ func Downgrade(target module.Version, reqs Reqs, downgrade ...module.Version) ([
 		}
 	}
 
-	var out []module.Version
-	out = append(out, target)
+	downgraded := make([]module.Version, 0, len(list)+1)
+	downgraded = append(downgraded, target)
 List:
 	for _, r := range list {
 		add(r)
@@ -454,7 +420,7 @@ List:
 			// included when iterating over prior versions using reqs.Previous.
 			// Insert it into the right place in the iteration.
 			// If v is excluded, p should be returned again by reqs.Previous on the next iteration.
-			if v := max[r.Path]; reqs.Max(v, r.Version) != v && reqs.Max(p.Version, v) != p.Version {
+			if v := max[r.Path]; reqs.Max(r.Path, v, r.Version) != v && reqs.Max(r.Path, p.Version, v) != p.Version {
 				p.Version = v
 			}
 			if p.Version == "none" {
@@ -463,10 +429,49 @@ List:
 			add(p)
 			r = p
 		}
-		out = append(out, r)
+		downgraded = append(downgraded, r)
 	}
 
-	return out, nil
+	// The downgrades we computed above only downgrade to versions enumerated by
+	// reqs.Previous. However, reqs.Previous omits some versions — such as
+	// pseudo-versions and retracted versions — that may be selected as transitive
+	// requirements of other modules.
+	//
+	// If one of those requirements pulls the version back up above the version
+	// identified by reqs.Previous, then the transitive dependencies of that
+	// initially-downgraded version should no longer matter — in particular, we
+	// should not add new dependencies on module paths that nothing else in the
+	// updated module graph even requires.
+	//
+	// In order to eliminate those spurious dependencies, we recompute the build
+	// list with the actual versions of the downgraded modules as selected by MVS,
+	// instead of our initial downgrades.
+	// (See the downhiddenartifact and downhiddencross test cases).
+	actual, err := BuildList([]module.Version{target}, &override{
+		target: target,
+		list:   downgraded,
+		Reqs:   reqs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	actualVersion := make(map[string]string, len(actual))
+	for _, m := range actual {
+		actualVersion[m.Path] = m.Version
+	}
+
+	downgraded = downgraded[:0]
+	for _, m := range list {
+		if v, ok := actualVersion[m.Path]; ok {
+			downgraded = append(downgraded, module.Version{Path: m.Path, Version: v})
+		}
+	}
+
+	return BuildList([]module.Version{target}, &override{
+		target: target,
+		list:   downgraded,
+		Reqs:   reqs,
+	})
 }
 
 type override struct {

@@ -81,7 +81,7 @@ func (b *Builder) AddASN1BigInt(n *big.Int) {
 			for i := range bytes {
 				bytes[i] ^= 0xff
 			}
-			if bytes[0]&0x80 == 0 {
+			if len(bytes) == 0 || bytes[0]&0x80 == 0 {
 				c.add(0xff)
 			}
 			c.add(bytes...)
@@ -114,6 +114,19 @@ func (b *Builder) AddASN1GeneralizedTime(t time.Time) {
 	}
 	b.AddASN1(asn1.GeneralizedTime, func(c *Builder) {
 		c.AddBytes([]byte(t.Format(generalizedTimeFormatStr)))
+	})
+}
+
+// AddASN1UTCTime appends a DER-encoded ASN.1 UTCTime.
+func (b *Builder) AddASN1UTCTime(t time.Time) {
+	b.AddASN1(asn1.UTCTime, func(c *Builder) {
+		// As utilized by the X.509 profile, UTCTime can only
+		// represent the years 1950 through 2049.
+		if t.Year() < 1950 || t.Year() >= 2050 {
+			b.err = fmt.Errorf("cryptobyte: cannot represent %v as a UTCTime", t)
+			return
+		}
+		c.AddBytes([]byte(t.Format(defaultUTCTimeFormatStr)))
 	})
 }
 
@@ -221,7 +234,7 @@ func (b *Builder) AddASN1(tag asn1.Tag, f BuilderContinuation) {
 	// Identifiers with the low five bits set indicate high-tag-number format
 	// (two or more octets), which we don't support.
 	if tag&0x1f == 0x1f {
-		b.err = fmt.Errorf("cryptobyte: high-tag number identifier octects not supported: 0x%x", tag)
+		b.err = fmt.Errorf("cryptobyte: high-tag number identifier octets not supported: 0x%x", tag)
 		return
 	}
 	b.AddUint8(uint8(tag))
@@ -230,12 +243,12 @@ func (b *Builder) AddASN1(tag asn1.Tag, f BuilderContinuation) {
 
 // String
 
-// ReadASN1Boolean decodes an ASN.1 INTEGER and converts it to a boolean
+// ReadASN1Boolean decodes an ASN.1 BOOLEAN and converts it to a boolean
 // representation into out and advances. It reports whether the read
 // was successful.
 func (s *String) ReadASN1Boolean(out *bool) bool {
 	var bytes String
-	if !s.ReadASN1(&bytes, asn1.INTEGER) || len(bytes) != 1 {
+	if !s.ReadASN1(&bytes, asn1.BOOLEAN) || len(bytes) != 1 {
 		return false
 	}
 
@@ -251,36 +264,35 @@ func (s *String) ReadASN1Boolean(out *bool) bool {
 	return true
 }
 
-var bigIntType = reflect.TypeOf((*big.Int)(nil)).Elem()
-
 // ReadASN1Integer decodes an ASN.1 INTEGER into out and advances. If out does
-// not point to an integer or to a big.Int, it panics. It reports whether the
-// read was successful.
+// not point to an integer, to a big.Int, or to a []byte it panics. Only
+// positive and zero values can be decoded into []byte, and they are returned as
+// big-endian binary values that share memory with s. Positive values will have
+// no leading zeroes, and zero will be returned as a single zero byte.
+// ReadASN1Integer reports whether the read was successful.
 func (s *String) ReadASN1Integer(out interface{}) bool {
-	if reflect.TypeOf(out).Kind() != reflect.Ptr {
-		panic("out is not a pointer")
-	}
-	switch reflect.ValueOf(out).Elem().Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	switch out := out.(type) {
+	case *int, *int8, *int16, *int32, *int64:
 		var i int64
 		if !s.readASN1Int64(&i) || reflect.ValueOf(out).Elem().OverflowInt(i) {
 			return false
 		}
 		reflect.ValueOf(out).Elem().SetInt(i)
 		return true
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case *uint, *uint8, *uint16, *uint32, *uint64:
 		var u uint64
 		if !s.readASN1Uint64(&u) || reflect.ValueOf(out).Elem().OverflowUint(u) {
 			return false
 		}
 		reflect.ValueOf(out).Elem().SetUint(u)
 		return true
-	case reflect.Struct:
-		if reflect.TypeOf(out).Elem() == bigIntType {
-			return s.readASN1BigInt(out.(*big.Int))
-		}
+	case *big.Int:
+		return s.readASN1BigInt(out)
+	case *[]byte:
+		return s.readASN1Bytes(out)
+	default:
+		panic("out does not point to an integer type")
 	}
-	panic("out does not point to an integer type")
 }
 
 func checkASN1Integer(bytes []byte) bool {
@@ -317,6 +329,21 @@ func (s *String) readASN1BigInt(out *big.Int) bool {
 	} else {
 		out.SetBytes(bytes)
 	}
+	return true
+}
+
+func (s *String) readASN1Bytes(out *[]byte) bool {
+	var bytes String
+	if !s.ReadASN1(&bytes, asn1.INTEGER) || !checkASN1Integer(bytes) {
+		return false
+	}
+	if bytes[0]&0x80 == 0x80 {
+		return false
+	}
+	for len(bytes) > 1 && bytes[0] == 0 {
+		bytes = bytes[1:]
+	}
+	*out = bytes
 	return true
 }
 
@@ -394,11 +421,24 @@ func (s *String) ReadASN1Enum(out *int) bool {
 func (s *String) readBase128Int(out *int) bool {
 	ret := 0
 	for i := 0; len(*s) > 0; i++ {
-		if i == 4 {
+		if i == 5 {
+			return false
+		}
+		// Avoid overflowing int on a 32-bit platform.
+		// We don't want different behavior based on the architecture.
+		if ret >= 1<<(31-7) {
 			return false
 		}
 		ret <<= 7
 		b := s.read(1)[0]
+
+		// ITU-T X.690, section 8.19.2:
+		// The subidentifier shall be encoded in the fewest possible octets,
+		// that is, the leading octet of the subidentifier shall not have the value 0x80.
+		if i == 0 && b == 0x80 {
+			return false
+		}
+
 		ret |= int(b & 0x7f)
 		if b&0x80 == 0 {
 			*out = ret
@@ -466,6 +506,45 @@ func (s *String) ReadASN1GeneralizedTime(out *time.Time) bool {
 	return true
 }
 
+const defaultUTCTimeFormatStr = "060102150405Z0700"
+
+// ReadASN1UTCTime decodes an ASN.1 UTCTime into out and advances.
+// It reports whether the read was successful.
+func (s *String) ReadASN1UTCTime(out *time.Time) bool {
+	var bytes String
+	if !s.ReadASN1(&bytes, asn1.UTCTime) {
+		return false
+	}
+	t := string(bytes)
+
+	formatStr := defaultUTCTimeFormatStr
+	var err error
+	res, err := time.Parse(formatStr, t)
+	if err != nil {
+		// Fallback to minute precision if we can't parse second
+		// precision. If we are following X.509 or X.690 we shouldn't
+		// support this, but we do.
+		formatStr = "0601021504Z0700"
+		res, err = time.Parse(formatStr, t)
+	}
+	if err != nil {
+		return false
+	}
+
+	if serialized := res.Format(formatStr); serialized != t {
+		return false
+	}
+
+	if res.Year() >= 2050 {
+		// UTCTime interprets the low order digits 50-99 as 1950-99.
+		// This only applies to its use in the X.509 profile.
+		// See https://tools.ietf.org/html/rfc5280#section-4.1.2.5.1
+		res = res.AddDate(-100, 0, 0)
+	}
+	*out = res
+	return true
+}
+
 // ReadASN1BitString decodes an ASN.1 BIT STRING into out and advances.
 // It reports whether the read was successful.
 func (s *String) ReadASN1BitString(out *encoding_asn1.BitString) bool {
@@ -475,7 +554,7 @@ func (s *String) ReadASN1BitString(out *encoding_asn1.BitString) bool {
 		return false
 	}
 
-	paddingBits := uint8(bytes[0])
+	paddingBits := bytes[0]
 	bytes = bytes[1:]
 	if paddingBits > 7 ||
 		len(bytes) == 0 && paddingBits != 0 ||
@@ -488,7 +567,7 @@ func (s *String) ReadASN1BitString(out *encoding_asn1.BitString) bool {
 	return true
 }
 
-// ReadASN1BitString decodes an ASN.1 BIT STRING into out and advances. It is
+// ReadASN1BitStringAsBytes decodes an ASN.1 BIT STRING into out and advances. It is
 // an error if the BIT STRING is not a whole number of bytes. It reports
 // whether the read was successful.
 func (s *String) ReadASN1BitStringAsBytes(out *[]byte) bool {
@@ -497,7 +576,7 @@ func (s *String) ReadASN1BitStringAsBytes(out *[]byte) bool {
 		return false
 	}
 
-	paddingBits := uint8(bytes[0])
+	paddingBits := bytes[0]
 	if paddingBits != 0 {
 		return false
 	}
@@ -597,34 +676,27 @@ func (s *String) SkipOptionalASN1(tag asn1.Tag) bool {
 	return s.ReadASN1(&unused, tag)
 }
 
-// ReadOptionalASN1Integer attempts to read an optional ASN.1 INTEGER
-// explicitly tagged with tag into out and advances. If no element with a
-// matching tag is present, it writes defaultValue into out instead. If out
-// does not point to an integer or to a big.Int, it panics. It reports
-// whether the read was successful.
+// ReadOptionalASN1Integer attempts to read an optional ASN.1 INTEGER explicitly
+// tagged with tag into out and advances. If no element with a matching tag is
+// present, it writes defaultValue into out instead. Otherwise, it behaves like
+// ReadASN1Integer.
 func (s *String) ReadOptionalASN1Integer(out interface{}, tag asn1.Tag, defaultValue interface{}) bool {
-	if reflect.TypeOf(out).Kind() != reflect.Ptr {
-		panic("out is not a pointer")
-	}
 	var present bool
 	var i String
 	if !s.ReadOptionalASN1(&i, &present, tag) {
 		return false
 	}
 	if !present {
-		switch reflect.ValueOf(out).Elem().Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		switch out.(type) {
+		case *int, *int8, *int16, *int32, *int64,
+			*uint, *uint8, *uint16, *uint32, *uint64, *[]byte:
 			reflect.ValueOf(out).Elem().Set(reflect.ValueOf(defaultValue))
-		case reflect.Struct:
-			if reflect.TypeOf(out).Elem() != bigIntType {
-				panic("invalid integer type")
-			}
-			if reflect.TypeOf(defaultValue).Kind() != reflect.Ptr ||
-				reflect.TypeOf(defaultValue).Elem() != bigIntType {
+		case *big.Int:
+			if defaultValue, ok := defaultValue.(*big.Int); ok {
+				out.(*big.Int).Set(defaultValue)
+			} else {
 				panic("out points to big.Int, but defaultValue does not")
 			}
-			out.(*big.Int).Set(defaultValue.(*big.Int))
 		default:
 			panic("invalid integer type")
 		}
@@ -661,13 +733,14 @@ func (s *String) ReadOptionalASN1OctetString(out *[]byte, outPresent *bool, tag 
 	return true
 }
 
-// ReadOptionalASN1Boolean sets *out to the value of the next ASN.1 BOOLEAN or,
-// if the next bytes are not an ASN.1 BOOLEAN, to the value of defaultValue.
-// It reports whether the operation was successful.
-func (s *String) ReadOptionalASN1Boolean(out *bool, defaultValue bool) bool {
+// ReadOptionalASN1Boolean attempts to read an optional ASN.1 BOOLEAN
+// explicitly tagged with tag into out and advances. If no element with a
+// matching tag is present, it sets "out" to defaultValue instead. It reports
+// whether the read was successful.
+func (s *String) ReadOptionalASN1Boolean(out *bool, tag asn1.Tag, defaultValue bool) bool {
 	var present bool
 	var child String
-	if !s.ReadOptionalASN1(&child, &present, asn1.BOOLEAN) {
+	if !s.ReadOptionalASN1(&child, &present, tag) {
 		return false
 	}
 
@@ -676,7 +749,7 @@ func (s *String) ReadOptionalASN1Boolean(out *bool, defaultValue bool) bool {
 		return true
 	}
 
-	return s.ReadASN1Boolean(out)
+	return child.ReadASN1Boolean(out)
 }
 
 func (s *String) readASN1(out *String, outTag *asn1.Tag, skipHeader bool) bool {

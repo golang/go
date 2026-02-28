@@ -6,7 +6,11 @@ package cipher_test
 
 import (
 	"bytes"
+	"crypto/aes"
 	"crypto/cipher"
+	"crypto/des"
+	"crypto/internal/cryptotest"
+	"fmt"
 	"testing"
 )
 
@@ -14,7 +18,7 @@ type noopBlock int
 
 func (b noopBlock) BlockSize() int        { return int(b) }
 func (noopBlock) Encrypt(dst, src []byte) { copy(dst, src) }
-func (noopBlock) Decrypt(dst, src []byte) { copy(dst, src) }
+func (noopBlock) Decrypt(dst, src []byte) { panic("unreachable") }
 
 func inc(b []byte) {
 	for i := len(b) - 1; i >= 0; i++ {
@@ -52,4 +56,45 @@ func TestCTR(t *testing.T) {
 			t.Errorf("for size %d\nhave %x\nwant %x", size, dst, want)
 		}
 	}
+}
+
+func TestCTRStream(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "aes", func(t *testing.T) {
+		for _, keylen := range []int{128, 192, 256} {
+			t.Run(fmt.Sprintf("AES-%d", keylen), func(t *testing.T) {
+				rng := newRandReader(t)
+
+				key := make([]byte, keylen/8)
+				rng.Read(key)
+
+				block, err := aes.NewCipher(key)
+				if err != nil {
+					panic(err)
+				}
+
+				cryptotest.TestStreamFromBlock(t, block, cipher.NewCTR)
+			})
+		}
+	})
+
+	t.Run("DES", func(t *testing.T) {
+		rng := newRandReader(t)
+
+		key := make([]byte, 8)
+		rng.Read(key)
+
+		block, err := des.NewCipher(key)
+		if err != nil {
+			panic(err)
+		}
+
+		cryptotest.TestStreamFromBlock(t, block, cipher.NewCTR)
+	})
+}
+
+func TestCTRExtraMethods(t *testing.T) {
+	block, _ := aes.NewCipher(make([]byte, 16))
+	iv := make([]byte, block.BlockSize())
+	s := cipher.NewCTR(block, iv)
+	cryptotest.NoExtraMethods(t, &s)
 }

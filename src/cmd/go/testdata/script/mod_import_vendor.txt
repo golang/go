@@ -1,0 +1,50 @@
+# For 1.23+, vendored packages that are missing in modules.txt should result in an error.
+cp incorrect_modules.txt vendor/modules.txt
+# incorrect_modules is missing foo.com/internal/bar/b so the build should fail.
+! go build ./vendor/foo.com/internal/bar/a
+stderr 'cannot find module providing package foo.com/internal/bar/b: import lookup disabled by -mod=vendor'
+stderr 'go: ignoring package foo.com/internal/bar/b which exists in the vendor directory but is missing from vendor/modules.txt. To sync the vendor directory run go mod vendor.'
+
+cp correct_modules.txt vendor/modules.txt
+go build ./vendor/foo.com/internal/bar/a
+
+# For go versions < 1.23, vendored packages that are missing in modules.txt should not result in an error.
+cp 122go.mod go.mod
+
+cp incorrect_modules.txt vendor/modules.txt
+
+# go version < 1.23 and incorrect_modules is missing foo.com/internal/bar/b so the build should not fail
+go build ./vendor/foo.com/internal/bar/a
+
+cp correct_modules.txt vendor/modules.txt
+go build ./vendor/foo.com/internal/bar/a
+
+-- 122go.mod --
+module example.com/x
+go 1.22
+
+require "foo.com/internal/bar" v1.0.0
+
+-- go.mod --
+module example.com/x
+go 1.23
+
+require "foo.com/internal/bar" v1.0.0
+
+-- incorrect_modules.txt --
+# foo.com/internal/bar v1.0.0
+## explicit
+foo.com/internal/bar/a
+
+-- correct_modules.txt --
+# foo.com/internal/bar v1.0.0
+## explicit
+foo.com/internal/bar/a
+foo.com/internal/bar/b
+
+-- vendor/foo.com/internal/bar/a/a.go --
+package a
+import _ "foo.com/internal/bar/b"
+
+-- vendor/foo.com/internal/bar/b/b.go --
+package b

@@ -7,11 +7,13 @@ package net
 import (
 	"context"
 	"internal/bytealg"
+	"internal/strconv"
+	"io/fs"
 	"os"
 	"syscall"
 )
 
-// Probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
+// probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
 // capabilities.
 //
 // Plan 9 uses IPv6 natively, see ip(3).
@@ -67,7 +69,7 @@ func parsePlan9Addr(s string) (ip IP, iport int, err error) {
 	return addr, p, nil
 }
 
-func readPlan9Addr(proto, filename string) (addr Addr, err error) {
+func readPlan9Addr(net, filename string) (addr Addr, err error) {
 	var buf [128]byte
 
 	f, err := os.Open(filename)
@@ -83,13 +85,19 @@ func readPlan9Addr(proto, filename string) (addr Addr, err error) {
 	if err != nil {
 		return
 	}
-	switch proto {
-	case "tcp":
+	switch net {
+	case "tcp4", "udp4":
+		if ip.Equal(IPv6zero) {
+			ip = ip[:IPv4len]
+		}
+	}
+	switch net {
+	case "tcp", "tcp4", "tcp6":
 		addr = &TCPAddr{IP: ip, Port: port}
-	case "udp":
+	case "udp", "udp4", "udp6":
 		addr = &UDPAddr{IP: ip, Port: port}
 	default:
-		return nil, UnknownNetworkError(proto)
+		return nil, UnknownNetworkError(net)
 	}
 	return addr, nil
 }
@@ -120,6 +128,7 @@ func startPlan9(ctx context.Context, net string, addr Addr) (ctl *os.File, dest,
 
 	clone, dest, err := queryCS1(ctx, proto, ip, port)
 	if err != nil {
+		err = handlePlan9DNSError(err, net+":"+ip.String()+":"+strconv.Itoa(port))
 		return
 	}
 	f, err := os.OpenFile(clone, os.O_RDWR, 0)
@@ -158,7 +167,7 @@ func fixErr(err error) {
 	if nonNilInterface(oe.Addr) {
 		oe.Addr = nil
 	}
-	if pe, ok := oe.Err.(*os.PathError); ok {
+	if pe, ok := oe.Err.(*fs.PathError); ok {
 		if _, ok = pe.Err.(syscall.ErrorString); ok {
 			oe.Err = pe.Err
 		}
@@ -173,7 +182,6 @@ func dialPlan9(ctx context.Context, net string, laddr, raddr Addr) (fd *netFD, e
 	}
 	resc := make(chan res)
 	go func() {
-		testHookDialChannel()
 		fd, err := dialPlan9Blocking(ctx, net, laddr, raddr)
 		select {
 		case resc <- res{fd, err}:
@@ -199,7 +207,11 @@ func dialPlan9Blocking(ctx context.Context, net string, laddr, raddr Addr) (fd *
 	if err != nil {
 		return nil, err
 	}
-	_, err = f.WriteString("connect " + dest)
+	if la := plan9LocalAddr(laddr); la == "" {
+		err = hangupCtlWrite(ctx, proto, f, "connect "+dest)
+	} else {
+		err = hangupCtlWrite(ctx, proto, f, "connect "+dest+" "+la)
+	}
 	if err != nil {
 		f.Close()
 		return nil, err
@@ -209,7 +221,7 @@ func dialPlan9Blocking(ctx context.Context, net string, laddr, raddr Addr) (fd *
 		f.Close()
 		return nil, err
 	}
-	laddr, err = readPlan9Addr(proto, netdir+"/"+proto+"/"+name+"/local")
+	laddr, err = readPlan9Addr(net, netdir+"/"+proto+"/"+name+"/local")
 	if err != nil {
 		data.Close()
 		f.Close()
@@ -229,7 +241,7 @@ func listenPlan9(ctx context.Context, net string, laddr Addr) (fd *netFD, err er
 		f.Close()
 		return nil, &OpError{Op: "announce", Net: net, Source: laddr, Addr: nil, Err: err}
 	}
-	laddr, err = readPlan9Addr(proto, netdir+"/"+proto+"/"+name+"/local")
+	laddr, err = readPlan9Addr(net, netdir+"/"+proto+"/"+name+"/local")
 	if err != nil {
 		f.Close()
 		return nil, err
@@ -302,4 +314,54 @@ func toLocal(a Addr, net string) Addr {
 		a.IP = loopbackIP(net)
 	}
 	return a
+}
+
+// plan9LocalAddr returns a Plan 9 local address string.
+// See setladdrport at https://9p.io/sources/plan9/sys/src/9/ip/devip.c.
+func plan9LocalAddr(addr Addr) string {
+	var ip IP
+	port := 0
+	switch a := addr.(type) {
+	case *TCPAddr:
+		if a != nil {
+			ip = a.IP
+			port = a.Port
+		}
+	case *UDPAddr:
+		if a != nil {
+			ip = a.IP
+			port = a.Port
+		}
+	}
+	if len(ip) == 0 || ip.IsUnspecified() {
+		if port == 0 {
+			return ""
+		}
+		return strconv.Itoa(port)
+	}
+	return ip.String() + "!" + strconv.Itoa(port)
+}
+
+func hangupCtlWrite(ctx context.Context, proto string, ctl *os.File, msg string) error {
+	if proto != "tcp" {
+		_, err := ctl.WriteString(msg)
+		return err
+	}
+	written := make(chan struct{})
+	errc := make(chan error)
+	go func() {
+		select {
+		case <-ctx.Done():
+			ctl.WriteString("hangup")
+			errc <- mapErr(ctx.Err())
+		case <-written:
+			errc <- nil
+		}
+	}()
+	_, err := ctl.WriteString(msg)
+	close(written)
+	if e := <-errc; err == nil && e != nil { // we hung up
+		return e
+	}
+	return err
 }

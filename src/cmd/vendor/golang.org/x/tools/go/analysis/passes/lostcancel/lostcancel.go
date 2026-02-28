@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package lostcancel defines an Analyzer that checks for failure to
-// call a context cancellation function.
 package lostcancel
 
 import (
+	_ "embed"
 	"fmt"
 	"go/ast"
 	"go/types"
@@ -16,18 +15,18 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/cfg"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	"golang.org/x/tools/internal/astutil"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
-const Doc = `check cancel func returned by context.WithCancel is called
-
-The cancellation function returned by context.WithCancel, WithTimeout,
-and WithDeadline must be called or the new context will remain live
-until its parent context is cancelled.
-(The background context is never cancelled.)`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name: "lostcancel",
-	Doc:  Doc,
+	Doc:  analyzerutil.MustExtractDoc(doc, "lostcancel"),
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/lostcancel",
 	Run:  run,
 	Requires: []*analysis.Analyzer{
 		inspect.Analyzer,
@@ -49,9 +48,9 @@ var contextPackage = "context"
 // containing the assignment, we assume that other uses exist.
 //
 // checkLostCancel analyzes a single named or literal function.
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	// Fast path: bypass check if file doesn't use context.WithCancel.
-	if !hasImport(pass.Pkg, contextPackage) {
+	if !typesinternal.Imports(pass.Pkg, contextPackage) {
 		return nil, nil
 	}
 
@@ -85,30 +84,22 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
 	// {FuncDecl,FuncLit,CallExpr,SelectorExpr}.
 
 	// Find the set of cancel vars to analyze.
-	stack := make([]ast.Node, 0, 32)
-	ast.Inspect(node, func(n ast.Node) bool {
-		switch n.(type) {
-		case *ast.FuncLit:
-			if len(stack) > 0 {
-				return false // don't stray into nested functions
-			}
-		case nil:
-			stack = stack[:len(stack)-1] // pop
-			return true
+	astutil.PreorderStack(node, nil, func(n ast.Node, stack []ast.Node) bool {
+		if _, ok := n.(*ast.FuncLit); ok && len(stack) > 0 {
+			return false // don't stray into nested functions
 		}
-		stack = append(stack, n) // push
 
-		// Look for [{AssignStmt,ValueSpec} CallExpr SelectorExpr]:
+		// Look for n=SelectorExpr beneath stack=[{AssignStmt,ValueSpec} CallExpr]:
 		//
 		//   ctx, cancel    := context.WithCancel(...)
 		//   ctx, cancel     = context.WithCancel(...)
 		//   var ctx, cancel = context.WithCancel(...)
 		//
-		if !isContextWithCancel(pass.TypesInfo, n) || !isCall(stack[len(stack)-2]) {
+		if !isContextWithCancel(pass.TypesInfo, n) || !isCall(stack[len(stack)-1]) {
 			return true
 		}
 		var id *ast.Ident // id of cancel var
-		stmt := stack[len(stack)-3]
+		stmt := stack[len(stack)-2]
 		switch stmt := stmt.(type) {
 		case *ast.ValueSpec:
 			if len(stmt.Names) > 1 {
@@ -175,21 +166,23 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
 		if ret := lostCancelPath(pass, g, v, stmt, sig); ret != nil {
 			lineno := pass.Fset.Position(stmt.Pos()).Line
 			pass.ReportRangef(stmt, "the %s function is not used on all paths (possible context leak)", v.Name())
-			pass.ReportRangef(ret, "this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno)
+
+			pos, end := ret.Pos(), ret.End()
+			// golang/go#64547: cfg.Block.Return may return a synthetic
+			// ReturnStmt that overflows the file.
+			if pass.Fset.File(pos) != pass.Fset.File(end) {
+				end = pos
+			}
+			pass.Report(analysis.Diagnostic{
+				Pos:     pos,
+				End:     end,
+				Message: fmt.Sprintf("this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno),
+			})
 		}
 	}
 }
 
 func isCall(n ast.Node) bool { _, ok := n.(*ast.CallExpr); return ok }
-
-func hasImport(pkg *types.Package, path string) bool {
-	for _, imp := range pkg.Imports() {
-		if imp.Path() == path {
-			return true
-		}
-	}
-	return false
-}
 
 // isContextWithCancel reports whether n is one of the qualified identifiers
 // context.With{Cancel,Timeout,Deadline}.
@@ -199,7 +192,9 @@ func isContextWithCancel(info *types.Info, n ast.Node) bool {
 		return false
 	}
 	switch sel.Sel.Name {
-	case "WithCancel", "WithTimeout", "WithDeadline":
+	case "WithCancel", "WithCancelCause",
+		"WithTimeout", "WithTimeoutCause",
+		"WithDeadline", "WithDeadlineCause":
 	default:
 		return false
 	}
@@ -321,8 +316,8 @@ outer:
 }
 
 func tupleContains(tuple *types.Tuple, v *types.Var) bool {
-	for i := 0; i < tuple.Len(); i++ {
-		if tuple.At(i) == v {
+	for v0 := range tuple.Variables() {
+		if v0 == v {
 			return true
 		}
 	}

@@ -7,20 +7,23 @@ package mips
 import (
 	"math"
 
-	"cmd/compile/internal/gc"
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/mips"
+	"internal/abi"
 )
 
-// isFPreg reports whether r is an FP register
+// isFPreg reports whether r is an FP register.
 func isFPreg(r int16) bool {
 	return mips.REG_F0 <= r && r <= mips.REG_F31
 }
 
-// isHILO reports whether r is HI or LO register
+// isHILO reports whether r is HI or LO register.
 func isHILO(r int16) bool {
 	return r == mips.REG_HI || r == mips.REG_LO
 }
@@ -75,7 +78,7 @@ func storeByType(t *types.Type, r int16) obj.As {
 	panic("bad store type")
 }
 
-func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
 	case ssa.OpCopy, ssa.OpMIPSMOVWreg:
 		t := v.Type
@@ -110,9 +113,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Reg = y
 		}
 	case ssa.OpMIPSMOVWnop:
-		if v.Reg() != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
 		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
@@ -121,7 +121,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		r := v.Reg()
 		p := s.Prog(loadByType(v.Type, r))
-		gc.AddrAuto(&p.From, v.Args[0])
+		ssagen.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 		if isHILO(r) {
@@ -151,7 +151,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(storeByType(v.Type, r))
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r
-		gc.AddrAuto(&p.To, v)
+		ssagen.AddrAuto(&p.To, v)
 	case ssa.OpMIPSADD,
 		ssa.OpMIPSSUB,
 		ssa.OpMIPSAND,
@@ -197,7 +197,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPSANDconst,
 		ssa.OpMIPSORconst,
 		ssa.OpMIPSXORconst,
-		ssa.OpMIPSNORconst,
 		ssa.OpMIPSSLLconst,
 		ssa.OpMIPSSRLconst,
 		ssa.OpMIPSSRAconst,
@@ -242,9 +241,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpMIPSCMOVZ:
-		if v.Reg() != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[2].Reg()
@@ -252,9 +248,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpMIPSCMOVZzero:
-		if v.Reg() != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
@@ -286,10 +279,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			v.Fatalf("aux is of unknown type %T", v.Aux)
 		case *obj.LSym:
 			wantreg = "SB"
-			gc.AddAux(&p.From, v)
-		case *gc.Node:
+			ssagen.AddAux(&p.From, v)
+		case *ir.Name:
 			wantreg = "SP"
-			gc.AddAux(&p.From, v)
+			ssagen.AddAux(&p.From, v)
 		case nil:
 			// No sym, just MOVW $off(SP), R
 			wantreg = "SP"
@@ -310,7 +303,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.From, v)
+		ssagen.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpMIPSMOVBstore,
@@ -323,7 +316,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.To, v)
+		ssagen.AddAux(&p.To, v)
 	case ssa.OpMIPSMOVBstorezero,
 		ssa.OpMIPSMOVHstorezero,
 		ssa.OpMIPSMOVWstorezero:
@@ -332,7 +325,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = mips.REGZERO
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.To, v)
+		ssagen.AddAux(&p.To, v)
 	case ssa.OpMIPSMOVBreg,
 		ssa.OpMIPSMOVBUreg,
 		ssa.OpMIPSMOVHreg,
@@ -368,8 +361,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPSTRUNCDW,
 		ssa.OpMIPSMOVFD,
 		ssa.OpMIPSMOVDF,
+		ssa.OpMIPSMOVWfpgp,
+		ssa.OpMIPSMOVWgpfp,
 		ssa.OpMIPSNEGF,
 		ssa.OpMIPSNEGD,
+		ssa.OpMIPSABSD,
+		ssa.OpMIPSSQRTF,
 		ssa.OpMIPSSQRTD,
 		ssa.OpMIPSCLZ:
 		p := s.Prog(v.Op.Asm())
@@ -425,7 +422,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p4.From.Reg = v.Args[1].Reg()
 		p4.Reg = mips.REG_R1
 		p4.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p4, p2)
+		p4.To.SetTarget(p2)
 	case ssa.OpMIPSLoweredMove:
 		// SUBU	$4, R1
 		// MOVW	4(R1), Rtmp
@@ -478,26 +475,178 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p6.From.Reg = v.Args[2].Reg()
 		p6.Reg = mips.REG_R1
 		p6.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p6, p2)
+		p6.To.SetTarget(p2)
 	case ssa.OpMIPSCALLstatic, ssa.OpMIPSCALLclosure, ssa.OpMIPSCALLinter:
 		s.Call(v)
+	case ssa.OpMIPSCALLtail:
+		s.TailCall(v)
 	case ssa.OpMIPSLoweredWB:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = v.Aux.(*obj.LSym)
-	case ssa.OpMIPSLoweredPanicBoundsA, ssa.OpMIPSLoweredPanicBoundsB, ssa.OpMIPSLoweredPanicBoundsC:
-		p := s.Prog(obj.ACALL)
+		// AuxInt encodes how many buffer entries we need.
+		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
+
+	case ssa.OpMIPSLoweredPanicBoundsRR, ssa.OpMIPSLoweredPanicBoundsRC, ssa.OpMIPSLoweredPanicBoundsCR, ssa.OpMIPSLoweredPanicBoundsCC,
+		ssa.OpMIPSLoweredPanicExtendRR, ssa.OpMIPSLoweredPanicExtendRC:
+		// Compute the constant we put in the PCData entry for this call.
+		code, signed := ssa.BoundsKind(v.AuxInt).Code()
+		xIsReg := false
+		yIsReg := false
+		xVal := 0
+		yVal := 0
+		extend := false
+		switch v.Op {
+		case ssa.OpMIPSLoweredPanicBoundsRR:
+			xIsReg = true
+			xVal = int(v.Args[0].Reg() - mips.REG_R1)
+			yIsReg = true
+			yVal = int(v.Args[1].Reg() - mips.REG_R1)
+		case ssa.OpMIPSLoweredPanicExtendRR:
+			extend = true
+			xIsReg = true
+			hi := int(v.Args[0].Reg() - mips.REG_R1)
+			lo := int(v.Args[1].Reg() - mips.REG_R1)
+			xVal = hi<<2 + lo // encode 2 register numbers
+			yIsReg = true
+			yVal = int(v.Args[2].Reg() - mips.REG_R1)
+		case ssa.OpMIPSLoweredPanicBoundsRC:
+			xIsReg = true
+			xVal = int(v.Args[0].Reg() - mips.REG_R1)
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				yIsReg = true
+				if yVal == xVal {
+					yVal = 1
+				}
+				p := s.Prog(mips.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = mips.REG_R1 + int16(yVal)
+			}
+		case ssa.OpMIPSLoweredPanicExtendRC:
+			extend = true
+			xIsReg = true
+			hi := int(v.Args[0].Reg() - mips.REG_R1)
+			lo := int(v.Args[1].Reg() - mips.REG_R1)
+			xVal = hi<<2 + lo // encode 2 register numbers
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				for yVal == hi || yVal == lo {
+					yVal++
+				}
+				p := s.Prog(mips.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = mips.REG_R1 + int16(yVal)
+			}
+		case ssa.OpMIPSLoweredPanicBoundsCR:
+			yIsReg = true
+			yVal = int(v.Args[0].Reg() - mips.REG_R1)
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				xVal = int(c)
+			} else if signed && int64(int32(c)) == c || !signed && int64(uint32(c)) == c {
+				// Move constant to a register
+				xIsReg = true
+				if xVal == yVal {
+					xVal = 1
+				}
+				p := s.Prog(mips.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = mips.REG_R1 + int16(xVal)
+			} else {
+				// Move constant to two registers
+				extend = true
+				xIsReg = true
+				hi := 0
+				lo := 1
+				if hi == yVal {
+					hi = 2
+				}
+				if lo == yVal {
+					lo = 2
+				}
+				xVal = hi<<2 + lo
+				p := s.Prog(mips.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c >> 32
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = mips.REG_R1 + int16(hi)
+				p = s.Prog(mips.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = int64(int32(c))
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = mips.REG_R1 + int16(lo)
+			}
+		case ssa.OpMIPSLoweredPanicBoundsCC:
+			c := v.Aux.(ssa.PanicBoundsCC).Cx
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				xVal = int(c)
+			} else if signed && int64(int32(c)) == c || !signed && int64(uint32(c)) == c {
+				// Move constant to a register
+				xIsReg = true
+				p := s.Prog(mips.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = mips.REG_R1 + int16(xVal)
+			} else {
+				// Move constant to two registers
+				extend = true
+				xIsReg = true
+				hi := 0
+				lo := 1
+				xVal = hi<<2 + lo
+				p := s.Prog(mips.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c >> 32
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = mips.REG_R1 + int16(hi)
+				p = s.Prog(mips.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = int64(int32(c))
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = mips.REG_R1 + int16(lo)
+			}
+			c = v.Aux.(ssa.PanicBoundsCC).Cy
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				yIsReg = true
+				yVal = 2
+				p := s.Prog(mips.AMOVW)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = mips.REG_R1 + int16(yVal)
+			}
+		}
+		c := abi.BoundsEncode(code, signed, xIsReg, yIsReg, xVal, yVal)
+
+		p := s.Prog(obj.APCDATA)
+		p.From.SetConst(abi.PCDATA_PanicBounds)
+		p.To.SetConst(int64(c))
+		p = s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
-		s.UseArgs(8) // space used in callee args area by assembly stubs
-	case ssa.OpMIPSLoweredPanicExtendA, ssa.OpMIPSLoweredPanicExtendB, ssa.OpMIPSLoweredPanicExtendC:
-		p := s.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.ExtendCheckFunc[v.AuxInt]
-		s.UseArgs(12) // space used in callee args area by assembly stubs
+		if extend {
+			p.To.Sym = ir.Syms.PanicExtend
+		} else {
+			p.To.Sym = ir.Syms.PanicBounds
+		}
+
 	case ssa.OpMIPSLoweredAtomicLoad8,
 		ssa.OpMIPSLoweredAtomicLoad32:
 		s.Prog(mips.ASYNC)
@@ -575,7 +724,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 
 		s.Prog(mips.ASYNC)
 	case ssa.OpMIPSLoweredAtomicAdd:
@@ -611,7 +760,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 
 		s.Prog(mips.ASYNC)
 
@@ -655,7 +804,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 
 		s.Prog(mips.ASYNC)
 
@@ -699,7 +848,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = mips.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p3, p)
+		p3.To.SetTarget(p)
 
 		s.Prog(mips.ASYNC)
 
@@ -748,26 +897,26 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p5.From.Type = obj.TYPE_REG
 		p5.From.Reg = v.Reg0()
 		p5.To.Type = obj.TYPE_BRANCH
-		gc.Patch(p5, p1)
+		p5.To.SetTarget(p1)
 
 		s.Prog(mips.ASYNC)
 
 		p6 := s.Prog(obj.ANOP)
-		gc.Patch(p2, p6)
+		p2.To.SetTarget(p6)
 
 	case ssa.OpMIPSLoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
 		p := s.Prog(mips.AMOVB)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
-		gc.AddAux(&p.From, v)
+		ssagen.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = mips.REGTMP
 		if logopt.Enabled() {
 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
 		}
-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
-			gc.Warnl(v.Pos, "generated nil check")
+		if base.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+			base.WarnfAt(v.Pos, "generated nil check")
 		}
 	case ssa.OpMIPSFPFlagTrue,
 		ssa.OpMIPSFPFlagFalse:
@@ -791,12 +940,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 	case ssa.OpMIPSLoweredGetClosurePtr:
 		// Closure pointer is R22 (mips.REGCTXT).
-		gc.CheckLoweredGetClosurePtr(v)
+		ssagen.CheckLoweredGetClosurePtr(v)
 	case ssa.OpMIPSLoweredGetCallerSP:
 		// caller's SP is FixedFrameSize below the address of the first arg
 		p := s.Prog(mips.AMOVW)
 		p.From.Type = obj.TYPE_ADDR
-		p.From.Offset = -gc.Ctxt.FixedFrameSize()
+		p.From.Offset = -base.Ctxt.Arch.FixedFrameSize
 		p.From.Name = obj.NAME_PARAM
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -804,7 +953,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := s.Prog(obj.AGETCALLERPC)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpClobber:
+	case ssa.OpMIPSLoweredPubBarrier:
+		// SYNC
+		s.Prog(v.Op.Asm())
+	case ssa.OpClobber, ssa.OpClobberReg:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:
 		v.Fatalf("genValue not implemented: %s", v.LongString())
@@ -824,37 +976,17 @@ var blockJump = map[ssa.BlockKind]struct {
 	ssa.BlockMIPSFPF: {mips.ABFPF, mips.ABFPT},
 }
 
-func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
-	case ssa.BlockPlain:
+	case ssa.BlockPlain, ssa.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockDefer:
-		// defer returns in R1:
-		// 0 if we should continue executing
-		// 1 if we should jump to deferreturn call
-		p := s.Prog(mips.ABNE)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = mips.REGZERO
-		p.Reg = mips.REG_R1
-		p.To.Type = obj.TYPE_BRANCH
-		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
-		if b.Succs[0].Block() != next {
-			p := s.Prog(obj.AJMP)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
-		}
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockRetJmp:
-		p := s.Prog(obj.ARET)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
 	case ssa.BlockMIPSEQ, ssa.BlockMIPSNE,
 		ssa.BlockMIPSLTZ, ssa.BlockMIPSGEZ,
 		ssa.BlockMIPSLEZ, ssa.BlockMIPSGTZ,

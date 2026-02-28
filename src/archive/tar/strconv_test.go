@@ -368,6 +368,13 @@ func TestParsePAXRecord(t *testing.T) {
 		{"16 longkeyname=hahaha\n", "16 longkeyname=hahaha\n", "", "", false},
 		{"3 somelongkey=\n", "3 somelongkey=\n", "", "", false},
 		{"50 tooshort=\n", "50 tooshort=\n", "", "", false},
+		{"0000000000000000000000000000000030 mtime=1432668921.098285006\n30 ctime=2147483649.15163319", "0000000000000000000000000000000030 mtime=1432668921.098285006\n30 ctime=2147483649.15163319", "mtime", "1432668921.098285006", false},
+		{"06 k=v\n", "06 k=v\n", "", "", false},
+		{"00006 k=v\n", "00006 k=v\n", "", "", false},
+		{"000006 k=v\n", "000006 k=v\n", "", "", false},
+		{"000000 k=v\n", "000000 k=v\n", "", "", false},
+		{"0 k=v\n", "0 k=v\n", "", "", false},
+		{"+0000005 x=\n", "+0000005 x=\n", "", "", false},
 	}
 
 	for _, v := range vectors {
@@ -430,5 +437,68 @@ func TestFormatPAXRecord(t *testing.T) {
 			t.Errorf("formatPAXRecord(%q, %q): got %q, want %q",
 				v.inKey, v.inVal, got, v.want)
 		}
+	}
+}
+
+func BenchmarkParsePAXTime(b *testing.B) {
+	tests := []struct {
+		name string
+		in   string
+		want time.Time
+		ok   bool
+	}{
+		{
+			name: "NoNanos",
+			in:   "123456",
+			want: time.Unix(123456, 0),
+			ok:   true,
+		},
+		{
+			name: "ExactNanos",
+			in:   "1.123456789",
+			want: time.Unix(1, 123456789),
+			ok:   true,
+		},
+		{
+			name: "WithNanoPadding",
+			in:   "1.123",
+			want: time.Unix(1, 123000000),
+			ok:   true,
+		},
+		{
+			name: "WithNanoTruncate",
+			in:   "1.123456789123",
+			want: time.Unix(1, 123456789),
+			ok:   true,
+		},
+		{
+			name: "TrailingError",
+			in:   "1.123abc",
+			want: time.Time{},
+			ok:   false,
+		},
+		{
+			name: "LeadingError",
+			in:   "1.abc123",
+			want: time.Time{},
+			ok:   false,
+		},
+	}
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				ts, err := parsePAXTime(tt.in)
+				if (err == nil) != tt.ok {
+					if err != nil {
+						b.Fatal(err)
+					}
+					b.Fatal("expected error")
+				}
+				if !ts.Equal(tt.want) {
+					b.Fatalf("time mismatch: got %v, want %v", ts, tt.want)
+				}
+			}
+		})
 	}
 }

@@ -7,12 +7,14 @@ package ssa
 // addressingModes combines address calculations into memory operations
 // that can perform complicated addressing modes.
 func addressingModes(f *Func) {
+	isInImmediateRange := is32Bit
 	switch f.Config.arch {
 	default:
 		// Most architectures can't do this.
 		return
 	case "amd64", "386":
-		// TODO: s390x?
+	case "s390x":
+		isInImmediateRange = is20Bit
 	}
 
 	var tmp []*Value
@@ -40,7 +42,7 @@ func addressingModes(f *Func) {
 			switch [2]auxType{opcodeTable[v.Op].auxType, opcodeTable[p.Op].auxType} {
 			case [2]auxType{auxSymOff, auxInt32}:
 				// TODO: introduce auxSymOff32
-				if !is32Bit(v.AuxInt + p.AuxInt) {
+				if !isInImmediateRange(v.AuxInt + p.AuxInt) {
 					continue
 				}
 				v.AuxInt += p.AuxInt
@@ -48,7 +50,7 @@ func addressingModes(f *Func) {
 				if v.Aux != nil && p.Aux != nil {
 					continue
 				}
-				if !is32Bit(v.AuxInt + p.AuxInt) {
+				if !isInImmediateRange(v.AuxInt + p.AuxInt) {
 					continue
 				}
 				if p.Aux != nil {
@@ -57,22 +59,22 @@ func addressingModes(f *Func) {
 				v.AuxInt += p.AuxInt
 			case [2]auxType{auxSymValAndOff, auxInt32}:
 				vo := ValAndOff(v.AuxInt)
-				if !vo.canAdd(p.AuxInt) {
+				if !vo.canAdd64(p.AuxInt) {
 					continue
 				}
-				v.AuxInt = vo.add(p.AuxInt)
+				v.AuxInt = int64(vo.addOffset64(p.AuxInt))
 			case [2]auxType{auxSymValAndOff, auxSymOff}:
 				vo := ValAndOff(v.AuxInt)
 				if v.Aux != nil && p.Aux != nil {
 					continue
 				}
-				if !vo.canAdd(p.AuxInt) {
+				if !vo.canAdd64(p.AuxInt) {
 					continue
 				}
 				if p.Aux != nil {
 					v.Aux = p.Aux
 				}
-				v.AuxInt = vo.add(p.AuxInt)
+				v.AuxInt = int64(vo.addOffset64(p.AuxInt))
 			case [2]auxType{auxSymOff, auxNone}:
 				// nothing to do
 			case [2]auxType{auxSymValAndOff, auxNone}:
@@ -87,6 +89,13 @@ func addressingModes(f *Func) {
 			v.resetArgs()
 			v.Op = c
 			v.AddArgs(tmp...)
+			if needSplit[c] {
+				// It turns out that some of the combined instructions have faster two-instruction equivalents,
+				// but not the two instructions that led to them being combined here.  For example
+				// (CMPBconstload c (ADDQ x y)) -> (CMPBconstloadidx1 c x y) -> (CMPB c (MOVBloadidx1 x y))
+				// The final pair of instructions turns out to be notably faster, at least in some benchmarks.
+				f.Config.splitLoad(v)
+			}
 		}
 	}
 }
@@ -101,11 +110,35 @@ func init() {
 	}
 }
 
+// needSplit contains instructions that should be postprocessed by splitLoad
+// into a more-efficient two-instruction form.
+var needSplit = map[Op]bool{
+	OpAMD64CMPBloadidx1: true,
+	OpAMD64CMPWloadidx1: true,
+	OpAMD64CMPLloadidx1: true,
+	OpAMD64CMPQloadidx1: true,
+	OpAMD64CMPWloadidx2: true,
+	OpAMD64CMPLloadidx4: true,
+	OpAMD64CMPQloadidx8: true,
+
+	OpAMD64CMPBconstloadidx1: true,
+	OpAMD64CMPWconstloadidx1: true,
+	OpAMD64CMPLconstloadidx1: true,
+	OpAMD64CMPQconstloadidx1: true,
+	OpAMD64CMPWconstloadidx2: true,
+	OpAMD64CMPLconstloadidx4: true,
+	OpAMD64CMPQconstloadidx8: true,
+}
+
 // For each entry k, v in this map, if we have a value x with:
-//   x.Op == k[0]
-//   x.Args[0].Op == k[1]
+//
+//	x.Op == k[0]
+//	x.Args[0].Op == k[1]
+//
 // then we can set x.Op to v and set x.Args like this:
-//   x.Args[0].Args + x.Args[1:]
+//
+//	x.Args[0].Args + x.Args[1:]
+//
 // Additionally, the Aux/AuxInt from x.Args[0] is merged into x.
 var combine = map[[2]Op]Op{
 	// amd64
@@ -162,6 +195,19 @@ var combine = map[[2]Op]Op{
 	[2]Op{OpAMD64MOVQstoreconst, OpAMD64LEAQ1}: OpAMD64MOVQstoreconstidx1,
 	[2]Op{OpAMD64MOVQstoreconst, OpAMD64LEAQ8}: OpAMD64MOVQstoreconstidx8,
 
+	[2]Op{OpAMD64SETEQstore, OpAMD64LEAQ1}: OpAMD64SETEQstoreidx1,
+	[2]Op{OpAMD64SETNEstore, OpAMD64LEAQ1}: OpAMD64SETNEstoreidx1,
+	[2]Op{OpAMD64SETLstore, OpAMD64LEAQ1}:  OpAMD64SETLstoreidx1,
+	[2]Op{OpAMD64SETLEstore, OpAMD64LEAQ1}: OpAMD64SETLEstoreidx1,
+	[2]Op{OpAMD64SETGstore, OpAMD64LEAQ1}:  OpAMD64SETGstoreidx1,
+	[2]Op{OpAMD64SETGEstore, OpAMD64LEAQ1}: OpAMD64SETGEstoreidx1,
+	[2]Op{OpAMD64SETBstore, OpAMD64LEAQ1}:  OpAMD64SETBstoreidx1,
+	[2]Op{OpAMD64SETBEstore, OpAMD64LEAQ1}: OpAMD64SETBEstoreidx1,
+	[2]Op{OpAMD64SETAstore, OpAMD64LEAQ1}:  OpAMD64SETAstoreidx1,
+	[2]Op{OpAMD64SETAEstore, OpAMD64LEAQ1}: OpAMD64SETAEstoreidx1,
+
+	// These instructions are re-split differently for performance, see needSplit above.
+	// TODO if 386 versions are created, also update needSplit and _gen/386splitload.rules
 	[2]Op{OpAMD64CMPBload, OpAMD64ADDQ}: OpAMD64CMPBloadidx1,
 	[2]Op{OpAMD64CMPWload, OpAMD64ADDQ}: OpAMD64CMPWloadidx1,
 	[2]Op{OpAMD64CMPLload, OpAMD64ADDQ}: OpAMD64CMPLloadidx1,
@@ -187,6 +233,170 @@ var combine = map[[2]Op]Op{
 	[2]Op{OpAMD64CMPLconstload, OpAMD64LEAQ4}: OpAMD64CMPLconstloadidx4,
 	[2]Op{OpAMD64CMPQconstload, OpAMD64LEAQ1}: OpAMD64CMPQconstloadidx1,
 	[2]Op{OpAMD64CMPQconstload, OpAMD64LEAQ8}: OpAMD64CMPQconstloadidx8,
+
+	[2]Op{OpAMD64ADDLload, OpAMD64ADDQ}: OpAMD64ADDLloadidx1,
+	[2]Op{OpAMD64ADDQload, OpAMD64ADDQ}: OpAMD64ADDQloadidx1,
+	[2]Op{OpAMD64SUBLload, OpAMD64ADDQ}: OpAMD64SUBLloadidx1,
+	[2]Op{OpAMD64SUBQload, OpAMD64ADDQ}: OpAMD64SUBQloadidx1,
+	[2]Op{OpAMD64ANDLload, OpAMD64ADDQ}: OpAMD64ANDLloadidx1,
+	[2]Op{OpAMD64ANDQload, OpAMD64ADDQ}: OpAMD64ANDQloadidx1,
+	[2]Op{OpAMD64ORLload, OpAMD64ADDQ}:  OpAMD64ORLloadidx1,
+	[2]Op{OpAMD64ORQload, OpAMD64ADDQ}:  OpAMD64ORQloadidx1,
+	[2]Op{OpAMD64XORLload, OpAMD64ADDQ}: OpAMD64XORLloadidx1,
+	[2]Op{OpAMD64XORQload, OpAMD64ADDQ}: OpAMD64XORQloadidx1,
+
+	[2]Op{OpAMD64ADDLload, OpAMD64LEAQ1}: OpAMD64ADDLloadidx1,
+	[2]Op{OpAMD64ADDLload, OpAMD64LEAQ4}: OpAMD64ADDLloadidx4,
+	[2]Op{OpAMD64ADDLload, OpAMD64LEAQ8}: OpAMD64ADDLloadidx8,
+	[2]Op{OpAMD64ADDQload, OpAMD64LEAQ1}: OpAMD64ADDQloadidx1,
+	[2]Op{OpAMD64ADDQload, OpAMD64LEAQ8}: OpAMD64ADDQloadidx8,
+	[2]Op{OpAMD64SUBLload, OpAMD64LEAQ1}: OpAMD64SUBLloadidx1,
+	[2]Op{OpAMD64SUBLload, OpAMD64LEAQ4}: OpAMD64SUBLloadidx4,
+	[2]Op{OpAMD64SUBLload, OpAMD64LEAQ8}: OpAMD64SUBLloadidx8,
+	[2]Op{OpAMD64SUBQload, OpAMD64LEAQ1}: OpAMD64SUBQloadidx1,
+	[2]Op{OpAMD64SUBQload, OpAMD64LEAQ8}: OpAMD64SUBQloadidx8,
+	[2]Op{OpAMD64ANDLload, OpAMD64LEAQ1}: OpAMD64ANDLloadidx1,
+	[2]Op{OpAMD64ANDLload, OpAMD64LEAQ4}: OpAMD64ANDLloadidx4,
+	[2]Op{OpAMD64ANDLload, OpAMD64LEAQ8}: OpAMD64ANDLloadidx8,
+	[2]Op{OpAMD64ANDQload, OpAMD64LEAQ1}: OpAMD64ANDQloadidx1,
+	[2]Op{OpAMD64ANDQload, OpAMD64LEAQ8}: OpAMD64ANDQloadidx8,
+	[2]Op{OpAMD64ORLload, OpAMD64LEAQ1}:  OpAMD64ORLloadidx1,
+	[2]Op{OpAMD64ORLload, OpAMD64LEAQ4}:  OpAMD64ORLloadidx4,
+	[2]Op{OpAMD64ORLload, OpAMD64LEAQ8}:  OpAMD64ORLloadidx8,
+	[2]Op{OpAMD64ORQload, OpAMD64LEAQ1}:  OpAMD64ORQloadidx1,
+	[2]Op{OpAMD64ORQload, OpAMD64LEAQ8}:  OpAMD64ORQloadidx8,
+	[2]Op{OpAMD64XORLload, OpAMD64LEAQ1}: OpAMD64XORLloadidx1,
+	[2]Op{OpAMD64XORLload, OpAMD64LEAQ4}: OpAMD64XORLloadidx4,
+	[2]Op{OpAMD64XORLload, OpAMD64LEAQ8}: OpAMD64XORLloadidx8,
+	[2]Op{OpAMD64XORQload, OpAMD64LEAQ1}: OpAMD64XORQloadidx1,
+	[2]Op{OpAMD64XORQload, OpAMD64LEAQ8}: OpAMD64XORQloadidx8,
+
+	[2]Op{OpAMD64ADDLmodify, OpAMD64ADDQ}: OpAMD64ADDLmodifyidx1,
+	[2]Op{OpAMD64ADDQmodify, OpAMD64ADDQ}: OpAMD64ADDQmodifyidx1,
+	[2]Op{OpAMD64SUBLmodify, OpAMD64ADDQ}: OpAMD64SUBLmodifyidx1,
+	[2]Op{OpAMD64SUBQmodify, OpAMD64ADDQ}: OpAMD64SUBQmodifyidx1,
+	[2]Op{OpAMD64ANDLmodify, OpAMD64ADDQ}: OpAMD64ANDLmodifyidx1,
+	[2]Op{OpAMD64ANDQmodify, OpAMD64ADDQ}: OpAMD64ANDQmodifyidx1,
+	[2]Op{OpAMD64ORLmodify, OpAMD64ADDQ}:  OpAMD64ORLmodifyidx1,
+	[2]Op{OpAMD64ORQmodify, OpAMD64ADDQ}:  OpAMD64ORQmodifyidx1,
+	[2]Op{OpAMD64XORLmodify, OpAMD64ADDQ}: OpAMD64XORLmodifyidx1,
+	[2]Op{OpAMD64XORQmodify, OpAMD64ADDQ}: OpAMD64XORQmodifyidx1,
+
+	[2]Op{OpAMD64ADDLmodify, OpAMD64LEAQ1}: OpAMD64ADDLmodifyidx1,
+	[2]Op{OpAMD64ADDLmodify, OpAMD64LEAQ4}: OpAMD64ADDLmodifyidx4,
+	[2]Op{OpAMD64ADDLmodify, OpAMD64LEAQ8}: OpAMD64ADDLmodifyidx8,
+	[2]Op{OpAMD64ADDQmodify, OpAMD64LEAQ1}: OpAMD64ADDQmodifyidx1,
+	[2]Op{OpAMD64ADDQmodify, OpAMD64LEAQ8}: OpAMD64ADDQmodifyidx8,
+	[2]Op{OpAMD64SUBLmodify, OpAMD64LEAQ1}: OpAMD64SUBLmodifyidx1,
+	[2]Op{OpAMD64SUBLmodify, OpAMD64LEAQ4}: OpAMD64SUBLmodifyidx4,
+	[2]Op{OpAMD64SUBLmodify, OpAMD64LEAQ8}: OpAMD64SUBLmodifyidx8,
+	[2]Op{OpAMD64SUBQmodify, OpAMD64LEAQ1}: OpAMD64SUBQmodifyidx1,
+	[2]Op{OpAMD64SUBQmodify, OpAMD64LEAQ8}: OpAMD64SUBQmodifyidx8,
+	[2]Op{OpAMD64ANDLmodify, OpAMD64LEAQ1}: OpAMD64ANDLmodifyidx1,
+	[2]Op{OpAMD64ANDLmodify, OpAMD64LEAQ4}: OpAMD64ANDLmodifyidx4,
+	[2]Op{OpAMD64ANDLmodify, OpAMD64LEAQ8}: OpAMD64ANDLmodifyidx8,
+	[2]Op{OpAMD64ANDQmodify, OpAMD64LEAQ1}: OpAMD64ANDQmodifyidx1,
+	[2]Op{OpAMD64ANDQmodify, OpAMD64LEAQ8}: OpAMD64ANDQmodifyidx8,
+	[2]Op{OpAMD64ORLmodify, OpAMD64LEAQ1}:  OpAMD64ORLmodifyidx1,
+	[2]Op{OpAMD64ORLmodify, OpAMD64LEAQ4}:  OpAMD64ORLmodifyidx4,
+	[2]Op{OpAMD64ORLmodify, OpAMD64LEAQ8}:  OpAMD64ORLmodifyidx8,
+	[2]Op{OpAMD64ORQmodify, OpAMD64LEAQ1}:  OpAMD64ORQmodifyidx1,
+	[2]Op{OpAMD64ORQmodify, OpAMD64LEAQ8}:  OpAMD64ORQmodifyidx8,
+	[2]Op{OpAMD64XORLmodify, OpAMD64LEAQ1}: OpAMD64XORLmodifyidx1,
+	[2]Op{OpAMD64XORLmodify, OpAMD64LEAQ4}: OpAMD64XORLmodifyidx4,
+	[2]Op{OpAMD64XORLmodify, OpAMD64LEAQ8}: OpAMD64XORLmodifyidx8,
+	[2]Op{OpAMD64XORQmodify, OpAMD64LEAQ1}: OpAMD64XORQmodifyidx1,
+	[2]Op{OpAMD64XORQmodify, OpAMD64LEAQ8}: OpAMD64XORQmodifyidx8,
+
+	[2]Op{OpAMD64ADDLconstmodify, OpAMD64ADDQ}: OpAMD64ADDLconstmodifyidx1,
+	[2]Op{OpAMD64ADDQconstmodify, OpAMD64ADDQ}: OpAMD64ADDQconstmodifyidx1,
+	[2]Op{OpAMD64ANDLconstmodify, OpAMD64ADDQ}: OpAMD64ANDLconstmodifyidx1,
+	[2]Op{OpAMD64ANDQconstmodify, OpAMD64ADDQ}: OpAMD64ANDQconstmodifyidx1,
+	[2]Op{OpAMD64ORLconstmodify, OpAMD64ADDQ}:  OpAMD64ORLconstmodifyidx1,
+	[2]Op{OpAMD64ORQconstmodify, OpAMD64ADDQ}:  OpAMD64ORQconstmodifyidx1,
+	[2]Op{OpAMD64XORLconstmodify, OpAMD64ADDQ}: OpAMD64XORLconstmodifyidx1,
+	[2]Op{OpAMD64XORQconstmodify, OpAMD64ADDQ}: OpAMD64XORQconstmodifyidx1,
+
+	[2]Op{OpAMD64ADDLconstmodify, OpAMD64LEAQ1}: OpAMD64ADDLconstmodifyidx1,
+	[2]Op{OpAMD64ADDLconstmodify, OpAMD64LEAQ4}: OpAMD64ADDLconstmodifyidx4,
+	[2]Op{OpAMD64ADDLconstmodify, OpAMD64LEAQ8}: OpAMD64ADDLconstmodifyidx8,
+	[2]Op{OpAMD64ADDQconstmodify, OpAMD64LEAQ1}: OpAMD64ADDQconstmodifyidx1,
+	[2]Op{OpAMD64ADDQconstmodify, OpAMD64LEAQ8}: OpAMD64ADDQconstmodifyidx8,
+	[2]Op{OpAMD64ANDLconstmodify, OpAMD64LEAQ1}: OpAMD64ANDLconstmodifyidx1,
+	[2]Op{OpAMD64ANDLconstmodify, OpAMD64LEAQ4}: OpAMD64ANDLconstmodifyidx4,
+	[2]Op{OpAMD64ANDLconstmodify, OpAMD64LEAQ8}: OpAMD64ANDLconstmodifyidx8,
+	[2]Op{OpAMD64ANDQconstmodify, OpAMD64LEAQ1}: OpAMD64ANDQconstmodifyidx1,
+	[2]Op{OpAMD64ANDQconstmodify, OpAMD64LEAQ8}: OpAMD64ANDQconstmodifyidx8,
+	[2]Op{OpAMD64ORLconstmodify, OpAMD64LEAQ1}:  OpAMD64ORLconstmodifyidx1,
+	[2]Op{OpAMD64ORLconstmodify, OpAMD64LEAQ4}:  OpAMD64ORLconstmodifyidx4,
+	[2]Op{OpAMD64ORLconstmodify, OpAMD64LEAQ8}:  OpAMD64ORLconstmodifyidx8,
+	[2]Op{OpAMD64ORQconstmodify, OpAMD64LEAQ1}:  OpAMD64ORQconstmodifyidx1,
+	[2]Op{OpAMD64ORQconstmodify, OpAMD64LEAQ8}:  OpAMD64ORQconstmodifyidx8,
+	[2]Op{OpAMD64XORLconstmodify, OpAMD64LEAQ1}: OpAMD64XORLconstmodifyidx1,
+	[2]Op{OpAMD64XORLconstmodify, OpAMD64LEAQ4}: OpAMD64XORLconstmodifyidx4,
+	[2]Op{OpAMD64XORLconstmodify, OpAMD64LEAQ8}: OpAMD64XORLconstmodifyidx8,
+	[2]Op{OpAMD64XORQconstmodify, OpAMD64LEAQ1}: OpAMD64XORQconstmodifyidx1,
+	[2]Op{OpAMD64XORQconstmodify, OpAMD64LEAQ8}: OpAMD64XORQconstmodifyidx8,
+
+	[2]Op{OpAMD64ADDSSload, OpAMD64LEAQ1}: OpAMD64ADDSSloadidx1,
+	[2]Op{OpAMD64ADDSSload, OpAMD64LEAQ4}: OpAMD64ADDSSloadidx4,
+	[2]Op{OpAMD64ADDSDload, OpAMD64LEAQ1}: OpAMD64ADDSDloadidx1,
+	[2]Op{OpAMD64ADDSDload, OpAMD64LEAQ8}: OpAMD64ADDSDloadidx8,
+	[2]Op{OpAMD64SUBSSload, OpAMD64LEAQ1}: OpAMD64SUBSSloadidx1,
+	[2]Op{OpAMD64SUBSSload, OpAMD64LEAQ4}: OpAMD64SUBSSloadidx4,
+	[2]Op{OpAMD64SUBSDload, OpAMD64LEAQ1}: OpAMD64SUBSDloadidx1,
+	[2]Op{OpAMD64SUBSDload, OpAMD64LEAQ8}: OpAMD64SUBSDloadidx8,
+	[2]Op{OpAMD64MULSSload, OpAMD64LEAQ1}: OpAMD64MULSSloadidx1,
+	[2]Op{OpAMD64MULSSload, OpAMD64LEAQ4}: OpAMD64MULSSloadidx4,
+	[2]Op{OpAMD64MULSDload, OpAMD64LEAQ1}: OpAMD64MULSDloadidx1,
+	[2]Op{OpAMD64MULSDload, OpAMD64LEAQ8}: OpAMD64MULSDloadidx8,
+	[2]Op{OpAMD64DIVSSload, OpAMD64LEAQ1}: OpAMD64DIVSSloadidx1,
+	[2]Op{OpAMD64DIVSSload, OpAMD64LEAQ4}: OpAMD64DIVSSloadidx4,
+	[2]Op{OpAMD64DIVSDload, OpAMD64LEAQ1}: OpAMD64DIVSDloadidx1,
+	[2]Op{OpAMD64DIVSDload, OpAMD64LEAQ8}: OpAMD64DIVSDloadidx8,
+
+	[2]Op{OpAMD64SARXLload, OpAMD64ADDQ}: OpAMD64SARXLloadidx1,
+	[2]Op{OpAMD64SARXQload, OpAMD64ADDQ}: OpAMD64SARXQloadidx1,
+	[2]Op{OpAMD64SHLXLload, OpAMD64ADDQ}: OpAMD64SHLXLloadidx1,
+	[2]Op{OpAMD64SHLXQload, OpAMD64ADDQ}: OpAMD64SHLXQloadidx1,
+	[2]Op{OpAMD64SHRXLload, OpAMD64ADDQ}: OpAMD64SHRXLloadidx1,
+	[2]Op{OpAMD64SHRXQload, OpAMD64ADDQ}: OpAMD64SHRXQloadidx1,
+
+	[2]Op{OpAMD64SARXLload, OpAMD64LEAQ1}: OpAMD64SARXLloadidx1,
+	[2]Op{OpAMD64SARXLload, OpAMD64LEAQ4}: OpAMD64SARXLloadidx4,
+	[2]Op{OpAMD64SARXLload, OpAMD64LEAQ8}: OpAMD64SARXLloadidx8,
+	[2]Op{OpAMD64SARXQload, OpAMD64LEAQ1}: OpAMD64SARXQloadidx1,
+	[2]Op{OpAMD64SARXQload, OpAMD64LEAQ8}: OpAMD64SARXQloadidx8,
+	[2]Op{OpAMD64SHLXLload, OpAMD64LEAQ1}: OpAMD64SHLXLloadidx1,
+	[2]Op{OpAMD64SHLXLload, OpAMD64LEAQ4}: OpAMD64SHLXLloadidx4,
+	[2]Op{OpAMD64SHLXLload, OpAMD64LEAQ8}: OpAMD64SHLXLloadidx8,
+	[2]Op{OpAMD64SHLXQload, OpAMD64LEAQ1}: OpAMD64SHLXQloadidx1,
+	[2]Op{OpAMD64SHLXQload, OpAMD64LEAQ8}: OpAMD64SHLXQloadidx8,
+	[2]Op{OpAMD64SHRXLload, OpAMD64LEAQ1}: OpAMD64SHRXLloadidx1,
+	[2]Op{OpAMD64SHRXLload, OpAMD64LEAQ4}: OpAMD64SHRXLloadidx4,
+	[2]Op{OpAMD64SHRXLload, OpAMD64LEAQ8}: OpAMD64SHRXLloadidx8,
+	[2]Op{OpAMD64SHRXQload, OpAMD64LEAQ1}: OpAMD64SHRXQloadidx1,
+	[2]Op{OpAMD64SHRXQload, OpAMD64LEAQ8}: OpAMD64SHRXQloadidx8,
+
+	// amd64/v3
+	[2]Op{OpAMD64MOVBELload, OpAMD64ADDQ}:  OpAMD64MOVBELloadidx1,
+	[2]Op{OpAMD64MOVBEQload, OpAMD64ADDQ}:  OpAMD64MOVBEQloadidx1,
+	[2]Op{OpAMD64MOVBELload, OpAMD64LEAQ1}: OpAMD64MOVBELloadidx1,
+	[2]Op{OpAMD64MOVBELload, OpAMD64LEAQ4}: OpAMD64MOVBELloadidx4,
+	[2]Op{OpAMD64MOVBELload, OpAMD64LEAQ8}: OpAMD64MOVBELloadidx8,
+	[2]Op{OpAMD64MOVBEQload, OpAMD64LEAQ1}: OpAMD64MOVBEQloadidx1,
+	[2]Op{OpAMD64MOVBEQload, OpAMD64LEAQ8}: OpAMD64MOVBEQloadidx8,
+
+	[2]Op{OpAMD64MOVBEWstore, OpAMD64ADDQ}:  OpAMD64MOVBEWstoreidx1,
+	[2]Op{OpAMD64MOVBELstore, OpAMD64ADDQ}:  OpAMD64MOVBELstoreidx1,
+	[2]Op{OpAMD64MOVBEQstore, OpAMD64ADDQ}:  OpAMD64MOVBEQstoreidx1,
+	[2]Op{OpAMD64MOVBEWstore, OpAMD64LEAQ1}: OpAMD64MOVBEWstoreidx1,
+	[2]Op{OpAMD64MOVBEWstore, OpAMD64LEAQ2}: OpAMD64MOVBEWstoreidx2,
+	[2]Op{OpAMD64MOVBELstore, OpAMD64LEAQ1}: OpAMD64MOVBELstoreidx1,
+	[2]Op{OpAMD64MOVBELstore, OpAMD64LEAQ4}: OpAMD64MOVBELstoreidx4,
+	[2]Op{OpAMD64MOVBELstore, OpAMD64LEAQ8}: OpAMD64MOVBELstoreidx8,
+	[2]Op{OpAMD64MOVBEQstore, OpAMD64LEAQ1}: OpAMD64MOVBEQstoreidx1,
+	[2]Op{OpAMD64MOVBEQstore, OpAMD64LEAQ8}: OpAMD64MOVBEQstoreidx8,
 
 	// 386
 	[2]Op{Op386MOVBload, Op386ADDL}:  Op386MOVBloadidx1,
@@ -248,4 +458,61 @@ var combine = map[[2]Op]Op{
 	[2]Op{Op386ANDLconstmodify, Op386LEAL4}: Op386ANDLconstmodifyidx4,
 	[2]Op{Op386ORLconstmodify, Op386LEAL4}:  Op386ORLconstmodifyidx4,
 	[2]Op{Op386XORLconstmodify, Op386LEAL4}: Op386XORLconstmodifyidx4,
+
+	// s390x
+	[2]Op{OpS390XMOVDload, OpS390XADD}: OpS390XMOVDloadidx,
+	[2]Op{OpS390XMOVWload, OpS390XADD}: OpS390XMOVWloadidx,
+	[2]Op{OpS390XMOVHload, OpS390XADD}: OpS390XMOVHloadidx,
+	[2]Op{OpS390XMOVBload, OpS390XADD}: OpS390XMOVBloadidx,
+
+	[2]Op{OpS390XMOVWZload, OpS390XADD}: OpS390XMOVWZloadidx,
+	[2]Op{OpS390XMOVHZload, OpS390XADD}: OpS390XMOVHZloadidx,
+	[2]Op{OpS390XMOVBZload, OpS390XADD}: OpS390XMOVBZloadidx,
+
+	[2]Op{OpS390XMOVDBRload, OpS390XADD}: OpS390XMOVDBRloadidx,
+	[2]Op{OpS390XMOVWBRload, OpS390XADD}: OpS390XMOVWBRloadidx,
+	[2]Op{OpS390XMOVHBRload, OpS390XADD}: OpS390XMOVHBRloadidx,
+
+	[2]Op{OpS390XFMOVDload, OpS390XADD}: OpS390XFMOVDloadidx,
+	[2]Op{OpS390XFMOVSload, OpS390XADD}: OpS390XFMOVSloadidx,
+
+	[2]Op{OpS390XMOVDstore, OpS390XADD}: OpS390XMOVDstoreidx,
+	[2]Op{OpS390XMOVWstore, OpS390XADD}: OpS390XMOVWstoreidx,
+	[2]Op{OpS390XMOVHstore, OpS390XADD}: OpS390XMOVHstoreidx,
+	[2]Op{OpS390XMOVBstore, OpS390XADD}: OpS390XMOVBstoreidx,
+
+	[2]Op{OpS390XMOVDBRstore, OpS390XADD}: OpS390XMOVDBRstoreidx,
+	[2]Op{OpS390XMOVWBRstore, OpS390XADD}: OpS390XMOVWBRstoreidx,
+	[2]Op{OpS390XMOVHBRstore, OpS390XADD}: OpS390XMOVHBRstoreidx,
+
+	[2]Op{OpS390XFMOVDstore, OpS390XADD}: OpS390XFMOVDstoreidx,
+	[2]Op{OpS390XFMOVSstore, OpS390XADD}: OpS390XFMOVSstoreidx,
+
+	[2]Op{OpS390XMOVDload, OpS390XMOVDaddridx}: OpS390XMOVDloadidx,
+	[2]Op{OpS390XMOVWload, OpS390XMOVDaddridx}: OpS390XMOVWloadidx,
+	[2]Op{OpS390XMOVHload, OpS390XMOVDaddridx}: OpS390XMOVHloadidx,
+	[2]Op{OpS390XMOVBload, OpS390XMOVDaddridx}: OpS390XMOVBloadidx,
+
+	[2]Op{OpS390XMOVWZload, OpS390XMOVDaddridx}: OpS390XMOVWZloadidx,
+	[2]Op{OpS390XMOVHZload, OpS390XMOVDaddridx}: OpS390XMOVHZloadidx,
+	[2]Op{OpS390XMOVBZload, OpS390XMOVDaddridx}: OpS390XMOVBZloadidx,
+
+	[2]Op{OpS390XMOVDBRload, OpS390XMOVDaddridx}: OpS390XMOVDBRloadidx,
+	[2]Op{OpS390XMOVWBRload, OpS390XMOVDaddridx}: OpS390XMOVWBRloadidx,
+	[2]Op{OpS390XMOVHBRload, OpS390XMOVDaddridx}: OpS390XMOVHBRloadidx,
+
+	[2]Op{OpS390XFMOVDload, OpS390XMOVDaddridx}: OpS390XFMOVDloadidx,
+	[2]Op{OpS390XFMOVSload, OpS390XMOVDaddridx}: OpS390XFMOVSloadidx,
+
+	[2]Op{OpS390XMOVDstore, OpS390XMOVDaddridx}: OpS390XMOVDstoreidx,
+	[2]Op{OpS390XMOVWstore, OpS390XMOVDaddridx}: OpS390XMOVWstoreidx,
+	[2]Op{OpS390XMOVHstore, OpS390XMOVDaddridx}: OpS390XMOVHstoreidx,
+	[2]Op{OpS390XMOVBstore, OpS390XMOVDaddridx}: OpS390XMOVBstoreidx,
+
+	[2]Op{OpS390XMOVDBRstore, OpS390XMOVDaddridx}: OpS390XMOVDBRstoreidx,
+	[2]Op{OpS390XMOVWBRstore, OpS390XMOVDaddridx}: OpS390XMOVWBRstoreidx,
+	[2]Op{OpS390XMOVHBRstore, OpS390XMOVDaddridx}: OpS390XMOVHBRstoreidx,
+
+	[2]Op{OpS390XFMOVDstore, OpS390XMOVDaddridx}: OpS390XFMOVDstoreidx,
+	[2]Op{OpS390XFMOVSstore, OpS390XMOVDaddridx}: OpS390XFMOVSstoreidx,
 }

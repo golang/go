@@ -52,8 +52,10 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
 	MOVDF	F4, F5        // c45bb7ee
 
 	LDREX	(R8), R9      // 9f9f98e1
+	LDREXB	(R11), R12    // 9fcfdbe1
 	LDREXD	(R11), R12    // 9fcfbbe1
 	STREX	R3, (R4), R5  // STREX  (R4), R3, R5 // 935f84e1
+	STREXB	R8, (R9), g   // STREXB (R9), R8, g  // 98afc9e1
 	STREXD	R8, (R9), g   // STREXD (R9), R8, g  // 98afa9e1
 
 	CMPF    F8, F9        // c89ab4ee10faf1ee

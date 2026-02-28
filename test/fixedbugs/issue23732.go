@@ -21,22 +21,22 @@ type Bar struct {
 }
 
 func main() {
-	_ = Foo{
+	_ = Foo{ // GCCGO_ERROR "too few expressions"
 		1,
 		2,
-		3, // ERROR "too few values in Foo literal"
-	}
+		3,
+	} // GC_ERROR "too few values in"
 
 	_ = Foo{
 		1,
 		2,
 		3,
-		Bar{"A", "B"}, // ERROR "too many values in Bar literal"
+		Bar{"A", "B"}, // ERROR "too many values in|too many expressions"
 	}
 
-	_ = Foo{
+	_ = Foo{ // GCCGO_ERROR "too few expressions"
 		1,
 		2,
-		Bar{"A", "B"}, // ERROR "too many values in Bar literal" "too few values in Foo literal"
-	}
+		Bar{"A", "B"}, // ERROR "too many values in|too many expressions"
+	} // GC_ERROR "too few values in"
 }

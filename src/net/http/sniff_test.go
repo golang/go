@@ -8,10 +8,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	. "net/http"
-	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -89,13 +88,9 @@ func TestDetectContentType(t *testing.T) {
 	}
 }
 
-func TestServerContentType_h1(t *testing.T) { testServerContentType(t, h1Mode) }
-func TestServerContentType_h2(t *testing.T) { testServerContentType(t, h2Mode) }
-
-func testServerContentType(t *testing.T, h2 bool) {
-	setParallel(t)
-	defer afterTest(t)
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+func TestServerContentTypeSniff(t *testing.T) { run(t, testServerContentTypeSniff) }
+func testServerContentTypeSniff(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		i, _ := strconv.Atoi(r.FormValue("i"))
 		tt := sniffTests[i]
 		n, err := w.Write(tt.data)
@@ -123,7 +118,7 @@ func testServerContentType(t *testing.T, h2 bool) {
 		if ct := resp.Header.Get("Content-Type"); ct != wantContentType {
 			t.Errorf("%v: Content-Type = %q, want %q", tt.desc, ct, wantContentType)
 		}
-		data, err := ioutil.ReadAll(resp.Body)
+		data, err := io.ReadAll(resp.Body)
 		if err != nil {
 			t.Errorf("%v: reading body: %v", tt.desc, err)
 		} else if !bytes.Equal(data, tt.data) {
@@ -135,15 +130,12 @@ func testServerContentType(t *testing.T, h2 bool) {
 
 // Issue 5953: shouldn't sniff if the handler set a Content-Type header,
 // even if it's the empty string.
-func TestServerIssue5953_h1(t *testing.T) { testServerIssue5953(t, h1Mode) }
-func TestServerIssue5953_h2(t *testing.T) { testServerIssue5953(t, h2Mode) }
-func testServerIssue5953(t *testing.T, h2 bool) {
-	defer afterTest(t)
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+func TestServerIssue5953(t *testing.T) { run(t, testServerIssue5953) }
+func testServerIssue5953(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header()["Content-Type"] = []string{""}
 		fmt.Fprintf(w, "<html><head></head><body>hi</body></html>")
 	}))
-	defer cst.close()
 
 	resp, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
@@ -152,54 +144,119 @@ func testServerIssue5953(t *testing.T, h2 bool) {
 
 	got := resp.Header["Content-Type"]
 	want := []string{""}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("Content-Type = %q; want %q", got, want)
 	}
 	resp.Body.Close()
 }
 
-func TestContentTypeWithCopy_h1(t *testing.T) { testContentTypeWithCopy(t, h1Mode) }
-func TestContentTypeWithCopy_h2(t *testing.T) { testContentTypeWithCopy(t, h2Mode) }
-func testContentTypeWithCopy(t *testing.T, h2 bool) {
-	defer afterTest(t)
+type byteAtATimeReader struct {
+	buf []byte
+}
 
+func (b *byteAtATimeReader) Read(p []byte) (n int, err error) {
+	if len(p) < 1 {
+		return 0, nil
+	}
+	if len(b.buf) == 0 {
+		return 0, io.EOF
+	}
+	p[0] = b.buf[0]
+	b.buf = b.buf[1:]
+	return 1, nil
+}
+
+func TestContentTypeWithVariousSources(t *testing.T) { run(t, testContentTypeWithVariousSources) }
+func testContentTypeWithVariousSources(t *testing.T, mode testMode) {
 	const (
 		input    = "\n<html>\n\t<head>\n"
 		expected = "text/html; charset=utf-8"
 	)
 
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
-		// Use io.Copy from a bytes.Buffer to trigger ReadFrom.
-		buf := bytes.NewBuffer([]byte(input))
-		n, err := io.Copy(w, buf)
-		if int(n) != len(input) || err != nil {
-			t.Errorf("io.Copy(w, %q) = %v, %v want %d, nil", input, n, err, len(input))
-		}
-	}))
-	defer cst.close()
+	for _, test := range []struct {
+		name    string
+		handler func(ResponseWriter, *Request)
+	}{{
+		name: "write",
+		handler: func(w ResponseWriter, r *Request) {
+			// Write the whole input at once.
+			n, err := w.Write([]byte(input))
+			if int(n) != len(input) || err != nil {
+				t.Errorf("w.Write(%q) = %v, %v want %d, nil", input, n, err, len(input))
+			}
+		},
+	}, {
+		name: "write one byte at a time",
+		handler: func(w ResponseWriter, r *Request) {
+			// Write the input one byte at a time.
+			buf := []byte(input)
+			for i := range buf {
+				n, err := w.Write(buf[i : i+1])
+				if n != 1 || err != nil {
+					t.Errorf("w.Write(%q) = %v, %v want 1, nil", input, n, err)
+				}
+			}
+		},
+	}, {
+		name: "copy from Reader",
+		handler: func(w ResponseWriter, r *Request) {
+			// Use io.Copy from a plain Reader.
+			type readerOnly struct{ io.Reader }
+			buf := bytes.NewBuffer([]byte(input))
+			n, err := io.Copy(w, readerOnly{buf})
+			if int(n) != len(input) || err != nil {
+				t.Errorf("io.Copy(w, %q) = %v, %v want %d, nil", input, n, err, len(input))
+			}
+		},
+	}, {
+		name: "copy from bytes.Buffer",
+		handler: func(w ResponseWriter, r *Request) {
+			// Use io.Copy from a bytes.Buffer to trigger ReadFrom.
+			buf := bytes.NewBuffer([]byte(input))
+			n, err := io.Copy(w, buf)
+			if int(n) != len(input) || err != nil {
+				t.Errorf("io.Copy(w, %q) = %v, %v want %d, nil", input, n, err, len(input))
+			}
+		},
+	}, {
+		name: "copy one byte at a time",
+		handler: func(w ResponseWriter, r *Request) {
+			// Use io.Copy from a Reader that returns one byte at a time.
+			n, err := io.Copy(w, &byteAtATimeReader{[]byte(input)})
+			if int(n) != len(input) || err != nil {
+				t.Errorf("io.Copy(w, %q) = %v, %v want %d, nil", input, n, err, len(input))
+			}
+		},
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			cst := newClientServerTest(t, mode, HandlerFunc(test.handler))
 
-	resp, err := cst.c.Get(cst.ts.URL)
-	if err != nil {
-		t.Fatalf("Get: %v", err)
+			resp, err := cst.c.Get(cst.ts.URL)
+			if err != nil {
+				t.Fatalf("Get: %v", err)
+			}
+			if ct := resp.Header.Get("Content-Type"); ct != expected {
+				t.Errorf("Content-Type = %q, want %q", ct, expected)
+			}
+			if want, got := resp.Header.Get("Content-Length"), fmt.Sprint(len(input)); want != got {
+				t.Errorf("Content-Length = %q, want %q", want, got)
+			}
+			data, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("reading body: %v", err)
+			} else if !bytes.Equal(data, []byte(input)) {
+				t.Errorf("data is %q, want %q", data, input)
+			}
+			resp.Body.Close()
+
+		})
+
 	}
-	if ct := resp.Header.Get("Content-Type"); ct != expected {
-		t.Errorf("Content-Type = %q, want %q", ct, expected)
-	}
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.Errorf("reading body: %v", err)
-	} else if !bytes.Equal(data, []byte(input)) {
-		t.Errorf("data is %q, want %q", data, input)
-	}
-	resp.Body.Close()
 }
 
-func TestSniffWriteSize_h1(t *testing.T) { testSniffWriteSize(t, h1Mode) }
-func TestSniffWriteSize_h2(t *testing.T) { testSniffWriteSize(t, h2Mode) }
-func testSniffWriteSize(t *testing.T, h2 bool) {
-	setParallel(t)
-	defer afterTest(t)
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+func TestSniffWriteSize(t *testing.T) { run(t, testSniffWriteSize) }
+func testSniffWriteSize(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		size, _ := strconv.Atoi(r.FormValue("size"))
 		written, err := io.WriteString(w, strings.Repeat("a", size))
 		if err != nil {
@@ -210,13 +267,12 @@ func testSniffWriteSize(t *testing.T, h2 bool) {
 			t.Errorf("write of %d bytes wrote %d bytes", size, written)
 		}
 	}))
-	defer cst.close()
 	for _, size := range []int{0, 1, 200, 600, 999, 1000, 1023, 1024, 512 << 10, 1 << 20} {
 		res, err := cst.c.Get(fmt.Sprintf("%s/?size=%d", cst.ts.URL, size))
 		if err != nil {
 			t.Fatalf("size %d: %v", size, err)
 		}
-		if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
+		if _, err := io.Copy(io.Discard, res.Body); err != nil {
 			t.Fatalf("size %d: io.Copy of body = %v", size, err)
 		}
 		if err := res.Body.Close(); err != nil {

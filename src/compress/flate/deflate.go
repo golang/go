@@ -5,6 +5,7 @@
 package flate
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -86,18 +87,7 @@ type compressor struct {
 	// compression algorithm
 	fill      func(*compressor, []byte) int // copy data to window
 	step      func(*compressor)             // process window
-	sync      bool                          // requesting flush
 	bestSpeed *deflateFast                  // Encoder for BestSpeed
-
-	// Input hash chains
-	// hashHead[hashValue] contains the largest inputIndex with the specified hash value
-	// If hashHead[hashValue] is within the current window, then
-	// hashPrev[hashHead[hashValue] & windowMask] contains the previous index
-	// with the same hash value.
-	chainHead  int
-	hashHead   [hashSize]uint32
-	hashPrev   [windowSize]uint32
-	hashOffset int
 
 	// input window: unprocessed data is window[index:windowEnd]
 	index         int
@@ -106,15 +96,28 @@ type compressor struct {
 	blockStart    int  // window index where current tokens start
 	byteAvailable bool // if true, still need to process window[index-1].
 
+	sync bool // requesting flush
+
 	// queued output tokens
 	tokens []token
 
 	// deflate state
 	length         int
 	offset         int
-	hash           uint32
 	maxInsertIndex int
 	err            error
+
+	// Input hash chains
+	// hashHead[hashValue] contains the largest inputIndex with the specified hash value
+	// If hashHead[hashValue] is within the current window, then
+	// hashPrev[hashHead[hashValue] & windowMask] contains the previous index
+	// with the same hash value.
+	// These are large and do not contain pointers, so put them
+	// near the end of the struct so the GC has to scan less.
+	chainHead  int
+	hashHead   [hashSize]uint32
+	hashPrev   [windowSize]uint32
+	hashOffset int
 
 	// hashMatch must be able to contain hashes for the maximum match length.
 	hashMatch [maxMatchLength - 1]uint32
@@ -210,18 +213,15 @@ func (d *compressor) fillWindow(b []byte) {
 
 		dst := d.hashMatch[:dstSize]
 		d.bulkHasher(toCheck, dst)
-		var newH uint32
 		for i, val := range dst {
 			di := i + index
-			newH = val
-			hh := &d.hashHead[newH&hashMask]
+			hh := &d.hashHead[val&hashMask]
 			// Get previous value with the same hash.
 			// Our chain should point to the previous value.
 			d.hashPrev[di&windowMask] = *hh
 			// Set the head of the hash chain to us.
 			*hh = uint32(di + d.hashOffset)
 		}
-		d.hash = newH
 	}
 	// Update window information.
 	d.windowEnd = n
@@ -300,7 +300,7 @@ func hash4(b []byte) uint32 {
 }
 
 // bulkHash4 will compute hashes using the same
-// algorithm as hash4
+// algorithm as hash4.
 func bulkHash4(b []byte, dst []uint32) {
 	if len(b) < minMatchLength {
 		return
@@ -376,7 +376,6 @@ func (d *compressor) initDeflate() {
 	d.offset = 0
 	d.byteAvailable = false
 	d.index = 0
-	d.hash = 0
 	d.chainHead = -1
 	d.bulkHasher = bulkHash4
 }
@@ -387,9 +386,6 @@ func (d *compressor) deflate() {
 	}
 
 	d.maxInsertIndex = d.windowEnd - (minMatchLength - 1)
-	if d.index < d.maxInsertIndex {
-		d.hash = hash4(d.window[d.index : d.index+minMatchLength])
-	}
 
 Loop:
 	for {
@@ -422,8 +418,8 @@ Loop:
 		}
 		if d.index < d.maxInsertIndex {
 			// Update the hash
-			d.hash = hash4(d.window[d.index : d.index+minMatchLength])
-			hh := &d.hashHead[d.hash&hashMask]
+			hash := hash4(d.window[d.index : d.index+minMatchLength])
+			hh := &d.hashHead[hash&hashMask]
 			d.chainHead = int(*hh)
 			d.hashPrev[d.index&windowMask] = uint32(d.chainHead)
 			*hh = uint32(d.index + d.hashOffset)
@@ -468,10 +464,10 @@ Loop:
 				index := d.index
 				for index++; index < newIndex; index++ {
 					if index < d.maxInsertIndex {
-						d.hash = hash4(d.window[index : index+minMatchLength])
+						hash := hash4(d.window[index : index+minMatchLength])
 						// Get previous value with the same hash.
 						// Our chain should point to the previous value.
-						hh := &d.hashHead[d.hash&hashMask]
+						hh := &d.hashHead[hash&hashMask]
 						d.hashPrev[index&windowMask] = *hh
 						// Set the head of the hash chain to us.
 						*hh = uint32(index + d.hashOffset)
@@ -487,9 +483,6 @@ Loop:
 				// For matches this long, we don't bother inserting each individual
 				// item into the table.
 				d.index += d.length
-				if d.index < d.maxInsertIndex {
-					d.hash = hash4(d.window[d.index : d.index+minMatchLength])
-				}
 			}
 			if len(d.tokens) == maxFlateBlockTokens {
 				// The block includes the current character
@@ -621,24 +614,22 @@ func (d *compressor) reset(w io.Writer) {
 		d.bestSpeed.reset()
 	default:
 		d.chainHead = -1
-		for i := range d.hashHead {
-			d.hashHead[i] = 0
-		}
-		for i := range d.hashPrev {
-			d.hashPrev[i] = 0
-		}
+		clear(d.hashHead[:])
+		clear(d.hashPrev[:])
 		d.hashOffset = 1
 		d.index, d.windowEnd = 0, 0
 		d.blockStart, d.byteAvailable = 0, false
 		d.tokens = d.tokens[:0]
 		d.length = minMatchLength - 1
 		d.offset = 0
-		d.hash = 0
 		d.maxInsertIndex = 0
 	}
 }
 
 func (d *compressor) close() error {
+	if d.err == errWriterClosed {
+		return nil
+	}
 	if d.err != nil {
 		return d.err
 	}
@@ -651,16 +642,20 @@ func (d *compressor) close() error {
 		return d.w.err
 	}
 	d.w.flush()
-	return d.w.err
+	if d.w.err != nil {
+		return d.w.err
+	}
+	d.err = errWriterClosed
+	return nil
 }
 
-// NewWriter returns a new Writer compressing data at the given level.
-// Following zlib, levels range from 1 (BestSpeed) to 9 (BestCompression);
+// NewWriter returns a new [Writer] compressing data at the given level.
+// Following zlib, levels range from 1 ([BestSpeed]) to 9 ([BestCompression]);
 // higher levels typically run slower but compress more. Level 0
-// (NoCompression) does not attempt any compression; it only adds the
+// ([NoCompression]) does not attempt any compression; it only adds the
 // necessary DEFLATE framing.
-// Level -1 (DefaultCompression) uses the default compression level.
-// Level -2 (HuffmanOnly) will use Huffman compression only, giving
+// Level -1 ([DefaultCompression]) uses the default compression level.
+// Level -2 ([HuffmanOnly]) will use Huffman compression only, giving
 // a very fast compression for all types of input, but sacrificing considerable
 // compression efficiency.
 //
@@ -674,12 +669,12 @@ func NewWriter(w io.Writer, level int) (*Writer, error) {
 	return &dw, nil
 }
 
-// NewWriterDict is like NewWriter but initializes the new
-// Writer with a preset dictionary. The returned Writer behaves
+// NewWriterDict is like [NewWriter] but initializes the new
+// [Writer] with a preset dictionary. The returned [Writer] behaves
 // as if the dictionary had been written to it without producing
 // any compressed output. The compressed data written to w
-// can only be decompressed by a Reader initialized with the
-// same dictionary.
+// can only be decompressed by a reader initialized with the
+// same dictionary (see [NewReaderDict]).
 func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
 	dw := &dictWriter{w}
 	zw, err := NewWriter(dw, level)
@@ -688,7 +683,7 @@ func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
 	}
 	zw.d.fillWindow(dict)
 	zw.dict = append(zw.dict, dict...) // duplicate dictionary for Reset method.
-	return zw, err
+	return zw, nil
 }
 
 type dictWriter struct {
@@ -699,8 +694,10 @@ func (w *dictWriter) Write(b []byte) (n int, err error) {
 	return w.w.Write(b)
 }
 
+var errWriterClosed = errors.New("flate: closed writer")
+
 // A Writer takes data written to it and writes the compressed
-// form of that data to an underlying writer (see NewWriter).
+// form of that data to an underlying writer (see [NewWriter]).
 type Writer struct {
 	d    compressor
 	dict []byte
@@ -716,7 +713,7 @@ func (w *Writer) Write(data []byte) (n int, err error) {
 // It is useful mainly in compressed network protocols, to ensure that
 // a remote reader has enough data to reconstruct a packet.
 // Flush does not return until the data has been written.
-// Calling Flush when there is no pending data still causes the Writer
+// Calling Flush when there is no pending data still causes the [Writer]
 // to emit a sync marker of at least 4 bytes.
 // If the underlying writer returns an error, Flush returns that error.
 //
@@ -733,7 +730,7 @@ func (w *Writer) Close() error {
 }
 
 // Reset discards the writer's state and makes it equivalent to
-// the result of NewWriter or NewWriterDict called with dst
+// the result of [NewWriter] or [NewWriterDict] called with dst
 // and w's level and dictionary.
 func (w *Writer) Reset(dst io.Writer) {
 	if dw, ok := w.d.w.writer.(*dictWriter); ok {

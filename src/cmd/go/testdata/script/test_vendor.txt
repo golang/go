@@ -1,9 +1,19 @@
-# Test
+# In GOPATH mode, vendored packages can replace std packages.
+env GO111MODULE=off
 cd vend/hello
 go test -v
 stdout TestMsgInternal
 stdout TestMsgExternal
 
+# In module mode, they cannot.
+env GO111MODULE=on
+! go test -mod=vendor
+stderr 'undefined: strings.Msg'
+
+-- vend/hello/go.mod --
+module vend/hello
+
+go 1.16
 -- vend/hello/hello.go --
 package main
 

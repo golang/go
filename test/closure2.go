@@ -9,6 +9,8 @@
 
 package main
 
+var never bool
+
 func main() {
 	{
 		type X struct {
@@ -71,7 +73,8 @@ func main() {
 
 	{
 		var g func() int
-		for i := range [2]int{} {
+		var i int
+		for i = range [2]int{} {
 			if i == 0 {
 				g = func() int {
 					return i // test that we capture by ref here, i is mutated on every interaction
@@ -113,6 +116,18 @@ func main() {
 		}
 		if g() != 2 {
 			panic("g() != 2")
+		}
+	}
+
+	{
+		var g func() int
+		q := 0
+		q, g = 1, func() int { return q }
+		if never {
+			g = func() int { return 2 }
+		}
+		if g() != 1 {
+			panic("g() != 1")
 		}
 	}
 }

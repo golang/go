@@ -27,7 +27,7 @@ func f4(e interface{}) {
 	case struct {
 		i int "tag2"
 	}:
-	case struct { // ERROR "duplicate case struct { i int .tag1. } in type switch"
+	case struct { // ERROR "duplicate case struct { i int .tag1. } in type switch|duplicate case"
 		i int "tag1"
 	}:
 	}

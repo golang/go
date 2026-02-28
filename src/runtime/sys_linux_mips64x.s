@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
-// +build mips64 mips64le
+//go:build linux && (mips64 || mips64le)
 
 //
 // System calls and other sys.stuff for mips64, Linux
@@ -21,7 +20,6 @@
 #define SYS_close		5003
 #define SYS_getpid		5038
 #define SYS_kill		5060
-#define SYS_fcntl		5070
 #define SYS_mmap		5009
 #define SYS_munmap		5011
 #define SYS_setitimer		5036
@@ -38,13 +36,12 @@
 #define SYS_futex		5194
 #define SYS_sched_getaffinity	5196
 #define SYS_exit_group		5205
-#define SYS_epoll_create	5207
-#define SYS_epoll_ctl		5208
+#define SYS_timer_create	5216
+#define SYS_timer_settime	5217
+#define SYS_timer_delete	5220
 #define SYS_tgkill		5225
 #define SYS_openat		5247
-#define SYS_epoll_pwait		5272
 #define SYS_clock_gettime	5222
-#define SYS_epoll_create1	5285
 #define SYS_brk			5012
 #define SYS_pipe2		5287
 
@@ -54,7 +51,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	SYSCALL
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
 	MOVV	wait+0(FP), R1
 	// We're done using the stack.
@@ -109,17 +106,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	BEQ	R7, 2(PC)
 	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	MOVV	$r+0(FP), R4
-	MOVV	R0, R5
-	MOVV	$SYS_pipe2, R2
-	SYSCALL
-	BEQ	R7, 2(PC)
-	SUBVU	R2, R0, R2	// caller expects negative errno
-	MOVW	R2, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -203,6 +189,32 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	SYSCALL
 	RET
 
+TEXT runtime·timer_create(SB),NOSPLIT,$0-28
+	MOVW	clockid+0(FP), R4
+	MOVV	sevp+8(FP), R5
+	MOVV	timerid+16(FP), R6
+	MOVV	$SYS_timer_create, R2
+	SYSCALL
+	MOVW	R2, ret+24(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
+	MOVW	timerid+0(FP), R4
+	MOVW	flags+4(FP), R5
+	MOVV	new+8(FP), R6
+	MOVV	old+16(FP), R7
+	MOVV	$SYS_timer_settime, R2
+	SYSCALL
+	MOVW	R2, ret+24(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
+	MOVW	timerid+0(FP), R4
+	MOVV	$SYS_timer_delete, R2
+	SYSCALL
+	MOVW	R2, ret+8(FP)
+	RET
+
 TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVV	addr+0(FP), R4
 	MOVV	n+8(FP), R5
@@ -213,16 +225,24 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	R2, ret+24(FP)
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB),NOSPLIT,$16
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB),NOSPLIT,$16-12
 	MOVV	R29, R16	// R16 is unchanged by C code
 	MOVV	R29, R1
 
 	MOVV	g_m(g), R17	// R17 = m
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	// Save the old values on stack and restore them on exit,
+	// so this function is reentrant.
+	MOVV	m_vdsoPC(R17), R2
+	MOVV	m_vdsoSP(R17), R3
+	MOVV	R2, 8(R29)
+	MOVV	R3, 16(R29)
+
+	MOVV	$ret-8(FP), R2 // caller's SP
 	MOVV	R31, m_vdsoPC(R17)
-	MOVV	R29, m_vdsoSP(R17)
+	MOVV	R2, m_vdsoSP(R17)
 
 	MOVV	m_curg(R17), R4
 	MOVV	g, R5
@@ -243,13 +263,29 @@ noswitch:
 	BEQ	R25, fallback
 
 	JAL	(R25)
+	// check on vdso call return for kernel compatibility
+	// see https://golang.org/issues/39046
+	// if we get any error make fallback permanent.
+	BEQ	R2, R0, finish
+	MOVV	R0, runtime·vdsoClockgettimeSym(SB)
+	MOVW	$0, R4 // CLOCK_REALTIME
+	MOVV	$0(R29), R5
+	JMP	fallback
 
 finish:
 	MOVV	0(R29), R3	// sec
 	MOVV	8(R29), R5	// nsec
 
 	MOVV	R16, R29	// restore SP
-	MOVV	R0, m_vdsoSP(R17)	// clear vdsoSP
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVV	16(R29), R1
+	MOVV	R1, m_vdsoSP(R17)
+	MOVV	8(R29), R1
+	MOVV	R1, m_vdsoPC(R17)
 
 	MOVV	R3, sec+0(FP)
 	MOVW	R5, nsec+8(FP)
@@ -260,15 +296,23 @@ fallback:
 	SYSCALL
 	JMP finish
 
-TEXT runtime·nanotime1(SB),NOSPLIT,$16
+TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 	MOVV	R29, R16	// R16 is unchanged by C code
 	MOVV	R29, R1
 
 	MOVV	g_m(g), R17	// R17 = m
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	// Save the old values on stack and restore them on exit,
+	// so this function is reentrant.
+	MOVV	m_vdsoPC(R17), R2
+	MOVV	m_vdsoSP(R17), R3
+	MOVV	R2, 8(R29)
+	MOVV	R3, 16(R29)
+
+	MOVV	$ret-8(FP), R2 // caller's SP
 	MOVV	R31, m_vdsoPC(R17)
-	MOVV	R29, m_vdsoSP(R17)
+	MOVV	R2, m_vdsoSP(R17)
 
 	MOVV	m_curg(R17), R4
 	MOVV	g, R5
@@ -289,13 +333,27 @@ noswitch:
 	BEQ	R25, fallback
 
 	JAL	(R25)
+	// see walltime for detail
+	BEQ	R2, R0, finish
+	MOVV	R0, runtime·vdsoClockgettimeSym(SB)
+	MOVW	$1, R4 // CLOCK_MONOTONIC
+	MOVV	$0(R29), R5
+	JMP	fallback
 
 finish:
 	MOVV	0(R29), R3	// sec
 	MOVV	8(R29), R5	// nsec
 
 	MOVV	R16, R29	// restore SP
-	MOVV	R0, m_vdsoSP(R17)	// clear vdsoSP
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVV	16(R29), R1
+	MOVV	R1, m_vdsoSP(R17)
+	MOVV	8(R29), R1
+	MOVV	R1, m_vdsoPC(R17)
 
 	// sec is in R3, nsec in R5
 	// return nsec in R3
@@ -342,7 +400,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	JAL	(R25)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$64
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
 	// initialize REGSB = PC&0xffffffff00000000
 	BGEZAL	R0, 1(PC)
 	SRLV	$32, R31, RSB
@@ -503,77 +561,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
 	BEQ	R7, 2(PC)
 	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
-	RET
-
-// int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
-	MOVW    size+0(FP), R4
-	MOVV	$SYS_epoll_create, R2
-	SYSCALL
-	BEQ	R7, 2(PC)
-	SUBVU	R2, R0, R2	// caller expects negative errno
-	MOVW	R2, ret+8(FP)
-	RET
-
-// int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
-	MOVW	flags+0(FP), R4
-	MOVV	$SYS_epoll_create1, R2
-	SYSCALL
-	BEQ	R7, 2(PC)
-	SUBVU	R2, R0, R2	// caller expects negative errno
-	MOVW	R2, ret+8(FP)
-	RET
-
-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), R4
-	MOVW	op+4(FP), R5
-	MOVW	fd+8(FP), R6
-	MOVV	ev+16(FP), R7
-	MOVV	$SYS_epoll_ctl, R2
-	SYSCALL
-	SUBVU	R2, R0, R2	// caller expects negative errno
-	MOVW	R2, ret+24(FP)
-	RET
-
-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
-	// This uses pwait instead of wait, because Android O blocks wait.
-	MOVW	epfd+0(FP), R4
-	MOVV	ev+8(FP), R5
-	MOVW	nev+16(FP), R6
-	MOVW	timeout+20(FP), R7
-	MOVV	$0, R8
-	MOVV	$SYS_epoll_pwait, R2
-	SYSCALL
-	BEQ	R7, 2(PC)
-	SUBVU	R2, R0, R2	// caller expects negative errno
-	MOVW	R2, ret+24(FP)
-	RET
-
-// void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
-	MOVW    fd+0(FP), R4  // fd
-	MOVV    $2, R5  // F_SETFD
-	MOVV    $1, R6  // FD_CLOEXEC
-	MOVV	$SYS_fcntl, R2
-	SYSCALL
-	RET
-
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	fd+0(FP), R4 // fd
-	MOVV	$3, R5	// F_GETFL
-	MOVV	$0, R6
-	MOVV	$SYS_fcntl, R2
-	SYSCALL
-	MOVW	$0x80, R6 // O_NONBLOCK
-	OR	R2, R6
-	MOVW	fd+0(FP), R4 // fd
-	MOVV	$4, R5	// F_SETFL
-	MOVV	$SYS_fcntl, R2
-	SYSCALL
 	RET
 
 // func sbrk0() uintptr

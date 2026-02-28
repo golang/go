@@ -1,0 +1,56 @@
+# Check that if the PATH directory containing the C compiler has a space,
+# we can still use that compiler with cgo.
+# Verifies #43808.
+[!cgo] skip
+
+# Set CC explicitly to something that requires a PATH lookup.
+# Normally, the default is gcc or clang, but if CC was set during make.bash,
+# that becomes the default.
+[exec:clang] env CC=clang
+[exec:gcc] env CC=gcc
+[!exec:clang] [!exec:gcc] skip 'Unknown C compiler'
+
+[!GOOS:windows] chmod 0755 $WORK/'program files'/clang
+[!GOOS:windows] chmod 0755 $WORK/'program files'/gcc
+[!GOOS:windows] exists -exec $WORK/'program files'/clang
+[!GOOS:windows] exists -exec $WORK/'program files'/gcc
+[!GOOS:windows] env PATH=$WORK/'program files':$PATH
+[GOOS:windows] exists -exec $WORK/'program files'/gcc.bat
+[GOOS:windows] exists -exec $WORK/'program files'/clang.bat
+[GOOS:windows] env PATH=$WORK\'program files';%PATH%
+
+! exists $WORK/log.txt
+? go build -x
+exists $WORK/log.txt
+rm $WORK/log.txt
+
+# TODO(#41400, #43078): when CC is set explicitly, it should be allowed to
+# contain spaces separating arguments, and it should be possible to quote
+# arguments with spaces (including the path), as in CGO_CFLAGS and other
+# variables. For now, this doesn't work.
+[!GOOS:windows] env CC=$WORK/'program files'/gcc
+[GOOS:windows] env CC=$WORK\'program files'\gcc.bat
+! go build -x
+! exists $WORK/log.txt
+
+-- go.mod --
+module m
+
+-- m.go --
+package m
+
+// #define X 1
+import "C"
+
+-- $WORK/program files/gcc --
+#!/bin/sh
+
+echo ok >$WORK/log.txt
+-- $WORK/program files/clang --
+#!/bin/sh
+
+echo ok >$WORK/log.txt
+-- $WORK/program files/gcc.bat --
+echo ok >%WORK%\log.txt
+-- $WORK/program files/clang.bat --
+echo ok >%WORK%\log.txt

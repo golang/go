@@ -1,0 +1,16 @@
+-- input --
+[]
+
+[]: http://
+-- gofmt --
+[]
+
+[]: http://
+-- html --
+<p><a href="http://"></a>
+-- markdown --
+[](http://)
+-- text --
+
+
+[]: http://

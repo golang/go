@@ -85,7 +85,7 @@ func TestShiftToExtensionAMD64(t *testing.T) {
 
 // makeShiftExtensionFunc generates a function containing:
 //
-//   (rshift (lshift (Const64 [amount])) (Const64 [amount]))
+//	(rshift (lshift (Const64 [amount])) (Const64 [amount]))
 //
 // This may be equivalent to a sign or zero extension.
 func makeShiftExtensionFunc(c *Conf, amount int64, lshift, rshift Op, typ *types.Type) fun {

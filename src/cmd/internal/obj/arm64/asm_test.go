@@ -8,13 +8,319 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"testing"
 )
+
+func runAssembler(t *testing.T, srcdata string) []byte {
+	dir := t.TempDir()
+	defer os.RemoveAll(dir)
+	srcfile := filepath.Join(dir, "testdata.s")
+	outfile := filepath.Join(dir, "testdata.o")
+	os.WriteFile(srcfile, []byte(srcdata), 0644)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-S", "-o", outfile, srcfile)
+	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=arm64")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("The build failed: %v, output:\n%s", err, out)
+	}
+	return out
+}
+
+func TestSplitImm24uScaled(t *testing.T) {
+	tests := []struct {
+		v       int32
+		shift   int
+		wantErr bool
+		wantHi  int32
+		wantLo  int32
+	}{
+		{
+			v:      0,
+			shift:  0,
+			wantHi: 0,
+			wantLo: 0,
+		},
+		{
+			v:      0x1001,
+			shift:  0,
+			wantHi: 0x2,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0xffffff,
+			shift:  0,
+			wantHi: 0xfff000,
+			wantLo: 0xfff,
+		},
+		{
+			v:       0xffffff,
+			shift:   1,
+			wantErr: true,
+		},
+		{
+			v:      0xfe,
+			shift:  1,
+			wantHi: 0x0,
+			wantLo: 0x7f,
+		},
+		{
+			v:      0x10fe,
+			shift:  1,
+			wantHi: 0x0,
+			wantLo: 0x87f,
+		},
+		{
+			v:      0x2002,
+			shift:  1,
+			wantHi: 0x4,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0xfffffe,
+			shift:  1,
+			wantHi: 0xffe000,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0x1000ffe,
+			shift:  1,
+			wantHi: 0xfff000,
+			wantLo: 0xfff,
+		},
+		{
+			v:       0x1001000,
+			shift:   1,
+			wantErr: true,
+		},
+		{
+			v:       0x1000001,
+			shift:   1,
+			wantErr: true,
+		},
+		{
+			v:       0xfffffe,
+			shift:   2,
+			wantErr: true,
+		},
+		{
+			v:      0x4004,
+			shift:  2,
+			wantHi: 0x8,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0xfffffc,
+			shift:  2,
+			wantHi: 0xffc000,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0x1002ffc,
+			shift:  2,
+			wantHi: 0xfff000,
+			wantLo: 0xfff,
+		},
+		{
+			v:       0x1003000,
+			shift:   2,
+			wantErr: true,
+		},
+		{
+			v:       0xfffffe,
+			shift:   3,
+			wantErr: true,
+		},
+		{
+			v:      0x8008,
+			shift:  3,
+			wantHi: 0x10,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0xfffff8,
+			shift:  3,
+			wantHi: 0xff8000,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0x1006ff8,
+			shift:  3,
+			wantHi: 0xfff000,
+			wantLo: 0xfff,
+		},
+		{
+			v:       0x1007000,
+			shift:   3,
+			wantErr: true,
+		},
+		// Unshifted hi cases - hi <= 0xfff fits directly
+		{
+			v:      7,
+			shift:  3,
+			wantHi: 7,
+			wantLo: 0,
+		},
+		{
+			v:      0x8ff7,
+			shift:  3,
+			wantHi: 0xfff,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0x7ff8,
+			shift:  3,
+			wantHi: 0,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0xfff,
+			shift:  1,
+			wantHi: 1,
+			wantLo: 0x7ff,
+		},
+		{
+			v:      0xfff,
+			shift:  2,
+			wantHi: 3,
+			wantLo: 0x3ff,
+		},
+		{
+			v:      0xfff,
+			shift:  3,
+			wantHi: 7,
+			wantLo: 0x1ff,
+		},
+		{
+			v:      0x1ffe,
+			shift:  2,
+			wantHi: 2,
+			wantLo: 0x7ff,
+		},
+		{
+			v:      0x1ffe,
+			shift:  3,
+			wantHi: 6,
+			wantLo: 0x3ff,
+		},
+		{
+			v:      0x1fff,
+			shift:  1,
+			wantHi: 1,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0x1fff,
+			shift:  2,
+			wantHi: 3,
+			wantLo: 0x7ff,
+		},
+		{
+			v:      0x1fff,
+			shift:  3,
+			wantHi: 7,
+			wantLo: 0x3ff,
+		},
+		{
+			v:      0x1001,
+			shift:  1,
+			wantHi: 1,
+			wantLo: 0x800,
+		},
+		{
+			v:      0x1001,
+			shift:  2,
+			wantHi: 1,
+			wantLo: 0x400,
+		},
+		{
+			v:      0x1001,
+			shift:  3,
+			wantHi: 1,
+			wantLo: 0x200,
+		},
+		{
+			v:      0x1000,
+			shift:  0,
+			wantHi: 0x1,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0x8000,
+			shift:  3,
+			wantHi: 0x8,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0xfff,
+			shift:  0,
+			wantHi: 0,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0x1ffe,
+			shift:  1,
+			wantHi: 0,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0x3ffc,
+			shift:  2,
+			wantHi: 0,
+			wantLo: 0xfff,
+		},
+		{
+			v:      0x10fef,
+			shift:  4,
+			wantHi: 0xfff,
+			wantLo: 0xfff,
+		},
+	}
+	for _, test := range tests {
+		hi, lo, err := splitImm24uScaled(test.v, test.shift)
+		switch {
+		case err == nil && test.wantErr:
+			t.Errorf("splitImm24uScaled(%v, %v) succeeded, want error", test.v, test.shift)
+		case err != nil && !test.wantErr:
+			t.Errorf("splitImm24uScaled(%v, %v) failed: %v", test.v, test.shift, err)
+		case !test.wantErr:
+			if got, want := hi, test.wantHi; got != want {
+				t.Errorf("splitImm24uScaled(%x, %x) - got hi %x, want %x", test.v, test.shift, got, want)
+			}
+			if got, want := lo, test.wantLo; got != want {
+				t.Errorf("splitImm24uScaled(%x, %x) - got lo %x, want %x", test.v, test.shift, got, want)
+			}
+		}
+	}
+	for shift := 0; shift <= 3; shift++ {
+		for v := int32(0); v < 0xfff000+0xfff<<shift; v = v + 1<<shift {
+			hi, lo, err := splitImm24uScaled(v, shift)
+			if err != nil {
+				t.Fatalf("splitImm24uScaled(%x, %x) failed: %v", v, shift, err)
+			}
+			if hi+lo<<shift != v {
+				t.Fatalf("splitImm24uScaled(%x, %x) = (%x, %x) is incorrect", v, shift, hi, lo)
+			}
+		}
+	}
+
+	// Test the unshifted hi range specifically, including unaligned values.
+	// This exercises values where the unshifted path may be used.
+	for shift := 0; shift <= 3; shift++ {
+		maxUnshifted := int32(0xfff + 0xfff<<shift)
+		for v := int32(0); v <= maxUnshifted; v++ {
+			hi, lo, err := splitImm24uScaled(v, shift)
+			if err != nil {
+				t.Fatalf("splitImm24uScaled(%x, %x) failed: %v", v, shift, err)
+			}
+			if hi+lo<<shift != v {
+				t.Fatalf("splitImm24uScaled(%x, %x) = (%x, %x) is incorrect", v, shift, hi, lo)
+			}
+		}
+	}
+}
 
 // TestLarge generates a very large file to verify that large
 // program builds successfully, in particular, too-far
@@ -27,50 +333,8 @@ func TestLarge(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := ioutil.TempDir("", "testlarge")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
-
 	// generate a very large function
 	buf := bytes.NewBuffer(make([]byte, 0, 7000000))
-	gen(buf)
-
-	tmpfile := filepath.Join(dir, "x.s")
-	err = ioutil.WriteFile(tmpfile, buf.Bytes(), 0644)
-	if err != nil {
-		t.Fatalf("can't write output: %v\n", err)
-	}
-
-	pattern := `0x0080\s00128\s\(.*\)\tMOVD\t\$3,\sR3`
-
-	// assemble generated file
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
-	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("Assemble failed: %v, output: %s", err, out)
-	}
-	matched, err := regexp.MatchString(pattern, string(out))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !matched {
-		t.Errorf("The alignment is not correct: %t, output:%s\n", matched, out)
-	}
-
-	// build generated file
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
-	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("Build failed: %v, output: %s", err, out)
-	}
-}
-
-// gen generates a very large program, with a very far conditional branch.
-func gen(buf *bytes.Buffer) {
 	fmt.Fprintln(buf, "TEXT f(SB),0,$0-0")
 	fmt.Fprintln(buf, "TBZ $5, R0, label")
 	fmt.Fprintln(buf, "CBZ R0, label")
@@ -82,47 +346,40 @@ func gen(buf *bytes.Buffer) {
 	}
 	fmt.Fprintln(buf, "label:")
 	fmt.Fprintln(buf, "RET")
+
+	// assemble generated file
+	out := runAssembler(t, buf.String())
+
+	pattern := `0x0080\s00128\s\(.*\)\tMOVD\t\$3,\sR3`
+	matched, err := regexp.MatchString(pattern, string(out))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !matched {
+		t.Errorf("The alignment is not correct: %t\n", matched)
+	}
 }
 
 // Issue 20348.
 func TestNoRet(t *testing.T) {
-	dir, err := ioutil.TempDir("", "testnoret")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-	tmpfile := filepath.Join(dir, "x.s")
-	if err := ioutil.WriteFile(tmpfile, []byte("TEXT ·stub(SB),$0-0\nNOP\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
-	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Errorf("%v\n%s", err, out)
-	}
+	runAssembler(t, "TEXT ·stub(SB),$0-0\nNOP\n")
 }
 
 // TestPCALIGN verifies the correctness of the PCALIGN by checking if the
 // code can be aligned to the alignment value.
 func TestPCALIGN(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	dir, err := ioutil.TempDir("", "testpcalign")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-	tmpfile := filepath.Join(dir, "test.s")
-	tmpout := filepath.Join(dir, "test.o")
 
-	code1 := []byte("TEXT ·foo(SB),$0-0\nMOVD $0, R0\nPCALIGN $8\nMOVD $1, R1\nRET\n")
-	code2 := []byte("TEXT ·foo(SB),$0-0\nMOVD $0, R0\nPCALIGN $16\nMOVD $2, R2\nRET\n")
-	// If the output contains this pattern, the pc-offsite of "MOVD $1, R1" is 8 bytes aligned.
+	code1 := "TEXT ·foo(SB),$0-0\nMOVD $0, R0\nPCALIGN $8\nMOVD $1, R1\nRET\n"
+	code2 := "TEXT ·foo(SB),$0-0\nMOVD $0, R0\nPCALIGN $16\nMOVD $2, R2\nRET\n"
+	// If the output contains this pattern, the pc-offset of "MOVD $1, R1" is 8 bytes aligned.
 	out1 := `0x0008\s00008\s\(.*\)\tMOVD\t\$1,\sR1`
-	// If the output contains this pattern, the pc-offsite of "MOVD $2, R2" is 16 bytes aligned.
+	// If the output contains this pattern, the pc-offset of "MOVD $2, R2" is 16 bytes aligned.
 	out2 := `0x0010\s00016\s\(.*\)\tMOVD\t\$2,\sR2`
 	var testCases = []struct {
 		name string
-		code []byte
+		code string
 		out  string
 	}{
 		{"8-byte alignment", code1, out1},
@@ -130,17 +387,7 @@ func TestPCALIGN(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		if err := ioutil.WriteFile(tmpfile, test.code, 0644); err != nil {
-			t.Fatal(err)
-		}
-		cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", tmpout, tmpfile)
-		cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Errorf("The %s build failed: %v, output: %s", test.name, err, out)
-			continue
-		}
-
+		out := runAssembler(t, test.code)
 		matched, err := regexp.MatchString(test.out, string(out))
 		if err != nil {
 			t.Fatal(err)

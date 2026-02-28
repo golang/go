@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build unix
 
 // Socket control messages
 
@@ -12,7 +12,7 @@ import (
 	"unsafe"
 )
 
-// CmsgLen returns the value to store in the Len field of the Cmsghdr
+// CmsgLen returns the value to store in the Len field of the [Cmsghdr]
 // structure, taking into account any necessary alignment.
 func CmsgLen(datalen int) int {
 	return cmsgAlignOf(SizeofCmsghdr) + datalen

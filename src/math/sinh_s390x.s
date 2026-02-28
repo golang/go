@@ -56,11 +56,11 @@ GLOBL sinhe9<>+0(SB), RODATA, $8
 
 TEXT ·sinhAsm(SB),NOSPLIT,$0-16
 	FMOVD   x+0(FP), F0
-	//specail case Sinh(±0) = ±0
+	//special case Sinh(±0) = ±0
 	FMOVD   $(0.0), F1
 	FCMPU   F0, F1
 	BEQ     sinhIsZero
-	//specail case Sinh(±Inf = ±Inf
+	//special case Sinh(±Inf) = ±Inf
 	FMOVD   $1.797693134862315708145274237317043567981e+308, F1
 	FCMPU   F1, F0
 	BLEU    sinhIsInf

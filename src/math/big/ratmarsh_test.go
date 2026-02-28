@@ -123,3 +123,39 @@ func TestRatXMLEncoding(t *testing.T) {
 		}
 	}
 }
+
+func TestRatGobDecodeShortBuffer(t *testing.T) {
+	for _, tc := range [][]byte{
+		[]byte{0x2},
+		[]byte{0x2, 0x0, 0x0, 0x0, 0xff},
+		[]byte{0x2, 0xff, 0xff, 0xff, 0xff},
+	} {
+		err := NewRat(1, 2).GobDecode(tc)
+		if err == nil {
+			t.Error("expected GobDecode to return error for malformed input")
+		}
+	}
+}
+
+func TestRatAppendText(t *testing.T) {
+	for _, num := range ratNums {
+		for _, denom := range ratDenoms {
+			var tx Rat
+			tx.SetString(num + "/" + denom)
+			buf := make([]byte, 4, 32)
+			b, err := tx.AppendText(buf)
+			if err != nil {
+				t.Errorf("marshaling of %s failed: %s", &tx, err)
+				continue
+			}
+			var rx Rat
+			if err := rx.UnmarshalText(b[4:]); err != nil {
+				t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+				continue
+			}
+			if rx.Cmp(&tx) != 0 {
+				t.Errorf("AppendText of %s failed: got %s want %s", &tx, &rx, &tx)
+			}
+		}
+	}
+}

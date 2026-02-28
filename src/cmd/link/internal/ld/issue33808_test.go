@@ -6,8 +6,6 @@ package ld
 
 import (
 	"internal/testenv"
-	"io/ioutil"
-	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -29,12 +27,9 @@ func TestIssue33808(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
+	t.Parallel()
 
-	dir, err := ioutil.TempDir("", "TestIssue33808")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	f := gobuild(t, dir, prog, "-ldflags=-linkmode=external")
 	f.Close()

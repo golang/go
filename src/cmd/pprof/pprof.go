@@ -12,8 +12,9 @@ package main
 import (
 	"crypto/tls"
 	"debug/dwarf"
+	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -23,19 +24,25 @@ import (
 	"sync"
 	"time"
 
+	"cmd/internal/disasm"
 	"cmd/internal/objfile"
+	"cmd/internal/telemetry/counter"
 
 	"github.com/google/pprof/driver"
 	"github.com/google/pprof/profile"
 )
 
 func main() {
+	counter.Open()
+	counter.Inc("pprof/invocations")
 	options := &driver.Options{
 		Fetch: new(fetcher),
 		Obj:   new(objTool),
 		UI:    newUI(),
 	}
-	if err := driver.PProf(options); err != nil {
+	err := driver.PProf(options)
+	counter.CountFlags("pprof/flag:", *flag.CommandLine) // pprof will use the flag package as its default
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(2)
 	}
@@ -45,6 +52,16 @@ type fetcher struct {
 }
 
 func (f *fetcher) Fetch(src string, duration, timeout time.Duration) (*profile.Profile, string, error) {
+	// Firstly, determine if the src is an existing file on the disk.
+	// If it is a file, let regular pprof open it.
+	// If it is not a file, when the src contains `:`
+	// (e.g. mem_2023-11-02_03:55:24 or abc:123/mem_2023-11-02_03:55:24),
+	// url.Parse will recognize it as a link and ultimately report an error,
+	// similar to `abc:123/mem_2023-11-02_03:55:24:
+	// Get "http://abc:123/mem_2023-11-02_03:55:24": dial tcp: lookup abc: no such host`
+	if _, openErr := os.Stat(src); openErr == nil {
+		return nil, "", nil
+	}
 	sourceURL, timeout := adjustURL(src, duration, timeout)
 	if sourceURL == "" {
 		// Could not recognize URL, let regular pprof attempt to fetch the profile (eg. from a file)
@@ -84,8 +101,8 @@ func getProfile(source string, timeout time.Duration) (*profile.Profile, error) 
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		defer resp.Body.Close()
 		return nil, statusCodeError(resp)
 	}
 	return profile.Parse(resp.Body)
@@ -94,7 +111,7 @@ func getProfile(source string, timeout time.Duration) (*profile.Profile, error) 
 func statusCodeError(resp *http.Response) error {
 	if resp.Header.Get("X-Go-Pprof") != "" && strings.Contains(resp.Header.Get("Content-Type"), "text/plain") {
 		// error is from pprof endpoint
-		if body, err := ioutil.ReadAll(resp.Body); err == nil {
+		if body, err := io.ReadAll(resp.Body); err == nil {
 			return fmt.Errorf("server response: %s - %s", resp.Status, body)
 		}
 	}
@@ -104,7 +121,7 @@ func statusCodeError(resp *http.Response) error {
 // cpuProfileHandler is the Go pprof CPU profile handler URL.
 const cpuProfileHandler = "/debug/pprof/profile"
 
-// adjustURL applies the duration/timeout values and Go specific defaults
+// adjustURL applies the duration/timeout values and Go specific defaults.
 func adjustURL(source string, duration, timeout time.Duration) (string, time.Duration) {
 	u, err := url.Parse(source)
 	if err != nil || (u.Host == "" && u.Scheme != "" && u.Scheme != "file") {
@@ -146,10 +163,10 @@ func adjustURL(source string, duration, timeout time.Duration) (string, time.Dur
 // (instead of invoking GNU binutils).
 type objTool struct {
 	mu          sync.Mutex
-	disasmCache map[string]*objfile.Disasm
+	disasmCache map[string]*disasm.Disasm
 }
 
-func (*objTool) Open(name string, start, limit, offset uint64) (driver.ObjFile, error) {
+func (*objTool) Open(name string, start, limit, offset uint64, relocationSymbol string) (driver.ObjFile, error) {
 	of, err := objfile.Open(name)
 	if err != nil {
 		return nil, err
@@ -171,7 +188,10 @@ func (*objTool) Demangle(names []string) (map[string]string, error) {
 	return make(map[string]string), nil
 }
 
-func (t *objTool) Disasm(file string, start, end uint64) ([]driver.Inst, error) {
+func (t *objTool) Disasm(file string, start, end uint64, intelSyntax bool) ([]driver.Inst, error) {
+	if intelSyntax {
+		return nil, fmt.Errorf("printing assembly in Intel syntax is not supported")
+	}
 	d, err := t.cachedDisasm(file)
 	if err != nil {
 		return nil, err
@@ -183,11 +203,11 @@ func (t *objTool) Disasm(file string, start, end uint64) ([]driver.Inst, error) 
 	return asm, nil
 }
 
-func (t *objTool) cachedDisasm(file string) (*objfile.Disasm, error) {
+func (t *objTool) cachedDisasm(file string) (*disasm.Disasm, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.disasmCache == nil {
-		t.disasmCache = make(map[string]*objfile.Disasm)
+		t.disasmCache = make(map[string]*disasm.Disasm)
 	}
 	d := t.disasmCache[file]
 	if d != nil {
@@ -197,7 +217,7 @@ func (t *objTool) cachedDisasm(file string) (*objfile.Disasm, error) {
 	if err != nil {
 		return nil, err
 	}
-	d, err = f.Disasm()
+	d, err = disasm.DisasmForFile(f)
 	f.Close()
 	if err != nil {
 		return nil, err
@@ -229,9 +249,8 @@ func (f *file) Name() string {
 	return f.name
 }
 
-func (f *file) Base() uint64 {
-	// No support for shared libraries.
-	return 0
+func (f *file) ObjAddr(addr uint64) (uint64, error) {
+	return addr - f.offset, nil
 }
 
 func (f *file) BuildID() string {

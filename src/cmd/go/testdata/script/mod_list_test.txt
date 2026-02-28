@@ -3,14 +3,28 @@ env GO111MODULE=on
 # go list -compiled -test must handle test-only packages
 # golang.org/issue/27097.
 go list -compiled -test
+stdout -count=4 '^.' # 4 lines
 stdout '^m$'
 stdout '^m\.test$'
 stdout '^m \[m\.test\]$'
+stdout '^m_test \[m\.test\]$'
+
+# https://golang.org/issue/39974: test packages should have the Module field populated.
+go list -test -f '{{.ImportPath}}{{with .Module}}: {{.Path}}{{end}}'
+stdout -count=4 '^.' # 4 lines
+stdout '^m: m$'
+stdout '^m\.test: m$'
+stdout '^m \[m\.test\]: m$'
+stdout '^m_test \[m\.test\]: m$'
 
 -- go.mod --
 module m
 
 -- x_test.go --
 package x
+import "testing"
+func Test(t *testing.T) {}
+-- x_x_test.go --
+package x_test
 import "testing"
 func Test(t *testing.T) {}

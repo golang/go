@@ -7,7 +7,9 @@ package os
 // Export for testing.
 
 var (
-	FixLongPath       = fixLongPath
-	NewConsoleFile    = newConsoleFile
-	CommandLineToArgv = commandLineToArgv
+	AddExtendedPrefix  = addExtendedPrefix
+	NewConsoleFile     = newConsoleFile
+	CommandLineToArgv  = commandLineToArgv
+	AllowReadDirFileID = &allowReadDirFileID
+	SplitPath          = splitPath
 )

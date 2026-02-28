@@ -7,6 +7,7 @@ package csv
 import (
 	"bytes"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -50,7 +51,7 @@ var writeTests = []struct {
 
 func TestWrite(t *testing.T) {
 	for n, tt := range writeTests {
-		b := &bytes.Buffer{}
+		b := &strings.Builder{}
 		f := NewWriter(b)
 		f.UseCRLF = tt.UseCRLF
 		if tt.Comma != 0 {
@@ -91,5 +92,22 @@ func TestError(t *testing.T) {
 
 	if err == nil {
 		t.Error("Error should not be nil")
+	}
+}
+
+var benchmarkWriteData = [][]string{
+	{"abc", "def", "12356", "1234567890987654311234432141542132"},
+	{"abc", "def", "12356", "1234567890987654311234432141542132"},
+	{"abc", "def", "12356", "1234567890987654311234432141542132"},
+}
+
+func BenchmarkWrite(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		w := NewWriter(&bytes.Buffer{})
+		err := w.WriteAll(benchmarkWriteData)
+		if err != nil {
+			b.Fatal(err)
+		}
+		w.Flush()
 	}
 }

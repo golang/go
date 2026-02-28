@@ -6,6 +6,7 @@ package work
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -13,7 +14,9 @@ var goodCompilerFlags = [][]string{
 	{"-DFOO"},
 	{"-Dfoo=bar"},
 	{"-Ufoo"},
+	{"-Ufoo1"},
 	{"-F/Qt"},
+	{"-F", "/Qt"},
 	{"-I/"},
 	{"-I/etc/passwd"},
 	{"-I."},
@@ -24,6 +27,9 @@ var goodCompilerFlags = [][]string{
 	{"-Wall"},
 	{"-Wp,-Dfoo=bar"},
 	{"-Wp,-Ufoo"},
+	{"-Wp,-Dfoo1"},
+	{"-Wp,-Ufoo1"},
+	{"-flto"},
 	{"-fobjc-arc"},
 	{"-fno-objc-arc"},
 	{"-fomit-frame-pointer"},
@@ -41,11 +47,39 @@ var goodCompilerFlags = [][]string{
 	{"-fstack-xxx"},
 	{"-fno-stack-xxx"},
 	{"-fsanitize=hands"},
+	{"-ftls-model=local-dynamic"},
 	{"-g"},
 	{"-ggdb"},
+	{"-mabi=lp64d"},
 	{"-march=souza"},
+	{"-mcmodel=medium"},
 	{"-mcpu=123"},
 	{"-mfpu=123"},
+	{"-mtls-dialect=gnu"},
+	{"-mtls-dialect=gnu2"},
+	{"-mtls-dialect=trad"},
+	{"-mtls-dialect=desc"},
+	{"-mtls-dialect=xyz"},
+	{"-msimd=lasx"},
+	{"-msimd=xyz"},
+	{"-mdouble-float"},
+	{"-mrelax"},
+	{"-mstrict-align"},
+	{"-mlsx"},
+	{"-mlasx"},
+	{"-mfrecipe"},
+	{"-mlam-bh"},
+	{"-mlamcas"},
+	{"-mld-seq-sa"},
+	{"-mno-relax"},
+	{"-mno-strict-align"},
+	{"-mno-lsx"},
+	{"-mno-lasx"},
+	{"-mno-frecipe"},
+	{"-mno-lam-bh"},
+	{"-mno-lamcas"},
+	{"-mno-ld-seq-sa"},
+	{"-mlarge-data-threshold=16"},
 	{"-mtune=happybirthday"},
 	{"-mstack-overflow"},
 	{"-mno-stack-overflow"},
@@ -62,6 +96,8 @@ var goodCompilerFlags = [][]string{
 	{"-I", "=/usr/include/libxml2"},
 	{"-I", "dir"},
 	{"-I", "$SYSROOT/dir"},
+	{"-isystem", "/usr/include/mozjs-68"},
+	{"-include", "/usr/include/mozjs-68/RequiredDefines.h"},
 	{"-framework", "Chocolate"},
 	{"-x", "c"},
 	{"-v"},
@@ -78,10 +114,20 @@ var badCompilerFlags = [][]string{
 	{"-O@1"},
 	{"-Wa,-foo"},
 	{"-W@foo"},
+	{"-Wp,-DX,-D@X"},
+	{"-Wp,-UX,-U@X"},
 	{"-g@gdb"},
 	{"-g-gdb"},
 	{"-march=@dawn"},
 	{"-march=-dawn"},
+	{"-mcmodel=@model"},
+	{"-mfpu=@0"},
+	{"-mfpu=-0"},
+	{"-mlarge-data-threshold=@12"},
+	{"-mtls-dialect=@gnu"},
+	{"-mtls-dialect=-gnu"},
+	{"-msimd=@none"},
+	{"-msimd=-none"},
 	{"-std=@c99"},
 	{"-std=-c99"},
 	{"-x@c"},
@@ -91,6 +137,7 @@ var badCompilerFlags = [][]string{
 	{"-I", "@foo"},
 	{"-I", "-foo"},
 	{"-I", "=@obj"},
+	{"-include", "@foo"},
 	{"-framework", "-Caffeine"},
 	{"-framework", "@Home"},
 	{"-x", "--c"},
@@ -131,6 +178,7 @@ var goodLinkerFlags = [][]string{
 	{"-mtune=happybirthday"},
 	{"-pic"},
 	{"-pthread"},
+	{"-Wl,--hash-style=both"},
 	{"-Wl,-rpath,foo"},
 	{"-Wl,-rpath,$ORIGIN/foo"},
 	{"-Wl,-R", "/foo"},
@@ -155,6 +203,23 @@ var goodLinkerFlags = [][]string{
 	{"-Wl,-framework", "-Wl,Chocolate"},
 	{"-Wl,-framework,Chocolate"},
 	{"-Wl,-unresolved-symbols=ignore-all"},
+	{"-Wl,-z,relro"},
+	{"-Wl,-z,relro,-z,now"},
+	{"-Wl,-z,now"},
+	{"-Wl,-z,noexecstack"},
+	{"libcgotbdtest.tbd"},
+	{"./libcgotbdtest.tbd"},
+	{"-Wl,--push-state"},
+	{"-Wl,--pop-state"},
+	{"-Wl,--push-state,--as-needed"},
+	{"-Wl,--push-state,--no-as-needed,-Bstatic"},
+	{"-Wl,--just-symbols,."},
+	{"-Wl,-framework,."},
+	{"-Wl,-rpath,."},
+	{"-Wl,-rpath-link,."},
+	{"-Wl,-sectcreate,.,.,."},
+	{"-Wl,-syslibroot,."},
+	{"-Wl,-undefined,."},
 }
 
 var badLinkerFlags = [][]string{
@@ -208,6 +273,7 @@ var badLinkerFlags = [][]string{
 	{"-Wl,-framework", "-Wl,@Home"},
 	{"-Wl,-framework", "@Home"},
 	{"-Wl,-framework,Chocolate,@Home"},
+	{"-Wl,--hash-style=foo"},
 	{"-x", "--c"},
 	{"-x", "@obj"},
 	{"-Wl,-rpath,@foo"},
@@ -215,6 +281,15 @@ var badLinkerFlags = [][]string{
 	{"-Wl,-R,@foo"},
 	{"-Wl,--just-symbols,@foo"},
 	{"../x.o"},
+	{"-Wl,-R,"},
+	{"-Wl,-O"},
+	{"-Wl,-e="},
+	{"-Wl,-e,"},
+	{"-Wl,-R,-flag"},
+	{"-Wl,--push-state,"},
+	{"-Wl,--push-state,@foo"},
+	{"-fplugin=./-Wl,--push-state,-R.so"},
+	{"./-Wl,--push-state,-R.c"},
 }
 
 func TestCheckLinkerFlags(t *testing.T) {
@@ -263,5 +338,36 @@ func TestCheckFlagAllowDisallow(t *testing.T) {
 	}
 	if err := checkCompilerFlags("TEST", "test", []string{"-fplugin=lint.so"}); err == nil {
 		t.Fatalf("missing error for -fplugin=lint.so: %v", err)
+	}
+}
+
+func TestCheckCompilerFlagsForInternalLink(t *testing.T) {
+	// Any "bad" compiler flag should trigger external linking.
+	for _, f := range badCompilerFlags {
+		if err := checkCompilerFlagsForInternalLink("test", "test", f); err == nil {
+			t.Errorf("missing error for %q", f)
+		}
+	}
+
+	// All "good" compiler flags should not trigger external linking,
+	// except for anything that begins with "-flto".
+	for _, f := range goodCompilerFlags {
+		foundLTO := false
+		for _, s := range f {
+			if strings.Contains(s, "-flto") {
+				foundLTO = true
+			}
+		}
+		if err := checkCompilerFlagsForInternalLink("test", "test", f); err != nil {
+			// expect error for -flto
+			if !foundLTO {
+				t.Errorf("unexpected error for %q: %v", f, err)
+			}
+		} else {
+			// expect no error for everything else
+			if foundLTO {
+				t.Errorf("missing error for %q: %v", f, err)
+			}
+		}
 	}
 }

@@ -11,7 +11,7 @@
 #define NegInf 0xFFF0000000000000
 
 // func ·Max(x, y float64) float64
-TEXT ·Max(SB),NOSPLIT,$0
+TEXT ·archMax(SB),NOSPLIT,$0
 	// +Inf special cases
 	MOVD    $PosInf, R4
 	MOVD    x+0(FP), R8
@@ -52,8 +52,8 @@ isMaxZero:
 	MOVD    R9, ret+16(FP) // return other 0
 	RET
 
-// func Min(x, y float64) float64
-TEXT ·Min(SB),NOSPLIT,$0
+// func archMin(x, y float64) float64
+TEXT ·archMin(SB),NOSPLIT,$0
 	// -Inf special cases
 	MOVD    $NegInf, R4
 	MOVD    x+0(FP), R8

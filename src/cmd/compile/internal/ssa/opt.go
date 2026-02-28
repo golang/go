@@ -4,7 +4,15 @@
 
 package ssa
 
-// machine-independent optimization
+// machine-independent optimization.
 func opt(f *Func) {
-	applyRewrite(f, rewriteBlockgeneric, rewriteValuegeneric)
+	applyRewrite(f, rewriteBlockgeneric, rewriteValuegeneric, removeDeadValues)
+}
+
+func divisible(f *Func) {
+	applyRewrite(f, rewriteBlockdivisible, rewriteValuedivisible, removeDeadValues)
+}
+
+func divmod(f *Func) {
+	applyRewrite(f, rewriteBlockdivmod, rewriteValuedivmod, removeDeadValues)
 }

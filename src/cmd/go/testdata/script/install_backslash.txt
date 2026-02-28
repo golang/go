@@ -1,0 +1,12 @@
+# Issue #24233: allow backslash in path of command
+go install -n rsc.io\fortune@v1.0.0
+! stderr 'malformed'
+
+mkdir m
+cd m
+go mod init example.com/m
+go get rsc.io\fortune
+! stderr 'malformed'
+
+go install -n rsc.io\fortune@v1.0.0
+! stderr 'malformed'

@@ -2,16 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !js,!plan9
+//go:build !js && !plan9 && !wasip1
 
 package filelock_test
 
 import (
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -51,9 +49,9 @@ func mustTempFile(t *testing.T) (f *os.File, remove func()) {
 	t.Helper()
 
 	base := filepath.Base(t.Name())
-	f, err := ioutil.TempFile("", base)
+	f, err := os.CreateTemp("", base)
 	if err != nil {
-		t.Fatalf(`ioutil.TempFile("", %q) = %v`, base, err)
+		t.Fatalf(`os.CreateTemp("", %q) = %v`, base, err)
 	}
 	t.Logf("fd %d = %s", f.Fd(), f.Name())
 
@@ -68,10 +66,10 @@ func mustOpen(t *testing.T, name string) *os.File {
 
 	f, err := os.OpenFile(name, os.O_RDWR, 0)
 	if err != nil {
-		t.Fatalf("os.Open(%q) = %v", name, err)
+		t.Fatalf("os.OpenFile(%q) = %v", name, err)
 	}
 
-	t.Logf("fd %d = os.Open(%q)", f.Fd(), name)
+	t.Logf("fd %d = os.OpenFile(%q)", f.Fd(), name)
 	return f
 }
 
@@ -161,7 +159,7 @@ func TestRLockExcludesOnlyLock(t *testing.T) {
 
 	doUnlockTF := false
 	switch runtime.GOOS {
-	case "aix", "illumos", "solaris":
+	case "aix", "solaris":
 		// When using POSIX locks (as on Solaris), we can't safely read-lock the
 		// same inode through two different descriptors at the same time: when the
 		// first descriptor is closed, the second descriptor would still be open but
@@ -200,7 +198,7 @@ func TestLockNotDroppedByExecCommand(t *testing.T) {
 	// Some kinds of file locks are dropped when a duplicated or forked file
 	// descriptor is unlocked. Double-check that the approach used by os/exec does
 	// not accidentally drop locks.
-	cmd := exec.Command(os.Args[0], "-test.run=^$")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^$")
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("exec failed: %v", err)
 	}

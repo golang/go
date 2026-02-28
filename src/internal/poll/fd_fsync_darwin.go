@@ -4,7 +4,11 @@
 
 package poll
 
-import "syscall"
+import (
+	"errors"
+	"internal/syscall/unix"
+	"syscall"
+)
 
 // Fsync invokes SYS_FCNTL with SYS_FULLFSYNC because
 // on OS X, SYS_FSYNC doesn't fully flush contents to disk.
@@ -14,7 +18,15 @@ func (fd *FD) Fsync() error {
 		return err
 	}
 	defer fd.decref()
+	return ignoringEINTR(func() error {
+		_, err := unix.Fcntl(fd.Sysfd, syscall.F_FULLFSYNC, 0)
 
-	_, e1 := fcntl(fd.Sysfd, syscall.F_FULLFSYNC, 0)
-	return e1
+		// There are scenarios such as SMB mounts where fcntl will fail
+		// with ENOTSUP. In those cases fallback to fsync.
+		// See #64215
+		if err != nil && errors.Is(err, syscall.ENOTSUP) {
+			err = syscall.Fsync(fd.Sysfd)
+		}
+		return err
+	})
 }

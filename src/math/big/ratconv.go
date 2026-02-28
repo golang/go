@@ -41,17 +41,18 @@ func (z *Rat) Scan(s fmt.ScanState, ch rune) error {
 // success. s can be given as a (possibly signed) fraction "a/b", or as a
 // floating-point number optionally followed by an exponent.
 // If a fraction is provided, both the dividend and the divisor may be a
-// decimal integer or independently use a prefix of ``0b'', ``0'' or ``0o'',
-// or ``0x'' (or their upper-case variants) to denote a binary, octal, or
+// decimal integer or independently use a prefix of “0b”, “0” or “0o”,
+// or “0x” (or their upper-case variants) to denote a binary, octal, or
 // hexadecimal integer, respectively. The divisor may not be signed.
 // If a floating-point number is provided, it may be in decimal form or
-// use any of the same prefixes as above but for ``0'' to denote a non-decimal
-// mantissa. A leading ``0'' is considered a decimal leading 0; it does not
+// use any of the same prefixes as above but for “0” to denote a non-decimal
+// mantissa. A leading “0” is considered a decimal leading 0; it does not
 // indicate octal representation in this case.
-// An optional base-10 ``e'' or base-2 ``p'' (or their upper-case variants)
+// An optional base-10 “e” or base-2 “p” (or their upper-case variants)
 // exponent may be provided as well, except for hexadecimal floats which
-// only accept an (optional) ``p'' exponent (because an ``e'' or ``E'' cannot
-// be distinguished from a mantissa digit).
+// only accept an (optional) “p” exponent (because an “e” or “E” cannot
+// be distinguished from a mantissa digit). If the exponent's absolute value
+// is too large, the operation may fail.
 // The entire string, not just a prefix, must be valid for success. If the
 // operation failed, the value of z is undefined but the returned value is nil.
 func (z *Rat) SetString(s string) (*Rat, bool) {
@@ -112,7 +113,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 
 	// special-case 0 (see also issue #16176)
 	if len(z.a.abs) == 0 {
-		return z, true
+		return z.norm(), true
 	}
 	// len(z.a.abs) > 0
 
@@ -162,16 +163,27 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	}
 	// exp consumed - not needed anymore
 
+	stk := getStack()
+	defer stk.free()
+
 	// apply exp5 contributions
 	// (start with exp5 so the numbers to multiply are smaller)
 	if exp5 != 0 {
 		n := exp5
 		if n < 0 {
 			n = -n
+			if n < 0 {
+				// This can occur if -n overflows. -(-1 << 63) would become
+				// -1 << 63, which is still negative.
+				return nil, false
+			}
 		}
-		pow5 := z.b.abs.expNN(natFive, nat(nil).setWord(Word(n)), nil) // use underlying array of z.b.abs
+		if n > 1e6 {
+			return nil, false // avoid excessively large exponents
+		}
+		pow5 := z.b.abs.expNN(stk, natFive, nat(nil).setWord(Word(n)), nil, false) // use underlying array of z.b.abs
 		if exp5 > 0 {
-			z.a.abs = z.a.abs.mul(z.a.abs, pow5)
+			z.a.abs = z.a.abs.mul(stk, z.a.abs, pow5)
 			z.b.abs = z.b.abs.setWord(1)
 		} else {
 			z.b.abs = pow5
@@ -181,16 +193,13 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	}
 
 	// apply exp2 contributions
+	if exp2 < -1e7 || exp2 > 1e7 {
+		return nil, false // avoid excessively large exponents
+	}
 	if exp2 > 0 {
-		if int64(uint(exp2)) != exp2 {
-			panic("exponent too large")
-		}
-		z.a.abs = z.a.abs.shl(z.a.abs, uint(exp2))
+		z.a.abs = z.a.abs.lsh(z.a.abs, uint(exp2))
 	} else if exp2 < 0 {
-		if int64(uint(-exp2)) != -exp2 {
-			panic("exponent too large")
-		}
-		z.b.abs = z.b.abs.shl(z.b.abs, uint(-exp2))
+		z.b.abs = z.b.abs.lsh(z.b.abs, uint(-exp2))
 	}
 
 	z.a.neg = neg && len(z.a.abs) > 0 // 0 has no sign
@@ -199,10 +208,10 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 }
 
 // scanExponent scans the longest possible prefix of r representing a base 10
-// (``e'', ``E'') or a base 2 (``p'', ``P'') exponent, if any. It returns the
+// (“e”, “E”) or a base 2 (“p”, “P”) exponent, if any. It returns the
 // exponent, the exponent base (10 or 2), or a read or syntax error, if any.
 //
-// If sepOk is set, an underscore character ``_'' may appear between successive
+// If sepOk is set, an underscore character “_” may appear between successive
 // exponent digits; such underscores do not change the value of the exponent.
 // Incorrect placement of underscores is reported as an error if there are no
 // other errors. If sepOk is not set, underscores are not recognized and thus
@@ -293,12 +302,13 @@ func scanExponent(r io.ByteScanner, base2ok, sepOk bool) (exp int64, base int, e
 
 // String returns a string representation of x in the form "a/b" (even if b == 1).
 func (x *Rat) String() string {
-	return string(x.marshal())
+	return string(x.marshal(nil))
 }
 
-// marshal implements String returning a slice of bytes
-func (x *Rat) marshal() []byte {
-	var buf []byte
+// marshal implements [Rat.String] returning a slice of bytes.
+// It appends the string representation of x in the form "a/b" (even if b == 1) to buf,
+// and returns the extended buffer.
+func (x *Rat) marshal(buf []byte) []byte {
 	buf = x.a.Append(buf, 10)
 	buf = append(buf, '/')
 	if len(x.b.abs) != 0 {
@@ -336,15 +346,17 @@ func (x *Rat) FloatString(prec int) string {
 	}
 	// x.b.abs != 0
 
-	q, r := nat(nil).div(nat(nil), x.a.abs, x.b.abs)
+	stk := getStack()
+	defer stk.free()
+	q, r := nat(nil).div(stk, nat(nil), x.a.abs, x.b.abs)
 
 	p := natOne
 	if prec > 0 {
-		p = nat(nil).expNN(natTen, nat(nil).setUint64(uint64(prec)), nil)
+		p = nat(nil).expNN(stk, natTen, nat(nil).setUint64(uint64(prec)), nil, false)
 	}
 
-	r = r.mul(r, p)
-	r, r2 := r.div(nat(nil), r, x.b.abs)
+	r = r.mul(stk, r, p)
+	r, r2 := r.div(stk, nat(nil), r, x.b.abs)
 
 	// see if we need to round up
 	r2 = r2.add(r2, r2)
@@ -371,4 +383,86 @@ func (x *Rat) FloatString(prec int) string {
 	}
 
 	return string(buf)
+}
+
+// Note: FloatPrec (below) is in this file rather than rat.go because
+//       its results are relevant for decimal representation/printing.
+
+// FloatPrec returns the number n of non-repeating digits immediately
+// following the decimal point of the decimal representation of x.
+// The boolean result indicates whether a decimal representation of x
+// with that many fractional digits is exact or rounded.
+//
+// Examples:
+//
+//	x      n    exact    decimal representation n fractional digits
+//	0      0    true     0
+//	1      0    true     1
+//	1/2    1    true     0.5
+//	1/3    0    false    0       (0.333... rounded)
+//	1/4    2    true     0.25
+//	1/6    1    false    0.2     (0.166... rounded)
+func (x *Rat) FloatPrec() (n int, exact bool) {
+	stk := getStack()
+	defer stk.free()
+
+	// Determine q and largest p2, p5 such that d = q·2^p2·5^p5.
+	// The results n, exact are:
+	//
+	//     n = max(p2, p5)
+	//     exact = q == 1
+	//
+	// For details see:
+	// https://en.wikipedia.org/wiki/Repeating_decimal#Reciprocals_of_integers_not_coprime_to_10
+	d := x.Denom().abs // d >= 1
+
+	// Determine p2 by counting factors of 2.
+	// p2 corresponds to the trailing zero bits in d.
+	// Do this first to reduce q as much as possible.
+	var q nat
+	p2 := d.trailingZeroBits()
+	q = q.rsh(d, p2)
+
+	// Determine p5 by counting factors of 5.
+	// Build a table starting with an initial power of 5,
+	// and use repeated squaring until the factor doesn't
+	// divide q anymore. Then use the table to determine
+	// the power of 5 in q.
+	const fp = 13        // f == 5^fp
+	var tab []nat        // tab[i] == (5^fp)^(2^i) == 5^(fp·2^i)
+	f := nat{1220703125} // == 5^fp (must fit into a uint32 Word)
+	var t, r nat         // temporaries
+	for {
+		if _, r = t.div(stk, r, q, f); len(r) != 0 {
+			break // f doesn't divide q evenly
+		}
+		tab = append(tab, f)
+		f = nat(nil).sqr(stk, f) // nat(nil) to ensure a new f for each table entry
+	}
+
+	// Factor q using the table entries, if any.
+	// We start with the largest factor f = tab[len(tab)-1]
+	// that evenly divides q. It does so at most once because
+	// otherwise f·f would also divide q. That can't be true
+	// because f·f is the next higher table entry, contradicting
+	// how f was chosen in the first place.
+	// The same reasoning applies to the subsequent factors.
+	var p5 uint
+	for i := len(tab) - 1; i >= 0; i-- {
+		if t, r = t.div(stk, r, q, tab[i]); len(r) == 0 {
+			p5 += fp * (1 << i) // tab[i] == 5^(fp·2^i)
+			q = q.set(t)
+		}
+	}
+
+	// If fp != 1, we may still have multiples of 5 left.
+	for {
+		if t, r = t.div(stk, r, q, natFive); len(r) != 0 {
+			break
+		}
+		p5++
+		q = q.set(t)
+	}
+
+	return int(max(p2, p5)), q.cmp(natOne) == 0
 }

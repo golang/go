@@ -1,0 +1,273 @@
+handle git
+
+env GIT_AUTHOR_NAME='Russ Cox'
+env GIT_AUTHOR_EMAIL='rsc@golang.org'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+
+at 2018-07-03T22:31:01-04:00
+git add go.mod
+git commit -a -m 'v1'
+git branch -m master
+git tag start
+
+git branch v2
+
+at 2018-07-03T22:33:47-04:00
+echo 'before v0.0.0-pre1'
+cp stdout status
+git add status
+git commit -a -m 'before v0.0.0-pre1'
+
+echo 'at v0.0.0-pre1'
+cp stdout status
+git commit -a -m 'at v0.0.0-pre1'
+git tag 'v0.0.0-pre1'
+
+echo 'before v0.0.0'
+cp stdout status
+git commit -a -m 'before v0.0.0'
+
+echo 'at v0.0.0'
+cp stdout status
+git commit -a -m 'at v0.0.0'
+git tag 'v0.0.0'
+
+echo 'before v0.0.1'
+cp stdout status
+git commit -a -m 'before v0.0.1'
+
+echo 'at v0.0.1'
+cp stdout status
+git commit -a -m 'at v0.0.1'
+git tag 'v0.0.1'
+
+echo 'before v0.0.2'
+cp stdout status
+git commit -a -m 'before v0.0.2'
+
+echo 'at v0.0.2'
+cp stdout status
+git commit -a -m 'at v0.0.2'
+git tag 'v0.0.2'
+
+echo 'before v0.0.3'
+cp stdout status
+git commit -a -m 'before v0.0.3'
+
+echo 'at v0.0.3'
+cp stdout status
+git commit -a -m 'at v0.0.3'
+git tag 'v0.0.3'
+git tag favorite
+
+echo 'before v0.1.0'
+cp stdout status
+git commit -a -m 'before v0.1.0'
+
+echo 'at v0.1.0'
+cp stdout status
+git commit -a -m 'at v0.1.0'
+git tag v0.1.0
+
+echo 'before v0.1.1'
+cp stdout status
+git commit -a -m 'before v0.1.1'
+
+echo 'at v0.1.1'
+cp stdout status
+git commit -a -m 'at v0.1.1'
+git tag 'v0.1.1'
+
+echo 'before v0.1.2'
+cp stdout status
+git commit -a -m 'before v0.1.2'
+
+echo 'at v0.1.2'
+cp stdout status
+git commit -a -m 'at v0.1.2'
+git tag 'v0.1.2'
+
+echo 'before v0.3.0'
+cp stdout status
+git commit -a -m 'before v0.3.0'
+
+echo 'at v0.3.0'
+cp stdout status
+git commit -a -m 'at v0.3.0'
+git tag 'v0.3.0'
+
+echo 'before v1.0.0'
+cp stdout status
+git commit -a -m 'before v1.0.0'
+
+echo 'at v1.0.0'
+cp stdout status
+git commit -a -m 'at v1.0.0'
+git tag 'v1.0.0'
+
+echo 'before v1.1.0'
+cp stdout status
+git commit -a -m 'before v1.1.0'
+
+echo 'at v1.1.0'
+cp stdout status
+git commit -a -m 'at v1.1.0'
+git tag 'v1.1.0'
+
+echo 'before v1.9.0'
+cp stdout status
+git commit -a -m 'before v1.9.0'
+
+echo 'at v1.9.0'
+cp stdout status
+git commit -a -m 'at v1.9.0'
+git tag 'v1.9.0'
+
+echo 'before v1.9.9'
+cp stdout status
+git commit -a -m 'before v1.9.9'
+
+echo 'at v1.9.9'
+cp stdout status
+git commit -a -m 'at v1.9.9'
+git tag 'v1.9.9'
+
+at 2018-07-03T22:45:01-04:00
+echo 'before v1.9.10-pre1'
+cp stdout status
+git commit -a -m 'before v1.9.10-pre1'
+
+echo 'at v1.9.10-pre1'
+cp stdout status
+git commit -a -m 'at v1.9.10-pre1'
+git tag 'v1.9.10-pre1'
+
+at 2018-07-03T22:50:24-04:00
+git checkout v2
+cp v2/go.mod go.mod
+git add go.mod
+git commit -a -m 'v2'
+
+at 2018-07-03T22:51:14-04:00
+echo 'before v2.0.0'
+cp stdout status
+git add status
+git commit -a -m 'before v2.0.0'
+
+at 2018-07-03T22:51:14-04:00
+echo 'at v2.0.0'
+cp stdout status
+git commit -a -m 'at v2.0.0'
+git tag 'v2.0.0'
+
+at 2018-07-03T22:51:14-04:00
+echo 'before v2.1.0'
+cp stdout status
+git commit -a -m 'before v2.1.0'
+
+at 2018-07-03T22:51:14-04:00
+echo 'at v2.1.0'
+cp stdout status
+git commit -a -m 'at v2.1.0'
+git tag 'v2.1.0'
+
+at 2018-07-03T22:51:14-04:00
+echo 'before v2.2.0'
+cp stdout status
+git commit -a -m 'before v2.2.0'
+
+at 2018-07-03T22:51:14-04:00
+echo 'at v2.2.0'
+cp stdout status
+git commit -a -m 'at v2.2.0'
+git tag 'v2.2.0'
+
+at 2018-07-03T22:51:14-04:00
+echo 'before v2.5.5'
+cp stdout status
+git commit -a -m 'before v2.5.5'
+
+at 2018-07-03T22:51:14-04:00
+echo 'at v2.5.5'
+cp stdout status
+git commit -a -m 'at v2.5.5'
+git tag 'v2.5.5'
+
+at 2018-07-03T23:35:18-04:00
+echo 'after v2.5.5'
+cp stdout status
+git commit -a -m 'after v2.5.5'
+
+
+env GIT_AUTHOR_NAME='Bryan C. Mills'
+env GIT_AUTHOR_EMAIL=bcmills@google.com
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git checkout v2.5.5
+
+at 2019-05-13T17:13:56-04:00
+echo 'before v2.6.0-pre1'
+cp stdout status
+git commit -a -m 'before v2.6.0-pre1'
+
+at 2019-05-13T17:13:56-04:00
+echo 'at v2.6.0-pre1'
+cp stdout status
+git commit -a -m 'at v2.6.0-pre1'
+git tag 'v2.6.0-pre1'
+
+git checkout master
+
+at 2019-05-13T16:11:25-04:00
+echo 'before v1.9.10-pre2+metadata'
+cp stdout status
+git commit -a -m 'before v1.9.10-pre2+metadata'
+
+at 2019-05-13T16:11:26-04:00
+echo 'at v1.9.10-pre2+metadata'
+cp stdout status
+git commit -a -m 'at v1.9.10-pre2+metadata'
+git tag 'v1.9.10-pre2+metadata'
+
+at 2019-12-20T08:46:14-05:00
+echo 'after v1.9.10-pre2+metadata'
+cp stdout status
+git commit -a -m 'after v1.9.10-pre2+metadata'
+
+
+git show-ref --tags --heads
+cmp stdout .git-refs
+
+-- .git-refs --
+ed5ffdaa1f5e7e0be6f5ba2d63097026506224f2 refs/heads/master
+feed8f518cf4a7215a3b2a8268b8b0746dcbb12d refs/heads/v2
+f6abd4e3ed7f2297bc8fd2888bd6d5412e255fcc refs/tags/favorite
+5e9e31667ddfe16e9350f4bd00acc933c8cd5e56 refs/tags/start
+0de900e0063bcc310ea0621bfbc227a9b4e3b020 refs/tags/v0.0.0
+e5ec98b1c15df29e3bd346d538d73b6e8c3b500c refs/tags/v0.0.0-pre1
+179bc86b1be3f6d4553f77ebe68a8b6d750ceff8 refs/tags/v0.0.1
+81da2346e009fa1072fe4de3a9a223398ea8ec39 refs/tags/v0.0.2
+f6abd4e3ed7f2297bc8fd2888bd6d5412e255fcc refs/tags/v0.0.3
+7a1b6bf60ae5bb2b2bd49d152e0bbad806056122 refs/tags/v0.1.0
+daedca9abee3171fe45e0344098a993675ac799e refs/tags/v0.1.1
+ce829e0f1c45a2eca0f1ad16d7c1aca7cddb433b refs/tags/v0.1.2
+44aadfee25d86acb32d6f352afd1d602b0e3a651 refs/tags/v0.3.0
+20756d3a393908b2edb5db0f0bb954e962860168 refs/tags/v1.0.0
+b0bf267f64b7d5b5cabe22fbcad22f3f1642b7e5 refs/tags/v1.1.0
+609dca58c03f0ddf1d8ebe46c1f74fc6a99f3e73 refs/tags/v1.9.0
+e0cf3de987e660c21b6950e85b317ce5f7fbb9d9 refs/tags/v1.9.10-pre1
+42abcb6df8eee6983aeca9a307c28ea40530aceb refs/tags/v1.9.10-pre2+metadata
+5ba9a4ea62136ae86213feba68bc73858f55b7e1 refs/tags/v1.9.9
+9763aa065ae27c6cacec5ca8b6dfa43a1b31dea0 refs/tags/v2.0.0
+23c28cb696ff40a2839ce406f2c173aa6c3cdda6 refs/tags/v2.1.0
+1828ee9f8074075675013e4d488d5d49ddc1b502 refs/tags/v2.2.0
+d7352560158175e3b6aa11e22efb06d9e87e6eea refs/tags/v2.5.5
+fb9e35b393eb0cccc37e13e243ce60b4ff8c7eea refs/tags/v2.6.0-pre1
+-- go.mod --
+module vcs-test.golang.org/git/querytest.git
+-- v2/go.mod --
+module vcs-test.golang.org/git/querytest.git/v2

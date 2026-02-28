@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include <pthread.h>
+
 /*
  * Call pthread_create, retrying on EAGAIN.
  */
@@ -13,3 +15,5 @@ extern int _cgo_try_pthread_create(pthread_t*, const pthread_attr_t*, void* (*)(
  */
 extern int _cgo_openbsd_try_pthread_create(int (*)(pthread_t*, const pthread_attr_t*, void *(*pfn)(void*), void*),
 	pthread_t*, const pthread_attr_t*, void* (*)(void*), void* arg);
+
+extern void* threadentry(void*);

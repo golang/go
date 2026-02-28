@@ -8,8 +8,8 @@ TCP/IP, UDP, domain name resolution, and Unix domain sockets.
 
 Although the package provides access to low-level networking
 primitives, most clients will need only the basic interface provided
-by the Dial, Listen, and Accept functions and the associated
-Conn and Listener interfaces. The crypto/tls package uses
+by the [Dial], [Listen], and Accept functions and the associated
+[Conn] and [Listener] interfaces. The crypto/tls package uses
 the same interfaces and similar Dial and Listen functions.
 
 The Dial function connects to a server:
@@ -36,45 +36,63 @@ The Listen function creates servers:
 		go handleConnection(conn)
 	}
 
-Name Resolution
+# Name Resolution
 
 The method for resolving domain names, whether indirectly with functions like Dial
-or directly with functions like LookupHost and LookupAddr, varies by operating system.
+or directly with functions like [LookupHost] and [LookupAddr], varies by operating system.
 
 On Unix systems, the resolver has two options for resolving names.
 It can use a pure Go resolver that sends DNS requests directly to the servers
 listed in /etc/resolv.conf, or it can use a cgo-based resolver that calls C
 library routines such as getaddrinfo and getnameinfo.
 
-By default the pure Go resolver is used, because a blocked DNS request consumes
-only a goroutine, while a blocked C call consumes an operating system thread.
+On Unix the pure Go resolver is preferred over the cgo resolver, because a blocked DNS
+request consumes only a goroutine, while a blocked C call consumes an operating system thread.
 When cgo is available, the cgo-based resolver is used instead under a variety of
 conditions: on systems that do not let programs make direct DNS requests (OS X),
 when the LOCALDOMAIN environment variable is present (even if empty),
 when the RES_OPTIONS or HOSTALIASES environment variable is non-empty,
 when the ASR_CONFIG environment variable is non-empty (OpenBSD only),
 when /etc/resolv.conf or /etc/nsswitch.conf specify the use of features that the
-Go resolver does not implement, and when the name being looked up ends in .local
-or is an mDNS name.
+Go resolver does not implement.
+
+On all systems (except Plan 9), when the cgo resolver is being used
+this package applies a concurrent cgo lookup limit to prevent the system
+from running out of system threads. Currently, it is limited to 500 concurrent lookups.
 
 The resolver decision can be overridden by setting the netdns value of the
 GODEBUG environment variable (see package runtime) to go or cgo, as in:
 
 	export GODEBUG=netdns=go    # force pure Go resolver
-	export GODEBUG=netdns=cgo   # force cgo resolver
+	export GODEBUG=netdns=cgo   # force native resolver (cgo, win32)
 
 The decision can also be forced while building the Go source tree
 by setting the netgo or netcgo build tag.
+The netgo build tag disables entirely the use of the native (CGO) resolver,
+meaning the Go resolver is the only one that can be used.
+With the netcgo build tag the native and the pure Go resolver are compiled into the binary,
+but the native (CGO) resolver is preferred over the Go resolver.
+With netcgo, the Go resolver can still be forced at runtime with GODEBUG=netdns=go.
 
 A numeric netdns setting, as in GODEBUG=netdns=1, causes the resolver
 to print debugging information about its decisions.
 To force a particular resolver while also printing debugging information,
 join the two settings by a plus sign, as in GODEBUG=netdns=go+1.
 
+The Go resolver will send an EDNS0 additional header with a DNS request,
+to signal a willingness to accept a larger DNS packet size.
+This can reportedly cause sporadic failures with the DNS server run
+by some modems and routers. Setting GODEBUG=netedns0=0 will disable
+sending the additional header.
+
+On macOS, if Go code that uses the net package is built with
+-buildmode=c-archive, linking the resulting archive into a C program
+requires passing -lresolv when linking the C code.
+
 On Plan 9, the resolver always accesses /net/cs and /net/dns.
 
-On Windows, the resolver always uses C library functions, such as GetAddrInfo and DnsQuery.
-
+On Windows, in Go 1.18.x and earlier, the resolver always used C
+library functions, such as GetAddrInfo and DnsQuery.
 */
 package net
 
@@ -87,20 +105,13 @@ import (
 	"sync"
 	"syscall"
 	"time"
-)
-
-// netGo and netCgo contain the state of the build tags used
-// to build this binary, and whether cgo is available.
-// conf.go mirrors these into conf for easier testing.
-var (
-	netGo  bool // set true in cgo_stub.go for build tag "netgo" (or no cgo)
-	netCgo bool // set true in conf_netcgo.go for build tag "netcgo"
+	_ "unsafe" // for linkname
 )
 
 // Addr represents a network end point address.
 //
-// The two methods Network and String conventionally return strings
-// that can be passed as the arguments to Dial, but the exact form
+// The two methods [Addr.Network] and [Addr.String] conventionally return strings
+// that can be passed as the arguments to [Dial], but the exact form
 // and meaning of the strings is up to the implementation.
 type Addr interface {
 	Network() string // name of the network (for example, "tcp", "udp")
@@ -112,23 +123,25 @@ type Addr interface {
 // Multiple goroutines may invoke methods on a Conn simultaneously.
 type Conn interface {
 	// Read reads data from the connection.
-	// Read can be made to time out and return an Error with Timeout() == true
-	// after a fixed time limit; see SetDeadline and SetReadDeadline.
+	// Read can be made to time out and return an error after a fixed
+	// time limit; see SetDeadline and SetReadDeadline.
 	Read(b []byte) (n int, err error)
 
 	// Write writes data to the connection.
-	// Write can be made to time out and return an Error with Timeout() == true
-	// after a fixed time limit; see SetDeadline and SetWriteDeadline.
+	// Write can be made to time out and return an error after a fixed
+	// time limit; see SetDeadline and SetWriteDeadline.
 	Write(b []byte) (n int, err error)
 
 	// Close closes the connection.
 	// Any blocked Read or Write operations will be unblocked and return errors.
+	// Close may or may not block until any buffered data is sent;
+	// for TCP connections see [*TCPConn.SetLinger].
 	Close() error
 
-	// LocalAddr returns the local network address.
+	// LocalAddr returns the local network address, if known.
 	LocalAddr() Addr
 
-	// RemoteAddr returns the remote network address.
+	// RemoteAddr returns the remote network address, if known.
 	RemoteAddr() Addr
 
 	// SetDeadline sets the read and write deadlines associated
@@ -136,23 +149,22 @@ type Conn interface {
 	// SetReadDeadline and SetWriteDeadline.
 	//
 	// A deadline is an absolute time after which I/O operations
-	// fail with a timeout (see type Error) instead of
-	// blocking. The deadline applies to all future and pending
-	// I/O, not just the immediately following call to Read or
-	// Write. After a deadline has been exceeded, the connection
-	// can be refreshed by setting a deadline in the future.
+	// fail instead of blocking. The deadline applies to all future
+	// and pending I/O, not just the immediately following call to
+	// Read or Write. After a deadline has been exceeded, the
+	// connection can be refreshed by setting a deadline in the future.
+	//
+	// If the deadline is exceeded a call to Read or Write or to other
+	// I/O methods will return an error that wraps os.ErrDeadlineExceeded.
+	// This can be tested using errors.Is(err, os.ErrDeadlineExceeded).
+	// The error's Timeout method will return true, but note that there
+	// are other possible errors for which the Timeout method will
+	// return true even if the deadline has not been exceeded.
 	//
 	// An idle timeout can be implemented by repeatedly extending
 	// the deadline after successful Read or Write calls.
 	//
 	// A zero value for t means I/O operations will not time out.
-	//
-	// Note that if a TCP connection has keep-alive turned on,
-	// which is the default unless overridden by Dialer.KeepAlive
-	// or ListenConfig.KeepAlive, then a keep-alive failure may
-	// also return a timeout error. On Unix systems a keep-alive
-	// failure on I/O can be detected using
-	// errors.Is(err, syscall.ETIMEDOUT).
 	SetDeadline(t time.Time) error
 
 	// SetReadDeadline sets the deadline for future Read calls
@@ -289,13 +301,16 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 	return nil
 }
 
-// File returns a copy of the underlying os.File.
+// File returns a copy of the underlying [os.File].
 // It is the caller's responsibility to close f when finished.
 // Closing c does not affect f, and closing f does not affect c.
 //
 // The returned os.File's file descriptor is different from the connection's.
 // Attempting to change properties of the original using this duplicate
 // may or may not have the desired effect.
+//
+// On Windows, the returned os.File's file descriptor is not usable
+// on other processes.
 func (c *conn) File() (f *os.File, err error) {
 	f, err = c.fd.dup()
 	if err != nil {
@@ -315,15 +330,13 @@ type PacketConn interface {
 	// It returns the number of bytes read (0 <= n <= len(p))
 	// and any error encountered. Callers should always process
 	// the n > 0 bytes returned before considering the error err.
-	// ReadFrom can be made to time out and return
-	// an Error with Timeout() == true after a fixed time limit;
-	// see SetDeadline and SetReadDeadline.
+	// ReadFrom can be made to time out and return an error after a
+	// fixed time limit; see SetDeadline and SetReadDeadline.
 	ReadFrom(p []byte) (n int, addr Addr, err error)
 
 	// WriteTo writes a packet with payload p to addr.
-	// WriteTo can be made to time out and return
-	// an Error with Timeout() == true after a fixed time limit;
-	// see SetDeadline and SetWriteDeadline.
+	// WriteTo can be made to time out and return an Error after a
+	// fixed time limit; see SetDeadline and SetWriteDeadline.
 	// On packet-oriented connections, write timeouts are rare.
 	WriteTo(p []byte, addr Addr) (n int, err error)
 
@@ -331,7 +344,7 @@ type PacketConn interface {
 	// Any blocked ReadFrom or WriteTo operations will be unblocked and return errors.
 	Close() error
 
-	// LocalAddr returns the local network address.
+	// LocalAddr returns the local network address, if known.
 	LocalAddr() Addr
 
 	// SetDeadline sets the read and write deadlines associated
@@ -339,11 +352,17 @@ type PacketConn interface {
 	// SetReadDeadline and SetWriteDeadline.
 	//
 	// A deadline is an absolute time after which I/O operations
-	// fail with a timeout (see type Error) instead of
-	// blocking. The deadline applies to all future and pending
-	// I/O, not just the immediately following call to ReadFrom or
-	// WriteTo. After a deadline has been exceeded, the connection
-	// can be refreshed by setting a deadline in the future.
+	// fail instead of blocking. The deadline applies to all future
+	// and pending I/O, not just the immediately following call to
+	// Read or Write. After a deadline has been exceeded, the
+	// connection can be refreshed by setting a deadline in the future.
+	//
+	// If the deadline is exceeded a call to Read or Write or to other
+	// I/O methods will return an error that wraps os.ErrDeadlineExceeded.
+	// This can be tested using errors.Is(err, os.ErrDeadlineExceeded).
+	// The error's Timeout method will return true, but note that there
+	// are other possible errors for which the Timeout method will
+	// return true even if the deadline has not been exceeded.
 	//
 	// An idle timeout can be implemented by repeatedly extending
 	// the deadline after successful ReadFrom or WriteTo calls.
@@ -370,6 +389,18 @@ var listenerBacklogCache struct {
 }
 
 // listenerBacklog is a caching wrapper around maxListenerBacklog.
+//
+// listenerBacklog should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/database64128/tfo-go/v2
+//   - github.com/metacubex/tfo-go
+//   - github.com/sagernet/tfo-go
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname listenerBacklog
 func listenerBacklog() int {
 	listenerBacklogCache.Do(func() { listenerBacklogCache.val = maxListenerBacklog() })
 	return listenerBacklogCache.val
@@ -393,8 +424,12 @@ type Listener interface {
 // An Error represents a network error.
 type Error interface {
 	error
-	Timeout() bool   // Is the error a timeout?
-	Temporary() bool // Is the error temporary?
+	Timeout() bool // Is the error a timeout?
+
+	// Deprecated: Temporary errors are not well-defined.
+	// Most "temporary" errors are timeouts, and the few exceptions are surprising.
+	// Do not use this method.
+	Temporary() bool
 }
 
 // Various errors contained in OpError.
@@ -406,21 +441,26 @@ var (
 	errMissingAddress = errors.New("missing address")
 
 	// For both read and write operations.
-	errCanceled         = errors.New("operation was canceled")
+	errCanceled         = canceledError{}
 	ErrWriteToConnected = errors.New("use of WriteTo with pre-connected connection")
 )
 
+// canceledError lets us return the same error string we have always
+// returned, while still being Is context.Canceled.
+type canceledError struct{}
+
+func (canceledError) Error() string { return "operation was canceled" }
+
+func (canceledError) Is(err error) bool { return err == context.Canceled }
+
 // mapErr maps from the context errors to the historical internal net
 // error values.
-//
-// TODO(bradfitz): get rid of this after adjusting tests and making
-// context.DeadlineExceeded implement net.Error?
 func mapErr(err error) error {
 	switch err {
 	case context.Canceled:
 		return errCanceled
 	case context.DeadlineExceeded:
-		return poll.ErrTimeout
+		return errTimeout
 	default:
 		return err
 	}
@@ -486,7 +526,7 @@ var (
 	// immediate cancellation of dials.
 	aLongTimeAgo = time.Unix(1, 0)
 
-	// nonDeadline and noCancel are just zero values for
+	// noDeadline and noCancel are just zero values for
 	// readability with functions taking too many parameters.
 	noDeadline = time.Time{}
 	noCancel   = (chan struct{})(nil)
@@ -536,6 +576,9 @@ type ParseError struct {
 
 func (e *ParseError) Error() string { return "invalid " + e.Type + ": " + e.Text }
 
+func (e *ParseError) Timeout() bool   { return false }
+func (e *ParseError) Temporary() bool { return false }
+
 type AddrError struct {
 	Err  string
 	Addr string
@@ -567,6 +610,29 @@ func (e InvalidAddrError) Error() string   { return string(e) }
 func (e InvalidAddrError) Timeout() bool   { return false }
 func (e InvalidAddrError) Temporary() bool { return false }
 
+// errTimeout exists to return the historical "i/o timeout" string
+// for context.DeadlineExceeded. See mapErr.
+// It is also used when Dialer.Deadline is exceeded.
+// error.Is(errTimeout, context.DeadlineExceeded) returns true.
+//
+// TODO(iant): We could consider changing this to os.ErrDeadlineExceeded
+// in the future, if we make
+//
+//	errors.Is(os.ErrDeadlineExceeded, context.DeadlineExceeded)
+//
+// return true.
+var errTimeout error = &timeoutError{}
+
+type timeoutError struct{}
+
+func (e *timeoutError) Error() string   { return "i/o timeout" }
+func (e *timeoutError) Timeout() bool   { return true }
+func (e *timeoutError) Temporary() bool { return true }
+
+func (e *timeoutError) Is(err error) bool {
+	return err == context.DeadlineExceeded
+}
+
 // DNSConfigError represents an error reading the machine's DNS configuration.
 // (No longer used; kept for compatibility.)
 type DNSConfigError struct {
@@ -580,18 +646,73 @@ func (e *DNSConfigError) Temporary() bool { return false }
 
 // Various errors contained in DNSError.
 var (
-	errNoSuchHost = errors.New("no such host")
+	errNoSuchHost  = &notFoundError{"no such host"}
+	errUnknownPort = &notFoundError{"unknown port"}
 )
+
+// notFoundError is a special error understood by the newDNSError function,
+// which causes a creation of a DNSError with IsNotFound field set to true.
+type notFoundError struct{ s string }
+
+func (e *notFoundError) Error() string { return e.s }
+
+// temporaryError is an error type that implements the [Error] interface.
+// It returns true from the Temporary method.
+type temporaryError struct{ s string }
+
+func (e *temporaryError) Error() string   { return e.s }
+func (e *temporaryError) Temporary() bool { return true }
+func (e *temporaryError) Timeout() bool   { return false }
 
 // DNSError represents a DNS lookup error.
 type DNSError struct {
+	UnwrapErr   error  // error returned by the [DNSError.Unwrap] method, might be nil
 	Err         string // description of the error
 	Name        string // name looked for
 	Server      string // server used
 	IsTimeout   bool   // if true, timed out; not all timeouts set this
 	IsTemporary bool   // if true, error is temporary; not all errors set this
-	IsNotFound  bool   // if true, host could not be found
+
+	// IsNotFound is set to true when the requested name does not
+	// contain any records of the requested type (data not found),
+	// or the name itself was not found (NXDOMAIN).
+	IsNotFound bool
 }
+
+// newDNSError creates a new *DNSError.
+// Based on the err, it sets the UnwrapErr, IsTimeout, IsTemporary, IsNotFound fields.
+func newDNSError(err error, name, server string) *DNSError {
+	var (
+		isTimeout   bool
+		isTemporary bool
+		unwrapErr   error
+	)
+
+	if err, ok := err.(Error); ok {
+		isTimeout = err.Timeout()
+		isTemporary = err.Temporary()
+	}
+
+	// At this time, the only errors we wrap are context errors, to allow
+	// users to check for canceled/timed out requests.
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		unwrapErr = err
+	}
+
+	_, isNotFound := err.(*notFoundError)
+	return &DNSError{
+		UnwrapErr:   unwrapErr,
+		Err:         err.Error(),
+		Name:        name,
+		Server:      server,
+		IsTimeout:   isTimeout,
+		IsTemporary: isTemporary,
+		IsNotFound:  isNotFound,
+	}
+}
+
+// Unwrap returns e.UnwrapErr.
+func (e *DNSError) Unwrap() error { return e.UnwrapErr }
 
 func (e *DNSError) Error() string {
 	if e == nil {
@@ -607,23 +728,72 @@ func (e *DNSError) Error() string {
 
 // Timeout reports whether the DNS lookup is known to have timed out.
 // This is not always known; a DNS lookup may fail due to a timeout
-// and return a DNSError for which Timeout returns false.
+// and return a [DNSError] for which Timeout returns false.
 func (e *DNSError) Timeout() bool { return e.IsTimeout }
 
 // Temporary reports whether the DNS error is known to be temporary.
 // This is not always known; a DNS lookup may fail due to a temporary
-// error and return a DNSError for which Temporary returns false.
+// error and return a [DNSError] for which Temporary returns false.
 func (e *DNSError) Temporary() bool { return e.IsTimeout || e.IsTemporary }
 
-type writerOnly struct {
-	io.Writer
+// errClosed exists just so that the docs for ErrClosed don't mention
+// the internal package poll.
+var errClosed = poll.ErrNetClosing
+
+// ErrClosed is the error returned by an I/O call on a network
+// connection that has already been closed, or that is closed by
+// another goroutine before the I/O is completed. This may be wrapped
+// in another error, and should normally be tested using
+// errors.Is(err, net.ErrClosed).
+var ErrClosed error = errClosed
+
+// noReadFrom can be embedded alongside another type to
+// hide the ReadFrom method of that other type.
+type noReadFrom struct{}
+
+// ReadFrom hides another ReadFrom method.
+// It should never be called.
+func (noReadFrom) ReadFrom(io.Reader) (int64, error) {
+	panic("can't happen")
+}
+
+// tcpConnWithoutReadFrom implements all the methods of *TCPConn other
+// than ReadFrom. This is used to permit ReadFrom to call io.Copy
+// without leading to a recursive call to ReadFrom.
+type tcpConnWithoutReadFrom struct {
+	noReadFrom
+	*TCPConn
 }
 
 // Fallback implementation of io.ReaderFrom's ReadFrom, when sendfile isn't
 // applicable.
-func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
+func genericReadFrom(c *TCPConn, r io.Reader) (n int64, err error) {
 	// Use wrapper to hide existing r.ReadFrom from io.Copy.
-	return io.Copy(writerOnly{w}, r)
+	return io.Copy(tcpConnWithoutReadFrom{TCPConn: c}, r)
+}
+
+// noWriteTo can be embedded alongside another type to
+// hide the WriteTo method of that other type.
+type noWriteTo struct{}
+
+// WriteTo hides another WriteTo method.
+// It should never be called.
+func (noWriteTo) WriteTo(io.Writer) (int64, error) {
+	panic("can't happen")
+}
+
+// tcpConnWithoutWriteTo implements all the methods of *TCPConn other
+// than WriteTo. This is used to permit WriteTo to call io.Copy
+// without leading to a recursive call to WriteTo.
+type tcpConnWithoutWriteTo struct {
+	noWriteTo
+	*TCPConn
+}
+
+// Fallback implementation of io.WriterTo's WriteTo, when zero-copy isn't applicable.
+func genericWriteTo(c *TCPConn, w io.Writer) (n int64, err error) {
+	// Use wrapper to hide existing w.WriteTo from io.Copy.
+	return io.Copy(w, tcpConnWithoutWriteTo{TCPConn: c})
 }
 
 // Limit the number of concurrent cgo-using goroutines, because
@@ -636,11 +806,16 @@ var threadLimit chan struct{}
 
 var threadOnce sync.Once
 
-func acquireThread() {
+func acquireThread(ctx context.Context) error {
 	threadOnce.Do(func() {
 		threadLimit = make(chan struct{}, concurrentThreadsLimit())
 	})
-	threadLimit <- struct{}{}
+	select {
+	case threadLimit <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func releaseThread() {
@@ -667,6 +842,12 @@ var (
 	_ io.Reader   = (*Buffers)(nil)
 )
 
+// WriteTo writes contents of the buffers to w.
+//
+// WriteTo implements [io.WriterTo] for [Buffers].
+//
+// WriteTo modifies the slice v as well as v[i] for 0 <= i < len(v),
+// but does not modify v[i][j] for any i, j.
 func (v *Buffers) WriteTo(w io.Writer) (n int64, err error) {
 	if wv, ok := w.(buffersWriter); ok {
 		return wv.writeBuffers(v)
@@ -683,6 +864,12 @@ func (v *Buffers) WriteTo(w io.Writer) (n int64, err error) {
 	return n, nil
 }
 
+// Read from the buffers.
+//
+// Read implements [io.Reader] for [Buffers].
+//
+// Read modifies the slice v as well as v[i] for 0 <= i < len(v),
+// but does not modify v[i][j] for any i, j.
 func (v *Buffers) Read(p []byte) (n int, err error) {
 	for len(p) > 0 && len(*v) > 0 {
 		n0 := copy(p, (*v)[0])
@@ -704,6 +891,7 @@ func (v *Buffers) consume(n int64) {
 			return
 		}
 		n -= ln0
+		(*v)[0] = nil
 		*v = (*v)[1:]
 	}
 }

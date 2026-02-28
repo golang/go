@@ -7,7 +7,9 @@ package template
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
+	"os"
+	"path"
 	"path/filepath"
 	"sync"
 	"text/template"
@@ -62,6 +64,7 @@ func (t *Template) Templates() []*Template {
 //
 // missingkey: Control the behavior during execution if a map is
 // indexed with a key that is not present in the map.
+//
 //	"missingkey=default" or "missingkey=invalid"
 //		The default behavior: Do nothing and continue execution.
 //		If printed, the result of the index operation is the string
@@ -70,7 +73,6 @@ func (t *Template) Templates() []*Template {
 //		The operation returns the zero value for the map type's element.
 //	"missingkey=error"
 //		Execution stops immediately with an error.
-//
 func (t *Template) Option(opt ...string) *Template {
 	t.text.Option(opt...)
 	return t
@@ -115,7 +117,7 @@ func (t *Template) escape() error {
 // the output writer.
 // A template may be executed safely in parallel, although if parallel
 // executions share a Writer the output may be interleaved.
-func (t *Template) Execute(wr io.Writer, data interface{}) error {
+func (t *Template) Execute(wr io.Writer, data any) error {
 	if err := t.escape(); err != nil {
 		return err
 	}
@@ -129,7 +131,7 @@ func (t *Template) Execute(wr io.Writer, data interface{}) error {
 // the output writer.
 // A template may be executed safely in parallel, although if parallel
 // executions share a Writer the output may be interleaved.
-func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
+func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
 	tmpl, err := t.lookupAndEscapeTemplate(name)
 	if err != nil {
 		return err
@@ -176,7 +178,7 @@ func (t *Template) DefinedTemplates() string {
 // definition of t itself.
 //
 // Templates can be redefined in successive calls to Parse,
-// before the first use of Execute on t or any associated template.
+// before the first use of [Template.Execute] on t or any associated template.
 // A template definition with a body containing only white space and comments
 // is considered empty and will not replace an existing template's body.
 // This allows using Parse to add new named template definitions without
@@ -235,8 +237,8 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
 
 // Clone returns a duplicate of the template, including all associated
 // templates. The actual representation is not copied, but the name space of
-// associated templates is, so further calls to Parse in the copy will add
-// templates to the copy but not to the original. Clone can be used to prepare
+// associated templates is, so further calls to [Template.Parse] in the copy will add
+// templates to the copy but not to the original. [Template.Clone] can be used to prepare
 // common templates and use them with variant definitions for other templates
 // by adding the variants after the clone is made.
 //
@@ -326,14 +328,7 @@ func (t *Template) Name() string {
 	return t.text.Name()
 }
 
-// FuncMap is the type of the map defining the mapping from names to
-// functions. Each function must have either a single return value, or two
-// return values of which the second has type error. In that case, if the
-// second (error) argument evaluates to non-nil during execution, execution
-// terminates and Execute returns that error. FuncMap has the same base type
-// as FuncMap in "text/template", copied here so clients need not import
-// "text/template".
-type FuncMap map[string]interface{}
+type FuncMap = template.FuncMap
 
 // Funcs adds the elements of the argument map to the template's function map.
 // It must be called before the template is parsed.
@@ -346,7 +341,7 @@ func (t *Template) Funcs(funcMap FuncMap) *Template {
 }
 
 // Delims sets the action delimiters to the specified strings, to be used in
-// subsequent calls to Parse, ParseFiles, or ParseGlob. Nested template
+// subsequent calls to [Template.Parse], [ParseFiles], or [ParseGlob]. Nested template
 // definitions will inherit the settings. An empty delimiter stands for the
 // corresponding default: {{ or }}.
 // The return value is the template, so calls can be chained.
@@ -363,9 +358,10 @@ func (t *Template) Lookup(name string) *Template {
 	return t.set[name]
 }
 
-// Must is a helper that wraps a call to a function returning (*Template, error)
+// Must is a helper that wraps a call to a function returning ([*Template], error)
 // and panics if the error is non-nil. It is intended for use in variable initializations
 // such as
+//
 //	var t = template.Must(template.New("name").Parse("html"))
 func Must(t *Template, err error) *Template {
 	if err != nil {
@@ -374,17 +370,17 @@ func Must(t *Template, err error) *Template {
 	return t
 }
 
-// ParseFiles creates a new Template and parses the template definitions from
+// ParseFiles creates a new [Template] and parses the template definitions from
 // the named files. The returned template's name will have the (base) name and
 // (parsed) contents of the first file. There must be at least one file.
-// If an error occurs, parsing stops and the returned *Template is nil.
+// If an error occurs, parsing stops and the returned [*Template] is nil.
 //
 // When parsing multiple files with the same name in different directories,
 // the last one mentioned will be the one that results.
 // For instance, ParseFiles("a/foo", "b/foo") stores "b/foo" as the template
 // named "foo", while "a/foo" is unavailable.
 func ParseFiles(filenames ...string) (*Template, error) {
-	return parseFiles(nil, filenames...)
+	return parseFiles(nil, readFileOS, filenames...)
 }
 
 // ParseFiles parses the named files and associates the resulting templates with
@@ -396,12 +392,12 @@ func ParseFiles(filenames ...string) (*Template, error) {
 //
 // ParseFiles returns an error if t or any associated template has already been executed.
 func (t *Template) ParseFiles(filenames ...string) (*Template, error) {
-	return parseFiles(t, filenames...)
+	return parseFiles(t, readFileOS, filenames...)
 }
 
 // parseFiles is the helper for the method and function. If the argument
 // template is nil, it is created from the first file.
-func parseFiles(t *Template, filenames ...string) (*Template, error) {
+func parseFiles(t *Template, readFile func(string) (string, []byte, error), filenames ...string) (*Template, error) {
 	if err := t.checkCanParse(); err != nil {
 		return nil, err
 	}
@@ -411,12 +407,11 @@ func parseFiles(t *Template, filenames ...string) (*Template, error) {
 		return nil, fmt.Errorf("html/template: no files named in call to ParseFiles")
 	}
 	for _, filename := range filenames {
-		b, err := ioutil.ReadFile(filename)
+		name, b, err := readFile(filename)
 		if err != nil {
 			return nil, err
 		}
 		s := string(b)
-		name := filepath.Base(filename)
 		// First template becomes return value if not already defined,
 		// and we use that one for subsequent New calls to associate
 		// all the templates together. Also, if this file has the same name
@@ -440,12 +435,12 @@ func parseFiles(t *Template, filenames ...string) (*Template, error) {
 	return t, nil
 }
 
-// ParseGlob creates a new Template and parses the template definitions from
+// ParseGlob creates a new [Template] and parses the template definitions from
 // the files identified by the pattern. The files are matched according to the
 // semantics of filepath.Match, and the pattern must match at least one file.
 // The returned template will have the (base) name and (parsed) contents of the
 // first file matched by the pattern. ParseGlob is equivalent to calling
-// ParseFiles with the list of files matched by the pattern.
+// [ParseFiles] with the list of files matched by the pattern.
 //
 // When parsing multiple files with the same name in different directories,
 // the last one mentioned will be the one that results.
@@ -479,12 +474,57 @@ func parseGlob(t *Template, pattern string) (*Template, error) {
 	if len(filenames) == 0 {
 		return nil, fmt.Errorf("html/template: pattern matches no files: %#q", pattern)
 	}
-	return parseFiles(t, filenames...)
+	return parseFiles(t, readFileOS, filenames...)
 }
 
 // IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
 // and whether the value has a meaningful truth value. This is the definition of
 // truth used by if and other such actions.
-func IsTrue(val interface{}) (truth, ok bool) {
+func IsTrue(val any) (truth, ok bool) {
 	return template.IsTrue(val)
+}
+
+// ParseFS is like [ParseFiles] or [ParseGlob] but reads from the file system fs
+// instead of the host operating system's file system.
+// It accepts a list of glob patterns.
+// (Note that most file names serve as glob patterns matching only themselves.)
+func ParseFS(fs fs.FS, patterns ...string) (*Template, error) {
+	return parseFS(nil, fs, patterns)
+}
+
+// ParseFS is like [Template.ParseFiles] or [Template.ParseGlob] but reads from the file system fs
+// instead of the host operating system's file system.
+// It accepts a list of glob patterns.
+// (Note that most file names serve as glob patterns matching only themselves.)
+func (t *Template) ParseFS(fs fs.FS, patterns ...string) (*Template, error) {
+	return parseFS(t, fs, patterns)
+}
+
+func parseFS(t *Template, fsys fs.FS, patterns []string) (*Template, error) {
+	var filenames []string
+	for _, pattern := range patterns {
+		list, err := fs.Glob(fsys, pattern)
+		if err != nil {
+			return nil, err
+		}
+		if len(list) == 0 {
+			return nil, fmt.Errorf("template: pattern matches no files: %#q", pattern)
+		}
+		filenames = append(filenames, list...)
+	}
+	return parseFiles(t, readFileFS(fsys), filenames...)
+}
+
+func readFileOS(file string) (name string, b []byte, err error) {
+	name = filepath.Base(file)
+	b, err = os.ReadFile(file)
+	return
+}
+
+func readFileFS(fsys fs.FS) func(string) (string, []byte, error) {
+	return func(file string) (name string, b []byte, err error) {
+		name = path.Base(file)
+		b, err = fs.ReadFile(fsys, file)
+		return
+	}
 }

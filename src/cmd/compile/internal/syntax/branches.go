@@ -6,15 +6,13 @@ package syntax
 
 import "fmt"
 
-// TODO(gri) consider making this part of the parser code
-
 // checkBranches checks correct use of labels and branch
-// statements (break, continue, goto) in a function body.
+// statements (break, continue, fallthrough, goto) in a function body.
 // It catches:
-//    - misplaced breaks and continues
-//    - bad labeled breaks and continues
-//    - invalid, unused, duplicate, and missing labels
-//    - gotos jumping over variable declarations and into blocks
+//   - misplaced breaks, continues, and fallthroughs
+//   - bad labeled breaks and continues
+//   - invalid, unused, duplicate, and missing labels
+//   - gotos jumping over variable declarations and into blocks
 func checkBranches(body *BlockStmt, errh ErrorHandler) {
 	if body == nil {
 		return
@@ -31,9 +29,9 @@ func checkBranches(body *BlockStmt, errh ErrorHandler) {
 		name := fwd.Label.Value
 		if l := ls.labels[name]; l != nil {
 			l.used = true // avoid "defined and not used" error
-			ls.err(fwd.Label.Pos(), "goto %s jumps into block starting at %s", name, l.parent.start)
+			ls.errf(fwd.Label.Pos(), "goto %s jumps into block starting at %s", name, l.parent.start)
 		} else {
-			ls.err(fwd.Label.Pos(), "label %s not defined", name)
+			ls.errf(fwd.Label.Pos(), "label %s not defined", name)
 		}
 	}
 
@@ -41,7 +39,7 @@ func checkBranches(body *BlockStmt, errh ErrorHandler) {
 	for _, l := range ls.labels {
 		if !l.used {
 			l := l.lstmt.Label
-			ls.err(l.Pos(), "label %s defined and not used", l.Value)
+			ls.errf(l.Pos(), "label %s defined and not used", l.Value)
 		}
 	}
 }
@@ -63,7 +61,7 @@ type block struct {
 	lstmt  *LabeledStmt // labeled statement associated with this block, or nil
 }
 
-func (ls *labelScope) err(pos Pos, format string, args ...interface{}) {
+func (ls *labelScope) errf(pos Pos, format string, args ...any) {
 	ls.errh(Error{pos, fmt.Sprintf(format, args...)})
 }
 
@@ -77,7 +75,7 @@ func (ls *labelScope) declare(b *block, s *LabeledStmt) *label {
 		labels = make(map[string]*label)
 		ls.labels = labels
 	} else if alt := labels[name]; alt != nil {
-		ls.err(s.Label.Pos(), "label %s already defined at %s", name, alt.lstmt.Label.Pos().String())
+		ls.errf(s.Label.Pos(), "label %s already defined at %s", name, alt.lstmt.Label.Pos().String())
 		return alt
 	}
 	l := &label{b, s, false}
@@ -123,6 +121,7 @@ func (ls *labelScope) enclosingTarget(b *block, name string) *LabeledStmt {
 type targets struct {
 	breaks    Stmt     // *ForStmt, *SwitchStmt, *SelectStmt, or nil
 	continues *ForStmt // or nil
+	caseIndex int      // case index of immediately enclosing switch statement, or < 0
 }
 
 // blockBranches processes a block's body starting at start and returns the
@@ -163,7 +162,10 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
 		fwdGotos = append(fwdGotos, ls.blockBranches(b, ctxt, lstmt, start, body)...)
 	}
 
-	for _, stmt := range body {
+	// A fallthrough statement counts as last statement in a statement
+	// list even if there are trailing empty statements; remove them.
+	stmtList := trimTrailingEmptyStmts(body)
+	for stmtIndex, stmt := range stmtList {
 		lstmt = nil
 	L:
 		switch s := stmt.(type) {
@@ -186,7 +188,7 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
 						fwd.Target = s
 						l.used = true
 						if jumpsOverVarDecl(fwd) {
-							ls.err(
+							ls.errf(
 								fwd.Label.Pos(),
 								"goto %s jumps over declaration of %s at %s",
 								name, String(varName), varPos,
@@ -213,16 +215,29 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
 					if t := ctxt.breaks; t != nil {
 						s.Target = t
 					} else {
-						ls.err(s.Pos(), "break is not in a loop, switch, or select")
+						ls.errf(s.Pos(), "break is not in a loop, switch, or select")
 					}
 				case _Continue:
 					if t := ctxt.continues; t != nil {
 						s.Target = t
 					} else {
-						ls.err(s.Pos(), "continue is not in a loop")
+						ls.errf(s.Pos(), "continue is not in a loop")
 					}
 				case _Fallthrough:
-					// nothing to do
+					msg := "fallthrough statement out of place"
+					if t, _ := ctxt.breaks.(*SwitchStmt); t != nil {
+						if _, ok := t.Tag.(*TypeSwitchGuard); ok {
+							msg = "cannot fallthrough in type switch"
+						} else if ctxt.caseIndex < 0 || stmtIndex+1 < len(stmtList) {
+							// fallthrough nested in a block or not the last statement
+							// use msg as is
+						} else if ctxt.caseIndex+1 == len(t.Body) {
+							msg = "cannot fallthrough final case in switch"
+						} else {
+							break // fallthrough ok
+						}
+					}
+					ls.errf(s.Pos(), "%s", msg)
 				case _Goto:
 					fallthrough // should always have a label
 				default:
@@ -243,10 +258,10 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
 					case *SwitchStmt, *SelectStmt, *ForStmt:
 						s.Target = t
 					default:
-						ls.err(s.Label.Pos(), "invalid break label %s", name)
+						ls.errf(s.Label.Pos(), "invalid break label %s", name)
 					}
 				} else {
-					ls.err(s.Label.Pos(), "break label not defined: %s", name)
+					ls.errf(s.Label.Pos(), "break label not defined: %s", name)
 				}
 
 			case _Continue:
@@ -256,10 +271,10 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
 					if t, ok := t.Stmt.(*ForStmt); ok {
 						s.Target = t
 					} else {
-						ls.err(s.Label.Pos(), "invalid continue label %s", name)
+						ls.errf(s.Label.Pos(), "invalid continue label %s", name)
 					}
 				} else {
-					ls.err(s.Label.Pos(), "continue label not defined: %s", name)
+					ls.errf(s.Label.Pos(), "continue label not defined: %s", name)
 				}
 
 			case _Goto:
@@ -282,25 +297,29 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
 			}
 
 		case *BlockStmt:
-			innerBlock(ctxt, s.Pos(), s.List)
+			inner := targets{ctxt.breaks, ctxt.continues, -1}
+			innerBlock(inner, s.Pos(), s.List)
 
 		case *IfStmt:
-			innerBlock(ctxt, s.Then.Pos(), s.Then.List)
+			inner := targets{ctxt.breaks, ctxt.continues, -1}
+			innerBlock(inner, s.Then.Pos(), s.Then.List)
 			if s.Else != nil {
-				innerBlock(ctxt, s.Else.Pos(), []Stmt{s.Else})
+				innerBlock(inner, s.Else.Pos(), []Stmt{s.Else})
 			}
 
 		case *ForStmt:
-			innerBlock(targets{s, s}, s.Body.Pos(), s.Body.List)
+			inner := targets{s, s, -1}
+			innerBlock(inner, s.Body.Pos(), s.Body.List)
 
 		case *SwitchStmt:
-			inner := targets{s, ctxt.continues}
-			for _, cc := range s.Body {
+			inner := targets{s, ctxt.continues, -1}
+			for i, cc := range s.Body {
+				inner.caseIndex = i
 				innerBlock(inner, cc.Pos(), cc.Body)
 			}
 
 		case *SelectStmt:
-			inner := targets{s, ctxt.continues}
+			inner := targets{s, ctxt.continues, -1}
 			for _, cc := range s.Body {
 				innerBlock(inner, cc.Pos(), cc.Body)
 			}
@@ -308,4 +327,13 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
 	}
 
 	return fwdGotos
+}
+
+func trimTrailingEmptyStmts(list []Stmt) []Stmt {
+	for i := len(list); i > 0; i-- {
+		if _, ok := list[i-1].(*EmptyStmt); !ok {
+			return list[:i]
+		}
+	}
+	return nil
 }

@@ -2,13 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build unix
 
 package syscall
 
 import (
+	errorspkg "errors"
+	"internal/asan"
+	"internal/bytealg"
+	"internal/msan"
 	"internal/oserror"
 	"internal/race"
+	"internal/strconv"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -21,21 +26,14 @@ var (
 )
 
 const (
-	darwin64Bit = runtime.GOOS == "darwin" && sizeofPtr == 8
+	darwin64Bit = (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && sizeofPtr == 8
 	netbsd32Bit = runtime.GOOS == "netbsd" && sizeofPtr == 4
 )
 
-func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
-func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
-func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
-func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
-
 // clen returns the index of the first NULL byte in n or len(n) if n contains no NULL byte.
 func clen(n []byte) int {
-	for i := 0; i < len(n); i++ {
-		if n[i] == 0 {
-			return i
-		}
+	if i := bytealg.IndexByte(n, 0); i != -1 {
+		return i
 	}
 	return len(n)
 }
@@ -60,15 +58,8 @@ func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (d
 		return nil, errno
 	}
 
-	// Slice memory layout
-	var sl = struct {
-		addr uintptr
-		len  int
-		cap  int
-	}{addr, length, length}
-
-	// Use unsafe to turn sl into a []byte.
-	b := *(*[]byte)(unsafe.Pointer(&sl))
+	// Use unsafe to turn addr into a []byte.
+	b := unsafe.Slice((*byte)(unsafe.Pointer(addr)), length)
 
 	// Register mapping in m and return it.
 	p := &b[cap(b)-1]
@@ -103,16 +94,17 @@ func (m *mmapper) Munmap(data []byte) (err error) {
 // An Errno is an unsigned number describing an error condition.
 // It implements the error interface. The zero Errno is by convention
 // a non-error, so code to convert from Errno to error should use:
+//
 //	err = nil
 //	if errno != 0 {
 //		err = errno
 //	}
 //
-// Errno values can be tested against error values from the os package
-// using errors.Is. For example:
+// Errno values can be tested against error values using [errors.Is].
+// For example:
 //
 //	_, _, err := syscall.Syscall(...)
-//	if errors.Is(err, os.ErrNotExist) ...
+//	if errors.Is(err, fs.ErrNotExist) ...
 type Errno uintptr
 
 func (e Errno) Error() string {
@@ -122,7 +114,7 @@ func (e Errno) Error() string {
 			return s
 		}
 	}
-	return "errno " + itoa(int(e))
+	return "errno " + strconv.Itoa(int(e))
 }
 
 func (e Errno) Is(target error) bool {
@@ -133,6 +125,8 @@ func (e Errno) Is(target error) bool {
 		return e == EEXIST || e == ENOTEMPTY
 	case oserror.ErrNotExist:
 		return e == ENOENT
+	case errorspkg.ErrUnsupported:
+		return e == ENOSYS || e == ENOTSUP || e == EOPNOTSUPP
 	}
 	return false
 }
@@ -170,7 +164,7 @@ func errnoErr(e Errno) error {
 }
 
 // A Signal is a number describing a process signal.
-// It implements the os.Signal interface.
+// It implements the [os.Signal] interface.
 type Signal int
 
 func (s Signal) Signal() {}
@@ -182,7 +176,7 @@ func (s Signal) String() string {
 			return str
 		}
 	}
-	return "signal " + itoa(int(s))
+	return "signal " + strconv.Itoa(int(s))
 }
 
 func Read(fd int, p []byte) (n int, err error) {
@@ -195,8 +189,11 @@ func Read(fd int, p []byte) (n int, err error) {
 			race.Acquire(unsafe.Pointer(&ioSync))
 		}
 	}
-	if msanenabled && n > 0 {
-		msanWrite(unsafe.Pointer(&p[0]), n)
+	if msan.Enabled && n > 0 {
+		msan.Write(unsafe.Pointer(&p[0]), uintptr(n))
+	}
+	if asan.Enabled && n > 0 {
+		asan.Write(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	return
 }
@@ -216,14 +213,53 @@ func Write(fd int, p []byte) (n int, err error) {
 	if race.Enabled && n > 0 {
 		race.ReadRange(unsafe.Pointer(&p[0]), n)
 	}
-	if msanenabled && n > 0 {
-		msanRead(unsafe.Pointer(&p[0]), n)
+	if msan.Enabled && n > 0 {
+		msan.Read(unsafe.Pointer(&p[0]), uintptr(n))
+	}
+	if asan.Enabled && n > 0 {
+		asan.Read(unsafe.Pointer(&p[0]), uintptr(n))
+	}
+	return
+}
+
+func Pread(fd int, p []byte, offset int64) (n int, err error) {
+	n, err = pread(fd, p, offset)
+	if race.Enabled {
+		if n > 0 {
+			race.WriteRange(unsafe.Pointer(&p[0]), n)
+		}
+		if err == nil {
+			race.Acquire(unsafe.Pointer(&ioSync))
+		}
+	}
+	if msan.Enabled && n > 0 {
+		msan.Write(unsafe.Pointer(&p[0]), uintptr(n))
+	}
+	if asan.Enabled && n > 0 {
+		asan.Write(unsafe.Pointer(&p[0]), uintptr(n))
+	}
+	return
+}
+
+func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+	if race.Enabled {
+		race.ReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	n, err = pwrite(fd, p, offset)
+	if race.Enabled && n > 0 {
+		race.ReadRange(unsafe.Pointer(&p[0]), n)
+	}
+	if msan.Enabled && n > 0 {
+		msan.Read(unsafe.Pointer(&p[0]), uintptr(n))
+	}
+	if asan.Enabled && n > 0 {
+		asan.Read(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	return
 }
 
 // For testing: clients can set this flag to force
-// creation of IPv6 sockets to return EAFNOSUPPORT.
+// creation of IPv6 sockets to return [EAFNOSUPPORT].
 var SocketDisableIPv6 bool
 
 type Sockaddr interface {
@@ -292,12 +328,142 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
 	return
 }
 
-func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
+func recvfromInet4(fd int, p []byte, flags int, from *SockaddrInet4) (n int, err error) {
+	var rsa RawSockaddrAny
+	var socklen _Socklen = SizeofSockaddrAny
+	if n, err = recvfrom(fd, p, flags, &rsa, &socklen); err != nil {
+		return
+	}
+	pp := (*RawSockaddrInet4)(unsafe.Pointer(&rsa))
+	port := (*[2]byte)(unsafe.Pointer(&pp.Port))
+	from.Port = int(port[0])<<8 + int(port[1])
+	from.Addr = pp.Addr
+	return
+}
+
+func recvfromInet6(fd int, p []byte, flags int, from *SockaddrInet6) (n int, err error) {
+	var rsa RawSockaddrAny
+	var socklen _Socklen = SizeofSockaddrAny
+	if n, err = recvfrom(fd, p, flags, &rsa, &socklen); err != nil {
+		return
+	}
+	pp := (*RawSockaddrInet6)(unsafe.Pointer(&rsa))
+	port := (*[2]byte)(unsafe.Pointer(&pp.Port))
+	from.Port = int(port[0])<<8 + int(port[1])
+	from.ZoneId = pp.Scope_id
+	from.Addr = pp.Addr
+	return
+}
+
+func recvmsgInet4(fd int, p, oob []byte, flags int, from *SockaddrInet4) (n, oobn int, recvflags int, err error) {
+	var rsa RawSockaddrAny
+	n, oobn, recvflags, err = recvmsgRaw(fd, p, oob, flags, &rsa)
+	if err != nil {
+		return
+	}
+	pp := (*RawSockaddrInet4)(unsafe.Pointer(&rsa))
+	port := (*[2]byte)(unsafe.Pointer(&pp.Port))
+	from.Port = int(port[0])<<8 + int(port[1])
+	from.Addr = pp.Addr
+	return
+}
+
+func recvmsgInet6(fd int, p, oob []byte, flags int, from *SockaddrInet6) (n, oobn int, recvflags int, err error) {
+	var rsa RawSockaddrAny
+	n, oobn, recvflags, err = recvmsgRaw(fd, p, oob, flags, &rsa)
+	if err != nil {
+		return
+	}
+	pp := (*RawSockaddrInet6)(unsafe.Pointer(&rsa))
+	port := (*[2]byte)(unsafe.Pointer(&pp.Port))
+	from.Port = int(port[0])<<8 + int(port[1])
+	from.ZoneId = pp.Scope_id
+	from.Addr = pp.Addr
+	return
+}
+
+func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+	var rsa RawSockaddrAny
+	n, oobn, recvflags, err = recvmsgRaw(fd, p, oob, flags, &rsa)
+	if err != nil {
+		return
+	}
+	// source address is only specified if the socket is unconnected
+	if rsa.Addr.Family != AF_UNSPEC {
+		from, err = anyToSockaddr(&rsa)
+	}
+	return
+}
+
+func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+	_, err = SendmsgN(fd, p, oob, to, flags)
+	return
+}
+
+func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return 0, err
+		}
+	}
+	return sendmsgN(fd, p, oob, ptr, salen, flags)
+}
+
+func sendmsgNInet4(fd int, p, oob []byte, to *SockaddrInet4, flags int) (n int, err error) {
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return 0, err
+		}
+	}
+	return sendmsgN(fd, p, oob, ptr, salen, flags)
+}
+
+func sendmsgNInet6(fd int, p, oob []byte, to *SockaddrInet6, flags int) (n int, err error) {
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return 0, err
+		}
+	}
+	return sendmsgN(fd, p, oob, ptr, salen, flags)
+}
+
+func sendtoInet4(fd int, p []byte, flags int, to *SockaddrInet4) (err error) {
 	ptr, n, err := to.sockaddr()
 	if err != nil {
 		return err
 	}
 	return sendto(fd, p, flags, ptr, n)
+}
+
+func sendtoInet6(fd int, p []byte, flags int, to *SockaddrInet6) (err error) {
+	ptr, n, err := to.sockaddr()
+	if err != nil {
+		return err
+	}
+	return sendto(fd, p, flags, ptr, n)
+}
+
+func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
+	var (
+		ptr   unsafe.Pointer
+		salen _Socklen
+	)
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return err
+		}
+	}
+	return sendto(fd, p, flags, ptr, salen)
 }
 
 func SetsockoptByte(fd, level, opt int, value byte) (err error) {
@@ -359,6 +525,22 @@ func Socketpair(domain, typ, proto int) (fd [2]int, err error) {
 	return
 }
 
+// Sendfile copies up to count bytes from file descriptor infd to file descriptor outfd.
+//
+// It wraps the sendfile system call. The behavior varies by operating system,
+// particularly regarding the offset argument and how partial writes are reported.
+//
+// On Linux, if offset is nil, Sendfile uses and updates the current file
+// position of infd. If offset is non-nil, the current file position is
+// unchanged, and the offset pointer is updated to reflect the bytes written.
+// A non-nil error typically implies that no bytes were written.
+//
+// On BSD-derived systems (including macOS), if offset is nil, Sendfile panics.
+// The offset argument is not updated by the system call; the caller must manually
+// update the offset using the number of bytes written. These systems may
+// return a non-zero byte count together with an error (for example, EAGAIN).
+//
+// For precise semantics, see the system documentation (e.g., man 2 sendfile).
 func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
 	if race.Enabled {
 		race.ReleaseMerge(unsafe.Pointer(&ioSync))

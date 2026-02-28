@@ -8,7 +8,9 @@ package xcoff
 import (
 	"debug/dwarf"
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"internal/saferio"
 	"io"
 	"os"
 	"strings"
@@ -167,12 +169,12 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	f.TargetMachine = magic
 
 	// Read XCOFF file header
-	if _, err := sr.Seek(0, os.SEEK_SET); err != nil {
+	if _, err := sr.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
 	var nscns uint16
 	var symptr uint64
-	var nsyms int32
+	var nsyms uint32
 	var opthdr uint16
 	var hdrsz int
 	switch f.TargetMachine {
@@ -204,7 +206,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 
 	// Read string table (located right after symbol table).
 	offset := symptr + uint64(nsyms)*SYMESZ
-	if _, err := sr.Seek(int64(offset), os.SEEK_SET); err != nil {
+	if _, err := sr.Seek(int64(offset), io.SeekStart); err != nil {
 		return nil, err
 	}
 	// The first 4 bytes contain the length (in bytes).
@@ -213,20 +215,22 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		return nil, err
 	}
 	if l > 4 {
-		if _, err := sr.Seek(int64(offset), os.SEEK_SET); err != nil {
+		st, err := saferio.ReadDataAt(sr, uint64(l), int64(offset))
+		if err != nil {
 			return nil, err
 		}
-		f.StringTable = make([]byte, l)
-		if _, err := io.ReadFull(sr, f.StringTable); err != nil {
-			return nil, err
-		}
+		f.StringTable = st
 	}
 
 	// Read section headers
-	if _, err := sr.Seek(int64(hdrsz)+int64(opthdr), os.SEEK_SET); err != nil {
+	if _, err := sr.Seek(int64(hdrsz)+int64(opthdr), io.SeekStart); err != nil {
 		return nil, err
 	}
-	f.Sections = make([]*Section, nscns)
+	c := saferio.SliceCap[*Section](uint64(nscns))
+	if c < 0 {
+		return nil, fmt.Errorf("too many XCOFF sections (%d)", nscns)
+	}
+	f.Sections = make([]*Section, 0, c)
 	for i := 0; i < int(nscns); i++ {
 		var scnptr uint64
 		s := new(Section)
@@ -258,18 +262,18 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		}
 		r2 := r
 		if scnptr == 0 { // .bss must have all 0s
-			r2 = zeroReaderAt{}
+			r2 = &nobitsSectionReader{}
 		}
 		s.sr = io.NewSectionReader(r2, int64(scnptr), int64(s.Size))
 		s.ReaderAt = s.sr
-		f.Sections[i] = s
+		f.Sections = append(f.Sections, s)
 	}
 
 	// Symbol map needed by relocation
 	var idxToSym = make(map[int]*Symbol)
 
 	// Read symbol table
-	if _, err := sr.Seek(int64(symptr), os.SEEK_SET); err != nil {
+	if _, err := sr.Seek(int64(symptr), io.SeekStart); err != nil {
 		return nil, err
 	}
 	f.Symbols = make([]*Symbol, 0)
@@ -355,7 +359,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 
 		// Read csect auxiliary entry (by convention, it is the last).
 		if !needAuxFcn {
-			if _, err := sr.Seek(int64(numaux-1)*SYMESZ, os.SEEK_CUR); err != nil {
+			if _, err := sr.Seek(int64(numaux-1)*SYMESZ, io.SeekCurrent); err != nil {
 				return nil, err
 			}
 		}
@@ -382,41 +386,46 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		f.Symbols = append(f.Symbols, sym)
 	skip:
 		i += numaux // Skip auxiliary entries
-		if _, err := sr.Seek(int64(numaux)*SYMESZ, os.SEEK_CUR); err != nil {
+		if _, err := sr.Seek(int64(numaux)*SYMESZ, io.SeekCurrent); err != nil {
 			return nil, err
 		}
 	}
 
 	// Read relocations
 	// Only for .data or .text section
-	for _, sect := range f.Sections {
+	for sectNum, sect := range f.Sections {
 		if sect.Type != STYP_TEXT && sect.Type != STYP_DATA {
 			continue
 		}
-		sect.Relocs = make([]Reloc, sect.Nreloc)
 		if sect.Relptr == 0 {
 			continue
 		}
-		if _, err := sr.Seek(int64(sect.Relptr), os.SEEK_SET); err != nil {
+		c := saferio.SliceCap[Reloc](uint64(sect.Nreloc))
+		if c < 0 {
+			return nil, fmt.Errorf("too many relocs (%d) for section %d", sect.Nreloc, sectNum)
+		}
+		sect.Relocs = make([]Reloc, 0, c)
+		if _, err := sr.Seek(int64(sect.Relptr), io.SeekStart); err != nil {
 			return nil, err
 		}
 		for i := uint32(0); i < sect.Nreloc; i++ {
+			var reloc Reloc
 			switch f.TargetMachine {
 			case U802TOCMAGIC:
 				rel := new(Reloc32)
 				if err := binary.Read(sr, binary.BigEndian, rel); err != nil {
 					return nil, err
 				}
-				sect.Relocs[i].VirtualAddress = uint64(rel.Rvaddr)
-				sect.Relocs[i].Symbol = idxToSym[int(rel.Rsymndx)]
-				sect.Relocs[i].Type = rel.Rtype
-				sect.Relocs[i].Length = rel.Rsize&0x3F + 1
+				reloc.VirtualAddress = uint64(rel.Rvaddr)
+				reloc.Symbol = idxToSym[int(rel.Rsymndx)]
+				reloc.Type = rel.Rtype
+				reloc.Length = rel.Rsize&0x3F + 1
 
 				if rel.Rsize&0x80 != 0 {
-					sect.Relocs[i].Signed = true
+					reloc.Signed = true
 				}
 				if rel.Rsize&0x40 != 0 {
-					sect.Relocs[i].InstructionFixed = true
+					reloc.InstructionFixed = true
 				}
 
 			case U64_TOCMAGIC:
@@ -424,32 +433,29 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				if err := binary.Read(sr, binary.BigEndian, rel); err != nil {
 					return nil, err
 				}
-				sect.Relocs[i].VirtualAddress = rel.Rvaddr
-				sect.Relocs[i].Symbol = idxToSym[int(rel.Rsymndx)]
-				sect.Relocs[i].Type = rel.Rtype
-				sect.Relocs[i].Length = rel.Rsize&0x3F + 1
+				reloc.VirtualAddress = rel.Rvaddr
+				reloc.Symbol = idxToSym[int(rel.Rsymndx)]
+				reloc.Type = rel.Rtype
+				reloc.Length = rel.Rsize&0x3F + 1
 				if rel.Rsize&0x80 != 0 {
-					sect.Relocs[i].Signed = true
+					reloc.Signed = true
 				}
 				if rel.Rsize&0x40 != 0 {
-					sect.Relocs[i].InstructionFixed = true
+					reloc.InstructionFixed = true
 				}
 			}
+
+			sect.Relocs = append(sect.Relocs, reloc)
 		}
 	}
 
 	return f, nil
 }
 
-// zeroReaderAt is ReaderAt that reads 0s.
-type zeroReaderAt struct{}
+type nobitsSectionReader struct{}
 
-// ReadAt writes len(p) 0s into p.
-func (w zeroReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
-	for i := range p {
-		p[i] = 0
-	}
-	return len(p), nil
+func (*nobitsSectionReader) ReadAt(p []byte, off int64) (n int, err error) {
+	return 0, errors.New("unexpected read from section with uninitialized data")
 }
 
 // Data reads and returns the contents of the XCOFF section s.
@@ -508,11 +514,11 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 // Library name pattern is either path/base/member or base/member
 func (f *File) readImportIDs(s *Section) ([]string, error) {
 	// Read loader header
-	if _, err := s.sr.Seek(0, os.SEEK_SET); err != nil {
+	if _, err := s.sr.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
 	var istlen uint32
-	var nimpid int32
+	var nimpid uint32
 	var impoff uint64
 	switch f.TargetMachine {
 	case U802TOCMAGIC:
@@ -534,7 +540,7 @@ func (f *File) readImportIDs(s *Section) ([]string, error) {
 	}
 
 	// Read loader import file ID table
-	if _, err := s.sr.Seek(int64(impoff), os.SEEK_SET); err != nil {
+	if _, err := s.sr.Seek(int64(impoff), io.SeekStart); err != nil {
 		return nil, err
 	}
 	table := make([]byte, istlen)
@@ -577,12 +583,12 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
 		return nil, nil
 	}
 	// Read loader header
-	if _, err := s.sr.Seek(0, os.SEEK_SET); err != nil {
+	if _, err := s.sr.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
 	var stlen uint32
 	var stoff uint64
-	var nsyms int32
+	var nsyms uint32
 	var symoff uint64
 	switch f.TargetMachine {
 	case U802TOCMAGIC:
@@ -606,7 +612,7 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
 	}
 
 	// Read loader section string table
-	if _, err := s.sr.Seek(int64(stoff), os.SEEK_SET); err != nil {
+	if _, err := s.sr.Seek(int64(stoff), io.SeekStart); err != nil {
 		return nil, err
 	}
 	st := make([]byte, stlen)
@@ -621,13 +627,13 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
 	}
 
 	// Read loader symbol table
-	if _, err := s.sr.Seek(int64(symoff), os.SEEK_SET); err != nil {
+	if _, err := s.sr.Seek(int64(symoff), io.SeekStart); err != nil {
 		return nil, err
 	}
 	all := make([]ImportedSymbol, 0)
 	for i := 0; i < int(nsyms); i++ {
 		var name string
-		var ifile int32
+		var ifile uint32
 		var ok bool
 		switch f.TargetMachine {
 		case U802TOCMAGIC:

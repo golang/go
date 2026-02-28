@@ -5,12 +5,10 @@
 package ssa_test
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,11 +32,11 @@ var (
 
 var (
 	hexRe                 = regexp.MustCompile("0x[a-zA-Z0-9]+")
-	numRe                 = regexp.MustCompile("-?[0-9]+")
-	stringRe              = regexp.MustCompile("\"([^\\\"]|(\\.))*\"")
-	leadingDollarNumberRe = regexp.MustCompile("^[$][0-9]+")
+	numRe                 = regexp.MustCompile(`-?\d+`)
+	stringRe              = regexp.MustCompile(`([^\"]|(\.))*`)
+	leadingDollarNumberRe = regexp.MustCompile(`^[$]\d+`)
 	optOutGdbRe           = regexp.MustCompile("[<]optimized out[>]")
-	numberColonRe         = regexp.MustCompile("^ *[0-9]+:")
+	numberColonRe         = regexp.MustCompile(`^ *\d+:`)
 )
 
 var gdb = "gdb"      // Might be "ggdb" on Darwin, because gdb no longer part of XCode
@@ -49,11 +47,11 @@ var gogcflags = os.Getenv("GO_GCFLAGS")
 // optimizedLibs usually means "not running in a noopt test builder".
 var optimizedLibs = (!strings.Contains(gogcflags, "-N") && !strings.Contains(gogcflags, "-l"))
 
-// TestNexting go-builds a file, then uses a debugger (default gdb, optionally delve)
+// TestNexting go-builds a file, then uses a debugger (default delve, optionally gdb)
 // to next through the generated executable, recording each line landed at, and
 // then compares those lines with reference file(s).
 // Flag -u updates the reference file(s).
-// Flag -d changes the debugger to delve (and uses delve-specific reference files)
+// Flag -g changes the debugger to gdb (and uses gdb-specific reference files)
 // Flag -v is ever-so-slightly verbose.
 // Flag -n is for dry-run, and prints the shell and first debug commands.
 //
@@ -83,9 +81,9 @@ var optimizedLibs = (!strings.Contains(gogcflags, "-N") && !strings.Contains(gog
 // to indicate normalization of Strings, (hex) addresses, and numbers.
 // "O" is an explicit indication that we expect it to be optimized out.
 // For example:
-/*
-	if len(os.Args) > 1 { //gdb-dbg=(hist/A,cannedInput/A) //dlv-dbg=(hist/A,cannedInput/A)
-*/
+//
+//	if len(os.Args) > 1 { //gdb-dbg=(hist/A,cannedInput/A) //dlv-dbg=(hist/A,cannedInput/A)
+//
 // TODO: not implemented for Delve yet, but this is the plan
 //
 // After a compiler change that causes a difference in the debug behavior, check
@@ -93,8 +91,9 @@ var optimizedLibs = (!strings.Contains(gogcflags, "-N") && !strings.Contains(gog
 // go test debug_test.go -args -u
 // (for Delve)
 // go test debug_test.go -args -u -d
-
 func TestNexting(t *testing.T) {
+	testenv.SkipFlaky(t, 37404)
+
 	skipReasons := "" // Many possible skip reasons, list all that apply
 	if testing.Short() {
 		skipReasons = "not run in short mode; "
@@ -108,7 +107,13 @@ func TestNexting(t *testing.T) {
 		// Various architectures tend to differ slightly sometimes, and keeping them
 		// all in sync is a pain for people who don't have them all at hand,
 		// so limit testing to amd64 (for now)
-		skipReasons += "not run when testing gdb (-g) unless forced (-f) or linux-amd64"
+		skipReasons += "not run when testing gdb (-g) unless forced (-f) or linux-amd64; "
+	}
+
+	if !*useGdb && !*force && testenv.Builder() == "linux-386-longtest" {
+		// The latest version of Delve does support linux/386. However, the version currently
+		// installed in the linux-386-longtest builder does not. See golang.org/issue/39309.
+		skipReasons += "not run when testing delve on linux-386-longtest builder unless forced (-f); "
 	}
 
 	if *useGdb {
@@ -187,7 +192,7 @@ func skipSubTest(t *testing.T, tag string, basename string, gcflags string, coun
 		if *force {
 			testNexting(t, basename, tag, gcflags, count, moreargs...)
 		} else {
-			t.Skip("skipping flaky test becaused not forced (-f)")
+			t.Skip("skipping flaky test because not forced (-f)")
 		}
 	})
 }
@@ -217,15 +222,11 @@ func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ..
 
 	// Use a temporary directory unless -f is specified
 	if !*force {
-		tmpdir, err := ioutil.TempDir("", "debug_test")
-		if err != nil {
-			panic(fmt.Sprintf("Problem creating TempDir, error %v\n", err))
-		}
+		tmpdir := t.TempDir()
 		tmpbase = filepath.Join(tmpdir, "test-"+base+"."+tag)
 		if *verbose {
 			fmt.Printf("Tempdir is %s\n", tmpdir)
 		}
-		defer os.RemoveAll(tmpdir)
 	}
 	exe := tmpbase
 
@@ -239,9 +240,9 @@ func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ..
 	tmplog := tmpbase + ".nexts"
 	var dbg dbgr
 	if *useGdb {
-		dbg = newGdb(tag, exe)
+		dbg = newGdb(t, tag, exe)
 	} else {
-		dbg = newDelve(tag, exe)
+		dbg = newDelve(t, tag, exe)
 	}
 	h1 := runDbgr(dbg, count)
 	if *dryrun {
@@ -256,7 +257,7 @@ func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ..
 		if !h0.equals(h1) {
 			// Be very noisy about exactly what's wrong to simplify debugging.
 			h1.write(tmplog)
-			cmd := exec.Command("diff", "-u", nextlog, tmplog)
+			cmd := testenv.Command(t, "diff", "-u", nextlog, tmplog)
 			line := asCommandLine("", cmd)
 			bytes, err := cmd.CombinedOutput()
 			if err != nil && len(bytes) == 0 {
@@ -291,8 +292,8 @@ func runDbgr(dbg dbgr, maxNext int) *nextHist {
 }
 
 func runGo(t *testing.T, dir string, args ...string) string {
-	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(testenv.GoToolPath(t), args...)
+	var stdout, stderr strings.Builder
+	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 	cmd.Dir = dir
 	if *dryrun {
 		fmt.Printf("%s\n", asCommandLine("", cmd))
@@ -360,7 +361,7 @@ func (h *nextHist) write(filename string) {
 
 func (h *nextHist) read(filename string) {
 	h.f2i = make(map[string]uint8)
-	bytes, err := ioutil.ReadFile(filename)
+	bytes, err := os.ReadFile(filename)
 	if err != nil {
 		panic(fmt.Sprintf("Problem reading %s, error %v\n", filename, err))
 	}
@@ -496,8 +497,8 @@ type delveState struct {
 	function         string
 }
 
-func newDelve(tag, executable string, args ...string) dbgr {
-	cmd := exec.Command("dlv", "exec", executable)
+func newDelve(t testing.TB, tag, executable string, args ...string) dbgr {
+	cmd := testenv.Command(t, "dlv", "exec", executable)
 	cmd.Env = replaceEnv(cmd.Env, "TERM", "dumb")
 	if len(args) > 0 {
 		cmd.Args = append(cmd.Args, "--")
@@ -581,16 +582,16 @@ type gdbState struct {
 	function         string
 }
 
-func newGdb(tag, executable string, args ...string) dbgr {
+func newGdb(t testing.TB, tag, executable string, args ...string) dbgr {
 	// Turn off shell, necessary for Darwin apparently
-	cmd := exec.Command(gdb, "-nx",
+	cmd := testenv.Command(t, gdb, "-nx",
 		"-iex", fmt.Sprintf("add-auto-load-safe-path %s/src/runtime", runtime.GOROOT()),
 		"-ex", "set startup-with-shell off", executable)
 	cmd.Env = replaceEnv(cmd.Env, "TERM", "dumb")
 	s := &gdbState{tagg: tag, cmd: cmd, args: args}
 	s.atLineRe = regexp.MustCompile("(^|\n)([0-9]+)(.*)")
 	s.funcFileLinePCre = regexp.MustCompile(
-		"([^ ]+) [(][^)]*[)][ \\t\\n]+at ([^:]+):([0-9]+)")
+		`([^ ]+) [(][^)]*[)][ \t\n]+at ([^:]+):([0-9]+)`)
 	// runtime.main () at /Users/drchase/GoogleDrive/work/go/src/runtime/proc.go:201
 	//                                    function              file    line
 	// Thread 2 hit Breakpoint 1, main.main () at /Users/drchase/GoogleDrive/work/debug/hist.go:18
@@ -693,7 +694,7 @@ func printVariableAndNormalize(v string, printer func(v string) string) string {
 	if dollar == -1 { // some not entirely expected response, whine and carry on.
 		if cr == -1 {
 			response = strings.TrimSpace(response) // discards trailing newline
-			response = strings.Replace(response, "\n", "<BR>", -1)
+			response = strings.ReplaceAll(response, "\n", "<BR>")
 			return "$ Malformed response " + response
 		}
 		response = strings.TrimSpace(response[:cr])
@@ -944,6 +945,9 @@ func (s *ioState) readSimpleExpecting(expectedRE string) tstring {
 // replaceEnv returns a new environment derived from env
 // by removing any existing definition of ev and adding ev=evv.
 func replaceEnv(env []string, ev string, evv string) []string {
+	if env == nil {
+		env = os.Environ()
+	}
 	evplus := ev + "="
 	var found bool
 	for i, v := range env {
@@ -982,8 +986,8 @@ func asCommandLine(cwd string, cmd *exec.Cmd) string {
 
 // escape inserts escapes appropriate for use in a shell command line
 func escape(s string) string {
-	s = strings.Replace(s, "\\", "\\\\", -1)
-	s = strings.Replace(s, "'", "\\'", -1)
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "'", "\\'")
 	// Conservative guess at characters that will force quoting
 	if strings.ContainsAny(s, "\\ ;#*&$~?!|[]()<>{}`") {
 		s = " '" + s + "'"

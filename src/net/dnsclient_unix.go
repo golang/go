@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
-
 // DNS client: see RFC 1035.
 // Has to be linked into package net for Dial.
 
@@ -17,10 +15,15 @@ package net
 import (
 	"context"
 	"errors"
+	"internal/bytealg"
+	"internal/godebug"
+	"internal/strconv"
+	"internal/stringslite"
 	"io"
-	"math/rand"
 	"os"
+	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/dns/dnsmessage"
@@ -30,6 +33,10 @@ const (
 	// to be used as a useTCP parameter to exchange
 	useTCPOnly  = true
 	useUDPOrTCP = false
+
+	// Maximum DNS packet size.
+	// Value taken from https://dnsflagday.net/2020/.
+	maxDNSPacketSize = 1232
 )
 
 var (
@@ -43,25 +50,47 @@ var (
 	// errServerTemporarilyMisbehaving is like errServerMisbehaving, except
 	// that when it gets translated to a DNSError, the IsTemporary field
 	// gets set to true.
-	errServerTemporarilyMisbehaving = errors.New("server misbehaving")
+	errServerTemporarilyMisbehaving = &temporaryError{"server misbehaving"}
 )
 
-func newRequest(q dnsmessage.Question) (id uint16, udpReq, tcpReq []byte, err error) {
-	id = uint16(rand.Int()) ^ uint16(time.Now().UnixNano())
-	b := dnsmessage.NewBuilder(make([]byte, 2, 514), dnsmessage.Header{ID: id, RecursionDesired: true})
-	b.EnableCompression()
+// netedns0 controls whether we send an EDNS0 additional header.
+var netedns0 = godebug.New("netedns0")
+
+func newRequest(q dnsmessage.Question, ad bool) (id uint16, udpReq, tcpReq []byte, err error) {
+	id = uint16(randInt())
+	b := dnsmessage.NewBuilder(make([]byte, 2, 514), dnsmessage.Header{ID: id, RecursionDesired: true, AuthenticData: ad})
 	if err := b.StartQuestions(); err != nil {
 		return 0, nil, nil, err
 	}
 	if err := b.Question(q); err != nil {
 		return 0, nil, nil, err
 	}
+
+	if netedns0.Value() == "0" {
+		netedns0.IncNonDefault()
+	} else {
+		// Accept packets up to maxDNSPacketSize.  RFC 6891.
+		if err := b.StartAdditionals(); err != nil {
+			return 0, nil, nil, err
+		}
+		var rh dnsmessage.ResourceHeader
+		if err := rh.SetEDNS0(maxDNSPacketSize, dnsmessage.RCodeSuccess, false); err != nil {
+			return 0, nil, nil, err
+		}
+		if err := b.OPTResource(rh, dnsmessage.OPTResource{}); err != nil {
+			return 0, nil, nil, err
+		}
+	}
+
 	tcpReq, err = b.Finish()
+	if err != nil {
+		return 0, nil, nil, err
+	}
 	udpReq = tcpReq[2:]
 	l := len(tcpReq) - 2
 	tcpReq[0] = byte(l >> 8)
 	tcpReq[1] = byte(l)
-	return id, udpReq, tcpReq, err
+	return id, udpReq, tcpReq, nil
 }
 
 func checkResponse(reqID uint16, reqQues dnsmessage.Question, respHdr dnsmessage.Header, respQues dnsmessage.Question) bool {
@@ -82,7 +111,7 @@ func dnsPacketRoundTrip(c Conn, id uint16, query dnsmessage.Question, b []byte) 
 		return dnsmessage.Parser{}, dnsmessage.Header{}, err
 	}
 
-	b = make([]byte, 512) // see RFC 1035
+	b = make([]byte, maxDNSPacketSize)
 	for {
 		n, err := c.Read(b)
 		if err != nil {
@@ -137,9 +166,9 @@ func dnsStreamRoundTrip(c Conn, id uint16, query dnsmessage.Question, b []byte) 
 }
 
 // exchange sends a query on the connection and hopes for a response.
-func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Question, timeout time.Duration, useTCP bool) (dnsmessage.Parser, dnsmessage.Header, error) {
+func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Question, timeout time.Duration, useTCP, ad bool) (dnsmessage.Parser, dnsmessage.Header, error) {
 	q.Class = dnsmessage.ClassINET
-	id, udpReq, tcpReq, err := newRequest(q)
+	id, udpReq, tcpReq, err := newRequest(q, ad)
 	if err != nil {
 		return dnsmessage.Parser{}, dnsmessage.Header{}, errCannotMarshalDNSMessage
 	}
@@ -174,7 +203,14 @@ func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Que
 		if err := p.SkipQuestion(); err != dnsmessage.ErrSectionDone {
 			return dnsmessage.Parser{}, dnsmessage.Header{}, errInvalidDNSResponse
 		}
-		if h.Truncated { // see RFC 5966
+		// RFC 5966 indicates that when a client receives a UDP response with
+		// the TC flag set, it should take the TC flag as an indication that it
+		// should retry over TCP instead.
+		// The case when the TC flag is set in a TCP response is not well specified,
+		// so this implements the glibc resolver behavior, returning the existing
+		// dns response instead of returning a "errNoAnswerFromDNSServer" error.
+		// See go.dev/issue/64896
+		if h.Truncated && network == "udp" {
 			continue
 		}
 		return p, h, nil
@@ -184,7 +220,9 @@ func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Que
 
 // checkHeader performs basic sanity checks on the header.
 func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
-	if h.RCode == dnsmessage.RCodeNameError {
+	rcode, hasAdd := extractExtendedRCode(*p, h)
+
+	if rcode == dnsmessage.RCodeNameError {
 		return errNoSuchHost
 	}
 
@@ -195,17 +233,17 @@ func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
 
 	// libresolv continues to the next server when it receives
 	// an invalid referral response. See golang.org/issue/15434.
-	if h.RCode == dnsmessage.RCodeSuccess && !h.Authoritative && !h.RecursionAvailable && err == dnsmessage.ErrSectionDone {
+	if rcode == dnsmessage.RCodeSuccess && !h.Authoritative && !h.RecursionAvailable && err == dnsmessage.ErrSectionDone && !hasAdd {
 		return errLameReferral
 	}
 
-	if h.RCode != dnsmessage.RCodeSuccess && h.RCode != dnsmessage.RCodeNameError {
+	if rcode != dnsmessage.RCodeSuccess && rcode != dnsmessage.RCodeNameError {
 		// None of the error codes make sense
 		// for the query we sent. If we didn't get
 		// a name error and we didn't get success,
 		// the server is behaving incorrectly or
 		// having temporary trouble.
-		if h.RCode == dnsmessage.RCodeServerFailure {
+		if rcode == dnsmessage.RCodeServerFailure {
 			return errServerTemporarilyMisbehaving
 		}
 		return errServerMisbehaving
@@ -232,6 +270,28 @@ func skipToAnswer(p *dnsmessage.Parser, qtype dnsmessage.Type) error {
 	}
 }
 
+// extractExtendedRCode extracts the extended RCode from the OPT resource (EDNS(0))
+// If an OPT record is not found, the RCode from the hdr is returned.
+// Another return value indicates whether an additional resource was found.
+func extractExtendedRCode(p dnsmessage.Parser, hdr dnsmessage.Header) (dnsmessage.RCode, bool) {
+	p.SkipAllAnswers()
+	p.SkipAllAuthorities()
+	hasAdd := false
+	for {
+		ahdr, err := p.AdditionalHeader()
+		if err != nil {
+			return hdr.RCode, hasAdd
+		}
+		hasAdd = true
+		if ahdr.Type == dnsmessage.TypeOPT {
+			return ahdr.ExtendedRCode(hdr.RCode), hasAdd
+		}
+		if err := p.SkipAdditional(); err != nil {
+			return hdr.RCode, hasAdd
+		}
+	}
+}
+
 // Do a lookup for a single name, which must be rooted
 // (otherwise answer will not find the answers).
 func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, qtype dnsmessage.Type) (dnsmessage.Parser, string, error) {
@@ -241,7 +301,7 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 
 	n, err := dnsmessage.NewName(name)
 	if err != nil {
-		return dnsmessage.Parser{}, "", errCannotMarshalDNSMessage
+		return dnsmessage.Parser{}, "", &DNSError{Err: errCannotMarshalDNSMessage.Error(), Name: name}
 	}
 	q := dnsmessage.Question{
 		Name:  n,
@@ -253,16 +313,9 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 		for j := uint32(0); j < sLen; j++ {
 			server := cfg.servers[(serverOffset+j)%sLen]
 
-			p, h, err := r.exchange(ctx, server, q, cfg.timeout, cfg.useTCP)
+			p, h, err := r.exchange(ctx, server, q, cfg.timeout, cfg.useTCP, cfg.trustAD)
 			if err != nil {
-				dnsErr := &DNSError{
-					Err:    err.Error(),
-					Name:   name,
-					Server: server,
-				}
-				if nerr, ok := err.(Error); ok && nerr.Timeout() {
-					dnsErr.IsTimeout = true
-				}
+				dnsErr := newDNSError(err, name, server)
 				// Set IsTemporary for socket-level errors. Note that this flag
 				// may also be used to indicate a SERVFAIL response.
 				if _, ok := err.(*OpError); ok {
@@ -273,41 +326,26 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, 
 			}
 
 			if err := checkHeader(&p, h); err != nil {
-				dnsErr := &DNSError{
-					Err:    err.Error(),
-					Name:   name,
-					Server: server,
-				}
-				if err == errServerTemporarilyMisbehaving {
-					dnsErr.IsTemporary = true
-				}
 				if err == errNoSuchHost {
 					// The name does not exist, so trying
 					// another server won't help.
-
-					dnsErr.IsNotFound = true
-					return p, server, dnsErr
+					return p, server, newDNSError(errNoSuchHost, name, server)
 				}
-				lastErr = dnsErr
+				lastErr = newDNSError(err, name, server)
 				continue
 			}
 
-			err = skipToAnswer(&p, qtype)
-			if err == nil {
-				return p, server, nil
+			if err := skipToAnswer(&p, qtype); err != nil {
+				if err == errNoSuchHost {
+					// The name does not exist, so trying
+					// another server won't help.
+					return p, server, newDNSError(errNoSuchHost, name, server)
+				}
+				lastErr = newDNSError(err, name, server)
+				continue
 			}
-			lastErr = &DNSError{
-				Err:    err.Error(),
-				Name:   name,
-				Server: server,
-			}
-			if err == errNoSuchHost {
-				// The name does not exist, so trying another
-				// server won't help.
 
-				lastErr.(*DNSError).IsNotFound = true
-				return p, server, lastErr
-			}
+			return p, server, nil
 		}
 	}
 	return dnsmessage.Parser{}, "", lastErr
@@ -322,20 +360,21 @@ type resolverConfig struct {
 	ch          chan struct{} // guards lastChecked and modTime
 	lastChecked time.Time     // last time resolv.conf was checked
 
-	mu        sync.RWMutex // protects dnsConfig
-	dnsConfig *dnsConfig   // parsed resolv.conf structure used in lookups
+	dnsConfig atomic.Pointer[dnsConfig] // parsed resolv.conf structure used in lookups
 }
 
 var resolvConf resolverConfig
+
+func getSystemDNSConfig() *dnsConfig {
+	resolvConf.tryUpdate("/etc/resolv.conf")
+	return resolvConf.dnsConfig.Load()
+}
 
 // init initializes conf and is only called via conf.initOnce.
 func (conf *resolverConfig) init() {
 	// Set dnsConfig and lastChecked so we don't parse
 	// resolv.conf twice the first time.
-	conf.dnsConfig = systemConf().resolv
-	if conf.dnsConfig == nil {
-		conf.dnsConfig = dnsReadConfig("/etc/resolv.conf")
-	}
+	conf.dnsConfig.Store(dnsReadConfig("/etc/resolv.conf"))
 	conf.lastChecked = time.Now()
 
 	// Prepare ch so that only one update of resolverConfig may
@@ -343,11 +382,30 @@ func (conf *resolverConfig) init() {
 	conf.ch = make(chan struct{}, 1)
 }
 
+// distantFuture is a sentinel time used for tests to signal that
+// resolv.conf should not be rechecked.
+var distantFuture = time.Date(3000, 1, 2, 3, 4, 5, 6, time.UTC)
+
 // tryUpdate tries to update conf with the named resolv.conf file.
 // The name variable only exists for testing. It is otherwise always
 // "/etc/resolv.conf".
 func (conf *resolverConfig) tryUpdate(name string) {
 	conf.initOnce.Do(conf.init)
+
+	dc := conf.dnsConfig.Load()
+
+	// Currently we should never have a config that does not have any
+	// available servers to query, since in such cases the servers field
+	// is set to [defaultNS], see dnsReadConfig.
+	// This assertion main purpose is for testing, such that we never set
+	// the mocked dnsConfig in such way.
+	if len(dc.servers) == 0 {
+		panic("unreachable")
+	}
+
+	if dc.noReload {
+		return
+	}
 
 	// Ensure only one update at a time checks resolv.conf.
 	if !conf.tryAcquireSema() {
@@ -356,23 +414,31 @@ func (conf *resolverConfig) tryUpdate(name string) {
 	defer conf.releaseSema()
 
 	now := time.Now()
-	if conf.lastChecked.After(now.Add(-5 * time.Second)) {
+	if (len(dc.servers) > 0 && conf.lastChecked.After(now.Add(-5*time.Second))) ||
+		conf.lastChecked == distantFuture {
 		return
 	}
 	conf.lastChecked = now
 
-	var mtime time.Time
-	if fi, err := os.Stat(name); err == nil {
-		mtime = fi.ModTime()
-	}
-	if mtime.Equal(conf.dnsConfig.mtime) {
-		return
+	switch runtime.GOOS {
+	case "windows":
+		// There's no file on disk, so don't bother checking
+		// and failing.
+		//
+		// The Windows implementation of dnsReadConfig (called
+		// below) ignores the name.
+	default:
+		var mtime time.Time
+		if fi, err := os.Stat(name); err == nil {
+			mtime = fi.ModTime()
+		}
+		if mtime.Equal(conf.dnsConfig.Load().mtime) {
+			return
+		}
 	}
 
 	dnsConf := dnsReadConfig(name)
-	conf.mu.Lock()
-	conf.dnsConfig = dnsConf
-	conf.mu.Unlock()
+	conf.dnsConfig.Store(dnsConf)
 }
 
 func (conf *resolverConfig) tryAcquireSema() bool {
@@ -388,19 +454,20 @@ func (conf *resolverConfig) releaseSema() {
 	<-conf.ch
 }
 
-func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Type) (dnsmessage.Parser, string, error) {
+func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Type, conf *dnsConfig) (dnsmessage.Parser, string, error) {
 	if !isDomainName(name) {
 		// We used to use "invalid domain name" as the error,
 		// but that is a detail of the specific lookup mechanism.
 		// Other lookups might allow broader name syntax
 		// (for example Multicast DNS allows UTF-8; see RFC 6762).
 		// For consistency with libc resolvers, report no such host.
-		return dnsmessage.Parser{}, "", &DNSError{Err: errNoSuchHost.Error(), Name: name, IsNotFound: true}
+		return dnsmessage.Parser{}, "", newDNSError(errNoSuchHost, name, "")
 	}
-	resolvConf.tryUpdate("/etc/resolv.conf")
-	resolvConf.mu.RLock()
-	conf := resolvConf.dnsConfig
-	resolvConf.mu.RUnlock()
+
+	if conf == nil {
+		conf = getSystemDNSConfig()
+	}
+
 	var (
 		p      dnsmessage.Parser
 		server string
@@ -437,48 +504,44 @@ func avoidDNS(name string) bool {
 	if name == "" {
 		return true
 	}
-	if name[len(name)-1] == '.' {
-		name = name[:len(name)-1]
-	}
+	name = stringslite.TrimSuffix(name, ".")
 	return stringsHasSuffixFold(name, ".onion")
 }
 
 // nameList returns a list of names for sequential DNS queries.
 func (conf *dnsConfig) nameList(name string) []string {
-	if avoidDNS(name) {
-		return nil
-	}
-
 	// Check name length (see isDomainName).
-	l := len(name)
-	rooted := l > 0 && name[l-1] == '.'
-	if l > 254 || l == 254 && rooted {
+	rooted := len(name) > 0 && name[len(name)-1] == '.'
+	if len(name) > 254 || len(name) == 254 && !rooted {
 		return nil
 	}
 
 	// If name is rooted (trailing dot), try only that name.
 	if rooted {
+		if avoidDNS(name) {
+			return nil
+		}
 		return []string{name}
 	}
 
-	hasNdots := count(name, '.') >= conf.ndots
+	hasNdots := bytealg.CountString(name, '.') >= conf.ndots
 	name += "."
-	l++
 
 	// Build list of search choices.
 	names := make([]string, 0, 1+len(conf.search))
 	// If name has enough dots, try unsuffixed first.
-	if hasNdots {
+	if hasNdots && !avoidDNS(name) {
 		names = append(names, name)
 	}
 	// Try suffixes that are not too long (see isDomainName).
 	for _, suffix := range conf.search {
-		if l+len(suffix) <= 254 {
-			names = append(names, name+suffix)
+		fqdn := name + suffix
+		if !avoidDNS(fqdn) && len(fqdn) <= 254 {
+			names = append(names, fqdn)
 		}
 	}
 	// Try unsuffixed, if not tried first above.
-	if !hasNdots {
+	if !hasNdots && !avoidDNS(name) {
 		names = append(names, name)
 	}
 	return names
@@ -510,28 +573,22 @@ func (o hostLookupOrder) String() string {
 	if s, ok := lookupOrderName[o]; ok {
 		return s
 	}
-	return "hostLookupOrder=" + itoa(int(o)) + "??"
+	return "hostLookupOrder=" + strconv.Itoa(int(o)) + "??"
 }
 
-// goLookupHost is the native Go implementation of LookupHost.
-// Used only if cgoLookupHost refuses to handle the request
-// (that is, only if cgoLookupHost is the stub in cgo_stub.go).
-// Normally we let cgo use the C library resolver instead of
-// depending on our lookup code, so that Go and C get the same
-// answers.
-func (r *Resolver) goLookupHost(ctx context.Context, name string) (addrs []string, err error) {
-	return r.goLookupHostOrder(ctx, name, hostLookupFilesDNS)
-}
-
-func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hostLookupOrder) (addrs []string, err error) {
+func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hostLookupOrder, conf *dnsConfig) (addrs []string, err error) {
 	if order == hostLookupFilesDNS || order == hostLookupFiles {
 		// Use entries from /etc/hosts if they match.
-		addrs = lookupStaticHost(name)
-		if len(addrs) > 0 || order == hostLookupFiles {
+		addrs, _ = lookupStaticHost(name)
+		if len(addrs) > 0 {
 			return
 		}
+
+		if order == hostLookupFiles {
+			return nil, newDNSError(errNoSuchHost, name, "")
+		}
 	}
-	ips, _, err := r.goLookupIPCNAMEOrder(ctx, name, order)
+	ips, _, err := r.goLookupIPCNAMEOrder(ctx, "ip", name, order, conf)
 	if err != nil {
 		return
 	}
@@ -543,8 +600,9 @@ func (r *Resolver) goLookupHostOrder(ctx context.Context, name string, order hos
 }
 
 // lookup entries from /etc/hosts
-func goLookupIPFiles(name string) (addrs []IPAddr) {
-	for _, haddr := range lookupStaticHost(name) {
+func goLookupIPFiles(name string) (addrs []IPAddr, canonical string) {
+	addr, canonical := lookupStaticHost(name)
+	for _, haddr := range addr {
 		haddr, zone := splitHostZone(haddr)
 		if ip := ParseIP(haddr); ip != nil {
 			addr := IPAddr{IP: ip, Zone: zone}
@@ -552,39 +610,60 @@ func goLookupIPFiles(name string) (addrs []IPAddr) {
 		}
 	}
 	sortByRFC6724(addrs)
-	return
+	return addrs, canonical
 }
 
 // goLookupIP is the native Go implementation of LookupIP.
 // The libc versions are in cgo_*.go.
-func (r *Resolver) goLookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
-	order := systemConf().hostLookupOrder(r, host)
-	addrs, _, err = r.goLookupIPCNAMEOrder(ctx, host, order)
+func (r *Resolver) goLookupIP(ctx context.Context, network, host string, order hostLookupOrder, conf *dnsConfig) (addrs []IPAddr, err error) {
+	addrs, _, err = r.goLookupIPCNAMEOrder(ctx, network, host, order, conf)
 	return
 }
 
-func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order hostLookupOrder) (addrs []IPAddr, cname dnsmessage.Name, err error) {
+func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name string, order hostLookupOrder, conf *dnsConfig) (addrs []IPAddr, cname dnsmessage.Name, err error) {
 	if order == hostLookupFilesDNS || order == hostLookupFiles {
-		addrs = goLookupIPFiles(name)
-		if len(addrs) > 0 || order == hostLookupFiles {
-			return addrs, dnsmessage.Name{}, nil
+		var canonical string
+		addrs, canonical = goLookupIPFiles(name)
+
+		if len(addrs) > 0 {
+			var err error
+			cname, err = dnsmessage.NewName(canonical)
+			if err != nil {
+				return nil, dnsmessage.Name{}, err
+			}
+			return addrs, cname, nil
+		}
+
+		if order == hostLookupFiles {
+			return nil, dnsmessage.Name{}, newDNSError(errNoSuchHost, name, "")
 		}
 	}
+
 	if !isDomainName(name) {
 		// See comment in func lookup above about use of errNoSuchHost.
-		return nil, dnsmessage.Name{}, &DNSError{Err: errNoSuchHost.Error(), Name: name, IsNotFound: true}
+		return nil, dnsmessage.Name{}, newDNSError(errNoSuchHost, name, "")
 	}
-	resolvConf.tryUpdate("/etc/resolv.conf")
-	resolvConf.mu.RLock()
-	conf := resolvConf.dnsConfig
-	resolvConf.mu.RUnlock()
 	type result struct {
 		p      dnsmessage.Parser
 		server string
 		error
 	}
+
+	if conf == nil {
+		conf = getSystemDNSConfig()
+	}
+
 	lane := make(chan result, 1)
-	qtypes := [...]dnsmessage.Type{dnsmessage.TypeA, dnsmessage.TypeAAAA}
+	qtypes := []dnsmessage.Type{dnsmessage.TypeA, dnsmessage.TypeAAAA}
+	if network == "CNAME" {
+		qtypes = append(qtypes, dnsmessage.TypeCNAME)
+	}
+	switch ipVersion(network) {
+	case '4':
+		qtypes = []dnsmessage.Type{dnsmessage.TypeA}
+	case '6':
+		qtypes = []dnsmessage.Type{dnsmessage.TypeAAAA}
+	}
 	var queryFn func(fqdn string, qtype dnsmessage.Type)
 	var responseFn func(fqdn string, qtype dnsmessage.Type) result
 	if conf.singleRequest {
@@ -634,7 +713,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 			// We asked for recursion, so it should have included all the
 			// answers we need in this one packet.
 			//
-			// Further, RFC 1035 section 4.3.1 says that "the recursive
+			// Further, RFC 1034 section 4.3.1 says that "the recursive
 			// response to a query will be... The answer to the query,
 			// possibly preface by one or more CNAME RRs that specify
 			// aliases encountered on the way to an answer."
@@ -648,7 +727,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 				h, err := result.p.AnswerHeader()
 				if err != nil && err != dnsmessage.ErrSectionDone {
 					lastErr = &DNSError{
-						Err:    "cannot marshal DNS message",
+						Err:    errCannotUnmarshalDNSMessage.Error(),
 						Name:   name,
 						Server: result.server,
 					}
@@ -661,39 +740,56 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 					a, err := result.p.AResource()
 					if err != nil {
 						lastErr = &DNSError{
-							Err:    "cannot marshal DNS message",
+							Err:    errCannotUnmarshalDNSMessage.Error(),
 							Name:   name,
 							Server: result.server,
 						}
 						break loop
 					}
 					addrs = append(addrs, IPAddr{IP: IP(a.A[:])})
+					if cname.Length == 0 && h.Name.Length != 0 {
+						cname = h.Name
+					}
 
 				case dnsmessage.TypeAAAA:
 					aaaa, err := result.p.AAAAResource()
 					if err != nil {
 						lastErr = &DNSError{
-							Err:    "cannot marshal DNS message",
+							Err:    errCannotUnmarshalDNSMessage.Error(),
 							Name:   name,
 							Server: result.server,
 						}
 						break loop
 					}
 					addrs = append(addrs, IPAddr{IP: IP(aaaa.AAAA[:])})
+					if cname.Length == 0 && h.Name.Length != 0 {
+						cname = h.Name
+					}
+
+				case dnsmessage.TypeCNAME:
+					c, err := result.p.CNAMEResource()
+					if err != nil {
+						lastErr = &DNSError{
+							Err:    errCannotUnmarshalDNSMessage.Error(),
+							Name:   name,
+							Server: result.server,
+						}
+						break loop
+					}
+					if cname.Length == 0 && c.CNAME.Length > 0 {
+						cname = c.CNAME
+					}
 
 				default:
 					if err := result.p.SkipAnswer(); err != nil {
 						lastErr = &DNSError{
-							Err:    "cannot marshal DNS message",
+							Err:    errCannotUnmarshalDNSMessage.Error(),
 							Name:   name,
 							Server: result.server,
 						}
 						break loop
 					}
 					continue
-				}
-				if cname.Length == 0 && h.Name.Length != 0 {
-					cname = h.Name
 				}
 			}
 		}
@@ -704,7 +800,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 			addrs = nil
 			break
 		}
-		if len(addrs) > 0 {
+		if len(addrs) > 0 || network == "CNAME" && cname.Length > 0 {
 			break
 		}
 	}
@@ -715,11 +811,20 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 		lastErr.Name = name
 	}
 	sortByRFC6724(addrs)
-	if len(addrs) == 0 {
+	if len(addrs) == 0 && !(network == "CNAME" && cname.Length > 0) {
 		if order == hostLookupDNSFiles {
-			addrs = goLookupIPFiles(name)
+			var canonical string
+			addrs, canonical = goLookupIPFiles(name)
+			if len(addrs) > 0 {
+				var err error
+				cname, err = dnsmessage.NewName(canonical)
+				if err != nil {
+					return nil, dnsmessage.Name{}, err
+				}
+				return addrs, cname, nil
+			}
 		}
-		if len(addrs) == 0 && lastErr != nil {
+		if lastErr != nil {
 			return nil, dnsmessage.Name{}, lastErr
 		}
 	}
@@ -727,28 +832,38 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order 
 }
 
 // goLookupCNAME is the native Go (non-cgo) implementation of LookupCNAME.
-func (r *Resolver) goLookupCNAME(ctx context.Context, host string) (string, error) {
-	order := systemConf().hostLookupOrder(r, host)
-	_, cname, err := r.goLookupIPCNAMEOrder(ctx, host, order)
+func (r *Resolver) goLookupCNAME(ctx context.Context, host string, order hostLookupOrder, conf *dnsConfig) (string, error) {
+	_, cname, err := r.goLookupIPCNAMEOrder(ctx, "CNAME", host, order, conf)
 	return cname.String(), err
 }
 
 // goLookupPTR is the native Go implementation of LookupAddr.
-// Used only if cgoLookupPTR refuses to handle the request (that is,
-// only if cgoLookupPTR is the stub in cgo_stub.go).
-// Normally we let cgo use the C library resolver instead of depending
-// on our lookup code, so that Go and C get the same answers.
-func (r *Resolver) goLookupPTR(ctx context.Context, addr string) ([]string, error) {
-	names := lookupStaticAddr(addr)
-	if len(names) > 0 {
-		return names, nil
+func (r *Resolver) goLookupPTR(ctx context.Context, addr string, order hostLookupOrder, conf *dnsConfig) ([]string, error) {
+	if order == hostLookupFiles || order == hostLookupFilesDNS {
+		names := lookupStaticAddr(addr)
+		if len(names) > 0 {
+			return names, nil
+		}
+
+		if order == hostLookupFiles {
+			return nil, newDNSError(errNoSuchHost, addr, "")
+		}
 	}
+
 	arpa, err := reverseaddr(addr)
 	if err != nil {
 		return nil, err
 	}
-	p, server, err := r.lookup(ctx, arpa, dnsmessage.TypePTR)
+	p, server, err := r.lookup(ctx, arpa, dnsmessage.TypePTR, conf)
 	if err != nil {
+		if dnsErr, ok := errors.AsType[*DNSError](err); ok && dnsErr.IsNotFound {
+			if order == hostLookupDNSFiles {
+				names := lookupStaticAddr(addr)
+				if len(names) > 0 {
+					return names, nil
+				}
+			}
+		}
 		return nil, err
 	}
 	var ptrs []string
@@ -759,7 +874,7 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string) ([]string, erro
 		}
 		if err != nil {
 			return nil, &DNSError{
-				Err:    "cannot marshal DNS message",
+				Err:    errCannotUnmarshalDNSMessage.Error(),
 				Name:   addr,
 				Server: server,
 			}
@@ -768,7 +883,7 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string) ([]string, erro
 			err := p.SkipAnswer()
 			if err != nil {
 				return nil, &DNSError{
-					Err:    "cannot marshal DNS message",
+					Err:    errCannotUnmarshalDNSMessage.Error(),
 					Name:   addr,
 					Server: server,
 				}
@@ -778,7 +893,7 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string) ([]string, erro
 		ptr, err := p.PTRResource()
 		if err != nil {
 			return nil, &DNSError{
-				Err:    "cannot marshal DNS message",
+				Err:    errCannotUnmarshalDNSMessage.Error(),
 				Name:   addr,
 				Server: server,
 			}
@@ -786,5 +901,6 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string) ([]string, erro
 		ptrs = append(ptrs, ptr.PTR.String())
 
 	}
+
 	return ptrs, nil
 }

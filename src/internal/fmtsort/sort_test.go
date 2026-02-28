@@ -5,12 +5,16 @@
 package fmtsort_test
 
 import (
+	"cmp"
 	"fmt"
 	"internal/fmtsort"
 	"math"
 	"reflect"
+	"runtime"
+	"slices"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 var compareTests = [][]reflect.Value{
@@ -32,15 +36,16 @@ var compareTests = [][]reflect.Value{
 	ct(reflect.TypeOf(complex128(0+1i)), -1-1i, -1+0i, -1+1i, 0-1i, 0+0i, 0+1i, 1-1i, 1+0i, 1+1i),
 	ct(reflect.TypeOf(false), false, true),
 	ct(reflect.TypeOf(&ints[0]), &ints[0], &ints[1], &ints[2]),
+	ct(reflect.TypeOf(unsafe.Pointer(&ints[0])), unsafe.Pointer(&ints[0]), unsafe.Pointer(&ints[1]), unsafe.Pointer(&ints[2])),
 	ct(reflect.TypeOf(chans[0]), chans[0], chans[1], chans[2]),
 	ct(reflect.TypeOf(toy{}), toy{0, 1}, toy{0, 2}, toy{1, -1}, toy{1, 1}),
 	ct(reflect.TypeOf([2]int{}), [2]int{1, 1}, [2]int{1, 2}, [2]int{2, 0}),
-	ct(reflect.TypeOf(interface{}(interface{}(0))), iFace, 1, 2, 3),
+	ct(reflect.TypeOf(any(0)), iFace, 1, 2, 3),
 }
 
-var iFace interface{}
+var iFace any
 
-func ct(typ reflect.Type, args ...interface{}) []reflect.Value {
+func ct(typ reflect.Type, args ...any) []reflect.Value {
 	value := make([]reflect.Value, len(args))
 	for i, v := range args {
 		x := reflect.ValueOf(v)
@@ -63,10 +68,6 @@ func TestCompare(t *testing.T) {
 				switch {
 				case i == j:
 					expect = 0
-					// NaNs are tricky.
-					if typ := v0.Type(); (typ.Kind() == reflect.Float32 || typ.Kind() == reflect.Float64) && math.IsNaN(v0.Float()) {
-						expect = -1
-					}
 				case i < j:
 					expect = -1
 				case i > j:
@@ -81,8 +82,8 @@ func TestCompare(t *testing.T) {
 }
 
 type sortTest struct {
-	data  interface{} // Always a map.
-	print string      // Printed result using our custom printer.
+	data  any    // Always a map.
+	print string // Printed result using our custom printer.
 }
 
 var sortTests = []sortTest{
@@ -119,6 +120,10 @@ var sortTests = []sortTest{
 		"PTR0:0 PTR1:1 PTR2:2",
 	},
 	{
+		unsafePointerMap(),
+		"UNSAFEPTR0:0 UNSAFEPTR1:1 UNSAFEPTR2:2",
+	},
+	{
 		map[toy]string{{7, 2}: "72", {7, 1}: "71", {3, 4}: "34"},
 		"{3 4}:34 {7 1}:71 {7 2}:72",
 	},
@@ -128,19 +133,19 @@ var sortTests = []sortTest{
 	},
 }
 
-func sprint(data interface{}) string {
+func sprint(data any) string {
 	om := fmtsort.Sort(reflect.ValueOf(data))
 	if om == nil {
 		return "nil"
 	}
 	b := new(strings.Builder)
-	for i, key := range om.Key {
+	for i, m := range om {
 		if i > 0 {
 			b.WriteRune(' ')
 		}
-		b.WriteString(sprintKey(key))
+		b.WriteString(sprintKey(m.Key))
 		b.WriteRune(':')
-		b.WriteString(fmt.Sprint(om.Value[i]))
+		fmt.Fprint(b, m.Value)
 	}
 	return b.String()
 }
@@ -159,6 +164,14 @@ func sprintKey(key reflect.Value) string {
 			}
 		}
 		return "PTR???"
+	case "unsafe.Pointer":
+		ptr := key.Interface().(unsafe.Pointer)
+		for i := range ints {
+			if ptr == unsafe.Pointer(&ints[i]) {
+				return fmt.Sprintf("UNSAFEPTR%d", i)
+			}
+		}
+		return "UNSAFEPTR???"
 	case "chan int":
 		c := key.Interface().(chan int)
 		for i := range chans {
@@ -174,13 +187,34 @@ func sprintKey(key reflect.Value) string {
 
 var (
 	ints  [3]int
-	chans = [3]chan int{make(chan int), make(chan int), make(chan int)}
+	chans = makeChans()
+	pin   runtime.Pinner
 )
+
+func makeChans() []chan int {
+	cs := []chan int{make(chan int), make(chan int), make(chan int)}
+	// Order channels by address. See issue #49431.
+	for i := range cs {
+		pin.Pin(reflect.ValueOf(cs[i]).UnsafePointer())
+	}
+	slices.SortFunc(cs, func(a, b chan int) int {
+		return cmp.Compare(reflect.ValueOf(a).Pointer(), reflect.ValueOf(b).Pointer())
+	})
+	return cs
+}
 
 func pointerMap() map[*int]string {
 	m := make(map[*int]string)
 	for i := 2; i >= 0; i-- {
 		m[&ints[i]] = fmt.Sprint(i)
+	}
+	return m
+}
+
+func unsafePointerMap() map[unsafe.Pointer]string {
+	m := make(map[unsafe.Pointer]string)
+	for i := 2; i >= 0; i-- {
+		m[unsafe.Pointer(&ints[i])] = fmt.Sprint(i)
 	}
 	return m
 }
@@ -211,7 +245,7 @@ func TestInterface(t *testing.T) {
 	// A map containing multiple concrete types should be sorted by type,
 	// then value. However, the relative ordering of types is unspecified,
 	// so test this by checking the presence of sorted subgroups.
-	m := map[interface{}]string{
+	m := map[any]string{
 		[2]int{1, 0}:             "",
 		[2]int{0, 1}:             "",
 		true:                     "",

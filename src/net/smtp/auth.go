@@ -16,8 +16,7 @@ type Auth interface {
 	// Start begins an authentication with a server.
 	// It returns the name of the authentication protocol
 	// and optionally data to include in the initial AUTH message
-	// sent to the server. It can return proto == "" to indicate
-	// that the authentication should be skipped.
+	// sent to the server.
 	// If it returns a non-nil error, the SMTP client aborts
 	// the authentication attempt and closes the connection.
 	Start(server *ServerInfo) (proto string, toServer []byte, err error)
@@ -43,7 +42,7 @@ type plainAuth struct {
 	host                         string
 }
 
-// PlainAuth returns an Auth that implements the PLAIN authentication
+// PlainAuth returns an [Auth] that implements the PLAIN authentication
 // mechanism as defined in RFC 4616. The returned Auth uses the given
 // username and password to authenticate to host and act as identity.
 // Usually identity should be the empty string, to act as username.
@@ -87,7 +86,7 @@ type cramMD5Auth struct {
 	username, secret string
 }
 
-// CRAMMD5Auth returns an Auth that implements the CRAM-MD5 authentication
+// CRAMMD5Auth returns an [Auth] that implements the CRAM-MD5 authentication
 // mechanism as defined in RFC 2195.
 // The returned Auth uses the given username and secret to authenticate
 // to the server using the challenge-response mechanism.
@@ -104,7 +103,7 @@ func (a *cramMD5Auth) Next(fromServer []byte, more bool) ([]byte, error) {
 		d := hmac.New(md5.New, []byte(a.secret))
 		d.Write(fromServer)
 		s := make([]byte, 0, d.Size())
-		return []byte(fmt.Sprintf("%s %x", a.username, d.Sum(s))), nil
+		return fmt.Appendf(nil, "%s %x", a.username, d.Sum(s)), nil
 	}
 	return nil, nil
 }

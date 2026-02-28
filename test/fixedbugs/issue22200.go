@@ -12,7 +12,7 @@ func f1(x *[1<<30 - 1e6]byte) byte {
 	}
 	return 0
 }
-func f2(x *[1<<30 + 1e6]byte) byte { // ERROR "stack frame too large"
+func f2(x *[1<<30 + 1e6]byte) byte { // GC_ERROR "stack frame too large"
 	for _, b := range *x {
 		return b
 	}

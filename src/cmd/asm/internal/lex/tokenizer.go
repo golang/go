@@ -5,6 +5,7 @@
 package lex
 
 import (
+	"go/build/constraint"
 	"io"
 	"os"
 	"strings"
@@ -107,10 +108,12 @@ func (t *Tokenizer) Next() ScanToken {
 		if t.tok != scanner.Comment {
 			break
 		}
-		length := strings.Count(s.TokenText(), "\n")
-		t.line += length
-		// TODO: If we ever have //go: comments in assembly, will need to keep them here.
-		// For now, just discard all comments.
+		text := s.TokenText()
+		t.line += strings.Count(text, "\n")
+		if constraint.IsGoBuild(text) {
+			t.tok = BuildComment
+			break
+		}
 	}
 	switch t.tok {
 	case '\n':

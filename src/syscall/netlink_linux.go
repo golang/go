@@ -6,7 +6,10 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"sync"
+	"unsafe"
+)
 
 // Round the length of a netlink message up to align it properly.
 func nlmAlignOf(msglen int) int {
@@ -33,7 +36,7 @@ func (rr *NetlinkRouteRequest) toWireFormat() []byte {
 	*(*uint16)(unsafe.Pointer(&b[6:8][0])) = rr.Header.Flags
 	*(*uint32)(unsafe.Pointer(&b[8:12][0])) = rr.Header.Seq
 	*(*uint32)(unsafe.Pointer(&b[12:16][0])) = rr.Header.Pid
-	b[16] = byte(rr.Data.Family)
+	b[16] = rr.Data.Family
 	return b
 }
 
@@ -47,27 +50,42 @@ func newNetlinkRouteRequest(proto, seq, family int) []byte {
 	return rr.toWireFormat()
 }
 
+var pageBufPool = &sync.Pool{New: func() any {
+	b := make([]byte, Getpagesize())
+	return &b
+}}
+
 // NetlinkRIB returns routing information base, as known as RIB, which
 // consists of network facility information, states and parameters.
 func NetlinkRIB(proto, family int) ([]byte, error) {
-	s, err := cloexecSocket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE)
+	s, err := Socket(AF_NETLINK, SOCK_RAW|SOCK_CLOEXEC, NETLINK_ROUTE)
 	if err != nil {
 		return nil, err
 	}
 	defer Close(s)
-	lsa := &SockaddrNetlink{Family: AF_NETLINK}
-	if err := Bind(s, lsa); err != nil {
+	sa := &SockaddrNetlink{Family: AF_NETLINK}
+	if err := Bind(s, sa); err != nil {
 		return nil, err
 	}
 	wb := newNetlinkRouteRequest(proto, 1, family)
-	if err := Sendto(s, wb, 0, lsa); err != nil {
+	if err := Sendto(s, wb, 0, sa); err != nil {
 		return nil, err
 	}
+	lsa, err := Getsockname(s)
+	if err != nil {
+		return nil, err
+	}
+	lsanl, ok := lsa.(*SockaddrNetlink)
+	if !ok {
+		return nil, EINVAL
+	}
 	var tab []byte
-	rbNew := make([]byte, Getpagesize())
+
+	rbNew := pageBufPool.Get().(*[]byte)
+	defer pageBufPool.Put(rbNew)
 done:
 	for {
-		rb := rbNew
+		rb := *rbNew
 		nr, _, err := Recvfrom(s, rb, 0)
 		if err != nil {
 			return nil, err
@@ -82,16 +100,7 @@ done:
 			return nil, err
 		}
 		for _, m := range msgs {
-			lsa, err := Getsockname(s)
-			if err != nil {
-				return nil, err
-			}
-			switch v := lsa.(type) {
-			case *SockaddrNetlink:
-				if m.Header.Seq != 1 || m.Header.Pid != v.Pid {
-					return nil, EINVAL
-				}
-			default:
+			if m.Header.Seq != 1 || m.Header.Pid != lsanl.Pid {
 				return nil, EINVAL
 			}
 			if m.Header.Type == NLMSG_DONE {

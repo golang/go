@@ -1,7 +1,7 @@
 env GO111MODULE=on
 
 ! go mod init .
-stderr 'malformed import path'
+stderr '^go: malformed module path ".": is a local import path$'
 
 cd x
 go mod init example.com/x

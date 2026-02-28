@@ -113,7 +113,7 @@ func TestAuthPlain(t *testing.T) {
 func TestClientAuthTrimSpace(t *testing.T) {
 	server := "220 hello world\r\n" +
 		"200 some more"
-	var wrote bytes.Buffer
+	var wrote strings.Builder
 	var fake faker
 	fake.ReadWriter = struct {
 		io.Reader
@@ -164,7 +164,7 @@ func TestBasic(t *testing.T) {
 	server := strings.Join(strings.Split(basicServer, "\n"), "\r\n")
 	client := strings.Join(strings.Split(basicClient, "\n"), "\r\n")
 
-	var cmdbuf bytes.Buffer
+	var cmdbuf strings.Builder
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	var fake faker
 	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
@@ -288,11 +288,255 @@ Goodbye.
 QUIT
 `
 
+func TestHELOFailed(t *testing.T) {
+	serverLines := `502 EH?
+502 EH?
+221 OK
+`
+	clientLines := `EHLO localhost
+HELO localhost
+QUIT
+`
+
+	server := strings.Join(strings.Split(serverLines, "\n"), "\r\n")
+	client := strings.Join(strings.Split(clientLines, "\n"), "\r\n")
+	var cmdbuf strings.Builder
+	bcmdbuf := bufio.NewWriter(&cmdbuf)
+	var fake faker
+	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
+	c := &Client{Text: textproto.NewConn(fake), localName: "localhost"}
+
+	if err := c.Hello("localhost"); err == nil {
+		t.Fatal("expected EHLO to fail")
+	}
+	if err := c.Quit(); err != nil {
+		t.Errorf("QUIT failed: %s", err)
+	}
+	bcmdbuf.Flush()
+	actual := cmdbuf.String()
+	if client != actual {
+		t.Errorf("Got:\n%s\nWant:\n%s", actual, client)
+	}
+}
+
+func TestExtensions(t *testing.T) {
+	fake := func(server string) (c *Client, bcmdbuf *bufio.Writer, cmdbuf *strings.Builder) {
+		server = strings.Join(strings.Split(server, "\n"), "\r\n")
+
+		cmdbuf = &strings.Builder{}
+		bcmdbuf = bufio.NewWriter(cmdbuf)
+		var fake faker
+		fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
+		c = &Client{Text: textproto.NewConn(fake), localName: "localhost"}
+
+		return c, bcmdbuf, cmdbuf
+	}
+
+	t.Run("helo", func(t *testing.T) {
+		const (
+			basicServer = `250 mx.google.com at your service
+250 Sender OK
+221 Goodbye
+`
+
+			basicClient = `HELO localhost
+MAIL FROM:<user@gmail.com>
+QUIT
+`
+		)
+
+		c, bcmdbuf, cmdbuf := fake(basicServer)
+
+		if err := c.helo(); err != nil {
+			t.Fatalf("HELO failed: %s", err)
+		}
+		c.didHello = true
+		if err := c.Mail("user@gmail.com"); err != nil {
+			t.Fatalf("MAIL FROM failed: %s", err)
+		}
+		if err := c.Quit(); err != nil {
+			t.Fatalf("QUIT failed: %s", err)
+		}
+
+		bcmdbuf.Flush()
+		actualcmds := cmdbuf.String()
+		client := strings.Join(strings.Split(basicClient, "\n"), "\r\n")
+		if client != actualcmds {
+			t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, client)
+		}
+	})
+
+	t.Run("ehlo", func(t *testing.T) {
+		const (
+			basicServer = `250-mx.google.com at your service
+250 SIZE 35651584
+250 Sender OK
+221 Goodbye
+`
+
+			basicClient = `EHLO localhost
+MAIL FROM:<user@gmail.com>
+QUIT
+`
+		)
+
+		c, bcmdbuf, cmdbuf := fake(basicServer)
+
+		if err := c.Hello("localhost"); err != nil {
+			t.Fatalf("EHLO failed: %s", err)
+		}
+		if ok, _ := c.Extension("8BITMIME"); ok {
+			t.Fatalf("Shouldn't support 8BITMIME")
+		}
+		if ok, _ := c.Extension("SMTPUTF8"); ok {
+			t.Fatalf("Shouldn't support SMTPUTF8")
+		}
+		if err := c.Mail("user@gmail.com"); err != nil {
+			t.Fatalf("MAIL FROM failed: %s", err)
+		}
+		if err := c.Quit(); err != nil {
+			t.Fatalf("QUIT failed: %s", err)
+		}
+
+		bcmdbuf.Flush()
+		actualcmds := cmdbuf.String()
+		client := strings.Join(strings.Split(basicClient, "\n"), "\r\n")
+		if client != actualcmds {
+			t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, client)
+		}
+	})
+
+	t.Run("ehlo 8bitmime", func(t *testing.T) {
+		const (
+			basicServer = `250-mx.google.com at your service
+250-SIZE 35651584
+250 8BITMIME
+250 Sender OK
+221 Goodbye
+`
+
+			basicClient = `EHLO localhost
+MAIL FROM:<user@gmail.com> BODY=8BITMIME
+QUIT
+`
+		)
+
+		c, bcmdbuf, cmdbuf := fake(basicServer)
+
+		if err := c.Hello("localhost"); err != nil {
+			t.Fatalf("EHLO failed: %s", err)
+		}
+		if ok, _ := c.Extension("8BITMIME"); !ok {
+			t.Fatalf("Should support 8BITMIME")
+		}
+		if ok, _ := c.Extension("SMTPUTF8"); ok {
+			t.Fatalf("Shouldn't support SMTPUTF8")
+		}
+		if err := c.Mail("user@gmail.com"); err != nil {
+			t.Fatalf("MAIL FROM failed: %s", err)
+		}
+		if err := c.Quit(); err != nil {
+			t.Fatalf("QUIT failed: %s", err)
+		}
+
+		bcmdbuf.Flush()
+		actualcmds := cmdbuf.String()
+		client := strings.Join(strings.Split(basicClient, "\n"), "\r\n")
+		if client != actualcmds {
+			t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, client)
+		}
+	})
+
+	t.Run("ehlo smtputf8", func(t *testing.T) {
+		const (
+			basicServer = `250-mx.google.com at your service
+250-SIZE 35651584
+250 SMTPUTF8
+250 Sender OK
+221 Goodbye
+`
+
+			basicClient = `EHLO localhost
+MAIL FROM:<user+📧@gmail.com> SMTPUTF8
+QUIT
+`
+		)
+
+		c, bcmdbuf, cmdbuf := fake(basicServer)
+
+		if err := c.Hello("localhost"); err != nil {
+			t.Fatalf("EHLO failed: %s", err)
+		}
+		if ok, _ := c.Extension("8BITMIME"); ok {
+			t.Fatalf("Shouldn't support 8BITMIME")
+		}
+		if ok, _ := c.Extension("SMTPUTF8"); !ok {
+			t.Fatalf("Should support SMTPUTF8")
+		}
+		if err := c.Mail("user+📧@gmail.com"); err != nil {
+			t.Fatalf("MAIL FROM failed: %s", err)
+		}
+		if err := c.Quit(); err != nil {
+			t.Fatalf("QUIT failed: %s", err)
+		}
+
+		bcmdbuf.Flush()
+		actualcmds := cmdbuf.String()
+		client := strings.Join(strings.Split(basicClient, "\n"), "\r\n")
+		if client != actualcmds {
+			t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, client)
+		}
+	})
+
+	t.Run("ehlo 8bitmime smtputf8", func(t *testing.T) {
+		const (
+			basicServer = `250-mx.google.com at your service
+250-SIZE 35651584
+250-8BITMIME
+250 SMTPUTF8
+250 Sender OK
+221 Goodbye
+	`
+
+			basicClient = `EHLO localhost
+MAIL FROM:<user+📧@gmail.com> BODY=8BITMIME SMTPUTF8
+QUIT
+`
+		)
+
+		c, bcmdbuf, cmdbuf := fake(basicServer)
+
+		if err := c.Hello("localhost"); err != nil {
+			t.Fatalf("EHLO failed: %s", err)
+		}
+		c.didHello = true
+		if ok, _ := c.Extension("8BITMIME"); !ok {
+			t.Fatalf("Should support 8BITMIME")
+		}
+		if ok, _ := c.Extension("SMTPUTF8"); !ok {
+			t.Fatalf("Should support SMTPUTF8")
+		}
+		if err := c.Mail("user+📧@gmail.com"); err != nil {
+			t.Fatalf("MAIL FROM failed: %s", err)
+		}
+		if err := c.Quit(); err != nil {
+			t.Fatalf("QUIT failed: %s", err)
+		}
+
+		bcmdbuf.Flush()
+		actualcmds := cmdbuf.String()
+		client := strings.Join(strings.Split(basicClient, "\n"), "\r\n")
+		if client != actualcmds {
+			t.Fatalf("Got:\n%s\nExpected:\n%s", actualcmds, client)
+		}
+	})
+}
+
 func TestNewClient(t *testing.T) {
 	server := strings.Join(strings.Split(newClientServer, "\n"), "\r\n")
 	client := strings.Join(strings.Split(newClientClient, "\n"), "\r\n")
 
-	var cmdbuf bytes.Buffer
+	var cmdbuf strings.Builder
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	out := func() string {
 		bcmdbuf.Flush()
@@ -337,7 +581,7 @@ func TestNewClient2(t *testing.T) {
 	server := strings.Join(strings.Split(newClient2Server, "\n"), "\r\n")
 	client := strings.Join(strings.Split(newClient2Client, "\n"), "\r\n")
 
-	var cmdbuf bytes.Buffer
+	var cmdbuf strings.Builder
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	var fake faker
 	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
@@ -430,7 +674,7 @@ func TestHello(t *testing.T) {
 	for i := 0; i < len(helloServer); i++ {
 		server := strings.Join(strings.Split(baseHelloServer+helloServer[i], "\n"), "\r\n")
 		client := strings.Join(strings.Split(baseHelloClient+helloClient[i], "\n"), "\r\n")
-		var cmdbuf bytes.Buffer
+		var cmdbuf strings.Builder
 		bcmdbuf := bufio.NewWriter(&cmdbuf)
 		var fake faker
 		fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
@@ -536,7 +780,7 @@ var helloClient = []string{
 func TestSendMail(t *testing.T) {
 	server := strings.Join(strings.Split(sendMailServer, "\n"), "\r\n")
 	client := strings.Join(strings.Split(sendMailClient, "\n"), "\r\n")
-	var cmdbuf bytes.Buffer
+	var cmdbuf strings.Builder
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -559,10 +803,10 @@ func TestSendMail(t *testing.T) {
 
 		tc := textproto.NewConn(conn)
 		for i := 0; i < len(data) && data[i] != ""; i++ {
-			tc.PrintfLine(data[i])
+			tc.PrintfLine("%s", data[i])
 			for len(data[i]) >= 4 && data[i][3] == '-' {
 				i++
-				tc.PrintfLine(data[i])
+				tc.PrintfLine("%s", data[i])
 			}
 			if data[i] == "221 Goodbye" {
 				return
@@ -693,7 +937,7 @@ SendMail is working for me.
 func TestAuthFailed(t *testing.T) {
 	server := strings.Join(strings.Split(authFailedServer, "\n"), "\r\n")
 	client := strings.Join(strings.Split(authFailedClient, "\n"), "\r\n")
-	var cmdbuf bytes.Buffer
+	var cmdbuf strings.Builder
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	var fake faker
 	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
@@ -735,7 +979,7 @@ QUIT
 `
 
 func TestTLSClient(t *testing.T) {
-	if (runtime.GOOS == "freebsd" && runtime.GOARCH == "amd64") || runtime.GOOS == "js" {
+	if runtime.GOOS == "freebsd" || runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
 		testenv.SkipFlaky(t, 19229)
 	}
 	ln := newLocalListener(t)
@@ -881,6 +1125,7 @@ func init() {
 	testRootCAs.AppendCertsFromPEM(localhostCert)
 	testHookStartTLS = func(config *tls.Config) {
 		config.RootCAs = testRootCAs
+		config.Time = func() time.Time { return time.Unix(0, 0) }
 	}
 }
 
@@ -891,40 +1136,63 @@ func sendMail(hostPort string) error {
 }
 
 // localhostCert is a PEM-encoded TLS cert generated from src/crypto/tls:
-// go run generate_cert.go --rsa-bits 1024 --host 127.0.0.1,::1,example.com \
-// 		--ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
+//
+//	go run generate_cert.go --rsa-bits 2048 --host 127.0.0.1,::1,example.com \
+//		--ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
+//
+// The actual expiry time of this cert should not matter since we set
+// tls.Config.Time to be fixed in our tests.
 var localhostCert = []byte(`
 -----BEGIN CERTIFICATE-----
-MIICFDCCAX2gAwIBAgIRAK0xjnaPuNDSreeXb+z+0u4wDQYJKoZIhvcNAQELBQAw
+MIIDOjCCAiKgAwIBAgIRAM1/4MS0P4BXstjv50eeEsswDQYJKoZIhvcNAQELBQAw
 EjEQMA4GA1UEChMHQWNtZSBDbzAgFw03MDAxMDEwMDAwMDBaGA8yMDg0MDEyOTE2
-MDAwMFowEjEQMA4GA1UEChMHQWNtZSBDbzCBnzANBgkqhkiG9w0BAQEFAAOBjQAw
-gYkCgYEA0nFbQQuOWsjbGtejcpWz153OlziZM4bVjJ9jYruNw5n2Ry6uYQAffhqa
-JOInCmmcVe2siJglsyH9aRh6vKiobBbIUXXUU1ABd56ebAzlt0LobLlx7pZEMy30
-LqIi9E6zmL3YvdGzpYlkFRnRrqwEtWYbGBf3znO250S56CCWH2UCAwEAAaNoMGYw
-DgYDVR0PAQH/BAQDAgKkMBMGA1UdJQQMMAoGCCsGAQUFBwMBMA8GA1UdEwEB/wQF
-MAMBAf8wLgYDVR0RBCcwJYILZXhhbXBsZS5jb22HBH8AAAGHEAAAAAAAAAAAAAAA
-AAAAAAEwDQYJKoZIhvcNAQELBQADgYEAbZtDS2dVuBYvb+MnolWnCNqvw1w5Gtgi
-NmvQQPOMgM3m+oQSCPRTNGSg25e1Qbo7bgQDv8ZTnq8FgOJ/rbkyERw2JckkHpD4
-n4qcK27WkEDBtQFlPihIM8hLIuzWoi/9wygiElTy/tVL3y7fGCvY2/k1KBthtZGF
-tN8URjVmyEo=
+MDAwMFowEjEQMA4GA1UEChMHQWNtZSBDbzCCASIwDQYJKoZIhvcNAQEBBQADggEP
+ADCCAQoCggEBAN5KVxPqz+h6hHC3QBg7ZwCZUql4Mbz7LvrYg+1CCRJnbWdK2MTP
+s0Hi3CKzAEE6H52rPO1kqdcIo2D1Pw2PC7/TB6w8ASLumJQaZfBlbaZesbBfrtIu
+iEtSKs/Iwxp57mn9RbjUkQgu3nSzjrgbFPrktz6lJ4LfC6azN62klkCTfspCDTjU
+Sk58dlygIweYkIiWHAh5f+KvKT1aeheNMkLEx1KZ+Vz+Y/oEnEKjRxBcnUIwzIrZ
+/fXbvRq8Fa9nLuDO8F0JDcM1Zg9gzPvFmdFy8fifC3H/uflcLVJp4ImtEWEoVPvt
+OQLAwkulknsXACBVsCu/JgDU7Yda6Lk2Qq0CAwEAAaOBiDCBhTAOBgNVHQ8BAf8E
+BAMCAqQwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH/BAUwAwEB/zAdBgNV
+HQ4EFgQU3YcFHBnqY6c03/Ydoy94fa59+F8wLgYDVR0RBCcwJYILZXhhbXBsZS5j
+b22HBH8AAAGHEAAAAAAAAAAAAAAAAAAAAAEwDQYJKoZIhvcNAQELBQADggEBANI7
+DKO8ub7SOwesjcnt4fCfHumink2ixo2nxW/DpnNWBaAhA529HCAa7BgAFzQi/ES1
+ALEFEr0Phad4KA+9qrQXIJsMV/GTPPsTVuluU9Uhq6V2M8YelQuoMDbnjZDWcdZV
+0arpMdVT8vU4eOE7XWlo83gA08+1mX4WbEI5XaHDeKE4ogifCGamroOTzJidfMg/
+tz01iclVt7Fkri6PYcUS+8ySYrc2XH+h1P2xZCNP8VhAsrpnqQqGS85TTSUkOgZt
+ITQpEVnLIDwZSX0zYrN5z8gChVhzzMR8XmsOpMUBJL5qcpWrqy/ZswmsMvjVXmeN
+zQLoXduc3BgLtaXv7O0=
 -----END CERTIFICATE-----`)
 
 // localhostKey is the private key for localhostCert.
 var localhostKey = []byte(testingKey(`
 -----BEGIN RSA TESTING KEY-----
-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
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDeSlcT6s/oeoRw
+t0AYO2cAmVKpeDG8+y762IPtQgkSZ21nStjEz7NB4twiswBBOh+dqzztZKnXCKNg
+9T8Njwu/0wesPAEi7piUGmXwZW2mXrGwX67SLohLUirPyMMaee5p/UW41JEILt50
+s464GxT65Lc+pSeC3wumszetpJZAk37KQg041EpOfHZcoCMHmJCIlhwIeX/iryk9
+WnoXjTJCxMdSmflc/mP6BJxCo0cQXJ1CMMyK2f31270avBWvZy7gzvBdCQ3DNWYP
+YMz7xZnRcvH4nwtx/7n5XC1SaeCJrRFhKFT77TkCwMJLpZJ7FwAgVbArvyYA1O2H
+Wui5NkKtAgMBAAECggEAG4ZS//lcYyoAikB2pEl+uJlDng5vAjqMF62FsHQz0V6T
+Mm4XJ0+cn7TqkzVc+7apwYk5kx+a1DCSomfbtd8XklocIhyP+3ZV2EjohHrat/YT
+xIYkjIwMfl8fQ/lVB0s/1UnyPy+7AatkCklNi8h2sZZuhkhG+zKJK8wXQd4WaMpf
+lcIaDijMdu0UTxUO+rISbjVpfL6HswTDUan6LhhxSa9F3zesLqgClKZIqzR8HCtM
+83QwK+kiW00D3pVZT4qHfFouoPrszP/qm/17wjxBmk83rKKsF2AnmipBaHR+MHou
+tCarJV35//h6z6m0VnAdrYhREif34s8H0pYbKng8oQKBgQD2lCbQu7W/FDu+D4u2
+F9wXdjZGplwUHaldfMUsMvawMSt86JYg9yVCHPFnWLhCBYT9Q1B1biqXu5YHwvyi
+F/SCVDBaN1pLAkNF5i3McgA2Zw9TbFwinJFpZSa5hSdBiZgpaFZj0KhJqA2ayaSQ
+wbTt1aN2oix1wdd9VU7cb5v6GQKBgQDmyJ5JUee6Vc6r/iucO4JkTijzwfPkSqOc
+zC7YmcWAE8oTWZf5ozM4vtuUhAyrfiHBaT8uUbyb3+E6MqRrZJmaAPEk9ALOvmZC
+vSZD5htzzUsLi7bR7e9PJjXoT+3V1EB3VyHnMv6LCbx/vSs/XI8VrahlDoJAW4rP
+UgGE703HtQKBgQCeIaLG6CqFMQejOrsBe0m1biUep9+TMvaDstmMH97eXZojD9H/
+sB+fx4n1GguIo5uHBB1cQdtk1XNA5QY5OZ2f2zfrE2Z/hiL4d8ZVP6LtQKiuemaX
+98q1SZ5NCZyERiZkH7qPZqgWHIUlCD3Wa7OJdyHOmfBjUH3Ord/WNGlWOQKBgQCv
+RLVRoa6HSRuIa6PbJybD3sgjN61uN3FCZ588SKxBtMXHJEfTAyqncet5Q0AMDeK8
+7J1bJCBFkSWP+V39YY119Dkvg1GOifNHxDcHYf5/V+4iep0Bmd4hEjfmkq1hs6yx
+9a5907CVD3Pk31m06SqRoC0/cmFhVyR4hyM4PjWn8QKBgFz97Xe4VlllQ4v1lY3g
+1LXoF3oVBAcIiDOfnJuJKKUNJuQPfp7Z2/gisX/8RDPO+iBqKesUQxTKC2v6MOue
+YMR7L8AAn1wBFU5dioARmfBcVWBOpMZIHzHUqsnTqGzuIPTfnaZWxz13PbBxEiGS
++NeMNAdZn3grwXTdcD3VBVHs
 -----END RSA TESTING KEY-----`))
 
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }

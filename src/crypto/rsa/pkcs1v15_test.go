@@ -2,18 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rsa
+package rsa_test
 
 import (
 	"bytes"
 	"crypto"
 	"crypto/rand"
+	. "crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/pem"
 	"io"
-	"math/big"
 	"testing"
 	"testing/quick"
 )
@@ -52,12 +54,14 @@ var decryptPKCS1v15Tests = []DecryptPKCS1v15Test{
 }
 
 func TestDecryptPKCS1v15(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
+
 	decryptionFuncs := []func([]byte) ([]byte, error){
 		func(ciphertext []byte) (plaintext []byte, err error) {
-			return DecryptPKCS1v15(nil, rsaPrivateKey, ciphertext)
+			return DecryptPKCS1v15(nil, test512Key, ciphertext)
 		},
 		func(ciphertext []byte) (plaintext []byte, err error) {
-			return rsaPrivateKey.Decrypt(nil, ciphertext, nil)
+			return test512Key.Decrypt(nil, ciphertext, nil)
 		},
 	}
 
@@ -65,7 +69,7 @@ func TestDecryptPKCS1v15(t *testing.T) {
 		for i, test := range decryptPKCS1v15Tests {
 			out, err := decryptFunc(decodeBase64(test.in))
 			if err != nil {
-				t.Errorf("#%d error decrypting", i)
+				t.Errorf("#%d error decrypting: %v", i, err)
 			}
 			want := []byte(test.out)
 			if !bytes.Equal(out, want) {
@@ -137,9 +141,10 @@ var decryptPKCS1v15SessionKeyTests = []DecryptPKCS1v15Test{
 }
 
 func TestEncryptPKCS1v15SessionKey(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
 	for i, test := range decryptPKCS1v15SessionKeyTests {
 		key := []byte("FAIL")
-		err := DecryptPKCS1v15SessionKey(nil, rsaPrivateKey, decodeBase64(test.in), key)
+		err := DecryptPKCS1v15SessionKey(nil, test512Key, decodeBase64(test.in), key)
 		if err != nil {
 			t.Errorf("#%d error decrypting", i)
 		}
@@ -151,8 +156,9 @@ func TestEncryptPKCS1v15SessionKey(t *testing.T) {
 }
 
 func TestEncryptPKCS1v15DecrypterSessionKey(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
 	for i, test := range decryptPKCS1v15SessionKeyTests {
-		plaintext, err := rsaPrivateKey.Decrypt(rand.Reader, decodeBase64(test.in), &PKCS1v15DecryptOptions{SessionKeyLen: 4})
+		plaintext, err := test512Key.Decrypt(rand.Reader, decodeBase64(test.in), &PKCS1v15DecryptOptions{SessionKeyLen: 4})
 		if err != nil {
 			t.Fatalf("#%d: error decrypting: %s", i, err)
 		}
@@ -170,7 +176,7 @@ func TestNonZeroRandomBytes(t *testing.T) {
 	random := rand.Reader
 
 	b := make([]byte, 512)
-	err := nonZeroRandomBytes(b, random)
+	err := NonZeroRandomBytes(b, random)
 	if err != nil {
 		t.Errorf("returned error: %s", err)
 	}
@@ -187,18 +193,20 @@ type signPKCS1v15Test struct {
 }
 
 // These vectors have been tested with
-//   `openssl rsautl -verify -inkey pk -in signature | hexdump -C`
+//
+//	`openssl rsautl -verify -inkey pk -in signature | hexdump -C`
 var signPKCS1v15Tests = []signPKCS1v15Test{
 	{"Test.\n", "a4f3fa6ea93bcdd0c57be020c1193ecbfd6f200a3d95c409769b029578fa0e336ad9a347600e40d3ae823b8c7e6bad88cc07c1d54c3a1523cbbb6d58efc362ae"},
 }
 
 func TestSignPKCS1v15(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
 	for i, test := range signPKCS1v15Tests {
 		h := sha1.New()
 		h.Write([]byte(test.in))
 		digest := h.Sum(nil)
 
-		s, err := SignPKCS1v15(nil, rsaPrivateKey, crypto.SHA1, digest)
+		s, err := SignPKCS1v15(nil, test512Key, crypto.SHA1, digest)
 		if err != nil {
 			t.Errorf("#%d %s", i, err)
 		}
@@ -211,6 +219,7 @@ func TestSignPKCS1v15(t *testing.T) {
 }
 
 func TestVerifyPKCS1v15(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
 	for i, test := range signPKCS1v15Tests {
 		h := sha1.New()
 		h.Write([]byte(test.in))
@@ -218,7 +227,7 @@ func TestVerifyPKCS1v15(t *testing.T) {
 
 		sig, _ := hex.DecodeString(test.out)
 
-		err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, crypto.SHA1, digest, sig)
+		err := VerifyPKCS1v15(&test512Key.PublicKey, crypto.SHA1, digest, sig)
 		if err != nil {
 			t.Errorf("#%d %s", i, err)
 		}
@@ -226,14 +235,17 @@ func TestVerifyPKCS1v15(t *testing.T) {
 }
 
 func TestOverlongMessagePKCS1v15(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
 	ciphertext := decodeBase64("fjOVdirUzFoLlukv80dBllMLjXythIf22feqPrNo0YoIjzyzyoMFiLjAc/Y4krkeZ11XFThIrEvw\nkRiZcCq5ng==")
-	_, err := DecryptPKCS1v15(nil, rsaPrivateKey, ciphertext)
+	_, err := DecryptPKCS1v15(nil, test512Key, ciphertext)
 	if err == nil {
 		t.Error("RSA decrypted a message that was too long.")
 	}
 }
 
 func TestUnpaddedSignature(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
+
 	msg := []byte("Thu Dec 19 18:06:16 EST 2013\n")
 	// This base64 value was generated with:
 	// % echo Thu Dec 19 18:06:16 EST 2013 > /tmp/msg
@@ -243,14 +255,14 @@ func TestUnpaddedSignature(t *testing.T) {
 	// file.
 	expectedSig := decodeBase64("pX4DR8azytjdQ1rtUiC040FjkepuQut5q2ZFX1pTjBrOVKNjgsCDyiJDGZTCNoh9qpXYbhl7iEym30BWWwuiZg==")
 
-	sig, err := SignPKCS1v15(nil, rsaPrivateKey, crypto.Hash(0), msg)
+	sig, err := SignPKCS1v15(nil, test512Key, crypto.Hash(0), msg)
 	if err != nil {
 		t.Fatalf("SignPKCS1v15 failed: %s", err)
 	}
 	if !bytes.Equal(sig, expectedSig) {
 		t.Fatalf("signature is not expected value: got %x, want %x", sig, expectedSig)
 	}
-	if err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, crypto.Hash(0), msg, sig); err != nil {
+	if err := VerifyPKCS1v15(&test512Key.PublicKey, crypto.Hash(0), msg, sig); err != nil {
 		t.Fatalf("signature failed to verify: %s", err)
 	}
 }
@@ -275,34 +287,20 @@ func TestShortSessionKey(t *testing.T) {
 	}
 }
 
-// In order to generate new test vectors you'll need the PEM form of this key (and s/TESTING/PRIVATE/):
-// -----BEGIN RSA TESTING KEY-----
-// MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
-// fd7Ai2KW5ToIwzFofvJcS/STa6HA5gQenRUCAwEAAQJBAIq9amn00aS0h/CrjXqu
-// /ThglAXJmZhOMPVn4eiu7/ROixi9sex436MaVeMqSNf7Ex9a8fRNfWss7Sqd9eWu
-// RTUCIQDasvGASLqmjeffBNLTXV2A5g4t+kLVCpsEIZAycV5GswIhANEPLmax0ME/
-// EO+ZJ79TJKN5yiGBRsv5yvx5UiHxajEXAiAhAol5N4EUyq6I9w1rYdhPMGpLfk7A
-// IU2snfRJ6Nq2CQIgFrPsWRCkV+gOYcajD17rEqmuLrdIRexpg8N1DOSXoJ8CIGlS
-// tAboUGBxTDq3ZroNism3DaMIbKPyYrAqhKov1h5V
-// -----END RSA TESTING KEY-----
-
-var rsaPrivateKey = &PrivateKey{
-	PublicKey: PublicKey{
-		N: fromBase10("9353930466774385905609975137998169297361893554149986716853295022578535724979677252958524466350471210367835187480748268864277464700638583474144061408845077"),
-		E: 65537,
-	},
-	D: fromBase10("7266398431328116344057699379749222532279343923819063639497049039389899328538543087657733766554155839834519529439851673014800261285757759040931985506583861"),
-	Primes: []*big.Int{
-		fromBase10("98920366548084643601728869055592650835572950932266967461790948584315647051443"),
-		fromBase10("94560208308847015747498523884063394671606671904944666360068158221458669711639"),
-	},
+func parsePublicKey(s string) *PublicKey {
+	p, _ := pem.Decode([]byte(s))
+	k, err := x509.ParsePKCS1PublicKey(p.Bytes)
+	if err != nil {
+		panic(err)
+	}
+	return k
 }
 
 func TestShortPKCS1v15Signature(t *testing.T) {
-	pub := &PublicKey{
-		E: 65537,
-		N: fromBase10("8272693557323587081220342447407965471608219912416565371060697606400726784709760494166080686904546560026343451112103559482851304715739629410219358933351333"),
-	}
+	pub := parsePublicKey(`-----BEGIN RSA PUBLIC KEY-----
+MEgCQQCd9BVzo775lkohasxjnefF1nCMcNoibqIWEVDe/K7M2GSoO4zlSQB+gkix
+O3AnTcdHB51iaZpWfxPSnew8yfulAgMBAAE=
+-----END RSA PUBLIC KEY-----`)
 	sig, err := hex.DecodeString("193a310d0dcf64094c6e3a00c8219b80ded70535473acff72c08e1222974bb24a93a535b1dc4c59fc0e65775df7ba2007dd20e9193f4c4025a18a7070aee93")
 	if err != nil {
 		t.Fatalf("failed to decode signature: %s", err)

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"text/scanner"
@@ -67,7 +68,7 @@ func predefine(defines flags.MultiFlag) map[string]*Macro {
 
 var panicOnError bool // For testing.
 
-func (in *Input) Error(args ...interface{}) {
+func (in *Input) Error(args ...any) {
 	if panicOnError {
 		panic(fmt.Errorf("%s:%d: %s", in.File(), in.Line(), fmt.Sprintln(args...)))
 	}
@@ -76,7 +77,7 @@ func (in *Input) Error(args ...interface{}) {
 }
 
 // expectText is like Error but adds "got XXX" where XXX is a quoted representation of the most recent token.
-func (in *Input) expectText(args ...interface{}) {
+func (in *Input) expectText(args ...any) {
 	in.Error(append(args, "; got", strconv.Quote(in.Stack.Text()))...)
 }
 
@@ -109,6 +110,9 @@ func (in *Input) Next() ScanToken {
 				in.Error("'#' must be first item on line")
 			}
 			in.beginningOfLine = in.hash()
+			in.text = "#"
+			return '#'
+
 		case scanner.Ident:
 			// Is it a macro name?
 			name := in.Stack.Text()
@@ -249,7 +253,7 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
 					in.Error("bad syntax in definition for macro:", name)
 				}
 				arg := in.Stack.Text()
-				if i := lookup(args, arg); i >= 0 {
+				if slices.Contains(args, arg) {
 					in.Error("duplicate argument", arg, "in definition for macro:", name)
 				}
 				args = append(args, arg)
@@ -275,15 +279,6 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
 		tok = in.Stack.Next()
 	}
 	return args, tokens
-}
-
-func lookup(args []string, arg string) int {
-	for i, a := range args {
-		if a == arg {
-			return i
-		}
-	}
-	return -1
 }
 
 // invokeMacro pushes onto the input Stack a Slice that holds the macro definition with the actual

@@ -1,0 +1,55 @@
+# Support replace statement in go.work file
+
+# Replacement in go.work file, and none in go.mod file.
+go list -m example.com/dep
+stdout 'example.com/dep v1.0.0 => ./dep'
+
+# Wildcard replacement in go.work file overrides version replacement in go.mod
+# file.
+go list -m example.com/other
+stdout 'example.com/other v1.0.0 => ./other2'
+
+-- go.work --
+use m
+
+replace example.com/dep => ./dep
+replace example.com/other => ./other2
+
+-- m/go.mod --
+module example.com/m
+
+require example.com/dep v1.0.0
+require example.com/other v1.0.0
+
+replace example.com/other v1.0.0 => ./other
+-- m/m.go --
+package m
+
+import "example.com/dep"
+import "example.com/other"
+
+func F() {
+	dep.G()
+	other.H()
+}
+-- dep/go.mod --
+module example.com/dep
+-- dep/dep.go --
+package dep
+
+func G() {
+}
+-- other/go.mod --
+module example.com/other
+-- other/dep.go --
+package other
+
+func G() {
+}
+-- other2/go.mod --
+module example.com/other
+-- other2/dep.go --
+package other
+
+func G() {
+}

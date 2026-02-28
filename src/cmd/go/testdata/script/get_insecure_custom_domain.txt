@@ -1,5 +1,0 @@
-[!net] skip
-[!exec:git] skip
-
-! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
-go get -d -insecure insecure.go-get-issue-15410.appspot.com/pkg/p

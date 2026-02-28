@@ -10,17 +10,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"strings"
 	"testing"
+	"testing/iotest"
+	"testing/synctest"
 	"time"
 )
 
 type reqWriteTest struct {
 	Req  Request
-	Body interface{} // optional []byte or func() io.ReadCloser to populate Req.Body
+	Body any // optional []byte or func() io.ReadCloser to populate Req.Body
 
 	// Any of these three may be empty to skip that test.
 	WantWrite string // Request.Write
@@ -228,7 +229,7 @@ var reqWriteTests = []reqWriteTest{
 			ContentLength: 0, // as if unset by user
 		},
 
-		Body: func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 0)) },
+		Body: func() io.ReadCloser { return io.NopCloser(io.LimitReader(strings.NewReader("xx"), 0)) },
 
 		WantWrite: "POST / HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
@@ -280,7 +281,7 @@ var reqWriteTests = []reqWriteTest{
 			ContentLength: 0, // as if unset by user
 		},
 
-		Body: func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 1)) },
+		Body: func() io.ReadCloser { return io.NopCloser(io.LimitReader(strings.NewReader("xx"), 1)) },
 
 		WantWrite: "POST / HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
@@ -349,8 +350,8 @@ var reqWriteTests = []reqWriteTest{
 
 		Body: func() io.ReadCloser {
 			err := errors.New("Custom reader error")
-			errReader := &errorReader{err}
-			return ioutil.NopCloser(io.MultiReader(strings.NewReader("x"), errReader))
+			errReader := iotest.ErrReader(err)
+			return io.NopCloser(io.MultiReader(strings.NewReader("x"), errReader))
 		},
 
 		WantError: errors.New("Custom reader error"),
@@ -369,8 +370,8 @@ var reqWriteTests = []reqWriteTest{
 
 		Body: func() io.ReadCloser {
 			err := errors.New("Custom reader error")
-			errReader := &errorReader{err}
-			return ioutil.NopCloser(errReader)
+			errReader := iotest.ErrReader(err)
+			return io.NopCloser(errReader)
 		},
 
 		WantError: errors.New("Custom reader error"),
@@ -587,6 +588,26 @@ var reqWriteTests = []reqWriteTest{
 		},
 		WantError: errors.New("net/http: can't write control character in Request.URL"),
 	},
+
+	26: { // Request with nil body and PATCH method. Issue #40978
+		Req: Request{
+			Method:        "PATCH",
+			URL:           mustParseURL("/"),
+			Host:          "example.com",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			ContentLength: 0, // as if unset by user
+		},
+		Body: nil,
+		WantWrite: "PATCH / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"Content-Length: 0\r\n\r\n",
+		WantProxy: "PATCH / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"Content-Length: 0\r\n\r\n",
+	},
 }
 
 func TestRequestWrite(t *testing.T) {
@@ -599,7 +620,7 @@ func TestRequestWrite(t *testing.T) {
 			}
 			switch b := tt.Body.(type) {
 			case []byte:
-				tt.Req.Body = ioutil.NopCloser(bytes.NewReader(b))
+				tt.Req.Body = io.NopCloser(bytes.NewReader(b))
 			case func() io.ReadCloser:
 				tt.Req.Body = b()
 			}
@@ -609,7 +630,7 @@ func TestRequestWrite(t *testing.T) {
 			tt.Req.Header = make(Header)
 		}
 
-		var braw bytes.Buffer
+		var braw strings.Builder
 		err := tt.Req.Write(&braw)
 		if g, e := fmt.Sprintf("%v", err), fmt.Sprintf("%v", tt.WantError); g != e {
 			t.Errorf("writing #%d, err = %q, want %q", i, g, e)
@@ -629,7 +650,7 @@ func TestRequestWrite(t *testing.T) {
 
 		if tt.WantProxy != "" {
 			setBody()
-			var praw bytes.Buffer
+			var praw strings.Builder
 			err = tt.Req.WriteProxy(&praw)
 			if err != nil {
 				t.Errorf("WriteProxy #%d: %s", i, err)
@@ -647,6 +668,13 @@ func TestRequestWrite(t *testing.T) {
 func TestRequestWriteTransport(t *testing.T) {
 	t.Parallel()
 
+	// Run this test in a synctest bubble, since it relies on the transport
+	// successfully probing the request body within 200ms
+	// (see transferWriter.probeRequestBody).
+	// This occasionally flakes on slow builders (#52575) if we don't use a fake clock.
+	synctest.Test(t, testRequestWriteTransport)
+}
+func testRequestWriteTransport(t *testing.T) {
 	matchSubstr := func(substr string) func(string) error {
 		return func(written string) error {
 			if !strings.Contains(written, substr) {
@@ -695,20 +723,20 @@ func TestRequestWriteTransport(t *testing.T) {
 		},
 		{
 			method: "GET",
-			body:   ioutil.NopCloser(strings.NewReader("")),
+			body:   io.NopCloser(strings.NewReader("")),
 			want:   noContentLengthOrTransferEncoding,
 		},
 		{
 			method: "GET",
 			clen:   -1,
-			body:   ioutil.NopCloser(strings.NewReader("")),
+			body:   io.NopCloser(strings.NewReader("")),
 			want:   noContentLengthOrTransferEncoding,
 		},
 		// A GET with a body, with explicit content length:
 		{
 			method: "GET",
 			clen:   7,
-			body:   ioutil.NopCloser(strings.NewReader("foobody")),
+			body:   io.NopCloser(strings.NewReader("foobody")),
 			want: all(matchSubstr("Content-Length: 7"),
 				matchSubstr("foobody")),
 		},
@@ -716,7 +744,7 @@ func TestRequestWriteTransport(t *testing.T) {
 		{
 			method: "GET",
 			clen:   -1,
-			body:   ioutil.NopCloser(strings.NewReader("foobody")),
+			body:   io.NopCloser(strings.NewReader("foobody")),
 			want: all(matchSubstr("Transfer-Encoding: chunked"),
 				matchSubstr("\r\n1\r\nf\r\n"),
 				matchSubstr("oobody")),
@@ -726,14 +754,14 @@ func TestRequestWriteTransport(t *testing.T) {
 		{
 			method: "POST",
 			clen:   -1,
-			body:   ioutil.NopCloser(strings.NewReader("foobody")),
+			body:   io.NopCloser(strings.NewReader("foobody")),
 			want: all(matchSubstr("Transfer-Encoding: chunked"),
 				matchSubstr("foobody")),
 		},
 		{
 			method: "POST",
 			clen:   -1,
-			body:   ioutil.NopCloser(strings.NewReader("")),
+			body:   io.NopCloser(strings.NewReader("")),
 			want:   all(matchSubstr("Transfer-Encoding: chunked")),
 		},
 		// Verify that a blocking Request.Body doesn't block forever.
@@ -745,7 +773,7 @@ func TestRequestWriteTransport(t *testing.T) {
 				tt.afterReqRead = func() {
 					pw.Close()
 				}
-				tt.body = ioutil.NopCloser(pr)
+				tt.body = io.NopCloser(pr)
 			},
 			want: matchSubstr("Transfer-Encoding: chunked"),
 		},
@@ -795,7 +823,7 @@ func TestRequestWriteClosesBody(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 	if err := req.Write(buf); err != nil {
 		t.Error(err)
 	}
@@ -916,7 +944,7 @@ func dumpRequestOut(req *Request, onReadHeaders func()) ([]byte, error) {
 			}
 			// Ensure all the body is read; otherwise
 			// we'll get a partial dump.
-			io.Copy(ioutil.Discard, req.Body)
+			io.Copy(io.Discard, req.Body)
 			req.Body.Close()
 		}
 		dr.c <- strings.NewReader("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")

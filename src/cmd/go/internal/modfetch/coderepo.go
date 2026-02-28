@@ -7,16 +7,19 @@ package modfetch
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch/codehost"
 
 	"golang.org/x/mod/modfile"
@@ -56,9 +59,11 @@ type codeRepo struct {
 }
 
 // newCodeRepo returns a Repo that reads the source code for the module with the
-// given path, from the repo stored in code, with the root of the repo
-// containing the path given by codeRoot.
-func newCodeRepo(code codehost.Repo, codeRoot, path string) (Repo, error) {
+// given path, from the repo stored in code.
+// codeRoot gives the import path corresponding to the root of the repository,
+// and subdir gives the subdirectory within the repo containing the module.
+// If subdir is empty, the module is at the root of the repo.
+func newCodeRepo(code codehost.Repo, codeRoot, subdir, path string) (Repo, error) {
 	if !hasPathPrefix(path, codeRoot) {
 		return nil, fmt.Errorf("mismatched repo: found %s for %s", codeRoot, path)
 	}
@@ -105,12 +110,25 @@ func newCodeRepo(code codehost.Repo, codeRoot, path string) (Repo, error) {
 	//	pathMajor = .v2
 	//	pseudoMajor = v2
 	//
+	// Starting in 1.25, subdir may be passed in by the go-import meta tag.
+	// So it may be the case that:
+	//	path = github.com/rsc/foo/v2
+	//	codeRoot = github.com/rsc/foo
+	//	subdir = bar/subdir
+	//	pathPrefix = github.com/rsc/foo
+	//	pathMajor = /v2
+	//	pseudoMajor = v2
+	// which means that codeDir = bar/subdir
+
 	codeDir := ""
 	if codeRoot != path {
 		if !hasPathPrefix(pathPrefix, codeRoot) {
 			return nil, fmt.Errorf("repository rooted at %s cannot contain module %s", codeRoot, path)
 		}
 		codeDir = strings.Trim(pathPrefix[len(codeRoot):], "/")
+	}
+	if subdir != "" {
+		codeDir = filepath.ToSlash(filepath.Join(codeDir, subdir))
 	}
 
 	r := &codeRepo{
@@ -130,36 +148,56 @@ func (r *codeRepo) ModulePath() string {
 	return r.modPath
 }
 
-func (r *codeRepo) Versions(prefix string) ([]string, error) {
+func (r *codeRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error {
+	return r.code.CheckReuse(ctx, old, r.codeDir)
+}
+
+func (r *codeRepo) Versions(ctx context.Context, prefix string) (*Versions, error) {
 	// Special case: gopkg.in/macaroon-bakery.v2-unstable
 	// does not use the v2 tags (those are for macaroon-bakery.v2).
 	// It has no possible tags at all.
 	if strings.HasPrefix(r.modPath, "gopkg.in/") && strings.HasSuffix(r.modPath, "-unstable") {
-		return nil, nil
+		return &Versions{}, nil
 	}
 
 	p := prefix
 	if r.codeDir != "" {
 		p = r.codeDir + "/" + p
 	}
-	tags, err := r.code.Tags(p)
+	tags, err := r.code.Tags(ctx, p)
 	if err != nil {
 		return nil, &module.ModuleError{
 			Path: r.modPath,
 			Err:  err,
 		}
 	}
+	if tags.Origin != nil {
+		tags.Origin.Subdir = r.codeDir
+	}
 
 	var list, incompatible []string
-	for _, tag := range tags {
-		if !strings.HasPrefix(tag, p) {
+	for _, tag := range tags.List {
+		if !strings.HasPrefix(tag.Name, p) {
 			continue
 		}
-		v := tag
+		v := tag.Name
 		if r.codeDir != "" {
 			v = v[len(r.codeDir)+1:]
 		}
-		if v == "" || v != module.CanonicalVersion(v) || IsPseudoVersion(v) {
+		// Note: ./codehost/codehost.go's isOriginTag knows about these conditions too.
+		// If these are relaxed, isOriginTag will need to be relaxed as well.
+		if v == "" || v != semver.Canonical(v) {
+			// Ignore non-canonical tags: Stat rewrites those to canonical
+			// pseudo-versions. Note that we compare against semver.Canonical here
+			// instead of module.CanonicalVersion: revToRev strips "+incompatible"
+			// suffixes before looking up tags, so a tag like "v2.0.0+incompatible"
+			// would not resolve at all. (The Go version string "v2.0.0+incompatible"
+			// refers to the "v2.0.0" version tag, which we handle below.)
+			continue
+		}
+		if module.IsPseudoVersion(v) {
+			// Ignore tags that look like pseudo-versions: Stat rewrites those
+			// unambiguously to the underlying commit, and tagToVersion drops them.
 			continue
 		}
 
@@ -172,10 +210,10 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
 
 		list = append(list, v)
 	}
-	SortVersions(list)
-	SortVersions(incompatible)
+	semver.Sort(list)
+	semver.Sort(incompatible)
 
-	return r.appendIncompatibleVersions(list, incompatible)
+	return r.appendIncompatibleVersions(ctx, tags.Origin, list, incompatible)
 }
 
 // appendIncompatibleVersions appends "+incompatible" versions to list if
@@ -185,14 +223,18 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
 // prefix.
 //
 // Both list and incompatible must be sorted in semantic order.
-func (r *codeRepo) appendIncompatibleVersions(list, incompatible []string) ([]string, error) {
+func (r *codeRepo) appendIncompatibleVersions(ctx context.Context, origin *codehost.Origin, list, incompatible []string) (*Versions, error) {
+	versions := &Versions{
+		Origin: origin,
+		List:   list,
+	}
 	if len(incompatible) == 0 || r.pathMajor != "" {
 		// No +incompatible versions are possible, so no need to check them.
-		return list, nil
+		return versions, nil
 	}
 
 	versionHasGoMod := func(v string) (bool, error) {
-		_, err := r.code.ReadFile(v, "go.mod", codehost.MaxGoMod)
+		_, err := r.code.ReadFile(ctx, v, "go.mod", codehost.MaxGoMod)
 		if err == nil {
 			return true, nil
 		}
@@ -221,7 +263,7 @@ func (r *codeRepo) appendIncompatibleVersions(list, incompatible []string) ([]st
 			// (github.com/russross/blackfriday@v2.0.0 and
 			// github.com/libp2p/go-libp2p@v6.0.23), and (as of 2019-10-29) have no
 			// concrete examples for which it is undesired.
-			return list, nil
+			return versions, nil
 		}
 	}
 
@@ -260,20 +302,28 @@ func (r *codeRepo) appendIncompatibleVersions(list, incompatible []string) ([]st
 			// bounds.
 			continue
 		}
-		list = append(list, v+"+incompatible")
+		versions.List = append(versions.List, v+"+incompatible")
 	}
 
-	return list, nil
+	return versions, nil
 }
 
-func (r *codeRepo) Stat(rev string) (*RevInfo, error) {
+func (r *codeRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
 	if rev == "latest" {
-		return r.Latest()
+		return r.Latest(ctx)
 	}
 	codeRev := r.revToRev(rev)
-	info, err := r.code.Stat(codeRev)
+	info, err := r.code.Stat(ctx, codeRev)
 	if err != nil {
-		return nil, &module.ModuleError{
+		// Note: info may be non-nil to supply Origin for caching error.
+		var revInfo *RevInfo
+		if info != nil {
+			revInfo = &RevInfo{
+				Origin:  info.Origin,
+				Version: rev,
+			}
+		}
+		return revInfo, &module.ModuleError{
 			Path: r.modPath,
 			Err: &module.InvalidVersionError{
 				Version: rev,
@@ -281,15 +331,18 @@ func (r *codeRepo) Stat(rev string) (*RevInfo, error) {
 			},
 		}
 	}
-	return r.convert(info, rev)
+	return r.convert(ctx, info, rev)
 }
 
-func (r *codeRepo) Latest() (*RevInfo, error) {
-	info, err := r.code.Latest()
+func (r *codeRepo) Latest(ctx context.Context) (*RevInfo, error) {
+	info, err := r.code.Latest(ctx)
 	if err != nil {
+		if info != nil {
+			return &RevInfo{Origin: info.Origin}, err
+		}
 		return nil, err
 	}
-	return r.convert(info, "")
+	return r.convert(ctx, info, "")
 }
 
 // convert converts a version as reported by the code host to a version as
@@ -297,43 +350,102 @@ func (r *codeRepo) Latest() (*RevInfo, error) {
 //
 // If statVers is a valid module version, it is used for the Version field.
 // Otherwise, the Version is derived from the passed-in info and recent tags.
-func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, error) {
-	info2 := &RevInfo{
-		Name:  info.Name,
-		Short: info.Short,
-		Time:  info.Time,
-	}
+func (r *codeRepo) convert(ctx context.Context, info *codehost.RevInfo, statVers string) (revInfo *RevInfo, err error) {
+	defer func() {
+		if info.Origin == nil {
+			return
+		}
+		if revInfo == nil {
+			revInfo = new(RevInfo)
+		} else if revInfo.Origin != nil {
+			panic("internal error: RevInfo Origin unexpectedly already populated")
+		}
+
+		origin := *info.Origin
+		revInfo.Origin = &origin
+		origin.Subdir = r.codeDir
+
+		v := revInfo.Version
+		if module.IsPseudoVersion(v) && (v != statVers || !strings.HasPrefix(v, "v0.0.0-")) {
+			// Add tags that are relevant to pseudo-version calculation to origin.
+			prefix := r.codeDir
+			if prefix != "" {
+				prefix += "/"
+			}
+			if r.pathMajor != "" { // "/v2" or "/.v2"
+				prefix += r.pathMajor[1:] + "." // += "v2."
+			}
+			tags, tagsErr := r.code.Tags(ctx, prefix)
+			if tagsErr != nil {
+				revInfo.Origin = nil
+				if err == nil {
+					err = tagsErr
+				}
+			} else {
+				origin.TagPrefix = tags.Origin.TagPrefix
+				origin.TagSum = tags.Origin.TagSum
+				if tags.Origin.RepoSum != "" {
+					origin.RepoSum = tags.Origin.RepoSum
+				}
+			}
+		}
+	}()
 
 	// If this is a plain tag (no dir/ prefix)
 	// and the module path is unversioned,
 	// and if the underlying file tree has no go.mod,
 	// then allow using the tag with a +incompatible suffix.
-	var canUseIncompatible func() bool
-	canUseIncompatible = func() bool {
-		var ok bool
-		if r.codeDir == "" && r.pathMajor == "" {
-			_, errGoMod := r.code.ReadFile(info.Name, "go.mod", codehost.MaxGoMod)
-			if errGoMod != nil {
-				ok = true
+	//
+	// (If the version is +incompatible, then the go.mod file must not exist:
+	// +incompatible is not an ongoing opt-out from semantic import versioning.)
+	incompatibleOk := map[string]bool{}
+	canUseIncompatible := func(v string) bool {
+		if r.codeDir != "" || r.pathMajor != "" {
+			// A non-empty codeDir indicates a module within a subdirectory,
+			// which necessarily has a go.mod file indicating the module boundary.
+			// A non-empty pathMajor indicates a module path with a major-version
+			// suffix, which must match.
+			return false
+		}
+
+		ok, seen := incompatibleOk[""]
+		if !seen {
+			_, errGoMod := r.code.ReadFile(ctx, info.Name, "go.mod", codehost.MaxGoMod)
+			ok = (errGoMod != nil)
+			incompatibleOk[""] = ok
+		}
+		if !ok {
+			// A go.mod file exists at the repo root.
+			return false
+		}
+
+		// Per https://go.dev/issue/51324, previous versions of the 'go' command
+		// didn't always check for go.mod files in subdirectories, so if the user
+		// requests a +incompatible version explicitly, we should continue to allow
+		// it. Otherwise, if vN/go.mod exists, expect that release tags for that
+		// major version are intended for the vN module.
+		if v != "" && !strings.HasSuffix(statVers, "+incompatible") {
+			major := semver.Major(v)
+			ok, seen = incompatibleOk[major]
+			if !seen {
+				_, errGoModSub := r.code.ReadFile(ctx, info.Name, path.Join(major, "go.mod"), codehost.MaxGoMod)
+				ok = (errGoModSub != nil)
+				incompatibleOk[major] = ok
+			}
+			if !ok {
+				return false
 			}
 		}
-		canUseIncompatible = func() bool { return ok }
-		return ok
+
+		return true
 	}
 
-	invalidf := func(format string, args ...interface{}) error {
-		return &module.ModuleError{
-			Path: r.modPath,
-			Err: &module.InvalidVersionError{
-				Version: info2.Version,
-				Err:     fmt.Errorf(format, args...),
-			},
-		}
-	}
-
-	// checkGoMod verifies that the go.mod file for the module exists or does not
-	// exist as required by info2.Version and the module path represented by r.
-	checkGoMod := func() (*RevInfo, error) {
+	// checkCanonical verifies that the canonical version v is compatible with the
+	// module path represented by r, adding a "+incompatible" suffix if needed.
+	//
+	// If statVers is also canonical, checkCanonical also verifies that v is
+	// either statVers or statVers with the added "+incompatible" suffix.
+	checkCanonical := func(v string) (*RevInfo, error) {
 		// If r.codeDir is non-empty, then the go.mod file must exist: the module
 		// author — not the module consumer, — gets to decide how to carve up the repo
 		// into modules.
@@ -344,73 +456,101 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 		// r.findDir verifies both of these conditions. Execute it now so that
 		// r.Stat will correctly return a notExistError if the go.mod location or
 		// declared module path doesn't match.
-		_, _, _, err := r.findDir(info2.Version)
+		_, _, _, err := r.findDir(ctx, v)
 		if err != nil {
 			// TODO: It would be nice to return an error like "not a module".
 			// Right now we return "missing go.mod", which is a little confusing.
 			return nil, &module.ModuleError{
 				Path: r.modPath,
 				Err: &module.InvalidVersionError{
-					Version: info2.Version,
+					Version: v,
 					Err:     notExistError{err: err},
 				},
 			}
 		}
 
-		// If the version is +incompatible, then the go.mod file must not exist:
-		// +incompatible is not an ongoing opt-out from semantic import versioning.
-		if strings.HasSuffix(info2.Version, "+incompatible") {
-			if !canUseIncompatible() {
-				if r.pathMajor != "" {
-					return nil, invalidf("+incompatible suffix not allowed: module path includes a major version suffix, so major version must match")
-				} else {
-					return nil, invalidf("+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required")
-				}
-			}
-
-			if err := module.CheckPathMajor(strings.TrimSuffix(info2.Version, "+incompatible"), r.pathMajor); err == nil {
-				return nil, invalidf("+incompatible suffix not allowed: major version %s is compatible", semver.Major(info2.Version))
+		invalidf := func(format string, args ...any) error {
+			return &module.ModuleError{
+				Path: r.modPath,
+				Err: &module.InvalidVersionError{
+					Version: v,
+					Err:     fmt.Errorf(format, args...),
+				},
 			}
 		}
 
-		return info2, nil
+		// Add the +incompatible suffix if needed or requested explicitly, and
+		// verify that its presence or absence is appropriate for this version
+		// (which depends on whether it has an explicit go.mod file).
+
+		if v == strings.TrimSuffix(statVers, "+incompatible") {
+			v = statVers
+		}
+		base := strings.TrimSuffix(v, "+incompatible")
+		var errIncompatible error
+		if !module.MatchPathMajor(base, r.pathMajor) {
+			if canUseIncompatible(base) {
+				v = base + "+incompatible"
+			} else {
+				if r.pathMajor != "" {
+					errIncompatible = invalidf("module path includes a major version suffix, so major version must match")
+				} else {
+					errIncompatible = invalidf("module contains a go.mod file, so module path must match major version (%q)", path.Join(r.pathPrefix, semver.Major(v)))
+				}
+			}
+		} else if strings.HasSuffix(v, "+incompatible") {
+			errIncompatible = invalidf("+incompatible suffix not allowed: major version %s is compatible", semver.Major(v))
+		}
+
+		if statVers != "" && statVers == module.CanonicalVersion(statVers) {
+			// Since the caller-requested version is canonical, it would be very
+			// confusing to resolve it to anything but itself, possibly with a
+			// "+incompatible" suffix. Error out explicitly.
+			if statBase := strings.TrimSuffix(statVers, "+incompatible"); statBase != base {
+				return nil, &module.ModuleError{
+					Path: r.modPath,
+					Err: &module.InvalidVersionError{
+						Version: statVers,
+						Err:     fmt.Errorf("resolves to version %v (%s is not a tag)", v, statBase),
+					},
+				}
+			}
+		}
+
+		if errIncompatible != nil {
+			return nil, errIncompatible
+		}
+
+		return &RevInfo{
+			Name:    info.Name,
+			Short:   info.Short,
+			Time:    info.Time,
+			Version: v,
+		}, nil
 	}
 
 	// Determine version.
-	//
-	// If statVers is canonical, then the original call was repo.Stat(statVers).
-	// Since the version is canonical, we must not resolve it to anything but
-	// itself, possibly with a '+incompatible' annotation: we do not need to do
-	// the work required to look for an arbitrary pseudo-version.
-	if statVers != "" && statVers == module.CanonicalVersion(statVers) {
-		info2.Version = statVers
 
-		if IsPseudoVersion(info2.Version) {
-			if err := r.validatePseudoVersion(info, info2.Version); err != nil {
-				return nil, err
-			}
-			return checkGoMod()
+	if module.IsPseudoVersion(statVers) {
+		// Validate the go.mod location and major version before
+		// we check for an ancestor tagged with the pseudo-version base.
+		//
+		// We can rule out an invalid subdirectory or major version with only
+		// shallow commit information, but checking the pseudo-version base may
+		// require downloading a (potentially more expensive) full history.
+		revInfo, err = checkCanonical(statVers)
+		if err != nil {
+			return revInfo, err
 		}
-
-		if err := module.CheckPathMajor(info2.Version, r.pathMajor); err != nil {
-			if canUseIncompatible() {
-				info2.Version += "+incompatible"
-				return checkGoMod()
-			} else {
-				if vErr, ok := err.(*module.InvalidVersionError); ok {
-					// We're going to describe why the version is invalid in more detail,
-					// so strip out the existing “invalid version” wrapper.
-					err = vErr.Err
-				}
-				return nil, invalidf("module contains a go.mod file, so major version must be compatible: %v", err)
-			}
+		if err := r.validatePseudoVersion(ctx, info, statVers); err != nil {
+			return nil, err
 		}
-
-		return checkGoMod()
+		return revInfo, nil
 	}
 
-	// statVers is empty or non-canonical, so we need to resolve it to a canonical
-	// version or pseudo-version.
+	// statVers is not a pseudo-version, so we need to either resolve it to a
+	// canonical version or verify that it is already a canonical tag
+	// (not a branch).
 
 	// Derive or verify a version from a code repo tag.
 	// Tag must have a prefix matching codeDir.
@@ -419,16 +559,21 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 		tagPrefix = r.codeDir + "/"
 	}
 
+	isRetracted, err := r.retractedVersions(ctx)
+	if err != nil {
+		isRetracted = func(string) bool { return false }
+	}
+
 	// tagToVersion returns the version obtained by trimming tagPrefix from tag.
-	// If the tag is invalid or a pseudo-version, tagToVersion returns an empty
-	// version.
+	// If the tag is invalid, retracted, or a pseudo-version, tagToVersion returns
+	// an empty version.
 	tagToVersion := func(tag string) (v string, tagIsCanonical bool) {
 		if !strings.HasPrefix(tag, tagPrefix) {
 			return "", false
 		}
 		trimmed := tag[len(tagPrefix):]
 		// Tags that look like pseudo-versions would be confusing. Ignore them.
-		if IsPseudoVersion(tag) {
+		if module.IsPseudoVersion(tag) {
 			return "", false
 		}
 
@@ -439,83 +584,86 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 		if v == trimmed {
 			tagIsCanonical = true
 		}
-
-		if err := module.CheckPathMajor(v, r.pathMajor); err != nil {
-			if canUseIncompatible() {
-				return v + "+incompatible", tagIsCanonical
-			}
-			return "", false
-		}
-
 		return v, tagIsCanonical
 	}
 
 	// If the VCS gave us a valid version, use that.
 	if v, tagIsCanonical := tagToVersion(info.Version); tagIsCanonical {
-		info2.Version = v
-		return checkGoMod()
+		if info, err := checkCanonical(v); err == nil {
+			return info, err
+		}
 	}
 
 	// Look through the tags on the revision for either a usable canonical version
 	// or an appropriate base for a pseudo-version.
-	var pseudoBase string
+	var (
+		highestCanonical string
+		pseudoBase       string
+	)
 	for _, pathTag := range info.Tags {
 		v, tagIsCanonical := tagToVersion(pathTag)
-		if tagIsCanonical {
-			if statVers != "" && semver.Compare(v, statVers) == 0 {
-				// The user requested a non-canonical version, but the tag for the
-				// canonical equivalent refers to the same revision. Use it.
-				info2.Version = v
-				return checkGoMod()
+		if statVers != "" && semver.Compare(v, statVers) == 0 {
+			// The tag is equivalent to the version requested by the user.
+			if tagIsCanonical {
+				// This tag is the canonical form of the requested version,
+				// not some other form with extra build metadata.
+				// Use this tag so that the resolved version will match exactly.
+				// (If it isn't actually allowed, we'll error out in checkCanonical.)
+				return checkCanonical(v)
 			} else {
-				// Save the highest canonical tag for the revision. If we don't find a
-				// better match, we'll use it as the canonical version.
+				// The user explicitly requested something equivalent to this tag. We
+				// can't use the version from the tag directly: since the tag is not
+				// canonical, it could be ambiguous. For example, tags v0.0.1+a and
+				// v0.0.1+b might both exist and refer to different revisions.
 				//
-				// NOTE: Do not replace this with semver.Max. Despite the name,
-				// semver.Max *also* canonicalizes its arguments, which uses
-				// semver.Canonical instead of module.CanonicalVersion and thereby
-				// strips our "+incompatible" suffix.
-				if semver.Compare(info2.Version, v) < 0 {
-					info2.Version = v
-				}
+				// The tag is otherwise valid for the module, so we can at least use it as
+				// the base of an unambiguous pseudo-version.
+				//
+				// If multiple tags match, tagToVersion will canonicalize them to the same
+				// base version.
+				pseudoBase = v
 			}
-		} else if v != "" && semver.Compare(v, statVers) == 0 {
-			// The user explicitly requested something equivalent to this tag. We
-			// can't use the version from the tag directly: since the tag is not
-			// canonical, it could be ambiguous. For example, tags v0.0.1+a and
-			// v0.0.1+b might both exist and refer to different revisions.
-			//
-			// The tag is otherwise valid for the module, so we can at least use it as
-			// the base of an unambiguous pseudo-version.
-			//
-			// If multiple tags match, tagToVersion will canonicalize them to the same
-			// base version.
-			pseudoBase = v
+		}
+		// Save the highest non-retracted canonical tag for the revision.
+		// If we don't find a better match, we'll use it as the canonical version.
+		if tagIsCanonical && semver.Compare(highestCanonical, v) < 0 && !isRetracted(v) {
+			if module.MatchPathMajor(v, r.pathMajor) || canUseIncompatible(v) {
+				highestCanonical = v
+			}
 		}
 	}
 
-	// If we found any canonical tag for the revision, return it.
+	// If we found a valid canonical tag for the revision, return it.
 	// Even if we found a good pseudo-version base, a canonical version is better.
-	if info2.Version != "" {
-		return checkGoMod()
+	if highestCanonical != "" {
+		return checkCanonical(highestCanonical)
 	}
 
-	if pseudoBase == "" {
-		var tag string
-		if r.pseudoMajor != "" || canUseIncompatible() {
-			tag, _ = r.code.RecentTag(info.Name, tagPrefix, r.pseudoMajor)
-		} else {
-			// Allow either v1 or v0, but not incompatible higher versions.
-			tag, _ = r.code.RecentTag(info.Name, tagPrefix, "v1")
-			if tag == "" {
-				tag, _ = r.code.RecentTag(info.Name, tagPrefix, "v0")
-			}
+	// Find the highest tagged version in the revision's history, subject to
+	// major version and +incompatible constraints. Use that version as the
+	// pseudo-version base so that the pseudo-version sorts higher. Ignore
+	// retracted versions.
+	tagAllowed := func(tag string) bool {
+		v, _ := tagToVersion(tag)
+		if v == "" {
+			return false
 		}
-		pseudoBase, _ = tagToVersion(tag) // empty if the tag is invalid
+		if !module.MatchPathMajor(v, r.pathMajor) && !canUseIncompatible(v) {
+			return false
+		}
+		return !isRetracted(v)
+	}
+	if pseudoBase == "" {
+		tag, err := r.code.RecentTag(ctx, info.Name, tagPrefix, tagAllowed)
+		if err != nil && !errors.Is(err, errors.ErrUnsupported) {
+			return nil, err
+		}
+		if tag != "" {
+			pseudoBase, _ = tagToVersion(tag)
+		}
 	}
 
-	info2.Version = PseudoVersion(r.pseudoMajor, pseudoBase, info.Time, info.Short)
-	return checkGoMod()
+	return checkCanonical(module.PseudoVersion(r.pseudoMajor, pseudoBase, info.Time, info.Short))
 }
 
 // validatePseudoVersion checks that version has a major version compatible with
@@ -527,7 +675,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 // enough of the commit history to find a path between version and its base.
 // Fortunately, many pseudo-versions — such as those for untagged repositories —
 // have trivial bases!
-func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string) (err error) {
+func (r *codeRepo) validatePseudoVersion(ctx context.Context, info *codehost.RevInfo, version string) (err error) {
 	defer func() {
 		if err != nil {
 			if _, ok := err.(*module.ModuleError); !ok {
@@ -539,31 +687,27 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 		}
 	}()
 
-	if err := module.CheckPathMajor(version, r.pathMajor); err != nil {
-		return err
-	}
-
-	rev, err := PseudoVersionRev(version)
+	rev, err := module.PseudoVersionRev(version)
 	if err != nil {
 		return err
 	}
 	if rev != info.Short {
 		switch {
 		case strings.HasPrefix(rev, info.Short):
-			return fmt.Errorf("revision is longer than canonical (%s)", info.Short)
+			return fmt.Errorf("revision is longer than canonical (expected %s)", info.Short)
 		case strings.HasPrefix(info.Short, rev):
-			return fmt.Errorf("revision is shorter than canonical (%s)", info.Short)
+			return fmt.Errorf("revision is shorter than canonical (expected %s)", info.Short)
 		default:
-			return fmt.Errorf("does not match short name of revision (%s)", info.Short)
+			return fmt.Errorf("does not match short name of revision (expected %s)", info.Short)
 		}
 	}
 
-	t, err := PseudoVersionTime(version)
+	t, err := module.PseudoVersionTime(version)
 	if err != nil {
 		return err
 	}
 	if !t.Equal(info.Time.Truncate(time.Second)) {
-		return fmt.Errorf("does not match version-control timestamp (expected %s)", info.Time.UTC().Format(pseudoVersionTimestampFormat))
+		return fmt.Errorf("does not match version-control timestamp (expected %s)", info.Time.UTC().Format(module.PseudoVersionTimestampFormat))
 	}
 
 	tagPrefix := ""
@@ -587,7 +731,7 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 	// not enforce that property when resolving existing pseudo-versions: we don't
 	// know when the parent tags were added, and the highest-tagged parent may not
 	// have existed when the pseudo-version was first resolved.
-	base, err := PseudoVersionBase(strings.TrimSuffix(version, "+incompatible"))
+	base, err := module.PseudoVersionBase(strings.TrimSuffix(version, "+incompatible"))
 	if err != nil {
 		return err
 	}
@@ -618,18 +762,18 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 		}
 	}
 
-	tags, err := r.code.Tags(tagPrefix + base)
+	tags, err := r.code.Tags(ctx, tagPrefix+base)
 	if err != nil {
 		return err
 	}
 
 	var lastTag string // Prefer to log some real tag rather than a canonically-equivalent base.
 	ancestorFound := false
-	for _, tag := range tags {
-		versionOnly := strings.TrimPrefix(tag, tagPrefix)
+	for _, tag := range tags.List {
+		versionOnly := strings.TrimPrefix(tag.Name, tagPrefix)
 		if semver.Compare(versionOnly, base) == 0 {
-			lastTag = tag
-			ancestorFound, err = r.code.DescendsFrom(info.Name, tag)
+			lastTag = tag.Name
+			ancestorFound, err = r.code.DescendsFrom(ctx, info.Name, tag.Name)
 			if ancestorFound {
 				break
 			}
@@ -644,7 +788,7 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 		if err != nil {
 			return err
 		}
-		rev, err := PseudoVersionRev(version)
+		rev, err := module.PseudoVersionRev(version)
 		if err != nil {
 			return fmt.Errorf("not a descendent of preceding tag (%s)", lastTag)
 		}
@@ -655,8 +799,8 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 
 func (r *codeRepo) revToRev(rev string) string {
 	if semver.IsValid(rev) {
-		if IsPseudoVersion(rev) {
-			r, _ := PseudoVersionRev(rev)
+		if module.IsPseudoVersion(rev) {
+			r, _ := module.PseudoVersionRev(rev)
 			return r
 		}
 		if semver.Build(rev) == "+incompatible" {
@@ -687,7 +831,7 @@ func (r *codeRepo) versionToRev(version string) (rev string, err error) {
 //
 // If r.pathMajor is non-empty, this can be either r.codeDir or — if a go.mod
 // file exists — r.codeDir/r.pathMajor[1:].
-func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err error) {
+func (r *codeRepo) findDir(ctx context.Context, version string) (rev, dir string, gomod []byte, err error) {
 	rev, err = r.versionToRev(version)
 	if err != nil {
 		return "", "", nil, err
@@ -696,9 +840,9 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 	// Load info about go.mod but delay consideration
 	// (except I/O error) until we rule out v2/go.mod.
 	file1 := path.Join(r.codeDir, "go.mod")
-	gomod1, err1 := r.code.ReadFile(rev, file1, codehost.MaxGoMod)
+	gomod1, err1 := r.code.ReadFile(ctx, rev, file1, codehost.MaxGoMod)
 	if err1 != nil && !os.IsNotExist(err1) {
-		return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.pathPrefix, file1, rev, err1)
+		return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.codeRoot, file1, rev, err1)
 	}
 	mpath1 := modfile.ModulePath(gomod1)
 	found1 := err1 == nil && (isMajor(mpath1, r.pathMajor) || r.canReplaceMismatchedVersionDueToBug(mpath1))
@@ -714,9 +858,9 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 		// a replace directive.
 		dir2 := path.Join(r.codeDir, r.pathMajor[1:])
 		file2 = path.Join(dir2, "go.mod")
-		gomod2, err2 := r.code.ReadFile(rev, file2, codehost.MaxGoMod)
+		gomod2, err2 := r.code.ReadFile(ctx, rev, file2, codehost.MaxGoMod)
 		if err2 != nil && !os.IsNotExist(err2) {
-			return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.pathPrefix, file2, rev, err2)
+			return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.codeRoot, file2, rev, err2)
 		}
 		mpath2 := modfile.ModulePath(gomod2)
 		found2 := err2 == nil && isMajor(mpath2, r.pathMajor)
@@ -729,9 +873,9 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 		}
 		if err2 == nil {
 			if mpath2 == "" {
-				return "", "", nil, fmt.Errorf("%s/%s is missing module path at revision %s", r.pathPrefix, file2, rev)
+				return "", "", nil, fmt.Errorf("%s/%s is missing module path at revision %s", r.codeRoot, file2, rev)
 			}
-			return "", "", nil, fmt.Errorf("%s/%s has non-...%s module path %q at revision %s", r.pathPrefix, file2, r.pathMajor, mpath2, rev)
+			return "", "", nil, fmt.Errorf("%s/%s has non-...%s module path %q at revision %s", r.codeRoot, file2, r.pathMajor, mpath2, rev)
 		}
 	}
 
@@ -821,75 +965,140 @@ func (r *codeRepo) canReplaceMismatchedVersionDueToBug(mpath string) bool {
 	return unversioned && replacingGopkgIn
 }
 
-func (r *codeRepo) GoMod(version string) (data []byte, err error) {
+func (r *codeRepo) GoMod(ctx context.Context, version string) (data []byte, err error) {
 	if version != module.CanonicalVersion(version) {
 		return nil, fmt.Errorf("version %s is not canonical", version)
 	}
 
-	if IsPseudoVersion(version) {
+	if module.IsPseudoVersion(version) {
 		// findDir ignores the metadata encoded in a pseudo-version,
 		// only using the revision at the end.
 		// Invoke Stat to verify the metadata explicitly so we don't return
 		// a bogus file for an invalid version.
-		_, err := r.Stat(version)
+		_, err := r.Stat(ctx, version)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	rev, dir, gomod, err := r.findDir(version)
+	rev, dir, gomod, err := r.findDir(ctx, version)
 	if err != nil {
 		return nil, err
 	}
 	if gomod != nil {
 		return gomod, nil
 	}
-	data, err = r.code.ReadFile(rev, path.Join(dir, "go.mod"), codehost.MaxGoMod)
+	data, err = r.code.ReadFile(ctx, rev, path.Join(dir, "go.mod"), codehost.MaxGoMod)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return r.legacyGoMod(rev, dir), nil
+			return LegacyGoMod(r.modPath), nil
 		}
 		return nil, err
 	}
 	return data, nil
 }
 
-func (r *codeRepo) legacyGoMod(rev, dir string) []byte {
-	// We used to try to build a go.mod reflecting pre-existing
-	// package management metadata files, but the conversion
-	// was inherently imperfect (because those files don't have
-	// exactly the same semantics as go.mod) and, when done
-	// for dependencies in the middle of a build, impossible to
-	// correct. So we stopped.
-	// Return a fake go.mod that simply declares the module path.
-	return []byte(fmt.Sprintf("module %s\n", modfile.AutoQuote(r.modPath)))
+// LegacyGoMod generates a fake go.mod file for a module that doesn't have one.
+// The go.mod file contains a module directive and nothing else: no go version,
+// no requirements.
+//
+// We used to try to build a go.mod reflecting pre-existing
+// package management metadata files, but the conversion
+// was inherently imperfect (because those files don't have
+// exactly the same semantics as go.mod) and, when done
+// for dependencies in the middle of a build, impossible to
+// correct. So we stopped.
+func LegacyGoMod(modPath string) []byte {
+	return fmt.Appendf(nil, "module %s\n", modfile.AutoQuote(modPath))
 }
 
-func (r *codeRepo) modPrefix(rev string) string {
-	return r.modPath + "@" + rev
+func (r *codeRepo) retractedVersions(ctx context.Context) (func(string) bool, error) {
+	vs, err := r.Versions(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	versions := vs.List
+
+	for i, v := range versions {
+		if strings.HasSuffix(v, "+incompatible") {
+			// We're looking for the latest release tag that may list retractions in a
+			// go.mod file. +incompatible versions necessarily do not, and they start
+			// at major version 2 — which is higher than any version that could
+			// validly contain a go.mod file.
+			versions = versions[:i]
+			break
+		}
+	}
+	if len(versions) == 0 {
+		return func(string) bool { return false }, nil
+	}
+
+	var highest string
+	for i := len(versions) - 1; i >= 0; i-- {
+		v := versions[i]
+		if semver.Prerelease(v) == "" {
+			highest = v
+			break
+		}
+	}
+	if highest == "" {
+		highest = versions[len(versions)-1]
+	}
+
+	data, err := r.GoMod(ctx, highest)
+	if err != nil {
+		return nil, err
+	}
+	f, err := modfile.ParseLax("go.mod", data, nil)
+	if err != nil {
+		return nil, err
+	}
+	retractions := make([]modfile.VersionInterval, 0, len(f.Retract))
+	for _, r := range f.Retract {
+		retractions = append(retractions, r.VersionInterval)
+	}
+
+	return func(v string) bool {
+		for _, r := range retractions {
+			if semver.Compare(r.Low, v) <= 0 && semver.Compare(v, r.High) <= 0 {
+				return true
+			}
+		}
+		return false
+	}, nil
 }
 
-func (r *codeRepo) Zip(dst io.Writer, version string) error {
+func (r *codeRepo) Zip(ctx context.Context, dst io.Writer, version string) error {
 	if version != module.CanonicalVersion(version) {
 		return fmt.Errorf("version %s is not canonical", version)
 	}
 
-	if IsPseudoVersion(version) {
+	if module.IsPseudoVersion(version) {
 		// findDir ignores the metadata encoded in a pseudo-version,
 		// only using the revision at the end.
 		// Invoke Stat to verify the metadata explicitly so we don't return
 		// a bogus file for an invalid version.
-		_, err := r.Stat(version)
+		_, err := r.Stat(ctx, version)
 		if err != nil {
 			return err
 		}
 	}
 
-	rev, subdir, _, err := r.findDir(version)
+	rev, subdir, _, err := r.findDir(ctx, version)
 	if err != nil {
 		return err
 	}
-	dl, err := r.code.ReadZip(rev, subdir, codehost.MaxZipFile)
+
+	if gomod, err := r.code.ReadFile(ctx, rev, filepath.Join(subdir, "go.mod"), codehost.MaxGoMod); err == nil {
+		goVers := gover.GoModLookup(gomod, "go")
+		if gover.Compare(goVers, gover.Local()) > 0 {
+			return &gover.TooNewError{What: r.ModulePath() + "@" + version, GoVersion: goVers}
+		}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+
+	dl, err := r.code.ReadZip(ctx, rev, subdir, codehost.MaxZipFile)
 	if err != nil {
 		return err
 	}
@@ -897,7 +1106,7 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 	subdir = strings.Trim(subdir, "/")
 
 	// Spool to local file.
-	f, err := ioutil.TempFile("", "go-codehost-")
+	f, err := os.CreateTemp("", "go-codehost-")
 	if err != nil {
 		dl.Close()
 		return err
@@ -939,14 +1148,16 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 			}
 			topPrefix = zf.Name[:i+1]
 		}
-		if !strings.HasPrefix(zf.Name, topPrefix) {
+		var name string
+		var found bool
+		if name, found = strings.CutPrefix(zf.Name, topPrefix); !found {
 			return fmt.Errorf("zip file contains more than one top-level directory")
 		}
-		name := strings.TrimPrefix(zf.Name, topPrefix)
-		if !strings.HasPrefix(name, subdir) {
+
+		if name, found = strings.CutPrefix(name, subdir); !found {
 			continue
 		}
-		name = strings.TrimPrefix(name, subdir)
+
 		if name == "" || strings.HasSuffix(name, "/") {
 			continue
 		}
@@ -957,7 +1168,7 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 	}
 
 	if !haveLICENSE && subdir != "" {
-		data, err := r.code.ReadFile(rev, "LICENSE", codehost.MaxLICENSE)
+		data, err := r.code.ReadFile(ctx, rev, "LICENSE", codehost.MaxLICENSE)
 		if err == nil {
 			files = append(files, dataFile{name: "LICENSE", data: data})
 		}
@@ -972,7 +1183,7 @@ type zipFile struct {
 }
 
 func (f zipFile) Path() string                 { return f.name }
-func (f zipFile) Lstat() (os.FileInfo, error)  { return f.f.FileInfo(), nil }
+func (f zipFile) Lstat() (fs.FileInfo, error)  { return f.f.FileInfo(), nil }
 func (f zipFile) Open() (io.ReadCloser, error) { return f.f.Open() }
 
 type dataFile struct {
@@ -981,9 +1192,9 @@ type dataFile struct {
 }
 
 func (f dataFile) Path() string                { return f.name }
-func (f dataFile) Lstat() (os.FileInfo, error) { return dataFileInfo{f}, nil }
+func (f dataFile) Lstat() (fs.FileInfo, error) { return dataFileInfo{f}, nil }
 func (f dataFile) Open() (io.ReadCloser, error) {
-	return ioutil.NopCloser(bytes.NewReader(f.data)), nil
+	return io.NopCloser(bytes.NewReader(f.data)), nil
 }
 
 type dataFileInfo struct {
@@ -992,10 +1203,14 @@ type dataFileInfo struct {
 
 func (fi dataFileInfo) Name() string       { return path.Base(fi.f.name) }
 func (fi dataFileInfo) Size() int64        { return int64(len(fi.f.data)) }
-func (fi dataFileInfo) Mode() os.FileMode  { return 0644 }
+func (fi dataFileInfo) Mode() fs.FileMode  { return 0644 }
 func (fi dataFileInfo) ModTime() time.Time { return time.Time{} }
 func (fi dataFileInfo) IsDir() bool        { return false }
-func (fi dataFileInfo) Sys() interface{}   { return nil }
+func (fi dataFileInfo) Sys() any           { return nil }
+
+func (fi dataFileInfo) String() string {
+	return fs.FormatFileInfo(fi)
+}
 
 // hasPathPrefix reports whether the path s begins with the
 // elements in prefix.

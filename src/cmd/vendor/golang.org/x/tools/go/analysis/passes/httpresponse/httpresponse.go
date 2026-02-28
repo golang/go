@@ -12,8 +12,8 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 const Doc = `check for mistakes using HTTP responses
@@ -35,16 +35,17 @@ diagnostic for such mistakes.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "httpresponse",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/httpresponse",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	// Fast path: if the package doesn't import net/http,
 	// skip the traversal.
-	if !analysisutil.Imports(pass.Pkg, "net/http") {
+	if !typesinternal.Imports(pass.Pkg, "net/http") {
 		return nil, nil
 	}
 
@@ -62,15 +63,23 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		// Find the innermost containing block, and get the list
 		// of statements starting with the one containing call.
-		stmts := restOfBlock(stack)
+		stmts, ncalls := restOfBlock(stack)
 		if len(stmts) < 2 {
-			return true // the call to the http function is the last statement of the block.
+			// The call to the http function is the last statement of the block.
+			return true
+		}
+
+		// Skip cases in which the call is wrapped by another (#52661).
+		// Example:  resp, err := checkError(http.Get(url))
+		if ncalls > 1 {
+			return true
 		}
 
 		asg, ok := stmts[0].(*ast.AssignStmt)
 		if !ok {
 			return true // the first statement is not assignment.
 		}
+
 		resp := rootIdent(asg.Lhs[0])
 		if resp == nil {
 			return true // could not find the http.Response in the assignment.
@@ -107,7 +116,8 @@ func isHTTPFuncOrMethodOnClient(info *types.Info, expr *ast.CallExpr) bool {
 	if res.Len() != 2 {
 		return false // the function called does not return two values.
 	}
-	if ptr, ok := res.At(0).Type().(*types.Pointer); !ok || !isNamedType(ptr.Elem(), "net/http", "Response") {
+	isPtr, named := typesinternal.ReceiverNamed(res.At(0))
+	if !isPtr || named == nil || !typesinternal.IsTypeNamed(named, "net/http", "Response") {
 		return false // the first return type is not *http.Response.
 	}
 
@@ -122,28 +132,33 @@ func isHTTPFuncOrMethodOnClient(info *types.Info, expr *ast.CallExpr) bool {
 		return ok && id.Name == "http" // function in net/http package.
 	}
 
-	if isNamedType(typ, "net/http", "Client") {
+	if typesinternal.IsTypeNamed(typ, "net/http", "Client") {
 		return true // method on http.Client.
 	}
-	ptr, ok := typ.(*types.Pointer)
-	return ok && isNamedType(ptr.Elem(), "net/http", "Client") // method on *http.Client.
+	ptr, ok := types.Unalias(typ).(*types.Pointer)
+	return ok && typesinternal.IsTypeNamed(ptr.Elem(), "net/http", "Client") // method on *http.Client.
 }
 
 // restOfBlock, given a traversal stack, finds the innermost containing
-// block and returns the suffix of its statements starting with the
-// current node (the last element of stack).
-func restOfBlock(stack []ast.Node) []ast.Stmt {
+// block and returns the suffix of its statements starting with the current
+// node, along with the number of call expressions encountered.
+func restOfBlock(stack []ast.Node) ([]ast.Stmt, int) {
+	var ncalls int
 	for i := len(stack) - 1; i >= 0; i-- {
 		if b, ok := stack[i].(*ast.BlockStmt); ok {
 			for j, v := range b.List {
 				if v == stack[i+1] {
-					return b.List[j:]
+					return b.List[j:], ncalls
 				}
 			}
 			break
 		}
+
+		if _, ok := stack[i].(*ast.CallExpr); ok {
+			ncalls++
+		}
 	}
-	return nil
+	return nil, 0
 }
 
 // rootIdent finds the root identifier x in a chain of selections x.y.z, or nil if not found.
@@ -156,14 +171,4 @@ func rootIdent(n ast.Node) *ast.Ident {
 	default:
 		return nil
 	}
-}
-
-// isNamedType reports whether t is the named type path.name.
-func isNamedType(t types.Type, path, name string) bool {
-	n, ok := t.(*types.Named)
-	if !ok {
-		return false
-	}
-	obj := n.Obj()
-	return obj.Name() == name && obj.Pkg() != nil && obj.Pkg().Path() == path
 }

@@ -8,7 +8,6 @@
 // This package follows the design of Certificate Transparency (RFC 6962)
 // and its proofs are compatible with that system.
 // See TestCertificateTransparency.
-//
 package tlog
 
 import (
@@ -132,7 +131,7 @@ func StoredHashIndex(level int, n int64) int64 {
 	return i + int64(level)
 }
 
-// SplitStoredHashIndex is the inverse of StoredHashIndex.
+// SplitStoredHashIndex is the inverse of [StoredHashIndex].
 // That is, SplitStoredHashIndex(StoredHashIndex(level, n)) == level, n.
 func SplitStoredHashIndex(index int64) (level int, n int64) {
 	// Determine level 0 record before index.
@@ -184,7 +183,7 @@ func StoredHashes(n int64, data []byte, r HashReader) ([]Hash, error) {
 	return StoredHashesForRecordHash(n, RecordHash(data), r)
 }
 
-// StoredHashesForRecordHash is like StoredHashes but takes
+// StoredHashesForRecordHash is like [StoredHashes] but takes
 // as its second argument RecordHash(data) instead of data itself.
 func StoredHashesForRecordHash(n int64, h Hash, r HashReader) ([]Hash, error) {
 	// Start with the record hash.
@@ -195,7 +194,7 @@ func StoredHashesForRecordHash(n int64, h Hash, r HashReader) ([]Hash, error) {
 	// and consumes a hash from an adjacent subtree.
 	m := int(bits.TrailingZeros64(uint64(n + 1)))
 	indexes := make([]int64, m)
-	for i := 0; i < m; i++ {
+	for i := range m {
 		// We arrange indexes in sorted order.
 		// Note that n>>i is always odd.
 		indexes[m-1-i] = StoredHashIndex(i, n>>uint(i)-1)
@@ -211,7 +210,7 @@ func StoredHashesForRecordHash(n int64, h Hash, r HashReader) ([]Hash, error) {
 	}
 
 	// Build new hashes.
-	for i := 0; i < m; i++ {
+	for i := range m {
 		h = NodeHash(old[m-1-i], h)
 		hashes = append(hashes, h)
 	}
@@ -228,21 +227,29 @@ type HashReader interface {
 	ReadHashes(indexes []int64) ([]Hash, error)
 }
 
-// A HashReaderFunc is a function implementing HashReader.
+// A HashReaderFunc is a function implementing [HashReader].
 type HashReaderFunc func([]int64) ([]Hash, error)
 
 func (f HashReaderFunc) ReadHashes(indexes []int64) ([]Hash, error) {
 	return f(indexes)
 }
 
+// emptyHash is the hash of the empty tree, per RFC 6962, Section 2.1.
+// It is the hash of the empty string.
+var emptyHash = Hash{
+	0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14,
+	0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24,
+	0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c,
+	0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55,
+}
+
 // TreeHash computes the hash for the root of the tree with n records,
 // using the HashReader to obtain previously stored hashes
 // (those returned by StoredHashes during the writes of those n records).
 // TreeHash makes a single call to ReadHash requesting at most 1 + log₂ n hashes.
-// The tree of size zero is defined to have an all-zero Hash.
 func TreeHash(n int64, r HashReader) (Hash, error) {
 	if n == 0 {
-		return Hash{}, nil
+		return emptyHash, nil
 	}
 	indexes := subTreeIndex(0, n, nil)
 	hashes, err := r.ReadHashes(indexes)

@@ -198,7 +198,7 @@ func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) Impo
 			return
 		}
 
-		if magics == archiveMagic {
+		if magics == archiveMagic || magics == aixbigafMagic {
 			reader, err = arExportData(reader)
 			if err != nil {
 				return
@@ -221,7 +221,7 @@ func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) Impo
 		// Excluded for now: Standard gccgo doesn't support this import format currently.
 		// case goimporterMagic:
 		// 	var data []byte
-		// 	data, err = ioutil.ReadAll(reader)
+		// 	data, err = io.ReadAll(reader)
 		// 	if err != nil {
 		// 		return
 		// 	}

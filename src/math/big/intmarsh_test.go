@@ -97,6 +97,19 @@ func TestIntJSONEncoding(t *testing.T) {
 	}
 }
 
+func TestIntJSONEncodingNil(t *testing.T) {
+	var x *Int
+	b, err := x.MarshalJSON()
+	if err != nil {
+		t.Fatalf("marshaling of nil failed: %s", err)
+	}
+	got := string(b)
+	want := "null"
+	if got != want {
+		t.Fatalf("marshaling of nil failed: got %s want %s", got, want)
+	}
+}
+
 func TestIntXMLEncoding(t *testing.T) {
 	for _, test := range encodingTests {
 		for _, sign := range []string{"", "+", "-"} {
@@ -117,5 +130,38 @@ func TestIntXMLEncoding(t *testing.T) {
 				t.Errorf("XML encoding of %s failed: got %s want %s", &tx, &rx, &tx)
 			}
 		}
+	}
+}
+
+func TestIntAppendText(t *testing.T) {
+	for _, test := range encodingTests {
+		for _, sign := range []string{"", "+", "-"} {
+			x := sign + test
+			var tx Int
+			tx.SetString(x, 10)
+			buf := make([]byte, 4, 32)
+			b, err := tx.AppendText(buf)
+			if err != nil {
+				t.Errorf("marshaling of %s failed: %s", &tx, err)
+				continue
+			}
+			var rx Int
+			if err := rx.UnmarshalText(b[4:]); err != nil {
+				t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+				continue
+			}
+			if rx.Cmp(&tx) != 0 {
+				t.Errorf("AppendText of %s failed: got %s want %s", &tx, &rx, &tx)
+			}
+		}
+	}
+}
+
+func TestIntAppendTextNil(t *testing.T) {
+	var x *Int
+	buf := make([]byte, 4, 16)
+	data, _ := x.AppendText(buf)
+	if string(data[4:]) != "<nil>" {
+		t.Errorf("got %q, want <nil>", data[4:])
 	}
 }

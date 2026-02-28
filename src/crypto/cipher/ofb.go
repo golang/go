@@ -6,7 +6,11 @@
 
 package cipher
 
-import "crypto/internal/subtle"
+import (
+	"crypto/internal/fips140/alias"
+	"crypto/internal/fips140only"
+	"crypto/subtle"
+)
 
 type ofb struct {
 	b       Block
@@ -15,10 +19,20 @@ type ofb struct {
 	outUsed int
 }
 
-// NewOFB returns a Stream that encrypts or decrypts using the block cipher b
+// NewOFB returns a [Stream] that encrypts or decrypts using the block cipher b
 // in output feedback mode. The initialization vector iv's length must be equal
 // to b's block size.
+//
+// Deprecated: OFB mode is not authenticated, which generally enables active
+// attacks to manipulate and recover the plaintext. It is recommended that
+// applications use [AEAD] modes instead. The standard library implementation of
+// OFB is also unoptimized and not validated as part of the FIPS 140-3 module.
+// If an unauthenticated [Stream] mode is required, use [NewCTR] instead.
 func NewOFB(b Block, iv []byte) Stream {
+	if fips140only.Enforced() {
+		panic("crypto/cipher: use of OFB is not allowed in FIPS 140-only mode")
+	}
+
 	blockSize := b.BlockSize()
 	if len(iv) != blockSize {
 		panic("cipher.NewOFB: IV length must equal block size")
@@ -59,14 +73,14 @@ func (x *ofb) XORKeyStream(dst, src []byte) {
 	if len(dst) < len(src) {
 		panic("crypto/cipher: output smaller than input")
 	}
-	if subtle.InexactOverlap(dst[:len(src)], src) {
+	if alias.InexactOverlap(dst[:len(src)], src) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
 	for len(src) > 0 {
 		if x.outUsed >= len(x.out)-x.b.BlockSize() {
 			x.refill()
 		}
-		n := xorBytes(dst, src, x.out[x.outUsed:])
+		n := subtle.XORBytes(dst, src, x.out[x.outUsed:])
 		dst = dst[n:]
 		src = src[n:]
 		x.outUsed += n

@@ -8,10 +8,11 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"internal/abi"
 	"io"
-	"io/ioutil"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 	"unsafe"
 )
@@ -20,11 +21,6 @@ import (
 // events are attributed.
 // (The name shows up in the pprof graphs.)
 func lostProfileEvent() { lostProfileEvent() }
-
-// funcPC returns the PC for the func value f.
-func funcPC(f interface{}) uintptr {
-	return *(*[2]*uintptr)(unsafe.Pointer(&f))[1]
-}
 
 // A profileBuilder writes a profile incrementally from a
 // stream of profile samples delivered by the runtime.
@@ -49,19 +45,21 @@ type profileBuilder struct {
 
 type memMap struct {
 	// initialized as reading mapping
-	start         uintptr
-	end           uintptr
-	offset        uint64
-	file, buildID string
+	start   uintptr // Address at which the binary (or DLL) is loaded into memory.
+	end     uintptr // The limit of the address range occupied by this mapping.
+	offset  uint64  // Offset in the binary that corresponds to the first mapped address.
+	file    string  // The object this entry is loaded from.
+	buildID string  // A string that uniquely identifies a particular program version with high probability.
 
 	funcs symbolizeFlag
 	fake  bool // map entry was faked; /proc/self/maps wasn't available
 }
 
 // symbolizeFlag keeps track of symbolization result.
-//   0                  : no symbol lookup was performed
-//   1<<0 (lookupTried) : symbol lookup was performed
-//   1<<1 (lookupFailed): symbol lookup was performed but failed
+//
+//	0                  : no symbol lookup was performed
+//	1<<0 (lookupTried) : symbol lookup was performed
+//	1<<1 (lookupFailed): symbol lookup was performed but failed
 type symbolizeFlag uint8
 
 const (
@@ -199,7 +197,7 @@ func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file
 	// TODO: we set HasFunctions if all symbols from samples were symbolized (hasFuncs).
 	// Decide what to do about HasInlineFrames and HasLineNumbers.
 	// Also, another approach to handle the mapping entry with
-	// incomplete symbolization results is to dupliace the mapping
+	// incomplete symbolization results is to duplicate the mapping
 	// entry (but with different Has* fields values) and use
 	// different entries for symbolized locations and unsymbolized locations.
 	if hasFuncs {
@@ -232,7 +230,7 @@ func allFrames(addr uintptr) ([]runtime.Frame, symbolizeFlag) {
 		frame.PC = addr - 1
 	}
 	ret := []runtime.Frame{frame}
-	for frame.Function != "runtime.goexit" && more == true {
+	for frame.Function != "runtime.goexit" && more {
 		frame, more = frames.Next()
 		ret = append(ret, frame)
 	}
@@ -247,6 +245,11 @@ type locInfo struct {
 	// to represent inlined functions
 	// https://github.com/golang/go/blob/d6f2f833c93a41ec1c68e49804b8387a06b131c5/src/runtime/traceback.go#L347-L368
 	pcs []uintptr
+
+	// firstPCFrames and firstPCSymbolizeResult hold the results of the
+	// allFrames call for the first (leaf-most) PC this locInfo represents
+	firstPCFrames          []runtime.Frame
+	firstPCSymbolizeResult symbolizeFlag
 }
 
 // newProfileBuilder returns a new profileBuilder.
@@ -269,8 +272,9 @@ func newProfileBuilder(w io.Writer) *profileBuilder {
 }
 
 // addCPUData adds the CPU profiling data to the profile.
-// The data must be a whole number of records,
-// as delivered by the runtime.
+//
+// The data must be a whole number of records, as delivered by the runtime.
+// len(tags) must be equal to the number of records in data.
 func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error {
 	if !b.havePeriod {
 		// first record is period
@@ -285,6 +289,9 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 		b.period = 1e9 / int64(data[2])
 		b.havePeriod = true
 		data = data[3:]
+		// Consume tag slot. Note that there isn't a meaningful tag
+		// value for this record.
+		tags = tags[1:]
 	}
 
 	// Parse CPU samples from the profile.
@@ -309,14 +316,14 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 		if data[0] < 3 || tags != nil && len(tags) < 1 {
 			return fmt.Errorf("malformed profile")
 		}
+		if len(tags) < 1 {
+			return fmt.Errorf("mismatched profile records and tags")
+		}
 		count := data[2]
 		stk := data[3:data[0]]
 		data = data[data[0]:]
-		var tag unsafe.Pointer
-		if tags != nil {
-			tag = tags[0]
-			tags = tags[1:]
-		}
+		tag := tags[0]
+		tags = tags[1:]
 
 		if count == 0 && len(stk) == 1 {
 			// overflow record
@@ -325,16 +332,20 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 				// gentraceback guarantees that PCs in the
 				// stack can be unconditionally decremented and
 				// still be valid, so we must do the same.
-				uint64(funcPC(lostProfileEvent)+1),
+				uint64(abi.FuncPCABIInternal(lostProfileEvent) + 1),
 			}
 		}
 		b.m.lookup(stk, tag).count += int64(count)
+	}
+
+	if len(tags) != 0 {
+		return fmt.Errorf("mismatched profile records and tags")
 	}
 	return nil
 }
 
 // build completes and returns the constructed profile.
-func (b *profileBuilder) build() {
+func (b *profileBuilder) build() error {
 	b.end = time.Now()
 
 	b.pb.int64Opt(tagProfile_TimeNanos, b.start.UnixNano())
@@ -356,8 +367,8 @@ func (b *profileBuilder) build() {
 		var labels func()
 		if e.tag != nil {
 			labels = func() {
-				for k, v := range *(*labelMap)(e.tag) {
-					b.pbLabel(tagSample_Label, k, v, 0)
+				for _, lbl := range (*labelMap)(e.tag).Set.List {
+					b.pbLabel(tagSample_Label, lbl.Key, lbl.Value, 0)
 				}
 			}
 		}
@@ -376,24 +387,50 @@ func (b *profileBuilder) build() {
 	// TODO: Anything for tagProfile_KeepFrames?
 
 	b.pb.strings(tagProfile_StringTable, b.strings)
-	b.zw.Write(b.pb.data)
-	b.zw.Close()
+	_, err := b.zw.Write(b.pb.data)
+	if err != nil {
+		return err
+	}
+	return b.zw.Close()
 }
 
 // appendLocsForStack appends the location IDs for the given stack trace to the given
 // location ID slice, locs. The addresses in the stack are return PCs or 1 + the PC of
 // an inline marker as the runtime traceback function returns.
 //
+// It may return an empty slice even if locs is non-empty, for example if locs consists
+// solely of runtime.goexit. We still count these empty stacks in profiles in order to
+// get the right cumulative sample count.
+//
 // It may emit to b.pb, so there must be no message encoding in progress.
 func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLocs []uint64) {
 	b.deck.reset()
 
 	// The last frame might be truncated. Recover lost inline frames.
+	origStk := stk
 	stk = runtime_expandFinalInlineFrame(stk)
 
 	for len(stk) > 0 {
 		addr := stk[0]
 		if l, ok := b.locs[addr]; ok {
+			// When generating code for an inlined function, the compiler adds
+			// NOP instructions to the outermost function as a placeholder for
+			// each layer of inlining. When the runtime generates tracebacks for
+			// stacks that include inlined functions, it uses the addresses of
+			// those NOPs as "fake" PCs on the stack as if they were regular
+			// function call sites. But if a profiling signal arrives while the
+			// CPU is executing one of those NOPs, its PC will show up as a leaf
+			// in the profile with its own Location entry. So, always check
+			// whether addr is a "fake" PC in the context of the current call
+			// stack by trying to add it to the inlining deck before assuming
+			// that the deck is complete.
+			if len(b.deck.pcs) > 0 {
+				if added := b.deck.tryAdd(addr, l.firstPCFrames, l.firstPCSymbolizeResult); added {
+					stk = stk[1:]
+					continue
+				}
+			}
+
 			// first record the location if there is any pending accumulated info.
 			if id := b.emitLocation(); id > 0 {
 				locs = append(locs, id)
@@ -407,6 +444,9 @@ func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLo
 			// Even if stk was truncated due to the stack depth
 			// limit, expandFinalInlineFrame above has already
 			// fixed the truncation, ensuring it is long enough.
+			if len(l.pcs) > len(stk) {
+				panic(fmt.Sprintf("stack too short to match cached location; stk = %#x, l.pcs = %#x, original stk = %#x", stk, l.pcs, origStk))
+			}
 			stk = stk[len(l.pcs):]
 			continue
 		}
@@ -446,6 +486,27 @@ func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLo
 	return locs
 }
 
+// Here's an example of how Go 1.17 writes out inlined functions, compiled for
+// linux/amd64. The disassembly of main.main shows two levels of inlining: main
+// calls b, b calls a, a does some work.
+//
+//   inline.go:9   0x4553ec  90              NOPL                 // func main()    { b(v) }
+//   inline.go:6   0x4553ed  90              NOPL                 // func b(v *int) { a(v) }
+//   inline.go:5   0x4553ee  48c7002a000000  MOVQ $0x2a, 0(AX)    // func a(v *int) { *v = 42 }
+//
+// If a profiling signal arrives while executing the MOVQ at 0x4553ee (for line
+// 5), the runtime will report the stack as the MOVQ frame being called by the
+// NOPL at 0x4553ed (for line 6) being called by the NOPL at 0x4553ec (for line
+// 9).
+//
+// The role of pcDeck is to collapse those three frames back into a single
+// location at 0x4553ee, with file/line/function symbolization info representing
+// the three layers of calls. It does that via sequential calls to pcDeck.tryAdd
+// starting with the leaf-most address. The fourth call to pcDeck.tryAdd will be
+// for the caller of main.main. Because main.main was not inlined in its caller,
+// the deck will reject the addition, and the fourth PC on the stack will get
+// its own location.
+
 // pcDeck is a helper to detect a sequence of inlined functions from
 // a stack trace returned by the runtime.
 //
@@ -459,9 +520,10 @@ func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLo
 // and looking up debug info is not ideal, so we use a heuristic to filter
 // the fake pcs and restore the inlined and entry functions. Inlined functions
 // have the following properties:
-//   Frame's Func is nil (note: also true for non-Go functions), and
-//   Frame's Entry matches its entry function frame's Entry (note: could also be true for recursive calls and non-Go functions), and
-//   Frame's Name does not match its entry function frame's name (note: inlined functions cannot be recursive).
+//
+//	Frame's Func is nil (note: also true for non-Go functions), and
+//	Frame's Entry matches its entry function frame's Entry (note: could also be true for recursive calls and non-Go functions), and
+//	Frame's Name does not match its entry function frame's name (note: inlined functions cannot be directly recursive).
 //
 // As reading and processing the pcs in a stack trace one by one (from leaf to the root),
 // we use pcDeck to temporarily hold the observed pcs and their expanded frames
@@ -470,19 +532,28 @@ type pcDeck struct {
 	pcs             []uintptr
 	frames          []runtime.Frame
 	symbolizeResult symbolizeFlag
+
+	// firstPCFrames indicates the number of frames associated with the first
+	// (leaf-most) PC in the deck
+	firstPCFrames int
+	// firstPCSymbolizeResult holds the results of the allFrames call for the
+	// first (leaf-most) PC in the deck
+	firstPCSymbolizeResult symbolizeFlag
 }
 
 func (d *pcDeck) reset() {
 	d.pcs = d.pcs[:0]
 	d.frames = d.frames[:0]
 	d.symbolizeResult = 0
+	d.firstPCFrames = 0
+	d.firstPCSymbolizeResult = 0
 }
 
 // tryAdd tries to add the pc and Frames expanded from it (most likely one,
 // since the stack trace is already fully expanded) and the symbolizeResult
 // to the deck. If it fails the caller needs to flush the deck and retry.
 func (d *pcDeck) tryAdd(pc uintptr, frames []runtime.Frame, symbolizeResult symbolizeFlag) (success bool) {
-	if existing := len(d.pcs); existing > 0 {
+	if existing := len(d.frames); existing > 0 {
 		// 'd.frames' are all expanded from one 'pc' and represent all
 		// inlined functions so we check only the last one.
 		newFrame := frames[0]
@@ -497,13 +568,17 @@ func (d *pcDeck) tryAdd(pc uintptr, frames []runtime.Frame, symbolizeResult symb
 		if last.Entry != newFrame.Entry { // newFrame is for a different function.
 			return false
 		}
-		if last.Function == newFrame.Function { // maybe recursion.
+		if runtime_FrameSymbolName(&last) == runtime_FrameSymbolName(&newFrame) { // maybe recursion.
 			return false
 		}
 	}
 	d.pcs = append(d.pcs, pc)
 	d.frames = append(d.frames, frames...)
 	d.symbolizeResult |= symbolizeResult
+	if len(d.pcs) == 1 {
+		d.firstPCFrames = len(d.frames)
+		d.firstPCSymbolizeResult = symbolizeResult
+	}
 	return true
 }
 
@@ -526,22 +601,34 @@ func (b *profileBuilder) emitLocation() uint64 {
 	type newFunc struct {
 		id         uint64
 		name, file string
+		startLine  int64
 	}
 	newFuncs := make([]newFunc, 0, 8)
 
 	id := uint64(len(b.locs)) + 1
-	b.locs[addr] = locInfo{id: id, pcs: append([]uintptr{}, b.deck.pcs...)}
+	b.locs[addr] = locInfo{
+		id:                     id,
+		pcs:                    append([]uintptr{}, b.deck.pcs...),
+		firstPCSymbolizeResult: b.deck.firstPCSymbolizeResult,
+		firstPCFrames:          append([]runtime.Frame{}, b.deck.frames[:b.deck.firstPCFrames]...),
+	}
 
 	start := b.pb.startMessage()
 	b.pb.uint64Opt(tagLocation_ID, id)
 	b.pb.uint64Opt(tagLocation_Address, uint64(firstFrame.PC))
 	for _, frame := range b.deck.frames {
 		// Write out each line in frame expansion.
-		funcID := uint64(b.funcs[frame.Function])
+		funcName := runtime_FrameSymbolName(&frame)
+		funcID := uint64(b.funcs[funcName])
 		if funcID == 0 {
 			funcID = uint64(len(b.funcs)) + 1
-			b.funcs[frame.Function] = int(funcID)
-			newFuncs = append(newFuncs, newFunc{funcID, frame.Function, frame.File})
+			b.funcs[funcName] = int(funcID)
+			newFuncs = append(newFuncs, newFunc{
+				id:        funcID,
+				name:      funcName,
+				file:      frame.File,
+				startLine: int64(runtime_FrameStartLine(&frame)),
+			})
 		}
 		b.pbLine(tagLocation_Line, funcID, int64(frame.Line))
 	}
@@ -564,6 +651,7 @@ func (b *profileBuilder) emitLocation() uint64 {
 		b.pb.int64Opt(tagFunction_Name, b.stringIndex(fn.name))
 		b.pb.int64Opt(tagFunction_SystemName, b.stringIndex(fn.name))
 		b.pb.int64Opt(tagFunction_Filename, b.stringIndex(fn.file))
+		b.pb.int64Opt(tagFunction_StartLine, fn.startLine)
 		b.pb.endMessage(tagProfile_Function, start)
 	}
 
@@ -571,19 +659,8 @@ func (b *profileBuilder) emitLocation() uint64 {
 	return id
 }
 
-// readMapping reads /proc/self/maps and writes mappings to b.pb.
-// It saves the address ranges of the mappings in b.mem for use
-// when emitting locations.
-func (b *profileBuilder) readMapping() {
-	data, _ := ioutil.ReadFile("/proc/self/maps")
-	parseProcSelfMaps(data, b.addMapping)
-	if len(b.mem) == 0 { // pprof expects a map entry, so fake one.
-		b.addMappingEntry(0, 0, 0, "", "", true)
-		// TODO(hyangah): make addMapping return *memMap or
-		// take a memMap struct, and get rid of addMappingEntry
-		// that takes a bunch of positional arguments.
-	}
-}
+var space = []byte(" ")
+var newline = []byte("\n")
 
 func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file, buildID string)) {
 	// $ cat /proc/self/maps
@@ -611,37 +688,24 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
 	// next removes and returns the next field in the line.
 	// It also removes from line any spaces following the field.
 	next := func() []byte {
-		j := bytes.IndexByte(line, ' ')
-		if j < 0 {
-			f := line
-			line = nil
-			return f
-		}
-		f := line[:j]
-		line = line[j+1:]
-		for len(line) > 0 && line[0] == ' ' {
-			line = line[1:]
-		}
+		var f []byte
+		f, line, _ = bytes.Cut(line, space)
+		line = bytes.TrimLeft(line, " ")
 		return f
 	}
 
 	for len(data) > 0 {
-		i := bytes.IndexByte(data, '\n')
-		if i < 0 {
-			line, data = data, nil
-		} else {
-			line, data = data[:i], data[i+1:]
-		}
+		line, data, _ = bytes.Cut(data, newline)
 		addr := next()
-		i = bytes.IndexByte(addr, '-')
-		if i < 0 {
+		loStr, hiStr, ok := strings.Cut(string(addr), "-")
+		if !ok {
 			continue
 		}
-		lo, err := strconv.ParseUint(string(addr[:i]), 16, 64)
+		lo, err := strconv.ParseUint(loStr, 16, 64)
 		if err != nil {
 			continue
 		}
-		hi, err := strconv.ParseUint(string(addr[i+1:]), 16, 64)
+		hi, err := strconv.ParseUint(hiStr, 16, 64)
 		if err != nil {
 			continue
 		}
@@ -676,13 +740,12 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
 			continue
 		}
 
-		// TODO: pprof's remapMappingIDs makes two adjustments:
+		// TODO: pprof's remapMappingIDs makes one adjustment:
 		// 1. If there is an /anon_hugepage mapping first and it is
 		// consecutive to a next mapping, drop the /anon_hugepage.
-		// 2. If start-offset = 0x400000, change start to 0x400000 and offset to 0.
-		// There's no indication why either of these is needed.
-		// Let's try not doing these and see what breaks.
-		// If we do need them, they would go here, before we
+		// There's no indication why this is needed.
+		// Let's try not doing this and see what breaks.
+		// If we do need it, it would go here, before we
 		// enter the mappings into b.mem in the first place.
 
 		buildID, _ := elfBuildID(file)

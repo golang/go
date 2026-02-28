@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd
+//go:build unix
 
 package poll
 
 import (
 	"io"
+	"runtime"
 	"syscall"
 )
 
@@ -29,6 +30,10 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
 	// 1024 and this seems conservative enough for now. Darwin's
 	// UIO_MAXIOV also seems to be 1024.
 	maxVec := 1024
+	if runtime.GOOS == "aix" || runtime.GOOS == "solaris" {
+		// IOV_MAX is set to XOPEN_IOV_MAX on AIX and Solaris.
+		maxVec = 16
+	}
 
 	var n int64
 	var err error
@@ -38,7 +43,7 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
 			if len(chunk) == 0 {
 				continue
 			}
-			iovecs = append(iovecs, syscall.Iovec{Base: &chunk[0]})
+			iovecs = append(iovecs, newIovecWithBase(&chunk[0]))
 			if fd.IsStream && len(chunk) > 1<<30 {
 				iovecs[len(iovecs)-1].SetLen(1 << 30)
 				break // continue chunk on next writev
@@ -64,11 +69,12 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
 		TestHookDidWritev(int(wrote))
 		n += int64(wrote)
 		consume(v, int64(wrote))
-		for i := range iovecs {
-			iovecs[i] = syscall.Iovec{}
-		}
+		clear(iovecs)
 		if err != nil {
-			if err.(syscall.Errno) == syscall.EAGAIN {
+			if err == syscall.EINTR {
+				continue
+			}
+			if err == syscall.EAGAIN {
 				if err = fd.pd.waitWrite(fd.isFile); err == nil {
 					continue
 				}

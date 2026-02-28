@@ -9,22 +9,24 @@ import (
 	"internal/obscuretestdata"
 	"io"
 	"reflect"
+	"slices"
 	"testing"
 )
 
 type fileTest struct {
-	file        string
-	hdr         FileHeader
-	loads       []interface{}
-	sections    []*SectionHeader
-	relocations map[string][]Reloc
+	file         string
+	hdr          FileHeader
+	loads        []any
+	sections     []*SectionHeader
+	relocations  map[string][]Reloc
+	importedSyms []string
 }
 
 var fileTests = []fileTest{
 	{
 		"testdata/gcc-386-darwin-exec.base64",
 		FileHeader{0xfeedface, Cpu386, 0x3, 0x2, 0xc, 0x3c0, 0x85},
-		[]interface{}{
+		[]any{
 			&SegmentHeader{LoadCmdSegment, 0x38, "__PAGEZERO", 0x0, 0x1000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
 			&SegmentHeader{LoadCmdSegment, 0xc0, "__TEXT", 0x1000, 0x1000, 0x0, 0x1000, 0x7, 0x5, 0x2, 0x0},
 			&SegmentHeader{LoadCmdSegment, 0xc0, "__DATA", 0x2000, 0x1000, 0x1000, 0x1000, 0x7, 0x3, 0x2, 0x0},
@@ -46,11 +48,12 @@ var fileTests = []fileTest{
 			{"__jump_table", "__IMPORT", 0x3000, 0xa, 0x2000, 0x6, 0x0, 0x0, 0x4000008},
 		},
 		nil,
+		nil,
 	},
 	{
 		"testdata/gcc-amd64-darwin-exec.base64",
 		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0x2, 0xb, 0x568, 0x85},
-		[]interface{}{
+		[]any{
 			&SegmentHeader{LoadCmdSegment64, 0x48, "__PAGEZERO", 0x0, 0x100000000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
 			&SegmentHeader{LoadCmdSegment64, 0x1d8, "__TEXT", 0x100000000, 0x1000, 0x0, 0x1000, 0x7, 0x5, 0x5, 0x0},
 			&SegmentHeader{LoadCmdSegment64, 0x138, "__DATA", 0x100001000, 0x1000, 0x1000, 0x1000, 0x7, 0x3, 0x3, 0x0},
@@ -74,11 +77,12 @@ var fileTests = []fileTest{
 			{"__la_symbol_ptr", "__DATA", 0x100001058, 0x10, 0x1058, 0x2, 0x0, 0x0, 0x7},
 		},
 		nil,
+		nil,
 	},
 	{
 		"testdata/gcc-amd64-darwin-exec-debug.base64",
 		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0xa, 0x4, 0x5a0, 0},
-		[]interface{}{
+		[]any{
 			nil, // LC_UUID
 			&SegmentHeader{LoadCmdSegment64, 0x1d8, "__TEXT", 0x100000000, 0x1000, 0x0, 0x0, 0x7, 0x5, 0x5, 0x0},
 			&SegmentHeader{LoadCmdSegment64, 0x138, "__DATA", 0x100001000, 0x1000, 0x0, 0x0, 0x7, 0x3, 0x3, 0x0},
@@ -102,11 +106,12 @@ var fileTests = []fileTest{
 			{"__debug_str", "__DWARF", 0x10000215c, 0x60, 0x115c, 0x0, 0x0, 0x0, 0x0},
 		},
 		nil,
+		nil,
 	},
 	{
 		"testdata/clang-386-darwin-exec-with-rpath.base64",
 		FileHeader{0xfeedface, Cpu386, 0x3, 0x2, 0x10, 0x42c, 0x1200085},
-		[]interface{}{
+		[]any{
 			nil, // LC_SEGMENT
 			nil, // LC_SEGMENT
 			nil, // LC_SEGMENT
@@ -124,13 +129,14 @@ var fileTests = []fileTest{
 			nil, // LC_FUNCTION_STARTS
 			nil, // LC_DATA_IN_CODE
 		},
+		nil,
 		nil,
 		nil,
 	},
 	{
 		"testdata/clang-amd64-darwin-exec-with-rpath.base64",
 		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0x2, 0x10, 0x4c8, 0x200085},
-		[]interface{}{
+		[]any{
 			nil, // LC_SEGMENT
 			nil, // LC_SEGMENT
 			nil, // LC_SEGMENT
@@ -148,6 +154,7 @@ var fileTests = []fileTest{
 			nil, // LC_FUNCTION_STARTS
 			nil, // LC_DATA_IN_CODE
 		},
+		nil,
 		nil,
 		nil,
 	},
@@ -185,6 +192,7 @@ var fileTests = []fileTest{
 				},
 			},
 		},
+		nil,
 	},
 	{
 		"testdata/clang-amd64-darwin.obj.base64",
@@ -221,6 +229,15 @@ var fileTests = []fileTest{
 				},
 			},
 		},
+		[]string{"_printf"},
+	},
+	{
+		"testdata/clang-amd64-darwin-ld-r.obj.base64",
+		FileHeader{0xfeedfacf, CpuAmd64, 0x3, 0x1, 0x4, 0x1c0, 0x2000},
+		nil,
+		nil,
+		nil,
+		[]string{"_printf"},
 	},
 }
 
@@ -345,6 +362,17 @@ func TestOpen(t *testing.T) {
 				}
 			}
 		}
+
+		if tt.importedSyms != nil {
+			ss, err := f.ImportedSymbols()
+			if err != nil {
+				t.Errorf("open %s: fail to read imported symbols: %v", tt.file, err)
+			}
+			want := tt.importedSyms
+			if !slices.Equal(ss, want) {
+				t.Errorf("open %s: imported symbols differ:\n\thave %v\n\twant %v", tt.file, ss, want)
+			}
+		}
 	}
 }
 
@@ -414,5 +442,12 @@ func TestTypeString(t *testing.T) {
 	}
 	if TypeExec.GoString() != "macho.Exec" {
 		t.Errorf("got %v, want %v", TypeExec.GoString(), "macho.Exec")
+	}
+}
+
+func TestOpenBadDysymCmd(t *testing.T) {
+	_, err := openObscured("testdata/gcc-amd64-darwin-exec-with-bad-dysym.base64")
+	if err == nil {
+		t.Fatal("openObscured did not fail when opening a file with an invalid dynamic symbol table command")
 	}
 }

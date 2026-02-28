@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build js,wasm
+//go:build js && wasm
 
 // To run these tests:
 //
 // - Install Node
-// - Add /path/to/go/misc/wasm to your $PATH (so that "go test" can find
+// - Add /path/to/go/lib/wasm to your $PATH (so that "go test" can find
 //   "go_js_wasm_exec").
 // - GOOS=js GOARCH=wasm go test
 //
@@ -43,6 +43,63 @@ var dummys = js.Global().Call("eval", `({
 	objNumber0: new Number(0),
 	objBooleanFalse: new Boolean(false),
 })`)
+
+//go:wasmimport _gotest add
+func testAdd(uint32, uint32) uint32
+
+func TestWasmImport(t *testing.T) {
+	a := uint32(3)
+	b := uint32(5)
+	want := a + b
+	if got := testAdd(a, b); got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+// testCallExport is imported from host (wasm_exec.js), which calls testExport.
+//
+//go:wasmimport _gotest callExport
+func testCallExport(a int32, b int64) int64
+
+//go:wasmexport testExport
+func testExport(a int32, b int64) int64 {
+	testExportCalled = true
+	// test stack growth
+	growStack(1000)
+	// force a goroutine switch
+	ch := make(chan int64)
+	go func() {
+		ch <- int64(a)
+		ch <- b
+	}()
+	return <-ch + <-ch
+}
+
+//go:wasmexport testExport0
+func testExport0() { // no arg or result (see issue 69584)
+	runtime.GC()
+}
+
+var testExportCalled bool
+
+func growStack(n int64) {
+	if n > 0 {
+		growStack(n - 1)
+	}
+}
+
+func TestWasmExport(t *testing.T) {
+	testExportCalled = false
+	a := int32(123)
+	b := int64(456)
+	want := int64(a) + b
+	if got := testCallExport(a, b); got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	if !testExportCalled {
+		t.Error("testExport not called")
+	}
+}
 
 func TestBool(t *testing.T) {
 	want := true
@@ -364,8 +421,8 @@ func TestType(t *testing.T) {
 	}
 }
 
-type object = map[string]interface{}
-type array = []interface{}
+type object = map[string]any
+type array = []any
 
 func TestValueOf(t *testing.T) {
 	a := js.ValueOf(array{0, array{0, 42, 0}, 0})
@@ -388,7 +445,7 @@ func TestZeroValue(t *testing.T) {
 
 func TestFuncOf(t *testing.T) {
 	c := make(chan struct{})
-	cb := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	cb := js.FuncOf(func(this js.Value, args []js.Value) any {
 		if got := args[0].Int(); got != 42 {
 			t.Errorf("got %#v, want %#v", got, 42)
 		}
@@ -402,8 +459,8 @@ func TestFuncOf(t *testing.T) {
 
 func TestInvokeFunction(t *testing.T) {
 	called := false
-	cb := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		cb2 := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	cb := js.FuncOf(func(this js.Value, args []js.Value) any {
+		cb2 := js.FuncOf(func(this js.Value, args []js.Value) any {
 			called = true
 			return 42
 		})
@@ -423,7 +480,7 @@ func TestInterleavedFunctions(t *testing.T) {
 	c1 := make(chan struct{})
 	c2 := make(chan struct{})
 
-	js.Global().Get("setTimeout").Invoke(js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	js.Global().Get("setTimeout").Invoke(js.FuncOf(func(this js.Value, args []js.Value) any {
 		c1 <- struct{}{}
 		<-c2
 		return nil
@@ -432,7 +489,7 @@ func TestInterleavedFunctions(t *testing.T) {
 	<-c1
 	c2 <- struct{}{}
 	// this goroutine is running, but the callback of setTimeout did not return yet, invoke another function now
-	f := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	f := js.FuncOf(func(this js.Value, args []js.Value) any {
 		return nil
 	})
 	f.Invoke()
@@ -440,7 +497,7 @@ func TestInterleavedFunctions(t *testing.T) {
 
 func ExampleFuncOf() {
 	var cb js.Func
-	cb = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	cb = js.FuncOf(func(this js.Value, args []js.Value) any {
 		fmt.Println("button clicked")
 		cb.Release() // release the function if the button will not be clicked again
 		return nil
@@ -569,6 +626,80 @@ func TestGarbageCollection(t *testing.T) {
 	}
 }
 
+// This table is used for allocation tests. We expect a specific allocation
+// behavior to be seen, depending on the number of arguments applied to various
+// JavaScript functions.
+// Note: All JavaScript functions return a JavaScript array, which will cause
+// one allocation to be created to track the Value.gcPtr for the Value finalizer.
+var allocTests = []struct {
+	argLen   int // The number of arguments to use for the syscall
+	expected int // The expected number of allocations
+}{
+	// For less than or equal to 16 arguments, we expect 1 allocation:
+	// - makeValue new(ref)
+	{0, 1},
+	{2, 1},
+	{15, 1},
+	{16, 1},
+	// For greater than 16 arguments, we expect 3 allocation:
+	// - makeValue: new(ref)
+	// - makeArgSlices: argVals = make([]Value, size)
+	// - makeArgSlices: argRefs = make([]ref, size)
+	{17, 3},
+	{32, 3},
+	{42, 3},
+}
+
+// TestCallAllocations ensures the correct allocation profile for Value.Call
+func TestCallAllocations(t *testing.T) {
+	for _, test := range allocTests {
+		args := make([]any, test.argLen)
+
+		tmpArray := js.Global().Get("Array").New(0)
+		numAllocs := testing.AllocsPerRun(100, func() {
+			tmpArray.Call("concat", args...)
+		})
+
+		if numAllocs != float64(test.expected) {
+			t.Errorf("got numAllocs %#v, want %#v", numAllocs, test.expected)
+		}
+	}
+}
+
+// TestInvokeAllocations ensures the correct allocation profile for Value.Invoke
+func TestInvokeAllocations(t *testing.T) {
+	for _, test := range allocTests {
+		args := make([]any, test.argLen)
+
+		tmpArray := js.Global().Get("Array").New(0)
+		concatFunc := tmpArray.Get("concat").Call("bind", tmpArray)
+		numAllocs := testing.AllocsPerRun(100, func() {
+			concatFunc.Invoke(args...)
+		})
+
+		if numAllocs != float64(test.expected) {
+			t.Errorf("got numAllocs %#v, want %#v", numAllocs, test.expected)
+		}
+	}
+}
+
+// TestNewAllocations ensures the correct allocation profile for Value.New
+func TestNewAllocations(t *testing.T) {
+	arrayConstructor := js.Global().Get("Array")
+
+	for _, test := range allocTests {
+		args := make([]any, test.argLen)
+
+		numAllocs := testing.AllocsPerRun(100, func() {
+			arrayConstructor.New(args...)
+		})
+
+		if numAllocs != float64(test.expected) {
+			t.Errorf("got numAllocs %#v, want %#v", numAllocs, test.expected)
+		}
+	}
+}
+
 // BenchmarkDOM is a simple benchmark which emulates a webapp making DOM operations.
 // It creates a div, and sets its id. Then searches by that id and sets some data.
 // Finally it removes that div.
@@ -589,5 +720,16 @@ func BenchmarkDOM(b *testing.B) {
 			b.Errorf("got %s, want %s", got, want)
 		}
 		document.Get("body").Call("removeChild", div)
+	}
+}
+
+func TestGlobal(t *testing.T) {
+	ident := js.FuncOf(func(this js.Value, args []js.Value) any {
+		return args[0]
+	})
+	defer ident.Release()
+
+	if got := ident.Invoke(js.Global()); !got.Equal(js.Global()) {
+		t.Errorf("got %#v, want %#v", got, js.Global())
 	}
 }

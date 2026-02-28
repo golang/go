@@ -12,7 +12,7 @@ TEXT ·IndexByte(SB), NOSPLIT, $0-40
 	I64Load b_len+8(FP)
 	I32WrapI64
 	Call memchr<>(SB)
-	I64ExtendI32S
+	I64ExtendI32U
 	Set R0
 
 	Get SP
@@ -35,7 +35,7 @@ TEXT ·IndexByteString(SB), NOSPLIT, $0-32
 	I64Load s_len+8(FP)
 	I32WrapI64
 	Call memchr<>(SB)
-	I64ExtendI32S
+	I64ExtendI32U
 	Set R0
 
 	I64Const $-1

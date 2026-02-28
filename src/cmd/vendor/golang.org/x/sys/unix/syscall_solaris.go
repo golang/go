@@ -13,6 +13,10 @@
 package unix
 
 import (
+	"fmt"
+	"os"
+	"runtime"
+	"sync"
 	"syscall"
 	"unsafe"
 )
@@ -62,9 +66,26 @@ func Pipe(p []int) (err error) {
 	if n != 0 {
 		return err
 	}
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
 	return nil
+}
+
+//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
+
+func Pipe2(p []int, flags int) error {
+	if len(p) != 2 {
+		return EINVAL
+	}
+	var pp [2]_C_int
+	err := pipe2(&pp, flags)
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
+	return err
 }
 
 func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
@@ -75,9 +96,7 @@ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet4, nil
 }
 
@@ -90,9 +109,7 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
 	sa.raw.Scope_id = sa.ZoneId
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet6, nil
 }
 
@@ -111,7 +128,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	if n > 0 {
 		sl += _Socklen(n) + 1
 	}
-	if sa.raw.Path[0] == '@' {
+	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
+		// Check sl > 3 so we don't change unnamed socket behavior.
 		sa.raw.Path[0] = 0
 		// Don't count trailing NUL for abstract address.
 		sl--
@@ -140,7 +158,7 @@ func GetsockoptString(fd, level, opt int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(buf[:vallen-1]), nil
+	return ByteSliceToString(buf[:vallen]), nil
 }
 
 const ImplementsGetwd = true
@@ -391,8 +409,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 		for n < len(pp.Path) && pp.Path[n] != 0 {
 			n++
 		}
-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
-		sa.Name = string(bytes)
+		sa.Name = string(unsafe.Slice((*byte)(unsafe.Pointer(&pp.Path[0])), n))
 		return sa, nil
 
 	case AF_INET:
@@ -400,9 +417,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 		sa := new(SockaddrInet4)
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 
 	case AF_INET6:
@@ -411,9 +426,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
 		sa.ZoneId = pp.Scope_id
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 	}
 	return nil, EAFNOSUPPORT
@@ -438,77 +451,59 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 
 //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error) = libsocket.__xnet_recvmsg
 
-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+func recvmsgRaw(fd int, iov []Iovec, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) {
 	var msg Msghdr
-	var rsa RawSockaddrAny
-	msg.Name = (*byte)(unsafe.Pointer(&rsa))
+	msg.Name = (*byte)(unsafe.Pointer(rsa))
 	msg.Namelen = uint32(SizeofSockaddrAny)
-	var iov Iovec
-	if len(p) > 0 {
-		iov.Base = (*int8)(unsafe.Pointer(&p[0]))
-		iov.SetLen(len(p))
-	}
-	var dummy int8
+	var dummy byte
 	if len(oob) > 0 {
 		// receive at least one normal byte
-		if len(p) == 0 {
-			iov.Base = &dummy
-			iov.SetLen(1)
+		if emptyIovecs(iov) {
+			var iova [1]Iovec
+			iova[0].Base = &dummy
+			iova[0].SetLen(1)
+			iov = iova[:]
 		}
 		msg.Accrightslen = int32(len(oob))
 	}
-	msg.Iov = &iov
-	msg.Iovlen = 1
+	if len(iov) > 0 {
+		msg.Iov = &iov[0]
+		msg.SetIovlen(len(iov))
+	}
 	if n, err = recvmsg(fd, &msg, flags); n == -1 {
 		return
 	}
 	oobn = int(msg.Accrightslen)
-	// source address is only specified if the socket is unconnected
-	if rsa.Addr.Family != AF_UNSPEC {
-		from, err = anyToSockaddr(fd, &rsa)
-	}
-	return
-}
-
-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
-	_, err = SendmsgN(fd, p, oob, to, flags)
 	return
 }
 
 //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error) = libsocket.__xnet_sendmsg
 
-func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
-	var ptr unsafe.Pointer
-	var salen _Socklen
-	if to != nil {
-		ptr, salen, err = to.sockaddr()
-		if err != nil {
-			return 0, err
-		}
-	}
+func sendmsgN(fd int, iov []Iovec, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) {
 	var msg Msghdr
 	msg.Name = (*byte)(unsafe.Pointer(ptr))
 	msg.Namelen = uint32(salen)
-	var iov Iovec
-	if len(p) > 0 {
-		iov.Base = (*int8)(unsafe.Pointer(&p[0]))
-		iov.SetLen(len(p))
-	}
-	var dummy int8
+	var dummy byte
+	var empty bool
 	if len(oob) > 0 {
 		// send at least one normal byte
-		if len(p) == 0 {
-			iov.Base = &dummy
-			iov.SetLen(1)
+		empty = emptyIovecs(iov)
+		if empty {
+			var iova [1]Iovec
+			iova[0].Base = &dummy
+			iova[0].SetLen(1)
+			iov = iova[:]
 		}
 		msg.Accrightslen = int32(len(oob))
 	}
-	msg.Iov = &iov
-	msg.Iovlen = 1
+	if len(iov) > 0 {
+		msg.Iov = &iov[0]
+		msg.SetIovlen(len(iov))
+	}
 	if n, err = sendmsg(fd, &msg, flags); err != nil {
 		return 0, err
 	}
-	if len(oob) > 0 && len(p) == 0 {
+	if len(oob) > 0 && empty {
 		n = 0
 	}
 	return n, nil
@@ -551,19 +546,30 @@ func Minor(dev uint64) uint32 {
  * Expose the ioctl function
  */
 
-//sys	ioctl(fd int, req uint, arg uintptr) (err error)
+//sys	ioctlRet(fd int, req int, arg uintptr) (ret int, err error) = libc.ioctl
+//sys	ioctlPtrRet(fd int, req int, arg unsafe.Pointer) (ret int, err error) = libc.ioctl
 
-func IoctlSetTermio(fd int, req uint, value *Termio) (err error) {
-	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
+func ioctl(fd int, req int, arg uintptr) (err error) {
+	_, err = ioctlRet(fd, req, arg)
+	return err
 }
 
-func IoctlGetTermio(fd int, req uint) (*Termio, error) {
+func ioctlPtr(fd int, req int, arg unsafe.Pointer) (err error) {
+	_, err = ioctlPtrRet(fd, req, arg)
+	return err
+}
+
+func IoctlSetTermio(fd int, req int, value *Termio) error {
+	return ioctlPtr(fd, req, unsafe.Pointer(value))
+}
+
+func IoctlGetTermio(fd int, req int) (*Termio, error) {
 	var value Termio
-	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
+	err := ioctlPtr(fd, req, unsafe.Pointer(&value))
 	return &value, err
 }
 
-//sys   poll(fds *PollFd, nfds int, timeout int) (n int, err error)
+//sys	poll(fds *PollFd, nfds int, timeout int) (n int, err error)
 
 func Poll(fds []PollFd, timeout int) (n int, err error) {
 	if len(fds) == 0 {
@@ -588,6 +594,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Chmod(path string, mode uint32) (err error)
 //sys	Chown(path string, uid int, gid int) (err error)
 //sys	Chroot(path string) (err error)
+//sys	ClockGettime(clockid int32, time *Timespec) (err error)
 //sys	Close(fd int) (err error)
 //sys	Creat(path string, mode uint32) (fd int, err error)
 //sys	Dup(fd int) (nfd int, err error)
@@ -616,12 +623,13 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Getpriority(which int, who int) (n int, err error)
 //sysnb	Getrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Getrusage(who int, rusage *Rusage) (err error)
+//sysnb	Getsid(pid int) (sid int, err error)
 //sysnb	Gettimeofday(tv *Timeval) (err error)
 //sysnb	Getuid() (uid int)
 //sys	Kill(pid int, signum syscall.Signal) (err error)
 //sys	Lchown(path string, uid int, gid int) (err error)
 //sys	Link(path string, link string) (err error)
-//sys	Listen(s int, backlog int) (err error) = libsocket.__xnet_llisten
+//sys	Listen(s int, backlog int) (err error) = libsocket.__xnet_listen
 //sys	Lstat(path string, stat *Stat_t) (err error)
 //sys	Madvise(b []byte, advice int) (err error)
 //sys	Mkdir(path string, mode uint32) (err error)
@@ -641,8 +649,8 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
 //sys	Pathconf(path string, name int) (val int, err error)
 //sys	Pause() (err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
+//sys	pread(fd int, p []byte, offset int64) (n int, err error)
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Readlink(path string, buf []byte) (n int, err error)
 //sys	Rename(from string, to string) (err error)
@@ -658,7 +666,6 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Setuid(uid int) (err error)
 //sys	Shutdown(s int, how int) (err error) = libsocket.shutdown
@@ -666,6 +673,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Statvfs(path string, vfsstat *Statvfs_t) (err error)
 //sys	Symlink(path string, link string) (err error)
 //sys	Sync() (err error)
+//sys	Sysconf(which int) (n int64, err error)
 //sysnb	Times(tms *Tms) (ticks uintptr, err error)
 //sys	Truncate(path string, length int64) (err error)
 //sys	Fsync(fd int) (err error)
@@ -691,34 +699,485 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) = libsocket.setsockopt
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error) = libsocket.recvfrom
 
-func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
-	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procread)), 3, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf), 0, 0, 0)
-	n = int(r0)
-	if e1 != 0 {
-		err = e1
+// Event Ports
+
+type fileObjCookie struct {
+	fobj   *fileObj
+	cookie interface{}
+}
+
+// EventPort provides a safe abstraction on top of Solaris/illumos Event Ports.
+type EventPort struct {
+	port  int
+	mu    sync.Mutex
+	fds   map[uintptr]*fileObjCookie
+	paths map[string]*fileObjCookie
+	// The user cookie presents an interesting challenge from a memory management perspective.
+	// There are two paths by which we can discover that it is no longer in use:
+	// 1. The user calls port_dissociate before any events fire
+	// 2. An event fires and we return it to the user
+	// The tricky situation is if the event has fired in the kernel but
+	// the user hasn't requested/received it yet.
+	// If the user wants to port_dissociate before the event has been processed,
+	// we should handle things gracefully. To do so, we need to keep an extra
+	// reference to the cookie around until the event is processed
+	// thus the otherwise seemingly extraneous "cookies" map
+	// The key of this map is a pointer to the corresponding fCookie
+	cookies map[*fileObjCookie]struct{}
+}
+
+// PortEvent is an abstraction of the port_event C struct.
+// Compare Source against PORT_SOURCE_FILE or PORT_SOURCE_FD
+// to see if Path or Fd was the event source. The other will be
+// uninitialized.
+type PortEvent struct {
+	Cookie interface{}
+	Events int32
+	Fd     uintptr
+	Path   string
+	Source uint16
+	fobj   *fileObj
+}
+
+// NewEventPort creates a new EventPort including the
+// underlying call to port_create(3c).
+func NewEventPort() (*EventPort, error) {
+	port, err := port_create()
+	if err != nil {
+		return nil, err
 	}
-	return
-}
-
-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
-	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procwrite)), 3, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf), 0, 0, 0)
-	n = int(r0)
-	if e1 != 0 {
-		err = e1
+	e := &EventPort{
+		port:    port,
+		fds:     make(map[uintptr]*fileObjCookie),
+		paths:   make(map[string]*fileObjCookie),
+		cookies: make(map[*fileObjCookie]struct{}),
 	}
-	return
+	return e, nil
 }
 
-var mapper = &mmapper{
-	active: make(map[*byte][]byte),
-	mmap:   mmap,
-	munmap: munmap,
+//sys	port_create() (n int, err error)
+//sys	port_associate(port int, source int, object uintptr, events int, user *byte) (n int, err error)
+//sys	port_dissociate(port int, source int, object uintptr) (n int, err error)
+//sys	port_get(port int, pe *portEvent, timeout *Timespec) (n int, err error)
+//sys	port_getn(port int, pe *portEvent, max uint32, nget *uint32, timeout *Timespec) (n int, err error)
+
+// Close closes the event port.
+func (e *EventPort) Close() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	err := Close(e.port)
+	if err != nil {
+		return err
+	}
+	e.fds = nil
+	e.paths = nil
+	e.cookies = nil
+	return nil
 }
 
-func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
-	return mapper.Mmap(fd, offset, length, prot, flags)
+// PathIsWatched checks to see if path is associated with this EventPort.
+func (e *EventPort) PathIsWatched(path string) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	_, found := e.paths[path]
+	return found
 }
 
-func Munmap(b []byte) (err error) {
-	return mapper.Munmap(b)
+// FdIsWatched checks to see if fd is associated with this EventPort.
+func (e *EventPort) FdIsWatched(fd uintptr) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	_, found := e.fds[fd]
+	return found
+}
+
+// AssociatePath wraps port_associate(3c) for a filesystem path including
+// creating the necessary file_obj from the provided stat information.
+func (e *EventPort) AssociatePath(path string, stat os.FileInfo, events int, cookie interface{}) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if _, found := e.paths[path]; found {
+		return fmt.Errorf("%v is already associated with this Event Port", path)
+	}
+	fCookie, err := createFileObjCookie(path, stat, cookie)
+	if err != nil {
+		return err
+	}
+	_, err = port_associate(e.port, PORT_SOURCE_FILE, uintptr(unsafe.Pointer(fCookie.fobj)), events, (*byte)(unsafe.Pointer(fCookie)))
+	if err != nil {
+		return err
+	}
+	e.paths[path] = fCookie
+	e.cookies[fCookie] = struct{}{}
+	return nil
+}
+
+// DissociatePath wraps port_dissociate(3c) for a filesystem path.
+func (e *EventPort) DissociatePath(path string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	f, ok := e.paths[path]
+	if !ok {
+		return fmt.Errorf("%v is not associated with this Event Port", path)
+	}
+	_, err := port_dissociate(e.port, PORT_SOURCE_FILE, uintptr(unsafe.Pointer(f.fobj)))
+	// If the path is no longer associated with this event port (ENOENT)
+	// we should delete it from our map. We can still return ENOENT to the caller.
+	// But we need to save the cookie
+	if err != nil && err != ENOENT {
+		return err
+	}
+	if err == nil {
+		// dissociate was successful, safe to delete the cookie
+		fCookie := e.paths[path]
+		delete(e.cookies, fCookie)
+	}
+	delete(e.paths, path)
+	return err
+}
+
+// AssociateFd wraps calls to port_associate(3c) on file descriptors.
+func (e *EventPort) AssociateFd(fd uintptr, events int, cookie interface{}) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if _, found := e.fds[fd]; found {
+		return fmt.Errorf("%v is already associated with this Event Port", fd)
+	}
+	fCookie, err := createFileObjCookie("", nil, cookie)
+	if err != nil {
+		return err
+	}
+	_, err = port_associate(e.port, PORT_SOURCE_FD, fd, events, (*byte)(unsafe.Pointer(fCookie)))
+	if err != nil {
+		return err
+	}
+	e.fds[fd] = fCookie
+	e.cookies[fCookie] = struct{}{}
+	return nil
+}
+
+// DissociateFd wraps calls to port_dissociate(3c) on file descriptors.
+func (e *EventPort) DissociateFd(fd uintptr) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	_, ok := e.fds[fd]
+	if !ok {
+		return fmt.Errorf("%v is not associated with this Event Port", fd)
+	}
+	_, err := port_dissociate(e.port, PORT_SOURCE_FD, fd)
+	if err != nil && err != ENOENT {
+		return err
+	}
+	if err == nil {
+		// dissociate was successful, safe to delete the cookie
+		fCookie := e.fds[fd]
+		delete(e.cookies, fCookie)
+	}
+	delete(e.fds, fd)
+	return err
+}
+
+func createFileObjCookie(name string, stat os.FileInfo, cookie interface{}) (*fileObjCookie, error) {
+	fCookie := new(fileObjCookie)
+	fCookie.cookie = cookie
+	if name != "" && stat != nil {
+		fCookie.fobj = new(fileObj)
+		bs, err := ByteSliceFromString(name)
+		if err != nil {
+			return nil, err
+		}
+		fCookie.fobj.Name = (*int8)(unsafe.Pointer(&bs[0]))
+		s := stat.Sys().(*syscall.Stat_t)
+		fCookie.fobj.Atim.Sec = s.Atim.Sec
+		fCookie.fobj.Atim.Nsec = s.Atim.Nsec
+		fCookie.fobj.Mtim.Sec = s.Mtim.Sec
+		fCookie.fobj.Mtim.Nsec = s.Mtim.Nsec
+		fCookie.fobj.Ctim.Sec = s.Ctim.Sec
+		fCookie.fobj.Ctim.Nsec = s.Ctim.Nsec
+	}
+	return fCookie, nil
+}
+
+// GetOne wraps port_get(3c) and returns a single PortEvent.
+func (e *EventPort) GetOne(t *Timespec) (*PortEvent, error) {
+	pe := new(portEvent)
+	_, err := port_get(e.port, pe, t)
+	if err != nil {
+		return nil, err
+	}
+	p := new(PortEvent)
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	err = e.peIntToExt(pe, p)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+// peIntToExt converts a cgo portEvent struct into the friendlier PortEvent
+// NOTE: Always call this function while holding the e.mu mutex
+func (e *EventPort) peIntToExt(peInt *portEvent, peExt *PortEvent) error {
+	if e.cookies == nil {
+		return fmt.Errorf("this EventPort is already closed")
+	}
+	peExt.Events = peInt.Events
+	peExt.Source = peInt.Source
+	fCookie := (*fileObjCookie)(unsafe.Pointer(peInt.User))
+	_, found := e.cookies[fCookie]
+
+	if !found {
+		panic("unexpected event port address; may be due to kernel bug; see https://go.dev/issue/54254")
+	}
+	peExt.Cookie = fCookie.cookie
+	delete(e.cookies, fCookie)
+
+	switch peInt.Source {
+	case PORT_SOURCE_FD:
+		peExt.Fd = uintptr(peInt.Object)
+		// Only remove the fds entry if it exists and this cookie matches
+		if fobj, ok := e.fds[peExt.Fd]; ok {
+			if fobj == fCookie {
+				delete(e.fds, peExt.Fd)
+			}
+		}
+	case PORT_SOURCE_FILE:
+		peExt.fobj = fCookie.fobj
+		peExt.Path = BytePtrToString((*byte)(unsafe.Pointer(peExt.fobj.Name)))
+		// Only remove the paths entry if it exists and this cookie matches
+		if fobj, ok := e.paths[peExt.Path]; ok {
+			if fobj == fCookie {
+				delete(e.paths, peExt.Path)
+			}
+		}
+	}
+	return nil
+}
+
+// Pending wraps port_getn(3c) and returns how many events are pending.
+func (e *EventPort) Pending() (int, error) {
+	var n uint32 = 0
+	_, err := port_getn(e.port, nil, 0, &n, nil)
+	return int(n), err
+}
+
+// Get wraps port_getn(3c) and fills a slice of PortEvent.
+// It will block until either min events have been received
+// or the timeout has been exceeded. It will return how many
+// events were actually received along with any error information.
+func (e *EventPort) Get(s []PortEvent, min int, timeout *Timespec) (int, error) {
+	if min == 0 {
+		return 0, fmt.Errorf("need to request at least one event or use Pending() instead")
+	}
+	if len(s) < min {
+		return 0, fmt.Errorf("len(s) (%d) is less than min events requested (%d)", len(s), min)
+	}
+	got := uint32(min)
+	max := uint32(len(s))
+	var err error
+	ps := make([]portEvent, max)
+	_, err = port_getn(e.port, &ps[0], max, &got, timeout)
+	// got will be trustworthy with ETIME, but not any other error.
+	if err != nil && err != ETIME {
+		return 0, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	valid := 0
+	for i := 0; i < int(got); i++ {
+		err2 := e.peIntToExt(&ps[i], &s[i])
+		if err2 != nil {
+			if valid == 0 && err == nil {
+				// If err2 is the only error and there are no valid events
+				// to return, return it to the caller.
+				err = err2
+			}
+			break
+		}
+		valid = i + 1
+	}
+	return valid, err
+}
+
+//sys	putmsg(fd int, clptr *strbuf, dataptr *strbuf, flags int) (err error)
+
+func Putmsg(fd int, cl []byte, data []byte, flags int) (err error) {
+	var clp, datap *strbuf
+	if len(cl) > 0 {
+		clp = &strbuf{
+			Len: int32(len(cl)),
+			Buf: (*int8)(unsafe.Pointer(&cl[0])),
+		}
+	}
+	if len(data) > 0 {
+		datap = &strbuf{
+			Len: int32(len(data)),
+			Buf: (*int8)(unsafe.Pointer(&data[0])),
+		}
+	}
+	return putmsg(fd, clp, datap, flags)
+}
+
+//sys	getmsg(fd int, clptr *strbuf, dataptr *strbuf, flags *int) (err error)
+
+func Getmsg(fd int, cl []byte, data []byte) (retCl []byte, retData []byte, flags int, err error) {
+	var clp, datap *strbuf
+	if len(cl) > 0 {
+		clp = &strbuf{
+			Maxlen: int32(len(cl)),
+			Buf:    (*int8)(unsafe.Pointer(&cl[0])),
+		}
+	}
+	if len(data) > 0 {
+		datap = &strbuf{
+			Maxlen: int32(len(data)),
+			Buf:    (*int8)(unsafe.Pointer(&data[0])),
+		}
+	}
+
+	if err = getmsg(fd, clp, datap, &flags); err != nil {
+		return nil, nil, 0, err
+	}
+
+	if len(cl) > 0 {
+		retCl = cl[:clp.Len]
+	}
+	if len(data) > 0 {
+		retData = data[:datap.Len]
+	}
+	return retCl, retData, flags, nil
+}
+
+func IoctlSetIntRetInt(fd int, req int, arg int) (int, error) {
+	return ioctlRet(fd, req, uintptr(arg))
+}
+
+// Lifreq Helpers
+
+func (l *Lifreq) SetName(name string) error {
+	if len(name) >= len(l.Name) {
+		return fmt.Errorf("name cannot be more than %d characters", len(l.Name)-1)
+	}
+	for i := range name {
+		l.Name[i] = int8(name[i])
+	}
+	return nil
+}
+
+func (l *Lifreq) SetLifruInt(d int) {
+	*(*int)(unsafe.Pointer(&l.Lifru[0])) = d
+}
+
+func (l *Lifreq) GetLifruInt() int {
+	return *(*int)(unsafe.Pointer(&l.Lifru[0]))
+}
+
+func (l *Lifreq) SetLifruUint(d uint) {
+	*(*uint)(unsafe.Pointer(&l.Lifru[0])) = d
+}
+
+func (l *Lifreq) GetLifruUint() uint {
+	return *(*uint)(unsafe.Pointer(&l.Lifru[0]))
+}
+
+func IoctlLifreq(fd int, req int, l *Lifreq) error {
+	return ioctlPtr(fd, req, unsafe.Pointer(l))
+}
+
+// Strioctl Helpers
+
+func (s *Strioctl) SetInt(i int) {
+	s.Len = int32(unsafe.Sizeof(i))
+	s.Dp = (*int8)(unsafe.Pointer(&i))
+}
+
+func IoctlSetStrioctlRetInt(fd int, req int, s *Strioctl) (int, error) {
+	return ioctlPtrRet(fd, req, unsafe.Pointer(s))
+}
+
+// Ucred Helpers
+// See ucred(3c) and getpeerucred(3c)
+
+//sys	getpeerucred(fd uintptr, ucred *uintptr) (err error)
+//sys	ucredFree(ucred uintptr) = ucred_free
+//sys	ucredGet(pid int) (ucred uintptr, err error) = ucred_get
+//sys	ucredGeteuid(ucred uintptr) (uid int) = ucred_geteuid
+//sys	ucredGetegid(ucred uintptr) (gid int) = ucred_getegid
+//sys	ucredGetruid(ucred uintptr) (uid int) = ucred_getruid
+//sys	ucredGetrgid(ucred uintptr) (gid int) = ucred_getrgid
+//sys	ucredGetsuid(ucred uintptr) (uid int) = ucred_getsuid
+//sys	ucredGetsgid(ucred uintptr) (gid int) = ucred_getsgid
+//sys	ucredGetpid(ucred uintptr) (pid int) = ucred_getpid
+
+// Ucred is an opaque struct that holds user credentials.
+type Ucred struct {
+	ucred uintptr
+}
+
+// We need to ensure that ucredFree is called on the underlying ucred
+// when the Ucred is garbage collected.
+func ucredFinalizer(u *Ucred) {
+	ucredFree(u.ucred)
+}
+
+func GetPeerUcred(fd uintptr) (*Ucred, error) {
+	var ucred uintptr
+	err := getpeerucred(fd, &ucred)
+	if err != nil {
+		return nil, err
+	}
+	result := &Ucred{
+		ucred: ucred,
+	}
+	// set the finalizer on the result so that the ucred will be freed
+	runtime.SetFinalizer(result, ucredFinalizer)
+	return result, nil
+}
+
+func UcredGet(pid int) (*Ucred, error) {
+	ucred, err := ucredGet(pid)
+	if err != nil {
+		return nil, err
+	}
+	result := &Ucred{
+		ucred: ucred,
+	}
+	// set the finalizer on the result so that the ucred will be freed
+	runtime.SetFinalizer(result, ucredFinalizer)
+	return result, nil
+}
+
+func (u *Ucred) Geteuid() int {
+	defer runtime.KeepAlive(u)
+	return ucredGeteuid(u.ucred)
+}
+
+func (u *Ucred) Getruid() int {
+	defer runtime.KeepAlive(u)
+	return ucredGetruid(u.ucred)
+}
+
+func (u *Ucred) Getsuid() int {
+	defer runtime.KeepAlive(u)
+	return ucredGetsuid(u.ucred)
+}
+
+func (u *Ucred) Getegid() int {
+	defer runtime.KeepAlive(u)
+	return ucredGetegid(u.ucred)
+}
+
+func (u *Ucred) Getrgid() int {
+	defer runtime.KeepAlive(u)
+	return ucredGetrgid(u.ucred)
+}
+
+func (u *Ucred) Getsgid() int {
+	defer runtime.KeepAlive(u)
+	return ucredGetsgid(u.ucred)
+}
+
+func (u *Ucred) Getpid() int {
+	defer runtime.KeepAlive(u)
+	return ucredGetpid(u.ucred)
 }

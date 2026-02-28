@@ -15,7 +15,7 @@ import (
 // package.
 type Hash uint
 
-// HashFunc simply returns the value of h so that Hash implements SignerOpts.
+// HashFunc simply returns the value of h so that [Hash] implements [SignerOpts].
 func (h Hash) HashFunc() Hash {
 	return h
 }
@@ -75,10 +75,10 @@ const (
 	SHA512                      // import crypto/sha512
 	MD5SHA1                     // no implementation; MD5+SHA1 used for TLS RSA
 	RIPEMD160                   // import golang.org/x/crypto/ripemd160
-	SHA3_224                    // import golang.org/x/crypto/sha3
-	SHA3_256                    // import golang.org/x/crypto/sha3
-	SHA3_384                    // import golang.org/x/crypto/sha3
-	SHA3_512                    // import golang.org/x/crypto/sha3
+	SHA3_224                    // import crypto/sha3
+	SHA3_256                    // import crypto/sha3
+	SHA3_384                    // import crypto/sha3
+	SHA3_512                    // import crypto/sha3
 	SHA512_224                  // import crypto/sha512
 	SHA512_256                  // import crypto/sha512
 	BLAKE2s_256                 // import golang.org/x/crypto/blake2s
@@ -150,10 +150,30 @@ func RegisterHash(h Hash, f func() hash.Hash) {
 }
 
 // PublicKey represents a public key using an unspecified algorithm.
-type PublicKey interface{}
+//
+// Although this type is an empty interface for backwards compatibility reasons,
+// all public key types in the standard library implement the following interface
+//
+//	interface{
+//	    Equal(x crypto.PublicKey) bool
+//	}
+//
+// which can be used for increased type safety within applications.
+type PublicKey any
 
 // PrivateKey represents a private key using an unspecified algorithm.
-type PrivateKey interface{}
+//
+// Although this type is an empty interface for backwards compatibility reasons,
+// all private key types in the standard library implement the following interface
+//
+//	interface{
+//	    Public() crypto.PublicKey
+//	    Equal(x crypto.PrivateKey) bool
+//	}
+//
+// as well as purpose-specific interfaces such as [Signer] and [Decrypter], which
+// can be used for increased type safety within applications.
+type PrivateKey any
 
 // Signer is an interface for an opaque private key that can be used for
 // signing operations. For example, an RSA key kept in a hardware module.
@@ -164,7 +184,7 @@ type Signer interface {
 
 	// Sign signs digest with the private key, possibly using entropy from
 	// rand. For an RSA key, the resulting signature should be either a
-	// PKCS#1 v1.5 or PSS signature (as indicated by opts). For an (EC)DSA
+	// PKCS #1 v1.5 or PSS signature (as indicated by opts). For an (EC)DSA
 	// key, it should be a DER-serialised, ASN.1 signature structure.
 	//
 	// Hash implements the SignerOpts interface and, in most cases, one can
@@ -178,7 +198,24 @@ type Signer interface {
 	Sign(rand io.Reader, digest []byte, opts SignerOpts) (signature []byte, err error)
 }
 
-// SignerOpts contains options for signing with a Signer.
+// MessageSigner is an interface for an opaque private key that can be used for
+// signing operations where the message is not pre-hashed by the caller.
+// It is a superset of the Signer interface so that it can be passed to APIs
+// which accept Signer, which may try to do an interface upgrade.
+//
+// MessageSigner.SignMessage and MessageSigner.Sign should produce the same
+// result given the same opts. In particular, MessageSigner.SignMessage should
+// only accept a zero opts.HashFunc if the Signer would also accept messages
+// which are not pre-hashed.
+//
+// Implementations which do not provide the pre-hashed Sign API should implement
+// Signer.Sign by always returning an error.
+type MessageSigner interface {
+	Signer
+	SignMessage(rand io.Reader, msg []byte, opts SignerOpts) (signature []byte, err error)
+}
+
+// SignerOpts contains options for signing with a [Signer].
 type SignerOpts interface {
 	// HashFunc returns an identifier for the hash function used to produce
 	// the message passed to Signer.Sign, or else zero to indicate that no
@@ -200,4 +237,37 @@ type Decrypter interface {
 	Decrypt(rand io.Reader, msg []byte, opts DecrypterOpts) (plaintext []byte, err error)
 }
 
-type DecrypterOpts interface{}
+type DecrypterOpts any
+
+// SignMessage signs msg with signer. If signer implements [MessageSigner],
+// [MessageSigner.SignMessage] is called directly. Otherwise, msg is hashed
+// with opts.HashFunc() and signed with [Signer.Sign].
+func SignMessage(signer Signer, rand io.Reader, msg []byte, opts SignerOpts) (signature []byte, err error) {
+	if ms, ok := signer.(MessageSigner); ok {
+		return ms.SignMessage(rand, msg, opts)
+	}
+	if opts.HashFunc() != 0 {
+		h := opts.HashFunc().New()
+		h.Write(msg)
+		msg = h.Sum(nil)
+	}
+	return signer.Sign(rand, msg, opts)
+}
+
+// Decapsulator is an interface for an opaque private KEM key that can be used for
+// decapsulation operations. For example, an ML-KEM key kept in a hardware module.
+//
+// It is implemented, for example, by [crypto/mlkem.DecapsulationKey768].
+type Decapsulator interface {
+	Encapsulator() Encapsulator
+	Decapsulate(ciphertext []byte) (sharedKey []byte, err error)
+}
+
+// Encapsulator is an interface for a public KEM key that can be used for
+// encapsulation operations.
+//
+// It is implemented, for example, by [crypto/mlkem.EncapsulationKey768].
+type Encapsulator interface {
+	Bytes() []byte
+	Encapsulate() (sharedKey, ciphertext []byte)
+}

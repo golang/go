@@ -1,6 +1,6 @@
 // errorcheck
 
-// +build amd64
+//go:build amd64
 
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -15,7 +15,7 @@ package p
 
 import "runtime"
 
-func f() { // ERROR "stack frame too large"
+func f() { // GC_ERROR "stack frame too large"
 	x := [][]int{1e9: []int{}}
 	runtime.KeepAlive(x)
 }

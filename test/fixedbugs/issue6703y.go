@@ -20,4 +20,4 @@ func pf() *T {
 	return nil
 }
 
-var x = pf().pm // ERROR "initialization loop|depends upon itself" 
+var x = pf().pm // ERROR "initialization cycle|depends upon itself" 

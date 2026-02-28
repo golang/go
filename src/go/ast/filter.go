@@ -6,7 +6,7 @@ package ast
 
 import (
 	"go/token"
-	"sort"
+	"slices"
 )
 
 // ----------------------------------------------------------------------------
@@ -21,10 +21,9 @@ func exportFilter(name string) bool {
 // only exported nodes remain: all top-level identifiers which are not exported
 // and their associated information (such as type, initial value, or function
 // body) are removed. Non-exported fields and methods of exported types are
-// stripped. The File.Comments list is not changed.
+// stripped. The [File.Comments] list is not changed.
 //
 // FileExports reports whether there are exported declarations.
-//
 func FileExports(src *File) bool {
 	return filterFile(src, exportFilter, true)
 }
@@ -36,6 +35,8 @@ func FileExports(src *File) bool {
 // PackageExports reports whether there are exported declarations;
 // it returns false otherwise.
 //
+// Deprecated: use the type checker [go/types] instead of [Package];
+// see [Object]. Alternatively, use [FileExports].
 func PackageExports(pkg *Package) bool {
 	return filterPackage(pkg, exportFilter, true)
 }
@@ -59,7 +60,6 @@ func filterIdentList(list []*Ident, f Filter) []*Ident {
 // fieldName assumes that x is the type of an anonymous field and
 // returns the corresponding field name. If x is not an acceptable
 // anonymous field, the result is nil.
-//
 func fieldName(x Expr) *Ident {
 	switch t := x.(type) {
 	case *Ident:
@@ -229,7 +229,6 @@ func filterSpecList(list []Spec, f Filter, export bool) []Spec {
 //
 // FilterDecl reports whether there are any declared names left after
 // filtering.
-//
 func FilterDecl(decl Decl, f Filter) bool {
 	return filterDecl(decl, f, false)
 }
@@ -250,11 +249,10 @@ func filterDecl(decl Decl, f Filter, export bool) bool {
 // interface method names, but not from parameter lists) that don't
 // pass through the filter f. If the declaration is empty afterwards,
 // the declaration is removed from the AST. Import declarations are
-// always removed. The File.Comments list is not changed.
+// always removed. The [File.Comments] list is not changed.
 //
 // FilterFile reports whether there are any top-level declarations
 // left after filtering.
-//
 func FilterFile(src *File, f Filter) bool {
 	return filterFile(src, f, false)
 }
@@ -282,6 +280,8 @@ func filterFile(src *File, f Filter, export bool) bool {
 // FilterPackage reports whether there are any top-level declarations
 // left after filtering.
 //
+// Deprecated: use the type checker [go/types] instead of [Package];
+// see [Object]. Alternatively, use [FilterFile].
 func FilterPackage(pkg *Package, f Filter) bool {
 	return filterPackage(pkg, f, false)
 }
@@ -299,9 +299,14 @@ func filterPackage(pkg *Package, f Filter, export bool) bool {
 // ----------------------------------------------------------------------------
 // Merging of package files
 
-// The MergeMode flags control the behavior of MergePackageFiles.
+// The MergeMode flags control the behavior of [MergePackageFiles].
+//
+// Deprecated: use the type checker [go/types] instead of [Package];
+// see [Object].
 type MergeMode uint
 
+// Deprecated: use the type checker [go/types] instead of [Package];
+// see [Object].
 const (
 	// If set, duplicate function declarations are excluded.
 	FilterFuncDuplicates MergeMode = 1 << iota
@@ -315,7 +320,6 @@ const (
 // nameOf returns the function (foo) or method name (foo.bar) for
 // the given function declaration. If the AST is incorrect for the
 // receiver, it assumes a function instead.
-//
 func nameOf(f *FuncDecl) string {
 	if r := f.Recv; r != nil && len(r.List) == 1 {
 		// looks like a correct receiver declaration
@@ -335,12 +339,13 @@ func nameOf(f *FuncDecl) string {
 
 // separator is an empty //-style comment that is interspersed between
 // different comment groups when they are concatenated into a single group
-//
 var separator = &Comment{token.NoPos, "//"}
 
 // MergePackageFiles creates a file AST by merging the ASTs of the
 // files belonging to a package. The mode flags control merging behavior.
 //
+// Deprecated: this function is poorly specified and has unfixable
+// bugs; also [Package] is deprecated.
 func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	// Count the number of package docs, comments and declarations across
 	// all package files. Also, compute sorted list of filenames, so that
@@ -349,6 +354,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	ncomments := 0
 	ndecls := 0
 	filenames := make([]string, len(pkg.Files))
+	var minPos, maxPos token.Pos
 	i := 0
 	for filename, f := range pkg.Files {
 		filenames[i] = filename
@@ -358,8 +364,14 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 		}
 		ncomments += len(f.Comments)
 		ndecls += len(f.Decls)
+		if i == 0 || f.FileStart < minPos {
+			minPos = f.FileStart
+		}
+		if i == 0 || f.FileEnd > maxPos {
+			maxPos = f.FileEnd
+		}
 	}
-	sort.Strings(filenames)
+	slices.Sort(filenames)
 
 	// Collect package comments from all package files into a single
 	// CommentGroup - the collected package documentation. In general
@@ -493,5 +505,5 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	}
 
 	// TODO(gri) need to compute unresolved identifiers!
-	return &File{doc, pos, NewIdent(pkg.Name), decls, pkg.Scope, imports, nil, comments}
+	return &File{doc, pos, NewIdent(pkg.Name), decls, minPos, maxPos, pkg.Scope, imports, nil, comments, ""}
 }

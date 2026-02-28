@@ -105,7 +105,14 @@ func huffmanDecode(buf *bytes.Buffer, maxLen int, v []byte) error {
 	return nil
 }
 
+// incomparable is a zero-width, non-comparable type. Adding it to a struct
+// makes that struct also non-comparable, and generally doesn't add
+// any size (as long as it's first).
+type incomparable [0]func()
+
 type node struct {
+	_ incomparable
+
 	// children is non-nil for internal nodes
 	children *[256]*node
 
@@ -133,50 +140,79 @@ func buildRootHuffmanNode() {
 		panic("unexpected size")
 	}
 	lazyRootHuffmanNode = newInternalNode()
-	for i, code := range huffmanCodes {
-		addDecoderNode(byte(i), code, huffmanCodeLen[i])
-	}
-}
+	// allocate a leaf node for each of the 256 symbols
+	leaves := new([256]node)
 
-func addDecoderNode(sym byte, code uint32, codeLen uint8) {
-	cur := lazyRootHuffmanNode
-	for codeLen > 8 {
-		codeLen -= 8
-		i := uint8(code >> codeLen)
-		if cur.children[i] == nil {
-			cur.children[i] = newInternalNode()
+	for sym, code := range huffmanCodes {
+		codeLen := huffmanCodeLen[sym]
+
+		cur := lazyRootHuffmanNode
+		for codeLen > 8 {
+			codeLen -= 8
+			i := uint8(code >> codeLen)
+			if cur.children[i] == nil {
+				cur.children[i] = newInternalNode()
+			}
+			cur = cur.children[i]
 		}
-		cur = cur.children[i]
-	}
-	shift := 8 - codeLen
-	start, end := int(uint8(code<<shift)), int(1<<shift)
-	for i := start; i < start+end; i++ {
-		cur.children[i] = &node{sym: sym, codeLen: codeLen}
+		shift := 8 - codeLen
+		start, end := int(uint8(code<<shift)), int(1<<shift)
+
+		leaves[sym].sym = byte(sym)
+		leaves[sym].codeLen = codeLen
+		for i := start; i < start+end; i++ {
+			cur.children[i] = &leaves[sym]
+		}
 	}
 }
 
 // AppendHuffmanString appends s, as encoded in Huffman codes, to dst
 // and returns the extended buffer.
 func AppendHuffmanString(dst []byte, s string) []byte {
-	rembits := uint8(8)
-
+	// This relies on the maximum huffman code length being 30 (See tables.go huffmanCodeLen array)
+	// So if a uint64 buffer has less than 32 valid bits can always accommodate another huffmanCode.
+	var (
+		x uint64 // buffer
+		n uint   // number valid of bits present in x
+	)
 	for i := 0; i < len(s); i++ {
-		if rembits == 8 {
-			dst = append(dst, 0)
+		c := s[i]
+		n += uint(huffmanCodeLen[c])
+		x <<= huffmanCodeLen[c] % 64
+		x |= uint64(huffmanCodes[c])
+		if n >= 32 {
+			n %= 32             // Normally would be -= 32 but %= 32 informs compiler 0 <= n <= 31 for upcoming shift
+			y := uint32(x >> n) // Compiler doesn't combine memory writes if y isn't uint32
+			dst = append(dst, byte(y>>24), byte(y>>16), byte(y>>8), byte(y))
 		}
-		dst, rembits = appendByteToHuffmanCode(dst, rembits, s[i])
 	}
-
-	if rembits < 8 {
-		// special EOS symbol
-		code := uint32(0x3fffffff)
-		nbits := uint8(30)
-
-		t := uint8(code >> (nbits - rembits))
-		dst[len(dst)-1] |= t
+	// Add padding bits if necessary
+	if over := n % 8; over > 0 {
+		const (
+			eosCode    = 0x3fffffff
+			eosNBits   = 30
+			eosPadByte = eosCode >> (eosNBits - 8)
+		)
+		pad := 8 - over
+		x = (x << pad) | (eosPadByte >> over)
+		n += pad // 8 now divides into n exactly
 	}
-
-	return dst
+	// n in (0, 8, 16, 24, 32)
+	switch n / 8 {
+	case 0:
+		return dst
+	case 1:
+		return append(dst, byte(x))
+	case 2:
+		y := uint16(x)
+		return append(dst, byte(y>>8), byte(y))
+	case 3:
+		y := uint16(x >> 8)
+		return append(dst, byte(y>>8), byte(y), byte(x))
+	}
+	//	case 4:
+	y := uint32(x)
+	return append(dst, byte(y>>24), byte(y>>16), byte(y>>8), byte(y))
 }
 
 // HuffmanEncodeLength returns the number of bytes required to encode
@@ -187,36 +223,4 @@ func HuffmanEncodeLength(s string) uint64 {
 		n += uint64(huffmanCodeLen[s[i]])
 	}
 	return (n + 7) / 8
-}
-
-// appendByteToHuffmanCode appends Huffman code for c to dst and
-// returns the extended buffer and the remaining bits in the last
-// element. The appending is not byte aligned and the remaining bits
-// in the last element of dst is given in rembits.
-func appendByteToHuffmanCode(dst []byte, rembits uint8, c byte) ([]byte, uint8) {
-	code := huffmanCodes[c]
-	nbits := huffmanCodeLen[c]
-
-	for {
-		if rembits > nbits {
-			t := uint8(code << (rembits - nbits))
-			dst[len(dst)-1] |= t
-			rembits -= nbits
-			break
-		}
-
-		t := uint8(code >> (nbits - rembits))
-		dst[len(dst)-1] |= t
-
-		nbits -= rembits
-		rembits = 8
-
-		if nbits == 0 {
-			break
-		}
-
-		dst = append(dst, 0)
-	}
-
-	return dst, rembits
 }

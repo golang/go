@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Invoke signal hander in the VDSO context (see issue 32912).
+// Invoke signal handler in the VDSO context (see issue 32912).
 
 package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime/pprof"
 	"time"
@@ -19,7 +18,7 @@ func init() {
 }
 
 func signalInVDSO() {
-	f, err := ioutil.TempFile("", "timeprofnow")
+	f, err := os.CreateTemp("", "timeprofnow")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)

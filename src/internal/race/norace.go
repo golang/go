@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !race
+//go:build !race
 
 package race
 
 import (
+	"internal/abi"
 	"unsafe"
 )
 
@@ -30,7 +31,19 @@ func Enable() {
 func Read(addr unsafe.Pointer) {
 }
 
+func ReadPC(addr unsafe.Pointer, callerpc, pc uintptr) {
+}
+
+func ReadObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr) {
+}
+
 func Write(addr unsafe.Pointer) {
+}
+
+func WritePC(addr unsafe.Pointer, callerpc, pc uintptr) {
+}
+
+func WriteObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr) {
 }
 
 func ReadRange(addr unsafe.Pointer, len int) {

@@ -2,18 +2,23 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
+//go:build unix || (js && wasm) || wasip1
 
 package syscall
 
-import "unsafe"
+import (
+	"internal/byteorder"
+	"internal/goarch"
+	"runtime"
+	"unsafe"
+)
 
 // readInt returns the size-bytes unsigned integer in native byte order at offset off.
 func readInt(b []byte, off, size uintptr) (u uint64, ok bool) {
 	if len(b) < int(off+size) {
 		return 0, false
 	}
-	if isBigEndian {
+	if goarch.BigEndian {
 		return readIntBE(b[off:], size), true
 	}
 	return readIntLE(b[off:], size), true
@@ -24,15 +29,11 @@ func readIntBE(b []byte, size uintptr) uint64 {
 	case 1:
 		return uint64(b[0])
 	case 2:
-		_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
-		return uint64(b[1]) | uint64(b[0])<<8
+		return uint64(byteorder.BEUint16(b))
 	case 4:
-		_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
-		return uint64(b[3]) | uint64(b[2])<<8 | uint64(b[1])<<16 | uint64(b[0])<<24
+		return uint64(byteorder.BEUint32(b))
 	case 8:
-		_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
-		return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
-			uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
+		return byteorder.BEUint64(b)
 	default:
 		panic("syscall: readInt with unsupported size")
 	}
@@ -43,15 +44,11 @@ func readIntLE(b []byte, size uintptr) uint64 {
 	case 1:
 		return uint64(b[0])
 	case 2:
-		_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
-		return uint64(b[0]) | uint64(b[1])<<8
+		return uint64(byteorder.LEUint16(b))
 	case 4:
-		_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
-		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24
+		return uint64(byteorder.LEUint32(b))
 	case 8:
-		_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
-		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
-			uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
+		return byteorder.LEUint64(b)
 	default:
 		panic("syscall: readInt with unsupported size")
 	}
@@ -75,7 +72,9 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, 
 		if !ok {
 			break
 		}
-		if ino == 0 { // File absent in directory.
+		// See src/os/dir_unix.go for the reason why this condition is
+		// excluded on wasip1 and linux.
+		if ino == 0 && runtime.GOOS != "linux" && runtime.GOOS != "wasip1" { // File absent in directory.
 			continue
 		}
 		const namoff = uint64(unsafe.Offsetof(Dirent{}.Name))

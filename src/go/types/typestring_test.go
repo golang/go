@@ -5,10 +5,6 @@
 package types_test
 
 import (
-	"go/ast"
-	"go/importer"
-	"go/parser"
-	"go/token"
 	"internal/testenv"
 	"testing"
 
@@ -16,17 +12,6 @@ import (
 )
 
 const filename = "<src>"
-
-func makePkg(src string) (*Package, error) {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors)
-	if err != nil {
-		return nil, err
-	}
-	// use the package name as package path
-	conf := Config{Importer: importer.Default()}
-	return conf.Check(file.Name.Name, fset, []*ast.File{file}, nil)
-}
 
 type testEntry struct {
 	src, str string
@@ -95,6 +80,13 @@ var independentTestTypes = []testEntry{
 	dup("interface{}"),
 	dup("interface{m()}"),
 	dup(`interface{String() string; m(int) float32}`),
+	dup("interface{int | float32 | complex128}"),
+	dup("interface{int | ~float32 | ~complex128}"),
+	dup("interface{comparable}"),
+	// TODO(gri) adjust test for EvalCompositeTest
+	// {"error", "interface{Error() string}"},
+	// {"any", "interface{}"},
+	// {"comparable", "interface{comparable}"},
 
 	// maps
 	dup("map[string]int"),
@@ -118,6 +110,7 @@ var dependentTestTypes = []testEntry{
 }
 
 func TestTypeString(t *testing.T) {
+	// The Go command is needed for the importer to determine the locations of stdlib .a files.
 	testenv.MustHaveGoBuild(t)
 
 	var tests []testEntry
@@ -126,73 +119,26 @@ func TestTypeString(t *testing.T) {
 
 	for _, test := range tests {
 		src := `package p; import "io"; type _ io.Writer; type T ` + test.src
-		pkg, err := makePkg(src)
+		pkg, err := typecheck(src, nil, nil)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)
 			continue
 		}
-		typ := pkg.Scope().Lookup("T").Type().Underlying()
+		obj := pkg.Scope().Lookup("T")
+		if obj == nil {
+			t.Errorf("%s: T not found", test.src)
+			continue
+		}
+		typ := obj.Type().Underlying()
 		if got := typ.String(); got != test.str {
 			t.Errorf("%s: got %s, want %s", test.src, got, test.str)
 		}
 	}
 }
 
-func TestIncompleteInterfaces(t *testing.T) {
-	sig := NewSignature(nil, nil, nil, false)
-	m := NewFunc(token.NoPos, nil, "m", sig)
-	for _, test := range []struct {
-		typ  *Interface
-		want string
-	}{
-		{new(Interface), "interface{/* incomplete */}"},
-		{new(Interface).Complete(), "interface{}"},
-
-		{NewInterface(nil, nil), "interface{}"},
-		{NewInterface(nil, nil).Complete(), "interface{}"},
-		{NewInterface([]*Func{}, nil), "interface{}"},
-		{NewInterface([]*Func{}, nil).Complete(), "interface{}"},
-		{NewInterface(nil, []*Named{}), "interface{}"},
-		{NewInterface(nil, []*Named{}).Complete(), "interface{}"},
-		{NewInterface([]*Func{m}, nil), "interface{m() /* incomplete */}"},
-		{NewInterface([]*Func{m}, nil).Complete(), "interface{m()}"},
-		{NewInterface(nil, []*Named{newDefined(new(Interface).Complete())}), "interface{T /* incomplete */}"},
-		{NewInterface(nil, []*Named{newDefined(new(Interface).Complete())}).Complete(), "interface{T}"},
-		{NewInterface(nil, []*Named{newDefined(NewInterface([]*Func{m}, nil))}), "interface{T /* incomplete */}"},
-		{NewInterface(nil, []*Named{newDefined(NewInterface([]*Func{m}, nil).Complete())}), "interface{T /* incomplete */}"},
-		{NewInterface(nil, []*Named{newDefined(NewInterface([]*Func{m}, nil).Complete())}).Complete(), "interface{T}"},
-
-		{NewInterfaceType(nil, nil), "interface{}"},
-		{NewInterfaceType(nil, nil).Complete(), "interface{}"},
-		{NewInterfaceType([]*Func{}, nil), "interface{}"},
-		{NewInterfaceType([]*Func{}, nil).Complete(), "interface{}"},
-		{NewInterfaceType(nil, []Type{}), "interface{}"},
-		{NewInterfaceType(nil, []Type{}).Complete(), "interface{}"},
-		{NewInterfaceType([]*Func{m}, nil), "interface{m() /* incomplete */}"},
-		{NewInterfaceType([]*Func{m}, nil).Complete(), "interface{m()}"},
-		{NewInterfaceType(nil, []Type{new(Interface).Complete()}), "interface{interface{} /* incomplete */}"},
-		{NewInterfaceType(nil, []Type{new(Interface).Complete()}).Complete(), "interface{interface{}}"},
-		{NewInterfaceType(nil, []Type{NewInterfaceType([]*Func{m}, nil)}), "interface{interface{m() /* incomplete */} /* incomplete */}"},
-		{NewInterfaceType(nil, []Type{NewInterfaceType([]*Func{m}, nil).Complete()}), "interface{interface{m()} /* incomplete */}"},
-		{NewInterfaceType(nil, []Type{NewInterfaceType([]*Func{m}, nil).Complete()}).Complete(), "interface{interface{m()}}"},
-	} {
-		got := test.typ.String()
-		if got != test.want {
-			t.Errorf("got: %s, want: %s", got, test.want)
-		}
-	}
-}
-
-// newDefined creates a new defined type named T with the given underlying type.
-// Helper function for use with TestIncompleteInterfaces only.
-func newDefined(underlying Type) *Named {
-	tname := NewTypeName(token.NoPos, nil, "T", nil)
-	return NewNamed(tname, underlying, nil)
-}
-
 func TestQualifiedTypeString(t *testing.T) {
-	p, _ := pkgFor("p.go", "package p; type T int", nil)
-	q, _ := pkgFor("q.go", "package q", nil)
+	p := mustTypecheck("package p; type T int", nil, nil)
+	q := mustTypecheck("package q", nil, nil)
 
 	pT := p.Scope().Lookup("T").Type()
 	for _, test := range []struct {

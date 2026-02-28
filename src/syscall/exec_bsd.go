@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build dragonfly freebsd netbsd openbsd
+//go:build dragonfly || netbsd || (openbsd && mips64)
 
 package syscall
 
 import (
+	"runtime"
 	"unsafe"
 )
 
@@ -15,12 +16,23 @@ type SysProcAttr struct {
 	Credential *Credential // Credential.
 	Ptrace     bool        // Enable tracing.
 	Setsid     bool        // Create session.
-	Setpgid    bool        // Set process group ID to Pgid, or, if Pgid == 0, to new pid.
-	Setctty    bool        // Set controlling terminal to fd Ctty
-	Noctty     bool        // Detach fd 0 from controlling terminal
-	Ctty       int         // Controlling TTY fd
-	Foreground bool        // Place child's process group in foreground. (Implies Setpgid. Uses Ctty as fd of controlling TTY)
-	Pgid       int         // Child's process group ID if Setpgid.
+	// Setpgid sets the process group ID of the child to Pgid,
+	// or, if Pgid == 0, to the new child's process ID.
+	Setpgid bool
+	// Setctty sets the controlling terminal of the child to
+	// file descriptor Ctty. Ctty must be a descriptor number
+	// in the child process: an index into ProcAttr.Files.
+	// This is only meaningful if Setsid is true.
+	Setctty bool
+	Noctty  bool // Detach fd 0 from controlling terminal
+	Ctty    int  // Controlling TTY fd
+	// Foreground places the child process group in the foreground.
+	// This implies Setpgid. The Ctty field must be set to
+	// the descriptor of the controlling TTY.
+	// Unlike Setctty, in this case Ctty must be a descriptor
+	// number in the parent process.
+	Foreground bool
+	Pgid       int // Child's process group ID if Setpgid.
 }
 
 // Implemented in runtime package.
@@ -37,16 +49,22 @@ func runtime_AfterForkInChild()
 // For the same reason compiler does not race instrument it.
 // The calls to RawSyscall are okay because they are assembly
 // functions that do not grow the stack.
+//
 //go:norace
 func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
 	// Declare all variables at top in case any
 	// declarations require heap allocation (e.g., err1).
 	var (
-		r1     uintptr
-		err1   Errno
-		nextfd int
-		i      int
+		r1              uintptr
+		err1            Errno
+		nextfd          int
+		i               int
+		pgrp            _C_int
+		cred            *Credential
+		ngroups, groups uintptr
 	)
+
+	rlim := origRlimitNofile.Load()
 
 	// guard against side effects of shuffling fds below.
 	// Make sure that nextfd is beyond any currently open files so
@@ -78,8 +96,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 
 	// Fork succeeded, now in child.
 
-	runtime_AfterForkInChild()
-
 	// Enable tracing if requested.
 	if sys.Ptrace {
 		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0)
@@ -106,14 +122,16 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	if sys.Foreground {
-		pgrp := sys.Pgid
+		// This should really be pid_t, however _C_int (aka int32) is
+		// generally equivalent.
+		pgrp = _C_int(sys.Pgid)
 		if pgrp == 0 {
 			r1, _, err1 = RawSyscall(SYS_GETPID, 0, 0, 0)
 			if err1 != 0 {
 				goto childerror
 			}
 
-			pgrp = int(r1)
+			pgrp = _C_int(r1)
 		}
 
 		// Place process group in foreground.
@@ -122,6 +140,10 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 			goto childerror
 		}
 	}
+
+	// Restore the signal mask. We do this after TIOCSPGRP to avoid
+	// having the kernel send a SIGTTOU signal to the process group.
+	runtime_AfterForkInChild()
 
 	// Chroot
 	if chroot != nil {
@@ -132,9 +154,9 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	// User and groups
-	if cred := sys.Credential; cred != nil {
-		ngroups := uintptr(len(cred.Groups))
-		groups := uintptr(0)
+	if cred = sys.Credential; cred != nil {
+		ngroups = uintptr(len(cred.Groups))
+		groups = uintptr(0)
 		if ngroups > 0 {
 			groups = uintptr(unsafe.Pointer(&cred.Groups[0]))
 		}
@@ -165,24 +187,42 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// Pass 1: look for fd[i] < i and move those up above len(fd)
 	// so that pass 2 won't stomp on an fd it needs later.
 	if pipe < nextfd {
-		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(pipe), uintptr(nextfd), 0)
+		if runtime.GOOS == "netbsd" || (runtime.GOOS == "openbsd" && runtime.GOARCH == "mips64") {
+			_, _, err1 = RawSyscall(_SYS_DUP3, uintptr(pipe), uintptr(nextfd), O_CLOEXEC)
+		} else if runtime.GOOS == "dragonfly" {
+			_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(pipe), _F_DUP2FD_CLOEXEC, uintptr(nextfd))
+		} else {
+			_, _, err1 = RawSyscall(SYS_DUP2, uintptr(pipe), uintptr(nextfd), 0)
+			if err1 != 0 {
+				goto childerror
+			}
+			_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+		}
 		if err1 != 0 {
 			goto childerror
 		}
-		RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
 		pipe = nextfd
 		nextfd++
 	}
 	for i = 0; i < len(fd); i++ {
-		if fd[i] >= 0 && fd[i] < int(i) {
+		if fd[i] >= 0 && fd[i] < i {
 			if nextfd == pipe { // don't stomp on pipe
 				nextfd++
 			}
-			_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(nextfd), 0)
+			if runtime.GOOS == "netbsd" || (runtime.GOOS == "openbsd" && runtime.GOARCH == "mips64") {
+				_, _, err1 = RawSyscall(_SYS_DUP3, uintptr(fd[i]), uintptr(nextfd), O_CLOEXEC)
+			} else if runtime.GOOS == "dragonfly" {
+				_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(fd[i]), _F_DUP2FD_CLOEXEC, uintptr(nextfd))
+			} else {
+				_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(nextfd), 0)
+				if err1 != 0 {
+					goto childerror
+				}
+				_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+			}
 			if err1 != 0 {
 				goto childerror
 			}
-			RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
 			fd[i] = nextfd
 			nextfd++
 		}
@@ -194,7 +234,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 			RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
 			continue
 		}
-		if fd[i] == int(i) {
+		if fd[i] == i {
 			// dup2(i, i) won't clear close-on-exec flag on Linux,
 			// probably not elsewhere either.
 			_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(fd[i]), F_SETFD, 0)
@@ -235,6 +275,11 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		}
 	}
 
+	// Restore original rlimit.
+	if rlim != nil {
+		RawSyscall(SYS_SETRLIMIT, uintptr(RLIMIT_NOFILE), uintptr(unsafe.Pointer(rlim)), 0)
+	}
+
 	// Time to exec.
 	_, _, err1 = RawSyscall(SYS_EXECVE,
 		uintptr(unsafe.Pointer(argv0)),
@@ -247,4 +292,9 @@ childerror:
 	for {
 		RawSyscall(SYS_EXIT, 253, 0, 0)
 	}
+}
+
+// forkAndExecFailureCleanup cleans up after an exec failure.
+func forkAndExecFailureCleanup(attr *ProcAttr, sys *SysProcAttr) {
+	// Nothing to do.
 }

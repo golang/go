@@ -9,18 +9,38 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 )
 
-const hextable = "0123456789abcdef"
+const (
+	hextable        = "0123456789abcdef"
+	reverseHexTable = "" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\xff\xff\xff\xff\xff\xff" +
+		"\xff\x0a\x0b\x0c\x0d\x0e\x0f\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\x0a\x0b\x0c\x0d\x0e\x0f\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
+)
 
 // EncodedLen returns the length of an encoding of n source bytes.
 // Specifically, it returns n * 2.
 func EncodedLen(n int) int { return n * 2 }
 
-// Encode encodes src into EncodedLen(len(src))
+// Encode encodes src into [EncodedLen](len(src))
 // bytes of dst. As a convenience, it returns the number
-// of bytes written to dst, but this value is always EncodedLen(len(src)).
+// of bytes written to dst, but this value is always [EncodedLen](len(src)).
 // Encode implements hexadecimal encoding.
 func Encode(dst, src []byte) int {
 	j := 0
@@ -32,9 +52,18 @@ func Encode(dst, src []byte) int {
 	return len(src) * 2
 }
 
+// AppendEncode appends the hexadecimally encoded src to dst
+// and returns the extended buffer.
+func AppendEncode(dst, src []byte) []byte {
+	n := EncodedLen(len(src))
+	dst = slices.Grow(dst, n)
+	Encode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n]
+}
+
 // ErrLength reports an attempt to decode an odd-length input
-// using Decode or DecodeString.
-// The stream-based Decoder returns io.ErrUnexpectedEOF instead of ErrLength.
+// using [Decode] or [DecodeString].
+// The stream-based Decoder returns [io.ErrUnexpectedEOF] instead of ErrLength.
 var ErrLength = errors.New("encoding/hex: odd length hex string")
 
 // InvalidByteError values describe errors resulting from an invalid byte in a hex string.
@@ -48,7 +77,7 @@ func (e InvalidByteError) Error() string {
 // Specifically, it returns x / 2.
 func DecodedLen(x int) int { return x / 2 }
 
-// Decode decodes src into DecodedLen(len(src)) bytes,
+// Decode decodes src into [DecodedLen](len(src)) bytes,
 // returning the actual number of bytes written to dst.
 //
 // Decode expects that src contains only hexadecimal
@@ -58,13 +87,16 @@ func DecodedLen(x int) int { return x / 2 }
 func Decode(dst, src []byte) (int, error) {
 	i, j := 0, 1
 	for ; j < len(src); j += 2 {
-		a, ok := fromHexChar(src[j-1])
-		if !ok {
-			return i, InvalidByteError(src[j-1])
+		p := src[j-1]
+		q := src[j]
+
+		a := reverseHexTable[p]
+		b := reverseHexTable[q]
+		if a > 0x0f {
+			return i, InvalidByteError(p)
 		}
-		b, ok := fromHexChar(src[j])
-		if !ok {
-			return i, InvalidByteError(src[j])
+		if b > 0x0f {
+			return i, InvalidByteError(q)
 		}
 		dst[i] = (a << 4) | b
 		i++
@@ -72,7 +104,7 @@ func Decode(dst, src []byte) (int, error) {
 	if len(src)%2 == 1 {
 		// Check for invalid char before reporting bad length,
 		// since the invalid char (if present) is an earlier problem.
-		if _, ok := fromHexChar(src[j-1]); !ok {
+		if reverseHexTable[src[j-1]] > 0x0f {
 			return i, InvalidByteError(src[j-1])
 		}
 		return i, ErrLength
@@ -80,18 +112,14 @@ func Decode(dst, src []byte) (int, error) {
 	return i, nil
 }
 
-// fromHexChar converts a hex character into its value and a success flag.
-func fromHexChar(c byte) (byte, bool) {
-	switch {
-	case '0' <= c && c <= '9':
-		return c - '0', true
-	case 'a' <= c && c <= 'f':
-		return c - 'a' + 10, true
-	case 'A' <= c && c <= 'F':
-		return c - 'A' + 10, true
-	}
-
-	return 0, false
+// AppendDecode appends the hexadecimally decoded src to dst
+// and returns the extended buffer.
+// If the input is malformed, it returns the partially decoded src and an error.
+func AppendDecode(dst, src []byte) ([]byte, error) {
+	n := DecodedLen(len(src))
+	dst = slices.Grow(dst, n)
+	n, err := Decode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n], err
 }
 
 // EncodeToString returns the hexadecimal encoding of src.
@@ -108,11 +136,9 @@ func EncodeToString(src []byte) string {
 // If the input is malformed, DecodeString returns
 // the bytes decoded before the error.
 func DecodeString(s string) ([]byte, error) {
-	src := []byte(s)
-	// We can use the source slice itself as the destination
-	// because the decode loop increments by one and then the 'seen' byte is not used anymore.
-	n, err := Decode(src, src)
-	return src[:n], err
+	dst := make([]byte, DecodedLen(len(s)))
+	n, err := Decode(dst, []byte(s))
+	return dst[:n], err
 }
 
 // Dump returns a string that contains a hex dump of the given data. The format
@@ -143,7 +169,7 @@ type encoder struct {
 	out [bufferSize]byte // output buffer
 }
 
-// NewEncoder returns an io.Writer that writes lowercase hexadecimal characters to w.
+// NewEncoder returns an [io.Writer] that writes lowercase hexadecimal characters to w.
 func NewEncoder(w io.Writer) io.Writer {
 	return &encoder{w: w}
 }
@@ -171,7 +197,7 @@ type decoder struct {
 	arr [bufferSize]byte // backing array for in
 }
 
-// NewDecoder returns an io.Reader that decodes hexadecimal characters from r.
+// NewDecoder returns an [io.Reader] that decodes hexadecimal characters from r.
 // NewDecoder expects that r contain only an even number of hexadecimal characters.
 func NewDecoder(r io.Reader) io.Reader {
 	return &decoder{r: r}
@@ -185,7 +211,8 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 		numRead, d.err = d.r.Read(d.arr[numCopy:])
 		d.in = d.arr[:numCopy+numRead]
 		if d.err == io.EOF && len(d.in)%2 != 0 {
-			if _, ok := fromHexChar(d.in[len(d.in)-1]); !ok {
+
+			if a := reverseHexTable[d.in[len(d.in)-1]]; a > 0x0f {
 				d.err = InvalidByteError(d.in[len(d.in)-1])
 			} else {
 				d.err = io.ErrUnexpectedEOF
@@ -209,7 +236,7 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 	return numDec, nil
 }
 
-// Dumper returns a WriteCloser that writes a hex dump of all written data to
+// Dumper returns a [io.WriteCloser] that writes a hex dump of all written data to
 // w. The format of the dump matches the output of `hexdump -C` on the command
 // line.
 func Dumper(w io.Writer) io.WriteCloser {

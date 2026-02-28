@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build 386 amd64
+//go:build 386 || amd64
 
 package cpu_test
 
 import (
 	. "internal/cpu"
-	"os"
-	"runtime"
+	"internal/godebug"
 	"testing"
 )
 
@@ -19,31 +18,35 @@ func TestX86ifAVX2hasAVX(t *testing.T) {
 	}
 }
 
-func TestDisableSSE2(t *testing.T) {
-	runDebugOptionsTest(t, "TestSSE2DebugOption", "cpu.sse2=off")
+func TestX86ifAVX512FhasAVX2(t *testing.T) {
+	if X86.HasAVX512F && !X86.HasAVX2 {
+		t.Fatalf("HasAVX2 expected true when HasAVX512F is true, got false")
+	}
 }
 
-func TestSSE2DebugOption(t *testing.T) {
-	MustHaveDebugOptionsSupport(t)
-
-	if os.Getenv("GODEBUG") != "cpu.sse2=off" {
-		t.Skipf("skipping test: GODEBUG=cpu.sse2=off not set")
+func TestX86ifAVX512BWhasAVX512F(t *testing.T) {
+	if X86.HasAVX512BW && !X86.HasAVX512F {
+		t.Fatalf("HasAVX512F expected true when HasAVX512BW is true, got false")
 	}
+}
 
-	want := runtime.GOARCH != "386" // SSE2 can only be disabled on 386.
-	if got := X86.HasSSE2; got != want {
-		t.Errorf("X86.HasSSE2 on %s expected %v, got %v", runtime.GOARCH, want, got)
+func TestX86ifAVX512VLhasAVX512F(t *testing.T) {
+	if X86.HasAVX512VL && !X86.HasAVX512F {
+		t.Fatalf("HasAVX512F expected true when HasAVX512VL is true, got false")
 	}
 }
 
 func TestDisableSSE3(t *testing.T) {
+	if GetGOAMD64level() > 1 {
+		t.Skip("skipping test: can't run on GOAMD64>v1 machines")
+	}
 	runDebugOptionsTest(t, "TestSSE3DebugOption", "cpu.sse3=off")
 }
 
 func TestSSE3DebugOption(t *testing.T) {
 	MustHaveDebugOptionsSupport(t)
 
-	if os.Getenv("GODEBUG") != "cpu.sse3=off" {
+	if godebug.New("#cpu.sse3").Value() != "off" {
 		t.Skipf("skipping test: GODEBUG=cpu.sse3=off not set")
 	}
 

@@ -13,29 +13,29 @@ import "cmd/internal/src"
 // every time a function is inlined. For example, suppose f() calls g()
 // and g has two calls to h(), and that f, g, and h are inlineable:
 //
-//  1 func main() {
-//  2     f()
-//  3 }
-//  4 func f() {
-//  5     g()
-//  6 }
-//  7 func g() {
-//  8     h()
-//  9     h()
-// 10 }
-// 11 func h() {
-// 12     println("H")
-// 13 }
+//	 1 func main() {
+//	 2     f()
+//	 3 }
+//	 4 func f() {
+//	 5     g()
+//	 6 }
+//	 7 func g() {
+//	 8     h()
+//	 9     h()
+//	10 }
+//	11 func h() {
+//	12     println("H")
+//	13 }
 //
 // Assuming the global tree starts empty, inlining will produce the
 // following tree:
 //
-//   []InlinedCall{
-//     {Parent: -1, Func: "f", Pos: <line 2>},
-//     {Parent:  0, Func: "g", Pos: <line 5>},
-//     {Parent:  1, Func: "h", Pos: <line 8>},
-//     {Parent:  1, Func: "h", Pos: <line 9>},
-//   }
+//	[]InlinedCall{
+//	  {Parent: -1, Func: "f", Pos: <line 2>},
+//	  {Parent:  0, Func: "g", Pos: <line 5>},
+//	  {Parent:  1, Func: "h", Pos: <line 8>},
+//	  {Parent:  1, Func: "h", Pos: <line 9>},
+//	}
 //
 // The nodes of h inlined into main will have inlining indexes 2 and 3.
 //
@@ -50,19 +50,35 @@ type InlinedCall struct {
 	Parent   int      // index of the parent in the InlTree or < 0 if outermost call
 	Pos      src.XPos // position of the inlined call
 	Func     *LSym    // function that was inlined
+	Name     string   // bare name of the function (w/o package prefix)
 	ParentPC int32    // PC of instruction just before inlined body. Only valid in local trees.
 }
 
 // Add adds a new call to the tree, returning its index.
-func (tree *InlTree) Add(parent int, pos src.XPos, func_ *LSym) int {
+func (tree *InlTree) Add(parent int, pos src.XPos, func_ *LSym, name string) int {
 	r := len(tree.nodes)
 	call := InlinedCall{
 		Parent: parent,
 		Pos:    pos,
 		Func:   func_,
+		Name:   name,
 	}
 	tree.nodes = append(tree.nodes, call)
 	return r
+}
+
+// AllParents invokes do on each InlinedCall in the inlining call
+// stack, from outermost to innermost.
+//
+// That is, if inlIndex corresponds to f inlining g inlining h,
+// AllParents invokes do with the call for inlining g into f, and then
+// inlining h into g.
+func (tree *InlTree) AllParents(inlIndex int, do func(InlinedCall)) {
+	if inlIndex >= 0 {
+		call := tree.nodes[inlIndex]
+		tree.AllParents(call.Parent, do)
+		do(call)
+	}
 }
 
 func (tree *InlTree) Parent(inlIndex int) int {
@@ -108,19 +124,15 @@ func (ctxt *Link) InnermostPos(xpos src.XPos) src.Pos {
 	return ctxt.PosTable.Pos(xpos)
 }
 
-// AllPos returns a slice of the positions inlined at xpos, from
-// innermost (index zero) to outermost.  To avoid gratuitous allocation
-// the result is passed in and extended if necessary.
-func (ctxt *Link) AllPos(xpos src.XPos, result []src.Pos) []src.Pos {
+// AllPos invokes do with every position in the inlining call stack for xpos,
+// from outermost to innermost. That is, xpos corresponds to f inlining g inlining h,
+// AllPos invokes do with the position in f, then the position in g, then the position in h.
+func (ctxt *Link) AllPos(xpos src.XPos, do func(src.Pos)) {
 	pos := ctxt.InnermostPos(xpos)
-	result = result[:0]
-	result = append(result, ctxt.PosTable.Pos(xpos))
-	for ix := pos.Base().InliningIndex(); ix >= 0; {
-		call := ctxt.InlTree.nodes[ix]
-		ix = call.Parent
-		result = append(result, ctxt.PosTable.Pos(call.Pos))
-	}
-	return result
+	ctxt.InlTree.AllParents(pos.Base().InliningIndex(), func(call InlinedCall) {
+		do(ctxt.InnermostPos(call.Pos))
+	})
+	do(pos)
 }
 
 func dumpInlTree(ctxt *Link, tree InlTree) {

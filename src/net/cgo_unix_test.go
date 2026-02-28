@@ -2,23 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build cgo,!netgo
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build !netgo && ((cgo && unix) || darwin)
 
 package net
 
 import (
 	"context"
+	"internal/testenv"
 	"testing"
 )
 
 func TestCgoLookupIP(t *testing.T) {
 	defer dnsWaitGroup.Wait()
 	ctx := context.Background()
-	_, err, ok := cgoLookupIP(ctx, "ip", "localhost")
-	if !ok {
-		t.Errorf("cgoLookupIP must not be a placeholder")
-	}
+	_, err := cgoLookupIP(ctx, "ip", "localhost")
 	if err != nil {
 		t.Error(err)
 	}
@@ -28,10 +25,7 @@ func TestCgoLookupIPWithCancel(t *testing.T) {
 	defer dnsWaitGroup.Wait()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, err, ok := cgoLookupIP(ctx, "ip", "localhost")
-	if !ok {
-		t.Errorf("cgoLookupIP must not be a placeholder")
-	}
+	_, err := cgoLookupIP(ctx, "ip", "localhost")
 	if err != nil {
 		t.Error(err)
 	}
@@ -40,10 +34,7 @@ func TestCgoLookupIPWithCancel(t *testing.T) {
 func TestCgoLookupPort(t *testing.T) {
 	defer dnsWaitGroup.Wait()
 	ctx := context.Background()
-	_, err, ok := cgoLookupPort(ctx, "tcp", "smtp")
-	if !ok {
-		t.Errorf("cgoLookupPort must not be a placeholder")
-	}
+	_, err := cgoLookupPort(ctx, "tcp", "smtp")
 	if err != nil {
 		t.Error(err)
 	}
@@ -53,10 +44,7 @@ func TestCgoLookupPortWithCancel(t *testing.T) {
 	defer dnsWaitGroup.Wait()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, err, ok := cgoLookupPort(ctx, "tcp", "smtp")
-	if !ok {
-		t.Errorf("cgoLookupPort must not be a placeholder")
-	}
+	_, err := cgoLookupPort(ctx, "tcp", "smtp")
 	if err != nil {
 		t.Error(err)
 	}
@@ -65,10 +53,7 @@ func TestCgoLookupPortWithCancel(t *testing.T) {
 func TestCgoLookupPTR(t *testing.T) {
 	defer dnsWaitGroup.Wait()
 	ctx := context.Background()
-	_, err, ok := cgoLookupPTR(ctx, "127.0.0.1")
-	if !ok {
-		t.Errorf("cgoLookupPTR must not be a placeholder")
-	}
+	_, err := cgoLookupPTR(ctx, "127.0.0.1")
 	if err != nil {
 		t.Error(err)
 	}
@@ -78,11 +63,17 @@ func TestCgoLookupPTRWithCancel(t *testing.T) {
 	defer dnsWaitGroup.Wait()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, err, ok := cgoLookupPTR(ctx, "127.0.0.1")
-	if !ok {
-		t.Errorf("cgoLookupPTR must not be a placeholder")
-	}
+	_, err := cgoLookupPTR(ctx, "127.0.0.1")
 	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCgoLookupCNAME(t *testing.T) {
+	mustHaveExternalNetwork(t)
+	testenv.SkipFlakyNet(t)
+	defer dnsWaitGroup.Wait()
+	if _, err := cgoLookupCNAME(t.Context(), "www.iana.org."); err != nil {
 		t.Error(err)
 	}
 }

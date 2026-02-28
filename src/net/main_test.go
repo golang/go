@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !js
-
 package net
 
 import (
@@ -12,10 +10,11 @@ import (
 	"net/internal/socktest"
 	"os"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 var (
@@ -59,6 +58,20 @@ func TestMain(m *testing.M) {
 	}
 	forceCloseSockets()
 	os.Exit(st)
+}
+
+// mustSetDeadline calls the bound method m to set a deadline on a Conn.
+// If the call fails, mustSetDeadline skips t if the current GOOS is believed
+// not to support deadlines, or fails the test otherwise.
+func mustSetDeadline(t testing.TB, m func(time.Time) error, d time.Duration) {
+	err := m(time.Now().Add(d))
+	if err != nil {
+		t.Helper()
+		if runtime.GOOS == "plan9" {
+			t.Skipf("skipping: %s does not support deadlines", runtime.GOOS)
+		}
+		t.Fatal(err)
+	}
 }
 
 type ipv6LinkLocalUnicastTest struct {
@@ -133,7 +146,7 @@ func setupTestData() {
 			{"udp6", "[" + addr + "%" + ifi.Name + "]:0", false},
 		}...)
 		switch runtime.GOOS {
-		case "darwin", "dragonfly", "freebsd", "openbsd", "netbsd":
+		case "darwin", "ios", "dragonfly", "freebsd", "openbsd", "netbsd":
 			ipv6LinkLocalUnicastTCPTests = append(ipv6LinkLocalUnicastTCPTests, []ipv6LinkLocalUnicastTest{
 				{"tcp", "[localhost%" + ifi.Name + "]:0", true},
 				{"tcp6", "[localhost%" + ifi.Name + "]:0", true},
@@ -172,18 +185,15 @@ func runningGoroutines() []string {
 	var gss []string
 	b := make([]byte, 2<<20)
 	b = b[:runtime.Stack(b, true)]
-	for _, s := range strings.Split(string(b), "\n\n") {
-		ss := strings.SplitN(s, "\n", 2)
-		if len(ss) != 2 {
-			continue
-		}
-		stack := strings.TrimSpace(ss[1])
+	for s := range strings.SplitSeq(string(b), "\n\n") {
+		_, stack, _ := strings.Cut(s, "\n")
+		stack = strings.TrimSpace(stack)
 		if !strings.Contains(stack, "created by net") {
 			continue
 		}
 		gss = append(gss, stack)
 	}
-	sort.Strings(gss)
+	slices.Sort(gss)
 	return gss
 }
 

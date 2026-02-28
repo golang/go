@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp/syntax"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -52,8 +53,8 @@ import (
 // submatch indices. An unmatched subexpression formats
 // its pair as a single - (not illustrated above).  For now
 // each regexp run produces two match results, one for a
-// ``full match'' that restricts the regexp to matching the entire
-// string or nothing, and one for a ``partial match'' that gives
+// “full match” that restricts the regexp to matching the entire
+// string or nothing, and one for a “partial match” that gives
 // the leftmost first match found in the string.
 //
 // Lines beginning with # are comments. Lines beginning with
@@ -62,7 +63,6 @@ import (
 //
 // At time of writing, re2-exhaustive.txt is 59 MB but compresses to 385 kB,
 // so we store re2-exhaustive.txt.bz2 in the repository and decompress it on the fly.
-//
 func TestRE2Search(t *testing.T) {
 	testRE2(t, "testdata/re2-search.txt")
 }
@@ -168,7 +168,7 @@ func testRE2(t *testing.T, file string) {
 			for i := range res {
 				have, suffix := run[i](re, refull, text)
 				want := parseResult(t, file, lineno, res[i])
-				if !same(have, want) {
+				if !slices.Equal(have, want) {
 					t.Errorf("%s:%d: %#q%s.FindSubmatchIndex(%#q) = %v, want %v", file, lineno, re, suffix, text, have, want)
 					if nfail++; nfail >= 100 {
 						t.Fatalf("stopping after %d errors", nfail)
@@ -294,12 +294,9 @@ func parseResult(t *testing.T, file string, lineno int, res string) []int {
 				out[n] = -1
 				out[n+1] = -1
 			} else {
-				k := strings.Index(pair, "-")
-				if k < 0 {
-					t.Fatalf("%s:%d: invalid pair %s", file, lineno, pair)
-				}
-				lo, err1 := strconv.Atoi(pair[:k])
-				hi, err2 := strconv.Atoi(pair[k+1:])
+				loStr, hiStr, _ := strings.Cut(pair, "-")
+				lo, err1 := strconv.Atoi(loStr)
+				hi, err2 := strconv.Atoi(hiStr)
 				if err1 != nil || err2 != nil || lo > hi {
 					t.Fatalf("%s:%d: invalid pair %s", file, lineno, pair)
 				}
@@ -311,18 +308,6 @@ func parseResult(t *testing.T, file string, lineno int, res string) []int {
 		}
 	}
 	return out
-}
-
-func same(x, y []int) bool {
-	if len(x) != len(y) {
-		return false
-	}
-	for i, xi := range x {
-		if xi != y[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // TestFowler runs this package's regexp API against the
@@ -457,12 +442,11 @@ Reading:
 				continue Reading
 			}
 		case ':':
-			i := strings.Index(flag[1:], ":")
-			if i < 0 {
+			var ok bool
+			if _, flag, ok = strings.Cut(flag[1:], ":"); !ok {
 				t.Logf("skip: %s", line)
 				continue Reading
 			}
-			flag = flag[1+i+1:]
 		case 'C', 'N', 'T', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 			t.Logf("skip: %s", line)
 			continue Reading
@@ -552,7 +536,7 @@ Reading:
 			if len(have) > len(pos) {
 				have = have[:len(pos)]
 			}
-			if !same(have, pos) {
+			if !slices.Equal(have, pos) {
 				t.Errorf("%s:%d: %#q.FindSubmatchIndex(%#q) = %v, want %v", file, lineno, pattern, text, have, pos)
 			}
 		}

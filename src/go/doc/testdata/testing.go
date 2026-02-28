@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package testing provides support for automated testing of Go packages.
-// It is intended to be used in concert with the ``go test'' utility, which automates
+// It is intended to be used in concert with the “go test” utility, which automates
 // execution of any function of the form
 //     func TestXxx(*testing.T)
 // where Xxx can be any alphanumeric string (but the first letter must not be in
@@ -77,8 +77,8 @@ type common struct {
 	failed   bool      // Test or benchmark has failed.
 	start    time.Time // Time test or benchmark started
 	duration time.Duration
-	self     interface{}      // To be sent on signal channel when done.
-	signal   chan interface{} // Output for serial tests.
+	self     any      // To be sent on signal channel when done.
+	signal   chan any // Output for serial tests.
 }
 
 // Short reports whether the -test.short flag is set.
@@ -167,32 +167,32 @@ func (c *common) log(s string) {
 
 // Log formats its arguments using default formatting, analogous to Println(),
 // and records the text in the error log.
-func (c *common) Log(args ...interface{}) { c.log(fmt.Sprintln(args...)) }
+func (c *common) Log(args ...any) { c.log(fmt.Sprintln(args...)) }
 
 // Logf formats its arguments according to the format, analogous to Printf(),
 // and records the text in the error log.
-func (c *common) Logf(format string, args ...interface{}) { c.log(fmt.Sprintf(format, args...)) }
+func (c *common) Logf(format string, args ...any) { c.log(fmt.Sprintf(format, args...)) }
 
 // Error is equivalent to Log() followed by Fail().
-func (c *common) Error(args ...interface{}) {
+func (c *common) Error(args ...any) {
 	c.log(fmt.Sprintln(args...))
 	c.Fail()
 }
 
 // Errorf is equivalent to Logf() followed by Fail().
-func (c *common) Errorf(format string, args ...interface{}) {
+func (c *common) Errorf(format string, args ...any) {
 	c.log(fmt.Sprintf(format, args...))
 	c.Fail()
 }
 
 // Fatal is equivalent to Log() followed by FailNow().
-func (c *common) Fatal(args ...interface{}) {
+func (c *common) Fatal(args ...any) {
 	c.log(fmt.Sprintln(args...))
 	c.FailNow()
 }
 
 // Fatalf is equivalent to Logf() followed by FailNow().
-func (c *common) Fatalf(format string, args ...interface{}) {
+func (c *common) Fatalf(format string, args ...any) {
 	c.log(fmt.Sprintf(format, args...))
 	c.FailNow()
 }
@@ -219,7 +219,7 @@ func tRunner(t *T, test *InternalTest) {
 	// a call to runtime.Goexit, record the duration and send
 	// a signal saying that the test is done.
 	defer func() {
-		t.duration = time.Now().Sub(t.start)
+		t.duration = time.Since(t.start)
 		t.signal <- t
 	}()
 
@@ -269,7 +269,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 		// If all tests pump to the same channel, a bug can occur where a test
 		// kicks off a goroutine that Fails, yet the test still delivers a completion signal,
 		// which skews the counting.
-		var collector = make(chan interface{})
+		var collector = make(chan any)
 
 		numParallel := 0
 		startParallel := make(chan bool)
@@ -289,7 +289,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 			}
 			t := &T{
 				common: common{
-					signal: make(chan interface{}),
+					signal: make(chan any),
 				},
 				name:          testName,
 				startParallel: startParallel,

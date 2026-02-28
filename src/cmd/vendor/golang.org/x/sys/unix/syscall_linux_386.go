@@ -2,10 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
-// so that go vet can check that they are correct.
-
-// +build 386,linux
+//go:build 386 && linux
 
 package unix
 
@@ -21,36 +18,8 @@ func setTimeval(sec, usec int64) Timeval {
 	return Timeval{Sec: int32(sec), Usec: int32(usec)}
 }
 
-//sysnb	pipe(p *[2]_C_int) (err error)
-
-func Pipe(p []int) (err error) {
-	if len(p) != 2 {
-		return EINVAL
-	}
-	var pp [2]_C_int
-	err = pipe(&pp)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
-	return
-}
-
-//sysnb pipe2(p *[2]_C_int, flags int) (err error)
-
-func Pipe2(p []int, flags int) (err error) {
-	if len(p) != 2 {
-		return EINVAL
-	}
-	var pp [2]_C_int
-	err = pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
-	return
-}
-
 // 64-bit file system and 32-bit uid calls
 // (386 default is 32-bit file system and 16-bit uid).
-//sys	Dup2(oldfd int, newfd int) (err error)
-//sysnb	EpollCreate(size int) (fd int, err error)
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64_64
 //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
@@ -61,21 +30,16 @@ func Pipe2(p []int, flags int) (err error) {
 //sysnb	Geteuid() (euid int) = SYS_GETEUID32
 //sysnb	Getgid() (gid int) = SYS_GETGID32
 //sysnb	Getuid() (uid int) = SYS_GETUID32
-//sysnb	InotifyInit() (fd int, err error)
 //sys	Ioperm(from int, num int, on int) (err error)
 //sys	Iopl(level int) (err error)
 //sys	Lchown(path string, uid int, gid int) (err error) = SYS_LCHOWN32
 //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+//sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
 //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
 //sys	setfsgid(gid int) (prev int, err error) = SYS_SETFSGID32
 //sys	setfsuid(uid int) (prev int, err error) = SYS_SETFSUID32
-//sysnb	Setregid(rgid int, egid int) (err error) = SYS_SETREGID32
-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error) = SYS_SETRESGID32
-//sysnb	Setresuid(ruid int, euid int, suid int) (err error) = SYS_SETRESUID32
-//sysnb	Setreuid(ruid int, euid int) (err error) = SYS_SETREUID32
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
 //sys	Stat(path string, stat *Stat_t) (err error) = SYS_STAT64
 //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
@@ -101,13 +65,13 @@ type rlimit32 struct {
 	Max uint32
 }
 
-//sysnb getrlimit(resource int, rlim *rlimit32) (err error) = SYS_GETRLIMIT
+//sysnb	getrlimit(resource int, rlim *rlimit32) (err error) = SYS_GETRLIMIT
 
 const rlimInf32 = ^uint32(0)
 const rlimInf64 = ^uint64(0)
 
 func Getrlimit(resource int, rlim *Rlimit) (err error) {
-	err = prlimit(0, resource, nil, rlim)
+	err = Prlimit(0, resource, nil, rlim)
 	if err != ENOSYS {
 		return err
 	}
@@ -130,33 +94,6 @@ func Getrlimit(resource int, rlim *Rlimit) (err error) {
 		rlim.Max = uint64(rl.Max)
 	}
 	return
-}
-
-//sysnb setrlimit(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
-
-func Setrlimit(resource int, rlim *Rlimit) (err error) {
-	err = prlimit(0, resource, rlim, nil)
-	if err != ENOSYS {
-		return err
-	}
-
-	rl := rlimit32{}
-	if rlim.Cur == rlimInf64 {
-		rl.Cur = rlimInf32
-	} else if rlim.Cur < uint64(rlimInf32) {
-		rl.Cur = uint32(rlim.Cur)
-	} else {
-		return EINVAL
-	}
-	if rlim.Max == rlimInf64 {
-		rl.Max = rlimInf32
-	} else if rlim.Max < uint64(rlimInf32) {
-		rl.Max = uint32(rlim.Max)
-	} else {
-		return EINVAL
-	}
-
-	return setrlimit(resource, &rl)
 }
 
 func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
@@ -203,14 +140,6 @@ const (
 	_RECVMMSG    = 19
 	_SENDMMSG    = 20
 )
-
-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
-	fd, e := socketcall(_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
-	if e != 0 {
-		err = e
-	}
-	return
-}
 
 func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
 	fd, e := socketcall(_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
@@ -380,11 +309,6 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint32(length)
 }
 
-//sys	poll(fds *PollFd, nfds int, timeout int) (n int, err error)
-
-func Poll(fds []PollFd, timeout int) (n int, err error) {
-	if len(fds) == 0 {
-		return poll(nil, 0, timeout)
-	}
-	return poll(&fds[0], len(fds), timeout)
+func (rsa *RawSockaddrNFCLLCP) SetServiceNameLen(length int) {
+	rsa.Service_name_len = uint32(length)
 }

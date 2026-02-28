@@ -1,5 +1,5 @@
 // Inferno utils/include/ar.h
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/include/ar.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/include/ar.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -32,12 +32,15 @@ package ld
 
 import (
 	"cmd/internal/bio"
-	"cmd/internal/objabi"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 const (
@@ -59,12 +62,48 @@ type ArHdr struct {
 	fmag string
 }
 
+// pruneUndefsForWindows trims the list "undefs" of currently
+// outstanding unresolved symbols to remove references to DLL import
+// symbols (e.g. "__imp_XXX"). In older versions of the linker, we
+// would just immediately forward references from the import sym
+// (__imp_XXX) to the DLL sym (XXX), but with newer compilers this
+// strategy falls down in certain cases. We instead now do this
+// forwarding later on as a post-processing step, and meaning that
+// during the middle part of host object loading we can see a lot of
+// unresolved (SXREF) import symbols. We do not, however, want to
+// trigger the inclusion of an object from a host archive if the
+// reference is going to be eventually forwarded to the corresponding
+// SDYNIMPORT symbol, so here we strip out such refs from the undefs
+// list.
+func pruneUndefsForWindows(ldr *loader.Loader, undefs, froms []loader.Sym) ([]loader.Sym, []loader.Sym) {
+	var newundefs []loader.Sym
+	var newfroms []loader.Sym
+	for _, s := range undefs {
+		sname := ldr.SymName(s)
+		if strings.HasPrefix(sname, "__imp_") {
+			dname := sname[len("__imp_"):]
+			ds := ldr.Lookup(dname, 0)
+			if ds != 0 && ldr.SymType(ds) == sym.SDYNIMPORT {
+				// Don't try to pull things out of a host archive to
+				// satisfy this symbol.
+				continue
+			}
+		}
+		newundefs = append(newundefs, s)
+		newfroms = append(newfroms, s)
+	}
+	return newundefs, newfroms
+}
+
 // hostArchive reads an archive file holding host objects and links in
 // required objects. The general format is the same as a Go archive
 // file, but it has an armap listing symbols and the objects that
 // define them. This is used for the compiler support library
 // libgcc.a.
 func hostArchive(ctxt *Link, name string) {
+	if ctxt.Debugvlog > 1 {
+		ctxt.Logf("hostArchive(%s)\n", name)
+	}
 	f, err := bio.Open(name)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -105,12 +144,18 @@ func hostArchive(ctxt *Link, name string) {
 	for any {
 		var load []uint64
 		returnAllUndefs := -1
-		undefs := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
-		for _, symIdx := range undefs {
-			name := ctxt.loader.SymName(symIdx)
-			if off := armap[name]; off != 0 && !loaded[off] {
+		undefs, froms := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
+		if buildcfg.GOOS == "windows" {
+			undefs, froms = pruneUndefsForWindows(ctxt.loader, undefs, froms)
+		}
+		for k, symIdx := range undefs {
+			sname := ctxt.loader.SymName(symIdx)
+			if off := armap[sname]; off != 0 && !loaded[off] {
 				load = append(load, off)
 				loaded[off] = true
+				if ctxt.Debugvlog > 1 {
+					ctxt.Logf("hostArchive(%s): selecting object at offset %x to resolve %s [%d] reference from %s [%d]\n", name, off, sname, symIdx, ctxt.loader.SymName(froms[k]), froms[k])
+				}
 			}
 		}
 
@@ -122,10 +167,21 @@ func hostArchive(ctxt *Link, name string) {
 			pname := fmt.Sprintf("%s(%s)", name, arhdr.name)
 			l = atolwhex(arhdr.size)
 
-			libgcc := sym.Library{Pkg: "libgcc"}
-			h := ldobj(ctxt, f, &libgcc, l, pname, name)
+			pkname := filepath.Base(name)
+			if i := strings.LastIndex(pkname, ".a"); i >= 0 {
+				pkname = pkname[:i]
+			}
+			libar := sym.Library{Pkg: pkname}
+			h := ldobj(ctxt, f, &libar, l, pname, name)
+			if h.ld == nil {
+				Errorf("%s unrecognized object file at offset %d", name, off)
+				continue
+			}
 			f.MustSeek(h.off, 0)
 			h.ld(ctxt, f, h.pkg, h.length, h.pn)
+			if *flagCaptureHostObjs != "" {
+				captureHostObj(h)
+			}
 		}
 
 		any = len(load) > 0
@@ -170,7 +226,7 @@ func readArmap(filename string, f *bio.Reader, arhdr ArHdr) archiveMap {
 
 		// For Mach-O and PE/386 files we strip a leading
 		// underscore from the symbol name.
-		if objabi.GOOS == "darwin" || (objabi.GOOS == "windows" && objabi.GOARCH == "386") {
+		if buildcfg.GOOS == "darwin" || buildcfg.GOOS == "ios" || (buildcfg.GOOS == "windows" && buildcfg.GOARCH == "386") {
 			if name[0] == '_' && len(name) > 1 {
 				name = name[1:]
 			}

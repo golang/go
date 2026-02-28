@@ -1,0 +1,19 @@
+# Test that the GOWORK environment variable flag is used by go work init.
+
+! exists go.work
+go work init
+exists go.work
+
+env GOWORK=$GOPATH/src/foo/foo.work
+! exists foo/foo.work
+go work init
+exists foo/foo.work
+
+env GOWORK=
+cd foo/bar
+! go work init
+stderr 'already exists'
+
+# Create directories to make go.work files in.
+-- foo/dummy.txt --
+-- foo/bar/dummy.txt --

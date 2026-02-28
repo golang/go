@@ -11,7 +11,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
-	"io/ioutil"
 	. "net/http"
 	"net/http/httptest"
 	"strings"
@@ -49,7 +48,7 @@ func TestNextProtoUpgrade(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		body, err := ioutil.ReadAll(res.Body)
+		body, err := io.ReadAll(res.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -93,7 +92,7 @@ func TestNextProtoUpgrade(t *testing.T) {
 			t.Fatal(err)
 		}
 		conn.Write([]byte("GET /foo\n"))
-		body, err := ioutil.ReadAll(conn)
+		body, err := io.ReadAll(conn)
 		if err != nil {
 			t.Fatal(err)
 		}

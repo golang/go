@@ -2,24 +2,26 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build js,wasm
+//go:build js && wasm
 
 package js
 
-import "sync"
+import (
+	"internal/synctest"
+	"sync"
+)
 
 var (
 	funcsMu    sync.Mutex
-	funcs             = make(map[uint32]func(Value, []Value) interface{})
+	funcs             = make(map[uint32]func(Value, []Value) any)
 	nextFuncID uint32 = 1
 )
 
-var _ Wrapper = Func{} // Func must implement Wrapper
-
 // Func is a wrapped Go function to be called by JavaScript.
 type Func struct {
-	Value // the JavaScript function that invokes the Go function
-	id    uint32
+	Value  // the JavaScript function that invokes the Go function
+	bubble *synctest.Bubble
+	id     uint32
 }
 
 // FuncOf returns a function to be used by JavaScript.
@@ -39,38 +41,55 @@ type Func struct {
 // immediate deadlock. Therefore a blocking function should explicitly start a
 // new goroutine.
 //
-// Func.Release must be called to free up resources when the function will not be used any more.
-func FuncOf(fn func(this Value, args []Value) interface{}) Func {
+// Func.Release must be called to free up resources when the function will not be invoked any more.
+func FuncOf(fn func(this Value, args []Value) any) Func {
 	funcsMu.Lock()
 	id := nextFuncID
 	nextFuncID++
+	bubble := synctest.Acquire()
+	if bubble != nil {
+		origFn := fn
+		fn = func(this Value, args []Value) any {
+			var r any
+			bubble.Run(func() {
+				r = origFn(this, args)
+			})
+			return r
+		}
+	}
 	funcs[id] = fn
 	funcsMu.Unlock()
 	return Func{
-		id:    id,
-		Value: jsGo.Call("_makeFuncWrapper", id),
+		id:     id,
+		bubble: bubble,
+		Value:  jsGo.Call("_makeFuncWrapper", id),
 	}
 }
 
 // Release frees up resources allocated for the function.
 // The function must not be invoked after calling Release.
+// It is allowed to call Release while the function is still running.
 func (c Func) Release() {
+	c.bubble.Release()
 	funcsMu.Lock()
 	delete(funcs, c.id)
 	funcsMu.Unlock()
 }
 
 // setEventHandler is defined in the runtime package.
-func setEventHandler(fn func())
+func setEventHandler(fn func() bool)
 
 func init() {
 	setEventHandler(handleEvent)
 }
 
-func handleEvent() {
+// handleEvent retrieves the pending event (window._pendingEvent) and calls the js.Func on it.
+// It returns true if an event was handled.
+func handleEvent() bool {
+	// Retrieve the event from js
 	cb := jsGo.Get("_pendingEvent")
 	if cb.IsNull() {
-		return
+		return false
 	}
 	jsGo.Set("_pendingEvent", Null())
 
@@ -78,14 +97,17 @@ func handleEvent() {
 	if id == 0 { // zero indicates deadlock
 		select {}
 	}
+
+	// Retrieve the associated js.Func
 	funcsMu.Lock()
 	f, ok := funcs[id]
 	funcsMu.Unlock()
 	if !ok {
 		Global().Get("console").Call("error", "call to released function")
-		return
+		return true
 	}
 
+	// Call the js.Func with arguments
 	this := cb.Get("this")
 	argsObj := cb.Get("args")
 	args := make([]Value, argsObj.Length())
@@ -93,5 +115,8 @@ func handleEvent() {
 		args[i] = argsObj.Index(i)
 	}
 	result := f(this, args)
+
+	// Return the result to js
 	cb.Set("result", result)
+	return true
 }

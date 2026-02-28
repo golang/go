@@ -21,7 +21,7 @@ type t3 struct {
 }
 
 var (
-	_ = t2{t1f1: 600} // ERROR "cannot use promoted field t1.t1f1 in struct literal of type t2"
-	_ = t3{t1f2: 800} // ERROR "cannot use promoted field t2.t1.t1f2 in struct literal of type t3"
-	_ = t3{t2f1: 900} // ERROR "cannot use promoted field t2.t2f1 in struct literal of type t3"
+	_ = t2{t1f1: 600} // ERROR "cannot use promoted field t1.t1f1 in struct literal of type t2|unknown field"
+	_ = t3{t1f2: 800} // ERROR "cannot use promoted field t2.t1.t1f2 in struct literal of type t3|unknown field"
+	_ = t3{t2f1: 900} // ERROR "cannot use promoted field t2.t2f1 in struct literal of type t3|unknown field"
 )

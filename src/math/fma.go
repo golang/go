@@ -96,8 +96,15 @@ func FMA(x, y, z float64) float64 {
 	bx, by, bz := Float64bits(x), Float64bits(y), Float64bits(z)
 
 	// Inf or NaN or zero involved. At most one rounding will occur.
-	if x == 0.0 || y == 0.0 || z == 0.0 || bx&uvinf == uvinf || by&uvinf == uvinf {
+	if x == 0.0 || y == 0.0 || bx&uvinf == uvinf || by&uvinf == uvinf {
 		return x*y + z
+	}
+	// Handle z == 0.0 separately.
+	// Adding zero usually does not change the original value.
+	// However, there is an exception with negative zero. (e.g. (-0) + (+0) = (+0))
+	// This applies when x * y is negative and underflows.
+	if z == 0.0 {
+		return x * y
 	}
 	// Handle non-finite z separately. Evaluating x*y+z where
 	// x and y are finite, but z is infinite, should always result in z.
@@ -128,8 +135,13 @@ func FMA(x, y, z float64) float64 {
 	pe -= int32(is62zero)
 
 	// Swap addition operands so |p| >= |z|
-	if pe < ze || (pe == ze && (pm1 < zm1 || (pm1 == zm1 && pm2 < zm2))) {
+	if pe < ze || pe == ze && pm1 < zm1 {
 		ps, pe, pm1, pm2, zs, ze, zm1, zm2 = zs, ze, zm1, zm2, ps, pe, pm1, pm2
+	}
+
+	// Special case: if p == -z the result is always +0 since neither operand is zero.
+	if ps != zs && pe == ze && pm1 == zm1 && pm2 == zm2 {
+		return 0
 	}
 
 	// Align significands

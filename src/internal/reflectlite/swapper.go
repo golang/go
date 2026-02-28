@@ -4,13 +4,17 @@
 
 package reflectlite
 
-import "unsafe"
+import (
+	"internal/goarch"
+	"internal/unsafeheader"
+	"unsafe"
+)
 
 // Swapper returns a function that swaps the elements in the provided
 // slice.
 //
 // Swapper panics if the provided interface is not a slice.
-func Swapper(slice interface{}) func(i, j int) {
+func Swapper(slice any) func(i, j int) {
 	v := ValueOf(slice)
 	if v.Kind() != Slice {
 		panic(&ValueError{Method: "Swapper", Kind: v.Kind()})
@@ -27,13 +31,13 @@ func Swapper(slice interface{}) func(i, j int) {
 		}
 	}
 
-	typ := v.Type().Elem().(*rtype)
+	typ := v.Type().Elem().common()
 	size := typ.Size()
-	hasPtr := typ.ptrdata != 0
+	hasPtr := typ.Pointers()
 
 	// Some common & small cases, without using memmove:
 	if hasPtr {
-		if size == ptrSize {
+		if size == goarch.PtrSize {
 			ps := *(*[]unsafe.Pointer)(v.ptr)
 			return func(i, j int) { ps[i], ps[j] = ps[j], ps[i] }
 		}
@@ -58,7 +62,7 @@ func Swapper(slice interface{}) func(i, j int) {
 		}
 	}
 
-	s := (*sliceHeader)(v.ptr)
+	s := (*unsafeheader.Slice)(v.ptr)
 	tmp := unsafe_New(typ) // swap scratch space
 
 	return func(i, j int) {

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !plan9 && !windows
 // +build !plan9,!windows
 
 package main
@@ -93,7 +94,7 @@ func LockOSThreadAlt() {
 		// Exit with the thread locked.
 	}()
 	<-ready
-	for i := 0; i < 100; i++ {
+	for {
 		time.Sleep(1 * time.Millisecond)
 		// Check that this goroutine is running on a different thread.
 		self := C.pthread_self()
@@ -106,6 +107,4 @@ func LockOSThreadAlt() {
 			return
 		}
 	}
-	println("sub thread still running")
-	os.Exit(1)
 }

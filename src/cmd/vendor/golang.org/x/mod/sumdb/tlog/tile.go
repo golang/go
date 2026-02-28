@@ -28,7 +28,7 @@ import (
 // is tile/3/4/x001/x234/067.p/1, and
 // Tile{H: 3, L: 4, N: 1234067, W: 8}'s path
 // is tile/3/4/x001/x234/067.
-// See Tile's Path method and the ParseTilePath function.
+// See the [Tile.Path] method and the [ParseTilePath] function.
 //
 // The special level L=-1 holds raw record data instead of hashes.
 // In this case, the level encodes into a tile path as the path element
@@ -46,7 +46,7 @@ type Tile struct {
 // TileForIndex returns the tile of fixed height h ≥ 1
 // and least width storing the given hash storage index.
 //
-// If h ≤ 0, TileForIndex panics.
+// If h ≤ 0, [TileForIndex] panics.
 func TileForIndex(h int, index int64) Tile {
 	if h <= 0 {
 		panic(fmt.Sprintf("TileForIndex: invalid height %d", h))
@@ -105,7 +105,7 @@ func tileHash(data []byte) Hash {
 // size newTreeSize to replace a tree of size oldTreeSize.
 // (No tiles need to be published for a tree of size zero.)
 //
-// If h ≤ 0, TileForIndex panics.
+// If h ≤ 0, NewTiles panics.
 func NewTiles(h int, oldTreeSize, newTreeSize int64) []Tile {
 	if h <= 0 {
 		panic(fmt.Sprintf("NewTiles: invalid height %d", h))
@@ -115,16 +115,14 @@ func NewTiles(h int, oldTreeSize, newTreeSize int64) []Tile {
 	for level := uint(0); newTreeSize>>(H*level) > 0; level++ {
 		oldN := oldTreeSize >> (H * level)
 		newN := newTreeSize >> (H * level)
+		if oldN == newN {
+			continue
+		}
 		for n := oldN >> H; n < newN>>H; n++ {
 			tiles = append(tiles, Tile{H: h, L: int(level), N: n, W: 1 << H})
 		}
 		n := newN >> H
-		maxW := int(newN - n<<H)
-		minW := 1
-		if oldN > n<<H {
-			minW = int(oldN - n<<H)
-		}
-		for w := minW; w <= maxW; w++ {
+		if w := int(newN - n<<H); w > 0 {
 			tiles = append(tiles, Tile{H: h, L: int(level), N: n, W: w})
 		}
 	}
@@ -272,7 +270,7 @@ type TileReader interface {
 // TileHashReader returns a HashReader that satisfies requests
 // by loading tiles of the given tree.
 //
-// The returned HashReader checks that loaded tiles are
+// The returned [HashReader] checks that loaded tiles are
 // valid for the given tree. Therefore, any hashes returned
 // by the HashReader are already proven to be in the tree.
 func TileHashReader(tree Tree, tr TileReader) HashReader {

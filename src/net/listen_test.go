@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !js,!plan9
+//go:build !plan9
 
 package net
 
 import (
-	"context"
 	"fmt"
 	"internal/testenv"
 	"os"
@@ -379,7 +378,7 @@ func differentWildcardAddr(i, j string) bool {
 	return true
 }
 
-func checkFirstListener(network string, ln interface{}) error {
+func checkFirstListener(network string, ln any) error {
 	switch network {
 	case "tcp":
 		fd := ln.(*TCPListener).fd
@@ -534,8 +533,6 @@ func TestIPv4MulticastListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "android", "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
-	case "solaris", "illumos":
-		t.Skipf("not supported on solaris or illumos, see golang.org/issue/7399")
 	}
 	if !supportsIPv4() {
 		t.Skip("IPv4 is not supported")
@@ -609,13 +606,12 @@ func TestIPv6MulticastListener(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
-	case "solaris", "illumos":
-		t.Skipf("not supported on solaris or illumos, see issue 7399")
 	}
 	if !supportsIPv6() {
 		t.Skip("IPv6 is not supported")
 	}
-	if os.Getuid() != 0 {
+	// On Windows, the test can be run by non-admin users.
+	if runtime.GOOS != "windows" && os.Getuid() != 0 {
 		t.Skip("must be root")
 	}
 
@@ -674,7 +670,7 @@ func checkMulticastListener(c *UDPConn, ip IP) error {
 
 func multicastRIBContains(ip IP) (bool, error) {
 	switch runtime.GOOS {
-	case "aix", "dragonfly", "netbsd", "openbsd", "plan9", "solaris", "illumos", "windows":
+	case "aix", "dragonfly", "netbsd", "openbsd", "plan9", "solaris", "illumos":
 		return true, nil // not implemented yet
 	case "linux":
 		if runtime.GOARCH == "arm" || runtime.GOARCH == "alpha" {
@@ -701,10 +697,7 @@ func multicastRIBContains(ip IP) (bool, error) {
 
 // Issue 21856.
 func TestClosingListener(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t, "tcp")
 	addr := ln.Addr()
 
 	go func() {
@@ -742,19 +735,7 @@ func TestListenConfigControl(t *testing.T) {
 			if !testableNetwork(network) {
 				continue
 			}
-			ln, err := newLocalListener(network)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			address := ln.Addr().String()
-			ln.Close()
-			lc := ListenConfig{Control: controlOnConnSetup}
-			ln, err = lc.Listen(context.Background(), network, address)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
+			ln := newLocalListener(t, network, &ListenConfig{Control: controlOnConnSetup})
 			ln.Close()
 		}
 	})
@@ -763,26 +744,8 @@ func TestListenConfigControl(t *testing.T) {
 			if !testableNetwork(network) {
 				continue
 			}
-			c, err := newLocalPacketListener(network)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			address := c.LocalAddr().String()
+			c := newLocalPacketListener(t, network, &ListenConfig{Control: controlOnConnSetup})
 			c.Close()
-			if network == "unixgram" {
-				os.Remove(address)
-			}
-			lc := ListenConfig{Control: controlOnConnSetup}
-			c, err = lc.ListenPacket(context.Background(), network, address)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			c.Close()
-			if network == "unixgram" {
-				os.Remove(address)
-			}
 		}
 	})
 }

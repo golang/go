@@ -1,0 +1,16 @@
+// Copyright 2015 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+This command generates Go code (in the parent directory) for all
+the architecture-specific opcodes, blocks, and rewrites. See the
+"Hacking on SSA" section in the parent directory's README.md for
+more information.
+
+To regenerate everything, run "go generate" on the ssa package
+in the parent directory.
+
+The parent directory contains a test in generate_test.go that will fail
+if the generated files are not up-to-date, and to allow that test to
+run in no-network environments, golang.org/x/tools/go/ast/astutil is
+vendored.

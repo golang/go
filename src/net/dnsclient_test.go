@@ -5,7 +5,6 @@
 package net
 
 import (
-	"math/rand"
 	"testing"
 )
 
@@ -17,7 +16,7 @@ func checkDistribution(t *testing.T, data []*SRV, margin float64) {
 
 	results := make(map[string]int)
 
-	count := 1000
+	count := 10000
 	for j := 0; j < count; j++ {
 		d := make([]*SRV, len(data))
 		copy(d, data)
@@ -39,7 +38,6 @@ func checkDistribution(t *testing.T, data []*SRV, margin float64) {
 }
 
 func testUniformity(t *testing.T, size int, margin float64) {
-	rand.Seed(1)
 	data := make([]*SRV, size)
 	for i := 0; i < size; i++ {
 		data[i] = &SRV{Target: string('a' + rune(i)), Weight: 1}
@@ -55,7 +53,6 @@ func TestDNSSRVUniformity(t *testing.T) {
 }
 
 func testWeighting(t *testing.T, margin float64) {
-	rand.Seed(1)
 	data := []*SRV{
 		{Target: "a", Weight: 60},
 		{Target: "b", Weight: 30},

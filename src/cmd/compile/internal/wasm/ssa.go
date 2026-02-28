@@ -5,56 +5,170 @@
 package wasm
 
 import (
-	"cmd/compile/internal/gc"
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/wasm"
-	"cmd/internal/objabi"
 )
 
-func Init(arch *gc.Arch) {
+/*
+
+   Wasm implementation
+   -------------------
+
+   Wasm is a strange Go port because the machine isn't
+   a register-based machine, threads are different, code paths
+   are different, etc. We outline those differences here.
+
+   See the design doc for some additional info on this topic.
+   https://docs.google.com/document/d/131vjr4DH6JFnb-blm_uRdaC0_Nv3OUwjEY5qVCxCup4/edit#heading=h.mjo1bish3xni
+
+   PCs:
+
+   Wasm doesn't have PCs in the normal sense that you can jump
+   to or call to. Instead, we simulate these PCs using our own construct.
+
+   A PC in the Wasm implementation is the combination of a function
+   ID and a block ID within that function. The function ID is an index
+   into a function table which transfers control to the start of the
+   function in question, and the block ID is a sequential integer
+   indicating where in the function we are.
+
+   Every function starts with a branch table which transfers control
+   to the place in the function indicated by the block ID. The block
+   ID is provided to the function as the sole Wasm argument.
+
+   Block IDs do not encode every possible PC. They only encode places
+   in the function where it might be suspended. Typically these places
+   are call sites.
+
+   Sometimes we encode the function ID and block ID separately. When
+   recorded together as a single integer, we use the value F<<16+B.
+
+   Threads:
+
+   Wasm doesn't (yet) have threads. We have to simulate threads by
+   keeping goroutine stacks in linear memory and unwinding
+   the Wasm stack each time we want to switch goroutines.
+
+   To support unwinding a stack, each function call returns on the Wasm
+   stack a boolean that tells the function whether it should return
+   immediately or not. When returning immediately, a return address
+   is left on the top of the Go stack indicating where the goroutine
+   should be resumed.
+
+   Stack pointer:
+
+   There is a single global stack pointer which records the stack pointer
+   used by the currently active goroutine. This is just an address in
+   linear memory where the Go runtime is maintaining the stack for that
+   goroutine.
+
+   Functions cache the global stack pointer in a local variable for
+   faster access, but any changes must be spilled to the global variable
+   before any call and restored from the global variable after any call.
+
+   Calling convention:
+
+   All Go arguments and return values are passed on the Go stack, not
+   the wasm stack. In addition, return addresses are pushed on the
+   Go stack at every call point. Return addresses are not used during
+   normal execution, they are used only when resuming goroutines.
+   (So they are not really a "return address", they are a "resume address".)
+
+   All Go functions have the Wasm type (i32)->i32. The argument
+   is the block ID and the return value is the exit immediately flag.
+
+   Callsite:
+    - write arguments to the Go stack (starting at SP+0)
+    - push return address to Go stack (8 bytes)
+    - write local SP to global SP
+    - push 0 (type i32) to Wasm stack
+    - issue Call
+    - restore local SP from global SP
+    - pop int32 from top of Wasm stack. If nonzero, exit function immediately.
+    - use results from Go stack (starting at SP+sizeof(args))
+       - note that the callee will have popped the return address
+
+   Prologue:
+    - initialize local SP from global SP
+    - jump to the location indicated by the block ID argument
+      (which appears in local variable 0)
+    - at block 0
+      - check for Go stack overflow, call morestack if needed
+      - subtract frame size from SP
+      - note that arguments now start at SP+framesize+8
+
+   Normal epilogue:
+    - pop frame from Go stack
+    - pop return address from Go stack
+    - push 0 (type i32) on the Wasm stack
+    - return
+   Exit immediately epilogue:
+    - push 1 (type i32) on the Wasm stack
+    - return
+    - note that the return address and stack frame are left on the Go stack
+
+   The main loop that executes goroutines is wasm_pc_f_loop, in
+   runtime/rt0_js_wasm.s. It grabs the saved return address from
+   the top of the Go stack (actually SP-8?), splits it up into F
+   and B parts, then calls F with its Wasm argument set to B.
+
+   Note that when resuming a goroutine, only the most recent function
+   invocation of that goroutine appears on the Wasm stack. When that
+   Wasm function returns normally, the next most recent frame will
+   then be started up by wasm_pc_f_loop.
+
+   Global 0 is SP (stack pointer)
+   Global 1 is CTXT (closure pointer)
+   Global 2 is GP (goroutine pointer)
+*/
+
+func Init(arch *ssagen.ArchInfo) {
 	arch.LinkArch = &wasm.Linkwasm
 	arch.REGSP = wasm.REG_SP
 	arch.MAXWIDTH = 1 << 50
 
 	arch.ZeroRange = zeroRange
 	arch.Ginsnop = ginsnop
-	arch.Ginsnopdefer = ginsnop
 
 	arch.SSAMarkMoves = ssaMarkMoves
 	arch.SSAGenValue = ssaGenValue
 	arch.SSAGenBlock = ssaGenBlock
 }
 
-func zeroRange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Prog {
+func zeroRange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Prog {
 	if cnt == 0 {
 		return p
 	}
 	if cnt%8 != 0 {
-		gc.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
+		base.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
 	}
 
 	for i := int64(0); i < cnt; i += 8 {
-		p = pp.Appendpp(p, wasm.AGet, obj.TYPE_REG, wasm.REG_SP, 0, 0, 0, 0)
-		p = pp.Appendpp(p, wasm.AI64Const, obj.TYPE_CONST, 0, 0, 0, 0, 0)
-		p = pp.Appendpp(p, wasm.AI64Store, 0, 0, 0, obj.TYPE_CONST, 0, off+i)
+		p = pp.Append(p, wasm.AGet, obj.TYPE_REG, wasm.REG_SP, 0, 0, 0, 0)
+		p = pp.Append(p, wasm.AI64Const, obj.TYPE_CONST, 0, 0, 0, 0, 0)
+		p = pp.Append(p, wasm.AI64Store, 0, 0, 0, obj.TYPE_CONST, 0, off+i)
 	}
 
 	return p
 }
 
-func ginsnop(pp *gc.Progs) *obj.Prog {
+func ginsnop(pp *objw.Progs) *obj.Prog {
 	return pp.Prog(wasm.ANop)
 }
 
-func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
+func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
 }
 
-func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
-	case ssa.BlockPlain:
+	case ssa.BlockPlain, ssa.BlockDefer:
 		if next != b.Succs[0].Block() {
 			s.Br(obj.AJMP, b.Succs[0].Block())
 		}
@@ -86,25 +200,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
 
-	case ssa.BlockRetJmp:
-		p := s.Prog(obj.ARET)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
-
-	case ssa.BlockExit:
-
-	case ssa.BlockDefer:
-		p := s.Prog(wasm.AGet)
-		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: wasm.REG_RET0}
-		s.Prog(wasm.AI64Eqz)
-		s.Prog(wasm.AI32Eqz)
-		s.Prog(wasm.AIf)
-		s.Br(obj.AJMP, b.Succs[1].Block())
-		s.Prog(wasm.AEnd)
-		if next != b.Succs[0].Block() {
-			s.Br(obj.AJMP, b.Succs[0].Block())
-		}
+	case ssa.BlockExit, ssa.BlockRetJmp:
 
 	default:
 		panic("unexpected block")
@@ -118,22 +214,30 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	}
 }
 
-func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpWasmLoweredStaticCall, ssa.OpWasmLoweredClosureCall, ssa.OpWasmLoweredInterCall:
+	case ssa.OpWasmLoweredStaticCall, ssa.OpWasmLoweredClosureCall, ssa.OpWasmLoweredInterCall, ssa.OpWasmLoweredTailCall:
 		s.PrepareCall(v)
-		if v.Aux == gc.Deferreturn {
-			// add a resume point before call to deferreturn so it can be called again via jmpdefer
+		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn == ir.Syms.Deferreturn {
+			// The runtime needs to inject jumps to
+			// deferreturn calls using the address in
+			// _func.deferreturn. Hence, the call to
+			// deferreturn must itself be a resumption
+			// point so it gets a target PC.
 			s.Prog(wasm.ARESUMEPOINT)
 		}
 		if v.Op == ssa.OpWasmLoweredClosureCall {
 			getValue64(s, v.Args[1])
 			setReg(s, wasm.REG_CTXT)
 		}
-		if sym, ok := v.Aux.(*obj.LSym); ok {
+		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn != nil {
+			sym := call.Fn
 			p := s.Prog(obj.ACALL)
 			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: sym}
 			p.Pos = v.Pos
+			if v.Op == ssa.OpWasmLoweredTailCall {
+				p.As = obj.ARET
+			}
 		} else {
 			getValue64(s, v.Args[0])
 			p := s.Prog(obj.ACALL)
@@ -145,34 +249,33 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		getValue32(s, v.Args[0])
 		getValue32(s, v.Args[1])
 		i32Const(s, int32(v.AuxInt))
-		p := s.Prog(wasm.ACall)
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmMove}
+		s.Prog(wasm.AMemoryCopy)
 
 	case ssa.OpWasmLoweredZero:
 		getValue32(s, v.Args[0])
+		i32Const(s, 0)
 		i32Const(s, int32(v.AuxInt))
-		p := s.Prog(wasm.ACall)
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmZero}
+		s.Prog(wasm.AMemoryFill)
 
 	case ssa.OpWasmLoweredNilCheck:
 		getValue64(s, v.Args[0])
 		s.Prog(wasm.AI64Eqz)
 		s.Prog(wasm.AIf)
 		p := s.Prog(wasm.ACALLNORESUME)
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.SigPanic}
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.SigPanic}
 		s.Prog(wasm.AEnd)
 		if logopt.Enabled() {
 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
 		}
-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
-			gc.Warnl(v.Pos, "generated nil check")
+		if base.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+			base.WarnfAt(v.Pos, "generated nil check")
 		}
 
 	case ssa.OpWasmLoweredWB:
-		getValue64(s, v.Args[0])
-		getValue64(s, v.Args[1])
-		p := s.Prog(wasm.ACALLNORESUME) // TODO(neelance): If possible, turn this into a simple wasm.ACall).
-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: v.Aux.(*obj.LSym)}
+		p := s.Prog(wasm.ACall)
+		// AuxInt encodes how many buffer entries we need.
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.GCWriteBarrier[v.AuxInt-1]}
+		setReg(s, v.Reg0()) // move result from wasm stack to register local
 
 	case ssa.OpWasmI64Store8, ssa.OpWasmI64Store16, ssa.OpWasmI64Store32, ssa.OpWasmI64Store, ssa.OpWasmF32Store, ssa.OpWasmF64Store:
 		getValue32(s, v.Args[0])
@@ -184,7 +287,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		getReg(s, wasm.REG_SP)
 		getValue64(s, v.Args[0])
 		p := s.Prog(storeOp(v.Type))
-		gc.AddrAuto(&p.To, v)
+		ssagen.AddrAuto(&p.To, v)
+
+	case ssa.OpClobber, ssa.OpClobberReg:
+		// TODO: implement for clobberdead experiment. Nop is ok for now.
 
 	default:
 		if v.Type.IsMemory() {
@@ -204,7 +310,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	}
 }
 
-func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
+func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
 	switch v.Op {
 	case ssa.OpWasmLoweredGetClosurePtr:
 		getReg(s, wasm.REG_CTXT)
@@ -229,14 +335,20 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
 		}
 
 	case ssa.OpWasmLoweredAddr:
+		if v.Aux == nil { // address of off(SP), no symbol
+			getValue64(s, v.Args[0])
+			i64Const(s, v.AuxInt)
+			s.Prog(wasm.AI64Add)
+			break
+		}
 		p := s.Prog(wasm.AGet)
 		p.From.Type = obj.TYPE_ADDR
 		switch v.Aux.(type) {
 		case *obj.LSym:
-			gc.AddAux(&p.From, v)
-		case *gc.Node:
+			ssagen.AddAux(&p.From, v)
+		case *ir.Name:
 			p.From.Reg = v.Args[0].Reg()
-			gc.AddAux(&p.From, v)
+			ssagen.AddAux(&p.From, v)
 		default:
 			panic("wasm: bad LoweredAddr")
 		}
@@ -305,34 +417,18 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
 		if v.Type.Size() == 8 {
 			// Division of int64 needs helper function wasmDiv to handle the MinInt64 / -1 case.
 			p := s.Prog(wasm.ACall)
-			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmDiv}
+			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.WasmDiv}
 			break
 		}
 		s.Prog(wasm.AI64DivS)
 
 	case ssa.OpWasmI64TruncSatF32S, ssa.OpWasmI64TruncSatF64S:
 		getValue64(s, v.Args[0])
-		if objabi.GOWASM.SatConv {
-			s.Prog(v.Op.Asm())
-		} else {
-			if v.Op == ssa.OpWasmI64TruncSatF32S {
-				s.Prog(wasm.AF64PromoteF32)
-			}
-			p := s.Prog(wasm.ACall)
-			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncS}
-		}
+		s.Prog(v.Op.Asm())
 
 	case ssa.OpWasmI64TruncSatF32U, ssa.OpWasmI64TruncSatF64U:
 		getValue64(s, v.Args[0])
-		if objabi.GOWASM.SatConv {
-			s.Prog(v.Op.Asm())
-		} else {
-			if v.Op == ssa.OpWasmI64TruncSatF32U {
-				s.Prog(wasm.AF64PromoteF32)
-			}
-			p := s.Prog(wasm.ACall)
-			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncU}
-		}
+		s.Prog(v.Op.Asm())
 
 	case ssa.OpWasmF32DemoteF64:
 		getValue64(s, v.Args[0])
@@ -353,7 +449,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
 
 	case ssa.OpLoadReg:
 		p := s.Prog(loadOp(v.Type))
-		gc.AddrAuto(&p.From, v.Args[0])
+		ssagen.AddrAuto(&p.From, v.Args[0])
 
 	case ssa.OpCopy:
 		getValue64(s, v.Args[0])
@@ -375,7 +471,7 @@ func isCmp(v *ssa.Value) bool {
 	}
 }
 
-func getValue32(s *gc.SSAGenState, v *ssa.Value) {
+func getValue32(s *ssagen.State, v *ssa.Value) {
 	if v.OnWasmStack {
 		s.OnWasmStackSkipped--
 		ssaGenValueOnStack(s, v, false)
@@ -392,7 +488,7 @@ func getValue32(s *gc.SSAGenState, v *ssa.Value) {
 	}
 }
 
-func getValue64(s *gc.SSAGenState, v *ssa.Value) {
+func getValue64(s *ssagen.State, v *ssa.Value) {
 	if v.OnWasmStack {
 		s.OnWasmStackSkipped--
 		ssaGenValueOnStack(s, v, true)
@@ -406,32 +502,32 @@ func getValue64(s *gc.SSAGenState, v *ssa.Value) {
 	}
 }
 
-func i32Const(s *gc.SSAGenState, val int32) {
+func i32Const(s *ssagen.State, val int32) {
 	p := s.Prog(wasm.AI32Const)
 	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(val)}
 }
 
-func i64Const(s *gc.SSAGenState, val int64) {
+func i64Const(s *ssagen.State, val int64) {
 	p := s.Prog(wasm.AI64Const)
 	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: val}
 }
 
-func f32Const(s *gc.SSAGenState, val float64) {
+func f32Const(s *ssagen.State, val float64) {
 	p := s.Prog(wasm.AF32Const)
 	p.From = obj.Addr{Type: obj.TYPE_FCONST, Val: val}
 }
 
-func f64Const(s *gc.SSAGenState, val float64) {
+func f64Const(s *ssagen.State, val float64) {
 	p := s.Prog(wasm.AF64Const)
 	p.From = obj.Addr{Type: obj.TYPE_FCONST, Val: val}
 }
 
-func getReg(s *gc.SSAGenState, reg int16) {
+func getReg(s *ssagen.State, reg int16) {
 	p := s.Prog(wasm.AGet)
 	p.From = obj.Addr{Type: obj.TYPE_REG, Reg: reg}
 }
 
-func setReg(s *gc.SSAGenState, reg int16) {
+func setReg(s *ssagen.State, reg int16) {
 	p := s.Prog(wasm.ASet)
 	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: reg}
 }

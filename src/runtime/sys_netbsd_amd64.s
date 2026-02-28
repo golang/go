@@ -9,11 +9,10 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
+#include "cgo/abi_amd64.h"
 
 #define CLOCK_REALTIME		0
 #define CLOCK_MONOTONIC		3
-#define FD_CLOEXEC		1
-#define F_SETFD			2
 
 #define SYS_exit			1
 #define SYS_read			3
@@ -29,6 +28,7 @@
 #define SYS___sysctl			202
 #define SYS___sigaltstack14		281
 #define SYS___sigprocmask14		293
+#define SYS_issetugid			305
 #define SYS_getcontext			307
 #define SYS_setcontext			308
 #define SYS__lwp_create			309
@@ -70,13 +70,17 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
 	MOVQ	R9, g(CX)
 	CALL	runtime·stackcheck(SB)
 
-	// Call fn
+	// Call fn. This is an ABI0 PC.
 	CALL	R12
 
 	// It shouldn't return. If it does, exit.
 	MOVL	$SYS__lwp_exit, AX
 	SYSCALL
 	JMP	-3(PC)			// keep exiting
+
+TEXT ·netbsdMstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	·netbsdMstart0(SB)
+	RET // not reached
 
 TEXT runtime·osyield(SB),NOSPLIT,$0
 	MOVL	$SYS_sched_yield, AX
@@ -117,7 +121,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-8
 	MOVQ	wait+0(FP), AX
 	// We're done using the stack.
@@ -156,21 +160,6 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	JCC	2(PC)
 	NEGQ	AX			// caller expects negative errno
 	MOVL	AX, ret+24(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT,$0-12
-	MOVL	$42, AX
-	SYSCALL
-	JCC	pipeok
-	MOVL	$-1, r+0(FP)
-	MOVL	$-1, w+4(FP)
-	MOVL	AX, errno+8(FP)
-	RET
-pipeok:
-	MOVL	AX, r+0(FP)
-	MOVL	DX, w+4(FP)
-	MOVL	$0, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -233,8 +222,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
 	SYSCALL
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB), NOSPLIT, $32
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVQ	$CLOCK_REALTIME, DI	// arg 1 - clock_id
 	LEAQ	8(SP), SI		// arg 2 - tp
 	MOVL	$SYS___clock_gettime50, AX
@@ -306,36 +295,35 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVL	sig+8(FP),   DI
 	MOVQ	info+16(FP), SI
 	MOVQ	ctx+24(FP),  DX
-	PUSHQ	BP
-	MOVQ	SP, BP
-	ANDQ	$~15, SP     // alignment for x86_64 ABI
+	MOVQ	SP, BX		// callee-saved
+	ANDQ	$~15, SP	// alignment for x86_64 ABI
 	CALL	AX
-	MOVQ	BP, SP
-	POPQ	BP
+	MOVQ	BX, SP
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$72
-	// Save callee-saved C registers, since the caller may be a C signal handler.
-	MOVQ	BX,  bx-8(SP)
-	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
-	MOVQ	R12, r12-24(SP)
-	MOVQ	R13, r13-32(SP)
-	MOVQ	R14, r14-40(SP)
-	MOVQ	R15, r15-48(SP)
-	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
-	// modify them.
+// Called using C ABI.
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME|NOFRAME,$0
+	// Transition from C ABI to Go ABI.
+	PUSH_REGS_HOST_TO_ABI0()
 
-	MOVQ	DX, ctx-56(SP)
-	MOVQ	SI, info-64(SP)
-	MOVQ	DI, signum-72(SP)
-	CALL	runtime·sigtrampgo(SB)
+	// Set up ABIInternal environment: g in R14, cleared X15.
+	get_tls(R12)
+	MOVQ	g(R12), R14
+	PXOR	X15, X15
 
-	MOVQ	r15-48(SP), R15
-	MOVQ	r14-40(SP), R14
-	MOVQ	r13-32(SP), R13
-	MOVQ	r12-24(SP), R12
-	MOVQ	bp-16(SP),  BP
-	MOVQ	bx-8(SP),   BX
+	// Reserve space for spill slots.
+	NOP	SP		// disable vet stack checking
+	ADJSP   $24
+
+	// Call into the Go signal handler
+	MOVQ	DI, AX	// sig
+	MOVQ	SI, BX	// info
+	MOVQ	DX, CX	// ctx
+	CALL	·sigtrampgo<ABIInternal>(SB)
+
+	ADJSP	$-24
+
+	POP_REGS_HOST_TO_ABI0()
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
@@ -443,26 +431,28 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL	AX, ret+48(FP)
 	RET
 
-// void runtime·closeonexec(int32 fd)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
+// func fcntl(fd, cmd, arg int32) (int32, int32)
+TEXT runtime·fcntl(SB),NOSPLIT,$0
 	MOVL	fd+0(FP), DI	// fd
-	MOVQ	$F_SETFD, SI
-	MOVQ	$FD_CLOEXEC, DX
+	MOVL	cmd+4(FP), SI	// cmd
+	MOVL	arg+8(FP), DX	// arg
 	MOVL	$SYS_fcntl, AX
 	SYSCALL
+	JCC	noerr
+	MOVL	$-1, ret+16(FP)
+	MOVL	AX, errno+20(FP)
+	RET
+noerr:
+	MOVL	AX, ret+16(FP)
+	MOVL	$0, errno+20(FP)
 	RET
 
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
-	MOVL    fd+0(FP), DI  // fd
-	MOVQ    $3, SI  // F_GETFL
-	MOVQ    $0, DX
-	MOVL	$92, AX // fcntl
+// func issetugid() int32
+TEXT runtime·issetugid(SB),NOSPLIT,$0
+	MOVQ	$0, DI
+	MOVQ	$0, SI
+	MOVQ	$0, DX
+	MOVL	$SYS_issetugid, AX
 	SYSCALL
-	MOVL	fd+0(FP), DI // fd
-	MOVQ	$4, SI // F_SETFL
-	MOVQ	$4, DX // O_NONBLOCK
-	ORL	AX, DX
-	MOVL	$92, AX // fcntl
-	SYSCALL
+	MOVL	AX, ret+0(FP)
 	RET

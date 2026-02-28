@@ -7,28 +7,29 @@
 package errorsas
 
 import (
+	"errors"
 	"go/ast"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/go/types/typeutil"
+	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
+	"golang.org/x/tools/internal/typesinternal/typeindex"
 )
 
 const Doc = `report passing non-pointer or non-error values to errors.As
 
-The errorsas analysis reports calls to errors.As where the type
+The errorsas analyzer reports calls to errors.As where the type
 of the second argument is not a pointer to a type implementing error.`
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "errorsas",
 	Doc:      Doc,
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/errorsas",
+	Requires: []*analysis.Analyzer{typeindexanalyzer.Analyzer},
 	Run:      run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	switch pass.Pkg.Path() {
 	case "errors", "errors_test":
 		// These packages know how to use their own APIs.
@@ -36,40 +37,48 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		return nil, nil
 	}
 
-	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	var (
+		index = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
+		info  = pass.TypesInfo
+	)
 
-	nodeFilter := []ast.Node{
-		(*ast.CallExpr)(nil),
-	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		call := n.(*ast.CallExpr)
-		fn := typeutil.StaticCallee(pass.TypesInfo, call)
-		if fn == nil {
-			return // not a static call
-		}
+	for curCall := range index.Calls(index.Object("errors", "As")) {
+		call := curCall.Node().(*ast.CallExpr)
 		if len(call.Args) < 2 {
-			return // not enough arguments, e.g. called with return values of another function
+			continue // spread call: errors.As(pair())
 		}
-		if fn.FullName() == "errors.As" && !pointerToInterfaceOrError(pass, call.Args[1]) {
-			pass.ReportRangef(call, "second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type")
+
+		// Check for incorrect arguments.
+		if err := checkAsTarget(info, call.Args[1]); err != nil {
+			pass.ReportRangef(call, "%v", err)
+			continue
 		}
-	})
+	}
 	return nil, nil
 }
 
-var errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
-
-// pointerToInterfaceOrError reports whether the type of e is a pointer to an interface or a type implementing error,
-// or is the empty interface.
-func pointerToInterfaceOrError(pass *analysis.Pass, e ast.Expr) bool {
-	t := pass.TypesInfo.Types[e].Type
-	if it, ok := t.Underlying().(*types.Interface); ok && it.NumMethods() == 0 {
-		return true
+// checkAsTarget reports an error if the second argument to errors.As is invalid.
+func checkAsTarget(info *types.Info, e ast.Expr) error {
+	t := info.Types[e].Type
+	if types.Identical(t.Underlying(), anyType) {
+		// A target of any is always allowed, since it often indicates
+		// a value forwarded from another source.
+		return nil
 	}
 	pt, ok := t.Underlying().(*types.Pointer)
 	if !ok {
-		return false
+		return errors.New("second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type")
 	}
-	_, ok = pt.Elem().Underlying().(*types.Interface)
-	return ok || types.Implements(pt.Elem(), errorType)
+	if types.Identical(pt.Elem(), errorType) {
+		return errors.New("second argument to errors.As should not be *error")
+	}
+	if !types.IsInterface(pt.Elem()) && !types.AssignableTo(pt.Elem(), errorType) {
+		return errors.New("second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type")
+	}
+	return nil
 }
+
+var (
+	anyType   = types.Universe.Lookup("any").Type()
+	errorType = types.Universe.Lookup("error").Type()
+)

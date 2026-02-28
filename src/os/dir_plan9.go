@@ -6,21 +6,32 @@ package os
 
 import (
 	"io"
+	"io/fs"
 	"syscall"
 )
 
-func (file *File) readdir(n int) ([]FileInfo, error) {
-	// If this file has no dirinfo, create one.
-	if file.dirinfo == nil {
-		file.dirinfo = new(dirInfo)
+func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+	var d *dirInfo
+	for {
+		d = file.dirinfo.Load()
+		if d != nil {
+			break
+		}
+		newD := new(dirInfo)
+		if file.dirinfo.CompareAndSwap(nil, newD) {
+			d = newD
+			break
+		}
 	}
-	d := file.dirinfo
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	size := n
 	if size <= 0 {
 		size = 100
 		n = -1
 	}
-	fi := make([]FileInfo, 0, size) // Empty with room to grow.
 	for n != 0 {
 		// Refill the buffer if necessary.
 		if d.bufp >= d.nbuf {
@@ -33,10 +44,10 @@ func (file *File) readdir(n int) ([]FileInfo, error) {
 				if err == io.EOF {
 					break
 				}
-				return fi, &PathError{"readdir", file.name, err}
+				return names, dirents, infos, &PathError{Op: "readdir", Path: file.name, Err: err}
 			}
 			if nb < syscall.STATFIXLEN {
-				return fi, &PathError{"readdir", file.name, syscall.ErrShortStat}
+				return names, dirents, infos, &PathError{Op: "readdir", Path: file.name, Err: syscall.ErrShortStat}
 			}
 		}
 
@@ -44,30 +55,43 @@ func (file *File) readdir(n int) ([]FileInfo, error) {
 		b := d.buf[d.bufp:]
 		m := int(uint16(b[0])|uint16(b[1])<<8) + 2
 		if m < syscall.STATFIXLEN {
-			return fi, &PathError{"readdir", file.name, syscall.ErrShortStat}
+			return names, dirents, infos, &PathError{Op: "readdir", Path: file.name, Err: syscall.ErrShortStat}
 		}
 
 		dir, err := syscall.UnmarshalDir(b[:m])
 		if err != nil {
-			return fi, &PathError{"readdir", file.name, err}
+			return names, dirents, infos, &PathError{Op: "readdir", Path: file.name, Err: err}
 		}
-		fi = append(fi, fileInfoFromStat(dir))
 
+		if mode == readdirName {
+			names = append(names, dir.Name)
+		} else {
+			f := fileInfoFromStat(dir)
+			if mode == readdirDirEntry {
+				dirents = append(dirents, dirEntry{f})
+			} else {
+				infos = append(infos, f)
+			}
+		}
 		d.bufp += m
 		n--
 	}
 
-	if n >= 0 && len(fi) == 0 {
-		return fi, io.EOF
+	if n > 0 && len(names)+len(dirents)+len(infos) == 0 {
+		return nil, nil, nil, io.EOF
 	}
-	return fi, nil
+	return names, dirents, infos, nil
 }
 
-func (file *File) readdirnames(n int) (names []string, err error) {
-	fi, err := file.Readdir(n)
-	names = make([]string, len(fi))
-	for i := range fi {
-		names[i] = fi[i].Name()
-	}
-	return
+type dirEntry struct {
+	fs *fileStat
+}
+
+func (de dirEntry) Name() string            { return de.fs.Name() }
+func (de dirEntry) IsDir() bool             { return de.fs.IsDir() }
+func (de dirEntry) Type() FileMode          { return de.fs.Mode().Type() }
+func (de dirEntry) Info() (FileInfo, error) { return de.fs, nil }
+
+func (de dirEntry) String() string {
+	return fs.FormatDirEntry(de)
 }

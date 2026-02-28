@@ -1,0 +1,11 @@
+{
+  "extends": ["stylelint-config-standard"],
+  "rules": {
+    "declaration-property-value-allowed-list": {
+      "/color/": ["/^var\\(--/", "transparent"]
+    },
+    "unit-disallowed-list": ["px"],
+    "selector-class-pattern": "^[a-zA-Z\\-]+$"
+  },
+  "ignoreFiles": ["**/*.min.css"]
+}

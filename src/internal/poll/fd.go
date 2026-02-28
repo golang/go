@@ -13,11 +13,22 @@ import (
 	"errors"
 )
 
-// ErrNetClosing is returned when a network descriptor is used after
-// it has been closed. Keep this string consistent because of issue
-// #4373: since historically programs have not been able to detect
+// errNetClosing is the type of the variable ErrNetClosing.
+// This is used to implement the net.Error interface.
+type errNetClosing struct{}
+
+// Error returns the error message for ErrNetClosing.
+// Keep this string consistent because of issue #4373:
+// since historically programs have not been able to detect
 // this error, they look for the string.
-var ErrNetClosing = errors.New("use of closed network connection")
+func (e errNetClosing) Error() string { return "use of closed network connection" }
+
+func (e errNetClosing) Timeout() bool   { return false }
+func (e errNetClosing) Temporary() bool { return false }
+
+// ErrNetClosing is returned when a network descriptor is used after
+// it has been closed.
+var ErrNetClosing = errNetClosing{}
 
 // ErrFileClosing is returned when a file descriptor is used after it
 // has been closed.
@@ -35,16 +46,20 @@ func errClosing(isFile bool) error {
 	return ErrNetClosing
 }
 
-// ErrTimeout is returned for an expired deadline.
-var ErrTimeout error = &TimeoutError{}
+// ErrDeadlineExceeded is returned for an expired deadline.
+// This is exported by the os package as os.ErrDeadlineExceeded.
+var ErrDeadlineExceeded error = &DeadlineExceededError{}
 
-// TimeoutError is returned for an expired deadline.
-type TimeoutError struct{}
+// DeadlineExceededError is returned for an expired deadline.
+type DeadlineExceededError struct{}
 
 // Implement the net.Error interface.
-func (e *TimeoutError) Error() string   { return "i/o timeout" }
-func (e *TimeoutError) Timeout() bool   { return true }
-func (e *TimeoutError) Temporary() bool { return true }
+// The string is "i/o timeout" because that is what was returned
+// by earlier Go versions. Changing it may break programs that
+// match on error strings.
+func (e *DeadlineExceededError) Error() string   { return "i/o timeout" }
+func (e *DeadlineExceededError) Timeout() bool   { return true }
+func (e *DeadlineExceededError) Temporary() bool { return true }
 
 // ErrNotPollable is returned when the file or socket is not suitable
 // for event notification.
@@ -59,9 +74,21 @@ func consume(v *[][]byte, n int64) {
 			return
 		}
 		n -= ln0
+		(*v)[0] = nil
 		*v = (*v)[1:]
 	}
 }
 
 // TestHookDidWritev is a hook for testing writev.
 var TestHookDidWritev = func(wrote int) {}
+
+// String is an internal string definition for methods/functions
+// that is not intended for use outside the standard libraries.
+//
+// Other packages in std that import internal/poll and have some
+// exported APIs (now we've got some in net.rawConn) which are only used
+// internally and are not intended to be used outside the standard libraries,
+// Therefore, we make those APIs use internal types like poll.FD or poll.String
+// in their function signatures to disable the usability of these APIs from
+// external codebase.
+type String string

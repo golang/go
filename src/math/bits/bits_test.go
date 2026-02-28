@@ -806,6 +806,130 @@ func TestAddSubUint64(t *testing.T) {
 	}
 }
 
+func TestAdd64OverflowPanic(t *testing.T) {
+	// Test that 64-bit overflow panics fire correctly.
+	// These are designed to improve coverage of compiler intrinsics.
+	tests := []func(uint64, uint64) uint64{
+		func(a, b uint64) uint64 {
+			x, c := Add64(a, b, 0)
+			if c > 0 {
+				panic("overflow")
+			}
+			return x
+		},
+		func(a, b uint64) uint64 {
+			x, c := Add64(a, b, 0)
+			if c != 0 {
+				panic("overflow")
+			}
+			return x
+		},
+		func(a, b uint64) uint64 {
+			x, c := Add64(a, b, 0)
+			if c == 1 {
+				panic("overflow")
+			}
+			return x
+		},
+		func(a, b uint64) uint64 {
+			x, c := Add64(a, b, 0)
+			if c != 1 {
+				return x
+			}
+			panic("overflow")
+		},
+		func(a, b uint64) uint64 {
+			x, c := Add64(a, b, 0)
+			if c == 0 {
+				return x
+			}
+			panic("overflow")
+		},
+	}
+	for _, test := range tests {
+		shouldPanic := func(f func()) {
+			defer func() {
+				if err := recover(); err == nil {
+					t.Fatalf("expected panic")
+				}
+			}()
+			f()
+		}
+
+		// overflow
+		shouldPanic(func() { test(_M64, 1) })
+		shouldPanic(func() { test(1, _M64) })
+		shouldPanic(func() { test(_M64, _M64) })
+
+		// no overflow
+		test(_M64, 0)
+		test(0, 0)
+		test(1, 1)
+	}
+}
+
+func TestSub64OverflowPanic(t *testing.T) {
+	// Test that 64-bit overflow panics fire correctly.
+	// These are designed to improve coverage of compiler intrinsics.
+	tests := []func(uint64, uint64) uint64{
+		func(a, b uint64) uint64 {
+			x, c := Sub64(a, b, 0)
+			if c > 0 {
+				panic("overflow")
+			}
+			return x
+		},
+		func(a, b uint64) uint64 {
+			x, c := Sub64(a, b, 0)
+			if c != 0 {
+				panic("overflow")
+			}
+			return x
+		},
+		func(a, b uint64) uint64 {
+			x, c := Sub64(a, b, 0)
+			if c == 1 {
+				panic("overflow")
+			}
+			return x
+		},
+		func(a, b uint64) uint64 {
+			x, c := Sub64(a, b, 0)
+			if c != 1 {
+				return x
+			}
+			panic("overflow")
+		},
+		func(a, b uint64) uint64 {
+			x, c := Sub64(a, b, 0)
+			if c == 0 {
+				return x
+			}
+			panic("overflow")
+		},
+	}
+	for _, test := range tests {
+		shouldPanic := func(f func()) {
+			defer func() {
+				if err := recover(); err == nil {
+					t.Fatalf("expected panic")
+				}
+			}()
+			f()
+		}
+
+		// overflow
+		shouldPanic(func() { test(0, 1) })
+		shouldPanic(func() { test(1, _M64) })
+		shouldPanic(func() { test(_M64-1, _M64) })
+
+		// no overflow
+		test(_M64, 0)
+		test(0, 0)
+		test(1, 1)
+	}
+}
+
 func TestMulDiv(t *testing.T) {
 	testMul := func(msg string, f func(x, y uint) (hi, lo uint), x, y, hi, lo uint) {
 		hi1, lo1 := f(x, y)
@@ -985,7 +1109,7 @@ func TestDiv64PanicZero(t *testing.T) {
 }
 
 func TestRem32(t *testing.T) {
-	// Sanity check: for non-oveflowing dividends, the result is the
+	// Sanity check: for non-overflowing dividends, the result is the
 	// same as the rem returned by Div32
 	hi, lo, y := uint32(510510), uint32(9699690), uint32(510510+1) // ensure hi < y
 	for i := 0; i < 1000; i++ {
@@ -1012,7 +1136,7 @@ func TestRem32Overflow(t *testing.T) {
 }
 
 func TestRem64(t *testing.T) {
-	// Sanity check: for non-oveflowing dividends, the result is the
+	// Sanity check: for non-overflowing dividends, the result is the
 	// same as the rem returned by Div64
 	hi, lo, y := uint64(510510), uint64(9699690), uint64(510510+1) // ensure hi < y
 	for i := 0; i < 1000; i++ {

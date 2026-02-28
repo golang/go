@@ -4,7 +4,7 @@
 
 // Declarations for operating systems implementing time.now directly in assembly.
 
-// +build windows
+//go:build !faketime && (windows || (linux && amd64))
 
 package runtime
 

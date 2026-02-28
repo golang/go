@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris windows
+//go:build unix || (js && wasm) || wasip1 || windows
 
 package poll
 
@@ -29,22 +29,15 @@ func (fd *FD) Shutdown(how int) error {
 	return syscall.Shutdown(fd.Sysfd, how)
 }
 
-// Fchmod wraps syscall.Fchmod.
-func (fd *FD) Fchmod(mode uint32) error {
-	if err := fd.incref(); err != nil {
-		return err
-	}
-	defer fd.decref()
-	return syscall.Fchmod(fd.Sysfd, mode)
-}
-
 // Fchown wraps syscall.Fchown.
 func (fd *FD) Fchown(uid, gid int) error {
 	if err := fd.incref(); err != nil {
 		return err
 	}
 	defer fd.decref()
-	return syscall.Fchown(fd.Sysfd, uid, gid)
+	return ignoringEINTR(func() error {
+		return syscall.Fchown(fd.Sysfd, uid, gid)
+	})
 }
 
 // Ftruncate wraps syscall.Ftruncate.
@@ -53,7 +46,9 @@ func (fd *FD) Ftruncate(size int64) error {
 		return err
 	}
 	defer fd.decref()
-	return syscall.Ftruncate(fd.Sysfd, size)
+	return ignoringEINTR(func() error {
+		return syscall.Ftruncate(fd.Sysfd, size)
+	})
 }
 
 // RawControl invokes the user-defined function f for a non-IO
@@ -65,4 +60,30 @@ func (fd *FD) RawControl(f func(uintptr)) error {
 	defer fd.decref()
 	f(uintptr(fd.Sysfd))
 	return nil
+}
+
+// ignoringEINTR makes a function call and repeats it if it returns
+// an EINTR error. This appears to be required even though we install all
+// signal handlers with SA_RESTART: see #22838, #38033, #38836, #40846.
+// Also #20400 and #36644 are issues in which a signal handler is
+// installed without setting SA_RESTART. None of these are the common case,
+// but there are enough of them that it seems that we can't avoid
+// an EINTR loop.
+func ignoringEINTR(fn func() error) error {
+	for {
+		err := fn()
+		if err != syscall.EINTR {
+			return err
+		}
+	}
+}
+
+// ignoringEINTR2 is ignoringEINTR, but returning an additional value.
+func ignoringEINTR2[T any](fn func() (T, error)) (T, error) {
+	for {
+		v, err := fn()
+		if err != syscall.EINTR {
+			return v, err
+		}
+	}
 }

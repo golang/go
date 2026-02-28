@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // Savedir archives a directory tree as a txtar archive printed to standard output.
@@ -11,20 +12,19 @@
 //	go run savedir.go /path/to/dir >saved.txt
 //
 // Typically the tree is later extracted during a test with tg.extract("testdata/saved.txt").
-//
 package main
 
 import (
+	"cmd/go/internal/str"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"internal/txtar"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
-
-	"../internal/txtar"
 )
 
 func usage() {
@@ -48,7 +48,7 @@ func main() {
 
 	a := new(txtar.Archive)
 	dir = filepath.Clean(dir)
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	filepath.WalkDir(dir, func(path string, info fs.DirEntry, err error) error {
 		if path == dir {
 			return nil
 		}
@@ -59,10 +59,10 @@ func main() {
 			}
 			return nil
 		}
-		if !info.Mode().IsRegular() {
+		if !info.Type().IsRegular() {
 			return nil
 		}
-		data, err := ioutil.ReadFile(path)
+		data, err := os.ReadFile(path)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -70,7 +70,7 @@ func main() {
 			log.Printf("%s: ignoring invalid UTF-8 data", path)
 			return nil
 		}
-		a.Files = append(a.Files, txtar.File{Name: strings.TrimPrefix(path, dir+string(filepath.Separator)), Data: data})
+		a.Files = append(a.Files, txtar.File{Name: str.TrimFilePathPrefix(path, dir), Data: data})
 		return nil
 	})
 

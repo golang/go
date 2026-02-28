@@ -12,7 +12,7 @@ import (
 	"errors"
 	"math/bits"
 
-	"golang.org/x/crypto/internal/subtle"
+	"golang.org/x/crypto/internal/alias"
 )
 
 const (
@@ -42,9 +42,13 @@ type Cipher struct {
 
 	// The last len bytes of buf are leftover key stream bytes from the previous
 	// XORKeyStream invocation. The size of buf depends on how many blocks are
-	// computed at a time.
+	// computed at a time by xorKeyStreamBlocks.
 	buf [bufSize]byte
 	len int
+
+	// overflow is set when the counter overflowed, no more blocks can be
+	// generated, and the next XORKeyStream call should panic.
+	overflow bool
 
 	// The counter-independent results of the first round are cached after they
 	// are computed the first time.
@@ -89,6 +93,7 @@ func newUnauthenticatedCipher(c *Cipher, key, nonce []byte) (*Cipher, error) {
 		return nil, errors.New("chacha20: wrong nonce size")
 	}
 
+	key, nonce = key[:KeySize], nonce[:NonceSize] // bounds check elimination hint
 	c.key = [8]uint32{
 		binary.LittleEndian.Uint32(key[0:4]),
 		binary.LittleEndian.Uint32(key[4:8]),
@@ -136,6 +141,36 @@ func quarterRound(a, b, c, d uint32) (uint32, uint32, uint32, uint32) {
 	return a, b, c, d
 }
 
+// SetCounter sets the Cipher counter. The next invocation of XORKeyStream will
+// behave as if (64 * counter) bytes had been encrypted so far.
+//
+// To prevent accidental counter reuse, SetCounter panics if counter is less
+// than the current value.
+//
+// Note that the execution time of XORKeyStream is not independent of the
+// counter value.
+func (s *Cipher) SetCounter(counter uint32) {
+	// Internally, s may buffer multiple blocks, which complicates this
+	// implementation slightly. When checking whether the counter has rolled
+	// back, we must use both s.counter and s.len to determine how many blocks
+	// we have already output.
+	outputCounter := s.counter - uint32(s.len)/blockSize
+	if s.overflow || counter < outputCounter {
+		panic("chacha20: SetCounter attempted to rollback counter")
+	}
+
+	// In the general case, we set the new counter value and reset s.len to 0,
+	// causing the next call to XORKeyStream to refill the buffer. However, if
+	// we're advancing within the existing buffer, we can save work by simply
+	// setting s.len.
+	if counter < s.counter {
+		s.len = int(s.counter-counter) * blockSize
+	} else {
+		s.counter = counter
+		s.len = 0
+	}
+}
+
 // XORKeyStream XORs each byte in the given slice with a byte from the
 // cipher's key stream. Dst and src must overlap entirely or not at all.
 //
@@ -154,7 +189,7 @@ func (s *Cipher) XORKeyStream(dst, src []byte) {
 		panic("chacha20: output smaller than input")
 	}
 	dst = dst[:len(src)]
-	if subtle.InexactOverlap(dst, src) {
+	if alias.InexactOverlap(dst, src) {
 		panic("chacha20: invalid buffer overlap")
 	}
 
@@ -169,34 +204,52 @@ func (s *Cipher) XORKeyStream(dst, src []byte) {
 			dst[i] = src[i] ^ b
 		}
 		s.len -= len(keyStream)
-		src = src[len(keyStream):]
-		dst = dst[len(keyStream):]
+		dst, src = dst[len(keyStream):], src[len(keyStream):]
+	}
+	if len(src) == 0 {
+		return
 	}
 
-	const blocksPerBuf = bufSize / blockSize
-	numBufs := (uint64(len(src)) + bufSize - 1) / bufSize
-	if uint64(s.counter)+numBufs*blocksPerBuf >= 1<<32 {
+	// If we'd need to let the counter overflow and keep generating output,
+	// panic immediately. If instead we'd only reach the last block, remember
+	// not to generate any more output after the buffer is drained.
+	numBlocks := (uint64(len(src)) + blockSize - 1) / blockSize
+	if s.overflow || uint64(s.counter)+numBlocks > 1<<32 {
 		panic("chacha20: counter overflow")
+	} else if uint64(s.counter)+numBlocks == 1<<32 {
+		s.overflow = true
 	}
 
 	// xorKeyStreamBlocks implementations expect input lengths that are a
 	// multiple of bufSize. Platform-specific ones process multiple blocks at a
 	// time, so have bufSizes that are a multiple of blockSize.
 
-	rem := len(src) % bufSize
-	full := len(src) - rem
-
+	full := len(src) - len(src)%bufSize
 	if full > 0 {
 		s.xorKeyStreamBlocks(dst[:full], src[:full])
+	}
+	dst, src = dst[full:], src[full:]
+
+	// If using a multi-block xorKeyStreamBlocks would overflow, use the generic
+	// one that does one block at a time.
+	const blocksPerBuf = bufSize / blockSize
+	if uint64(s.counter)+blocksPerBuf > 1<<32 {
+		s.buf = [bufSize]byte{}
+		numBlocks := (len(src) + blockSize - 1) / blockSize
+		buf := s.buf[bufSize-numBlocks*blockSize:]
+		copy(buf, src)
+		s.xorKeyStreamBlocksGeneric(buf, buf)
+		s.len = len(buf) - copy(dst, buf)
+		return
 	}
 
 	// If we have a partial (multi-)block, pad it for xorKeyStreamBlocks, and
 	// keep the leftover keystream for the next XORKeyStream invocation.
-	if rem > 0 {
+	if len(src) > 0 {
 		s.buf = [bufSize]byte{}
-		copy(s.buf[:], src[full:])
+		copy(s.buf[:], src)
 		s.xorKeyStreamBlocks(s.buf[:], s.buf[:])
-		s.len = bufSize - copy(dst[full:], s.buf[:])
+		s.len = bufSize - copy(dst, s.buf[:])
 	}
 }
 
@@ -233,7 +286,9 @@ func (s *Cipher) xorKeyStreamBlocksGeneric(dst, src []byte) {
 		s.precompDone = true
 	}
 
-	for i := 0; i < len(src); i += blockSize {
+	// A condition of len(src) > 0 would be sufficient, but this also
+	// acts as a bounds check elimination hint.
+	for len(src) >= 64 && len(dst) >= 64 {
 		// The remainder of the first column round.
 		fcr0, fcr4, fcr8, fcr12 := quarterRound(c0, c4, c8, s.counter)
 
@@ -258,49 +313,28 @@ func (s *Cipher) xorKeyStreamBlocksGeneric(dst, src []byte) {
 			x3, x4, x9, x14 = quarterRound(x3, x4, x9, x14)
 		}
 
-		// Finally, add back the initial state to generate the key stream.
-		x0 += c0
-		x1 += c1
-		x2 += c2
-		x3 += c3
-		x4 += c4
-		x5 += c5
-		x6 += c6
-		x7 += c7
-		x8 += c8
-		x9 += c9
-		x10 += c10
-		x11 += c11
-		x12 += s.counter
-		x13 += c13
-		x14 += c14
-		x15 += c15
+		// Add back the initial state to generate the key stream, then
+		// XOR the key stream with the source and write out the result.
+		addXor(dst[0:4], src[0:4], x0, c0)
+		addXor(dst[4:8], src[4:8], x1, c1)
+		addXor(dst[8:12], src[8:12], x2, c2)
+		addXor(dst[12:16], src[12:16], x3, c3)
+		addXor(dst[16:20], src[16:20], x4, c4)
+		addXor(dst[20:24], src[20:24], x5, c5)
+		addXor(dst[24:28], src[24:28], x6, c6)
+		addXor(dst[28:32], src[28:32], x7, c7)
+		addXor(dst[32:36], src[32:36], x8, c8)
+		addXor(dst[36:40], src[36:40], x9, c9)
+		addXor(dst[40:44], src[40:44], x10, c10)
+		addXor(dst[44:48], src[44:48], x11, c11)
+		addXor(dst[48:52], src[48:52], x12, s.counter)
+		addXor(dst[52:56], src[52:56], x13, c13)
+		addXor(dst[56:60], src[56:60], x14, c14)
+		addXor(dst[60:64], src[60:64], x15, c15)
 
 		s.counter += 1
-		if s.counter == 0 {
-			panic("chacha20: internal error: counter overflow")
-		}
 
-		in, out := src[i:], dst[i:]
-		in, out = in[:blockSize], out[:blockSize] // bounds check elimination hint
-
-		// XOR the key stream with the source and write out the result.
-		xor(out[0:], in[0:], x0)
-		xor(out[4:], in[4:], x1)
-		xor(out[8:], in[8:], x2)
-		xor(out[12:], in[12:], x3)
-		xor(out[16:], in[16:], x4)
-		xor(out[20:], in[20:], x5)
-		xor(out[24:], in[24:], x6)
-		xor(out[28:], in[28:], x7)
-		xor(out[32:], in[32:], x8)
-		xor(out[36:], in[36:], x9)
-		xor(out[40:], in[40:], x10)
-		xor(out[44:], in[44:], x11)
-		xor(out[48:], in[48:], x12)
-		xor(out[52:], in[52:], x13)
-		xor(out[56:], in[56:], x14)
-		xor(out[60:], in[60:], x15)
+		src, dst = src[blockSize:], dst[blockSize:]
 	}
 }
 

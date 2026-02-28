@@ -9,7 +9,7 @@ package os
 // pointing to the correct executable. If a symlink was used to start
 // the process, depending on the operating system, the result might
 // be the symlink or the path it pointed to. If a stable result is
-// needed, path/filepath.EvalSymlinks might help.
+// needed, [path/filepath.EvalSymlinks] might help.
 //
 // Executable returns an absolute path unless an error occurred.
 //

@@ -6,44 +6,35 @@ package ld
 
 import (
 	"cmd/internal/objabi"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
-	"sort"
 )
 
-type byTypeStr []typelinkSortKey
-
-type typelinkSortKey struct {
-	TypeStr string
-	Type    *sym.Symbol
-}
-
-func (s byTypeStr) Less(i, j int) bool { return s[i].TypeStr < s[j].TypeStr }
-func (s byTypeStr) Len() int           { return len(s) }
-func (s byTypeStr) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-
-// typelink generates the typelink table which is used by reflect.typelinks().
-// Types that should be added to the typelinks table are marked with the
-// MakeTypelink attribute by the compiler.
+// typelink generates the itablink table which is used by runtime.itabInit.
 func (ctxt *Link) typelink() {
-	typelinks := byTypeStr{}
-	for _, s := range ctxt.Syms.Allsym {
-		if s.Attr.Reachable() && s.Attr.MakeTypelink() {
-			typelinks = append(typelinks, typelinkSortKey{decodetypeStr(ctxt.Arch, s), s})
+	ldr := ctxt.loader
+	var itabs []loader.Sym
+	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
+		if !ldr.AttrReachable(s) {
+			continue
+		}
+		if ldr.IsItab(s) {
+			itabs = append(itabs, s)
 		}
 	}
-	sort.Sort(typelinks)
 
-	tl := ctxt.Syms.Lookup("runtime.typelink", 0)
-	tl.Type = sym.STYPELINK
-	tl.Attr |= sym.AttrReachable | sym.AttrLocal
-	tl.Size = int64(4 * len(typelinks))
-	tl.P = make([]byte, tl.Size)
-	tl.R = make([]sym.Reloc, len(typelinks))
-	for i, s := range typelinks {
-		r := &tl.R[i]
-		r.Sym = s.Type
-		r.Off = int32(i * 4)
-		r.Siz = 4
-		r.Type = objabi.R_ADDROFF
+	ptrsize := ctxt.Arch.PtrSize
+	il := ldr.CreateSymForUpdate("runtime.itablink", 0)
+	il.SetType(sym.SITABLINK)
+	ldr.SetAttrLocal(il.Sym(), true)
+	il.SetSize(int64(ptrsize * len(itabs)))
+	il.Grow(il.Size())
+	relocs := il.AddRelocs(len(itabs))
+	for i, s := range itabs {
+		r := relocs.At(i)
+		r.SetSym(s)
+		r.SetOff(int32(i * ptrsize))
+		r.SetSiz(uint8(ptrsize))
+		r.SetType(objabi.R_ADDR)
 	}
 }

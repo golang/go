@@ -4,26 +4,64 @@
 
 package fmt
 
-import "errors"
+import (
+	"errors"
+	"internal/stringslite"
+	"slices"
+)
 
 // Errorf formats according to a format specifier and returns the string as a
 // value that satisfies error.
 //
 // If the format specifier includes a %w verb with an error operand,
-// the returned error will implement an Unwrap method returning the operand. It is
-// invalid to include more than one %w verb or to supply it with an operand
-// that does not implement the error interface. The %w verb is otherwise
-// a synonym for %v.
-func Errorf(format string, a ...interface{}) error {
+// the returned error will implement an Unwrap method returning the operand.
+// If there is more than one %w verb, the returned error will implement an
+// Unwrap method returning a []error containing all the %w operands in the
+// order they appear in the arguments.
+// It is invalid to supply the %w verb with an operand that does not implement
+// the error interface. The %w verb is otherwise a synonym for %v.
+func Errorf(format string, a ...any) (err error) {
+	// This function has been split in a somewhat unnatural way
+	// so that both it and the errors.New call can be inlined.
+	if err = errorf(format, a...); err != nil {
+		return err
+	}
+	// No formatting was needed. We can avoid some allocations and other work.
+	// See https://go.dev/cl/708836 for details.
+	return errors.New(format)
+}
+
+// errorf formats and returns an error value, or nil if no formatting is required.
+func errorf(format string, a ...any) error {
+	if len(a) == 0 && stringslite.IndexByte(format, '%') == -1 {
+		return nil
+	}
 	p := newPrinter()
 	p.wrapErrs = true
 	p.doPrintf(format, a)
 	s := string(p.buf)
 	var err error
-	if p.wrappedErr == nil {
+	switch len(p.wrappedErrs) {
+	case 0:
 		err = errors.New(s)
-	} else {
-		err = &wrapError{s, p.wrappedErr}
+	case 1:
+		w := &wrapError{msg: s}
+		w.err, _ = a[p.wrappedErrs[0]].(error)
+		err = w
+	default:
+		if p.reordered {
+			slices.Sort(p.wrappedErrs)
+		}
+		var errs []error
+		for i, argNum := range p.wrappedErrs {
+			if i > 0 && p.wrappedErrs[i-1] == argNum {
+				continue
+			}
+			if e, ok := a[argNum].(error); ok {
+				errs = append(errs, e)
+			}
+		}
+		err = &wrapErrors{s, errs}
 	}
 	p.free()
 	return err
@@ -40,4 +78,17 @@ func (e *wrapError) Error() string {
 
 func (e *wrapError) Unwrap() error {
 	return e.err
+}
+
+type wrapErrors struct {
+	msg  string
+	errs []error
+}
+
+func (e *wrapErrors) Error() string {
+	return e.msg
+}
+
+func (e *wrapErrors) Unwrap() []error {
+	return e.errs
 }

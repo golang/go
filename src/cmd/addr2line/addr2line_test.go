@@ -8,20 +8,30 @@ import (
 	"bufio"
 	"bytes"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 )
 
-func loadSyms(t *testing.T) map[string]string {
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "nm", os.Args[0])
+// TestMain executes the test binary as the addr2line command if
+// GO_ADDR2LINETEST_IS_ADDR2LINE is set, and runs the tests otherwise.
+func TestMain(m *testing.M) {
+	if os.Getenv("GO_ADDR2LINETEST_IS_ADDR2LINE") != "" {
+		main()
+		os.Exit(0)
+	}
+
+	os.Setenv("GO_ADDR2LINETEST_IS_ADDR2LINE", "1") // Set for subprocesses to inherit.
+	os.Exit(m.Run())
+}
+
+func loadSyms(t *testing.T, dbgExePath string) map[string]string {
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", dbgExePath)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("go tool nm %v: %v\n%s", os.Args[0], err, string(out))
+		t.Fatalf("%v: %v\n%s", cmd, err, string(out))
 	}
 	syms := make(map[string]string)
 	scanner := bufio.NewScanner(bytes.NewReader(out))
@@ -38,8 +48,8 @@ func loadSyms(t *testing.T) map[string]string {
 	return syms
 }
 
-func runAddr2Line(t *testing.T, exepath, addr string) (funcname, path, lineno string) {
-	cmd := exec.Command(exepath, os.Args[0])
+func runAddr2Line(t *testing.T, dbgExePath, addr string) (funcname, path, lineno string) {
+	cmd := testenv.Command(t, testenv.Executable(t), dbgExePath)
 	cmd.Stdin = strings.NewReader(addr)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -64,8 +74,8 @@ func runAddr2Line(t *testing.T, exepath, addr string) (funcname, path, lineno st
 
 const symName = "cmd/addr2line.TestAddr2Line"
 
-func testAddr2Line(t *testing.T, exepath, addr string) {
-	funcName, srcPath, srcLineNo := runAddr2Line(t, exepath, addr)
+func testAddr2Line(t *testing.T, dbgExePath, addr string) {
+	funcName, srcPath, srcLineNo := runAddr2Line(t, dbgExePath, addr)
 	if symName != funcName {
 		t.Fatalf("expected function name %v; got %v", symName, funcName)
 	}
@@ -73,6 +83,9 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
 	if err != nil {
 		t.Fatalf("Stat failed: %v", err)
 	}
+
+	// Debug paths are stored slash-separated, so convert to system-native.
+	srcPath = filepath.FromSlash(srcPath)
 	fi2, err := os.Stat(srcPath)
 	if err != nil {
 		t.Fatalf("Stat failed: %v", err)
@@ -80,37 +93,26 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
 	if !os.SameFile(fi1, fi2) {
 		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
 	}
-	if srcLineNo != "89" {
-		t.Fatalf("line number = %v; want 89", srcLineNo)
+	if want := "102"; srcLineNo != want {
+		t.Fatalf("line number = %v; want %s", srcLineNo, want)
 	}
 }
 
-// This is line 88. The test depends on that.
+// This is line 101. The test depends on that.
 func TestAddr2Line(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	tmpDir, err := ioutil.TempDir("", "TestAddr2Line")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// Build copy of test binary with debug symbols,
 	// since the one running now may not have them.
 	exepath := filepath.Join(tmpDir, "testaddr2line_test.exe")
-	out, err := exec.Command(testenv.GoToolPath(t), "test", "-c", "-o", exepath, "cmd/addr2line").CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "test", "-c", "-o", exepath, "cmd/addr2line").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go test -c -o %v cmd/addr2line: %v\n%s", exepath, err, string(out))
 	}
-	os.Args[0] = exepath
 
-	syms := loadSyms(t)
-
-	exepath = filepath.Join(tmpDir, "testaddr2line.exe")
-	out, err = exec.Command(testenv.GoToolPath(t), "build", "-o", exepath, "cmd/addr2line").CombinedOutput()
-	if err != nil {
-		t.Fatalf("go build -o %v cmd/addr2line: %v\n%s", exepath, err, string(out))
-	}
+	syms := loadSyms(t, exepath)
 
 	testAddr2Line(t, exepath, syms[symName])
 	testAddr2Line(t, exepath, "0x"+syms[symName])

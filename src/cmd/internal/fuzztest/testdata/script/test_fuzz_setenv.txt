@@ -1,0 +1,46 @@
+[!fuzz] skip
+[short] skip
+env GOCACHE=$WORK/cache
+
+go test -fuzz=FuzzA -fuzztime=100x fuzz_setenv_test.go
+
+-- fuzz_setenv_test.go --
+package fuzz
+
+import (
+  "flag"
+  "os"
+  "testing"
+)
+
+func FuzzA(f *testing.F) {
+  if s := os.Getenv("TEST_FUZZ_SETENV_A"); isWorker() && s == "" {
+    f.Fatal("environment variable not set")
+  } else if !isWorker() && s != "" {
+    f.Fatal("environment variable already set")
+  }
+  f.Setenv("TEST_FUZZ_SETENV_A", "A")
+  if os.Getenv("TEST_FUZZ_SETENV_A") == "" {
+    f.Fatal("Setenv did not set environment variable")
+  }
+  f.Fuzz(func(*testing.T, []byte) {})
+}
+
+func FuzzB(f *testing.F) {
+  if os.Getenv("TEST_FUZZ_SETENV_A") != "" {
+    f.Fatal("environment variable not cleared after FuzzA")
+  }
+  f.Skip()
+}
+
+func isWorker() bool {
+	f := flag.Lookup("test.fuzzworker")
+	if f == nil {
+		return false
+	}
+	get, ok := f.Value.(flag.Getter)
+	if !ok {
+		return false
+	}
+	return get.Get() == interface{}(true)
+}

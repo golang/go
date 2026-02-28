@@ -1,0 +1,13 @@
+cd m
+! go mod download
+stderr 'no modules were found in the current workspace'
+
+! go list -m all
+stderr 'no modules were found in the current workspace'
+
+-- go.work --
+go 1.25
+-- m/go.mod --
+module example.com/m
+
+go 1.25

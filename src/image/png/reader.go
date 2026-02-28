@@ -51,6 +51,10 @@ func cbPaletted(cb int) bool {
 	return cbP1 <= cb && cb <= cbP8
 }
 
+func cbTrueColor(cb int) bool {
+	return cb == cbTC8 || cb == cbTC16
+}
+
 // Filter type, as per the PNG spec.
 const (
 	ftNone    = 0
@@ -132,13 +136,6 @@ type UnsupportedError string
 
 func (e UnsupportedError) Error() string { return "png: unsupported feature: " + string(e) }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func (d *decoder) parseIHDR(length uint32) error {
 	if length != 13 {
 		return FormatError("bad IHDR length")
@@ -163,8 +160,9 @@ func (d *decoder) parseIHDR(length uint32) error {
 	if w <= 0 || h <= 0 {
 		return FormatError("non-positive dimension")
 	}
-	nPixels := int64(w) * int64(h)
-	if nPixels != int64(int(nPixels)) {
+	nPixels64 := int64(w) * int64(h)
+	nPixels := int(nPixels64)
+	if nPixels64 != int64(nPixels) {
 		return UnsupportedError("dimension overflow")
 	}
 	// There can be up to 8 bytes per pixel, for 16 bits per channel RGBA.
@@ -324,7 +322,9 @@ func (d *decoder) parsetRNS(length uint32) error {
 
 // Read presents one or more IDAT chunks as one continuous stream (minus the
 // intermediate chunk headers and footers). If the PNG data looked like:
-//   ... len0 IDAT xxx crc0 len1 IDAT yy crc1 len2 IEND crc2
+//
+//	... len0 IDAT xxx crc0 len1 IDAT yy crc1 len2 IEND crc2
+//
 // then this reader presents xxxyy. For well-formed PNG data, the decoder state
 // immediately before the first Read call is that d.r is positioned between the
 // first IDAT and xxx, and the decoder state immediately after the last Read
@@ -498,7 +498,10 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 	bytesPerPixel := (bitsPerPixel + 7) / 8
 
 	// The +1 is for the per-row filter type, which is at cr[0].
-	rowSize := 1 + (bitsPerPixel*width+7)/8
+	rowSize := 1 + (int64(bitsPerPixel)*int64(width)+7)/8
+	if rowSize != int64(int(rowSize)) {
+		return nil, UnsupportedError("dimension overflow")
+	}
 	// cr and pr are the bytes for the current and previous row.
 	cr := make([]uint8, rowSize)
 	pr := make([]uint8, rowSize)
@@ -817,9 +820,17 @@ func (d *decoder) mergePassInto(dst image.Image, src image.Image, pass int) {
 		dstPix, stride, rect = target.Pix, target.Stride, target.Rect
 		bytesPerPixel = 8
 	case *image.Paletted:
-		srcPix = src.(*image.Paletted).Pix
+		source := src.(*image.Paletted)
+		srcPix = source.Pix
 		dstPix, stride, rect = target.Pix, target.Stride, target.Rect
 		bytesPerPixel = 1
+		if len(target.Palette) < len(source.Palette) {
+			// readImagePass can return a paletted image whose implicit palette
+			// length (one more than the maximum Pix value) is larger than the
+			// explicit palette length (what's in the PLTE chunk). Make the
+			// same adjustment here.
+			target.Palette = source.Palette
+		}
 	case *image.RGBA:
 		srcPix = src.(*image.RGBA).Pix
 		dstPix, stride, rect = target.Pix, target.Stride, target.Rect
@@ -856,10 +867,9 @@ func (d *decoder) parseIEND(length uint32) error {
 	return d.verifyChecksum()
 }
 
-func (d *decoder) parseChunk() error {
+func (d *decoder) parseChunk(configOnly bool) error {
 	// Read the length and chunk type.
-	n, err := io.ReadFull(d.r, d.tmp[:8])
-	if err != nil {
+	if _, err := io.ReadFull(d.r, d.tmp[:8]); err != nil {
 		return err
 	}
 	length := binary.BigEndian.Uint32(d.tmp[:4])
@@ -885,6 +895,10 @@ func (d *decoder) parseChunk() error {
 			if d.stage != dsSeenPLTE {
 				return chunkOrderError
 			}
+		} else if cbTrueColor(d.cb) {
+			if d.stage != dsSeenIHDR && d.stage != dsSeenPLTE {
+				return chunkOrderError
+			}
 		} else if d.stage != dsSeenIHDR {
 			return chunkOrderError
 		}
@@ -902,6 +916,9 @@ func (d *decoder) parseChunk() error {
 			break
 		}
 		d.stage = dsSeenIDAT
+		if configOnly {
+			return nil
+		}
 		return d.parseIDAT(length)
 	case "IEND":
 		if d.stage != dsSeenIDAT {
@@ -916,7 +933,7 @@ func (d *decoder) parseChunk() error {
 	// Ignore this chunk (of a known length).
 	var ignored [4096]byte
 	for length > 0 {
-		n, err = io.ReadFull(d.r, ignored[:min(len(ignored), int(length))])
+		n, err := io.ReadFull(d.r, ignored[:min(len(ignored), int(length))])
 		if err != nil {
 			return err
 		}
@@ -947,7 +964,7 @@ func (d *decoder) checkHeader() error {
 	return nil
 }
 
-// Decode reads a PNG image from r and returns it as an image.Image.
+// Decode reads a PNG image from r and returns it as an [image.Image].
 // The type of Image returned depends on the PNG contents.
 func Decode(r io.Reader) (image.Image, error) {
 	d := &decoder{
@@ -961,7 +978,7 @@ func Decode(r io.Reader) (image.Image, error) {
 		return nil, err
 	}
 	for d.stage != dsSeenIEND {
-		if err := d.parseChunk(); err != nil {
+		if err := d.parseChunk(false); err != nil {
 			if err == io.EOF {
 				err = io.ErrUnexpectedEOF
 			}
@@ -984,21 +1001,26 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 		}
 		return image.Config{}, err
 	}
+
 	for {
-		if err := d.parseChunk(); err != nil {
+		if err := d.parseChunk(true); err != nil {
 			if err == io.EOF {
 				err = io.ErrUnexpectedEOF
 			}
 			return image.Config{}, err
 		}
-		paletted := cbPaletted(d.cb)
-		if d.stage == dsSeenIHDR && !paletted {
-			break
-		}
-		if d.stage == dsSeenPLTE && paletted {
-			break
+
+		if cbPaletted(d.cb) {
+			if d.stage >= dsSeentRNS {
+				break
+			}
+		} else {
+			if d.stage >= dsSeenIHDR {
+				break
+			}
 		}
 	}
+
 	var cm color.Model
 	switch d.cb {
 	case cbG1, cbG2, cbG4, cbG8:

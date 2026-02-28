@@ -8,8 +8,7 @@
 package filelock
 
 import (
-	"errors"
-	"os"
+	"io/fs"
 )
 
 // A File provides the minimal set of methods required to lock an open file.
@@ -24,7 +23,7 @@ type File interface {
 	Fd() uintptr
 
 	// Stat returns the FileInfo structure describing file.
-	Stat() (os.FileInfo, error)
+	Stat() (fs.FileInfo, error)
 }
 
 // Lock places an advisory write lock on the file, blocking until it can be
@@ -73,26 +72,4 @@ func (lt lockType) String() string {
 	default:
 		return "Unlock"
 	}
-}
-
-// IsNotSupported returns a boolean indicating whether the error is known to
-// report that a function is not supported (possibly for a specific input).
-// It is satisfied by ErrNotSupported as well as some syscall errors.
-func IsNotSupported(err error) bool {
-	return isNotSupported(underlyingError(err))
-}
-
-var ErrNotSupported = errors.New("operation not supported")
-
-// underlyingError returns the underlying error for known os error types.
-func underlyingError(err error) error {
-	switch err := err.(type) {
-	case *os.PathError:
-		return err.Err
-	case *os.LinkError:
-		return err.Err
-	case *os.SyscallError:
-		return err.Err
-	}
-	return err
 }

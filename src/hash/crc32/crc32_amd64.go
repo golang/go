@@ -13,16 +13,23 @@ import (
 	"unsafe"
 )
 
+// Offset into internal/cpu records for use in assembly.
+const (
+	offsetX86HasAVX512VPCLMULQDQL = unsafe.Offsetof(cpu.X86.HasAVX512VPCLMULQDQ)
+)
+
 // This file contains the code to call the SSE 4.2 version of the Castagnoli
 // and IEEE CRC.
 
 // castagnoliSSE42 is defined in crc32_amd64.s and uses the SSE 4.2 CRC32
 // instruction.
+//
 //go:noescape
 func castagnoliSSE42(crc uint32, p []byte) uint32
 
 // castagnoliSSE42Triple is defined in crc32_amd64.s and uses the SSE 4.2 CRC32
 // instruction.
+//
 //go:noescape
 func castagnoliSSE42Triple(
 	crcA, crcB, crcC uint32,
@@ -32,6 +39,7 @@ func castagnoliSSE42Triple(
 
 // ieeeCLMUL is defined in crc_amd64.s and uses the PCLMULQDQ
 // instruction as well as SSE 4.1.
+//
 //go:noescape
 func ieeeCLMUL(crc uint32, p []byte) uint32
 

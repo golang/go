@@ -40,7 +40,7 @@ func genLinear(size int) []bloc {
 	return blocs
 }
 
-// genLinear creates an array of blocks that alternate between
+// genFwdBack creates an array of blocks that alternate between
 // b_n -> [b_n+1], b_n -> [b_n+1, b_n-1] , b_n -> [b_n+1, b_n+2]
 func genFwdBack(size int) []bloc {
 	var blocs []bloc

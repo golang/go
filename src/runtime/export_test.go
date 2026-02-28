@@ -7,8 +7,12 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
+	"internal/goos"
+	"internal/runtime/atomic"
+	"internal/runtime/gc"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -27,14 +31,15 @@ var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
 var Xadduintptr = atomic.Xadduintptr
 
-var FuncPC = funcPC
+var ReadRandomFailed = &readRandomFailed
 
 var Fastlog2 = fastlog2
 
-var Atoi = atoi
-var Atoi32 = atoi32
+var ParseByteCount = parseByteCount
 
 var Nanotime = nanotime
+var Cputicks = cputicks
+var CyclesPerSecond = pprof_cyclesPerSecond
 var NetpollBreak = netpollBreak
 var Usleep = usleep
 
@@ -43,10 +48,25 @@ var PhysHugePageSize = physHugePageSize
 
 var NetpollGenericInit = netpollGenericInit
 
-var ParseRelease = parseRelease
-
 var Memmove = memmove
 var MemclrNoHeapPointers = memclrNoHeapPointers
+
+var CgoCheckPointer = cgoCheckPointer
+
+const CrashStackImplemented = crashStackImplemented
+
+const TracebackInnerFrames = tracebackInnerFrames
+const TracebackOuterFrames = tracebackOuterFrames
+
+var LockPartialOrder = lockPartialOrder
+
+type TimeTimer = timeTimer
+
+type LockRank lockRank
+
+func (l LockRank) String() string {
+	return lockRank(l).String()
+}
 
 const PreemptMSupported = preemptMSupported
 
@@ -60,7 +80,10 @@ func LFStackPush(head *uint64, node *LFNode) {
 }
 
 func LFStackPop(head *uint64) *LFNode {
-	return (*LFNode)(unsafe.Pointer((*lfstack)(head).pop()))
+	return (*LFNode)((*lfstack)(head).pop())
+}
+func LFNodeValidate(node *LFNode) {
+	lfnodeValidate((*lfnode)(unsafe.Pointer(node)))
 }
 
 func Netpoll(delta int64) {
@@ -69,30 +92,31 @@ func Netpoll(delta int64) {
 	})
 }
 
-func GCMask(x interface{}) (ret []byte) {
+func PointerMask(x any) (ret []byte) {
 	systemstack(func() {
-		ret = getgcmask(x)
+		ret = pointerMask(x)
 	})
 	return
 }
 
 func RunSchedLocalQueueTest() {
-	_p_ := new(p)
-	gs := make([]g, len(_p_.runq))
-	for i := 0; i < len(_p_.runq); i++ {
-		if g, _ := runqget(_p_); g != nil {
+	pp := new(p)
+	gs := make([]g, len(pp.runq))
+	Escape(gs) // Ensure gs doesn't move, since we use guintptrs
+	for i := 0; i < len(pp.runq); i++ {
+		if g, _ := runqget(pp); g != nil {
 			throw("runq is not empty initially")
 		}
 		for j := 0; j < i; j++ {
-			runqput(_p_, &gs[i], false)
+			runqput(pp, &gs[i], false)
 		}
 		for j := 0; j < i; j++ {
-			if g, _ := runqget(_p_); g != &gs[i] {
+			if g, _ := runqget(pp); g != &gs[i] {
 				print("bad element at iter ", i, "/", j, "\n")
 				throw("bad element")
 			}
 		}
-		if g, _ := runqget(_p_); g != nil {
+		if g, _ := runqget(pp); g != nil {
 			throw("runq is not empty afterwards")
 		}
 	}
@@ -102,6 +126,7 @@ func RunSchedLocalQueueStealTest() {
 	p1 := new(p)
 	p2 := new(p)
 	gs := make([]g, len(p1.runq))
+	Escape(gs) // Ensure gs doesn't move, since we use guintptrs
 	for i := 0; i < len(p1.runq); i++ {
 		for j := 0; j < i; j++ {
 			gs[j].sig = 0
@@ -149,6 +174,7 @@ func RunSchedLocalQueueEmptyTest(iters int) {
 	done := make(chan bool, 1)
 	p := new(p)
 	gs := make([]g, 2)
+	Escape(gs) // Ensure gs doesn't move, since we use guintptrs
 	ready := new(uint32)
 	for i := 0; i < iters; i++ {
 		*ready = 0
@@ -192,7 +218,7 @@ func MemclrBytes(b []byte) {
 	memclrNoHeapPointers(s.array, uintptr(s.len))
 }
 
-var HashLoad = &hashLoad
+const HashLoad = hashLoad
 
 // entry point for testing
 func GostringW(w []uint16) (s string) {
@@ -202,8 +228,6 @@ func GostringW(w []uint16) (s string) {
 	return
 }
 
-type Uintreg sys.Uintreg
-
 var Open = open
 var Close = closefd
 var Read = read
@@ -212,38 +236,13 @@ var Write = write
 func Envs() []string     { return envs }
 func SetEnvs(e []string) { envs = e }
 
-var BigEndian = sys.BigEndian
+const PtrSize = goarch.PtrSize
 
-// For benchmarking.
+const ClobberdeadPtr = clobberdeadPtr
 
-func BenchSetType(n int, x interface{}) {
-	e := *efaceOf(&x)
-	t := e._type
-	var size uintptr
-	var p unsafe.Pointer
-	switch t.kind & kindMask {
-	case kindPtr:
-		t = (*ptrtype)(unsafe.Pointer(t)).elem
-		size = t.size
-		p = e.data
-	case kindSlice:
-		slice := *(*struct {
-			ptr      unsafe.Pointer
-			len, cap uintptr
-		})(e.data)
-		t = (*slicetype)(unsafe.Pointer(t)).elem
-		size = t.size * slice.len
-		p = slice.ptr
-	}
-	allocSize := roundupsize(size)
-	systemstack(func() {
-		for i := 0; i < n; i++ {
-			heapBitsSetType(uintptr(p), allocSize, size, t)
-		}
-	})
+func Clobberfree() bool {
+	return debug.clobberfree != 0
 }
-
-const PtrSize = sys.PtrSize
 
 var ForceGCPeriod = &forcegcperiod
 
@@ -259,9 +258,9 @@ var ReadUnaligned32 = readUnaligned32
 var ReadUnaligned64 = readUnaligned64
 
 func CountPagesInUse() (pagesInUse, counted uintptr) {
-	stopTheWorld("CountPagesInUse")
+	stw := stopTheWorld(stwForTestCountPagesInUse)
 
-	pagesInUse = uintptr(mheap_.pagesInUse)
+	pagesInUse = mheap_.pagesInUse.Load()
 
 	for _, s := range mheap_.allspans {
 		if s.state.get() == mSpanInUse {
@@ -269,13 +268,18 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
 		}
 	}
 
-	startTheWorld()
+	startTheWorld(stw)
 
 	return
 }
 
-func Fastrand() uint32          { return fastrand() }
-func Fastrandn(n uint32) uint32 { return fastrandn(n) }
+func Blocksampled(cycles, rate int64) bool { return blocksampled(cycles, rate) }
+
+func Cheaprand() uint32         { return cheaprand() }
+func Cheaprand64() int64        { return cheaprand64() }
+func Fastrand() uint32          { return uint32(rand()) }
+func Fastrand64() uint64        { return rand() }
+func Fastrandn(n uint32) uint32 { return randn(n) }
 
 type ProfBuf profBuf
 
@@ -293,17 +297,64 @@ const (
 )
 
 func (p *ProfBuf) Read(mode profBufReadMode) ([]uint64, []unsafe.Pointer, bool) {
-	return (*profBuf)(p).read(profBufReadMode(mode))
+	return (*profBuf)(p).read(mode)
 }
 
 func (p *ProfBuf) Close() {
 	(*profBuf)(p).close()
 }
 
+type CPUStats = cpuStats
+
+func ReadCPUStats() CPUStats {
+	return work.cpuStats
+}
+
+func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) {
+	stw := stopTheWorld(stwForTestReadMetricsSlow)
+
+	// Initialize the metrics beforehand because this could
+	// allocate and skew the stats.
+	metricsLock()
+	initMetrics()
+
+	systemstack(func() {
+		// Donate the racectx to g0. readMetricsLocked calls into the race detector
+		// via map access.
+		getg().racectx = getg().m.curg.racectx
+
+		// Read the metrics once before in case it allocates and skews the metrics.
+		// readMetricsLocked is designed to only allocate the first time it is called
+		// with a given slice of samples. In effect, this extra read tests that this
+		// remains true, since otherwise the second readMetricsLocked below could
+		// allocate before it returns.
+		readMetricsLocked(samplesp, len, cap)
+
+		// Read memstats first. It's going to flush
+		// the mcaches which readMetrics does not do, so
+		// going the other way around may result in
+		// inconsistent statistics.
+		readmemstats_m(memStats)
+
+		// Read metrics again. We need to be sure we're on the
+		// system stack with readmemstats_m so that we don't call into
+		// the stack allocator and adjust metrics between there and here.
+		readMetricsLocked(samplesp, len, cap)
+
+		// Undo the donation.
+		getg().racectx = 0
+	})
+	metricsUnlock()
+
+	startTheWorld(stw)
+}
+
+var DoubleCheckReadMemStats = &doubleCheckReadMemStats
+
 // ReadMemStatsSlow returns both the runtime-computed MemStats and
 // MemStats accumulated by scanning the heap.
 func ReadMemStatsSlow() (base, slow MemStats) {
-	stopTheWorld("ReadMemStatsSlow")
+	stw := stopTheWorld(stwForTestReadMemStatsSlow)
 
 	// Run on the system stack to avoid stack growth allocation.
 	systemstack(func() {
@@ -320,13 +371,16 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 		slow.Mallocs = 0
 		slow.Frees = 0
 		slow.HeapReleased = 0
-		var bySize [_NumSizeClasses]struct {
+		var bySize [gc.NumSizeClasses]struct {
 			Mallocs, Frees uint64
 		}
 
 		// Add up current allocations in spans.
 		for _, s := range mheap_.allspans {
 			if s.state.get() != mSpanInUse {
+				continue
+			}
+			if s.isUnusedUserArenaChunk() {
 				continue
 			}
 			if sizeclass := s.spanclass.sizeclass(); sizeclass == 0 {
@@ -339,20 +393,22 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			}
 		}
 
-		// Add in frees. readmemstats_m flushed the cached stats, so
-		// these are up-to-date.
+		// Add in frees by just reading the stats for those directly.
+		var m heapStatsDelta
+		memstats.heapStats.unsafeRead(&m)
+
+		// Collect per-sizeclass free stats.
 		var smallFree uint64
-		slow.Frees = mheap_.nlargefree
-		for i := range mheap_.nsmallfree {
-			slow.Frees += mheap_.nsmallfree[i]
-			bySize[i].Frees = mheap_.nsmallfree[i]
-			bySize[i].Mallocs += mheap_.nsmallfree[i]
-			smallFree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
+		for i := 0; i < gc.NumSizeClasses; i++ {
+			slow.Frees += m.smallFreeCount[i]
+			bySize[i].Frees += m.smallFreeCount[i]
+			bySize[i].Mallocs += m.smallFreeCount[i]
+			smallFree += m.smallFreeCount[i] * uint64(gc.SizeClassToSize[i])
 		}
-		slow.Frees += memstats.tinyallocs
+		slow.Frees += m.tinyAllocCount + m.largeFreeCount
 		slow.Mallocs += slow.Frees
 
-		slow.TotalAlloc = slow.Alloc + mheap_.largefree + smallFree
+		slow.TotalAlloc = slow.Alloc + m.largeFree + smallFree
 
 		for i := range slow.BySize {
 			slow.BySize[i].Mallocs = bySize[i].Mallocs
@@ -360,22 +416,41 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 		}
 
 		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
-			pg := mheap_.pages.chunkOf(i).scavenged.popcntRange(0, pallocChunkPages)
+			chunk := mheap_.pages.tryChunkOf(i)
+			if chunk == nil {
+				continue
+			}
+			pg := chunk.scavenged.popcntRange(0, pallocChunkPages)
 			slow.HeapReleased += uint64(pg) * pageSize
 		}
 		for _, p := range allp {
-			pg := sys.OnesCount64(p.pcache.scav)
+			// Only count scav bits for pages in the cache
+			pg := sys.OnesCount64(p.pcache.cache & p.pcache.scav)
 			slow.HeapReleased += uint64(pg) * pageSize
 		}
-
-		// Unused space in the current arena also counts as released space.
-		slow.HeapReleased += uint64(mheap_.curArena.end - mheap_.curArena.base)
 
 		getg().m.mallocing--
 	})
 
-	startTheWorld()
+	startTheWorld(stw)
 	return
+}
+
+// ShrinkStackAndVerifyFramePointers attempts to shrink the stack of the current goroutine
+// and verifies that unwinding the new stack doesn't crash, even if the old
+// stack has been freed or reused (simulated via poisoning).
+func ShrinkStackAndVerifyFramePointers() {
+	before := stackPoisonCopy
+	defer func() { stackPoisonCopy = before }()
+	stackPoisonCopy = 1
+
+	gp := getg()
+	systemstack(func() {
+		shrinkstack(gp)
+	})
+	// If our new stack contains frame pointers into the old stack, this will
+	// crash because the old stack has been poisoned.
+	FPCallers(make([]uintptr, 1024))
 }
 
 // BlockOnSystemStack switches to the system stack, prints "x\n" to
@@ -395,6 +470,10 @@ type RWMutex struct {
 	rw rwmutex
 }
 
+func (rw *RWMutex) Init() {
+	rw.rw.init(lockRankTestR, lockRankTestRInternal, lockRankTestW)
+}
+
 func (rw *RWMutex) RLock() {
 	rw.rw.rlock()
 }
@@ -411,37 +490,27 @@ func (rw *RWMutex) Unlock() {
 	rw.rw.unlock()
 }
 
-const RuntimeHmapSize = unsafe.Sizeof(hmap{})
-
-func MapBucketsCount(m map[int]int) int {
-	h := *(**hmap)(unsafe.Pointer(&m))
-	return 1 << h.B
-}
-
-func MapBucketsPointerIsNil(m map[int]int) bool {
-	h := *(**hmap)(unsafe.Pointer(&m))
-	return h.buckets == nil
-}
-
 func LockOSCounts() (external, internal uint32) {
-	g := getg()
-	if g.m.lockedExt+g.m.lockedInt == 0 {
-		if g.lockedm != 0 {
+	gp := getg()
+	if gp.m.lockedExt+gp.m.lockedInt == 0 {
+		if gp.lockedm != 0 {
 			panic("lockedm on non-locked goroutine")
 		}
 	} else {
-		if g.lockedm == 0 {
+		if gp.lockedm == 0 {
 			panic("nil lockedm on locked goroutine")
 		}
 	}
-	return g.m.lockedExt, g.m.lockedInt
+	return gp.m.lockedExt, gp.m.lockedInt
 }
 
 //go:noinline
 func TracebackSystemstack(stk []uintptr, i int) int {
 	if i == 0 {
-		pc, sp := getcallerpc(), getcallersp()
-		return gentraceback(pc, sp, 0, getg(), 0, &stk[0], len(stk), nil, nil, _TraceJumpStack)
+		pc, sp := sys.GetCallerPC(), sys.GetCallerSP()
+		var u unwinder
+		u.initAt(pc, sp, 0, getg(), unwindJumpStack) // Don't ignore errors, for testing
+		return tracebackPCs(&u, 0, stk)
 	}
 	n := 0
 	systemstack(func() {
@@ -464,7 +533,10 @@ func KeepNArenaHints(n int) {
 // MapNextArenaHint reserves a page at the next arena growth hint,
 // preventing the arena from growing there, and returns the range of
 // addresses that are no longer viable.
-func MapNextArenaHint() (start, end uintptr) {
+//
+// This may fail to reserve memory. If it fails, it still returns the
+// address range it attempted to reserve.
+func MapNextArenaHint() (start, end uintptr, ok bool) {
 	hint := mheap_.arenaHints
 	addr := hint.addr
 	if hint.down {
@@ -473,19 +545,42 @@ func MapNextArenaHint() (start, end uintptr) {
 	} else {
 		start, end = addr, addr+heapArenaBytes
 	}
-	sysReserve(unsafe.Pointer(addr), physPageSize)
+	got := sysReserve(unsafe.Pointer(addr), physPageSize, "")
+	ok = (addr == uintptr(got))
+	if !ok {
+		// We were unable to get the requested reservation.
+		// Release what we did get and fail.
+		sysFreeOS(got, physPageSize)
+	}
 	return
 }
 
-func GetNextArenaHint() uintptr {
-	return mheap_.arenaHints.addr
+func NextArenaHint() (uintptr, bool) {
+	if mheap_.arenaHints == nil {
+		return 0, false
+	}
+	return mheap_.arenaHints.addr, true
 }
 
 type G = g
 
+type Sudog = sudog
+
+type XRegPerG = xRegPerG
+
 func Getg() *G {
 	return getg()
 }
+
+func Goid() uint64 {
+	return getg().goid
+}
+
+func GIsWaitingOnMutex(gp *G) bool {
+	return readgstatus(gp) == _Gwaiting && gp.waitreason.isMutexWait()
+}
+
+var CasGStatusAlwaysTrack = &casgstatusAlwaysTrack
 
 //go:noinline
 func PanicForTesting(b []byte, i int) byte {
@@ -499,6 +594,15 @@ func unexportedPanicForTesting(b []byte, i int) byte {
 
 func G0StackOverflow() {
 	systemstack(func() {
+		g0 := getg()
+		sp := sys.GetCallerSP()
+		// The stack bounds for g0 stack is not always precise.
+		// Use an artificially small stack, to trigger a stack overflow
+		// without actually run out of the system stack (which may seg fault).
+		g0.stack.lo = sp - 4096 - stackSystem
+		g0.stackguard0 = g0.stack.lo + stackGuard
+		g0.stackguard1 = g0.stackguard0
+
 		stackOverflow(nil)
 	})
 }
@@ -506,42 +610,6 @@ func G0StackOverflow() {
 func stackOverflow(x *byte) {
 	var buf [256]byte
 	stackOverflow(&buf[0])
-}
-
-func MapTombstoneCheck(m map[int]int) {
-	// Make sure emptyOne and emptyRest are distributed correctly.
-	// We should have a series of filled and emptyOne cells, followed by
-	// a series of emptyRest cells.
-	h := *(**hmap)(unsafe.Pointer(&m))
-	i := interface{}(m)
-	t := *(**maptype)(unsafe.Pointer(&i))
-
-	for x := 0; x < 1<<h.B; x++ {
-		b0 := (*bmap)(add(h.buckets, uintptr(x)*uintptr(t.bucketsize)))
-		n := 0
-		for b := b0; b != nil; b = b.overflow(t) {
-			for i := 0; i < bucketCnt; i++ {
-				if b.tophash[i] != emptyRest {
-					n++
-				}
-			}
-		}
-		k := 0
-		for b := b0; b != nil; b = b.overflow(t) {
-			for i := 0; i < bucketCnt; i++ {
-				if k < n && b.tophash[i] == emptyRest {
-					panic("early emptyRest")
-				}
-				if k >= n && b.tophash[i] != emptyRest {
-					panic("late non-emptyRest")
-				}
-				if k == n-1 && b.tophash[i] == emptyOne {
-					panic("last non-emptyRest entry is emptyOne")
-				}
-				k++
-			}
-		}
-	}
 }
 
 func RunGetgThreadSwitchTest() {
@@ -578,6 +646,34 @@ func RunGetgThreadSwitchTest() {
 	}
 }
 
+// Expose freegc for testing.
+func Freegc(p unsafe.Pointer, size uintptr, noscan bool) {
+	freegc(p, size, noscan)
+}
+
+// Expose gcAssistBytes for the current g for testing.
+func AssistCredit() int64 {
+	assistG := getg()
+	if assistG.m.curg != nil {
+		assistG = assistG.m.curg
+	}
+	return assistG.gcAssistBytes
+}
+
+// Expose gcBlackenEnabled for testing.
+func GcBlackenEnable() bool {
+	// Note we do a non-atomic load here.
+	// Some checks against gcBlackenEnabled (e.g., in mallocgc)
+	// are currently done via non-atomic load for performance reasons,
+	// but other checks are done via atomic load (e.g., in mgcmark.go),
+	// so interpreting this value in a test may be subtle.
+	return gcBlackenEnabled != 0
+}
+
+const SizeSpecializedMallocEnabled = sizeSpecializedMallocEnabled
+
+const RuntimeFreegcEnabled = runtimeFreegcEnabled
+
 const (
 	PageSize         = pageSize
 	PallocChunkPages = pallocChunkPages
@@ -607,7 +703,7 @@ func (b *PallocBits) PopcntRange(i, n uint) uint { return (*pageBits)(b).popcntR
 // SummarizeSlow is a slow but more obviously correct implementation
 // of (*pallocBits).summarize. Used for testing.
 func SummarizeSlow(b *PallocBits) PallocSum {
-	var start, max, end uint
+	var start, most, end uint
 
 	const N = uint(len(b)) * 64
 	for start < N && (*pageBits)(b).get(start) == 0 {
@@ -623,11 +719,9 @@ func SummarizeSlow(b *PallocBits) PallocSum {
 		} else {
 			run = 0
 		}
-		if run > max {
-			max = run
-		}
+		most = max(most, run)
 	}
-	return PackPallocSum(start, max, end)
+	return PackPallocSum(start, most, end)
 }
 
 // Expose non-trivial helpers for testing.
@@ -711,7 +805,16 @@ func (c *PageCache) Alloc(npages uintptr) (uintptr, uintptr) {
 	return (*pageCache)(c).alloc(npages)
 }
 func (c *PageCache) Flush(s *PageAlloc) {
-	(*pageCache)(c).flush((*pageAlloc)(s))
+	cp := (*pageCache)(c)
+	sp := (*pageAlloc)(s)
+
+	systemstack(func() {
+		// None of the tests need any higher-level locking, so we just
+		// take the lock internally.
+		lock(sp.mheapLock)
+		cp.flush(sp)
+		unlock(sp.mheapLock)
+	})
 }
 
 // Expose chunk index type.
@@ -722,30 +825,56 @@ type ChunkIdx chunkIdx
 type PageAlloc pageAlloc
 
 func (p *PageAlloc) Alloc(npages uintptr) (uintptr, uintptr) {
-	return (*pageAlloc)(p).alloc(npages)
+	pp := (*pageAlloc)(p)
+
+	var addr, scav uintptr
+	systemstack(func() {
+		// None of the tests need any higher-level locking, so we just
+		// take the lock internally.
+		lock(pp.mheapLock)
+		addr, scav = pp.alloc(npages)
+		unlock(pp.mheapLock)
+	})
+	return addr, scav
 }
 func (p *PageAlloc) AllocToCache() PageCache {
-	return PageCache((*pageAlloc)(p).allocToCache())
+	pp := (*pageAlloc)(p)
+
+	var c PageCache
+	systemstack(func() {
+		// None of the tests need any higher-level locking, so we just
+		// take the lock internally.
+		lock(pp.mheapLock)
+		c = PageCache(pp.allocToCache())
+		unlock(pp.mheapLock)
+	})
+	return c
 }
 func (p *PageAlloc) Free(base, npages uintptr) {
-	(*pageAlloc)(p).free(base, npages)
+	pp := (*pageAlloc)(p)
+
+	systemstack(func() {
+		// None of the tests need any higher-level locking, so we just
+		// take the lock internally.
+		lock(pp.mheapLock)
+		pp.free(base, npages)
+		unlock(pp.mheapLock)
+	})
 }
 func (p *PageAlloc) Bounds() (ChunkIdx, ChunkIdx) {
 	return ChunkIdx((*pageAlloc)(p).start), ChunkIdx((*pageAlloc)(p).end)
 }
-func (p *PageAlloc) Scavenge(nbytes uintptr, locked bool) (r uintptr) {
+func (p *PageAlloc) Scavenge(nbytes uintptr) (r uintptr) {
+	pp := (*pageAlloc)(p)
 	systemstack(func() {
-		r = (*pageAlloc)(p).scavenge(nbytes, locked)
+		r = pp.scavenge(nbytes, nil, true)
 	})
 	return
 }
 func (p *PageAlloc) InUse() []AddrRange {
 	ranges := make([]AddrRange, 0, len(p.inUse.ranges))
 	for _, r := range p.inUse.ranges {
-		ranges = append(ranges, AddrRange{
-			Base:  r.base,
-			Limit: r.limit,
-		})
+		ranges = append(ranges, AddrRange{r})
 	}
 	return ranges
 }
@@ -753,17 +882,120 @@ func (p *PageAlloc) InUse() []AddrRange {
 // Returns nil if the PallocData's L2 is missing.
 func (p *PageAlloc) PallocData(i ChunkIdx) *PallocData {
 	ci := chunkIdx(i)
-	l2 := (*pageAlloc)(p).chunks[ci.l1()]
-	if l2 == nil {
-		return nil
-	}
-	return (*PallocData)(&l2[ci.l2()])
+	return (*PallocData)((*pageAlloc)(p).tryChunkOf(ci))
 }
 
-// AddrRange represents a range over addresses.
-// Specifically, it represents the range [Base, Limit).
+// AddrRange is a wrapper around addrRange for testing.
 type AddrRange struct {
-	Base, Limit uintptr
+	addrRange
+}
+
+// MakeAddrRange creates a new address range.
+func MakeAddrRange(base, limit uintptr) AddrRange {
+	return AddrRange{makeAddrRange(base, limit)}
+}
+
+// Base returns the virtual base address of the address range.
+func (a AddrRange) Base() uintptr {
+	return a.addrRange.base.addr()
+}
+
+// Base returns the virtual address of the limit of the address range.
+func (a AddrRange) Limit() uintptr {
+	return a.addrRange.limit.addr()
+}
+
+// Equals returns true if the two address ranges are exactly equal.
+func (a AddrRange) Equals(b AddrRange) bool {
+	return a == b
+}
+
+// Size returns the size in bytes of the address range.
+func (a AddrRange) Size() uintptr {
+	return a.addrRange.size()
+}
+
+// testSysStat is the sysStat passed to test versions of various
+// runtime structures. We do actually have to keep track of this
+// because otherwise memstats.mappedReady won't actually line up
+// with other stats in the runtime during tests.
+var testSysStat = &memstats.other_sys
+
+// AddrRanges is a wrapper around addrRanges for testing.
+type AddrRanges struct {
+	addrRanges
+	mutable bool
+}
+
+// NewAddrRanges creates a new empty addrRanges.
+//
+// Note that this initializes addrRanges just like in the
+// runtime, so its memory is persistentalloc'd. Call this
+// function sparingly since the memory it allocates is
+// leaked.
+//
+// This AddrRanges is mutable, so we can test methods like
+// Add.
+func NewAddrRanges() AddrRanges {
+	r := addrRanges{}
+	r.init(testSysStat)
+	return AddrRanges{r, true}
+}
+
+// MakeAddrRanges creates a new addrRanges populated with
+// the ranges in a.
+//
+// The returned AddrRanges is immutable, so methods like
+// Add will fail.
+func MakeAddrRanges(a ...AddrRange) AddrRanges {
+	// Methods that manipulate the backing store of addrRanges.ranges should
+	// not be used on the result from this function (e.g. add) since they may
+	// trigger reallocation. That would normally be fine, except the new
+	// backing store won't come from the heap, but from persistentalloc, so
+	// we'll leak some memory implicitly.
+	ranges := make([]addrRange, 0, len(a))
+	total := uintptr(0)
+	for _, r := range a {
+		ranges = append(ranges, r.addrRange)
+		total += r.Size()
+	}
+	return AddrRanges{addrRanges{
+		ranges:     ranges,
+		totalBytes: total,
+		sysStat:    testSysStat,
+	}, false}
+}
+
+// Ranges returns a copy of the ranges described by the
+// addrRanges.
+func (a *AddrRanges) Ranges() []AddrRange {
+	result := make([]AddrRange, 0, len(a.addrRanges.ranges))
+	for _, r := range a.addrRanges.ranges {
+		result = append(result, AddrRange{r})
+	}
+	return result
+}
+
+// FindSucc returns the successor to base. See addrRanges.findSucc
+// for more details.
+func (a *AddrRanges) FindSucc(base uintptr) int {
+	return a.findSucc(base)
+}
+
+// Add adds a new AddrRange to the AddrRanges.
+//
+// The AddrRange must be mutable (i.e. created by NewAddrRanges),
+// otherwise this method will throw.
+func (a *AddrRanges) Add(r AddrRange) {
+	if !a.mutable {
+		throw("attempt to mutate immutable AddrRanges")
+	}
+	a.add(r.addrRange)
+}
+
+// TotalBytes returns the totalBytes field of the addrRanges.
+func (a *AddrRanges) TotalBytes() uintptr {
+	return a.addrRanges.totalBytes
 }
 
 // BitRange represents a range over a bitmap.
@@ -789,20 +1021,30 @@ func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
 	p := new(pageAlloc)
 
 	// We've got an entry, so initialize the pageAlloc.
-	p.init(new(mutex), nil)
-	p.test = true
-
+	p.init(new(mutex), testSysStat, true)
+	lockInit(p.mheapLock, lockRankMheap)
 	for i, init := range chunks {
 		addr := chunkBase(chunkIdx(i))
 
 		// Mark the chunk's existence in the pageAlloc.
-		p.grow(addr, pallocChunkBytes)
+		systemstack(func() {
+			lock(p.mheapLock)
+			p.grow(addr, pallocChunkBytes)
+			unlock(p.mheapLock)
+		})
 
 		// Initialize the bitmap and update pageAlloc metadata.
-		chunk := p.chunkOf(chunkIndex(addr))
+		ci := chunkIndex(addr)
+		chunk := p.chunkOf(ci)
 
 		// Clear all the scavenged bits which grow set.
 		chunk.scavenged.clearRange(0, pallocChunkPages)
+
+		// Simulate the allocation and subsequent free of all pages in
+		// the chunk for the scavenge index. This sets the state equivalent
+		// with all pages within the index being free.
+		p.scav.index.alloc(ci, pallocChunkPages)
+		p.scav.index.free(ci, 0, pallocChunkPages)
 
 		// Apply scavenge state if applicable.
 		if scav != nil {
@@ -816,7 +1058,6 @@ func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
 				}
 			}
 		}
-		p.resetScavengeAddr()
 
 		// Apply alloc state.
 		for _, s := range init {
@@ -824,12 +1065,20 @@ func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
 			// it and it's a no-op anyway.
 			if s.N != 0 {
 				chunk.allocRange(s.I, s.N)
+
+				// Make sure the scavenge index is updated.
+				p.scav.index.alloc(ci, s.N)
 			}
 		}
 
 		// Update heap metadata for the allocRange calls above.
-		p.update(addr, pallocChunkPages, false, false)
+		systemstack(func() {
+			lock(p.mheapLock)
+			p.update(addr, pallocChunkPages, false, false)
+			unlock(p.mheapLock)
+		})
 	}
+
 	return (*PageAlloc)(p)
 }
 
@@ -842,22 +1091,32 @@ func FreePageAlloc(pp *PageAlloc) {
 	// Free all the mapped space for the summary levels.
 	if pageAlloc64Bit != 0 {
 		for l := 0; l < summaryLevels; l++ {
-			sysFree(unsafe.Pointer(&p.summary[l][0]), uintptr(cap(p.summary[l]))*pallocSumBytes, nil)
+			sysFreeOS(unsafe.Pointer(&p.summary[l][0]), uintptr(cap(p.summary[l]))*pallocSumBytes)
 		}
 	} else {
 		resSize := uintptr(0)
 		for _, s := range p.summary {
 			resSize += uintptr(cap(s)) * pallocSumBytes
 		}
-		sysFree(unsafe.Pointer(&p.summary[0][0]), alignUp(resSize, physPageSize), nil)
+		sysFreeOS(unsafe.Pointer(&p.summary[0][0]), alignUp(resSize, physPageSize))
 	}
+
+	// Free extra data structures.
+	sysFreeOS(unsafe.Pointer(&p.scav.index.chunks[0]), uintptr(cap(p.scav.index.chunks))*unsafe.Sizeof(atomicScavChunkData{}))
+
+	// Subtract back out whatever we mapped for the summaries.
+	// sysUsed adds to p.sysStat and memstats.mappedReady no matter what
+	// (and in anger should actually be accounted for), and there's no other
+	// way to figure out how much we actually mapped.
+	gcController.mappedReady.Add(-int64(p.summaryMappedReady))
+	testSysStat.add(-int64(p.summaryMappedReady))
 
 	// Free the mapped space for chunks.
 	for i := range p.chunks {
 		if x := p.chunks[i]; x != nil {
 			p.chunks[i] = nil
 			// This memory comes from sysAlloc and will always be page-aligned.
-			sysFree(unsafe.Pointer(x), unsafe.Sizeof(*p.chunks[0]), nil)
+			sysFree(unsafe.Pointer(x), unsafe.Sizeof(*p.chunks[0]), testSysStat)
 		}
 	}
 }
@@ -866,13 +1125,21 @@ func FreePageAlloc(pp *PageAlloc) {
 // 64 bit and 32 bit platforms, allowing the tests to share code
 // between the two.
 //
-// On AIX, the arenaBaseOffset is 0x0a00000000000000. However, this
-// constant can't be used here because it is negative and will cause
-// a constant overflow.
-//
 // This should not be higher than 0x100*pallocChunkBytes to support
 // mips and mipsle, which only have 31-bit address spaces.
-var BaseChunkIdx = ChunkIdx(chunkIndex(((0xc000*pageAlloc64Bit + 0x100*pageAlloc32Bit) * pallocChunkBytes) + 0x0a00000000000000*sys.GoosAix))
+var BaseChunkIdx = func() ChunkIdx {
+	var prefix uintptr
+	if pageAlloc64Bit != 0 {
+		prefix = 0xc000
+	} else {
+		prefix = 0x100
+	}
+	baseAddr := prefix * pallocChunkBytes
+	if goos.IsAix != 0 {
+		baseAddr += arenaBaseOffset
+	}
+	return ChunkIdx(chunkIndex(baseAddr))
+}()
 
 // PageBase returns an address given a chunk index and a page index
 // relative to that chunk.
@@ -894,9 +1161,14 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 
 		// Lock so that we can safely access the bitmap.
 		lock(&mheap_.lock)
+
 	chunkLoop:
 		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
-			chunk := mheap_.pages.chunkOf(i)
+			chunk := mheap_.pages.tryChunkOf(i)
+			if chunk == nil {
+				continue
+			}
+			cb := chunkBase(i)
 			for j := 0; j < pallocChunkPages/64; j++ {
 				// Run over each 64-bit bitmap section and ensure
 				// scavenged is being cleared properly on allocation.
@@ -911,7 +1183,7 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 						break chunkLoop
 					}
 					mismatches[n] = BitsMismatch{
-						Base: chunkBase(i) + uintptr(j)*64*pageSize,
+						Base: cb + uintptr(j)*64*pageSize,
 						Got:  got,
 						Want: want,
 					}
@@ -923,11 +1195,42 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 
 		getg().m.mallocing--
 	})
+
+	if randomizeHeapBase && len(mismatches) > 0 {
+		// When goexperiment.RandomizedHeapBase64 is set we use a series of
+		// padding pages to generate randomized heap base address which have
+		// both the alloc and scav bits set. Because of this we expect exactly
+		// one arena will have mismatches, so check for that explicitly and
+		// remove the mismatches if that property holds. If we see more than one
+		// arena with this property, that is an indication something has
+		// actually gone wrong, so return the mismatches.
+		//
+		// We do this, instead of ignoring the mismatches in the chunkLoop, because
+		// it's not easy to determine which arena we added the padding pages to
+		// programmatically, without explicitly recording the base address somewhere
+		// in a global variable (which we'd rather not do as the address of that variable
+		// is likely to be somewhat predictable, potentially defeating the purpose
+		// of our randomization).
+		affectedArenas := map[arenaIdx]bool{}
+		for _, mismatch := range mismatches {
+			if mismatch.Base > 0 {
+				affectedArenas[arenaIndex(mismatch.Base)] = true
+			}
+		}
+		if len(affectedArenas) == 1 {
+			ok = true
+			// zero the mismatches
+			for i := range n {
+				mismatches[i] = BitsMismatch{}
+			}
+		}
+	}
+
 	return
 }
 
 func PageCachePagesLeaked() (leaked uintptr) {
-	stopTheWorld("PageCachePagesLeaked")
+	stw := stopTheWorld(stwForTestPageCachePagesLeaked)
 
 	// Walk over destroyed Ps and look for unflushed caches.
 	deadp := allp[len(allp):cap(allp)]
@@ -939,47 +1242,849 @@ func PageCachePagesLeaked() (leaked uintptr) {
 		}
 	}
 
-	startTheWorld()
+	startTheWorld(stw)
 	return
+}
+
+var ProcYield = procyield
+var OSYield = osyield
+
+type Mutex = mutex
+
+var Lock = lock
+var Unlock = unlock
+
+var MutexContended = mutexContended
+
+func SemRootLock(addr *uint32) *mutex {
+	root := semtable.rootFor(addr)
+	return &root.lock
 }
 
 var Semacquire = semacquire
 var Semrelease1 = semrelease1
 
 func SemNwait(addr *uint32) uint32 {
-	root := semroot(addr)
-	return atomic.Load(&root.nwait)
+	root := semtable.rootFor(addr)
+	return root.nwait.Load()
 }
 
-// MapHashCheck computes the hash of the key k for the map m, twice.
-// Method 1 uses the built-in hasher for the map.
-// Method 2 uses the typehash function (the one used by reflect).
-// Returns the two hash values, which should always be equal.
-func MapHashCheck(m interface{}, k interface{}) (uintptr, uintptr) {
-	// Unpack m.
-	mt := (*maptype)(unsafe.Pointer(efaceOf(&m)._type))
-	mh := (*hmap)(efaceOf(&m).data)
+const SemTableSize = semTabSize
 
-	// Unpack k.
-	kt := efaceOf(&k)._type
-	var p unsafe.Pointer
-	if isDirectIface(kt) {
-		q := efaceOf(&k).data
-		p = unsafe.Pointer(&q)
+// SemTable is a wrapper around semTable exported for testing.
+type SemTable struct {
+	semTable
+}
+
+// Enqueue simulates enqueuing a waiter for a semaphore (or lock) at addr.
+func (t *SemTable) Enqueue(addr *uint32) {
+	s := acquireSudog()
+	s.releasetime = 0
+	s.acquiretime = 0
+	s.ticket = 0
+	t.semTable.rootFor(addr).queue(addr, s, false)
+}
+
+// Dequeue simulates dequeuing a waiter for a semaphore (or lock) at addr.
+//
+// Returns true if there actually was a waiter to be dequeued.
+func (t *SemTable) Dequeue(addr *uint32) bool {
+	s, _, _ := t.semTable.rootFor(addr).dequeue(addr)
+	if s != nil {
+		releaseSudog(s)
+		return true
+	}
+	return false
+}
+
+// mspan wrapper for testing.
+type MSpan mspan
+
+// Allocate an mspan for testing.
+func AllocMSpan() *MSpan {
+	var s *mspan
+	systemstack(func() {
+		lock(&mheap_.lock)
+		s = (*mspan)(mheap_.spanalloc.alloc())
+		s.init(0, 0)
+		unlock(&mheap_.lock)
+	})
+	return (*MSpan)(s)
+}
+
+// Free an allocated mspan.
+func FreeMSpan(s *MSpan) {
+	systemstack(func() {
+		lock(&mheap_.lock)
+		mheap_.spanalloc.free(unsafe.Pointer(s))
+		unlock(&mheap_.lock)
+	})
+}
+
+func MSpanCountAlloc(ms *MSpan, bits []byte) int {
+	s := (*mspan)(ms)
+	s.nelems = uint16(len(bits) * 8)
+	s.gcmarkBits = (*gcBits)(unsafe.Pointer(&bits[0]))
+	result := s.countAlloc()
+	s.gcmarkBits = nil
+	return result
+}
+
+const (
+	TimeHistSubBucketBits = timeHistSubBucketBits
+	TimeHistNumSubBuckets = timeHistNumSubBuckets
+	TimeHistNumBuckets    = timeHistNumBuckets
+	TimeHistMinBucketBits = timeHistMinBucketBits
+	TimeHistMaxBucketBits = timeHistMaxBucketBits
+)
+
+type TimeHistogram timeHistogram
+
+// Count returns the counts for the given bucket, subBucket indices.
+// Returns true if the bucket was valid, otherwise returns the counts
+// for the overflow bucket if bucket > 0 or the underflow bucket if
+// bucket < 0, and false.
+func (th *TimeHistogram) Count(bucket, subBucket int) (uint64, bool) {
+	t := (*timeHistogram)(th)
+	if bucket < 0 {
+		return t.underflow.Load(), false
+	}
+	i := bucket*TimeHistNumSubBuckets + subBucket
+	if i >= len(t.counts) {
+		return t.overflow.Load(), false
+	}
+	return t.counts[i].Load(), true
+}
+
+func (th *TimeHistogram) Record(duration int64) {
+	(*timeHistogram)(th).record(duration)
+}
+
+var TimeHistogramMetricsBuckets = timeHistogramMetricsBuckets
+
+func SetIntArgRegs(a int) int {
+	lock(&finlock)
+	old := intArgRegs
+	if a >= 0 {
+		intArgRegs = a
+	}
+	unlock(&finlock)
+	return old
+}
+
+func FinalizerGAsleep() bool {
+	return fingStatus.Load()&fingWait != 0
+}
+
+// For GCTestMoveStackOnNextCall, it's important not to introduce an
+// extra layer of call, since then there's a return before the "real"
+// next call.
+var GCTestMoveStackOnNextCall = gcTestMoveStackOnNextCall
+
+// For GCTestIsReachable, it's important that we do this as a call so
+// escape analysis can see through it.
+func GCTestIsReachable(ptrs ...unsafe.Pointer) (mask uint64) {
+	return gcTestIsReachable(ptrs...)
+}
+
+// For GCTestPointerClass, it's important that we do this as a call so
+// escape analysis can see through it.
+//
+// This is nosplit because gcTestPointerClass is.
+//
+//go:nosplit
+func GCTestPointerClass(p unsafe.Pointer) string {
+	return gcTestPointerClass(p)
+}
+
+const Raceenabled = raceenabled
+
+const (
+	GCBackgroundUtilization            = gcBackgroundUtilization
+	GCGoalUtilization                  = gcGoalUtilization
+	DefaultHeapMinimum                 = defaultHeapMinimum
+	MemoryLimitHeapGoalHeadroomPercent = memoryLimitHeapGoalHeadroomPercent
+	MemoryLimitMinHeapGoalHeadroom     = memoryLimitMinHeapGoalHeadroom
+)
+
+type GCController struct {
+	gcControllerState
+}
+
+func NewGCController(gcPercent int, memoryLimit int64) *GCController {
+	// Force the controller to escape. We're going to
+	// do 64-bit atomics on it, and if it gets stack-allocated
+	// on a 32-bit architecture, it may get allocated unaligned
+	// space.
+	g := Escape(new(GCController))
+	g.gcControllerState.test = true // Mark it as a test copy.
+	g.init(int32(gcPercent), memoryLimit)
+	return g
+}
+
+func (c *GCController) StartCycle(stackSize, globalsSize uint64, scannableFrac float64, gomaxprocs int) {
+	trigger, _ := c.trigger()
+	if c.heapMarked > trigger {
+		trigger = c.heapMarked
+	}
+	c.maxStackScan.Store(stackSize)
+	c.globalsScan.Store(globalsSize)
+	c.heapLive.Store(trigger)
+	c.heapScan.Add(int64(float64(trigger-c.heapMarked) * scannableFrac))
+	c.startCycle(0, gomaxprocs, gcTrigger{kind: gcTriggerHeap})
+}
+
+func (c *GCController) AssistWorkPerByte() float64 {
+	return c.assistWorkPerByte.Load()
+}
+
+func (c *GCController) HeapGoal() uint64 {
+	return c.heapGoal()
+}
+
+func (c *GCController) HeapLive() uint64 {
+	return c.heapLive.Load()
+}
+
+func (c *GCController) HeapMarked() uint64 {
+	return c.heapMarked
+}
+
+func (c *GCController) Triggered() uint64 {
+	return c.triggered
+}
+
+type GCControllerReviseDelta struct {
+	HeapLive        int64
+	HeapScan        int64
+	HeapScanWork    int64
+	StackScanWork   int64
+	GlobalsScanWork int64
+}
+
+func (c *GCController) Revise(d GCControllerReviseDelta) {
+	c.heapLive.Add(d.HeapLive)
+	c.heapScan.Add(d.HeapScan)
+	c.heapScanWork.Add(d.HeapScanWork)
+	c.stackScanWork.Add(d.StackScanWork)
+	c.globalsScanWork.Add(d.GlobalsScanWork)
+	c.revise()
+}
+
+func (c *GCController) EndCycle(bytesMarked uint64, assistTime, elapsed int64, gomaxprocs int) {
+	c.assistTime.Store(assistTime)
+	c.endCycle(elapsed, gomaxprocs)
+	c.resetLive(bytesMarked)
+	c.commit(false)
+}
+
+func (c *GCController) AddIdleMarkWorker() bool {
+	return c.addIdleMarkWorker()
+}
+
+func (c *GCController) NeedIdleMarkWorker() bool {
+	return c.needIdleMarkWorker()
+}
+
+func (c *GCController) RemoveIdleMarkWorker() {
+	c.removeIdleMarkWorker()
+}
+
+func (c *GCController) SetMaxIdleMarkWorkers(max int32) {
+	c.setMaxIdleMarkWorkers(max)
+}
+
+var alwaysFalse bool
+var escapeSink any
+
+func Escape[T any](x T) T {
+	if alwaysFalse {
+		escapeSink = x
+	}
+	return x
+}
+
+// Acquirem blocks preemption.
+func Acquirem() {
+	acquirem()
+}
+
+func Releasem() {
+	releasem(getg().m)
+}
+
+// GoschedIfBusy is an explicit preemption check to call back
+// into the scheduler. This is useful for tests that run code
+// which spend most of their time as non-preemptible, as it
+// can be placed right after becoming preemptible again to ensure
+// that the scheduler gets a chance to preempt the goroutine.
+func GoschedIfBusy() {
+	goschedIfBusy()
+}
+
+type PIController struct {
+	piController
+}
+
+func NewPIController(kp, ti, tt, min, max float64) *PIController {
+	return &PIController{piController{
+		kp:  kp,
+		ti:  ti,
+		tt:  tt,
+		min: min,
+		max: max,
+	}}
+}
+
+func (c *PIController) Next(input, setpoint, period float64) (float64, bool) {
+	return c.piController.next(input, setpoint, period)
+}
+
+const (
+	CapacityPerProc          = capacityPerProc
+	GCCPULimiterUpdatePeriod = gcCPULimiterUpdatePeriod
+)
+
+type GCCPULimiter struct {
+	limiter gcCPULimiterState
+}
+
+func NewGCCPULimiter(now int64, gomaxprocs int32) *GCCPULimiter {
+	// Force the controller to escape. We're going to
+	// do 64-bit atomics on it, and if it gets stack-allocated
+	// on a 32-bit architecture, it may get allocated unaligned
+	// space.
+	l := Escape(new(GCCPULimiter))
+	l.limiter.test = true
+	l.limiter.resetCapacity(now, gomaxprocs)
+	return l
+}
+
+func (l *GCCPULimiter) Fill() uint64 {
+	return l.limiter.bucket.fill
+}
+
+func (l *GCCPULimiter) Capacity() uint64 {
+	return l.limiter.bucket.capacity
+}
+
+func (l *GCCPULimiter) Overflow() uint64 {
+	return l.limiter.overflow
+}
+
+func (l *GCCPULimiter) Limiting() bool {
+	return l.limiter.limiting()
+}
+
+func (l *GCCPULimiter) NeedUpdate(now int64) bool {
+	return l.limiter.needUpdate(now)
+}
+
+func (l *GCCPULimiter) StartGCTransition(enableGC bool, now int64) {
+	l.limiter.startGCTransition(enableGC, now)
+}
+
+func (l *GCCPULimiter) FinishGCTransition(now int64) {
+	l.limiter.finishGCTransition(now)
+}
+
+func (l *GCCPULimiter) Update(now int64) {
+	l.limiter.update(now)
+}
+
+func (l *GCCPULimiter) AddAssistTime(t int64) {
+	l.limiter.addAssistTime(t)
+}
+
+func (l *GCCPULimiter) ResetCapacity(now int64, nprocs int32) {
+	l.limiter.resetCapacity(now, nprocs)
+}
+
+const ScavengePercent = scavengePercent
+
+type Scavenger struct {
+	Sleep      func(int64) int64
+	Scavenge   func(uintptr) (uintptr, int64)
+	ShouldStop func() bool
+	GoMaxProcs func() int32
+
+	released  atomic.Uintptr
+	scavenger scavengerState
+	stop      chan<- struct{}
+	done      <-chan struct{}
+}
+
+func (s *Scavenger) Start() {
+	if s.Sleep == nil || s.Scavenge == nil || s.ShouldStop == nil || s.GoMaxProcs == nil {
+		panic("must populate all stubs")
+	}
+
+	// Install hooks.
+	s.scavenger.sleepStub = s.Sleep
+	s.scavenger.scavenge = s.Scavenge
+	s.scavenger.shouldStop = s.ShouldStop
+	s.scavenger.gomaxprocs = s.GoMaxProcs
+
+	// Start up scavenger goroutine, and wait for it to be ready.
+	stop := make(chan struct{})
+	s.stop = stop
+	done := make(chan struct{})
+	s.done = done
+	go func() {
+		// This should match bgscavenge, loosely.
+		s.scavenger.init()
+		s.scavenger.park()
+		for {
+			select {
+			case <-stop:
+				close(done)
+				return
+			default:
+			}
+			released, workTime := s.scavenger.run()
+			if released == 0 {
+				s.scavenger.park()
+				continue
+			}
+			s.released.Add(released)
+			s.scavenger.sleep(workTime)
+		}
+	}()
+	if !s.BlockUntilParked(1e9 /* 1 second */) {
+		panic("timed out waiting for scavenger to get ready")
+	}
+}
+
+// BlockUntilParked blocks until the scavenger parks, or until
+// timeout is exceeded. Returns true if the scavenger parked.
+//
+// Note that in testing, parked means something slightly different.
+// In anger, the scavenger parks to sleep, too, but in testing,
+// it only parks when it actually has no work to do.
+func (s *Scavenger) BlockUntilParked(timeout int64) bool {
+	// Just spin, waiting for it to park.
+	//
+	// The actual parking process is racy with respect to
+	// wakeups, which is fine, but for testing we need something
+	// a bit more robust.
+	start := nanotime()
+	for nanotime()-start < timeout {
+		lock(&s.scavenger.lock)
+		parked := s.scavenger.parked
+		unlock(&s.scavenger.lock)
+		if parked {
+			return true
+		}
+		Gosched()
+	}
+	return false
+}
+
+// Released returns how many bytes the scavenger released.
+func (s *Scavenger) Released() uintptr {
+	return s.released.Load()
+}
+
+// Wake wakes up a parked scavenger to keep running.
+func (s *Scavenger) Wake() {
+	s.scavenger.wake()
+}
+
+// Stop cleans up the scavenger's resources. The scavenger
+// must be parked for this to work.
+func (s *Scavenger) Stop() {
+	lock(&s.scavenger.lock)
+	parked := s.scavenger.parked
+	unlock(&s.scavenger.lock)
+	if !parked {
+		panic("tried to clean up scavenger that is not parked")
+	}
+	close(s.stop)
+	s.Wake()
+	<-s.done
+}
+
+type ScavengeIndex struct {
+	i scavengeIndex
+}
+
+func NewScavengeIndex(min, max ChunkIdx) *ScavengeIndex {
+	s := new(ScavengeIndex)
+	// This is a bit lazy but we easily guarantee we'll be able
+	// to reference all the relevant chunks. The worst-case
+	// memory usage here is 512 MiB, but tests generally use
+	// small offsets from BaseChunkIdx, which results in ~100s
+	// of KiB in memory use.
+	//
+	// This may still be worth making better, at least by sharing
+	// this fairly large array across calls with a sync.Pool or
+	// something. Currently, when the tests are run serially,
+	// it takes around 0.5s. Not all that much, but if we have
+	// a lot of tests like this it could add up.
+	s.i.chunks = make([]atomicScavChunkData, max)
+	s.i.min.Store(uintptr(min))
+	s.i.max.Store(uintptr(max))
+	s.i.minHeapIdx.Store(uintptr(min))
+	s.i.test = true
+	return s
+}
+
+func (s *ScavengeIndex) Find(force bool) (ChunkIdx, uint) {
+	ci, off := s.i.find(force)
+	return ChunkIdx(ci), off
+}
+
+func (s *ScavengeIndex) AllocRange(base, limit uintptr) {
+	sc, ec := chunkIndex(base), chunkIndex(limit-1)
+	si, ei := chunkPageIndex(base), chunkPageIndex(limit-1)
+
+	if sc == ec {
+		// The range doesn't cross any chunk boundaries.
+		s.i.alloc(sc, ei+1-si)
 	} else {
-		p = efaceOf(&k).data
+		// The range crosses at least one chunk boundary.
+		s.i.alloc(sc, pallocChunkPages-si)
+		for c := sc + 1; c < ec; c++ {
+			s.i.alloc(c, pallocChunkPages)
+		}
+		s.i.alloc(ec, ei+1)
 	}
-
-	// Compute the hash functions.
-	x := mt.hasher(noescape(p), uintptr(mh.hash0))
-	y := typehash(kt, noescape(p), uintptr(mh.hash0))
-	return x, y
 }
 
-func MSpanCountAlloc(bits []byte) int {
-	s := mspan{
-		nelems:     uintptr(len(bits) * 8),
-		gcmarkBits: (*gcBits)(unsafe.Pointer(&bits[0])),
+func (s *ScavengeIndex) FreeRange(base, limit uintptr) {
+	sc, ec := chunkIndex(base), chunkIndex(limit-1)
+	si, ei := chunkPageIndex(base), chunkPageIndex(limit-1)
+
+	if sc == ec {
+		// The range doesn't cross any chunk boundaries.
+		s.i.free(sc, si, ei+1-si)
+	} else {
+		// The range crosses at least one chunk boundary.
+		s.i.free(sc, si, pallocChunkPages-si)
+		for c := sc + 1; c < ec; c++ {
+			s.i.free(c, 0, pallocChunkPages)
+		}
+		s.i.free(ec, 0, ei+1)
 	}
-	return s.countAlloc()
+}
+
+func (s *ScavengeIndex) ResetSearchAddrs() {
+	for _, a := range []*atomicOffAddr{&s.i.searchAddrBg, &s.i.searchAddrForce} {
+		addr, marked := a.Load()
+		if marked {
+			a.StoreUnmark(addr, addr)
+		}
+		a.Clear()
+	}
+	s.i.freeHWM = minOffAddr
+}
+
+func (s *ScavengeIndex) NextGen() {
+	s.i.nextGen()
+}
+
+func (s *ScavengeIndex) SetEmpty(ci ChunkIdx) {
+	s.i.setEmpty(chunkIdx(ci))
+}
+
+func CheckPackScavChunkData(gen uint32, inUse, lastInUse uint16, flags uint8) bool {
+	sc0 := scavChunkData{
+		gen:            gen,
+		inUse:          inUse,
+		lastInUse:      lastInUse,
+		scavChunkFlags: scavChunkFlags(flags),
+	}
+	scp := sc0.pack()
+	sc1 := unpackScavChunkData(scp)
+	return sc0 == sc1
+}
+
+const GTrackingPeriod = gTrackingPeriod
+
+var ZeroBase = unsafe.Pointer(&zerobase)
+
+const UserArenaChunkBytes = userArenaChunkBytes
+
+type UserArena struct {
+	arena *userArena
+}
+
+func NewUserArena() *UserArena {
+	return &UserArena{newUserArena()}
+}
+
+func (a *UserArena) New(out *any) {
+	i := efaceOf(out)
+	typ := i._type
+	if typ.Kind() != abi.Pointer {
+		panic("new result of non-ptr type")
+	}
+	typ = (*ptrtype)(unsafe.Pointer(typ)).Elem
+	i.data = a.arena.new(typ)
+}
+
+func (a *UserArena) Slice(sl any, cap int) {
+	a.arena.slice(sl, cap)
+}
+
+func (a *UserArena) Free() {
+	a.arena.free()
+}
+
+func GlobalWaitingArenaChunks() int {
+	n := 0
+	systemstack(func() {
+		lock(&mheap_.lock)
+		for s := mheap_.userArena.quarantineList.first; s != nil; s = s.next {
+			n++
+		}
+		unlock(&mheap_.lock)
+	})
+	return n
+}
+
+func UserArenaClone[T any](s T) T {
+	return arena_heapify(s).(T)
+}
+
+var AlignUp = alignUp
+
+func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
+	return blockUntilEmptyFinalizerQueue(timeout)
+}
+
+func BlockUntilEmptyCleanupQueue(timeout int64) bool {
+	return gcCleanups.blockUntilEmpty(timeout)
+}
+
+func FrameStartLine(f *Frame) int {
+	return f.startLine
+}
+
+// PersistentAlloc allocates some memory that lives outside the Go heap.
+// This memory will never be freed; use sparingly.
+func PersistentAlloc(n, align uintptr) unsafe.Pointer {
+	return persistentalloc(n, align, &memstats.other_sys)
+}
+
+const TagAlign = tagAlign
+
+// FPCallers works like Callers and uses frame pointer unwinding to populate
+// pcBuf with the return addresses of the physical frames on the stack.
+func FPCallers(pcBuf []uintptr) int {
+	return fpTracebackPCs(unsafe.Pointer(getfp()), pcBuf)
+}
+
+const FramePointerEnabled = framepointer_enabled
+
+var (
+	IsPinned      = isPinned
+	GetPinCounter = pinnerGetPinCounter
+)
+
+func SetPinnerLeakPanic(f func()) {
+	pinnerLeakPanic = f
+}
+func GetPinnerLeakPanic() func() {
+	return pinnerLeakPanic
+}
+
+var testUintptr uintptr
+
+func MyGenericFunc[T any]() {
+	systemstack(func() {
+		testUintptr = 4
+	})
+}
+
+func UnsafePoint(pc uintptr) bool {
+	fi := findfunc(pc)
+	v := pcdatavalue(fi, abi.PCDATA_UnsafePoint, pc)
+	switch v {
+	case abi.UnsafePointUnsafe:
+		return true
+	case abi.UnsafePointSafe:
+		return false
+	case abi.UnsafePointRestart1, abi.UnsafePointRestart2, abi.UnsafePointRestartAtEntry:
+		// These are all interruptible, they just encode a nonstandard
+		// way of recovering when interrupted.
+		return false
+	default:
+		var buf [20]byte
+		panic("invalid unsafe point code " + string(itoa(buf[:], uint64(v))))
+	}
+}
+
+type TraceMap struct {
+	traceMap
+}
+
+func (m *TraceMap) PutString(s string) (uint64, bool) {
+	return m.traceMap.put(unsafe.Pointer(unsafe.StringData(s)), uintptr(len(s)))
+}
+
+func (m *TraceMap) Reset() {
+	m.traceMap.reset()
+}
+
+func SetSpinInGCMarkDone(spin bool) {
+	gcDebugMarkDone.spinAfterRaggedBarrier.Store(spin)
+}
+
+func GCMarkDoneRestarted() bool {
+	// Only read this outside of the GC. If we're running during a GC, just report false.
+	mp := acquirem()
+	if gcphase != _GCoff {
+		releasem(mp)
+		return false
+	}
+	restarted := gcDebugMarkDone.restartedDueTo27993
+	releasem(mp)
+	return restarted
+}
+
+func GCMarkDoneResetRestartFlag() {
+	mp := acquirem()
+	for gcphase != _GCoff {
+		releasem(mp)
+		Gosched()
+		mp = acquirem()
+	}
+	gcDebugMarkDone.restartedDueTo27993 = false
+	releasem(mp)
+}
+
+type BitCursor struct {
+	b bitCursor
+}
+
+func NewBitCursor(buf *byte) BitCursor {
+	return BitCursor{b: bitCursor{ptr: buf, n: 0}}
+}
+
+func (b BitCursor) Write(data *byte, cnt uintptr) {
+	b.b.write(data, cnt)
+}
+func (b BitCursor) Offset(cnt uintptr) BitCursor {
+	return BitCursor{b: b.b.offset(cnt)}
+}
+
+const (
+	BubbleAssocUnbubbled     = bubbleAssocUnbubbled
+	BubbleAssocCurrentBubble = bubbleAssocCurrentBubble
+	BubbleAssocOtherBubble   = bubbleAssocOtherBubble
+)
+
+type TraceStackTable traceStackTable
+
+func (t *TraceStackTable) Reset() {
+	t.tab.reset()
+}
+
+func TraceStack(gp *G, tab *TraceStackTable) {
+	traceStack(0, gp, (*traceStackTable)(tab))
+}
+
+var X86HasAVX = &x86HasAVX
+
+var DebugDecorateMappings = &debug.decoratemappings
+
+func SetVMANameSupported() bool { return setVMANameSupported() }
+
+type ListHead struct {
+	l listHead
+}
+
+func (head *ListHead) Init(off uintptr) {
+	head.l.init(off)
+}
+
+type ListNode struct {
+	l listNode
+}
+
+func (head *ListHead) Push(p unsafe.Pointer) {
+	head.l.push(p)
+}
+
+func (head *ListHead) Pop() unsafe.Pointer {
+	return head.l.pop()
+}
+
+func (head *ListHead) Remove(p unsafe.Pointer) {
+	head.l.remove(p)
+}
+
+type ListHeadManual struct {
+	l listHeadManual
+}
+
+func (head *ListHeadManual) Init(off uintptr) {
+	head.l.init(off)
+}
+
+type ListNodeManual struct {
+	l listNodeManual
+}
+
+func (head *ListHeadManual) Push(p unsafe.Pointer) {
+	head.l.push(p)
+}
+
+func (head *ListHeadManual) Pop() unsafe.Pointer {
+	return head.l.pop()
+}
+
+func (head *ListHeadManual) Remove(p unsafe.Pointer) {
+	head.l.remove(p)
+}
+
+func Hexdumper(base uintptr, wordBytes int, mark func(addr uintptr, start func()), data ...[]byte) string {
+	buf := make([]byte, 0, 2048)
+	getg().writebuf = buf
+	h := hexdumper{addr: base, addrBytes: 4, wordBytes: uint8(wordBytes)}
+	if mark != nil {
+		h.mark = func(addr uintptr, m hexdumpMarker) {
+			mark(addr, m.start)
+		}
+	}
+	for _, d := range data {
+		h.write(d)
+	}
+	h.close()
+	n := len(getg().writebuf)
+	getg().writebuf = nil
+	if n == cap(buf) {
+		panic("Hexdumper buf too small")
+	}
+	return string(buf[:n])
+}
+
+func HexdumpWords(p, bytes uintptr) string {
+	buf := make([]byte, 0, 2048)
+	getg().writebuf = buf
+	hexdumpWords(p, bytes, nil)
+	n := len(getg().writebuf)
+	getg().writebuf = nil
+	if n == cap(buf) {
+		panic("HexdumpWords buf too small")
+	}
+	return string(buf[:n])
+}
+
+// DumpPrintQuoted provides access to print(quoted()) for the tests in
+// runtime/print_quoted_test.go, allowing us to test that implementation.
+func DumpPrintQuoted(s string) string {
+	gp := getg()
+	gp.writebuf = make([]byte, 0, 1<<20)
+	print(quoted(s))
+	buf := gp.writebuf
+	gp.writebuf = nil
+
+	return string(buf)
+}
+
+func GetScanAlloc() uintptr {
+	c := getMCache(getg().m)
+	return c.scanAlloc
 }

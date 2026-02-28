@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build mips64 mips64le
+//go:build mips64 || mips64le
 
 package cpu
 
 const CacheLinePadSize = 32
 
-// These are initialized by archauxv in runtime/os_linux_mips64x.go.
-// These should not be changed after they are initialized.
+// This is initialized by archauxv and should not be changed after it is
+// initialized.
 var HWCap uint
 
 // HWCAP bits. These are exposed by the Linux kernel 5.4.

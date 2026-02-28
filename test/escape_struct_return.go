@@ -15,11 +15,11 @@ type U struct {
 	_spp **string
 }
 
-func A(sp *string, spp **string) U { // ERROR "leaking param: sp to result ~r2 level=0$" "leaking param: spp to result ~r2 level=0$"
+func A(sp *string, spp **string) U { // ERROR "leaking param: sp to result ~r0 level=0$" "leaking param: spp to result ~r0 level=0$"
 	return U{sp, spp}
 }
 
-func B(spp **string) U { // ERROR "leaking param: spp to result ~r1 level=0$"
+func B(spp **string) U { // ERROR "leaking param: spp to result ~r0 level=0$"
 	return U{*spp, spp}
 }
 

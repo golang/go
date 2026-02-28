@@ -5,7 +5,8 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/goarch"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -15,28 +16,35 @@ type m0Stack struct {
 
 var wasmStack m0Stack
 
-func wasmMove()
-
-func wasmZero()
-
 func wasmDiv()
 
 func wasmTruncS()
 func wasmTruncU()
 
+//go:wasmimport gojs runtime.wasmExit
 func wasmExit(code int32)
 
 // adjust Gobuf as it if executed a call to fn with context ctxt
-// and then did an immediate gosave.
+// and then stopped before the first instruction in fn.
 func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
 	sp := buf.sp
-	if sys.RegSize > sys.PtrSize {
-		sp -= sys.PtrSize
-		*(*uintptr)(unsafe.Pointer(sp)) = 0
-	}
-	sp -= sys.PtrSize
+	sp -= goarch.PtrSize
 	*(*uintptr)(unsafe.Pointer(sp)) = buf.pc
 	buf.sp = sp
 	buf.pc = uintptr(fn)
 	buf.ctxt = ctxt
+}
+
+func notInitialized() // defined in assembly, call notInitialized1
+
+// Called if a wasmexport function is called before runtime initialization
+//
+//go:nosplit
+func notInitialized1() {
+	writeErrStr("runtime: wasmexport function called before runtime initialization\n")
+	if isarchive || islibrary {
+		writeErrStr("\tcall _initialize first\n")
+	} else {
+		writeErrStr("\tcall _start first\n")
+	}
 }

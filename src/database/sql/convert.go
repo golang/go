@@ -7,6 +7,7 @@
 package sql
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+	_ "unsafe" // for linkname
 )
 
 var errNilPtr = errors.New("destination pointer is nil") // embedded in descriptive error
@@ -53,7 +55,7 @@ func (c ccChecker) CheckNamedValue(nv *driver.NamedValue) error {
 	// it isn't expecting. The final error will be thrown
 	// in the argument converter loop.
 	index := nv.Ordinal - 1
-	if c.want <= index {
+	if c.want >= 0 && c.want <= index {
 		return nil
 	}
 
@@ -104,7 +106,7 @@ func defaultCheckNamedValue(nv *driver.NamedValue) (err error) {
 // The statement ds may be nil, if no statement is available.
 //
 // ci must be locked.
-func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []interface{}) ([]driver.NamedValue, error) {
+func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.NamedValue, error) {
 	nvargs := make([]driver.NamedValue, len(args))
 
 	// -1 means the driver doesn't know how to count the number of
@@ -126,7 +128,7 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []interface{}) ([
 	// to the column converter.
 	nvc, ok := si.(driver.NamedValueChecker)
 	if !ok {
-		nvc, ok = ci.(driver.NamedValueChecker)
+		nvc, _ = ci.(driver.NamedValueChecker)
 	}
 	cci, ok := si.(driver.ColumnConverter)
 	if ok {
@@ -135,7 +137,7 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []interface{}) ([
 
 	// Loop through all the arguments, checking each one.
 	// If no error is returned simply increment the index
-	// and continue. However if driver.ErrRemoveArgument
+	// and continue. However, if driver.ErrRemoveArgument
 	// is returned the argument is not included in the query
 	// argument list.
 	var err error
@@ -191,7 +193,7 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []interface{}) ([
 			}
 			goto nextCheck
 		default:
-			return nil, fmt.Errorf("sql: converting argument %s type: %v", describeNamedValue(nv), err)
+			return nil, fmt.Errorf("sql: converting argument %s type: %w", describeNamedValue(nv), err)
 		}
 	}
 
@@ -202,12 +204,21 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []interface{}) ([
 	}
 
 	return nvargs, nil
-
 }
 
 // convertAssign is the same as convertAssignRows, but without the optional
 // rows argument.
-func convertAssign(dest, src interface{}) error {
+//
+// convertAssign should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - ariga.io/entcache
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname convertAssign
+func convertAssign(dest, src any) error {
 	return convertAssignRows(dest, src, nil)
 }
 
@@ -216,7 +227,7 @@ func convertAssign(dest, src interface{}) error {
 // dest should be a pointer type. If rows is passed in, the rows will
 // be used as the parent for any cursor values converted from a
 // driver.Rows to a *Rows.
-func convertAssignRows(dest, src interface{}, rows *Rows) error {
+func convertAssignRows(dest, src any, rows *Rows) error {
 	// Common cases, without reflect.
 	switch s := src.(type) {
 	case string:
@@ -237,7 +248,7 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 			if d == nil {
 				return errNilPtr
 			}
-			*d = append((*d)[:0], s...)
+			*d = rows.setrawbuf(append(rows.rawbuf(), s...))
 			return nil
 		}
 	case []byte:
@@ -248,17 +259,17 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 			}
 			*d = string(s)
 			return nil
-		case *interface{}:
+		case *any:
 			if d == nil {
 				return errNilPtr
 			}
-			*d = cloneBytes(s)
+			*d = bytes.Clone(s)
 			return nil
 		case *[]byte:
 			if d == nil {
 				return errNilPtr
 			}
-			*d = cloneBytes(s)
+			*d = bytes.Clone(s)
 			return nil
 		case *RawBytes:
 			if d == nil {
@@ -279,13 +290,13 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 			if d == nil {
 				return errNilPtr
 			}
-			*d = []byte(s.Format(time.RFC3339Nano))
+			*d = s.AppendFormat(make([]byte, 0, len(time.RFC3339Nano)), time.RFC3339Nano)
 			return nil
 		case *RawBytes:
 			if d == nil {
 				return errNilPtr
 			}
-			*d = s.AppendFormat((*d)[:0], time.RFC3339Nano)
+			*d = rows.setrawbuf(s.AppendFormat(rows.rawbuf(), time.RFC3339Nano))
 			return nil
 		}
 	case decimalDecompose:
@@ -295,7 +306,7 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 		}
 	case nil:
 		switch d := dest.(type) {
-		case *interface{}:
+		case *any:
 			if d == nil {
 				return errNilPtr
 			}
@@ -324,7 +335,6 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 			if rows == nil {
 				return errors.New("invalid context to convert cursor rows, missing parent *Rows")
 			}
-			rows.closemu.Lock()
 			*d = Rows{
 				dc:          rows.dc,
 				releaseConn: func(error) {},
@@ -340,7 +350,6 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 					parentCancel()
 				}
 			}
-			rows.closemu.Unlock()
 			return nil
 		}
 	}
@@ -366,8 +375,8 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 		}
 	case *RawBytes:
 		sv = reflect.ValueOf(src)
-		if b, ok := asBytes([]byte(*d)[:0], sv); ok {
-			*d = RawBytes(b)
+		if b, ok := asBytes(rows.rawbuf(), sv); ok {
+			*d = rows.setrawbuf(b)
 			return nil
 		}
 	case *bool:
@@ -376,7 +385,7 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 			*d = bv.(bool)
 		}
 		return err
-	case *interface{}:
+	case *any:
 		*d = src
 		return nil
 	}
@@ -386,7 +395,7 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 	}
 
 	dpv := reflect.ValueOf(dest)
-	if dpv.Kind() != reflect.Ptr {
+	if dpv.Kind() != reflect.Pointer {
 		return errors.New("destination not a pointer")
 	}
 	if dpv.IsNil() {
@@ -401,7 +410,7 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 	if sv.IsValid() && sv.Type().AssignableTo(dv.Type()) {
 		switch b := src.(type) {
 		case []byte:
-			dv.Set(reflect.ValueOf(cloneBytes(b)))
+			dv.Set(reflect.ValueOf(bytes.Clone(b)))
 		default:
 			dv.Set(sv)
 		}
@@ -419,9 +428,9 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 	// This also allows scanning into user defined types such as "type Int int64".
 	// For symmetry, also check for string destination types.
 	switch dv.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if src == nil {
-			dv.Set(reflect.Zero(dv.Type()))
+			dv.SetZero()
 			return nil
 		}
 		dv.Set(reflect.New(dv.Type().Elem()))
@@ -486,16 +495,7 @@ func strconvErr(err error) error {
 	return err
 }
 
-func cloneBytes(b []byte) []byte {
-	if b == nil {
-		return nil
-	}
-	c := make([]byte, len(b))
-	copy(c, b)
-	return c
-}
-
-func asString(src interface{}) string {
+func asString(src any) string {
 	switch v := src.(type) {
 	case string:
 		return v
@@ -537,7 +537,7 @@ func asBytes(buf []byte, rv reflect.Value) (b []byte, ok bool) {
 	return
 }
 
-var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+var valuerReflectType = reflect.TypeFor[driver.Valuer]()
 
 // callValuerValue returns vr.Value(), with one exception:
 // If vr.Value is an auto-generated method on a pointer type and the
@@ -551,7 +551,7 @@ var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
 //
 // This function is mirrored in the database/sql/driver package.
 func callValuerValue(vr driver.Valuer) (v driver.Value, err error) {
-	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Ptr &&
+	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Pointer &&
 		rv.IsNil() &&
 		rv.Type().Elem().Implements(valuerReflectType) {
 		return nil, nil

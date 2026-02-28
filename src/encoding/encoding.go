@@ -9,6 +9,12 @@
 // interface once can make a type useful in multiple encodings.
 // Standard types that implement these interfaces include time.Time and net.IP.
 // The interfaces come in pairs that produce and consume encoded data.
+//
+// Adding encoding/decoding methods to existing types may constitute a breaking change,
+// as they can be used for serialization in communicating with programs
+// written with different library versions.
+// The policy for packages maintained by the Go project is to only allow
+// the addition of marshaling functions if no existing, reasonable marshaling exists.
 package encoding
 
 // BinaryMarshaler is the interface implemented by an object that can
@@ -29,6 +35,18 @@ type BinaryUnmarshaler interface {
 	UnmarshalBinary(data []byte) error
 }
 
+// BinaryAppender is the interface implemented by an object
+// that can append the binary representation of itself.
+// If a type implements both [BinaryAppender] and [BinaryMarshaler],
+// then v.MarshalBinary() must be semantically identical to v.AppendBinary(nil).
+type BinaryAppender interface {
+	// AppendBinary appends the binary representation of itself to the end of b
+	// (allocating a larger slice if necessary) and returns the updated slice.
+	//
+	// Implementations must not retain b, nor mutate any bytes within b[:len(b)].
+	AppendBinary(b []byte) ([]byte, error)
+}
+
 // TextMarshaler is the interface implemented by an object that can
 // marshal itself into a textual form.
 //
@@ -45,4 +63,16 @@ type TextMarshaler interface {
 // after returning.
 type TextUnmarshaler interface {
 	UnmarshalText(text []byte) error
+}
+
+// TextAppender is the interface implemented by an object
+// that can append the textual representation of itself.
+// If a type implements both [TextAppender] and [TextMarshaler],
+// then v.MarshalText() must be semantically identical to v.AppendText(nil).
+type TextAppender interface {
+	// AppendText appends the textual representation of itself to the end of b
+	// (allocating a larger slice if necessary) and returns the updated slice.
+	//
+	// Implementations must not retain b, nor mutate any bytes within b[:len(b)].
+	AppendText(b []byte) ([]byte, error)
 }

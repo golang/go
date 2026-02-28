@@ -1,0 +1,50 @@
+-- input --
+URLs with punctuation are hard.
+We don't want to consume the end-of-sentence punctuation.
+
+For example, https://en.wikipedia.org/wiki/John_Adams_(miniseries).
+And https://example.com/[foo]/bar{.
+And https://example.com/(foo)/bar!
+And https://example.com/{foo}/bar{.
+And https://example.com/)baz{foo}.
+
+[And https://example.com/].
+
+-- gofmt --
+URLs with punctuation are hard.
+We don't want to consume the end-of-sentence punctuation.
+
+For example, https://en.wikipedia.org/wiki/John_Adams_(miniseries).
+And https://example.com/[foo]/bar{.
+And https://example.com/(foo)/bar!
+And https://example.com/{foo}/bar{.
+And https://example.com/)baz{foo}.
+
+[And https://example.com/].
+
+-- text --
+URLs with punctuation are hard. We don't want to consume the end-of-sentence
+punctuation.
+
+For example, https://en.wikipedia.org/wiki/John_Adams_(miniseries).
+And https://example.com/[foo]/bar{. And https://example.com/(foo)/bar! And
+https://example.com/{foo}/bar{. And https://example.com/)baz{foo}.
+
+[And https://example.com/].
+
+-- markdown --
+URLs with punctuation are hard. We don't want to consume the end-of-sentence punctuation.
+
+For example, [https://en.wikipedia.org/wiki/John\_Adams\_(miniseries)](https://en.wikipedia.org/wiki/John_Adams_(miniseries)). And [https://example.com/\[foo]/bar](https://example.com/[foo]/bar){. And [https://example.com/(foo)/bar](https://example.com/(foo)/bar)! And [https://example.com/{foo}/bar](https://example.com/{foo}/bar){. And [https://example.com/](https://example.com/))baz{foo}.
+
+\[And [https://example.com/](https://example.com/)].
+
+-- html --
+<p>URLs with punctuation are hard.
+We don&apos;t want to consume the end-of-sentence punctuation.
+<p>For example, <a href="https://en.wikipedia.org/wiki/John_Adams_(miniseries)">https://en.wikipedia.org/wiki/John_Adams_(miniseries)</a>.
+And <a href="https://example.com/[foo]/bar">https://example.com/[foo]/bar</a>{.
+And <a href="https://example.com/(foo)/bar">https://example.com/(foo)/bar</a>!
+And <a href="https://example.com/{foo}/bar">https://example.com/{foo}/bar</a>{.
+And <a href="https://example.com/">https://example.com/</a>)baz{foo}.
+<p>[And <a href="https://example.com/">https://example.com/</a>].

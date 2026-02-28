@@ -1,5 +1,5 @@
 // Derived from Inferno utils/6l/l.h and related files.
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/6l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -37,18 +37,23 @@ type SymKind uint8
 // These are used to index into cmd/link/internal/sym/AbiSymKindToSymKind
 //
 // TODO(rsc): Give idiomatic Go names.
+//
 //go:generate stringer -type=SymKind
 const (
 	// An otherwise invalid zero value for the type
 	Sxxx SymKind = iota
 	// Executable instructions
 	STEXT
+	STEXTFIPS
 	// Read only static data
 	SRODATA
+	SRODATAFIPS
 	// Static data that does not contain any pointers
 	SNOPTRDATA
+	SNOPTRDATAFIPS
 	// Static data
 	SDATA
+	SDATAFIPS
 	// Statically data that is initially all 0s
 	SBSS
 	// Statically data that is initially all 0s and does not contain pointers
@@ -56,19 +61,38 @@ const (
 	// Thread-local data that is initially all 0s
 	STLSBSS
 	// Debugging data
-	SDWARFINFO
+	SDWARFCUINFO
+	SDWARFCONST
+	SDWARFFCN
+	SDWARFABSFCN
+	SDWARFTYPE
+	SDWARFVAR
 	SDWARFRANGE
 	SDWARFLOC
 	SDWARFLINES
-	// ABI alias. An ABI alias symbol is an empty symbol with a
-	// single relocation with 0 size that references the native
-	// function implementation symbol.
-	//
-	// TODO(austin): Remove this and all uses once the compiler
-	// generates real ABI wrappers rather than symbol aliases.
-	SABIALIAS
+	SDWARFADDR
 	// Coverage instrumentation counter for libfuzzer.
-	SLIBFUZZER_EXTRA_COUNTER
-	// Update cmd/link/internal/sym/AbiSymKindToSymKind for new SymKind values.
+	SLIBFUZZER_8BIT_COUNTER
+	// Coverage instrumentation counter, aux variable for cmd/cover
+	SCOVERAGE_COUNTER
+	SCOVERAGE_AUXVAR
 
+	SSEHUNWINDINFO
+	// Update cmd/link/internal/sym/AbiSymKindToSymKind for new SymKind values.
 )
+
+// IsText reports whether t is one of the text kinds.
+func (t SymKind) IsText() bool {
+	return t == STEXT || t == STEXTFIPS
+}
+
+// IsDATA reports whether t is one of the DATA kinds (SDATA or SDATAFIPS,
+// excluding NOPTRDATA, RODATA, BSS, and so on).
+func (t SymKind) IsDATA() bool {
+	return t == SDATA || t == SDATAFIPS
+}
+
+// IsFIPS reports whether t is one fo the FIPS kinds.
+func (t SymKind) IsFIPS() bool {
+	return t == STEXTFIPS || t == SRODATAFIPS || t == SNOPTRDATAFIPS || t == SDATAFIPS
+}

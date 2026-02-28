@@ -1,0 +1,20 @@
+# windows executables have the .exe extension and won't overwrite source files
+[GOOS:windows] skip
+
+mkdir out
+env GOTMPDIR=$PWD/out
+
+grep 'this should still exist' foo.go
+
+! go build
+stderr 'already exists and is not an object file'
+
+grep 'this should still exist' foo.go
+
+-- go.mod --
+module foo.go
+
+-- foo.go --
+package main // this should still exist
+
+func main() {}

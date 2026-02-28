@@ -6,7 +6,7 @@ package testing_test
 
 import "testing"
 
-var global interface{}
+var global any
 
 var allocsPerRunTests = []struct {
 	name   string

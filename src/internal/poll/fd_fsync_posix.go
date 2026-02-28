@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix dragonfly freebsd js,wasm linux netbsd openbsd solaris
+//go:build aix || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris || wasip1
 
 package poll
 
@@ -14,5 +14,7 @@ func (fd *FD) Fsync() error {
 		return err
 	}
 	defer fd.decref()
-	return syscall.Fsync(fd.Sysfd)
+	return ignoringEINTR(func() error {
+		return syscall.Fsync(fd.Sysfd)
+	})
 }

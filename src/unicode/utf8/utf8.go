@@ -61,6 +61,12 @@ const (
 	s7 = 0x44 // accept 4, size 4
 )
 
+const (
+	runeErrorByte0 = t3 | (RuneError >> 12)
+	runeErrorByte1 = tx | (RuneError>>6)&maskx
+	runeErrorByte2 = tx | RuneError&maskx
+)
+
 // first is information about the first byte in a UTF-8 sequence.
 var first = [256]uint8{
 	//   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
@@ -141,7 +147,7 @@ func FullRuneInString(s string) bool {
 }
 
 // DecodeRune unpacks the first UTF-8 encoding in p and returns the rune and
-// its width in bytes. If p is empty it returns (RuneError, 0). Otherwise, if
+// its width in bytes. If p is empty it returns ([RuneError], 0). Otherwise, if
 // the encoding is invalid, it returns (RuneError, 1). Both are impossible
 // results for correct, non-empty UTF-8.
 //
@@ -149,6 +155,20 @@ func FullRuneInString(s string) bool {
 // out of range, or is not the shortest possible UTF-8 encoding for the
 // value. No other validation is performed.
 func DecodeRune(p []byte) (r rune, size int) {
+	// Inlineable fast path for ASCII characters; see #48195.
+	// This implementation is weird but effective at rendering the
+	// function inlineable.
+	for _, b := range p {
+		if b < RuneSelf {
+			return rune(b), 1
+		}
+		break
+	}
+	r, size = decodeRuneSlow(p)
+	return
+}
+
+func decodeRuneSlow(p []byte) (r rune, size int) {
 	n := len(p)
 	if n < 1 {
 		return RuneError, 0
@@ -188,8 +208,8 @@ func DecodeRune(p []byte) (r rune, size int) {
 	return rune(p0&mask4)<<18 | rune(b1&maskx)<<12 | rune(b2&maskx)<<6 | rune(b3&maskx), 4
 }
 
-// DecodeRuneInString is like DecodeRune but its input is a string. If s is
-// empty it returns (RuneError, 0). Otherwise, if the encoding is invalid, it
+// DecodeRuneInString is like [DecodeRune] but its input is a string. If s is
+// empty it returns ([RuneError], 0). Otherwise, if the encoding is invalid, it
 // returns (RuneError, 1). Both are impossible results for correct, non-empty
 // UTF-8.
 //
@@ -197,6 +217,18 @@ func DecodeRune(p []byte) (r rune, size int) {
 // out of range, or is not the shortest possible UTF-8 encoding for the
 // value. No other validation is performed.
 func DecodeRuneInString(s string) (r rune, size int) {
+	// Inlineable fast path for ASCII characters; see #48195.
+	// This implementation is a bit weird but effective at rendering the
+	// function inlineable.
+	if s != "" && s[0] < RuneSelf {
+		return rune(s[0]), 1
+	} else {
+		r, size = decodeRuneInStringSlow(s)
+	}
+	return
+}
+
+func decodeRuneInStringSlow(s string) (rune, int) {
 	n := len(s)
 	if n < 1 {
 		return RuneError, 0
@@ -237,7 +269,7 @@ func DecodeRuneInString(s string) (r rune, size int) {
 }
 
 // DecodeLastRune unpacks the last UTF-8 encoding in p and returns the rune and
-// its width in bytes. If p is empty it returns (RuneError, 0). Otherwise, if
+// its width in bytes. If p is empty it returns ([RuneError], 0). Otherwise, if
 // the encoding is invalid, it returns (RuneError, 1). Both are impossible
 // results for correct, non-empty UTF-8.
 //
@@ -257,10 +289,7 @@ func DecodeLastRune(p []byte) (r rune, size int) {
 	// guard against O(n^2) behavior when traversing
 	// backwards through strings with long sequences of
 	// invalid UTF-8.
-	lim := end - UTFMax
-	if lim < 0 {
-		lim = 0
-	}
+	lim := max(end-UTFMax, 0)
 	for start--; start >= lim; start-- {
 		if RuneStart(p[start]) {
 			break
@@ -276,8 +305,8 @@ func DecodeLastRune(p []byte) (r rune, size int) {
 	return r, size
 }
 
-// DecodeLastRuneInString is like DecodeLastRune but its input is a string. If
-// s is empty it returns (RuneError, 0). Otherwise, if the encoding is invalid,
+// DecodeLastRuneInString is like [DecodeLastRune] but its input is a string. If
+// s is empty it returns ([RuneError], 0). Otherwise, if the encoding is invalid,
 // it returns (RuneError, 1). Both are impossible results for correct,
 // non-empty UTF-8.
 //
@@ -297,10 +326,7 @@ func DecodeLastRuneInString(s string) (r rune, size int) {
 	// guard against O(n^2) behavior when traversing
 	// backwards through strings with long sequences of
 	// invalid UTF-8.
-	lim := end - UTFMax
-	if lim < 0 {
-		lim = 0
-	}
+	lim := max(end-UTFMax, 0)
 	for start--; start >= lim; start-- {
 		if RuneStart(s[start]) {
 			break
@@ -316,7 +342,7 @@ func DecodeLastRuneInString(s string) (r rune, size int) {
 	return r, size
 }
 
-// RuneLen returns the number of bytes required to encode the rune.
+// RuneLen returns the number of bytes in the UTF-8 encoding of the rune.
 // It returns -1 if the rune is not a valid value to encode in UTF-8.
 func RuneLen(r rune) int {
 	switch {
@@ -337,34 +363,69 @@ func RuneLen(r rune) int {
 }
 
 // EncodeRune writes into p (which must be large enough) the UTF-8 encoding of the rune.
+// If the rune is out of range, it writes the encoding of [RuneError].
 // It returns the number of bytes written.
 func EncodeRune(p []byte, r rune) int {
-	// Negative values are erroneous. Making it unsigned addresses the problem.
-	switch i := uint32(r); {
-	case i <= rune1Max:
+	// This function is inlineable for fast handling of ASCII.
+	if uint32(r) <= rune1Max {
 		p[0] = byte(r)
 		return 1
+	}
+	return encodeRuneNonASCII(p, r)
+}
+
+func encodeRuneNonASCII(p []byte, r rune) int {
+	// Negative values are erroneous. Making it unsigned addresses the problem.
+	switch i := uint32(r); {
 	case i <= rune2Max:
 		_ = p[1] // eliminate bounds checks
 		p[0] = t2 | byte(r>>6)
 		p[1] = tx | byte(r)&maskx
 		return 2
-	case i > MaxRune, surrogateMin <= i && i <= surrogateMax:
-		r = RuneError
-		fallthrough
-	case i <= rune3Max:
+	case i < surrogateMin, surrogateMax < i && i <= rune3Max:
 		_ = p[2] // eliminate bounds checks
 		p[0] = t3 | byte(r>>12)
 		p[1] = tx | byte(r>>6)&maskx
 		p[2] = tx | byte(r)&maskx
 		return 3
-	default:
+	case i > rune3Max && i <= MaxRune:
 		_ = p[3] // eliminate bounds checks
 		p[0] = t4 | byte(r>>18)
 		p[1] = tx | byte(r>>12)&maskx
 		p[2] = tx | byte(r>>6)&maskx
 		p[3] = tx | byte(r)&maskx
 		return 4
+	default:
+		_ = p[2] // eliminate bounds checks
+		p[0] = runeErrorByte0
+		p[1] = runeErrorByte1
+		p[2] = runeErrorByte2
+		return 3
+	}
+}
+
+// AppendRune appends the UTF-8 encoding of r to the end of p and
+// returns the extended buffer. If the rune is out of range,
+// it appends the encoding of [RuneError].
+func AppendRune(p []byte, r rune) []byte {
+	// This function is inlineable for fast handling of ASCII.
+	if uint32(r) <= rune1Max {
+		return append(p, byte(r))
+	}
+	return appendRuneNonASCII(p, r)
+}
+
+func appendRuneNonASCII(p []byte, r rune) []byte {
+	// Negative values are erroneous. Making it unsigned addresses the problem.
+	switch i := uint32(r); {
+	case i <= rune2Max:
+		return append(p, t2|byte(r>>6), tx|byte(r)&maskx)
+	case i < surrogateMin, surrogateMax < i && i <= rune3Max:
+		return append(p, t3|byte(r>>12), tx|byte(r>>6)&maskx, tx|byte(r)&maskx)
+	case i > rune3Max && i <= MaxRune:
+		return append(p, t4|byte(r>>18), tx|byte(r>>12)&maskx, tx|byte(r>>6)&maskx, tx|byte(r)&maskx)
+	default:
+		return append(p, runeErrorByte0, runeErrorByte1, runeErrorByte2)
 	}
 }
 
@@ -373,70 +434,19 @@ func EncodeRune(p []byte, r rune) int {
 func RuneCount(p []byte) int {
 	np := len(p)
 	var n int
-	for i := 0; i < np; {
-		n++
-		c := p[i]
-		if c < RuneSelf {
-			// ASCII fast path
-			i++
-			continue
+	for ; n < np; n++ {
+		if c := p[n]; c >= RuneSelf {
+			// non-ASCII slow path
+			return n + RuneCountInString(string(p[n:]))
 		}
-		x := first[c]
-		if x == xx {
-			i++ // invalid.
-			continue
-		}
-		size := int(x & 7)
-		if i+size > np {
-			i++ // Short or invalid.
-			continue
-		}
-		accept := acceptRanges[x>>4]
-		if c := p[i+1]; c < accept.lo || accept.hi < c {
-			size = 1
-		} else if size == 2 {
-		} else if c := p[i+2]; c < locb || hicb < c {
-			size = 1
-		} else if size == 3 {
-		} else if c := p[i+3]; c < locb || hicb < c {
-			size = 1
-		}
-		i += size
 	}
 	return n
 }
 
-// RuneCountInString is like RuneCount but its input is a string.
+// RuneCountInString is like [RuneCount] but its input is a string.
 func RuneCountInString(s string) (n int) {
-	ns := len(s)
-	for i := 0; i < ns; n++ {
-		c := s[i]
-		if c < RuneSelf {
-			// ASCII fast path
-			i++
-			continue
-		}
-		x := first[c]
-		if x == xx {
-			i++ // invalid.
-			continue
-		}
-		size := int(x & 7)
-		if i+size > ns {
-			i++ // Short or invalid.
-			continue
-		}
-		accept := acceptRanges[x>>4]
-		if c := s[i+1]; c < accept.lo || accept.hi < c {
-			size = 1
-		} else if size == 2 {
-		} else if c := s[i+2]; c < locb || hicb < c {
-			size = 1
-		} else if size == 3 {
-		} else if c := s[i+3]; c < locb || hicb < c {
-			size = 1
-		}
-		i += size
+	for range s {
+		n++
 	}
 	return n
 }
@@ -446,66 +456,111 @@ func RuneCountInString(s string) (n int) {
 // bits set to 10.
 func RuneStart(b byte) bool { return b&0xC0 != 0x80 }
 
+const ptrSize = 4 << (^uintptr(0) >> 63)
+const hiBits = 0x8080808080808080 >> (64 - 8*ptrSize)
+
+func word[T string | []byte](s T) uintptr {
+	if ptrSize == 4 {
+		return uintptr(s[0]) | uintptr(s[1])<<8 | uintptr(s[2])<<16 | uintptr(s[3])<<24
+	}
+	return uintptr(uint64(s[0]) | uint64(s[1])<<8 | uint64(s[2])<<16 | uint64(s[3])<<24 | uint64(s[4])<<32 | uint64(s[5])<<40 | uint64(s[6])<<48 | uint64(s[7])<<56)
+}
+
 // Valid reports whether p consists entirely of valid UTF-8-encoded runes.
 func Valid(p []byte) bool {
-	n := len(p)
-	for i := 0; i < n; {
-		pi := p[i]
-		if pi < RuneSelf {
-			i++
+	// This optimization avoids the need to recompute the capacity
+	// when generating code for slicing p, bringing it to parity with
+	// ValidString, which was 20% faster on long ASCII strings.
+	p = p[:len(p):len(p)]
+
+	for len(p) > 0 {
+		p0 := p[0]
+		if p0 < RuneSelf {
+			p = p[1:]
+			// If there's one ASCII byte, there are probably more.
+			// Advance quickly through ASCII-only data.
+			// Note: using > instead of >= here is intentional. That avoids
+			// needing pointing-past-the-end fixup on the slice operations.
+			if len(p) > ptrSize && word(p)&hiBits == 0 {
+				p = p[ptrSize:]
+				if len(p) > 2*ptrSize && (word(p)|word(p[ptrSize:]))&hiBits == 0 {
+					p = p[2*ptrSize:]
+					for len(p) > 4*ptrSize && ((word(p)|word(p[ptrSize:]))|(word(p[2*ptrSize:])|word(p[3*ptrSize:])))&hiBits == 0 {
+						p = p[4*ptrSize:]
+					}
+				}
+			}
 			continue
 		}
-		x := first[pi]
-		if x == xx {
-			return false // Illegal starter byte.
-		}
+		x := first[p0]
 		size := int(x & 7)
-		if i+size > n {
-			return false // Short or invalid.
-		}
 		accept := acceptRanges[x>>4]
-		if c := p[i+1]; c < accept.lo || accept.hi < c {
-			return false
-		} else if size == 2 {
-		} else if c := p[i+2]; c < locb || hicb < c {
-			return false
-		} else if size == 3 {
-		} else if c := p[i+3]; c < locb || hicb < c {
-			return false
+		switch size {
+		case 2:
+			if len(p) < 2 || p[1] < accept.lo || accept.hi < p[1] {
+				return false
+			}
+			p = p[2:]
+		case 3:
+			if len(p) < 3 || p[1] < accept.lo || accept.hi < p[1] || p[2] < locb || hicb < p[2] {
+				return false
+			}
+			p = p[3:]
+		case 4:
+			if len(p) < 4 || p[1] < accept.lo || accept.hi < p[1] || p[2] < locb || hicb < p[2] || p[3] < locb || hicb < p[3] {
+				return false
+			}
+			p = p[4:]
+		default:
+			return false // illegal starter byte
 		}
-		i += size
 	}
 	return true
 }
 
 // ValidString reports whether s consists entirely of valid UTF-8-encoded runes.
 func ValidString(s string) bool {
-	n := len(s)
-	for i := 0; i < n; {
-		si := s[i]
-		if si < RuneSelf {
-			i++
+	for len(s) > 0 {
+		s0 := s[0]
+		if s0 < RuneSelf {
+			s = s[1:]
+			// If there's one ASCII byte, there are probably more.
+			// Advance quickly through ASCII-only data.
+			// Note: using > instead of >= here is intentional. That avoids
+			// needing pointing-past-the-end fixup on the slice operations.
+			if len(s) > ptrSize && word(s)&hiBits == 0 {
+				s = s[ptrSize:]
+				if len(s) > 2*ptrSize && (word(s)|word(s[ptrSize:]))&hiBits == 0 {
+					s = s[2*ptrSize:]
+					for len(s) > 4*ptrSize && ((word(s)|word(s[ptrSize:]))|(word(s[2*ptrSize:])|word(s[3*ptrSize:])))&hiBits == 0 {
+						s = s[4*ptrSize:]
+					}
+				}
+			}
 			continue
 		}
-		x := first[si]
-		if x == xx {
-			return false // Illegal starter byte.
-		}
+		x := first[s0]
 		size := int(x & 7)
-		if i+size > n {
-			return false // Short or invalid.
-		}
 		accept := acceptRanges[x>>4]
-		if c := s[i+1]; c < accept.lo || accept.hi < c {
-			return false
-		} else if size == 2 {
-		} else if c := s[i+2]; c < locb || hicb < c {
-			return false
-		} else if size == 3 {
-		} else if c := s[i+3]; c < locb || hicb < c {
-			return false
+		switch size {
+		case 2:
+			if len(s) < 2 || s[1] < accept.lo || accept.hi < s[1] {
+				return false
+			}
+			s = s[2:]
+		case 3:
+			if len(s) < 3 || s[1] < accept.lo || accept.hi < s[1] || s[2] < locb || hicb < s[2] {
+				return false
+			}
+			s = s[3:]
+		case 4:
+			if len(s) < 4 || s[1] < accept.lo || accept.hi < s[1] || s[2] < locb || hicb < s[2] || s[3] < locb || hicb < s[3] {
+				return false
+			}
+			s = s[4:]
+		default:
+			return false // illegal starter byte
 		}
-		i += size
 	}
 	return true
 }

@@ -1,8 +1,0 @@
-# Tests issue 8181
-
-[!net] skip
-[!exec:git] skip
-
-go get -v -t github.com/rsc/go-get-issue-8181/a github.com/rsc/go-get-issue-8181/b
-go list ...
-stdout 'x/build/gerrit'

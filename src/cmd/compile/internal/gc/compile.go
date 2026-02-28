@@ -1,0 +1,192 @@
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package gc
+
+import (
+	"cmp"
+	"internal/race"
+	"math/rand"
+	"slices"
+	"sync"
+
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
+	"cmd/compile/internal/liveness"
+	"cmd/compile/internal/objw"
+	"cmd/compile/internal/pgoir"
+	"cmd/compile/internal/ssagen"
+	"cmd/compile/internal/staticinit"
+	"cmd/compile/internal/types"
+	"cmd/compile/internal/walk"
+	"cmd/internal/obj"
+)
+
+// "Portable" code generation.
+
+var (
+	compilequeue []*ir.Func // functions waiting to be compiled
+)
+
+func enqueueFunc(fn *ir.Func, symABIs *ssagen.SymABIs) {
+	if ir.CurFunc != nil {
+		base.FatalfAt(fn.Pos(), "enqueueFunc %v inside %v", fn, ir.CurFunc)
+	}
+
+	if ir.FuncName(fn) == "_" {
+		// Skip compiling blank functions.
+		// Frontend already reported any spec-mandated errors (#29870).
+		return
+	}
+
+	if fn.IsClosure() {
+		return // we'll get this as part of its enclosing function
+	}
+
+	if ssagen.CreateWasmImportWrapper(fn) {
+		return
+	}
+
+	if len(fn.Body) == 0 {
+		if ir.IsIntrinsicSym(fn.Sym()) && fn.Sym().Linkname == "" && !symABIs.HasDef(fn.Sym()) {
+			// Generate the function body for a bodyless intrinsic, in case it
+			// is used in a non-call context (e.g. as a function pointer).
+			// We skip functions defined in assembly, or has a linkname (which
+			// could be defined in another package).
+			ssagen.GenIntrinsicBody(fn)
+		} else {
+			// Initialize ABI wrappers if necessary.
+			ir.InitLSym(fn, false)
+			types.CalcSize(fn.Type())
+			a := ssagen.AbiForBodylessFuncStackMap(fn)
+			abiInfo := a.ABIAnalyzeFuncType(fn.Type()) // abiInfo has spill/home locations for wrapper
+			if fn.ABI == obj.ABI0 {
+				// The current args_stackmap generation assumes the function
+				// is ABI0, and only ABI0 assembly function can have a FUNCDATA
+				// reference to args_stackmap (see cmd/internal/obj/plist.go:Flushplist).
+				// So avoid introducing an args_stackmap if the func is not ABI0.
+				liveness.WriteFuncMap(fn, abiInfo)
+
+				x := ssagen.EmitArgInfo(fn, abiInfo)
+				objw.Global(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
+			}
+			return
+		}
+	}
+
+	errorsBefore := base.Errors()
+
+	todo := []*ir.Func{fn}
+	for len(todo) > 0 {
+		next := todo[len(todo)-1]
+		todo = todo[:len(todo)-1]
+
+		prepareFunc(next)
+		todo = append(todo, next.Closures...)
+	}
+
+	if base.Errors() > errorsBefore {
+		return
+	}
+
+	// Enqueue just fn itself. compileFunctions will handle
+	// scheduling compilation of its closures after it's done.
+	compilequeue = append(compilequeue, fn)
+}
+
+// prepareFunc handles any remaining frontend compilation tasks that
+// aren't yet safe to perform concurrently.
+func prepareFunc(fn *ir.Func) {
+	// Set up the function's LSym early to avoid data races with the assemblers.
+	// Do this before walk, as walk needs the LSym to set attributes/relocations
+	// (e.g. in MarkTypeUsedInInterface).
+	ir.InitLSym(fn, true)
+
+	// If this function is a compiler-generated outlined global map
+	// initializer function, register its LSym for later processing.
+	if staticinit.MapInitToVar != nil {
+		if _, ok := staticinit.MapInitToVar[fn]; ok {
+			ssagen.RegisterMapInitLsym(fn.Linksym())
+		}
+	}
+
+	// Calculate parameter offsets.
+	types.CalcSize(fn.Type())
+
+	// Generate wrappers between Go ABI and Wasm ABI, for a wasmexport
+	// function.
+	// Must be done after InitLSym and CalcSize.
+	ssagen.GenWasmExportWrapper(fn)
+
+	ir.CurFunc = fn
+	walk.Walk(fn)
+	if ir.MatchAstDump(fn, "walk") {
+		ir.AstDump(fn, "walk, "+ir.FuncName(fn))
+	}
+	ir.CurFunc = nil // enforce no further uses of CurFunc
+
+	base.Ctxt.DwTextCount++
+}
+
+// compileFunctions compiles all functions in compilequeue.
+// It fans out nBackendWorkers to do the work
+// and waits for them to complete.
+func compileFunctions(profile *pgoir.Profile) {
+	if race.Enabled {
+		// Randomize compilation order to try to shake out races.
+		tmp := make([]*ir.Func, len(compilequeue))
+		perm := rand.Perm(len(compilequeue))
+		for i, v := range perm {
+			tmp[v] = compilequeue[i]
+		}
+		copy(compilequeue, tmp)
+	} else {
+		// Compile the longest functions first,
+		// since they're most likely to be the slowest.
+		// This helps avoid stragglers.
+		// Since we remove from the end of the slice queue,
+		// that means shortest to longest.
+		slices.SortFunc(compilequeue, func(a, b *ir.Func) int {
+			return cmp.Compare(len(a.Body), len(b.Body))
+		})
+	}
+
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	mu.Lock()
+
+	for workerId := range base.Flag.LowerC {
+		// TODO: replace with wg.Go when the oldest bootstrap has it.
+		// With the current policy, that'd be go1.27.
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var closures []*ir.Func
+			for {
+				mu.Lock()
+				compilequeue = append(compilequeue, closures...)
+				remaining := len(compilequeue)
+				if remaining == 0 {
+					mu.Unlock()
+					return
+				}
+				fn := compilequeue[len(compilequeue)-1]
+				compilequeue = compilequeue[:len(compilequeue)-1]
+				mu.Unlock()
+				ssagen.Compile(fn, workerId, profile)
+				closures = fn.Closures
+			}
+		}()
+	}
+
+	types.CalcSizeDisabled = true // not safe to calculate sizes concurrently
+	base.Ctxt.InParallel = true
+
+	mu.Unlock()
+	wg.Wait()
+	compilequeue = nil
+
+	base.Ctxt.InParallel = false
+	types.CalcSizeDisabled = false
+}

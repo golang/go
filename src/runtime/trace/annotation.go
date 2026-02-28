@@ -1,3 +1,7 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package trace
 
 import (
@@ -17,20 +21,20 @@ type traceContextKey struct{}
 // like the Go execution tracer may assume there are only a bounded
 // number of unique task types in the system.
 //
-// The returned end function is used to mark the task's end.
+// The returned Task's [Task.End] method is used to mark the task's end.
 // The trace tool measures task latency as the time between task creation
-// and when the end function is called, and provides the latency
+// and when the End method is called, and provides the latency
 // distribution per task type.
-// If the end function is called multiple times, only the first
+// If the End method is called multiple times, only the first
 // call is used in the latency measurement.
 //
-//   ctx, task := trace.NewTask(ctx, "awesomeTask")
-//   trace.WithRegion(ctx, "preparation", prepWork)
-//   // preparation of the task
-//   go func() {  // continue processing the task in a separate goroutine.
-//       defer task.End()
-//       trace.WithRegion(ctx, "remainingWork", remainingWork)
-//   }()
+//	ctx, task := trace.NewTask(ctx, "awesomeTask")
+//	trace.WithRegion(ctx, "preparation", prepWork)
+//	// preparation of the task
+//	go func() {  // continue processing the task in a separate goroutine.
+//	    defer task.End()
+//	    trace.WithRegion(ctx, "remainingWork", remainingWork)
+//	}()
 func NewTask(pctx context.Context, taskType string) (ctx context.Context, task *Task) {
 	pid := fromContext(pctx).id
 	id := newID()
@@ -38,9 +42,9 @@ func NewTask(pctx context.Context, taskType string) (ctx context.Context, task *
 	s := &Task{id: id}
 	return context.WithValue(pctx, traceContextKey{}, s), s
 
-	// We allocate a new task and the end function even when
-	// the tracing is disabled because the context and the detach
-	// function can be used across trace enable/disable boundaries,
+	// We allocate a new task even when
+	// the tracing is disabled because the context and task
+	// can be used across trace enable/disable boundaries,
 	// which complicates the problem.
 	//
 	// For example, consider the following scenario:
@@ -71,7 +75,7 @@ type Task struct {
 	// TODO(hyangah): record parent id?
 }
 
-// End marks the end of the operation represented by the Task.
+// End marks the end of the operation represented by the [Task].
 func (t *Task) End() {
 	userTaskEnd(t.id)
 }
@@ -93,8 +97,8 @@ func Log(ctx context.Context, category, message string) {
 	userLog(id, category, message)
 }
 
-// Logf is like Log, but the value is formatted using the specified format spec.
-func Logf(ctx context.Context, category, format string, args ...interface{}) {
+// Logf is like [Log], but the value is formatted using the specified format spec.
+func Logf(ctx context.Context, category, format string, args ...any) {
 	if IsEnabled() {
 		// Ideally this should be just Log, but that will
 		// add one more frame in the stack trace.
@@ -137,15 +141,14 @@ func WithRegion(ctx context.Context, regionType string, fn func()) {
 	fn()
 }
 
-// StartRegion starts a region and returns a function for marking the
-// end of the region. The returned Region's End function must be called
+// StartRegion starts a region and returns it.
+// The returned Region's [Region.End] method must be called
 // from the same goroutine where the region was started.
 // Within each goroutine, regions must nest. That is, regions started
 // after this region must be ended before this region can be ended.
 // Recommended usage is
 //
-//     defer trace.StartRegion(ctx, "myTracedRegion").End()
-//
+//	defer trace.StartRegion(ctx, "myTracedRegion").End()
 func StartRegion(ctx context.Context, regionType string) *Region {
 	if !IsEnabled() {
 		return noopRegion
@@ -175,8 +178,7 @@ func (r *Region) End() {
 // The information is advisory only. The tracing status
 // may have changed by the time this function returns.
 func IsEnabled() bool {
-	enabled := atomic.LoadInt32(&tracing.enabled)
-	return enabled == 1
+	return tracing.enabled.Load()
 }
 
 //

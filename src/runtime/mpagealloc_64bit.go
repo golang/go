@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build amd64 !darwin,arm64 mips64 mips64le ppc64 ppc64le riscv64 s390x
-
-// See mpagealloc_32bit.go for why darwin/arm64 is excluded here.
+//go:build amd64 || arm64 || loong64 || mips64 || mips64le || ppc64 || ppc64le || riscv64 || s390x
 
 package runtime
 
-import "unsafe"
+import (
+	"unsafe"
+)
 
 const (
 	// The number of levels in the radix tree.
@@ -43,7 +43,8 @@ var levelBits = [summaryLevels]uint{
 //
 // With levelShift, one can compute the index of the summary at level l related to a
 // pointer p by doing:
-//   p >> levelShift[l]
+//
+//	p >> levelShift[l]
 var levelShift = [summaryLevels]uint{
 	heapAddrBits - summaryL0Bits,
 	heapAddrBits - summaryL0Bits - 1*summaryLevelBits,
@@ -67,7 +68,7 @@ var levelLogPages = [summaryLevels]uint{
 // sysInit performs architecture-dependent initialization of fields
 // in pageAlloc. pageAlloc should be uninitialized except for sysStat
 // if any runtime statistic should be updated.
-func (s *pageAlloc) sysInit() {
+func (p *pageAlloc) sysInit(test bool) {
 	// Reserve memory for each level. This will get mapped in
 	// as R/W by setArenas.
 	for l, shift := range levelShift {
@@ -75,28 +76,28 @@ func (s *pageAlloc) sysInit() {
 
 		// Reserve b bytes of memory anywhere in the address space.
 		b := alignUp(uintptr(entries)*pallocSumBytes, physPageSize)
-		r := sysReserve(nil, b)
+		r := sysReserve(nil, b, "page summary")
 		if r == nil {
 			throw("failed to reserve page summary memory")
 		}
 
 		// Put this reservation into a slice.
 		sl := notInHeapSlice{(*notInHeap)(r), 0, entries}
-		s.summary[l] = *(*[]pallocSum)(unsafe.Pointer(&sl))
+		p.summary[l] = *(*[]pallocSum)(unsafe.Pointer(&sl))
 	}
 }
 
 // sysGrow performs architecture-dependent operations on heap
 // growth for the page allocator, such as mapping in new memory
 // for summaries. It also updates the length of the slices in
-// s.summary.
+// p.summary.
 //
 // base is the base of the newly-added heap memory and limit is
 // the first address past the end of the newly-added heap memory.
 // Both must be aligned to pallocChunkBytes.
 //
-// The caller must update s.start and s.end after calling sysGrow.
-func (s *pageAlloc) sysGrow(base, limit uintptr) {
+// The caller must update p.start and p.end after calling sysGrow.
+func (p *pageAlloc) sysGrow(base, limit uintptr) {
 	if base%pallocChunkBytes != 0 || limit%pallocChunkBytes != 0 {
 		print("runtime: base = ", hex(base), ", limit = ", hex(limit), "\n")
 		throw("sysGrow bounds not aligned to pallocChunkBytes")
@@ -106,24 +107,24 @@ func (s *pageAlloc) sysGrow(base, limit uintptr) {
 	// of summary indices which must be mapped to support those addresses
 	// in the summary range.
 	addrRangeToSummaryRange := func(level int, r addrRange) (int, int) {
-		sumIdxBase, sumIdxLimit := addrsToSummaryRange(level, r.base, r.limit)
+		sumIdxBase, sumIdxLimit := addrsToSummaryRange(level, r.base.addr(), r.limit.addr())
 		return blockAlignSummaryRange(level, sumIdxBase, sumIdxLimit)
 	}
 
 	// summaryRangeToSumAddrRange converts a range of indices in any
-	// level of s.summary into page-aligned addresses which cover that
+	// level of p.summary into page-aligned addresses which cover that
 	// range of indices.
 	summaryRangeToSumAddrRange := func(level, sumIdxBase, sumIdxLimit int) addrRange {
 		baseOffset := alignDown(uintptr(sumIdxBase)*pallocSumBytes, physPageSize)
 		limitOffset := alignUp(uintptr(sumIdxLimit)*pallocSumBytes, physPageSize)
-		base := unsafe.Pointer(&s.summary[level][0])
+		base := unsafe.Pointer(&p.summary[level][0])
 		return addrRange{
-			uintptr(add(base, baseOffset)),
-			uintptr(add(base, limitOffset)),
+			offAddr{uintptr(add(base, baseOffset))},
+			offAddr{uintptr(add(base, limitOffset))},
 		}
 	}
 
-	// addrRangeToSumAddrRange is a convienience function that converts
+	// addrRangeToSumAddrRange is a convenience function that converts
 	// an address range r to the address range of the given summary level
 	// that stores the summaries for r.
 	addrRangeToSumAddrRange := func(level int, r addrRange) addrRange {
@@ -140,19 +141,19 @@ func (s *pageAlloc) sysGrow(base, limit uintptr) {
 	//
 	// This will be used to look at what memory in the summary array is already
 	// mapped before and after this new range.
-	inUseIndex := s.inUse.findSucc(base)
+	inUseIndex := p.inUse.findSucc(base)
 
 	// Walk up the radix tree and map summaries in as needed.
-	for l := range s.summary {
+	for l := range p.summary {
 		// Figure out what part of the summary array this new address space needs.
-		needIdxBase, needIdxLimit := addrRangeToSummaryRange(l, addrRange{base, limit})
+		needIdxBase, needIdxLimit := addrRangeToSummaryRange(l, makeAddrRange(base, limit))
 
 		// Update the summary slices with a new upper-bound. This ensures
 		// we get tight bounds checks on at least the top bound.
 		//
 		// We must do this regardless of whether we map new memory.
-		if needIdxLimit > len(s.summary[l]) {
-			s.summary[l] = s.summary[l][:needIdxLimit]
+		if needIdxLimit > len(p.summary[l]) {
+			p.summary[l] = p.summary[l][:needIdxLimit]
 		}
 
 		// Compute the needed address range in the summary array for level l.
@@ -160,13 +161,14 @@ func (s *pageAlloc) sysGrow(base, limit uintptr) {
 
 		// Prune need down to what needs to be newly mapped. Some parts of it may
 		// already be mapped by what inUse describes due to page alignment requirements
-		// for mapping. prune's invariants are guaranteed by the fact that this
-		// function will never be asked to remap the same memory twice.
+		// for mapping. Because this function will never be asked to remap the same
+		// memory twice, it should never be possible to prune in such a way that causes
+		// need to be split.
 		if inUseIndex > 0 {
-			need = need.subtract(addrRangeToSumAddrRange(l, s.inUse.ranges[inUseIndex-1]))
+			need = need.subtract(addrRangeToSumAddrRange(l, p.inUse.ranges[inUseIndex-1]))
 		}
-		if inUseIndex < len(s.inUse.ranges) {
-			need = need.subtract(addrRangeToSumAddrRange(l, s.inUse.ranges[inUseIndex]))
+		if inUseIndex < len(p.inUse.ranges) {
+			need = need.subtract(addrRangeToSumAddrRange(l, p.inUse.ranges[inUseIndex]))
 		}
 		// It's possible that after our pruning above, there's nothing new to map.
 		if need.size() == 0 {
@@ -174,7 +176,77 @@ func (s *pageAlloc) sysGrow(base, limit uintptr) {
 		}
 
 		// Map and commit need.
-		sysMap(unsafe.Pointer(need.base), need.size(), s.sysStat)
-		sysUsed(unsafe.Pointer(need.base), need.size())
+		sysMap(unsafe.Pointer(need.base.addr()), need.size(), p.sysStat, "page alloc")
+		sysUsed(unsafe.Pointer(need.base.addr()), need.size(), need.size())
+		p.summaryMappedReady += need.size()
 	}
+}
+
+// sysGrow increases the index's backing store in response to a heap growth.
+//
+// Returns the amount of memory added to sysStat.
+func (s *scavengeIndex) sysGrow(base, limit uintptr, sysStat *sysMemStat) uintptr {
+	if base%pallocChunkBytes != 0 || limit%pallocChunkBytes != 0 {
+		print("runtime: base = ", hex(base), ", limit = ", hex(limit), "\n")
+		throw("sysGrow bounds not aligned to pallocChunkBytes")
+	}
+	scSize := unsafe.Sizeof(atomicScavChunkData{})
+	// Map and commit the pieces of chunks that we need.
+	//
+	// We always map the full range of the minimum heap address to the
+	// maximum heap address. We don't do this for the summary structure
+	// because it's quite large and a discontiguous heap could cause a
+	// lot of memory to be used. In this situation, the worst case overhead
+	// is in the single-digit MiB if we map the whole thing.
+	//
+	// The base address of the backing store is always page-aligned,
+	// because it comes from the OS, so it's sufficient to align the
+	// index.
+	haveMin := s.min.Load()
+	haveMax := s.max.Load()
+	needMin := alignDown(uintptr(chunkIndex(base)), physPageSize/scSize)
+	needMax := alignUp(uintptr(chunkIndex(limit)), physPageSize/scSize)
+
+	// We need a contiguous range, so extend the range if there's no overlap.
+	if needMax < haveMin {
+		needMax = haveMin
+	}
+	if haveMax != 0 && needMin > haveMax {
+		needMin = haveMax
+	}
+
+	// Avoid a panic from indexing one past the last element.
+	chunksBase := uintptr(unsafe.Pointer(&s.chunks[0]))
+	have := makeAddrRange(chunksBase+haveMin*scSize, chunksBase+haveMax*scSize)
+	need := makeAddrRange(chunksBase+needMin*scSize, chunksBase+needMax*scSize)
+
+	// Subtract any overlap from rounding. We can't re-map memory because
+	// it'll be zeroed.
+	need = need.subtract(have)
+
+	// If we've got something to map, map it, and update the slice bounds.
+	if need.size() != 0 {
+		sysMap(unsafe.Pointer(need.base.addr()), need.size(), sysStat, "scavenge index")
+		sysUsed(unsafe.Pointer(need.base.addr()), need.size(), need.size())
+		// Update the indices only after the new memory is valid.
+		if haveMax == 0 || needMin < haveMin {
+			s.min.Store(needMin)
+		}
+		if needMax > haveMax {
+			s.max.Store(needMax)
+		}
+	}
+	return need.size()
+}
+
+// sysInit initializes the scavengeIndex' chunks array.
+//
+// Returns the amount of memory added to sysStat.
+func (s *scavengeIndex) sysInit(test bool, sysStat *sysMemStat) uintptr {
+	n := uintptr(1<<heapAddrBits) / pallocChunkBytes
+	nbytes := n * unsafe.Sizeof(atomicScavChunkData{})
+	r := sysReserve(nil, nbytes, "scavenge index")
+	sl := notInHeapSlice{(*notInHeap)(r), int(n), int(n)}
+	s.chunks = *(*[]atomicScavChunkData)(unsafe.Pointer(&sl))
+	return 0 // All memory above is mapped Reserved.
 }

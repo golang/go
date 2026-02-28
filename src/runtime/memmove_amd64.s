@@ -1,5 +1,5 @@
 // Derived from Inferno's libkern/memmove-386.s (adapted for amd64)
-// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/memmove-386.s
+// https://bitbucket.org/inferno-os/inferno-os/src/master/libkern/memmove-386.s
 //
 //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
@@ -23,7 +23,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// +build !plan9
+//go:build !plan9
 
 #include "go_asm.h"
 #include "textflag.h"
@@ -31,11 +31,14 @@
 // See memmove Go doc for important implementation constraints.
 
 // func memmove(to, from unsafe.Pointer, n uintptr)
-TEXT runtime·memmove(SB), NOSPLIT, $0-24
-
-	MOVQ	to+0(FP), DI
-	MOVQ	from+8(FP), SI
-	MOVQ	n+16(FP), BX
+// ABIInternal for performance.
+TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT, $0-24
+	// AX = to
+	// BX = from
+	// CX = n
+	MOVQ	AX, DI
+	MOVQ	BX, SI
+	MOVQ	CX, BX
 
 	// REP instructions have a high startup cost, so we handle small sizes
 	// with some straightline code. The REP MOVSQ instruction is really fast
@@ -69,9 +72,10 @@ tail:
 	CMPQ	BX, $256
 	JBE	move_129through256
 
-	TESTB	$1, runtime·useAVXmemmove(SB)
-	JNZ	avxUnaligned
-
+	MOVB	runtime·memmoveBits(SB), AX
+	// We have AVX but we don't want to use REP MOVSx.
+	CMPB	AX, $const_avxSupported
+	JEQ	avxUnaligned
 /*
  * check and set for backwards
  */
@@ -79,16 +83,23 @@ tail:
 	JLS	back
 
 /*
- * forward copy loop
- */
+* forward copy loop
+*/
 forward:
 	CMPQ	BX, $2048
+	JL	check_avx
+	// REP MOVSx is slow if destination address is unaligned.
+	TESTQ	$15,DI
+	JNZ	check_avx
+	TESTB	$const_repmovsPreferred, AX
+	JNZ	fwdBy8
+	// For backward copy, REP MOVSx performs worse than avx.
+check_avx:
+	TESTB	$const_avxSupported, AX
+	JNZ	avxUnaligned
+
+	CMPQ	BX, $2048
 	JLS	move_256through2048
-
-	// If REP MOVSB isn't fast, don't use it
-	CMPB	internal∕cpu·X86+const_offsetX86HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
-	JNE	fwdBy8
-
 	// Check alignment
 	MOVL	SI, AX
 	ORL	DI, AX
@@ -101,12 +112,16 @@ forward:
 	RET
 
 fwdBy8:
+	// Loading the last (possibly partially overlapping) word and writing
+	// it at the end.
+	MOVQ	-8(SI)(BX*1), AX
+	LEAQ	-8(DI)(BX*1), DX
 	// Do 8 bytes at a time
-	MOVQ	BX, CX
+	LEAQ 	-1(BX),CX
 	SHRQ	$3, CX
-	ANDQ	$7, BX
 	REP;	MOVSQ
-	JMP	tail
+	MOVQ	AX, (DX)
+	RET
 
 back:
 /*
@@ -116,6 +131,9 @@ back:
 	ADDQ	BX, CX
 	CMPQ	CX, DI
 	JLS	forward
+
+	TESTB	$const_avxSupported, AX
+	JNZ	avxUnaligned
 /*
  * whole thing backwards has
  * adjusted addresses
@@ -244,6 +262,8 @@ move_129through256:
 	MOVOU	X13, -48(DI)(BX*1)
 	MOVOU	X14, -32(DI)(BX*1)
 	MOVOU	X15, -16(DI)(BX*1)
+	// X15 must be zero on return
+	PXOR	X15, X15
 	RET
 move_256through2048:
 	SUBQ	$256, BX
@@ -283,6 +303,8 @@ move_256through2048:
 	LEAQ	256(SI), SI
 	LEAQ	256(DI), DI
 	JGE	move_256through2048
+	// X15 must be zero on return
+	PXOR	X15, X15
 	JMP	tail
 
 avxUnaligned:
@@ -411,9 +433,9 @@ gobble_mem_fwd_loop:
 	PREFETCHNTA 0x1C0(SI)
 	PREFETCHNTA 0x280(SI)
 	// Prefetch values were chosen empirically.
-	// Approach for prefetch usage as in 7.6.6 of [1]
+	// Approach for prefetch usage as in 9.5.6 of [1]
 	// [1] 64-ia-32-architectures-optimization-manual.pdf
-	// https://www.intel.ru/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-optimization-manual.pdf
+	// https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-optimization-manual.pdf
 	VMOVDQU	(SI), Y0
 	VMOVDQU	0x20(SI), Y1
 	VMOVDQU	0x40(SI), Y2

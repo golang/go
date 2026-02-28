@@ -64,21 +64,26 @@ func (f *elfFile) symbols() ([]Sym, error) {
 	return syms, nil
 }
 
-func (f *elfFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+func (f *elfFile) pcln() (textStart uint64, pclntab []byte, err error) {
 	if sect := f.elf.Section(".text"); sect != nil {
 		textStart = sect.Addr
 	}
-	if sect := f.elf.Section(".gosymtab"); sect != nil {
-		if symtab, err = sect.Data(); err != nil {
-			return 0, nil, nil, err
-		}
+
+	sect := f.elf.Section(".gopclntab")
+	if sect == nil {
+		// try .data.rel.ro.gopclntab, for PIE binaries
+		sect = f.elf.Section(".data.rel.ro.gopclntab")
 	}
-	if sect := f.elf.Section(".gopclntab"); sect != nil {
+	if sect != nil {
 		if pclntab, err = sect.Data(); err != nil {
-			return 0, nil, nil, err
+			return 0, nil, err
 		}
+	} else {
+		// if both sections failed, try the symbol
+		pclntab = f.symbolData("runtime.pclntab", "runtime.epclntab")
 	}
-	return textStart, symtab, pclntab, nil
+
+	return textStart, pclntab, nil
 }
 
 func (f *elfFile) text() (textStart uint64, text []byte, err error) {
@@ -101,11 +106,17 @@ func (f *elfFile) goarch() string {
 		return "arm"
 	case elf.EM_AARCH64:
 		return "arm64"
+	case elf.EM_LOONGARCH:
+		return "loong64"
 	case elf.EM_PPC64:
 		if f.elf.ByteOrder == binary.LittleEndian {
 			return "ppc64le"
 		}
 		return "ppc64"
+	case elf.EM_RISCV:
+		if f.elf.Class == elf.ELFCLASS64 {
+			return "riscv64"
+		}
 	case elf.EM_S390:
 		return "s390x"
 	}
@@ -115,7 +126,12 @@ func (f *elfFile) goarch() string {
 func (f *elfFile) loadAddress() (uint64, error) {
 	for _, p := range f.elf.Progs {
 		if p.Type == elf.PT_LOAD && p.Flags&elf.PF_X != 0 {
-			return p.Vaddr, nil
+			// The memory mapping that contains the segment
+			// starts at an aligned address. Apparently this
+			// is what pprof expects, as it uses this and the
+			// start address of the mapping to compute PC
+			// delta.
+			return p.Vaddr - p.Vaddr%p.Align, nil
 		}
 	}
 	return 0, fmt.Errorf("unknown load address")
@@ -123,4 +139,36 @@ func (f *elfFile) loadAddress() (uint64, error) {
 
 func (f *elfFile) dwarf() (*dwarf.Data, error) {
 	return f.elf.DWARF()
+}
+
+func (f *elfFile) symbolData(start, end string) []byte {
+	elfSyms, err := f.elf.Symbols()
+	if err != nil {
+		return nil
+	}
+	var addr, eaddr uint64
+	for _, s := range elfSyms {
+		if s.Name == start {
+			addr = s.Value
+		} else if s.Name == end {
+			eaddr = s.Value
+		}
+		if addr != 0 && eaddr != 0 {
+			break
+		}
+	}
+	if addr == 0 || eaddr < addr {
+		return nil
+	}
+	size := eaddr - addr
+	data := make([]byte, size)
+	for _, prog := range f.elf.Progs {
+		if prog.Vaddr <= addr && addr+size-1 <= prog.Vaddr+prog.Filesz-1 {
+			if _, err := prog.ReadAt(data, int64(addr-prog.Vaddr)); err != nil {
+				return nil
+			}
+			return data
+		}
+	}
+	return nil
 }

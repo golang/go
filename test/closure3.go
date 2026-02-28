@@ -1,4 +1,6 @@
-// errorcheckandrundir -0 -m
+// errorcheckandrundir -0 -m -d=inlfuncswithclosures=1
+
+//go:build !goexperiment.newinliner
 
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

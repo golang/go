@@ -1,5 +1,8 @@
 # Imports
-go list -f  '{{.ImportPath}} {{.Imports}}' 'vend/...' 'vend/vendor/...' 'vend/x/vendor/...'
+env GO111MODULE=off
+
+# Pass -e to permit errors (e.g. bad.go, invalid.go)
+go list -f  '{{.ImportPath}} {{.Imports}}' -e 'vend/...' 'vend/vendor/...' 'vend/x/vendor/...'
 cmp stdout want_vendor_imports.txt
 
 -- want_vendor_imports.txt --

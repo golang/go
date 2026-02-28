@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
-// +build mips mipsle
+//go:build linux && (mips || mipsle)
 
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -77,12 +77,10 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 
 	// In case we are panicking from external C code
 	c.set_r30(uint32(uintptr(unsafe.Pointer(gp))))
-	c.set_pc(uint32(funcPC(sigpanic)))
+	c.set_pc(uint32(abi.FuncPCABIInternal(sigpanic)))
 }
 
-const pushCallSupported = true
-
-func (c *sigctxt) pushCall(targetPC uintptr) {
+func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
 	// Push the LR to stack, as we'll clobber it in order to
 	// push the call. The function being pushed is responsible
 	// for restoring the LR and setting the SP back.
@@ -91,7 +89,7 @@ func (c *sigctxt) pushCall(targetPC uintptr) {
 	c.set_sp(sp)
 	*(*uint32)(unsafe.Pointer(uintptr(sp))) = c.link()
 	// Set up PC and LR to pretend the function being signaled
-	// calls targetPC at the faulting PC.
-	c.set_link(c.pc())
+	// calls targetPC at resumePC.
+	c.set_link(uint32(resumePC))
 	c.set_pc(uint32(targetPC))
 }

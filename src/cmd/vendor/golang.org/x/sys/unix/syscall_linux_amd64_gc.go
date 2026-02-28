@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build amd64,linux
-// +build !gccgo
+//go:build amd64 && linux && gc
 
 package unix
 

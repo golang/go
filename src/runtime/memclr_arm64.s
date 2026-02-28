@@ -4,11 +4,11 @@
 
 #include "textflag.h"
 
-// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
-TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
-	MOVD	ptr+0(FP), R0
-	MOVD	n+8(FP), R1
+// See memclrNoHeapPointers Go doc for important implementation constraints.
 
+// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+// Also called from assembly in sys_windows_arm64.s without g (but using Go stack convention).
+TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT,$0-16
 	CMP	$16, R1
 	// If n is equal to 16 bytes, use zero_exact_16 to zero
 	BEQ	zero_exact_16
@@ -82,6 +82,7 @@ last16:
 last_end:
 	RET
 
+	PCALIGN	$16
 no_zva:
 	SUB	$16, R0, R0
 	SUB	$64, R1, R1
@@ -98,6 +99,7 @@ loop_64:
 	BNE	tail63
 	RET
 
+	PCALIGN	$16
 try_zva:
 	// Try using the ZVA feature to zero entire cache lines
 	// It is not meaningful to use ZVA if the block size is less than 64,
@@ -124,6 +126,7 @@ try_zva:
 	MOVW	R5, block_size<>(SB)
 	B	no_zva
 
+	PCALIGN	$16
 init:
 	MOVW	$4, R9
 	ANDW	$15, R3, R5
@@ -134,6 +137,7 @@ init:
 	// Block size is less than 64.
 	BNE	no_zva
 
+	PCALIGN	$16
 zero_by_line:
 	CMP	R5, R1
 	// Not enough memory to reach alignment
@@ -170,8 +174,9 @@ loop_zva_prolog:
 aligned:
 	SUB	R5, R1, R1
 
+	PCALIGN	$16
 loop_zva:
-	WORD	$0xd50b7420 // DC ZVA, R0
+	DC	ZVA, R0
 	ADD	R5, R0, R0
 	SUBS	R5, R1, R1
 	BHS	loop_zva

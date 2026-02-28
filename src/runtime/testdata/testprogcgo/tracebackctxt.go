@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The __attribute__((weak)) used below doesn't seem to work on Windows.
-
 package main
 
 // Test the context argument to SetCgoTraceback.
@@ -14,20 +12,29 @@ package main
 extern void C1(void);
 extern void C2(void);
 extern void tcContext(void*);
+extern void tcContextSimple(void*);
 extern void tcTraceback(void*);
 extern void tcSymbolizer(void*);
 extern int getContextCount(void);
+extern void TracebackContextPreemptionCallGo(int);
+extern void TracebackContextProfileCallGo(void);
 */
 import "C"
 
 import (
 	"fmt"
+	"io"
 	"runtime"
+	"runtime/pprof"
+	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
 func init() {
 	register("TracebackContext", TracebackContext)
+	register("TracebackContextPreemption", TracebackContextPreemption)
+	register("TracebackContextProfile", TracebackContextProfile)
 }
 
 var tracebackOK bool
@@ -104,4 +111,69 @@ wantLoop:
 		fmt.Printf("at bottom contextCount == %d, expected 2\n", got)
 		tracebackOK = false
 	}
+}
+
+// Issue 47441.
+func TracebackContextPreemption() {
+	runtime.SetCgoTraceback(0, unsafe.Pointer(C.tcTraceback), unsafe.Pointer(C.tcContextSimple), unsafe.Pointer(C.tcSymbolizer))
+
+	const funcs = 10
+	const calls = 1e5
+	var wg sync.WaitGroup
+	for i := 0; i < funcs; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			for j := 0; j < calls; j++ {
+				C.TracebackContextPreemptionCallGo(C.int(i*calls + j))
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	fmt.Println("OK")
+}
+
+//export TracebackContextPreemptionGoFunction
+func TracebackContextPreemptionGoFunction(i C.int) {
+	// Do some busy work.
+	fmt.Sprintf("%d\n", i)
+}
+
+// Regression test for issue 71395.
+//
+// The SIGPROF handler can call the SetCgoTraceback traceback function if the
+// context function is also provided. Ensure that call is safe.
+func TracebackContextProfile() {
+	runtime.SetCgoTraceback(0, unsafe.Pointer(C.tcTraceback), unsafe.Pointer(C.tcContextSimple), unsafe.Pointer(C.tcSymbolizer))
+
+	if err := pprof.StartCPUProfile(io.Discard); err != nil {
+		panic(fmt.Sprintf("error starting CPU profile: %v", err))
+	}
+	defer pprof.StopCPUProfile()
+
+	const calls = 1e5
+	var wg sync.WaitGroup
+	for i := 0; i < runtime.GOMAXPROCS(0); i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < calls; j++ {
+				C.TracebackContextProfileCallGo()
+			}
+		}()
+	}
+	wg.Wait()
+
+	fmt.Println("OK")
+}
+
+var sink atomic.Pointer[byte]
+
+//export TracebackContextProfileGoFunction
+func TracebackContextProfileGoFunction() {
+	// Issue 71395 occurs when SIGPROF lands on code running on the system
+	// stack in a cgo callback. The allocator uses the system stack.
+	b := make([]byte, 128)
+	sink.Store(&b[0])
 }

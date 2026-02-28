@@ -6,6 +6,7 @@ package image
 
 import (
 	"image/color"
+	"math/bits"
 	"strconv"
 )
 
@@ -66,12 +67,12 @@ func (p Point) Eq(q Point) bool {
 	return p == q
 }
 
-// ZP is the zero Point.
+// ZP is the zero [Point].
 //
-// Deprecated: Use a literal image.Point{} instead.
+// Deprecated: Use a literal [image.Point] instead.
 var ZP Point
 
-// Pt is shorthand for Point{X, Y}.
+// Pt is shorthand for [Point]{X, Y}.
 func Pt(X, Y int) Point {
 	return Point{X, Y}
 }
@@ -81,7 +82,7 @@ func Pt(X, Y int) Point {
 // well-formed. A rectangle's methods always return well-formed outputs for
 // well-formed inputs.
 //
-// A Rectangle is also an Image whose bounds are the rectangle itself. At
+// A Rectangle is also an [Image] whose bounds are the rectangle itself. At
 // returns color.Opaque for points in the rectangle and color.Transparent
 // otherwise.
 type Rectangle struct {
@@ -168,7 +169,7 @@ func (r Rectangle) Intersect(s Rectangle) Rectangle {
 	//
 	// if max(r0.Min.X, s0.Min.X) >= min(r0.Max.X, s0.Max.X) || likewiseForY { etc }
 	if r.Empty() {
-		return ZR
+		return Rectangle{}
 	}
 	return r
 }
@@ -237,7 +238,7 @@ func (r Rectangle) Canon() Rectangle {
 	return r
 }
 
-// At implements the Image interface.
+// At implements the [Image] interface.
 func (r Rectangle) At(x, y int) color.Color {
 	if (Point{x, y}).In(r) {
 		return color.Opaque
@@ -245,22 +246,30 @@ func (r Rectangle) At(x, y int) color.Color {
 	return color.Transparent
 }
 
-// Bounds implements the Image interface.
+// RGBA64At implements the [RGBA64Image] interface.
+func (r Rectangle) RGBA64At(x, y int) color.RGBA64 {
+	if (Point{x, y}).In(r) {
+		return color.RGBA64{0xffff, 0xffff, 0xffff, 0xffff}
+	}
+	return color.RGBA64{}
+}
+
+// Bounds implements the [Image] interface.
 func (r Rectangle) Bounds() Rectangle {
 	return r
 }
 
-// ColorModel implements the Image interface.
+// ColorModel implements the [Image] interface.
 func (r Rectangle) ColorModel() color.Model {
 	return color.Alpha16Model
 }
 
-// ZR is the zero Rectangle.
+// ZR is the zero [Rectangle].
 //
-// Deprecated: Use a literal image.Rectangle{} instead.
+// Deprecated: Use a literal [image.Rectangle] instead.
 var ZR Rectangle
 
-// Rect is shorthand for Rectangle{Pt(x0, y0), Pt(x1, y1)}. The returned
+// Rect is shorthand for [Rectangle]{Pt(x0, y0), [Pt](x1, y1)}. The returned
 // rectangle has minimum and maximum coordinates swapped if necessary so that
 // it is well-formed.
 func Rect(x0, y0, x1, y1 int) Rectangle {
@@ -271,4 +280,38 @@ func Rect(x0, y0, x1, y1 int) Rectangle {
 		y0, y1 = y1, y0
 	}
 	return Rectangle{Point{x0, y0}, Point{x1, y1}}
+}
+
+// mul3NonNeg returns (x * y * z), unless at least one argument is negative or
+// if the computation overflows the int type, in which case it returns -1.
+func mul3NonNeg(x int, y int, z int) int {
+	if (x < 0) || (y < 0) || (z < 0) {
+		return -1
+	}
+	hi, lo := bits.Mul64(uint64(x), uint64(y))
+	if hi != 0 {
+		return -1
+	}
+	hi, lo = bits.Mul64(lo, uint64(z))
+	if hi != 0 {
+		return -1
+	}
+	a := int(lo)
+	if (a < 0) || (uint64(a) != lo) {
+		return -1
+	}
+	return a
+}
+
+// add2NonNeg returns (x + y), unless at least one argument is negative or if
+// the computation overflows the int type, in which case it returns -1.
+func add2NonNeg(x int, y int) int {
+	if (x < 0) || (y < 0) {
+		return -1
+	}
+	a := x + y
+	if a < 0 {
+		return -1
+	}
+	return a
 }

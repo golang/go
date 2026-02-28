@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"cmd/internal/buildid"
+	"cmd/internal/telemetry/counter"
 )
 
 func usage() {
@@ -22,26 +23,14 @@ func usage() {
 
 var wflag = flag.Bool("w", false, "write build ID")
 
-// taken from cmd/go/internal/work/buildid.go
-func hashToString(h [32]byte) string {
-	const b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
-	const chunks = 5
-	var dst [chunks * 4]byte
-	for i := 0; i < chunks; i++ {
-		v := uint32(h[3*i])<<16 | uint32(h[3*i+1])<<8 | uint32(h[3*i+2])
-		dst[4*i+0] = b64[(v>>18)&0x3F]
-		dst[4*i+1] = b64[(v>>12)&0x3F]
-		dst[4*i+2] = b64[(v>>6)&0x3F]
-		dst[4*i+3] = b64[v&0x3F]
-	}
-	return string(dst[:])
-}
-
 func main() {
 	log.SetPrefix("buildid: ")
 	log.SetFlags(0)
+	counter.Open()
 	flag.Usage = usage
 	flag.Parse()
+	counter.Inc("buildid/invocations")
+	counter.CountFlags("buildid/flag:", *flag.CommandLine)
 	if flag.NArg() != 1 {
 		usage()
 	}
@@ -63,12 +52,17 @@ func main() {
 		log.Fatal(err)
 	}
 	matches, hash, err := buildid.FindAndHash(f, id, 0)
+	f.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
-	f.Close()
 
-	newID := id[:strings.LastIndex(id, "/")] + "/" + hashToString(hash)
+	// <= go 1.7 doesn't embed the contentID or actionID, so no slash is present
+	if !strings.Contains(id, "/") {
+		log.Fatalf("%s: build ID is a legacy format...binary too old for this tool", file)
+	}
+
+	newID := id[:strings.LastIndex(id, "/")] + "/" + buildid.HashToString(hash)
 	if len(newID) != len(id) {
 		log.Fatalf("%s: build ID length mismatch %q vs %q", file, id, newID)
 	}
@@ -77,7 +71,7 @@ func main() {
 		return
 	}
 
-	f, err = os.OpenFile(file, os.O_WRONLY, 0)
+	f, err = os.OpenFile(file, os.O_RDWR, 0)
 	if err != nil {
 		log.Fatal(err)
 	}

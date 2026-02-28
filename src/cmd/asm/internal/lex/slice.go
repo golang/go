@@ -65,7 +65,7 @@ func (s *Slice) Col() int {
 	//	#define A #define B(x) x
 	// and
 	//	#define A #define B (x) x
-	// The first has definition of B has an argument, the second doesn't. Because we let
+	// The first definition of B has an argument, the second doesn't. Because we let
 	// text/scanner strip the blanks for us, this is extremely rare, hard to fix, and not worth it.
 	return s.pos
 }

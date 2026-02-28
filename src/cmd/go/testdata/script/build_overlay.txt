@@ -1,0 +1,315 @@
+[short] skip
+
+# Test building in overlays.
+# TODO(#39958): add a test case where the destination file in the replace map
+#   isn't a go file. Either completely exclude that case in fs.IsDirWithGoFiles
+#   if the compiler doesn't allow it, or test that it works all the way.
+# TODO(#39958): add a test that both gc and gccgo assembly files can include .h
+#   files.
+
+# The main package (m) is contained in an overlay. It imports m/dir2 which has one
+# file in an overlay and one file outside the overlay, which in turn imports m/dir,
+# which only has source files in the overlay.
+
+cd m
+
+! go build .
+go build -overlay overlay.json -o main$GOEXE .
+exec ./main$goexe
+stdout '^hello$'
+
+go build -overlay overlay.json -o print_abspath$GOEXE ./printpath
+exec ./print_abspath$GOEXE
+stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
+
+go vet -overlay overlay.json ./printpath
+
+go build -overlay overlay.json -o print_trimpath$GOEXE -trimpath ./printpath
+exec ./print_trimpath$GOEXE
+stdout ^m[/\\]printpath[/\\]main.go
+
+go build -overlay overlay.json -o print_trimpath_two_files$GOEXE printpath/main.go printpath/other.go
+exec ./print_trimpath_two_files$GOEXE
+stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
+stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]other.go
+
+[cgo] go build -overlay overlay.json -o main_cgo_replace$GOEXE ./cgo_hello_replace
+[cgo] exec ./main_cgo_replace$GOEXE
+[cgo] stdout '^hello cgo\r?\n'
+
+[cgo] go build -overlay overlay.json -o main_cgo_quote$GOEXE ./cgo_hello_quote
+[cgo] exec ./main_cgo_quote$GOEXE
+[cgo] stdout '^hello cgo\r?\n'
+
+[cgo] go build -overlay overlay.json -o main_cgo_angle$GOEXE ./cgo_hello_angle
+[cgo] exec ./main_cgo_angle$GOEXE
+[cgo] stdout '^hello cgo\r?\n'
+
+go build -overlay overlay.json -o main_call_asm$GOEXE ./call_asm
+exec ./main_call_asm$GOEXE
+! stdout .
+
+[cgo] go list -compiled -overlay overlay.json -f '{{range .CompiledGoFiles}}{{. | printf "%s\n"}}{{end}}' ./cgo_hello_replace
+[cgo] cp stdout compiled_cgo_sources.txt
+[cgo] go run ../print_line_comments.go compiled_cgo_sources.txt
+[cgo] stdout $GOPATH[/\\]src[/\\]m[/\\]cgo_hello_replace[/\\]cgo_hello_replace.go
+[cgo] ! stdout $GOPATH[/\\]src[/\\]m[/\\]overlay[/\\]hello.c
+
+# Change the contents of a file in the overlay and ensure that makes the target stale
+env OLD_GOCACHE=$GOCACHE
+env GOCACHE=$WORK/cache  # use a fresh cache so that multiple runs of the test don't interfere
+go build -x -overlay overlay.json ./test_cache
+stderr '(compile|gccgo)( |\.exe).*test_cache.go'
+go build -x -overlay overlay.json ./test_cache
+! stderr '(compile|gccgo)( |\.exe).*test_cache.go'  # cached
+cp overlay/test_cache_different.go overlay/test_cache.go
+go build -x -overlay overlay.json ./test_cache
+stderr '(compile|gccgo)( |\.exe).*test_cache.go'  # not cached
+env CACHE=$OLD_GOCACHE
+
+# Run same tests but with gccgo.
+env GO111MODULE=off
+[!exec:gccgo] stop
+[cross] stop  # gccgo can't necessarily cross-compile
+
+! go build -compiler=gccgo .
+go build -compiler=gccgo -overlay overlay.json -o main_gccgo$GOEXE .
+exec ./main_gccgo$goexe
+stdout '^hello$'
+
+go build -compiler=gccgo -overlay overlay.json -o print_abspath_gccgo$GOEXE ./printpath
+exec ./print_abspath_gccgo$GOEXE
+stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
+
+go build -compiler=gccgo -overlay overlay.json -o print_trimpath_gccgo$GOEXE -trimpath ./printpath
+exec ./print_trimpath_gccgo$GOEXE
+stdout ^\.[/\\]printpath[/\\]main.go
+
+
+go build -compiler=gccgo  -overlay overlay.json -o main_cgo_replace_gccgo$GOEXE ./cgo_hello_replace
+exec ./main_cgo_replace_gccgo$GOEXE
+stdout '^hello cgo\r?\n'
+
+go build -compiler=gccgo  -overlay overlay.json -o main_cgo_quote_gccgo$GOEXE ./cgo_hello_quote
+exec ./main_cgo_quote_gccgo$GOEXE
+stdout '^hello cgo\r?\n'
+
+go build -compiler=gccgo  -overlay overlay.json -o main_cgo_angle_gccgo$GOEXE ./cgo_hello_angle
+exec ./main_cgo_angle_gccgo$GOEXE
+stdout '^hello cgo\r?\n'
+
+go build -compiler=gccgo -overlay overlay.json -o main_call_asm_gccgo$GOEXE ./call_asm
+exec ./main_call_asm_gccgo$GOEXE
+! stdout .
+
+
+-- m/go.mod --
+// TODO(matloob): how do overlays work with go.mod (especially if mod=readonly)
+module m
+
+go 1.16
+
+-- m/dir2/h.go --
+package dir2
+
+func PrintMessage() {
+	printMessage()
+}
+-- m/dir/foo.txt --
+The build action code currently expects the package directory
+to exist, so it can run the compiler in that directory.
+TODO(matloob): Remove this requirement.
+-- m/printpath/about.txt --
+the actual code is in the overlay
+-- m/overlay.json --
+{
+	"Replace": {
+		"f.go": "overlay/f.go",
+		"dir/g.go": "overlay/dir_g.go",
+		"dir2/i.go": "overlay/dir2_i.go",
+		"printpath/main.go": "overlay/printpath.go",
+		"printpath/other.go": "overlay2/printpath2.go",
+		"call_asm/asm_gc.s": "overlay/asm_gc.s",
+		"call_asm/asm_gccgo.s": "overlay/asm_gccgo.s",
+		"test_cache/main.go": "overlay/test_cache.go",
+		"cgo_hello_replace/cgo_header.h": "overlay/cgo_head.h",
+		"cgo_hello_replace/hello.c": "overlay/hello.c",
+		"cgo_hello_quote/cgo_hello.go": "overlay/cgo_hello_quote.go",
+		"cgo_hello_quote/cgo_header.h": "overlay/cgo_head.h",
+		"cgo_hello_angle/cgo_hello.go": "overlay/cgo_hello_angle.go",
+		"cgo_hello_angle/cgo_header.h": "overlay/cgo_head.h"
+	}
+}
+-- m/cgo_hello_replace/cgo_hello_replace.go --
+package main
+
+// #include "cgo_header.h"
+import "C"
+
+func main() {
+	C.say_hello()
+}
+-- m/cgo_hello_replace/cgo_header.h --
+ // Test that this header is replaced with one that has the proper declaration.
+void say_goodbye();
+
+-- m/cgo_hello_replace/hello.c --
+#include <stdio.h>
+
+void say_goodbye() { puts("goodbye cgo\n"); fflush(stdout); }
+
+-- m/overlay/f.go --
+package main
+
+import "m/dir2"
+
+func main() {
+	dir2.PrintMessage()
+}
+-- m/call_asm/main.go --
+package main
+
+func foo() // There will be a "missing function body" error if the assembly file isn't found.
+
+func main() {
+	foo()
+}
+-- m/overlay/dir_g.go --
+package dir
+
+import "fmt"
+
+func PrintMessage() {
+	fmt.Println("hello")
+}
+-- m/overlay/printpath.go --
+package main
+
+import (
+	"fmt"
+	"path/filepath"
+	"runtime"
+)
+
+func main() {
+	_, file, _, _ := runtime.Caller(0)
+
+	// Since https://golang.org/cl/214286, the runtime's debug paths are
+	// slash-separated regardless of platform, so normalize them to system file
+	// paths.
+	fmt.Println(filepath.FromSlash(file))
+}
+-- m/overlay2/printpath2.go --
+package main
+
+import (
+	"fmt"
+	"path/filepath"
+	"runtime"
+)
+
+func init() {
+	_, file, _, _ := runtime.Caller(0)
+	fmt.Println(filepath.FromSlash(file))
+}
+-- m/overlay/dir2_i.go --
+package dir2
+
+import "m/dir"
+
+func printMessage() {
+	dir.PrintMessage()
+}
+-- m/overlay/cgo_hello_quote.go --
+package main
+
+// #include "cgo_header.h"
+import "C"
+
+func main() {
+	C.say_hello()
+}
+-- m/overlay/cgo_hello_angle.go --
+package main
+
+// #include <cgo_header.h>
+import "C"
+
+func main() {
+	C.say_hello()
+}
+-- m/overlay/cgo_head.h --
+void say_hello();
+-- m/overlay/hello.c --
+#include <stdio.h>
+
+void say_hello() { puts("hello cgo\n"); fflush(stdout); }
+-- m/overlay/asm_gc.s --
+// +build gc
+
+TEXT ·foo(SB),0,$0
+	RET
+
+-- m/overlay/asm_gccgo.s --
+// +build gccgo
+
+.globl main.foo
+.text
+main.foo:
+	ret
+
+-- m/overlay/test_cache.go --
+package foo
+
+import "fmt"
+
+func bar() {
+	fmt.Println("something")
+}
+-- m/overlay/test_cache_different.go --
+package foo
+
+import "fmt"
+
+func bar() {
+	fmt.Println("different")
+}
+-- m/cgo_hello_quote/hello.c --
+#include <stdio.h>
+
+void say_hello() { puts("hello cgo\n"); fflush(stdout); }
+-- m/cgo_hello_angle/hello.c --
+#include <stdio.h>
+
+void say_hello() { puts("hello cgo\n"); fflush(stdout); }
+
+-- print_line_comments.go --
+package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"strings"
+)
+
+func main() {
+	compiledGoFilesArg := os.Args[1]
+	b, err := ioutil.ReadFile(compiledGoFilesArg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	compiledGoFiles := strings.Split(strings.TrimSpace(string(b)), "\n")
+	for _, f := range compiledGoFiles {
+		b, err := ioutil.ReadFile(f)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, line := range strings.Split(string(b), "\n") {
+			if strings.HasPrefix(line, "#line") || strings.HasPrefix(line, "//line") {
+				fmt.Println(line)
+			}
+		}
+	}
+}

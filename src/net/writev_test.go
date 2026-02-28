@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !js
-
 package net
 
 import (
@@ -11,7 +9,6 @@ import (
 	"fmt"
 	"internal/poll"
 	"io"
-	"io/ioutil"
 	"reflect"
 	"runtime"
 	"sync"
@@ -28,7 +25,7 @@ func TestBuffers_read(t *testing.T) {
 		[]byte("in "),
 		[]byte("Gopherland ... "),
 	}
-	got, err := ioutil.ReadAll(&buffers)
+	got, err := io.ReadAll(&buffers)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +138,7 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
 		}
 		return nil
 	}, func(c *TCPConn) error {
-		all, err := ioutil.ReadAll(c)
+		all, err := io.ReadAll(c)
 		if !bytes.Equal(all, want.Bytes()) || err != nil {
 			return fmt.Errorf("client read %q, %v; want %q, nil", all, err, want.Bytes())
 		}
@@ -154,7 +151,7 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
 
 		var wantSum int
 		switch runtime.GOOS {
-		case "android", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
+		case "aix", "android", "darwin", "ios", "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd", "solaris":
 			var wantMinCalls int
 			wantSum = want.Len()
 			v := chunks
@@ -187,13 +184,16 @@ func TestWritevError(t *testing.T) {
 		t.Skipf("skipping the test: windows does not have problem sending large chunks of data")
 	}
 
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
+	ln := newLocalListener(t, "tcp")
 
 	ch := make(chan Conn, 1)
+	defer func() {
+		ln.Close()
+		for c := range ch {
+			c.Close()
+		}
+	}()
+
 	go func() {
 		defer close(ch)
 		c, err := ln.Accept()

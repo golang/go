@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix
+//go:build aix
 
 package syscall
 
@@ -34,4 +34,13 @@ func Getpgrp() (pgrp int) {
 	return
 }
 
-var Ioctl = ioctl
+func Tcgetpgrp(fd int) (pgid int32, err error) {
+	if errno := ioctlPtr(uintptr(fd), TIOCGPGRP, unsafe.Pointer(&pgid)); errno != 0 {
+		return -1, errno
+	}
+	return pgid, nil
+}
+
+func Tcsetpgrp(fd int, pgid int32) (err error) {
+	return ioctlPtr(uintptr(fd), TIOCSPGRP, unsafe.Pointer(&pgid))
+}

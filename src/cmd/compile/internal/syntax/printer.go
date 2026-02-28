@@ -7,25 +7,33 @@
 package syntax
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"strings"
 )
 
-// TODO(gri) Consider removing the linebreaks flag from this signature.
-// Its likely rarely used in common cases.
+// Form controls print formatting.
+type Form uint
 
-func Fprint(w io.Writer, x Node, linebreaks bool) (n int, err error) {
+const (
+	_         Form = iota // default
+	LineForm              // use spaces instead of linebreaks where possible
+	ShortForm             // like LineForm but print "…" for non-empty function or composite literal bodies
+)
+
+// Fprint prints node x to w in the specified form.
+// It returns the number of bytes written, and whether there was an error.
+func Fprint(w io.Writer, x Node, form Form) (n int, err error) {
 	p := printer{
 		output:     w,
-		linebreaks: linebreaks,
+		form:       form,
+		linebreaks: form == 0,
 	}
 
 	defer func() {
 		n = p.written
 		if e := recover(); e != nil {
-			err = e.(localError).err // re-panics if it's not a localError
+			err = e.(writeError).err // re-panics if it's not a writeError
 		}
 	}()
 
@@ -35,11 +43,13 @@ func Fprint(w io.Writer, x Node, linebreaks bool) (n int, err error) {
 	return
 }
 
+// String is a convenience function that prints n in ShortForm
+// and returns the printed string.
 func String(n Node) string {
-	var buf bytes.Buffer
-	_, err := Fprint(&buf, n, false)
+	var buf strings.Builder
+	_, err := Fprint(&buf, n, ShortForm)
 	if err != nil {
-		panic(err) // TODO(gri) print something sensible into buf instead
+		fmt.Fprintf(&buf, "<<< ERROR: %s", err)
 	}
 	return buf.String()
 }
@@ -65,7 +75,8 @@ type whitespace struct {
 
 type printer struct {
 	output     io.Writer
-	written    int  // number of bytes written
+	written    int // number of bytes written
+	form       Form
 	linebreaks bool // print linebreaks instead of semis
 
 	indent  int // current indentation level
@@ -81,7 +92,7 @@ func (p *printer) write(data []byte) {
 	n, err := p.output.Write(data)
 	p.written += n
 	if err != nil {
-		panic(localError{err})
+		panic(writeError{err})
 	}
 }
 
@@ -126,10 +137,6 @@ func impliesSemi(tok token) bool {
 }
 
 // TODO(gri) provide table of []byte values for all tokens to avoid repeated string conversion
-
-func lineComment(text string) bool {
-	return strings.HasPrefix(text, "//")
-}
 
 func (p *printer) addWhitespace(kind ctrlSymbol, text string) {
 	p.pending = append(p.pending, whitespace{p.lastTok, kind /*text*/})
@@ -240,7 +247,7 @@ func mayCombine(prev token, next byte) (b bool) {
 	// return
 }
 
-func (p *printer) print(args ...interface{}) {
+func (p *printer) print(args ...any) {
 	for i := 0; i < len(args); i++ {
 		switch x := args[i].(type) {
 		case nil:
@@ -355,17 +362,34 @@ func (p *printer) printRawNode(n Node) {
 		p.print(_Name, n.Value) // _Name requires actual value following immediately
 
 	case *FuncLit:
-		p.print(n.Type, blank, n.Body)
+		p.print(n.Type, blank)
+		if n.Body != nil {
+			if p.form == ShortForm {
+				p.print(_Lbrace)
+				if len(n.Body.List) > 0 {
+					p.print(_Name, "…")
+				}
+				p.print(_Rbrace)
+			} else {
+				p.print(n.Body)
+			}
+		}
 
 	case *CompositeLit:
 		if n.Type != nil {
 			p.print(n.Type)
 		}
 		p.print(_Lbrace)
-		if n.NKeys > 0 && n.NKeys == len(n.ElemList) {
-			p.printExprLines(n.ElemList)
+		if p.form == ShortForm {
+			if len(n.ElemList) > 0 {
+				p.print(_Name, "…")
+			}
 		} else {
-			p.printExprList(n.ElemList)
+			if n.NKeys > 0 && n.NKeys == len(n.ElemList) {
+				p.printExprLines(n.ElemList)
+			} else {
+				p.printExprList(n.ElemList)
+			}
 		}
 		p.print(_Rbrace)
 
@@ -431,7 +455,7 @@ func (p *printer) printRawNode(n Node) {
 		p.printExprList(n.ElemList)
 
 	case *ArrayType:
-		var len interface{} = _DotDotDot
+		var len any = _DotDotDot
 		if n.Len != nil {
 			len = n.Len
 		}
@@ -450,9 +474,13 @@ func (p *printer) printRawNode(n Node) {
 		}
 		p.print(_Lbrace)
 		if len(n.FieldList) > 0 {
-			p.print(newline, indent)
-			p.printFieldList(n.FieldList, n.TagList)
-			p.print(outdent, newline)
+			if p.linebreaks {
+				p.print(newline, indent)
+				p.printFieldList(n.FieldList, n.TagList, _Semi)
+				p.print(outdent, newline)
+			} else {
+				p.printFieldList(n.FieldList, n.TagList, _Semi)
+			}
 		}
 		p.print(_Rbrace)
 
@@ -462,14 +490,15 @@ func (p *printer) printRawNode(n Node) {
 
 	case *InterfaceType:
 		p.print(_Interface)
-		if len(n.MethodList) > 0 && p.linebreaks {
+		if p.linebreaks && len(n.MethodList) > 1 {
 			p.print(blank)
-		}
-		p.print(_Lbrace)
-		if len(n.MethodList) > 0 {
+			p.print(_Lbrace)
 			p.print(newline, indent)
 			p.printMethodList(n.MethodList)
 			p.print(outdent, newline)
+		} else {
+			p.print(_Lbrace)
+			p.printMethodList(n.MethodList)
 		}
 		p.print(_Rbrace)
 
@@ -484,7 +513,15 @@ func (p *printer) printRawNode(n Node) {
 		if n.Dir == SendOnly {
 			p.print(_Arrow)
 		}
-		p.print(blank, n.Elem)
+		p.print(blank)
+		if e, _ := n.Elem.(*ChanType); n.Dir == 0 && e != nil && e.Dir == RecvOnly {
+			// don't print chan (<-chan T) as chan <-chan T
+			p.print(_Lparen)
+			p.print(n.Elem)
+			p.print(_Rparen)
+		} else {
+			p.print(n.Elem)
+		}
 
 	// statements
 	case *DeclStmt:
@@ -504,7 +541,7 @@ func (p *printer) printRawNode(n Node) {
 
 	case *AssignStmt:
 		p.print(n.Lhs)
-		if n.Rhs == ImplicitOne {
+		if n.Rhs == nil {
 			// TODO(gri) This is going to break the mayCombine
 			//           check once we enable that again.
 			p.print(n.Op, n.Op) // ++ or --
@@ -622,7 +659,11 @@ func (p *printer) printRawNode(n Node) {
 		if n.Group == nil {
 			p.print(_Type, blank)
 		}
-		p.print(n.Name, blank)
+		p.print(n.Name)
+		if n.TParamList != nil {
+			p.printParameterList(n.TParamList, _Type)
+		}
+		p.print(blank)
 		if n.Alias {
 			p.print(_Assign, blank)
 		}
@@ -651,6 +692,9 @@ func (p *printer) printRawNode(n Node) {
 			p.print(_Rparen, blank)
 		}
 		p.print(n.Name)
+		if n.TParamList != nil {
+			p.printParameterList(n.TParamList, _Func)
+		}
 		p.printSignature(n.Type)
 		if n.Body != nil {
 			p.print(blank, n.Body)
@@ -701,14 +745,14 @@ func (p *printer) printFields(fields []*Field, tags []*BasicLit, i, j int) {
 	}
 }
 
-func (p *printer) printFieldList(fields []*Field, tags []*BasicLit) {
+func (p *printer) printFieldList(fields []*Field, tags []*BasicLit, sep token) {
 	i0 := 0
 	var typ Expr
 	for i, f := range fields {
 		if f.Name == nil || f.Type != typ {
 			if i0 < i {
 				p.printFields(fields, tags, i0, i)
-				p.print(_Semi, newline)
+				p.print(sep, newline)
 				i0 = i
 			}
 			typ = f.Type
@@ -834,38 +878,76 @@ func (p *printer) printDeclList(list []Decl) {
 }
 
 func (p *printer) printSignature(sig *FuncType) {
-	p.printParameterList(sig.ParamList)
+	p.printParameterList(sig.ParamList, 0)
 	if list := sig.ResultList; list != nil {
 		p.print(blank)
 		if len(list) == 1 && list[0].Name == nil {
 			p.printNode(list[0].Type)
 		} else {
-			p.printParameterList(list)
+			p.printParameterList(list, 0)
 		}
 	}
 }
 
-func (p *printer) printParameterList(list []*Field) {
-	p.print(_Lparen)
-	if len(list) > 0 {
-		for i, f := range list {
-			if i > 0 {
-				p.print(_Comma, blank)
-			}
-			if f.Name != nil {
-				p.printNode(f.Name)
-				if i+1 < len(list) {
-					f1 := list[i+1]
-					if f1.Name != nil && f1.Type == f.Type {
-						continue // no need to print type
-					}
-				}
-				p.print(blank)
-			}
-			p.printNode(f.Type)
-		}
+// If tok != 0 print a type parameter list: tok == _Type means
+// a type parameter list for a type, tok == _Func means a type
+// parameter list for a func.
+func (p *printer) printParameterList(list []*Field, tok token) {
+	open, close := _Lparen, _Rparen
+	if tok != 0 {
+		open, close = _Lbrack, _Rbrack
 	}
-	p.print(_Rparen)
+	p.print(open)
+	for i, f := range list {
+		if i > 0 {
+			p.print(_Comma, blank)
+		}
+		if f.Name != nil {
+			p.printNode(f.Name)
+			if i+1 < len(list) {
+				f1 := list[i+1]
+				if f1.Name != nil && f1.Type == f.Type {
+					continue // no need to print type
+				}
+			}
+			p.print(blank)
+		}
+		p.printNode(f.Type)
+	}
+	// A type parameter list [P T] where the name P and the type expression T syntactically
+	// combine to another valid (value) expression requires a trailing comma, as in [P *T,]
+	// (or an enclosing interface as in [P interface(*T)]), so that the type parameter list
+	// is not parsed as an array length [P*T].
+	if tok == _Type && len(list) == 1 && combinesWithName(list[0].Type) {
+		p.print(_Comma)
+	}
+	p.print(close)
+}
+
+// combinesWithName reports whether a name followed by the expression x
+// syntactically combines to another valid (value) expression. For instance
+// using *T for x, "name *T" syntactically appears as the expression x*T.
+// On the other hand, using  P|Q or *P|~Q for x, "name P|Q" or "name *P|~Q"
+// cannot be combined into a valid (value) expression.
+func combinesWithName(x Expr) bool {
+	switch x := x.(type) {
+	case *Operation:
+		if x.Y == nil {
+			// name *x.X combines to name*x.X if x.X is not a type element
+			return x.Op == Mul && !isTypeElem(x.X)
+		}
+		// binary expressions
+		return combinesWithName(x.X) && !isTypeElem(x.Y)
+	case *ParenExpr:
+		// Note that the parser strips parentheses in these cases
+		// (see extractName, parser.typeOrNil) unless keep_parens
+		// is set, so we should never reach here.
+		// Do the right thing (rather than panic) for testing and
+		// in case we change parser behavior.
+		// See also go.dev/issues/69206.
+		return !isTypeElem(x.X)
+	}
+	return false
 }
 
 func (p *printer) printStmtList(list []Stmt, braces bool) {

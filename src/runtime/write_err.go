@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !android
+//go:build !android
 
 package runtime
 
-import "unsafe"
-
+//go:nosplit
 func writeErr(b []byte) {
-	write(2, unsafe.Pointer(&b[0]), int32(len(b)))
+	if len(b) > 0 {
+		writeErrData(&b[0], int32(len(b)))
+	}
 }

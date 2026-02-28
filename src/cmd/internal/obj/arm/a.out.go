@@ -1,5 +1,5 @@
 // Inferno utils/5c/5.out.h
-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5c/5.out.h
+// https://bitbucket.org/inferno-os/inferno-os/src/master/utils/5c/5.out.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -115,7 +115,7 @@ var ARMDWARFRegisters = map[int16]int16{}
 func init() {
 	// f assigns dwarfregisters[from:to] = (base):(step*(to-from)+base)
 	f := func(from, to, base, step int16) {
-		for r := int16(from); r <= to; r++ {
+		for r := from; r <= to; r++ {
 			ARMDWARFRegisters[r] = step*(r-from) + base
 		}
 	}
@@ -163,8 +163,8 @@ const (
 	C_SFCON
 	C_LFCON
 
-	C_RACON
-	C_LACON
+	C_RACON /* <=0xff rotated constant offset from auto */
+	C_LACON /* Large Auto CONstant, i.e. large offset from SP */
 
 	C_SBRA
 	C_LBRA
@@ -333,7 +333,9 @@ const (
 	ALDREX
 	ASTREX
 	ALDREXD
+	ALDREXB
 	ASTREXD
+	ASTREXB
 
 	ADMB
 

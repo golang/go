@@ -1,6 +1,6 @@
-# TODO: add a go.mod file and test with GO111MODULE explicitly on and off.
-# We only report the 'expects import' error when modules are disabled.
-# Do we report comment parse errors or conflicts in module mode? We shouldn't.
+# Test in GOPATH mode first.
+env GO111MODULE=off
+cd m
 
 # Import comment matches
 go build -n works.go
@@ -17,31 +17,52 @@ stderr 'cannot parse import comment'
 ! go build -n conflict.go
 stderr 'found import comments'
 
--- bad.go --
+
+# Test in module mode.
+# We ignore import comments, so these commands should succeed.
+env GO111MODULE=on
+
+# Import comment matches
+go build -n works.go
+
+# Import comment mismatch
+go build -n wrongplace.go
+
+# Import comment syntax error
+go build -n bad.go
+
+# Import comment conflict
+go build -n conflict.go
+
+-- m/go.mod --
+module m
+
+go 1.16
+-- m/bad.go --
 package p
 
-import "bad"
--- conflict.go --
+import "m/bad"
+-- m/conflict.go --
 package p
 
-import "conflict"
--- works.go --
+import "m/conflict"
+-- m/works.go --
 package p
 
-import _ "works/x"
--- wrongplace.go --
+import _ "m/works/x"
+-- m/wrongplace.go --
 package p
 
-import "wrongplace"
--- bad/bad.go --
+import "m/wrongplace"
+-- m/bad/bad.go --
 package bad // import
--- conflict/a.go --
+-- m/conflict/a.go --
 package conflict // import "a"
--- conflict/b.go --
+-- m/conflict/b.go --
 package conflict /* import "b" */
--- works/x/x.go --
-package x // import "works/x"
--- works/x/x1.go --
+-- m/works/x/x.go --
+package x // import "m/works/x"
+-- m/works/x/x1.go --
 package x // important! not an import comment
--- wrongplace/x.go --
+-- m/wrongplace/x.go --
 package x // import "my/x"

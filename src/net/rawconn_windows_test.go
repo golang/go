@@ -26,10 +26,7 @@ func readRawConn(c syscall.RawConn, b []byte) (int, error) {
 	if err != nil {
 		return n, err
 	}
-	if operr != nil {
-		return n, operr
-	}
-	return n, nil
+	return n, operr
 }
 
 func writeRawConn(c syscall.RawConn, b []byte) error {
@@ -45,10 +42,7 @@ func writeRawConn(c syscall.RawConn, b []byte) error {
 	if err != nil {
 		return err
 	}
-	if operr != nil {
-		return operr
-	}
-	return nil
+	return operr
 }
 
 func controlRawConn(c syscall.RawConn, addr Addr) error {
@@ -92,10 +86,7 @@ func controlRawConn(c syscall.RawConn, addr Addr) error {
 	if err := c.Control(fn); err != nil {
 		return err
 	}
-	if operr != nil {
-		return operr
-	}
-	return nil
+	return operr
 }
 
 func controlOnConnSetup(network string, address string, c syscall.RawConn) error {
@@ -104,6 +95,11 @@ func controlOnConnSetup(network string, address string, c syscall.RawConn) error
 	switch network {
 	case "tcp", "udp", "ip":
 		return errors.New("ambiguous network: " + network)
+	case "unix", "unixpacket", "unixgram":
+		fn = func(s uintptr) {
+			const SO_ERROR = 0x1007
+			_, operr = syscall.GetsockoptInt(syscall.Handle(s), syscall.SOL_SOCKET, SO_ERROR)
+		}
 	default:
 		switch network[len(network)-1] {
 		case '4':
@@ -121,8 +117,5 @@ func controlOnConnSetup(network string, address string, c syscall.RawConn) error
 	if err := c.Control(fn); err != nil {
 		return err
 	}
-	if operr != nil {
-		return operr
-	}
-	return nil
+	return operr
 }

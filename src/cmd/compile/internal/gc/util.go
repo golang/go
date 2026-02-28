@@ -5,99 +5,126 @@
 package gc
 
 import (
+	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
+	tracepkg "runtime/trace"
+	"strings"
+
+	"cmd/compile/internal/base"
 )
 
-// Line returns n's position as a string. If n has been inlined,
-// it uses the outermost position where n has been inlined.
-func (n *Node) Line() string {
-	return linestr(n.Pos)
-}
-
-var atExitFuncs []func()
-
-func atExit(f func()) {
-	atExitFuncs = append(atExitFuncs, f)
-}
-
-func Exit(code int) {
-	for i := len(atExitFuncs) - 1; i >= 0; i-- {
-		f := atExitFuncs[i]
-		atExitFuncs = atExitFuncs[:i]
-		f()
+func profileName(fn, suffix string) string {
+	if strings.HasSuffix(fn, string(os.PathSeparator)) {
+		err := os.MkdirAll(fn, 0755)
+		if err != nil {
+			base.Fatalf("%v", err)
+		}
 	}
-	os.Exit(code)
+	if fi, statErr := os.Stat(fn); statErr == nil && fi.IsDir() {
+		fn = filepath.Join(fn, url.PathEscape(base.Ctxt.Pkgpath)+suffix)
+	}
+	return fn
 }
-
-var (
-	blockprofile   string
-	cpuprofile     string
-	memprofile     string
-	memprofilerate int64
-	traceprofile   string
-	traceHandler   func(string)
-	mutexprofile   string
-)
 
 func startProfile() {
-	if cpuprofile != "" {
-		f, err := os.Create(cpuprofile)
+	if base.Flag.CPUProfile != "" {
+		fn := profileName(base.Flag.CPUProfile, ".cpuprof")
+		f, err := os.Create(fn)
 		if err != nil {
-			Fatalf("%v", err)
+			base.Fatalf("%v", err)
 		}
 		if err := pprof.StartCPUProfile(f); err != nil {
-			Fatalf("%v", err)
+			base.Fatalf("%v", err)
 		}
-		atExit(pprof.StopCPUProfile)
+		base.AtExit(func() {
+			pprof.StopCPUProfile()
+			if err = f.Close(); err != nil {
+				base.Fatalf("error closing cpu profile: %v", err)
+			}
+		})
 	}
-	if memprofile != "" {
-		if memprofilerate != 0 {
-			runtime.MemProfileRate = int(memprofilerate)
+	if base.Flag.MemProfile != "" {
+		if base.Flag.MemProfileRate != 0 {
+			runtime.MemProfileRate = base.Flag.MemProfileRate
 		}
-		f, err := os.Create(memprofile)
+		const (
+			gzipFormat = 0
+			textFormat = 1
+		)
+		// compilebench parses the memory profile to extract memstats,
+		// which are only written in the legacy (text) pprof format.
+		// See golang.org/issue/18641 and runtime/pprof/pprof.go:writeHeap.
+		// gzipFormat is what most people want, otherwise
+		var format = textFormat
+		fn := base.Flag.MemProfile
+		if strings.HasSuffix(fn, string(os.PathSeparator)) {
+			err := os.MkdirAll(fn, 0755)
+			if err != nil {
+				base.Fatalf("%v", err)
+			}
+		}
+		if fi, statErr := os.Stat(fn); statErr == nil && fi.IsDir() {
+			fn = filepath.Join(fn, url.PathEscape(base.Ctxt.Pkgpath)+".memprof")
+			format = gzipFormat
+		}
+
+		f, err := os.Create(fn)
+
 		if err != nil {
-			Fatalf("%v", err)
+			base.Fatalf("%v", err)
 		}
-		atExit(func() {
+		base.AtExit(func() {
 			// Profile all outstanding allocations.
 			runtime.GC()
-			// compilebench parses the memory profile to extract memstats,
-			// which are only written in the legacy pprof format.
-			// See golang.org/issue/18641 and runtime/pprof/pprof.go:writeHeap.
-			const writeLegacyFormat = 1
-			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
-				Fatalf("%v", err)
+			if err := pprof.Lookup("heap").WriteTo(f, format); err != nil {
+				base.Fatalf("%v", err)
+			}
+			if err = f.Close(); err != nil {
+				base.Fatalf("error closing memory profile: %v", err)
 			}
 		})
 	} else {
 		// Not doing memory profiling; disable it entirely.
 		runtime.MemProfileRate = 0
 	}
-	if blockprofile != "" {
-		f, err := os.Create(blockprofile)
+	if base.Flag.BlockProfile != "" {
+		f, err := os.Create(profileName(base.Flag.BlockProfile, ".blockprof"))
 		if err != nil {
-			Fatalf("%v", err)
+			base.Fatalf("%v", err)
 		}
 		runtime.SetBlockProfileRate(1)
-		atExit(func() {
+		base.AtExit(func() {
 			pprof.Lookup("block").WriteTo(f, 0)
 			f.Close()
 		})
 	}
-	if mutexprofile != "" {
-		f, err := os.Create(mutexprofile)
+	if base.Flag.MutexProfile != "" {
+		f, err := os.Create(profileName(base.Flag.MutexProfile, ".mutexprof"))
 		if err != nil {
-			Fatalf("%v", err)
+			base.Fatalf("%v", err)
 		}
-		startMutexProfiling()
-		atExit(func() {
+		runtime.SetMutexProfileFraction(1)
+		base.AtExit(func() {
 			pprof.Lookup("mutex").WriteTo(f, 0)
 			f.Close()
 		})
 	}
-	if traceprofile != "" && traceHandler != nil {
-		traceHandler(traceprofile)
+	if base.Flag.TraceProfile != "" {
+		f, err := os.Create(profileName(base.Flag.TraceProfile, ".trace"))
+		if err != nil {
+			base.Fatalf("%v", err)
+		}
+		if err := tracepkg.Start(f); err != nil {
+			base.Fatalf("%v", err)
+		}
+		base.AtExit(func() {
+			tracepkg.Stop()
+			if err = f.Close(); err != nil {
+				base.Fatalf("error closing trace profile: %v", err)
+			}
+		})
 	}
 }

@@ -6,7 +6,9 @@ package iotest
 
 import (
 	"bytes"
+	"errors"
 	"io"
+	"strings"
 	"testing"
 )
 
@@ -24,7 +26,7 @@ func TestOneByteReader_nonEmptyReader(t *testing.T) {
 
 	b = make([]byte, 3)
 	// Read from obr until EOF.
-	got := new(bytes.Buffer)
+	got := new(strings.Builder)
 	for i := 0; ; i++ {
 		n, err = obr.Read(b)
 		if err != nil {
@@ -75,7 +77,7 @@ func TestHalfReader_nonEmptyReader(t *testing.T) {
 	}
 	// non empty read buffer
 	b = make([]byte, 2)
-	got := new(bytes.Buffer)
+	got := new(strings.Builder)
 	for i := 0; ; i++ {
 		n, err = hr.Read(b)
 		if err != nil {
@@ -188,7 +190,7 @@ func TestDataErrReader_nonEmptyReader(t *testing.T) {
 	der := DataErrReader(buf)
 
 	b := make([]byte, 3)
-	got := new(bytes.Buffer)
+	got := new(strings.Builder)
 	var n int
 	var err error
 	for {
@@ -222,5 +224,37 @@ func TestDataErrReader_emptyReader(t *testing.T) {
 	}
 	if g, w := n, 0; g != w {
 		t.Errorf("Unexpectedly read %d bytes, wanted %d", g, w)
+	}
+}
+
+func TestErrReader(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+	}{
+		{"nil error", nil},
+		{"non-nil error", errors.New("io failure")},
+		{"io.EOF", io.EOF},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			n, err := ErrReader(tt.err).Read(nil)
+			if err != tt.err {
+				t.Fatalf("Error mismatch\nGot:  %v\nWant: %v", err, tt.err)
+			}
+			if n != 0 {
+				t.Fatalf("Byte count mismatch: got %d want 0", n)
+			}
+		})
+	}
+}
+
+func TestStringsReader(t *testing.T) {
+	const msg = "Now is the time for all good gophers."
+
+	r := strings.NewReader(msg)
+	if err := TestReader(r, []byte(msg)); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -1,0 +1,52 @@
+# 'go list pkg' does not show deprecation.
+go list example.com/deprecated/a
+stdout '^example.com/deprecated/a$'
+
+# 'go list -m' does not show deprecation.
+go list -m example.com/deprecated/a
+stdout '^example.com/deprecated/a v1.9.0$'
+
+# 'go list -m -versions' does not show deprecation.
+go list -m -versions example.com/deprecated/a
+stdout '^example.com/deprecated/a v1.0.0 v1.9.0$'
+
+# 'go list -m -u' shows deprecation.
+go list -m -u example.com/deprecated/a
+stdout '^example.com/deprecated/a v1.9.0 \(deprecated\)$'
+
+# 'go list -m -u -f' exposes the deprecation message.
+go list -m -u -f {{.Deprecated}} example.com/deprecated/a
+stdout '^in example.com/deprecated/a@v1.9.0$'
+
+# This works even if we use an old version that does not have the deprecation
+# message in its go.mod file.
+go get example.com/deprecated/a@v1.0.0
+! grep Deprecated: $WORK/gopath/pkg/mod/cache/download/example.com/deprecated/a/@v/v1.0.0.mod
+go list -m -u -f {{.Deprecated}} example.com/deprecated/a
+stdout '^in example.com/deprecated/a@v1.9.0$'
+
+# 'go list -m -u' does not show deprecation for the main module.
+go list -m -u
+! stdout deprecated
+go list -m -u -f '{{if not .Deprecated}}ok{{end}}'
+stdout ok
+
+# 'go list -m -u' does not show a deprecation message for a module that is not
+# deprecated at the latest version, even if it is deprecated at the current
+# version.
+go list -m -u example.com/undeprecated
+stdout '^example.com/undeprecated v1.0.0 \[v1.0.1\]$'
+-- go.mod --
+// Deprecated: main module is deprecated, too!
+module example.com/use
+
+go 1.17
+
+require (
+	example.com/deprecated/a v1.9.0
+	example.com/undeprecated v1.0.0
+)
+-- go.sum --
+example.com/deprecated/a v1.9.0 h1:HeC7d0lb7umZa0vCCW+0W3WtBTulO+1Mr32m/Hwzeg8=
+example.com/deprecated/a v1.9.0/go.mod h1:Z1uUVshSY9kh6l/2hZ8oA9SBviX2yfaeEpcLDz6AZwY=
+example.com/undeprecated v1.0.0/go.mod h1:1qiRbdA9VzJXDqlG26Y41O5Z7YyO+jAD9do8XCZQ+Gg=

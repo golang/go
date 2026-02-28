@@ -21,6 +21,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/textproto"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,20 +29,29 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"golang.org/x/net/http/httpguts"
 )
 
 var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
 
-var osDefaultInheritEnv = map[string][]string{
-	"darwin":  {"DYLD_LIBRARY_PATH"},
-	"freebsd": {"LD_LIBRARY_PATH"},
-	"hpux":    {"LD_LIBRARY_PATH", "SHLIB_PATH"},
-	"irix":    {"LD_LIBRARY_PATH", "LD_LIBRARYN32_PATH", "LD_LIBRARY64_PATH"},
-	"linux":   {"LD_LIBRARY_PATH"},
-	"openbsd": {"LD_LIBRARY_PATH"},
-	"solaris": {"LD_LIBRARY_PATH", "LD_LIBRARY_PATH_32", "LD_LIBRARY_PATH_64"},
-	"windows": {"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"},
-}
+var osDefaultInheritEnv = func() []string {
+	switch runtime.GOOS {
+	case "darwin", "ios":
+		return []string{"DYLD_LIBRARY_PATH"}
+	case "android", "linux", "freebsd", "netbsd", "openbsd":
+		return []string{"LD_LIBRARY_PATH"}
+	case "hpux":
+		return []string{"LD_LIBRARY_PATH", "SHLIB_PATH"}
+	case "irix":
+		return []string{"LD_LIBRARY_PATH", "LD_LIBRARYN32_PATH", "LD_LIBRARY64_PATH"}
+	case "illumos", "solaris":
+		return []string{"LD_LIBRARY_PATH", "LD_LIBRARY_PATH_32", "LD_LIBRARY_PATH_64"}
+	case "windows":
+		return []string{"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"}
+	}
+	return nil
+}()
 
 // Handler runs an executable in a subprocess with a CGI environment.
 type Handler struct {
@@ -80,10 +90,11 @@ func (h *Handler) stderr() io.Writer {
 
 // removeLeadingDuplicates remove leading duplicate in environments.
 // It's possible to override environment like following.
-//    cgi.Handler{
-//      ...
-//      Env: []string{"SCRIPT_FILENAME=foo.php"},
-//    }
+//
+//	cgi.Handler{
+//	  ...
+//	  Env: []string{"SCRIPT_FILENAME=foo.php"},
+//	}
 func removeLeadingDuplicates(env []string) (ret []string) {
 	for i, e := range env {
 		found := false
@@ -104,30 +115,25 @@ func removeLeadingDuplicates(env []string) (ret []string) {
 }
 
 func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	root := h.Root
-	if root == "" {
-		root = "/"
-	}
-
 	if len(req.TransferEncoding) > 0 && req.TransferEncoding[0] == "chunked" {
 		rw.WriteHeader(http.StatusBadRequest)
 		rw.Write([]byte("Chunked request bodies are not supported by CGI."))
 		return
 	}
 
-	pathInfo := req.URL.Path
-	if root != "/" && strings.HasPrefix(pathInfo, root) {
-		pathInfo = pathInfo[len(root):]
-	}
+	root := strings.TrimRight(h.Root, "/")
+	pathInfo := strings.TrimPrefix(req.URL.Path, root)
 
 	port := "80"
+	if req.TLS != nil {
+		port = "443"
+	}
 	if matches := trailingPort.FindStringSubmatch(req.Host); len(matches) != 0 {
 		port = matches[1]
 	}
 
 	env := []string{
 		"SERVER_SOFTWARE=go",
-		"SERVER_NAME=" + req.Host,
 		"SERVER_PROTOCOL=HTTP/1.1",
 		"HTTP_HOST=" + req.Host,
 		"GATEWAY_INTERFACE=CGI/1.1",
@@ -145,6 +151,12 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	} else {
 		// could not parse ip:port, let's use whole RemoteAddr and leave REMOTE_PORT undefined
 		env = append(env, "REMOTE_ADDR="+req.RemoteAddr, "REMOTE_HOST="+req.RemoteAddr)
+	}
+
+	if hostDomain, _, err := net.SplitHostPort(req.Host); err == nil {
+		env = append(env, "SERVER_NAME="+hostDomain)
+	} else {
+		env = append(env, "SERVER_NAME="+req.Host)
 	}
 
 	if req.TLS != nil {
@@ -183,7 +195,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	for _, e := range osDefaultInheritEnv[runtime.GOOS] {
+	for _, e := range osDefaultInheritEnv {
 		if v := os.Getenv(e); v != "" {
 			env = append(env, e+"="+v)
 		}
@@ -263,14 +275,16 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			break
 		}
 		headerLines++
-		parts := strings.SplitN(string(line), ":", 2)
-		if len(parts) < 2 {
-			h.printf("cgi: bogus header line: %s", string(line))
+		header, val, ok := strings.Cut(string(line), ":")
+		if !ok {
+			h.printf("cgi: bogus header line: %s", line)
 			continue
 		}
-		header, val := parts[0], parts[1]
-		header = strings.TrimSpace(header)
-		val = strings.TrimSpace(val)
+		if !httpguts.ValidHeaderFieldName(header) {
+			h.printf("cgi: invalid header name: %q", header)
+			continue
+		}
+		val = textproto.TrimString(val)
 		switch {
 		case header == "Status":
 			if len(val) < 3 {
@@ -338,7 +352,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (h *Handler) printf(format string, v ...interface{}) {
+func (h *Handler) printf(format string, v ...any) {
 	if h.Logger != nil {
 		h.Logger.Printf(format, v...)
 	} else {

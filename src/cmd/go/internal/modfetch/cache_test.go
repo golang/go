@@ -5,20 +5,16 @@
 package modfetch
 
 import (
-	"io/ioutil"
-	"os"
+	"context"
 	"path/filepath"
 	"testing"
 )
 
 func TestWriteDiskCache(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "go-writeCache-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	ctx := context.Background()
 
-	err = writeDiskCache(filepath.Join(tmpdir, "file"), []byte("data"))
+	tmpdir := t.TempDir()
+	err := writeDiskCache(ctx, filepath.Join(tmpdir, "file"), []byte("data"))
 	if err != nil {
 		t.Fatal(err)
 	}

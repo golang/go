@@ -7,6 +7,7 @@ package main
 import (
 	"os"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -30,6 +31,7 @@ func init() {
 		runtime.LockOSThread()
 	})
 	register("LockOSThreadAvoidsStatePropagation", LockOSThreadAvoidsStatePropagation)
+	register("LockOSThreadTemplateThreadRace", LockOSThreadTemplateThreadRace)
 }
 
 func LockOSThreadMain() {
@@ -88,7 +90,11 @@ func LockOSThreadAlt() {
 			println("locked thread reused")
 			os.Exit(1)
 		}
-		exists, supported := tidExists(subTID)
+		exists, supported, err := tidExists(subTID)
+		if err != nil {
+			println("error:", err.Error())
+			return
+		}
 		if !supported || !exists {
 			goto ok
 		}
@@ -153,7 +159,7 @@ func LockOSThreadAvoidsStatePropagation() {
 		}
 		// Chdir to somewhere else on this thread.
 		// On systems other than Linux, this is a no-op.
-		if err := chdir("/tmp"); err != nil {
+		if err := chdir(os.TempDir()); err != nil {
 			println("failed to chdir:", err.Error())
 			os.Exit(1)
 		}
@@ -193,5 +199,52 @@ func LockOSThreadAvoidsStatePropagation() {
 	}()
 	done <- true
 	runtime.UnlockOSThread()
+	println("OK")
+}
+
+func LockOSThreadTemplateThreadRace() {
+	// This test attempts to reproduce the race described in
+	// golang.org/issue/38931. To do so, we must have a stop-the-world
+	// (achieved via ReadMemStats) racing with two LockOSThread calls.
+	//
+	// While this test attempts to line up the timing, it is only expected
+	// to fail (and thus hang) around 2% of the time if the race is
+	// present.
+
+	// Ensure enough Ps to actually run everything in parallel. Though on
+	// <4 core machines, we are still at the whim of the kernel scheduler.
+	runtime.GOMAXPROCS(4)
+
+	go func() {
+		// Stop the world; race with LockOSThread below.
+		var m runtime.MemStats
+		for {
+			runtime.ReadMemStats(&m)
+		}
+	}()
+
+	// Try to synchronize both LockOSThreads.
+	start := time.Now().Add(10 * time.Millisecond)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	for i := 0; i < 2; i++ {
+		go func() {
+			for time.Now().Before(start) {
+			}
+
+			// Add work to the local runq to trigger early startm
+			// in handoffp.
+			go func() {}()
+
+			runtime.LockOSThread()
+			runtime.Gosched() // add a preemption point.
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+	// If both LockOSThreads completed then we did not hit the race.
 	println("OK")
 }

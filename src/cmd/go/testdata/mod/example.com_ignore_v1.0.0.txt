@@ -1,0 +1,11 @@
+-- .mod --
+module example.com/ignore
+
+ignore ./foo
+-- .info --
+{"Version":"v1.0.0"}
+
+-- foo/foo.go --
+package foo
+
+const Bar = "Hello from foo!"

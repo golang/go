@@ -1,0 +1,154 @@
+handle svn
+
+# Note: this repo script does not produce a byte-for-byte copy of the original.
+#
+# The 'git init' operation in the nested Git repo creates some sample files
+# whose contents depend on the exact Git version in use, and the steps we take
+# to construct a fake 'git clone' status don't produce some log files that
+# a real 'git clone' leaves behind.
+#
+# However, the repo is probably accurate enough for the tests that need it.
+
+env GIT_AUTHOR_NAME='Russ Cox'
+env GIT_AUTHOR_EMAIL='rsc@golang.org'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+mkdir db/transactions
+mkdir db/txn-protorevs
+chmod 0755 hooks/pre-revprop-change
+
+env ROOT=$PWD
+cd .checkout
+[GOOS:windows] svn checkout file:///$ROOT .
+[!GOOS:windows] svn checkout file://$ROOT .
+
+git init
+git config --add core.ignorecase true
+git config --add core.precomposeunicode true
+
+git add README
+at 2017-09-22T11:39:03-04:00
+git commit -a -m 'README'
+git branch -m master
+
+git rev-parse HEAD
+stdout '^7f800d2ac276dd7042ea0e8d7438527d236fd098$'
+
+	# Fake a clone from an origin repo at this commit.
+git remote add origin https://vcs-test.swtch.com/git/README-only
+mkdir .git/refs/remotes/origin
+echo 'ref: refs/remotes/origin/master'
+cp stdout .git/refs/remotes/origin/HEAD
+unquote '# pack-refs with: peeled fully-peeled \n7f800d2ac276dd7042ea0e8d7438527d236fd098 refs/remotes/origin/master\n'
+cp stdout .git/packed-refs
+git branch --set-upstream-to=origin/master
+
+git add pkg/pkg.go
+at 2017-09-22T11:41:28-04:00
+git commit -a -m 'add pkg'
+
+git log --oneline --decorate=short
+cmp stdout .git-log
+
+rm README
+
+svn add .git pkg
+svn commit -m 'git'
+svn propset svn:author rsc --revprop -r1
+svn propset svn:date 2017-09-27T18:00:52.201719Z --revprop -r1
+
+svn add p1
+svn commit -m 'add p1'
+svn propset svn:author rsc --revprop -r2
+svn propset svn:date 2017-09-27T18:16:14.650893Z --revprop -r2
+
+git remote set-url origin https://vcs-test.golang.org/git/README-only
+svn commit -m 'move from vcs-test.swtch.com to vcs-test.golang.org'
+svn propset svn:author rsc --revprop -r3
+svn propset svn:date 2017-10-04T15:09:35.963034Z --revprop -r3
+
+svn update
+svn log --xml
+
+[GOOS:windows] replace '\n' '\r\n' .svn-log
+cmp stdout .svn-log
+
+-- .checkout/.git-log --
+ab9f66b (HEAD -> master) add pkg
+7f800d2 (origin/master, origin/HEAD) README
+-- .checkout/p1/p1.go --
+package p1
+-- .checkout/pkg/pkg.go --
+package pkg
+const Message = "code not in git-README-only"
+-- .checkout/README --
+README
+-- .checkout/p1/p1.go --
+package p1
+-- .checkout/.svn-log --
+<?xml version="1.0" encoding="UTF-8"?>
+<log>
+<logentry
+   revision="3">
+<author>rsc</author>
+<date>2017-10-04T15:09:35.963034Z</date>
+<msg>move from vcs-test.swtch.com to vcs-test.golang.org</msg>
+</logentry>
+<logentry
+   revision="2">
+<author>rsc</author>
+<date>2017-09-27T18:16:14.650893Z</date>
+<msg>add p1</msg>
+</logentry>
+<logentry
+   revision="1">
+<author>rsc</author>
+<date>2017-09-27T18:00:52.201719Z</date>
+<msg>git</msg>
+</logentry>
+</log>
+-- conf/authz --
+-- conf/passwd --
+-- conf/svnserve.conf --
+-- db/current --
+0
+-- db/format --
+6
+layout sharded 1000
+-- db/fs-type --
+fsfs
+-- db/fsfs.conf --
+-- db/min-unpacked-rev --
+0
+-- db/revprops/0/0 --
+K 8
+svn:date
+V 27
+2017-09-22T01:11:53.895835Z
+END
+-- db/revs/0/0 --
+PLAIN
+END
+ENDREP
+id: 0.0.r0/17
+type: dir
+count: 0
+text: 0 0 4 4 2d2977d1c96f487abe4a1e202dd03b4e
+cpath: /
+
+
+17 107
+-- db/txn-current --
+0
+-- db/txn-current-lock --
+-- db/uuid --
+53cccb44-0fca-40a2-b0c5-acaf9e75039a
+-- db/write-lock --
+-- format --
+5
+-- hooks/pre-revprop-change --
+#!/bin/sh
+
+-- hooks/pre-revprop-change.bat --
+@exit

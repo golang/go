@@ -10,16 +10,18 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"internal/diff"
 	"io"
 	"net"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
 
 type URLTest struct {
 	in        string
-	out       *URL   // expected parse; RawPath="" means same as Path
+	out       *URL   // expected parse
 	roundtrip string // expected result of reserializing the URL; empty means same as "in".
 }
 
@@ -51,6 +53,18 @@ var urltests = []URLTest{
 			Host:    "www.google.com",
 			Path:    "/file one&two",
 			RawPath: "/file%20one%26two",
+		},
+		"",
+	},
+	// fragment with hex escaping
+	{
+		"http://www.google.com/#file%20one%26two",
+		&URL{
+			Scheme:      "http",
+			Host:        "www.google.com",
+			Path:        "/",
+			Fragment:    "file one&two",
+			RawFragment: "file%20one%26two",
 		},
 		"",
 	},
@@ -151,14 +165,15 @@ var urltests = []URLTest{
 		},
 		"http:%2f%2fwww.google.com/?q=go+language",
 	},
-	// non-authority with path
+	// non-authority with path; see golang.org/issue/46059
 	{
 		"mailto:/webmaster@golang.org",
 		&URL{
-			Scheme: "mailto",
-			Path:   "/webmaster@golang.org",
+			Scheme:   "mailto",
+			Path:     "/webmaster@golang.org",
+			OmitHost: true,
 		},
-		"mailto:///webmaster@golang.org", // unfortunate compromise
+		"",
 	},
 	// non-authority
 	{
@@ -261,7 +276,7 @@ var urltests = []URLTest{
 		"",
 	},
 	{
-		"http://www.google.com/?q=go+language#foo%26bar",
+		"http://www.google.com/?q=go+language#foo&bar",
 		&URL{
 			Scheme:   "http",
 			Host:     "www.google.com",
@@ -270,6 +285,18 @@ var urltests = []URLTest{
 			Fragment: "foo&bar",
 		},
 		"http://www.google.com/?q=go+language#foo&bar",
+	},
+	{
+		"http://www.google.com/?q=go+language#foo%26bar",
+		&URL{
+			Scheme:      "http",
+			Host:        "www.google.com",
+			Path:        "/",
+			RawQuery:    "q=go+language",
+			Fragment:    "foo&bar",
+			RawFragment: "foo%26bar",
+		},
+		"http://www.google.com/?q=go+language#foo%26bar",
 	},
 	{
 		"file:///home/adg/rabbits",
@@ -355,6 +382,16 @@ var urltests = []URLTest{
 			Scheme: "http",
 			Host:   "[fe80::1]:8080",
 			Path:   "/",
+		},
+		"",
+	},
+	// valid IPv6 host with port and path
+	{
+		"https://[2001:db8::1]:8443/test/path",
+		&URL{
+			Scheme: "https",
+			Host:   "[2001:db8::1]:8443",
+			Path:   "/test/path",
 		},
 		"",
 	},
@@ -472,26 +509,6 @@ var urltests = []URLTest{
 		"",
 	},
 	{
-		// Malformed IPv6 but still accepted.
-		"http://2b01:e34:ef40:7730:8e70:5aff:fefe:edac:8080/foo",
-		&URL{
-			Scheme: "http",
-			Host:   "2b01:e34:ef40:7730:8e70:5aff:fefe:edac:8080",
-			Path:   "/foo",
-		},
-		"",
-	},
-	{
-		// Malformed IPv6 but still accepted.
-		"http://2b01:e34:ef40:7730:8e70:5aff:fefe:edac:/foo",
-		&URL{
-			Scheme: "http",
-			Host:   "2b01:e34:ef40:7730:8e70:5aff:fefe:edac:",
-			Path:   "/foo",
-		},
-		"",
-	},
-	{
 		"http://[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:8080/foo",
 		&URL{
 			Scheme: "http",
@@ -590,19 +607,39 @@ var urltests = []URLTest{
 		},
 		"mailto:?subject=hi",
 	},
+	// PostgreSQL URLs can include a comma-separated list of host:post hosts.
+	// https://go.dev/issue/75859
+	{
+		"postgres://host1:1,host2:2,host3:3",
+		&URL{
+			Scheme: "postgres",
+			Host:   "host1:1,host2:2,host3:3",
+			Path:   "",
+		},
+		"postgres://host1:1,host2:2,host3:3",
+	},
+	{
+		"postgresql://host1:1,host2:2,host3:3",
+		&URL{
+			Scheme: "postgresql",
+			Host:   "host1:1,host2:2,host3:3",
+			Path:   "",
+		},
+		"postgresql://host1:1,host2:2,host3:3",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
 func ufmt(u *URL) string {
-	var user, pass interface{}
+	var user, pass any
 	if u.User != nil {
 		user = u.User.Username()
 		if p, ok := u.User.Password(); ok {
 			pass = p
 		}
 	}
-	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q, forcequery=%v",
-		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.ForceQuery)
+	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q, rawfrag=%q, forcequery=%v, omithost=%t",
+		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.RawFragment, u.ForceQuery, u.OmitHost)
 }
 
 func BenchmarkString(b *testing.B) {
@@ -682,6 +719,27 @@ var parseRequestURLTests = []struct {
 	// RFC 6874.
 	{"http://[fe80::1%en0]/", false},
 	{"http://[fe80::1%en0]:8080/", false},
+
+	// Tests exercising RFC 3986 compliance
+	{"https://[1:2:3:4:5:6:7:8]", true},             // full IPv6 address
+	{"https://[2001:db8::a:b:c:d]", true},           // compressed IPv6 address
+	{"https://[fe80::1%25eth0]", true},              // link-local address with zone ID (interface name)
+	{"https://[fe80::abc:def%254]", true},           // link-local address with zone ID (interface index)
+	{"https://[2001:db8::1]/path", true},            // compressed IPv6 address with path
+	{"https://[fe80::1%25eth0]/path?query=1", true}, // link-local with zone, path, and query
+
+	{"https://[::ffff:192.0.2.1]", true},
+	{"https://[:1] ", false},
+	{"https://[1:2:3:4:5:6:7:8:9]", false},
+	{"https://[1::1::1]", false},
+	{"https://[1:2:3:]", false},
+	{"https://[ffff::127.0.0.4000]", false},
+	{"https://[0:0::test.com]:80", false},
+	{"https://[2001:db8::test.com]", false},
+	{"https://[test.com]", false},
+	{"https://1:2:3:4:5:6:7:8", false},
+	{"https://1:2:3:4:5:6:7:8:80", false},
+	{"https://example.com:80:", false},
 }
 
 func TestParseRequestURI(t *testing.T) {
@@ -762,6 +820,72 @@ func TestURLString(t *testing.T) {
 		if got := tt.url.String(); got != tt.want {
 			t.Errorf("%+v.String() = %q; want %q", tt.url, got, tt.want)
 		}
+	}
+}
+
+func TestURLRedacted(t *testing.T) {
+	cases := []struct {
+		name string
+		url  *URL
+		want string
+	}{
+		{
+			name: "non-blank Password",
+			url: &URL{
+				Scheme: "http",
+				Host:   "host.tld",
+				Path:   "this:that",
+				User:   UserPassword("user", "password"),
+			},
+			want: "http://user:xxxxx@host.tld/this:that",
+		},
+		{
+			name: "blank Password",
+			url: &URL{
+				Scheme: "http",
+				Host:   "host.tld",
+				Path:   "this:that",
+				User:   User("user"),
+			},
+			want: "http://user@host.tld/this:that",
+		},
+		{
+			name: "nil User",
+			url: &URL{
+				Scheme: "http",
+				Host:   "host.tld",
+				Path:   "this:that",
+				User:   UserPassword("", "password"),
+			},
+			want: "http://:xxxxx@host.tld/this:that",
+		},
+		{
+			name: "blank Username, blank Password",
+			url: &URL{
+				Scheme: "http",
+				Host:   "host.tld",
+				Path:   "this:that",
+			},
+			want: "http://host.tld/this:that",
+		},
+		{
+			name: "empty URL",
+			url:  &URL{},
+			want: "",
+		},
+		{
+			name: "nil URL",
+			url:  nil,
+			want: "",
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			if g, w := tt.url.Redacted(), tt.want; g != w {
+				t.Fatalf("got: %q\nwant: %q", g, w)
+			}
+		})
 	}
 }
 
@@ -980,6 +1104,7 @@ type EncodeQueryTest struct {
 
 var encodeQueryTests = []EncodeQueryTest{
 	{nil, ""},
+	{Values{}, ""},
 	{Values{"q": {"puppies"}, "oe": {"utf8"}}, "oe=utf8&q=puppies"},
 	{Values{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7"},
 	{Values{
@@ -987,6 +1112,17 @@ var encodeQueryTests = []EncodeQueryTest{
 		"b": {"b1", "b2", "b3"},
 		"c": {"c1", "c2", "c3"},
 	}, "a=a1&a=a2&a=a3&b=b1&b=b2&b=b3&c=c1&c=c2&c=c3"},
+	{Values{
+		"a": {"a"},
+		"b": {"b"},
+		"c": {"c"},
+		"d": {"d"},
+		"e": {"e"},
+		"f": {"f"},
+		"g": {"g"},
+		"h": {"h"},
+		"i": {"i"},
+	}, "a=a&b=b&c=c&d=d&e=e&f=f&g=g&h=h&i=i"},
 }
 
 func TestEncodeQuery(t *testing.T) {
@@ -994,6 +1130,17 @@ func TestEncodeQuery(t *testing.T) {
 		if q := tt.m.Encode(); q != tt.expected {
 			t.Errorf(`EncodeQuery(%+v) = %q, want %q`, tt.m, q, tt.expected)
 		}
+	}
+}
+
+func BenchmarkEncodeQuery(b *testing.B) {
+	for _, tt := range encodeQueryTests {
+		b.Run(tt.expected, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				tt.m.Encode()
+			}
+		})
 	}
 }
 
@@ -1020,6 +1167,13 @@ func TestResolvePath(t *testing.T) {
 		if got != test.expected {
 			t.Errorf("For %q + %q got %q; expected %q", test.base, test.ref, got, test.expected)
 		}
+	}
+}
+
+func BenchmarkResolvePath(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		resolvePath("a/b/c", ".././d")
 	}
 }
 
@@ -1056,6 +1210,7 @@ var resolveReferenceTests = []struct {
 	{"http://foo.com", "bar", "http://foo.com/bar"},
 	{"http://foo.com/", "bar", "http://foo.com/bar"},
 	{"http://foo.com/bar/baz", "quux", "http://foo.com/bar/quux"},
+	{"http://foo.com/bar/baz/", "quux", "http://foo.com/bar/baz/quux"},
 
 	// ... going up
 	{"http://foo.com/bar/baz", "../quux", "http://foo.com/quux"},
@@ -1073,7 +1228,7 @@ var resolveReferenceTests = []struct {
 	{"http://foo.com/bar/baz", "quux/./dotdot/../dotdot/../dot/./tail/..", "http://foo.com/bar/quux/dot/"},
 
 	// Remove any dot-segments prior to forming the target URI.
-	// http://tools.ietf.org/html/rfc3986#section-5.2.4
+	// https://datatracker.ietf.org/doc/html/rfc3986#section-5.2.4
 	{"http://foo.com/dot/./dotdot/../foo/bar", "../baz", "http://foo.com/dot/baz"},
 
 	// Triple dot isn't special
@@ -1093,7 +1248,7 @@ var resolveReferenceTests = []struct {
 	{"http://foo.com/foo%2dbar/", "./baz-quux", "http://foo.com/foo%2dbar/baz-quux"},
 
 	// RFC 3986: Normal Examples
-	// http://tools.ietf.org/html/rfc3986#section-5.4.1
+	// https://datatracker.ietf.org/doc/html/rfc3986#section-5.4.1
 	{"http://a/b/c/d;p?q", "g:h", "g:h"},
 	{"http://a/b/c/d;p?q", "g", "http://a/b/c/g"},
 	{"http://a/b/c/d;p?q", "./g", "http://a/b/c/g"},
@@ -1119,7 +1274,7 @@ var resolveReferenceTests = []struct {
 	{"http://a/b/c/d;p?q", "../../g", "http://a/g"},
 
 	// RFC 3986: Abnormal Examples
-	// http://tools.ietf.org/html/rfc3986#section-5.4.2
+	// https://datatracker.ietf.org/doc/html/rfc3986#section-5.4.2
 	{"http://a/b/c/d;p?q", "../../../g", "http://a/g"},
 	{"http://a/b/c/d;p?q", "../../../../g", "http://a/g"},
 	{"http://a/b/c/d;p?q", "/./g", "http://a/g"},
@@ -1145,6 +1300,17 @@ var resolveReferenceTests = []struct {
 	{"https://a/b/c/d;p?q", "//g/d/e/f?y#s", "https://g/d/e/f?y#s"},
 	{"https://a/b/c/d;p#s", "?y", "https://a/b/c/d;p?y"},
 	{"https://a/b/c/d;p?q#s", "?y", "https://a/b/c/d;p?y"},
+
+	// Empty path and query but with ForceQuery (issue 46033).
+	{"https://a/b/c/d;p?q#s", "?", "https://a/b/c/d;p?"},
+
+	// Opaque URLs (issue 66084).
+	{"https://foo.com/bar?a=b", "http:opaque", "http:opaque"},
+	{"http:opaque?x=y#zzz", "https:/foo?a=b#frag", "https:/foo?a=b#frag"},
+	{"http:opaque?x=y#zzz", "https:foo:bar", "https:foo:bar"},
+	{"http:opaque?x=y#zzz", "https:bar/baz?a=b#frag", "https:bar/baz?a=b#frag"},
+	{"http:opaque?x=y#zzz", "https://user@host:1234?a=b#frag", "https://user@host:1234?a=b#frag"},
+	{"http:opaque?x=y#zzz", "?a=b#frag", "http:opaque?a=b#frag"},
 }
 
 func TestResolveReference(t *testing.T) {
@@ -1196,10 +1362,10 @@ func TestResolveReference(t *testing.T) {
 }
 
 func TestQueryValues(t *testing.T) {
-	u, _ := Parse("http://x.com?foo=bar&bar=1&bar=2")
+	u, _ := Parse("http://x.com?foo=bar&bar=1&bar=2&baz")
 	v := u.Query()
-	if len(v) != 2 {
-		t.Errorf("got %d keys in Query values, want 2", len(v))
+	if len(v) != 3 {
+		t.Errorf("got %d keys in Query values, want 3", len(v))
 	}
 	if g, e := v.Get("foo"), "bar"; g != e {
 		t.Errorf("Get(foo) = %q, want %q", g, e)
@@ -1214,6 +1380,18 @@ func TestQueryValues(t *testing.T) {
 	if g, e := v.Get("baz"), ""; g != e {
 		t.Errorf("Get(baz) = %q, want %q", g, e)
 	}
+	if h, e := v.Has("foo"), true; h != e {
+		t.Errorf("Has(foo) = %t, want %t", h, e)
+	}
+	if h, e := v.Has("bar"), true; h != e {
+		t.Errorf("Has(bar) = %t, want %t", h, e)
+	}
+	if h, e := v.Has("baz"), true; h != e {
+		t.Errorf("Has(baz) = %t, want %t", h, e)
+	}
+	if h, e := v.Has("noexist"), false; h != e {
+		t.Errorf("Has(noexist) = %t, want %t", h, e)
+	}
 	v.Del("bar")
 	if g, e := v.Get("bar"), ""; g != e {
 		t.Errorf("second Get(bar) = %q, want %q", g, e)
@@ -1223,56 +1401,172 @@ func TestQueryValues(t *testing.T) {
 type parseTest struct {
 	query string
 	out   Values
+	ok    bool
 }
 
 var parseTests = []parseTest{
 	{
+		query: "a=1",
+		out:   Values{"a": []string{"1"}},
+		ok:    true,
+	},
+	{
 		query: "a=1&b=2",
 		out:   Values{"a": []string{"1"}, "b": []string{"2"}},
+		ok:    true,
 	},
 	{
 		query: "a=1&a=2&a=banana",
 		out:   Values{"a": []string{"1", "2", "banana"}},
+		ok:    true,
 	},
 	{
 		query: "ascii=%3Ckey%3A+0x90%3E",
 		out:   Values{"ascii": []string{"<key: 0x90>"}},
+		ok:    true,
+	}, {
+		query: "a=1;b=2",
+		out:   Values{},
+		ok:    false,
+	}, {
+		query: "a;b=1",
+		out:   Values{},
+		ok:    false,
+	}, {
+		query: "a=%3B", // hex encoding for semicolon
+		out:   Values{"a": []string{";"}},
+		ok:    true,
 	},
 	{
-		query: "a=1;b=2",
-		out:   Values{"a": []string{"1"}, "b": []string{"2"}},
+		query: "a%3Bb=1",
+		out:   Values{"a;b": []string{"1"}},
+		ok:    true,
 	},
 	{
 		query: "a=1&a=2;a=banana",
-		out:   Values{"a": []string{"1", "2", "banana"}},
+		out:   Values{"a": []string{"1"}},
+		ok:    false,
+	},
+	{
+		query: "a;b&c=1",
+		out:   Values{"c": []string{"1"}},
+		ok:    false,
+	},
+	{
+		query: "a=1&b=2;a=3&c=4",
+		out:   Values{"a": []string{"1"}, "c": []string{"4"}},
+		ok:    false,
+	},
+	{
+		query: "a=1&b=2;c=3",
+		out:   Values{"a": []string{"1"}},
+		ok:    false,
+	},
+	{
+		query: ";",
+		out:   Values{},
+		ok:    false,
+	},
+	{
+		query: "a=1;",
+		out:   Values{},
+		ok:    false,
+	},
+	{
+		query: "a=1&;",
+		out:   Values{"a": []string{"1"}},
+		ok:    false,
+	},
+	{
+		query: ";a=1&b=2",
+		out:   Values{"b": []string{"2"}},
+		ok:    false,
+	},
+	{
+		query: "a=1&b=2;",
+		out:   Values{"a": []string{"1"}},
+		ok:    false,
 	},
 }
 
 func TestParseQuery(t *testing.T) {
-	for i, test := range parseTests {
-		form, err := ParseQuery(test.query)
-		if err != nil {
-			t.Errorf("test %d: Unexpected error: %v", i, err)
-			continue
-		}
-		if len(form) != len(test.out) {
-			t.Errorf("test %d: len(form) = %d, want %d", i, len(form), len(test.out))
-		}
-		for k, evs := range test.out {
-			vs, ok := form[k]
-			if !ok {
-				t.Errorf("test %d: Missing key %q", i, k)
-				continue
+	for _, test := range parseTests {
+		t.Run(test.query, func(t *testing.T) {
+			form, err := ParseQuery(test.query)
+			if test.ok != (err == nil) {
+				want := "<error>"
+				if test.ok {
+					want = "<nil>"
+				}
+				t.Errorf("Unexpected error: %v, want %v", err, want)
 			}
-			if len(vs) != len(evs) {
-				t.Errorf("test %d: len(form[%q]) = %d, want %d", i, k, len(vs), len(evs))
-				continue
+			if len(form) != len(test.out) {
+				t.Errorf("len(form) = %d, want %d", len(form), len(test.out))
 			}
-			for j, ev := range evs {
-				if v := vs[j]; v != ev {
-					t.Errorf("test %d: form[%q][%d] = %q, want %q", i, k, j, v, ev)
+			for k, evs := range test.out {
+				vs, ok := form[k]
+				if !ok {
+					t.Errorf("Missing key %q", k)
+					continue
+				}
+				if len(vs) != len(evs) {
+					t.Errorf("len(form[%q]) = %d, want %d", k, len(vs), len(evs))
+					continue
+				}
+				for j, ev := range evs {
+					if v := vs[j]; v != ev {
+						t.Errorf("form[%q][%d] = %q, want %q", k, j, v, ev)
+					}
 				}
 			}
+		})
+	}
+}
+
+func TestParseQueryLimits(t *testing.T) {
+	for _, test := range []struct {
+		params  int
+		godebug string
+		wantErr bool
+	}{{
+		params:  10,
+		wantErr: false,
+	}, {
+		params:  defaultMaxParams,
+		wantErr: false,
+	}, {
+		params:  defaultMaxParams + 1,
+		wantErr: true,
+	}, {
+		params:  10,
+		godebug: "urlmaxqueryparams=9",
+		wantErr: true,
+	}, {
+		params:  defaultMaxParams + 1,
+		godebug: "urlmaxqueryparams=0",
+		wantErr: false,
+	}} {
+		t.Setenv("GODEBUG", test.godebug)
+		want := Values{}
+		var b strings.Builder
+		for i := range test.params {
+			if i > 0 {
+				b.WriteString("&")
+			}
+			p := fmt.Sprintf("p%v", i)
+			b.WriteString(p)
+			want[p] = []string{""}
+		}
+		query := b.String()
+		got, err := ParseQuery(query)
+		if gotErr, wantErr := err != nil, test.wantErr; gotErr != wantErr {
+			t.Errorf("GODEBUG=%v ParseQuery(%v params) = %v, want error: %v", test.godebug, test.params, err, wantErr)
+		}
+		if err != nil {
+			continue
+		}
+		if got, want := len(got), test.params; got != want {
+			t.Errorf("GODEBUG=%v ParseQuery(%v params): got %v params, want %v", test.godebug, test.params, got, want)
 		}
 	}
 }
@@ -1452,6 +1746,18 @@ func TestParseErrors(t *testing.T) {
 		{"cache_object:foo", true},
 		{"cache_object:foo/bar", true},
 		{"cache_object/:foo/bar", false},
+
+		{"http://[192.168.0.1]/", true},              // IPv4 in brackets
+		{"http://[192.168.0.1]:8080/", true},         // IPv4 in brackets with port
+		{"http://[::ffff:192.168.0.1]/", false},      // IPv4-mapped IPv6 in brackets
+		{"http://[::ffff:192.168.0.1000]/", true},    // Out of range IPv4-mapped IPv6 in brackets
+		{"http://[::ffff:192.168.0.1]:8080/", false}, // IPv4-mapped IPv6 in brackets with port
+		{"http://[::ffff:c0a8:1]/", false},           // IPv4-mapped IPv6 in brackets (hex)
+		{"http://[not-an-ip]/", true},                // invalid IP string in brackets
+		{"http://[fe80::1%foo]/", true},              // invalid zone format in brackets
+		{"http://[fe80::1", true},                    // missing closing bracket
+		{"http://fe80::1]/", true},                   // missing opening bracket
+		{"http://[test.com]/", true},                 // domain name in brackets
 	}
 	for _, tt := range tests {
 		u, err := Parse(tt.in)
@@ -1675,6 +1981,7 @@ func TestURLHostnameAndPort(t *testing.T) {
 
 var _ encodingPkg.BinaryMarshaler = (*URL)(nil)
 var _ encodingPkg.BinaryUnmarshaler = (*URL)(nil)
+var _ encodingPkg.BinaryAppender = (*URL)(nil)
 
 func TestJSON(t *testing.T) {
 	u, err := Parse("https://www.google.com/x?y=z")
@@ -1881,11 +2188,252 @@ func BenchmarkPathUnescape(b *testing.B) {
 	}
 }
 
-var sink string
+func TestJoinPath(t *testing.T) {
+	tests := []struct {
+		base string
+		elem []string
+		out  string
+	}{
+		{
+			base: "https://go.googlesource.com",
+			elem: []string{"go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com/a/b/c",
+			elem: []string{"../../../go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com/",
+			elem: []string{"../go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com",
+			elem: []string{"../go", "../../go", "../../../go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com/../go",
+			elem: nil,
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com/",
+			elem: []string{"./go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com//",
+			elem: []string{"/go"},
+			out:  "https://go.googlesource.com/go",
+		},
+		{
+			base: "https://go.googlesource.com//",
+			elem: []string{"/go", "a", "b", "c"},
+			out:  "https://go.googlesource.com/go/a/b/c",
+		},
+		{
+			base: "http://[fe80::1%en0]:8080/",
+			elem: []string{"/go"},
+		},
+		{
+			base: "https://go.googlesource.com",
+			elem: []string{"go/"},
+			out:  "https://go.googlesource.com/go/",
+		},
+		{
+			base: "https://go.googlesource.com",
+			elem: []string{"go//"},
+			out:  "https://go.googlesource.com/go/",
+		},
+		{
+			base: "https://go.googlesource.com",
+			elem: nil,
+			out:  "https://go.googlesource.com/",
+		},
+		{
+			base: "https://go.googlesource.com/",
+			elem: nil,
+			out:  "https://go.googlesource.com/",
+		},
+		{
+			base: "https://go.googlesource.com/a%2fb",
+			elem: []string{"c"},
+			out:  "https://go.googlesource.com/a%2fb/c",
+		},
+		{
+			base: "https://go.googlesource.com/a%2fb",
+			elem: []string{"c%2fd"},
+			out:  "https://go.googlesource.com/a%2fb/c%2fd",
+		},
+		{
+			base: "https://go.googlesource.com/a/b",
+			elem: []string{"/go"},
+			out:  "https://go.googlesource.com/a/b/go",
+		},
+		{
+			base: "https://go.googlesource.com/",
+			elem: []string{"100%"},
+		},
+		{
+			base: "/",
+			elem: nil,
+			out:  "/",
+		},
+		{
+			base: "a",
+			elem: nil,
+			out:  "a",
+		},
+		{
+			base: "a",
+			elem: []string{"b"},
+			out:  "a/b",
+		},
+		{
+			base: "a",
+			elem: []string{"../b"},
+			out:  "b",
+		},
+		{
+			base: "a",
+			elem: []string{"../../b"},
+			out:  "b",
+		},
+		{
+			base: "",
+			elem: []string{"a"},
+			out:  "a",
+		},
+		{
+			base: "",
+			elem: []string{"../a"},
+			out:  "a",
+		},
+	}
+	for _, tt := range tests {
+		wantErr := "nil"
+		if tt.out == "" {
+			wantErr = "non-nil error"
+		}
+		out, err := JoinPath(tt.base, tt.elem...)
+		if out != tt.out || (err == nil) != (tt.out != "") {
+			t.Errorf("JoinPath(%q, %q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
+		}
 
-func BenchmarkSplit(b *testing.B) {
-	url := "http://www.google.com/?q=go+language#foo%26bar"
-	for i := 0; i < b.N; i++ {
-		sink, sink = split(url, '#', true)
+		u, err := Parse(tt.base)
+		if err != nil {
+			if tt.out != "" {
+				t.Errorf("Parse(%q) = %v", tt.base, err)
+			}
+			continue
+		}
+		if tt.out == "" {
+			// URL.JoinPath doesn't return an error, so leave it unchanged
+			tt.out = tt.base
+		}
+		out = u.JoinPath(tt.elem...).String()
+		if out != tt.out {
+			t.Errorf("Parse(%q).JoinPath(%q) = %q, want %q", tt.base, tt.elem, out, tt.out)
+		}
+	}
+}
+
+func TestParseStrictIpv6(t *testing.T) {
+	t.Setenv("GODEBUG", "urlstrictcolons=0")
+
+	tests := []struct {
+		url string
+	}{
+		// Malformed URLs that used to parse.
+		{"https://1:2:3:4:5:6:7:8"},
+		{"https://1:2:3:4:5:6:7:8:80"},
+		{"https://example.com:80:"},
+	}
+	for i, tc := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			_, err := Parse(tc.url)
+			if err != nil {
+				t.Errorf("Parse(%q) error = %v, want nil", tc.url, err)
+			}
+		})
+	}
+
+}
+
+func TestURLClone(t *testing.T) {
+	tests := []struct {
+		name string
+		in   *URL
+	}{
+		{"nil", nil},
+		{"zero value", &URL{}},
+		{
+			"Populated but nil .User",
+			&URL{
+				User:     nil,
+				Host:     "foo",
+				Path:     "/path",
+				RawQuery: "a=b",
+			},
+		},
+		{
+			"non-nil .User",
+			&URL{
+				User:     User("user"),
+				Host:     "foo",
+				Path:     "/path",
+				RawQuery: "a=b",
+			},
+		},
+		{
+			"non-nil .User: user and password set",
+			&URL{
+				User:     UserPassword("user", "password"),
+				Host:     "foo",
+				Path:     "/path",
+				RawQuery: "a=b",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// 1. The cloned URL must always deep equal the input, but never the same pointer.
+			cloned := tt.in.Clone()
+			if !reflect.DeepEqual(tt.in, cloned) {
+				t.Fatalf("Differing values\n%s",
+					diff.Diff("original", []byte(tt.in.String()), "cloned", []byte(cloned.String())))
+			}
+			if tt.in == nil {
+				return
+			}
+
+			// Ensure that their pointer values are not the same.
+			if tt.in == cloned {
+				t.Fatalf("URL: same pointer returned: %p", cloned)
+			}
+
+			// 2. Test out malleability of URL fields.
+			cloned.Scheme = "https"
+			if cloned.Scheme == tt.in.Scheme {
+				t.Error("Inconsistent state: cloned.scheme changed and reflected in the input's scheme")
+			}
+			if reflect.DeepEqual(tt.in, cloned) {
+				t.Fatal("Inconsistent state: cloned and input are somehow the same")
+			}
+
+			// 3. Ensure that the .User object deep equals but not the same pointer.
+			if !reflect.DeepEqual(tt.in.User, cloned.User) {
+				t.Fatalf("Differing .User\n%s",
+					diff.Diff("original", []byte(tt.in.String()), "cloned", []byte(cloned.String())))
+			}
+			bothNil := tt.in.User == nil && cloned.User == nil
+			if !bothNil && tt.in.User == cloned.User {
+				t.Fatalf(".User: same pointer returned: %p", cloned.User)
+			}
+		})
 	}
 }

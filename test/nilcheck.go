@@ -184,6 +184,7 @@ func f4(x *[10]int) {
 
 func f5(m map[string]struct{}) bool {
 	// Existence-only map lookups should not generate a nil check
-	_, ok := m[""]
+	tmp1, tmp2 := m[""] // ERROR "removed nil check"
+	_, ok := tmp1, tmp2
 	return ok
 }

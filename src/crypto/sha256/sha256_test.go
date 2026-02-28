@@ -8,7 +8,7 @@ package sha256
 
 import (
 	"bytes"
-	"crypto/rand"
+	"crypto/internal/cryptotest"
 	"encoding"
 	"fmt"
 	"hash"
@@ -91,8 +91,11 @@ var golden224 = []sha256Test{
 }
 
 func TestGolden(t *testing.T) {
-	for i := 0; i < len(golden); i++ {
-		g := golden[i]
+	cryptotest.TestAllImplementations(t, "sha256", testGolden)
+}
+
+func testGolden(t *testing.T) {
+	for _, g := range golden {
 		s := fmt.Sprintf("%x", Sum256([]byte(g.in)))
 		if s != g.out {
 			t.Fatalf("Sum256 function: sha256(%s) = %s want %s", g.in, s, g.out)
@@ -102,7 +105,7 @@ func TestGolden(t *testing.T) {
 			if j < 2 {
 				io.WriteString(c, g.in)
 			} else {
-				io.WriteString(c, g.in[0:len(g.in)/2])
+				io.WriteString(c, g.in[:len(g.in)/2])
 				c.Sum(nil)
 				io.WriteString(c, g.in[len(g.in)/2:])
 			}
@@ -113,8 +116,7 @@ func TestGolden(t *testing.T) {
 			c.Reset()
 		}
 	}
-	for i := 0; i < len(golden224); i++ {
-		g := golden224[i]
+	for _, g := range golden224 {
 		s := fmt.Sprintf("%x", Sum224([]byte(g.in)))
 		if s != g.out {
 			t.Fatalf("Sum224 function: sha224(%s) = %s want %s", g.in, s, g.out)
@@ -124,7 +126,7 @@ func TestGolden(t *testing.T) {
 			if j < 2 {
 				io.WriteString(c, g.in)
 			} else {
-				io.WriteString(c, g.in[0:len(g.in)/2])
+				io.WriteString(c, g.in[:len(g.in)/2])
 				c.Sum(nil)
 				io.WriteString(c, g.in[len(g.in)/2:])
 			}
@@ -138,6 +140,10 @@ func TestGolden(t *testing.T) {
 }
 
 func TestGoldenMarshal(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha256", testGoldenMarshal)
+}
+
+func testGoldenMarshal(t *testing.T) {
 	tests := []struct {
 		name    string
 		newHash func() hash.Hash
@@ -161,8 +167,20 @@ func TestGoldenMarshal(t *testing.T) {
 					continue
 				}
 
+				stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
+				if err != nil {
+					t.Errorf("could not marshal: %v", err)
+					continue
+				}
+				stateAppend = stateAppend[4:]
+
 				if string(state) != g.halfState {
 					t.Errorf("sha%s(%q) state = %q, want %q", tt.name, g.in, state, g.halfState)
+					continue
+				}
+
+				if string(stateAppend) != g.halfState {
+					t.Errorf("sha%s(%q) stateAppend = %q, want %q", tt.name, g.in, stateAppend, g.halfState)
 					continue
 				}
 
@@ -179,6 +197,56 @@ func TestGoldenMarshal(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestLarge(t *testing.T) {
+	const N = 10000
+	const offsets = 4
+	ok := "4c207598af7a20db0e3334dd044399a40e467cb81b37f7ba05a4f76dcbd8fd59" // sha256sum of "0123456789" * 1000
+	block := make([]byte, N+offsets)
+	c := New()
+	for offset := 0; offset < offsets; offset++ {
+		for i := 0; i < N; i++ {
+			block[offset+i] = '0' + byte(i%10)
+		}
+		for blockSize := 10; blockSize <= N; blockSize *= 10 {
+			blocks := N / blockSize
+			b := block[offset : offset+blockSize]
+			c.Reset()
+			for i := 0; i < blocks; i++ {
+				c.Write(b)
+			}
+			s := fmt.Sprintf("%x", c.Sum(nil))
+			if s != ok {
+				t.Fatalf("sha256 TestLarge offset=%d, blockSize=%d = %s want %s", offset, blockSize, s, ok)
+			}
+		}
+	}
+}
+
+func TestExtraLarge(t *testing.T) {
+	const N = 100000
+	const offsets = 4
+	ok := "aca9e593cc629cbaa94cd5a07dc029424aad93e5129e5d11f8dcd2f139c16cc0" // sha256sum of "0123456789" * 10000
+	block := make([]byte, N+offsets)
+	c := New()
+	for offset := 0; offset < offsets; offset++ {
+		for i := 0; i < N; i++ {
+			block[offset+i] = '0' + byte(i%10)
+		}
+		for blockSize := 10; blockSize <= N; blockSize *= 10 {
+			blocks := N / blockSize
+			b := block[offset : offset+blockSize]
+			c.Reset()
+			for i := 0; i < blocks; i++ {
+				c.Write(b)
+			}
+			s := fmt.Sprintf("%x", c.Sum(nil))
+			if s != ok {
+				t.Fatalf("sha256 TestExtraLarge offset=%d, blockSize=%d = %s want %s", offset, blockSize, s, ok)
+			}
+		}
 	}
 }
 
@@ -214,22 +282,10 @@ func TestBlockSize(t *testing.T) {
 	}
 }
 
-// Tests that blockGeneric (pure Go) and block (in assembly for some architectures) match.
-func TestBlockGeneric(t *testing.T) {
-	gen, asm := New().(*digest), New().(*digest)
-	buf := make([]byte, BlockSize*20) // arbitrary factor
-	rand.Read(buf)
-	blockGeneric(gen, buf)
-	block(asm, buf)
-	if *gen != *asm {
-		t.Error("block and blockGeneric resulted in different states")
-	}
-}
-
 // Tests for unmarshaling hashes that have hashed a large amount of data
 // The initial hash generation is omitted from the test, because it takes a long time.
 // The test contains some already-generated states, and their expected sums
-// Tests a problem that is outlined in Github issue #29517
+// Tests a problem that is outlined in GitHub issue #29517
 // The problem is triggered when an amount of data has been hashed for which
 // the data length has a 1 in the 32nd bit. When casted to int, this changes
 // the sign of the value, and causes the modulus operation to return a
@@ -289,17 +345,111 @@ func TestLargeHashes(t *testing.T) {
 	}
 }
 
+func TestAllocations(t *testing.T) {
+	cryptotest.SkipTestAllocations(t)
+	if n := testing.AllocsPerRun(10, func() {
+		in := []byte("hello, world!")
+		out := make([]byte, 0, Size)
+
+		{
+			h := New()
+			h.Reset()
+			h.Write(in)
+			out = h.Sum(out[:0])
+		}
+		{
+			h := New224()
+			h.Reset()
+			h.Write(in)
+			out = h.Sum(out[:0])
+		}
+
+		Sum256(in)
+		Sum224(in)
+	}); n > 0 {
+		t.Errorf("allocs = %v, want 0", n)
+	}
+}
+
+type cgoData struct {
+	Data [16]byte
+	Ptr  *cgoData
+}
+
+func TestCgo(t *testing.T) {
+	// Test that Write does not cause cgo to scan the entire cgoData struct for pointers.
+	// The scan (if any) should be limited to the [16]byte.
+	d := new(cgoData)
+	d.Ptr = d
+	_ = d.Ptr // for unusedwrite check
+	h := New()
+	h.Write(d.Data[:])
+	h.Sum(nil)
+}
+
+func TestHash(t *testing.T) {
+	t.Run("SHA-224", func(t *testing.T) {
+		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
+			cryptotest.TestHash(t, New224)
+		})
+	})
+	t.Run("SHA-256", func(t *testing.T) {
+		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
+			cryptotest.TestHash(t, New)
+		})
+	})
+}
+
+func TestExtraMethods(t *testing.T) {
+	t.Run("SHA-224", func(t *testing.T) {
+		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
+			h := maybeCloner(New224())
+			cryptotest.NoExtraMethods(t, h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+		})
+	})
+	t.Run("SHA-256", func(t *testing.T) {
+		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
+			h := maybeCloner(New())
+			cryptotest.NoExtraMethods(t, h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+		})
+	})
+}
+
+func maybeCloner(h hash.Hash) any {
+	if c, ok := h.(hash.Cloner); ok {
+		return &c
+	}
+	return &h
+}
+
 var bench = New()
-var buf = make([]byte, 8192)
 
 func benchmarkSize(b *testing.B, size int) {
-	b.SetBytes(int64(size))
+	buf := make([]byte, size)
 	sum := make([]byte, bench.Size())
-	for i := 0; i < b.N; i++ {
-		bench.Reset()
-		bench.Write(buf[:size])
-		bench.Sum(sum[:0])
-	}
+	b.Run("New", func(b *testing.B) {
+		b.ReportAllocs()
+		b.SetBytes(int64(size))
+		for i := 0; i < b.N; i++ {
+			bench.Reset()
+			bench.Write(buf)
+			bench.Sum(sum[:0])
+		}
+	})
+	b.Run("Sum224", func(b *testing.B) {
+		b.ReportAllocs()
+		b.SetBytes(int64(size))
+		for i := 0; i < b.N; i++ {
+			Sum224(buf)
+		}
+	})
+	b.Run("Sum256", func(b *testing.B) {
+		b.ReportAllocs()
+		b.SetBytes(int64(size))
+		for i := 0; i < b.N; i++ {
+			Sum256(buf)
+		}
+	})
 }
 
 func BenchmarkHash8Bytes(b *testing.B) {
@@ -312,4 +462,26 @@ func BenchmarkHash1K(b *testing.B) {
 
 func BenchmarkHash8K(b *testing.B) {
 	benchmarkSize(b, 8192)
+}
+
+func BenchmarkHash256K(b *testing.B) {
+	benchmarkSize(b, 256*1024)
+}
+
+func BenchmarkHash1M(b *testing.B) {
+	benchmarkSize(b, 1024*1024)
+}
+
+func TestAllocatonsWithTypeAsserts(t *testing.T) {
+	cryptotest.SkipTestAllocations(t)
+	allocs := testing.AllocsPerRun(100, func() {
+		h := New()
+		h.Write([]byte{1, 2, 3})
+		marshaled, _ := h.(encoding.BinaryMarshaler).MarshalBinary()
+		marshaled, _ = h.(encoding.BinaryAppender).AppendBinary(marshaled[:0])
+		h.(encoding.BinaryUnmarshaler).UnmarshalBinary(marshaled)
+	})
+	if allocs != 0 {
+		t.Fatalf("allocs = %v; want = 0", allocs)
+	}
 }

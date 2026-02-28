@@ -4,6 +4,10 @@ go test -timeout=0 -run=TestNoDeadline
 go test -timeout=1m -run=TestDeadlineWithinMinute
 go test -timeout=1m -run=TestSubtestDeadlineWithinMinute
 
+-- go.mod --
+module m
+
+go 1.16
 -- deadline_test.go --
 package testing_test
 

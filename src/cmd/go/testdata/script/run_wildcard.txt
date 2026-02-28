@@ -4,4 +4,4 @@ env GO111MODULE=off
 # go run x/... should not panic when directory x doesn't exist.
 
 ! go run nonexistent/...
-stderr '^go run: no packages loaded from nonexistent/...$'
+stderr '^go: no packages loaded from nonexistent/...$'

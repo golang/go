@@ -14,7 +14,10 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
+	"internal/goexperiment"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -89,19 +92,6 @@ import (
 // barriers, which will slow down both the mutator and the GC, we always grey
 // the ptr object regardless of the slot's color.
 //
-// Another place where we intentionally omit memory barriers is when
-// accessing mheap_.arena_used to check if a pointer points into the
-// heap. On relaxed memory machines, it's possible for a mutator to
-// extend the size of the heap by updating arena_used, allocate an
-// object from this new region, and publish a pointer to that object,
-// but for tracing running on another processor to observe the pointer
-// but use the old value of arena_used. In this case, tracing will not
-// mark the object, even though it's reachable. However, the mutator
-// is guaranteed to execute a write barrier when it publishes the
-// pointer, so it will take care of marking the object. A general
-// consequence of this is that the garbage collector may cache the
-// value of mheap_.arena_used. (See issue #9984.)
-//
 //
 // Stack writes:
 //
@@ -109,12 +99,6 @@ import (
 // but if a stack pointer has been passed down the call stack, the
 // compiler will generate a write barrier for writes through that
 // pointer (because it doesn't know it's not a heap pointer).
-//
-// One might be tempted to ignore the write barrier if slot points
-// into to the stack. Don't do it! Mark termination only re-scans
-// frames that have potentially been active since the concurrent scan,
-// so it depends on write barriers to track changes to pointers in
-// stack frames that have not been active.
 //
 //
 // Global writes:
@@ -146,19 +130,32 @@ import (
 // remove the deletion barrier, we'll have to work out a new way to
 // handle the profile logging.
 
-// typedmemmove copies a value of type t to dst from src.
+// typedmemmove copies a value of type typ to dst from src.
 // Must be nosplit, see #16026.
 //
 // TODO: Perfect for go:nosplitrec since we can't have a safe point
 // anywhere in the bulk barrier or memmove.
 //
+// typedmemmove should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/RomiChan/protobuf
+//   - github.com/segmentio/encoding
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname typedmemmove
 //go:nosplit
-func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+func typedmemmove(typ *abi.Type, dst, src unsafe.Pointer) {
 	if dst == src {
 		return
 	}
-	if typ.ptrdata != 0 {
-		bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.size)
+	if writeBarrier.enabled && typ.Pointers() {
+		// This always copies a full value of type typ so it's safe
+		// to pass typ along as an optimization. See the comment on
+		// bulkBarrierPreWrite.
+		bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.PtrBytes, typ)
 	}
 	// There's a race here: if some other goroutine can write to
 	// src, it may change some pointer in src after we've
@@ -167,21 +164,64 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	// other goroutine must also be accompanied by a write
 	// barrier, so at worst we've unnecessarily greyed the old
 	// pointer that was in src.
-	memmove(dst, src, typ.size)
-	if writeBarrier.cgo {
-		cgoCheckMemmove(typ, dst, src, 0, typ.size)
+	memmove(dst, src, typ.Size_)
+	if goexperiment.CgoCheck2 {
+		cgoCheckMemmove2(typ, dst, src, 0, typ.Size_)
 	}
 }
 
+// wbZero performs the write barrier operations necessary before
+// zeroing a region of memory at address dst of type typ.
+// Does not actually do the zeroing.
+//
+//go:nowritebarrierrec
+//go:nosplit
+func wbZero(typ *_type, dst unsafe.Pointer) {
+	// This always copies a full value of type typ so it's safe
+	// to pass typ along as an optimization. See the comment on
+	// bulkBarrierPreWrite.
+	bulkBarrierPreWrite(uintptr(dst), 0, typ.PtrBytes, typ)
+}
+
+// wbMove performs the write barrier operations necessary before
+// copying a region of memory from src to dst of type typ.
+// Does not actually do the copying.
+//
+//go:nowritebarrierrec
+//go:nosplit
+func wbMove(typ *_type, dst, src unsafe.Pointer) {
+	// This always copies a full value of type typ so it's safe to
+	// pass a type here.
+	//
+	// See the comment on bulkBarrierPreWrite.
+	bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.PtrBytes, typ)
+}
+
+// reflect_typedmemmove is meant for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
+//   - github.com/goccy/json
+//   - github.com/modern-go/reflect2
+//   - github.com/ugorji/go/codec
+//   - github.com/v2pro/plz
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_typedmemmove reflect.typedmemmove
 func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	if raceenabled {
-		raceWriteObjectPC(typ, dst, getcallerpc(), funcPC(reflect_typedmemmove))
-		raceReadObjectPC(typ, src, getcallerpc(), funcPC(reflect_typedmemmove))
+		raceWriteObjectPC(typ, dst, sys.GetCallerPC(), abi.FuncPCABIInternal(reflect_typedmemmove))
+		raceReadObjectPC(typ, src, sys.GetCallerPC(), abi.FuncPCABIInternal(reflect_typedmemmove))
 	}
 	if msanenabled {
-		msanwrite(dst, typ.size)
-		msanread(src, typ.size)
+		msanwrite(dst, typ.Size_)
+		msanread(src, typ.Size_)
+	}
+	if asanenabled {
+		asanwrite(dst, typ.Size_)
+		asanread(src, typ.Size_)
 	}
 	typedmemmove(typ, dst, src)
 }
@@ -191,25 +231,9 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	reflect_typedmemmove(typ, dst, src)
 }
 
-// typedmemmovepartial is like typedmemmove but assumes that
-// dst and src point off bytes into the value and only copies size bytes.
-//go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
-func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
-	if writeBarrier.needed && typ.ptrdata != 0 && size >= sys.PtrSize {
-		// Pointer-align start address for bulk barrier.
-		adst, asrc, asize := dst, src, size
-		if frag := -off & (sys.PtrSize - 1); frag != 0 {
-			adst = add(dst, frag)
-			asrc = add(src, frag)
-			asize -= frag
-		}
-		bulkBarrierPreWrite(uintptr(adst), uintptr(asrc), asize&^(sys.PtrSize-1))
-	}
-
-	memmove(dst, src, size)
-	if writeBarrier.cgo {
-		cgoCheckMemmove(typ, dst, src, off, size)
-	}
+//go:linkname maps_typedmemmove internal/runtime/maps.typedmemmove
+func maps_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+	typedmemmove(typ, dst, src)
 }
 
 // reflectcallmove is invoked by reflectcall to copy the return values
@@ -222,89 +246,105 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size 
 // stack map of reflectcall is wrong.
 //
 //go:nosplit
-func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr) {
-	if writeBarrier.needed && typ != nil && typ.ptrdata != 0 && size >= sys.PtrSize {
-		bulkBarrierPreWrite(uintptr(dst), uintptr(src), size)
+func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr, regs *abi.RegArgs) {
+	if writeBarrier.enabled && typ != nil && typ.Pointers() && size >= goarch.PtrSize {
+		// Pass nil for the type. dst does not point to value of type typ,
+		// but rather points into one, so applying the optimization is not
+		// safe. See the comment on this function.
+		bulkBarrierPreWrite(uintptr(dst), uintptr(src), size, nil)
 	}
 	memmove(dst, src, size)
+
+	// Move pointers returned in registers to a place where the GC can see them.
+	for i := range regs.Ints {
+		if regs.ReturnIsPtr.Get(i) {
+			regs.Ptrs[i] = unsafe.Pointer(regs.Ints[i])
+		}
+	}
 }
 
+// typedslicecopy should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/segmentio/encoding
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname typedslicecopy
 //go:nosplit
-func typedslicecopy(typ *_type, dst, src slice) int {
-	n := dst.len
-	if n > src.len {
-		n = src.len
+func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe.Pointer, srcLen int) int {
+	n := dstLen
+	if n > srcLen {
+		n = srcLen
 	}
 	if n == 0 {
 		return 0
 	}
-	dstp := dst.array
-	srcp := src.array
 
 	// The compiler emits calls to typedslicecopy before
 	// instrumentation runs, so unlike the other copying and
 	// assignment operations, it's not instrumented in the calling
 	// code and needs its own instrumentation.
 	if raceenabled {
-		callerpc := getcallerpc()
-		pc := funcPC(slicecopy)
-		racewriterangepc(dstp, uintptr(n)*typ.size, callerpc, pc)
-		racereadrangepc(srcp, uintptr(n)*typ.size, callerpc, pc)
+		callerpc := sys.GetCallerPC()
+		pc := abi.FuncPCABIInternal(slicecopy)
+		racewriterangepc(dstPtr, uintptr(n)*typ.Size_, callerpc, pc)
+		racereadrangepc(srcPtr, uintptr(n)*typ.Size_, callerpc, pc)
 	}
 	if msanenabled {
-		msanwrite(dstp, uintptr(n)*typ.size)
-		msanread(srcp, uintptr(n)*typ.size)
+		msanwrite(dstPtr, uintptr(n)*typ.Size_)
+		msanread(srcPtr, uintptr(n)*typ.Size_)
+	}
+	if asanenabled {
+		asanwrite(dstPtr, uintptr(n)*typ.Size_)
+		asanread(srcPtr, uintptr(n)*typ.Size_)
 	}
 
-	if writeBarrier.cgo {
-		cgoCheckSliceCopy(typ, dst, src, n)
+	if goexperiment.CgoCheck2 {
+		cgoCheckSliceCopy(typ, dstPtr, srcPtr, n)
 	}
 
-	if dstp == srcp {
+	if dstPtr == srcPtr {
 		return n
 	}
 
-	// Note: No point in checking typ.ptrdata here:
+	// Note: No point in checking typ.PtrBytes here:
 	// compiler only emits calls to typedslicecopy for types with pointers,
 	// and growslice and reflect_typedslicecopy check for pointers
 	// before calling typedslicecopy.
-	size := uintptr(n) * typ.size
-	if writeBarrier.needed {
-		bulkBarrierPreWrite(uintptr(dstp), uintptr(srcp), size)
+	size := uintptr(n) * typ.Size_
+	if writeBarrier.enabled {
+		// This always copies one or more full values of type typ so
+		// it's safe to pass typ along as an optimization. See the comment on
+		// bulkBarrierPreWrite.
+		pwsize := size - typ.Size_ + typ.PtrBytes
+		bulkBarrierPreWrite(uintptr(dstPtr), uintptr(srcPtr), pwsize, typ)
 	}
 	// See typedmemmove for a discussion of the race between the
 	// barrier and memmove.
-	memmove(dstp, srcp, size)
+	memmove(dstPtr, srcPtr, size)
 	return n
 }
 
+// reflect_typedslicecopy is meant for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/gox
+//   - github.com/modern-go/reflect2
+//   - github.com/RomiChan/protobuf
+//   - github.com/segmentio/encoding
+//   - github.com/v2pro/plz
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_typedslicecopy reflect.typedslicecopy
 func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
-	if elemType.ptrdata == 0 {
-		n := dst.len
-		if n > src.len {
-			n = src.len
-		}
-		if n == 0 {
-			return 0
-		}
-
-		size := uintptr(n) * elemType.size
-		if raceenabled {
-			callerpc := getcallerpc()
-			pc := funcPC(reflect_typedslicecopy)
-			racewriterangepc(dst.array, size, callerpc, pc)
-			racereadrangepc(src.array, size, callerpc, pc)
-		}
-		if msanenabled {
-			msanwrite(dst.array, size)
-			msanread(src.array, size)
-		}
-
-		memmove(dst.array, src.array, size)
-		return n
+	if !elemType.Pointers() {
+		return slicecopy(dst.array, dst.len, src.array, src.len, elemType.Size_)
 	}
-	return typedslicecopy(elemType, dst, src)
+	return typedslicecopy(elemType, dst.array, dst.len, src.array, src.len)
 }
 
 // typedmemclr clears the typed memory at ptr with type typ. The
@@ -315,34 +355,77 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 // If the caller knows that typ has pointers, it can alternatively
 // call memclrHasPointers.
 //
+// TODO: A "go:nosplitrec" annotation would be perfect for this.
+//
 //go:nosplit
 func typedmemclr(typ *_type, ptr unsafe.Pointer) {
-	if typ.ptrdata != 0 {
-		bulkBarrierPreWrite(uintptr(ptr), 0, typ.size)
+	if writeBarrier.enabled && typ.Pointers() {
+		// This always clears a whole value of type typ, so it's
+		// safe to pass a type here and apply the optimization.
+		// See the comment on bulkBarrierPreWrite.
+		bulkBarrierPreWrite(uintptr(ptr), 0, typ.PtrBytes, typ)
 	}
-	memclrNoHeapPointers(ptr, typ.size)
+	memclrNoHeapPointers(ptr, typ.Size_)
 }
 
+// reflect_typedmemclr is meant for package reflect,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ugorji/go/codec
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname reflect_typedmemclr reflect.typedmemclr
 func reflect_typedmemclr(typ *_type, ptr unsafe.Pointer) {
 	typedmemclr(typ, ptr)
 }
 
+//go:linkname maps_typedmemclr internal/runtime/maps.typedmemclr
+func maps_typedmemclr(typ *_type, ptr unsafe.Pointer) {
+	typedmemclr(typ, ptr)
+}
+
 //go:linkname reflect_typedmemclrpartial reflect.typedmemclrpartial
 func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintptr) {
-	if typ.ptrdata != 0 {
-		bulkBarrierPreWrite(uintptr(ptr), 0, size)
+	if writeBarrier.enabled && typ.Pointers() {
+		// Pass nil for the type. ptr does not point to value of type typ,
+		// but rather points into one so it's not safe to apply the optimization.
+		// See the comment on this function in the reflect package and the
+		// comment on bulkBarrierPreWrite.
+		bulkBarrierPreWrite(uintptr(ptr), 0, size, nil)
+	}
+	memclrNoHeapPointers(ptr, size)
+}
+
+//go:linkname reflect_typedarrayclear reflect.typedarrayclear
+func reflect_typedarrayclear(typ *_type, ptr unsafe.Pointer, len int) {
+	size := typ.Size_ * uintptr(len)
+	if writeBarrier.enabled && typ.Pointers() {
+		// This always clears whole elements of an array, so it's
+		// safe to pass a type here. See the comment on bulkBarrierPreWrite.
+		bulkBarrierPreWrite(uintptr(ptr), 0, size, typ)
 	}
 	memclrNoHeapPointers(ptr, size)
 }
 
 // memclrHasPointers clears n bytes of typed memory starting at ptr.
 // The caller must ensure that the type of the object at ptr has
-// pointers, usually by checking typ.ptrdata. However, ptr
+// pointers, usually by checking typ.PtrBytes. However, ptr
 // does not have to point to the start of the allocation.
 //
+// memclrHasPointers should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname memclrHasPointers
 //go:nosplit
 func memclrHasPointers(ptr unsafe.Pointer, n uintptr) {
-	bulkBarrierPreWrite(uintptr(ptr), 0, n)
+	// Pass nil for the type since we don't have one here anyway.
+	bulkBarrierPreWrite(uintptr(ptr), 0, n, nil)
 	memclrNoHeapPointers(ptr, n)
 }

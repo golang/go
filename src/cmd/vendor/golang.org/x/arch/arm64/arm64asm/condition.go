@@ -11,7 +11,7 @@ package arm64asm
 // Refer to instFormat inside decode.go for more details
 
 func at_sys_cr_system_cond(instr uint32) bool {
-	return sys_op_4((instr>>16)&0x7, 0x7, 0x8, (instr>>5)&0x7) == Sys_AT
+	return sys_op_4((instr>>16)&0x7, 0x7, 0x8, (instr>>5)&0x7) == sys_AT
 }
 
 func bfi_bfm_32m_bitfield_cond(instr uint32) bool {
@@ -61,11 +61,11 @@ func csinv_general_cond(instr uint32) bool {
 	return instr&0xe000 != 0xe000
 }
 func dc_sys_cr_system_cond(instr uint32) bool {
-	return sys_op_4((instr>>16)&0x7, 0x7, (instr>>8)&0xf, (instr>>5)&0x7) == Sys_DC
+	return sys_op_4((instr>>16)&0x7, 0x7, (instr>>8)&0xf, (instr>>5)&0x7) == sys_DC
 }
 
 func ic_sys_cr_system_cond(instr uint32) bool {
-	return sys_op_4((instr>>16)&0x7, 0x7, (instr>>8)&0xf, (instr>>5)&0x7) == Sys_IC
+	return sys_op_4((instr>>16)&0x7, 0x7, (instr>>8)&0xf, (instr>>5)&0x7) == sys_IC
 }
 
 func lsl_ubfm_32m_bitfield_cond(instr uint32) bool {
@@ -133,7 +133,7 @@ func sbfx_sbfm_64m_bitfield_cond(instr uint32) bool {
 }
 
 func tlbi_sys_cr_system_cond(instr uint32) bool {
-	return sys_op_4((instr>>16)&0x7, 0x8, (instr>>8)&0xf, (instr>>5)&0x7) == Sys_TLBI
+	return sys_op_4((instr>>16)&0x7, 0x8, (instr>>8)&0xf, (instr>>5)&0x7) == sys_TLBI
 }
 
 func ubfiz_ubfm_32m_bitfield_cond(instr uint32) bool {

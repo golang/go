@@ -5,6 +5,7 @@
 // Package adler32 implements the Adler-32 checksum.
 //
 // It is defined in RFC 1950:
+//
 //	Adler-32 is composed of two sums accumulated per byte: s1 is
 //	the sum of all bytes, s2 is the sum of all s1 values. Both sums
 //	are done modulo 65521. s1 is initialized to 1, s2 to zero.  The
@@ -15,6 +16,7 @@ package adler32
 import (
 	"errors"
 	"hash"
+	"internal/byteorder"
 )
 
 const (
@@ -37,8 +39,8 @@ func (d *digest) Reset() { *d = 1 }
 
 // New returns a new hash.Hash32 computing the Adler-32 checksum. Its
 // Sum method will lay the value out in big-endian byte order. The
-// returned Hash32 also implements encoding.BinaryMarshaler and
-// encoding.BinaryUnmarshaler to marshal and unmarshal the internal
+// returned Hash32 also implements [encoding.BinaryMarshaler] and
+// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
 // state of the hash.
 func New() hash.Hash32 {
 	d := new(digest)
@@ -55,11 +57,14 @@ const (
 	marshaledSize = len(magic) + 4
 )
 
-func (d *digest) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, marshaledSize)
+func (d *digest) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic...)
-	b = appendUint32(b, uint32(*d))
+	b = byteorder.BEAppendUint32(b, uint32(*d))
 	return b, nil
+}
+
+func (d *digest) MarshalBinary() ([]byte, error) {
+	return d.AppendBinary(make([]byte, 0, marshaledSize))
 }
 
 func (d *digest) UnmarshalBinary(b []byte) error {
@@ -69,23 +74,13 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	if len(b) != marshaledSize {
 		return errors.New("hash/adler32: invalid hash state size")
 	}
-	*d = digest(readUint32(b[len(magic):]))
+	*d = digest(byteorder.BEUint32(b[len(magic):]))
 	return nil
 }
 
-func appendUint32(b []byte, x uint32) []byte {
-	a := [4]byte{
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
-		byte(x),
-	}
-	return append(b, a[:]...)
-}
-
-func readUint32(b []byte) uint32 {
-	_ = b[3]
-	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+func (d *digest) Clone() (hash.Cloner, error) {
+	r := *d
+	return &r, nil
 }
 
 // Add p to the running checksum d.

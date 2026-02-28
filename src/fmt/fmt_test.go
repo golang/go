@@ -11,7 +11,6 @@ import (
 	"io"
 	"math"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -40,7 +39,7 @@ type (
 )
 
 func TestFmtInterface(t *testing.T) {
-	var i1 interface{}
+	var i1 any
 	i1 = "abc"
 	s := Sprintf("%s", i1)
 	if s != "abc" {
@@ -56,7 +55,7 @@ var (
 	intVar = 0
 
 	array  = [5]int{1, 2, 3, 4, 5}
-	iarray = [4]interface{}{1, "hello", 2.5, nil}
+	iarray = [4]any{1, "hello", 2.5, nil}
 	slice  = array[:]
 	islice = iarray[:]
 )
@@ -100,7 +99,7 @@ type S struct {
 }
 
 type SI struct {
-	I interface{}
+	I any
 }
 
 // P is a type with a String method with pointer receiver for testing %p.
@@ -110,6 +109,19 @@ var pValue P
 
 func (p *P) String() string {
 	return "String(p)"
+}
+
+// Fn is a function type with a String method.
+type Fn func() int
+
+func (fn Fn) String() string { return "String(fn)" }
+
+var fnValue Fn
+
+// U is a type with two unexported function fields.
+type U struct {
+	u  func() string
+	fn Fn
 }
 
 var barray = [5]renamedUint8{1, 2, 3, 4, 5}
@@ -141,7 +153,7 @@ func (sf writeStringFormatter) Format(f State, c rune) {
 
 var fmtTests = []struct {
 	fmt string
-	val interface{}
+	val any
 	out string
 }{
 	{"%d", 12345, "12345"},
@@ -249,6 +261,7 @@ var fmtTests = []struct {
 	{"%.0c", '⌘', "⌘"}, // Specifying precision should have no effect.
 	{"%3c", '⌘', "  ⌘"},
 	{"%-3c", '⌘', "⌘  "},
+	{"%c", uint64(0x100000000), "\ufffd"},
 	// Runes that are not printable.
 	{"%c", '\U00000e00', "\u0e00"},
 	{"%c", '\U0010ffff', "\U0010ffff"},
@@ -290,11 +303,11 @@ var fmtTests = []struct {
 	{"%q", '\U00000e00', `'\u0e00'`},
 	{"%q", '\U0010ffff', `'\U0010ffff'`},
 	// Runes that are not valid.
-	{"%q", int32(-1), "%!q(int32=-1)"},
+	{"%q", int32(-1), `'�'`},
 	{"%q", 0xDC80, `'�'`},
-	{"%q", rune(0x110000), "%!q(int32=1114112)"},
-	{"%q", int64(0xFFFFFFFFF), "%!q(int64=68719476735)"},
-	{"%q", uint64(0xFFFFFFFFF), "%!q(uint64=68719476735)"},
+	{"%q", rune(0x110000), `'�'`},
+	{"%q", int64(0xFFFFFFFFF), `'�'`},
+	{"%q", uint64(0xFFFFFFFFF), `'�'`},
 
 	// width
 	{"%5s", "abc", "  abc"},
@@ -713,7 +726,6 @@ var fmtTests = []struct {
 	// go syntax
 	{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
 	{"%#v", new(byte), "(*uint8)(0xPTR)"},
-	{"%#v", TestFmtInterface, "(func(*testing.T))(0xPTR)"},
 	{"%#v", make(chan int), "(chan int)(0xPTR)"},
 	{"%#v", uint64(1<<64 - 1), "0xffffffffffffffff"},
 	{"%#v", 1000000000, "1000000000"},
@@ -735,6 +747,54 @@ var fmtTests = []struct {
 	{"%#v", []int32(nil), "[]int32(nil)"},
 	{"%#v", 1.2345678, "1.2345678"},
 	{"%#v", float32(1.2345678), "1.2345678"},
+
+	// functions
+	{"%v", TestFmtInterface, "0xPTR"}, // simple function
+	{"%v", reflect.ValueOf(TestFmtInterface), "0xPTR"},
+	{"%v", G.GoString, "0xPTR"}, // method expression
+	{"%v", reflect.ValueOf(G.GoString), "0xPTR"},
+	{"%v", G(23).GoString, "0xPTR"}, // method value
+	{"%v", reflect.ValueOf(G(23).GoString), "0xPTR"},
+	{"%v", reflect.ValueOf(G(23)).Method(0), "0xPTR"},
+	{"%v", Fn.String, "0xPTR"}, // method of function type
+	{"%v", reflect.ValueOf(Fn.String), "0xPTR"},
+	{"%v", fnValue, "String(fn)"}, // variable of function type with String method
+	{"%v", reflect.ValueOf(fnValue), "String(fn)"},
+	{"%v", [1]Fn{fnValue}, "[String(fn)]"}, // array of function type with String method
+	{"%v", reflect.ValueOf([1]Fn{fnValue}), "[String(fn)]"},
+	{"%v", fnValue.String, "0xPTR"}, // method value from function type
+	{"%v", reflect.ValueOf(fnValue.String), "0xPTR"},
+	{"%v", reflect.ValueOf(fnValue).Method(0), "0xPTR"},
+	{"%v", U{}.u, "<nil>"}, // unexported function field
+	{"%v", reflect.ValueOf(U{}.u), "<nil>"},
+	{"%v", reflect.ValueOf(U{}).Field(0), "<nil>"},
+	{"%v", U{fn: fnValue}.fn, "String(fn)"}, // unexported field of function type with String method
+	{"%v", reflect.ValueOf(U{fn: fnValue}.fn), "String(fn)"},
+	{"%v", reflect.ValueOf(U{fn: fnValue}).Field(1), "<nil>"},
+
+	// functions with go syntax
+	{"%#v", TestFmtInterface, "(func(*testing.T))(0xPTR)"}, // simple function
+	{"%#v", reflect.ValueOf(TestFmtInterface), "(func(*testing.T))(0xPTR)"},
+	{"%#v", G.GoString, "(func(fmt_test.G) string)(0xPTR)"}, // method expression
+	{"%#v", reflect.ValueOf(G.GoString), "(func(fmt_test.G) string)(0xPTR)"},
+	{"%#v", G(23).GoString, "(func() string)(0xPTR)"}, // method value
+	{"%#v", reflect.ValueOf(G(23).GoString), "(func() string)(0xPTR)"},
+	{"%#v", reflect.ValueOf(G(23)).Method(0), "(func() string)(0xPTR)"},
+	{"%#v", Fn.String, "(func(fmt_test.Fn) string)(0xPTR)"}, // method of function type
+	{"%#v", reflect.ValueOf(Fn.String), "(func(fmt_test.Fn) string)(0xPTR)"},
+	{"%#v", fnValue, "(fmt_test.Fn)(nil)"}, // variable of function type with String method
+	{"%#v", reflect.ValueOf(fnValue), "(fmt_test.Fn)(nil)"},
+	{"%#v", [1]Fn{fnValue}, "[1]fmt_test.Fn{(fmt_test.Fn)(nil)}"}, // array of function type with String method
+	{"%#v", reflect.ValueOf([1]Fn{fnValue}), "[1]fmt_test.Fn{(fmt_test.Fn)(nil)}"},
+	{"%#v", fnValue.String, "(func() string)(0xPTR)"}, // method value from function type
+	{"%#v", reflect.ValueOf(fnValue.String), "(func() string)(0xPTR)"},
+	{"%#v", reflect.ValueOf(fnValue).Method(0), "(func() string)(0xPTR)"},
+	{"%#v", U{}.u, "(func() string)(nil)"}, // unexported function field
+	{"%#v", reflect.ValueOf(U{}.u), "(func() string)(nil)"},
+	{"%#v", reflect.ValueOf(U{}).Field(0), "(func() string)(nil)"},
+	{"%#v", U{fn: fnValue}.fn, "(fmt_test.Fn)(nil)"}, // unexported field of function type with String method
+	{"%#v", reflect.ValueOf(U{fn: fnValue}.fn), "(fmt_test.Fn)(nil)"},
+	{"%#v", reflect.ValueOf(U{fn: fnValue}).Field(1), "(fmt_test.Fn)(nil)"},
 
 	// Whole number floats are printed without decimals. See Issue 27634.
 	{"%#v", 1.0, "1"},
@@ -993,14 +1053,14 @@ var fmtTests = []struct {
 
 	// float and complex formatting should not change the padding width
 	// for other elements. See issue 14642.
-	{"%06v", []interface{}{+10.0, 10}, "[000010 000010]"},
-	{"%06v", []interface{}{-10.0, 10}, "[-00010 000010]"},
-	{"%06v", []interface{}{+10.0 + 10i, 10}, "[(000010+00010i) 000010]"},
-	{"%06v", []interface{}{-10.0 + 10i, 10}, "[(-00010+00010i) 000010]"},
+	{"%06v", []any{+10.0, 10}, "[000010 000010]"},
+	{"%06v", []any{-10.0, 10}, "[-00010 000010]"},
+	{"%06v", []any{+10.0 + 10i, 10}, "[(000010+00010i) 000010]"},
+	{"%06v", []any{-10.0 + 10i, 10}, "[(-00010+00010i) 000010]"},
 
 	// integer formatting should not alter padding for other elements.
-	{"%03.6v", []interface{}{1, 2.0, "x"}, "[000001 002 00x]"},
-	{"%03.0v", []interface{}{0, 2.0, "x"}, "[    002 000]"},
+	{"%03.6v", []any{1, 2.0, "x"}, "[000001 002 00x]"},
+	{"%03.0v", []any{0, 2.0, "x"}, "[    002 000]"},
 
 	// Complex fmt used to leave the plus flag set for future entries in the array
 	// causing +2+0i and +3+0i instead of 2+0i and 3+0i.
@@ -1060,7 +1120,7 @@ var fmtTests = []struct {
 
 	// Tests to check that not supported verbs generate an error string.
 	{"%☠", nil, "%!☠(<nil>)"},
-	{"%☠", interface{}(nil), "%!☠(<nil>)"},
+	{"%☠", any(nil), "%!☠(<nil>)"},
 	{"%☠", int(0), "%!☠(int=0)"},
 	{"%☠", uint(0), "%!☠(uint=0)"},
 	{"%☠", []byte{0, 1}, "[%!☠(uint8=0) %!☠(uint8=1)]"},
@@ -1077,8 +1137,8 @@ var fmtTests = []struct {
 	{"%☠", func() {}, "%!☠(func()=0xPTR)"},
 	{"%☠", reflect.ValueOf(renamedInt(0)), "%!☠(fmt_test.renamedInt=0)"},
 	{"%☠", SI{renamedInt(0)}, "{%!☠(fmt_test.renamedInt=0)}"},
-	{"%☠", &[]interface{}{I(1), G(2)}, "&[%!☠(fmt_test.I=1) %!☠(fmt_test.G=2)]"},
-	{"%☠", SI{&[]interface{}{I(1), G(2)}}, "{%!☠(*[]interface {}=&[1 2])}"},
+	{"%☠", &[]any{I(1), G(2)}, "&[%!☠(fmt_test.I=1) %!☠(fmt_test.G=2)]"},
+	{"%☠", SI{&[]any{I(1), G(2)}}, "{%!☠(*[]interface {}=&[1 2])}"},
 	{"%☠", reflect.Value{}, "<invalid reflect.Value>"},
 	{"%☠", map[float64]int{NaN: 1}, "map[%!☠(float64=NaN):%!☠(int=1)]"},
 }
@@ -1180,7 +1240,7 @@ func TestComplexFormatting(t *testing.T) {
 	}
 }
 
-type SE []interface{} // slice of empty; notational compactness.
+type SE []any // slice of empty; notational compactness.
 
 var reorderTests = []struct {
 	fmt string
@@ -1229,7 +1289,6 @@ func TestReorder(t *testing.T) {
 		s := Sprintf(tt.fmt, tt.val...)
 		if s != tt.out {
 			t.Errorf("Sprintf(%q, %v) = <%s> want <%s>", tt.fmt, tt.val, s, tt.out)
-		} else {
 		}
 	}
 }
@@ -1237,7 +1296,7 @@ func TestReorder(t *testing.T) {
 func BenchmarkSprintfPadding(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%16f", 1.0)
+			_ = Sprintf("%16f", 1.0)
 		}
 	})
 }
@@ -1245,7 +1304,7 @@ func BenchmarkSprintfPadding(b *testing.B) {
 func BenchmarkSprintfEmpty(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("")
+			_ = Sprintf("")
 		}
 	})
 }
@@ -1253,7 +1312,7 @@ func BenchmarkSprintfEmpty(b *testing.B) {
 func BenchmarkSprintfString(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%s", "hello")
+			_ = Sprintf("%s", "hello")
 		}
 	})
 }
@@ -1261,16 +1320,16 @@ func BenchmarkSprintfString(b *testing.B) {
 func BenchmarkSprintfTruncateString(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%.3s", "日本語日本語日本語日本語")
+			_ = Sprintf("%.3s", "日本語日本語日本語日本語")
 		}
 	})
 }
 
 func BenchmarkSprintfTruncateBytes(b *testing.B) {
-	var bytes interface{} = []byte("日本語日本語日本語日本語")
+	var bytes any = []byte("日本語日本語日本語日本語")
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%.3s", bytes)
+			_ = Sprintf("%.3s", bytes)
 		}
 	})
 }
@@ -1278,7 +1337,7 @@ func BenchmarkSprintfTruncateBytes(b *testing.B) {
 func BenchmarkSprintfSlowParsingPath(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%.v", nil)
+			_ = Sprintf("%.v", nil)
 		}
 	})
 }
@@ -1286,7 +1345,7 @@ func BenchmarkSprintfSlowParsingPath(b *testing.B) {
 func BenchmarkSprintfQuoteString(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%q", "日本語日本語日本語")
+			_ = Sprintf("%q", "日本語日本語日本語")
 		}
 	})
 }
@@ -1294,7 +1353,7 @@ func BenchmarkSprintfQuoteString(b *testing.B) {
 func BenchmarkSprintfInt(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%d", 5)
+			_ = Sprintf("%d", 5)
 		}
 	})
 }
@@ -1302,7 +1361,7 @@ func BenchmarkSprintfInt(b *testing.B) {
 func BenchmarkSprintfIntInt(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%d %d", 5, 6)
+			_ = Sprintf("%d %d", 5, 6)
 		}
 	})
 }
@@ -1310,7 +1369,7 @@ func BenchmarkSprintfIntInt(b *testing.B) {
 func BenchmarkSprintfPrefixedInt(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("This is some meaningless prefix text that needs to be scanned %d", 6)
+			_ = Sprintf("This is some meaningless prefix text that needs to be scanned %d", 6)
 		}
 	})
 }
@@ -1318,7 +1377,7 @@ func BenchmarkSprintfPrefixedInt(b *testing.B) {
 func BenchmarkSprintfFloat(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%g", 5.23184)
+			_ = Sprintf("%g", 5.23184)
 		}
 	})
 }
@@ -1326,7 +1385,7 @@ func BenchmarkSprintfFloat(b *testing.B) {
 func BenchmarkSprintfComplex(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%f", 5.23184+5.23184i)
+			_ = Sprintf("%f", 5.23184+5.23184i)
 		}
 	})
 }
@@ -1334,7 +1393,7 @@ func BenchmarkSprintfComplex(b *testing.B) {
 func BenchmarkSprintfBoolean(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%t", true)
+			_ = Sprintf("%t", true)
 		}
 	})
 }
@@ -1342,7 +1401,7 @@ func BenchmarkSprintfBoolean(b *testing.B) {
 func BenchmarkSprintfHexString(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("% #x", "0123456789abcdef")
+			_ = Sprintf("% #x", "0123456789abcdef")
 		}
 	})
 }
@@ -1351,7 +1410,7 @@ func BenchmarkSprintfHexBytes(b *testing.B) {
 	data := []byte("0123456789abcdef")
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("% #x", data)
+			_ = Sprintf("% #x", data)
 		}
 	})
 }
@@ -1360,7 +1419,7 @@ func BenchmarkSprintfBytes(b *testing.B) {
 	data := []byte("0123456789abcdef")
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%v", data)
+			_ = Sprintf("%v", data)
 		}
 	})
 }
@@ -1369,16 +1428,16 @@ func BenchmarkSprintfStringer(b *testing.B) {
 	stringer := I(12345)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%v", stringer)
+			_ = Sprintf("%v", stringer)
 		}
 	})
 }
 
 func BenchmarkSprintfStructure(b *testing.B) {
-	s := &[]interface{}{SI{12345}, map[int]string{0: "hello"}}
+	s := &[]any{SI{12345}, map[int]string{0: "hello"}}
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			Sprintf("%#v", s)
+			_ = Sprintf("%#v", s)
 		}
 	})
 }
@@ -1411,7 +1470,7 @@ func BenchmarkFprintfBytes(b *testing.B) {
 }
 
 func BenchmarkFprintIntNoAlloc(b *testing.B) {
-	var x interface{} = 123456
+	var x any = 123456
 	var buf bytes.Buffer
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
@@ -1421,24 +1480,41 @@ func BenchmarkFprintIntNoAlloc(b *testing.B) {
 
 var mallocBuf bytes.Buffer
 var mallocPointer *int // A pointer so we know the interface value won't allocate.
+var sink any
 
 var mallocTest = []struct {
 	count int
 	desc  string
 	fn    func()
 }{
-	{0, `Sprintf("")`, func() { Sprintf("") }},
-	{1, `Sprintf("xxx")`, func() { Sprintf("xxx") }},
-	{2, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
-	{2, `Sprintf("%s")`, func() { Sprintf("%s", "hello") }},
-	{3, `Sprintf("%x %x")`, func() { Sprintf("%x %x", 7, 112) }},
-	{2, `Sprintf("%g")`, func() { Sprintf("%g", float32(3.14159)) }}, // TODO: Can this be 1?
-	{1, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
+	{0, `Sprintf("")`, func() { _ = Sprintf("") }},
+	{1, `Sprintf("xxx")`, func() { _ = Sprintf("xxx") }},
+	{0, `Sprintf("%x")`, func() { _ = Sprintf("%x", 7) }},
+	{1, `Sprintf("%x")`, func() { _ = Sprintf("%x", 1<<16) }},
+	{3, `Sprintf("%80000s")`, func() { _ = Sprintf("%80000s", "hello") }}, // large buffer (>64KB)
+	{1, `Sprintf("%s")`, func() { _ = Sprintf("%s", "hello") }},
+	{1, `Sprintf("%x %x")`, func() { _ = Sprintf("%x %x", 7, 112) }},
+	{1, `Sprintf("%g")`, func() { _ = Sprintf("%g", float32(3.14159)) }},
+	{0, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
+	{0, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); s := "hello"; Fprintf(&mallocBuf, "%s", s) }},
+	{1, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); s := "hello"; Fprintf(&mallocBuf, "%s", noliteral(s)) }},
+	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 7) }},
+	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 1<<16) }},
+	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); i := 1 << 16; Fprintf(&mallocBuf, "%x", i) }},
+	{1, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); i := 1 << 16; Fprintf(&mallocBuf, "%x", noliteral(i)) }},
+	{4, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); s := []int{1, 2}; Fprintf(&mallocBuf, "%v", s) }},
+	{0, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); type P struct{ x, y int }; Fprintf(&mallocBuf, "%v", P{1, 2}) }},
+	{1, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); type P struct{ x, y int }; Fprintf(&mallocBuf, "%v", noliteral(P{1, 2})) }},
+	{2, `Fprintf(buf, "%80000s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%80000s", "hello") }}, // large buffer (>64KB)
 	// If the interface value doesn't need to allocate, amortized allocation overhead should be zero.
 	{0, `Fprintf(buf, "%x %x %x")`, func() {
 		mallocBuf.Reset()
 		Fprintf(&mallocBuf, "%x %x %x", mallocPointer, mallocPointer, mallocPointer)
 	}},
+	{0, `Errorf("hello")`, func() { _ = Errorf("hello") }},
+	{2, `Errorf("hello: %x")`, func() { _ = Errorf("hello: %x", mallocPointer) }},
+	{1, `sink = Errorf("hello")`, func() { sink = Errorf("hello") }},
+	{2, `sink = Errorf("hello: %x")`, func() { sink = Errorf("hello: %x", mallocPointer) }},
 }
 
 var _ bytes.Buffer
@@ -1447,15 +1523,13 @@ func TestCountMallocs(t *testing.T) {
 	switch {
 	case testing.Short():
 		t.Skip("skipping malloc count in short mode")
-	case runtime.GOMAXPROCS(0) > 1:
-		t.Skip("skipping; GOMAXPROCS>1")
 	case race.Enabled:
 		t.Skip("skipping malloc count under race detector")
 	}
 	for _, mt := range mallocTest {
 		mallocs := testing.AllocsPerRun(100, mt.fn)
-		if got, max := mallocs, float64(mt.count); got > max {
-			t.Errorf("%s: got %v allocs, want <=%v", mt.desc, got, max)
+		if got, max := mallocs, float64(mt.count); got != max {
+			t.Errorf("%s: got %v allocs, want %v", mt.desc, got, max)
 		}
 	}
 }
@@ -1495,6 +1569,7 @@ var flagtests = []struct {
 	{"%-+1.2a", "[%+-1.2a]"},
 	{"%-+1.2abc", "[%+-1.2a]bc"},
 	{"%-1.2abc", "[%-1.2a]bc"},
+	{"%-0abc", "[%-0a]bc"},
 }
 
 func TestFlagParser(t *testing.T) {
@@ -1641,11 +1716,11 @@ func TestFormatterPrintln(t *testing.T) {
 	}
 }
 
-func args(a ...interface{}) []interface{} { return a }
+func args(a ...any) []any { return a }
 
 var startests = []struct {
 	fmt string
-	in  []interface{}
+	in  []any
 	out string
 }{
 	{"%*d", args(4, 42), "  42"},
@@ -1687,7 +1762,7 @@ func TestWidthAndPrecision(t *testing.T) {
 
 // PanicS is a type that panics in String.
 type PanicS struct {
-	message interface{}
+	message any
 }
 
 // Value receiver.
@@ -1697,7 +1772,7 @@ func (p PanicS) String() string {
 
 // PanicGo is a type that panics in GoString.
 type PanicGo struct {
-	message interface{}
+	message any
 }
 
 // Value receiver.
@@ -1707,7 +1782,7 @@ func (p PanicGo) GoString() string {
 
 // PanicF is a type that panics in Format.
 type PanicF struct {
-	message interface{}
+	message any
 }
 
 // Value receiver.
@@ -1717,7 +1792,7 @@ func (p PanicF) Format(f State, c rune) {
 
 var panictests = []struct {
 	fmt string
-	in  interface{}
+	in  any
 	out string
 }{
 	// String
@@ -1729,7 +1804,7 @@ var panictests = []struct {
 	{"%#v", PanicGo{io.ErrUnexpectedEOF}, "%!v(PANIC=GoString method: unexpected EOF)"},
 	{"%#v", PanicGo{3}, "%!v(PANIC=GoString method: 3)"},
 	// Issue 18282. catchPanic should not clear fmtFlags permanently.
-	{"%#v", []interface{}{PanicGo{3}, PanicGo{3}}, "[]interface {}{%!v(PANIC=GoString method: 3), %!v(PANIC=GoString method: 3)}"},
+	{"%#v", []any{PanicGo{3}, PanicGo{3}}, "[]interface {}{%!v(PANIC=GoString method: 3), %!v(PANIC=GoString method: 3)}"},
 	// Format
 	{"%s", (*PanicF)(nil), "<nil>"}, // nil pointer special case
 	{"%s", PanicF{io.ErrUnexpectedEOF}, "%!s(PANIC=Format method: unexpected EOF)"},
@@ -1767,13 +1842,13 @@ func (r *Recur) String() string {
 func TestBadVerbRecursion(t *testing.T) {
 	failed := false
 	r := &Recur{3, &failed}
-	Sprintf("recur@%p value: %d\n", &r, r.i)
+	_ = Sprintf("recur@%p value: %d\n", &r, r.i)
 	if failed {
 		t.Error("fail with pointer")
 	}
 	failed = false
 	r = &Recur{4, &failed}
-	Sprintf("recur@%p, value: %d\n", r, r.i)
+	_ = Sprintf("recur@%p, value: %d\n", r, r.i)
 	if failed {
 		t.Error("fail with value")
 	}
@@ -1805,7 +1880,7 @@ func TestNilDoesNotBecomeTyped(t *testing.T) {
 
 var formatterFlagTests = []struct {
 	in  string
-	val interface{}
+	val any
 	out string
 }{
 	// scalar values with the (unused by fmt) 'a' verb.
@@ -1821,6 +1896,7 @@ var formatterFlagTests = []struct {
 	{"%-+1.2a", flagPrinter{}, "[%+-1.2a]"},
 	{"%-+1.2abc", flagPrinter{}, "[%+-1.2a]bc"},
 	{"%-1.2abc", flagPrinter{}, "[%-1.2a]bc"},
+	{"%-0abc", flagPrinter{}, "[%-0a]bc"},
 
 	// composite values with the 'a' verb
 	{"%a", [1]flagPrinter{}, "[[%a]]"},
@@ -1835,6 +1911,7 @@ var formatterFlagTests = []struct {
 	{"%-+1.2a", [1]flagPrinter{}, "[[%+-1.2a]]"},
 	{"%-+1.2abc", [1]flagPrinter{}, "[[%+-1.2a]]bc"},
 	{"%-1.2abc", [1]flagPrinter{}, "[[%-1.2a]]bc"},
+	{"%-0abc", [1]flagPrinter{}, "[[%-0a]]bc"},
 
 	// simple values with the 'v' verb
 	{"%v", flagPrinter{}, "[%v]"},
@@ -1849,6 +1926,7 @@ var formatterFlagTests = []struct {
 	{"%-+1.2v", flagPrinter{}, "[%+-1.2v]"},
 	{"%-+1.2vbc", flagPrinter{}, "[%+-1.2v]bc"},
 	{"%-1.2vbc", flagPrinter{}, "[%-1.2v]bc"},
+	{"%-0vbc", flagPrinter{}, "[%-0v]bc"},
 
 	// composite values with the 'v' verb.
 	{"%v", [1]flagPrinter{}, "[[%v]]"},
@@ -1863,6 +1941,7 @@ var formatterFlagTests = []struct {
 	{"%-+1.2v", [1]flagPrinter{}, "[[%+-1.2v]]"},
 	{"%-+1.2vbc", [1]flagPrinter{}, "[[%+-1.2v]]bc"},
 	{"%-1.2vbc", [1]flagPrinter{}, "[[%-1.2v]]bc"},
+	{"%-0vbc", [1]flagPrinter{}, "[[%-0v]]bc"},
 }
 
 func TestFormatterFlags(t *testing.T) {
@@ -1895,4 +1974,55 @@ func TestParsenum(t *testing.T) {
 			t.Errorf("parsenum(%q, %d, %d) = %d, %v, %d, want %d, %v, %d", tt.s, tt.start, tt.end, num, isnum, newi, tt.num, tt.isnum, tt.newi)
 		}
 	}
+}
+
+// Test the various Append printers. The details are well tested above;
+// here we just make sure the byte slice is updated.
+
+const (
+	appendResult = "hello world, 23"
+	hello        = "hello "
+)
+
+func TestAppendf(t *testing.T) {
+	b := make([]byte, 100)
+	b = b[:copy(b, hello)]
+	got := Appendf(b, "world, %d", 23)
+	if string(got) != appendResult {
+		t.Fatalf("Appendf returns %q not %q", got, appendResult)
+	}
+	if &b[0] != &got[0] {
+		t.Fatalf("Appendf allocated a new slice")
+	}
+}
+
+func TestAppend(t *testing.T) {
+	b := make([]byte, 100)
+	b = b[:copy(b, hello)]
+	got := Append(b, "world", ", ", 23)
+	if string(got) != appendResult {
+		t.Fatalf("Append returns %q not %q", got, appendResult)
+	}
+	if &b[0] != &got[0] {
+		t.Fatalf("Append allocated a new slice")
+	}
+}
+
+func TestAppendln(t *testing.T) {
+	b := make([]byte, 100)
+	b = b[:copy(b, hello)]
+	got := Appendln(b, "world,", 23)
+	if string(got) != appendResult+"\n" {
+		t.Fatalf("Appendln returns %q not %q", got, appendResult+"\n")
+	}
+	if &b[0] != &got[0] {
+		t.Fatalf("Appendln allocated a new slice")
+	}
+}
+
+// noliteral prevents escape analysis from recognizing a literal value.
+//
+//go:noinline
+func noliteral[T any](t T) T {
+	return t
 }

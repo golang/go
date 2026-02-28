@@ -6,8 +6,11 @@ package bytes_test
 
 import (
 	. "bytes"
+	"fmt"
+	"internal/testenv"
 	"io"
 	"math/rand"
+	"strconv"
 	"testing"
 	"unicode/utf8"
 )
@@ -90,6 +93,22 @@ func fillBytes(t *testing.T, testname string, buf *Buffer, s string, n int, fub 
 func TestNewBuffer(t *testing.T) {
 	buf := NewBuffer(testBytes)
 	check(t, "NewBuffer", buf, testString)
+}
+
+var buf Buffer
+
+// Calling NewBuffer and immediately shallow copying the Buffer struct
+// should not result in any allocations.
+// This can be used to reset the underlying []byte of an existing Buffer.
+func TestNewBufferShallow(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	n := testing.AllocsPerRun(1000, func() {
+		buf = *NewBuffer(testBytes)
+	})
+	if n > 0 {
+		t.Errorf("allocations occurred while shallow copying")
+	}
+	check(t, "NewBuffer", &buf, testString)
 }
 
 func TestNewBufferString(t *testing.T) {
@@ -194,7 +213,7 @@ func TestLargeByteWrites(t *testing.T) {
 func TestLargeStringReads(t *testing.T) {
 	var buf Buffer
 	for i := 3; i < 30; i += 3 {
-		s := fillString(t, "TestLargeReads (1)", &buf, "", 5, testString[0:len(testString)/i])
+		s := fillString(t, "TestLargeReads (1)", &buf, "", 5, testString[:len(testString)/i])
 		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(testString)))
 	}
 	check(t, "TestLargeStringReads (3)", &buf, "")
@@ -203,7 +222,7 @@ func TestLargeStringReads(t *testing.T) {
 func TestLargeByteReads(t *testing.T) {
 	var buf Buffer
 	for i := 3; i < 30; i += 3 {
-		s := fillBytes(t, "TestLargeReads (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
+		s := fillBytes(t, "TestLargeReads (1)", &buf, "", 5, testBytes[:len(testBytes)/i])
 		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(testString)))
 	}
 	check(t, "TestLargeByteReads (3)", &buf, "")
@@ -255,7 +274,7 @@ func TestNil(t *testing.T) {
 func TestReadFrom(t *testing.T) {
 	var buf Buffer
 	for i := 3; i < 30; i += 3 {
-		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
+		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, testBytes[:len(testBytes)/i])
 		var b Buffer
 		b.ReadFrom(&buf)
 		empty(t, "TestReadFrom (2)", &b, s, make([]byte, len(testString)))
@@ -266,7 +285,7 @@ type panicReader struct{ panic bool }
 
 func (r panicReader) Read(p []byte) (int, error) {
 	if r.panic {
-		panic(nil)
+		panic("oops")
 	}
 	return 0, io.EOF
 }
@@ -318,10 +337,37 @@ func TestReadFromNegativeReader(t *testing.T) {
 func TestWriteTo(t *testing.T) {
 	var buf Buffer
 	for i := 3; i < 30; i += 3 {
-		s := fillBytes(t, "TestWriteTo (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
+		s := fillBytes(t, "TestWriteTo (1)", &buf, "", 5, testBytes[:len(testBytes)/i])
 		var b Buffer
 		buf.WriteTo(&b)
 		empty(t, "TestWriteTo (2)", &b, s, make([]byte, len(testString)))
+	}
+}
+
+func TestWriteAppend(t *testing.T) {
+	var got Buffer
+	var want []byte
+	for i := 0; i < 1000; i++ {
+		b := got.AvailableBuffer()
+		b = strconv.AppendInt(b, int64(i), 10)
+		want = strconv.AppendInt(want, int64(i), 10)
+		got.Write(b)
+	}
+	if !Equal(got.Bytes(), want) {
+		t.Fatalf("Bytes() = %q, want %q", &got, want)
+	}
+
+	// With a sufficiently sized buffer, there should be no allocations.
+	n := testing.AllocsPerRun(100, func() {
+		got.Reset()
+		for i := 0; i < 1000; i++ {
+			b := got.AvailableBuffer()
+			b = strconv.AppendInt(b, int64(i), 10)
+			got.Write(b)
+		}
+	})
+	if n > 0 {
+		t.Errorf("allocations occurred while appending")
 	}
 }
 
@@ -384,6 +430,16 @@ func TestRuneIO(t *testing.T) {
 		if r1 != r2 || r1 != r || nbytes != size || err != nil {
 			t.Fatalf("ReadRune(%U) after UnreadRune got %U,%d not %U,%d (err=%s)", r, r2, nbytes, r, size, err)
 		}
+	}
+}
+
+func TestWriteInvalidRune(t *testing.T) {
+	// Invalid runes, including negative ones, should be written as
+	// utf8.RuneError.
+	for _, r := range []rune{-1, utf8.MaxRune + 1} {
+		var buf Buffer
+		buf.WriteRune(r)
+		check(t, fmt.Sprintf("TestWriteInvalidRune (%d)", r), &buf, "\uFFFD")
 	}
 }
 
@@ -471,6 +527,40 @@ func TestReadString(t *testing.T) {
 		}
 		if err != test.err {
 			t.Errorf("expected error %v, got %v", test.err, err)
+		}
+	}
+}
+
+var peekTests = []struct {
+	buffer   string
+	skip     int
+	n        int
+	expected string
+	err      error
+}{
+	{"", 0, 0, "", nil},
+	{"aaa", 0, 3, "aaa", nil},
+	{"foobar", 0, 2, "fo", nil},
+	{"a", 0, 2, "a", io.EOF},
+	{"helloworld", 4, 3, "owo", nil},
+	{"helloworld", 5, 5, "world", nil},
+	{"helloworld", 5, 6, "world", io.EOF},
+	{"helloworld", 10, 1, "", io.EOF},
+}
+
+func TestPeek(t *testing.T) {
+	for _, test := range peekTests {
+		buf := NewBufferString(test.buffer)
+		buf.Next(test.skip)
+		bytes, err := buf.Peek(test.n)
+		if string(bytes) != test.expected {
+			t.Errorf("expected %q, got %q", test.expected, bytes)
+		}
+		if err != test.err {
+			t.Errorf("expected error %v, got %v", test.err, err)
+		}
+		if buf.Len() != len(test.buffer)-test.skip {
+			t.Errorf("bad length after peek: %d, want %d", buf.Len(), len(test.buffer)-test.skip)
 		}
 	}
 }
@@ -659,5 +749,33 @@ func BenchmarkBufferFullSmallReads(b *testing.B) {
 			b.Read(buf[:1])
 			b.Write(buf[:1])
 		}
+	}
+}
+
+func BenchmarkBufferWriteBlock(b *testing.B) {
+	block := make([]byte, 1024)
+	for _, n := range []int{1 << 12, 1 << 16, 1 << 20} {
+		b.Run(fmt.Sprintf("N%d", n), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				var bb Buffer
+				for bb.Len() < n {
+					bb.Write(block)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkBufferAppendNoCopy(b *testing.B) {
+	var bb Buffer
+	bb.Grow(16 << 20)
+	b.SetBytes(int64(bb.Available()))
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		bb.Reset()
+		b := bb.AvailableBuffer()
+		b = b[:cap(b)] // use max capacity to simulate a large append operation
+		bb.Write(b)    // should be nearly infinitely fast
 	}
 }

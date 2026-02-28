@@ -6,7 +6,7 @@ package os_test
 
 import (
 	. "os"
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -66,7 +66,7 @@ func TestExpand(t *testing.T) {
 	}
 }
 
-var global interface{}
+var global any
 
 func BenchmarkExpand(b *testing.B) {
 	b.Run("noop", func(b *testing.B) {
@@ -91,7 +91,7 @@ func TestConsistentEnviron(t *testing.T) {
 	e0 := Environ()
 	for i := 0; i < 10; i++ {
 		e1 := Environ()
-		if !reflect.DeepEqual(e0, e1) {
+		if !slices.Equal(e0, e1) {
 			t.Fatalf("environment changed")
 		}
 	}
@@ -130,7 +130,7 @@ func TestClearenv(t *testing.T) {
 	defer func(origEnv []string) {
 		for _, pair := range origEnv {
 			// Environment variables on Windows can begin with =
-			// https://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
+			// https://devblogs.microsoft.com/oldnewthing/20100506-00/?p=14133
 			i := strings.Index(pair[1:], "=") + 1
 			if err := Setenv(pair[:i], pair[i+1:]); err != nil {
 				t.Errorf("Setenv(%q, %q) failed during reset: %v", pair[:i], pair[i+1:], err)
@@ -164,5 +164,39 @@ func TestLookupEnv(t *testing.T) {
 	_, ok = LookupEnv(smallpox)
 	if !ok {
 		t.Errorf("smallpox release failed; world remains safe but LookupEnv is broken")
+	}
+}
+
+// On Windows, Environ was observed to report keys with a single leading "=".
+// Check that they are properly reported by LookupEnv and can be set by SetEnv.
+// See https://golang.org/issue/49886.
+func TestEnvironConsistency(t *testing.T) {
+	t.Parallel()
+
+	for _, kv := range Environ() {
+		i := strings.Index(kv, "=")
+		if i == 0 {
+			// We observe in practice keys with a single leading "=" on Windows.
+			// TODO(#49886): Should we consume only the first leading "=" as part
+			// of the key, or parse through arbitrarily many of them until a non-=,
+			// or try each possible key/value boundary until LookupEnv succeeds?
+			i = strings.Index(kv[1:], "=") + 1
+		}
+		if i < 0 {
+			t.Errorf("Environ entry missing '=': %q", kv)
+		}
+
+		k := kv[:i]
+		v := kv[i+1:]
+		v2, ok := LookupEnv(k)
+		if !ok || v != v2 {
+			t.Errorf("Environ contains %q, but LookupEnv(%q) = %q, %t", kv, k, v2, ok)
+		}
+
+		// Since k=v is already present in the environment,
+		// setting it should be a no-op.
+		if err := Setenv(k, v); err != nil {
+			t.Errorf("Environ contains %q, but SetEnv(%q, %q) = %q", kv, k, v, err)
+		}
 	}
 }

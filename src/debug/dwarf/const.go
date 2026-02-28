@@ -8,7 +8,7 @@ package dwarf
 
 //go:generate stringer -type Attr -trimprefix=Attr
 
-// An Attr identifies the attribute type in a DWARF Entry's Field.
+// An Attr identifies the attribute type in a DWARF [Entry.Field].
 type Attr uint32
 
 const (
@@ -203,7 +203,7 @@ const (
 
 //go:generate stringer -type Tag -trimprefix=Tag
 
-// A Tag is the classification (the type) of an Entry.
+// A Tag is the classification (the type) of an [Entry].
 type Tag uint32
 
 const (
@@ -427,7 +427,7 @@ const (
 	lneSetDiscriminator = 4
 )
 
-// Line table directory directory and file name entry formats.
+// Line table directory and file name entry formats.
 // These are new in DWARF 5.
 const (
 	lnctPath           = 0x01
@@ -460,4 +460,16 @@ const (
 	utSkeleton     = 0x04
 	utSplitCompile = 0x05
 	utSplitType    = 0x06
+)
+
+// Opcodes for DWARFv5 debug_rnglists section.
+const (
+	rleEndOfList    = 0x0
+	rleBaseAddressx = 0x1
+	rleStartxEndx   = 0x2
+	rleStartxLength = 0x3
+	rleOffsetPair   = 0x4
+	rleBaseAddress  = 0x5
+	rleStartEnd     = 0x6
+	rleStartLength  = 0x7
 )

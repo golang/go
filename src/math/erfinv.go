@@ -69,6 +69,7 @@ const (
 // Erfinv returns the inverse error function of x.
 //
 // Special cases are:
+//
 //	Erfinv(1) = +Inf
 //	Erfinv(-1) = -Inf
 //	Erfinv(x) = NaN if x < -1 or x > 1
@@ -115,9 +116,10 @@ func Erfinv(x float64) float64 {
 	return ans
 }
 
-// Erfcinv returns the inverse of Erfc(x).
+// Erfcinv returns the inverse of [Erfc](x).
 //
 // Special cases are:
+//
 //	Erfcinv(0) = +Inf
 //	Erfcinv(2) = -Inf
 //	Erfcinv(x) = NaN if x < 0 or x > 2

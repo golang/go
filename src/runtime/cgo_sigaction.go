@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Support for memory sanitizer. See runtime/cgo/sigaction.go.
+// Support for sanitizers. See runtime/cgo/sigaction.go.
+// Also used on linux/386 to clear the SA_RESTORER flag
+// when using cgo; see issue #75253.
 
-// +build linux,amd64 freebsd,amd64 linux,arm64
+//go:build (linux && (386 || amd64 || arm64 || loong64 || ppc64le)) || (freebsd && amd64)
 
 package runtime
 
@@ -12,22 +14,25 @@ import "unsafe"
 
 // _cgo_sigaction is filled in by runtime/cgo when it is linked into the
 // program, so it is only non-nil when using cgo.
+//
 //go:linkname _cgo_sigaction _cgo_sigaction
 var _cgo_sigaction unsafe.Pointer
 
 //go:nosplit
 //go:nowritebarrierrec
 func sigaction(sig uint32, new, old *sigactiont) {
-	// The runtime package is explicitly blacklisted from sanitizer
-	// instrumentation in racewalk.go, but we might be calling into instrumented C
-	// functions here — so we need the pointer parameters to be properly marked.
+	// racewalk.go avoids adding sanitizing instrumentation to package runtime,
+	// but we might be calling into instrumented C functions here,
+	// so we need the pointer parameters to be properly marked.
 	//
-	// Mark the input as having been written before the call and the output as
-	// read after.
+	// Mark the input as having been written before the call
+	// and the output as read after.
 	if msanenabled && new != nil {
 		msanwrite(unsafe.Pointer(new), unsafe.Sizeof(*new))
 	}
-
+	if asanenabled && new != nil {
+		asanwrite(unsafe.Pointer(new), unsafe.Sizeof(*new))
+	}
 	if _cgo_sigaction == nil || inForkedChild {
 		sysSigaction(sig, new, old)
 	} else {
@@ -38,6 +43,8 @@ func sigaction(sig uint32, new, old *sigactiont) {
 		// system stack already in use).
 
 		var ret int32
+
+		fixSigactionForCgo(new)
 
 		var g *g
 		if mainStarted {
@@ -79,9 +86,13 @@ func sigaction(sig uint32, new, old *sigactiont) {
 	if msanenabled && old != nil {
 		msanread(unsafe.Pointer(old), unsafe.Sizeof(*old))
 	}
+	if asanenabled && old != nil {
+		asanread(unsafe.Pointer(old), unsafe.Sizeof(*old))
+	}
 }
 
 // callCgoSigaction calls the sigaction function in the runtime/cgo package
 // using the GCC calling convention. It is implemented in assembly.
+//
 //go:noescape
 func callCgoSigaction(sig uintptr, new, old *sigactiont) int32

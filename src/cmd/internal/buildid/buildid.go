@@ -10,18 +10,15 @@ import (
 	"fmt"
 	"internal/xcoff"
 	"io"
+	"io/fs"
 	"os"
 	"strconv"
 	"strings"
 )
 
 var (
-	errBuildIDToolchain = fmt.Errorf("build ID only supported in gc toolchain")
 	errBuildIDMalformed = fmt.Errorf("malformed object file")
-	errBuildIDUnknown   = fmt.Errorf("lost build ID")
-)
 
-var (
 	bangArch = []byte("!<arch>")
 	pkgdef   = []byte("__.PKGDEF")
 	goobject = []byte("go object ")
@@ -109,7 +106,7 @@ func ReadFile(name string) (id string, err error) {
 // in cmd/go/internal/work/exec.go.
 func readGccgoArchive(name string, f *os.File) (string, error) {
 	bad := func() (string, error) {
-		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+		return "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
 	}
 
 	off := int64(8)
@@ -167,7 +164,7 @@ func readGccgoArchive(name string, f *os.File) (string, error) {
 // in cmd/go/internal/work/exec.go.
 func readGccgoBigArchive(name string, f *os.File) (string, error) {
 	bad := func() (string, error) {
-		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+		return "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
 	}
 
 	// Read fixed-length header.
@@ -309,13 +306,38 @@ func readRaw(name string, data []byte) (id string, err error) {
 
 	j := bytes.Index(data[i+len(goBuildPrefix):], goBuildEnd)
 	if j < 0 {
-		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+		return "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
 	}
 
 	quoted := data[i+len(goBuildPrefix)-1 : i+len(goBuildPrefix)+j+1]
 	id, err = strconv.Unquote(string(quoted))
 	if err != nil {
-		return "", &os.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
+		return "", &fs.PathError{Op: "parse", Path: name, Err: errBuildIDMalformed}
 	}
 	return id, nil
+}
+
+// HashToString converts the hash h to a string to be recorded
+// in package archives and binaries as part of the build ID.
+// We use the first 120 bits of the hash (5 chunks of 24 bits each) and encode
+// it in base64, resulting in a 20-byte string. Because this is only used for
+// detecting the need to rebuild installed files (not for lookups
+// in the object file cache), 120 bits are sufficient to drive the
+// probability of a false "do not need to rebuild" decision to effectively zero.
+// We embed two different hashes in archives and four in binaries,
+// so cutting to 20 bytes is a significant savings when build IDs are displayed.
+// (20*4+3 = 83 bytes compared to 64*4+3 = 259 bytes for the
+// more straightforward option of printing the entire h in base64).
+func HashToString(h [32]byte) string {
+	const b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+	const chunks = 5
+	var dst [chunks * 4]byte
+	for i := 0; i < chunks; i++ {
+		v := uint32(h[3*i])<<16 | uint32(h[3*i+1])<<8 | uint32(h[3*i+2])
+		dst[4*i+0] = b64[(v>>18)&0x3F]
+		dst[4*i+1] = b64[(v>>12)&0x3F]
+		dst[4*i+2] = b64[(v>>6)&0x3F]
+		dst[4*i+3] = b64[v&0x3F]
+	}
+	return string(dst[:])
 }

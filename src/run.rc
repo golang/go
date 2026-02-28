@@ -10,12 +10,8 @@ if(! test -f ../bin/go){
 	exit wrongdir
 }
 
-eval `{../bin/go env}
+GOENV=off
+eval `{../bin/go tool dist env}
 
-GOPATH = () # we disallow local import for non-local packages, if $GOROOT happens
-            # to be under $GOPATH, then some tests below will fail
-GOBIN = () # Issue 14340
-GOFLAGS = ()
-GO111MODULE = ()
-
+GOPATH=/nonexist-gopath
 exec ../bin/go tool dist test -rebuild $*

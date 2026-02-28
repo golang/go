@@ -1,0 +1,32 @@
+-- expect --
+SUCCESS
+-- trace --
+Trace Go1.25
+EventBatch gen=1 m=18446744073709551615 time=9 size=16
+Sync
+Frequency freq=1000000000
+ClockSnapshot dt=1 mono=99 sec=1740755049 nsec=123
+EventBatch gen=1 m=1 time=15 size=4
+ProcStatus dt=1 p=0 pstatus=1
+EventBatch gen=1 m=18446744073709551615 time=11 size=1
+Stacks
+EventBatch gen=1 m=18446744073709551615 time=12 size=1
+Strings
+EventBatch gen=2 m=18446744073709551615 time=19 size=17
+Sync
+Frequency freq=500000000
+ClockSnapshot dt=1 mono=199 sec=1740755050 nsec=123
+EventBatch gen=2 m=18446744073709551615 time=21 size=1
+Stacks
+EventBatch gen=2 m=18446744073709551615 time=22 size=1
+Strings
+EventBatch gen=3 m=18446744073709551615 time=29 size=17
+Sync
+Frequency freq=500000000
+ClockSnapshot dt=1 mono=299 sec=1740755051 nsec=123
+EventBatch gen=3 m=1 time=40 size=4
+ProcStatus dt=1 p=0 pstatus=1
+EventBatch gen=3 m=18446744073709551615 time=31 size=1
+Stacks
+EventBatch gen=3 m=18446744073709551615 time=32 size=1
+Strings

@@ -9,11 +9,9 @@ import (
 	"unicode/utf8"
 )
 
-func init() {
-	UnescapeString("") // force load of entity maps
-}
-
 func TestEntityLength(t *testing.T) {
+	entity, entity2 := entityMaps()
+
 	if len(entity) == 0 || len(entity2) == 0 {
 		t.Fatal("maps not loaded")
 	}

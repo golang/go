@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !plan9 && !windows
 // +build !plan9,!windows
 
 package main
@@ -31,6 +32,7 @@ import "C"
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -98,7 +100,7 @@ func CgoExecSignalMask() {
 
 // isEAGAIN reports whether err is an EAGAIN error from a process execution.
 func isEAGAIN(err error) bool {
-	if p, ok := err.(*os.PathError); ok {
+	if p, ok := err.(*fs.PathError); ok {
 		err = p.Err
 	}
 	return err == syscall.EAGAIN

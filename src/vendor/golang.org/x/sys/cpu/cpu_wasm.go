@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build wasm
+//go:build wasm
 
 package cpu
 
@@ -11,3 +11,7 @@ package cpu
 // rules are good enough.
 
 const cacheLineSize = 0
+
+func initOptions() {}
+
+func archInit() {}

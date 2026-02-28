@@ -25,6 +25,8 @@ func ExampleClean() {
 		"a//c",
 		"a/c/.",
 		"a/c/b/..",
+		"../a/c",
+		"../a/b/../././/c",
 		"/../a/c",
 		"/../a/b/../././/c",
 		"",
@@ -39,6 +41,8 @@ func ExampleClean() {
 	// Clean("a//c") = "a/c"
 	// Clean("a/c/.") = "a/c"
 	// Clean("a/c/b/..") = "a/c"
+	// Clean("../a/c") = "../a/c"
+	// Clean("../a/b/../././/c") = "../a/c"
 	// Clean("/../a/c") = "/a/c"
 	// Clean("/../a/b/../././/c") = "/a/c"
 	// Clean("") = "."
@@ -79,13 +83,18 @@ func ExampleJoin() {
 	fmt.Println(path.Join("a", "b", "c"))
 	fmt.Println(path.Join("a", "b/c"))
 	fmt.Println(path.Join("a/b", "c"))
+
+	fmt.Println(path.Join("a/b", "../../../xyz"))
+
 	fmt.Println(path.Join("", ""))
 	fmt.Println(path.Join("a", ""))
 	fmt.Println(path.Join("", "a"))
+
 	// Output:
 	// a/b/c
 	// a/b/c
 	// a/b/c
+	// ../xyz
 	//
 	// a
 	// a

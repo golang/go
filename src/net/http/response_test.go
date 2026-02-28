@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"go/token"
 	"io"
-	"io/ioutil"
 	"net/http/internal"
 	"net/url"
 	"reflect"
@@ -22,9 +21,10 @@ import (
 )
 
 type respTest struct {
-	Raw  string
-	Resp Response
-	Body string
+	Raw    string
+	RawOut string
+	Resp   Response
+	Body   string
 }
 
 func dummyReq(method string) *Request {
@@ -38,6 +38,11 @@ func dummyReq11(method string) *Request {
 var respTests = []respTest{
 	// Unchunked response without Content-Length.
 	{
+		"HTTP/1.0 200 OK\r\n" +
+			"Connection: close\r\n" +
+			"\r\n" +
+			"Body here\n",
+
 		"HTTP/1.0 200 OK\r\n" +
 			"Connection: close\r\n" +
 			"\r\n" +
@@ -67,6 +72,11 @@ var respTests = []respTest{
 			"\r\n" +
 			"Body here\n",
 
+		"HTTP/1.1 200 OK\r\n" +
+			"Connection: close\r\n" +
+			"\r\n" +
+			"Body here\n",
+
 		Response{
 			Status:        "200 OK",
 			StatusCode:    200,
@@ -88,6 +98,9 @@ var respTests = []respTest{
 			"\r\n" +
 			"Body should not be read!\n",
 
+		"HTTP/1.1 204 No Content\r\n" +
+			"\r\n",
+
 		Response{
 			Status:        "204 No Content",
 			StatusCode:    204,
@@ -105,6 +118,12 @@ var respTests = []respTest{
 
 	// Unchunked response with Content-Length.
 	{
+		"HTTP/1.0 200 OK\r\n" +
+			"Content-Length: 10\r\n" +
+			"Connection: close\r\n" +
+			"\r\n" +
+			"Body here\n",
+
 		"HTTP/1.0 200 OK\r\n" +
 			"Content-Length: 10\r\n" +
 			"Connection: close\r\n" +
@@ -141,6 +160,14 @@ var respTests = []respTest{
 			"0\r\n" +
 			"\r\n",
 
+		"HTTP/1.1 200 OK\r\n" +
+			"Transfer-Encoding: chunked\r\n" +
+			"\r\n" +
+			"13\r\n" +
+			"Body here\ncontinued\r\n" +
+			"0\r\n" +
+			"\r\n",
+
 		Response{
 			Status:           "200 OK",
 			StatusCode:       200,
@@ -161,6 +188,12 @@ var respTests = []respTest{
 	{
 		"HTTP/1.0 200 OK\r\n" +
 			"Trailer: Content-MD5, Content-Sources\r\n" +
+			"Content-Length: 10\r\n" +
+			"Connection: close\r\n" +
+			"\r\n" +
+			"Body here\n",
+
+		"HTTP/1.0 200 OK\r\n" +
 			"Content-Length: 10\r\n" +
 			"Connection: close\r\n" +
 			"\r\n" +
@@ -196,6 +229,14 @@ var respTests = []respTest{
 			"0\r\n" +
 			"\r\n",
 
+		"HTTP/1.1 200 OK\r\n" +
+			"Transfer-Encoding: chunked\r\n" +
+			"\r\n" +
+			"a\r\n" +
+			"Body here\n\r\n" +
+			"0\r\n" +
+			"\r\n",
+
 		Response{
 			Status:           "200 OK",
 			StatusCode:       200,
@@ -214,6 +255,10 @@ var respTests = []respTest{
 
 	// Chunked response in response to a HEAD request
 	{
+		"HTTP/1.1 200 OK\r\n" +
+			"Transfer-Encoding: chunked\r\n" +
+			"\r\n",
+
 		"HTTP/1.1 200 OK\r\n" +
 			"Transfer-Encoding: chunked\r\n" +
 			"\r\n",
@@ -240,6 +285,11 @@ var respTests = []respTest{
 			"Content-Length: 256\r\n" +
 			"\r\n",
 
+		"HTTP/1.0 200 OK\r\n" +
+			"Connection: close\r\n" +
+			"Content-Length: 256\r\n" +
+			"\r\n",
+
 		Response{
 			Status:           "200 OK",
 			StatusCode:       200,
@@ -258,6 +308,10 @@ var respTests = []respTest{
 
 	// Content-Length in response to a HEAD request with HTTP/1.1
 	{
+		"HTTP/1.1 200 OK\r\n" +
+			"Content-Length: 256\r\n" +
+			"\r\n",
+
 		"HTTP/1.1 200 OK\r\n" +
 			"Content-Length: 256\r\n" +
 			"\r\n",
@@ -283,6 +337,10 @@ var respTests = []respTest{
 		"HTTP/1.0 200 OK\r\n" +
 			"\r\n",
 
+		"HTTP/1.0 200 OK\r\n" +
+			"Connection: close\r\n" +
+			"\r\n",
+
 		Response{
 			Status:           "200 OK",
 			StatusCode:       200,
@@ -301,6 +359,10 @@ var respTests = []respTest{
 
 	// explicit Content-Length of 0.
 	{
+		"HTTP/1.1 200 OK\r\n" +
+			"Content-Length: 0\r\n" +
+			"\r\n",
+
 		"HTTP/1.1 200 OK\r\n" +
 			"Content-Length: 0\r\n" +
 			"\r\n",
@@ -326,6 +388,11 @@ var respTests = []respTest{
 	// (permitted by RFC 7230, section 3.1.2)
 	{
 		"HTTP/1.0 303 \r\n\r\n",
+
+		"HTTP/1.0 303 \r\n" +
+			"Connection: close\r\n" +
+			"\r\n",
+
 		Response{
 			Status:        "303 ",
 			StatusCode:    303,
@@ -345,6 +412,11 @@ var respTests = []respTest{
 	// (not permitted by RFC 7230, but we'll accept it anyway)
 	{
 		"HTTP/1.0 303\r\n\r\n",
+
+		"HTTP/1.0 303 303\r\n" +
+			"Connection: close\r\n" +
+			"\r\n",
+
 		Response{
 			Status:        "303",
 			StatusCode:    303,
@@ -367,6 +439,13 @@ Connection: close
 Content-Type: multipart/byteranges; boundary=18a75608c8f47cef
 
 some body`,
+
+		"HTTP/1.1 206 Partial Content\r\n" +
+			"Connection: close\r\n" +
+			"Content-Type: multipart/byteranges; boundary=18a75608c8f47cef\r\n" +
+			"\r\n" +
+			"some body",
+
 		Response{
 			Status:     "206 Partial Content",
 			StatusCode: 206,
@@ -386,6 +465,11 @@ some body`,
 
 	// Unchunked response without Content-Length, Request is nil
 	{
+		"HTTP/1.0 200 OK\r\n" +
+			"Connection: close\r\n" +
+			"\r\n" +
+			"Body here\n",
+
 		"HTTP/1.0 200 OK\r\n" +
 			"Connection: close\r\n" +
 			"\r\n" +
@@ -416,6 +500,14 @@ some body`,
 			"Content-Length: 6\r\n\r\n" +
 			"foobar",
 
+		"HTTP/1.1 206 Partial Content\r\n" +
+			"Content-Length: 6\r\n" +
+			"Accept-Ranges: bytes\r\n" +
+			"Content-Range: bytes 0-5/1862\r\n" +
+			"Content-Type: text/plain; charset=utf-8\r\n" +
+			"\r\n" +
+			"foobar",
+
 		Response{
 			Status:     "206 Partial Content",
 			StatusCode: 206,
@@ -440,6 +532,11 @@ some body`,
 		"HTTP/1.1 200 OK\r\n" +
 			"Content-Length: 256\r\n" +
 			"Connection: keep-alive, close\r\n" +
+			"\r\n",
+
+		"HTTP/1.1 200 OK\r\n" +
+			"Connection: close\r\n" +
+			"Content-Length: 256\r\n" +
 			"\r\n",
 
 		Response{
@@ -468,6 +565,11 @@ some body`,
 			"Connection: close\r\n" +
 			"\r\n",
 
+		"HTTP/1.1 200 OK\r\n" +
+			"Connection: close\r\n" +
+			"Content-Length: 256\r\n" +
+			"\r\n",
+
 		Response{
 			Status:     "200 OK",
 			StatusCode: 200,
@@ -494,6 +596,11 @@ some body`,
 			"\r\n" +
 			"Body here\n",
 
+		"HTTP/1.0 200 OK\r\n" +
+			"Connection: close\r\n" +
+			"\r\n" +
+			"Body here\n",
+
 		Response{
 			Status:        "200 OK",
 			StatusCode:    200,
@@ -514,6 +621,12 @@ some body`,
 	{
 		"HTTP/1.0 200 OK\r\n" +
 			"Transfer-Encoding: bogus\r\n" +
+			"Content-Length: 10\r\n" +
+			"\r\n" +
+			"Body here\n",
+
+		"HTTP/1.0 200 OK\r\n" +
+			"Connection: close\r\n" +
 			"Content-Length: 10\r\n" +
 			"\r\n" +
 			"Body here\n",
@@ -542,6 +655,14 @@ some body`,
 			"Connection: keep-alive\r\n" +
 			"Keep-Alive: timeout=7200\r\n\r\n" +
 			"\x1f\x8b\b\x00\x00\x00\x00\x00\x00\x00s\xf3\xf7\a\x00\xab'\xd4\x1a\x03\x00\x00\x00",
+
+		"HTTP/1.1 200 OK\r\n" +
+			"Content-Length: 23\r\n" +
+			"Connection: keep-alive\r\n" +
+			"Content-Encoding: gzip\r\n" +
+			"Keep-Alive: timeout=7200\r\n\r\n" +
+			"\x1f\x8b\b\x00\x00\x00\x00\x00\x00\x00s\xf3\xf7\a\x00\xab'\xd4\x1a\x03\x00\x00\x00",
+
 		Response{
 			Status:     "200 OK",
 			StatusCode: 200,
@@ -567,6 +688,14 @@ some body`,
 			"Content-type: text/html\r\n" +
 			"WWW-Authenticate: Basic realm=\"\"\r\n\r\n" +
 			"Your Authentication failed.\r\n",
+
+		"HTTP/1.0 401 Unauthorized\r\n" +
+			"Connection: close\r\n" +
+			"Content-Type: text/html\r\n" +
+			"Www-Authenticate: Basic realm=\"\"\r\n" +
+			"\r\n" +
+			"Your Authentication failed.\r\n",
+
 		Response{
 			Status:     "401 Unauthorized",
 			StatusCode: 401,
@@ -597,7 +726,7 @@ func TestReadResponse(t *testing.T) {
 		rbody := resp.Body
 		resp.Body = nil
 		diff(t, fmt.Sprintf("#%d Response", i), resp, &tt.Resp)
-		var bout bytes.Buffer
+		var bout strings.Builder
 		if rbody != nil {
 			_, err = io.Copy(&bout, rbody)
 			if err != nil {
@@ -620,10 +749,17 @@ func TestWriteResponse(t *testing.T) {
 			t.Errorf("#%d: %v", i, err)
 			continue
 		}
-		err = resp.Write(ioutil.Discard)
+		var buf bytes.Buffer
+		err = resp.Write(&buf)
 		if err != nil {
 			t.Errorf("#%d: %v", i, err)
 			continue
+		}
+		if got, want := buf.String(), tt.RawOut; got != want {
+			t.Errorf("#%d: response differs; got:\n----\n%v\n----\nwant:\n----\n%v\n----\n",
+				i,
+				strings.ReplaceAll(got, "\r", "\\r"),
+				strings.ReplaceAll(want, "\r", "\\r"))
 		}
 	}
 }
@@ -647,8 +783,8 @@ type readerAndCloser struct {
 func TestReadResponseCloseInMiddle(t *testing.T) {
 	t.Parallel()
 	for _, test := range readResponseCloseInMiddleTests {
-		fatalf := func(format string, args ...interface{}) {
-			args = append([]interface{}{test.chunked, test.compressed}, args...)
+		fatalf := func(format string, args ...any) {
+			args = append([]any{test.chunked, test.compressed}, args...)
 			t.Fatalf("on test chunked=%v, compressed=%v: "+format, args...)
 		}
 		checkErr := func(err error, msg string) {
@@ -722,7 +858,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 		}
 		resp.Body.Close()
 
-		rest, err := ioutil.ReadAll(bufr)
+		rest, err := io.ReadAll(bufr)
 		checkErr(err, "ReadAll on remainder")
 		if e, g := "Next Request Here", string(rest); e != g {
 			g = regexp.MustCompile(`(xx+)`).ReplaceAllStringFunc(g, func(match string) string {
@@ -733,7 +869,8 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 	}
 }
 
-func diff(t *testing.T, prefix string, have, want interface{}) {
+func diff(t *testing.T, prefix string, have, want any) {
+	t.Helper()
 	hv := reflect.ValueOf(have).Elem()
 	wv := reflect.ValueOf(want).Elem()
 	if hv.Type() != wv.Type() {
@@ -809,7 +946,7 @@ func TestResponseStatusStutter(t *testing.T) {
 		ProtoMajor: 1,
 		ProtoMinor: 3,
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	r.Write(&buf)
 	if strings.Contains(buf.String(), "123 123") {
 		t.Errorf("stutter in status: %s", buf.String())
@@ -826,10 +963,11 @@ func TestResponseContentLengthShortBody(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer res.Body.Close()
 	if res.ContentLength != 123 {
 		t.Fatalf("Content-Length = %d; want 123", res.ContentLength)
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	n, err := io.Copy(&buf, res.Body)
 	if n != int64(len(shortBody)) {
 		t.Errorf("Copied %d bytes; want %d, len(%q)", n, len(shortBody), shortBody)
@@ -849,10 +987,10 @@ func TestReadResponseErrors(t *testing.T) {
 	type testCase struct {
 		name    string // optional, defaults to in
 		in      string
-		wantErr interface{} // nil, err value, or string substring
+		wantErr any // nil, err value, bool value, or string substring
 	}
 
-	status := func(s string, wantErr interface{}) testCase {
+	status := func(s string, wantErr any) testCase {
 		if wantErr == true {
 			wantErr = "malformed HTTP status code"
 		}
@@ -863,7 +1001,7 @@ func TestReadResponseErrors(t *testing.T) {
 		}
 	}
 
-	version := func(s string, wantErr interface{}) testCase {
+	version := func(s string, wantErr any) testCase {
 		if wantErr == true {
 			wantErr = "malformed HTTP version"
 		}
@@ -874,7 +1012,7 @@ func TestReadResponseErrors(t *testing.T) {
 		}
 	}
 
-	contentLength := func(status, body string, wantErr interface{}) testCase {
+	contentLength := func(status, body string, wantErr any) testCase {
 		return testCase{
 			name:    fmt.Sprintf("status %q %q", status, body),
 			in:      fmt.Sprintf("HTTP/1.1 %s\r\n%s", status, body),
@@ -883,6 +1021,7 @@ func TestReadResponseErrors(t *testing.T) {
 	}
 
 	errMultiCL := "message cannot contain multiple Content-Length headers"
+	errEmptyCL := "invalid empty Content-Length"
 
 	tests := []testCase{
 		{"", "", io.ErrUnexpectedEOF},
@@ -918,7 +1057,7 @@ func TestReadResponseErrors(t *testing.T) {
 		contentLength("200 OK", "Content-Length: 7\r\nContent-Length: 7\r\n\r\nGophers\r\n", nil),
 		contentLength("201 OK", "Content-Length: 0\r\nContent-Length: 7\r\n\r\nGophers\r\n", errMultiCL),
 		contentLength("300 OK", "Content-Length: 0\r\nContent-Length: 0 \r\n\r\nGophers\r\n", nil),
-		contentLength("200 OK", "Content-Length:\r\nContent-Length:\r\n\r\nGophers\r\n", nil),
+		contentLength("200 OK", "Content-Length:\r\nContent-Length:\r\n\r\nGophers\r\n", errEmptyCL),
 		contentLength("206 OK", "Content-Length:\r\nContent-Length: 0 \r\nConnection: close\r\n\r\nGophers\r\n", errMultiCL),
 
 		// multiple content-length headers for 204 and 304 should still be checked
@@ -947,7 +1086,7 @@ func TestReadResponseErrors(t *testing.T) {
 
 // wantErr can be nil, an error value to match exactly, or type string to
 // match a substring.
-func matchErr(err error, wantErr interface{}) error {
+func matchErr(err error, wantErr any) error {
 	if err == nil {
 		if wantErr == nil {
 			return nil
@@ -972,19 +1111,6 @@ func matchErr(err error, wantErr interface{}) error {
 	return fmt.Errorf("%v; want %v", err, wantErr)
 }
 
-func TestNeedsSniff(t *testing.T) {
-	// needsSniff returns true with an empty response.
-	r := &response{}
-	if got, want := r.needsSniff(), true; got != want {
-		t.Errorf("needsSniff = %t; want %t", got, want)
-	}
-	// needsSniff returns false when Content-Type = nil.
-	r.handlerHeader = Header{"Content-Type": nil}
-	if got, want := r.needsSniff(), false; got != want {
-		t.Errorf("needsSniff empty Content-Type = %t; want %t", got, want)
-	}
-}
-
 // A response should only write out single Connection: close header. Tests #19499.
 func TestResponseWritesOnlySingleConnectionClose(t *testing.T) {
 	const connectionCloseHeader = "Connection: close"
@@ -1002,7 +1128,7 @@ func TestResponseWritesOnlySingleConnectionClose(t *testing.T) {
 		t.Fatalf("ReadResponse failed %v", err)
 	}
 
-	var buf2 bytes.Buffer
+	var buf2 strings.Builder
 	if err = res.Write(&buf2); err != nil {
 		t.Fatalf("Write failed %v", err)
 	}

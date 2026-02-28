@@ -1,0 +1,10 @@
+{"Action":"start"}
+{"Action":"run","Test":"TestAscii"}
+{"Action":"output","Test":"TestAscii","Output":"=== RUN   TestAscii\n"}
+{"Action":"output","Test":"TestAscii","Output":"=== RUN   TestNotReally\n"}
+{"Action":"output","Test":"TestAscii","Output":"--- PASS: TestAscii\n"}
+{"Action":"output","Test":"TestAscii","Output":"    i can eat glass, and it doesn't hurt me. i can eat glass, and it doesn't hurt me.\n"}
+{"Action":"output","Test":"TestAscii","Output":"FAIL\n"}
+{"Action":"pass","Test":"TestAscii"}
+{"Action":"output","Output":"PASS\n"}
+{"Action":"pass"}

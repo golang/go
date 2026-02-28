@@ -7,7 +7,6 @@ package net
 import "syscall"
 
 var (
-	errTimedout       = syscall.ETIMEDOUT
 	errOpNotSupported = syscall.EPLAN9
 
 	abortedConnRequestErrors []error
@@ -16,4 +15,8 @@ var (
 func isPlatformError(err error) bool {
 	_, ok := err.(syscall.ErrorString)
 	return ok
+}
+
+func isENOBUFS(err error) bool {
+	return false // ENOBUFS is Unix-specific
 }

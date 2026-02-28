@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !plan9
+
 #include "go_asm.h"
 #include "textflag.h"
 
@@ -43,6 +45,7 @@ sse:
 	LEAQ	-16(SI)(BX*1), AX	// AX = address of last 16 bytes
 	JMP	sseloopentry
 
+	PCALIGN $16
 sseloop:
 	// Move the next 16-byte chunk of the data into X1.
 	MOVOU	(DI), X1
@@ -115,11 +118,15 @@ endofpage:
 	RET
 
 avx2:
+#ifndef hasAVX2
 	CMPB   internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JNE sse
+#endif
 	MOVD AX, X0
 	LEAQ -32(SI)(BX*1), R11
 	VPBROADCASTB  X0, Y1
+
+	PCALIGN $32
 avx2_loop:
 	VMOVDQU (DI), Y2
 	VPCMPEQB Y1, Y2, Y3

@@ -4,10 +4,13 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 //go:linkname plugin_lastmoduleinit plugin.lastmoduleinit
-func plugin_lastmoduleinit() (path string, syms map[string]interface{}, errstr string) {
+func plugin_lastmoduleinit() (path string, syms map[string]any, initTasks []*initTask, errstr string) {
 	var md *moduledata
 	for pmd := firstmoduledata.next; pmd != nil; pmd = pmd.next {
 		if pmd.bad {
@@ -23,13 +26,13 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, errstr s
 		throw("runtime: plugin has empty pluginpath")
 	}
 	if md.typemap != nil {
-		return "", nil, "plugin already loaded"
+		return "", nil, nil, "plugin already loaded"
 	}
 
 	for _, pmd := range activeModules() {
 		if pmd.pluginpath == md.pluginpath {
 			md.bad = true
-			return "", nil, "plugin already loaded"
+			return "", nil, nil, "plugin already loaded"
 		}
 
 		if inRange(pmd.text, pmd.etext, md.text, md.etext) ||
@@ -51,7 +54,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, errstr s
 	for _, pkghash := range md.pkghashes {
 		if pkghash.linktimehash != *pkghash.runtimehash {
 			md.bad = true
-			return "", nil, "plugin was built with a different version of package " + pkghash.modulename
+			return "", nil, nil, "plugin was built with a different version of package " + pkghash.modulename
 		}
 	}
 
@@ -76,27 +79,27 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, errstr s
 	// Because functions are handled specially in the plugin package,
 	// function symbol names are prefixed here with '.' to avoid
 	// a dependency on the reflect package.
-	syms = make(map[string]interface{}, len(md.ptab))
+	syms = make(map[string]any, len(md.ptab))
 	for _, ptab := range md.ptab {
 		symName := resolveNameOff(unsafe.Pointer(md.types), ptab.name)
-		t := (*_type)(unsafe.Pointer(md.types)).typeOff(ptab.typ)
-		var val interface{}
+		t := toRType((*_type)(unsafe.Pointer(md.types))).typeOff(ptab.typ) // TODO can this stack of conversions be simpler?
+		var val any
 		valp := (*[2]unsafe.Pointer)(unsafe.Pointer(&val))
 		(*valp)[0] = unsafe.Pointer(t)
 
-		name := symName.name()
-		if t.kind&kindMask == kindFunc {
+		name := symName.Name()
+		if t.Kind() == abi.Func {
 			name = "." + name
 		}
 		syms[name] = val
 	}
-	return md.pluginpath, syms, ""
+	return md.pluginpath, syms, md.inittasks, ""
 }
 
 func pluginftabverify(md *moduledata) {
 	badtable := false
 	for i := 0; i < len(md.ftab); i++ {
-		entry := md.ftab[i].entry
+		entry := md.textAddr(md.ftab[i].entryoff)
 		if md.minpc <= entry && entry <= md.maxpc {
 			continue
 		}
@@ -112,10 +115,11 @@ func pluginftabverify(md *moduledata) {
 		f2 := findfunc(entry)
 		if f2.valid() {
 			name2 = funcname(f2)
-			entry2 = f2.entry
+			entry2 = f2.entry()
 		}
 		badtable = true
-		println("ftab entry outside pc range: ", hex(entry), "/", hex(entry2), ": ", name, "/", name2)
+		println("ftab entry", hex(entry), "/", hex(entry2), ": ",
+			name, "/", name2, "outside pc range:[", hex(md.minpc), ",", hex(md.maxpc), "], modulename=", md.modulename, ", pluginpath=", md.pluginpath)
 	}
 	if badtable {
 		throw("runtime: plugin has bad symbol table")

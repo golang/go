@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !js
-
 package net
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -387,13 +387,10 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
 			t.Log(err)
 			continue
 		}
-		ls, err := (&streamListener{Listener: ln}).newLocalServer()
-		if err != nil {
-			t.Fatal(err)
-		}
+		ls := (&streamListener{Listener: ln}).newLocalServer()
 		defer ls.teardown()
 		ch := make(chan error, 1)
-		handler := func(ls *localServer, ln Listener) { transponder(ln, ch) }
+		handler := func(ls *localServer, ln Listener) { ls.transponder(ln, ch) }
 		if err := ls.buildup(handler); err != nil {
 			t.Fatal(err)
 		}
@@ -478,6 +475,9 @@ func TestTCPReadWriteAllocs(t *testing.T) {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
+	// Optimizations are required to remove the allocs.
+	testenv.SkipIfOptimizationOff(t)
+
 	ln, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -512,7 +512,7 @@ func TestTCPReadWriteAllocs(t *testing.T) {
 		}
 	})
 	if allocs > 0 {
-		t.Fatalf("got %v; want 0", allocs)
+		t.Errorf("got %v; want 0", allocs)
 	}
 
 	var bufwrt [128]byte
@@ -534,7 +534,7 @@ func TestTCPReadWriteAllocs(t *testing.T) {
 		}
 	})
 	if allocs > 0 {
-		t.Fatalf("got %v; want 0", allocs)
+		t.Errorf("got %v; want 0", allocs)
 	}
 }
 
@@ -620,53 +620,6 @@ func TestTCPStress(t *testing.T) {
 	<-done
 }
 
-func TestTCPSelfConnect(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		// TODO(brainman): do not know why it hangs.
-		t.Skip("known-broken test on windows")
-	}
-
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var d Dialer
-	c, err := d.Dial(ln.Addr().Network(), ln.Addr().String())
-	if err != nil {
-		ln.Close()
-		t.Fatal(err)
-	}
-	network := c.LocalAddr().Network()
-	laddr := *c.LocalAddr().(*TCPAddr)
-	c.Close()
-	ln.Close()
-
-	// Try to connect to that address repeatedly.
-	n := 100000
-	if testing.Short() {
-		n = 1000
-	}
-	switch runtime.GOOS {
-	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "illumos", "solaris", "windows":
-		// Non-Linux systems take a long time to figure
-		// out that there is nothing listening on localhost.
-		n = 100
-	}
-	for i := 0; i < n; i++ {
-		d.Timeout = time.Millisecond
-		c, err := d.Dial(network, laddr.String())
-		if err == nil {
-			addr := c.LocalAddr().(*TCPAddr)
-			if addr.Port == laddr.Port || addr.IP.Equal(laddr.IP) {
-				t.Errorf("Dial %v should fail", addr)
-			} else {
-				t.Logf("Dial %v succeeded - possibly racing with other listener", addr)
-			}
-			c.Close()
-		}
-	}
-}
-
 // Test that >32-bit reads work on 64-bit systems.
 // On 32-bit systems this tests that maxint reads work.
 func TestTCPBig(t *testing.T) {
@@ -676,10 +629,7 @@ func TestTCPBig(t *testing.T) {
 
 	for _, writev := range []bool{false, true} {
 		t.Run(fmt.Sprintf("writev=%v", writev), func(t *testing.T) {
-			ln, err := newLocalListener("tcp")
-			if err != nil {
-				t.Fatal(err)
-			}
+			ln := newLocalListener(t, "tcp")
 			defer ln.Close()
 
 			x := int(1 << 30)
@@ -723,10 +673,12 @@ func TestTCPBig(t *testing.T) {
 }
 
 func TestCopyPipeIntoTCP(t *testing.T) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		t.Fatal(err)
+	switch runtime.GOOS {
+	case "js", "wasip1":
+		t.Skipf("skipping: os.Pipe not supported on %s", runtime.GOOS)
 	}
+
+	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
 	errc := make(chan error, 1)
@@ -794,10 +746,7 @@ func TestCopyPipeIntoTCP(t *testing.T) {
 }
 
 func BenchmarkSetReadDeadline(b *testing.B) {
-	ln, err := newLocalListener("tcp")
-	if err != nil {
-		b.Fatal(err)
-	}
+	ln := newLocalListener(b, "tcp")
 	defer ln.Close()
 	var serv Conn
 	done := make(chan error)
@@ -821,5 +770,69 @@ func BenchmarkSetReadDeadline(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c.SetReadDeadline(deadline)
 		deadline = deadline.Add(1)
+	}
+}
+
+func TestDialTCPDefaultKeepAlive(t *testing.T) {
+	ln := newLocalListener(t, "tcp")
+	defer ln.Close()
+
+	got := time.Duration(-1)
+	testHookSetKeepAlive = func(cfg KeepAliveConfig) { got = cfg.Idle }
+	defer func() { testHookSetKeepAlive = func(KeepAliveConfig) {} }()
+
+	c, err := DialTCP("tcp", nil, ln.Addr().(*TCPAddr))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	if got != 0 {
+		t.Errorf("got keepalive %v; want %v", got, defaultTCPKeepAliveIdle)
+	}
+}
+
+func TestTCPListenAfterClose(t *testing.T) {
+	// Regression test for https://go.dev/issue/50216:
+	// after calling Close on a Listener, the fake net implementation would
+	// erroneously Accept a connection dialed before the call to Close.
+
+	ln := newLocalListener(t, "tcp")
+	defer ln.Close()
+
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
+
+	d := &Dialer{}
+	for n := 2; n > 0; n-- {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			c, err := d.DialContext(ctx, ln.Addr().Network(), ln.Addr().String())
+			if err == nil {
+				<-ctx.Done()
+				c.Close()
+			}
+		}()
+	}
+
+	c, err := ln.Accept()
+	if err == nil {
+		c.Close()
+	} else {
+		t.Error(err)
+	}
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+	wg.Wait()
+	ln.Close()
+
+	c, err = ln.Accept()
+	if !errors.Is(err, ErrClosed) {
+		if err == nil {
+			c.Close()
+		}
+		t.Errorf("after l.Close(), l.Accept() = _, %v\nwant %v", err, ErrClosed)
 	}
 }

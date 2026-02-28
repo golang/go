@@ -1,0 +1,29 @@
+# Run chatty tests. Assert on CONT lines.
+go test chatty_test.go -v -bench . chatty_bench
+
+# Sanity check that output happens. We don't provide -count because the amount
+# of output is variable.
+stdout 'this is sub-0'
+stdout 'this is sub-1'
+stdout 'this is sub-2'
+
+# Benchmarks should not print CONT.
+! stdout CONT
+
+-- chatty_test.go --
+package chatty_bench
+
+import (
+	"testing"
+	"fmt"
+)
+
+func BenchmarkChatty(b *testing.B) {
+    for i := 0; i < 3; i++ {
+        b.Run(fmt.Sprintf("sub-%d", i), func(b *testing.B) {
+            for j := 0; j < 2; j++ {
+                b.Logf("this is sub-%d", i)
+            }
+        })
+    }
+}

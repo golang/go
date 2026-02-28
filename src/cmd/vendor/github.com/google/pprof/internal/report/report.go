@@ -19,6 +19,7 @@ package report
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -79,6 +80,8 @@ type Options struct {
 	Symbol     *regexp.Regexp // Symbols to include on disassembly report.
 	SourcePath string         // Search path for source files.
 	TrimPath   string         // Paths to trim from source file paths.
+
+	IntelSyntax bool // Whether or not to print assembly in Intel syntax.
 }
 
 // Generate generates a report as directed by the Report.
@@ -109,12 +112,11 @@ func Generate(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
 		return printAssembly(w, rpt, obj)
 	case List:
 		return printSource(w, rpt)
-	case WebList:
-		return printWebSource(w, rpt, obj)
 	case Callgrind:
 		return printCallgrind(w, rpt)
 	}
-	return fmt.Errorf("unexpected output format")
+	// Note: WebList handling is in driver package.
+	return fmt.Errorf("unexpected output format %v", o.OutputFormat)
 }
 
 // newTrimmedGraph creates a graph for this report, trimmed according
@@ -291,7 +293,7 @@ func (rpt *Report) newGraph(nodes graph.NodeSet) *graph.Graph {
 	return graph.New(rpt.prof, gopt)
 }
 
-// printProto writes the incoming proto via thw writer w.
+// printProto writes the incoming proto via the writer w.
 // If the divide_by option has been specified, samples are scaled appropriately.
 func printProto(w io.Writer, rpt *Report) error {
 	p, o := rpt.prof, rpt.options
@@ -337,6 +339,7 @@ func printTopProto(w io.Writer, rpt *Report) error {
 			Line: []profile.Line{
 				{
 					Line:     int64(n.Info.Lineno),
+					Column:   int64(n.Info.Columnno),
 					Function: f,
 				},
 			},
@@ -430,6 +433,19 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
 		}
 	}
 
+	if len(syms) == 0 {
+		// The symbol regexp case
+		if address == nil {
+			return fmt.Errorf("no matches found for regexp %s", o.Symbol)
+		}
+
+		// The address case
+		if len(symbols) == 0 {
+			return fmt.Errorf("no matches found for address 0x%x", *address)
+		}
+		return fmt.Errorf("address 0x%x found in binary, but the corresponding symbols do not have samples in the profile", *address)
+	}
+
 	// Correlate the symbols from the binary with the profile samples.
 	for _, s := range syms {
 		sns := symNodes[s]
@@ -438,12 +454,12 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
 		flatSum, cumSum := sns.Sum()
 
 		// Get the function assembly.
-		insts, err := obj.Disasm(s.sym.File, s.sym.Start, s.sym.End)
+		insts, err := obj.Disasm(s.sym.File, s.sym.Start, s.sym.End, o.IntelSyntax)
 		if err != nil {
 			return err
 		}
 
-		ns := annotateAssembly(insts, sns, s.base)
+		ns := annotateAssembly(insts, sns, s.file)
 
 		fmt.Fprintf(w, "ROUTINE ======================== %s\n", s.sym.Name[0])
 		for _, name := range s.sym.Name[1:] {
@@ -499,28 +515,32 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
 	return nil
 }
 
-// symbolsFromBinaries examines the binaries listed on the profile
-// that have associated samples, and identifies symbols matching rx.
+// symbolsFromBinaries examines the binaries listed on the profile that have
+// associated samples, and returns the identified symbols matching rx.
 func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regexp, address *uint64, obj plugin.ObjTool) []*objSymbol {
-	hasSamples := make(map[string]bool)
-	// Only examine mappings that have samples that match the
-	// regexp. This is an optimization to speed up pprof.
+	// fileHasSamplesAndMatched is for optimization to speed up pprof: when later
+	// walking through the profile mappings, it will only examine the ones that have
+	// samples and are matched to the regexp.
+	fileHasSamplesAndMatched := make(map[string]bool)
 	for _, n := range g.Nodes {
 		if name := n.Info.PrintableName(); rx.MatchString(name) && n.Info.Objfile != "" {
-			hasSamples[n.Info.Objfile] = true
+			fileHasSamplesAndMatched[n.Info.Objfile] = true
 		}
 	}
 
 	// Walk all mappings looking for matching functions with samples.
 	var objSyms []*objSymbol
 	for _, m := range prof.Mapping {
-		if !hasSamples[m.File] {
-			if address == nil || !(m.Start <= *address && *address <= m.Limit) {
+		// Skip the mapping if its file does not have samples or is not matched to
+		// the regexp (unless the regexp is an address and the mapping's range covers
+		// the address)
+		if !fileHasSamplesAndMatched[m.File] {
+			if address == nil || m.Start > *address || *address > m.Limit {
 				continue
 			}
 		}
 
-		f, err := obj.Open(m.File, m.Start, m.Limit, m.Offset)
+		f, err := obj.Open(m.File, m.Start, m.Limit, m.Offset, m.KernelRelocationSymbol)
 		if err != nil {
 			fmt.Printf("%v\n", err)
 			continue
@@ -532,7 +552,6 @@ func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regex
 			addr = *address
 		}
 		msyms, err := f.Symbols(rx, addr)
-		base := f.Base()
 		f.Close()
 		if err != nil {
 			continue
@@ -541,7 +560,6 @@ func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regex
 			objSyms = append(objSyms,
 				&objSymbol{
 					sym:  ms,
-					base: base,
 					file: f,
 				},
 			)
@@ -551,12 +569,11 @@ func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regex
 	return objSyms
 }
 
-// objSym represents a symbol identified from a binary. It includes
+// objSymbol represents a symbol identified from a binary. It includes
 // the SymbolInfo from the disasm package and the base that must be
 // added to correspond to sample addresses
 type objSymbol struct {
 	sym  *plugin.Sym
-	base uint64
 	file plugin.ObjFile
 }
 
@@ -576,8 +593,7 @@ func nodesPerSymbol(ns graph.Nodes, symbols []*objSymbol) map[*objSymbol]graph.N
 	for _, s := range symbols {
 		// Gather samples for this symbol.
 		for _, n := range ns {
-			address := n.Info.Address - s.base
-			if address >= s.sym.Start && address < s.sym.End {
+			if address, err := s.file.ObjAddr(n.Info.Address); err == nil && address >= s.sym.Start && address < s.sym.End {
 				symNodes[s] = append(symNodes[s], n)
 			}
 		}
@@ -619,7 +635,7 @@ func (a *assemblyInstruction) cumValue() int64 {
 // annotateAssembly annotates a set of assembly instructions with a
 // set of samples. It returns a set of nodes to display. base is an
 // offset to adjust the sample addresses.
-func annotateAssembly(insts []plugin.Inst, samples graph.Nodes, base uint64) []assemblyInstruction {
+func annotateAssembly(insts []plugin.Inst, samples graph.Nodes, file plugin.ObjFile) []assemblyInstruction {
 	// Add end marker to simplify printing loop.
 	insts = append(insts, plugin.Inst{
 		Addr: ^uint64(0),
@@ -643,7 +659,10 @@ func annotateAssembly(insts []plugin.Inst, samples graph.Nodes, base uint64) []a
 
 		// Sum all the samples until the next instruction (to account
 		// for samples attributed to the middle of an instruction).
-		for next := insts[ix+1].Addr; s < len(samples) && samples[s].Info.Address-base < next; s++ {
+		for next := insts[ix+1].Addr; s < len(samples); s++ {
+			if addr, err := file.ObjAddr(samples[s].Info.Address); err != nil || addr >= next {
+				break
+			}
 			sample := samples[s]
 			n.flatDiv += sample.FlatDiv
 			n.flat += sample.Flat
@@ -680,13 +699,17 @@ func printTags(w io.Writer, rpt *Report) error {
 	p := rpt.prof
 
 	o := rpt.options
-	formatTag := func(v int64, key string) string {
-		return measurement.ScaledLabel(v, key, o.OutputUnit)
+	formatTag := func(v int64, unit string) string {
+		return measurement.ScaledLabel(v, unit, o.OutputUnit)
 	}
 
-	// Hashtable to keep accumulate tags as key,value,count.
+	// Accumulate tags as key,value,count.
 	tagMap := make(map[string]map[string]int64)
+	// Note that we assume single value per tag per sample. Multiple values are
+	// encodable in the format but are discouraged.
+	tagTotalMap := make(map[string]int64)
 	for _, s := range p.Sample {
+		sampleValue := o.SampleValue(s.Value)
 		for key, vals := range s.Label {
 			for _, val := range vals {
 				valueMap, ok := tagMap[key]
@@ -694,7 +717,8 @@ func printTags(w io.Writer, rpt *Report) error {
 					valueMap = make(map[string]int64)
 					tagMap[key] = valueMap
 				}
-				valueMap[val] += o.SampleValue(s.Value)
+				valueMap[val] += sampleValue
+				tagTotalMap[key] += sampleValue
 			}
 		}
 		for key, vals := range s.NumLabel {
@@ -706,7 +730,8 @@ func printTags(w io.Writer, rpt *Report) error {
 					valueMap = make(map[string]int64)
 					tagMap[key] = valueMap
 				}
-				valueMap[val] += o.SampleValue(s.Value)
+				valueMap[val] += sampleValue
+				tagTotalMap[key] += sampleValue
 			}
 		}
 	}
@@ -717,22 +742,23 @@ func printTags(w io.Writer, rpt *Report) error {
 	}
 	tabw := tabwriter.NewWriter(w, 0, 0, 1, ' ', tabwriter.AlignRight)
 	for _, tagKey := range graph.SortTags(tagKeys, true) {
-		var total int64
 		key := tagKey.Name
 		tags := make([]*graph.Tag, 0, len(tagMap[key]))
 		for t, c := range tagMap[key] {
-			total += c
 			tags = append(tags, &graph.Tag{Name: t, Flat: c})
 		}
 
-		f, u := measurement.Scale(total, o.SampleUnit, o.OutputUnit)
-		fmt.Fprintf(tabw, "%s:\t Total %.1f%s\n", key, f, u)
+		tagTotal, profileTotal := tagTotalMap[key], rpt.Total()
+		if profileTotal > 0 {
+			fmt.Fprintf(tabw, "%s:\t Total %s of %s (%s)\n", key, rpt.formatValue(tagTotal), rpt.formatValue(profileTotal), measurement.Percentage(tagTotal, profileTotal))
+		} else {
+			fmt.Fprintf(tabw, "%s:\t Total %s of %s\n", key, rpt.formatValue(tagTotal), rpt.formatValue(profileTotal))
+		}
 		for _, t := range graph.SortTags(tags, true) {
-			f, u := measurement.Scale(t.FlatValue(), o.SampleUnit, o.OutputUnit)
-			if total > 0 {
-				fmt.Fprintf(tabw, " \t%.1f%s (%s):\t %s\n", f, u, measurement.Percentage(t.FlatValue(), total), t.Name)
+			if profileTotal > 0 {
+				fmt.Fprintf(tabw, " \t%s (%s):\t %s\n", rpt.formatValue(t.FlatValue()), measurement.Percentage(t.FlatValue(), profileTotal), t.Name)
 			} else {
-				fmt.Fprintf(tabw, " \t%.1f%s:\t %s\n", f, u, t.Name)
+				fmt.Fprintf(tabw, " \t%s:\t %s\n", rpt.formatValue(t.FlatValue()), t.Name)
 			}
 		}
 		fmt.Fprintln(tabw)
@@ -763,7 +789,7 @@ type TextItem struct {
 func TextItems(rpt *Report) ([]TextItem, []string) {
 	g, origCount, droppedNodes, _ := rpt.newTrimmedGraph()
 	rpt.selectOutputUnit(g)
-	labels := reportLabels(rpt, g, origCount, droppedNodes, 0, false)
+	labels := reportLabels(rpt, graphTotal(g), len(g.Nodes), origCount, droppedNodes, 0, false)
 
 	var items []TextItem
 	var flatSum int64
@@ -1046,13 +1072,14 @@ func printTree(w io.Writer, rpt *Report) error {
 	g, origCount, droppedNodes, _ := rpt.newTrimmedGraph()
 	rpt.selectOutputUnit(g)
 
-	fmt.Fprintln(w, strings.Join(reportLabels(rpt, g, origCount, droppedNodes, 0, false), "\n"))
+	fmt.Fprintln(w, strings.Join(reportLabels(rpt, graphTotal(g), len(g.Nodes), origCount, droppedNodes, 0, false), "\n"))
 
 	fmt.Fprintln(w, separator)
 	fmt.Fprintln(w, legend)
 	var flatSum int64
 
 	rx := rpt.options.Symbol
+	matched := 0
 	for _, n := range g.Nodes {
 		name, flat, cum := n.Info.PrintableName(), n.FlatValue(), n.CumValue()
 
@@ -1060,6 +1087,7 @@ func printTree(w io.Writer, rpt *Report) error {
 		if rx != nil && !rx.MatchString(name) {
 			continue
 		}
+		matched++
 
 		fmt.Fprintln(w, separator)
 		// Print incoming edges.
@@ -1097,6 +1125,9 @@ func printTree(w io.Writer, rpt *Report) error {
 	if len(g.Nodes) > 0 {
 		fmt.Fprintln(w, separator)
 	}
+	if rx != nil && matched == 0 {
+		return fmt.Errorf("no matches found for regexp: %s", rx)
+	}
 	return nil
 }
 
@@ -1105,7 +1136,7 @@ func printTree(w io.Writer, rpt *Report) error {
 func GetDOT(rpt *Report) (*graph.Graph, *graph.DotConfig) {
 	g, origCount, droppedNodes, droppedEdges := rpt.newTrimmedGraph()
 	rpt.selectOutputUnit(g)
-	labels := reportLabels(rpt, g, origCount, droppedNodes, droppedEdges, true)
+	labels := reportLabels(rpt, graphTotal(g), len(g.Nodes), origCount, droppedNodes, droppedEdges, true)
 
 	c := &graph.DotConfig{
 		Title:       rpt.options.Title,
@@ -1145,8 +1176,11 @@ func ProfileLabels(rpt *Report) []string {
 	if o.SampleType != "" {
 		label = append(label, "Type: "+o.SampleType)
 	}
+	if url := prof.DocURL; url != "" {
+		label = append(label, "Doc: "+url)
+	}
 	if prof.TimeNanos != 0 {
-		const layout = "Jan 2, 2006 at 3:04pm (MST)"
+		const layout = "2006-01-02 15:04:05 MST"
 		label = append(label, "Time: "+time.Unix(0, prof.TimeNanos).Format(layout))
 	}
 	if prof.DurationNanos != 0 {
@@ -1161,12 +1195,19 @@ func ProfileLabels(rpt *Report) []string {
 	return label
 }
 
+func graphTotal(g *graph.Graph) int64 {
+	var total int64
+	for _, n := range g.Nodes {
+		total += n.FlatValue()
+	}
+	return total
+}
+
 // reportLabels returns printable labels for a report. Includes
 // profileLabels.
-func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedEdges int, fullHeaders bool) []string {
+func reportLabels(rpt *Report, shownTotal int64, nodeCount, origCount, droppedNodes, droppedEdges int, fullHeaders bool) []string {
 	nodeFraction := rpt.options.NodeFraction
 	edgeFraction := rpt.options.EdgeFraction
-	nodeCount := len(g.Nodes)
 
 	var label []string
 	if len(rpt.options.ProfileLabels) > 0 {
@@ -1175,17 +1216,12 @@ func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedE
 		label = ProfileLabels(rpt)
 	}
 
-	var flatSum int64
-	for _, n := range g.Nodes {
-		flatSum = flatSum + n.FlatValue()
-	}
-
 	if len(rpt.options.ActiveFilters) > 0 {
 		activeFilters := legendActiveFilters(rpt.options.ActiveFilters)
 		label = append(label, activeFilters...)
 	}
 
-	label = append(label, fmt.Sprintf("Showing nodes accounting for %s, %s of %s total", rpt.formatValue(flatSum), strings.TrimSpace(measurement.Percentage(flatSum, rpt.total)), rpt.formatValue(rpt.total)))
+	label = append(label, fmt.Sprintf("Showing nodes accounting for %s, %s of %s total", rpt.formatValue(shownTotal), strings.TrimSpace(measurement.Percentage(shownTotal, rpt.total)), rpt.formatValue(rpt.total)))
 
 	if rpt.total != 0 {
 		if droppedNodes > 0 {
@@ -1201,6 +1237,13 @@ func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedE
 				nodeCount, origCount))
 		}
 	}
+
+	// Help new users understand the graph.
+	// A new line is intentionally added here to better show this message.
+	if fullHeaders {
+		label = append(label, "\nSee https://git.io/JfYMW for how to read the graph")
+	}
+
 	return label
 }
 
@@ -1295,6 +1338,25 @@ type Report struct {
 
 // Total returns the total number of samples in a report.
 func (rpt *Report) Total() int64 { return rpt.total }
+
+// OutputFormat returns the output format for the report.
+func (rpt *Report) OutputFormat() int { return rpt.options.OutputFormat }
+
+// DocURL returns the documentation URL for Report, or "" if not available.
+func (rpt *Report) DocURL() string {
+	u := rpt.prof.DocURL
+	if u == "" || !absoluteURL(u) {
+		return ""
+	}
+	return u
+}
+
+func absoluteURL(str string) bool {
+	// Avoid returning relative URLs to prevent unwanted local navigation
+	// within pprof server.
+	u, err := url.Parse(str)
+	return err == nil && (u.Scheme == "https" || u.Scheme == "http")
+}
 
 func abs64(i int64) int64 {
 	if i < 0 {

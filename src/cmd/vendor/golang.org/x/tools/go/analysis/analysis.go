@@ -1,3 +1,7 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package analysis
 
 import (
@@ -20,6 +24,10 @@ type Analyzer struct {
 	// (no capital or period, max ~60 letters).
 	Doc string
 
+	// URL holds an optional link to a web page with additional
+	// documentation for this analyzer.
+	URL string
+
 	// Flags defines any flags accepted by the analyzer.
 	// The manner in which these flags are exposed to the user
 	// depends on the driver which runs the analyzer.
@@ -37,11 +45,12 @@ type Analyzer struct {
 	// To pass analysis results between packages (and thus
 	// potentially between address spaces), use Facts, which are
 	// serializable.
-	Run func(*Pass) (interface{}, error)
+	Run func(*Pass) (any, error)
 
 	// RunDespiteErrors allows the driver to invoke
 	// the Run method of this analyzer even on a
 	// package that contains parse or type errors.
+	// The [Pass.TypeErrors] field may consequently be non-empty.
 	RunDespiteErrors bool
 
 	// Requires is a set of analyzers that must run successfully
@@ -82,12 +91,16 @@ type Pass struct {
 	Analyzer *Analyzer // the identity of the current analyzer
 
 	// syntax and type information
-	Fset       *token.FileSet // file position information
-	Files      []*ast.File    // the abstract syntax tree of each file
-	OtherFiles []string       // names of non-Go files of this package
-	Pkg        *types.Package // type information about the package
-	TypesInfo  *types.Info    // type information about the syntax trees
-	TypesSizes types.Sizes    // function for computing sizes of types
+	Fset         *token.FileSet // file position information; Run may add new files
+	Files        []*ast.File    // the abstract syntax tree of each file
+	OtherFiles   []string       // names of non-Go files of this package
+	IgnoredFiles []string       // names of ignored source files in this package
+	Pkg          *types.Package // type information about the package
+	TypesInfo    *types.Info    // type information about the syntax trees
+	TypesSizes   types.Sizes    // function for computing sizes of types
+	TypeErrors   []types.Error  // type errors (only if Analyzer.RunDespiteErrors)
+
+	Module *Module // the package's enclosing module (possibly nil in some drivers)
 
 	// Report reports a Diagnostic, a finding about a specific location
 	// in the analyzed source code such as a potential mistake.
@@ -99,7 +112,20 @@ type Pass struct {
 	// The map keys are the elements of Analysis.Required,
 	// and the type of each corresponding value is the required
 	// analysis's ResultType.
-	ResultOf map[*Analyzer]interface{}
+	ResultOf map[*Analyzer]any
+
+	// ReadFile returns the contents of the named file.
+	//
+	// The only valid file names are the elements of OtherFiles
+	// and IgnoredFiles, and names returned by
+	// Fset.File(f.FileStart).Name() for each f in Files.
+	//
+	// Analyzers must use this function (if provided) instead of
+	// accessing the file system directly. This allows a driver to
+	// provide a virtualized file tree (including, for example,
+	// unsaved editor buffers) and to track dependencies precisely
+	// to avoid unnecessary recomputation.
+	ReadFile func(filename string) ([]byte, error)
 
 	// -- facts --
 
@@ -128,29 +154,31 @@ type Pass struct {
 	// See comments for ExportObjectFact.
 	ExportPackageFact func(fact Fact)
 
-	// AllPackageFacts returns a new slice containing all package facts of the analysis's FactTypes
-	// in unspecified order.
-	// WARNING: This is an experimental API and may change in the future.
+	// AllPackageFacts returns a new slice containing all package
+	// facts of the analysis's FactTypes in unspecified order.
+	// See comments for AllObjectFacts.
 	AllPackageFacts func() []PackageFact
 
-	// AllObjectFacts returns a new slice containing all object facts of the analysis's FactTypes
-	// in unspecified order.
-	// WARNING: This is an experimental API and may change in the future.
+	// AllObjectFacts returns a new slice containing all object
+	// facts of the analysis's FactTypes in unspecified order.
+	//
+	// The result includes all facts exported by packages
+	// whose symbols are referenced by the current package
+	// (by qualified identifiers or field/method selections).
+	// And it includes all facts exported from the current
+	// package by the current analysis pass.
 	AllObjectFacts func() []ObjectFact
 
 	/* Further fields may be added in future. */
-	// For example, suggested or applied refactorings.
 }
 
 // PackageFact is a package together with an associated fact.
-// WARNING: This is an experimental API and may change in the future.
 type PackageFact struct {
 	Package *types.Package
 	Fact    Fact
 }
 
 // ObjectFact is an object together with an associated fact.
-// WARNING: This is an experimental API and may change in the future.
 type ObjectFact struct {
 	Object types.Object
 	Fact   Fact
@@ -158,7 +186,7 @@ type ObjectFact struct {
 
 // Reportf is a helper function that reports a Diagnostic using the
 // specified position and formatted error message.
-func (pass *Pass) Reportf(pos token.Pos, format string, args ...interface{}) {
+func (pass *Pass) Reportf(pos token.Pos, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	pass.Report(Diagnostic{Pos: pos, Message: msg})
 }
@@ -173,7 +201,7 @@ type Range interface {
 // ReportRangef is a helper function that reports a Diagnostic using the
 // range provided. ast.Node values can be passed in as the range because
 // they satisfy the Range interface.
-func (pass *Pass) ReportRangef(rng Range, format string, args ...interface{}) {
+func (pass *Pass) ReportRangef(rng Range, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	pass.Report(Diagnostic{Pos: rng.Pos(), End: rng.End(), Message: msg})
 }
@@ -218,4 +246,11 @@ func (pass *Pass) String() string {
 // A Fact should not be modified once exported.
 type Fact interface {
 	AFact() // dummy method to avoid type errors
+}
+
+// A Module describes the module to which a package belongs.
+type Module struct {
+	Path      string // module path
+	Version   string // module version ("" if unknown, such as for workspace modules)
+	GoVersion string // go version used in module (e.g. "go1.22.0")
 }

@@ -4,17 +4,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Test escape analysis for runtime/internal/atomic.
+// Test escape analysis for internal/runtime/atomic.
 
 package escape
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
-// BAD: should always be "leaking param: addr to result ~r1 level=1$".
-func Loadp(addr unsafe.Pointer) unsafe.Pointer { // ERROR "leaking param: addr( to result ~r1 level=1)?$"
+// BAD: should always be "leaking param: addr to result ~r0 level=1$".
+func Loadp(addr unsafe.Pointer) unsafe.Pointer { // ERROR "leaking param: addr( to result ~r0 level=1)?$"
 	return atomic.Loadp(addr)
 }
 

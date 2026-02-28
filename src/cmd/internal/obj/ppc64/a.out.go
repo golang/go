@@ -79,7 +79,43 @@ const (
 	REG_R30
 	REG_R31
 
-	/* F0=4128 ... F31=4159 */
+	// CR bits. Use Book 1, chapter 2 naming for bits. Keep aligned to 32
+	REG_CR0LT
+	REG_CR0GT
+	REG_CR0EQ
+	REG_CR0SO
+	REG_CR1LT
+	REG_CR1GT
+	REG_CR1EQ
+	REG_CR1SO
+	REG_CR2LT
+	REG_CR2GT
+	REG_CR2EQ
+	REG_CR2SO
+	REG_CR3LT
+	REG_CR3GT
+	REG_CR3EQ
+	REG_CR3SO
+	REG_CR4LT
+	REG_CR4GT
+	REG_CR4EQ
+	REG_CR4SO
+	REG_CR5LT
+	REG_CR5GT
+	REG_CR5EQ
+	REG_CR5SO
+	REG_CR6LT
+	REG_CR6GT
+	REG_CR6EQ
+	REG_CR6SO
+	REG_CR7LT
+	REG_CR7GT
+	REG_CR7EQ
+	REG_CR7SO
+
+	/* Align FPR and VSR vectors such that when masked with 0x3F they produce
+	   an equivalent VSX register. */
+	/* F0=4160 ... F31=4191 */
 	REG_F0
 	REG_F1
 	REG_F2
@@ -113,7 +149,7 @@ const (
 	REG_F30
 	REG_F31
 
-	/* V0=4160 ... V31=4191 */
+	/* V0=4192 ... V31=4223 */
 	REG_V0
 	REG_V1
 	REG_V2
@@ -147,7 +183,7 @@ const (
 	REG_V30
 	REG_V31
 
-	/* VS0=4192 ... VS63=4255 */
+	/* VS0=4224 ... VS63=4287 */
 	REG_VS0
 	REG_VS1
 	REG_VS2
@@ -222,14 +258,27 @@ const (
 	REG_CR6
 	REG_CR7
 
+	// MMA accumulator registers, these shadow VSR 0-31
+	// e.g MMAx shadows VSRx*4-VSRx*4+3 or
+	//     MMA0 shadows VSR0-VSR3
+	REG_A0
+	REG_A1
+	REG_A2
+	REG_A3
+	REG_A4
+	REG_A5
+	REG_A6
+	REG_A7
+
 	REG_MSR
 	REG_FPSCR
 	REG_CR
 
 	REG_SPECIAL = REG_CR0
 
+	REG_CRBIT0 = REG_CR0LT // An alias for a Condition Register bit 0
+
 	REG_SPR0 = obj.RBasePPC64 + 1024 // first of 1024 registers
-	REG_DCR0 = obj.RBasePPC64 + 2048 // first of 1024 registers
 
 	REG_XER = REG_SPR0 + 1
 	REG_LR  = REG_SPR0 + 8
@@ -240,8 +289,8 @@ const (
 	REGSB   = REG_R2
 	REGRET  = REG_R3
 	REGARG  = -1      /* -1 disables passing the first argument in register */
-	REGRT1  = REG_R3  /* reserved for runtime, duffzero and duffcopy */
-	REGRT2  = REG_R4  /* reserved for runtime, duffcopy */
+	REGRT1  = REG_R20 /* reserved for runtime, duffzero and duffcopy */
+	REGRT2  = REG_R21 /* reserved for runtime, duffcopy */
 	REGMIN  = REG_R7  /* register variables allocated from here to REGMAX */
 	REGCTXT = REG_R11 /* context for closures */
 	REGTLS  = REG_R13 /* C ABI TLS base pointer */
@@ -262,7 +311,7 @@ var PPC64DWARFRegisters = map[int16]int16{}
 func init() {
 	// f assigns dwarfregister[from:to] = (base):(to-from+base)
 	f := func(from, to, base int16) {
-		for r := int16(from); r <= to; r++ {
+		for r := from; r <= to; r++ {
 			PPC64DWARFRegisters[r] = r - from + base
 		}
 	}
@@ -294,16 +343,17 @@ const (
 
 const (
 	/* mark flags */
-	LABEL   = 1 << 0
-	LEAF    = 1 << 1
-	FLOAT   = 1 << 2
-	BRANCH  = 1 << 3
-	LOAD    = 1 << 4
-	FCMP    = 1 << 5
-	SYNC    = 1 << 6
-	LIST    = 1 << 7
-	FOLL    = 1 << 8
-	NOSCHED = 1 << 9
+	LABEL    = 1 << 0
+	LEAF     = 1 << 1
+	FLOAT    = 1 << 2
+	BRANCH   = 1 << 3
+	LOAD     = 1 << 4
+	FCMP     = 1 << 5
+	SYNC     = 1 << 6
+	LIST     = 1 << 7
+	FOLL     = 1 << 8
+	NOSCHED  = 1 << 9
+	PFX_X64B = 1 << 10 // A prefixed instruction crossing a 64B boundary
 )
 
 // Values for use in branch instruction BC
@@ -326,21 +376,18 @@ const (
 	BI_LT  = 0
 	BI_GT  = 1
 	BI_EQ  = 2
-	BI_OVF = 3
+	BI_FU  = 3
 )
 
-// Values for the BO field.  Add the branch type to
-// the likely bits, if a likely setting is known.
-// If branch likely or unlikely is not known, don't set it.
-// e.g. branch on cr+likely = 15
+// Common values for the BO field.
 
 const (
-	BO_BCTR     = 16 // branch on ctr value
-	BO_BCR      = 12 // branch on cr value
-	BO_BCRBCTR  = 8  // branch on ctr and cr value
-	BO_NOTBCR   = 4  // branch on not cr value
-	BO_UNLIKELY = 2  // value for unlikely
-	BO_LIKELY   = 3  // value for likely
+	BO_ALWAYS  = 20 // branch unconditionally
+	BO_BCTR    = 16 // decrement ctr, branch on ctr != 0
+	BO_NOTBCTR = 18 // decrement ctr, branch on ctr == 0
+	BO_BCR     = 12 // branch on cr value
+	BO_BCRBCTR = 8  // decrement ctr, branch on ctr != 0 and cr value
+	BO_NOTBCR  = 4  // branch on not cr value
 )
 
 // Bit settings from the CR
@@ -352,49 +399,55 @@ const (
 	C_COND_SO        // 3 summary overflow or FP compare w/ NaN
 )
 
+//go:generate go run ../mkcnames.go -i a.out.go -o anames9.go -p ppc64
 const (
-	C_NONE = iota
-	C_REG
-	C_FREG
-	C_VREG
-	C_VSREG
-	C_CREG
-	C_SPR /* special processor register */
-	C_ZCON
-	C_SCON   /* 16 bit signed */
-	C_UCON   /* 32 bit signed, low 16 bits 0 */
-	C_ADDCON /* -0x8000 <= v < 0 */
-	C_ANDCON /* 0 < v <= 0xFFFF */
-	C_LCON   /* other 32 */
-	C_DCON   /* other 64 (could subdivide further) */
-	C_SACON  /* $n(REG) where n <= int16 */
-	C_SECON
-	C_LACON /* $n(REG) where int16 < n <= int32 */
-	C_LECON
-	C_DACON /* $n(REG) where int32 < n */
-	C_SBRA
-	C_LBRA
-	C_LBRAPIC
-	C_SAUTO
-	C_LAUTO
-	C_SEXT
-	C_LEXT
-	C_ZOREG // conjecture: either (1) register + zeroed offset, or (2) "R0" implies zero or C_REG
-	C_SOREG // register + signed offset
-	C_LOREG
-	C_FPSCR
-	C_MSR
-	C_XER
-	C_LR
-	C_CTR
-	C_ANY
-	C_GOK
-	C_ADDR
-	C_GOTADDR
-	C_TOCADDR
-	C_TLS_LE
-	C_TLS_IE
-	C_TEXTSIZE
+	C_NONE     = iota
+	C_REGP     /* An even numbered gpr which can be used a gpr pair argument */
+	C_REG      /* Any gpr register */
+	C_FREGP    /* An even numbered fpr which can be used a fpr pair argument */
+	C_FREG     /* Any fpr register */
+	C_VREG     /* Any vector register */
+	C_VSREGP   /* An even numbered vsx register which can be used as a vsx register pair argument */
+	C_VSREG    /* Any vector-scalar register */
+	C_CREG     /* The condition registor (CR) */
+	C_CRBIT    /* A single bit of the CR register (0-31) */
+	C_SPR      /* special processor register */
+	C_AREG     /* MMA accumulator register */
+	C_ZCON     /* The constant zero */
+	C_U1CON    /* 1 bit unsigned constant */
+	C_U2CON    /* 2 bit unsigned constant */
+	C_U3CON    /* 3 bit unsigned constant */
+	C_U4CON    /* 4 bit unsigned constant */
+	C_U5CON    /* 5 bit unsigned constant */
+	C_U8CON    /* 8 bit unsigned constant */
+	C_U15CON   /* 15 bit unsigned constant */
+	C_S16CON   /* 16 bit signed constant */
+	C_U16CON   /* 16 bit unsigned constant */
+	C_16CON    /* Any constant which fits into 16 bits. Can be signed or unsigned */
+	C_U31CON   /* 31 bit unsigned constant */
+	C_S32CON   /* 32 bit signed constant */
+	C_U32CON   /* 32 bit unsigned constant */
+	C_32CON    /* Any constant which fits into 32 bits. Can be signed or unsigned */
+	C_S34CON   /* 34 bit signed constant */
+	C_64CON    /* Any constant which fits into 64 bits. Can be signed or unsigned */
+	C_SACON    /* $n(REG) where n <= int16 */
+	C_LACON    /* $n(REG) where n <= int32 */
+	C_DACON    /* $n(REG) where n <= int64 */
+	C_BRA      /* A short offset argument to a branching instruction */
+	C_BRAPIC   /* Like C_BRA, but requires an extra NOP for potential TOC restore by the linker. */
+	C_ZOREG    /* An $0+reg memory op */
+	C_SOREG    /* An $n+reg memory arg where n is a 16 bit signed offset */
+	C_LOREG    /* An $n+reg memory arg where n is a 32 bit signed offset */
+	C_XOREG    /* An reg+reg memory arg */
+	C_FPSCR    /* The fpscr register */
+	C_LR       /* The link register */
+	C_CTR      /* The count register */
+	C_ANY      /* Any argument */
+	C_GOK      /* A non-matched argument */
+	C_ADDR     /* A symbolic memory location */
+	C_TLS_LE   /* A thread local, local-exec, type memory arg */
+	C_TLS_IE   /* A thread local, initial-exec, type memory arg */
+	C_TEXTSIZE /* An argument with Type obj.TYPE_TEXTSIZE */
 
 	C_NCLASS /* must be the last */
 )
@@ -434,9 +487,11 @@ const (
 	ABGT
 	ABLE // not GT = L/E/U
 	ABLT
-	ABNE // not EQ = L/G/U
-	ABVC // Unordered-clear
-	ABVS // Unordered-set
+	ABNE  // not EQ = L/G/U
+	ABVC  // Branch if float not unordered (also branch on not summary overflow)
+	ABVS  // Branch if float unordered (also branch on summary overflow)
+	ABDNZ // Decrement CTR, and branch if CTR != 0
+	ABDZ  // Decrement CTR, and branch if CTR == 0
 	ACMP
 	ACMPU
 	ACMPEQB
@@ -450,6 +505,14 @@ const (
 	ACROR
 	ACRORN
 	ACRXOR
+	ADADD
+	ADADDQ
+	ADCMPO
+	ADCMPOQ
+	ADCMPU
+	ADCMPUQ
+	ADDIV
+	ADDIVQ
 	ADIVW
 	ADIVWCC
 	ADIVWVCC
@@ -458,6 +521,14 @@ const (
 	ADIVWUCC
 	ADIVWUVCC
 	ADIVWUV
+	ADMUL
+	ADMULQ
+	ADSUB
+	ADSUBQ
+	AMODUD
+	AMODUW
+	AMODSD
+	AMODSW
 	AEQV
 	AEQVCC
 	AEXTSB
@@ -565,18 +636,13 @@ const (
 	AORNCC
 	AORIS
 	AREM
-	AREMCC
-	AREMV
-	AREMVCC
 	AREMU
-	AREMUCC
-	AREMUV
-	AREMUVCC
 	ARFI
 	ARLWMI
 	ARLWMICC
 	ARLWNM
 	ARLWNMCC
+	ACLRLSLWI
 	ASLW
 	ASLWCC
 	ASRW
@@ -584,6 +650,7 @@ const (
 	ASRAWCC
 	ASRWCC
 	ASTBCCC
+	ASTHCCC
 	ASTSW
 	ASTWCCC
 	ASUB
@@ -617,8 +684,6 @@ const (
 	ADCBT
 	ADCBTST
 	ADCBZ
-	AECIWX
-	AECOWX
 	AEIEIO
 	AICBI
 	AISYNC
@@ -717,6 +782,9 @@ const (
 	ARLDCLCC
 	ARLDICL
 	ARLDICLCC
+	ARLDIC
+	ARLDICCC
+	ACLRLSLDI
 	AROTL
 	AROTLW
 	ASLBIA
@@ -730,19 +798,16 @@ const (
 	ASRAD
 	ASRADCC
 	ASRDCC
+	AEXTSWSLI
+	AEXTSWSLICC
 	ASTDCCC
 	ATD
+	ASETB
 
 	/* 64-bit pseudo operation */
 	ADWORD
 	AREMD
-	AREMDCC
-	AREMDV
-	AREMDVCC
 	AREMDU
-	AREMDUCC
-	AREMDUV
-	AREMDUVCC
 
 	/* more 64-bit operations */
 	AHRFID
@@ -756,13 +821,11 @@ const (
 	ACOPY
 	APASTECC
 	ADARN
-	ALDMX
 	AMADDHD
 	AMADDHDU
 	AMADDLD
 
 	/* Vector */
-	ALV
 	ALVEBX
 	ALVEHX
 	ALVEWX
@@ -770,7 +833,6 @@ const (
 	ALVXL
 	ALVSL
 	ALVSR
-	ASTV
 	ASTVEBX
 	ASTVEHX
 	ASTVEWX
@@ -906,16 +968,21 @@ const (
 	AVCMPGTSDCC
 	AVCMPNEZB
 	AVCMPNEZBCC
+	AVCMPNEB
+	AVCMPNEBCC
+	AVCMPNEH
+	AVCMPNEHCC
+	AVCMPNEW
+	AVCMPNEWCC
 	AVPERM
 	AVPERMXOR
+	AVPERMR
 	AVBPERMQ
 	AVBPERMD
 	AVSEL
-	AVSPLT
 	AVSPLTB
 	AVSPLTH
 	AVSPLTW
-	AVSPLTI
 	AVSPLTISB
 	AVSPLTISH
 	AVSPLTISW
@@ -931,19 +998,27 @@ const (
 	AVSHASIGMAD
 	AVMRGEW
 	AVMRGOW
+	AVCLZLSBB
+	AVCTZLSBB
 
 	/* VSX */
 	ALXV
+	ALXVL
+	ALXVLL
 	ALXVD2X
 	ALXVW4X
 	ALXVH8X
 	ALXVB16X
+	ALXVX
 	ALXVDSX
 	ASTXV
+	ASTXVL
+	ASTXVLL
 	ASTXVD2X
 	ASTXVW4X
 	ASTXVH8X
 	ASTXVB16X
+	ASTXVX
 	ALXSDX
 	ASTXSDX
 	ALXSIWAX
@@ -973,11 +1048,15 @@ const (
 	AXXSEL
 	AXXMRGHW
 	AXXMRGLW
-	AXXSPLT
 	AXXSPLTW
+	AXXSPLTIB
 	AXXPERM
 	AXXPERMDI
 	AXXSLDWI
+	AXXBRQ
+	AXXBRD
+	AXXBRW
+	AXXBRH
 	AXSCVDPSP
 	AXSCVSPDP
 	AXSCVDPSPN
@@ -1008,10 +1087,12 @@ const (
 	AXVCVSXWSP
 	AXVCVUXDSP
 	AXVCVUXWSP
-
-	ALAST
+	AXSMAXJDP
+	AXSMINJDP
+	ALASTAOUT // The last instruction in this list. Also the first opcode generated by ppc64map.
 
 	// aliases
-	ABR = obj.AJMP
-	ABL = obj.ACALL
+	ABR   = obj.AJMP
+	ABL   = obj.ACALL
+	ALAST = ALASTGEN // The final enumerated instruction value + 1. This is used to size the oprange table.
 )

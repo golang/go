@@ -5,7 +5,8 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/goarch"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -88,15 +89,11 @@ var (
 	libc_port_dissociate,
 	libc_port_getn,
 	libc_port_alert libcFunc
-	netpollWakeSig uintptr // used to avoid duplicate calls of netpollBreak
+	netpollWakeSig atomic.Uint32 // used to avoid duplicate calls of netpollBreak
 )
 
 func errno() int32 {
 	return *getg().m.perrno
-}
-
-func fcntl(fd, cmd, arg int32) int32 {
-	return int32(sysvicall3(&libc_fcntl, uintptr(fd), uintptr(cmd), uintptr(arg)))
 }
 
 func port_create() int32 {
@@ -124,7 +121,7 @@ var portfd int32 = -1
 func netpollinit() {
 	portfd = port_create()
 	if portfd >= 0 {
-		fcntl(portfd, _F_SETFD, _FD_CLOEXEC)
+		closeonexec(portfd)
 		return
 	}
 
@@ -145,7 +142,14 @@ func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	// with the interested event set) will unblock port_getn right away
 	// because of the I/O readiness notification.
 	pd.user = 0
-	r := port_associate(portfd, _PORT_SOURCE_FD, fd, 0, uintptr(unsafe.Pointer(pd)))
+	tp := taggedPointerPack(unsafe.Pointer(pd), pd.fdseq.Load())
+	// Note that this won't work on a 32-bit system,
+	// as taggedPointer is always 64-bits but uintptr will be 32 bits.
+	// Fortunately we only support Solaris on amd64.
+	if goarch.PtrSize != 8 {
+		throw("runtime: netpollopen: unsupported pointer size")
+	}
+	r := port_associate(portfd, _PORT_SOURCE_FD, fd, 0, uintptr(tp))
 	unlock(&pd.lock)
 	return r
 }
@@ -158,7 +162,7 @@ func netpollclose(fd uintptr) int32 {
 // this call, port_getn will return one and only one event for that
 // particular descriptor, so this function needs to be called again.
 func netpollupdate(pd *pollDesc, set, clear uint32) {
-	if pd.closing {
+	if pd.info().closing() {
 		return
 	}
 
@@ -168,7 +172,8 @@ func netpollupdate(pd *pollDesc, set, clear uint32) {
 		return
 	}
 
-	if events != 0 && port_associate(portfd, _PORT_SOURCE_FD, pd.fd, events, uintptr(unsafe.Pointer(pd))) != 0 {
+	tp := taggedPointerPack(unsafe.Pointer(pd), pd.fdseq.Load())
+	if events != 0 && port_associate(portfd, _PORT_SOURCE_FD, pd.fd, events, uintptr(tp)) != 0 {
 		print("runtime: port_associate failed (errno=", errno(), ")\n")
 		throw("runtime: netpollupdate failed")
 	}
@@ -191,29 +196,35 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // netpollBreak interrupts a port_getn wait.
 func netpollBreak() {
-	if atomic.Casuintptr(&netpollWakeSig, 0, 1) {
-		// Use port_alert to put portfd into alert mode.
-		// This will wake up all threads sleeping in port_getn on portfd,
-		// and cause their calls to port_getn to return immediately.
-		// Further, until portfd is taken out of alert mode,
-		// all calls to port_getn will return immediately.
-		if port_alert(portfd, _PORT_ALERT_UPDATE, _POLLHUP, uintptr(unsafe.Pointer(&portfd))) < 0 {
-			if e := errno(); e != _EBUSY {
-				println("runtime: port_alert failed with", e)
-				throw("runtime: netpoll: port_alert failed")
-			}
+	// Failing to cas indicates there is an in-flight wakeup, so we're done here.
+	if !netpollWakeSig.CompareAndSwap(0, 1) {
+		return
+	}
+
+	// Use port_alert to put portfd into alert mode.
+	// This will wake up all threads sleeping in port_getn on portfd,
+	// and cause their calls to port_getn to return immediately.
+	// Further, until portfd is taken out of alert mode,
+	// all calls to port_getn will return immediately.
+	if port_alert(portfd, _PORT_ALERT_UPDATE, _POLLHUP, uintptr(unsafe.Pointer(&portfd))) < 0 {
+		if e := errno(); e != _EBUSY {
+			println("runtime: port_alert failed with", e)
+			throw("runtime: netpoll: port_alert failed")
 		}
 	}
 }
 
 // netpoll checks for ready network connections.
-// Returns list of goroutines that become runnable.
+// Returns a list of goroutines that become runnable,
+// and a delta to add to netpollWaiters.
+// This must never return an empty list with a non-zero delta.
+//
 // delay < 0: blocks indefinitely
 // delay == 0: does not block, just polls
 // delay > 0: block for up to that many nanoseconds
-func netpoll(delay int64) gList {
+func netpoll(delay int64) (gList, int32) {
 	if portfd == -1 {
-		return gList{}
+		return gList{}, 0
 	}
 
 	var wait *timespec
@@ -251,12 +262,13 @@ retry:
 		// If a timed sleep was interrupted and there are no events,
 		// just return to recalculate how long we should sleep now.
 		if delay > 0 {
-			return gList{}
+			return gList{}, 0
 		}
 		goto retry
 	}
 
 	var toRun gList
+	delta := int32(0)
 	for i := 0; i < int(n); i++ {
 		ev := &events[i]
 
@@ -274,7 +286,7 @@ retry:
 					println("runtime: port_alert failed with", e)
 					throw("runtime: netpoll: port_alert failed")
 				}
-				atomic.Storeuintptr(&netpollWakeSig, 0)
+				netpollWakeSig.Store(0)
 			}
 			continue
 		}
@@ -282,7 +294,12 @@ retry:
 		if ev.portev_events == 0 {
 			continue
 		}
-		pd := (*pollDesc)(unsafe.Pointer(ev.portev_user))
+
+		tp := taggedPointer(uintptr(unsafe.Pointer(ev.portev_user)))
+		pd := (*pollDesc)(tp.pointer())
+		if pd.fdseq.Load() != tp.tag() {
+			continue
+		}
 
 		var mode, clear int32
 		if (ev.portev_events & (_POLLIN | _POLLHUP | _POLLERR)) != 0 {
@@ -311,9 +328,9 @@ retry:
 			// about the event port on SmartOS.
 			//
 			// See golang.org/x/issue/30840.
-			netpollready(&toRun, pd, mode)
+			delta += netpollready(&toRun, pd, mode)
 		}
 	}
 
-	return toRun
+	return toRun, delta
 }

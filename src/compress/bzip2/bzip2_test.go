@@ -8,8 +8,10 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"internal/obscuretestdata"
 	"io"
-	"io/ioutil"
+	"os"
+	"strings"
 	"testing"
 )
 
@@ -22,7 +24,15 @@ func mustDecodeHex(s string) []byte {
 }
 
 func mustLoadFile(f string) []byte {
-	b, err := ioutil.ReadFile(f)
+	if strings.HasSuffix(f, ".base64") {
+		b, err := obscuretestdata.ReadFile(f)
+		if err != nil {
+			panic(fmt.Sprintf("obscuretestdata.ReadFile(%s): %v", f, err))
+		}
+		return b
+	}
+
+	b, err := os.ReadFile(f)
 	if err != nil {
 		panic(err)
 	}
@@ -106,7 +116,7 @@ func TestReader(t *testing.T) {
 		}(),
 	}, {
 		desc:  "RLE2 buffer overrun - issue 5747",
-		input: mustLoadFile("testdata/fail-issue5747.bz2"),
+		input: mustLoadFile("testdata/fail-issue5747.bz2.base64"),
 		fail:  true,
 	}, {
 		desc: "out-of-range selector - issue 8363",
@@ -133,7 +143,7 @@ func TestReader(t *testing.T) {
 
 	for i, v := range vectors {
 		rd := NewReader(bytes.NewReader(v.input))
-		buf, err := ioutil.ReadAll(rd)
+		buf, err := io.ReadAll(rd)
 
 		if fail := bool(err != nil); fail != v.fail {
 			if fail {
@@ -220,7 +230,7 @@ var (
 
 func benchmarkDecode(b *testing.B, compressed []byte) {
 	// Determine the uncompressed size of testfile.
-	uncompressedSize, err := io.Copy(ioutil.Discard, NewReader(bytes.NewReader(compressed)))
+	uncompressedSize, err := io.Copy(io.Discard, NewReader(bytes.NewReader(compressed)))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -231,7 +241,7 @@ func benchmarkDecode(b *testing.B, compressed []byte) {
 
 	for i := 0; i < b.N; i++ {
 		r := bytes.NewReader(compressed)
-		io.Copy(ioutil.Discard, NewReader(r))
+		io.Copy(io.Discard, NewReader(r))
 	}
 }
 

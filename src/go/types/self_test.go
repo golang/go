@@ -5,12 +5,11 @@
 package types_test
 
 import (
-	"flag"
-	"fmt"
 	"go/ast"
-	"go/importer"
 	"go/parser"
 	"go/token"
+	"internal/testenv"
+	"path"
 	"path/filepath"
 	"testing"
 	"time"
@@ -18,57 +17,58 @@ import (
 	. "go/types"
 )
 
-var benchmark = flag.Bool("b", false, "run benchmarks")
-
 func TestSelf(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // The Go command is needed for the importer to determine the locations of stdlib .a files.
+
 	fset := token.NewFileSet()
 	files, err := pkgFiles(fset, ".")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	conf := Config{Importer: importer.Default()}
+	conf := Config{Importer: defaultImporter(fset)}
 	_, err = conf.Check("go/types", fset, files, nil)
-	if err != nil {
-		// Importing go/constant doesn't work in the
-		// build dashboard environment. Don't report an error
-		// for now so that the build remains green.
-		// TODO(gri) fix this
-		t.Log(err) // replace w/ t.Fatal eventually
-		return
-	}
-}
-
-func TestBenchmark(t *testing.T) {
-	if !*benchmark {
-		return
-	}
-
-	// We're not using testing's benchmarking mechanism directly
-	// because we want custom output.
-
-	for _, p := range []string{"types", "constant", filepath.Join("internal", "gcimporter")} {
-		path := filepath.Join("..", p)
-		runbench(t, path, false)
-		runbench(t, path, true)
-		fmt.Println()
-	}
-}
-
-func runbench(t *testing.T, path string, ignoreFuncBodies bool) {
-	fset := token.NewFileSet()
-	files, err := pkgFiles(fset, path)
 	if err != nil {
 		t.Fatal(err)
 	}
+}
 
-	b := testing.Benchmark(func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			conf := Config{IgnoreFuncBodies: ignoreFuncBodies}
-			conf.Check(path, fset, files, nil)
-		}
-	})
+func BenchmarkCheck(b *testing.B) {
+	testenv.MustHaveGoBuild(b) // The Go command is needed for the importer to determine the locations of stdlib .a files.
 
+	for _, p := range []string{
+		"net/http",
+		"go/parser",
+		"go/constant",
+		"runtime",
+		filepath.Join("go", "internal", "gcimporter"),
+	} {
+		b.Run(path.Base(p), func(b *testing.B) {
+			path := filepath.Join("..", "..", p)
+			for _, ignoreFuncBodies := range []bool{false, true} {
+				name := "funcbodies"
+				if ignoreFuncBodies {
+					name = "nofuncbodies"
+				}
+				b.Run(name, func(b *testing.B) {
+					b.Run("info", func(b *testing.B) {
+						runbench(b, path, ignoreFuncBodies, true)
+					})
+					b.Run("noinfo", func(b *testing.B) {
+						runbench(b, path, ignoreFuncBodies, false)
+					})
+				})
+			}
+		})
+	}
+}
+
+func runbench(b *testing.B, path string, ignoreFuncBodies, writeInfo bool) {
+	fset := token.NewFileSet()
+	files, err := pkgFiles(fset, path)
+	if err != nil {
+		b.Fatal(err)
+	}
 	// determine line count
 	lines := 0
 	fset.Iterate(func(f *token.File) bool {
@@ -76,15 +76,34 @@ func runbench(t *testing.T, path string, ignoreFuncBodies bool) {
 		return true
 	})
 
-	d := time.Duration(b.NsPerOp())
-	fmt.Printf(
-		"%s: %s for %d lines (%d lines/s), ignoreFuncBodies = %v\n",
-		filepath.Base(path), d, lines, int64(float64(lines)/d.Seconds()), ignoreFuncBodies,
-	)
+	b.ResetTimer()
+	start := time.Now()
+	for i := 0; i < b.N; i++ {
+		conf := Config{
+			IgnoreFuncBodies: ignoreFuncBodies,
+			Importer:         defaultImporter(fset),
+		}
+		var info *Info
+		if writeInfo {
+			info = &Info{
+				Types:      make(map[ast.Expr]TypeAndValue),
+				Defs:       make(map[*ast.Ident]Object),
+				Uses:       make(map[*ast.Ident]Object),
+				Implicits:  make(map[ast.Node]Object),
+				Selections: make(map[*ast.SelectorExpr]*Selection),
+				Scopes:     make(map[ast.Node]*Scope),
+			}
+		}
+		if _, err := conf.Check(path, fset, files, info); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.StopTimer()
+	b.ReportMetric(float64(lines)*float64(b.N)/time.Since(start).Seconds(), "lines/s")
 }
 
 func pkgFiles(fset *token.FileSet, path string) ([]*ast.File, error) {
-	filenames, err := pkgFilenames(path) // from stdlib_test.go
+	filenames, err := pkgFilenames(path, true) // from stdlib_test.go
 	if err != nil {
 		return nil, err
 	}

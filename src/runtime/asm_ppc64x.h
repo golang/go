@@ -23,3 +23,17 @@
 // and currently always use that much, PIC on ppc64 would need to use 48).
 
 #define FIXED_FRAME 32
+
+// aix/ppc64 uses XCOFF which uses function descriptors.
+// AIX cannot perform the TOC relocation in a text section.
+// Therefore, these descriptors must live in a data section.
+#ifdef GOOS_aix
+#ifdef GOARCH_ppc64
+#define GO_PPC64X_HAS_FUNCDESC
+#define DEFINE_PPC64X_FUNCDESC(funcname, localfuncname)	\
+	DATA	funcname+0(SB)/8, $localfuncname(SB) 	\
+	DATA	funcname+8(SB)/8, $TOC(SB)		\
+	DATA	funcname+16(SB)/8, $0			\
+	GLOBL	funcname(SB), NOPTR, $24
+#endif
+#endif

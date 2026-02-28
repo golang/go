@@ -14,12 +14,11 @@ import (
 	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
-	"sort"
 )
 
 /*
 Derived from Plan 9 from User Space's src/libmach/elf.h, elf.c
-http://code.swtch.com/plan9port/src/tip/src/libmach/
+https://github.com/9fans/plan9port/tree/master/src/libmach/
 
 	Copyright © 2004 Russ Cox.
 	Portions Copyright © 2008-2010 Google Inc.
@@ -44,11 +43,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-// TODO(crawshaw): de-duplicate these symbols with cmd/internal/ld
+// TODO(crawshaw): de-duplicate these symbols with cmd/link/internal/ld
 const (
 	MACHO_X86_64_RELOC_UNSIGNED = 0
 	MACHO_X86_64_RELOC_SIGNED   = 1
-	MACHO_FAKE_GOTPCREL         = 100
+	MACHO_ARM64_RELOC_ADDEND    = 10
 )
 
 type ldMachoObj struct {
@@ -173,11 +172,12 @@ const (
 	LdMachoCpuVax         = 1
 	LdMachoCpu68000       = 6
 	LdMachoCpu386         = 7
-	LdMachoCpuAmd64       = 0x1000007
+	LdMachoCpuAmd64       = 1<<24 | 7
 	LdMachoCpuMips        = 8
 	LdMachoCpu98000       = 10
 	LdMachoCpuHppa        = 11
 	LdMachoCpuArm         = 12
+	LdMachoCpuArm64       = 1<<24 | 12
 	LdMachoCpu88000       = 13
 	LdMachoCpuSparc       = 14
 	LdMachoCpu860         = 15
@@ -424,7 +424,7 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 // Load the Mach-O file pn from f.
 // Symbols are written into syms, and a slice of the text symbols is returned.
 func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, pkg string, length int64, pn string) (textp []loader.Sym, err error) {
-	errorf := func(str string, args ...interface{}) ([]loader.Sym, error) {
+	errorf := func(str string, args ...any) ([]loader.Sym, error) {
 		return nil, fmt.Errorf("loadmacho: %v: %v", pn, fmt.Sprintf(str, args...))
 	}
 
@@ -472,15 +472,13 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 	switch arch.Family {
 	default:
 		return errorf("mach-o %s unimplemented", arch.Name)
-
 	case sys.AMD64:
 		if e != binary.LittleEndian || m.cputype != LdMachoCpuAmd64 {
 			return errorf("mach-o object but not amd64")
 		}
-
-	case sys.I386:
-		if e != binary.LittleEndian || m.cputype != LdMachoCpu386 {
-			return errorf("mach-o object but not 386")
+	case sys.ARM64:
+		if e != binary.LittleEndian || m.cputype != LdMachoCpuArm64 {
+			return errorf("mach-o object but not arm64")
 		}
 	}
 
@@ -609,12 +607,15 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		if machsym.type_&N_EXT == 0 {
 			v = localSymVersion
 		}
-		s := l.LookupOrCreateSym(name, v)
+		s := l.LookupOrCreateCgoExport(name, v)
 		if machsym.type_&N_EXT == 0 {
 			l.SetAttrDuplicateOK(s, true)
 		}
 		if machsym.desc&(N_WEAK_REF|N_WEAK_DEF) != 0 {
 			l.SetAttrDuplicateOK(s, true)
+			if machsym.desc&N_WEAK_REF != 0 {
+				l.SetSymWeakBinding(s, true)
+			}
 		}
 		machsym.sym = s
 		if machsym.sectnum == 0 { // undefined
@@ -639,13 +640,15 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 
 		bld.SetType(l.SymType(outer))
-		l.PrependSub(outer, s)
+		if l.SymSize(outer) != 0 { // skip empty section (0-sized symbol)
+			l.AddInteriorSym(outer, s)
+		}
 
 		bld.SetValue(int64(machsym.value - sect.addr))
 		if !l.AttrCgoExportDynamic(s) {
 			bld.SetDynimplib("") // satisfy dynimport
 		}
-		if l.SymType(outer) == sym.STEXT {
+		if l.SymType(outer).IsText() {
 			if bld.External() && !bld.DuplicateOK() {
 				return errorf("%v: duplicate symbol definition", s)
 			}
@@ -678,7 +681,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			}
 		}
 
-		if bld.Type() == sym.STEXT {
+		if bld.Type().IsText() {
 			if bld.OnList() {
 				return errorf("symbol %s listed multiple times", bld.Name())
 			}
@@ -686,7 +689,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			textp = append(textp, s)
 			for s1 := bld.Sub(); s1 != 0; s1 = l.SubSym(s1) {
 				if l.AttrOnList(s1) {
-					return errorf("symbol %s listed multiple times", l.RawSymName(s1))
+					return errorf("symbol %s listed multiple times", l.SymName(s1))
 				}
 				l.SetAttrOnList(s1, true)
 				textp = append(textp, s1)
@@ -705,168 +708,91 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		if sect.rel == nil {
 			continue
 		}
-		r := make([]loader.Reloc, sect.nreloc)
-		rpi := 0
-	Reloc:
+
+		sb := l.MakeSymbolUpdater(sect.sym)
+		var rAdd int64
 		for j := uint32(0); j < sect.nreloc; j++ {
-			rp := &r[rpi]
+			var (
+				rOff  int32
+				rSize uint8
+				rType objabi.RelocType
+				rSym  loader.Sym
+			)
 			rel := &sect.rel[j]
 			if rel.scattered != 0 {
-				if arch.Family != sys.I386 {
-					// mach-o only uses scattered relocation on 32-bit platforms
-					return errorf("%v: unexpected scattered relocation", s)
-				}
-
-				// on 386, rewrite scattered 4/1 relocation and some
-				// scattered 2/1 relocation into the pseudo-pc-relative
-				// reference that it is.
-				// assume that the second in the pair is in this section
-				// and use that as the pc-relative base.
-				if j+1 >= sect.nreloc {
-					return errorf("unsupported scattered relocation %d", int(rel.type_))
-				}
-
-				if sect.rel[j+1].scattered == 0 || sect.rel[j+1].type_ != 1 || (rel.type_ != 4 && rel.type_ != 2) || uint64(sect.rel[j+1].value) < sect.addr || uint64(sect.rel[j+1].value) >= sect.addr+sect.size {
-					return errorf("unsupported scattered relocation %d/%d", int(rel.type_), int(sect.rel[j+1].type_))
-				}
-
-				rp.Size = rel.length
-				rp.Off = int32(rel.addr)
-
-				// NOTE(rsc): I haven't worked out why (really when)
-				// we should ignore the addend on a
-				// scattered relocation, but it seems that the
-				// common case is we ignore it.
-				// It's likely that this is not strictly correct
-				// and that the math should look something
-				// like the non-scattered case below.
-				rp.Add = 0
-
-				// want to make it pc-relative aka relative to rp->off+4
-				// but the scatter asks for relative to off = sect->rel[j+1].value - sect->addr.
-				// adjust rp->add accordingly.
-				rp.Type = objabi.R_PCREL
-
-				rp.Add += int64(uint64(int64(rp.Off)+4) - (uint64(sect.rel[j+1].value) - sect.addr))
-
-				// now consider the desired symbol.
-				// find the section where it lives.
-				for k := 0; uint32(k) < c.seg.nsect; k++ {
-					ks := &c.seg.sect[k]
-					if ks.addr <= uint64(rel.value) && uint64(rel.value) < ks.addr+ks.size {
-						if ks.sym != 0 {
-							rp.Sym = ks.sym
-							rp.Add += int64(uint64(rel.value) - ks.addr)
-						} else if ks.segname == "__IMPORT" && ks.name == "__pointers" {
-							// handle reference to __IMPORT/__pointers.
-							// how much worse can this get?
-							// why are we supporting 386 on the mac anyway?
-							rp.Type = objabi.MachoRelocOffset + MACHO_FAKE_GOTPCREL
-
-							// figure out which pointer this is a reference to.
-							k = int(uint64(ks.res1) + (uint64(rel.value)-ks.addr)/4)
-
-							// load indirect table for __pointers
-							// fetch symbol number
-							if dsymtab == nil || k < 0 || uint32(k) >= dsymtab.nindirectsyms || dsymtab.indir == nil {
-								return errorf("invalid scattered relocation: indirect symbol reference out of range")
-							}
-
-							k = int(dsymtab.indir[k])
-							if k < 0 || uint32(k) >= symtab.nsym {
-								return errorf("invalid scattered relocation: symbol reference out of range")
-							}
-
-							rp.Sym = symtab.sym[k].sym
-						} else {
-							return errorf("unsupported scattered relocation: reference to %s/%s", ks.segname, ks.name)
-						}
-
-						rpi++
-
-						// skip #1 of 2 rel; continue skips #2 of 2.
-						j++
-
-						continue Reloc
-					}
-				}
-
-				return errorf("unsupported scattered relocation: invalid address %#x", rel.addr)
+				// mach-o only uses scattered relocation on 32-bit platforms,
+				// which are no longer supported.
+				return errorf("%v: unexpected scattered relocation", s)
 			}
 
-			rp.Size = rel.length
-			rp.Type = objabi.MachoRelocOffset + (objabi.RelocType(rel.type_) << 1) + objabi.RelocType(rel.pcrel)
-			rp.Off = int32(rel.addr)
+			if arch.Family == sys.ARM64 && rel.type_ == MACHO_ARM64_RELOC_ADDEND {
+				// Two relocations. This addend will be applied to the next one.
+				rAdd = int64(rel.symnum) << 40 >> 40 // convert unsigned 24-bit to signed 24-bit
+				continue
+			}
 
-			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).
+			rSize = rel.length
+			rType = objabi.MachoRelocOffset + (objabi.RelocType(rel.type_) << 1) + objabi.RelocType(rel.pcrel)
+			rOff = int32(rel.addr)
+
+			// Handle X86_64_RELOC_SIGNED referencing a section (rel.extrn == 0).
 			p := l.Data(s)
-			if arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_SIGNED {
-				// Calculate the addend as the offset into the section.
-				//
-				// The rip-relative offset stored in the object file is encoded
-				// as follows:
-				//
-				//    movsd	0x00000360(%rip),%xmm0
-				//
-				// To get the absolute address of the value this rip-relative address is pointing
-				// to, we must add the address of the next instruction to it. This is done by
-				// taking the address of the relocation and adding 4 to it (since the rip-relative
-				// offset can at most be 32 bits long).  To calculate the offset into the section the
-				// relocation is referencing, we subtract the vaddr of the start of the referenced
-				// section found in the original object file.
-				//
-				// [For future reference, see Darwin's /usr/include/mach-o/x86_64/reloc.h]
-				secaddr := c.seg.sect[rel.symnum-1].addr
-
-				rp.Add = int64(uint64(int64(int32(e.Uint32(p[rp.Off:])))+int64(rp.Off)+4) - secaddr)
-			} else {
-				rp.Add = int64(int32(e.Uint32(p[rp.Off:])))
+			if arch.Family == sys.AMD64 {
+				if rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_SIGNED {
+					// Calculate the addend as the offset into the section.
+					//
+					// The rip-relative offset stored in the object file is encoded
+					// as follows:
+					//
+					//    movsd	0x00000360(%rip),%xmm0
+					//
+					// To get the absolute address of the value this rip-relative address is pointing
+					// to, we must add the address of the next instruction to it. This is done by
+					// taking the address of the relocation and adding 4 to it (since the rip-relative
+					// offset can at most be 32 bits long).  To calculate the offset into the section the
+					// relocation is referencing, we subtract the vaddr of the start of the referenced
+					// section found in the original object file.
+					//
+					// [For future reference, see Darwin's /usr/include/mach-o/x86_64/reloc.h]
+					secaddr := c.seg.sect[rel.symnum-1].addr
+					rAdd = int64(uint64(int64(int32(e.Uint32(p[rOff:])))+int64(rOff)+4) - secaddr)
+				} else {
+					rAdd = int64(int32(e.Uint32(p[rOff:])))
+				}
 			}
 
 			// An unsigned internal relocation has a value offset
 			// by the section address.
 			if arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_UNSIGNED {
 				secaddr := c.seg.sect[rel.symnum-1].addr
-				rp.Add -= int64(secaddr)
+				rAdd -= int64(secaddr)
 			}
 
-			// For i386 Mach-O PC-relative, the addend is written such that
-			// it *is* the PC being subtracted. Use that to make
-			// it match our version of PC-relative.
-			if rel.pcrel != 0 && arch.Family == sys.I386 {
-				rp.Add += int64(rp.Off) + int64(rp.Size)
-			}
 			if rel.extrn == 0 {
 				if rel.symnum < 1 || rel.symnum > c.seg.nsect {
 					return errorf("invalid relocation: section reference out of range %d vs %d", rel.symnum, c.seg.nsect)
 				}
 
-				rp.Sym = c.seg.sect[rel.symnum-1].sym
-				if rp.Sym == 0 {
+				rSym = c.seg.sect[rel.symnum-1].sym
+				if rSym == 0 {
 					return errorf("invalid relocation: %s", c.seg.sect[rel.symnum-1].name)
-				}
-
-				// References to symbols in other sections
-				// include that information in the addend.
-				// We only care about the delta from the
-				// section base.
-				if arch.Family == sys.I386 {
-					rp.Add -= int64(c.seg.sect[rel.symnum-1].addr)
 				}
 			} else {
 				if rel.symnum >= symtab.nsym {
 					return errorf("invalid relocation: symbol reference out of range")
 				}
 
-				rp.Sym = symtab.sym[rel.symnum].sym
+				rSym = symtab.sym[rel.symnum].sym
 			}
 
-			rpi++
-		}
+			r, _ := sb.AddRel(rType)
+			r.SetOff(rOff)
+			r.SetSiz(rSize)
+			r.SetSym(rSym)
+			r.SetAdd(rAdd)
 
-		sort.Sort(loader.RelocByOff(r[:rpi]))
-		sb := l.MakeSymbolUpdater(sect.sym)
-		sb.SetRelocs(r[:rpi])
+			rAdd = 0 // clear rAdd for next iteration
+		}
 	}
 
 	return textp, nil

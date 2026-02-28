@@ -5,8 +5,9 @@
 package types
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/internal/obj"
-	"cmd/internal/src"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -26,20 +27,20 @@ import (
 // NOTE: In practice, things can be messier than the description above
 // for various reasons (historical, convenience).
 type Sym struct {
-	Importdef *Pkg   // where imported definition was found
-	Linkname  string // link name
+	Linkname string // link name
 
 	Pkg  *Pkg
 	Name string // object name
 
-	// saved and restored by dcopy
-	Def        *Node    // definition: ONAME OTYPE OPACK or OLITERAL
-	Block      int32    // blocknumber to catch redeclaration
-	Lastlineno src.XPos // last declaration for diagnostic
+	// The unique ONAME, OTYPE, OPACK, or OLITERAL node that this symbol is
+	// bound to within the current scope. (Most parts of the compiler should
+	// prefer passing the Node directly, rather than relying on this field.)
+	//
+	// Deprecated: New code should avoid depending on Sym.Def. Add
+	// mdempsky@ as a reviewer for any CLs involving Sym.Def.
+	Def Object
 
-	flags   bitset8
-	Label   *Node // corresponding label (ephemeral)
-	Origpkg *Pkg  // original package for . import
+	flags bitset8
 }
 
 const (
@@ -47,7 +48,7 @@ const (
 	symUniq
 	symSiggen // type symbol has been generated
 	symAsm    // on asmlist, for writing to -asmhdr
-	symFunc   // function symbol; uses internal ABI
+	symFunc   // function symbol
 )
 
 func (sym *Sym) OnExportList() bool { return sym.flags&symOnExportList != 0 }
@@ -66,69 +67,69 @@ func (sym *Sym) IsBlank() bool {
 	return sym != nil && sym.Name == "_"
 }
 
-func (sym *Sym) LinksymName() string {
-	if sym.IsBlank() {
-		return "_"
+// Deprecated: This method should not be used directly. Instead, use a
+// higher-level abstraction that directly returns the linker symbol
+// for a named object. For example, reflectdata.TypeLinksym(t) instead
+// of reflectdata.TypeSym(t).Linksym().
+func (sym *Sym) Linksym() *obj.LSym {
+	abi := obj.ABI0
+	if sym.Func() {
+		abi = obj.ABIInternal
+	}
+	return sym.LinksymABI(abi)
+}
+
+// Deprecated: This method should not be used directly. Instead, use a
+// higher-level abstraction that directly returns the linker symbol
+// for a named object. For example, (*ir.Name).LinksymABI(abi) instead
+// of (*ir.Name).Sym().LinksymABI(abi).
+func (sym *Sym) LinksymABI(abi obj.ABI) *obj.LSym {
+	if sym == nil {
+		base.Fatalf("nil symbol")
 	}
 	if sym.Linkname != "" {
-		return sym.Linkname
+		return base.Linkname(sym.Linkname, abi)
 	}
-	return sym.Pkg.Prefix + "." + sym.Name
+	return base.PkgLinksym(sym.Pkg.Prefix, sym.Name, abi)
 }
 
-func (sym *Sym) Linksym() *obj.LSym {
-	if sym == nil {
-		return nil
-	}
-	initPkg := func(r *obj.LSym) {
-		if sym.Linkname != "" {
-			r.Pkg = "_"
-		} else {
-			r.Pkg = sym.Pkg.Prefix
-		}
-	}
-	if sym.Func() {
-		// This is a function symbol. Mark it as "internal ABI".
-		return Ctxt.LookupABIInit(sym.LinksymName(), obj.ABIInternal, initPkg)
-	}
-	return Ctxt.LookupInit(sym.LinksymName(), initPkg)
-}
-
-// Less reports whether symbol a is ordered before symbol b.
+// CompareSyms return the ordering of a and b, as for [cmp.Compare].
 //
 // Symbols are ordered exported before non-exported, then by name, and
-// finally (for non-exported symbols) by package height and path.
-//
-// Ordering by package height is necessary to establish a consistent
-// ordering for non-exported names with the same spelling but from
-// different packages. We don't necessarily know the path for the
-// package being compiled, but by definition it will have a height
-// greater than any other packages seen within the compilation unit.
-// For more background, see issue #24693.
-func (a *Sym) Less(b *Sym) bool {
+// finally (for non-exported symbols) by package path.
+func CompareSyms(a, b *Sym) int {
 	if a == b {
-		return false
+		return 0
+	}
+
+	// Nil before non-nil.
+	if a == nil {
+		return -1
+	}
+	if b == nil {
+		return +1
 	}
 
 	// Exported symbols before non-exported.
 	ea := IsExported(a.Name)
 	eb := IsExported(b.Name)
 	if ea != eb {
-		return ea
+		if ea {
+			return -1
+		} else {
+			return +1
+		}
 	}
 
 	// Order by name and then (for non-exported names) by package
 	// height and path.
-	if a.Name != b.Name {
-		return a.Name < b.Name
+	if r := strings.Compare(a.Name, b.Name); r != 0 {
+		return r
 	}
 	if !ea {
-		if a.Pkg.Height != b.Pkg.Height {
-			return a.Pkg.Height < b.Pkg.Height
-		}
-		return a.Pkg.Path < b.Pkg.Path
+		return strings.Compare(a.Pkg.Path, b.Pkg.Path)
 	}
-	return false
+	return 0
 }
 
 // IsExported reports whether name is an exported Go symbol (that is,

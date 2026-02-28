@@ -8,6 +8,6 @@
 
 package main
 
-type A [...]int	// ERROR "outside of array literal"
+type A [...]int	// ERROR "outside of array literal|invalid use of \[\.\.\.\]"
 
 

@@ -1,5 +1,6 @@
-// +build !nacl,!js
 // run
+
+//go:build !nacl && !js && !wasip1 && gc
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -52,7 +53,7 @@ func x() {
 		log.Fatal(err)
 	}
 
-	cmd := exec.Command("go", "tool", "compile", "x.go")
+	cmd := exec.Command("go", "tool", "compile", "-p=p", "x.go")
 	cmd.Dir = dir
 	output, err := cmd.CombinedOutput()
 	if err == nil {

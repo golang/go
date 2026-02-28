@@ -35,7 +35,7 @@ type Tree struct {
 // A future backwards-incompatible encoding would use a different
 // first line (for example, "go.sum database tree v2").
 func FormatTree(tree Tree) []byte {
-	return []byte(fmt.Sprintf("go.sum database tree\n%d\n%s\n", tree.N, tree.Hash))
+	return fmt.Appendf(nil, "go.sum database tree\n%d\n%s\n", tree.N, tree.Hash)
 }
 
 var errMalformedTree = errors.New("malformed tree note")
@@ -73,18 +73,21 @@ func ParseTree(text []byte) (tree Tree, err error) {
 var errMalformedRecord = errors.New("malformed record data")
 
 // FormatRecord formats a record for serving to a client
-// in a lookup response or data tile.
+// in a lookup response.
 //
 // The encoded form is the record ID as a single number,
 // then the text of the record, and then a terminating blank line.
 // Record text must be valid UTF-8 and must not contain any ASCII control
 // characters (those below U+0020) other than newline (U+000A).
 // It must end in a terminating newline and not contain any blank lines.
+//
+// Responses to data tiles consist of concatenated formatted records from each of
+// which the first line, with the record ID, is removed.
 func FormatRecord(id int64, text []byte) (msg []byte, err error) {
 	if !isValidRecordText(text) {
 		return nil, errMalformedRecord
 	}
-	msg = []byte(fmt.Sprintf("%d\n", id))
+	msg = fmt.Appendf(nil, "%d\n", id)
 	msg = append(msg, text...)
 	msg = append(msg, '\n')
 	return msg, nil

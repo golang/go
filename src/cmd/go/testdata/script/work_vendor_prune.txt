@@ -1,0 +1,116 @@
+# This test exercises that vendoring works properly using the workspace in the
+# the work_prune test case.
+
+go work vendor
+cmp vendor/modules.txt modules.txt.want
+cmp vendor/example.com/b/b.go b/b.go
+cmp vendor/example.com/q/q.go q1_1_0/q.go
+go list -m -f '{{.Version}}' example.com/q
+stdout '^v1.1.0$'
+
+go list -f '{{.Dir}}' example.com/q
+stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]q
+go list -f '{{.Dir}}' example.com/b
+stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]b
+
+[short] skip
+
+rm b
+rm q1_0_0
+rm q1_1_0
+go run example.com/p
+stdout 'version 1.1.0'
+
+-- modules.txt.want --
+## workspace
+# example.com/b v1.0.0 => ./b
+## explicit; go 1.18
+example.com/b
+# example.com/q v1.0.0 => ./q1_0_0
+## explicit; go 1.18
+# example.com/q v1.1.0 => ./q1_1_0
+## go 1.18
+example.com/q
+-- go.work --
+go 1.18
+
+use (
+	./a
+	./p
+)
+-- a/go.mod --
+module example.com/a
+
+go 1.18
+
+require example.com/b v1.0.0
+
+replace example.com/b v1.0.0 => ../b
+-- a/foo.go --
+package main
+
+import "example.com/b"
+
+func main() {
+	b.B()
+}
+-- b/go.mod --
+module example.com/b
+
+go 1.18
+
+require example.com/q v1.1.0
+-- b/b.go --
+package b
+
+func B() {
+}
+-- b/b_test.go --
+package b
+
+import "example.com/q"
+
+func TestB() {
+	q.PrintVersion()
+}
+-- p/go.mod --
+module example.com/p
+
+go 1.18
+
+require example.com/q v1.0.0
+
+replace example.com/q v1.0.0 => ../q1_0_0
+replace example.com/q v1.1.0 => ../q1_1_0
+-- p/main.go --
+package main
+
+import "example.com/q"
+
+func main() {
+	q.PrintVersion()
+}
+-- q1_0_0/go.mod --
+module example.com/q
+
+go 1.18
+-- q1_0_0/q.go --
+package q
+
+import "fmt"
+
+func PrintVersion() {
+	fmt.Println("version 1.0.0")
+}
+-- q1_1_0/go.mod --
+module example.com/q
+
+go 1.18
+-- q1_1_0/q.go --
+package q
+
+import "fmt"
+
+func PrintVersion() {
+	fmt.Println("version 1.1.0")
+}

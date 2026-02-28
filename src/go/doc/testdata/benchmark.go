@@ -48,7 +48,7 @@ func (b *B) StartTimer() {
 // want to measure.
 func (b *B) StopTimer() {
 	if b.timerOn {
-		b.duration += time.Now().Sub(b.start)
+		b.duration += time.Since(b.start)
 		b.timerOn = false
 	}
 }
@@ -232,7 +232,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 			runtime.GOMAXPROCS(procs)
 			b := &B{
 				common: common{
-					signal: make(chan interface{}),
+					signal: make(chan any),
 				},
 				benchmark: Benchmark,
 			}
@@ -285,7 +285,7 @@ func (b *B) trimOutput() {
 func Benchmark(f func(b *B)) BenchmarkResult {
 	b := &B{
 		common: common{
-			signal: make(chan interface{}),
+			signal: make(chan any),
 		},
 		benchmark: InternalBenchmark{"", f},
 	}

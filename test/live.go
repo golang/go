@@ -1,8 +1,11 @@
 // errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
-// +build !ppc64,!ppc64le
+
+//go:build !ppc64 && !ppc64le && !goexperiment.regabiargs
 
 // ppc64 needs a better tighten pass to make f18 pass
 // rescheduling checks need to be turned off because there are some live variables across the inserted check call
+//
+// For register ABI, liveness info changes slightly. See live_regabi.go.
 
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -142,8 +145,8 @@ var i9 interface{}
 func f9() bool {
 	g8()
 	x := i9
-	y := interface{}(g18()) // ERROR "live at call to convT2E: x.data$" "live at call to g18: x.data$" "stack object .autotmp_[0-9]+ \[2\]string$"
-	i9 = y                  // make y escape so the line above has to call convT2E
+	y := interface{}(g18()) // ERROR "live at call to convT: x.data$" "live at call to g18: x.data$" "stack object .autotmp_[0-9]+ \[2\]string$"
+	i9 = y                  // make y escape so the line above has to call convT
 	return x != y
 }
 
@@ -164,7 +167,7 @@ var b bool
 
 // this used to have a spurious "live at entry to f11a: ~r0"
 func f11a() *int {
-	select { // ERROR "stack object .autotmp_[0-9]+ \[2\]struct"
+	select { // ERROR "stack object .autotmp_[0-9]+ \[2\]runtime.scase$"
 	case <-c:
 		return nil
 	case <-c:
@@ -179,7 +182,7 @@ func f11b() *int {
 		// get to the bottom of the function.
 		// This used to have a spurious "live at call to printint: p".
 		printint(1) // nothing live here!
-		select {    // ERROR "stack object .autotmp_[0-9]+ \[2\]struct"
+		select {    // ERROR "stack object .autotmp_[0-9]+ \[2\]runtime.scase$"
 		case <-c:
 			return nil
 		case <-c:
@@ -199,7 +202,7 @@ func f11c() *int {
 		// Unlike previous, the cases in this select fall through,
 		// so we can get to the println, so p is not dead.
 		printint(1) // ERROR "live at call to printint: p$"
-		select {    // ERROR "live at call to selectgo: p$" "stack object .autotmp_[0-9]+ \[2\]struct"
+		select {    // ERROR "live at call to selectgo: p$" "stack object .autotmp_[0-9]+ \[2\]runtime.scase$"
 		case <-c:
 		case <-c:
 		}
@@ -334,23 +337,34 @@ func f20() {
 	ch <- byteptr()
 }
 
-func f21() {
+func f21(x, y string) { // ERROR "live at entry to f21: x y"
 	// key temporary for mapaccess using array literal key.
 	var z *byte
 	if b {
-		z = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+		z = m2[[2]string{x, y}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
 	z = m2[[2]string{"x", "y"}]
 	z = m2[[2]string{"x", "y"}]
 	printbytepointer(z)
 }
 
-func f23() {
+func f21b() {
+	// key temporary for mapaccess using array literal key.
+	var z *byte
+	if b {
+		z = m2[[2]string{"x", "y"}]
+	}
+	z = m2[[2]string{"x", "y"}]
+	z = m2[[2]string{"x", "y"}]
+	printbytepointer(z)
+}
+
+func f23(x, y string) { // ERROR "live at entry to f23: x y"
 	// key temporary for two-result map access using array literal key.
 	var z *byte
 	var ok bool
 	if b {
-		z, ok = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+		z, ok = m2[[2]string{x, y}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
 	z, ok = m2[[2]string{"x", "y"}]
 	z, ok = m2[[2]string{"x", "y"}]
@@ -358,11 +372,34 @@ func f23() {
 	print(ok)
 }
 
-func f24() {
+func f23b() {
+	// key temporary for two-result map access using array literal key.
+	var z *byte
+	var ok bool
+	if b {
+		z, ok = m2[[2]string{"x", "y"}]
+	}
+	z, ok = m2[[2]string{"x", "y"}]
+	z, ok = m2[[2]string{"x", "y"}]
+	printbytepointer(z)
+	print(ok)
+}
+
+func f24(x, y string) { // ERROR "live at entry to f24: x y"
 	// key temporary for map access using array literal key.
 	// value temporary too.
 	if b {
-		m2[[2]string{"x", "y"}] = nil // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+		m2[[2]string{x, y}] = nil // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+	}
+	m2[[2]string{"x", "y"}] = nil
+	m2[[2]string{"x", "y"}] = nil
+}
+
+func f24b() {
+	// key temporary for map access using array literal key.
+	// value temporary too.
+	if b {
+		m2[[2]string{"x", "y"}] = nil
 	}
 	m2[[2]string{"x", "y"}] = nil
 	m2[[2]string{"x", "y"}] = nil
@@ -422,7 +459,7 @@ func f27defer(b bool) {
 	}
 	defer call27(func() { x++ }) // ERROR "stack object .autotmp_[0-9]+ struct \{"
 	printnl()                    // ERROR "live at call to printnl: .autotmp_[0-9]+ .autotmp_[0-9]+"
-	return                       // ERROR "live at call to call27: .autotmp_[0-9]+"
+	return                       // ERROR "live at indirect call: .autotmp_[0-9]+"
 }
 
 // and newproc (go) escapes to the heap
@@ -430,9 +467,9 @@ func f27defer(b bool) {
 func f27go(b bool) {
 	x := 0
 	if b {
-		go call27(func() { x++ }) // ERROR "live at call to newobject: &x$" "live at call to newproc: &x$"
+		go call27(func() { x++ }) // ERROR "live at call to (newobject|mallocgcSmallScanNoHeaderSC[0-9]+): &x$" "live at call to (newobject|mallocgcSmallScanNoHeaderSC[0-9]+): &x .autotmp_[0-9]+$" "live at call to newproc: &x$" // allocate two closures, the func literal, and the wrapper for go
 	}
-	go call27(func() { x++ }) // ERROR "live at call to newobject: &x$"
+	go call27(func() { x++ }) // ERROR "live at call to (newobject|mallocgcSmallScanNoHeaderSC[0-9]+): &x$" "live at call to (newobject|mallocgcSmallScanNoHeaderSC[0-9]+): .autotmp_[0-9]+$" // allocate two closures, the func literal, and the wrapper for go
 	printnl()
 }
 
@@ -455,14 +492,14 @@ func f28(b bool) {
 
 func f29(b bool) {
 	if b {
-		for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ map.iter\[string\]int$"
+		for k := range m { // ERROR "live at call to (mapiterinit|mapIterStart): .autotmp_[0-9]+$" "live at call to (mapiternext|mapIterNext): .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ internal/runtime/maps.Iter$"
 			printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
 		}
 	}
-	for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$"
+	for k := range m { // ERROR "live at call to (mapiterinit|mapIterStart): .autotmp_[0-9]+$" "live at call to (mapiternext|mapIterNext): .autotmp_[0-9]+$"
 		printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
 	}
-	for k := range m { // ERROR "live at call to mapiterinit: .autotmp_[0-9]+$" "live at call to mapiternext: .autotmp_[0-9]+$"
+	for k := range m { // ERROR "live at call to (mapiterinit|mapIterStart): .autotmp_[0-9]+$" "live at call to (mapiternext|mapIterNext): .autotmp_[0-9]+$"
 		printstring(k) // ERROR "live at call to printstring: .autotmp_[0-9]+$"
 	}
 }
@@ -501,7 +538,7 @@ func f31(b1, b2, b3 bool) {
 		g31(g18()) // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
 	if b2 {
-		h31(g18()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
+		h31(g18()) // ERROR "live at call to convT: .autotmp_[0-9]+$" "live at call to (newobject|mallocgcSmallScanNoHeaderSC[0-9]+): .autotmp_[0-9]+$"
 	}
 	if b3 {
 		panic(g18())
@@ -597,14 +634,14 @@ func f38(b bool) {
 	// we care that the println lines have no live variables
 	// and therefore no output.
 	if b {
-		select { // ERROR "live at call to selectgo:( .autotmp_[0-9]+)+$" "stack object .autotmp_[0-9]+ \[4\]struct \{"
+		select { // ERROR "live at call to selectgo:( .autotmp_[0-9]+)+$" "stack object .autotmp_[0-9]+ \[4\]runtime.scase$"
 		case <-fc38():
 			printnl()
 		case fc38() <- *fi38(1): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "stack object .autotmp_[0-9]+ string$"
 			printnl()
 		case *fi38(2) = <-fc38(): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "stack object .autotmp_[0-9]+ string$"
 			printnl()
-		case *fi38(3), *fb38() = <-fc38(): // ERROR "stack object .autotmp_[0-9]+ string$" "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$"
+		case *fi38(3), *fb38() = <-fc38(): // ERROR "stack object .autotmp_[0-9]+ string$" "live at call to f[ibc]38:( .autotmp_[0-9]+)+$"
 			printnl()
 		}
 		printnl()
@@ -628,14 +665,14 @@ func f39a() (x []int) {
 
 func f39b() (x [10]*int) {
 	x = [10]*int{}
-	x[0] = new(int) // ERROR "live at call to newobject: x$"
+	x[0] = new(int) // ERROR "live at call to (newobject|mallocgcTinySize[48]): x$"
 	printnl()       // ERROR "live at call to printnl: x$"
 	return x
 }
 
 func f39c() (x [10]*int) {
 	x = [10]*int{}
-	x[0] = new(int) // ERROR "live at call to newobject: x$"
+	x[0] = new(int) // ERROR "live at call to (newobject|mallocgcTinySize[48]): x$"
 	printnl()       // ERROR "live at call to printnl: x$"
 	return
 }
@@ -656,20 +693,20 @@ func newT40() *T40 {
 	return &ret
 }
 
-func bad40() {
-	t := newT40()
-	_ = t
-	printnl()
-}
-
 func good40() {
 	ret := T40{}              // ERROR "stack object ret T40$"
-	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
+	ret.m = make(map[int]int) // ERROR "live at call to rand(32)?: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ internal/runtime/maps.Map$"
 	t := &ret
 	printnl() // ERROR "live at call to printnl: ret$"
 	// Note: ret is live at the printnl because the compiler moves &ret
 	// from before the printnl to after.
 	useT40(t)
+}
+
+func bad40() {
+	t := newT40()
+	_ = t
+	printnl()
 }
 
 func ddd1(x, y *int) { // ERROR "live at entry to ddd1: x y$"
@@ -686,7 +723,7 @@ type T struct{}
 
 func (*T) Foo(ptr *int) {}
 
-type R struct{ *T } // ERRORAUTO "live at entry to \(\*R\)\.Foo: \.this ptr" "live at entry to R\.Foo: \.this ptr"
+type R struct{ *T }
 
 // issue 18860: output arguments must be live all the time if there is a defer.
 // In particular, at printint r must be live.
@@ -695,9 +732,9 @@ func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
 	defer func() {
 		recover()
 	}()
-	printint(0) // ERROR "live at call to printint: q r .autotmp_[0-9]+$"
+	printint(0) // ERROR "live at call to printint: .autotmp_[0-9]+ q r$"
 	r = q
-	return // ERROR "live at call to f41.func1: r .autotmp_[0-9]+$"
+	return // ERROR "live at call to f41.func1: .autotmp_[0-9]+ r$"
 }
 
 func f42() {
@@ -716,7 +753,7 @@ func f44(f func() [2]*int) interface{} { // ERROR "live at entry to f44: f"
 	type T struct {
 		s [1][2]*int
 	}
-	ret := T{}
+	ret := T{} // ERROR "stack object ret T"
 	ret.s[0] = f()
-	return ret // ERROR "stack object .autotmp_5 T"
+	return ret
 }

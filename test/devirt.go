@@ -1,4 +1,4 @@
-// errorcheck -0 -d=ssa/opt/debug=3
+// errorcheck -0 -d=ssa/opt/debug=1
 
 package main
 
@@ -31,9 +31,8 @@ func main() {
 		panic("not 3")
 	}
 
-	// Can't do types that aren't "direct" interfaces (yet).
 	r = indirectiface{3, 4, 5}
-	if r.Value() != 12 {
+	if r.Value() != 12 { // ERROR "de-virtualizing call$"
 		panic("not 12")
 	}
 }

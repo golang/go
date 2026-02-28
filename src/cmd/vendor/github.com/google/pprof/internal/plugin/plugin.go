@@ -109,12 +109,14 @@ type MappingSources map[string][]struct {
 type ObjTool interface {
 	// Open opens the named object file. If the object is a shared
 	// library, start/limit/offset are the addresses where it is mapped
-	// into memory in the address space being inspected.
-	Open(file string, start, limit, offset uint64) (ObjFile, error)
+	// into memory in the address space being inspected. If the object
+	// is a linux kernel, relocationSymbol is the name of the symbol
+	// corresponding to the start address.
+	Open(file string, start, limit, offset uint64, relocationSymbol string) (ObjFile, error)
 
 	// Disasm disassembles the named object file, starting at
 	// the start address and stopping at (before) the end address.
-	Disasm(file string, start, end uint64) ([]Inst, error)
+	Disasm(file string, start, end uint64, intelSyntax bool) ([]Inst, error)
 }
 
 // An Inst is a single instruction in an assembly listing.
@@ -131,8 +133,9 @@ type ObjFile interface {
 	// Name returns the underlyinf file name, if available
 	Name() string
 
-	// Base returns the base address to use when looking up symbols in the file.
-	Base() uint64
+	// ObjAddr returns the objdump (linker) address corresponding to a runtime
+	// address, and an error.
+	ObjAddr(addr uint64) (uint64, error)
 
 	// BuildID returns the GNU build ID of the file, or an empty string.
 	BuildID() string
@@ -154,11 +157,13 @@ type ObjFile interface {
 	Close() error
 }
 
-// A Frame describes a single line in a source file.
+// A Frame describes a location in a single line in a source file.
 type Frame struct {
-	Func string // name of function
-	File string // source file name
-	Line int    // line in file
+	Func      string // name of function
+	File      string // source file name
+	Line      int    // line in file
+	Column    int    // column in line (if available)
+	StartLine int    // start line of function (if available)
 }
 
 // A Sym describes a single symbol in an object file.
@@ -171,7 +176,7 @@ type Sym struct {
 
 // A UI manages user interactions.
 type UI interface {
-	// Read returns a line of text (a command) read from the user.
+	// ReadLine returns a line of text (a command) read from the user.
 	// prompt is printed before reading the command.
 	ReadLine(prompt string) (string, error)
 

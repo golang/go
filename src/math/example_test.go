@@ -162,6 +162,11 @@ func ExampleLog10() {
 	// Output: 2.0
 }
 
+func ExampleRemainder() {
+	fmt.Printf("%.1f", math.Remainder(100, 30))
+	// Output: 10.0
+}
+
 func ExampleMod() {
 	c := math.Mod(7, 4)
 	fmt.Printf("%.1f", c)
@@ -218,4 +223,23 @@ func ExampleTrunc() {
 	// Output:
 	// 3.00
 	// -1.00
+}
+
+func ExampleCbrt() {
+	fmt.Printf("%.2f\n", math.Cbrt(8))
+	fmt.Printf("%.2f\n", math.Cbrt(27))
+	// Output:
+	// 2.00
+	// 3.00
+}
+
+func ExampleModf() {
+	int, frac := math.Modf(3.14)
+	fmt.Printf("%.2f, %.2f\n", int, frac)
+
+	int, frac = math.Modf(-2.71)
+	fmt.Printf("%.2f, %.2f\n", int, frac)
+	// Output:
+	// 3.00, 0.14
+	// -2.00, -0.71
 }

@@ -13,7 +13,7 @@ import (
 	"sync"
 )
 
-// Regexp is a wrapper around regexp.Regexp, where the underlying regexp will be
+// Regexp is a wrapper around [regexp.Regexp], where the underlying regexp will be
 // compiled the first time it is needed.
 type Regexp struct {
 	str  string

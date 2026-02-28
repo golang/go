@@ -7,7 +7,6 @@ package gccgoimporter
 import (
 	"go/types"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -95,8 +94,9 @@ var importerTests = [...]importerTest{
 	{pkgpath: "nointerface", name: "I", want: "type I int"},
 	{pkgpath: "issue29198", name: "FooServer", gccgoVersion: 7, want: "type FooServer struct{FooServer *FooServer; user string; ctx context.Context}"},
 	{pkgpath: "issue30628", name: "Apple", want: "type Apple struct{hey sync.RWMutex; x int; RQ [517]struct{Count uintptr; NumBytes uintptr; Last uintptr}}"},
-	{pkgpath: "issue31540", name: "S", gccgoVersion: 7, want: "type S struct{b int; map[Y]Z}"},
+	{pkgpath: "issue31540", name: "S", gccgoVersion: 7, want: "type S struct{b int; map[Y]Z}"}, // should want "type S struct{b int; A2}" (issue  #44410)
 	{pkgpath: "issue34182", name: "T1", want: "type T1 struct{f *T2}"},
+	{pkgpath: "notinheap", name: "S", want: "type S struct{}"},
 }
 
 func TestGoxImporter(t *testing.T) {
@@ -130,12 +130,12 @@ func TestObjImporter(t *testing.T) {
 		t.Skip("This test needs gccgo")
 	}
 
-	verout, err := exec.Command(gpath, "--version").CombinedOutput()
+	verout, err := testenv.Command(t, gpath, "--version").CombinedOutput()
 	if err != nil {
 		t.Logf("%s", verout)
 		t.Fatal(err)
 	}
-	vers := regexp.MustCompile(`([0-9]+)\.([0-9]+)`).FindSubmatch(verout)
+	vers := regexp.MustCompile(`(\d+)\.(\d+)`).FindSubmatch(verout)
 	if len(vers) == 0 {
 		t.Fatalf("could not find version number in %s", verout)
 	}
@@ -149,21 +149,11 @@ func TestObjImporter(t *testing.T) {
 	}
 	t.Logf("gccgo version %d.%d", major, minor)
 
-	tmpdir, err := ioutil.TempDir("", "TestObjImporter")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
+	tmpdir := t.TempDir()
 	initmap := make(map[*types.Package]InitData)
 	imp := GetImporter([]string{tmpdir}, initmap)
 
-	artmpdir, err := ioutil.TempDir("", "TestObjImporter")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(artmpdir)
-
+	artmpdir := t.TempDir()
 	arinitmap := make(map[*types.Package]InitData)
 	arimp := GetImporter([]string{artmpdir}, arinitmap)
 
@@ -181,7 +171,7 @@ func TestObjImporter(t *testing.T) {
 		ofile := filepath.Join(tmpdir, test.pkgpath+".o")
 		afile := filepath.Join(artmpdir, "lib"+test.pkgpath+".a")
 
-		cmd := exec.Command(gpath, "-fgo-pkgpath="+test.pkgpath, "-c", "-o", ofile, gofile)
+		cmd := testenv.Command(t, gpath, "-fgo-pkgpath="+test.pkgpath, "-c", "-o", ofile, gofile)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Logf("%s", out)
@@ -190,11 +180,15 @@ func TestObjImporter(t *testing.T) {
 
 		runImporterTest(t, imp, initmap, &test)
 
-		cmd = exec.Command("ar", "cr", afile, ofile)
+		ar := os.Getenv("AR")
+		if ar == "" {
+			ar = "ar"
+		}
+		cmd = testenv.Command(t, ar, "cr", afile, ofile)
 		out, err = cmd.CombinedOutput()
 		if err != nil {
 			t.Logf("%s", out)
-			t.Fatalf("ar cr %s %s failed: %s", afile, ofile, err)
+			t.Fatalf("%s cr %s %s failed: %s", ar, afile, ofile, err)
 		}
 
 		runImporterTest(t, arimp, arinitmap, &test)

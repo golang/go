@@ -12,8 +12,6 @@
 
 #define CLOCK_REALTIME		0
 #define CLOCK_MONOTONIC		3
-#define FD_CLOEXEC		1
-#define F_SETFD			2
 
 #define SYS_exit			1
 #define SYS_read			3
@@ -29,6 +27,7 @@
 #define SYS___sysctl			202
 #define SYS___sigaltstack14		281
 #define SYS___sigprocmask14		293
+#define SYS_issetugid			305
 #define SYS_getcontext			307
 #define SYS_setcontext			308
 #define SYS__lwp_create			309
@@ -53,7 +52,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVL	wait+0(FP), AX
 	// We're done using the stack.
@@ -85,21 +84,6 @@ TEXT runtime·read(SB),NOSPLIT,$-4
 	JAE	2(PC)
 	NEGL	AX			// caller expects negative errno
 	MOVL	AX, ret+12(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT,$0-12
-	MOVL	$42, AX
-	INT	$0x80
-	JCC	pipeok
-	MOVL	$-1, r+0(FP)
-	MOVL	$-1, w+4(FP)
-	MOVL	AX, errno+8(FP)
-	RET
-pipeok:
-	MOVL	AX, r+0(FP)
-	MOVL	DX, w+4(FP)
-	MOVL	$0, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -206,8 +190,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-4
 	INT	$0x80
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB), NOSPLIT, $32
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
 	LEAL	12(SP), BX
 	MOVL	$CLOCK_REALTIME, 4(SP)	// arg 1 - clock_id
 	MOVL	BX, 8(SP)		// arg 2 - tp
@@ -305,7 +289,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
 	RET
 
 // Called by OS using C ABI.
-TEXT runtime·sigtramp(SB),NOSPLIT,$28
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$28
 	NOP	SP	// tell vet SP changed - stop checking offsets
 	// Save callee-saved C registers, since the caller may be a C signal handler.
 	MOVL	BX, bx-4(SP)
@@ -375,6 +359,10 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
 	// fn should never return
 	MOVL	$0x1234, 0x1005
 	RET
+
+TEXT ·netbsdMstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	·netbsdMstart0(SB)
+	RET // not reached
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVL	$SYS___sigaltstack14, AX
@@ -468,32 +456,22 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL	AX, ret+24(FP)
 	RET
 
-// int32 runtime·closeonexec(int32 fd)
-TEXT runtime·closeonexec(SB),NOSPLIT,$32
+// func fcntl(fd, cmd, arg int32) (int32, int32)
+TEXT runtime·fcntl(SB),NOSPLIT,$-4
 	MOVL	$SYS_fcntl, AX
-	// 0(SP) is where the caller PC would be; kernel skips it
-	MOVL	fd+0(FP), BX
-	MOVL	BX, 4(SP)	// fd
-	MOVL	$F_SETFD, 8(SP)
-	MOVL	$FD_CLOEXEC, 12(SP)
 	INT	$0x80
-	JAE	2(PC)
-	NEGL	AX
+	JAE	noerr
+	MOVL	$-1, ret+12(FP)
+	MOVL	AX, errno+16(FP)
+	RET
+noerr:
+	MOVL	AX, ret+12(FP)
+	MOVL	$0, errno+16(FP)
 	RET
 
-// func runtime·setNonblock(fd int32)
-TEXT runtime·setNonblock(SB),NOSPLIT,$16-4
-	MOVL	$92, AX // fcntl
-	MOVL	fd+0(FP), BX // fd
-	MOVL	BX, 4(SP)
-	MOVL	$3, 8(SP) // F_GETFL
-	MOVL	$0, 12(SP)
+// func issetugid() int32
+TEXT runtime·issetugid(SB),NOSPLIT,$0
+	MOVL	$SYS_issetugid, AX
 	INT	$0x80
-	MOVL	fd+0(FP), BX // fd
-	MOVL	BX, 4(SP)
-	MOVL	$4, 8(SP) // F_SETFL
-	ORL	$4, AX // O_NONBLOCK
-	MOVL	AX, 12(SP)
-	MOVL	$92, AX // fcntl
-	INT	$0x80
+	MOVL	AX, ret+0(FP)
 	RET

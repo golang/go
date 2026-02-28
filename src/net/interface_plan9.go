@@ -6,6 +6,8 @@ package net
 
 import (
 	"errors"
+	"internal/strconv"
+	"internal/stringslite"
 	"os"
 )
 
@@ -38,8 +40,8 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 
 func readInterface(i int) (*Interface, error) {
 	ifc := &Interface{
-		Index: i + 1,                        // Offset the index by one to suit the contract
-		Name:  netdir + "/ipifc/" + itoa(i), // Name is the full path to the interface path in plan9
+		Index: i + 1,                                // Offset the index by one to suit the contract
+		Name:  netdir + "/ipifc/" + strconv.Itoa(i), // Name is the full path to the interface path in plan9
 	}
 
 	ifcstat := ifc.Name + "/status"
@@ -55,6 +57,17 @@ func readInterface(i int) (*Interface, error) {
 	}
 
 	fields := getFields(line)
+
+	// If the interface has no device file then we see two spaces between "device" and
+	// "maxtu" and getFields treats the two spaces as one delimiter.
+	// Insert a gap for the missing device name.
+	// See https://go.dev/issue/72060.
+	if stringslite.HasPrefix(line, "device  maxtu ") {
+		fields = append(fields, "")
+		copy(fields[2:], fields[1:])
+		fields[1] = ""
+	}
+
 	if len(fields) < 4 {
 		return nil, errors.New("invalid interface status file: " + ifcstat)
 	}
@@ -68,8 +81,8 @@ func readInterface(i int) (*Interface, error) {
 	}
 	ifc.MTU = mtu
 
-	// Not a loopback device
-	if device != "/dev/null" {
+	// Not a loopback device ("/dev/null") or packet interface (e.g. "pkt2")
+	if stringslite.HasPrefix(device, netdir+"/") {
 		deviceaddrf, err := open(device + "/addr")
 		if err != nil {
 			return nil, err
@@ -94,9 +107,9 @@ func readInterface(i int) (*Interface, error) {
 			}
 		}
 
-		ifc.Flags = FlagUp | FlagBroadcast | FlagMulticast
+		ifc.Flags = FlagUp | FlagRunning | FlagBroadcast | FlagMulticast
 	} else {
-		ifc.Flags = FlagUp | FlagMulticast | FlagLoopback
+		ifc.Flags = FlagUp | FlagRunning | FlagMulticast | FlagLoopback
 	}
 
 	return ifc, nil
@@ -161,7 +174,7 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 		for line, ok := statusf.readLine(); ok; line, ok = statusf.readLine() {
 			fields := getFields(line)
 			if len(fields) < 1 {
-				return nil, errors.New("cannot parse IP address for interface: " + status)
+				continue
 			}
 			addr := fields[0]
 			ip := ParseIP(addr)

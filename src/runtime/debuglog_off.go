@@ -2,18 +2,24 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !debuglog
+//go:build !debuglog
 
 package runtime
 
 const dlogEnabled = false
 
+type dlogger = dloggerFake
+
+func dlog1() dloggerFake {
+	return dlogFake()
+}
+
 type dlogPerM struct{}
 
-func getCachedDlogger() *dlogger {
+func getCachedDlogger() *dloggerImpl {
 	return nil
 }
 
-func putCachedDlogger(l *dlogger) bool {
+func putCachedDlogger(l *dloggerImpl) bool {
 	return false
 }

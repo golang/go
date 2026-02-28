@@ -5,8 +5,12 @@
 package runtime_test
 
 import (
-	"reflect"
+	"fmt"
+	"regexp"
+	"runtime"
 	. "runtime"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 	"unsafe"
@@ -20,7 +24,7 @@ func TestProfBuf(t *testing.T) {
 	}
 	read := func(t *testing.T, b *ProfBuf, data []uint64, tags []unsafe.Pointer) {
 		rdata, rtags, eof := b.Read(ProfBufNonBlocking)
-		if !reflect.DeepEqual(rdata, data) || !reflect.DeepEqual(rtags, tags) {
+		if !slices.Equal(rdata, data) || !slices.Equal(rtags, tags) {
 			t.Fatalf("unexpected profile read:\nhave data %#x\nwant data %#x\nhave tags %#x\nwant tags %#x", rdata, data, rtags, tags)
 		}
 		if eof {
@@ -32,20 +36,14 @@ func TestProfBuf(t *testing.T) {
 		go func() {
 			eof := data == nil
 			rdata, rtags, reof := b.Read(ProfBufBlocking)
-			if !reflect.DeepEqual(rdata, data) || !reflect.DeepEqual(rtags, tags) || reof != eof {
+			if !slices.Equal(rdata, data) || !slices.Equal(rtags, tags) || reof != eof {
 				// Errorf, not Fatalf, because called in goroutine.
 				t.Errorf("unexpected profile read:\nhave data %#x\nwant data %#x\nhave tags %#x\nwant tags %#x\nhave eof=%v, want %v", rdata, data, rtags, tags, reof, eof)
 			}
 			c <- 1
 		}()
 		time.Sleep(10 * time.Millisecond) // let goroutine run and block
-		return func() {
-			select {
-			case <-c:
-			case <-time.After(1 * time.Second):
-				t.Fatalf("timeout waiting for blocked read")
-			}
-		}
+		return func() { <-c }
 	}
 	readEOF := func(t *testing.T, b *ProfBuf) {
 		rdata, rtags, eof := b.Read(ProfBufBlocking)
@@ -179,4 +177,96 @@ func TestProfBuf(t *testing.T) {
 			read(t, b, nil, nil) // release data returned by previous read
 		}
 	})
+}
+
+func TestProfBufDoubleWakeup(t *testing.T) {
+	b := NewProfBuf(2, 16, 2)
+	go func() {
+		for range 1000 {
+			b.Write(nil, 1, []uint64{5, 6}, []uintptr{7, 8})
+		}
+		b.Close()
+	}()
+	for {
+		_, _, eof := b.Read(ProfBufBlocking)
+		if eof {
+			return
+		}
+	}
+}
+
+func TestProfBufWakeup(t *testing.T) {
+	b := NewProfBuf(2, 16, 2)
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		read := 0
+		for {
+			rdata, _, eof := b.Read(ProfBufBlocking)
+			if read == 0 && len(rdata) < 8 {
+				t.Errorf("first wake up at less than half full, got %x", rdata)
+			}
+			read += len(rdata)
+			if eof {
+				return
+			}
+		}
+	})
+
+	// Under the hood profBuf uses notetsleepg when the reader blocks.
+	// Different platforms have different implementations, leading to
+	// different statuses we need to look for to determine whether the
+	// reader is blocked.
+	var waitStatus string
+	switch runtime.GOOS {
+	case "js":
+		waitStatus = "waiting"
+	case "wasip1":
+		waitStatus = "runnable"
+	default:
+		waitStatus = "syscall"
+	}
+
+	// Ensure that the reader is blocked
+	awaitBlockedGoroutine(waitStatus, "TestProfBufWakeup.func1")
+	// NB: this writes 6 words not 4. Fine for the test.
+	// The reader shouldn't wake up for this
+	b.Write(nil, 1, []uint64{1, 2}, []uintptr{3, 4})
+
+	// The reader should still be blocked. The awaitBlockedGoroutine here
+	// checks that and also gives a buggy implementation a chance to
+	// actually wake up (it calls Gosched) before the next write. There is a
+	// small chance that a buggy implementation would have woken up but
+	// doesn't get scheduled by the time we do the next write. In that case
+	// the reader will see a more-than-half-full buffer and the test will
+	// pass. But if the implementation is broken, this test should fail
+	// regularly, even if not 100% of the time.
+	awaitBlockedGoroutine(waitStatus, "TestProfBufWakeup.func1")
+	b.Write(nil, 1, []uint64{5, 6}, []uintptr{7, 8})
+	b.Close()
+
+	// Wait here so we can be sure the reader got the data
+	wg.Wait()
+}
+
+// see also runtime/pprof tests
+func awaitBlockedGoroutine(state, fName string) {
+	// NB: this matches [state] as well as [state, n minutes]
+	re := fmt.Sprintf(`(?m)^goroutine \d+ \[%s.*\]:\n(?:.+\n\t.+\n)*runtime_test\.%s`, regexp.QuoteMeta(state), fName)
+	r := regexp.MustCompile(re)
+
+	buf := make([]byte, 64<<10)
+	for {
+		Gosched()
+		n := Stack(buf, true)
+		if n == len(buf) {
+			// Buffer wasn't large enough for a full goroutine dump.
+			// Resize it and try again.
+			buf = make([]byte, 2*len(buf))
+			continue
+		}
+		const count = 1
+		if len(r.FindAll(buf[:n], -1)) >= count {
+			return
+		}
+	}
 }

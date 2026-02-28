@@ -10,22 +10,19 @@
 #include "go_asm.h"
 
 #define AT_FDCWD -100
+#define CLOCK_REALTIME 0
+#define CLOCK_MONOTONIC 1
 
 #define SYS_brk			214
 #define SYS_clock_gettime	113
 #define SYS_clone		220
 #define SYS_close		57
 #define SYS_connect		203
-#define SYS_epoll_create1	20
-#define SYS_epoll_ctl		21
-#define SYS_epoll_pwait		22
 #define SYS_exit		93
 #define SYS_exit_group		94
 #define SYS_faccessat		48
-#define SYS_fcntl		25
 #define SYS_futex		98
 #define SYS_getpid		172
-#define SYS_getrlimit		163
 #define SYS_gettid		178
 #define SYS_gettimeofday	169
 #define SYS_kill		129
@@ -47,17 +44,19 @@
 #define SYS_sigaltstack		132
 #define SYS_socket		198
 #define SYS_tgkill		131
+#define SYS_timer_create	107
+#define SYS_timer_delete	111
+#define SYS_timer_settime	110
 #define SYS_tkill		130
 #define SYS_write		64
 
 // func exit(code int32)
-TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	code+0(FP), A0
+TEXT runtime·exit<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_exit_group, A7
 	ECALL
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
 	MOV	wait+0(FP), A0
 	// We're done using the stack.
@@ -95,32 +94,15 @@ TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0-12
 	RET
 
 // func write1(fd uintptr, p unsafe.Pointer, n int32) int32
-TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
-	MOV	fd+0(FP), A0
-	MOV	p+8(FP), A1
-	MOVW	n+16(FP), A2
+TEXT runtime·write1<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_write, A7
 	ECALL
-	MOVW	A0, ret+24(FP)
 	RET
 
 // func read(fd int32, p unsafe.Pointer, n int32) int32
-TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
-	MOVW	fd+0(FP), A0
-	MOV	p+8(FP), A1
-	MOVW	n+16(FP), A2
+TEXT runtime·read<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_read, A7
 	ECALL
-	MOVW	A0, ret+24(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	MOV	$r+0(FP), A0
-	MOV	ZERO, A1
-	MOV	$SYS_pipe2, A7
-	ECALL
-	MOVW	A0, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -130,15 +112,6 @@ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
 	MOV	$SYS_pipe2, A7
 	ECALL
 	MOVW	A0, errno+16(FP)
-	RET
-
-// func getrlimit(kind int32, limit unsafe.Pointer) int32
-TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0-20
-	MOVW	kind+0(FP), A0
-	MOV	limit+8(FP), A1
-	MOV	$SYS_getrlimit, A7
-	ECALL
-	MOVW	A0, ret+16(FP)
 	RET
 
 // func usleep(usec uint32)
@@ -158,10 +131,9 @@ TEXT runtime·usleep(SB),NOSPLIT,$24-4
 	RET
 
 // func gettid() uint32
-TEXT runtime·gettid(SB),NOSPLIT,$0-4
+TEXT runtime·gettid<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_gettid, A7
 	ECALL
-	MOVW	A0, ret+0(FP)
 	RET
 
 // func raise(sig uint32)
@@ -185,43 +157,110 @@ TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
 	RET
 
 // func getpid() int
-TEXT ·getpid(SB),NOSPLIT|NOFRAME,$0-8
+TEXT ·getpid<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_getpid, A7
 	ECALL
-	MOV	A0, ret+0(FP)
 	RET
 
 // func tgkill(tgid, tid, sig int)
-TEXT ·tgkill(SB),NOSPLIT|NOFRAME,$0-24
-	MOV	tgid+0(FP), A0
-	MOV	tid+8(FP), A1
-	MOV	sig+16(FP), A2
+TEXT ·tgkill<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_tgkill, A7
 	ECALL
 	RET
 
 // func setitimer(mode int32, new, old *itimerval)
-TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
-	MOVW	mode+0(FP), A0
-	MOV	new+8(FP), A1
-	MOV	old+16(FP), A2
+TEXT runtime·setitimer<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_setitimer, A7
 	ECALL
 	RET
 
-// func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
-TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
-	MOV	addr+0(FP), A0
-	MOV	n+8(FP), A1
-	MOV	dst+16(FP), A2
-	MOV	$SYS_mincore, A7
+// func timer_create(clockid int32, sevp *sigevent, timerid *int32) int32
+TEXT runtime·timer_create<ABIInternal>(SB),NOSPLIT,$0
+	MOV	$SYS_timer_create, A7
 	ECALL
-	MOVW	A0, ret+24(FP)
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB),NOSPLIT,$24-12
-	MOV	$0, A0 // CLOCK_REALTIME
+// func timer_settime(timerid int32, flags int32, new, old *itimerspec) int32
+TEXT runtime·timer_settime<ABIInternal>(SB),NOSPLIT,$0
+	MOV	$SYS_timer_settime, A7
+	ECALL
+	RET
+
+// func timer_delete(timerid int32) int32
+TEXT runtime·timer_delete<ABIInternal>(SB),NOSPLIT,$0
+	MOV	$SYS_timer_delete, A7
+	ECALL
+	RET
+
+// func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
+TEXT runtime·mincore<ABIInternal>(SB),NOSPLIT,$0
+	MOV	$SYS_mincore, A7
+	ECALL
+	RET
+
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB),NOSPLIT,$40-12
+	MOV	$CLOCK_REALTIME, A0
+
+	MOV	runtime·vdsoClockgettimeSym(SB), A7
+	BEQZ	A7, fallback
+	MOV	X2, S2 // S2,S3,S4 is unchanged by C code
+	MOV	g_m(g), S3 // S3 = m
+
+	// Save the old values on stack for reentrant
+	MOV	m_vdsoPC(S3), T0
+	MOV	T0, 24(X2)
+	MOV	m_vdsoSP(S3), T0
+	MOV	T0, 32(X2)
+
+	MOV	RA, m_vdsoPC(S3)
+	MOV	$ret-8(FP), T1 // caller's SP
+	MOV	T1, m_vdsoSP(S3)
+
+	MOV	m_curg(S3), T1
+	BNE	g, T1, noswitch
+
+	MOV	m_g0(S3), T1
+	MOV	(g_sched+gobuf_sp)(T1), X2
+
+noswitch:
+	SUB	$24, X2 // Space for result
+	ANDI	$~7, X2 // Align for C code
+	MOV	$8(X2), A1
+
+	// Store g on gsignal's stack, see sys_linux_arm64.s for detail
+	MOVBU	runtime·iscgo(SB), S4
+	BNEZ	S4, nosaveg
+	MOV	m_gsignal(S3), S4 // g.m.gsignal
+	BEQZ	S4, nosaveg
+	BEQ	g, S4, nosaveg
+	MOV	(g_stack+stack_lo)(S4), S4 // g.m.gsignal.stack.lo
+	MOV	g, (S4)
+
+	JALR	RA, A7
+
+	MOV	ZERO, (S4)
+	JMP	finish
+
+nosaveg:
+	JALR	RA, A7
+
+finish:
+	MOV	8(X2), T0	// sec
+	MOV	16(X2), T1	// nsec
+
+	MOV	S2, X2	// restore stack
+	MOV	24(X2), A2
+	MOV	A2, m_vdsoPC(S3)
+
+	MOV	32(X2), A3
+	MOV	A3, m_vdsoSP(S3)
+
+	MOV	T0, sec+0(FP)
+	MOVW	T1, nsec+8(FP)
+	RET
+
+fallback:
 	MOV	$8(X2), A1
 	MOV	$SYS_clock_gettime, A7
 	ECALL
@@ -232,15 +271,76 @@ TEXT runtime·walltime1(SB),NOSPLIT,$24-12
 	RET
 
 // func nanotime1() int64
-TEXT runtime·nanotime1(SB),NOSPLIT,$24-8
-	MOV	$1, A0 // CLOCK_MONOTONIC
+TEXT runtime·nanotime1(SB),NOSPLIT,$40-8
+	MOV	$CLOCK_MONOTONIC, A0
+
+	MOV	runtime·vdsoClockgettimeSym(SB), A7
+	BEQZ	A7, fallback
+
+	MOV	X2, S2 // S2 = RSP, S2 is unchanged by C code
+	MOV	g_m(g), S3 // S3 = m
+	// Save the old values on stack for reentrant
+	MOV	m_vdsoPC(S3), T0
+	MOV	T0, 24(X2)
+	MOV	m_vdsoSP(S3), T0
+	MOV	T0, 32(X2)
+
+	MOV	RA, m_vdsoPC(S3)
+	MOV	$ret-8(FP), T0 // caller's SP
+	MOV	T0, m_vdsoSP(S3)
+
+	MOV	m_curg(S3), T1
+	BNE	g, T1, noswitch
+
+	MOV	m_g0(S3), T1
+	MOV	(g_sched+gobuf_sp)(T1), X2
+
+noswitch:
+	SUB	$24, X2 // Space for result
+	ANDI	$~7, X2 // Align for C code
+	MOV	$8(X2), A1
+
+	// Store g on gsignal's stack, see sys_linux_arm64.s for detail
+	MOVBU	runtime·iscgo(SB), S4
+	BNEZ	S4, nosaveg
+	MOV	m_gsignal(S3), S4 // g.m.gsignal
+	BEQZ	S4, nosaveg
+	BEQ	g, S4, nosaveg
+	MOV	(g_stack+stack_lo)(S4), S4 // g.m.gsignal.stack.lo
+	MOV	g, (S4)
+
+	JALR	RA, A7
+
+	MOV	ZERO, (S4)
+	JMP	finish
+
+nosaveg:
+	JALR	RA, A7
+
+finish:
+	MOV	8(X2), T0	// sec
+	MOV	16(X2), T1	// nsec
+	// restore stack
+	MOV	S2, X2
+	MOV	24(X2), T2
+	MOV	T2, m_vdsoPC(S3)
+
+	MOV	32(X2), T2
+	MOV	T2, m_vdsoSP(S3)
+	// sec is in T0, nsec in T1
+	// return nsec in T0
+	MOV	$1000000000, T2
+	MUL	T2, T0
+	ADD	T1, T0
+	MOV	T0, ret+0(FP)
+	RET
+
+fallback:
 	MOV	$8(X2), A1
 	MOV	$SYS_clock_gettime, A7
 	ECALL
 	MOV	8(X2), T0	// sec
 	MOV	16(X2), T1	// nsec
-	// sec is in T0, nsec in T1
-	// return nsec in T0
 	MOV	$1000000000, T2
 	MUL	T2, T0
 	ADD	T1, T0
@@ -261,14 +361,9 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
 	RET
 
 // func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
-TEXT runtime·rt_sigaction(SB),NOSPLIT|NOFRAME,$0-36
-	MOV	sig+0(FP), A0
-	MOV	new+8(FP), A1
-	MOV	old+16(FP), A2
-	MOV	size+24(FP), A3
+TEXT runtime·rt_sigaction<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_rt_sigaction, A7
 	ECALL
-	MOVW	A0, ret+32(FP)
 	RET
 
 // func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
@@ -281,7 +376,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	RET
 
 // func sigtramp(signo, ureg, ctxt unsafe.Pointer)
-TEXT runtime·sigtramp(SB),NOSPLIT,$64
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
 	MOVW	A0, 8(X2)
 	MOV	A1, 16(X2)
 	MOV	A2, 24(X2)
@@ -334,26 +429,15 @@ TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
 	RET
 
 // func madvise(addr unsafe.Pointer, n uintptr, flags int32)
-TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
-	MOV	addr+0(FP), A0
-	MOV	n+8(FP), A1
-	MOVW	flags+16(FP), A2
+TEXT runtime·madvise<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_madvise, A7
 	ECALL
-	MOVW	A0, ret+24(FP)
 	RET
 
 // func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer, val3 uint32) int32
-TEXT runtime·futex(SB),NOSPLIT|NOFRAME,$0
-	MOV	addr+0(FP), A0
-	MOVW	op+8(FP), A1
-	MOVW	val+12(FP), A2
-	MOV	ts+16(FP), A3
-	MOV	addr2+24(FP), A4
-	MOVW	val3+32(FP), A5
+TEXT runtime·futex<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_futex, A7
 	ECALL
-	MOVW	A0, ret+40(FP)
 	RET
 
 // func clone(flags int32, stk, mp, gp, fn unsafe.Pointer) int32
@@ -427,89 +511,21 @@ TEXT runtime·sigaltstack(SB),NOSPLIT|NOFRAME,$0
 	RET
 
 // func osyield()
-TEXT runtime·osyield(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·osyield<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_sched_yield, A7
 	ECALL
 	RET
 
 // func sched_getaffinity(pid, len uintptr, buf *uintptr) int32
-TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
-	MOV	pid+0(FP), A0
-	MOV	len+8(FP), A1
-	MOV	buf+16(FP), A2
+TEXT runtime·sched_getaffinity<ABIInternal>(SB),NOSPLIT,$0
 	MOV	$SYS_sched_getaffinity, A7
-	ECALL
-	MOV	A0, ret+24(FP)
-	RET
-
-// func epollcreate(size int32) int32
-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
-	MOV	$0, A0
-	MOV	$SYS_epoll_create1, A7
-	ECALL
-	MOVW	A0, ret+8(FP)
-	RET
-
-// func epollcreate1(flags int32) int32
-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
-	MOVW	flags+0(FP), A0
-	MOV	$SYS_epoll_create1, A7
-	ECALL
-	MOVW	A0, ret+8(FP)
-	RET
-
-// func epollctl(epfd, op, fd int32, ev *epollevent) int32
-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), A0
-	MOVW	op+4(FP), A1
-	MOVW	fd+8(FP), A2
-	MOV	ev+16(FP), A3
-	MOV	$SYS_epoll_ctl, A7
-	ECALL
-	MOVW	A0, ret+24(FP)
-	RET
-
-// func epollwait(epfd int32, ev *epollevent, nev, timeout int32) int32
-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), A0
-	MOV	ev+8(FP), A1
-	MOVW	nev+16(FP), A2
-	MOVW	timeout+20(FP), A3
-	MOV	$0, A4
-	MOV	$SYS_epoll_pwait, A7
-	ECALL
-	MOVW	A0, ret+24(FP)
-	RET
-
-// func closeonexec(int32)
-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
-	MOVW	fd+0(FP), A0  // fd
-	MOV	$2, A1	// F_SETFD
-	MOV	$1, A2	// FD_CLOEXEC
-	MOV	$SYS_fcntl, A7
-	ECALL
-	RET
-
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	fd+0(FP), A0 // fd
-	MOV	$3, A1	// F_GETFL
-	MOV	$0, A2
-	MOV	$SYS_fcntl, A7
-	ECALL
-	MOV	$0x800, A2 // O_NONBLOCK
-	OR	A0, A2
-	MOVW	fd+0(FP), A0 // fd
-	MOV	$4, A1	// F_SETFL
-	MOV	$SYS_fcntl, A7
 	ECALL
 	RET
 
 // func sbrk0() uintptr
-TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
+TEXT runtime·sbrk0<ABIInternal>(SB),NOSPLIT,$0
 	// Implemented as brk(NULL).
-	MOV	$0, A0
+	MOV	ZERO, A0
 	MOV	$SYS_brk, A7
 	ECALL
-	MOVW	A0, ret+0(FP)
 	RET

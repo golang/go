@@ -12,6 +12,7 @@ import (
 	"io"
 	"math"
 	"math/bits"
+	"slices"
 	"sync"
 )
 
@@ -66,7 +67,7 @@ var (
 // scan returns the corresponding natural number res, the actual base b,
 // a digit count, and a read or syntax error err, if any.
 //
-// For base 0, an underscore character ``_'' may appear between a base
+// For base 0, an underscore character “_” may appear between a base
 // prefix and an adjacent digit, and between successive digits; such
 // underscores do not change the value of the number, or the returned
 // digit count. Incorrect placement of underscores is reported as an
@@ -74,12 +75,12 @@ var (
 // not recognized and thus terminate scanning like any other character
 // that is not a valid radix point or digit.
 //
-//     number    = mantissa | prefix pmantissa .
-//     prefix    = "0" [ "b" | "B" | "o" | "O" | "x" | "X" ] .
-//     mantissa  = digits "." [ digits ] | digits | "." digits .
-//     pmantissa = [ "_" ] digits "." [ digits ] | [ "_" ] digits | "." digits .
-//     digits    = digit { [ "_" ] digit } .
-//     digit     = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
+//	number    = mantissa | prefix pmantissa .
+//	prefix    = "0" [ "b" | "B" | "o" | "O" | "x" | "X" ] .
+//	mantissa  = digits "." [ digits ] | digits | "." digits .
+//	pmantissa = [ "_" ] digits "." [ digits ] | [ "_" ] digits | "." digits .
+//	digits    = digit { [ "_" ] digit } .
+//	digit     = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
 //
 // Unless fracOk is set, the base argument must be 0 or a value between
 // 2 and MaxBase. If fracOk is set, the base argument must be one of
@@ -87,8 +88,8 @@ var (
 // time panic.
 //
 // For base 0, the number prefix determines the actual base: A prefix of
-// ``0b'' or ``0B'' selects base 2, ``0o'' or ``0O'' selects base 8, and
-// ``0x'' or ``0X'' selects base 16. If fracOk is false, a ``0'' prefix
+// “0b” or “0B” selects base 2, “0o” or “0O” selects base 8, and
+// “0x” or “0X” selects base 16. If fracOk is false, a “0” prefix
 // (immediately followed by digits) selects base 8 as well. Otherwise,
 // the selected base is 10 and no prefix is accepted.
 //
@@ -105,9 +106,8 @@ var (
 // parsed. A digit count <= 0 indicates the presence of a period (if fracOk
 // is set, only), and -count is the number of fractional digits found.
 // In this case, the actual value of the scanned number is res * b**count.
-//
 func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count int, err error) {
-	// reject invalid bases
+	// Reject invalid bases.
 	baseOk := base == 0 ||
 		!fracOk && 2 <= base && base <= MaxBase ||
 		fracOk && (base == 2 || base == 8 || base == 10 || base == 16)
@@ -125,10 +125,10 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
 	// one char look-ahead
 	ch, err := r.ReadByte()
 
-	// determine actual base
+	// Determine actual base.
 	b, prefix := base, 0
 	if base == 0 {
-		// actual base is 10 unless there's a base prefix
+		// Actual base is 10 unless there's a base prefix.
 		b = 10
 		if err == nil && ch == '0' {
 			prev = '0'
@@ -158,16 +158,32 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
 		}
 	}
 
-	// convert string
-	// Algorithm: Collect digits in groups of at most n digits in di
-	// and then use mulAddWW for every such group to add them to the
-	// result.
+	// Convert string.
+	// Algorithm: Collect digits in groups of at most n digits in di.
+	// For bases that pack exactly into words (2, 4, 16), append di's
+	// directly to the int representation and then reverse at the end (bn==0 marks this case).
+	// For other bases, use mulAddWW for every such group to shift
+	// z up one group and add di to the result.
+	// With more cleverness we could also handle binary bases like 8 and 32
+	// (corresponding to 3-bit and 5-bit chunks) that don't pack nicely into
+	// words, but those are not too important.
 	z = z[:0]
 	b1 := Word(b)
-	bn, n := maxPow(b1) // at most n digits in base b1 fit into Word
-	di := Word(0)       // 0 <= di < b1**i < bn
-	i := 0              // 0 <= i < n
-	dp := -1            // position of decimal point
+	var bn Word // b1**n (or 0 for the special bit-packing cases b=2,4,16)
+	var n int   // max digits that fit into Word
+	switch b {
+	case 2: // 1 bit per digit
+		n = _W
+	case 4: // 2 bits per digit
+		n = _W / 2
+	case 16: // 4 bits per digit
+		n = _W / 4
+	default:
+		bn, n = maxPow(b1)
+	}
+	di := Word(0) // 0 <= di < b1**i < bn
+	i := 0        // 0 <= i < n
+	dp := -1      // position of decimal point
 	for err == nil {
 		if ch == '.' && fracOk {
 			fracOk = false
@@ -211,7 +227,11 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
 
 			// if di is "full", add it to the result
 			if i == n {
-				z = z.mulAddWW(z, bn, di)
+				if bn == 0 {
+					z = append(z, di)
+				} else {
+					z = z.mulAddWW(z, bn, di)
+				}
 				di = 0
 				i = 0
 			}
@@ -239,11 +259,24 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
 		err = errNoDigits // fall through; result will be 0
 	}
 
-	// add remaining digits to result
-	if i > 0 {
-		z = z.mulAddWW(z, pow(b1, i), di)
+	if bn == 0 {
+		if i > 0 {
+			// Add remaining digit chunk to result.
+			// Left-justify group's digits; will shift back down after reverse.
+			z = append(z, di*pow(b1, n-i))
+		}
+		slices.Reverse(z)
+		z = z.norm()
+		if i > 0 {
+			z = z.rsh(z, uint(n-i)*uint(_W/n))
+		}
+	} else {
+		if i > 0 {
+			// Add remaining digit chunk to result.
+			z = z.mulAddWW(z, pow(b1, i), di)
+		}
 	}
-	res = z.norm()
+	res = z
 
 	// adjust count for fraction, if any
 	if dp >= 0 {
@@ -322,17 +355,20 @@ func (x nat) itoa(neg bool, base int) []byte {
 		}
 
 	} else {
+		stk := getStack()
+		defer stk.free()
+
 		bb, ndigits := maxPow(b)
 
 		// construct table of successive squares of bb*leafSize to use in subdivisions
 		// result (table != nil) <=> (len(x) > leafSize > 0)
-		table := divisors(len(x), b, ndigits, bb)
+		table := divisors(stk, len(x), b, ndigits, bb)
 
 		// preserve x, create local copy for use by convertWords
 		q := nat(nil).set(x)
 
 		// convert q to string s in base b
-		q.convertWords(s, b, ndigits, bb, table)
+		q.convertWords(stk, s, b, ndigits, bb, table)
 
 		// strip leading zeros
 		// (x != 0; thus s must contain at least one non-zero digit
@@ -366,8 +402,7 @@ func (x nat) itoa(neg bool, base int) []byte {
 // range 2..64 shows that values of 8 and 16 work well, with a 4x speedup at medium lengths and
 // ~30x for 20000 digits. Use nat_test.go's BenchmarkLeafSize tests to optimize leafSize for
 // specific hardware.
-//
-func (q nat) convertWords(s []byte, b Word, ndigits int, bb Word, table []divisor) {
+func (q nat) convertWords(stk *stack, s []byte, b Word, ndigits int, bb Word, table []divisor) {
 	// split larger blocks recursively
 	if table != nil {
 		// len(q) > leafSize > 0
@@ -388,12 +423,12 @@ func (q nat) convertWords(s []byte, b Word, ndigits int, bb Word, table []diviso
 			}
 
 			// split q into the two digit number (q'*bbb + r) to form independent subblocks
-			q, r = q.div(r, q, table[index].bbb)
+			q, r = q.div(stk, r, q, table[index].bbb)
 
 			// convert subblocks and collect results in s[:h] and s[h:]
 			h := len(s) - table[index].ndigits
-			r.convertWords(s[h:], b, ndigits, bb, table[0:index])
-			s = s[:h] // == q.convertWords(s, b, ndigits, bb, table[0:index+1])
+			r.convertWords(stk, s[h:], b, ndigits, bb, table[0:index])
+			s = s[:h] // == q.convertWords(stk, s, b, ndigits, bb, table[0:index+1])
 		}
 	}
 
@@ -436,8 +471,9 @@ func (q nat) convertWords(s []byte, b Word, ndigits int, bb Word, table []diviso
 
 // Split blocks greater than leafSize Words (or set to 0 to disable recursive conversion)
 // Benchmark and configure leafSize using: go test -bench="Leaf"
-//   8 and 16 effective on 3.0 GHz Xeon "Clovertown" CPU (128 byte cache lines)
-//   8 and 16 effective on 2.66 GHz Core 2 Duo "Penryn" CPU
+//
+//	8 and 16 effective on 3.0 GHz Xeon "Clovertown" CPU (128 byte cache lines)
+//	8 and 16 effective on 2.66 GHz Core 2 Duo "Penryn" CPU
 var leafSize int = 8 // number of Word-size binary values treat as a monolithic block
 
 type divisor struct {
@@ -452,12 +488,12 @@ var cacheBase10 struct {
 }
 
 // expWW computes x**y
-func (z nat) expWW(x, y Word) nat {
-	return z.expNN(nat(nil).setWord(x), nat(nil).setWord(y), nil)
+func (z nat) expWW(stk *stack, x, y Word) nat {
+	return z.expNN(stk, nat(nil).setWord(x), nat(nil).setWord(y), nil, false)
 }
 
-// construct table of powers of bb*leafSize to use in subdivisions
-func divisors(m int, b Word, ndigits int, bb Word) []divisor {
+// construct table of powers of bb*leafSize to use in subdivisions.
+func divisors(stk *stack, m int, b Word, ndigits int, bb Word) []divisor {
 	// only compute table when recursive conversion is enabled and x is large
 	if leafSize == 0 || m <= leafSize {
 		return nil
@@ -485,10 +521,10 @@ func divisors(m int, b Word, ndigits int, bb Word) []divisor {
 		for i := 0; i < k; i++ {
 			if table[i].ndigits == 0 {
 				if i == 0 {
-					table[0].bbb = nat(nil).expWW(bb, Word(leafSize))
+					table[0].bbb = nat(nil).expWW(stk, bb, Word(leafSize))
 					table[0].ndigits = ndigits * leafSize
 				} else {
-					table[i].bbb = nat(nil).sqr(table[i-1].bbb)
+					table[i].bbb = nat(nil).sqr(stk, table[i-1].bbb)
 					table[i].ndigits = 2 * table[i-1].ndigits
 				}
 

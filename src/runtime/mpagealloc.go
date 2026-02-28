@@ -48,17 +48,21 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/goarch"
+	"internal/runtime/atomic"
+	"internal/runtime/gc"
 	"unsafe"
 )
 
 const (
 	// The size of a bitmap chunk, i.e. the amount of bits (that is, pages) to consider
-	// in the bitmap at once.
+	// in the bitmap at once. It is 4MB on most platforms, except on Wasm it is 512KB.
+	// We use a smaller chuck size on Wasm for the same reason as the smaller arena
+	// size (see heapArenaBytes).
 	pallocChunkPages    = 1 << logPallocChunkPages
 	pallocChunkBytes    = pallocChunkPages * pageSize
-	logPallocChunkPages = 9
-	logPallocChunkBytes = logPallocChunkPages + pageShift
+	logPallocChunkPages = 9*(1-goarch.IsWasm) + 6*goarch.IsWasm
+	logPallocChunkBytes = logPallocChunkPages + gc.PageShift
 
 	// The number of radix bits for each level.
 	//
@@ -82,18 +86,19 @@ const (
 	pallocChunksL2Bits  = heapAddrBits - logPallocChunkBytes - pallocChunksL1Bits
 	pallocChunksL1Shift = pallocChunksL2Bits
 
-	// Maximum searchAddr value, which indicates that the heap has no free space.
-	//
-	// We subtract arenaBaseOffset because we want this to represent the maximum
-	// value in the shifted address space, but searchAddr is stored as a regular
-	// memory address. See arenaBaseOffset for details.
-	maxSearchAddr = ^uintptr(0) - arenaBaseOffset
-
-	// Minimum scavAddr value, which indicates that the scavenger is done.
-	//
-	// minScavAddr + arenaBaseOffset == 0
-	minScavAddr = (^arenaBaseOffset + 1) & uintptrMask
+	vmaNamePageAllocIndex = "page alloc index"
 )
+
+// maxSearchAddr returns the maximum searchAddr value, which indicates
+// that the heap has no free space.
+//
+// This function exists just to make it clear that this is the maximum address
+// for the page allocator's search space. See maxOffAddr for details.
+//
+// It's a function (rather than a variable) because it needs to be
+// usable before package runtime's dynamic initialization is complete.
+// See #51913 for details.
+func maxSearchAddr() offAddr { return maxOffAddr }
 
 // Global chunk index.
 //
@@ -105,12 +110,12 @@ type chunkIdx uint
 // chunkIndex returns the global index of the palloc chunk containing the
 // pointer p.
 func chunkIndex(p uintptr) chunkIdx {
-	return chunkIdx((p + arenaBaseOffset) / pallocChunkBytes)
+	return chunkIdx((p - arenaBaseOffset) / pallocChunkBytes)
 }
 
-// chunkIndex returns the base address of the palloc chunk at index ci.
+// chunkBase returns the base address of the palloc chunk at index ci.
 func chunkBase(ci chunkIdx) uintptr {
-	return uintptr(ci)*pallocChunkBytes - arenaBaseOffset
+	return uintptr(ci)*pallocChunkBytes + arenaBaseOffset
 }
 
 // chunkPageIndex computes the index of the page that contains p,
@@ -139,6 +144,18 @@ func (i chunkIdx) l2() uint {
 	}
 }
 
+// offAddrToLevelIndex converts an address in the offset address space
+// to the index into summary[level] containing addr.
+func offAddrToLevelIndex(level int, addr offAddr) int {
+	return int((addr.a - arenaBaseOffset) >> levelShift[level])
+}
+
+// levelIndexToOffAddr converts an index into summary[level] into
+// the corresponding address in the offset address space.
+func levelIndexToOffAddr(level, idx int) offAddr {
+	return offAddr{(uintptr(idx) << levelShift[level]) + arenaBaseOffset}
+}
+
 // addrsToSummaryRange converts base and limit pointers into a range
 // of entries for the given summary level.
 //
@@ -149,12 +166,12 @@ func addrsToSummaryRange(level int, base, limit uintptr) (lo int, hi int) {
 	// upper-bound. Note that the exclusive upper bound may be within a
 	// summary at this level, meaning if we just do the obvious computation
 	// hi will end up being an inclusive upper bound. Unfortunately, just
-	// adding 1 to that is too broad since we might be on the very edge of
+	// adding 1 to that is too broad since we might be on the very edge
 	// of a summary's max page count boundary for this level
 	// (1 << levelLogPages[level]). So, make limit an inclusive upper bound
 	// then shift, then add 1, so we get an exclusive upper bound at the end.
-	lo = int((base + arenaBaseOffset) >> levelShift[level])
-	hi = int(((limit-1)+arenaBaseOffset)>>levelShift[level]) + 1
+	lo = int((base - arenaBaseOffset) >> levelShift[level])
+	hi = int(((limit-1)-arenaBaseOffset)>>levelShift[level]) + 1
 	return
 }
 
@@ -206,6 +223,7 @@ type pageAlloc struct {
 	// heapAddrBits | L1 Bits | L2 Bits | L2 Entry Size
 	// ------------------------------------------------
 	// 32           | 0       | 10      | 128 KiB
+	// 32 (wasm)    | 0       | 13      | 128 KiB
 	// 33 (iOS)     | 0       | 11      | 256 KiB
 	// 48           | 13      | 13      | 1 MiB
 	//
@@ -220,6 +238,8 @@ type pageAlloc struct {
 	// are currently available. Otherwise one might iterate over unused
 	// ranges.
 	//
+	// Protected by mheapLock.
+	//
 	// TODO(mknyszek): Consider changing the definition of the bitmap
 	// such that 1 means free and 0 means in-use so that summaries and
 	// the bitmaps align better on zero-values.
@@ -227,26 +247,13 @@ type pageAlloc struct {
 
 	// The address to start an allocation search with. It must never
 	// point to any memory that is not contained in inUse, i.e.
-	// inUse.contains(searchAddr) must always be true.
+	// inUse.contains(searchAddr.addr()) must always be true. The one
+	// exception to this rule is that it may take on the value of
+	// maxOffAddr to indicate that the heap is exhausted.
 	//
-	// When added with arenaBaseOffset, we guarantee that
-	// all valid heap addresses (when also added with
-	// arenaBaseOffset) below this value are allocated and
-	// not worth searching.
-	//
-	// Note that adding in arenaBaseOffset transforms addresses
-	// to a new address space with a linear view of the full address
-	// space on architectures with segmented address spaces.
-	searchAddr uintptr
-
-	// The address to start a scavenge candidate search with. It
-	// need not point to memory contained in inUse.
-	scavAddr uintptr
-
-	// The amount of memory scavenged since the last scavtrace print.
-	//
-	// Read and updated atomically.
-	scavReleased uintptr
+	// We guarantee that all valid heap addresses below this value
+	// are allocated and not worth searching.
+	searchAddr offAddr
 
 	// start and end represent the chunk indices
 	// which pageAlloc knows about. It assumes
@@ -258,28 +265,51 @@ type pageAlloc struct {
 	// known by the page allocator to be currently in-use (passed
 	// to grow).
 	//
-	// This field is currently unused on 32-bit architectures but
-	// is harmless to track. We care much more about having a
-	// contiguous heap in these cases and take additional measures
-	// to ensure that, so in nearly all cases this should have just
-	// 1 element.
+	// We care much more about having a contiguous heap in these cases
+	// and take additional measures to ensure that, so in nearly all
+	// cases this should have just 1 element.
 	//
 	// All access is protected by the mheapLock.
 	inUse addrRanges
 
+	// scav stores the scavenger state.
+	scav struct {
+		// index is an efficient index of chunks that have pages available to
+		// scavenge.
+		index scavengeIndex
+
+		// releasedBg is the amount of memory released in the background this
+		// scavenge cycle.
+		releasedBg atomic.Uintptr
+
+		// releasedEager is the amount of memory released eagerly this scavenge
+		// cycle.
+		releasedEager atomic.Uintptr
+	}
+
 	// mheap_.lock. This level of indirection makes it possible
-	// to test pageAlloc indepedently of the runtime allocator.
+	// to test pageAlloc independently of the runtime allocator.
 	mheapLock *mutex
 
 	// sysStat is the runtime memstat to update when new system
 	// memory is committed by the pageAlloc for allocation metadata.
-	sysStat *uint64
+	sysStat *sysMemStat
+
+	// summaryMappedReady is the number of bytes mapped in the Ready state
+	// in the summary structure. Used only for testing currently.
+	//
+	// Protected by mheapLock.
+	summaryMappedReady uintptr
+
+	// chunkHugePages indicates whether page bitmap chunks should be backed
+	// by huge pages.
+	chunkHugePages bool
 
 	// Whether or not this struct is being used in tests.
 	test bool
 }
 
-func (s *pageAlloc) init(mheapLock *mutex, sysStat *uint64) {
+func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat, test bool) {
 	if levelLogPages[0] > logMaxPackedValue {
 		// We can't represent 1<<levelLogPages[0] pages, the maximum number
 		// of pages we need to represent at the root level, in a summary, which
@@ -288,57 +318,52 @@ func (s *pageAlloc) init(mheapLock *mutex, sysStat *uint64) {
 		print("runtime: summary max pages = ", maxPackedValue, "\n")
 		throw("root level max pages doesn't fit in summary")
 	}
-	s.sysStat = sysStat
+	p.sysStat = sysStat
 
-	// Initialize s.inUse.
-	s.inUse.init(sysStat)
+	// Initialize p.inUse.
+	p.inUse.init(sysStat)
 
 	// System-dependent initialization.
-	s.sysInit()
+	p.sysInit(test)
 
 	// Start with the searchAddr in a state indicating there's no free memory.
-	s.searchAddr = maxSearchAddr
-
-	// Start with the scavAddr in a state indicating there's nothing more to do.
-	s.scavAddr = minScavAddr
+	p.searchAddr = maxSearchAddr()
 
 	// Set the mheapLock.
-	s.mheapLock = mheapLock
+	p.mheapLock = mheapLock
+
+	// Initialize the scavenge index.
+	p.summaryMappedReady += p.scav.index.init(test, sysStat)
+
+	// Set if we're in a test.
+	p.test = test
 }
 
-// compareSearchAddrTo compares an address against s.searchAddr in a linearized
-// view of the address space on systems with discontinuous process address spaces.
-// This linearized view is the same one generated by chunkIndex and arenaIndex,
-// done by adding arenaBaseOffset.
+// tryChunkOf returns the bitmap data for the given chunk.
 //
-// On systems without a discontinuous address space, it's just a normal comparison.
-//
-// Returns < 0 if addr is less than s.searchAddr in the linearized address space.
-// Returns > 0 if addr is greater than s.searchAddr in the linearized address space.
-// Returns 0 if addr and s.searchAddr are equal.
-func (s *pageAlloc) compareSearchAddrTo(addr uintptr) int {
-	// Compare with arenaBaseOffset added because it gives us a linear, contiguous view
-	// of the heap on architectures with signed address spaces.
-	lAddr := addr + arenaBaseOffset
-	lSearchAddr := s.searchAddr + arenaBaseOffset
-	if lAddr < lSearchAddr {
-		return -1
-	} else if lAddr > lSearchAddr {
-		return 1
+// Returns nil if the chunk data has not been mapped.
+func (p *pageAlloc) tryChunkOf(ci chunkIdx) *pallocData {
+	l2 := p.chunks[ci.l1()]
+	if l2 == nil {
+		return nil
 	}
-	return 0
+	return &l2[ci.l2()]
 }
 
 // chunkOf returns the chunk at the given chunk index.
-func (s *pageAlloc) chunkOf(ci chunkIdx) *pallocData {
-	return &s.chunks[ci.l1()][ci.l2()]
+//
+// The chunk index must be valid or this method may throw.
+func (p *pageAlloc) chunkOf(ci chunkIdx) *pallocData {
+	return &p.chunks[ci.l1()][ci.l2()]
 }
 
 // grow sets up the metadata for the address range [base, base+size).
-// It may allocate metadata, in which case *s.sysStat will be updated.
+// It may allocate metadata, in which case *p.sysStat will be updated.
 //
-// s.mheapLock must be held.
-func (s *pageAlloc) grow(base, size uintptr) {
+// p.mheapLock must be held.
+func (p *pageAlloc) grow(base, size uintptr) {
+	assertLockHeld(p.mheapLock)
+
 	// Round up to chunks, since we can't deal with increments smaller
 	// than chunks. Also, sysGrow expects aligned values.
 	limit := alignUp(base+size, pallocChunkBytes)
@@ -346,29 +371,32 @@ func (s *pageAlloc) grow(base, size uintptr) {
 
 	// Grow the summary levels in a system-dependent manner.
 	// We just update a bunch of additional metadata here.
-	s.sysGrow(base, limit)
+	p.sysGrow(base, limit)
 
-	// Update s.start and s.end.
+	// Grow the scavenge index.
+	p.summaryMappedReady += p.scav.index.grow(base, limit, p.sysStat)
+
+	// Update p.start and p.end.
 	// If no growth happened yet, start == 0. This is generally
 	// safe since the zero page is unmapped.
-	firstGrowth := s.start == 0
+	firstGrowth := p.start == 0
 	start, end := chunkIndex(base), chunkIndex(limit)
-	if firstGrowth || start < s.start {
-		s.start = start
+	if firstGrowth || start < p.start {
+		p.start = start
 	}
-	if end > s.end {
-		s.end = end
+	if end > p.end {
+		p.end = end
 	}
 	// Note that [base, limit) will never overlap with any existing
 	// range inUse because grow only ever adds never-used memory
 	// regions to the page allocator.
-	s.inUse.add(addrRange{base, limit})
+	p.inUse.add(makeAddrRange(base, limit))
 
 	// A grow operation is a lot like a free operation, so if our
-	// chunk ends up below the (linearized) s.searchAddr, update
-	// s.searchAddr to the new address, just like in free.
-	if s.compareSearchAddrTo(base) < 0 {
-		s.searchAddr = base
+	// chunk ends up below p.searchAddr, update p.searchAddr to the
+	// new address, just like in free.
+	if b := (offAddr{base}); b.lessThan(p.searchAddr) {
+		p.searchAddr = b
 	}
 
 	// Add entries into chunks, which is sparse, if needed. Then,
@@ -377,21 +405,80 @@ func (s *pageAlloc) grow(base, size uintptr) {
 	// Newly-grown memory is always considered scavenged.
 	// Set all the bits in the scavenged bitmaps high.
 	for c := chunkIndex(base); c < chunkIndex(limit); c++ {
-		if s.chunks[c.l1()] == nil {
+		if p.chunks[c.l1()] == nil {
 			// Create the necessary l2 entry.
-			//
-			// Store it atomically to avoid races with readers which
-			// don't acquire the heap lock.
-			r := sysAlloc(unsafe.Sizeof(*s.chunks[0]), s.sysStat)
-			atomic.StorepNoWB(unsafe.Pointer(&s.chunks[c.l1()]), r)
+			const l2Size = unsafe.Sizeof(*p.chunks[0])
+			r := sysAlloc(l2Size, p.sysStat, vmaNamePageAllocIndex)
+			if r == nil {
+				throw("pageAlloc: out of memory")
+			}
+			if !p.test {
+				// Make the chunk mapping eligible or ineligible
+				// for huge pages, depending on what our current
+				// state is.
+				if p.chunkHugePages {
+					sysHugePage(r, l2Size)
+				} else {
+					sysNoHugePage(r, l2Size)
+				}
+			}
+			// Store the new chunk block but avoid a write barrier.
+			// grow is used in call chains that disallow write barriers.
+			*(*uintptr)(unsafe.Pointer(&p.chunks[c.l1()])) = uintptr(r)
 		}
-		s.chunkOf(c).scavenged.setRange(0, pallocChunkPages)
+		p.chunkOf(c).scavenged.setRange(0, pallocChunkPages)
 	}
 
 	// Update summaries accordingly. The grow acts like a free, so
 	// we need to ensure this newly-free memory is visible in the
 	// summaries.
-	s.update(base, size/pageSize, true, false)
+	p.update(base, size/pageSize, true, false)
+}
+
+// enableChunkHugePages enables huge pages for the chunk bitmap mappings (disabled by default).
+//
+// This function is idempotent.
+//
+// A note on latency: for sufficiently small heaps (<10s of GiB) this function will take constant
+// time, but may take time proportional to the size of the mapped heap beyond that.
+//
+// The heap lock must not be held over this operation, since it will briefly acquire
+// the heap lock.
+//
+// Must be called on the system stack because it acquires the heap lock.
+//
+//go:systemstack
+func (p *pageAlloc) enableChunkHugePages() {
+	// Grab the heap lock to turn on huge pages for new chunks and clone the current
+	// heap address space ranges.
+	//
+	// After the lock is released, we can be sure that bitmaps for any new chunks may
+	// be backed with huge pages, and we have the address space for the rest of the
+	// chunks. At the end of this function, all chunk metadata should be backed by huge
+	// pages.
+	lock(&mheap_.lock)
+	if p.chunkHugePages {
+		unlock(&mheap_.lock)
+		return
+	}
+	p.chunkHugePages = true
+	var inUse addrRanges
+	inUse.sysStat = p.sysStat
+	p.inUse.cloneInto(&inUse)
+	unlock(&mheap_.lock)
+
+	// This might seem like a lot of work, but all these loops are for generality.
+	//
+	// For a 1 GiB contiguous heap, a 48-bit address space, 13 L1 bits, a palloc chunk size
+	// of 4 MiB, and adherence to the default set of heap address hints, this will result in
+	// exactly 1 call to sysHugePage.
+	for _, r := range p.inUse.ranges {
+		for i := chunkIndex(r.base.addr()).l1(); i < chunkIndex(r.limit.addr()-1).l1(); i++ {
+			// N.B. We can assume that p.chunks[i] is non-nil and in a mapped part of p.chunks
+			// because it's derived from inUse, which never shrinks.
+			sysHugePage(unsafe.Pointer(p.chunks[i]), unsafe.Sizeof(*p.chunks[0]))
+		}
+	}
 }
 
 // update updates heap metadata. It must be called each time the bitmap
@@ -401,8 +488,10 @@ func (s *pageAlloc) grow(base, size uintptr) {
 // a contiguous allocation or free between addr and addr+npages. alloc indicates
 // whether the operation performed was an allocation or a free.
 //
-// s.mheapLock must be held.
-func (s *pageAlloc) update(base, npages uintptr, contig, alloc bool) {
+// p.mheapLock must be held.
+func (p *pageAlloc) update(base, npages uintptr, contig, alloc bool) {
+	assertLockHeld(p.mheapLock)
+
 	// base, limit, start, and end are inclusive.
 	limit := base + npages*pageSize - 1
 	sc, ec := chunkIndex(base), chunkIndex(limit)
@@ -411,28 +500,25 @@ func (s *pageAlloc) update(base, npages uintptr, contig, alloc bool) {
 	if sc == ec {
 		// Fast path: the allocation doesn't span more than one chunk,
 		// so update this one and if the summary didn't change, return.
-		x := s.summary[len(s.summary)-1][sc]
-		y := s.chunkOf(sc).summarize()
+		x := p.summary[len(p.summary)-1][sc]
+		y := p.chunkOf(sc).summarize()
 		if x == y {
 			return
 		}
-		s.summary[len(s.summary)-1][sc] = y
+		p.summary[len(p.summary)-1][sc] = y
 	} else if contig {
 		// Slow contiguous path: the allocation spans more than one chunk
 		// and at least one summary is guaranteed to change.
-		summary := s.summary[len(s.summary)-1]
+		summary := p.summary[len(p.summary)-1]
 
 		// Update the summary for chunk sc.
-		summary[sc] = s.chunkOf(sc).summarize()
+		summary[sc] = p.chunkOf(sc).summarize()
 
 		// Update the summaries for chunks in between, which are
 		// either totally allocated or freed.
-		whole := s.summary[len(s.summary)-1][sc+1 : ec]
+		whole := p.summary[len(p.summary)-1][sc+1 : ec]
 		if alloc {
-			// Should optimize into a memclr.
-			for i := range whole {
-				whole[i] = 0
-			}
+			clear(whole)
 		} else {
 			for i := range whole {
 				whole[i] = freeChunkSum
@@ -440,22 +526,22 @@ func (s *pageAlloc) update(base, npages uintptr, contig, alloc bool) {
 		}
 
 		// Update the summary for chunk ec.
-		summary[ec] = s.chunkOf(ec).summarize()
+		summary[ec] = p.chunkOf(ec).summarize()
 	} else {
 		// Slow general path: the allocation spans more than one chunk
 		// and at least one summary is guaranteed to change.
 		//
 		// We can't assume a contiguous allocation happened, so walk over
 		// every chunk in the range and manually recompute the summary.
-		summary := s.summary[len(s.summary)-1]
+		summary := p.summary[len(p.summary)-1]
 		for c := sc; c <= ec; c++ {
-			summary[c] = s.chunkOf(c).summarize()
+			summary[c] = p.chunkOf(c).summarize()
 		}
 	}
 
 	// Walk up the radix tree and update the summaries appropriately.
 	changed := true
-	for l := len(s.summary) - 2; l >= 0 && changed; l-- {
+	for l := len(p.summary) - 2; l >= 0 && changed; l-- {
 		// Update summaries at level l from summaries at level l+1.
 		changed = false
 
@@ -469,12 +555,12 @@ func (s *pageAlloc) update(base, npages uintptr, contig, alloc bool) {
 
 		// Iterate over each block, updating the corresponding summary in the less-granular level.
 		for i := lo; i < hi; i++ {
-			children := s.summary[l+1][i<<logEntriesPerBlock : (i+1)<<logEntriesPerBlock]
+			children := p.summary[l+1][i<<logEntriesPerBlock : (i+1)<<logEntriesPerBlock]
 			sum := mergeSummaries(children, logMaxPages)
-			old := s.summary[l][i]
+			old := p.summary[l][i]
 			if old != sum {
 				changed = true
-				s.summary[l][i] = sum
+				p.summary[l][i] = sum
 			}
 		}
 	}
@@ -487,8 +573,10 @@ func (s *pageAlloc) update(base, npages uintptr, contig, alloc bool) {
 // Returns the amount of scavenged memory in bytes present in the
 // allocated range.
 //
-// s.mheapLock must be held.
-func (s *pageAlloc) allocRange(base, npages uintptr) uintptr {
+// p.mheapLock must be held.
+func (p *pageAlloc) allocRange(base, npages uintptr) uintptr {
+	assertLockHeld(p.mheapLock)
+
 	limit := base + npages*pageSize - 1
 	sc, ec := chunkIndex(base), chunkIndex(limit)
 	si, ei := chunkPageIndex(base), chunkPageIndex(limit)
@@ -496,43 +584,76 @@ func (s *pageAlloc) allocRange(base, npages uintptr) uintptr {
 	scav := uint(0)
 	if sc == ec {
 		// The range doesn't cross any chunk boundaries.
-		chunk := s.chunkOf(sc)
+		chunk := p.chunkOf(sc)
 		scav += chunk.scavenged.popcntRange(si, ei+1-si)
 		chunk.allocRange(si, ei+1-si)
+		p.scav.index.alloc(sc, ei+1-si)
 	} else {
 		// The range crosses at least one chunk boundary.
-		chunk := s.chunkOf(sc)
+		chunk := p.chunkOf(sc)
 		scav += chunk.scavenged.popcntRange(si, pallocChunkPages-si)
 		chunk.allocRange(si, pallocChunkPages-si)
+		p.scav.index.alloc(sc, pallocChunkPages-si)
 		for c := sc + 1; c < ec; c++ {
-			chunk := s.chunkOf(c)
+			chunk := p.chunkOf(c)
 			scav += chunk.scavenged.popcntRange(0, pallocChunkPages)
 			chunk.allocAll()
+			p.scav.index.alloc(c, pallocChunkPages)
 		}
-		chunk = s.chunkOf(ec)
+		chunk = p.chunkOf(ec)
 		scav += chunk.scavenged.popcntRange(0, ei+1)
 		chunk.allocRange(0, ei+1)
+		p.scav.index.alloc(ec, ei+1)
 	}
-	s.update(base, npages, true, true)
+	p.update(base, npages, true, true)
 	return uintptr(scav) * pageSize
+}
+
+// findMappedAddr returns the smallest mapped offAddr that is
+// >= addr. That is, if addr refers to mapped memory, then it is
+// returned. If addr is higher than any mapped region, then
+// it returns maxOffAddr.
+//
+// p.mheapLock must be held.
+func (p *pageAlloc) findMappedAddr(addr offAddr) offAddr {
+	assertLockHeld(p.mheapLock)
+
+	// If we're not in a test, validate first by checking mheap_.arenas.
+	// This is a fast path which is only safe to use outside of testing.
+	ai := arenaIndex(addr.addr())
+	if p.test || mheap_.arenas[ai.l1()] == nil || mheap_.arenas[ai.l1()][ai.l2()] == nil {
+		vAddr, ok := p.inUse.findAddrGreaterEqual(addr.addr())
+		if ok {
+			return offAddr{vAddr}
+		} else {
+			// The candidate search address is greater than any
+			// known address, which means we definitely have no
+			// free memory left.
+			return maxOffAddr
+		}
+	}
+	return addr
 }
 
 // find searches for the first (address-ordered) contiguous free region of
 // npages in size and returns a base address for that region.
 //
-// It uses s.searchAddr to prune its search and assumes that no palloc chunks
-// below chunkIndex(s.searchAddr) contain any free memory at all.
+// It uses p.searchAddr to prune its search and assumes that no palloc chunks
+// below chunkIndex(p.searchAddr) contain any free memory at all.
 //
-// find also computes and returns a candidate s.searchAddr, which may or
-// may not prune more of the address space than s.searchAddr already does.
+// find also computes and returns a candidate p.searchAddr, which may or
+// may not prune more of the address space than p.searchAddr already does.
+// This candidate is always a valid p.searchAddr.
 //
 // find represents the slow path and the full radix tree search.
 //
 // Returns a base address of 0 on failure, in which case the candidate
 // searchAddr returned is invalid and must be ignored.
 //
-// s.mheapLock must be held.
-func (s *pageAlloc) find(npages uintptr) (uintptr, uintptr) {
+// p.mheapLock must be held.
+func (p *pageAlloc) find(npages uintptr) (uintptr, offAddr) {
+	assertLockHeld(p.mheapLock)
+
 	// Search algorithm.
 	//
 	// This algorithm walks each level l of the radix tree from the root level
@@ -572,13 +693,13 @@ func (s *pageAlloc) find(npages uintptr) (uintptr, uintptr) {
 	// firstFree is updated by calling foundFree each time free space in the
 	// heap is discovered.
 	//
-	// At the end of the search, base-arenaBaseOffset is the best new
+	// At the end of the search, base.addr() is the best new
 	// searchAddr we could deduce in this search.
 	firstFree := struct {
-		base, bound uintptr
+		base, bound offAddr
 	}{
-		base:  0,
-		bound: (1<<heapAddrBits - 1),
+		base:  minOffAddr,
+		bound: maxOffAddr,
 	}
 	// foundFree takes the given address range [addr, addr+size) and
 	// updates firstFree if it is a narrower range. The input range must
@@ -589,17 +710,17 @@ func (s *pageAlloc) find(npages uintptr) (uintptr, uintptr) {
 	// pages on the root level and narrow that down if we descend into
 	// that summary. But as soon as we need to iterate beyond that summary
 	// in a level to find a large enough range, we'll stop narrowing.
-	foundFree := func(addr, size uintptr) {
-		if firstFree.base <= addr && addr+size-1 <= firstFree.bound {
+	foundFree := func(addr offAddr, size uintptr) {
+		if firstFree.base.lessEqual(addr) && addr.add(size-1).lessEqual(firstFree.bound) {
 			// This range fits within the current firstFree window, so narrow
 			// down the firstFree window to the base and bound of this range.
 			firstFree.base = addr
-			firstFree.bound = addr + size - 1
-		} else if !(addr+size-1 < firstFree.base || addr > firstFree.bound) {
+			firstFree.bound = addr.add(size - 1)
+		} else if !(addr.add(size-1).lessThan(firstFree.base) || firstFree.bound.lessThan(addr)) {
 			// This range only partially overlaps with the firstFree range,
 			// so throw.
-			print("runtime: addr = ", hex(addr), ", size = ", size, "\n")
-			print("runtime: base = ", hex(firstFree.base), ", bound = ", hex(firstFree.bound), "\n")
+			print("runtime: addr = ", hex(addr.addr()), ", size = ", size, "\n")
+			print("runtime: base = ", hex(firstFree.base.addr()), ", bound = ", hex(firstFree.bound.addr()), "\n")
 			throw("range partially overlaps")
 		}
 	}
@@ -612,7 +733,7 @@ func (s *pageAlloc) find(npages uintptr) (uintptr, uintptr) {
 	lastSumIdx := -1
 
 nextLevel:
-	for l := 0; l < len(s.summary); l++ {
+	for l := 0; l < len(p.summary); l++ {
 		// For the root level, entriesPerBlock is the whole level.
 		entriesPerBlock := 1 << levelBits[l]
 		logMaxPages := levelLogPages[l]
@@ -622,14 +743,14 @@ nextLevel:
 		i <<= levelBits[l]
 
 		// Slice out the block of entries we care about.
-		entries := s.summary[l][i : i+entriesPerBlock]
+		entries := p.summary[l][i : i+entriesPerBlock]
 
 		// Determine j0, the first index we should start iterating from.
 		// The searchAddr may help us eliminate iterations if we followed the
-		// searchAddr on the previous level or we're on the root leve, in which
+		// searchAddr on the previous level or we're on the root level, in which
 		// case the searchAddr should be the same as i after levelShift.
 		j0 := 0
-		if searchIdx := int((s.searchAddr + arenaBaseOffset) >> levelShift[l]); searchIdx&^(entriesPerBlock-1) == i {
+		if searchIdx := offAddrToLevelIndex(l, p.searchAddr); searchIdx&^(entriesPerBlock-1) == i {
 			j0 = searchIdx & (entriesPerBlock - 1)
 		}
 
@@ -655,7 +776,7 @@ nextLevel:
 
 			// We've encountered a non-zero summary which means
 			// free memory, so update firstFree.
-			foundFree(uintptr((i+j)<<levelShift[l]), (uintptr(1)<<logMaxPages)*pageSize)
+			foundFree(levelIndexToOffAddr(l, i+j), (uintptr(1)<<logMaxPages)*pageSize)
 
 			s := sum.start()
 			if size+s >= uint(npages) {
@@ -693,12 +814,12 @@ nextLevel:
 		if size >= uint(npages) {
 			// We found a sufficiently large run of free pages straddling
 			// some boundary, so compute the address and return it.
-			addr := uintptr(i<<levelShift[l]) - arenaBaseOffset + uintptr(base)*pageSize
-			return addr, firstFree.base - arenaBaseOffset
+			addr := levelIndexToOffAddr(l, i).add(uintptr(base) * pageSize).addr()
+			return addr, p.findMappedAddr(firstFree.base)
 		}
 		if l == 0 {
 			// We're at level zero, so that means we've exhausted our search.
-			return 0, maxSearchAddr
+			return 0, maxSearchAddr()
 		}
 
 		// We're not at level zero, and we exhausted the level we were looking in.
@@ -706,7 +827,7 @@ nextLevel:
 		// lied to us. In either case, dump some useful state and throw.
 		print("runtime: summary[", l-1, "][", lastSumIdx, "] = ", lastSum.start(), ", ", lastSum.max(), ", ", lastSum.end(), "\n")
 		print("runtime: level = ", l, ", npages = ", npages, ", j0 = ", j0, "\n")
-		print("runtime: s.searchAddr = ", hex(s.searchAddr), ", i = ", i, "\n")
+		print("runtime: p.searchAddr = ", hex(p.searchAddr.addr()), ", i = ", i, "\n")
 		print("runtime: levelShift[level] = ", levelShift[l], ", levelBits[level] = ", levelBits[l], "\n")
 		for j := 0; j < len(entries); j++ {
 			sum := entries[j]
@@ -723,12 +844,12 @@ nextLevel:
 	// After iterating over all levels, i must contain a chunk index which
 	// is what the final level represents.
 	ci := chunkIdx(i)
-	j, searchIdx := s.chunkOf(ci).find(npages, 0)
+	j, searchIdx := p.chunkOf(ci).find(npages, 0)
 	if j == ^uint(0) {
 		// We couldn't find any space in this chunk despite the summaries telling
 		// us it should be there. There's likely a bug, so dump some state and throw.
-		sum := s.summary[len(s.summary)-1][i]
-		print("runtime: summary[", len(s.summary)-1, "][", i, "] = (", sum.start(), ", ", sum.max(), ", ", sum.end(), ")\n")
+		sum := p.summary[len(p.summary)-1][i]
+		print("runtime: summary[", len(p.summary)-1, "][", i, "] = (", sum.start(), ", ", sum.max(), ", ", sum.end(), ")\n")
 		print("runtime: npages = ", npages, "\n")
 		throw("bad summary data")
 	}
@@ -739,8 +860,8 @@ nextLevel:
 	// Since we actually searched the chunk, we may have
 	// found an even narrower free window.
 	searchAddr := chunkBase(ci) + uintptr(searchIdx)*pageSize
-	foundFree(searchAddr+arenaBaseOffset, chunkBase(ci+1)-searchAddr)
-	return addr, firstFree.base - arenaBaseOffset
+	foundFree(offAddr{searchAddr}, chunkBase(ci+1)-searchAddr)
+	return addr, p.findMappedAddr(firstFree.base)
 }
 
 // alloc allocates npages worth of memory from the page heap, returning the base
@@ -750,35 +871,41 @@ nextLevel:
 // Returns a 0 base address on failure, in which case other returned values
 // should be ignored.
 //
-// s.mheapLock must be held.
-func (s *pageAlloc) alloc(npages uintptr) (addr uintptr, scav uintptr) {
+// p.mheapLock must be held.
+//
+// Must run on the system stack because p.mheapLock must be held.
+//
+//go:systemstack
+func (p *pageAlloc) alloc(npages uintptr) (addr uintptr, scav uintptr) {
+	assertLockHeld(p.mheapLock)
+
 	// If the searchAddr refers to a region which has a higher address than
 	// any known chunk, then we know we're out of memory.
-	if chunkIndex(s.searchAddr) >= s.end {
+	if chunkIndex(p.searchAddr.addr()) >= p.end {
 		return 0, 0
 	}
 
 	// If npages has a chance of fitting in the chunk where the searchAddr is,
 	// search it directly.
-	searchAddr := uintptr(0)
-	if pallocChunkPages-chunkPageIndex(s.searchAddr) >= uint(npages) {
+	searchAddr := minOffAddr
+	if pallocChunkPages-chunkPageIndex(p.searchAddr.addr()) >= uint(npages) {
 		// npages is guaranteed to be no greater than pallocChunkPages here.
-		i := chunkIndex(s.searchAddr)
-		if max := s.summary[len(s.summary)-1][i].max(); max >= uint(npages) {
-			j, searchIdx := s.chunkOf(i).find(npages, chunkPageIndex(s.searchAddr))
+		i := chunkIndex(p.searchAddr.addr())
+		if max := p.summary[len(p.summary)-1][i].max(); max >= uint(npages) {
+			j, searchIdx := p.chunkOf(i).find(npages, chunkPageIndex(p.searchAddr.addr()))
 			if j == ^uint(0) {
 				print("runtime: max = ", max, ", npages = ", npages, "\n")
-				print("runtime: searchIdx = ", chunkPageIndex(s.searchAddr), ", s.searchAddr = ", hex(s.searchAddr), "\n")
+				print("runtime: searchIdx = ", chunkPageIndex(p.searchAddr.addr()), ", p.searchAddr = ", hex(p.searchAddr.addr()), "\n")
 				throw("bad summary data")
 			}
 			addr = chunkBase(i) + uintptr(j)*pageSize
-			searchAddr = chunkBase(i) + uintptr(searchIdx)*pageSize
+			searchAddr = offAddr{chunkBase(i) + uintptr(searchIdx)*pageSize}
 			goto Found
 		}
 	}
 	// We failed to use a searchAddr for one reason or another, so try
 	// the slow path.
-	addr, searchAddr = s.find(npages)
+	addr, searchAddr = p.find(npages)
 	if addr == 0 {
 		if npages == 1 {
 			// We failed to find a single free page, the smallest unit
@@ -786,55 +913,106 @@ func (s *pageAlloc) alloc(npages uintptr) (addr uintptr, scav uintptr) {
 			// exhausted. Otherwise, the heap still might have free
 			// space in it, just not enough contiguous space to
 			// accommodate npages.
-			s.searchAddr = maxSearchAddr
+			p.searchAddr = maxSearchAddr()
 		}
 		return 0, 0
 	}
 Found:
 	// Go ahead and actually mark the bits now that we have an address.
-	scav = s.allocRange(addr, npages)
+	scav = p.allocRange(addr, npages)
 
-	// If we found a higher (linearized) searchAddr, we know that all the
-	// heap memory before that searchAddr in a linear address space is
-	// allocated, so bump s.searchAddr up to the new one.
-	if s.compareSearchAddrTo(searchAddr) > 0 {
-		s.searchAddr = searchAddr
+	// If we found a higher searchAddr, we know that all the
+	// heap memory before that searchAddr in an offset address space is
+	// allocated, so bump p.searchAddr up to the new one.
+	if p.searchAddr.lessThan(searchAddr) {
+		p.searchAddr = searchAddr
 	}
 	return addr, scav
 }
 
 // free returns npages worth of memory starting at base back to the page heap.
 //
-// s.mheapLock must be held.
-func (s *pageAlloc) free(base, npages uintptr) {
-	// If we're freeing pages below the (linearized) s.searchAddr, update searchAddr.
-	if s.compareSearchAddrTo(base) < 0 {
-		s.searchAddr = base
+// p.mheapLock must be held.
+//
+// Must run on the system stack because p.mheapLock must be held.
+//
+//go:systemstack
+func (p *pageAlloc) free(base, npages uintptr) {
+	assertLockHeld(p.mheapLock)
+
+	// If we're freeing pages below the p.searchAddr, update searchAddr.
+	if b := (offAddr{base}); b.lessThan(p.searchAddr) {
+		p.searchAddr = b
 	}
+	limit := base + npages*pageSize - 1
 	if npages == 1 {
 		// Fast path: we're clearing a single bit, and we know exactly
 		// where it is, so mark it directly.
 		i := chunkIndex(base)
-		s.chunkOf(i).free1(chunkPageIndex(base))
+		pi := chunkPageIndex(base)
+		p.chunkOf(i).free1(pi)
+		p.scav.index.free(i, pi, 1)
 	} else {
 		// Slow path: we're clearing more bits so we may need to iterate.
-		limit := base + npages*pageSize - 1
 		sc, ec := chunkIndex(base), chunkIndex(limit)
 		si, ei := chunkPageIndex(base), chunkPageIndex(limit)
 
 		if sc == ec {
 			// The range doesn't cross any chunk boundaries.
-			s.chunkOf(sc).free(si, ei+1-si)
+			p.chunkOf(sc).free(si, ei+1-si)
+			p.scav.index.free(sc, si, ei+1-si)
 		} else {
 			// The range crosses at least one chunk boundary.
-			s.chunkOf(sc).free(si, pallocChunkPages-si)
+			p.chunkOf(sc).free(si, pallocChunkPages-si)
+			p.scav.index.free(sc, si, pallocChunkPages-si)
 			for c := sc + 1; c < ec; c++ {
-				s.chunkOf(c).freeAll()
+				p.chunkOf(c).freeAll()
+				p.scav.index.free(c, 0, pallocChunkPages)
 			}
-			s.chunkOf(ec).free(0, ei+1)
+			p.chunkOf(ec).free(0, ei+1)
+			p.scav.index.free(ec, 0, ei+1)
 		}
 	}
-	s.update(base, npages, true, false)
+	p.update(base, npages, true, false)
+}
+
+// markRandomPaddingPages marks the range of memory [base, base+npages*pageSize]
+// as both allocated and scavenged. This is used for randomizing the base heap
+// address. Both the alloc and scav bits are set so that the pages are not used
+// and so the memory accounting stats are correctly calculated.
+//
+// Similar to allocRange, it also updates the summaries to reflect the
+// newly-updated bitmap.
+//
+// p.mheapLock must be held.
+func (p *pageAlloc) markRandomPaddingPages(base uintptr, npages uintptr) {
+	assertLockHeld(p.mheapLock)
+
+	limit := base + npages*pageSize - 1
+	sc, ec := chunkIndex(base), chunkIndex(limit)
+	si, ei := chunkPageIndex(base), chunkPageIndex(limit)
+	if sc == ec {
+		chunk := p.chunkOf(sc)
+		chunk.allocRange(si, ei+1-si)
+		p.scav.index.alloc(sc, ei+1-si)
+		chunk.scavenged.setRange(si, ei+1-si)
+	} else {
+		chunk := p.chunkOf(sc)
+		chunk.allocRange(si, pallocChunkPages-si)
+		p.scav.index.alloc(sc, pallocChunkPages-si)
+		chunk.scavenged.setRange(si, pallocChunkPages-si)
+		for c := sc + 1; c < ec; c++ {
+			chunk := p.chunkOf(c)
+			chunk.allocAll()
+			p.scav.index.alloc(c, pallocChunkPages)
+			chunk.scavenged.setAll()
+		}
+		chunk = p.chunkOf(ec)
+		chunk.allocRange(0, ei+1)
+		p.scav.index.alloc(ec, ei+1)
+		chunk.scavenged.setRange(0, ei+1)
+	}
+	p.update(base, npages, true, true)
 }
 
 const (
@@ -907,8 +1085,8 @@ func mergeSummaries(sums []pallocSum, logMaxPagesPerSum uint) pallocSum {
 	// Merge the summaries in sums into one.
 	//
 	// We do this by keeping a running summary representing the merged
-	// summaries of sums[:i] in start, max, and end.
-	start, max, end := sums[0].unpack()
+	// summaries of sums[:i] in start, most, and end.
+	start, most, end := sums[0].unpack()
 	for i := 1; i < len(sums); i++ {
 		// Merge in sums[i].
 		si, mi, ei := sums[i].unpack()
@@ -924,12 +1102,7 @@ func mergeSummaries(sums []pallocSum, logMaxPagesPerSum uint) pallocSum {
 		// across the boundary between the running sum and sums[i]
 		// and at the max sums[i], taking the greatest of those two
 		// and the max of the running sum.
-		if end+si > max {
-			max = end + si
-		}
-		if mi > max {
-			max = mi
-		}
+		most = max(most, end+si, mi)
 
 		// Merge in end by checking if this new summary is totally
 		// free. If it is, then we want to extend the running sum's
@@ -942,5 +1115,5 @@ func mergeSummaries(sums []pallocSum, logMaxPagesPerSum uint) pallocSum {
 			end = ei
 		}
 	}
-	return packPallocSum(start, max, end)
+	return packPallocSum(start, most, end)
 }

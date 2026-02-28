@@ -6,10 +6,11 @@ package mail_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/mail"
 	"strings"
+	"time"
 )
 
 func ExampleParseAddressList() {
@@ -62,7 +63,7 @@ Message body
 	fmt.Println("To:", header.Get("To"))
 	fmt.Println("Subject:", header.Get("Subject"))
 
-	body, err := ioutil.ReadAll(m.Body)
+	body, err := io.ReadAll(m.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -74,4 +75,18 @@ Message body
 	// To: Another Gopher <to@example.com>
 	// Subject: Gophers at Gophercon
 	// Message body
+}
+
+func ExampleParseDate() {
+	dateStr := "Wed, 09 Oct 2024 09:55:06 -0700"
+
+	t, err := mail.ParseDate(dateStr)
+	if err != nil {
+		log.Fatalf("Failed to parse date: %v", err)
+	}
+
+	fmt.Println(t.Format(time.RFC3339))
+
+	// Output:
+	// 2024-10-09T09:55:06-07:00
 }

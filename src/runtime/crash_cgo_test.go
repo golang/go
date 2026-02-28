@@ -2,13 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build cgo
+//go:build cgo
 
 package runtime_test
 
 import (
-	"bytes"
 	"fmt"
+	"internal/asan"
+	"internal/goos"
+	"internal/msan"
+	"internal/race"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -32,6 +35,9 @@ func TestCgoSignalDeadlock(t *testing.T) {
 	if testing.Short() && runtime.GOOS == "windows" {
 		t.Skip("Skipping in short mode") // takes up to 64 seconds
 	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
 	got := runTestProg(t, "testprogcgo", "CgoSignalDeadlock")
 	want := "OK\n"
 	if got != want {
@@ -40,6 +46,10 @@ func TestCgoSignalDeadlock(t *testing.T) {
 }
 
 func TestCgoTraceback(t *testing.T) {
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+
 	t.Parallel()
 	got := runTestProg(t, "testprogcgo", "CgoTraceback")
 	want := "OK\n"
@@ -53,6 +63,9 @@ func TestCgoCallbackGC(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
 	if testing.Short() {
 		switch {
@@ -71,10 +84,32 @@ func TestCgoCallbackGC(t *testing.T) {
 	}
 }
 
+func TestCgoCallbackPprof(t *testing.T) {
+	t.Parallel()
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	if testenv.CPUProfilingBroken() {
+		t.Skip("skipping on platform with broken profiling")
+	}
+
+	got := runTestProg(t, "testprogcgo", "CgoCallbackPprof")
+	if want := "OK\n"; got != want {
+		t.Fatalf("expected %q, but got:\n%s", want, got)
+	}
+}
+
 func TestCgoExternalThreadPanic(t *testing.T) {
 	t.Parallel()
 	if runtime.GOOS == "plan9" {
 		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
 	got := runTestProg(t, "testprogcgo", "CgoExternalThreadPanic")
 	want := "panic: BOOM"
@@ -90,23 +125,12 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
-	if runtime.GOARCH == "ppc64" && runtime.GOOS == "linux" {
-		// TODO(austin) External linking not implemented on
-		// linux/ppc64 (issue #8912)
-		t.Skipf("no external linking on ppc64")
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
 
-	exe, err := buildTestProg(t, "testprogcgo", "-tags=threadprof")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
-	if err != nil {
-		t.Fatalf("exit status: %v\n%s", err, got)
-	}
-
-	if want := "OK\n"; string(got) != want {
+	got := runTestProg(t, "testprogcgo", "CgoExternalThreadSIGPROF", "GO_START_SIGPROF_THREAD=1")
+	if want := "OK\n"; got != want {
 		t.Fatalf("expected %q, but got:\n%s", want, got)
 	}
 }
@@ -118,19 +142,15 @@ func TestCgoExternalThreadSignal(t *testing.T) {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
-
-	exe, err := buildTestProg(t, "testprogcgo", "-tags=threadprof")
-	if err != nil {
-		t.Fatal(err)
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
 
-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
-	if err != nil {
-		t.Fatalf("exit status: %v\n%s", err, got)
-	}
-
-	want := []byte("OK\n")
-	if !bytes.Equal(got, want) {
+	got := runTestProg(t, "testprogcgo", "CgoExternalThreadSignal")
+	if want := "OK\n"; got != want {
+		if runtime.GOOS == "ios" && strings.Contains(got, "C signal did not crash as expected") {
+			testenv.SkipFlaky(t, 59913)
+		}
 		t.Fatalf("expected %q, but got:\n%s", want, got)
 	}
 }
@@ -139,6 +159,9 @@ func TestCgoDLLImports(t *testing.T) {
 	// test issue 9356
 	if runtime.GOOS != "windows" {
 		t.Skip("skipping windows specific test")
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
 	got := runTestProg(t, "testprogcgo", "CgoDLLImportsMain")
 	want := "OK\n"
@@ -154,7 +177,10 @@ func TestCgoExecSignalMask(t *testing.T) {
 	case "windows", "plan9":
 		t.Skipf("skipping signal mask test on %s", runtime.GOOS)
 	}
-	got := runTestProg(t, "testprogcgo", "CgoExecSignalMask")
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	got := runTestProg(t, "testprogcgo", "CgoExecSignalMask", "GOTRACEBACK=system")
 	want := "OK\n"
 	if got != want {
 		t.Errorf("expected %q, got %v", want, got)
@@ -167,6 +193,9 @@ func TestEnsureDropM(t *testing.T) {
 	switch runtime.GOOS {
 	case "windows", "plan9":
 		t.Skipf("skipping dropm test on %s", runtime.GOOS)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
 	got := runTestProg(t, "testprogcgo", "EnsureDropM")
 	want := "OK\n"
@@ -182,6 +211,9 @@ func TestCgoCheckBytes(t *testing.T) {
 	t.Parallel()
 	// Make sure we don't count the build time as part of the run time.
 	testenv.MustHaveGoBuild(t)
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
 	exe, err := buildTestProg(t, "testprogcgo")
 	if err != nil {
 		t.Fatal(err)
@@ -220,6 +252,9 @@ func TestCgoCheckBytes(t *testing.T) {
 
 func TestCgoPanicDeadlock(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
 	// test issue 14432
 	got := runTestProg(t, "testprogcgo", "CgoPanicDeadlock")
 	want := "panic: cgo error\n\n"
@@ -230,7 +265,28 @@ func TestCgoPanicDeadlock(t *testing.T) {
 
 func TestCgoCCodeSIGPROF(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
 	got := runTestProg(t, "testprogcgo", "CgoCCodeSIGPROF")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}
+
+func TestCgoPprofCallback(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode") // takes a full second
+	}
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		t.Skipf("skipping cgo pprof callback test on %s", runtime.GOOS)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	got := runTestProg(t, "testprogcgo", "CgoPprofCallback")
 	want := "OK\n"
 	if got != want {
 		t.Errorf("expected %q got %v", want, got)
@@ -242,21 +298,79 @@ func TestCgoCrashTraceback(t *testing.T) {
 	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
 	case "darwin/amd64":
 	case "linux/amd64":
+	case "linux/arm64":
+	case "linux/loong64":
 	case "linux/ppc64le":
 	default:
 		t.Skipf("not yet supported on %s", platform)
 	}
+	if asan.Enabled || msan.Enabled {
+		t.Skip("skipping test on ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
 	got := runTestProg(t, "testprogcgo", "CrashTraceback")
 	for i := 1; i <= 3; i++ {
 		if !strings.Contains(got, fmt.Sprintf("cgo symbolizer:%d", i)) {
-			t.Errorf("missing cgo symbolizer:%d", i)
+			t.Errorf("missing cgo symbolizer:%d in %s", i, got)
+		}
+	}
+}
+
+func TestCgoCrashTracebackGo(t *testing.T) {
+	t.Parallel()
+	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
+	case "darwin/amd64":
+	case "linux/amd64":
+	case "linux/arm64":
+	case "linux/loong64":
+	case "linux/ppc64le":
+	default:
+		t.Skipf("not yet supported on %s", platform)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	got := runTestProg(t, "testprogcgo", "CrashTracebackGo")
+	for i := 1; i <= 3; i++ {
+		want := fmt.Sprintf("main.h%d", i)
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %s", want)
 		}
 	}
 }
 
 func TestCgoTracebackContext(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
 	got := runTestProg(t, "testprogcgo", "TracebackContext")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}
+
+func TestCgoTracebackContextPreemption(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	got := runTestProg(t, "testprogcgo", "TracebackContextPreemption")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}
+
+func TestCgoTracebackContextProfile(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	got := runTestProg(t, "testprogcgo", "TracebackContextProfile")
 	want := "OK\n"
 	if got != want {
 		t.Errorf("expected %q got %v", want, got)
@@ -265,22 +379,24 @@ func TestCgoTracebackContext(t *testing.T) {
 
 func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 	t.Parallel()
-	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le") {
+	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le" && runtime.GOARCH != "arm64" && runtime.GOARCH != "loong64") {
 		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
 	testenv.MustHaveGoRun(t)
 
-	exe, err := buildTestProg(t, "testprogcgo", buildArg)
+	var args []string
+	if buildArg != "" {
+		args = append(args, buildArg)
+	}
+	exe, err := buildTestProg(t, "testprogcgo", args...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// pprofCgoTraceback is called whenever CGO code is executing and a signal
-	// is received. Disable signal preemption to increase the likelihood at
-	// least one SIGPROF signal fired to capture a sample. See issue #37201.
 	cmd := testenv.CleanCmdEnv(exec.Command(exe, runArg))
-	cmd.Env = append(cmd.Env, "GODEBUG=asyncpreemptoff=1")
-
 	got, err := cmd.CombinedOutput()
 	if err != nil {
 		if testenv.Builder() == "linux-amd64-alpine" {
@@ -293,7 +409,7 @@ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 	defer os.Remove(fn)
 
 	for try := 0; try < 2; try++ {
-		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-traces"))
+		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-tagignore=ignore", "-traces"))
 		// Check that pprof works both with and without explicit executable on command line.
 		if try == 0 {
 			cmd.Args = append(cmd.Args, exe, fn)
@@ -336,6 +452,9 @@ func TestCgoPprof(t *testing.T) {
 }
 
 func TestCgoPprofPIE(t *testing.T) {
+	if race.Enabled {
+		t.Skip("skipping test: -race + PIE not supported")
+	}
 	testCgoPprof(t, "-buildmode=pie", "CgoPprof", "cpuHog", "runtime.main")
 }
 
@@ -348,19 +467,20 @@ func TestCgoPprofThreadNoTraceback(t *testing.T) {
 }
 
 func TestRaceProf(t *testing.T) {
-	if (runtime.GOOS != "linux" && runtime.GOOS != "freebsd") || runtime.GOARCH != "amd64" {
-		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	if !race.Enabled {
+		t.Skip("skipping: race detector not enabled")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skipf("skipping: test requires pthread support")
+		// TODO: Can this test be rewritten to use the C11 thread API instead?
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
 
 	testenv.MustHaveGoRun(t)
 
-	// This test requires building various packages with -race, so
-	// it's somewhat slow.
-	if testing.Short() {
-		t.Skip("skipping test in -short mode")
-	}
-
-	exe, err := buildTestProg(t, "testprogcgo", "-race")
+	exe, err := buildTestProg(t, "testprogcgo")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -376,25 +496,30 @@ func TestRaceProf(t *testing.T) {
 }
 
 func TestRaceSignal(t *testing.T) {
-	t.Parallel()
-	if (runtime.GOOS != "linux" && runtime.GOOS != "freebsd") || runtime.GOARCH != "amd64" {
-		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	if !race.Enabled {
+		t.Skip("skipping: race detector not enabled")
 	}
+	if runtime.GOOS == "windows" {
+		t.Skipf("skipping: test requires pthread support")
+		// TODO: Can this test be rewritten to use the C11 thread API instead?
+	}
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+		testenv.SkipFlaky(t, 60316)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+
+	t.Parallel()
 
 	testenv.MustHaveGoRun(t)
 
-	// This test requires building various packages with -race, so
-	// it's somewhat slow.
-	if testing.Short() {
-		t.Skip("skipping test in -short mode")
-	}
-
-	exe, err := buildTestProg(t, "testprogcgo", "-race")
+	exe, err := buildTestProg(t, "testprogcgo")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoRaceSignal")).CombinedOutput()
+	got, err := testenv.CleanCmdEnv(testenv.Command(t, exe, "CgoRaceSignal")).CombinedOutput()
 	if err != nil {
 		t.Logf("%s\n", got)
 		t.Fatal(err)
@@ -409,6 +534,9 @@ func TestCgoNumGoroutine(t *testing.T) {
 	switch runtime.GOOS {
 	case "windows", "plan9":
 		t.Skipf("skipping numgoroutine test on %s", runtime.GOOS)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
 	t.Parallel()
 	got := runTestProg(t, "testprogcgo", "NumGoroutine")
@@ -427,6 +555,9 @@ func TestCatchPanic(t *testing.T) {
 		if runtime.GOARCH == "amd64" {
 			t.Skipf("crash() on darwin/amd64 doesn't raise SIGABRT")
 		}
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
 
 	testenv.MustHaveGoRun(t)
@@ -455,6 +586,9 @@ func TestCgoLockOSThreadExit(t *testing.T) {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
 	t.Parallel()
 	testLockOSThreadExit(t, "testprogcgo")
 }
@@ -462,6 +596,9 @@ func TestCgoLockOSThreadExit(t *testing.T) {
 func TestWindowsStackMemoryCgo(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("skipping windows specific test")
+	}
+	if race.Enabled {
+		t.Skip("skipping test: race mode uses more stack memory")
 	}
 	testenv.SkipFlaky(t, 22575)
 	o := runTestProg(t, "testprogcgo", "StackMemory")
@@ -478,6 +615,9 @@ func TestSigStackSwapping(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("no sigaltstack on %s", runtime.GOOS)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
 	t.Parallel()
 	got := runTestProg(t, "testprogcgo", "SigStack")
@@ -496,15 +636,61 @@ func TestCgoTracebackSigpanic(t *testing.T) {
 		// than injecting a sigpanic.
 		t.Skip("no sigpanic in C on windows")
 	}
+	if asan.Enabled || msan.Enabled {
+		t.Skip("skipping test on ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	if runtime.GOOS == "ios" {
+		testenv.SkipFlaky(t, 59912)
+	}
 	t.Parallel()
 	got := runTestProg(t, "testprogcgo", "TracebackSigpanic")
-	want := "runtime.sigpanic"
+	t.Log(got)
+	// We should see the function that calls the C function.
+	want := "main.TracebackSigpanic"
 	if !strings.Contains(got, want) {
-		t.Fatalf("want failure containing %q. output:\n%s\n", want, got)
+		if runtime.GOOS == "android" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+			testenv.SkipFlaky(t, 58794)
+		}
+		t.Errorf("did not see %q in output", want)
 	}
-	nowant := "unexpected return pc"
+	// We shouldn't inject a sigpanic call. (see issue 57698)
+	nowant := "runtime.sigpanic"
 	if strings.Contains(got, nowant) {
-		t.Fatalf("failure incorrectly contains %q. output:\n%s\n", nowant, got)
+		t.Errorf("unexpectedly saw %q in output", nowant)
+	}
+	// No runtime errors like "runtime: unexpected return pc".
+	nowant = "runtime: "
+	if strings.Contains(got, nowant) {
+		t.Errorf("unexpectedly saw %q in output", nowant)
+	}
+}
+
+func TestCgoPanicCallback(t *testing.T) {
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "PanicCallback")
+	t.Log(got)
+	want := "panic: runtime error: invalid memory address or nil pointer dereference"
+	if !strings.Contains(got, want) {
+		t.Errorf("did not see %q in output", want)
+	}
+	want = "panic_callback"
+	if !strings.Contains(got, want) {
+		t.Errorf("did not see %q in output", want)
+	}
+	want = "PanicCallback"
+	if !strings.Contains(got, want) {
+		t.Errorf("did not see %q in output", want)
+	}
+	// No runtime errors like "runtime: unexpected return pc".
+	nowant := "runtime: "
+	if strings.Contains(got, nowant) {
+		t.Errorf("did not see %q in output", want)
 	}
 }
 
@@ -554,4 +740,258 @@ func findTrace(text, top string) []string {
 		}
 	}
 	return nil
+}
+
+func TestSegv(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("no signals on %s", runtime.GOOS)
+	}
+	if race.Enabled || asan.Enabled || msan.Enabled {
+		t.Skip("skipping test on race/ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
+	}
+
+	for _, test := range []string{"Segv", "SegvInCgo", "TgkillSegv", "TgkillSegvInCgo"} {
+		// The tgkill variants only run on Linux.
+		if runtime.GOOS != "linux" && strings.HasPrefix(test, "Tgkill") {
+			continue
+		}
+
+		t.Run(test, func(t *testing.T) {
+			if test == "SegvInCgo" && runtime.GOOS == "ios" {
+				testenv.SkipFlaky(t, 59947) // Don't even try, in case it times out.
+			}
+			if strings.HasSuffix(test, "InCgo") && runtime.GOOS == "freebsd" && race.Enabled {
+				t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+			}
+
+			t.Parallel()
+			prog := "testprog"
+			if strings.HasSuffix(test, "InCgo") {
+				prog = "testprogcgo"
+			}
+			got := runTestProg(t, prog, test)
+			t.Log(got)
+			want := "SIGSEGV"
+			if !strings.Contains(got, want) {
+				if runtime.GOOS == "darwin" && runtime.GOARCH == "amd64" && strings.Contains(got, "fatal: morestack on g0") {
+					testenv.SkipFlaky(t, 39457)
+				}
+				t.Errorf("did not see %q in output", want)
+			}
+
+			// No runtime errors like "runtime: unknown pc".
+			switch runtime.GOOS {
+			case "darwin", "ios", "illumos", "solaris":
+				// Runtime sometimes throws when generating the traceback.
+				testenv.SkipFlaky(t, 49182)
+			case "linux":
+				if runtime.GOARCH == "386" {
+					// Runtime throws when generating a traceback from
+					// a VDSO call via asmcgocall.
+					testenv.SkipFlaky(t, 50504)
+				}
+			}
+			if test == "SegvInCgo" && strings.Contains(got, "unknown pc") {
+				testenv.SkipFlaky(t, 50979)
+			}
+
+			for _, nowant := range []string{"fatal error: ", "runtime: "} {
+				if strings.Contains(got, nowant) {
+					if runtime.GOOS == "darwin" && strings.Contains(got, "0xb01dfacedebac1e") {
+						// See the comment in signal_darwin_amd64.go.
+						t.Skip("skipping due to Darwin handling of malformed addresses")
+					}
+					t.Errorf("unexpectedly saw %q in output", nowant)
+				}
+			}
+		})
+	}
+}
+
+func TestAbortInCgo(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		// N.B. On Windows, C abort() causes the program to exit
+		// without going through the runtime at all.
+		t.Skipf("no signals on %s", runtime.GOOS)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "Abort")
+	t.Log(got)
+	want := "SIGABRT"
+	if !strings.Contains(got, want) {
+		t.Errorf("did not see %q in output", want)
+	}
+	// No runtime errors like "runtime: unknown pc".
+	nowant := "runtime: "
+	if strings.Contains(got, nowant) {
+		t.Errorf("did not see %q in output", want)
+	}
+}
+
+// TestEINTR tests that we handle EINTR correctly.
+// See issue #20400 and friends.
+func TestEINTR(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("no EINTR on %s", runtime.GOOS)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+
+	t.Parallel()
+	output := runTestProg(t, "testprogcgo", "EINTR")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
+// Issue #42207.
+func TestNeedmDeadlock(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("no signals on %s", runtime.GOOS)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	output := runTestProg(t, "testprogcgo", "NeedmDeadlock")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
+func TestCgoNoCallback(t *testing.T) {
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	got := runTestProg(t, "testprogcgo", "CgoNoCallback")
+	want := "function marked with #cgo nocallback called back into Go"
+	if !strings.Contains(got, want) {
+		t.Fatalf("did not see %q in output:\n%s", want, got)
+	}
+}
+
+func TestCgoNoEscape(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("skipping test: ASAN forces extra heap allocations")
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	got := runTestProg(t, "testprogcgo", "CgoNoEscape")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("want %s, got %s\n", want, got)
+	}
+}
+
+// Issue #63739.
+func TestCgoEscapeWithMultiplePointers(t *testing.T) {
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	got := runTestProg(t, "testprogcgo", "CgoEscapeWithMultiplePointers")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("output is %s; want %s", got, want)
+	}
+}
+
+func TestCgoTracebackGoroutineProfile(t *testing.T) {
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	output := runTestProg(t, "testprogcgo", "GoroutineProfile")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
+func TestCgoSigfwd(t *testing.T) {
+	t.Parallel()
+	if !goos.IsUnix {
+		t.Skipf("no signals on %s", runtime.GOOS)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+
+	got := runTestProg(t, "testprogcgo", "CgoSigfwd", "GO_TEST_CGOSIGFWD=1")
+	if want := "OK\n"; got != want {
+		t.Fatalf("expected %q, but got:\n%s", want, got)
+	}
+}
+
+func TestDestructorCallback(t *testing.T) {
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "DestructorCallback")
+	if want := "OK\n"; got != want {
+		t.Errorf("expected %q, but got:\n%s", want, got)
+	}
+}
+
+func TestEnsureBindM(t *testing.T) {
+	t.Parallel()
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		t.Skipf("skipping bindm test on %s", runtime.GOOS)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	got := runTestProg(t, "testprogcgo", "EnsureBindM")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q, got %v", want, got)
+	}
+}
+
+func TestStackSwitchCallback(t *testing.T) {
+	t.Parallel()
+	switch runtime.GOOS {
+	case "windows", "plan9", "android", "ios", "openbsd": // no getcontext
+		t.Skipf("skipping test on %s", runtime.GOOS)
+	}
+	if asan.Enabled {
+		// ASAN prints this as a warning.
+		t.Skip("skipping test on ASAN because ASAN doesn't fully support makecontext/swapcontext functions")
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	got := runTestProg(t, "testprogcgo", "StackSwitchCallback")
+	skip := "SKIP\n"
+	if got == skip {
+		t.Skip("skipping on musl/bionic libc")
+	}
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q, got %v", want, got)
+	}
+}
+
+func TestCgoToGoCallGoexit(t *testing.T) {
+	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
+		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
+	if runtime.GOOS == "freebsd" && race.Enabled {
+		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+	}
+	output := runTestProg(t, "testprogcgo", "CgoToGoCallGoexit")
+	if !strings.Contains(output, "runtime.Goexit called in a thread that was not created by the Go runtime") {
+		t.Fatalf("output should contain %s, got %s", "runtime.Goexit called in a thread that was not created by the Go runtime", output)
+	}
 }

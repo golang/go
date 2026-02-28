@@ -1,5 +1,7 @@
 # Relative imports in command line package
 
+env GO111MODULE=off
+
 # Run tests outside GOPATH.
 env GOPATH=$WORK/tmp
 

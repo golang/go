@@ -5,9 +5,10 @@
 package httptest
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"testing"
 )
@@ -42,7 +43,7 @@ func TestRecorder(t *testing.T) {
 	}
 	hasResultContents := func(want string) checkFunc {
 		return func(rec *ResponseRecorder) error {
-			contentBytes, err := ioutil.ReadAll(rec.Result().Body)
+			contentBytes, err := io.ReadAll(rec.Result().Body)
 			if err != nil {
 				return err
 			}
@@ -221,8 +222,7 @@ func TestRecorder(t *testing.T) {
 			"Trailer headers are correctly recorded",
 			func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Non-Trailer", "correct")
-				w.Header().Set("Trailer", "Trailer-A")
-				w.Header().Add("Trailer", "Trailer-B")
+				w.Header().Set("Trailer", "Trailer-A, Trailer-B")
 				w.Header().Add("Trailer", "Trailer-C")
 				io.WriteString(w, "<html>")
 				w.Header().Set("Non-Trailer", "incorrect")
@@ -307,6 +307,86 @@ func TestRecorder(t *testing.T) {
 					t.Error(err)
 				}
 			}
+		})
+	}
+}
+
+func TestBodyNotAllowed(t *testing.T) {
+	rw := NewRecorder()
+	rw.Body = new(bytes.Buffer)
+	rw.WriteHeader(204)
+
+	_, err := rw.Write([]byte("hello "))
+	if !errors.Is(err, http.ErrBodyNotAllowed) {
+		t.Errorf("expected BodyNotAllowed for Write after 204, got: %v", err)
+	}
+
+	_, err = rw.WriteString("world")
+	if !errors.Is(err, http.ErrBodyNotAllowed) {
+		t.Errorf("expected BodyNotAllowed for WriteString after 204, got: %v", err)
+	}
+
+	if got, want := rw.Body.String(), "hello world"; got != want {
+		t.Errorf("got Body=%q, want %q", got, want)
+	}
+}
+
+// issue 39017 - disallow Content-Length values such as "+3"
+func TestParseContentLength(t *testing.T) {
+	tests := []struct {
+		cl   string
+		want int64
+	}{
+		{
+			cl:   "3",
+			want: 3,
+		},
+		{
+			cl:   "+3",
+			want: -1,
+		},
+		{
+			cl:   "-3",
+			want: -1,
+		},
+		{
+			// max int64, for safe conversion before returning
+			cl:   "9223372036854775807",
+			want: 9223372036854775807,
+		},
+		{
+			cl:   "9223372036854775808",
+			want: -1,
+		},
+	}
+
+	for _, tt := range tests {
+		if got := parseContentLength(tt.cl); got != tt.want {
+			t.Errorf("%q:\n\tgot=%d\n\twant=%d", tt.cl, got, tt.want)
+		}
+	}
+}
+
+// Ensure that httptest.Recorder panics when given a non-3 digit (XXX)
+// status HTTP code. See https://golang.org/issues/45353
+func TestRecorderPanicsOnNonXXXStatusCode(t *testing.T) {
+	badCodes := []int{
+		-100, 0, 99, 1000, 20000,
+	}
+	for _, badCode := range badCodes {
+		t.Run(fmt.Sprintf("Code=%d", badCode), func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatal("Expected a panic")
+				}
+			}()
+
+			handler := func(rw http.ResponseWriter, _ *http.Request) {
+				rw.WriteHeader(badCode)
+			}
+			r, _ := http.NewRequest("GET", "http://example.org/", nil)
+			rw := NewRecorder()
+			handler(rw, r)
 		})
 	}
 }

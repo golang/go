@@ -58,7 +58,7 @@ func decBoolArray(state *decoderState, v reflect.Value, length int, ovfl error) 
 }
 
 func decBoolSlice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]bool)
+	slice, ok := reflect.TypeAssert[[]bool](v)
 	if !ok {
 		// It is kind bool but not type bool. TODO: We can handle this unsafely.
 		return false
@@ -66,6 +66,10 @@ func decBoolSlice(state *decoderState, v reflect.Value, length int, ovfl error) 
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding bool array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
 		}
 		slice[i] = state.decodeUint() != 0
 	}
@@ -81,7 +85,7 @@ func decComplex64Array(state *decoderState, v reflect.Value, length int, ovfl er
 }
 
 func decComplex64Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]complex64)
+	slice, ok := reflect.TypeAssert[[]complex64](v)
 	if !ok {
 		// It is kind complex64 but not type complex64. TODO: We can handle this unsafely.
 		return false
@@ -89,6 +93,10 @@ func decComplex64Slice(state *decoderState, v reflect.Value, length int, ovfl er
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding complex64 array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
 		}
 		real := float32FromBits(state.decodeUint(), ovfl)
 		imag := float32FromBits(state.decodeUint(), ovfl)
@@ -106,7 +114,7 @@ func decComplex128Array(state *decoderState, v reflect.Value, length int, ovfl e
 }
 
 func decComplex128Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]complex128)
+	slice, ok := reflect.TypeAssert[[]complex128](v)
 	if !ok {
 		// It is kind complex128 but not type complex128. TODO: We can handle this unsafely.
 		return false
@@ -114,6 +122,10 @@ func decComplex128Slice(state *decoderState, v reflect.Value, length int, ovfl e
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding complex128 array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
 		}
 		real := float64FromBits(state.decodeUint())
 		imag := float64FromBits(state.decodeUint())
@@ -131,7 +143,7 @@ func decFloat32Array(state *decoderState, v reflect.Value, length int, ovfl erro
 }
 
 func decFloat32Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]float32)
+	slice, ok := reflect.TypeAssert[[]float32](v)
 	if !ok {
 		// It is kind float32 but not type float32. TODO: We can handle this unsafely.
 		return false
@@ -139,6 +151,10 @@ func decFloat32Slice(state *decoderState, v reflect.Value, length int, ovfl erro
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding float32 array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
 		}
 		slice[i] = float32(float32FromBits(state.decodeUint(), ovfl))
 	}
@@ -154,7 +170,7 @@ func decFloat64Array(state *decoderState, v reflect.Value, length int, ovfl erro
 }
 
 func decFloat64Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]float64)
+	slice, ok := reflect.TypeAssert[[]float64](v)
 	if !ok {
 		// It is kind float64 but not type float64. TODO: We can handle this unsafely.
 		return false
@@ -162,6 +178,10 @@ func decFloat64Slice(state *decoderState, v reflect.Value, length int, ovfl erro
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding float64 array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
 		}
 		slice[i] = float64FromBits(state.decodeUint())
 	}
@@ -177,7 +197,7 @@ func decIntArray(state *decoderState, v reflect.Value, length int, ovfl error) b
 }
 
 func decIntSlice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]int)
+	slice, ok := reflect.TypeAssert[[]int](v)
 	if !ok {
 		// It is kind int but not type int. TODO: We can handle this unsafely.
 		return false
@@ -185,6 +205,10 @@ func decIntSlice(state *decoderState, v reflect.Value, length int, ovfl error) b
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding int array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
 		}
 		x := state.decodeInt()
 		// MinInt and MaxInt
@@ -205,7 +229,7 @@ func decInt16Array(state *decoderState, v reflect.Value, length int, ovfl error)
 }
 
 func decInt16Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]int16)
+	slice, ok := reflect.TypeAssert[[]int16](v)
 	if !ok {
 		// It is kind int16 but not type int16. TODO: We can handle this unsafely.
 		return false
@@ -213,6 +237,10 @@ func decInt16Slice(state *decoderState, v reflect.Value, length int, ovfl error)
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding int16 array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
 		}
 		x := state.decodeInt()
 		if x < math.MinInt16 || math.MaxInt16 < x {
@@ -232,7 +260,7 @@ func decInt32Array(state *decoderState, v reflect.Value, length int, ovfl error)
 }
 
 func decInt32Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]int32)
+	slice, ok := reflect.TypeAssert[[]int32](v)
 	if !ok {
 		// It is kind int32 but not type int32. TODO: We can handle this unsafely.
 		return false
@@ -240,6 +268,10 @@ func decInt32Slice(state *decoderState, v reflect.Value, length int, ovfl error)
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding int32 array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
 		}
 		x := state.decodeInt()
 		if x < math.MinInt32 || math.MaxInt32 < x {
@@ -259,7 +291,7 @@ func decInt64Array(state *decoderState, v reflect.Value, length int, ovfl error)
 }
 
 func decInt64Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]int64)
+	slice, ok := reflect.TypeAssert[[]int64](v)
 	if !ok {
 		// It is kind int64 but not type int64. TODO: We can handle this unsafely.
 		return false
@@ -267,6 +299,10 @@ func decInt64Slice(state *decoderState, v reflect.Value, length int, ovfl error)
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding int64 array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
 		}
 		slice[i] = state.decodeInt()
 	}
@@ -282,7 +318,7 @@ func decInt8Array(state *decoderState, v reflect.Value, length int, ovfl error) 
 }
 
 func decInt8Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]int8)
+	slice, ok := reflect.TypeAssert[[]int8](v)
 	if !ok {
 		// It is kind int8 but not type int8. TODO: We can handle this unsafely.
 		return false
@@ -290,6 +326,10 @@ func decInt8Slice(state *decoderState, v reflect.Value, length int, ovfl error) 
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding int8 array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
 		}
 		x := state.decodeInt()
 		if x < math.MinInt8 || math.MaxInt8 < x {
@@ -309,7 +349,7 @@ func decStringArray(state *decoderState, v reflect.Value, length int, ovfl error
 }
 
 func decStringSlice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]string)
+	slice, ok := reflect.TypeAssert[[]string](v)
 	if !ok {
 		// It is kind string but not type string. TODO: We can handle this unsafely.
 		return false
@@ -317,6 +357,10 @@ func decStringSlice(state *decoderState, v reflect.Value, length int, ovfl error
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding string array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
 		}
 		u := state.decodeUint()
 		n := int(u)
@@ -346,7 +390,7 @@ func decUintArray(state *decoderState, v reflect.Value, length int, ovfl error) 
 }
 
 func decUintSlice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]uint)
+	slice, ok := reflect.TypeAssert[[]uint](v)
 	if !ok {
 		// It is kind uint but not type uint. TODO: We can handle this unsafely.
 		return false
@@ -354,6 +398,10 @@ func decUintSlice(state *decoderState, v reflect.Value, length int, ovfl error) 
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding uint array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
 		}
 		x := state.decodeUint()
 		/*TODO if math.MaxUint32 < x {
@@ -373,7 +421,7 @@ func decUint16Array(state *decoderState, v reflect.Value, length int, ovfl error
 }
 
 func decUint16Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]uint16)
+	slice, ok := reflect.TypeAssert[[]uint16](v)
 	if !ok {
 		// It is kind uint16 but not type uint16. TODO: We can handle this unsafely.
 		return false
@@ -381,6 +429,10 @@ func decUint16Slice(state *decoderState, v reflect.Value, length int, ovfl error
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding uint16 array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
 		}
 		x := state.decodeUint()
 		if math.MaxUint16 < x {
@@ -400,7 +452,7 @@ func decUint32Array(state *decoderState, v reflect.Value, length int, ovfl error
 }
 
 func decUint32Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]uint32)
+	slice, ok := reflect.TypeAssert[[]uint32](v)
 	if !ok {
 		// It is kind uint32 but not type uint32. TODO: We can handle this unsafely.
 		return false
@@ -408,6 +460,10 @@ func decUint32Slice(state *decoderState, v reflect.Value, length int, ovfl error
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding uint32 array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
 		}
 		x := state.decodeUint()
 		if math.MaxUint32 < x {
@@ -427,7 +483,7 @@ func decUint64Array(state *decoderState, v reflect.Value, length int, ovfl error
 }
 
 func decUint64Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]uint64)
+	slice, ok := reflect.TypeAssert[[]uint64](v)
 	if !ok {
 		// It is kind uint64 but not type uint64. TODO: We can handle this unsafely.
 		return false
@@ -435,6 +491,10 @@ func decUint64Slice(state *decoderState, v reflect.Value, length int, ovfl error
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding uint64 array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
 		}
 		slice[i] = state.decodeUint()
 	}
@@ -450,7 +510,7 @@ func decUintptrArray(state *decoderState, v reflect.Value, length int, ovfl erro
 }
 
 func decUintptrSlice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]uintptr)
+	slice, ok := reflect.TypeAssert[[]uintptr](v)
 	if !ok {
 		// It is kind uintptr but not type uintptr. TODO: We can handle this unsafely.
 		return false
@@ -459,6 +519,10 @@ func decUintptrSlice(state *decoderState, v reflect.Value, length int, ovfl erro
 		if state.b.Len() == 0 {
 			errorf("decoding uintptr array or slice: length exceeds input size (%d elements)", length)
 		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
+		}
 		x := state.decodeUint()
 		if uint64(^uintptr(0)) < x {
 			error_(ovfl)
@@ -466,4 +530,19 @@ func decUintptrSlice(state *decoderState, v reflect.Value, length int, ovfl erro
 		slice[i] = uintptr(x)
 	}
 	return true
+}
+
+// growSlice is called for a slice that we only partially allocated,
+// to grow it up to length.
+func growSlice[E any](v reflect.Value, ps *[]E, length int) {
+	var zero E
+	s := *ps
+	s = append(s, zero)
+	cp := cap(s)
+	if cp > length {
+		cp = length
+	}
+	s = s[:cp]
+	v.Set(reflect.ValueOf(s))
+	*ps = s
 }

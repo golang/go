@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix
-// +build ppc
+//go:build aix && ppc
 
 // Functions to access/create device major and minor numbers matching the
 // encoding used by AIX.

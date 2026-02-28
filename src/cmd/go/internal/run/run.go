@@ -2,18 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package run implements the ``go run'' command.
+// Package run implements the “go run” command.
 package run
 
 import (
-	"fmt"
-	"os"
-	"path"
+	"context"
+	"go/build"
+	"path/filepath"
 	"strings"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 )
@@ -23,9 +24,20 @@ var CmdRun = &base.Command{
 	Short:     "compile and run Go program",
 	Long: `
 Run compiles and runs the named main Go package.
-Typically the package is specified as a list of .go source files from a single directory,
-but it may also be an import path, file system path, or pattern
+Typically the package is specified as a list of .go source files from a single
+directory, but it may also be an import path, file system path, or pattern
 matching a single known package, as in 'go run .' or 'go run my/cmd'.
+
+If the package argument has a version suffix (like @latest or @v1.0.0),
+"go run" builds the program in module-aware mode, ignoring the go.mod file in
+the current directory or any parent directory, if there is one. This is useful
+for running programs without affecting the dependencies of the main module.
+
+If the package argument doesn't have a version suffix, "go run" may run in
+module-aware mode or GOPATH mode, depending on the GO111MODULE environment
+variable and the presence of a go.mod file. See 'go help modules' for details.
+If module-aware mode is enabled, "go run" runs in the context of the main
+module.
 
 By default, 'go run' runs the compiled binary directly: 'a.out arguments...'.
 If the -exec flag is given, 'go run' invokes the binary using xprog:
@@ -36,6 +48,14 @@ on the current search path, 'go run' invokes the binary using that program,
 for example 'go_js_wasm_exec a.out arguments...'. This allows execution of
 cross-compiled programs when a simulator or other execution method is
 available.
+
+By default, 'go run' compiles the binary without generating the information
+used by debuggers, to reduce build time. To include debugger information in
+the binary, use 'go build'.
+
+The go command places $GOROOT/bin at the beginning of $PATH in the
+subprocess environment, so that subprocesses that execute 'go' commands
+use the same 'go' as their parent.
 
 The exit status of Run is not the exit status of the compiled binary.
 
@@ -50,22 +70,38 @@ func init() {
 	CmdRun.Run = runRun // break init loop
 
 	work.AddBuildFlags(CmdRun, work.DefaultBuildFlags)
+	work.AddCoverFlags(CmdRun, nil)
 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 
-func printStderr(args ...interface{}) (int, error) {
-	return fmt.Fprint(os.Stderr, args...)
-}
+func runRun(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
+	if shouldUseOutsideModuleMode(args) {
+		// Set global module flags for 'go run cmd@version'.
+		// This must be done before modload.Init, but we need to call work.BuildInit
+		// before loading packages, since it affects package locations, e.g.,
+		// for -race and -msan.
+		moduleLoaderState.ForceUseModules = true
+		moduleLoaderState.RootMode = modload.NoRoot
+		moduleLoaderState.AllowMissingModuleImports()
+		modload.Init(moduleLoaderState)
+	} else {
+		moduleLoaderState.InitWorkfile()
+	}
 
-func runRun(cmd *base.Command, args []string) {
-	work.BuildInit()
-	var b work.Builder
-	b.Init()
-	b.Print = printStderr
+	work.BuildInit(moduleLoaderState)
+	b := work.NewBuilder("", moduleLoaderState.VendorDirOrEmpty)
+	defer func() {
+		if err := b.Close(); err != nil {
+			base.Fatal(err)
+		}
+	}()
+
 	i := 0
 	for i < len(args) && strings.HasSuffix(args[i], ".go") {
 		i++
 	}
+	pkgOpts := load.PackageOpts{MainOnly: true}
 	var p *load.Package
 	if i > 0 {
 		files := args[:i]
@@ -73,50 +109,46 @@ func runRun(cmd *base.Command, args []string) {
 			if strings.HasSuffix(file, "_test.go") {
 				// GoFilesPackage is going to assign this to TestGoFiles.
 				// Reject since it won't be part of the build.
-				base.Fatalf("go run: cannot run *_test.go files (%s)", file)
+				base.Fatalf("go: cannot run *_test.go files (%s)", file)
 			}
 		}
-		p = load.GoFilesPackage(files)
+		p = load.GoFilesPackage(moduleLoaderState, ctx, pkgOpts, files)
 	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		pkgs := load.PackagesAndErrors(args[:1])
+		arg := args[0]
+		var pkgs []*load.Package
+		if strings.Contains(arg, "@") && !build.IsLocalImport(arg) && !filepath.IsAbs(arg) {
+			var err error
+			pkgs, err = load.PackagesAndErrorsOutsideModule(moduleLoaderState, ctx, pkgOpts, args[:1])
+			if err != nil {
+				base.Fatal(err)
+			}
+		} else {
+			pkgs = load.PackagesAndErrors(moduleLoaderState, ctx, pkgOpts, args[:1])
+		}
+
 		if len(pkgs) == 0 {
-			base.Fatalf("go run: no packages loaded from %s", args[0])
+			base.Fatalf("go: no packages loaded from %s", arg)
 		}
 		if len(pkgs) > 1 {
-			var names []string
+			names := make([]string, 0, len(pkgs))
 			for _, p := range pkgs {
 				names = append(names, p.ImportPath)
 			}
-			base.Fatalf("go run: pattern %s matches multiple packages:\n\t%s", args[0], strings.Join(names, "\n\t"))
+			base.Fatalf("go: pattern %s matches multiple packages:\n\t%s", arg, strings.Join(names, "\n\t"))
 		}
 		p = pkgs[0]
 		i++
 	} else {
-		base.Fatalf("go run: no go files listed")
+		base.Fatalf("go: no go files listed")
 	}
 	cmdArgs := args[i:]
-	if p.Error != nil {
-		base.Fatalf("%s", p.Error)
+	load.CheckPackageErrors([]*load.Package{p})
+
+	if cfg.BuildCover {
+		load.PrepareForCoverageBuild(moduleLoaderState, []*load.Package{p})
 	}
 
 	p.Internal.OmitDebug = true
-	if len(p.DepsErrors) > 0 {
-		// Since these are errors in dependencies,
-		// the same error might show up multiple times,
-		// once in each package that depends on it.
-		// Only print each once.
-		printed := map[*load.PackageError]bool{}
-		for _, err := range p.DepsErrors {
-			if !printed[err] {
-				printed[err] = true
-				base.Errorf("%s", err)
-			}
-		}
-	}
-	base.ExitIfErrors()
-	if p.Name != "main" {
-		base.Fatalf("go run: cannot run non-main package")
-	}
 	p.Target = "" // must build - not up to date
 	if p.Internal.CmdlineFiles {
 		//set executable name if go file is given as cmd-argument
@@ -132,23 +164,47 @@ func runRun(cmd *base.Command, args []string) {
 			if !cfg.BuildContext.CgoEnabled {
 				hint = " (cgo is disabled)"
 			}
-			base.Fatalf("go run: no suitable source files%s", hint)
+			base.Fatalf("go: no suitable source files%s", hint)
 		}
 		p.Internal.ExeName = src[:len(src)-len(".go")]
 	} else {
-		p.Internal.ExeName = path.Base(p.ImportPath)
+		p.Internal.ExeName = p.DefaultExecName()
 	}
-	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
-	a := &work.Action{Mode: "go run", Func: buildRunProgram, Args: cmdArgs, Deps: []*work.Action{a1}}
-	b.Do(a)
+
+	a1 := b.LinkAction(moduleLoaderState, work.ModeBuild, work.ModeBuild, p)
+	a1.CacheExecutable = true
+	a := &work.Action{Mode: "go run", Actor: work.ActorFunc(buildRunProgram), Args: cmdArgs, Deps: []*work.Action{a1}}
+	b.Do(ctx, a)
+}
+
+// shouldUseOutsideModuleMode returns whether 'go run' will load packages in
+// module-aware mode, ignoring the go.mod file in the current directory. It
+// returns true if the first argument contains "@", does not begin with "-"
+// (resembling a flag) or end with ".go" (a file). The argument must not be a
+// local or absolute file path.
+//
+// These rules are slightly different than other commands. Whether or not
+// 'go run' uses this mode, it interprets arguments ending with ".go" as files
+// and uses arguments up to the last ".go" argument to comprise the package.
+// If there are no ".go" arguments, only the first argument is interpreted
+// as a package path, since there can be only one package.
+func shouldUseOutsideModuleMode(args []string) bool {
+	// NOTE: "@" not allowed in import paths, but it is allowed in non-canonical
+	// versions.
+	return len(args) > 0 &&
+		!strings.HasSuffix(args[0], ".go") &&
+		!strings.HasPrefix(args[0], "-") &&
+		strings.Contains(args[0], "@") &&
+		!build.IsLocalImport(args[0]) &&
+		!filepath.IsAbs(args[0])
 }
 
 // buildRunProgram is the action for running a binary that has already
 // been compiled. We ignore exit status.
-func buildRunProgram(b *work.Builder, a *work.Action) error {
-	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].Target, a.Args)
+func buildRunProgram(b *work.Builder, ctx context.Context, a *work.Action) error {
+	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].BuiltTarget(), a.Args)
 	if cfg.BuildN || cfg.BuildX {
-		b.Showcmd("", "%s", strings.Join(cmdline, " "))
+		b.Shell(a).ShowCmd("", "%s", strings.Join(cmdline, " "))
 		if cfg.BuildN {
 			return nil
 		}

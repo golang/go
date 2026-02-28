@@ -5,8 +5,11 @@
 package sync_test
 
 import (
-	"internal/race"
-	"runtime"
+	"bytes"
+	"internal/testenv"
+	"os"
+	"os/exec"
+	"strings"
 	. "sync"
 	"sync/atomic"
 	"testing"
@@ -48,12 +51,6 @@ func TestWaitGroup(t *testing.T) {
 	}
 }
 
-func knownRacy(t *testing.T) {
-	if race.Enabled {
-		t.Skip("skipping known-racy test under the race detector")
-	}
-}
-
 func TestWaitGroupMisuse(t *testing.T) {
 	defer func() {
 		err := recover()
@@ -65,124 +62,6 @@ func TestWaitGroupMisuse(t *testing.T) {
 	wg.Add(1)
 	wg.Done()
 	wg.Done()
-	t.Fatal("Should panic")
-}
-
-// pollUntilEqual blocks until v, loaded atomically, is
-// equal to the target.
-func pollUntilEqual(v *uint32, target uint32) {
-	for {
-		for i := 0; i < 1e3; i++ {
-			if atomic.LoadUint32(v) == target {
-				return
-			}
-		}
-		// yield to avoid deadlock with the garbage collector
-		// see issue #20072
-		runtime.Gosched()
-	}
-}
-
-func TestWaitGroupMisuse2(t *testing.T) {
-	knownRacy(t)
-	if runtime.NumCPU() <= 4 {
-		t.Skip("NumCPU<=4, skipping: this test requires parallelism")
-	}
-	defer func() {
-		err := recover()
-		if err != "sync: negative WaitGroup counter" &&
-			err != "sync: WaitGroup misuse: Add called concurrently with Wait" &&
-			err != "sync: WaitGroup is reused before previous Wait has returned" {
-			t.Fatalf("Unexpected panic: %#v", err)
-		}
-	}()
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
-	done := make(chan interface{}, 2)
-	// The detection is opportunistic, so we want it to panic
-	// at least in one run out of a million.
-	for i := 0; i < 1e6; i++ {
-		var wg WaitGroup
-		var here uint32
-		wg.Add(1)
-		go func() {
-			defer func() {
-				done <- recover()
-			}()
-			atomic.AddUint32(&here, 1)
-			pollUntilEqual(&here, 3)
-			wg.Wait()
-		}()
-		go func() {
-			defer func() {
-				done <- recover()
-			}()
-			atomic.AddUint32(&here, 1)
-			pollUntilEqual(&here, 3)
-			wg.Add(1) // This is the bad guy.
-			wg.Done()
-		}()
-		atomic.AddUint32(&here, 1)
-		pollUntilEqual(&here, 3)
-		wg.Done()
-		for j := 0; j < 2; j++ {
-			if err := <-done; err != nil {
-				panic(err)
-			}
-		}
-	}
-	t.Fatal("Should panic")
-}
-
-func TestWaitGroupMisuse3(t *testing.T) {
-	knownRacy(t)
-	if runtime.NumCPU() <= 1 {
-		t.Skip("NumCPU==1, skipping: this test requires parallelism")
-	}
-	defer func() {
-		err := recover()
-		if err != "sync: negative WaitGroup counter" &&
-			err != "sync: WaitGroup misuse: Add called concurrently with Wait" &&
-			err != "sync: WaitGroup is reused before previous Wait has returned" {
-			t.Fatalf("Unexpected panic: %#v", err)
-		}
-	}()
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
-	done := make(chan interface{}, 3)
-	// The detection is opportunistically, so we want it to panic
-	// at least in one run out of a million.
-	for i := 0; i < 1e6; i++ {
-		var wg WaitGroup
-		wg.Add(1)
-		go func() {
-			defer func() {
-				done <- recover()
-			}()
-			wg.Done()
-		}()
-		go func() {
-			defer func() {
-				done <- recover()
-			}()
-			wg.Wait()
-			// Start reusing the wg before waiting for the Wait below to return.
-			wg.Add(1)
-			go func() {
-				wg.Done()
-			}()
-			wg.Wait()
-		}()
-		go func() {
-			defer func() {
-				done <- recover()
-			}()
-			wg.Wait()
-		}()
-		for j := 0; j < 3; j++ {
-			if err := <-done; err != nil {
-				panic(err)
-			}
-		}
-	}
 	t.Fatal("Should panic")
 }
 
@@ -222,6 +101,44 @@ func TestWaitGroupAlign(t *testing.T) {
 		x.wg.Done()
 	}(&x)
 	x.wg.Wait()
+}
+
+func TestWaitGroupGo(t *testing.T) {
+	wg := &WaitGroup{}
+	var i int
+	wg.Go(func() {
+		i++
+	})
+	wg.Wait()
+	if i != 1 {
+		t.Fatalf("got %d, want 1", i)
+	}
+}
+
+// This test ensures that an unhandled panic in a Go goroutine terminates
+// the process without causing Wait to unblock; previously there was a race.
+func TestIssue76126(t *testing.T) {
+	testenv.MustHaveExec(t)
+	if os.Getenv("SYNC_TEST_CHILD") != "1" {
+		// Call child in a child process
+		// and inspect its failure message.
+		cmd := exec.Command(os.Args[0], "-test.run=^TestIssue76126$")
+		cmd.Env = append(os.Environ(), "SYNC_TEST_CHILD=1")
+		buf := new(bytes.Buffer)
+		cmd.Stderr = buf
+		cmd.Run() // ignore error
+		got := buf.String()
+		if !strings.Contains(got, "panic: test") {
+			t.Errorf("missing panic: test\n%s", got)
+		}
+		return
+	}
+	var wg WaitGroup
+	wg.Go(func() {
+		panic("test")
+	})
+	wg.Wait()              // process should terminate here
+	panic("Wait returned") // must not be reached
 }
 
 func BenchmarkWaitGroupUncontended(b *testing.B) {

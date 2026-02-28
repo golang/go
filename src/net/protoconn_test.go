@@ -5,11 +5,10 @@
 // This file implements API tests across platforms and will never have a build
 // tag.
 
-// +build !js
-
 package net
 
 import (
+	"internal/testenv"
 	"os"
 	"runtime"
 	"testing"
@@ -38,7 +37,7 @@ func TestTCPListenerSpecificMethods(t *testing.T) {
 	}
 	defer ln.Close()
 	ln.Addr()
-	ln.SetDeadline(time.Now().Add(30 * time.Nanosecond))
+	mustSetDeadline(t, ln.SetDeadline, 30*time.Nanosecond)
 
 	if c, err := ln.Accept(); err != nil {
 		if !err.(Error).Timeout() {
@@ -72,11 +71,8 @@ func TestTCPConnSpecificMethods(t *testing.T) {
 		t.Fatal(err)
 	}
 	ch := make(chan error, 1)
-	handler := func(ls *localServer, ln Listener) { transponder(ls.Listener, ch) }
-	ls, err := (&streamListener{Listener: ln}).newLocalServer()
-	if err != nil {
-		t.Fatal(err)
-	}
+	handler := func(ls *localServer, ln Listener) { ls.transponder(ls.Listener, ch) }
+	ls := (&streamListener{Listener: ln}).newLocalServer()
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
@@ -164,8 +160,8 @@ func TestUDPConnSpecificMethods(t *testing.T) {
 }
 
 func TestIPConnSpecificMethods(t *testing.T) {
-	if os.Getuid() != 0 {
-		t.Skip("must be root")
+	if !testableNetwork("ip4") {
+		t.Skip("skipping: ip4 not supported")
 	}
 
 	la, err := ResolveIPAddr("ip4", "127.0.0.1")
@@ -173,7 +169,11 @@ func TestIPConnSpecificMethods(t *testing.T) {
 		t.Fatal(err)
 	}
 	c, err := ListenIP("ip4:icmp", la)
-	if err != nil {
+	if testenv.SyscallIsNotSupported(err) {
+		// May be inside a container that disallows creating a socket or
+		// not running as root.
+		t.Skipf("skipping: %v", err)
+	} else if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Close()
@@ -207,7 +207,7 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
 		t.Skip("unix test")
 	}
 
-	addr := testUnixAddr()
+	addr := testUnixAddr(t)
 	la, err := ResolveUnixAddr("unix", addr)
 	if err != nil {
 		t.Fatal(err)
@@ -219,7 +219,7 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
 	defer ln.Close()
 	defer os.Remove(addr)
 	ln.Addr()
-	ln.SetDeadline(time.Now().Add(30 * time.Nanosecond))
+	mustSetDeadline(t, ln.SetDeadline, 30*time.Nanosecond)
 
 	if c, err := ln.Accept(); err != nil {
 		if !err.(Error).Timeout() {
@@ -237,7 +237,7 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
 	}
 
 	if f, err := ln.File(); err != nil {
-		t.Fatal(err)
+		condFatalf(t, "file+net", "%v", err)
 	} else {
 		f.Close()
 	}
@@ -248,7 +248,7 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 		t.Skip("unixgram test")
 	}
 
-	addr1, addr2, addr3 := testUnixAddr(), testUnixAddr(), testUnixAddr()
+	addr1, addr2, addr3 := testUnixAddr(t), testUnixAddr(t), testUnixAddr(t)
 
 	a1, err := ResolveUnixAddr("unixgram", addr1)
 	if err != nil {
@@ -334,7 +334,7 @@ func TestUnixConnSpecificMethods(t *testing.T) {
 	}
 
 	if f, err := c1.File(); err != nil {
-		t.Fatal(err)
+		condFatalf(t, "file+net", "%v", err)
 	} else {
 		f.Close()
 	}

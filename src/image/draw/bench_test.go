@@ -186,7 +186,7 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
 		x := 3 * i % (dstw - srcw)
 		y := 7 * i % (dsth - srch)
 
-		DrawMask(dst, dst.Bounds().Add(image.Pt(x, y)), src, image.ZP, mask, image.ZP, op)
+		DrawMask(dst, dst.Bounds().Add(image.Pt(x, y)), src, image.Point{}, mask, image.Point{}, op)
 	}
 }
 
@@ -232,11 +232,27 @@ func BenchmarkGlyphOver(b *testing.B) {
 	bench(b, color.RGBAModel, nil, color.AlphaModel, Over)
 }
 
+func BenchmarkRGBAMaskOver(b *testing.B) {
+	bench(b, color.RGBAModel, color.RGBAModel, color.AlphaModel, Over)
+}
+
+func BenchmarkGrayMaskOver(b *testing.B) {
+	bench(b, color.RGBAModel, color.GrayModel, color.AlphaModel, Over)
+}
+
+func BenchmarkRGBA64ImageMaskOver(b *testing.B) {
+	bench(b, color.RGBAModel, color.RGBA64Model, color.AlphaModel, Over)
+}
+
 func BenchmarkRGBA(b *testing.B) {
 	bench(b, color.RGBAModel, color.RGBA64Model, nil, Src)
 }
 
-func BenchmarkPaletted(b *testing.B) {
+func BenchmarkPalettedFill(b *testing.B) {
+	bench(b, palette, nil, nil, Src)
+}
+
+func BenchmarkPalettedRGBA(b *testing.B) {
 	bench(b, palette, color.RGBAModel, nil, Src)
 }
 

@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build arm 386 s390x
+//go:build (386 || arm || loong64 || riscv64) && !purego
 
 package sha1
 
 //go:noescape
-
 func block(dig *digest, p []byte)

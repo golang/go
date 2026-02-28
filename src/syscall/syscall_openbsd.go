@@ -14,6 +14,12 @@ package syscall
 
 import "unsafe"
 
+func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+
 type SockaddrDatalink struct {
 	Len    uint8
 	Family uint8
@@ -26,14 +32,12 @@ type SockaddrDatalink struct {
 	raw    RawSockaddrDatalink
 }
 
-func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
-
 func nametomib(name string) (mib []_C_int, err error) {
 	// Perform lookup via a binary search
 	left := 0
 	right := len(sysctlMib) - 1
 	for {
-		idx := left + (right-left)/2
+		idx := int(uint(left+right) >> 1)
 		switch {
 		case name == sysctlMib[idx].ctlname:
 			return sysctlMib[idx].ctloid, nil
@@ -66,18 +70,22 @@ func Pipe(p []int) error {
 }
 
 //sysnb pipe2(p *[2]_C_int, flags int) (err error)
+
 func Pipe2(p []int, flags int) error {
 	if len(p) != 2 {
 		return EINVAL
 	}
 	var pp [2]_C_int
 	err := pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	if err == nil {
+		p[0] = int(pp[0])
+		p[1] = int(pp[1])
+	}
 	return err
 }
 
 //sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
+
 func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
@@ -97,6 +105,7 @@ func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
 }
 
 //sys getdents(fd int, buf []byte) (n int, err error)
+
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	return getdents(fd, buf)
 }
@@ -107,23 +116,13 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 }
 
 func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
-	var _p0 unsafe.Pointer
+	var bufptr *Statfs_t
 	var bufsize uintptr
 	if len(buf) > 0 {
-		_p0 = unsafe.Pointer(&buf[0])
+		bufptr = &buf[0]
 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
 	}
-	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(_p0), bufsize, uintptr(flags))
-	n = int(r0)
-	if e1 != 0 {
-		err = e1
-	}
-	return
-}
-
-func setattrlistTimes(path string, times []Timespec) error {
-	// used on Darwin for UtimesNano
-	return ENOSYS
+	return getfsstat(bufptr, bufsize, flags)
 }
 
 /*
@@ -139,6 +138,7 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sys	Close(fd int) (err error)
 //sys	Dup(fd int) (nfd int, err error)
 //sys	Dup2(from int, to int) (err error)
+//sys	dup3(from int, to int, flags int) (err error)
 //sys	Fchdir(fd int) (err error)
 //sys	Fchflags(fd int, flags int) (err error)
 //sys	Fchmod(fd int, mode uint32) (err error)
@@ -175,14 +175,13 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
 //sys	Open(path string, mode int, perm uint32) (fd int, err error)
 //sys	Pathconf(path string, name int) (val int, err error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
+//sys	pread(fd int, p []byte, offset int64) (n int, err error)
+//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Readlink(path string, buf []byte) (n int, err error)
 //sys	Rename(from string, to string) (err error)
 //sys	Revoke(path string) (err error)
 //sys	Rmdir(path string) (err error)
-//sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = SYS_LSEEK
 //sys	Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (err error)
 //sysnb	Setegid(egid int) (err error)
 //sysnb	Seteuid(euid int) (err error)
@@ -192,7 +191,7 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
+//sysnb	setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)
@@ -205,10 +204,8 @@ func setattrlistTimes(path string, times []Timespec) error {
 //sys	Unlink(path string) (err error)
 //sys	Unmount(path string, flags int) (err error)
 //sys	write(fd int, p []byte) (n int, err error)
+//sys	writev(fd int, iovecs []Iovec) (n uintptr, err error)
 //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
 //sys	munmap(addr uintptr, length uintptr) (err error)
-//sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+//sys	getfsstat(stat *Statfs_t, bufsize uintptr, flags int) (n int, err error)
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
-//sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
-//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL

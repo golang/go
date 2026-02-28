@@ -1,0 +1,63 @@
+# Without -coverpkg, we should get the same value for a given
+# package regardless of how many other packages are selected
+# (see issue 65570).
+
+[short] skip
+
+go test -count=1 -cover ./a ./b ./main
+stdout '^ok\s+M/main\s+\S+\s+coverage: 75.0% of statements'
+go test -count=1 -cover ./main
+stdout '^ok\s+M/main\s+\S+\s+coverage: 75.0% of statements'
+
+-- go.mod --
+module M
+
+go 1.21
+-- a/a.go --
+package a
+
+func AFunc() int {
+	return 42
+}
+-- b/b.go --
+package b
+
+func BFunc() int {
+	return -42
+}
+-- main/main.go --
+package main
+
+import (
+	"M/a"
+)
+
+func MFunc() string {
+	return "42"
+}
+
+func M2Func() int {
+	return a.AFunc()
+}
+
+func init() {
+	println("package 'main' init")
+}
+
+func main() {
+	println(a.AFunc())
+}
+-- main/main_test.go --
+package main
+
+import "testing"
+
+func TestMain(t *testing.T) {
+	if MFunc() != "42" {
+		t.Fatalf("bad!")
+	}
+	if M2Func() != 42 {
+		t.Fatalf("also bad!")
+	}
+}
+

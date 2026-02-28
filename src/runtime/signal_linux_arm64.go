@@ -5,7 +5,7 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -67,5 +67,24 @@ func (c *sigctxt) set_lr(x uint64)  { c.regs().regs[30] = x }
 func (c *sigctxt) set_r28(x uint64) { c.regs().regs[28] = x }
 
 func (c *sigctxt) set_sigaddr(x uint64) {
-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
+	*(*uintptr)(add(unsafe.Pointer(c.info), 2*goarch.PtrSize)) = uintptr(x)
+}
+
+func dumpSigStack(s string, sp uintptr, stackhi uintptr, ctx uintptr) {
+	println(s)
+	println("SP:\t", hex(sp))
+	println("ctx:\t", hex(ctx))
+	entriesStart := uintptr(unsafe.Pointer(&(*ucontext)(unsafe.Pointer(ctx)).uc_mcontext.__reserved))
+	hexdumpWords(sp, stackhi, func(p uintptr, hm hexdumpMarker) {
+		switch p {
+		case ctx:
+			hm.start()
+			print("C")
+			println()
+		case entriesStart:
+			hm.start()
+			print("E")
+			println()
+		}
+	})
 }

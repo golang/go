@@ -5,11 +5,13 @@
 // Package trace contains facilities for programs to generate traces
 // for the Go execution tracer.
 //
-// Tracing runtime activities
+// # Tracing runtime activities
 //
 // The execution trace captures a wide range of execution events such as
 // goroutine creation/blocking/unblocking, syscall enter/exit/block,
 // GC-related events, changes of heap size, processor start/stop, etc.
+// When CPU profiling is active, the execution tracer makes an effort to
+// include those samples as well.
 // A precise nanosecond-precision timestamp and a stack trace is
 // captured for most events. The generated trace can be interpreted
 // using `go tool trace`.
@@ -19,7 +21,7 @@
 // command runs the test in the current directory and writes the trace
 // file (trace.out).
 //
-//    go test -trace=test.out
+//	go test -trace=trace.out
 //
 // This runtime/trace package provides APIs to add equivalent tracing
 // support to a standalone program. See the Example that demonstrates
@@ -29,12 +31,12 @@
 // following line will install a handler under the /debug/pprof/trace URL
 // to download a live trace:
 //
-//     import _ "net/http/pprof"
+//	import _ "net/http/pprof"
 //
-// See the net/http/pprof package for more details about all of the
+// See the [net/http/pprof] package for more details about all of the
 // debug endpoints installed by this import.
 //
-// User annotation
+// # User annotation
 //
 // Package trace provides user annotation APIs that can be used to
 // log interesting events during execution.
@@ -42,11 +44,11 @@
 // There are three types of user annotations: log messages, regions,
 // and tasks.
 //
-// Log emits a timestamped message to the execution trace along with
+// [Log] emits a timestamped message to the execution trace along with
 // additional information such as the category of the message and
-// which goroutine called Log. The execution tracer provides UIs to filter
+// which goroutine called [Log]. The execution tracer provides UIs to filter
 // and group goroutines using the log category and the message supplied
-// in Log.
+// in [Log].
 //
 // A region is for logging a time interval during a goroutine's execution.
 // By definition, a region starts and ends in the same goroutine.
@@ -55,52 +57,51 @@
 // trace to trace the durations of sequential steps in a cappuccino making
 // operation.
 //
-//   trace.WithRegion(ctx, "makeCappuccino", func() {
+//	trace.WithRegion(ctx, "makeCappuccino", func() {
 //
-//      // orderID allows to identify a specific order
-//      // among many cappuccino order region records.
-//      trace.Log(ctx, "orderID", orderID)
+//	   // orderID allows to identify a specific order
+//	   // among many cappuccino order region records.
+//	   trace.Log(ctx, "orderID", orderID)
 //
-//      trace.WithRegion(ctx, "steamMilk", steamMilk)
-//      trace.WithRegion(ctx, "extractCoffee", extractCoffee)
-//      trace.WithRegion(ctx, "mixMilkCoffee", mixMilkCoffee)
-//   })
+//	   trace.WithRegion(ctx, "steamMilk", steamMilk)
+//	   trace.WithRegion(ctx, "extractCoffee", extractCoffee)
+//	   trace.WithRegion(ctx, "mixMilkCoffee", mixMilkCoffee)
+//	})
 //
 // A task is a higher-level component that aids tracing of logical
 // operations such as an RPC request, an HTTP request, or an
 // interesting local operation which may require multiple goroutines
 // working together. Since tasks can involve multiple goroutines,
-// they are tracked via a context.Context object. NewTask creates
-// a new task and embeds it in the returned context.Context object.
+// they are tracked via a [context.Context] object. [NewTask] creates
+// a new task and embeds it in the returned [context.Context] object.
 // Log messages and regions are attached to the task, if any, in the
-// Context passed to Log and WithRegion.
+// Context passed to [Log] and [WithRegion].
 //
 // For example, assume that we decided to froth milk, extract coffee,
 // and mix milk and coffee in separate goroutines. With a task,
 // the trace tool can identify the goroutines involved in a specific
 // cappuccino order.
 //
-//      ctx, task := trace.NewTask(ctx, "makeCappuccino")
-//      trace.Log(ctx, "orderID", orderID)
+//	ctx, task := trace.NewTask(ctx, "makeCappuccino")
+//	trace.Log(ctx, "orderID", orderID)
 //
-//      milk := make(chan bool)
-//      espresso := make(chan bool)
+//	milk := make(chan bool)
+//	espresso := make(chan bool)
 //
-//      go func() {
-//              trace.WithRegion(ctx, "steamMilk", steamMilk)
-//              milk <- true
-//      }()
-//      go func() {
-//              trace.WithRegion(ctx, "extractCoffee", extractCoffee)
-//              espresso <- true
-//      }()
-//      go func() {
-//              defer task.End() // When assemble is done, the order is complete.
-//              <-espresso
-//              <-milk
-//              trace.WithRegion(ctx, "mixMilkCoffee", mixMilkCoffee)
-//      }()
-//
+//	go func() {
+//	        trace.WithRegion(ctx, "steamMilk", steamMilk)
+//	        milk <- true
+//	}()
+//	go func() {
+//	        trace.WithRegion(ctx, "extractCoffee", extractCoffee)
+//	        espresso <- true
+//	}()
+//	go func() {
+//	        defer task.End() // When assemble is done, the order is complete.
+//	        <-espresso
+//	        <-milk
+//	        trace.WithRegion(ctx, "mixMilkCoffee", mixMilkCoffee)
+//	}()
 //
 // The trace tool computes the latency of a task by measuring the
 // time between the task creation and the task end and provides
@@ -109,45 +110,17 @@ package trace
 
 import (
 	"io"
-	"runtime"
-	"sync"
-	"sync/atomic"
 )
 
 // Start enables tracing for the current program.
 // While tracing, the trace will be buffered and written to w.
 // Start returns an error if tracing is already enabled.
 func Start(w io.Writer) error {
-	tracing.Lock()
-	defer tracing.Unlock()
-
-	if err := runtime.StartTrace(); err != nil {
-		return err
-	}
-	go func() {
-		for {
-			data := runtime.ReadTrace()
-			if data == nil {
-				break
-			}
-			w.Write(data)
-		}
-	}()
-	atomic.StoreInt32(&tracing.enabled, 1)
-	return nil
+	return tracing.subscribeTraceStartWriter(w)
 }
 
 // Stop stops the current tracing, if any.
 // Stop only returns after all the writes for the trace have completed.
 func Stop() {
-	tracing.Lock()
-	defer tracing.Unlock()
-	atomic.StoreInt32(&tracing.enabled, 0)
-
-	runtime.StopTrace()
-}
-
-var tracing struct {
-	sync.Mutex       // gate mutators (Start, Stop)
-	enabled    int32 // accessed via atomic
+	tracing.unsubscribeTraceStartWriter()
 }

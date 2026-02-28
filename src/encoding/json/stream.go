@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !goexperiment.jsonv2
+
 package json
 
 import (
@@ -32,8 +34,8 @@ func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{r: r}
 }
 
-// UseNumber causes the Decoder to unmarshal a number into an interface{} as a
-// Number instead of as a float64.
+// UseNumber causes the Decoder to unmarshal a number into an
+// interface value as a [Number] instead of as a float64.
 func (dec *Decoder) UseNumber() { dec.d.useNumber = true }
 
 // DisallowUnknownFields causes the Decoder to return an error when the destination
@@ -44,9 +46,9 @@ func (dec *Decoder) DisallowUnknownFields() { dec.d.disallowUnknownFields = true
 // Decode reads the next JSON-encoded value from its
 // input and stores it in the value pointed to by v.
 //
-// See the documentation for Unmarshal for details about
+// See the documentation for [Unmarshal] for details about
 // the conversion of JSON into a Go value.
-func (dec *Decoder) Decode(v interface{}) error {
+func (dec *Decoder) Decode(v any) error {
 	if dec.err != nil {
 		return dec.err
 	}
@@ -79,7 +81,7 @@ func (dec *Decoder) Decode(v interface{}) error {
 }
 
 // Buffered returns a reader of the data remaining in the Decoder's
-// buffer. The reader is valid until the next call to Decode.
+// buffer. The reader is valid until the next call to [Decoder.Decode].
 func (dec *Decoder) Buffered() io.Reader {
 	return bytes.NewReader(dec.buf[dec.scanp:])
 }
@@ -183,7 +185,7 @@ type Encoder struct {
 	err        error
 	escapeHTML bool
 
-	indentBuf    *bytes.Buffer
+	indentBuf    []byte
 	indentPrefix string
 	indentValue  string
 }
@@ -194,15 +196,19 @@ func NewEncoder(w io.Writer) *Encoder {
 }
 
 // Encode writes the JSON encoding of v to the stream,
+// with insignificant space characters elided,
 // followed by a newline character.
 //
-// See the documentation for Marshal for details about the
+// See the documentation for [Marshal] for details about the
 // conversion of Go values to JSON.
-func (enc *Encoder) Encode(v interface{}) error {
+func (enc *Encoder) Encode(v any) error {
 	if enc.err != nil {
 		return enc.err
 	}
+
 	e := newEncodeState()
+	defer encodeStatePool.Put(e)
+
 	err := e.marshal(v, encOpts{escapeHTML: enc.escapeHTML})
 	if err != nil {
 		return err
@@ -218,20 +224,15 @@ func (enc *Encoder) Encode(v interface{}) error {
 
 	b := e.Bytes()
 	if enc.indentPrefix != "" || enc.indentValue != "" {
-		if enc.indentBuf == nil {
-			enc.indentBuf = new(bytes.Buffer)
-		}
-		enc.indentBuf.Reset()
-		err = Indent(enc.indentBuf, b, enc.indentPrefix, enc.indentValue)
+		enc.indentBuf, err = appendIndent(enc.indentBuf[:0], b, enc.indentPrefix, enc.indentValue)
 		if err != nil {
 			return err
 		}
-		b = enc.indentBuf.Bytes()
+		b = enc.indentBuf
 	}
 	if _, err = enc.w.Write(b); err != nil {
 		enc.err = err
 	}
-	encodeStatePool.Put(e)
 	return err
 }
 
@@ -255,7 +256,7 @@ func (enc *Encoder) SetEscapeHTML(on bool) {
 }
 
 // RawMessage is a raw encoded JSON value.
-// It implements Marshaler and Unmarshaler and can
+// It implements [Marshaler] and [Unmarshaler] and can
 // be used to delay JSON decoding or precompute a JSON encoding.
 type RawMessage []byte
 
@@ -281,14 +282,13 @@ var _ Unmarshaler = (*RawMessage)(nil)
 
 // A Token holds a value of one of these types:
 //
-//	Delim, for the four JSON delimiters [ ] { }
-//	bool, for JSON booleans
-//	float64, for JSON numbers
-//	Number, for JSON numbers
-//	string, for JSON string literals
-//	nil, for JSON null
-//
-type Token interface{}
+//   - [Delim], for the four JSON delimiters [ ] { }
+//   - bool, for JSON booleans
+//   - float64, for JSON numbers
+//   - [Number], for JSON numbers
+//   - string, for JSON string literals
+//   - nil, for JSON null
+type Token any
 
 const (
 	tokenTopValue = iota
@@ -357,14 +357,14 @@ func (d Delim) String() string {
 }
 
 // Token returns the next JSON token in the input stream.
-// At the end of the input stream, Token returns nil, io.EOF.
+// At the end of the input stream, Token returns nil, [io.EOF].
 //
 // Token guarantees that the delimiters [ ] { } it returns are
 // properly nested and matched: if Token encounters an unexpected
 // delimiter in the input, it will return an error.
 //
 // The input stream consists of basic JSON values—bool, string,
-// number, and null—along with delimiters [ ] { } of type Delim
+// number, and null—along with delimiters [ ] { } of type [Delim]
 // to mark the start and end of arrays and objects.
 // Commas and colons are elided.
 func (dec *Decoder) Token() (Token, error) {
@@ -452,7 +452,7 @@ func (dec *Decoder) Token() (Token, error) {
 			if !dec.tokenValueAllowed() {
 				return dec.tokenError(c)
 			}
-			var x interface{}
+			var x any
 			if err := dec.Decode(&x); err != nil {
 				return nil, err
 			}

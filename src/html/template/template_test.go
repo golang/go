@@ -6,9 +6,11 @@ package template_test
 
 import (
 	"bytes"
+	"encoding/json"
 	. "html/template"
 	"strings"
 	"testing"
+	"text/template/parse"
 )
 
 func TestTemplateClone(t *testing.T) {
@@ -24,7 +26,7 @@ func TestTemplateClone(t *testing.T) {
 
 	const want = "stuff"
 	parsed := Must(clone.Parse(want))
-	var buf bytes.Buffer
+	var buf strings.Builder
 	err = parsed.Execute(&buf, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -121,6 +123,59 @@ func TestNumbers(t *testing.T) {
 	c.mustExecute(c.root, nil, "12.34 7.5")
 }
 
+func TestStringsInScriptsWithJsonContentTypeAreCorrectlyEscaped(t *testing.T) {
+	// See #33671 and #37634 for more context on this.
+	tests := []struct{ name, in string }{
+		{"empty", ""},
+		{"invalid", string(rune(-1))},
+		{"null", "\u0000"},
+		{"unit separator", "\u001F"},
+		{"tab", "\t"},
+		{"gt and lt", "<>"},
+		{"quotes", `'"`},
+		{"ASCII letters", "ASCII letters"},
+		{"Unicode", "ʕ⊙ϖ⊙ʔ"},
+		{"Pizza", "🍕"},
+	}
+	const (
+		prefix = `<script type="application/ld+json">`
+		suffix = `</script>`
+		templ  = prefix + `"{{.}}"` + suffix
+	)
+	tpl := Must(New("JS string is JSON string").Parse(templ))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			if err := tpl.Execute(&buf, tt.in); err != nil {
+				t.Fatalf("Cannot render template: %v", err)
+			}
+			trimmed := bytes.TrimSuffix(bytes.TrimPrefix(buf.Bytes(), []byte(prefix)), []byte(suffix))
+			var got string
+			if err := json.Unmarshal(trimmed, &got); err != nil {
+				t.Fatalf("Cannot parse JS string %q as JSON: %v", trimmed[1:len(trimmed)-1], err)
+			}
+			if got != tt.in {
+				t.Errorf("Serialization changed the string value: got %q want %q", got, tt.in)
+			}
+		})
+	}
+}
+
+func TestSkipEscapeComments(t *testing.T) {
+	c := newTestCase(t)
+	tr := parse.New("root")
+	tr.Mode = parse.ParseComments
+	newT, err := tr.Parse("{{/* A comment */}}{{ 1 }}{{/* Another comment */}}", "", "", make(map[string]*parse.Tree))
+	if err != nil {
+		t.Fatalf("Cannot parse template text: %v", err)
+	}
+	c.root, err = c.root.AddParseTree("root", newT)
+	if err != nil {
+		t.Fatalf("Cannot add parse tree to template: %v", err)
+	}
+	c.mustExecute(c.root, nil, "1")
+}
+
 type testCase struct {
 	t    *testing.T
 	root *Template
@@ -151,8 +206,8 @@ func (c *testCase) mustNotParse(t *Template, text string) {
 	}
 }
 
-func (c *testCase) mustExecute(t *Template, val interface{}, want string) {
-	var buf bytes.Buffer
+func (c *testCase) mustExecute(t *Template, val any, want string) {
+	var buf strings.Builder
 	err := t.Execute(&buf, val)
 	if err != nil {
 		c.t.Fatalf("execute: %v", err)

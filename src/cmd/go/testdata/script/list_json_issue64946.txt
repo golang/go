@@ -1,0 +1,10 @@
+cd mod
+go list -e -json=ImportPath,Error ./foo
+stdout '"Err": "no Go files in .*(/|\\\\)src(/|\\\\)mod(/|\\\\)foo"'
+
+-- mod/go.mod --
+module example.com/foo
+
+go 1.21
+-- mod/foo/README.md --
+empty

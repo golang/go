@@ -1,0 +1,5010 @@
+[
+    {
+        "Name": "4.1.1 Valid Signatures Test1",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "ValidCertificatePathTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.1.2 Invalid CA Signature Test2",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "BadSignedCACert.crt",
+            "InvalidCASignatureTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "BadSignedCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.1.3 Invalid EE Signature Test3",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "InvalidEESignatureTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.1.4 Valid DSA Signatures Test4",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "DSACACert.crt",
+            "ValidDSASignaturesTest4EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "DSACACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.1.5 Valid DSA Parameter Inheritance Test5",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "DSACACert.crt",
+            "DSAParametersInheritedCACert.crt",
+            "ValidDSAParameterInheritanceTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "DSACACRL.crl",
+            "DSAParametersInheritedCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.1.6 Invalid DSA Signature Test6",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "DSACACert.crt",
+            "InvalidDSASignatureTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "DSACACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.2.1 Invalid CA notBefore Date Test1",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "BadnotBeforeDateCACert.crt",
+            "InvalidCAnotBeforeDateTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "BadnotBeforeDateCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.2.2 Invalid EE notBefore Date Test2",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "InvalidEEnotBeforeDateTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.2.3 Valid pre2000 UTC notBefore Date Test3",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "Validpre2000UTCnotBeforeDateTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.2.4 Valid GeneralizedTime notBefore Date Test4",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "ValidGeneralizedTimenotBeforeDateTest4EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.2.5 Invalid CA notAfter Date Test5",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "BadnotAfterDateCACert.crt",
+            "InvalidCAnotAfterDateTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "BadnotAfterDateCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.2.6 Invalid EE notAfter Date Test6",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "InvalidEEnotAfterDateTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.2.7 Invalid pre2000 UTC EE notAfter Date Test7",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "Invalidpre2000UTCEEnotAfterDateTest7EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.2.8 Valid GeneralizedTime notAfter Date Test8",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "ValidGeneralizedTimenotAfterDateTest8EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.3.1 Invalid Name Chaining EE Test1",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "InvalidNameChainingTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.3.2 Invalid Name Chaining Order Test2",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "NameOrderingCACert.crt",
+            "InvalidNameChainingOrderTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "NameOrderCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.3.3 Valid Name Chaining Whitespace Test3",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "ValidNameChainingWhitespaceTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.3.4 Valid Name Chaining Whitespace Test4",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "ValidNameChainingWhitespaceTest4EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.3.5 Valid Name Chaining Capitalization Test5",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "ValidNameChainingCapitalizationTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.3.6 Valid Name Chaining UIDs Test6",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "UIDCACert.crt",
+            "ValidNameUIDsTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "UIDCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.3.7 Valid RFC3280 Mandatory Attribute Types Test7",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "RFC3280MandatoryAttributeTypesCACert.crt",
+            "ValidRFC3280MandatoryAttributeTypesTest7EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "RFC3280MandatoryAttributeTypesCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.3.8 Valid RFC3280 Optional Attribute Types Test8",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "RFC3280OptionalAttributeTypesCACert.crt",
+            "ValidRFC3280OptionalAttributeTypesTest8EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "RFC3280OptionalAttributeTypesCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.3.9 Valid UTF8String Encoded Names Test9",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "UTF8StringEncodedNamesCACert.crt",
+            "ValidUTF8StringEncodedNamesTest9EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "UTF8StringEncodedNamesCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.3.10 Valid Rollover from PrintableString to UTF8String Test10",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "RolloverfromPrintableStringtoUTF8StringCACert.crt",
+            "ValidRolloverfromPrintableStringtoUTF8StringTest10EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "RolloverfromPrintableStringtoUTF8StringCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.3.11 Valid UTF8String Case Insensitive Match Test11",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "UTF8StringCaseInsensitiveMatchCACert.crt",
+            "ValidUTF8StringCaseInsensitiveMatchTest11EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "UTF8StringCaseInsensitiveMatchCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.1 Missing CRL Test1",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "NoCRLCACert.crt",
+            "InvalidMissingCRLTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.2 Invalid Revoked CA Test2",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "RevokedsubCACert.crt",
+            "InvalidRevokedCATest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl",
+            "RevokedsubCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.3 Invalid Revoked EE Test3",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "InvalidRevokedEETest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.4 Invalid Bad CRL Signature Test4",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "BadCRLSignatureCACert.crt",
+            "InvalidBadCRLSignatureTest4EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "BadCRLSignatureCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.5 Invalid Bad CRL Issuer Name Test5",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "BadCRLIssuerNameCACert.crt",
+            "InvalidBadCRLIssuerNameTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "BadCRLIssuerNameCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.6 Invalid Wrong CRL Test6",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "WrongCRLCACert.crt",
+            "InvalidWrongCRLTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "WrongCRLCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.7 Valid Two CRLs Test7",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "TwoCRLsCACert.crt",
+            "ValidTwoCRLsTest7EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "TwoCRLsCAGoodCRL.crl",
+            "TwoCRLsCABadCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.8 Invalid Unknown CRL Entry Extension Test8",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "UnknownCRLEntryExtensionCACert.crt",
+            "InvalidUnknownCRLEntryExtensionTest8EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "UnknownCRLEntryExtensionCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.9 Invalid Unknown CRL Extension Test9",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "UnknownCRLExtensionCACert.crt",
+            "InvalidUnknownCRLExtensionTest9EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "UnknownCRLExtensionCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.10 Invalid Unknown CRL Extension Test10",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "UnknownCRLExtensionCACert.crt",
+            "InvalidUnknownCRLExtensionTest10EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "UnknownCRLExtensionCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.11 Invalid Old CRL nextUpdate Test11",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "OldCRLnextUpdateCACert.crt",
+            "InvalidOldCRLnextUpdateTest11EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "OldCRLnextUpdateCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.12 Invalid pre2000 CRL nextUpdate Test12",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "pre2000CRLnextUpdateCACert.crt",
+            "Invalidpre2000CRLnextUpdateTest12EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "pre2000CRLnextUpdateCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.13 Valid GeneralizedTime CRL nextUpdate Test13",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GeneralizedTimeCRLnextUpdateCACert.crt",
+            "ValidGeneralizedTimeCRLnextUpdateTest13EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GeneralizedTimeCRLnextUpdateCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.14 Valid Negative Serial Number Test14",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "NegativeSerialNumberCACert.crt",
+            "ValidNegativeSerialNumberTest14EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "NegativeSerialNumberCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.15 Invalid Negative Serial Number Test15",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "NegativeSerialNumberCACert.crt",
+            "InvalidNegativeSerialNumberTest15EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "NegativeSerialNumberCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.16 Valid Long Serial Number Test16",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "LongSerialNumberCACert.crt",
+            "ValidLongSerialNumberTest16EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "LongSerialNumberCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.17 Valid Long Serial Number Test17",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "LongSerialNumberCACert.crt",
+            "ValidLongSerialNumberTest17EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "LongSerialNumberCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.18 Invalid Long Serial Number Test18",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "LongSerialNumberCACert.crt",
+            "InvalidLongSerialNumberTest18EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "LongSerialNumberCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.19 Valid Separate Certificate and CRL Keys Test19",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "SeparateCertificateandCRLKeysCertificateSigningCACert.crt",
+            "SeparateCertificateandCRLKeysCRLSigningCert.crt",
+            "ValidSeparateCertificateandCRLKeysTest19EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "SeparateCertificateandCRLKeysCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.20 Invalid Separate Certificate and CRL Keys Test20",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "SeparateCertificateandCRLKeysCertificateSigningCACert.crt",
+            "SeparateCertificateandCRLKeysCRLSigningCert.crt",
+            "InvalidSeparateCertificateandCRLKeysTest20EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "SeparateCertificateandCRLKeysCRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.4.21 Invalid Separate Certificate and CRL Keys Test21",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "SeparateCertificateandCRLKeysCA2CertificateSigningCACert.crt",
+            "SeparateCertificateandCRLKeysCA2CRLSigningCert.crt",
+            "InvalidSeparateCertificateandCRLKeysTest21EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "SeparateCertificateandCRLKeysCA2CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.5.1 Valid Basic Self-Issued Old With New Test1",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "BasicSelfIssuedNewKeyCACert.crt",
+            "BasicSelfIssuedNewKeyOldWithNewCACert.crt",
+            "ValidBasicSelfIssuedOldWithNewTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "BasicSelfIssuedNewKeyCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.5.2 Invalid Basic Self-Issued Old With New Test2",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "BasicSelfIssuedNewKeyCACert.crt",
+            "BasicSelfIssuedNewKeyOldWithNewCACert.crt",
+            "InvalidBasicSelfIssuedOldWithNewTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "BasicSelfIssuedNewKeyCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.5.3 Valid Basic Self-Issued New With Old Test3",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "BasicSelfIssuedOldKeyCACert.crt",
+            "BasicSelfIssuedOldKeyNewWithOldCACert.crt",
+            "ValidBasicSelfIssuedNewWithOldTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "BasicSelfIssuedOldKeySelfIssuedCertCRL.crl",
+            "BasicSelfIssuedOldKeyCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.5.4 Valid Basic Self-Issued New With Old Test4",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "BasicSelfIssuedOldKeyCACert.crt",
+            "BasicSelfIssuedOldKeyNewWithOldCACert.crt",
+            "ValidBasicSelfIssuedNewWithOldTest4EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "BasicSelfIssuedOldKeySelfIssuedCertCRL.crl",
+            "BasicSelfIssuedOldKeyCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.5.5 Invalid Basic Self-Issued New With Old Test5",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "BasicSelfIssuedOldKeyCACert.crt",
+            "BasicSelfIssuedOldKeyNewWithOldCACert.crt",
+            "InvalidBasicSelfIssuedNewWithOldTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "BasicSelfIssuedOldKeySelfIssuedCertCRL.crl",
+            "BasicSelfIssuedOldKeyCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.5.6 Valid Basic Self-Issued CRL Signing Key Test6",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "BasicSelfIssuedCRLSigningKeyCACert.crt",
+            "BasicSelfIssuedCRLSigningKeyCRLCert.crt",
+            "ValidBasicSelfIssuedCRLSigningKeyTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "BasicSelfIssuedCRLSigningKeyCRLCertCRL.crl",
+            "BasicSelfIssuedCRLSigningKeyCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.5.7 Invalid Basic Self-Issued CRL Signing Key Test7",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "BasicSelfIssuedCRLSigningKeyCACert.crt",
+            "BasicSelfIssuedCRLSigningKeyCRLCert.crt",
+            "InvalidBasicSelfIssuedCRLSigningKeyTest7EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "BasicSelfIssuedCRLSigningKeyCRLCertCRL.crl",
+            "BasicSelfIssuedCRLSigningKeyCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.5.8 Invalid Basic Self-Issued CRL Signing Key Test8",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "BasicSelfIssuedCRLSigningKeyCACert.crt",
+            "BasicSelfIssuedCRLSigningKeyCRLCert.crt",
+            "InvalidBasicSelfIssuedCRLSigningKeyTest8EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "BasicSelfIssuedCRLSigningKeyCRLCertCRL.crl",
+            "BasicSelfIssuedCRLSigningKeyCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.1 Invalid Missing basicConstraints Test1",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "MissingbasicConstraintsCACert.crt",
+            "InvalidMissingbasicConstraintsTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "MissingbasicConstraintsCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.2 Invalid cA False Test2",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "basicConstraintsCriticalcAFalseCACert.crt",
+            "InvalidcAFalseTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "basicConstraintsCriticalcAFalseCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.3 Invalid cA False Test3",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "basicConstraintsNotCriticalcAFalseCACert.crt",
+            "InvalidcAFalseTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "basicConstraintsNotCriticalcAFalseCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.4 Valid basicConstraints Not Critical Test4",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "basicConstraintsNotCriticalCACert.crt",
+            "ValidbasicConstraintsNotCriticalTest4EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "basicConstraintsNotCriticalCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.5 Invalid pathLenConstraint Test5",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "pathLenConstraint0CACert.crt",
+            "pathLenConstraint0subCACert.crt",
+            "InvalidpathLenConstraintTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "pathLenConstraint0CACRL.crl",
+            "pathLenConstraint0subCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.6 Invalid pathLenConstraint Test6",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "pathLenConstraint0CACert.crt",
+            "pathLenConstraint0subCACert.crt",
+            "InvalidpathLenConstraintTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "pathLenConstraint0CACRL.crl",
+            "pathLenConstraint0subCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.7 Valid pathLenConstraint Test7",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "pathLenConstraint0CACert.crt",
+            "ValidpathLenConstraintTest7EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "pathLenConstraint0CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.8 Valid pathLenConstraint Test8",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "pathLenConstraint0CACert.crt",
+            "ValidpathLenConstraintTest8EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "pathLenConstraint0CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.9 Invalid pathLenConstraint Test9",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "pathLenConstraint6CACert.crt",
+            "pathLenConstraint6subCA0Cert.crt",
+            "pathLenConstraint6subsubCA00Cert.crt",
+            "InvalidpathLenConstraintTest9EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "pathLenConstraint6CACRL.crl",
+            "pathLenConstraint6subCA0CRL.crl",
+            "pathLenConstraint6subsubCA00CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.10 Invalid pathLenConstraint Test10",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "pathLenConstraint6CACert.crt",
+            "pathLenConstraint6subCA0Cert.crt",
+            "pathLenConstraint6subsubCA00Cert.crt",
+            "InvalidpathLenConstraintTest10EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "pathLenConstraint6CACRL.crl",
+            "pathLenConstraint6subCA0CRL.crl",
+            "pathLenConstraint6subsubCA00CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.11 Invalid pathLenConstraint Test11",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "pathLenConstraint6CACert.crt",
+            "pathLenConstraint6subCA1Cert.crt",
+            "pathLenConstraint6subsubCA11Cert.crt",
+            "pathLenConstraint6subsubsubCA11XCert.crt",
+            "InvalidpathLenConstraintTest11EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "pathLenConstraint6CACRL.crl",
+            "pathLenConstraint6subCA1CRL.crl",
+            "pathLenConstraint6subsubCA11CRL.crl",
+            "pathLenConstraint6subsubsubCA11XCRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.12 Invalid pathLenConstraint Test12",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "pathLenConstraint6CACert.crt",
+            "pathLenConstraint6subCA1Cert.crt",
+            "pathLenConstraint6subsubCA11Cert.crt",
+            "pathLenConstraint6subsubsubCA11XCert.crt",
+            "InvalidpathLenConstraintTest12EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "pathLenConstraint6CACRL.crl",
+            "pathLenConstraint6subCA1CRL.crl",
+            "pathLenConstraint6subsubCA11CRL.crl",
+            "pathLenConstraint6subsubsubCA11XCRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.13 Valid pathLenConstraint Test13",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "pathLenConstraint6CACert.crt",
+            "pathLenConstraint6subCA4Cert.crt",
+            "pathLenConstraint6subsubCA41Cert.crt",
+            "pathLenConstraint6subsubsubCA41XCert.crt",
+            "ValidpathLenConstraintTest13EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "pathLenConstraint6CACRL.crl",
+            "pathLenConstraint6subCA4CRL.crl",
+            "pathLenConstraint6subsubCA41CRL.crl",
+            "pathLenConstraint6subsubsubCA41XCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.14 Valid pathLenConstraint Test14",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "pathLenConstraint6CACert.crt",
+            "pathLenConstraint6subCA4Cert.crt",
+            "pathLenConstraint6subsubCA41Cert.crt",
+            "pathLenConstraint6subsubsubCA41XCert.crt",
+            "ValidpathLenConstraintTest14EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "pathLenConstraint6CACRL.crl",
+            "pathLenConstraint6subCA4CRL.crl",
+            "pathLenConstraint6subsubCA41CRL.crl",
+            "pathLenConstraint6subsubsubCA41XCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.15 Valid Self-Issued pathLenConstraint Test15",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "pathLenConstraint0CACert.crt",
+            "pathLenConstraint0SelfIssuedCACert.crt",
+            "ValidSelfIssuedpathLenConstraintTest15EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "pathLenConstraint0CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.16 Invalid Self-Issued pathLenConstraint Test16",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "pathLenConstraint0CACert.crt",
+            "pathLenConstraint0SelfIssuedCACert.crt",
+            "pathLenConstraint0subCA2Cert.crt",
+            "InvalidSelfIssuedpathLenConstraintTest16EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "pathLenConstraint0CACRL.crl",
+            "pathLenConstraint0subCA2CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.6.17 Valid Self-Issued pathLenConstraint Test17",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "pathLenConstraint1CACert.crt",
+            "pathLenConstraint1SelfIssuedCACert.crt",
+            "pathLenConstraint1subCACert.crt",
+            "pathLenConstraint1SelfIssuedsubCACert.crt",
+            "ValidSelfIssuedpathLenConstraintTest17EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "pathLenConstraint1CACRL.crl",
+            "pathLenConstraint1subCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.7.1 Invalid keyUsage Critical keyCertSign False Test1",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "keyUsageCriticalkeyCertSignFalseCACert.crt",
+            "InvalidkeyUsageCriticalkeyCertSignFalseTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "keyUsageCriticalkeyCertSignFalseCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.7.2 Invalid keyUsage Not Critical keyCertSign False Test2",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "keyUsageNotCriticalkeyCertSignFalseCACert.crt",
+            "InvalidkeyUsageNotCriticalkeyCertSignFalseTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "keyUsageNotCriticalkeyCertSignFalseCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.7.3 Valid keyUsage Not Critical Test3",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "keyUsageNotCriticalCACert.crt",
+            "ValidkeyUsageNotCriticalTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "keyUsageNotCriticalCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.7.4 Invalid keyUsage Critical cRLSign False Test4",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "keyUsageCriticalcRLSignFalseCACert.crt",
+            "InvalidkeyUsageCriticalcRLSignFalseTest4EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "keyUsageCriticalcRLSignFalseCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.7.5 Invalid keyUsage Not Critical cRLSign False Test5",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "keyUsageNotCriticalcRLSignFalseCACert.crt",
+            "InvalidkeyUsageNotCriticalcRLSignFalseTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "keyUsageNotCriticalcRLSignFalseCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.1 All Certificates Same Policy Test1 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "ValidCertificatePathTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": true,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.1 All Certificates Same Policy Test1 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "ValidCertificatePathTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-1"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": true,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.1 All Certificates Same Policy Test1 (Subpart 3)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "ValidCertificatePathTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "NIST-test-policy-2"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": true,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.1 All Certificates Same Policy Test1 (Subpart 4)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "ValidCertificatePathTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-1",
+            "NIST-test-policy-2"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": true,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.2 All Certificates No Policies Test2 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "NoPoliciesCACert.crt",
+            "AllCertificatesNoPoliciesTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "NoPoliciesCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.2 All Certificates No Policies Test2 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "NoPoliciesCACert.crt",
+            "AllCertificatesNoPoliciesTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "NoPoliciesCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": true,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.3 Different Policies Test3 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "PoliciesP2subCACert.crt",
+            "DifferentPoliciesTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl",
+            "PoliciesP2subCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.3 Different Policies Test3 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "PoliciesP2subCACert.crt",
+            "DifferentPoliciesTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl",
+            "PoliciesP2subCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": true,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.3 Different Policies Test3 (Subpart 3)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "PoliciesP2subCACert.crt",
+            "DifferentPoliciesTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl",
+            "PoliciesP2subCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "NIST-test-policy-1",
+            "NIST-test-policy-2"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": true,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.4 Different Policies Test4",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "GoodsubCACert.crt",
+            "DifferentPoliciesTest4EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl",
+            "GoodsubCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.5 Different Policies Test5",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "PoliciesP2subCA2Cert.crt",
+            "DifferentPoliciesTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl",
+            "PoliciesP2subCA2CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.6 Overlapping Policies Test6 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PoliciesP1234CACert.crt",
+            "PoliciesP1234subCAP123Cert.crt",
+            "PoliciesP1234subsubCAP123P12Cert.crt",
+            "OverlappingPoliciesTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PoliciesP1234CACRL.crl",
+            "PoliciesP1234subCAP123CRL.crl",
+            "PoliciesP1234subsubCAP123P12CRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.6 Overlapping Policies Test6 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PoliciesP1234CACert.crt",
+            "PoliciesP1234subCAP123Cert.crt",
+            "PoliciesP1234subsubCAP123P12Cert.crt",
+            "OverlappingPoliciesTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PoliciesP1234CACRL.crl",
+            "PoliciesP1234subCAP123CRL.crl",
+            "PoliciesP1234subsubCAP123P12CRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-1"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.6 Overlapping Policies Test6 (Subpart 3)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PoliciesP1234CACert.crt",
+            "PoliciesP1234subCAP123Cert.crt",
+            "PoliciesP1234subsubCAP123P12Cert.crt",
+            "OverlappingPoliciesTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PoliciesP1234CACRL.crl",
+            "PoliciesP1234subCAP123CRL.crl",
+            "PoliciesP1234subsubCAP123P12CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "NIST-test-policy-2"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.7 Different Policies Test7",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PoliciesP123CACert.crt",
+            "PoliciesP123subCAP12Cert.crt",
+            "PoliciesP123subsubCAP12P1Cert.crt",
+            "DifferentPoliciesTest7EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PoliciesP123CACRL.crl",
+            "PoliciesP123subCAP12CRL.crl",
+            "PoliciesP123subsubCAP12P1CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.8 Different Policies Test8",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PoliciesP12CACert.crt",
+            "PoliciesP12subCAP1Cert.crt",
+            "PoliciesP12subsubCAP1P2Cert.crt",
+            "DifferentPoliciesTest8EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PoliciesP12CACRL.crl",
+            "PoliciesP12subCAP1CRL.crl",
+            "PoliciesP12subsubCAP1P2CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.9 Different Policies Test9",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PoliciesP123CACert.crt",
+            "PoliciesP123subCAP12Cert.crt",
+            "PoliciesP123subsubCAP12P2Cert.crt",
+            "PoliciesP123subsubsubCAP12P2P1Cert.crt",
+            "DifferentPoliciesTest9EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PoliciesP123CACRL.crl",
+            "PoliciesP123subCAP12CRL.crl",
+            "PoliciesP123subsubCAP2P2CRL.crl",
+            "PoliciesP123subsubsubCAP12P2P1CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.10 All Certificates Same Policies Test10 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PoliciesP12CACert.crt",
+            "AllCertificatesSamePoliciesTest10EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PoliciesP12CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.10 All Certificates Same Policies Test10 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PoliciesP12CACert.crt",
+            "AllCertificatesSamePoliciesTest10EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PoliciesP12CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-1"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.10 All Certificates Same Policies Test10 (Subpart 3)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PoliciesP12CACert.crt",
+            "AllCertificatesSamePoliciesTest10EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PoliciesP12CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-2"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.11 All Certificates AnyPolicy Test11 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "anyPolicyCACert.crt",
+            "AllCertificatesanyPolicyTest11EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "anyPolicyCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.11 All Certificates AnyPolicy Test11 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "anyPolicyCACert.crt",
+            "AllCertificatesanyPolicyTest11EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "anyPolicyCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-1"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.12 Different Policies Test12",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PoliciesP3CACert.crt",
+            "DifferentPoliciesTest12EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PoliciesP3CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.13 All Certificates Same Policies Test13 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PoliciesP123CACert.crt",
+            "AllCertificatesSamePoliciesTest13EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PoliciesP123CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-1"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.13 All Certificates Same Policies Test13 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PoliciesP123CACert.crt",
+            "AllCertificatesSamePoliciesTest13EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PoliciesP123CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-2"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.13 All Certificates Same Policies Test13 (Subpart 3)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PoliciesP123CACert.crt",
+            "AllCertificatesSamePoliciesTest13EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PoliciesP123CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-3"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.14 AnyPolicy Test14 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "anyPolicyCACert.crt",
+            "AnyPolicyTest14EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "anyPolicyCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-1"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.14 AnyPolicy Test14 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "anyPolicyCACert.crt",
+            "AnyPolicyTest14EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "anyPolicyCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "NIST-test-policy-2"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.15 User Notice Qualifier Test15",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "UserNoticeQualifierTest15EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.16 User Notice Qualifier Test16",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "UserNoticeQualifierTest16EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.17 User Notice Qualifier Test17",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "UserNoticeQualifierTest17EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.18 User Notice Qualifier Test18 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PoliciesP12CACert.crt",
+            "UserNoticeQualifierTest18EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PoliciesP12CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-1"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.18 User Notice Qualifier Test18 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PoliciesP12CACert.crt",
+            "UserNoticeQualifierTest18EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PoliciesP12CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-2"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.19 User Notice Qualifier Test19",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "UserNoticeQualifierTest19EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.8.20 CPS Pointer Qualifier Test20",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "CPSPointerQualifierTest20EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-1"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": true,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.9.1 Valid RequireExplicitPolicy Test1",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "requireExplicitPolicy10CACert.crt",
+            "requireExplicitPolicy10subCACert.crt",
+            "requireExplicitPolicy10subsubCACert.crt",
+            "requireExplicitPolicy10subsubsubCACert.crt",
+            "ValidrequireExplicitPolicyTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "requireExplicitPolicy10CACRL.crl",
+            "requireExplicitPolicy10subCACRL.crl",
+            "requireExplicitPolicy10subsubCACRL.crl",
+            "requireExplicitPolicy10subsubsubCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.9.2 Valid RequireExplicitPolicy Test2",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "requireExplicitPolicy5CACert.crt",
+            "requireExplicitPolicy5subCACert.crt",
+            "requireExplicitPolicy5subsubCACert.crt",
+            "requireExplicitPolicy5subsubsubCACert.crt",
+            "ValidrequireExplicitPolicyTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "requireExplicitPolicy5CACRL.crl",
+            "requireExplicitPolicy5subCACRL.crl",
+            "requireExplicitPolicy5subsubCACRL.crl",
+            "requireExplicitPolicy5subsubsubCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.9.3 Invalid RequireExplicitPolicy Test3",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "requireExplicitPolicy4CACert.crt",
+            "requireExplicitPolicy4subCACert.crt",
+            "requireExplicitPolicy4subsubCACert.crt",
+            "requireExplicitPolicy4subsubsubCACert.crt",
+            "InvalidrequireExplicitPolicyTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "requireExplicitPolicy4CACRL.crl",
+            "requireExplicitPolicy4subCACRL.crl",
+            "requireExplicitPolicy4subsubCACRL.crl",
+            "requireExplicitPolicy4subsubsubCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.9.4 Valid RequireExplicitPolicy Test4",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "requireExplicitPolicy0CACert.crt",
+            "requireExplicitPolicy0subCACert.crt",
+            "requireExplicitPolicy0subsubCACert.crt",
+            "requireExplicitPolicy0subsubsubCACert.crt",
+            "ValidrequireExplicitPolicyTest4EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "requireExplicitPolicy0CACRL.crl",
+            "requireExplicitPolicy0subCACRL.crl",
+            "requireExplicitPolicy0subsubCACRL.crl",
+            "requireExplicitPolicy0subsubsubCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.9.5 Invalid RequireExplicitPolicy Test5",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "requireExplicitPolicy7CACert.crt",
+            "requireExplicitPolicy7subCARE2Cert.crt",
+            "requireExplicitPolicy7subsubCARE2RE4Cert.crt",
+            "requireExplicitPolicy7subsubsubCARE2RE4Cert.crt",
+            "InvalidrequireExplicitPolicyTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "requireExplicitPolicy7CACRL.crl",
+            "requireExplicitPolicy7subCARE2CRL.crl",
+            "requireExplicitPolicy7subsubCARE2RE4CRL.crl",
+            "requireExplicitPolicy7subsubsubCARE2RE4CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.9.6 Valid Self-Issued requireExplicitPolicy Test6",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "requireExplicitPolicy2CACert.crt",
+            "requireExplicitPolicy2SelfIssuedCACert.crt",
+            "ValidSelfIssuedrequireExplicitPolicyTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "requireExplicitPolicy2CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.9.7 Invalid Self-Issued requireExplicitPolicy Test7",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "requireExplicitPolicy2CACert.crt",
+            "requireExplicitPolicy2SelfIssuedCACert.crt",
+            "requireExplicitPolicy2subCACert.crt",
+            "InvalidSelfIssuedrequireExplicitPolicyTest7EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "requireExplicitPolicy2CACRL.crl",
+            "requireExplicitPolicy2subCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.9.8 Invalid Self-Issued requireExplicitPolicy Test8",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "requireExplicitPolicy2CACert.crt",
+            "requireExplicitPolicy2SelfIssuedCACert.crt",
+            "requireExplicitPolicy2subCACert.crt",
+            "requireExplicitPolicy2SelfIssuedsubCACert.crt",
+            "InvalidSelfIssuedrequireExplicitPolicyTest8EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "requireExplicitPolicy2CACRL.crl",
+            "requireExplicitPolicy2subCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.1.1 Valid Policy Mapping Test1 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "Mapping1to2CACert.crt",
+            "ValidPolicyMappingTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "Mapping1to2CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-1"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.1.2 Valid Policy Mapping Test1 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "Mapping1to2CACert.crt",
+            "ValidPolicyMappingTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "Mapping1to2CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "NIST-test-policy-2"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.1.3 Valid Policy Mapping Test1 (Subpart 3)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "Mapping1to2CACert.crt",
+            "ValidPolicyMappingTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "Mapping1to2CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": true,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.2 Invalid Policy Mapping Test2 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "Mapping1to2CACert.crt",
+            "InvalidPolicyMappingTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "Mapping1to2CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.2 Invalid Policy Mapping Test2 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "Mapping1to2CACert.crt",
+            "InvalidPolicyMappingTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "Mapping1to2CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": true,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.3 Valid Policy Mapping Test3 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "P12Mapping1to3CACert.crt",
+            "P12Mapping1to3subCACert.crt",
+            "P12Mapping1to3subsubCACert.crt",
+            "ValidPolicyMappingTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "P12Mapping1to3CACRL.crl",
+            "P12Mapping1to3subCACRL.crl",
+            "P12Mapping1to3subsubCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "NIST-test-policy-1"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.3 Valid Policy Mapping Test3 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "P12Mapping1to3CACert.crt",
+            "P12Mapping1to3subCACert.crt",
+            "P12Mapping1to3subsubCACert.crt",
+            "ValidPolicyMappingTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "P12Mapping1to3CACRL.crl",
+            "P12Mapping1to3subCACRL.crl",
+            "P12Mapping1to3subsubCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-2"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.4 Invalid Policy Mapping Test4",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "P12Mapping1to3CACert.crt",
+            "P12Mapping1to3subCACert.crt",
+            "P12Mapping1to3subsubCACert.crt",
+            "InvalidPolicyMappingTest4EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "P12Mapping1to3CACRL.crl",
+            "P12Mapping1to3subCACRL.crl",
+            "P12Mapping1to3subsubCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.5 Valid Policy Mapping Test5 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "P1Mapping1to234CACert.crt",
+            "P1Mapping1to234subCACert.crt",
+            "ValidPolicyMappingTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "P1Mapping1to234CACRL.crl",
+            "P1Mapping1to234subCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-1"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.5 Valid Policy Mapping Test5 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "P1Mapping1to234CACert.crt",
+            "P1Mapping1to234subCACert.crt",
+            "ValidPolicyMappingTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "P1Mapping1to234CACRL.crl",
+            "P1Mapping1to234subCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "NIST-test-policy-6"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.6 Valid Policy Mapping Test6 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "P1Mapping1to234CACert.crt",
+            "P1Mapping1to234subCACert.crt",
+            "ValidPolicyMappingTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "P1Mapping1to234CACRL.crl",
+            "P1Mapping1to234subCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-1"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.6 Valid Policy Mapping Test6 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "P1Mapping1to234CACert.crt",
+            "P1Mapping1to234subCACert.crt",
+            "ValidPolicyMappingTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "P1Mapping1to234CACRL.crl",
+            "P1Mapping1to234subCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "NIST-test-policy-6"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.7 Invalid Mapping From anyPolicy Test7",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "MappingFromanyPolicyCACert.crt",
+            "InvalidMappingFromanyPolicyTest7EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "MappingFromanyPolicyCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.8 Invalid Mapping To anyPolicy Test8",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "MappingToanyPolicyCACert.crt",
+            "InvalidMappingToanyPolicyTest8EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "MappingToanyPolicyCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.9 Valid Policy Mapping Test9",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "PanyPolicyMapping1to2CACert.crt",
+            "ValidPolicyMappingTest9EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "PanyPolicyMapping1to2CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.10 Invalid Policy Mapping Test10",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "GoodsubCAPanyPolicyMapping1to2CACert.crt",
+            "InvalidPolicyMappingTest10EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl",
+            "GoodsubCAPanyPolicyMapping1to2CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.11 Valid Policy Mapping Test11",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "GoodCACert.crt",
+            "GoodsubCAPanyPolicyMapping1to2CACert.crt",
+            "ValidPolicyMappingTest11EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl",
+            "GoodsubCAPanyPolicyMapping1to2CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.12 Valid Policy Mapping Test12 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "P12Mapping1to3CACert.crt",
+            "ValidPolicyMappingTest12EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "P12Mapping1to3CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-1"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.12 Valid Policy Mapping Test12 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "P12Mapping1to3CACert.crt",
+            "ValidPolicyMappingTest12EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "P12Mapping1to3CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-2"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.13 Valid Policy Mapping Test13 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "P1anyPolicyMapping1to2CACert.crt",
+            "ValidPolicyMappingTest13EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "P1anyPolicyMapping1to2CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.13 Valid Policy Mapping Test13 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "P1anyPolicyMapping1to2CACert.crt",
+            "ValidPolicyMappingTest13EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "P1anyPolicyMapping1to2CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "NIST-test-policy-1",
+            "NIST-test-policy-2"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.13 Valid Policy Mapping Test13 (Subpart 3)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "P1anyPolicyMapping1to2CACert.crt",
+            "ValidPolicyMappingTest13EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "P1anyPolicyMapping1to2CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "NIST-test-policy-2"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.10.14 Valid Policy Mapping Test14",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "P1anyPolicyMapping1to2CACert.crt",
+            "ValidPolicyMappingTest14EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "P1anyPolicyMapping1to2CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.11.1 Invalid inhibitPolicyMapping Test1",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitPolicyMapping0CACert.crt",
+            "inhibitPolicyMapping0subCACert.crt",
+            "InvalidinhibitPolicyMappingTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitPolicyMapping0CACRL.crl",
+            "inhibitPolicyMapping0subCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.11.2 Valid inhibitPolicyMapping Test2",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitPolicyMapping1P12CACert.crt",
+            "inhibitPolicyMapping1P12subCACert.crt",
+            "ValidinhibitPolicyMappingTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitPolicyMapping1P12CACRL.crl",
+            "inhibitPolicyMapping1P12subCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.11.3 Invalid inhibitPolicyMapping Test3",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitPolicyMapping1P12CACert.crt",
+            "inhibitPolicyMapping1P12subCACert.crt",
+            "inhibitPolicyMapping1P12subsubCACert.crt",
+            "InvalidinhibitPolicyMappingTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitPolicyMapping1P12CACRL.crl",
+            "inhibitPolicyMapping1P12subCACRL.crl",
+            "inhibitPolicyMapping1P12subsubCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.11.4 Valid inhibitPolicyMapping Test4",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitPolicyMapping1P12CACert.crt",
+            "inhibitPolicyMapping1P12subCACert.crt",
+            "inhibitPolicyMapping1P12subsubCACert.crt",
+            "ValidinhibitPolicyMappingTest4EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitPolicyMapping1P12CACRL.crl",
+            "inhibitPolicyMapping1P12subCACRL.crl",
+            "inhibitPolicyMapping1P12subsubCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.11.5 Invalid inhibitPolicyMapping Test5",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitPolicyMapping5CACert.crt",
+            "inhibitPolicyMapping5subCACert.crt",
+            "inhibitPolicyMapping5subsubCACert.crt",
+            "inhibitPolicyMapping5subsubsubCACert.crt",
+            "InvalidinhibitPolicyMappingTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitPolicyMapping5CACRL.crl",
+            "inhibitPolicyMapping5subCACRL.crl",
+            "inhibitPolicyMapping5subsubCACRL.crl",
+            "inhibitPolicyMapping5subsubsubCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.11.6 Invalid inhibitPolicyMapping Test6",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitPolicyMapping1P12CACert.crt",
+            "inhibitPolicyMapping1P12subCAIPM5Cert.crt",
+            "inhibitPolicyMapping1P12subsubCAIPM5Cert.crt",
+            "InvalidinhibitPolicyMappingTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitPolicyMapping1P12CACRL.crl",
+            "inhibitPolicyMapping1P12subCAIPM5CRL.crl",
+            "inhibitPolicyMapping1P12subsubCAIPM5CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.11.7 Valid Self-Issued inhibitPolicyMapping Test7",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitPolicyMapping1P1CACert.crt",
+            "inhibitPolicyMapping1P1SelfIssuedCACert.crt",
+            "inhibitPolicyMapping1P1subCACert.crt",
+            "ValidSelfIssuedinhibitPolicyMappingTest7EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitPolicyMapping1P1CACRL.crl",
+            "inhibitPolicyMapping1P1subCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.11.8 Invalid Self-Issued inhibitPolicyMapping Test8",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitPolicyMapping1P1CACert.crt",
+            "inhibitPolicyMapping1P1SelfIssuedCACert.crt",
+            "inhibitPolicyMapping1P1subCACert.crt",
+            "inhibitPolicyMapping1P1subsubCACert.crt",
+            "InvalidSelfIssuedinhibitPolicyMappingTest8EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitPolicyMapping1P1CACRL.crl",
+            "inhibitPolicyMapping1P1subCACRL.crl",
+            "inhibitPolicyMapping1P1subsubCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.11.9 Invalid Self-Issued inhibitPolicyMapping Test9",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitPolicyMapping1P1CACert.crt",
+            "inhibitPolicyMapping1P1SelfIssuedCACert.crt",
+            "inhibitPolicyMapping1P1subCACert.crt",
+            "inhibitPolicyMapping1P1subsubCACert.crt",
+            "InvalidSelfIssuedinhibitPolicyMappingTest9EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitPolicyMapping1P1CACRL.crl",
+            "inhibitPolicyMapping1P1subCACRL.crl",
+            "inhibitPolicyMapping1P1subsubCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.11.10 Invalid Self-Issued inhibitPolicyMapping Test10",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitPolicyMapping1P1CACert.crt",
+            "inhibitPolicyMapping1P1SelfIssuedCACert.crt",
+            "inhibitPolicyMapping1P1subCACert.crt",
+            "inhibitPolicyMapping1P1SelfIssuedsubCACert.crt",
+            "InvalidSelfIssuedinhibitPolicyMappingTest10EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitPolicyMapping1P1CACRL.crl",
+            "inhibitPolicyMapping1P1subCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.11.11 Invalid Self-Issued inhibitPolicyMapping Test11",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitPolicyMapping1P1CACert.crt",
+            "inhibitPolicyMapping1P1SelfIssuedCACert.crt",
+            "inhibitPolicyMapping1P1subCACert.crt",
+            "inhibitPolicyMapping1P1SelfIssuedsubCACert.crt",
+            "InvalidSelfIssuedinhibitPolicyMappingTest11EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitPolicyMapping1P1CACRL.crl",
+            "inhibitPolicyMapping1P1subCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.12.1 Invalid inhibitAnyPolicy Test1",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitAnyPolicy0CACert.crt",
+            "InvalidinhibitAnyPolicyTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitAnyPolicy0CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.12.2 Valid inhibitAnyPolicy Test2",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitAnyPolicy0CACert.crt",
+            "ValidinhibitAnyPolicyTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitAnyPolicy0CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.12.3 inhibitAnyPolicy Test3 (Subpart 1)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitAnyPolicy1CACert.crt",
+            "inhibitAnyPolicy1subCA1Cert.crt",
+            "inhibitAnyPolicyTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitAnyPolicy1CACRL.crl",
+            "inhibitAnyPolicy1subCA1CRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.12.3 inhibitAnyPolicy Test3 (Subpart 2)",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitAnyPolicy1CACert.crt",
+            "inhibitAnyPolicy1subCA1Cert.crt",
+            "inhibitAnyPolicyTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitAnyPolicy1CACRL.crl",
+            "inhibitAnyPolicy1subCA1CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": true
+    },
+    {
+        "Name": "4.12.4 Invalid inhibitAnyPolicy Test4",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitAnyPolicy1CACert.crt",
+            "inhibitAnyPolicy1subCA1Cert.crt",
+            "InvalidinhibitAnyPolicyTest4EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitAnyPolicy1CACRL.crl",
+            "inhibitAnyPolicy1subCA1CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.12.5 Invalid inhibitAnyPolicy Test5",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitAnyPolicy5CACert.crt",
+            "inhibitAnyPolicy5subCACert.crt",
+            "inhibitAnyPolicy5subsubCACert.crt",
+            "InvalidinhibitAnyPolicyTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitAnyPolicy5CACRL.crl",
+            "inhibitAnyPolicy5subCACRL.crl",
+            "inhibitAnyPolicy5subsubCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.12.6 Invalid inhibitAnyPolicy Test6",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitAnyPolicy1CACert.crt",
+            "inhibitAnyPolicy1subCAIAP5Cert.crt",
+            "InvalidinhibitAnyPolicyTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitAnyPolicy1CACRL.crl",
+            "inhibitAnyPolicy1subCAIAP5CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.12.7 Valid Self-Issued inhibitAnyPolicy Test7",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitAnyPolicy1CACert.crt",
+            "inhibitAnyPolicy1SelfIssuedCACert.crt",
+            "inhibitAnyPolicy1subCA2Cert.crt",
+            "ValidSelfIssuedinhibitAnyPolicyTest7EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitAnyPolicy1CACRL.crl",
+            "inhibitAnyPolicy1subCA2CRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.12.8 Invalid Self-Issued inhibitAnyPolicy Test8",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitAnyPolicy1CACert.crt",
+            "inhibitAnyPolicy1SelfIssuedCACert.crt",
+            "inhibitAnyPolicy1subCA2Cert.crt",
+            "inhibitAnyPolicy1subsubCA2Cert.crt",
+            "InvalidSelfIssuedinhibitAnyPolicyTest8EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitAnyPolicy1CACRL.crl",
+            "inhibitAnyPolicy1subCA2CRL.crl",
+            "inhibitAnyPolicy1subsubCA2CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.12.9 Valid Self-Issued inhibitAnyPolicy Test9",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitAnyPolicy1CACert.crt",
+            "inhibitAnyPolicy1SelfIssuedCACert.crt",
+            "inhibitAnyPolicy1subCA2Cert.crt",
+            "inhibitAnyPolicy1SelfIssuedsubCA2Cert.crt",
+            "ValidSelfIssuedinhibitAnyPolicyTest9EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitAnyPolicy1CACRL.crl",
+            "inhibitAnyPolicy1subCA2CRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.12.10 Invalid Self-Issued inhibitAnyPolicy Test10",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "inhibitAnyPolicy1CACert.crt",
+            "inhibitAnyPolicy1SelfIssuedCACert.crt",
+            "inhibitAnyPolicy1subCA2Cert.crt",
+            "InvalidSelfIssuedinhibitAnyPolicyTest10EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "inhibitAnyPolicy1CACRL.crl",
+            "inhibitAnyPolicy1subCA2CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.1 Valid DN nameConstraints Test1",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN1CACert.crt",
+            "ValidDNnameConstraintsTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN1CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.2 Invalid DN nameConstraints Test2",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN1CACert.crt",
+            "InvalidDNnameConstraintsTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN1CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.3 Invalid DN nameConstraints Test3",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN1CACert.crt",
+            "InvalidDNnameConstraintsTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN1CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.4 Valid DN nameConstraints Test4",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN1CACert.crt",
+            "ValidDNnameConstraintsTest4EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN1CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.5 Valid DN nameConstraints Test5",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN2CACert.crt",
+            "ValidDNnameConstraintsTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN2CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.6 Valid DN nameConstraints Test6",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN3CACert.crt",
+            "ValidDNnameConstraintsTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN3CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.7 Invalid DN nameConstraints Test7",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN3CACert.crt",
+            "InvalidDNnameConstraintsTest7EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN3CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.8 Invalid DN nameConstraints Test8",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN4CACert.crt",
+            "InvalidDNnameConstraintsTest8EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN4CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.9 Invalid DN nameConstraints Test9",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN4CACert.crt",
+            "InvalidDNnameConstraintsTest9EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN4CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.10 Invalid DN nameConstraints Test10",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN5CACert.crt",
+            "InvalidDNnameConstraintsTest10EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN5CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.11 Valid DN nameConstraints Test11",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN5CACert.crt",
+            "ValidDNnameConstraintsTest11EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN5CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.12 Invalid DN nameConstraints Test12",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN1CACert.crt",
+            "nameConstraintsDN1subCA1Cert.crt",
+            "InvalidDNnameConstraintsTest12EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN1CACRL.crl",
+            "nameConstraintsDN1subCA1CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.13 Invalid DN nameConstraints Test13",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN1CACert.crt",
+            "nameConstraintsDN1subCA2Cert.crt",
+            "InvalidDNnameConstraintsTest13EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN1CACRL.crl",
+            "nameConstraintsDN1subCA2CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.14 Valid DN nameConstraints Test14",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN1CACert.crt",
+            "nameConstraintsDN1subCA2Cert.crt",
+            "ValidDNnameConstraintsTest14EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN1CACRL.crl",
+            "nameConstraintsDN1subCA2CRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.15 Invalid DN nameConstraints Test15",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN3CACert.crt",
+            "nameConstraintsDN3subCA1Cert.crt",
+            "InvalidDNnameConstraintsTest15EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN3CACRL.crl",
+            "nameConstraintsDN3subCA1CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.16 Invalid DN nameConstraints Test16",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN3CACert.crt",
+            "nameConstraintsDN3subCA1Cert.crt",
+            "InvalidDNnameConstraintsTest16EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN3CACRL.crl",
+            "nameConstraintsDN3subCA1CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.17 Invalid DN nameConstraints Test17",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN3CACert.crt",
+            "nameConstraintsDN3subCA2Cert.crt",
+            "InvalidDNnameConstraintsTest17EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN3CACRL.crl",
+            "nameConstraintsDN3subCA2CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.18 Valid DN nameConstraints Test18",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN3CACert.crt",
+            "nameConstraintsDN3subCA2Cert.crt",
+            "ValidDNnameConstraintsTest18EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN3CACRL.crl",
+            "nameConstraintsDN3subCA2CRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.19 Valid Self-Issued DN nameConstraints Test19",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN1CACert.crt",
+            "nameConstraintsDN1SelfIssuedCACert.crt",
+            "ValidDNnameConstraintsTest19EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN1CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.20 Invalid Self-Issued DN nameConstraints Test20",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN1CACert.crt",
+            "InvalidDNnameConstraintsTest20EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN1CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.21 Valid RFC822 nameConstraints Test21",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsRFC822CA1Cert.crt",
+            "ValidRFC822nameConstraintsTest21EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsRFC822CA1CRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.22 Invalid RFC822 nameConstraints Test22",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsRFC822CA1Cert.crt",
+            "InvalidRFC822nameConstraintsTest22EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsRFC822CA1CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.23 Valid RFC822 nameConstraints Test23",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsRFC822CA2Cert.crt",
+            "ValidRFC822nameConstraintsTest23EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsRFC822CA2CRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.24 Invalid RFC822 nameConstraints Test24",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsRFC822CA2Cert.crt",
+            "InvalidRFC822nameConstraintsTest24EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsRFC822CA2CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.25 Valid RFC822 nameConstraints Test25",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsRFC822CA3Cert.crt",
+            "ValidRFC822nameConstraintsTest25EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsRFC822CA3CRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.26 Invalid RFC822 nameConstraints Test26",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsRFC822CA3Cert.crt",
+            "InvalidRFC822nameConstraintsTest26EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsRFC822CA3CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.27 Valid DN and RFC822 nameConstraints Test27",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN1CACert.crt",
+            "nameConstraintsDN1subCA3Cert.crt",
+            "ValidDNandRFC822nameConstraintsTest27EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN1CACRL.crl",
+            "nameConstraintsDN1subCA3CRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.28 Invalid DN and RFC822 nameConstraints Test28",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN1CACert.crt",
+            "nameConstraintsDN1subCA3Cert.crt",
+            "InvalidDNandRFC822nameConstraintsTest28EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN1CACRL.crl",
+            "nameConstraintsDN1subCA3CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.29 Invalid DN and RFC822 nameConstraints Test29",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDN1CACert.crt",
+            "nameConstraintsDN1subCA3Cert.crt",
+            "InvalidDNandRFC822nameConstraintsTest29EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDN1CACRL.crl",
+            "nameConstraintsDN1subCA3CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.30 Valid DNS nameConstraints Test30",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDNS1CACert.crt",
+            "ValidDNSnameConstraintsTest30EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDNS1CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.31 Invalid DNS nameConstraints Test31",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDNS1CACert.crt",
+            "InvalidDNSnameConstraintsTest31EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDNS1CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.32 Valid DNS nameConstraints Test32",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDNS2CACert.crt",
+            "ValidDNSnameConstraintsTest32EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDNS2CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.33 Invalid DNS nameConstraints Test33",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDNS2CACert.crt",
+            "InvalidDNSnameConstraintsTest33EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDNS2CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.34 Valid URI nameConstraints Test34",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsURI1CACert.crt",
+            "ValidURInameConstraintsTest34EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsURI1CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.35 Invalid URI nameConstraints Test35",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsURI1CACert.crt",
+            "InvalidURInameConstraintsTest35EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsURI1CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.36 Valid URI nameConstraints Test36",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsURI2CACert.crt",
+            "ValidURInameConstraintsTest36EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsURI2CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.37 Invalid URI nameConstraints Test37",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsURI2CACert.crt",
+            "InvalidURInameConstraintsTest37EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsURI2CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.13.38 Invalid DNS nameConstraints Test38",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "nameConstraintsDNS1CACert.crt",
+            "InvalidDNSnameConstraintsTest38EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "nameConstraintsDNS1CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.1 Valid distributionPoint Test1",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "distributionPoint1CACert.crt",
+            "ValiddistributionPointTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "distributionPoint1CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.2 Invalid distributionPoint Test2",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "distributionPoint1CACert.crt",
+            "InvaliddistributionPointTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "distributionPoint1CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.3 Invalid distributionPoint Test3",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "distributionPoint1CACert.crt",
+            "InvaliddistributionPointTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "distributionPoint1CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.4 Valid distributionPoint Test4",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "distributionPoint1CACert.crt",
+            "ValiddistributionPointTest4EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "distributionPoint1CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.5 Valid distributionPoint Test5",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "distributionPoint2CACert.crt",
+            "ValiddistributionPointTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "distributionPoint2CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.6 Invalid distributionPoint Test6",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "distributionPoint2CACert.crt",
+            "InvaliddistributionPointTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "distributionPoint2CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.7 Valid distributionPoint Test7",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "distributionPoint2CACert.crt",
+            "ValiddistributionPointTest7EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "distributionPoint2CACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.8 Invalid distributionPoint Test8",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "distributionPoint2CACert.crt",
+            "InvaliddistributionPointTest8EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "distributionPoint2CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.9 Invalid distributionPoint Test9",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "distributionPoint2CACert.crt",
+            "InvaliddistributionPointTest9EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "distributionPoint2CACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.10 Valid No issuingDistributionPoint Test10",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "NoissuingDistributionPointCACert.crt",
+            "ValidNoissuingDistributionPointTest10EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "NoissuingDistributionPointCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.11 Invalid onlyContainsUserCerts CRL Test11",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "onlyContainsUserCertsCACert.crt",
+            "InvalidonlyContainsUserCertsTest11EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "onlyContainsUserCertsCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.12 Invalid onlyContainsCACerts CRL Test12",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "onlyContainsCACertsCACert.crt",
+            "InvalidonlyContainsCACertsTest12EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "onlyContainsCACertsCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.13 Valid onlyContainsCACerts CRL Test13",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "onlyContainsCACertsCACert.crt",
+            "ValidonlyContainsCACertsTest13EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "onlyContainsCACertsCACRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.14 Invalid onlyContainsAttributeCerts Test14",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "onlyContainsAttributeCertsCACert.crt",
+            "InvalidonlyContainsAttributeCertsTest14EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "onlyContainsAttributeCertsCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.15 Invalid onlySomeReasons Test15",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "onlySomeReasonsCA1Cert.crt",
+            "InvalidonlySomeReasonsTest15EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "onlySomeReasonsCA1compromiseCRL.crl",
+            "onlySomeReasonsCA1otherreasonsCRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.16 Invalid onlySomeReasons Test16",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "onlySomeReasonsCA1Cert.crt",
+            "InvalidonlySomeReasonsTest16EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "onlySomeReasonsCA1compromiseCRL.crl",
+            "onlySomeReasonsCA1otherreasonsCRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.17 Invalid onlySomeReasons Test17",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "onlySomeReasonsCA2Cert.crt",
+            "InvalidonlySomeReasonsTest17EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "onlySomeReasonsCA2CRL1.crl",
+            "onlySomeReasonsCA2CRL2.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.18 Valid onlySomeReasons Test18",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "onlySomeReasonsCA3Cert.crt",
+            "ValidonlySomeReasonsTest18EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "onlySomeReasonsCA3compromiseCRL.crl",
+            "onlySomeReasonsCA3otherreasonsCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.19 Valid onlySomeReasons Test19",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "onlySomeReasonsCA4Cert.crt",
+            "ValidonlySomeReasonsTest19EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "onlySomeReasonsCA4compromiseCRL.crl",
+            "onlySomeReasonsCA4otherreasonsCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.20 Invalid onlySomeReasons Test20",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "onlySomeReasonsCA4Cert.crt",
+            "InvalidonlySomeReasonsTest20EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "onlySomeReasonsCA4compromiseCRL.crl",
+            "onlySomeReasonsCA4otherreasonsCRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.21 Invalid onlySomeReasons Test21",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "onlySomeReasonsCA4Cert.crt",
+            "InvalidonlySomeReasonsTest21EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "onlySomeReasonsCA4compromiseCRL.crl",
+            "onlySomeReasonsCA4otherreasonsCRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.22 Valid IDP with indirectCRL Test22",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "indirectCRLCA1Cert.crt",
+            "ValidIDPwithindirectCRLTest22EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "indirectCRLCA1CRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.23 Invalid IDP with indirectCRL Test23",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "indirectCRLCA1Cert.crt",
+            "InvalidIDPwithindirectCRLTest23EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "indirectCRLCA1CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.24 Valid IDP with indirectCRL Test24",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "indirectCRLCA2Cert.crt",
+            "indirectCRLCA1Cert.crt",
+            "ValidIDPwithindirectCRLTest24EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "indirectCRLCA1CRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.25 Valid IDP with indirectCRL Test25",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "indirectCRLCA2Cert.crt",
+            "indirectCRLCA1Cert.crt",
+            "ValidIDPwithindirectCRLTest25EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "indirectCRLCA1CRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.26 Invalid IDP with indirectCRL Test26",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "indirectCRLCA2Cert.crt",
+            "indirectCRLCA1Cert.crt",
+            "InvalidIDPwithindirectCRLTest26EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "indirectCRLCA1CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.27 Invalid cRLIssuer Test27",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "indirectCRLCA2Cert.crt",
+            "GoodCACert.crt",
+            "InvalidcRLIssuerTest27EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "GoodCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.28 Valid cRLIssuer Test28",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "indirectCRLCA3Cert.crt",
+            "indirectCRLCA3cRLIssuerCert.crt",
+            "ValidcRLIssuerTest28EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "indirectCRLCA3CRL.crl",
+            "indirectCRLCA3cRLIssuerCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.29 Valid cRLIssuer Test29",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "indirectCRLCA3Cert.crt",
+            "indirectCRLCA3cRLIssuerCert.crt",
+            "ValidcRLIssuerTest29EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "indirectCRLCA3CRL.crl",
+            "indirectCRLCA3cRLIssuerCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.30 Valid cRLIssuer Test30",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "indirectCRLCA4Cert.crt",
+            "indirectCRLCA4cRLIssuerCert.crt",
+            "ValidcRLIssuerTest30EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "indirectCRLCA4cRLIssuerCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.31 Invalid cRLIssuer Test31",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "indirectCRLCA5Cert.crt",
+            "indirectCRLCA6Cert.crt",
+            "InvalidcRLIssuerTest31EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "indirectCRLCA5CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.32 Invalid cRLIssuer Test32",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "indirectCRLCA5Cert.crt",
+            "indirectCRLCA6Cert.crt",
+            "InvalidcRLIssuerTest32EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "indirectCRLCA5CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.33 Valid cRLIssuer Test33",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "indirectCRLCA5Cert.crt",
+            "indirectCRLCA6Cert.crt",
+            "ValidcRLIssuerTest33EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "indirectCRLCA5CRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.34 Invalid cRLIssuer Test34",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "indirectCRLCA5Cert.crt",
+            "InvalidcRLIssuerTest34EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "indirectCRLCA5CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.14.35 Invalid cRLIssuer Test35",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "indirectCRLCA5Cert.crt",
+            "InvalidcRLIssuerTest35EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "indirectCRLCA5CRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.15.1 Invalid deltaCRLIndicator No Base Test1",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "deltaCRLIndicatorNoBaseCACert.crt",
+            "InvaliddeltaCRLIndicatorNoBaseTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "deltaCRLIndicatorNoBaseCACRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.15.2 Valid delta-CRL Test2",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "deltaCRLCA1Cert.crt",
+            "ValiddeltaCRLTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "deltaCRLCA1CRL.crl",
+            "deltaCRLCA1deltaCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.15.3 Invalid delta-CRL Test3",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "deltaCRLCA1Cert.crt",
+            "InvaliddeltaCRLTest3EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "deltaCRLCA1CRL.crl",
+            "deltaCRLCA1deltaCRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.15.4 Invalid delta-CRL Test4",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "deltaCRLCA1Cert.crt",
+            "InvaliddeltaCRLTest4EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "deltaCRLCA1CRL.crl",
+            "deltaCRLCA1deltaCRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.15.5 Valid delta-CRL Test5",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "deltaCRLCA1Cert.crt",
+            "ValiddeltaCRLTest5EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "deltaCRLCA1CRL.crl",
+            "deltaCRLCA1deltaCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.15.6 Invalid delta-CRL Test6",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "deltaCRLCA1Cert.crt",
+            "InvaliddeltaCRLTest6EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "deltaCRLCA1CRL.crl",
+            "deltaCRLCA1deltaCRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.15.7 Valid delta-CRL Test7",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "deltaCRLCA1Cert.crt",
+            "ValiddeltaCRLTest7EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "deltaCRLCA1CRL.crl",
+            "deltaCRLCA1deltaCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.15.8 Valid delta-CRL Test8",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "deltaCRLCA2Cert.crt",
+            "ValiddeltaCRLTest8EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "deltaCRLCA2CRL.crl",
+            "deltaCRLCA2deltaCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.15.9 Invalid delta-CRL Test9",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "deltaCRLCA2Cert.crt",
+            "InvaliddeltaCRLTest9EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "deltaCRLCA2CRL.crl",
+            "deltaCRLCA2deltaCRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.15.10 Invalid delta-CRL Test10",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "deltaCRLCA3Cert.crt",
+            "InvaliddeltaCRLTest10EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl",
+            "deltaCRLCA3CRL.crl",
+            "deltaCRLCA3deltaCRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.16.1 Valid Unknown Not Critical Certificate Extension Test1",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "ValidUnknownNotCriticalCertificateExtensionTest1EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl"
+        ],
+        "ShouldValidate": true,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    },
+    {
+        "Name": "4.16.2 Invalid Unknown Critical Certificate Extension Test2",
+        "CertPath": [
+            "TrustAnchorRootCertificate.crt",
+            "InvalidUnknownCriticalCertificateExtensionTest2EE.crt"
+        ],
+        "CRLPath": [
+            "TrustAnchorRootCRL.crl"
+        ],
+        "ShouldValidate": false,
+        "InitialPolicySet": [
+            "anyPolicy"
+        ],
+        "InitialPolicyMappingInhibit": false,
+        "InitialExplicitPolicy": false,
+        "InitialAnyPolicyInhibit": false
+    }
+]

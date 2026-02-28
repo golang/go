@@ -2,17 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
+//go:build unix || (js && wasm) || wasip1
 
 package os
 
 import (
 	"internal/poll"
 	"internal/syscall/unix"
-	"io"
+	"io/fs"
 	"runtime"
+	"sync/atomic"
 	"syscall"
+	_ "unsafe" // for go:linkname
 )
+
+const _UTIME_OMIT = unix.UTIME_OMIT
 
 // fixLongPath is a noop on non-Windows platforms.
 func fixLongPath(path string) string {
@@ -39,7 +43,9 @@ func rename(oldname, newname string) error {
 			return &LinkError{"rename", oldname, newname, syscall.EEXIST}
 		}
 	}
-	err = syscall.Rename(oldname, newname)
+	err = ignoringEINTR(func() error {
+		return syscall.Rename(oldname, newname)
+	})
 	if err != nil {
 		return &LinkError{"rename", oldname, newname, err}
 	}
@@ -53,16 +59,15 @@ func rename(oldname, newname string) error {
 type file struct {
 	pfd         poll.FD
 	name        string
-	dirinfo     *dirInfo // nil unless directory being read
-	nonblock    bool     // whether we set nonblocking mode
-	stdoutOrErr bool     // whether this is stdout or stderr
-	appendMode  bool     // whether file is opened for appending
+	dirinfo     atomic.Pointer[dirInfo] // nil unless directory being read
+	nonblock    bool                    // whether we set nonblocking mode
+	stdoutOrErr bool                    // whether this is stdout or stderr
+	appendMode  bool                    // whether file is opened for appending
+	inRoot      bool                    // whether file is opened in a Root
 }
 
-// Fd returns the integer Unix file descriptor referencing the open file.
-// The file descriptor is valid only until f.Close is called or f is garbage collected.
-// On Unix systems this will cause the SetDeadline methods to stop working.
-func (f *File) Fd() uintptr {
+// fd is the Unix implementation of Fd.
+func (f *File) fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
 	}
@@ -79,57 +84,91 @@ func (f *File) Fd() uintptr {
 	return uintptr(f.pfd.Sysfd)
 }
 
-// NewFile returns a new File with the given file descriptor and
-// name. The returned value will be nil if fd is not a valid file
-// descriptor. On Unix systems, if the file descriptor is in
-// non-blocking mode, NewFile will attempt to return a pollable File
-// (one for which the SetDeadline methods work).
-func NewFile(fd uintptr, name string) *File {
-	kind := kindNewFile
-	if nb, err := unix.IsNonblock(int(fd)); err == nil && nb {
-		kind = kindNonBlock
+// newFileFromNewFile is called by [NewFile].
+func newFileFromNewFile(fd uintptr, name string) *File {
+	fdi := int(fd)
+	if fdi < 0 {
+		return nil
 	}
-	return newFile(fd, name, kind)
+
+	flags, err := unix.Fcntl(fdi, syscall.F_GETFL, 0)
+	if err != nil {
+		flags = 0
+	}
+	f := newFile(fdi, name, kindNewFile, unix.HasNonblockFlag(flags))
+	f.appendMode = flags&syscall.O_APPEND != 0
+	return f
+}
+
+// net_newUnixFile is a hidden entry point called by net.conn.File.
+// This is used so that a nonblocking network connection will become
+// blocking if code calls the Fd method. We don't want that for direct
+// calls to NewFile: passing a nonblocking descriptor to NewFile should
+// remain nonblocking if you get it back using Fd. But for net.conn.File
+// the call to NewFile is hidden from the user. Historically in that case
+// the Fd method has returned a blocking descriptor, and we want to
+// retain that behavior because existing code expects it and depends on it.
+//
+//go:linkname net_newUnixFile net.newUnixFile
+func net_newUnixFile(fd int, name string) *File {
+	if fd < 0 {
+		panic("invalid FD")
+	}
+
+	return newFile(fd, name, kindSock, true)
 }
 
 // newFileKind describes the kind of file to newFile.
 type newFileKind int
 
 const (
+	// kindNewFile means that the descriptor was passed to us via NewFile.
 	kindNewFile newFileKind = iota
+	// kindOpenFile means that the descriptor was opened using
+	// Open, Create, or OpenFile.
 	kindOpenFile
+	// kindPipe means that the descriptor was opened using Pipe.
 	kindPipe
-	kindNonBlock
+	// kindSock means that the descriptor is a network file descriptor
+	// that was created from net package and was opened using net_newUnixFile.
+	kindSock
+	// kindNoPoll means that we should not put the descriptor into
+	// non-blocking mode, because we know it is not a pipe or FIFO.
+	// Used by openDirAt and openDirNolog for directories.
+	kindNoPoll
 )
 
 // newFile is like NewFile, but if called from OpenFile or Pipe
 // (as passed in the kind parameter) it tries to add the file to
 // the runtime poller.
-func newFile(fd uintptr, name string, kind newFileKind) *File {
-	fdi := int(fd)
-	if fdi < 0 {
-		return nil
-	}
+func newFile(fd int, name string, kind newFileKind, nonBlocking bool) *File {
 	f := &File{&file{
 		pfd: poll.FD{
-			Sysfd:         fdi,
+			Sysfd:         fd,
 			IsStream:      true,
 			ZeroReadIsEOF: true,
 		},
 		name:        name,
-		stdoutOrErr: fdi == 1 || fdi == 2,
+		stdoutOrErr: fd == 1 || fd == 2,
 	}}
 
-	pollable := kind == kindOpenFile || kind == kindPipe || kind == kindNonBlock
+	pollable := kind == kindOpenFile || kind == kindPipe || kind == kindSock || nonBlocking
 
-	// If the caller passed a non-blocking filedes (kindNonBlock),
-	// we assume they know what they are doing so we allow it to be
-	// used with kqueue.
+	// Things like regular files and FIFOs in kqueue on *BSD/Darwin
+	// may not work properly (or accurately according to its manual).
+	// As a result, we should avoid adding those to the kqueue-based
+	// netpoller. Check out #19093, #24164, and #66239 for more contexts.
+	//
+	// If the fd was passed to us via any path other than OpenFile,
+	// we assume those callers know what they were doing, so we won't
+	// perform this check and allow it to be added to the kqueue.
 	if kind == kindOpenFile {
 		switch runtime.GOOS {
-		case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":
+		case "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd":
 			var st syscall.Stat_t
-			err := syscall.Fstat(fdi, &st)
+			err := ignoringEINTR(func() error {
+				return syscall.Fstat(fd, &st)
+			})
 			typ := st.Mode & syscall.S_IFMT
 			// Don't try to use kqueue with regular files on *BSDs.
 			// On FreeBSD a regular file is always
@@ -146,30 +185,48 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 			// on Darwin, kqueue does not work properly with fifos:
 			// closing the last writer does not cause a kqueue event
 			// for any readers. See issue #24164.
-			if runtime.GOOS == "darwin" && typ == syscall.S_IFIFO {
+			if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && typ == syscall.S_IFIFO {
 				pollable = false
 			}
 		}
 	}
 
-	if err := f.pfd.Init("file", pollable); err != nil {
-		// An error here indicates a failure to register
-		// with the netpoll system. That can happen for
-		// a file descriptor that is not supported by
-		// epoll/kqueue; for example, disk files on
-		// GNU/Linux systems. We assume that any real error
-		// will show up in later I/O.
-	} else if pollable {
-		// We successfully registered with netpoll, so put
-		// the file into nonblocking mode.
-		if err := syscall.SetNonblock(fdi, true); err == nil {
+	clearNonBlock := false
+	if pollable {
+		// The descriptor is already in non-blocking mode.
+		// We only set f.nonblock if we put the file into
+		// non-blocking mode.
+		if nonBlocking {
+			// See the comments on net_newUnixFile.
+			if kind == kindSock {
+				f.nonblock = true // tell Fd to return blocking descriptor
+			}
+		} else if err := syscall.SetNonblock(fd, true); err == nil {
 			f.nonblock = true
+			clearNonBlock = true
+		} else {
+			pollable = false
+		}
+	}
+
+	// An error here indicates a failure to register
+	// with the netpoll system. That can happen for
+	// a file descriptor that is not supported by
+	// epoll/kqueue; for example, disk files on
+	// Linux systems. We assume that any real error
+	// will show up in later I/O.
+	// We do restore the blocking behavior if it was set by us.
+	if pollErr := f.pfd.Init("file", pollable); pollErr != nil && clearNonBlock {
+		if err := syscall.SetNonblock(fd, false); err == nil {
+			f.nonblock = false
 		}
 	}
 
 	runtime.SetFinalizer(f.file, (*file).close)
 	return f
 }
+
+func sigpipe() // implemented in package runtime
 
 // epipecheck raises SIGPIPE if we get an EPIPE error on standard
 // output or standard error. See the SIGPIPE docs in os/signal, and
@@ -180,12 +237,12 @@ func epipecheck(file *File, e error) {
 	}
 }
 
-// DevNull is the name of the operating system's ``null device.''
+// DevNull is the name of the operating system's “null device.”
 // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
 const DevNull = "/dev/null"
 
 // openFileNolog is the Unix implementation of OpenFile.
-// Changes here should be reflected in openFdAt, if relevant.
+// Changes here should be reflected in openDirAt and openDirNolog, if relevant.
 func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	setSticky := false
 	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
@@ -194,22 +251,18 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		}
 	}
 
-	var r int
-	for {
-		var e error
-		r, e = syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
-		if e == nil {
-			break
-		}
-
-		// On OS X, sigaction(2) doesn't guarantee that SA_RESTART will cause
-		// open(2) to be restarted for regular files. This is easy to reproduce on
-		// fuse file systems (see https://golang.org/issue/11180).
-		if runtime.GOOS == "darwin" && e == syscall.EINTR {
-			continue
-		}
-
-		return nil, &PathError{"open", name, e}
+	var (
+		r int
+		s poll.SysFile
+		e error
+	)
+	// We have to check EINTR here, per issues 11180 and 39237.
+	ignoringEINTR(func() error {
+		r, s, e = open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
+		return e
+	})
+	if e != nil {
+		return nil, &PathError{Op: "open", Path: name, Err: e}
 	}
 
 	// open(2) itself won't handle the sticky bit on *BSD and Solaris
@@ -223,22 +276,47 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		syscall.CloseOnExec(r)
 	}
 
-	return newFile(uintptr(r), name, kindOpenFile), nil
+	f := newFile(r, name, kindOpenFile, unix.HasNonblockFlag(flag))
+	f.pfd.SysFile = s
+	return f, nil
+}
+
+func openDirNolog(name string) (*File, error) {
+	var (
+		r int
+		s poll.SysFile
+		e error
+	)
+	ignoringEINTR(func() error {
+		r, s, e = open(name, O_RDONLY|syscall.O_CLOEXEC|syscall.O_DIRECTORY, 0)
+		return e
+	})
+	if e != nil {
+		return nil, &PathError{Op: "open", Path: name, Err: e}
+	}
+
+	if !supportsCloseOnExec {
+		syscall.CloseOnExec(r)
+	}
+
+	f := newFile(r, name, kindNoPoll, false)
+	f.pfd.SysFile = s
+	return f, nil
 }
 
 func (file *file) close() error {
 	if file == nil {
 		return syscall.EINVAL
 	}
-	if file.dirinfo != nil {
-		file.dirinfo.close()
+	if info := file.dirinfo.Swap(nil); info != nil {
+		info.close()
 	}
 	var err error
 	if e := file.pfd.Close(); e != nil {
 		if e == poll.ErrFileClosing {
 			e = ErrClosed
 		}
-		err = &PathError{"close", file.name, e}
+		err = &PathError{Op: "close", Path: file.name, Err: e}
 	}
 
 	// no need for a finalizer anymore
@@ -251,11 +329,10 @@ func (file *file) close() error {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
-	if f.dirinfo != nil {
+	if info := f.dirinfo.Swap(nil); info != nil {
 		// Free cached dirinfo, so we allocate a new one if we
 		// access this file as a directory again. See #35767 and #37161.
-		f.dirinfo.close()
-		f.dirinfo = nil
+		info.close()
 	}
 	ret, err = f.pfd.Seek(offset, whence)
 	runtime.KeepAlive(f)
@@ -264,26 +341,33 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 
 // Truncate changes the size of the named file.
 // If the file is a symbolic link, it changes the size of the link's target.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func Truncate(name string, size int64) error {
-	if e := syscall.Truncate(name, size); e != nil {
-		return &PathError{"truncate", name, e}
+	e := ignoringEINTR(func() error {
+		return syscall.Truncate(name, size)
+	})
+	if e != nil {
+		return &PathError{Op: "truncate", Path: name, Err: e}
 	}
 	return nil
 }
 
 // Remove removes the named file or (empty) directory.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func Remove(name string) error {
 	// System call interface forces us to know
 	// whether name is a file or directory.
 	// Try both: it is cheaper on average than
 	// doing a Stat plus the right one.
-	e := syscall.Unlink(name)
+	e := ignoringEINTR(func() error {
+		return syscall.Unlink(name)
+	})
 	if e == nil {
 		return nil
 	}
-	e1 := syscall.Rmdir(name)
+	e1 := ignoringEINTR(func() error {
+		return syscall.Rmdir(name)
+	})
 	if e1 == nil {
 		return nil
 	}
@@ -300,7 +384,7 @@ func Remove(name string) error {
 	if e1 != syscall.ENOTDIR {
 		e = e1
 	}
-	return &PathError{"remove", name, e}
+	return &PathError{Op: "remove", Path: name, Err: e}
 }
 
 func tempDir() string {
@@ -318,7 +402,9 @@ func tempDir() string {
 // Link creates newname as a hard link to the oldname file.
 // If there is an error, it will be of type *LinkError.
 func Link(oldname, newname string) error {
-	e := syscall.Link(oldname, newname)
+	e := ignoringEINTR(func() error {
+		return syscall.Link(oldname, newname)
+	})
 	if e != nil {
 		return &LinkError{"link", oldname, newname, e}
 	}
@@ -326,57 +412,79 @@ func Link(oldname, newname string) error {
 }
 
 // Symlink creates newname as a symbolic link to oldname.
+// On Windows, a symlink to a non-existent oldname creates a file symlink;
+// if oldname is later created as a directory the symlink will not work.
 // If there is an error, it will be of type *LinkError.
 func Symlink(oldname, newname string) error {
-	e := syscall.Symlink(oldname, newname)
+	e := ignoringEINTR(func() error {
+		return syscall.Symlink(oldname, newname)
+	})
 	if e != nil {
 		return &LinkError{"symlink", oldname, newname, e}
 	}
 	return nil
 }
 
-func (f *File) readdir(n int) (fi []FileInfo, err error) {
-	dirname := f.name
-	if dirname == "" {
-		dirname = "."
-	}
-	names, err := f.Readdirnames(n)
-	fi = make([]FileInfo, 0, len(names))
-	for _, filename := range names {
-		fip, lerr := lstat(dirname + "/" + filename)
-		if IsNotExist(lerr) {
-			// File disappeared between readdir + stat.
-			// Just treat it as if it didn't exist.
-			continue
-		}
-		if lerr != nil {
-			return fi, lerr
-		}
-		fi = append(fi, fip)
-	}
-	if len(fi) == 0 && err == nil && n > 0 {
-		// Per File.Readdir, the slice must be non-empty or err
-		// must be non-nil if n > 0.
-		err = io.EOF
-	}
-	return fi, err
-}
-
-// Readlink returns the destination of the named symbolic link.
-// If there is an error, it will be of type *PathError.
-func Readlink(name string) (string, error) {
+func readlink(name string) (string, error) {
 	for len := 128; ; len *= 2 {
 		b := make([]byte, len)
-		n, e := fixCount(syscall.Readlink(name, b))
+		n, err := ignoringEINTR2(func() (int, error) {
+			return fixCount(syscall.Readlink(name, b))
+		})
 		// buffer too small
-		if runtime.GOOS == "aix" && e == syscall.ERANGE {
+		if (runtime.GOOS == "aix" || runtime.GOOS == "wasip1") && err == syscall.ERANGE {
 			continue
 		}
-		if e != nil {
-			return "", &PathError{"readlink", name, e}
+		if err != nil {
+			return "", &PathError{Op: "readlink", Path: name, Err: err}
 		}
 		if n < len {
 			return string(b[0:n]), nil
 		}
 	}
+}
+
+type unixDirent struct {
+	parent string
+	name   string
+	typ    FileMode
+	info   FileInfo
+}
+
+func (d *unixDirent) Name() string   { return d.name }
+func (d *unixDirent) IsDir() bool    { return d.typ.IsDir() }
+func (d *unixDirent) Type() FileMode { return d.typ }
+
+func (d *unixDirent) Info() (FileInfo, error) {
+	if d.info != nil {
+		return d.info, nil
+	}
+	return Lstat(d.parent + "/" + d.name)
+}
+
+func (d *unixDirent) String() string {
+	return fs.FormatDirEntry(d)
+}
+
+func newUnixDirent(parent *File, name string, typ FileMode) (DirEntry, error) {
+	ude := &unixDirent{
+		parent: parent.name,
+		name:   name,
+		typ:    typ,
+	}
+	// When the parent file was opened in a Root,
+	// we cannot use a lazy lstat to load the FileInfo.
+	// Use lstatat here.
+	if typ != ^FileMode(0) && !parent.inRoot {
+		return ude, nil
+	}
+
+	info, err := parent.lstatat(name)
+	if err != nil {
+		return nil, err
+	}
+
+	ude.typ = info.Mode().Type()
+	ude.info = info
+	return ude, nil
 }

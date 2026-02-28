@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build js,wasm
+//go:build js && wasm
 
 package http
 
@@ -10,8 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"net/http/internal/ascii"
+	"net/url"
 	"strconv"
+	"strings"
 	"syscall/js"
 )
 
@@ -41,11 +43,29 @@ const jsFetchCreds = "js.fetch:credentials"
 // Reference: https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters
 const jsFetchRedirect = "js.fetch:redirect"
 
-var useFakeNetwork = js.Global().Get("fetch").IsUndefined()
+// jsFetchMissing will be true if the Fetch API is not present in
+// the browser globals.
+var jsFetchMissing = js.Global().Get("fetch").IsUndefined()
 
-// RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
+// jsFetchDisabled controls whether the use of Fetch API is disabled.
+// It's set to true when we detect we're running in Node.js, so that
+// RoundTrip ends up talking over the same fake network the HTTP servers
+// currently use in various tests and examples. See go.dev/issue/57613.
+//
+// TODO(go.dev/issue/60810): See if it's viable to test the Fetch API
+// code path.
+var jsFetchDisabled = js.Global().Get("process").Type() == js.TypeObject &&
+	strings.HasPrefix(js.Global().Get("process").Get("argv0").String(), "node")
+
+// RoundTrip implements the [RoundTripper] interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
-	if useFakeNetwork {
+	// The Transport has a documented contract that states that if the DialContext or
+	// DialTLSContext functions are set, they will be used to set up the connections.
+	// If they aren't set then the documented contract is to use Dial or DialTLS, even
+	// though they are deprecated. Therefore, if any of these are set, we should obey
+	// the contract and dial using the regular round-trip instead. Otherwise, we'll try
+	// to fall back on the Fetch API, unless it's not available.
+	if t.Dial != nil || t.DialContext != nil || t.DialTLS != nil || t.DialTLSContext != nil || jsFetchMissing || jsFetchDisabled {
 		return t.roundTrip(req)
 	}
 
@@ -92,15 +112,19 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		// See https://github.com/web-platform-tests/wpt/issues/7693 for WHATWG tests issue.
 		// See https://developer.mozilla.org/en-US/docs/Web/API/Streams_API for more details on the Streams API
 		// and browser support.
-		body, err := ioutil.ReadAll(req.Body)
+		// NOTE(haruyama480): Ensure HTTP/1 fallback exists.
+		// See https://go.dev/issue/61889 for discussion.
+		body, err := io.ReadAll(req.Body)
 		if err != nil {
 			req.Body.Close() // RoundTrip must always close the body, including on errors.
 			return nil, err
 		}
 		req.Body.Close()
-		buf := uint8Array.New(len(body))
-		js.CopyBytesToJS(buf, body)
-		opt.Set("body", buf)
+		if len(body) != 0 {
+			buf := uint8Array.New(len(body))
+			js.CopyBytesToJS(buf, body)
+			opt.Set("body", buf)
+		}
 	}
 
 	fetchPromise := js.Global().Call("fetch", req.URL.String(), opt)
@@ -109,7 +133,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		errCh            = make(chan error, 1)
 		success, failure js.Func
 	)
-	success = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	success = js.FuncOf(func(this js.Value, args []js.Value) any {
 		success.Release()
 		failure.Release()
 
@@ -129,8 +153,24 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		}
 
 		contentLength := int64(0)
-		if cl, err := strconv.ParseInt(header.Get("Content-Length"), 10, 64); err == nil {
+		clHeader := header.Get("Content-Length")
+		switch {
+		case clHeader != "":
+			cl, err := strconv.ParseInt(clHeader, 10, 64)
+			if err != nil {
+				errCh <- fmt.Errorf("net/http: ill-formed Content-Length header: %v", err)
+				return nil
+			}
+			if cl < 0 {
+				// Content-Length values less than 0 are invalid.
+				// See: https://datatracker.ietf.org/doc/html/rfc2616/#section-14.13
+				errCh <- fmt.Errorf("net/http: invalid Content-Length header: %q", clHeader)
+				return nil
+			}
 			contentLength = cl
+		default:
+			// If the response length is not declared, set it to -1.
+			contentLength = -1
 		}
 
 		b := result.Get("body")
@@ -146,21 +186,55 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		}
 
 		code := result.Get("status").Int()
+
+		uncompressed := false
+		if ascii.EqualFold(header.Get("Content-Encoding"), "gzip") {
+			// The fetch api will decode the gzip, but Content-Encoding not be deleted.
+			header.Del("Content-Encoding")
+			header.Del("Content-Length")
+			contentLength = -1
+			uncompressed = true
+		}
+
+		if result.Get("redirected").Bool() {
+			u, err := url.Parse(result.Get("url").String())
+			if err == nil {
+				req = req.Clone(req.ctx)
+				req.URL = u
+			}
+		}
 		respCh <- &Response{
 			Status:        fmt.Sprintf("%d %s", code, StatusText(code)),
 			StatusCode:    code,
 			Header:        header,
 			ContentLength: contentLength,
+			Uncompressed:  uncompressed,
 			Body:          body,
 			Request:       req,
 		}
 
 		return nil
 	})
-	failure = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	failure = js.FuncOf(func(this js.Value, args []js.Value) any {
 		success.Release()
 		failure.Release()
-		errCh <- fmt.Errorf("net/http: fetch() failed: %s", args[0].Get("message").String())
+
+		err := args[0]
+		// The error is a JS Error type
+		// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
+		// We can use the toString() method to get a string representation of the error.
+		errMsg := err.Call("toString").String()
+		// Errors can optionally contain a cause.
+		if cause := err.Get("cause"); !cause.IsUndefined() {
+			// The exact type of the cause is not defined,
+			// but if it's another error, we can call toString() on it too.
+			if !cause.Get("toString").IsUndefined() {
+				errMsg += ": " + cause.Call("toString").String()
+			} else if cause.Type() == js.TypeString {
+				errMsg += ": " + cause.String()
+			}
+		}
+		errCh <- fmt.Errorf("net/http: fetch() failed: %s", errMsg)
 		return nil
 	})
 
@@ -170,6 +244,14 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		if !ac.IsUndefined() {
 			// Abort the Fetch request.
 			ac.Call("abort")
+
+			// Wait for fetch promise to be rejected prior to exiting. See
+			// https://github.com/golang/go/issues/57098 for more details.
+			select {
+			case resp := <-respCh:
+				resp.Body.Close()
+			case <-errCh:
+			}
 		}
 		return nil, req.Context().Err()
 	case resp := <-respCh:
@@ -198,7 +280,7 @@ func (r *streamReader) Read(p []byte) (n int, err error) {
 			bCh   = make(chan []byte, 1)
 			errCh = make(chan error, 1)
 		)
-		success := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		success := js.FuncOf(func(this js.Value, args []js.Value) any {
 			result := args[0]
 			if result.Get("done").Bool() {
 				errCh <- io.EOF
@@ -210,7 +292,7 @@ func (r *streamReader) Read(p []byte) (n int, err error) {
 			return nil
 		})
 		defer success.Release()
-		failure := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		failure := js.FuncOf(func(this js.Value, args []js.Value) any {
 			// Assumes it's a TypeError. See
 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError
 			// for more information on this type. See
@@ -264,7 +346,7 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
 			bCh   = make(chan []byte, 1)
 			errCh = make(chan error, 1)
 		)
-		success := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		success := js.FuncOf(func(this js.Value, args []js.Value) any {
 			// Wrap the input ArrayBuffer with a Uint8Array
 			uint8arrayWrapper := uint8Array.New(args[0])
 			value := make([]byte, uint8arrayWrapper.Get("byteLength").Int())
@@ -273,7 +355,7 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
 			return nil
 		})
 		defer success.Release()
-		failure := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		failure := js.FuncOf(func(this js.Value, args []js.Value) any {
 			// Assumes it's a TypeError. See
 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError
 			// for more information on this type.

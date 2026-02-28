@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 /*
 Input to cgo.
@@ -27,10 +27,17 @@ package runtime
 import "C"
 
 const (
-	EINTR  = C.EINTR
-	EFAULT = C.EFAULT
-	EBUSY  = C.EBUSY
-	EAGAIN = C.EAGAIN
+	EINTR     = C.EINTR
+	EFAULT    = C.EFAULT
+	EBUSY     = C.EBUSY
+	EAGAIN    = C.EAGAIN
+	ETIMEDOUT = C.ETIMEDOUT
+
+	O_WRONLY   = C.O_WRONLY
+	O_NONBLOCK = C.O_NONBLOCK
+	O_CREAT    = C.O_CREAT
+	O_TRUNC    = C.O_TRUNC
+	O_CLOEXEC  = C.O_CLOEXEC
 
 	PROT_NONE  = C.PROT_NONE
 	PROT_READ  = C.PROT_READ
@@ -41,7 +48,8 @@ const (
 	MAP_PRIVATE = C.MAP_PRIVATE
 	MAP_FIXED   = C.MAP_FIXED
 
-	MADV_FREE = C.MADV_FREE
+	MADV_DONTNEED = C.MADV_DONTNEED
+	MADV_FREE     = C.MADV_FREE
 
 	SA_SIGINFO = C.SA_SIGINFO
 	SA_RESTART = C.SA_RESTART
@@ -101,11 +109,16 @@ const (
 
 	EV_ADD       = C.EV_ADD
 	EV_DELETE    = C.EV_DELETE
+	EV_ENABLE    = C.EV_ENABLE
+	EV_DISABLE   = C.EV_DISABLE
 	EV_CLEAR     = C.EV_CLEAR
 	EV_ERROR     = C.EV_ERROR
 	EV_EOF       = C.EV_EOF
 	EVFILT_READ  = C.EVFILT_READ
 	EVFILT_WRITE = C.EVFILT_WRITE
+	EVFILT_USER  = C.EVFILT_USER
+
+	NOTE_TRIGGER = C.NOTE_TRIGGER
 )
 
 type Rtprio C.struct_rtprio

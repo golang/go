@@ -1,0 +1,50 @@
+[short] skip 'links test binaries'
+
+# Verify test -c can output multiple executables to a directory.
+
+# This test also serves as a regression test for https://go.dev/issue/62221:
+# prior to the fix for that issue, it occasionally failed with ETXTBSY when
+# run on Unix platforms.
+
+go test -c -o $WORK/some/nonexisting/directory/ ./pkg/...
+exists -exec $WORK/some/nonexisting/directory/pkg1.test$GOEXE
+exists -exec $WORK/some/nonexisting/directory/pkg2.test$GOEXE
+
+go test -c ./pkg/...
+exists -exec pkg1.test$GOEXE
+exists -exec pkg2.test$GOEXE
+
+! go test -c -o $WORK/bin/test/bin.test.exe ./pkg/...
+stderr '^with multiple packages, -o must refer to a directory or '$devnull
+
+! go test -c ./...
+stderr '^cannot write test binary pkg1.test for multiple packages:\nexample/anotherpkg/pkg1\nexample/pkg/pkg1'
+
+! go test -c -o $WORK/bin/test/ ./...
+stderr '^cannot write test binary pkg1.test for multiple packages:\nexample/anotherpkg/pkg1\nexample/pkg/pkg1'
+
+! go test -o $WORK/bin/filename.exe ./pkg/...
+stderr '^with multiple packages, -o must refer to a directory or '$devnull
+
+! go test -o $WORK/bin/ ./...
+stderr '^cannot write test binary pkg1.test for multiple packages:\nexample/anotherpkg/pkg1\nexample/pkg/pkg1'
+
+go test -c -o $devnull ./...
+
+rm pkg1.test$GOEXE
+rm pkg2.test$GOEXE
+go test -o . ./pkg/...
+exists -exec pkg1.test$GOEXE
+exists -exec pkg2.test$GOEXE
+
+-- go.mod --
+module example
+
+-- pkg/pkg1/pkg1_test.go --
+package pkg1
+
+-- pkg/pkg2/pkg2_test.go --
+package pkg2
+
+-- anotherpkg/pkg1/pkg1_test.go --
+package pkg1

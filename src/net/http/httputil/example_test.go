@@ -6,7 +6,7 @@ package httputil_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -39,7 +39,7 @@ func ExampleDumpRequest() {
 	}
 	defer resp.Body.Close()
 
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -103,7 +103,12 @@ func ExampleReverseProxy() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	frontendProxy := httptest.NewServer(httputil.NewSingleHostReverseProxy(rpURL))
+	frontendProxy := httptest.NewServer(&httputil.ReverseProxy{
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.SetXForwarded()
+			r.SetURL(rpURL)
+		},
+	})
 	defer frontendProxy.Close()
 
 	resp, err := http.Get(frontendProxy.URL)
@@ -111,7 +116,7 @@ func ExampleReverseProxy() {
 		log.Fatal(err)
 	}
 
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -16,9 +16,7 @@
 #define SYS_close                 6
 #define SYS_getpid               20
 #define SYS_kill                 37
-#define SYS_pipe		 42
 #define SYS_brk			 45
-#define SYS_fcntl                55
 #define SYS_mmap                 90
 #define SYS_munmap               91
 #define SYS_setitimer           104
@@ -36,12 +34,11 @@
 #define SYS_sched_getaffinity   240
 #define SYS_tgkill              241
 #define SYS_exit_group          248
-#define SYS_epoll_create        249
-#define SYS_epoll_ctl           250
-#define SYS_epoll_wait          251
+#define SYS_timer_create        254
+#define SYS_timer_settime       255
+#define SYS_timer_delete        258
 #define SYS_clock_gettime       260
 #define SYS_pipe2		325
-#define SYS_epoll_create1       327
 
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	code+0(FP), R2
@@ -49,7 +46,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	SYSCALL
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
 	MOVD	wait+0(FP), R1
 	// We're done using the stack.
@@ -100,14 +97,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	R2, ret+24(FP)
 	RET
 
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	MOVD	$r+0(FP), R2
-	MOVW	$SYS_pipe, R1
-	SYSCALL
-	MOVW	R2, errno+8(FP)
-	RET
-
 // func pipe2() (r, w int32, errno int32)
 TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
 	MOVD	$r+8(FP), R2
@@ -123,9 +112,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
 	MOVW	$1000000, R3
 	DIVD	R3, R2
 	MOVD	R2, 8(R15)
-	MOVW	$1000, R3
-	MULLD	R2, R3
+	MULLD	R2, R3		// Convert sec to usec and subtract
 	SUB	R3, R4
+	MOVW	$1000, R3
+	MULLD	R3, R4		// Convert remaining usec into nsec.
 	MOVD	R4, 16(R15)
 
 	// nanosleep(&ts, 0)
@@ -185,6 +175,32 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	SYSCALL
 	RET
 
+TEXT runtime·timer_create(SB),NOSPLIT|NOFRAME,$0-28
+	MOVW	clockid+0(FP), R2
+	MOVD	sevp+8(FP), R3
+	MOVD	timerid+16(FP), R4
+	MOVW	$SYS_timer_create, R1
+	SYSCALL
+	MOVW	R2, ret+24(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT|NOFRAME,$0-28
+	MOVW	timerid+0(FP), R2
+	MOVW	flags+4(FP), R3
+	MOVD	new+8(FP), R4
+	MOVD	old+16(FP), R5
+	MOVW	$SYS_timer_settime, R1
+	SYSCALL
+	MOVW	R2, ret+24(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT|NOFRAME,$0-12
+	MOVW	timerid+0(FP), R2
+	MOVW	$SYS_timer_delete, R1
+	SYSCALL
+	MOVW	R2, ret+8(FP)
+	RET
+
 TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVD	addr+0(FP), R2
 	MOVD	n+8(FP), R3
@@ -194,30 +210,178 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	R2, ret+24(FP)
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB),NOSPLIT,$16
-	MOVW	$0, R2 // CLOCK_REALTIME
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB),NOSPLIT,$32-12
+	MOVW	$0, R2			// CLOCK_REALTIME
+	MOVD	R15, R7			// Backup stack pointer
+
+	MOVD	g_m(g), R6		//m
+
+	MOVD	runtime·vdsoClockgettimeSym(SB), R9	// Check for VDSO availability
+	CMPBEQ	R9, $0, fallback
+
+	MOVD	m_vdsoPC(R6), R4
+	MOVD	R4, 16(R15)
+	MOVD	m_vdsoSP(R6), R4
+	MOVD	R4, 24(R15)
+
+	MOVD	R14, R8 		// Backup return address
+	MOVD	$ret-8(FP), R4 	// caller's SP
+
+	MOVD	R8, m_vdsoPC(R6)
+	MOVD	R4, m_vdsoSP(R6)
+
+	MOVD	m_curg(R6), R5
+	CMP		g, R5
+	BNE		noswitch
+
+	MOVD	m_g0(R6), R4
+	MOVD	(g_sched+gobuf_sp)(R4), R15	// Set SP to g0 stack
+
+noswitch:
+	SUB		$16, R15		// reserve 2x 8 bytes for parameters
+	MOVD	$~7, R4			// align to 8 bytes because of gcc ABI
+	AND		R4, R15
+	MOVD	R15, R3			// R15 needs to be in R3 as expected by kernel_clock_gettime
+
+	MOVB	runtime·iscgo(SB),R12
+	CMPBNE	R12, $0, nosaveg
+
+	MOVD	m_gsignal(R6), R12	// g.m.gsignal
+	CMPBEQ	R12, $0, nosaveg
+
+	CMPBEQ	g, R12, nosaveg
+	MOVD	(g_stack+stack_lo)(R12), R12 // g.m.gsignal.stack.lo
+	MOVD	g, (R12)
+
+	BL	R9 // to vdso lookup
+
+	MOVD	$0, (R12)
+
+	JMP	finish
+
+nosaveg:
+	BL	R9					// to vdso lookup
+
+finish:
+	MOVD	0(R15), R3		// sec
+	MOVD	8(R15), R5		// nsec
+	MOVD	R7, R15			// Restore SP
+
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+	MOVD	24(R15), R12
+	MOVD	R12, m_vdsoSP(R6)
+	MOVD	16(R15), R12
+	MOVD	R12, m_vdsoPC(R6)
+
+return:
+	// sec is in R3, nsec in R5
+	// return nsec in R3
+	MOVD	R3, sec+0(FP)
+	MOVW	R5, nsec+8(FP)
+	RET
+
+	// Syscall fallback
+fallback:
 	MOVD	$tp-16(SP), R3
 	MOVW	$SYS_clock_gettime, R1
 	SYSCALL
-	LMG	tp-16(SP), R2, R3
+	LMG		tp-16(SP), R2, R3
 	// sec is in R2, nsec in R3
 	MOVD	R2, sec+0(FP)
 	MOVW	R3, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime1(SB),NOSPLIT,$16
-	MOVW	$1, R2 // CLOCK_MONOTONIC
-	MOVD	$tp-16(SP), R3
-	MOVW	$SYS_clock_gettime, R1
-	SYSCALL
-	LMG	tp-16(SP), R2, R3
-	// sec is in R2, nsec in R3
-	// return nsec in R2
-	MULLD	$1000000000, R2
-	ADD	R3, R2
-	MOVD	R2, ret+0(FP)
+TEXT runtime·nanotime1(SB),NOSPLIT,$32-8
+	MOVW	$1, R2			// CLOCK_MONOTONIC
+
+	MOVD	R15, R7			// Backup stack pointer
+
+	MOVD	g_m(g), R6		//m
+
+	MOVD	runtime·vdsoClockgettimeSym(SB), R9	// Check for VDSO availability
+	CMPBEQ	R9, $0, fallback
+
+	MOVD	m_vdsoPC(R6), R4
+	MOVD	R4, 16(R15)
+	MOVD	m_vdsoSP(R6), R4
+	MOVD	R4, 24(R15)
+
+	MOVD	R14, R8			// Backup return address
+	MOVD	$ret-8(FP), R4	// caller's SP
+
+	MOVD	R8, m_vdsoPC(R6)
+	MOVD	R4, m_vdsoSP(R6)
+
+	MOVD	m_curg(R6), R5
+	CMP		g, R5
+	BNE		noswitch
+
+	MOVD	m_g0(R6), R4
+	MOVD	(g_sched+gobuf_sp)(R4), R15	// Set SP to g0 stack
+
+noswitch:
+	SUB		$16, R15		// reserve 2x 8 bytes for parameters
+	MOVD	$~7, R4			// align to 8 bytes because of gcc ABI
+	AND		R4, R15
+	MOVD	R15, R3			// R15 needs to be in R3 as expected by kernel_clock_gettime
+
+	MOVB	runtime·iscgo(SB),R12
+	CMPBNE	R12, $0, nosaveg
+
+	MOVD	m_gsignal(R6), R12	// g.m.gsignal
+	CMPBEQ	R12, $0, nosaveg
+
+	CMPBEQ	g, R12, nosaveg
+	MOVD	(g_stack+stack_lo)(R12), R12	// g.m.gsignal.stack.lo
+	MOVD	g, (R12)
+
+	BL	R9 					// to vdso lookup
+
+	MOVD $0, (R12)
+
+	JMP	finish
+
+nosaveg:
+	BL	R9					// to vdso lookup
+
+finish:
+	MOVD	0(R15), R3		// sec
+	MOVD	8(R15), R5		// nsec
+	MOVD	R7, R15			// Restore SP
+
+	// Restore vdsoPC, vdsoSP
+	// We don't worry about being signaled between the two stores.
+	// If we are not in a signal handler, we'll restore vdsoSP to 0,
+	// and no one will care about vdsoPC. If we are in a signal handler,
+	// we cannot receive another signal.
+
+	MOVD	24(R15), R12
+	MOVD	R12, m_vdsoSP(R6)
+	MOVD	16(R15), R12
+	MOVD	R12, m_vdsoPC(R6)
+
+return:
+	// sec is in R3, nsec in R5
+	// return nsec in R3
+	MULLD	$1000000000, R3
+	ADD		R5, R3
+	MOVD	R3, ret+0(FP)
 	RET
+
+	// Syscall fallback
+fallback:
+	MOVD	$tp-16(SP), R3
+	MOVD	$SYS_clock_gettime, R1
+	SYSCALL
+	LMG		tp-16(SP), R2, R3
+	MOVD	R3, R5
+	MOVD	R2, R3
+	JMP	return
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	how+0(FP), R2
@@ -249,10 +413,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	BL	R5
 	RET
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
-	RET
-
-TEXT runtime·sigtramp(SB),NOSPLIT,$64
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
 	// initialize essential registers (just in case)
 	XOR	R0, R0
 
@@ -421,68 +582,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R2, ret+24(FP)
 	RET
 
-// int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
-	MOVW    size+0(FP), R2
-	MOVW	$SYS_epoll_create, R1
-	SYSCALL
-	MOVW	R2, ret+8(FP)
-	RET
-
-// int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
-	MOVW	flags+0(FP), R2
-	MOVW	$SYS_epoll_create1, R1
-	SYSCALL
-	MOVW	R2, ret+8(FP)
-	RET
-
-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), R2
-	MOVW	op+4(FP), R3
-	MOVW	fd+8(FP), R4
-	MOVD	ev+16(FP), R5
-	MOVW	$SYS_epoll_ctl, R1
-	SYSCALL
-	MOVW	R2, ret+24(FP)
-	RET
-
-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), R2
-	MOVD	ev+8(FP), R3
-	MOVW	nev+16(FP), R4
-	MOVW	timeout+20(FP), R5
-	MOVW	$SYS_epoll_wait, R1
-	SYSCALL
-	MOVW	R2, ret+24(FP)
-	RET
-
-// void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
-	MOVW    fd+0(FP), R2  // fd
-	MOVD    $2, R3  // F_SETFD
-	MOVD    $1, R4  // FD_CLOEXEC
-	MOVW	$SYS_fcntl, R1
-	SYSCALL
-	RET
-
-// func runtime·setNonblock(int32 fd)
-TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
-	MOVW	fd+0(FP), R2 // fd
-	MOVD	$3, R3	// F_GETFL
-	XOR	R4, R4
-	MOVW	$SYS_fcntl, R1
-	SYSCALL
-	MOVD	$0x800, R4 // O_NONBLOCK
-	OR	R2, R4
-	MOVW	fd+0(FP), R2 // fd
-	MOVD	$4, R3	// F_SETFL
-	MOVW	$SYS_fcntl, R1
-	SYSCALL
-	RET
-
 // func sbrk0() uintptr
 TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0-8
 	// Implemented as brk(NULL).
@@ -505,4 +604,54 @@ TEXT runtime·connect(SB),$0-28
 TEXT runtime·socket(SB),$0-20
 	MOVD	$0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
 	MOVW	R0, ret+16(FP)
+	RET
+
+// func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
+TEXT runtime·vgetrandom1(SB),NOSPLIT,$16-48
+	MOVD	buf+0(FP), R2
+	MOVD	length+8(FP), R3
+	MOVW	flags+16(FP), R4
+	MOVD	state+24(FP), R5
+	MOVD	stateSize+32(FP), R6
+
+	MOVD	R15, R7
+
+	MOVD	runtime·vdsoGetrandomSym(SB), R1
+	MOVD	g_m(g), R9
+
+	MOVD	m_vdsoPC(R9), R12
+	MOVD	R12, 8(R15)
+	MOVD	m_vdsoSP(R9), R12
+	MOVD	R12, 16(R15)
+	MOVD	R14, m_vdsoPC(R9)
+	MOVD	$buf+0(FP), R12
+	MOVD	R12, m_vdsoSP(R9)
+
+	SUB	$160, R15
+	MOVD	$~7, R12
+	AND	R12, R15
+
+	MOVB	runtime·iscgo(SB), R12
+	CMPBNE	R12, $0, nosaveg
+	MOVD	m_gsignal(R9), R12
+	CMPBEQ	R12, $0, nosaveg
+	CMPBEQ	g, R12, nosaveg
+	MOVD	(g_stack+stack_lo)(R12), R12
+	MOVD	g, (R12)
+
+	BL	R1
+
+	MOVD	$0, (R12)
+	JMP	restore
+
+nosaveg:
+	BL	R1
+
+restore:
+	MOVD	R7, R15
+	MOVD	16(R15), R12
+	MOVD	R12, m_vdsoSP(R9)
+	MOVD	8(R15), R12
+	MOVD	R12, m_vdsoPC(R9)
+	MOVD	R2, ret+40(FP)
 	RET

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 package main
 
@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"go/format"
 	"io"
-	"io/ioutil"
 	"log"
+	"os"
 )
 
 var filename = flag.String("output", "palette.go", "output file name")
@@ -43,7 +43,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile(*filename, data, 0644)
+	err = os.WriteFile(*filename, data, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func printPlan9(w io.Writer) {
 	}
 	fmt.Fprintln(w, "// Plan9 is a 256-color palette that partitions the 24-bit RGB space")
 	fmt.Fprintln(w, "// into 4×4×4 subdivision, with 4 shades in each subcube. Compared to the")
-	fmt.Fprintln(w, "// WebSafe, the idea is to reduce the color resolution by dicing the")
+	fmt.Fprintln(w, "// [WebSafe], the idea is to reduce the color resolution by dicing the")
 	fmt.Fprintln(w, "// color cube into fewer cells, and to use the extra space to increase the")
 	fmt.Fprintln(w, "// intensity resolution. This results in 16 gray shades (4 gray subcubes with")
 	fmt.Fprintln(w, "// 4 samples in each), 13 shades of each primary and secondary color (3")

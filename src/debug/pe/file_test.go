@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"debug/dwarf"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,7 +22,7 @@ import (
 type fileTest struct {
 	file           string
 	hdr            FileHeader
-	opthdr         interface{}
+	opthdr         any
 	sections       []*SectionHeader
 	symbols        []*Symbol
 	hasNoDwarfInfo bool
@@ -251,7 +250,7 @@ var fileTests = []fileTest{
 	},
 }
 
-func isOptHdrEq(a, b interface{}) bool {
+func isOptHdrEq(a, b any) bool {
 	switch va := a.(type) {
 	case *OptionalHeader32:
 		vb, ok := b.(*OptionalHeader32)
@@ -354,11 +353,7 @@ func testDWARF(t *testing.T, linktype int) {
 	}
 	testenv.MustHaveGoRun(t)
 
-	tmpdir, err := ioutil.TempDir("", "TestDWARF")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "a.go")
 	file, err := os.Create(src)
@@ -418,7 +413,7 @@ func testDWARF(t *testing.T, linktype int) {
 
 	var foundDebugGDBScriptsSection bool
 	for _, sect := range f.Sections {
-		if sect.Name == ".debug_gdb_scripts" {
+		if sect.Name == ".debug_gdb_scripts" || sect.Name == ".zdebug_gdb_scripts" {
 			foundDebugGDBScriptsSection = true
 		}
 	}
@@ -451,7 +446,7 @@ func testDWARF(t *testing.T, linktype int) {
 				}
 				offset := uintptr(addr) - imageBase
 				if offset != uintptr(wantoffset) {
-					t.Fatal("Runtime offset (0x%x) did "+
+					t.Fatalf("Runtime offset (0x%x) did "+
 						"not match dwarf offset "+
 						"(0x%x)", wantoffset, offset)
 				}
@@ -473,11 +468,7 @@ func TestBSSHasZeros(t *testing.T) {
 		t.Skip("skipping test: gcc is missing")
 	}
 
-	tmpdir, err := ioutil.TempDir("", "TestBSSHasZeros")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	srcpath := filepath.Join(tmpdir, "a.c")
 	src := `
@@ -492,7 +483,7 @@ main(void)
 	return 0;
 }
 `
-	err = ioutil.WriteFile(srcpath, []byte(src), 0644)
+	err = os.WriteFile(srcpath, []byte(src), 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -520,17 +511,9 @@ main(void)
 	if bss == nil {
 		t.Fatal("could not find .bss section")
 	}
-	data, err := bss.Data()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(data) == 0 {
-		t.Fatalf("%s file .bss section cannot be empty", objpath)
-	}
-	for _, b := range data {
-		if b != 0 {
-			t.Fatalf(".bss section has non zero bytes: %v", data)
-		}
+	// We expect an error from bss.Data, as there are no contents.
+	if _, err := bss.Data(); err == nil {
+		t.Error("bss.Data succeeded, expected error")
 	}
 }
 
@@ -597,15 +580,10 @@ func TestBuildingWindowsGUI(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("skipping windows only test")
 	}
-	tmpdir, err := ioutil.TempDir("", "TestBuildingWindowsGUI")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "a.go")
-	err = ioutil.WriteFile(src, []byte(`package main; func main() {}`), 0644)
-	if err != nil {
+	if err := os.WriteFile(src, []byte(`package main; func main() {}`), 0644); err != nil {
 		t.Fatal(err)
 	}
 	exe := filepath.Join(tmpdir, "a.exe")
@@ -684,7 +662,7 @@ func TestInvalidOptionalHeaderMagic(t *testing.T) {
 func TestImportedSymbolsNoPanicMissingOptionalHeader(t *testing.T) {
 	// https://golang.org/issue/30250
 	// ImportedSymbols shouldn't panic if optional headers is missing
-	data, err := ioutil.ReadFile("testdata/gcc-amd64-mingw-obj")
+	data, err := os.ReadFile("testdata/gcc-amd64-mingw-obj")
 	if err != nil {
 		t.Fatal(err)
 	}

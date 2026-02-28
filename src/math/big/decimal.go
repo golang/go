@@ -69,13 +69,13 @@ func (x *decimal) init(m nat, shift int) {
 		if s >= ntz {
 			s = ntz // shift at most ntz bits
 		}
-		m = nat(nil).shr(m, s)
+		m = nat(nil).rsh(m, s)
 		shift += int(s)
 	}
 
 	// Do any shift left in binary representation.
 	if shift > 0 {
-		m = nat(nil).shl(m, uint(shift))
+		m = nat(nil).lsh(m, uint(shift))
 		shift = 0
 	}
 
@@ -93,15 +93,15 @@ func (x *decimal) init(m nat, shift int) {
 	// Do any (remaining) shift right in decimal representation.
 	if shift < 0 {
 		for shift < -maxShift {
-			shr(x, maxShift)
+			rsh(x, maxShift)
 			shift += maxShift
 		}
-		shr(x, uint(-shift))
+		rsh(x, uint(-shift))
 	}
 }
 
-// shr implements x >> s, for s <= maxShift.
-func shr(x *decimal, s uint) {
+// rsh implements x >> s, for s <= maxShift.
+func rsh(x *decimal, s uint) {
 	// Division by 1<<s using shift-and-subtract algorithm.
 
 	// pick up enough leading digits to cover first shift
@@ -166,18 +166,21 @@ func (x *decimal) String() string {
 	switch {
 	case x.exp <= 0:
 		// 0.00ddd
+		buf = make([]byte, 0, 2+(-x.exp)+len(x.mant))
 		buf = append(buf, "0."...)
 		buf = appendZeros(buf, -x.exp)
 		buf = append(buf, x.mant...)
 
 	case /* 0 < */ x.exp < len(x.mant):
 		// dd.ddd
+		buf = make([]byte, 0, 1+len(x.mant))
 		buf = append(buf, x.mant[:x.exp]...)
 		buf = append(buf, '.')
 		buf = append(buf, x.mant[x.exp:]...)
 
 	default: // len(x.mant) <= x.exp
 		// ddd00
+		buf = make([]byte, 0, x.exp)
 		buf = append(buf, x.mant...)
 		buf = appendZeros(buf, x.exp-len(x.mant))
 	}

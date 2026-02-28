@@ -5,7 +5,7 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -21,8 +21,7 @@ type pageCache struct {
 	scav  uint64  // 64-bit bitmap representing scavenged pages (1 means scavenged)
 }
 
-// empty returns true if the pageCache has any free pages, and false
-// otherwise.
+// empty reports whether the page cache has no free pages.
 func (c *pageCache) empty() bool {
 	return c.cache == 0
 }
@@ -71,8 +70,14 @@ func (c *pageCache) allocN(npages uintptr) (uintptr, uintptr) {
 // into s. Then, it clears the cache, such that empty returns
 // true.
 //
-// s.mheapLock must be held or the world must be stopped.
-func (c *pageCache) flush(s *pageAlloc) {
+// p.mheapLock must be held.
+//
+// Must run on the system stack because p.mheapLock must be held.
+//
+//go:systemstack
+func (c *pageCache) flush(p *pageAlloc) {
+	assertLockHeld(p.mheapLock)
+
 	if c.empty() {
 		return
 	}
@@ -83,18 +88,22 @@ func (c *pageCache) flush(s *pageAlloc) {
 	// slower, safer thing by iterating over each bit individually.
 	for i := uint(0); i < 64; i++ {
 		if c.cache&(1<<i) != 0 {
-			s.chunkOf(ci).free1(pi + i)
+			p.chunkOf(ci).free1(pi + i)
+
+			// Update density statistics.
+			p.scav.index.free(ci, pi+i, 1)
 		}
 		if c.scav&(1<<i) != 0 {
-			s.chunkOf(ci).scavenged.setRange(pi+i, 1)
+			p.chunkOf(ci).scavenged.setRange(pi+i, 1)
 		}
 	}
+
 	// Since this is a lot like a free, we need to make sure
 	// we update the searchAddr just like free does.
-	if s.compareSearchAddrTo(c.base) < 0 {
-		s.searchAddr = c.base
+	if b := (offAddr{c.base}); b.lessThan(p.searchAddr) {
+		p.searchAddr = b
 	}
-	s.update(c.base, pageCachePages, false, false)
+	p.update(c.base, pageCachePages, false, false)
 	*c = pageCache{}
 }
 
@@ -102,19 +111,26 @@ func (c *pageCache) flush(s *pageAlloc) {
 // may not be contiguous, and returns a pageCache structure which owns the
 // chunk.
 //
-// s.mheapLock must be held.
-func (s *pageAlloc) allocToCache() pageCache {
+// p.mheapLock must be held.
+//
+// Must run on the system stack because p.mheapLock must be held.
+//
+//go:systemstack
+func (p *pageAlloc) allocToCache() pageCache {
+	assertLockHeld(p.mheapLock)
+
 	// If the searchAddr refers to a region which has a higher address than
 	// any known chunk, then we know we're out of memory.
-	if chunkIndex(s.searchAddr) >= s.end {
+	if chunkIndex(p.searchAddr.addr()) >= p.end {
 		return pageCache{}
 	}
 	c := pageCache{}
-	ci := chunkIndex(s.searchAddr) // chunk index
-	if s.summary[len(s.summary)-1][ci] != 0 {
+	ci := chunkIndex(p.searchAddr.addr()) // chunk index
+	var chunk *pallocData
+	if p.summary[len(p.summary)-1][ci] != 0 {
 		// Fast path: there's free pages at or near the searchAddr address.
-		chunk := s.chunkOf(ci)
-		j, _ := chunk.find(1, chunkPageIndex(s.searchAddr))
+		chunk = p.chunkOf(ci)
+		j, _ := chunk.find(1, chunkPageIndex(p.searchAddr.addr()))
 		if j == ^uint(0) {
 			throw("bad summary data")
 		}
@@ -126,15 +142,15 @@ func (s *pageAlloc) allocToCache() pageCache {
 	} else {
 		// Slow path: the searchAddr address had nothing there, so go find
 		// the first free page the slow way.
-		addr, _ := s.find(1)
+		addr, _ := p.find(1)
 		if addr == 0 {
 			// We failed to find adequate free space, so mark the searchAddr as OoM
 			// and return an empty pageCache.
-			s.searchAddr = maxSearchAddr
+			p.searchAddr = maxSearchAddr()
 			return pageCache{}
 		}
-		ci := chunkIndex(addr)
-		chunk := s.chunkOf(ci)
+		ci = chunkIndex(addr)
+		chunk = p.chunkOf(ci)
 		c = pageCache{
 			base:  alignDown(addr, 64*pageSize),
 			cache: ^chunk.pages64(chunkPageIndex(addr)),
@@ -142,15 +158,26 @@ func (s *pageAlloc) allocToCache() pageCache {
 		}
 	}
 
-	// Set the bits as allocated and clear the scavenged bits.
-	s.allocRange(c.base, pageCachePages)
+	// Set the page bits as allocated and clear the scavenged bits, but
+	// be careful to only set and clear the relevant bits.
+	cpi := chunkPageIndex(c.base)
+	chunk.allocPages64(cpi, c.cache)
+	chunk.scavenged.clearBlock64(cpi, c.cache&c.scav /* free and scavenged */)
 
 	// Update as an allocation, but note that it's not contiguous.
-	s.update(c.base, pageCachePages, false, true)
+	p.update(c.base, pageCachePages, false, true)
 
-	// We're always searching for the first free page, and we always know the
-	// up to pageCache size bits will be allocated, so we can always move the
-	// searchAddr past the cache.
-	s.searchAddr = c.base + pageSize*pageCachePages
+	// Update density statistics.
+	p.scav.index.alloc(ci, uint(sys.OnesCount64(c.cache)))
+
+	// Set the search address to the last page represented by the cache.
+	// Since all of the pages in this block are going to the cache, and we
+	// searched for the first free page, we can confidently start at the
+	// next page.
+	//
+	// However, p.searchAddr is not allowed to point into unmapped heap memory
+	// unless it is maxSearchAddr, so make it the last page as opposed to
+	// the page after.
+	p.searchAddr = offAddr{c.base + pageSize*(pageCachePages-1)}
 	return c
 }

@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
-// +build mips64 mips64le
+//go:build linux && (mips64 || mips64le)
 
 package runtime
 
@@ -16,11 +15,8 @@ func archauxv(tag, val uintptr) {
 	}
 }
 
-func osArchInit() {}
-
 //go:nosplit
 func cputicks() int64 {
-	// Currently cputicks() is used in blocking profiler and to seed fastrand().
 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
 	return nanotime()
 }
@@ -28,7 +24,6 @@ func cputicks() int64 {
 const (
 	_SS_DISABLE  = 2
 	_NSIG        = 129
-	_SI_USER     = 0
 	_SIG_BLOCK   = 1
 	_SIG_UNBLOCK = 2
 	_SIG_SETMASK = 3
@@ -48,6 +43,7 @@ func sigdelset(mask *sigset, i int) {
 	(*mask)[(i-1)/64] &^= 1 << ((uint32(i) - 1) & 63)
 }
 
+//go:nosplit
 func sigfillset(mask *[2]uint64) {
 	(*mask)[0], (*mask)[1] = ^uint64(0), ^uint64(0)
 }
