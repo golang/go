@@ -930,3 +930,45 @@ func cmpstring2(x, y string) int {
 	//amd64:-`MOVQ .*\(SP\)`
 	return cmp.Compare(x, y)
 }
+
+func bijectiveAdd(x uint) bool {
+	// amd64: -"ADD"
+	// arm64: -"ADD"
+	return x+1337 == 42
+}
+
+func bijectiveSub1(x uint) bool {
+	// amd64: -"SUB"
+	// arm64: -"SUB"
+	return x-1337 == 42
+}
+
+func bijectiveSub2(x uint) bool {
+	// amd64: -"SUB"
+	// arm64: -"SUB"
+	return 1337-x == 42
+}
+
+func bijectiveXor(x uint) bool {
+	// amd64: -"XOR"
+	// arm64: -"EOR"
+	return x^1337 == 42
+}
+
+func bijectiveCom(x uint) bool {
+	// amd64: -"NOT"
+	// arm64: -"MVN"
+	return ^x == 42
+}
+
+func bijectiveNeg(x int) bool {
+	// amd64: -"NEG"
+	// arm64: -"NEG"
+	return -x == 42
+}
+
+func bijectiveMul(x uint) bool {
+	// amd64: -"MUL"
+	// arm64: -"MUL"
+	return x*1337 == 42
+}
