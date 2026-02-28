@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,7 +6,10 @@ package http
 
 import (
 	"bytes"
+	"internal/race"
+	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -87,10 +90,23 @@ var headerWriteTests = []struct {
 			"k4: 4a\r\nk4: 4b\r\nk6: 6a\r\nk6: 6b\r\n" +
 			"k7: 7a\r\nk7: 7b\r\nk8: 8a\r\nk8: 8b\r\nk9: 9a\r\nk9: 9b\r\n",
 	},
+	// Tests invalid characters in headers.
+	{
+		Header{
+			"Content-Type":             {"text/html; charset=UTF-8"},
+			"NewlineInValue":           {"1\r\nBar: 2"},
+			"NewlineInKey\r\n":         {"1"},
+			"Colon:InKey":              {"1"},
+			"Evil: 1\r\nSmuggledValue": {"1"},
+		},
+		nil,
+		"Content-Type: text/html; charset=UTF-8\r\n" +
+			"NewlineInValue: 1  Bar: 2\r\n",
+	},
 }
 
 func TestHeaderWrite(t *testing.T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i, test := range headerWriteTests {
 		test.h.WriteSubset(&buf, test.exclude)
 		if buf.String() != test.expected {
@@ -175,6 +191,14 @@ func TestHasToken(t *testing.T) {
 	}
 }
 
+func TestNilHeaderClone(t *testing.T) {
+	t1 := Header(nil)
+	t2 := t1.Clone()
+	if t2 != nil {
+		t.Errorf("cloned header does not match original: got: %+v; want: %+v", t2, nil)
+	}
+}
+
 var testHeader = Header{
 	"Content-Length": {"123"},
 	"Content-Type":   {"text/plain"},
@@ -196,7 +220,7 @@ func TestHeaderWriteSubsetAllocs(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping alloc test in short mode")
 	}
-	if raceEnabled {
+	if race.Enabled {
 		t.Skip("skipping test under race detector")
 	}
 	if runtime.GOMAXPROCS(0) > 1 {
@@ -208,5 +232,41 @@ func TestHeaderWriteSubsetAllocs(t *testing.T) {
 	})
 	if n > 0 {
 		t.Errorf("allocs = %g; want 0", n)
+	}
+}
+
+// Issue 34878: test that every call to
+// cloneOrMakeHeader never returns a nil Header.
+func TestCloneOrMakeHeader(t *testing.T) {
+	tests := []struct {
+		name     string
+		in, want Header
+	}{
+		{"nil", nil, Header{}},
+		{"empty", Header{}, Header{}},
+		{
+			name: "non-empty",
+			in:   Header{"foo": {"bar"}},
+			want: Header{"foo": {"bar"}},
+		},
+		{
+			name: "nil value",
+			in:   Header{"foo": nil},
+			want: Header{"foo": nil},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := cloneOrMakeHeader(tt.in)
+			if got == nil {
+				t.Fatal("unexpected nil Header")
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("Got:  %#v\nWant: %#v", got, tt.want)
+			}
+			got.Add("A", "B")
+			got.Get("A")
+		})
 	}
 }

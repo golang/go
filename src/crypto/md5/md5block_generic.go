@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !amd64,!amd64p32,!386,!arm
+//go:build (!386 && !amd64 && !arm && !arm64 && !loong64 && !ppc64 && !ppc64le && !riscv64 && !s390x) || purego
 
 package md5
 
-var block = blockGeneric
+const haveAsm = false
+
+func block(dig *digest, p []byte) {
+	blockGeneric(dig, p)
+}

@@ -2,17 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
+//go:build unix || (js && wasm) || wasip1 || windows
 
 package os
 
 import (
+	"internal/strconv"
+	"internal/syscall/execenv"
+	"runtime"
 	"syscall"
 )
 
-// The only signal values guaranteed to be present on all systems
-// are Interrupt (send the process an interrupt) and Kill (force
-// the process to exit).
+// The only signal values guaranteed to be present in the os package on all
+// systems are os.Interrupt (send the process an interrupt) and os.Kill (force
+// the process to exit). On Windows, sending os.Interrupt to a process with
+// os.Process.Signal is not implemented; it will return an error instead of
+// sending a signal.
 var (
 	Interrupt Signal = syscall.SIGINT
 	Kill      Signal = syscall.SIGKILL
@@ -21,7 +26,7 @@ var (
 func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
 	// If there is no SysProcAttr (ie. no Chroot or changed
 	// UID/GID), double-check existence of the directory we want
-	// to chdir into.  We can make the error clearer this way.
+	// to chdir into. We can make the error clearer this way.
 	if attr != nil && attr.Sys == nil && attr.Dir != "" {
 		if _, err := Stat(attr.Dir); err != nil {
 			pe := err.(*PathError)
@@ -30,27 +35,63 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 		}
 	}
 
+	attrSys, shouldDupPidfd := ensurePidfd(attr.Sys)
 	sysattr := &syscall.ProcAttr{
 		Dir: attr.Dir,
 		Env: attr.Env,
-		Sys: attr.Sys,
+		Sys: attrSys,
 	}
 	if sysattr.Env == nil {
-		sysattr.Env = Environ()
+		sysattr.Env, err = execenv.Default(sysattr.Sys)
+		if err != nil {
+			return nil, err
+		}
 	}
+	sysattr.Files = make([]uintptr, 0, len(attr.Files))
 	for _, f := range attr.Files {
 		sysattr.Files = append(sysattr.Files, f.Fd())
 	}
 
 	pid, h, e := syscall.StartProcess(name, argv, sysattr)
+
+	// Make sure we don't run the finalizers of attr.Files.
+	runtime.KeepAlive(attr)
+
 	if e != nil {
-		return nil, &PathError{"fork/exec", name, e}
+		return nil, &PathError{Op: "fork/exec", Path: name, Err: e}
 	}
-	return newProcess(pid, h), nil
+
+	// For Windows, syscall.StartProcess above already returned a process handle.
+	if runtime.GOOS != "windows" {
+		var ok bool
+		h, ok = getPidfd(sysattr.Sys, shouldDupPidfd)
+		if !ok {
+			return newPIDProcess(pid), nil
+		}
+	}
+
+	return newHandleProcess(pid, h), nil
 }
 
 func (p *Process) kill() error {
 	return p.Signal(Kill)
+}
+
+func (p *Process) withHandle(f func(handle uintptr)) error {
+	if p.handle == nil {
+		return ErrNoHandle
+	}
+	handle, status := p.handleTransientAcquire()
+	switch status {
+	case statusDone:
+		return ErrProcessDone
+	case statusReleased:
+		return errProcessReleased
+	}
+	defer p.handleTransientRelease()
+	f(handle)
+
+	return nil
 }
 
 // ProcessState stores information about a process, as reported by Wait.
@@ -73,11 +114,11 @@ func (p *ProcessState) success() bool {
 	return p.status.ExitStatus() == 0
 }
 
-func (p *ProcessState) sys() interface{} {
+func (p *ProcessState) sys() any {
 	return p.status
 }
 
-func (p *ProcessState) sysUsage() interface{} {
+func (p *ProcessState) sysUsage() any {
 	return p.rusage
 }
 
@@ -89,13 +130,18 @@ func (p *ProcessState) String() string {
 	res := ""
 	switch {
 	case status.Exited():
-		res = "exit status " + itoa(status.ExitStatus())
+		code := status.ExitStatus()
+		if runtime.GOOS == "windows" && uint(code) >= 1<<16 { // windows uses large hex numbers
+			res = "exit status 0x" + strconv.FormatUint(uint64(code), 16)
+		} else { // unix systems use small decimal integers
+			res = "exit status " + strconv.Itoa(code) // unix
+		}
 	case status.Signaled():
 		res = "signal: " + status.Signal().String()
 	case status.Stopped():
 		res = "stop signal: " + status.StopSignal().String()
 		if status.StopSignal() == syscall.SIGTRAP && status.TrapCause() != 0 {
-			res += " (trap " + itoa(status.TrapCause()) + ")"
+			res += " (trap " + strconv.Itoa(status.TrapCause()) + ")"
 		}
 	case status.Continued():
 		res = "continued"
@@ -104,4 +150,14 @@ func (p *ProcessState) String() string {
 		res += " (core dumped)"
 	}
 	return res
+}
+
+// ExitCode returns the exit code of the exited process, or -1
+// if the process hasn't exited or was terminated by a signal.
+func (p *ProcessState) ExitCode() int {
+	// return -1 if the process hasn't started.
+	if p == nil {
+		return -1
+	}
+	return p.status.ExitStatus()
 }

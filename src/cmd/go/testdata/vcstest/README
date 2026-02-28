@@ -1,0 +1,14 @@
+The scripts in this directory set up version-control repos for use in
+tests of cmd/go and its subpackages.
+
+They are written in a dialect of the same script language as in
+cmd/go/testdata/script, and the outputs are hosted by the server in
+cmd/go/internal/vcweb.
+
+To see the conditions and commands available for these scripts, run:
+
+	go test cmd/go/internal/vcweb -v --run=TestHelp
+
+To host these scripts in a standalone server, run:
+
+	go test cmd/go/internal/vcweb/vcstest -v --port=0

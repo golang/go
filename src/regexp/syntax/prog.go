@@ -5,9 +5,10 @@
 package syntax
 
 import (
-	"bytes"
 	"strconv"
+	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // Compiled program.
@@ -101,11 +102,13 @@ func EmptyOpContext(r1, r2 rune) EmptyOp {
 	return op
 }
 
-// IsWordChar reports whether r is consider a ``word character''
+// IsWordChar reports whether r is considered a “word character”
 // during the evaluation of the \b and \B zero-width assertions.
 // These assertions are ASCII-only: the word characters are [A-Za-z0-9_].
 func IsWordChar(r rune) bool {
-	return 'A' <= r && r <= 'Z' || 'a' <= r && r <= 'z' || '0' <= r && r <= '9' || r == '_'
+	// Test for lowercase letters first, as these occur more
+	// frequently than uppercase letters in common cases.
+	return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || '0' <= r && r <= '9' || r == '_'
 }
 
 // An Inst is a single instruction in a regular expression program.
@@ -117,20 +120,18 @@ type Inst struct {
 }
 
 func (p *Prog) String() string {
-	var b bytes.Buffer
+	var b strings.Builder
 	dumpProg(&b, p)
 	return b.String()
 }
 
-// skipNop follows any no-op or capturing instructions
-// and returns the resulting pc.
-func (p *Prog) skipNop(pc uint32) (*Inst, uint32) {
+// skipNop follows any no-op or capturing instructions.
+func (p *Prog) skipNop(pc uint32) *Inst {
 	i := &p.Inst[pc]
 	for i.Op == InstNop || i.Op == InstCapture {
-		pc = i.Out
-		i = &p.Inst[pc]
+		i = &p.Inst[i.Out]
 	}
-	return i, pc
+	return i
 }
 
 // op returns i.Op but merges all the Rune special cases into InstRune
@@ -144,10 +145,10 @@ func (i *Inst) op() InstOp {
 }
 
 // Prefix returns a literal string that all matches for the
-// regexp must start with.  Complete is true if the prefix
+// regexp must start with. Complete is true if the prefix
 // is the entire match.
 func (p *Prog) Prefix() (prefix string, complete bool) {
-	i, _ := p.skipNop(uint32(p.Start))
+	i := p.skipNop(uint32(p.Start))
 
 	// Avoid allocation of buffer if prefix is empty.
 	if i.op() != InstRune || len(i.Rune) != 1 {
@@ -155,16 +156,16 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
 	}
 
 	// Have prefix; gather characters.
-	var buf bytes.Buffer
-	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 {
+	var buf strings.Builder
+	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 && i.Rune[0] != utf8.RuneError {
 		buf.WriteRune(i.Rune[0])
-		i, _ = p.skipNop(i.Out)
+		i = p.skipNop(i.Out)
 	}
 	return buf.String(), i.Op == InstMatch
 }
 
 // StartCond returns the leading empty-width conditions that must
-// be true in any match.  It returns ^EmptyOp(0) if no matches are possible.
+// be true in any match. It returns ^EmptyOp(0) if no matches are possible.
 func (p *Prog) StartCond() EmptyOp {
 	var flag EmptyOp
 	pc := uint32(p.Start)
@@ -189,8 +190,8 @@ Loop:
 
 const noMatch = -1
 
-// MatchRune returns true if the instruction matches (and consumes) r.
-// It should only be called when i.Op == InstRune.
+// MatchRune reports whether the instruction matches (and consumes) r.
+// It should only be called when i.Op == [InstRune].
 func (i *Inst) MatchRune(r rune) bool {
 	return i.MatchRunePos(r) != noMatch
 }
@@ -199,12 +200,16 @@ func (i *Inst) MatchRune(r rune) bool {
 // If so, MatchRunePos returns the index of the matching rune pair
 // (or, when len(i.Rune) == 1, rune singleton).
 // If not, MatchRunePos returns -1.
-// MatchRunePos should only be called when i.Op == InstRune.
+// MatchRunePos should only be called when i.Op == [InstRune].
 func (i *Inst) MatchRunePos(r rune) int {
 	rune := i.Rune
 
-	// Special case: single-rune slice is from literal string, not char class.
-	if len(rune) == 1 {
+	switch len(rune) {
+	case 0:
+		return noMatch
+
+	case 1:
+		// Special case: single-rune slice is from literal string, not char class.
 		r0 := rune[0]
 		if r == r0 {
 			return 0
@@ -217,24 +222,32 @@ func (i *Inst) MatchRunePos(r rune) int {
 			}
 		}
 		return noMatch
-	}
 
-	// Peek at the first few pairs.
-	// Should handle ASCII well.
-	for j := 0; j < len(rune) && j <= 8; j += 2 {
-		if r < rune[j] {
-			return noMatch
+	case 2:
+		if r >= rune[0] && r <= rune[1] {
+			return 0
 		}
-		if r <= rune[j+1] {
-			return j / 2
+		return noMatch
+
+	case 4, 6, 8:
+		// Linear search for a few pairs.
+		// Should handle ASCII well.
+		for j := 0; j < len(rune); j += 2 {
+			if r < rune[j] {
+				return noMatch
+			}
+			if r <= rune[j+1] {
+				return j / 2
+			}
 		}
+		return noMatch
 	}
 
 	// Otherwise binary search.
 	lo := 0
 	hi := len(rune) / 2
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		if c := rune[2*m]; c <= r {
 			if r <= rune[2*m+1] {
 				return m
@@ -247,18 +260,9 @@ func (i *Inst) MatchRunePos(r rune) int {
 	return noMatch
 }
 
-// As per re2's Prog::IsWordChar. Determines whether rune is an ASCII word char.
-// Since we act on runes, it would be easy to support Unicode here.
-func wordRune(r rune) bool {
-	return r == '_' ||
-		('A' <= r && r <= 'Z') ||
-		('a' <= r && r <= 'z') ||
-		('0' <= r && r <= '9')
-}
-
-// MatchEmptyWidth returns true if the instruction matches
+// MatchEmptyWidth reports whether the instruction matches
 // an empty string between the runes before and after.
-// It should only be called when i.Op == InstEmptyWidth.
+// It should only be called when i.Op == [InstEmptyWidth].
 func (i *Inst) MatchEmptyWidth(before rune, after rune) bool {
 	switch EmptyOp(i.Arg) {
 	case EmptyBeginLine:
@@ -270,26 +274,26 @@ func (i *Inst) MatchEmptyWidth(before rune, after rune) bool {
 	case EmptyEndText:
 		return after == -1
 	case EmptyWordBoundary:
-		return wordRune(before) != wordRune(after)
+		return IsWordChar(before) != IsWordChar(after)
 	case EmptyNoWordBoundary:
-		return wordRune(before) == wordRune(after)
+		return IsWordChar(before) == IsWordChar(after)
 	}
 	panic("unknown empty width arg")
 }
 
 func (i *Inst) String() string {
-	var b bytes.Buffer
+	var b strings.Builder
 	dumpInst(&b, i)
 	return b.String()
 }
 
-func bw(b *bytes.Buffer, args ...string) {
+func bw(b *strings.Builder, args ...string) {
 	for _, s := range args {
 		b.WriteString(s)
 	}
 }
 
-func dumpProg(b *bytes.Buffer, p *Prog) {
+func dumpProg(b *strings.Builder, p *Prog) {
 	for j := range p.Inst {
 		i := &p.Inst[j]
 		pc := strconv.Itoa(j)
@@ -309,7 +313,7 @@ func u32(i uint32) string {
 	return strconv.FormatUint(uint64(i), 10)
 }
 
-func dumpInst(b *bytes.Buffer, i *Inst) {
+func dumpInst(b *strings.Builder, i *Inst) {
 	switch i.Op {
 	case InstAlt:
 		bw(b, "alt -> ", u32(i.Out), ", ", u32(i.Arg))

@@ -1,6 +1,6 @@
 // run
 
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -35,7 +35,10 @@ var m *M
 var m1 *M1
 var m2 *M2
 
-func use(interface{}) {
+var V interface{}
+
+func use(x interface{}) {
+	V = x
 }
 
 var tests = []struct{

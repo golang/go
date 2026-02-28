@@ -1,0 +1,20 @@
+# Adding -cover to "go test -n" should not cause failures,
+# see issue 67952. In the regular (no "-n") case for an
+# empty package test action for the package will look for
+# a static meta-data file produced by the cover tool
+# during the build action; when "-n" is in effect that
+# meta-data file doesn't exist, so the code that reads
+# the meta-data file has to be stubbed out.
+
+go test -vet=off -n -cover ./f
+
+-- go.mod --
+module M
+
+go 1.21
+-- f/f.go --
+package f
+
+func Id() int {
+     return 42
+}

@@ -1,0 +1,48 @@
+# This test checks that -coverpkg=all can be used
+# when the package pattern includes packages
+# which only have tests.
+# Verifies golang.org/issue/27333, golang.org/issue/43242.
+
+[short] skip
+cd $GOPATH/src/example.com/cov
+
+env GO111MODULE=on
+go test -coverpkg=all ./...
+
+env GO111MODULE=off
+go test -coverpkg=all ./...
+
+-- $GOPATH/src/example.com/cov/go.mod --
+module example.com/cov
+
+-- $GOPATH/src/example.com/cov/notest/notest.go --
+package notest
+
+func Foo() {}
+
+-- $GOPATH/src/example.com/cov/onlytest/onlytest_test.go --
+package onlytest_test
+
+import (
+	"testing"
+
+	"example.com/cov/notest"
+)
+
+func TestFoo(t *testing.T) {
+	notest.Foo()
+}
+
+-- $GOPATH/src/example.com/cov/withtest/withtest.go --
+package withtest
+
+func Bar() {}
+
+-- $GOPATH/src/example.com/cov/withtest/withtest_test.go --
+package withtest
+
+import "testing"
+
+func TestBar(t *testing.T) {
+	Bar()
+}

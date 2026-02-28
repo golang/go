@@ -7,12 +7,12 @@
 package ast_test
 
 import (
-	"bytes"
 	"fmt"
 	. "go/ast"
 	"go/parser"
 	"go/token"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -73,7 +73,6 @@ func f3() {
 
 // res maps a key of the form "line number: node type"
 // to the associated comments' text.
-//
 var res = map[string]string{
 	" 5: *ast.File":       "the very first comment\npackage p\n",
 	" 5: *ast.Ident":      " the name is p\n",
@@ -95,7 +94,7 @@ var res = map[string]string{
 }
 
 func ctext(list []*CommentGroup) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for _, g := range list {
 		buf.WriteString(g.Text())
 	}
@@ -110,7 +109,7 @@ func TestCommentMap(t *testing.T) {
 	}
 	cmap := NewCommentMap(fset, f, f.Comments)
 
-	// very correct association of comments
+	// verify correct association of comments
 	for n, list := range cmap {
 		key := fmt.Sprintf("%2d: %T", fset.Position(n.Pos()).Line, n)
 		got := ctext(list)
@@ -140,4 +139,31 @@ func TestCommentMap(t *testing.T) {
 	}
 }
 
-// TODO(gri): add tests for Filter.
+func TestFilter(t *testing.T) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmap := NewCommentMap(fset, f, f.Comments)
+
+	// delete variable declaration
+	for i, decl := range f.Decls {
+		if gen, ok := decl.(*GenDecl); ok && gen.Tok == token.VAR {
+			copy(f.Decls[i:], f.Decls[i+1:])
+			f.Decls = f.Decls[:len(f.Decls)-1]
+			break
+		}
+	}
+
+	// check if comments are filtered correctly
+	cc := cmap.Filter(f)
+	for n, list := range cc {
+		key := fmt.Sprintf("%2d: %T", fset.Position(n.Pos()).Line, n)
+		got := ctext(list)
+		want := res[key]
+		if key == "25: *ast.GenDecl" || got != want {
+			t.Errorf("%s: got %q; want %q", key, got, want)
+		}
+	}
+}

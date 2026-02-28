@@ -7,7 +7,6 @@ package multipart_test
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"mime"
 	"mime/multipart"
@@ -39,7 +38,7 @@ func ExampleNewReader() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			slurp, err := ioutil.ReadAll(p)
+			slurp, err := io.ReadAll(p)
 			if err != nil {
 				log.Fatal(err)
 			}

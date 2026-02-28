@@ -1,0 +1,68 @@
+handle git
+
+env GIT_AUTHOR_NAME='Russ Cox'
+env GIT_AUTHOR_EMAIL='rsc@golang.org'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+
+at 2018-04-17T15:43:22-04:00
+unquote ''
+cp stdout README
+git add README
+git commit -a -m 'empty README'
+git branch -m master
+git tag v1.2.3
+
+at 2018-04-17T15:45:48-04:00
+git branch v2
+git checkout v2
+echo 'v2'
+cp stdout v2
+git add v2
+git commit -a -m 'v2'
+git tag v2.3
+git tag v2.0.1
+git branch v2.3.4
+
+at 2018-04-17T16:00:19-04:00
+echo 'intermediate'
+cp stdout foo.txt
+git add foo.txt
+git commit -a -m 'intermediate'
+
+at 2018-04-17T16:00:32-04:00
+echo 'another'
+cp stdout another.txt
+git add another.txt
+git commit -a -m 'another'
+git tag v2.0.2
+
+at 2018-04-17T16:16:52-04:00
+git checkout master
+git branch v3
+git checkout v3
+mkdir v3/sub/dir
+echo 'v3/sub/dir/file'
+cp stdout v3/sub/dir/file.txt
+git add v3
+git commit -a -m 'add v3/sub/dir/file.txt'
+
+at 2018-04-17T22:23:00-04:00
+git checkout master
+git tag -a v1.2.4-annotated -m 'v1.2.4-annotated'
+
+git show-ref --tags --heads
+cmp stdout .git-refs
+
+-- .git-refs --
+ede458df7cd0fdca520df19a33158086a8a68e81 refs/heads/master
+9d02800338b8a55be062c838d1f02e0c5780b9eb refs/heads/v2
+76a00fb249b7f93091bc2c89a789dab1fc1bc26f refs/heads/v2.3.4
+a8205f853c297ad2c3c502ba9a355b35b7dd3ca5 refs/heads/v3
+ede458df7cd0fdca520df19a33158086a8a68e81 refs/tags/v1.2.3
+b004e48a345a86ed7a2fb7debfa7e0b2f9b0dd91 refs/tags/v1.2.4-annotated
+76a00fb249b7f93091bc2c89a789dab1fc1bc26f refs/tags/v2.0.1
+9d02800338b8a55be062c838d1f02e0c5780b9eb refs/tags/v2.0.2
+76a00fb249b7f93091bc2c89a789dab1fc1bc26f refs/tags/v2.3

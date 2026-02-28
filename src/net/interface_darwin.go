@@ -1,62 +1,48 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package net
 
 import (
-	"os"
+	"internal/routebsd"
 	"syscall"
 )
+
+func interfaceMessages(ifindex int) ([]routebsd.Message, error) {
+	return routebsd.FetchRIBMessages(syscall.NET_RT_IFLIST, ifindex)
+}
 
 // interfaceMulticastAddrTable returns addresses for a specific
 // interface.
 func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
-	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST2, ifi.Index)
+	msgs, err := routebsd.FetchRIBMessages(syscall.NET_RT_IFLIST2, ifi.Index)
 	if err != nil {
-		return nil, os.NewSyscallError("route rib", err)
+		return nil, err
 	}
-	msgs, err := syscall.ParseRoutingMessage(tab)
-	if err != nil {
-		return nil, os.NewSyscallError("route message", err)
-	}
-	var ifmat []Addr
+	ifmat := make([]Addr, 0, len(msgs))
 	for _, m := range msgs {
 		switch m := m.(type) {
-		case *syscall.InterfaceMulticastAddrMessage:
-			if ifi.Index == int(m.Header.Index) {
-				ifma, err := newMulticastAddr(ifi, m)
-				if err != nil {
-					return nil, err
+		case *routebsd.InterfaceMulticastAddrMessage:
+			if ifi.Index != m.Index {
+				continue
+			}
+			var ip IP
+			switch sa := m.Addrs[syscall.RTAX_IFA].(type) {
+			case *routebsd.InetAddr:
+				if sa.IP.Is4() {
+					a := sa.IP.As4()
+					ip = IPv4(a[0], a[1], a[2], a[3])
+				} else if sa.IP.Is6() {
+					a := sa.IP.As16()
+					ip = make(IP, IPv6len)
+					copy(ip, a[:])
 				}
-				if ifma != nil {
-					ifmat = append(ifmat, ifma)
-				}
+			}
+			if ip != nil {
+				ifmat = append(ifmat, &IPAddr{IP: ip})
 			}
 		}
 	}
 	return ifmat, nil
-}
-
-func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage) (*IPAddr, error) {
-	sas, err := syscall.ParseRoutingSockaddr(m)
-	if err != nil {
-		return nil, os.NewSyscallError("route sockaddr", err)
-	}
-	switch sa := sas[syscall.RTAX_IFA].(type) {
-	case *syscall.SockaddrInet4:
-		return &IPAddr{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])}, nil
-	case *syscall.SockaddrInet6:
-		ifma := IPAddr{IP: make(IP, IPv6len)}
-		copy(ifma.IP, sa.Addr[:])
-		// NOTE: KAME based IPv6 protcol stack usually embeds
-		// the interface index in the interface-local or
-		// link-local address as the kernel-internal form.
-		if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
-			ifma.IP[2], ifma.IP[3] = 0, 0
-		}
-		return &ifma, nil
-	default:
-		return nil, nil
-	}
 }

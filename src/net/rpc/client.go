@@ -27,11 +27,11 @@ var ErrShutdown = errors.New("connection is shut down")
 
 // Call represents an active RPC.
 type Call struct {
-	ServiceMethod string      // The name of the service and method to call.
-	Args          interface{} // The argument to the function (*struct).
-	Reply         interface{} // The reply from the function (*struct).
-	Error         error       // After completion, the error status.
-	Done          chan *Call  // Strobes when call is complete.
+	ServiceMethod string     // The name of the service and method to call.
+	Args          any        // The argument to the function (*struct).
+	Reply         any        // The reply from the function (*struct).
+	Error         error      // After completion, the error status.
+	Done          chan *Call // Receives *Call when Go is complete.
 }
 
 // Client represents an RPC Client.
@@ -53,17 +53,17 @@ type Client struct {
 
 // A ClientCodec implements writing of RPC requests and
 // reading of RPC responses for the client side of an RPC session.
-// The client calls WriteRequest to write a request to the connection
-// and calls ReadResponseHeader and ReadResponseBody in pairs
-// to read responses.  The client calls Close when finished with the
+// The client calls [ClientCodec.WriteRequest] to write a request to the connection
+// and calls [ClientCodec.ReadResponseHeader] and [ClientCodec.ReadResponseBody] in pairs
+// to read responses. The client calls [ClientCodec.Close] when finished with the
 // connection. ReadResponseBody may be called with a nil
 // argument to force the body of the response to be read and then
 // discarded.
+// See [NewClient]'s comment for information about concurrent access.
 type ClientCodec interface {
-	// WriteRequest must be safe for concurrent use by multiple goroutines.
-	WriteRequest(*Request, interface{}) error
+	WriteRequest(*Request, any) error
 	ReadResponseHeader(*Response) error
-	ReadResponseBody(interface{}) error
+	ReadResponseBody(any) error
 
 	Close() error
 }
@@ -75,8 +75,8 @@ func (client *Client) send(call *Call) {
 	// Register this call.
 	client.mutex.Lock()
 	if client.shutdown || client.closing {
-		call.Error = ErrShutdown
 		client.mutex.Unlock()
+		call.Error = ErrShutdown
 		call.done()
 		return
 	}
@@ -173,7 +173,7 @@ func (call *Call) done() {
 	case call.Done <- call:
 		// ok
 	default:
-		// We don't want to block here.  It is the caller's responsibility to make
+		// We don't want to block here. It is the caller's responsibility to make
 		// sure the channel has enough buffer space. See comment in Go().
 		if debugLog {
 			log.Println("rpc: discarding Call reply due to insufficient Done chan capacity")
@@ -181,17 +181,22 @@ func (call *Call) done() {
 	}
 }
 
-// NewClient returns a new Client to handle requests to the
+// NewClient returns a new [Client] to handle requests to the
 // set of services at the other end of the connection.
 // It adds a buffer to the write side of the connection so
 // the header and payload are sent as a unit.
+//
+// The read and write halves of the connection are serialized independently,
+// so no interlocking is required. However each half may be accessed
+// concurrently so the implementation of conn should protect against
+// concurrent reads or concurrent writes.
 func NewClient(conn io.ReadWriteCloser) *Client {
 	encBuf := bufio.NewWriter(conn)
 	client := &gobClientCodec{conn, gob.NewDecoder(conn), gob.NewEncoder(encBuf), encBuf}
 	return NewClientWithCodec(client)
 }
 
-// NewClientWithCodec is like NewClient but uses the specified
+// NewClientWithCodec is like [NewClient] but uses the specified
 // codec to encode requests and decode responses.
 func NewClientWithCodec(codec ClientCodec) *Client {
 	client := &Client{
@@ -209,7 +214,7 @@ type gobClientCodec struct {
 	encBuf *bufio.Writer
 }
 
-func (c *gobClientCodec) WriteRequest(r *Request, body interface{}) (err error) {
+func (c *gobClientCodec) WriteRequest(r *Request, body any) (err error) {
 	if err = c.enc.Encode(r); err != nil {
 		return
 	}
@@ -223,7 +228,7 @@ func (c *gobClientCodec) ReadResponseHeader(r *Response) error {
 	return c.dec.Decode(r)
 }
 
-func (c *gobClientCodec) ReadResponseBody(body interface{}) error {
+func (c *gobClientCodec) ReadResponseBody(body any) error {
 	return c.dec.Decode(body)
 }
 
@@ -240,7 +245,6 @@ func DialHTTP(network, address string) (*Client, error) {
 // DialHTTPPath connects to an HTTP RPC server
 // at the specified network address and path.
 func DialHTTPPath(network, address, path string) (*Client, error) {
-	var err error
 	conn, err := net.Dial(network, address)
 	if err != nil {
 		return nil, err
@@ -274,6 +278,8 @@ func Dial(network, address string) (*Client, error) {
 	return NewClient(conn), nil
 }
 
+// Close calls the underlying codec's Close method. If the connection is already
+// shutting down, [ErrShutdown] is returned.
 func (client *Client) Close() error {
 	client.mutex.Lock()
 	if client.closing {
@@ -285,11 +291,11 @@ func (client *Client) Close() error {
 	return client.codec.Close()
 }
 
-// Go invokes the function asynchronously.  It returns the Call structure representing
-// the invocation.  The done channel will signal when the call is complete by returning
-// the same Call object.  If done is nil, Go will allocate a new channel.
+// Go invokes the function asynchronously. It returns the [Call] structure representing
+// the invocation. The done channel will signal when the call is complete by returning
+// the same Call object. If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
-func (client *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
+func (client *Client) Go(serviceMethod string, args any, reply any, done chan *Call) *Call {
 	call := new(Call)
 	call.ServiceMethod = serviceMethod
 	call.Args = args
@@ -299,7 +305,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 	} else {
 		// If caller passes done != nil, it must arrange that
 		// done has enough buffer for the number of simultaneous
-		// RPCs that will be using that channel.  If the channel
+		// RPCs that will be using that channel. If the channel
 		// is totally unbuffered, it's best not to run at all.
 		if cap(done) == 0 {
 			log.Panic("rpc: done channel is unbuffered")
@@ -311,7 +317,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
-func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) error {
+func (client *Client) Call(serviceMethod string, args any, reply any) error {
 	call := <-client.Go(serviceMethod, args, reply, make(chan *Call, 1)).Done
 	return call.Error
 }

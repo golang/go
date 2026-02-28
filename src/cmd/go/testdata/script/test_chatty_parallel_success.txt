@@ -1,0 +1,52 @@
+# Run parallel chatty tests. Assert on CONT or NAME lines. This test makes sure that
+# multiple parallel outputs have the appropriate test name lines between them.
+go test -parallel 3 chatty_parallel_test.go -v
+stdout -count=2 '^=== (CONT|NAME)  TestChattyParallel/sub-0\n    chatty_parallel_test.go:32: this is sub-0$'
+stdout -count=2 '^=== (CONT|NAME)  TestChattyParallel/sub-1\n    chatty_parallel_test.go:32: this is sub-1$'
+stdout -count=2 '^=== (CONT|NAME)  TestChattyParallel/sub-2\n    chatty_parallel_test.go:32: this is sub-2$'
+
+# Run parallel chatty tests with -json.
+# Assert test2json has properly attributed output.
+go test -json -parallel 3 chatty_parallel_test.go -v
+stdout -count=2 '"Test":"TestChattyParallel/sub-0","Output":"    chatty_parallel_test.go:32: this is sub-0\\n"'
+stdout -count=2 '"Test":"TestChattyParallel/sub-1","Output":"    chatty_parallel_test.go:32: this is sub-1\\n"'
+stdout -count=2 '"Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:32: this is sub-2\\n"'
+
+-- chatty_parallel_test.go --
+package chatty_parallel_test
+
+import (
+	"testing"
+	"fmt"
+	"flag"
+)
+
+// This test ensures the order of CONT lines in parallel chatty tests.
+func TestChattyParallel(t *testing.T) {
+	t.Parallel()
+
+	// The number of concurrent tests running. This is closely tied to the
+	// -parallel test flag, so we grab it from the flag rather than setting it
+	// to some constant.
+	parallel := flag.Lookup("test.parallel").Value.(flag.Getter).Get().(int)
+
+	// ready is a synchronization mechanism that causes subtests to execute
+	// round robin.
+	ready := make([]chan bool, parallel)
+	for i := range ready {
+		ready[i] = make(chan bool, 1)
+	}
+	ready[0] <- true
+
+	for i := range ready {
+		i := i
+		t.Run(fmt.Sprintf("sub-%d", i), func(t *testing.T) {
+			t.Parallel()
+			for j := 0; j < 2; j++ {
+				<-ready[i]
+				t.Logf("this is sub-%d", i)
+				ready[(i+1)%len(ready)] <- true
+			}
+		})
+	}
+}

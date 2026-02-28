@@ -4,11 +4,14 @@
 
 // Package path implements utility routines for manipulating slash-separated
 // paths.
+//
+// The path package should only be used for paths separated by forward
+// slashes, such as the paths in URLs. This package does not deal with
+// Windows paths with drive letters or backslashes; to manipulate
+// operating system paths, use the [path/filepath] package.
 package path
 
-import (
-	"strings"
-)
+import "internal/bytealg"
 
 // A lazybuf is a lazily constructed path buffer.
 // It supports append, reading previously appended bytes,
@@ -48,24 +51,24 @@ func (b *lazybuf) string() string {
 }
 
 // Clean returns the shortest path name equivalent to path
-// by purely lexical processing.  It applies the following rules
+// by purely lexical processing. It applies the following rules
 // iteratively until no further processing can be done:
 //
-//	1. Replace multiple slashes with a single slash.
-//	2. Eliminate each . path name element (the current directory).
-//	3. Eliminate each inner .. path name element (the parent directory)
-//	   along with the non-.. element that precedes it.
-//	4. Eliminate .. elements that begin a rooted path:
-//	   that is, replace "/.." by "/" at the beginning of a path.
+//  1. Replace multiple slashes with a single slash.
+//  2. Eliminate each . path name element (the current directory).
+//  3. Eliminate each inner .. path name element (the parent directory)
+//     along with the non-.. element that precedes it.
+//  4. Eliminate .. elements that begin a rooted path:
+//     that is, replace "/.." by "/" at the beginning of a path.
 //
 // The returned path ends in a slash only if it is the root "/".
 //
 // If the result of this process is an empty string, Clean
 // returns the string ".".
 //
-// See also Rob Pike, ``Lexical File Names in Plan 9 or
-// Getting Dot-Dot Right,''
-// http://plan9.bell-labs.com/sys/doc/lexnames.html
+// See also Rob Pike, “Lexical File Names in Plan 9 or
+// Getting Dot-Dot Right,”
+// https://9p.io/sys/doc/lexnames.html
 func Clean(path string) string {
 	if path == "" {
 		return "."
@@ -134,26 +137,39 @@ func Clean(path string) string {
 	return out.string()
 }
 
-// Split splits path immediately following the final slash.
+// Split splits path immediately following the final slash,
 // separating it into a directory and file name component.
-// If there is no slash path, Split returns an empty dir and
+// If there is no slash in path, Split returns an empty dir and
 // file set to path.
 // The returned values have the property that path = dir+file.
 func Split(path string) (dir, file string) {
-	i := strings.LastIndex(path, "/")
+	i := bytealg.LastIndexByteString(path, '/')
 	return path[:i+1], path[i+1:]
 }
 
-// Join joins any number of path elements into a single path, adding a
-// separating slash if necessary. The result is Cleaned; in particular,
-// all empty strings are ignored.
+// Join joins any number of path elements into a single path,
+// separating them with slashes. Empty elements are ignored.
+// The result is Cleaned. However, if the argument list is
+// empty or all its elements are empty, Join returns
+// an empty string.
 func Join(elem ...string) string {
-	for i, e := range elem {
-		if e != "" {
-			return Clean(strings.Join(elem[i:], "/"))
+	size := 0
+	for _, e := range elem {
+		size += len(e)
+	}
+	if size == 0 {
+		return ""
+	}
+	buf := make([]byte, 0, size+len(elem)-1)
+	for _, e := range elem {
+		if len(buf) > 0 || e != "" {
+			if len(buf) > 0 {
+				buf = append(buf, '/')
+			}
+			buf = append(buf, e...)
 		}
 	}
-	return ""
+	return Clean(string(buf))
 }
 
 // Ext returns the file name extension used by path.
@@ -182,7 +198,7 @@ func Base(path string) string {
 		path = path[0 : len(path)-1]
 	}
 	// Find the last element
-	if i := strings.LastIndex(path, "/"); i >= 0 {
+	if i := bytealg.LastIndexByteString(path, '/'); i >= 0 {
 		path = path[i+1:]
 	}
 	// If empty now, it had only slashes.
@@ -192,13 +208,13 @@ func Base(path string) string {
 	return path
 }
 
-// IsAbs returns true if the path is absolute.
+// IsAbs reports whether the path is absolute.
 func IsAbs(path string) bool {
 	return len(path) > 0 && path[0] == '/'
 }
 
 // Dir returns all but the last element of path, typically the path's directory.
-// After dropping the final element using Split, the path is Cleaned and trailing
+// After dropping the final element using [Split], the path is Cleaned and trailing
 // slashes are removed.
 // If the path is empty, Dir returns ".".
 // If the path consists entirely of slashes followed by non-slash bytes, Dir

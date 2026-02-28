@@ -60,7 +60,7 @@ func interfaceEncode(enc *gob.Encoder, p Pythagoras) {
 	// registered. We registered it in the calling function.
 
 	// Pass pointer to interface so Encode sees (and hence sends) a value of
-	// interface type.  If we passed p directly it would see the concrete type instead.
+	// interface type. If we passed p directly it would see the concrete type instead.
 	// See the blog post, "The Laws of Reflection" for background.
 	err := enc.Encode(&p)
 	if err != nil {

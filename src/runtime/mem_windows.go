@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -16,16 +16,21 @@ const (
 
 	_PAGE_READWRITE = 0x0004
 	_PAGE_NOACCESS  = 0x0001
+
+	_ERROR_NOT_ENOUGH_MEMORY = 8
+	_ERROR_COMMITMENT_LIMIT  = 1455
 )
 
+// Don't split the stack as this function may be invoked without a valid G,
+// which prevents us from allocating more stack.
+//
 //go:nosplit
-func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
-	xadd64(stat, int64(n))
-	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_COMMIT|_MEM_RESERVE, _PAGE_READWRITE))
+func sysAllocOS(n uintptr, _ string) unsafe.Pointer {
+	return unsafe.Pointer(stdcall(_VirtualAlloc, 0, n, _MEM_COMMIT|_MEM_RESERVE, _PAGE_READWRITE))
 }
 
-func sysUnused(v unsafe.Pointer, n uintptr) {
-	r := stdcall3(_VirtualFree, uintptr(v), n, _MEM_DECOMMIT)
+func sysUnusedOS(v unsafe.Pointer, n uintptr) {
+	r := stdcall(_VirtualFree, uintptr(v), n, _MEM_DECOMMIT)
 	if r != 0 {
 		return
 	}
@@ -41,11 +46,12 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 	// in the worst case, but that's fast enough.
 	for n > 0 {
 		small := n
-		for small >= 4096 && stdcall3(_VirtualFree, uintptr(v), small, _MEM_DECOMMIT) == 0 {
+		for small >= 4096 && stdcall(_VirtualFree, uintptr(v), small, _MEM_DECOMMIT) == 0 {
 			small /= 2
 			small &^= 4096 - 1
 		}
 		if small < 4096 {
+			print("runtime: VirtualFree of ", small, " bytes failed with errno=", getlasterror(), "\n")
 			throw("runtime: failed to decommit pages")
 		}
 		v = add(v, small)
@@ -53,57 +59,80 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 	}
 }
 
-func sysUsed(v unsafe.Pointer, n uintptr) {
-	r := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
-	if r != uintptr(v) {
-		throw("runtime: failed to commit pages")
+func sysUsedOS(v unsafe.Pointer, n uintptr) {
+	p := stdcall(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
+	if p == uintptr(v) {
+		return
 	}
 
 	// Commit failed. See SysUnused.
-	for n > 0 {
-		small := n
-		for small >= 4096 && stdcall4(_VirtualAlloc, uintptr(v), small, _MEM_COMMIT, _PAGE_READWRITE) == 0 {
+	// Hold on to n here so we can give back a better error message
+	// for certain cases.
+	k := n
+	for k > 0 {
+		small := k
+		for small >= 4096 && stdcall(_VirtualAlloc, uintptr(v), small, _MEM_COMMIT, _PAGE_READWRITE) == 0 {
 			small /= 2
 			small &^= 4096 - 1
 		}
 		if small < 4096 {
-			throw("runtime: failed to decommit pages")
+			errno := getlasterror()
+			switch errno {
+			case _ERROR_NOT_ENOUGH_MEMORY, _ERROR_COMMITMENT_LIMIT:
+				print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", errno, "\n")
+				throw("out of memory")
+			default:
+				print("runtime: VirtualAlloc of ", small, " bytes failed with errno=", errno, "\n")
+				throw("runtime: failed to commit pages")
+			}
 		}
 		v = add(v, small)
-		n -= small
+		k -= small
 	}
 }
 
-func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
-	xadd64(stat, -int64(n))
-	r := stdcall3(_VirtualFree, uintptr(v), 0, _MEM_RELEASE)
+func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+}
+
+func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
+}
+
+func sysHugePageCollapseOS(v unsafe.Pointer, n uintptr) {
+}
+
+// Don't split the stack as this function may be invoked without a valid G,
+// which prevents us from allocating more stack.
+//
+//go:nosplit
+func sysFreeOS(v unsafe.Pointer, n uintptr) {
+	r := stdcall(_VirtualFree, uintptr(v), 0, _MEM_RELEASE)
 	if r == 0 {
+		print("runtime: VirtualFree of ", n, " bytes failed with errno=", getlasterror(), "\n")
 		throw("runtime: failed to release pages")
 	}
 }
 
-func sysFault(v unsafe.Pointer, n uintptr) {
+func sysFaultOS(v unsafe.Pointer, n uintptr) {
 	// SysUnused makes the memory inaccessible and prevents its reuse
-	sysUnused(v, n)
+	sysUnusedOS(v, n)
 }
 
-func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
-	*reserved = true
+func sysReserveOS(v unsafe.Pointer, n uintptr, _ string) unsafe.Pointer {
 	// v is just a hint.
 	// First try at v.
-	v = unsafe.Pointer(stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_RESERVE, _PAGE_READWRITE))
+	// This will fail if any of [v, v+n) is already reserved.
+	v = unsafe.Pointer(stdcall(_VirtualAlloc, uintptr(v), n, _MEM_RESERVE, _PAGE_READWRITE))
 	if v != nil {
 		return v
 	}
 
 	// Next let the kernel choose the address.
-	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_RESERVE, _PAGE_READWRITE))
+	return unsafe.Pointer(stdcall(_VirtualAlloc, 0, n, _MEM_RESERVE, _PAGE_READWRITE))
 }
 
-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
-	xadd64(stat, int64(n))
-	p := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
-	if p != uintptr(v) {
-		throw("runtime: cannot map pages in arena address space")
-	}
+func sysMapOS(v unsafe.Pointer, n uintptr, _ string) {
+}
+
+func needZeroAfterSysUnusedOS() bool {
+	return true
 }

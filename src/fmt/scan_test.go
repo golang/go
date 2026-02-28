@@ -15,27 +15,28 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"testing/iotest"
 	"unicode/utf8"
 )
 
 type ScanTest struct {
 	text string
-	in   interface{}
-	out  interface{}
+	in   any
+	out  any
 }
 
 type ScanfTest struct {
 	format string
 	text   string
-	in     interface{}
-	out    interface{}
+	in     any
+	out    any
 }
 
 type ScanfMultiTest struct {
 	format string
 	text   string
-	in     []interface{}
-	out    []interface{}
+	in     []any
+	out    []any
 	err    string
 }
 
@@ -51,6 +52,7 @@ var (
 	uint16Val            uint16
 	uint32Val            uint32
 	uint64Val            uint64
+	uintptrVal           uintptr
 	float32Val           float32
 	float64Val           float64
 	stringVal            string
@@ -77,12 +79,6 @@ var (
 	renamedComplex64Val  renamedComplex64
 	renamedComplex128Val renamedComplex128
 )
-
-type FloatTest struct {
-	text string
-	in   float64
-	out  float64
-}
 
 // Xs accepts any non-empty run of the verb character
 type Xs string
@@ -124,31 +120,23 @@ func (s *IntString) Scan(state ScanState, verb rune) error {
 
 var intStringVal IntString
 
-// myStringReader implements Read but not ReadRune, allowing us to test our readRune wrapper
-// type that creates something that can read runes given only Read().
-type myStringReader struct {
-	r *strings.Reader
-}
-
-func (s *myStringReader) Read(p []byte) (n int, err error) {
-	return s.r.Read(p)
-}
-
-func newReader(s string) *myStringReader {
-	return &myStringReader{strings.NewReader(s)}
-}
-
 var scanTests = []ScanTest{
 	// Basic types
 	{"T\n", &boolVal, true},  // boolean test vals toggle to be sure they are written
 	{"F\n", &boolVal, false}, // restored to zero value
 	{"21\n", &intVal, 21},
+	{"2_1\n", &intVal, 21},
 	{"0\n", &intVal, 0},
 	{"000\n", &intVal, 0},
 	{"0x10\n", &intVal, 0x10},
+	{"0x_1_0\n", &intVal, 0x10},
 	{"-0x10\n", &intVal, -0x10},
 	{"0377\n", &intVal, 0377},
+	{"0_3_7_7\n", &intVal, 0377},
+	{"0o377\n", &intVal, 0377},
+	{"0o_3_7_7\n", &intVal, 0377},
 	{"-0377\n", &intVal, -0377},
+	{"-0o377\n", &intVal, -0377},
 	{"0\n", &uintVal, uint(0)},
 	{"000\n", &uintVal, uint(0)},
 	{"0x10\n", &uintVal, uint(0x10)},
@@ -175,6 +163,7 @@ var scanTests = []ScanTest{
 	{"28\n", &uint16Val, uint16(28)},
 	{"29\n", &uint32Val, uint32(29)},
 	{"30\n", &uint64Val, uint64(30)},
+	{"31\n", &uintptrVal, uintptr(31)},
 	{"255\n", &uint8Val, uint8(255)},
 	{"32767\n", &int16Val, int16(32767)},
 	{"2.3\n", &float64Val, 2.3},
@@ -182,13 +171,20 @@ var scanTests = []ScanTest{
 	{"2.3e2\n", &float64Val, 2.3e2},
 	{"2.3p2\n", &float64Val, 2.3 * 4},
 	{"2.3p+2\n", &float64Val, 2.3 * 4},
-	{"2.3p+66\n", &float64Val, 2.3 * (1 << 32) * (1 << 32) * 4},
-	{"2.3p-66\n", &float64Val, 2.3 / ((1 << 32) * (1 << 32) * 4)},
+	{"2.3p+66\n", &float64Val, 2.3 * (1 << 66)},
+	{"2.3p-66\n", &float64Val, 2.3 / (1 << 66)},
+	{"0x2.3p-66\n", &float64Val, float64(0x23) / (1 << 70)},
+	{"2_3.4_5\n", &float64Val, 23.45},
 	{"2.35\n", &stringVal, "2.35"},
 	{"2345678\n", &bytesVal, []byte("2345678")},
 	{"(3.4e1-2i)\n", &complex128Val, 3.4e1 - 2i},
 	{"-3.45e1-3i\n", &complex64Val, complex64(-3.45e1 - 3i)},
 	{"-.45e1-1e2i\n", &complex128Val, complex128(-.45e1 - 100i)},
+	{"-.4_5e1-1E2i\n", &complex128Val, complex128(-.45e1 - 100i)},
+	{"0x1.0p1+0x1.0P2i\n", &complex128Val, complex128(2 + 4i)},
+	{"-0x1p1-0x1p2i\n", &complex128Val, complex128(-2 - 4i)},
+	{"-0x1ep-1-0x1p2i\n", &complex128Val, complex128(-15 - 4i)},
+	{"-0x1_Ep-1-0x1p0_2i\n", &complex128Val, complex128(-15 - 4i)},
 	{"hello\n", &stringVal, "hello"},
 
 	// Carriage-return followed by newline. (We treat \r\n as \n always.)
@@ -226,8 +222,15 @@ var scanfTests = []ScanfTest{
 	{"%v", "TRUE\n", &boolVal, true},
 	{"%t", "false\n", &boolVal, false},
 	{"%v", "-71\n", &intVal, -71},
+	{"%v", "-7_1\n", &intVal, -71},
+	{"%v", "0b111\n", &intVal, 7},
+	{"%v", "0b_1_1_1\n", &intVal, 7},
 	{"%v", "0377\n", &intVal, 0377},
+	{"%v", "0_3_7_7\n", &intVal, 0377},
+	{"%v", "0o377\n", &intVal, 0377},
+	{"%v", "0o_3_7_7\n", &intVal, 0377},
 	{"%v", "0x44\n", &intVal, 0x44},
+	{"%v", "0x_4_4\n", &intVal, 0x44},
 	{"%d", "72\n", &intVal, 72},
 	{"%c", "a\n", &runeVal, 'a'},
 	{"%c", "\u5072\n", &runeVal, '\u5072'},
@@ -241,26 +244,43 @@ var scanfTests = []ScanfTest{
 	{"%x", "a75\n", &intVal, 0xa75},
 	{"%v", "71\n", &uintVal, uint(71)},
 	{"%d", "72\n", &uintVal, uint(72)},
+	{"%d", "7_2\n", &uintVal, uint(7)}, // only %v takes underscores
 	{"%d", "73\n", &uint8Val, uint8(73)},
 	{"%d", "74\n", &uint16Val, uint16(74)},
 	{"%d", "75\n", &uint32Val, uint32(75)},
 	{"%d", "76\n", &uint64Val, uint64(76)},
+	{"%d", "77\n", &uintptrVal, uintptr(77)},
 	{"%b", "1001001\n", &uintVal, uint(73)},
+	{"%b", "100_1001\n", &uintVal, uint(4)},
 	{"%o", "075\n", &uintVal, uint(075)},
+	{"%o", "07_5\n", &uintVal, uint(07)}, // only %v takes underscores
 	{"%x", "a75\n", &uintVal, uint(0xa75)},
 	{"%x", "A75\n", &uintVal, uint(0xa75)},
+	{"%x", "A7_5\n", &uintVal, uint(0xa7)}, // only %v takes underscores
 	{"%U", "U+1234\n", &intVal, int(0x1234)},
 	{"%U", "U+4567\n", &uintVal, uint(0x4567)},
+
+	{"%e", "2.3\n", &float64Val, 2.3},
+	{"%E", "2.3e1\n", &float32Val, float32(2.3e1)},
+	{"%f", "2.3e2\n", &float64Val, 2.3e2},
+	{"%g", "2.3p2\n", &float64Val, 2.3 * 4},
+	{"%G", "2.3p+2\n", &float64Val, 2.3 * 4},
+	{"%v", "2.3p+66\n", &float64Val, 2.3 * (1 << 66)},
+	{"%f", "2.3p-66\n", &float64Val, 2.3 / (1 << 66)},
+	{"%G", "0x2.3p-66\n", &float64Val, float64(0x23) / (1 << 70)},
+	{"%E", "2_3.4_5\n", &float64Val, 23.45},
 
 	// Strings
 	{"%s", "using-%s\n", &stringVal, "using-%s"},
 	{"%x", "7573696e672d2578\n", &stringVal, "using-%x"},
+	{"%X", "7573696E672D2558\n", &stringVal, "using-%X"},
 	{"%q", `"quoted\twith\\do\u0075bl\x65s"` + "\n", &stringVal, "quoted\twith\\doubles"},
 	{"%q", "`quoted with backs`\n", &stringVal, "quoted with backs"},
 
 	// Byte slices
 	{"%s", "bytes-%s\n", &bytesVal, []byte("bytes-%s")},
 	{"%x", "62797465732d2578\n", &bytesVal, []byte("bytes-%x")},
+	{"%X", "62797465732D2558\n", &bytesVal, []byte("bytes-%X")},
 	{"%q", `"bytes\rwith\vdo\u0075bl\x65s"` + "\n", &bytesVal, []byte("bytes\rwith\vdoubles")},
 	{"%q", "`bytes with backs`\n", &bytesVal, []byte("bytes with backs")},
 
@@ -291,6 +311,7 @@ var scanfTests = []ScanfTest{
 	// Interesting formats
 	{"here is\tthe value:%d", "here is   the\tvalue:118\n", &intVal, 118},
 	{"%% %%:%d", "% %:119\n", &intVal, 119},
+	{"%d%%", "42%", &intVal, 42}, // %% at end of string.
 
 	// Corner cases
 	{"%x", "FFFFFFFF\n", &uint32Val, uint32(0xFFFFFFFF)},
@@ -300,10 +321,106 @@ var scanfTests = []ScanfTest{
 	{"%2s", "sssss", &xVal, Xs("ss")},
 
 	// Fixed bugs
-	{"%d\n", "27\n", &intVal, 27},  // ok
-	{"%d\n", "28 \n", &intVal, 28}, // was: "unexpected newline"
-	{"%v", "0", &intVal, 0},        // was: "EOF"; 0 was taken as base prefix and not counted.
-	{"%v", "0", &uintVal, uint(0)}, // was: "EOF"; 0 was taken as base prefix and not counted.
+	{"%d\n", "27\n", &intVal, 27},         // ok
+	{"%d\n", "28 \n", &intVal, 28},        // was: "unexpected newline"
+	{"%v", "0", &intVal, 0},               // was: "EOF"; 0 was taken as base prefix and not counted.
+	{"%v", "0", &uintVal, uint(0)},        // was: "EOF"; 0 was taken as base prefix and not counted.
+	{"%c", " ", &uintVal, uint(' ')},      // %c must accept a blank.
+	{"%c", "\t", &uintVal, uint('\t')},    // %c must accept any space.
+	{"%c", "\n", &uintVal, uint('\n')},    // %c must accept any space.
+	{"%d%%", "23%\n", &uintVal, uint(23)}, // %% matches literal %.
+	{"%%%d", "%23\n", &uintVal, uint(23)}, // %% matches literal %.
+
+	// space handling
+	{"%d", "27", &intVal, 27},
+	{"%d", "27 ", &intVal, 27},
+	{"%d", " 27", &intVal, 27},
+	{"%d", " 27 ", &intVal, 27},
+
+	{"X%d", "X27", &intVal, 27},
+	{"X%d", "X27 ", &intVal, 27},
+	{"X%d", "X 27", &intVal, 27},
+	{"X%d", "X 27 ", &intVal, 27},
+
+	{"X %d", "X27", &intVal, nil},  // expected space in input to match format
+	{"X %d", "X27 ", &intVal, nil}, // expected space in input to match format
+	{"X %d", "X 27", &intVal, 27},
+	{"X %d", "X 27 ", &intVal, 27},
+
+	{"%dX", "27X", &intVal, 27},
+	{"%dX", "27 X", &intVal, nil}, // input does not match format
+	{"%dX", " 27X", &intVal, 27},
+	{"%dX", " 27 X", &intVal, nil}, // input does not match format
+
+	{"%d X", "27X", &intVal, nil}, // expected space in input to match format
+	{"%d X", "27 X", &intVal, 27},
+	{"%d X", " 27X", &intVal, nil}, // expected space in input to match format
+	{"%d X", " 27 X", &intVal, 27},
+
+	{"X %d X", "X27X", &intVal, nil},  // expected space in input to match format
+	{"X %d X", "X27 X", &intVal, nil}, // expected space in input to match format
+	{"X %d X", "X 27X", &intVal, nil}, // expected space in input to match format
+	{"X %d X", "X 27 X", &intVal, 27},
+
+	{"X %s X", "X27X", &stringVal, nil},  // expected space in input to match format
+	{"X %s X", "X27 X", &stringVal, nil}, // expected space in input to match format
+	{"X %s X", "X 27X", &stringVal, nil}, // unexpected EOF
+	{"X %s X", "X 27 X", &stringVal, "27"},
+
+	{"X%sX", "X27X", &stringVal, nil},   // unexpected EOF
+	{"X%sX", "X27 X", &stringVal, nil},  // input does not match format
+	{"X%sX", "X 27X", &stringVal, nil},  // unexpected EOF
+	{"X%sX", "X 27 X", &stringVal, nil}, // input does not match format
+
+	{"X%s", "X27", &stringVal, "27"},
+	{"X%s", "X27 ", &stringVal, "27"},
+	{"X%s", "X 27", &stringVal, "27"},
+	{"X%s", "X 27 ", &stringVal, "27"},
+
+	{"X%dX", "X27X", &intVal, 27},
+	{"X%dX", "X27 X", &intVal, nil}, // input does not match format
+	{"X%dX", "X 27X", &intVal, 27},
+	{"X%dX", "X 27 X", &intVal, nil}, // input does not match format
+
+	{"X%dX", "X27X", &intVal, 27},
+	{"X%dX", "X27X ", &intVal, 27},
+	{"X%dX", " X27X", &intVal, nil},  // input does not match format
+	{"X%dX", " X27X ", &intVal, nil}, // input does not match format
+
+	{"X%dX\n", "X27X", &intVal, 27},
+	{"X%dX \n", "X27X ", &intVal, 27},
+	{"X%dX\n", "X27X\n", &intVal, 27},
+	{"X%dX\n", "X27X \n", &intVal, 27},
+
+	{"X%dX \n", "X27X", &intVal, 27},
+	{"X%dX \n", "X27X ", &intVal, 27},
+	{"X%dX \n", "X27X\n", &intVal, 27},
+	{"X%dX \n", "X27X \n", &intVal, 27},
+
+	{"X%c", "X\n", &runeVal, '\n'},
+	{"X%c", "X \n", &runeVal, ' '},
+	{"X %c", "X!", &runeVal, nil},  // expected space in input to match format
+	{"X %c", "X\n", &runeVal, nil}, // newline in input does not match format
+	{"X %c", "X !", &runeVal, '!'},
+	{"X %c", "X \n", &runeVal, '\n'},
+
+	{" X%dX", "X27X", &intVal, nil},  // expected space in input to match format
+	{" X%dX", "X27X ", &intVal, nil}, // expected space in input to match format
+	{" X%dX", " X27X", &intVal, 27},
+	{" X%dX", " X27X ", &intVal, 27},
+
+	{"X%dX ", "X27X", &intVal, 27},
+	{"X%dX ", "X27X ", &intVal, 27},
+	{"X%dX ", " X27X", &intVal, nil},  // input does not match format
+	{"X%dX ", " X27X ", &intVal, nil}, // input does not match format
+
+	{" X%dX ", "X27X", &intVal, nil},  // expected space in input to match format
+	{" X%dX ", "X27X ", &intVal, nil}, // expected space in input to match format
+	{" X%dX ", " X27X", &intVal, 27},
+	{" X%dX ", " X27X ", &intVal, 27},
+
+	{"%d\nX", "27\nX", &intVal, 27},
+	{"%dX\n X", "27X\n X", &intVal, 27},
 }
 
 var overflowTests = []ScanTest{
@@ -330,7 +447,7 @@ var z IntString
 var r1, r2, r3 rune
 
 var multiTests = []ScanfMultiTest{
-	{"", "", []interface{}{}, []interface{}{}, ""},
+	{"", "", []any{}, []any{}, ""},
 	{"%d", "23", args(&i), args(23), ""},
 	{"%2s%3s", "22333", args(&s, &t), args("22", "333"), ""},
 	{"%2d%3d", "44555", args(&i, &j), args(44, 555), ""},
@@ -340,6 +457,8 @@ var multiTests = []ScanfMultiTest{
 	{"%6vX=%3fY", "3+2iX=2.5Y", args(&c, &f), args((3 + 2i), 2.5), ""},
 	{"%d%s", "123abc", args(&i, &s), args(123, "abc"), ""},
 	{"%c%c%c", "2\u50c2X", args(&r1, &r2, &r3), args('2', '\u50c2', 'X'), ""},
+	{"%5s%d", " 1234567 ", args(&s, &i), args("12345", 67), ""},
+	{"%5s%d", " 12 34 567 ", args(&s, &i), args("12", 34), ""},
 
 	// Custom scanners.
 	{"%e%f", "eefffff", args(&x, &y), args(Xs("ee"), Xs("fffff")), ""},
@@ -351,6 +470,11 @@ var multiTests = []ScanfMultiTest{
 	{"%d %d", "23 18 27", args(&i, &j, &k), args(23, 18), "too many operands"},
 	{"%c", "\u0100", args(&int8Val), nil, "overflow"},
 	{"X%d", "10X", args(&intVal), nil, "input does not match format"},
+	{"%d%", "42%", args(&intVal), args(42), "missing verb: % at end of format string"},
+	{"%d% ", "42%", args(&intVal), args(42), "too few operands for format '% '"}, // Slightly odd error, but correct.
+	{"%%%d", "xxx 42", args(&intVal), args(42), "missing literal %"},
+	{"%%%d", "x42", args(&intVal), args(42), "missing literal %"},
+	{"%%%d", "42", args(&intVal), args(42), "missing literal %"},
 
 	// Bad UTF-8: should see every byte.
 	{"%c%c%c", "\xc2X\xc2", args(&r1, &r2, &r3), args(utf8.RuneError, 'X', utf8.RuneError), ""},
@@ -359,74 +483,93 @@ var multiTests = []ScanfMultiTest{
 	{"%v%v", "FALSE23", args(&truth, &i), args(false, 23), ""},
 }
 
-func testScan(name string, t *testing.T, scan func(r io.Reader, a ...interface{}) (int, error)) {
+var readers = []struct {
+	name string
+	f    func(string) io.Reader
+}{
+	{"StringReader", func(s string) io.Reader {
+		return strings.NewReader(s)
+	}},
+	{"ReaderOnly", func(s string) io.Reader {
+		return struct{ io.Reader }{strings.NewReader(s)}
+	}},
+	{"OneByteReader", func(s string) io.Reader {
+		return iotest.OneByteReader(strings.NewReader(s))
+	}},
+	{"DataErrReader", func(s string) io.Reader {
+		return iotest.DataErrReader(strings.NewReader(s))
+	}},
+}
+
+func testScan(t *testing.T, f func(string) io.Reader, scan func(r io.Reader, a ...any) (int, error)) {
 	for _, test := range scanTests {
-		var r io.Reader
-		if name == "StringReader" {
-			r = strings.NewReader(test.text)
-		} else {
-			r = newReader(test.text)
-		}
+		r := f(test.text)
 		n, err := scan(r, test.in)
 		if err != nil {
 			m := ""
 			if n > 0 {
 				m = Sprintf(" (%d fields ok)", n)
 			}
-			t.Errorf("%s got error scanning %q: %s%s", name, test.text, err, m)
+			t.Errorf("got error scanning %q: %s%s", test.text, err, m)
 			continue
 		}
 		if n != 1 {
-			t.Errorf("%s count error on entry %q: got %d", name, test.text, n)
+			t.Errorf("count error on entry %q: got %d", test.text, n)
 			continue
 		}
 		// The incoming value may be a pointer
 		v := reflect.ValueOf(test.in)
-		if p := v; p.Kind() == reflect.Ptr {
+		if p := v; p.Kind() == reflect.Pointer {
 			v = p.Elem()
 		}
 		val := v.Interface()
 		if !reflect.DeepEqual(val, test.out) {
-			t.Errorf("%s scanning %q: expected %#v got %#v, type %T", name, test.text, test.out, val, val)
+			t.Errorf("scanning %q: expected %#v got %#v, type %T", test.text, test.out, val, val)
 		}
 	}
 }
 
 func TestScan(t *testing.T) {
-	testScan("StringReader", t, Fscan)
-}
-
-func TestMyReaderScan(t *testing.T) {
-	testScan("myStringReader", t, Fscan)
+	for _, r := range readers {
+		t.Run(r.name, func(t *testing.T) {
+			testScan(t, r.f, Fscan)
+		})
+	}
 }
 
 func TestScanln(t *testing.T) {
-	testScan("StringReader", t, Fscanln)
-}
-
-func TestMyReaderScanln(t *testing.T) {
-	testScan("myStringReader", t, Fscanln)
+	for _, r := range readers {
+		t.Run(r.name, func(t *testing.T) {
+			testScan(t, r.f, Fscanln)
+		})
+	}
 }
 
 func TestScanf(t *testing.T) {
 	for _, test := range scanfTests {
 		n, err := Sscanf(test.text, test.format, test.in)
 		if err != nil {
-			t.Errorf("got error scanning (%q, %q): %s", test.format, test.text, err)
+			if test.out != nil {
+				t.Errorf("Sscanf(%q, %q): unexpected error: %v", test.text, test.format, err)
+			}
+			continue
+		}
+		if test.out == nil {
+			t.Errorf("Sscanf(%q, %q): unexpected success", test.text, test.format)
 			continue
 		}
 		if n != 1 {
-			t.Errorf("count error on entry (%q, %q): got %d", test.format, test.text, n)
+			t.Errorf("Sscanf(%q, %q): parsed %d field, want 1", test.text, test.format, n)
 			continue
 		}
 		// The incoming value may be a pointer
 		v := reflect.ValueOf(test.in)
-		if p := v; p.Kind() == reflect.Ptr {
+		if p := v; p.Kind() == reflect.Pointer {
 			v = p.Elem()
 		}
 		val := v.Interface()
 		if !reflect.DeepEqual(val, test.out) {
-			t.Errorf("scanning (%q, %q): expected %#v got %#v, type %T", test.format, test.text, test.out, val, val)
+			t.Errorf("Sscanf(%q, %q): parsed value %T(%#v), want %T(%#v)", test.text, test.format, val, val, test.out, test.out)
 		}
 	}
 }
@@ -496,20 +639,15 @@ func TestInf(t *testing.T) {
 	}
 }
 
-func testScanfMulti(name string, t *testing.T) {
-	sliceType := reflect.TypeOf(make([]interface{}, 1))
+func testScanfMulti(t *testing.T, f func(string) io.Reader) {
+	sliceType := reflect.TypeOf(make([]any, 1))
 	for _, test := range multiTests {
-		var r io.Reader
-		if name == "StringReader" {
-			r = strings.NewReader(test.text)
-		} else {
-			r = newReader(test.text)
-		}
+		r := f(test.text)
 		n, err := Fscanf(r, test.format, test.in...)
 		if err != nil {
 			if test.err == "" {
 				t.Errorf("got error scanning (%q, %q): %q", test.format, test.text, err)
-			} else if strings.Index(err.Error(), test.err) < 0 {
+			} else if !strings.Contains(err.Error(), test.err) {
 				t.Errorf("got wrong error scanning (%q, %q): %q; expected %q", test.format, test.text, err, test.err)
 			}
 			continue
@@ -535,11 +673,11 @@ func testScanfMulti(name string, t *testing.T) {
 }
 
 func TestScanfMulti(t *testing.T) {
-	testScanfMulti("StringReader", t)
-}
-
-func TestMyReaderScanfMulti(t *testing.T) {
-	testScanfMulti("myStringReader", t)
+	for _, r := range readers {
+		t.Run(r.name, func(t *testing.T) {
+			testScanfMulti(t, r.f)
+		})
+	}
 }
 
 func TestScanMultiple(t *testing.T) {
@@ -603,7 +741,7 @@ func TestScanNotPointer(t *testing.T) {
 	_, err := Fscan(r, a)
 	if err == nil {
 		t.Error("expected error scanning non-pointer")
-	} else if strings.Index(err.Error(), "pointer") < 0 {
+	} else if !strings.Contains(err.Error(), "pointer") {
 		t.Errorf("expected pointer error scanning non-pointer, got: %s", err)
 	}
 }
@@ -613,7 +751,7 @@ func TestScanlnNoNewline(t *testing.T) {
 	_, err := Sscanln("1 x\n", &a)
 	if err == nil {
 		t.Error("expected error scanning string missing newline")
-	} else if strings.Index(err.Error(), "newline") < 0 {
+	} else if !strings.Contains(err.Error(), "newline") {
 		t.Errorf("expected newline error scanning string missing newline, got: %s", err)
 	}
 }
@@ -624,7 +762,7 @@ func TestScanlnWithMiddleNewline(t *testing.T) {
 	_, err := Fscanln(r, &a, &b)
 	if err == nil {
 		t.Error("expected error scanning string with extra newline")
-	} else if strings.Index(err.Error(), "newline") < 0 {
+	} else if !strings.Contains(err.Error(), "newline") {
 		t.Errorf("expected newline error scanning string with extra newline, got: %s", err)
 	}
 }
@@ -701,7 +839,7 @@ func TestEOFAtEndOfInput(t *testing.T) {
 
 var eofTests = []struct {
 	format string
-	v      interface{}
+	v      any
 }{
 	{"%s", &stringVal},
 	{"%q", &stringVal},
@@ -757,7 +895,7 @@ func TestUnreadRuneWithBufio(t *testing.T) {
 
 type TwoLines string
 
-// Scan attempts to read two lines into the object.  Scanln should prevent this
+// Scan attempts to read two lines into the object. Scanln should prevent this
 // because it stops at newline; Scan and Scanf should be fine.
 func (t *TwoLines) Scan(state ScanState, verb rune) error {
 	chars := make([]rune, 0, 100)
@@ -814,20 +952,10 @@ func TestMultiLine(t *testing.T) {
 	}
 }
 
-// simpleReader is a strings.Reader that implements only Read, not ReadRune.
-// Good for testing readahead.
-type simpleReader struct {
-	sr *strings.Reader
-}
-
-func (s *simpleReader) Read(b []byte) (n int, err error) {
-	return s.sr.Read(b)
-}
-
 // TestLineByLineFscanf tests that Fscanf does not read past newline. Issue
 // 3481.
 func TestLineByLineFscanf(t *testing.T) {
-	r := &simpleReader{strings.NewReader("1\n2\n")}
+	r := struct{ io.Reader }{strings.NewReader("1\n2\n")}
 	var i, j int
 	n, err := Fscanf(r, "%v\n", &i)
 	if n != 1 || err != nil {
@@ -870,7 +998,7 @@ func TestScanStateCount(t *testing.T) {
 		t.Errorf("bad scan rune: %q %q %q should be '1' '2' '➂'", a.rune, b.rune, c.rune)
 	}
 	if a.size != 1 || b.size != 1 || c.size != 3 {
-		t.Errorf("bad scan size: %q %q %q should be 1 1 3", a.size, b.size, c.size)
+		t.Errorf("bad scan size: %d %d %d should be 1 1 3", a.size, b.size, c.size)
 	}
 }
 
@@ -968,10 +1096,10 @@ func testScanInts(t *testing.T, scan func(*RecursiveInt, *bytes.Buffer) error) {
 }
 
 func BenchmarkScanInts(b *testing.B) {
-	b.ResetTimer()
+	b.StopTimer()
 	ints := makeInts(intCount)
 	var r RecursiveInt
-	for i := b.N - 1; i >= 0; i-- {
+	for i := 0; i < b.N; i++ {
 		buf := bytes.NewBuffer(ints)
 		b.StartTimer()
 		scanInts(&r, buf)
@@ -980,11 +1108,23 @@ func BenchmarkScanInts(b *testing.B) {
 }
 
 func BenchmarkScanRecursiveInt(b *testing.B) {
-	b.ResetTimer()
+	b.StopTimer()
 	ints := makeInts(intCount)
 	var r RecursiveInt
-	for i := b.N - 1; i >= 0; i-- {
+	for i := 0; i < b.N; i++ {
 		buf := bytes.NewBuffer(ints)
+		b.StartTimer()
+		Fscan(buf, &r)
+		b.StopTimer()
+	}
+}
+
+func BenchmarkScanRecursiveIntReaderWrapper(b *testing.B) {
+	b.StopTimer()
+	ints := makeInts(intCount)
+	var r RecursiveInt
+	for i := 0; i < b.N; i++ {
+		buf := struct{ io.Reader }{strings.NewReader(string(ints))}
 		b.StartTimer()
 		Fscan(buf, &r)
 		b.StopTimer()
@@ -1042,5 +1182,153 @@ func TestHexBytes(t *testing.T) {
 	n, err = Sscanf("000102034:", "%x", &a)
 	if n != 0 || err == nil {
 		t.Errorf("odd count: got count, err = %d, %v; expected 0, error", n, err)
+	}
+}
+
+func TestScanNewlinesAreSpaces(t *testing.T) {
+	var a, b int
+	var tests = []struct {
+		name  string
+		text  string
+		count int
+	}{
+		{"newlines", "1\n2\n", 2},
+		{"no final newline", "1\n2", 2},
+		{"newlines with spaces ", "1  \n  2  \n", 2},
+		{"no final newline with spaces", "1  \n  2", 2},
+	}
+	for _, test := range tests {
+		n, err := Sscan(test.text, &a, &b)
+		if n != test.count {
+			t.Errorf("%s: expected to scan %d item(s), scanned %d", test.name, test.count, n)
+		}
+		if err != nil {
+			t.Errorf("%s: unexpected error: %s", test.name, err)
+		}
+	}
+}
+
+func TestScanlnNewlinesTerminate(t *testing.T) {
+	var a, b int
+	var tests = []struct {
+		name  string
+		text  string
+		count int
+		ok    bool
+	}{
+		{"one line one item", "1\n", 1, false},
+		{"one line two items with spaces ", "   1 2    \n", 2, true},
+		{"one line two items no newline", "   1 2", 2, true},
+		{"two lines two items", "1\n2\n", 1, false},
+	}
+	for _, test := range tests {
+		n, err := Sscanln(test.text, &a, &b)
+		if n != test.count {
+			t.Errorf("%s: expected to scan %d item(s), scanned %d", test.name, test.count, n)
+		}
+		if test.ok && err != nil {
+			t.Errorf("%s: unexpected error: %s", test.name, err)
+		}
+		if !test.ok && err == nil {
+			t.Errorf("%s: expected error; got none", test.name)
+		}
+	}
+}
+
+func TestScanfNewlineMatchFormat(t *testing.T) {
+	var a, b int
+	var tests = []struct {
+		name   string
+		text   string
+		format string
+		count  int
+		ok     bool
+	}{
+		{"newline in both", "1\n2", "%d\n%d\n", 2, true},
+		{"newline in input", "1\n2", "%d %d", 1, false},
+		{"space-newline in input", "1 \n2", "%d %d", 1, false},
+		{"newline in format", "1 2", "%d\n%d", 1, false},
+		{"space-newline in format", "1 2", "%d \n%d", 1, false},
+		{"space-newline in both", "1 \n2", "%d \n%d", 2, true},
+		{"extra space in format", "1\n2", "%d\n %d", 2, true},
+		{"two extra spaces in format", "1\n2", "%d \n %d", 2, true},
+		{"space vs newline 0000", "1\n2", "%d\n%d", 2, true},
+		{"space vs newline 0001", "1\n2", "%d\n %d", 2, true},
+		{"space vs newline 0010", "1\n2", "%d \n%d", 2, true},
+		{"space vs newline 0011", "1\n2", "%d \n %d", 2, true},
+		{"space vs newline 0100", "1\n 2", "%d\n%d", 2, true},
+		{"space vs newline 0101", "1\n 2", "%d\n%d ", 2, true},
+		{"space vs newline 0110", "1\n 2", "%d \n%d", 2, true},
+		{"space vs newline 0111", "1\n 2", "%d \n %d", 2, true},
+		{"space vs newline 1000", "1 \n2", "%d\n%d", 2, true},
+		{"space vs newline 1001", "1 \n2", "%d\n %d", 2, true},
+		{"space vs newline 1010", "1 \n2", "%d \n%d", 2, true},
+		{"space vs newline 1011", "1 \n2", "%d \n %d", 2, true},
+		{"space vs newline 1100", "1 \n 2", "%d\n%d", 2, true},
+		{"space vs newline 1101", "1 \n 2", "%d\n %d", 2, true},
+		{"space vs newline 1110", "1 \n 2", "%d \n%d", 2, true},
+		{"space vs newline 1111", "1 \n 2", "%d \n %d", 2, true},
+		{"space vs newline no-percent 0000", "1\n2", "1\n2", 0, true},
+		{"space vs newline no-percent 0001", "1\n2", "1\n 2", 0, true},
+		{"space vs newline no-percent 0010", "1\n2", "1 \n2", 0, true},
+		{"space vs newline no-percent 0011", "1\n2", "1 \n 2", 0, true},
+		{"space vs newline no-percent 0100", "1\n 2", "1\n2", 0, false},  // fails: space after nl in input but not pattern
+		{"space vs newline no-percent 0101", "1\n 2", "1\n2 ", 0, false}, // fails: space after nl in input but not pattern
+		{"space vs newline no-percent 0110", "1\n 2", "1 \n2", 0, false}, // fails: space after nl in input but not pattern
+		{"space vs newline no-percent 0111", "1\n 2", "1 \n 2", 0, true},
+		{"space vs newline no-percent 1000", "1 \n2", "1\n2", 0, true},
+		{"space vs newline no-percent 1001", "1 \n2", "1\n 2", 0, true},
+		{"space vs newline no-percent 1010", "1 \n2", "1 \n2", 0, true},
+		{"space vs newline no-percent 1011", "1 \n2", "1 \n 2", 0, true},
+		{"space vs newline no-percent 1100", "1 \n 2", "1\n2", 0, false}, // fails: space after nl in input but not pattern
+		{"space vs newline no-percent 1101", "1 \n 2", "1\n 2", 0, true},
+		{"space vs newline no-percent 1110", "1 \n 2", "1 \n2", 0, false}, // fails: space after nl in input but not pattern
+		{"space vs newline no-percent 1111", "1 \n 2", "1 \n 2", 0, true},
+	}
+	for _, test := range tests {
+		var n int
+		var err error
+		if strings.Contains(test.format, "%") {
+			n, err = Sscanf(test.text, test.format, &a, &b)
+		} else {
+			n, err = Sscanf(test.text, test.format)
+		}
+		if n != test.count {
+			t.Errorf("%s: expected to scan %d item(s), scanned %d", test.name, test.count, n)
+		}
+		if test.ok && err != nil {
+			t.Errorf("%s: unexpected error: %s", test.name, err)
+		}
+		if !test.ok && err == nil {
+			t.Errorf("%s: expected error; got none", test.name)
+		}
+	}
+}
+
+// Test for issue 12090: Was unreading at EOF, double-scanning a byte.
+
+type hexBytes [2]byte
+
+func (h *hexBytes) Scan(ss ScanState, verb rune) error {
+	var b []byte
+	_, err := Fscanf(ss, "%4x", &b)
+	if err != nil {
+		panic(err) // Really shouldn't happen.
+	}
+	copy((*h)[:], b)
+	return err
+}
+
+func TestHexByte(t *testing.T) {
+	var h hexBytes
+	n, err := Sscanln("0123\n", &h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("expected 1 item; scanned %d", n)
+	}
+	if h[0] != 0x01 || h[1] != 0x23 {
+		t.Fatalf("expected 0123 got %x", h)
 	}
 }

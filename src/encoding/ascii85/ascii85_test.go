@@ -7,13 +7,24 @@ package ascii85
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 )
 
 type testpair struct {
 	decoded, encoded string
+}
+
+var bigtest = testpair{
+	"Man is distinguished, not only by his reason, but by this singular passion from " +
+		"other animals, which is a lust of the mind, that by a perseverance of delight in " +
+		"the continued and indefatigable generation of knowledge, exceeds the short " +
+		"vehemence of any carnal pleasure.",
+	"9jqo^BlbD-BleB1DJ+*+F(f,q/0JhKF<GL>Cj@.4Gp$d7F!,L7@<6@)/0JDEF<G%<+EV:2F!,\n" +
+		"O<DJ+*.@<*K0@<6L(Df-\\0Ec5e;DffZ(EZee.Bl.9pF\"AGXBPCsi+DGm>@3BB/F*&OCAfu2/AKY\n" +
+		"i(DIb:@FD,*)+C]U=@3BN#EcYf8ATD3s@q?d$AftVqCh[NqF<G:8+EV:.+Cf>-FD5W8ARlolDIa\n" +
+		"l(DId<j@<?3r@:F%a+D58'ATD4$Bl@l3De:,-DJs`8ARoFb/0JMK@qB4^F!,R<AKZ&-DfTqBG%G\n" +
+		">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c\n",
 }
 
 var pairs = []testpair{
@@ -23,17 +34,7 @@ var pairs = []testpair{
 		"",
 	},
 	// Wikipedia example
-	{
-		"Man is distinguished, not only by his reason, but by this singular passion from " +
-			"other animals, which is a lust of the mind, that by a perseverance of delight in " +
-			"the continued and indefatigable generation of knowledge, exceeds the short " +
-			"vehemence of any carnal pleasure.",
-		"9jqo^BlbD-BleB1DJ+*+F(f,q/0JhKF<GL>Cj@.4Gp$d7F!,L7@<6@)/0JDEF<G%<+EV:2F!,\n" +
-			"O<DJ+*.@<*K0@<6L(Df-\\0Ec5e;DffZ(EZee.Bl.9pF\"AGXBPCsi+DGm>@3BB/F*&OCAfu2/AKY\n" +
-			"i(DIb:@FD,*)+C]U=@3BN#EcYf8ATD3s@q?d$AftVqCh[NqF<G:8+EV:.+Cf>-FD5W8ARlolDIa\n" +
-			"l(DId<j@<?3r@:F%a+D58'ATD4$Bl@l3De:,-DJs`8ARoFb/0JMK@qB4^F!,R<AKZ&-DfTqBG%G\n" +
-			">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c\n",
-	},
+	bigtest,
 	// Special case when shortening !!!!! to z.
 	{
 		"\000\000\000\000",
@@ -41,9 +42,8 @@ var pairs = []testpair{
 	},
 }
 
-var bigtest = pairs[len(pairs)-1]
-
-func testEqual(t *testing.T, msg string, args ...interface{}) bool {
+func testEqual(t *testing.T, msg string, args ...any) bool {
+	t.Helper()
 	if args[len(args)-2] != args[len(args)-1] {
 		t.Errorf(msg, args...)
 		return false
@@ -75,7 +75,7 @@ func TestEncode(t *testing.T) {
 
 func TestEncoder(t *testing.T) {
 	for _, p := range pairs {
-		bb := &bytes.Buffer{}
+		bb := &strings.Builder{}
 		encoder := NewEncoder(bb)
 		encoder.Write([]byte(p.decoded))
 		encoder.Close()
@@ -86,7 +86,7 @@ func TestEncoder(t *testing.T) {
 func TestEncoderBuffering(t *testing.T) {
 	input := []byte(bigtest.decoded)
 	for bs := 1; bs <= 12; bs++ {
-		bb := &bytes.Buffer{}
+		bb := &strings.Builder{}
 		encoder := NewEncoder(bb)
 		for pos := 0; pos < len(input); pos += bs {
 			end := pos + bs
@@ -117,15 +117,12 @@ func TestDecode(t *testing.T) {
 func TestDecoder(t *testing.T) {
 	for _, p := range pairs {
 		decoder := NewDecoder(strings.NewReader(p.encoded))
-		dbuf, err := ioutil.ReadAll(decoder)
+		dbuf, err := io.ReadAll(decoder)
 		if err != nil {
-			t.Fatal("Read failed", err)
+			t.Fatalf("Read from %q = %v, want nil", p.encoded, err)
 		}
 		testEqual(t, "Read from %q = length %v, want %v", p.encoded, len(dbuf), len(p.decoded))
 		testEqual(t, "Decoding of %q = %q, want %q", p.encoded, string(dbuf), p.decoded)
-		if err != nil {
-			testEqual(t, "Read from %q = %v, want %v", p.encoded, err, io.EOF)
-		}
 	}
 }
 
@@ -134,10 +131,14 @@ func TestDecoderBuffering(t *testing.T) {
 		decoder := NewDecoder(strings.NewReader(bigtest.encoded))
 		buf := make([]byte, len(bigtest.decoded)+12)
 		var total int
-		for total = 0; total < len(bigtest.decoded); {
-			n, err := decoder.Read(buf[total : total+bs])
-			testEqual(t, "Read from %q at pos %d = %d, %v, want _, %v", bigtest.encoded, total, n, err, error(nil))
+		var n int
+		var err error
+		for total = 0; total < len(bigtest.decoded) && err == nil; {
+			n, err = decoder.Read(buf[total : total+bs])
 			total += n
+		}
+		if err != nil && err != io.EOF {
+			t.Errorf("Read from %q at pos %d = %d, unexpected error %v", bigtest.encoded, total, n, err)
 		}
 		testEqual(t, "Decoding/%d of %q = %q, want %q", bs, bigtest.encoded, string(buf[0:total]), bigtest.decoded)
 	}
@@ -182,7 +183,7 @@ func TestBig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Encoder.Close() = %v want nil", err)
 	}
-	decoded, err := ioutil.ReadAll(NewDecoder(encoded))
+	decoded, err := io.ReadAll(NewDecoder(encoded))
 	if err != nil {
 		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err)
 	}
@@ -200,7 +201,7 @@ func TestBig(t *testing.T) {
 
 func TestDecoderInternalWhitespace(t *testing.T) {
 	s := strings.Repeat(" ", 2048) + "z"
-	decoded, err := ioutil.ReadAll(NewDecoder(strings.NewReader(s)))
+	decoded, err := io.ReadAll(NewDecoder(strings.NewReader(s)))
 	if err != nil {
 		t.Errorf("Decode gave error %v", err)
 	}

@@ -1,0 +1,14 @@
+# If an import declaration is an absolute path, most commands should report
+# an error instead of going into an infinite loop.
+# Verifies golang.org/issue/42891.
+go list .
+stdout '^m$'
+
+-- go.mod --
+module m
+
+go 1.16
+-- m.go --
+package m
+
+import "/"

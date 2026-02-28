@@ -8,8 +8,6 @@ import (
 	. "bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"os"
 	"sync"
 	"testing"
 )
@@ -22,17 +20,18 @@ func TestReader(t *testing.T) {
 		n       int
 		want    string
 		wantpos int64
+		readerr error
 		seekerr string
 	}{
-		{seek: os.SEEK_SET, off: 0, n: 20, want: "0123456789"},
-		{seek: os.SEEK_SET, off: 1, n: 1, want: "1"},
-		{seek: os.SEEK_CUR, off: 1, wantpos: 3, n: 2, want: "34"},
-		{seek: os.SEEK_SET, off: -1, seekerr: "bytes.Reader.Seek: negative position"},
-		{seek: os.SEEK_SET, off: 1 << 33, wantpos: 1 << 33},
-		{seek: os.SEEK_CUR, off: 1, wantpos: 1<<33 + 1},
-		{seek: os.SEEK_SET, n: 5, want: "01234"},
-		{seek: os.SEEK_CUR, n: 5, want: "56789"},
-		{seek: os.SEEK_END, off: -1, n: 1, wantpos: 9, want: "9"},
+		{seek: io.SeekStart, off: 0, n: 20, want: "0123456789"},
+		{seek: io.SeekStart, off: 1, n: 1, want: "1"},
+		{seek: io.SeekCurrent, off: 1, wantpos: 3, n: 2, want: "34"},
+		{seek: io.SeekStart, off: -1, seekerr: "bytes.Reader.Seek: negative position"},
+		{seek: io.SeekStart, off: 1 << 33, wantpos: 1 << 33, readerr: io.EOF},
+		{seek: io.SeekCurrent, off: 1, wantpos: 1<<33 + 1, readerr: io.EOF},
+		{seek: io.SeekStart, n: 5, want: "01234"},
+		{seek: io.SeekCurrent, n: 5, want: "56789"},
+		{seek: io.SeekEnd, off: -1, n: 1, wantpos: 9, want: "9"},
 	}
 
 	for i, tt := range tests {
@@ -50,8 +49,8 @@ func TestReader(t *testing.T) {
 		}
 		buf := make([]byte, tt.n)
 		n, err := r.Read(buf)
-		if err != nil {
-			t.Errorf("%d. read = %v", i, err)
+		if err != tt.readerr {
+			t.Errorf("%d. read = %v; want %v", i, err, tt.readerr)
 			continue
 		}
 		got := string(buf[:n])
@@ -63,7 +62,7 @@ func TestReader(t *testing.T) {
 
 func TestReadAfterBigSeek(t *testing.T) {
 	r := NewReader([]byte("0123456789"))
-	if _, err := r.Seek(1<<31+5, os.SEEK_SET); err != nil {
+	if _, err := r.Seek(1<<31+5, io.SeekStart); err != nil {
 		t.Fatal(err)
 	}
 	if n, err := r.Read(make([]byte, 10)); n != 0 || err != io.EOF {
@@ -77,7 +76,7 @@ func TestReaderAt(t *testing.T) {
 		off     int64
 		n       int
 		want    string
-		wanterr interface{}
+		wanterr any
 	}{
 		{0, 10, "0123456789", nil},
 		{1, 10, "123456789", io.EOF},
@@ -140,9 +139,9 @@ func TestReaderWriteTo(t *testing.T) {
 	for i := 0; i < 30; i += 3 {
 		var l int
 		if i > 0 {
-			l = len(data) / i
+			l = len(testString) / i
 		}
-		s := data[:l]
+		s := testString[:l]
 		r := NewReader(testBytes[:l])
 		var b Buffer
 		n, err := r.WriteTo(&b)
@@ -174,7 +173,7 @@ func TestReaderLen(t *testing.T) {
 		t.Errorf("r.Len(): got %d, want %d", got, want)
 	}
 	if n, err := r.Read(make([]byte, 1)); err != nil || n != 1 {
-		t.Errorf("Read failed: read %d %v", n, err)
+		t.Errorf("Read failed: read %d %v; want 1, nil", n, err)
 	}
 	if got, want := r.Len(), 0; got != want {
 		t.Errorf("r.Len(): got %d, want %d", got, want)
@@ -188,7 +187,7 @@ var UnreadRuneErrorTests = []struct {
 	{"Read", func(r *Reader) { r.Read([]byte{0}) }},
 	{"ReadByte", func(r *Reader) { r.ReadByte() }},
 	{"UnreadRune", func(r *Reader) { r.UnreadRune() }},
-	{"Seek", func(r *Reader) { r.Seek(0, 1) }},
+	{"Seek", func(r *Reader) { r.Seek(0, io.SeekCurrent) }},
 	{"WriteTo", func(r *Reader) { r.WriteTo(&Buffer{}) }},
 }
 
@@ -235,12 +234,86 @@ func TestReaderCopyNothing(t *testing.T) {
 	type justWriter struct {
 		io.Writer
 	}
-	discard := justWriter{ioutil.Discard} // hide ReadFrom
+	discard := justWriter{io.Discard} // hide ReadFrom
 
 	var with, withOut nErr
 	with.n, with.err = io.Copy(discard, NewReader(nil))
 	withOut.n, withOut.err = io.Copy(discard, justReader{NewReader(nil)})
 	if with != withOut {
 		t.Errorf("behavior differs: with = %#v; without: %#v", with, withOut)
+	}
+}
+
+// tests that Len is affected by reads, but Size is not.
+func TestReaderLenSize(t *testing.T) {
+	r := NewReader([]byte("abc"))
+	io.CopyN(io.Discard, r, 1)
+	if r.Len() != 2 {
+		t.Errorf("Len = %d; want 2", r.Len())
+	}
+	if r.Size() != 3 {
+		t.Errorf("Size = %d; want 3", r.Size())
+	}
+}
+
+func TestReaderReset(t *testing.T) {
+	r := NewReader([]byte("世界"))
+	if _, _, err := r.ReadRune(); err != nil {
+		t.Errorf("ReadRune: unexpected error: %v", err)
+	}
+
+	const want = "abcdef"
+	r.Reset([]byte(want))
+	if err := r.UnreadRune(); err == nil {
+		t.Errorf("UnreadRune: expected error, got nil")
+	}
+	buf, err := io.ReadAll(r)
+	if err != nil {
+		t.Errorf("ReadAll: unexpected error: %v", err)
+	}
+	if got := string(buf); got != want {
+		t.Errorf("ReadAll: got %q, want %q", got, want)
+	}
+}
+
+func TestReaderZero(t *testing.T) {
+	if l := (&Reader{}).Len(); l != 0 {
+		t.Errorf("Len: got %d, want 0", l)
+	}
+
+	if n, err := (&Reader{}).Read(nil); n != 0 || err != io.EOF {
+		t.Errorf("Read: got %d, %v; want 0, io.EOF", n, err)
+	}
+
+	if n, err := (&Reader{}).ReadAt(nil, 11); n != 0 || err != io.EOF {
+		t.Errorf("ReadAt: got %d, %v; want 0, io.EOF", n, err)
+	}
+
+	if b, err := (&Reader{}).ReadByte(); b != 0 || err != io.EOF {
+		t.Errorf("ReadByte: got %d, %v; want 0, io.EOF", b, err)
+	}
+
+	if ch, size, err := (&Reader{}).ReadRune(); ch != 0 || size != 0 || err != io.EOF {
+		t.Errorf("ReadRune: got %d, %d, %v; want 0, 0, io.EOF", ch, size, err)
+	}
+
+	if offset, err := (&Reader{}).Seek(11, io.SeekStart); offset != 11 || err != nil {
+		t.Errorf("Seek: got %d, %v; want 11, nil", offset, err)
+	}
+
+	if s := (&Reader{}).Size(); s != 0 {
+		t.Errorf("Size: got %d, want 0", s)
+	}
+
+	if (&Reader{}).UnreadByte() == nil {
+		t.Errorf("UnreadByte: got nil, want error")
+	}
+
+	if (&Reader{}).UnreadRune() == nil {
+		t.Errorf("UnreadRune: got nil, want error")
+	}
+
+	if n, err := (&Reader{}).WriteTo(io.Discard); n != 0 || err != nil {
+		t.Errorf("WriteTo: got %d, %v; want 0, nil", n, err)
 	}
 }

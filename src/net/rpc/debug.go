@@ -13,7 +13,8 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"sort"
+	"slices"
+	"strings"
 )
 
 const debugText = `<html>
@@ -51,7 +52,7 @@ type methodArray []debugMethod
 type debugService struct {
 	Service *service
 	Name    string
-	Method  methodArray
+	Method  []debugMethod
 }
 
 type serviceArray []debugService
@@ -71,21 +72,22 @@ type debugHTTP struct {
 // Runs at /debug/rpc
 func (server debugHTTP) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Build a sorted version of the data.
-	var services = make(serviceArray, len(server.serviceMap))
-	i := 0
-	server.mu.Lock()
-	for sname, service := range server.serviceMap {
-		services[i] = debugService{service, sname, make(methodArray, len(service.method))}
-		j := 0
-		for mname, method := range service.method {
-			services[i].Method[j] = debugMethod{method, mname}
-			j++
+	var services serviceArray
+	server.serviceMap.Range(func(snamei, svci any) bool {
+		svc := svci.(*service)
+		ds := debugService{svc, snamei.(string), make([]debugMethod, 0, len(svc.method))}
+		for mname, method := range svc.method {
+			ds.Method = append(ds.Method, debugMethod{method, mname})
 		}
-		sort.Sort(services[i].Method)
-		i++
-	}
-	server.mu.Unlock()
-	sort.Sort(services)
+		slices.SortFunc(ds.Method, func(a, b debugMethod) int {
+			return strings.Compare(a.Name, b.Name)
+		})
+		services = append(services, ds)
+		return true
+	})
+	slices.SortFunc(services, func(a, b debugService) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 	err := debug.Execute(w, services)
 	if err != nil {
 		fmt.Fprintln(w, "rpc: error executing template:", err.Error())

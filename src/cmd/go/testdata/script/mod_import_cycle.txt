@@ -1,0 +1,40 @@
+env GO111MODULE=on
+
+# 'go list all' should fail with a reasonable error message
+! go list all
+stderr '^package m\n\timports m/a from m.go\n\timports m/b from a.go\n\timports m/a from b.go: import cycle not allowed'
+
+# 'go list -e' should not print to stderr, but should mark all three
+# packages (m, m/a, and m/b) as Incomplete.
+go list -e -json all
+! stderr .
+stdout -count=3 '"Incomplete": true,'
+
+-- go.mod --
+module m
+
+require (
+	m/a v0.0.0
+	m/b v0.0.0
+)
+
+replace (
+	m/a => ./a
+	m/b => ./b
+)
+-- m.go --
+package m
+import (
+	_ "m/a"
+	_ "m/b"
+)
+-- a/go.mod --
+module m/a
+-- a/a.go --
+package a
+import _ "m/b"
+-- b/go.mod --
+module m/b
+-- b/b.go --
+package b
+import _ "m/a"

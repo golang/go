@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,9 +7,11 @@
 package objfile
 
 import (
+	"debug/dwarf"
 	"debug/pe"
 	"fmt"
-	"os"
+	"io"
+	"slices"
 	"sort"
 )
 
@@ -17,16 +19,10 @@ type peFile struct {
 	pe *pe.File
 }
 
-func openPE(r *os.File) (rawFile, error) {
+func openPE(r io.ReaderAt) (rawFile, error) {
 	f, err := pe.NewFile(r)
 	if err != nil {
 		return nil, err
-	}
-	switch f.OptionalHeader.(type) {
-	case *pe.OptionalHeader32, *pe.OptionalHeader64:
-		// ok
-	default:
-		return nil, fmt.Errorf("unrecognized PE format")
 	}
 	return &peFile{f}, nil
 }
@@ -36,13 +32,7 @@ func (f *peFile) symbols() ([]Sym, error) {
 	// We infer the size of a symbol by looking at where the next symbol begins.
 	var addrs []uint64
 
-	var imageBase uint64
-	switch oh := f.pe.OptionalHeader.(type) {
-	case *pe.OptionalHeader32:
-		imageBase = uint64(oh.ImageBase)
-	case *pe.OptionalHeader64:
-		imageBase = oh.ImageBase
-	}
+	imageBase, _ := f.imageBase()
 
 	var syms []Sym
 	for _, s := range f.pe.Symbols {
@@ -68,8 +58,6 @@ func (f *peFile) symbols() ([]Sym, error) {
 				text  = 0x20
 				data  = 0x40
 				bss   = 0x80
-				permX = 0x20000000
-				permR = 0x40000000
 				permW = 0x80000000
 			)
 			ch := sect.Characteristics
@@ -91,7 +79,7 @@ func (f *peFile) symbols() ([]Sym, error) {
 		addrs = append(addrs, sym.Addr)
 	}
 
-	sort.Sort(uint64s(addrs))
+	slices.Sort(addrs)
 	for i := range syms {
 		j := sort.Search(len(addrs), func(x int) bool { return addrs[x] > syms[i].Addr })
 		if j < len(addrs) {
@@ -102,16 +90,12 @@ func (f *peFile) symbols() ([]Sym, error) {
 	return syms, nil
 }
 
-func (f *peFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
-	var imageBase uint64
-	switch oh := f.pe.OptionalHeader.(type) {
-	case *pe.OptionalHeader32:
-		imageBase = uint64(oh.ImageBase)
-	case *pe.OptionalHeader64:
-		imageBase = oh.ImageBase
-	default:
-		return 0, nil, nil, fmt.Errorf("pe file format not recognized")
+func (f *peFile) pcln() (textStart uint64, pclntab []byte, err error) {
+	imageBase, err := f.imageBase()
+	if err != nil {
+		return 0, nil, err
 	}
+
 	if sect := f.pe.Section(".text"); sect != nil {
 		textStart = imageBase + uint64(sect.VirtualAddress)
 	}
@@ -120,29 +104,18 @@ func (f *peFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
 		// TODO: Remove code looking for the old symbols when we no longer care about 1.3.
 		var err2 error
 		if pclntab, err2 = loadPETable(f.pe, "pclntab", "epclntab"); err2 != nil {
-			return 0, nil, nil, err
+			return 0, nil, err
 		}
 	}
-	if symtab, err = loadPETable(f.pe, "runtime.symtab", "runtime.esymtab"); err != nil {
-		// Same as above.
-		var err2 error
-		if symtab, err2 = loadPETable(f.pe, "symtab", "esymtab"); err2 != nil {
-			return 0, nil, nil, err
-		}
-	}
-	return textStart, symtab, pclntab, nil
+	return textStart, pclntab, nil
 }
 
 func (f *peFile) text() (textStart uint64, text []byte, err error) {
-	var imageBase uint64
-	switch oh := f.pe.OptionalHeader.(type) {
-	case *pe.OptionalHeader32:
-		imageBase = uint64(oh.ImageBase)
-	case *pe.OptionalHeader64:
-		imageBase = oh.ImageBase
-	default:
-		return 0, nil, fmt.Errorf("pe file format not recognized")
+	imageBase, err := f.imageBase()
+	if err != nil {
+		return 0, nil, err
 	}
+
 	sect := f.pe.Section(".text")
 	if sect == nil {
 		return 0, nil, fmt.Errorf("text section not found")
@@ -189,13 +162,33 @@ func loadPETable(f *pe.File, sname, ename string) ([]byte, error) {
 }
 
 func (f *peFile) goarch() string {
-	// Not sure how to get the info we want from PE header.
-	// Look in symbol table for telltale rt0 symbol.
-	if _, err := findPESymbol(f.pe, "_rt0_386_windows"); err == nil {
+	switch f.pe.Machine {
+	case pe.IMAGE_FILE_MACHINE_I386:
 		return "386"
-	}
-	if _, err := findPESymbol(f.pe, "_rt0_amd64_windows"); err == nil {
+	case pe.IMAGE_FILE_MACHINE_AMD64:
 		return "amd64"
+	case pe.IMAGE_FILE_MACHINE_ARM64:
+		return "arm64"
+	default:
+		return ""
 	}
-	return ""
+}
+
+func (f *peFile) loadAddress() (uint64, error) {
+	return f.imageBase()
+}
+
+func (f *peFile) imageBase() (uint64, error) {
+	switch oh := f.pe.OptionalHeader.(type) {
+	case *pe.OptionalHeader32:
+		return uint64(oh.ImageBase), nil
+	case *pe.OptionalHeader64:
+		return oh.ImageBase, nil
+	default:
+		return 0, fmt.Errorf("pe file format not recognized")
+	}
+}
+
+func (f *peFile) dwarf() (*dwarf.Data, error) {
+	return f.pe.DWARF()
 }

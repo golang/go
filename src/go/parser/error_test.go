@@ -23,14 +23,17 @@
 package parser
 
 import (
+	"flag"
 	"go/scanner"
 	"go/token"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 )
+
+var traceErrs = flag.Bool("trace_errs", false, "whether to enable tracing for error tests")
 
 const testdata = "testdata"
 
@@ -59,14 +62,13 @@ func getPos(fset *token.FileSet, filename string, offset int) token.Pos {
 // a regular expression that matches the expected error message.
 // The special form /* ERROR HERE "rx" */ must be used for error
 // messages that appear immediately after a token, rather than at
-// a token's position.
-//
-var errRx = regexp.MustCompile(`^/\* *ERROR *(HERE)? *"([^"]*)" *\*/$`)
+// a token's position, and ERROR AFTER means after the comment
+// (e.g. at end of line).
+var errRx = regexp.MustCompile(`^/\* *ERROR *(HERE|AFTER)? *"([^"]*)" *\*/$`)
 
 // expectedErrors collects the regular expressions of ERROR comments found
 // in files and returns them as a map of error positions to error messages.
-//
-func expectedErrors(t *testing.T, fset *token.FileSet, filename string, src []byte) map[token.Pos]string {
+func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.Pos]string {
 	errors := make(map[token.Pos]string)
 
 	var s scanner.Scanner
@@ -79,35 +81,40 @@ func expectedErrors(t *testing.T, fset *token.FileSet, filename string, src []by
 
 	for {
 		pos, tok, lit := s.Scan()
+		end := s.End()
+
 		switch tok {
 		case token.EOF:
 			return errors
 		case token.COMMENT:
 			s := errRx.FindStringSubmatch(lit)
 			if len(s) == 3 {
-				pos := prev
 				if s[1] == "HERE" {
-					pos = here
+					pos = here // position right after the previous token prior to comment
+				} else if s[1] == "AFTER" {
+					pos += token.Pos(len(lit)) // end of comment
+				} else {
+					pos = prev // token prior to comment
 				}
-				errors[pos] = string(s[2])
+				errors[pos] = s[2]
 			}
+		case token.SEMICOLON:
+			// don't use the position of auto-inserted (invisible) semicolons
+			if lit != ";" {
+				break
+			}
+			fallthrough
 		default:
 			prev = pos
-			var l int // token length
-			if tok.IsLiteral() {
-				l = len(lit)
-			} else {
-				l = len(tok.String())
-			}
-			here = prev + token.Pos(l)
+			here = end
 		}
 	}
 }
 
 // compareErrors compares the map of expected error messages with the list
 // of found errors and reports discrepancies.
-//
 func compareErrors(t *testing.T, fset *token.FileSet, expected map[token.Pos]string, found scanner.ErrorList) {
+	t.Helper()
 	for _, error := range found {
 		// error.Pos is a token.Position, but we want
 		// a token.Pos so we can do a map lookup
@@ -143,7 +150,8 @@ func compareErrors(t *testing.T, fset *token.FileSet, expected map[token.Pos]str
 	}
 }
 
-func checkErrors(t *testing.T, filename string, input interface{}) {
+func checkErrors(t *testing.T, filename string, input any, mode Mode, expectErrors bool) {
+	t.Helper()
 	src, err := readSource(filename, input)
 	if err != nil {
 		t.Error(err)
@@ -151,7 +159,7 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
 	}
 
 	fset := token.NewFileSet()
-	_, err = ParseFile(fset, filename, src, DeclarationErrors|AllErrors)
+	_, err = ParseFile(fset, filename, src, mode)
 	found, ok := err.(scanner.ErrorList)
 	if err != nil && !ok {
 		t.Error(err)
@@ -159,23 +167,32 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
 	}
 	found.RemoveMultiples()
 
-	// we are expecting the following errors
-	// (collect these after parsing a file so that it is found in the file set)
-	expected := expectedErrors(t, fset, filename, src)
+	expected := map[token.Pos]string{}
+	if expectErrors {
+		// we are expecting the following errors
+		// (collect these after parsing a file so that it is found in the file set)
+		expected = expectedErrors(fset, filename, src)
+	}
 
 	// verify errors returned by the parser
 	compareErrors(t, fset, expected, found)
 }
 
 func TestErrors(t *testing.T) {
-	list, err := ioutil.ReadDir(testdata)
+	list, err := os.ReadDir(testdata)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, fi := range list {
-		name := fi.Name()
-		if !fi.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".src") {
-			checkErrors(t, filepath.Join(testdata, name), nil)
-		}
+	for _, d := range list {
+		name := d.Name()
+		t.Run(name, func(t *testing.T) {
+			if !d.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
+				mode := DeclarationErrors | AllErrors
+				if *traceErrs {
+					mode |= Trace
+				}
+				checkErrors(t, filepath.Join(testdata, name), nil, mode, true)
+			}
+		})
 	}
 }

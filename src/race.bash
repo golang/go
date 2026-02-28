@@ -4,35 +4,28 @@
 # license that can be found in the LICENSE file.
 
 # race.bash tests the standard library under the race detector.
-# http://golang.org/doc/articles/race_detector.html
+# https://golang.org/doc/articles/race_detector.html
 
 set -e
 
 function usage {
-	echo 'race detector is only supported on linux/amd64, freebsd/amd64 and darwin/amd64' 1>&2
+	echo 'race detector is only supported on linux/amd64, linux/ppc64le, linux/arm64, linux/loong64, linux/riscv64, linux/s390x, freebsd/amd64, netbsd/amd64, openbsd/amd64, darwin/amd64, and darwin/arm64' 1>&2
 	exit 1
 }
 
-case $(uname) in
-"Darwin")
-	# why Apple? why?
-	if sysctl machdep.cpu.extfeatures | grep -qv EM64T; then
-		usage
-	fi 
-	;;
-"Linux")
-	if [ $(uname -m) != "x86_64" ]; then
-		usage
-	fi
-	;;
-"FreeBSD")
-	if [ $(uname -m) != "amd64" ]; then
-		usage
-	fi
-	;;
-*)
-	usage
-	;;
+case $(uname -s -m) in
+  "Darwin x86_64") ;;
+  "Darwin arm64")  ;;
+  "Linux x86_64")  ;;
+  "Linux ppc64le") ;;
+  "Linux aarch64") ;;
+  "Linux loongarch64") ;;
+  "Linux riscv64") ;;
+  "Linux s390x")   ;;
+  "FreeBSD amd64") ;;
+  "NetBSD amd64")  ;;
+  "OpenBSD amd64") ;;
+  *) usage         ;;
 esac
 
 if [ ! -f make.bash ]; then
@@ -41,11 +34,4 @@ if [ ! -f make.bash ]; then
 fi
 . ./make.bash --no-banner
 go install -race std
-
-# we must unset GOROOT_FINAL before tests, because runtime/debug requires
-# correct access to source code, so if we have GOROOT_FINAL in effect,
-# at least runtime/debug test will fail.
-unset GOROOT_FINAL
-
-go test -race -short std
-go test -race -run=nothingplease -bench=.* -benchtime=.1s -cpu=4 std
+go tool dist test -race

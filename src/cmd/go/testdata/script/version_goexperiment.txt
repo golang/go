@@ -1,0 +1,24 @@
+# Test that experiments appear in "go version <binary>"
+
+# This test requires rebuilding the runtime, which takes a while.
+[short] skip
+
+env GOEXPERIMENT=fieldtrack
+go build -o main$GOEXE version.go
+go version main$GOEXE
+stdout 'X:fieldtrack$'
+exec ./main$GOEXE
+stderr 'X:fieldtrack$'
+
+-- version.go --
+package main
+import (
+	"go/version"
+	"runtime"
+)
+func main() {
+	if !version.IsValid(runtime.Version()) {
+		panic("version not valid: "+runtime.Version())
+	}
+	println(runtime.Version())
+}

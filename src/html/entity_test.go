@@ -10,6 +10,12 @@ import (
 )
 
 func TestEntityLength(t *testing.T) {
+	entity, entity2 := entityMaps()
+
+	if len(entity) == 0 || len(entity2) == 0 {
+		t.Fatal("maps not loaded")
+	}
+
 	// We verify that the length of UTF-8 encoding of each value is <= 1 + len(key).
 	// The +1 comes from the leading "&". This property implies that the length of
 	// unescaped text is <= the length of escaped text.

@@ -7,18 +7,24 @@ package gob
 import (
 	"bufio"
 	"errors"
+	"internal/saferio"
 	"io"
 	"reflect"
 	"sync"
 )
 
-// tooBig provides a sanity check for sizes; used in several places.
-// Upper limit of 1GB, allowing room to grow a little without overflow.
-// TODO: make this adjustable?
-const tooBig = 1 << 30
+// tooBig provides a sanity check for sizes; used in several places. Upper limit
+// of is 1GB on 32-bit systems, 8GB on 64-bit, allowing room to grow a little
+// without overflow.
+const tooBig = (1 << 30) << (^uint(0) >> 62)
 
 // A Decoder manages the receipt of type and data information read from the
-// remote side of a connection.
+// remote side of a connection.  It is safe for concurrent use by multiple
+// goroutines.
+//
+// The Decoder does only basic sanity checking on decoded input sizes,
+// and its limits are not configurable. Take caution when decoding gob data
+// from untrusted sources.
 type Decoder struct {
 	mutex        sync.Mutex                              // each item must be received atomically
 	r            io.Reader                               // source of the data
@@ -29,11 +35,13 @@ type Decoder struct {
 	freeList     *decoderState                           // list of free decoderStates; avoids reallocation
 	countBuf     []byte                                  // used for decoding integers while parsing messages
 	err          error
+	// ignoreDepth tracks the depth of recursively parsed ignored fields
+	ignoreDepth int
 }
 
-// NewDecoder returns a new decoder that reads from the io.Reader.
-// If r does not also implement io.ByteReader, it will be wrapped in a
-// bufio.Reader.
+// NewDecoder returns a new decoder that reads from the [io.Reader].
+// If r does not also implement [io.ByteReader], it will be wrapped in a
+// [bufio.Reader].
 func NewDecoder(r io.Reader) *Decoder {
 	dec := new(Decoder)
 	// We use the ability to read bytes as a plausible surrogate for buffering.
@@ -51,7 +59,7 @@ func NewDecoder(r io.Reader) *Decoder {
 
 // recvType loads the definition of a type.
 func (dec *Decoder) recvType(id typeId) {
-	// Have we already seen this type?  That's an error
+	// Have we already seen this type? That's an error
 	if id < firstUserId || dec.wireType[id] != nil {
 		dec.err = errors.New("gob: duplicate type received")
 		return
@@ -93,12 +101,11 @@ func (dec *Decoder) readMessage(nbytes int) {
 		panic("non-empty decoder buffer")
 	}
 	// Read the data
-	dec.buf.Size(nbytes)
-	_, dec.err = io.ReadFull(dec.r, dec.buf.Bytes())
-	if dec.err != nil {
-		if dec.err == io.EOF {
-			dec.err = io.ErrUnexpectedEOF
-		}
+	var buf []byte
+	buf, dec.err = saferio.ReadData(dec.r, uint64(nbytes))
+	dec.buf.SetBytes(buf)
+	if dec.err == io.EOF {
+		dec.err = io.ErrUnexpectedEOF
 	}
 }
 
@@ -129,15 +136,25 @@ func (dec *Decoder) nextUint() uint64 {
 
 // decodeTypeSequence parses:
 // TypeSequence
+//
 //	(TypeDefinition DelimitedTypeDefinition*)?
-// and returns the type id of the next value.  It returns -1 at
+//
+// and returns the type id of the next value. It returns -1 at
 // EOF.  Upon return, the remainder of dec.buf is the value to be
-// decoded.  If this is an interface value, it can be ignored by
+// decoded. If this is an interface value, it can be ignored by
 // resetting that buffer.
 func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
+	firstMessage := true
 	for dec.err == nil {
 		if dec.buf.Len() == 0 {
 			if !dec.recvMessage() {
+				// We can only return io.EOF if the input was empty.
+				// If we read one or more type spec messages,
+				// require a data item message to follow.
+				// If we hit an EOF before that, then give ErrUnexpectedEOF.
+				if !firstMessage && dec.err == io.EOF {
+					dec.err = io.ErrUnexpectedEOF
+				}
 				break
 			}
 		}
@@ -149,8 +166,11 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 		}
 		// Type definition for (-id) follows.
 		dec.recvType(-id)
+		if dec.err != nil {
+			break
+		}
 		// When decoding an interface, after a type there may be a
-		// DelimitedValue still in the buffer.  Skip its count.
+		// DelimitedValue still in the buffer. Skip its count.
 		// (Alternatively, the buffer is empty and the byte count
 		// will be absorbed by recvMessage.)
 		if dec.buf.Len() > 0 {
@@ -160,6 +180,7 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 			}
 			dec.nextUint()
 		}
+		firstMessage = false
 	}
 	return -1
 }
@@ -169,16 +190,16 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 // If e is nil, the value will be discarded. Otherwise,
 // the value underlying e must be a pointer to the
 // correct type for the next data item received.
-// If the input is at EOF, Decode returns io.EOF and
+// If the input is at EOF, Decode returns [io.EOF] and
 // does not modify e.
-func (dec *Decoder) Decode(e interface{}) error {
+func (dec *Decoder) Decode(e any) error {
 	if e == nil {
 		return dec.DecodeValue(reflect.Value{})
 	}
 	value := reflect.ValueOf(e)
 	// If e represents a value as opposed to a pointer, the answer won't
-	// get back to the caller.  Make sure it's a pointer.
-	if value.Type().Kind() != reflect.Ptr {
+	// get back to the caller. Make sure it's a pointer.
+	if value.Kind() != reflect.Pointer {
 		dec.err = errors.New("gob: attempt to decode into a non-pointer")
 		return dec.err
 	}
@@ -187,13 +208,13 @@ func (dec *Decoder) Decode(e interface{}) error {
 
 // DecodeValue reads the next value from the input stream.
 // If v is the zero reflect.Value (v.Kind() == Invalid), DecodeValue discards the value.
-// Otherwise, it stores the value into v.  In that case, v must represent
+// Otherwise, it stores the value into v. In that case, v must represent
 // a non-nil pointer to data or be an assignable reflect.Value (v.CanSet())
-// If the input is at EOF, DecodeValue returns io.EOF and
+// If the input is at EOF, DecodeValue returns [io.EOF] and
 // does not modify v.
 func (dec *Decoder) DecodeValue(v reflect.Value) error {
 	if v.IsValid() {
-		if v.Kind() == reflect.Ptr && !v.IsNil() {
+		if v.Kind() == reflect.Pointer && !v.IsNil() {
 			// That's okay, we'll store through the pointer.
 		} else if !v.CanSet() {
 			return errors.New("gob: DecodeValue of unassignable value")
@@ -212,7 +233,7 @@ func (dec *Decoder) DecodeValue(v reflect.Value) error {
 	return dec.err
 }
 
-// If debug.go is compiled into the program , debugFunc prints a human-readable
+// If debug.go is compiled into the program, debugFunc prints a human-readable
 // representation of the gob data read from r by calling that file's Debug function.
 // Otherwise it is nil.
 var debugFunc func(io.Reader)

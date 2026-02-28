@@ -1,0 +1,27 @@
+[short] skip
+
+# Packages in std do not have an install target.
+go list -f '{{.Target}}' fmt
+! stdout .
+go list -export -f '{{.Export}}' fmt
+stdout $GOCACHE
+
+# With GODEBUG=installgoroot=all, fmt has a target.
+# (Though we can't try installing it without modifying goroot).
+env GODEBUG=installgoroot=all
+go list -f '{{.Target}}' fmt
+stdout fmt\.a
+
+# However, the fake packages "builtin" and "unsafe" do not.
+go list -f '{{.Target}}' builtin unsafe
+! stdout .
+go install builtin unsafe  # Should succeed as no-ops.
+
+# With CGO_ENABLED=0, packages that would have
+# an install target with cgo on no longer do.
+env GODEBUG=
+env CGO_ENABLED=0
+go list -f '{{.Target}}' runtime/cgo
+! stdout .
+go list -export -f '{{.Export}}' runtime/cgo
+stdout $GOCACHE

@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !amd64,!amd64p32,!386,!arm
+//go:build (!386 && !amd64 && !arm && !arm64 && !loong64 && !riscv64 && !s390x) || purego
 
 package sha1
 
-var block = blockGeneric
+func block(dig *digest, p []byte) {
+	blockGeneric(dig, p)
+}

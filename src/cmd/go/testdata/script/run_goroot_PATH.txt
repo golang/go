@@ -1,0 +1,42 @@
+# https://go.dev/issue/68005: 'go run' should run the program with its own GOROOT/bin
+# at the beginning of $PATH.
+
+[short] skip
+
+[!GOOS:plan9] env PATH=
+[GOOS:plan9] env path=
+go run .
+
+[!GOOS:plan9] env PATH=$WORK${/}bin
+[GOOS:plan9] env path=$WORK${/}bin
+go run .
+
+-- go.mod --
+module example
+
+go 1.19
+-- main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+)
+
+func main() {
+	got, err := exec.LookPath("go")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	want := filepath.Join(os.Getenv("GOROOT"), "bin", "go" + os.Getenv("GOEXE"))
+	if got != want {
+		fmt.Printf(`exec.LookPath("go") = %q; want %q\n`, got, want)
+		os.Exit(1)
+	}
+}
+-- $WORK/bin/README.txt --
+This directory contains no executables.

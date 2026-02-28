@@ -1,32 +1,22 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build unix
 
-package exec
+package exec_test
 
 import (
-	"io/ioutil"
 	"os"
+	"os/exec"
 	"testing"
 )
 
 func TestLookPathUnixEmptyPath(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "TestLookPathUnixEmptyPath")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmp)
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal("Getwd failed: ", err)
-	}
-	err = os.Chdir(tmp)
-	if err != nil {
-		t.Fatal("Chdir failed: ", err)
-	}
-	defer os.Chdir(wd)
+	// Not parallel: uses Chdir and Setenv.
+
+	tmp := t.TempDir()
+	t.Chdir(tmp)
 
 	f, err := os.OpenFile("exec_me", os.O_CREATE|os.O_EXCL, 0700)
 	if err != nil {
@@ -37,15 +27,9 @@ func TestLookPathUnixEmptyPath(t *testing.T) {
 		t.Fatal("Close failed: ", err)
 	}
 
-	pathenv := os.Getenv("PATH")
-	defer os.Setenv("PATH", pathenv)
+	t.Setenv("PATH", "")
 
-	err = os.Setenv("PATH", "")
-	if err != nil {
-		t.Fatal("Setenv failed: ", err)
-	}
-
-	path, err := LookPath("exec_me")
+	path, err := exec.LookPath("exec_me")
 	if err == nil {
 		t.Fatal("LookPath found exec_me in empty $PATH")
 	}

@@ -1,0 +1,46 @@
+# Issue #66456
+
+[!cgo] skip
+[GOOS:windows] skip
+[GOOS:plan9] skip
+
+# Generate a file with a very long #cgo LDFLAGS line.
+# This used to cause "go build" to fail with "argument list too long".
+go generate
+
+# Build with the generated file.
+go build
+
+-- go.mod --
+module cgolongcmd
+
+go 1.22
+-- generate.go --
+//go:build ignore
+
+package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+	"bytes"
+)
+
+func main() {
+	var buf bytes.Buffer
+	buf.WriteString("package p\n")
+	buf.WriteString("// #cgo LDFLAGS:")
+	for i := range 10000 {
+		fmt.Fprintf(&buf, " -Wl,-rpath,/nonexistentpath/%d", i)
+	}
+	buf.WriteString("\n")
+	buf.WriteString(`import "C"`+"\n")
+	if err := os.WriteFile("generated.go", buf.Bytes(), 0o644); err != nil {
+		log.Fatal(err)
+	}
+}
+-- gen.go --
+package p
+
+//go:generate go run generate.go

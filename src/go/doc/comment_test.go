@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors. All rights reserved.
+// Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,202 +6,62 @@ package doc
 
 import (
 	"bytes"
-	"reflect"
+	"go/parser"
+	"go/token"
+	"internal/diff"
 	"testing"
 )
 
-var headingTests = []struct {
-	line string
-	ok   bool
-}{
-	{"Section", true},
-	{"A typical usage", true},
-	{"ΔΛΞ is Greek", true},
-	{"Foo 42", true},
-	{"", false},
-	{"section", false},
-	{"A typical usage:", false},
-	{"This code:", false},
-	{"δ is Greek", false},
-	{"Foo §", false},
-	{"Fermat's Last Sentence", true},
-	{"Fermat's", true},
-	{"'sX", false},
-	{"Ted 'Too' Bar", false},
-	{"Use n+m", false},
-	{"Scanning:", false},
-	{"N:M", false},
-}
-
-func TestIsHeading(t *testing.T) {
-	for _, tt := range headingTests {
-		if h := heading(tt.line); (len(h) > 0) != tt.ok {
-			t.Errorf("isHeading(%q) = %v, want %v", tt.line, h, tt.ok)
-		}
+func TestComment(t *testing.T) {
+	fset := token.NewFileSet()
+	pkgs, err := parser.ParseDir(fset, "testdata/pkgdoc", nil, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-var blocksTests = []struct {
-	in   string
-	out  []block
-	text string
-}{
-	{
-		in: `Para 1.
-Para 1 line 2.
-
-Para 2.
-
-Section
-
-Para 3.
-
-	pre
-	pre1
-
-Para 4.
-
-	pre
-	pre1
-
-	pre2
-
-Para 5.
-
-
-	pre
-
-
-	pre1
-	pre2
-
-Para 6.
-	pre
-	pre2
-`,
-		out: []block{
-			{opPara, []string{"Para 1.\n", "Para 1 line 2.\n"}},
-			{opPara, []string{"Para 2.\n"}},
-			{opHead, []string{"Section"}},
-			{opPara, []string{"Para 3.\n"}},
-			{opPre, []string{"pre\n", "pre1\n"}},
-			{opPara, []string{"Para 4.\n"}},
-			{opPre, []string{"pre\n", "pre1\n", "\n", "pre2\n"}},
-			{opPara, []string{"Para 5.\n"}},
-			{opPre, []string{"pre\n", "\n", "\n", "pre1\n", "pre2\n"}},
-			{opPara, []string{"Para 6.\n"}},
-			{opPre, []string{"pre\n", "pre2\n"}},
-		},
-		text: `.   Para 1. Para 1 line 2.
-
-.   Para 2.
-
-
-.   Section
-
-.   Para 3.
-
-$	pre
-$	pre1
-
-.   Para 4.
-
-$	pre
-$	pre1
-
-$	pre2
-
-.   Para 5.
-
-$	pre
-
-
-$	pre1
-$	pre2
-
-.   Para 6.
-
-$	pre
-$	pre2
-`,
-	},
-}
-
-func TestBlocks(t *testing.T) {
-	for i, tt := range blocksTests {
-		b := blocks(tt.in)
-		if !reflect.DeepEqual(b, tt.out) {
-			t.Errorf("#%d: mismatch\nhave: %v\nwant: %v", i, b, tt.out)
-		}
+	if pkgs["pkgdoc"] == nil {
+		t.Fatal("missing package pkgdoc")
 	}
-}
+	pkg := New(pkgs["pkgdoc"], "testdata/pkgdoc", 0)
 
-func TestToText(t *testing.T) {
+	var (
+		input           = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link. [rand.Int] and [crand.Reader] are things. [G.X] is a field, [G.M1] and [G.M2] are generic methods. [I.F] is an interface method and [I.V] is a broken link.\n"
+		wantHTML        = `<p><a href="#T">T</a> and <a href="#U">U</a> are types, and <a href="#T.M">T.M</a> is a method, but [V] is a broken link. <a href="/math/rand#Int">rand.Int</a> and <a href="/crypto/rand#Reader">crand.Reader</a> are things. <a href="#G.X">G.X</a> is a field, <a href="#G.M1">G.M1</a> and <a href="#G.M2">G.M2</a> are generic methods. <a href="#I.F">I.F</a> is an interface method and [I.V] is a broken link.` + "\n"
+		wantOldHTML     = "<p>[T] and [U] are <i>types</i>, and [T.M] is a method, but [V] is a broken link. [rand.Int] and [crand.Reader] are things. [G.X] is a field, [G.M1] and [G.M2] are generic methods. [I.F] is an interface method and [I.V] is a broken link.\n"
+		wantMarkdown    = "[T](#T) and [U](#U) are types, and [T.M](#T.M) is a method, but \\[V] is a broken link. [rand.Int](/math/rand#Int) and [crand.Reader](/crypto/rand#Reader) are things. [G.X](#G.X) is a field, [G.M1](#G.M1) and [G.M2](#G.M2) are generic methods. [I.F](#I.F) is an interface method and \\[I.V] is a broken link.\n"
+		wantText        = "T and U are types, and T.M is a method, but [V] is a broken link. rand.Int and\ncrand.Reader are things. G.X is a field, G.M1 and G.M2 are generic methods.\nI.F is an interface method and [I.V] is a broken link.\n"
+		wantOldText     = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link.\n[rand.Int] and [crand.Reader] are things. [G.X] is a field, [G.M1] and [G.M2]\nare generic methods. [I.F] is an interface method and [I.V] is a broken link.\n"
+		wantSynopsis    = "T and U are types, and T.M is a method, but [V] is a broken link."
+		wantOldSynopsis = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link."
+	)
+
+	if b := pkg.HTML(input); string(b) != wantHTML {
+		t.Errorf("%s", diff.Diff("pkg.HTML", b, "want", []byte(wantHTML)))
+	}
+	if b := pkg.Markdown(input); string(b) != wantMarkdown {
+		t.Errorf("%s", diff.Diff("pkg.Markdown", b, "want", []byte(wantMarkdown)))
+	}
+	if b := pkg.Text(input); string(b) != wantText {
+		t.Errorf("%s", diff.Diff("pkg.Text", b, "want", []byte(wantText)))
+	}
+	if b := pkg.Synopsis(input); b != wantSynopsis {
+		t.Errorf("%s", diff.Diff("pkg.Synopsis", []byte(b), "want", []byte(wantText)))
+	}
+
 	var buf bytes.Buffer
-	for i, tt := range blocksTests {
-		ToText(&buf, tt.in, ".   ", "$\t", 40)
-		if have := buf.String(); have != tt.text {
-			t.Errorf("#%d: mismatch\nhave: %s\nwant: %s\nhave vs want:\n%q\n%q", i, have, tt.text, have, tt.text)
-		}
-		buf.Reset()
+
+	buf.Reset()
+	ToHTML(&buf, input, map[string]string{"types": ""})
+	if b := buf.Bytes(); string(b) != wantOldHTML {
+		t.Errorf("%s", diff.Diff("ToHTML", b, "want", []byte(wantOldHTML)))
 	}
-}
 
-var emphasizeTests = []struct {
-	in, out string
-}{
-	{"http://www.google.com/", `<a href="http://www.google.com/">http://www.google.com/</a>`},
-	{"https://www.google.com/", `<a href="https://www.google.com/">https://www.google.com/</a>`},
-	{"http://www.google.com/path.", `<a href="http://www.google.com/path">http://www.google.com/path</a>.`},
-	{"http://en.wikipedia.org/wiki/Camellia_(cipher)", `<a href="http://en.wikipedia.org/wiki/Camellia_(cipher)">http://en.wikipedia.org/wiki/Camellia_(cipher)</a>`},
-	{"(http://www.google.com/)", `(<a href="http://www.google.com/">http://www.google.com/</a>)`},
-	{"http://gmail.com)", `<a href="http://gmail.com">http://gmail.com</a>)`},
-	{"((http://gmail.com))", `((<a href="http://gmail.com">http://gmail.com</a>))`},
-	{"http://gmail.com ((http://gmail.com)) ()", `<a href="http://gmail.com">http://gmail.com</a> ((<a href="http://gmail.com">http://gmail.com</a>)) ()`},
-	{"Foo bar http://example.com/ quux!", `Foo bar <a href="http://example.com/">http://example.com/</a> quux!`},
-	{"Hello http://example.com/%2f/ /world.", `Hello <a href="http://example.com/%2f/">http://example.com/%2f/</a> /world.`},
-	{"Lorem http: ipsum //host/path", "Lorem http: ipsum //host/path"},
-	{"javascript://is/not/linked", "javascript://is/not/linked"},
-}
-
-func TestEmphasize(t *testing.T) {
-	for i, tt := range emphasizeTests {
-		var buf bytes.Buffer
-		emphasize(&buf, tt.in, nil, true)
-		out := buf.String()
-		if out != tt.out {
-			t.Errorf("#%d: mismatch\nhave: %v\nwant: %v", i, out, tt.out)
-		}
+	buf.Reset()
+	ToText(&buf, input, "", "\t", 80)
+	if b := buf.Bytes(); string(b) != wantOldText {
+		t.Errorf("%s", diff.Diff("ToText", b, "want", []byte(wantOldText)))
 	}
-}
 
-var pairedParensPrefixLenTests = []struct {
-	in, out string
-}{
-	{"", ""},
-	{"foo", "foo"},
-	{"()", "()"},
-	{"foo()", "foo()"},
-	{"foo()()()", "foo()()()"},
-	{"foo()((()()))", "foo()((()()))"},
-	{"foo()((()()))bar", "foo()((()()))bar"},
-	{"foo)", "foo"},
-	{"foo))", "foo"},
-	{"foo)))))", "foo"},
-	{"(foo", ""},
-	{"((foo", ""},
-	{"(((((foo", ""},
-	{"(foo)", "(foo)"},
-	{"((((foo))))", "((((foo))))"},
-	{"foo()())", "foo()()"},
-	{"foo((()())", "foo"},
-	{"foo((()())) (() foo ", "foo((()())) "},
-}
-
-func TestPairedParensPrefixLen(t *testing.T) {
-	for i, tt := range pairedParensPrefixLenTests {
-		if out := tt.in[:pairedParensPrefixLen(tt.in)]; out != tt.out {
-			t.Errorf("#%d: mismatch\nhave: %q\nwant: %q", i, out, tt.out)
-		}
+	if b := Synopsis(input); b != wantOldSynopsis {
+		t.Errorf("%s", diff.Diff("Synopsis", []byte(b), "want", []byte(wantOldText)))
 	}
 }

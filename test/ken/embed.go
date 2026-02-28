@@ -253,7 +253,7 @@ func main() {
 		panic("fail")
 	}
 
-	// run it thru an interface
+	// run it through an interface
 	i = s
 	s = i.(*S)
 

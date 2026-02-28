@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
-// +build ppc64 ppc64le
+//go:build (aix || linux || openbsd) && (ppc64 || ppc64le)
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/abi"
+	"internal/runtime/sys"
+	"unsafe"
+)
 
 func dumpregs(c *sigctxt) {
 	print("r0   ", hex(c.r0()), "\t")
@@ -50,95 +53,60 @@ func dumpregs(c *sigctxt) {
 	print("trap ", hex(c.trap()), "\n")
 }
 
-func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
-	_g_ := getg()
-	c := &sigctxt{info, ctxt}
+//go:nosplit
+//go:nowritebarrierrec
+func (c *sigctxt) sigpc() uintptr    { return uintptr(c.pc()) }
+func (c *sigctxt) setsigpc(x uint64) { c.set_pc(x) }
 
-	if sig == _SIGPROF {
-		sigprof((*byte)(unsafe.Pointer(uintptr(c.pc()))), (*byte)(unsafe.Pointer(uintptr(c.sp()))), (*byte)(unsafe.Pointer(uintptr(c.link()))), gp, _g_.m)
-		return
-	}
-	flags := int32(_SigThrow)
-	if sig < uint32(len(sigtable)) {
-		flags = sigtable[sig].flags
-	}
-	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 {
-		// Make it look like a call to the signal func.
-		// Have to pass arguments out of band since
-		// augmenting the stack frame would break
-		// the unwinding code.
-		gp.sig = sig
-		gp.sigcode0 = uintptr(c.sigcode())
-		gp.sigcode1 = uintptr(c.fault())
-		gp.sigpc = uintptr(c.pc())
+func (c *sigctxt) sigsp() uintptr { return uintptr(c.sp()) }
+func (c *sigctxt) siglr() uintptr { return uintptr(c.link()) }
 
-		// We arrange link, and pc to pretend the panicking
-		// function calls sigpanic directly.
-		// Always save LINK to stack so that panics in leaf
-		// functions are correctly handled. This smashes
-		// the stack frame but we're not going back there
-		// anyway.
-		sp := c.sp() - ptrSize
-		c.set_sp(sp)
-		*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
+// preparePanic sets up the stack to look like a call to sigpanic.
+func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+	// We arrange link, and pc to pretend the panicking
+	// function calls sigpanic directly.
+	// Always save LINK to stack so that panics in leaf
+	// functions are correctly handled. This smashes
+	// the stack frame but we're not going back there
+	// anyway.
+	sp := c.sp() - sys.MinFrameSize
+	c.set_sp(sp)
+	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
 
-		// Don't bother saving PC if it's zero, which is
-		// probably a call to a nil func: the old link register
-		// is more useful in the stack trace.
-		if gp.sigpc != 0 {
-			c.set_link(uint64(gp.sigpc))
-		}
+	pc := gp.sigpc
 
-		// In case we are panicking from external C code
-		c.set_r0(0)
-		c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
-		c.set_pc(uint64(funcPC(sigpanic)))
-		return
+	if shouldPushSigpanic(gp, pc, uintptr(c.link())) {
+		// Make it look the like faulting PC called sigpanic.
+		c.set_link(uint64(pc))
 	}
 
-	if c.sigcode() == _SI_USER || flags&_SigNotify != 0 {
-		if sigsend(sig) {
-			return
-		}
-	}
+	// In case we are panicking from external C code
+	c.set_r0(0)
+	c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
+	c.set_r12(uint64(abi.FuncPCABIInternal(sigpanic)))
+	c.set_pc(uint64(abi.FuncPCABIInternal(sigpanic)))
+}
 
-	if flags&_SigKill != 0 {
-		exit(2)
-	}
-
-	if flags&_SigThrow == 0 {
-		return
-	}
-
-	_g_.m.throwing = 1
-	_g_.m.caughtsig = gp
-	startpanic()
-
-	if sig < uint32(len(sigtable)) {
-		print(sigtable[sig].name, "\n")
-	} else {
-		print("Signal ", sig, "\n")
-	}
-
-	print("PC=", hex(c.pc()), "\n")
-	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
-		print("signal arrived during cgo execution\n")
-		gp = _g_.m.lockedg
-	}
-	print("\n")
-
-	var docrash bool
-	if gotraceback(&docrash) > 0 {
-		goroutineheader(gp)
-		tracebacktrap(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.link()), gp)
-		tracebackothers(gp)
-		print("\n")
-		dumpregs(c)
-	}
-
-	if docrash {
-		crash()
-	}
-
-	exit(2)
+func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+	// Push the LR to stack, as we'll clobber it in order to
+	// push the call. The function being pushed is responsible
+	// for restoring the LR and setting the SP back.
+	// This extra space is known to gentraceback.
+	sp := c.sp() - sys.MinFrameSize
+	c.set_sp(sp)
+	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
+	// In PIC mode, we'll set up (i.e. clobber) R2 on function
+	// entry. Save it ahead of time.
+	// In PIC mode it requires R12 points to the function entry,
+	// so we'll set it up when pushing the call. Save it ahead
+	// of time as well.
+	// 8(SP) and 16(SP) are unused space in the reserved
+	// MinFrameSize (32) bytes.
+	*(*uint64)(unsafe.Pointer(uintptr(sp) + 8)) = c.r2()
+	*(*uint64)(unsafe.Pointer(uintptr(sp) + 16)) = c.r12()
+	// Set up PC and LR to pretend the function being signaled
+	// calls targetPC at resumePC.
+	c.set_link(uint64(resumePC))
+	c.set_r12(uint64(targetPC))
+	c.set_pc(uint64(targetPC))
 }

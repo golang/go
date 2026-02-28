@@ -6,7 +6,9 @@ package multipart
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
+	"mime"
+	"net/textproto"
 	"strings"
 	"testing"
 )
@@ -49,7 +51,7 @@ func TestWriter(t *testing.T) {
 	if g, e := part.FormName(), "myfile"; g != e {
 		t.Errorf("part 1: want form name %q, got %q", e, g)
 	}
-	slurp, err := ioutil.ReadAll(part)
+	slurp, err := io.ReadAll(part)
 	if err != nil {
 		t.Fatalf("part 1: ReadAll: %v", err)
 	}
@@ -64,7 +66,7 @@ func TestWriter(t *testing.T) {
 	if g, e := part.FormName(), "key"; g != e {
 		t.Errorf("part 2: want form name %q, got %q", e, g)
 	}
-	slurp, err = ioutil.ReadAll(part)
+	slurp, err = io.ReadAll(part)
 	if err != nil {
 		t.Fatalf("part 2: ReadAll: %v", err)
 	}
@@ -79,8 +81,6 @@ func TestWriter(t *testing.T) {
 }
 
 func TestWriterSetBoundary(t *testing.T) {
-	var b bytes.Buffer
-	w := NewWriter(&b)
 	tests := []struct {
 		b  string
 		ok bool
@@ -89,12 +89,17 @@ func TestWriterSetBoundary(t *testing.T) {
 		{"", false},
 		{"ungültig", false},
 		{"!", false},
-		{strings.Repeat("x", 69), true},
-		{strings.Repeat("x", 70), false},
+		{strings.Repeat("x", 70), true},
+		{strings.Repeat("x", 71), false},
 		{"bad!ascii!", false},
 		{"my-separator", true},
+		{"with space", true},
+		{"badspace ", false},
+		{"(boundary)", true},
 	}
 	for i, tt := range tests {
+		var b strings.Builder
+		w := NewWriter(&b)
 		err := w.SetBoundary(tt.b)
 		got := err == nil
 		if got != tt.ok {
@@ -104,11 +109,23 @@ func TestWriterSetBoundary(t *testing.T) {
 			if got != tt.b {
 				t.Errorf("boundary = %q; want %q", got, tt.b)
 			}
+
+			ct := w.FormDataContentType()
+			mt, params, err := mime.ParseMediaType(ct)
+			if err != nil {
+				t.Errorf("could not parse Content-Type %q: %v", ct, err)
+			} else if mt != "multipart/form-data" {
+				t.Errorf("unexpected media type %q; want %q", mt, "multipart/form-data")
+			} else if b := params["boundary"]; b != tt.b {
+				t.Errorf("unexpected boundary parameter %q; want %q", b, tt.b)
+			}
+
+			w.Close()
+			wantSub := "\r\n--" + tt.b + "--\r\n"
+			if got := b.String(); !strings.Contains(got, wantSub) {
+				t.Errorf("expected %q in output. got: %q", wantSub, got)
+			}
 		}
-	}
-	w.Close()
-	if got := b.String(); !strings.Contains(got, "\r\n--my-separator--\r\n") {
-		t.Errorf("expected my-separator in output. got: %q", got)
 	}
 }
 
@@ -117,7 +134,7 @@ func TestWriterBoundaryGoroutines(t *testing.T) {
 	// different goroutines. This was previously broken by
 	// https://codereview.appspot.com/95760043/ and reverted in
 	// https://codereview.appspot.com/117600043/
-	w := NewWriter(ioutil.Discard)
+	w := NewWriter(io.Discard)
 	done := make(chan int)
 	go func() {
 		w.CreateFormField("foo")
@@ -125,4 +142,53 @@ func TestWriterBoundaryGoroutines(t *testing.T) {
 	}()
 	w.Boundary()
 	<-done
+}
+
+func TestSortedHeader(t *testing.T) {
+	var buf strings.Builder
+	w := NewWriter(&buf)
+	if err := w.SetBoundary("MIMEBOUNDARY"); err != nil {
+		t.Fatalf("Error setting mime boundary: %v", err)
+	}
+
+	header := textproto.MIMEHeader{
+		"A": {"2"},
+		"B": {"5", "7", "6"},
+		"C": {"4"},
+		"M": {"3"},
+		"Z": {"1"},
+	}
+
+	part, err := w.CreatePart(header)
+	if err != nil {
+		t.Fatalf("Unable to create part: %v", err)
+	}
+	part.Write([]byte("foo"))
+
+	w.Close()
+
+	want := "--MIMEBOUNDARY\r\nA: 2\r\nB: 5\r\nB: 7\r\nB: 6\r\nC: 4\r\nM: 3\r\nZ: 1\r\n\r\nfoo\r\n--MIMEBOUNDARY--\r\n"
+	if want != buf.String() {
+		t.Fatalf("\n got: %q\nwant: %q\n", buf.String(), want)
+	}
+}
+
+func TestFileContentDisposition(t *testing.T) {
+	tests := []struct {
+		fieldname string
+		filename  string
+		want      string
+	}{
+		{"somefield", "somefile.txt", `form-data; name="somefield"; filename="somefile.txt"`},
+		{`field"withquotes"`, "somefile.txt", `form-data; name="field\"withquotes\""; filename="somefile.txt"`},
+		{`somefield`, `somefile"withquotes".txt`, `form-data; name="somefield"; filename="somefile\"withquotes\".txt"`},
+		{`somefield\withbackslash`, "somefile.txt", `form-data; name="somefield\\withbackslash"; filename="somefile.txt"`},
+		{"somefield", `somefile\withbackslash.txt`, `form-data; name="somefield"; filename="somefile\\withbackslash.txt"`},
+		{"a\rb\nc", "e\rf\ng", `form-data; name="a%0Db%0Ac"; filename="e%0Df%0Ag"`},
+	}
+	for i, tt := range tests {
+		if found := FileContentDisposition(tt.fieldname, tt.filename); found != tt.want {
+			t.Errorf(`%d. found: "%s"; want: "%s"`, i, found, tt.want)
+		}
+	}
 }

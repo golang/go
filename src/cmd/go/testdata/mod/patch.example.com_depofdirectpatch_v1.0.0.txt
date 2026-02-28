@@ -1,0 +1,11 @@
+patch.example.com/depofdirectpatch v1.0.0
+written by hand
+
+-- .mod --
+module patch.example.com/depofdirectpatch
+-- .info --
+{"Version":"v1.0.0"}
+-- go.mod --
+module patch.example.com/depofdirectpatch
+-- depofdirectpatch.go --
+package depofdirectpatch

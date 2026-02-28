@@ -1,0 +1,43 @@
+# Test that the go command does not panic if it tries to read
+# a file from the cache that has an index entry, but is missing
+# an entry for the output. This test creates that situation by
+# running a go list (creating index and output cache entries for
+# the module index) and then removing just the output entries.
+
+[short] skip 'runs go build'
+
+go build -o roe$GOEXE ./remove_output_entries.go
+
+# populate new cache
+env GOCACHE=$WORK/newcache
+go list runtime
+
+# remove output entries and check the panic doesn't happen
+exec ./roe$GOEXE $WORK/newcache
+go list runtime
+
+-- remove_output_entries.go --
+package main
+
+import (
+	"io/fs"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	cachedir := os.Args[1]
+	err := filepath.WalkDir(cachedir, func(path string, d fs.DirEntry, err error) error {
+		if strings.HasSuffix(path, "-d") { // output entries end in "-d"
+			if err := os.RemoveAll(path); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+}

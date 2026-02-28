@@ -5,11 +5,10 @@
 package signal
 
 import (
-	"bytes"
-	"io/ioutil"
+	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -56,11 +55,7 @@ func main() {
 	}
 }
 `
-	tmp, err := ioutil.TempDir("", "TestCtrlBreak")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	// write ctrlbreak.go
 	name := filepath.Join(tmp, "ctlbreak")
@@ -75,16 +70,16 @@ func main() {
 	// compile it
 	exe := name + ".exe"
 	defer os.Remove(exe)
-	o, err := exec.Command("go", "build", "-o", exe, src).CombinedOutput()
+	o, err := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, src).CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to compile: %v\n%v", err, string(o))
 	}
 
 	// run it
-	cmd := exec.Command(exe)
-	var b bytes.Buffer
-	cmd.Stdout = &b
-	cmd.Stderr = &b
+	cmd := testenv.Command(t, exe)
+	var buf strings.Builder
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
 	}
@@ -98,6 +93,6 @@ func main() {
 	}()
 	err = cmd.Wait()
 	if err != nil {
-		t.Fatalf("Program exited with error: %v\n%v", err, string(b.Bytes()))
+		t.Fatalf("Program exited with error: %v\n%v", err, buf.String())
 	}
 }

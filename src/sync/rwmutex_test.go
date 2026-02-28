@@ -14,6 +14,9 @@ import (
 	"testing"
 )
 
+// There is a modified copy of this file in runtime/rwmutex_test.go.
+// If you make any changes here, see if you should make them there.
+
 func parallelReader(m *RWMutex, clocked, cunlock, cdone chan bool) {
 	m.RLock()
 	clocked <- true
@@ -56,6 +59,7 @@ func reader(rwm *RWMutex, num_iterations int, activity *int32, cdone chan bool) 
 		rwm.RLock()
 		n := atomic.AddInt32(activity, 1)
 		if n < 1 || n >= 10000 {
+			rwm.RUnlock()
 			panic(fmt.Sprintf("wlock(%d)\n", n))
 		}
 		for i := 0; i < 100; i++ {
@@ -71,6 +75,7 @@ func writer(rwm *RWMutex, num_iterations int, activity *int32, cdone chan bool) 
 		rwm.Lock()
 		n := atomic.AddInt32(activity, 10000)
 		if n != 10000 {
+			rwm.Unlock()
 			panic(fmt.Sprintf("wlock(%d)\n", n))
 		}
 		for i := 0; i < 100; i++ {
@@ -103,6 +108,34 @@ func HammerRWMutex(gomaxprocs, numReaders, num_iterations int) {
 }
 
 func TestRWMutex(t *testing.T) {
+	var m RWMutex
+
+	m.Lock()
+	if m.TryLock() {
+		t.Fatalf("TryLock succeeded with mutex locked")
+	}
+	if m.TryRLock() {
+		t.Fatalf("TryRLock succeeded with mutex locked")
+	}
+	m.Unlock()
+
+	if !m.TryLock() {
+		t.Fatalf("TryLock failed with mutex unlocked")
+	}
+	m.Unlock()
+
+	if !m.TryRLock() {
+		t.Fatalf("TryRLock failed with mutex unlocked")
+	}
+	if !m.TryRLock() {
+		t.Fatalf("TryRLock failed with mutex rlocked")
+	}
+	if m.TryLock() {
+		t.Fatalf("TryLock succeeded with mutex rlocked")
+	}
+	m.RUnlock()
+	m.RUnlock()
+
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(-1))
 	n := 1000
 	if testing.Short() {
@@ -153,48 +186,6 @@ func TestRLocker(t *testing.T) {
 		}
 		wl.Unlock()
 	}
-}
-
-func TestUnlockPanic(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatalf("unlock of unlocked RWMutex did not panic")
-		}
-	}()
-	var mu RWMutex
-	mu.Unlock()
-}
-
-func TestUnlockPanic2(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatalf("unlock of unlocked RWMutex did not panic")
-		}
-	}()
-	var mu RWMutex
-	mu.RLock()
-	mu.Unlock()
-}
-
-func TestRUnlockPanic(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatalf("read unlock of unlocked RWMutex did not panic")
-		}
-	}()
-	var mu RWMutex
-	mu.RUnlock()
-}
-
-func TestRUnlockPanic2(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatalf("read unlock of unlocked RWMutex did not panic")
-		}
-	}()
-	var mu RWMutex
-	mu.Lock()
-	mu.RUnlock()
 }
 
 func BenchmarkRWMutexUncontended(b *testing.B) {

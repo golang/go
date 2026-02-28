@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 package main
 
@@ -24,6 +24,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "dump: %s\n", err)
 			os.Exit(1)
 		}
+		defer file.Close()
 	}
 	gob.Debug(file)
 }

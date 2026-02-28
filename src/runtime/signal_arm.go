@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd
+//go:build dragonfly || freebsd || linux || netbsd || openbsd
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 func dumpregs(c *sigctxt) {
 	print("trap    ", hex(c.trap()), "\n")
@@ -32,95 +35,47 @@ func dumpregs(c *sigctxt) {
 	print("fault   ", hex(c.fault()), "\n")
 }
 
-func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
-	_g_ := getg()
-	c := &sigctxt{info, ctxt}
+//go:nosplit
+//go:nowritebarrierrec
+func (c *sigctxt) sigpc() uintptr { return uintptr(c.pc()) }
 
-	if sig == _SIGPROF {
-		sigprof((*byte)(unsafe.Pointer(uintptr(c.pc()))), (*byte)(unsafe.Pointer(uintptr(c.sp()))), (*byte)(unsafe.Pointer(uintptr(c.lr()))), gp, _g_.m)
-		return
+func (c *sigctxt) sigsp() uintptr { return uintptr(c.sp()) }
+func (c *sigctxt) siglr() uintptr { return uintptr(c.lr()) }
+
+// preparePanic sets up the stack to look like a call to sigpanic.
+func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+	// We arrange lr, and pc to pretend the panicking
+	// function calls sigpanic directly.
+	// Always save LR to stack so that panics in leaf
+	// functions are correctly handled. This smashes
+	// the stack frame but we're not going back there
+	// anyway.
+	sp := c.sp() - 4
+	c.set_sp(sp)
+	*(*uint32)(unsafe.Pointer(uintptr(sp))) = c.lr()
+
+	pc := gp.sigpc
+
+	if shouldPushSigpanic(gp, pc, uintptr(c.lr())) {
+		// Make it look the like faulting PC called sigpanic.
+		c.set_lr(uint32(pc))
 	}
 
-	flags := int32(_SigThrow)
-	if sig < uint32(len(sigtable)) {
-		flags = sigtable[sig].flags
-	}
-	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 {
-		// Make it look like a call to the signal func.
-		// Have to pass arguments out of band since
-		// augmenting the stack frame would break
-		// the unwinding code.
-		gp.sig = sig
-		gp.sigcode0 = uintptr(c.sigcode())
-		gp.sigcode1 = uintptr(c.fault())
-		gp.sigpc = uintptr(c.pc())
+	// In case we are panicking from external C code
+	c.set_r10(uint32(uintptr(unsafe.Pointer(gp))))
+	c.set_pc(uint32(abi.FuncPCABIInternal(sigpanic)))
+}
 
-		// We arrange lr, and pc to pretend the panicking
-		// function calls sigpanic directly.
-		// Always save LR to stack so that panics in leaf
-		// functions are correctly handled. This smashes
-		// the stack frame but we're not going back there
-		// anyway.
-		sp := c.sp() - 4
-		c.set_sp(sp)
-		*(*uint32)(unsafe.Pointer(uintptr(sp))) = c.lr()
-
-		// Don't bother saving PC if it's zero, which is
-		// probably a call to a nil func: the old link register
-		// is more useful in the stack trace.
-		if gp.sigpc != 0 {
-			c.set_lr(uint32(gp.sigpc))
-		}
-
-		// In case we are panicking from external C code
-		c.set_r10(uint32(uintptr(unsafe.Pointer(gp))))
-		c.set_pc(uint32(funcPC(sigpanic)))
-		return
-	}
-
-	if c.sigcode() == _SI_USER || flags&_SigNotify != 0 {
-		if sigsend(sig) {
-			return
-		}
-	}
-
-	if flags&_SigKill != 0 {
-		exit(2)
-	}
-
-	if flags&_SigThrow == 0 {
-		return
-	}
-
-	_g_.m.throwing = 1
-	_g_.m.caughtsig = gp
-	startpanic()
-
-	if sig < uint32(len(sigtable)) {
-		print(sigtable[sig].name, "\n")
-	} else {
-		print("Signal ", sig, "\n")
-	}
-
-	print("PC=", hex(c.pc()), "\n")
-	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
-		print("signal arrived during cgo execution\n")
-		gp = _g_.m.lockedg
-	}
-	print("\n")
-
-	var docrash bool
-	if gotraceback(&docrash) > 0 {
-		goroutineheader(gp)
-		tracebacktrap(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.lr()), gp)
-		tracebackothers(gp)
-		print("\n")
-		dumpregs(c)
-	}
-
-	if docrash {
-		crash()
-	}
-
-	exit(2)
+func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
+	// Push the LR to stack, as we'll clobber it in order to
+	// push the call. The function being pushed is responsible
+	// for restoring the LR and setting the SP back.
+	// This extra slot is known to gentraceback.
+	sp := c.sp() - 4
+	c.set_sp(sp)
+	*(*uint32)(unsafe.Pointer(uintptr(sp))) = c.lr()
+	// Set up PC and LR to pretend the function being signaled
+	// calls targetPC at resumePC.
+	c.set_lr(uint32(resumePC))
+	c.set_pc(uint32(targetPC))
 }

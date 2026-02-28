@@ -1,6 +1,6 @@
 // run
 
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -71,7 +71,7 @@ func test5() {
 }
 
 func test6() {
-	defer mustRecover("unhashable")
+	defer mustRecover("unhashable type main.T")
 	var x T
 	var z interface{} = x
 	m := make(map[interface{}]int)

@@ -10,40 +10,6 @@ import (
 	"testing"
 )
 
-// TODO(mattn):
-//	test ProxyAuth
-
-var UseProxyTests = []struct {
-	host  string
-	match bool
-}{
-	// Never proxy localhost:
-	{"localhost", false},
-	{"127.0.0.1", false},
-	{"127.0.0.2", false},
-	{"[::1]", false},
-	{"[::2]", true}, // not a loopback address
-
-	{"barbaz.net", false},     // match as .barbaz.net
-	{"foobar.com", false},     // have a port but match
-	{"foofoobar.com", true},   // not match as a part of foobar.com
-	{"baz.com", true},         // not match as a part of barbaz.com
-	{"localhost.net", true},   // not match as suffix of address
-	{"local.localhost", true}, // not match as prefix as address
-	{"barbarbaz.net", true},   // not match because NO_PROXY have a '.'
-	{"www.foobar.com", false}, // match because NO_PROXY includes "foobar.com"
-}
-
-func TestUseProxy(t *testing.T) {
-	ResetProxyEnv()
-	os.Setenv("NO_PROXY", "foobar.com, .barbaz.net")
-	for _, test := range UseProxyTests {
-		if useProxy(test.host+":80") != test.match {
-			t.Errorf("useProxy(%v) = %v, want %v", test.host, !test.match, test.match)
-		}
-	}
-}
-
 var cacheKeysTests = []struct {
 	proxy  string
 	scheme string
@@ -66,7 +32,7 @@ func TestCacheKeys(t *testing.T) {
 			}
 			proxy = u
 		}
-		cm := connectMethod{proxy, tt.scheme, tt.addr}
+		cm := connectMethod{proxyURL: proxy, targetScheme: tt.scheme, targetAddr: tt.addr}
 		if got := cm.key().String(); got != tt.key {
 			t.Fatalf("{%q, %q, %q} cache key = %q; want %q", tt.proxy, tt.scheme, tt.addr, got, tt.key)
 		}
@@ -74,8 +40,47 @@ func TestCacheKeys(t *testing.T) {
 }
 
 func ResetProxyEnv() {
-	for _, v := range []string{"HTTP_PROXY", "http_proxy", "NO_PROXY", "no_proxy"} {
-		os.Setenv(v, "")
+	for _, v := range []string{"HTTP_PROXY", "http_proxy", "NO_PROXY", "no_proxy", "REQUEST_METHOD"} {
+		os.Unsetenv(v)
 	}
 	ResetCachedEnvironment()
+}
+
+var proxyAuthTests = []struct {
+	proxy string
+	key   string
+}{
+	{
+		"",
+		"",
+	},
+	{
+		"http://bar.com",
+		"",
+	},
+	{
+		"http://foo@bar.com",
+		"Basic Zm9vOg==",
+	},
+	{
+		"http://foo:bar@bar.com",
+		"Basic Zm9vOmJhcg==",
+	},
+}
+
+func TestProxyAuthKeys(t *testing.T) {
+	for _, tt := range proxyAuthTests {
+		var proxy *url.URL
+		if tt.proxy != "" {
+			u, err := url.Parse(tt.proxy)
+			if err != nil {
+				t.Fatal(err)
+			}
+			proxy = u
+		}
+		cm := connectMethod{proxyURL: proxy}
+		if got := cm.proxyAuth(); got != tt.key {
+			t.Fatalf("{%q} proxyAuth key = %q; want %q", tt.proxy, got, tt.key)
+		}
+	}
 }

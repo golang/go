@@ -6,7 +6,7 @@ package math
 
 // The original C code, the long comment, and the constants
 // below are from FreeBSD's /usr/src/lib/msun/src/s_expm1.c
-// and came with this notice.  The go code is a simplified
+// and came with this notice. The go code is a simplified
 // version of the original C.
 //
 // ====================================================
@@ -114,14 +114,21 @@ package math
 //
 
 // Expm1 returns e**x - 1, the base-e exponential of x minus 1.
-// It is more accurate than Exp(x) - 1 when x is near zero.
+// It is more accurate than [Exp](x) - 1 when x is near zero.
 //
 // Special cases are:
+//
 //	Expm1(+Inf) = +Inf
 //	Expm1(-Inf) = -1
 //	Expm1(NaN) = NaN
+//
 // Very large values overflow to -1 or +Inf.
-func Expm1(x float64) float64
+func Expm1(x float64) float64 {
+	if haveArchExpm1 {
+		return archExpm1(x)
+	}
+	return expm1(x)
+}
 
 func expm1(x float64) float64 {
 	const (
@@ -158,11 +165,11 @@ func expm1(x float64) float64 {
 
 	// filter out huge argument
 	if absx >= Ln2X56 { // if |x| >= 56 * ln2
-		if absx >= Othreshold { // if |x| >= 709.78...
-			return Inf(1) // overflow
-		}
 		if sign {
-			return -1 // x < -56*ln2, return -1.0
+			return -1 // x < -56*ln2, return -1
+		}
+		if absx >= Othreshold { // if |x| >= 709.78...
+			return Inf(1)
 		}
 	}
 
@@ -205,33 +212,33 @@ func expm1(x float64) float64 {
 	r1 := 1 + hxs*(Q1+hxs*(Q2+hxs*(Q3+hxs*(Q4+hxs*Q5))))
 	t := 3 - r1*hfx
 	e := hxs * ((r1 - t) / (6.0 - x*t))
-	if k != 0 {
-		e = (x*(e-c) - c)
-		e -= hxs
-		switch {
-		case k == -1:
-			return 0.5*(x-e) - 0.5
-		case k == 1:
-			if x < -0.25 {
-				return -2 * (e - (x + 0.5))
-			}
-			return 1 + 2*(x-e)
-		case k <= -2 || k > 56: // suffice to return exp(x)-1
-			y := 1 - (e - x)
-			y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
-			return y - 1
+	if k == 0 {
+		return x - (x*e - hxs) // c is 0
+	}
+	e = (x*(e-c) - c)
+	e -= hxs
+	switch {
+	case k == -1:
+		return 0.5*(x-e) - 0.5
+	case k == 1:
+		if x < -0.25 {
+			return -2 * (e - (x + 0.5))
 		}
-		if k < 20 {
-			t := Float64frombits(0x3ff0000000000000 - (0x20000000000000 >> uint(k))) // t=1-2**-k
-			y := t - (e - x)
-			y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
-			return y
-		}
-		t := Float64frombits(uint64((0x3ff - k) << 52)) // 2**-k
-		y := x - (e + t)
-		y += 1
+		return 1 + 2*(x-e)
+	case k <= -2 || k > 56: // suffice to return exp(x)-1
+		y := 1 - (e - x)
+		y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
+		return y - 1
+	}
+	if k < 20 {
+		t := Float64frombits(0x3ff0000000000000 - (0x20000000000000 >> uint(k))) // t=1-2**-k
+		y := t - (e - x)
 		y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
 		return y
 	}
-	return x - (x*e - hxs) // c is 0
+	t = Float64frombits(uint64(0x3ff-k) << 52) // 2**-k
+	y := x - (e + t)
+	y++
+	y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
+	return y
 }

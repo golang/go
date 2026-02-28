@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -17,8 +17,7 @@ L1: // ERROR "label .*L1.* defined and not used"
 	for {
 	}
 L2: // ERROR "label .*L2.* defined and not used"
-	select {
-	}
+	select {}
 L3: // ERROR "label .*L3.* defined and not used"
 	switch {
 	}
@@ -59,4 +58,8 @@ L10:
 	default:
 		break L10
 	}
+
+	goto L10
+
+	goto go2 // ERROR "label go2 not defined|reference to undefined label .*go2"
 }

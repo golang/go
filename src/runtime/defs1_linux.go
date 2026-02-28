@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 /*
 Input to cgo -cdefs
@@ -21,6 +21,7 @@ import "C"
 
 const (
 	O_RDONLY    = C.O_RDONLY
+	O_NONBLOCK  = C.O_NONBLOCK
 	O_CLOEXEC   = C.O_CLOEXEC
 	SA_RESTORER = C.SA_RESTORER
 )
@@ -33,7 +34,7 @@ type Fpxreg1 C.struct__fpxreg
 type Xmmreg1 C.struct__xmmreg
 type Fpstate1 C.struct__fpstate
 type Fpreg1 C.struct__fpreg
-type SigaltstackT C.struct_sigaltstack
+type StackT C.stack_t
 type Mcontext C.mcontext_t
 type Ucontext C.ucontext_t
 type Sigcontext C.struct_sigcontext

@@ -1,27 +1,53 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build freebsd linux netbsd solaris
+//go:build aix || dragonfly || freebsd || illumos || linux || netbsd
 
 package net
 
 import (
-	"os"
+	"runtime"
 	"syscall"
 	"time"
 )
 
-func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
-	if err := fd.incref(); err != nil {
-		return err
+func setKeepAliveIdle(fd *netFD, d time.Duration) error {
+	if d == 0 {
+		d = defaultTCPKeepAliveIdle
+	} else if d < 0 {
+		return nil
 	}
-	defer fd.decref()
+
 	// The kernel expects seconds so round to next highest second.
-	d += (time.Second - time.Nanosecond)
-	secs := int(d.Seconds())
-	if err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, secs); err != nil {
-		return os.NewSyscallError("setsockopt", err)
+	secs := int(roundDurationUp(d, time.Second))
+	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE, secs)
+	runtime.KeepAlive(fd)
+	return wrapSyscallError("setsockopt", err)
+}
+
+func setKeepAliveInterval(fd *netFD, d time.Duration) error {
+	if d == 0 {
+		d = defaultTCPKeepAliveInterval
+	} else if d < 0 {
+		return nil
 	}
-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE, secs))
+
+	// The kernel expects seconds so round to next highest second.
+	secs := int(roundDurationUp(d, time.Second))
+	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, secs)
+	runtime.KeepAlive(fd)
+	return wrapSyscallError("setsockopt", err)
+}
+
+func setKeepAliveCount(fd *netFD, n int) error {
+	if n == 0 {
+		n = defaultTCPKeepAliveCount
+	} else if n < 0 {
+		return nil
+	}
+
+	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, syscall.TCP_KEEPCNT, n)
+	runtime.KeepAlive(fd)
+	return wrapSyscallError("setsockopt", err)
 }

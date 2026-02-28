@@ -1,0 +1,191 @@
+# This test demonstrates dependency resolution when the main module imports a
+# new package from a previously-test-only dependency.
+#
+# When lazy loading is active, the loader will not load dependencies of any
+# module whose packages are *only* imported by tests outside the main module. If
+# the main module is changed to import a package from such a module, the
+# dependencies of that module will need to be reloaded.
+
+# The import graph used in this test looks like:
+#
+# m ---- a
+#  \     |
+#   \    a_test ---- b/x
+#    \
+#      --------------b/y (new) ---- c
+#
+# Where b/x and b/y are disjoint packages, but both contained in module b.
+#
+# The module dependency graph initially looks like:
+#
+# m ---- a.1 ---- b.1 ---- c.1
+#
+# This configuration is similar to that used in mod_lazy_new_import,
+# but the new import is from what is initially a test-only dependency.
+
+# Control case: in Go 1.14, the original go.mod is tidy,
+# and the dependency on c is eagerly loaded.
+
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod.orig go.mod
+
+go list -m all
+stdout '^a v0.1.0 '
+stdout '^b v0.1.0 '
+stdout '^c v0.1.0 '
+
+# After adding a new import of b/y,
+# the import of c from b/y should resolve to the version required by b.
+
+cp m.go m.go.orig
+cp m.go.new m.go
+go mod tidy
+cmp go.mod.new go.mod
+
+go list -m all
+stdout '^a v0.1.0 '
+stdout '^b v0.1.0 '
+stdout '^c v0.1.0 '
+
+# With lazy loading, the go.mod requirements are the same,
+# but the dependency on c is initially pruned out.
+
+cp m.go.orig m.go
+cp go.mod.orig go.mod
+go mod edit -go=1.17
+go mod edit -go=1.17 go.mod.new
+
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod.orig go.mod
+
+go list -m all
+stdout '^a v0.1.0 '
+stdout '^b v0.1.0 '
+! stdout '^c '
+
+# After adding a new direct import of b/y,
+# the existing version of b should be promoted to a root,
+# bringing the version of c required by b into the build list.
+
+cp m.go.new m.go
+go mod tidy
+cmp go.mod.lazy go.mod
+
+go list -m all
+stdout '^a v0.1.0 '
+stdout '^b v0.1.0 '
+stdout '^c v0.1.0 '
+
+-- m.go --
+package main
+
+import (
+	"fmt"
+
+	_ "a"  // a_test imports b/x.
+)
+
+func main() {
+}
+-- m.go.new --
+package main
+
+import (
+	"fmt"
+
+	_ "a"  // a_test imports b/x.
+	"b/y"  // This is a new import, not yet reflected in the go.mod file.
+)
+
+func main() {
+	fmt.Println(b.CVersion())
+}
+-- go.mod --
+module m
+
+go 1.14
+
+require a v0.1.0
+
+replace (
+	a v0.1.0 => ./a1
+	b v0.1.0 => ./b1
+	c v0.1.0 => ./c1
+	c v0.2.0 => ./c2
+)
+-- go.mod.new --
+module m
+
+go 1.14
+
+require (
+	a v0.1.0
+	b v0.1.0
+)
+
+replace (
+	a v0.1.0 => ./a1
+	b v0.1.0 => ./b1
+	c v0.1.0 => ./c1
+	c v0.2.0 => ./c2
+)
+-- go.mod.lazy --
+module m
+
+go 1.17
+
+require (
+	a v0.1.0
+	b v0.1.0
+)
+
+require c v0.1.0 // indirect
+
+replace (
+	a v0.1.0 => ./a1
+	b v0.1.0 => ./b1
+	c v0.1.0 => ./c1
+	c v0.2.0 => ./c2
+)
+-- a1/go.mod --
+module a
+
+go 1.17
+
+require b v0.1.0
+-- a1/a.go --
+package a
+-- a1/a_test.go --
+package a_test
+
+import _ "b/x"
+-- b1/go.mod --
+module b
+
+go 1.17
+
+require c v0.1.0
+-- b1/x/x.go --
+package x
+-- b1/y/y.go --
+package y
+
+import "c"
+
+func CVersion() string {
+	return c.Version
+}
+-- c1/go.mod --
+module c
+
+go 1.17
+-- c1/c.go --
+package c
+
+const Version = "v0.1.0"
+-- c2/go.mod --
+This file should be unused.
+-- c2/c.go --
+This file should be unused.

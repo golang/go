@@ -1,3 +1,7 @@
+// Copyright 2014 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package runtime
 
 const _PAGESIZE = 0x1000
@@ -37,11 +41,18 @@ type sigctxt struct {
 	u *ureg
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func (c *sigctxt) pc() uintptr { return uintptr(c.u.ip) }
+
 func (c *sigctxt) sp() uintptr { return uintptr(c.u.sp) }
+func (c *sigctxt) lr() uintptr { return uintptr(0) }
 
 func (c *sigctxt) setpc(x uintptr) { c.u.ip = uint64(x) }
 func (c *sigctxt) setsp(x uintptr) { c.u.sp = uint64(x) }
+func (c *sigctxt) setlr(x uintptr) {}
+
+func (c *sigctxt) savelr(x uintptr) {}
 
 func dumpregs(u *ureg) {
 	print("ax    ", hex(u.ax), "\n")
@@ -66,3 +77,5 @@ func dumpregs(u *ureg) {
 	print("fs    ", hex(u.fs), "\n")
 	print("gs    ", hex(u.gs), "\n")
 }
+
+func sigpanictramp()

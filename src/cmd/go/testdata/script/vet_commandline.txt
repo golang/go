@@ -1,0 +1,43 @@
+# go.dev/issue/65612
+# go vet should set the GoVersion for command line files.
+
+env TESTGO_VERSION=go1.22.1
+env TESTGO_VERSION_SWITCH=switch
+
+go vet -n -json example.com/m
+stderr '"GoVersion": "go1.22.0"'
+
+# A command line file should use the local go version.
+go vet -n -json main.go
+stderr '"GoVersion": "go1.22.1"'
+
+# In workspace mode, the command line file version should use go.work version.
+cp go.work.orig go.work
+go vet -n -json example.com/m
+stderr '"GoVersion": "go1.22.0'
+
+go vet -n -json main.go
+stderr '"GoVersion": "go1.22.2'
+
+# Without go.mod or go.work, the command line file version should use local go version .
+env TESTGO_VERSION=go1.22.3
+rm go.mod
+rm go.work
+
+! go vet -n -json example.com/m
+
+go vet -n -json main.go
+stderr '"GoVersion": "go1.22.3"'
+
+-- go.mod --
+module example.com/m
+
+go 1.22.0
+
+-- go.work.orig --
+go 1.22.2
+
+use .
+
+-- main.go --
+package main

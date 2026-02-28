@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,14 +13,14 @@ var simplifyTests = []struct {
 	// Already-simple constructs
 	{`a`, `a`},
 	{`ab`, `ab`},
-	{`a|b`, `[a-b]`},
+	{`a|b`, `[ab]`},
 	{`ab|cd`, `ab|cd`},
 	{`(ab)*`, `(ab)*`},
 	{`(ab)+`, `(ab)+`},
 	{`(ab)?`, `(ab)?`},
 	{`.`, `(?s:.)`},
-	{`^`, `^`},
-	{`$`, `$`},
+	{`^`, `(?m:^)`},
+	{`$`, `(?m:$)`},
 	{`[ac]`, `[ac]`},
 	{`[^ac]`, `[^ac]`},
 
@@ -40,16 +40,16 @@ var simplifyTests = []struct {
 
 	// Perl character classes
 	{`\d`, `[0-9]`},
-	{`\s`, `[\t-\n\f-\r ]`},
+	{`\s`, `[\t\n\f\r ]`},
 	{`\w`, `[0-9A-Z_a-z]`},
 	{`\D`, `[^0-9]`},
-	{`\S`, `[^\t-\n\f-\r ]`},
+	{`\S`, `[^\t\n\f\r ]`},
 	{`\W`, `[^0-9A-Z_a-z]`},
 	{`[\d]`, `[0-9]`},
-	{`[\s]`, `[\t-\n\f-\r ]`},
+	{`[\s]`, `[\t\n\f\r ]`},
 	{`[\w]`, `[0-9A-Z_a-z]`},
 	{`[\D]`, `[^0-9]`},
-	{`[\S]`, `[^\t-\n\f-\r ]`},
+	{`[\S]`, `[^\t\n\f\r ]`},
 	{`[\W]`, `[^0-9A-Z_a-z]`},
 
 	// Posix repetitions
@@ -59,7 +59,7 @@ var simplifyTests = []struct {
 	{`a{0,1}`, `a?`},
 	// The next three are illegible because Simplify inserts (?:)
 	// parens instead of () parens to avoid creating extra
-	// captured subexpressions.  The comments show a version with fewer parens.
+	// captured subexpressions. The comments show a version with fewer parens.
 	{`(a){0,2}`, `(?:(a)(a)?)?`},                       //       (aa?)?
 	{`(a){0,4}`, `(?:(a)(?:(a)(?:(a)(a)?)?)?)?`},       //   (a(a(aa?)?)?)?
 	{`(a){2,6}`, `(a)(a)(?:(a)(?:(a)(?:(a)(a)?)?)?)?`}, // aa(a(a(aa?)?)?)?
@@ -82,7 +82,8 @@ var simplifyTests = []struct {
 	{`a{0}`, `(?:)`},
 
 	// Character class simplification
-	{`[ab]`, `[a-b]`},
+	{`[ab]`, `[ab]`},
+	{`[abc]`, `[a-c]`},
 	{`[a-za-za-z]`, `[a-z]`},
 	{`[A-Za-zA-Za-z]`, `[A-Za-z]`},
 	{`[ABCDEFGH]`, `[A-H]`},
@@ -117,10 +118,11 @@ var simplifyTests = []struct {
 	// Empty string as a regular expression.
 	// The empty string must be preserved inside parens in order
 	// to make submatches work right, so these tests are less
-	// interesting than they might otherwise be.  String inserts
+	// interesting than they might otherwise be. String inserts
 	// explicit (?:) in place of non-parenthesized empty strings,
 	// to make them easier to spot for other parsers.
-	{`(a|b|)`, `([a-b]|(?:))`},
+	{`(a|b|c|)`, `([a-c]|(?:))`},
+	{`(a|b|)`, `([ab]|(?:))`},
 	{`(|)`, `()`},
 	{`a()`, `a()`},
 	{`(()|())`, `(()|())`},

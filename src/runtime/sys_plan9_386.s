@@ -52,10 +52,16 @@ TEXT runtime·seek(SB),NOSPLIT,$24
 	MOVL	$-1, ret_hi+20(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	$4, AX
 	INT	$64
 	MOVL	AX, ret+4(FP)
+	RET
+
+TEXT runtime·dupfd(SB),NOSPLIT,$0
+	MOVL	$5, AX
+	INT	$64
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·exits(SB),NOSPLIT,$0
@@ -87,32 +93,15 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT nsec<>(SB),NOSPLIT,$0
-	MOVL	$53, AX
-	INT	$64
-	RET
-
-TEXT runtime·nsec(SB),NOSPLIT,$8
-	LEAL	ret+4(FP), AX
-	MOVL	AX, 0(SP)
-	CALL	nsec<>(SB)
-	CMPL	AX, $0
-	JGE	3(PC)
-	MOVL	$-1, ret_lo+4(FP)
-	MOVL	$-1, ret_hi+8(FP)
-	RET
-
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB),NOSPLIT,$8-12
-	CALL	runtime·nanotime(SB)
-	MOVL	0(SP), AX
-	MOVL	4(SP), DX
-
+// func timesplit(u uint64) (sec int64, nsec int32)
+TEXT runtime·timesplit(SB),NOSPLIT,$0
+	MOVL	u_lo+0(FP), AX
+	MOVL	u_hi+4(FP), DX
 	MOVL	$1000000000, CX
 	DIVL	CX
-	MOVL	AX, sec+0(FP)
-	MOVL	$0, sec+4(FP)
-	MOVL	DX, nsec+8(FP)
+	MOVL	AX, sec_lo+8(FP)
+	MOVL	$0, sec_hi+12(FP)
+	MOVL	DX, nsec+16(FP)
 	RET
 
 TEXT runtime·notify(SB),NOSPLIT,$0
@@ -126,7 +115,7 @@ TEXT runtime·noted(SB),NOSPLIT,$0
 	INT	$64
 	MOVL	AX, ret+4(FP)
 	RET
-	
+
 TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	MOVL	$38, AX
 	INT	$64
@@ -139,7 +128,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 	MOVL	AX, ret+4(FP)
 	RET
 
-TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
+TEXT runtime·tstart_plan9(SB),NOSPLIT,$4
 	MOVL	newm+0(FP), CX
 	MOVL	m_g0(CX), DX
 
@@ -163,8 +152,10 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
 	CALL	runtime·mstart(SB)
 
-	MOVL	$0x1234, 0x1234		// not reached
-	RET
+	// Exit the thread.
+	MOVL	$0, 0(SP)
+	CALL	runtime·exits(SB)
+	JMP	0(PC)
 
 // void sigtramp(void *ureg, int8 *note)
 TEXT runtime·sigtramp(SB),NOSPLIT,$0
@@ -178,8 +169,8 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	RET
 
 	// save args
-	MOVL	ureg+4(SP), CX
-	MOVL	note+8(SP), DX
+	MOVL	ureg+0(FP), CX
+	MOVL	note+4(FP), DX
 
 	// change stack
 	MOVL	g_m(BX), BX
@@ -238,7 +229,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$8-8
 	get_tls(AX)
 	MOVL	g(AX), BX
 	MOVL	g_m(BX), BX
-	MOVL	m_errstr(BX), CX
+	MOVL	(m_mOS+mOS_errstr)(BX), CX
 	MOVL	CX, 0(SP)
 	MOVL	$ERRMAX, 4(SP)
 	CALL	errstr<>(SB)
@@ -248,3 +239,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$8-8
 	MOVL	0(SP), AX
 	MOVL	AX, ret_base+0(FP)
 	RET
+
+// never called on this platform
+TEXT ·sigpanictramp(SB),NOSPLIT,$0-0
+	UNDEF

@@ -8,6 +8,8 @@ const (
 	_EBADF       = 0x9
 	_EFAULT      = 0xe
 	_EAGAIN      = 0xb
+	_EBUSY       = 0x10
+	_ETIME       = 0x3e
 	_ETIMEDOUT   = 0x91
 	_EWOULDBLOCK = 0xb
 	_EINPROGRESS = 0x96
@@ -21,7 +23,8 @@ const (
 	_MAP_PRIVATE = 0x2
 	_MAP_FIXED   = 0x10
 
-	_MADV_FREE = 0x5
+	_MADV_DONTNEED = 0x4
+	_MADV_FREE     = 0x5
 
 	_SA_SIGINFO = 0x8
 	_SA_RESTART = 0x4
@@ -78,6 +81,7 @@ const (
 	_ITIMER_VIRTUAL = 0x1
 	_ITIMER_PROF    = 0x2
 
+	__SC_PAGESIZE         = 0xb
 	__SC_NPROCESSORS_ONLN = 0xf
 
 	_PTHREAD_CREATE_DETACHED = 0x40
@@ -87,18 +91,20 @@ const (
 
 	_MAXHOSTNAMELEN = 0x100
 
+	_O_WRONLY   = 0x1
 	_O_NONBLOCK = 0x80
-	_FD_CLOEXEC = 0x1
-	_F_GETFL    = 0x3
-	_F_SETFL    = 0x4
-	_F_SETFD    = 0x2
+	_O_TRUNC    = 0x200
+	_O_CREAT    = 0x100
+	_O_CLOEXEC  = 0x800000
 
 	_POLLIN  = 0x1
 	_POLLOUT = 0x4
 	_POLLHUP = 0x10
 	_POLLERR = 0x8
 
-	_PORT_SOURCE_FD = 0x4
+	_PORT_SOURCE_FD    = 0x4
+	_PORT_SOURCE_ALERT = 0x5
+	_PORT_ALERT_UPDATE = 0x2
 )
 
 type semt struct {
@@ -109,20 +115,13 @@ type semt struct {
 	sem_pad2  [2]uint64
 }
 
-type sigaltstackt struct {
-	ss_sp     *byte
-	ss_size   uint64
-	ss_flags  int32
-	pad_cgo_0 [4]byte
-}
-
 type sigset struct {
 	__sigbits [4]uint32
 }
 
 type stackt struct {
 	ss_sp     *byte
-	ss_size   uint64
+	ss_size   uintptr
 	ss_flags  int32
 	pad_cgo_0 [4]byte
 }
@@ -165,6 +164,12 @@ type ucontext struct {
 type timespec struct {
 	tv_sec  int64
 	tv_nsec int64
+}
+
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = ns / 1e9
+	ts.tv_nsec = ns % 1e9
 }
 
 type timeval struct {

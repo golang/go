@@ -5,60 +5,75 @@
 package des
 
 import (
-	"encoding/binary"
+	"internal/byteorder"
+	"sync"
 )
 
 func cryptBlock(subkeys []uint64, dst, src []byte, decrypt bool) {
-	b := binary.BigEndian.Uint64(src)
+	b := byteorder.BEUint64(src)
 	b = permuteInitialBlock(b)
 	left, right := uint32(b>>32), uint32(b)
 
-	var subkey uint64
-	for i := 0; i < 16; i++ {
-		if decrypt {
-			subkey = subkeys[15-i]
-		} else {
-			subkey = subkeys[i]
-		}
+	left = (left << 1) | (left >> 31)
+	right = (right << 1) | (right >> 31)
 
-		left, right = right, left^feistel(right, subkey)
+	if decrypt {
+		for i := 0; i < 8; i++ {
+			left, right = feistel(left, right, subkeys[15-2*i], subkeys[15-(2*i+1)])
+		}
+	} else {
+		for i := 0; i < 8; i++ {
+			left, right = feistel(left, right, subkeys[2*i], subkeys[2*i+1])
+		}
 	}
+
+	left = (left << 31) | (left >> 1)
+	right = (right << 31) | (right >> 1)
+
 	// switch left & right and perform final permutation
 	preOutput := (uint64(right) << 32) | uint64(left)
-	binary.BigEndian.PutUint64(dst, permuteFinalBlock(preOutput))
+	byteorder.BEPutUint64(dst, permuteFinalBlock(preOutput))
 }
 
-// Encrypt one block from src into dst, using the subkeys.
-func encryptBlock(subkeys []uint64, dst, src []byte) {
-	cryptBlock(subkeys, dst, src, false)
-}
+// DES Feistel function. feistelBox must be initialized via
+// feistelBoxOnce.Do(initFeistelBox) first.
+func feistel(l, r uint32, k0, k1 uint64) (lout, rout uint32) {
+	var t uint32
 
-// Decrypt one block from src into dst, using the subkeys.
-func decryptBlock(subkeys []uint64, dst, src []byte) {
-	cryptBlock(subkeys, dst, src, true)
-}
+	t = r ^ uint32(k0>>32)
+	l ^= feistelBox[7][t&0x3f] ^
+		feistelBox[5][(t>>8)&0x3f] ^
+		feistelBox[3][(t>>16)&0x3f] ^
+		feistelBox[1][(t>>24)&0x3f]
 
-// DES Feistel function
-func feistel(right uint32, key uint64) (result uint32) {
-	sBoxLocations := key ^ expandBlock(right)
-	var sBoxResult uint32
-	for i := uint8(0); i < 8; i++ {
-		sBoxLocation := uint8(sBoxLocations>>42) & 0x3f
-		sBoxLocations <<= 6
-		// row determined by 1st and 6th bit
-		// column is middle four bits
-		row := (sBoxLocation & 0x1) | ((sBoxLocation & 0x20) >> 4)
-		column := (sBoxLocation >> 1) & 0xf
-		sBoxResult ^= feistelBox[i][16*row+column]
-	}
-	return sBoxResult
+	t = ((r << 28) | (r >> 4)) ^ uint32(k0)
+	l ^= feistelBox[6][(t)&0x3f] ^
+		feistelBox[4][(t>>8)&0x3f] ^
+		feistelBox[2][(t>>16)&0x3f] ^
+		feistelBox[0][(t>>24)&0x3f]
+
+	t = l ^ uint32(k1>>32)
+	r ^= feistelBox[7][t&0x3f] ^
+		feistelBox[5][(t>>8)&0x3f] ^
+		feistelBox[3][(t>>16)&0x3f] ^
+		feistelBox[1][(t>>24)&0x3f]
+
+	t = ((l << 28) | (l >> 4)) ^ uint32(k1)
+	r ^= feistelBox[6][(t)&0x3f] ^
+		feistelBox[4][(t>>8)&0x3f] ^
+		feistelBox[2][(t>>16)&0x3f] ^
+		feistelBox[0][(t>>24)&0x3f]
+
+	return l, r
 }
 
 // feistelBox[s][16*i+j] contains the output of permutationFunction
 // for sBoxes[s][i][j] << 4*(7-s)
 var feistelBox [8][64]uint32
 
-// general purpose function to perform DES block permutations
+var feistelBoxOnce sync.Once
+
+// general purpose function to perform DES block permutations.
 func permuteBlock(src uint64, permutation []uint8) (block uint64) {
 	for position, n := range permutation {
 		bit := (src >> n) & 1
@@ -67,31 +82,26 @@ func permuteBlock(src uint64, permutation []uint8) (block uint64) {
 	return
 }
 
-func init() {
+func initFeistelBox() {
 	for s := range sBoxes {
 		for i := 0; i < 4; i++ {
 			for j := 0; j < 16; j++ {
 				f := uint64(sBoxes[s][i][j]) << (4 * (7 - uint(s)))
-				f = permuteBlock(uint64(f), permutationFunction[:])
-				feistelBox[s][16*i+j] = uint32(f)
+				f = permuteBlock(f, permutationFunction[:])
+
+				// Row is determined by the 1st and 6th bit.
+				// Column is the middle four bits.
+				row := uint8(((i & 2) << 4) | i&1)
+				col := uint8(j << 1)
+				t := row | col
+
+				// The rotation was performed in the feistel rounds, being factored out and now mixed into the feistelBox.
+				f = (f << 1) | (f >> 31)
+
+				feistelBox[s][t] = uint32(f)
 			}
 		}
 	}
-}
-
-// expandBlock expands an input block of 32 bits,
-// producing an output block of 48 bits.
-func expandBlock(src uint32) (block uint64) {
-	// rotate the 5 highest bits to the right.
-	src = (src << 5) | (src >> 27)
-	for i := 0; i < 8; i++ {
-		block <<= 6
-		// take the 6 bits on the right
-		block |= uint64(src) & (1<<6 - 1)
-		// advance by 4 bits.
-		src = (src << 4) | (src >> 28)
-	}
-	return
 }
 
 // permuteInitialBlock is equivalent to the permutation defined
@@ -107,7 +117,7 @@ func permuteInitialBlock(block uint64) uint64 {
 	b2 = (block & 0xff00ff00)
 	block ^= b1<<32 ^ b2 ^ b1<<8 ^ b2<<24 // exchange b0 b4 with b3 b7
 
-	// block is now b1 b3 b5 b7 b0 b2 b4 b7, the permutation:
+	// block is now b1 b3 b5 b7 b0 b2 b4 b6, the permutation:
 	//                  ...  8
 	//                  ... 24
 	//                  ... 40
@@ -162,7 +172,7 @@ func permuteInitialBlock(block uint64) uint64 {
 	return block
 }
 
-// permuteInitialBlock is equivalent to the permutation defined
+// permuteFinalBlock is equivalent to the permutation defined
 // by finalPermutation.
 func permuteFinalBlock(block uint64) uint64 {
 	// Perform the same bit exchanges as permuteInitialBlock
@@ -189,7 +199,7 @@ func permuteFinalBlock(block uint64) uint64 {
 }
 
 // creates 16 28-bit blocks rotated according
-// to the rotation schedule
+// to the rotation schedule.
 func ksRotate(in uint32) (out []uint32) {
 	out = make([]uint32, 16)
 	last := in
@@ -203,10 +213,12 @@ func ksRotate(in uint32) (out []uint32) {
 	return
 }
 
-// creates 16 56-bit subkeys from the original key
+// creates 16 56-bit subkeys from the original key.
 func (c *desCipher) generateSubkeys(keyBytes []byte) {
+	feistelBoxOnce.Do(initFeistelBox)
+
 	// apply PC1 permutation to key
-	key := binary.BigEndian.Uint64(keyBytes)
+	key := byteorder.BEUint64(keyBytes)
 	permutedKey := permuteBlock(key, permutedChoice1[:])
 
 	// rotate halves of permuted key according to the rotation schedule
@@ -218,6 +230,20 @@ func (c *desCipher) generateSubkeys(keyBytes []byte) {
 		// combine halves to form 56-bit input to PC2
 		pc2Input := uint64(leftRotations[i])<<28 | uint64(rightRotations[i])
 		// apply PC2 permutation to 7 byte input
-		c.subkeys[i] = permuteBlock(pc2Input, permutedChoice2[:])
+		c.subkeys[i] = unpack(permuteBlock(pc2Input, permutedChoice2[:]))
 	}
+}
+
+// Expand 48-bit input to 64-bit, with each 6-bit block padded by extra two bits at the top.
+// By doing so, we can have the input blocks (four bits each), and the key blocks (six bits each) well-aligned without
+// extra shifts/rotations for alignments.
+func unpack(x uint64) uint64 {
+	return ((x>>(6*1))&0xff)<<(8*0) |
+		((x>>(6*3))&0xff)<<(8*1) |
+		((x>>(6*5))&0xff)<<(8*2) |
+		((x>>(6*7))&0xff)<<(8*3) |
+		((x>>(6*0))&0xff)<<(8*4) |
+		((x>>(6*2))&0xff)<<(8*5) |
+		((x>>(6*4))&0xff)<<(8*6) |
+		((x>>(6*6))&0xff)<<(8*7)
 }

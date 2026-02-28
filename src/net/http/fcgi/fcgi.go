@@ -3,8 +3,11 @@
 // license that can be found in the LICENSE file.
 
 // Package fcgi implements the FastCGI protocol.
+//
+// See https://fast-cgi.github.io/ for an unofficial mirror of the
+// original documentation.
+//
 // Currently only the responder role is supported.
-// The protocol is defined at http://www.fastcgi.com/drupal/node/6?q=node/22
 package fcgi
 
 // This file defines the raw protocol and some utilities used by the child and
@@ -20,7 +23,7 @@ import (
 )
 
 // recType is a record type, as defined by
-// http://www.fastcgi.com/devkit/doc/fcgi-spec.html#S8
+// https://web.archive.org/web/20150420080736/http://www.fastcgi.com/drupal/node/6?q=node/22#S8
 type recType uint8
 
 const (
@@ -57,8 +60,6 @@ const (
 	statusOverloaded
 	statusUnknownRole
 )
-
-const headerLen = 8
 
 type header struct {
 	Version       uint8
@@ -98,8 +99,10 @@ func (h *header) init(recType recType, reqId uint16, contentLength int) {
 
 // conn sends records over rwc
 type conn struct {
-	mutex sync.Mutex
-	rwc   io.ReadWriteCloser
+	mutex    sync.Mutex
+	rwc      io.ReadWriteCloser
+	closeErr error
+	closed   bool
 
 	// to avoid allocations
 	buf bytes.Buffer
@@ -110,10 +113,15 @@ func newConn(rwc io.ReadWriteCloser) *conn {
 	return &conn{rwc: rwc}
 }
 
+// Close closes the conn if it is not already closed.
 func (c *conn) Close() error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	return c.rwc.Close()
+	if !c.closed {
+		c.closeErr = c.rwc.Close()
+		c.closed = true
+	}
+	return c.closeErr
 }
 
 type record struct {
@@ -156,11 +164,6 @@ func (c *conn) writeRecord(recType recType, reqId uint16, b []byte) error {
 	}
 	_, err := c.rwc.Write(c.buf.Bytes())
 	return err
-}
-
-func (c *conn) writeBeginRequest(reqId uint16, role uint16, flags uint8) error {
-	b := [8]byte{byte(role >> 8), byte(role), flags}
-	return c.writeRecord(typeBeginRequest, reqId, b[:])
 }
 
 func (c *conn) writeEndRequest(reqId uint16, appStatus int, protocolStatus uint8) error {

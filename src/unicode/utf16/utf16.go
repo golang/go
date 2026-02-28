@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -25,7 +25,7 @@ const (
 	surrSelf = 0x10000
 )
 
-// IsSurrogate returns true if the specified Unicode code point
+// IsSurrogate reports whether the specified Unicode code point
 // can appear in a surrogate pair.
 func IsSurrogate(r rune) bool {
 	return surr1 <= r && r < surr3
@@ -36,7 +36,7 @@ func IsSurrogate(r rune) bool {
 // the Unicode replacement code point U+FFFD.
 func DecodeRune(r1, r2 rune) rune {
 	if surr1 <= r1 && r1 < surr2 && surr2 <= r2 && r2 < surr3 {
-		return (r1-surr1)<<10 | (r2 - surr2) + 0x10000
+		return (r1-surr1)<<10 | (r2 - surr2) + surrSelf
 	}
 	return replacementChar
 }
@@ -45,11 +45,24 @@ func DecodeRune(r1, r2 rune) rune {
 // If the rune is not a valid Unicode code point or does not need encoding,
 // EncodeRune returns U+FFFD, U+FFFD.
 func EncodeRune(r rune) (r1, r2 rune) {
-	if r < surrSelf || r > maxRune || IsSurrogate(r) {
+	if r < surrSelf || r > maxRune {
 		return replacementChar, replacementChar
 	}
 	r -= surrSelf
 	return surr1 + (r>>10)&0x3ff, surr2 + r&0x3ff
+}
+
+// RuneLen returns the number of 16-bit words in the UTF-16 encoding of the rune.
+// It returns -1 if the rune is not a valid value to encode in UTF-16.
+func RuneLen(r rune) int {
+	switch {
+	case 0 <= r && r < surr1, surr3 <= r && r < surrSelf:
+		return 1
+	case surrSelf <= r && r <= maxRune:
+		return 2
+	default:
+		return -1
+	}
 }
 
 // Encode returns the UTF-16 encoding of the Unicode code point sequence s.
@@ -64,45 +77,68 @@ func Encode(s []rune) []uint16 {
 	a := make([]uint16, n)
 	n = 0
 	for _, v := range s {
-		switch {
-		case v < 0, surr1 <= v && v < surr3, v > maxRune:
-			v = replacementChar
-			fallthrough
-		case v < surrSelf:
+		switch RuneLen(v) {
+		case 1: // normal rune
 			a[n] = uint16(v)
 			n++
-		default:
+		case 2: // needs surrogate sequence
 			r1, r2 := EncodeRune(v)
 			a[n] = uint16(r1)
 			a[n+1] = uint16(r2)
 			n += 2
+		default:
+			a[n] = uint16(replacementChar)
+			n++
 		}
 	}
-	return a[0:n]
+	return a[:n]
+}
+
+// AppendRune appends the UTF-16 encoding of the Unicode code point r
+// to the end of p and returns the extended buffer. If the rune is not
+// a valid Unicode code point, it appends the encoding of U+FFFD.
+func AppendRune(a []uint16, r rune) []uint16 {
+	// This function is inlineable for fast handling of ASCII.
+	switch {
+	case 0 <= r && r < surr1, surr3 <= r && r < surrSelf:
+		// normal rune
+		return append(a, uint16(r))
+	case surrSelf <= r && r <= maxRune:
+		// needs surrogate sequence
+		r1, r2 := EncodeRune(r)
+		return append(a, uint16(r1), uint16(r2))
+	}
+	return append(a, replacementChar)
 }
 
 // Decode returns the Unicode code point sequence represented
 // by the UTF-16 encoding s.
 func Decode(s []uint16) []rune {
-	a := make([]rune, len(s))
-	n := 0
+	// Preallocate capacity to hold up to 64 runes.
+	// Decode inlines, so the allocation can live on the stack.
+	buf := make([]rune, 0, 64)
+	return decode(s, buf)
+}
+
+// decode appends to buf the Unicode code point sequence represented
+// by the UTF-16 encoding s and return the extended buffer.
+func decode(s []uint16, buf []rune) []rune {
 	for i := 0; i < len(s); i++ {
+		var ar rune
 		switch r := s[i]; {
+		case r < surr1, surr3 <= r:
+			// normal rune
+			ar = rune(r)
 		case surr1 <= r && r < surr2 && i+1 < len(s) &&
 			surr2 <= s[i+1] && s[i+1] < surr3:
 			// valid surrogate sequence
-			a[n] = DecodeRune(rune(r), rune(s[i+1]))
+			ar = DecodeRune(rune(r), rune(s[i+1]))
 			i++
-			n++
-		case surr1 <= r && r < surr3:
-			// invalid surrogate sequence
-			a[n] = replacementChar
-			n++
 		default:
-			// normal rune
-			a[n] = rune(r)
-			n++
+			// invalid surrogate sequence
+			ar = replacementChar
 		}
+		buf = append(buf, ar)
 	}
-	return a[0:n]
+	return buf
 }

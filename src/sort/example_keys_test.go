@@ -60,7 +60,7 @@ var planets = []Planet{
 	{"Mars", 0.107, 1.5},
 }
 
-// ExampleSortKeys demonstrates a technique for sorting a struct type using programmable sort criteria.
+// Example_sortKeys demonstrates a technique for sorting a struct type using programmable sort criteria.
 func Example_sortKeys() {
 	// Closures that order the Planet structure.
 	name := func(p1, p2 *Planet) bool {
@@ -73,7 +73,7 @@ func Example_sortKeys() {
 		return p1.distance < p2.distance
 	}
 	decreasingDistance := func(p1, p2 *Planet) bool {
-		return !distance(p1, p2)
+		return distance(p2, p1)
 	}
 
 	// Sort the planets by the various criteria.

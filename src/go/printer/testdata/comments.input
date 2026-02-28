@@ -97,6 +97,12 @@ type S3 struct {
 	f3 int // f3 is not exported
 }
 
+// Here is a comment.
+//Here is an accidentally unindented line.
+//dir:ect ive
+// More comment.
+type directiveCheck struct{}
+
 // This comment group should be separated
 // with a newline from the next comment
 // group.
@@ -607,6 +613,24 @@ func _() {
 	_ = a
 }
 
+// Test cases from issues 11274, 15137:
+// Semicolon must not be lost when multiple statements are on the same line with a comment.
+func _() {
+    x := 0 /**/; y := 1
+}
+
+func _() {
+	f(); f()
+	f(); /* comment */ f()
+	f() /* comment */; f()
+	f(); /* a */ /* b */ f()
+	f() /* a */ /* b */; f()
+	f() /* a */; /* b */ f()
+}
+
+func _() {
+	f() /* a */ /* b */ }
+
 // Comments immediately adjacent to punctuation followed by a newline
 // remain after the punctuation (looks better and permits alignment of
 // comments).
@@ -645,7 +669,7 @@ func _() {
 // This way, commas interspersed in lists stay with the respective expression.
 func f(x/* comment */, y int, z int /* comment */, u, v, w int /* comment */) {
 	f(x /* comment */, y)
-	f(x /* comment */, 
+	f(x /* comment */,
 	y)
 	f(
 		x /* comment */,
@@ -667,6 +691,12 @@ func _() {
 	}
 }
 
+//extern foo
+func foo() {}
+
+//export bar
+func bar() {}
+
 // Print line directives correctly.
 
 // The following is a legal line directive.
@@ -681,8 +711,8 @@ func _() {
 	//line foo:2
 	_ = 2
 
-// The following is not a legal line directive (negative line number):
-//line foo:-3
+// The following is not a legal line directive (missing colon):
+//line foo -3
 	_ = 3
 }
 
@@ -700,11 +730,44 @@ var	lflag		bool				// -l			- disable line directives
 
 // Trailing white space in comments should be trimmed
 func _() {
-// This comment has 4 blanks following that should be trimmed:    
-/* Each line of this comment has blanks or tabs following that should be trimmed:	
-   line 2:    
-   line 3:    			
+// This comment has 4 blanks following that should be trimmed:
+/* Each line of this comment has blanks or tabs following that should be trimmed:
+   line 2:
+   line 3:
 */
 }
+
+var _ = []T{/* lone comment */}
+
+var _ = []T{
+/* lone comment */
+}
+
+var _ = []T{
+// lone comments
+// in composite lit
+}
+
+var _ = [][]T{
+	{
+		// lone comments
+		// in composite lit
+	},
+}
+
+// TODO: gofmt doesn't add these tabs; make it so that these golden
+// tests run the printer in a way that it's exactly like gofmt.
+
+var _ = []T{// lone comment
+}
+
+var _ = []T{// lone comments
+// in composite lit
+}
+
+func _() {}
+
+//
+func _() {}
 
 /* This comment is the last entry in this file. It must be printed and should be followed by a newline */

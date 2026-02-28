@@ -2,12 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !darwin
-// +build !dragonfly
-// +build !freebsd
-// +build !netbsd
-// +build !openbsd
-// +build !solaris
+//go:build !aix && !darwin && !dragonfly && !freebsd && !js && !netbsd && !openbsd && !solaris && !wasip1
 
 package os
 

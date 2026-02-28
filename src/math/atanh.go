@@ -6,7 +6,7 @@ package math
 
 // The original C code, the long comment, and the constants
 // below are from FreeBSD's /usr/src/lib/msun/src/e_atanh.c
-// and came with this notice.  The go code is a simplified
+// and came with this notice. The go code is a simplified
 // version of the original C.
 //
 // ====================================================
@@ -39,12 +39,20 @@ package math
 // Atanh returns the inverse hyperbolic tangent of x.
 //
 // Special cases are:
+//
 //	Atanh(1) = +Inf
 //	Atanh(±0) = ±0
 //	Atanh(-1) = -Inf
 //	Atanh(x) = NaN if x < -1 or x > 1
 //	Atanh(NaN) = NaN
 func Atanh(x float64) float64 {
+	if haveArchAtanh {
+		return archAtanh(x)
+	}
+	return atanh(x)
+}
+
+func atanh(x float64) float64 {
 	const NearZero = 1.0 / (1 << 28) // 2**-28
 	// special cases
 	switch {

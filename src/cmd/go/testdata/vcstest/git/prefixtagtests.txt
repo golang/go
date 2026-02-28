@@ -1,0 +1,53 @@
+handle git
+
+env GIT_AUTHOR_NAME='Jay Conrod'
+env GIT_AUTHOR_EMAIL='jayconrod@google.com'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+at 2019-05-09T18:35:00-04:00
+
+git init
+
+git add sub
+git commit -m 'create module sub'
+git branch -m master
+
+echo 'v0.1.0'
+cp stdout status
+git add status
+git commit -a -m 'v0.1.0'
+git tag 'v0.1.0'
+
+echo 'sub/v0.0.9'
+cp stdout status
+git commit -a -m 'sub/v0.0.9'
+git tag 'sub/v0.0.9'
+
+echo 'sub/v0.0.10'
+cp stdout status
+git commit -a -m 'sub/v0.0.10'
+git tag 'sub/v0.0.10'
+
+echo 'v0.2.0'
+cp stdout status
+git commit -a -m 'v0.2.0'
+git tag 'v0.2.0'
+
+echo 'after last tag'
+cp stdout status
+git commit -a -m 'after last tag'
+
+git show-ref --tags --heads
+cmp stdout .git-refs
+
+-- .git-refs --
+c3ee5d0dfbb9bf3c4d8bb2bce24cd8d14d2d4238 refs/heads/master
+2b7c4692e12c109263cab51b416fcc835ddd7eae refs/tags/sub/v0.0.10
+883885166298d79a0561d571a3044ec5db2e7c28 refs/tags/sub/v0.0.9
+db89fc573cfb939faf0aa0660671eb4cf8b8b673 refs/tags/v0.1.0
+1abe41965749e50828dd41de8d12c6ebc8e4e131 refs/tags/v0.2.0
+-- sub/go.mod --
+module vcs-test.golang.org/git/prefixtagtests.git/sub
+-- sub/sub.go --
+package sub

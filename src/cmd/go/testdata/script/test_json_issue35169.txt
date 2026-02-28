@@ -1,0 +1,28 @@
+! go test -json .
+
+	# We should see only JSON output on stdout, no non-JSON.
+	# To simplify the check, we just look for non-curly-braces, since
+	# every JSON entry has them and they're unlikely to occur
+	# in other error messages.
+! stdout '^[^{]'
+! stdout '[^}]\n$'
+
+	# Since the only test we requested failed to build, we should
+	# not see any "pass" actions in the JSON stream.
+! stdout '\{.*"Action":"pass".*\}'
+
+	# TODO(#62067): emit this as a build event instead of a test event.
+stdout '\{.*"Action":"output","Package":"example","Output":"FAIL\\texample \[build failed\]\\n"\}'
+stdout '\{.*"Action":"fail","Package":"example",.*\}'
+
+-- go.mod --
+module example
+go 1.19
+-- example.go --
+package example
+
+This is not valid Go source.
+-- example_test.go --
+package  example
+
+func Test(*testing.T) {}

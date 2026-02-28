@@ -1,0 +1,29 @@
+# Tests Issue #54468
+
+[short] skip 'links a test binary'
+[!race] skip
+
+go mod tidy
+go test -c -o=$devnull -race .
+
+! stderr 'cannot find package'
+
+-- go.mod --
+module testrace
+
+go 1.18
+
+require rsc.io/sampler v1.0.0
+-- race_test.go --
+//go:build race
+
+package testrace
+
+import (
+        "testing"
+
+        _ "rsc.io/sampler"
+)
+
+func TestRaceTag(t *testing.T) {
+}

@@ -1,6 +1,6 @@
 // run
 
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -18,19 +18,19 @@ type T struct {
 
 type TI [3]uintptr
 
+//go:noinline
 func G() (t TI) {
 	t[0] = 1
 	t[1] = 2
 	t[2] = 3
-	runtime.GC() // prevent inlining
 	return
 }
 
+//go:noinline
 func F() (t T) {
 	t.X = newint()
 	t.Y = t.X
 	t.Z = t.Y
-	runtime.GC() // prevent inlining
 	return
 }
 

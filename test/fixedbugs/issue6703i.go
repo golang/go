@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -17,4 +17,4 @@ func (T) m() int {
 
 type E struct{ T }
 
-var x = E{}.m // ERROR "initialization loop|depends upon itself" 
+var x = E{}.m // ERROR "initialization cycle|depends upon itself" 

@@ -1,0 +1,31 @@
+env GO111MODULE=on
+
+go get rsc.io/quote@v1.5.1
+go mod vendor
+env GOPATH=$WORK/empty
+env GOPROXY=file:///nonexist
+
+go list -mod=vendor
+go list -mod=vendor -f '{{with .Module}}{{.Path}} {{.Version}}{{end}} {{.Dir}}' all
+stdout '^rsc.io/quote v1.5.1 .*vendor[\\/]rsc.io[\\/]quote$'
+stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text[\\/]language$'
+
+! go list -mod=vendor -m rsc.io/quote@latest
+stderr 'go: rsc.io/quote@latest: cannot query module due to -mod=vendor'
+! go get -mod=vendor -u
+stderr 'flag provided but not defined: -mod'
+
+# Since we don't have a complete module graph, 'go list -m' queries
+# that require the complete graph should fail with a useful error.
+! go list -mod=vendor -m all
+stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+! go list -mod=vendor -m ...
+stderr 'go: can''t match module patterns using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+
+-- go.mod --
+module x
+
+go 1.16
+-- x.go --
+package x
+import _ "rsc.io/quote"

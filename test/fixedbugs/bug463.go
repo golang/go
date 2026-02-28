@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -9,11 +9,11 @@
 
 package main
 
-const a = a // ERROR "refers to itself|definition loop"
+const a = a // ERROR "refers to itself|definition loop|initialization cycle"
 
 const (
 	X    = A
-	A    = B // ERROR "refers to itself|definition loop"
+	A    = B // ERROR "refers to itself|definition loop|initialization cycle"
 	B    = D
 	C, D = 1, A
 )

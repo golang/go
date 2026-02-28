@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -28,7 +28,9 @@ func initRewrite() {
 	}
 	pattern := parseExpr(f[0], "pattern")
 	replace := parseExpr(f[1], "replacement")
-	rewrite = func(p *ast.File) *ast.File { return rewriteFile(pattern, replace, p) }
+	rewrite = func(fset *token.FileSet, p *ast.File) *ast.File {
+		return rewriteFile(fset, pattern, replace, p)
+	}
 }
 
 // parseExpr parses s as an expression.
@@ -54,7 +56,7 @@ func dump(msg string, val reflect.Value) {
 */
 
 // rewriteFile applies the rewrite rule 'pattern -> replace' to an entire file.
-func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
+func rewriteFile(fileSet *token.FileSet, pattern, replace ast.Expr, p *ast.File) *ast.File {
 	cmap := ast.NewCommentMap(fileSet, p, p.Comments)
 	m := make(map[string]reflect.Value)
 	pat := reflect.ValueOf(pattern)
@@ -66,10 +68,8 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
 		if !val.IsValid() {
 			return reflect.Value{}
 		}
-		for k := range m {
-			delete(m, k)
-		}
 		val = apply(rewriteVal, val)
+		clear(m)
 		if match(m, pat, val) {
 			val = subst(m, repl, reflect.ValueOf(val.Interface().(ast.Node).Pos()))
 		}
@@ -105,11 +105,11 @@ var (
 	objectPtrNil = reflect.ValueOf((*ast.Object)(nil))
 	scopePtrNil  = reflect.ValueOf((*ast.Scope)(nil))
 
-	identType     = reflect.TypeOf((*ast.Ident)(nil))
-	objectPtrType = reflect.TypeOf((*ast.Object)(nil))
-	positionType  = reflect.TypeOf(token.NoPos)
-	callExprType  = reflect.TypeOf((*ast.CallExpr)(nil))
-	scopePtrType  = reflect.TypeOf((*ast.Scope)(nil))
+	identType     = reflect.TypeFor[*ast.Ident]()
+	objectPtrType = reflect.TypeFor[*ast.Object]()
+	positionType  = reflect.TypeFor[token.Pos]()
+	callExprType  = reflect.TypeFor[*ast.CallExpr]()
+	scopePtrType  = reflect.TypeFor[*ast.Scope]()
 )
 
 // apply replaces each AST field x in val with f(x), returning val.
@@ -154,11 +154,11 @@ func isWildcard(s string) bool {
 	return size == len(s) && unicode.IsLower(rune)
 }
 
-// match returns true if pattern matches val,
+// match reports whether pattern matches val,
 // recording wildcard submatches in m.
 // If m == nil, match checks whether pattern == val.
 func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
-	// Wildcard matches any expression.  If it appears multiple
+	// Wildcard matches any expression. If it appears multiple
 	// times in the pattern, it must match the same expression
 	// each time.
 	if m != nil && pattern.IsValid() && pattern.Type() == identType {
@@ -197,7 +197,7 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 		// object pointers and token positions always match
 		return true
 	case callExprType:
-		// For calls, the Ellipsis fields (token.Position) must
+		// For calls, the Ellipsis fields (token.Pos) must
 		// match since that is how f(x) and f(x...) are different.
 		// Check them here but fall through for the remaining fields.
 		p := pattern.Interface().(*ast.CallExpr)
@@ -271,6 +271,12 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
 	// Otherwise copy.
 	switch p := pattern; p.Kind() {
 	case reflect.Slice:
+		if p.IsNil() {
+			// Do not turn nil slices into empty slices. go/ast
+			// guarantees that certain lists will be nil if not
+			// populated.
+			return reflect.Zero(p.Type())
+		}
 		v := reflect.MakeSlice(p.Type(), p.Len(), p.Len())
 		for i := 0; i < p.Len(); i++ {
 			v.Index(i).Set(subst(m, p.Index(i), pos))
@@ -284,7 +290,7 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
 		}
 		return v
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		v := reflect.New(p.Type()).Elem()
 		if elem := p.Elem(); elem.IsValid() {
 			v.Set(subst(m, elem, pos).Addr())

@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,8 +6,19 @@ package build
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/scanner"
+	"go/token"
 	"io"
+	"strconv"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+	_ "unsafe" // for linkname
 )
 
 type importReader struct {
@@ -17,10 +28,32 @@ type importReader struct {
 	err  error
 	eof  bool
 	nerr int
+	pos  token.Position
+}
+
+var bom = []byte{0xef, 0xbb, 0xbf}
+
+func newImportReader(name string, r io.Reader) *importReader {
+	b := bufio.NewReader(r)
+	// Remove leading UTF-8 BOM.
+	// Per https://golang.org/ref/spec#Source_code_representation:
+	// a compiler may ignore a UTF-8-encoded byte order mark (U+FEFF)
+	// if it is the first Unicode code point in the source text.
+	if leadingBytes, err := b.Peek(3); err == nil && bytes.Equal(leadingBytes, bom) {
+		b.Discard(3)
+	}
+	return &importReader{
+		b: b,
+		pos: token.Position{
+			Filename: name,
+			Line:     1,
+			Column:   1,
+		},
+	}
 }
 
 func isIdent(c byte) bool {
-	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' || c == '_' || c >= 0x80
+	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' || c == '_' || c >= utf8.RuneSelf
 }
 
 var (
@@ -54,6 +87,26 @@ func (r *importReader) readByte() byte {
 		c = 0
 	}
 	return c
+}
+
+// readRest reads the entire rest of the file into r.buf.
+func (r *importReader) readRest() {
+	for {
+		if len(r.buf) == cap(r.buf) {
+			// Grow the buffer
+			r.buf = append(r.buf, 0)[:len(r.buf)]
+		}
+		n, err := r.b.Read(r.buf[len(r.buf):cap(r.buf)])
+		r.buf = r.buf[:len(r.buf)+n]
+		if err != nil {
+			if err == io.EOF {
+				r.eof = true
+			} else if r.err == nil {
+				r.err = err
+			}
+			break
+		}
+	}
 }
 
 // peekByte returns the next byte from the input reader but does not advance beyond it.
@@ -187,10 +240,20 @@ func (r *importReader) readImport() {
 	r.readString()
 }
 
-// readComments is like ioutil.ReadAll, except that it only reads the leading
+// readComments is like io.ReadAll, except that it only reads the leading
 // block of comments in the file.
+//
+// readComments should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bazelbuild/bazel-gazelle
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname readComments
 func readComments(f io.Reader) ([]byte, error) {
-	r := &importReader{b: bufio.NewReader(f)}
+	r := newImportReader("", f)
 	r.peekByte(true)
 	if r.err == nil && !r.eof {
 		// Didn't reach EOF, so must have found a non-space byte. Remove it.
@@ -199,10 +262,15 @@ func readComments(f io.Reader) ([]byte, error) {
 	return r.buf, r.err
 }
 
-// readImports is like ioutil.ReadAll, except that it expects a Go file as input
-// and stops reading the input once the imports have completed.
-func readImports(f io.Reader, reportSyntaxError bool) ([]byte, error) {
-	r := &importReader{b: bufio.NewReader(f)}
+// readGoInfo expects a Go file as input and reads the file up to and including the import section.
+// It records what it learned in *info.
+// If info.fset is non-nil, readGoInfo parses the file and sets info.parsed, info.parseErr,
+// info.imports and info.embeds.
+//
+// It only returns an error if there are problems reading the file,
+// not for syntax errors in the file itself.
+func readGoInfo(f io.Reader, info *fileInfo) error {
+	r := newImportReader(info.name, f)
 
 	r.readKeyword("package")
 	r.readIdent()
@@ -219,20 +287,144 @@ func readImports(f io.Reader, reportSyntaxError bool) ([]byte, error) {
 		}
 	}
 
+	info.header = r.buf
+
 	// If we stopped successfully before EOF, we read a byte that told us we were done.
 	// Return all but that last byte, which would cause a syntax error if we let it through.
 	if r.err == nil && !r.eof {
-		return r.buf[:len(r.buf)-1], nil
+		info.header = r.buf[:len(r.buf)-1]
 	}
 
 	// If we stopped for a syntax error, consume the whole file so that
 	// we are sure we don't change the errors that go/parser returns.
-	if r.err == errSyntax && !reportSyntaxError {
+	if r.err == errSyntax {
 		r.err = nil
-		for r.err == nil && !r.eof {
-			r.readByte()
+		r.readRest()
+		info.header = r.buf
+	}
+	if r.err != nil {
+		return r.err
+	}
+
+	if info.fset == nil {
+		return nil
+	}
+
+	// Parse file header & record imports.
+	info.parsed, info.parseErr = parser.ParseFile(info.fset, info.name, info.header, parser.ImportsOnly|parser.ParseComments)
+	if info.parseErr != nil {
+		return nil
+	}
+
+	hasEmbed := false
+	for _, decl := range info.parsed.Decls {
+		d, ok := decl.(*ast.GenDecl)
+		if !ok {
+			continue
+		}
+		for _, dspec := range d.Specs {
+			spec, ok := dspec.(*ast.ImportSpec)
+			if !ok {
+				continue
+			}
+			quoted := spec.Path.Value
+			path, err := strconv.Unquote(quoted)
+			if err != nil {
+				return fmt.Errorf("parser returned invalid quoted string: <%s>", quoted)
+			}
+			if !isValidImport(path) {
+				// The parser used to return a parse error for invalid import paths, but
+				// no longer does, so check for and create the error here instead.
+				info.parseErr = scanner.Error{Pos: info.fset.Position(spec.Pos()), Msg: "invalid import path: " + path}
+				info.imports = nil
+				return nil
+			}
+			if path == "embed" {
+				hasEmbed = true
+			}
+
+			doc := spec.Doc
+			if doc == nil && len(d.Specs) == 1 {
+				doc = d.Doc
+			}
+			info.imports = append(info.imports, fileImport{path, spec.Pos(), doc})
 		}
 	}
 
-	return r.buf, r.err
+	// Extract directives.
+	for _, group := range info.parsed.Comments {
+		if group.Pos() >= info.parsed.Package {
+			break
+		}
+		for _, c := range group.List {
+			if strings.HasPrefix(c.Text, "//go:") {
+				info.directives = append(info.directives, Directive{c.Text, info.fset.Position(c.Slash)})
+			}
+		}
+	}
+
+	// If the file imports "embed",
+	// we have to look for //go:embed comments
+	// in the remainder of the file.
+	// The compiler will enforce the mapping of comments to
+	// declared variables. We just need to know the patterns.
+	// If there were //go:embed comments earlier in the file
+	// (near the package statement or imports), the compiler
+	// will reject them. They can be (and have already been) ignored.
+	if hasEmbed {
+		r.readRest()
+		fset := token.NewFileSet()
+		file := fset.AddFile(r.pos.Filename, -1, len(r.buf))
+		var sc scanner.Scanner
+		sc.Init(file, r.buf, nil, scanner.ScanComments)
+		for {
+			pos, tok, lit := sc.Scan()
+			if tok == token.EOF {
+				break
+			}
+			if tok == token.COMMENT && strings.HasPrefix(lit, "//go:embed") {
+				// Ignore badly-formed lines - the compiler will report them when it finds them,
+				// and we can pretend they are not there to help go list succeed with what it knows.
+				embs, err := parseGoEmbed(fset, pos, lit)
+				if err == nil {
+					info.embeds = append(info.embeds, embs...)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// isValidImport checks if the import is a valid import using the more strict
+// checks allowed by the implementation restriction in https://go.dev/ref/spec#Import_declarations.
+// It was ported from the function of the same name that was removed from the
+// parser in CL 424855, when the parser stopped doing these checks.
+func isValidImport(s string) bool {
+	const illegalChars = `!"#$%&'()*,:;<=>?[\]^{|}` + "`\uFFFD"
+	for _, r := range s {
+		if !unicode.IsGraphic(r) || unicode.IsSpace(r) || strings.ContainsRune(illegalChars, r) {
+			return false
+		}
+	}
+	return s != ""
+}
+
+// parseGoEmbed parses a "//go:embed" to extract the glob patterns.
+// It accepts unquoted space-separated patterns as well as double-quoted and back-quoted Go strings.
+// This must match the behavior of cmd/compile/internal/noder.go.
+func parseGoEmbed(fset *token.FileSet, pos token.Pos, comment string) ([]fileEmbed, error) {
+	dir, ok := ast.ParseDirective(pos, comment)
+	if !ok || dir.Tool != "go" || dir.Name != "embed" {
+		return nil, nil
+	}
+	args, err := dir.ParseArgs()
+	if err != nil {
+		return nil, err
+	}
+	var list []fileEmbed
+	for _, arg := range args {
+		list = append(list, fileEmbed{arg.Arg, fset.Position(arg.Pos)})
+	}
+	return list, nil
 }

@@ -1,0 +1,40 @@
+# This is a regression test for issue #49632.
+# The Go command should mention go.work if the user
+# tries to load a local package that's in a module
+# that's not in go.work and can't be resolved.
+
+! go list ./...
+stderr 'pattern ./...: directory prefix . does not contain modules listed in go.work or their selected dependencies'
+
+! go list ./a/c
+stderr 'directory a[\\/]c is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use a'
+
+! go install ./a/c
+stderr 'directory a[\\/]c is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use a'
+
+cd a/c
+! go run .
+stderr 'current directory is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use \.\.'
+
+cd ../..
+! go run .
+stderr 'current directory outside modules listed in go.work or their selected dependencies'
+
+-- go.work --
+go 1.18
+
+use ./b
+-- a/go.mod --
+module example.com/a
+
+go 1.18
+-- a/a.go --
+package a
+-- a/c/c.go --
+package main
+-- b/go.mod --
+module example.com/b
+
+go 1.18
+-- foo.go --
+package foo

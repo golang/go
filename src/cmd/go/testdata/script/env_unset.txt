@@ -1,0 +1,30 @@
+# Test that we can unset variables, even if initially invalid,
+# as long as resulting config is valid.
+
+env GOENV=badenv
+env GOOS=
+env GOARCH=
+env GOEXPERIMENT=
+
+! go env
+stderr '^go(\.exe)?: unknown GOEXPERIMENT badexp$'
+
+go env -u GOEXPERIMENT
+
+! go env
+stderr '^go: unsupported GOOS/GOARCH pair bados/badarch$'
+
+! go env -u GOOS
+stderr '^go: unsupported GOOS/GOARCH pair \w+/badarch$'
+
+! go env -u GOARCH
+stderr '^go: unsupported GOOS/GOARCH pair bados/\w+$'
+
+go env -u GOOS GOARCH
+
+go env
+
+-- badenv --
+GOOS=bados
+GOARCH=badarch
+GOEXPERIMENT=badexp

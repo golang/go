@@ -1,0 +1,21 @@
+-- input --
+In this package, see [Doc] and [Parser.Parse].
+There is no [Undef] or [Undef.Method].
+See also the [comment] package,
+especially [comment.Doc] and [comment.Parser.Parse].
+-- gofmt --
+In this package, see [Doc] and [Parser.Parse].
+There is no [Undef] or [Undef.Method].
+See also the [comment] package,
+especially [comment.Doc] and [comment.Parser.Parse].
+-- text --
+In this package, see Doc and Parser.Parse. There is no [Undef] or
+[Undef.Method]. See also the comment package, especially comment.Doc and
+comment.Parser.Parse.
+-- markdown --
+In this package, see [Doc](#Doc) and [Parser.Parse](#Parser.Parse). There is no \[Undef] or \[Undef.Method]. See also the [comment](/go/doc/comment) package, especially [comment.Doc](/go/doc/comment#Doc) and [comment.Parser.Parse](/go/doc/comment#Parser.Parse).
+-- html --
+<p>In this package, see <a href="#Doc">Doc</a> and <a href="#Parser.Parse">Parser.Parse</a>.
+There is no [Undef] or [Undef.Method].
+See also the <a href="/go/doc/comment">comment</a> package,
+especially <a href="/go/doc/comment#Doc">comment.Doc</a> and <a href="/go/doc/comment#Parser.Parse">comment.Parser.Parse</a>.

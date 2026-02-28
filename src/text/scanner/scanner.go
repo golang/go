@@ -4,25 +4,14 @@
 
 // Package scanner provides a scanner and tokenizer for UTF-8-encoded text.
 // It takes an io.Reader providing the source, which then can be tokenized
-// through repeated calls to the Scan function.  For compatibility with
+// through repeated calls to the Scan function. For compatibility with
 // existing tools, the NUL character is not allowed. If the first character
 // in the source is a UTF-8 encoded byte order mark (BOM), it is discarded.
 //
-// By default, a Scanner skips white space and Go comments and recognizes all
-// literals as defined by the Go language specification.  It may be
+// By default, a [Scanner] skips white space and Go comments and recognizes all
+// literals as defined by the Go language specification. It may be
 // customized to recognize only a subset of those literals and to recognize
 // different identifier and white space characters.
-//
-// Basic usage pattern:
-//
-//	var s scanner.Scanner
-//	s.Init(src)
-//	tok := s.Scan()
-//	for tok != scanner.EOF {
-//		// do something with tok
-//		tok = s.Scan()
-//	}
-//
 package scanner
 
 import (
@@ -34,7 +23,7 @@ import (
 	"unicode/utf8"
 )
 
-// A source position is represented by a Position value.
+// Position is a value that represents a source position.
 // A position is valid if Line > 0.
 type Position struct {
 	Filename string // filename, if any
@@ -43,39 +32,38 @@ type Position struct {
 	Column   int    // column number, starting at 1 (character count per line)
 }
 
-// IsValid returns true if the position is valid.
+// IsValid reports whether the position is valid.
 func (pos *Position) IsValid() bool { return pos.Line > 0 }
 
 func (pos Position) String() string {
 	s := pos.Filename
-	if pos.IsValid() {
-		if s != "" {
-			s += ":"
-		}
-		s += fmt.Sprintf("%d:%d", pos.Line, pos.Column)
-	}
 	if s == "" {
-		s = "???"
+		s = "<input>"
+	}
+	if pos.IsValid() {
+		s += fmt.Sprintf(":%d:%d", pos.Line, pos.Column)
 	}
 	return s
 }
 
 // Predefined mode bits to control recognition of tokens. For instance,
-// to configure a Scanner such that it only recognizes (Go) identifiers,
+// to configure a [Scanner] such that it only recognizes (Go) identifiers,
 // integers, and skips comments, set the Scanner's Mode field to:
 //
-//	ScanIdents | ScanInts | SkipComments
+//	ScanIdents | ScanInts | ScanComments | SkipComments
 //
 // With the exceptions of comments, which are skipped if SkipComments is
 // set, unrecognized tokens are not ignored. Instead, the scanner simply
 // returns the respective individual characters (or possibly sub-tokens).
 // For instance, if the mode is ScanIdents (not ScanStrings), the string
-// "foo" is scanned as the token sequence '"' Ident '"'.
+// "foo" is scanned as the token sequence '"' [Ident] '"'.
 //
+// Use GoTokens to configure the Scanner such that it accepts all Go
+// literal tokens including Go identifiers. Comments will be skipped.
 const (
 	ScanIdents     = 1 << -Ident
 	ScanInts       = 1 << -Int
-	ScanFloats     = 1 << -Float // includes Ints
+	ScanFloats     = 1 << -Float // includes Ints and hexadecimal floats
 	ScanChars      = 1 << -Char
 	ScanStrings    = 1 << -String
 	ScanRawStrings = 1 << -RawString
@@ -84,7 +72,7 @@ const (
 	GoTokens       = ScanIdents | ScanFloats | ScanChars | ScanStrings | ScanRawStrings | ScanComments | SkipComments
 )
 
-// The result of Scan is one of the following tokens or a Unicode character.
+// The result of Scan is one of these tokens or a Unicode character.
 const (
 	EOF = -(iota + 1)
 	Ident
@@ -94,6 +82,8 @@ const (
 	String
 	RawString
 	Comment
+
+	// internal use only
 	skipComment
 )
 
@@ -116,13 +106,13 @@ func TokenString(tok rune) string {
 	return fmt.Sprintf("%q", string(tok))
 }
 
-// GoWhitespace is the default value for the Scanner's Whitespace field.
+// GoWhitespace is the default value for the [Scanner]'s Whitespace field.
 // Its value selects Go's white space characters.
 const GoWhitespace = 1<<'\t' | 1<<'\n' | 1<<'\r' | 1<<' '
 
 const bufLen = 1024 // at least utf8.UTFMax
 
-// A Scanner implements reading of Unicode characters and tokens from an io.Reader.
+// A Scanner implements reading of Unicode characters and tokens from an [io.Reader].
 type Scanner struct {
 	// Input
 	src io.Reader
@@ -180,13 +170,14 @@ type Scanner struct {
 	// The Filename field is always left untouched by the Scanner.
 	// If an error is reported (via Error) and Position is invalid,
 	// the scanner is not inside a token. Call Pos to obtain an error
-	// position in that case.
+	// position in that case, or to obtain the position immediately
+	// after the most recently scanned token.
 	Position
 }
 
-// Init initializes a Scanner with a new source and returns s.
-// Error is set to nil, ErrorCount is set to 0, Mode is set to GoTokens,
-// and Whitespace is set to GoWhitespace.
+// Init initializes a [Scanner] with a new source and returns s.
+// [Scanner.Error] is set to nil, [Scanner.ErrorCount] is set to 0, [Scanner.Mode] is set to [GoTokens],
+// and [Scanner.Whitespace] is set to [GoWhitespace].
 func (s *Scanner) Init(src io.Reader) *Scanner {
 	s.src = src
 
@@ -208,7 +199,7 @@ func (s *Scanner) Init(src io.Reader) *Scanner {
 	s.tokPos = -1
 
 	// initialize one character look-ahead
-	s.ch = -1 // no char read yet
+	s.ch = -2 // no char read yet, not EOF
 
 	// initialize public fields
 	s.Error = nil
@@ -279,7 +270,7 @@ func (s *Scanner) next() rune {
 				s.srcPos += width
 				s.lastCharLen = width
 				s.column++
-				s.error("illegal UTF-8 encoding")
+				s.error("invalid UTF-8 encoding")
 				return ch
 			}
 		}
@@ -294,7 +285,7 @@ func (s *Scanner) next() rune {
 	switch ch {
 	case 0:
 		// for compatibility with other tools
-		s.error("illegal character NUL")
+		s.error("invalid character NUL")
 	case '\n':
 		s.line++
 		s.lastLineLen = s.column
@@ -305,24 +296,26 @@ func (s *Scanner) next() rune {
 }
 
 // Next reads and returns the next Unicode character.
-// It returns EOF at the end of the source. It reports
+// It returns [EOF] at the end of the source. It reports
 // a read error by calling s.Error, if not nil; otherwise
-// it prints an error message to os.Stderr. Next does not
-// update the Scanner's Position field; use Pos() to
+// it prints an error message to [os.Stderr]. Next does not
+// update the [Scanner.Position] field; use [Scanner.Pos]() to
 // get the current position.
 func (s *Scanner) Next() rune {
 	s.tokPos = -1 // don't collect token text
 	s.Line = 0    // invalidate token position
 	ch := s.Peek()
-	s.ch = s.next()
+	if ch != EOF {
+		s.ch = s.next()
+	}
 	return ch
 }
 
 // Peek returns the next Unicode character in the source without advancing
-// the scanner. It returns EOF if the scanner's position is at the last
+// the scanner. It returns [EOF] if the scanner's position is at the last
 // character of the source.
 func (s *Scanner) Peek() rune {
-	if s.ch < 0 {
+	if s.ch == -2 {
 		// this code is only run for the very first character
 		s.ch = s.next()
 		if s.ch == '\uFEFF' {
@@ -333,6 +326,7 @@ func (s *Scanner) Peek() rune {
 }
 
 func (s *Scanner) error(msg string) {
+	s.tokEnd = s.srcPos - s.lastCharLen // make sure token text is terminated
 	s.ErrorCount++
 	if s.Error != nil {
 		s.Error(s, msg)
@@ -345,9 +339,13 @@ func (s *Scanner) error(msg string) {
 	fmt.Fprintf(os.Stderr, "%s: %s\n", pos, msg)
 }
 
+func (s *Scanner) errorf(format string, args ...any) {
+	s.error(fmt.Sprintf(format, args...))
+}
+
 func (s *Scanner) isIdentRune(ch rune, i int) bool {
 	if s.IsIdentRune != nil {
-		return s.IsIdentRune(ch, i)
+		return ch != EOF && s.IsIdentRune(ch, i)
 	}
 	return ch == '_' || unicode.IsLetter(ch) || unicode.IsDigit(ch) && i > 0
 }
@@ -361,92 +359,190 @@ func (s *Scanner) scanIdentifier() rune {
 	return ch
 }
 
+func lower(ch rune) rune     { return ('a' - 'A') | ch } // returns lower-case ch iff ch is ASCII letter
+func isDecimal(ch rune) bool { return '0' <= ch && ch <= '9' }
+func isHex(ch rune) bool     { return '0' <= ch && ch <= '9' || 'a' <= lower(ch) && lower(ch) <= 'f' }
+
+// digits accepts the sequence { digit | '_' } starting with ch0.
+// If base <= 10, digits accepts any decimal digit but records
+// the first invalid digit >= base in *invalid if *invalid == 0.
+// digits returns the first rune that is not part of the sequence
+// anymore, and a bitset describing whether the sequence contained
+// digits (bit 0 is set), or separators '_' (bit 1 is set).
+func (s *Scanner) digits(ch0 rune, base int, invalid *rune) (ch rune, digsep int) {
+	ch = ch0
+	if base <= 10 {
+		max := rune('0' + base)
+		for isDecimal(ch) || ch == '_' {
+			ds := 1
+			if ch == '_' {
+				ds = 2
+			} else if ch >= max && *invalid == 0 {
+				*invalid = ch
+			}
+			digsep |= ds
+			ch = s.next()
+		}
+	} else {
+		for isHex(ch) || ch == '_' {
+			ds := 1
+			if ch == '_' {
+				ds = 2
+			}
+			digsep |= ds
+			ch = s.next()
+		}
+	}
+	return
+}
+
+func (s *Scanner) scanNumber(ch rune, seenDot bool) (rune, rune) {
+	base := 10         // number base
+	prefix := rune(0)  // one of 0 (decimal), '0' (0-octal), 'x', 'o', or 'b'
+	digsep := 0        // bit 0: digit present, bit 1: '_' present
+	invalid := rune(0) // invalid digit in literal, or 0
+
+	// integer part
+	var tok rune
+	var ds int
+	if !seenDot {
+		tok = Int
+		if ch == '0' {
+			ch = s.next()
+			switch lower(ch) {
+			case 'x':
+				ch = s.next()
+				base, prefix = 16, 'x'
+			case 'o':
+				ch = s.next()
+				base, prefix = 8, 'o'
+			case 'b':
+				ch = s.next()
+				base, prefix = 2, 'b'
+			default:
+				base, prefix = 8, '0'
+				digsep = 1 // leading 0
+			}
+		}
+		ch, ds = s.digits(ch, base, &invalid)
+		digsep |= ds
+		if ch == '.' && s.Mode&ScanFloats != 0 {
+			ch = s.next()
+			seenDot = true
+		}
+	}
+
+	// fractional part
+	if seenDot {
+		tok = Float
+		if prefix == 'o' || prefix == 'b' {
+			s.error("invalid radix point in " + litname(prefix))
+		}
+		ch, ds = s.digits(ch, base, &invalid)
+		digsep |= ds
+	}
+
+	if digsep&1 == 0 {
+		s.error(litname(prefix) + " has no digits")
+	}
+
+	// exponent
+	if e := lower(ch); (e == 'e' || e == 'p') && s.Mode&ScanFloats != 0 {
+		switch {
+		case e == 'e' && prefix != 0 && prefix != '0':
+			s.errorf("%q exponent requires decimal mantissa", ch)
+		case e == 'p' && prefix != 'x':
+			s.errorf("%q exponent requires hexadecimal mantissa", ch)
+		}
+		ch = s.next()
+		tok = Float
+		if ch == '+' || ch == '-' {
+			ch = s.next()
+		}
+		ch, ds = s.digits(ch, 10, nil)
+		digsep |= ds
+		if ds&1 == 0 {
+			s.error("exponent has no digits")
+		}
+	} else if prefix == 'x' && tok == Float {
+		s.error("hexadecimal mantissa requires a 'p' exponent")
+	}
+
+	if tok == Int && invalid != 0 {
+		s.errorf("invalid digit %q in %s", invalid, litname(prefix))
+	}
+
+	if digsep&2 != 0 {
+		s.tokEnd = s.srcPos - s.lastCharLen // make sure token text is terminated
+		if i := invalidSep(s.TokenText()); i >= 0 {
+			s.error("'_' must separate successive digits")
+		}
+	}
+
+	return tok, ch
+}
+
+func litname(prefix rune) string {
+	switch prefix {
+	default:
+		return "decimal literal"
+	case 'x':
+		return "hexadecimal literal"
+	case 'o', '0':
+		return "octal literal"
+	case 'b':
+		return "binary literal"
+	}
+}
+
+// invalidSep returns the index of the first invalid separator in x, or -1.
+func invalidSep(x string) int {
+	x1 := ' ' // prefix char, we only care if it's 'x'
+	d := '.'  // digit, one of '_', '0' (a digit), or '.' (anything else)
+	i := 0
+
+	// a prefix counts as a digit
+	if len(x) >= 2 && x[0] == '0' {
+		x1 = lower(rune(x[1]))
+		if x1 == 'x' || x1 == 'o' || x1 == 'b' {
+			d = '0'
+			i = 2
+		}
+	}
+
+	// mantissa and exponent
+	for ; i < len(x); i++ {
+		p := d // previous digit
+		d = rune(x[i])
+		switch {
+		case d == '_':
+			if p != '0' {
+				return i
+			}
+		case isDecimal(d) || x1 == 'x' && isHex(d):
+			d = '0'
+		default:
+			if p == '_' {
+				return i - 1
+			}
+			d = '.'
+		}
+	}
+	if d == '_' {
+		return len(x) - 1
+	}
+
+	return -1
+}
+
 func digitVal(ch rune) int {
 	switch {
 	case '0' <= ch && ch <= '9':
 		return int(ch - '0')
-	case 'a' <= ch && ch <= 'f':
-		return int(ch - 'a' + 10)
-	case 'A' <= ch && ch <= 'F':
-		return int(ch - 'A' + 10)
+	case 'a' <= lower(ch) && lower(ch) <= 'f':
+		return int(lower(ch) - 'a' + 10)
 	}
 	return 16 // larger than any legal digit val
-}
-
-func isDecimal(ch rune) bool { return '0' <= ch && ch <= '9' }
-
-func (s *Scanner) scanMantissa(ch rune) rune {
-	for isDecimal(ch) {
-		ch = s.next()
-	}
-	return ch
-}
-
-func (s *Scanner) scanFraction(ch rune) rune {
-	if ch == '.' {
-		ch = s.scanMantissa(s.next())
-	}
-	return ch
-}
-
-func (s *Scanner) scanExponent(ch rune) rune {
-	if ch == 'e' || ch == 'E' {
-		ch = s.next()
-		if ch == '-' || ch == '+' {
-			ch = s.next()
-		}
-		ch = s.scanMantissa(ch)
-	}
-	return ch
-}
-
-func (s *Scanner) scanNumber(ch rune) (rune, rune) {
-	// isDecimal(ch)
-	if ch == '0' {
-		// int or float
-		ch = s.next()
-		if ch == 'x' || ch == 'X' {
-			// hexadecimal int
-			ch = s.next()
-			hasMantissa := false
-			for digitVal(ch) < 16 {
-				ch = s.next()
-				hasMantissa = true
-			}
-			if !hasMantissa {
-				s.error("illegal hexadecimal number")
-			}
-		} else {
-			// octal int or float
-			has8or9 := false
-			for isDecimal(ch) {
-				if ch > '7' {
-					has8or9 = true
-				}
-				ch = s.next()
-			}
-			if s.Mode&ScanFloats != 0 && (ch == '.' || ch == 'e' || ch == 'E') {
-				// float
-				ch = s.scanFraction(ch)
-				ch = s.scanExponent(ch)
-				return Float, ch
-			}
-			// octal int
-			if has8or9 {
-				s.error("illegal octal number")
-			}
-		}
-		return Int, ch
-	}
-	// decimal int or float
-	ch = s.scanMantissa(ch)
-	if s.Mode&ScanFloats != 0 && (ch == '.' || ch == 'e' || ch == 'E') {
-		// float
-		ch = s.scanFraction(ch)
-		ch = s.scanExponent(ch)
-		return Float, ch
-	}
-	return Int, ch
 }
 
 func (s *Scanner) scanDigits(ch rune, base, n int) rune {
@@ -455,7 +551,7 @@ func (s *Scanner) scanDigits(ch rune, base, n int) rune {
 		n--
 	}
 	if n > 0 {
-		s.error("illegal char escape")
+		s.error("invalid char escape")
 	}
 	return ch
 }
@@ -475,7 +571,7 @@ func (s *Scanner) scanEscape(quote rune) rune {
 	case 'U':
 		ch = s.scanDigits(s.next(), 16, 8)
 	default:
-		s.error("illegal char escape")
+		s.error("invalid char escape")
 	}
 	return ch
 }
@@ -510,7 +606,7 @@ func (s *Scanner) scanRawString() {
 
 func (s *Scanner) scanChar() {
 	if s.scanString('\'') != 1 {
-		s.error("illegal char literal")
+		s.error("invalid char literal")
 	}
 }
 
@@ -543,10 +639,10 @@ func (s *Scanner) scanComment(ch rune) rune {
 }
 
 // Scan reads the next token or Unicode character from source and returns it.
-// It only recognizes tokens t for which the respective Mode bit (1<<-t) is set.
-// It returns EOF at the end of the source. It reports scanner errors (read and
+// It only recognizes tokens t for which the respective [Scanner.Mode] bit (1<<-t) is set.
+// It returns [EOF] at the end of the source. It reports scanner errors (read and
 // token errors) by calling s.Error, if not nil; otherwise it prints an error
-// message to os.Stderr.
+// message to [os.Stderr].
 func (s *Scanner) Scan() rune {
 	ch := s.Peek()
 
@@ -591,12 +687,14 @@ redo:
 		}
 	case isDecimal(ch):
 		if s.Mode&(ScanInts|ScanFloats) != 0 {
-			tok, ch = s.scanNumber(ch)
+			tok, ch = s.scanNumber(ch, false)
 		} else {
 			ch = s.next()
 		}
 	default:
 		switch ch {
+		case EOF:
+			break
 		case '"':
 			if s.Mode&ScanStrings != 0 {
 				s.scanString('"')
@@ -612,9 +710,7 @@ redo:
 		case '.':
 			ch = s.next()
 			if isDecimal(ch) && s.Mode&ScanFloats != 0 {
-				tok = Float
-				ch = s.scanMantissa(ch)
-				ch = s.scanExponent(ch)
+				tok, ch = s.scanNumber(ch, true)
 			}
 		case '/':
 			ch = s.next()
@@ -630,7 +726,7 @@ redo:
 		case '`':
 			if s.Mode&ScanRawStrings != 0 {
 				s.scanRawString()
-				tok = String
+				tok = RawString
 			}
 			ch = s.next()
 		default:
@@ -646,7 +742,9 @@ redo:
 }
 
 // Pos returns the position of the character immediately after
-// the character or token returned by the last call to Next or Scan.
+// the character or token returned by the last call to [Scanner.Next] or [Scanner.Scan].
+// Use the [Scanner.Position] field for the start position of the most
+// recently scanned token.
 func (s *Scanner) Pos() (pos Position) {
 	pos.Filename = s.Filename
 	pos.Offset = s.srcBufOffset + s.srcPos - s.lastCharLen
@@ -668,17 +766,18 @@ func (s *Scanner) Pos() (pos Position) {
 }
 
 // TokenText returns the string corresponding to the most recently scanned token.
-// Valid after calling Scan().
+// Valid after calling [Scanner.Scan] and in calls of [Scanner.Error].
 func (s *Scanner) TokenText() string {
 	if s.tokPos < 0 {
 		// no token text
 		return ""
 	}
 
-	if s.tokEnd < 0 {
+	if s.tokEnd < s.tokPos {
 		// if EOF was reached, s.tokEnd is set to -1 (s.srcPos == 0)
 		s.tokEnd = s.tokPos
 	}
+	// s.tokEnd >= s.tokPos
 
 	if s.tokBuf.Len() == 0 {
 		// common case: the entire token text is still in srcBuf

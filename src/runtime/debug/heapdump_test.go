@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package debug
+package debug_test
 
 import (
-	"io/ioutil"
 	"os"
 	"runtime"
+	. "runtime/debug"
 	"testing"
 )
 
 func TestWriteHeapDumpNonempty(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		t.Skip("WriteHeapDump is not available on NaCl.")
+	if runtime.GOOS == "js" {
+		t.Skipf("WriteHeapDump is not available on %s.", runtime.GOOS)
 	}
-	f, err := ioutil.TempFile("", "heapdumptest")
+	f, err := os.CreateTemp("", "heapdumptest")
 	if err != nil {
 		t.Fatalf("TempFile failed: %v", err)
 	}
@@ -37,14 +37,14 @@ type Obj struct {
 }
 
 func objfin(x *Obj) {
-	println("finalized", x)
+	//println("finalized", x)
 }
 
 func TestWriteHeapDumpFinalizers(t *testing.T) {
-	if runtime.GOOS == "nacl" {
-		t.Skip("WriteHeapDump is not available on NaCl.")
+	if runtime.GOOS == "js" {
+		t.Skipf("WriteHeapDump is not available on %s.", runtime.GOOS)
 	}
-	f, err := ioutil.TempFile("", "heapdumptest")
+	f, err := os.CreateTemp("", "heapdumptest")
 	if err != nil {
 		t.Fatalf("TempFile failed: %v", err)
 	}
@@ -66,4 +66,30 @@ func TestWriteHeapDumpFinalizers(t *testing.T) {
 	println("starting dump")
 	WriteHeapDump(f.Fd())
 	println("done dump")
+}
+
+type G[T any] struct{}
+type I interface {
+	M()
+}
+
+//go:noinline
+func (g G[T]) M() {}
+
+var dummy I = G[int]{}
+var dummy2 I = G[G[int]]{}
+
+func TestWriteHeapDumpTypeName(t *testing.T) {
+	if runtime.GOOS == "js" {
+		t.Skipf("WriteHeapDump is not available on %s.", runtime.GOOS)
+	}
+	f, err := os.CreateTemp("", "heapdumptest")
+	if err != nil {
+		t.Fatalf("TempFile failed: %v", err)
+	}
+	defer os.Remove(f.Name())
+	defer f.Close()
+	WriteHeapDump(f.Fd())
+	dummy.M()
+	dummy2.M()
 }

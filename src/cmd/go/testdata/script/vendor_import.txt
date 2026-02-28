@@ -1,0 +1,106 @@
+# Imports
+env GO111MODULE=off
+
+# Pass -e to permit errors (e.g. bad.go, invalid.go)
+go list -f  '{{.ImportPath}} {{.Imports}}' -e 'vend/...' 'vend/vendor/...' 'vend/x/vendor/...'
+cmp stdout want_vendor_imports.txt
+
+-- want_vendor_imports.txt --
+vend [vend/vendor/p r]
+vend/dir1 []
+vend/hello [fmt vend/vendor/strings]
+vend/subdir [vend/vendor/p r]
+vend/x [vend/x/vendor/p vend/vendor/q vend/x/vendor/r vend/dir1 vend/vendor/vend/dir1/dir2]
+vend/x/invalid [vend/x/invalid/vendor/foo]
+vend/vendor/p []
+vend/vendor/q []
+vend/vendor/strings []
+vend/vendor/vend/dir1/dir2 []
+vend/x/vendor/p []
+vend/x/vendor/p/p [notfound]
+vend/x/vendor/r []
+-- vend/bad.go --
+package vend
+
+import _ "r"
+-- vend/dir1/dir1.go --
+package dir1
+-- vend/good.go --
+package vend
+
+import _ "p"
+-- vend/hello/hello.go --
+package main
+
+import (
+	"fmt"
+	"strings" // really ../vendor/strings
+)
+
+func main() {
+	fmt.Printf("%s\n", strings.Msg)
+}
+-- vend/hello/hello_test.go --
+package main
+
+import (
+	"strings" // really ../vendor/strings
+	"testing"
+)
+
+func TestMsgInternal(t *testing.T) {
+	if strings.Msg != "hello, world" {
+		t.Fatalf("unexpected msg: %v", strings.Msg)
+	}
+}
+-- vend/hello/hellox_test.go --
+package main_test
+
+import (
+	"strings" // really ../vendor/strings
+	"testing"
+)
+
+func TestMsgExternal(t *testing.T) {
+	if strings.Msg != "hello, world" {
+		t.Fatalf("unexpected msg: %v", strings.Msg)
+	}
+}
+-- vend/subdir/bad.go --
+package subdir
+
+import _ "r"
+-- vend/subdir/good.go --
+package subdir
+
+import _ "p"
+-- vend/vendor/p/p.go --
+package p
+-- vend/vendor/q/q.go --
+package q
+-- vend/vendor/strings/msg.go --
+package strings
+
+var Msg = "hello, world"
+-- vend/vendor/vend/dir1/dir2/dir2.go --
+package dir2
+-- vend/x/invalid/invalid.go --
+package invalid
+
+import "vend/x/invalid/vendor/foo"
+-- vend/x/vendor/p/p/p.go --
+package p
+
+import _ "notfound"
+-- vend/x/vendor/p/p.go --
+package p
+-- vend/x/vendor/r/r.go --
+package r
+-- vend/x/x.go --
+package x
+
+import _ "p"
+import _ "q"
+import _ "r"
+import _ "vend/dir1"      // not vendored
+import _ "vend/dir1/dir2" // vendored

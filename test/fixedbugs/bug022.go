@@ -9,7 +9,7 @@ package main
 func putint(digits *string) {
 	var i byte;
 	i = (*digits)[7];  // compiles
-	i = digits[7];  // ERROR "illegal|is not|invalid"
+	i = digits[7];  // ERROR "illegal|is not|cannot index"
 	_ = i;
 }
 

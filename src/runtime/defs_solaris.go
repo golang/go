@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 /*
 Input to cgo.
@@ -38,6 +38,8 @@ const (
 	EBADF       = C.EBADF
 	EFAULT      = C.EFAULT
 	EAGAIN      = C.EAGAIN
+	EBUSY       = C.EBUSY
+	ETIME       = C.ETIME
 	ETIMEDOUT   = C.ETIMEDOUT
 	EWOULDBLOCK = C.EWOULDBLOCK
 	EINPROGRESS = C.EINPROGRESS
@@ -51,7 +53,8 @@ const (
 	MAP_PRIVATE = C.MAP_PRIVATE
 	MAP_FIXED   = C.MAP_FIXED
 
-	MADV_FREE = C.MADV_FREE
+	MADV_DONTNEED = C.MADV_DONTNEED
+	MADV_FREE     = C.MADV_FREE
 
 	SA_SIGINFO = C.SA_SIGINFO
 	SA_RESTART = C.SA_RESTART
@@ -117,23 +120,24 @@ const (
 
 	MAXHOSTNAMELEN = C.MAXHOSTNAMELEN
 
+	O_WRONLY   = C.O_WRONLY
 	O_NONBLOCK = C.O_NONBLOCK
-	FD_CLOEXEC = C.FD_CLOEXEC
-	F_GETFL    = C.F_GETFL
-	F_SETFL    = C.F_SETFL
-	F_SETFD    = C.F_SETFD
+	O_CREAT    = C.O_CREAT
+	O_TRUNC    = C.O_TRUNC
+	O_CLOEXEC  = C.O_CLOEXEC
 
 	POLLIN  = C.POLLIN
 	POLLOUT = C.POLLOUT
 	POLLHUP = C.POLLHUP
 	POLLERR = C.POLLERR
 
-	PORT_SOURCE_FD = C.PORT_SOURCE_FD
+	PORT_SOURCE_FD    = C.PORT_SOURCE_FD
+	PORT_SOURCE_ALERT = C.PORT_SOURCE_ALERT
+	PORT_ALERT_UPDATE = C.PORT_ALERT_UPDATE
 )
 
 type SemT C.sem_t
 
-type SigaltstackT C.struct_sigaltstack
 type Sigset C.sigset_t
 type StackT C.stack_t
 

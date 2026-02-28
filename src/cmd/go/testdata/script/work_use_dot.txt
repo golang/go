@@ -1,0 +1,49 @@
+cp go.work go.work.orig
+
+# If the current directory contains a go.mod file,
+# 'go work use .' should add an entry for it.
+cd bar/baz
+go work use .
+cmp ../../go.work ../../go.work.rel
+
+# If the current directory lacks a go.mod file, 'go work use .'
+# should remove its entry.
+mv go.mod go.mod.bak
+go work use .
+cmp ../../go.work ../../go.work.orig
+
+# If the path is absolute, it should remain absolute.
+mv go.mod.bak go.mod
+go work use $PWD
+grep -count=1 '^use ' ../../go.work
+grep '^use ["]?'$PWD'["]?$' ../../go.work
+
+# An absolute path should replace an entry for the corresponding relative path
+# and vice-versa.
+go work use .
+cmp ../../go.work ../../go.work.rel
+go work use $PWD
+grep -count=1 '^use ' ../../go.work
+grep '^use ["]?'$PWD'["]?$' ../../go.work
+
+# If both the absolute and relative paths are named, 'go work use' should error
+# out: we don't know which one to use, and shouldn't add both because the
+# resulting workspace would contain a duplicate module.
+cp ../../go.work.orig ../../go.work
+! go work use $PWD .
+stderr '^go: already added "\./bar/baz" as "'$PWD'"$'
+cmp ../../go.work ../../go.work.orig
+
+
+-- go.mod --
+module example
+go 1.18
+-- go.work --
+go 1.18
+-- go.work.rel --
+go 1.18
+
+use ./bar/baz
+-- bar/baz/go.mod --
+module example/bar/baz
+go 1.18

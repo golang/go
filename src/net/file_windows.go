@@ -5,33 +5,45 @@
 package net
 
 import (
+	"internal/syscall/windows"
 	"os"
 	"syscall"
 )
 
-// FileConn returns a copy of the network connection corresponding to
-// the open file f.  It is the caller's responsibility to close f when
-// finished.  Closing c does not affect f, and closing f does not
-// affect c.
-func FileConn(f *os.File) (c Conn, err error) {
-	// TODO: Implement this
-	return nil, os.NewSyscallError("FileConn", syscall.EWINDOWS)
+const _SO_TYPE = windows.SO_TYPE
+
+func dupSocket(h syscall.Handle) (syscall.Handle, error) {
+	var info syscall.WSAProtocolInfo
+	err := windows.WSADuplicateSocket(h, uint32(syscall.Getpid()), &info)
+	if err != nil {
+		return 0, err
+	}
+	return windows.WSASocket(-1, -1, -1, &info, 0, windows.WSA_FLAG_OVERLAPPED|windows.WSA_FLAG_NO_HANDLE_INHERIT)
 }
 
-// FileListener returns a copy of the network listener corresponding
-// to the open file f.  It is the caller's responsibility to close l
-// when finished.  Closing l does not affect f, and closing f does not
-// affect l.
-func FileListener(f *os.File) (l Listener, err error) {
-	// TODO: Implement this
-	return nil, os.NewSyscallError("FileListener", syscall.EWINDOWS)
-}
+func dupFileSocket(f *os.File) (syscall.Handle, error) {
+	// Call Fd to disassociate the IOCP from the handle,
+	// it is not safe to share a duplicated handle
+	// that is associated with IOCP.
+	// Don't use the returned fd, as it might be closed
+	// if f happens to be the last reference to the file.
+	f.Fd()
 
-// FilePacketConn returns a copy of the packet network connection
-// corresponding to the open file f.  It is the caller's
-// responsibility to close f when finished.  Closing c does not affect
-// f, and closing f does not affect c.
-func FilePacketConn(f *os.File) (c PacketConn, err error) {
-	// TODO: Implement this
-	return nil, os.NewSyscallError("FilePacketConn", syscall.EWINDOWS)
+	sc, err := f.SyscallConn()
+	if err != nil {
+		return 0, err
+	}
+
+	var h syscall.Handle
+	var syserr error
+	err = sc.Control(func(fd uintptr) {
+		h, syserr = dupSocket(syscall.Handle(fd))
+	})
+	if err == nil {
+		err = syserr
+	}
+	if err != nil {
+		return 0, err
+	}
+	return h, nil
 }

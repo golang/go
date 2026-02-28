@@ -1,0 +1,34 @@
+env GO111MODULE=on
+
+[short] skip
+[!git] skip
+
+# Redirect git to a test-specific .gitconfig.
+# GIT_CONFIG_GLOBAL suffices for git 2.32.0 and newer.
+# For older git versions we also set $HOME.
+env GIT_CONFIG_GLOBAL=$WORK${/}home${/}gopher${/}.gitconfig
+env HOME=$WORK${/}home${/}gopher
+exec git config --global --show-origin user.name
+stdout 'Go Gopher'
+
+env GOPROXY=direct
+
+exec git config --get log.decorate
+stdout 'full'
+
+# Test that Git log with user's global config '~/gitconfig' has log.decorate=full
+# go mod download has an error 'v1.x.y is not a tag'
+# with go1.16.14: 
+# `go1.16.14 list -m vcs-test.golang.org/git/gitrepo1.git@v1.2.3`
+# will output with error:
+# go list -m: vcs-test.golang.org/git/gitrepo1.git@v1.2.3: invalid version: unknown revision v1.2.3
+# See golang/go#51312.
+go list -m vcs-test.golang.org/git/gitrepo1.git@v1.2.3
+stdout 'vcs-test.golang.org/git/gitrepo1.git v1.2.3'
+
+-- $WORK/home/gopher/.gitconfig --
+[user]
+	name = Go Gopher
+	email = gopher@golang.org
+[log]
+	decorate = full

@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -18,7 +19,7 @@ import (
 // an XML element is an order-dependent collection of anonymous
 // values, while a data structure is an order-independent collection
 // of named values.
-// See package json for a textual representation more suitable
+// See [encoding/json] for a textual representation more suitable
 // to data structures.
 
 // Unmarshal parses the XML-encoded data and stores the result in
@@ -27,7 +28,7 @@ import (
 // discarded.
 //
 // Because Unmarshal uses the reflect package, it can only assign
-// to exported (upper case) fields.  Unmarshal uses a case-sensitive
+// to exported (upper case) fields. Unmarshal uses a case-sensitive
 // comparison to match XML element names to tag values and struct
 // field names.
 //
@@ -35,57 +36,67 @@ import (
 // In the rules, the tag of a field refers to the value associated with the
 // key 'xml' in the struct field's tag (see the example above).
 //
-//   * If the struct has a field of type []byte or string with tag
-//      ",innerxml", Unmarshal accumulates the raw XML nested inside the
-//      element in that field.  The rest of the rules still apply.
+//   - If the struct has a field of type []byte or string with tag
+//     ",innerxml", Unmarshal accumulates the raw XML nested inside the
+//     element in that field. The rest of the rules still apply.
 //
-//   * If the struct has a field named XMLName of type xml.Name,
-//      Unmarshal records the element name in that field.
+//   - If the struct has a field named XMLName of type Name,
+//     Unmarshal records the element name in that field.
 //
-//   * If the XMLName field has an associated tag of the form
-//      "name" or "namespace-URL name", the XML element must have
-//      the given name (and, optionally, name space) or else Unmarshal
-//      returns an error.
+//   - If the XMLName field has an associated tag of the form
+//     "name" or "namespace-URL name", the XML element must have
+//     the given name (and, optionally, name space) or else Unmarshal
+//     returns an error.
 //
-//   * If the XML element has an attribute whose name matches a
-//      struct field name with an associated tag containing ",attr" or
-//      the explicit name in a struct field tag of the form "name,attr",
-//      Unmarshal records the attribute value in that field.
+//   - If the XML element has an attribute whose name matches a
+//     struct field name with an associated tag containing ",attr" or
+//     the explicit name in a struct field tag of the form "name,attr",
+//     Unmarshal records the attribute value in that field.
 //
-//   * If the XML element contains character data, that data is
-//      accumulated in the first struct field that has tag ",chardata".
-//      The struct field may have type []byte or string.
-//      If there is no such field, the character data is discarded.
+//   - If the XML element has an attribute not handled by the previous
+//     rule and the struct has a field with an associated tag containing
+//     ",any,attr", Unmarshal records the attribute value in the first
+//     such field.
 //
-//   * If the XML element contains comments, they are accumulated in
-//      the first struct field that has tag ",comment".  The struct
-//      field may have type []byte or string.  If there is no such
-//      field, the comments are discarded.
+//   - If the XML element contains character data, that data is
+//     accumulated in the first struct field that has tag ",chardata".
+//     The struct field may have type []byte or string.
+//     If there is no such field, the character data is discarded.
 //
-//   * If the XML element contains a sub-element whose name matches
-//      the prefix of a tag formatted as "a" or "a>b>c", unmarshal
-//      will descend into the XML structure looking for elements with the
-//      given names, and will map the innermost elements to that struct
-//      field. A tag starting with ">" is equivalent to one starting
-//      with the field name followed by ">".
+//   - If the XML element contains comments, they are accumulated in
+//     the first struct field that has tag ",comment".  The struct
+//     field may have type []byte or string. If there is no such
+//     field, the comments are discarded.
 //
-//   * If the XML element contains a sub-element whose name matches
-//      a struct field's XMLName tag and the struct field has no
-//      explicit name tag as per the previous rule, unmarshal maps
-//      the sub-element to that struct field.
+//   - If the XML element contains a sub-element whose name matches
+//     the prefix of a tag formatted as "a" or "a>b>c", unmarshal
+//     will descend into the XML structure looking for elements with the
+//     given names, and will map the innermost elements to that struct
+//     field. A tag starting with ">" is equivalent to one starting
+//     with the field name followed by ">".
 //
-//   * If the XML element contains a sub-element whose name matches a
-//      field without any mode flags (",attr", ",chardata", etc), Unmarshal
-//      maps the sub-element to that struct field.
+//   - If the XML element contains a sub-element whose name matches
+//     a struct field's XMLName tag and the struct field has no
+//     explicit name tag as per the previous rule, unmarshal maps
+//     the sub-element to that struct field.
 //
-//   * If the XML element contains a sub-element that hasn't matched any
-//      of the above rules and the struct has a field with tag ",any",
-//      unmarshal maps the sub-element to that struct field.
+//   - If the XML element contains a sub-element whose name matches a
+//     field without any mode flags (",attr", ",chardata", etc), Unmarshal
+//     maps the sub-element to that struct field.
 //
-//   * An anonymous struct field is handled as if the fields of its
-//      value were part of the outer struct.
+//   - If the XML element contains a sub-element that hasn't matched any
+//     of the above rules and the struct has a field with tag ",any",
+//     unmarshal maps the sub-element to that struct field.
 //
-//   * A struct field with tag "-" is never unmarshalled into.
+//   - An anonymous struct field is handled as if the fields of its
+//     value were part of the outer struct.
+//
+//   - A struct field with tag "-" is never unmarshaled into.
+//
+// If Unmarshal encounters a field type that implements the Unmarshaler
+// interface, Unmarshal calls its UnmarshalXML method to produce the value from
+// the XML element.  Otherwise, if the value implements
+// [encoding.TextUnmarshaler], Unmarshal calls that value's UnmarshalText method.
 //
 // Unmarshal maps an XML element to a string or []byte by saving the
 // concatenation of that element's character data in the string or
@@ -94,46 +105,58 @@ import (
 // Unmarshal maps an attribute value to a string or []byte by saving
 // the value in the string or slice.
 //
-// Unmarshal maps an XML element to a slice by extending the length of
-// the slice and mapping the element to the newly created value.
+// Unmarshal maps an attribute value to an [Attr] by saving the attribute,
+// including its name, in the Attr.
+//
+// Unmarshal maps an XML element or attribute value to a slice by
+// extending the length of the slice and mapping the element or attribute
+// to the newly created value.
 //
 // Unmarshal maps an XML element or attribute value to a bool by
-// setting it to the boolean value represented by the string.
+// setting it to the boolean value represented by the string. Whitespace
+// is trimmed and ignored.
 //
 // Unmarshal maps an XML element or attribute value to an integer or
 // floating-point field by setting the field to the result of
-// interpreting the string value in decimal.  There is no check for
-// overflow.
+// interpreting the string value in decimal. There is no check for
+// overflow. Whitespace is trimmed and ignored.
 //
-// Unmarshal maps an XML element to an xml.Name by recording the
-// element name.
+// Unmarshal maps an XML element to a Name by recording the element
+// name.
 //
 // Unmarshal maps an XML element to a pointer by setting the pointer
 // to a freshly allocated value and then mapping the element to that value.
 //
-func Unmarshal(data []byte, v interface{}) error {
+// A missing element or empty attribute value will be unmarshaled as a zero value.
+// If the field is a slice, a zero value will be appended to the field. Otherwise, the
+// field will be set to its zero value.
+func Unmarshal(data []byte, v any) error {
 	return NewDecoder(bytes.NewReader(data)).Decode(v)
 }
 
-// Decode works like xml.Unmarshal, except it reads the decoder
+// Decode works like [Unmarshal], except it reads the decoder
 // stream to find the start element.
-func (d *Decoder) Decode(v interface{}) error {
+func (d *Decoder) Decode(v any) error {
 	return d.DecodeElement(v, nil)
 }
 
-// DecodeElement works like xml.Unmarshal except that it takes
+// DecodeElement works like [Unmarshal] except that it takes
 // a pointer to the start XML element to decode into v.
 // It is useful when a client reads some raw XML tokens itself
-// but also wants to defer to Unmarshal for some elements.
-func (d *Decoder) DecodeElement(v interface{}, start *StartElement) error {
+// but also wants to defer to [Unmarshal] for some elements.
+func (d *Decoder) DecodeElement(v any, start *StartElement) error {
 	val := reflect.ValueOf(v)
-	if val.Kind() != reflect.Ptr {
+	if val.Kind() != reflect.Pointer {
 		return errors.New("non-pointer passed to Unmarshal")
 	}
-	return d.unmarshal(val.Elem(), start)
+
+	if val.IsNil() {
+		return errors.New("nil pointer passed to Unmarshal")
+	}
+	return d.unmarshal(val.Elem(), start, 0)
 }
 
-// An UnmarshalError represents an error in the unmarshalling process.
+// An UnmarshalError represents an error in the unmarshaling process.
 type UnmarshalError string
 
 func (e UnmarshalError) Error() string { return string(e) }
@@ -148,7 +171,7 @@ func (e UnmarshalError) Error() string { return string(e) }
 // UnmarshalXML must consume exactly one XML element.
 // One common implementation strategy is to unmarshal into
 // a separate value with a layout matching the expected XML
-// using d.DecodeElement,  and then to copy the data from
+// using d.DecodeElement, and then to copy the data from
 // that value into the receiver.
 // Another common strategy is to use d.Token to process the
 // XML object one token at a time.
@@ -161,7 +184,7 @@ type Unmarshaler interface {
 // an XML attribute description of themselves.
 //
 // UnmarshalXMLAttr decodes a single XML attribute.
-// If it returns an error, the outer call to Unmarshal stops and
+// If it returns an error, the outer call to [Unmarshal] stops and
 // returns that error.
 // UnmarshalXMLAttr is used only for struct fields with the
 // "attr" option in the field tag.
@@ -170,7 +193,7 @@ type UnmarshalerAttr interface {
 }
 
 // receiverType returns the receiver type to use in an expression like "%s.MethodName".
-func receiverType(val interface{}) string {
+func receiverType(val any) string {
 	t := reflect.TypeOf(val)
 	if t.Name() != "" {
 		return t.String()
@@ -180,19 +203,19 @@ func receiverType(val interface{}) string {
 
 // unmarshalInterface unmarshals a single XML element into val.
 // start is the opening tag of the element.
-func (p *Decoder) unmarshalInterface(val Unmarshaler, start *StartElement) error {
+func (d *Decoder) unmarshalInterface(val Unmarshaler, start *StartElement) error {
 	// Record that decoder must stop at end tag corresponding to start.
-	p.pushEOF()
+	d.pushEOF()
 
-	p.unmarshalDepth++
-	err := val.UnmarshalXML(p, *start)
-	p.unmarshalDepth--
+	d.unmarshalDepth++
+	err := val.UnmarshalXML(d, *start)
+	d.unmarshalDepth--
 	if err != nil {
-		p.popEOF()
+		d.popEOF()
 		return err
 	}
 
-	if !p.popEOF() {
+	if !d.popEOF() {
 		return fmt.Errorf("xml: %s.UnmarshalXML did not consume entire <%s> element", receiverType(val), start.Name.Local)
 	}
 
@@ -202,11 +225,11 @@ func (p *Decoder) unmarshalInterface(val Unmarshaler, start *StartElement) error
 // unmarshalTextInterface unmarshals a single XML element into val.
 // The chardata contained in the element (but not its children)
 // is passed to the text unmarshaler.
-func (p *Decoder) unmarshalTextInterface(val encoding.TextUnmarshaler, start *StartElement) error {
+func (d *Decoder) unmarshalTextInterface(val encoding.TextUnmarshaler) error {
 	var buf []byte
 	depth := 1
 	for depth > 0 {
-		t, err := p.Token()
+		t, err := d.Token()
 		if err != nil {
 			return err
 		}
@@ -225,55 +248,87 @@ func (p *Decoder) unmarshalTextInterface(val encoding.TextUnmarshaler, start *St
 }
 
 // unmarshalAttr unmarshals a single XML attribute into val.
-func (p *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
-	if val.Kind() == reflect.Ptr {
+func (d *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
+	if val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			val.Set(reflect.New(val.Type().Elem()))
 		}
 		val = val.Elem()
 	}
-
-	if val.CanInterface() && val.Type().Implements(unmarshalerAttrType) {
+	if val.CanInterface() {
 		// This is an unmarshaler with a non-pointer receiver,
 		// so it's likely to be incorrect, but we do what we're told.
-		return val.Interface().(UnmarshalerAttr).UnmarshalXMLAttr(attr)
+		if unmarshaler, ok := reflect.TypeAssert[UnmarshalerAttr](val); ok {
+			return unmarshaler.UnmarshalXMLAttr(attr)
+		}
 	}
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(unmarshalerAttrType) {
-			return pv.Interface().(UnmarshalerAttr).UnmarshalXMLAttr(attr)
+		if pv.CanInterface() {
+			if unmarshaler, ok := reflect.TypeAssert[UnmarshalerAttr](pv); ok {
+				return unmarshaler.UnmarshalXMLAttr(attr)
+			}
 		}
 	}
 
 	// Not an UnmarshalerAttr; try encoding.TextUnmarshaler.
-	if val.CanInterface() && val.Type().Implements(textUnmarshalerType) {
+	if val.CanInterface() {
 		// This is an unmarshaler with a non-pointer receiver,
 		// so it's likely to be incorrect, but we do what we're told.
-		return val.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(attr.Value))
+		if textUnmarshaler, ok := reflect.TypeAssert[encoding.TextUnmarshaler](val); ok {
+			return textUnmarshaler.UnmarshalText([]byte(attr.Value))
+		}
 	}
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(textUnmarshalerType) {
-			return pv.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(attr.Value))
+		if pv.CanInterface() {
+			if textUnmarshaler, ok := reflect.TypeAssert[encoding.TextUnmarshaler](pv); ok {
+				return textUnmarshaler.UnmarshalText([]byte(attr.Value))
+			}
 		}
 	}
 
-	copyValue(val, []byte(attr.Value))
-	return nil
+	if val.Kind() == reflect.Slice && val.Type().Elem().Kind() != reflect.Uint8 {
+		// Slice of element values.
+		// Grow slice.
+		n := val.Len()
+		val.Grow(1)
+		val.SetLen(n + 1)
+
+		// Recur to read element into slice.
+		if err := d.unmarshalAttr(val.Index(n), attr); err != nil {
+			val.SetLen(n)
+			return err
+		}
+		return nil
+	}
+
+	if val.Type() == attrType {
+		val.Set(reflect.ValueOf(attr))
+		return nil
+	}
+
+	return copyValue(val, []byte(attr.Value))
 }
 
-var (
-	unmarshalerType     = reflect.TypeOf((*Unmarshaler)(nil)).Elem()
-	unmarshalerAttrType = reflect.TypeOf((*UnmarshalerAttr)(nil)).Elem()
-	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+var attrType = reflect.TypeFor[Attr]()
+
+const (
+	maxUnmarshalDepth     = 10000
+	maxUnmarshalDepthWasm = 5000 // go.dev/issue/56498
 )
 
+var errUnmarshalDepth = errors.New("exceeded max depth")
+
 // Unmarshal a single XML element into val.
-func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+func (d *Decoder) unmarshal(val reflect.Value, start *StartElement, depth int) error {
+	if depth >= maxUnmarshalDepth || runtime.GOARCH == "wasm" && depth >= maxUnmarshalDepthWasm {
+		return errUnmarshalDepth
+	}
 	// Find start element if we need it.
 	if start == nil {
 		for {
-			tok, err := p.Token()
+			tok, err := d.Token()
 			if err != nil {
 				return err
 			}
@@ -288,39 +343,47 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 	// usefully addressable.
 	if val.Kind() == reflect.Interface && !val.IsNil() {
 		e := val.Elem()
-		if e.Kind() == reflect.Ptr && !e.IsNil() {
+		if e.Kind() == reflect.Pointer && !e.IsNil() {
 			val = e
 		}
 	}
 
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			val.Set(reflect.New(val.Type().Elem()))
 		}
 		val = val.Elem()
 	}
 
-	if val.CanInterface() && val.Type().Implements(unmarshalerType) {
+	if val.CanInterface() {
 		// This is an unmarshaler with a non-pointer receiver,
 		// so it's likely to be incorrect, but we do what we're told.
-		return p.unmarshalInterface(val.Interface().(Unmarshaler), start)
-	}
-
-	if val.CanAddr() {
-		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(unmarshalerType) {
-			return p.unmarshalInterface(pv.Interface().(Unmarshaler), start)
+		if unmarshaler, ok := reflect.TypeAssert[Unmarshaler](val); ok {
+			return d.unmarshalInterface(unmarshaler, start)
 		}
 	}
 
-	if val.CanInterface() && val.Type().Implements(textUnmarshalerType) {
-		return p.unmarshalTextInterface(val.Interface().(encoding.TextUnmarshaler), start)
+	if val.CanAddr() {
+		pv := val.Addr()
+		if pv.CanInterface() {
+			if unmarshaler, ok := reflect.TypeAssert[Unmarshaler](pv); ok {
+				return d.unmarshalInterface(unmarshaler, start)
+			}
+		}
+	}
+
+	if val.CanInterface() {
+		if textUnmarshaler, ok := reflect.TypeAssert[encoding.TextUnmarshaler](val); ok {
+			return d.unmarshalTextInterface(textUnmarshaler)
+		}
 	}
 
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(textUnmarshalerType) {
-			return p.unmarshalTextInterface(pv.Interface().(encoding.TextUnmarshaler), start)
+		if pv.CanInterface() {
+			if textUnmarshaler, ok := reflect.TypeAssert[encoding.TextUnmarshaler](pv); ok {
+				return d.unmarshalTextInterface(textUnmarshaler)
+			}
 		}
 	}
 
@@ -346,7 +409,7 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 		// TODO: For now, simply ignore the field. In the near
 		//       future we may choose to unmarshal the start
 		//       element on it, if not nil.
-		return p.Skip()
+		return d.Skip()
 
 	case reflect.Slice:
 		typ := v.Type()
@@ -359,19 +422,11 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 		// Slice of element values.
 		// Grow slice.
 		n := v.Len()
-		if n >= v.Cap() {
-			ncap := 2 * n
-			if ncap < 4 {
-				ncap = 4
-			}
-			new := reflect.MakeSlice(typ, n, ncap)
-			reflect.Copy(new, v)
-			v.Set(new)
-		}
+		v.Grow(1)
 		v.SetLen(n + 1)
 
 		// Recur to read element into slice.
-		if err := p.unmarshal(v.Index(n), start); err != nil {
+		if err := d.unmarshal(v.Index(n), start, depth+1); err != nil {
 			v.SetLen(n)
 			return err
 		}
@@ -408,52 +463,70 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 				}
 				return UnmarshalError(e)
 			}
-			fv := finfo.value(sv)
-			if _, ok := fv.Interface().(Name); ok {
+			fv := finfo.value(sv, initNilPointers)
+			if _, ok := reflect.TypeAssert[Name](fv); ok {
 				fv.Set(reflect.ValueOf(start.Name))
 			}
 		}
 
 		// Assign attributes.
-		// Also, determine whether we need to save character data or comments.
+		for _, a := range start.Attr {
+			handled := false
+			any := -1
+			for i := range tinfo.fields {
+				finfo := &tinfo.fields[i]
+				switch finfo.flags & fMode {
+				case fAttr:
+					strv := finfo.value(sv, initNilPointers)
+					if a.Name.Local == finfo.name && (finfo.xmlns == "" || finfo.xmlns == a.Name.Space) {
+						if err := d.unmarshalAttr(strv, a); err != nil {
+							return err
+						}
+						handled = true
+					}
+
+				case fAny | fAttr:
+					if any == -1 {
+						any = i
+					}
+				}
+			}
+			if !handled && any >= 0 {
+				finfo := &tinfo.fields[any]
+				strv := finfo.value(sv, initNilPointers)
+				if err := d.unmarshalAttr(strv, a); err != nil {
+					return err
+				}
+			}
+		}
+
+		// Determine whether we need to save character data or comments.
 		for i := range tinfo.fields {
 			finfo := &tinfo.fields[i]
 			switch finfo.flags & fMode {
-			case fAttr:
-				strv := finfo.value(sv)
-				// Look for attribute.
-				for _, a := range start.Attr {
-					if a.Name.Local == finfo.name && (finfo.xmlns == "" || finfo.xmlns == a.Name.Space) {
-						if err := p.unmarshalAttr(strv, a); err != nil {
-							return err
-						}
-						break
-					}
-				}
-
-			case fCharData:
+			case fCDATA, fCharData:
 				if !saveData.IsValid() {
-					saveData = finfo.value(sv)
+					saveData = finfo.value(sv, initNilPointers)
 				}
 
 			case fComment:
 				if !saveComment.IsValid() {
-					saveComment = finfo.value(sv)
+					saveComment = finfo.value(sv, initNilPointers)
 				}
 
 			case fAny, fAny | fElement:
 				if !saveAny.IsValid() {
-					saveAny = finfo.value(sv)
+					saveAny = finfo.value(sv, initNilPointers)
 				}
 
-			case fInnerXml:
+			case fInnerXML:
 				if !saveXML.IsValid() {
-					saveXML = finfo.value(sv)
-					if p.saved == nil {
+					saveXML = finfo.value(sv, initNilPointers)
+					if d.saved == nil {
 						saveXMLIndex = 0
-						p.saved = new(bytes.Buffer)
+						d.saved = new(bytes.Buffer)
 					} else {
-						saveXMLIndex = p.savedOffset()
+						saveXMLIndex = d.savedOffset()
 					}
 				}
 			}
@@ -466,9 +539,9 @@ Loop:
 	for {
 		var savedOffset int
 		if saveXML.IsValid() {
-			savedOffset = p.savedOffset()
+			savedOffset = d.savedOffset()
 		}
-		tok, err := p.Token()
+		tok, err := d.Token()
 		if err != nil {
 			return err
 		}
@@ -476,28 +549,30 @@ Loop:
 		case StartElement:
 			consumed := false
 			if sv.IsValid() {
-				consumed, err = p.unmarshalPath(tinfo, sv, nil, &t)
+				// unmarshalPath can call unmarshal, so we need to pass the depth through so that
+				// we can continue to enforce the maximum recursion limit.
+				consumed, err = d.unmarshalPath(tinfo, sv, nil, &t, depth)
 				if err != nil {
 					return err
 				}
 				if !consumed && saveAny.IsValid() {
 					consumed = true
-					if err := p.unmarshal(saveAny, &t); err != nil {
+					if err := d.unmarshal(saveAny, &t, depth+1); err != nil {
 						return err
 					}
 				}
 			}
 			if !consumed {
-				if err := p.Skip(); err != nil {
+				if err := d.Skip(); err != nil {
 					return err
 				}
 			}
 
 		case EndElement:
 			if saveXML.IsValid() {
-				saveXMLData = p.saved.Bytes()[saveXMLIndex:savedOffset]
+				saveXMLData = d.saved.Bytes()[saveXMLIndex:savedOffset]
 				if saveXMLIndex == 0 {
-					p.saved = nil
+					d.saved = nil
 				}
 			}
 			break Loop
@@ -514,20 +589,24 @@ Loop:
 		}
 	}
 
-	if saveData.IsValid() && saveData.CanInterface() && saveData.Type().Implements(textUnmarshalerType) {
-		if err := saveData.Interface().(encoding.TextUnmarshaler).UnmarshalText(data); err != nil {
-			return err
+	if saveData.IsValid() && saveData.CanInterface() {
+		if textUnmarshaler, ok := reflect.TypeAssert[encoding.TextUnmarshaler](saveData); ok {
+			if err := textUnmarshaler.UnmarshalText(data); err != nil {
+				return err
+			}
+			saveData = reflect.Value{}
 		}
-		saveData = reflect.Value{}
 	}
 
 	if saveData.IsValid() && saveData.CanAddr() {
 		pv := saveData.Addr()
-		if pv.CanInterface() && pv.Type().Implements(textUnmarshalerType) {
-			if err := pv.Interface().(encoding.TextUnmarshaler).UnmarshalText(data); err != nil {
-				return err
+		if pv.CanInterface() {
+			if textUnmarshaler, ok := reflect.TypeAssert[encoding.TextUnmarshaler](pv); ok {
+				if err := textUnmarshaler.UnmarshalText(data); err != nil {
+					return err
+				}
+				saveData = reflect.Value{}
 			}
-			saveData = reflect.Value{}
 		}
 	}
 
@@ -546,7 +625,9 @@ Loop:
 	case reflect.String:
 		t.SetString(string(saveXMLData))
 	case reflect.Slice:
-		t.Set(reflect.ValueOf(saveXMLData))
+		if t.Type().Elem().Kind() == reflect.Uint8 {
+			t.Set(reflect.ValueOf(saveXMLData))
+		}
 	}
 
 	return nil
@@ -555,7 +636,7 @@ Loop:
 func copyValue(dst reflect.Value, src []byte) (err error) {
 	dst0 := dst
 
-	if dst.Kind() == reflect.Ptr {
+	if dst.Kind() == reflect.Pointer {
 		if dst.IsNil() {
 			dst.Set(reflect.New(dst.Type().Elem()))
 		}
@@ -569,24 +650,40 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
 	default:
 		return errors.New("cannot unmarshal into " + dst0.Type().String())
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		itmp, err := strconv.ParseInt(string(src), 10, dst.Type().Bits())
+		if len(src) == 0 {
+			dst.SetInt(0)
+			return nil
+		}
+		itmp, err := strconv.ParseInt(strings.TrimSpace(string(src)), 10, dst.Type().Bits())
 		if err != nil {
 			return err
 		}
 		dst.SetInt(itmp)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		utmp, err := strconv.ParseUint(string(src), 10, dst.Type().Bits())
+		if len(src) == 0 {
+			dst.SetUint(0)
+			return nil
+		}
+		utmp, err := strconv.ParseUint(strings.TrimSpace(string(src)), 10, dst.Type().Bits())
 		if err != nil {
 			return err
 		}
 		dst.SetUint(utmp)
 	case reflect.Float32, reflect.Float64:
-		ftmp, err := strconv.ParseFloat(string(src), dst.Type().Bits())
+		if len(src) == 0 {
+			dst.SetFloat(0)
+			return nil
+		}
+		ftmp, err := strconv.ParseFloat(strings.TrimSpace(string(src)), dst.Type().Bits())
 		if err != nil {
 			return err
 		}
 		dst.SetFloat(ftmp)
 	case reflect.Bool:
+		if len(src) == 0 {
+			dst.SetBool(false)
+			return nil
+		}
 		value, err := strconv.ParseBool(strings.TrimSpace(string(src)))
 		if err != nil {
 			return err
@@ -609,7 +706,7 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
 // The consumed result tells whether XML elements have been consumed
 // from the Decoder until start's matching end element, or if it's
 // still untouched because start is uninteresting for sv's fields.
-func (p *Decoder) unmarshalPath(tinfo *typeInfo, sv reflect.Value, parents []string, start *StartElement) (consumed bool, err error) {
+func (d *Decoder) unmarshalPath(tinfo *typeInfo, sv reflect.Value, parents []string, start *StartElement, depth int) (consumed bool, err error) {
 	recurse := false
 Loop:
 	for i := range tinfo.fields {
@@ -624,7 +721,7 @@ Loop:
 		}
 		if len(finfo.parents) == len(parents) && finfo.name == start.Name.Local {
 			// It's a perfect match, unmarshal the field.
-			return true, p.unmarshal(finfo.value(sv), start)
+			return true, d.unmarshal(finfo.value(sv, initNilPointers), start, depth+1)
 		}
 		if len(finfo.parents) > len(parents) && finfo.parents[len(parents)] == start.Name.Local {
 			// It's a prefix for the field. Break and recurse
@@ -647,18 +744,20 @@ Loop:
 	// prefix. Recurse and attempt to match these.
 	for {
 		var tok Token
-		tok, err = p.Token()
+		tok, err = d.Token()
 		if err != nil {
 			return true, err
 		}
 		switch t := tok.(type) {
 		case StartElement:
-			consumed2, err := p.unmarshalPath(tinfo, sv, parents, &t)
+			// the recursion depth of unmarshalPath is limited to the path length specified
+			// by the struct field tag, so we don't increment the depth here.
+			consumed2, err := d.unmarshalPath(tinfo, sv, parents, &t, depth)
 			if err != nil {
 				return true, err
 			}
 			if !consumed2 {
-				if err := p.Skip(); err != nil {
+				if err := d.Skip(); err != nil {
 					return true, err
 				}
 			}
@@ -669,12 +768,12 @@ Loop:
 }
 
 // Skip reads tokens until it has consumed the end element
-// matching the most recent start element already consumed.
-// It recurs if it encounters a start element, so it can be used to
-// skip nested structures.
+// matching the most recent start element already consumed,
+// skipping nested structures.
 // It returns nil if it finds an end element matching the start
 // element; otherwise it returns an error describing the problem.
 func (d *Decoder) Skip() error {
+	var depth int64
 	for {
 		tok, err := d.Token()
 		if err != nil {
@@ -682,11 +781,12 @@ func (d *Decoder) Skip() error {
 		}
 		switch tok.(type) {
 		case StartElement:
-			if err := d.Skip(); err != nil {
-				return err
-			}
+			depth++
 		case EndElement:
-			return nil
+			if depth == 0 {
+				return nil
+			}
+			depth--
 		}
 	}
 }

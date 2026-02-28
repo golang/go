@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -376,7 +377,7 @@ func TestGobEncoderIndirectArrayField(t *testing.T) {
 }
 
 // As long as the fields have the same name and implement the
-// interface, we can cross-connect them.  Not sure it's useful
+// interface, we can cross-connect them. Not sure it's useful
 // and may even be bad but it works and it's hard to prevent
 // without exposing the contents of the object, which would
 // defeat the purpose.
@@ -434,7 +435,7 @@ func TestGobEncoderValueEncoder(t *testing.T) {
 }
 
 // Test that we can use a value then a pointer type of a GobEncoder
-// in the same encoded value.  Bug 4647.
+// in the same encoded value. Bug 4647.
 func TestGobEncoderValueThenPointer(t *testing.T) {
 	v := ValueGobber("forty-two")
 	w := ValueGobber("six-by-nine")
@@ -548,7 +549,7 @@ func TestGobEncoderFieldTypeError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected decode error for mismatched fields (encoder to non-decoder)")
 	}
-	if strings.Index(err.Error(), "type") < 0 {
+	if !strings.Contains(err.Error(), "type") {
 		t.Fatal("expected type error; got", err)
 	}
 	// Non-encoder to GobDecoder: error
@@ -562,7 +563,7 @@ func TestGobEncoderFieldTypeError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected decode error for mismatched fields (non-encoder to decoder)")
 	}
-	if strings.Index(err.Error(), "type") < 0 {
+	if !strings.Contains(err.Error(), "type") {
 		t.Fatal("expected type error; got", err)
 	}
 }
@@ -707,7 +708,7 @@ func TestGobEncoderExtraIndirect(t *testing.T) {
 
 // Another bug: this caused a crash with the new Go1 Time type.
 // We throw in a gob-encoding array, to test another case of isZero,
-// and a struct containing an nil interface, to test a third.
+// and a struct containing a nil interface, to test a third.
 type isZeroBug struct {
 	T time.Time
 	S string
@@ -734,7 +735,7 @@ func (a *isZeroBugArray) GobDecode(data []byte) error {
 }
 
 type isZeroBugInterface struct {
-	I interface{}
+	I any
 }
 
 func (i isZeroBugInterface) GobEncode() (b []byte, e error) {
@@ -746,7 +747,7 @@ func (i *isZeroBugInterface) GobDecode(data []byte) error {
 }
 
 func TestGobEncodeIsZero(t *testing.T) {
-	x := isZeroBug{time.Now(), "hello", -55, isZeroBugArray{1, 2}, isZeroBugInterface{}}
+	x := isZeroBug{time.Unix(1e9, 0), "hello", -55, isZeroBugArray{1, 2}, isZeroBugInterface{}}
 	b := new(bytes.Buffer)
 	enc := NewEncoder(b)
 	err := enc.Encode(x)
@@ -794,5 +795,42 @@ func TestNetIP(t *testing.T) {
 	}
 	if ip.String() != "1.2.3.4" {
 		t.Errorf("decoded to %v, want 1.2.3.4", ip.String())
+	}
+}
+
+func TestIgnoreDepthLimit(t *testing.T) {
+	// We don't test the actual depth limit because it requires building an
+	// extremely large message, which takes quite a while.
+	oldNestingDepth := maxIgnoreNestingDepth
+	maxIgnoreNestingDepth = 100
+	defer func() { maxIgnoreNestingDepth = oldNestingDepth }()
+	b := new(bytes.Buffer)
+	enc := NewEncoder(b)
+
+	// Nested slice
+	typ := reflect.TypeFor[int]()
+	nested := reflect.ArrayOf(1, typ)
+	for i := 0; i < 100; i++ {
+		nested = reflect.ArrayOf(1, nested)
+	}
+	badStruct := reflect.New(reflect.StructOf([]reflect.StructField{{Name: "F", Type: nested}}))
+	enc.Encode(badStruct.Interface())
+	dec := NewDecoder(b)
+	var output struct{ Hello int }
+	expectedErr := "invalid nesting depth"
+	if err := dec.Decode(&output); err == nil || err.Error() != expectedErr {
+		t.Errorf("Decode didn't fail with depth limit of 100: want %q, got %q", expectedErr, err)
+	}
+
+	// Nested struct
+	nested = reflect.StructOf([]reflect.StructField{{Name: "F", Type: typ}})
+	for i := 0; i < 100; i++ {
+		nested = reflect.StructOf([]reflect.StructField{{Name: "F", Type: nested}})
+	}
+	badStruct = reflect.New(reflect.StructOf([]reflect.StructField{{Name: "F", Type: nested}}))
+	enc.Encode(badStruct.Interface())
+	dec = NewDecoder(b)
+	if err := dec.Decode(&output); err == nil || err.Error() != expectedErr {
+		t.Errorf("Decode didn't fail with depth limit of 100: want %q, got %q", expectedErr, err)
 	}
 }

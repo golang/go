@@ -1,0 +1,53 @@
+# Tests that the linker implements the PPC64 ELFv2 ABI
+# register save and restore functions as defined in
+# section 2.3.3.1 of the PPC64 ELFv2 ABI when linking
+# external objects most likely compiled with gcc's
+# -Os option.
+#
+# Verifies golang.org/issue/52366 for linux/ppc64le
+[!GOOS:linux] skip
+[!compiler:gc] skip
+[!cgo] skip
+[!GOARCH:ppc64le] skip
+
+go build -ldflags='-linkmode=internal'
+exec ./abitest
+stdout success
+
+go build -buildmode=pie -o abitest.pie -ldflags='-linkmode=internal'
+exec ./abitest.pie
+stdout success
+
+-- go.mod --
+module abitest
+
+-- abitest.go --
+package main
+
+/*
+#cgo CFLAGS: -Os
+
+int foo_fpr() {
+        asm volatile("":::"fr31","fr30","fr29","fr28");
+}
+int foo_gpr0() {
+        asm volatile("":::"r30","r29","r28");
+}
+int foo_gpr1() {
+        asm volatile("":::"fr31", "fr30","fr29","fr28","r30","r29","r28");
+}
+int foo_vr() {
+        asm volatile("":::"v31","v30","v29","v28");
+}
+*/
+import "C"
+
+import "fmt"
+
+func main() {
+	C.foo_fpr()
+	C.foo_gpr0()
+	C.foo_gpr1()
+	C.foo_vr()
+	fmt.Println("success")
+}

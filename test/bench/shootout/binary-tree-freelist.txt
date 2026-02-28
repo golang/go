@@ -1,8 +1,0 @@
-stretch tree of depth 16	 check: -1
-65536	 trees of depth 4	 check: -65536
-16384	 trees of depth 6	 check: -16384
-4096	 trees of depth 8	 check: -4096
-1024	 trees of depth 10	 check: -1024
-256	 trees of depth 12	 check: -256
-64	 trees of depth 14	 check: -64
-long lived tree of depth 15	 check: -1

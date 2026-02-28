@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -12,12 +12,36 @@ import (
 	"os"
 )
 
+func Example() {
+	msg := "Hello, 世界"
+	encoded := base64.StdEncoding.EncodeToString([]byte(msg))
+	fmt.Println(encoded)
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		fmt.Println("decode error:", err)
+		return
+	}
+	fmt.Println(string(decoded))
+	// Output:
+	// SGVsbG8sIOS4lueVjA==
+	// Hello, 世界
+}
+
 func ExampleEncoding_EncodeToString() {
 	data := []byte("any + old & data")
 	str := base64.StdEncoding.EncodeToString(data)
 	fmt.Println(str)
 	// Output:
 	// YW55ICsgb2xkICYgZGF0YQ==
+}
+
+func ExampleEncoding_Encode() {
+	data := []byte("Hello, world!")
+	dst := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
+	base64.StdEncoding.Encode(dst, data)
+	fmt.Println(string(dst))
+	// Output:
+	// SGVsbG8sIHdvcmxkIQ==
 }
 
 func ExampleEncoding_DecodeString() {
@@ -30,6 +54,20 @@ func ExampleEncoding_DecodeString() {
 	fmt.Printf("%q\n", data)
 	// Output:
 	// "some data with \x00 and \ufeff"
+}
+
+func ExampleEncoding_Decode() {
+	str := "SGVsbG8sIHdvcmxkIQ=="
+	dst := make([]byte, base64.StdEncoding.DecodedLen(len(str)))
+	n, err := base64.StdEncoding.Decode(dst, []byte(str))
+	if err != nil {
+		fmt.Println("decode error:", err)
+		return
+	}
+	dst = dst[:n]
+	fmt.Printf("%q\n", dst)
+	// Output:
+	// "Hello, world!"
 }
 
 func ExampleNewEncoder() {

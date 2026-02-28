@@ -7,11 +7,8 @@
 package xml
 
 // References:
-//    Annotated XML spec: http://www.xml.com/axml/testaxml.htm
-//    XML name spaces: http://www.w3.org/TR/REC-xml-names/
-
-// TODO(rsc):
-//	Test error handling.
+//    Annotated XML spec: https://www.xml.com/axml/testaxml.htm
+//    XML name spaces: https://www.w3.org/TR/REC-xml-names/
 
 import (
 	"bufio"
@@ -35,22 +32,13 @@ func (e *SyntaxError) Error() string {
 	return "XML syntax error on line " + strconv.Itoa(e.Line) + ": " + e.Msg
 }
 
-// A Name represents an XML name (Local) annotated with a name space
-// identifier (Space). In tokens returned by Decoder.Token, the Space
-// identifier is given as a canonical URL, not the short prefix used in
-// the document being parsed.
-//
-// As a special case, XML namespace declarations will use the literal
-// string "xmlns" for the Space field instead of the fully resolved URL.
-// See Encoder.EncodeToken for more information on namespace encoding
-// behaviour.
+// A Name represents an XML name (Local) annotated
+// with a name space identifier (Space).
+// In tokens returned by [Decoder.Token], the Space identifier
+// is given as a canonical URL, not the short prefix used
+// in the document being parsed.
 type Name struct {
 	Space, Local string
-}
-
-// isNamespace reports whether the name is a namespace-defining name.
-func (name Name) isNamespace() bool {
-	return name.Local == "xmlns" || name.Space == "xmlns"
 }
 
 // An Attr represents an attribute in an XML element (Name=Value).
@@ -60,8 +48,8 @@ type Attr struct {
 }
 
 // A Token is an interface holding one of the token types:
-// StartElement, EndElement, CharData, Comment, ProcInst, or Directive.
-type Token interface{}
+// [StartElement], [EndElement], [CharData], [Comment], [ProcInst], or [Directive].
+type Token any
 
 // A StartElement represents an XML start element.
 type StartElement struct {
@@ -69,6 +57,7 @@ type StartElement struct {
 	Attr []Attr
 }
 
+// Copy creates a new copy of StartElement.
 func (e StartElement) Copy() StartElement {
 	attrs := make([]Attr, len(e.Attr))
 	copy(attrs, e.Attr)
@@ -81,24 +70,6 @@ func (e StartElement) End() EndElement {
 	return EndElement{e.Name}
 }
 
-// setDefaultNamespace sets the namespace of the element
-// as the default for all elements contained within it.
-func (e *StartElement) setDefaultNamespace() {
-	if e.Name.Space == "" {
-		// If there's no namespace on the element, don't
-		// set the default. Strictly speaking this might be wrong, as
-		// we can't tell if the element had no namespace set
-		// or was just using the default namespace.
-		return
-	}
-	e.Attr = append(e.Attr, Attr{
-		Name: Name{
-			Local: "xmlns",
-		},
-		Value: e.Name.Space,
-	})
-}
-
 // An EndElement represents an XML end element.
 type EndElement struct {
 	Name Name
@@ -109,19 +80,15 @@ type EndElement struct {
 // the characters they represent.
 type CharData []byte
 
-func makeCopy(b []byte) []byte {
-	b1 := make([]byte, len(b))
-	copy(b1, b)
-	return b1
-}
-
-func (c CharData) Copy() CharData { return CharData(makeCopy(c)) }
+// Copy creates a new copy of CharData.
+func (c CharData) Copy() CharData { return CharData(bytes.Clone(c)) }
 
 // A Comment represents an XML comment of the form <!--comment-->.
 // The bytes do not include the <!-- and --> comment markers.
 type Comment []byte
 
-func (c Comment) Copy() Comment { return Comment(makeCopy(c)) }
+// Copy creates a new copy of Comment.
+func (c Comment) Copy() Comment { return Comment(bytes.Clone(c)) }
 
 // A ProcInst represents an XML processing instruction of the form <?target inst?>
 type ProcInst struct {
@@ -129,8 +96,9 @@ type ProcInst struct {
 	Inst   []byte
 }
 
+// Copy creates a new copy of ProcInst.
 func (p ProcInst) Copy() ProcInst {
-	p.Inst = makeCopy(p.Inst)
+	p.Inst = bytes.Clone(p.Inst)
 	return p
 }
 
@@ -138,7 +106,8 @@ func (p ProcInst) Copy() ProcInst {
 // The bytes do not include the <! and > markers.
 type Directive []byte
 
-func (d Directive) Copy() Directive { return Directive(makeCopy(d)) }
+// Copy creates a new copy of Directive.
+func (d Directive) Copy() Directive { return Directive(bytes.Clone(d)) }
 
 // CopyToken returns a copy of a Token.
 func CopyToken(t Token) Token {
@@ -157,6 +126,23 @@ func CopyToken(t Token) Token {
 	return t
 }
 
+// A TokenReader is anything that can decode a stream of XML tokens, including a
+// [Decoder].
+//
+// When Token encounters an error or end-of-file condition after successfully
+// reading a token, it returns the token. It may return the (non-nil) error from
+// the same call or return the error (and a nil token) from a subsequent call.
+// An instance of this general case is that a TokenReader returning a non-nil
+// token at the end of the token stream may return either io.EOF or a nil error.
+// The next Read should return nil, [io.EOF].
+//
+// Implementations of Token are discouraged from returning a nil token with a
+// nil error. Callers should treat a return of nil, nil as indicating that
+// nothing happened; in particular it does not indicate EOF.
+type TokenReader interface {
+	Token() (Token, error)
+}
+
 // A Decoder represents an XML parser reading a particular input stream.
 // The parser assumes that its input is encoded in UTF-8.
 type Decoder struct {
@@ -172,9 +158,9 @@ type Decoder struct {
 	//
 	// Setting:
 	//
-	//	d.Strict = false;
-	//	d.AutoClose = HTMLAutoClose;
-	//	d.Entity = HTMLEntity
+	//	d.Strict = false
+	//	d.AutoClose = xml.HTMLAutoClose
+	//	d.Entity = xml.HTMLEntity
 	//
 	// creates a parser that can handle typical HTML.
 	//
@@ -203,7 +189,7 @@ type Decoder struct {
 	// charset-conversion readers, converting from the provided
 	// non-UTF-8 charset into UTF-8. If CharsetReader is nil or
 	// returns an error, parsing stops with an error. One of the
-	// the CharsetReader's result values must be non-nil.
+	// CharsetReader's result values must be non-nil.
 	CharsetReader func(charset string, input io.Reader) (io.Reader, error)
 
 	// DefaultSpace sets the default name space used for unadorned tags,
@@ -212,6 +198,7 @@ type Decoder struct {
 	DefaultSpace string
 
 	r              io.ByteReader
+	t              TokenReader
 	buf            bytes.Buffer
 	saved          *bytes.Buffer
 	stk            *stack
@@ -223,12 +210,13 @@ type Decoder struct {
 	ns             map[string]string
 	err            error
 	line           int
+	linestart      int64
 	offset         int64
 	unmarshalDepth int
 }
 
 // NewDecoder creates a new XML parser reading from r.
-// If r does not implement io.ByteReader, NewDecoder will
+// If r does not implement [io.ByteReader], NewDecoder will
 // do its own buffering.
 func NewDecoder(r io.Reader) *Decoder {
 	d := &Decoder{
@@ -241,40 +229,68 @@ func NewDecoder(r io.Reader) *Decoder {
 	return d
 }
 
+// NewTokenDecoder creates a new XML parser using an underlying token stream.
+func NewTokenDecoder(t TokenReader) *Decoder {
+	// Is it already a Decoder?
+	if d, ok := t.(*Decoder); ok {
+		return d
+	}
+	d := &Decoder{
+		ns:       make(map[string]string),
+		t:        t,
+		nextByte: -1,
+		line:     1,
+		Strict:   true,
+	}
+	return d
+}
+
 // Token returns the next XML token in the input stream.
-// At the end of the input stream, Token returns nil, io.EOF.
+// At the end of the input stream, Token returns nil, [io.EOF].
 //
 // Slices of bytes in the returned token data refer to the
 // parser's internal buffer and remain valid only until the next
-// call to Token.  To acquire a copy of the bytes, call CopyToken
+// call to Token. To acquire a copy of the bytes, call [CopyToken]
 // or the token's Copy method.
 //
-// Token expands self-closing elements such as <br/>
+// Token expands self-closing elements such as <br>
 // into separate start and end elements returned by successive calls.
 //
-// Token guarantees that the StartElement and EndElement
+// Token guarantees that the [StartElement] and [EndElement]
 // tokens it returns are properly nested and matched:
-// if Token encounters an unexpected end element,
+// if Token encounters an unexpected end element
+// or EOF before all expected end elements,
 // it will return an error.
 //
+// If [Decoder.CharsetReader] is called and returns an error,
+// the error is wrapped and returned.
+//
 // Token implements XML name spaces as described by
-// http://www.w3.org/TR/REC-xml-names/.  Each of the
-// Name structures contained in the Token has the Space
+// https://www.w3.org/TR/REC-xml-names/. Each of the
+// [Name] structures contained in the Token has the Space
 // set to the URL identifying its name space when known.
 // If Token encounters an unrecognized name space prefix,
 // it uses the prefix as the Space rather than report an error.
-func (d *Decoder) Token() (t Token, err error) {
+func (d *Decoder) Token() (Token, error) {
+	var t Token
+	var err error
 	if d.stk != nil && d.stk.kind == stkEOF {
-		err = io.EOF
-		return
+		return nil, io.EOF
 	}
 	if d.nextToken != nil {
 		t = d.nextToken
 		d.nextToken = nil
-	} else if t, err = d.rawToken(); err != nil {
-		return
+	} else {
+		if t, err = d.rawToken(); t == nil && err != nil {
+			if err == io.EOF && d.stk != nil && d.stk.kind != stkEOF {
+				err = d.syntaxError("unexpected EOF")
+			}
+			return nil, err
+		}
+		// We still have a token to process, so clear any
+		// errors (e.g. EOF) and proceed.
+		err = nil
 	}
-
 	if !d.Strict {
 		if t1, ok := d.autoClose(t); ok {
 			d.nextToken = t
@@ -288,12 +304,12 @@ func (d *Decoder) Token() (t Token, err error) {
 		// to the other attribute names, so process
 		// the translations first.
 		for _, a := range t1.Attr {
-			if a.Name.Space == "xmlns" {
+			if a.Name.Space == xmlnsPrefix {
 				v, ok := d.ns[a.Name.Local]
 				d.pushNs(a.Name.Local, v, ok)
 				d.ns[a.Name.Local] = a.Value
 			}
-			if a.Name.Space == "" && a.Name.Local == "xmlns" {
+			if a.Name.Space == "" && a.Name.Local == xmlnsPrefix {
 				// Default space for untagged names
 				v, ok := d.ns[""]
 				d.pushNs("", v, ok)
@@ -301,37 +317,40 @@ func (d *Decoder) Token() (t Token, err error) {
 			}
 		}
 
+		d.pushElement(t1.Name)
 		d.translate(&t1.Name, true)
 		for i := range t1.Attr {
 			d.translate(&t1.Attr[i].Name, false)
 		}
-		d.pushElement(t1.Name)
 		t = t1
 
 	case EndElement:
-		d.translate(&t1.Name, true)
 		if !d.popElement(&t1) {
 			return nil, d.err
 		}
 		t = t1
 	}
-	return
+	return t, err
 }
 
-const xmlURL = "http://www.w3.org/XML/1998/namespace"
+const (
+	xmlURL      = "http://www.w3.org/XML/1998/namespace"
+	xmlnsPrefix = "xmlns"
+	xmlPrefix   = "xml"
+)
 
 // Apply name space translation to name n.
 // The default name space (for Space=="")
 // applies only to element names, not to attribute names.
 func (d *Decoder) translate(n *Name, isElementName bool) {
 	switch {
-	case n.Space == "xmlns":
+	case n.Space == xmlnsPrefix:
 		return
 	case n.Space == "" && !isElementName:
 		return
-	case n.Space == "xml":
+	case n.Space == xmlPrefix:
 		n.Space = xmlURL
-	case n.Space == "" && n.Local == "xmlns":
+	case n.Space == "" && n.Local == xmlnsPrefix:
 		return
 	}
 	if v, ok := d.ns[n.Space]; ok {
@@ -354,7 +373,7 @@ func (d *Decoder) switchToReader(r io.Reader) {
 }
 
 // Parsing state - stack holds old name space translations
-// and the current set of open elements.  The translations to pop when
+// and the current set of open elements. The translations to pop when
 // ending a given tag are *below* it on the stack, which is
 // more work but forced on us by XML.
 type stack struct {
@@ -473,10 +492,16 @@ func (d *Decoder) popElement(t *EndElement) bool {
 		d.err = d.syntaxError("element <" + s.name.Local + "> closed by </" + name.Local + ">")
 		return false
 	case s.name.Space != name.Space:
+		ns := name.Space
+		if name.Space == "" {
+			ns = `""`
+		}
 		d.err = d.syntaxError("element <" + s.name.Local + "> in space " + s.name.Space +
-			"closed by </" + name.Local + "> in space " + name.Space)
+			" closed by </" + name.Local + "> in space " + ns)
 		return false
 	}
+
+	d.translate(&t.Name, true)
 
 	// Pop stack until a Start or EOF is on the top, undoing the
 	// translations that were associated with the element we just closed.
@@ -498,12 +523,11 @@ func (d *Decoder) autoClose(t Token) (Token, bool) {
 	if d.stk == nil || d.stk.kind != stkStart {
 		return nil, false
 	}
-	name := strings.ToLower(d.stk.name.Local)
 	for _, s := range d.AutoClose {
-		if strings.ToLower(s) == name {
+		if strings.EqualFold(s, d.stk.name.Local) {
 			// This one should be auto closed if t doesn't close it.
 			et, ok := t.(EndElement)
-			if !ok || et.Name.Local != name {
+			if !ok || !strings.EqualFold(et.Name.Local, d.stk.name.Local) {
 				return EndElement{d.stk.name}, true
 			}
 			break
@@ -514,7 +538,7 @@ func (d *Decoder) autoClose(t Token) (Token, bool) {
 
 var errRawToken = errors.New("xml: cannot use RawToken from UnmarshalXML method")
 
-// RawToken is like Token but does not verify that
+// RawToken is like [Decoder.Token] but does not verify that
 // start and end elements match and does not translate
 // name space prefixes to their corresponding URLs.
 func (d *Decoder) RawToken() (Token, error) {
@@ -525,6 +549,9 @@ func (d *Decoder) RawToken() (Token, error) {
 }
 
 func (d *Decoder) rawToken() (Token, error) {
+	if d.t != nil {
+		return d.t.Token()
+	}
 	if d.err != nil {
 		return nil, d.err
 	}
@@ -576,7 +603,6 @@ func (d *Decoder) rawToken() (Token, error) {
 
 	case '?':
 		// <?: Processing instruction.
-		// TODO(rsc): Should parse the <?xml declaration to make sure the version is 1.0.
 		var target string
 		if target, ok = d.name(); !ok {
 			if d.err == nil {
@@ -601,15 +627,21 @@ func (d *Decoder) rawToken() (Token, error) {
 		data = data[0 : len(data)-2] // chop ?>
 
 		if target == "xml" {
-			enc := procInstEncoding(string(data))
-			if enc != "" && enc != "utf-8" && enc != "UTF-8" {
+			content := string(data)
+			ver := procInst("version", content)
+			if ver != "" && ver != "1.0" {
+				d.err = fmt.Errorf("xml: unsupported version %q; only version 1.0 is supported", ver)
+				return nil, d.err
+			}
+			enc := procInst("encoding", content)
+			if enc != "" && enc != "utf-8" && enc != "UTF-8" && !strings.EqualFold(enc, "utf-8") {
 				if d.CharsetReader == nil {
 					d.err = fmt.Errorf("xml: encoding %q declared but Decoder.CharsetReader is nil", enc)
 					return nil, d.err
 				}
 				newr, err := d.CharsetReader(enc, d.r.(io.Reader))
 				if err != nil {
-					d.err = fmt.Errorf("xml: opening charset %q: %v", enc, err)
+					d.err = fmt.Errorf("xml: opening charset %q: %w", enc, err)
 					return nil, d.err
 				}
 				if newr == nil {
@@ -643,7 +675,12 @@ func (d *Decoder) rawToken() (Token, error) {
 					return nil, d.err
 				}
 				d.buf.WriteByte(b)
-				if b0 == '-' && b1 == '-' && b == '>' {
+				if b0 == '-' && b1 == '-' {
+					if b != '>' {
+						d.err = d.syntaxError(
+							`invalid sequence "--" not allowed in comments`)
+						return nil, d.err
+					}
 					break
 				}
 				b0, b1 = b1, b
@@ -730,6 +767,12 @@ func (d *Decoder) rawToken() (Token, error) {
 					}
 					b0, b1 = b1, b
 				}
+
+				// Replace the comment with a space in the returned Directive
+				// body, so that markup parts that were separated by the comment
+				// (like a "<" and a "!") don't get joined when re-encoding the
+				// Directive, taking new semantic meaning.
+				d.buf.WriteByte(' ')
 			}
 		}
 		return Directive(d.buf.Bytes()), nil
@@ -772,18 +815,7 @@ func (d *Decoder) rawToken() (Token, error) {
 		}
 		d.ungetc(b)
 
-		n := len(attr)
-		if n >= cap(attr) {
-			nCap := 2 * cap(attr)
-			if nCap == 0 {
-				nCap = 4
-			}
-			nattr := make([]Attr, n, nCap)
-			copy(nattr, attr)
-			attr = nattr
-		}
-		attr = attr[0 : n+1]
-		a := &attr[n]
+		a := Attr{}
 		if a.Name, ok = d.nsname(); !ok {
 			if d.err == nil {
 				d.err = d.syntaxError("expected attribute name in element")
@@ -798,10 +830,9 @@ func (d *Decoder) rawToken() (Token, error) {
 			if d.Strict {
 				d.err = d.syntaxError("attribute name without = in element")
 				return nil, d.err
-			} else {
-				d.ungetc(b)
-				a.Value = a.Name.Local
 			}
+			d.ungetc(b)
+			a.Value = a.Name.Local
 		} else {
 			d.space()
 			data := d.attrval()
@@ -810,6 +841,7 @@ func (d *Decoder) rawToken() (Token, error) {
 			}
 			a.Value = string(data)
 		}
+		attr = append(attr, a)
 	}
 	if empty {
 		d.needClose = true
@@ -840,7 +872,7 @@ func (d *Decoder) attrval() []byte {
 		if !ok {
 			return nil
 		}
-		// http://www.w3.org/TR/REC-html40/intro/sgmltut.html#h-3.2.2
+		// https://www.w3.org/TR/REC-html40/intro/sgmltut.html#h-3.2.2
 		if 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z' ||
 			'0' <= b && b <= '9' || b == '_' || b == ':' || b == '-' {
 			d.buf.WriteByte(b)
@@ -890,6 +922,7 @@ func (d *Decoder) getc() (b byte, ok bool) {
 	}
 	if b == '\n' {
 		d.line++
+		d.linestart = d.offset + 1
 	}
 	d.offset++
 	return b, true
@@ -900,6 +933,13 @@ func (d *Decoder) getc() (b byte, ok bool) {
 // and the beginning of the next token.
 func (d *Decoder) InputOffset() int64 {
 	return d.offset
+}
+
+// InputPos returns the line of the current decoder position and the 1 based
+// input position of the line. The position gives the location of the end of the
+// most recently returned token.
+func (d *Decoder) InputPos() (line, column int) {
+	return d.line, int(d.offset-d.linestart) + 1
 }
 
 // Return saved offset.
@@ -934,7 +974,7 @@ func (d *Decoder) ungetc(b byte) {
 	d.offset--
 }
 
-var entity = map[string]int{
+var entity = map[string]rune{
 	"lt":   '<',
 	"gt":   '>',
 	"amp":  '&',
@@ -964,8 +1004,9 @@ Input:
 		}
 
 		// <![CDATA[ section ends with ]]>.
-		// It is an error for ]]> to appear in ordinary text.
-		if b0 == ']' && b1 == ']' && b == '>' {
+		// It is an error for ]]> to appear in ordinary text,
+		// but it is allowed in quoted strings.
+		if quote < 0 && b0 == ']' && b1 == ']' && b == '>' {
 			if cdata {
 				trunc = 2
 				break Input
@@ -1029,7 +1070,7 @@ Input:
 					d.buf.WriteByte(';')
 					n, err := strconv.ParseUint(s, base, 64)
 					if err == nil && n <= unicode.MaxRune {
-						text = string(n)
+						text = string(rune(n))
 						haveText = true
 					}
 				}
@@ -1039,7 +1080,6 @@ Input:
 					if d.err != nil {
 						return nil
 					}
-					ok = false
 				}
 				if b, ok = d.mustgetc(); !ok {
 					return nil
@@ -1063,7 +1103,7 @@ Input:
 
 			if haveText {
 				d.buf.Truncate(before)
-				d.buf.Write([]byte(text))
+				d.buf.WriteString(text)
 				b0, b1 = 0, 0
 				continue Input
 			}
@@ -1112,13 +1152,13 @@ Input:
 }
 
 // Decide whether the given rune is in the XML Character Range, per
-// the Char production of http://www.xml.com/axml/testaxml.htm,
+// the Char production of https://www.xml.com/axml/testaxml.htm,
 // Section 2.2 Characters.
 func isInCharacterRange(r rune) (inrange bool) {
 	return r == 0x09 ||
 		r == 0x0A ||
 		r == 0x0D ||
-		r >= 0x20 && r <= 0xDF77 ||
+		r >= 0x20 && r <= 0xD7FF ||
 		r >= 0xE000 && r <= 0xFFFD ||
 		r >= 0x10000 && r <= 0x10FFFF
 }
@@ -1130,12 +1170,13 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 	if !ok {
 		return
 	}
-	i := strings.Index(s, ":")
-	if i < 0 {
+	if strings.Count(s, ":") > 1 {
+		return name, false
+	} else if space, local, ok := strings.Cut(s, ":"); !ok || space == "" || local == "" {
 		name.Local = s
 	} else {
-		name.Space = s[0:i]
-		name.Local = s[i+1:]
+		name.Space = space
+		name.Local = local
 	}
 	return name, true
 }
@@ -1241,8 +1282,8 @@ func isNameString(s string) bool {
 }
 
 // These tables were generated by cut and paste from Appendix B of
-// the XML spec at http://www.xml.com/axml/testaxml.htm
-// and then reformatting.  First corresponds to (Letter | '_' | ':')
+// the XML spec at https://www.xml.com/axml/testaxml.htm
+// and then reformatting. First corresponds to (Letter | '_' | ':')
 // and second corresponds to NameChar.
 
 var first = &unicode.RangeTable{
@@ -1559,7 +1600,9 @@ var second = &unicode.RangeTable{
 
 // HTMLEntity is an entity map containing translations for the
 // standard HTML entity characters.
-var HTMLEntity = htmlEntity
+//
+// See the [Decoder.Strict] and [Decoder.Entity] fields' documentation.
+var HTMLEntity map[string]string = htmlEntity
 
 var htmlEntity = map[string]string{
 	/*
@@ -1826,7 +1869,9 @@ var htmlEntity = map[string]string{
 
 // HTMLAutoClose is the set of HTML elements that
 // should be considered to close automatically.
-var HTMLAutoClose = htmlAutoClose
+//
+// See the [Decoder.Strict] and [Decoder.Entity] fields' documentation.
+var HTMLAutoClose []string = htmlAutoClose
 
 var htmlAutoClose = []string{
 	/*
@@ -1849,20 +1894,27 @@ var htmlAutoClose = []string{
 }
 
 var (
-	esc_quot = []byte("&#34;") // shorter than "&quot;"
-	esc_apos = []byte("&#39;") // shorter than "&apos;"
-	esc_amp  = []byte("&amp;")
-	esc_lt   = []byte("&lt;")
-	esc_gt   = []byte("&gt;")
-	esc_tab  = []byte("&#x9;")
-	esc_nl   = []byte("&#xA;")
-	esc_cr   = []byte("&#xD;")
-	esc_fffd = []byte("\uFFFD") // Unicode replacement character
+	escQuot = []byte("&#34;") // shorter than "&quot;"
+	escApos = []byte("&#39;") // shorter than "&apos;"
+	escAmp  = []byte("&amp;")
+	escLT   = []byte("&lt;")
+	escGT   = []byte("&gt;")
+	escTab  = []byte("&#x9;")
+	escNL   = []byte("&#xA;")
+	escCR   = []byte("&#xD;")
+	escFFFD = []byte("\uFFFD") // Unicode replacement character
 )
 
 // EscapeText writes to w the properly escaped XML equivalent
 // of the plain text data s.
 func EscapeText(w io.Writer, s []byte) error {
+	return escapeText(w, s, true)
+}
+
+// escapeText writes to w the properly escaped XML equivalent
+// of the plain text data s. If escapeNewline is true, newline
+// characters will be escaped.
+func escapeText(w io.Writer, s []byte, escapeNewline bool) error {
 	var esc []byte
 	last := 0
 	for i := 0; i < len(s); {
@@ -1870,24 +1922,27 @@ func EscapeText(w io.Writer, s []byte) error {
 		i += width
 		switch r {
 		case '"':
-			esc = esc_quot
+			esc = escQuot
 		case '\'':
-			esc = esc_apos
+			esc = escApos
 		case '&':
-			esc = esc_amp
+			esc = escAmp
 		case '<':
-			esc = esc_lt
+			esc = escLT
 		case '>':
-			esc = esc_gt
+			esc = escGT
 		case '\t':
-			esc = esc_tab
+			esc = escTab
 		case '\n':
-			esc = esc_nl
+			if !escapeNewline {
+				continue
+			}
+			esc = escNL
 		case '\r':
-			esc = esc_cr
+			esc = escCR
 		default:
 			if !isInCharacterRange(r) || (r == 0xFFFD && width == 1) {
-				esc = esc_fffd
+				esc = escFFFD
 				break
 			}
 			continue
@@ -1900,10 +1955,8 @@ func EscapeText(w io.Writer, s []byte) error {
 		}
 		last = i
 	}
-	if _, err := w.Write(s[last:]); err != nil {
-		return err
-	}
-	return nil
+	_, err := w.Write(s[last:])
+	return err
 }
 
 // EscapeString writes to p the properly escaped XML equivalent
@@ -1916,24 +1969,24 @@ func (p *printer) EscapeString(s string) {
 		i += width
 		switch r {
 		case '"':
-			esc = esc_quot
+			esc = escQuot
 		case '\'':
-			esc = esc_apos
+			esc = escApos
 		case '&':
-			esc = esc_amp
+			esc = escAmp
 		case '<':
-			esc = esc_lt
+			esc = escLT
 		case '>':
-			esc = esc_gt
+			esc = escGT
 		case '\t':
-			esc = esc_tab
+			esc = escTab
 		case '\n':
-			esc = esc_nl
+			esc = escNL
 		case '\r':
-			esc = esc_cr
+			esc = escCR
 		default:
 			if !isInCharacterRange(r) || (r == 0xFFFD && width == 1) {
-				esc = esc_fffd
+				esc = escFFFD
 				break
 			}
 			continue
@@ -1945,32 +1998,79 @@ func (p *printer) EscapeString(s string) {
 	p.WriteString(s[last:])
 }
 
-// Escape is like EscapeText but omits the error return value.
+// Escape is like [EscapeText] but omits the error return value.
 // It is provided for backwards compatibility with Go 1.0.
-// Code targeting Go 1.1 or later should use EscapeText.
+// Code targeting Go 1.1 or later should use [EscapeText].
 func Escape(w io.Writer, s []byte) {
 	EscapeText(w, s)
 }
 
-// procInstEncoding parses the `encoding="..."` or `encoding='...'`
+var (
+	cdataStart  = []byte("<![CDATA[")
+	cdataEnd    = []byte("]]>")
+	cdataEscape = []byte("]]]]><![CDATA[>")
+)
+
+// emitCDATA writes to w the CDATA-wrapped plain text data s.
+// It escapes CDATA directives nested in s.
+func emitCDATA(w io.Writer, s []byte) error {
+	if len(s) == 0 {
+		return nil
+	}
+	if _, err := w.Write(cdataStart); err != nil {
+		return err
+	}
+
+	for {
+		before, after, ok := bytes.Cut(s, cdataEnd)
+		if !ok {
+			break
+		}
+		// Found a nested CDATA directive end.
+		if _, err := w.Write(before); err != nil {
+			return err
+		}
+		if _, err := w.Write(cdataEscape); err != nil {
+			return err
+		}
+		s = after
+	}
+
+	if _, err := w.Write(s); err != nil {
+		return err
+	}
+
+	_, err := w.Write(cdataEnd)
+	return err
+}
+
+// procInst parses the `param="..."` or `param='...'`
 // value out of the provided string, returning "" if not found.
-func procInstEncoding(s string) string {
+func procInst(param, s string) string {
 	// TODO: this parsing is somewhat lame and not exact.
 	// It works for all actual cases, though.
-	idx := strings.Index(s, "encoding=")
-	if idx == -1 {
+	param = param + "="
+	lenp := len(param)
+	i := 0
+	var sep byte
+	for i < len(s) {
+		sub := s[i:]
+		k := strings.Index(sub, param)
+		if k < 0 || lenp+k >= len(sub) {
+			return ""
+		}
+		i += lenp + k + 1
+		if c := sub[lenp+k]; c == '\'' || c == '"' {
+			sep = c
+			break
+		}
+	}
+	if sep == 0 {
 		return ""
 	}
-	v := s[idx+len("encoding="):]
-	if v == "" {
+	j := strings.IndexByte(s[i:], sep)
+	if j < 0 {
 		return ""
 	}
-	if v[0] != '\'' && v[0] != '"' {
-		return ""
-	}
-	idx = strings.IndexRune(v[1:], rune(v[0]))
-	if idx == -1 {
-		return ""
-	}
-	return v[1 : idx+1]
+	return s[i : i+j]
 }

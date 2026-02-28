@@ -1,0 +1,26 @@
+[compiler:gccgo] skip # gccgo has no cover tool
+
+! go test -n importmain/test
+stderr 'not an importable package' # check that import main was detected
+! go test -n -cover importmain/test
+stderr 'not an importable package' # check that import main was detected
+
+-- go.mod --
+module importmain
+
+go 1.16
+-- ismain/main.go --
+package main
+
+import _ "importmain/test"
+
+func main() {}
+-- test/test.go --
+package test
+-- test/test_test.go --
+package test_test
+
+import "testing"
+import _ "importmain/ismain"
+
+func TestCase(t *testing.T) {}

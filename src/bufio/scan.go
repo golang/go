@@ -13,20 +13,19 @@ import (
 
 // Scanner provides a convenient interface for reading data such as
 // a file of newline-delimited lines of text. Successive calls to
-// the Scan method will step through the 'tokens' of a file, skipping
+// the [Scanner.Scan] method will step through the 'tokens' of a file, skipping
 // the bytes between the tokens. The specification of a token is
-// defined by a split function of type SplitFunc; the default split
-// function breaks the input into lines with line termination stripped. Split
+// defined by a split function of type [SplitFunc]; the default split
+// function breaks the input into lines with line termination stripped. [Scanner.Split]
 // functions are defined in this package for scanning a file into
 // lines, bytes, UTF-8-encoded runes, and space-delimited words. The
 // client may instead provide a custom split function.
 //
 // Scanning stops unrecoverably at EOF, the first I/O error, or a token too
-// large to fit in the buffer. When a scan stops, the reader may have
+// large to fit in the [Scanner.Buffer]. When a scan stops, the reader may have
 // advanced arbitrarily far past the last token. Programs that need more
 // control over error handling or large tokens, or must run sequential scans
-// on a reader, should use bufio.Reader instead.
-//
+// on a reader, should use [bufio.Reader] instead.
 type Scanner struct {
 	r            io.Reader // The reader provided by the client.
 	split        SplitFunc // The function to split the tokens.
@@ -37,20 +36,30 @@ type Scanner struct {
 	end          int       // End of data in buf.
 	err          error     // Sticky error.
 	empties      int       // Count of successive empty tokens.
+	scanCalled   bool      // Scan has been called; buffer is in use.
+	done         bool      // Scan has finished.
 }
 
 // SplitFunc is the signature of the split function used to tokenize the
 // input. The arguments are an initial substring of the remaining unprocessed
-// data and a flag, atEOF, that reports whether the Reader has no more data
+// data and a flag, atEOF, that reports whether the [Reader] has no more data
 // to give. The return values are the number of bytes to advance the input
-// and the next token to return to the user, plus an error, if any. If the
-// data does not yet hold a complete token, for instance if it has no newline
-// while scanning lines, SplitFunc can return (0, nil, nil) to signal the
-// Scanner to read more data into the slice and try again with a longer slice
-// starting at the same point in the input.
+// and the next token to return to the user, if any, plus an error, if any.
 //
-// If the returned error is non-nil, scanning stops and the error
-// is returned to the client.
+// Scanning stops if the function returns an error, in which case some of
+// the input may be discarded. If that error is [ErrFinalToken], scanning
+// stops with no error. A non-nil token delivered with [ErrFinalToken]
+// will be the last token, and a nil token with [ErrFinalToken]
+// immediately stops the scanning.
+//
+// Otherwise, the [Scanner] advances the input. If the token is not nil,
+// the [Scanner] returns it to the user. If the token is nil, the
+// Scanner reads more data and continues scanning; if there is no more
+// data--if atEOF was true--the [Scanner] returns. If the data does not
+// yet hold a complete token, for instance if it has no newline while
+// scanning lines, a [SplitFunc] can return (0, nil, nil) to signal the
+// [Scanner] to read more data into the slice and try again with a
+// longer slice starting at the same point in the input.
 //
 // The function is never called with an empty data slice unless atEOF
 // is true. If atEOF is true, however, data may be non-empty and,
@@ -62,27 +71,30 @@ var (
 	ErrTooLong         = errors.New("bufio.Scanner: token too long")
 	ErrNegativeAdvance = errors.New("bufio.Scanner: SplitFunc returns negative advance count")
 	ErrAdvanceTooFar   = errors.New("bufio.Scanner: SplitFunc returns advance count beyond input")
+	ErrBadReadCount    = errors.New("bufio.Scanner: Read returned impossible count")
 )
 
 const (
-	// MaxScanTokenSize is the maximum size used to buffer a token.
+	// MaxScanTokenSize is the maximum size used to buffer a token
+	// unless the user provides an explicit buffer with [Scanner.Buffer].
 	// The actual maximum token size may be smaller as the buffer
 	// may need to include, for instance, a newline.
 	MaxScanTokenSize = 64 * 1024
+
+	startBufSize = 4096 // Size of initial allocation for buffer.
 )
 
-// NewScanner returns a new Scanner to read from r.
-// The split function defaults to ScanLines.
+// NewScanner returns a new [Scanner] to read from r.
+// The split function defaults to [ScanLines].
 func NewScanner(r io.Reader) *Scanner {
 	return &Scanner{
 		r:            r,
 		split:        ScanLines,
 		maxTokenSize: MaxScanTokenSize,
-		buf:          make([]byte, 4096), // Plausible starting size; needn't be large.
 	}
 }
 
-// Err returns the first non-EOF error that was encountered by the Scanner.
+// Err returns the first non-EOF error that was encountered by the [Scanner].
 func (s *Scanner) Err() error {
 	if s.err == io.EOF {
 		return nil
@@ -90,28 +102,45 @@ func (s *Scanner) Err() error {
 	return s.err
 }
 
-// Bytes returns the most recent token generated by a call to Scan.
+// Bytes returns the most recent token generated by a call to [Scanner.Scan].
 // The underlying array may point to data that will be overwritten
 // by a subsequent call to Scan. It does no allocation.
 func (s *Scanner) Bytes() []byte {
 	return s.token
 }
 
-// Text returns the most recent token generated by a call to Scan
+// Text returns the most recent token generated by a call to [Scanner.Scan]
 // as a newly allocated string holding its bytes.
 func (s *Scanner) Text() string {
 	return string(s.token)
 }
 
-// Scan advances the Scanner to the next token, which will then be
-// available through the Bytes or Text method. It returns false when the
-// scan stops, either by reaching the end of the input or an error.
-// After Scan returns false, the Err method will return any error that
-// occurred during scanning, except that if it was io.EOF, Err
+// ErrFinalToken is a special sentinel error value. It is intended to be
+// returned by a Split function to indicate that the scanning should stop
+// with no error. If the token being delivered with this error is not nil,
+// the token is the last token.
+//
+// The value is useful to stop processing early or when it is necessary to
+// deliver a final empty token (which is different from a nil token).
+// One could achieve the same behavior with a custom error value but
+// providing one here is tidier.
+// See the emptyFinalToken example for a use of this value.
+var ErrFinalToken = errors.New("final token")
+
+// Scan advances the [Scanner] to the next token, which will then be
+// available through the [Scanner.Bytes] or [Scanner.Text] method. It returns false when
+// there are no more tokens, either by reaching the end of the input or an error.
+// After Scan returns false, the [Scanner.Err] method will return any error that
+// occurred during scanning, except that if it was [io.EOF], [Scanner.Err]
 // will return nil.
-// Split panics if the split function returns 100 empty tokens without
-// advancing the input. This is a common error mode for scanners.
+// Scan panics if the split function returns too many empty
+// tokens without advancing the input. This is a common error mode for
+// scanners.
 func (s *Scanner) Scan() bool {
+	if s.done {
+		return false
+	}
+	s.scanCalled = true
 	// Loop until we have a token.
 	for {
 		// See if we can get a token with what we already have.
@@ -120,6 +149,14 @@ func (s *Scanner) Scan() bool {
 		if s.end > s.start || s.err != nil {
 			advance, token, err := s.split(s.buf[s.start:s.end], s.err != nil)
 			if err != nil {
+				if err == ErrFinalToken {
+					s.token = token
+					s.done = true
+					// When token is not nil, it means the scanning stops
+					// with a trailing token, and thus the return value
+					// should be true to indicate the existence of the token.
+					return token != nil
+				}
 				s.setErr(err)
 				return false
 			}
@@ -133,8 +170,8 @@ func (s *Scanner) Scan() bool {
 				} else {
 					// Returning tokens not advancing input at EOF.
 					s.empties++
-					if s.empties > 100 {
-						panic("bufio.Scan: 100 empty tokens without progressing")
+					if s.empties > maxConsecutiveEmptyReads {
+						panic("bufio.Scan: too many empty tokens without progressing")
 					}
 				}
 				return true
@@ -158,26 +195,32 @@ func (s *Scanner) Scan() bool {
 		}
 		// Is the buffer full? If so, resize.
 		if s.end == len(s.buf) {
-			if len(s.buf) >= s.maxTokenSize {
+			// Guarantee no overflow in the multiplication below.
+			const maxInt = int(^uint(0) >> 1)
+			if len(s.buf) >= s.maxTokenSize || len(s.buf) > maxInt/2 {
 				s.setErr(ErrTooLong)
 				return false
 			}
 			newSize := len(s.buf) * 2
-			if newSize > s.maxTokenSize {
-				newSize = s.maxTokenSize
+			if newSize == 0 {
+				newSize = startBufSize
 			}
+			newSize = min(newSize, s.maxTokenSize)
 			newBuf := make([]byte, newSize)
 			copy(newBuf, s.buf[s.start:s.end])
 			s.buf = newBuf
 			s.end -= s.start
 			s.start = 0
-			continue
 		}
 		// Finally we can read some input. Make sure we don't get stuck with
 		// a misbehaving Reader. Officially we don't need to do this, but let's
 		// be extra careful: Scanner is for safe, simple jobs.
 		for loop := 0; ; {
 			n, err := s.r.Read(s.buf[s.end:len(s.buf)])
+			if n < 0 || len(s.buf)-s.end < n {
+				s.setErr(ErrBadReadCount)
+				break
+			}
 			s.end += n
 			if err != nil {
 				s.setErr(err)
@@ -217,15 +260,40 @@ func (s *Scanner) setErr(err error) {
 	}
 }
 
-// Split sets the split function for the Scanner. If called, it must be
-// called before Scan. The default split function is ScanLines.
+// Buffer controls memory allocation by the Scanner.
+// It sets the initial buffer to use when scanning
+// and the maximum size of buffer that may be allocated during scanning.
+// The contents of the buffer are ignored.
+//
+// The maximum token size must be less than the larger of max and cap(buf).
+// If max <= cap(buf), [Scanner.Scan] will use this buffer only and do no allocation.
+//
+// By default, [Scanner.Scan] uses an internal buffer and sets the
+// maximum token size to [MaxScanTokenSize].
+//
+// Buffer panics if it is called after scanning has started.
+func (s *Scanner) Buffer(buf []byte, max int) {
+	if s.scanCalled {
+		panic("Buffer called after Scan")
+	}
+	s.buf = buf[0:cap(buf)]
+	s.maxTokenSize = max
+}
+
+// Split sets the split function for the [Scanner].
+// The default split function is [ScanLines].
+//
+// Split panics if it is called after scanning has started.
 func (s *Scanner) Split(split SplitFunc) {
+	if s.scanCalled {
+		panic("Split called after Scan")
+	}
 	s.split = split
 }
 
 // Split functions
 
-// ScanBytes is a split function for a Scanner that returns each byte as a token.
+// ScanBytes is a split function for a [Scanner] that returns each byte as a token.
 func ScanBytes(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	if atEOF && len(data) == 0 {
 		return 0, nil, nil
@@ -235,7 +303,7 @@ func ScanBytes(data []byte, atEOF bool) (advance int, token []byte, err error) {
 
 var errorRune = []byte(string(utf8.RuneError))
 
-// ScanRunes is a split function for a Scanner that returns each
+// ScanRunes is a split function for a [Scanner] that returns each
 // UTF-8-encoded rune as a token. The sequence of runes returned is
 // equivalent to that from a range loop over the input as a string, which
 // means that erroneous UTF-8 encodings translate to U+FFFD = "\xef\xbf\xbd".
@@ -281,7 +349,7 @@ func dropCR(data []byte) []byte {
 	return data
 }
 
-// ScanLines is a split function for a Scanner that returns each line of
+// ScanLines is a split function for a [Scanner] that returns each line of
 // text, stripped of any trailing end-of-line marker. The returned line may
 // be empty. The end-of-line marker is one optional carriage return followed
 // by one mandatory newline. In regular expression notation, it is `\r?\n`.
@@ -328,7 +396,7 @@ func isSpace(r rune) bool {
 	return false
 }
 
-// ScanWords is a split function for a Scanner that returns each
+// ScanWords is a split function for a [Scanner] that returns each
 // space-separated word of text, with surrounding spaces deleted. It will
 // never return an empty string. The definition of space is set by
 // unicode.IsSpace.

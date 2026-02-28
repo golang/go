@@ -14,30 +14,34 @@ import (
 // the updated context and the number of bytes consumed from the front of the
 // input.
 var transitionFunc = [...]func(context, []byte) (context, int){
-	stateText:        tText,
-	stateTag:         tTag,
-	stateAttrName:    tAttrName,
-	stateAfterName:   tAfterName,
-	stateBeforeValue: tBeforeValue,
-	stateHTMLCmt:     tHTMLCmt,
-	stateRCDATA:      tSpecialTagEnd,
-	stateAttr:        tAttr,
-	stateURL:         tURL,
-	stateJS:          tJS,
-	stateJSDqStr:     tJSDelimited,
-	stateJSSqStr:     tJSDelimited,
-	stateJSRegexp:    tJSDelimited,
-	stateJSBlockCmt:  tBlockCmt,
-	stateJSLineCmt:   tLineCmt,
-	stateCSS:         tCSS,
-	stateCSSDqStr:    tCSSStr,
-	stateCSSSqStr:    tCSSStr,
-	stateCSSDqURL:    tCSSStr,
-	stateCSSSqURL:    tCSSStr,
-	stateCSSURL:      tCSSStr,
-	stateCSSBlockCmt: tBlockCmt,
-	stateCSSLineCmt:  tLineCmt,
-	stateError:       tError,
+	stateText:           tText,
+	stateTag:            tTag,
+	stateAttrName:       tAttrName,
+	stateAfterName:      tAfterName,
+	stateBeforeValue:    tBeforeValue,
+	stateHTMLCmt:        tHTMLCmt,
+	stateRCDATA:         tSpecialTagEnd,
+	stateAttr:           tAttr,
+	stateURL:            tURL,
+	stateSrcset:         tURL,
+	stateJS:             tJS,
+	stateJSDqStr:        tJSDelimited,
+	stateJSSqStr:        tJSDelimited,
+	stateJSRegexp:       tJSDelimited,
+	stateJSTmplLit:      tJSTmpl,
+	stateJSBlockCmt:     tBlockCmt,
+	stateJSLineCmt:      tLineCmt,
+	stateJSHTMLOpenCmt:  tLineCmt,
+	stateJSHTMLCloseCmt: tLineCmt,
+	stateCSS:            tCSS,
+	stateCSSDqStr:       tCSSStr,
+	stateCSSSqStr:       tCSSStr,
+	stateCSSDqURL:       tCSSStr,
+	stateCSSSqURL:       tCSSStr,
+	stateCSSURL:         tCSSStr,
+	stateCSSBlockCmt:    tBlockCmt,
+	stateCSSLineCmt:     tLineCmt,
+	stateError:          tError,
 }
 
 var commentStart = []byte("<!--")
@@ -105,14 +109,23 @@ func tTag(c context, s []byte) (context, int) {
 			err:   errorf(ErrBadHTML, nil, 0, "expected space, attr name, or end of tag, but got %q", s[i:]),
 		}, len(s)
 	}
-	switch attrType(string(s[i:j])) {
-	case contentTypeURL:
-		attr = attrURL
-	case contentTypeCSS:
-		attr = attrStyle
-	case contentTypeJS:
-		attr = attrScript
+
+	attrName := strings.ToLower(string(s[i:j]))
+	if c.element == elementScript && attrName == "type" {
+		attr = attrScriptType
+	} else {
+		switch attrType(attrName) {
+		case contentTypeURL:
+			attr = attrURL
+		case contentTypeCSS:
+			attr = attrStyle
+		case contentTypeJS:
+			attr = attrScript
+		case contentTypeSrcset:
+			attr = attrSrcset
+		}
 	}
+
 	if j == len(s) {
 		state = stateAttrName
 	} else {
@@ -149,10 +162,12 @@ func tAfterName(c context, s []byte) (context, int) {
 }
 
 var attrStartStates = [...]state{
-	attrNone:   stateAttr,
-	attrScript: stateJS,
-	attrStyle:  stateCSS,
-	attrURL:    stateURL,
+	attrNone:       stateAttr,
+	attrScript:     stateJS,
+	attrScriptType: stateAttr,
+	attrStyle:      stateCSS,
+	attrURL:        stateURL,
+	attrSrcset:     stateSrcset,
 }
 
 // tBeforeValue is the context transition function for stateBeforeValue.
@@ -169,7 +184,7 @@ func tBeforeValue(c context, s []byte) (context, int) {
 	case '"':
 		delim, i = delimDoubleQuote, i+1
 	}
-	c.state, c.delim, c.attr = attrStartStates[c.attr], delim, attrNone
+	c.state, c.delim = attrStartStates[c.attr], delim
 	return c, i
 }
 
@@ -183,22 +198,57 @@ func tHTMLCmt(c context, s []byte) (context, int) {
 
 // specialTagEndMarkers maps element types to the character sequence that
 // case-insensitively signals the end of the special tag body.
-var specialTagEndMarkers = [...]string{
-	elementScript:   "</script",
-	elementStyle:    "</style",
-	elementTextarea: "</textarea",
-	elementTitle:    "</title",
+var specialTagEndMarkers = [...][]byte{
+	elementScript:   []byte("script"),
+	elementStyle:    []byte("style"),
+	elementTextarea: []byte("textarea"),
+	elementTitle:    []byte("title"),
 }
+
+var (
+	specialTagEndPrefix = []byte("</")
+	tagEndSeparators    = []byte("> \t\n\f/")
+)
 
 // tSpecialTagEnd is the context transition function for raw text and RCDATA
 // element states.
 func tSpecialTagEnd(c context, s []byte) (context, int) {
 	if c.element != elementNone {
-		if i := strings.Index(strings.ToLower(string(s)), specialTagEndMarkers[c.element]); i != -1 {
+		// script end tags ("</script") within script literals are ignored, so that
+		// we can properly escape them.
+		if c.element == elementScript && (isInScriptLiteral(c.state) || isComment(c.state)) {
+			return c, len(s)
+		}
+		if i := indexTagEnd(s, specialTagEndMarkers[c.element]); i != -1 {
 			return context{}, i
 		}
 	}
 	return c, len(s)
+}
+
+// indexTagEnd finds the index of a special tag end in a case insensitive way, or returns -1
+func indexTagEnd(s []byte, tag []byte) int {
+	res := 0
+	plen := len(specialTagEndPrefix)
+	for len(s) > 0 {
+		// Try to find the tag end prefix first
+		i := bytes.Index(s, specialTagEndPrefix)
+		if i == -1 {
+			return i
+		}
+		s = s[i+plen:]
+		// Try to match the actual tag if there is still space for it
+		if len(tag) <= len(s) && bytes.EqualFold(tag, s[:len(tag)]) {
+			s = s[len(tag):]
+			// Check the tag is followed by a proper separator
+			if len(s) > 0 && bytes.IndexByte(tagEndSeparators, s[0]) != -1 {
+				return res + i
+			}
+			res += len(tag)
+		}
+		res += i + plen
+	}
+	return -1
 }
 
 // tAttr is the context transition function for the attribute state.
@@ -208,11 +258,11 @@ func tAttr(c context, s []byte) (context, int) {
 
 // tURL is the context transition function for the URL state.
 func tURL(c context, s []byte) (context, int) {
-	if bytes.IndexAny(s, "#?") >= 0 {
+	if bytes.ContainsAny(s, "#?") {
 		c.urlPart = urlPartQueryOrFrag
 	} else if len(s) != eatWhiteSpace(s, 0) && c.urlPart == urlPartNone {
 		// HTML5 uses "Valid URL potentially surrounded by spaces" for
-		// attrs: http://www.w3.org/TR/html5/index.html#attributes-1
+		// attrs: https://www.w3.org/TR/html5/index.html#attributes-1
 		c.urlPart = urlPartPreQuery
 	}
 	return c, len(s)
@@ -220,7 +270,7 @@ func tURL(c context, s []byte) (context, int) {
 
 // tJS is the context transition function for the JS state.
 func tJS(c context, s []byte) (context, int) {
-	i := bytes.IndexAny(s, `"'/`)
+	i := bytes.IndexAny(s, "\"`'/{}<-#")
 	if i == -1 {
 		// Entire input is non string, comment, regexp tokens.
 		c.jsCtx = nextJSCtx(s, c.jsCtx)
@@ -232,6 +282,8 @@ func tJS(c context, s []byte) (context, int) {
 		c.state, c.jsCtx = stateJSDqStr, jsCtxRegexp
 	case '\'':
 		c.state, c.jsCtx = stateJSSqStr, jsCtxRegexp
+	case '`':
+		c.state, c.jsCtx = stateJSTmplLit, jsCtxRegexp
 	case '/':
 		switch {
 		case i+1 < len(s) && s[i+1] == '/':
@@ -248,10 +300,84 @@ func tJS(c context, s []byte) (context, int) {
 				err:   errorf(ErrSlashAmbig, nil, 0, "'/' could start a division or regexp: %.32q", s[i:]),
 			}, len(s)
 		}
+	// ECMAScript supports HTML style comments for legacy reasons, see Appendix
+	// B.1.1 "HTML-like Comments". The handling of these comments is somewhat
+	// confusing. Multi-line comments are not supported, i.e. anything on lines
+	// between the opening and closing tokens is not considered a comment, but
+	// anything following the opening or closing token, on the same line, is
+	// ignored. As such we simply treat any line prefixed with "<!--" or "-->"
+	// as if it were actually prefixed with "//" and move on.
+	case '<':
+		if i+3 < len(s) && bytes.Equal(commentStart, s[i:i+4]) {
+			c.state, i = stateJSHTMLOpenCmt, i+3
+		}
+	case '-':
+		if i+2 < len(s) && bytes.Equal(commentEnd, s[i:i+3]) {
+			c.state, i = stateJSHTMLCloseCmt, i+2
+		}
+	// ECMAScript also supports "hashbang" comment lines, see Section 12.5.
+	case '#':
+		if i+1 < len(s) && s[i+1] == '!' {
+			c.state, i = stateJSLineCmt, i+1
+		}
+	case '{':
+		// We only care about tracking brace depth if we are inside of a
+		// template literal.
+		if len(c.jsBraceDepth) == 0 {
+			return c, i + 1
+		}
+		c.jsBraceDepth[len(c.jsBraceDepth)-1]++
+	case '}':
+		if len(c.jsBraceDepth) == 0 {
+			return c, i + 1
+		}
+		// There are no cases where a brace can be escaped in the JS context
+		// that are not syntax errors, it seems. Because of this we can just
+		// count "\}" as "}" and move on, the script is already broken as
+		// fully fledged parsers will just fail anyway.
+		c.jsBraceDepth[len(c.jsBraceDepth)-1]--
+		if c.jsBraceDepth[len(c.jsBraceDepth)-1] >= 0 {
+			return c, i + 1
+		}
+		c.jsBraceDepth = c.jsBraceDepth[:len(c.jsBraceDepth)-1]
+		c.state = stateJSTmplLit
 	default:
 		panic("unreachable")
 	}
 	return c, i + 1
+}
+
+func tJSTmpl(c context, s []byte) (context, int) {
+	var k int
+	for {
+		i := k + bytes.IndexAny(s[k:], "`\\$")
+		if i < k {
+			break
+		}
+		switch s[i] {
+		case '\\':
+			i++
+			if i == len(s) {
+				return context{
+					state: stateError,
+					err:   errorf(ErrPartialEscape, nil, 0, "unfinished escape sequence in JS string: %q", s),
+				}, len(s)
+			}
+		case '$':
+			if len(s) >= i+2 && s[i+1] == '{' {
+				c.jsBraceDepth = append(c.jsBraceDepth, 0)
+				c.state = stateJS
+				return c, i + 2
+			}
+		case '`':
+			// end
+			c.state = stateJS
+			return c, i + 1
+		}
+		k = i + 1
+	}
+
+	return c, len(s)
 }
 
 // tJSDelimited is the context transition function for the JS string and regexp
@@ -284,6 +410,16 @@ func tJSDelimited(c context, s []byte) (context, int) {
 			inCharset = true
 		case ']':
 			inCharset = false
+		case '/':
+			// If "</script" appears in a regex literal, the '/' should not
+			// close the regex literal, and it will later be escaped to
+			// "\x3C/script" in escapeText.
+			if i > 0 && i+7 <= len(s) && bytes.Equal(bytes.ToLower(s[i-1:i+7]), []byte("</script")) {
+				i++
+			} else if !inCharset {
+				c.state, c.jsCtx = stateJS, jsCtxDivOp
+				return c, i + 1
+			}
 		default:
 			// end delimiter
 			if !inCharset {
@@ -325,12 +461,12 @@ func tBlockCmt(c context, s []byte) (context, int) {
 	return c, i + 2
 }
 
-// tLineCmt is the context transition function for //comment states.
+// tLineCmt is the context transition function for //comment states, and the JS HTML-like comment state.
 func tLineCmt(c context, s []byte) (context, int) {
 	var lineTerminators string
 	var endState state
 	switch c.state {
-	case stateJSLineCmt:
+	case stateJSLineCmt, stateJSHTMLOpenCmt, stateJSHTMLCloseCmt:
 		lineTerminators, endState = "\n\r\u2028\u2029", stateJS
 	case stateCSSLineCmt:
 		lineTerminators, endState = "\n\f\r", stateCSS
@@ -338,7 +474,7 @@ func tLineCmt(c context, s []byte) (context, int) {
 		// are supported by the 4 major browsers.
 		// This defines line comments as
 		//     LINECOMMENT ::= "//" [^\n\f\d]*
-		// since http://www.w3.org/TR/css3-syntax/#SUBTOK-nl defines
+		// since https://www.w3.org/TR/css3-syntax/#SUBTOK-nl defines
 		// newlines:
 		//     nl ::= #xA | #xD #xA | #xD | #xC
 	default:
@@ -350,7 +486,7 @@ func tLineCmt(c context, s []byte) (context, int) {
 		return c, len(s)
 	}
 	c.state = endState
-	// Per section 7.4 of EcmaScript 5 : http://es5.github.com/#x7.4
+	// Per section 7.4 of EcmaScript 5 : https://es5.github.io/#x7.4
 	// "However, the LineTerminator at the end of the line is not
 	// considered to be part of the single-line comment; it is
 	// recognized separately by the lexical grammar and becomes part

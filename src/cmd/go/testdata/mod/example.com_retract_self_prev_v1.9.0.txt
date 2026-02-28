@@ -1,0 +1,18 @@
+Module example.com/retract/self/prev is a module that retracts its own
+latest version, as well as an earlier version.
+
+A previous unretracted release version, v1.1.0, is still available.
+
+-- .mod --
+module example.com/retract/self/prev
+
+go 1.15
+
+retract v1.0.0-bad // bad
+retract v1.9.0 // self
+
+-- .info --
+{"Version":"v1.9.0"}
+
+-- p.go --
+package p

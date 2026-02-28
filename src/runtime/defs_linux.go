@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 /*
 Input to cgo -cdefs
@@ -37,6 +37,7 @@ const (
 	EINTR  = C.EINTR
 	EAGAIN = C.EAGAIN
 	ENOMEM = C.ENOMEM
+	ENOSYS = C.ENOSYS
 
 	PROT_NONE  = C.PROT_NONE
 	PROT_READ  = C.PROT_READ
@@ -47,11 +48,17 @@ const (
 	MAP_PRIVATE = C.MAP_PRIVATE
 	MAP_FIXED   = C.MAP_FIXED
 
-	MADV_DONTNEED = C.MADV_DONTNEED
+	MADV_DONTNEED   = C.MADV_DONTNEED
+	MADV_FREE       = C.MADV_FREE
+	MADV_HUGEPAGE   = C.MADV_HUGEPAGE
+	MADV_NOHUGEPAGE = C.MADV_NOHUGEPAGE
 
 	SA_RESTART = C.SA_RESTART
 	SA_ONSTACK = C.SA_ONSTACK
 	SA_SIGINFO = C.SA_SIGINFO
+
+	SI_KERNEL = C.SI_KERNEL
+	SI_TIMER  = C.SI_TIMER
 
 	SIGHUP    = C.SIGHUP
 	SIGINT    = C.SIGINT
@@ -84,6 +91,8 @@ const (
 	SIGPWR    = C.SIGPWR
 	SIGSYS    = C.SIGSYS
 
+	SIGRTMIN = C.SIGRTMIN
+
 	FPE_INTDIV = C.FPE_INTDIV
 	FPE_INTOVF = C.FPE_INTOVF
 	FPE_FLTDIV = C.FPE_FLTDIV
@@ -104,16 +113,9 @@ const (
 	ITIMER_VIRTUAL = C.ITIMER_VIRTUAL
 	ITIMER_PROF    = C.ITIMER_PROF
 
-	EPOLLIN       = C.POLLIN
-	EPOLLOUT      = C.POLLOUT
-	EPOLLERR      = C.POLLERR
-	EPOLLHUP      = C.POLLHUP
-	EPOLLRDHUP    = C.POLLRDHUP
-	EPOLLET       = C.EPOLLET
-	EPOLL_CLOEXEC = C.EPOLL_CLOEXEC
-	EPOLL_CTL_ADD = C.EPOLL_CTL_ADD
-	EPOLL_CTL_DEL = C.EPOLL_CTL_DEL
-	EPOLL_CTL_MOD = C.EPOLL_CTL_MOD
+	CLOCK_THREAD_CPUTIME_ID = C.CLOCK_THREAD_CPUTIME_ID
+
+	SIGEV_THREAD_ID = C.SIGEV_THREAD_ID
 )
 
 type Sigset C.sigset_t
@@ -121,5 +123,6 @@ type Timespec C.struct_timespec
 type Timeval C.struct_timeval
 type Sigaction C.struct_sigaction
 type Siginfo C.siginfo_t
+type Itimerspec C.struct_itimerspec
 type Itimerval C.struct_itimerval
-type EpollEvent C.struct_epoll_event
+type Sigevent C.struct_sigevent

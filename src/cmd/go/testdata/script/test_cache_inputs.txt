@@ -1,0 +1,354 @@
+env GO111MODULE=off
+
+# Test that cached test results are invalidated in response to
+# changes to the external inputs to the test.
+
+[short] skip
+[GODEBUG:gocacheverify=1] skip
+
+# We're testing cache behavior, so start with a clean GOCACHE.
+env GOCACHE=$WORK/cache
+
+# Build a helper binary to invoke os.Chtimes.
+go build -o mkold$GOEXE mkold.go
+
+# Make test input files appear to be a minute old.
+exec ./mkold$GOEXE 1m testcache/file.txt
+exec ./mkold$GOEXE 1m testcache/script.sh
+
+# If the test reads an environment variable, changes to that variable
+# should invalidate cached test results.
+env TESTKEY=x
+go test testcache -run=TestLookupEnv
+go test testcache -run=TestLookupEnv
+stdout '\(cached\)'
+
+# GODEBUG is always read
+env GODEBUG=asdf=1
+go test testcache -run=TestLookupEnv
+! stdout '\(cached\)'
+go test testcache -run=TestLookupEnv
+stdout '\(cached\)'
+env GODEBUG=
+
+env TESTKEY=y
+go test testcache -run=TestLookupEnv
+! stdout '\(cached\)'
+go test testcache -run=TestLookupEnv
+stdout '\(cached\)'
+
+# Changes in arguments forwarded to the test should invalidate cached test
+# results.
+go test testcache -run=TestOSArgs -v hello
+! stdout '\(cached\)'
+stdout 'hello'
+go test testcache -run=TestOSArgs -v goodbye
+! stdout '\(cached\)'
+stdout 'goodbye'
+
+# golang.org/issue/36134: that includes the `-timeout` argument.
+go test testcache -run=TestOSArgs -timeout=20m -v
+! stdout '\(cached\)'
+stdout '-test\.timeout[= ]20m'
+go test testcache -run=TestOSArgs -timeout=5s -v
+! stdout '\(cached\)'
+stdout '-test\.timeout[= ]5s'
+
+# If the test stats a file, changes to the file should invalidate the cache.
+go test testcache -run=FileSize
+go test testcache -run=FileSize
+stdout '\(cached\)'
+
+cp 4x.txt testcache/file.txt
+go test testcache -run=FileSize
+! stdout '\(cached\)'
+go test testcache -run=FileSize
+stdout '\(cached\)'
+
+# Files should be tracked even if the test changes its working directory.
+go test testcache -run=Chdir
+go test testcache -run=Chdir
+stdout '\(cached\)'
+cp 6x.txt testcache/file.txt
+go test testcache -run=Chdir
+! stdout '\(cached\)'
+go test testcache -run=Chdir
+stdout '\(cached\)'
+
+# The content of files should affect caching, provided that the mtime also changes.
+exec ./mkold$GOEXE 1m testcache/file.txt
+go test testcache -run=FileContent
+go test testcache -run=FileContent
+stdout '\(cached\)'
+cp 2y.txt testcache/file.txt
+exec ./mkold$GOEXE 50s testcache/file.txt
+go test testcache -run=FileContent
+! stdout '\(cached\)'
+go test testcache -run=FileContent
+stdout '\(cached\)'
+
+# Directory contents read via os.ReadDirNames should affect caching.
+go test testcache -run=DirList
+go test testcache -run=DirList
+stdout '\(cached\)'
+rm testcache/file.txt
+go test testcache -run=DirList
+! stdout '\(cached\)'
+go test testcache -run=DirList
+stdout '\(cached\)'
+
+# Files outside GOROOT and GOPATH should not affect caching.
+env TEST_EXTERNAL_FILE=$WORK/external.txt
+go test testcache -run=ExternalFile
+go test testcache -run=ExternalFile
+stdout '\(cached\)'
+
+rm $WORK/external.txt
+go test testcache -run=ExternalFile
+stdout '\(cached\)'
+
+# The -benchtime flag without -bench should not affect caching.
+go test testcache -run=Benchtime -benchtime=1x
+go test testcache -run=Benchtime -benchtime=1x
+stdout '\(cached\)'
+
+go test testcache -run=Benchtime -bench=Benchtime -benchtime=1x
+go test testcache -run=Benchtime -bench=Benchtime -benchtime=1x
+! stdout '\(cached\)'
+
+# golang.org/issue/47355: that includes the `-failfast` argument.
+go test testcache -run=TestOSArgs -failfast
+! stdout '\(cached\)'
+go test testcache -run=TestOSArgs -failfast
+stdout '\(cached\)'
+
+# golang.org/issue/64638: that includes the `-fullpath` argument.
+go test testcache -run=TestOSArgs -fullpath
+! stdout '\(cached\)'
+go test testcache -run=TestOSArgs -fullpath
+stdout '\(cached\)'
+
+# golang.org/issue/70692: that includes the `-skip` flag
+go test testcache -run=TestOdd -skip=TestOddFile
+! stdout '\(cached\)'
+go test testcache -run=TestOdd -skip=TestOddFile
+stdout '\(cached\)'
+
+# Ensure that coverage profiles are being cached.
+go test testcache -run=TestCoverageCache -coverprofile=coverage.out
+go test testcache -run=TestCoverageCache -coverprofile=coverage.out
+stdout '\(cached\)'
+exists coverage.out
+grep -q 'mode: set' coverage.out
+grep -q 'testcache/hello.go:' coverage.out
+
+# A new -coverprofile file should use the cached coverage profile contents.
+go test testcache -run=TestCoverageCache -coverprofile=coverage2.out
+stdout '\(cached\)'
+cmp coverage.out coverage2.out
+
+# Explicitly setting the default covermode should still use cache.
+go test testcache -run=TestCoverageCache -coverprofile=coverage_set.out -covermode=set
+stdout '\(cached\)'
+cmp coverage.out coverage_set.out
+
+# A new -covermode should not use the cached coverage profile.
+go test testcache -run=TestCoverageCache -coverprofile=coverage_atomic.out -covermode=atomic
+! stdout '\(cached\)'
+! cmp coverage.out coverage_atomic.out
+grep -q 'mode: atomic' coverage_atomic.out
+grep -q 'testcache/hello.go:' coverage_atomic.out
+
+# A new -coverpkg should not use the cached coverage profile.
+go test testcache -run=TestCoverageCache -coverprofile=coverage_pkg.out -coverpkg=all
+! stdout '\(cached\)'
+! cmp coverage.out coverage_pkg.out
+
+# Test that -v doesn't prevent caching.
+go test testcache -v -run=TestCoverageCache -coverprofile=coverage_v.out
+go test testcache -v -run=TestCoverageCache -coverprofile=coverage_v2.out
+stdout '\(cached\)'
+cmp coverage_v.out coverage_v2.out
+
+# Test that -count affects caching.
+go test testcache -run=TestCoverageCache -coverprofile=coverage_count.out -count=2
+! stdout '\(cached\)'
+
+# Executables within GOROOT and GOPATH should affect caching,
+# even if the test does not stat them explicitly.
+
+[!exec:/bin/sh] skip
+chmod 0755 ./testcache/script.sh
+
+exec ./mkold$GOEXEC 1m testcache/script.sh
+go test testcache -run=Exec
+go test testcache -run=Exec
+stdout '\(cached\)'
+
+exec ./mkold$GOEXE 50s testcache/script.sh
+go test testcache -run=Exec
+! stdout '\(cached\)'
+go test testcache -run=Exec
+stdout '\(cached\)'
+
+-- testcache/file.txt --
+xx
+-- 4x.txt --
+xxxx
+-- 6x.txt --
+xxxxxx
+-- 2y.txt --
+yy
+-- $WORK/external.txt --
+This file is outside of GOPATH.
+-- testcache/script.sh --
+#!/bin/sh
+exit 0
+-- testcache/hello.go --
+package testcache
+
+import "fmt"
+
+func HelloWorld(name string) string {
+    if name == "" {
+        return "Hello, World!"
+    }
+    return fmt.Sprintf("Hello, %s!", name)
+}
+
+-- testcache/testcache_test.go --
+// Copyright 2017 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package testcache
+
+import (
+	"io"
+	"os"
+	"testing"
+)
+
+func TestChdir(t *testing.T) {
+	os.Chdir("..")
+	defer os.Chdir("testcache")
+	info, err := os.Stat("testcache/file.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size()%2 != 1 {
+		t.Fatal("even file")
+	}
+}
+
+func TestOddFileContent(t *testing.T) {
+	f, err := os.Open("file.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := io.ReadAll(f)
+	f.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data)%2 != 1 {
+		t.Fatal("even file")
+	}
+}
+
+func TestOddFileSize(t *testing.T) {
+	info, err := os.Stat("file.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size()%2 != 1 {
+		t.Fatal("even file")
+	}
+}
+
+func TestOddGetenv(t *testing.T) {
+	val := os.Getenv("TESTKEY")
+	if len(val)%2 != 1 {
+		t.Fatal("even env value")
+	}
+}
+
+func TestLookupEnv(t *testing.T) {
+	_, ok := os.LookupEnv("TESTKEY")
+	if !ok {
+		t.Fatal("env missing")
+	}
+}
+
+func TestDirList(t *testing.T) {
+	f, err := os.Open(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Readdirnames(-1)
+	f.Close()
+}
+
+func TestExec(t *testing.T) {
+	// Note: not using os/exec to make sure there is no unexpected stat.
+	p, err := os.StartProcess("./script.sh", []string{"script"}, new(os.ProcAttr))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ps, err := p.Wait()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ps.Success() {
+		t.Fatalf("script failed: %v", err)
+	}
+}
+
+func TestExternalFile(t *testing.T) {
+	os.Open(os.Getenv("TEST_EXTERNAL_FILE"))
+	_, err := os.Stat(os.Getenv("TEST_EXTERNAL_FILE"))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOSArgs(t *testing.T) {
+	t.Log(os.Args)
+}
+
+func TestBenchtime(t *testing.T) {
+}
+
+func TestCoverageCache(t *testing.T) {
+    result := HelloWorld("")
+    if result != "Hello, World!" {
+        t.Errorf("Expected 'Hello, World!', got '%s'", result)
+    }
+
+    result = HelloWorld("Go")
+    if result != "Hello, Go!" {
+        t.Errorf("Expected 'Hello, Go!', got '%s'", result)
+    }
+}
+
+-- mkold.go --
+package main
+
+import (
+	"log"
+	"os"
+	"time"
+)
+
+func main() {
+	d, err := time.ParseDuration(os.Args[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+	path := os.Args[2]
+	old := time.Now().Add(-d)
+	err = os.Chtimes(path, old, old)
+	if err != nil {
+		log.Fatal(err)
+	}
+}

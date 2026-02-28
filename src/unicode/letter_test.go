@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"runtime"
 	"sort"
+	"strings"
 	"testing"
 	. "unicode"
 )
@@ -24,6 +25,7 @@ var upperTest = []rune{
 	0x181,
 	0x376,
 	0x3cf,
+	0x13bd,
 	0x1f2a,
 	0x2102,
 	0x2c00,
@@ -46,6 +48,7 @@ var notupperTest = []rune{
 	0x377,
 	0x387,
 	0x2150,
+	0xab7d,
 	0xffff,
 	0x10000,
 }
@@ -71,7 +74,6 @@ var letterTest = []rune{
 	0x1200,
 	0x1312,
 	0x1401,
-	0x1885,
 	0x2c00,
 	0xa800,
 	0xf900,
@@ -92,6 +94,7 @@ var notletterTest = []rune{
 	0x375,
 	0x619,
 	0x700,
+	0x1885,
 	0xfffe,
 	0x1ffff,
 	0x10ffff,
@@ -193,6 +196,15 @@ var caseTest = []caseT{
 	{UpperCase, 0x0148, 0x0147},
 	{LowerCase, 0x0148, 0x0148},
 	{TitleCase, 0x0148, 0x0147},
+
+	// Lowercase lower than uppercase.
+	// AB78;CHEROKEE SMALL LETTER GE;Ll;0;L;;;;;N;;;13A8;;13A8
+	{UpperCase, 0xab78, 0x13a8},
+	{LowerCase, 0xab78, 0xab78},
+	{TitleCase, 0xab78, 0x13a8},
+	{UpperCase, 0x13a8, 0x13a8},
+	{LowerCase, 0x13a8, 0xab78},
+	{TitleCase, 0x13a8, 0x13a8},
 
 	// Last block in the 5.1.0 table
 	// 10400;DESERET CAPITAL LETTER LONG I;Lu;0;L;;;;;N;;;;10428;
@@ -405,6 +417,9 @@ var simpleFoldTests = []string{
 	// Extra special cases: has lower/upper but no case fold.
 	"İ",
 	"ı",
+
+	// Upper comes before lower (Cherokee).
+	"\u13b0\uab80",
 }
 
 func TestSimpleFold(t *testing.T) {
@@ -417,6 +432,10 @@ func TestSimpleFold(t *testing.T) {
 			}
 			r = out
 		}
+	}
+
+	if r := SimpleFold(-42); r != -42 {
+		t.Errorf("SimpleFold(-42) = %v, want -42", r)
 	}
 }
 
@@ -499,7 +518,7 @@ func binary(ranges []Range16, r uint16) bool {
 	lo := 0
 	hi := len(ranges)
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		range_ := &ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
 			return (r-range_.Lo)%range_.Stride == 0
@@ -532,4 +551,120 @@ func TestLatinOffset(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestSpecialCaseNoMapping(t *testing.T) {
+	// Issue 25636
+	// no change for rune 'A', zero delta, under upper/lower/title case change.
+	var noChangeForCapitalA = CaseRange{'A', 'A', [MaxCase]rune{0, 0, 0}}
+	got := strings.ToLowerSpecial(SpecialCase([]CaseRange{noChangeForCapitalA}), "ABC")
+	want := "Abc"
+	if got != want {
+		t.Errorf("got %q; want %q", got, want)
+	}
+}
+
+func TestNegativeRune(t *testing.T) {
+	// Issue 43254
+	// These tests cover negative rune handling by testing values which,
+	// when cast to uint8 or uint16, look like a particular valid rune.
+	// This package has Latin-1-specific optimizations, so we test all of
+	// Latin-1 and representative non-Latin-1 values in the character
+	// categories covered by IsGraphic, etc.
+	nonLatin1 := []uint32{
+		// Lu: LATIN CAPITAL LETTER A WITH MACRON
+		0x0100,
+		// Ll: LATIN SMALL LETTER A WITH MACRON
+		0x0101,
+		// Lt: LATIN CAPITAL LETTER D WITH SMALL LETTER Z WITH CARON
+		0x01C5,
+		// M: COMBINING GRAVE ACCENT
+		0x0300,
+		// Nd: ARABIC-INDIC DIGIT ZERO
+		0x0660,
+		// P: GREEK QUESTION MARK
+		0x037E,
+		// S: MODIFIER LETTER LEFT ARROWHEAD
+		0x02C2,
+		// Z: OGHAM SPACE MARK
+		0x1680,
+	}
+	for i := 0; i < MaxLatin1+len(nonLatin1); i++ {
+		base := uint32(i)
+		if i >= MaxLatin1 {
+			base = nonLatin1[i-MaxLatin1]
+		}
+
+		// Note r is negative, but uint8(r) == uint8(base) and
+		// uint16(r) == uint16(base).
+		r := rune(base - 1<<31)
+		if Is(Letter, r) {
+			t.Errorf("Is(Letter, 0x%x - 1<<31) = true, want false", base)
+		}
+		if IsControl(r) {
+			t.Errorf("IsControl(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsDigit(r) {
+			t.Errorf("IsDigit(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsGraphic(r) {
+			t.Errorf("IsGraphic(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsLetter(r) {
+			t.Errorf("IsLetter(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsLower(r) {
+			t.Errorf("IsLower(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsMark(r) {
+			t.Errorf("IsMark(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsNumber(r) {
+			t.Errorf("IsNumber(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsPrint(r) {
+			t.Errorf("IsPrint(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsPunct(r) {
+			t.Errorf("IsPunct(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsSpace(r) {
+			t.Errorf("IsSpace(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsSymbol(r) {
+			t.Errorf("IsSymbol(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsTitle(r) {
+			t.Errorf("IsTitle(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsUpper(r) {
+			t.Errorf("IsUpper(0x%x - 1<<31) = true, want false", base)
+		}
+	}
+}
+
+func BenchmarkToUpper(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = ToUpper('δ')
+	}
+}
+
+func BenchmarkToLower(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = ToLower('Δ')
+	}
+}
+
+func BenchmarkSimpleFold(b *testing.B) {
+	bench := func(name string, r rune) {
+		b.Run(name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_ = SimpleFold(r)
+			}
+		})
+	}
+	bench("Upper", 'Δ')
+	bench("Lower", 'δ')
+	bench("Fold", '\u212A')
+	bench("NoFold", '習')
 }

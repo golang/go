@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,7 +6,7 @@ package testing_test
 
 import "testing"
 
-var global interface{}
+var global any
 
 var allocsPerRunTests = []struct {
 	name   string

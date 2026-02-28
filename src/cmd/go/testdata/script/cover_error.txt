@@ -1,0 +1,45 @@
+[short] skip
+[compiler:gccgo] skip
+
+# Test line numbers in cover errors.
+
+# Get errors from a go test into stderr.txt
+! go test coverbad
+stderr 'p\.go:4:2' # look for error at coverbad/p.go:4
+[cgo] stderr 'p1\.go:6:2' # look for error at coverbad/p.go:6
+! stderr $WORK # make sure temporary directory isn't in error
+
+cp stderr $WORK/stderr.txt
+
+# Get errors from coverage into stderr2.txt
+! go test -cover coverbad
+cp stderr $WORK/stderr2.txt
+
+wait # for go run above
+
+cmp $WORK/stderr.txt $WORK/stderr2.txt
+
+-- go.mod --
+module coverbad
+
+go 1.16
+-- p.go --
+package p
+
+func f() {
+	g()
+}
+-- p1.go --
+package p
+
+import "C"
+
+func h() {
+	j()
+}
+-- p_test.go --
+package p
+
+import "testing"
+
+func Test(t *testing.T) {}

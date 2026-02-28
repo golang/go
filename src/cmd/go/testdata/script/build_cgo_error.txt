@@ -1,0 +1,17 @@
+[short] skip
+[!cgo] skip
+
+! go build .
+stderr '# foo\nfoo.c:'
+! stderr 'EXTRA string'
+
+-- go.mod --
+module foo
+
+go 1.20
+-- foo.go --
+package foo
+
+import "C"
+-- foo.c --
+#include "doesnotexist.h"

@@ -1,0 +1,26 @@
+cd thirteen
+! go list -deps
+stderr 	'(Go version in go.mod is 1.13, so vendor directory was not used.)'
+
+cd ../unspecified
+! go list -deps
+stderr 	'(Go version in go.mod is unspecified, so vendor directory was not used.)'
+
+-- thirteen/foo.go --
+package foo
+
+import _ "github.com/foo/bar"
+-- thirteen/go.mod --
+module example.com
+
+go 1.13
+-- thirteen/vendor/github.com/foo/bar/bar.go --
+package bar
+-- unspecified/foo.go --
+package foo
+
+import _ "github.com/foo/bar"
+-- unspecified/go.mod --
+module example.com
+-- unspecified/vendor/github.com/foo/bar/bar.go --
+package bar

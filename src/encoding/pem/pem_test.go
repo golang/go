@@ -6,9 +6,11 @@ package pem
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"reflect"
+	"strings"
 	"testing"
+	"testing/quick"
 )
 
 type GetLineTest struct {
@@ -24,11 +26,15 @@ var getLineTests = []GetLineTest{
 	{"abc\r\nd", "abc", "d"},
 	{"\nabc", "", "abc"},
 	{"\r\nabc", "", "abc"},
+	{"abc\t \nd", "abc", "d"},
+	{"\t abc\nd", "\t abc", "d"},
+	{"abc\n\t d", "abc", "\t d"},
+	{"abc\nd\t ", "abc", "d\t "},
 }
 
 func TestGetLine(t *testing.T) {
 	for i, test := range getLineTests {
-		x, y := getLine([]byte(test.in))
+		x, y, _ := getLine([]byte(test.in))
 		if string(x) != test.out1 || string(y) != test.out2 {
 			t.Errorf("#%d got:%+v,%+v want:%s,%s", i, x, y, test.out1, test.out2)
 		}
@@ -40,13 +46,126 @@ func TestDecode(t *testing.T) {
 	if !reflect.DeepEqual(result, certificate) {
 		t.Errorf("#0 got:%#v want:%#v", result, certificate)
 	}
+
 	result, remainder = Decode(remainder)
 	if !reflect.DeepEqual(result, privateKey) {
 		t.Errorf("#1 got:%#v want:%#v", result, privateKey)
 	}
+
+	isEmpty := func(block *Block) bool {
+		return block != nil && block.Type == "EMPTY" && len(block.Headers) == 0 && len(block.Bytes) == 0
+	}
+	result, remainder = Decode(remainder)
+	if !isEmpty(result) {
+		t.Errorf("#2 should be empty but got:%#v", result)
+	}
+	result, remainder = Decode(remainder)
+	if !isEmpty(result) {
+		t.Errorf("#3 should be empty but got:%#v", result)
+	}
+	result, remainder = Decode(remainder)
+	if !isEmpty(result) {
+		t.Errorf("#4 should be empty but got:%#v", result)
+	}
+
+	result, remainder = Decode(remainder)
+	if result == nil || result.Type != "VALID HEADERS" || len(result.Headers) != 1 {
+		t.Errorf("#5 expected single header block but got :%v", result)
+	}
+
+	if len(remainder) != 0 {
+		t.Errorf("expected nothing remaining of pemData, but found %s", string(remainder))
+	}
+
 	result, _ = Decode([]byte(pemPrivateKey2))
 	if !reflect.DeepEqual(result, privateKey2) {
 		t.Errorf("#2 got:%#v want:%#v", result, privateKey2)
+	}
+}
+
+const pemTooFewEndingDashes = `
+-----BEGIN FOO-----
+dGVzdA==
+-----END FOO----`
+
+const pemTooManyEndingDashes = `
+-----BEGIN FOO-----
+dGVzdA==
+-----END FOO------`
+
+const pemTrailingNonWhitespace = `
+-----BEGIN FOO-----
+dGVzdA==
+-----END FOO----- .`
+
+const pemWrongEndingType = `
+-----BEGIN FOO-----
+dGVzdA==
+-----END BAR-----`
+
+const pemMissingEndingSpace = `
+-----BEGIN FOO-----
+dGVzdA==
+-----ENDBAR-----`
+
+const pemMissingEndLine = `
+-----BEGIN FOO-----
+Header: 1`
+
+var pemRepeatingBegin = strings.Repeat("-----BEGIN \n", 10)
+
+var badPEMTests = []struct {
+	name  string
+	input string
+}{
+	{
+		"too few trailing dashes",
+		pemTooFewEndingDashes,
+	},
+	{
+		"too many trailing dashes",
+		pemTooManyEndingDashes,
+	},
+	{
+		"trailing non-whitespace",
+		pemTrailingNonWhitespace,
+	},
+	{
+		"incorrect ending type",
+		pemWrongEndingType,
+	},
+	{
+		"missing ending space",
+		pemMissingEndingSpace,
+	},
+	{
+		"repeating begin",
+		pemRepeatingBegin,
+	},
+	{
+		"missing end line",
+		pemMissingEndLine,
+	},
+}
+
+func TestBadDecode(t *testing.T) {
+	for _, test := range badPEMTests {
+		result, rest := Decode([]byte(test.input))
+		if result != nil {
+			t.Errorf("unexpected success while parsing %q", test.name)
+		}
+		if string(rest) != test.input {
+			t.Errorf("unexpected rest: %q; want = %q", rest, test.input)
+		}
+	}
+}
+
+func TestCVE202224675(t *testing.T) {
+	// Prior to CVE-2022-24675, this input would cause a stack overflow.
+	input := []byte(strings.Repeat("-----BEGIN \n", 10000000))
+	result, rest := Decode(input)
+	if result != nil || !bytes.Equal(rest, input) {
+		t.Errorf("Encode of %#v decoded as %#v", input, rest)
 	}
 }
 
@@ -74,7 +193,7 @@ var lineBreakerTests = []lineBreakerTest{
 
 func TestLineBreaker(t *testing.T) {
 	for i, test := range lineBreakerTests {
-		buf := new(bytes.Buffer)
+		buf := new(strings.Builder)
 		var breaker lineBreaker
 		breaker.out = buf
 		_, err := breaker.Write([]byte(test.in))
@@ -88,13 +207,13 @@ func TestLineBreaker(t *testing.T) {
 			continue
 		}
 
-		if string(buf.Bytes()) != test.out {
-			t.Errorf("#%d: got:%s want:%s", i, string(buf.Bytes()), test.out)
+		if got := buf.String(); got != test.out {
+			t.Errorf("#%d: got:%s want:%s", i, got, test.out)
 		}
 	}
 
 	for i, test := range lineBreakerTests {
-		buf := new(bytes.Buffer)
+		buf := new(strings.Builder)
 		var breaker lineBreaker
 		breaker.out = buf
 
@@ -111,17 +230,75 @@ func TestLineBreaker(t *testing.T) {
 			continue
 		}
 
-		if string(buf.Bytes()) != test.out {
-			t.Errorf("#%d: (byte by byte) got:%s want:%s", i, string(buf.Bytes()), test.out)
+		if got := buf.String(); got != test.out {
+			t.Errorf("#%d: (byte by byte) got:%s want:%s", i, got, test.out)
 		}
 	}
+}
+
+func TestFuzz(t *testing.T) {
+	// PEM is a text-based format. Assume header fields with leading/trailing spaces
+	// or embedded newlines will not round trip correctly and don't need to be tested.
+	isBad := func(s string) bool {
+		return strings.ContainsAny(s, "\r\n") || strings.TrimSpace(s) != s
+	}
+
+	testRoundtrip := func(block Block) bool {
+		// Reject bad Type
+		// Type with colons will proceed as key/val pair and cause an error.
+		if isBad(block.Type) || strings.Contains(block.Type, ":") {
+			return true
+		}
+		for key, val := range block.Headers {
+			// Reject bad key/val.
+			// Also, keys with colons cannot be encoded, because : is the key: val separator.
+			if isBad(key) || isBad(val) || strings.Contains(key, ":") {
+				return true
+			}
+		}
+
+		var buf bytes.Buffer
+		if err := Encode(&buf, &block); err != nil {
+			t.Errorf("Encode of %#v resulted in error: %s", &block, err)
+			return false
+		}
+		decoded, rest := Decode(buf.Bytes())
+		if block.Headers == nil {
+			// Encoder supports nil Headers but decoder returns initialized.
+			block.Headers = make(map[string]string)
+		}
+		if block.Bytes == nil {
+			// Encoder supports nil Bytes but decoder returns initialized.
+			block.Bytes = make([]byte, 0)
+		}
+		if !reflect.DeepEqual(decoded, &block) {
+			t.Errorf("Encode of %#v decoded as %#v", &block, decoded)
+			return false
+		}
+		if len(rest) != 0 {
+			t.Errorf("Encode of %#v decoded correctly, but with %x left over", block, rest)
+			return false
+		}
+		return true
+	}
+
+	// Explicitly test the empty block.
+	if !testRoundtrip(Block{
+		Type:    "EMPTY",
+		Headers: make(map[string]string),
+		Bytes:   []byte{},
+	}) {
+		return
+	}
+
+	quick.Check(testRoundtrip, nil)
 }
 
 func BenchmarkEncode(b *testing.B) {
 	data := &Block{Bytes: make([]byte, 65536)}
 	b.SetBytes(int64(len(data.Bytes)))
 	for i := 0; i < b.N; i++ {
-		Encode(ioutil.Discard, data)
+		Encode(io.Discard, data)
 	}
 }
 
@@ -135,7 +312,7 @@ func BenchmarkDecode(b *testing.B) {
 	}
 }
 
-var pemData = `verify return:0
+var pemData = testingKey(`verify return:0
 -----BEGIN CERTIFICATE-----
 sdlfkjskldfj
   -----BEGIN CERTIFICATE-----
@@ -146,13 +323,13 @@ Certificate chain
 -----BEGIN CERTIFICATE-----
 testing
 -----BEGIN CERTIFICATE-----
------BEGIN CERTIFICATE----- 
+-----BEGIN CERTIFICATE-----
 MIID6TCCA1ICAQEwDQYJKoZIhvcNAQEFBQAwgYsxCzAJBgNVBAYTAlVTMRMwEQYD
 VQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1TYW4gRnJhbmNpc2NvMRQwEgYDVQQK
-EwtHb29nbGUgSW5jLjEMMAoGA1UECxMDRW5nMQwwCgYDVQQDEwNhZ2wxHTAbBgkq 
-hkiG9w0BCQEWDmFnbEBnb29nbGUuY29tMB4XDTA5MDkwOTIyMDU0M1oXDTEwMDkw  
-OTIyMDU0M1owajELMAkGA1UEBhMCQVUxEzARBgNVBAgTClNvbWUtU3RhdGUxITAf  	  
-BgNVBAoTGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEjMCEGA1UEAxMaZXVyb3Bh		  
+EwtHb29nbGUgSW5jLjEMMAoGA1UECxMDRW5nMQwwCgYDVQQDEwNhZ2wxHTAbBgkq
+hkiG9w0BCQEWDmFnbEBnb29nbGUuY29tMB4XDTA5MDkwOTIyMDU0M1oXDTEwMDkw
+OTIyMDU0M1owajELMAkGA1UEBhMCQVUxEzARBgNVBAgTClNvbWUtU3RhdGUxITAf
+BgNVBAoTGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEjMCEGA1UEAxMaZXVyb3Bh
 LnNmby5jb3JwLmdvb2dsZS5jb20wggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIK
 AoICAQC6pgYt7/EibBDumASF+S0qvqdL/f+nouJw2T1Qc8GmXF/iiUcrsgzh/Fd8
 pDhz/T96Qg9IyR4ztuc2MXrmPra+zAuSf5bevFReSqvpIt8Duv0HbDbcqs/XKPfB
@@ -168,15 +345,15 @@ Pomjn71GNTtDeWAXibjCgdL6iHACCF6Htbl0zGlG0OAK+bdn0QIDAQABMA0GCSqG
 SIb3DQEBBQUAA4GBAOKnQDtqBV24vVqvesL5dnmyFpFPXBn3WdFfwD6DzEb21UVG
 5krmJiu+ViipORJPGMkgoL6BjU21XI95VQbun5P8vvg8Z+FnFsvRFY3e1CCzAVQY
 ZsUkLw2I7zI/dNlWdB8Xp7v+3w9sX5N3J/WuJ1KOO5m26kRlHQo7EzT3974g
------END CERTIFICATE-----   
+-----END CERTIFICATE-----
  1 s:/C=ZA/O=Ca Inc./CN=CA Inc
 
------BEGIN RSA PRIVATE KEY-----   	
-Proc-Type: 4,ENCRYPTED	  
-DEK-Info: DES-EDE3-CBC,80C7C7A09690757A  	
-  	
+-----BEGIN RSA TESTING KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: DES-EDE3-CBC,80C7C7A09690757A
+
 eQp5ZkH6CyHBz7BZfUPxyLCCmftsBJ7HlqGb8Ld21cSwnzWZ4/SIlhyrUtsfw7VR
-2TTwA+odo9ex7GdxOTaH8oZFumIRoiEjHsk8U7Bhntp+ekkPP79xunnN7hb7hkhr   
+2TTwA+odo9ex7GdxOTaH8oZFumIRoiEjHsk8U7Bhntp+ekkPP79xunnN7hb7hkhr
 yGDQZgA7s2cQHQ71v3gwT2BACAft26jCjbM1wgNzBnJ8M0Rzn68YWqaPtdBu8qb/
 zVR5JB1mnqvTSbFsfF5yMc6o2WQ9jJCl6KypnMl+BpL+dlvdjYVK4l9lYsB1Hs3d
 +zDBbWxos818zzhS8/y6eIfiSG27cqrbhURbmgiSfDXjncK4m/pLcQ7mmBL6mFOr
@@ -188,7 +365,32 @@ BTiHcL3s3KrJu1vDVrshvxfnz71KTeNnZH8UbOqT5i7fPGyXtY1XJddcbI/Q6tXf
 wHFsZc20TzSdsVLBtwksUacpbDogcEVMctnNrB8FIrB3vZEv9Q0Z1VeY7nmTpF+6
 a+z2P7acL7j6A6Pr3+q8P9CPiPC7zFonVzuVPyB8GchGR2hytyiOVpuD9+k8hcuw
 ZWAaUoVtWIQ52aKS0p19G99hhb+IVANC4akkdHV4SP8i7MVNZhfUmg==
------END RSA PRIVATE KEY-----`
+-----END RSA TESTING KEY-----
+
+
+-----BEGIN EMPTY-----
+-----END EMPTY-----
+
+-----BEGIN EMPTY-----
+
+-----END EMPTY-----
+
+-----BEGIN EMPTY-----
+
+
+-----END EMPTY-----
+
+# This shouldn't be recognised because of the missing newline after the
+headers.
+-----BEGIN INVALID HEADERS-----
+Header: 1
+-----END INVALID HEADERS-----
+
+# This should be valid, however.
+-----BEGIN VALID HEADERS-----
+Header: 1
+
+-----END VALID HEADERS-----`)
 
 var certificate = &Block{Type: "CERTIFICATE",
 	Headers: map[string]string{},
@@ -407,7 +609,7 @@ var privateKey2 = &Block{
 	},
 }
 
-var pemPrivateKey2 = `-----BEGIN RSA PRIVATE KEY-----
+var pemPrivateKey2 = testingKey(`-----BEGIN RSA TESTING KEY-----
 Proc-Type: 4,ENCRYPTED
 Content-Domain: RFC822
 DEK-Info: AES-128-CBC,BFCD243FEDBB40A4AA6DDAA1335473A4
@@ -419,5 +621,122 @@ y9QEsXO5czLWesYpJaXaF5N6EOhB+6UXIPhO6eOPUSATu963k64TivYJ9KZB4CtR
 GjA4DbE7Z4dk9coyZ9HIpT0jcsQGr497Jqw8dZGhABPGXEnVPOeyspng1SX64hKA
 N4XPksobn/NO2IDvPM7N9ZCe+aeyDEkE8QmP6mPScLuGvzSrsgOxWTMWF7Dbdzj0
 tJQLJRZ+ItT5Irl4owSEBNLahC1j3fhQavbj9WVAfKk=
------END RSA PRIVATE KEY-----
-`
+-----END RSA TESTING KEY-----
+`)
+
+func TestBadEncode(t *testing.T) {
+	b := &Block{Type: "BAD", Headers: map[string]string{"X:Y": "Z"}}
+	var buf bytes.Buffer
+	if err := Encode(&buf, b); err == nil {
+		t.Fatalf("Encode did not report invalid header")
+	}
+	if buf.Len() != 0 {
+		t.Fatalf("Encode wrote data before reporting invalid header")
+	}
+	if data := EncodeToMemory(b); data != nil {
+		t.Fatalf("EncodeToMemory returned non-nil data")
+	}
+}
+
+func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+
+func TestDecodeStrangeCases(t *testing.T) {
+	sentinelType := "TEST BLOCK"
+	sentinelBytes := []byte("hello")
+	for _, tc := range []struct {
+		name string
+		pem  string
+	}{
+		{
+			name: "invalid section (not base64)",
+			pem: `-----BEGIN COMMENT-----
+foo foo foo
+-----END COMMENT-----
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "leading garbage on block",
+			pem: `foo foo foo-----BEGIN CERTIFICATE-----
+MCowBQYDK2VwAyEApVjJeLW5MoP6uR3+OeITokM+rBDng6dgl1vvhcy+wws=
+-----END PUBLIC KEY-----
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "leading garbage",
+			pem: `foo foo foo
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "leading partial block",
+			pem: `foo foo foo
+-----END COMMENT-----
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "multiple BEGIN",
+			pem: `-----BEGIN TEST BLOCK-----
+-----BEGIN TEST BLOCK-----
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "multiple END",
+			pem: `-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----
+-----END TEST BLOCK-----
+-----END TEST BLOCK-----`,
+		},
+		{
+			name: "leading malformed BEGIN",
+			pem: `-----BEGIN PUBLIC KEY
+aGVsbG8=
+-----END PUBLIC KEY-----
+-----BEGIN TEST BLOCK-----
+aGVsbG8=
+-----END TEST BLOCK-----`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			block, _ := Decode([]byte(tc.pem))
+			if block == nil {
+				t.Fatal("expected valid block")
+			}
+			if block.Type != sentinelType {
+				t.Fatalf("unexpected block returned, got type %q, want type %q", block.Type, sentinelType)
+			}
+			if !bytes.Equal(block.Bytes, sentinelBytes) {
+				t.Fatalf("unexpected block content, got %x, want %x", block.Bytes, sentinelBytes)
+			}
+		})
+	}
+}
+
+func TestJustEnd(t *testing.T) {
+	pemData := `
+-----END PUBLIC KEY-----`
+
+	block, _ := Decode([]byte(pemData))
+	if block != nil {
+		t.Fatal("unexpected block")
+	}
+}
+
+func FuzzDecode(f *testing.F) {
+	f.Fuzz(func(t *testing.T, data []byte) {
+		Decode(data)
+	})
+}
+
+func TestMissingEndTrailer(t *testing.T) {
+	Decode([]byte{0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0xa, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x45, 0x4e, 0x44, 0x20})
+}

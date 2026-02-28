@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 /*
 Input to cgo.
@@ -115,7 +115,7 @@ const (
 )
 
 type Timespec C.struct_timespec
-type SigaltstackT C.struct_sigaltstack
+type StackT C.stack_t
 type Sigcontext C.struct_sigcontext
 type Ucontext C.struct_ucontext
 type Timeval C.struct_timeval

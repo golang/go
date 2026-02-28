@@ -1,0 +1,262 @@
+# Integration test for golang.org/issue/33848: automatically check and use vendored packages.
+
+env GO111MODULE=on
+
+[short] skip
+
+cd $WORK/auto
+cp go.mod go.mod.orig
+cp $WORK/modules-1.13.txt $WORK/auto/modules.txt
+
+# An explicit -mod=vendor should force use of the vendor directory.
+env GOFLAGS=-mod=vendor
+
+# Pass -e to permit an error: tools.go imports a main package
+# "example.com/printversion".
+# TODO(#59186): investigate why it didn't fail without -e.
+go list -f {{.Dir}} -tags tools -e all
+stdout '^'$WORK'[/\\]auto$'
+stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
+stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+
+! go list -m all
+stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+
+! go list -m -f '{{.Dir}}' all
+stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+
+# An explicit -mod=mod should force the vendor directory to be ignored.
+env GOFLAGS=-mod=mod
+
+go list -f {{.Dir}} -tags tools -e all
+stdout '^'$WORK'[/\\]auto$'
+stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
+stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
+
+go list -m all
+stdout '^example.com/auto$'
+stdout 'example.com/printversion v1.0.0'
+stdout 'example.com/version v1.0.0'
+
+go list -m -f '{{.Dir}}' all
+stdout '^'$WORK'[/\\]auto$'
+stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
+stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
+
+# If the main module's "go" directive says 1.13, we should default to -mod=mod.
+env GOFLAGS=
+go mod edit -go=1.13
+
+go list -f {{.Dir}} -tags tools -e all
+stdout '^'$WORK'[/\\]auto$'
+stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
+stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
+
+go list -m -f '{{.Dir}}' all
+stdout '^'$WORK'[/\\]auto$'
+stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
+stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
+
+# A 'go 1.14' directive in the main module's go.mod file should enable
+# -mod=vendor by default, along with stronger checks for consistency
+# between the go.mod file and vendor/modules.txt.
+# A 'go 1.13' vendor/modules.txt file is not usually sufficient
+# to pass those checks.
+go mod edit -go=1.14
+
+! go list -f {{.Dir}} -tags tools all
+stderr '^go: inconsistent vendoring in '$WORK[/\\]auto':$'
+stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt'
+stderr '^\texample.com/unused: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
+stderr '^\texample.com/version@v1.2.0: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
+stderr '^\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo sync the vendor directory, run:\n\t\tgo mod vendor$'
+
+# Module-specific subcommands should continue to load the full module graph.
+go mod graph
+stdout '^example.com/printversion@v1.0.0 example.com/version@v1.0.0$'
+
+# An explicit -mod=mod should still force the vendor directory to be ignored.
+env GOFLAGS=-mod=mod
+
+go list -f {{.Dir}} -tags tools -e all
+stdout '^'$WORK'[/\\]auto$'
+stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
+stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
+
+go list -m all
+stdout '^example.com/auto$'
+stdout 'example.com/printversion v1.0.0'
+stdout 'example.com/version v1.0.0'
+
+go list -m -f '{{.Dir}}' all
+stdout '^'$WORK'[/\\]auto$'
+stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
+stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
+
+# 'go mod vendor' should repair vendor/modules.txt so that the implicit
+# -mod=vendor works again.
+env GOFLAGS=
+
+go mod edit -go=1.14
+go mod vendor
+
+go list -f {{.Dir}} -tags tools -e all
+stdout '^'$WORK'[/\\]auto$'
+stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
+stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+
+# ...but 'go list -m' should continue to fail, this time without
+# referring to a -mod default that the user didn't set.
+! go list -m all
+stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+
+! go list -m -f '{{.Dir}}' all
+stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+
+
+# 'go mod init' should work if there is already a GOPATH-mode vendor directory
+# present. If there are no module dependencies, -mod=vendor should be used by
+# default and should not fail the consistency check even though no module
+# information is present.
+# Note: This behavior only applies pre-1.23. Go 1.23 and later require vendored
+# packages to be present in modules.txt to be imported.
+
+rm go.mod
+rm vendor/modules.txt
+
+go mod init example.com/auto
+go mod edit -go=1.22
+go list -f {{.Dir}} -tags tools -e all
+stdout '^'$WORK'[/\\]auto$'
+stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
+stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+
+# If information about dependencies is added to a 1.14 go.mod file, subsequent
+# list commands should error out if vendor/modules.txt is missing or incomplete.
+
+cp go.mod.orig go.mod
+go mod edit -go=1.14
+! go list -f {{.Dir}} -tags tools -e all
+stderr '^go: inconsistent vendoring in '$WORK[/\\]auto':$'
+stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt'
+stderr '^\texample.com/unused: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
+stderr '^\texample.com/version@v1.2.0: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
+stderr '^\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo sync the vendor directory, run:\n\t\tgo mod vendor$'
+
+# If -mod=vendor is set, limited consistency checks should apply even when
+# the go version is 1.13 or earlier.
+# An incomplete or missing vendor/modules.txt should resolve the vendored packages...
+go mod edit -go=1.13
+go list -mod=vendor -f {{.Dir}} -tags tools -e all
+stdout '^'$WORK'[/\\]auto$'
+stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
+stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+
+# ...but a version mismatch for an explicit dependency should be noticed.
+cp $WORK/modules-bad-1.13.txt vendor/modules.txt
+! go list -mod=vendor -f {{.Dir}} -tags tools all
+stderr '^go: inconsistent vendoring in '$WORK[/\\]auto':$'
+stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but vendor/modules.txt indicates example.com/printversion@v1.1.0$'
+stderr '^\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo sync the vendor directory, run:\n\t\tgo mod vendor$'
+
+# If the go version is still 1.13, 'go mod vendor' should write a
+# matching vendor/modules.txt containing the corrected 1.13 data.
+go mod vendor
+cmp $WORK/modules-1.13.txt vendor/modules.txt
+
+go list -mod=vendor -f {{.Dir}} -tags tools -e all
+stdout '^'$WORK'[/\\]auto$'
+stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
+stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+
+# When the version is upgraded to 1.14, 'go mod vendor' should write a
+# vendor/modules.txt with the updated 1.14 annotations.
+go mod edit -go=1.14
+go mod vendor
+cmp $WORK/modules-1.14.txt vendor/modules.txt
+
+# Then, -mod=vendor should kick in automatically and succeed.
+go list -f {{.Dir}} -tags tools -e all
+stdout '^'$WORK'[/\\]auto$'
+stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
+stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+
+# 'go get' should update from the network or module cache,
+# even if a vendor directory is present.
+go get example.com/version@v1.1.0
+! go list -f {{.Dir}} -tags tools all
+stderr '^go: inconsistent vendoring'
+
+-- $WORK/auto/go.mod --
+module example.com/auto
+
+go 1.13
+
+require example.com/printversion v1.0.0
+
+replace (
+	example.com/unused => nonexistent.example.com/unused v1.0.0-whatever
+	example.com/version v1.0.0 => ./replacement-version
+	example.com/version v1.2.0 => nonexistent.example.com/version v1.2.0
+)
+-- $WORK/auto/tools.go --
+// +build tools
+
+package auto
+
+import _ "example.com/printversion"
+-- $WORK/auto/auto.go --
+package auto
+-- $WORK/auto/replacement-version/go.mod --
+module example.com/version
+-- $WORK/auto/replacement-version/version.go --
+package version
+
+const V = "v1.0.0-replaced"
+-- $WORK/modules-1.14.txt --
+# example.com/printversion v1.0.0
+## explicit
+example.com/printversion
+# example.com/version v1.0.0 => ./replacement-version
+example.com/version
+# example.com/unused => nonexistent.example.com/unused v1.0.0-whatever
+# example.com/version v1.2.0 => nonexistent.example.com/version v1.2.0
+-- $WORK/modules-1.13.txt --
+# example.com/printversion v1.0.0
+example.com/printversion
+# example.com/version v1.0.0 => ./replacement-version
+example.com/version
+-- $WORK/modules-bad-1.13.txt --
+# example.com/printversion v1.1.0
+example.com/printversion
+# example.com/version v1.1.0
+example.com/version
+-- $WORK/auto/vendor/example.com/printversion/go.mod --
+module example.com/printversion
+
+require example.com/version v1.0.0
+replace example.com/version v1.0.0 => ../oops v0.0.0
+exclude example.com/version v1.0.1
+-- $WORK/auto/vendor/example.com/printversion/printversion.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"runtime/debug"
+
+	_ "example.com/version"
+)
+
+func main() {
+	info, _ := debug.ReadBuildInfo()
+	fmt.Fprintf(os.Stdout, "path is %s\n", info.Path)
+	fmt.Fprintf(os.Stdout, "main is %s %s\n", info.Main.Path, info.Main.Version)
+	for _, m := range info.Deps {
+		fmt.Fprintf(os.Stdout, "using %s %s\n", m.Path, m.Version)
+	}
+}
+-- $WORK/auto/vendor/example.com/version/version.go --
+package version
+
+const V = "v1.0.0-replaced"

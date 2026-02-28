@@ -8,6 +8,7 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"reflect"
 	"sync"
@@ -17,14 +18,14 @@ import (
 )
 
 // userTypeInfo stores the information associated with a type the user has handed
-// to the package.  It's computed once and stored in a map keyed by reflection
+// to the package. It's computed once and stored in a map keyed by reflection
 // type.
 type userTypeInfo struct {
 	user        reflect.Type // the type the user handed us
 	base        reflect.Type // the base type after all indirections
 	indir       int          // number of indirections to reach the base type
 	externalEnc int          // xGob, xBinary, or xText
-	externalDec int          // xGob, xBinary or xText
+	externalDec int          // xGob, xBinary, or xText
 	encIndir    int8         // number of indirections to reach the receiver type; may be negative
 	decIndir    int8         // number of indirections to reach the receiver type; may be negative
 }
@@ -36,42 +37,32 @@ const (
 	xText              // encoding.TextMarshaler or encoding.TextUnmarshaler
 )
 
-var (
-	// Protected by an RWMutex because we read it a lot and write
-	// it only when we see a new type, typically when compiling.
-	userTypeLock  sync.RWMutex
-	userTypeCache = make(map[reflect.Type]*userTypeInfo)
-)
+var userTypeCache sync.Map // map[reflect.Type]*userTypeInfo
 
-// validType returns, and saves, the information associated with user-provided type rt.
-// If the user type is not valid, err will be non-nil.  To be used when the error handler
+// validUserType returns, and saves, the information associated with user-provided type rt.
+// If the user type is not valid, err will be non-nil. To be used when the error handler
 // is not set up.
-func validUserType(rt reflect.Type) (ut *userTypeInfo, err error) {
-	userTypeLock.RLock()
-	ut = userTypeCache[rt]
-	userTypeLock.RUnlock()
-	if ut != nil {
-		return
+func validUserType(rt reflect.Type) (*userTypeInfo, error) {
+	if ui, ok := userTypeCache.Load(rt); ok {
+		return ui.(*userTypeInfo), nil
 	}
-	// Now set the value under the write lock.
-	userTypeLock.Lock()
-	defer userTypeLock.Unlock()
-	if ut = userTypeCache[rt]; ut != nil {
-		// Lost the race; not a problem.
-		return
-	}
-	ut = new(userTypeInfo)
+
+	// Construct a new userTypeInfo and atomically add it to the userTypeCache.
+	// If we lose the race, we'll waste a little CPU and create a little garbage
+	// but return the existing value anyway.
+
+	ut := new(userTypeInfo)
 	ut.base = rt
 	ut.user = rt
 	// A type that is just a cycle of pointers (such as type T *T) cannot
-	// be represented in gobs, which need some concrete data.  We use a
+	// be represented in gobs, which need some concrete data. We use a
 	// cycle detection algorithm from Knuth, Vol 2, Section 3.1, Ex 6,
 	// pp 539-540.  As we step through indirections, run another type at
 	// half speed. If they meet up, there's a cycle.
 	slowpoke := ut.base // walks half as fast as ut.base
 	for {
 		pt := ut.base
-		if pt.Kind() != reflect.Ptr {
+		if pt.Kind() != reflect.Pointer {
 			break
 		}
 		ut.base = pt.Elem()
@@ -108,17 +99,19 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err error) {
 	// 	ut.externalDec, ut.decIndir = xText, indir
 	// }
 
-	userTypeCache[rt] = ut
-	return
+	ui, _ := userTypeCache.LoadOrStore(rt, ut)
+	return ui.(*userTypeInfo), nil
 }
 
 var (
-	gobEncoderInterfaceType        = reflect.TypeOf((*GobEncoder)(nil)).Elem()
-	gobDecoderInterfaceType        = reflect.TypeOf((*GobDecoder)(nil)).Elem()
-	binaryMarshalerInterfaceType   = reflect.TypeOf((*encoding.BinaryMarshaler)(nil)).Elem()
-	binaryUnmarshalerInterfaceType = reflect.TypeOf((*encoding.BinaryUnmarshaler)(nil)).Elem()
-	textMarshalerInterfaceType     = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
-	textUnmarshalerInterfaceType   = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	gobEncoderInterfaceType        = reflect.TypeFor[GobEncoder]()
+	gobDecoderInterfaceType        = reflect.TypeFor[GobDecoder]()
+	binaryMarshalerInterfaceType   = reflect.TypeFor[encoding.BinaryMarshaler]()
+	binaryUnmarshalerInterfaceType = reflect.TypeFor[encoding.BinaryUnmarshaler]()
+	textMarshalerInterfaceType     = reflect.TypeFor[encoding.TextMarshaler]()
+	textUnmarshalerInterfaceType   = reflect.TypeFor[encoding.TextUnmarshaler]()
+
+	wireTypeType = reflect.TypeFor[wireType]()
 )
 
 // implementsInterface reports whether the type implements the
@@ -136,7 +129,7 @@ func implementsInterface(typ, gobEncDecType reflect.Type) (success bool, indir i
 		if rt.Implements(gobEncDecType) {
 			return true, indir
 		}
-		if p := rt; p.Kind() == reflect.Ptr {
+		if p := rt; p.Kind() == reflect.Pointer {
 			indir++
 			if indir > 100 { // insane number of indirections
 				return false, 0
@@ -147,9 +140,9 @@ func implementsInterface(typ, gobEncDecType reflect.Type) (success bool, indir i
 		break
 	}
 	// No luck yet, but if this is a base type (non-pointer), the pointer might satisfy.
-	if typ.Kind() != reflect.Ptr {
+	if typ.Kind() != reflect.Pointer {
 		// Not a pointer, but does the pointer work?
-		if reflect.PtrTo(typ).Implements(gobEncDecType) {
+		if reflect.PointerTo(typ).Implements(gobEncDecType) {
 			return true, -1
 		}
 	}
@@ -170,7 +163,6 @@ func userType(rt reflect.Type) *userTypeInfo {
 // Internally, typeIds are used as keys to a map to recover the underlying type info.
 type typeId int32
 
-var nextId typeId       // incremented for each new type we build
 var typeLock sync.Mutex // set while building a type
 const firstUserId = 64  // lowest id number granted to user
 
@@ -182,25 +174,41 @@ type gobType interface {
 	safeString(seen map[typeId]bool) string
 }
 
-var types = make(map[reflect.Type]gobType)
-var idToType = make(map[typeId]gobType)
-var builtinIdToType map[typeId]gobType // set in init() after builtins are established
+var (
+	types                = make(map[reflect.Type]gobType, 32)
+	idToTypeSlice        = make([]gobType, 1, firstUserId)
+	builtinIdToTypeSlice [firstUserId]gobType // set in init() after builtins are established
+)
+
+func idToType(id typeId) gobType {
+	if id < 0 || int(id) >= len(idToTypeSlice) {
+		return nil
+	}
+	return idToTypeSlice[id]
+}
+
+func builtinIdToType(id typeId) gobType {
+	if id < 0 || int(id) >= len(builtinIdToTypeSlice) {
+		return nil
+	}
+	return builtinIdToTypeSlice[id]
+}
 
 func setTypeId(typ gobType) {
 	// When building recursive types, someone may get there before us.
 	if typ.id() != 0 {
 		return
 	}
-	nextId++
+	nextId := typeId(len(idToTypeSlice))
 	typ.setId(nextId)
-	idToType[nextId] = typ
+	idToTypeSlice = append(idToTypeSlice, typ)
 }
 
 func (t typeId) gobType() gobType {
 	if t == 0 {
 		return nil
 	}
-	return idToType[t]
+	return idToType(t)
 }
 
 // string returns the string representation of the type associated with the typeId.
@@ -247,51 +255,48 @@ var (
 	// Primordial types, needed during initialization.
 	// Always passed as pointers so the interface{} type
 	// goes through without losing its interfaceness.
-	tBool      = bootstrapType("bool", (*bool)(nil), 1)
-	tInt       = bootstrapType("int", (*int)(nil), 2)
-	tUint      = bootstrapType("uint", (*uint)(nil), 3)
-	tFloat     = bootstrapType("float", (*float64)(nil), 4)
-	tBytes     = bootstrapType("bytes", (*[]byte)(nil), 5)
-	tString    = bootstrapType("string", (*string)(nil), 6)
-	tComplex   = bootstrapType("complex", (*complex128)(nil), 7)
-	tInterface = bootstrapType("interface", (*interface{})(nil), 8)
+	tBool      = bootstrapType("bool", (*bool)(nil))
+	tInt       = bootstrapType("int", (*int)(nil))
+	tUint      = bootstrapType("uint", (*uint)(nil))
+	tFloat     = bootstrapType("float", (*float64)(nil))
+	tBytes     = bootstrapType("bytes", (*[]byte)(nil))
+	tString    = bootstrapType("string", (*string)(nil))
+	tComplex   = bootstrapType("complex", (*complex128)(nil))
+	tInterface = bootstrapType("interface", (*any)(nil))
 	// Reserve some Ids for compatible expansion
-	tReserved7 = bootstrapType("_reserved1", (*struct{ r7 int })(nil), 9)
-	tReserved6 = bootstrapType("_reserved1", (*struct{ r6 int })(nil), 10)
-	tReserved5 = bootstrapType("_reserved1", (*struct{ r5 int })(nil), 11)
-	tReserved4 = bootstrapType("_reserved1", (*struct{ r4 int })(nil), 12)
-	tReserved3 = bootstrapType("_reserved1", (*struct{ r3 int })(nil), 13)
-	tReserved2 = bootstrapType("_reserved1", (*struct{ r2 int })(nil), 14)
-	tReserved1 = bootstrapType("_reserved1", (*struct{ r1 int })(nil), 15)
+	tReserved7 = bootstrapType("_reserved1", (*struct{ r7 int })(nil))
+	tReserved6 = bootstrapType("_reserved1", (*struct{ r6 int })(nil))
+	tReserved5 = bootstrapType("_reserved1", (*struct{ r5 int })(nil))
+	tReserved4 = bootstrapType("_reserved1", (*struct{ r4 int })(nil))
+	tReserved3 = bootstrapType("_reserved1", (*struct{ r3 int })(nil))
+	tReserved2 = bootstrapType("_reserved1", (*struct{ r2 int })(nil))
+	tReserved1 = bootstrapType("_reserved1", (*struct{ r1 int })(nil))
 )
 
 // Predefined because it's needed by the Decoder
-var tWireType = mustGetTypeInfo(reflect.TypeOf(wireType{})).id
-var wireTypeUserInfo *userTypeInfo // userTypeInfo of (*wireType)
+var tWireType = mustGetTypeInfo(wireTypeType).id
+var wireTypeUserInfo *userTypeInfo // userTypeInfo of wireType
 
 func init() {
 	// Some magic numbers to make sure there are no surprises.
 	checkId(16, tWireType)
-	checkId(17, mustGetTypeInfo(reflect.TypeOf(arrayType{})).id)
-	checkId(18, mustGetTypeInfo(reflect.TypeOf(CommonType{})).id)
-	checkId(19, mustGetTypeInfo(reflect.TypeOf(sliceType{})).id)
-	checkId(20, mustGetTypeInfo(reflect.TypeOf(structType{})).id)
-	checkId(21, mustGetTypeInfo(reflect.TypeOf(fieldType{})).id)
-	checkId(23, mustGetTypeInfo(reflect.TypeOf(mapType{})).id)
+	checkId(17, mustGetTypeInfo(reflect.TypeFor[arrayType]()).id)
+	checkId(18, mustGetTypeInfo(reflect.TypeFor[CommonType]()).id)
+	checkId(19, mustGetTypeInfo(reflect.TypeFor[sliceType]()).id)
+	checkId(20, mustGetTypeInfo(reflect.TypeFor[structType]()).id)
+	checkId(21, mustGetTypeInfo(reflect.TypeFor[fieldType]()).id)
+	checkId(23, mustGetTypeInfo(reflect.TypeFor[mapType]()).id)
 
-	builtinIdToType = make(map[typeId]gobType)
-	for k, v := range idToType {
-		builtinIdToType[k] = v
-	}
+	copy(builtinIdToTypeSlice[:], idToTypeSlice)
 
 	// Move the id space upwards to allow for growth in the predefined world
 	// without breaking existing files.
-	if nextId > firstUserId {
+	if nextId := len(idToTypeSlice); nextId > firstUserId {
 		panic(fmt.Sprintln("nextId too large:", nextId))
 	}
-	nextId = firstUserId
+	idToTypeSlice = idToTypeSlice[:firstUserId]
 	registerBasics()
-	wireTypeUserInfo = userType(reflect.TypeOf((*wireType)(nil)))
+	wireTypeUserInfo = userType(wireTypeType)
 }
 
 // Array type
@@ -411,7 +416,7 @@ type fieldType struct {
 
 type structType struct {
 	CommonType
-	Field []*fieldType
+	Field []fieldType
 }
 
 func (s *structType) safeString(seen map[typeId]bool) string {
@@ -493,7 +498,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 		// For arrays, maps, and slices, we set the type id after the elements
 		// are constructed. This is to retain the order of type id allocation after
 		// a fix made to handle recursive types, which changed the order in
-		// which types are built.  Delaying the setting in this way preserves
+		// which types are built. Delaying the setting in this way preserves
 		// type ids while allowing recursive types to be described. Structs,
 		// done below, were already handling recursion correctly so they
 		// assign the top-level id before those of the field.
@@ -531,7 +536,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 	case reflect.Struct:
 		st := newStructType(name)
 		types[rt] = st
-		idToType[st.id()] = st
+		idToTypeSlice[st.id()] = st
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
 			if !isSent(&f) {
@@ -554,7 +559,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 			if gt.id() == 0 {
 				setTypeId(gt)
 			}
-			st.Field = append(st.Field, &fieldType{f.Name, gt.id()})
+			st.Field = append(st.Field, fieldType{f.Name, gt.id()})
 		}
 		return st, nil
 
@@ -579,12 +584,13 @@ func isSent(field *reflect.StructField) bool {
 	// If the field is a chan or func or pointer thereto, don't send it.
 	// That is, treat it like an unexported field.
 	typ := field.Type
-	for typ.Kind() == reflect.Ptr {
+	for typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
 	}
 	if typ.Kind() == reflect.Chan || typ.Kind() == reflect.Func {
 		return false
 	}
+
 	return true
 }
 
@@ -597,7 +603,7 @@ func getBaseType(name string, rt reflect.Type) (gobType, error) {
 
 // getType returns the Gob type describing the given reflect.Type.
 // Should be called only when handling GobEncoders/Decoders,
-// which may be pointers.  All other types are handled through the
+// which may be pointers. All other types are handled through the
 // base type, never a pointer.
 // typeLock must be held.
 func getType(name string, ut *userTypeInfo, rt reflect.Type) (gobType, error) {
@@ -621,7 +627,7 @@ func checkId(want, got typeId) {
 
 // used for building the basic types; called only from init().  the incoming
 // interface always refers to a pointer.
-func bootstrapType(name string, e interface{}, expect typeId) typeId {
+func bootstrapType(name string, e any) typeId {
 	rt := reflect.TypeOf(e).Elem()
 	_, present := types[rt]
 	if present {
@@ -630,9 +636,7 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
 	typ := &CommonType{Name: name}
 	types[rt] = typ
 	setTypeId(typ)
-	checkId(expect, nextId)
-	userType(rt) // might as well cache it now
-	return nextId
+	return typ.id()
 }
 
 // Representation of the information we send and receive about this type.
@@ -642,7 +646,7 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
 // For bootstrapping purposes, we assume that the recipient knows how
 // to decode a wireType; it is exactly the wireType struct here, interpreted
 // using the gob rules for sending a structure, except that we assume the
-// ids for wireType and structType etc. are known.  The relevant pieces
+// ids for wireType and structType etc. are known. The relevant pieces
 // are built in encode.go's init() function.
 // To maintain binary compatibility, if you extend this type, always put
 // the new fields last.
@@ -682,9 +686,9 @@ func (w *wireType) string() string {
 
 type typeInfo struct {
 	id      typeId
-	encInit sync.Mutex   // protects creation of encoder
-	encoder atomic.Value // *encEngine
-	wire    *wireType
+	encInit sync.Mutex // protects creation of encoder
+	encoder atomic.Pointer[encEngine]
+	wire    wireType
 }
 
 // typeInfoMap is an atomic pointer to map[reflect.Type]*typeInfo.
@@ -695,7 +699,16 @@ type typeInfo struct {
 // protected by a mutex.
 var typeInfoMap atomic.Value
 
+// typeInfoMapInit is used instead of typeInfoMap during init time,
+// as types are registered sequentially during init and we can save
+// the overhead of making map copies.
+// It is saved to typeInfoMap and set to nil before init finishes.
+var typeInfoMapInit = make(map[reflect.Type]*typeInfo, 16)
+
 func lookupTypeInfo(rt reflect.Type) *typeInfo {
+	if m := typeInfoMapInit; m != nil {
+		return m[rt]
+	}
 	m, _ := typeInfoMap.Load().(map[reflect.Type]*typeInfo)
 	return m[rt]
 }
@@ -736,36 +749,38 @@ func buildTypeInfo(ut *userTypeInfo, rt reflect.Type) (*typeInfo, error) {
 		gt := userType.id().gobType().(*gobEncoderType)
 		switch ut.externalEnc {
 		case xGob:
-			info.wire = &wireType{GobEncoderT: gt}
+			info.wire.GobEncoderT = gt
 		case xBinary:
-			info.wire = &wireType{BinaryMarshalerT: gt}
+			info.wire.BinaryMarshalerT = gt
 		case xText:
-			info.wire = &wireType{TextMarshalerT: gt}
+			info.wire.TextMarshalerT = gt
 		}
 		rt = ut.user
 	} else {
 		t := info.id.gobType()
 		switch typ := rt; typ.Kind() {
 		case reflect.Array:
-			info.wire = &wireType{ArrayT: t.(*arrayType)}
+			info.wire.ArrayT = t.(*arrayType)
 		case reflect.Map:
-			info.wire = &wireType{MapT: t.(*mapType)}
+			info.wire.MapT = t.(*mapType)
 		case reflect.Slice:
 			// []byte == []uint8 is a special case handled separately
 			if typ.Elem().Kind() != reflect.Uint8 {
-				info.wire = &wireType{SliceT: t.(*sliceType)}
+				info.wire.SliceT = t.(*sliceType)
 			}
 		case reflect.Struct:
-			info.wire = &wireType{StructT: t.(*structType)}
+			info.wire.StructT = t.(*structType)
 		}
 	}
 
-	// Create new map with old contents plus new entry.
-	newm := make(map[reflect.Type]*typeInfo)
-	m, _ := typeInfoMap.Load().(map[reflect.Type]*typeInfo)
-	for k, v := range m {
-		newm[k] = v
+	if m := typeInfoMapInit; m != nil {
+		m[rt] = info
+		return info, nil
 	}
+
+	// Create new map with old contents plus new entry.
+	m, _ := typeInfoMap.Load().(map[reflect.Type]*typeInfo)
+	newm := maps.Clone(m)
 	newm[rt] = info
 	typeInfoMap.Store(newm)
 	return info, nil
@@ -787,9 +802,9 @@ func mustGetTypeInfo(rt reflect.Type) *typeInfo {
 // contain things such as private fields, channels, and functions,
 // which are not usually transmissible in gob streams.
 //
-// Note: Since gobs can be stored permanently, It is good design
+// Note: Since gobs can be stored permanently, it is good design
 // to guarantee the encoding used by a GobEncoder is stable as the
-// software evolves.  For instance, it might make sense for GobEncode
+// software evolves. For instance, it might make sense for GobEncode
 // to include a version number in the encoding.
 type GobEncoder interface {
 	// GobEncode returns a byte slice representing the encoding of the
@@ -808,42 +823,42 @@ type GobDecoder interface {
 }
 
 var (
-	registerLock       sync.RWMutex
-	nameToConcreteType = make(map[string]reflect.Type)
-	concreteTypeToName = make(map[reflect.Type]string)
+	nameToConcreteType sync.Map // map[string]reflect.Type
+	concreteTypeToName sync.Map // map[reflect.Type]string
 )
 
-// RegisterName is like Register but uses the provided name rather than the
+// RegisterName is like [Register] but uses the provided name rather than the
 // type's default.
-func RegisterName(name string, value interface{}) {
+func RegisterName(name string, value any) {
 	if name == "" {
 		// reserved for nil
 		panic("attempt to register empty name")
 	}
-	registerLock.Lock()
-	defer registerLock.Unlock()
+
 	ut := userType(reflect.TypeOf(value))
+
 	// Check for incompatible duplicates. The name must refer to the
 	// same user type, and vice versa.
-	if t, ok := nameToConcreteType[name]; ok && t != ut.user {
+
+	// Store the name and type provided by the user....
+	if t, dup := nameToConcreteType.LoadOrStore(name, reflect.TypeOf(value)); dup && t != ut.user {
 		panic(fmt.Sprintf("gob: registering duplicate types for %q: %s != %s", name, t, ut.user))
 	}
-	if n, ok := concreteTypeToName[ut.base]; ok && n != name {
+
+	// but the flattened type in the type table, since that's what decode needs.
+	if n, dup := concreteTypeToName.LoadOrStore(ut.base, name); dup && n != name {
+		nameToConcreteType.Delete(name)
 		panic(fmt.Sprintf("gob: registering duplicate names for %s: %q != %q", ut.user, n, name))
 	}
-	// Store the name and type provided by the user....
-	nameToConcreteType[name] = reflect.TypeOf(value)
-	// but the flattened type in the type table, since that's what decode needs.
-	concreteTypeToName[ut.base] = name
 }
 
 // Register records a type, identified by a value for that type, under its
-// internal type name.  That name will identify the concrete type of a value
-// sent or received as an interface variable.  Only types that will be
+// internal type name. That name will identify the concrete type of a value
+// sent or received as an interface variable. Only types that will be
 // transferred as implementations of interface values need to be registered.
 // Expecting to be used only during initialization, it panics if the mapping
 // between types and names is not a bijection.
-func Register(value interface{}) {
+func Register(value any) {
 	// Default to printed representation for unnamed types
 	rt := reflect.TypeOf(value)
 	name := rt.String()
@@ -852,7 +867,7 @@ func Register(value interface{}) {
 	// Dereference one pointer looking for a named type.
 	star := ""
 	if rt.Name() == "" {
-		if pt := rt; pt.Kind() == reflect.Ptr {
+		if pt := rt; pt.Kind() == reflect.Pointer {
 			star = "*"
 			// NOTE: The following line should be rt = pt.Elem() to implement
 			// what the comment above claims, but fixing it would break compatibility
@@ -920,4 +935,9 @@ func registerBasics() {
 	Register([]uintptr(nil))
 	Register([]bool(nil))
 	Register([]string(nil))
+}
+
+func init() {
+	typeInfoMap.Store(typeInfoMapInit)
+	typeInfoMapInit = nil
 }

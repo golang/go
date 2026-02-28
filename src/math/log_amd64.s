@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -19,7 +19,7 @@
 #define PosInf 0x7FF0000000000000
 
 // func Log(x float64) float64
-TEXT ·Log(SB),NOSPLIT,$0
+TEXT ·archLog(SB),NOSPLIT,$0
 	// test bits for special cases
 	MOVQ    x+0(FP), BX
 	MOVQ    $~(1<<63), AX // sign bit mask
@@ -41,6 +41,7 @@ TEXT ·Log(SB),NOSPLIT,$0
 	SHRQ    $52, BX
 	ANDL    $0x7FF, BX
 	SUBL    $0x3FE, BX
+	XORPS   X1, X1 // break dependency for CVTSL2SD
 	CVTSL2SD BX, X1 // x1= k, x2= f1
 	// if f1 < math.Sqrt2/2 { k -= 1; f1 *= 2 }
 	MOVSD   $HSqrt2, X0 // x0= 0.7071, x1= k, x2= f1
@@ -96,7 +97,7 @@ TEXT ·Log(SB),NOSPLIT,$0
 	SUBSD   X2, X0 // x0= (hfsq-(s*(hfsq+R)+k*Ln2Lo))-f, x1= k
 	MULSD   $Ln2Hi, X1 // x0= (hfsq-(s*(hfsq+R)+k*Ln2Lo))-f, x1= k*Ln2Hi
 	SUBSD   X0, X1 // x1= k*Ln2Hi-((hfsq-(s*(hfsq+R)+k*Ln2Lo))-f)
-  	MOVSD   X1, ret+8(FP)
+	MOVSD   X1, ret+8(FP)
 	RET
 isInfOrNaN:
 	MOVQ    BX, ret+8(FP) // +Inf or NaN, return x

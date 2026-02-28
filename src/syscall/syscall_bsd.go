@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd netbsd openbsd
+//go:build darwin || dragonfly || freebsd || netbsd || openbsd
 
 // BSD system call wrappers shared by *BSD based systems
 // including OS X (Darwin) and FreeBSD.  Like the other
@@ -16,6 +16,21 @@ import (
 	"runtime"
 	"unsafe"
 )
+
+const ImplementsGetwd = true
+
+func Getwd() (string, error) {
+	var buf [pathMax]byte
+	_, err := getcwd(buf[:])
+	if err != nil {
+		return "", err
+	}
+	n := clen(buf[:])
+	if n < 1 {
+		return "", EINVAL
+	}
+	return string(buf[:n]), nil
+}
 
 /*
  * Wrapped
@@ -33,7 +48,7 @@ func Getgroups() (gids []int, err error) {
 		return nil, nil
 	}
 
-	// Sanity check group count.  Max is 16 on BSD.
+	// Sanity check group count. Max is 16 on BSD.
 	if n < 0 || n > 1000 {
 		return nil, EINVAL
 	}
@@ -152,9 +167,7 @@ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), _Socklen(sa.raw.Len), nil
 }
 
@@ -168,9 +181,7 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
 	sa.raw.Scope_id = sa.ZoneId
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), _Socklen(sa.raw.Len), nil
 }
 
@@ -199,9 +210,7 @@ func (sa *SockaddrDatalink) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	sa.raw.Nlen = sa.Nlen
 	sa.raw.Alen = sa.Alen
 	sa.raw.Slen = sa.Slen
-	for i := 0; i < len(sa.raw.Data); i++ {
-		sa.raw.Data[i] = sa.Data[i]
-	}
+	sa.raw.Data = sa.Data
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrDatalink, nil
 }
 
@@ -217,9 +226,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 		sa.Nlen = pp.Nlen
 		sa.Alen = pp.Alen
 		sa.Slen = pp.Slen
-		for i := 0; i < len(sa.Data); i++ {
-			sa.Data[i] = pp.Data[i]
-		}
+		sa.Data = pp.Data
 		return sa, nil
 
 	case AF_UNIX:
@@ -242,8 +249,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 				break
 			}
 		}
-		bytes := (*[10000]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
-		sa.Name = string(bytes)
+		sa.Name = string(unsafe.Slice((*byte)(unsafe.Pointer(&pp.Path[0])), n))
 		return sa, nil
 
 	case AF_INET:
@@ -251,9 +257,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 		sa := new(SockaddrInet4)
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 
 	case AF_INET6:
@@ -262,9 +266,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
 		sa.ZoneId = pp.Scope_id
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 	}
 	return nil, EAFNOSUPPORT
@@ -277,7 +279,7 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	if err != nil {
 		return
 	}
-	if runtime.GOOS == "darwin" && len == 0 {
+	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && len == 0 {
 		// Accepted socket has no address.
 		// This is likely due to a bug in xnu kernels,
 		// where instead of ECONNABORTED error socket
@@ -355,14 +357,13 @@ func GetsockoptICMPv6Filter(fd, level, opt int) (*ICMPv6Filter, error) {
 //sys   sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error)
 //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
 
-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) {
 	var msg Msghdr
-	var rsa RawSockaddrAny
-	msg.Name = (*byte)(unsafe.Pointer(&rsa))
+	msg.Name = (*byte)(unsafe.Pointer(rsa))
 	msg.Namelen = uint32(SizeofSockaddrAny)
 	var iov Iovec
 	if len(p) > 0 {
-		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
+		iov.Base = &p[0]
 		iov.SetLen(len(p))
 	}
 	var dummy byte
@@ -372,7 +373,7 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 			iov.Base = &dummy
 			iov.SetLen(1)
 		}
-		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
+		msg.Control = &oob[0]
 		msg.SetControllen(len(oob))
 	}
 	msg.Iov = &iov
@@ -382,35 +383,18 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 	}
 	oobn = int(msg.Controllen)
 	recvflags = int(msg.Flags)
-	// source address is only specified if the socket is unconnected
-	if rsa.Addr.Family != AF_UNSPEC {
-		from, err = anyToSockaddr(&rsa)
-	}
 	return
 }
 
 //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
 
-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
-	_, err = SendmsgN(fd, p, oob, to, flags)
-	return
-}
-
-func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
-	var ptr unsafe.Pointer
-	var salen _Socklen
-	if to != nil {
-		ptr, salen, err = to.sockaddr()
-		if err != nil {
-			return 0, err
-		}
-	}
+func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) {
 	var msg Msghdr
-	msg.Name = (*byte)(unsafe.Pointer(ptr))
+	msg.Name = (*byte)(ptr)
 	msg.Namelen = uint32(salen)
 	var iov Iovec
 	if len(p) > 0 {
-		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
+		iov.Base = &p[0]
 		iov.SetLen(len(p))
 	}
 	var dummy byte
@@ -420,7 +404,7 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) 
 			iov.Base = &dummy
 			iov.SetLen(1)
 		}
-		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
+		msg.Control = &oob[0]
 		msg.SetControllen(len(oob))
 	}
 	msg.Iov = &iov
@@ -446,8 +430,6 @@ func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, err e
 	}
 	return kevent(kq, change, len(changes), event, len(events), timeout)
 }
-
-//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
 
 func Sysctl(name string) (value string, err error) {
 	// Translate name to mib number.
@@ -507,10 +489,12 @@ func Utimes(path string, tv []Timeval) (err error) {
 }
 
 func UtimesNano(path string, ts []Timespec) error {
-	// TODO: The BSDs can do utimensat with SYS_UTIMENSAT but it
-	// isn't supported by darwin so this uses utimes instead
 	if len(ts) != 2 {
 		return EINVAL
+	}
+	err := utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+	if err != ENOSYS {
+		return err
 	}
 	// Not as efficient as it could be because Timespec and
 	// Timeval have different types in the different OSes
@@ -531,14 +515,9 @@ func Futimes(fd int, tv []Timeval) (err error) {
 }
 
 //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
-
-// TODO: wrap
-//	Acct(name nil-string) (err error)
-//	Gethostuuid(uuid *byte, timeout *Timespec) (err error)
-//	Madvise(addr *byte, len int, behav int) (err error)
-//	Mprotect(addr *byte, len int, prot int) (err error)
-//	Msync(addr *byte, len int, flags int) (err error)
-//	Ptrace(req int, pid int, addr uintptr, data int) (ret uintptr, err error)
+//sys	fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) = SYS_FCNTL
+//sysnb ioctl(fd int, req int, arg int) (err error)
+//sysnb ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_IOCTL
 
 var mapper = &mmapper{
 	active: make(map[*byte][]byte),

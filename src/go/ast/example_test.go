@@ -5,12 +5,12 @@
 package ast_test
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/format"
 	"go/parser"
 	"go/token"
+	"strings"
 )
 
 // This example demonstrates how to inspect the AST of a Go program.
@@ -44,7 +44,7 @@ var X = f(3.14)*2 + c
 		return true
 	})
 
-	// output:
+	// Output:
 	// src.go:2:9:	p
 	// src.go:3:7:	c
 	// src.go:3:11:	1.0
@@ -75,7 +75,7 @@ func main() {
 	// Print the AST.
 	ast.Print(fset, f)
 
-	// output:
+	// Output:
 	//      0  *ast.File {
 	//      1  .  Package: 2:1
 	//      2  .  Name: *ast.Ident {
@@ -113,28 +113,67 @@ func main() {
 	//     34  .  .  .  .  .  .  .  Args: []ast.Expr (len = 1) {
 	//     35  .  .  .  .  .  .  .  .  0: *ast.BasicLit {
 	//     36  .  .  .  .  .  .  .  .  .  ValuePos: 4:10
-	//     37  .  .  .  .  .  .  .  .  .  Kind: STRING
-	//     38  .  .  .  .  .  .  .  .  .  Value: "\"Hello, World!\""
-	//     39  .  .  .  .  .  .  .  .  }
-	//     40  .  .  .  .  .  .  .  }
-	//     41  .  .  .  .  .  .  .  Ellipsis: -
-	//     42  .  .  .  .  .  .  .  Rparen: 4:25
-	//     43  .  .  .  .  .  .  }
-	//     44  .  .  .  .  .  }
-	//     45  .  .  .  .  }
-	//     46  .  .  .  .  Rbrace: 5:1
-	//     47  .  .  .  }
-	//     48  .  .  }
-	//     49  .  }
-	//     50  .  Scope: *ast.Scope {
-	//     51  .  .  Objects: map[string]*ast.Object (len = 1) {
-	//     52  .  .  .  "main": *(obj @ 11)
-	//     53  .  .  }
-	//     54  .  }
-	//     55  .  Unresolved: []*ast.Ident (len = 1) {
-	//     56  .  .  0: *(obj @ 29)
+	//     37  .  .  .  .  .  .  .  .  .  ValueEnd: 4:25
+	//     38  .  .  .  .  .  .  .  .  .  Kind: STRING
+	//     39  .  .  .  .  .  .  .  .  .  Value: "\"Hello, World!\""
+	//     40  .  .  .  .  .  .  .  .  }
+	//     41  .  .  .  .  .  .  .  }
+	//     42  .  .  .  .  .  .  .  Ellipsis: -
+	//     43  .  .  .  .  .  .  .  Rparen: 4:25
+	//     44  .  .  .  .  .  .  }
+	//     45  .  .  .  .  .  }
+	//     46  .  .  .  .  }
+	//     47  .  .  .  .  Rbrace: 5:1
+	//     48  .  .  .  }
+	//     49  .  .  }
+	//     50  .  }
+	//     51  .  FileStart: 1:1
+	//     52  .  FileEnd: 5:3
+	//     53  .  Scope: *ast.Scope {
+	//     54  .  .  Objects: map[string]*ast.Object (len = 1) {
+	//     55  .  .  .  "main": *(obj @ 11)
+	//     56  .  .  }
 	//     57  .  }
-	//     58  }
+	//     58  .  Unresolved: []*ast.Ident (len = 1) {
+	//     59  .  .  0: *(obj @ 29)
+	//     60  .  }
+	//     61  .  GoVersion: ""
+	//     62  }
+}
+
+func ExamplePreorder() {
+	src := `
+package p
+
+func f(x, y int) {
+	print(x + y)
+}
+`
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		panic(err)
+	}
+
+	// Print identifiers in order
+	for n := range ast.Preorder(f) {
+		id, ok := n.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		fmt.Println(id.Name)
+	}
+
+	// Output:
+	// p
+	// f
+	// x
+	// y
+	// int
+	// print
+	// x
+	// y
 }
 
 // This example illustrates how to remove a variable declaration
@@ -151,7 +190,7 @@ package main
 const hello = "Hello, World!" // line comment 1
 
 // This comment is associated with the foo variable.
-var foo = hello // line comment 2 
+var foo = hello // line comment 2
 
 // This comment is associated with the main function.
 func main() {
@@ -172,7 +211,13 @@ func main() {
 	cmap := ast.NewCommentMap(fset, f, f.Comments)
 
 	// Remove the first variable declaration from the list of declarations.
-	f.Decls = removeFirstVarDecl(f.Decls)
+	for i, decl := range f.Decls {
+		if gen, ok := decl.(*ast.GenDecl); ok && gen.Tok == token.VAR {
+			copy(f.Decls[i:], f.Decls[i+1:])
+			f.Decls = f.Decls[:len(f.Decls)-1]
+			break
+		}
+	}
 
 	// Use the comment map to filter comments that don't belong anymore
 	// (the comments associated with the variable declaration), and create
@@ -180,13 +225,13 @@ func main() {
 	f.Comments = cmap.Filter(f).Comments()
 
 	// Print the modified AST.
-	var buf bytes.Buffer
+	var buf strings.Builder
 	if err := format.Node(&buf, fset, f); err != nil {
 		panic(err)
 	}
-	fmt.Printf("%s", buf.Bytes())
+	fmt.Printf("%s", buf.String())
 
-	// output:
+	// Output:
 	// // This is the package comment.
 	// package main
 	//
@@ -197,14 +242,4 @@ func main() {
 	// func main() {
 	// 	fmt.Println(hello) // line comment 3
 	// }
-}
-
-func removeFirstVarDecl(list []ast.Decl) []ast.Decl {
-	for i, decl := range list {
-		if gen, ok := decl.(*ast.GenDecl); ok && gen.Tok == token.VAR {
-			copy(list[i:], list[i+1:])
-			return list[:len(list)-1]
-		}
-	}
-	panic("variable declaration not found")
 }

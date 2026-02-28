@@ -1,0 +1,38 @@
+env GO111MODULE=off
+
+! go fmt does-not-exist
+
+go fmt -n exclude
+stdout 'exclude[/\\]x\.go'
+stdout 'exclude[/\\]x_linux\.go'
+
+# Test edge cases with gofmt.
+
+! exec $GOROOT/bin/gofmt does-not-exist
+
+exec $GOROOT/bin/gofmt gofmt-dir/no-extension
+stdout 'package x'
+
+exec $GOROOT/bin/gofmt gofmt-dir
+! stdout 'package x'
+
+! exec $GOROOT/bin/gofmt empty.go nopackage.go
+stderr -count=1 'empty\.go:1:1: expected .package., found .EOF.'
+stderr -count=1 'nopackage\.go:1:1: expected .package., found not'
+
+-- exclude/empty/x.txt --
+-- exclude/ignore/_x.go --
+package x
+-- exclude/x.go --
+// +build linux,!linux
+
+package x
+-- exclude/x_linux.go --
+// +build windows
+
+package x
+-- gofmt-dir/no-extension --
+package x
+-- empty.go --
+-- nopackage.go --
+not the proper start to a Go file

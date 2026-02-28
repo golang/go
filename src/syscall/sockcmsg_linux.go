@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -17,7 +17,7 @@ func UnixCredentials(ucred *Ucred) []byte {
 	h.Level = SOL_SOCKET
 	h.Type = SCM_CREDENTIALS
 	h.SetLen(CmsgLen(SizeofUcred))
-	*((*Ucred)(cmsgData(h))) = *ucred
+	*(*Ucred)(h.data(0)) = *ucred
 	return b
 }
 
@@ -29,6 +29,9 @@ func ParseUnixCredentials(m *SocketControlMessage) (*Ucred, error) {
 		return nil, EINVAL
 	}
 	if m.Header.Type != SCM_CREDENTIALS {
+		return nil, EINVAL
+	}
+	if uintptr(len(m.Data)) < unsafe.Sizeof(Ucred{}) {
 		return nil, EINVAL
 	}
 	ucred := *(*Ucred)(unsafe.Pointer(&m.Data[0]))

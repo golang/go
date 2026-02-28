@@ -1,0 +1,27 @@
+testfp.txt contains conversion tests from Vern Paxson's paper
+“A Program for Testing IEEE Decimal-Binary Conversion”
+https://www.icir.org/vern/papers/testbase-report.pdf
+
+That paper from 1991 describes a tester called 'testbase',
+written in non-64-bit-safe pre-ANSI C.
+As of 2025, it is still available at ftp://ftp.ee.lbl.gov/testbase.tar.Z.
+
+The files
+
+	https://swtch.com/testbase/atof.txt
+	https://swtch.com/testbase/ftoa.txt
+
+are the test inputs that testbase generates and checks,
+logged during an actual run, totaling about 10 MB.
+
+The files atof1k.txt and ftoa1k.txt in this directory each contain
+1000 random samples of the full trace. They are used during
+'go test internal/strconv'.
+
+Running 'go test internal/strconv -testbase' downloads the
+complete files into this directory as atof.txt and ftoa.txt and
+then uses those instead of the sampled versions.
+The complete tests take about 10 seconds on a Macbook Pro.
+
+Backup copies of the files are also posted at
+https://gist.github.com/rsc/606b378b0bf95c24a6fd6cef99e262e1.

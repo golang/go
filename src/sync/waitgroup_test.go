@@ -5,6 +5,11 @@
 package sync_test
 
 import (
+	"bytes"
+	"internal/testenv"
+	"os"
+	"os/exec"
+	"strings"
 	. "sync"
 	"sync/atomic"
 	"testing"
@@ -16,11 +21,11 @@ func testWaitGroup(t *testing.T, wg1 *WaitGroup, wg2 *WaitGroup) {
 	wg2.Add(n)
 	exited := make(chan bool, n)
 	for i := 0; i != n; i++ {
-		go func(i int) {
+		go func() {
 			wg1.Done()
 			wg2.Wait()
 			exited <- true
-		}(i)
+		}()
 	}
 	wg1.Wait()
 	for i := 0; i != n; i++ {
@@ -85,6 +90,57 @@ func TestWaitGroupRace(t *testing.T) {
 	}
 }
 
+func TestWaitGroupAlign(t *testing.T) {
+	type X struct {
+		x  byte
+		wg WaitGroup
+	}
+	var x X
+	x.wg.Add(1)
+	go func(x *X) {
+		x.wg.Done()
+	}(&x)
+	x.wg.Wait()
+}
+
+func TestWaitGroupGo(t *testing.T) {
+	wg := &WaitGroup{}
+	var i int
+	wg.Go(func() {
+		i++
+	})
+	wg.Wait()
+	if i != 1 {
+		t.Fatalf("got %d, want 1", i)
+	}
+}
+
+// This test ensures that an unhandled panic in a Go goroutine terminates
+// the process without causing Wait to unblock; previously there was a race.
+func TestIssue76126(t *testing.T) {
+	testenv.MustHaveExec(t)
+	if os.Getenv("SYNC_TEST_CHILD") != "1" {
+		// Call child in a child process
+		// and inspect its failure message.
+		cmd := exec.Command(os.Args[0], "-test.run=^TestIssue76126$")
+		cmd.Env = append(os.Environ(), "SYNC_TEST_CHILD=1")
+		buf := new(bytes.Buffer)
+		cmd.Stderr = buf
+		cmd.Run() // ignore error
+		got := buf.String()
+		if !strings.Contains(got, "panic: test") {
+			t.Errorf("missing panic: test\n%s", got)
+		}
+		return
+	}
+	var wg WaitGroup
+	wg.Go(func() {
+		panic("test")
+	})
+	wg.Wait()              // process should terminate here
+	panic("Wait returned") // must not be reached
+}
+
 func BenchmarkWaitGroupUncontended(b *testing.B) {
 	type PaddedWaitGroup struct {
 		WaitGroup
@@ -145,4 +201,18 @@ func BenchmarkWaitGroupWait(b *testing.B) {
 
 func BenchmarkWaitGroupWaitWork(b *testing.B) {
 	benchmarkWaitGroupWait(b, 100)
+}
+
+func BenchmarkWaitGroupActuallyWait(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			var wg WaitGroup
+			wg.Add(1)
+			go func() {
+				wg.Done()
+			}()
+			wg.Wait()
+		}
+	})
 }

@@ -1,0 +1,42 @@
+[short] skip
+[!race] skip
+
+go test -v -race
+stdout 'testing_test.go:26: directCall'
+stdout 'testing_test.go:27: interfaceTBCall'
+stdout 'testing_test.go:28: interfaceCall'
+
+-- go.mod --
+module 26995-TBHelper-line-number
+
+go 1.21
+-- testing_test.go --
+package testing_test
+
+import "testing"
+
+type TestingT interface {
+	Helper()
+	Log(args ...interface{})
+}
+
+func directCall(t *testing.T) {
+	t.Helper()
+	t.Log("directCall")
+}
+
+func interfaceTBCall(t testing.TB) {
+	t.Helper()
+	t.Log("interfaceTBCall")
+}
+
+func interfaceCall(t TestingT) {
+	t.Helper()
+	t.Log("interfaceCall")
+}
+
+func TestTesting(t *testing.T) {
+	directCall(t)
+	interfaceTBCall(t)
+	interfaceCall(t)
+}

@@ -1,0 +1,19 @@
+# Named explicitly, test-only packages should be reported as
+# unbuildable/uninstallable, even if there is a wildcard also matching.
+! go build m/testonly m/testonly...
+stderr 'no non-test Go files in'
+! go install ./testonly
+stderr 'no non-test Go files in'
+
+# Named through a wildcard, the test-only packages should be silently ignored.
+go build m/testonly...
+go install ./testonly...
+
+-- go.mod --
+module m
+
+go 1.16
+-- testonly/t_test.go --
+package testonly
+-- testonly2/t.go --
+package testonly2

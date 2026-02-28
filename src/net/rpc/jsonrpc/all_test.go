@@ -1,18 +1,17 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package jsonrpc
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/rpc"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -28,9 +27,9 @@ type Reply struct {
 type Arith int
 
 type ArithAddResp struct {
-	Id     interface{} `json:"id"`
-	Result Reply       `json:"result"`
-	Error  interface{} `json:"error"`
+	Id     any   `json:"id"`
+	Result Reply `json:"result"`
+	Error  any   `json:"error"`
 }
 
 func (t *Arith) Add(args *Args, reply *Reply) error {
@@ -55,8 +54,26 @@ func (t *Arith) Error(args *Args, reply *Reply) error {
 	panic("ERROR")
 }
 
+type BuiltinTypes struct{}
+
+func (BuiltinTypes) Map(i int, reply *map[int]int) error {
+	(*reply)[i] = i
+	return nil
+}
+
+func (BuiltinTypes) Slice(i int, reply *[]int) error {
+	*reply = append(*reply, i)
+	return nil
+}
+
+func (BuiltinTypes) Array(i int, reply *[1]int) error {
+	(*reply)[0] = i
+	return nil
+}
+
 func init() {
 	rpc.Register(new(Arith))
+	rpc.Register(BuiltinTypes{})
 }
 
 func TestServerNoParams(t *testing.T) {
@@ -108,8 +125,8 @@ func TestServer(t *testing.T) {
 		if resp.Error != nil {
 			t.Fatalf("resp.Error: %s", resp.Error)
 		}
-		if resp.Id.(string) != string(i) {
-			t.Fatalf("resp: bad id %q want %q", resp.Id.(string), string(i))
+		if resp.Id.(string) != string(rune(i)) {
+			t.Fatalf("resp: bad id %q want %q", resp.Id.(string), string(rune(i)))
 		}
 		if resp.Result.C != 2*i+1 {
 			t.Fatalf("resp: bad result: %d+%d=%d", i, i+1, resp.Result.C)
@@ -182,6 +199,45 @@ func TestClient(t *testing.T) {
 	}
 }
 
+func TestBuiltinTypes(t *testing.T) {
+	cli, srv := net.Pipe()
+	go ServeConn(srv)
+
+	client := NewClient(cli)
+	defer client.Close()
+
+	// Map
+	arg := 7
+	replyMap := map[int]int{}
+	err := client.Call("BuiltinTypes.Map", arg, &replyMap)
+	if err != nil {
+		t.Errorf("Map: expected no error but got string %q", err.Error())
+	}
+	if replyMap[arg] != arg {
+		t.Errorf("Map: expected %d got %d", arg, replyMap[arg])
+	}
+
+	// Slice
+	replySlice := []int{}
+	err = client.Call("BuiltinTypes.Slice", arg, &replySlice)
+	if err != nil {
+		t.Errorf("Slice: expected no error but got string %q", err.Error())
+	}
+	if e := []int{arg}; !reflect.DeepEqual(replySlice, e) {
+		t.Errorf("Slice: expected %v got %v", e, replySlice)
+	}
+
+	// Array
+	replyArray := [1]int{}
+	err = client.Call("BuiltinTypes.Array", arg, &replyArray)
+	if err != nil {
+		t.Errorf("Array: expected no error but got string %q", err.Error())
+	}
+	if e := [1]int{arg}; !reflect.DeepEqual(replyArray, e) {
+		t.Errorf("Array: expected %v got %v", e, replyArray)
+	}
+}
+
 func TestMalformedInput(t *testing.T) {
 	cli, srv := net.Pipe()
 	go cli.Write([]byte(`{id:1}`)) // invalid json
@@ -191,7 +247,7 @@ func TestMalformedInput(t *testing.T) {
 func TestMalformedOutput(t *testing.T) {
 	cli, srv := net.Pipe()
 	go srv.Write([]byte(`{"id":0,"result":null,"error":null}`))
-	go ioutil.ReadAll(srv)
+	go io.ReadAll(srv)
 
 	client := NewClient(cli)
 	defer client.Close()
@@ -205,7 +261,7 @@ func TestMalformedOutput(t *testing.T) {
 }
 
 func TestServerErrorHasNullResult(t *testing.T) {
-	var out bytes.Buffer
+	var out strings.Builder
 	sc := NewServerCodec(struct {
 		io.Reader
 		io.Writer
@@ -213,7 +269,7 @@ func TestServerErrorHasNullResult(t *testing.T) {
 	}{
 		Reader: strings.NewReader(`{"method": "Arith.Add", "id": "123", "params": []}`),
 		Writer: &out,
-		Closer: ioutil.NopCloser(nil),
+		Closer: io.NopCloser(nil),
 	})
 	r := new(rpc.Request)
 	if err := sc.ReadRequestHeader(r); err != nil {

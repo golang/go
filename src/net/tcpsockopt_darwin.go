@@ -1,29 +1,57 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package net
 
 import (
-	"os"
+	"runtime"
 	"syscall"
 	"time"
 )
 
-const sysTCP_KEEPINTVL = 0x101
+// syscall.TCP_KEEPINTVL and syscall.TCP_KEEPCNT might be missing on some darwin architectures.
+const (
+	sysTCP_KEEPINTVL = 0x101
+	sysTCP_KEEPCNT   = 0x102
+)
 
-func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
-	if err := fd.incref(); err != nil {
-		return err
+func setKeepAliveIdle(fd *netFD, d time.Duration) error {
+	if d == 0 {
+		d = defaultTCPKeepAliveIdle
+	} else if d < 0 {
+		return nil
 	}
-	defer fd.decref()
+
 	// The kernel expects seconds so round to next highest second.
-	d += (time.Second - time.Nanosecond)
-	secs := int(d.Seconds())
-	switch err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, sysTCP_KEEPINTVL, secs); err {
-	case nil, syscall.ENOPROTOOPT: // OS X 10.7 and earlier don't support this option
-	default:
-		return os.NewSyscallError("setsockopt", err)
+	secs := int(roundDurationUp(d, time.Second))
+	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE, secs)
+	runtime.KeepAlive(fd)
+	return wrapSyscallError("setsockopt", err)
+}
+
+func setKeepAliveInterval(fd *netFD, d time.Duration) error {
+	if d == 0 {
+		d = defaultTCPKeepAliveInterval
+	} else if d < 0 {
+		return nil
 	}
-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE, secs))
+
+	// The kernel expects seconds so round to next highest second.
+	secs := int(roundDurationUp(d, time.Second))
+	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, sysTCP_KEEPINTVL, secs)
+	runtime.KeepAlive(fd)
+	return wrapSyscallError("setsockopt", err)
+}
+
+func setKeepAliveCount(fd *netFD, n int) error {
+	if n == 0 {
+		n = defaultTCPKeepAliveCount
+	} else if n < 0 {
+		return nil
+	}
+
+	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, sysTCP_KEEPCNT, n)
+	runtime.KeepAlive(fd)
+	return wrapSyscallError("setsockopt", err)
 }

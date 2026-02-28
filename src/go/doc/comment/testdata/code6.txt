@@ -1,0 +1,24 @@
+-- input --
+Run this program:
+
+func main() {
+	fmt.Println("hello, world")
+}
+
+Or this:
+
+go func() {
+	fmt.Println("hello, world")
+}()
+-- gofmt --
+Run this program:
+
+	func main() {
+		fmt.Println("hello, world")
+	}
+
+Or this:
+
+	go func() {
+		fmt.Println("hello, world")
+	}()

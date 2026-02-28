@@ -1,0 +1,10 @@
+Written by hand.
+Test case for getting a package that has been moved to a nested module,
+with a +incompatible version (and thus no go.mod file) at the root module.
+
+-- .mod --
+module example.com/split-incompatible
+-- .info --
+{"Version": "v2.0.0+incompatible"}
+-- subpkg/subpkg.go --
+package subpkg

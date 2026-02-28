@@ -7,6 +7,8 @@ package token
 import (
 	"fmt"
 	"math/rand"
+	"slices"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -129,6 +131,9 @@ func TestPositions(t *testing.T) {
 		if f.LineCount() != len(test.lines) {
 			t.Errorf("%s, SetLines: got line count %d; want %d", f.Name(), f.LineCount(), len(test.lines))
 		}
+		if !slices.Equal(f.Lines(), test.lines) {
+			t.Errorf("%s, Lines after SetLines(v): got %v; want %v", f.Name(), f.Lines(), test.lines)
+		}
 		verifyPositions(t, fset, f, test.lines)
 
 		// add lines with SetLinesForContent and verify all positions
@@ -214,7 +219,7 @@ func TestFileSetCacheUnlikely(t *testing.T) {
 	}
 }
 
-// issue 4345. Test concurrent use of FileSet.Pos does not trigger a
+// issue 4345. Test that concurrent use of FileSet.Pos does not trigger a
 // race in the FileSet position cache.
 func TestFileSetRace(t *testing.T) {
 	fset := NewFileSet()
@@ -235,6 +240,35 @@ func TestFileSetRace(t *testing.T) {
 		}()
 	}
 	stop.Wait()
+}
+
+// issue 16548. Test that concurrent use of File.AddLine and FileSet.PositionFor
+// does not trigger a race in the FileSet position cache.
+func TestFileSetRace2(t *testing.T) {
+	const N = 1e3
+	var (
+		fset = NewFileSet()
+		file = fset.AddFile("", -1, N)
+		ch   = make(chan int, 2)
+	)
+
+	go func() {
+		for i := 0; i < N; i++ {
+			file.AddLine(i)
+		}
+		ch <- 1
+	}()
+
+	go func() {
+		pos := file.Pos(0)
+		for i := 0; i < N; i++ {
+			fset.PositionFor(pos, false)
+		}
+		ch <- 1
+	}()
+
+	<-ch
+	<-ch
 }
 
 func TestPositionFor(t *testing.T) {
@@ -293,5 +327,335 @@ done
 		}
 		checkPos(t, "3. PositionFor adjusted", got2, want)
 		checkPos(t, "3. Position", got3, want)
+	}
+}
+
+func TestLineStart(t *testing.T) {
+	const src = "one\ntwo\nthree\n"
+	fset := NewFileSet()
+	f := fset.AddFile("input", -1, len(src))
+	f.SetLinesForContent([]byte(src))
+
+	for line := 1; line <= 3; line++ {
+		pos := f.LineStart(line)
+		position := fset.Position(pos)
+		if position.Line != line || position.Column != 1 {
+			t.Errorf("LineStart(%d) returned wrong pos %d: %s", line, pos, position)
+		}
+	}
+}
+
+func TestRemoveFile(t *testing.T) {
+	contentA := []byte("this\nis\nfileA")
+	contentB := []byte("this\nis\nfileB")
+	fset := NewFileSet()
+	a := fset.AddFile("fileA", -1, len(contentA))
+	a.SetLinesForContent(contentA)
+	b := fset.AddFile("fileB", -1, len(contentB))
+	b.SetLinesForContent(contentB)
+
+	checkPos := func(pos Pos, want string) {
+		if got := fset.Position(pos).String(); got != want {
+			t.Errorf("Position(%d) = %s, want %s", pos, got, want)
+		}
+	}
+	checkNumFiles := func(want int) {
+		got := 0
+		fset.Iterate(func(*File) bool { got++; return true })
+		if got != want {
+			t.Errorf("Iterate called %d times, want %d", got, want)
+		}
+	}
+
+	apos3 := a.Pos(3)
+	bpos3 := b.Pos(3)
+	checkPos(apos3, "fileA:1:4")
+	checkPos(bpos3, "fileB:1:4")
+	checkNumFiles(2)
+
+	// After removal, queries on fileA fail.
+	fset.RemoveFile(a)
+	checkPos(apos3, "-")
+	checkPos(bpos3, "fileB:1:4")
+	checkNumFiles(1)
+
+	// idempotent / no effect
+	fset.RemoveFile(a)
+	checkPos(apos3, "-")
+	checkPos(bpos3, "fileB:1:4")
+	checkNumFiles(1)
+}
+
+func TestFileAddLineColumnInfo(t *testing.T) {
+	const (
+		filename = "test.go"
+		filesize = 100
+	)
+
+	tests := []struct {
+		name  string
+		infos []lineInfo
+		want  []lineInfo
+	}{
+		{
+			name: "normal",
+			infos: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+				{Offset: 50, Filename: filename, Line: 3, Column: 1},
+				{Offset: 80, Filename: filename, Line: 4, Column: 2},
+			},
+			want: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+				{Offset: 50, Filename: filename, Line: 3, Column: 1},
+				{Offset: 80, Filename: filename, Line: 4, Column: 2},
+			},
+		},
+		{
+			name: "offset1 == file size",
+			infos: []lineInfo{
+				{Offset: filesize, Filename: filename, Line: 2, Column: 1},
+			},
+			want: nil,
+		},
+		{
+			name: "offset1 > file size",
+			infos: []lineInfo{
+				{Offset: filesize + 1, Filename: filename, Line: 2, Column: 1},
+			},
+			want: nil,
+		},
+		{
+			name: "offset2 == file size",
+			infos: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+				{Offset: filesize, Filename: filename, Line: 3, Column: 1},
+			},
+			want: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+			},
+		},
+		{
+			name: "offset2 > file size",
+			infos: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+				{Offset: filesize + 1, Filename: filename, Line: 3, Column: 1},
+			},
+			want: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+			},
+		},
+		{
+			name: "offset2 == offset1",
+			infos: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+				{Offset: 10, Filename: filename, Line: 3, Column: 1},
+			},
+			want: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+			},
+		},
+		{
+			name: "offset2 < offset1",
+			infos: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+				{Offset: 9, Filename: filename, Line: 3, Column: 1},
+			},
+			want: []lineInfo{
+				{Offset: 10, Filename: filename, Line: 2, Column: 1},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fs := NewFileSet()
+			f := fs.AddFile(filename, -1, filesize)
+			for _, info := range test.infos {
+				f.AddLineColumnInfo(info.Offset, info.Filename, info.Line, info.Column)
+			}
+			if !slices.Equal(f.infos, test.want) {
+				t.Errorf("\ngot %+v, \nwant %+v", f.infos, test.want)
+			}
+		})
+	}
+}
+
+func TestIssue57490(t *testing.T) {
+	// If debug is set, this test is expected to panic.
+	if debug {
+		defer func() {
+			if recover() == nil {
+				t.Errorf("got no panic")
+			}
+		}()
+	}
+
+	const fsize = 5
+	fset := NewFileSet()
+	base := fset.Base()
+	f := fset.AddFile("f", base, fsize)
+
+	// out-of-bounds positions must not lead to a panic when calling f.Offset
+	if got := f.Offset(NoPos); got != 0 {
+		t.Errorf("offset = %d, want %d", got, 0)
+	}
+	if got := f.Offset(Pos(-1)); got != 0 {
+		t.Errorf("offset = %d, want %d", got, 0)
+	}
+	if got := f.Offset(Pos(base + fsize + 1)); got != fsize {
+		t.Errorf("offset = %d, want %d", got, fsize)
+	}
+
+	// out-of-bounds offsets must not lead to a panic when calling f.Pos
+	if got := f.Pos(-1); got != Pos(base) {
+		t.Errorf("pos = %d, want %d", got, base)
+	}
+	if got := f.Pos(fsize + 1); got != Pos(base+fsize) {
+		t.Errorf("pos = %d, want %d", got, base+fsize)
+	}
+
+	// out-of-bounds Pos values must not lead to a panic when calling f.Position
+	want := fmt.Sprintf("%s:1:1", f.Name())
+	if got := f.Position(Pos(-1)).String(); got != want {
+		t.Errorf("position = %s, want %s", got, want)
+	}
+	want = fmt.Sprintf("%s:1:%d", f.Name(), fsize+1)
+	if got := f.Position(Pos(fsize + 1)).String(); got != want {
+		t.Errorf("position = %s, want %s", got, want)
+	}
+
+	// check invariants
+	const xsize = fsize + 5
+	for offset := -xsize; offset < xsize; offset++ {
+		want1 := f.Offset(Pos(f.base + offset))
+		if got := f.Offset(f.Pos(offset)); got != want1 {
+			t.Errorf("offset = %d, want %d", got, want1)
+		}
+
+		want2 := f.Pos(offset)
+		if got := f.Pos(f.Offset(want2)); got != want2 {
+			t.Errorf("pos = %d, want %d", got, want2)
+		}
+	}
+}
+
+func TestFileSet_AddExistingFiles(t *testing.T) {
+	fset := NewFileSet()
+
+	check := func(descr, want string) {
+		t.Helper()
+		if got := fsetString(fset); got != want {
+			t.Errorf("%s: got %s, want %s", descr, got, want)
+		}
+	}
+
+	fileA := fset.AddFile("A", -1, 3)
+	fileB := fset.AddFile("B", -1, 5)
+	_ = fileB
+	check("after AddFile [AB]", "{A:1-4 B:5-10}")
+
+	fset.AddExistingFiles() // noop
+	check("after AddExistingFiles []", "{A:1-4 B:5-10}")
+
+	fileC := NewFileSet().AddFile("C", 100, 5)
+	fileD := NewFileSet().AddFile("D", 200, 5)
+	fset.AddExistingFiles(fileC, fileA, fileD, fileC)
+	check("after AddExistingFiles [CADC]", "{A:1-4 B:5-10 C:100-105 D:200-205}")
+
+	fileE := fset.AddFile("E", -1, 3)
+	_ = fileE
+	check("after AddFile [E]", "{A:1-4 B:5-10 C:100-105 D:200-205 E:206-209}")
+}
+
+func fsetString(fset *FileSet) string {
+	var buf strings.Builder
+	buf.WriteRune('{')
+	sep := ""
+	fset.Iterate(func(f *File) bool {
+		fmt.Fprintf(&buf, "%s%s:%d-%d", sep, f.Name(), f.Base(), f.End())
+		sep = " "
+		return true
+	})
+	buf.WriteRune('}')
+	return buf.String()
+}
+
+// Test that File() does not return the already removed file, while used concurrently.
+func TestRemoveFileRace(t *testing.T) {
+	fset := NewFileSet()
+
+	// Create bunch of files.
+	var files []*File
+	for i := range 20000 {
+		f := fset.AddFile("f", -1, (i+1)*10)
+		files = append(files, f)
+	}
+
+	// governor goroutine
+	race1, race2 := make(chan *File), make(chan *File)
+	start := make(chan struct{})
+	go func() {
+		for _, f := range files {
+			<-start
+			race1 <- f
+			race2 <- f
+		}
+		<-start // unlock main test goroutine
+		close(race1)
+		close(race2)
+	}()
+
+	go func() {
+		for f := range race1 {
+			fset.File(Pos(f.Base()) + 5) // populates s.last with f
+		}
+	}()
+
+	start <- struct{}{}
+	for f := range race2 {
+		fset.RemoveFile(f)
+		got := fset.File(Pos(f.Base()) + 5)
+		if got != nil {
+			t.Fatalf("file was not removed correctly")
+		}
+		start <- struct{}{}
+	}
+}
+
+func TestRemovedFileFileReturnsNil(t *testing.T) {
+	fset := NewFileSet()
+
+	// Create bunch of files.
+	var files []*File
+	for i := range 1000 {
+		f := fset.AddFile("f", -1, (i+1)*100)
+		files = append(files, f)
+	}
+
+	rand.Shuffle(len(files), func(i, j int) {
+		files[i], files[j] = files[j], files[i]
+	})
+
+	for _, f := range files {
+		fset.RemoveFile(f)
+		if got := fset.File(Pos(f.Base()) + 10); got != nil {
+			t.Fatalf("file was not removed correctly; got file with base: %v", got.Base())
+		}
+	}
+}
+
+func TestFile_End(t *testing.T) {
+	f := NewFileSet().AddFile("a.go", 100, 42)
+	got := fmt.Sprintf("%d, %d", f.Base(), f.End())
+	if want := "100, 142"; got != want {
+		t.Errorf("Base, End = %s, want %s", got, want)
+	}
+}
+
+func TestFile_String(t *testing.T) {
+	f := NewFileSet().AddFile("a.go", 100, 42)
+	got := f.String()
+	if want := "a.go(100-142)"; got != want {
+		t.Errorf("String = %q, want %q", got, want)
 	}
 }

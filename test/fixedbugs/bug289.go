@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -9,18 +9,16 @@
 package main
 
 func f1() {
-	a, b := f()	// ERROR "mismatch|does not match"
-	_ = a
-	_ = b
+	a, b := f() // ERROR "assignment mismatch|does not match|cannot initialize"
+	_, _ = a, b
 }
 
 func f2() {
 	var a, b int
-	a, b = f()	// ERROR "mismatch|does not match"
-	_ = a
-	_ = b
+	a, b = f() // ERROR "assignment mismatch|does not match|cannot assign"
+	_, _ = a, b
 }
 
 func f() int {
-	return 1;
+	return 1
 }

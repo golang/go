@@ -7,11 +7,84 @@ package big
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"math"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 )
+
+var exponentTests = []struct {
+	s       string // string to be scanned
+	base2ok bool   // true if 'p'/'P' exponents are accepted
+	sepOk   bool   // true if '_' separators are accepted
+	x       int64  // expected exponent
+	b       int    // expected exponent base
+	err     error  // expected error
+	next    rune   // next character (or 0, if at EOF)
+}{
+	// valid, without separators
+	{"", false, false, 0, 10, nil, 0},
+	{"1", false, false, 0, 10, nil, '1'},
+	{"e0", false, false, 0, 10, nil, 0},
+	{"E1", false, false, 1, 10, nil, 0},
+	{"e+10", false, false, 10, 10, nil, 0},
+	{"e-10", false, false, -10, 10, nil, 0},
+	{"e123456789a", false, false, 123456789, 10, nil, 'a'},
+	{"p", false, false, 0, 10, nil, 'p'},
+	{"P+100", false, false, 0, 10, nil, 'P'},
+	{"p0", true, false, 0, 2, nil, 0},
+	{"P-123", true, false, -123, 2, nil, 0},
+	{"p+0a", true, false, 0, 2, nil, 'a'},
+	{"p+123__", true, false, 123, 2, nil, '_'}, // '_' is not part of the number anymore
+
+	// valid, with separators
+	{"e+1_0", false, true, 10, 10, nil, 0},
+	{"e-1_0", false, true, -10, 10, nil, 0},
+	{"e123_456_789a", false, true, 123456789, 10, nil, 'a'},
+	{"P+1_00", false, true, 0, 10, nil, 'P'},
+	{"p-1_2_3", true, true, -123, 2, nil, 0},
+
+	// invalid: no digits
+	{"e", false, false, 0, 10, errNoDigits, 0},
+	{"ef", false, false, 0, 10, errNoDigits, 'f'},
+	{"e+", false, false, 0, 10, errNoDigits, 0},
+	{"E-x", false, false, 0, 10, errNoDigits, 'x'},
+	{"p", true, false, 0, 2, errNoDigits, 0},
+	{"P-", true, false, 0, 2, errNoDigits, 0},
+	{"p+e", true, false, 0, 2, errNoDigits, 'e'},
+	{"e+_x", false, true, 0, 10, errNoDigits, 'x'},
+
+	// invalid: incorrect use of separator
+	{"e0_", false, true, 0, 10, errInvalSep, 0},
+	{"e_0", false, true, 0, 10, errInvalSep, 0},
+	{"e-1_2__3", false, true, -123, 10, errInvalSep, 0},
+}
+
+func TestScanExponent(t *testing.T) {
+	for _, a := range exponentTests {
+		r := strings.NewReader(a.s)
+		x, b, err := scanExponent(r, a.base2ok, a.sepOk)
+		if err != a.err {
+			t.Errorf("scanExponent%+v\n\tgot error = %v; want %v", a, err, a.err)
+		}
+		if x != a.x {
+			t.Errorf("scanExponent%+v\n\tgot z = %v; want %v", a, x, a.x)
+		}
+		if b != a.b {
+			t.Errorf("scanExponent%+v\n\tgot b = %d; want %d", a, b, a.b)
+		}
+		next, _, err := r.ReadRune()
+		if err == io.EOF {
+			next = 0
+			err = nil
+		}
+		if err == nil && next != a.next {
+			t.Errorf("scanExponent%+v\n\tgot next = %q; want %q", a, next, a.next)
+		}
+	}
+}
 
 type StringTest struct {
 	in, out string
@@ -19,13 +92,7 @@ type StringTest struct {
 }
 
 var setStringTests = []StringTest{
-	{"0", "0", true},
-	{"-0", "0", true},
-	{"1", "1", true},
-	{"-1", "-1", true},
-	{"1.", "1", true},
-	{"1e0", "1", true},
-	{"1.e1", "10", true},
+	// invalid
 	{in: "1e"},
 	{in: "1.e"},
 	{in: "1e+14e-5"},
@@ -33,6 +100,21 @@ var setStringTests = []StringTest{
 	{in: "r"},
 	{in: "a/b"},
 	{in: "a.b"},
+	{in: "1/0"},
+	{in: "4/3/2"}, // issue 17001
+	{in: "4/3/"},
+	{in: "4/3."},
+	{in: "4/"},
+	{in: "13e-9223372036854775808"}, // CVE-2022-23772
+
+	// valid
+	{"0", "0", true},
+	{"-0", "0", true},
+	{"1", "1", true},
+	{"-1", "-1", true},
+	{"1.", "1", true},
+	{"1e0", "1", true},
+	{"1.e1", "10", true},
 	{"-0.1", "-1/10", true},
 	{"-.1", "-1/10", true},
 	{"2/4", "1/2", true},
@@ -48,17 +130,56 @@ var setStringTests = []StringTest{
 	{"53/70893980658822810696", "53/70893980658822810696", true},
 	{"106/141787961317645621392", "53/70893980658822810696", true},
 	{"204211327800791583.81095", "4084226556015831676219/20000", true},
-	{in: "1/0"},
+	{"0e9999999999", "0", true}, // issue #16176
 }
 
 // These are not supported by fmt.Fscanf.
 var setStringTests2 = []StringTest{
-	{"0x10", "16", true},
-	{"-010/1", "-8", true}, // TODO(gri) should we even permit octal here?
-	{"-010.", "-10", true},
-	{"0x10/0x20", "1/2", true},
+	// invalid
+	{in: "4/3x"},
+	{in: "0/-1"},
+	{in: "-1/-1"},
+
+	// invalid with separators
+	// (smoke tests only - a comprehensive set of tests is in natconv_test.go)
+	{in: "10_/1"},
+	{in: "_10/1"},
+	{in: "1/1__0"},
+
+	// valid
 	{"0b1000/3", "8/3", true},
-	// TODO(gri) add more tests
+	{"0B1000/0x8", "1", true},
+	{"-010/1", "-8", true}, // 0-prefix indicates octal in this case
+	{"-010.0", "-10", true},
+	{"-0o10/1", "-8", true},
+	{"0x10/1", "16", true},
+	{"0x10/0x20", "1/2", true},
+
+	{"0010", "10", true}, // 0-prefix is ignored in this case (not a fraction)
+	{"0x10.0", "16", true},
+	{"0x1.8", "3/2", true},
+	{"0X1.8p4", "24", true},
+	{"0x1.1E2", "2289/2048", true}, // E is part of hex mantissa, not exponent
+	{"0b1.1E2", "150", true},
+	{"0B1.1P3", "12", true},
+	{"0o10e-2", "2/25", true},
+	{"0O10p-3", "1", true},
+
+	// valid with separators
+	// (smoke tests only - a comprehensive set of tests is in natconv_test.go)
+	{"0b_1000/3", "8/3", true},
+	{"0B_10_00/0x8", "1", true},
+	{"0xdead/0B1101_1110_1010_1101", "1", true},
+	{"0B1101_1110_1010_1101/0XD_E_A_D", "1", true},
+	{"1_000.0", "1000", true},
+
+	{"0x_10.0", "16", true},
+	{"0x1_0.0", "16", true},
+	{"0x1.8_0", "3/2", true},
+	{"0X1.8p0_4", "24", true},
+	{"0b1.1_0E2", "150", true},
+	{"0o1_0e-2", "2/25", true},
+	{"0O_10p-3", "1", true},
 }
 
 func TestRatSetString(t *testing.T) {
@@ -75,9 +196,21 @@ func TestRatSetString(t *testing.T) {
 			} else if x.RatString() != test.out {
 				t.Errorf("#%d SetString(%q) got %s want %s", i, test.in, x.RatString(), test.out)
 			}
-		} else if x != nil {
-			t.Errorf("#%d SetString(%q) got %p want nil", i, test.in, x)
+		} else {
+			if test.ok {
+				t.Errorf("#%d SetString(%q) expected success", i, test.in)
+			} else if x != nil {
+				t.Errorf("#%d SetString(%q) got %p want nil", i, test.in, x)
+			}
 		}
+	}
+}
+
+func TestRatSetStringZero(t *testing.T) {
+	got, _ := new(Rat).SetString("0")
+	want := new(Rat).SetInt64(0)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %#+v, want %#+v", got, want)
 	}
 }
 
@@ -113,6 +246,8 @@ var floatStringTests = []struct {
 	{"1", 0, "1"},
 	{"1", 2, "1.00"},
 	{"-1", 0, "-1"},
+	{"0.05", 1, "0.1"},
+	{"-0.05", 1, "-0.1"},
 	{".25", 2, "0.25"},
 	{".25", 1, "0.3"},
 	{".25", 3, "0.250"},
@@ -135,8 +270,8 @@ func TestFloatString(t *testing.T) {
 	}
 }
 
-// Test inputs to Rat.SetString.  The prefix "long:" causes the test
-// to be skipped in --test.short mode.  (The threshold is about 500us.)
+// Test inputs to Rat.SetString. The prefix "long:" causes the test
+// to be skipped except in -long mode.  (The threshold is about 500us.)
 var float64inputs = []string{
 	// Constants plundered from strconv/testfp.txt.
 
@@ -292,9 +427,9 @@ var float64inputs = []string{
 	// "1e-18446744073709551616",
 	// "1e+18446744073709551616",
 
-	// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+	// https://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
 	"2.2250738585072012e-308",
-	// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+	// https://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
 	"2.2250738585072011e-308",
 
 	// A very large number (initially wrongly parsed by the fast algorithm).
@@ -342,7 +477,7 @@ func isFinite(f float64) bool {
 func TestFloat32SpecialCases(t *testing.T) {
 	for _, input := range float64inputs {
 		if strings.HasPrefix(input, "long:") {
-			if testing.Short() {
+			if !*long {
 				continue
 			}
 			input = input[len("long:"):]
@@ -398,7 +533,7 @@ func TestFloat32SpecialCases(t *testing.T) {
 func TestFloat64SpecialCases(t *testing.T) {
 	for _, input := range float64inputs {
 		if strings.HasPrefix(input, "long:") {
-			if testing.Short() {
+			if !*long {
 				continue
 			}
 			input = input[len("long:"):]
@@ -447,5 +582,184 @@ func TestFloat64SpecialCases(t *testing.T) {
 		if wasExact := new(Rat).SetFloat64(f).Cmp(r) == 0; wasExact != exact {
 			t.Errorf("Rat.SetString(%q).Float64().exact = %t, want %t", input, exact, wasExact)
 		}
+	}
+}
+
+func TestIssue31184(t *testing.T) {
+	var x Rat
+	for _, want := range []string{
+		"-213.090",
+		"8.192",
+		"16.000",
+	} {
+		x.SetString(want)
+		got := x.FloatString(3)
+		if got != want {
+			t.Errorf("got %s, want %s", got, want)
+		}
+	}
+}
+
+func TestIssue45910(t *testing.T) {
+	var x Rat
+	for _, test := range []struct {
+		input string
+		want  bool
+	}{
+		{"1e-1000001", false},
+		{"1e-1000000", true},
+		{"1e+1000000", true},
+		{"1e+1000001", false},
+
+		{"0p1000000000000", true},
+		{"1p-10000001", false},
+		{"1p-10000000", true},
+		{"1p+10000000", true},
+		{"1p+10000001", false},
+		{"1.770p02041010010011001001", false}, // test case from issue
+	} {
+		_, got := x.SetString(test.input)
+		if got != test.want {
+			t.Errorf("SetString(%s) got ok = %v; want %v", test.input, got, test.want)
+		}
+	}
+}
+func TestFloatPrec(t *testing.T) {
+	var tests = []struct {
+		f    string
+		prec int
+		ok   bool
+		fdec string
+	}{
+		// examples from the issue #50489
+		{"10/100", 1, true, "0.1"},
+		{"3/100", 2, true, "0.03"},
+		{"10", 0, true, "10"},
+
+		// more examples
+		{"zero", 0, true, "0"},      // test uninitialized zero value for Rat
+		{"0", 0, true, "0"},         // 0
+		{"1", 0, true, "1"},         // 1
+		{"1/2", 1, true, "0.5"},     // 0.5
+		{"1/3", 0, false, "0"},      // 0.(3)
+		{"1/4", 2, true, "0.25"},    // 0.25
+		{"1/5", 1, true, "0.2"},     // 0.2
+		{"1/6", 1, false, "0.2"},    // 0.1(6)
+		{"1/7", 0, false, "0"},      // 0.(142857)
+		{"1/8", 3, true, "0.125"},   // 0.125
+		{"1/9", 0, false, "0"},      // 0.(1)
+		{"1/10", 1, true, "0.1"},    // 0.1
+		{"1/11", 0, false, "0"},     // 0.(09)
+		{"1/12", 2, false, "0.08"},  // 0.08(3)
+		{"1/13", 0, false, "0"},     // 0.(076923)
+		{"1/14", 1, false, "0.1"},   // 0.0(714285)
+		{"1/15", 1, false, "0.1"},   // 0.0(6)
+		{"1/16", 4, true, "0.0625"}, // 0.0625
+
+		{"10/2", 0, true, "5"},                    // 5
+		{"10/3", 0, false, "3"},                   // 3.(3)
+		{"10/6", 0, false, "2"},                   // 1.(6)
+		{"1/10000000", 7, true, "0.0000001"},      // 0.0000001
+		{"1/3125", 5, true, "0.00032"},            // "0.00032"
+		{"1/1024", 10, true, "0.0009765625"},      // 0.0009765625
+		{"1/304000", 7, false, "0.0000033"},       // 0.0000032(894736842105263157)
+		{"1/48828125", 11, true, "0.00000002048"}, // 0.00000002048
+	}
+
+	for _, test := range tests {
+		var f Rat
+
+		// check uninitialized zero value
+		if test.f != "zero" {
+			_, ok := f.SetString(test.f)
+			if !ok {
+				t.Fatalf("invalid test case: f = %s", test.f)
+			}
+		}
+
+		// results for f and -f must be the same
+		fdec := test.fdec
+		for i := 0; i < 2; i++ {
+			prec, ok := f.FloatPrec()
+			if prec != test.prec || ok != test.ok {
+				t.Errorf("%s: FloatPrec(%s): got prec, ok = %d, %v; want %d, %v", test.f, &f, prec, ok, test.prec, test.ok)
+			}
+			s := f.FloatString(test.prec)
+			if s != fdec {
+				t.Errorf("%s: FloatString(%s, %d): got %s; want %s", test.f, &f, prec, s, fdec)
+			}
+			// proceed with -f but don't add a "-" before a "0"
+			if f.Sign() > 0 {
+				f.Neg(&f)
+				fdec = "-" + fdec
+			}
+		}
+	}
+}
+
+func BenchmarkFloatPrecExact(b *testing.B) {
+	for _, n := range []int{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6} {
+		// d := 5^n
+		d := NewInt(5)
+		p := NewInt(int64(n))
+		d.Exp(d, p, nil)
+
+		// r := 1/d
+		var r Rat
+		r.SetFrac(NewInt(1), d)
+
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				prec, ok := r.FloatPrec()
+				if prec != n || !ok {
+					b.Fatalf("got exact, ok = %d, %v; want %d, %v", prec, ok, uint64(n), true)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkFloatPrecMixed(b *testing.B) {
+	for _, n := range []int{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6} {
+		// d := (3·5·7·11)^n
+		d := NewInt(3 * 5 * 7 * 11)
+		p := NewInt(int64(n))
+		d.Exp(d, p, nil)
+
+		// r := 1/d
+		var r Rat
+		r.SetFrac(NewInt(1), d)
+
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				prec, ok := r.FloatPrec()
+				if prec != n || ok {
+					b.Fatalf("got exact, ok = %d, %v; want %d, %v", prec, ok, uint64(n), false)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkFloatPrecInexact(b *testing.B) {
+	for _, n := range []int{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6} {
+		// d := 5^n + 1
+		d := NewInt(5)
+		p := NewInt(int64(n))
+		d.Exp(d, p, nil)
+		d.Add(d, NewInt(1))
+
+		// r := 1/d
+		var r Rat
+		r.SetFrac(NewInt(1), d)
+
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_, ok := r.FloatPrec()
+				if ok {
+					b.Fatalf("got unexpected ok")
+				}
+			}
+		})
 	}
 }

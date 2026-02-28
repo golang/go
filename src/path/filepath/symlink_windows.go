@@ -5,70 +5,114 @@
 package filepath
 
 import (
+	"strings"
 	"syscall"
 )
 
-func toShort(path string) (string, error) {
-	p, err := syscall.UTF16FromString(path)
-	if err != nil {
-		return "", err
+// normVolumeName is like VolumeName, but makes drive letter upper case.
+// result of EvalSymlinks must be unique, so we have
+// EvalSymlinks(`c:\a`) == EvalSymlinks(`C:\a`).
+func normVolumeName(path string) string {
+	volume := VolumeName(path)
+
+	if len(volume) > 2 { // isUNC
+		return volume
 	}
-	b := p // GetShortPathName says we can reuse buffer
-	n, err := syscall.GetShortPathName(&p[0], &b[0], uint32(len(b)))
-	if err != nil {
-		return "", err
-	}
-	if n > uint32(len(b)) {
-		b = make([]uint16, n)
-		n, err = syscall.GetShortPathName(&p[0], &b[0], uint32(len(b)))
-		if err != nil {
-			return "", err
-		}
-	}
-	return syscall.UTF16ToString(b), nil
+
+	return strings.ToUpper(volume)
 }
 
-func toLong(path string) (string, error) {
-	p, err := syscall.UTF16FromString(path)
+// normBase returns the last element of path with correct case.
+func normBase(path string) (string, error) {
+	p, err := syscall.UTF16PtrFromString(path)
 	if err != nil {
 		return "", err
 	}
-	b := p // GetLongPathName says we can reuse buffer
-	n, err := syscall.GetLongPathName(&p[0], &b[0], uint32(len(b)))
+
+	var data syscall.Win32finddata
+
+	h, err := syscall.FindFirstFile(p, &data)
 	if err != nil {
 		return "", err
 	}
-	if n > uint32(len(b)) {
-		b = make([]uint16, n)
-		n, err = syscall.GetLongPathName(&p[0], &b[0], uint32(len(b)))
+	syscall.FindClose(h)
+
+	return syscall.UTF16ToString(data.FileName[:]), nil
+}
+
+// baseIsDotDot reports whether the last element of path is "..".
+// The given path should be 'Clean'-ed in advance.
+func baseIsDotDot(path string) bool {
+	i := strings.LastIndexByte(path, Separator)
+	return path[i+1:] == ".."
+}
+
+// toNorm returns the normalized path that is guaranteed to be unique.
+// It should accept the following formats:
+//   - UNC paths                              (e.g \\server\share\foo\bar)
+//   - absolute paths                         (e.g C:\foo\bar)
+//   - relative paths begin with drive letter (e.g C:foo\bar, C:..\foo\bar, C:.., C:.)
+//   - relative paths begin with '\'          (e.g \foo\bar)
+//   - relative paths begin without '\'       (e.g foo\bar, ..\foo\bar, .., .)
+//
+// The returned normalized path will be in the same form (of 5 listed above) as the input path.
+// If two paths A and B are indicating the same file with the same format, toNorm(A) should be equal to toNorm(B).
+// The normBase parameter should be equal to the normBase func, except for in tests.  See docs on the normBase func.
+func toNorm(path string, normBase func(string) (string, error)) (string, error) {
+	if path == "" {
+		return path, nil
+	}
+
+	volume := normVolumeName(path)
+	path = path[len(volume):]
+
+	// skip special cases
+	if path == "" || path == "." || path == `\` {
+		return volume + path, nil
+	}
+
+	var normPath string
+
+	for {
+		if baseIsDotDot(path) {
+			normPath = path + `\` + normPath
+
+			break
+		}
+
+		name, err := normBase(volume + path)
 		if err != nil {
 			return "", err
 		}
+
+		normPath = name + `\` + normPath
+
+		i := strings.LastIndexByte(path, Separator)
+		if i == -1 {
+			break
+		}
+		if i == 0 { // `\Go` or `C:\Go`
+			normPath = `\` + normPath
+
+			break
+		}
+
+		path = path[:i]
 	}
-	b = b[:n]
-	return syscall.UTF16ToString(b), nil
+
+	normPath = normPath[:len(normPath)-1] // remove trailing '\'
+
+	return volume + normPath, nil
 }
 
 func evalSymlinks(path string) (string, error) {
-	path, err := walkSymlinks(path)
+	newpath, err := walkSymlinks(path)
 	if err != nil {
 		return "", err
 	}
-
-	p, err := toShort(path)
+	newpath, err = toNorm(newpath, normBase)
 	if err != nil {
 		return "", err
 	}
-	p, err = toLong(p)
-	if err != nil {
-		return "", err
-	}
-	// syscall.GetLongPathName does not change the case of the drive letter,
-	// but the result of EvalSymlinks must be unique, so we have
-	// EvalSymlinks(`c:\a`) == EvalSymlinks(`C:\a`).
-	// Make drive letter upper case.
-	if len(p) >= 2 && p[1] == ':' && 'a' <= p[0] && p[0] <= 'z' {
-		p = string(p[0]+'A'-'a') + p[1:]
-	}
-	return Clean(p), nil
+	return newpath, nil
 }

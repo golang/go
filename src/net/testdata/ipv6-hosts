@@ -1,0 +1,11 @@
+# See https://tools.ietf.org/html/rfc5952, https://tools.ietf.org/html/rfc4007.
+
+# internet address and host name
+::1						localhost	# inline comment separated by tab
+fe80:0000:0000:0000:0000:0000:0000:0001		localhost       # inline comment separated by space
+
+# internet address with zone identifier and host name
+fe80:0000:0000:0000:0000:0000:0000:0002%lo0	localhost
+
+# internet address, host name and aliases
+fe80::3%lo0					localhost	localhost.localdomain

@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,7 +7,6 @@
 package syscall
 
 import (
-	"unicode/utf16"
 	"unsafe"
 )
 
@@ -16,19 +15,17 @@ func Getenv(key string) (value string, found bool) {
 	if err != nil {
 		return "", false
 	}
-	b := make([]uint16, 100)
-	n, e := GetEnvironmentVariable(keyp, &b[0], uint32(len(b)))
-	if n == 0 && e == ERROR_ENVVAR_NOT_FOUND {
-		return "", false
-	}
-	if n > uint32(len(b)) {
-		b = make([]uint16, n)
-		n, e = GetEnvironmentVariable(keyp, &b[0], uint32(len(b)))
-		if n > uint32(len(b)) {
-			n = 0
+	n := uint32(100)
+	for {
+		b := make([]uint16, n)
+		n, err = GetEnvironmentVariable(keyp, &b[0], uint32(len(b)))
+		if n == 0 && err == ERROR_ENVVAR_NOT_FOUND {
+			return "", false
+		}
+		if n <= uint32(len(b)) {
+			return UTF16ToString(b[:n]), true
 		}
 	}
-	return string(utf16.Decode(b[0:n])), true
 }
 
 func Setenv(key, value string) error {
@@ -44,6 +41,7 @@ func Setenv(key, value string) error {
 	if e != nil {
 		return e
 	}
+	runtimeSetenv(key, value)
 	return nil
 }
 
@@ -52,17 +50,22 @@ func Unsetenv(key string) error {
 	if err != nil {
 		return err
 	}
-	return SetEnvironmentVariable(keyp, nil)
+	e := SetEnvironmentVariable(keyp, nil)
+	if e != nil {
+		return e
+	}
+	runtimeUnsetenv(key)
+	return nil
 }
 
 func Clearenv() {
 	for _, s := range Environ() {
 		// Environment variables can begin with =
 		// so start looking for the separator = at j=1.
-		// http://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
+		// https://devblogs.microsoft.com/oldnewthing/20100506-00/?p=14133
 		for j := 1; j < len(s); j++ {
 			if s[j] == '=' {
-				Setenv(s[0:j], "")
+				Unsetenv(s[0:j])
 				break
 			}
 		}
@@ -70,21 +73,24 @@ func Clearenv() {
 }
 
 func Environ() []string {
-	s, e := GetEnvironmentStrings()
+	envp, e := GetEnvironmentStrings()
 	if e != nil {
 		return nil
 	}
-	defer FreeEnvironmentStrings(s)
+	defer FreeEnvironmentStrings(envp)
+
 	r := make([]string, 0, 50) // Empty with room to grow.
-	for from, i, p := 0, 0, (*[1 << 24]uint16)(unsafe.Pointer(s)); true; i++ {
-		if p[i] == 0 {
-			// empty string marks the end
-			if i <= from {
-				break
-			}
-			r = append(r, string(utf16.Decode(p[from:i])))
-			from = i + 1
+	const size = unsafe.Sizeof(*envp)
+	for *envp != 0 { // environment block ends with empty string
+		// find NUL terminator
+		end := unsafe.Pointer(envp)
+		for *(*uint16)(end) != 0 {
+			end = unsafe.Add(end, size)
 		}
+
+		entry := unsafe.Slice(envp, (uintptr(end)-uintptr(unsafe.Pointer(envp)))/size)
+		r = append(r, UTF16ToString(entry))
+		envp = (*uint16)(unsafe.Add(end, size))
 	}
 	return r
 }

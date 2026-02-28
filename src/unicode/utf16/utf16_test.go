@@ -1,11 +1,12 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package utf16_test
 
 import (
-	"reflect"
+	"internal/testenv"
+	"slices"
 	"testing"
 	"unicode"
 	. "unicode/utf16"
@@ -18,6 +19,26 @@ func TestConstants(t *testing.T) {
 	}
 	if ReplacementChar != unicode.ReplacementChar {
 		t.Errorf("utf16.replacementChar is wrong: %x should be %x", ReplacementChar, unicode.ReplacementChar)
+	}
+}
+
+func TestRuneLen(t *testing.T) {
+	for _, tt := range []struct {
+		r      rune
+		length int
+	}{
+		{0, 1},
+		{Surr1 - 1, 1},
+		{Surr3, 1},
+		{SurrSelf - 1, 1},
+		{SurrSelf, 2},
+		{MaxRune, 2},
+		{MaxRune + 1, -1},
+		{-1, -1},
+	} {
+		if length := RuneLen(tt.r); length != tt.length {
+			t.Errorf("RuneLen(%#U) = %d, want %d", tt.r, length, tt.length)
+		}
 	}
 }
 
@@ -37,8 +58,20 @@ var encodeTests = []encodeTest{
 func TestEncode(t *testing.T) {
 	for _, tt := range encodeTests {
 		out := Encode(tt.in)
-		if !reflect.DeepEqual(out, tt.out) {
+		if !slices.Equal(out, tt.out) {
 			t.Errorf("Encode(%x) = %x; want %x", tt.in, out, tt.out)
+		}
+	}
+}
+
+func TestAppendRune(t *testing.T) {
+	for _, tt := range encodeTests {
+		var out []uint16
+		for _, u := range tt.in {
+			out = AppendRune(out, u)
+		}
+		if !slices.Equal(out, tt.out) {
+			t.Errorf("AppendRune(%x) = %x; want %x", tt.in, out, tt.out)
 		}
 	}
 }
@@ -91,10 +124,26 @@ var decodeTests = []decodeTest{
 	{[]uint16{0xdfff}, []rune{0xfffd}},
 }
 
+func TestAllocationsDecode(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+
+	for _, tt := range decodeTests {
+		allocs := testing.AllocsPerRun(10, func() {
+			out := Decode(tt.in)
+			if out == nil {
+				t.Errorf("Decode(%x) = nil", tt.in)
+			}
+		})
+		if allocs > 0 {
+			t.Errorf("Decode allocated %v times", allocs)
+		}
+	}
+}
+
 func TestDecode(t *testing.T) {
 	for _, tt := range decodeTests {
 		out := Decode(tt.in)
-		if !reflect.DeepEqual(out, tt.out) {
+		if !slices.Equal(out, tt.out) {
 			t.Errorf("Decode(%x) = %x; want %x", tt.in, out, tt.out)
 		}
 	}
@@ -124,7 +173,7 @@ var surrogateTests = []struct {
 	r    rune
 	want bool
 }{
-	// from http://en.wikipedia.org/wiki/UTF-16
+	// from https://en.wikipedia.org/wiki/UTF-16
 	{'\u007A', false},     // LATIN SMALL LETTER Z
 	{'\u6C34', false},     // CJK UNIFIED IDEOGRAPH-6C34 (water)
 	{'\uFEFF', false},     // Byte Order Mark
@@ -144,6 +193,81 @@ func TestIsSurrogate(t *testing.T) {
 		got := IsSurrogate(tt.r)
 		if got != tt.want {
 			t.Errorf("%d: IsSurrogate(%q) = %v; want %v", i, tt.r, got, tt.want)
+		}
+	}
+}
+
+func BenchmarkDecodeValidASCII(b *testing.B) {
+	// "hello world"
+	data := []uint16{104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100}
+	for i := 0; i < b.N; i++ {
+		Decode(data)
+	}
+}
+
+func BenchmarkDecodeValidJapaneseChars(b *testing.B) {
+	// "日本語日本語日本語"
+	data := []uint16{26085, 26412, 35486, 26085, 26412, 35486, 26085, 26412, 35486}
+	for i := 0; i < b.N; i++ {
+		Decode(data)
+	}
+}
+
+func BenchmarkDecodeRune(b *testing.B) {
+	rs := make([]rune, 10)
+	// U+1D4D0 to U+1D4D4: MATHEMATICAL BOLD SCRIPT CAPITAL LETTERS
+	for i, u := range []rune{'𝓐', '𝓑', '𝓒', '𝓓', '𝓔'} {
+		rs[2*i], rs[2*i+1] = EncodeRune(u)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 5; j++ {
+			DecodeRune(rs[2*j], rs[2*j+1])
+		}
+	}
+}
+
+func BenchmarkEncodeValidASCII(b *testing.B) {
+	data := []rune{'h', 'e', 'l', 'l', 'o'}
+	for i := 0; i < b.N; i++ {
+		Encode(data)
+	}
+}
+
+func BenchmarkEncodeValidJapaneseChars(b *testing.B) {
+	data := []rune{'日', '本', '語'}
+	for i := 0; i < b.N; i++ {
+		Encode(data)
+	}
+}
+
+func BenchmarkAppendRuneValidASCII(b *testing.B) {
+	data := []rune{'h', 'e', 'l', 'l', 'o'}
+	a := make([]uint16, 0, len(data)*2)
+	for i := 0; i < b.N; i++ {
+		for _, u := range data {
+			a = AppendRune(a, u)
+		}
+		a = a[:0]
+	}
+}
+
+func BenchmarkAppendRuneValidJapaneseChars(b *testing.B) {
+	data := []rune{'日', '本', '語'}
+	a := make([]uint16, 0, len(data)*2)
+	for i := 0; i < b.N; i++ {
+		for _, u := range data {
+			a = AppendRune(a, u)
+		}
+		a = a[:0]
+	}
+}
+
+func BenchmarkEncodeRune(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, u := range []rune{'𝓐', '𝓑', '𝓒', '𝓓', '𝓔'} {
+			EncodeRune(u)
 		}
 	}
 }

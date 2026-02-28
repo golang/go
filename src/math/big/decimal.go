@@ -19,12 +19,22 @@
 
 package big
 
-// A decimal represents a floating-point number in decimal representation.
-// The value of a decimal x is x.mant * 10 ** x.exp with 0.5 <= x.mant < 1,
-// with the most-significant mantissa digit at index 0.
+// A decimal represents an unsigned floating-point number in decimal representation.
+// The value of a non-zero decimal d is d.mant * 10**d.exp with 0.1 <= d.mant < 1,
+// with the most-significant mantissa digit at index 0. For the zero decimal, the
+// mantissa length and exponent are 0.
+// The zero value for decimal represents a ready-to-use 0.0.
 type decimal struct {
 	mant []byte // mantissa ASCII digits, big-endian
-	exp  int    // exponent, valid if len(mant) > 0
+	exp  int    // exponent
+}
+
+// at returns the i'th mantissa digit, starting with the most significant digit at 0.
+func (d *decimal) at(i int) byte {
+	if 0 <= i && i < len(d.mant) {
+		return d.mant[i]
+	}
+	return '0'
 }
 
 // Maximum shift amount that can be done in one pass without overflow.
@@ -37,12 +47,16 @@ const maxShift = _W - 4
 // precision argument and keeping track of when a number was truncated early
 // (equivalent of "sticky bit" in binary rounding).
 
+// TODO(gri) Along the same lines, enforce some limit to shift magnitudes
+// to avoid "infinitely" long running conversions (until we run out of space).
+
 // Init initializes x to the decimal representation of m << shift (for
 // shift >= 0), or m >> -shift (for shift < 0).
 func (x *decimal) init(m nat, shift int) {
 	// special case 0
 	if len(m) == 0 {
 		x.mant = x.mant[:0]
+		x.exp = 0
 		return
 	}
 
@@ -55,18 +69,18 @@ func (x *decimal) init(m nat, shift int) {
 		if s >= ntz {
 			s = ntz // shift at most ntz bits
 		}
-		m = nat(nil).shr(m, s)
+		m = nat(nil).rsh(m, s)
 		shift += int(s)
 	}
 
 	// Do any shift left in binary representation.
 	if shift > 0 {
-		m = nat(nil).shl(m, uint(shift))
+		m = nat(nil).lsh(m, uint(shift))
 		shift = 0
 	}
 
 	// Convert mantissa into decimal representation.
-	s := m.decimalString() // TODO(gri) avoid string conversion here
+	s := m.utoa(10)
 	n := len(s)
 	x.exp = n
 	// Trim trailing zeros; instead the exponent is tracking
@@ -79,21 +93,15 @@ func (x *decimal) init(m nat, shift int) {
 	// Do any (remaining) shift right in decimal representation.
 	if shift < 0 {
 		for shift < -maxShift {
-			shr(x, maxShift)
+			rsh(x, maxShift)
 			shift += maxShift
 		}
-		shr(x, uint(-shift))
+		rsh(x, uint(-shift))
 	}
 }
 
-// Possibly optimization: The current implementation of nat.string takes
-// a charset argument. When a right shift is needed, we could provide
-// "\x00\x01...\x09" instead of "012..9" (as in nat.decimalString) and
-// avoid the repeated +'0' and -'0' operations in decimal.shr (and do a
-// single +'0' pass at the end).
-
-// shr implements x >> s, for s <= maxShift.
-func shr(x *decimal, s uint) {
+// rsh implements x >> s, for s <= maxShift.
+func rsh(x *decimal, s uint) {
 	// Division by 1<<s using shift-and-subtract algorithm.
 
 	// pick up enough leading digits to cover first shift
@@ -117,11 +125,12 @@ func shr(x *decimal, s uint) {
 
 	// read a digit, write a digit
 	w := 0 // write index
+	mask := Word(1)<<s - 1
 	for r < len(x.mant) {
 		ch := Word(x.mant[r])
 		r++
 		d := n >> s
-		n -= d << s
+		n &= mask // n -= d << s
 		x.mant[w] = byte(d + '0')
 		w++
 		n = n*10 + ch - '0'
@@ -130,7 +139,7 @@ func shr(x *decimal, s uint) {
 	// write extra digits that still fit
 	for n > 0 && w < len(x.mant) {
 		d := n >> s
-		n -= d << s
+		n &= mask
 		x.mant[w] = byte(d + '0')
 		w++
 		n = n * 10
@@ -140,7 +149,7 @@ func shr(x *decimal, s uint) {
 	// append additional digits that didn't fit
 	for n > 0 {
 		d := n >> s
-		n -= d << s
+		n &= mask
 		x.mant = append(x.mant, byte(d+'0'))
 		n = n * 10
 	}
@@ -157,18 +166,21 @@ func (x *decimal) String() string {
 	switch {
 	case x.exp <= 0:
 		// 0.00ddd
+		buf = make([]byte, 0, 2+(-x.exp)+len(x.mant))
 		buf = append(buf, "0."...)
 		buf = appendZeros(buf, -x.exp)
 		buf = append(buf, x.mant...)
 
 	case /* 0 < */ x.exp < len(x.mant):
 		// dd.ddd
+		buf = make([]byte, 0, 1+len(x.mant))
 		buf = append(buf, x.mant[:x.exp]...)
 		buf = append(buf, '.')
 		buf = append(buf, x.mant[x.exp:]...)
 
 	default: // len(x.mant) <= x.exp
 		// ddd00
+		buf = make([]byte, 0, x.exp)
 		buf = append(buf, x.mant...)
 		buf = appendZeros(buf, x.exp-len(x.mant))
 	}
@@ -252,4 +264,7 @@ func trim(x *decimal) {
 		i--
 	}
 	x.mant = x.mant[:i]
+	if i == 0 {
+		x.exp = 0
+	}
 }

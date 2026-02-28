@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -17,5 +17,6 @@ func bar() (T, string, T) { // ERROR "undefined"
 func main() {
 	var x, y, z int
 	x, y = foo()
-	x, y, z = bar() // ERROR "cannot (use type|assign) string"
+	x, y, z = bar() // ERROR "cannot (use type|assign|use.*type) string|"
+	_, _, _ = x, y, z
 }

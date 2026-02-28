@@ -1,0 +1,43 @@
+# Regression test for GOPATH validation in GOPATH mode.
+env GO111MODULE=off
+
+env ORIG_GOPATH=$GOPATH
+
+# The literal path '.' in GOPATH should be rejected.
+env GOPATH=.
+! go build go-cmd-test/helloworld.go
+stderr 'GOPATH entry is relative'
+
+# It should still be rejected if the requested package can be
+# found using another entry.
+env GOPATH=${:}$ORIG_GOPATH${:}.
+! go build go-cmd-test
+stderr 'GOPATH entry is relative'
+
+# GOPATH cannot be a relative subdirectory of the working directory.
+env ORIG_GOPATH
+stdout 'ORIG_GOPATH='$WORK[/\\]gopath
+cd $WORK
+env GOPATH=gopath
+! go build gopath/src/go-cmd-test/helloworld.go
+stderr 'GOPATH entry is relative'
+
+# Blank paths in GOPATH should be rejected as relative (issue 21928).
+env GOPATH=' '${:}$ORIG_GOPATH
+! go build go-cmd-test
+stderr 'GOPATH entry is relative'
+
+[short] stop
+
+# Empty paths in GOPATH should be ignored (issue 21928).
+env GOPATH=${:}$ORIG_GOPATH
+env GOPATH
+go install go-cmd-test
+exists $ORIG_GOPATH/bin/go-cmd-test$GOEXE
+
+-- go-cmd-test/helloworld.go --
+package main
+
+func main() {
+	println("hello world")
+}

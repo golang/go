@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 
 package p
 
-type T struct{ T } // ERROR "invalid recursive type T"
+type T struct{ T } // ERROR "invalid recursive type.*T"
 
 func f() {
 	println(T{} == T{})

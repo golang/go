@@ -1,0 +1,92 @@
+-- input --
+Some text.
+
+An Old Heading
+
+Not An Old Heading.
+
+And some text.
+
+# A New Heading.
+
+And some more text.
+
+# Not a heading,
+because text follows it.
+
+Because text precedes it,
+# not a heading.
+
+## Not a heading either.
+
+-- gofmt --
+Some text.
+
+# An Old Heading
+
+Not An Old Heading.
+
+And some text.
+
+# A New Heading.
+
+And some more text.
+
+# Not a heading,
+because text follows it.
+
+Because text precedes it,
+# not a heading.
+
+## Not a heading either.
+
+-- text --
+Some text.
+
+# An Old Heading
+
+Not An Old Heading.
+
+And some text.
+
+# A New Heading.
+
+And some more text.
+
+# Not a heading, because text follows it.
+
+Because text precedes it, # not a heading.
+
+## Not a heading either.
+
+-- markdown --
+Some text.
+
+### An Old Heading {#hdr-An_Old_Heading}
+
+Not An Old Heading.
+
+And some text.
+
+### A New Heading. {#hdr-A_New_Heading_}
+
+And some more text.
+
+\# Not a heading, because text follows it.
+
+Because text precedes it, # not a heading.
+
+\## Not a heading either.
+
+-- html --
+<p>Some text.
+<h3 id="hdr-An_Old_Heading">An Old Heading</h3>
+<p>Not An Old Heading.
+<p>And some text.
+<h3 id="hdr-A_New_Heading_">A New Heading.</h3>
+<p>And some more text.
+<p># Not a heading,
+because text follows it.
+<p>Because text precedes it,
+# not a heading.
+<p>## Not a heading either.

@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,7 +6,9 @@ package exec
 
 import (
 	"errors"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -19,7 +21,7 @@ func chkStat(file string) error {
 		return err
 	}
 	if d.IsDir() {
-		return os.ErrPermission
+		return fs.ErrPermission
 	}
 	return nil
 }
@@ -40,84 +42,168 @@ func findExecutable(file string, exts []string) (string, error) {
 		if chkStat(file) == nil {
 			return file, nil
 		}
+		// Keep checking exts below, so that programs with weird names
+		// like "foo.bat.exe" will resolve instead of failing.
 	}
 	for _, e := range exts {
 		if f := file + e; chkStat(f) == nil {
 			return f, nil
 		}
 	}
-	return ``, os.ErrNotExist
+	if hasExt(file) {
+		return "", fs.ErrNotExist
+	}
+	return "", ErrNotFound
 }
 
-// LookPath searches for an executable binary named file
-// in the directories named by the PATH environment variable.
-// If file contains a slash, it is tried directly and the PATH is not consulted.
-// LookPath also uses PATHEXT environment variable to match
-// a suitable candidate.
-// The result may be an absolute path or a path relative to the current directory.
-func LookPath(file string) (f string, err error) {
-	x := os.Getenv(`PATHEXT`)
-	if x == `` {
-		x = `.COM;.EXE;.BAT;.CMD`
+func lookPath(file string) (string, error) {
+	if err := validateLookPath(file); err != nil {
+		return "", &Error{file, err}
 	}
-	exts := []string{}
-	for _, e := range strings.Split(strings.ToLower(x), `;`) {
-		if e == "" {
-			continue
-		}
-		if e[0] != '.' {
-			e = "." + e
-		}
-		exts = append(exts, e)
+
+	return lookPathExts(file, pathExt())
+}
+
+// lookExtensions finds windows executable by its dir and path.
+// It uses LookPath to try appropriate extensions.
+// lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
+//
+// If the path already has an extension found in PATHEXT,
+// lookExtensions returns it directly without searching
+// for additional extensions. For example,
+// "C:\foo\example.com" would be returned as-is even if the
+// program is actually "C:\foo\example.com.exe".
+func lookExtensions(path, dir string) (string, error) {
+	if err := validateLookPath(path); err != nil {
+		return "", &Error{path, err}
 	}
-	if strings.IndexAny(file, `:\/`) != -1 {
-		if f, err = findExecutable(file, exts); err == nil {
-			return
-		}
-		return ``, &Error{file, err}
+
+	if filepath.Base(path) == path {
+		path = "." + string(filepath.Separator) + path
 	}
-	if f, err = findExecutable(`.\`+file, exts); err == nil {
-		return
-	}
-	if pathenv := os.Getenv(`PATH`); pathenv != `` {
-		for _, dir := range splitList(pathenv) {
-			if f, err = findExecutable(dir+`\`+file, exts); err == nil {
-				return
+	exts := pathExt()
+	if ext := filepath.Ext(path); ext != "" {
+		for _, e := range exts {
+			if strings.EqualFold(ext, e) {
+				// Assume that path has already been resolved.
+				return path, nil
 			}
 		}
 	}
-	return ``, &Error{file, ErrNotFound}
+	if dir == "" {
+		return lookPathExts(path, exts)
+	}
+	if filepath.VolumeName(path) != "" {
+		return lookPathExts(path, exts)
+	}
+	if len(path) > 1 && os.IsPathSeparator(path[0]) {
+		return lookPathExts(path, exts)
+	}
+	dirandpath := filepath.Join(dir, path)
+	// We assume that LookPath will only add file extension.
+	lp, err := lookPathExts(dirandpath, exts)
+	if err != nil {
+		return "", err
+	}
+	ext := strings.TrimPrefix(lp, dirandpath)
+	return path + ext, nil
 }
 
-func splitList(path string) []string {
-	// The same implementation is used in SplitList in path/filepath;
-	// consider changing path/filepath when changing this.
+func pathExt() []string {
+	var exts []string
+	x := os.Getenv(`PATHEXT`)
+	if x != "" {
+		for e := range strings.SplitSeq(strings.ToLower(x), `;`) {
+			if e == "" {
+				continue
+			}
+			if e[0] != '.' {
+				e = "." + e
+			}
+			exts = append(exts, e)
+		}
+	} else {
+		exts = []string{".com", ".exe", ".bat", ".cmd"}
+	}
+	return exts
+}
 
-	if path == "" {
-		return []string{}
+// lookPathExts implements LookPath for the given PATHEXT list.
+func lookPathExts(file string, exts []string) (string, error) {
+	if strings.ContainsAny(file, `:\/`) {
+		f, err := findExecutable(file, exts)
+		if err == nil {
+			return f, nil
+		}
+		return "", &Error{file, err}
 	}
 
-	// Split path, respecting but preserving quotes.
-	list := []string{}
-	start := 0
-	quo := false
-	for i := 0; i < len(path); i++ {
-		switch c := path[i]; {
-		case c == '"':
-			quo = !quo
-		case c == os.PathListSeparator && !quo:
-			list = append(list, path[start:i])
-			start = i + 1
+	// On Windows, creating the NoDefaultCurrentDirectoryInExePath
+	// environment variable (with any value or no value!) signals that
+	// path lookups should skip the current directory.
+	// In theory we are supposed to call NeedCurrentDirectoryForExePathW
+	// "as the registry location of this environment variable can change"
+	// but that seems exceedingly unlikely: it would break all users who
+	// have configured their environment this way!
+	// https://docs.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-needcurrentdirectoryforexepathw
+	// See also go.dev/issue/43947.
+	var (
+		dotf   string
+		dotErr error
+	)
+	if _, found := os.LookupEnv("NoDefaultCurrentDirectoryInExePath"); !found {
+		if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
+			if execerrdot.Value() == "0" {
+				execerrdot.IncNonDefault()
+				return f, nil
+			}
+			dotf, dotErr = f, &Error{file, ErrDot}
 		}
 	}
-	list = append(list, path[start:])
 
-	// Remove quotes.
-	for i, s := range list {
-		if strings.Contains(s, `"`) {
-			list[i] = strings.Replace(s, `"`, ``, -1)
+	path := os.Getenv("path")
+	for _, dir := range filepath.SplitList(path) {
+		if dir == "" {
+			// Skip empty entries, consistent with what PowerShell does.
+			// (See https://go.dev/issue/61493#issuecomment-1649724826.)
+			continue
+		}
+
+		if f, err := findExecutable(filepath.Join(dir, file), exts); err == nil {
+			if dotErr != nil {
+				// https://go.dev/issue/53536: if we resolved a relative path implicitly,
+				// and it is the same executable that would be resolved from the explicit %PATH%,
+				// prefer the explicit name for the executable (and, likely, no error) instead
+				// of the equivalent implicit name with ErrDot.
+				//
+				// Otherwise, return the ErrDot for the implicit path as soon as we find
+				// out that the explicit one doesn't match.
+				dotfi, dotfiErr := os.Lstat(dotf)
+				fi, fiErr := os.Lstat(f)
+				if dotfiErr != nil || fiErr != nil || !os.SameFile(dotfi, fi) {
+					return dotf, dotErr
+				}
+			}
+
+			if !filepath.IsAbs(f) {
+				if execerrdot.Value() != "0" {
+					// If this is the same relative path that we already found,
+					// dotErr is non-nil and we already checked it above.
+					// Otherwise, record this path as the one to which we must resolve,
+					// with or without a dotErr.
+					if dotErr == nil {
+						dotf, dotErr = f, &Error{file, ErrDot}
+					}
+					continue
+				}
+				execerrdot.IncNonDefault()
+			}
+			return f, nil
 		}
 	}
 
-	return list
+	if dotErr != nil {
+		return dotf, dotErr
+	}
+	return "", &Error{file, ErrNotFound}
 }

@@ -10,7 +10,7 @@ package math
 
 // The original C code and the long comment below are
 // from FreeBSD's /usr/src/lib/msun/src/e_jn.c and
-// came with this notice.  The go code is a simplified
+// came with this notice. The go code is a simplified
 // version of the original C.
 //
 // ====================================================
@@ -48,6 +48,7 @@ package math
 // Jn returns the order-n Bessel function of the first kind.
 //
 // Special cases are:
+//
 //	Jn(n, ±Inf) = 0
 //	Jn(n, NaN) = NaN
 func Jn(n int, x float64) float64 {
@@ -103,15 +104,15 @@ func Jn(n int, x float64) float64 {
 			//                 3     s+c             c-s
 
 			var temp float64
-			switch n & 3 {
+			switch s, c := Sincos(x); n & 3 {
 			case 0:
-				temp = Cos(x) + Sin(x)
+				temp = c + s
 			case 1:
-				temp = -Cos(x) + Sin(x)
+				temp = -c + s
 			case 2:
-				temp = -Cos(x) - Sin(x)
+				temp = -c - s
 			case 3:
-				temp = Cos(x) - Sin(x)
+				temp = c - s
 			}
 			b = (1 / SqrtPi) * temp / Sqrt(x)
 		} else {
@@ -174,7 +175,7 @@ func Jn(n int, x float64) float64 {
 			q1 := w*z - 1
 			k := 1
 			for q1 < 1e9 {
-				k += 1
+				k++
 				z += h
 				q0, q1 = q1, z*q1-q0
 			}
@@ -200,13 +201,11 @@ func Jn(n int, x float64) float64 {
 				for i := n - 1; i > 0; i-- {
 					di := float64(i + i)
 					a, b = b, b*di/x-a
-					di -= 2
 				}
 			} else {
 				for i := n - 1; i > 0; i-- {
 					di := float64(i + i)
 					a, b = b, b*di/x-a
-					di -= 2
 					// scale b to avoid spurious overflow
 					if b > 1e100 {
 						a /= b
@@ -227,11 +226,12 @@ func Jn(n int, x float64) float64 {
 // Yn returns the order-n Bessel function of the second kind.
 //
 // Special cases are:
+//
 //	Yn(n, +Inf) = 0
-//	Yn(n > 0, 0) = -Inf
+//	Yn(n ≥ 0, 0) = -Inf
 //	Yn(n < 0, 0) = +Inf if n is odd, -Inf if n is even
-//	Y1(n, x < 0) = NaN
-//	Y1(n, NaN) = NaN
+//	Yn(n, x < 0) = NaN
+//	Yn(n, NaN) = NaN
 func Yn(n int, x float64) float64 {
 	const Two302 = 1 << 302 // 2**302 0x52D0000000000000
 	// special cases
@@ -280,15 +280,15 @@ func Yn(n int, x float64) float64 {
 		//		   3	 s+c		 c-s
 
 		var temp float64
-		switch n & 3 {
+		switch s, c := Sincos(x); n & 3 {
 		case 0:
-			temp = Sin(x) - Cos(x)
+			temp = s - c
 		case 1:
-			temp = -Sin(x) - Cos(x)
+			temp = -s - c
 		case 2:
-			temp = -Sin(x) + Cos(x)
+			temp = -s + c
 		case 3:
-			temp = Sin(x) + Cos(x)
+			temp = s + c
 		}
 		b = (1 / SqrtPi) * temp / Sqrt(x)
 	} else {

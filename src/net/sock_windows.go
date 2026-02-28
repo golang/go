@@ -1,24 +1,27 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package net
 
-import "syscall"
+import (
+	"internal/syscall/windows"
+	"os"
+	"syscall"
+)
 
 func maxListenerBacklog() int {
-	// TODO: Implement this
-	// NOTE: Never return a number bigger than 1<<16 - 1. See issue 5030.
+	// When the socket backlog is SOMAXCONN, Windows will set the backlog to
+	// "a reasonable maximum value".
+	// See: https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-listen
 	return syscall.SOMAXCONN
 }
 
-func sysSocket(f, t, p int) (syscall.Handle, error) {
-	// See ../syscall/exec_unix.go for description of ForkLock.
-	syscall.ForkLock.RLock()
-	s, err := syscall.Socket(f, t, p)
-	if err == nil {
-		syscall.CloseOnExec(s)
+func sysSocket(family, sotype, proto int) (syscall.Handle, error) {
+	s, err := wsaSocketFunc(int32(family), int32(sotype), int32(proto),
+		nil, 0, windows.WSA_FLAG_OVERLAPPED|windows.WSA_FLAG_NO_HANDLE_INHERIT)
+	if err != nil {
+		return syscall.InvalidHandle, os.NewSyscallError("socket", err)
 	}
-	syscall.ForkLock.RUnlock()
-	return s, err
+	return s, nil
 }

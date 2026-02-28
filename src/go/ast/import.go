@@ -5,8 +5,9 @@
 package ast
 
 import (
+	"cmp"
 	"go/token"
-	"sort"
+	"slices"
 	"strconv"
 )
 
@@ -30,24 +31,40 @@ func SortImports(fset *token.FileSet, f *File) {
 		i := 0
 		specs := d.Specs[:0]
 		for j, s := range d.Specs {
-			if j > i && fset.Position(s.Pos()).Line > 1+fset.Position(d.Specs[j-1].End()).Line {
-				// j begins a new run.  End this one.
-				specs = append(specs, sortSpecs(fset, f, d.Specs[i:j])...)
+			if j > i && lineAt(fset, s.Pos()) > 1+lineAt(fset, d.Specs[j-1].End()) {
+				// j begins a new run. End this one.
+				specs = append(specs, sortSpecs(fset, f, d, d.Specs[i:j])...)
 				i = j
 			}
 		}
-		specs = append(specs, sortSpecs(fset, f, d.Specs[i:])...)
+		specs = append(specs, sortSpecs(fset, f, d, d.Specs[i:])...)
 		d.Specs = specs
 
 		// Deduping can leave a blank line before the rparen; clean that up.
 		if len(d.Specs) > 0 {
 			lastSpec := d.Specs[len(d.Specs)-1]
-			lastLine := fset.Position(lastSpec.Pos()).Line
-			if rParenLine := fset.Position(d.Rparen).Line; rParenLine > lastLine+1 {
-				fset.File(d.Rparen).MergeLine(rParenLine - 1)
+			lastLine := lineAt(fset, lastSpec.Pos())
+			rParenLine := lineAt(fset, d.Rparen)
+			for rParenLine > lastLine+1 {
+				rParenLine--
+				fset.File(d.Rparen).MergeLine(rParenLine)
 			}
 		}
 	}
+
+	// Make File.Imports order consistent.
+	f.Imports = f.Imports[:0]
+	for _, decl := range f.Decls {
+		if decl, ok := decl.(*GenDecl); ok && decl.Tok == token.IMPORT {
+			for _, spec := range decl.Specs {
+				f.Imports = append(f.Imports, spec.(*ImportSpec))
+			}
+		}
+	}
+}
+
+func lineAt(fset *token.FileSet, pos token.Pos) int {
+	return fset.PositionFor(pos, false).Line
 }
 
 func importPath(s Spec) string {
@@ -87,7 +104,12 @@ type posSpan struct {
 	End   token.Pos
 }
 
-func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
+type cgPos struct {
+	left bool // true if comment is to the left of the spec, false otherwise.
+	cg   *CommentGroup
+}
+
+func sortSpecs(fset *token.FileSet, f *File, d *GenDecl, specs []Spec) []Spec {
 	// Can't short-circuit here even if specs are already sorted,
 	// since they might yet need deduplication.
 	// A lone import, however, may be safely ignored.
@@ -102,41 +124,80 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 	}
 
 	// Identify comments in this range.
-	// Any comment from pos[0].Start to the final line counts.
-	lastLine := fset.Position(pos[len(pos)-1].End).Line
-	cstart := len(f.Comments)
-	cend := len(f.Comments)
+	begSpecs := pos[0].Start
+	endSpecs := pos[len(pos)-1].End
+	beg := fset.File(begSpecs).LineStart(lineAt(fset, begSpecs))
+	endLine := lineAt(fset, endSpecs)
+	endFile := fset.File(endSpecs)
+	var end token.Pos
+	if endLine == endFile.LineCount() {
+		end = endSpecs
+	} else {
+		end = endFile.LineStart(endLine + 1) // beginning of next line
+	}
+	first := len(f.Comments)
+	last := -1
 	for i, g := range f.Comments {
-		if g.Pos() < pos[0].Start {
-			continue
-		}
-		if i < cstart {
-			cstart = i
-		}
-		if fset.Position(g.End()).Line > lastLine {
-			cend = i
+		if g.End() >= end {
 			break
 		}
+		// g.End() < end
+		if beg <= g.Pos() {
+			// comment is within the range [beg, end[ of import declarations
+			if i < first {
+				first = i
+			}
+			if i > last {
+				last = i
+			}
+		}
 	}
-	comments := f.Comments[cstart:cend]
 
-	// Assign each comment to the import spec preceding it.
-	importComment := map[*ImportSpec][]*CommentGroup{}
+	var comments []*CommentGroup
+	if last >= 0 {
+		comments = f.Comments[first : last+1]
+	}
+
+	// Assign each comment to the import spec on the same line.
+	importComments := map[*ImportSpec][]cgPos{}
 	specIndex := 0
 	for _, g := range comments {
 		for specIndex+1 < len(specs) && pos[specIndex+1].Start <= g.Pos() {
 			specIndex++
 		}
+		var left bool
+		// A block comment can appear before the first import spec.
+		if specIndex == 0 && pos[specIndex].Start > g.Pos() {
+			left = true
+		} else if specIndex+1 < len(specs) && // Or it can appear on the left of an import spec.
+			lineAt(fset, pos[specIndex].Start)+1 == lineAt(fset, g.Pos()) {
+			specIndex++
+			left = true
+		}
 		s := specs[specIndex].(*ImportSpec)
-		importComment[s] = append(importComment[s], g)
+		importComments[s] = append(importComments[s], cgPos{left: left, cg: g})
 	}
 
 	// Sort the import specs by import path.
 	// Remove duplicates, when possible without data loss.
 	// Reassign the import paths to have the same position sequence.
-	// Reassign each comment to abut the end of its spec.
+	// Reassign each comment to the spec on the same line.
 	// Sort the comments by new position.
-	sort.Sort(byImportSpec(specs))
+	slices.SortFunc(specs, func(a, b Spec) int {
+		ipath := importPath(a)
+		jpath := importPath(b)
+		r := cmp.Compare(ipath, jpath)
+		if r != 0 {
+			return r
+		}
+		iname := importName(a)
+		jname := importName(b)
+		r = cmp.Compare(iname, jname)
+		if r != 0 {
+			return r
+		}
+		return cmp.Compare(importComment(a), importComment(b))
+	})
 
 	// Dedup. Thanks to our sorting, we can just consider
 	// adjacent pairs of imports.
@@ -146,7 +207,11 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 			deduped = append(deduped, s)
 		} else {
 			p := s.Pos()
-			fset.File(p).MergeLine(fset.Position(p).Line)
+			// This function is exited early when len(specs) <= 1,
+			// so d.Rparen must be populated (d.Rparen.IsValid() == true).
+			if l := lineAt(fset, p); l != lineAt(fset, d.Rparen) {
+				fset.File(p).MergeLine(l)
+			}
 		}
 	}
 	specs = deduped
@@ -157,40 +222,37 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 		if s.Name != nil {
 			s.Name.NamePos = pos[i].Start
 		}
-		s.Path.ValuePos = pos[i].Start
+		updateBasicLitPos(s.Path, pos[i].Start)
 		s.EndPos = pos[i].End
-		for _, g := range importComment[s] {
-			for _, c := range g.List {
-				c.Slash = pos[i].End
+		for _, g := range importComments[s] {
+			for _, c := range g.cg.List {
+				if g.left {
+					c.Slash = pos[i].Start - 1
+				} else {
+					// An import spec can have both block comment and a line comment
+					// to its right. In that case, both of them will have the same pos.
+					// But while formatting the AST, the line comment gets moved to
+					// after the block comment.
+					c.Slash = pos[i].End
+				}
 			}
 		}
 	}
 
-	sort.Sort(byCommentPos(comments))
+	slices.SortFunc(comments, func(a, b *CommentGroup) int {
+		return cmp.Compare(a.Pos(), b.Pos())
+	})
 
 	return specs
 }
 
-type byImportSpec []Spec // slice of *ImportSpec
-
-func (x byImportSpec) Len() int      { return len(x) }
-func (x byImportSpec) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-func (x byImportSpec) Less(i, j int) bool {
-	ipath := importPath(x[i])
-	jpath := importPath(x[j])
-	if ipath != jpath {
-		return ipath < jpath
+// updateBasicLitPos updates lit.Pos,
+// ensuring that lit.End is displaced by the same amount.
+// (See https://go.dev/issue/76395.)
+func updateBasicLitPos(lit *BasicLit, pos token.Pos) {
+	len := lit.End() - lit.Pos()
+	lit.ValuePos = pos
+	if lit.ValueEnd.IsValid() {
+		lit.ValueEnd = pos + len
 	}
-	iname := importName(x[i])
-	jname := importName(x[j])
-	if iname != jname {
-		return iname < jname
-	}
-	return importComment(x[i]) < importComment(x[j])
 }
-
-type byCommentPos []*CommentGroup
-
-func (x byCommentPos) Len() int           { return len(x) }
-func (x byCommentPos) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x byCommentPos) Less(i, j int) bool { return x[i].Pos() < x[j].Pos() }

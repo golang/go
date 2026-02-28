@@ -1,0 +1,58 @@
+# Regression test for golang.org/issue/31481.
+
+env GO111MODULE=on
+
+# golang.org/issue/31481: an explicit flag should make directories in the module
+# cache writable in order to work around the historical inability of 'rm -rf' to
+# forcibly remove files in unwritable directories.
+go get -modcacherw rsc.io/quote@v1.5.2
+cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+
+# After adding an extraneous file, 'go mod verify' should fail.
+! go mod verify
+
+# However, files within those directories should still be read-only to avoid
+# accidental mutations.
+[!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
+
+# If all 'go' commands ran with the flag, the system's 'rm' binary
+# should be able to remove the module cache if the '-rf' flags are set.
+[!GOOS:windows] [exec:rm] exec rm -rf $GOPATH/pkg/mod
+[!GOOS:windows] [!exec:rm] go clean -modcache
+[GOOS:windows] [exec:cmd.exe] exec cmd.exe /c rmdir /s /q $GOPATH\pkg\mod
+[GOOS:windows] [!exec:cmd.exe] go clean -modcache
+! exists $GOPATH/pkg/mod
+
+# The directories in the module cache should by default be unwritable,
+# so that tests and tools will not accidentally add extraneous files to them.
+# Windows does not respect FILE_ATTRIBUTE_READONLY on directories, according
+# to MSDN, so there we disable testing whether the directory itself is
+# unwritable.
+go get rsc.io/quote@latest
+[!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
+[!GOOS:windows] [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+! exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+
+
+# Repeat part of the test with 'go mod download' instead of 'go get' to verify
+# -modcacherw is supported on 'go mod' subcommands.
+go clean -modcache
+go mod download -modcacherw rsc.io/quote
+cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+! go mod verify
+[!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
+
+# Repeat part of the test with 'go tool'
+go mod edit -tool example.com/tools/cmd/hello -require example.com/tools@v1.0.0
+go mod download -modcacherw example.com/tools
+go clean -modcache
+go tool -modcacherw hello
+cp $WORK/extraneous.txt $GOPATH/pkg/mod/example.com/tools@v1.0.0/extraneous_file.go
+! go mod verify
+[!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/example.com/tools@v1.0.0/cmd/hello/hello.go
+
+
+-- $WORK/extraneous.txt --
+module oops
+-- go.mod --
+module golang.org/issue/31481

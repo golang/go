@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,20 +8,25 @@ package syscall
 
 import (
 	errorspkg "errors"
+	"internal/asan"
+	"internal/bytealg"
+	"internal/msan"
+	"internal/oserror"
+	"internal/race"
+	"internal/strconv"
 	"sync"
-	"unicode/utf16"
 	"unsafe"
 )
-
-//go:generate go run mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go security_windows.go
 
 type Handle uintptr
 
 const InvalidHandle = ^Handle(0)
 
-// StringToUTF16 is deprecated. Use UTF16FromString instead.
-// If s contains a NUL byte this function panics instead of
-// returning an error.
+// StringToUTF16 returns the UTF-16 encoding of the UTF-8 string s,
+// with a terminating NUL added. If s contains a NUL byte this
+// function panics instead of returning an error.
+//
+// Deprecated: Use [UTF16FromString] instead.
 func StringToUTF16(s string) []uint16 {
 	a, err := UTF16FromString(s)
 	if err != nil {
@@ -32,36 +37,79 @@ func StringToUTF16(s string) []uint16 {
 
 // UTF16FromString returns the UTF-16 encoding of the UTF-8 string
 // s, with a terminating NUL added. If s contains a NUL byte at any
-// location, it returns (nil, EINVAL).
+// location, it returns (nil, [EINVAL]). Unpaired surrogates
+// are encoded using WTF-8.
 func UTF16FromString(s string) ([]uint16, error) {
-	for i := 0; i < len(s); i++ {
-		if s[i] == 0 {
-			return nil, EINVAL
-		}
+	if bytealg.IndexByteString(s, 0) != -1 {
+		return nil, EINVAL
 	}
-	return utf16.Encode([]rune(s + "\x00")), nil
+	// Valid UTF-8 characters between 1 and 3 bytes require one uint16.
+	// Valid UTF-8 characters of 4 bytes require two uint16.
+	// Bytes with invalid UTF-8 encoding require maximum one uint16 per byte.
+	// So the number of UTF-8 code units (len(s)) is always greater or
+	// equal than the number of UTF-16 code units.
+	// Also account for the terminating NUL character.
+	buf := make([]uint16, 0, len(s)+1)
+	buf = encodeWTF16(s, buf)
+	return append(buf, 0), nil
 }
 
 // UTF16ToString returns the UTF-8 encoding of the UTF-16 sequence s,
-// with a terminating NUL removed.
+// with a terminating NUL removed. Unpaired surrogates are decoded
+// using WTF-8 instead of UTF-8 encoding.
 func UTF16ToString(s []uint16) string {
+	maxLen := 0
 	for i, v := range s {
 		if v == 0 {
 			s = s[0:i]
 			break
 		}
+		switch {
+		case v <= rune1Max:
+			maxLen += 1
+		case v <= rune2Max:
+			maxLen += 2
+		default:
+			// r is a non-surrogate that decodes to 3 bytes,
+			// or is an unpaired surrogate (also 3 bytes in WTF-8),
+			// or is one half of a valid surrogate pair.
+			// If it is half of a pair, we will add 3 for the second surrogate
+			// (total of 6) and overestimate by 2 bytes for the pair,
+			// since the resulting rune only requires 4 bytes.
+			maxLen += 3
+		}
 	}
-	return string(utf16.Decode(s))
+	buf := decodeWTF16(s, make([]byte, 0, maxLen))
+	return unsafe.String(unsafe.SliceData(buf), len(buf))
 }
 
-// StringToUTF16Ptr is deprecated. Use UTF16PtrFromString instead.
-// If s contains a NUL byte this function panics instead of
+// utf16PtrToString is like UTF16ToString, but takes *uint16
+// as a parameter instead of []uint16.
+func utf16PtrToString(p *uint16) string {
+	if p == nil {
+		return ""
+	}
+	end := unsafe.Pointer(p)
+	n := 0
+	for *(*uint16)(end) != 0 {
+		end = unsafe.Pointer(uintptr(end) + unsafe.Sizeof(*p))
+		n++
+	}
+	return UTF16ToString(unsafe.Slice(p, n))
+}
+
+// StringToUTF16Ptr returns pointer to the UTF-16 encoding of
+// the UTF-8 string s, with a terminating NUL added. If s
+// contains a NUL byte this function panics instead of
 // returning an error.
+//
+// Deprecated: Use [UTF16PtrFromString] instead.
 func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
 
 // UTF16PtrFromString returns pointer to the UTF-16 encoding of
 // the UTF-8 string s, with a terminating NUL added. If s
 // contains a NUL byte at any location, it returns (nil, EINVAL).
+// Unpaired surrogates are encoded using WTF-8.
 func UTF16PtrFromString(s string) (*uint16, error) {
 	a, err := UTF16FromString(s)
 	if err != nil {
@@ -70,12 +118,26 @@ func UTF16PtrFromString(s string) (*uint16, error) {
 	return &a[0], nil
 }
 
-func Getpagesize() int { return 4096 }
-
 // Errno is the Windows error number.
+//
+// Errno values can be tested against error values using [errors.Is].
+// For example:
+//
+//	_, _, err := syscall.Syscall(...)
+//	if errors.Is(err, fs.ErrNotExist) ...
 type Errno uintptr
 
 func langid(pri, sub uint16) uint32 { return uint32(sub)<<10 | uint32(pri) }
+
+// FormatMessage is deprecated (msgsrc should be uintptr, not uint32, but can
+// not be changed due to the Go 1 compatibility guarantee).
+//
+// Deprecated: Use FormatMessage from golang.org/x/sys/windows instead.
+func FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) {
+	return formatMessage(flags, uintptr(msgsrc), msgid, langid, buf, args)
+}
+
+var errnoErrorCache sync.Map
 
 func (e Errno) Error() string {
 	// deal with special go errors
@@ -83,20 +145,73 @@ func (e Errno) Error() string {
 	if 0 <= idx && idx < len(errors) {
 		return errors[idx]
 	}
+
+	cache := false
+	switch e {
+	case ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND:
+		if cached, ok := errnoErrorCache.Load(e); ok {
+			return cached.(string)
+		}
+		cache = true
+	}
+
+	result := e.error()
+	if cache {
+		errnoErrorCache.Store(e, result)
+	}
+	return result
+}
+
+func (e Errno) error() string {
 	// ask windows for the remaining errors
 	var flags uint32 = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_IGNORE_INSERTS
 	b := make([]uint16, 300)
-	n, err := FormatMessage(flags, 0, uint32(e), langid(LANG_ENGLISH, SUBLANG_ENGLISH_US), b, nil)
+	n, err := formatMessage(flags, 0, uint32(e), langid(LANG_ENGLISH, SUBLANG_ENGLISH_US), b, nil)
 	if err != nil {
-		n, err = FormatMessage(flags, 0, uint32(e), 0, b, nil)
+		n, err = formatMessage(flags, 0, uint32(e), 0, b, nil)
 		if err != nil {
-			return "winapi error #" + itoa(int(e))
+			return "winapi error #" + strconv.Itoa(int(e))
 		}
 	}
 	// trim terminating \r and \n
 	for ; n > 0 && (b[n-1] == '\n' || b[n-1] == '\r'); n-- {
 	}
-	return string(utf16.Decode(b[:n]))
+	return UTF16ToString(b[:n])
+}
+
+const (
+	_ERROR_NOT_ENOUGH_MEMORY    = Errno(8)
+	_ERROR_NOT_SUPPORTED        = Errno(50)
+	_ERROR_BAD_NETPATH          = Errno(53)
+	_ERROR_CALL_NOT_IMPLEMENTED = Errno(120)
+)
+
+func (e Errno) Is(target error) bool {
+	switch target {
+	case oserror.ErrPermission:
+		return e == ERROR_ACCESS_DENIED ||
+			e == EACCES ||
+			e == EPERM
+	case oserror.ErrExist:
+		return e == ERROR_ALREADY_EXISTS ||
+			e == ERROR_DIR_NOT_EMPTY ||
+			e == ERROR_FILE_EXISTS ||
+			e == EEXIST ||
+			e == ENOTEMPTY
+	case oserror.ErrNotExist:
+		return e == ERROR_FILE_NOT_FOUND ||
+			e == _ERROR_BAD_NETPATH ||
+			e == ERROR_PATH_NOT_FOUND ||
+			e == ENOENT
+	case errorspkg.ErrUnsupported:
+		return e == _ERROR_NOT_SUPPORTED ||
+			e == _ERROR_CALL_NOT_IMPLEMENTED ||
+			e == ENOSYS ||
+			e == ENOTSUP ||
+			e == EOPNOTSUPP ||
+			e == EWINDOWS
+	}
+	return false
 }
 
 func (e Errno) Temporary() bool {
@@ -107,20 +222,26 @@ func (e Errno) Timeout() bool {
 	return e == EAGAIN || e == EWOULDBLOCK || e == ETIMEDOUT
 }
 
-// Implemented in asm_windows.s
-func compileCallback(fn interface{}, cleanstack bool) uintptr
+// Implemented in runtime/syscall_windows.go.
+func compileCallback(fn any, cleanstack bool) uintptr
 
-// Converts a Go function to a function pointer conforming
-// to the stdcall calling convention. This is useful when
-// interoperating with Windows code requiring callbacks.
-func NewCallback(fn interface{}) uintptr {
+// NewCallback converts a Go function to a function pointer conforming to the stdcall calling convention.
+// This is useful when interoperating with Windows code requiring callbacks.
+// The argument is expected to be a function with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
+// Only a limited number of callbacks may be created in a single Go process, and any memory allocated
+// for these callbacks is never released.
+// Between NewCallback and NewCallbackCDecl, at least 1024 callbacks can always be created.
+func NewCallback(fn any) uintptr {
 	return compileCallback(fn, true)
 }
 
-// Converts a Go function to a function pointer conforming
-// to the cdecl calling convention. This is useful when
-// interoperating with Windows code requiring callbacks.
-func NewCallbackCDecl(fn interface{}) uintptr {
+// NewCallbackCDecl converts a Go function to a function pointer conforming to the cdecl calling convention.
+// This is useful when interoperating with Windows code requiring callbacks.
+// The argument is expected to be a function with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
+// Only a limited number of callbacks may be created in a single Go process, and any memory allocated
+// for these callbacks is never released.
+// Between NewCallback and NewCallbackCDecl, at least 1024 callbacks can always be created.
+func NewCallbackCDecl(fn any) uintptr {
 	return compileCallback(fn, false)
 }
 
@@ -131,11 +252,11 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	FreeLibrary(handle Handle) (err error)
 //sys	GetProcAddress(module Handle, procname string) (proc uintptr, err error)
 //sys	GetVersion() (ver uint32, err error)
-//sys	FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
+//sys	formatMessage(flags uint32, msgsrc uintptr, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
 //sys	ExitProcess(exitcode uint32)
-//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
-//sys	ReadFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
-//sys	WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
+//sys	createFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval == InvalidHandle || e1 == ERROR_ALREADY_EXISTS ] = CreateFileW
+//sys	readFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = ReadFile
+//sys	writeFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = WriteFile
 //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
 //sys	CloseHandle(handle Handle) (err error)
 //sys	GetStdHandle(stdhandle int) (handle Handle, err error) [failretval==InvalidHandle]
@@ -153,16 +274,17 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	SetEndOfFile(handle Handle) (err error)
 //sys	GetSystemTimeAsFileTime(time *Filetime)
 //sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, err error) [failretval==0xffffffff]
-//sys	CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uint32, threadcnt uint32) (handle Handle, err error)
-//sys	GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (err error)
-//sys	PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlapped *Overlapped) (err error)
+//sys	createIoCompletionPort(filehandle Handle, cphandle Handle, key uintptr, threadcnt uint32) (handle Handle, err error) = CreateIoCompletionPort
+//sys	getQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uintptr, overlapped **Overlapped, timeout uint32) (err error) = GetQueuedCompletionStatus
+//sys	postQueuedCompletionStatus(cphandle Handle, qty uint32, key uintptr, overlapped *Overlapped) (err error) = PostQueuedCompletionStatus
 //sys	CancelIo(s Handle) (err error)
 //sys	CancelIoEx(s Handle, o *Overlapped) (err error)
 //sys	CreateProcess(appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (err error) = CreateProcessW
+//sys	CreateProcessAsUser(token Token, appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (err error) = advapi32.CreateProcessAsUserW
 //sys	OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle Handle, err error)
 //sys	TerminateProcess(handle Handle, exitcode uint32) (err error)
 //sys	GetExitCodeProcess(handle Handle, exitcode *uint32) (err error)
-//sys	GetStartupInfo(startupInfo *StartupInfo) (err error) = GetStartupInfoW
+//sys	getStartupInfo(startupInfo *StartupInfo) = GetStartupInfoW
 //sys	GetCurrentProcess() (pseudoHandle Handle, err error)
 //sys	GetProcessTimes(handle Handle, creationTime *Filetime, exitTime *Filetime, kernelTime *Filetime, userTime *Filetime) (err error)
 //sys	DuplicateHandle(hSourceProcessHandle Handle, hSourceHandle Handle, hTargetProcessHandle Handle, lpTargetHandle *Handle, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (err error)
@@ -184,6 +306,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	GetCommandLine() (cmd *uint16) = kernel32.GetCommandLineW
 //sys	CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, err error) [failretval==nil] = shell32.CommandLineToArgvW
 //sys	LocalFree(hmem Handle) (handle Handle, err error) [failretval!=0]
+//sys	localAlloc(flags uint32, length uint32) (ptr uintptr, err error) = kernel32.LocalAlloc
 //sys	SetHandleInformation(handle Handle, mask uint32, flags uint32) (err error)
 //sys	FlushFileBuffers(handle Handle) (err error)
 //sys	GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (n uint32, err error) = kernel32.GetFullPathNameW
@@ -198,7 +321,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	TransmitFile(s Handle, handle Handle, bytesToWrite uint32, bytsPerSend uint32, overlapped *Overlapped, transmitFileBuf *TransmitFileBuffers, flags uint32) (err error) = mswsock.TransmitFile
 //sys	ReadDirectoryChanges(handle Handle, buf *byte, buflen uint32, watchSubTree bool, mask uint32, retlen *uint32, overlapped *Overlapped, completionRoutine uintptr) (err error) = kernel32.ReadDirectoryChangesW
 //sys	CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, err error) = crypt32.CertOpenSystemStoreW
-//sys   CertOpenStore(storeProvider uintptr, msgAndCertEncodingType uint32, cryptProv uintptr, flags uint32, para uintptr) (handle Handle, err error) [failretval==InvalidHandle] = crypt32.CertOpenStore
+//sys   CertOpenStore(storeProvider uintptr, msgAndCertEncodingType uint32, cryptProv uintptr, flags uint32, para uintptr) (handle Handle, err error) = crypt32.CertOpenStore
 //sys	CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext, err error) [failretval==nil] = crypt32.CertEnumCertificatesInStore
 //sys   CertAddCertificateContextToStore(store Handle, certContext *CertContext, addDisposition uint32, storeContext **CertContext) (err error) = crypt32.CertAddCertificateContextToStore
 //sys	CertCloseStore(store Handle, flags uint32) (err error) = crypt32.CertCloseStore
@@ -210,7 +333,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	RegOpenKeyEx(key Handle, subkey *uint16, options uint32, desiredAccess uint32, result *Handle) (regerrno error) = advapi32.RegOpenKeyExW
 //sys	RegCloseKey(key Handle) (regerrno error) = advapi32.RegCloseKey
 //sys	RegQueryInfoKey(key Handle, class *uint16, classLen *uint32, reserved *uint32, subkeysLen *uint32, maxSubkeyLen *uint32, maxClassLen *uint32, valuesLen *uint32, maxValueNameLen *uint32, maxValueLen *uint32, saLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegQueryInfoKeyW
-//sys	RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegEnumKeyExW
+//sys	regEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegEnumKeyExW
 //sys	RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno error) = advapi32.RegQueryValueExW
 //sys	getCurrentProcessId() (pid uint32) = kernel32.GetCurrentProcessId
 //sys	GetConsoleMode(console Handle, mode *uint32) (err error) = kernel32.GetConsoleMode
@@ -220,13 +343,16 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	Process32First(snapshot Handle, procEntry *ProcessEntry32) (err error) = kernel32.Process32FirstW
 //sys	Process32Next(snapshot Handle, procEntry *ProcessEntry32) (err error) = kernel32.Process32NextW
 //sys	DeviceIoControl(handle Handle, ioControlCode uint32, inBuffer *byte, inBufferSize uint32, outBuffer *byte, outBufferSize uint32, bytesReturned *uint32, overlapped *Overlapped) (err error)
+//sys	setFileInformationByHandle(handle Handle, fileInformationClass uint32, buf unsafe.Pointer, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
 // This function returns 1 byte BOOLEAN rather than the 4 byte BOOL.
 //sys	CreateSymbolicLink(symlinkfilename *uint16, targetfilename *uint16, flags uint32) (err error) [failretval&0xff==0] = CreateSymbolicLinkW
 //sys	CreateHardLink(filename *uint16, existingfilename *uint16, reserved uintptr) (err error) [failretval&0xff==0] = CreateHardLinkW
+//sys	initializeProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, attrcount uint32, flags uint32, size *uintptr) (err error) = InitializeProcThreadAttributeList
+//sys	deleteProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST) = DeleteProcThreadAttributeList
+//sys	updateProcThreadAttribute(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, flags uint32, attr uintptr, value unsafe.Pointer, size uintptr, prevvalue unsafe.Pointer, returnedsize *uintptr) (err error) = UpdateProcThreadAttribute
+//sys	getFinalPathNameByHandle(file Handle, filePath *uint16, filePathSize uint32, flags uint32) (n uint32, err error) [n == 0 || n >= filePathSize] = kernel32.GetFinalPathNameByHandleW
 
 // syscall interface implementation for other packages
-
-func Exit(code int) { ExitProcess(uint32(code)) }
 
 func makeInheritSa() *SecurityAttributes {
 	var sa SecurityAttributes
@@ -235,16 +361,17 @@ func makeInheritSa() *SecurityAttributes {
 	return &sa
 }
 
-func Open(path string, mode int, perm uint32) (fd Handle, err error) {
-	if len(path) == 0 {
+func Open(name string, flag int, perm uint32) (fd Handle, err error) {
+	if len(name) == 0 {
 		return InvalidHandle, ERROR_FILE_NOT_FOUND
 	}
-	pathp, err := UTF16PtrFromString(path)
+	namep, err := UTF16PtrFromString(name)
 	if err != nil {
 		return InvalidHandle, err
 	}
+	accessFlags := flag & (O_RDONLY | O_WRONLY | O_RDWR)
 	var access uint32
-	switch mode & (O_RDONLY | O_WRONLY | O_RDWR) {
+	switch accessFlags {
 	case O_RDONLY:
 		access = GENERIC_READ
 	case O_WRONLY:
@@ -252,33 +379,109 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 	case O_RDWR:
 		access = GENERIC_READ | GENERIC_WRITE
 	}
-	if mode&O_CREAT != 0 {
+	if flag&O_CREAT != 0 {
 		access |= GENERIC_WRITE
 	}
-	if mode&O_APPEND != 0 {
-		access &^= GENERIC_WRITE
-		access |= FILE_APPEND_DATA
+	if flag&O_APPEND != 0 {
+		// Remove GENERIC_WRITE unless O_TRUNC is set, in which case we need it to truncate the file.
+		// We can't just remove FILE_WRITE_DATA because GENERIC_WRITE without FILE_WRITE_DATA
+		// starts appending at the beginning of the file rather than at the end.
+		if flag&O_TRUNC == 0 {
+			access &^= GENERIC_WRITE
+		}
+		// Set all access rights granted by GENERIC_WRITE except for FILE_WRITE_DATA.
+		access |= FILE_APPEND_DATA | FILE_WRITE_ATTRIBUTES | _FILE_WRITE_EA | STANDARD_RIGHTS_WRITE | SYNCHRONIZE
 	}
 	sharemode := uint32(FILE_SHARE_READ | FILE_SHARE_WRITE)
 	var sa *SecurityAttributes
-	if mode&O_CLOEXEC == 0 {
+	if flag&O_CLOEXEC == 0 {
 		sa = makeInheritSa()
 	}
+	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
+	if perm&S_IWRITE == 0 {
+		attrs = FILE_ATTRIBUTE_READONLY
+	}
+	// fileFlags contains the high 12 bits of flag.
+	// This bit range can be used by the caller to specify the file flags
+	// passed to CreateFile. It is an error to use if the bits can't be
+	// mapped to the supported FILE_FLAG_* constants.
+	if fileFlags := uint32(flag) & fileFlagsMask; fileFlags&^validFileFlagsMask == 0 {
+		attrs |= fileFlags
+	} else {
+		return InvalidHandle, oserror.ErrInvalid
+	}
+
+	switch accessFlags {
+	case O_WRONLY, O_RDWR:
+		// Unix doesn't allow opening a directory with O_WRONLY
+		// or O_RDWR, so we don't set the flag in that case,
+		// which will make CreateFile fail with ERROR_ACCESS_DENIED.
+		// We will map that to EISDIR if the file is a directory.
+	default:
+		// We might be opening a directory for reading,
+		// and CreateFile requires FILE_FLAG_BACKUP_SEMANTICS
+		// to work with directories.
+		attrs |= FILE_FLAG_BACKUP_SEMANTICS
+	}
+	if flag&O_SYNC != 0 {
+		attrs |= _FILE_FLAG_WRITE_THROUGH
+	}
+	// We don't use CREATE_ALWAYS, because when opening a file with
+	// FILE_ATTRIBUTE_READONLY these will replace an existing file
+	// with a new, read-only one. See https://go.dev/issue/38225.
+	//
+	// Instead, we ftruncate the file after opening when O_TRUNC is set.
 	var createmode uint32
 	switch {
-	case mode&(O_CREAT|O_EXCL) == (O_CREAT | O_EXCL):
+	case flag&(O_CREAT|O_EXCL) == (O_CREAT | O_EXCL):
 		createmode = CREATE_NEW
-	case mode&(O_CREAT|O_TRUNC) == (O_CREAT | O_TRUNC):
-		createmode = CREATE_ALWAYS
-	case mode&O_CREAT == O_CREAT:
+		attrs |= FILE_FLAG_OPEN_REPARSE_POINT // don't follow symlinks
+	case flag&O_CREAT == O_CREAT:
 		createmode = OPEN_ALWAYS
-	case mode&O_TRUNC == O_TRUNC:
-		createmode = TRUNCATE_EXISTING
 	default:
 		createmode = OPEN_EXISTING
 	}
-	h, e := CreateFile(pathp, access, sharemode, sa, createmode, FILE_ATTRIBUTE_NORMAL, 0)
-	return h, e
+	h, err := createFile(namep, access, sharemode, sa, createmode, attrs, 0)
+	if h == InvalidHandle {
+		if err == ERROR_ACCESS_DENIED && (attrs&FILE_FLAG_BACKUP_SEMANTICS == 0) {
+			// We should return EISDIR when we are trying to open a directory with write access.
+			fa, e1 := GetFileAttributes(namep)
+			if e1 == nil && fa&FILE_ATTRIBUTE_DIRECTORY != 0 {
+				err = EISDIR
+			}
+		}
+		return h, err
+	}
+	if flag&o_DIRECTORY != 0 {
+		// Check if the file is a directory, else return ENOTDIR.
+		var fi ByHandleFileInformation
+		if err := GetFileInformationByHandle(h, &fi); err != nil {
+			CloseHandle(h)
+			return InvalidHandle, err
+		}
+		if fi.FileAttributes&FILE_ATTRIBUTE_DIRECTORY == 0 {
+			CloseHandle(h)
+			return InvalidHandle, ENOTDIR
+		}
+	}
+	// Ignore O_TRUNC if the file has just been created.
+	if flag&O_TRUNC == O_TRUNC &&
+		(createmode == OPEN_EXISTING || (createmode == OPEN_ALWAYS && err == ERROR_ALREADY_EXISTS)) {
+		err = Ftruncate(h, 0)
+		if err == _ERROR_INVALID_PARAMETER {
+			// ERROR_INVALID_PARAMETER means truncation is not supported on this file handle.
+			// Unix's O_TRUNC specification says to ignore O_TRUNC on named pipes and terminal devices.
+			// We do the same here.
+			if t, err1 := GetFileType(h); err1 == nil && (t == FILE_TYPE_PIPE || t == FILE_TYPE_CHAR) {
+				err = nil
+			}
+		}
+		if err != nil {
+			CloseHandle(h)
+			return InvalidHandle, err
+		}
+	}
+	return h, nil
 }
 
 func Read(fd Handle, p []byte) (n int, err error) {
@@ -291,31 +494,73 @@ func Read(fd Handle, p []byte) (n int, err error) {
 		}
 		return 0, e
 	}
-	if raceenabled {
-		if done > 0 {
-			raceWriteRange(unsafe.Pointer(&p[0]), int(done))
-		}
-		raceAcquire(unsafe.Pointer(&ioSync))
-	}
 	return int(done), nil
 }
 
 func Write(fd Handle, p []byte) (n int, err error) {
-	if raceenabled {
-		raceReleaseMerge(unsafe.Pointer(&ioSync))
-	}
 	var done uint32
 	e := WriteFile(fd, p, &done, nil)
 	if e != nil {
 		return 0, e
 	}
-	if raceenabled && done > 0 {
-		raceReadRange(unsafe.Pointer(&p[0]), int(done))
-	}
 	return int(done), nil
 }
 
+func ReadFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
+	err := readFile(fd, p, done, overlapped)
+	if race.Enabled {
+		if *done > 0 {
+			race.WriteRange(unsafe.Pointer(&p[0]), int(*done))
+		}
+		race.Acquire(unsafe.Pointer(&ioSync))
+	}
+	if msan.Enabled && *done > 0 {
+		msan.Write(unsafe.Pointer(&p[0]), uintptr(*done))
+	}
+	if asan.Enabled && *done > 0 {
+		asan.Write(unsafe.Pointer(&p[0]), uintptr(*done))
+	}
+	return err
+}
+
+func WriteFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
+	if race.Enabled {
+		race.ReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	err := writeFile(fd, p, done, overlapped)
+	if race.Enabled && *done > 0 {
+		race.ReadRange(unsafe.Pointer(&p[0]), int(*done))
+	}
+	if msan.Enabled && *done > 0 {
+		msan.Read(unsafe.Pointer(&p[0]), uintptr(*done))
+	}
+	if asan.Enabled && *done > 0 {
+		asan.Read(unsafe.Pointer(&p[0]), uintptr(*done))
+	}
+	return err
+}
+
 var ioSync int64
+
+var procSetFilePointerEx = modkernel32.NewProc("SetFilePointerEx")
+
+const ptrSize = unsafe.Sizeof(uintptr(0))
+
+// setFilePointerEx calls SetFilePointerEx.
+// See https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfilepointerex
+func setFilePointerEx(handle Handle, distToMove int64, newFilePointer *int64, whence uint32) error {
+	var e1 Errno
+	if unsafe.Sizeof(uintptr(0)) == 8 {
+		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 4, uintptr(handle), uintptr(distToMove), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0, 0)
+	} else {
+		// distToMove is a LARGE_INTEGER, which is 64 bits.
+		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 5, uintptr(handle), uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0)
+	}
+	if e1 != 0 {
+		return errnoErr(e1)
+	}
+	return nil
+}
 
 func Seek(fd Handle, offset int64, whence int) (newoffset int64, err error) {
 	var w uint32
@@ -327,18 +572,8 @@ func Seek(fd Handle, offset int64, whence int) (newoffset int64, err error) {
 	case 2:
 		w = FILE_END
 	}
-	hi := int32(offset >> 32)
-	lo := int32(offset)
-	// use GetFileType to check pipe, pipe can't do seek
-	ft, _ := GetFileType(fd)
-	if ft == FILE_TYPE_PIPE {
-		return 0, EPIPE
-	}
-	rlo, e := SetFilePointer(fd, lo, &hi, w)
-	if e != nil {
-		return 0, e
-	}
-	return int64(hi)<<32 + int64(rlo), nil
+	err = setFilePointerEx(fd, offset, &newoffset, w)
+	return
 }
 
 func Close(fd Handle) (err error) {
@@ -353,7 +588,6 @@ var (
 
 func getStdHandle(h int) (fd Handle) {
 	r, _ := GetStdHandle(h)
-	CloseOnExec(r)
 	return r
 }
 
@@ -361,11 +595,21 @@ const ImplementsGetwd = true
 
 func Getwd() (wd string, err error) {
 	b := make([]uint16, 300)
-	n, e := GetCurrentDirectory(uint32(len(b)), &b[0])
-	if e != nil {
-		return "", e
+	// The path of the current directory may not fit in the initial 300-word
+	// buffer when long path support is enabled. The current directory may also
+	// change between subsequent calls of GetCurrentDirectory. As a result, we
+	// need to retry the call in a loop until the current directory fits, each
+	// time with a bigger buffer.
+	for {
+		n, e := GetCurrentDirectory(uint32(len(b)), &b[0])
+		if e != nil {
+			return "", e
+		}
+		if int(n) <= len(b) {
+			return UTF16ToString(b[:n]), nil
+		}
+		b = make([]uint16, n)
 	}
-	return string(utf16.Decode(b[0:n])), nil
 }
 
 func Chdir(path string) (err error) {
@@ -419,24 +663,17 @@ func ComputerName() (name string, err error) {
 	if e != nil {
 		return "", e
 	}
-	return string(utf16.Decode(b[0:n])), nil
+	return UTF16ToString(b[:n]), nil
 }
 
 func Ftruncate(fd Handle, length int64) (err error) {
-	curoffset, e := Seek(fd, 0, 1)
-	if e != nil {
-		return e
+	type _FILE_END_OF_FILE_INFO struct {
+		EndOfFile int64
 	}
-	defer Seek(fd, curoffset, 0)
-	_, e = Seek(fd, length, 0)
-	if e != nil {
-		return e
-	}
-	e = SetEndOfFile(fd)
-	if e != nil {
-		return e
-	}
-	return nil
+	const FileEndOfFileInfo = 6
+	var info _FILE_END_OF_FILE_INFO
+	info.EndOfFile = length
+	return setFileInformationByHandle(fd, FileEndOfFileInfo, unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)))
 }
 
 func Gettimeofday(tv *Timeval) (err error) {
@@ -475,10 +712,19 @@ func Utimes(path string, tv []Timeval) (err error) {
 		return e
 	}
 	defer Close(h)
-	a := NsecToFiletime(tv[0].Nanoseconds())
-	w := NsecToFiletime(tv[1].Nanoseconds())
+	a := Filetime{}
+	w := Filetime{}
+	if tv[0].Nanoseconds() != 0 {
+		a = NsecToFiletime(tv[0].Nanoseconds())
+	}
+	if tv[0].Nanoseconds() != 0 {
+		w = NsecToFiletime(tv[1].Nanoseconds())
+	}
 	return SetFileTime(h, nil, &a, &w)
 }
+
+// This matches the value in os/file_windows.go.
+const _UTIME_OMIT = -1
 
 func UtimesNano(path string, ts []Timespec) (err error) {
 	if len(ts) != 2 {
@@ -495,8 +741,14 @@ func UtimesNano(path string, ts []Timespec) (err error) {
 		return e
 	}
 	defer Close(h)
-	a := NsecToFiletime(TimespecToNsec(ts[0]))
-	w := NsecToFiletime(TimespecToNsec(ts[1]))
+	a := Filetime{}
+	w := Filetime{}
+	if ts[0].Nsec != _UTIME_OMIT {
+		a = NsecToFiletime(TimespecToNsec(ts[0]))
+	}
+	if ts[1].Nsec != _UTIME_OMIT {
+		w = NsecToFiletime(TimespecToNsec(ts[1]))
+	}
 	return SetFileTime(h, nil, &a, &w)
 }
 
@@ -505,9 +757,6 @@ func Fsync(fd Handle) (err error) {
 }
 
 func Chmod(path string, mode uint32) (err error) {
-	if mode == 0 {
-		return EINVAL
-	}
 	p, e := UTF16PtrFromString(path)
 	if e != nil {
 		return e
@@ -570,7 +819,7 @@ const socket_error = uintptr(^uint32(0))
 //sys	WSAEnumProtocols(protocols *int32, protocolBuffer *WSAProtocolInfo, bufferLength *uint32) (n int32, err error) [failretval==-1] = ws2_32.WSAEnumProtocolsW
 
 // For testing: clients can set this flag to force
-// creation of IPv6 sockets to return EAFNOSUPPORT.
+// creation of IPv6 sockets to return [EAFNOSUPPORT].
 var SocketDisableIPv6 bool
 
 type RawSockaddrInet4 struct {
@@ -595,7 +844,7 @@ type RawSockaddr struct {
 
 type RawSockaddrAny struct {
 	Addr RawSockaddr
-	Pad  [96]int8
+	Pad  [100]int8
 }
 
 type Sockaddr interface {
@@ -616,9 +865,7 @@ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, int32, error) {
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), int32(unsafe.Sizeof(sa.raw)), nil
 }
 
@@ -638,34 +885,86 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, int32, error) {
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
 	sa.raw.Scope_id = sa.ZoneId
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), int32(unsafe.Sizeof(sa.raw)), nil
+}
+
+type RawSockaddrUnix struct {
+	Family uint16
+	Path   [UNIX_PATH_MAX]int8
 }
 
 type SockaddrUnix struct {
 	Name string
+	raw  RawSockaddrUnix
 }
 
 func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, int32, error) {
-	// TODO(brainman): implement SockaddrUnix.sockaddr()
-	return nil, 0, EWINDOWS
+	name := sa.Name
+	n := len(name)
+	if n > len(sa.raw.Path) {
+		return nil, 0, EINVAL
+	}
+	// Abstract addresses start with NUL.
+	// '@' is also a valid way to specify abstract addresses.
+	isAbstract := n > 0 && (name[0] == '@' || name[0] == '\x00')
+
+	// Non-abstract named addresses are NUL terminated.
+	// The length can't use the full capacity as we need to add NUL.
+	if n == len(sa.raw.Path) && !isAbstract {
+		return nil, 0, EINVAL
+	}
+	sa.raw.Family = AF_UNIX
+	for i := 0; i < n; i++ {
+		sa.raw.Path[i] = int8(name[i])
+	}
+	// Length is family + name (+ NUL if non-abstract).
+	// Family is of type uint16 (2 bytes).
+	sl := int32(2 + n)
+	if isAbstract {
+		// Abstract addresses are not NUL terminated.
+		// We rewrite '@' prefix to NUL here.
+		sa.raw.Path[0] = 0
+	} else if n > 0 {
+		// Add NUL for non-abstract named addresses.
+		sl++
+	}
+
+	return unsafe.Pointer(&sa.raw), sl, nil
 }
 
 func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, error) {
 	switch rsa.Addr.Family {
 	case AF_UNIX:
-		return nil, EWINDOWS
+		pp := (*RawSockaddrUnix)(unsafe.Pointer(rsa))
+		sa := new(SockaddrUnix)
+		if pp.Path[0] == 0 {
+			// "Abstract" Unix domain socket.
+			// Rewrite leading NUL as @ for textual display.
+			// (This is the standard convention.)
+			// Not friendly to overwrite in place,
+			// but the callers below don't care.
+			pp.Path[0] = '@'
+		}
+
+		// Assume path ends at NUL.
+		// This is not technically the Linux semantics for
+		// abstract Unix domain sockets--they are supposed
+		// to be uninterpreted fixed-size binary blobs--but
+		// everyone uses this convention.
+		n := 0
+		for n < len(pp.Path) && pp.Path[n] != 0 {
+			n++
+		}
+		sa.Name = string(unsafe.Slice((*byte)(unsafe.Pointer(&pp.Path[0])), n))
+		return sa, nil
 
 	case AF_INET:
 		pp := (*RawSockaddrInet4)(unsafe.Pointer(rsa))
 		sa := new(SockaddrInet4)
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 
 	case AF_INET6:
@@ -674,9 +973,7 @@ func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, error) {
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
 		sa.ZoneId = pp.Scope_id
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 	}
 	return nil, EAFNOSUPPORT
@@ -737,11 +1034,55 @@ func Shutdown(fd Handle, how int) (err error) {
 }
 
 func WSASendto(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to Sockaddr, overlapped *Overlapped, croutine *byte) (err error) {
-	rsa, l, err := to.sockaddr()
+	var rsa unsafe.Pointer
+	var len int32
+	if to != nil {
+		rsa, len, err = to.sockaddr()
+		if err != nil {
+			return err
+		}
+	}
+	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+	if r1 == socket_error {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return err
+}
+
+func wsaSendtoInet4(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *SockaddrInet4, overlapped *Overlapped, croutine *byte) (err error) {
+	rsa, len, err := to.sockaddr()
 	if err != nil {
 		return err
 	}
-	return WSASendTo(s, bufs, bufcnt, sent, flags, (*RawSockaddrAny)(unsafe.Pointer(rsa)), l, overlapped, croutine)
+	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+	if r1 == socket_error {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return err
+}
+
+func wsaSendtoInet6(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *SockaddrInet6, overlapped *Overlapped, croutine *byte) (err error) {
+	rsa, len, err := to.sockaddr()
+	if err != nil {
+		return err
+	}
+	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+	if r1 == socket_error {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return err
 }
 
 func LoadGetAddrInfo() error {
@@ -879,7 +1220,12 @@ type IPv6Mreq struct {
 	Interface uint32
 }
 
-func GetsockoptInt(fd Handle, level, opt int) (int, error) { return -1, EWINDOWS }
+func GetsockoptInt(fd Handle, level, opt int) (int, error) {
+	optval := int32(0)
+	optlen := int32(unsafe.Sizeof(optval))
+	err := Getsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&optval)), &optlen)
+	return int(optval), err
+}
 
 func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (err error) {
 	sys := sysLinger{Onoff: uint16(l.Onoff), Linger: uint16(l.Linger)}
@@ -892,7 +1238,9 @@ func SetsockoptInet4Addr(fd Handle, level, opt int, value [4]byte) (err error) {
 func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (err error) {
 	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(mreq)), int32(unsafe.Sizeof(*mreq)))
 }
-func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) { return EWINDOWS }
+func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) {
+	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(mreq)), int32(unsafe.Sizeof(*mreq)))
+}
 
 func Getpid() (pid int) { return int(getCurrentProcessId()) }
 
@@ -952,8 +1300,47 @@ func Getppid() (ppid int) {
 	return int(pe.ParentProcessID)
 }
 
+func fdpath(fd Handle, buf []uint16) ([]uint16, error) {
+	const (
+		FILE_NAME_NORMALIZED = 0
+		VOLUME_NAME_DOS      = 0
+	)
+	for {
+		n, err := getFinalPathNameByHandle(fd, &buf[0], uint32(len(buf)), FILE_NAME_NORMALIZED|VOLUME_NAME_DOS)
+		if err == nil {
+			buf = buf[:n]
+			break
+		}
+		if err != _ERROR_NOT_ENOUGH_MEMORY {
+			return nil, err
+		}
+		buf = append(buf, make([]uint16, n-uint32(len(buf)))...)
+	}
+	return buf, nil
+}
+
+func Fchdir(fd Handle) (err error) {
+	var buf [MAX_PATH + 1]uint16
+	path, err := fdpath(fd, buf[:])
+	if err != nil {
+		return err
+	}
+	// When using VOLUME_NAME_DOS, the path is always prefixed by "\\?\".
+	// That prefix tells the Windows APIs to disable all string parsing and to send
+	// the string that follows it straight to the file system.
+	// Although SetCurrentDirectory and GetCurrentDirectory do support the "\\?\" prefix,
+	// some other Windows APIs don't. If the prefix is not removed here, it will leak
+	// to Getwd, and we don't want such a general-purpose function to always return a
+	// path with the "\\?\" prefix after Fchdir is called.
+	// The downside is that APIs that do support it will parse the path and try to normalize it,
+	// when it's already normalized.
+	if len(path) >= 4 && path[0] == '\\' && path[1] == '\\' && path[2] == '?' && path[3] == '\\' {
+		path = path[4:]
+	}
+	return SetCurrentDirectory(&path[0])
+}
+
 // TODO(brainman): fix all needed for os
-func Fchdir(fd Handle) (err error)             { return EWINDOWS }
 func Link(oldpath, newpath string) (err error) { return EWINDOWS }
 func Symlink(path, link string) (err error)    { return EWINDOWS }
 
@@ -979,7 +1366,7 @@ func (s Signal) String() string {
 			return str
 		}
 	}
-	return "signal " + itoa(int(s))
+	return "signal " + strconv.Itoa(int(s))
 }
 
 func LoadCreateSymbolicLink() error {
@@ -1008,11 +1395,31 @@ func Readlink(path string, buf []byte) (n int, err error) {
 	case IO_REPARSE_TAG_SYMLINK:
 		data := (*symbolicLinkReparseBuffer)(unsafe.Pointer(&rdb.reparseBuffer))
 		p := (*[0xffff]uint16)(unsafe.Pointer(&data.PathBuffer[0]))
-		s = UTF16ToString(p[data.PrintNameOffset/2 : (data.PrintNameLength-data.PrintNameOffset)/2])
+		s = UTF16ToString(p[data.SubstituteNameOffset/2 : (data.SubstituteNameOffset+data.SubstituteNameLength)/2])
+		if data.Flags&_SYMLINK_FLAG_RELATIVE == 0 {
+			if len(s) >= 4 && s[:4] == `\??\` {
+				s = s[4:]
+				switch {
+				case len(s) >= 2 && s[1] == ':': // \??\C:\foo\bar
+					// do nothing
+				case len(s) >= 4 && s[:4] == `UNC\`: // \??\UNC\foo\bar
+					s = `\\` + s[4:]
+				default:
+					// unexpected; do nothing
+				}
+			} else {
+				// unexpected; do nothing
+			}
+		}
 	case _IO_REPARSE_TAG_MOUNT_POINT:
 		data := (*mountPointReparseBuffer)(unsafe.Pointer(&rdb.reparseBuffer))
 		p := (*[0xffff]uint16)(unsafe.Pointer(&data.PathBuffer[0]))
-		s = UTF16ToString(p[data.PrintNameOffset/2 : (data.PrintNameLength-data.PrintNameOffset)/2])
+		s = UTF16ToString(p[data.SubstituteNameOffset/2 : (data.SubstituteNameOffset+data.SubstituteNameLength)/2])
+		if len(s) >= 4 && s[:4] == `\??\` { // \??\C:\foo\bar
+			s = s[4:]
+		} else {
+			// unexpected; do nothing
+		}
 	default:
 		// the path is not a symlink or junction but another type of reparse
 		// point
@@ -1021,4 +1428,119 @@ func Readlink(path string, buf []byte) (n int, err error) {
 	n = copy(buf, []byte(s))
 
 	return n, nil
+}
+
+// Deprecated: CreateIoCompletionPort has the wrong function signature. Use x/sys/windows.CreateIoCompletionPort.
+func CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uint32, threadcnt uint32) (Handle, error) {
+	return createIoCompletionPort(filehandle, cphandle, uintptr(key), threadcnt)
+}
+
+// Deprecated: GetQueuedCompletionStatus has the wrong function signature. Use x/sys/windows.GetQueuedCompletionStatus.
+func GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) error {
+	var ukey uintptr
+	var pukey *uintptr
+	if key != nil {
+		ukey = uintptr(*key)
+		pukey = &ukey
+	}
+	err := getQueuedCompletionStatus(cphandle, qty, pukey, overlapped, timeout)
+	if key != nil {
+		*key = uint32(ukey)
+		if uintptr(*key) != ukey && err == nil {
+			err = errorspkg.New("GetQueuedCompletionStatus returned key overflow")
+		}
+	}
+	return err
+}
+
+// Deprecated: PostQueuedCompletionStatus has the wrong function signature. Use x/sys/windows.PostQueuedCompletionStatus.
+func PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlapped *Overlapped) error {
+	return postQueuedCompletionStatus(cphandle, qty, uintptr(key), overlapped)
+}
+
+// newProcThreadAttributeList allocates a new [procThreadAttributeListContainer], with the requested maximum number of attributes.
+func newProcThreadAttributeList(maxAttrCount uint32) (*procThreadAttributeListContainer, error) {
+	var size uintptr
+	err := initializeProcThreadAttributeList(nil, maxAttrCount, 0, &size)
+	if err != ERROR_INSUFFICIENT_BUFFER {
+		if err == nil {
+			return nil, errorspkg.New("unable to query buffer size from InitializeProcThreadAttributeList")
+		}
+		return nil, err
+	}
+	const LMEM_FIXED = 0
+	alloc, err := localAlloc(LMEM_FIXED, uint32(size))
+	if err != nil {
+		return nil, err
+	}
+	// size is guaranteed to be ≥1 by InitializeProcThreadAttributeList.
+	al := &procThreadAttributeListContainer{data: (*_PROC_THREAD_ATTRIBUTE_LIST)(unsafe.Pointer(alloc))}
+	err = initializeProcThreadAttributeList(al.data, maxAttrCount, 0, &size)
+	if err != nil {
+		return nil, err
+	}
+	al.pointers = make([]unsafe.Pointer, 0, maxAttrCount)
+	return al, err
+}
+
+// Update modifies the ProcThreadAttributeList using UpdateProcThreadAttribute.
+func (al *procThreadAttributeListContainer) update(attribute uintptr, value unsafe.Pointer, size uintptr) error {
+	al.pointers = append(al.pointers, value)
+	return updateProcThreadAttribute(al.data, 0, attribute, value, size, nil, nil)
+}
+
+// Delete frees ProcThreadAttributeList's resources.
+func (al *procThreadAttributeListContainer) delete() {
+	deleteProcThreadAttributeList(al.data)
+	LocalFree(Handle(unsafe.Pointer(al.data)))
+	al.data = nil
+	al.pointers = nil
+}
+
+// List returns the actual ProcThreadAttributeList to be passed to StartupInfoEx.
+func (al *procThreadAttributeListContainer) list() *_PROC_THREAD_ATTRIBUTE_LIST {
+	return al.data
+}
+
+// RegEnumKeyEx enumerates the subkeys of an open registry key.
+// Each call retrieves information about one subkey. name is
+// a buffer that should be large enough to hold the name of the
+// subkey plus a null terminating character. nameLen is its
+// length. On return, nameLen will contain the actual length of the
+// subkey.
+//
+// Should name not be large enough to hold the subkey, this function
+// will return ERROR_MORE_DATA, and must be called again with an
+// appropriately sized buffer.
+//
+// reserved must be nil. class and classLen behave like name and nameLen
+// but for the class of the subkey, except that they are optional.
+// lastWriteTime, if not nil, will be populated with the time the subkey
+// was last written.
+//
+// The caller must enumerate all subkeys in order. That is
+// RegEnumKeyEx must be called with index starting at 0, incrementing
+// the index until the function returns ERROR_NO_MORE_ITEMS, or with
+// the index of the last subkey (obtainable from RegQueryInfoKey),
+// decrementing until index 0 is enumerated.
+//
+// Successive calls to this API must happen on the same OS thread,
+// so call [runtime.LockOSThread] before calling this function.
+func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) {
+	return regEnumKeyEx(key, index, name, nameLen, reserved, class, classLen, lastWriteTime)
+}
+
+func GetStartupInfo(startupInfo *StartupInfo) error {
+	getStartupInfo(startupInfo)
+	return nil
+}
+
+func CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) {
+	handle, err = createFile(name, access, mode, sa, createmode, attrs, templatefile)
+	if handle != InvalidHandle {
+		// CreateFileW can return ERROR_ALREADY_EXISTS with a valid handle.
+		// We only want to return an error if the handle is invalid.
+		err = nil
+	}
+	return handle, err
 }

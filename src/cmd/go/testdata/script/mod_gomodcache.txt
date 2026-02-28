@@ -1,0 +1,74 @@
+# Test GOMODCACHE
+env GO111MODULE=on
+
+# Explicitly set GOMODCACHE
+env GOMODCACHE=$WORK/modcache
+go env GOMODCACHE
+stdout $WORK[/\\]modcache
+go get rsc.io/quote@v1.0.0
+exists $WORK/modcache/cache/download/rsc.io/quote/@v/v1.0.0.info
+grep '{"Version":"v1.0.0","Time":"2018-02-14T00:45:20Z"}' $WORK/modcache/cache/download/rsc.io/quote/@v/v1.0.0.info
+
+# Ensure GOMODCACHE doesn't affect location of sumdb, but $GOMODCACHE/cache/download/sumdb is still written
+exists $GOPATH/pkg/sumdb
+! exists $WORK/modcache/sumdb
+exists $WORK/modcache/cache/download/sumdb
+
+# Test that the default GOMODCACHE is $GOPATH[0]/pkg/mod
+env GOMODCACHE=
+go env GOMODCACHE
+stdout $GOPATH[/\\]pkg[/\\]mod
+go get rsc.io/quote@v1.0.0
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.0.0.info
+grep '{"Version":"v1.0.0","Time":"2018-02-14T00:45:20Z"}' $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.0.0.info
+
+# If neither GOMODCACHE or GOPATH are set, GOPATH defaults to the user's $HOME/go, so GOMODCACHE becomes $HOME/go/pkg/mod
+[GOOS:windows] env USERPROFILE=$WORK/home # Ensure USERPROFILE is a valid path (rather than /no-home/ so we don't run into the logic that "uninfers" GOPATH in cmd/go/main.go
+[GOOS:plan9] env home=$WORK/home
+[!GOOS:windows] [!GOOS:plan9] env HOME=$WORK/home
+env GOMODCACHE=
+env GOPATH=
+go env GOMODCACHE
+stdout $HOME[/\\]go[/\\]pkg[/\\]mod
+
+# If GOMODCACHE isn't set and GOPATH starts with the path list separator,
+# GOMODCACHE is empty and any command that needs it errors out.
+env GOMODCACHE=
+env GOPATH=${:}$WORK/this/is/ignored
+
+go env GOMODCACHE
+stdout '^$'
+! stdout .
+! stderr .
+
+! go mod download rsc.io/quote@v1.0.0
+stderr '^go: module cache not found: neither GOMODCACHE nor GOPATH is set$'
+
+# If GOMODCACHE isn't set and GOPATH has multiple elements only the first is used.
+env GOMODCACHE=
+env GOPATH=$WORK/first/path${:}$WORK/this/is/ignored
+go env GOMODCACHE
+stdout $WORK[/\\]first[/\\]path[/\\]pkg[/\\]mod
+
+env GOMODCACHE=$WORK/modcache
+go mod download rsc.io/quote@v1.0.0
+exists $WORK/modcache/cache/download/rsc.io/quote/@v/v1.0.0.info
+
+# Test error when cannot create GOMODCACHE directory
+env GOMODCACHE=$WORK/modcachefile
+! go install example.com/cmd/a@v1.0.0
+stderr 'go: could not create module cache'
+
+# Test that the following work even with GO111MODULE=off
+env GO111MODULE=off
+
+# Cleaning modcache
+exists $WORK/modcache
+env GOMODCACHE=$WORK/modcache
+go clean -modcache
+! exists $WORK/modcache
+
+-- go.mod --
+module m
+
+-- $WORK/modcachefile --

@@ -8,7 +8,7 @@ package bzip2
 import "io"
 
 // There's no RFC for bzip2. I used the Wikipedia page for reference and a lot
-// of guessing: http://en.wikipedia.org/wiki/Bzip2
+// of guessing: https://en.wikipedia.org/wiki/Bzip2
 // The source code to pyflate was useful for debugging:
 // http://www.paul.sladen.org/projects/pyflate
 
@@ -27,11 +27,10 @@ type reader struct {
 	blockCRC     uint32
 	wantBlockCRC uint32
 	setupDone    bool // true if we have parsed the bzip2 header.
-	blockSize    int  // blockSize in bytes, i.e. 900 * 1024.
 	eof          bool
-	buf          []byte    // stores Burrows-Wheeler transformed data.
-	c            [256]uint // the `C' array for the inverse BWT.
-	tt           []uint32  // mirrors the `tt' array in the bzip2 source and contains the P array in the upper 24 bits.
+	blockSize    int       // blockSize in bytes, i.e. 900 * 1000.
+	c            [256]uint // the ``C'' array for the inverse BWT.
+	tt           []uint32  // mirrors the ``tt'' array in the bzip2 source and contains the P array in the upper 24 bits.
 	tPos         uint32    // Index of the next output byte in tt.
 
 	preRLE      []uint32 // contains the RLE data still to be processed.
@@ -41,8 +40,8 @@ type reader struct {
 	repeats     uint     // the number of copies of lastByte to output.
 }
 
-// NewReader returns an io.Reader which decompresses bzip2 data from r.
-// If r does not also implement io.ByteReader,
+// NewReader returns an [io.Reader] which decompresses bzip2 data from r.
+// If r does not also implement [io.ByteReader],
 // the decompressor may read more data than necessary from r.
 func NewReader(r io.Reader) io.Reader {
 	bz2 := new(reader)
@@ -76,7 +75,7 @@ func (bz2 *reader) setup(needMagic bool) error {
 	}
 
 	bz2.fileCRC = 0
-	bz2.blockSize = 100 * 1024 * (int(level) - '0')
+	bz2.blockSize = 100 * 1000 * (level - '0')
 	if bz2.blockSize > len(bz2.tt) {
 		bz2.tt = make([]uint32, bz2.blockSize)
 	}
@@ -164,7 +163,7 @@ func (bz2 *reader) readFromBlock(buf []byte) int {
 func (bz2 *reader) read(buf []byte) (int, error) {
 	for {
 		n := bz2.readFromBlock(buf)
-		if n > 0 {
+		if n > 0 || len(buf) == 0 {
 			bz2.blockCRC = updateCRC(bz2.blockCRC, buf[:n])
 			return n, nil
 		}
@@ -294,7 +293,7 @@ func (bz2 *reader) readBlock() (err error) {
 		if c >= numHuffmanTrees {
 			return StructuralError("tree index too large")
 		}
-		treeIndexes[i] = uint8(mtfTreeDecoder.Decode(c))
+		treeIndexes[i] = mtfTreeDecoder.Decode(c)
 	}
 
 	// The list of symbols for the move-to-front transform is taken from
@@ -319,6 +318,9 @@ func (bz2 *reader) readBlock() (err error) {
 		length := br.ReadBits(5)
 		for j := range lengths {
 			for {
+				if length < 1 || length > 20 {
+					return StructuralError("Huffman length out of range")
+				}
 				if !br.ReadBit() {
 					break
 				}
@@ -327,9 +329,6 @@ func (bz2 *reader) readBlock() (err error) {
 				} else {
 					length++
 				}
-			}
-			if length < 0 || length > 20 {
-				return StructuralError("Huffman length out of range")
 			}
 			lengths[j] = uint8(length)
 		}
@@ -356,9 +355,7 @@ func (bz2 *reader) readBlock() (err error) {
 	repeatPower := 0
 
 	// The `C' array (used by the inverse BWT) needs to be zero initialized.
-	for i := range bz2.c {
-		bz2.c[i] = 0
-	}
+	clear(bz2.c[:])
 
 	decoded := 0 // counts the number of symbols decoded by the current tree.
 	for {
@@ -400,7 +397,7 @@ func (bz2 *reader) readBlock() (err error) {
 				return StructuralError("repeats past end of block")
 			}
 			for i := 0; i < repeat; i++ {
-				b := byte(mtf.First())
+				b := mtf.First()
 				bz2.tt[bufIndex] = uint32(b)
 				bz2.c[b]++
 				bufIndex++
@@ -421,7 +418,7 @@ func (bz2 *reader) readBlock() (err error) {
 		// it's always referenced with a run-length of 1. Thus 0
 		// doesn't need to be encoded and we have |v-1| in the next
 		// line.
-		b := byte(mtf.Decode(int(v - 1)))
+		b := mtf.Decode(int(v - 1))
 		if bufIndex >= bz2.blockSize {
 			return StructuralError("data exceeds block size")
 		}
@@ -448,11 +445,11 @@ func (bz2 *reader) readBlock() (err error) {
 
 // inverseBWT implements the inverse Burrows-Wheeler transform as described in
 // http://www.hpl.hp.com/techreports/Compaq-DEC/SRC-RR-124.pdf, section 4.2.
-// In that document, origPtr is called `I' and c is the `C' array after the
+// In that document, origPtr is called “I” and c is the “C” array after the
 // first pass over the data. It's an argument here because we merge the first
 // pass with the Huffman decoding.
 //
-// This also implements the `single array' method from the bzip2 source code
+// This also implements the “single array” method from the bzip2 source code
 // which leaves the output, still shuffled, in the bottom 8 bits of tt with the
 // index of the next byte in the top 24-bits. The index of the first byte is
 // returned.

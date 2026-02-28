@@ -1,6 +1,3 @@
-// skip
-// TODO(rsc): Reenable. See issue 9968.
-
 // errorcheck
 
 // Copyright 2009 The Go Authors. All rights reserved.
@@ -12,10 +9,9 @@ package main
 type T func()
 
 type I interface {
-	f, g ();	// ERROR "name list not allowed"
+	f, g ();  // ERROR "unexpected comma"
 }
 
 type J interface {
 	h T;  // ERROR "syntax|signature"
 }
-

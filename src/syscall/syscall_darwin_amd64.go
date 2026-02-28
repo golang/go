@@ -4,37 +4,27 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
-func Getpagesize() int { return 4096 }
-
-func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
-
-func NsecToTimespec(nsec int64) (ts Timespec) {
-	ts.Sec = nsec / 1e9
-	ts.Nsec = nsec % 1e9
-	return
+func setTimespec(sec, nsec int64) Timespec {
+	return Timespec{Sec: sec, Nsec: nsec}
 }
 
-func TimevalToNsec(tv Timeval) int64 { return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3 }
-
-func NsecToTimeval(nsec int64) (tv Timeval) {
-	nsec += 999 // round up to microsecond
-	tv.Usec = int32(nsec % 1e9 / 1e3)
-	tv.Sec = int64(nsec / 1e9)
-	return
+func setTimeval(sec, usec int64) Timeval {
+	return Timeval{Sec: sec, Usec: int32(usec)}
 }
 
-//sysnb	gettimeofday(tp *Timeval) (sec int64, usec int32, err error)
-func Gettimeofday(tv *Timeval) (err error) {
-	// The tv passed to gettimeofday must be non-nil
-	// but is otherwise unused.  The answers come back
-	// in the two registers.
-	sec, usec, err := gettimeofday(tv)
-	tv.Sec = sec
-	tv.Usec = usec
-	return err
-}
+//sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_fstat64
+//sys	Fstatfs(fd int, stat *Statfs_t) (err error) = SYS_fstatfs64
+//sysnb	Gettimeofday(tp *Timeval) (err error)
+//sys	Lstat(path string, stat *Stat_t) (err error) = SYS_lstat64
+//sys	Stat(path string, stat *Stat_t) (err error) = SYS_stat64
+//sys	Statfs(path string, stat *Statfs_t) (err error) = SYS_statfs64
+//sys   fstatat(fd int, path string, stat *Stat_t, flags int) (err error) = SYS_fstatat64
+//sys   ptrace(request int, pid int, addr uintptr, data uintptr) (err error)
 
 func SetKevent(k *Kevent_t, fd, mode, flags int) {
 	k.Ident = uint64(fd)
@@ -57,7 +47,7 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
 	var length = uint64(count)
 
-	_, _, e1 := Syscall6(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(unsafe.Pointer(&length)), 0, 0)
+	_, _, e1 := syscall6(abi.FuncPCABI0(libc_sendfile_trampoline), uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(unsafe.Pointer(&length)), 0, 0)
 
 	written = int(length)
 
@@ -67,4 +57,8 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 	return
 }
 
-func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) // sic
+func libc_sendfile_trampoline()
+
+//go:cgo_import_dynamic libc_sendfile sendfile "/usr/lib/libSystem.B.dylib"
+
+func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)

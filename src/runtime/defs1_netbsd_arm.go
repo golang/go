@@ -6,6 +6,13 @@ package runtime
 const (
 	_EINTR  = 0x4
 	_EFAULT = 0xe
+	_EAGAIN = 0x23
+
+	_O_WRONLY   = 0x1
+	_O_NONBLOCK = 0x4
+	_O_CREAT    = 0x200
+	_O_TRUNC    = 0x400
+	_O_CLOEXEC  = 0x400000
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -16,7 +23,8 @@ const (
 	_MAP_PRIVATE = 0x2
 	_MAP_FIXED   = 0x10
 
-	_MADV_FREE = 0x6
+	_MADV_DONTNEED = 0x4
+	_MADV_FREE     = 0x6
 
 	_SA_SIGINFO = 0x40
 	_SA_RESTART = 0x2
@@ -76,18 +84,18 @@ const (
 
 	_EV_ADD       = 0x1
 	_EV_DELETE    = 0x2
+	_EV_ENABLE    = 0x4
+	_EV_DISABLE   = 0x8
 	_EV_CLEAR     = 0x20
 	_EV_RECEIPT   = 0
 	_EV_ERROR     = 0x4000
+	_EV_EOF       = 0x8000
 	_EVFILT_READ  = 0x0
 	_EVFILT_WRITE = 0x1
-)
+	_EVFILT_USER  = 0x8
 
-type sigaltstackt struct {
-	ss_sp    uintptr
-	ss_size  uintptr
-	ss_flags int32
-}
+	_NOTE_TRIGGER = 0x1000000
+)
 
 type sigset struct {
 	__bits [4]uint32
@@ -110,19 +118,19 @@ type stackt struct {
 type timespec struct {
 	tv_sec  int64
 	tv_nsec int32
+	_       [4]byte // EABI
 }
 
-func (ts *timespec) set_sec(x int32) {
-	ts.tv_sec = int64(x)
-}
-
-func (ts *timespec) set_nsec(x int32) {
-	ts.tv_nsec = x
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = int64(ns / 1e9)
+	ts.tv_nsec = int32(ns % 1e9)
 }
 
 type timeval struct {
 	tv_sec  int64
 	tv_usec int32
+	_       [4]byte // EABI
 }
 
 func (tv *timeval) set_usec(x int32) {
@@ -135,10 +143,11 @@ type itimerval struct {
 }
 
 type mcontextt struct {
-	__gregs [17]uint32
-	__fpu   [4 + 8*32 + 4]byte // EABI
-	// __fpu [4+4*33+4]byte // not EABI
+	__gregs     [17]uint32
+	_           [4]byte   // EABI
+	__fpu       [272]byte // EABI
 	_mc_tlsbase uint32
+	_           [4]byte // EABI
 }
 
 type ucontextt struct {
@@ -146,6 +155,7 @@ type ucontextt struct {
 	uc_link     *ucontextt
 	uc_sigmask  sigset
 	uc_stack    stackt
+	_           [4]byte // EABI
 	uc_mcontext mcontextt
 	__uc_pad    [2]int32
 }
@@ -157,6 +167,7 @@ type keventt struct {
 	fflags uint32
 	data   int64
 	udata  *byte
+	_      [4]byte // EABI
 }
 
 // created by cgo -cdefs and then converted to Go

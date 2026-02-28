@@ -1,0 +1,10 @@
+# go.dev/issue/66092
+# This test ensures that files listed on the commandline will pass
+# the language version to the compiler.
+# All compilations should specify some -lang.
+
+go build -n x.go
+stderr '-lang=go1\.[0-9]+'
+
+-- x.go --
+package main

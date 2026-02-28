@@ -1,0 +1,21 @@
+env GO111MODULE=on
+
+[short] skip
+[!cgo] skip
+
+# Regression test for golang.org/issue/29667:
+# spurious 'failed to cache compiled Go files' errors.
+
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
+go list -json -compiled -test=false -export=false -deps=true -- . &
+go list -json -compiled -test=false -export=false -deps=true -- . &
+wait
+
+-- go.mod --
+module sandbox/bar
+-- bar.go --
+package bar
+
+import "C"

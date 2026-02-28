@@ -6,6 +6,4 @@
 
 package main
 
-func main() {
-	x⊛y := 1;	// ERROR "identifier"
-}
+var x⊛y int	// ERROR "invalid character .* in identifier"

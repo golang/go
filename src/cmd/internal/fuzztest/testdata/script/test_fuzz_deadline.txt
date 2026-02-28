@@ -1,0 +1,46 @@
+[!fuzz] skip
+[short] skip
+env GOCACHE=$WORK/cache
+
+# Warm up the build cache with GOMAXPROCS unrestricted.
+go test -c -o $devnull
+
+# For the fuzzing phase, we reduce GOMAXPROCS to avoid consuming too many
+# resources during the test. Ideally this would just free up resources to run
+# other parallel tests more quickly, but unfortunately it is actually necessary
+# in some 32-bit environments to prevent the fuzzing engine from running out of
+# address space (see https://go.dev/issue/65434).
+env GOMAXPROCS=2
+
+# The fuzz function should be able to detect whether -timeout
+# was set with T.Deadline. Note there is no F.Deadline, and
+# there is no timeout while fuzzing, even if -fuzztime is set.
+go test -run=FuzzDeadline -wantdeadline=true # -timeout defaults to 10m
+go test -run=FuzzDeadline -timeout=0 -wantdeadline=false
+! go test -run=FuzzDeadline -timeout=1s -wantdeadline=false
+go test -run=FuzzDeadline -timeout=1s -wantdeadline=true
+go test -fuzz=FuzzDeadline -timeout=0 -fuzztime=1s -wantdeadline=false
+go test -fuzz=FuzzDeadline -timeout=0 -fuzztime=100x -wantdeadline=false
+
+-- go.mod --
+module fuzz
+
+go 1.16
+-- fuzz_deadline_test.go --
+package fuzz_test
+
+import (
+	"flag"
+	"testing"
+)
+
+var wantDeadline = flag.Bool("wantdeadline", false, "whether the test should have a deadline")
+
+func FuzzDeadline(f *testing.F) {
+	f.Add("run once")
+	f.Fuzz(func (t *testing.T, _ string) {
+		if _, hasDeadline := t.Deadline(); hasDeadline != *wantDeadline {
+			t.Fatalf("function got %v; want %v", hasDeadline, *wantDeadline)
+		}
+	})
+}

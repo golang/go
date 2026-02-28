@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -17,5 +17,5 @@ func (*T) pm() int {
 
 var (
 	p *T
-	x = p.pm() // ERROR "initialization loop|depends upon itself"
+	x = p.pm() // ERROR "initialization cycle|depends upon itself"
 )

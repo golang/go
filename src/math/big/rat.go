@@ -7,22 +7,29 @@
 package big
 
 import (
-	"encoding/binary"
-	"errors"
 	"fmt"
 	"math"
 )
 
 // A Rat represents a quotient a/b of arbitrary precision.
 // The zero value for a Rat represents the value 0.
+//
+// Operations always take pointer arguments (*Rat) rather
+// than Rat values, and each unique Rat value requires
+// its own unique *Rat pointer. To "copy" a Rat value,
+// an existing (or newly allocated) Rat must be set to
+// a new value using the [Rat.Set] method; shallow copies
+// of Rats are not supported and may lead to errors.
 type Rat struct {
 	// To make zero values for Rat work w/o initialization,
-	// a zero value of b (len(b) == 0) acts like b == 1.
+	// a zero value of b (len(b) == 0) acts like b == 1. At
+	// the earliest opportunity (when an assignment to the Rat
+	// is made), such uninitialized denominators are set to 1.
 	// a.neg determines the sign of the Rat, b.neg is ignored.
 	a, b Int
 }
 
-// NewRat creates a new Rat with numerator a and denominator b.
+// NewRat creates a new [Rat] with numerator a and denominator b.
 func NewRat(a, b int64) *Rat {
 	return new(Rat).SetFrac64(a, b)
 }
@@ -65,9 +72,9 @@ func (z *Rat) SetFloat64(f float64) *Rat {
 
 // quotToFloat32 returns the non-negative float32 value
 // nearest to the quotient a/b, using round-to-even in
-// halfway cases.  It does not mutate its arguments.
+// halfway cases. It does not mutate its arguments.
 // Preconditions: b is non-zero; a and b have no common factors.
-func quotToFloat32(a, b nat) (f float32, exact bool) {
+func quotToFloat32(stk *stack, a, b nat) (f float32, exact bool) {
 	const (
 		// float size in bits
 		Fsize = 32
@@ -105,16 +112,16 @@ func quotToFloat32(a, b nat) (f float32, exact bool) {
 	a2 = a2.set(a)
 	b2 = b2.set(b)
 	if shift := Msize2 - exp; shift > 0 {
-		a2 = a2.shl(a2, uint(shift))
+		a2 = a2.lsh(a2, uint(shift))
 	} else if shift < 0 {
-		b2 = b2.shl(b2, uint(-shift))
+		b2 = b2.lsh(b2, uint(-shift))
 	}
 
 	// 2. Compute quotient and remainder (q, r).  NB: due to the
 	// extra shift, the low-order bit of q is logically the
 	// high-order bit of r.
 	var q nat
-	q, r := q.div(a2, a2, b2) // (recycle a2)
+	q, r := q.div(stk, a2, a2, b2) // (recycle a2)
 	mantissa := low32(q)
 	haveRem := len(r) > 0 // mantissa&1 && !haveRem => remainder is exactly half
 
@@ -163,9 +170,9 @@ func quotToFloat32(a, b nat) (f float32, exact bool) {
 
 // quotToFloat64 returns the non-negative float64 value
 // nearest to the quotient a/b, using round-to-even in
-// halfway cases.  It does not mutate its arguments.
+// halfway cases. It does not mutate its arguments.
 // Preconditions: b is non-zero; a and b have no common factors.
-func quotToFloat64(a, b nat) (f float64, exact bool) {
+func quotToFloat64(stk *stack, a, b nat) (f float64, exact bool) {
 	const (
 		// float size in bits
 		Fsize = 64
@@ -203,16 +210,16 @@ func quotToFloat64(a, b nat) (f float64, exact bool) {
 	a2 = a2.set(a)
 	b2 = b2.set(b)
 	if shift := Msize2 - exp; shift > 0 {
-		a2 = a2.shl(a2, uint(shift))
+		a2 = a2.lsh(a2, uint(shift))
 	} else if shift < 0 {
-		b2 = b2.shl(b2, uint(-shift))
+		b2 = b2.lsh(b2, uint(-shift))
 	}
 
 	// 2. Compute quotient and remainder (q, r).  NB: due to the
 	// extra shift, the low-order bit of q is logically the
 	// high-order bit of r.
 	var q nat
-	q, r := q.div(a2, a2, b2) // (recycle a2)
+	q, r := q.div(stk, a2, a2, b2) // (recycle a2)
 	mantissa := low64(q)
 	haveRem := len(r) > 0 // mantissa&1 && !haveRem => remainder is exactly half
 
@@ -266,9 +273,11 @@ func quotToFloat64(a, b nat) (f float64, exact bool) {
 func (x *Rat) Float32() (f float32, exact bool) {
 	b := x.b.abs
 	if len(b) == 0 {
-		b = b.set(natOne) // materialize denominator
+		b = natOne
 	}
-	f, exact = quotToFloat32(x.a.abs, b)
+	stk := getStack()
+	defer stk.free()
+	f, exact = quotToFloat32(stk, x.a.abs, b)
 	if x.a.neg {
 		f = -f
 	}
@@ -282,9 +291,11 @@ func (x *Rat) Float32() (f float32, exact bool) {
 func (x *Rat) Float64() (f float64, exact bool) {
 	b := x.b.abs
 	if len(b) == 0 {
-		b = b.set(natOne) // materialize denominator
+		b = natOne
 	}
-	f, exact = quotToFloat64(x.a.abs, b)
+	stk := getStack()
+	defer stk.free()
+	f, exact = quotToFloat64(stk, x.a.abs, b)
 	if x.a.neg {
 		f = -f
 	}
@@ -292,6 +303,7 @@ func (x *Rat) Float64() (f float64, exact bool) {
 }
 
 // SetFrac sets z to a/b and returns z.
+// If b == 0, SetFrac panics.
 func (z *Rat) SetFrac(a, b *Int) *Rat {
 	z.a.neg = a.neg != b.neg
 	babs := b.abs
@@ -307,11 +319,12 @@ func (z *Rat) SetFrac(a, b *Int) *Rat {
 }
 
 // SetFrac64 sets z to a/b and returns z.
+// If b == 0, SetFrac64 panics.
 func (z *Rat) SetFrac64(a, b int64) *Rat {
-	z.a.SetInt64(a)
 	if b == 0 {
 		panic("division by zero")
 	}
+	z.a.SetInt64(a)
 	if b < 0 {
 		b = -b
 		z.a.neg = !z.a.neg
@@ -323,14 +336,21 @@ func (z *Rat) SetFrac64(a, b int64) *Rat {
 // SetInt sets z to x (by making a copy of x) and returns z.
 func (z *Rat) SetInt(x *Int) *Rat {
 	z.a.Set(x)
-	z.b.abs = z.b.abs[:0]
+	z.b.abs = z.b.abs.setWord(1)
 	return z
 }
 
 // SetInt64 sets z to x and returns z.
 func (z *Rat) SetInt64(x int64) *Rat {
 	z.a.SetInt64(x)
-	z.b.abs = z.b.abs[:0]
+	z.b.abs = z.b.abs.setWord(1)
+	return z
+}
+
+// SetUint64 sets z to x and returns z.
+func (z *Rat) SetUint64(x uint64) *Rat {
+	z.a.SetUint64(x)
+	z.b.abs = z.b.abs.setWord(1)
 	return z
 }
 
@@ -339,6 +359,9 @@ func (z *Rat) Set(x *Rat) *Rat {
 	if z != x {
 		z.a.Set(&x.a)
 		z.b.Set(&x.b)
+	}
+	if len(z.b.abs) == 0 {
+		z.b.abs = z.b.abs.setWord(1)
 	}
 	return z
 }
@@ -358,34 +381,25 @@ func (z *Rat) Neg(x *Rat) *Rat {
 }
 
 // Inv sets z to 1/x and returns z.
+// If x == 0, Inv panics.
 func (z *Rat) Inv(x *Rat) *Rat {
 	if len(x.a.abs) == 0 {
 		panic("division by zero")
 	}
 	z.Set(x)
-	a := z.b.abs
-	if len(a) == 0 {
-		a = a.set(natOne) // materialize numerator
-	}
-	b := z.a.abs
-	if b.cmp(natOne) == 0 {
-		b = b[:0] // normalize denominator
-	}
-	z.a.abs, z.b.abs = a, b // sign doesn't change
+	z.a.abs, z.b.abs = z.b.abs, z.a.abs
 	return z
 }
 
 // Sign returns:
-//
-//	-1 if x <  0
-//	 0 if x == 0
-//	+1 if x >  0
-//
+//   - -1 if x < 0;
+//   - 0 if x == 0;
+//   - +1 if x > 0.
 func (x *Rat) Sign() int {
 	return x.a.Sign()
 }
 
-// IsInt returns true if the denominator of x is 1.
+// IsInt reports whether the denominator of x is 1.
 func (x *Rat) IsInt() bool {
 	return len(x.b.abs) == 0 || x.b.abs.cmp(natOne) == 0
 }
@@ -399,12 +413,19 @@ func (x *Rat) Num() *Int {
 }
 
 // Denom returns the denominator of x; it is always > 0.
-// The result is a reference to x's denominator; it
+// The result is a reference to x's denominator, unless
+// x is an uninitialized (zero value) [Rat], in which case
+// the result is a new [Int] of value 1. (To initialize x,
+// any operation that sets x will do, including x.Set(x).)
+// If the result is a reference to x's denominator it
 // may change if a new value is assigned to x, and vice versa.
 func (x *Rat) Denom() *Int {
-	x.b.neg = false // the result is always >= 0
+	// Note that x.b.neg is guaranteed false.
 	if len(x.b.abs) == 0 {
-		x.b.abs = x.b.abs.set(natOne) // materialize denominator
+		// Note: If this proves problematic, we could
+		//       panic instead and require the Rat to
+		//       be explicitly initialized.
+		return &Int{abs: nat{1}}
 	}
 	return &x.b
 }
@@ -412,25 +433,22 @@ func (x *Rat) Denom() *Int {
 func (z *Rat) norm() *Rat {
 	switch {
 	case len(z.a.abs) == 0:
-		// z == 0 - normalize sign and denominator
+		// z == 0; normalize sign and denominator
 		z.a.neg = false
-		z.b.abs = z.b.abs[:0]
+		fallthrough
 	case len(z.b.abs) == 0:
-		// z is normalized int - nothing to do
-	case z.b.abs.cmp(natOne) == 0:
-		// z is int - normalize denominator
-		z.b.abs = z.b.abs[:0]
+		// z is integer; normalize denominator
+		z.b.abs = z.b.abs.setWord(1)
 	default:
+		// z is fraction; normalize numerator and denominator
+		stk := getStack()
+		defer stk.free()
 		neg := z.a.neg
 		z.a.neg = false
 		z.b.neg = false
-		if f := NewInt(0).binaryGCD(&z.a, &z.b); f.Cmp(intOne) != 0 {
-			z.a.abs, _ = z.a.abs.div(nil, z.a.abs, f.abs)
-			z.b.abs, _ = z.b.abs.div(nil, z.b.abs, f.abs)
-			if z.b.abs.cmp(natOne) == 0 {
-				// z is int - normalize denominator
-				z.b.abs = z.b.abs[:0]
-			}
+		if f := NewInt(0).lehmerGCD(nil, nil, &z.a, &z.b); f.Cmp(intOne) != 0 {
+			z.a.abs, _ = z.a.abs.div(stk, nil, z.a.abs, f.abs)
+			z.b.abs, _ = z.b.abs.div(stk, nil, z.b.abs, f.abs)
 		}
 		z.a.neg = neg
 	}
@@ -440,131 +458,104 @@ func (z *Rat) norm() *Rat {
 // mulDenom sets z to the denominator product x*y (by taking into
 // account that 0 values for x or y must be interpreted as 1) and
 // returns z.
-func mulDenom(z, x, y nat) nat {
+func mulDenom(stk *stack, z, x, y nat) nat {
 	switch {
+	case len(x) == 0 && len(y) == 0:
+		return z.setWord(1)
 	case len(x) == 0:
 		return z.set(y)
 	case len(y) == 0:
 		return z.set(x)
 	}
-	return z.mul(x, y)
+	return z.mul(stk, x, y)
 }
 
-// scaleDenom computes x*f.
-// If f == 0 (zero value of denominator), the result is (a copy of) x.
-func scaleDenom(x *Int, f nat) *Int {
-	var z Int
+// scaleDenom sets z to the product x*f.
+// If f == 0 (zero value of denominator), z is set to (a copy of) x.
+func (z *Int) scaleDenom(stk *stack, x *Int, f nat) {
 	if len(f) == 0 {
-		return z.Set(x)
+		z.Set(x)
+		return
 	}
-	z.abs = z.abs.mul(x.abs, f)
+	z.abs = z.abs.mul(stk, x.abs, f)
 	z.neg = x.neg
-	return &z
 }
 
 // Cmp compares x and y and returns:
-//
-//   -1 if x <  y
-//    0 if x == y
-//   +1 if x >  y
-//
+//   - -1 if x < y;
+//   - 0 if x == y;
+//   - +1 if x > y.
 func (x *Rat) Cmp(y *Rat) int {
-	return scaleDenom(&x.a, y.b.abs).Cmp(scaleDenom(&y.a, x.b.abs))
+	var a, b Int
+	stk := getStack()
+	defer stk.free()
+	a.scaleDenom(stk, &x.a, y.b.abs)
+	b.scaleDenom(stk, &y.a, x.b.abs)
+	return a.Cmp(&b)
 }
 
 // Add sets z to the sum x+y and returns z.
 func (z *Rat) Add(x, y *Rat) *Rat {
-	a1 := scaleDenom(&x.a, y.b.abs)
-	a2 := scaleDenom(&y.a, x.b.abs)
-	z.a.Add(a1, a2)
-	z.b.abs = mulDenom(z.b.abs, x.b.abs, y.b.abs)
+	stk := getStack()
+	defer stk.free()
+
+	var a1, a2 Int
+	a1.scaleDenom(stk, &x.a, y.b.abs)
+	a2.scaleDenom(stk, &y.a, x.b.abs)
+	z.a.Add(&a1, &a2)
+	z.b.abs = mulDenom(stk, z.b.abs, x.b.abs, y.b.abs)
 	return z.norm()
 }
 
 // Sub sets z to the difference x-y and returns z.
 func (z *Rat) Sub(x, y *Rat) *Rat {
-	a1 := scaleDenom(&x.a, y.b.abs)
-	a2 := scaleDenom(&y.a, x.b.abs)
-	z.a.Sub(a1, a2)
-	z.b.abs = mulDenom(z.b.abs, x.b.abs, y.b.abs)
+	stk := getStack()
+	defer stk.free()
+
+	var a1, a2 Int
+	a1.scaleDenom(stk, &x.a, y.b.abs)
+	a2.scaleDenom(stk, &y.a, x.b.abs)
+	z.a.Sub(&a1, &a2)
+	z.b.abs = mulDenom(stk, z.b.abs, x.b.abs, y.b.abs)
 	return z.norm()
 }
 
 // Mul sets z to the product x*y and returns z.
 func (z *Rat) Mul(x, y *Rat) *Rat {
-	z.a.Mul(&x.a, &y.a)
-	z.b.abs = mulDenom(z.b.abs, x.b.abs, y.b.abs)
+	stk := getStack()
+	defer stk.free()
+
+	if x == y {
+		// a squared Rat is positive and can't be reduced (no need to call norm())
+		z.a.neg = false
+		z.a.abs = z.a.abs.sqr(stk, x.a.abs)
+		if len(x.b.abs) == 0 {
+			z.b.abs = z.b.abs.setWord(1)
+		} else {
+			z.b.abs = z.b.abs.sqr(stk, x.b.abs)
+		}
+		return z
+	}
+
+	z.a.mul(stk, &x.a, &y.a)
+	z.b.abs = mulDenom(stk, z.b.abs, x.b.abs, y.b.abs)
 	return z.norm()
 }
 
 // Quo sets z to the quotient x/y and returns z.
-// If y == 0, a division-by-zero run-time panic occurs.
+// If y == 0, Quo panics.
 func (z *Rat) Quo(x, y *Rat) *Rat {
+	stk := getStack()
+	defer stk.free()
+
 	if len(y.a.abs) == 0 {
 		panic("division by zero")
 	}
-	a := scaleDenom(&x.a, y.b.abs)
-	b := scaleDenom(&y.a, x.b.abs)
+	var a, b Int
+	a.scaleDenom(stk, &x.a, y.b.abs)
+	b.scaleDenom(stk, &y.a, x.b.abs)
 	z.a.abs = a.abs
 	z.b.abs = b.abs
 	z.a.neg = a.neg != b.neg
 	return z.norm()
-}
-
-// Gob codec version. Permits backward-compatible changes to the encoding.
-const ratGobVersion byte = 1
-
-// GobEncode implements the gob.GobEncoder interface.
-func (x *Rat) GobEncode() ([]byte, error) {
-	if x == nil {
-		return nil, nil
-	}
-	buf := make([]byte, 1+4+(len(x.a.abs)+len(x.b.abs))*_S) // extra bytes for version and sign bit (1), and numerator length (4)
-	i := x.b.abs.bytes(buf)
-	j := x.a.abs.bytes(buf[:i])
-	n := i - j
-	if int(uint32(n)) != n {
-		// this should never happen
-		return nil, errors.New("Rat.GobEncode: numerator too large")
-	}
-	binary.BigEndian.PutUint32(buf[j-4:j], uint32(n))
-	j -= 1 + 4
-	b := ratGobVersion << 1 // make space for sign bit
-	if x.a.neg {
-		b |= 1
-	}
-	buf[j] = b
-	return buf[j:], nil
-}
-
-// GobDecode implements the gob.GobDecoder interface.
-func (z *Rat) GobDecode(buf []byte) error {
-	if len(buf) == 0 {
-		// Other side sent a nil or default value.
-		*z = Rat{}
-		return nil
-	}
-	b := buf[0]
-	if b>>1 != ratGobVersion {
-		return errors.New(fmt.Sprintf("Rat.GobDecode: encoding version %d not supported", b>>1))
-	}
-	const j = 1 + 4
-	i := j + binary.BigEndian.Uint32(buf[j-4:j])
-	z.a.neg = b&1 != 0
-	z.a.abs = z.a.abs.setBytes(buf[j:i])
-	z.b.abs = z.b.abs.setBytes(buf[i:])
-	return nil
-}
-
-// MarshalText implements the encoding.TextMarshaler interface.
-func (r *Rat) MarshalText() (text []byte, err error) {
-	return []byte(r.RatString()), nil
-}
-
-// UnmarshalText implements the encoding.TextUnmarshaler interface.
-func (r *Rat) UnmarshalText(text []byte) error {
-	if _, ok := r.SetString(string(text)); !ok {
-		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Rat", text)
-	}
-	return nil
 }

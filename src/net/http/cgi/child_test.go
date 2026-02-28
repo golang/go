@@ -7,6 +7,11 @@
 package cgi
 
 import (
+	"bufio"
+	"bytes"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -146,5 +151,80 @@ func TestRequestWithoutRemotePort(t *testing.T) {
 	}
 	if e, g := "5.6.7.8:0", req.RemoteAddr; e != g {
 		t.Errorf("RemoteAddr: got %q; want %q", g, e)
+	}
+}
+
+// CGI Specification RFC 3875 - section 4.1.16
+// INCLUDED value for SERVER_PROTOCOL must be treated as an HTTP/1.0 request
+func TestIncludedServerProtocol(t *testing.T) {
+	env := map[string]string{
+		"REQUEST_METHOD":  "GET",
+		"SERVER_PROTOCOL": "INCLUDED",
+	}
+	req, err := RequestFromMap(env)
+	if req.Proto != "INCLUDED" {
+		t.Errorf("unexpected change to SERVER_PROTOCOL")
+	}
+	if major := req.ProtoMajor; major != 1 {
+		t.Errorf("ProtoMajor: got %d, want %d", major, 1)
+	}
+	if minor := req.ProtoMinor; minor != 0 {
+		t.Errorf("ProtoMinor: got %d, want %d", minor, 0)
+	}
+	if err != nil {
+		t.Fatalf("expected INCLUDED to be treated as HTTP/1.0 request")
+	}
+}
+
+func TestResponse(t *testing.T) {
+	var tests = []struct {
+		name   string
+		body   string
+		wantCT string
+	}{
+		{
+			name:   "no body",
+			wantCT: "text/plain; charset=utf-8",
+		},
+		{
+			name:   "html",
+			body:   "<html><head><title>test page</title></head><body>This is a body</body></html>",
+			wantCT: "text/html; charset=utf-8",
+		},
+		{
+			name:   "text",
+			body:   strings.Repeat("gopher", 86),
+			wantCT: "text/plain; charset=utf-8",
+		},
+		{
+			name:   "jpg",
+			body:   "\xFF\xD8\xFF" + strings.Repeat("B", 1024),
+			wantCT: "image/jpeg",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			resp := response{
+				req:    httptest.NewRequest("GET", "/", nil),
+				header: http.Header{},
+				bufw:   bufio.NewWriter(&buf),
+			}
+			n, err := resp.Write([]byte(tt.body))
+			if err != nil {
+				t.Errorf("Write: unexpected %v", err)
+			}
+			if want := len(tt.body); n != want {
+				t.Errorf("reported short Write: got %v want %v", n, want)
+			}
+			resp.writeCGIHeader(nil)
+			resp.Flush()
+			if got := resp.Header().Get("Content-Type"); got != tt.wantCT {
+				t.Errorf("wrong content-type: got %q, want %q", got, tt.wantCT)
+			}
+			if !bytes.HasSuffix(buf.Bytes(), []byte(tt.body)) {
+				t.Errorf("body was not correctly written")
+			}
+		})
 	}
 }

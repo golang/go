@@ -10,7 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/textproto"
+	"slices"
 	"strings"
 )
 
@@ -21,7 +23,7 @@ type Writer struct {
 	lastpart *part
 }
 
-// NewWriter returns a new multipart Writer with a random boundary,
+// NewWriter returns a new multipart [Writer] with a random boundary,
 // writing to w.
 func NewWriter(w io.Writer) *Writer {
 	return &Writer{
@@ -30,31 +32,37 @@ func NewWriter(w io.Writer) *Writer {
 	}
 }
 
-// Boundary returns the Writer's boundary.
+// Boundary returns the [Writer]'s boundary.
 func (w *Writer) Boundary() string {
 	return w.boundary
 }
 
-// SetBoundary overrides the Writer's default randomly-generated
+// SetBoundary overrides the [Writer]'s default randomly-generated
 // boundary separator with an explicit value.
 //
 // SetBoundary must be called before any parts are created, may only
-// contain certain ASCII characters, and must be 1-69 bytes long.
+// contain certain ASCII characters, and must be non-empty and
+// at most 70 bytes long.
 func (w *Writer) SetBoundary(boundary string) error {
 	if w.lastpart != nil {
 		return errors.New("mime: SetBoundary called after write")
 	}
 	// rfc2046#section-5.1.1
-	if len(boundary) < 1 || len(boundary) > 69 {
+	if len(boundary) < 1 || len(boundary) > 70 {
 		return errors.New("mime: invalid boundary length")
 	}
-	for _, b := range boundary {
+	end := len(boundary) - 1
+	for i, b := range boundary {
 		if 'A' <= b && b <= 'Z' || 'a' <= b && b <= 'z' || '0' <= b && b <= '9' {
 			continue
 		}
 		switch b {
 		case '\'', '(', ')', '+', '_', ',', '-', '.', '/', ':', '=', '?':
 			continue
+		case ' ':
+			if i != end {
+				continue
+			}
 		}
 		return errors.New("mime: invalid boundary character")
 	}
@@ -63,9 +71,15 @@ func (w *Writer) SetBoundary(boundary string) error {
 }
 
 // FormDataContentType returns the Content-Type for an HTTP
-// multipart/form-data with this Writer's Boundary.
+// multipart/form-data with this [Writer]'s Boundary.
 func (w *Writer) FormDataContentType() string {
-	return "multipart/form-data; boundary=" + w.boundary
+	b := w.boundary
+	// We must quote the boundary if it contains any of the
+	// tspecials characters defined by RFC 2045, or space.
+	if strings.ContainsAny(b, `()<>@,;:\"/[]?= `) {
+		b = `"` + b + `"`
+	}
+	return "multipart/form-data; boundary=" + b
 }
 
 func randomBoundary() string {
@@ -79,7 +93,7 @@ func randomBoundary() string {
 
 // CreatePart creates a new multipart section with the provided
 // header. The body of the part should be written to the returned
-// Writer. After calling CreatePart, any previous part may no longer
+// [Writer]. After calling CreatePart, any previous part may no longer
 // be written to.
 func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
 	if w.lastpart != nil {
@@ -93,10 +107,9 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
 	} else {
 		fmt.Fprintf(&b, "--%s\r\n", w.boundary)
 	}
-	// TODO(bradfitz): move this to textproto.MimeHeader.Write(w), have it sort
-	// and clean, like http.Header.Write(w) does.
-	for k, vv := range header {
-		for _, v := range vv {
+
+	for _, k := range slices.Sorted(maps.Keys(header)) {
+		for _, v := range header[k] {
 			fmt.Fprintf(&b, "%s: %s\r\n", k, v)
 		}
 	}
@@ -112,24 +125,34 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
 	return p, nil
 }
 
-var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
+var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"", "\r", "%0D", "\n", "%0A")
 
+// escapeQuotes escapes special characters in field parameter values.
+//
+// For historical reasons, this uses \ escaping for " and \ characters,
+// and percent encoding for CR and LF.
+//
+// The WhatWG specification for form data encoding suggests that we should
+// use percent encoding for " (%22), and should not escape \.
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#multipart/form-data-encoding-algorithm
+//
+// Empirically, as of the time this comment was written, it is necessary
+// to escape \ characters or else Chrome (and possibly other browsers) will
+// interpet the unescaped \ as an escape.
 func escapeQuotes(s string) string {
 	return quoteEscaper.Replace(s)
 }
 
-// CreateFormFile is a convenience wrapper around CreatePart. It creates
+// CreateFormFile is a convenience wrapper around [Writer.CreatePart]. It creates
 // a new form-data header with the provided field name and file name.
 func (w *Writer) CreateFormFile(fieldname, filename string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
-	h.Set("Content-Disposition",
-		fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-			escapeQuotes(fieldname), escapeQuotes(filename)))
+	h.Set("Content-Disposition", FileContentDisposition(fieldname, filename))
 	h.Set("Content-Type", "application/octet-stream")
 	return w.CreatePart(h)
 }
 
-// CreateFormField calls CreatePart with a header using the
+// CreateFormField calls [Writer.CreatePart] with a header using the
 // given field name.
 func (w *Writer) CreateFormField(fieldname string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
@@ -138,7 +161,14 @@ func (w *Writer) CreateFormField(fieldname string) (io.Writer, error) {
 	return w.CreatePart(h)
 }
 
-// WriteField calls CreateFormField and then writes the given value.
+// FileContentDisposition returns the value of a Content-Disposition header
+// with the provided field name and file name.
+func FileContentDisposition(fieldname, filename string) string {
+	return fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+		escapeQuotes(fieldname), escapeQuotes(filename))
+}
+
+// WriteField calls [Writer.CreateFormField] and then writes the given value.
 func (w *Writer) WriteField(fieldname, value string) error {
 	p, err := w.CreateFormField(fieldname)
 	if err != nil {

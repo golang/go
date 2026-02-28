@@ -7,16 +7,9 @@ package math
 // Abs returns the absolute value of x.
 //
 // Special cases are:
+//
 //	Abs(±Inf) = +Inf
 //	Abs(NaN) = NaN
-func Abs(x float64) float64
-
-func abs(x float64) float64 {
-	switch {
-	case x < 0:
-		return -x
-	case x == 0:
-		return 0 // return correctly abs(-0)
-	}
-	return x
+func Abs(x float64) float64 {
+	return Float64frombits(Float64bits(x) &^ signMask)
 }

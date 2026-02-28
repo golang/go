@@ -1,13 +1,15 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package gosym
 
 import (
+	"bytes"
+	"compress/gzip"
 	"debug/elf"
-	"fmt"
-	"io/ioutil"
+	"internal/testenv"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,43 +23,30 @@ var (
 	pclinetestBinary string
 )
 
-func dotest(self bool) bool {
+func dotest(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
 	// For now, only works on amd64 platforms.
 	if runtime.GOARCH != "amd64" {
-		return false
+		t.Skipf("skipping on non-AMD64 system %s", runtime.GOARCH)
 	}
-	// Self test reads test binary; only works on Linux.
-	if self && runtime.GOOS != "linux" {
-		return false
-	}
-	// Command below expects "sh", so Unix.
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		return false
-	}
-	if pclinetestBinary != "" {
-		return true
+	// This test builds a Linux/AMD64 binary. Skipping in short mode if cross compiling.
+	if runtime.GOOS != "linux" && testing.Short() {
+		t.Skipf("skipping in short mode on non-Linux system %s", runtime.GOARCH)
 	}
 	var err error
-	pclineTempDir, err = ioutil.TempDir("", "pclinetest")
+	pclineTempDir, err = os.MkdirTemp("", "pclinetest")
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
-	if strings.Contains(pclineTempDir, " ") {
-		panic("unexpected space in tempdir")
-	}
-	// This command builds pclinetest from pclinetest.asm;
-	// the resulting binary looks like it was built from pclinetest.s,
-	// but we have renamed it to keep it away from the go tool.
 	pclinetestBinary = filepath.Join(pclineTempDir, "pclinetest")
-	command := fmt.Sprintf("go tool 6a -o %s.6 pclinetest.asm && go tool 6l -H linux -E main -o %s %s.6",
-		pclinetestBinary, pclinetestBinary, pclinetestBinary)
-	cmd := exec.Command("sh", "-c", command)
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", pclinetestBinary)
+	cmd.Dir = "testdata"
+	cmd.Env = append(os.Environ(), "GOOS=linux")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
-	return true
 }
 
 func endtest() {
@@ -65,6 +54,17 @@ func endtest() {
 		os.RemoveAll(pclineTempDir)
 		pclineTempDir = ""
 		pclinetestBinary = ""
+	}
+}
+
+// skipIfNotELF skips the test if we are not running on an ELF system.
+// These tests open and examine the test binary, and use elf.Open to do so.
+func skipIfNotELF(t *testing.T) {
+	switch runtime.GOOS {
+	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris", "illumos":
+		// OK.
+	default:
+		t.Skipf("skipping on non-ELF system %s", runtime.GOOS)
 	}
 }
 
@@ -84,7 +84,11 @@ func crack(file string, t *testing.T) (*elf.File, *Table) {
 }
 
 func parse(file string, f *elf.File, t *testing.T) (*elf.File, *Table) {
-	symdat, err := f.Section(".gosymtab").Data()
+	s := f.Section(".gosymtab")
+	if s == nil {
+		t.Skip("no .gosymtab section")
+	}
+	symdat, err := s.Data()
 	if err != nil {
 		f.Close()
 		t.Fatalf("reading %s gosymtab: %v", file, err)
@@ -105,13 +109,8 @@ func parse(file string, f *elf.File, t *testing.T) (*elf.File, *Table) {
 	return f, tab
 }
 
-var goarch = os.Getenv("O")
-
 func TestLineFromAline(t *testing.T) {
-	if !dotest(true) {
-		return
-	}
-	defer endtest()
+	skipIfNotELF(t)
 
 	tab := getTable(t)
 	if tab.go12line != nil {
@@ -160,10 +159,7 @@ func TestLineFromAline(t *testing.T) {
 }
 
 func TestLineAline(t *testing.T) {
-	if !dotest(true) {
-		return
-	}
-	defer endtest()
+	skipIfNotELF(t)
 
 	tab := getTable(t)
 	if tab.go12line != nil {
@@ -206,12 +202,11 @@ func TestLineAline(t *testing.T) {
 }
 
 func TestPCLine(t *testing.T) {
-	if !dotest(false) {
-		return
-	}
+	dotest(t)
 	defer endtest()
 
 	f, tab := crack(pclinetestBinary, t)
+	defer f.Close()
 	text := f.Section(".text")
 	textdat, err := text.Data()
 	if err != nil {
@@ -219,7 +214,7 @@ func TestPCLine(t *testing.T) {
 	}
 
 	// Test PCToLine
-	sym := tab.LookupFunc("linefrompc")
+	sym := tab.LookupFunc("main.linefrompc")
 	wantLine := 0
 	for pc := sym.Entry; pc < sym.End; pc++ {
 		off := pc - text.Addr // TODO(rsc): should not need off; bug in 8g
@@ -231,13 +226,13 @@ func TestPCLine(t *testing.T) {
 		file, line, fn := tab.PCToLine(pc)
 		if fn == nil {
 			t.Errorf("failed to get line of PC %#x", pc)
-		} else if !strings.HasSuffix(file, "pclinetest.asm") || line != wantLine || fn != sym {
-			t.Errorf("PCToLine(%#x) = %s:%d (%s), want %s:%d (%s)", pc, file, line, fn.Name, "pclinetest.asm", wantLine, sym.Name)
+		} else if !strings.HasSuffix(file, "pclinetest.s") || line != wantLine || fn != sym {
+			t.Errorf("PCToLine(%#x) = %s:%d (%s), want %s:%d (%s)", pc, file, line, fn.Name, "pclinetest.s", wantLine, sym.Name)
 		}
 	}
 
 	// Test LineToPC
-	sym = tab.LookupFunc("pcfromline")
+	sym = tab.LookupFunc("main.pcfromline")
 	lookupline := -1
 	wantLine = 0
 	off := uint64(0) // TODO(rsc): should not need off; bug in 8g
@@ -271,4 +266,142 @@ func TestPCLine(t *testing.T) {
 		}
 		off = pc + 1 - text.Addr
 	}
+}
+
+func TestSymVersion(t *testing.T) {
+	skipIfNotELF(t)
+
+	table := getTable(t)
+	if table.go12line == nil {
+		t.Skip("not relevant to Go 1.2+ symbol table")
+	}
+	for _, fn := range table.Funcs {
+		if fn.goVersion == verUnknown {
+			t.Fatalf("unexpected symbol version: %v", fn)
+		}
+	}
+}
+
+// read115Executable returns a hello world executable compiled by Go 1.15.
+//
+// The file was compiled in /tmp/hello.go:
+//
+//	package main
+//
+//	func main() {
+//		println("hello")
+//	}
+func read115Executable(tb testing.TB) []byte {
+	zippedDat, err := os.ReadFile("testdata/pcln115.gz")
+	if err != nil {
+		tb.Fatal(err)
+	}
+	var gzReader *gzip.Reader
+	gzReader, err = gzip.NewReader(bytes.NewBuffer(zippedDat))
+	if err != nil {
+		tb.Fatal(err)
+	}
+	var dat []byte
+	dat, err = io.ReadAll(gzReader)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	return dat
+}
+
+// Test that we can parse a pclntab from 1.15.
+func Test115PclnParsing(t *testing.T) {
+	dat := read115Executable(t)
+	const textStart = 0x1001000
+	pcln := NewLineTable(dat, textStart)
+	tab, err := NewTable(nil, pcln)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var f *Func
+	var pc uint64
+	pc, f, err = tab.LineToPC("/tmp/hello.go", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pcln.version != ver12 {
+		t.Fatal("Expected pcln to parse as an older version")
+	}
+	if pc != 0x105c280 {
+		t.Fatalf("expect pc = 0x105c280, got 0x%x", pc)
+	}
+	if f.Name != "main.main" {
+		t.Fatalf("expected to parse name as main.main, got %v", f.Name)
+	}
+}
+
+var (
+	sinkLineTable *LineTable
+	sinkTable     *Table
+)
+
+func Benchmark115(b *testing.B) {
+	dat := read115Executable(b)
+	const textStart = 0x1001000
+
+	b.Run("NewLineTable", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			sinkLineTable = NewLineTable(dat, textStart)
+		}
+	})
+
+	pcln := NewLineTable(dat, textStart)
+	b.Run("NewTable", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			var err error
+			sinkTable, err = NewTable(nil, pcln)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	tab, err := NewTable(nil, pcln)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.Run("LineToPC", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			var f *Func
+			var pc uint64
+			pc, f, err = tab.LineToPC("/tmp/hello.go", 3)
+			if err != nil {
+				b.Fatal(err)
+			}
+			if pcln.version != ver12 {
+				b.Fatalf("want version=%d, got %d", ver12, pcln.version)
+			}
+			if pc != 0x105c280 {
+				b.Fatalf("want pc=0x105c280, got 0x%x", pc)
+			}
+			if f.Name != "main.main" {
+				b.Fatalf("want name=main.main, got %q", f.Name)
+			}
+		}
+	})
+
+	b.Run("PCToLine", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			file, line, fn := tab.PCToLine(0x105c280)
+			if file != "/tmp/hello.go" {
+				b.Fatalf("want name=/tmp/hello.go, got %q", file)
+			}
+			if line != 3 {
+				b.Fatalf("want line=3, got %d", line)
+			}
+			if fn.Name != "main.main" {
+				b.Fatalf("want name=main.main, got %q", fn.Name)
+			}
+		}
+	})
 }

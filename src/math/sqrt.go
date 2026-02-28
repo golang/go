@@ -6,7 +6,7 @@ package math
 
 // The original C code and the long comment below are
 // from FreeBSD's /usr/src/lib/msun/src/e_sqrt.c and
-// came with this notice.  The go code is a simplified
+// came with this notice. The go code is a simplified
 // version of the original C.
 //
 // ====================================================
@@ -67,7 +67,7 @@ package math
 //
 //      One may easily use induction to prove (4) and (5).
 //      Note. Since the left hand side of (3) contain only i+2 bits,
-//            it does not necessary to do a full (53-bit) comparison
+//            it is not necessary to do a full (53-bit) comparison
 //            in (3).
 //   3. Final rounding
 //      After generating the 53 bits result, we compute one more bit.
@@ -79,17 +79,23 @@ package math
 //      equal to huge for some floating point number "huge" and "tiny".
 //
 //
-// Notes:  Rounding mode detection omitted.  The constants "mask", "shift",
+// Notes:  Rounding mode detection omitted. The constants "mask", "shift",
 // and "bias" are found in src/math/bits.go
 
 // Sqrt returns the square root of x.
 //
 // Special cases are:
+//
 //	Sqrt(+Inf) = +Inf
 //	Sqrt(±0) = ±0
 //	Sqrt(x < 0) = NaN
 //	Sqrt(NaN) = NaN
-func Sqrt(x float64) float64
+func Sqrt(x float64) float64 {
+	return sqrt(x)
+}
+
+// Note: On systems where Sqrt is a single instruction, the compiler
+// may turn a direct call into a direct use of that instruction instead.
 
 func sqrt(x float64) float64 {
 	// special cases
@@ -103,7 +109,7 @@ func sqrt(x float64) float64 {
 	// normalize x
 	exp := int((ix >> shift) & mask)
 	if exp == 0 { // subnormal x
-		for ix&1<<shift == 0 {
+		for ix&(1<<shift) == 0 {
 			ix <<= 1
 			exp--
 		}
@@ -136,8 +142,4 @@ func sqrt(x float64) float64 {
 	}
 	ix = q>>1 + uint64(exp-1+bias)<<shift // significand + biased exponent
 	return Float64frombits(ix)
-}
-
-func sqrtC(f float64, r *float64) {
-	*r = sqrt(f)
 }

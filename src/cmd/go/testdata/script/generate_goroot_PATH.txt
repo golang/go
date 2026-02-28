@@ -1,0 +1,38 @@
+# https://go.dev/issue/51473: to avoid the need for generators to rely on
+# runtime.GOROOT, 'go generate' should run the test with its own GOROOT/bin
+# at the beginning of $PATH.
+
+[short] skip
+
+[!GOOS:plan9] env PATH=
+[GOOS:plan9] env path=
+go generate .
+
+[!GOOS:plan9] env PATH=$WORK${/}bin
+[GOOS:plan9] env path=$WORK${/}bin
+go generate .
+
+-- go.mod --
+module example
+
+go 1.19
+-- main.go --
+//go:generate go run .
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+)
+
+func main() {
+	_, err := exec.LookPath("go")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+-- $WORK/bin/README.txt --
+This directory contains no executables.

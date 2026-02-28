@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"slices"
 	"testing"
 )
 
@@ -29,18 +30,14 @@ func equal(p, q *FileSet) error {
 		return fmt.Errorf("different bases: %d != %d", p.base, q.base)
 	}
 
-	if len(p.files) != len(q.files) {
-		return fmt.Errorf("different number of files: %d != %d", len(p.files), len(q.files))
+	pfiles := slices.Collect(p.tree.all())
+	qfiles := slices.Collect(q.tree.all())
+	if len(pfiles) != len(qfiles) {
+		return fmt.Errorf("different number of files: %d != %d", len(pfiles), len(qfiles))
 	}
 
-	for i, f := range p.files {
-		g := q.files[i]
-		if f.set != p {
-			return fmt.Errorf("wrong fileset for %q", f.name)
-		}
-		if g.set != q {
-			return fmt.Errorf("wrong fileset for %q", g.name)
-		}
+	for i, f := range pfiles {
+		g := qfiles[i]
 		if f.name != g.name {
 			return fmt.Errorf("different filenames: %q != %q", f.name, g.name)
 		}
@@ -70,7 +67,7 @@ func equal(p, q *FileSet) error {
 
 func checkSerialize(t *testing.T, p *FileSet) {
 	var buf bytes.Buffer
-	encode := func(x interface{}) error {
+	encode := func(x any) error {
 		return gob.NewEncoder(&buf).Encode(x)
 	}
 	if err := p.Write(encode); err != nil {
@@ -78,7 +75,7 @@ func checkSerialize(t *testing.T, p *FileSet) {
 		return
 	}
 	q := NewFileSet()
-	decode := func(x interface{}) error {
+	decode := func(x any) error {
 		return gob.NewDecoder(&buf).Decode(x)
 	}
 	if err := q.Read(decode); err != nil {
@@ -94,7 +91,7 @@ func TestSerialization(t *testing.T) {
 	p := NewFileSet()
 	checkSerialize(t, p)
 	// add some files
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		f := p.AddFile(fmt.Sprintf("file%d", i), p.Base()+i, i*100)
 		checkSerialize(t, p)
 		// add some lines and alternative file infos

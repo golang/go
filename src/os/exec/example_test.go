@@ -5,12 +5,15 @@
 package exec_test
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 func ExampleLookPath() {
@@ -24,7 +27,7 @@ func ExampleLookPath() {
 func ExampleCommand() {
 	cmd := exec.Command("tr", "a-z", "A-Z")
 	cmd.Stdin = strings.NewReader("some input")
-	var out bytes.Buffer
+	var out strings.Builder
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
@@ -33,12 +36,30 @@ func ExampleCommand() {
 	fmt.Printf("in all caps: %q\n", out.String())
 }
 
+func ExampleCommand_environment() {
+	cmd := exec.Command("prog")
+	cmd.Env = append(os.Environ(),
+		"FOO=duplicate_value", // ignored
+		"FOO=actual_value",    // this value is used
+	)
+	if err := cmd.Run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func ExampleCmd_Output() {
 	out, err := exec.Command("date").Output()
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("The date is %s\n", out)
+}
+
+func ExampleCmd_Run() {
+	cmd := exec.Command("sleep", "1")
+	log.Printf("Running command and waiting for it to finish...")
+	err := cmd.Run()
+	log.Printf("Command finished with error: %v", err)
 }
 
 func ExampleCmd_Start() {
@@ -72,4 +93,77 @@ func ExampleCmd_StdoutPipe() {
 		log.Fatal(err)
 	}
 	fmt.Printf("%s is %d years old\n", person.Name, person.Age)
+}
+
+func ExampleCmd_StdinPipe() {
+	cmd := exec.Command("cat")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	go func() {
+		defer stdin.Close()
+		io.WriteString(stdin, "values written to stdin are passed to cmd's standard input")
+	}()
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("%s\n", out)
+}
+
+func ExampleCmd_StderrPipe() {
+	cmd := exec.Command("sh", "-c", "echo stdout; echo 1>&2 stderr")
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		log.Fatal(err)
+	}
+
+	slurp, _ := io.ReadAll(stderr)
+	fmt.Printf("%s\n", slurp)
+
+	if err := cmd.Wait(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleCmd_CombinedOutput() {
+	cmd := exec.Command("sh", "-c", "echo stdout; echo 1>&2 stderr")
+	stdoutStderr, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s\n", stdoutStderr)
+}
+
+func ExampleCmd_Environ() {
+	cmd := exec.Command("pwd")
+
+	// Set Dir before calling cmd.Environ so that it will include an
+	// updated PWD variable (on platforms where that is used).
+	cmd.Dir = ".."
+	cmd.Env = append(cmd.Environ(), "POSIXLY_CORRECT=1")
+
+	out, err := cmd.Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s\n", out)
+}
+
+func ExampleCommandContext() {
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	if err := exec.CommandContext(ctx, "sleep", "5").Run(); err != nil {
+		// This will fail after 100 milliseconds. The 5 second sleep
+		// will be interrupted.
+	}
 }

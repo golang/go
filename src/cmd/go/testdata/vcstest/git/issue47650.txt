@@ -1,0 +1,42 @@
+handle git
+
+env GIT_AUTHOR_NAME='Bryan C. Mills'
+env GIT_AUTHOR_EMAIL='bcmills@google.com'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+
+at 2021-08-11T13:52:00-04:00
+git add cmd
+git commit -m 'add cmd/issue47650'
+git branch -m main
+git tag v0.1.0
+
+git add go.mod
+git commit -m 'add go.mod'
+
+git show-ref --tags --heads
+cmp stdout .git-refs
+
+git log --oneline --decorate=short
+cmp stdout .git-log
+
+-- .git-refs --
+21535ef346c3e79fd09edd75bd4725f06c828e43 refs/heads/main
+4d237df2dbfc8a443af2f5e84be774f08a2aed0c refs/tags/v0.1.0
+-- .git-log --
+21535ef (HEAD -> main) add go.mod
+4d237df (tag: v0.1.0) add cmd/issue47650
+-- go.mod --
+module vcs-test.golang.org/git/issue47650.git
+
+go 1.17
+-- cmd/issue47650/main.go --
+package main
+
+import "os"
+
+func main() {
+	os.Stdout.WriteString("Hello, world!")
+}

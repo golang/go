@@ -55,23 +55,31 @@ package math
 //
 
 var tanhP = [...]float64{
-	-9.64399179425052238628E-1,
-	-9.92877231001918586564E1,
-	-1.61468768441708447952E3,
+	-9.64399179425052238628e-1,
+	-9.92877231001918586564e1,
+	-1.61468768441708447952e3,
 }
 var tanhQ = [...]float64{
-	1.12811678491632931402E2,
-	2.23548839060100448583E3,
-	4.84406305325125486048E3,
+	1.12811678491632931402e2,
+	2.23548839060100448583e3,
+	4.84406305325125486048e3,
 }
 
 // Tanh returns the hyperbolic tangent of x.
 //
 // Special cases are:
+//
 //	Tanh(±0) = ±0
 //	Tanh(±Inf) = ±1
 //	Tanh(NaN) = NaN
 func Tanh(x float64) float64 {
+	if haveArchTanh {
+		return archTanh(x)
+	}
+	return tanh(x)
+}
+
+func tanh(x float64) float64 {
 	const MAXLOG = 8.8029691931113054295988e+01 // log(2**127)
 	z := Abs(x)
 	switch {

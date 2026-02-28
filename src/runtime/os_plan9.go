@@ -1,12 +1,26 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/abi"
+	"internal/byteorder"
+	"internal/runtime/atomic"
+	"internal/stringslite"
+	"unsafe"
+)
 
-func close(fd int32) int32
+type mOS struct {
+	waitsemacount uint32
+	notesig       *int8
+	errstr        *byte
+	ignoreHangup  bool
+}
+
+func dupfd(old, new int32) int32
+func closefd(fd int32) int32
 
 //go:noescape
 func open(name *byte, mode, perm int32) int32
@@ -47,7 +61,7 @@ func noted(mode int32) int32
 func nsec(*int64) int64
 
 //go:noescape
-func sigtramp(ureg, msg unsafe.Pointer)
+func sigtramp(ureg, note unsafe.Pointer)
 
 func setfpmasks()
 
@@ -58,29 +72,42 @@ func errstr() string
 
 type _Plink uintptr
 
-//go:linkname os_sigpipe os.sigpipe
-func os_sigpipe() {
-	throw("too many writes on closed pipe")
-}
-
 func sigpanic() {
-	g := getg()
-	if !canpanic(g) {
+	gp := getg()
+	if !canpanic() {
 		throw("unexpected signal during runtime execution")
 	}
 
-	note := gostringnocopy((*byte)(unsafe.Pointer(g.m.notesig)))
-	switch g.sig {
+	note := gostringnocopy((*byte)(unsafe.Pointer(gp.m.notesig)))
+	switch gp.sig {
 	case _SIGRFAULT, _SIGWFAULT:
-		addr := note[index(note, "addr=")+5:]
-		g.sigcode1 = uintptr(atolwhex(addr))
-		if g.sigcode1 < 0x1000 || g.paniconfault {
+		i := indexNoFloat(note, "addr=")
+		if i >= 0 {
+			i += 5
+		} else if i = indexNoFloat(note, "va="); i >= 0 {
+			i += 3
+		} else {
 			panicmem()
 		}
-		print("unexpected fault address ", hex(g.sigcode1), "\n")
+		addr := note[i:]
+		gp.sigcode1 = uintptr(atolwhex(addr))
+		if gp.sigcode1 < 0x1000 {
+			panicmem()
+		}
+		if gp.paniconfault {
+			panicmemAddr(gp.sigcode1)
+		}
+		if inUserArenaChunk(gp.sigcode1) {
+			// We could check that the arena chunk is explicitly set to fault,
+			// but the fact that we faulted on accessing it is enough to prove
+			// that it is.
+			print("accessed data from freed user arena ", hex(gp.sigcode1), "\n")
+		} else {
+			print("unexpected fault address ", hex(gp.sigcode1), "\n")
+		}
 		throw("fault")
 	case _SIGTRAP:
-		if g.paniconfault {
+		if gp.paniconfault {
 			panicmem()
 		}
 		throw(note)
@@ -93,21 +120,35 @@ func sigpanic() {
 	}
 }
 
+// indexNoFloat is bytealg.IndexString but safe to use in a note
+// handler.
+func indexNoFloat(s, t string) int {
+	if len(t) == 0 {
+		return 0
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] == t[0] && stringslite.HasPrefix(s[i:], t) {
+			return i
+		}
+	}
+	return -1
+}
+
 func atolwhex(p string) int64 {
-	for hasprefix(p, " ") || hasprefix(p, "\t") {
+	for stringslite.HasPrefix(p, " ") || stringslite.HasPrefix(p, "\t") {
 		p = p[1:]
 	}
 	neg := false
-	if hasprefix(p, "-") || hasprefix(p, "+") {
+	if stringslite.HasPrefix(p, "-") || stringslite.HasPrefix(p, "+") {
 		neg = p[0] == '-'
 		p = p[1:]
-		for hasprefix(p, " ") || hasprefix(p, "\t") {
+		for stringslite.HasPrefix(p, " ") || stringslite.HasPrefix(p, "\t") {
 			p = p[1:]
 		}
 	}
 	var n int64
 	switch {
-	case hasprefix(p, "0x"), hasprefix(p, "0X"):
+	case stringslite.HasPrefix(p, "0x"), stringslite.HasPrefix(p, "0X"):
 		p = p[2:]
 		for ; len(p) > 0; p = p[1:] {
 			if '0' <= p[0] && p[0] <= '9' {
@@ -120,7 +161,7 @@ func atolwhex(p string) int64 {
 				break
 			}
 		}
-	case hasprefix(p, "0"):
+	case stringslite.HasPrefix(p, "0"):
 		for ; len(p) > 0 && '0' <= p[0] && p[0] <= '7'; p = p[1:] {
 			n = n*8 + int64(p[0]-'0')
 		}
@@ -133,4 +174,423 @@ func atolwhex(p string) int64 {
 		n = -n
 	}
 	return n
+}
+
+type sigset struct{}
+
+// Called to initialize a new m (including the bootstrap m).
+// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+func mpreinit(mp *m) {
+	// Initialize stack and goroutine for note handling.
+	mp.gsignal = malg(32 * 1024)
+	mp.gsignal.m = mp
+	mp.notesig = (*int8)(mallocgc(_ERRMAX, nil, true))
+	// Initialize stack for handling strings from the
+	// errstr system call, as used in package syscall.
+	mp.errstr = (*byte)(mallocgc(_ERRMAX, nil, true))
+}
+
+func sigsave(p *sigset) {
+}
+
+func msigrestore(sigmask sigset) {
+}
+
+//go:nosplit
+//go:nowritebarrierrec
+func clearSignalHandlers() {
+}
+
+func sigblock(exiting bool) {
+}
+
+// Called to initialize a new m (including the bootstrap m).
+// Called on the new thread, cannot allocate memory.
+func minit() {
+	if atomic.Load(&exiting) != 0 {
+		exits(&emptystatus[0])
+	}
+	// Mask all SSE floating-point exceptions
+	// when running on the 64-bit kernel.
+	setfpmasks()
+}
+
+// Called from dropm to undo the effect of an minit.
+func unminit() {
+}
+
+// Called from mexit, but not from dropm, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+//
+// This always runs without a P, so //go:nowritebarrierrec is required.
+//
+//go:nowritebarrierrec
+func mdestroy(mp *m) {
+}
+
+var sysstat = []byte("/dev/sysstat\x00")
+
+func getCPUCount() int32 {
+	var buf [2048]byte
+	fd := open(&sysstat[0], _OREAD|_OCEXEC, 0)
+	if fd < 0 {
+		return 1
+	}
+	ncpu := int32(0)
+	for {
+		n := read(fd, unsafe.Pointer(&buf), int32(len(buf)))
+		if n <= 0 {
+			break
+		}
+		for i := int32(0); i < n; i++ {
+			if buf[i] == '\n' {
+				ncpu++
+			}
+		}
+	}
+	closefd(fd)
+	if ncpu == 0 {
+		ncpu = 1
+	}
+	return ncpu
+}
+
+var devswap = []byte("/dev/swap\x00")
+var pagesize = []byte(" pagesize\n")
+
+func getPageSize() uintptr {
+	var buf [2048]byte
+	var pos int
+	fd := open(&devswap[0], _OREAD|_OCEXEC, 0)
+	if fd < 0 {
+		// There's not much we can do if /dev/swap doesn't
+		// exist. However, nothing in the memory manager uses
+		// this on Plan 9, so it also doesn't really matter.
+		return minPhysPageSize
+	}
+	for pos < len(buf) {
+		n := read(fd, unsafe.Pointer(&buf[pos]), int32(len(buf)-pos))
+		if n <= 0 {
+			break
+		}
+		pos += int(n)
+	}
+	closefd(fd)
+	text := buf[:pos]
+	// Find "<n> pagesize" line.
+	bol := 0
+	for i, c := range text {
+		if c == '\n' {
+			bol = i + 1
+		}
+		if bytesHasPrefix(text[i:], pagesize) {
+			// Parse number at the beginning of this line.
+			return uintptr(_atoi(text[bol:]))
+		}
+	}
+	// Again, the page size doesn't really matter, so use a fallback.
+	return minPhysPageSize
+}
+
+func bytesHasPrefix(s, prefix []byte) bool {
+	if len(s) < len(prefix) {
+		return false
+	}
+	for i, p := range prefix {
+		if s[i] != p {
+			return false
+		}
+	}
+	return true
+}
+
+var pid = []byte("#c/pid\x00")
+
+func getpid() uint64 {
+	var b [20]byte
+	fd := open(&pid[0], 0, 0)
+	if fd >= 0 {
+		read(fd, unsafe.Pointer(&b), int32(len(b)))
+		closefd(fd)
+	}
+	c := b[:]
+	for c[0] == ' ' || c[0] == '\t' {
+		c = c[1:]
+	}
+	return uint64(_atoi(c))
+}
+
+var (
+	bintimeFD int32 = -1
+
+	bintimeDev = []byte("/dev/bintime\x00")
+	randomDev  = []byte("/dev/random\x00")
+)
+
+func osinit() {
+	physPageSize = getPageSize()
+	initBloc()
+	numCPUStartup = getCPUCount()
+	getg().m.procid = getpid()
+
+	fd := open(&bintimeDev[0], _OREAD|_OCEXEC, 0)
+	if fd < 0 {
+		fatal("cannot open /dev/bintime")
+	}
+	bintimeFD = fd
+
+	// Move fd high up, to avoid conflicts with smaller ones
+	// that programs might hard code, and to make exec's job easier.
+	// Plan 9 allocates chunks of DELTAFD=20 fds in a row,
+	// so 18 is near the top of what's possible.
+	if bintimeFD < 18 {
+		if dupfd(bintimeFD, 18) < 0 {
+			fatal("cannot dup /dev/bintime onto 18")
+		}
+		closefd(bintimeFD)
+		bintimeFD = 18
+	}
+}
+
+//go:nosplit
+func crash() {
+	notify(nil)
+	*(*int)(nil) = 0
+}
+
+// Don't read from /dev/random, since this device can only
+// return a few hundred bits a second and would slow creation
+// of Go processes down significantly.
+//
+//go:nosplit
+func readRandom(r []byte) int {
+	return 0
+}
+
+func initsig(preinit bool) {
+	if !preinit {
+		notify(unsafe.Pointer(abi.FuncPCABI0(sigtramp)))
+	}
+}
+
+//go:nosplit
+func osyield() {
+	sleep(0)
+}
+
+//go:nosplit
+func osyield_no_g() {
+	osyield()
+}
+
+//go:nosplit
+func usleep(µs uint32) {
+	ms := int32(µs / 1000)
+	if ms == 0 {
+		ms = 1
+	}
+	sleep(ms)
+}
+
+//go:nosplit
+func usleep_no_g(usec uint32) {
+	usleep(usec)
+}
+
+var goexits = []byte("go: exit ")
+var emptystatus = []byte("\x00")
+var exiting uint32
+
+func goexitsall(status *byte) {
+	var buf [_ERRMAX]byte
+	if !atomic.Cas(&exiting, 0, 1) {
+		return
+	}
+	getg().m.locks++
+	n := copy(buf[:], goexits)
+	n = copy(buf[n:], gostringnocopy(status))
+	pid := getpid()
+	for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
+		if mp.procid != 0 && mp.procid != pid {
+			postnote(mp.procid, buf[:])
+		}
+	}
+	getg().m.locks--
+}
+
+var procdir = []byte("/proc/")
+var notefile = []byte("/note\x00")
+
+func postnote(pid uint64, msg []byte) int {
+	var buf [128]byte
+	var tmp [32]byte
+	n := copy(buf[:], procdir)
+	n += copy(buf[n:], itoa(tmp[:], pid))
+	copy(buf[n:], notefile)
+	fd := open(&buf[0], _OWRITE, 0)
+	if fd < 0 {
+		return -1
+	}
+	len := findnull(&msg[0])
+	if write1(uintptr(fd), unsafe.Pointer(&msg[0]), int32(len)) != int32(len) {
+		closefd(fd)
+		return -1
+	}
+	closefd(fd)
+	return 0
+}
+
+//go:nosplit
+func exit(e int32) {
+	var status []byte
+	if e == 0 {
+		status = emptystatus
+	} else {
+		// build error string
+		var tmp [32]byte
+		sl := itoa(tmp[:len(tmp)-1], uint64(e))
+		// Don't append, rely on the existing data being zero.
+		status = sl[:len(sl)+1]
+	}
+	goexitsall(&status[0])
+	exits(&status[0])
+}
+
+// May run with m.p==nil, so write barriers are not allowed.
+//
+//go:nowritebarrier
+func newosproc(mp *m) {
+	if false {
+		print("newosproc mp=", mp, " ostk=", &mp, "\n")
+	}
+	pid := rfork(_RFPROC | _RFMEM | _RFNOWAIT)
+	if pid < 0 {
+		throw("newosproc: rfork failed")
+	}
+	if pid == 0 {
+		tstart_plan9(mp)
+	}
+}
+
+func exitThread(wait *atomic.Uint32) {
+	// We should never reach exitThread on Plan 9 because we let
+	// the OS clean up threads.
+	throw("exitThread")
+}
+
+//go:nosplit
+func semacreate(mp *m) {
+}
+
+//go:nosplit
+func semasleep(ns int64) int {
+	gp := getg()
+	if ns >= 0 {
+		ms := int32(ns / 1000000)
+		if ms == 0 {
+			ms = 1
+		}
+		ret := plan9_tsemacquire(&gp.m.waitsemacount, ms)
+		if ret == 1 {
+			return 0 // success
+		}
+		return -1 // timeout or interrupted
+	}
+	for plan9_semacquire(&gp.m.waitsemacount, 1) < 0 {
+		// interrupted; try again (c.f. lock_sema.go)
+	}
+	return 0 // success
+}
+
+//go:nosplit
+func semawakeup(mp *m) {
+	plan9_semrelease(&mp.waitsemacount, 1)
+}
+
+//go:nosplit
+func read(fd int32, buf unsafe.Pointer, n int32) int32 {
+	return pread(fd, buf, n, -1)
+}
+
+//go:nosplit
+func write1(fd uintptr, buf unsafe.Pointer, n int32) int32 {
+	return pwrite(int32(fd), buf, n, -1)
+}
+
+var _badsignal = []byte("runtime: signal received on thread not created by Go.\n")
+
+// This runs on a foreign stack, without an m or a g. No stack split.
+//
+//go:nosplit
+func badsignal2() {
+	pwrite(2, unsafe.Pointer(&_badsignal[0]), int32(len(_badsignal)), -1)
+	exits(&_badsignal[0])
+}
+
+func raisebadsignal(sig uint32) {
+	badsignal2()
+}
+
+func _atoi(b []byte) int {
+	n := 0
+	for len(b) > 0 && '0' <= b[0] && b[0] <= '9' {
+		n = n*10 + int(b[0]) - '0'
+		b = b[1:]
+	}
+	return n
+}
+
+func signame(sig uint32) string {
+	if sig >= uint32(len(sigtable)) {
+		return ""
+	}
+	return sigtable[sig].name
+}
+
+const preemptMSupported = false
+
+func preemptM(mp *m) {
+	// Not currently supported.
+	//
+	// TODO: Use a note like we use signals on POSIX OSes
+}
+
+//go:nosplit
+func readtime(t *uint64, min, n int) int {
+	if bintimeFD < 0 {
+		fatal("/dev/bintime not opened")
+	}
+	const uint64size = 8
+	r := pread(bintimeFD, unsafe.Pointer(t), int32(n*uint64size), 0)
+	if int(r) < min*uint64size {
+		fatal("cannot read /dev/bintime")
+	}
+	return int(r) / uint64size
+}
+
+// timesplit returns u/1e9, u%1e9
+func timesplit(u uint64) (sec int64, nsec int32)
+
+func frombe(u uint64) uint64 {
+	b := (*[8]byte)(unsafe.Pointer(&u))
+	return byteorder.BEUint64(b[:])
+}
+
+//go:nosplit
+func nanotime1() int64 {
+	var t [4]uint64
+	if readtime(&t[0], 1, 4) == 4 {
+		// long read indicates new kernel sending monotonic time
+		// (https://github.com/rsc/plan9/commit/baf076425).
+		return int64(frombe(t[3]))
+	}
+	// fall back to unix time
+	return int64(frombe(t[0]))
+}
+
+//go:nosplit
+func walltime() (sec int64, nsec int32) {
+	var t [1]uint64
+	readtime(&t[0], 1, 1)
+	return timesplit(frombe(t[0]))
 }

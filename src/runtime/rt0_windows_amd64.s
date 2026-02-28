@@ -6,15 +6,10 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
-	LEAQ	8(SP), SI // argv
-	MOVQ	0(SP), DI // argc
-	MOVQ	$main(SB), AX
-	JMP	AX
+TEXT _rt0_amd64_windows(SB),NOSPLIT,$0
+	JMP	_rt0_amd64(SB)
 
-TEXT main(SB),NOSPLIT,$-8
-	MOVQ	$runtime·rt0_go(SB), AX
-	JMP	AX
-
-DATA  runtime·iswindows(SB)/4, $1
-GLOBL runtime·iswindows(SB), NOPTR, $4
+// When building with -buildmode=(c-shared or c-archive), this
+// symbol is called.
+TEXT _rt0_amd64_windows_lib(SB),NOSPLIT,$0
+	JMP	_rt0_amd64_lib(SB)

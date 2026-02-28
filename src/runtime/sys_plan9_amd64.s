@@ -6,10 +6,6 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-// setldt(int entry, int address, int limit)
-TEXT runtime·setldt(SB),NOSPLIT,$0
-	RET
-
 TEXT runtime·open(SB),NOSPLIT,$0
 	MOVQ	$14, BP
 	SYSCALL
@@ -51,8 +47,19 @@ TEXT runtime·seek(SB),NOSPLIT,$32
 	MOVQ	$-1, ret+24(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVQ	$4, BP
+	SYSCALL
+	MOVL	AX, ret+8(FP)
+	RET
+
+TEXT runtime·dupfd(SB),NOSPLIT,$0
+	MOVQ	$5, BP
+	// Kernel expects each int32 arg to be 64-bit-aligned.
+	// The return value slot is where the kernel
+	// expects to find the second argument, so copy it there.
+	MOVL	new+4(FP), AX
+	MOVL	AX, ret+8(FP)
 	SYSCALL
 	MOVL	AX, ret+8(FP)
 	RET
@@ -65,7 +72,7 @@ TEXT runtime·exits(SB),NOSPLIT,$0
 TEXT runtime·brk_(SB),NOSPLIT,$0
 	MOVQ	$24, BP
 	SYSCALL
-	MOVQ	AX, ret+8(FP)
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·sleep(SB),NOSPLIT,$0
@@ -86,19 +93,11 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
 	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·nsec(SB),NOSPLIT,$0
-	MOVQ	$53, BP
-	SYSCALL
-	MOVQ	AX, ret+8(FP)
-	RET
-
-// func now() (sec int64, nsec int32)
-TEXT time·now(SB),NOSPLIT,$8-12
-	CALL	runtime·nanotime(SB)
-	MOVQ	0(SP), AX
-
+// func timesplit(u uint64) (sec int64, nsec int32)
+TEXT runtime·timesplit(SB),NOSPLIT,$0
+	MOVQ	u+0(FP), AX
 	// generated code for
-	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
+	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%1000000000 }
 	// adapted to reduce duplication
 	MOVQ	AX, CX
 	MOVQ	$1360296554856532783, AX
@@ -106,10 +105,10 @@ TEXT time·now(SB),NOSPLIT,$8-12
 	ADDQ	CX, DX
 	RCRQ	$1, DX
 	SHRQ	$29, DX
-	MOVQ	DX, sec+0(FP)
+	MOVQ	DX, sec+8(FP)
 	IMULQ	$1000000000, DX
 	SUBQ	DX, CX
-	MOVL	CX, nsec+8(FP)
+	MOVL	CX, nsec+16(FP)
 	RET
 
 TEXT runtime·notify(SB),NOSPLIT,$0
@@ -123,7 +122,7 @@ TEXT runtime·noted(SB),NOSPLIT,$0
 	SYSCALL
 	MOVL	AX, ret+8(FP)
 	RET
-	
+
 TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
 	MOVQ	$38, BP
 	SYSCALL
@@ -136,7 +135,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
+TEXT runtime·tstart_plan9(SB),NOSPLIT,$8
 	MOVQ	newm+0(FP), CX
 	MOVQ	m_g0(CX), DX
 
@@ -160,15 +159,17 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
 	CALL	runtime·mstart(SB)
 
-	MOVQ	$0x1234, 0x1234		// not reached
-	RET
+	// Exit the thread.
+	MOVQ	$0, 0(SP)
+	CALL	runtime·exits(SB)
+	JMP	0(PC)
 
 // This is needed by asm_amd64.s
 TEXT runtime·settls(SB),NOSPLIT,$0
 	RET
 
 // void sigtramp(void *ureg, int8 *note)
-TEXT runtime·sigtramp(SB),NOSPLIT,$0
+TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
 	get_tls(AX)
 
 	// check that g exists
@@ -179,8 +180,8 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	RET
 
 	// save args
-	MOVQ	ureg+8(SP), CX
-	MOVQ	note+16(SP), DX
+	MOVQ	ureg+0(FP), CX
+	MOVQ	note+8(FP), DX
 
 	// change stack
 	MOVQ	g_m(BX), BX
@@ -243,7 +244,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$16-16
 	get_tls(AX)
 	MOVQ	g(AX), BX
 	MOVQ	g_m(BX), BX
-	MOVQ	m_errstr(BX), CX
+	MOVQ	(m_mOS+mOS_errstr)(BX), CX
 	MOVQ	CX, 0(SP)
 	MOVQ	$ERRMAX, 8(SP)
 	CALL	errstr<>(SB)
@@ -253,3 +254,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$16-16
 	MOVQ	0(SP), AX
 	MOVQ	AX, ret_base+0(FP)
 	RET
+
+// never called on this platform
+TEXT ·sigpanictramp(SB),NOSPLIT,$0-0
+	UNDEF

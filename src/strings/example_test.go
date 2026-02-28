@@ -8,19 +8,38 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+	"unsafe"
 )
 
-func ExampleFields() {
-	fmt.Printf("Fields are: %q", strings.Fields("  foo bar  baz   "))
-	// Output: Fields are: ["foo" "bar" "baz"]
+func ExampleClone() {
+	s := "abc"
+	clone := strings.Clone(s)
+	fmt.Println(s == clone)
+	fmt.Println(unsafe.StringData(s) == unsafe.StringData(clone))
+	// Output:
+	// true
+	// false
 }
 
-func ExampleFieldsFunc() {
-	f := func(c rune) bool {
-		return !unicode.IsLetter(c) && !unicode.IsNumber(c)
+func ExampleBuilder() {
+	var b strings.Builder
+	for i := 3; i >= 1; i-- {
+		fmt.Fprintf(&b, "%d...", i)
 	}
-	fmt.Printf("Fields are: %q", strings.FieldsFunc("  foo1;bar2,baz3...", f))
-	// Output: Fields are: ["foo1" "bar2" "baz3"]
+	b.WriteString("ignition")
+	fmt.Println(b.String())
+
+	// Output: 3...2...1...ignition
+}
+
+func ExampleCompare() {
+	fmt.Println(strings.Compare("a", "b"))
+	fmt.Println(strings.Compare("a", "a"))
+	fmt.Println(strings.Compare("b", "a"))
+	// Output:
+	// -1
+	// 0
+	// 1
 }
 
 func ExampleContains() {
@@ -37,13 +56,38 @@ func ExampleContains() {
 
 func ExampleContainsAny() {
 	fmt.Println(strings.ContainsAny("team", "i"))
-	fmt.Println(strings.ContainsAny("failure", "u & i"))
+	fmt.Println(strings.ContainsAny("fail", "ui"))
+	fmt.Println(strings.ContainsAny("ure", "ui"))
+	fmt.Println(strings.ContainsAny("failure", "ui"))
 	fmt.Println(strings.ContainsAny("foo", ""))
 	fmt.Println(strings.ContainsAny("", ""))
 	// Output:
 	// false
 	// true
+	// true
+	// true
 	// false
+	// false
+}
+
+func ExampleContainsRune() {
+	// Finds whether a string contains a particular Unicode code point.
+	// The code point for the lowercase letter "a", for example, is 97.
+	fmt.Println(strings.ContainsRune("aardvark", 97))
+	fmt.Println(strings.ContainsRune("timeout", 97))
+	// Output:
+	// true
+	// false
+}
+
+func ExampleContainsFunc() {
+	f := func(r rune) bool {
+		return r == 'a' || r == 'e' || r == 'i' || r == 'o' || r == 'u'
+	}
+	fmt.Println(strings.ContainsFunc("hello", f))
+	fmt.Println(strings.ContainsFunc("rhythms", f))
+	// Output:
+	// true
 	// false
 }
 
@@ -55,9 +99,89 @@ func ExampleCount() {
 	// 5
 }
 
+func ExampleCut() {
+	show := func(s, sep string) {
+		before, after, found := strings.Cut(s, sep)
+		fmt.Printf("Cut(%q, %q) = %q, %q, %v\n", s, sep, before, after, found)
+	}
+	show("Gopher", "Go")
+	show("Gopher", "ph")
+	show("Gopher", "er")
+	show("Gopher", "Badger")
+	// Output:
+	// Cut("Gopher", "Go") = "", "pher", true
+	// Cut("Gopher", "ph") = "Go", "er", true
+	// Cut("Gopher", "er") = "Goph", "", true
+	// Cut("Gopher", "Badger") = "Gopher", "", false
+}
+
+func ExampleCutPrefix() {
+	show := func(s, prefix string) {
+		after, found := strings.CutPrefix(s, prefix)
+		fmt.Printf("CutPrefix(%q, %q) = %q, %v\n", s, prefix, after, found)
+	}
+	show("Gopher", "Go")
+	show("Gopher", "ph")
+	// Output:
+	// CutPrefix("Gopher", "Go") = "pher", true
+	// CutPrefix("Gopher", "ph") = "Gopher", false
+}
+
+func ExampleCutSuffix() {
+	show := func(s, suffix string) {
+		before, found := strings.CutSuffix(s, suffix)
+		fmt.Printf("CutSuffix(%q, %q) = %q, %v\n", s, suffix, before, found)
+	}
+	show("Gopher", "Go")
+	show("Gopher", "er")
+	// Output:
+	// CutSuffix("Gopher", "Go") = "Gopher", false
+	// CutSuffix("Gopher", "er") = "Goph", true
+}
+
 func ExampleEqualFold() {
 	fmt.Println(strings.EqualFold("Go", "go"))
-	// Output: true
+	fmt.Println(strings.EqualFold("AB", "ab")) // true because comparison uses simple case-folding
+	fmt.Println(strings.EqualFold("ß", "ss"))  // false because comparison does not use full case-folding
+	// Output:
+	// true
+	// true
+	// false
+}
+
+func ExampleFields() {
+	fmt.Printf("Fields are: %q", strings.Fields("  foo bar  baz   "))
+	// Output: Fields are: ["foo" "bar" "baz"]
+}
+
+func ExampleFieldsFunc() {
+	f := func(c rune) bool {
+		return !unicode.IsLetter(c) && !unicode.IsNumber(c)
+	}
+	fmt.Printf("Fields are: %q", strings.FieldsFunc("  foo1;bar2,baz3...", f))
+	// Output: Fields are: ["foo1" "bar2" "baz3"]
+}
+
+func ExampleHasPrefix() {
+	fmt.Println(strings.HasPrefix("Gopher", "Go"))
+	fmt.Println(strings.HasPrefix("Gopher", "C"))
+	fmt.Println(strings.HasPrefix("Gopher", ""))
+	// Output:
+	// true
+	// false
+	// true
+}
+
+func ExampleHasSuffix() {
+	fmt.Println(strings.HasSuffix("Amigo", "go"))
+	fmt.Println(strings.HasSuffix("Amigo", "O"))
+	fmt.Println(strings.HasSuffix("Amigo", "Ami"))
+	fmt.Println(strings.HasSuffix("Amigo", ""))
+	// Output:
+	// true
+	// false
+	// false
+	// true
 }
 
 func ExampleIndex() {
@@ -87,6 +211,15 @@ func ExampleIndexAny() {
 	// -1
 }
 
+func ExampleIndexByte() {
+	fmt.Println(strings.IndexByte("golang", 'g'))
+	fmt.Println(strings.IndexByte("gophers", 'h'))
+	fmt.Println(strings.IndexByte("golang", 'x'))
+	// Output:
+	// 0
+	// 3
+	// -1
+}
 func ExampleIndexRune() {
 	fmt.Println(strings.IndexRune("chicken", 'k'))
 	fmt.Println(strings.IndexRune("chicken", 'd'))
@@ -102,6 +235,36 @@ func ExampleLastIndex() {
 	// Output:
 	// 0
 	// 3
+	// -1
+}
+
+func ExampleLastIndexAny() {
+	fmt.Println(strings.LastIndexAny("go gopher", "go"))
+	fmt.Println(strings.LastIndexAny("go gopher", "rodent"))
+	fmt.Println(strings.LastIndexAny("go gopher", "fail"))
+	// Output:
+	// 4
+	// 8
+	// -1
+}
+
+func ExampleLastIndexByte() {
+	fmt.Println(strings.LastIndexByte("Hello, world", 'l'))
+	fmt.Println(strings.LastIndexByte("Hello, world", 'o'))
+	fmt.Println(strings.LastIndexByte("Hello, world", 'x'))
+	// Output:
+	// 10
+	// 8
+	// -1
+}
+
+func ExampleLastIndexFunc() {
+	fmt.Println(strings.LastIndexFunc("go 123", unicode.IsNumber))
+	fmt.Println(strings.LastIndexFunc("123 go", unicode.IsNumber))
+	fmt.Println(strings.LastIndexFunc("go", unicode.IsNumber))
+	// Output:
+	// 5
+	// 2
 	// -1
 }
 
@@ -121,6 +284,12 @@ func ExampleReplace() {
 	fmt.Println(strings.Replace("oink oink oink", "oink", "moo", -1))
 	// Output:
 	// oinky oinky oink
+	// moo moo moo
+}
+
+func ExampleReplaceAll() {
+	fmt.Println(strings.ReplaceAll("oink oink oink", "oink", "moo"))
+	// Output:
 	// moo moo moo
 }
 
@@ -156,21 +325,31 @@ func ExampleSplitAfterN() {
 }
 
 func ExampleTitle() {
+	// Compare this example to the ToTitle example.
 	fmt.Println(strings.Title("her royal highness"))
-	// Output: Her Royal Highness
+	fmt.Println(strings.Title("loud noises"))
+	fmt.Println(strings.Title("брат"))
+	// Output:
+	// Her Royal Highness
+	// Loud Noises
+	// Брат
 }
 
 func ExampleToTitle() {
+	// Compare this example to the Title example.
+	fmt.Println(strings.ToTitle("her royal highness"))
 	fmt.Println(strings.ToTitle("loud noises"))
-	fmt.Println(strings.ToTitle("хлеб"))
+	fmt.Println(strings.ToTitle("брат"))
 	// Output:
+	// HER ROYAL HIGHNESS
 	// LOUD NOISES
-	// ХЛЕБ
+	// БРАТ
 }
 
-func ExampleTrim() {
-	fmt.Printf("[%q]", strings.Trim(" !!! Achtung! Achtung! !!! ", "! "))
-	// Output: ["Achtung! Achtung"]
+func ExampleToTitleSpecial() {
+	fmt.Println(strings.ToTitleSpecial(unicode.TurkishCase, "dünyanın ilk borsa yapısı Aizonai kabul edilir"))
+	// Output:
+	// DÜNYANIN İLK BORSA YAPISI AİZONAİ KABUL EDİLİR
 }
 
 func ExampleMap() {
@@ -187,11 +366,6 @@ func ExampleMap() {
 	// Output: 'Gjnf oevyyvt naq gur fyvgul tbcure...
 }
 
-func ExampleTrimSpace() {
-	fmt.Println(strings.TrimSpace(" \t\n a lone gopher \n\t\r\n"))
-	// Output: a lone gopher
-}
-
 func ExampleNewReplacer() {
 	r := strings.NewReplacer("<", "&lt;", ">", "&gt;")
 	fmt.Println(r.Replace("This is <b>HTML</b>!"))
@@ -203,23 +377,174 @@ func ExampleToUpper() {
 	// Output: GOPHER
 }
 
+func ExampleToUpperSpecial() {
+	fmt.Println(strings.ToUpperSpecial(unicode.TurkishCase, "örnek iş"))
+	// Output: ÖRNEK İŞ
+}
+
 func ExampleToLower() {
 	fmt.Println(strings.ToLower("Gopher"))
 	// Output: gopher
 }
 
-func ExampleTrimSuffix() {
-	var s = "Hello, goodbye, etc!"
-	s = strings.TrimSuffix(s, "goodbye, etc!")
-	s = strings.TrimSuffix(s, "planet")
-	fmt.Print(s, "world!")
-	// Output: Hello, world!
+func ExampleToLowerSpecial() {
+	fmt.Println(strings.ToLowerSpecial(unicode.TurkishCase, "Örnek İş"))
+	// Output: örnek iş
+}
+
+func ExampleTrim() {
+	fmt.Print(strings.Trim("¡¡¡Hello, Gophers!!!", "!¡"))
+	// Output: Hello, Gophers
+}
+
+func ExampleTrimSpace() {
+	fmt.Println(strings.TrimSpace(" \t\n Hello, Gophers \n\t\r\n"))
+	// Output: Hello, Gophers
 }
 
 func ExampleTrimPrefix() {
-	var s = "Goodbye,, world!"
-	s = strings.TrimPrefix(s, "Goodbye,")
-	s = strings.TrimPrefix(s, "Howdy,")
-	fmt.Print("Hello" + s)
-	// Output: Hello, world!
+	var s = "¡¡¡Hello, Gophers!!!"
+	s = strings.TrimPrefix(s, "¡¡¡Hello, ")
+	s = strings.TrimPrefix(s, "¡¡¡Howdy, ")
+	fmt.Print(s)
+	// Output: Gophers!!!
+}
+
+func ExampleTrimSuffix() {
+	var s = "¡¡¡Hello, Gophers!!!"
+	s = strings.TrimSuffix(s, ", Gophers!!!")
+	s = strings.TrimSuffix(s, ", Marmots!!!")
+	fmt.Print(s)
+	// Output: ¡¡¡Hello
+}
+
+func ExampleTrimFunc() {
+	fmt.Print(strings.TrimFunc("¡¡¡Hello, Gophers!!!", func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}))
+	// Output: Hello, Gophers
+}
+
+func ExampleTrimLeft() {
+	fmt.Print(strings.TrimLeft("¡¡¡Hello, Gophers!!!", "!¡"))
+	// Output: Hello, Gophers!!!
+}
+
+func ExampleTrimLeftFunc() {
+	fmt.Print(strings.TrimLeftFunc("¡¡¡Hello, Gophers!!!", func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}))
+	// Output: Hello, Gophers!!!
+}
+
+func ExampleTrimRight() {
+	fmt.Print(strings.TrimRight("¡¡¡Hello, Gophers!!!", "!¡"))
+	// Output: ¡¡¡Hello, Gophers
+}
+
+func ExampleTrimRightFunc() {
+	fmt.Print(strings.TrimRightFunc("¡¡¡Hello, Gophers!!!", func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}))
+	// Output: ¡¡¡Hello, Gophers
+}
+
+func ExampleToValidUTF8() {
+	fmt.Printf("%s\n", strings.ToValidUTF8("abc", "\uFFFD"))
+	fmt.Printf("%s\n", strings.ToValidUTF8("a\xffb\xC0\xAFc\xff", ""))
+	fmt.Printf("%s\n", strings.ToValidUTF8("\xed\xa0\x80", "abc"))
+	// Output:
+	// abc
+	// abc
+	// abc
+}
+
+func ExampleLines() {
+	text := "Hello\nWorld\nGo Programming\n"
+	for line := range strings.Lines(text) {
+		fmt.Printf("%q\n", line)
+	}
+
+	// Output:
+	// "Hello\n"
+	// "World\n"
+	// "Go Programming\n"
+}
+
+func ExampleSplitSeq() {
+	s := "a,b,c,d"
+	for part := range strings.SplitSeq(s, ",") {
+		fmt.Printf("%q\n", part)
+	}
+
+	// Output:
+	// "a"
+	// "b"
+	// "c"
+	// "d"
+}
+
+func ExampleSplitAfterSeq() {
+	s := "a,b,c,d"
+	for part := range strings.SplitAfterSeq(s, ",") {
+		fmt.Printf("%q\n", part)
+	}
+
+	// Output:
+	// "a,"
+	// "b,"
+	// "c,"
+	// "d"
+}
+
+func ExampleFieldsSeq() {
+	text := "The quick brown fox"
+	fmt.Println("Split string into fields:")
+	for word := range strings.FieldsSeq(text) {
+		fmt.Printf("%q\n", word)
+	}
+
+	textWithSpaces := "  lots   of   spaces  "
+	fmt.Println("\nSplit string with multiple spaces:")
+	for word := range strings.FieldsSeq(textWithSpaces) {
+		fmt.Printf("%q\n", word)
+	}
+
+	// Output:
+	// Split string into fields:
+	// "The"
+	// "quick"
+	// "brown"
+	// "fox"
+	//
+	// Split string with multiple spaces:
+	// "lots"
+	// "of"
+	// "spaces"
+}
+
+func ExampleFieldsFuncSeq() {
+	text := "The quick brown fox"
+	fmt.Println("Split on whitespace(similar to FieldsSeq):")
+	for word := range strings.FieldsFuncSeq(text, unicode.IsSpace) {
+		fmt.Printf("%q\n", word)
+	}
+
+	mixedText := "abc123def456ghi"
+	fmt.Println("\nSplit on digits:")
+	for word := range strings.FieldsFuncSeq(mixedText, unicode.IsDigit) {
+		fmt.Printf("%q\n", word)
+	}
+
+	// Output:
+	// Split on whitespace(similar to FieldsSeq):
+	// "The"
+	// "quick"
+	// "brown"
+	// "fox"
+	//
+	// Split on digits:
+	// "abc"
+	// "def"
+	// "ghi"
 }

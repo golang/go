@@ -3,58 +3,22 @@
 :: license that can be found in the LICENSE file.
 
 :: race.bash tests the standard library under the race detector.
-:: http://golang.org/doc/articles/race_detector.html
+:: https://golang.org/doc/articles/race_detector.html
 
 @echo off
 
 setlocal
 
-if exist make.bat goto ok
-echo race.bat must be run from go\src
-:: cannot exit: would kill parent command interpreter
-goto end
-:ok
+if not exist make.bat (
+    echo race.bat must be run from go\src
+    exit /b 1
+)
 
-set GOROOT=%CD%\..
-call make.bat --dist-tool >NUL
-if errorlevel 1 goto fail
-.\cmd\dist\dist env -w -p >env.bat
-if errorlevel 1 goto fail
-call env.bat
-del env.bat
+if not "%PROCESSOR_ARCHITECTURE%"=="AMD64" (
+    echo Race detector is only supported on windows/amd64.
+    exit /b 1
+)
 
-if %GOHOSTARCH% == amd64 goto continue
-echo Race detector is only supported on windows/amd64.
-goto fail
-
-:continue
-call make.bat --no-banner --no-local
-if %GOBUILDFAIL%==1 goto end
-echo # go install -race std
-go install -race std
-if errorlevel 1 goto fail
-
-:: we must unset GOROOT_FINAL before tests, because runtime/debug requires
-:: correct access to source code, so if we have GOROOT_FINAL in effect,
-:: at least runtime/debug test will fail.
-set GOROOT_FINAL=
-
-echo # go test -race -short std
-go test -race -short std
-if errorlevel 1 goto fail
-echo # go test -race -run=nothingplease -bench=.* -benchtime=.1s -cpu=4 std
-go test -race -run=nothingplease -bench=.* -benchtime=.1s -cpu=4 std
-if errorlevel 1 goto fail
-goto succ
-
-:fail
-set GOBUILDFAIL=1
-echo Fail.
-goto end
-
-:succ
-echo All tests passed.
-
-:end
-if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
-
+call .\make.bat --no-banner || exit /b 1
+go install -race std || exit /b 1
+go tool dist test -race || exit /b 1

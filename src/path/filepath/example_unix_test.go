@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !windows,!plan9
+//go:build !windows && !plan9
 
 package filepath_test
 
@@ -35,7 +35,7 @@ func ExampleRel() {
 	// On Unix:
 	// "/a/b/c": "b/c" <nil>
 	// "/b/c": "../b/c" <nil>
-	// "./b/c": "" Rel: can't make b/c relative to /a
+	// "./b/c": "" Rel: can't make ./b/c relative to /a
 }
 
 func ExampleSplit() {
@@ -64,4 +64,108 @@ func ExampleSplit() {
 	// input: "/usr/local//go"
 	// 	dir: "/usr/local//"
 	// 	file: "go"
+}
+
+func ExampleJoin() {
+	fmt.Println("On Unix:")
+	fmt.Println(filepath.Join("a", "b", "c"))
+	fmt.Println(filepath.Join("a", "b/c"))
+	fmt.Println(filepath.Join("a/b", "c"))
+	fmt.Println(filepath.Join("a/b", "/c"))
+
+	fmt.Println(filepath.Join("a/b", "../../../xyz"))
+
+	// Output:
+	// On Unix:
+	// a/b/c
+	// a/b/c
+	// a/b/c
+	// a/b/c
+	// ../xyz
+}
+
+func ExampleMatch() {
+	fmt.Println("On Unix:")
+	fmt.Println(filepath.Match("/home/catch/*", "/home/catch/foo"))
+	fmt.Println(filepath.Match("/home/catch/*", "/home/catch/foo/bar"))
+	fmt.Println(filepath.Match("/home/?opher", "/home/gopher"))
+	fmt.Println(filepath.Match("/home/\\*", "/home/*"))
+
+	// Output:
+	// On Unix:
+	// true <nil>
+	// false <nil>
+	// true <nil>
+	// true <nil>
+}
+
+func ExampleBase() {
+	fmt.Println("On Unix:")
+	fmt.Println(filepath.Base("/foo/bar/baz.js"))
+	fmt.Println(filepath.Base("/foo/bar/baz"))
+	fmt.Println(filepath.Base("/foo/bar/baz/"))
+	fmt.Println(filepath.Base("dev.txt"))
+	fmt.Println(filepath.Base("../todo.txt"))
+	fmt.Println(filepath.Base(".."))
+	fmt.Println(filepath.Base("."))
+	fmt.Println(filepath.Base("/"))
+	fmt.Println(filepath.Base(""))
+
+	// Output:
+	// On Unix:
+	// baz.js
+	// baz
+	// baz
+	// dev.txt
+	// todo.txt
+	// ..
+	// .
+	// /
+	// .
+}
+
+func ExampleDir() {
+	fmt.Println("On Unix:")
+	fmt.Println(filepath.Dir("/foo/bar/baz.js"))
+	fmt.Println(filepath.Dir("/foo/bar/baz"))
+	fmt.Println(filepath.Dir("/foo/bar/baz/"))
+	fmt.Println(filepath.Dir("/dirty//path///"))
+	fmt.Println(filepath.Dir("dev.txt"))
+	fmt.Println(filepath.Dir("../todo.txt"))
+	fmt.Println(filepath.Dir(".."))
+	fmt.Println(filepath.Dir("."))
+	fmt.Println(filepath.Dir("/"))
+	fmt.Println(filepath.Dir(""))
+
+	// Output:
+	// On Unix:
+	// /foo/bar
+	// /foo/bar
+	// /foo/bar/baz
+	// /dirty/path
+	// .
+	// ..
+	// .
+	// .
+	// /
+	// .
+}
+
+func ExampleIsAbs() {
+	fmt.Println("On Unix:")
+	fmt.Println(filepath.IsAbs("/home/gopher"))
+	fmt.Println(filepath.IsAbs(".bashrc"))
+	fmt.Println(filepath.IsAbs(".."))
+	fmt.Println(filepath.IsAbs("."))
+	fmt.Println(filepath.IsAbs("/"))
+	fmt.Println(filepath.IsAbs(""))
+
+	// Output:
+	// On Unix:
+	// true
+	// false
+	// false
+	// false
+	// true
+	// false
 }

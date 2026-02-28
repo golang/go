@@ -6,9 +6,10 @@ package format
 
 import (
 	"bytes"
+	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 )
@@ -37,7 +38,7 @@ func diff(t *testing.T, dst, src []byte) {
 }
 
 func TestNode(t *testing.T) {
-	src, err := ioutil.ReadFile(testfile)
+	src, err := os.ReadFile(testfile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,8 +58,45 @@ func TestNode(t *testing.T) {
 	diff(t, buf.Bytes(), src)
 }
 
+// Node is documented to not modify the AST.
+// Test that it is so even when numbers are normalized.
+func TestNodeNoModify(t *testing.T) {
+	const (
+		src    = "package p\n\nconst _ = 0000000123i\n"
+		golden = "package p\n\nconst _ = 123i\n"
+	)
+
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Capture original address and value of a BasicLit node
+	// which will undergo formatting changes during printing.
+	wantLit := file.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0].(*ast.BasicLit)
+	wantVal := wantLit.Value
+
+	var buf bytes.Buffer
+	if err = Node(&buf, fset, file); err != nil {
+		t.Fatal("Node failed:", err)
+	}
+	diff(t, buf.Bytes(), []byte(golden))
+
+	// Check if anything changed after Node returned.
+	gotLit := file.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0].(*ast.BasicLit)
+	gotVal := gotLit.Value
+
+	if gotLit != wantLit {
+		t.Errorf("got *ast.BasicLit address %p, want %p", gotLit, wantLit)
+	}
+	if gotVal != wantVal {
+		t.Errorf("got *ast.BasicLit value %q, want %q", gotVal, wantVal)
+	}
+}
+
 func TestSource(t *testing.T) {
-	src, err := ioutil.ReadFile(testfile)
+	src, err := os.ReadFile(testfile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,6 +110,7 @@ func TestSource(t *testing.T) {
 }
 
 // Test cases that are expected to fail are marked by the prefix "ERROR".
+// The formatted result must look the same as the input for successful tests.
 var tests = []string{
 	// declaration lists
 	`import "go/format"`,
@@ -91,11 +130,31 @@ var tests = []string{
 	"\n\t\t\n\n\t\t\tx := 0\n\t\t\tconst s = `\n\t\tfoo\n`\n\n\n", // no indentation removed inside raw strings
 
 	// comments
-	"i := 5 /* Comment */", // Issue 5551.
+	"/* Comment */",
+	"\t/* Comment */ ",
+	"\n/* Comment */ ",
+	"i := 5 /* Comment */",         // issue #5551
+	"\ta()\n//line :1",             // issue #11276
+	"\t//xxx\n\ta()\n//line :2",    // issue #11276
+	"\ta() //line :1\n\tb()\n",     // issue #11276
+	"x := 0\n//line :1\n//line :2", // issue #11276
+
+	// whitespace
+	"",     // issue #11275
+	" ",    // issue #11275
+	"\t",   // issue #11275
+	"\t\t", // issue #11275
+	"\n",   // issue #11275
+	"\n\n", // issue #11275
+	"\t\n", // issue #11275
 
 	// erroneous programs
 	"ERROR1 + 2 +",
 	"ERRORx :=  0",
+
+	// build comments
+	"// copyright\n\n//go:build x\n\npackage p\n",
+	"// copyright\n\n//go:build x\n// +build x\n\npackage p\n",
 }
 
 func String(s string) (string, error) {

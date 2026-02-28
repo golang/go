@@ -1,0 +1,43 @@
+[short] skip
+[compiler:gccgo] skip # gccgo has no cover tool
+
+go test -short -cover -covermode=atomic -coverpkg=coverdep/p1 coverdep
+
+# In addition to the above, test to make sure there is no funny
+# business if we try "go test -cover" in atomic mode targeting
+# sync/atomic itself (see #57445). Just a short test run is needed
+# since we're mainly interested in making sure the test builds and can
+# execute at least one test.
+
+go test -short -covermode=atomic -run=TestStoreInt64 sync/atomic
+go test -short -covermode=atomic -run=TestAnd8 internal/runtime/atomic
+
+# Skip remainder if no race detector support.
+[!race] skip
+
+go test -short -cover -race -run=TestStoreInt64 sync/atomic
+go test -short -cover -race -run=TestAnd8 internal/runtime/atomic
+
+-- go.mod --
+module coverdep
+
+go 1.16
+-- p.go --
+package p
+
+import _ "coverdep/p1"
+
+func F() {
+}
+-- p1/p1.go --
+package p1
+
+import _ "errors"
+-- p_test.go --
+package p
+
+import "testing"
+
+func Test(t *testing.T) {
+	F()
+}

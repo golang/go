@@ -1,0 +1,28 @@
+env GO111MODULE=off
+[short] skip
+
+# go clean -testcache
+# should work (see golang.org/issue/29757).
+cd x
+go test x_test.go
+go clean -testcache
+go test x_test.go
+! stdout 'cached'
+! go clean -testcache ../x
+stderr 'go: clean -testcache cannot be used with package arguments'
+
+# golang.org/issue/29100: 'go clean -testcache' should succeed
+# if the cache directory doesn't exist at all.
+# It should not write a testexpire.txt file, since there are no
+# test results that need to be invalidated in the first place.
+env GOCACHE=$WORK/nonexistent
+go clean -testcache
+! exists $WORK/nonexistent
+
+-- x/x_test.go --
+package x_test
+import (
+    "testing"
+)
+func TestMain(t *testing.T) {
+}

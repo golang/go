@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,11 +6,7 @@ package syscall
 
 import "unsafe"
 
-// See http://www.freebsd.org/doc/en/books/porters-handbook/freebsd-versions.html.
-var freebsdVersion uint32
-
 func init() {
-	freebsdVersion, _ = SysctlUint32("kern.osreldate")
 	conf, _ := Sysctl("kern.conftxt")
 	for i, j := 0, 0; j < len(conf); j++ {
 		if conf[j] != '\n' {
@@ -53,6 +49,8 @@ func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
 
 // InterfaceAnnounceMessage represents a routing message containing
 // network interface arrival and departure information.
+//
+// Deprecated: Use golang.org/x/net/route instead.
 type InterfaceAnnounceMessage struct {
 	Header IfAnnounceMsghdr
 }
@@ -61,6 +59,8 @@ func (m *InterfaceAnnounceMessage) sockaddr() ([]Sockaddr, error) { return nil, 
 
 // InterfaceMulticastAddrMessage represents a routing message
 // containing network interface address entries.
+//
+// Deprecated: Use golang.org/x/net/route instead.
 type InterfaceMulticastAddrMessage struct {
 	Header IfmaMsghdr
 	Data   []byte

@@ -49,7 +49,7 @@ func (d *decoder) ensureNBits(n int32) error {
 	for {
 		c, err := d.readByteStuffedByte()
 		if err != nil {
-			if err == io.EOF {
+			if err == io.ErrUnexpectedEOF {
 				return errShortHuffmanData
 			}
 			return err
@@ -101,7 +101,8 @@ func (d *decoder) processDHT(n int) error {
 			return FormatError("bad Tc value")
 		}
 		th := d.tmp[0] & 0x0f
-		if th > maxTh || !d.progressive && th > 1 {
+		// The baseline th <= 1 restriction is specified in table B.5.
+		if th > maxTh || (d.baseline && th > 1) {
 			return FormatError("bad Th value")
 		}
 		h := &d.huff[tc][th]
@@ -130,9 +131,7 @@ func (d *decoder) processDHT(n int) error {
 		}
 
 		// Derive the look-up table.
-		for i := range h.lut {
-			h.lut[i] = 0
-		}
+		clear(h.lut[:])
 		var x, code uint32
 		for i := uint32(0); i < lutSize; i++ {
 			code <<= 1
@@ -187,7 +186,9 @@ func (d *decoder) decodeHuffman(h *huffman) (uint8, error) {
 			// There are no more bytes of data in this segment, but we may still
 			// be able to read the next symbol out of the previously read bits.
 			// First, undo the readByte that the ensureNBits call made.
-			d.unreadByteStuffedByte()
+			if d.bytes.nUnreadable != 0 {
+				d.unreadByteStuffedByte()
+			}
 			goto slowPath
 		}
 	}

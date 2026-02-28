@@ -7,16 +7,15 @@ package fcgi
 // This file implements FastCGI from the perspective of a child process.
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/cgi"
 	"os"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -30,6 +29,10 @@ type request struct {
 	rawParams []byte
 	keepConn  bool
 }
+
+// envVarsContextKey uniquely identifies a mapping of CGI
+// environment variables to their values in a request context
+type envVarsContextKey struct{}
 
 func newRequest(reqId uint16, flags uint8) *request {
 	r := &request{
@@ -56,6 +59,9 @@ func (r *request) parseParams() {
 			return
 		}
 		text = text[n:]
+		if int(keyLen)+int(valLen) > len(text) {
+			return
+		}
 		key := readString(text, keyLen)
 		text = text[keyLen:]
 		val := readString(text, valLen)
@@ -66,10 +72,12 @@ func (r *request) parseParams() {
 
 // response implements http.ResponseWriter.
 type response struct {
-	req         *request
-	header      http.Header
-	w           *bufWriter
-	wroteHeader bool
+	req            *request
+	header         http.Header
+	code           int
+	wroteHeader    bool
+	wroteCGIHeader bool
+	w              *bufWriter
 }
 
 func newResponse(c *child, req *request) *response {
@@ -84,11 +92,14 @@ func (r *response) Header() http.Header {
 	return r.header
 }
 
-func (r *response) Write(data []byte) (int, error) {
+func (r *response) Write(p []byte) (n int, err error) {
 	if !r.wroteHeader {
 		r.WriteHeader(http.StatusOK)
 	}
-	return r.w.Write(data)
+	if !r.wroteCGIHeader {
+		r.writeCGIHeader(p)
+	}
+	return r.w.Write(p)
 }
 
 func (r *response) WriteHeader(code int) {
@@ -96,22 +107,34 @@ func (r *response) WriteHeader(code int) {
 		return
 	}
 	r.wroteHeader = true
+	r.code = code
 	if code == http.StatusNotModified {
 		// Must not have body.
 		r.header.Del("Content-Type")
 		r.header.Del("Content-Length")
 		r.header.Del("Transfer-Encoding")
-	} else if r.header.Get("Content-Type") == "" {
-		r.header.Set("Content-Type", "text/html; charset=utf-8")
 	}
-
 	if r.header.Get("Date") == "" {
 		r.header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
 	}
+}
 
-	fmt.Fprintf(r.w, "Status: %d %s\r\n", code, http.StatusText(code))
+// writeCGIHeader finalizes the header sent to the client and writes it to the output.
+// p is not written by writeHeader, but is the first chunk of the body
+// that will be written. It is sniffed for a Content-Type if none is
+// set explicitly.
+func (r *response) writeCGIHeader(p []byte) {
+	if r.wroteCGIHeader {
+		return
+	}
+	r.wroteCGIHeader = true
+	fmt.Fprintf(r.w, "Status: %d %s\r\n", r.code, http.StatusText(r.code))
+	if _, hasType := r.header["Content-Type"]; r.code != http.StatusNotModified && !hasType {
+		r.header.Set("Content-Type", http.DetectContentType(p))
+	}
 	r.header.Write(r.w)
 	r.w.WriteString("\r\n")
+	r.w.Flush()
 }
 
 func (r *response) Flush() {
@@ -130,7 +153,6 @@ type child struct {
 	conn    *conn
 	handler http.Handler
 
-	mu       sync.Mutex          // protects requests:
 	requests map[uint16]*request // keyed by request ID
 }
 
@@ -158,7 +180,7 @@ func (c *child) serve() {
 
 var errCloseConn = errors.New("fcgi: connection should be closed")
 
-var emptyBody = ioutil.NopCloser(strings.NewReader(""))
+var emptyBody = io.NopCloser(strings.NewReader(""))
 
 // ErrRequestAborted is returned by Read when a handler attempts to read the
 // body of a request that has been aborted by the web server.
@@ -169,9 +191,7 @@ var ErrRequestAborted = errors.New("fcgi: request aborted by web server")
 var ErrConnClosed = errors.New("fcgi: connection to web server closed")
 
 func (c *child) handleRecord(rec *record) error {
-	c.mu.Lock()
 	req, ok := c.requests[rec.h.Id]
-	c.mu.Unlock()
 	if !ok && rec.h.Type != typeBeginRequest && rec.h.Type != typeGetValues {
 		// The spec says to ignore unknown request IDs.
 		return nil
@@ -194,9 +214,7 @@ func (c *child) handleRecord(rec *record) error {
 			return nil
 		}
 		req = newRequest(rec.h.Id, br.flags)
-		c.mu.Lock()
 		c.requests[rec.h.Id] = req
-		c.mu.Unlock()
 		return nil
 	case typeParams:
 		// NOTE(eds): Technically a key-value pair can straddle the boundary
@@ -224,8 +242,11 @@ func (c *child) handleRecord(rec *record) error {
 			// TODO(eds): This blocks until the handler reads from the pipe.
 			// If the handler takes a long time, it might be a problem.
 			req.pw.Write(content)
-		} else if req.pw != nil {
-			req.pw.Close()
+		} else {
+			delete(c.requests, req.reqId)
+			if req.pw != nil {
+				req.pw.Close()
+			}
 		}
 		return nil
 	case typeGetValues:
@@ -236,9 +257,7 @@ func (c *child) handleRecord(rec *record) error {
 		// If the filter role is implemented, read the data stream here.
 		return nil
 	case typeAbortRequest:
-		c.mu.Lock()
 		delete(c.requests, rec.h.Id)
-		c.mu.Unlock()
 		c.conn.writeEndRequest(rec.h.Id, 0, statusRequestComplete)
 		if req.pw != nil {
 			req.pw.CloseWithError(ErrRequestAborted)
@@ -256,6 +275,18 @@ func (c *child) handleRecord(rec *record) error {
 	}
 }
 
+// filterOutUsedEnvVars returns a new map of env vars without the
+// variables in the given envVars map that are read for creating each http.Request
+func filterOutUsedEnvVars(envVars map[string]string) map[string]string {
+	withoutUsedEnvVars := make(map[string]string)
+	for k, v := range envVars {
+		if addFastCGIEnvToContext(k) {
+			withoutUsedEnvVars[k] = v
+		}
+	}
+	return withoutUsedEnvVars
+}
+
 func (c *child) serveRequest(req *request, body io.ReadCloser) {
 	r := newResponse(c, req)
 	httpReq, err := cgi.RequestFromMap(req.params)
@@ -265,12 +296,14 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 		c.conn.writeRecord(typeStderr, req.reqId, []byte(err.Error()))
 	} else {
 		httpReq.Body = body
+		withoutUsedEnvVars := filterOutUsedEnvVars(req.params)
+		envVarCtx := context.WithValue(httpReq.Context(), envVarsContextKey{}, withoutUsedEnvVars)
+		httpReq = httpReq.WithContext(envVarCtx)
 		c.handler.ServeHTTP(r, httpReq)
 	}
+	// Make sure we serve something even if nothing was written to r
+	r.Write(nil)
 	r.Close()
-	c.mu.Lock()
-	delete(c.requests, req.reqId)
-	c.mu.Unlock()
 	c.conn.writeEndRequest(req.reqId, 0, statusRequestComplete)
 
 	// Consume the entire body, so the host isn't still writing to
@@ -280,7 +313,7 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 	// some sort of abort request to the host, so the host
 	// can properly cut off the client sending all the data.
 	// For now just bound it a little and
-	io.CopyN(ioutil.Discard, body, 100<<20)
+	io.CopyN(io.Discard, body, 100<<20)
 	body.Close()
 
 	if !req.keepConn {
@@ -302,7 +335,7 @@ func (c *child) cleanUp() {
 // goroutine for each. The goroutine reads requests and then calls handler
 // to reply to them.
 // If l is nil, Serve accepts connections from os.Stdin.
-// If handler is nil, http.DefaultServeMux is used.
+// If handler is nil, [http.DefaultServeMux] is used.
 func Serve(l net.Listener, handler http.Handler) error {
 	if l == nil {
 		var err error
@@ -323,4 +356,40 @@ func Serve(l net.Listener, handler http.Handler) error {
 		c := newChild(rw, handler)
 		go c.serve()
 	}
+}
+
+// ProcessEnv returns FastCGI environment variables associated with the request r
+// for which no effort was made to be included in the request itself - the data
+// is hidden in the request's context. As an example, if REMOTE_USER is set for a
+// request, it will not be found anywhere in r, but it will be included in
+// ProcessEnv's response (via r's context).
+func ProcessEnv(r *http.Request) map[string]string {
+	env, _ := r.Context().Value(envVarsContextKey{}).(map[string]string)
+	return env
+}
+
+// addFastCGIEnvToContext reports whether to include the FastCGI environment variable s
+// in the http.Request.Context, accessible via ProcessEnv.
+func addFastCGIEnvToContext(s string) bool {
+	// Exclude things supported by net/http natively:
+	switch s {
+	case "CONTENT_LENGTH", "CONTENT_TYPE", "HTTPS",
+		"PATH_INFO", "QUERY_STRING", "REMOTE_ADDR",
+		"REMOTE_HOST", "REMOTE_PORT", "REQUEST_METHOD",
+		"REQUEST_URI", "SCRIPT_NAME", "SERVER_PROTOCOL":
+		return false
+	}
+	if strings.HasPrefix(s, "HTTP_") {
+		return false
+	}
+	// Explicitly include FastCGI-specific things.
+	// This list is redundant with the default "return true" below.
+	// Consider this documentation of the sorts of things we expect
+	// to maybe see.
+	switch s {
+	case "REMOTE_USER":
+		return true
+	}
+	// Unknown, so include it to be safe.
+	return true
 }

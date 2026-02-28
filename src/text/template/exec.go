@@ -5,24 +5,38 @@
 package template
 
 import (
-	"bytes"
+	"errors"
 	"fmt"
+	"internal/fmtsort"
 	"io"
 	"reflect"
 	"runtime"
-	"sort"
 	"strings"
 	"text/template/parse"
 )
+
+// maxExecDepth specifies the maximum stack depth of templates within
+// templates. This limit is only practically reached by accidentally
+// recursive template invocations. This limit allows us to return
+// an error instead of triggering a stack overflow.
+var maxExecDepth = initMaxExecDepth()
+
+func initMaxExecDepth() int {
+	if runtime.GOARCH == "wasm" {
+		return 1000
+	}
+	return 100000
+}
 
 // state represents the state of an execution. It's not part of the
 // template so that multiple executions of the same template
 // can execute in parallel.
 type state struct {
-	tmpl *Template
-	wr   io.Writer
-	node parse.Node // current node, for errors
-	vars []variable // push-down stack of variable values.
+	tmpl  *Template
+	wr    io.Writer
+	node  parse.Node // current node, for errors
+	vars  []variable // push-down stack of variable values.
+	depth int        // the height of the stack of executing templates.
 }
 
 // variable holds the dynamic value of a variable such as $, $x etc.
@@ -46,8 +60,20 @@ func (s *state) pop(mark int) {
 	s.vars = s.vars[0:mark]
 }
 
-// setVar overwrites the top-nth variable on the stack. Used by range iterations.
-func (s *state) setVar(n int, value reflect.Value) {
+// setVar overwrites the last declared variable with the given name.
+// Used by variable assignments.
+func (s *state) setVar(name string, value reflect.Value) {
+	for i := s.mark() - 1; i >= 0; i-- {
+		if s.vars[i].name == name {
+			s.vars[i].value = value
+			return
+		}
+	}
+	s.errorf("undefined variable: %s", name)
+}
+
+// setTopVar overwrites the top-nth variable on the stack. Used by range iterations.
+func (s *state) setTopVar(n int, value reflect.Value) {
 	s.vars[len(s.vars)-n].value = value
 }
 
@@ -64,6 +90,16 @@ func (s *state) varValue(name string) reflect.Value {
 
 var zero reflect.Value
 
+type missingValType struct{}
+
+var missingVal = reflect.ValueOf(missingValType{})
+
+var missingValReflectType = reflect.TypeFor[missingValType]()
+
+func isMissing(v reflect.Value) bool {
+	return v.IsValid() && v.Type() == missingValReflectType
+}
+
 // at marks the state to be on node n, for error reporting.
 func (s *state) at(node parse.Node) {
 	s.node = node
@@ -72,14 +108,31 @@ func (s *state) at(node parse.Node) {
 // doublePercent returns the string with %'s replaced by %%, if necessary,
 // so it can be used safely inside a Printf format string.
 func doublePercent(str string) string {
-	if strings.Contains(str, "%") {
-		str = strings.Replace(str, "%", "%%", -1)
-	}
-	return str
+	return strings.ReplaceAll(str, "%", "%%")
 }
 
-// errorf formats the error and terminates processing.
-func (s *state) errorf(format string, args ...interface{}) {
+// TODO: It would be nice if ExecError was more broken down, but
+// the way ErrorContext embeds the template name makes the
+// processing too clumsy.
+
+// ExecError is the custom error type returned when Execute has an
+// error evaluating its template. (If a write error occurs, the actual
+// error is returned; it will not be of type ExecError.)
+type ExecError struct {
+	Name string // Name of template.
+	Err  error  // Pre-formatted error.
+}
+
+func (e ExecError) Error() string {
+	return e.Err.Error()
+}
+
+func (e ExecError) Unwrap() error {
+	return e.Err
+}
+
+// errorf records an ExecError and terminates processing.
+func (s *state) errorf(format string, args ...any) {
 	name := doublePercent(s.tmpl.Name())
 	if s.node == nil {
 		format = fmt.Sprintf("template: %s: %s", name, format)
@@ -87,7 +140,24 @@ func (s *state) errorf(format string, args ...interface{}) {
 		location, context := s.tmpl.ErrorContext(s.node)
 		format = fmt.Sprintf("template: %s: executing %q at <%s>: %s", location, name, doublePercent(context), format)
 	}
-	panic(fmt.Errorf(format, args...))
+	panic(ExecError{
+		Name: s.tmpl.Name(),
+		Err:  fmt.Errorf(format, args...),
+	})
+}
+
+// writeError is the wrapper type used internally when Execute has an
+// error writing to its output. We strip the wrapper in errRecover.
+// Note that this is not an implementation of error, so it cannot escape
+// from the package as an error value.
+type writeError struct {
+	Err error // Original error.
+}
+
+func (s *state) writeError(err error) {
+	panic(writeError{
+		Err: err,
+	})
 }
 
 // errRecover is the handler that turns panics into returns from the top
@@ -98,8 +168,10 @@ func errRecover(errp *error) {
 		switch err := e.(type) {
 		case runtime.Error:
 			panic(e)
-		case error:
-			*errp = err
+		case writeError:
+			*errp = err.Err // Strip the wrapper.
+		case ExecError:
+			*errp = err // Keep the wrapper.
 		default:
 			panic(e)
 		}
@@ -111,9 +183,10 @@ func errRecover(errp *error) {
 // If an error occurs executing the template or writing its output,
 // execution stops, but partial results may already have been written to
 // the output writer.
-// A template may be executed safely in parallel.
-func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
-	tmpl := t.tmpl[name]
+// A template may be executed safely in parallel, although if parallel
+// executions share a Writer the output may be interleaved.
+func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
+	tmpl := t.Lookup(name)
 	if tmpl == nil {
 		return fmt.Errorf("template: no template %q associated with template %q", name, t.name)
 	}
@@ -125,36 +198,63 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) 
 // If an error occurs executing the template or writing its output,
 // execution stops, but partial results may already have been written to
 // the output writer.
-// A template may be executed safely in parallel.
-func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
+// A template may be executed safely in parallel, although if parallel
+// executions share a Writer the output may be interleaved.
+//
+// If data is a [reflect.Value], the template applies to the concrete
+// value that the reflect.Value holds, as in [fmt.Print].
+func (t *Template) Execute(wr io.Writer, data any) error {
+	return t.execute(wr, data)
+}
+
+func (t *Template) execute(wr io.Writer, data any) (err error) {
 	defer errRecover(&err)
-	value := reflect.ValueOf(data)
+	value, ok := data.(reflect.Value)
+	if !ok {
+		value = reflect.ValueOf(data)
+	}
 	state := &state{
 		tmpl: t,
 		wr:   wr,
 		vars: []variable{{"$", value}},
 	}
-	t.init()
 	if t.Tree == nil || t.Root == nil {
-		var b bytes.Buffer
-		for name, tmpl := range t.tmpl {
-			if tmpl.Tree == nil || tmpl.Root == nil {
-				continue
-			}
-			if b.Len() > 0 {
-				b.WriteString(", ")
-			}
-			fmt.Fprintf(&b, "%q", name)
-		}
-		var s string
-		if b.Len() > 0 {
-			s = "; defined templates are: " + b.String()
-		}
-		state.errorf("%q is an incomplete or empty template%s", t.Name(), s)
+		state.errorf("%q is an incomplete or empty template", t.Name())
 	}
 	state.walk(value, t.Root)
 	return
 }
+
+// DefinedTemplates returns a string listing the defined templates,
+// prefixed by the string "; defined templates are: ". If there are none,
+// it returns the empty string. For generating an error message here
+// and in [html/template].
+func (t *Template) DefinedTemplates() string {
+	if t.common == nil {
+		return ""
+	}
+	var b strings.Builder
+	t.muTmpl.RLock()
+	defer t.muTmpl.RUnlock()
+	for name, tmpl := range t.tmpl {
+		if tmpl.Tree == nil || tmpl.Root == nil {
+			continue
+		}
+		if b.Len() == 0 {
+			b.WriteString("; defined templates are: ")
+		} else {
+			b.WriteString(", ")
+		}
+		fmt.Fprintf(&b, "%q", name)
+	}
+	return b.String()
+}
+
+// Sentinel errors for use with panic to signal early exits from range loops.
+var (
+	walkBreak    = errors.New("break")
+	walkContinue = errors.New("continue")
+)
 
 // Walk functions step through the major pieces of the template structure,
 // generating output as they go.
@@ -168,6 +268,11 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 		if len(node.Pipe.Decl) == 0 {
 			s.printValue(node, val)
 		}
+	case *parse.BreakNode:
+		panic(walkBreak)
+	case *parse.CommentNode:
+	case *parse.ContinueNode:
+		panic(walkContinue)
 	case *parse.IfNode:
 		s.walkIfOrWith(parse.NodeIf, dot, node.Pipe, node.List, node.ElseList)
 	case *parse.ListNode:
@@ -180,7 +285,7 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 		s.walkTemplate(dot, node)
 	case *parse.TextNode:
 		if _, err := s.wr.Write(node.Text); err != nil {
-			s.errorf("%s", err)
+			s.writeError(err)
 		}
 	case *parse.WithNode:
 		s.walkIfOrWith(parse.NodeWith, dot, node.Pipe, node.List, node.ElseList)
@@ -194,7 +299,7 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.PipeNode, list, elseList *parse.ListNode) {
 	defer s.pop(s.mark())
 	val := s.evalPipeline(dot, pipe)
-	truth, ok := isTrue(val)
+	truth, ok := isTrue(indirectInterface(val))
 	if !ok {
 		s.errorf("if/with can't use %v", val)
 	}
@@ -209,8 +314,13 @@ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.
 	}
 }
 
-// isTrue reports whether the value is 'true', in the sense of not the zero of its type,
-// and whether the value has a meaningful truth value.
+// IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
+// and whether the value has a meaningful truth value. This is the definition of
+// truth used by if and other such actions.
+func IsTrue(val any) (truth, ok bool) {
+	return isTrue(reflect.ValueOf(val))
+}
+
 func isTrue(val reflect.Value) (truth, ok bool) {
 	if !val.IsValid() {
 		// Something like var x interface{}, never set. It's a form of nil.
@@ -223,7 +333,7 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 		truth = val.Bool()
 	case reflect.Complex64, reflect.Complex128:
 		truth = val.Complex() != 0
-	case reflect.Chan, reflect.Func, reflect.Ptr, reflect.Interface:
+	case reflect.Chan, reflect.Func, reflect.Pointer, reflect.UnsafePointer, reflect.Interface:
 		truth = !val.IsNil()
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		truth = val.Int() != 0
@@ -241,23 +351,66 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 
 func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	s.at(r)
+	defer func() {
+		if r := recover(); r != nil && r != walkBreak {
+			panic(r)
+		}
+	}()
 	defer s.pop(s.mark())
 	val, _ := indirect(s.evalPipeline(dot, r.Pipe))
 	// mark top of stack before any variables in the body are pushed.
 	mark := s.mark()
 	oneIteration := func(index, elem reflect.Value) {
-		// Set top var (lexically the second if there are two) to the element.
 		if len(r.Pipe.Decl) > 0 {
-			s.setVar(1, elem)
+			if r.Pipe.IsAssign {
+				// With two variables, index comes first.
+				// With one, we use the element.
+				if len(r.Pipe.Decl) > 1 {
+					s.setVar(r.Pipe.Decl[0].Ident[0], index)
+				} else {
+					s.setVar(r.Pipe.Decl[0].Ident[0], elem)
+				}
+			} else {
+				// Set top var (lexically the second if there
+				// are two) to the element.
+				s.setTopVar(1, elem)
+			}
 		}
-		// Set next var (lexically the first if there are two) to the index.
 		if len(r.Pipe.Decl) > 1 {
-			s.setVar(2, index)
+			if r.Pipe.IsAssign {
+				s.setVar(r.Pipe.Decl[1].Ident[0], elem)
+			} else {
+				// Set next var (lexically the first if there
+				// are two) to the index.
+				s.setTopVar(2, index)
+			}
 		}
+		defer s.pop(mark)
+		defer func() {
+			// Consume panic(walkContinue)
+			if r := recover(); r != nil && r != walkContinue {
+				panic(r)
+			}
+		}()
 		s.walk(elem, r.List)
-		s.pop(mark)
 	}
 	switch val.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		if len(r.Pipe.Decl) > 1 {
+			s.errorf("can't use %v to iterate over more than one variable", val)
+			break
+		}
+		run := false
+		for v := range val.Seq() {
+			run = true
+			// Pass element as second value, as we do for channels.
+			oneIteration(reflect.Value{}, v)
+		}
+		if !run {
+			break
+		}
+		return
 	case reflect.Array, reflect.Slice:
 		if val.Len() == 0 {
 			break
@@ -270,12 +423,17 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		if val.Len() == 0 {
 			break
 		}
-		for _, key := range sortKeys(val.MapKeys()) {
-			oneIteration(key, val.MapIndex(key))
+		om := fmtsort.Sort(val)
+		for _, m := range om {
+			oneIteration(m.Key, m.Value)
 		}
 		return
 	case reflect.Chan:
 		if val.IsNil() {
+			break
+		}
+		if val.Type().ChanDir() == reflect.SendDir {
+			s.errorf("range over send-only channel %v", val)
 			break
 		}
 		i := 0
@@ -292,6 +450,43 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		return
 	case reflect.Invalid:
 		break // An invalid value is likely a nil map, etc. and acts like an empty map.
+	case reflect.Func:
+		if val.Type().CanSeq() {
+			if len(r.Pipe.Decl) > 1 {
+				s.errorf("can't use %v iterate over more than one variable", val)
+				break
+			}
+			run := false
+			for v := range val.Seq() {
+				run = true
+				// Pass element as second value,
+				// as we do for channels.
+				oneIteration(reflect.Value{}, v)
+			}
+			if !run {
+				break
+			}
+			return
+		}
+		if val.Type().CanSeq2() {
+			run := false
+			for i, v := range val.Seq2() {
+				run = true
+				if len(r.Pipe.Decl) > 1 {
+					oneIteration(i, v)
+				} else {
+					// If there is only one range variable,
+					// oneIteration will use the
+					// second value.
+					oneIteration(reflect.Value{}, i)
+				}
+			}
+			if !run {
+				break
+			}
+			return
+		}
+		fallthrough
 	default:
 		s.errorf("range can't iterate over %v", val)
 	}
@@ -302,13 +497,17 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 
 func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
 	s.at(t)
-	tmpl := s.tmpl.tmpl[t.Name]
+	tmpl := s.tmpl.Lookup(t.Name)
 	if tmpl == nil {
 		s.errorf("template %q not defined", t.Name)
+	}
+	if s.depth == maxExecDepth {
+		s.errorf("exceeded maximum template depth (%v)", maxExecDepth)
 	}
 	// Variables declared by the pipeline persist.
 	dot = s.evalPipeline(dot, t.Pipe)
 	newState := *s
+	newState.depth++
 	newState.tmpl = tmpl
 	// No dynamic scoping: template invocations inherit no variables.
 	newState.vars = []variable{{"$", dot}}
@@ -328,21 +527,26 @@ func (s *state) evalPipeline(dot reflect.Value, pipe *parse.PipeNode) (value ref
 		return
 	}
 	s.at(pipe)
+	value = missingVal
 	for _, cmd := range pipe.Cmds {
 		value = s.evalCommand(dot, cmd, value) // previous value is this one's final arg.
 		// If the object has type interface{}, dig down one level to the thing inside.
 		if value.Kind() == reflect.Interface && value.Type().NumMethod() == 0 {
-			value = reflect.ValueOf(value.Interface()) // lovely!
+			value = value.Elem()
 		}
 	}
 	for _, variable := range pipe.Decl {
-		s.push(variable.Ident[0], value)
+		if pipe.IsAssign {
+			s.setVar(variable.Ident[0], value)
+		} else {
+			s.push(variable.Ident[0], value)
+		}
 	}
 	return value
 }
 
 func (s *state) notAFunction(args []parse.Node, final reflect.Value) {
-	if len(args) > 1 || final.IsValid() {
+	if len(args) > 1 || !isMissing(final) {
 		s.errorf("can't give argument to non-function %s", args[0])
 	}
 }
@@ -358,7 +562,8 @@ func (s *state) evalCommand(dot reflect.Value, cmd *parse.CommandNode, final ref
 		// Must be a function.
 		return s.evalFunction(dot, n, cmd, cmd.Args, final)
 	case *parse.PipeNode:
-		// Parenthesized pipeline. The arguments are all inside the pipeline; final is ignored.
+		// Parenthesized pipeline. The arguments are all inside the pipeline; final must be absent.
+		s.notAFunction(cmd.Args, final)
 		return s.evalPipeline(dot, n)
 	case *parse.VariableNode:
 		return s.evalVariableNode(dot, n, cmd.Args, final)
@@ -383,7 +588,7 @@ func (s *state) evalCommand(dot reflect.Value, cmd *parse.CommandNode, final ref
 
 // idealConstant is called to return the value of a number in a context where
 // we don't know the type. In that case, the syntax of the number tells us
-// its type, and we use Go rules to resolve.  Note there is no such thing as
+// its type, and we use Go rules to resolve. Note there is no such thing as
 // a uint ideal constant in this situation - the value must be of int type.
 func (s *state) idealConstant(constant *parse.NumberNode) reflect.Value {
 	// These are ideal constants but we don't know the type
@@ -393,22 +598,31 @@ func (s *state) idealConstant(constant *parse.NumberNode) reflect.Value {
 	switch {
 	case constant.IsComplex:
 		return reflect.ValueOf(constant.Complex128) // incontrovertible.
-	case constant.IsFloat && !isHexConstant(constant.Text) && strings.IndexAny(constant.Text, ".eE") >= 0:
+
+	case constant.IsFloat &&
+		!isHexInt(constant.Text) && !isRuneInt(constant.Text) &&
+		strings.ContainsAny(constant.Text, ".eEpP"):
 		return reflect.ValueOf(constant.Float64)
+
 	case constant.IsInt:
 		n := int(constant.Int64)
 		if int64(n) != constant.Int64 {
 			s.errorf("%s overflows int", constant.Text)
 		}
 		return reflect.ValueOf(n)
+
 	case constant.IsUint:
 		s.errorf("%s overflows int", constant.Text)
 	}
 	return zero
 }
 
-func isHexConstant(s string) bool {
-	return len(s) > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X')
+func isRuneInt(s string) bool {
+	return len(s) > 0 && s[0] == '\''
+}
+
+func isHexInt(s string) bool {
+	return len(s) > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X') && !strings.ContainsAny(s, "pP")
 }
 
 func (s *state) evalFieldNode(dot reflect.Value, field *parse.FieldNode, args []parse.Node, final reflect.Value) reflect.Value {
@@ -418,11 +632,14 @@ func (s *state) evalFieldNode(dot reflect.Value, field *parse.FieldNode, args []
 
 func (s *state) evalChainNode(dot reflect.Value, chain *parse.ChainNode, args []parse.Node, final reflect.Value) reflect.Value {
 	s.at(chain)
-	// (pipe).Field1.Field2 has pipe as .Node, fields as .Field. Eval the pipeline, then the fields.
-	pipe := s.evalArg(dot, nil, chain.Node)
 	if len(chain.Field) == 0 {
 		s.errorf("internal error: no fields in evalChainNode")
 	}
+	if chain.Node.Type() == parse.NodeNil {
+		s.errorf("indirection through explicit nil in %s", chain)
+	}
+	// (pipe).Field1.Field2 has pipe as .Node, fields as .Field. Eval the pipeline, then the fields.
+	pipe := s.evalArg(dot, nil, chain.Node)
 	return s.evalFieldChain(dot, pipe, chain, chain.Field, args, final)
 }
 
@@ -443,7 +660,7 @@ func (s *state) evalVariableNode(dot reflect.Value, variable *parse.VariableNode
 func (s *state) evalFieldChain(dot, receiver reflect.Value, node parse.Node, ident []string, args []parse.Node, final reflect.Value) reflect.Value {
 	n := len(ident)
 	for i := 0; i < n-1; i++ {
-		receiver = s.evalField(dot, ident[i], node, nil, zero, receiver)
+		receiver = s.evalField(dot, ident[i], node, nil, missingVal, receiver)
 	}
 	// Now if it's a method, it gets the arguments.
 	return s.evalField(dot, ident[n-1], node, args, final, receiver)
@@ -452,11 +669,11 @@ func (s *state) evalFieldChain(dot, receiver reflect.Value, node parse.Node, ide
 func (s *state) evalFunction(dot reflect.Value, node *parse.IdentifierNode, cmd parse.Node, args []parse.Node, final reflect.Value) reflect.Value {
 	s.at(node)
 	name := node.Ident
-	function, ok := findFunction(name, s.tmpl)
+	function, isBuiltin, ok := findFunction(name, s.tmpl)
 	if !ok {
 		s.errorf("%q is not a defined function", name)
 	}
-	return s.evalCall(dot, function, cmd, name, args, final)
+	return s.evalCall(dot, function, isBuiltin, cmd, name, args, final)
 }
 
 // evalField evaluates an expression like (.Field) or (.Field arg1 arg2).
@@ -464,32 +681,41 @@ func (s *state) evalFunction(dot reflect.Value, node *parse.IdentifierNode, cmd 
 // value of the pipeline, if any.
 func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, args []parse.Node, final, receiver reflect.Value) reflect.Value {
 	if !receiver.IsValid() {
+		if s.tmpl.option.missingKey == mapError { // Treat invalid value as missing map key.
+			s.errorf("nil data; no entry for key %q", fieldName)
+		}
 		return zero
 	}
 	typ := receiver.Type()
-	receiver, _ = indirect(receiver)
+	receiver, isNil := indirect(receiver)
+	if receiver.Kind() == reflect.Interface && isNil {
+		// Calling a method on a nil interface can't work. The
+		// MethodByName method call below would panic.
+		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
+		return zero
+	}
+
 	// Unless it's an interface, need to get to a value of type *T to guarantee
 	// we see all methods of T and *T.
 	ptr := receiver
-	if ptr.Kind() != reflect.Interface && ptr.CanAddr() {
+	if ptr.Kind() != reflect.Interface && ptr.Kind() != reflect.Pointer && ptr.CanAddr() {
 		ptr = ptr.Addr()
 	}
 	if method := ptr.MethodByName(fieldName); method.IsValid() {
-		return s.evalCall(dot, method, node, fieldName, args, final)
+		return s.evalCall(dot, method, false, node, fieldName, args, final)
 	}
-	hasArgs := len(args) > 1 || final.IsValid()
-	// It's not a method; must be a field of a struct or an element of a map. The receiver must not be nil.
-	receiver, isNil := indirect(receiver)
-	if isNil {
-		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
-	}
+	hasArgs := len(args) > 1 || !isMissing(final)
+	// It's not a method; must be a field of a struct or an element of a map.
 	switch receiver.Kind() {
 	case reflect.Struct:
 		tField, ok := receiver.Type().FieldByName(fieldName)
 		if ok {
-			field := receiver.FieldByIndex(tField.Index)
-			if tField.PkgPath != "" { // field is unexported
+			field, err := receiver.FieldByIndexErr(tField.Index)
+			if !tField.IsExported() {
 				s.errorf("%s is an unexported field of struct type %s", fieldName, typ)
+			}
+			if err != nil {
+				s.errorf("%v", err)
 			}
 			// If it's a function, we must call it.
 			if hasArgs {
@@ -497,7 +723,6 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 			}
 			return field
 		}
-		s.errorf("%s is not a field of struct type %s", fieldName, typ)
 	case reflect.Map:
 		// If it's a map, attempt to use the field name as a key.
 		nameVal := reflect.ValueOf(fieldName)
@@ -505,7 +730,30 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 			if hasArgs {
 				s.errorf("%s is not a method but has arguments", fieldName)
 			}
-			return receiver.MapIndex(nameVal)
+			result := receiver.MapIndex(nameVal)
+			if !result.IsValid() {
+				switch s.tmpl.option.missingKey {
+				case mapInvalid:
+					// Just use the invalid value.
+				case mapZeroValue:
+					result = reflect.Zero(receiver.Type().Elem())
+				case mapError:
+					s.errorf("map has no entry for key %q", fieldName)
+				}
+			}
+			return result
+		}
+	case reflect.Pointer:
+		etyp := receiver.Type().Elem()
+		if etyp.Kind() == reflect.Struct {
+			if _, ok := etyp.FieldByName(fieldName); !ok {
+				// If there's no such field, say "can't evaluate"
+				// instead of "nil pointer evaluating".
+				break
+			}
+		}
+		if isNil {
+			s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
 		}
 	}
 	s.errorf("can't evaluate field %s in type %s", fieldName, typ)
@@ -513,20 +761,21 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 }
 
 var (
-	errorType       = reflect.TypeOf((*error)(nil)).Elem()
-	fmtStringerType = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
+	errorType        = reflect.TypeFor[error]()
+	fmtStringerType  = reflect.TypeFor[fmt.Stringer]()
+	reflectValueType = reflect.TypeFor[reflect.Value]()
 )
 
 // evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so
-// it looks just like a function call.  The arg list, if non-nil, includes (in the manner of the shell), arg[0]
+// it looks just like a function call. The arg list, if non-nil, includes (in the manner of the shell), arg[0]
 // as the function itself.
-func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, args []parse.Node, final reflect.Value) reflect.Value {
+func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node, name string, args []parse.Node, final reflect.Value) reflect.Value {
 	if args != nil {
 		args = args[1:] // Zeroth arg is function name/node; not passed to function.
 	}
 	typ := fun.Type()
 	numIn := len(args)
-	if final.IsValid() {
+	if !isMissing(final) {
 		numIn++
 	}
 	numFixed := len(args)
@@ -535,13 +784,44 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 		if numIn < numFixed {
 			s.errorf("wrong number of args for %s: want at least %d got %d", name, typ.NumIn()-1, len(args))
 		}
-	} else if numIn < typ.NumIn()-1 || !typ.IsVariadic() && numIn != typ.NumIn() {
-		s.errorf("wrong number of args for %s: want %d got %d", name, typ.NumIn(), len(args))
+	} else if numIn != typ.NumIn() {
+		s.errorf("wrong number of args for %s: want %d got %d", name, typ.NumIn(), numIn)
 	}
-	if !goodFunc(typ) {
-		// TODO: This could still be a confusing error; maybe goodFunc should provide info.
-		s.errorf("can't call method/function %q with %d results", name, typ.NumOut())
+	if err := goodFunc(name, typ); err != nil {
+		s.errorf("%v", err)
 	}
+
+	unwrap := func(v reflect.Value) reflect.Value {
+		if v.Type() == reflectValueType {
+			v = v.Interface().(reflect.Value)
+		}
+		return v
+	}
+
+	// Special case for builtin and/or, which short-circuit.
+	if isBuiltin && (name == "and" || name == "or") {
+		argType := typ.In(0)
+		var v reflect.Value
+		for _, arg := range args {
+			v = s.evalArg(dot, argType, arg).Interface().(reflect.Value)
+			if truth(v) == (name == "or") {
+				// This value was already unwrapped
+				// by the .Interface().(reflect.Value).
+				return v
+			}
+		}
+		if !final.Equal(missingVal) {
+			// The last argument to and/or is coming from
+			// the pipeline. We didn't short circuit on an earlier
+			// argument, so we are going to return this one.
+			// We don't have to evaluate final, but we do
+			// have to check its type. Then, since we are
+			// going to return it, we have to unwrap it.
+			v = unwrap(s.validateType(final, argType))
+		}
+		return v
+	}
+
 	// Build the arg list.
 	argv := make([]reflect.Value, numIn)
 	// Args must be evaluated. Fixed args first.
@@ -557,27 +837,53 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 		}
 	}
 	// Add final value if necessary.
-	if final.IsValid() {
+	if !isMissing(final) {
 		t := typ.In(typ.NumIn() - 1)
 		if typ.IsVariadic() {
-			t = t.Elem()
+			if numIn-1 < numFixed {
+				// The added final argument corresponds to a fixed parameter of the function.
+				// Validate against the type of the actual parameter.
+				t = typ.In(numIn - 1)
+			} else {
+				// The added final argument corresponds to the variadic part.
+				// Validate against the type of the elements of the variadic slice.
+				t = t.Elem()
+			}
 		}
 		argv[i] = s.validateType(final, t)
 	}
-	result := fun.Call(argv)
-	// If we have an error that is not nil, stop execution and return that error to the caller.
-	if len(result) == 2 && !result[1].IsNil() {
-		s.at(node)
-		s.errorf("error calling %s: %s", name, result[1].Interface().(error))
+
+	// Special case for the "call" builtin.
+	// Insert the name of the callee function as the first argument.
+	if isBuiltin && name == "call" {
+		var calleeName string
+		if len(args) == 0 {
+			// final must be present or we would have errored out above.
+			calleeName = final.String()
+		} else {
+			calleeName = args[0].String()
+		}
+		argv = append([]reflect.Value{reflect.ValueOf(calleeName)}, argv...)
+		fun = reflect.ValueOf(call)
 	}
-	return result[0]
+
+	v, err := safeCall(fun, argv)
+	// If we have an error that is not nil, stop execution and return that
+	// error to the caller.
+	if err != nil {
+		s.at(node)
+		s.errorf("error calling %s: %w", name, err)
+	}
+	return unwrap(v)
 }
 
 // canBeNil reports whether an untyped nil can be assigned to the type. See reflect.Zero.
 func canBeNil(typ reflect.Type) bool {
 	switch typ.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 		return true
+	case reflect.Struct:
+		return typ == reflectValueType
 	}
 	return false
 }
@@ -585,11 +891,18 @@ func canBeNil(typ reflect.Type) bool {
 // validateType guarantees that the value is valid and assignable to the type.
 func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Value {
 	if !value.IsValid() {
-		if typ == nil || canBeNil(typ) {
+		if typ == nil {
 			// An untyped nil interface{}. Accept as a proper nil value.
+			return reflect.ValueOf(nil)
+		}
+		if canBeNil(typ) {
+			// Like above, but use the zero value of the non-nil type.
 			return reflect.Zero(typ)
 		}
 		s.errorf("invalid value; expected %s", typ)
+	}
+	if typ == reflectValueType && value.Type() != typ {
+		return reflect.ValueOf(value)
 	}
 	if typ != nil && !value.Type().AssignableTo(typ) {
 		if value.Kind() == reflect.Interface && !value.IsNil() {
@@ -604,12 +917,12 @@ func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Valu
 		// are much more constrained, so it makes more sense there than here.
 		// Besides, one is almost always all you need.
 		switch {
-		case value.Kind() == reflect.Ptr && value.Type().Elem().AssignableTo(typ):
+		case value.Kind() == reflect.Pointer && value.Type().Elem().AssignableTo(typ):
 			value = value.Elem()
 			if !value.IsValid() {
 				s.errorf("dereference of nil pointer of type %s", typ)
 			}
-		case reflect.PtrTo(value.Type()).AssignableTo(typ) && value.CanAddr():
+		case reflect.PointerTo(value.Type()).AssignableTo(typ) && value.CanAddr():
 			value = value.Addr()
 		default:
 			s.errorf("wrong type for value; expected %s; got %s", typ, value.Type())
@@ -629,15 +942,15 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
 		}
 		s.errorf("cannot assign nil to %s", typ)
 	case *parse.FieldNode:
-		return s.validateType(s.evalFieldNode(dot, arg, []parse.Node{n}, zero), typ)
+		return s.validateType(s.evalFieldNode(dot, arg, []parse.Node{n}, missingVal), typ)
 	case *parse.VariableNode:
-		return s.validateType(s.evalVariableNode(dot, arg, nil, zero), typ)
+		return s.validateType(s.evalVariableNode(dot, arg, nil, missingVal), typ)
 	case *parse.PipeNode:
 		return s.validateType(s.evalPipeline(dot, arg), typ)
 	case *parse.IdentifierNode:
-		return s.evalFunction(dot, arg, arg, nil, zero)
+		return s.validateType(s.evalFunction(dot, arg, arg, nil, missingVal), typ)
 	case *parse.ChainNode:
-		return s.validateType(s.evalChainNode(dot, arg, nil, zero), typ)
+		return s.validateType(s.evalChainNode(dot, arg, nil, missingVal), typ)
 	}
 	switch typ.Kind() {
 	case reflect.Bool:
@@ -651,6 +964,10 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
 	case reflect.Interface:
 		if typ.NumMethod() == 0 {
 			return s.evalEmptyInterface(dot, n)
+		}
+	case reflect.Struct:
+		if typ == reflectValueType {
+			return reflect.ValueOf(s.evalEmptyInterface(dot, n))
 		}
 	case reflect.String:
 		return s.evalString(typ, n)
@@ -734,9 +1051,9 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
 	case *parse.DotNode:
 		return dot
 	case *parse.FieldNode:
-		return s.evalFieldNode(dot, n, nil, zero)
+		return s.evalFieldNode(dot, n, nil, missingVal)
 	case *parse.IdentifierNode:
-		return s.evalFunction(dot, n, n, nil, zero)
+		return s.evalFunction(dot, n, n, nil, missingVal)
 	case *parse.NilNode:
 		// NilNode is handled in evalArg, the only place that calls here.
 		s.errorf("evalEmptyInterface: nil (can't happen)")
@@ -745,7 +1062,7 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
 	case *parse.StringNode:
 		return reflect.ValueOf(n.Text)
 	case *parse.VariableNode:
-		return s.evalVariableNode(dot, n, nil, zero)
+		return s.evalVariableNode(dot, n, nil, missingVal)
 	case *parse.PipeNode:
 		return s.evalPipeline(dot, n)
 	}
@@ -753,19 +1070,30 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
 	panic("not reached")
 }
 
-// indirect returns the item at the end of indirection, and a bool to indicate if it's nil.
-// We indirect through pointers and empty interfaces (only) because
-// non-empty interfaces have methods we might need.
+// indirect returns the item at the end of indirection, and a bool to indicate
+// if it's nil. If the returned bool is true, the returned value's kind will be
+// either a pointer or interface.
 func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
-	for ; v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface; v = v.Elem() {
+	for ; v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface; v = v.Elem() {
 		if v.IsNil() {
 			return v, true
 		}
-		if v.Kind() == reflect.Interface && v.NumMethod() > 0 {
-			break
-		}
 	}
 	return v, false
+}
+
+// indirectInterface returns the concrete value in an interface value,
+// or else the zero reflect.Value.
+// That is, if v represents the interface value x, the result is the same as reflect.ValueOf(x):
+// the fact that x was an interface value is forgotten.
+func indirectInterface(v reflect.Value) reflect.Value {
+	if v.Kind() != reflect.Interface {
+		return v
+	}
+	if v.IsNil() {
+		return reflect.Value{}
+	}
+	return v.Elem()
 }
 
 // printValue writes the textual representation of the value to the output of
@@ -776,13 +1104,16 @@ func (s *state) printValue(n parse.Node, v reflect.Value) {
 	if !ok {
 		s.errorf("can't print %s of type %s", n, v.Type())
 	}
-	fmt.Fprint(s.wr, iface)
+	_, err := fmt.Fprint(s.wr, iface)
+	if err != nil {
+		s.writeError(err)
+	}
 }
 
 // printableValue returns the, possibly indirected, interface value inside v that
 // is best for a call to formatted printer.
-func printableValue(v reflect.Value) (interface{}, bool) {
-	if v.Kind() == reflect.Ptr {
+func printableValue(v reflect.Value) (any, bool) {
+	if v.Kind() == reflect.Pointer {
 		v, _ = indirect(v) // fmt.Fprint handles nil.
 	}
 	if !v.IsValid() {
@@ -790,7 +1121,7 @@ func printableValue(v reflect.Value) (interface{}, bool) {
 	}
 
 	if !v.Type().Implements(errorType) && !v.Type().Implements(fmtStringerType) {
-		if v.CanAddr() && (reflect.PtrTo(v.Type()).Implements(errorType) || reflect.PtrTo(v.Type()).Implements(fmtStringerType)) {
+		if v.CanAddr() && (reflect.PointerTo(v.Type()).Implements(errorType) || reflect.PointerTo(v.Type()).Implements(fmtStringerType)) {
 			v = v.Addr()
 		} else {
 			switch v.Kind() {
@@ -800,45 +1131,4 @@ func printableValue(v reflect.Value) (interface{}, bool) {
 		}
 	}
 	return v.Interface(), true
-}
-
-// Types to help sort the keys in a map for reproducible output.
-
-type rvs []reflect.Value
-
-func (x rvs) Len() int      { return len(x) }
-func (x rvs) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-
-type rvInts struct{ rvs }
-
-func (x rvInts) Less(i, j int) bool { return x.rvs[i].Int() < x.rvs[j].Int() }
-
-type rvUints struct{ rvs }
-
-func (x rvUints) Less(i, j int) bool { return x.rvs[i].Uint() < x.rvs[j].Uint() }
-
-type rvFloats struct{ rvs }
-
-func (x rvFloats) Less(i, j int) bool { return x.rvs[i].Float() < x.rvs[j].Float() }
-
-type rvStrings struct{ rvs }
-
-func (x rvStrings) Less(i, j int) bool { return x.rvs[i].String() < x.rvs[j].String() }
-
-// sortKeys sorts (if it can) the slice of reflect.Values, which is a slice of map keys.
-func sortKeys(v []reflect.Value) []reflect.Value {
-	if len(v) <= 1 {
-		return v
-	}
-	switch v[0].Kind() {
-	case reflect.Float32, reflect.Float64:
-		sort.Sort(rvFloats{v})
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		sort.Sort(rvInts{v})
-	case reflect.String:
-		sort.Sort(rvStrings{v})
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		sort.Sort(rvUints{v})
-	}
-	return v
 }

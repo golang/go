@@ -1,0 +1,65 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type _[a, b] /* ERROR "missing type constraint" */ struct{}
+type _[a t, b t, c]  /* ERROR "missing type constraint" */ struct{}
+type _ struct {
+	t [n]byte
+	t[a]
+	t[a,]
+	t[a, b]
+	t[a, b,]
+}
+type _ struct {
+	t [n, /* ERROR "unexpected comma; expecting ]" */ ]byte
+}
+type _ interface {
+	t[a]
+	t[a,]
+	m[ /* ERROR "method must have no type parameters" */ _ _, /* ERROR mixed */ _]()
+	t[a, b]
+	t[a, b,]
+}
+
+func _[] /* ERROR "empty type parameter list" */ ()
+func _[a, b ] /* ERROR "missing type constraint" */ ()
+func _[a t, b t, c] /* ERROR "missing type constraint" */ ()
+
+// TODO(rfindley) incorrect error message (see existing TODO in parser)
+func f[a b, 0 /* ERROR "expected '\)', found 0" */ ] ()
+
+// go.dev/issue/49482
+type (
+	_[a *[]int] struct{}
+	_[a *t,] struct{}
+	_[a *t|[]int] struct{}
+	_[a *t|t,] struct{}
+	_[a *t|~t,] struct{}
+	_[a *struct{}|t] struct{}
+	_[a *t|struct{}] struct{}
+	_[a *struct{}|~t] struct{}
+)
+
+// go.dev/issue/51488
+type (
+	_[a *t|t,] struct{}
+	_[a *t|t, b t] struct{}
+	_[a *t|t] struct{}
+	_[a *[]t|t] struct{}
+	_[a ([]t)] struct{}
+	_[a ([]t)|t] struct{}
+)
+
+// go.dev/issue/60812
+type (
+	_ [t]struct{}
+	_ [[]t]struct{}
+	_ [[t]t]struct{}
+	_ [t /* ERROR "missing type parameter name or invalid array length" */ [t]]struct{}
+	_ [t t[t], t /* ERROR "missing type parameter name" */ [t]]struct{}
+	_ [t /* ERROR "missing type parameter name" */ [t], t t[t]]struct{}
+	_ [t /* ERROR "missing type parameter name" */ [t], t[t]]struct{} // report only first error
+)

@@ -2,201 +2,89 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package sort provides primitives for sorting slices and user-defined
-// collections.
+//go:generate go run gen_sort_variants.go
+
+// Package sort provides primitives for sorting slices and user-defined collections.
 package sort
 
-// A type, typically a collection, that satisfies sort.Interface can be
-// sorted by the routines in this package.  The methods require that the
-// elements of the collection be enumerated by an integer index.
+import (
+	"math/bits"
+	"slices"
+)
+
+// An implementation of Interface can be sorted by the routines in this package.
+// The methods refer to elements of the underlying collection by integer index.
 type Interface interface {
 	// Len is the number of elements in the collection.
 	Len() int
-	// Less reports whether the element with
-	// index i should sort before the element with index j.
+
+	// Less reports whether the element with index i
+	// must sort before the element with index j.
+	//
+	// If both Less(i, j) and Less(j, i) are false,
+	// then the elements at index i and j are considered equal.
+	// Sort may place equal elements in any order in the final result,
+	// while Stable preserves the original input order of equal elements.
+	//
+	// Less must describe a [Strict Weak Ordering]. For example:
+	//  - if both Less(i, j) and Less(j, k) are true, then Less(i, k) must be true as well.
+	//  - if both Less(i, j) and Less(j, k) are false, then Less(i, k) must be false as well.
+	//
+	// Note that floating-point comparison (the < operator on float32 or float64 values)
+	// is not a strict weak ordering when not-a-number (NaN) values are involved.
+	// See Float64Slice.Less for a correct implementation for floating-point values.
+	//
+	// [Strict Weak Ordering]: https://en.wikipedia.org/wiki/Weak_ordering#Strict_weak_orderings
 	Less(i, j int) bool
+
 	// Swap swaps the elements with indexes i and j.
 	Swap(i, j int)
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-// Insertion sort
-func insertionSort(data Interface, a, b int) {
-	for i := a + 1; i < b; i++ {
-		for j := i; j > a && data.Less(j, j-1); j-- {
-			data.Swap(j, j-1)
-		}
-	}
-}
-
-// siftDown implements the heap property on data[lo, hi).
-// first is an offset into the array where the root of the heap lies.
-func siftDown(data Interface, lo, hi, first int) {
-	root := lo
-	for {
-		child := 2*root + 1
-		if child >= hi {
-			break
-		}
-		if child+1 < hi && data.Less(first+child, first+child+1) {
-			child++
-		}
-		if !data.Less(first+root, first+child) {
-			return
-		}
-		data.Swap(first+root, first+child)
-		root = child
-	}
-}
-
-func heapSort(data Interface, a, b int) {
-	first := a
-	lo := 0
-	hi := b - a
-
-	// Build heap with greatest element at top.
-	for i := (hi - 1) / 2; i >= 0; i-- {
-		siftDown(data, i, hi, first)
-	}
-
-	// Pop elements, largest first, into end of data.
-	for i := hi - 1; i >= 0; i-- {
-		data.Swap(first, first+i)
-		siftDown(data, lo, i, first)
-	}
-}
-
-// Quicksort, following Bentley and McIlroy,
-// ``Engineering a Sort Function,'' SP&E November 1993.
-
-// medianOfThree moves the median of the three values data[m0], data[m1], data[m2] into data[m1].
-func medianOfThree(data Interface, m1, m0, m2 int) {
-	// sort 3 elements
-	if data.Less(m1, m0) {
-		data.Swap(m1, m0)
-	}
-	// data[m0] <= data[m1]
-	if data.Less(m2, m1) {
-		data.Swap(m2, m1)
-		// data[m0] <= data[m2] && data[m1] < data[m2]
-		if data.Less(m1, m0) {
-			data.Swap(m1, m0)
-		}
-	}
-	// now data[m0] <= data[m1] <= data[m2]
-}
-
-func swapRange(data Interface, a, b, n int) {
-	for i := 0; i < n; i++ {
-		data.Swap(a+i, b+i)
-	}
-}
-
-func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
-	m := lo + (hi-lo)/2 // Written like this to avoid integer overflow.
-	if hi-lo > 40 {
-		// Tukey's ``Ninther,'' median of three medians of three.
-		s := (hi - lo) / 8
-		medianOfThree(data, lo, lo+s, lo+2*s)
-		medianOfThree(data, m, m-s, m+s)
-		medianOfThree(data, hi-1, hi-1-s, hi-1-2*s)
-	}
-	medianOfThree(data, lo, m, hi-1)
-
-	// Invariants are:
-	//	data[lo] = pivot (set up by ChoosePivot)
-	//	data[lo <= i < a] = pivot
-	//	data[a <= i < b] < pivot
-	//	data[b <= i < c] is unexamined
-	//	data[c <= i < d] > pivot
-	//	data[d <= i < hi] = pivot
-	//
-	// Once b meets c, can swap the "= pivot" sections
-	// into the middle of the slice.
-	pivot := lo
-	a, b, c, d := lo+1, lo+1, hi, hi
-	for {
-		for b < c {
-			if data.Less(b, pivot) { // data[b] < pivot
-				b++
-			} else if !data.Less(pivot, b) { // data[b] = pivot
-				data.Swap(a, b)
-				a++
-				b++
-			} else {
-				break
-			}
-		}
-		for b < c {
-			if data.Less(pivot, c-1) { // data[c-1] > pivot
-				c--
-			} else if !data.Less(c-1, pivot) { // data[c-1] = pivot
-				data.Swap(c-1, d-1)
-				c--
-				d--
-			} else {
-				break
-			}
-		}
-		if b >= c {
-			break
-		}
-		// data[b] > pivot; data[c-1] < pivot
-		data.Swap(b, c-1)
-		b++
-		c--
-	}
-
-	n := min(b-a, a-lo)
-	swapRange(data, lo, b-n, n)
-
-	n = min(hi-d, d-c)
-	swapRange(data, c, hi-n, n)
-
-	return lo + b - a, hi - (d - c)
-}
-
-func quickSort(data Interface, a, b, maxDepth int) {
-	for b-a > 7 {
-		if maxDepth == 0 {
-			heapSort(data, a, b)
-			return
-		}
-		maxDepth--
-		mlo, mhi := doPivot(data, a, b)
-		// Avoiding recursion on the larger subproblem guarantees
-		// a stack depth of at most lg(b-a).
-		if mlo-a < b-mhi {
-			quickSort(data, a, mlo, maxDepth)
-			a = mhi // i.e., quickSort(data, mhi, b)
-		} else {
-			quickSort(data, mhi, b, maxDepth)
-			b = mlo // i.e., quickSort(data, a, mlo)
-		}
-	}
-	if b-a > 1 {
-		insertionSort(data, a, b)
-	}
-}
-
-// Sort sorts data.
-// It makes one call to data.Len to determine n, and O(n*log(n)) calls to
+// Sort sorts data in ascending order as determined by the Less method.
+// It makes one call to data.Len to determine n and O(n*log(n)) calls to
 // data.Less and data.Swap. The sort is not guaranteed to be stable.
+//
+// Note: in many situations, the newer [slices.SortFunc] function is more
+// ergonomic and runs faster.
 func Sort(data Interface) {
-	// Switch to heapsort if depth of 2*ceil(lg(n+1)) is reached.
 	n := data.Len()
-	maxDepth := 0
-	for i := n; i > 0; i >>= 1 {
-		maxDepth++
+	if n <= 1 {
+		return
 	}
-	maxDepth *= 2
-	quickSort(data, 0, n, maxDepth)
+	limit := bits.Len(uint(n))
+	pdqsort(data, 0, n, limit)
+}
+
+type sortedHint int // hint for pdqsort when choosing the pivot
+
+const (
+	unknownHint sortedHint = iota
+	increasingHint
+	decreasingHint
+)
+
+// xorshift paper: https://www.jstatsoft.org/article/view/v008i14/xorshift.pdf
+type xorshift uint64
+
+func (r *xorshift) Next() uint64 {
+	*r ^= *r << 13
+	*r ^= *r >> 7
+	*r ^= *r << 17
+	return uint64(*r)
+}
+
+func nextPowerOfTwo(length int) uint {
+	shift := uint(bits.Len(uint(length)))
+	return uint(1 << shift)
+}
+
+// lessSwap is a pair of Less and Swap function for use with the
+// auto-generated func-optimized variant of sort.go in
+// zfuncversion.go.
+type lessSwap struct {
+	Less func(i, j int) bool
+	Swap func(i, j int)
 }
 
 type reverse struct {
@@ -216,6 +104,9 @@ func Reverse(data Interface) Interface {
 }
 
 // IsSorted reports whether data is sorted.
+//
+// Note: in many situations, the newer [slices.IsSortedFunc] function is more
+// ergonomic and runs faster.
 func IsSorted(data Interface) bool {
 	n := data.Len()
 	for i := n - 1; i > 0; i-- {
@@ -231,61 +122,83 @@ func IsSorted(data Interface) bool {
 // IntSlice attaches the methods of Interface to []int, sorting in increasing order.
 type IntSlice []int
 
-func (p IntSlice) Len() int           { return len(p) }
-func (p IntSlice) Less(i, j int) bool { return p[i] < p[j] }
-func (p IntSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (x IntSlice) Len() int           { return len(x) }
+func (x IntSlice) Less(i, j int) bool { return x[i] < x[j] }
+func (x IntSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
-// Sort is a convenience method.
-func (p IntSlice) Sort() { Sort(p) }
+// Sort is a convenience method: x.Sort() calls Sort(x).
+func (x IntSlice) Sort() { Sort(x) }
 
-// Float64Slice attaches the methods of Interface to []float64, sorting in increasing order.
+// Float64Slice implements Interface for a []float64, sorting in increasing order,
+// with not-a-number (NaN) values ordered before other values.
 type Float64Slice []float64
 
-func (p Float64Slice) Len() int           { return len(p) }
-func (p Float64Slice) Less(i, j int) bool { return p[i] < p[j] || isNaN(p[i]) && !isNaN(p[j]) }
-func (p Float64Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (x Float64Slice) Len() int { return len(x) }
+
+// Less reports whether x[i] should be ordered before x[j], as required by the sort Interface.
+// Note that floating-point comparison by itself is not a transitive relation: it does not
+// report a consistent ordering for not-a-number (NaN) values.
+// This implementation of Less places NaN values before any others, by using:
+//
+//	x[i] < x[j] || (math.IsNaN(x[i]) && !math.IsNaN(x[j]))
+func (x Float64Slice) Less(i, j int) bool { return x[i] < x[j] || (isNaN(x[i]) && !isNaN(x[j])) }
+func (x Float64Slice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
 // isNaN is a copy of math.IsNaN to avoid a dependency on the math package.
 func isNaN(f float64) bool {
 	return f != f
 }
 
-// Sort is a convenience method.
-func (p Float64Slice) Sort() { Sort(p) }
+// Sort is a convenience method: x.Sort() calls Sort(x).
+func (x Float64Slice) Sort() { Sort(x) }
 
 // StringSlice attaches the methods of Interface to []string, sorting in increasing order.
 type StringSlice []string
 
-func (p StringSlice) Len() int           { return len(p) }
-func (p StringSlice) Less(i, j int) bool { return p[i] < p[j] }
-func (p StringSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (x StringSlice) Len() int           { return len(x) }
+func (x StringSlice) Less(i, j int) bool { return x[i] < x[j] }
+func (x StringSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
-// Sort is a convenience method.
-func (p StringSlice) Sort() { Sort(p) }
+// Sort is a convenience method: x.Sort() calls Sort(x).
+func (x StringSlice) Sort() { Sort(x) }
 
 // Convenience wrappers for common cases
 
 // Ints sorts a slice of ints in increasing order.
-func Ints(a []int) { Sort(IntSlice(a)) }
+//
+// Note: as of Go 1.22, this function simply calls [slices.Sort].
+func Ints(x []int) { slices.Sort(x) }
 
 // Float64s sorts a slice of float64s in increasing order.
-func Float64s(a []float64) { Sort(Float64Slice(a)) }
+// Not-a-number (NaN) values are ordered before other values.
+//
+// Note: as of Go 1.22, this function simply calls [slices.Sort].
+func Float64s(x []float64) { slices.Sort(x) }
 
 // Strings sorts a slice of strings in increasing order.
-func Strings(a []string) { Sort(StringSlice(a)) }
+//
+// Note: as of Go 1.22, this function simply calls [slices.Sort].
+func Strings(x []string) { slices.Sort(x) }
 
-// IntsAreSorted tests whether a slice of ints is sorted in increasing order.
-func IntsAreSorted(a []int) bool { return IsSorted(IntSlice(a)) }
+// IntsAreSorted reports whether the slice x is sorted in increasing order.
+//
+// Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+func IntsAreSorted(x []int) bool { return slices.IsSorted(x) }
 
-// Float64sAreSorted tests whether a slice of float64s is sorted in increasing order.
-func Float64sAreSorted(a []float64) bool { return IsSorted(Float64Slice(a)) }
+// Float64sAreSorted reports whether the slice x is sorted in increasing order,
+// with not-a-number (NaN) values before any other values.
+//
+// Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+func Float64sAreSorted(x []float64) bool { return slices.IsSorted(x) }
 
-// StringsAreSorted tests whether a slice of strings is sorted in increasing order.
-func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
+// StringsAreSorted reports whether the slice x is sorted in increasing order.
+//
+// Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+func StringsAreSorted(x []string) bool { return slices.IsSorted(x) }
 
 // Notes on stable sorting:
-// The used algorithms are simple and provable correct on all input and use
-// only logarithmic additional stack space.  They perform well if compared
+// The used algorithms are simple and provably correct on all input and use
+// only logarithmic additional stack space. They perform well if compared
 // experimentally to other stable in-place sorting algorithms.
 //
 // Remarks on other algorithms evaluated:
@@ -300,164 +213,25 @@ func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
 //    V. Raman in Algorithmica (1996) 16, 115-160:
 //    This algorithm either needs additional 2n bits or works only if there
 //    are enough different elements available to encode some permutations
-//    which have to be undone later (so not stable an any input).
+//    which have to be undone later (so not stable on any input).
 //  - All the optimal in-place sorting/merging algorithms I found are either
 //    unstable or rely on enough different elements in each step to encode the
 //    performed block rearrangements. See also "In-Place Merging Algorithms",
 //    Denham Coates-Evely, Department of Computer Science, Kings College,
-//    January 2004 and the reverences in there.
+//    January 2004 and the references in there.
 //  - Often "optimal" algorithms are optimal in the number of assignments
 //    but Interface has only Swap as operation.
 
-// Stable sorts data while keeping the original order of equal elements.
+// Stable sorts data in ascending order as determined by the Less method,
+// while keeping the original order of equal elements.
 //
 // It makes one call to data.Len to determine n, O(n*log(n)) calls to
 // data.Less and O(n*log(n)*log(n)) calls to data.Swap.
+//
+// Note: in many situations, the newer slices.SortStableFunc function is more
+// ergonomic and runs faster.
 func Stable(data Interface) {
-	n := data.Len()
-	blockSize := 20 // must be > 0
-	a, b := 0, blockSize
-	for b <= n {
-		insertionSort(data, a, b)
-		a = b
-		b += blockSize
-	}
-	insertionSort(data, a, n)
-
-	for blockSize < n {
-		a, b = 0, 2*blockSize
-		for b <= n {
-			symMerge(data, a, a+blockSize, b)
-			a = b
-			b += 2 * blockSize
-		}
-		if m := a + blockSize; m < n {
-			symMerge(data, a, m, n)
-		}
-		blockSize *= 2
-	}
-}
-
-// SymMerge merges the two sorted subsequences data[a:m] and data[m:b] using
-// the SymMerge algorithm from Pok-Son Kim and Arne Kutzner, "Stable Minimum
-// Storage Merging by Symmetric Comparisons", in Susanne Albers and Tomasz
-// Radzik, editors, Algorithms - ESA 2004, volume 3221 of Lecture Notes in
-// Computer Science, pages 714-723. Springer, 2004.
-//
-// Let M = m-a and N = b-n. Wolog M < N.
-// The recursion depth is bound by ceil(log(N+M)).
-// The algorithm needs O(M*log(N/M + 1)) calls to data.Less.
-// The algorithm needs O((M+N)*log(M)) calls to data.Swap.
-//
-// The paper gives O((M+N)*log(M)) as the number of assignments assuming a
-// rotation algorithm which uses O(M+N+gcd(M+N)) assignments. The argumentation
-// in the paper carries through for Swap operations, especially as the block
-// swapping rotate uses only O(M+N) Swaps.
-//
-// symMerge assumes non-degenerate arguments: a < m && m < b.
-// Having the caller check this condition eliminates many leaf recursion calls,
-// which improves performance.
-func symMerge(data Interface, a, m, b int) {
-	// Avoid unnecessary recursions of symMerge
-	// by direct insertion of data[a] into data[m:b]
-	// if data[a:m] only contains one element.
-	if m-a == 1 {
-		// Use binary search to find the lowest index i
-		// such that data[i] >= data[a] for m <= i < b.
-		// Exit the search loop with i == b in case no such index exists.
-		i := m
-		j := b
-		for i < j {
-			h := i + (j-i)/2
-			if data.Less(h, a) {
-				i = h + 1
-			} else {
-				j = h
-			}
-		}
-		// Swap values until data[a] reaches the position before i.
-		for k := a; k < i-1; k++ {
-			data.Swap(k, k+1)
-		}
-		return
-	}
-
-	// Avoid unnecessary recursions of symMerge
-	// by direct insertion of data[m] into data[a:m]
-	// if data[m:b] only contains one element.
-	if b-m == 1 {
-		// Use binary search to find the lowest index i
-		// such that data[i] > data[m] for a <= i < m.
-		// Exit the search loop with i == m in case no such index exists.
-		i := a
-		j := m
-		for i < j {
-			h := i + (j-i)/2
-			if !data.Less(m, h) {
-				i = h + 1
-			} else {
-				j = h
-			}
-		}
-		// Swap values until data[m] reaches the position i.
-		for k := m; k > i; k-- {
-			data.Swap(k, k-1)
-		}
-		return
-	}
-
-	mid := a + (b-a)/2
-	n := mid + m
-	var start, r int
-	if m > mid {
-		start = n - b
-		r = mid
-	} else {
-		start = a
-		r = m
-	}
-	p := n - 1
-
-	for start < r {
-		c := start + (r-start)/2
-		if !data.Less(p-c, c) {
-			start = c + 1
-		} else {
-			r = c
-		}
-	}
-
-	end := n - start
-	if start < m && m < end {
-		rotate(data, start, m, end)
-	}
-	if a < start && start < mid {
-		symMerge(data, a, start, mid)
-	}
-	if mid < end && end < b {
-		symMerge(data, mid, end, b)
-	}
-}
-
-// Rotate two consecutives blocks u = data[a:m] and v = data[m:b] in data:
-// Data of the form 'x u v y' is changed to 'x v u y'.
-// Rotate performs at most b-a many calls to data.Swap.
-// Rotate assumes non-degenerate arguments: a < m && m < b.
-func rotate(data Interface, a, m, b int) {
-	i := m - a
-	j := b - m
-
-	for i != j {
-		if i > j {
-			swapRange(data, m-i, m, j)
-			i -= j
-		} else {
-			swapRange(data, m-i, m+j-i, i)
-			j -= i
-		}
-	}
-	// i == j
-	swapRange(data, m-i, m, i)
+	stable(data, data.Len())
 }
 
 /*

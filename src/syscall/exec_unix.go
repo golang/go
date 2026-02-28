@@ -2,46 +2,49 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build unix
 
 // Fork, exec, wait, etc.
 
 package syscall
 
 import (
+	errorspkg "errors"
+	"internal/bytealg"
 	"runtime"
 	"sync"
 	"unsafe"
 )
 
-// Lock synchronizing creation of new file descriptors with fork.
+// ForkLock is used to synchronize creation of new file descriptors
+// with fork.
 //
 // We want the child in a fork/exec sequence to inherit only the
-// file descriptors we intend.  To do that, we mark all file
+// file descriptors we intend. To do that, we mark all file
 // descriptors close-on-exec and then, in the child, explicitly
 // unmark the ones we want the exec'ed program to keep.
 // Unix doesn't make this easy: there is, in general, no way to
-// allocate a new file descriptor close-on-exec.  Instead you
+// allocate a new file descriptor close-on-exec. Instead you
 // have to allocate the descriptor and then mark it close-on-exec.
 // If a fork happens between those two events, the child's exec
 // will inherit an unwanted file descriptor.
 //
 // This lock solves that race: the create new fd/mark close-on-exec
 // operation is done holding ForkLock for reading, and the fork itself
-// is done holding ForkLock for writing.  At least, that's the idea.
+// is done holding ForkLock for writing. At least, that's the idea.
 // There are some complications.
 //
 // Some system calls that create new file descriptors can block
 // for arbitrarily long times: open on a hung NFS server or named
-// pipe, accept on a socket, and so on.  We can't reasonably grab
+// pipe, accept on a socket, and so on. We can't reasonably grab
 // the lock across those operations.
 //
 // It is worse to inherit some file descriptors than others.
 // If a non-malicious child accidentally inherits an open ordinary file,
-// that's not a big deal.  On the other hand, if a long-lived child
+// that's not a big deal. On the other hand, if a long-lived child
 // accidentally inherits the write end of a pipe, then the reader
 // of that pipe will not see EOF until that child exits, potentially
-// causing the parent program to hang.  This is a common problem
+// causing the parent program to hang. This is a common problem
 // in threaded C programs that use popen.
 //
 // Luckily, the file descriptors that are most important not to
@@ -51,21 +54,21 @@ import (
 // The rules for which file descriptor-creating operations use the
 // ForkLock are as follows:
 //
-// 1) Pipe.    Does not block.  Use the ForkLock.
-// 2) Socket.  Does not block.  Use the ForkLock.
-// 3) Accept.  If using non-blocking mode, use the ForkLock.
-//             Otherwise, live with the race.
-// 4) Open.    Can block.  Use O_CLOEXEC if available (Linux).
-//             Otherwise, live with the race.
-// 5) Dup.     Does not block.  Use the ForkLock.
-//             On Linux, could use fcntl F_DUPFD_CLOEXEC
-//             instead of the ForkLock, but only for dup(fd, -1).
-
+//   - [Pipe]. Use pipe2 if available. Otherwise, does not block,
+//     so use ForkLock.
+//   - [Socket]. Use SOCK_CLOEXEC if available. Otherwise, does not
+//     block, so use ForkLock.
+//   - [Open]. Use [O_CLOEXEC] if available. Otherwise, may block,
+//     so live with the race.
+//   - [Dup]. Use [F_DUPFD_CLOEXEC] or dup3 if available. Otherwise,
+//     does not block, so use ForkLock.
 var ForkLock sync.RWMutex
 
-// StringSlicePtr is deprecated. Use SlicePtrFromStrings instead.
-// If any string contains a NUL byte this function panics instead
-// of returning an error.
+// StringSlicePtr converts a slice of strings to a slice of pointers
+// to NUL-terminated byte arrays. If any string contains a NUL byte
+// this function panics instead of returning an error.
+//
+// Deprecated: Use [SlicePtrFromStrings] instead.
 func StringSlicePtr(ss []string) []*byte {
 	bb := make([]*byte, len(ss)+1)
 	for i := 0; i < len(ss); i++ {
@@ -76,18 +79,24 @@ func StringSlicePtr(ss []string) []*byte {
 }
 
 // SlicePtrFromStrings converts a slice of strings to a slice of
-// pointers to NUL-terminated byte slices. If any string contains
-// a NUL byte, it returns (nil, EINVAL).
+// pointers to NUL-terminated byte arrays. If any string contains
+// a NUL byte, it returns (nil, [EINVAL]).
 func SlicePtrFromStrings(ss []string) ([]*byte, error) {
-	var err error
-	bb := make([]*byte, len(ss)+1)
-	for i := 0; i < len(ss); i++ {
-		bb[i], err = BytePtrFromString(ss[i])
-		if err != nil {
-			return nil, err
+	n := 0
+	for _, s := range ss {
+		if bytealg.IndexByteString(s, 0) != -1 {
+			return nil, EINVAL
 		}
+		n += len(s) + 1 // +1 for NUL
 	}
-	bb[len(ss)] = nil
+	bb := make([]*byte, len(ss)+1)
+	b := make([]byte, n)
+	n = 0
+	for i, s := range ss {
+		bb[i] = &b[n]
+		copy(b[n:], s)
+		n += len(s) + 1
+	}
 	return bb, nil
 }
 
@@ -98,25 +107,29 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
 	if err != nil {
 		return err
 	}
+	if (flag&O_NONBLOCK != 0) == nonblocking {
+		return nil
+	}
 	if nonblocking {
 		flag |= O_NONBLOCK
 	} else {
-		flag &= ^O_NONBLOCK
+		flag &^= O_NONBLOCK
 	}
 	_, err = fcntl(fd, F_SETFL, flag)
 	return err
 }
 
 // Credential holds user and group identities to be assumed
-// by a child process started by StartProcess.
+// by a child process started by [StartProcess].
 type Credential struct {
-	Uid    uint32   // User ID.
-	Gid    uint32   // Group ID.
-	Groups []uint32 // Supplementary group IDs.
+	Uid         uint32   // User ID.
+	Gid         uint32   // Group ID.
+	Groups      []uint32 // Supplementary group IDs.
+	NoSetGroups bool     // If true, don't set supplementary groups
 }
 
 // ProcAttr holds attributes that will be applied to a new process started
-// by StartProcess.
+// by [StartProcess].
 type ProcAttr struct {
 	Dir   string    // Current working directory.
 	Env   []string  // Environment.
@@ -141,9 +154,6 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		sys = &zeroSysProcAttr
 	}
 
-	p[0] = -1
-	p[1] = -1
-
 	// Convert args to C form.
 	argv0p, err := BytePtrFromString(argv0)
 	if err != nil {
@@ -158,7 +168,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		return 0, err
 	}
 
-	if (runtime.GOOS == "freebsd" || runtime.GOOS == "dragonfly") && len(argv[0]) > len(argv0) {
+	if (runtime.GOOS == "freebsd" || runtime.GOOS == "dragonfly") && len(argv) > 0 && len(argv[0]) > len(argv0) {
 		argvp[0] = argv0p
 	}
 
@@ -177,27 +187,41 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		}
 	}
 
-	// Acquire the fork lock so that no other threads
-	// create new fds that are not yet close-on-exec
-	// before we fork.
-	ForkLock.Lock()
+	// Both Setctty and Foreground use the Ctty field,
+	// but they give it slightly different meanings.
+	if sys.Setctty && sys.Foreground {
+		return 0, errorspkg.New("both Setctty and Foreground set in SysProcAttr")
+	}
+	if sys.Setctty && sys.Ctty >= len(attr.Files) {
+		return 0, errorspkg.New("Setctty set but Ctty not valid in child")
+	}
+
+	acquireForkLock()
 
 	// Allocate child status pipe close on exec.
 	if err = forkExecPipe(p[:]); err != nil {
-		goto error
+		releaseForkLock()
+		return 0, err
 	}
 
 	// Kick off child.
 	pid, err1 = forkAndExecInChild(argv0p, argvp, envvp, chroot, dir, attr, sys, p[1])
 	if err1 != 0 {
-		err = Errno(err1)
-		goto error
+		Close(p[0])
+		Close(p[1])
+		releaseForkLock()
+		return 0, Errno(err1)
 	}
-	ForkLock.Unlock()
+	releaseForkLock()
 
 	// Read child error status from pipe.
 	Close(p[1])
-	n, err = readlen(p[0], (*byte)(unsafe.Pointer(&err1)), int(unsafe.Sizeof(err1)))
+	for {
+		n, err = readlen(p[0], (*byte)(unsafe.Pointer(&err1)), int(unsafe.Sizeof(err1)))
+		if err != EINTR {
+			break
+		}
+	}
 	Close(p[0])
 	if err != nil || n != 0 {
 		if n == int(unsafe.Sizeof(err1)) {
@@ -213,19 +237,15 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		for err1 == EINTR {
 			_, err1 = Wait4(pid, &wstatus, 0, nil)
 		}
+
+		// OS-specific cleanup on failure.
+		forkAndExecFailureCleanup(attr, sys)
+
 		return 0, err
 	}
 
 	// Read got EOF, so pipe closed on exec, so exec succeeded.
 	return pid, nil
-
-error:
-	if p[0] >= 0 {
-		Close(p[0])
-		Close(p[1])
-	}
-	ForkLock.Unlock()
-	return 0, err
 }
 
 // Combination of fork and exec, careful to be thread safe.
@@ -233,13 +253,21 @@ func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	return forkExec(argv0, argv, attr)
 }
 
-// StartProcess wraps ForkExec for package os.
+// StartProcess wraps [ForkExec] for package os.
 func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle uintptr, err error) {
 	pid, err = forkExec(argv0, argv, attr)
 	return pid, 0, err
 }
 
-// Ordinary exec.
+// Implemented in runtime package.
+func runtime_BeforeExec()
+func runtime_AfterExec()
+
+// execveLibc is non-nil on OS using libc syscall, set to execve in exec_libc.go; this
+// avoids a build dependency for other platforms.
+var execveLibc func(path *byte, argv **byte, envp **byte) error
+
+// Exec invokes the execve(2) system call.
 func Exec(argv0 string, argv []string, envv []string) (err error) {
 	argv0p, err := BytePtrFromString(argv0)
 	if err != nil {
@@ -253,9 +281,25 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 	if err != nil {
 		return err
 	}
-	_, _, err1 := RawSyscall(SYS_EXECVE,
-		uintptr(unsafe.Pointer(argv0p)),
-		uintptr(unsafe.Pointer(&argvp[0])),
-		uintptr(unsafe.Pointer(&envvp[0])))
-	return Errno(err1)
+	runtime_BeforeExec()
+
+	rlim := origRlimitNofile.Load()
+	if rlim != nil {
+		Setrlimit(RLIMIT_NOFILE, rlim)
+	}
+
+	var err1 error
+	switch runtime.GOOS {
+	case "aix", "darwin", "illumos", "ios", "openbsd", "solaris":
+		// RawSyscall should never be used on these platforms.
+		err1 = execveLibc(argv0p, &argvp[0], &envvp[0])
+
+	default:
+		_, _, err1 = RawSyscall(SYS_EXECVE,
+			uintptr(unsafe.Pointer(argv0p)),
+			uintptr(unsafe.Pointer(&argvp[0])),
+			uintptr(unsafe.Pointer(&envvp[0])))
+	}
+	runtime_AfterExec()
+	return err1
 }

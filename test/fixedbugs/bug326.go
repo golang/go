@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -19,7 +19,7 @@ func h() (_ int, _ error) {
 }
 
 func i() (int, error) {
-	return // ERROR "not enough arguments to return"
+	return // ERROR "not enough return values|not enough arguments to return"
 }
 
 func f1() (_ int, err error) {

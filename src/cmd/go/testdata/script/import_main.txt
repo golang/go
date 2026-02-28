@@ -1,0 +1,114 @@
+env GO111MODULE=off
+
+# Test that you cannot import a main package.
+# See golang.org/issue/4210 and golang.org/issue/17475.
+
+[short] skip
+cd $WORK
+
+# Importing package main from that package main's test should work.
+go build x
+go test -c x
+
+# Importing package main from another package should fail.
+! go build p1
+stderr 'import "x" is a program, not an importable package'
+
+# ... even in that package's test.
+go build p2
+! go test -c p2
+stderr 'import "x" is a program, not an importable package'
+
+# ... even if that package's test is an xtest.
+go build p3
+! go test p3
+stderr 'import "x" is a program, not an importable package'
+
+# ... even if that package is a package main
+go build p4
+! go test -c p4
+stderr 'import "x" is a program, not an importable package'
+
+# ... even if that package is a package main using an xtest.
+go build p5
+! go test -c p5
+stderr 'import "x" is a program, not an importable package'
+
+-- x/main.go --
+package main
+
+var X int
+
+func main() {}
+-- x/main_test.go --
+package main_test
+
+import (
+	"testing"
+	xmain "x"
+)
+
+var _ = xmain.X
+
+func TestFoo(t *testing.T) {}
+-- p1/p.go --
+package p1
+
+import xmain "x"
+
+var _ = xmain.X
+-- p2/p.go --
+package p2
+-- p2/p_test.go --
+package p2
+
+import (
+	"testing"
+	xmain "x"
+)
+
+var _ = xmain.X
+
+func TestFoo(t *testing.T) {}
+-- p3/p.go --
+package p
+-- p3/p_test.go --
+package p_test
+
+import (
+	"testing"
+	xmain "x"
+)
+
+var _ = xmain.X
+
+func TestFoo(t *testing.T) {}
+-- p4/p.go --
+package main
+
+func main() {}
+-- p4/p_test.go --
+package main
+
+import (
+	"testing"
+	xmain "x"
+)
+
+var _ = xmain.X
+
+func TestFoo(t *testing.T) {}
+-- p5/p.go --
+package main
+func main() {}
+-- p5/p_test.go --
+package main_test
+
+import (
+	"testing"
+	xmain "x"
+)
+
+var _ = xmain.X
+
+func TestFoo(t *testing.T) {}

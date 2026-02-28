@@ -1,0 +1,15 @@
+name: Proposals
+description: New external API or other notable changes
+title: "proposal: import/path: proposal title"
+labels: ["Proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: "Our proposal process is documented here: https://go.dev/s/proposal-process"
+  - type: textarea
+    id: proposal-details
+    attributes:
+      label: "Proposal Details"
+      description: "Please provide the details of your proposal here."
+    validations:
+      required: true

@@ -5,6 +5,8 @@
 package runtime_test
 
 import (
+	"internal/testenv"
+	"math"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -210,11 +212,91 @@ func TestNonblockRecvRace(t *testing.T) {
 			select {
 			case <-c:
 			default:
-				t.Fatal("chan is not ready")
+				t.Error("chan is not ready")
 			}
 		}()
 		close(c)
 		<-c
+		if t.Failed() {
+			return
+		}
+	}
+}
+
+// This test checks that select acts on the state of the channels at one
+// moment in the execution, not over a smeared time window.
+// In the test, one goroutine does:
+//
+//	create c1, c2
+//	make c1 ready for receiving
+//	create second goroutine
+//	make c2 ready for receiving
+//	make c1 no longer ready for receiving (if possible)
+//
+// The second goroutine does a non-blocking select receiving from c1 and c2.
+// From the time the second goroutine is created, at least one of c1 and c2
+// is always ready for receiving, so the select in the second goroutine must
+// always receive from one or the other. It must never execute the default case.
+func TestNonblockSelectRace(t *testing.T) {
+	n := 100000
+	if testing.Short() {
+		n = 1000
+	}
+	done := make(chan bool, 1)
+	for i := 0; i < n; i++ {
+		c1 := make(chan int, 1)
+		c2 := make(chan int, 1)
+		c1 <- 1
+		go func() {
+			select {
+			case <-c1:
+			case <-c2:
+			default:
+				done <- false
+				return
+			}
+			done <- true
+		}()
+		c2 <- 1
+		select {
+		case <-c1:
+		default:
+		}
+		if !<-done {
+			t.Fatal("no chan is ready")
+		}
+	}
+}
+
+// Same as TestNonblockSelectRace, but close(c2) replaces c2 <- 1.
+func TestNonblockSelectRace2(t *testing.T) {
+	n := 100000
+	if testing.Short() {
+		n = 1000
+	}
+	done := make(chan bool, 1)
+	for i := 0; i < n; i++ {
+		c1 := make(chan int, 1)
+		c2 := make(chan int)
+		c1 <- 1
+		go func() {
+			select {
+			case <-c1:
+			case <-c2:
+			default:
+				done <- false
+				return
+			}
+			done <- true
+		}()
+		close(c2)
+		select {
+		case <-c1:
+		default:
+		}
+		if !<-done {
+			t.Fatal("no chan is ready")
+		}
 	}
 }
 
@@ -227,7 +309,6 @@ func TestSelfSelect(t *testing.T) {
 		wg.Add(2)
 		c := make(chan int, chanCap)
 		for p := 0; p < 2; p++ {
-			p := p
 			go func() {
 				defer wg.Done()
 				for i := 0; i < 1000; i++ {
@@ -236,14 +317,16 @@ func TestSelfSelect(t *testing.T) {
 						case c <- p:
 						case v := <-c:
 							if chanCap == 0 && v == p {
-								t.Fatalf("self receive")
+								t.Errorf("self receive")
+								return
 							}
 						}
 					} else {
 						select {
 						case v := <-c:
 							if chanCap == 0 && v == p {
-								t.Fatalf("self receive")
+								t.Errorf("self receive")
+								return
 							}
 						case c <- p:
 						}
@@ -275,7 +358,6 @@ func TestSelectStress(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(10)
 	for k := 0; k < 4; k++ {
-		k := k
 		go func() {
 			for i := 0; i < N; i++ {
 				c[k] <- 0
@@ -350,10 +432,70 @@ func TestSelectStress(t *testing.T) {
 	wg.Wait()
 }
 
+func TestSelectFairness(t *testing.T) {
+	const trials = 10000
+	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64le" {
+		testenv.SkipFlaky(t, 22047)
+	}
+	c1 := make(chan byte, trials+1)
+	c2 := make(chan byte, trials+1)
+	for i := 0; i < trials+1; i++ {
+		c1 <- 1
+		c2 <- 2
+	}
+	c3 := make(chan byte)
+	c4 := make(chan byte)
+	out := make(chan byte)
+	done := make(chan byte)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			var b byte
+			select {
+			case b = <-c3:
+			case b = <-c4:
+			case b = <-c1:
+			case b = <-c2:
+			}
+			select {
+			case out <- b:
+			case <-done:
+				return
+			}
+		}
+	}()
+	cnt1, cnt2 := 0, 0
+	for i := 0; i < trials; i++ {
+		switch b := <-out; b {
+		case 1:
+			cnt1++
+		case 2:
+			cnt2++
+		default:
+			t.Fatalf("unexpected value %d on channel", b)
+		}
+	}
+	// If the select in the goroutine is fair,
+	// cnt1 and cnt2 should be about the same value.
+	// See if we're more than 10 sigma away from the expected value.
+	// 10 sigma is a lot, but we're ok with some systematic bias as
+	// long as it isn't too severe.
+	const mean = trials * 0.5
+	const variance = trials * 0.5 * (1 - 0.5)
+	stddev := math.Sqrt(variance)
+	if math.Abs(float64(cnt1-mean)) > 10*stddev {
+		t.Errorf("unfair select: in %d trials, results were %d, %d", trials, cnt1, cnt2)
+	}
+	close(done)
+	wg.Wait()
+}
+
 func TestChanSendInterface(t *testing.T) {
 	type mt struct{}
 	m := &mt{}
-	c := make(chan interface{}, 1)
+	c := make(chan any, 1)
 	c <- m
 	select {
 	case c <- m:
@@ -453,7 +595,7 @@ func TestMultiConsumer(t *testing.T) {
 func TestShrinkStackDuringBlockedSend(t *testing.T) {
 	// make sure that channel operations still work when we are
 	// blocked on a channel send and we shrink the stack.
-	// NOTE: this test probably won't fail unless stack.c:StackDebug
+	// NOTE: this test probably won't fail unless stack1.go:stackDebug
 	// is set to >= 1.
 	const n = 10
 	c := make(chan int)
@@ -482,6 +624,69 @@ func TestShrinkStackDuringBlockedSend(t *testing.T) {
 	<-done
 }
 
+func TestNoShrinkStackWhileParking(t *testing.T) {
+	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm64" {
+		testenv.SkipFlaky(t, 49382)
+	}
+	if runtime.GOOS == "openbsd" {
+		testenv.SkipFlaky(t, 51482)
+	}
+
+	// The goal of this test is to trigger a "racy sudog adjustment"
+	// throw. Basically, there's a window between when a goroutine
+	// becomes available for preemption for stack scanning (and thus,
+	// stack shrinking) but before the goroutine has fully parked on a
+	// channel. See issue 40641 for more details on the problem.
+	//
+	// The way we try to induce this failure is to set up two
+	// goroutines: a sender and a receiver that communicate across
+	// a channel. We try to set up a situation where the sender
+	// grows its stack temporarily then *fully* blocks on a channel
+	// often. Meanwhile a GC is triggered so that we try to get a
+	// mark worker to shrink the sender's stack and race with the
+	// sender parking.
+	//
+	// Unfortunately the race window here is so small that we
+	// either need a ridiculous number of iterations, or we add
+	// "usleep(1000)" to park_m, just before the unlockf call.
+	const n = 10
+	send := func(c chan<- int, done chan struct{}) {
+		for i := 0; i < n; i++ {
+			c <- i
+			// Use lots of stack briefly so that
+			// the GC is going to want to shrink us
+			// when it scans us. Make sure not to
+			// do any function calls otherwise
+			// in order to avoid us shrinking ourselves
+			// when we're preempted.
+			stackGrowthRecursive(20)
+		}
+		done <- struct{}{}
+	}
+	recv := func(c <-chan int, done chan struct{}) {
+		for i := 0; i < n; i++ {
+			// Sleep here so that the sender always
+			// fully blocks.
+			time.Sleep(10 * time.Microsecond)
+			<-c
+		}
+		done <- struct{}{}
+	}
+	for i := 0; i < n*20; i++ {
+		c := make(chan int)
+		done := make(chan struct{})
+		go recv(c, done)
+		go send(c, done)
+		// Wait a little bit before triggering
+		// the GC to make sure the sender and
+		// receiver have gotten into their groove.
+		time.Sleep(50 * time.Microsecond)
+		runtime.GC()
+		<-done
+		<-done
+	}
+}
+
 func TestSelectDuplicateChannel(t *testing.T) {
 	// This test makes sure we can queue a G on
 	// the same channel multiple times.
@@ -498,7 +703,7 @@ func TestSelectDuplicateChannel(t *testing.T) {
 		}
 		e <- 9
 	}()
-	time.Sleep(time.Millisecond) // make sure goroutine A gets qeueued first on c
+	time.Sleep(time.Millisecond) // make sure goroutine A gets queued first on c
 
 	// goroutine B
 	go func() {
@@ -509,6 +714,120 @@ func TestSelectDuplicateChannel(t *testing.T) {
 	d <- 7 // wake up A, it dequeues itself from c.  This operation used to corrupt c.recvq.
 	<-e    // A tells us it's done
 	c <- 8 // wake up B.  This operation used to fail because c.recvq was corrupted (it tries to wake up an already running G instead of B)
+}
+
+func TestSelectStackAdjust(t *testing.T) {
+	// Test that channel receive slots that contain local stack
+	// pointers are adjusted correctly by stack shrinking.
+	c := make(chan *int)
+	d := make(chan *int)
+	ready1 := make(chan bool)
+	ready2 := make(chan bool)
+
+	f := func(ready chan bool, dup bool) {
+		// Temporarily grow the stack to 10K.
+		stackGrowthRecursive((10 << 10) / (128 * 8))
+
+		// We're ready to trigger GC and stack shrink.
+		ready <- true
+
+		val := 42
+		var cx *int
+		cx = &val
+
+		var c2 chan *int
+		var d2 chan *int
+		if dup {
+			c2 = c
+			d2 = d
+		}
+
+		// Receive from d. cx won't be affected.
+		select {
+		case cx = <-c:
+		case <-c2:
+		case <-d:
+		case <-d2:
+		}
+
+		// Check that pointer in cx was adjusted correctly.
+		if cx != &val {
+			t.Error("cx no longer points to val")
+		} else if val != 42 {
+			t.Error("val changed")
+		} else {
+			*cx = 43
+			if val != 43 {
+				t.Error("changing *cx failed to change val")
+			}
+		}
+		ready <- true
+	}
+
+	go f(ready1, false)
+	go f(ready2, true)
+
+	// Let the goroutines get into the select.
+	<-ready1
+	<-ready2
+	time.Sleep(10 * time.Millisecond)
+
+	// Force concurrent GC to shrink the stacks.
+	runtime.GC()
+
+	// Wake selects.
+	close(d)
+	<-ready1
+	<-ready2
+}
+
+type struct0 struct{}
+
+func BenchmarkMakeChan(b *testing.B) {
+	b.Run("Byte", func(b *testing.B) {
+		var x chan byte
+		for i := 0; i < b.N; i++ {
+			x = make(chan byte, 8)
+		}
+		close(x)
+	})
+	b.Run("Int", func(b *testing.B) {
+		var x chan int
+		for i := 0; i < b.N; i++ {
+			x = make(chan int, 8)
+		}
+		close(x)
+	})
+	b.Run("Ptr", func(b *testing.B) {
+		var x chan *byte
+		for i := 0; i < b.N; i++ {
+			x = make(chan *byte, 8)
+		}
+		close(x)
+	})
+	b.Run("Struct", func(b *testing.B) {
+		b.Run("0", func(b *testing.B) {
+			var x chan struct0
+			for i := 0; i < b.N; i++ {
+				x = make(chan struct0, 8)
+			}
+			close(x)
+		})
+		b.Run("32", func(b *testing.B) {
+			var x chan struct32
+			for i := 0; i < b.N; i++ {
+				x = make(chan struct32, 8)
+			}
+			close(x)
+		})
+		b.Run("40", func(b *testing.B) {
+			var x chan struct40
+			for i := 0; i < b.N; i++ {
+				x = make(chan struct40, 8)
+			}
+			close(x)
+		})
+	})
 }
 
 func BenchmarkChanNonblocking(b *testing.B) {
@@ -641,7 +960,7 @@ func BenchmarkChanContended(b *testing.B) {
 	})
 }
 
-func BenchmarkChanSync(b *testing.B) {
+func benchmarkChanSync(b *testing.B, work int) {
 	const CallsPerSched = 1000
 	procs := 2
 	N := int32(b.N / CallsPerSched / procs * procs)
@@ -657,10 +976,14 @@ func BenchmarkChanSync(b *testing.B) {
 				for g := 0; g < CallsPerSched; g++ {
 					if i%2 == 0 {
 						<-myc
+						localWork(work)
 						myc <- 0
+						localWork(work)
 					} else {
 						myc <- 0
+						localWork(work)
 						<-myc
+						localWork(work)
 					}
 				}
 			}
@@ -670,6 +993,14 @@ func BenchmarkChanSync(b *testing.B) {
 	for p := 0; p < procs; p++ {
 		<-c
 	}
+}
+
+func BenchmarkChanSync(b *testing.B) {
+	benchmarkChanSync(b, 0)
+}
+
+func BenchmarkChanSyncWork(b *testing.B) {
+	benchmarkChanSync(b, 1000)
 }
 
 func benchmarkChanProdCons(b *testing.B, chanSize, localWork int) {
@@ -798,6 +1129,19 @@ func BenchmarkSelectProdCons(b *testing.B) {
 	}
 }
 
+func BenchmarkReceiveDataFromClosedChan(b *testing.B) {
+	count := b.N
+	ch := make(chan struct{}, count)
+	for i := 0; i < count; i++ {
+		ch <- struct{}{}
+	}
+	close(ch)
+
+	b.ResetTimer()
+	for range ch {
+	}
+}
+
 func BenchmarkChanCreation(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -823,6 +1167,8 @@ func BenchmarkChanPopular(b *testing.B) {
 	const n = 1000
 	c := make(chan bool)
 	var a []chan bool
+	var wg sync.WaitGroup
+	wg.Add(n)
 	for j := 0; j < n; j++ {
 		d := make(chan bool)
 		a = append(a, d)
@@ -833,11 +1179,42 @@ func BenchmarkChanPopular(b *testing.B) {
 				case <-d:
 				}
 			}
+			wg.Done()
 		}()
 	}
 	for i := 0; i < b.N; i++ {
 		for _, d := range a {
 			d <- true
 		}
+	}
+	wg.Wait()
+}
+
+func BenchmarkChanClosed(b *testing.B) {
+	c := make(chan struct{})
+	close(c)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			select {
+			case <-c:
+			default:
+				b.Error("Unreachable")
+			}
+		}
+	})
+}
+
+var (
+	alwaysFalse = false
+	workSink    = 0
+)
+
+func localWork(w int) {
+	foo := 0
+	for i := 0; i < w; i++ {
+		foo /= (foo + 1)
+	}
+	if alwaysFalse {
+		workSink += foo
 	}
 }

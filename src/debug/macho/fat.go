@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,6 +7,7 @@ package macho
 import (
 	"encoding/binary"
 	"fmt"
+	"internal/saferio"
 	"io"
 	"os"
 )
@@ -35,11 +36,11 @@ type FatArch struct {
 	*File
 }
 
-// ErrNotFat is returned from NewFatFile or OpenFat when the file is not a
+// ErrNotFat is returned from [NewFatFile] or [OpenFat] when the file is not a
 // universal binary but may be a thin binary, based on its magic number.
 var ErrNotFat = &FormatError{0, "not a fat Mach-O file", nil}
 
-// NewFatFile creates a new FatFile for accessing all the Mach-O images in a
+// NewFatFile creates a new [FatFile] for accessing all the Mach-O images in a
 // universal binary. The Mach-O binary is expected to start at position 0 in
 // the ReaderAt.
 func NewFatFile(r io.ReaderAt) (*FatFile, error) {
@@ -79,15 +80,19 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
 
 	// Combine the Cpu and SubCpu (both uint32) into a uint64 to make sure
 	// there are not duplicate architectures.
-	seenArches := make(map[uint64]bool, narch)
+	seenArches := make(map[uint64]bool)
 	// Make sure that all images are for the same MH_ type.
 	var machoType Type
 
 	// Following the fat_header comes narch fat_arch structs that index
 	// Mach-O images further in the file.
-	ff.Arches = make([]FatArch, narch)
+	c := saferio.SliceCap[FatArch](uint64(narch))
+	if c < 0 {
+		return nil, &FormatError{offset, "too many images", nil}
+	}
+	ff.Arches = make([]FatArch, 0, c)
 	for i := uint32(0); i < narch; i++ {
-		fa := &ff.Arches[i]
+		var fa FatArch
 		err = binary.Read(sr, binary.BigEndian, &fa.FatArchHeader)
 		if err != nil {
 			return nil, &FormatError{offset, "invalid fat_arch header", nil}
@@ -115,25 +120,27 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
 				return nil, &FormatError{offset, fmt.Sprintf("Mach-O type for architecture #%d (type=%#x) does not match first (type=%#x)", i, fa.Type, machoType), nil}
 			}
 		}
+
+		ff.Arches = append(ff.Arches, fa)
 	}
 
 	return &ff, nil
 }
 
-// OpenFat opens the named file using os.Open and prepares it for use as a Mach-O
+// OpenFat opens the named file using [os.Open] and prepares it for use as a Mach-O
 // universal binary.
-func OpenFat(name string) (ff *FatFile, err error) {
+func OpenFat(name string) (*FatFile, error) {
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, err
 	}
-	ff, err = NewFatFile(f)
+	ff, err := NewFatFile(f)
 	if err != nil {
 		f.Close()
 		return nil, err
 	}
 	ff.closer = f
-	return
+	return ff, nil
 }
 
 func (ff *FatFile) Close() error {

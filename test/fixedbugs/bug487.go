@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -14,11 +14,11 @@ func G() (int, int, int) {
 }
 
 func F() {
-	a, b := G()	// ERROR "mismatch"
-	a, b = G()	// ERROR "mismatch"
+	a, b := G()	// ERROR "mismatch|cannot initialize"
+	a, b = G()	// ERROR "mismatch|cannot assign"
 	_, _ = a, b
 }
 
 func H() (int, int) {
-	return G()	// ERROR "too many|mismatch"
+	return G()	// ERROR "too many|mismatch|wrong number"
 }

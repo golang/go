@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package path
+package path_test
 
-import "testing"
+import (
+	"fmt"
+	. "path"
+	"testing"
+)
 
 type MatchTest struct {
 	pattern, s string
@@ -64,8 +68,10 @@ var matchTests = []MatchTest{
 	{"[", "a", false, ErrBadPattern},
 	{"[^", "a", false, ErrBadPattern},
 	{"[^bc", "a", false, ErrBadPattern},
-	{"a[", "a", false, nil},
+	{"a[", "a", false, ErrBadPattern},
 	{"a[", "ab", false, ErrBadPattern},
+	{"a[", "x", false, ErrBadPattern},
+	{"a/b[", "x", false, ErrBadPattern},
 	{"*x", "xxx", true, nil},
 }
 
@@ -73,7 +79,24 @@ func TestMatch(t *testing.T) {
 	for _, tt := range matchTests {
 		ok, err := Match(tt.pattern, tt.s)
 		if ok != tt.match || err != tt.err {
-			t.Errorf("Match(%#q, %#q) = %v, %v want %v, nil", tt.pattern, tt.s, ok, err, tt.match)
+			t.Errorf("Match(%#q, %#q) = %v, %v want %v, %v", tt.pattern, tt.s, ok, err, tt.match, tt.err)
 		}
 	}
 }
+
+func BenchmarkMatch(b *testing.B) {
+	for _, tt := range matchTests {
+		name := fmt.Sprintf("%q %q", tt.pattern, tt.s)
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for range b.N {
+				bSink, errSink = Match(tt.pattern, tt.s)
+			}
+		})
+	}
+}
+
+var (
+	bSink   bool
+	errSink error
+)

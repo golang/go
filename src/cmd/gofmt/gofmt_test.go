@@ -7,7 +7,7 @@ package main
 import (
 	"bytes"
 	"flag"
-	"io/ioutil"
+	"internal/diff"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,17 +48,29 @@ func gofmtFlags(filename string, maxLines int) string {
 		case scanner.EOF:
 			return ""
 		}
-
 	}
 
 	return ""
 }
 
-func runTest(t *testing.T, in, out string) {
-	// process flags
-	*simplifyAST = false
+// Reset global variables for all flags to their default value.
+func resetFlags() {
+	*list = false
+	*write = false
 	*rewriteRule = ""
-	stdin := false
+	*simplifyAST = false
+	*doDiff = false
+	*allErrors = false
+	*cpuprofile = ""
+}
+
+func runTest(t *testing.T, in, out string) {
+	resetFlags()
+	info, err := os.Lstat(in)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	for _, flag := range strings.Split(gofmtFlags(in, 20), " ") {
 		elts := strings.SplitN(flag, "=", 2)
 		name := elts[0]
@@ -75,7 +87,7 @@ func runTest(t *testing.T, in, out string) {
 			*simplifyAST = true
 		case "-stdin":
 			// fake flag - pretend input is from stdin
-			stdin = true
+			info = nil
 		default:
 			t.Errorf("unrecognized flag name: %s", name)
 		}
@@ -84,14 +96,20 @@ func runTest(t *testing.T, in, out string) {
 	initParserMode()
 	initRewrite()
 
-	var buf bytes.Buffer
-	err := processFile(in, nil, &buf, stdin)
-	if err != nil {
-		t.Error(err)
-		return
+	const maxWeight = 2 << 20
+	var buf, errBuf bytes.Buffer
+	s := newSequencer(maxWeight, &buf, &errBuf)
+	s.Add(fileWeight(in, info), func(r *reporter) error {
+		return processFile(in, info, nil, r)
+	})
+	if errBuf.Len() > 0 {
+		t.Logf("%q", errBuf.Bytes())
+	}
+	if s.GetExitCode() != 0 {
+		t.Fail()
 	}
 
-	expected, err := ioutil.ReadFile(out)
+	expected, err := os.ReadFile(out)
 	if err != nil {
 		t.Error(err)
 		return
@@ -100,7 +118,7 @@ func runTest(t *testing.T, in, out string) {
 	if got := buf.Bytes(); !bytes.Equal(got, expected) {
 		if *update {
 			if in != out {
-				if err := ioutil.WriteFile(out, got, 0666); err != nil {
+				if err := os.WriteFile(out, got, 0666); err != nil {
 					t.Error(err)
 				}
 				return
@@ -109,12 +127,9 @@ func runTest(t *testing.T, in, out string) {
 			t.Errorf("WARNING: -update did not rewrite input file %s", in)
 		}
 
-		t.Errorf("(gofmt %s) != %s (see %s.gofmt)", in, out, in)
-		d, err := diff(expected, got)
-		if err == nil {
-			t.Errorf("%s", d)
-		}
-		if err := ioutil.WriteFile(in+".gofmt", got, 0666); err != nil {
+		t.Errorf("(gofmt %s) != %s (see %s.gofmt)\n%s", in, out, in,
+			diff.Diff("expected", expected, "got", got))
+		if err := os.WriteFile(in+".gofmt", got, 0666); err != nil {
 			t.Error(err)
 		}
 	}
@@ -138,14 +153,57 @@ func TestRewrite(t *testing.T) {
 	match = append(match, "gofmt.go", "gofmt_test.go")
 
 	for _, in := range match {
-		out := in // for files where input and output are identical
-		if strings.HasSuffix(in, ".input") {
-			out = in[:len(in)-len(".input")] + ".golden"
+		name := filepath.Base(in)
+		t.Run(name, func(t *testing.T) {
+			out := in // for files where input and output are identical
+			if strings.HasSuffix(in, ".input") {
+				out = in[:len(in)-len(".input")] + ".golden"
+			}
+			runTest(t, in, out)
+			if in != out && !t.Failed() {
+				// Check idempotence.
+				runTest(t, out, out)
+			}
+		})
+	}
+}
+
+// TestDiff runs gofmt with the -d flag on the input files and checks that the
+// expected exit code is set.
+func TestDiff(t *testing.T) {
+	tests := []struct {
+		in       string
+		exitCode int
+	}{
+		{in: "testdata/exitcode.input", exitCode: 1},
+		{in: "testdata/exitcode.golden", exitCode: 0},
+	}
+
+	for _, tt := range tests {
+		resetFlags()
+		*doDiff = true
+
+		initParserMode()
+		initRewrite()
+
+		info, err := os.Lstat(tt.in)
+		if err != nil {
+			t.Error(err)
+			return
 		}
-		runTest(t, in, out)
-		if in != out {
-			// Check idempotence.
-			runTest(t, out, out)
+
+		const maxWeight = 2 << 20
+		var buf, errBuf bytes.Buffer
+		s := newSequencer(maxWeight, &buf, &errBuf)
+		s.Add(fileWeight(tt.in, info), func(r *reporter) error {
+			return processFile(tt.in, info, nil, r)
+		})
+		if errBuf.Len() > 0 {
+			t.Logf("%q", errBuf.Bytes())
+		}
+
+		if s.GetExitCode() != tt.exitCode {
+			t.Errorf("%s: expected exit code %d, got %d", tt.in, tt.exitCode, s.GetExitCode())
 		}
 	}
 }
@@ -155,19 +213,32 @@ func TestCRLF(t *testing.T) {
 	const input = "testdata/crlf.input"   // must contain CR/LF's
 	const golden = "testdata/crlf.golden" // must not contain any CR's
 
-	data, err := ioutil.ReadFile(input)
+	data, err := os.ReadFile(input)
 	if err != nil {
 		t.Error(err)
 	}
-	if bytes.Index(data, []byte("\r\n")) < 0 {
+	if !bytes.Contains(data, []byte("\r\n")) {
 		t.Errorf("%s contains no CR/LF's", input)
 	}
 
-	data, err = ioutil.ReadFile(golden)
+	data, err = os.ReadFile(golden)
 	if err != nil {
 		t.Error(err)
 	}
-	if bytes.Index(data, []byte("\r")) >= 0 {
+	if bytes.Contains(data, []byte("\r")) {
 		t.Errorf("%s contains CR's", golden)
 	}
+}
+
+func TestBackupFile(t *testing.T) {
+	dir, err := os.MkdirTemp("", "gofmt_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	name, err := backupFile(filepath.Join(dir, "foo.go"), []byte("  package main"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("Created: %s", name)
 }

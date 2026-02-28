@@ -1,6 +1,6 @@
 // errorcheck
 
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -18,6 +18,6 @@ var _ = map[string]string{
 var _ = []string{
 	"foo",
 	"bar",
-	20, // ERROR "cannot use|incompatible type"
+	20, // ERROR "cannot use|incompatible type|cannot convert"
 }
 

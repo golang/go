@@ -1,0 +1,21 @@
+-- A.Play --
+package main
+
+import ()
+
+func f() (int, int) {
+	return 1, 2
+}
+
+var a, b = f()
+
+func main() {
+	_ = a
+}
+-- B.Play --
+package main
+
+import ()
+
+func main() {
+}

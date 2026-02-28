@@ -7,6 +7,7 @@ package big
 import (
 	"bytes"
 	"fmt"
+	"math/rand/v2"
 	"testing"
 )
 
@@ -17,19 +18,34 @@ var stringTests = []struct {
 	val  int64
 	ok   bool
 }{
-	{in: "", ok: false},
-	{in: "a", ok: false},
-	{in: "z", ok: false},
-	{in: "+", ok: false},
-	{in: "-", ok: false},
-	{in: "0b", ok: false},
-	{in: "0x", ok: false},
-	{in: "2", base: 2, ok: false},
-	{in: "0b2", base: 0, ok: false},
-	{in: "08", ok: false},
-	{in: "8", base: 8, ok: false},
-	{in: "0xg", base: 0, ok: false},
-	{in: "g", base: 16, ok: false},
+	// invalid inputs
+	{in: ""},
+	{in: "a"},
+	{in: "z"},
+	{in: "+"},
+	{in: "-"},
+	{in: "0b"},
+	{in: "0o"},
+	{in: "0x"},
+	{in: "0y"},
+	{in: "2", base: 2},
+	{in: "0b2", base: 0},
+	{in: "08"},
+	{in: "8", base: 8},
+	{in: "0xg", base: 0},
+	{in: "g", base: 16},
+
+	// invalid inputs with separators
+	// (smoke tests only - a comprehensive set of tests is in natconv_test.go)
+	{in: "_"},
+	{in: "0_"},
+	{in: "_0"},
+	{in: "-1__0"},
+	{in: "0x10_"},
+	{in: "1_000", base: 10}, // separators are not permitted for bases != 0
+	{in: "d_e_a_d", base: 16},
+
+	// valid inputs
 	{"0", "0", 0, 0, true},
 	{"0", "0", 10, 0, true},
 	{"0", "0", 16, 0, true},
@@ -40,8 +56,10 @@ var stringTests = []struct {
 	{"10", "10", 16, 16, true},
 	{"-10", "-10", 16, -16, true},
 	{"+10", "10", 16, 16, true},
+	{"0b10", "2", 0, 2, true},
+	{"0o10", "8", 0, 8, true},
 	{"0x10", "16", 0, 16, true},
-	{in: "0x10", base: 16, ok: false},
+	{in: "0x10", base: 16},
 	{"-0x10", "-16", 0, -16, true},
 	{"+0x10", "16", 0, 16, true},
 	{"00", "0", 0, 0, true},
@@ -56,6 +74,68 @@ var stringTests = []struct {
 	{"-0b111", "-7", 0, -7, true},
 	{"0b1001010111", "599", 0, 0x257, true},
 	{"1001010111", "1001010111", 2, 0x257, true},
+	{"A", "a", 36, 10, true},
+	{"A", "A", 37, 36, true},
+	{"ABCXYZ", "abcxyz", 36, 623741435, true},
+	{"ABCXYZ", "ABCXYZ", 62, 33536793425, true},
+
+	// valid input with separators
+	// (smoke tests only - a comprehensive set of tests is in natconv_test.go)
+	{"1_000", "1000", 0, 1000, true},
+	{"0b_1010", "10", 0, 10, true},
+	{"+0o_660", "432", 0, 0660, true},
+	{"-0xF00D_1E", "-15731998", 0, -0xf00d1e, true},
+}
+
+func TestIntText(t *testing.T) {
+	z := new(Int)
+	for _, test := range stringTests {
+		if !test.ok {
+			continue
+		}
+
+		_, ok := z.SetString(test.in, test.base)
+		if !ok {
+			t.Errorf("%v: failed to parse", test)
+			continue
+		}
+
+		base := test.base
+		if base == 0 {
+			base = 10
+		}
+
+		if got := z.Text(base); got != test.out {
+			t.Errorf("%v: got %s; want %s", test, got, test.out)
+		}
+	}
+}
+
+func TestAppendText(t *testing.T) {
+	z := new(Int)
+	var buf []byte
+	for _, test := range stringTests {
+		if !test.ok {
+			continue
+		}
+
+		_, ok := z.SetString(test.in, test.base)
+		if !ok {
+			t.Errorf("%v: failed to parse", test)
+			continue
+		}
+
+		base := test.base
+		if base == 0 {
+			base = 10
+		}
+
+		i := len(buf)
+		buf = z.Append(buf, base)
+		if got := string(buf[i:]); got != test.out {
+			t.Errorf("%v: got %s; want %s", test, got, test.out)
+		}
+	}
 }
 
 func format(base int) string {
@@ -79,15 +159,21 @@ func TestGetString(t *testing.T) {
 		z.SetInt64(test.val)
 
 		if test.base == 10 {
-			s := z.String()
-			if s != test.out {
-				t.Errorf("#%da got %s; want %s", i, s, test.out)
+			if got := z.String(); got != test.out {
+				t.Errorf("#%da got %s; want %s", i, got, test.out)
 			}
 		}
 
-		s := fmt.Sprintf(format(test.base), z)
-		if s != test.out {
-			t.Errorf("#%db got %s; want %s", i, s, test.out)
+		f := format(test.base)
+		got := fmt.Sprintf(f, z)
+		if f == "%d" {
+			if got != fmt.Sprintf("%d", test.val) {
+				t.Errorf("#%db got %s; want %d", i, got, test.val)
+			}
+		} else {
+			if got != test.out {
+				t.Errorf("#%dc got %s; want %s", i, got, test.out)
+			}
 		}
 	}
 }
@@ -153,8 +239,12 @@ var formatTests = []struct {
 	{"10", "%y", "%!y(big.Int=10)"},
 	{"-10", "%y", "%!y(big.Int=-10)"},
 
-	{"10", "%#b", "1010"},
+	{"10", "%#b", "0b1010"},
 	{"10", "%#o", "012"},
+	{"10", "%O", "0o12"},
+	{"-10", "%#b", "-0b1010"},
+	{"-10", "%#o", "-012"},
+	{"-10", "%O", "-0o12"},
 	{"10", "%#d", "10"},
 	{"10", "%#v", "10"},
 	{"10", "%#x", "0xa"},
@@ -300,12 +390,14 @@ func TestFormat(t *testing.T) {
 	}
 }
 
-var scanTests = []struct {
+type scanTest struct {
 	input     string
 	format    string
 	output    string
 	remaining int
-}{
+}
+
+var scanTests = []scanTest{
 	{"1010", "%b", "10", 0},
 	{"0b1010", "%v", "10", 0},
 	{"12", "%o", "10", 0},
@@ -321,6 +413,25 @@ var scanTests = []struct {
 	{"0 ", "%v", "0", 1},
 	{"2+3", "%v", "2", 2},
 	{"0XABC 12", "%v", "2748", 3},
+
+	{"10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffff00000000000022222223333333333444444444", "%x", "72999049881955123498258745691204661198291656115976958889267080286388402675338838184094604981077942396458276955120179409196748346461468914795561487752253275293347599221664790586512596660792869956", 0},
+	{"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff33377fffffffffffffffffffffffffffffffffffffffffffff0000000000022222eee1", "%x", "1167984798111281975972139931059274579172666497855631342228273284582214442805421410945513679697247078343332431249286160621687557589604464869034163736183926240549918956767671325412748661204059352801", 0},
+	{"5c0d52f451aec609b15da8e5e5626c4eaa88723bdeac9d25ca9b961269400410ca208a16af9c2fb07d7a11c7772cba02c22f9711078d51a3797eb18e691295293284d988e349fa6deba46b25a4ecd9f715", "%x", "419981998319789881681348172155240145539175961318447822049735313481433836043208347786919222066492311384432264836938599791362288343314139526391998172436831830624710446410781662672086936222288181013", 0},
+	{"92fcad4b5c0d52f451aec609b15da8e5e5626c4eaa88723bdeac9d25ca9b961269400410ca208a16af9c2fb07d799c32fe2f3cc5422f9711078d51a3797eb18e691295293284d8f5e69caf6decddfe1df6", "%x", "670619546945481998414061201992255225716434798957375727890607516800039934374391281275121813279544891602026798031004764406015624866771554937391445093144221697436880587924204655403711377861305572854", 0},
+	{"10000000000000000000000200000000000000000000003000000000000000000000040000000000000000000000500000000000000000000006", "%d", "10000000000000000000000200000000000000000000003000000000000000000000040000000000000000000000500000000000000000000006", 0},
+}
+
+func init() {
+	for i := range 200 {
+		d := make([]byte, i+1)
+		for j := range d {
+			d[j] = '0' + rand.N(byte(10))
+		}
+		if d[0] == '0' {
+			d[0] = '1'
+		}
+		scanTests = append(scanTests, scanTest{input: string(d), format: "%d", output: string(d)})
+	}
 }
 
 func TestScan(t *testing.T) {

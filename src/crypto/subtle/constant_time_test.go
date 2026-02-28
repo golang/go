@@ -78,9 +78,9 @@ func TestConstantTimeEq(t *testing.T) {
 
 func makeCopy(v int, x, y []byte) []byte {
 	if len(x) > len(y) {
-		x = x[0:len(y)]
+		x = x[:len(y)]
 	} else {
-		y = y[0:len(x)]
+		y = y[:len(x)]
 	}
 	if v == 1 {
 		copy(x, y)
@@ -90,9 +90,9 @@ func makeCopy(v int, x, y []byte) []byte {
 
 func constantTimeCopyWrapper(v int, x, y []byte) []byte {
 	if len(x) > len(y) {
-		x = x[0:len(y)]
+		x = x[:len(y)]
 	} else {
-		y = y[0:len(x)]
+		y = y[:len(x)]
 	}
 	v &= 1
 	ConstantTimeCopy(v, x, y)
@@ -124,4 +124,47 @@ func TestConstantTimeLessOrEq(t *testing.T) {
 			t.Errorf("#%d: %d <= %d gave %d, expected %d", i, test.x, test.y, result, test.result)
 		}
 	}
+}
+
+var benchmarkGlobal uint8
+
+func BenchmarkConstantTimeSelect(b *testing.B) {
+	x := int(benchmarkGlobal)
+	var y, z int
+
+	for range b.N {
+		y, z, x = ConstantTimeSelect(x, y, z), y, z
+	}
+
+	benchmarkGlobal = uint8(x)
+}
+
+func BenchmarkConstantTimeByteEq(b *testing.B) {
+	var x, y uint8
+
+	for i := 0; i < b.N; i++ {
+		x, y = uint8(ConstantTimeByteEq(x, y)), x
+	}
+
+	benchmarkGlobal = x
+}
+
+func BenchmarkConstantTimeEq(b *testing.B) {
+	var x, y int
+
+	for i := 0; i < b.N; i++ {
+		x, y = ConstantTimeEq(int32(x), int32(y)), x
+	}
+
+	benchmarkGlobal = uint8(x)
+}
+
+func BenchmarkConstantTimeLessOrEq(b *testing.B) {
+	var x, y int
+
+	for i := 0; i < b.N; i++ {
+		x, y = ConstantTimeLessOrEq(x, y), x
+	}
+
+	benchmarkGlobal = uint8(x)
 }

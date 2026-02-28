@@ -1,0 +1,146 @@
+[short] skip
+
+# test fail fast
+! go test ./failfast_test.go -run='TestFailingA' -failfast=true
+stdout -count=1 'FAIL - '
+! go test ./failfast_test.go -run='TestFailing[AB]' -failfast=true
+stdout -count=1 'FAIL - '
+! go test ./failfast_test.go -run='TestFailing[AB]' -failfast=false
+stdout -count=2 'FAIL - '
+
+# mix with non-failing tests
+! go test ./failfast_test.go -run='TestA|TestFailing[AB]' -failfast=true
+stdout -count=1 'FAIL - '
+! go test ./failfast_test.go -run='TestA|TestFailing[AB]' -failfast=false
+stdout -count=2 'FAIL - '
+
+# mix with parallel tests
+! go test ./failfast_test.go -run='TestFailingB|TestParallelFailingA' -failfast=true
+stdout -count=2 'FAIL - '
+! go test ./failfast_test.go -run='TestFailingB|TestParallelFailingA' -failfast=false
+stdout -count=2 'FAIL - '
+! go test ./failfast_test.go -run='TestFailingB|TestParallelFailing[AB]' -failfast=true
+stdout -count=3 'FAIL - '
+! go test ./failfast_test.go -run='TestFailingB|TestParallelFailing[AB]' -failfast=false
+stdout -count=3 'FAIL - '
+
+# mix with parallel sub-tests
+! go test ./failfast_test.go -run='TestFailingB|TestParallelFailing[AB]|TestParallelFailingSubtestsA' -failfast=true
+stdout -count=3 'FAIL - '
+! go test ./failfast_test.go -run='TestFailingB|TestParallelFailing[AB]|TestParallelFailingSubtestsA' -failfast=false
+stdout -count=5 'FAIL - '
+! go test ./failfast_test.go -run='TestParallelFailingSubtestsA' -failfast=true
+stdout -count=1 'FAIL - '
+
+# only parallels
+! go test ./failfast_test.go -run='TestParallelFailing[AB]' -failfast=false
+stdout -count=2 'FAIL - '
+
+# non-parallel subtests
+! go test ./failfast_test.go -run='TestFailingSubtestsA' -failfast=true
+stdout -count=1 'FAIL - '
+! go test ./failfast_test.go -run='TestFailingSubtestsA' -failfast=false
+stdout -count=2 'FAIL - '
+
+# fatal test
+! go test ./failfast_test.go -run='TestFatal[CD]' -failfast=true
+stdout -count=1 'FAIL - '
+! go test ./failfast_test.go -run='TestFatal[CD]' -failfast=false
+stdout -count=2 'FAIL - '
+
+# cross package failfast
+! go test -p 1 -failfast ./a ./b ./c
+stdout -count=1 'FAIL - '
+stdout -count=1 'FAIL - TestFailingPkgA'
+
+-- go.mod --
+module m
+
+go 1.21.0
+-- failfast_test.go --
+// Copyright 2017 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package failfast
+
+import "testing"
+
+func TestA(t *testing.T) {
+	// Edge-case testing, mixing unparallel tests too
+	t.Logf("LOG: %s", t.Name())
+}
+
+func TestFailingA(t *testing.T) {
+	t.Errorf("FAIL - %s", t.Name())
+}
+
+func TestB(t *testing.T) {
+	// Edge-case testing, mixing unparallel tests too
+	t.Logf("LOG: %s", t.Name())
+}
+
+func TestParallelFailingA(t *testing.T) {
+	t.Parallel()
+	t.Errorf("FAIL - %s", t.Name())
+}
+
+func TestParallelFailingB(t *testing.T) {
+	t.Parallel()
+	t.Errorf("FAIL - %s", t.Name())
+}
+
+func TestParallelFailingSubtestsA(t *testing.T) {
+	t.Parallel()
+	t.Run("TestFailingSubtestsA1", func(t *testing.T) {
+		t.Errorf("FAIL - %s", t.Name())
+	})
+	t.Run("TestFailingSubtestsA2", func(t *testing.T) {
+		t.Errorf("FAIL - %s", t.Name())
+	})
+}
+
+func TestFailingSubtestsA(t *testing.T) {
+	t.Run("TestFailingSubtestsA1", func(t *testing.T) {
+		t.Errorf("FAIL - %s", t.Name())
+	})
+	t.Run("TestFailingSubtestsA2", func(t *testing.T) {
+		t.Errorf("FAIL - %s", t.Name())
+	})
+}
+
+func TestFailingB(t *testing.T) {
+	t.Errorf("FAIL - %s", t.Name())
+}
+
+func TestFatalC(t *testing.T) {
+	t.Fatalf("FAIL - %s", t.Name())
+}
+
+func TestFatalD(t *testing.T) {
+	t.Fatalf("FAIL - %s", t.Name())
+}
+-- a/a_test.go --
+package a
+
+import "testing"
+
+func TestFailingPkgA(t *testing.T) {
+	t.Errorf("FAIL - %s", t.Name())
+}
+-- b/b_test.go --
+package b
+
+import "testing"
+
+func TestFailingPkgB(t *testing.T) {
+	t.Errorf("FAIL - %s", t.Name())
+}
+-- c/c_test.go --
+package c
+
+import "testing"
+
+func TestFailingPkgC(t *testing.T) {
+	t.Errorf("FAIL - %s", t.Name())
+}

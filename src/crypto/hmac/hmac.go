@@ -11,8 +11,8 @@ The receiver verifies the hash by recomputing it using the same key.
 Receivers should be careful to use Equal to compare MACs in order to avoid
 timing side-channels:
 
-	// CheckMAC returns true if messageMAC is a valid HMAC tag for message.
-	func CheckMAC(message, messageMAC, key []byte) bool {
+	// ValidMAC reports whether messageMAC is a valid HMAC tag for message.
+	func ValidMAC(message, messageMAC, key []byte) bool {
 		mac := hmac.New(sha256.New, key)
 		mac.Write(message)
 		expectedMAC := mac.Sum(nil)
@@ -22,75 +22,38 @@ timing side-channels:
 package hmac
 
 import (
+	"crypto/internal/boring"
+	"crypto/internal/fips140/hmac"
+	"crypto/internal/fips140hash"
+	"crypto/internal/fips140only"
 	"crypto/subtle"
 	"hash"
 )
 
-// FIPS 198:
-// http://csrc.nist.gov/publications/fips/fips198/fips-198a.pdf
-
-// key is zero padded to the block size of the hash function
-// ipad = 0x36 byte repeated for key length
-// opad = 0x5c byte repeated for key length
-// hmac = H([key ^ opad] H([key ^ ipad] text))
-
-type hmac struct {
-	size         int
-	blocksize    int
-	key, tmp     []byte
-	outer, inner hash.Hash
-}
-
-func (h *hmac) tmpPad(xor byte) {
-	for i, k := range h.key {
-		h.tmp[i] = xor ^ k
-	}
-	for i := len(h.key); i < h.blocksize; i++ {
-		h.tmp[i] = xor
-	}
-}
-
-func (h *hmac) Sum(in []byte) []byte {
-	origLen := len(in)
-	in = h.inner.Sum(in)
-	h.tmpPad(0x5c)
-	copy(h.tmp[h.blocksize:], in[origLen:])
-	h.outer.Reset()
-	h.outer.Write(h.tmp)
-	return h.outer.Sum(in[:origLen])
-}
-
-func (h *hmac) Write(p []byte) (n int, err error) {
-	return h.inner.Write(p)
-}
-
-func (h *hmac) Size() int { return h.size }
-
-func (h *hmac) BlockSize() int { return h.blocksize }
-
-func (h *hmac) Reset() {
-	h.inner.Reset()
-	h.tmpPad(0x36)
-	h.inner.Write(h.tmp[:h.blocksize])
-}
-
-// New returns a new HMAC hash using the given hash.Hash type and key.
+// New returns a new HMAC hash using the given [hash.Hash] type and key.
+// New functions like [crypto/sha256.New] can be used as h.
+// h must return a new Hash every time it is called.
+// Note that unlike other hash implementations in the standard library,
+// the returned Hash does not implement [encoding.BinaryMarshaler]
+// or [encoding.BinaryUnmarshaler].
 func New(h func() hash.Hash, key []byte) hash.Hash {
-	hm := new(hmac)
-	hm.outer = h()
-	hm.inner = h()
-	hm.size = hm.inner.Size()
-	hm.blocksize = hm.inner.BlockSize()
-	hm.tmp = make([]byte, hm.blocksize+hm.size)
-	if len(key) > hm.blocksize {
-		// If key is too big, hash it.
-		hm.outer.Write(key)
-		key = hm.outer.Sum(nil)
+	if boring.Enabled {
+		hm := boring.NewHMAC(h, key)
+		if hm != nil {
+			return hm
+		}
+		// BoringCrypto did not recognize h, so fall through to standard Go code.
 	}
-	hm.key = make([]byte, len(key))
-	copy(hm.key, key)
-	hm.Reset()
-	return hm
+	h = fips140hash.UnwrapNew(h)
+	if fips140only.Enforced() {
+		if len(key) < 112/8 {
+			panic("crypto/hmac: use of keys shorter than 112 bits is not allowed in FIPS 140-only mode")
+		}
+		if !fips140only.ApprovedHash(h()) {
+			panic("crypto/hmac: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+		}
+	}
+	return hmac.New(h, key)
 }
 
 // Equal compares two MACs for equality without leaking timing information.
@@ -98,5 +61,5 @@ func Equal(mac1, mac2 []byte) bool {
 	// We don't have to be constant time if the lengths of the MACs are
 	// different as that suggests that a completely different hash function
 	// was used.
-	return len(mac1) == len(mac2) && subtle.ConstantTimeCompare(mac1, mac2) == 1
+	return subtle.ConstantTimeCompare(mac1, mac2) == 1
 }

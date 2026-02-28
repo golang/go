@@ -1,12 +1,12 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package syntax
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 	"unicode"
 )
@@ -107,10 +107,16 @@ var parseTests = []parseTest{
 	{`[\P{^Braille}]`, `cc{0x2800-0x28ff}`},
 	{`[\pZ]`, `cc{0x20 0xa0 0x1680 0x2000-0x200a 0x2028-0x2029 0x202f 0x205f 0x3000}`},
 	{`\p{Lu}`, mkCharClass(unicode.IsUpper)},
+	{`\p{Uppercase_Letter}`, mkCharClass(unicode.IsUpper)},
+	{`\p{upper case-let ter}`, mkCharClass(unicode.IsUpper)},
+	{`\p{__upper case-let ter}`, mkCharClass(unicode.IsUpper)},
 	{`[\p{Lu}]`, mkCharClass(unicode.IsUpper)},
 	{`(?i)[\p{Lu}]`, mkCharClass(isUpperFold)},
 	{`\p{Any}`, `dot{}`},
 	{`\p{^Any}`, `cc{}`},
+	{`(?i)\p{ascii}`, `cc{0x0-0x7f 0x17f 0x212a}`},
+	{`\p{Assigned}`, mkCharClass(func(r rune) bool { return !unicode.In(r, unicode.Cn) })},
+	{`\p{^Assigned}`, mkCharClass(func(r rune) bool { return unicode.In(r, unicode.Cn) })},
 
 	// Hex, octal.
 	{`[\012-\234]\141`, `cat{cc{0xa-0x9c}lit{a}}`},
@@ -144,6 +150,7 @@ var parseTests = []parseTest{
 	// Test Perl quoted literals
 	{`\Q+|*?{[\E`, `str{+|*?{[}`},
 	{`\Q+\E+`, `plus{lit{+}}`},
+	{`\Qab\E+`, `cat{lit{a}plus{lit{b}}}`},
 	{`\Q\\E`, `lit{\}`},
 	{`\Q\\\E`, `str{\\}`},
 
@@ -159,6 +166,7 @@ var parseTests = []parseTest{
 
 	// Test named captures
 	{`(?P<name>a)`, `cap{name:lit{a}}`},
+	{`(?<name>a)`, `cap{name:lit{a}}`},
 
 	// Case-folded literals
 	{`[Aa]`, `litfold{A}`},
@@ -171,7 +179,7 @@ var parseTests = []parseTest{
 
 	// Factoring.
 	{`abc|abd|aef|bcx|bcy`, `alt{cat{lit{a}alt{cat{lit{b}cc{0x63-0x64}}str{ef}}}cat{str{bc}cc{0x78-0x79}}}`},
-	{`ax+y|ax+z|ay+w`, `cat{lit{a}alt{cat{plus{lit{x}}cc{0x79-0x7a}}cat{plus{lit{y}}lit{w}}}}`},
+	{`ax+y|ax+z|ay+w`, `cat{lit{a}alt{cat{plus{lit{x}}lit{y}}cat{plus{lit{x}}lit{z}}cat{plus{lit{y}}lit{w}}}}`},
 
 	// Bug fixes.
 	{`(?:.)`, `dot{}`},
@@ -184,6 +192,7 @@ var parseTests = []parseTest{
 	{`(?-s).`, `dnl{}`},
 	{`(?:(?:^).)`, `cat{bol{}dot{}}`},
 	{`(?-s)(?:(?:^).)`, `cat{bol{}dnl{}}`},
+	{`[\s\S]a`, `cat{cc{0x0-0x10ffff}lit{a}}`},
 
 	// RE2 prefix_tests
 	{`abc|abd`, `cat{str{ab}cc{0x63-0x64}}`},
@@ -194,16 +203,22 @@ var parseTests = []parseTest{
 	{`abc|x|abd`, `alt{str{abc}lit{x}str{abd}}`},
 	{`(?i)abc|ABD`, `cat{strfold{AB}cc{0x43-0x44 0x63-0x64}}`},
 	{`[ab]c|[ab]d`, `cat{cc{0x61-0x62}cc{0x63-0x64}}`},
-	{`(?:xx|yy)c|(?:xx|yy)d`,
-		`cat{alt{str{xx}str{yy}}cc{0x63-0x64}}`},
+	{`.c|.d`, `cat{dot{}cc{0x63-0x64}}`},
 	{`x{2}|x{2}[0-9]`,
 		`cat{rep{2,2 lit{x}}alt{emp{}cc{0x30-0x39}}}`},
 	{`x{2}y|x{2}[0-9]y`,
 		`cat{rep{2,2 lit{x}}alt{lit{y}cat{cc{0x30-0x39}lit{y}}}}`},
+	{`a.*?c|a.*?b`,
+		`cat{lit{a}alt{cat{nstar{dot{}}lit{c}}cat{nstar{dot{}}lit{b}}}}`},
 
 	// Valid repetitions.
 	{`((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}))`, ``},
 	{`((((((((((x{1}){2}){2}){2}){2}){2}){2}){2}){2}){2})`, ``},
+
+	// Valid nesting.
+	{strings.Repeat("(", 999) + strings.Repeat(")", 999), ``},
+	{strings.Repeat("(?:", 999) + strings.Repeat(")*", 999), ``},
+	{"(" + strings.Repeat("|", 12345) + ")", ``}, // not nested at all
 }
 
 const testFlags = MatchNL | PerlX | UnicodeGroups
@@ -280,7 +295,7 @@ func testParseDump(t *testing.T, tests []parseTest, flags Flags) {
 // dump prints a string representation of the regexp showing
 // the structure explicitly.
 func dump(re *Regexp) string {
-	var b bytes.Buffer
+	var b strings.Builder
 	dumpRegexp(&b, re)
 	return b.String()
 }
@@ -310,7 +325,7 @@ var opNames = []string{
 // dumpRegexp writes an encoding of the syntax tree for the regexp re to b.
 // It is used during testing to distinguish between parses that might print
 // the same using re's String method.
-func dumpRegexp(b *bytes.Buffer, re *Regexp) {
+func dumpRegexp(b *strings.Builder, re *Regexp) {
 	if int(re.Op) >= len(opNames) || opNames[re.Op] == "" {
 		fmt.Fprintf(b, "op%d", re.Op)
 	} else {
@@ -474,11 +489,22 @@ var invalidRegexps = []string{
 	`(?P<name`,
 	`(?P<x y>a)`,
 	`(?P<>a)`,
+	`(?<name>a`,
+	`(?<name>`,
+	`(?<name`,
+	`(?<x y>a)`,
+	`(?<>a)`,
 	`[a-Z]`,
 	`(?i)[a-Z]`,
-	`a{100000}`,
-	`a{100000,}`,
-	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",
+	`\Q\E*`,
+	`a{100000}`,  // too much repetition
+	`a{100000,}`, // too much repetition
+	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",    // too much repetition
+	strings.Repeat("(", 1000) + strings.Repeat(")", 1000),    // too deep
+	strings.Repeat("(?:", 1000) + strings.Repeat(")*", 1000), // too deep
+	"(" + strings.Repeat("(xx?)", 1000) + "){1000}",          // too long
+	strings.Repeat("(xx?){1000}", 1000),                      // too long
+	strings.Repeat(`\pL`, 27000),                             // too many runes
 }
 
 var onlyPerl = []string{
@@ -567,6 +593,42 @@ func TestToStringEquivalentParse(t *testing.T) {
 			if s != ns {
 				t.Errorf("Parse(%#q) -> %#q -> %#q", tt.Regexp, s, ns)
 			}
+		}
+	}
+}
+
+var stringTests = []struct {
+	re  string
+	out string
+}{
+	{`x(?i:ab*c|d?e)1`, `x(?i:AB*C|D?E)1`},
+	{`x(?i:ab*cd?e)1`, `x(?i:AB*CD?E)1`},
+	{`0(?i:ab*c|d?e)1`, `(?i:0(?:AB*C|D?E)1)`},
+	{`0(?i:ab*cd?e)1`, `(?i:0AB*CD?E1)`},
+	{`x(?i:ab*c|d?e)`, `x(?i:AB*C|D?E)`},
+	{`x(?i:ab*cd?e)`, `x(?i:AB*CD?E)`},
+	{`0(?i:ab*c|d?e)`, `(?i:0(?:AB*C|D?E))`},
+	{`0(?i:ab*cd?e)`, `(?i:0AB*CD?E)`},
+	{`(?i:ab*c|d?e)1`, `(?i:(?:AB*C|D?E)1)`},
+	{`(?i:ab*cd?e)1`, `(?i:AB*CD?E1)`},
+	{`(?i:ab)[123](?i:cd)`, `(?i:AB[1-3]CD)`},
+	{`(?i:ab*c|d?e)`, `(?i:AB*C|D?E)`},
+	{`[Aa][Bb]`, `(?i:AB)`},
+	{`[Aa][Bb]*[Cc]`, `(?i:AB*C)`},
+	{`A(?:[Bb][Cc]|[Dd])[Zz]`, `A(?i:(?:BC|D)Z)`},
+	{`[Aa](?:[Bb][Cc]|[Dd])Z`, `(?i:A(?:BC|D))Z`},
+}
+
+func TestString(t *testing.T) {
+	for _, tt := range stringTests {
+		re, err := Parse(tt.re, Perl)
+		if err != nil {
+			t.Errorf("Parse(%#q): %v", tt.re, err)
+			continue
+		}
+		out := re.String()
+		if out != tt.out {
+			t.Errorf("Parse(%#q).String() = %#q, want %#q", tt.re, out, tt.out)
 		}
 	}
 }

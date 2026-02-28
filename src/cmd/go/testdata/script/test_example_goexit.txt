@@ -1,0 +1,29 @@
+# For issue golang.org/issue/41084
+[short] skip
+
+! go test -v examplegoexit
+stdout '(?s)--- PASS.*--- FAIL.*'
+stdout 'panic: test executed panic\(nil\) or runtime\.Goexit'
+
+-- go.mod --
+module examplegoexit
+
+go 1.16
+-- example_test.go --
+package main
+
+import (
+	"fmt"
+	"runtime"
+)
+
+func Example_pass() {
+	fmt.Println("pass")
+	// Output:
+	// pass
+}
+
+func Example_goexit() {
+	runtime.Goexit()
+	// Output:
+}

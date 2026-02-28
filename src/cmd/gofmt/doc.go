@@ -4,7 +4,8 @@
 
 /*
 Gofmt formats Go programs.
-It uses tabs (width = 8) for indentation and blanks for alignment.
+It uses tabs for indentation and blanks for alignment.
+Alignment assumes that an editor is using a fixed-width font.
 
 Without an explicit path, it processes the standard input.  Given a file,
 it operates on that file; given a directory, it operates on all .go files in
@@ -12,9 +13,11 @@ that directory, recursively.  (Files starting with a period are ignored.)
 By default, gofmt prints the reformatted sources to standard output.
 
 Usage:
+
 	gofmt [flags] [path ...]
 
 The flags are:
+
 	-d
 		Do not print reformatted sources to standard output.
 		If a file's formatting is different than gofmt's, print diffs
@@ -32,12 +35,13 @@ The flags are:
 	-w
 		Do not print reformatted sources to standard output.
 		If a file's formatting is different from gofmt's, overwrite it
-		with gofmt's version.
+		with gofmt's version. If an error occurred during overwriting,
+		the original file is restored from an automatic backup.
 
 Debugging support:
+
 	-cpuprofile filename
 		Write cpu profile to the specified file.
-
 
 The rewrite rule specified with the -r flag must be a string of the form:
 
@@ -55,7 +59,7 @@ such a fragment, gofmt preserves leading indentation as well as leading
 and trailing spaces, so that individual sections of a Go program can be
 formatted by piping them through gofmt.
 
-Examples
+# Examples
 
 To check files for unnecessary parentheses:
 
@@ -69,7 +73,7 @@ To convert the package tree from explicit slice upper bounds to implicit ones:
 
 	gofmt -r 'α[β:len(α)] -> α[β:]' -w $GOROOT/src
 
-The simplify command
+# The simplify command
 
 When invoked with -s gofmt will make the following source transformations where possible.
 
@@ -98,3 +102,5 @@ This may result in changes that are incompatible with earlier versions of Go.
 package main
 
 // BUG(rsc): The implementation of -r is a bit slow.
+// BUG(gri): If -w fails, the restored original file may not have some of the
+// original file attributes.

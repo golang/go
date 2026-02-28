@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -16,7 +17,7 @@ import (
 )
 
 const (
-	// A generic XML header suitable for use with the output of Marshal.
+	// Header is a generic XML header suitable for use with the output of [Marshal].
 	// This is not automatically added to any output of this package,
 	// it is provided as a convenience.
 	Header = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
@@ -24,52 +25,67 @@ const (
 
 // Marshal returns the XML encoding of v.
 //
-// Marshal handles an array or slice by marshalling each of the elements.
-// Marshal handles a pointer by marshalling the value it points at or, if the
-// pointer is nil, by writing nothing.  Marshal handles an interface value by
-// marshalling the value it contains or, if the interface value is nil, by
-// writing nothing.  Marshal handles all other data by writing one or more XML
+// Marshal handles an array or slice by marshaling each of the elements.
+// Marshal handles a pointer by marshaling the value it points at or, if the
+// pointer is nil, by writing nothing. Marshal handles an interface value by
+// marshaling the value it contains or, if the interface value is nil, by
+// writing nothing. Marshal handles all other data by writing one or more XML
 // elements containing the data.
 //
 // The name for the XML elements is taken from, in order of preference:
-//     - the tag on the XMLName field, if the data is a struct
-//     - the value of the XMLName field of type xml.Name
-//     - the tag of the struct field used to obtain the data
-//     - the name of the struct field used to obtain the data
-//     - the name of the marshalled type
+//   - the tag on the XMLName field, if the data is a struct
+//   - the value of the XMLName field of type [Name]
+//   - the tag of the struct field used to obtain the data
+//   - the name of the struct field used to obtain the data
+//   - the name of the marshaled type
 //
-// The XML element for a struct contains marshalled elements for each of the
+// The XML element for a struct contains marshaled elements for each of the
 // exported fields of the struct, with these exceptions:
-//     - the XMLName field, described above, is omitted.
-//     - a field with tag "-" is omitted.
-//     - a field with tag "name,attr" becomes an attribute with
-//       the given name in the XML element.
-//     - a field with tag ",attr" becomes an attribute with the
-//       field name in the XML element.
-//     - a field with tag ",chardata" is written as character data,
-//       not as an XML element.
-//     - a field with tag ",innerxml" is written verbatim, not subject
-//       to the usual marshalling procedure.
-//     - a field with tag ",comment" is written as an XML comment, not
-//       subject to the usual marshalling procedure. It must not contain
-//       the "--" string within it.
-//     - a field with a tag including the "omitempty" option is omitted
-//       if the field value is empty. The empty values are false, 0, any
-//       nil pointer or interface value, and any array, slice, map, or
-//       string of length zero.
-//     - an anonymous struct field is handled as if the fields of its
-//       value were part of the outer struct.
+//   - the XMLName field, described above, is omitted.
+//   - a field with tag "-" is omitted.
+//   - a field with tag "name,attr" becomes an attribute with
+//     the given name in the XML element.
+//   - a field with tag ",attr" becomes an attribute with the
+//     field name in the XML element.
+//   - a field with tag ",chardata" is written as character data,
+//     not as an XML element.
+//   - a field with tag ",cdata" is written as character data
+//     wrapped in one or more <![CDATA[ ... ]]> tags, not as an XML element.
+//   - a field with tag ",innerxml" is written verbatim, not subject
+//     to the usual marshaling procedure.
+//   - a field with tag ",comment" is written as an XML comment, not
+//     subject to the usual marshaling procedure. It must not contain
+//     the "--" string within it.
+//   - a field with a tag including the "omitempty" option is omitted
+//     if the field value is empty. The empty values are false, 0, any
+//     nil pointer or interface value, and any array, slice, map, or
+//     string of length zero.
+//   - an anonymous struct field is handled as if the fields of its
+//     value were part of the outer struct.
+//   - an anonymous struct field of interface type is treated the same as having
+//     that type as its name, rather than being anonymous.
+//   - a field implementing [Marshaler] is written by calling its MarshalXML
+//     method.
+//   - a field implementing [encoding.TextMarshaler] is written by encoding the
+//     result of its MarshalText method as text.
 //
 // If a field uses a tag "a>b>c", then the element c will be nested inside
-// parent elements a and b.  Fields that appear next to each other that name
+// parent elements a and b. Fields that appear next to each other that name
 // the same parent will be enclosed in one XML element.
 //
-// See MarshalIndent for an example.
+// If the XML name for a struct field is defined by both the field tag and the
+// struct's XMLName field, the names must match.
+//
+// See [MarshalIndent] for an example.
 //
 // Marshal will return an error if asked to marshal a channel, function, or map.
-func Marshal(v interface{}) ([]byte, error) {
+func Marshal(v any) ([]byte, error) {
 	var b bytes.Buffer
-	if err := NewEncoder(&b).Encode(v); err != nil {
+	enc := NewEncoder(&b)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	if err := enc.Close(); err != nil {
 		return nil, err
 	}
 	return b.Bytes(), nil
@@ -82,7 +98,7 @@ func Marshal(v interface{}) ([]byte, error) {
 // By convention, arrays or slices are typically encoded as a sequence
 // of elements, one per entry.
 // Using start as the element tag is not required, but doing so
-// will enable Unmarshal to match the XML elements to the correct
+// will enable [Unmarshal] to match the XML elements to the correct
 // struct field.
 // One common implementation strategy is to construct a separate
 // value with a layout corresponding to the desired XML and then
@@ -100,9 +116,9 @@ type Marshaler interface {
 //
 // MarshalXMLAttr returns an XML attribute with the encoded value of the receiver.
 // Using name as the attribute name is not required, but doing so
-// will enable Unmarshal to match the attribute to the correct
+// will enable [Unmarshal] to match the attribute to the correct
 // struct field.
-// If MarshalXMLAttr returns the zero attribute Attr{}, no attribute
+// If MarshalXMLAttr returns the zero attribute [Attr]{}, no attribute
 // will be generated in the output.
 // MarshalXMLAttr is used only for struct fields with the
 // "attr" option in the field tag.
@@ -110,14 +126,17 @@ type MarshalerAttr interface {
 	MarshalXMLAttr(name Name) (Attr, error)
 }
 
-// MarshalIndent works like Marshal, but each XML element begins on a new
+// MarshalIndent works like [Marshal], but each XML element begins on a new
 // indented line that starts with prefix and is followed by one or more
 // copies of indent according to the nesting depth.
-func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
+func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 	var b bytes.Buffer
 	enc := NewEncoder(&b)
 	enc.Indent(prefix, indent)
 	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	if err := enc.Close(); err != nil {
 		return nil, err
 	}
 	return b.Bytes(), nil
@@ -130,7 +149,7 @@ type Encoder struct {
 
 // NewEncoder returns a new encoder that writes to w.
 func NewEncoder(w io.Writer) *Encoder {
-	e := &Encoder{printer{Writer: bufio.NewWriter(w)}}
+	e := &Encoder{printer{w: bufio.NewWriter(w)}}
 	e.p.encoder = e
 	return e
 }
@@ -145,59 +164,53 @@ func (enc *Encoder) Indent(prefix, indent string) {
 
 // Encode writes the XML encoding of v to the stream.
 //
-// See the documentation for Marshal for details about the conversion
+// See the documentation for [Marshal] for details about the conversion
 // of Go values to XML.
 //
-// Encode calls Flush before returning.
-func (enc *Encoder) Encode(v interface{}) error {
+// Encode calls [Encoder.Flush] before returning.
+func (enc *Encoder) Encode(v any) error {
 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, nil)
 	if err != nil {
 		return err
 	}
-	return enc.p.Flush()
+	return enc.p.w.Flush()
 }
 
 // EncodeElement writes the XML encoding of v to the stream,
 // using start as the outermost tag in the encoding.
 //
-// See the documentation for Marshal for details about the conversion
+// See the documentation for [Marshal] for details about the conversion
 // of Go values to XML.
 //
-// EncodeElement calls Flush before returning.
-func (enc *Encoder) EncodeElement(v interface{}, start StartElement) error {
+// EncodeElement calls [Encoder.Flush] before returning.
+func (enc *Encoder) EncodeElement(v any, start StartElement) error {
 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, &start)
 	if err != nil {
 		return err
 	}
-	return enc.p.Flush()
+	return enc.p.w.Flush()
 }
 
 var (
-	endComment   = []byte("-->")
-	endProcInst  = []byte("?>")
-	endDirective = []byte(">")
+	begComment  = []byte("<!--")
+	endComment  = []byte("-->")
+	endProcInst = []byte("?>")
 )
 
 // EncodeToken writes the given XML token to the stream.
-// It returns an error if StartElement and EndElement tokens are not
-// properly matched.
+// It returns an error if [StartElement] and [EndElement] tokens are not properly matched.
 //
-// EncodeToken does not call Flush, because usually it is part of a
-// larger operation such as Encode or EncodeElement (or a custom
-// Marshaler's MarshalXML invoked during those), and those will call
-// Flush when finished. Callers that create an Encoder and then invoke
-// EncodeToken directly, without using Encode or EncodeElement, need to
-// call Flush when finished to ensure that the XML is written to the
-// underlying writer.
+// EncodeToken does not call [Encoder.Flush], because usually it is part of a larger operation
+// such as [Encoder.Encode] or [Encoder.EncodeElement] (or a custom [Marshaler]'s MarshalXML invoked
+// during those), and those will call Flush when finished.
+// Callers that create an Encoder and then invoke EncodeToken directly, without
+// using Encode or EncodeElement, need to call Flush when finished to ensure
+// that the XML is written to the underlying writer.
 //
-// EncodeToken allows writing a ProcInst with Target set to "xml" only
-// as the first token in the stream.
-//
-// When encoding a StartElement holding an XML namespace prefix
-// declaration for a prefix that is not already declared, contained
-// elements (including the StartElement itself) will use the declared
-// prefix when encoding names with matching namespace URIs.
+// EncodeToken allows writing a [ProcInst] with Target set to "xml" only as the first token
+// in the stream.
 func (enc *Encoder) EncodeToken(t Token) error {
+
 	p := &enc.p
 	switch t := t.(type) {
 	case StartElement:
@@ -209,7 +222,7 @@ func (enc *Encoder) EncodeToken(t Token) error {
 			return err
 		}
 	case CharData:
-		EscapeText(p, t)
+		escapeText(p, t, false)
 	case Comment:
 		if bytes.Contains(t, endComment) {
 			return fmt.Errorf("xml: EncodeToken of Comment containing --> marker")
@@ -220,8 +233,8 @@ func (enc *Encoder) EncodeToken(t Token) error {
 		return p.cachedWriteError()
 	case ProcInst:
 		// First token to be encoded which is also a ProcInst with target of xml
-		// is the xml declaration.  The only ProcInst where target of xml is allowed.
-		if t.Target == "xml" && p.Buffered() != 0 {
+		// is the xml declaration. The only ProcInst where target of xml is allowed.
+		if t.Target == "xml" && p.w.Buffered() != 0 {
 			return fmt.Errorf("xml: EncodeToken of ProcInst xml target only valid for xml declaration, first token encoded")
 		}
 		if !isNameString(t.Target) {
@@ -238,24 +251,74 @@ func (enc *Encoder) EncodeToken(t Token) error {
 		}
 		p.WriteString("?>")
 	case Directive:
-		if bytes.Contains(t, endDirective) {
-			return fmt.Errorf("xml: EncodeToken of Directive containing > marker")
+		if !isValidDirective(t) {
+			return fmt.Errorf("xml: EncodeToken of Directive containing wrong < or > markers")
 		}
 		p.WriteString("<!")
 		p.Write(t)
 		p.WriteString(">")
+	default:
+		return fmt.Errorf("xml: EncodeToken of invalid token type")
+
 	}
 	return p.cachedWriteError()
 }
 
+// isValidDirective reports whether dir is a valid directive text,
+// meaning angle brackets are matched, ignoring comments and strings.
+func isValidDirective(dir Directive) bool {
+	var (
+		depth     int
+		inquote   uint8
+		incomment bool
+	)
+	for i, c := range dir {
+		switch {
+		case incomment:
+			if c == '>' {
+				if n := 1 + i - len(endComment); n >= 0 && bytes.Equal(dir[n:i+1], endComment) {
+					incomment = false
+				}
+			}
+			// Just ignore anything in comment
+		case inquote != 0:
+			if c == inquote {
+				inquote = 0
+			}
+			// Just ignore anything within quotes
+		case c == '\'' || c == '"':
+			inquote = c
+		case c == '<':
+			if i+len(begComment) < len(dir) && bytes.Equal(dir[i:i+len(begComment)], begComment) {
+				incomment = true
+			} else {
+				depth++
+			}
+		case c == '>':
+			if depth == 0 {
+				return false
+			}
+			depth--
+		}
+	}
+	return depth == 0 && inquote == 0 && !incomment
+}
+
 // Flush flushes any buffered XML to the underlying writer.
-// See the EncodeToken documentation for details about when it is necessary.
+// See the [Encoder.EncodeToken] documentation for details about when it is necessary.
 func (enc *Encoder) Flush() error {
-	return enc.p.Flush()
+	return enc.p.w.Flush()
+}
+
+// Close the Encoder, indicating that no more data will be written. It flushes
+// any buffered XML to the underlying writer and returns an error if the
+// written XML is invalid (e.g. by containing unclosed elements).
+func (enc *Encoder) Close() error {
+	return enc.p.Close()
 }
 
 type printer struct {
-	*bufio.Writer
+	w          *bufio.Writer
 	encoder    *Encoder
 	seq        int
 	indent     string
@@ -263,125 +326,34 @@ type printer struct {
 	depth      int
 	indentedIn bool
 	putNewline bool
-	defaultNS  string
 	attrNS     map[string]string // map prefix -> name space
 	attrPrefix map[string]string // map name space -> prefix
-	prefixes   []printerPrefix
+	prefixes   []string
 	tags       []Name
+	closed     bool
+	err        error
 }
 
-// printerPrefix holds a namespace undo record.
-// When an element is popped, the prefix record
-// is set back to the recorded URL. The empty
-// prefix records the URL for the default name space.
-//
-// The start of an element is recorded with an element
-// that has mark=true.
-type printerPrefix struct {
-	prefix string
-	url    string
-	mark   bool
-}
+// createAttrPrefix finds the name space prefix attribute to use for the given name space,
+// defining a new prefix if necessary. It returns the prefix.
+func (p *printer) createAttrPrefix(url string) string {
+	if prefix := p.attrPrefix[url]; prefix != "" {
+		return prefix
+	}
 
-func (p *printer) prefixForNS(url string, isAttr bool) string {
 	// The "http://www.w3.org/XML/1998/namespace" name space is predefined as "xml"
 	// and must be referred to that way.
 	// (The "http://www.w3.org/2000/xmlns/" name space is also predefined as "xmlns",
 	// but users should not be trying to use that one directly - that's our job.)
 	if url == xmlURL {
-		return "xml"
+		return xmlPrefix
 	}
-	if !isAttr && url == p.defaultNS {
-		// We can use the default name space.
-		return ""
-	}
-	return p.attrPrefix[url]
-}
 
-// defineNS pushes any namespace definition found in the given attribute.
-// If ignoreNonEmptyDefault is true, an xmlns="nonempty"
-// attribute will be ignored.
-func (p *printer) defineNS(attr Attr, ignoreNonEmptyDefault bool) error {
-	var prefix string
-	if attr.Name.Local == "xmlns" {
-		if attr.Name.Space != "" && attr.Name.Space != "xml" && attr.Name.Space != xmlURL {
-			return fmt.Errorf("xml: cannot redefine xmlns attribute prefix")
-		}
-	} else if attr.Name.Space == "xmlns" && attr.Name.Local != "" {
-		prefix = attr.Name.Local
-		if attr.Value == "" {
-			// Technically, an empty XML namespace is allowed for an attribute.
-			// From http://www.w3.org/TR/xml-names11/#scoping-defaulting:
-			//
-			// 	The attribute value in a namespace declaration for a prefix may be
-			//	empty. This has the effect, within the scope of the declaration, of removing
-			//	any association of the prefix with a namespace name.
-			//
-			// However our namespace prefixes here are used only as hints. There's
-			// no need to respect the removal of a namespace prefix, so we ignore it.
-			return nil
-		}
-	} else {
-		// Ignore: it's not a namespace definition
-		return nil
+	// Need to define a new name space.
+	if p.attrPrefix == nil {
+		p.attrPrefix = make(map[string]string)
+		p.attrNS = make(map[string]string)
 	}
-	if prefix == "" {
-		if attr.Value == p.defaultNS {
-			// No need for redefinition.
-			return nil
-		}
-		if attr.Value != "" && ignoreNonEmptyDefault {
-			// We have an xmlns="..." value but
-			// it can't define a name space in this context,
-			// probably because the element has an empty
-			// name space. In this case, we just ignore
-			// the name space declaration.
-			return nil
-		}
-	} else if _, ok := p.attrPrefix[attr.Value]; ok {
-		// There's already a prefix for the given name space,
-		// so use that. This prevents us from
-		// having two prefixes for the same name space
-		// so attrNS and attrPrefix can remain bijective.
-		return nil
-	}
-	p.pushPrefix(prefix, attr.Value)
-	return nil
-}
-
-// createNSPrefix creates a name space prefix attribute
-// to use for the given name space, defining a new prefix
-// if necessary.
-// If isAttr is true, the prefix is to be created for an attribute
-// prefix, which means that the default name space cannot
-// be used.
-func (p *printer) createNSPrefix(url string, isAttr bool) {
-	if _, ok := p.attrPrefix[url]; ok {
-		// We already have a prefix for the given URL.
-		return
-	}
-	switch {
-	case !isAttr && url == p.defaultNS:
-		// We can use the default name space.
-		return
-	case url == "":
-		// The only way we can encode names in the empty
-		// name space is by using the default name space,
-		// so we must use that.
-		if p.defaultNS != "" {
-			// The default namespace is non-empty, so we
-			// need to set it to empty.
-			p.pushPrefix("", "")
-		}
-		return
-	case url == xmlURL:
-		return
-	}
-	// TODO If the URL is an existing prefix, we could
-	// use it as is. That would enable the
-	// marshaling of elements that had been unmarshaled
-	// and with a name space prefix that was not found.
-	// although technically it would be incorrect.
 
 	// Pick a name. We try to use the final element of the path
 	// but fall back to _.
@@ -392,8 +364,11 @@ func (p *printer) createNSPrefix(url string, isAttr bool) {
 	if prefix == "" || !isName([]byte(prefix)) || strings.Contains(prefix, ":") {
 		prefix = "_"
 	}
-	if strings.HasPrefix(prefix, "xml") {
-		// xmlanything is reserved.
+	// xmlanything is reserved and any variant of it regardless of
+	// case should be matched, so:
+	//    (('X'|'x') ('M'|'m') ('L'|'l'))
+	// See Section 2.3 of https://www.w3.org/TR/REC-xml/
+	if len(prefix) >= 3 && strings.EqualFold(prefix[:3], "xml") {
 		prefix = "_" + prefix
 	}
 	if p.attrNS[prefix] != "" {
@@ -406,105 +381,40 @@ func (p *printer) createNSPrefix(url string, isAttr bool) {
 		}
 	}
 
-	p.pushPrefix(prefix, url)
+	p.attrPrefix[url] = prefix
+	p.attrNS[prefix] = url
+
+	p.WriteString(`xmlns:`)
+	p.WriteString(prefix)
+	p.WriteString(`="`)
+	EscapeText(p, []byte(url))
+	p.WriteString(`" `)
+
+	p.prefixes = append(p.prefixes, prefix)
+
+	return prefix
 }
 
-// writeNamespaces writes xmlns attributes for all the
-// namespace prefixes that have been defined in
-// the current element.
-func (p *printer) writeNamespaces() {
-	for i := len(p.prefixes) - 1; i >= 0; i-- {
-		prefix := p.prefixes[i]
-		if prefix.mark {
-			return
-		}
-		p.WriteString(" ")
-		if prefix.prefix == "" {
-			// Default name space.
-			p.WriteString(`xmlns="`)
-		} else {
-			p.WriteString("xmlns:")
-			p.WriteString(prefix.prefix)
-			p.WriteString(`="`)
-		}
-		EscapeText(p, []byte(p.nsForPrefix(prefix.prefix)))
-		p.WriteString(`"`)
-	}
+// deleteAttrPrefix removes an attribute name space prefix.
+func (p *printer) deleteAttrPrefix(prefix string) {
+	delete(p.attrPrefix, p.attrNS[prefix])
+	delete(p.attrNS, prefix)
 }
 
-// pushPrefix pushes a new prefix on the prefix stack
-// without checking to see if it is already defined.
-func (p *printer) pushPrefix(prefix, url string) {
-	p.prefixes = append(p.prefixes, printerPrefix{
-		prefix: prefix,
-		url:    p.nsForPrefix(prefix),
-	})
-	p.setAttrPrefix(prefix, url)
-}
-
-// nsForPrefix returns the name space for the given
-// prefix. Note that this is not valid for the
-// empty attribute prefix, which always has an empty
-// name space.
-func (p *printer) nsForPrefix(prefix string) string {
-	if prefix == "" {
-		return p.defaultNS
-	}
-	return p.attrNS[prefix]
-}
-
-// markPrefix marks the start of an element on the prefix
-// stack.
 func (p *printer) markPrefix() {
-	p.prefixes = append(p.prefixes, printerPrefix{
-		mark: true,
-	})
+	p.prefixes = append(p.prefixes, "")
 }
 
-// popPrefix pops all defined prefixes for the current
-// element.
 func (p *printer) popPrefix() {
 	for len(p.prefixes) > 0 {
 		prefix := p.prefixes[len(p.prefixes)-1]
 		p.prefixes = p.prefixes[:len(p.prefixes)-1]
-		if prefix.mark {
+		if prefix == "" {
 			break
 		}
-		p.setAttrPrefix(prefix.prefix, prefix.url)
+		p.deleteAttrPrefix(prefix)
 	}
 }
-
-// setAttrPrefix sets an attribute name space prefix.
-// If url is empty, the attribute is removed.
-// If prefix is empty, the default name space is set.
-func (p *printer) setAttrPrefix(prefix, url string) {
-	if prefix == "" {
-		p.defaultNS = url
-		return
-	}
-	if url == "" {
-		delete(p.attrPrefix, p.attrNS[prefix])
-		delete(p.attrNS, prefix)
-		return
-	}
-	if p.attrPrefix == nil {
-		// Need to define a new name space.
-		p.attrPrefix = make(map[string]string)
-		p.attrNS = make(map[string]string)
-	}
-	// Remove any old prefix value. This is OK because we maintain a
-	// strict one-to-one mapping between prefix and URL (see
-	// defineNS)
-	delete(p.attrPrefix, p.attrNS[prefix])
-	p.attrPrefix[url] = prefix
-	p.attrNS[prefix] = url
-}
-
-var (
-	marshalerType     = reflect.TypeOf((*Marshaler)(nil)).Elem()
-	marshalerAttrType = reflect.TypeOf((*MarshalerAttr)(nil)).Elem()
-	textMarshalerType = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
-)
 
 // marshalValue writes one or more XML elements representing val.
 // If val was obtained from a struct field, finfo must have its details.
@@ -523,7 +433,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	// Drill into interfaces and pointers.
 	// This can turn into an infinite loop given a cyclic chain,
 	// but it matches the Go 1 behavior.
-	for val.Kind() == reflect.Interface || val.Kind() == reflect.Ptr {
+	for val.Kind() == reflect.Interface || val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			return nil
 		}
@@ -534,24 +444,32 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	typ := val.Type()
 
 	// Check for marshaler.
-	if val.CanInterface() && typ.Implements(marshalerType) {
-		return p.marshalInterface(val.Interface().(Marshaler), p.defaultStart(typ, finfo, startTemplate))
+	if val.CanInterface() {
+		if marshaler, ok := reflect.TypeAssert[Marshaler](val); ok {
+			return p.marshalInterface(marshaler, defaultStart(typ, finfo, startTemplate))
+		}
 	}
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(marshalerType) {
-			return p.marshalInterface(pv.Interface().(Marshaler), p.defaultStart(pv.Type(), finfo, startTemplate))
+		if pv.CanInterface() {
+			if marshaler, ok := reflect.TypeAssert[Marshaler](pv); ok {
+				return p.marshalInterface(marshaler, defaultStart(pv.Type(), finfo, startTemplate))
+			}
 		}
 	}
 
 	// Check for text marshaler.
-	if val.CanInterface() && typ.Implements(textMarshalerType) {
-		return p.marshalTextInterface(val.Interface().(encoding.TextMarshaler), p.defaultStart(typ, finfo, startTemplate))
+	if val.CanInterface() {
+		if textMarshaler, ok := reflect.TypeAssert[encoding.TextMarshaler](val); ok {
+			return p.marshalTextInterface(textMarshaler, defaultStart(typ, finfo, startTemplate))
+		}
 	}
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
-			return p.marshalTextInterface(pv.Interface().(encoding.TextMarshaler), p.defaultStart(pv.Type(), finfo, startTemplate))
+		if pv.CanInterface() {
+			if textMarshaler, ok := reflect.TypeAssert[encoding.TextMarshaler](pv); ok {
+				return p.marshalTextInterface(textMarshaler, defaultStart(pv.Type(), finfo, startTemplate))
+			}
 		}
 	}
 
@@ -578,10 +496,6 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	// 3. type name
 	var start StartElement
 
-	// Historic behaviour: elements use the default name space
-	// they are contained in by default.
-	start.Name.Space = p.defaultNS
-
 	if startTemplate != nil {
 		start.Name = startTemplate.Name
 		start.Attr = append(start.Attr, startTemplate.Attr...)
@@ -589,26 +503,27 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		xmlname := tinfo.xmlname
 		if xmlname.name != "" {
 			start.Name.Space, start.Name.Local = xmlname.xmlns, xmlname.name
-		} else if v, ok := xmlname.value(val).Interface().(Name); ok && v.Local != "" {
-			start.Name = v
+		} else {
+			fv := xmlname.value(val, dontInitNilPointers)
+			if v, ok := reflect.TypeAssert[Name](fv); ok && v.Local != "" {
+				start.Name = v
+			}
 		}
 	}
 	if start.Name.Local == "" && finfo != nil {
-		start.Name.Local = finfo.name
-		if finfo.xmlns != "" {
-			start.Name.Space = finfo.xmlns
-		}
+		start.Name.Space, start.Name.Local = finfo.xmlns, finfo.name
 	}
 	if start.Name.Local == "" {
 		name := typ.Name()
+		if i := strings.IndexByte(name, '['); i >= 0 {
+			// Truncate generic instantiation name. See issue 48318.
+			name = name[:i]
+		}
 		if name == "" {
 			return &UnsupportedTypeError{typ}
 		}
 		start.Name.Local = name
 	}
-	// Historic behaviour: an element that's in a namespace sets
-	// the default namespace for all elements contained within it.
-	start.setDefaultNamespace()
 
 	// Attributes
 	for i := range tinfo.fields {
@@ -616,10 +531,9 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		if finfo.flags&fAttr == 0 {
 			continue
 		}
-		fv := finfo.value(val)
-		name := Name{Space: finfo.xmlns, Local: finfo.name}
+		fv := finfo.value(val, dontInitNilPointers)
 
-		if finfo.flags&fOmitEmpty != 0 && isEmptyValue(fv) {
+		if finfo.flags&fOmitEmpty != 0 && (!fv.IsValid() || isEmptyValue(fv)) {
 			continue
 		}
 
@@ -627,71 +541,18 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 			continue
 		}
 
-		if fv.CanInterface() && fv.Type().Implements(marshalerAttrType) {
-			attr, err := fv.Interface().(MarshalerAttr).MarshalXMLAttr(name)
-			if err != nil {
-				return err
-			}
-			if attr.Name.Local != "" {
-				start.Attr = append(start.Attr, attr)
-			}
-			continue
-		}
-
-		if fv.CanAddr() {
-			pv := fv.Addr()
-			if pv.CanInterface() && pv.Type().Implements(marshalerAttrType) {
-				attr, err := pv.Interface().(MarshalerAttr).MarshalXMLAttr(name)
-				if err != nil {
-					return err
-				}
-				if attr.Name.Local != "" {
-					start.Attr = append(start.Attr, attr)
-				}
-				continue
-			}
-		}
-
-		if fv.CanInterface() && fv.Type().Implements(textMarshalerType) {
-			text, err := fv.Interface().(encoding.TextMarshaler).MarshalText()
-			if err != nil {
-				return err
-			}
-			start.Attr = append(start.Attr, Attr{name, string(text)})
-			continue
-		}
-
-		if fv.CanAddr() {
-			pv := fv.Addr()
-			if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
-				text, err := pv.Interface().(encoding.TextMarshaler).MarshalText()
-				if err != nil {
-					return err
-				}
-				start.Attr = append(start.Attr, Attr{name, string(text)})
-				continue
-			}
-		}
-
-		// Dereference or skip nil pointer, interface values.
-		switch fv.Kind() {
-		case reflect.Ptr, reflect.Interface:
-			if fv.IsNil() {
-				continue
-			}
-			fv = fv.Elem()
-		}
-
-		s, b, err := p.marshalSimple(fv.Type(), fv)
-		if err != nil {
+		name := Name{Space: finfo.xmlns, Local: finfo.name}
+		if err := p.marshalAttr(&start, name, fv); err != nil {
 			return err
 		}
-		if b != nil {
-			s = string(b)
-		}
-		start.Attr = append(start.Attr, Attr{name, s})
 	}
 
+	// If an empty name was found, namespace is overridden with an empty space
+	if tinfo.xmlname != nil && start.Name.Space == "" &&
+		tinfo.xmlname.xmlns == "" && tinfo.xmlname.name == "" &&
+		len(p.tags) != 0 && p.tags[len(p.tags)-1].Space != "" {
+		start.Attr = append(start.Attr, Attr{Name{"", xmlnsPrefix}, ""})
+	}
 	if err := p.writeStart(&start); err != nil {
 		return err
 	}
@@ -719,9 +580,102 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	return p.cachedWriteError()
 }
 
+// marshalAttr marshals an attribute with the given name and value, adding to start.Attr.
+func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value) error {
+	if val.CanInterface() {
+		if marshaler, ok := reflect.TypeAssert[MarshalerAttr](val); ok {
+			attr, err := marshaler.MarshalXMLAttr(name)
+			if err != nil {
+				return err
+			}
+			if attr.Name.Local != "" {
+				start.Attr = append(start.Attr, attr)
+			}
+			return nil
+		}
+	}
+
+	if val.CanAddr() {
+		pv := val.Addr()
+		if pv.CanInterface() {
+			if marshaler, ok := reflect.TypeAssert[MarshalerAttr](pv); ok {
+				attr, err := marshaler.MarshalXMLAttr(name)
+				if err != nil {
+					return err
+				}
+				if attr.Name.Local != "" {
+					start.Attr = append(start.Attr, attr)
+				}
+				return nil
+			}
+		}
+	}
+
+	if val.CanInterface() {
+		if textMarshaler, ok := reflect.TypeAssert[encoding.TextMarshaler](val); ok {
+			text, err := textMarshaler.MarshalText()
+			if err != nil {
+				return err
+			}
+			start.Attr = append(start.Attr, Attr{name, string(text)})
+			return nil
+		}
+	}
+
+	if val.CanAddr() {
+		pv := val.Addr()
+		if pv.CanInterface() {
+			if textMarshaler, ok := reflect.TypeAssert[encoding.TextMarshaler](pv); ok {
+				text, err := textMarshaler.MarshalText()
+				if err != nil {
+					return err
+				}
+				start.Attr = append(start.Attr, Attr{name, string(text)})
+				return nil
+			}
+		}
+	}
+
+	// Dereference or skip nil pointer, interface values.
+	switch val.Kind() {
+	case reflect.Pointer, reflect.Interface:
+		if val.IsNil() {
+			return nil
+		}
+		val = val.Elem()
+	}
+
+	// Walk slices.
+	if val.Kind() == reflect.Slice && val.Type().Elem().Kind() != reflect.Uint8 {
+		n := val.Len()
+		for i := 0; i < n; i++ {
+			if err := p.marshalAttr(start, name, val.Index(i)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if val.Type() == attrType {
+		attr, _ := reflect.TypeAssert[Attr](val)
+		start.Attr = append(start.Attr, attr)
+		return nil
+	}
+
+	s, b, err := p.marshalSimple(val.Type(), val)
+	if err != nil {
+		return err
+	}
+	if b != nil {
+		s = string(b)
+	}
+	start.Attr = append(start.Attr, Attr{name, s})
+	return nil
+}
+
 // defaultStart returns the default start element to use,
 // given the reflect type, field info, and start template.
-func (p *printer) defaultStart(typ reflect.Type, finfo *fieldInfo, startTemplate *StartElement) StartElement {
+func defaultStart(typ reflect.Type, finfo *fieldInfo, startTemplate *StartElement) StartElement {
 	var start StartElement
 	// Precedence for the XML element name is as above,
 	// except that we do not look inside structs for the first field.
@@ -738,12 +692,6 @@ func (p *printer) defaultStart(typ reflect.Type, finfo *fieldInfo, startTemplate
 		// since it has the Marshaler methods.
 		start.Name.Local = typ.Elem().Name()
 	}
-	// Historic behaviour: elements use the name space of
-	// the element they are contained in by default.
-	if start.Name.Space == "" {
-		start.Name.Space = p.defaultNS
-	}
-	start.setDefaultNamespace()
 	return start
 }
 
@@ -788,60 +736,35 @@ func (p *printer) writeStart(start *StartElement) error {
 
 	p.tags = append(p.tags, start.Name)
 	p.markPrefix()
-	// Define any name spaces explicitly declared in the attributes.
-	// We do this as a separate pass so that explicitly declared prefixes
-	// will take precedence over implicitly declared prefixes
-	// regardless of the order of the attributes.
-	ignoreNonEmptyDefault := start.Name.Space == ""
-	for _, attr := range start.Attr {
-		if err := p.defineNS(attr, ignoreNonEmptyDefault); err != nil {
-			return err
-		}
-	}
-	// Define any new name spaces implied by the attributes.
-	for _, attr := range start.Attr {
-		name := attr.Name
-		// From http://www.w3.org/TR/xml-names11/#defaulting
-		// "Default namespace declarations do not apply directly
-		// to attribute names; the interpretation of unprefixed
-		// attributes is determined by the element on which they
-		// appear."
-		// This means we don't need to create a new namespace
-		// when an attribute name space is empty.
-		if name.Space != "" && !name.isNamespace() {
-			p.createNSPrefix(name.Space, true)
-		}
-	}
-	p.createNSPrefix(start.Name.Space, false)
 
 	p.writeIndent(1)
 	p.WriteByte('<')
-	p.writeName(start.Name, false)
-	p.writeNamespaces()
+	p.WriteString(start.Name.Local)
+
+	if start.Name.Space != "" {
+		p.WriteString(` xmlns="`)
+		p.EscapeString(start.Name.Space)
+		p.WriteByte('"')
+	}
+
+	// Attributes
 	for _, attr := range start.Attr {
 		name := attr.Name
-		if name.Local == "" || name.isNamespace() {
-			// Namespaces have already been written by writeNamespaces above.
+		if name.Local == "" {
 			continue
 		}
 		p.WriteByte(' ')
-		p.writeName(name, true)
+		if name.Space != "" {
+			p.WriteString(p.createAttrPrefix(name.Space))
+			p.WriteByte(':')
+		}
+		p.WriteString(name.Local)
 		p.WriteString(`="`)
 		p.EscapeString(attr.Value)
 		p.WriteByte('"')
 	}
 	p.WriteByte('>')
 	return nil
-}
-
-// writeName writes the given name. It assumes
-// that p.createNSPrefix(name) has already been called.
-func (p *printer) writeName(name Name, isAttr bool) {
-	if prefix := p.prefixForNS(name.Space, isAttr); prefix != "" {
-		p.WriteString(prefix)
-		p.WriteByte(':')
-	}
-	p.WriteString(name.Local)
 }
 
 func (p *printer) writeEnd(name Name) error {
@@ -862,7 +785,7 @@ func (p *printer) writeEnd(name Name) error {
 	p.writeIndent(-1)
 	p.WriteByte('<')
 	p.WriteByte('/')
-	p.writeName(name, false)
+	p.WriteString(name.Local)
 	p.WriteByte('>')
 	p.popPrefix()
 	return nil
@@ -887,7 +810,7 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) (string, []
 		// [...]byte
 		var bytes []byte
 		if val.CanAddr() {
-			bytes = val.Slice(0, val.Len()).Bytes()
+			bytes = val.Bytes()
 		} else {
 			bytes = make([]byte, val.Len())
 			reflect.Copy(reflect.ValueOf(bytes), val)
@@ -905,6 +828,20 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) (string, []
 
 var ddBytes = []byte("--")
 
+// indirect drills into interfaces and pointers, returning the pointed-at value.
+// If it encounters a nil interface or pointer, indirect returns that nil value.
+// This can turn into an infinite loop given a cyclic chain,
+// but it matches the Go 1 behavior.
+func indirect(vf reflect.Value) reflect.Value {
+	for vf.Kind() == reflect.Interface || vf.Kind() == reflect.Pointer {
+		if vf.IsNil() {
+			return vf
+		}
+		vf = vf.Elem()
+	}
+	return vf
+}
+
 func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 	s := parentStack{p: p}
 	for i := range tinfo.fields {
@@ -912,54 +849,76 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 		if finfo.flags&fAttr != 0 {
 			continue
 		}
-		vf := finfo.value(val)
-
-		// Dereference or skip nil pointer, interface values.
-		switch vf.Kind() {
-		case reflect.Ptr, reflect.Interface:
-			if !vf.IsNil() {
-				vf = vf.Elem()
-			}
+		vf := finfo.value(val, dontInitNilPointers)
+		if !vf.IsValid() {
+			// The field is behind an anonymous struct field that's
+			// nil. Skip it.
+			continue
 		}
 
 		switch finfo.flags & fMode {
-		case fCharData:
-			if vf.CanInterface() && vf.Type().Implements(textMarshalerType) {
-				data, err := vf.Interface().(encoding.TextMarshaler).MarshalText()
-				if err != nil {
-					return err
-				}
-				Escape(p, data)
-				continue
+		case fCDATA, fCharData:
+			emit := EscapeText
+			if finfo.flags&fMode == fCDATA {
+				emit = emitCDATA
 			}
-			if vf.CanAddr() {
-				pv := vf.Addr()
-				if pv.CanInterface() && pv.Type().Implements(textMarshalerType) {
-					data, err := pv.Interface().(encoding.TextMarshaler).MarshalText()
+			if err := s.trim(finfo.parents); err != nil {
+				return err
+			}
+			if vf.CanInterface() {
+				if textMarshaler, ok := reflect.TypeAssert[encoding.TextMarshaler](vf); ok {
+					data, err := textMarshaler.MarshalText()
 					if err != nil {
 						return err
 					}
-					Escape(p, data)
+					if err := emit(p, data); err != nil {
+						return err
+					}
 					continue
 				}
 			}
+			if vf.CanAddr() {
+				pv := vf.Addr()
+				if pv.CanInterface() {
+					if textMarshaler, ok := reflect.TypeAssert[encoding.TextMarshaler](pv); ok {
+						data, err := textMarshaler.MarshalText()
+						if err != nil {
+							return err
+						}
+						if err := emit(p, data); err != nil {
+							return err
+						}
+						continue
+					}
+				}
+			}
+
 			var scratch [64]byte
+			vf = indirect(vf)
 			switch vf.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				Escape(p, strconv.AppendInt(scratch[:0], vf.Int(), 10))
+				if err := emit(p, strconv.AppendInt(scratch[:0], vf.Int(), 10)); err != nil {
+					return err
+				}
 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-				Escape(p, strconv.AppendUint(scratch[:0], vf.Uint(), 10))
+				if err := emit(p, strconv.AppendUint(scratch[:0], vf.Uint(), 10)); err != nil {
+					return err
+				}
 			case reflect.Float32, reflect.Float64:
-				Escape(p, strconv.AppendFloat(scratch[:0], vf.Float(), 'g', -1, vf.Type().Bits()))
+				if err := emit(p, strconv.AppendFloat(scratch[:0], vf.Float(), 'g', -1, vf.Type().Bits())); err != nil {
+					return err
+				}
 			case reflect.Bool:
-				Escape(p, strconv.AppendBool(scratch[:0], vf.Bool()))
+				if err := emit(p, strconv.AppendBool(scratch[:0], vf.Bool())); err != nil {
+					return err
+				}
 			case reflect.String:
-				if err := EscapeText(p, []byte(vf.String())); err != nil {
+				if err := emit(p, []byte(vf.String())); err != nil {
 					return err
 				}
 			case reflect.Slice:
-				if elem, ok := vf.Interface().([]byte); ok {
-					if err := EscapeText(p, elem); err != nil {
+				if elem, ok := reflect.TypeAssert[[]byte](vf); ok {
+					if err := emit(p, elem); err != nil {
 						return err
 					}
 				}
@@ -967,6 +926,10 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 			continue
 
 		case fComment:
+			if err := s.trim(finfo.parents); err != nil {
+				return err
+			}
+			vf = indirect(vf)
 			k := vf.Kind()
 			if !(k == reflect.String || k == reflect.Slice && vf.Type().Elem().Kind() == reflect.Uint8) {
 				return fmt.Errorf("xml: bad type for comment field of %s", val.Type())
@@ -981,14 +944,14 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 			switch k {
 			case reflect.String:
 				s := vf.String()
-				dashDash = strings.Index(s, "--") >= 0
+				dashDash = strings.Contains(s, "--")
 				dashLast = s[len(s)-1] == '-'
 				if !dashDash {
 					p.WriteString(s)
 				}
 			case reflect.Slice:
 				b := vf.Bytes()
-				dashDash = bytes.Index(b, ddBytes) >= 0
+				dashDash = bytes.Contains(b, ddBytes)
 				dashLast = b[len(b)-1] == '-'
 				if !dashDash {
 					p.Write(b)
@@ -1006,7 +969,8 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 			p.WriteString("-->")
 			continue
 
-		case fInnerXml:
+		case fInnerXML:
+			vf = indirect(vf)
 			iface := vf.Interface()
 			switch raw := iface.(type) {
 			case []byte:
@@ -1022,7 +986,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 				return err
 			}
 			if len(finfo.parents) > len(s.stack) {
-				if vf.Kind() != reflect.Ptr && vf.Kind() != reflect.Interface || !vf.IsNil() {
+				if vf.Kind() != reflect.Pointer && vf.Kind() != reflect.Interface || !vf.IsNil() {
 					if err := s.push(finfo.parents[len(s.stack):]); err != nil {
 						return err
 					}
@@ -1035,6 +999,56 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 	}
 	s.trim(nil)
 	return p.cachedWriteError()
+}
+
+// Write implements io.Writer
+func (p *printer) Write(b []byte) (n int, err error) {
+	if p.closed && p.err == nil {
+		p.err = errors.New("use of closed Encoder")
+	}
+	if p.err == nil {
+		n, p.err = p.w.Write(b)
+	}
+	return n, p.err
+}
+
+// WriteString implements io.StringWriter
+func (p *printer) WriteString(s string) (n int, err error) {
+	if p.closed && p.err == nil {
+		p.err = errors.New("use of closed Encoder")
+	}
+	if p.err == nil {
+		n, p.err = p.w.WriteString(s)
+	}
+	return n, p.err
+}
+
+// WriteByte implements io.ByteWriter
+func (p *printer) WriteByte(c byte) error {
+	if p.closed && p.err == nil {
+		p.err = errors.New("use of closed Encoder")
+	}
+	if p.err == nil {
+		p.err = p.w.WriteByte(c)
+	}
+	return p.err
+}
+
+// Close the Encoder, indicating that no more data will be written. It flushes
+// any buffered XML to the underlying writer and returns an error if the
+// written XML is invalid (e.g. by containing unclosed elements).
+func (p *printer) Close() error {
+	if p.closed {
+		return nil
+	}
+	p.closed = true
+	if err := p.w.Flush(); err != nil {
+		return err
+	}
+	if len(p.tags) > 0 {
+		return fmt.Errorf("unclosed tag <%s>", p.tags[len(p.tags)-1].Local)
+	}
+	return nil
 }
 
 // return the bufio Writer's cached write error
@@ -1080,8 +1094,8 @@ type parentStack struct {
 }
 
 // trim updates the XML context to match the longest common prefix of the stack
-// and the given parents.  A closing tag will be written for every parent
-// popped.  Passing a zero slice or nil will close all the elements.
+// and the given parents. A closing tag will be written for every parent
+// popped. Passing a zero slice or nil will close all the elements.
 func (s *parentStack) trim(parents []string) error {
 	split := 0
 	for ; split < len(parents) && split < len(s.stack); split++ {
@@ -1094,7 +1108,7 @@ func (s *parentStack) trim(parents []string) error {
 			return err
 		}
 	}
-	s.stack = parents[:split]
+	s.stack = s.stack[:split]
 	return nil
 }
 
@@ -1109,7 +1123,7 @@ func (s *parentStack) push(parents []string) error {
 	return nil
 }
 
-// A MarshalXMLError is returned when Marshal encounters a type
+// UnsupportedTypeError is returned when [Marshal] encounters a type
 // that cannot be converted into XML.
 type UnsupportedTypeError struct {
 	Type reflect.Type
@@ -1123,16 +1137,12 @@ func isEmptyValue(v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() == 0
-	case reflect.Bool:
-		return !v.Bool()
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return v.Int() == 0
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return v.Uint() == 0
-	case reflect.Float32, reflect.Float64:
-		return v.Float() == 0
-	case reflect.Interface, reflect.Ptr:
-		return v.IsNil()
+	case reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64,
+		reflect.Interface, reflect.Pointer:
+		return v.IsZero()
 	}
 	return false
 }

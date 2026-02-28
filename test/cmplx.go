@@ -28,6 +28,14 @@ var (
 	C128 Complex128
 )
 
+func F1() int {
+	return 1
+}
+
+func F3() (int, int, int) {
+	return 1, 2, 3
+}
+
 func main() {
 	// ok
 	c64 = complex(f32, f32)
@@ -41,6 +49,11 @@ func main() {
 	_ = complex(f64, F64) // ERROR "complex"
 	_ = complex(F64, f64) // ERROR "complex"
 
+	_ = complex(F1()) // ERROR "not enough arguments"
+	_ = complex(F3()) // ERROR "too many arguments"
+
+	_ = complex() // ERROR "not enough arguments"
+
 	c128 = complex(f32, f32) // ERROR "cannot use"
 	c64 = complex(f64, f64)  // ERROR "cannot use"
 
@@ -51,4 +64,5 @@ func main() {
 
 	C64 = complex(f32, f32)  // ERROR "cannot use"
 	C128 = complex(f64, f64) // ERROR "cannot use"
+
 }

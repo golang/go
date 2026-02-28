@@ -1,0 +1,110 @@
+# Without arguments, we just print Go's own version.
+go version
+stdout '^go version'
+
+# Flags without files, or paths to missing files, should error.
+! go version missing.exe
+! go version -m
+stderr 'with arguments'
+! go version -v
+stderr 'with arguments'
+! go version -json
+stderr 'with arguments'
+
+# Check that 'go version' succeed even when it does not contain Go build info.
+# It should print an error if the file has a known Go binary extension.
+#
+go version empty.txt
+! stdout .
+! stderr .
+go version empty.exe
+stderr 'could not read Go build info'
+go version empty.so
+stderr 'could not read Go build info'
+go version empty.dll
+stderr 'could not read Go build info'
+
+# Neither of the three flags above should be an issue via GOFLAGS.
+env GOFLAGS='-m -v -json'
+go version
+stdout '^go version'
+env GOFLAGS=
+
+env GO111MODULE=on
+
+# Check that very basic version lookup succeeds.
+go build empty.go
+go version empty$GOEXE
+[cgo] go build -ldflags=-linkmode=external empty.go
+[cgo] go version empty$GOEXE
+
+# Skip the remaining builds if we are running in short mode.
+[short] skip
+
+# Check that 'go version' and 'go version -m' work on a binary built in module mode.
+go get rsc.io/fortune
+go build -o fortune.exe rsc.io/fortune
+go version fortune.exe
+stdout '^fortune.exe: .+'
+go version -m fortune.exe
+stdout -buildmode=exe
+stdout '^\tpath\trsc.io/fortune'
+stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+
+# Check the build info of a binary built from $GOROOT/src/cmd
+go build -o test2json.exe cmd/test2json
+go version -m test2json.exe
+stdout -buildmode=exe
+stdout '^test2json.exe: .+'
+stdout '^\tpath\tcmd/test2json$'
+! stdout 'mod[^e]'
+
+# Check -json flag
+go build -o test2json.exe cmd/test2json
+go version -m -json test2json.exe
+stdout '"Path": "cmd/test2json"'
+! stdout 'null'
+
+# Check -json flag output with multiple binaries
+go build -o test2json.exe cmd/test2json
+go version -m -json test2json.exe test2json.exe
+stdout -count=2 '"Path": "cmd/test2json"'
+
+# Check -json flag without -m
+go build -o test2json.exe cmd/test2json
+! go version -json test2json.exe
+! stdout '"Path": "cmd/test2json"'
+stderr 'with -json flag requires -m flag'
+
+# Repeat the test with -buildmode=pie and default linking.
+[!buildmode:pie] stop
+[pielinkext] [!cgo] stop
+go build -buildmode=pie -o external.exe rsc.io/fortune
+go version external.exe
+stdout '^external.exe: .+'
+go version -m external.exe
+stdout -buildmode=pie
+stdout '^\tpath\trsc.io/fortune'
+stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+
+# Also test PIE with internal linking.
+[pielinkext] stop
+go build -buildmode=pie -ldflags=-linkmode=internal -o internal.exe rsc.io/fortune
+go version internal.exe
+stdout '^internal.exe: .+'
+go version -m internal.exe
+stdout -buildmode=pie
+stdout '^\tpath\trsc.io/fortune'
+stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+
+-- go.mod --
+module m
+
+-- empty.go --
+package main
+func main(){}
+
+-- empty.txt --
+-- empty.exe --
+-- empty.so --
+-- empty.dll --

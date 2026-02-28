@@ -1,0 +1,9 @@
+! go list a.go
+! stdout .
+stderr 'invalid import path'
+! stderr panic
+
+-- a.go --
+package a
+
+import ""

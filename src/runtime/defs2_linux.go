@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+//go:build ignore
 
 /*
  * Input to cgo -cdefs
@@ -32,7 +32,7 @@ package runtime
 #include <linux/eventpoll.h>
 
 // This is the sigaction structure from the Linux 2.1.68 kernel which
-//   is used with the rt_sigaction system call.  For 386 this is not
+//   is used with the rt_sigaction system call. For 386 this is not
 //   defined in any public header file.
 
 struct kernel_sigaction {
@@ -48,6 +48,7 @@ const (
 	EINTR  = C.EINTR
 	EAGAIN = C.EAGAIN
 	ENOMEM = C.ENOMEM
+	ENOSYS = C.ENOSYS
 
 	PROT_NONE  = C.PROT_NONE
 	PROT_READ  = C.PROT_READ
@@ -58,7 +59,10 @@ const (
 	MAP_PRIVATE = C.MAP_PRIVATE
 	MAP_FIXED   = C.MAP_FIXED
 
-	MADV_DONTNEED = C.MADV_DONTNEED
+	MADV_DONTNEED   = C.MADV_DONTNEED
+	MADV_FREE       = C.MADV_FREE
+	MADV_HUGEPAGE   = C.MADV_HUGEPAGE
+	MADV_NOHUGEPAGE = C.MADV_NOHUGEPAGE
 
 	SA_RESTART  = C.SA_RESTART
 	SA_ONSTACK  = C.SA_ONSTACK
@@ -118,17 +122,6 @@ const (
 
 	O_RDONLY  = C.O_RDONLY
 	O_CLOEXEC = C.O_CLOEXEC
-
-	EPOLLIN       = C.POLLIN
-	EPOLLOUT      = C.POLLOUT
-	EPOLLERR      = C.POLLERR
-	EPOLLHUP      = C.POLLHUP
-	EPOLLRDHUP    = C.POLLRDHUP
-	EPOLLET       = C.EPOLLET
-	EPOLL_CLOEXEC = C.EPOLL_CLOEXEC
-	EPOLL_CTL_ADD = C.EPOLL_CTL_ADD
-	EPOLL_CTL_DEL = C.EPOLL_CTL_DEL
-	EPOLL_CTL_MOD = C.EPOLL_CTL_MOD
 )
 
 type Fpreg C.struct__fpreg
@@ -139,7 +132,7 @@ type Timespec C.struct_timespec
 type Timeval C.struct_timeval
 type Sigaction C.struct_kernel_sigaction
 type Siginfo C.siginfo_t
-type SigaltstackT C.struct_sigaltstack
+type StackT C.stack_t
 type Sigcontext C.struct_sigcontext
 type Ucontext C.struct_ucontext
 type Itimerval C.struct_itimerval

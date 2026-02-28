@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -10,7 +10,7 @@ import (
 )
 
 type nameTest struct {
-	val interface{}
+	val any
 	str string
 }
 
@@ -25,6 +25,7 @@ var nameTests = []nameTest{
 	{PF_W + PF_R + 0x50, "PF_W+PF_R+0x50"},
 	{DT_SYMBOLIC, "DT_SYMBOLIC"},
 	{DF_BIND_NOW, "DF_BIND_NOW"},
+	{DF_1_PIE, "DF_1_PIE"},
 	{NT_FPREGSET, "NT_FPREGSET"},
 	{STB_GLOBAL, "STB_GLOBAL"},
 	{STT_COMMON, "STT_COMMON"},
@@ -33,10 +34,12 @@ var nameTests = []nameTest{
 	{R_ALPHA_OP_PUSH, "R_ALPHA_OP_PUSH"},
 	{R_ARM_THM_ABS5, "R_ARM_THM_ABS5"},
 	{R_386_GOT32, "R_386_GOT32"},
+	{R_LARCH_CALL36, "R_LARCH_CALL36"},
 	{R_PPC_GOT16_HI, "R_PPC_GOT16_HI"},
 	{R_SPARC_GOT22, "R_SPARC_GOT22"},
 	{ET_LOOS + 5, "ET_LOOS+5"},
 	{ProgFlag(0x50), "0x50"},
+	{COMPRESS_ZLIB + 2, "COMPRESS_ZSTD+1"},
 }
 
 func TestNames(t *testing.T) {

@@ -1,6 +1,6 @@
 // skip
 
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -216,7 +216,7 @@ func main() {
 		thisPass := 0
 		if c == "c" && (a == "a" || a == "pa" || n == "n" || i == "i64big" || i == "i64bigger" || i == "huge" || i == "fbad") {
 			if i == "huge" {
-				// Due to a detail of 6g's internals,
+				// Due to a detail of gc's internals,
 				// the huge constant errors happen in an
 				// earlier pass than the others and inhibits
 				// the next pass from running.
@@ -251,7 +251,7 @@ func main() {
 		if c == "" && (i == "fgood" || i == "fbad") {
 			return
 		}
-		// Integral float constat is ok.
+		// Integral float constant is ok.
 		if c == "c" && n == "" && i == "fgood" {
 			if pass == 0 {
 				fmt.Fprintf(b, "\tuse(%s[%s])\n", pae, cni)

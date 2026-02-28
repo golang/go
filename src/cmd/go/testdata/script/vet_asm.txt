@@ -1,0 +1,34 @@
+# Issue 27665. Verify that "go vet" analyzes non-Go files.
+
+env GO111MODULE=off
+env GOARCH=amd64
+env GOOS=linux
+
+! go vet -asmdecl a
+stderr 'f: invalid MOVW of x'
+
+# -c=n flag shows n lines of context
+! go vet -c=2 -asmdecl a
+stderr '...invalid MOVW...'
+stderr '1	.*TEXT'
+stderr '2		MOVW'
+stderr '3		RET'
+stderr '4'
+
+# -json causes success, even with diagnostics and errors,
+# and writes to stdout.
+go vet -json -asmdecl a
+stdout '"a": {'
+stdout   '"asmdecl":'
+stdout     '"posn": ".*asm.s:2:1",'
+stdout     '"message": ".*invalid MOVW.*"'
+
+-- a/a.go --
+package a
+
+func f(x int8)
+
+-- a/asm.s --
+TEXT ·f(SB),0,$0-1
+	MOVW	x+0(FP), AX
+	RET

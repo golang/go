@@ -6,6 +6,7 @@
 // just enough to support pprof.
 //
 // Usage:
+//
 //	go tool addr2line binary
 //
 // Addr2line reads hexadecimal addresses, one per line and with optional 0x prefix,
@@ -27,6 +28,7 @@ import (
 	"strings"
 
 	"cmd/internal/objfile"
+	"cmd/internal/telemetry/counter"
 )
 
 func printUsage(w *os.File) {
@@ -44,6 +46,7 @@ func usage() {
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("addr2line: ")
+	counter.Open()
 
 	// pprof expects this behavior when checking for addr2line
 	if len(os.Args) > 1 && os.Args[1] == "--help" {
@@ -53,6 +56,8 @@ func main() {
 
 	flag.Usage = usage
 	flag.Parse()
+	counter.Inc("addr2line/invocations")
+	counter.CountFlags("addr2line/flag:", *flag.CommandLine)
 	if flag.NArg() != 1 {
 		usage()
 	}
@@ -61,6 +66,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer f.Close()
 
 	tab, err := f.PCLineTable()
 	if err != nil {

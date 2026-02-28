@@ -1,0 +1,13 @@
+env TESTGO_VERSION=go1.21
+env GOTOOLCHAIN=local
+! go mod download rsc.io/future@v1.0.0
+stderr '^go: rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21; GOTOOLCHAIN=local\)$'
+
+-- go.mod --
+module m
+go 1.21
+
+-- x.go --
+package p
+
+import "rsc.io/future/foo"

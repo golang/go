@@ -1,0 +1,100 @@
+# Regression test for https://go.dev/issue/64589:
+# This test is very similar to build_cc_cache_issue64423. Issue #64423
+# was that we weren't properly parsing the versions output by the compiler.
+# That test checked that we could parse the version and incorporate the
+# version into the hash for the action id. This issue #64589 is that
+# we treat all errors getting the version of the compiler the same, so
+# we'd get the same action id for a missing compiler vs one whose
+# version is unparseable. So the test now first does a run with a compiler
+# that produces unparseable version output, and then runs it again with a missing
+# compiler and ensures the command doesn't return the cached output for the
+# first run when running the second run.
+
+[!cgo] skip
+[short] skip 'builds and links a fake clang binary'
+[!cc:clang] skip 'test is specific to clang version parsing'
+
+# Save the location of the real clang command for our fake one to use.
+go run ./which clang
+cp stdout $WORK/.realclang
+
+# Build a fake clang and ensure that it is the one in $PATH.
+mkdir $WORK/bin
+go build -o $WORK/bin/clang$GOEXE ./fakeclang
+[!GOOS:plan9] env PATH=$WORK${/}bin
+[GOOS:plan9] env path=$WORK${/}bin
+
+# Force CGO_ENABLED=1 so that the following commands should error
+# out if the fake clang doesn't work.
+env CGO_ENABLED=1
+
+# The bug in https://go.dev/issue/64589 resulted in cache keys that
+# didn't contain any information about the error getting the compiler version.
+# Since the bug was in cache key computation, isolate the cache:
+# if we change the way caching works, we want the test to fail
+# instead of accidentally reusing the cached information from a
+# previous test run.
+env GOCACHE=$WORK${/}.cache
+mkdir $GOCACHE
+
+go build -x runtime/cgo
+
+	# Tell our fake clang to stop working.
+	# Previously, 'go build -x runtime/cgo' would continue to
+	# succeed because both the broken clang and the non-broken one
+	# resulted in a cache key with no clang version information.
+env GO_BREAK_CLANG=1
+! go build -x runtime/cgo
+stderr '# runtime/cgo\nGO_BREAK_CLANG is set'
+
+-- go.mod --
+module example/issue64589
+go 1.20
+-- which/main.go --
+package main
+
+import (
+	"os"
+	"os/exec"
+)
+
+func main() {
+	path, err := exec.LookPath(os.Args[1])
+	if err != nil {
+		panic(err)
+	}
+	os.Stdout.WriteString(path)
+}
+-- fakeclang/main.go --
+package main
+
+import (
+	"bytes"
+	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"slices"
+)
+
+func main() {
+	if os.Getenv("GO_BREAK_CLANG") != "" {
+		os.Stderr.WriteString("GO_BREAK_CLANG is set\n")
+		os.Exit(1)
+	}
+
+	b, err := os.ReadFile(filepath.Join(os.Getenv("WORK"), ".realclang"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	if slices.Contains(os.Args, "-###") { // We are being run by gccToolID to determine the tool id used in the action id.
+		return // The important thing is that we don't print the string "version"!
+	}
+	clang := string(bytes.TrimSpace(b))
+	cmd := exec.Command(clang, os.Args[1:]...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Fatal(err)
+	}
+}

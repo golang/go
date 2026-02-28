@@ -1,0 +1,20 @@
+# Wrong import path
+env GO111MODULE=off
+! go build vend/x/invalid
+stderr 'must be imported as foo'
+
+env GO111MODULE=
+cd vend/x/invalid
+! go build vend/x/invalid
+stderr 'must be imported as foo'
+
+-- vend/x/invalid/go.mod --
+module vend/x/invalid
+
+go 1.16
+
+-- vend/x/invalid/invalid.go --
+package invalid
+
+import "vend/x/invalid/vendor/foo"
+

@@ -5,6 +5,9 @@
 // Package des implements the Data Encryption Standard (DES) and the
 // Triple Data Encryption Algorithm (TDEA) as defined
 // in U.S. Federal Information Processing Standards Publication 46-3.
+//
+// DES is cryptographically broken and should not be used for secure
+// applications.
 package des
 
 // Used to perform an initial permutation of a 64-bit input block.
@@ -19,7 +22,7 @@ var initialPermutation = [64]byte{
 	1, 9, 17, 25, 33, 41, 49, 57,
 }
 
-// Used to perform a final permutation of a 4-bit preoutput block. This is the
+// Used to perform a final permutation of a 64-bit preoutput block. This is the
 // inverse of initialPermutation
 var finalPermutation = [64]byte{
 	24, 56, 16, 48, 8, 40, 0, 32,

@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,6 +13,111 @@ import (
 	"testing"
 	"unicode/utf8"
 )
+
+type toks struct {
+	earlyEOF bool
+	t        []Token
+}
+
+func (t *toks) Token() (Token, error) {
+	if len(t.t) == 0 {
+		return nil, io.EOF
+	}
+	var tok Token
+	tok, t.t = t.t[0], t.t[1:]
+	if t.earlyEOF && len(t.t) == 0 {
+		return tok, io.EOF
+	}
+	return tok, nil
+}
+
+func TestDecodeEOF(t *testing.T) {
+	start := StartElement{Name: Name{Local: "test"}}
+	tests := []struct {
+		name   string
+		tokens []Token
+		ok     bool
+	}{
+		{
+			name: "OK",
+			tokens: []Token{
+				start,
+				start.End(),
+			},
+			ok: true,
+		},
+		{
+			name: "Malformed",
+			tokens: []Token{
+				start,
+				StartElement{Name: Name{Local: "bad"}},
+				start.End(),
+			},
+			ok: false,
+		},
+	}
+	for _, tc := range tests {
+		for _, eof := range []bool{true, false} {
+			name := fmt.Sprintf("%s/earlyEOF=%v", tc.name, eof)
+			t.Run(name, func(t *testing.T) {
+				d := NewTokenDecoder(&toks{
+					earlyEOF: eof,
+					t:        tc.tokens,
+				})
+				err := d.Decode(&struct {
+					XMLName Name `xml:"test"`
+				}{})
+				if tc.ok && err != nil {
+					t.Fatalf("d.Decode: expected nil error, got %v", err)
+				}
+				if _, ok := err.(*SyntaxError); !tc.ok && !ok {
+					t.Errorf("d.Decode: expected syntax error, got %v", err)
+				}
+			})
+		}
+	}
+}
+
+type toksNil struct {
+	returnEOF bool
+	t         []Token
+}
+
+func (t *toksNil) Token() (Token, error) {
+	if len(t.t) == 0 {
+		if !t.returnEOF {
+			// Return nil, nil before returning an EOF. It's legal, but
+			// discouraged.
+			t.returnEOF = true
+			return nil, nil
+		}
+		return nil, io.EOF
+	}
+	var tok Token
+	tok, t.t = t.t[0], t.t[1:]
+	return tok, nil
+}
+
+func TestDecodeNilToken(t *testing.T) {
+	for _, strict := range []bool{true, false} {
+		name := fmt.Sprintf("Strict=%v", strict)
+		t.Run(name, func(t *testing.T) {
+			start := StartElement{Name: Name{Local: "test"}}
+			bad := StartElement{Name: Name{Local: "bad"}}
+			d := NewTokenDecoder(&toksNil{
+				// Malformed
+				t: []Token{start, bad, start.End()},
+			})
+			d.Strict = strict
+			err := d.Decode(&struct {
+				XMLName Name `xml:"test"`
+			}{})
+			if _, ok := err.(*SyntaxError); !ok {
+				t.Errorf("d.Decode: expected syntax error, got %v", err)
+			}
+		})
+	}
+}
 
 const testInput = `
 <?xml version="1.0" encoding="UTF-8"?>
@@ -183,8 +288,6 @@ const nonStrictInput = `
 <tag>&;</tag>
 <tag>&0a;</tag>
 `
-
-var nonStringEntity = map[string]string{"": "oops!", "0a": "oops!"}
 
 var nonStrictTokens = []Token{
 	CharData("\n"),
@@ -399,6 +502,45 @@ func TestSyntax(t *testing.T) {
 	}
 }
 
+func TestInputLinePos(t *testing.T) {
+	testInput := `<root>
+<?pi
+ ?>  <elt
+att
+=
+"val">
+<![CDATA[
+]]><!--
+
+--></elt>
+</root>`
+	linePos := [][]int{
+		{1, 7},
+		{2, 1},
+		{3, 4},
+		{3, 6},
+		{6, 7},
+		{7, 1},
+		{8, 4},
+		{10, 4},
+		{10, 10},
+		{11, 1},
+		{11, 8},
+	}
+	dec := NewDecoder(strings.NewReader(testInput))
+	for _, want := range linePos {
+		if _, err := dec.Token(); err != nil {
+			t.Errorf("Unexpected error: %v", err)
+			continue
+		}
+
+		gotLine, gotCol := dec.InputPos()
+		if gotLine != want[0] || gotCol != want[1] {
+			t.Errorf("dec.InputPos() = %d,%d, want %d,%d", gotLine, gotCol, want[0], want[1])
+		}
+	}
+}
+
 type allScalars struct {
 	True1     bool
 	True2     bool
@@ -481,15 +623,39 @@ func TestAllScalars(t *testing.T) {
 }
 
 type item struct {
-	Field_a string
+	FieldA string
+}
+
+func TestIssue68387(t *testing.T) {
+	data := `<item b=']]>'/>`
+	dec := NewDecoder(strings.NewReader(data))
+	var tok1, tok2, tok3 Token
+	var err error
+	if tok1, err = dec.RawToken(); err != nil {
+		t.Fatalf("RawToken() failed: %v", err)
+	}
+	if tok2, err = dec.RawToken(); err != nil {
+		t.Fatalf("RawToken() failed: %v", err)
+	}
+	if tok3, err = dec.RawToken(); err != io.EOF || tok3 != nil {
+		t.Fatalf("Missed EOF")
+	}
+	s := StartElement{Name{"", "item"}, []Attr{Attr{Name{"", "b"}, "]]>"}}}
+	if !reflect.DeepEqual(tok1.(StartElement), s) {
+		t.Error("Wrong start element")
+	}
+	e := EndElement{Name{"", "item"}}
+	if tok2.(EndElement) != e {
+		t.Error("Wrong end element")
+	}
 }
 
 func TestIssue569(t *testing.T) {
-	data := `<item><Field_a>abcd</Field_a></item>`
+	data := `<item><FieldA>abcd</FieldA></item>`
 	var i item
 	err := Unmarshal([]byte(data), &i)
 
-	if err != nil || i.Field_a != "abcd" {
+	if err != nil || i.FieldA != "abcd" {
 		t.Fatal("Expecting abcd")
 	}
 }
@@ -567,6 +733,19 @@ func TestCopyTokenStartElement(t *testing.T) {
 	tok1.(StartElement).Attr[0] = Attr{Name{"", "lang"}, "de"}
 	if reflect.DeepEqual(tok1, tok2) {
 		t.Error("CopyToken(CharData) uses same buffer.")
+	}
+}
+
+func TestCopyTokenComment(t *testing.T) {
+	data := []byte("<!-- some comment -->")
+	var tok1 Token = Comment(data)
+	tok2 := CopyToken(tok1)
+	if !reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(Comment) != Comment")
+	}
+	data[1] = 'o'
+	if reflect.DeepEqual(tok1, tok2) {
+		t.Error("CopyToken(Comment) uses same buffer.")
 	}
 }
 
@@ -652,25 +831,45 @@ func TestDisallowedCharacters(t *testing.T) {
 	}
 }
 
-type procInstEncodingTest struct {
-	expect, got string
+func TestIsInCharacterRange(t *testing.T) {
+	invalid := []rune{
+		utf8.MaxRune + 1,
+		0xD800, // surrogate min
+		0xDFFF, // surrogate max
+		-1,
+	}
+	for _, r := range invalid {
+		if isInCharacterRange(r) {
+			t.Errorf("rune %U considered valid", r)
+		}
+	}
 }
 
 var procInstTests = []struct {
-	input, expect string
+	input  string
+	expect [2]string
 }{
-	{`version="1.0" encoding="utf-8"`, "utf-8"},
-	{`version="1.0" encoding='utf-8'`, "utf-8"},
-	{`version="1.0" encoding='utf-8' `, "utf-8"},
-	{`version="1.0" encoding=utf-8`, ""},
-	{`encoding="FOO" `, "FOO"},
+	{`version="1.0" encoding="utf-8"`, [2]string{"1.0", "utf-8"}},
+	{`version="1.0" encoding='utf-8'`, [2]string{"1.0", "utf-8"}},
+	{`version="1.0" encoding='utf-8' `, [2]string{"1.0", "utf-8"}},
+	{`version="1.0" encoding=utf-8`, [2]string{"1.0", ""}},
+	{`encoding="FOO" `, [2]string{"", "FOO"}},
+	{`version=2.0 version="1.0" encoding=utf-7 encoding='utf-8'`, [2]string{"1.0", "utf-8"}},
+	{`version= encoding=`, [2]string{"", ""}},
+	{`encoding="version=1.0"`, [2]string{"", "version=1.0"}},
+	{``, [2]string{"", ""}},
+	// TODO: what's the right approach to handle these nested cases?
+	{`encoding="version='1.0'"`, [2]string{"1.0", "version='1.0'"}},
+	{`version="encoding='utf-8'"`, [2]string{"encoding='utf-8'", "utf-8"}},
 }
 
 func TestProcInstEncoding(t *testing.T) {
 	for _, test := range procInstTests {
-		got := procInstEncoding(test.input)
-		if got != test.expect {
-			t.Errorf("procInstEncoding(%q) = %q; want %q", test.input, got, test.expect)
+		if got := procInst("version", test.input); got != test.expect[0] {
+			t.Errorf("procInst(version, %q) = %q; want %q", test.input, got, test.expect[0])
+		}
+		if got := procInst("encoding", test.input); got != test.expect[1] {
+			t.Errorf("procInst(encoding, %q) = %q; want %q", test.input, got, test.expect[1])
 		}
 	}
 }
@@ -686,11 +885,11 @@ var directivesWithCommentsInput = `
 
 var directivesWithCommentsTokens = []Token{
 	CharData("\n"),
-	Directive(`DOCTYPE [<!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]`),
+	Directive(`DOCTYPE [ <!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]`),
 	CharData("\n"),
-	Directive(`DOCTYPE [<!ENTITY go "Golang">]`),
+	Directive(`DOCTYPE [<!ENTITY go "Golang"> ]`),
 	CharData("\n"),
-	Directive(`DOCTYPE <!-> <!>    [<!ENTITY go "Golang">]`),
+	Directive(`DOCTYPE <!-> <!>       [<!ENTITY go "Golang"> ]`),
 	CharData("\n"),
 }
 
@@ -726,7 +925,7 @@ func TestEscapeTextInvalidChar(t *testing.T) {
 	input := []byte("A \x00 terminated string.")
 	expected := "A \uFFFD terminated string."
 
-	buff := new(bytes.Buffer)
+	buff := new(strings.Builder)
 	if err := EscapeText(buff, input); err != nil {
 		t.Fatalf("have %v, want nil", err)
 	}
@@ -745,5 +944,569 @@ func TestIssue5880(t *testing.T) {
 	}
 	if !utf8.Valid(data) {
 		t.Errorf("Marshal generated invalid UTF-8: %x", data)
+	}
+}
+
+func TestIssue8535(t *testing.T) {
+
+	type ExampleConflict struct {
+		XMLName  Name   `xml:"example"`
+		Link     string `xml:"link"`
+		AtomLink string `xml:"http://www.w3.org/2005/Atom link"` // Same name in a different name space
+	}
+	testCase := `<example>
+			<title>Example</title>
+			<link>http://example.com/default</link> <!-- not assigned -->
+			<link>http://example.com/home</link> <!-- not assigned -->
+			<ns:link xmlns:ns="http://www.w3.org/2005/Atom">http://example.com/ns</ns:link>
+		</example>`
+
+	var dest ExampleConflict
+	d := NewDecoder(strings.NewReader(testCase))
+	if err := d.Decode(&dest); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEncodeXMLNS(t *testing.T) {
+	testCases := []struct {
+		f    func() ([]byte, error)
+		want string
+		ok   bool
+	}{
+		{encodeXMLNS1, `<Test xmlns="http://example.com/ns"><Body>hello world</Body></Test>`, true},
+		{encodeXMLNS2, `<Test><body xmlns="http://example.com/ns">hello world</body></Test>`, true},
+		{encodeXMLNS3, `<Test xmlns="http://example.com/ns"><Body>hello world</Body></Test>`, true},
+		{encodeXMLNS4, `<Test xmlns="http://example.com/ns"><Body>hello world</Body></Test>`, false},
+	}
+
+	for i, tc := range testCases {
+		if b, err := tc.f(); err == nil {
+			if got, want := string(b), tc.want; got != want {
+				t.Errorf("%d: got %s, want %s \n", i, got, want)
+			}
+		} else {
+			t.Errorf("%d: marshal failed with %s", i, err)
+		}
+	}
+}
+
+func encodeXMLNS1() ([]byte, error) {
+
+	type T struct {
+		XMLName Name   `xml:"Test"`
+		Ns      string `xml:"xmlns,attr"`
+		Body    string
+	}
+
+	s := &T{Ns: "http://example.com/ns", Body: "hello world"}
+	return Marshal(s)
+}
+
+func encodeXMLNS2() ([]byte, error) {
+
+	type Test struct {
+		Body string `xml:"http://example.com/ns body"`
+	}
+
+	s := &Test{Body: "hello world"}
+	return Marshal(s)
+}
+
+func encodeXMLNS3() ([]byte, error) {
+
+	type Test struct {
+		XMLName Name `xml:"http://example.com/ns Test"`
+		Body    string
+	}
+
+	//s := &Test{XMLName: Name{"http://example.com/ns",""}, Body: "hello world"} is unusable as the "-" is missing
+	// as documentation states
+	s := &Test{Body: "hello world"}
+	return Marshal(s)
+}
+
+func encodeXMLNS4() ([]byte, error) {
+
+	type Test struct {
+		Ns   string `xml:"xmlns,attr"`
+		Body string
+	}
+
+	s := &Test{Ns: "http://example.com/ns", Body: "hello world"}
+	return Marshal(s)
+}
+
+func TestIssue11405(t *testing.T) {
+	testCases := []string{
+		"<root>",
+		"<root><foo>",
+		"<root><foo></foo>",
+	}
+	for _, tc := range testCases {
+		d := NewDecoder(strings.NewReader(tc))
+		var err error
+		for {
+			_, err = d.Token()
+			if err != nil {
+				break
+			}
+		}
+		if _, ok := err.(*SyntaxError); !ok {
+			t.Errorf("%s: Token: Got error %v, want SyntaxError", tc, err)
+		}
+	}
+}
+
+func TestIssue12417(t *testing.T) {
+	testCases := []struct {
+		s  string
+		ok bool
+	}{
+		{`<?xml encoding="UtF-8" version="1.0"?><root/>`, true},
+		{`<?xml encoding="UTF-8" version="1.0"?><root/>`, true},
+		{`<?xml encoding="utf-8" version="1.0"?><root/>`, true},
+		{`<?xml encoding="uuu-9" version="1.0"?><root/>`, false},
+	}
+	for _, tc := range testCases {
+		d := NewDecoder(strings.NewReader(tc.s))
+		var err error
+		for {
+			_, err = d.Token()
+			if err != nil {
+				if err == io.EOF {
+					err = nil
+				}
+				break
+			}
+		}
+		if err != nil && tc.ok {
+			t.Errorf("%q: Encoding charset: expected no error, got %s", tc.s, err)
+			continue
+		}
+		if err == nil && !tc.ok {
+			t.Errorf("%q: Encoding charset: expected error, got nil", tc.s)
+		}
+	}
+}
+
+func TestIssue7113(t *testing.T) {
+	type C struct {
+		XMLName Name `xml:""` // Sets empty namespace
+	}
+
+	type D struct {
+		XMLName Name `xml:"d"`
+	}
+
+	type A struct {
+		XMLName Name `xml:""`
+		C       C    `xml:""`
+		D       D
+	}
+
+	var a A
+	structSpace := "b"
+	xmlTest := `<A xmlns="` + structSpace + `"><C xmlns=""></C><d></d></A>`
+	t.Log(xmlTest)
+	err := Unmarshal([]byte(xmlTest), &a)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if a.XMLName.Space != structSpace {
+		t.Errorf("overidding with empty namespace: unmarshaling, got %s, want %s\n", a.XMLName.Space, structSpace)
+	}
+	if len(a.C.XMLName.Space) != 0 {
+		t.Fatalf("overidding with empty namespace: unmarshaling, got %s, want empty\n", a.C.XMLName.Space)
+	}
+
+	var b []byte
+	b, err = Marshal(&a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(a.C.XMLName.Space) != 0 {
+		t.Errorf("overidding with empty namespace: marshaling, got %s in C tag which should be empty\n", a.C.XMLName.Space)
+	}
+	if string(b) != xmlTest {
+		t.Fatalf("overidding with empty namespace: marshaling, got %s, want %s\n", b, xmlTest)
+	}
+	var c A
+	err = Unmarshal(b, &c)
+	if err != nil {
+		t.Fatalf("second Unmarshal failed: %s", err)
+	}
+	if c.XMLName.Space != "b" {
+		t.Errorf("overidding with empty namespace: after marshaling & unmarshaling, XML name space: got %s, want %s\n", a.XMLName.Space, structSpace)
+	}
+	if len(c.C.XMLName.Space) != 0 {
+		t.Errorf("overidding with empty namespace: after marshaling & unmarshaling, got %s, want empty\n", a.C.XMLName.Space)
+	}
+}
+
+func TestIssue20396(t *testing.T) {
+
+	var attrError = UnmarshalError("XML syntax error on line 1: expected attribute name in element")
+
+	testCases := []struct {
+		s       string
+		wantErr error
+	}{
+		{`<a:te:st xmlns:a="abcd"/>`, // Issue 20396
+			UnmarshalError("XML syntax error on line 1: expected element name after <")},
+		{`<a:te=st xmlns:a="abcd"/>`, attrError},
+		{`<a:te&st xmlns:a="abcd"/>`, attrError},
+		{`<a:test xmlns:a="abcd"/>`, nil},
+		{`<a:te:st xmlns:a="abcd">1</a:te:st>`,
+			UnmarshalError("XML syntax error on line 1: expected element name after <")},
+		{`<a:te=st xmlns:a="abcd">1</a:te=st>`, attrError},
+		{`<a:te&st xmlns:a="abcd">1</a:te&st>`, attrError},
+		{`<a:test xmlns:a="abcd">1</a:test>`, nil},
+	}
+
+	var dest string
+	for _, tc := range testCases {
+		if got, want := Unmarshal([]byte(tc.s), &dest), tc.wantErr; got != want {
+			if got == nil {
+				t.Errorf("%s: Unexpected success, want %v", tc.s, want)
+			} else if want == nil {
+				t.Errorf("%s: Unexpected error, got %v", tc.s, got)
+			} else if got.Error() != want.Error() {
+				t.Errorf("%s: got %v, want %v", tc.s, got, want)
+			}
+		}
+	}
+}
+
+func TestIssue20685(t *testing.T) {
+	testCases := []struct {
+		s  string
+		ok bool
+	}{
+		{`<x:book xmlns:x="abcd" xmlns:y="abcd"><unclosetag>one</x:book>`, false},
+		{`<x:book xmlns:x="abcd" xmlns:y="abcd">one</x:book>`, true},
+		{`<x:book xmlns:x="abcd" xmlns:y="abcd">one</y:book>`, false},
+		{`<x:book xmlns:y="abcd" xmlns:x="abcd">one</y:book>`, false},
+		{`<x:book xmlns:x="abcd">one</y:book>`, false},
+		{`<x:book>one</y:book>`, false},
+		{`<xbook>one</ybook>`, false},
+	}
+	for _, tc := range testCases {
+		d := NewDecoder(strings.NewReader(tc.s))
+		var err error
+		for {
+			_, err = d.Token()
+			if err != nil {
+				if err == io.EOF {
+					err = nil
+				}
+				break
+			}
+		}
+		if err != nil && tc.ok {
+			t.Errorf("%q: Closing tag with namespace : expected no error, got %s", tc.s, err)
+			continue
+		}
+		if err == nil && !tc.ok {
+			t.Errorf("%q: Closing tag with namespace : expected error, got nil", tc.s)
+		}
+	}
+}
+
+func tokenMap(mapping func(t Token) Token) func(TokenReader) TokenReader {
+	return func(src TokenReader) TokenReader {
+		return mapper{
+			t: src,
+			f: mapping,
+		}
+	}
+}
+
+type mapper struct {
+	t TokenReader
+	f func(Token) Token
+}
+
+func (m mapper) Token() (Token, error) {
+	tok, err := m.t.Token()
+	if err != nil {
+		return nil, err
+	}
+	return m.f(tok), nil
+}
+
+func TestNewTokenDecoderIdempotent(t *testing.T) {
+	d := NewDecoder(strings.NewReader(`<br>`))
+	d2 := NewTokenDecoder(d)
+	if d != d2 {
+		t.Error("NewTokenDecoder did not detect underlying Decoder")
+	}
+}
+
+func TestWrapDecoder(t *testing.T) {
+	d := NewDecoder(strings.NewReader(`<quote>[Re-enter Clown with a letter, and FABIAN]</quote>`))
+	m := tokenMap(func(t Token) Token {
+		switch tok := t.(type) {
+		case StartElement:
+			if tok.Name.Local == "quote" {
+				tok.Name.Local = "blocking"
+				return tok
+			}
+		case EndElement:
+			if tok.Name.Local == "quote" {
+				tok.Name.Local = "blocking"
+				return tok
+			}
+		}
+		return t
+	})
+
+	d = NewTokenDecoder(m(d))
+
+	o := struct {
+		XMLName  Name   `xml:"blocking"`
+		Chardata string `xml:",chardata"`
+	}{}
+
+	if err := d.Decode(&o); err != nil {
+		t.Fatal("Got unexpected error while decoding:", err)
+	}
+
+	if o.Chardata != "[Re-enter Clown with a letter, and FABIAN]" {
+		t.Fatalf("Got unexpected chardata: `%s`\n", o.Chardata)
+	}
+}
+
+type tokReader struct{}
+
+func (tokReader) Token() (Token, error) {
+	return StartElement{}, nil
+}
+
+type Failure struct{}
+
+func (Failure) UnmarshalXML(*Decoder, StartElement) error {
+	return nil
+}
+
+func TestTokenUnmarshaler(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error("Unexpected panic using custom token unmarshaler")
+		}
+	}()
+
+	d := NewTokenDecoder(tokReader{})
+	d.Decode(&Failure{})
+}
+
+func testRoundTrip(t *testing.T, input string) {
+	d := NewDecoder(strings.NewReader(input))
+	var tokens []Token
+	var buf bytes.Buffer
+	e := NewEncoder(&buf)
+	for {
+		tok, err := d.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("invalid input: %v", err)
+		}
+		if err := e.EncodeToken(tok); err != nil {
+			t.Fatalf("failed to re-encode input: %v", err)
+		}
+		tokens = append(tokens, CopyToken(tok))
+	}
+	if err := e.Flush(); err != nil {
+		t.Fatal(err)
+	}
+
+	d = NewDecoder(&buf)
+	for {
+		tok, err := d.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("failed to decode output: %v", err)
+		}
+		if len(tokens) == 0 {
+			t.Fatalf("unexpected token: %#v", tok)
+		}
+		a, b := tokens[0], tok
+		if !reflect.DeepEqual(a, b) {
+			t.Fatalf("token mismatch: %#v vs %#v", a, b)
+		}
+		tokens = tokens[1:]
+	}
+	if len(tokens) > 0 {
+		t.Fatalf("lost tokens: %#v", tokens)
+	}
+}
+
+func TestRoundTrip(t *testing.T) {
+	tests := map[string]string{
+		"trailing colon":         `<foo abc:="x"></foo>`,
+		"comments in directives": `<!ENTITY x<!<!-- c1 [ " -->--x --> > <e></e> <!DOCTYPE xxx [ x<!-- c2 " -->--x ]>`,
+	}
+	for name, input := range tests {
+		t.Run(name, func(t *testing.T) { testRoundTrip(t, input) })
+	}
+}
+
+func TestParseErrors(t *testing.T) {
+	withDefaultHeader := func(s string) string {
+		return `<?xml version="1.0" encoding="UTF-8"?>` + s
+	}
+	tests := []struct {
+		src string
+		err string
+	}{
+		{withDefaultHeader(`</foo>`), `unexpected end element </foo>`},
+		{withDefaultHeader(`<x:foo></y:foo>`), `element <foo> in space x closed by </foo> in space y`},
+		{withDefaultHeader(`<? not ok ?>`), `expected target name after <?`},
+		{withDefaultHeader(`<!- not ok -->`), `invalid sequence <!- not part of <!--`},
+		{withDefaultHeader(`<!-? not ok -->`), `invalid sequence <!- not part of <!--`},
+		{withDefaultHeader(`<![not ok]>`), `invalid <![ sequence`},
+		{withDefaultHeader(`<zzz:foo xmlns:zzz="http://example.com"><bar>baz</bar></foo>`),
+			`element <foo> in space zzz closed by </foo> in space ""`},
+		{withDefaultHeader("\xf1"), `invalid UTF-8`},
+
+		// Header-related errors.
+		{`<?xml version="1.1" encoding="UTF-8"?>`, `unsupported version "1.1"; only version 1.0 is supported`},
+
+		// Cases below are for "no errors".
+		{withDefaultHeader(`<?ok?>`), ``},
+		{withDefaultHeader(`<?ok version="ok"?>`), ``},
+	}
+
+	for _, test := range tests {
+		d := NewDecoder(strings.NewReader(test.src))
+		var err error
+		for {
+			_, err = d.Token()
+			if err != nil {
+				break
+			}
+		}
+		if test.err == "" {
+			if err != io.EOF {
+				t.Errorf("parse %s: have %q error, expected none", test.src, err)
+			}
+			continue
+		}
+		// Inv: err != nil
+		if err == io.EOF {
+			t.Errorf("parse %s: unexpected EOF", test.src)
+			continue
+		}
+		if !strings.Contains(err.Error(), test.err) {
+			t.Errorf("parse %s: can't find %q error substring\nerror: %q", test.src, test.err, err)
+			continue
+		}
+	}
+}
+
+const testInputHTMLAutoClose = `<?xml version="1.0" encoding="UTF-8"?>
+<br>
+<br/><br/>
+<br><br>
+<br></br>
+<BR>
+<BR/><BR/>
+<Br></Br>
+<BR><span id="test">abc</span><br/><br/>`
+
+func BenchmarkHTMLAutoClose(b *testing.B) {
+	b.RunParallel(func(p *testing.PB) {
+		for p.Next() {
+			d := NewDecoder(strings.NewReader(testInputHTMLAutoClose))
+			d.Strict = false
+			d.AutoClose = HTMLAutoClose
+			d.Entity = HTMLEntity
+			for {
+				_, err := d.Token()
+				if err != nil {
+					if err == io.EOF {
+						break
+					}
+					b.Fatalf("unexpected error: %v", err)
+				}
+			}
+		}
+	})
+}
+
+func TestHTMLAutoClose(t *testing.T) {
+	wantTokens := []Token{
+		ProcInst{"xml", []byte(`version="1.0" encoding="UTF-8"`)},
+		CharData("\n"),
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		CharData("\n"),
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		CharData("\n"),
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		CharData("\n"),
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		CharData("\n"),
+		StartElement{Name{"", "BR"}, []Attr{}},
+		EndElement{Name{"", "BR"}},
+		CharData("\n"),
+		StartElement{Name{"", "BR"}, []Attr{}},
+		EndElement{Name{"", "BR"}},
+		StartElement{Name{"", "BR"}, []Attr{}},
+		EndElement{Name{"", "BR"}},
+		CharData("\n"),
+		StartElement{Name{"", "Br"}, []Attr{}},
+		EndElement{Name{"", "Br"}},
+		CharData("\n"),
+		StartElement{Name{"", "BR"}, []Attr{}},
+		EndElement{Name{"", "BR"}},
+		StartElement{Name{"", "span"}, []Attr{{Name: Name{"", "id"}, Value: "test"}}},
+		CharData("abc"),
+		EndElement{Name{"", "span"}},
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+		StartElement{Name{"", "br"}, []Attr{}},
+		EndElement{Name{"", "br"}},
+	}
+
+	d := NewDecoder(strings.NewReader(testInputHTMLAutoClose))
+	d.Strict = false
+	d.AutoClose = HTMLAutoClose
+	d.Entity = HTMLEntity
+	var haveTokens []Token
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatalf("unexpected error: %v", err)
+		}
+		haveTokens = append(haveTokens, CopyToken(tok))
+	}
+	if len(haveTokens) != len(wantTokens) {
+		t.Errorf("tokens count mismatch: have %d, want %d", len(haveTokens), len(wantTokens))
+	}
+	for i, want := range wantTokens {
+		if i >= len(haveTokens) {
+			t.Errorf("token[%d] expected %#v, have no token", i, want)
+		} else {
+			have := haveTokens[i]
+			if !reflect.DeepEqual(have, want) {
+				t.Errorf("token[%d] mismatch:\nhave: %#v\nwant: %#v", i, have, want)
+			}
+		}
 	}
 }

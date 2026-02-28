@@ -5,10 +5,10 @@
 // license that can be found in the LICENSE file.
 
 // Used to crash the compiler.
-// http://golang.org/issue/158
+// https://golang.org/issue/158
 
 package main
 
-type A struct {	a A }	// ERROR "recursive"
+type A struct {	a A }	// ERROR "recursive|cycle"
 func foo()		{ new(A).bar() }
 func (a A) bar()	{}

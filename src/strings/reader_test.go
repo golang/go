@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -22,17 +21,18 @@ func TestReader(t *testing.T) {
 		n       int
 		want    string
 		wantpos int64
+		readerr error
 		seekerr string
 	}{
-		{seek: os.SEEK_SET, off: 0, n: 20, want: "0123456789"},
-		{seek: os.SEEK_SET, off: 1, n: 1, want: "1"},
-		{seek: os.SEEK_CUR, off: 1, wantpos: 3, n: 2, want: "34"},
-		{seek: os.SEEK_SET, off: -1, seekerr: "strings.Reader.Seek: negative position"},
-		{seek: os.SEEK_SET, off: 1 << 33, wantpos: 1 << 33},
-		{seek: os.SEEK_CUR, off: 1, wantpos: 1<<33 + 1},
-		{seek: os.SEEK_SET, n: 5, want: "01234"},
-		{seek: os.SEEK_CUR, n: 5, want: "56789"},
-		{seek: os.SEEK_END, off: -1, n: 1, wantpos: 9, want: "9"},
+		{seek: io.SeekStart, off: 0, n: 20, want: "0123456789"},
+		{seek: io.SeekStart, off: 1, n: 1, want: "1"},
+		{seek: io.SeekCurrent, off: 1, wantpos: 3, n: 2, want: "34"},
+		{seek: io.SeekStart, off: -1, seekerr: "strings.Reader.Seek: negative position"},
+		{seek: io.SeekStart, off: 1 << 33, wantpos: 1 << 33, readerr: io.EOF},
+		{seek: io.SeekCurrent, off: 1, wantpos: 1<<33 + 1, readerr: io.EOF},
+		{seek: io.SeekStart, n: 5, want: "01234"},
+		{seek: io.SeekCurrent, n: 5, want: "56789"},
+		{seek: io.SeekEnd, off: -1, n: 1, wantpos: 9, want: "9"},
 	}
 
 	for i, tt := range tests {
@@ -50,8 +50,8 @@ func TestReader(t *testing.T) {
 		}
 		buf := make([]byte, tt.n)
 		n, err := r.Read(buf)
-		if err != nil {
-			t.Errorf("%d. read = %v", i, err)
+		if err != tt.readerr {
+			t.Errorf("%d. read = %v; want %v", i, err, tt.readerr)
 			continue
 		}
 		got := string(buf[:n])
@@ -63,7 +63,7 @@ func TestReader(t *testing.T) {
 
 func TestReadAfterBigSeek(t *testing.T) {
 	r := strings.NewReader("0123456789")
-	if _, err := r.Seek(1<<31+5, os.SEEK_SET); err != nil {
+	if _, err := r.Seek(1<<31+5, io.SeekStart); err != nil {
 		t.Fatal(err)
 	}
 	if n, err := r.Read(make([]byte, 10)); n != 0 || err != io.EOF {
@@ -77,7 +77,7 @@ func TestReaderAt(t *testing.T) {
 		off     int64
 		n       int
 		want    string
-		wanterr interface{}
+		wanterr any
 	}{
 		{0, 10, "0123456789", nil},
 		{1, 10, "123456789", io.EOF},
@@ -155,5 +155,79 @@ func TestWriteTo(t *testing.T) {
 		if r.Len() != 0 {
 			t.Errorf("reader contains %v bytes; want 0", r.Len())
 		}
+	}
+}
+
+// tests that Len is affected by reads, but Size is not.
+func TestReaderLenSize(t *testing.T) {
+	r := strings.NewReader("abc")
+	io.CopyN(io.Discard, r, 1)
+	if r.Len() != 2 {
+		t.Errorf("Len = %d; want 2", r.Len())
+	}
+	if r.Size() != 3 {
+		t.Errorf("Size = %d; want 3", r.Size())
+	}
+}
+
+func TestReaderReset(t *testing.T) {
+	r := strings.NewReader("世界")
+	if _, _, err := r.ReadRune(); err != nil {
+		t.Errorf("ReadRune: unexpected error: %v", err)
+	}
+
+	const want = "abcdef"
+	r.Reset(want)
+	if err := r.UnreadRune(); err == nil {
+		t.Errorf("UnreadRune: expected error, got nil")
+	}
+	buf, err := io.ReadAll(r)
+	if err != nil {
+		t.Errorf("ReadAll: unexpected error: %v", err)
+	}
+	if got := string(buf); got != want {
+		t.Errorf("ReadAll: got %q, want %q", got, want)
+	}
+}
+
+func TestReaderZero(t *testing.T) {
+	if l := (&strings.Reader{}).Len(); l != 0 {
+		t.Errorf("Len: got %d, want 0", l)
+	}
+
+	if n, err := (&strings.Reader{}).Read(nil); n != 0 || err != io.EOF {
+		t.Errorf("Read: got %d, %v; want 0, io.EOF", n, err)
+	}
+
+	if n, err := (&strings.Reader{}).ReadAt(nil, 11); n != 0 || err != io.EOF {
+		t.Errorf("ReadAt: got %d, %v; want 0, io.EOF", n, err)
+	}
+
+	if b, err := (&strings.Reader{}).ReadByte(); b != 0 || err != io.EOF {
+		t.Errorf("ReadByte: got %d, %v; want 0, io.EOF", b, err)
+	}
+
+	if ch, size, err := (&strings.Reader{}).ReadRune(); ch != 0 || size != 0 || err != io.EOF {
+		t.Errorf("ReadRune: got %d, %d, %v; want 0, 0, io.EOF", ch, size, err)
+	}
+
+	if offset, err := (&strings.Reader{}).Seek(11, io.SeekStart); offset != 11 || err != nil {
+		t.Errorf("Seek: got %d, %v; want 11, nil", offset, err)
+	}
+
+	if s := (&strings.Reader{}).Size(); s != 0 {
+		t.Errorf("Size: got %d, want 0", s)
+	}
+
+	if (&strings.Reader{}).UnreadByte() == nil {
+		t.Errorf("UnreadByte: got nil, want error")
+	}
+
+	if (&strings.Reader{}).UnreadRune() == nil {
+		t.Errorf("UnreadRune: got nil, want error")
+	}
+
+	if n, err := (&strings.Reader{}).WriteTo(io.Discard); n != 0 || err != nil {
+		t.Errorf("WriteTo: got %d, %v; want 0, nil", n, err)
 	}
 }

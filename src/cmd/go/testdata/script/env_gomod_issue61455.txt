@@ -1,0 +1,24 @@
+env TESTGO_VERSION=go1.500
+env TESTGO_VERSION_SWITCH=mismatch
+
+# go env GOMOD should not trigger a toolchain download
+cd $GOPATH/mod
+go env GOMOD
+stdout mod[/\\]go.mod
+! stderr 'go: toolchain go1.500 invoked to provide go1.700'
+
+# go env GOWORK should not trigger a toolchain download
+cd $GOPATH/work
+go env GOWORK
+stdout work[/\\]go.work
+! stderr 'go: toolchain go1.500 invoked to provide go1.700'
+
+-- $GOPATH/mod/go.mod --
+module example.com
+
+go 1.700
+
+-- $GOPATH/work/go.work --
+module example.com
+
+go 1.700

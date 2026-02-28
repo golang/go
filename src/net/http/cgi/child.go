@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -32,7 +31,7 @@ func Request() (*http.Request, error) {
 		return nil, err
 	}
 	if r.ContentLength > 0 {
-		r.Body = ioutil.NopCloser(io.LimitReader(os.Stdin, r.ContentLength))
+		r.Body = io.NopCloser(io.LimitReader(os.Stdin, r.ContentLength))
 	}
 	return r, nil
 }
@@ -40,14 +39,14 @@ func Request() (*http.Request, error) {
 func envMap(env []string) map[string]string {
 	m := make(map[string]string)
 	for _, kv := range env {
-		if idx := strings.Index(kv, "="); idx != -1 {
-			m[kv[:idx]] = kv[idx+1:]
+		if k, v, ok := strings.Cut(kv, "="); ok {
+			m[k] = v
 		}
 	}
 	return m
 }
 
-// RequestFromMap creates an http.Request from CGI variables.
+// RequestFromMap creates an [http.Request] from CGI variables.
 // The returned Request's Body field is not populated.
 func RequestFromMap(params map[string]string) (*http.Request, error) {
 	r := new(http.Request)
@@ -58,8 +57,11 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 
 	r.Proto = params["SERVER_PROTOCOL"]
 	var ok bool
-	r.ProtoMajor, r.ProtoMinor, ok = http.ParseHTTPVersion(r.Proto)
-	if !ok {
+	if r.Proto == "INCLUDED" {
+		// SSI (Server Side Include) use case
+		// CGI Specification RFC 3875 - section 4.1.16
+		r.ProtoMajor, r.ProtoMinor = 1, 0
+	} else if r.ProtoMajor, r.ProtoMinor, ok = http.ParseHTTPVersion(r.Proto); !ok {
 		return nil, errors.New("cgi: invalid SERVER_PROTOCOL version")
 	}
 
@@ -83,13 +85,13 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 
 	// Copy "HTTP_FOO_BAR" variables to "Foo-Bar" Headers
 	for k, v := range params {
-		if !strings.HasPrefix(k, "HTTP_") || k == "HTTP_HOST" {
+		if k == "HTTP_HOST" {
 			continue
 		}
-		r.Header.Add(strings.Replace(k[5:], "_", "-", -1), v)
+		if after, found := strings.CutPrefix(k, "HTTP_"); found {
+			r.Header.Add(strings.ReplaceAll(after, "_", "-"), v)
+		}
 	}
-
-	// TODO: cookies.  parsing them isn't exported, though.
 
 	uriStr := params["REQUEST_URI"]
 	if uriStr == "" {
@@ -102,7 +104,7 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 	}
 
 	// There's apparently a de-facto standard for this.
-	// http://docstore.mik.ua/orelly/linux/cgi/ch03_02.htm#ch03-35636
+	// https://web.archive.org/web/20170105004655/http://docstore.mik.ua/orelly/linux/cgi/ch03_02.htm#ch03-35636
 	if s := params["HTTPS"]; s == "on" || s == "ON" || s == "1" {
 		r.TLS = &tls.ConnectionState{HandshakeComplete: true}
 	}
@@ -139,14 +141,17 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 	return r, nil
 }
 
-// Serve executes the provided Handler on the currently active CGI
+// Serve executes the provided [Handler] on the currently active CGI
 // request, if any. If there's no current CGI environment
 // an error is returned. The provided handler may be nil to use
-// http.DefaultServeMux.
+// [http.DefaultServeMux].
 func Serve(handler http.Handler) error {
 	req, err := Request()
 	if err != nil {
 		return err
+	}
+	if req.Body == nil {
+		req.Body = http.NoBody
 	}
 	if handler == nil {
 		handler = http.DefaultServeMux
@@ -165,10 +170,12 @@ func Serve(handler http.Handler) error {
 }
 
 type response struct {
-	req        *http.Request
-	header     http.Header
-	bufw       *bufio.Writer
-	headerSent bool
+	req            *http.Request
+	header         http.Header
+	code           int
+	wroteHeader    bool
+	wroteCGIHeader bool
+	bufw           *bufio.Writer
 }
 
 func (r *response) Flush() {
@@ -180,26 +187,38 @@ func (r *response) Header() http.Header {
 }
 
 func (r *response) Write(p []byte) (n int, err error) {
-	if !r.headerSent {
+	if !r.wroteHeader {
 		r.WriteHeader(http.StatusOK)
+	}
+	if !r.wroteCGIHeader {
+		r.writeCGIHeader(p)
 	}
 	return r.bufw.Write(p)
 }
 
 func (r *response) WriteHeader(code int) {
-	if r.headerSent {
+	if r.wroteHeader {
 		// Note: explicitly using Stderr, as Stdout is our HTTP output.
 		fmt.Fprintf(os.Stderr, "CGI attempted to write header twice on request for %s", r.req.URL)
 		return
 	}
-	r.headerSent = true
-	fmt.Fprintf(r.bufw, "Status: %d %s\r\n", code, http.StatusText(code))
+	r.wroteHeader = true
+	r.code = code
+}
 
-	// Set a default Content-Type
-	if _, hasType := r.header["Content-Type"]; !hasType {
-		r.header.Add("Content-Type", "text/html; charset=utf-8")
+// writeCGIHeader finalizes the header sent to the client and writes it to the output.
+// p is not written by writeHeader, but is the first chunk of the body
+// that will be written. It is sniffed for a Content-Type if none is
+// set explicitly.
+func (r *response) writeCGIHeader(p []byte) {
+	if r.wroteCGIHeader {
+		return
 	}
-
+	r.wroteCGIHeader = true
+	fmt.Fprintf(r.bufw, "Status: %d %s\r\n", r.code, http.StatusText(r.code))
+	if _, hasType := r.header["Content-Type"]; !hasType {
+		r.header.Set("Content-Type", http.DetectContentType(p))
+	}
 	r.header.Write(r.bufw)
 	r.bufw.WriteString("\r\n")
 	r.bufw.Flush()

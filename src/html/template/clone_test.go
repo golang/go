@@ -5,21 +5,23 @@
 package template
 
 import (
-	"bytes"
 	"errors"
-	"io/ioutil"
+	"fmt"
+	"io"
+	"strings"
+	"sync"
 	"testing"
 	"text/template/parse"
 )
 
-func TestAddParseTree(t *testing.T) {
+func TestAddParseTreeHTML(t *testing.T) {
 	root := Must(New("root").Parse(`{{define "a"}} {{.}} {{template "b"}} {{.}} "></a>{{end}}`))
 	tree, err := parse.Parse("t", `{{define "b"}}<a href="{{end}}`, "", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	added := Must(root.AddParseTree("b", tree["b"]))
-	b := new(bytes.Buffer)
+	b := new(strings.Builder)
 	err = added.ExecuteTemplate(b, "a", "1>0")
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +38,7 @@ func TestClone(t *testing.T) {
 	// In the t2 template, it will be in a JavaScript context.
 	// In the t3 template, it will be in a CSS context.
 	const tmpl = `{{define "a"}}{{template "lhs"}}{{.}}{{template "rhs"}}{{end}}`
-	b := new(bytes.Buffer)
+	b := new(strings.Builder)
 
 	// Create an incomplete template t0.
 	t0 := Must(New("t0").Parse(tmpl))
@@ -78,9 +80,17 @@ func TestClone(t *testing.T) {
 	Must(t0.Parse(`{{define "lhs"}} ( {{end}}`))
 	Must(t0.Parse(`{{define "rhs"}} ) {{end}}`))
 
-	// Clone t0 as t4. Redefining the "lhs" template should fail.
+	// Clone t0 as t4. Redefining the "lhs" template should not fail.
 	t4 := Must(t0.Clone())
-	if _, err := t4.Parse(`{{define "lhs"}} FAIL {{end}}`); err == nil {
+	if _, err := t4.Parse(`{{define "lhs"}} OK {{end}}`); err != nil {
+		t.Errorf(`redefine "lhs": got err %v want nil`, err)
+	}
+	// Cloning t1 should fail as it has been executed.
+	if _, err := t1.Clone(); err == nil {
+		t.Error("cloning t1: got nil err want non-nil")
+	}
+	// Redefining the "lhs" template in t1 should fail as it has been executed.
+	if _, err := t1.Parse(`{{define "lhs"}} OK {{end}}`); err == nil {
 		t.Error(`redefine "lhs": got nil err want non-nil`)
 	}
 
@@ -142,7 +152,7 @@ func TestTemplates(t *testing.T) {
 	}
 }
 
-// This used to crash; http://golang.org/issue/3281
+// This used to crash; https://golang.org/issue/3281
 func TestCloneCrash(t *testing.T) {
 	t1 := New("all")
 	Must(t1.New("t1").Parse(`{{define "foo"}}foo{{end}}`))
@@ -160,7 +170,7 @@ func TestCloneThenParse(t *testing.T) {
 		t.Error("adding a template to a clone added it to the original")
 	}
 	// double check that the embedded template isn't available in the original
-	err := t0.ExecuteTemplate(ioutil.Discard, "a", nil)
+	err := t0.ExecuteTemplate(io.Discard, "a", nil)
 	if err == nil {
 		t.Error("expected 'no such template' error")
 	}
@@ -174,15 +184,95 @@ func TestFuncMapWorksAfterClone(t *testing.T) {
 
 	// get the expected error output (no clone)
 	uncloned := Must(New("").Funcs(funcs).Parse("{{customFunc}}"))
-	wantErr := uncloned.Execute(ioutil.Discard, nil)
+	wantErr := uncloned.Execute(io.Discard, nil)
 
 	// toClone must be the same as uncloned. It has to be recreated from scratch,
 	// since cloning cannot occur after execution.
 	toClone := Must(New("").Funcs(funcs).Parse("{{customFunc}}"))
 	cloned := Must(toClone.Clone())
-	gotErr := cloned.Execute(ioutil.Discard, nil)
+	gotErr := cloned.Execute(io.Discard, nil)
 
 	if wantErr.Error() != gotErr.Error() {
 		t.Errorf("clone error message mismatch want %q got %q", wantErr, gotErr)
+	}
+}
+
+// https://golang.org/issue/16101
+func TestTemplateCloneExecuteRace(t *testing.T) {
+	const (
+		input   = `<title>{{block "a" .}}a{{end}}</title><body>{{block "b" .}}b{{end}}<body>`
+		overlay = `{{define "b"}}A{{end}}`
+	)
+	outer := Must(New("outer").Parse(input))
+	tmpl := Must(Must(outer.Clone()).Parse(overlay))
+
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 100; i++ {
+				if err := tmpl.Execute(io.Discard, "data"); err != nil {
+					panic(err)
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func TestTemplateCloneLookup(t *testing.T) {
+	// Template.escape makes an assumption that the template associated
+	// with t.Name() is t. Check that this holds.
+	tmpl := Must(New("x").Parse("a"))
+	tmpl = Must(tmpl.Clone())
+	if tmpl.Lookup(tmpl.Name()) != tmpl {
+		t.Error("after Clone, tmpl.Lookup(tmpl.Name()) != tmpl")
+	}
+}
+
+func TestCloneGrowth(t *testing.T) {
+	tmpl := Must(New("root").Parse(`<title>{{block "B". }}Arg{{end}}</title>`))
+	tmpl = Must(tmpl.Clone())
+	Must(tmpl.Parse(`{{define "B"}}Text{{end}}`))
+	for i := 0; i < 10; i++ {
+		tmpl.Execute(io.Discard, nil)
+	}
+	if len(tmpl.DefinedTemplates()) > 200 {
+		t.Fatalf("too many templates: %v", len(tmpl.DefinedTemplates()))
+	}
+}
+
+// https://golang.org/issue/17735
+func TestCloneRedefinedName(t *testing.T) {
+	const base = `
+{{ define "a" -}}<title>{{ template "b" . -}}</title>{{ end -}}
+{{ define "b" }}{{ end -}}
+`
+	const page = `{{ template "a" . }}`
+
+	t1 := Must(New("a").Parse(base))
+
+	for i := 0; i < 2; i++ {
+		t2 := Must(t1.Clone())
+		t2 = Must(t2.New(fmt.Sprintf("%d", i)).Parse(page))
+		err := t2.Execute(io.Discard, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// Issue 24791.
+func TestClonePipe(t *testing.T) {
+	a := Must(New("a").Parse(`{{define "a"}}{{range $v := .A}}{{$v}}{{end}}{{end}}`))
+	data := struct{ A []string }{A: []string{"hi"}}
+	b := Must(a.Clone())
+	var buf strings.Builder
+	if err := b.Execute(&buf, &data); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := buf.String(), "hi"; got != want {
+		t.Errorf("got %q want %q", got, want)
 	}
 }

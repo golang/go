@@ -1,0 +1,122 @@
+cp go.mod go.mod.orig
+
+# For modules whose go.mod file does not include a 'go' directive,
+# we assume the language and dependency semantics of Go 1.16,
+# but do not trigger “automatic vendoring” mode (-mod=vendor),
+# which was added in Go 1.14 and was not triggered
+# under the same conditions in Go 1.16 (which would instead
+# default to -mod=readonly when no 'go' directive is present).
+
+# For Go 1.16 modules, 'all' should prune out dependencies of tests,
+# even if the 'go' directive is missing.
+
+go list -mod=readonly all
+stdout '^example.com/dep$'
+! stdout '^example.com/testdep$'
+cp stdout list-1.txt
+cmp go.mod go.mod.orig
+
+# We should only default to -mod=vendor if the 'go' directive is explicit in the
+# go.mod file. Otherwise, we don't actually know whether the module was written
+# against Go 1.11 or 1.16. We would have to update the go.mod file to clarify,
+# and as of Go 1.16 we don't update the go.mod file by default.
+#
+# If we set -mod=vendor explicitly, we shouldn't apply the Go 1.14
+# consistency check, because — again — we don't know whether we're in a 1.11
+# module or a bad-script-edited 1.16 module.
+
+! go list -mod=vendor all
+! stderr '^go: inconsistent vendoring'
+stderr 'cannot find module providing package example.com/badedit: import lookup disabled by -mod=vendor'
+
+# When we set -mod=mod, the go version should be updated immediately,
+# to the current version, converting the requirements from eager to lazy.
+#
+# Since we don't know which requirements are actually relevant to the main
+# module, all requirements are added as roots, making the requirements untidy.
+
+go list -mod=mod all
+! stdout '^example.com/testdep$'
+cmp stdout list-1.txt
+cmpenv go.mod go.mod.untidy
+
+go mod tidy
+cmpenv go.mod go.mod.tidy
+
+# On the other hand, if we jump straight to 'go mod tidy',
+# the requirements remain tidy from the start.
+
+cp go.mod.orig go.mod
+go mod tidy
+cmpenv go.mod go.mod.tidy
+
+
+# The updated version should have been written back to go.mod, so now the 'go'
+# directive is explicit. -mod=vendor should trigger by default, and the stronger
+# Go 1.14 consistency check should apply.
+! go list all
+stderr '^go: inconsistent vendoring'
+! stderr badedit
+
+
+-- go.mod --
+module example.com/m
+
+require example.com/dep v0.1.0
+
+replace (
+	example.com/dep v0.1.0 => ./dep
+	example.com/testdep v0.1.0 => ./testdep
+)
+-- go.mod.untidy --
+module example.com/m
+
+go $goversion
+
+require example.com/dep v0.1.0
+
+require example.com/testdep v0.1.0 // indirect
+
+replace (
+	example.com/dep v0.1.0 => ./dep
+	example.com/testdep v0.1.0 => ./testdep
+)
+-- go.mod.tidy --
+module example.com/m
+
+go $goversion
+
+require example.com/dep v0.1.0
+
+replace (
+	example.com/dep v0.1.0 => ./dep
+	example.com/testdep v0.1.0 => ./testdep
+)
+-- vendor/example.com/dep/dep.go --
+package dep
+import _ "example.com/badedit"
+-- vendor/modules.txt --
+HAHAHA this is broken.
+
+-- m.go --
+package m
+
+import _ "example.com/dep"
+
+const x = 1_000
+
+-- dep/go.mod --
+module example.com/dep
+
+require example.com/testdep v0.1.0
+-- dep/dep.go --
+package dep
+-- dep/dep_test.go --
+package dep_test
+
+import _ "example.com/testdep"
+
+-- testdep/go.mod --
+module example.com/testdep
+-- testdep/testdep.go --
+package testdep
