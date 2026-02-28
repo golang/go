@@ -397,7 +397,7 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 		return nil, nil, nil, nil
 	}
 
-	if c.config.time().After(session.peerCertificates[0].NotAfter) {
+	if !c.config.InsecureSkipVerify && c.config.time().After(session.peerCertificates[0].NotAfter) {
 		// Expired certificate, delete the entry.
 		c.config.ClientSessionCache.Put(cacheKey, nil)
 		return nil, nil, nil, nil

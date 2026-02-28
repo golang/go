@@ -367,7 +367,8 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		if sessionHasClientCerts && c.config.ClientAuth == NoClientCert {
 			continue
 		}
-		if sessionHasClientCerts && c.config.time().After(sessionState.peerCertificates[0].NotAfter) {
+		if sessionHasClientCerts && c.config.ClientAuth >= VerifyClientCertIfGiven &&
+			c.config.time().After(sessionState.peerCertificates[0].NotAfter) {
 			continue
 		}
 		opts := x509.VerifyOptions{
