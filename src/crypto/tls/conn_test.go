@@ -230,6 +230,8 @@ func runDynamicRecordSizingTest(t *testing.T, config *Config) {
 }
 
 func TestDynamicRecordSizingWithStreamCipher(t *testing.T) {
+	skipFIPS(t) // No RC4 in FIPS mode.
+
 	config := testConfig.Clone()
 	config.MaxVersion = VersionTLS12
 	config.CipherSuites = []uint16{TLS_RSA_WITH_RC4_128_SHA}
@@ -237,6 +239,8 @@ func TestDynamicRecordSizingWithStreamCipher(t *testing.T) {
 }
 
 func TestDynamicRecordSizingWithCBC(t *testing.T) {
+	skipFIPS(t) // No CBC cipher suites in defaultCipherSuitesFIPS.
+
 	config := testConfig.Clone()
 	config.MaxVersion = VersionTLS12
 	config.CipherSuites = []uint16{TLS_RSA_WITH_AES_256_CBC_SHA}
@@ -284,4 +288,36 @@ func TestHairpinInClose(t *testing.T) {
 
 	// This call should not deadlock.
 	tlsConn.Close()
+}
+
+func TestRecordBadVersionTLS13(t *testing.T) {
+	client, server := localPipe(t)
+	defer server.Close()
+	defer client.Close()
+
+	config := testConfig.Clone()
+	config.MinVersion, config.MaxVersion = VersionTLS13, VersionTLS13
+
+	go func() {
+		tlsConn := Client(client, config)
+		if err := tlsConn.Handshake(); err != nil {
+			t.Errorf("Error from client handshake: %v", err)
+			return
+		}
+		tlsConn.vers = 0x1111
+		tlsConn.Write([]byte{1})
+	}()
+
+	tlsConn := Server(server, config)
+	if err := tlsConn.Handshake(); err != nil {
+		t.Errorf("Error from client handshake: %v", err)
+		return
+	}
+
+	expectedErr := "tls: received record with version 1111 when expecting version 303"
+
+	_, err := tlsConn.Read(make([]byte, 10))
+	if err.Error() != expectedErr {
+		t.Fatalf("unexpected error: got %q, want %q", err, expectedErr)
+	}
 }

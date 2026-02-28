@@ -10,3 +10,5 @@ const (
 	_KERN_PROC          = 14
 	_KERN_PROC_PATHNAME = 9
 )
+
+var executableMIB = [4]int32{_CTL_KERN, _KERN_PROC, _KERN_PROC_PATHNAME, -1}

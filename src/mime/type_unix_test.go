@@ -11,6 +11,7 @@ import (
 )
 
 func initMimeUnixTest(t *testing.T) {
+	once.Do(initMime)
 	err := loadMimeGlobsFile("testdata/test.types.globs2")
 	if err != nil {
 		t.Fatal(err)

@@ -75,7 +75,7 @@ func TestEncode(t *testing.T) {
 
 func TestEncoder(t *testing.T) {
 	for _, p := range pairs {
-		bb := &bytes.Buffer{}
+		bb := &strings.Builder{}
 		encoder := NewEncoder(bb)
 		encoder.Write([]byte(p.decoded))
 		encoder.Close()
@@ -86,7 +86,7 @@ func TestEncoder(t *testing.T) {
 func TestEncoderBuffering(t *testing.T) {
 	input := []byte(bigtest.decoded)
 	for bs := 1; bs <= 12; bs++ {
-		bb := &bytes.Buffer{}
+		bb := &strings.Builder{}
 		encoder := NewEncoder(bb)
 		for pos := 0; pos < len(input); pos += bs {
 			end := pos + bs
@@ -119,13 +119,10 @@ func TestDecoder(t *testing.T) {
 		decoder := NewDecoder(strings.NewReader(p.encoded))
 		dbuf, err := io.ReadAll(decoder)
 		if err != nil {
-			t.Fatal("Read failed", err)
+			t.Fatalf("Read from %q = %v, want nil", p.encoded, err)
 		}
 		testEqual(t, "Read from %q = length %v, want %v", p.encoded, len(dbuf), len(p.decoded))
 		testEqual(t, "Decoding of %q = %q, want %q", p.encoded, string(dbuf), p.decoded)
-		if err != nil {
-			testEqual(t, "Read from %q = %v, want %v", p.encoded, err, io.EOF)
-		}
 	}
 }
 

@@ -4,7 +4,10 @@
 
 package bzip2
 
-import "sort"
+import (
+	"cmp"
+	"slices"
+)
 
 // A huffmanTree is a binary tree which is navigated, bit-by-bit to reach a
 // symbol.
@@ -100,17 +103,11 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 		pairs[i].length = length
 	}
 
-	sort.Slice(pairs, func(i, j int) bool {
-		if pairs[i].length < pairs[j].length {
-			return true
+	slices.SortFunc(pairs, func(a, b huffmanSymbolLengthPair) int {
+		if c := cmp.Compare(a.length, b.length); c != 0 {
+			return c
 		}
-		if pairs[i].length > pairs[j].length {
-			return false
-		}
-		if pairs[i].value < pairs[j].value {
-			return true
-		}
-		return false
+		return cmp.Compare(a.value, b.value)
 	})
 
 	// Now we assign codes to the symbols, starting with the longest code.
@@ -135,8 +132,8 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 
 	// Now we can sort by the code so that the left half of each branch are
 	// grouped together, recursively.
-	sort.Slice(codes, func(i, j int) bool {
-		return codes[i].code < codes[j].code
+	slices.SortFunc(codes, func(a, b huffmanCode) int {
+		return cmp.Compare(a.code, b.code)
 	})
 
 	t.nodes = make([]huffmanNode, len(codes))

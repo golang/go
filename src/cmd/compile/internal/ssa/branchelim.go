@@ -21,10 +21,7 @@ import "cmd/internal/src"
 // rewrite Phis in the postdominator as CondSelects.
 func branchelim(f *Func) {
 	// FIXME: add support for lowering CondSelects on more architectures
-	switch f.Config.arch {
-	case "arm64", "ppc64le", "ppc64", "amd64", "wasm":
-		// implemented
-	default:
+	if !f.Config.haveCondSelect {
 		return
 	}
 
@@ -73,7 +70,8 @@ func branchelim(f *Func) {
 }
 
 func canCondSelect(v *Value, arch string, loadAddr *sparseSet) bool {
-	if loadAddr.contains(v.ID) {
+	if loadAddr != nil && // prove calls this on some multiplies and doesn't take care of loadAddrs
+		loadAddr.contains(v.ID) {
 		// The result of the soon-to-be conditional move is used to compute a load address.
 		// We want to avoid generating a conditional move in this case
 		// because the load address would now be data-dependent on the condition.
@@ -82,6 +80,15 @@ func canCondSelect(v *Value, arch string, loadAddr *sparseSet) bool {
 		// be an expensive cache miss).
 		// See issue #26306.
 		return false
+	}
+	if arch == "loong64" {
+		// We should not generate conditional moves if neither of the arguments is constant zero,
+		// because it requires three instructions (OR, MASKEQZ, MASKNEZ) and will increase the
+		// register pressure.
+		if !(v.Args[0].isGenericIntConst() && v.Args[0].AuxInt == 0) &&
+			!(v.Args[1].isGenericIntConst() && v.Args[1].AuxInt == 0) {
+			return false
+		}
 	}
 	// For now, stick to simple scalars that fit in registers
 	switch {
@@ -427,8 +434,15 @@ func canSpeculativelyExecute(b *Block) bool {
 	// don't fuse memory ops, Phi ops, divides (can panic),
 	// or anything else with side-effects
 	for _, v := range b.Values {
-		if v.Op == OpPhi || isDivMod(v.Op) || v.Type.IsMemory() ||
-			v.MemoryArg() != nil || opcodeTable[v.Op].hasSideEffects {
+		if v.Op == OpPhi || isDivMod(v.Op) || isPtrArithmetic(v.Op) ||
+			v.Type.IsMemory() || opcodeTable[v.Op].hasSideEffects {
+			return false
+		}
+
+		// Allow inlining markers to be speculatively executed
+		// even though they have a memory argument.
+		// See issue #74915.
+		if v.Op != OpInlMark && v.MemoryArg() != nil {
 			return false
 		}
 	}
@@ -442,6 +456,18 @@ func isDivMod(op Op) bool {
 		OpDiv32F, OpDiv64F,
 		OpMod8, OpMod8u, OpMod16, OpMod16u,
 		OpMod32, OpMod32u, OpMod64, OpMod64u:
+		return true
+	default:
+		return false
+	}
+}
+
+func isPtrArithmetic(op Op) bool {
+	// Pointer arithmetic can't be speculatively executed because the result
+	// may be an invalid pointer (if, for example, the condition is that the
+	// base pointer is not nil). See issue 56990.
+	switch op {
+	case OpOffPtr, OpAddPtr, OpSubPtr:
 		return true
 	default:
 		return false

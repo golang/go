@@ -234,29 +234,28 @@ func mapCompoundAssignmentString() {
 
 var sinkAppend bool
 
-// TODO: optimization is not applied because of mapslow flag.
 func mapAppendAssignmentInt8() {
 	m := make(map[int8][]int8, 0)
 	var k int8 = 0
 
-	// 386:".*mapaccess"
-	// amd64:".*mapaccess"
-	// arm:".*mapaccess"
-	// arm64:".*mapaccess"
+	// 386:-".*mapaccess"
+	// amd64:-".*mapaccess"
+	// arm:-".*mapaccess"
+	// arm64:-".*mapaccess"
 	m[k] = append(m[k], 1)
 
-	// 386:".*mapaccess"
-	// amd64:".*mapaccess"
-	// arm:".*mapaccess"
-	// arm64:".*mapaccess"
+	// 386:-".*mapaccess"
+	// amd64:-".*mapaccess"
+	// arm:-".*mapaccess"
+	// arm64:-".*mapaccess"
 	m[k] = append(m[k], 1, 2, 3)
 
 	a := []int8{7, 8, 9, 0}
 
-	// 386:".*mapaccess"
-	// amd64:".*mapaccess"
-	// arm:".*mapaccess"
-	// arm64:".*mapaccess"
+	// 386:-".*mapaccess"
+	// amd64:-".*mapaccess"
+	// arm:-".*mapaccess"
+	// arm64:-".*mapaccess"
 	m[k] = append(m[k], a...)
 
 	// Exceptions
@@ -394,29 +393,28 @@ func mapAppendAssignmentInt64() {
 	m[k] = append(m[k+1], 100)
 }
 
-// TODO: optimization is not applied because of mapslow flag.
 func mapAppendAssignmentComplex128() {
 	m := make(map[complex128][]complex128, 0)
 	var k complex128 = 0
 
-	// 386:".*mapaccess"
-	// amd64:".*mapaccess"
-	// arm:".*mapaccess"
-	// arm64:".*mapaccess"
+	// 386:-".*mapaccess"
+	// amd64:-".*mapaccess"
+	// arm:-".*mapaccess"
+	// arm64:-".*mapaccess"
 	m[k] = append(m[k], 1)
 
-	// 386:".*mapaccess"
-	// amd64:".*mapaccess"
-	// arm:".*mapaccess"
-	// arm64:".*mapaccess"
+	// 386:-".*mapaccess"
+	// amd64:-".*mapaccess"
+	// arm:-".*mapaccess"
+	// arm64:-".*mapaccess"
 	m[k] = append(m[k], 1, 2, 3)
 
 	a := []complex128{7, 8, 9, 0}
 
-	// 386:".*mapaccess"
-	// amd64:".*mapaccess"
-	// arm:".*mapaccess"
-	// arm64:".*mapaccess"
+	// 386:-".*mapaccess"
+	// amd64:-".*mapaccess"
+	// arm:-".*mapaccess"
+	// arm64:-".*mapaccess"
 	m[k] = append(m[k], a...)
 
 	// Exceptions

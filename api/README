@@ -21,3 +21,6 @@ warning output from the go api tool. Each file should be named
 nnnnn.txt, after the issue number for the accepted proposal.
 (The #nnnnn suffix must also appear at the end of each line in the file;
 that will be preserved when next/*.txt is concatenated into go1.XX.txt.)
+
+When you add a file to the api/next directory, you must add at least one file
+under doc/next. See doc/README.md for details.

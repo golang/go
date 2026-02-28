@@ -413,7 +413,7 @@ func testDWARF(t *testing.T, linktype int) {
 
 	var foundDebugGDBScriptsSection bool
 	for _, sect := range f.Sections {
-		if sect.Name == ".debug_gdb_scripts" {
+		if sect.Name == ".debug_gdb_scripts" || sect.Name == ".zdebug_gdb_scripts" {
 			foundDebugGDBScriptsSection = true
 		}
 	}
@@ -511,17 +511,9 @@ main(void)
 	if bss == nil {
 		t.Fatal("could not find .bss section")
 	}
-	data, err := bss.Data()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(data) == 0 {
-		t.Fatalf("%s file .bss section cannot be empty", objpath)
-	}
-	for _, b := range data {
-		if b != 0 {
-			t.Fatalf(".bss section has non zero bytes: %v", data)
-		}
+	// We expect an error from bss.Data, as there are no contents.
+	if _, err := bss.Data(); err == nil {
+		t.Error("bss.Data succeeded, expected error")
 	}
 }
 

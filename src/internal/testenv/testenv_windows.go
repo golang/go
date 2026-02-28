@@ -5,16 +5,14 @@
 package testenv
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
 	"syscall"
 )
 
-var symlinkOnce sync.Once
-var winSymlinkErr error
-
-func initWinHasSymlink() {
+var hasSymlink = sync.OnceValues(func() (bool, string) {
 	tmpdir, err := os.MkdirTemp("", "symtest")
 	if err != nil {
 		panic("failed to create temp directory: " + err.Error())
@@ -22,26 +20,13 @@ func initWinHasSymlink() {
 	defer os.RemoveAll(tmpdir)
 
 	err = os.Symlink("target", filepath.Join(tmpdir, "symlink"))
-	if err != nil {
-		err = err.(*os.LinkError).Err
-		switch err {
-		case syscall.EWINDOWS, syscall.ERROR_PRIVILEGE_NOT_HELD:
-			winSymlinkErr = err
-		}
-	}
-}
-
-func hasSymlink() (ok bool, reason string) {
-	symlinkOnce.Do(initWinHasSymlink)
-
-	switch winSymlinkErr {
-	case nil:
+	switch {
+	case err == nil:
 		return true, ""
-	case syscall.EWINDOWS:
+	case errors.Is(err, syscall.EWINDOWS):
 		return false, ": symlinks are not supported on your version of Windows"
-	case syscall.ERROR_PRIVILEGE_NOT_HELD:
+	case errors.Is(err, syscall.ERROR_PRIVILEGE_NOT_HELD):
 		return false, ": you don't have enough privileges to create symlinks"
 	}
-
 	return false, ""
-}
+})

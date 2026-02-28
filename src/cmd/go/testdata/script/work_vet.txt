@@ -1,5 +1,5 @@
 ! go vet ./a
-stderr 'fmt.Println call has possible formatting directive'
+stderr 'fmt.Println call has possible Printf formatting directive'
 
 -- go.work --
 go 1.18

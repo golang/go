@@ -6,14 +6,12 @@ package syscall
 
 import "unsafe"
 
-const _SYS_setgroups = SYS_SETGROUPS
-
-func EpollCreate(size int) (fd int, err error) {
-	if size <= 0 {
-		return -1, EINVAL
-	}
-	return EpollCreate1(0)
-}
+const (
+	_SYS_setgroups  = SYS_SETGROUPS
+	_SYS_clone3     = 435
+	_SYS_faccessat2 = 439
+	_SYS_fchmodat2  = 452
+)
 
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
 //sys	Fchown(fd int, uid int, gid int) (err error)
@@ -185,16 +183,6 @@ func utimes(path string, tv *[2]Timeval) (err error) {
 	return utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
 }
 
-// Getrlimit prefers the prlimit64 system call.
-func Getrlimit(resource int, rlim *Rlimit) error {
-	return prlimit(0, resource, nil, rlim)
-}
-
-// Setrlimit prefers the prlimit64 system call.
-func Setrlimit(resource int, rlim *Rlimit) error {
-	return prlimit(0, resource, rlim, nil)
-}
-
 func (r *PtraceRegs) GetEra() uint64 { return r.Era }
 
 func (r *PtraceRegs) SetEra(era uint64) { r.Era = era }
@@ -221,5 +209,3 @@ func Pause() error {
 	_, err := ppoll(nil, 0, nil, nil)
 	return err
 }
-
-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

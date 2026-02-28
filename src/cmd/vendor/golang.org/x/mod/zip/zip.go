@@ -10,31 +10,31 @@
 //
 // • All file paths within a zip file must start with "<module>@<version>/",
 // where "<module>" is the module path and "<version>" is the version.
-// The module path must be valid (see golang.org/x/mod/module.CheckPath).
+// The module path must be valid (see [golang.org/x/mod/module.CheckPath]).
 // The version must be valid and canonical (see
-// golang.org/x/mod/module.CanonicalVersion). The path must have a major
+// [golang.org/x/mod/module.CanonicalVersion]). The path must have a major
 // version suffix consistent with the version (see
-// golang.org/x/mod/module.Check). The part of the file path after the
+// [golang.org/x/mod/module.Check]). The part of the file path after the
 // "<module>@<version>/" prefix must be valid (see
-// golang.org/x/mod/module.CheckFilePath).
+// [golang.org/x/mod/module.CheckFilePath]).
 //
 // • No two file paths may be equal under Unicode case-folding (see
-// strings.EqualFold).
+// [strings.EqualFold]).
 //
 // • A go.mod file may or may not appear in the top-level directory. If present,
 // it must be named "go.mod", not any other case. Files named "go.mod"
 // are not allowed in any other directory.
 //
-// • The total size in bytes of a module zip file may be at most MaxZipFile
+// • The total size in bytes of a module zip file may be at most [MaxZipFile]
 // bytes (500 MiB). The total uncompressed size of the files within the
-// zip may also be at most MaxZipFile bytes.
+// zip may also be at most [MaxZipFile] bytes.
 //
 // • Each file's uncompressed size must match its declared 64-bit uncompressed
 // size in the zip file header.
 //
 // • If the zip contains files named "<module>@<version>/go.mod" or
 // "<module>@<version>/LICENSE", their sizes in bytes may be at most
-// MaxGoMod or MaxLICENSE, respectively (both are 16 MiB).
+// [MaxGoMod] or [MaxLICENSE], respectively (both are 16 MiB).
 //
 // • Empty directories are ignored. File permissions and timestamps are also
 // ignored.
@@ -42,7 +42,7 @@
 // • Symbolic links and other irregular files are not allowed.
 //
 // Note that this package does not provide hashing functionality. See
-// golang.org/x/mod/sumdb/dirhash.
+// [golang.org/x/mod/sumdb/dirhash].
 package zip
 
 import (
@@ -50,16 +50,18 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"go/version"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
 
@@ -118,8 +120,9 @@ type CheckedFiles struct {
 	SizeError error
 }
 
-// Err returns an error if CheckedFiles does not describe a valid module zip
-// file. SizeError is returned if that field is set. A FileErrorList is returned
+// Err returns an error if [CheckedFiles] does not describe a valid module zip
+// file. [CheckedFiles.SizeError] is returned if that field is set.
+// A [FileErrorList] is returned
 // if there are one or more invalid files. Other errors may be returned in the
 // future.
 func (cf CheckedFiles) Err() error {
@@ -192,6 +195,20 @@ func CheckFiles(files []File) (CheckedFiles, error) {
 	return cf, cf.Err()
 }
 
+// parseGoVers extracts the Go version specified in the given go.mod file.
+// It returns an empty string if the version is not found or if an error
+// occurs during file parsing.
+//
+// The version string is in Go toolchain name syntax, prefixed with "go".
+// Examples: "go1.21", "go1.22rc2", "go1.23.0"
+func parseGoVers(file string, data []byte) string {
+	mfile, err := modfile.ParseLax(file, data, nil)
+	if err != nil || mfile.Go == nil {
+		return ""
+	}
+	return "go" + mfile.Go.Version
+}
+
 // checkFiles implements CheckFiles and also returns lists of valid files and
 // their sizes, corresponding to cf.Valid. It omits files in submodules, files
 // in vendored packages, symlinked files, and various other unwanted files.
@@ -216,6 +233,7 @@ func checkFiles(files []File) (cf CheckedFiles, validFiles []File, validSizes []
 	// Files in these directories will be omitted.
 	// These directories will not be included in the output zip.
 	haveGoMod := make(map[string]bool)
+	var vers string
 	for _, f := range files {
 		p := f.Path()
 		dir, base := path.Split(p)
@@ -225,8 +243,21 @@ func checkFiles(files []File) (cf CheckedFiles, validFiles []File, validSizes []
 				addError(p, false, err)
 				continue
 			}
-			if info.Mode().IsRegular() {
-				haveGoMod[dir] = true
+			if !info.Mode().IsRegular() {
+				continue
+			}
+			haveGoMod[dir] = true
+			// Extract the Go language version from the root "go.mod" file.
+			// This ensures we correctly interpret Go version-specific file omissions.
+			// We use f.Open() to handle potential custom Open() implementations
+			// that the underlying File type might have.
+			if base == "go.mod" && dir == "" {
+				if file, err := f.Open(); err == nil {
+					if data, err := io.ReadAll(file); err == nil {
+						vers = version.Lang(parseGoVers("go.mod", data))
+					}
+					file.Close()
+				}
 			}
 		}
 	}
@@ -256,7 +287,7 @@ func checkFiles(files []File) (cf CheckedFiles, validFiles []File, validSizes []
 			addError(p, false, errPathNotRelative)
 			continue
 		}
-		if isVendoredPackage(p) {
+		if isVendoredPackage(p, vers) {
 			// Skip files in vendored packages.
 			addError(p, true, errVendored)
 			continue
@@ -322,17 +353,17 @@ func checkFiles(files []File) (cf CheckedFiles, validFiles []File, validSizes []
 }
 
 // CheckDir reports whether the files in dir satisfy the name and size
-// constraints listed in the package documentation. The returned CheckedFiles
+// constraints listed in the package documentation. The returned [CheckedFiles]
 // record contains lists of valid, invalid, and omitted files. If a directory is
 // omitted (for example, a nested module or vendor directory), it will appear in
 // the omitted list, but its files won't be listed.
 //
 // CheckDir returns an error if it encounters an I/O error or if the returned
-// CheckedFiles does not describe a valid module zip file (according to
-// CheckedFiles.Err). The returned CheckedFiles is still populated when such
+// [CheckedFiles] does not describe a valid module zip file (according to
+// [CheckedFiles.Err]). The returned [CheckedFiles] is still populated when such
 // an error is returned.
 //
-// Note that CheckDir will not open any files, so CreateFromDir may still fail
+// Note that CheckDir will not open any files, so [CreateFromDir] may still fail
 // when CheckDir is successful due to I/O errors.
 func CheckDir(dir string) (CheckedFiles, error) {
 	// List files (as CreateFromDir would) and check which ones are omitted
@@ -363,13 +394,13 @@ func CheckDir(dir string) (CheckedFiles, error) {
 // CheckZip reports whether the files contained in a zip file satisfy the name
 // and size constraints listed in the package documentation.
 //
-// CheckZip returns an error if the returned CheckedFiles does not describe
-// a valid module zip file (according to CheckedFiles.Err). The returned
+// CheckZip returns an error if the returned [CheckedFiles] does not describe
+// a valid module zip file (according to [CheckedFiles.Err]). The returned
 // CheckedFiles is still populated when an error is returned. CheckZip will
 // also return an error if the module path or version is malformed or if it
 // encounters an error reading the zip file.
 //
-// Note that CheckZip does not read individual files, so Unzip may still fail
+// Note that CheckZip does not read individual files, so [Unzip] may still fail
 // when CheckZip is successful due to I/O errors.
 func CheckZip(m module.Version, zipFile string) (CheckedFiles, error) {
 	f, err := os.Open(zipFile)
@@ -477,7 +508,7 @@ func checkZip(m module.Version, f *os.File) (*zip.Reader, CheckedFiles, error) {
 // and writes it to w.
 //
 // Create verifies the restrictions described in the package documentation
-// and should not produce an archive that Unzip cannot extract. Create does not
+// and should not produce an archive that [Unzip] cannot extract. Create does not
 // include files in the output archive if they don't belong in the module zip.
 // In particular, Create will not include files in modules found in
 // subdirectories, most files in vendor directories, or irregular files (such
@@ -544,12 +575,12 @@ func Create(w io.Writer, m module.Version, files []File) (err error) {
 // a directory, dir. The zip content is written to w.
 //
 // CreateFromDir verifies the restrictions described in the package
-// documentation and should not produce an archive that Unzip cannot extract.
+// documentation and should not produce an archive that [Unzip] cannot extract.
 // CreateFromDir does not include files in the output archive if they don't
 // belong in the module zip. In particular, CreateFromDir will not include
 // files in modules found in subdirectories, most files in vendor directories,
 // or irregular files (such as symbolic links) in the output archive.
-// Additionally, unlike Create, CreateFromDir will not include directories
+// Additionally, unlike [Create], CreateFromDir will not include directories
 // named ".bzr", ".git", ".hg", or ".svn".
 func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
 	defer func() {
@@ -572,7 +603,9 @@ func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
 // VCS repository stored locally. The zip content is written to w.
 //
 // repoRoot must be an absolute path to the base of the repository, such as
-// "/Users/some-user/some-repo".
+// "/Users/some-user/some-repo". If the repository is a Git repository,
+// this path is expected to point to its worktree: it can't be a bare git
+// repo.
 //
 // revision is the revision of the repository to create the zip from. Examples
 // include HEAD or SHA sums for git repositories.
@@ -581,8 +614,8 @@ func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
 // "sub/dir". To create a zip from the base of the repository, pass an empty
 // string.
 //
-// If CreateFromVCS returns ErrUnrecognizedVCS, consider falling back to
-// CreateFromDir.
+// If CreateFromVCS returns [UnrecognizedVCSError], consider falling back to
+// [CreateFromDir].
 func CreateFromVCS(w io.Writer, m module.Version, repoRoot, revision, subdir string) (err error) {
 	defer func() {
 		if zerr, ok := err.(*zipError); ok {
@@ -619,7 +652,7 @@ func (e *UnrecognizedVCSError) Error() string {
 	return fmt.Sprintf("could not find a recognized version control system at %q", e.RepoRoot)
 }
 
-// filterGitIgnored filters out any files that are git ignored in the directory.
+// filesInGitRepo filters out any files that are git ignored in the directory.
 func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
 	stderr := bytes.Buffer{}
 	stdout := bytes.Buffer{}
@@ -641,6 +674,7 @@ func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
 		cmd.Args = append(cmd.Args, subdir)
 	}
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "PWD="+dir)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
@@ -653,6 +687,7 @@ func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
 		return nil, err
 	}
 
+	haveLICENSE := false
 	var fs []File
 	for _, zf := range zipReader.File {
 		if !strings.HasPrefix(zf.Name, subdir) || strings.HasSuffix(zf.Name, "/") {
@@ -663,12 +698,29 @@ func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
 		if n == "" {
 			continue
 		}
-		n = strings.TrimPrefix(n, string(filepath.Separator))
+		n = strings.TrimPrefix(n, "/")
 
 		fs = append(fs, zipFile{
 			name: n,
 			f:    zf,
 		})
+		if n == "LICENSE" {
+			haveLICENSE = true
+		}
+	}
+
+	if !haveLICENSE && subdir != "" {
+		// Note: this method of extracting the license from the root copied from
+		// https://go.googlesource.com/go/+/refs/tags/go1.20.4/src/cmd/go/internal/modfetch/coderepo.go#1118
+		// https://go.googlesource.com/go/+/refs/tags/go1.20.4/src/cmd/go/internal/modfetch/codehost/git.go#657
+		cmd := exec.Command("git", "cat-file", "blob", rev+":LICENSE")
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "PWD="+dir)
+		stdout := bytes.Buffer{}
+		cmd.Stdout = &stdout
+		if err := cmd.Run(); err == nil {
+			fs = append(fs, dataFile{name: "LICENSE", data: stdout.Bytes()})
+		}
 	}
 
 	return fs, nil
@@ -679,11 +731,12 @@ func isGitRepo(dir string) bool {
 	stdout := &bytes.Buffer{}
 	cmd := exec.Command("git", "rev-parse", "--git-dir")
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "PWD="+dir)
 	cmd.Stdout = stdout
 	if err := cmd.Run(); err != nil {
 		return false
 	}
-	gitDir := strings.TrimSpace(string(stdout.Bytes()))
+	gitDir := strings.TrimSpace(stdout.String())
 	if !filepath.IsAbs(gitDir) {
 		gitDir = filepath.Join(dir, gitDir)
 	}
@@ -709,24 +762,66 @@ func (f zipFile) Path() string                 { return f.name }
 func (f zipFile) Lstat() (os.FileInfo, error)  { return f.f.FileInfo(), nil }
 func (f zipFile) Open() (io.ReadCloser, error) { return f.f.Open() }
 
+type dataFile struct {
+	name string
+	data []byte
+}
+
+func (f dataFile) Path() string                 { return f.name }
+func (f dataFile) Lstat() (os.FileInfo, error)  { return dataFileInfo{f}, nil }
+func (f dataFile) Open() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(f.data)), nil }
+
+type dataFileInfo struct {
+	f dataFile
+}
+
+func (fi dataFileInfo) Name() string       { return path.Base(fi.f.name) }
+func (fi dataFileInfo) Size() int64        { return int64(len(fi.f.data)) }
+func (fi dataFileInfo) Mode() os.FileMode  { return 0644 }
+func (fi dataFileInfo) ModTime() time.Time { return time.Time{} }
+func (fi dataFileInfo) IsDir() bool        { return false }
+func (fi dataFileInfo) Sys() any           { return nil }
+
 // isVendoredPackage attempts to report whether the given filename is contained
 // in a package whose import path contains (but does not end with) the component
 // "vendor".
 //
-// Unfortunately, isVendoredPackage reports false positives for files in any
-// non-top-level package whose import path ends in "vendor".
-func isVendoredPackage(name string) bool {
+// The 'vers' parameter specifies the Go version declared in the module's
+// go.mod file and must be a valid Go version according to the
+// go/version.IsValid function.
+// Vendoring behavior has evolved across Go versions, so this function adapts
+// its logic accordingly.
+func isVendoredPackage(name string, vers string) bool {
+	// vendor/modules.txt is a vendored package but was included in 1.23 and earlier.
+	// Remove vendor/modules.txt only for 1.24 and beyond to preserve older checksums.
+	if version.Compare(vers, "go1.24") >= 0 && name == "vendor/modules.txt" {
+		return true
+	}
 	var i int
 	if strings.HasPrefix(name, "vendor/") {
 		i += len("vendor/")
 	} else if j := strings.Index(name, "/vendor/"); j >= 0 {
-		// This offset looks incorrect; this should probably be
+		// Calculate the correct starting position within the import path
+		// to determine if a package is vendored.
 		//
-		// 	i = j + len("/vendor/")
+		// Due to a bug in Go versions before 1.24
+		// (see https://golang.org/issue/37397), the "/vendor/" prefix within
+		// a package path was not always correctly interpreted.
 		//
-		// (See https://golang.org/issue/31562 and https://golang.org/issue/37397.)
-		// Unfortunately, we can't fix it without invalidating module checksums.
-		i += len("/vendor/")
+		// This bug affected how vendored packages were identified in cases like:
+		//
+		//   - "pkg/vendor/vendor.go"   (incorrectly identified as vendored in pre-1.24)
+		//   - "pkg/vendor/foo/foo.go" (correctly identified as vendored)
+		//
+		// To correct this, in Go 1.24 and later, we skip the entire "/vendor/" prefix
+		// when it's part of a nested package path (as in the first example above).
+		// In earlier versions, we only skipped the length of "/vendor/", leading
+		// to the incorrect behavior.
+		if version.Compare(vers, "go1.24") >= 0 {
+			i = j + len("/vendor/")
+		} else {
+			i += len("/vendor/")
+		}
 	} else {
 		return false
 	}
@@ -751,7 +846,7 @@ func Unzip(dir string, m module.Version, zipFile string) (err error) {
 
 	// Check that the directory is empty. Don't create it yet in case there's
 	// an error reading the zip.
-	if files, _ := ioutil.ReadDir(dir); len(files) > 0 {
+	if files, _ := os.ReadDir(dir); len(files) > 0 {
 		return fmt.Errorf("target directory %v exists and is not empty", dir)
 	}
 
@@ -851,6 +946,12 @@ func (cc collisionChecker) check(p string, isDir bool) error {
 // files, as well as a list of directories and files that were skipped (for
 // example, nested modules and symbolic links).
 func listFilesInDir(dir string) (files []File, omitted []FileError, err error) {
+	// Extract the Go language version from the root "go.mod" file.
+	// This ensures we correctly interpret Go version-specific file omissions.
+	var vers string
+	if data, err := os.ReadFile(filepath.Join(dir, "go.mod")); err == nil {
+		vers = version.Lang(parseGoVers("go.mod", data))
+	}
 	err = filepath.Walk(dir, func(filePath string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -861,11 +962,10 @@ func listFilesInDir(dir string) (files []File, omitted []FileError, err error) {
 		}
 		slashPath := filepath.ToSlash(relPath)
 
-		// Skip some subdirectories inside vendor, but maintain bug
-		// golang.org/issue/31562, described in isVendoredPackage.
+		// Skip some subdirectories inside vendor.
 		// We would like Create and CreateFromDir to produce the same result
 		// for a set of files, whether expressed as a directory tree or zip.
-		if isVendoredPackage(slashPath) {
+		if isVendoredPackage(slashPath, vers) {
 			omitted = append(omitted, FileError{Path: slashPath, Err: errVendored})
 			return nil
 		}

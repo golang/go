@@ -42,8 +42,16 @@ type http2noDialClientConnPool struct {
 
 type http2clientConnPool struct {
 	mu    *sync.Mutex
-	conns map[string][]struct{}
+	conns map[string][]*http2clientConn
 }
+
+type http2clientConn struct{}
+
+type http2clientConnIdleState struct {
+	canTakeNewRequest bool
+}
+
+func (cc *http2clientConn) idleState() http2clientConnIdleState { return http2clientConnIdleState{} }
 
 func http2configureTransports(*Transport) (*http2Transport, error) { panic(noHTTP2) }
 

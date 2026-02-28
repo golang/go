@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // This is a mini version of the stringer tool customized for the Anames table
 // in the architecture support for obj.

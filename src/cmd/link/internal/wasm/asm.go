@@ -6,10 +6,14 @@ package wasm
 
 import (
 	"bytes"
+	"cmd/internal/obj"
+	"cmd/internal/obj/wasm"
 	"cmd/internal/objabi"
 	"cmd/link/internal/ld"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
+	"fmt"
+	"internal/abi"
 	"internal/buildcfg"
 	"io"
 	"regexp"
@@ -44,9 +48,10 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 }
 
 type wasmFunc struct {
-	Name string
-	Type uint32
-	Code []byte
+	Module string
+	Name   string
+	Type   uint32
+	Code   []byte
 }
 
 type wasmFuncType struct {
@@ -54,22 +59,39 @@ type wasmFuncType struct {
 	Results []byte
 }
 
+func readWasmImport(ldr *loader.Loader, s loader.Sym) obj.WasmImport {
+	var wi obj.WasmImport
+	wi.Read(ldr.Data(s))
+	return wi
+}
+
 var wasmFuncTypes = map[string]*wasmFuncType{
-	"_rt0_wasm_js":           {Params: []byte{}},                                         //
-	"wasm_export_run":        {Params: []byte{I32, I32}},                                 // argc, argv
-	"wasm_export_resume":     {Params: []byte{}},                                         //
-	"wasm_export_getsp":      {Results: []byte{I32}},                                     // sp
-	"wasm_pc_f_loop":         {Params: []byte{}},                                         //
-	"runtime.wasmMove":       {Params: []byte{I32, I32, I32}},                            // dst, src, len
-	"runtime.wasmZero":       {Params: []byte{I32, I32}},                                 // ptr, len
-	"runtime.wasmDiv":        {Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
-	"runtime.wasmTruncS":     {Params: []byte{F64}, Results: []byte{I64}},                // x -> int(x)
-	"runtime.wasmTruncU":     {Params: []byte{F64}, Results: []byte{I64}},                // x -> uint(x)
-	"runtime.gcWriteBarrier": {Params: []byte{I64, I64}},                                 // ptr, val
-	"cmpbody":                {Params: []byte{I64, I64, I64, I64}, Results: []byte{I64}}, // a, alen, b, blen -> -1/0/1
-	"memeqbody":              {Params: []byte{I64, I64, I64}, Results: []byte{I64}},      // a, b, len -> 0/1
-	"memcmp":                 {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // a, b, len -> <0/0/>0
-	"memchr":                 {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // s, c, len -> index
+	"_rt0_wasm_js":            {Params: []byte{}},                                         //
+	"_rt0_wasm_wasip1":        {Params: []byte{}},                                         //
+	"_rt0_wasm_wasip1_lib":    {Params: []byte{}},                                         //
+	"wasm_export__start":      {},                                                         //
+	"wasm_export_run":         {Params: []byte{I32, I32}},                                 // argc, argv
+	"wasm_export_resume":      {Params: []byte{}},                                         //
+	"wasm_export_getsp":       {Results: []byte{I32}},                                     // sp
+	"wasm_pc_f_loop":          {Params: []byte{}},                                         //
+	"wasm_pc_f_loop_export":   {Params: []byte{I32}},                                      // pc_f
+	"runtime.wasmDiv":         {Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
+	"runtime.wasmTruncS":      {Params: []byte{F64}, Results: []byte{I64}},                // x -> int(x)
+	"runtime.wasmTruncU":      {Params: []byte{F64}, Results: []byte{I64}},                // x -> uint(x)
+	"gcWriteBarrier":          {Params: []byte{I64}, Results: []byte{I64}},                // #bytes -> bufptr
+	"runtime.gcWriteBarrier1": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.gcWriteBarrier2": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.gcWriteBarrier3": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.gcWriteBarrier4": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.gcWriteBarrier5": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.gcWriteBarrier6": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.gcWriteBarrier7": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.gcWriteBarrier8": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.notInitialized":  {},                                                         //
+	"cmpbody":                 {Params: []byte{I64, I64, I64, I64}, Results: []byte{I64}}, // a, alen, b, blen -> -1/0/1
+	"memeqbody":               {Params: []byte{I64, I64, I64}, Results: []byte{I64}},      // a, b, len -> 0/1
+	"memcmp":                  {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // a, b, len -> <0/0/>0
+	"memchr":                  {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // s, c, len -> index
 }
 
 func assignAddress(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, va uint64, isTramp bool) (*sym.Section, int, uint64) {
@@ -88,8 +110,8 @@ func assignAddress(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, v
 	// However, there is no PC register, only PC_F and PC_B. PC_F denotes the function,
 	// PC_B the resume point inside of that function. The entry of the function has PC_B = 0.
 	ldr.SetSymSect(s, sect)
-	ldr.SetSymValue(s, int64(funcValueOffset+va/ld.MINFUNC)<<16) // va starts at zero
-	va += uint64(ld.MINFUNC)
+	ldr.SetSymValue(s, int64(funcValueOffset+va/abi.MINFUNC)<<16) // va starts at zero
+	va += uint64(abi.MINFUNC)
 	return sect, n, va
 }
 
@@ -103,9 +125,10 @@ var dataSects []wasmDataSect
 func asmb(ctxt *ld.Link, ldr *loader.Loader) {
 	sections := []*sym.Section{
 		ldr.SymSect(ldr.Lookup("runtime.rodata", 0)),
-		ldr.SymSect(ldr.Lookup("runtime.typelink", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.itablink", 0)),
-		ldr.SymSect(ldr.Lookup("runtime.symtab", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.types", 0)),
+		ldr.SymSect(ldr.Lookup("go:funcdesc", 0)),
+		ldr.SymSect(ldr.Lookup("runtime.firstmoduledata", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.pclntab", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.noptrdata", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.data", 0)),
@@ -130,23 +153,30 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 	}
 
 	// collect host imports (functions that get imported from the WebAssembly host, usually JavaScript)
-	hostImports := []*wasmFunc{
-		{
-			Name: "debug",
-			Type: lookupType(&wasmFuncType{Params: []byte{I32}}, &types),
-		},
-	}
+	// we store the import index of each imported function, so the R_WASMIMPORT relocation
+	// can write the correct index after a "call" instruction
+	// these are added as import statements to the top of the WebAssembly binary
+	var hostImports []*wasmFunc
 	hostImportMap := make(map[loader.Sym]int64)
 	for _, fn := range ctxt.Textp {
 		relocs := ldr.Relocs(fn)
 		for ri := 0; ri < relocs.Count(); ri++ {
 			r := relocs.At(ri)
 			if r.Type() == objabi.R_WASMIMPORT {
-				hostImportMap[r.Sym()] = int64(len(hostImports))
-				hostImports = append(hostImports, &wasmFunc{
-					Name: ldr.SymName(r.Sym()),
-					Type: lookupType(&wasmFuncType{Params: []byte{I32}}, &types),
-				})
+				if wsym := ldr.WasmImportSym(fn); wsym != 0 {
+					wi := readWasmImport(ldr, wsym)
+					hostImportMap[fn] = int64(len(hostImports))
+					hostImports = append(hostImports, &wasmFunc{
+						Module: wi.Module,
+						Name:   wi.Name,
+						Type: lookupType(&wasmFuncType{
+							Params:  fieldsToTypes(wi.Params),
+							Results: fieldsToTypes(wi.Results),
+						}, &types),
+					})
+				} else {
+					panic(fmt.Sprintf("missing wasm symbol for %s", ldr.SymName(r.Sym())))
+				}
 			}
 		}
 	}
@@ -156,7 +186,7 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 	fns := make([]*wasmFunc, len(ctxt.Textp))
 	for i, fn := range ctxt.Textp {
 		wfn := new(bytes.Buffer)
-		if ldr.SymName(fn) == "go.buildid" {
+		if ldr.SymName(fn) == "go:buildid" {
 			writeUleb128(wfn, 0) // number of sets of locals
 			writeI32Const(wfn, 0)
 			wfn.WriteByte(0x0b) // end
@@ -192,6 +222,15 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 		typ := uint32(0)
 		if sig, ok := wasmFuncTypes[ldr.SymName(fn)]; ok {
 			typ = lookupType(sig, &types)
+		}
+		if s := ldr.WasmTypeSym(fn); s != 0 {
+			var o obj.WasmFuncType
+			o.Read(ldr.Data(s))
+			t := &wasmFuncType{
+				Params:  fieldsToTypes(o.Params),
+				Results: fieldsToTypes(o.Results),
+			}
+			typ = lookupType(t, &types)
 		}
 
 		name := nameRegexp.ReplaceAllString(ldr.SymName(fn), "_")
@@ -248,7 +287,7 @@ func writeSecSize(ctxt *ld.Link, sizeOffset int64) {
 
 func writeBuildID(ctxt *ld.Link, buildid []byte) {
 	sizeOffset := writeSecHeader(ctxt, sectionCustom)
-	writeName(ctxt.Out, "go.buildid")
+	writeName(ctxt.Out, "go:buildid")
 	ctxt.Out.Write(buildid)
 	writeSecSize(ctxt, sizeOffset)
 }
@@ -264,11 +303,11 @@ func writeTypeSec(ctxt *ld.Link, types []*wasmFuncType) {
 		ctxt.Out.WriteByte(0x60) // functype
 		writeUleb128(ctxt.Out, uint64(len(t.Params)))
 		for _, v := range t.Params {
-			ctxt.Out.WriteByte(byte(v))
+			ctxt.Out.WriteByte(v)
 		}
 		writeUleb128(ctxt.Out, uint64(len(t.Results)))
 		for _, v := range t.Results {
-			ctxt.Out.WriteByte(byte(v))
+			ctxt.Out.WriteByte(v)
 		}
 	}
 
@@ -282,7 +321,11 @@ func writeImportSec(ctxt *ld.Link, hostImports []*wasmFunc) {
 
 	writeUleb128(ctxt.Out, uint64(len(hostImports))) // number of imports
 	for _, fn := range hostImports {
-		writeName(ctxt.Out, "go") // provided by the import object in wasm_exec.js
+		if fn.Module != "" {
+			writeName(ctxt.Out, fn.Module)
+		} else {
+			writeName(ctxt.Out, wasm.GojsModule) // provided by the import object in wasm_exec.js
+		}
 		writeName(ctxt.Out, fn.Name)
 		ctxt.Out.WriteByte(0x00) // func import
 		writeUleb128(ctxt.Out, uint64(fn.Type))
@@ -324,9 +367,8 @@ func writeTableSec(ctxt *ld.Link, fns []*wasmFunc) {
 func writeMemorySec(ctxt *ld.Link, ldr *loader.Loader) {
 	sizeOffset := writeSecHeader(ctxt, sectionMemory)
 
-	dataSection := ldr.SymSect(ldr.Lookup("runtime.data", 0))
-	dataEnd := dataSection.Vaddr + dataSection.Length
-	var initialSize = dataEnd + 16<<20 // 16MB, enough for runtime init without growing
+	dataEnd := uint64(ldr.SymValue(ldr.Lookup("runtime.end", 0)))
+	var initialSize = dataEnd + 1<<20 // 1 MB, for runtime init allocating a few pages
 
 	const wasmPageSize = 64 << 10 // 64KB
 
@@ -375,19 +417,59 @@ func writeGlobalSec(ctxt *ld.Link) {
 func writeExportSec(ctxt *ld.Link, ldr *loader.Loader, lenHostImports int) {
 	sizeOffset := writeSecHeader(ctxt, sectionExport)
 
-	writeUleb128(ctxt.Out, 4) // number of exports
-
-	for _, name := range []string{"run", "resume", "getsp"} {
-		s := ldr.Lookup("wasm_export_"+name, 0)
+	switch buildcfg.GOOS {
+	case "wasip1":
+		writeUleb128(ctxt.Out, uint64(2+len(ldr.WasmExports))) // number of exports
+		var entry, entryExpName string
+		switch ctxt.BuildMode {
+		case ld.BuildModeExe:
+			entry = "_rt0_wasm_wasip1"
+			entryExpName = "_start"
+		case ld.BuildModeCShared:
+			entry = "_rt0_wasm_wasip1_lib"
+			entryExpName = "_initialize"
+		}
+		s := ldr.Lookup(entry, 0)
+		if s == 0 {
+			ld.Errorf("export symbol %s not defined", entry)
+		}
 		idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
-		writeName(ctxt.Out, name)           // inst.exports.run/resume/getsp in wasm_exec.js
+		writeName(ctxt.Out, entryExpName)   // the wasi entrypoint
 		ctxt.Out.WriteByte(0x00)            // func export
 		writeUleb128(ctxt.Out, uint64(idx)) // funcidx
+		for _, s := range ldr.WasmExports {
+			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+			writeName(ctxt.Out, ldr.SymName(s))
+			ctxt.Out.WriteByte(0x00)            // func export
+			writeUleb128(ctxt.Out, uint64(idx)) // funcidx
+		}
+		writeName(ctxt.Out, "memory") // memory in wasi
+		ctxt.Out.WriteByte(0x02)      // mem export
+		writeUleb128(ctxt.Out, 0)     // memidx
+	case "js":
+		writeUleb128(ctxt.Out, uint64(4+len(ldr.WasmExports))) // number of exports
+		for _, name := range []string{"run", "resume", "getsp"} {
+			s := ldr.Lookup("wasm_export_"+name, 0)
+			if s == 0 {
+				ld.Errorf("export symbol %s not defined", "wasm_export_"+name)
+			}
+			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+			writeName(ctxt.Out, name)           // inst.exports.run/resume/getsp in wasm_exec.js
+			ctxt.Out.WriteByte(0x00)            // func export
+			writeUleb128(ctxt.Out, uint64(idx)) // funcidx
+		}
+		for _, s := range ldr.WasmExports {
+			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+			writeName(ctxt.Out, ldr.SymName(s))
+			ctxt.Out.WriteByte(0x00)            // func export
+			writeUleb128(ctxt.Out, uint64(idx)) // funcidx
+		}
+		writeName(ctxt.Out, "mem") // inst.exports.mem in wasm_exec.js
+		ctxt.Out.WriteByte(0x02)   // mem export
+		writeUleb128(ctxt.Out, 0)  // memidx
+	default:
+		ld.Exitf("internal error: writeExportSec: unrecognized GOOS %s", buildcfg.GOOS)
 	}
-
-	writeName(ctxt.Out, "mem") // inst.exports.mem in wasm_exec.js
-	ctxt.Out.WriteByte(0x02)   // mem export
-	writeUleb128(ctxt.Out, 0)  // memidx
 
 	writeSecSize(ctxt, sizeOffset)
 }
@@ -412,7 +494,7 @@ func writeElementSec(ctxt *ld.Link, numImports, numFns uint64) {
 	writeSecSize(ctxt, sizeOffset)
 }
 
-// writeElementSec writes the section that provides the function bodies for the functions
+// writeCodeSec writes the section that provides the function bodies for the functions
 // declared by the "func" section.
 func writeCodeSec(ctxt *ld.Link, fns []*wasmFunc) {
 	sizeOffset := writeSecHeader(ctxt, sectionCode)
@@ -520,7 +602,7 @@ func writeProducerSec(ctxt *ld.Link) {
 	writeSecSize(ctxt, sizeOffset)
 }
 
-var nameRegexp = regexp.MustCompile(`[^\w\.]`)
+var nameRegexp = regexp.MustCompile(`[^\w.]`)
 
 // writeNameSec writes an optional section that assigns names to the functions declared by the "func" section.
 // The names are only used by WebAssembly stack traces, debuggers and decompilers.
@@ -603,4 +685,23 @@ func writeSleb128(w io.ByteWriter, v int64) {
 		}
 		w.WriteByte(c)
 	}
+}
+
+func fieldsToTypes(fields []obj.WasmField) []byte {
+	b := make([]byte, len(fields))
+	for i, f := range fields {
+		switch f.Type {
+		case obj.WasmI32, obj.WasmPtr, obj.WasmBool:
+			b[i] = I32
+		case obj.WasmI64:
+			b[i] = I64
+		case obj.WasmF32:
+			b[i] = F32
+		case obj.WasmF64:
+			b[i] = F64
+		default:
+			panic(fmt.Sprintf("fieldsToTypes: unknown field type: %d", f.Type))
+		}
+	}
+	return b
 }

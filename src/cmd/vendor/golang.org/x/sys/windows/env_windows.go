@@ -37,14 +37,17 @@ func (token Token) Environ(inheritExisting bool) (env []string, err error) {
 		return nil, err
 	}
 	defer DestroyEnvironmentBlock(block)
-	blockp := uintptr(unsafe.Pointer(block))
-	for {
-		entry := UTF16PtrToString((*uint16)(unsafe.Pointer(blockp)))
-		if len(entry) == 0 {
-			break
+	size := unsafe.Sizeof(*block)
+	for *block != 0 {
+		// find NUL terminator
+		end := unsafe.Pointer(block)
+		for *(*uint16)(end) != 0 {
+			end = unsafe.Add(end, size)
 		}
-		env = append(env, entry)
-		blockp += 2 * (uintptr(len(entry)) + 1)
+
+		entry := unsafe.Slice(block, (uintptr(end)-uintptr(unsafe.Pointer(block)))/size)
+		env = append(env, UTF16ToString(entry))
+		block = (*uint16)(unsafe.Add(end, size))
 	}
 	return env, nil
 }

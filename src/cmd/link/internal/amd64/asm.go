@@ -40,10 +40,6 @@ import (
 	"log"
 )
 
-func PADDR(x uint32) uint32 {
-	return x &^ 0x80000000
-}
-
 func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
 	if initfunc == nil {
@@ -185,6 +181,38 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		}
 		return true
 
+	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SUBTRACTOR*2 + 0:
+		// X86_64_RELOC_SUBTRACTOR must be followed by X86_64_RELOC_UNSIGNED.
+		// The pair of relocations resolves to the difference between two
+		// symbol addresses (each relocation specifies a symbol).
+		// See Darwin's header file include/mach-o/x86_64/reloc.h.
+		// ".quad _foo - _bar" is expressed as
+		// r_type=X86_64_RELOC_SUBTRACTOR, r_length=3, r_extern=1, r_pcrel=0, r_symbolnum=_bar
+		// r_type=X86_64_RELOC_UNSIGNED, r_length=3, r_extern=1, r_pcrel=0, r_symbolnum=_foo
+		//
+		// For the cases we care (the race syso), the symbol being subtracted
+		// out is always in the current section, so we can just convert it to
+		// a PC-relative relocation, with the addend adjusted.
+		// If later we need the more general form, we can introduce objabi.R_DIFF
+		// that works like this Mach-O relocation.
+		su := ldr.MakeSymbolUpdater(s)
+		outer, off := ld.FoldSubSymbolOffset(ldr, targ)
+		if outer != s {
+			ldr.Errorf(s, "unsupported X86_64_RELOC_SUBTRACTOR reloc: target %s, outer %s",
+				ldr.SymName(targ), ldr.SymName(outer))
+			break
+		}
+		relocs := su.Relocs()
+		if rIdx+1 >= relocs.Count() || relocs.At(rIdx+1).Type() != objabi.MachoRelocOffset+ld.MACHO_X86_64_RELOC_UNSIGNED*2+0 || relocs.At(rIdx+1).Off() != r.Off() {
+			ldr.Errorf(s, "unexpected X86_64_RELOC_SUBTRACTOR reloc, must be followed by X86_64_RELOC_UNSIGNED at the same offset: %d %v %d", rIdx, relocs.At(rIdx+1).Type(), relocs.At(rIdx+1).Off())
+		}
+		// The second relocation has the target symbol we want
+		su.SetRelocType(rIdx+1, objabi.R_PCREL)
+		su.SetRelocAdd(rIdx+1, r.Add()+int64(r.Off())+int64(r.Siz())-off)
+		// Remove the other relocation
+		su.SetRelocSiz(rIdx, 0)
+		return true
+
 	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 1:
 		if targType == sym.SDYNIMPORT {
 			addpltsym(target, ldr, syms, targ)
@@ -245,8 +273,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	r = relocs.At(rIdx)
 
 	switch r.Type() {
-	case objabi.R_CALL,
-		objabi.R_PCREL:
+	case objabi.R_CALL:
 		if targType != sym.SDYNIMPORT {
 			// nothing to do, the relocation will be laid out in reloc
 			return true
@@ -263,8 +290,32 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
 		return true
 
+	case objabi.R_PCREL:
+		if targType == sym.SDYNIMPORT && ldr.SymType(s).IsText() && target.IsDarwin() {
+			// Loading the address of a dynamic symbol. Rewrite to use GOT.
+			// turn LEAQ symbol address to MOVQ of GOT entry
+			if r.Add() != 0 {
+				ldr.Errorf(s, "unexpected nonzero addend for dynamic symbol %s", ldr.SymName(targ))
+				return false
+			}
+			su := ldr.MakeSymbolUpdater(s)
+			if r.Off() >= 2 && su.Data()[r.Off()-2] == 0x8d {
+				su.MakeWritable()
+				su.Data()[r.Off()-2] = 0x8b
+				if target.IsInternal() {
+					ld.AddGotSym(target, ldr, syms, targ, 0)
+					su.SetRelocSym(rIdx, syms.GOT)
+					su.SetRelocAdd(rIdx, int64(ldr.SymGot(targ)))
+				} else {
+					su.SetRelocType(rIdx, objabi.R_GOTPCREL)
+				}
+				return true
+			}
+			ldr.Errorf(s, "unexpected R_PCREL reloc for dynamic symbol %s: not preceded by LEAQ instruction", ldr.SymName(targ))
+		}
+
 	case objabi.R_ADDR:
-		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
+		if ldr.SymType(s).IsText() && target.IsElf() {
 			su := ldr.MakeSymbolUpdater(s)
 			if target.IsSolaris() {
 				addpltsym(target, ldr, syms, targ)
@@ -326,7 +377,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// linking, in which case the relocation will be
 			// prepared in the 'reloc' phase and passed to the
 			// external linker in the 'asmb' phase.
-			if ldr.SymType(s) != sym.SDATA && ldr.SymType(s) != sym.SRODATA {
+			if t := ldr.SymType(s); !t.IsDATA() && !t.IsRODATA() {
 				break
 			}
 		}
@@ -356,7 +407,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			} else {
 				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
 			}
-			rela.AddAddrPlus(target.Arch, targ, int64(r.Add()))
+			rela.AddAddrPlus(target.Arch, targ, r.Add())
 			// Not mark r done here. So we still apply it statically,
 			// so in the file content we'll also have the right offset
 			// to the relocation target. So it can be examined statically
@@ -375,6 +426,13 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// (e.g. go version).
 			return true
 		}
+	case objabi.R_GOTPCREL:
+		if target.IsExternal() {
+			// External linker will do this relocation.
+			return true
+		}
+		// We only need to handle external linking mode, as R_GOTPCREL can
+		// only occur in plugin or shared build modes.
 	}
 
 	return false
@@ -446,7 +504,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 	rs := r.Xsym
 	rt := r.Type
 
-	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_PCREL || rt == objabi.R_GOTPCREL || rt == objabi.R_CALL {
+	if !ldr.SymType(s).IsDWARF() {
 		if ldr.SymDynid(rs) < 0 {
 			ldr.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
 			return false
@@ -532,6 +590,9 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 			v = ld.IMAGE_REL_AMD64_ADDR32
 		}
 
+	case objabi.R_PEIMAGEOFF:
+		v = ld.IMAGE_REL_AMD64_ADDR32NB
+
 	case objabi.R_CALL,
 		objabi.R_PCREL:
 		v = ld.IMAGE_REL_AMD64_REL32
@@ -551,7 +612,7 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
 	return -1
 }
 
-func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
 	if plt.Size() == 0 {
 		// pushq got+8(IP)
 		plt.AddUint8(0xff)

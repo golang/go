@@ -106,7 +106,7 @@ func (lca *lcaRange) find(a, b *Block) *Block {
 	if a == b {
 		return a
 	}
-	// Find the positions of a and bin the Euler tour.
+	// Find the positions of a and b in the Euler tour.
 	p1 := lca.blocks[a.ID].pos
 	p2 := lca.blocks[b.ID].pos
 	if p1 > p2 {

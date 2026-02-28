@@ -7,6 +7,7 @@
 package httptest
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"flag"
@@ -77,7 +78,7 @@ func newLocalListener() net.Listener {
 // When debugging a particular http server-based test,
 // this flag lets you run
 //
-//	go test -run=BrokenTest -httptest.serve=127.0.0.1:8000
+//	go test -run='^BrokenTest$' -httptest.serve=127.0.0.1:8000
 //
 // to start the broken server so you can interact with it manually.
 // We only register this flag if it looks like the caller knows about it
@@ -100,7 +101,7 @@ func strSliceContainsPrefix(v []string, pre string) bool {
 	return false
 }
 
-// NewServer starts and returns a new Server.
+// NewServer starts and returns a new [Server].
 // The caller should call Close when finished, to shut it down.
 func NewServer(handler http.Handler) *Server {
 	ts := NewUnstartedServer(handler)
@@ -108,7 +109,7 @@ func NewServer(handler http.Handler) *Server {
 	return ts
 }
 
-// NewUnstartedServer returns a new Server but doesn't start it.
+// NewUnstartedServer returns a new [Server] but doesn't start it.
 //
 // After changing its configuration, the caller should call Start or
 // StartTLS.
@@ -126,8 +127,24 @@ func (s *Server) Start() {
 	if s.URL != "" {
 		panic("Server already started")
 	}
+
 	if s.client == nil {
-		s.client = &http.Client{Transport: &http.Transport{}}
+		tr := &http.Transport{}
+		dialer := net.Dialer{}
+		// User code may set either of Dial or DialContext, with DialContext taking precedence.
+		// We set DialContext here to preserve any context values that are passed in,
+		// but fall back to Dial if the user has set it.
+		tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			if tr.Dial != nil {
+				return tr.Dial(network, addr)
+			}
+			if addr == "example.com:80" || strings.HasSuffix(addr, ".example.com:80") {
+				addr = s.Listener.Addr().String()
+			}
+			return dialer.DialContext(ctx, network, addr)
+		}
+		s.client = &http.Client{Transport: tr}
+
 	}
 	s.URL = "http://" + s.Listener.Addr().String()
 	s.wrap()
@@ -144,7 +161,7 @@ func (s *Server) StartTLS() {
 		panic("Server already started")
 	}
 	if s.client == nil {
-		s.client = &http.Client{Transport: &http.Transport{}}
+		s.client = &http.Client{}
 	}
 	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
 	if err != nil {
@@ -173,19 +190,30 @@ func (s *Server) StartTLS() {
 	}
 	certpool := x509.NewCertPool()
 	certpool.AddCert(s.certificate)
-	s.client.Transport = &http.Transport{
+	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			RootCAs: certpool,
 		},
 		ForceAttemptHTTP2: s.EnableHTTP2,
 	}
+	dialer := net.Dialer{}
+	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if tr.Dial != nil {
+			return tr.Dial(network, addr)
+		}
+		if addr == "example.com:443" || strings.HasSuffix(addr, ".example.com:443") {
+			addr = s.Listener.Addr().String()
+		}
+		return dialer.DialContext(ctx, network, addr)
+	}
+	s.client.Transport = tr
 	s.Listener = tls.NewListener(s.Listener, s.TLS)
 	s.URL = "https://" + s.Listener.Addr().String()
 	s.wrap()
 	s.goServe()
 }
 
-// NewTLSServer starts and returns a new Server using TLS.
+// NewTLSServer starts and returns a new [Server] using TLS.
 // The caller should call Close when finished, to shut it down.
 func NewTLSServer(handler http.Handler) *Server {
 	ts := NewUnstartedServer(handler)
@@ -298,7 +326,10 @@ func (s *Server) Certificate() *x509.Certificate {
 
 // Client returns an HTTP client configured for making requests to the server.
 // It is configured to trust the server's TLS test certificate and will
-// close its idle connections on Server.Close.
+// close its idle connections on [Server.Close].
+// Use Server.URL as the base URL to send requests to the server.
+// The returned client will also redirect any requests to "example.com"
+// or its subdomains to the server.
 func (s *Server) Client() *http.Client {
 	return s.client
 }

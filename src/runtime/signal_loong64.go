@@ -53,9 +53,10 @@ func dumpregs(c *sigctxt) {
 //go:nowritebarrierrec
 func (c *sigctxt) sigpc() uintptr { return uintptr(c.pc()) }
 
-func (c *sigctxt) sigsp() uintptr { return uintptr(c.sp()) }
-func (c *sigctxt) siglr() uintptr { return uintptr(c.link()) }
-func (c *sigctxt) fault() uintptr { return uintptr(c.sigaddr()) }
+func (c *sigctxt) setsigpc(x uint64) { c.set_pc(x) }
+func (c *sigctxt) sigsp() uintptr    { return uintptr(c.sp()) }
+func (c *sigctxt) siglr() uintptr    { return uintptr(c.link()) }
+func (c *sigctxt) fault() uintptr    { return uintptr(c.sigaddr()) }
 
 // preparePanic sets up the stack to look like a call to sigpanic.
 func (c *sigctxt) preparePanic(sig uint32, gp *g) {
@@ -77,10 +78,8 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	}
 
 	// In case we are panicking from external C code
-	sigpanicPC := uint64(abi.FuncPCABIInternal(sigpanic))
-	c.set_r31(sigpanicPC >> 32 << 32) // RSB register
 	c.set_r22(uint64(uintptr(unsafe.Pointer(gp))))
-	c.set_pc(sigpanicPC)
+	c.set_pc(uint64(abi.FuncPCABIInternal(sigpanic)))
 }
 
 func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {

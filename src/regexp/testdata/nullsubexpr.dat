@@ -44,7 +44,7 @@ E	SAME		ababab		(0,0)(0,0)
 
 E	((z)+|a)*	zabcde		(0,2)(1,2)
 
-#{E	a+?		aaaaaa		(0,1)	no *? +? mimimal match ops
+#{E	a+?		aaaaaa		(0,1)	no *? +? minimal match ops
 #E	(a)		aaa		(0,1)(0,1)
 #E	(a*?)		aaa		(0,0)(0,0)
 #E	(a)*?		aaa		(0,0)

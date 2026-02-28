@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix
+//go:build unix || wasm
 
 // Package fdtest provides test helpers for working with file descriptors across exec.
 package fdtest

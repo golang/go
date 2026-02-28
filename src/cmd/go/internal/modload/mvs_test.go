@@ -23,7 +23,7 @@ func TestReqsMax(t *testing.T) {
 		{a: "none", b: "", want: ""},
 		{a: "", b: "none", want: ""},
 	} {
-		max := reqs.Max(tc.a, tc.b)
+		max := reqs.Max("", tc.a, tc.b)
 		if max != tc.want {
 			t.Errorf("(%T).Max(%q, %q) = %q; want %q", reqs, tc.a, tc.b, max, tc.want)
 		}

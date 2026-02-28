@@ -19,6 +19,10 @@ func init() {
 	register("StringPanic", StringPanic)
 	register("NilPanic", NilPanic)
 	register("CircularPanic", CircularPanic)
+	register("RepanickedPanic", RepanickedPanic)
+	register("RepanickedMiddlePanic", RepanickedMiddlePanic)
+	register("RepanickedPanicSandwich", RepanickedPanicSandwich)
+	register("DoublePanicWithSameValue", DoublePanicWithSameValue)
 }
 
 func test(name string) {
@@ -77,7 +81,7 @@ func DoublePanic() {
 type exampleError struct{}
 
 func (e exampleError) Error() string {
-	panic("important error message")
+	panic("important multi-line\nerror message")
 }
 
 func ErrorPanic() {
@@ -97,7 +101,7 @@ func DoubleErrorPanic() {
 type exampleStringer struct{}
 
 func (s exampleStringer) String() string {
-	panic("important stringer message")
+	panic("important multi-line\nstringer message")
 }
 
 func StringerPanic() {
@@ -115,7 +119,7 @@ func DoubleStringerPanic() {
 }
 
 func StringPanic() {
-	panic("important string message")
+	panic("important multi-line\nstring message")
 }
 
 func NilPanic() {
@@ -136,4 +140,63 @@ func (e exampleCircleEndError) Error() string {
 
 func CircularPanic() {
 	panic(exampleCircleStartError{})
+}
+
+func RepanickedPanic() {
+	defer func() {
+		panic(recover())
+	}()
+	panic("message")
+}
+
+func RepanickedMiddlePanic() {
+	defer func() {
+		recover()
+		panic("outer")
+	}()
+	func() {
+		defer func() {
+			panic(recover())
+		}()
+		func() {
+			defer func() {
+				recover()
+				panic("middle")
+			}()
+			panic("inner")
+		}()
+	}()
+}
+
+// Panic sandwich:
+//
+//	panic("outer") =>
+//	recovered, panic("inner") =>
+//	panic(recovered outer panic value)
+//
+// Exercises the edge case where we repanic a panic value,
+// but with another panic in the middle.
+func RepanickedPanicSandwich() {
+	var outer any
+	defer func() {
+		recover()
+		panic(outer)
+	}()
+	func() {
+		defer func() {
+			outer = recover()
+			panic("inner")
+		}()
+		panic("outer")
+	}()
+}
+
+// Double panic with same value and not recovered.
+// See issue 76099.
+func DoublePanicWithSameValue() {
+	var e any = "message"
+	defer func() {
+		panic(e)
+	}()
+	panic(e)
 }

@@ -1,0 +1,29 @@
+# Test automatic setting of CGO_ENABLED based on $CC and what's in $PATH.
+
+[!cgo] skip
+[cross] skip
+
+# Assume we're on a system that can enable cgo normally.
+env CGO_ENABLED=
+go env CGO_ENABLED
+stdout 1
+
+# Clearing CC and removing everything but Go from the PATH should usually
+# disable cgo: no C compiler anymore (unless the baked-in defaultCC is an
+# absolute path and exists.
+env CC=
+env PATH=$GOROOT/bin
+go env CGO_ENABLED
+[!abscc] stdout 0
+[abscc] stdout 1
+
+# Setting CC should re-enable cgo.
+env CC=cc
+go env CGO_ENABLED
+stdout 1
+
+# So should setting CGO_ENABLED.
+env CC=
+env CGO_ENABLED=1
+go env CGO_ENABLED
+stdout 1

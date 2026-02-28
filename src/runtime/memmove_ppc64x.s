@@ -39,6 +39,15 @@ TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-24
 	// Determine if there are doublewords to
 	// copy so a more efficient move can be done
 check:
+#ifdef GOPPC64_power10
+	CMP	LEN, $16
+	BGT	mcopy
+	SLD	$56, LEN, TMP
+	LXVL	SRC, TMP, V0
+	STXVL	V0, TGT, TMP
+	RET
+#endif
+mcopy:
 	ANDCC	$7, LEN, BYTES	// R7: bytes to copy
 	SRD	$3, LEN, DWORDS	// R6: double words to copy
 	MOVFL	CR0, CR3	// save CR from ANDCC
@@ -51,11 +60,11 @@ check:
 
 	SUB	SRC, TGT, TMP	// dest - src
 	CMPU	TMP, LEN, CR2	// < len?
-	BC	12, 8, backward // BLT CR2 backward
+	BLT	CR2, backward
 
 	// Copying forward if no overlap.
 
-	BC	12, 6, checkbytes	// BEQ CR1, checkbytes
+	BEQ	CR1, checkbytes
 	SRDCC	$3, DWORDS, OCTWORDS	// 64 byte chunks?
 	MOVD	$16, IDX16
 	BEQ	lt64gt8			// < 64 bytes
@@ -68,7 +77,7 @@ forward64setup:
 	MOVD	OCTWORDS, CTR		// Number of 64 byte chunks
 	MOVD	$32, IDX32
 	MOVD	$48, IDX48
-	PCALIGN	$32
+	PCALIGN	$16
 
 forward64:
 	LXVD2X	(R0)(SRC), VS32		// load 64 bytes
@@ -97,7 +106,7 @@ lt64gt8:
 	ADD	$32, TGT
 
 lt32gt8:
-        // At this point >= 8 and < 32
+	// At this point >= 8 and < 32
 	// Move 16 bytes if possible
 	CMP     DWORDS, $2
 	BLT     lt16
@@ -110,12 +119,26 @@ lt32gt8:
 lt16:	// Move 8 bytes if possible
 	CMP     DWORDS, $1
 	BLT     checkbytes
+#ifdef GOPPC64_power10
+	ADD	$8, BYTES
+	SLD	$56, BYTES, TMP
+	LXVL	SRC, TMP, V0
+	STXVL	V0, TGT, TMP
+	RET
+#endif
+
 	MOVD    0(SRC), TMP
 	ADD	$8, SRC
 	MOVD    TMP, 0(TGT)
 	ADD     $8, TGT
 checkbytes:
-	BC	12, 14, LR		// BEQ lr
+	BEQ	CR3, LR
+#ifdef GOPPC64_power10
+	SLD	$56, BYTES, TMP
+	LXVL	SRC, TMP, V0
+	STXVL	V0, TGT, TMP
+	RET
+#endif
 lt8:	// Move word if possible
 	CMP BYTES, $4
 	BLT lt4
@@ -134,7 +157,7 @@ lt4:	// Move halfword if possible
 	ADD $2, TGT
 lt2:	// Move last byte if 1 left
 	CMP BYTES, $1
-	BC 12, 0, LR	// ble lr
+	BLT CR0, LR
 	MOVBZ 0(SRC), TMP
 	MOVBZ TMP, 0(TGT)
 	RET
@@ -159,7 +182,7 @@ backwardtailloop:
 	BDNZ	backwardtailloop
 
 nobackwardtail:
-	BC	4, 5, LR		// blelr cr1, return if DWORDS == 0
+	BLE	CR1, LR                 // return if DWORDS == 0
 	SRDCC	$2,DWORDS,QWORDS	// Compute number of 32B blocks and compare to 0
 	BNE	backward32setup		// If QWORDS != 0, start the 32B copy loop.
 
@@ -167,22 +190,23 @@ backward24:
 	// DWORDS is a value between 1-3.
 	CMP	DWORDS, $2
 
-	MOVD 	-8(SRC), TMP
-	MOVD 	TMP, -8(TGT)
-	BC	12, 0, LR		// bltlr, return if DWORDS == 1
+	MOVD	-8(SRC), TMP
+	MOVD	TMP, -8(TGT)
+	BLT	CR0, LR                 // return if DWORDS == 1
 
-	MOVD 	-16(SRC), TMP
-	MOVD 	TMP, -16(TGT)
-	BC	12, 2, LR		// beqlr, return if DWORDS == 2
+	MOVD	-16(SRC), TMP
+	MOVD	TMP, -16(TGT)
+	BEQ	CR0, LR                 // return if DWORDS == 2
 
-	MOVD 	-24(SRC), TMP
-	MOVD 	TMP, -24(TGT)
+	MOVD	-24(SRC), TMP
+	MOVD	TMP, -24(TGT)
 	RET
 
 backward32setup:
 	ANDCC   $3,DWORDS		// Compute remaining DWORDS and compare to 0
 	MOVD	QWORDS, CTR		// set up loop ctr
 	MOVD	$16, IDX16		// 32 bytes at a time
+	PCALIGN	$16
 
 backward32loop:
 	SUB	$32, TGT
@@ -192,5 +216,5 @@ backward32loop:
 	STXVD2X	VS32, (R0)(TGT)		// store 16x2 bytes
 	STXVD2X	VS33, (IDX16)(TGT)
 	BDNZ	backward32loop
-	BC	12, 2, LR		// beqlr, return if DWORDS == 0
+	BEQ	CR0, LR                 // return if DWORDS == 0
 	BR	backward24

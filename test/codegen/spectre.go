@@ -1,5 +1,6 @@
-// +build amd64
 // asmcheck -gcflags=-spectre=index
+
+//go:build amd64
 
 // Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -13,12 +14,12 @@ func IndexArray(x *[10]int, i int) int {
 }
 
 func IndexString(x string, i int) byte {
-	// amd64:`CMOVQLS`
+	// amd64:`CMOVQ(LS|CC)`
 	return x[i]
 }
 
 func IndexSlice(x []float64, i int) float64 {
-	// amd64:`CMOVQLS`
+	// amd64:`CMOVQ(LS|CC)`
 	return x[i]
 }
 

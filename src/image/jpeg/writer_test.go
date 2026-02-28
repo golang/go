@@ -13,6 +13,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -82,7 +83,7 @@ func TestUnscaledQuant(t *testing.T) {
 	}
 	if bad {
 		names := [nQuantIndex]string{"Luminance", "Chrominance"}
-		buf := &bytes.Buffer{}
+		buf := &strings.Builder{}
 		for i, name := range names {
 			fmt.Fprintf(buf, "// %s.\n{\n", name)
 			for zig := 0; zig < blockSize; zig++ {
@@ -153,8 +154,8 @@ func TestWriter(t *testing.T) {
 			continue
 		}
 		// Compare the average delta to the tolerance level.
-		if averageDelta(m0, m1) > tc.tolerance {
-			t.Errorf("%s, quality=%d: average delta is too high", tc.filename, tc.quality)
+		if d := averageDelta(m0, m1); d > tc.tolerance {
+			t.Errorf("%s, quality=%d: average delta is too high (%d > %d)", tc.filename, tc.quality, d, tc.tolerance)
 			continue
 		}
 	}

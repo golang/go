@@ -8,6 +8,7 @@
 // The package is typically only imported for the side effect of
 // registering its HTTP handlers.
 // The handled paths all begin with /debug/pprof/.
+// As of Go 1.22, all the paths must be requested with GET.
 //
 // To use pprof, link this package into your program:
 //
@@ -21,10 +22,24 @@
 //		log.Println(http.ListenAndServe("localhost:6060", nil))
 //	}()
 //
+// By default, all the profiles listed in [runtime/pprof.Profile] are
+// available (via [Handler]), in addition to the [Cmdline], [Profile], [Symbol],
+// and [Trace] profiles defined in this package.
 // If you are not using DefaultServeMux, you will have to register handlers
 // with the mux you are using.
 //
-// Then use the pprof tool to look at the heap profile:
+// # Parameters
+//
+// Parameters can be passed via GET query params:
+//
+//   - debug=N (all profiles): response format: N = 0: binary (default), N > 0: plaintext
+//   - gc=N (heap profile): N > 0: run a garbage collection cycle before profiling
+//   - seconds=N (allocs, block, goroutine, heap, mutex, threadcreate profiles): return a delta profile
+//   - seconds=N (cpu (profile), trace profiles): profile for the given duration
+//
+// # Usage examples
+//
+// Use the pprof tool to look at the heap profile:
 //
 //	go tool pprof http://localhost:6060/debug/pprof/heap
 //
@@ -33,12 +48,12 @@
 //	go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
 //
 // Or to look at the goroutine blocking profile, after calling
-// runtime.SetBlockProfileRate in your program:
+// [runtime.SetBlockProfileRate] in your program:
 //
 //	go tool pprof http://localhost:6060/debug/pprof/block
 //
 // Or to look at the holders of contended mutexes, after calling
-// runtime.SetMutexProfileFraction in your program:
+// [runtime.SetMutexProfileFraction] in your program:
 //
 //	go tool pprof http://localhost:6060/debug/pprof/mutex
 //
@@ -52,8 +67,7 @@
 // in your browser.
 //
 // For a study of the facility in action, visit
-//
-//	https://blog.golang.org/2011/06/profiling-go-programs.html
+// https://go.dev/blog/pprof.
 package pprof
 
 import (
@@ -62,6 +76,8 @@ import (
 	"context"
 	"fmt"
 	"html"
+	"internal/godebug"
+	"internal/goexperiment"
 	"internal/profile"
 	"io"
 	"log"
@@ -71,18 +87,22 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"runtime/trace"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 )
 
 func init() {
-	http.HandleFunc("/debug/pprof/", Index)
-	http.HandleFunc("/debug/pprof/cmdline", Cmdline)
-	http.HandleFunc("/debug/pprof/profile", Profile)
-	http.HandleFunc("/debug/pprof/symbol", Symbol)
-	http.HandleFunc("/debug/pprof/trace", Trace)
+	prefix := ""
+	if godebug.New("httpmuxgo121").Value() != "1" {
+		prefix = "GET "
+	}
+	http.HandleFunc(prefix+"/debug/pprof/", Index)
+	http.HandleFunc(prefix+"/debug/pprof/cmdline", Cmdline)
+	http.HandleFunc(prefix+"/debug/pprof/profile", Profile)
+	http.HandleFunc(prefix+"/debug/pprof/symbol", Symbol)
+	http.HandleFunc(prefix+"/debug/pprof/trace", Trace)
 }
 
 // Cmdline responds with the running program's
@@ -101,9 +121,14 @@ func sleep(r *http.Request, d time.Duration) {
 	}
 }
 
-func durationExceedsWriteTimeout(r *http.Request, seconds float64) bool {
+func configureWriteDeadline(w http.ResponseWriter, r *http.Request, seconds float64) {
 	srv, ok := r.Context().Value(http.ServerContextKey).(*http.Server)
-	return ok && srv.WriteTimeout != 0 && seconds >= srv.WriteTimeout.Seconds()
+	if ok && srv.WriteTimeout > 0 {
+		timeout := srv.WriteTimeout + time.Duration(seconds*float64(time.Second))
+
+		rc := http.NewResponseController(w)
+		rc.SetWriteDeadline(time.Now().Add(timeout))
+	}
 }
 
 func serveError(w http.ResponseWriter, status int, txt string) {
@@ -124,10 +149,7 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 		sec = 30
 	}
 
-	if durationExceedsWriteTimeout(r, float64(sec)) {
-		serveError(w, http.StatusBadRequest, "profile duration exceeds server's WriteTimeout")
-		return
-	}
+	configureWriteDeadline(w, r, float64(sec))
 
 	// Set Content Type assuming StartCPUProfile will work,
 	// because if it does it starts writing.
@@ -153,10 +175,7 @@ func Trace(w http.ResponseWriter, r *http.Request) {
 		sec = 1
 	}
 
-	if durationExceedsWriteTimeout(r, sec) {
-		serveError(w, http.StatusBadRequest, "profile duration exceeds server's WriteTimeout")
-		return
-	}
+	configureWriteDeadline(w, r, sec)
 
 	// Set Content Type assuming trace.Start will work,
 	// because if it does it starts writing.
@@ -222,6 +241,7 @@ func Symbol(w http.ResponseWriter, r *http.Request) {
 }
 
 // Handler returns an HTTP handler that serves the named profile.
+// Available profiles can be found in [runtime/pprof.Profile].
 func Handler(name string) http.Handler {
 	return handler(name)
 }
@@ -259,15 +279,14 @@ func (name handler) serveDeltaProfile(w http.ResponseWriter, r *http.Request, p 
 		serveError(w, http.StatusBadRequest, `invalid value for "seconds" - must be a positive integer`)
 		return
 	}
+	// 'name' should be a key in profileSupportsDelta.
 	if !profileSupportsDelta[name] {
 		serveError(w, http.StatusBadRequest, `"seconds" parameter is not supported for this profile type`)
 		return
 	}
-	// 'name' should be a key in profileSupportsDelta.
-	if durationExceedsWriteTimeout(r, float64(sec)) {
-		serveError(w, http.StatusBadRequest, "profile duration exceeds server's WriteTimeout")
-		return
-	}
+
+	configureWriteDeadline(w, r, float64(sec))
+
 	debug, _ := strconv.Atoi(r.FormValue("debug"))
 	if debug != 0 {
 		serveError(w, http.StatusBadRequest, "seconds and debug params are incompatible")
@@ -333,24 +352,32 @@ func collectProfile(p *pprof.Profile) (*profile.Profile, error) {
 }
 
 var profileSupportsDelta = map[handler]bool{
-	"allocs":       true,
-	"block":        true,
-	"goroutine":    true,
-	"heap":         true,
-	"mutex":        true,
-	"threadcreate": true,
+	"allocs":        true,
+	"block":         true,
+	"goroutineleak": true,
+	"goroutine":     true,
+	"heap":          true,
+	"mutex":         true,
+	"threadcreate":  true,
 }
 
 var profileDescriptions = map[string]string{
 	"allocs":       "A sampling of all past memory allocations",
 	"block":        "Stack traces that led to blocking on synchronization primitives",
 	"cmdline":      "The command line invocation of the current program",
-	"goroutine":    "Stack traces of all current goroutines",
+	"goroutine":    "Stack traces of all current goroutines. Use debug=2 as a query parameter to export in the same format as an unrecovered panic.",
 	"heap":         "A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.",
 	"mutex":        "Stack traces of holders of contended mutexes",
 	"profile":      "CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
+	"symbol":       "Maps given program counters to function names. Counters can be specified in a GET raw query or POST body, multiple counters are separated by '+'.",
 	"threadcreate": "Stack traces that led to the creation of new OS threads",
 	"trace":        "A trace of execution of the current program. You can specify the duration in the seconds GET parameter. After you get the trace file, use the go tool trace command to investigate the trace.",
+}
+
+func init() {
+	if goexperiment.GoroutineLeakProfile {
+		profileDescriptions["goroutineleak"] = "Stack traces of all leaked goroutines. Use debug=2 as a query parameter to export in the same format as an unrecovered panic."
+	}
 }
 
 type profileEntry struct {
@@ -365,8 +392,7 @@ type profileEntry struct {
 // Index responds to a request for "/debug/pprof/" with an HTML page
 // listing the available profiles.
 func Index(w http.ResponseWriter, r *http.Request) {
-	if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
-		name := strings.TrimPrefix(r.URL.Path, "/debug/pprof/")
+	if name, found := strings.CutPrefix(r.URL.Path, "/debug/pprof/"); found {
 		if name != "" {
 			handler(name).ServeHTTP(w, r)
 			return
@@ -387,7 +413,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Adding other profiles exposed from within this package
-	for _, p := range []string{"cmdline", "profile", "trace"} {
+	for _, p := range []string{"cmdline", "profile", "symbol", "trace"} {
 		profiles = append(profiles, profileEntry{
 			Name: p,
 			Href: p,
@@ -395,8 +421,8 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	sort.Slice(profiles, func(i, j int) bool {
-		return profiles[i].Name < profiles[j].Name
+	slices.SortFunc(profiles, func(a, b profileEntry) int {
+		return strings.Compare(a.Name, b.Name)
 	})
 
 	if err := indexTmplExecute(w, profiles); err != nil {
@@ -417,7 +443,9 @@ func indexTmplExecute(w io.Writer, profiles []profileEntry) error {
 </style>
 </head>
 <body>
-/debug/pprof/<br>
+/debug/pprof/
+<br>
+<p>Set debug=1 as a query parameter to export in legacy text format</p>
 <br>
 Types of profiles available:
 <table>

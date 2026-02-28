@@ -1,5 +1,6 @@
-// +build !js,gc
 // run
+
+//go:build !js && !wasip1 && gc
 
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -38,14 +39,14 @@ func main() {
 	defer os.RemoveAll(f.Name())
 
 	// compile and test output
-	cmd := exec.Command("go", "tool", "compile", "-p=main", f.Name())
+	cmd := exec.Command("go", "tool", "compile", "-p=main", "-importcfg="+os.Getenv("STDLIB_IMPORTCFG"), f.Name())
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		log.Fatalf("expected cmd/compile to fail")
 	}
 	wantErrs := []string{
-		"7:9: n declared but not used",
-		"7:12: err declared but not used",
+		"7:9: declared and not used: n",
+		"7:12: declared and not used: err",
 	}
 	outStr := string(out)
 	for _, want := range wantErrs {

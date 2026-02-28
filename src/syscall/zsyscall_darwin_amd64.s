@@ -49,6 +49,8 @@ TEXT ·libc_futimes_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_futimes(SB)
 TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_fcntl(SB)
+TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_ioctl(SB)
 TEXT ·libc_pipe_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_pipe(SB)
 TEXT ·libc_utimensat_trampoline(SB),NOSPLIT,$0-0
@@ -143,6 +145,8 @@ TEXT ·libc_mlockall_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_mlockall(SB)
 TEXT ·libc_mprotect_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_mprotect(SB)
+TEXT ·libc_msync_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_msync(SB)
 TEXT ·libc_munlock_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_munlock(SB)
 TEXT ·libc_munlockall_trampoline(SB),NOSPLIT,$0-0
@@ -221,8 +225,6 @@ TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_munmap(SB)
 TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_fork(SB)
-TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
-	JMP	libc_ioctl(SB)
 TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_execve(SB)
 TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0

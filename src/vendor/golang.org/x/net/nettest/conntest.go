@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"runtime"
@@ -143,7 +142,7 @@ func testPingPong(t *testing.T, c1, c2 net.Conn) {
 }
 
 // testRacyRead tests that it is safe to mutate the input Read buffer
-// immediately after cancelation has occurred.
+// immediately after cancellation has occurred.
 func testRacyRead(t *testing.T, c1, c2 net.Conn) {
 	go chunkedCopy(c2, rand.New(rand.NewSource(0)))
 
@@ -171,9 +170,9 @@ func testRacyRead(t *testing.T, c1, c2 net.Conn) {
 }
 
 // testRacyWrite tests that it is safe to mutate the input Write buffer
-// immediately after cancelation has occurred.
+// immediately after cancellation has occurred.
 func testRacyWrite(t *testing.T, c1, c2 net.Conn) {
-	go chunkedCopy(ioutil.Discard, c2)
+	go chunkedCopy(io.Discard, c2)
 
 	var wg sync.WaitGroup
 	defer wg.Wait()
@@ -200,7 +199,7 @@ func testRacyWrite(t *testing.T, c1, c2 net.Conn) {
 
 // testReadTimeout tests that Read timeouts do not affect Write.
 func testReadTimeout(t *testing.T, c1, c2 net.Conn) {
-	go chunkedCopy(ioutil.Discard, c2)
+	go chunkedCopy(io.Discard, c2)
 
 	c1.SetReadDeadline(aLongTimeAgo)
 	_, err := c1.Read(make([]byte, 1024))
@@ -319,7 +318,7 @@ func testCloseTimeout(t *testing.T, c1, c2 net.Conn) {
 	defer wg.Wait()
 	wg.Add(3)
 
-	// Test for cancelation upon connection closure.
+	// Test for cancellation upon connection closure.
 	c1.SetDeadline(neverTimeout)
 	go func() {
 		defer wg.Done()
@@ -398,7 +397,11 @@ func checkForTimeoutError(t *testing.T, err error) {
 	t.Helper()
 	if nerr, ok := err.(net.Error); ok {
 		if !nerr.Timeout() {
-			t.Errorf("got error: %v, want err.Timeout() = true", nerr)
+			if runtime.GOOS == "windows" && runtime.GOARCH == "arm64" && t.Name() == "TestTestConn/TCP/RacyRead" {
+				t.Logf("ignoring known failure mode on windows/arm64; see https://go.dev/issue/52893")
+			} else {
+				t.Errorf("got error: %v, want err.Timeout() = true", nerr)
+			}
 		}
 	} else {
 		t.Errorf("got %T: %v, want net.Error", err, err)

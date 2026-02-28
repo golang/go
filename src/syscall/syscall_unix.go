@@ -7,11 +7,13 @@
 package syscall
 
 import (
+	errorspkg "errors"
+	"internal/asan"
 	"internal/bytealg"
-	"internal/itoa"
+	"internal/msan"
 	"internal/oserror"
 	"internal/race"
-	"internal/unsafeheader"
+	"internal/strconv"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -57,11 +59,7 @@ func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (d
 	}
 
 	// Use unsafe to turn addr into a []byte.
-	var b []byte
-	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&b))
-	hdr.Data = unsafe.Pointer(addr)
-	hdr.Cap = length
-	hdr.Len = length
+	b := unsafe.Slice((*byte)(unsafe.Pointer(addr)), length)
 
 	// Register mapping in m and return it.
 	p := &b[cap(b)-1]
@@ -102,8 +100,8 @@ func (m *mmapper) Munmap(data []byte) (err error) {
 //		err = errno
 //	}
 //
-// Errno values can be tested against error values from the os package
-// using errors.Is. For example:
+// Errno values can be tested against error values using [errors.Is].
+// For example:
 //
 //	_, _, err := syscall.Syscall(...)
 //	if errors.Is(err, fs.ErrNotExist) ...
@@ -116,7 +114,7 @@ func (e Errno) Error() string {
 			return s
 		}
 	}
-	return "errno " + itoa.Itoa(int(e))
+	return "errno " + strconv.Itoa(int(e))
 }
 
 func (e Errno) Is(target error) bool {
@@ -127,6 +125,8 @@ func (e Errno) Is(target error) bool {
 		return e == EEXIST || e == ENOTEMPTY
 	case oserror.ErrNotExist:
 		return e == ENOENT
+	case errorspkg.ErrUnsupported:
+		return e == ENOSYS || e == ENOTSUP || e == EOPNOTSUPP
 	}
 	return false
 }
@@ -164,7 +164,7 @@ func errnoErr(e Errno) error {
 }
 
 // A Signal is a number describing a process signal.
-// It implements the os.Signal interface.
+// It implements the [os.Signal] interface.
 type Signal int
 
 func (s Signal) Signal() {}
@@ -176,7 +176,7 @@ func (s Signal) String() string {
 			return str
 		}
 	}
-	return "signal " + itoa.Itoa(int(s))
+	return "signal " + strconv.Itoa(int(s))
 }
 
 func Read(fd int, p []byte) (n int, err error) {
@@ -189,11 +189,11 @@ func Read(fd int, p []byte) (n int, err error) {
 			race.Acquire(unsafe.Pointer(&ioSync))
 		}
 	}
-	if msanenabled && n > 0 {
-		msanWrite(unsafe.Pointer(&p[0]), n)
+	if msan.Enabled && n > 0 {
+		msan.Write(unsafe.Pointer(&p[0]), uintptr(n))
 	}
-	if asanenabled && n > 0 {
-		asanWrite(unsafe.Pointer(&p[0]), n)
+	if asan.Enabled && n > 0 {
+		asan.Write(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	return
 }
@@ -213,11 +213,11 @@ func Write(fd int, p []byte) (n int, err error) {
 	if race.Enabled && n > 0 {
 		race.ReadRange(unsafe.Pointer(&p[0]), n)
 	}
-	if msanenabled && n > 0 {
-		msanRead(unsafe.Pointer(&p[0]), n)
+	if msan.Enabled && n > 0 {
+		msan.Read(unsafe.Pointer(&p[0]), uintptr(n))
 	}
-	if asanenabled && n > 0 {
-		asanRead(unsafe.Pointer(&p[0]), n)
+	if asan.Enabled && n > 0 {
+		asan.Read(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	return
 }
@@ -232,11 +232,11 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
 			race.Acquire(unsafe.Pointer(&ioSync))
 		}
 	}
-	if msanenabled && n > 0 {
-		msanWrite(unsafe.Pointer(&p[0]), n)
+	if msan.Enabled && n > 0 {
+		msan.Write(unsafe.Pointer(&p[0]), uintptr(n))
 	}
-	if asanenabled && n > 0 {
-		asanWrite(unsafe.Pointer(&p[0]), n)
+	if asan.Enabled && n > 0 {
+		asan.Write(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	return
 }
@@ -249,17 +249,17 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
 	if race.Enabled && n > 0 {
 		race.ReadRange(unsafe.Pointer(&p[0]), n)
 	}
-	if msanenabled && n > 0 {
-		msanRead(unsafe.Pointer(&p[0]), n)
+	if msan.Enabled && n > 0 {
+		msan.Read(unsafe.Pointer(&p[0]), uintptr(n))
 	}
-	if asanenabled && n > 0 {
-		asanRead(unsafe.Pointer(&p[0]), n)
+	if asan.Enabled && n > 0 {
+		asan.Read(unsafe.Pointer(&p[0]), uintptr(n))
 	}
 	return
 }
 
 // For testing: clients can set this flag to force
-// creation of IPv6 sockets to return EAFNOSUPPORT.
+// creation of IPv6 sockets to return [EAFNOSUPPORT].
 var SocketDisableIPv6 bool
 
 type Sockaddr interface {
@@ -385,6 +385,9 @@ func recvmsgInet6(fd int, p, oob []byte, flags int, from *SockaddrInet6) (n, oob
 func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	n, oobn, recvflags, err = recvmsgRaw(fd, p, oob, flags, &rsa)
+	if err != nil {
+		return
+	}
 	// source address is only specified if the socket is unconnected
 	if rsa.Addr.Family != AF_UNSPEC {
 		from, err = anyToSockaddr(&rsa)
@@ -410,17 +413,25 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) 
 }
 
 func sendmsgNInet4(fd int, p, oob []byte, to *SockaddrInet4, flags int) (n int, err error) {
-	ptr, salen, err := to.sockaddr()
-	if err != nil {
-		return 0, err
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return 0, err
+		}
 	}
 	return sendmsgN(fd, p, oob, ptr, salen, flags)
 }
 
 func sendmsgNInet6(fd int, p, oob []byte, to *SockaddrInet6, flags int) (n int, err error) {
-	ptr, salen, err := to.sockaddr()
-	if err != nil {
-		return 0, err
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return 0, err
+		}
 	}
 	return sendmsgN(fd, p, oob, ptr, salen, flags)
 }
@@ -442,11 +453,17 @@ func sendtoInet6(fd int, p []byte, flags int, to *SockaddrInet6) (err error) {
 }
 
 func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
-	ptr, n, err := to.sockaddr()
-	if err != nil {
-		return err
+	var (
+		ptr   unsafe.Pointer
+		salen _Socklen
+	)
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return err
+		}
 	}
-	return sendto(fd, p, flags, ptr, n)
+	return sendto(fd, p, flags, ptr, salen)
 }
 
 func SetsockoptByte(fd, level, opt int, value byte) (err error) {
@@ -508,6 +525,22 @@ func Socketpair(domain, typ, proto int) (fd [2]int, err error) {
 	return
 }
 
+// Sendfile copies up to count bytes from file descriptor infd to file descriptor outfd.
+//
+// It wraps the sendfile system call. The behavior varies by operating system,
+// particularly regarding the offset argument and how partial writes are reported.
+//
+// On Linux, if offset is nil, Sendfile uses and updates the current file
+// position of infd. If offset is non-nil, the current file position is
+// unchanged, and the offset pointer is updated to reflect the bytes written.
+// A non-nil error typically implies that no bytes were written.
+//
+// On BSD-derived systems (including macOS), if offset is nil, Sendfile panics.
+// The offset argument is not updated by the system call; the caller must manually
+// update the offset using the number of bytes written. These systems may
+// return a non-zero byte count together with an error (for example, EAGAIN).
+//
+// For precise semantics, see the system documentation (e.g., man 2 sendfile).
 func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
 	if race.Enabled {
 		race.ReleaseMerge(unsafe.Pointer(&ioSync))

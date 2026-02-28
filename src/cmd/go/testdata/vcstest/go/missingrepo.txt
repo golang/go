@@ -1,0 +1,18 @@
+handle dir
+
+-- missingrepo-git/index.html --
+<!DOCTYPE html>
+<html>
+<meta name="go-import" content="vcs-test.golang.org/go/missingrepo/missingrepo-git git https://vcs-test.golang.org/git/missingrepo">
+-- missingrepo-git/notmissing/index.html --
+<!DOCTYPE html>
+<html>
+<meta name="go-import" content="vcs-test.golang.org/go/missingrepo/missingrepo-git/notmissing git https://vcs-test.golang.org/git/mainonly">
+-- missingrepo-git-ssh/index.html --
+<!DOCTYPE html>
+<html>
+<meta name="go-import" content="vcs-test.golang.org/go/missingrepo/missingrepo-git-ssh git ssh://nonexistent.vcs-test.golang.org/git/missingrepo">
+-- missingrepo-git-ssh/notmissing/index.html --
+<!DOCTYPE html>
+<html>
+<meta name="go-import" content="vcs-test.golang.org/go/missingrepo/missingrepo-git-ssh/notmissing git https://vcs-test.golang.org/git/mainonly">

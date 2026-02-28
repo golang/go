@@ -10,7 +10,7 @@ var Runtime_Semrelease = runtime_Semrelease
 var Runtime_procPin = runtime_procPin
 var Runtime_procUnpin = runtime_procUnpin
 
-// poolDequeue testing.
+// PoolDequeue exports an interface for pollDequeue testing.
 type PoolDequeue interface {
 	PushHead(val any) bool
 	PopHead() (any, bool)
@@ -23,7 +23,7 @@ func NewPoolDequeue(n int) PoolDequeue {
 	}
 	// For testing purposes, set the head and tail indexes close
 	// to wrapping around.
-	d.headTail = d.pack(1<<dequeueBits-500, 1<<dequeueBits-500)
+	d.headTail.Store(d.pack(1<<dequeueBits-500, 1<<dequeueBits-500))
 	return d
 }
 

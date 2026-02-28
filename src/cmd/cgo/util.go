@@ -8,26 +8,27 @@ import (
 	"bytes"
 	"fmt"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"slices"
 )
 
 // run runs the command argv, feeding in stdin on standard input.
 // It returns the output to standard output and standard error.
 // ok indicates whether the command exited successfully.
 func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
-	if i := find(argv, "-xc"); i >= 0 && argv[len(argv)-1] == "-" {
+	if i := slices.Index(argv, "-xc"); i >= 0 && argv[len(argv)-1] == "-" {
 		// Some compilers have trouble with standard input.
 		// Others have trouble with -xc.
 		// Avoid both problems by writing a file with a .c extension.
-		f, err := ioutil.TempFile("", "cgo-gcc-input-")
+		f, err := os.CreateTemp("", "cgo-gcc-input-")
 		if err != nil {
 			fatalf("%s", err)
 		}
 		name := f.Name()
 		f.Close()
-		if err := ioutil.WriteFile(name+".c", stdin, 0666); err != nil {
+		if err := os.WriteFile(name+".c", stdin, 0666); err != nil {
 			os.Remove(name)
 			fatalf("%s", err)
 		}
@@ -70,21 +71,12 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	return
 }
 
-func find(argv []string, target string) int {
-	for i, arg := range argv {
-		if arg == target {
-			return i
-		}
-	}
-	return -1
-}
-
 func lineno(pos token.Pos) string {
 	return fset.Position(pos).String()
 }
 
 // Die with an error message.
-func fatalf(msg string, args ...interface{}) {
+func fatalf(msg string, args ...any) {
 	// If we've already printed other errors, they might have
 	// caused the fatal condition. Assume they're enough.
 	if nerrors == 0 {
@@ -95,7 +87,7 @@ func fatalf(msg string, args ...interface{}) {
 
 var nerrors int
 
-func error_(pos token.Pos, msg string, args ...interface{}) {
+func error_(pos token.Pos, msg string, args ...any) {
 	nerrors++
 	if pos.IsValid() {
 		fmt.Fprintf(os.Stderr, "%s: ", fset.Position(pos).String())
@@ -106,30 +98,17 @@ func error_(pos token.Pos, msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "\n")
 }
 
-// isName reports whether s is a valid C identifier
-func isName(s string) bool {
-	for i, v := range s {
-		if v != '_' && (v < 'A' || v > 'Z') && (v < 'a' || v > 'z') && (v < '0' || v > '9') {
-			return false
-		}
-		if i == 0 && '0' <= v && v <= '9' {
-			return false
-		}
-	}
-	return s != ""
-}
-
+// create creates a file in the output directory.
 func creat(name string) *os.File {
-	f, err := os.Create(name)
+	f, err := os.Create(filepath.Join(outputDir(), name))
 	if err != nil {
 		fatalf("%s", err)
 	}
 	return f
 }
 
-func slashToUnderscore(c rune) rune {
-	if c == '/' || c == '\\' || c == ':' {
-		c = '_'
-	}
-	return c
+// outputDir returns the output directory, making sure that it exists.
+func outputDir() string {
+	os.MkdirAll(*objDir, 0o700)
+	return *objDir
 }

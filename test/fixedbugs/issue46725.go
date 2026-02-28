@@ -8,7 +8,7 @@ package main
 
 import "runtime"
 
-type T [4]int
+type T [4]int // N.B., [4]int avoids runtime's tiny object allocator
 
 //go:noinline
 func g(x []*T) ([]*T, []*T) { return x, x }

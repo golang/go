@@ -6,18 +6,20 @@
 
 package syscall
 
-const _SYS_setgroups = SYS_SETGROUPS
+const (
+	_SYS_setgroups  = SYS_SETGROUPS
+	_SYS_clone3     = 5435
+	_SYS_faccessat2 = 5439
+	_SYS_fchmodat2  = 5452
+)
 
 //sys	Dup2(oldfd int, newfd int) (err error)
-//sysnb	EpollCreate(size int) (fd int, err error)
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
-//sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_NEWFSTATAT
 //sys	Ftruncate(fd int, length int64) (err error)
 //sysnb	Getegid() (egid int)
 //sysnb	Geteuid() (euid int)
 //sysnb	Getgid() (gid int)
-//sysnb	Getrlimit(resource int, rlim *Rlimit) (err error)
 //sysnb	Getuid() (uid int)
 //sysnb	InotifyInit() (fd int, err error)
 //sys	Lchown(path string, uid int, gid int) (err error)
@@ -30,7 +32,6 @@ const _SYS_setgroups = SYS_SETGROUPS
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
 //sys	Setfsgid(gid int) (err error)
 //sys	Setfsuid(uid int) (err error)
-//sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
 //sys	Statfs(path string, buf *Statfs_t) (err error)
@@ -124,9 +125,21 @@ type stat_t struct {
 	Blocks     int64
 }
 
+//sys	fstatatInternal(dirfd int, path string, stat *stat_t, flags int) (err error) = SYS_NEWFSTATAT
 //sys	fstat(fd int, st *stat_t) (err error)
 //sys	lstat(path string, st *stat_t) (err error)
 //sys	stat(path string, st *stat_t) (err error)
+
+func fstatat(fd int, path string, s *Stat_t, flags int) (err error) {
+	st := &stat_t{}
+	err = fstatatInternal(fd, path, st, flags)
+	fillStat_t(s, st)
+	return
+}
+
+func Fstatat(fd int, path string, s *Stat_t, flags int) (err error) {
+	return fstatat(fd, path, s, flags)
+}
 
 func Fstat(fd int, s *Stat_t) (err error) {
 	st := &stat_t{}
@@ -180,5 +193,3 @@ func (msghdr *Msghdr) SetControllen(length int) {
 func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint64(length)
 }
-
-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

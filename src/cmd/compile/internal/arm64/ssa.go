@@ -16,6 +16,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
+	"internal/abi"
 )
 
 // loadByType returns the load instruction of the given type.
@@ -78,7 +79,49 @@ func storeByType(t *types.Type) obj.As {
 	panic("bad store type")
 }
 
-// makeshift encodes a register shifted by a constant, used as an Offset in Prog
+// loadByType2 returns an opcode that can load consecutive memory locations into 2 registers with type t.
+// returns obj.AXXX if no such opcode exists.
+func loadByType2(t *types.Type) obj.As {
+	if t.IsFloat() {
+		switch t.Size() {
+		case 4:
+			return arm64.AFLDPS
+		case 8:
+			return arm64.AFLDPD
+		}
+	} else {
+		switch t.Size() {
+		case 4:
+			return arm64.ALDPW
+		case 8:
+			return arm64.ALDP
+		}
+	}
+	return obj.AXXX
+}
+
+// storeByType2 returns an opcode that can store registers with type t into 2 consecutive memory locations.
+// returns obj.AXXX if no such opcode exists.
+func storeByType2(t *types.Type) obj.As {
+	if t.IsFloat() {
+		switch t.Size() {
+		case 4:
+			return arm64.AFSTPS
+		case 8:
+			return arm64.AFSTPD
+		}
+	} else {
+		switch t.Size() {
+		case 4:
+			return arm64.ASTPW
+		case 8:
+			return arm64.ASTP
+		}
+	}
+	return obj.AXXX
+}
+
+// makeshift encodes a register shifted by a constant, used as an Offset in Prog.
 func makeshift(v *ssa.Value, reg int16, typ int64, s int64) int64 {
 	if s < 0 || s >= 64 {
 		v.Fatalf("shift out of range: %d", s)
@@ -86,7 +129,7 @@ func makeshift(v *ssa.Value, reg int16, typ int64, s int64) int64 {
 	return int64(reg&31)<<16 | typ | (s&63)<<10
 }
 
-// genshift generates a Prog for r = r0 op (r1 shifted by n)
+// genshift generates a Prog for r = r0 op (r1 shifted by n).
 func genshift(s *ssagen.State, v *ssa.Value, as obj.As, r0, r1, r int16, typ int64, n int64) *obj.Prog {
 	p := s.Prog(as)
 	p.From.Type = obj.TYPE_SHIFT
@@ -105,13 +148,13 @@ func genIndexedOperand(op ssa.Op, base, idx int16) obj.Addr {
 	// Reg: base register, Index: (shifted) index register
 	mop := obj.Addr{Type: obj.TYPE_MEM, Reg: base}
 	switch op {
-	case ssa.OpARM64MOVDloadidx8, ssa.OpARM64MOVDstoreidx8, ssa.OpARM64MOVDstorezeroidx8,
+	case ssa.OpARM64MOVDloadidx8, ssa.OpARM64MOVDstoreidx8,
 		ssa.OpARM64FMOVDloadidx8, ssa.OpARM64FMOVDstoreidx8:
 		mop.Index = arm64.REG_LSL | 3<<5 | idx&31
-	case ssa.OpARM64MOVWloadidx4, ssa.OpARM64MOVWUloadidx4, ssa.OpARM64MOVWstoreidx4, ssa.OpARM64MOVWstorezeroidx4,
+	case ssa.OpARM64MOVWloadidx4, ssa.OpARM64MOVWUloadidx4, ssa.OpARM64MOVWstoreidx4,
 		ssa.OpARM64FMOVSloadidx4, ssa.OpARM64FMOVSstoreidx4:
 		mop.Index = arm64.REG_LSL | 2<<5 | idx&31
-	case ssa.OpARM64MOVHloadidx2, ssa.OpARM64MOVHUloadidx2, ssa.OpARM64MOVHstoreidx2, ssa.OpARM64MOVHstorezeroidx2:
+	case ssa.OpARM64MOVHloadidx2, ssa.OpARM64MOVHUloadidx2, ssa.OpARM64MOVHstoreidx2:
 		mop.Index = arm64.REG_LSL | 1<<5 | idx&31
 	default: // not shifted
 		mop.Index = idx
@@ -146,7 +189,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = x
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = y
-	case ssa.OpARM64MOVDnop:
+	case ssa.OpARM64MOVDnop, ssa.OpARM64ZERO:
 		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
@@ -167,17 +210,38 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = v.Args[0].Reg()
 		ssagen.AddrAuto(&p.To, v)
 	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
+		ssagen.CheckArgReg(v)
 		// The assembler needs to wrap the entry safepoint/stack growth code with spill/unspill
 		// The loop only runs once.
-		for _, a := range v.Block.Func.RegArgs {
-			// Pass the spill/unspill information along to the assembler, offset by size of
-			// the saved LR slot.
-			addr := ssagen.SpillSlotAddr(a, arm64.REGSP, base.Ctxt.Arch.FixedFrameSize)
-			s.FuncInfo().AddSpill(
-				obj.RegSpill{Reg: a.Reg, Addr: addr, Unspill: loadByType(a.Type), Spill: storeByType(a.Type)})
+		args := v.Block.Func.RegArgs
+		if len(args) == 0 {
+			break
 		}
-		v.Block.Func.RegArgs = nil
-		ssagen.CheckArgReg(v)
+		v.Block.Func.RegArgs = nil // prevent from running again
+
+		for i := 0; i < len(args); i++ {
+			a := args[i]
+			// Offset by size of the saved LR slot.
+			addr := ssagen.SpillSlotAddr(a, arm64.REGSP, base.Ctxt.Arch.FixedFrameSize)
+			// Look for double-register operations if we can.
+			if i < len(args)-1 {
+				b := args[i+1]
+				if a.Type.Size() == b.Type.Size() &&
+					a.Type.IsFloat() == b.Type.IsFloat() &&
+					b.Offset == a.Offset+a.Type.Size() {
+					ld := loadByType2(a.Type)
+					st := storeByType2(a.Type)
+					if ld != obj.AXXX && st != obj.AXXX {
+						s.FuncInfo().AddSpill(obj.RegSpill{Reg: a.Reg, Reg2: b.Reg, Addr: addr, Unspill: ld, Spill: st})
+						i++ // b is done also, skip it.
+						continue
+					}
+				}
+			}
+			// Pass the spill/unspill information along to the assembler.
+			s.FuncInfo().AddSpill(obj.RegSpill{Reg: a.Reg, Addr: addr, Unspill: loadByType(a.Type), Spill: storeByType(a.Type)})
+		}
+
 	case ssa.OpARM64ADD,
 		ssa.OpARM64SUB,
 		ssa.OpARM64AND,
@@ -215,6 +279,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64FNMULD,
 		ssa.OpARM64FDIVS,
 		ssa.OpARM64FDIVD,
+		ssa.OpARM64FMINS,
+		ssa.OpARM64FMIND,
+		ssa.OpARM64FMAXS,
+		ssa.OpARM64FMAXD,
 		ssa.OpARM64ROR,
 		ssa.OpARM64RORW:
 		r := v.Reg()
@@ -246,7 +314,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = ra
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = rm
-		p.SetFrom3Reg(rn)
+		p.AddRestSourceReg(rn)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = rt
 	case ssa.OpARM64ADDconst,
@@ -309,7 +377,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
-		p.SetFrom3Reg(v.Args[0].Reg())
+		p.AddRestSourceReg(v.Args[0].Reg())
 		p.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -449,6 +517,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssagen.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpARM64LDP, ssa.OpARM64LDPW, ssa.OpARM64LDPSW, ssa.OpARM64FLDPD, ssa.OpARM64FLDPS:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REGREG
+		p.To.Reg = v.Reg0()
+		p.To.Offset = int64(v.Reg1())
 	case ssa.OpARM64MOVBloadidx,
 		ssa.OpARM64MOVBUloadidx,
 		ssa.OpARM64MOVHloadidx,
@@ -508,40 +584,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To = genIndexedOperand(v.Op, v.Args[0].Reg(), v.Args[1].Reg())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[2].Reg()
-	case ssa.OpARM64STP:
+	case ssa.OpARM64STP, ssa.OpARM64STPW, ssa.OpARM64FSTPD, ssa.OpARM64FSTPS:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REGREG
 		p.From.Reg = v.Args[1].Reg()
 		p.From.Offset = int64(v.Args[2].Reg())
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = v.Args[0].Reg()
-		ssagen.AddAux(&p.To, v)
-	case ssa.OpARM64MOVBstorezero,
-		ssa.OpARM64MOVHstorezero,
-		ssa.OpARM64MOVWstorezero,
-		ssa.OpARM64MOVDstorezero:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = arm64.REGZERO
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = v.Args[0].Reg()
-		ssagen.AddAux(&p.To, v)
-	case ssa.OpARM64MOVBstorezeroidx,
-		ssa.OpARM64MOVHstorezeroidx,
-		ssa.OpARM64MOVWstorezeroidx,
-		ssa.OpARM64MOVDstorezeroidx,
-		ssa.OpARM64MOVHstorezeroidx2,
-		ssa.OpARM64MOVWstorezeroidx4,
-		ssa.OpARM64MOVDstorezeroidx8:
-		p := s.Prog(v.Op.Asm())
-		p.To = genIndexedOperand(v.Op, v.Args[0].Reg(), v.Args[1].Reg())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = arm64.REGZERO
-	case ssa.OpARM64MOVQstorezero:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REGREG
-		p.From.Reg = arm64.REGZERO
-		p.From.Offset = int64(arm64.REGZERO)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux(&p.To, v)
@@ -550,7 +597,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt >> 8
-		p.SetFrom3Const(v.AuxInt & 0xff)
+		p.AddRestSourceConst(v.AuxInt & 0xff)
 		p.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -561,35 +608,27 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt >> 8
-		p.SetFrom3Const(v.AuxInt & 0xff)
+		p.AddRestSourceConst(v.AuxInt & 0xff)
 		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpARM64LoweredMuluhilo:
-		r0 := v.Args[0].Reg()
-		r1 := v.Args[1].Reg()
-		p := s.Prog(arm64.AUMULH)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = r1
-		p.Reg = r0
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg0()
-		p1 := s.Prog(arm64.AMUL)
-		p1.From.Type = obj.TYPE_REG
-		p1.From.Reg = r1
-		p1.Reg = r0
-		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = v.Reg1()
 	case ssa.OpARM64LoweredAtomicExchange64,
-		ssa.OpARM64LoweredAtomicExchange32:
+		ssa.OpARM64LoweredAtomicExchange32,
+		ssa.OpARM64LoweredAtomicExchange8:
 		// LDAXR	(Rarg0), Rout
 		// STLXR	Rarg1, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -2(PC)
-		ld := arm64.ALDAXR
-		st := arm64.ASTLXR
-		if v.Op == ssa.OpARM64LoweredAtomicExchange32 {
+		var ld, st obj.As
+		switch v.Op {
+		case ssa.OpARM64LoweredAtomicExchange8:
+			ld = arm64.ALDAXRB
+			st = arm64.ASTLXRB
+		case ssa.OpARM64LoweredAtomicExchange32:
 			ld = arm64.ALDAXRW
 			st = arm64.ASTLXRW
+		case ssa.OpARM64LoweredAtomicExchange64:
+			ld = arm64.ALDAXR
+			st = arm64.ASTLXR
 		}
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()
@@ -611,10 +650,16 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p2.To.Type = obj.TYPE_BRANCH
 		p2.To.SetTarget(p)
 	case ssa.OpARM64LoweredAtomicExchange64Variant,
-		ssa.OpARM64LoweredAtomicExchange32Variant:
-		swap := arm64.ASWPALD
-		if v.Op == ssa.OpARM64LoweredAtomicExchange32Variant {
+		ssa.OpARM64LoweredAtomicExchange32Variant,
+		ssa.OpARM64LoweredAtomicExchange8Variant:
+		var swap obj.As
+		switch v.Op {
+		case ssa.OpARM64LoweredAtomicExchange8Variant:
+			swap = arm64.ASWPALB
+		case ssa.OpARM64LoweredAtomicExchange32Variant:
 			swap = arm64.ASWPALW
+		case ssa.OpARM64LoweredAtomicExchange64Variant:
+			swap = arm64.ASWPALD
 		}
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()
@@ -784,23 +829,30 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p3.To.Type = obj.TYPE_REG
 		p3.To.Reg = out
 
-	case ssa.OpARM64LoweredAtomicAnd8,
+	case ssa.OpARM64LoweredAtomicAnd64,
+		ssa.OpARM64LoweredAtomicOr64,
 		ssa.OpARM64LoweredAtomicAnd32,
-		ssa.OpARM64LoweredAtomicOr8,
-		ssa.OpARM64LoweredAtomicOr32:
-		// LDAXRB/LDAXRW (Rarg0), Rout
-		// AND/OR	Rarg1, Rout
-		// STLXRB/STLXRB Rout, (Rarg0), Rtmp
+		ssa.OpARM64LoweredAtomicOr32,
+		ssa.OpARM64LoweredAtomicAnd8,
+		ssa.OpARM64LoweredAtomicOr8:
+		// LDAXR[BW] (Rarg0), Rout
+		// AND/OR	Rarg1, Rout, tmp1
+		// STLXR[BW] tmp1, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -3(PC)
-		ld := arm64.ALDAXRB
-		st := arm64.ASTLXRB
+		ld := arm64.ALDAXR
+		st := arm64.ASTLXR
 		if v.Op == ssa.OpARM64LoweredAtomicAnd32 || v.Op == ssa.OpARM64LoweredAtomicOr32 {
 			ld = arm64.ALDAXRW
 			st = arm64.ASTLXRW
 		}
+		if v.Op == ssa.OpARM64LoweredAtomicAnd8 || v.Op == ssa.OpARM64LoweredAtomicOr8 {
+			ld = arm64.ALDAXRB
+			st = arm64.ASTLXRB
+		}
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()
 		out := v.Reg0()
+		tmp := v.RegTmp()
 		p := s.Prog(ld)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = r0
@@ -809,11 +861,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p1 := s.Prog(v.Op.Asm())
 		p1.From.Type = obj.TYPE_REG
 		p1.From.Reg = r1
+		p1.Reg = out
 		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = out
+		p1.To.Reg = tmp
 		p2 := s.Prog(st)
 		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = out
+		p2.From.Reg = tmp
 		p2.To.Type = obj.TYPE_MEM
 		p2.To.Reg = r0
 		p2.RegTo2 = arm64.REGTMP
@@ -822,9 +875,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p3.From.Reg = arm64.REGTMP
 		p3.To.Type = obj.TYPE_BRANCH
 		p3.To.SetTarget(p)
+
 	case ssa.OpARM64LoweredAtomicAnd8Variant,
-		ssa.OpARM64LoweredAtomicAnd32Variant:
-		atomic_clear := arm64.ALDCLRALW
+		ssa.OpARM64LoweredAtomicAnd32Variant,
+		ssa.OpARM64LoweredAtomicAnd64Variant:
+		atomic_clear := arm64.ALDCLRALD
+		if v.Op == ssa.OpARM64LoweredAtomicAnd32Variant {
+			atomic_clear = arm64.ALDCLRALW
+		}
 		if v.Op == ssa.OpARM64LoweredAtomicAnd8Variant {
 			atomic_clear = arm64.ALDCLRALB
 		}
@@ -839,7 +897,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = arm64.REGTMP
 
-		// LDCLRALW  Rtemp, (Rarg0), Rout
+		// LDCLRAL[BDW]  Rtemp, (Rarg0), Rout
 		p1 := s.Prog(atomic_clear)
 		p1.From.Type = obj.TYPE_REG
 		p1.From.Reg = arm64.REGTMP
@@ -847,16 +905,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p1.To.Reg = r0
 		p1.RegTo2 = out
 
-		// AND       Rarg1, Rout
-		p2 := s.Prog(arm64.AAND)
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = r1
-		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = out
-
 	case ssa.OpARM64LoweredAtomicOr8Variant,
-		ssa.OpARM64LoweredAtomicOr32Variant:
-		atomic_or := arm64.ALDORALW
+		ssa.OpARM64LoweredAtomicOr32Variant,
+		ssa.OpARM64LoweredAtomicOr64Variant:
+		atomic_or := arm64.ALDORALD
+		if v.Op == ssa.OpARM64LoweredAtomicOr32Variant {
+			atomic_or = arm64.ALDORALW
+		}
 		if v.Op == ssa.OpARM64LoweredAtomicOr8Variant {
 			atomic_or = arm64.ALDORALB
 		}
@@ -864,20 +919,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		r1 := v.Args[1].Reg()
 		out := v.Reg0()
 
-		// LDORALW  Rarg1, (Rarg0), Rout
+		// LDORAL[BDW]  Rarg1, (Rarg0), Rout
 		p := s.Prog(atomic_or)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r1
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = r0
 		p.RegTo2 = out
-
-		// ORR       Rarg1, Rout
-		p2 := s.Prog(arm64.AORR)
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = r1
-		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = out
 
 	case ssa.OpARM64MOVBreg,
 		ssa.OpARM64MOVBUreg,
@@ -983,7 +1031,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		condCode := condBits[ssa.Op(v.AuxInt)]
 		p.From.Offset = int64(condCode)
 		p.Reg = v.Args[0].Reg()
-		p.SetFrom3Reg(r1)
+		p.AddRestSourceReg(r1)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpARM64CSINC, ssa.OpARM64CSINV, ssa.OpARM64CSNEG:
@@ -992,7 +1040,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		condCode := condBits[ssa.Op(v.AuxInt)]
 		p.From.Offset = int64(condCode)
 		p.Reg = v.Args[0].Reg()
-		p.SetFrom3Reg(v.Args[1].Reg())
+		p.AddRestSourceReg(v.Args[1].Reg())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpARM64CSETM:
@@ -1002,66 +1050,268 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Offset = int64(condCode)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpARM64DUFFZERO:
-		// runtime.duffzero expects start address in R20
-		p := s.Prog(obj.ADUFFZERO)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ir.Syms.Duffzero
-		p.To.Offset = v.AuxInt
+	case ssa.OpARM64CCMP,
+		ssa.OpARM64CCMN,
+		ssa.OpARM64CCMPconst,
+		ssa.OpARM64CCMNconst,
+		ssa.OpARM64CCMPW,
+		ssa.OpARM64CCMNW,
+		ssa.OpARM64CCMPWconst,
+		ssa.OpARM64CCMNWconst:
+		p := s.Prog(v.Op.Asm())
+		p.Reg = v.Args[0].Reg()
+		params := v.AuxArm64ConditionalParams()
+		p.From.Type = obj.TYPE_SPECIAL // assembler encodes conditional bits in Offset
+		p.From.Offset = int64(condBits[params.Cond()])
+		constValue, ok := params.ConstValue()
+		if ok {
+			p.AddRestSourceConst(constValue)
+		} else {
+			p.AddRestSourceReg(v.Args[1].Reg())
+		}
+		p.To.Type = obj.TYPE_CONST
+		p.To.Offset = params.Nzcv()
 	case ssa.OpARM64LoweredZero:
-		// STP.P	(ZR,ZR), 16(R16)
-		// CMP	Rarg1, R16
-		// BLE	-2(PC)
-		// arg1 is the address of the last 16-byte unit to zero
-		p := s.Prog(arm64.ASTP)
-		p.Scond = arm64.C_XPOST
-		p.From.Type = obj.TYPE_REGREG
-		p.From.Reg = arm64.REGZERO
-		p.From.Offset = int64(arm64.REGZERO)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = arm64.REG_R16
-		p.To.Offset = 16
-		p2 := s.Prog(arm64.ACMP)
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = v.Args[1].Reg()
-		p2.Reg = arm64.REG_R16
-		p3 := s.Prog(arm64.ABLE)
-		p3.To.Type = obj.TYPE_BRANCH
-		p3.To.SetTarget(p)
-	case ssa.OpARM64DUFFCOPY:
-		p := s.Prog(obj.ADUFFCOPY)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ir.Syms.Duffcopy
-		p.To.Offset = v.AuxInt
-	case ssa.OpARM64LoweredMove:
-		// MOVD.P	8(R16), Rtmp
-		// MOVD.P	Rtmp, 8(R17)
-		// CMP	Rarg2, R16
-		// BLE	-3(PC)
-		// arg2 is the address of the last element of src
+		ptrReg := v.Args[0].Reg()
+		n := v.AuxInt
+		if n < 16 {
+			v.Fatalf("Zero too small %d", n)
+		}
+
+		// Generate zeroing instructions.
+		var off int64
+		for n >= 16 {
+			//  STP     (ZR, ZR), off(ptrReg)
+			zero16(s, ptrReg, off, false)
+			off += 16
+			n -= 16
+		}
+		// Write any fractional portion.
+		// An overlapping 16-byte write can't be used here
+		// because STP's offsets must be a multiple of 8.
+		if n > 8 {
+			//  MOVD    ZR, off(ptrReg)
+			zero8(s, ptrReg, off)
+			off += 8
+			n -= 8
+		}
+		if n != 0 {
+			//  MOVD    ZR, off+n-8(ptrReg)
+			// TODO: for n<=4 we could use a smaller write.
+			zero8(s, ptrReg, off+n-8)
+		}
+	case ssa.OpARM64LoweredZeroLoop:
+		ptrReg := v.Args[0].Reg()
+		countReg := v.RegTmp()
+		n := v.AuxInt
+		loopSize := int64(64)
+		if n < 3*loopSize {
+			// - a loop count of 0 won't work.
+			// - a loop count of 1 is useless.
+			// - a loop count of 2 is a code size ~tie
+			//     3 instructions to implement the loop
+			//     4 instructions in the loop body
+			//   vs
+			//     8 instructions in the straightline code
+			//   Might as well use straightline code.
+			v.Fatalf("ZeroLoop size too small %d", n)
+		}
+
+		// Put iteration count in a register.
+		//   MOVD    $n, countReg
 		p := s.Prog(arm64.AMOVD)
-		p.Scond = arm64.C_XPOST
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = arm64.REG_R16
-		p.From.Offset = 8
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = n / loopSize
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = arm64.REGTMP
-		p2 := s.Prog(arm64.AMOVD)
-		p2.Scond = arm64.C_XPOST
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = arm64.REGTMP
-		p2.To.Type = obj.TYPE_MEM
-		p2.To.Reg = arm64.REG_R17
-		p2.To.Offset = 8
-		p3 := s.Prog(arm64.ACMP)
-		p3.From.Type = obj.TYPE_REG
-		p3.From.Reg = v.Args[2].Reg()
-		p3.Reg = arm64.REG_R16
-		p4 := s.Prog(arm64.ABLE)
-		p4.To.Type = obj.TYPE_BRANCH
-		p4.To.SetTarget(p)
+		p.To.Reg = countReg
+		cntInit := p
+
+		// Zero loopSize bytes starting at ptrReg.
+		// Increment ptrReg by loopSize as a side effect.
+		for range loopSize / 16 {
+			//  STP.P   (ZR, ZR), 16(ptrReg)
+			zero16(s, ptrReg, 0, true)
+			// TODO: should we use the postincrement form,
+			// or use a separate += 64 instruction?
+			// postincrement saves an instruction, but maybe
+			// it requires more integer units to do the +=16s.
+		}
+		// Decrement loop count.
+		//   SUB     $1, countReg
+		p = s.Prog(arm64.ASUB)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = countReg
+		// Jump to loop header if we're not done yet.
+		//   CBNZ    head
+		p = s.Prog(arm64.ACBNZ)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = countReg
+		p.To.Type = obj.TYPE_BRANCH
+		p.To.SetTarget(cntInit.Link)
+
+		// Multiples of the loop size are now done.
+		n %= loopSize
+
+		// Write any fractional portion.
+		var off int64
+		for n >= 16 {
+			//  STP     (ZR, ZR), off(ptrReg)
+			zero16(s, ptrReg, off, false)
+			off += 16
+			n -= 16
+		}
+		if n > 8 {
+			// Note: an overlapping 16-byte write can't be used
+			// here because STP's offsets must be a multiple of 8.
+			//  MOVD    ZR, off(ptrReg)
+			zero8(s, ptrReg, off)
+			off += 8
+			n -= 8
+		}
+		if n != 0 {
+			//  MOVD    ZR, off+n-8(ptrReg)
+			// TODO: for n<=4 we could use a smaller write.
+			zero8(s, ptrReg, off+n-8)
+		}
+		// TODO: maybe we should use the count register to instead
+		// hold an end pointer and compare against that?
+		//   ADD $n, ptrReg, endReg
+		// then
+		//   CMP ptrReg, endReg
+		//   BNE loop
+		// There's a past-the-end pointer here, any problem with that?
+
+	case ssa.OpARM64LoweredMove:
+		dstReg := v.Args[0].Reg()
+		srcReg := v.Args[1].Reg()
+		if dstReg == srcReg {
+			break
+		}
+		tmpReg1 := int16(arm64.REG_R25)
+		tmpFReg1 := int16(arm64.REG_F16)
+		tmpFReg2 := int16(arm64.REG_F17)
+		n := v.AuxInt
+		if n < 16 {
+			v.Fatalf("Move too small %d", n)
+		}
+
+		// Generate copying instructions.
+		var off int64
+		for n >= 32 {
+			//  FLDPQ   off(srcReg), (tmpFReg1, tmpFReg2)
+			//  FSTPQ   (tmpFReg1, tmpFReg2), off(dstReg)
+			move32(s, srcReg, dstReg, tmpFReg1, tmpFReg2, off, false)
+			off += 32
+			n -= 32
+		}
+		for n >= 16 {
+			//  FMOVQ   off(src), tmpFReg1
+			//  FMOVQ   tmpFReg1, off(dst)
+			move16(s, srcReg, dstReg, tmpFReg1, off, false)
+			off += 16
+			n -= 16
+		}
+		if n > 8 {
+			//  MOVD    off(srcReg), tmpReg1
+			//  MOVD    tmpReg1, off(dstReg)
+			move8(s, srcReg, dstReg, tmpReg1, off)
+			off += 8
+			n -= 8
+		}
+		if n != 0 {
+			//  MOVD    off+n-8(srcReg), tmpReg1
+			//  MOVD    tmpReg1, off+n-8(dstReg)
+			move8(s, srcReg, dstReg, tmpReg1, off+n-8)
+		}
+	case ssa.OpARM64LoweredMoveLoop:
+		dstReg := v.Args[0].Reg()
+		srcReg := v.Args[1].Reg()
+		if dstReg == srcReg {
+			break
+		}
+		countReg := int16(arm64.REG_R24)
+		tmpReg1 := int16(arm64.REG_R25)
+		tmpFReg1 := int16(arm64.REG_F16)
+		tmpFReg2 := int16(arm64.REG_F17)
+		n := v.AuxInt
+		loopSize := int64(64)
+		if n < 3*loopSize {
+			// - a loop count of 0 won't work.
+			// - a loop count of 1 is useless.
+			// - a loop count of 2 is a code size ~tie
+			//     3 instructions to implement the loop
+			//     4 instructions in the loop body
+			//   vs
+			//     8 instructions in the straightline code
+			//   Might as well use straightline code.
+			v.Fatalf("ZeroLoop size too small %d", n)
+		}
+
+		// Put iteration count in a register.
+		//   MOVD    $n, countReg
+		p := s.Prog(arm64.AMOVD)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = n / loopSize
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = countReg
+		cntInit := p
+
+		// Move loopSize bytes starting at srcReg to dstReg.
+		// Increment srcReg and destReg by loopSize as a side effect.
+		for range loopSize / 32 {
+			// FLDPQ.P 32(srcReg), (tmpFReg1, tmpFReg2)
+			// FSTPQ.P (tmpFReg1, tmpFReg2), 32(dstReg)
+			move32(s, srcReg, dstReg, tmpFReg1, tmpFReg2, 0, true)
+		}
+		// Decrement loop count.
+		//   SUB     $1, countReg
+		p = s.Prog(arm64.ASUB)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = countReg
+		// Jump to loop header if we're not done yet.
+		//   CBNZ    head
+		p = s.Prog(arm64.ACBNZ)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = countReg
+		p.To.Type = obj.TYPE_BRANCH
+		p.To.SetTarget(cntInit.Link)
+
+		// Multiples of the loop size are now done.
+		n %= loopSize
+
+		// Copy any fractional portion.
+		var off int64
+		for n >= 32 {
+			//  FLDPQ   off(srcReg), (tmpFReg1, tmpFReg2)
+			//  FSTPQ   (tmpFReg1, tmpFReg2), off(dstReg)
+			move32(s, srcReg, dstReg, tmpFReg1, tmpFReg2, off, false)
+			off += 32
+			n -= 32
+		}
+		for n >= 16 {
+			//  FMOVQ   off(src), tmpFReg1
+			//  FMOVQ   tmpFReg1, off(dst)
+			move16(s, srcReg, dstReg, tmpFReg1, off, false)
+			off += 16
+			n -= 16
+		}
+		if n > 8 {
+			//  MOVD    off(srcReg), tmpReg1
+			//  MOVD    tmpReg1, off(dstReg)
+			move8(s, srcReg, dstReg, tmpReg1, off)
+			off += 8
+			n -= 8
+		}
+		if n != 0 {
+			//  MOVD    off+n-8(srcReg), tmpReg1
+			//  MOVD    tmpReg1, off+n-8(dstReg)
+			move8(s, srcReg, dstReg, tmpReg1, off+n-8)
+		}
+
 	case ssa.OpARM64CALLstatic, ssa.OpARM64CALLclosure, ssa.OpARM64CALLinter:
 		s.Call(v)
 	case ssa.OpARM64CALLtail:
@@ -1070,13 +1320,99 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = v.Aux.(*obj.LSym)
-	case ssa.OpARM64LoweredPanicBoundsA, ssa.OpARM64LoweredPanicBoundsB, ssa.OpARM64LoweredPanicBoundsC:
+		// AuxInt encodes how many buffer entries we need.
+		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
+	case ssa.OpARM64LoweredMemEq:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ssagen.BoundsCheckFunc[v.AuxInt]
-		s.UseArgs(16) // space used in callee args area by assembly stubs
+		p.To.Sym = ir.Syms.Memequal
+
+	case ssa.OpARM64LoweredPanicBoundsRR, ssa.OpARM64LoweredPanicBoundsRC, ssa.OpARM64LoweredPanicBoundsCR, ssa.OpARM64LoweredPanicBoundsCC:
+		// Compute the constant we put in the PCData entry for this call.
+		code, signed := ssa.BoundsKind(v.AuxInt).Code()
+		xIsReg := false
+		yIsReg := false
+		xVal := 0
+		yVal := 0
+		switch v.Op {
+		case ssa.OpARM64LoweredPanicBoundsRR:
+			xIsReg = true
+			xVal = int(v.Args[0].Reg() - arm64.REG_R0)
+			yIsReg = true
+			yVal = int(v.Args[1].Reg() - arm64.REG_R0)
+		case ssa.OpARM64LoweredPanicBoundsRC:
+			xIsReg = true
+			xVal = int(v.Args[0].Reg() - arm64.REG_R0)
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				yIsReg = true
+				if yVal == xVal {
+					yVal = 1
+				}
+				p := s.Prog(arm64.AMOVD)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm64.REG_R0 + int16(yVal)
+			}
+		case ssa.OpARM64LoweredPanicBoundsCR:
+			yIsReg = true
+			yVal = int(v.Args[0].Reg() - arm64.REG_R0)
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				xVal = int(c)
+			} else {
+				// Move constant to a register
+				if xVal == yVal {
+					xVal = 1
+				}
+				p := s.Prog(arm64.AMOVD)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm64.REG_R0 + int16(xVal)
+			}
+		case ssa.OpARM64LoweredPanicBoundsCC:
+			c := v.Aux.(ssa.PanicBoundsCC).Cx
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				xVal = int(c)
+			} else {
+				// Move constant to a register
+				xIsReg = true
+				p := s.Prog(arm64.AMOVD)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm64.REG_R0 + int16(xVal)
+			}
+			c = v.Aux.(ssa.PanicBoundsCC).Cy
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				yIsReg = true
+				yVal = 1
+				p := s.Prog(arm64.AMOVD)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = arm64.REG_R0 + int16(yVal)
+			}
+		}
+		c := abi.BoundsEncode(code, signed, xIsReg, yIsReg, xVal, yVal)
+
+		p := s.Prog(obj.APCDATA)
+		p.From.SetConst(abi.PCDATA_PanicBounds)
+		p.To.SetConst(int64(c))
+		p = s.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = ir.Syms.PanicBounds
+
 	case ssa.OpARM64LoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
 		p := s.Prog(arm64.AMOVB)
@@ -1108,7 +1444,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64NotLessThanF,
 		ssa.OpARM64NotLessEqualF,
 		ssa.OpARM64NotGreaterThanF,
-		ssa.OpARM64NotGreaterEqualF:
+		ssa.OpARM64NotGreaterEqualF,
+		ssa.OpARM64LessThanNoov,
+		ssa.OpARM64GreaterEqualNoov:
 		// generate boolean values using CSET
 		p := s.Prog(arm64.ACSET)
 		p.From.Type = obj.TYPE_SPECIAL // assembler encodes conditional bits in Offset
@@ -1199,6 +1537,9 @@ var condBits = map[ssa.Op]arm64.SpecialOperand{
 	ssa.OpARM64NotLessEqualF:    arm64.SPOP_HI, // Greater than or unordered
 	ssa.OpARM64NotGreaterThanF:  arm64.SPOP_LE, // Less than, equal to or unordered
 	ssa.OpARM64NotGreaterEqualF: arm64.SPOP_LT, // Less than or unordered
+
+	ssa.OpARM64LessThanNoov:     arm64.SPOP_MI, // Less than but without honoring overflow
+	ssa.OpARM64GreaterEqualNoov: arm64.SPOP_PL, // Greater than or equal to but without honoring overflow
 }
 
 var blockJump = map[ssa.BlockKind]struct {
@@ -1228,13 +1569,13 @@ var blockJump = map[ssa.BlockKind]struct {
 	ssa.BlockARM64GEnoov: {arm64.ABPL, arm64.ABMI},
 }
 
-// To model a 'LEnoov' ('<=' without overflow checking) branching
+// To model a 'LEnoov' ('<=' without overflow checking) branching.
 var leJumps = [2][2]ssagen.IndexJump{
 	{{Jump: arm64.ABEQ, Index: 0}, {Jump: arm64.ABPL, Index: 1}}, // next == b.Succs[0]
 	{{Jump: arm64.ABMI, Index: 0}, {Jump: arm64.ABEQ, Index: 0}}, // next == b.Succs[1]
 }
 
-// To model a 'GTnoov' ('>' without overflow checking) branching
+// To model a 'GTnoov' ('>' without overflow checking) branching.
 var gtJumps = [2][2]ssagen.IndexJump{
 	{{Jump: arm64.ABMI, Index: 1}, {Jump: arm64.ABEQ, Index: 1}}, // next == b.Succs[0]
 	{{Jump: arm64.ABEQ, Index: 1}, {Jump: arm64.ABPL, Index: 0}}, // next == b.Succs[1]
@@ -1242,24 +1583,7 @@ var gtJumps = [2][2]ssagen.IndexJump{
 
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
-	case ssa.BlockPlain:
-		if b.Succs[0].Block() != next {
-			p := s.Prog(obj.AJMP)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
-		}
-
-	case ssa.BlockDefer:
-		// defer returns in R0:
-		// 0 if we should continue executing
-		// 1 if we should jump to deferreturn call
-		p := s.Prog(arm64.ACMP)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 0
-		p.Reg = arm64.REG_R0
-		p = s.Prog(arm64.ABNE)
-		p.To.Type = obj.TYPE_BRANCH
-		s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[1].Block()})
+	case ssa.BlockPlain, ssa.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
@@ -1362,4 +1686,115 @@ func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg in
 	p.To.Sym = n.Linksym()
 	p.Pos = p.Pos.WithNotStmt()
 	return p
+}
+
+// zero16 zeroes 16 bytes at reg+off.
+// If postInc is true, increment reg by 16.
+func zero16(s *ssagen.State, reg int16, off int64, postInc bool) {
+	//   STP     (ZR, ZR), off(reg)
+	p := s.Prog(arm64.ASTP)
+	p.From.Type = obj.TYPE_REGREG
+	p.From.Reg = arm64.REGZERO
+	p.From.Offset = int64(arm64.REGZERO)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Reg = reg
+	p.To.Offset = off
+	if postInc {
+		if off != 0 {
+			panic("can't postinc with non-zero offset")
+		}
+		//   STP.P  (ZR, ZR), 16(reg)
+		p.Scond = arm64.C_XPOST
+		p.To.Offset = 16
+	}
+}
+
+// zero8 zeroes 8 bytes at reg+off.
+func zero8(s *ssagen.State, reg int16, off int64) {
+	//   MOVD     ZR, off(reg)
+	p := s.Prog(arm64.AMOVD)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = arm64.REGZERO
+	p.To.Type = obj.TYPE_MEM
+	p.To.Reg = reg
+	p.To.Offset = off
+}
+
+// move32 copies 32 bytes at src+off to dst+off.
+// Uses registers tmp1 and tmp2.
+// If postInc is true, increment src and dst by 32.
+func move32(s *ssagen.State, src, dst, tmp1, tmp2 int16, off int64, postInc bool) {
+	// FLDPQ   off(src), (tmp1, tmp2)
+	ld := s.Prog(arm64.AFLDPQ)
+	ld.From.Type = obj.TYPE_MEM
+	ld.From.Reg = src
+	ld.From.Offset = off
+	ld.To.Type = obj.TYPE_REGREG
+	ld.To.Reg = tmp1
+	ld.To.Offset = int64(tmp2)
+	// FSTPQ   (tmp1, tmp2), off(dst)
+	st := s.Prog(arm64.AFSTPQ)
+	st.From.Type = obj.TYPE_REGREG
+	st.From.Reg = tmp1
+	st.From.Offset = int64(tmp2)
+	st.To.Type = obj.TYPE_MEM
+	st.To.Reg = dst
+	st.To.Offset = off
+	if postInc {
+		if off != 0 {
+			panic("can't postinc with non-zero offset")
+		}
+		ld.Scond = arm64.C_XPOST
+		st.Scond = arm64.C_XPOST
+		ld.From.Offset = 32
+		st.To.Offset = 32
+	}
+}
+
+// move16 copies 16 bytes at src+off to dst+off.
+// Uses register tmp1
+// If postInc is true, increment src and dst by 16.
+func move16(s *ssagen.State, src, dst, tmp1 int16, off int64, postInc bool) {
+	// FMOVQ     off(src), tmp1
+	ld := s.Prog(arm64.AFMOVQ)
+	ld.From.Type = obj.TYPE_MEM
+	ld.From.Reg = src
+	ld.From.Offset = off
+	ld.To.Type = obj.TYPE_REG
+	ld.To.Reg = tmp1
+	// FMOVQ     tmp1, off(dst)
+	st := s.Prog(arm64.AFMOVQ)
+	st.From.Type = obj.TYPE_REG
+	st.From.Reg = tmp1
+	st.To.Type = obj.TYPE_MEM
+	st.To.Reg = dst
+	st.To.Offset = off
+	if postInc {
+		if off != 0 {
+			panic("can't postinc with non-zero offset")
+		}
+		ld.Scond = arm64.C_XPOST
+		st.Scond = arm64.C_XPOST
+		ld.From.Offset = 16
+		st.To.Offset = 16
+	}
+}
+
+// move8 copies 8 bytes at src+off to dst+off.
+// Uses register tmp.
+func move8(s *ssagen.State, src, dst, tmp int16, off int64) {
+	// MOVD    off(src), tmp
+	ld := s.Prog(arm64.AMOVD)
+	ld.From.Type = obj.TYPE_MEM
+	ld.From.Reg = src
+	ld.From.Offset = off
+	ld.To.Type = obj.TYPE_REG
+	ld.To.Reg = tmp
+	// MOVD    tmp, off(dst)
+	st := s.Prog(arm64.AMOVD)
+	st.From.Type = obj.TYPE_REG
+	st.From.Reg = tmp
+	st.To.Type = obj.TYPE_MEM
+	st.To.Reg = dst
+	st.To.Offset = off
 }

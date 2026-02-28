@@ -180,7 +180,7 @@ func report(err error) {
 	errorCount++
 }
 
-// parse may be called concurrently
+// parse may be called concurrently.
 func parse(filename string, src any) (*ast.File, error) {
 	if *verbose {
 		fmt.Println(filename)

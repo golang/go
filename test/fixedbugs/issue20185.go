@@ -19,7 +19,7 @@ func F() {
 const x = 1
 
 func G() {
-	switch t := x.(type) { // ERROR "cannot type switch on non-interface value|declared but not used|not an interface"
+	switch t := x.(type) { // ERROR "cannot type switch on non-interface value|declared and not used|not an interface"
 	default:
 	}
 }

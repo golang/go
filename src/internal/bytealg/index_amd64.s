@@ -39,6 +39,7 @@ no_sse42:
 	JA   _3_or_more
 	MOVW (R8), R8
 	LEAQ -1(DI)(DX*1), DX
+	PCALIGN $16
 loop2:
 	MOVW (DI), SI
 	CMPW SI,R8
@@ -233,8 +234,10 @@ success_avx2:
 	VZEROUPPER
 	JMP success
 sse42:
+#ifndef hasSSE42
 	CMPB internal∕cpu·X86+const_offsetX86HasSSE42(SB), $1
 	JNE no_sse42
+#endif
 	CMPQ AX, $12
 	// PCMPESTRI is slower than normal compare,
 	// so using it makes sense only if we advance 4+ bytes per compare
@@ -248,6 +251,7 @@ sse42:
 	LEAQ -15(DI)(DX*1), SI
 	MOVQ $16, R9
 	SUBQ AX, R9 // We advance by 16-len(sep) each iteration, so precalculate it into R9
+	PCALIGN $16
 loop_sse42:
 	// 0x0c means: unsigned byte compare (bits 0,1 are 00)
 	// for equality (bits 2,3 are 11)

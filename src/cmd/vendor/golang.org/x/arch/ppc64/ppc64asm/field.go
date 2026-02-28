@@ -67,7 +67,7 @@ func (bs *BitFields) Append(b BitField) {
 // the sequence of bitfields is reasonable.
 func (bs BitFields) parse(i [2]uint32) (u uint64, Bits uint8) {
 	for _, b := range bs {
-		u = (uint64(u) << b.Bits) | uint64(b.Parse(i))
+		u = (u << b.Bits) | uint64(b.Parse(i))
 		Bits += b.Bits
 	}
 	return u, Bits
@@ -80,9 +80,18 @@ func (bs BitFields) Parse(i [2]uint32) uint64 {
 	return u
 }
 
-// Parse extracts the bitfields from i, concatenate them and return the result
+// ParseSigned extracts the bitfields from i, concatenate them and return the result
 // as a signed integer. Parse will panic if any bitfield in b is invalid.
 func (bs BitFields) ParseSigned(i [2]uint32) int64 {
 	u, l := bs.parse(i)
 	return int64(u) << (64 - l) >> (64 - l)
+}
+
+// Count the number of bits in the aggregate BitFields
+func (bs BitFields) NumBits() int {
+	num := 0
+	for _, b := range bs {
+		num += int(b.Bits)
+	}
+	return num
 }

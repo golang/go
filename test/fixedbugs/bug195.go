@@ -14,11 +14,11 @@ type I3 interface{ int } // ERROR "interface"
 type S struct { // GC_ERROR "invalid recursive type"
 	x interface{ S } // GCCGO_ERROR "interface"
 }
-type I4 interface { // GC_ERROR "invalid recursive type I4\n\tLINE:.* I4 refers to\n\tLINE:.* I4$"
+type I4 interface { // GC_ERROR "invalid recursive type: I4 refers to itself"
 	I4 // GCCGO_ERROR "interface"
 }
 
-type I5 interface { // GC_ERROR "invalid recursive type I5\n\tLINE:.* I5 refers to\n\tLINE+4:.* I6 refers to\n\tLINE:.* I5$"
+type I5 interface { // GC_ERROR "invalid recursive type I5\n\tLINE:.* I5 refers to I6\n\tLINE+4:.* I6 refers to I5$"
 	I6
 }
 

@@ -16,7 +16,7 @@ import (
 	"golang.org/x/net/http/httpguts"
 )
 
-// ResponseRecorder is an implementation of http.ResponseWriter that
+// ResponseRecorder is an implementation of [http.ResponseWriter] that
 // records its mutations for later inspection in tests.
 type ResponseRecorder struct {
 	// Code is the HTTP response code set by WriteHeader.
@@ -47,7 +47,7 @@ type ResponseRecorder struct {
 	wroteHeader bool
 }
 
-// NewRecorder returns an initialized ResponseRecorder.
+// NewRecorder returns an initialized [ResponseRecorder].
 func NewRecorder() *ResponseRecorder {
 	return &ResponseRecorder{
 		HeaderMap: make(http.Header),
@@ -57,12 +57,12 @@ func NewRecorder() *ResponseRecorder {
 }
 
 // DefaultRemoteAddr is the default remote address to return in RemoteAddr if
-// an explicit DefaultRemoteAddr isn't set on ResponseRecorder.
+// an explicit DefaultRemoteAddr isn't set on [ResponseRecorder].
 const DefaultRemoteAddr = "1.2.3.4"
 
-// Header implements http.ResponseWriter. It returns the response
+// Header implements [http.ResponseWriter]. It returns the response
 // headers to mutate within a handler. To test the headers that were
-// written after a handler completes, use the Result method and see
+// written after a handler completes, use the [ResponseRecorder.Result] method and see
 // the returned Response value's Header.
 func (rw *ResponseRecorder) Header() http.Header {
 	m := rw.HeaderMap
@@ -105,21 +105,43 @@ func (rw *ResponseRecorder) writeHeader(b []byte, str string) {
 // Write implements http.ResponseWriter. The data in buf is written to
 // rw.Body, if not nil.
 func (rw *ResponseRecorder) Write(buf []byte) (int, error) {
+	// Record the write, even if we're going to return an error.
 	rw.writeHeader(buf, "")
 	if rw.Body != nil {
 		rw.Body.Write(buf)
 	}
+	if !bodyAllowedForStatus(rw.Code) {
+		return 0, http.ErrBodyNotAllowed
+	}
 	return len(buf), nil
 }
 
-// WriteString implements io.StringWriter. The data in str is written
+// WriteString implements [io.StringWriter]. The data in str is written
 // to rw.Body, if not nil.
 func (rw *ResponseRecorder) WriteString(str string) (int, error) {
+	// Record the write, even if we're going to return an error.
 	rw.writeHeader(nil, str)
 	if rw.Body != nil {
 		rw.Body.WriteString(str)
 	}
+	if !bodyAllowedForStatus(rw.Code) {
+		return 0, http.ErrBodyNotAllowed
+	}
 	return len(str), nil
+}
+
+// bodyAllowedForStatus reports whether a given response status code
+// permits a body. See RFC 7230, section 3.3.
+func bodyAllowedForStatus(status int) bool {
+	switch {
+	case status >= 100 && status <= 199:
+		return false
+	case status == 204:
+		return false
+	case status == 304:
+		return false
+	}
+	return true
 }
 
 func checkWriteHeaderCode(code int) {
@@ -139,7 +161,7 @@ func checkWriteHeaderCode(code int) {
 	}
 }
 
-// WriteHeader implements http.ResponseWriter.
+// WriteHeader implements [http.ResponseWriter].
 func (rw *ResponseRecorder) WriteHeader(code int) {
 	if rw.wroteHeader {
 		return
@@ -154,7 +176,7 @@ func (rw *ResponseRecorder) WriteHeader(code int) {
 	rw.snapHeader = rw.HeaderMap.Clone()
 }
 
-// Flush implements http.Flusher. To test whether Flush was
+// Flush implements [http.Flusher]. To test whether Flush was
 // called, see rw.Flushed.
 func (rw *ResponseRecorder) Flush() {
 	if !rw.wroteHeader {
@@ -175,7 +197,7 @@ func (rw *ResponseRecorder) Flush() {
 // did a write.
 //
 // The Response.Body is guaranteed to be non-nil and Body.Read call is
-// guaranteed to not return any error other than io.EOF.
+// guaranteed to not return any error other than [io.EOF].
 //
 // Result must only be called after the handler has finished running.
 func (rw *ResponseRecorder) Result() *http.Response {
@@ -207,7 +229,7 @@ func (rw *ResponseRecorder) Result() *http.Response {
 	if trailers, ok := rw.snapHeader["Trailer"]; ok {
 		res.Trailer = make(http.Header, len(trailers))
 		for _, k := range trailers {
-			for _, k := range strings.Split(k, ",") {
+			for k := range strings.SplitSeq(k, ",") {
 				k = http.CanonicalHeaderKey(textproto.TrimString(k))
 				if !httpguts.ValidTrailerHeader(k) {
 					// Ignore since forbidden by RFC 7230, section 4.1.2.

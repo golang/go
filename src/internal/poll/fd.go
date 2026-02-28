@@ -81,3 +81,14 @@ func consume(v *[][]byte, n int64) {
 
 // TestHookDidWritev is a hook for testing writev.
 var TestHookDidWritev = func(wrote int) {}
+
+// String is an internal string definition for methods/functions
+// that is not intended for use outside the standard libraries.
+//
+// Other packages in std that import internal/poll and have some
+// exported APIs (now we've got some in net.rawConn) which are only used
+// internally and are not intended to be used outside the standard libraries,
+// Therefore, we make those APIs use internal types like poll.FD or poll.String
+// in their function signatures to disable the usability of these APIs from
+// external codebase.
+type String string

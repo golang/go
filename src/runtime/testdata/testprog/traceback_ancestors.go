@@ -87,9 +87,10 @@ func goroutineID() string {
 	buf := make([]byte, 128)
 	runtime.Stack(buf, false)
 	prefix := []byte("goroutine ")
-	if !bytes.HasPrefix(buf, prefix) {
+	var found bool
+	if buf, found = bytes.CutPrefix(buf, prefix); !found {
 		panic(fmt.Sprintf("expected %q at beginning of traceback:\n%s", prefix, buf))
 	}
-	id, _, _ := bytes.Cut(bytes.TrimPrefix(buf, prefix), []byte(" "))
+	id, _, _ := bytes.Cut(buf, []byte(" "))
 	return string(id)
 }

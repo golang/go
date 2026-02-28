@@ -22,7 +22,6 @@
 #define SYS_openat		56
 #define SYS_close		57
 #define SYS_pipe2		59
-#define SYS_fcntl		25
 #define SYS_nanosleep		101
 #define SYS_mmap		222
 #define SYS_munmap		215
@@ -42,9 +41,6 @@
 #define SYS_futex		98
 #define SYS_sched_getaffinity	123
 #define SYS_exit_group		94
-#define SYS_epoll_create1	20
-#define SYS_epoll_ctl		21
-#define SYS_epoll_pwait		22
 #define SYS_clock_gettime	113
 #define SYS_faccessat		48
 #define SYS_socket		198
@@ -60,7 +56,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	SVC
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
 	MOVD	wait+0(FP), R0
 	// We're done using the stack.
@@ -229,6 +225,13 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 
 // func walltime() (sec int64, nsec int32)
 TEXT runtime·walltime(SB),NOSPLIT,$24-12
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW 	g_secret(g), R20
+	CBZ 	R20, nosecret
+	BL	·secretEraseRegisters(SB)
+
+nosecret:
+#endif
 	MOVD	RSP, R20	// R20 is unchanged by C code
 	MOVD	RSP, R1
 
@@ -313,6 +316,13 @@ finish:
 	RET
 
 TEXT runtime·nanotime1(SB),NOSPLIT,$24-8
+#ifdef GOEXPERIMENT_runtimesecret
+	MOVW	g_secret(g), R20
+	CBZ	R20, nosecret
+	BL	·secretEraseRegisters(SB)
+
+nosecret:
+#endif
 	MOVD	RSP, R20	// R20 is unchanged by C code
 	MOVD	RSP, R1
 
@@ -459,14 +469,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$176
 	CBZ	R0, 2(PC)
 	BL	runtime·load_g(SB)
 
-#ifdef GOEXPERIMENT_regabiargs
 	// Restore signum to R0.
 	MOVW	8(RSP), R0
 	// R1 and R2 already contain info and ctx, respectively.
-#else
-	MOVD	R1, 16(RSP)
-	MOVD	R2, 24(RSP)
-#endif
 	MOVD	$runtime·sigtrampgo<ABIInternal>(SB), R3
 	BL	(R3)
 
@@ -482,13 +487,7 @@ TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$176
 	SAVE_R19_TO_R28(8*4)
 	SAVE_F8_TO_F15(8*14)
 
-#ifdef GOEXPERIMENT_regabiargs
 	// R0, R1 and R2 already contain sig, info and ctx, respectively.
-#else
-	MOVW	R0, 8(RSP)	// sig
-	MOVD	R1, 16(RSP)	// info
-	MOVD	R2, 24(RSP)	// ctx
-#endif
 	CALL	runtime·sigprofNonGo<ABIInternal>(SB)
 
 	// Restore callee-save registers.
@@ -762,54 +761,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R0, ret+24(FP)
 	RET
 
-// int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
-	MOVW	$0, R0
-	MOVD	$SYS_epoll_create1, R8
-	SVC
-	MOVW	R0, ret+8(FP)
-	RET
-
-// int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
-	MOVW	flags+0(FP), R0
-	MOVD	$SYS_epoll_create1, R8
-	SVC
-	MOVW	R0, ret+8(FP)
-	RET
-
-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), R0
-	MOVW	op+4(FP), R1
-	MOVW	fd+8(FP), R2
-	MOVD	ev+16(FP), R3
-	MOVD	$SYS_epoll_ctl, R8
-	SVC
-	MOVW	R0, ret+24(FP)
-	RET
-
-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), R0
-	MOVD	ev+8(FP), R1
-	MOVW	nev+16(FP), R2
-	MOVW	timeout+20(FP), R3
-	MOVD	$0, R4
-	MOVD	$SYS_epoll_pwait, R8
-	SVC
-	MOVW	R0, ret+24(FP)
-	RET
-
-// void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
-	MOVW	fd+0(FP), R0  // fd
-	MOVD	$2, R1	// F_SETFD
-	MOVD	$1, R2	// FD_CLOEXEC
-	MOVD	$SYS_fcntl, R8
-	SVC
-	RET
-
 // int access(const char *name, int mode)
 TEXT runtime·access(SB),NOSPLIT,$0-20
 	MOVD	$AT_FDCWD, R0
@@ -849,5 +800,47 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
 	MOVD	R0, ret+0(FP)
 	RET
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+// func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
+TEXT runtime·vgetrandom1<ABIInternal>(SB),NOSPLIT,$16-48
+	MOVD	RSP, R20
+
+	MOVD	runtime·vdsoGetrandomSym(SB), R8
+	MOVD	g_m(g), R21
+
+	MOVD	m_vdsoPC(R21), R9
+	MOVD	R9, 8(RSP)
+	MOVD	m_vdsoSP(R21), R9
+	MOVD	R9, 16(RSP)
+	MOVD	LR, m_vdsoPC(R21)
+	MOVD	$buf-8(FP), R9
+	MOVD	R9, m_vdsoSP(R21)
+
+	MOVD	RSP, R9
+	BIC	$15, R9
+	MOVD	R9, RSP
+
+	MOVBU	runtime·iscgo(SB), R9
+	CBNZ	R9, nosaveg
+	MOVD	m_gsignal(R21), R9
+	CBZ	R9, nosaveg
+	CMP	g, R9
+	BEQ	nosaveg
+	MOVD	(g_stack+stack_lo)(R9), R22
+	MOVD	g, (R22)
+
+	BL	(R8)
+
+	MOVD	ZR, (R22)
+	B	restore
+
+nosaveg:
+	BL	(R8)
+
+restore:
+	MOVD	R20, RSP
+	MOVD	16(RSP), R1
+	MOVD	R1, m_vdsoSP(R21)
+	MOVD	8(RSP), R1
+	MOVD	R1, m_vdsoPC(R21)
+	NOP	R0 // Satisfy go vet, since the return value comes from the vDSO function.
 	RET

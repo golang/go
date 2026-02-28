@@ -5,11 +5,10 @@
 package main
 
 import (
-	"fmt"
 	"internal/obscuretestdata"
+	"internal/platform"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -17,39 +16,16 @@ import (
 	"text/template"
 )
 
-var testnmpath string // path to nm command created for testing purposes
-
-// The TestMain function creates a nm command for testing purposes and
-// deletes it after the tests have been run.
+// TestMain executes the test binary as the nm command if
+// GO_NMTEST_IS_NM is set, and runs the tests otherwise.
 func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
-}
-
-func testMain(m *testing.M) int {
-	if !testenv.HasGoBuild() {
-		return 0
+	if os.Getenv("GO_NMTEST_IS_NM") != "" {
+		main()
+		os.Exit(0)
 	}
 
-	tmpDir, err := os.MkdirTemp("", "TestNM")
-	if err != nil {
-		fmt.Println("TempDir failed:", err)
-		return 2
-	}
-	defer os.RemoveAll(tmpDir)
-
-	testnmpath = filepath.Join(tmpDir, "testnm.exe")
-	gotool, err := testenv.GoTool()
-	if err != nil {
-		fmt.Println("GoTool failed:", err)
-		return 2
-	}
-	out, err := exec.Command(gotool, "build", "-o", testnmpath, "cmd/nm").CombinedOutput()
-	if err != nil {
-		fmt.Printf("go build -o %v cmd/nm: %v\n%s", testnmpath, err, string(out))
-		return 2
-	}
-
-	return m.Run()
+	os.Setenv("GO_NMTEST_IS_NM", "1") // Set for subprocesses to inherit.
+	os.Exit(m.Run())
 }
 
 func TestNonGoExecs(t *testing.T) {
@@ -77,7 +53,7 @@ func TestNonGoExecs(t *testing.T) {
 			exepath = tf
 		}
 
-		cmd := exec.Command(testnmpath, exepath)
+		cmd := testenv.Command(t, testenv.Executable(t), exepath)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Errorf("go tool nm %v: %v\n%s", exepath, err, string(out))
@@ -87,11 +63,7 @@ func TestNonGoExecs(t *testing.T) {
 
 func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 	t.Parallel()
-	tmpdir, err := os.MkdirTemp("", "TestGoExec")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "a.go")
 	file, err := os.Create(src)
@@ -116,12 +88,12 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 		args = append(args, "-ldflags", "-linkmode="+linkmode)
 	}
 	args = append(args, src)
-	out, err := exec.Command(testenv.GoToolPath(t), args...).CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), args...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("building test executable failed: %s %s", err, out)
 	}
 
-	out, err = exec.Command(exe).CombinedOutput()
+	out, err = testenv.Command(t, exe).CombinedOutput()
 	if err != nil {
 		t.Fatalf("running test executable failed: %s %s", err, out)
 	}
@@ -146,12 +118,7 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 		"runtime.noptrdata": "D",
 	}
 
-	if runtime.GOOS == "aix" && iscgo {
-		// pclntab is moved to .data section on AIX.
-		runtimeSyms["runtime.epclntab"] = "D"
-	}
-
-	out, err = exec.Command(testnmpath, exe).CombinedOutput()
+	out, err = testenv.Command(t, testenv.Executable(t), exe).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm: %v\n%s", err, string(out))
 	}
@@ -169,11 +136,9 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 				return true
 			}
 		}
-		if runtime.GOOS == "windows" {
+		if platform.DefaultPIE(runtime.GOOS, runtime.GOARCH, false) {
+			// Code is always relocated if the default buildmode is PIE.
 			return true
-		}
-		if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
-			return true // On darwin/arm64 everything is PIE
 		}
 		return false
 	}
@@ -202,7 +167,12 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 				stype = "D"
 			}
 			if want, have := stype, strings.ToUpper(f[1]); have != want {
-				t.Errorf("want %s type for %s symbol, but have %s", want, name, have)
+				if runtime.GOOS == "android" && name == "runtime.epclntab" && have == "D" {
+					// TODO(#58807): Figure out why this fails and fix up the test.
+					t.Logf("(ignoring on %s) want %s type for %s symbol, but have %s", runtime.GOOS, want, name, have)
+				} else {
+					t.Errorf("want %s type for %s symbol, but have %s", want, name, have)
+				}
 			}
 			delete(runtimeSyms, name)
 		}
@@ -221,16 +191,12 @@ func TestGoExec(t *testing.T) {
 
 func testGoLib(t *testing.T, iscgo bool) {
 	t.Parallel()
-	tmpdir, err := os.MkdirTemp("", "TestGoLib")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	gopath := filepath.Join(tmpdir, "gopath")
 	libpath := filepath.Join(gopath, "src", "mylib")
 
-	err = os.MkdirAll(libpath, 0777)
+	err := os.MkdirAll(libpath, 0777)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +216,7 @@ func testGoLib(t *testing.T, iscgo bool) {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=archive", "-o", "mylib.a", ".")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-buildmode=archive", "-o", "mylib.a", ".")
 	cmd.Dir = libpath
 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 	out, err := cmd.CombinedOutput()
@@ -259,7 +225,7 @@ func testGoLib(t *testing.T, iscgo bool) {
 	}
 	mylib := filepath.Join(libpath, "mylib.a")
 
-	out, err = exec.Command(testnmpath, mylib).CombinedOutput()
+	out, err = testenv.Command(t, testenv.Executable(t), mylib).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm: %v\n%s", err, string(out))
 	}

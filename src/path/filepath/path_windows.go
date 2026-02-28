@@ -1,98 +1,14 @@
-// Copyright 2010 The Go Authors. All rights reserved.
+// Copyright 2024 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package filepath
 
 import (
+	"os"
 	"strings"
 	"syscall"
 )
-
-func isSlash(c uint8) bool {
-	return c == '\\' || c == '/'
-}
-
-// reservedNames lists reserved Windows names. Search for PRN in
-// https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file
-// for details.
-var reservedNames = []string{
-	"CON", "PRN", "AUX", "NUL",
-	"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-	"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
-}
-
-// isReservedName returns true, if path is Windows reserved name.
-// See reservedNames for the full list.
-func isReservedName(path string) bool {
-	if len(path) == 0 {
-		return false
-	}
-	for _, reserved := range reservedNames {
-		if strings.EqualFold(path, reserved) {
-			return true
-		}
-	}
-	return false
-}
-
-// IsAbs reports whether the path is absolute.
-func IsAbs(path string) (b bool) {
-	if isReservedName(path) {
-		return true
-	}
-	l := volumeNameLen(path)
-	if l == 0 {
-		return false
-	}
-	// If the volume name starts with a double slash, this is a UNC path.
-	if isSlash(path[0]) && isSlash(path[1]) {
-		return true
-	}
-	path = path[l:]
-	if path == "" {
-		return false
-	}
-	return isSlash(path[0])
-}
-
-// volumeNameLen returns length of the leading volume name on Windows.
-// It returns 0 elsewhere.
-func volumeNameLen(path string) int {
-	if len(path) < 2 {
-		return 0
-	}
-	// with drive letter
-	c := path[0]
-	if path[1] == ':' && ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
-		return 2
-	}
-	// is it UNC? https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
-	if l := len(path); l >= 5 && isSlash(path[0]) && isSlash(path[1]) &&
-		!isSlash(path[2]) && path[2] != '.' {
-		// first, leading `\\` and next shouldn't be `\`. its server name.
-		for n := 3; n < l-1; n++ {
-			// second, next '\' shouldn't be repeated.
-			if isSlash(path[n]) {
-				n++
-				// third, following something characters. its share name.
-				if !isSlash(path[n]) {
-					if path[n] == '.' {
-						break
-					}
-					for ; n < l; n++ {
-						if isSlash(path[n]) {
-							break
-						}
-					}
-					return n
-				}
-				break
-			}
-		}
-	}
-	return 0
-}
 
 // HasPrefix exists for historical compatibility and should not be used.
 //
@@ -151,52 +67,50 @@ func abs(path string) (string, error) {
 }
 
 func join(elem []string) string {
-	for i, e := range elem {
-		if e != "" {
-			return joinNonEmpty(elem[i:])
-		}
-	}
-	return ""
-}
-
-// joinNonEmpty is like join, but it assumes that the first element is non-empty.
-func joinNonEmpty(elem []string) string {
-	if len(elem[0]) == 2 && elem[0][1] == ':' {
-		// First element is drive letter without terminating slash.
-		// Keep path relative to current directory on that drive.
-		// Skip empty elements.
-		i := 1
-		for ; i < len(elem); i++ {
-			if elem[i] != "" {
-				break
+	var b strings.Builder
+	var lastChar byte
+	for _, e := range elem {
+		switch {
+		case b.Len() == 0:
+			// Add the first non-empty path element unchanged.
+		case os.IsPathSeparator(lastChar):
+			// If the path ends in a slash, strip any leading slashes from the next
+			// path element to avoid creating a UNC path (any path starting with "\\")
+			// from non-UNC elements.
+			//
+			// The correct behavior for Join when the first element is an incomplete UNC
+			// path (for example, "\\") is underspecified. We currently join subsequent
+			// elements so Join("\\", "host", "share") produces "\\host\share".
+			for len(e) > 0 && os.IsPathSeparator(e[0]) {
+				e = e[1:]
 			}
+			// If the path is \ and the next path element is ??,
+			// add an extra .\ to create \.\?? rather than \??\
+			// (a Root Local Device path).
+			if b.Len() == 1 && strings.HasPrefix(e, "??") && (len(e) == len("??") || os.IsPathSeparator(e[2])) {
+				b.WriteString(`.\`)
+			}
+		case lastChar == ':':
+			// If the path ends in a colon, keep the path relative to the current directory
+			// on a drive and don't add a separator. Preserve leading slashes in the next
+			// path element, which may make the path absolute.
+			//
+			// 	Join(`C:`, `f`) = `C:f`
+			//	Join(`C:`, `\f`) = `C:\f`
+		default:
+			// In all other cases, add a separator between elements.
+			b.WriteByte('\\')
+			lastChar = '\\'
 		}
-		return Clean(elem[0] + strings.Join(elem[i:], string(Separator)))
+		if len(e) > 0 {
+			b.WriteString(e)
+			lastChar = e[len(e)-1]
+		}
 	}
-	// The following logic prevents Join from inadvertently creating a
-	// UNC path on Windows. Unless the first element is a UNC path, Join
-	// shouldn't create a UNC path. See golang.org/issue/9167.
-	p := Clean(strings.Join(elem, string(Separator)))
-	if !isUNC(p) {
-		return p
+	if b.Len() == 0 {
+		return ""
 	}
-	// p == UNC only allowed when the first element is a UNC path.
-	head := Clean(elem[0])
-	if isUNC(head) {
-		return p
-	}
-	// head + tail == UNC, but joining two non-UNC paths should not result
-	// in a UNC path. Undo creation of UNC path.
-	tail := Clean(strings.Join(elem[1:], string(Separator)))
-	if head[len(head)-1] == Separator {
-		return head + tail
-	}
-	return head + string(Separator) + tail
-}
-
-// isUNC reports whether path is a UNC path.
-func isUNC(path string) bool {
-	return volumeNameLen(path) > 2
+	return Clean(b.String())
 }
 
 func sameWord(a, b string) bool {

@@ -1,0 +1,27 @@
+[short] skip 'does a build in using an empty cache'
+
+# Start with a fresh cache because we want to verify the behavior
+# when the tool hasn't been cached previously.
+env GOCACHE=$WORK${/}cache
+
+# Even when the tool hasn't been previously cached but was built and
+# saved to the cache in the invocation of 'go tool -n' we should return
+# its cached location.
+go tool -n foo
+stdout $GOCACHE
+
+# And of course we should also return the cached location on subsequent
+# runs.
+go tool -n foo
+stdout $GOCACHE
+
+-- go.mod --
+module example.com/foo
+
+go 1.25
+
+tool example.com/foo
+-- main.go --
+package main
+
+func main() {}

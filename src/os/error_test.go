@@ -14,6 +14,8 @@ import (
 )
 
 func TestErrIsExist(t *testing.T) {
+	t.Parallel()
+
 	f, err := os.CreateTemp("", "_Go_ErrIsExist")
 	if err != nil {
 		t.Fatalf("open ErrIsExist tempfile: %s", err)
@@ -25,11 +27,9 @@ func TestErrIsExist(t *testing.T) {
 	if err == nil {
 		f2.Close()
 		t.Fatal("Open should have failed")
-		return
 	}
 	if s := checkErrorPredicate("os.IsExist", os.IsExist, err, fs.ErrExist); s != "" {
 		t.Fatal(s)
-		return
 	}
 }
 
@@ -66,13 +66,11 @@ func TestErrIsNotExist(t *testing.T) {
 	name := filepath.Join(tmpDir, "NotExists")
 	if s := testErrNotExist(t, name); s != "" {
 		t.Fatal(s)
-		return
 	}
 
 	name = filepath.Join(name, "NotExists2")
 	if s := testErrNotExist(t, name); s != "" {
 		t.Fatal(s)
-		return
 	}
 }
 
@@ -148,6 +146,8 @@ func TestIsPermission(t *testing.T) {
 }
 
 func TestErrPathNUL(t *testing.T) {
+	t.Parallel()
+
 	f, err := os.CreateTemp("", "_Go_ErrPathNUL\x00")
 	if err == nil {
 		f.Close()

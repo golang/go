@@ -9,7 +9,8 @@ package ssa
 // Regalloc wants a critical-edge-free CFG so it can implement phi values.
 func critical(f *Func) {
 	// maps from phi arg ID to the new block created for that argument
-	blocks := make([]*Block, f.NumValues())
+	blocks := f.Cache.allocBlockSlice(f.NumValues())
+	defer f.Cache.freeBlockSlice(blocks)
 	// need to iterate over f.Blocks without range, as we might
 	// need to split critical edges on newly constructed blocks
 	for j := 0; j < len(f.Blocks); j++ {
@@ -95,11 +96,6 @@ func critical(f *Func) {
 
 				// splitting occasionally leads to a phi having
 				// a single argument (occurs with -N)
-				// TODO(cuonglm,khr): replace this with phielimValue, and
-				//                    make removePhiArg incorporates that.
-				if len(b.Preds) == 1 {
-					phi.Op = OpCopy
-				}
 				// Don't increment i in this case because we moved
 				// an unprocessed predecessor down into slot i.
 			} else {

@@ -128,7 +128,11 @@ func TestBufferTooSmall(t *testing.T) {
 		}
 
 		x, err := ReadUvarint(bytes.NewReader(buf))
-		if x != 0 || err != io.EOF {
+		wantErr := io.EOF
+		if i > 0 {
+			wantErr = io.ErrUnexpectedEOF
+		}
+		if x != 0 || err != wantErr {
 			t.Errorf("ReadUvarint(%v): got x = %d, err = %s", buf, x, err)
 		}
 	}
@@ -177,7 +181,6 @@ func TestBufferTooBigWithOverflow(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			value, n := Uvarint(tt.in)
 			if g, w := n, tt.wantN; g != w {
@@ -208,9 +211,9 @@ func testOverflow(t *testing.T, buf []byte, x0 uint64, n0 int, err0 error) {
 }
 
 func TestOverflow(t *testing.T) {
-	testOverflow(t, []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x2}, 0, -10, overflow)
-	testOverflow(t, []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x1, 0, 0}, 0, -11, overflow)
-	testOverflow(t, []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 1<<64-1, -11, overflow) // 11 bytes, should overflow
+	testOverflow(t, []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x2}, 0, -10, errOverflow)
+	testOverflow(t, []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x1, 0, 0}, 0, -11, errOverflow)
+	testOverflow(t, []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 1<<64-1, -11, errOverflow) // 11 bytes, should overflow
 }
 
 func TestNonCanonicalZero(t *testing.T) {

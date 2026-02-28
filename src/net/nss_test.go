@@ -8,8 +8,8 @@ package net
 
 import (
 	"reflect"
-	"strings"
 	"testing"
+	"time"
 )
 
 const ubuntuTrustyAvahi = `# /etc/nsswitch.conf
@@ -34,6 +34,8 @@ netgroup:       nis
 `
 
 func TestParseNSSConf(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		in   string
@@ -161,7 +163,8 @@ func TestParseNSSConf(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		gotConf := parseNSSConf(strings.NewReader(tt.in))
+		gotConf := nssStr(t, tt.in)
+		gotConf.mtime = time.Time{} // ignore mtime in comparison
 		if !reflect.DeepEqual(gotConf, tt.want) {
 			t.Errorf("%s: mismatch\n got %#v\nwant %#v", tt.name, gotConf, tt.want)
 		}

@@ -6,7 +6,6 @@ package types_test
 
 import (
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"testing"
 
@@ -33,10 +32,7 @@ func (G[P]) N() (p P) { return }
 
 type Inst = G[int]
 	`
-	pkg, err := pkgForMode("p", src, nil, 0)
-	if err != nil {
-		b.Fatal(err)
-	}
+	pkg := mustTypecheck(src, nil, nil)
 
 	var (
 		T        = pkg.Scope().Lookup("T").Type()
@@ -90,7 +86,7 @@ func mustInstantiate(tb testing.TB, orig Type, targs ...Type) Type {
 	return inst
 }
 
-// Test that types do not expand infinitely, as in golang/go#52715.
+// Test that types do not expand infinitely, as in go.dev/issue/52715.
 func TestFiniteTypeExpansion(t *testing.T) {
 	const src = `
 package p
@@ -111,10 +107,7 @@ type Inst = *Tree[int]
 `
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "foo.go", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse(fset, src)
 	pkg := NewPackage("p", f.Name.Name)
 	if err := NewChecker(nil, fset, pkg, nil).Files([]*ast.File{f}); err != nil {
 		t.Fatal(err)
@@ -124,7 +117,7 @@ type Inst = *Tree[int]
 		return n.Underlying().(*Struct).Field(0).Type().(*Pointer).Elem().(*Named)
 	}
 
-	Inst := pkg.Scope().Lookup("Inst").Type().(*Pointer).Elem().(*Named)
+	Inst := Unalias(pkg.Scope().Lookup("Inst").Type()).(*Pointer).Elem().(*Named)
 	Node := firstFieldType(Inst)
 	Tree := firstFieldType(Node)
 	if !Identical(Inst, Tree) {
@@ -132,5 +125,53 @@ type Inst = *Tree[int]
 	}
 	if Inst != Tree {
 		t.Errorf("Duplicate instances in cycle: %s (%p) -> %s (%p) -> %s (%p)", Inst, Inst, Node, Node, Tree, Tree)
+	}
+}
+
+// TestMethodOrdering is a simple test verifying that the indices of methods of
+// a named type remain the same as long as the same source and AddMethod calls
+// are presented to the type checker in the same order (go.dev/issue/61298).
+func TestMethodOrdering(t *testing.T) {
+	const src = `
+package p
+
+type T struct{}
+
+func (T) a() {}
+func (T) c() {}
+func (T) b() {}
+`
+	// should get the same method order each time
+	var methods []string
+	for i := 0; i < 5; i++ {
+		// collect T methods as provided in src
+		pkg := mustTypecheck(src, nil, nil)
+		T := pkg.Scope().Lookup("T").Type().(*Named)
+
+		// add a few more methods manually
+		for _, name := range []string{"foo", "bar", "bal"} {
+			m := NewFunc(nopos, pkg, name, nil /* don't care about signature */)
+			T.AddMethod(m)
+		}
+
+		// check method order
+		if i == 0 {
+			// first round: collect methods in given order
+			methods = make([]string, T.NumMethods())
+			for j := range methods {
+				methods[j] = T.Method(j).Name()
+			}
+		} else {
+			// successive rounds: methods must appear in the same order
+			if got := T.NumMethods(); got != len(methods) {
+				t.Errorf("got %d methods, want %d", got, len(methods))
+				continue
+			}
+			for j, m := range methods {
+				if got := T.Method(j).Name(); got != m {
+					t.Errorf("got method %s, want %s", got, m)
+				}
+			}
+		}
 	}
 }

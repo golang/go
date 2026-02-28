@@ -47,6 +47,6 @@ require (
 	example.com/undeprecated v1.0.0
 )
 -- go.sum --
-example.com/deprecated/a v1.9.0 h1:pRyvBIZheJpQVVnNW4Fdg8QuoqDgtkCreqZZbASV3BE=
+example.com/deprecated/a v1.9.0 h1:HeC7d0lb7umZa0vCCW+0W3WtBTulO+1Mr32m/Hwzeg8=
 example.com/deprecated/a v1.9.0/go.mod h1:Z1uUVshSY9kh6l/2hZ8oA9SBviX2yfaeEpcLDz6AZwY=
 example.com/undeprecated v1.0.0/go.mod h1:1qiRbdA9VzJXDqlG26Y41O5Z7YyO+jAD9do8XCZQ+Gg=

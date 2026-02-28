@@ -27,6 +27,18 @@ cp go.mod go.mod.orig
 go mod tidy
 cmp go.mod go.mod.orig
 
+# Make sure that -diff behaves the same as tidy.
+[exec:patch] mv go.mod go.mod.tidyResult
+[exec:patch] mv go.sum go.sum.tidyResult
+[exec:patch] cp go.mod.orig go.mod
+[exec:patch] ! go mod tidy -diff
+[exec:patch] cp stdout diff.patch
+[exec:patch] exec patch -p1 -i diff.patch
+[exec:patch] go mod tidy -diff
+[exec:patch] ! stdout .
+[exec:patch] cmp go.mod go.mod.tidyResult
+[exec:patch] cmp go.sum go.sum.tidyResult
+
 go list -deps -test -f $MODFMT all
 cp stdout out-117.txt
 
@@ -42,13 +54,18 @@ cp go.mod.orig go.mod
 go mod tidy -compat=1.17
 cmp go.mod go.mod.orig
 
+# Make sure that -diff behaves the same as tidy.
+[exec:patch] cp go.mod.orig go.mod
+[exec:patch] rm go.sum
+[exec:patch] go mod tidy -compat=1.17 -diff
+[exec:patch] ! stdout .
+
 go list -deps -test -f $MODFMT all
 cmp stdout out-117.txt
 
 go mod edit -go=1.16
 ! go list -deps -test -f $MODFMT all
-	# TODO(#46160): -count=1 instead of -count=2.
-stderr -count=2 '^go: example.net/lazy@v0.1.0 requires\n\texample.com/retract/incompatible@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download example.com/retract/incompatible$'
+stderr -count=1 '^go: example.net/lazy@v0.1.0 requires\n\texample.com/retract/incompatible@v1.0.0: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/retract/incompatible$'
 
 
 -- go.mod --

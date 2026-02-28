@@ -7,17 +7,18 @@ package objfile
 
 import (
 	"cmd/internal/archive"
+	"cmp"
 	"debug/dwarf"
 	"debug/gosym"
 	"fmt"
 	"io"
 	"os"
-	"sort"
+	"slices"
 )
 
 type rawFile interface {
 	symbols() (syms []Sym, err error)
-	pcln() (textStart uint64, symtab, pclntab []byte, err error)
+	pcln() (textStart uint64, pclntab []byte, err error)
 	text() (textStart uint64, text []byte, err error)
 	goarch() string
 	loadAddress() (uint64, error)
@@ -118,10 +119,6 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 	return f.entries[0].DWARF()
 }
 
-func (f *File) Disasm() (*Disasm, error) {
-	return f.entries[0].Disasm()
-}
-
 func (e *Entry) Name() string {
 	return e.name
 }
@@ -131,15 +128,11 @@ func (e *Entry) Symbols() ([]Sym, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Sort(byAddr(syms))
+	slices.SortFunc(syms, func(a, b Sym) int {
+		return cmp.Compare(a.Addr, b.Addr)
+	})
 	return syms, nil
 }
-
-type byAddr []Sym
-
-func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
-func (x byAddr) Len() int           { return len(x) }
-func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
 func (e *Entry) PCLineTable() (Liner, error) {
 	// If the raw file implements Liner directly, use that.
@@ -148,7 +141,7 @@ func (e *Entry) PCLineTable() (Liner, error) {
 		return pcln, nil
 	}
 	// Otherwise, read the pcln tables and build a Liner out of that.
-	textStart, symtab, pclntab, err := e.raw.pcln()
+	textStart, pclntab, err := e.raw.pcln()
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +154,7 @@ func (e *Entry) PCLineTable() (Liner, error) {
 			}
 		}
 	}
-	return gosym.NewTable(symtab, gosym.NewLineTable(pclntab, textStart))
+	return gosym.NewTable(nil, gosym.NewLineTable(pclntab, textStart))
 }
 
 func (e *Entry) Text() (uint64, []byte, error) {
@@ -183,4 +176,10 @@ func (e *Entry) LoadAddress() (uint64, error) {
 // This is for cmd/pprof to locate cgo functions.
 func (e *Entry) DWARF() (*dwarf.Data, error) {
 	return e.raw.dwarf()
+}
+
+type Liner interface {
+	// Given a pc, returns the corresponding file, line, and function data.
+	// If unknown, returns "",0,nil.
+	PCToLine(uint64) (string, int, *gosym.Func)
 }

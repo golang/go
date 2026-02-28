@@ -151,7 +151,7 @@ func mayAffectMemory(n ir.Node) bool {
 		n := n.(*ir.ConvExpr)
 		return mayAffectMemory(n.X)
 
-	case ir.OLEN, ir.OCAP, ir.ONOT, ir.OBITNOT, ir.OPLUS, ir.ONEG, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+	case ir.OLEN, ir.OCAP, ir.ONOT, ir.OBITNOT, ir.OPLUS, ir.ONEG:
 		n := n.(*ir.UnaryExpr)
 		return mayAffectMemory(n.X)
 
@@ -206,14 +206,35 @@ func HeapAllocReason(n ir.Node) string {
 
 	if n.Op() == ir.OMAKESLICE {
 		n := n.(*ir.MakeExpr)
+
 		r := n.Cap
-		if r == nil {
+		if n.Cap == nil {
 			r = n.Len
 		}
-		if !ir.IsSmallIntConst(r) {
-			return "non-constant size"
+
+		elem := n.Type().Elem()
+		if elem.Size() == 0 {
+			// TODO: stack allocate these? See #65685.
+			return "zero-sized element"
 		}
-		if t := n.Type(); t.Elem().Size() != 0 && ir.Int64Val(r) > ir.MaxImplicitStackVarSize/t.Elem().Size() {
+		if !ir.IsSmallIntConst(r) {
+			// For non-constant sizes, we do a hybrid approach:
+			//
+			// if cap <= K {
+			//     var backing [K]E
+			//     s = backing[:len:cap]
+			// } else {
+			//     s = makeslice(E, len, cap)
+			// }
+			//
+			// It costs a constant amount of stack space, but may
+			// avoid a heap allocation.
+			// Note we have to be careful that assigning s[i] = v
+			// still escapes v, because we forbid heap->stack pointers.
+			// Implementation is in ../walk/builtin.go:walkMakeSlice.
+			return ""
+		}
+		if ir.Int64Val(r) > ir.MaxImplicitStackVarSize/elem.Size() {
 			return "too large for stack"
 		}
 	}

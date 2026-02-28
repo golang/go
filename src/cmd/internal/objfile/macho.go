@@ -11,6 +11,7 @@ import (
 	"debug/macho"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 )
 
@@ -42,7 +43,7 @@ func (f *machoFile) symbols() ([]Sym, error) {
 			addrs = append(addrs, s.Value)
 		}
 	}
-	sort.Sort(uint64s(addrs))
+	slices.Sort(addrs)
 
 	var syms []Sym
 	for _, s := range f.macho.Symtab.Syms {
@@ -78,21 +79,16 @@ func (f *machoFile) symbols() ([]Sym, error) {
 	return syms, nil
 }
 
-func (f *machoFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+func (f *machoFile) pcln() (textStart uint64, pclntab []byte, err error) {
 	if sect := f.macho.Section("__text"); sect != nil {
 		textStart = sect.Addr
 	}
-	if sect := f.macho.Section("__gosymtab"); sect != nil {
-		if symtab, err = sect.Data(); err != nil {
-			return 0, nil, nil, err
-		}
-	}
 	if sect := f.macho.Section("__gopclntab"); sect != nil {
 		if pclntab, err = sect.Data(); err != nil {
-			return 0, nil, nil, err
+			return 0, nil, err
 		}
 	}
-	return textStart, symtab, pclntab, nil
+	return textStart, pclntab, nil
 }
 
 func (f *machoFile) text() (textStart uint64, text []byte, err error) {
@@ -121,13 +117,10 @@ func (f *machoFile) goarch() string {
 	return ""
 }
 
-type uint64s []uint64
-
-func (x uint64s) Len() int           { return len(x) }
-func (x uint64s) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x uint64s) Less(i, j int) bool { return x[i] < x[j] }
-
 func (f *machoFile) loadAddress() (uint64, error) {
+	if seg := f.macho.Segment("__TEXT"); seg != nil {
+		return seg.Addr, nil
+	}
 	return 0, fmt.Errorf("unknown load address")
 }
 

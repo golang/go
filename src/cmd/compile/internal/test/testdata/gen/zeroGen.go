@@ -8,8 +8,8 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
-	"io/ioutil"
 	"log"
+	"os"
 )
 
 // This program generates tests to verify that zeroing operations
@@ -136,7 +136,7 @@ func main() {
 	}
 
 	// write to file
-	err = ioutil.WriteFile("../zero_test.go", src, 0666)
+	err = os.WriteFile("../zero_test.go", src, 0666)
 	if err != nil {
 		log.Fatalf("can't write output: %v\n", err)
 	}

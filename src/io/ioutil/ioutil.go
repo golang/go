@@ -5,7 +5,7 @@
 // Package ioutil implements some I/O utility functions.
 //
 // Deprecated: As of Go 1.16, the same functionality is now provided
-// by package io or package os, and those implementations
+// by package [io] or package [os], and those implementations
 // should be preferred in new code.
 // See the specific function documentation for details.
 package ioutil
@@ -14,7 +14,8 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"sort"
+	"slices"
+	"strings"
 )
 
 // ReadAll reads from r until an error or EOF and returns the data it read.
@@ -22,7 +23,9 @@ import (
 // defined to read from src until EOF, it does not treat an EOF from Read
 // as an error to be reported.
 //
-// Deprecated: As of Go 1.16, this function simply calls io.ReadAll.
+// Deprecated: As of Go 1.16, this function simply calls [io.ReadAll].
+//
+//go:fix inline
 func ReadAll(r io.Reader) ([]byte, error) {
 	return io.ReadAll(r)
 }
@@ -32,7 +35,9 @@ func ReadAll(r io.Reader) ([]byte, error) {
 // reads the whole file, it does not treat an EOF from Read as an error
 // to be reported.
 //
-// Deprecated: As of Go 1.16, this function simply calls os.ReadFile.
+// Deprecated: As of Go 1.16, this function simply calls [os.ReadFile].
+//
+//go:fix inline
 func ReadFile(filename string) ([]byte, error) {
 	return os.ReadFile(filename)
 }
@@ -41,7 +46,9 @@ func ReadFile(filename string) ([]byte, error) {
 // If the file does not exist, WriteFile creates it with permissions perm
 // (before umask); otherwise WriteFile truncates it before writing, without changing permissions.
 //
-// Deprecated: As of Go 1.16, this function simply calls os.WriteFile.
+// Deprecated: As of Go 1.16, this function simply calls [os.WriteFile].
+//
+//go:fix inline
 func WriteFile(filename string, data []byte, perm fs.FileMode) error {
 	return os.WriteFile(filename, data, perm)
 }
@@ -51,12 +58,12 @@ func WriteFile(filename string, data []byte, perm fs.FileMode) error {
 // sorted by filename. If an error occurs reading the directory,
 // ReadDir returns no directory entries along with the error.
 //
-// Deprecated: As of Go 1.16, os.ReadDir is a more efficient and correct choice:
-// it returns a list of fs.DirEntry instead of fs.FileInfo,
+// Deprecated: As of Go 1.16, [os.ReadDir] is a more efficient and correct choice:
+// it returns a list of [fs.DirEntry] instead of [fs.FileInfo],
 // and it returns partial results in the case of an error
 // midway through reading a directory.
 //
-// If you must continue obtaining a list of fs.FileInfo, you still can:
+// If you must continue obtaining a list of [fs.FileInfo], you still can:
 //
 //	entries, err := os.ReadDir(dirname)
 //	if err != nil { ... }
@@ -76,14 +83,18 @@ func ReadDir(dirname string) ([]fs.FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(list, func(i, j int) bool { return list[i].Name() < list[j].Name() })
+	slices.SortFunc(list, func(a, b os.FileInfo) int {
+		return strings.Compare(a.Name(), b.Name())
+	})
 	return list, nil
 }
 
 // NopCloser returns a ReadCloser with a no-op Close method wrapping
 // the provided Reader r.
 //
-// Deprecated: As of Go 1.16, this function simply calls io.NopCloser.
+// Deprecated: As of Go 1.16, this function simply calls [io.NopCloser].
+//
+//go:fix inline
 func NopCloser(r io.Reader) io.ReadCloser {
 	return io.NopCloser(r)
 }
@@ -91,5 +102,5 @@ func NopCloser(r io.Reader) io.ReadCloser {
 // Discard is an io.Writer on which all Write calls succeed
 // without doing anything.
 //
-// Deprecated: As of Go 1.16, this value is simply io.Discard.
+// Deprecated: As of Go 1.16, this value is simply [io.Discard].
 var Discard io.Writer = io.Discard

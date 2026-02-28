@@ -159,6 +159,9 @@ func TestProbablyPrime(t *testing.T) {
 }
 
 func BenchmarkProbablyPrime(b *testing.B) {
+	stk := getStack()
+	defer stk.free()
+
 	p, _ := new(Int).SetString("203956878356401977405765866929034577280193993314348263094772646453283062722701277632936616063144088173312372882677123879538709400158306567338328279154499698366071906766440037074217117805690872792848149112022286332144876183376326512083574821647933992961249917319836219304274280243803104015000563790123", 10)
 	for _, n := range []int{0, 1, 5, 10, 20} {
 		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
@@ -170,26 +173,32 @@ func BenchmarkProbablyPrime(b *testing.B) {
 
 	b.Run("Lucas", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.abs.probablyPrimeLucas()
+			p.abs.probablyPrimeLucas(stk)
 		}
 	})
 	b.Run("MillerRabinBase2", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p.abs.probablyPrimeMillerRabin(1, true)
+			p.abs.probablyPrimeMillerRabin(stk, 1, true)
 		}
 	})
 }
 
 func TestMillerRabinPseudoprimes(t *testing.T) {
+	stk := getStack()
+	defer stk.free()
+
 	testPseudoprimes(t, "probablyPrimeMillerRabin",
-		func(n nat) bool { return n.probablyPrimeMillerRabin(1, true) && !n.probablyPrimeLucas() },
+		func(n nat) bool { return n.probablyPrimeMillerRabin(stk, 1, true) && !n.probablyPrimeLucas(stk) },
 		// https://oeis.org/A001262
 		[]int{2047, 3277, 4033, 4681, 8321, 15841, 29341, 42799, 49141, 52633, 65281, 74665, 80581, 85489, 88357, 90751})
 }
 
 func TestLucasPseudoprimes(t *testing.T) {
+	stk := getStack()
+	defer stk.free()
+
 	testPseudoprimes(t, "probablyPrimeLucas",
-		func(n nat) bool { return n.probablyPrimeLucas() && !n.probablyPrimeMillerRabin(1, true) },
+		func(n nat) bool { return n.probablyPrimeLucas(stk) && !n.probablyPrimeMillerRabin(stk, 1, true) },
 		// https://oeis.org/A217719
 		[]int{989, 3239, 5777, 10877, 27971, 29681, 30739, 31631, 39059, 72389, 73919, 75077})
 }

@@ -6,6 +6,7 @@
 package sumdb
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"os"
@@ -17,7 +18,7 @@ import (
 )
 
 // A ServerOps provides the external operations
-// (underlying database access and so on) needed by the Server.
+// (underlying database access and so on) needed by the [Server].
 type ServerOps interface {
 	// Signed returns the signed hash of the latest tree.
 	Signed(ctx context.Context) ([]byte, error)
@@ -36,7 +37,7 @@ type ServerOps interface {
 
 // A Server is the checksum database HTTP server,
 // which implements http.Handler and should be invoked
-// to serve the paths listed in ServerPaths.
+// to serve the paths listed in [ServerPaths].
 type Server struct {
 	ops ServerOps
 }
@@ -75,8 +76,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid module@version syntax", http.StatusBadRequest)
 			return
 		}
-		i := strings.Index(mod, "@")
-		escPath, escVers := mod[:i], mod[i+1:]
+		escPath, escVers, _ := strings.Cut(mod, "@")
 		path, err := module.UnescapePath(escPath)
 		if err != nil {
 			reportError(w, err)
@@ -148,7 +148,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				msg, err := tlog.FormatRecord(start+int64(i), text)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
 				}
+				// Data tiles contain formatted records without the first line with record ID.
+				_, msg, _ = bytes.Cut(msg, []byte{'\n'})
 				data = append(data, msg...)
 			}
 			w.Header().Set("Content-Type", "text/plain; charset=UTF-8")

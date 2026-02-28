@@ -107,10 +107,7 @@ func TestInstantiateEquality(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		pkg, err := pkgFor(".", test.src, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		pkg := mustTypecheck(test.src, nil, nil)
 
 		t.Run(pkg.Name(), func(t *testing.T) {
 			ctxt := NewContext()
@@ -136,14 +133,8 @@ func TestInstantiateEquality(t *testing.T) {
 
 func TestInstantiateNonEquality(t *testing.T) {
 	const src = "package p; type T[P any] int"
-	pkg1, err := pkgFor(".", src, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pkg2, err := pkgFor(".", src, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	pkg1 := mustTypecheck(src, nil, nil)
+	pkg2 := mustTypecheck(src, nil, nil)
 	// We consider T1 and T2 to be distinct types, so their instances should not
 	// be deduplicated by the context.
 	T1 := pkg1.Scope().Lookup("T").Type().(*Named)
@@ -188,17 +179,13 @@ var X T[int]
 
 	for _, test := range tests {
 		src := prefix + test.decl
-		pkg, err := pkgFor(".", src, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		pkg := mustTypecheck(src, nil, nil)
 		typ := NewPointer(pkg.Scope().Lookup("X").Type())
-		obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
-		m, _ := obj.(*Func)
-		if m == nil {
-			t.Fatalf(`LookupFieldOrMethod(%s, "m") = %v, want func m`, typ, obj)
+		sel, ok := LookupSelection(typ, false, pkg, "m")
+		if !ok {
+			t.Fatalf(`LookupSelection(%s, "m") failed, want func m`, typ)
 		}
-		if got := ObjectString(m, RelativeTo(pkg)); got != test.want {
+		if got := ObjectString(sel.Obj(), RelativeTo(pkg)); got != test.want {
 			t.Errorf("instantiated %q, want %q", got, test.want)
 		}
 	}
@@ -213,35 +200,32 @@ func (T[P]) m() {}
 
 var _ T[int]
 `
-	pkg, err := pkgFor(".", src, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	pkg := mustTypecheck(src, nil, nil)
 	typ := pkg.Scope().Lookup("T").Type().(*Named)
-	obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
-	if obj == nil {
-		t.Fatalf(`LookupFieldOrMethod(%s, "m") = %v, want func m`, typ, obj)
+	sel, ok := LookupSelection(typ, false, pkg, "m")
+	if !ok {
+		t.Fatalf(`LookupSelection(%s, "m") failed, want func m`, typ)
 	}
 
 	// Verify that the original method is not mutated by instantiating T (this
 	// bug manifested when subst did not return a new signature).
 	want := "func (T[P]).m()"
-	if got := stripAnnotations(ObjectString(obj, RelativeTo(pkg))); got != want {
+	if got := stripAnnotations(ObjectString(sel.Obj(), RelativeTo(pkg))); got != want {
 		t.Errorf("instantiated %q, want %q", got, want)
 	}
 }
 
 // Copied from errors.go.
 func stripAnnotations(s string) string {
-	var b strings.Builder
+	var buf strings.Builder
 	for _, r := range s {
 		// strip #'s and subscript digits
 		if r < '₀' || '₀'+10 <= r { // '₀' == U+2080
-			b.WriteRune(r)
+			buf.WriteRune(r)
 		}
 	}
-	if b.Len() < len(s) {
-		return b.String()
+	if buf.Len() < len(s) {
+		return buf.String()
 	}
 	return s
 }

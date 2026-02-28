@@ -13,22 +13,33 @@ import (
 const (
 	offsetX86HasAVX    = unsafe.Offsetof(cpu.X86.HasAVX)
 	offsetX86HasAVX2   = unsafe.Offsetof(cpu.X86.HasAVX2)
+	offsetX86HasAVX512 = unsafe.Offsetof(cpu.X86.HasAVX512) // F+CD+BW+DQ+VL
 	offsetX86HasERMS   = unsafe.Offsetof(cpu.X86.HasERMS)
 	offsetX86HasRDTSCP = unsafe.Offsetof(cpu.X86.HasRDTSCP)
 
 	offsetARMHasIDIVA = unsafe.Offsetof(cpu.ARM.HasIDIVA)
 
 	offsetMIPS64XHasMSA = unsafe.Offsetof(cpu.MIPS64X.HasMSA)
+
+	offsetLOONG64HasLSX  = unsafe.Offsetof(cpu.Loong64.HasLSX)
+	offsetLOONG64HasLASX = unsafe.Offsetof(cpu.Loong64.HasLASX)
 )
 
 var (
 	// Set in runtime.cpuinit.
 	// TODO: deprecate these; use internal/cpu directly.
+	x86HasAVX    bool
+	x86HasFMA    bool
 	x86HasPOPCNT bool
 	x86HasSSE41  bool
-	x86HasFMA    bool
 
 	armHasVFPv4 bool
 
 	arm64HasATOMICS bool
+
+	loong64HasLAMCAS bool
+	loong64HasLAM_BH bool
+	loong64HasLSX    bool
+
+	riscv64HasZbb bool
 )

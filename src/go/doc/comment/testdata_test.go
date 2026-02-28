@@ -57,7 +57,7 @@ func TestTestdata(t *testing.T) {
 			if len(a.Comment) > 0 {
 				err := json.Unmarshal(a.Comment, &pr)
 				if err != nil {
-					t.Fatalf("unmarshalling top json: %v", err)
+					t.Fatalf("unmarshaling top json: %v", err)
 				}
 			}
 			if len(a.Files) < 1 || a.Files[0].Name != "input" {

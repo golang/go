@@ -5,7 +5,6 @@
 package template
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -23,14 +22,14 @@ import (
 // return value evaluates to non-nil during execution, execution terminates and
 // Execute returns that error.
 //
-// Errors returned by Execute wrap the underlying error; call errors.As to
-// uncover them.
+// Errors returned by Execute wrap the underlying error; call [errors.AsType] to
+// unwrap them.
 //
 // When template execution invokes a function with an argument list, that list
 // must be assignable to the function's parameter types. Functions meant to
 // apply to arguments of arbitrary type can use parameters of type interface{} or
-// of type reflect.Value. Similarly, functions meant to return a result of arbitrary
-// type can return interface{} or reflect.Value.
+// of type [reflect.Value]. Similarly, functions meant to return a result of arbitrary
+// type can return interface{} or [reflect.Value].
 type FuncMap map[string]any
 
 // builtins returns the FuncMap.
@@ -40,7 +39,7 @@ type FuncMap map[string]any
 func builtins() FuncMap {
 	return FuncMap{
 		"and":      and,
-		"call":     call,
+		"call":     emptyCall,
 		"html":     HTMLEscaper,
 		"index":    index,
 		"slice":    slice,
@@ -63,26 +62,13 @@ func builtins() FuncMap {
 	}
 }
 
-var builtinFuncsOnce struct {
-	sync.Once
-	v map[string]reflect.Value
-}
-
-// builtinFuncsOnce lazily computes & caches the builtinFuncs map.
-// TODO: revert this back to a global map once golang.org/issue/2559 is fixed.
-func builtinFuncs() map[string]reflect.Value {
-	builtinFuncsOnce.Do(func() {
-		builtinFuncsOnce.v = createValueFuncs(builtins())
-	})
-	return builtinFuncsOnce.v
-}
-
-// createValueFuncs turns a FuncMap into a map[string]reflect.Value
-func createValueFuncs(funcMap FuncMap) map[string]reflect.Value {
-	m := make(map[string]reflect.Value)
+// builtinFuncs lazily computes & caches the builtinFuncs map.
+var builtinFuncs = sync.OnceValue(func() map[string]reflect.Value {
+	funcMap := builtins()
+	m := make(map[string]reflect.Value, len(funcMap))
 	addValueFuncs(m, funcMap)
 	return m
-}
+})
 
 // addValueFuncs adds to values the functions in funcs, converting them to reflect.Values.
 func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
@@ -94,8 +80,8 @@ func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
 		if v.Kind() != reflect.Func {
 			panic("value for " + name + " not a function")
 		}
-		if !goodFunc(v.Type()) {
-			panic(fmt.Errorf("can't install method/function %q with %d results", name, v.Type().NumOut()))
+		if err := goodFunc(name, v.Type()); err != nil {
+			panic(err)
 		}
 		out[name] = v
 	}
@@ -110,15 +96,18 @@ func addFuncs(out, in FuncMap) {
 }
 
 // goodFunc reports whether the function or method has the right result signature.
-func goodFunc(typ reflect.Type) bool {
+func goodFunc(name string, typ reflect.Type) error {
 	// We allow functions with 1 result or 2 results where the second is an error.
-	switch {
-	case typ.NumOut() == 1:
-		return true
-	case typ.NumOut() == 2 && typ.Out(1) == errorType:
-		return true
+	switch numOut := typ.NumOut(); {
+	case numOut == 1:
+		return nil
+	case numOut == 2 && typ.Out(1) == errorType:
+		return nil
+	case numOut == 2:
+		return fmt.Errorf("invalid function signature for %s: second return value should be error; is %s", name, typ.Out(1))
+	default:
+		return fmt.Errorf("function %s has %d return values; should be 1 or 2", name, typ.NumOut())
 	}
-	return false
 }
 
 // goodName reports whether the function name is a valid identifier.
@@ -255,6 +244,10 @@ func slice(item reflect.Value, indexes ...reflect.Value) (reflect.Value, error) 
 	if !item.IsValid() {
 		return reflect.Value{}, fmt.Errorf("slice of untyped nil")
 	}
+	var isNil bool
+	if item, isNil = indirect(item); isNil {
+		return reflect.Value{}, fmt.Errorf("slice of nil pointer")
+	}
 	if len(indexes) > 3 {
 		return reflect.Value{}, fmt.Errorf("too many slice indexes: %d", len(indexes))
 	}
@@ -310,30 +303,35 @@ func length(item reflect.Value) (int, error) {
 
 // Function invocation
 
+func emptyCall(fn reflect.Value, args ...reflect.Value) reflect.Value {
+	panic("unreachable") // implemented as a special case in evalCall
+}
+
 // call returns the result of evaluating the first argument as a function.
 // The function must return 1 result, or 2 results, the second of which is an error.
-func call(fn reflect.Value, args ...reflect.Value) (reflect.Value, error) {
+func call(name string, fn reflect.Value, args ...reflect.Value) (reflect.Value, error) {
 	fn = indirectInterface(fn)
 	if !fn.IsValid() {
 		return reflect.Value{}, fmt.Errorf("call of nil")
 	}
 	typ := fn.Type()
 	if typ.Kind() != reflect.Func {
-		return reflect.Value{}, fmt.Errorf("non-function of type %s", typ)
+		return reflect.Value{}, fmt.Errorf("non-function %s of type %s", name, typ)
 	}
-	if !goodFunc(typ) {
-		return reflect.Value{}, fmt.Errorf("function called with %d args; should be 1 or 2", typ.NumOut())
+
+	if err := goodFunc(name, typ); err != nil {
+		return reflect.Value{}, err
 	}
 	numIn := typ.NumIn()
 	var dddType reflect.Type
 	if typ.IsVariadic() {
 		if len(args) < numIn-1 {
-			return reflect.Value{}, fmt.Errorf("wrong number of args: got %d want at least %d", len(args), numIn-1)
+			return reflect.Value{}, fmt.Errorf("wrong number of args for %s: got %d want at least %d", name, len(args), numIn-1)
 		}
 		dddType = typ.In(numIn - 1).Elem()
 	} else {
 		if len(args) != numIn {
-			return reflect.Value{}, fmt.Errorf("wrong number of args: got %d want %d", len(args), numIn)
+			return reflect.Value{}, fmt.Errorf("wrong number of args for %s: got %d want %d", name, len(args), numIn)
 		}
 	}
 	argv := make([]reflect.Value, len(args))
@@ -402,7 +400,6 @@ func not(arg reflect.Value) bool {
 
 var (
 	errBadComparisonType = errors.New("invalid type for comparison")
-	errBadComparison     = errors.New("incompatible types for comparison")
 	errNoComparison      = errors.New("missing argument for comparison")
 )
 
@@ -438,7 +435,7 @@ func basicKind(v reflect.Value) (kind, error) {
 
 // isNil returns true if v is the zero reflect.Value, or nil of its type.
 func isNil(v reflect.Value) bool {
-	if v == zero {
+	if !v.IsValid() {
 		return true
 	}
 	switch v.Kind() {
@@ -479,8 +476,8 @@ func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
 			case k1 == uintKind && k2 == intKind:
 				truth = arg.Int() >= 0 && arg1.Uint() == uint64(arg.Int())
 			default:
-				if arg1 != zero && arg != zero {
-					return false, errBadComparison
+				if arg1.IsValid() && arg.IsValid() {
+					return false, fmt.Errorf("incompatible types for comparison: %v and %v", arg1.Type(), arg.Type())
 				}
 			}
 		} else {
@@ -546,7 +543,7 @@ func lt(arg1, arg2 reflect.Value) (bool, error) {
 		case k1 == uintKind && k2 == intKind:
 			truth = arg2.Int() >= 0 && arg1.Uint() < uint64(arg2.Int())
 		default:
-			return false, errBadComparison
+			return false, fmt.Errorf("incompatible types for comparison: %v and %v", arg1.Type(), arg2.Type())
 		}
 	} else {
 		switch k1 {
@@ -642,7 +639,7 @@ func HTMLEscapeString(s string) string {
 	if !strings.ContainsAny(s, "'\"&<>\000") {
 		return s
 	}
-	var b bytes.Buffer
+	var b strings.Builder
 	HTMLEscape(&b, []byte(s))
 	return b.String()
 }
@@ -725,7 +722,7 @@ func JSEscapeString(s string) string {
 	if strings.IndexFunc(s, jsIsSpecial) < 0 {
 		return s
 	}
-	var b bytes.Buffer
+	var b strings.Builder
 	JSEscape(&b, []byte(s))
 	return b.String()
 }

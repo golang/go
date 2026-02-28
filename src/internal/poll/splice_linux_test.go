@@ -41,7 +41,7 @@ func TestSplicePipePool(t *testing.T) {
 	t.Cleanup(func() { closeHook.Store((func(int))(nil)) })
 
 	for i := 0; i < N; i++ {
-		p, _, err = poll.GetPipe()
+		p, err = poll.GetPipe()
 		if err != nil {
 			t.Skipf("failed to create pipe due to error(%v), skip this test", err)
 		}
@@ -59,7 +59,7 @@ func TestSplicePipePool(t *testing.T) {
 	// Exploit the timeout of "go test" as a timer for the subsequent verification.
 	timeout := 5 * time.Minute
 	if deadline, ok := t.Deadline(); ok {
-		timeout = deadline.Sub(time.Now())
+		timeout = time.Until(deadline)
 		timeout -= timeout / 10 // Leave 10% headroom for cleanup.
 	}
 	expiredTime := time.NewTimer(timeout)
@@ -93,7 +93,7 @@ func TestSplicePipePool(t *testing.T) {
 func BenchmarkSplicePipe(b *testing.B) {
 	b.Run("SplicePipeWithPool", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			p, _, err := poll.GetPipe()
+			p, err := poll.GetPipe()
 			if err != nil {
 				continue
 			}
@@ -114,7 +114,7 @@ func BenchmarkSplicePipe(b *testing.B) {
 func BenchmarkSplicePipePoolParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			p, _, err := poll.GetPipe()
+			p, err := poll.GetPipe()
 			if err != nil {
 				continue
 			}

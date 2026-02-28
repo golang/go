@@ -1,0 +1,48 @@
+[short] skip
+
+# Basic build error. This test also checks that the output is fully-formed JSON.
+! go build -json -o=$devnull ./compileerror
+stdout '^\{"ImportPath":"m/compileerror","Action":"build-output","Output":"# m/compileerror\\n"\}$'
+stdout '^\{"ImportPath":"m/compileerror","Action":"build-output","Output":"compileerror(/|\\\\)main.go:3:11: undefined: y\\n"}$'
+stdout '^\{"ImportPath":"m/compileerror","Action":"build-fail"\}$'
+! stderr '.'
+
+# Check that a build failure in an imported package is attributed correctly.
+! go build -json -o=$devnull ./importerror
+stdout '"ImportPath":"m/compileerror","Action":"build-fail"'
+! stderr '.'
+
+# TODO(#65335): Attributing this to "x" doesn't make much sense,
+# especially since the reported line is the import statement.
+! go build -json -o=$devnull ./loaderror
+stdout '"ImportPath":"x","Action":"build-output","Output":".*package x is not in std.*\\n"'
+stdout '"ImportPath":"x","Action":"build-fail"'
+! stderr '.'
+
+# Check that a load error in an imported package is attributed correctly.
+! go build -json -o=$devnull ./loadimporterror
+stdout '"ImportPath":"x","Action":"build-output","Output":".*package x is not in std.*\\n"'
+stdout '"ImportPath":"x","Action":"build-fail"'
+! stderr '.'
+
+-- go.mod --
+module m
+go 1.21
+-- compileerror/main.go --
+package compileerror
+
+const x = y
+-- importerror/main.go --
+package main
+
+import _ "m/compileerror"
+-- loaderror/main.go --
+// A bad import causes a failure directly in cmd/go during import processing.
+
+package loaderror
+
+import _ "x"
+-- loadimporterror/main.go --
+package loadimporterror
+
+import _ "m/loaderror"

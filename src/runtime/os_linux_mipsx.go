@@ -9,11 +9,8 @@ package runtime
 func archauxv(tag, val uintptr) {
 }
 
-func osArchInit() {}
-
 //go:nosplit
 func cputicks() int64 {
-	// Currently cputicks() is used in blocking profiler and to seed fastrand().
 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
 	return nanotime()
 }
@@ -21,7 +18,6 @@ func cputicks() int64 {
 const (
 	_SS_DISABLE  = 2
 	_NSIG        = 128 + 1
-	_SI_USER     = 0
 	_SIG_BLOCK   = 1
 	_SIG_UNBLOCK = 2
 	_SIG_SETMASK = 3

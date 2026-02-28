@@ -45,7 +45,7 @@ func (pq *PriorityQueue) Pop() any {
 	old := *pq
 	n := len(old)
 	item := old[n-1]
-	old[n-1] = nil  // avoid memory leak
+	old[n-1] = nil  // don't stop the GC from reclaiming the item eventually
 	item.index = -1 // for safety
 	*pq = old[0 : n-1]
 	return item

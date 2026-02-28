@@ -21,7 +21,8 @@ env GO111MODULE=on
 cd m
 cp go.mod go.mod.orig
 ! go list -m all
-stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
+stderr '^go: example.com/cmd@v1.1.0-doesnotexist: reading http.*/mod/example\.com/cmd/@v/v1.1.0-doesnotexist.info: 404 Not Found\n\tserver response: 404 page not found$'
+stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/cmd$'
 go run example.com/cmd/a@v1.0.0
 stdout '^a@v1.0.0$'
 cmp go.mod go.mod.orig
@@ -80,6 +81,20 @@ stdout '^a@v1.0.0$'
 # Verifies #43278.
 go run -mod=readonly example.com/cmd/a@v1.0.0
 stdout '^a@v1.0.0$'
+
+
+# 'go run pkg@version' should show a deprecation message if the module is deprecated.
+go run example.com/deprecated/a/cmd/a@latest
+stderr '^go: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
+stdout '^a@v1.9.0$'
+go run example.com/deprecated/a/cmd/a@v1.0.0
+stderr '^go: module example.com/deprecated/a is deprecated: in example.com/deprecated/a@v1.9.0$'
+stdout '^a@v1.0.0$'
+
+# 'go run pkg@version' does not show a deprecation message if the module is no longer
+# deprecated in its latest version, even if the module is deprecated in its current version.
+go run example.com/undeprecated/cmd/a@v1.0.0
+! stderr 'module.*is deprecated'
 
 -- m/go.mod --
 module m

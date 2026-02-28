@@ -10,6 +10,8 @@
 // Licence: I hereby disclaim the copyright on this code and place it
 // in the public domain.
 
+//go:build !purego
+
 #include "textflag.h"
 
 // func block(dig *digest, p []byte)

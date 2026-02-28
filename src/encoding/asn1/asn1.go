@@ -22,10 +22,13 @@ package asn1
 import (
 	"errors"
 	"fmt"
+	"internal/saferio"
 	"math"
 	"math/big"
 	"reflect"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 	"unicode/utf16"
 	"unicode/utf8"
@@ -111,7 +114,7 @@ func parseInt64(bytes []byte) (ret int64, err error) {
 	return
 }
 
-// parseInt treats the given bytes as a big-endian, signed integer and returns
+// parseInt32 treats the given bytes as a big-endian, signed integer and returns
 // the result.
 func parseInt32(bytes []byte) (int32, error) {
 	if err := checkInteger(bytes); err != nil {
@@ -162,7 +165,7 @@ type BitString struct {
 }
 
 // At returns the bit at the given index. If the index is out of range it
-// returns false.
+// returns 0.
 func (b BitString) At(i int) int {
 	if i < 0 || i >= b.BitLength {
 		return 0
@@ -210,7 +213,7 @@ func parseBitString(bytes []byte) (ret BitString, err error) {
 
 // NULL
 
-// NullRawValue is a RawValue with its Tag set to the ASN.1 NULL type tag (5).
+// NullRawValue is a [RawValue] with its Tag set to the ASN.1 NULL type tag (5).
 var NullRawValue = RawValue{Tag: TagNull}
 
 // NullBytes contains bytes representing the DER-encoded ASN.1 NULL type.
@@ -223,29 +226,22 @@ type ObjectIdentifier []int
 
 // Equal reports whether oi and other represent the same identifier.
 func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
-	if len(oi) != len(other) {
-		return false
-	}
-	for i := 0; i < len(oi); i++ {
-		if oi[i] != other[i] {
-			return false
-		}
-	}
-
-	return true
+	return slices.Equal(oi, other)
 }
 
 func (oi ObjectIdentifier) String() string {
-	var s string
+	var s strings.Builder
+	s.Grow(32)
 
+	buf := make([]byte, 0, 19)
 	for i, v := range oi {
 		if i > 0 {
-			s += "."
+			s.WriteByte('.')
 		}
-		s += strconv.Itoa(v)
+		s.Write(strconv.AppendInt(buf, int64(v), 10))
 	}
 
-	return s
+	return s.String()
 }
 
 // parseObjectIdentifier parses an OBJECT IDENTIFIER from the given bytes and
@@ -365,7 +361,7 @@ func parseUTCTime(bytes []byte) (ret time.Time, err error) {
 // parseGeneralizedTime parses the GeneralizedTime from the given byte slice
 // and returns the resulting time.
 func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
-	const formatStr = "20060102150405Z0700"
+	const formatStr = "20060102150405.999999999Z0700"
 	s := string(bytes)
 
 	if ret, err = time.Parse(formatStr, s); err != nil {
@@ -468,7 +464,21 @@ func parseIA5String(bytes []byte) (ret string, err error) {
 // parseT61String parses an ASN.1 T61String (8-bit clean string) from the given
 // byte slice and returns it.
 func parseT61String(bytes []byte) (ret string, err error) {
-	return string(bytes), nil
+	// T.61 is a defunct ITU 8-bit character encoding which preceded Unicode.
+	// T.61 uses a code page layout that _almost_ exactly maps to the code
+	// page layout of the ISO 8859-1 (Latin-1) character encoding, with the
+	// exception that a number of characters in Latin-1 are not present
+	// in T.61.
+	//
+	// Instead of mapping which characters are present in Latin-1 but not T.61,
+	// we just treat these strings as being encoded using Latin-1. This matches
+	// what most of the world does, including BoringSSL.
+	buf := make([]byte, 0, len(bytes))
+	for _, v := range bytes {
+		// All the 1-byte UTF-8 runes map 1-1 with Latin-1.
+		buf = utf8.AppendRune(buf, rune(v))
+	}
+	return string(buf), nil
 }
 
 // UTF8String
@@ -487,8 +497,16 @@ func parseUTF8String(bytes []byte) (ret string, err error) {
 // parseBMPString parses an ASN.1 BMPString (Basic Multilingual Plane of
 // ISO/IEC/ITU 10646-1) from the given byte slice and returns it.
 func parseBMPString(bmpString []byte) (string, error) {
+	// BMPString uses the defunct UCS-2 16-bit character encoding, which
+	// covers the Basic Multilingual Plane (BMP). UTF-16 was an extension of
+	// UCS-2, containing all of the same code points, but also including
+	// multi-code point characters (by using surrogate code points). We can
+	// treat a UCS-2 encoded string as a UTF-16 encoded string, as long as
+	// we reject out the UTF-16 specific code points. This matches the
+	// BoringSSL behavior.
+
 	if len(bmpString)%2 != 0 {
-		return "", errors.New("pkcs12: odd-length BMP string")
+		return "", errors.New("invalid BMPString")
 	}
 
 	// Strip terminator if present.
@@ -498,7 +516,16 @@ func parseBMPString(bmpString []byte) (string, error) {
 
 	s := make([]uint16, 0, len(bmpString)/2)
 	for len(bmpString) > 0 {
-		s = append(s, uint16(bmpString[0])<<8+uint16(bmpString[1]))
+		point := uint16(bmpString[0])<<8 + uint16(bmpString[1])
+		// Reject UTF-16 code points that are permanently reserved
+		// noncharacters (0xfffe, 0xffff, and 0xfdd0-0xfdef) and surrogates
+		// (0xd800-0xdfff).
+		if point == 0xfffe || point == 0xffff ||
+			(point >= 0xfdd0 && point <= 0xfdef) ||
+			(point >= 0xd800 && point <= 0xdfff) {
+			return "", errors.New("invalid BMPString")
+		}
+		s = append(s, point)
 		bmpString = bmpString[2:]
 	}
 
@@ -640,10 +667,17 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 		offset += t.length
 		numElements++
 	}
-	ret = reflect.MakeSlice(sliceType, numElements, numElements)
+	elemSize := uint64(elemType.Size())
+	safeCap := saferio.SliceCapWithSize(elemSize, uint64(numElements))
+	if safeCap < 0 {
+		err = SyntaxError{fmt.Sprintf("%s slice too big: %d elements of %d bytes", elemType.Kind(), numElements, elemSize)}
+		return
+	}
+	ret = reflect.MakeSlice(sliceType, 0, safeCap)
 	params := fieldParameters{}
 	offset := 0
 	for i := 0; i < numElements; i++ {
+		ret = reflect.Append(ret, reflect.Zero(elemType))
 		offset, err = parseField(ret.Index(i), bytes, offset, params)
 		if err != nil {
 			return
@@ -653,14 +687,14 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 }
 
 var (
-	bitStringType        = reflect.TypeOf(BitString{})
-	objectIdentifierType = reflect.TypeOf(ObjectIdentifier{})
-	enumeratedType       = reflect.TypeOf(Enumerated(0))
-	flagType             = reflect.TypeOf(Flag(false))
-	timeType             = reflect.TypeOf(time.Time{})
-	rawValueType         = reflect.TypeOf(RawValue{})
-	rawContentsType      = reflect.TypeOf(RawContent(nil))
-	bigIntType           = reflect.TypeOf(new(big.Int))
+	bitStringType        = reflect.TypeFor[BitString]()
+	objectIdentifierType = reflect.TypeFor[ObjectIdentifier]()
+	enumeratedType       = reflect.TypeFor[Enumerated]()
+	flagType             = reflect.TypeFor[Flag]()
+	timeType             = reflect.TypeFor[time.Time]()
+	rawValueType         = reflect.TypeFor[RawValue]()
+	rawContentsType      = reflect.TypeFor[RawContent]()
+	bigIntType           = reflect.TypeFor[*big.Int]()
 )
 
 // invalidLength reports whether offset + length > sliceLength, or if the
@@ -699,6 +733,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		if !t.isCompound && t.class == ClassUniversal {
 			innerBytes := bytes[offset : offset+t.length]
 			switch t.tag {
+			case TagBoolean:
+				result, err = parseBool(innerBytes)
 			case TagPrintableString:
 				result, err = parsePrintableString(innerBytes)
 			case TagNumericString:
@@ -800,9 +836,18 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	}
 
 	// Special case for time: UTCTime and GeneralizedTime both map to the
-	// Go type time.Time.
-	if universalTag == TagUTCTime && t.tag == TagGeneralizedTime && t.class == ClassUniversal {
-		universalTag = TagGeneralizedTime
+	// Go type time.Time. getUniversalType returns the tag for UTCTime when
+	// it sees a time.Time, so if we see a different time type on the wire,
+	// or the field is tagged with a different type, we change the universal
+	// type to match.
+	if universalTag == TagUTCTime {
+		if t.class == ClassUniversal {
+			if t.tag == TagGeneralizedTime {
+				universalTag = t.tag
+			}
+		} else if params.timeType != 0 {
+			universalTag = params.timeType
+		}
 	}
 
 	if params.set {
@@ -1028,34 +1073,33 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 // fields in val will not be included in rest, as these are considered
 // valid elements of the SEQUENCE and not trailing data.
 //
-// An ASN.1 INTEGER can be written to an int, int32, int64,
-// or *big.Int (from the math/big package).
-// If the encoded value does not fit in the Go type,
-// Unmarshal returns a parse error.
+//   - An ASN.1 INTEGER can be written to an int, int32, int64,
+//     or *[big.Int].
+//     If the encoded value does not fit in the Go type,
+//     Unmarshal returns a parse error.
 //
-// An ASN.1 BIT STRING can be written to a BitString.
+//   - An ASN.1 BIT STRING can be written to a [BitString].
 //
-// An ASN.1 OCTET STRING can be written to a []byte.
+//   - An ASN.1 OCTET STRING can be written to a []byte.
 //
-// An ASN.1 OBJECT IDENTIFIER can be written to an
-// ObjectIdentifier.
+//   - An ASN.1 OBJECT IDENTIFIER can be written to an [ObjectIdentifier].
 //
-// An ASN.1 ENUMERATED can be written to an Enumerated.
+//   - An ASN.1 ENUMERATED can be written to an [Enumerated].
 //
-// An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a time.Time.
+//   - An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a [time.Time].
 //
-// An ASN.1 PrintableString, IA5String, or NumericString can be written to a string.
+//   - An ASN.1 PrintableString, IA5String, or NumericString can be written to a string.
 //
-// Any of the above ASN.1 values can be written to an interface{}.
-// The value stored in the interface has the corresponding Go type.
-// For integers, that type is int64.
+//   - Any of the above ASN.1 values can be written to an interface{}.
+//     The value stored in the interface has the corresponding Go type.
+//     For integers, that type is int64.
 //
-// An ASN.1 SEQUENCE OF x or SET OF x can be written
-// to a slice if an x can be written to the slice's element type.
+//   - An ASN.1 SEQUENCE OF x or SET OF x can be written
+//     to a slice if an x can be written to the slice's element type.
 //
-// An ASN.1 SEQUENCE or SET can be written to a struct
-// if each of the elements in the sequence can be
-// written to the corresponding element in the struct.
+//   - An ASN.1 SEQUENCE or SET can be written to a struct
+//     if each of the elements in the sequence can be
+//     written to the corresponding element in the struct.
 //
 // The following tags on struct fields have special meaning to Unmarshal:
 //
@@ -1075,6 +1119,13 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //	ia5     causes strings to be unmarshaled as ASN.1 IA5String values
 //	numeric causes strings to be unmarshaled as ASN.1 NumericString values
 //	utf8    causes strings to be unmarshaled as ASN.1 UTF8String values
+//
+// When decoding an ASN.1 value with an IMPLICIT tag into a time.Time field,
+// Unmarshal will default to a UTCTime, which doesn't support time zones or
+// fractional seconds. To force usage of GeneralizedTime, use the following
+// tag:
+//
+//	generalized causes time.Times to be unmarshaled as ASN.1 GeneralizedTime values
 //
 // If the type of the first field of a structure is RawContent then the raw
 // ASN1 contents of the struct will be stored in it.

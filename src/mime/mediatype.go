@@ -7,7 +7,8 @@ package mime
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -33,13 +34,7 @@ func FormatMediaType(t string, param map[string]string) string {
 		b.WriteString(strings.ToLower(sub))
 	}
 
-	attrs := make([]string, 0, len(param))
-	for a := range param {
-		attrs = append(attrs, a)
-	}
-	sort.Strings(attrs)
-
-	for _, attribute := range attrs {
+	for _, attribute := range slices.Sorted(maps.Keys(param)) {
 		value := param[attribute]
 		b.WriteByte(';')
 		b.WriteByte(' ')
@@ -65,7 +60,7 @@ func FormatMediaType(t string, param map[string]string) string {
 				// attribute-char := <any (US-ASCII) CHAR except SPACE, CTLs, "*", "'", "%", or tspecials>
 				if ch <= ' ' || ch >= 0x7F ||
 					ch == '*' || ch == '\'' || ch == '%' ||
-					isTSpecial(rune(ch)) {
+					isTSpecial(ch) {
 
 					b.WriteString(value[offset:index])
 					offset = index + 1
@@ -103,25 +98,33 @@ func FormatMediaType(t string, param map[string]string) string {
 func checkMediaTypeDisposition(s string) error {
 	typ, rest := consumeToken(s)
 	if typ == "" {
-		return errors.New("mime: no media type")
+		return errNoMediaType
 	}
 	if rest == "" {
 		return nil
 	}
-	if !strings.HasPrefix(rest, "/") {
-		return errors.New("mime: expected slash after first token")
+	var ok bool
+	if rest, ok = strings.CutPrefix(rest, "/"); !ok {
+		return errNoSlashAfterFirstToken
 	}
-	subtype, rest := consumeToken(rest[1:])
+	subtype, rest := consumeToken(rest)
 	if subtype == "" {
-		return errors.New("mime: expected token after slash")
+		return errNoTokenAfterSlash
 	}
 	if rest != "" {
-		return errors.New("mime: unexpected content after media subtype")
+		return errUnexpectedContentAfterMediaSubtype
 	}
 	return nil
 }
 
-// ErrInvalidMediaParameter is returned by ParseMediaType if
+var (
+	errNoMediaType                        = errors.New("mime: no media type")
+	errNoSlashAfterFirstToken             = errors.New("mime: expected slash after first token")
+	errNoTokenAfterSlash                  = errors.New("mime: expected token after slash")
+	errUnexpectedContentAfterMediaSubtype = errors.New("mime: unexpected content after media subtype")
+)
+
+// ErrInvalidMediaParameter is returned by [ParseMediaType] if
 // the media type value was found but there was an error parsing
 // the optional parameters
 var ErrInvalidMediaParameter = errors.New("mime: invalid media parameter")
@@ -133,7 +136,7 @@ var ErrInvalidMediaParameter = errors.New("mime: invalid media parameter")
 // to lowercase and trimmed of white space and a non-nil map.
 // If there is an error parsing the optional parameter,
 // the media type will be returned along with the error
-// ErrInvalidMediaParameter.
+// [ErrInvalidMediaParameter].
 // The returned map, params, maps from the lowercase
 // attribute to the attribute value with its case preserved.
 func ParseMediaType(v string) (mediatype string, params map[string]string, err error) {
@@ -174,15 +177,14 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 			if continuation == nil {
 				continuation = make(map[string]map[string]string)
 			}
-			var ok bool
 			if pmap, ok = continuation[baseName]; !ok {
 				continuation[baseName] = make(map[string]string)
 				pmap = continuation[baseName]
 			}
 		}
-		if _, exists := pmap[key]; exists {
-			// Duplicate parameter name is bogus.
-			return "", nil, errors.New("mime: duplicate parameter name")
+		if v, exists := pmap[key]; exists && v != value {
+			// Duplicate parameter names are incorrect, but we allow them if they are equal.
+			return "", nil, errDuplicateParamName
 		}
 		pmap[key] = value
 		v = rest
@@ -232,31 +234,28 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 	return
 }
 
+var errDuplicateParamName = errors.New("mime: duplicate parameter name")
+
 func decode2231Enc(v string) (string, bool) {
-	sv := strings.SplitN(v, "'", 3)
-	if len(sv) != 3 {
+	charset, v, ok := strings.Cut(v, "'")
+	if !ok {
 		return "", false
 	}
-	// TODO: ignoring lang in sv[1] for now. If anybody needs it we'll
+	// TODO: ignoring the language part for now. If anybody needs it, we'll
 	// need to decide how to expose it in the API. But I'm not sure
 	// anybody uses it in practice.
-	charset := strings.ToLower(sv[0])
-	if len(charset) == 0 {
+	_, extOtherVals, ok := strings.Cut(v, "'")
+	if !ok {
 		return "", false
 	}
-	if charset != "us-ascii" && charset != "utf-8" {
-		// TODO: unsupported encoding
+	charset = strings.ToLower(charset)
+	switch charset {
+	case "us-ascii", "utf-8":
+	default:
+		// Empty or unsupported encoding.
 		return "", false
 	}
-	encv, err := percentHexUnescape(sv[2])
-	if err != nil {
-		return "", false
-	}
-	return encv, true
-}
-
-func isNotTokenChar(r rune) bool {
-	return !isTokenChar(r)
+	return percentHexUnescape(extOtherVals)
 }
 
 // consumeToken consumes a token from the beginning of provided
@@ -264,14 +263,12 @@ func isNotTokenChar(r rune) bool {
 // the token consumed and the rest of the string. Returns ("", v) on
 // failure to consume at least one character.
 func consumeToken(v string) (token, rest string) {
-	notPos := strings.IndexFunc(v, isNotTokenChar)
-	if notPos == -1 {
-		return v, ""
+	for i := range len(v) {
+		if !isTokenChar(v[i]) {
+			return v[:i], v[i:]
+		}
 	}
-	if notPos == 0 {
-		return "", v
-	}
-	return v[0:notPos], v[notPos:]
+	return v, ""
 }
 
 // consumeValue consumes a "value" per RFC 2045, where a value is
@@ -304,7 +301,7 @@ func consumeValue(v string) (value, rest string) {
 		// and intended as a literal backslash. This makes Go servers deal better
 		// with MSIE without affecting the way they handle conforming MIME
 		// generators.
-		if r == '\\' && i+1 < len(v) && isTSpecial(rune(v[i+1])) {
+		if r == '\\' && i+1 < len(v) && isTSpecial(v[i+1]) {
 			buffer.WriteByte(v[i+1])
 			i++
 			continue
@@ -320,11 +317,11 @@ func consumeValue(v string) (value, rest string) {
 
 func consumeMediaParam(v string) (param, value, rest string) {
 	rest = strings.TrimLeftFunc(v, unicode.IsSpace)
-	if !strings.HasPrefix(rest, ";") {
+	var ok bool
+	if rest, ok = strings.CutPrefix(rest, ";"); !ok {
 		return "", "", v
 	}
 
-	rest = rest[1:] // consume semicolon
 	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
 	param, rest = consumeToken(rest)
 	param = strings.ToLower(param)
@@ -333,10 +330,9 @@ func consumeMediaParam(v string) (param, value, rest string) {
 	}
 
 	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
-	if !strings.HasPrefix(rest, "=") {
+	if rest, ok = strings.CutPrefix(rest, "="); !ok {
 		return "", "", v
 	}
-	rest = rest[1:] // consume equals sign
 	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
 	value, rest2 := consumeValue(rest)
 	if value == "" && rest2 == rest {
@@ -346,7 +342,7 @@ func consumeMediaParam(v string) (param, value, rest string) {
 	return param, value, rest
 }
 
-func percentHexUnescape(s string) (string, error) {
+func percentHexUnescape(s string) (string, bool) {
 	// Count %, check that they're well-formed.
 	percents := 0
 	for i := 0; i < len(s); {
@@ -356,16 +352,12 @@ func percentHexUnescape(s string) (string, error) {
 		}
 		percents++
 		if i+2 >= len(s) || !ishex(s[i+1]) || !ishex(s[i+2]) {
-			s = s[i:]
-			if len(s) > 3 {
-				s = s[0:3]
-			}
-			return "", fmt.Errorf("mime: bogus characters after %%: %q", s)
+			return "", false
 		}
 		i += 3
 	}
 	if percents == 0 {
-		return s, nil
+		return s, true
 	}
 
 	t := make([]byte, len(s)-2*percents)
@@ -382,7 +374,7 @@ func percentHexUnescape(s string) (string, error) {
 			i++
 		}
 	}
-	return string(t), nil
+	return string(t), true
 }
 
 func ishex(c byte) bool {

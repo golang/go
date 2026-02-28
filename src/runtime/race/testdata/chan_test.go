@@ -766,7 +766,7 @@ func TestNoRaceCloseHappensBeforeRead(t *testing.T) {
 
 // Test that we call the proper race detector function when c.elemsize==0.
 // See https://github.com/golang/go/issues/42598
-func TestNoRaceElemetSize0(t *testing.T) {
+func TestNoRaceElemSize0(t *testing.T) {
 	var x, y int
 	var c = make(chan struct{}, 2)
 	c <- struct{}{}

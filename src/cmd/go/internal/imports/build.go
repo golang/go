@@ -20,9 +20,11 @@ package imports
 
 import (
 	"bytes"
+	"cmd/go/internal/cfg"
 	"errors"
 	"fmt"
 	"go/build/constraint"
+	"internal/syslist"
 	"strings"
 	"unicode"
 )
@@ -35,8 +37,7 @@ var (
 
 	goBuildComment = []byte("//go:build")
 
-	errGoBuildWithoutBuild = errors.New("//go:build comment without // +build comment")
-	errMultipleGoBuild     = errors.New("multiple //go:build comments")
+	errMultipleGoBuild = errors.New("multiple //go:build comments")
 )
 
 func isGoBuildComment(line []byte) bool {
@@ -201,17 +202,22 @@ func matchTag(name string, tags map[string]bool, prefer bool) bool {
 		return prefer
 	}
 
-	have := tags[name]
-	if name == "linux" {
-		have = have || tags["android"]
+	if tags[name] {
+		return true
 	}
-	if name == "solaris" {
-		have = have || tags["illumos"]
+
+	switch name {
+	case "linux":
+		return tags["android"]
+	case "solaris":
+		return tags["illumos"]
+	case "darwin":
+		return tags["ios"]
+	case "unix":
+		return syslist.UnixOS[cfg.BuildContext.GOOS]
+	default:
+		return false
 	}
-	if name == "darwin" {
-		have = have || tags["ios"]
-	}
-	return have
 }
 
 // eval is like
@@ -290,61 +296,14 @@ func MatchFile(name string, tags map[string]bool) bool {
 		l = l[:n-1]
 	}
 	n := len(l)
-	if n >= 2 && KnownOS[l[n-2]] && KnownArch[l[n-1]] {
+	if n >= 2 && syslist.KnownOS[l[n-2]] && syslist.KnownArch[l[n-1]] {
 		return matchTag(l[n-2], tags, true) && matchTag(l[n-1], tags, true)
 	}
-	if n >= 1 && KnownOS[l[n-1]] {
+	if n >= 1 && syslist.KnownOS[l[n-1]] {
 		return matchTag(l[n-1], tags, true)
 	}
-	if n >= 1 && KnownArch[l[n-1]] {
+	if n >= 1 && syslist.KnownArch[l[n-1]] {
 		return matchTag(l[n-1], tags, true)
 	}
 	return true
-}
-
-var KnownOS = map[string]bool{
-	"aix":       true,
-	"android":   true,
-	"darwin":    true,
-	"dragonfly": true,
-	"freebsd":   true,
-	"hurd":      true,
-	"illumos":   true,
-	"ios":       true,
-	"js":        true,
-	"linux":     true,
-	"nacl":      true, // legacy; don't remove
-	"netbsd":    true,
-	"openbsd":   true,
-	"plan9":     true,
-	"solaris":   true,
-	"windows":   true,
-	"zos":       true,
-}
-
-var KnownArch = map[string]bool{
-	"386":         true,
-	"amd64":       true,
-	"amd64p32":    true, // legacy; don't remove
-	"arm":         true,
-	"armbe":       true,
-	"arm64":       true,
-	"arm64be":     true,
-	"ppc64":       true,
-	"ppc64le":     true,
-	"mips":        true,
-	"mipsle":      true,
-	"mips64":      true,
-	"mips64le":    true,
-	"mips64p32":   true,
-	"mips64p32le": true,
-	"loong64":     true,
-	"ppc":         true,
-	"riscv":       true,
-	"riscv64":     true,
-	"s390":        true,
-	"s390x":       true,
-	"sparc":       true,
-	"sparc64":     true,
-	"wasm":        true,
 }

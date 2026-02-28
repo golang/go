@@ -26,8 +26,11 @@ import (
 	"time"
 )
 
+// Cover indicates whether coverage is enabled.
+var Cover bool
+
 // TestDeps is an implementation of the testing.testDeps interface,
-// suitable for passing to testing.MainStart.
+// suitable for passing to [testing.MainStart].
 type TestDeps struct{}
 
 var matchPat string
@@ -61,6 +64,12 @@ var ImportPath string
 
 func (TestDeps) ImportPath() string {
 	return ImportPath
+}
+
+var ModulePath string
+
+func (TestDeps) ModulePath() string {
+	return ModulePath
 }
 
 // testLog implements testlog.Interface, logging actions by package os.
@@ -196,4 +205,42 @@ func (TestDeps) ResetCoverage() {
 
 func (TestDeps) SnapshotCoverage() {
 	fuzz.SnapshotCoverage()
+}
+
+var CoverMode string
+var Covered string
+var CoverSelectedPackages []string
+
+// These variables below are set at runtime (via code in testmain) to point
+// to the equivalent functions in package internal/coverage/cfile; doing
+// things this way allows us to have tests import internal/coverage/cfile
+// only when -cover is in effect (as opposed to importing for all tests).
+var (
+	CoverSnapshotFunc           func() float64
+	CoverProcessTestDirFunc     func(dir string, cfile string, cm string, cpkg string, w io.Writer, selpkgs []string) error
+	CoverMarkProfileEmittedFunc func(val bool)
+)
+
+func (TestDeps) InitRuntimeCoverage() (mode string, tearDown func(string, string) (string, error), snapcov func() float64) {
+	if CoverMode == "" {
+		return
+	}
+	return CoverMode, coverTearDown, CoverSnapshotFunc
+}
+
+func coverTearDown(coverprofile string, gocoverdir string) (string, error) {
+	var err error
+	if gocoverdir == "" {
+		gocoverdir, err = os.MkdirTemp("", "gocoverdir")
+		if err != nil {
+			return "error setting GOCOVERDIR: bad os.MkdirTemp return", err
+		}
+		defer os.RemoveAll(gocoverdir)
+	}
+	CoverMarkProfileEmittedFunc(true)
+	cmode := CoverMode
+	if err := CoverProcessTestDirFunc(gocoverdir, coverprofile, cmode, Covered, os.Stdout, CoverSelectedPackages); err != nil {
+		return "error generating coverage report", err
+	}
+	return "", nil
 }

@@ -84,6 +84,10 @@ func (c *sigctxt) fixsigcode(sig uint32) {
 		// in real life, people will probably search for it and find this code.
 		// There are no Google hits for b01dfacedebac1e or 0xb01dfacedebac1e
 		// as I type this comment.
+		//
+		// Note: if this code is removed, please consider
+		// enabling TestSignalForwardingGo for darwin-amd64 in
+		// misc/cgo/testcarchive/carchive_test.go.
 		if c.sigcode() == _SI_USER {
 			c.set_sigcode(_SI_USER + 1)
 			c.set_sigaddr(0xb01dfacedebac1e)

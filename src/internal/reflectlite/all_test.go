@@ -7,6 +7,7 @@ package reflectlite_test
 import (
 	"encoding/base64"
 	"fmt"
+	"internal/abi"
 	. "internal/reflectlite"
 	"math"
 	"reflect"
@@ -240,37 +241,37 @@ func TestSetValue(t *testing.T) {
 	for i, tt := range valueTests {
 		v := ValueOf(tt.i).Elem()
 		switch v.Kind() {
-		case Int:
+		case abi.Int:
 			v.Set(ValueOf(int(132)))
-		case Int8:
+		case abi.Int8:
 			v.Set(ValueOf(int8(8)))
-		case Int16:
+		case abi.Int16:
 			v.Set(ValueOf(int16(16)))
-		case Int32:
+		case abi.Int32:
 			v.Set(ValueOf(int32(32)))
-		case Int64:
+		case abi.Int64:
 			v.Set(ValueOf(int64(64)))
-		case Uint:
+		case abi.Uint:
 			v.Set(ValueOf(uint(132)))
-		case Uint8:
+		case abi.Uint8:
 			v.Set(ValueOf(uint8(8)))
-		case Uint16:
+		case abi.Uint16:
 			v.Set(ValueOf(uint16(16)))
-		case Uint32:
+		case abi.Uint32:
 			v.Set(ValueOf(uint32(32)))
-		case Uint64:
+		case abi.Uint64:
 			v.Set(ValueOf(uint64(64)))
-		case Float32:
+		case abi.Float32:
 			v.Set(ValueOf(float32(256.25)))
-		case Float64:
+		case abi.Float64:
 			v.Set(ValueOf(512.125))
-		case Complex64:
+		case abi.Complex64:
 			v.Set(ValueOf(complex64(532.125 + 10i)))
-		case Complex128:
+		case abi.Complex128:
 			v.Set(ValueOf(complex128(564.25 + 1i)))
-		case String:
+		case abi.String:
 			v.Set(ValueOf("stringy cheese"))
-		case Bool:
+		case abi.Bool:
 			v.Set(ValueOf(true))
 		}
 		s := valueToString(v)
@@ -808,15 +809,15 @@ func TestAllocations(t *testing.T) {
 		var i any
 		var v Value
 
-		// We can uncomment this when compiler escape analysis
-		// is good enough to see that the integer assigned to i
-		// does not escape and therefore need not be allocated.
-		//
-		// i = 42 + j
-		// v = ValueOf(i)
-		// if int(v.Int()) != 42+j {
-		// 	panic("wrong int")
-		// }
+		i = []int{j, j, j}
+		v = ValueOf(i)
+		if v.Len() != 3 {
+			panic("wrong length")
+		}
+	})
+	noAlloc(t, 100, func(j int) {
+		var i any
+		var v Value
 
 		i = func(j int) int { return j }
 		v = ValueOf(i)
@@ -946,7 +947,7 @@ func TestInvalid(t *testing.T) {
 		t.Errorf("field: IsValid=%v, Kind=%v, want true, Interface", v.IsValid(), v.Kind())
 	}
 	v = v.Elem()
-	if v.IsValid() != false || v.Kind() != Invalid {
+	if v.IsValid() != false || v.Kind() != abi.Invalid {
 		t.Errorf("field elem: IsValid=%v, Kind=%v, want false, Invalid", v.IsValid(), v.Kind())
 	}
 }

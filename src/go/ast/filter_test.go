@@ -7,11 +7,11 @@
 package ast_test
 
 import (
-	"bytes"
 	"go/ast"
 	"go/format"
 	"go/parser"
 	"go/token"
+	"strings"
 	"testing"
 )
 
@@ -73,7 +73,7 @@ func TestFilterDuplicates(t *testing.T) {
 	merged := ast.MergePackageFiles(pkg, ast.FilterFuncDuplicates)
 
 	// pretty-print
-	var buf bytes.Buffer
+	var buf strings.Builder
 	if err := format.Node(&buf, fset, merged); err != nil {
 		t.Fatal(err)
 	}

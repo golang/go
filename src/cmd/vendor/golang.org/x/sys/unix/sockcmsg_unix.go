@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris zos
 
 // Socket control messages
 
@@ -50,6 +49,20 @@ func ParseSocketControlMessage(b []byte) ([]SocketControlMessage, error) {
 		i += cmsgAlignOf(int(h.Len))
 	}
 	return msgs, nil
+}
+
+// ParseOneSocketControlMessage parses a single socket control message from b, returning the message header,
+// message data (a slice of b), and the remainder of b after that single message.
+// When there are no remaining messages, len(remainder) == 0.
+func ParseOneSocketControlMessage(b []byte) (hdr Cmsghdr, data []byte, remainder []byte, err error) {
+	h, dbuf, err := socketControlMessageHeaderAndData(b)
+	if err != nil {
+		return Cmsghdr{}, nil, nil, err
+	}
+	if i := cmsgAlignOf(int(h.Len)); i < len(b) {
+		remainder = b[i:]
+	}
+	return *h, dbuf, remainder, nil
 }
 
 func socketControlMessageHeaderAndData(b []byte) (*Cmsghdr, []byte, error) {

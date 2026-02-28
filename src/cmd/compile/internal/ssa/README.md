@@ -34,7 +34,7 @@ value is defined exactly once, but it may be used any number of times. A value
 mainly consists of a unique identifier, an operator, a type, and some arguments.
 
 An operator or `Op` describes the operation that computes the value. The
-semantics of each operator can be found in `gen/*Ops.go`. For example, `OpAdd8`
+semantics of each operator can be found in `_gen/*Ops.go`. For example, `OpAdd8`
 takes two value arguments holding 8-bit integers and results in their addition.
 Here is a possible SSA representation of the addition of two `uint8` values:
 
@@ -46,7 +46,20 @@ above has a `uint8` type, and a constant boolean value will have a `bool` type.
 However, certain types don't come from Go and are special; below we will cover
 `memory`, the most common of them.
 
-See [value.go](value.go) for more information.
+Some operators contain an auxiliary field. The aux fields are usually printed as
+enclosed in `[]` or `{}`, and could be the constant op argument, argument type,
+etc. For example:
+
+	v13 (?) = Const64 <int> [1]
+
+Here the aux field is the constant op argument, the op is creating a `Const64`
+value of 1. One more example:
+
+	v17 (361) = Store <mem> {int} v16 v14 v8
+
+Here the aux field is the type of the value being `Store`ed, which is int.
+
+See [value.go](value.go) and `_gen/*Ops.go` for more information.
 
 #### Memory types
 
@@ -192,6 +205,16 @@ name, e.g.
 This will match any function named "Foo" within a package whose final
 suffix is "blah" (e.g. something/blah.Foo, anotherthing/extra/blah.Foo).
 
+The users may also print the Control Flow Graph(CFG) by specifying in
+`GOSSAFUNC` value in the following format:
+
+	GOSSAFUNC="$FunctionName:$PassName1,$PassName2,..." go build
+
+For example, the following command will print SSA with CFGs attached to the
+`sccp` and `generic deadcode` pass columns:
+
+	GOSSAFUNC="blah.Foo:sccp,generic deadcode" go build
+
 If non-HTML dumps are needed, append a "+" to the GOSSAFUNC value
 and dumps will be written to stdout:
 
@@ -205,17 +228,17 @@ TODO: need more ideas for this section
 
 While most compiler passes are implemented directly in Go code, some others are
 code generated. This is currently done via rewrite rules, which have their own
-syntax and are maintained in `gen/*.rules`. Simpler optimizations can be written
+syntax and are maintained in `_gen/*.rules`. Simpler optimizations can be written
 easily and quickly this way, but rewrite rules are not suitable for more complex
 optimizations.
 
 To read more on rewrite rules, have a look at the top comments in
-[gen/generic.rules](gen/generic.rules) and [gen/rulegen.go](gen/rulegen.go).
+[_gen/generic.rules](_gen/generic.rules) and [_gen/rulegen.go](_gen/rulegen.go).
 
 Similarly, the code to manage operators is also code generated from
-`gen/*Ops.go`, as it is easier to maintain a few tables than a lot of code.
-After changing the rules or operators, see [gen/README](gen/README) for
-instructions on how to generate the Go code again.
+`_gen/*Ops.go`, as it is easier to maintain a few tables than a lot of code.
+After changing the rules or operators, run `go generate cmd/compile/internal/ssa`
+to generate the Go code again.
 
 <!---
 TODO: more tips and info could likely go here

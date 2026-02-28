@@ -18,8 +18,7 @@ import (
 
 // IsRegularMemory reports whether t can be compared/hashed as regular memory.
 func IsRegularMemory(t *types.Type) bool {
-	a, _ := types.AlgType(t)
-	return a == types.AMEM
+	return types.AlgType(t) == types.AMEM
 }
 
 // Memrun finds runs of struct fields for which memory-only algs are appropriate.
@@ -70,7 +69,7 @@ func EqCanPanic(t *types.Type) bool {
 	case types.TARRAY:
 		return EqCanPanic(t.Elem())
 	case types.TSTRUCT:
-		for _, f := range t.FieldSlice() {
+		for _, f := range t.Fields() {
 			if !f.Sym.IsBlank() && EqCanPanic(f.Type) {
 				return true
 			}
@@ -79,11 +78,97 @@ func EqCanPanic(t *types.Type) bool {
 	}
 }
 
+// EqStructCost returns the cost of an equality comparison of two structs.
+//
+// The cost is determined using an algorithm which takes into consideration
+// the size of the registers in the current architecture and the size of the
+// memory-only fields in the struct.
+func EqStructCost(t *types.Type) int64 {
+	cost := int64(0)
+
+	for i, fields := 0, t.Fields(); i < len(fields); {
+		f := fields[i]
+
+		// Skip blank-named fields.
+		if f.Sym.IsBlank() {
+			i++
+			continue
+		}
+
+		n, _, next := eqStructFieldCost(t, i)
+
+		cost += n
+		i = next
+	}
+
+	return cost
+}
+
+// eqStructFieldCost returns the cost of an equality comparison of two struct fields.
+// t is the parent struct type, and i is the index of the field in the parent struct type.
+// eqStructFieldCost may compute the cost of several adjacent fields at once. It returns
+// the cost, the size of the set of fields it computed the cost for (in bytes), and the
+// index of the first field not part of the set of fields for which the cost
+// has already been calculated.
+func eqStructFieldCost(t *types.Type, i int) (int64, int64, int) {
+	var (
+		cost    = int64(0)
+		regSize = int64(types.RegSize)
+
+		size int64
+		next int
+	)
+
+	if base.Ctxt.Arch.CanMergeLoads {
+		// If we can merge adjacent loads then we can calculate the cost of the
+		// comparison using the size of the memory run and the size of the registers.
+		size, next = Memrun(t, i)
+		cost = size / regSize
+		if size%regSize != 0 {
+			cost++
+		}
+		return cost, size, next
+	}
+
+	// If we cannot merge adjacent loads then we have to use the size of the
+	// field and take into account the type to determine how many loads and compares
+	// are needed.
+	ft := t.Field(i).Type
+	size = ft.Size()
+	next = i + 1
+
+	return calculateCostForType(ft), size, next
+}
+
+func calculateCostForType(t *types.Type) int64 {
+	var cost int64
+	switch t.Kind() {
+	case types.TSTRUCT:
+		return EqStructCost(t)
+	case types.TSLICE:
+		// Slices are not comparable.
+		base.Fatalf("calculateCostForType: unexpected slice type")
+	case types.TARRAY:
+		elemCost := calculateCostForType(t.Elem())
+		cost = t.NumElem() * elemCost
+	case types.TSTRING, types.TINTER, types.TCOMPLEX64, types.TCOMPLEX128:
+		cost = 2
+	case types.TINT64, types.TUINT64:
+		cost = 8 / int64(types.RegSize)
+	default:
+		cost = 1
+	}
+	return cost
+}
+
 // EqStruct compares two structs np and nq for equality.
 // It works by building a list of boolean conditions to satisfy.
 // Conditions must be evaluated in the returned order and
-// properly short circuited by the caller.
-func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
+// properly short-circuited by the caller.
+// The first return value is the flattened list of conditions,
+// the second value is a boolean indicating whether any of the
+// comparisons could panic.
+func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 	// The conditions are a list-of-lists. Conditions are reorderable
 	// within each inner list. The outer lists must be evaluated in order.
 	var conds [][]ir.Node
@@ -95,7 +180,7 @@ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 
 	// Walk the struct using memequal for runs of AMEM
 	// and calling specific equality tests for the others.
-	for i, fields := 0, t.FieldSlice(); i < len(fields); {
+	for i, fields := 0, t.Fields(); i < len(fields); {
 		f := fields[i]
 
 		// Skip blank-named fields.
@@ -104,23 +189,25 @@ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 			continue
 		}
 
+		typeCanPanic := EqCanPanic(f.Type)
+
 		// Compare non-memory fields with field equality.
 		if !IsRegularMemory(f.Type) {
-			if EqCanPanic(f.Type) {
+			if typeCanPanic {
 				// Enforce ordering by starting a new set of reorderable conditions.
 				conds = append(conds, []ir.Node{})
 			}
-			p := ir.NewSelectorExpr(base.Pos, ir.OXDOT, np, f.Sym)
-			q := ir.NewSelectorExpr(base.Pos, ir.OXDOT, nq, f.Sym)
 			switch {
 			case f.Type.IsString():
+				p := typecheck.DotField(base.Pos, typecheck.Expr(np), i)
+				q := typecheck.DotField(base.Pos, typecheck.Expr(nq), i)
 				eqlen, eqmem := EqString(p, q)
 				and(eqlen)
 				and(eqmem)
 			default:
-				and(ir.NewBinaryExpr(base.Pos, ir.OEQ, p, q))
+				and(eqfield(np, nq, i))
 			}
-			if EqCanPanic(f.Type) {
+			if typeCanPanic {
 				// Also enforce ordering after something that can panic.
 				conds = append(conds, []ir.Node{})
 			}
@@ -128,19 +215,15 @@ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 			continue
 		}
 
-		// Find maximal length run of memory-only fields.
-		size, next := Memrun(t, i)
-
-		// TODO(rsc): All the calls to newname are wrong for
-		// cross-package unexported fields.
-		if s := fields[i:next]; len(s) <= 2 {
-			// Two or fewer fields: use plain field equality.
-			for _, f := range s {
-				and(eqfield(np, nq, ir.OEQ, f.Sym))
+		cost, size, next := eqStructFieldCost(t, i)
+		if cost <= 4 {
+			// Cost of 4 or less: use plain field equality.
+			for j := i; j < next; j++ {
+				and(eqfield(np, nq, j))
 			}
 		} else {
-			// More than two fields: use memequal.
-			cc := eqmem(np, nq, f.Sym, size)
+			// Higher cost: use memequal.
+			cc := eqmem(np, nq, i, size)
 			and(cc)
 		}
 		i = next
@@ -158,7 +241,7 @@ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 		})
 		flatConds = append(flatConds, c...)
 	}
-	return flatConds
+	return flatConds, len(conds) > 1
 }
 
 // EqString returns the nodes
@@ -174,14 +257,44 @@ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
 func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 	s = typecheck.Conv(s, types.Types[types.TSTRING])
 	t = typecheck.Conv(t, types.Types[types.TSTRING])
-	sptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, s)
-	tptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, t)
+	sptr := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], ir.NewUnaryExpr(base.Pos, ir.OSPTR, s))
+	tptr := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], ir.NewUnaryExpr(base.Pos, ir.OSPTR, t))
 	slen := typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OLEN, s), types.Types[types.TUINTPTR])
 	tlen := typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OLEN, t), types.Types[types.TUINTPTR])
 
+	// Pick the 3rd arg to memequal. Both slen and tlen are fine to use, because we short
+	// circuit the memequal call if they aren't the same. But if one is a constant some
+	// memequal optimizations are easier to apply.
+	probablyConstant := func(n ir.Node) bool {
+		if n.Op() == ir.OCONVNOP {
+			n = n.(*ir.ConvExpr).X
+		}
+		if n.Op() == ir.OLITERAL {
+			return true
+		}
+		if n.Op() != ir.ONAME {
+			return false
+		}
+		name := n.(*ir.Name)
+		if name.Class != ir.PAUTO {
+			return false
+		}
+		if def := name.Defn; def == nil {
+			// n starts out as the empty string
+			return true
+		} else if def.Op() == ir.OAS && (def.(*ir.AssignStmt).Y == nil || def.(*ir.AssignStmt).Y.Op() == ir.OLITERAL) {
+			// n starts out as a constant string
+			return true
+		}
+		return false
+	}
+	cmplen := slen
+	if probablyConstant(t) && !probablyConstant(s) {
+		cmplen = tlen
+	}
+
 	fn := typecheck.LookupRuntime("memequal")
-	fn = typecheck.SubstArgTypes(fn, types.Types[types.TUINT8], types.Types[types.TUINT8])
-	call := typecheck.Call(base.Pos, fn, []ir.Node{sptr, tptr, ir.Copy(slen)}, false).(*ir.CallExpr)
+	call := typecheck.Call(base.Pos, fn, []ir.Node{sptr, tptr, ir.Copy(cmplen)}, false).(*ir.CallExpr)
 
 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
 	cmp = typecheck.Expr(cmp).(*ir.BinaryExpr)
@@ -232,41 +345,41 @@ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 // eqfield returns the node
 //
 //	p.field == q.field
-func eqfield(p ir.Node, q ir.Node, op ir.Op, field *types.Sym) ir.Node {
-	nx := ir.NewSelectorExpr(base.Pos, ir.OXDOT, p, field)
-	ny := ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)
-	ne := ir.NewBinaryExpr(base.Pos, op, nx, ny)
-	return ne
+func eqfield(p, q ir.Node, field int) ir.Node {
+	nx := typecheck.DotField(base.Pos, typecheck.Expr(p), field)
+	ny := typecheck.DotField(base.Pos, typecheck.Expr(q), field)
+	return typecheck.Expr(ir.NewBinaryExpr(base.Pos, ir.OEQ, nx, ny))
 }
 
 // eqmem returns the node
 //
-//	memequal(&p.field, &q.field, size])
-func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
-	nx := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, p, field)))
-	ny := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)))
+//	memequal(&p.field, &q.field, size)
+func eqmem(p, q ir.Node, field int, size int64) ir.Node {
+	nx := typecheck.Expr(typecheck.NodAddr(typecheck.DotField(base.Pos, p, field)))
+	ny := typecheck.Expr(typecheck.NodAddr(typecheck.DotField(base.Pos, q, field)))
 
 	fn, needsize := eqmemfunc(size, nx.Type().Elem())
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
 	call.Args.Append(nx)
 	call.Args.Append(ny)
 	if needsize {
-		call.Args.Append(ir.NewInt(size))
+		call.Args.Append(ir.NewInt(base.Pos, size))
 	}
 
 	return call
 }
 
 func eqmemfunc(size int64, t *types.Type) (fn *ir.Name, needsize bool) {
+	if !base.Ctxt.Arch.CanMergeLoads && t.Alignment() < int64(base.Ctxt.Arch.Alignment) && t.Alignment() < t.Size() {
+		// We can't use larger comparisons if the value might not be aligned
+		// enough for the larger comparison. See issues 46283 and 67160.
+		size = 0
+	}
 	switch size {
-	default:
-		fn = typecheck.LookupRuntime("memequal")
-		needsize = true
 	case 1, 2, 4, 8, 16:
 		buf := fmt.Sprintf("memequal%d", int(size)*8)
-		fn = typecheck.LookupRuntime(buf)
+		return typecheck.LookupRuntime(buf, t, t), false
 	}
 
-	fn = typecheck.SubstArgTypes(fn, t, t)
-	return fn, needsize
+	return typecheck.LookupRuntime("memequal", t, t), true
 }

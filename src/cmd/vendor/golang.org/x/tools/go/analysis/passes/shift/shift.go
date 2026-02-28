@@ -19,8 +19,8 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -29,11 +29,12 @@ const Doc = "check for shifts that equal or exceed the width of the integer"
 var Analyzer = &analysis.Analyzer{
 	Name:     "shift",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/shift",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	// Do a complete pass to compute dead nodes.
@@ -88,7 +89,8 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
 	if v == nil {
 		return
 	}
-	amt, ok := constant.Int64Val(v)
+	u := constant.ToInt(v) // either an Int or Unknown
+	amt, ok := constant.Int64Val(u)
 	if !ok {
 		return
 	}
@@ -97,8 +99,8 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
 		return
 	}
 	var structuralTypes []types.Type
-	switch t := t.(type) {
-	case *typeparams.TypeParam:
+	switch t := types.Unalias(t).(type) {
+	case *types.TypeParam:
 		terms, err := typeparams.StructuralTerms(t)
 		if err != nil {
 			return // invalid type
@@ -121,7 +123,7 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
 		}
 	}
 	if amt >= minSize {
-		ident := analysisutil.Format(pass.Fset, x)
+		ident := astutil.Format(pass.Fset, x)
 		qualifier := ""
 		if len(sizes) > 1 {
 			qualifier = "may be "

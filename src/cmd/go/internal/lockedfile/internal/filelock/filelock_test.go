@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !plan9
+//go:build !js && !plan9 && !wasip1
 
 package filelock_test
 
@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -67,10 +66,10 @@ func mustOpen(t *testing.T, name string) *os.File {
 
 	f, err := os.OpenFile(name, os.O_RDWR, 0)
 	if err != nil {
-		t.Fatalf("os.Open(%q) = %v", name, err)
+		t.Fatalf("os.OpenFile(%q) = %v", name, err)
 	}
 
-	t.Logf("fd %d = os.Open(%q)", f.Fd(), name)
+	t.Logf("fd %d = os.OpenFile(%q)", f.Fd(), name)
 	return f
 }
 
@@ -199,7 +198,7 @@ func TestLockNotDroppedByExecCommand(t *testing.T) {
 	// Some kinds of file locks are dropped when a duplicated or forked file
 	// descriptor is unlocked. Double-check that the approach used by os/exec does
 	// not accidentally drop locks.
-	cmd := exec.Command(os.Args[0], "-test.run=^$")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^$")
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("exec failed: %v", err)
 	}

@@ -9,6 +9,9 @@ import "syscall"
 const (
 	ERROR_INVALID_PARAMETER syscall.Errno = 87
 
+	FILE_SUPPORTS_OBJECT_IDS      = 0x00010000
+	FILE_SUPPORTS_OPEN_BY_FILE_ID = 0x01000000
+
 	// symlink support for CreateSymbolicLink() starting with Windows 10 (1703, v10.0.14972)
 	SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE = 0x2
 
@@ -16,6 +19,7 @@ const (
 	FileBasicInfo                  = 0    // FILE_BASIC_INFO
 	FileStandardInfo               = 1    // FILE_STANDARD_INFO
 	FileNameInfo                   = 2    // FILE_NAME_INFO
+	FileDispositionInfo            = 4    // FILE_DISPOSITION_INFO
 	FileStreamInfo                 = 7    // FILE_STREAM_INFO
 	FileCompressionInfo            = 8    // FILE_COMPRESSION_INFO
 	FileAttributeTagInfo           = 9    // FILE_ATTRIBUTE_TAG_INFO

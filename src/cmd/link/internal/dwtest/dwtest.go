@@ -69,8 +69,8 @@ func (ex *Examiner) Populate(rdr *dwarf.Reader) error {
 	return nil
 }
 
-func (e *Examiner) DIEs() []*dwarf.Entry {
-	return e.dies
+func (ex *Examiner) DIEs() []*dwarf.Entry {
+	return ex.dies
 }
 
 func indent(ilevel int) {
@@ -90,7 +90,7 @@ func (ex *Examiner) DumpEntry(idx int, dumpKids bool, ilevel int) {
 	fmt.Printf("0x%x: %v\n", idx, entry.Tag)
 	for _, f := range entry.Field {
 		indent(ilevel)
-		fmt.Printf("at=%v val=0x%x\n", f.Attr, f.Val)
+		fmt.Printf("at=%v val=%v\n", f.Attr, f.Val)
 	}
 	if dumpKids {
 		ksl := ex.kids[idx]
@@ -194,4 +194,59 @@ func (ex *Examiner) Named(name string) []*dwarf.Entry {
 		ret[i] = ex.entryFromIdx(k)
 	}
 	return ret
+}
+
+// SubprogLoAndHighPc returns the values of the lo_pc and high_pc
+// attrs of the DWARF DIE subprogdie.  For DWARF versions 2-3, both of
+// these attributes had to be of class address; with DWARF 4 the rules
+// were changed, allowing compilers to emit a high PC attr of class
+// constant, where the high PC could be computed by starting with the
+// low PC address and then adding in the high_pc attr offset.  This
+// function accepts both styles of specifying a hi/lo pair, returning
+// the values or an error if the attributes are malformed in some way.
+func SubprogLoAndHighPc(subprogdie *dwarf.Entry) (lo uint64, hi uint64, err error) {
+	// The low_pc attr for a subprogram DIE has to be of class address.
+	lofield := subprogdie.AttrField(dwarf.AttrLowpc)
+	if lofield == nil {
+		err = fmt.Errorf("subprogram DIE has no low_pc attr")
+		return
+	}
+	if lofield.Class != dwarf.ClassAddress {
+		err = fmt.Errorf("subprogram DIE low_pc attr is not of class address")
+		return
+	}
+	if lopc, ok := lofield.Val.(uint64); ok {
+		lo = lopc
+	} else {
+		err = fmt.Errorf("subprogram DIE low_pc not convertible to uint64")
+		return
+	}
+
+	// For the high_pc value, we'll accept either an address or a constant
+	// offset from lo pc.
+	hifield := subprogdie.AttrField(dwarf.AttrHighpc)
+	if hifield == nil {
+		err = fmt.Errorf("subprogram DIE has no high_pc attr")
+		return
+	}
+	switch hifield.Class {
+	case dwarf.ClassAddress:
+		if hipc, ok := hifield.Val.(uint64); ok {
+			hi = hipc
+		} else {
+			err = fmt.Errorf("subprogram DIE high not convertible to uint64")
+			return
+		}
+	case dwarf.ClassConstant:
+		if hioff, ok := hifield.Val.(int64); ok {
+			hi = lo + uint64(hioff)
+		} else {
+			err = fmt.Errorf("subprogram DIE high_pc not convertible to uint64")
+			return
+		}
+	default:
+		err = fmt.Errorf("subprogram DIE high_pc unknown value class %s",
+			hifield.Class)
+	}
+	return
 }

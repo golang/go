@@ -23,9 +23,9 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.0.0.info
 grep '{"Version":"v1.0.0","Time":"2018-02-14T00:45:20Z"}' $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.0.0.info
 
 # If neither GOMODCACHE or GOPATH are set, GOPATH defaults to the user's $HOME/go, so GOMODCACHE becomes $HOME/go/pkg/mod
-[windows] env USERPROFILE=$WORK/home # Ensure USERPROFILE is a valid path (rather than /no-home/ so we don't run into the logic that "uninfers" GOPATH in cmd/go/main.go
-[plan9] env home=$WORK/home
-[!windows] [!plan9] env HOME=$WORK/home
+[GOOS:windows] env USERPROFILE=$WORK/home # Ensure USERPROFILE is a valid path (rather than /no-home/ so we don't run into the logic that "uninfers" GOPATH in cmd/go/main.go
+[GOOS:plan9] env home=$WORK/home
+[!GOOS:windows] [!GOOS:plan9] env HOME=$WORK/home
 env GOMODCACHE=
 env GOPATH=
 go env GOMODCACHE

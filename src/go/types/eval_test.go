@@ -9,10 +9,9 @@ package types_test
 import (
 	"fmt"
 	"go/ast"
-	"go/importer"
 	"go/parser"
 	"go/token"
-	"internal/goexperiment"
+	"go/types"
 	"internal/testenv"
 	"strings"
 	"testing"
@@ -60,14 +59,14 @@ func testEval(t *testing.T, fset *token.FileSet, pkg *Package, pos token.Pos, ex
 func TestEvalBasic(t *testing.T) {
 	fset := token.NewFileSet()
 	for _, typ := range Typ[Bool : String+1] {
-		testEval(t, fset, nil, token.NoPos, typ.Name(), typ, "", "")
+		testEval(t, fset, nil, nopos, typ.Name(), typ, "", "")
 	}
 }
 
 func TestEvalComposite(t *testing.T) {
 	fset := token.NewFileSet()
 	for _, test := range independentTestTypes {
-		testEval(t, fset, nil, token.NoPos, test.src, nil, test.str, "")
+		testEval(t, fset, nil, nopos, test.src, nil, test.str, "")
 	}
 }
 
@@ -84,7 +83,7 @@ func TestEvalArith(t *testing.T) {
 	}
 	fset := token.NewFileSet()
 	for _, test := range tests {
-		testEval(t, fset, nil, token.NoPos, test, Typ[UntypedBool], "", "true")
+		testEval(t, fset, nil, nopos, test, Typ[UntypedBool], "", "true")
 	}
 }
 
@@ -140,7 +139,7 @@ func TestEvalPos(t *testing.T) {
 				/* c => , struct{c int} */
 				_ = c
 			}
-			_ = func(a, b, c int) /* c => , string */ {
+			_ = func(a, b, c int /* c => , string */) /* c => , int */ {
 				/* c => , int */
 			}
 			_ = c
@@ -173,10 +172,15 @@ func TestEvalPos(t *testing.T) {
 		if err != nil {
 			t.Fatalf("could not parse file %d: %s", i, err)
 		}
+
+		if strings.Contains(src, "interface{R}.Read") {
+			continue
+		}
+
 		files = append(files, file)
 	}
 
-	conf := Config{Importer: importer.Default()}
+	conf := Config{Importer: defaultImporter(fset)}
 	pkg, err := conf.Check("p", fset, files, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -209,7 +213,7 @@ func TestCheckExpr(t *testing.T) {
 	// expr is an identifier or selector expression that is passed
 	// to CheckExpr at the position of the comment, and object is
 	// the string form of the object it denotes.
-	src := `
+	const src = `
 package p
 
 import "fmt"
@@ -236,20 +240,13 @@ func f(a int, s string) S {
 	return S{}
 }`
 
-	// The unified IR importer always sets interface method receiver
-	// parameters to point to the Interface type, rather than the Named.
-	// See #49906.
-	if goexperiment.Unified {
-		src = strings.ReplaceAll(src, "func (fmt.Stringer).", "func (interface).")
-	}
-
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "p", src, parser.ParseComments)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	conf := Config{Importer: importer.Default()}
+	conf := Config{Importer: defaultImporter(fset)}
 	pkg, err := conf.Check("p", fset, []*ast.File{f}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -299,6 +296,35 @@ func f(a int, s string) S {
 					t.Errorf("%s: checkExpr(%s) = %s, want %v",
 						fset.Position(pos), expr, obj, wantObj)
 				}
+			}
+		}
+	}
+}
+
+func TestIssue65898(t *testing.T) {
+	const src = `
+package p
+func _[A any](A) {}
+`
+
+	fset := token.NewFileSet()
+	f := mustParse(fset, src)
+
+	var conf types.Config
+	pkg, err := conf.Check(pkgName(src), fset, []*ast.File{f}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, d := range f.Decls {
+		if fun, _ := d.(*ast.FuncDecl); fun != nil {
+			// type parameter A is not found at the start of the function type
+			if err := types.CheckExpr(fset, pkg, fun.Type.Pos(), fun.Type, nil); err == nil || !strings.Contains(err.Error(), "undefined") {
+				t.Fatalf("got %s, want undefined error", err)
+			}
+			// type parameter A must be found at the end of the function type
+			if err := types.CheckExpr(fset, pkg, fun.Type.End(), fun.Type, nil); err != nil {
+				t.Fatal(err)
 			}
 		}
 	}

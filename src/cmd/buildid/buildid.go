@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"cmd/internal/buildid"
+	"cmd/internal/telemetry/counter"
 )
 
 func usage() {
@@ -25,8 +26,11 @@ var wflag = flag.Bool("w", false, "write build ID")
 func main() {
 	log.SetPrefix("buildid: ")
 	log.SetFlags(0)
+	counter.Open()
 	flag.Usage = usage
 	flag.Parse()
+	counter.Inc("buildid/invocations")
+	counter.CountFlags("buildid/flag:", *flag.CommandLine)
 	if flag.NArg() != 1 {
 		usage()
 	}

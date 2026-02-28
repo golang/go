@@ -1,5 +1,5 @@
 [short] skip
-[gccgo] skip
+[compiler:gccgo] skip
 
 # coverdep2/p1's xtest imports coverdep2/p2 which imports coverdep2/p1.
 # Make sure that coverage on coverdep2/p2 recompiles coverdep2/p2.

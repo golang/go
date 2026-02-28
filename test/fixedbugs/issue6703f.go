@@ -15,4 +15,4 @@ func (T) m() int {
 	return 0
 }
 
-var x = T(0).m() // ERROR "initialization loop|depends upon itself"
+var x = T(0).m() // ERROR "initialization cycle|depends upon itself"

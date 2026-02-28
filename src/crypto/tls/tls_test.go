@@ -8,20 +8,32 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/ecdh"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/internal/boring"
+	"crypto/rand"
+	"crypto/tls/internal/fips140tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
 	"math"
+	"math/big"
 	"net"
 	"os"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/cryptobyte"
 )
 
 var rsaCertPEM = `-----BEGIN CERTIFICATE-----
@@ -156,6 +168,7 @@ func TestX509MixedKeyPair(t *testing.T) {
 }
 
 func newLocalListener(t testing.TB) net.Listener {
+	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		ln, err = net.Listen("tcp6", "[::1]:0")
@@ -166,39 +179,97 @@ func newLocalListener(t testing.TB) net.Listener {
 	return ln
 }
 
+func runWithFIPSEnabled(t *testing.T, testFunc func(t *testing.T)) {
+	originalFIPS := fips140tls.Required()
+	defer func() {
+		if originalFIPS {
+			fips140tls.Force()
+		} else {
+			fips140tls.TestingOnlyAbandon()
+		}
+	}()
+
+	fips140tls.Force()
+	t.Run("fips140tls", testFunc)
+}
+
+func runWithFIPSDisabled(t *testing.T, testFunc func(t *testing.T)) {
+	originalFIPS := fips140tls.Required()
+	defer func() {
+		if originalFIPS {
+			fips140tls.Force()
+		} else {
+			fips140tls.TestingOnlyAbandon()
+		}
+	}()
+
+	fips140tls.TestingOnlyAbandon()
+	t.Run("no-fips140tls", testFunc)
+}
+
+func skipFIPS(t *testing.T) {
+	if fips140tls.Required() {
+		t.Skip("skipping test in FIPS mode")
+	}
+}
+
 func TestDialTimeout(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
-	listener := newLocalListener(t)
 
-	addr := listener.Addr().String()
-	defer listener.Close()
+	timeout := 100 * time.Microsecond
+	for !t.Failed() {
+		acceptc := make(chan net.Conn)
+		listener := newLocalListener(t)
+		go func() {
+			for {
+				conn, err := listener.Accept()
+				if err != nil {
+					close(acceptc)
+					return
+				}
+				acceptc <- conn
+			}
+		}()
 
-	complete := make(chan bool)
-	defer close(complete)
-
-	go func() {
-		conn, err := listener.Accept()
-		if err != nil {
-			t.Error(err)
-			return
+		addr := listener.Addr().String()
+		dialer := &net.Dialer{
+			Timeout: timeout,
 		}
-		<-complete
-		conn.Close()
-	}()
+		if conn, err := DialWithDialer(dialer, "tcp", addr, nil); err == nil {
+			conn.Close()
+			t.Errorf("DialWithTimeout unexpectedly completed successfully")
+		} else if !isTimeoutError(err) {
+			t.Errorf("resulting error not a timeout: %v\nType %T: %#v", err, err, err)
+		}
 
-	dialer := &net.Dialer{
-		Timeout: 10 * time.Millisecond,
-	}
+		listener.Close()
 
-	var err error
-	if _, err = DialWithDialer(dialer, "tcp", addr, nil); err == nil {
-		t.Fatal("DialWithTimeout completed successfully")
-	}
+		// We're looking for a timeout during the handshake, so check that the
+		// Listener actually accepted the connection to initiate it. (If the server
+		// takes too long to accept the connection, we might cancel before the
+		// underlying net.Conn is ever dialed — without ever attempting a
+		// handshake.)
+		lconn, ok := <-acceptc
+		if ok {
+			// The Listener accepted a connection, so assume that it was from our
+			// Dial: we triggered the timeout at the point where we wanted it!
+			t.Logf("Listener accepted a connection from %s", lconn.RemoteAddr())
+			lconn.Close()
+		}
+		// Close any spurious extra connections from the listener. (This is
+		// possible if there are, for example, stray Dial calls from other tests.)
+		for extraConn := range acceptc {
+			t.Logf("spurious extra connection from %s", extraConn.RemoteAddr())
+			extraConn.Close()
+		}
+		if ok {
+			break
+		}
 
-	if !isTimeoutError(err) {
-		t.Errorf("resulting error not a timeout: %v\nType %T: %#v", err, err, err)
+		t.Logf("with timeout %v, DialWithDialer returned before listener accepted any connections; retrying", timeout)
+		timeout *= 2
 	}
 }
 
@@ -450,6 +521,9 @@ func TestTLSUniqueMatches(t *testing.T) {
 	if !bytes.Equal(conn.ConnectionState().TLSUnique, serverTLSUniquesValue) {
 		t.Error("client and server channel bindings differ")
 	}
+	if serverTLSUniquesValue == nil || bytes.Equal(serverTLSUniquesValue, make([]byte, 12)) {
+		t.Error("tls-unique is empty or zero")
+	}
 	conn.Close()
 
 	conn, err = Dial("tcp", ln.Addr().String(), clientConfig)
@@ -469,6 +543,9 @@ func TestTLSUniqueMatches(t *testing.T) {
 
 	if !bytes.Equal(conn.ConnectionState().TLSUnique, serverTLSUniquesValue) {
 		t.Error("client and server channel bindings differ when session resumption is used")
+	}
+	if serverTLSUniquesValue == nil || bytes.Equal(serverTLSUniquesValue, make([]byte, 12)) {
+		t.Error("resumption tls-unique is empty or zero")
 	}
 }
 
@@ -493,6 +570,41 @@ func TestVerifyHostname(t *testing.T) {
 	if err := c.VerifyHostname("www.google.com"); err == nil {
 		t.Fatalf("verify www.google.com succeeded with InsecureSkipVerify=true")
 	}
+}
+
+func TestRealResumption(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	config := &Config{
+		ServerName:         "yahoo.com",
+		ClientSessionCache: NewLRUClientSessionCache(0),
+	}
+
+	for range 10 {
+		conn, err := Dial("tcp", "yahoo.com:443", config)
+		if err != nil {
+			t.Log("Dial error:", err)
+			continue
+		}
+		// Do a read to consume the NewSessionTicket messages.
+		fmt.Fprintf(conn, "GET / HTTP/1.1\r\nHost: yahoo.com\r\nConnection: close\r\n\r\n")
+		conn.Read(make([]byte, 4096))
+		conn.Close()
+
+		conn, err = Dial("tcp", "yahoo.com:443", config)
+		if err != nil {
+			t.Log("second Dial error:", err)
+			continue
+		}
+		state := conn.ConnectionState()
+		conn.Close()
+
+		if state.DidResume {
+			return
+		}
+	}
+
+	t.Fatal("no connection used session resumption")
 }
 
 func TestConnCloseBreakingWrite(t *testing.T) {
@@ -734,7 +846,7 @@ func TestWarningAlertFlood(t *testing.T) {
 }
 
 func TestCloneFuncFields(t *testing.T) {
-	const expectedCount = 6
+	const expectedCount = 10
 	called := 0
 
 	c1 := Config{
@@ -762,6 +874,22 @@ func TestCloneFuncFields(t *testing.T) {
 			called |= 1 << 5
 			return nil
 		},
+		UnwrapSession: func(identity []byte, cs ConnectionState) (*SessionState, error) {
+			called |= 1 << 6
+			return nil, nil
+		},
+		WrapSession: func(cs ConnectionState, ss *SessionState) ([]byte, error) {
+			called |= 1 << 7
+			return nil, nil
+		},
+		EncryptedClientHelloRejectionVerify: func(ConnectionState) error {
+			called |= 1 << 8
+			return nil
+		},
+		GetEncryptedClientHelloKeys: func(*ClientHelloInfo) ([]EncryptedClientHelloKey, error) {
+			called |= 1 << 9
+			return nil, nil
+		},
 	}
 
 	c2 := c1.Clone()
@@ -772,6 +900,10 @@ func TestCloneFuncFields(t *testing.T) {
 	c2.GetConfigForClient(nil)
 	c2.VerifyPeerCertificate(nil, nil)
 	c2.VerifyConnection(ConnectionState{})
+	c2.UnwrapSession(nil, ConnectionState{})
+	c2.WrapSession(ConnectionState{}, nil)
+	c2.EncryptedClientHelloRejectionVerify(ConnectionState{})
+	c2.GetEncryptedClientHelloKeys(nil)
 
 	if called != (1<<expectedCount)-1 {
 		t.Fatalf("expected %d calls but saw calls %b", expectedCount, called)
@@ -790,7 +922,7 @@ func TestCloneNonFuncFields(t *testing.T) {
 		switch fn := typ.Field(i).Name; fn {
 		case "Rand":
 			f.Set(reflect.ValueOf(io.Reader(os.Stdin)))
-		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "VerifyConnection", "GetClientCertificate":
+		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "VerifyConnection", "GetClientCertificate", "WrapSession", "UnwrapSession", "EncryptedClientHelloRejectionVerify", "GetEncryptedClientHelloKeys":
 			// DeepEqual can't compare functions. If you add a
 			// function field to this list, you must also change
 			// TestCloneFuncFields to ensure that the func field is
@@ -825,6 +957,12 @@ func TestCloneNonFuncFields(t *testing.T) {
 			f.Set(reflect.ValueOf([]CurveID{CurveP256}))
 		case "Renegotiation":
 			f.Set(reflect.ValueOf(RenegotiateOnceAsClient))
+		case "EncryptedClientHelloConfigList":
+			f.Set(reflect.ValueOf([]byte{'x'}))
+		case "EncryptedClientHelloKeys":
+			f.Set(reflect.ValueOf([]EncryptedClientHelloKey{
+				{Config: []byte{1}, PrivateKey: []byte{1}},
+			}))
 		case "mutex", "autoSessionTicketKeys", "sessionTicketKeys":
 			continue // these are unexported fields that are handled separately
 		default:
@@ -1051,23 +1189,145 @@ func TestConnectionStateMarshal(t *testing.T) {
 }
 
 func TestConnectionState(t *testing.T) {
-	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	issuer, err := x509.ParseCertificate(testRSA2048CertificateIssuer)
 	if err != nil {
 		panic(err)
 	}
 	rootCAs := x509.NewCertPool()
 	rootCAs.AddCert(issuer)
 
-	now := func() time.Time { return time.Unix(1476984729, 0) }
-
 	const alpnProtocol = "golang"
 	const serverName = "example.golang"
 	var scts = [][]byte{[]byte("dummy sct 1"), []byte("dummy sct 2")}
 	var ocsp = []byte("dummy ocsp")
 
-	for _, v := range []uint16{VersionTLS12, VersionTLS13} {
+	checkConnectionState := func(t *testing.T, cs ConnectionState, version uint16, isClient bool) {
+		if cs.Version != version {
+			t.Errorf("got Version %x, expected %x", cs.Version, version)
+		}
+
+		if !cs.HandshakeComplete {
+			t.Errorf("got HandshakeComplete %v, expected true", cs.HandshakeComplete)
+		}
+
+		if cs.DidResume {
+			t.Errorf("got DidResume %v, expected false", cs.DidResume)
+		}
+
+		if cs.CipherSuite == 0 {
+			t.Errorf("got zero CipherSuite")
+		}
+
+		if cs.CurveID == 0 {
+			t.Errorf("got zero CurveID")
+		}
+
+		if cs.NegotiatedProtocol != alpnProtocol {
+			t.Errorf("got ALPN protocol %q, expected %q", cs.NegotiatedProtocol, alpnProtocol)
+		}
+
+		if !cs.NegotiatedProtocolIsMutual {
+			t.Errorf("got NegotiatedProtocolIsMutual %v, expected true", cs.NegotiatedProtocolIsMutual)
+		}
+
+		if cs.ServerName != serverName {
+			t.Errorf("got ServerName %q, expected %q", cs.ServerName, serverName)
+		}
+
+		if len(cs.PeerCertificates) != 1 {
+			t.Errorf("got %d PeerCertificates, expected %d", len(cs.PeerCertificates), 1)
+		} else if !bytes.Equal(cs.PeerCertificates[0].Raw, testRSA2048Certificate) {
+			t.Errorf("got PeerCertificates %x, expected %x", cs.PeerCertificates[0].Raw, testRSA2048Certificate)
+		}
+
+		if len(cs.VerifiedChains) != 1 {
+			t.Errorf("got %d long verified chain, expected %d", len(cs.VerifiedChains), 1)
+		} else if len(cs.VerifiedChains[0]) != 2 {
+			t.Errorf("got %d verified chain, expected %d", len(cs.VerifiedChains[0]), 2)
+		} else if !bytes.Equal(cs.VerifiedChains[0][0].Raw, testRSA2048Certificate) {
+			t.Errorf("got verified chain[0][0] %x, expected %x", cs.VerifiedChains[0][0].Raw, testRSA2048Certificate)
+		} else if !bytes.Equal(cs.VerifiedChains[0][1].Raw, testRSA2048CertificateIssuer) {
+			t.Errorf("got verified chain[0][1] %x, expected %x", cs.VerifiedChains[0][1].Raw, testRSA2048CertificateIssuer)
+		}
+
+		// Only TLS 1.3 supports OCSP and SCTs on client certs.
+		if isClient || version == VersionTLS13 {
+			if len(cs.SignedCertificateTimestamps) != 2 {
+				t.Errorf("got %d SCTs, expected %d", len(cs.SignedCertificateTimestamps), 2)
+			} else if !bytes.Equal(cs.SignedCertificateTimestamps[0], scts[0]) {
+				t.Errorf("got SCTs %x, expected %x", cs.SignedCertificateTimestamps[0], scts[0])
+			} else if !bytes.Equal(cs.SignedCertificateTimestamps[1], scts[1]) {
+				t.Errorf("got SCTs %x, expected %x", cs.SignedCertificateTimestamps[1], scts[1])
+			}
+			if !bytes.Equal(cs.OCSPResponse, ocsp) {
+				t.Errorf("got OCSP %x, expected %x", cs.OCSPResponse, ocsp)
+			}
+		} else {
+			if cs.SignedCertificateTimestamps != nil {
+				t.Errorf("got %d SCTs, expected nil", len(cs.SignedCertificateTimestamps))
+			}
+			if cs.OCSPResponse != nil {
+				t.Errorf("got OCSP %x, expected nil", cs.OCSPResponse)
+			}
+		}
+
+		if version == VersionTLS13 {
+			if cs.TLSUnique != nil {
+				t.Errorf("got TLSUnique %x, expected nil", cs.TLSUnique)
+			}
+		} else {
+			if cs.TLSUnique == nil {
+				t.Errorf("got nil TLSUnique")
+			}
+		}
+	}
+
+	compareConnectionStates := func(t *testing.T, cs1, cs2 ConnectionState) {
+		if cs1.Version != cs2.Version {
+			t.Errorf("Version mismatch: %x != %x", cs1.Version, cs2.Version)
+		}
+		if cs1.HandshakeComplete != cs2.HandshakeComplete {
+			t.Errorf("HandshakeComplete mismatch: %v != %v", cs1.HandshakeComplete, cs2.HandshakeComplete)
+		}
+		// DidResume is expected to be different.
+		if cs1.CipherSuite != cs2.CipherSuite {
+			t.Errorf("CipherSuite mismatch: %x != %x", cs1.CipherSuite, cs2.CipherSuite)
+		}
+		if cs1.CurveID != cs2.CurveID {
+			t.Errorf("CurveID mismatch: %s != %s", cs1.CurveID, cs2.CurveID)
+		}
+		if cs1.NegotiatedProtocol != cs2.NegotiatedProtocol {
+			t.Errorf("NegotiatedProtocol mismatch: %q != %q", cs1.NegotiatedProtocol, cs2.NegotiatedProtocol)
+		}
+		if cs1.NegotiatedProtocolIsMutual != cs2.NegotiatedProtocolIsMutual {
+			t.Errorf("NegotiatedProtocolIsMutual mismatch: %v != %v", cs1.NegotiatedProtocolIsMutual, cs2.NegotiatedProtocolIsMutual)
+		}
+		if cs1.ServerName != cs2.ServerName {
+			t.Errorf("ServerName mismatch: %q != %q", cs1.ServerName, cs2.ServerName)
+		}
+		if !reflect.DeepEqual(cs1.PeerCertificates, cs2.PeerCertificates) {
+			t.Errorf("PeerCertificates mismatch")
+		}
+		if !reflect.DeepEqual(cs1.VerifiedChains, cs2.VerifiedChains) {
+			t.Errorf("VerifiedChains mismatch")
+		}
+		if !reflect.DeepEqual(cs1.SignedCertificateTimestamps, cs2.SignedCertificateTimestamps) {
+			t.Errorf("SignedCertificateTimestamps mismatch: %x != %x", cs1.SignedCertificateTimestamps, cs2.SignedCertificateTimestamps)
+		}
+		if !bytes.Equal(cs1.OCSPResponse, cs2.OCSPResponse) {
+			t.Errorf("OCSPResponse mismatch: %x != %x", cs1.OCSPResponse, cs2.OCSPResponse)
+		}
+		// TLSUnique is expected to be different.
+	}
+
+	for _, v := range []uint16{VersionTLS10, VersionTLS12, VersionTLS13} {
+		if !isFIPSVersion(v) && fips140tls.Required() {
+			t.Skipf("skipping test in FIPS 140-3 mode for non-FIPS version %x", v)
+		}
 		var name string
 		switch v {
+		case VersionTLS10:
+			name = "TLSv10"
 		case VersionTLS12:
 			name = "TLSv12"
 		case VersionTLS13:
@@ -1075,93 +1335,46 @@ func TestConnectionState(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			config := &Config{
-				Time:         now,
-				Rand:         zeroSource{},
-				Certificates: make([]Certificate, 1),
-				MaxVersion:   v,
-				RootCAs:      rootCAs,
-				ClientCAs:    rootCAs,
-				ClientAuth:   RequireAndVerifyClientCert,
-				NextProtos:   []string{alpnProtocol},
-				ServerName:   serverName,
+				Time:               testTime,
+				Certificates:       make([]Certificate, 1),
+				MinVersion:         v,
+				MaxVersion:         v,
+				RootCAs:            rootCAs,
+				ClientCAs:          rootCAs,
+				ClientAuth:         RequireAndVerifyClientCert,
+				NextProtos:         []string{alpnProtocol},
+				ServerName:         serverName,
+				ClientSessionCache: NewLRUClientSessionCache(1),
 			}
-			config.Certificates[0].Certificate = [][]byte{testRSACertificate}
-			config.Certificates[0].PrivateKey = testRSAPrivateKey
+			config.Certificates[0].Certificate = [][]byte{testRSA2048Certificate}
+			config.Certificates[0].PrivateKey = testRSA2048PrivateKey
 			config.Certificates[0].SignedCertificateTimestamps = scts
 			config.Certificates[0].OCSPStaple = ocsp
 
 			ss, cs, err := testHandshake(t, config, config)
 			if err != nil {
-				t.Fatalf("Handshake failed: %v", err)
+				t.Fatalf("handshake failed: %v", err)
 			}
 
-			if ss.Version != v || cs.Version != v {
-				t.Errorf("Got versions %x (server) and %x (client), expected %x", ss.Version, cs.Version, v)
-			}
+			t.Run("Client", func(t *testing.T) { checkConnectionState(t, cs, v, true) })
+			t.Run("Server", func(t *testing.T) { checkConnectionState(t, ss, v, false) })
 
-			if !ss.HandshakeComplete || !cs.HandshakeComplete {
-				t.Errorf("Got HandshakeComplete %v (server) and %v (client), expected true", ss.HandshakeComplete, cs.HandshakeComplete)
-			}
+			t.Run("Resume", func(t *testing.T) {
+				// TODO: test changing parameters between original and resumed
+				// connection when the protocol allows it.
 
-			if ss.DidResume || cs.DidResume {
-				t.Errorf("Got DidResume %v (server) and %v (client), expected false", ss.DidResume, cs.DidResume)
-			}
-
-			if ss.CipherSuite == 0 || cs.CipherSuite == 0 {
-				t.Errorf("Got invalid cipher suite: %v (server) and %v (client)", ss.CipherSuite, cs.CipherSuite)
-			}
-
-			if ss.NegotiatedProtocol != alpnProtocol || cs.NegotiatedProtocol != alpnProtocol {
-				t.Errorf("Got negotiated protocol %q (server) and %q (client), expected %q", ss.NegotiatedProtocol, cs.NegotiatedProtocol, alpnProtocol)
-			}
-
-			if !cs.NegotiatedProtocolIsMutual {
-				t.Errorf("Got false NegotiatedProtocolIsMutual on the client side")
-			}
-			// NegotiatedProtocolIsMutual on the server side is unspecified.
-
-			if ss.ServerName != serverName {
-				t.Errorf("Got server name %q, expected %q", ss.ServerName, serverName)
-			}
-			if cs.ServerName != serverName {
-				t.Errorf("Got server name on client connection %q, expected %q", cs.ServerName, serverName)
-			}
-
-			if len(ss.PeerCertificates) != 1 || len(cs.PeerCertificates) != 1 {
-				t.Errorf("Got %d (server) and %d (client) peer certificates, expected %d", len(ss.PeerCertificates), len(cs.PeerCertificates), 1)
-			}
-
-			if len(ss.VerifiedChains) != 1 || len(cs.VerifiedChains) != 1 {
-				t.Errorf("Got %d (server) and %d (client) verified chains, expected %d", len(ss.VerifiedChains), len(cs.VerifiedChains), 1)
-			} else if len(ss.VerifiedChains[0]) != 2 || len(cs.VerifiedChains[0]) != 2 {
-				t.Errorf("Got %d (server) and %d (client) long verified chain, expected %d", len(ss.VerifiedChains[0]), len(cs.VerifiedChains[0]), 2)
-			}
-
-			if len(cs.SignedCertificateTimestamps) != 2 {
-				t.Errorf("Got %d SCTs, expected %d", len(cs.SignedCertificateTimestamps), 2)
-			}
-			if !bytes.Equal(cs.OCSPResponse, ocsp) {
-				t.Errorf("Got OCSPs %x, expected %x", cs.OCSPResponse, ocsp)
-			}
-			// Only TLS 1.3 supports OCSP and SCTs on client certs.
-			if v == VersionTLS13 {
-				if len(ss.SignedCertificateTimestamps) != 2 {
-					t.Errorf("Got %d client SCTs, expected %d", len(ss.SignedCertificateTimestamps), 2)
+				ss1, cs1, err := testHandshake(t, config, config)
+				if err != nil {
+					t.Fatalf("handshake failed: %v", err)
 				}
-				if !bytes.Equal(ss.OCSPResponse, ocsp) {
-					t.Errorf("Got client OCSPs %x, expected %x", ss.OCSPResponse, ocsp)
-				}
-			}
 
-			if v == VersionTLS13 {
-				if ss.TLSUnique != nil || cs.TLSUnique != nil {
-					t.Errorf("Got TLSUnique %x (server) and %x (client), expected nil in TLS 1.3", ss.TLSUnique, cs.TLSUnique)
+				if !cs1.DidResume || !ss1.DidResume {
+					t.Errorf("DidResume is false")
 				}
-			} else {
-				if ss.TLSUnique == nil || cs.TLSUnique == nil {
-					t.Errorf("Got TLSUnique %x (server) and %x (client), expected non-nil", ss.TLSUnique, cs.TLSUnique)
-				}
-			}
+
+				t.Run("Client", func(t *testing.T) { compareConnectionStates(t, cs, cs1) })
+				t.Run("Server", func(t *testing.T) { compareConnectionStates(t, ss, ss1) })
+			})
 		})
 	}
 }
@@ -1191,6 +1404,8 @@ func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
 
 func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
+	skipFIPS(t) // Test certificates not FIPS compatible.
+
 	rsaCert := &Certificate{
 		Certificate: [][]byte{testRSACertificate},
 		PrivateKey:  testRSAPrivateKey,
@@ -1248,7 +1463,8 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			SignatureSchemes:  []SignatureScheme{PKCS1WithSHA1},
 			SupportedVersions: []uint16{VersionTLS13, VersionTLS12},
 			config: &Config{
-				MaxVersion: VersionTLS12,
+				CipherSuites: []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
+				MaxVersion:   VersionTLS12,
 			},
 		}, ""}, // Check that mutual version selection works.
 
@@ -1303,7 +1519,7 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			SupportedPoints:   []uint8{1},
 			SignatureSchemes:  []SignatureScheme{ECDSAWithP256AndSHA256},
 			SupportedVersions: []uint16{VersionTLS12},
-		}, "doesn't support ECDHE"},
+		}, "only incompatible point formats"},
 		{ecdsaCert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
 			SupportedCurves:   []CurveID{CurveP256},
@@ -1325,6 +1541,7 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			SupportedPoints:   []uint8{pointFormatUncompressed},
 			SignatureSchemes:  []SignatureScheme{Ed25519},
 			SupportedVersions: []uint16{VersionTLS10},
+			config:            &Config{MinVersion: VersionTLS10},
 		}, "doesn't support Ed25519"},
 		{ed25519Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
@@ -1339,10 +1556,14 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			SupportedCurves:   []CurveID{CurveP256}, // only relevant for ECDHE support
 			SupportedPoints:   []uint8{pointFormatUncompressed},
 			SupportedVersions: []uint16{VersionTLS10},
+			config:            &Config{MinVersion: VersionTLS10},
 		}, ""},
 		{rsaCert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
 			SupportedVersions: []uint16{VersionTLS12},
+			config: &Config{
+				CipherSuites: []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
+			},
 		}, ""}, // static RSA fallback
 	}
 	for i, tt := range tests {
@@ -1411,6 +1632,16 @@ func TestCipherSuites(t *testing.T) {
 			t.Errorf("%#04x: suite TLS 1.0-1.2, but SupportedVersions is %v", c.id, cc.SupportedVersions)
 		}
 
+		if cc.Insecure {
+			if slices.Contains(defaultCipherSuites(false), c.id) {
+				t.Errorf("%#04x: insecure suite in default list", c.id)
+			}
+		} else {
+			if !slices.Contains(defaultCipherSuites(false), c.id) {
+				t.Errorf("%#04x: secure suite not in default list", c.id)
+			}
+		}
+
 		if got := CipherSuiteName(c.id); got != cc.Name {
 			t.Errorf("%#04x: unexpected CipherSuiteName: got %q, expected %q", c.id, got, cc.Name)
 		}
@@ -1445,23 +1676,17 @@ func TestCipherSuites(t *testing.T) {
 		t.Errorf("cipherSuitesPreferenceOrderNoAES is not the same size as cipherSuitesPreferenceOrder")
 	}
 
-	// Check that disabled suites are at the end of the preference lists, and
-	// that they are marked insecure.
-	for i, id := range disabledCipherSuites {
-		offset := len(cipherSuitesPreferenceOrder) - len(disabledCipherSuites)
-		if cipherSuitesPreferenceOrder[offset+i] != id {
-			t.Errorf("disabledCipherSuites[%d]: not at the end of cipherSuitesPreferenceOrder", i)
-		}
-		if cipherSuitesPreferenceOrderNoAES[offset+i] != id {
-			t.Errorf("disabledCipherSuites[%d]: not at the end of cipherSuitesPreferenceOrderNoAES", i)
-		}
-		c := CipherSuiteByID(id)
-		if c == nil {
-			t.Errorf("%#04x: no CipherSuite entry", id)
-			continue
-		}
-		if !c.Insecure {
-			t.Errorf("%#04x: disabled by default but not marked insecure", id)
+	// Check that disabled suites are marked insecure.
+	for _, badSuites := range []map[uint16]bool{disabledCipherSuites, rsaKexCiphers} {
+		for id := range badSuites {
+			c := CipherSuiteByID(id)
+			if c == nil {
+				t.Errorf("%#04x: no CipherSuite entry", id)
+				continue
+			}
+			if !c.Insecure {
+				t.Errorf("%#04x: disabled by default but not marked insecure", id)
+			}
 		}
 	}
 
@@ -1490,63 +1715,82 @@ func TestCipherSuites(t *testing.T) {
 		}
 
 		// Check that the list is sorted according to the documented criteria.
-		isBetter := func(a, b int) bool {
-			aSuite, bSuite := cipherSuiteByID(prefOrder[a]), cipherSuiteByID(prefOrder[b])
-			aName, bName := CipherSuiteName(prefOrder[a]), CipherSuiteName(prefOrder[b])
+		isBetter := func(a, b uint16) int {
+			aSuite, bSuite := cipherSuiteByID(a), cipherSuiteByID(b)
+			aName, bName := CipherSuiteName(a), CipherSuiteName(b)
 			// * < RC4
 			if !strings.Contains(aName, "RC4") && strings.Contains(bName, "RC4") {
-				return true
+				return -1
 			} else if strings.Contains(aName, "RC4") && !strings.Contains(bName, "RC4") {
-				return false
+				return +1
 			}
 			// * < CBC_SHA256
 			if !strings.Contains(aName, "CBC_SHA256") && strings.Contains(bName, "CBC_SHA256") {
-				return true
+				return -1
 			} else if strings.Contains(aName, "CBC_SHA256") && !strings.Contains(bName, "CBC_SHA256") {
-				return false
+				return +1
 			}
 			// * < 3DES
 			if !strings.Contains(aName, "3DES") && strings.Contains(bName, "3DES") {
-				return true
+				return -1
 			} else if strings.Contains(aName, "3DES") && !strings.Contains(bName, "3DES") {
-				return false
+				return +1
 			}
 			// ECDHE < *
 			if aSuite.flags&suiteECDHE != 0 && bSuite.flags&suiteECDHE == 0 {
-				return true
+				return -1
 			} else if aSuite.flags&suiteECDHE == 0 && bSuite.flags&suiteECDHE != 0 {
-				return false
+				return +1
 			}
 			// AEAD < CBC
 			if aSuite.aead != nil && bSuite.aead == nil {
-				return true
+				return -1
 			} else if aSuite.aead == nil && bSuite.aead != nil {
-				return false
+				return +1
 			}
 			// AES < ChaCha20
 			if strings.Contains(aName, "AES") && strings.Contains(bName, "CHACHA20") {
-				return i == 0 // true for cipherSuitesPreferenceOrder
+				// negative for cipherSuitesPreferenceOrder
+				if i == 0 {
+					return -1
+				} else {
+					return +1
+				}
 			} else if strings.Contains(aName, "CHACHA20") && strings.Contains(bName, "AES") {
-				return i != 0 // true for cipherSuitesPreferenceOrderNoAES
+				// negative for cipherSuitesPreferenceOrderNoAES
+				if i != 0 {
+					return -1
+				} else {
+					return +1
+				}
 			}
 			// AES-128 < AES-256
 			if strings.Contains(aName, "AES_128") && strings.Contains(bName, "AES_256") {
-				return true
+				return -1
 			} else if strings.Contains(aName, "AES_256") && strings.Contains(bName, "AES_128") {
-				return false
+				return +1
 			}
 			// ECDSA < RSA
 			if aSuite.flags&suiteECSign != 0 && bSuite.flags&suiteECSign == 0 {
-				return true
+				return -1
 			} else if aSuite.flags&suiteECSign == 0 && bSuite.flags&suiteECSign != 0 {
-				return false
+				return +1
 			}
 			t.Fatalf("two ciphersuites are equal by all criteria: %v and %v", aName, bName)
 			panic("unreachable")
 		}
-		if !sort.SliceIsSorted(prefOrder, isBetter) {
+		if !slices.IsSortedFunc(prefOrder, isBetter) {
 			t.Error("preference order is not sorted according to the rules")
 		}
+	}
+}
+
+func TestVersionName(t *testing.T) {
+	if got, exp := VersionName(VersionTLS13), "TLS 1.3"; got != exp {
+		t.Errorf("unexpected VersionName: got %q, expected %q", got, exp)
+	}
+	if got, exp := VersionName(0x12a), "0x012A"; got != exp {
+		t.Errorf("unexpected fallback VersionName: got %q, expected %q", got, exp)
 	}
 }
 
@@ -1608,4 +1852,647 @@ func TestPKCS1OnlyCert(t *testing.T) {
 	if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
 		t.Error(err)
 	}
+}
+
+func TestVerifyCertificates(t *testing.T) {
+	skipFIPS(t) // Test certificates not FIPS compatible.
+
+	// See https://go.dev/issue/31641.
+	t.Run("TLSv12", func(t *testing.T) { testVerifyCertificates(t, VersionTLS12) })
+	t.Run("TLSv13", func(t *testing.T) { testVerifyCertificates(t, VersionTLS13) })
+}
+
+func testVerifyCertificates(t *testing.T, version uint16) {
+	tests := []struct {
+		name string
+
+		InsecureSkipVerify bool
+		ClientAuth         ClientAuthType
+		ClientCertificates bool
+	}{
+		{
+			name: "defaults",
+		},
+		{
+			name:               "InsecureSkipVerify",
+			InsecureSkipVerify: true,
+		},
+		{
+			name:       "RequestClientCert with no certs",
+			ClientAuth: RequestClientCert,
+		},
+		{
+			name:               "RequestClientCert with certs",
+			ClientAuth:         RequestClientCert,
+			ClientCertificates: true,
+		},
+		{
+			name:               "RequireAnyClientCert",
+			ClientAuth:         RequireAnyClientCert,
+			ClientCertificates: true,
+		},
+		{
+			name:       "VerifyClientCertIfGiven with no certs",
+			ClientAuth: VerifyClientCertIfGiven,
+		},
+		{
+			name:               "VerifyClientCertIfGiven with certs",
+			ClientAuth:         VerifyClientCertIfGiven,
+			ClientCertificates: true,
+		},
+		{
+			name:               "RequireAndVerifyClientCert",
+			ClientAuth:         RequireAndVerifyClientCert,
+			ClientCertificates: true,
+		},
+	}
+
+	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rootCAs := x509.NewCertPool()
+	rootCAs.AddCert(issuer)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			var serverVerifyConnection, clientVerifyConnection bool
+			var serverVerifyPeerCertificates, clientVerifyPeerCertificates bool
+
+			clientConfig := testConfig.Clone()
+			clientConfig.Time = testTime
+			clientConfig.MaxVersion = version
+			clientConfig.MinVersion = version
+			clientConfig.RootCAs = rootCAs
+			clientConfig.ServerName = "example.golang"
+			clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
+			serverConfig := clientConfig.Clone()
+			serverConfig.ClientCAs = rootCAs
+
+			clientConfig.VerifyConnection = func(cs ConnectionState) error {
+				clientVerifyConnection = true
+				return nil
+			}
+			clientConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+				clientVerifyPeerCertificates = true
+				return nil
+			}
+			serverConfig.VerifyConnection = func(cs ConnectionState) error {
+				serverVerifyConnection = true
+				return nil
+			}
+			serverConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+				serverVerifyPeerCertificates = true
+				return nil
+			}
+
+			clientConfig.InsecureSkipVerify = test.InsecureSkipVerify
+			serverConfig.ClientAuth = test.ClientAuth
+			if !test.ClientCertificates {
+				clientConfig.Certificates = nil
+			}
+
+			if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+				t.Fatal(err)
+			}
+
+			want := serverConfig.ClientAuth != NoClientCert
+			if serverVerifyPeerCertificates != want {
+				t.Errorf("VerifyPeerCertificates on the server: got %v, want %v",
+					serverVerifyPeerCertificates, want)
+			}
+			if !clientVerifyPeerCertificates {
+				t.Errorf("VerifyPeerCertificates not called on the client")
+			}
+			if !serverVerifyConnection {
+				t.Error("VerifyConnection did not get called on the server")
+			}
+			if !clientVerifyConnection {
+				t.Error("VerifyConnection did not get called on the client")
+			}
+
+			serverVerifyPeerCertificates, clientVerifyPeerCertificates = false, false
+			serverVerifyConnection, clientVerifyConnection = false, false
+			cs, _, err := testHandshake(t, clientConfig, serverConfig)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !cs.DidResume {
+				t.Error("expected resumption")
+			}
+
+			if serverVerifyPeerCertificates {
+				t.Error("VerifyPeerCertificates got called on the server on resumption")
+			}
+			if clientVerifyPeerCertificates {
+				t.Error("VerifyPeerCertificates got called on the client on resumption")
+			}
+			if !serverVerifyConnection {
+				t.Error("VerifyConnection did not get called on the server on resumption")
+			}
+			if !clientVerifyConnection {
+				t.Error("VerifyConnection did not get called on the client on resumption")
+			}
+		})
+	}
+}
+
+func TestHandshakeMLKEM(t *testing.T) {
+	if boring.Enabled && fips140tls.Required() {
+		t.Skip("ML-KEM not supported in BoringCrypto FIPS mode")
+	}
+	defaultWithPQ := []CurveID{X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024,
+		X25519, CurveP256, CurveP384, CurveP521}
+	defaultWithoutPQ := []CurveID{X25519, CurveP256, CurveP384, CurveP521}
+	var tests = []struct {
+		name           string
+		clientConfig   func(*Config)
+		serverConfig   func(*Config)
+		preparation    func(*testing.T)
+		expectClient   []CurveID
+		expectSelected CurveID
+		expectHRR      bool
+	}{
+		{
+			name:           "Default",
+			expectClient:   defaultWithPQ,
+			expectSelected: X25519MLKEM768,
+		},
+		{
+			name: "ClientCurvePreferences",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{X25519}
+			},
+			expectClient:   []CurveID{X25519},
+			expectSelected: X25519,
+		},
+		{
+			name: "ServerCurvePreferencesX25519",
+			serverConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{X25519}
+			},
+			expectClient:   defaultWithPQ,
+			expectSelected: X25519,
+		},
+		{
+			name: "ServerCurvePreferencesHRR",
+			serverConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{CurveP256}
+			},
+			expectClient:   defaultWithPQ,
+			expectSelected: CurveP256,
+			expectHRR:      true,
+		},
+		{
+			name: "SecP256r1MLKEM768-Only",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{SecP256r1MLKEM768}
+			},
+			expectClient:   []CurveID{SecP256r1MLKEM768},
+			expectSelected: SecP256r1MLKEM768,
+		},
+		{
+			name: "SecP256r1MLKEM768-HRR",
+			serverConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{SecP256r1MLKEM768, CurveP256}
+			},
+			expectClient:   defaultWithPQ,
+			expectSelected: SecP256r1MLKEM768,
+			expectHRR:      true,
+		},
+		{
+			name: "SecP384r1MLKEM1024",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{SecP384r1MLKEM1024, CurveP384}
+			},
+			expectClient:   []CurveID{SecP384r1MLKEM1024, CurveP384},
+			expectSelected: SecP384r1MLKEM1024,
+		},
+		{
+			name: "CurveP256NoHRR",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{SecP256r1MLKEM768, CurveP256}
+			},
+			serverConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{CurveP256}
+			},
+			expectClient:   []CurveID{SecP256r1MLKEM768, CurveP256},
+			expectSelected: CurveP256,
+		},
+		{
+			name: "ClientMLKEMOnly",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{X25519MLKEM768}
+			},
+			expectClient:   []CurveID{X25519MLKEM768},
+			expectSelected: X25519MLKEM768,
+		},
+		{
+			name: "ClientSortedCurvePreferences",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{CurveP256, X25519MLKEM768}
+			},
+			expectClient:   []CurveID{X25519MLKEM768, CurveP256},
+			expectSelected: X25519MLKEM768,
+		},
+		{
+			name: "ClientTLSv12",
+			clientConfig: func(config *Config) {
+				config.MaxVersion = VersionTLS12
+			},
+			expectClient:   defaultWithoutPQ,
+			expectSelected: X25519,
+		},
+		{
+			name: "ServerTLSv12",
+			serverConfig: func(config *Config) {
+				config.MaxVersion = VersionTLS12
+			},
+			expectClient:   defaultWithPQ,
+			expectSelected: X25519,
+		},
+		{
+			name: "GODEBUG tlsmlkem=0",
+			preparation: func(t *testing.T) {
+				testenv.SetGODEBUG(t, "tlsmlkem=0")
+			},
+			expectClient:   defaultWithoutPQ,
+			expectSelected: X25519,
+		},
+		{
+			name: "GODEBUG tlssecpmlkem=0",
+			preparation: func(t *testing.T) {
+				testenv.SetGODEBUG(t, "tlssecpmlkem=0")
+			},
+			expectClient:   []CurveID{X25519MLKEM768, X25519, CurveP256, CurveP384, CurveP521},
+			expectSelected: X25519MLKEM768,
+		},
+	}
+
+	baseConfig := testConfig.Clone()
+	baseConfig.CurvePreferences = nil
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if fips140tls.Required() && test.expectSelected == X25519 {
+				t.Skip("X25519 not supported in FIPS mode")
+			}
+			if test.preparation != nil {
+				test.preparation(t)
+			} else {
+				t.Parallel()
+			}
+			serverConfig := baseConfig.Clone()
+			if test.serverConfig != nil {
+				test.serverConfig(serverConfig)
+			}
+			serverConfig.GetConfigForClient = func(hello *ClientHelloInfo) (*Config, error) {
+				expectClient := slices.Clone(test.expectClient)
+				expectClient = slices.DeleteFunc(expectClient, func(c CurveID) bool {
+					return fips140tls.Required() && c == X25519
+				})
+				if !slices.Equal(hello.SupportedCurves, expectClient) {
+					t.Errorf("got client curves %v, expected %v", hello.SupportedCurves, expectClient)
+				}
+				return nil, nil
+			}
+			clientConfig := baseConfig.Clone()
+			if test.clientConfig != nil {
+				test.clientConfig(clientConfig)
+			}
+			ss, cs, err := testHandshake(t, clientConfig, serverConfig)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ss.CurveID != test.expectSelected {
+				t.Errorf("server selected curve %v, expected %v", ss.CurveID, test.expectSelected)
+			}
+			if cs.CurveID != test.expectSelected {
+				t.Errorf("client selected curve %v, expected %v", cs.CurveID, test.expectSelected)
+			}
+			if test.expectHRR {
+				if !ss.HelloRetryRequest {
+					t.Error("server did not use HRR")
+				}
+				if !cs.HelloRetryRequest {
+					t.Error("client did not use HRR")
+				}
+			} else {
+				if ss.HelloRetryRequest {
+					t.Error("server used HRR")
+				}
+				if cs.HelloRetryRequest {
+					t.Error("client used HRR")
+				}
+			}
+		})
+	}
+}
+
+func TestX509KeyPairPopulateCertificate(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "test"},
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, key.Public(), key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+	t.Run("x509keypairleaf=0", func(t *testing.T) {
+		t.Setenv("GODEBUG", "x509keypairleaf=0")
+		cert, err := X509KeyPair(certPEM, keyPEM)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cert.Leaf != nil {
+			t.Fatal("Leaf should not be populated")
+		}
+	})
+	t.Run("x509keypairleaf=1", func(t *testing.T) {
+		t.Setenv("GODEBUG", "x509keypairleaf=1")
+		cert, err := X509KeyPair(certPEM, keyPEM)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cert.Leaf == nil {
+			t.Fatal("Leaf should be populated")
+		}
+	})
+	t.Run("GODEBUG unset", func(t *testing.T) {
+		cert, err := X509KeyPair(certPEM, keyPEM)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cert.Leaf == nil {
+			t.Fatal("Leaf should be populated")
+		}
+	})
+}
+
+func TestEarlyLargeCertMsg(t *testing.T) {
+	client, server := localPipe(t)
+
+	go func() {
+		if _, err := client.Write([]byte{byte(recordTypeHandshake), 3, 4, 0, 4, typeCertificate, 1, 255, 255}); err != nil {
+			t.Log(err)
+		}
+	}()
+
+	expectedErr := "tls: handshake message of length 131071 bytes exceeds maximum of 65536 bytes"
+	servConn := Server(server, testConfig)
+	err := servConn.Handshake()
+	if err == nil {
+		t.Fatal("unexpected success")
+	}
+	if err.Error() != expectedErr {
+		t.Fatalf("unexpected error: got %q, want %q", err, expectedErr)
+	}
+}
+
+func TestLargeCertMsg(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "test"},
+		ExtraExtensions: []pkix.Extension{
+			{
+				Id: asn1.ObjectIdentifier{1, 2, 3},
+				// Ballast to inflate the certificate beyond the
+				// regular handshake record size.
+				Value: make([]byte, 65536),
+			},
+		},
+	}
+	cert, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clientConfig, serverConfig := testConfig.Clone(), testConfig.Clone()
+	clientConfig.InsecureSkipVerify = true
+	serverConfig.Certificates = []Certificate{
+		{
+			Certificate: [][]byte{cert},
+			PrivateKey:  k,
+		},
+	}
+	if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+		t.Fatalf("unexpected failure: %s", err)
+	}
+}
+
+func TestECH(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		DNSNames:     []string{"public.example"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+	}
+	publicCertDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicCert, err := x509.ParseCertificate(publicCertDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl.DNSNames[0] = "secret.example"
+	secretCertDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secretCert, err := x509.ParseCertificate(secretCertDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	marshalECHConfig := func(id uint8, pubKey []byte, publicName string, maxNameLen uint8) []byte {
+		builder := cryptobyte.NewBuilder(nil)
+		builder.AddUint16(extensionEncryptedClientHello)
+		builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
+			builder.AddUint8(id)
+			builder.AddUint16(0x0020 /* DHKEM(X25519, HKDF-SHA256) */)
+			builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
+				builder.AddBytes(pubKey)
+			})
+			builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
+				builder.AddUint16(0x0001 /* HKDF-SHA256 */)
+				builder.AddUint16(0x0001 /* AES-128-GCM */)
+			})
+			builder.AddUint8(maxNameLen)
+			builder.AddUint8LengthPrefixed(func(builder *cryptobyte.Builder) {
+				builder.AddBytes([]byte(publicName))
+			})
+			builder.AddUint16(0) // extensions
+		})
+
+		return builder.BytesOrPanic()
+	}
+
+	echKey, err := ecdh.X25519().GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	echConfig := marshalECHConfig(123, echKey.PublicKey().Bytes(), "public.example", 32)
+
+	builder := cryptobyte.NewBuilder(nil)
+	builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
+		builder.AddBytes(echConfig)
+	})
+	echConfigList := builder.BytesOrPanic()
+
+	clientConfig, serverConfig := testConfig.Clone(), testConfig.Clone()
+	clientConfig.InsecureSkipVerify = false
+	clientConfig.Rand = rand.Reader
+	clientConfig.Time = nil
+	clientConfig.MinVersion = VersionTLS13
+	clientConfig.ServerName = "secret.example"
+	clientConfig.RootCAs = x509.NewCertPool()
+	clientConfig.RootCAs.AddCert(secretCert)
+	clientConfig.RootCAs.AddCert(publicCert)
+	clientConfig.EncryptedClientHelloConfigList = echConfigList
+	serverConfig.InsecureSkipVerify = false
+	serverConfig.Rand = rand.Reader
+	serverConfig.Time = nil
+	serverConfig.MinVersion = VersionTLS13
+	serverConfig.ServerName = "public.example"
+	serverConfig.Certificates = []Certificate{
+		{Certificate: [][]byte{publicCertDER}, PrivateKey: k},
+		{Certificate: [][]byte{secretCertDER}, PrivateKey: k},
+	}
+	serverConfig.EncryptedClientHelloKeys = []EncryptedClientHelloKey{
+		{Config: echConfig, PrivateKey: echKey.Bytes(), SendAsRetry: true},
+	}
+
+	check := func() {
+		ss, cs, err := testHandshake(t, clientConfig, serverConfig)
+		if err != nil {
+			t.Fatalf("unexpected failure: %s", err)
+		}
+		if !ss.ECHAccepted {
+			t.Fatal("server ConnectionState shows ECH not accepted")
+		}
+		if !cs.ECHAccepted {
+			t.Fatal("client ConnectionState shows ECH not accepted")
+		}
+		if cs.ServerName != "secret.example" || ss.ServerName != "secret.example" {
+			t.Fatalf("unexpected ConnectionState.ServerName, want %q, got server:%q, client: %q", "secret.example", ss.ServerName, cs.ServerName)
+		}
+		if len(cs.VerifiedChains) != 1 {
+			t.Fatal("unexpect number of certificate chains")
+		}
+		if len(cs.VerifiedChains[0]) != 1 {
+			t.Fatal("unexpect number of certificates")
+		}
+		if !cs.VerifiedChains[0][0].Equal(secretCert) {
+			t.Fatal("unexpected certificate")
+		}
+	}
+
+	check()
+
+	serverConfig.GetEncryptedClientHelloKeys = func(_ *ClientHelloInfo) ([]EncryptedClientHelloKey, error) {
+		return []EncryptedClientHelloKey{{Config: echConfig, PrivateKey: echKey.Bytes(), SendAsRetry: true}}, nil
+	}
+	randKey, err := ecdh.X25519().GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	randConfig := marshalECHConfig(32, randKey.PublicKey().Bytes(), "random.example", 32)
+	serverConfig.EncryptedClientHelloKeys = []EncryptedClientHelloKey{
+		{Config: randConfig, PrivateKey: randKey.Bytes(), SendAsRetry: true},
+	}
+
+	check()
+}
+
+func TestMessageSigner(t *testing.T) {
+	t.Run("TLSv10", func(t *testing.T) { testMessageSigner(t, VersionTLS10) })
+	t.Run("TLSv12", func(t *testing.T) { testMessageSigner(t, VersionTLS12) })
+	t.Run("TLSv13", func(t *testing.T) { testMessageSigner(t, VersionTLS13) })
+}
+
+func testMessageSigner(t *testing.T, version uint16) {
+	clientConfig, serverConfig := testConfig.Clone(), testConfig.Clone()
+	serverConfig.ClientAuth = RequireAnyClientCert
+	clientConfig.MinVersion = version
+	clientConfig.MaxVersion = version
+	serverConfig.MinVersion = version
+	serverConfig.MaxVersion = version
+	clientConfig.Certificates = []Certificate{{
+		Certificate: [][]byte{testRSACertificate},
+		PrivateKey:  messageOnlySigner{testRSAPrivateKey},
+	}}
+	serverConfig.Certificates = []Certificate{{
+		Certificate: [][]byte{testRSACertificate},
+		PrivateKey:  messageOnlySigner{testRSAPrivateKey},
+	}}
+
+	_, _, err := testHandshake(t, clientConfig, serverConfig)
+	if version < VersionTLS12 {
+		if err == nil {
+			t.Fatal("expected failure for TLS 1.0/1.1")
+		}
+	} else {
+		if err != nil {
+			t.Fatalf("unexpected failure: %s", err)
+		}
+	}
+
+	clientConfig.Certificates = []Certificate{{
+		Certificate: [][]byte{testECDSACertificate},
+		PrivateKey:  messageOnlySigner{testECDSAPrivateKey},
+	}}
+	serverConfig.Certificates = []Certificate{{
+		Certificate: [][]byte{testECDSACertificate},
+		PrivateKey:  messageOnlySigner{testECDSAPrivateKey},
+	}}
+
+	_, _, err = testHandshake(t, clientConfig, serverConfig)
+	if version < VersionTLS12 {
+		if err == nil {
+			t.Fatal("expected failure for TLS 1.0/1.1")
+		}
+	} else {
+		if err != nil {
+			t.Fatalf("unexpected failure: %s", err)
+		}
+	}
+}
+
+type messageOnlySigner struct{ crypto.Signer }
+
+func (s messageOnlySigner) Public() crypto.PublicKey {
+	return s.Signer.Public()
+}
+
+func (s messageOnlySigner) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) (signature []byte, err error) {
+	return nil, errors.New("messageOnlySigner: Sign called")
+}
+
+func (s messageOnlySigner) SignMessage(rand io.Reader, msg []byte, opts crypto.SignerOpts) (signature []byte, err error) {
+	h := opts.HashFunc().New()
+	h.Write(msg)
+	digest := h.Sum(nil)
+	return s.Signer.Sign(rand, digest, opts)
 }

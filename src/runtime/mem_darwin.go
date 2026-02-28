@@ -12,7 +12,7 @@ import (
 // which prevents us from allocating more stack.
 //
 //go:nosplit
-func sysAllocOS(n uintptr) unsafe.Pointer {
+func sysAllocOS(n uintptr, _ string) unsafe.Pointer {
 	v, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if err != 0 {
 		return nil
@@ -36,6 +36,12 @@ func sysUsedOS(v unsafe.Pointer, n uintptr) {
 func sysHugePageOS(v unsafe.Pointer, n uintptr) {
 }
 
+func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
+}
+
+func sysHugePageCollapseOS(v unsafe.Pointer, n uintptr) {
+}
+
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
 //
@@ -48,7 +54,7 @@ func sysFaultOS(v unsafe.Pointer, n uintptr) {
 	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
 }
 
-func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+func sysReserveOS(v unsafe.Pointer, n uintptr, _ string) unsafe.Pointer {
 	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if err != 0 {
 		return nil
@@ -58,7 +64,7 @@ func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 
 const _ENOMEM = 12
 
-func sysMapOS(v unsafe.Pointer, n uintptr) {
+func sysMapOS(v unsafe.Pointer, n uintptr, _ string) {
 	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
 	if err == _ENOMEM {
 		throw("runtime: out of memory")
@@ -67,4 +73,8 @@ func sysMapOS(v unsafe.Pointer, n uintptr) {
 		print("runtime: mmap(", v, ", ", n, ") returned ", p, ", ", err, "\n")
 		throw("runtime: cannot map pages in arena address space")
 	}
+}
+
+func needZeroAfterSysUnusedOS() bool {
+	return true
 }

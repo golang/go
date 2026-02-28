@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm) || windows
+//go:build unix || (js && wasm) || wasip1 || windows
 
 package poll
 
@@ -74,6 +74,16 @@ func ignoringEINTR(fn func() error) error {
 		err := fn()
 		if err != syscall.EINTR {
 			return err
+		}
+	}
+}
+
+// ignoringEINTR2 is ignoringEINTR, but returning an additional value.
+func ignoringEINTR2[T any](fn func() (T, error)) (T, error) {
+	for {
+		v, err := fn()
+		if err != syscall.EINTR {
+			return v, err
 		}
 	}
 }

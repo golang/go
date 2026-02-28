@@ -118,12 +118,7 @@ func parseNotes(reader io.Reader, alignment int, order binary.ByteOrder) ([]elfN
 //
 // If no build-ID was found but the binary was read without error, it returns
 // (nil, nil).
-func GetBuildID(binary io.ReaderAt) ([]byte, error) {
-	f, err := elf.NewFile(binary)
-	if err != nil {
-		return nil, err
-	}
-
+func GetBuildID(f *elf.File) ([]byte, error) {
 	findBuildID := func(notes []elfNote) ([]byte, error) {
 		var buildID []byte
 		for _, note := range notes {
@@ -186,7 +181,7 @@ func kernelBase(loadSegment *elf.ProgHeader, stextOffset *uint64, start, limit, 
 		// stextOffset=0xffffffff80200198
 		return start - *stextOffset, true
 	}
-	if start >= loadSegment.Vaddr && limit > start && (offset == 0 || offset == pageOffsetPpc64 || offset == start) {
+	if start >= 0x8000000000000000 && limit > start && (offset == 0 || offset == pageOffsetPpc64 || offset == start) {
 		// Some kernels look like:
 		//       VADDR=0xffffffff80200000
 		// stextOffset=0xffffffff80200198
@@ -235,7 +230,7 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
 		}
 		if stextOffset == nil && start > 0 && start < 0x8000000000000000 {
 			// A regular user-mode executable. Compute the base offset using same
-			// arithmetics as in ET_DYN case below, see the explanation there.
+			// arithmetic as in ET_DYN case below, see the explanation there.
 			// Ideally, the condition would just be "stextOffset == nil" as that
 			// represents the address of _stext symbol in the vmlinux image. Alas,
 			// the caller may skip reading it from the binary (it's expensive to scan
@@ -318,11 +313,10 @@ func ProgramHeadersForMapping(phdrs []elf.ProgHeader, mapOff, mapSz uint64) []*e
 		// value is dependent on the memory management unit of the CPU. The page
 		// size is 4KB virtually on all the architectures that we care about, so we
 		// define this metric as a constant. If we encounter architectures where
-		// page sie is not 4KB, we must try to guess the page size on the system
+		// page size is not 4KB, we must try to guess the page size on the system
 		// where the profile was collected, possibly using the architecture
 		// specified in the ELF file header.
-		pageSize       = 4096
-		pageOffsetMask = pageSize - 1
+		pageSize = 4096
 	)
 	mapLimit := mapOff + mapSz
 	var headers []*elf.ProgHeader
@@ -336,12 +330,12 @@ func ProgramHeadersForMapping(phdrs []elf.ProgHeader, mapOff, mapSz uint64) []*e
 		segLimit := p.Off + p.Memsz
 		// The segment must overlap the mapping.
 		if p.Type == elf.PT_LOAD && mapOff < segLimit && p.Off < mapLimit {
-			// If the mapping offset is strictly less than the page aligned segment
-			// offset, then this mapping comes from a different segment, fixes
-			// b/179920361.
+			// If the mapping offset is strictly less than the segment offset aligned
+			// to the segment p_align value then this mapping comes from a different
+			// segment, fixes b/179920361.
 			alignedSegOffset := uint64(0)
-			if p.Off > (p.Vaddr & pageOffsetMask) {
-				alignedSegOffset = p.Off - (p.Vaddr & pageOffsetMask)
+			if p.Off > (p.Vaddr & (p.Align - 1)) {
+				alignedSegOffset = p.Off - (p.Vaddr & (p.Align - 1))
 			}
 			if mapOff < alignedSegOffset {
 				continue

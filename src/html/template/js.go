@@ -9,9 +9,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
+
+// jsWhitespace contains all of the JS whitespace characters, as defined
+// by the \s character class.
+// See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions/Character_classes.
+const jsWhitespace = "\f\n\r\t\v\u0020\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
 
 // nextJSCtx returns the context that determines whether a slash after the
 // given run of tokens starts a regular expression instead of a division
@@ -26,7 +32,8 @@ import (
 // JavaScript 2.0 lexical grammar and requires one token of lookbehind:
 // https://www.mozilla.org/js/language/js20-2000-07/rationale/syntax.html
 func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
-	s = bytes.TrimRight(s, "\t\n\f\r \u2028\u2029")
+	// Trim all JS whitespace characters
+	s = bytes.TrimRight(s, jsWhitespace)
 	if len(s) == 0 {
 		return preceding
 	}
@@ -118,7 +125,7 @@ var regexpPrecederKeywords = map[string]bool{
 	"void":       true,
 }
 
-var jsonMarshalType = reflect.TypeOf((*json.Marshaler)(nil)).Elem()
+var jsonMarshalType = reflect.TypeFor[json.Marshaler]()
 
 // indirectToJSONMarshaler returns the value, after dereferencing as many times
 // as necessary to reach the base type (or nil) or an implementation of json.Marshal.
@@ -137,6 +144,8 @@ func indirectToJSONMarshaler(a any) any {
 	}
 	return v.Interface()
 }
+
+var scriptTagRe = regexp.MustCompile("(?i)<(/?)script")
 
 // jsValEscaper escapes its inputs to a JS Expression (section 11.14) that has
 // neither side-effects nor free variables outside (NaN, Infinity).
@@ -165,13 +174,31 @@ func jsValEscaper(args ...any) string {
 	// cyclic data. This may be an unacceptable DoS risk.
 	b, err := json.Marshal(a)
 	if err != nil {
-		// Put a space before comment so that if it is flush against
+		// While the standard JSON marshaler does not include user controlled
+		// information in the error message, if a type has a MarshalJSON method,
+		// the content of the error message is not guaranteed. Since we insert
+		// the error into the template, as part of a comment, we attempt to
+		// prevent the error from either terminating the comment, or the script
+		// block itself.
+		//
+		// In particular we:
+		//   * replace "*/" comment end tokens with "* /", which does not
+		//     terminate the comment
+		//   * replace "<script" and "</script" with "\x3Cscript" and "\x3C/script"
+		//     (case insensitively), and "<!--" with "\x3C!--", which prevents
+		//     confusing script block termination semantics
+		//
+		// We also put a space before the comment so that if it is flush against
 		// a division operator it is not turned into a line comment:
 		//     x/{{y}}
 		// turning into
 		//     x//* error marshaling y:
 		//          second line of error message */null
-		return fmt.Sprintf(" /* %s */null ", strings.ReplaceAll(err.Error(), "*/", "* /"))
+		errStr := err.Error()
+		errStr = string(scriptTagRe.ReplaceAll([]byte(errStr), []byte(`\x3C${1}script`)))
+		errStr = strings.ReplaceAll(errStr, "*/", "* /")
+		errStr = strings.ReplaceAll(errStr, "<!--", `\x3C!--`)
+		return fmt.Sprintf(" /* %s */null ", errStr)
 	}
 
 	// TODO: maybe post-process output to prevent it from containing
@@ -230,6 +257,11 @@ func jsStrEscaper(args ...any) string {
 		return replace(s, jsStrNormReplacementTable)
 	}
 	return replace(s, jsStrReplacementTable)
+}
+
+func jsTmplLitEscaper(args ...any) string {
+	s, _ := stringify(args...)
+	return replace(s, jsBqStrReplacementTable)
 }
 
 // jsRegexpEscaper behaves like jsStrEscaper but escapes regular expression
@@ -308,6 +340,7 @@ var jsStrReplacementTable = []string{
 	// Encode HTML specials as hex so the output can be embedded
 	// in HTML attributes without further encoding.
 	'"':  `\u0022`,
+	'`':  `\u0060`,
 	'&':  `\u0026`,
 	'\'': `\u0027`,
 	'+':  `\u002b`,
@@ -315,6 +348,31 @@ var jsStrReplacementTable = []string{
 	'<':  `\u003c`,
 	'>':  `\u003e`,
 	'\\': `\\`,
+}
+
+// jsBqStrReplacementTable is like jsStrReplacementTable except it also contains
+// the special characters for JS template literals: $, {, and }.
+var jsBqStrReplacementTable = []string{
+	0:    `\u0000`,
+	'\t': `\t`,
+	'\n': `\n`,
+	'\v': `\u000b`, // "\v" == "v" on IE 6.
+	'\f': `\f`,
+	'\r': `\r`,
+	// Encode HTML specials as hex so the output can be embedded
+	// in HTML attributes without further encoding.
+	'"':  `\u0022`,
+	'`':  `\u0060`,
+	'&':  `\u0026`,
+	'\'': `\u0027`,
+	'+':  `\u002b`,
+	'/':  `\/`,
+	'<':  `\u003c`,
+	'>':  `\u003e`,
+	'\\': `\\`,
+	'$':  `\u0024`,
+	'{':  `\u007b`,
+	'}':  `\u007d`,
 }
 
 // jsStrNormReplacementTable is like jsStrReplacementTable but does not
@@ -331,6 +389,7 @@ var jsStrNormReplacementTable = []string{
 	'"':  `\u0022`,
 	'&':  `\u0026`,
 	'\'': `\u0027`,
+	'`':  `\u0060`,
 	'+':  `\u002b`,
 	'/':  `\/`,
 	'<':  `\u003c`,

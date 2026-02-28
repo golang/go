@@ -9,22 +9,16 @@ import "sync"
 // All entities that do not end with ';' are 6 or fewer bytes long.
 const longestEntityWithoutSemicolon = 6
 
+// entityMaps returns entity and entity2.
+//
 // entity is a map from HTML entity names to their values. The semicolon matters:
 // https://html.spec.whatwg.org/multipage/named-characters.html
 // lists both "amp" and "amp;" as two separate entries.
-//
 // Note that the HTML5 list is larger than the HTML4 list at
 // http://www.w3.org/TR/html4/sgml/entities.html
-var entity map[string]rune
-
-// HTML entities that are two unicode codepoints.
-var entity2 map[string][2]rune
-
-// populateMapsOnce guards calling populateMaps.
-var populateMapsOnce sync.Once
-
-// populateMaps populates entity and entity2.
-func populateMaps() {
+//
+// entity2 is a map of HTML entities to two unicode codepoints.
+var entityMaps = sync.OnceValues(func() (entity map[string]rune, entity2 map[string][2]rune) {
 	entity = map[string]rune{
 		"AElig;":                           '\U000000C6',
 		"AMP;":                             '\U00000026',
@@ -2262,4 +2256,6 @@ func populateMaps() {
 		"vsupnE;":                  {'\u2ACC', '\uFE00'},
 		"vsupne;":                  {'\u228B', '\uFE00'},
 	}
-}
+
+	return entity, entity2
+})

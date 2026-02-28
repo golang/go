@@ -5,40 +5,44 @@
 package ssa
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
+	"cmp"
 	"container/heap"
+	"slices"
 	"sort"
 )
 
 const (
-	ScorePhi = iota // towards top of block
-	ScoreArg
+	ScorePhi       = iota // towards top of block
+	ScoreArg              // must occur at the top of the entry block
+	ScoreInitMem          // after the args - used as mark by debug info generation
+	ScoreReadTuple        // must occur immediately after tuple-generating insn (or call)
 	ScoreNilCheck
-	ScoreCarryChainTail
-	ScoreReadTuple
-	ScoreVarDef
 	ScoreMemory
 	ScoreReadFlags
 	ScoreDefault
+	ScoreInductionInc // an increment of an induction variable
 	ScoreFlags
 	ScoreControl // towards bottom of block
 )
 
 type ValHeap struct {
-	a     []*Value
-	score []int8
+	a           []*Value
+	score       []int8
+	inBlockUses []bool
 }
 
 func (h ValHeap) Len() int      { return len(h.a) }
 func (h ValHeap) Swap(i, j int) { a := h.a; a[i], a[j] = a[j], a[i] }
 
-func (h *ValHeap) Push(x interface{}) {
+func (h *ValHeap) Push(x any) {
 	// Push and Pop use pointer receivers because they modify the slice's length,
 	// not just its contents.
 	v := x.(*Value)
 	h.a = append(h.a, v)
 }
-func (h *ValHeap) Pop() interface{} {
+func (h *ValHeap) Pop() any {
 	old := h.a
 	n := len(old)
 	x := old[n-1]
@@ -51,29 +55,38 @@ func (h ValHeap) Less(i, j int) bool {
 	sx := h.score[x.ID]
 	sy := h.score[y.ID]
 	if c := sx - sy; c != 0 {
-		return c > 0 // higher score comes later.
+		return c < 0 // lower scores come earlier.
 	}
+	// Note: only scores are required for correct scheduling.
+	// Everything else is just heuristics.
+
+	ix := h.inBlockUses[x.ID]
+	iy := h.inBlockUses[y.ID]
+	if ix != iy {
+		return ix // values with in-block uses come earlier
+	}
+
 	if x.Pos != y.Pos { // Favor in-order line stepping
-		return x.Pos.After(y.Pos)
+		return x.Pos.Before(y.Pos)
 	}
 	if x.Op != OpPhi {
 		if c := len(x.Args) - len(y.Args); c != 0 {
-			return c < 0 // smaller args comes later
+			return c > 0 // smaller args come later
 		}
 	}
 	if c := x.Uses - y.Uses; c != 0 {
-		return c < 0 // smaller uses come later
+		return c > 0 // smaller uses come later
 	}
 	// These comparisons are fairly arbitrary.
 	// The goal here is stability in the face
 	// of unrelated changes elsewhere in the compiler.
 	if c := x.AuxInt - y.AuxInt; c != 0 {
-		return c > 0
+		return c < 0
 	}
 	if cmp := x.Type.Compare(y.Type); cmp != types.CMPeq {
-		return cmp == types.CMPgt
+		return cmp == types.CMPlt
 	}
-	return x.ID > y.ID
+	return x.ID < y.ID
 }
 
 func (op Op) isLoweredGetClosurePtr() bool {
@@ -92,25 +105,33 @@ func (op Op) isLoweredGetClosurePtr() bool {
 // reasonable valid schedule using a priority queue. TODO(khr):
 // schedule smarter.
 func schedule(f *Func) {
-	// For each value, the number of times it is used in the block
-	// by values that have not been scheduled yet.
-	uses := make([]int32, f.NumValues())
-
 	// reusable priority queue
 	priq := new(ValHeap)
 
 	// "priority" for a value
-	score := make([]int8, f.NumValues())
-
-	// scheduling order. We queue values in this list in reverse order.
-	// A constant bound allows this to be stack-allocated. 64 is
-	// enough to cover almost every schedule call.
-	order := make([]*Value, 0, 64)
+	score := f.Cache.allocInt8Slice(f.NumValues())
+	defer f.Cache.freeInt8Slice(score)
 
 	// maps mem values to the next live memory value
-	nextMem := make([]*Value, f.NumValues())
-	// additional pretend arguments for each Value. Used to enforce load/store ordering.
-	additionalArgs := make([][]*Value, f.NumValues())
+	nextMem := f.Cache.allocValueSlice(f.NumValues())
+	defer f.Cache.freeValueSlice(nextMem)
+
+	// inBlockUses records whether a value is used in the block
+	// in which it lives. (block control values don't count as uses.)
+	inBlockUses := f.Cache.allocBoolSlice(f.NumValues())
+	defer f.Cache.freeBoolSlice(inBlockUses)
+	if f.Config.optimize {
+		for _, b := range f.Blocks {
+			for _, v := range b.Values {
+				for _, a := range v.Args {
+					if a.Block == b {
+						inBlockUses[a.ID] = true
+					}
+				}
+			}
+		}
+	}
+	priq.inBlockUses = inBlockUses
 
 	for _, b := range f.Blocks {
 		// Compute score. Larger numbers are scheduled closer to the end of the block.
@@ -125,102 +146,100 @@ func schedule(f *Func) {
 					f.Fatalf("LoweredGetClosurePtr appeared outside of entry block, b=%s", b.String())
 				}
 				score[v.ID] = ScorePhi
-			case v.Op == OpAMD64LoweredNilCheck || v.Op == OpPPC64LoweredNilCheck ||
-				v.Op == OpARMLoweredNilCheck || v.Op == OpARM64LoweredNilCheck ||
-				v.Op == Op386LoweredNilCheck || v.Op == OpMIPS64LoweredNilCheck ||
-				v.Op == OpS390XLoweredNilCheck || v.Op == OpMIPSLoweredNilCheck ||
-				v.Op == OpRISCV64LoweredNilCheck || v.Op == OpWasmLoweredNilCheck ||
-				v.Op == OpLOONG64LoweredNilCheck:
+			case opcodeTable[v.Op].nilCheck:
 				// Nil checks must come before loads from the same address.
 				score[v.ID] = ScoreNilCheck
 			case v.Op == OpPhi:
 				// We want all the phis first.
 				score[v.ID] = ScorePhi
-			case v.Op == OpVarDef:
-				// We want all the vardefs next.
-				score[v.ID] = ScoreVarDef
 			case v.Op == OpArgIntReg || v.Op == OpArgFloatReg:
-				// In-register args must be scheduled as early as possible to ensure that the
-				// context register is not stomped. They should only appear in the entry block.
+				// In-register args must be scheduled as early as possible to ensure that they
+				// are not stomped (similar to the closure pointer above).
+				// In particular, they need to come before regular OpArg operations because
+				// of how regalloc places spill code (see regalloc.go:placeSpills:mustBeFirst).
 				if b != f.Entry {
 					f.Fatalf("%s appeared outside of entry block, b=%s", v.Op, b.String())
 				}
 				score[v.ID] = ScorePhi
-			case v.Op == OpArg:
+			case v.Op == OpArg || v.Op == OpSP || v.Op == OpSB:
 				// We want all the args as early as possible, for better debugging.
 				score[v.ID] = ScoreArg
+			case v.Op == OpInitMem:
+				// Early, but after args. See debug.go:buildLocationLists
+				score[v.ID] = ScoreInitMem
 			case v.Type.IsMemory():
 				// Schedule stores as early as possible. This tends to
-				// reduce register pressure. It also helps make sure
-				// VARDEF ops are scheduled before the corresponding LEA.
+				// reduce register pressure.
 				score[v.ID] = ScoreMemory
 			case v.Op == OpSelect0 || v.Op == OpSelect1 || v.Op == OpSelectN:
-				// Schedule the pseudo-op of reading part of a tuple
-				// immediately after the tuple-generating op, since
-				// this value is already live. This also removes its
-				// false dependency on the other part of the tuple.
-				// Also ensures tuple is never spilled.
-				if (v.Op == OpSelect1 || v.Op == OpSelect0) && v.Args[0].Op.isCarry() {
-					// Score tuple ops of carry ops later to ensure they do not
-					// delay scheduling the tuple-generating op. If such tuple ops
-					// are not placed more readily, unrelated carry clobbering ops
-					// may be placed inbetween two carry-dependent operations.
-					score[v.ID] = ScoreFlags
-				} else {
-					score[v.ID] = ScoreReadTuple
-				}
-			case v.Op.isCarry():
-				if w := v.getCarryProducer(); w != nil {
-					// The producing op is not the final user of the carry bit. Its
-					// current score is one of unscored, Flags, or CarryChainTail.
-					// These occur if the producer has not been scored, another user
-					// of the producers carry flag was scored (there are >1 users of
-					// the carry out flag), or it was visited earlier and already
-					// scored CarryChainTail (and prove w is not a tail).
-					score[w.ID] = ScoreFlags
-				}
-				// Verify v has not been scored. If v has not been visited, v may be the
-				// the final (tail) operation in a carry chain. If v is not, v will be
-				// rescored above when v's carry-using op is scored. When scoring is done,
-				// only tail operations will retain the CarryChainTail score.
-				if score[v.ID] != ScoreFlags {
-					// Score the tail of carry chain operations to a lower (earlier in the
-					// block) priority. This creates a priority inversion which allows only
-					// one chain to be scheduled, if possible.
-					score[v.ID] = ScoreCarryChainTail
-				}
-			case v.Type.IsFlags() || v.Type.IsTuple() && v.Type.FieldType(1).IsFlags():
+				// Tuple selectors need to appear immediately after the instruction
+				// that generates the tuple.
+				score[v.ID] = ScoreReadTuple
+			case v.hasFlagInput():
+				// Schedule flag-reading ops earlier, to minimize the lifetime
+				// of flag values.
+				score[v.ID] = ScoreReadFlags
+			case v.isFlagOp():
 				// Schedule flag register generation as late as possible.
 				// This makes sure that we only have one live flags
 				// value at a time.
+				// Note that this case is after the case above, so values
+				// which both read and generate flags are given ScoreReadFlags.
 				score[v.ID] = ScoreFlags
+			case (len(v.Args) == 1 &&
+				v.Args[0].Op == OpPhi &&
+				v.Args[0].Uses > 1 &&
+				len(b.Succs) == 1 &&
+				b.Succs[0].b == v.Args[0].Block &&
+				v.Args[0].Args[b.Succs[0].i] == v):
+				// This is a value computing v++ (or similar) in a loop.
+				// Try to schedule it later, so we issue all uses of v before the v++.
+				// If we don't, then we need an additional move.
+				// loop:
+				//     p = (PHI v ...)
+				//     ... ok other uses of p ...
+				//     v = (ADDQconst [1] p)
+				//     ... troublesome other uses of p ...
+				//     goto loop
+				// We want to allocate p and v to the same register so when we get to
+				// the end of the block we don't have to move v back to p's register.
+				// But we can only do that if v comes after all the other uses of p.
+				// Any "troublesome" use means we have to reg-reg move either p or v
+				// somewhere in the loop.
+				score[v.ID] = ScoreInductionInc
 			default:
 				score[v.ID] = ScoreDefault
-				// If we're reading flags, schedule earlier to keep flag lifetime short.
-				for _, a := range v.Args {
-					if a.Type.IsFlags() {
-						score[v.ID] = ScoreReadFlags
-					}
-				}
 			}
+		}
+		for _, c := range b.ControlValues() {
+			// Force the control values to be scheduled at the end,
+			// unless they have other special priority.
+			if c.Block != b || score[c.ID] < ScoreReadTuple {
+				continue
+			}
+			if score[c.ID] == ScoreReadTuple {
+				score[c.Args[0].ID] = ScoreControl
+				continue
+			}
+			score[c.ID] = ScoreControl
 		}
 	}
+	priq.score = score
+
+	// An edge represents a scheduling constraint that x must appear before y in the schedule.
+	type edge struct {
+		x, y *Value
+	}
+	edges := make([]edge, 0, 64)
+
+	// inEdges is the number of scheduling edges incoming from values that haven't been scheduled yet.
+	// i.e. inEdges[y.ID] = |e in edges where e.y == y and e.x is not in the schedule yet|.
+	inEdges := f.Cache.allocInt32Slice(f.NumValues())
+	defer f.Cache.freeInt32Slice(inEdges)
 
 	for _, b := range f.Blocks {
-		// Find store chain for block.
-		// Store chains for different blocks overwrite each other, so
-		// the calculated store chain is good only for this block.
-		for _, v := range b.Values {
-			if v.Op != OpPhi && v.Type.IsMemory() {
-				for _, w := range v.Args {
-					if w.Type.IsMemory() {
-						nextMem[w.ID] = v
-					}
-				}
-			}
-		}
-
-		// Compute uses.
+		edges = edges[:0]
+		// Standard edges: from the argument of a value to that value.
 		for _, v := range b.Values {
 			if v.Op == OpPhi {
 				// If a value is used by a phi, it does not induce
@@ -228,145 +247,127 @@ func schedule(f *Func) {
 				// previous iteration.
 				continue
 			}
-			for _, w := range v.Args {
-				if w.Block == b {
-					uses[w.ID]++
-				}
-				// Any load must come before the following store.
-				if !v.Type.IsMemory() && w.Type.IsMemory() {
-					// v is a load.
-					s := nextMem[w.ID]
-					if s == nil || s.Block != b {
-						continue
-					}
-					additionalArgs[s.ID] = append(additionalArgs[s.ID], v)
-					uses[v.ID]++
+			for _, a := range v.Args {
+				if a.Block == b {
+					edges = append(edges, edge{a, v})
 				}
 			}
 		}
 
-		for _, c := range b.ControlValues() {
-			// Force the control values to be scheduled at the end,
-			// unless they are phi values (which must be first).
-			// OpArg also goes first -- if it is stack it register allocates
-			// to a LoadReg, if it is register it is from the beginning anyway.
-			if score[c.ID] == ScorePhi || score[c.ID] == ScoreArg {
+		// Find store chain for block.
+		// Store chains for different blocks overwrite each other, so
+		// the calculated store chain is good only for this block.
+		for _, v := range b.Values {
+			if v.Op != OpPhi && v.Op != OpInitMem && v.Type.IsMemory() {
+				nextMem[v.MemoryArg().ID] = v
+			}
+		}
+
+		// Add edges to enforce that any load must come before the following store.
+		for _, v := range b.Values {
+			if v.Op == OpPhi || v.Type.IsMemory() {
 				continue
 			}
-			score[c.ID] = ScoreControl
-
-			// Schedule values dependent on the control values at the end.
-			// This reduces the number of register spills. We don't find
-			// all values that depend on the controls, just values with a
-			// direct dependency. This is cheaper and in testing there
-			// was no difference in the number of spills.
-			for _, v := range b.Values {
-				if v.Op != OpPhi {
-					for _, a := range v.Args {
-						if a == c {
-							score[v.ID] = ScoreControl
-						}
-					}
-				}
+			w := v.MemoryArg()
+			if w == nil {
+				continue
 			}
-
+			if s := nextMem[w.ID]; s != nil && s.Block == b {
+				edges = append(edges, edge{v, s})
+			}
 		}
 
-		// To put things into a priority queue
-		// The values that should come last are least.
-		priq.score = score
-		priq.a = priq.a[:0]
+		// Sort all the edges by source Value ID.
+		slices.SortFunc(edges, func(a, b edge) int {
+			return cmp.Compare(a.x.ID, b.x.ID)
+		})
+		// Compute inEdges for values in this block.
+		for _, e := range edges {
+			inEdges[e.y.ID]++
+		}
 
 		// Initialize priority queue with schedulable values.
+		priq.a = priq.a[:0]
 		for _, v := range b.Values {
-			if uses[v.ID] == 0 {
+			if inEdges[v.ID] == 0 {
 				heap.Push(priq, v)
 			}
 		}
 
-		// Schedule highest priority value, update use counts, repeat.
-		order = order[:0]
-		tuples := make(map[ID][]*Value)
+		// Produce the schedule. Pick the highest priority scheduleable value,
+		// add it to the schedule, add any of its uses that are now scheduleable
+		// to the queue, and repeat.
+		nv := len(b.Values)
+		b.Values = b.Values[:0]
 		for priq.Len() > 0 {
-			// Find highest priority schedulable value.
-			// Note that schedule is assembled backwards.
-
+			// Schedule the next schedulable value in priority order.
 			v := heap.Pop(priq).(*Value)
+			b.Values = append(b.Values, v)
 
-			if f.pass.debug > 1 && score[v.ID] == ScoreCarryChainTail && v.Op.isCarry() {
-				// Add some debugging noise if the chain of carrying ops will not
-				// likely be scheduled without potential carry flag clobbers.
-				if !isCarryChainReady(v, uses) {
-					f.Warnl(v.Pos, "carry chain ending with %v not ready", v)
-				}
-			}
-
-			// Add it to the schedule.
-			// Do not emit tuple-reading ops until we're ready to emit the tuple-generating op.
-			//TODO: maybe remove ReadTuple score above, if it does not help on performance
-			switch {
-			case v.Op == OpSelect0:
-				if tuples[v.Args[0].ID] == nil {
-					tuples[v.Args[0].ID] = make([]*Value, 2)
-				}
-				tuples[v.Args[0].ID][0] = v
-			case v.Op == OpSelect1:
-				if tuples[v.Args[0].ID] == nil {
-					tuples[v.Args[0].ID] = make([]*Value, 2)
-				}
-				tuples[v.Args[0].ID][1] = v
-			case v.Op == OpSelectN:
-				if tuples[v.Args[0].ID] == nil {
-					tuples[v.Args[0].ID] = make([]*Value, v.Args[0].Type.NumFields())
-				}
-				tuples[v.Args[0].ID][v.AuxInt] = v
-			case v.Type.IsResults() && tuples[v.ID] != nil:
-				tup := tuples[v.ID]
-				for i := len(tup) - 1; i >= 0; i-- {
-					if tup[i] != nil {
-						order = append(order, tup[i])
-					}
-				}
-				delete(tuples, v.ID)
-				order = append(order, v)
-			case v.Type.IsTuple() && tuples[v.ID] != nil:
-				if tuples[v.ID][1] != nil {
-					order = append(order, tuples[v.ID][1])
-				}
-				if tuples[v.ID][0] != nil {
-					order = append(order, tuples[v.ID][0])
-				}
-				delete(tuples, v.ID)
-				fallthrough
-			default:
-				order = append(order, v)
-			}
-
-			// Update use counts of arguments.
-			for _, w := range v.Args {
-				if w.Block != b {
-					continue
-				}
-				uses[w.ID]--
-				if uses[w.ID] == 0 {
-					// All uses scheduled, w is now schedulable.
-					heap.Push(priq, w)
-				}
-			}
-			for _, w := range additionalArgs[v.ID] {
-				uses[w.ID]--
-				if uses[w.ID] == 0 {
-					// All uses scheduled, w is now schedulable.
-					heap.Push(priq, w)
+			// Find all the scheduling edges out from this value.
+			i := sort.Search(len(edges), func(i int) bool {
+				return edges[i].x.ID >= v.ID
+			})
+			j := sort.Search(len(edges), func(i int) bool {
+				return edges[i].x.ID > v.ID
+			})
+			// Decrement inEdges for each target of edges from v.
+			for _, e := range edges[i:j] {
+				inEdges[e.y.ID]--
+				if inEdges[e.y.ID] == 0 {
+					heap.Push(priq, e.y)
 				}
 			}
 		}
-		if len(order) != len(b.Values) {
+		if len(b.Values) != nv {
 			f.Fatalf("schedule does not include all values in block %s", b)
 		}
-		for i := 0; i < len(b.Values); i++ {
-			b.Values[i] = order[len(b.Values)-1-i]
+	}
+
+	// Remove SPanchored now that we've scheduled.
+	// Also unlink nil checks now that ordering is assured
+	// between the nil check and the uses of the nil-checked pointer.
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			for i, a := range v.Args {
+				for a.Op == OpSPanchored || opcodeTable[a.Op].nilCheck {
+					a = a.Args[0]
+					v.SetArg(i, a)
+				}
+			}
 		}
+		for i, c := range b.ControlValues() {
+			for c.Op == OpSPanchored || opcodeTable[c.Op].nilCheck {
+				c = c.Args[0]
+				b.ReplaceControl(i, c)
+			}
+		}
+	}
+	for _, b := range f.Blocks {
+		i := 0
+		for _, v := range b.Values {
+			if v.Op == OpSPanchored {
+				// Free this value
+				if v.Uses != 0 {
+					base.Fatalf("SPAnchored still has %d uses", v.Uses)
+				}
+				v.resetArgs()
+				f.freeValue(v)
+			} else {
+				if opcodeTable[v.Op].nilCheck {
+					if v.Uses != 0 {
+						base.Fatalf("nilcheck still has %d uses", v.Uses)
+					}
+					// We can't delete the nil check, but we mark
+					// it as having void type so regalloc won't
+					// try to allocate a register for it.
+					v.Type = types.TypeVoid
+				}
+				b.Values[i] = v
+				i++
+			}
+		}
+		b.truncateValues(i)
 	}
 
 	f.scheduled = true
@@ -544,61 +545,55 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 				}
 			} else {
 				if start != -1 {
-					sort.Sort(bySourcePos(order[start:i]))
+					slices.SortFunc(order[start:i], valuePosCmp)
 					start = -1
 				}
 			}
 		}
 		if start != -1 {
-			sort.Sort(bySourcePos(order[start:]))
+			slices.SortFunc(order[start:], valuePosCmp)
 		}
 	}
 
 	return order
 }
 
-// Return whether all dependent carry ops can be scheduled after this.
-func isCarryChainReady(v *Value, uses []int32) bool {
-	// A chain can be scheduled in it's entirety if
-	// the use count of each dependent op is 1. If none,
-	// schedule the first.
-	j := 1 // The first op uses[k.ID] == 0. Dependent ops are always >= 1.
-	for k := v; k != nil; k = k.getCarryProducer() {
-		j += int(uses[k.ID]) - 1
+// isFlagOp reports if v is an OP with the flag type.
+func (v *Value) isFlagOp() bool {
+	if v.Type.IsFlags() || v.Type.IsTuple() && v.Type.FieldType(1).IsFlags() {
+		return true
 	}
-	return j == 0
-}
-
-// Return whether op is an operation which produces a carry bit value, but does not consume it.
-func (op Op) isCarryCreator() bool {
-	switch op {
+	// PPC64 carry generators put their carry in a non-flag-typed register
+	// in their output.
+	switch v.Op {
 	case OpPPC64SUBC, OpPPC64ADDC, OpPPC64SUBCconst, OpPPC64ADDCconst:
 		return true
 	}
 	return false
 }
 
-// Return whether op consumes or creates a carry a bit value.
-func (op Op) isCarry() bool {
-	switch op {
-	case OpPPC64SUBE, OpPPC64ADDE, OpPPC64SUBZEzero, OpPPC64ADDZEzero:
+// hasFlagInput reports whether v has a flag value as any of its inputs.
+func (v *Value) hasFlagInput() bool {
+	for _, a := range v.Args {
+		if a.isFlagOp() {
+			return true
+		}
+	}
+	// PPC64 carry dependencies are conveyed through their final argument,
+	// so we treat those operations as taking flags as well.
+	switch v.Op {
+	case OpPPC64SUBE, OpPPC64ADDE, OpPPC64SUBZEzero, OpPPC64ADDZE, OpPPC64ADDZEzero:
 		return true
 	}
-	return op.isCarryCreator()
+	return false
 }
 
-// Return the producing *Value of the carry bit of this op, or nil if none.
-func (v *Value) getCarryProducer() *Value {
-	if v.Op.isCarry() && !v.Op.isCarryCreator() {
-		// PPC64 carry dependencies are conveyed through their final argument.
-		// Likewise, there is always an OpSelect1 between them.
-		return v.Args[len(v.Args)-1].Args[0]
+func valuePosCmp(a, b *Value) int {
+	if a.Pos.Before(b.Pos) {
+		return -1
 	}
-	return nil
+	if a.Pos.After(b.Pos) {
+		return +1
+	}
+	return 0
 }
-
-type bySourcePos []*Value
-
-func (s bySourcePos) Len() int           { return len(s) }
-func (s bySourcePos) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s bySourcePos) Less(i, j int) bool { return s[i].Pos.Before(s[j].Pos) }

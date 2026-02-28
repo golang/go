@@ -16,8 +16,8 @@
 go list -f '{{.CompiledGoFiles}}' -compiled=true example/swig
 
 stdout a\.go
-[gc] stdout -count=3 $GOCACHE
-[gccgo] stdout -count=2 $GOCACHE
+[compiler:gc] stdout -count=3 $GOCACHE
+[compiler:gccgo] stdout -count=2 $GOCACHE
 
 -- go.mod --
 module example

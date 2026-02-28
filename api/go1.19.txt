@@ -290,3 +290,20 @@ pkg sync/atomic, type Uint64 struct #50860
 pkg sync/atomic, type Uintptr struct #50860
 pkg time, method (Duration) Abs() Duration #51414
 pkg time, method (Time) ZoneBounds() (Time, Time) #50062
+pkg crypto/x509, func ParseCRL //deprecated #50674
+pkg crypto/x509, func ParseDERCRL //deprecated #50674
+pkg crypto/x509, method (*Certificate) CheckCRLSignature //deprecated #50674
+pkg crypto/x509, method (*Certificate) CreateCRL //deprecated #50674
+pkg crypto/x509/pkix, type CertificateList //deprecated #50674
+pkg crypto/x509/pkix, type TBSCertificateList //deprecated #50674
+pkg go/doc, func Synopsis //deprecated #51082
+pkg go/doc, func ToHTML //deprecated #51082
+pkg go/doc, func ToText //deprecated #51082
+pkg io/ioutil, func NopCloser //deprecated #42026
+pkg io/ioutil, func ReadAll //deprecated #42026
+pkg io/ioutil, func ReadDir //deprecated #42026
+pkg io/ioutil, func ReadFile //deprecated #42026
+pkg io/ioutil, func TempDir //deprecated #42026
+pkg io/ioutil, func TempFile //deprecated #42026
+pkg io/ioutil, func WriteFile //deprecated #42026
+pkg io/ioutil, var Discard //deprecated #42026

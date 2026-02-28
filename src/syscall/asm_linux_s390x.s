@@ -8,11 +8,11 @@
 // System calls for s390x, Linux
 //
 
-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
-TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
-	MOVD	$0, R2
-	MOVD	a1+8(FP), R3
-	MOVD	$0, R4
+// func rawVforkSyscall(trap, a1, a2, a3 uintptr) (r1, err uintptr)
+TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-48
+	MOVD	a1+8(FP), R2
+	MOVD	a2+16(FP), R3
+	MOVD	a3+24(FP), R4
 	MOVD	$0, R5
 	MOVD	$0, R6
 	MOVD	$0, R7
@@ -20,13 +20,13 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
 	SYSCALL
 	MOVD	$0xfffffffffffff001, R8
 	CMPUBLT	R2, R8, ok2
-	MOVD	$-1, r1+16(FP)
+	MOVD	$-1, r1+32(FP)
 	NEG	R2, R2
-	MOVD	R2, err+24(FP)	// errno
+	MOVD	R2, err+40(FP)	// errno
 	RET
 ok2:
-	MOVD	R2, r1+16(FP)
-	MOVD	$0, err+24(FP)	// errno
+	MOVD	R2, r1+32(FP)
+	MOVD	$0, err+40(FP)	// errno
 	RET
 
 // func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)

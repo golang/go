@@ -6,7 +6,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"cmd/internal/browser"
 	"fmt"
 	"html/template"
@@ -157,7 +156,7 @@ func rgb(n int) string {
 
 // colors generates the CSS rules for coverage colors.
 func colors() template.CSS {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i := 0; i < 11; i++ {
 		fmt.Fprintf(&buf, ".cov%v { color: %v }\n", i, rgb(i))
 	}

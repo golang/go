@@ -11,6 +11,20 @@ TEXT ·getisar0(SB),NOSPLIT,$0
 	MOVD	R0, ret+0(FP)
 	RET
 
+// func getisar1() uint64
+TEXT ·getisar1(SB),NOSPLIT,$0-8
+	// get Instruction Set Attributes 1 into R0
+	MRS	ID_AA64ISAR1_EL1, R0
+	MOVD	R0, ret+0(FP)
+	RET
+
+// func getpfr0() uint64
+TEXT ·getpfr0(SB),NOSPLIT,$0-8
+	// get Processor Feature Register 0 into R0
+	MRS ID_AA64PFR0_EL1, R0
+	MOVD R0, ret+0(FP)
+	RET
+
 // func getMIDR() uint64
 TEXT ·getMIDR(SB), NOSPLIT, $0-8
 	MRS	MIDR_EL1, R0

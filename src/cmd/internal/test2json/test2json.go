@@ -29,12 +29,16 @@ const (
 
 // event is the JSON struct we emit.
 type event struct {
-	Time    *time.Time `json:",omitempty"`
-	Action  string
-	Package string     `json:",omitempty"`
-	Test    string     `json:",omitempty"`
-	Elapsed *float64   `json:",omitempty"`
-	Output  *textBytes `json:",omitempty"`
+	Time        *time.Time `json:",omitempty"`
+	Action      string
+	Package     string     `json:",omitempty"`
+	Test        string     `json:",omitempty"`
+	Elapsed     *float64   `json:",omitempty"`
+	Output      *textBytes `json:",omitempty"`
+	FailedBuild string     `json:",omitempty"`
+	Key         string     `json:",omitempty"`
+	Value       string     `json:",omitempty"`
+	Path        string     `json:",omitempty"`
 }
 
 // textBytes is a hack to get JSON to emit a []byte as a string
@@ -49,15 +53,20 @@ func (b textBytes) MarshalText() ([]byte, error) { return b, nil }
 // It implements io.WriteCloser; the caller writes test output in,
 // and the converter writes JSON output to w.
 type Converter struct {
-	w        io.Writer  // JSON output stream
-	pkg      string     // package to name in events
-	mode     Mode       // mode bits
-	start    time.Time  // time converter started
-	testName string     // name of current test, for output attribution
-	report   []*event   // pending test result reports (nested for subtests)
-	result   string     // overall test result if seen
-	input    lineBuffer // input buffer
-	output   lineBuffer // output buffer
+	w          io.Writer  // JSON output stream
+	pkg        string     // package to name in events
+	mode       Mode       // mode bits
+	start      time.Time  // time converter started
+	testName   string     // name of current test, for output attribution
+	report     []*event   // pending test result reports (nested for subtests)
+	result     string     // overall test result if seen
+	input      lineBuffer // input buffer
+	output     lineBuffer // output buffer
+	needMarker bool       // require ^V marker to introduce test framing line
+
+	// failedBuild is set to the package ID of the cause of a build failure,
+	// if that's what caused this test to fail.
+	failedBuild string
 }
 
 // inBuffer and outBuffer are the input and output buffer sizes.
@@ -118,6 +127,7 @@ func NewConverter(w io.Writer, pkg string, mode Mode) *Converter {
 			part: c.writeOutputEvent,
 		},
 	}
+	c.writeEvent(&event{Action: "start"})
 	return c
 }
 
@@ -130,27 +140,48 @@ func (c *Converter) Write(b []byte) (int, error) {
 // Exited marks the test process as having exited with the given error.
 func (c *Converter) Exited(err error) {
 	if err == nil {
-		c.result = "pass"
+		if c.result != "skip" {
+			c.result = "pass"
+		}
 	} else {
 		c.result = "fail"
 	}
 }
 
+// SetFailedBuild sets the package ID that is the root cause of a build failure
+// for this test. This will be reported in the final "fail" event's FailedBuild
+// field.
+func (c *Converter) SetFailedBuild(pkgID string) {
+	c.failedBuild = pkgID
+}
+
+const marker = byte(0x16) // ^V
+
 var (
 	// printed by test on successful run.
-	bigPass = []byte("PASS\n")
+	bigPass = []byte("PASS")
 
 	// printed by test after a normal test failure.
-	bigFail = []byte("FAIL\n")
+	bigFail = []byte("FAIL")
 
 	// printed by 'go test' along with an error if the test binary terminates
 	// with an error.
 	bigFailErrorPrefix = []byte("FAIL\t")
 
+	// an === NAME line with no test name, if trailing spaces are deleted
+	emptyName     = []byte("=== NAME")
+	emptyNameLine = []byte("=== NAME  \n")
+
 	updates = [][]byte{
 		[]byte("=== RUN   "),
 		[]byte("=== PAUSE "),
 		[]byte("=== CONT  "),
+		[]byte("=== NAME  "),
+		[]byte("=== PASS  "),
+		[]byte("=== FAIL  "),
+		[]byte("=== SKIP  "),
+		[]byte("=== ATTR  "),
+		[]byte("=== ARTIFACTS "),
 	}
 
 	reports = [][]byte{
@@ -163,18 +194,49 @@ var (
 	fourSpace = []byte("    ")
 
 	skipLinePrefix = []byte("?   \t")
-	skipLineSuffix = []byte("\t[no test files]\n")
+	skipLineSuffix = []byte("\t[no test files]")
 )
 
 // handleInputLine handles a single whole test output line.
 // It must write the line to c.output but may choose to do so
 // before or after emitting other events.
 func (c *Converter) handleInputLine(line []byte) {
-	// Final PASS or FAIL.
-	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigFail) || bytes.HasPrefix(line, bigFailErrorPrefix) {
-		c.flushReport(0)
+	if len(line) == 0 {
+		return
+	}
+	sawMarker := false
+	if c.needMarker && line[0] != marker {
 		c.output.write(line)
-		if bytes.Equal(line, bigPass) {
+		return
+	}
+	if line[0] == marker {
+		c.output.flush()
+		sawMarker = true
+		line = line[1:]
+	}
+
+	// Trim is line without \n or \r\n.
+	trim := line
+	if len(trim) > 0 && trim[len(trim)-1] == '\n' {
+		trim = trim[:len(trim)-1]
+		if len(trim) > 0 && trim[len(trim)-1] == '\r' {
+			trim = trim[:len(trim)-1]
+		}
+	}
+
+	// === CONT followed by an empty test name can lose its trailing spaces.
+	if bytes.Equal(trim, emptyName) {
+		line = emptyNameLine
+		trim = line[:len(line)-1]
+	}
+
+	// Final PASS or FAIL.
+	if bytes.Equal(trim, bigPass) || bytes.Equal(trim, bigFail) || bytes.HasPrefix(trim, bigFailErrorPrefix) {
+		c.flushReport(0)
+		c.testName = ""
+		c.needMarker = sawMarker
+		c.output.write(line)
+		if bytes.Equal(trim, bigPass) {
 			c.result = "pass"
 		} else {
 			c.result = "fail"
@@ -184,14 +246,13 @@ func (c *Converter) handleInputLine(line []byte) {
 
 	// Special case for entirely skipped test binary: "?   \tpkgname\t[no test files]\n" is only line.
 	// Report it as plain output but remember to say skip in the final summary.
-	if bytes.HasPrefix(line, skipLinePrefix) && bytes.HasSuffix(line, skipLineSuffix) && len(c.report) == 0 {
+	if bytes.HasPrefix(line, skipLinePrefix) && bytes.HasSuffix(trim, skipLineSuffix) && len(c.report) == 0 {
 		c.result = "skip"
 	}
 
 	// "=== RUN   "
 	// "=== PAUSE "
 	// "=== CONT  "
-	actionColon := false
 	origLine := line
 	ok := false
 	indent := 0
@@ -213,7 +274,6 @@ func (c *Converter) handleInputLine(line []byte) {
 		}
 		for _, magic := range reports {
 			if bytes.HasPrefix(line, magic) {
-				actionColon = true
 				ok = true
 				break
 			}
@@ -236,16 +296,11 @@ func (c *Converter) handleInputLine(line []byte) {
 		return
 	}
 
-	// Parse out action and test name.
-	i := 0
-	if actionColon {
-		i = bytes.IndexByte(line, ':') + 1
-	}
-	if i == 0 {
-		i = len(updates[0])
-	}
-	action := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(string(line[4:i])), ":"))
-	name := strings.TrimSpace(string(line[i:]))
+	// Parse out action and test name from "=== ACTION: Name".
+	action, name, _ := strings.Cut(string(line[len("=== "):]), " ")
+	action = strings.TrimSuffix(action, ":")
+	action = strings.ToLower(action)
+	name = strings.TrimSpace(name)
 
 	e := &event{Action: action}
 	if line[0] == '-' { // PASS or FAIL report
@@ -268,6 +323,7 @@ func (c *Converter) handleInputLine(line []byte) {
 			return
 		}
 		// Flush reports at this indentation level or deeper.
+		c.needMarker = sawMarker
 		c.flushReport(indent)
 		e.Test = name
 		c.testName = name
@@ -275,10 +331,25 @@ func (c *Converter) handleInputLine(line []byte) {
 		c.output.write(origLine)
 		return
 	}
+	switch action {
+	case "artifacts":
+		name, e.Path, _ = strings.Cut(name, " ")
+	case "attr":
+		var rest string
+		name, rest, _ = strings.Cut(name, " ")
+		e.Key, e.Value, _ = strings.Cut(rest, " ")
+	}
 	// === update.
 	// Finish any pending PASS/FAIL reports.
+	c.needMarker = sawMarker
 	c.flushReport(0)
 	c.testName = name
+
+	if action == "name" {
+		// This line is only generated to get c.testName right.
+		// Don't emit an event.
+		return
+	}
 
 	if action == "pause" {
 		// For a pause, we want to write the pause notification before
@@ -316,6 +387,9 @@ func (c *Converter) Close() error {
 			dt := time.Since(c.start).Round(1 * time.Millisecond).Seconds()
 			e.Elapsed = &dt
 		}
+		if c.result == "fail" {
+			e.FailedBuild = c.failedBuild
+		}
 		c.writeEvent(e)
 	}
 	return nil
@@ -343,7 +417,7 @@ func (c *Converter) writeEvent(e *event) {
 	js, err := json.Marshal(e)
 	if err != nil {
 		// Should not happen - event is valid for json.Marshal.
-		c.w.Write([]byte(fmt.Sprintf("testjson internal error: %v\n", err)))
+		fmt.Fprintf(c.w, "testjson internal error: %v\n", err)
 		return
 	}
 	js = append(js, '\n')
@@ -370,15 +444,15 @@ type lineBuffer struct {
 // write writes b to the buffer.
 func (l *lineBuffer) write(b []byte) {
 	for len(b) > 0 {
-		// Copy what we can into b.
+		// Copy what we can into l.b.
 		m := copy(l.b[len(l.b):cap(l.b)], b)
 		l.b = l.b[:len(l.b)+m]
 		b = b[m:]
 
-		// Process lines in b.
+		// Process lines in l.b.
 		i := 0
 		for i < len(l.b) {
-			j := bytes.IndexByte(l.b[i:], '\n')
+			j, w := indexEOL(l.b[i:])
 			if j < 0 {
 				if !l.mid {
 					if j := bytes.IndexByte(l.b[i:], '\t'); j >= 0 {
@@ -391,7 +465,7 @@ func (l *lineBuffer) write(b []byte) {
 				}
 				break
 			}
-			e := i + j + 1
+			e := i + j + w
 			if l.mid {
 				// Found the end of a partial line.
 				l.part(l.b[i:e])
@@ -419,6 +493,23 @@ func (l *lineBuffer) write(b []byte) {
 			l.b = l.b[:copy(l.b, l.b[i:])]
 		}
 	}
+}
+
+// indexEOL finds the index of a line ending,
+// returning its position and output width.
+// A line ending is either a \n or the empty string just before a ^V not beginning a line.
+// The output width for \n is 1 (meaning it should be printed)
+// but the output width for ^V is 0 (meaning it should be left to begin the next line).
+func indexEOL(b []byte) (pos, wid int) {
+	for i, c := range b {
+		if c == '\n' {
+			return i, 1
+		}
+		if c == marker && i > 0 { // test -v=json emits ^V at start of framing lines
+			return i, 0
+		}
+	}
+	return -1, 0
 }
 
 // flush flushes the line buffer.

@@ -6,7 +6,12 @@ package syscall
 
 import "unsafe"
 
-const _SYS_setgroups = SYS_SETGROUPS32
+const (
+	_SYS_setgroups  = SYS_SETGROUPS32
+	_SYS_clone3     = 435
+	_SYS_faccessat2 = 439
+	_SYS_fchmodat2  = 452
+)
 
 func setTimespec(sec, nsec int64) Timespec {
 	return Timespec{Sec: int32(sec), Nsec: int32(nsec)}
@@ -46,7 +51,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 // 64-bit file system and 32-bit uid calls
 // (16-bit uid calls are not always supported in newer kernels)
 //sys	Dup2(oldfd int, newfd int) (err error)
-//sysnb	EpollCreate(size int) (fd int, err error)
 //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
 //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
 //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
@@ -120,69 +124,6 @@ func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int6
 	return mmap2(addr, length, prot, flags, fd, page)
 }
 
-type rlimit32 struct {
-	Cur uint32
-	Max uint32
-}
-
-//sysnb getrlimit(resource int, rlim *rlimit32) (err error) = SYS_GETRLIMIT
-
-const rlimInf32 = ^uint32(0)
-const rlimInf64 = ^uint64(0)
-
-func Getrlimit(resource int, rlim *Rlimit) (err error) {
-	err = prlimit(0, resource, nil, rlim)
-	if err != ENOSYS {
-		return err
-	}
-
-	rl := rlimit32{}
-	err = getrlimit(resource, &rl)
-	if err != nil {
-		return
-	}
-
-	if rl.Cur == rlimInf32 {
-		rlim.Cur = rlimInf64
-	} else {
-		rlim.Cur = uint64(rl.Cur)
-	}
-
-	if rl.Max == rlimInf32 {
-		rlim.Max = rlimInf64
-	} else {
-		rlim.Max = uint64(rl.Max)
-	}
-	return
-}
-
-//sysnb setrlimit(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
-
-func Setrlimit(resource int, rlim *Rlimit) (err error) {
-	err = prlimit(0, resource, rlim, nil)
-	if err != ENOSYS {
-		return err
-	}
-
-	rl := rlimit32{}
-	if rlim.Cur == rlimInf64 {
-		rl.Cur = rlimInf32
-	} else if rlim.Cur < uint64(rlimInf32) {
-		rl.Cur = uint32(rlim.Cur)
-	} else {
-		return EINVAL
-	}
-	if rlim.Max == rlimInf64 {
-		rl.Max = rlimInf32
-	} else if rlim.Max < uint64(rlimInf32) {
-		rl.Max = uint32(rlim.Max)
-	} else {
-		return EINVAL
-	}
-
-	return setrlimit(resource, &rl)
-}
-
 func (r *PtraceRegs) PC() uint64 { return uint64(r.Uregs[15]) }
 
 func (r *PtraceRegs) SetPC(pc uint64) { r.Uregs[15] = uint32(pc) }
@@ -198,5 +139,3 @@ func (msghdr *Msghdr) SetControllen(length int) {
 func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint32(length)
 }
-
-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

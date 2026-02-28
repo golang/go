@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"reflect"
@@ -90,7 +89,7 @@ func (w *worker) cleanup() error {
 
 // coordinate runs the test binary to perform fuzzing.
 //
-// coordinate loops until ctx is cancelled or a fatal error is encountered.
+// coordinate loops until ctx is canceled or a fatal error is encountered.
 // If a test process terminates unexpectedly while fuzzing, coordinate will
 // attempt to restart and continue unless the termination can be attributed
 // to an interruption (from a timer or the user).
@@ -216,6 +215,16 @@ func (w *worker) coordinate(ctx context.Context) error {
 				if result.crasherMsg == "" {
 					result.crasherMsg = err.Error()
 				}
+			}
+			if shouldPrintDebugInfo() {
+				w.coordinator.debugLogf(
+					"input minimized, id: %s, original id: %s, crasher: %t, originally crasher: %t, minimizing took: %s",
+					result.entry.Path,
+					input.entry.Path,
+					result.crasherMsg != "",
+					input.crasherMsg != "",
+					result.totalDuration,
+				)
 			}
 			w.coordinator.resultC <- result
 		}
@@ -673,7 +682,7 @@ func (ws *workerServer) serve(ctx context.Context) error {
 }
 
 // chainedMutations is how many mutations are applied before the worker
-// resets the input to it's original state.
+// resets the input to its original state.
 // NOTE: this number was picked without much thought. It is low enough that
 // it seems to create a significant diversity in mutated inputs. We may want
 // to consider looking into this more closely once we have a proper performance
@@ -793,7 +802,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 
 func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp minimizeResponse) {
 	start := time.Now()
-	defer func() { resp.Duration = time.Now().Sub(start) }()
+	defer func() { resp.Duration = time.Since(start) }()
 	mem := <-ws.memMu
 	defer func() { ws.memMu <- mem }()
 	vals, err := unmarshalCorpusFile(mem.valueCopy())
@@ -958,7 +967,7 @@ func (wc *workerClient) Close() error {
 
 	// Drain fuzzOut and close it. When the server exits, the kernel will close
 	// its end of fuzzOut, and we'll get EOF.
-	if _, err := io.Copy(ioutil.Discard, wc.fuzzOut); err != nil {
+	if _, err := io.Copy(io.Discard, wc.fuzzOut); err != nil {
 		wc.fuzzOut.Close()
 		return err
 	}
@@ -984,13 +993,13 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args 
 	if !ok {
 		return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
 	}
+	defer func() { wc.memMu <- mem }()
 	mem.header().count = 0
 	inp, err := corpusEntryData(entryIn)
 	if err != nil {
 		return CorpusEntry{}, minimizeResponse{}, err
 	}
 	mem.setValue(inp)
-	defer func() { wc.memMu <- mem }()
 	entryOut = entryIn
 	entryOut.Values, err = unmarshalCorpusFile(inp)
 	if err != nil {
@@ -1017,7 +1026,7 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args 
 				return entryIn, minimizeResponse{}, retErr
 			}
 			// An unrecoverable error occurred during minimization. mem now
-			// holds the raw, unmarshalled bytes of entryIn.Values[i] that
+			// holds the raw, unmarshaled bytes of entryIn.Values[i] that
 			// caused the error.
 			switch entryOut.Values[i].(type) {
 			case string:
@@ -1073,6 +1082,7 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
 	mem.header().count = 0
 	inp, err := corpusEntryData(entryIn)
 	if err != nil {
+		wc.memMu <- mem
 		return CorpusEntry{}, fuzzResponse{}, true, err
 	}
 	mem.setValue(inp)
@@ -1138,7 +1148,7 @@ func (wc *workerClient) ping(ctx context.Context) error {
 }
 
 // callLocked sends an RPC from the coordinator to the worker process and waits
-// for the response. The callLocked may be cancelled with ctx.
+// for the response. The callLocked may be canceled with ctx.
 func (wc *workerClient) callLocked(ctx context.Context, c call, resp any) (err error) {
 	enc := json.NewEncoder(wc.fuzzIn)
 	dec := json.NewDecoder(&contextReader{ctx: ctx, r: wc.fuzzOut})
@@ -1148,7 +1158,7 @@ func (wc *workerClient) callLocked(ctx context.Context, c call, resp any) (err e
 	return dec.Decode(resp)
 }
 
-// contextReader wraps a Reader with a Context. If the context is cancelled
+// contextReader wraps a Reader with a Context. If the context is canceled
 // while the underlying reader is blocked, Read returns immediately.
 //
 // This is useful for reading from a pipe. Closing a pipe file descriptor does

@@ -177,7 +177,7 @@ func check(bounds image.Rectangle, pix0, pix1 []byte, stride0, stride1 int) erro
 }
 
 func pixString(pix []byte, stride, x, y int) string {
-	s := bytes.NewBuffer(nil)
+	s := &strings.Builder{}
 	for j := 0; j < 8; j++ {
 		fmt.Fprintf(s, "\t")
 		for i := 0; i < 8; i++ {
@@ -486,6 +486,62 @@ func TestExtraneousData(t *testing.T) {
 			t.Errorf("image #%d changed too much after a round trip", i)
 			nerr++
 			continue
+		}
+	}
+}
+
+func TestIssue56724(t *testing.T) {
+	b, err := os.ReadFile("../testdata/video-001.jpeg")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b = b[:24] // truncate image data
+
+	_, err = Decode(bytes.NewReader(b))
+	if err != io.ErrUnexpectedEOF {
+		t.Errorf("got: %v, want: %v", err, io.ErrUnexpectedEOF)
+	}
+}
+
+func TestBadRestartMarker(t *testing.T) {
+	b, err := os.ReadFile("../testdata/video-001.restart2.jpeg")
+	if err != nil {
+		t.Fatal(err)
+	} else if len(b) != 4855 {
+		t.Fatal("test image had unexpected length")
+	} else if (b[2816] != 0xff) || (b[2817] != 0xd1) {
+		t.Fatal("test image did not have FF D1 restart marker at expected offset")
+	}
+	prefix, suffix := b[:2816], b[2816:]
+
+	testCases := []string{
+		"PASS:",
+		"PASS:\x00",
+		"PASS:\x61",
+		"PASS:\x61\x62\x63\xff\x00\x64",
+		"PASS:\xff",
+		"PASS:\xff\x00",
+		"PASS:\xff\xff\xff\x00\xff\x00\x00\xff\xff\xff",
+
+		"FAIL:\xff\x03",
+		"FAIL:\xff\xd5",
+		"FAIL:\xff\xff\xd5",
+	}
+
+	for _, tc := range testCases {
+		want := tc[:5] == "PASS:"
+		infix := tc[5:]
+
+		data := []byte(nil)
+		data = append(data, prefix...)
+		data = append(data, infix...)
+		data = append(data, suffix...)
+		_, err := Decode(bytes.NewReader(data))
+		got := err == nil
+
+		if got != want {
+			t.Errorf("%q: got %v, want %v", tc, got, want)
 		}
 	}
 }

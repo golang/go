@@ -14,7 +14,7 @@ import (
 // which prevents us from allocating more stack.
 //
 //go:nosplit
-func sysAllocOS(n uintptr) unsafe.Pointer {
+func sysAllocOS(n uintptr, _ string) unsafe.Pointer {
 	v, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if err != 0 {
 		return nil
@@ -23,13 +23,23 @@ func sysAllocOS(n uintptr) unsafe.Pointer {
 }
 
 func sysUnusedOS(v unsafe.Pointer, n uintptr) {
-	madvise(v, n, _MADV_FREE)
+	if debug.madvdontneed != 0 {
+		madvise(v, n, _MADV_DONTNEED)
+	} else {
+		madvise(v, n, _MADV_FREE)
+	}
 }
 
 func sysUsedOS(v unsafe.Pointer, n uintptr) {
 }
 
 func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+}
+
+func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
+}
+
+func sysHugePageCollapseOS(v unsafe.Pointer, n uintptr) {
 }
 
 // Don't split the stack as this function may be invoked without a valid G,
@@ -47,7 +57,7 @@ func sysFaultOS(v unsafe.Pointer, n uintptr) {
 // Indicates not to reserve swap space for the mapping.
 const _sunosMAP_NORESERVE = 0x40
 
-func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+func sysReserveOS(v unsafe.Pointer, n uintptr, _ string) unsafe.Pointer {
 	flags := int32(_MAP_ANON | _MAP_PRIVATE)
 	if GOOS == "solaris" || GOOS == "illumos" {
 		// Be explicit that we don't want to reserve swap space
@@ -65,7 +75,7 @@ func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 const _sunosEAGAIN = 11
 const _ENOMEM = 12
 
-func sysMapOS(v unsafe.Pointer, n uintptr) {
+func sysMapOS(v unsafe.Pointer, n uintptr, _ string) {
 	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
 	if err == _ENOMEM || ((GOOS == "solaris" || GOOS == "illumos") && err == _sunosEAGAIN) {
 		throw("runtime: out of memory")
@@ -74,4 +84,8 @@ func sysMapOS(v unsafe.Pointer, n uintptr) {
 		print("runtime: mmap(", v, ", ", n, ") returned ", p, ", ", err, "\n")
 		throw("runtime: cannot map pages in arena address space")
 	}
+}
+
+func needZeroAfterSysUnusedOS() bool {
+	return true
 }

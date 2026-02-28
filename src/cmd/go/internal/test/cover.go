@@ -6,6 +6,7 @@ package test
 
 import (
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"fmt"
 	"io"
 	"os"
@@ -35,7 +36,7 @@ func initCoverProfile() {
 	if err != nil {
 		base.Fatalf("%v", err)
 	}
-	_, err = fmt.Fprintf(f, "mode: %s\n", testCoverMode)
+	_, err = fmt.Fprintf(f, "mode: %s\n", cfg.BuildCoverMode)
 	if err != nil {
 		base.Fatalf("%v", err)
 	}
@@ -43,15 +44,15 @@ func initCoverProfile() {
 }
 
 // mergeCoverProfile merges file into the profile stored in testCoverProfile.
-// It prints any errors it encounters to ew.
-func mergeCoverProfile(ew io.Writer, file string) {
+// Errors encountered are logged and cause a non-zero exit status.
+func mergeCoverProfile(file string) {
 	if coverMerge.f == nil {
 		return
 	}
 	coverMerge.Lock()
 	defer coverMerge.Unlock()
 
-	expect := fmt.Sprintf("mode: %s\n", testCoverMode)
+	expect := fmt.Sprintf("mode: %s\n", cfg.BuildCoverMode)
 	buf := make([]byte, len(expect))
 	r, err := os.Open(file)
 	if err != nil {
@@ -65,12 +66,13 @@ func mergeCoverProfile(ew io.Writer, file string) {
 		return
 	}
 	if err != nil || string(buf) != expect {
-		fmt.Fprintf(ew, "error: test wrote malformed coverage profile.\n")
+		base.Errorf("test wrote malformed coverage profile %s: header %q, expected %q: %v", file, string(buf), expect, err)
 		return
 	}
 	_, err = io.Copy(coverMerge.f, r)
 	if err != nil {
-		fmt.Fprintf(ew, "error: saving coverage profile: %v\n", err)
+		base.Errorf("saving coverage profile: %v", err)
+		return
 	}
 }
 

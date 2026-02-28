@@ -17,4 +17,4 @@ func (T) m() int {
 
 type E struct{ T }
 
-var x = E{}.m // ERROR "initialization loop|depends upon itself" 
+var x = E{}.m // ERROR "initialization cycle|depends upon itself" 

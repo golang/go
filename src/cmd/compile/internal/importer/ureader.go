@@ -1,9 +1,8 @@
-// UNREVIEWED
-
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// package importer implements package reading for gc-generated object files.
 package importer
 
 import (
@@ -17,8 +16,9 @@ import (
 type pkgReader struct {
 	pkgbits.PkgDecoder
 
-	ctxt    *types2.Context
-	imports map[string]*types2.Package
+	ctxt        *types2.Context
+	imports     map[string]*types2.Package
+	enableAlias bool // whether to use aliases
 
 	posBases []*syntax.PosBase
 	pkgs     []*types2.Package
@@ -29,24 +29,30 @@ func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input
 	pr := pkgReader{
 		PkgDecoder: input,
 
-		ctxt:    ctxt,
-		imports: imports,
+		ctxt:        ctxt,
+		imports:     imports,
+		enableAlias: true,
 
-		posBases: make([]*syntax.PosBase, input.NumElems(pkgbits.RelocPosBase)),
-		pkgs:     make([]*types2.Package, input.NumElems(pkgbits.RelocPkg)),
-		typs:     make([]types2.Type, input.NumElems(pkgbits.RelocType)),
+		posBases: make([]*syntax.PosBase, input.NumElems(pkgbits.SectionPosBase)),
+		pkgs:     make([]*types2.Package, input.NumElems(pkgbits.SectionPkg)),
+		typs:     make([]types2.Type, input.NumElems(pkgbits.SectionType)),
 	}
 
-	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+	r := pr.newReader(pkgbits.SectionMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 	pkg := r.pkg()
-	r.Bool() // TODO(mdempsky): Remove; was "has init"
+
+	if r.Version().Has(pkgbits.HasInit) {
+		r.Bool()
+	}
 
 	for i, n := 0, r.Len(); i < n; i++ {
 		// As if r.obj(), but avoiding the Scope.Lookup call,
 		// to avoid eager loading of imports.
 		r.Sync(pkgbits.SyncObject)
-		assert(!r.Bool())
-		r.p.objIdx(r.Reloc(pkgbits.RelocObj))
+		if r.Version().Has(pkgbits.DerivedFuncInstance) {
+			assert(!r.Bool())
+		}
+		r.p.objIdx(r.Reloc(pkgbits.SectionObj))
 		assert(r.Len() == 0)
 	}
 
@@ -61,7 +67,8 @@ type reader struct {
 
 	p *pkgReader
 
-	dict *readerDict
+	dict    *readerDict
+	delayed []func()
 }
 
 type readerDict struct {
@@ -78,11 +85,22 @@ type readerTypeBound struct {
 	boundIdx int
 }
 
-func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx pkgbits.Index, marker pkgbits.SyncMarker) *reader {
+func (pr *pkgReader) newReader(k pkgbits.SectionKind, idx pkgbits.Index, marker pkgbits.SyncMarker) *reader {
 	return &reader{
 		Decoder: pr.NewDecoder(k, idx, marker),
 		p:       pr,
 	}
+}
+
+func (pr *pkgReader) tempReader(k pkgbits.SectionKind, idx pkgbits.Index, marker pkgbits.SyncMarker) *reader {
+	return &reader{
+		Decoder: pr.TempDecoder(k, idx, marker),
+		p:       pr,
+	}
+}
+
+func (pr *pkgReader) retireReader(r *reader) {
+	pr.RetireDecoder(&r.Decoder)
 }
 
 // @@@ Positions
@@ -101,26 +119,28 @@ func (r *reader) pos() syntax.Pos {
 }
 
 func (r *reader) posBase() *syntax.PosBase {
-	return r.p.posBaseIdx(r.Reloc(pkgbits.RelocPosBase))
+	return r.p.posBaseIdx(r.Reloc(pkgbits.SectionPosBase))
 }
 
 func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) *syntax.PosBase {
 	if b := pr.posBases[idx]; b != nil {
 		return b
 	}
-
-	r := pr.newReader(pkgbits.RelocPosBase, idx, pkgbits.SyncPosBase)
 	var b *syntax.PosBase
+	{
+		r := pr.tempReader(pkgbits.SectionPosBase, idx, pkgbits.SyncPosBase)
 
-	filename := r.String()
+		filename := r.String()
 
-	if r.Bool() {
-		b = syntax.NewTrimmedFileBase(filename, true)
-	} else {
-		pos := r.pos()
-		line := r.Uint()
-		col := r.Uint()
-		b = syntax.NewLineBase(pos, filename, true, line, col)
+		if r.Bool() {
+			b = syntax.NewTrimmedFileBase(filename, true)
+		} else {
+			pos := r.pos()
+			line := r.Uint()
+			col := r.Uint()
+			b = syntax.NewLineBase(pos, filename, true, line, col)
+		}
+		pr.retireReader(r)
 	}
 
 	pr.posBases[idx] = b
@@ -131,7 +151,7 @@ func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) *syntax.PosBase {
 
 func (r *reader) pkg() *types2.Package {
 	r.Sync(pkgbits.SyncPkg)
-	return r.p.pkgIdx(r.Reloc(pkgbits.RelocPkg))
+	return r.p.pkgIdx(r.Reloc(pkgbits.SectionPkg))
 }
 
 func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types2.Package {
@@ -141,7 +161,7 @@ func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types2.Package {
 		return pkg
 	}
 
-	pkg := pr.newReader(pkgbits.RelocPkg, idx, pkgbits.SyncPkgDef).doPkg()
+	pkg := pr.newReader(pkgbits.SectionPkg, idx, pkgbits.SyncPkgDef).doPkg()
 	pr.pkgs[idx] = pkg
 	return pkg
 }
@@ -187,7 +207,7 @@ func (r *reader) typInfo() typeInfo {
 	if r.Bool() {
 		return typeInfo{idx: pkgbits.Index(r.Len()), derived: true}
 	}
-	return typeInfo{idx: r.Reloc(pkgbits.RelocType), derived: false}
+	return typeInfo{idx: r.Reloc(pkgbits.SectionType), derived: false}
 }
 
 func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict) types2.Type {
@@ -204,11 +224,15 @@ func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict) types2.Type {
 		return typ
 	}
 
-	r := pr.newReader(pkgbits.RelocType, idx, pkgbits.SyncTypeIdx)
-	r.dict = dict
+	var typ types2.Type
+	{
+		r := pr.tempReader(pkgbits.SectionType, idx, pkgbits.SyncTypeIdx)
+		r.dict = dict
 
-	typ := r.doTyp()
-	assert(typ != nil)
+		typ = r.doTyp()
+		assert(typ != nil)
+		pr.retireReader(r)
+	}
 
 	// See comment in pkgReader.typIdx explaining how this happens.
 	if prev := *where; prev != nil {
@@ -349,9 +373,11 @@ func (r *reader) param() *types2.Var {
 func (r *reader) obj() (types2.Object, []types2.Type) {
 	r.Sync(pkgbits.SyncObject)
 
-	assert(!r.Bool())
+	if r.Version().Has(pkgbits.DerivedFuncInstance) {
+		assert(!r.Bool())
+	}
 
-	pkg, name := r.p.objIdx(r.Reloc(pkgbits.RelocObj))
+	pkg, name := r.p.objIdx(r.Reloc(pkgbits.SectionObj))
 	obj := pkg.Scope().Lookup(name)
 
 	targs := make([]types2.Type, r.Len())
@@ -363,12 +389,18 @@ func (r *reader) obj() (types2.Object, []types2.Type) {
 }
 
 func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
-	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
+	var objPkg *types2.Package
+	var objName string
+	var tag pkgbits.CodeObj
+	{
+		rname := pr.tempReader(pkgbits.SectionName, idx, pkgbits.SyncObject1)
 
-	objPkg, objName := rname.qualifiedIdent()
-	assert(objName != "")
+		objPkg, objName = rname.qualifiedIdent()
+		assert(objName != "")
 
-	tag := pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
+		tag = pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
+		pr.retireReader(rname)
+	}
 
 	if tag == pkgbits.ObjStub {
 		base.Assertf(objPkg == nil || objPkg == types2.Unsafe, "unexpected stub package: %v", objPkg)
@@ -378,7 +410,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 	objPkg.Scope().InsertLazy(objName, func() types2.Object {
 		dict := pr.objDictIdx(idx)
 
-		r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)
+		r := pr.newReader(pkgbits.SectionObj, idx, pkgbits.SyncObject1)
 		r.dict = dict
 
 		switch tag {
@@ -387,8 +419,12 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 
 		case pkgbits.ObjAlias:
 			pos := r.pos()
+			var tparams []*types2.TypeParam
+			if r.Version().Has(pkgbits.AliasTypeParamNames) {
+				tparams = r.typeParamNames(false)
+			}
 			typ := r.typ()
-			return types2.NewTypeName(pos, objPkg, objName, typ)
+			return newAliasTypeName(pr.enableAlias, pos, objPkg, objName, typ, tparams)
 
 		case pkgbits.ObjConst:
 			pos := r.pos()
@@ -398,28 +434,28 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 
 		case pkgbits.ObjFunc:
 			pos := r.pos()
-			tparams := r.typeParamNames()
+			tparams := r.typeParamNames(false)
 			sig := r.signature(nil, nil, tparams)
 			return types2.NewFunc(pos, objPkg, objName, sig)
 
 		case pkgbits.ObjType:
 			pos := r.pos()
 
-			return types2.NewTypeNameLazy(pos, objPkg, objName, func(named *types2.Named) (tparams []*types2.TypeParam, underlying types2.Type, methods []*types2.Func) {
-				tparams = r.typeParamNames()
+			return types2.NewTypeNameLazy(pos, objPkg, objName, func(_ *types2.Named) ([]*types2.TypeParam, types2.Type, []*types2.Func, []func()) {
+				tparams := r.typeParamNames(true)
 
 				// TODO(mdempsky): Rewrite receiver types to underlying is an
 				// Interface? The go/types importer does this (I think because
 				// unit tests expected that), but cmd/compile doesn't care
 				// about it, so maybe we can avoid worrying about that here.
-				underlying = r.typ().Underlying()
+				underlying := r.typ().Underlying()
 
-				methods = make([]*types2.Func, r.Len())
+				methods := make([]*types2.Func, r.Len())
 				for i := range methods {
-					methods[i] = r.method()
+					methods[i] = r.method(true)
 				}
 
-				return
+				return tparams, underlying, methods, r.delayed
 			})
 
 		case pkgbits.ObjVar:
@@ -433,31 +469,36 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 }
 
 func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
-	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
-
 	var dict readerDict
+	{
+		r := pr.tempReader(pkgbits.SectionObjDict, idx, pkgbits.SyncObject1)
 
-	if implicits := r.Len(); implicits != 0 {
-		base.Fatalf("unexpected object with %v implicit type parameter(s)", implicits)
+		if implicits := r.Len(); implicits != 0 {
+			base.Fatalf("unexpected object with %v implicit type parameter(s)", implicits)
+		}
+
+		dict.bounds = make([]typeInfo, r.Len())
+		for i := range dict.bounds {
+			dict.bounds[i] = r.typInfo()
+		}
+
+		dict.derived = make([]derivedInfo, r.Len())
+		dict.derivedTypes = make([]types2.Type, len(dict.derived))
+		for i := range dict.derived {
+			dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.SectionType)}
+			if r.Version().Has(pkgbits.DerivedInfoNeeded) {
+				assert(!r.Bool())
+			}
+		}
+
+		pr.retireReader(r)
 	}
-
-	dict.bounds = make([]typeInfo, r.Len())
-	for i := range dict.bounds {
-		dict.bounds[i] = r.typInfo()
-	}
-
-	dict.derived = make([]derivedInfo, r.Len())
-	dict.derivedTypes = make([]types2.Type, len(dict.derived))
-	for i := range dict.derived {
-		dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
-	}
-
 	// function references follow, but reader doesn't need those
 
 	return &dict
 }
 
-func (r *reader) typeParamNames() []*types2.TypeParam {
+func (r *reader) typeParamNames(isLazy bool) []*types2.TypeParam {
 	r.Sync(pkgbits.SyncTypeParamNames)
 
 	// Note: This code assumes it only processes objects without
@@ -483,19 +524,38 @@ func (r *reader) typeParamNames() []*types2.TypeParam {
 		r.dict.tparams[i] = types2.NewTypeParam(tname, nil)
 	}
 
-	for i, bound := range r.dict.bounds {
-		r.dict.tparams[i].SetConstraint(r.p.typIdx(bound, r.dict))
+	// Type parameters that are read by lazy loaders cannot have their
+	// constraints set eagerly; do them after loading (go.dev/issue/63285).
+	if isLazy {
+		// The reader dictionary will continue mutating before we have time
+		// to call delayed functions; must make a local copy of both the type
+		// parameters and their (unexpanded) constraints.
+		bounds := make([]types2.Type, len(r.dict.bounds))
+		for i, bound := range r.dict.bounds {
+			bounds[i] = r.p.typIdx(bound, r.dict)
+		}
+
+		tparams := r.dict.tparams
+		r.delayed = append(r.delayed, func() {
+			for i, bound := range bounds {
+				tparams[i].SetConstraint(bound)
+			}
+		})
+	} else {
+		for i, bound := range r.dict.bounds {
+			r.dict.tparams[i].SetConstraint(r.p.typIdx(bound, r.dict))
+		}
 	}
 
 	return r.dict.tparams
 }
 
-func (r *reader) method() *types2.Func {
+func (r *reader) method(isLazy bool) *types2.Func {
 	r.Sync(pkgbits.SyncMethod)
 	pos := r.pos()
 	pkg, name := r.selector()
 
-	rtparams := r.typeParamNames()
+	rtparams := r.typeParamNames(isLazy)
 	sig := r.signature(r.param(), rtparams, nil)
 
 	_ = r.pos() // TODO(mdempsky): Remove; this is a hacker for linker.go.
@@ -509,4 +569,18 @@ func (r *reader) selector() (*types2.Package, string)       { return r.ident(pkg
 func (r *reader) ident(marker pkgbits.SyncMarker) (*types2.Package, string) {
 	r.Sync(marker)
 	return r.pkg(), r.String()
+}
+
+// newAliasTypeName returns a new TypeName, with a materialized *types2.Alias if supported.
+func newAliasTypeName(aliases bool, pos syntax.Pos, pkg *types2.Package, name string, rhs types2.Type, tparams []*types2.TypeParam) *types2.TypeName {
+	// Copied from x/tools/internal/aliases.NewAlias via
+	// GOROOT/src/go/internal/gcimporter/ureader.go.
+	if aliases {
+		tname := types2.NewTypeName(pos, pkg, name, nil)
+		a := types2.NewAlias(tname, rhs) // form TypeName -> Alias cycle
+		a.SetTypeParams(tparams)
+		return tname
+	}
+	assert(len(tparams) == 0)
+	return types2.NewTypeName(pos, pkg, name, rhs)
 }

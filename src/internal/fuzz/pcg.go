@@ -17,7 +17,6 @@ type mutatorRand interface {
 	uint32() uint32
 	intn(int) int
 	uint32n(uint32) uint32
-	exp2() int
 	bool() bool
 
 	save(randState, randInc *uint64)
@@ -30,7 +29,7 @@ type mutatorRand interface {
 // creation and use, no reproducibility, no concurrency safety, just the
 // necessary methods, optimized for speed.
 
-var globalInc uint64 // PCG stream
+var globalInc atomic.Uint64 // PCG stream
 
 const multiplier uint64 = 6364136223846793005
 
@@ -63,7 +62,7 @@ func newPcgRand() *pcgRand {
 	if seed := godebugSeed(); seed != nil {
 		now = uint64(*seed)
 	}
-	inc := atomic.AddUint64(&globalInc, 1)
+	inc := globalInc.Add(1)
 	r.state = now
 	r.inc = (inc << 1) | 1
 	r.step()
@@ -123,11 +122,6 @@ func (r *pcgRand) uint32n(n uint32) uint32 {
 	return uint32(prod >> 32)
 }
 
-// exp2 generates n with probability 1/2^(n+1).
-func (r *pcgRand) exp2() int {
-	return bits.TrailingZeros32(r.uint32())
-}
-
 // bool generates a random bool.
 func (r *pcgRand) bool() bool {
 	return r.uint32()&1 == 0
@@ -140,6 +134,6 @@ func (r *pcgRand) bool() bool {
 // for details.
 type noCopy struct{}
 
-// lock is a no-op used by -copylocks checker from `go vet`.
-func (*noCopy) lock()   {}
-func (*noCopy) unlock() {}
+// Lock is a no-op used by -copylocks checker from `go vet`.
+func (*noCopy) Lock()   {}
+func (*noCopy) Unlock() {}

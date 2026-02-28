@@ -59,7 +59,7 @@ func (b neverEnding) Read(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// outGoingLength is a copy of the unexported
+// outgoingLength is a copy of the unexported
 // (*http.Request).outgoingLength method.
 func outgoingLength(req *http.Request) int64 {
 	if req.Body == nil || req.Body == http.NoBody {
@@ -71,8 +71,8 @@ func outgoingLength(req *http.Request) int64 {
 	return -1
 }
 
-// DumpRequestOut is like DumpRequest but for outgoing client requests. It
-// includes any headers that the standard http.Transport adds, such as
+// DumpRequestOut is like [DumpRequest] but for outgoing client requests. It
+// includes any headers that the standard [http.Transport] adds, such as
 // User-Agent.
 func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 	save := req.Body
@@ -147,7 +147,6 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 
 	req.Body = save
 	if err != nil {
-		pw.Close()
 		dr.err = err
 		close(quitReadCh)
 		return nil, err
@@ -203,17 +202,17 @@ var reqWriteExcludeHeaderDump = map[string]bool{
 // representation. It should only be used by servers to debug client
 // requests. The returned representation is an approximation only;
 // some details of the initial request are lost while parsing it into
-// an http.Request. In particular, the order and case of header field
+// an [http.Request]. In particular, the order and case of header field
 // names are lost. The order of values in multi-valued headers is kept
 // intact. HTTP/2 requests are dumped in HTTP/1.x form, not in their
 // original binary representations.
 //
 // If body is true, DumpRequest also returns the body. To do so, it
-// consumes req.Body and then replaces it with a new io.ReadCloser
+// consumes req.Body and then replaces it with a new [io.ReadCloser]
 // that yields the same bytes. If DumpRequest returns an error,
 // the state of req is undefined.
 //
-// The documentation for http.Request.Write details which fields
+// The documentation for [http.Request.Write] details which fields
 // of req are included in the dump.
 func DumpRequest(req *http.Request, body bool) ([]byte, error) {
 	var err error
@@ -257,9 +256,6 @@ func DumpRequest(req *http.Request, body bool) ([]byte, error) {
 	chunked := len(req.TransferEncoding) > 0 && req.TransferEncoding[0] == "chunked"
 	if len(req.TransferEncoding) > 0 {
 		fmt.Fprintf(&b, "Transfer-Encoding: %s\r\n", strings.Join(req.TransferEncoding, ","))
-	}
-	if req.Close {
-		fmt.Fprintf(&b, "Connection: close\r\n")
 	}
 
 	err = req.Header.WriteSubset(&b, reqWriteExcludeHeaderDump)

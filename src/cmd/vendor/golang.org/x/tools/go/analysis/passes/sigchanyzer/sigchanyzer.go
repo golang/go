@@ -8,6 +8,9 @@ package sigchanyzer
 
 import (
 	"bytes"
+	"slices"
+
+	_ "embed"
 	"go/ast"
 	"go/format"
 	"go/token"
@@ -16,22 +19,27 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
-const Doc = `check for unbuffered channel of os.Signal
-
-This checker reports call expression of the form signal.Notify(c <-chan os.Signal, sig ...os.Signal),
-where c is an unbuffered channel, which can be at risk of missing the signal.`
+//go:embed doc.go
+var doc string
 
 // Analyzer describes sigchanyzer analysis function detector.
 var Analyzer = &analysis.Analyzer{
 	Name:     "sigchanyzer",
-	Doc:      Doc,
+	Doc:      analyzerutil.MustExtractDoc(doc, "sigchanyzer"),
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/sigchanyzer",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
+	if !typesinternal.Imports(pass.Pkg, "os/signal") {
+		return nil, nil // doesn't directly import signal
+	}
+
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -64,7 +72,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		// mutating the AST. See https://golang.org/issue/46129.
 		chanDeclCopy := &ast.CallExpr{}
 		*chanDeclCopy = *chanDecl
-		chanDeclCopy.Args = append([]ast.Expr(nil), chanDecl.Args...)
+		chanDeclCopy.Args = slices.Clone(chanDecl.Args)
 		chanDeclCopy.Args = append(chanDeclCopy.Args, &ast.BasicLit{
 			Kind:  token.INT,
 			Value: "1",

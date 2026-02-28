@@ -13,17 +13,17 @@ package p
 func _() {
 	go func() {     // no error here about goroutine
 		send <- // GCCGO_ERROR "undefined name"
-	}()             // ERROR "expecting expression|expected operand"
+	}()             // ERROR "expected expression|expected operand"
 }
 
 func _() {
 	defer func() { // no error here about deferred function
 		1 +    // GCCGO_ERROR "value computed is not used"
-	}()            // ERROR "expecting expression|expected operand"
+	}()            // ERROR "expected expression|expected operand"
 }
 
 func _() {
-	_ = (1 +)             // ERROR "expecting expression|expected operand"
-	_ = a[2 +]            // ERROR "expecting expression|expected operand|undefined name"
-	_ = []int{1, 2, 3 + } // ERROR "expecting expression|expected operand"
+	_ = (1 +)             // ERROR "expected expression|expected operand"
+	_ = a[2 +]            // ERROR "expected expression|expected operand|undefined name"
+	_ = []int{1, 2, 3 + } // ERROR "expected expression|expected operand"
 }

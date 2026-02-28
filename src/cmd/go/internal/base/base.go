@@ -13,8 +13,11 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"reflect"
+	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/str"
@@ -54,6 +57,20 @@ var Go = &Command{
 	UsageLine: "go",
 	Long:      `Go is a tool for managing Go source code.`,
 	// Commands initialized in package main
+}
+
+// Lookup returns the subcommand with the given name, if any.
+// Otherwise it returns nil.
+//
+// Lookup ignores any subcommand `sub` that has len(sub.Commands) == 0 and sub.Run == nil.
+// Such subcommands are only for use as arguments to "help".
+func (c *Command) Lookup(name string) *Command {
+	for _, sub := range c.Commands {
+		if sub.Name() == name && (len(sub.Commands) > 0 || sub.Runnable()) {
+			return sub
+		}
+	}
+	return nil
 }
 
 // hasFlag reports whether a command or any of its subcommands contain the given
@@ -133,6 +150,28 @@ func ExitIfErrors() {
 	}
 }
 
+func Error(err error) {
+	// We use errors.Join to return multiple errors from various routines.
+	// If we receive multiple errors joined with a basic errors.Join,
+	// handle each one separately so that they all have the leading "go: " prefix.
+	// A plain interface check is not good enough because there might be
+	// other kinds of structured errors that are logically one unit and that
+	// add other context: only handling the wrapped errors would lose
+	// that context.
+	if err != nil && reflect.TypeOf(err).String() == "*errors.joinError" {
+		for _, e := range err.(interface{ Unwrap() []error }).Unwrap() {
+			Error(e)
+		}
+		return
+	}
+	Errorf("go: %v", err)
+}
+
+func Fatal(err error) {
+	Error(err)
+	Exit()
+}
+
 var exitStatus = 0
 var exitMu sync.Mutex
 
@@ -152,32 +191,58 @@ func GetExitStatus() int {
 // connected to the go command's own stdout and stderr.
 // If the command fails, Run reports the error using Errorf.
 func Run(cmdargs ...any) {
+	if err := RunErr(cmdargs...); err != nil {
+		Errorf("%v", err)
+	}
+}
+
+// Run runs the command, with stdout and stderr
+// connected to the go command's own stdout and stderr.
+// If the command fails, RunErr returns the error, which
+// may be an *exec.ExitError.
+func RunErr(cmdargs ...any) error {
 	cmdline := str.StringList(cmdargs...)
 	if cfg.BuildN || cfg.BuildX {
 		fmt.Printf("%s\n", strings.Join(cmdline, " "))
 		if cfg.BuildN {
-			return
+			return nil
 		}
 	}
 
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		Errorf("%v", err)
-	}
+	return cmd.Run()
 }
 
-// RunStdin is like run but connects Stdin.
+// RunStdin is like run but connects Stdin. It retries if it encounters an ETXTBSY.
 func RunStdin(cmdline []string) {
-	cmd := exec.Command(cmdline[0], cmdline[1:]...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Env = cfg.OrigEnv
-	StartSigHandlers()
-	if err := cmd.Run(); err != nil {
-		Errorf("%v", err)
+	env := slices.Clip(cfg.OrigEnv)
+	env = AppendPATH(env)
+	for try := range 3 {
+		cmd := exec.Command(cmdline[0], cmdline[1:]...)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Env = env
+		StartSigHandlers()
+		err := cmd.Run()
+		if err == nil {
+			break // success
+		}
+
+		if !IsETXTBSY(err) {
+			Errorf("%v", err)
+			break // failure
+		}
+
+		// The error was an ETXTBSY. Sleep and try again. It's possible that
+		// another go command instance was racing against us to write the executable
+		// to the executable cache. In that case it may still have the file open, and
+		// we may get an ETXTBSY. That should resolve once that process closes the file
+		// so attempt a couple more times. See the discussion in #22220 and also
+		// (*runTestActor).Act in cmd/go/internal/test, which does something similar.
+		time.Sleep(100 * time.Millisecond << uint(try))
 	}
 }
 

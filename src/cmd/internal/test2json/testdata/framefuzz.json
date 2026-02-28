@@ -1,0 +1,69 @@
+{"Action":"start"}
+{"Action":"run","Test":"TestAddrStringAllocs"}
+{"Action":"output","Test":"TestAddrStringAllocs","Output":"=== RUN   TestAddrStringAllocs\n"}
+{"Action":"run","Test":"TestAddrStringAllocs/zero"}
+{"Action":"output","Test":"TestAddrStringAllocs/zero","Output":"=== RUN   TestAddrStringAllocs/zero\n"}
+{"Action":"run","Test":"TestAddrStringAllocs/ipv4"}
+{"Action":"output","Test":"TestAddrStringAllocs/ipv4","Output":"=== RUN   TestAddrStringAllocs/ipv4\n"}
+{"Action":"run","Test":"TestAddrStringAllocs/ipv6"}
+{"Action":"output","Test":"TestAddrStringAllocs/ipv6","Output":"=== RUN   TestAddrStringAllocs/ipv6\n"}
+{"Action":"run","Test":"TestAddrStringAllocs/ipv6+zone"}
+{"Action":"output","Test":"TestAddrStringAllocs/ipv6+zone","Output":"=== RUN   TestAddrStringAllocs/ipv6+zone\n"}
+{"Action":"run","Test":"TestAddrStringAllocs/ipv4-in-ipv6"}
+{"Action":"output","Test":"TestAddrStringAllocs/ipv4-in-ipv6","Output":"=== RUN   TestAddrStringAllocs/ipv4-in-ipv6\n"}
+{"Action":"run","Test":"TestAddrStringAllocs/ipv4-in-ipv6+zone"}
+{"Action":"output","Test":"TestAddrStringAllocs/ipv4-in-ipv6+zone","Output":"=== RUN   TestAddrStringAllocs/ipv4-in-ipv6+zone\n"}
+{"Action":"output","Test":"TestAddrStringAllocs","Output":"--- PASS: TestAddrStringAllocs (0.00s)\n"}
+{"Action":"output","Test":"TestAddrStringAllocs/zero","Output":"    --- PASS: TestAddrStringAllocs/zero (0.00s)\n"}
+{"Action":"pass","Test":"TestAddrStringAllocs/zero"}
+{"Action":"output","Test":"TestAddrStringAllocs/ipv4","Output":"    --- PASS: TestAddrStringAllocs/ipv4 (0.00s)\n"}
+{"Action":"pass","Test":"TestAddrStringAllocs/ipv4"}
+{"Action":"output","Test":"TestAddrStringAllocs/ipv6","Output":"    --- PASS: TestAddrStringAllocs/ipv6 (0.00s)\n"}
+{"Action":"pass","Test":"TestAddrStringAllocs/ipv6"}
+{"Action":"output","Test":"TestAddrStringAllocs/ipv6+zone","Output":"    --- PASS: TestAddrStringAllocs/ipv6+zone (0.00s)\n"}
+{"Action":"pass","Test":"TestAddrStringAllocs/ipv6+zone"}
+{"Action":"output","Test":"TestAddrStringAllocs/ipv4-in-ipv6","Output":"    --- PASS: TestAddrStringAllocs/ipv4-in-ipv6 (0.00s)\n"}
+{"Action":"pass","Test":"TestAddrStringAllocs/ipv4-in-ipv6"}
+{"Action":"output","Test":"TestAddrStringAllocs/ipv4-in-ipv6+zone","Output":"    --- PASS: TestAddrStringAllocs/ipv4-in-ipv6+zone (0.00s)\n"}
+{"Action":"pass","Test":"TestAddrStringAllocs/ipv4-in-ipv6+zone"}
+{"Action":"pass","Test":"TestAddrStringAllocs"}
+{"Action":"run","Test":"TestPrefixString"}
+{"Action":"output","Test":"TestPrefixString","Output":"=== RUN   TestPrefixString\n"}
+{"Action":"output","Test":"TestPrefixString","Output":"--- PASS: TestPrefixString (0.00s)\n"}
+{"Action":"pass","Test":"TestPrefixString"}
+{"Action":"run","Test":"TestInvalidAddrPortString"}
+{"Action":"output","Test":"TestInvalidAddrPortString","Output":"=== RUN   TestInvalidAddrPortString\n"}
+{"Action":"output","Test":"TestInvalidAddrPortString","Output":"--- PASS: TestInvalidAddrPortString (0.00s)\n"}
+{"Action":"pass","Test":"TestInvalidAddrPortString"}
+{"Action":"run","Test":"TestAsSlice"}
+{"Action":"output","Test":"TestAsSlice","Output":"=== RUN   TestAsSlice\n"}
+{"Action":"output","Test":"TestAsSlice","Output":"--- PASS: TestAsSlice (0.00s)\n"}
+{"Action":"pass","Test":"TestAsSlice"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"Addr.string4\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"Prefix.isZero\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"IPv4Unspecified\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"joinHostPort\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"Addr.MarshalBinary\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"bePutUint64\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"mask6\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"AddrPort.isZero\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"stringsLastIndexByte\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"Addr.isZero\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"bePutUint32\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"leUint16\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"Addr.string6\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"beUint64\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"appendHexPad\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"    inlining_test.go:102: not in expected set, but also inlinable: \"lePutUint16\"\n"}
+{"Action":"output","Test":"TestInlining","Output":"--- PASS: TestInlining (0.10s)\n"}
+{"Action":"pass","Test":"TestInlining"}
+{"Action":"run","Test":"FuzzParse"}
+{"Action":"output","Test":"FuzzParse","Output":"=== RUN   FuzzParse\n"}
+{"Action":"output","Test":"FuzzParse","Output":"fuzz: elapsed: 0s, gathering baseline coverage: 0/390 completed\n"}
+{"Action":"output","Test":"FuzzParse","Output":"fuzz: elapsed: 0s, gathering baseline coverage: 390/390 completed, now fuzzing with 16 workers\n"}
+{"Action":"output","Test":"FuzzParse","Output":"fuzz: elapsed: 3s, execs: 438666 (146173/sec), new interesting: 12 (total: 402)\n"}
+{"Action":"output","Test":"FuzzParse","Output":"\u0003fuzz: elapsed: 4s, execs: 558467 (147850/sec), new interesting: 15 (total: 405)\n"}
+{"Action":"output","Test":"FuzzParse","Output":"--- PASS: FuzzParse (3.85s)\n"}
+{"Action":"pass","Test":"FuzzParse"}
+{"Action":"output","Output":"PASS\n"}
+{"Action":"pass"}

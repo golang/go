@@ -14,6 +14,7 @@ import (
 	"runtime"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 
@@ -38,26 +39,31 @@ See https://golang.org/ref/mod#go-mod-verify for more about 'go mod verify'.
 }
 
 func init() {
+	base.AddChdirFlag(&cmdVerify.Flag)
 	base.AddModCommonFlags(&cmdVerify.Flag)
 }
 
 func runVerify(ctx context.Context, cmd *base.Command, args []string) {
-	modload.InitWorkfile()
+	moduleLoaderState := modload.NewState()
+	moduleLoaderState.InitWorkfile()
 
 	if len(args) != 0 {
 		// NOTE(rsc): Could take a module pattern.
 		base.Fatalf("go: verify takes no arguments")
 	}
-	modload.ForceUseModules = true
-	modload.RootMode = modload.NeedRoot
+	moduleLoaderState.ForceUseModules = true
+	moduleLoaderState.RootMode = modload.NeedRoot
 
 	// Only verify up to GOMAXPROCS zips at once.
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
 
+	mg, err := modload.LoadModGraph(moduleLoaderState, ctx, "")
+	if err != nil {
+		base.Fatal(err)
+	}
+	mods := mg.BuildList()
 	// Use a slice of result channels, so that the output is deterministic.
-	const defaultGoVersion = ""
-	mods := modload.LoadModGraph(ctx, defaultGoVersion).BuildList()[1:]
 	errsChans := make([]<-chan []error, len(mods))
 
 	for i, mod := range mods {
@@ -66,7 +72,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 		errsChans[i] = errsc
 		mod := mod // use a copy to avoid data races
 		go func() {
-			errsc <- verifyMod(mod)
+			errsc <- verifyMod(moduleLoaderState, ctx, mod)
 			<-sem
 		}()
 	}
@@ -84,13 +90,20 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 	}
 }
 
-func verifyMod(mod module.Version) []error {
+func verifyMod(loaderstate *modload.State, ctx context.Context, mod module.Version) []error {
+	if gover.IsToolchain(mod.Path) {
+		// "go" and "toolchain" have no disk footprint; nothing to verify.
+		return nil
+	}
+	if loaderstate.MainModules.Contains(mod.Path) {
+		return nil
+	}
 	var errs []error
-	zip, zipErr := modfetch.CachePath(mod, "zip")
+	zip, zipErr := modfetch.CachePath(ctx, mod, "zip")
 	if zipErr == nil {
 		_, zipErr = os.Stat(zip)
 	}
-	dir, dirErr := modfetch.DownloadDir(mod)
+	dir, dirErr := modfetch.DownloadDir(ctx, mod)
 	data, err := os.ReadFile(zip + "hash")
 	if err != nil {
 		if zipErr != nil && errors.Is(zipErr, fs.ErrNotExist) &&

@@ -90,7 +90,11 @@ func LockOSThreadAlt() {
 			println("locked thread reused")
 			os.Exit(1)
 		}
-		exists, supported := tidExists(subTID)
+		exists, supported, err := tidExists(subTID)
+		if err != nil {
+			println("error:", err.Error())
+			return
+		}
 		if !supported || !exists {
 			goto ok
 		}
@@ -155,7 +159,7 @@ func LockOSThreadAvoidsStatePropagation() {
 		}
 		// Chdir to somewhere else on this thread.
 		// On systems other than Linux, this is a no-op.
-		if err := chdir("/tmp"); err != nil {
+		if err := chdir(os.TempDir()); err != nil {
 			println("failed to chdir:", err.Error())
 			os.Exit(1)
 		}

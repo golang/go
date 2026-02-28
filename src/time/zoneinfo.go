@@ -16,6 +16,10 @@ import (
 // Typically, the Location represents the collection of time offsets
 // in use in a geographical area. For many Locations the time offset varies
 // depending on whether daylight savings time is in use at the time instant.
+//
+// Location is used to provide a time zone in a printed Time value and for
+// calculations involving intervals that may cross daylight savings time
+// boundaries.
 type Location struct {
 	name string
 	zone []zone
@@ -95,14 +99,35 @@ func (l *Location) get() *Location {
 }
 
 // String returns a descriptive name for the time zone information,
-// corresponding to the name argument to LoadLocation or FixedZone.
+// corresponding to the name argument to [LoadLocation] or [FixedZone].
 func (l *Location) String() string {
 	return l.get().name
 }
 
-// FixedZone returns a Location that always uses
+var unnamedFixedZones []*Location
+var unnamedFixedZonesOnce sync.Once
+
+// FixedZone returns a [Location] that always uses
 // the given zone name and offset (seconds east of UTC).
 func FixedZone(name string, offset int) *Location {
+	// Most calls to FixedZone have an unnamed zone with an offset by the hour.
+	// Optimize for that case by returning the same *Location for a given hour.
+	const hoursBeforeUTC = 12
+	const hoursAfterUTC = 14
+	hour := offset / 60 / 60
+	if name == "" && -hoursBeforeUTC <= hour && hour <= +hoursAfterUTC && hour*60*60 == offset {
+		unnamedFixedZonesOnce.Do(func() {
+			unnamedFixedZones = make([]*Location, hoursBeforeUTC+1+hoursAfterUTC)
+			for hr := -hoursBeforeUTC; hr <= +hoursAfterUTC; hr++ {
+				unnamedFixedZones[hr+hoursBeforeUTC] = fixedZone("", hr*60*60)
+			}
+		})
+		return unnamedFixedZones[hour+hoursBeforeUTC]
+	}
+	return fixedZone(name, offset)
+}
+
+func fixedZone(name string, offset int) *Location {
 	l := &Location{
 		name:       name,
 		zone:       []zone{{name, offset, false}},
@@ -163,7 +188,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64,
 	lo := 0
 	hi := len(tx)
 	for hi-lo > 1 {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		lim := tx[m].when
 		if sec < lim {
 			end = lim
@@ -182,7 +207,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64,
 	// If we're at the end of the known zone transitions,
 	// try the extend string.
 	if lo == len(tx)-1 && l.extend != "" {
-		if ename, eoffset, estart, eend, eisDST, ok := tzset(l.extend, end, sec); ok {
+		if ename, eoffset, estart, eend, eisDST, ok := tzset(l.extend, start, sec); ok {
 			return ename, eoffset, estart, eend, eisDST
 		}
 	}
@@ -243,12 +268,12 @@ func (l *Location) firstZoneUsed() bool {
 }
 
 // tzset takes a timezone string like the one found in the TZ environment
-// variable, the end of the last time zone transition expressed as seconds
+// variable, the time of the last time zone transition expressed as seconds
 // since January 1, 1970 00:00:00 UTC, and a time expressed the same way.
 // We call this a tzset string since in C the function tzset reads TZ.
 // The return values are as for lookup, plus ok which reports whether the
 // parse succeeded.
-func tzset(s string, initEnd, sec int64) (name string, offset int, start, end int64, isDST, ok bool) {
+func tzset(s string, lastTxSec, sec int64) (name string, offset int, start, end int64, isDST, ok bool) {
 	var (
 		stdName, dstName     string
 		stdOffset, dstOffset int
@@ -269,7 +294,7 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 
 	if len(s) == 0 || s[0] == ',' {
 		// No daylight savings time.
-		return stdName, stdOffset, initEnd, omega, false, true
+		return stdName, stdOffset, lastTxSec, omega, false, true
 	}
 
 	dstName, s, ok = tzsetName(s)
@@ -306,14 +331,11 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 		return "", 0, 0, 0, false, false
 	}
 
-	year, _, _, yday := absDate(uint64(sec+unixToInternal+internalToAbsolute), false)
-
-	ysec := int64(yday*secondsPerDay) + sec%secondsPerDay
-
-	// Compute start of year in seconds since Unix epoch.
-	d := daysSinceEpoch(year)
-	abs := int64(d * secondsPerDay)
-	abs += absoluteToInternal + internalToUnix
+	// Compute start of year in seconds since Unix epoch,
+	// and seconds since then to get to sec.
+	year, yday := absSeconds(sec + unixToInternal + internalToAbsolute).days().yearYday()
+	ysec := int64((yday-1)*secondsPerDay) + sec%secondsPerDay
+	ystart := sec - ysec
 
 	startSec := int64(tzruleTime(year, startRule, stdOffset))
 	endSec := int64(tzruleTime(year, endRule, dstOffset))
@@ -333,11 +355,11 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 	// just the start and end of the year. That suffices for
 	// the only caller that cares, which is Date.
 	if ysec < startSec {
-		return stdName, stdOffset, abs, startSec + abs, stdIsDST, true
+		return stdName, stdOffset, ystart, startSec + ystart, stdIsDST, true
 	} else if ysec >= endSec {
-		return stdName, stdOffset, endSec + abs, abs + 365*secondsPerDay, stdIsDST, true
+		return stdName, stdOffset, endSec + ystart, ystart + 365*secondsPerDay, stdIsDST, true
 	} else {
-		return dstName, dstOffset, startSec + abs, endSec + abs, dstIsDST, true
+		return dstName, dstOffset, startSec + ystart, endSec + ystart, dstIsDST, true
 	}
 }
 
@@ -571,7 +593,7 @@ func tzruleTime(year int, r rule, off int) int {
 			}
 			d += 7
 		}
-		d += int(daysBefore[r.mon-1])
+		d += daysBefore(Month(r.mon))
 		if isLeap(year) && r.mon > 2 {
 			d++
 		}
@@ -623,21 +645,22 @@ var errLocation = errors.New("time: invalid location name")
 var zoneinfo *string
 var zoneinfoOnce sync.Once
 
-// LoadLocation returns the Location with the given name.
+// LoadLocation returns a [Location] with the given name.
 //
-// If the name is "" or "UTC", LoadLocation returns UTC.
-// If the name is "Local", LoadLocation returns Local.
+// If the name is "" or "UTC", LoadLocation returns [UTC].
+// If the name is "Local", LoadLocation returns [Local].
 //
-// Otherwise, the name is taken to be a location name corresponding to a file
+// Otherwise, a new [Location] is created where the name is taken
+// to be a location name corresponding to a file
 // in the IANA Time Zone database, such as "America/New_York".
 //
 // LoadLocation looks for the IANA Time Zone database in the following
 // locations in order:
 //
-// - the directory or uncompressed zip file named by the ZONEINFO environment variable
-// - on a Unix system, the system standard installation location
-// - $GOROOT/lib/time/zoneinfo.zip
-// - the time/tzdata package, if it was imported
+//   - the directory or uncompressed zip file named by the ZONEINFO environment variable
+//   - on a Unix system, the system standard installation location
+//   - $GOROOT/lib/time/zoneinfo.zip
+//   - the time/tzdata package, if it was imported
 func LoadLocation(name string) (*Location, error) {
 	if name == "" || name == "UTC" {
 		return UTC, nil

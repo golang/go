@@ -7,10 +7,12 @@ package strings_test
 import (
 	"bytes"
 	"fmt"
+	"internal/asan"
 	"io"
+	"iter"
 	"math"
 	"math/rand"
-	"reflect"
+	"slices"
 	"strconv"
 	. "strings"
 	"testing"
@@ -19,16 +21,35 @@ import (
 	"unsafe"
 )
 
-func eq(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
+func collect(t *testing.T, seq iter.Seq[string]) []string {
+	out := slices.Collect(seq)
+	out1 := slices.Collect(seq)
+	if !slices.Equal(out, out1) {
+		t.Fatalf("inconsistent seq:\n%s\n%s", out, out1)
 	}
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
-			return false
+	return out
+}
+
+type LinesTest struct {
+	a string
+	b []string
+}
+
+var linesTests = []LinesTest{
+	{a: "abc\nabc\n", b: []string{"abc\n", "abc\n"}},
+	{a: "abc\r\nabc", b: []string{"abc\r\n", "abc"}},
+	{a: "abc\r\n", b: []string{"abc\r\n"}},
+	{a: "\nabc", b: []string{"\n", "abc"}},
+	{a: "\nabc\n\n", b: []string{"\n", "abc\n", "\n"}},
+}
+
+func TestLines(t *testing.T) {
+	for _, s := range linesTests {
+		result := slices.Collect(Lines(s.a))
+		if !slices.Equal(result, s.b) {
+			t.Errorf(`slices.Collect(Lines(%q)) = %q; want %q`, s.a, result, s.b)
 		}
 	}
-	return true
 }
 
 var abcd = "abcd"
@@ -54,6 +75,11 @@ var indexTests = []IndexTest{
 	{"foo", "", 0},
 	{"foo", "o", 1},
 	{"abcABCabc", "A", 3},
+	{"jrzm6jjhorimglljrea4w3rlgosts0w2gia17hno2td4qd1jz", "jz", 47},
+	{"ekkuk5oft4eq0ocpacknhwouic1uua46unx12l37nioq9wbpnocqks6", "ks6", 52},
+	{"999f2xmimunbuyew5vrkla9cpwhmxan8o98ec", "98ec", 33},
+	{"9lpt9r98i04k8bz6c6dsrthb96bhi", "96bhi", 24},
+	{"55u558eqfaod2r2gu42xxsu631xf0zobs5840vl", "5840vl", 33},
 	// cases with one byte strings - test special case in Index()
 	{"", "a", -1},
 	{"x", "a", -1},
@@ -130,6 +156,11 @@ var indexTests = []IndexTest{
 	// test fallback to Rabin-Karp.
 	{"oxoxoxoxoxoxoxoxoxoxoxoy", "oy", 22},
 	{"oxoxoxoxoxoxoxoxoxoxoxox", "oy", -1},
+	// test fallback to IndexRune
+	{"oxoxoxoxoxoxoxoxoxoxox☺", "☺", 22},
+	// invalid UTF-8 byte sequence (must be longer than bytealg.MaxBruteForce to
+	// test that we don't use IndexRune)
+	{"xx0123456789012345678901234567890123456789012345678901234567890120123456789012345678901234567890123456xxx\xed\x9f\xc0", "\xed\x9f\xc0", 105},
 }
 
 var lastIndexTests = []IndexTest{
@@ -301,6 +332,37 @@ func TestIndexRune(t *testing.T) {
 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", -1, -1},
 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", 0xD800, -1}, // Surrogate pair
 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", utf8.MaxRune + 1, -1},
+
+		// 2 bytes
+		{"ӆ", 'ӆ', 0},
+		{"a", 'ӆ', -1},
+		{"  ӆ", 'ӆ', 2},
+		{"  a", 'ӆ', -1},
+		{Repeat("ц", 64) + "ӆ", 'ӆ', 128}, // test cutover
+		{Repeat("Ꙁ", 64) + "Ꚁ", '䚀', -1},  // 'Ꚁ' and '䚀' share the same last two bytes
+
+		// 3 bytes
+		{"Ꚁ", 'Ꚁ', 0},
+		{"a", 'Ꚁ', -1},
+		{"  Ꚁ", 'Ꚁ', 2},
+		{"  a", 'Ꚁ', -1},
+		{Repeat("Ꙁ", 64) + "Ꚁ", 'Ꚁ', 192}, // test cutover
+		{Repeat("𡋀", 64) + "𡌀", '𣌀', -1},  // '𡌀' and '𣌀' share the same last two bytes
+
+		// 4 bytes
+		{"𡌀", '𡌀', 0},
+		{"a", '𡌀', -1},
+		{"  𡌀", '𡌀', 2},
+		{"  a", '𡌀', -1},
+		{Repeat("𡋀", 64) + "𡌀", '𡌀', 256}, // test cutover
+		{Repeat("𡋀", 64), '𡌀', -1},
+
+		// Test the cutover to bytealg.IndexString when it is triggered in
+		// the middle of rune that contains consecutive runs of equal bytes.
+		{"aaaaaKKKK\U000bc104", '\U000bc104', 17}, // cutover: (n + 16) / 8
+		{"aaaaaKKKK鄄", '鄄', 17},
+		{"aaKKKKKa\U000bc104", '\U000bc104', 18}, // cutover: 4 + n>>4
+		{"aaKKKKKa鄄", '鄄', 18},
 	}
 	for _, tt := range tests {
 		if got := IndexRune(tt.in, tt.rune); got != tt.want {
@@ -308,13 +370,14 @@ func TestIndexRune(t *testing.T) {
 		}
 	}
 
-	haystack := "test世界"
+	// Make sure we trigger the cutover and string(rune) conversion.
+	haystack := "test" + Repeat("𡋀", 32) + "𡌀"
 	allocs := testing.AllocsPerRun(1000, func() {
 		if i := IndexRune(haystack, 's'); i != 2 {
 			t.Fatalf("'s' at %d; want 2", i)
 		}
-		if i := IndexRune(haystack, '世'); i != 4 {
-			t.Fatalf("'世' at %d; want 4", i)
+		if i := IndexRune(haystack, '𡌀'); i != 132 {
+			t.Fatalf("'𡌀' at %d; want 4", i)
 		}
 	})
 	if allocs != 0 && testing.CoverMode() == "" {
@@ -406,14 +469,22 @@ var splittests = []SplitTest{
 	{"1 2 3 4", " ", 3, []string{"1", "2", "3 4"}},
 	{"1 2", " ", 3, []string{"1", "2"}},
 	{"", "T", math.MaxInt / 4, []string{""}},
+	{"\xff-\xff", "", -1, []string{"\xff", "-", "\xff"}},
+	{"\xff-\xff", "-", -1, []string{"\xff", "\xff"}},
 }
 
 func TestSplit(t *testing.T) {
 	for _, tt := range splittests {
 		a := SplitN(tt.s, tt.sep, tt.n)
-		if !eq(a, tt.a) {
+		if !slices.Equal(a, tt.a) {
 			t.Errorf("Split(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, a, tt.a)
 			continue
+		}
+		if tt.n < 0 {
+			a2 := slices.Collect(SplitSeq(tt.s, tt.sep))
+			if !slices.Equal(a2, tt.a) {
+				t.Errorf(`collect(SplitSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, a2, tt.a)
+			}
 		}
 		if tt.n == 0 {
 			continue
@@ -424,7 +495,7 @@ func TestSplit(t *testing.T) {
 		}
 		if tt.n < 0 {
 			b := Split(tt.s, tt.sep)
-			if !reflect.DeepEqual(a, b) {
+			if !slices.Equal(a, b) {
 				t.Errorf("Split disagrees with SplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
@@ -450,9 +521,15 @@ var splitaftertests = []SplitTest{
 func TestSplitAfter(t *testing.T) {
 	for _, tt := range splitaftertests {
 		a := SplitAfterN(tt.s, tt.sep, tt.n)
-		if !eq(a, tt.a) {
+		if !slices.Equal(a, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, a, tt.a)
 			continue
+		}
+		if tt.n < 0 {
+			a2 := slices.Collect(SplitAfterSeq(tt.s, tt.sep))
+			if !slices.Equal(a2, tt.a) {
+				t.Errorf(`collect(SplitAfterSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, a2, tt.a)
+			}
 		}
 		s := Join(a, "")
 		if s != tt.s {
@@ -460,7 +537,7 @@ func TestSplitAfter(t *testing.T) {
 		}
 		if tt.n < 0 {
 			b := SplitAfter(tt.s, tt.sep)
-			if !reflect.DeepEqual(a, b) {
+			if !slices.Equal(a, b) {
 				t.Errorf("SplitAfter disagrees with SplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
 			}
 		}
@@ -493,9 +570,13 @@ var fieldstests = []FieldsTest{
 func TestFields(t *testing.T) {
 	for _, tt := range fieldstests {
 		a := Fields(tt.s)
-		if !eq(a, tt.a) {
+		if !slices.Equal(a, tt.a) {
 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
 			continue
+		}
+		a2 := collect(t, FieldsSeq(tt.s))
+		if !slices.Equal(a2, tt.a) {
+			t.Errorf(`collect(FieldsSeq(%q)) = %v; want %v`, tt.s, a2, tt.a)
 		}
 	}
 }
@@ -510,7 +591,7 @@ var FieldsFuncTests = []FieldsTest{
 func TestFieldsFunc(t *testing.T) {
 	for _, tt := range fieldstests {
 		a := FieldsFunc(tt.s, unicode.IsSpace)
-		if !eq(a, tt.a) {
+		if !slices.Equal(a, tt.a) {
 			t.Errorf("FieldsFunc(%q, unicode.IsSpace) = %v; want %v", tt.s, a, tt.a)
 			continue
 		}
@@ -518,8 +599,12 @@ func TestFieldsFunc(t *testing.T) {
 	pred := func(c rune) bool { return c == 'X' }
 	for _, tt := range FieldsFuncTests {
 		a := FieldsFunc(tt.s, pred)
-		if !eq(a, tt.a) {
+		if !slices.Equal(a, tt.a) {
 			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
+		}
+		a2 := collect(t, FieldsFuncSeq(tt.s, pred))
+		if !slices.Equal(a2, tt.a) {
+			t.Errorf(`collect(FieldsFuncSeq(%q)) = %v; want %v`, tt.s, a2, tt.a)
 		}
 	}
 }
@@ -547,6 +632,7 @@ var upperTests = []StringTest{
 	{"AbC123", "ABC123"},
 	{"azAZ09_", "AZAZ09_"},
 	{"longStrinGwitHmixofsmaLLandcAps", "LONGSTRINGWITHMIXOFSMALLANDCAPS"},
+	{"RENAN BASTOS 93 AOSDAJDJAIDJAIDAJIaidsjjaidijadsjiadjiOOKKO", "RENAN BASTOS 93 AOSDAJDJAIDJAIDAJIAIDSJJAIDIJADSJIADJIOOKKO"},
 	{"long\u0250string\u0250with\u0250nonascii\u2C6Fchars", "LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS"},
 	{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"}, // grows one byte per char
 	{"a\u0080\U0010FFFF", "A\u0080\U0010FFFF"},                           // test utf8.RuneSelf and utf8.MaxRune
@@ -558,6 +644,7 @@ var lowerTests = []StringTest{
 	{"AbC123", "abc123"},
 	{"azAZ09_", "azaz09_"},
 	{"longStrinGwitHmixofsmaLLandcAps", "longstringwithmixofsmallandcaps"},
+	{"renan bastos 93 AOSDAJDJAIDJAIDAJIaidsjjaidijadsjiadjiOOKKO", "renan bastos 93 aosdajdjaidjaidajiaidsjjaidijadsjiadjiookko"},
 	{"LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS", "long\u0250string\u0250with\u0250nonascii\u0250chars"},
 	{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"}, // shrinks one byte per char
 	{"A\u0080\U0010FFFF", "a\u0080\U0010FFFF"},                           // test utf8.RuneSelf and utf8.MaxRune
@@ -607,7 +694,7 @@ func rot13(r rune) rune {
 func TestMap(t *testing.T) {
 	// Run a couple of awful growth/shrinkage tests
 	a := tenRunes('a')
-	// 1.  Grow. This triggers two reallocations in Map.
+	// 1. Grow. This triggers two reallocations in Map.
 	maxRune := func(rune) rune { return unicode.MaxRune }
 	m := Map(maxRune, a)
 	expect := tenRunes(unicode.MaxRune)
@@ -656,8 +743,7 @@ func TestMap(t *testing.T) {
 	}
 	orig := "Input string that we expect not to be copied."
 	m = Map(identity, orig)
-	if (*reflect.StringHeader)(unsafe.Pointer(&orig)).Data !=
-		(*reflect.StringHeader)(unsafe.Pointer(&m)).Data {
+	if unsafe.StringData(orig) != unsafe.StringData(m) {
 		t.Error("unexpected copy during identity map")
 	}
 
@@ -1102,6 +1188,15 @@ func TestCaseConsistency(t *testing.T) {
 	*/
 }
 
+var longString = "a" + string(make([]byte, 1<<16)) + "z"
+var longSpaces = func() string {
+	b := make([]byte, 200)
+	for i := range b {
+		b[i] = ' '
+	}
+	return string(b)
+}()
+
 var RepeatTests = []struct {
 	in, out string
 	count   int
@@ -1113,6 +1208,15 @@ var RepeatTests = []struct {
 	{"-", "-", 1},
 	{"-", "----------", 10},
 	{"abc ", "abc abc abc ", 3},
+	{" ", " ", 1},
+	{"--", "----", 2},
+	{"===", "======", 2},
+	{"000", "000000000", 3},
+	{"\t\t\t\t", "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t", 4},
+	{" ", longSpaces, len(longSpaces)},
+	// Tests for results over the chunkLimit
+	{string(rune(0)), string(make([]byte, 1<<16)), 1 << 16},
+	{longString, longString + longString, 2},
 }
 
 func TestRepeat(t *testing.T) {
@@ -1144,33 +1248,48 @@ func repeat(s string, count int) (err error) {
 
 // See Issue golang.org/issue/16237
 func TestRepeatCatchesOverflow(t *testing.T) {
-	tests := [...]struct {
+	type testCase struct {
 		s      string
 		count  int
 		errStr string
-	}{
+	}
+
+	runTestCases := func(prefix string, tests []testCase) {
+		for i, tt := range tests {
+			err := repeat(tt.s, tt.count)
+			if tt.errStr == "" {
+				if err != nil {
+					t.Errorf("#%d panicked %v", i, err)
+				}
+				continue
+			}
+
+			if err == nil || !Contains(err.Error(), tt.errStr) {
+				t.Errorf("%s#%d got %q want %q", prefix, i, err, tt.errStr)
+			}
+		}
+	}
+
+	const maxInt = int(^uint(0) >> 1)
+
+	runTestCases("", []testCase{
 		0: {"--", -2147483647, "negative"},
-		1: {"", int(^uint(0) >> 1), ""},
+		1: {"", maxInt, ""},
 		2: {"-", 10, ""},
 		3: {"gopher", 0, ""},
 		4: {"-", -1, "negative"},
 		5: {"--", -102, "negative"},
 		6: {string(make([]byte, 255)), int((^uint(0))/255 + 1), "overflow"},
+	})
+
+	const is64Bit = 1<<(^uintptr(0)>>63)/2 != 0
+	if !is64Bit {
+		return
 	}
 
-	for i, tt := range tests {
-		err := repeat(tt.s, tt.count)
-		if tt.errStr == "" {
-			if err != nil {
-				t.Errorf("#%d panicked %v", i, err)
-			}
-			continue
-		}
-
-		if err == nil || !Contains(err.Error(), tt.errStr) {
-			t.Errorf("#%d expected %q got %q", i, tt.errStr, err)
-		}
-	}
+	runTestCases("64-bit", []testCase{
+		0: {"-", maxInt, "out of range"},
+	})
 }
 
 func runesEqual(a, b []rune) bool {
@@ -1355,6 +1474,12 @@ var ReplaceTests = []struct {
 
 func TestReplace(t *testing.T) {
 	for _, tt := range ReplaceTests {
+		if !asan.Enabled { // See issue #72973.
+			allocs := testing.AllocsPerRun(10, func() { Replace(tt.in, tt.old, tt.new, tt.n) })
+			if allocs > 1 {
+				t.Errorf("Replace(%q, %q, %q, %d) allocates %.2f objects", tt.in, tt.old, tt.new, tt.n, allocs)
+			}
+		}
 		if s := Replace(tt.in, tt.old, tt.new, tt.n); s != tt.out {
 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
 		}
@@ -1364,6 +1489,64 @@ func TestReplace(t *testing.T) {
 				t.Errorf("ReplaceAll(%q, %q, %q) = %q, want %q", tt.in, tt.old, tt.new, s, tt.out)
 			}
 		}
+	}
+}
+
+func FuzzReplace(f *testing.F) {
+	for _, tt := range ReplaceTests {
+		f.Add(tt.in, tt.old, tt.new, tt.n)
+	}
+	f.Fuzz(func(t *testing.T, in, old, new string, n int) {
+		differentImpl := func(in, old, new string, n int) string {
+			var out Builder
+			if n < 0 {
+				n = math.MaxInt
+			}
+			for i := 0; i < len(in); {
+				if n == 0 {
+					out.WriteString(in[i:])
+					break
+				}
+				if HasPrefix(in[i:], old) {
+					out.WriteString(new)
+					i += len(old)
+					n--
+					if len(old) != 0 {
+						continue
+					}
+					if i == len(in) {
+						break
+					}
+				}
+				if len(old) == 0 {
+					_, length := utf8.DecodeRuneInString(in[i:])
+					out.WriteString(in[i : i+length])
+					i += length
+				} else {
+					out.WriteByte(in[i])
+					i++
+				}
+			}
+			if len(old) == 0 && n != 0 {
+				out.WriteString(new)
+			}
+			return out.String()
+		}
+		if simple, replace := differentImpl(in, old, new, n), Replace(in, old, new, n); simple != replace {
+			t.Errorf("The two implementations do not match %q != %q for Replace(%q, %q, %q, %d)", simple, replace, in, old, new, n)
+		}
+	})
+}
+
+func BenchmarkReplace(b *testing.B) {
+	for _, tt := range ReplaceTests {
+		desc := fmt.Sprintf("%q %q %q %d", tt.in, tt.old, tt.new, tt.n)
+		b.Run(desc, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				Replace(tt.in, tt.old, tt.new, tt.n)
+			}
+		})
 	}
 }
 
@@ -1522,6 +1705,17 @@ func TestContainsRune(t *testing.T) {
 	}
 }
 
+func TestContainsFunc(t *testing.T) {
+	for _, ct := range ContainsRuneTests {
+		if ContainsFunc(ct.str, func(r rune) bool {
+			return ct.r == r
+		}) != ct.expected {
+			t.Errorf("ContainsFunc(%q, func(%q)) = %v, want %v",
+				ct.str, ct.r, !ct.expected, ct.expected)
+		}
+	}
+}
+
 var EqualFoldTests = []struct {
 	s, t string
 	out  bool
@@ -1553,13 +1747,36 @@ func TestEqualFold(t *testing.T) {
 }
 
 func BenchmarkEqualFold(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		for _, tt := range EqualFoldTests {
-			if out := EqualFold(tt.s, tt.t); out != tt.out {
-				b.Fatal("wrong result")
+	b.Run("Tests", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, tt := range EqualFoldTests {
+				if out := EqualFold(tt.s, tt.t); out != tt.out {
+					b.Fatal("wrong result")
+				}
 			}
 		}
-	}
+	})
+
+	const s1 = "abcdefghijKz"
+	const s2 = "abcDefGhijKz"
+
+	b.Run("ASCII", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			EqualFold(s1, s2)
+		}
+	})
+
+	b.Run("UnicodePrefix", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			EqualFold("αβδ"+s1, "ΑΒΔ"+s2)
+		}
+	})
+
+	b.Run("UnicodeSuffix", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			EqualFold(s1+"αβδ", s2+"ΑΒΔ")
+		}
+	})
 }
 
 var CountTests = []struct {
@@ -1609,6 +1826,48 @@ func TestCut(t *testing.T) {
 	}
 }
 
+var cutPrefixTests = []struct {
+	s, sep string
+	after  string
+	found  bool
+}{
+	{"abc", "a", "bc", true},
+	{"abc", "abc", "", true},
+	{"abc", "", "abc", true},
+	{"abc", "d", "abc", false},
+	{"", "d", "", false},
+	{"", "", "", true},
+}
+
+func TestCutPrefix(t *testing.T) {
+	for _, tt := range cutPrefixTests {
+		if after, found := CutPrefix(tt.s, tt.sep); after != tt.after || found != tt.found {
+			t.Errorf("CutPrefix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, after, found, tt.after, tt.found)
+		}
+	}
+}
+
+var cutSuffixTests = []struct {
+	s, sep string
+	before string
+	found  bool
+}{
+	{"abc", "bc", "a", true},
+	{"abc", "abc", "", true},
+	{"abc", "", "abc", true},
+	{"abc", "d", "abc", false},
+	{"", "d", "", false},
+	{"", "", "", true},
+}
+
+func TestCutSuffix(t *testing.T) {
+	for _, tt := range cutSuffixTests {
+		if before, found := CutSuffix(tt.s, tt.sep); before != tt.before || found != tt.found {
+			t.Errorf("CutSuffix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, before, found, tt.before, tt.found)
+		}
+	}
+}
+
 func makeBenchInputHard() string {
 	tokens := [...]string{
 		"<a>", "<p>", "<b>", "<strong>",
@@ -1616,8 +1875,9 @@ func makeBenchInputHard() string {
 		"hello", "world",
 	}
 	x := make([]byte, 0, 1<<20)
+	r := rand.New(rand.NewSource(99))
 	for {
-		i := rand.Intn(len(tokens))
+		i := r.Intn(len(tokens))
 		if len(x)+len(tokens[i]) >= 1<<20 {
 			break
 		}
@@ -1705,8 +1965,9 @@ func BenchmarkCountByte(b *testing.B) {
 var makeFieldsInput = func() string {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
+	r := rand.New(rand.NewSource(99))
 	for i := range x {
-		switch rand.Intn(10) {
+		switch r.Intn(10) {
 		case 0:
 			x[i] = ' '
 		case 1:
@@ -1725,8 +1986,9 @@ var makeFieldsInput = func() string {
 var makeFieldsInputASCII = func() string {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, rest ASCII non-space.
+	r := rand.New(rand.NewSource(99))
 	for i := range x {
-		if rand.Intn(10) == 0 {
+		if r.Intn(10) == 0 {
 			x[i] = ' '
 		} else {
 			x[i] = 'x'
@@ -1807,13 +2069,39 @@ func BenchmarkSplitNMultiByteSeparator(b *testing.B) {
 func BenchmarkRepeat(b *testing.B) {
 	s := "0123456789"
 	for _, n := range []int{5, 10} {
-		for _, c := range []int{1, 2, 6} {
+		for _, c := range []int{0, 1, 2, 6} {
 			b.Run(fmt.Sprintf("%dx%d", n, c), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					Repeat(s[:n], c)
 				}
 			})
 		}
+	}
+}
+
+func BenchmarkRepeatLarge(b *testing.B) {
+	s := Repeat("@", 8*1024)
+	for j := 8; j <= 30; j++ {
+		for _, k := range []int{1, 16, 4097} {
+			s := s[:k]
+			n := (1 << j) / k
+			if n == 0 {
+				continue
+			}
+			b.Run(fmt.Sprintf("%d/%d", 1<<j, k), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					Repeat(s, n)
+				}
+				b.SetBytes(int64(n * len(s)))
+			})
+		}
+	}
+}
+
+func BenchmarkRepeatSpaces(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		Repeat(" ", 2)
 	}
 }
 

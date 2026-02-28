@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp/syntax"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -167,7 +168,7 @@ func testRE2(t *testing.T, file string) {
 			for i := range res {
 				have, suffix := run[i](re, refull, text)
 				want := parseResult(t, file, lineno, res[i])
-				if !same(have, want) {
+				if !slices.Equal(have, want) {
 					t.Errorf("%s:%d: %#q%s.FindSubmatchIndex(%#q) = %v, want %v", file, lineno, re, suffix, text, have, want)
 					if nfail++; nfail >= 100 {
 						t.Fatalf("stopping after %d errors", nfail)
@@ -307,18 +308,6 @@ func parseResult(t *testing.T, file string, lineno int, res string) []int {
 		}
 	}
 	return out
-}
-
-func same(x, y []int) bool {
-	if len(x) != len(y) {
-		return false
-	}
-	for i, xi := range x {
-		if xi != y[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // TestFowler runs this package's regexp API against the
@@ -547,7 +536,7 @@ Reading:
 			if len(have) > len(pos) {
 				have = have[:len(pos)]
 			}
-			if !same(have, pos) {
+			if !slices.Equal(have, pos) {
 				t.Errorf("%s:%d: %#q.FindSubmatchIndex(%#q) = %v, want %v", file, lineno, pattern, text, have, pos)
 			}
 		}

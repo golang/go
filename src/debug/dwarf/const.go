@@ -8,7 +8,7 @@ package dwarf
 
 //go:generate stringer -type Attr -trimprefix=Attr
 
-// An Attr identifies the attribute type in a DWARF Entry's Field.
+// An Attr identifies the attribute type in a DWARF [Entry.Field].
 type Attr uint32
 
 const (
@@ -203,7 +203,7 @@ const (
 
 //go:generate stringer -type Tag -trimprefix=Tag
 
-// A Tag is the classification (the type) of an Entry.
+// A Tag is the classification (the type) of an [Entry].
 type Tag uint32
 
 const (

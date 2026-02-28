@@ -11,27 +11,9 @@ package runtime
 import "unsafe"
 
 // AtomicFields is the set of fields on which we perform 64-bit atomic
-// operations (all the *64 operations in runtime/internal/atomic).
+// operations (all the *64 operations in internal/runtime/atomic).
 var AtomicFields = []uintptr{
 	unsafe.Offsetof(m{}.procid),
-	unsafe.Offsetof(p{}.timer0When),
-	unsafe.Offsetof(p{}.timerModifiedEarliest),
-	unsafe.Offsetof(p{}.gcFractionalMarkTime),
-	unsafe.Offsetof(schedt{}.goidgen),
-	unsafe.Offsetof(schedt{}.lastpoll),
-	unsafe.Offsetof(schedt{}.pollUntil),
-	unsafe.Offsetof(schedt{}.timeToRun),
-	unsafe.Offsetof(gcControllerState{}.bgScanCredit),
-	unsafe.Offsetof(gcControllerState{}.maxStackScan),
-	unsafe.Offsetof(gcControllerState{}.heapLive),
-	unsafe.Offsetof(gcControllerState{}.heapScan),
-	unsafe.Offsetof(gcControllerState{}.dedicatedMarkTime),
-	unsafe.Offsetof(gcControllerState{}.dedicatedMarkWorkersNeeded),
-	unsafe.Offsetof(gcControllerState{}.fractionalMarkTime),
-	unsafe.Offsetof(gcControllerState{}.idleMarkTime),
-	unsafe.Offsetof(gcControllerState{}.globalsScan),
-	unsafe.Offsetof(gcControllerState{}.lastStackScan),
-	unsafe.Offsetof(timeHistogram{}.underflow),
 	unsafe.Offsetof(profBuf{}.overflow),
 	unsafe.Offsetof(profBuf{}.overflowTime),
 	unsafe.Offsetof(heapStatsDelta{}.tinyAllocCount),
@@ -45,15 +27,11 @@ var AtomicFields = []uintptr{
 	unsafe.Offsetof(heapStatsDelta{}.released),
 	unsafe.Offsetof(heapStatsDelta{}.inHeap),
 	unsafe.Offsetof(heapStatsDelta{}.inStacks),
-	unsafe.Offsetof(heapStatsDelta{}.inPtrScalarBits),
 	unsafe.Offsetof(heapStatsDelta{}.inWorkBufs),
 	unsafe.Offsetof(lfnode{}.next),
 	unsafe.Offsetof(mstats{}.last_gc_nanotime),
 	unsafe.Offsetof(mstats{}.last_gc_unix),
-	unsafe.Offsetof(mstats{}.gcPauseDist),
-	unsafe.Offsetof(ticksType{}.val),
 	unsafe.Offsetof(workType{}.bytesMarked),
-	unsafe.Offsetof(timeHistogram{}.counts),
 }
 
 // AtomicVariables is the set of global variables on which we perform

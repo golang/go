@@ -14,10 +14,9 @@ import (
 
 func setUpContext(arch *sys.Arch, iself bool, ht objabi.HeadType, bm, lm string) *Link {
 	ctxt := linknew(arch)
-	edummy := func(str string, off int) {}
 	ctxt.HeadType = ht
 	er := loader.ErrorReporter{}
-	ctxt.loader = loader.NewLoader(0, edummy, &er)
+	ctxt.loader = loader.NewLoader(0, &er)
 	ctxt.BuildMode.Set(bm)
 	ctxt.LinkMode.Set(lm)
 	ctxt.IsELF = iself
@@ -88,6 +87,33 @@ func TestAddGotSym(t *testing.T) {
 		}
 		if s := ctxt.loader.SymSize(ctxt.loader.Lookup(".got", 0)); s != int64(test.gotsize) {
 			t.Fatalf(`[%d] expected ldr.Size(".got") == %v, got %v`, i, test.gotsize, s)
+		}
+	}
+}
+
+func TestWriteULebFixedLength(t *testing.T) {
+	flavs := []objabi.RelocType{
+		objabi.R_DWTXTADDR_U1,
+		objabi.R_DWTXTADDR_U2,
+		objabi.R_DWTXTADDR_U3,
+		objabi.R_DWTXTADDR_U4,
+	}
+	var clear, scratch [7]byte
+	tmp := scratch[:]
+	for i := range 5 {
+		for _, rt := range flavs {
+			scratch = clear
+			_, leb128len := rt.DwTxtAddrRelocParams()
+			_, n := objabi.FuncCountToDwTxtAddrFlavor(i)
+			if n > leb128len {
+				continue
+			}
+			err := writeUleb128FixedLength(tmp, uint64(i), leb128len)
+			if err != nil {
+				t.Errorf("unexpected err %v on val %d flav %s leb128len %d",
+					err, i, rt.String(), leb128len)
+				continue
+			}
 		}
 	}
 }

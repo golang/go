@@ -33,7 +33,7 @@ type clientCodec struct {
 	pending map[uint64]string // map request id to method name
 }
 
-// NewClientCodec returns a new rpc.ClientCodec using JSON-RPC on conn.
+// NewClientCodec returns a new [rpc.ClientCodec] using JSON-RPC on conn.
 func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
 	return &clientCodec{
 		dec:     json.NewDecoder(conn),
@@ -108,7 +108,7 @@ func (c *clientCodec) Close() error {
 	return c.c.Close()
 }
 
-// NewClient returns a new rpc.Client to handle requests to the
+// NewClient returns a new [rpc.Client] to handle requests to the
 // set of services at the other end of the connection.
 func NewClient(conn io.ReadWriteCloser) *rpc.Client {
 	return rpc.NewClientWithCodec(NewClientCodec(conn))
@@ -120,5 +120,5 @@ func Dial(network, address string) (*rpc.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewClient(conn), err
+	return NewClient(conn), nil
 }

@@ -6,13 +6,16 @@ package modfetch
 
 import (
 	"archive/zip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"flag"
 	"hash"
 	"internal/testenv"
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -20,15 +23,19 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch/codehost"
+	"cmd/go/internal/vcweb/vcstest"
 
 	"golang.org/x/mod/sumdb/dirhash"
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
+	flag.Parse()
+	if err := testMain(m); err != nil {
+		log.Fatal(err)
+	}
 }
 
-func testMain(m *testing.M) int {
+func testMain(m *testing.M) (err error) {
 	cfg.GOPROXY = "direct"
 
 	// The sum database is populated using a released version of the go command,
@@ -39,12 +46,31 @@ func testMain(m *testing.M) int {
 
 	dir, err := os.MkdirTemp("", "gitrepo-test-")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	defer os.RemoveAll(dir)
+	defer func() {
+		if rmErr := os.RemoveAll(dir); err == nil {
+			err = rmErr
+		}
+	}()
 
-	cfg.GOMODCACHE = dir
-	return m.Run()
+	cfg.GOMODCACHE = filepath.Join(dir, "modcache")
+	if err := os.Mkdir(cfg.GOMODCACHE, 0o755); err != nil {
+		return err
+	}
+
+	srv, err := vcstest.NewServer()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := srv.Close(); err == nil {
+			err = closeErr
+		}
+	}()
+
+	m.Run()
+	return nil
 }
 
 const (
@@ -379,18 +405,6 @@ var codeRepoTests = []codeRepoTest{
 		zipFileHash: "c15e49d58b7a4c37966cbe5bc01a0330cd5f2927e990e1839bda1d407766d9c5",
 	},
 	{
-		vcs:         "git",
-		path:        "gopkg.in/natefinch/lumberjack.v2",
-		rev:         "latest",
-		version:     "v2.0.0-20170531160350-a96e63847dc3",
-		name:        "a96e63847dc3c67d17befa69c303767e2f84e54f",
-		short:       "a96e63847dc3",
-		time:        time.Date(2017, 5, 31, 16, 3, 50, 0, time.UTC),
-		gomod:       "module gopkg.in/natefinch/lumberjack.v2\n",
-		zipSum:      "h1:AFxeG48hTWHhDTQDk/m2gorfVHUEa9vo3tp3D7TzwjI=",
-		zipFileHash: "b5de0da7bbbec76709eef1ac71b6c9ff423b9fbf3bb97b56743450d4937b06d5",
-	},
-	{
 		vcs:  "git",
 		path: "gopkg.in/natefinch/lumberjack.v2",
 		// This repo has a v2.1 tag.
@@ -574,16 +588,22 @@ var codeRepoTests = []codeRepoTest{
 func TestCodeRepo(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	tmpdir := t.TempDir()
+	fetcher := NewFetcher()
 
 	for _, tt := range codeRepoTests {
 		f := func(tt codeRepoTest) func(t *testing.T) {
 			return func(t *testing.T) {
+				if strings.Contains(tt.path, "gopkg.in") {
+					testenv.SkipFlaky(t, 54503)
+				}
+
 				t.Parallel()
 				if tt.vcs != "mod" {
 					testenv.MustHaveExecPath(t, tt.vcs)
 				}
+				ctx := context.Background()
 
-				repo := Lookup("direct", tt.path)
+				repo := fetcher.Lookup(ctx, "direct", tt.path)
 
 				if tt.mpath == "" {
 					tt.mpath = tt.path
@@ -592,7 +612,7 @@ func TestCodeRepo(t *testing.T) {
 					t.Errorf("repo.ModulePath() = %q, want %q", mpath, tt.mpath)
 				}
 
-				info, err := repo.Stat(tt.rev)
+				info, err := repo.Stat(ctx, tt.rev)
 				if err != nil {
 					if tt.err != "" {
 						if !strings.Contains(err.Error(), tt.err) {
@@ -619,7 +639,7 @@ func TestCodeRepo(t *testing.T) {
 				}
 
 				if tt.gomod != "" || tt.gomodErr != "" {
-					data, err := repo.GoMod(tt.version)
+					data, err := repo.GoMod(ctx, tt.version)
 					if err != nil && tt.gomodErr == "" {
 						t.Errorf("repo.GoMod(%q): %v", tt.version, err)
 					} else if err != nil && tt.gomodErr != "" {
@@ -653,7 +673,7 @@ func TestCodeRepo(t *testing.T) {
 					} else {
 						w = f
 					}
-					err = repo.Zip(w, tt.version)
+					err = repo.Zip(ctx, w, tt.version)
 					f.Close()
 					if err != nil {
 						if tt.zipErr != "" {
@@ -790,11 +810,6 @@ var codeRepoVersionsTests = []struct {
 	},
 	{
 		vcs:      "git",
-		path:     "gopkg.in/natefinch/lumberjack.v2",
-		versions: []string{"v2.0.0"},
-	},
-	{
-		vcs:      "git",
 		path:     "vcs-test.golang.org/git/odd-tags.git",
 		versions: nil,
 	},
@@ -802,33 +817,30 @@ var codeRepoVersionsTests = []struct {
 
 func TestCodeRepoVersions(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	fetcher := NewFetcher()
+	for _, tt := range codeRepoVersionsTests {
+		tt := tt
+		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
+			if strings.Contains(tt.path, "gopkg.in") {
+				testenv.SkipFlaky(t, 54503)
+			}
 
-	tmpdir, err := os.MkdirTemp("", "vgo-modfetch-test-")
-	if err != nil {
-		t.Fatal(err)
+			t.Parallel()
+			if tt.vcs != "mod" {
+				testenv.MustHaveExecPath(t, tt.vcs)
+			}
+			ctx := context.Background()
+
+			repo := fetcher.Lookup(ctx, "direct", tt.path)
+			list, err := repo.Versions(ctx, tt.prefix)
+			if err != nil {
+				t.Fatalf("Versions(%q): %v", tt.prefix, err)
+			}
+			if !reflect.DeepEqual(list.List, tt.versions) {
+				t.Fatalf("Versions(%q):\nhave %v\nwant %v", tt.prefix, list, tt.versions)
+			}
+		})
 	}
-	defer os.RemoveAll(tmpdir)
-
-	t.Run("parallel", func(t *testing.T) {
-		for _, tt := range codeRepoVersionsTests {
-			t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
-				tt := tt
-				t.Parallel()
-				if tt.vcs != "mod" {
-					testenv.MustHaveExecPath(t, tt.vcs)
-				}
-
-				repo := Lookup("direct", tt.path)
-				list, err := repo.Versions(tt.prefix)
-				if err != nil {
-					t.Fatalf("Versions(%q): %v", tt.prefix, err)
-				}
-				if !reflect.DeepEqual(list.List, tt.versions) {
-					t.Fatalf("Versions(%q):\nhave %v\nwant %v", tt.prefix, list, tt.versions)
-				}
-			})
-		}
-	})
 }
 
 var latestTests = []struct {
@@ -872,47 +884,50 @@ var latestTests = []struct {
 		path:    "swtch.com/testmod",
 		version: "v1.1.1",
 	},
+	{
+		vcs:     "git",
+		path:    "vcs-test.golang.org/go/gitreposubdir",
+		version: "v1.2.3",
+	},
+	{
+		vcs:     "git",
+		path:    "vcs-test.golang.org/go/gitreposubdirv2/v2",
+		version: "v2.0.0",
+	},
 }
 
 func TestLatest(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	fetcher := NewFetcher()
+	for _, tt := range latestTests {
+		name := strings.ReplaceAll(tt.path, "/", "_")
+		t.Run(name, func(t *testing.T) {
+			tt := tt
+			t.Parallel()
+			if tt.vcs != "mod" {
+				testenv.MustHaveExecPath(t, tt.vcs)
+			}
+			ctx := context.Background()
 
-	tmpdir, err := os.MkdirTemp("", "vgo-modfetch-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	t.Run("parallel", func(t *testing.T) {
-		for _, tt := range latestTests {
-			name := strings.ReplaceAll(tt.path, "/", "_")
-			t.Run(name, func(t *testing.T) {
-				tt := tt
-				t.Parallel()
-				if tt.vcs != "mod" {
-					testenv.MustHaveExecPath(t, tt.vcs)
-				}
-
-				repo := Lookup("direct", tt.path)
-				info, err := repo.Latest()
-				if err != nil {
-					if tt.err != "" {
-						if err.Error() == tt.err {
-							return
-						}
-						t.Fatalf("Latest(): %v, want %q", err, tt.err)
-					}
-					t.Fatalf("Latest(): %v", err)
-				}
+			repo := fetcher.Lookup(ctx, "direct", tt.path)
+			info, err := repo.Latest(ctx)
+			if err != nil {
 				if tt.err != "" {
-					t.Fatalf("Latest() = %v, want error %q", info.Version, tt.err)
+					if err.Error() == tt.err {
+						return
+					}
+					t.Fatalf("Latest(): %v, want %q", err, tt.err)
 				}
-				if info.Version != tt.version {
-					t.Fatalf("Latest() = %v, want %v", info.Version, tt.version)
-				}
-			})
-		}
-	})
+				t.Fatalf("Latest(): %v", err)
+			}
+			if tt.err != "" {
+				t.Fatalf("Latest() = %v, want error %q", info.Version, tt.err)
+			}
+			if info.Version != tt.version {
+				t.Fatalf("Latest() = %v, want %v", info.Version, tt.version)
+			}
+		})
+	}
 }
 
 // fixedTagsRepo is a fake codehost.Repo that returns a fixed list of tags
@@ -921,7 +936,7 @@ type fixedTagsRepo struct {
 	codehost.Repo
 }
 
-func (ch *fixedTagsRepo) Tags(string) (*codehost.Tags, error) {
+func (ch *fixedTagsRepo) Tags(ctx context.Context, prefix string) (*codehost.Tags, error) {
 	tags := &codehost.Tags{}
 	for _, t := range ch.tags {
 		tags.List = append(tags.List, codehost.Tag{Name: t})
@@ -930,6 +945,9 @@ func (ch *fixedTagsRepo) Tags(string) (*codehost.Tags, error) {
 }
 
 func TestNonCanonicalSemver(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
 	root := "golang.org/x/issue24476"
 	ch := &fixedTagsRepo{
 		tags: []string{
@@ -942,12 +960,12 @@ func TestNonCanonicalSemver(t *testing.T) {
 		},
 	}
 
-	cr, err := newCodeRepo(ch, root, root)
+	cr, err := newCodeRepo(ch, root, "", root)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	v, err := cr.Versions("")
+	v, err := cr.Versions(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}

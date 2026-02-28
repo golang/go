@@ -5,16 +5,16 @@
 /*
 Package template (html/template) implements data-driven templates for
 generating HTML output safe against code injection. It provides the
-same interface as package text/template and should be used instead of
-text/template whenever the output is HTML.
+same interface as [text/template] and should be used instead of
+[text/template] whenever the output is HTML.
 
 The documentation here focuses on the security features of the package.
 For information about how to program the templates themselves, see the
-documentation for text/template.
+documentation for [text/template].
 
 # Introduction
 
-This package wraps package text/template so you can share its template API
+This package wraps [text/template] so you can share its template API
 to parse and execute HTML templates safely.
 
 	tmpl, err := template.New("name").Parse(...)
@@ -27,6 +27,9 @@ defined in the docs for ErrorCode.
 HTML templates treat data values as plain text which should be encoded so they
 can be safely embedded in an HTML document. The escaping is contextual, so
 actions can appear within JavaScript, CSS, and URI contexts.
+
+Comments are stripped from output, except for those passed in via the
+[HTML], [CSS], and [JS] types for their respective contexts.
 
 The security model used by this package assumes that template authors are
 trusted, while Execute's data parameter is not. More details are
@@ -210,7 +213,7 @@ that would have been produced if {{.}} was a regular string.
 
 # Security Model
 
-https://rawgit.com/mikesamuel/sanitized-jquery-templates/trunk/safetemplate.html#problem_definition defines "safe" as used by this package.
+https://web.archive.org/web/20160501113828/http://js-quasis-libraries-and-repl.googlecode.com/svn/trunk/safetemplate.html#problem_definition defines "safe" as used by this package.
 
 This package assumes that template authors are trusted, that Execute's data
 parameter is not, and seeks to preserve the properties below in the face
@@ -231,5 +234,10 @@ Least Surprise Property:
 "A developer (or code reviewer) familiar with HTML, CSS, and JavaScript, who
 knows that contextual autoescaping happens should be able to look at a {{.}}
 and correctly infer what sanitization happens."
+
+Previously, ECMAScript 6 template literal were disabled by default, and could be
+enabled with the GODEBUG=jstmpllitinterp=1 environment variable. Template
+literals are now supported by default, and setting jstmpllitinterp has no
+effect.
 */
 package template

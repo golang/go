@@ -45,7 +45,7 @@ func map3() []*int {
 	m[&i] = &j
 	var r []*int
 	for k := range m {
-		r = append(r, k)
+		r = append(r, k) // ERROR "append escapes to heap"
 	}
 	return r
 }
@@ -61,7 +61,7 @@ func map4() []*int {
 		// We want to test exactly "for k, v := range m" rather than "for _, v := range m".
 		// The following if is merely to use (but not leak) k.
 		if k != nil {
-			r = append(r, v)
+			r = append(r, v) // ERROR "append escapes to heap"
 		}
 	}
 	return r

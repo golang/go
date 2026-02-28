@@ -13,7 +13,9 @@ package tar
 import (
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io/fs"
+	"maps"
 	"math"
 	"path"
 	"reflect"
@@ -26,14 +28,18 @@ import (
 // architectures. If a large value is encountered when decoding, the result
 // stored in Header will be the truncated version.
 
+var tarinsecurepath = godebug.New("tarinsecurepath")
+
 var (
 	ErrHeader          = errors.New("archive/tar: invalid tar header")
 	ErrWriteTooLong    = errors.New("archive/tar: write too long")
 	ErrFieldTooLong    = errors.New("archive/tar: header field too long")
 	ErrWriteAfterClose = errors.New("archive/tar: write after close")
+	ErrInsecurePath    = errors.New("archive/tar: insecure file path")
 	errMissData        = errors.New("archive/tar: sparse file references non-existent data")
 	errUnrefData       = errors.New("archive/tar: sparse file contains unreferenced data")
 	errWriteHole       = errors.New("archive/tar: write non-NUL byte in sparse hole")
+	errSparseTooLong   = errors.New("archive/tar: sparse map too long")
 )
 
 type headerError []string
@@ -55,8 +61,10 @@ func (he headerError) Error() string {
 // Type flags for Header.Typeflag.
 const (
 	// Type '0' indicates a regular file.
-	TypeReg  = '0'
-	TypeRegA = '\x00' // Deprecated: Use TypeReg instead.
+	TypeReg = '0'
+
+	// Deprecated: Use TypeReg instead.
+	TypeRegA = '\x00'
 
 	// Type '1' to '6' are header-only flags and may not have a data body.
 	TypeLink    = '1' // Hard link
@@ -601,8 +609,12 @@ func (fi headerFileInfo) Mode() (mode fs.FileMode) {
 	return mode
 }
 
+func (fi headerFileInfo) String() string {
+	return fs.FormatFileInfo(fi)
+}
+
 // sysStat, if non-nil, populates h from system-dependent fields of fi.
-var sysStat func(fi fs.FileInfo, h *Header) error
+var sysStat func(fi fs.FileInfo, h *Header, doNameLookups bool) error
 
 const (
 	// Mode constants from the USTAR spec:
@@ -622,13 +634,17 @@ const (
 	c_ISSOCK = 0140000 // Socket
 )
 
-// FileInfoHeader creates a partially-populated Header from fi.
+// FileInfoHeader creates a partially-populated [Header] from fi.
 // If fi describes a symlink, FileInfoHeader records link as the link target.
 // If fi describes a directory, a slash is appended to the name.
 //
 // Since fs.FileInfo's Name method only returns the base name of
 // the file it describes, it may be necessary to modify Header.Name
 // to provide the full path name of the file.
+//
+// If fi implements [FileInfoNames]
+// Header.Gname and Header.Uname
+// are provided by the methods of the interface.
 func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 	if fi == nil {
 		return nil, errors.New("archive/tar: FileInfo is nil")
@@ -682,29 +698,43 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 		h.Gname = sys.Gname
 		h.AccessTime = sys.AccessTime
 		h.ChangeTime = sys.ChangeTime
-		if sys.Xattrs != nil {
-			h.Xattrs = make(map[string]string)
-			for k, v := range sys.Xattrs {
-				h.Xattrs[k] = v
-			}
-		}
+		h.Xattrs = maps.Clone(sys.Xattrs)
 		if sys.Typeflag == TypeLink {
 			// hard link
 			h.Typeflag = TypeLink
 			h.Size = 0
 			h.Linkname = sys.Linkname
 		}
-		if sys.PAXRecords != nil {
-			h.PAXRecords = make(map[string]string)
-			for k, v := range sys.PAXRecords {
-				h.PAXRecords[k] = v
-			}
+		h.PAXRecords = maps.Clone(sys.PAXRecords)
+	}
+	var doNameLookups = true
+	if iface, ok := fi.(FileInfoNames); ok {
+		doNameLookups = false
+		var err error
+		h.Gname, err = iface.Gname()
+		if err != nil {
+			return nil, err
+		}
+		h.Uname, err = iface.Uname()
+		if err != nil {
+			return nil, err
 		}
 	}
 	if sysStat != nil {
-		return h, sysStat(fi, h)
+		return h, sysStat(fi, h, doNameLookups)
 	}
 	return h, nil
+}
+
+// FileInfoNames extends [fs.FileInfo].
+// Passing an instance of this to [FileInfoHeader] permits the caller
+// to avoid a system-dependent name lookup by specifying the Uname and Gname directly.
+type FileInfoNames interface {
+	fs.FileInfo
+	// Uname should give a user name.
+	Uname() (string, error)
+	// Gname should give a group name.
+	Gname() (string, error)
 }
 
 // isHeaderOnlyType checks if the given type flag is of the type that has no
@@ -716,11 +746,4 @@ func isHeaderOnlyType(flag byte) bool {
 	default:
 		return false
 	}
-}
-
-func min(a, b int64) int64 {
-	if a < b {
-		return a
-	}
-	return b
 }

@@ -12,6 +12,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"internal/godebug"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -26,18 +27,15 @@ import (
 // our command line are for us, and some are for the test binary, and
 // some are for both.
 
+var gotestjsonbuildtext = godebug.New("gotestjsonbuildtext")
+
 func init() {
-	work.AddBuildFlags(CmdTest, work.OmitVFlag)
+	work.AddBuildFlags(CmdTest, work.OmitVFlag|work.OmitJSONFlag)
 
 	cf := CmdTest.Flag
 	cf.BoolVar(&testC, "c", false, "")
-	cf.BoolVar(&cfg.BuildI, "i", false, "")
 	cf.StringVar(&testO, "o", "", "")
-
-	cf.BoolVar(&testCover, "cover", false, "")
-	cf.Var(coverFlag{(*coverModeFlag)(&testCoverMode)}, "covermode", "")
-	cf.Var(coverFlag{commaListFlag{&testCoverPaths}}, "coverpkg", "")
-
+	work.AddCoverFlags(CmdTest, &testCoverProfile)
 	cf.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 	cf.BoolVar(&testJSON, "json", false, "")
 	cf.Var(&testVet, "vet", "")
@@ -46,17 +44,18 @@ func init() {
 	// some of them so that cmd/go knows what to do with the test output, or knows
 	// to build the test in a way that supports the use of the flag.
 
+	cf.BoolVar(&testArtifacts, "artifacts", false, "")
 	cf.StringVar(&testBench, "bench", "", "")
 	cf.Bool("benchmem", false, "")
 	cf.String("benchtime", "", "")
 	cf.StringVar(&testBlockProfile, "blockprofile", "", "")
 	cf.String("blockprofilerate", "", "")
 	cf.Int("count", 0, "")
-	cf.Var(coverFlag{stringFlag{&testCoverProfile}}, "coverprofile", "")
 	cf.String("cpu", "", "")
 	cf.StringVar(&testCPUProfile, "cpuprofile", "", "")
-	cf.Bool("failfast", false, "")
+	cf.BoolVar(&testFailFast, "failfast", false, "")
 	cf.StringVar(&testFuzz, "fuzz", "", "")
+	cf.Bool("fullpath", false, "")
 	cf.StringVar(&testList, "list", "", "")
 	cf.StringVar(&testMemProfile, "memprofile", "", "")
 	cf.String("memprofilerate", "", "")
@@ -66,65 +65,19 @@ func init() {
 	cf.Int("parallel", 0, "")
 	cf.String("run", "", "")
 	cf.Bool("short", false, "")
-	cf.DurationVar(&testTimeout, "timeout", 10*time.Minute, "")
+	cf.String("skip", "", "")
+	cf.DurationVar(&testTimeout, "timeout", 10*time.Minute, "") // known to cmd/dist
 	cf.String("fuzztime", "", "")
 	cf.String("fuzzminimizetime", "", "")
 	cf.StringVar(&testTrace, "trace", "", "")
-	cf.BoolVar(&testV, "v", false, "")
+	cf.Var(&testV, "v", "")
 	cf.Var(&testShuffle, "shuffle", "")
 
-	for name := range passFlagToTest {
-		cf.Var(cf.Lookup(name).Value, "test."+name, "")
+	for name, ok := range passFlagToTest {
+		if ok {
+			cf.Var(cf.Lookup(name).Value, "test."+name, "")
+		}
 	}
-}
-
-// A coverFlag is a flag.Value that also implies -cover.
-type coverFlag struct{ v flag.Value }
-
-func (f coverFlag) String() string { return f.v.String() }
-
-func (f coverFlag) Set(value string) error {
-	if err := f.v.Set(value); err != nil {
-		return err
-	}
-	testCover = true
-	return nil
-}
-
-type coverModeFlag string
-
-func (f *coverModeFlag) String() string { return string(*f) }
-func (f *coverModeFlag) Set(value string) error {
-	switch value {
-	case "", "set", "count", "atomic":
-		*f = coverModeFlag(value)
-		return nil
-	default:
-		return errors.New(`valid modes are "set", "count", or "atomic"`)
-	}
-}
-
-// A commaListFlag is a flag.Value representing a comma-separated list.
-type commaListFlag struct{ vals *[]string }
-
-func (f commaListFlag) String() string { return strings.Join(*f.vals, ",") }
-
-func (f commaListFlag) Set(value string) error {
-	if value == "" {
-		*f.vals = nil
-	} else {
-		*f.vals = strings.Split(value, ",")
-	}
-	return nil
-}
-
-// A stringFlag is a flag.Value representing a single string.
-type stringFlag struct{ val *string }
-
-func (f stringFlag) String() string { return *f.val }
-func (f stringFlag) Set(value string) error {
-	*f.val = value
-	return nil
 }
 
 // outputdirFlag implements the -outputdir flag.
@@ -197,7 +150,7 @@ func (f *vetFlag) Set(value string) error {
 
 	*f = vetFlag{explicit: true}
 	var single string
-	for _, arg := range strings.Split(value, ",") {
+	for arg := range strings.SplitSeq(value, ",") {
 		switch arg {
 		case "":
 			return fmt.Errorf("-vet argument contains empty list element")
@@ -308,7 +261,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			break
 		}
 
-		if nf := (cmdflag.NonFlagError{}); errors.As(err, &nf) {
+		if nf, ok := errors.AsType[cmdflag.NonFlagError](err); ok {
 			if !inPkgList && packageNames != nil {
 				// We already saw the package list previously, and this argument is not
 				// a flag, so it — and everything after it — must be either a value for
@@ -343,7 +296,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			inPkgList = false
 		}
 
-		if nd := (cmdflag.FlagNotDefinedError{}); errors.As(err, &nd) {
+		if nd, ok := errors.AsType[cmdflag.FlagNotDefinedError](err); ok {
 			// This is a flag we do not know. We must assume that any args we see
 			// after this might be flag arguments, not package names, so make
 			// packageNames non-nil to indicate that the package list is complete.
@@ -390,22 +343,26 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 
 		args = remainingArgs
 	}
-	if firstUnknownFlag != "" && (testC || cfg.BuildI) {
-		buildFlag := "-c"
-		if !testC {
-			buildFlag = "-i"
-		}
-		fmt.Fprintf(os.Stderr, "go: unknown flag %s cannot be used with %s\n", firstUnknownFlag, buildFlag)
+	if firstUnknownFlag != "" && testC {
+		fmt.Fprintf(os.Stderr, "go: unknown flag %s cannot be used with -c\n", firstUnknownFlag)
 		exitWithUsage()
 	}
 
 	var injectedFlags []string
 	if testJSON {
-		// If converting to JSON, we need the full output in order to pipe it to
-		// test2json.
-		injectedFlags = append(injectedFlags, "-test.v=true")
+		// If converting to JSON, we need the full output in order to pipe it to test2json.
+		// The -test.v=test2json flag is like -test.v=true but causes the test to add
+		// extra ^V characters before testing output lines and other framing,
+		// which helps test2json do a better job creating the JSON events.
+		injectedFlags = append(injectedFlags, "-test.v=test2json")
 		delete(addFromGOFLAGS, "v")
 		delete(addFromGOFLAGS, "test.v")
+
+		if gotestjsonbuildtext.Value() == "1" {
+			gotestjsonbuildtext.IncNonDefault()
+		} else {
+			cfg.BuildJSON = true
+		}
 	}
 
 	// Inject flags from GOFLAGS before the explicit command-line arguments.
@@ -436,7 +393,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 	// directory, but 'go test' defaults it to the working directory of the 'go'
 	// command. Set it explicitly if it is needed due to some other flag that
 	// requests output.
-	if testProfile() != "" && !outputDirSet {
+	needOutputDir := testProfile() != "" || testArtifacts
+	if needOutputDir && !outputDirSet {
 		injectedFlags = append(injectedFlags, "-test.outputdir="+testOutputDir.getAbs())
 	}
 
@@ -455,18 +413,6 @@ helpLoop:
 			testHelp = true
 			break helpLoop
 		}
-	}
-
-	// Ensure that -race and -covermode are compatible.
-	if testCoverMode == "" {
-		testCoverMode = "set"
-		if cfg.BuildRace {
-			// Default coverage mode is atomic when -race is set.
-			testCoverMode = "atomic"
-		}
-	}
-	if cfg.BuildRace && testCoverMode != "atomic" {
-		base.Fatalf(`-covermode must be "atomic", not %q, when -race is enabled`, testCoverMode)
 	}
 
 	// Forward any unparsed arguments (following --args) to the test binary.

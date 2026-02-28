@@ -11,7 +11,7 @@ import (
 	"fmt"
 )
 
-// _Equal reports whether two slices are equal: the same length and all
+// _SliceEqual reports whether two slices are equal: the same length and all
 // elements equal. All floating point NaNs are considered equal.
 func _SliceEqual[Elem comparable](s1, s2 []Elem) bool {
 	if len(s1) != len(s2) {
@@ -36,13 +36,13 @@ type _Graph[_Node _NodeC[_Edge], _Edge _EdgeC[_Node]] struct {
 	nodes []_Node
 }
 
-// _NodeC is the contraints on a node in a graph, given the _Edge type.
+// _NodeC is the constraints on a node in a graph, given the _Edge type.
 type _NodeC[_Edge any] interface {
 	comparable
 	Edges() []_Edge
 }
 
-// Edgec is the constraints on an edge in a graph, given the _Node type.
+// _EdgeC is the constraints on an edge in a graph, given the _Node type.
 type _EdgeC[_Node any] interface {
 	comparable
 	Nodes() (a, b _Node)
@@ -153,6 +153,7 @@ func (m mazeRoom) Edges() []mazeEdge {
 }
 
 // Nodes returns the rooms connected by an edge.
+//
 //go:noinline
 func (e mazeEdge) Nodes() (mazeRoom, mazeRoom) {
 	m1, ok := zork[e.from]

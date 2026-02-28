@@ -98,7 +98,7 @@ func TestWriterSetBoundary(t *testing.T) {
 		{"(boundary)", true},
 	}
 	for i, tt := range tests {
-		var b bytes.Buffer
+		var b strings.Builder
 		w := NewWriter(&b)
 		err := w.SetBoundary(tt.b)
 		got := err == nil
@@ -145,7 +145,7 @@ func TestWriterBoundaryGoroutines(t *testing.T) {
 }
 
 func TestSortedHeader(t *testing.T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	w := NewWriter(&buf)
 	if err := w.SetBoundary("MIMEBOUNDARY"); err != nil {
 		t.Fatalf("Error setting mime boundary: %v", err)
@@ -170,5 +170,25 @@ func TestSortedHeader(t *testing.T) {
 	want := "--MIMEBOUNDARY\r\nA: 2\r\nB: 5\r\nB: 7\r\nB: 6\r\nC: 4\r\nM: 3\r\nZ: 1\r\n\r\nfoo\r\n--MIMEBOUNDARY--\r\n"
 	if want != buf.String() {
 		t.Fatalf("\n got: %q\nwant: %q\n", buf.String(), want)
+	}
+}
+
+func TestFileContentDisposition(t *testing.T) {
+	tests := []struct {
+		fieldname string
+		filename  string
+		want      string
+	}{
+		{"somefield", "somefile.txt", `form-data; name="somefield"; filename="somefile.txt"`},
+		{`field"withquotes"`, "somefile.txt", `form-data; name="field\"withquotes\""; filename="somefile.txt"`},
+		{`somefield`, `somefile"withquotes".txt`, `form-data; name="somefield"; filename="somefile\"withquotes\".txt"`},
+		{`somefield\withbackslash`, "somefile.txt", `form-data; name="somefield\\withbackslash"; filename="somefile.txt"`},
+		{"somefield", `somefile\withbackslash.txt`, `form-data; name="somefield"; filename="somefile\\withbackslash.txt"`},
+		{"a\rb\nc", "e\rf\ng", `form-data; name="a%0Db%0Ac"; filename="e%0Df%0Ag"`},
+	}
+	for i, tt := range tests {
+		if found := FileContentDisposition(tt.fieldname, tt.filename); found != tt.want {
+			t.Errorf(`%d. found: "%s"; want: "%s"`, i, found, tt.want)
+		}
 	}
 }

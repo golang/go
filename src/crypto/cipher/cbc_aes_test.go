@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/internal/cryptotest"
 	"testing"
 )
 
@@ -64,6 +65,10 @@ var cbcAESTests = []struct {
 }
 
 func TestCBCEncrypterAES(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "aes", testCBCEncrypterAES)
+}
+
+func testCBCEncrypterAES(t *testing.T) {
 	for _, test := range cbcAESTests {
 		c, err := aes.NewCipher(test.key)
 		if err != nil {
@@ -84,6 +89,10 @@ func TestCBCEncrypterAES(t *testing.T) {
 }
 
 func TestCBCDecrypterAES(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "aes", testCBCDecrypterAES)
+}
+
+func testCBCDecrypterAES(t *testing.T) {
 	for _, test := range cbcAESTests {
 		c, err := aes.NewCipher(test.key)
 		if err != nil {

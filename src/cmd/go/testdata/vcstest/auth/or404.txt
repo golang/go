@@ -1,0 +1,30 @@
+handle auth
+
+modzip vcs-test.golang.org/auth/or404/@v/v0.0.0-20190405155004-2234c475880e.zip vcs-test.golang.org/auth/or404@v0.0.0-20190405155004-2234c475880e .moddir
+
+-- .access --
+{
+	"Username": "aladdin",
+	"Password": "opensesame",
+	"StatusCode": 404,
+	"Message": "File? What file?"
+}
+-- index.html --
+<!DOCTYPE html>
+<html>
+<meta name="go-import" content="vcs-test.golang.org/auth/or404 mod https://vcs-test.golang.org/auth/or404">
+-- vcs-test.golang.org/auth/or404/@v/list --
+v0.0.0-20190405155004-2234c475880e
+-- vcs-test.golang.org/auth/or404/@v/v0.0.0-20190405155004-2234c475880e.info --
+{"Version":"v0.0.0-20190405155004-2234c475880e","Time":"2019-04-05T15:50:04Z"}
+-- vcs-test.golang.org/auth/or404/@v/v0.0.0-20190405155004-2234c475880e.mod --
+module vcs-test.golang.org/auth/or404
+
+go 1.13
+-- .moddir/go.mod --
+module vcs-test.golang.org/auth/or404
+
+go 1.13
+-- .moddir/or404.go --
+package or404
+-- vcs-test.golang.org/go/modauth404/@v/list --

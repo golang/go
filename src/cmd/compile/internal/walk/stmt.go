@@ -39,6 +39,7 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.OAS2RECV,
 		ir.OAS2FUNC,
 		ir.OAS2MAPR,
+		ir.OCLEAR,
 		ir.OCLOSE,
 		ir.OCOPY,
 		ir.OCALLINTER,
@@ -47,13 +48,14 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.ODELETE,
 		ir.OSEND,
 		ir.OPRINT,
-		ir.OPRINTN,
+		ir.OPRINTLN,
 		ir.OPANIC,
-		ir.ORECOVERFP,
+		ir.ORECOVER,
 		ir.OGETG:
 		if n.Typecheck() == 0 {
 			base.Fatalf("missing typecheck: %+v", n)
 		}
+
 		init := ir.TakeInit(n)
 		n = walkExpr(n, &init)
 		if n.Op() == ir.ONAME {
@@ -86,13 +88,9 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.OGOTO,
 		ir.OLABEL,
 		ir.OJUMPTABLE,
+		ir.OINTERFACESWITCH,
 		ir.ODCL,
-		ir.ODCLCONST,
-		ir.ODCLTYPE,
-		ir.OCHECKNIL,
-		ir.OVARDEF,
-		ir.OVARKILL,
-		ir.OVARLIVE:
+		ir.OCHECKNIL:
 		return n
 
 	case ir.OBLOCK:
@@ -108,10 +106,11 @@ func walkStmt(n ir.Node) ir.Node {
 		n := n.(*ir.GoDeferStmt)
 		ir.CurFunc.SetHasDefer(true)
 		ir.CurFunc.NumDefers++
-		if ir.CurFunc.NumDefers > maxOpenDefers {
+		if ir.CurFunc.NumDefers > maxOpenDefers || n.DeferAt != nil {
 			// Don't allow open-coded defers if there are more than
 			// 8 defers in the function, since we use a single
 			// byte to record active defers.
+			// Also don't allow if we need to use deferprocat.
 			ir.CurFunc.SetOpenCodedDeferDisallowed(true)
 		}
 		if n.Esc() != ir.EscNever {
@@ -124,7 +123,7 @@ func walkStmt(n ir.Node) ir.Node {
 		n := n.(*ir.GoDeferStmt)
 		return walkGoDefer(n)
 
-	case ir.OFOR, ir.OFORUNTIL:
+	case ir.OFOR:
 		n := n.(*ir.ForStmt)
 		return walkFor(n)
 
@@ -140,7 +139,7 @@ func walkStmt(n ir.Node) ir.Node {
 		n := n.(*ir.TailCallStmt)
 
 		var init ir.Nodes
-		n.Call.X = walkExpr(n.Call.X, &init)
+		n.Call.Fun = walkExpr(n.Call.Fun, &init)
 
 		if len(init) > 0 {
 			init.Append(n)
@@ -178,7 +177,7 @@ func walkStmtList(s []ir.Node) {
 	}
 }
 
-// walkFor walks an OFOR or OFORUNTIL node.
+// walkFor walks an OFOR node.
 func walkFor(n *ir.ForStmt) ir.Node {
 	if n.Cond != nil {
 		init := ir.TakeInit(n.Cond)
@@ -188,9 +187,6 @@ func walkFor(n *ir.ForStmt) ir.Node {
 	}
 
 	n.Post = walkStmt(n.Post)
-	if n.Op() == ir.OFORUNTIL {
-		walkStmtList(n.Late)
-	}
 	walkStmtList(n.Body)
 	return n
 }
@@ -200,7 +196,7 @@ func walkFor(n *ir.ForStmt) ir.Node {
 // call without arguments or results.
 func validGoDeferCall(call ir.Node) bool {
 	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC && len(call.KeepAlive) == 0 {
-		sig := call.X.Type()
+		sig := call.Fun.Type()
 		return sig.NumParams()+sig.NumResults() == 0
 	}
 	return false
@@ -215,7 +211,7 @@ func walkGoDefer(n *ir.GoDeferStmt) ir.Node {
 	var init ir.Nodes
 
 	call := n.Call.(*ir.CallExpr)
-	call.X = walkExpr(call.X, &init)
+	call.Fun = walkExpr(call.Fun, &init)
 
 	if len(init) > 0 {
 		init.Append(n)

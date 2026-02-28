@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || windows
+//go:build unix || windows || wasip1
 
 package poll
 
@@ -23,7 +23,7 @@ func runtime_pollServerInit()
 func runtime_pollOpen(fd uintptr) (uintptr, int)
 func runtime_pollClose(ctx uintptr)
 func runtime_pollWait(ctx uintptr, mode int) int
-func runtime_pollWaitCanceled(ctx uintptr, mode int) int
+func runtime_pollWaitCanceled(ctx uintptr, mode int)
 func runtime_pollReset(ctx uintptr, mode int) int
 func runtime_pollSetDeadline(ctx uintptr, d int64, mode int)
 func runtime_pollUnblock(ctx uintptr)
@@ -155,6 +155,7 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 		return err
 	}
 	defer fd.decref()
+
 	if fd.pd.runtimeCtx == 0 {
 		return ErrNoDeadline
 	}
@@ -164,6 +165,16 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 
 // IsPollDescriptor reports whether fd is the descriptor being used by the poller.
 // This is only used for testing.
+//
+// IsPollDescriptor should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/opencontainers/runc
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname IsPollDescriptor
 func IsPollDescriptor(fd uintptr) bool {
 	return runtime_isPollServerDescriptor(fd)
 }

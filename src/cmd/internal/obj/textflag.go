@@ -43,7 +43,6 @@ const (
 
 	// Do not insert instructions to allocate a stack frame for this function.
 	// Only valid on functions that declare a frame size of 0.
-	// TODO(mwhudson): only implemented for ppc64x at present.
 	NOFRAME = 512
 
 	// Function can call reflect.Type.Method or reflect.Type.MethodByName.
@@ -55,4 +54,7 @@ const (
 
 	// Function is an ABI wrapper.
 	ABIWRAPPER = 4096
+
+	// Function is a compiler-generated package init function.
+	PKGINIT = 8192
 )

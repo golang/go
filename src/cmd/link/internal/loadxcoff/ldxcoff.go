@@ -42,7 +42,7 @@ func (f *xcoffBiobuf) ReadAt(p []byte, off int64) (int, error) {
 // loads the Xcoff file pn from f.
 // Symbols are written into loader, and a slice of the text symbols is returned.
 func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []loader.Sym, err error) {
-	errorf := func(str string, args ...interface{}) ([]loader.Sym, error) {
+	errorf := func(str string, args ...any) ([]loader.Sym, error) {
 		return nil, fmt.Errorf("loadxcoff: %v: %v", pn, fmt.Sprintf(str, args...))
 	}
 
@@ -104,7 +104,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		s := l.LookupOrCreateSym(sx.Name, 0)
 
 		// Text symbol
-		if l.SymType(s) == sym.STEXT {
+		if l.SymType(s).IsText() {
 			if l.AttrOnList(s) {
 				return errorf("symbol %s listed multiple times", l.SymName(s))
 			}
@@ -155,7 +155,6 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		}
 	}
 	return textp, nil
-
 }
 
 // Convert symbol xcoff type to sym.SymKind

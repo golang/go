@@ -1,0 +1,16 @@
+rsc.io/future v1.0.0
+written by hand
+
+-- .mod --
+module rsc.io/future
+go 1.999
+-- .info --
+{"Version":"v1.0.0"}
+-- main.go --
+package main
+
+func main() {
+}
+-- go.mod --
+module rsc.io/future
+go 1.999

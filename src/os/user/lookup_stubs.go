@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (!cgo && !windows && !plan9) || android || (osusergo && !windows && !plan9)
+//go:build (!cgo && !darwin && !windows && !plan9) || android || (osusergo && !windows && !plan9)
 
 package user
 
@@ -11,6 +11,13 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+)
+
+var (
+	// unused variables (in this implementation)
+	// modified during test to exercise code paths in the cgo implementation.
+	userBuffer  = 0
+	groupBuffer = 0
 )
 
 func current() (*User, error) {

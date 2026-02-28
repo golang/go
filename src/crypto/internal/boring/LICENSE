@@ -6,7 +6,7 @@ When building with GOEXPERIMENT=boringcrypto, the following applies.
 The goboringcrypto_linux_amd64.syso object file is built
 from BoringSSL source code by build/build.sh and is covered
 by the BoringSSL license reproduced below and also at
-https://boringssl.googlesource.com/boringssl/+/fips-20190808/LICENSE.
+https://boringssl.googlesource.com/boringssl/+/fips-20220613/LICENSE.
 
 BoringSSL is a fork of OpenSSL. As such, large parts of it fall under OpenSSL
 licensing. Files that are completely new have a Google copyright and an ISC

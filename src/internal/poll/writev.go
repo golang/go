@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build darwin || dragonfly || freebsd || illumos || linux || netbsd || openbsd
+//go:build unix
 
 package poll
 
 import (
 	"io"
+	"runtime"
 	"syscall"
 )
 
@@ -29,6 +30,10 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
 	// 1024 and this seems conservative enough for now. Darwin's
 	// UIO_MAXIOV also seems to be 1024.
 	maxVec := 1024
+	if runtime.GOOS == "aix" || runtime.GOOS == "solaris" {
+		// IOV_MAX is set to XOPEN_IOV_MAX on AIX and Solaris.
+		maxVec = 16
+	}
 
 	var n int64
 	var err error
@@ -64,9 +69,7 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
 		TestHookDidWritev(int(wrote))
 		n += int64(wrote)
 		consume(v, int64(wrote))
-		for i := range iovecs {
-			iovecs[i] = syscall.Iovec{}
-		}
+		clear(iovecs)
 		if err != nil {
 			if err == syscall.EINTR {
 				continue

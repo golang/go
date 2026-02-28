@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"reflect"
 	"unsafe"
 )
 
@@ -45,13 +44,6 @@ func (m *mutator) chooseLen(n int) int {
 	}
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // mutate performs several mutations on the provided values.
 func (m *mutator) mutate(vals []any, maxBytes int) {
 	// TODO(katiehockman): pull some of these functions into helper methods and
@@ -82,7 +74,7 @@ func (m *mutator) mutate(vals []any, maxBytes int) {
 	case uint32:
 		vals[i] = uint32(m.mutateUInt(uint64(v), math.MaxUint32))
 	case uint64:
-		vals[i] = m.mutateUInt(uint64(v), maxUint)
+		vals[i] = m.mutateUInt(v, maxUint)
 	case float32:
 		vals[i] = float32(m.mutateFloat(float64(v), math.MaxFloat32))
 	case float64:
@@ -265,9 +257,7 @@ var byteSliceMutators = []byteSliceMutator{
 func (m *mutator) mutateBytes(ptrB *[]byte) {
 	b := *ptrB
 	defer func() {
-		oldHdr := (*reflect.SliceHeader)(unsafe.Pointer(ptrB))
-		newHdr := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-		if oldHdr.Data != newHdr.Data {
+		if unsafe.SliceData(*ptrB) != unsafe.SliceData(b) {
 			panic("data moved to new address")
 		}
 		*ptrB = b

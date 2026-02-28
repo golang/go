@@ -8,8 +8,11 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/des"
+	"crypto/internal/cryptotest"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"testing"
 )
 
@@ -110,4 +113,48 @@ func TestCFBInverse(t *testing.T) {
 	if !bytes.Equal(plaintextCopy, plaintext) {
 		t.Errorf("got: %x, want: %x", plaintextCopy, plaintext)
 	}
+}
+
+func TestCFBStream(t *testing.T) {
+
+	for _, keylen := range []int{128, 192, 256} {
+
+		t.Run(fmt.Sprintf("AES-%d", keylen), func(t *testing.T) {
+			rng := newRandReader(t)
+
+			key := make([]byte, keylen/8)
+			rng.Read(key)
+
+			block, err := aes.NewCipher(key)
+			if err != nil {
+				panic(err)
+			}
+
+			t.Run("Encrypter", func(t *testing.T) {
+				cryptotest.TestStreamFromBlock(t, block, cipher.NewCFBEncrypter)
+			})
+			t.Run("Decrypter", func(t *testing.T) {
+				cryptotest.TestStreamFromBlock(t, block, cipher.NewCFBDecrypter)
+			})
+		})
+	}
+
+	t.Run("DES", func(t *testing.T) {
+		rng := newRandReader(t)
+
+		key := make([]byte, 8)
+		rng.Read(key)
+
+		block, err := des.NewCipher(key)
+		if err != nil {
+			panic(err)
+		}
+
+		t.Run("Encrypter", func(t *testing.T) {
+			cryptotest.TestStreamFromBlock(t, block, cipher.NewCFBEncrypter)
+		})
+		t.Run("Decrypter", func(t *testing.T) {
+			cryptotest.TestStreamFromBlock(t, block, cipher.NewCFBDecrypter)
+		})
+	})
 }

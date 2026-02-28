@@ -5,6 +5,7 @@
 package modfetch
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -14,9 +15,9 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch/codehost"
-	"cmd/go/internal/par"
 	"cmd/go/internal/vcs"
 	web "cmd/go/internal/web"
+	"cmd/internal/par"
 
 	"golang.org/x/mod/module"
 )
@@ -33,7 +34,7 @@ type Repo interface {
 	// are still satisfied on the server corresponding to this module.
 	// If so, the caller can reuse any cached Versions or RevInfo containing
 	// this origin rather than redownloading those from the server.
-	CheckReuse(old *codehost.Origin) error
+	CheckReuse(ctx context.Context, old *codehost.Origin) error
 
 	// Versions lists all known versions with the given prefix.
 	// Pseudo-versions are not included.
@@ -48,23 +49,23 @@ type Repo interface {
 	//
 	// If the underlying repository does not exist,
 	// Versions returns an error matching errors.Is(_, os.NotExist).
-	Versions(prefix string) (*Versions, error)
+	Versions(ctx context.Context, prefix string) (*Versions, error)
 
 	// Stat returns information about the revision rev.
 	// A revision can be any identifier known to the underlying service:
 	// commit hash, branch, tag, and so on.
-	Stat(rev string) (*RevInfo, error)
+	Stat(ctx context.Context, rev string) (*RevInfo, error)
 
 	// Latest returns the latest revision on the default branch,
 	// whatever that means in the underlying source code repository.
 	// It is only used when there are no tagged versions.
-	Latest() (*RevInfo, error)
+	Latest(ctx context.Context) (*RevInfo, error)
 
 	// GoMod returns the go.mod file for the given version.
-	GoMod(version string) (data []byte, err error)
+	GoMod(ctx context.Context, version string) (data []byte, err error)
 
 	// Zip writes a zip file for the given version to dst.
-	Zip(dst io.Writer, version string) error
+	Zip(ctx context.Context, dst io.Writer, version string) error
 }
 
 // A Versions describes the available versions in a module repository.
@@ -109,9 +110,7 @@ type RevInfo struct {
 // introduced, if a path p resolves using the pre-module "go get" lookup
 // to the root of a source code repository without a go.mod file,
 // that repository is treated as if it had a go.mod in its root directory
-// declaring module path p. (The go.mod is further considered to
-// contain requirements corresponding to any legacy version
-// tracking format such as Gopkg.lock, vendor/vendor.conf, and so on.)
+// declaring module path p.
 //
 // The presentation so far ignores the fact that a source code repository
 // has many different versions of a file tree, and those versions may
@@ -185,8 +184,6 @@ type RevInfo struct {
 // To avoid version control access except when absolutely necessary,
 // Lookup does not attempt to connect to the repository itself.
 
-var lookupCache par.Cache
-
 type lookupCacheKey struct {
 	proxy, path string
 }
@@ -203,38 +200,68 @@ type lookupCacheKey struct {
 //
 // A successful return does not guarantee that the module
 // has any defined versions.
-func Lookup(proxy, path string) Repo {
+func (f *Fetcher) Lookup(ctx context.Context, proxy, path string) Repo {
 	if traceRepo {
 		defer logCall("Lookup(%q, %q)", proxy, path)()
 	}
 
-	type cached struct {
-		r Repo
-	}
-	c := lookupCache.Do(lookupCacheKey{proxy, path}, func() any {
-		r := newCachingRepo(path, func() (Repo, error) {
-			r, err := lookup(proxy, path)
+	return f.lookupCache.Do(lookupCacheKey{proxy, path}, func() Repo {
+		return newCachingRepo(ctx, f, path, func(ctx context.Context) (Repo, error) {
+			r, err := lookup(f, ctx, proxy, path)
 			if err == nil && traceRepo {
 				r = newLoggingRepo(r)
 			}
 			return r, err
 		})
-		return cached{r}
-	}).(cached)
+	})
+}
 
-	return c.r
+var lookupLocalCache = new(par.Cache[string, Repo]) // path, Repo
+
+// LookupLocal returns a Repo that accesses local VCS information.
+//
+// codeRoot is the module path of the root module in the repository.
+// path is the module path of the module being looked up.
+// dir is the file system path of the repository containing the module.
+func (f *Fetcher) LookupLocal(ctx context.Context, codeRoot string, path string, dir string) Repo {
+	if traceRepo {
+		defer logCall("LookupLocal(%q)", path)()
+	}
+
+	return lookupLocalCache.Do(path, func() Repo {
+		return newCachingRepo(ctx, f, path, func(ctx context.Context) (Repo, error) {
+			repoDir, vcsCmd, err := vcs.FromDir(dir, "")
+			if err != nil {
+				return nil, err
+			}
+			code, err := lookupCodeRepo(ctx, &vcs.RepoRoot{Repo: repoDir, Root: repoDir, VCS: vcsCmd}, true)
+			if err != nil {
+				return nil, err
+			}
+			r, err := newCodeRepo(code, codeRoot, "", path)
+			if err == nil && traceRepo {
+				r = newLoggingRepo(r)
+			}
+			return r, err
+		})
+	})
 }
 
 // lookup returns the module with the given module path.
-func lookup(proxy, path string) (r Repo, err error) {
+func lookup(fetcher_ *Fetcher, ctx context.Context, proxy, path string) (r Repo, err error) {
 	if cfg.BuildMod == "vendor" {
 		return nil, errLookupDisabled
+	}
+
+	switch path {
+	case "go", "toolchain":
+		return &toolchainRepo{path, fetcher_.Lookup(ctx, proxy, "golang.org/toolchain")}, nil
 	}
 
 	if module.MatchPrefixPatterns(cfg.GONOPROXY, path) {
 		switch proxy {
 		case "noproxy", "direct":
-			return lookupDirect(path)
+			return lookupDirect(ctx, path)
 		default:
 			return nil, errNoproxy
 		}
@@ -244,7 +271,7 @@ func lookup(proxy, path string) (r Repo, err error) {
 	case "off":
 		return errRepo{path, errProxyOff}, nil
 	case "direct":
-		return lookupDirect(path)
+		return lookupDirect(ctx, path)
 	case "noproxy":
 		return nil, errUseProxy
 	default:
@@ -269,7 +296,7 @@ var (
 	errUseProxy error = notExistErrorf("path does not match GOPRIVATE/GONOPROXY")
 )
 
-func lookupDirect(path string) (Repo, error) {
+func lookupDirect(ctx context.Context, path string) (Repo, error) {
 	security := web.SecureOnly
 
 	if module.MatchPrefixPatterns(cfg.GOINSECURE, path) {
@@ -286,15 +313,15 @@ func lookupDirect(path string) (Repo, error) {
 		return newProxyRepo(rr.Repo, path)
 	}
 
-	code, err := lookupCodeRepo(rr)
+	code, err := lookupCodeRepo(ctx, rr, false)
 	if err != nil {
 		return nil, err
 	}
-	return newCodeRepo(code, rr.Root, path)
+	return newCodeRepo(code, rr.Root, rr.SubDir, path)
 }
 
-func lookupCodeRepo(rr *vcs.RepoRoot) (codehost.Repo, error) {
-	code, err := codehost.NewRepo(rr.VCS.Cmd, rr.Repo)
+func lookupCodeRepo(ctx context.Context, rr *vcs.RepoRoot, local bool) (codehost.Repo, error) {
+	code, err := codehost.NewRepo(ctx, rr.VCS.Cmd, rr.Repo, local)
 	if err != nil {
 		if _, ok := err.(*codehost.VCSError); ok {
 			return nil, err
@@ -335,40 +362,40 @@ func (l *loggingRepo) ModulePath() string {
 	return l.r.ModulePath()
 }
 
-func (l *loggingRepo) CheckReuse(old *codehost.Origin) (err error) {
+func (l *loggingRepo) CheckReuse(ctx context.Context, old *codehost.Origin) (err error) {
 	defer func() {
 		logCall("CheckReuse[%s]: %v", l.r.ModulePath(), err)
 	}()
-	return l.r.CheckReuse(old)
+	return l.r.CheckReuse(ctx, old)
 }
 
-func (l *loggingRepo) Versions(prefix string) (*Versions, error) {
+func (l *loggingRepo) Versions(ctx context.Context, prefix string) (*Versions, error) {
 	defer logCall("Repo[%s]: Versions(%q)", l.r.ModulePath(), prefix)()
-	return l.r.Versions(prefix)
+	return l.r.Versions(ctx, prefix)
 }
 
-func (l *loggingRepo) Stat(rev string) (*RevInfo, error) {
+func (l *loggingRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
 	defer logCall("Repo[%s]: Stat(%q)", l.r.ModulePath(), rev)()
-	return l.r.Stat(rev)
+	return l.r.Stat(ctx, rev)
 }
 
-func (l *loggingRepo) Latest() (*RevInfo, error) {
+func (l *loggingRepo) Latest(ctx context.Context) (*RevInfo, error) {
 	defer logCall("Repo[%s]: Latest()", l.r.ModulePath())()
-	return l.r.Latest()
+	return l.r.Latest(ctx)
 }
 
-func (l *loggingRepo) GoMod(version string) ([]byte, error) {
+func (l *loggingRepo) GoMod(ctx context.Context, version string) ([]byte, error) {
 	defer logCall("Repo[%s]: GoMod(%q)", l.r.ModulePath(), version)()
-	return l.r.GoMod(version)
+	return l.r.GoMod(ctx, version)
 }
 
-func (l *loggingRepo) Zip(dst io.Writer, version string) error {
+func (l *loggingRepo) Zip(ctx context.Context, dst io.Writer, version string) error {
 	dstName := "_"
 	if dst, ok := dst.(interface{ Name() string }); ok {
 		dstName = strconv.Quote(dst.Name())
 	}
 	defer logCall("Repo[%s]: Zip(%s, %q)", l.r.ModulePath(), dstName, version)()
-	return l.r.Zip(dst, version)
+	return l.r.Zip(ctx, dst, version)
 }
 
 // errRepo is a Repo that returns the same error for all operations.
@@ -382,12 +409,12 @@ type errRepo struct {
 
 func (r errRepo) ModulePath() string { return r.modulePath }
 
-func (r errRepo) CheckReuse(old *codehost.Origin) error     { return r.err }
-func (r errRepo) Versions(prefix string) (*Versions, error) { return nil, r.err }
-func (r errRepo) Stat(rev string) (*RevInfo, error)         { return nil, r.err }
-func (r errRepo) Latest() (*RevInfo, error)                 { return nil, r.err }
-func (r errRepo) GoMod(version string) ([]byte, error)      { return nil, r.err }
-func (r errRepo) Zip(dst io.Writer, version string) error   { return r.err }
+func (r errRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error     { return r.err }
+func (r errRepo) Versions(ctx context.Context, prefix string) (*Versions, error) { return nil, r.err }
+func (r errRepo) Stat(ctx context.Context, rev string) (*RevInfo, error)         { return nil, r.err }
+func (r errRepo) Latest(ctx context.Context) (*RevInfo, error)                   { return nil, r.err }
+func (r errRepo) GoMod(ctx context.Context, version string) ([]byte, error)      { return nil, r.err }
+func (r errRepo) Zip(ctx context.Context, dst io.Writer, version string) error   { return r.err }
 
 // A notExistError is like fs.ErrNotExist, but with a custom message
 type notExistError struct {

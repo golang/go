@@ -7,11 +7,10 @@
 package types2
 
 import (
-	"bytes"
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -56,7 +55,7 @@ func (s *Scope) Names() []string {
 		names[i] = name
 		i++
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -68,27 +67,19 @@ func (s *Scope) Child(i int) *Scope { return s.children[i] }
 
 // Lookup returns the object in scope s with the given name if such an
 // object exists; otherwise the result is nil.
-func (s *Scope) Lookup(name string) Object {
-	return resolve(name, s.elems[name])
-}
+func (s *Scope) Lookup(name string) Object { return resolve(name, s.elems[name]) }
 
-// LookupParent follows the parent chain of scopes starting with s until
-// it finds a scope where Lookup(name) returns a non-nil object, and then
-// returns that scope and object. If a valid position pos is provided,
-// only objects that were declared at or before pos are considered.
-// If no such scope and object exists, the result is (nil, nil).
-//
-// Note that obj.Parent() may be different from the returned scope if the
-// object was inserted into the scope and already had a parent at that
-// time (see Insert). This can only happen for dot-imported objects
-// whose scope is the scope of the package that exported them.
-func (s *Scope) LookupParent(name string, pos syntax.Pos) (*Scope, Object) {
-	for ; s != nil; s = s.parent {
-		if obj := s.Lookup(name); obj != nil && (!pos.IsKnown() || obj.scopePos().Cmp(pos) <= 0) {
-			return s, obj
+// lookupIgnoringCase returns the objects in scope s whose names match
+// the given name ignoring case. If exported is set, only exported names
+// are returned.
+func (s *Scope) lookupIgnoringCase(name string, exported bool) []Object {
+	var matches []Object
+	for _, n := range s.Names() {
+		if (!exported || isExported(n)) && strings.EqualFold(n, name) {
+			matches = append(matches, s.Lookup(n))
 		}
 	}
-	return nil, nil
+	return matches
 }
 
 // Insert attempts to insert an object obj into scope s.
@@ -102,6 +93,11 @@ func (s *Scope) Insert(obj Object) Object {
 		return alt
 	}
 	s.insert(name, obj)
+	// TODO(gri) Can we always set the parent to s (or is there
+	// a need to keep the original parent or some race condition)?
+	// If we can, than we may not need environment.lookupScope
+	// which is only there so that we get the correct scope for
+	// marking "used" dot-imported packages.
 	if obj.Parent() == nil {
 		obj.setParent(s)
 	}
@@ -128,82 +124,6 @@ func (s *Scope) insert(name string, obj Object) {
 		s.elems = make(map[string]Object)
 	}
 	s.elems[name] = obj
-}
-
-// Squash merges s with its parent scope p by adding all
-// objects of s to p, adding all children of s to the
-// children of p, and removing s from p's children.
-// The function f is called for each object obj in s which
-// has an object alt in p. s should be discarded after
-// having been squashed.
-func (s *Scope) Squash(err func(obj, alt Object)) {
-	p := s.parent
-	assert(p != nil)
-	for name, obj := range s.elems {
-		obj = resolve(name, obj)
-		obj.setParent(nil)
-		if alt := p.Insert(obj); alt != nil {
-			err(obj, alt)
-		}
-	}
-
-	j := -1 // index of s in p.children
-	for i, ch := range p.children {
-		if ch == s {
-			j = i
-			break
-		}
-	}
-	assert(j >= 0)
-	k := len(p.children) - 1
-	p.children[j] = p.children[k]
-	p.children = p.children[:k]
-
-	p.children = append(p.children, s.children...)
-
-	s.children = nil
-	s.elems = nil
-}
-
-// Pos and End describe the scope's source code extent [pos, end).
-// The results are guaranteed to be valid only if the type-checked
-// AST has complete position information. The extent is undefined
-// for Universe and package scopes.
-func (s *Scope) Pos() syntax.Pos { return s.pos }
-func (s *Scope) End() syntax.Pos { return s.end }
-
-// Contains reports whether pos is within the scope's extent.
-// The result is guaranteed to be valid only if the type-checked
-// AST has complete position information.
-func (s *Scope) Contains(pos syntax.Pos) bool {
-	return s.pos.Cmp(pos) <= 0 && pos.Cmp(s.end) < 0
-}
-
-// Innermost returns the innermost (child) scope containing
-// pos. If pos is not within any scope, the result is nil.
-// The result is also nil for the Universe scope.
-// The result is guaranteed to be valid only if the type-checked
-// AST has complete position information.
-func (s *Scope) Innermost(pos syntax.Pos) *Scope {
-	// Package scopes do not have extents since they may be
-	// discontiguous, so iterate over the package's files.
-	if s.parent == Universe {
-		for _, s := range s.children {
-			if inner := s.Innermost(pos); inner != nil {
-				return inner
-			}
-		}
-	}
-
-	if s.Contains(pos) {
-		for _, s := range s.children {
-			if s.Contains(pos) {
-				return s.Innermost(pos)
-			}
-		}
-		return s
-	}
-	return nil
 }
 
 // WriteTo writes a string representation of the scope to w,
@@ -233,7 +153,7 @@ func (s *Scope) WriteTo(w io.Writer, n int, recurse bool) {
 
 // String returns a string representation of the scope, for debugging.
 func (s *Scope) String() string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	s.WriteTo(&buf, 0, false)
 	return buf.String()
 }
@@ -274,20 +194,18 @@ func resolve(name string, obj Object) Object {
 
 // stub implementations so *lazyObject implements Object and we can
 // store them directly into Scope.elems.
-func (*lazyObject) Parent() *Scope                        { panic("unreachable") }
-func (*lazyObject) Pos() syntax.Pos                       { panic("unreachable") }
-func (*lazyObject) Pkg() *Package                         { panic("unreachable") }
-func (*lazyObject) Name() string                          { panic("unreachable") }
-func (*lazyObject) Type() Type                            { panic("unreachable") }
-func (*lazyObject) Exported() bool                        { panic("unreachable") }
-func (*lazyObject) Id() string                            { panic("unreachable") }
-func (*lazyObject) String() string                        { panic("unreachable") }
-func (*lazyObject) order() uint32                         { panic("unreachable") }
-func (*lazyObject) color() color                          { panic("unreachable") }
-func (*lazyObject) setType(Type)                          { panic("unreachable") }
-func (*lazyObject) setOrder(uint32)                       { panic("unreachable") }
-func (*lazyObject) setColor(color color)                  { panic("unreachable") }
-func (*lazyObject) setParent(*Scope)                      { panic("unreachable") }
-func (*lazyObject) sameId(pkg *Package, name string) bool { panic("unreachable") }
-func (*lazyObject) scopePos() syntax.Pos                  { panic("unreachable") }
-func (*lazyObject) setScopePos(pos syntax.Pos)            { panic("unreachable") }
+func (*lazyObject) Parent() *Scope                     { panic("unreachable") }
+func (*lazyObject) Pos() syntax.Pos                    { panic("unreachable") }
+func (*lazyObject) Pkg() *Package                      { panic("unreachable") }
+func (*lazyObject) Name() string                       { panic("unreachable") }
+func (*lazyObject) Type() Type                         { panic("unreachable") }
+func (*lazyObject) Exported() bool                     { panic("unreachable") }
+func (*lazyObject) Id() string                         { panic("unreachable") }
+func (*lazyObject) String() string                     { panic("unreachable") }
+func (*lazyObject) order() uint32                      { panic("unreachable") }
+func (*lazyObject) setType(Type)                       { panic("unreachable") }
+func (*lazyObject) setOrder(uint32)                    { panic("unreachable") }
+func (*lazyObject) setParent(*Scope)                   { panic("unreachable") }
+func (*lazyObject) sameId(*Package, string, bool) bool { panic("unreachable") }
+func (*lazyObject) scopePos() syntax.Pos               { panic("unreachable") }
+func (*lazyObject) setScopePos(syntax.Pos)             { panic("unreachable") }

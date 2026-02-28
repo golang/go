@@ -14,7 +14,7 @@ import (
 var Timer Timings
 
 // Timings collects the execution times of labeled phases
-// which are added trough a sequence of Start/Stop calls.
+// which are added through a sequence of Start/Stop calls.
 // Events may be associated with each phase via AddEvent.
 type Timings struct {
 	list   []timestamp
@@ -168,7 +168,7 @@ type lines [][]string
 
 func (lines *lines) add(label string, n int, dt, tot time.Duration, events []*event) {
 	var line []string
-	add := func(format string, args ...interface{}) {
+	add := func(format string, args ...any) {
 		line = append(line, fmt.Sprintf(format, args...))
 	}
 

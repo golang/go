@@ -12,26 +12,34 @@ import (
 	"unsafe"
 )
 
-var getrandomUnsupported int32 // atomic
+//go:linkname vgetrandom runtime.vgetrandom
+//go:noescape
+func vgetrandom(p []byte, flags uint32) (ret int, supported bool)
+
+var getrandomUnsupported atomic.Bool
 
 // GetRandomFlag is a flag supported by the getrandom system call.
 type GetRandomFlag uintptr
 
 // GetRandom calls the getrandom system call.
 func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
-	if len(p) == 0 {
-		return 0, nil
+	ret, supported := vgetrandom(p, uint32(flags))
+	if supported {
+		if ret < 0 {
+			return 0, syscall.Errno(-ret)
+		}
+		return ret, nil
 	}
-	if atomic.LoadInt32(&getrandomUnsupported) != 0 {
+	if getrandomUnsupported.Load() {
 		return 0, syscall.ENOSYS
 	}
 	r1, _, errno := syscall.Syscall(getrandomTrap,
-		uintptr(unsafe.Pointer(&p[0])),
+		uintptr(unsafe.Pointer(unsafe.SliceData(p))),
 		uintptr(len(p)),
 		uintptr(flags))
 	if errno != 0 {
 		if errno == syscall.ENOSYS {
-			atomic.StoreInt32(&getrandomUnsupported, 1)
+			getrandomUnsupported.Store(true)
 		}
 		return 0, errno
 	}

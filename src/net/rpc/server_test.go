@@ -110,9 +110,9 @@ func (BuiltinTypes) Array(args *Args, reply *[2]int) error {
 }
 
 func listenTCP() (net.Listener, string) {
-	l, e := net.Listen("tcp", "127.0.0.1:0") // any available address
-	if e != nil {
-		log.Fatalf("net.Listen tcp :0: %v", e)
+	l, err := net.Listen("tcp", "127.0.0.1:0") // any available address
+	if err != nil {
+		log.Fatalf("net.Listen tcp :0: %v", err)
 	}
 	return l, l.Addr().String()
 }

@@ -55,13 +55,13 @@ stdout w1.go
 env GO111MODULE=on
 exec $WORK/testfindonly$GOEXE gobuild.example.com/x/y/z/i $WORK
 ! stdout 'build constraints'
-stdout '^dir=\$WORK.+i err=<nil>$'
+stdout '^dir='$WORK'.+i err=<nil>$'
 
 # Issue 37153: Import with empty srcDir should work.
 env GO111MODULE=on
 exec $WORK/testfindonly$GOEXE gobuild.example.com/x/y/z/i ''
 ! stdout 'build constraints'
-stdout '^dir=\$WORK.+i err=<nil>$'
+stdout '^dir='$WORK'.+i err=<nil>$'
 
 -- go.mod --
 module gobuild.example.com/x/y/z

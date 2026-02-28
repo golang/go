@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build mips64 mips64le
+//go:build mips64 || mips64le
+
+.file "gcc_mips64x.S"
 
 /*
  * void crosscall1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)

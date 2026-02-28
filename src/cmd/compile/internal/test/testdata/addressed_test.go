@@ -12,7 +12,7 @@ import (
 var output string
 
 func mypanic(t *testing.T, s string) {
-	t.Fatalf(s + "\n" + output)
+	t.Fatal(s + "\n" + output)
 
 }
 

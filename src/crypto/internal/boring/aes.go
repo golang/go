@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
-// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
+//go:build boringcrypto && linux && (amd64 || arm64) && !android && !msan
 
 package boring
 
@@ -45,9 +44,11 @@ int EVP_AEAD_CTX_open_wrapper(const GO_EVP_AEAD_CTX *ctx, uint8_t *out,
 */
 import "C"
 import (
+	"bytes"
 	"crypto/cipher"
 	"errors"
 	"runtime"
+	"slices"
 	"strconv"
 	"unsafe"
 )
@@ -77,8 +78,7 @@ type extraModes interface {
 var _ extraModes = (*aesCipher)(nil)
 
 func NewAESCipher(key []byte) (cipher.Block, error) {
-	c := &aesCipher{key: make([]byte, len(key))}
-	copy(c.key, key)
+	c := &aesCipher{key: bytes.Clone(key)}
 	// Note: 0 is success, contradicting the usual BoringCrypto convention.
 	if C._goboringcrypto_AES_set_decrypt_key((*C.uint8_t)(unsafe.Pointer(&c.key[0])), C.uint(8*len(c.key)), &c.dec) != 0 ||
 		C._goboringcrypto_AES_set_encrypt_key((*C.uint8_t)(unsafe.Pointer(&c.key[0])), C.uint(8*len(c.key)), &c.enc) != 0 {
@@ -229,26 +229,41 @@ func (c *aesCipher) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
 	if tagSize != gcmTagSize {
 		return cipher.NewGCMWithTagSize(&noGCM{c}, tagSize)
 	}
-	return c.newGCM(false)
+	return c.newGCM(0)
 }
+
+const (
+	VersionTLS12 = 0x0303
+	VersionTLS13 = 0x0304
+)
 
 func NewGCMTLS(c cipher.Block) (cipher.AEAD, error) {
-	return c.(*aesCipher).newGCM(true)
+	return c.(*aesCipher).newGCM(VersionTLS12)
 }
 
-func (c *aesCipher) newGCM(tls bool) (cipher.AEAD, error) {
+func NewGCMTLS13(c cipher.Block) (cipher.AEAD, error) {
+	return c.(*aesCipher).newGCM(VersionTLS13)
+}
+
+func (c *aesCipher) newGCM(tlsVersion uint16) (cipher.AEAD, error) {
 	var aead *C.GO_EVP_AEAD
 	switch len(c.key) * 8 {
 	case 128:
-		if tls {
+		switch tlsVersion {
+		case VersionTLS12:
 			aead = C._goboringcrypto_EVP_aead_aes_128_gcm_tls12()
-		} else {
+		case VersionTLS13:
+			aead = C._goboringcrypto_EVP_aead_aes_128_gcm_tls13()
+		default:
 			aead = C._goboringcrypto_EVP_aead_aes_128_gcm()
 		}
 	case 256:
-		if tls {
+		switch tlsVersion {
+		case VersionTLS12:
 			aead = C._goboringcrypto_EVP_aead_aes_256_gcm_tls12()
-		} else {
+		case VersionTLS13:
+			aead = C._goboringcrypto_EVP_aead_aes_256_gcm_tls13()
+		default:
 			aead = C._goboringcrypto_EVP_aead_aes_256_gcm()
 		}
 	default:
@@ -309,9 +324,7 @@ func (g *aesGCM) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 
 	// Make room in dst to append plaintext+overhead.
 	n := len(dst)
-	for cap(dst) < n+len(plaintext)+gcmTagSize {
-		dst = append(dst[:cap(dst)], 0)
-	}
+	dst = slices.Grow(dst, len(plaintext)+gcmTagSize)
 	dst = dst[:n+len(plaintext)+gcmTagSize]
 
 	// Check delayed until now to make sure len(dst) is accurate.

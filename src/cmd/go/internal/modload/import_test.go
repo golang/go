@@ -27,7 +27,7 @@ var importTests = []struct {
 	},
 	{
 		path: "golang.org/x/net",
-		err:  `module golang.org/x/net@.* found \(v0.0.0-.*\), but does not contain package golang.org/x/net`,
+		err:  `module golang.org/x/net@.* found \(v[01]\.\d+\.\d+\), but does not contain package golang.org/x/net`,
 	},
 	{
 		path: "golang.org/x/text",
@@ -56,25 +56,20 @@ var importTests = []struct {
 }
 
 func TestQueryImport(t *testing.T) {
+	loaderstate := NewState()
+	loaderstate.RootMode = NoRoot
+	loaderstate.AllowMissingModuleImports()
+
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
 
-	oldAllowMissingModuleImports := allowMissingModuleImports
-	oldRootMode := RootMode
-	defer func() {
-		allowMissingModuleImports = oldAllowMissingModuleImports
-		RootMode = oldRootMode
-	}()
-	allowMissingModuleImports = true
-	RootMode = NoRoot
-
 	ctx := context.Background()
-	rs := LoadModFile(ctx)
+	rs := LoadModFile(loaderstate, ctx)
 
 	for _, tt := range importTests {
 		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
 			// Note that there is no build list, so Import should always fail.
-			m, err := queryImport(ctx, tt.path, rs)
+			m, err := queryImport(loaderstate, ctx, tt.path, rs)
 
 			if tt.err == "" {
 				if err != nil {

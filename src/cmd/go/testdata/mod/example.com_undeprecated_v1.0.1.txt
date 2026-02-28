@@ -12,3 +12,10 @@ module example.com/undeprecated
 go 1.17
 -- undeprecated.go --
 package undeprecated
+
+-- cmd/a/a.go --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("a@v1.0.1") }

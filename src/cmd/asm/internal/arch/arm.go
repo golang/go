@@ -101,7 +101,7 @@ func IsARMCMP(op obj.As) bool {
 // one of the STREX-like instructions that require special handling.
 func IsARMSTREX(op obj.As) bool {
 	switch op {
-	case arm.ASTREX, arm.ASTREXD, arm.ASWPW, arm.ASWPBU:
+	case arm.ASTREX, arm.ASTREXD, arm.ASTREXB, arm.ASWPW, arm.ASWPBU:
 		return true
 	}
 	return false
@@ -113,7 +113,7 @@ func IsARMSTREX(op obj.As) bool {
 const aMCR = arm.ALAST + 1
 
 // IsARMMRC reports whether the op (as defined by an arm.A* constant) is
-// MRC or MCR
+// MRC or MCR.
 func IsARMMRC(op obj.As) bool {
 	switch op {
 	case arm.AMRC, aMCR: // Note: aMCR is defined in this package.

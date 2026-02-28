@@ -9,7 +9,10 @@ import (
 	"errors"
 	"fmt"
 	. "io"
+	"os"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -381,6 +384,9 @@ func TestSectionReader_ReadAt(t *testing.T) {
 		if n, err := s.ReadAt(buf, int64(tt.at)); n != len(tt.exp) || string(buf[:n]) != tt.exp || err != tt.err {
 			t.Fatalf("%d: ReadAt(%d) = %q, %v; expected %q, %v", i, tt.at, buf[:n], err, tt.exp, tt.err)
 		}
+		if _r, off, n := s.Outer(); _r != r || off != int64(tt.off) || n != int64(tt.n) {
+			t.Fatalf("%d: Outer() = %v, %d, %d; expected %v, %d, %d", i, _r, off, n, r, tt.off, tt.n)
+		}
 	}
 }
 
@@ -442,6 +448,9 @@ func TestSectionReader_Max(t *testing.T) {
 	if n != 0 || err != EOF {
 		t.Errorf("Read = %v, %v, want 0, EOF", n, err)
 	}
+	if _r, off, n := sr.Outer(); _r != r || off != 3 || n != maxint64 {
+		t.Fatalf("Outer = %v, %d, %d; expected %v, %d, %d", _r, off, n, r, 3, int64(maxint64))
+	}
 }
 
 // largeWriter returns an invalid count that is larger than the number
@@ -491,4 +500,195 @@ func TestNopCloserWriterToForwarding(t *testing.T) {
 			t.Errorf("NopCloser incorrectly forwards WriterTo for %s, got %t want %t", tc.Name, got, expected)
 		}
 	}
+}
+
+func TestOffsetWriter_Seek(t *testing.T) {
+	tmpfilename := "TestOffsetWriter_Seek"
+	tmpfile, err := os.CreateTemp(t.TempDir(), tmpfilename)
+	if err != nil {
+		t.Fatalf("CreateTemp(%s) failed: %v", tmpfilename, err)
+	}
+	defer tmpfile.Close()
+	w := NewOffsetWriter(tmpfile, 0)
+
+	// Should throw error errWhence if whence is not valid
+	t.Run("errWhence", func(t *testing.T) {
+		for _, whence := range []int{-3, -2, -1, 3, 4, 5} {
+			var offset int64 = 0
+			gotOff, gotErr := w.Seek(offset, whence)
+			if gotOff != 0 || gotErr != ErrWhence {
+				t.Errorf("For whence %d, offset %d, OffsetWriter.Seek got: (%d, %v), want: (%d, %v)",
+					whence, offset, gotOff, gotErr, 0, ErrWhence)
+			}
+		}
+	})
+
+	// Should throw error errOffset if offset is negative
+	t.Run("errOffset", func(t *testing.T) {
+		for _, whence := range []int{SeekStart, SeekCurrent} {
+			for offset := int64(-3); offset < 0; offset++ {
+				gotOff, gotErr := w.Seek(offset, whence)
+				if gotOff != 0 || gotErr != ErrOffset {
+					t.Errorf("For whence %d, offset %d, OffsetWriter.Seek got: (%d, %v), want: (%d, %v)",
+						whence, offset, gotOff, gotErr, 0, ErrOffset)
+				}
+			}
+		}
+	})
+
+	// Normal tests
+	t.Run("normal", func(t *testing.T) {
+		tests := []struct {
+			offset    int64
+			whence    int
+			returnOff int64
+		}{
+			// keep in order
+			{whence: SeekStart, offset: 1, returnOff: 1},
+			{whence: SeekStart, offset: 2, returnOff: 2},
+			{whence: SeekStart, offset: 3, returnOff: 3},
+			{whence: SeekCurrent, offset: 1, returnOff: 4},
+			{whence: SeekCurrent, offset: 2, returnOff: 6},
+			{whence: SeekCurrent, offset: 3, returnOff: 9},
+		}
+		for idx, tt := range tests {
+			gotOff, gotErr := w.Seek(tt.offset, tt.whence)
+			if gotOff != tt.returnOff || gotErr != nil {
+				t.Errorf("%d:: For whence %d, offset %d, OffsetWriter.Seek got: (%d, %v), want: (%d, <nil>)",
+					idx+1, tt.whence, tt.offset, gotOff, gotErr, tt.returnOff)
+			}
+		}
+	})
+}
+
+func TestOffsetWriter_WriteAt(t *testing.T) {
+	const content = "0123456789ABCDEF"
+	contentSize := int64(len(content))
+	tmpdir := t.TempDir()
+
+	work := func(off, at int64) {
+		position := fmt.Sprintf("off_%d_at_%d", off, at)
+		tmpfile, err := os.CreateTemp(tmpdir, position)
+		if err != nil {
+			t.Fatalf("CreateTemp(%s) failed: %v", position, err)
+		}
+		defer tmpfile.Close()
+
+		var writeN int64
+		var wg sync.WaitGroup
+		// Concurrent writes, one byte at a time
+		for step, value := range []byte(content) {
+			wg.Add(1)
+			go func(wg *sync.WaitGroup, tmpfile *os.File, value byte, off, at int64, step int) {
+				defer wg.Done()
+
+				w := NewOffsetWriter(tmpfile, off)
+				n, e := w.WriteAt([]byte{value}, at+int64(step))
+				if e != nil {
+					t.Errorf("WriteAt failed. off: %d, at: %d, step: %d\n error: %v", off, at, step, e)
+				}
+				atomic.AddInt64(&writeN, int64(n))
+			}(&wg, tmpfile, value, off, at, step)
+		}
+		wg.Wait()
+
+		// Read one more byte to reach EOF
+		buf := make([]byte, contentSize+1)
+		readN, err := tmpfile.ReadAt(buf, off+at)
+		if err != EOF {
+			t.Fatalf("ReadAt failed: %v", err)
+		}
+		readContent := string(buf[:contentSize])
+		if writeN != int64(readN) || writeN != contentSize || readContent != content {
+			t.Fatalf("%s:: WriteAt(%s, %d) error. \ngot n: %v, content: %s \nexpected n: %v, content: %v",
+				position, content, at, readN, readContent, contentSize, content)
+		}
+	}
+	for off := int64(0); off < 2; off++ {
+		for at := int64(0); at < 2; at++ {
+			work(off, at)
+		}
+	}
+}
+
+func TestWriteAt_PositionPriorToBase(t *testing.T) {
+	tmpdir := t.TempDir()
+	tmpfilename := "TestOffsetWriter_WriteAt"
+	tmpfile, err := os.CreateTemp(tmpdir, tmpfilename)
+	if err != nil {
+		t.Fatalf("CreateTemp(%s) failed: %v", tmpfilename, err)
+	}
+	defer tmpfile.Close()
+
+	// start writing position in OffsetWriter
+	offset := int64(10)
+	// position we want to write to the tmpfile
+	at := int64(-1)
+	w := NewOffsetWriter(tmpfile, offset)
+	_, e := w.WriteAt([]byte("hello"), at)
+	if e == nil {
+		t.Errorf("error expected to be not nil")
+	}
+}
+
+func TestOffsetWriter_Write(t *testing.T) {
+	const content = "0123456789ABCDEF"
+	contentSize := len(content)
+	tmpdir := t.TempDir()
+
+	makeOffsetWriter := func(name string) (*OffsetWriter, *os.File) {
+		tmpfilename := "TestOffsetWriter_Write_" + name
+		tmpfile, err := os.CreateTemp(tmpdir, tmpfilename)
+		if err != nil {
+			t.Fatalf("CreateTemp(%s) failed: %v", tmpfilename, err)
+		}
+		return NewOffsetWriter(tmpfile, 0), tmpfile
+	}
+	checkContent := func(name string, f *os.File) {
+		// Read one more byte to reach EOF
+		buf := make([]byte, contentSize+1)
+		readN, err := f.ReadAt(buf, 0)
+		if err != EOF {
+			t.Fatalf("ReadAt failed, err: %v", err)
+		}
+		readContent := string(buf[:contentSize])
+		if readN != contentSize || readContent != content {
+			t.Fatalf("%s error. \ngot n: %v, content: %s \nexpected n: %v, content: %v",
+				name, readN, readContent, contentSize, content)
+		}
+	}
+
+	var name string
+	name = "Write"
+	t.Run(name, func(t *testing.T) {
+		// Write directly (off: 0, at: 0)
+		// Write content to file
+		w, f := makeOffsetWriter(name)
+		defer f.Close()
+		for _, value := range []byte(content) {
+			n, err := w.Write([]byte{value})
+			if err != nil {
+				t.Fatalf("Write failed, n: %d, err: %v", n, err)
+			}
+		}
+		checkContent(name, f)
+
+		// Copy -> Write
+		// Copy file f to file f2
+		name = "Copy"
+		w2, f2 := makeOffsetWriter(name)
+		defer f2.Close()
+		Copy(w2, f)
+		checkContent(name, f2)
+	})
+
+	// Copy -> WriteTo -> Write
+	// Note: strings.Reader implements the io.WriterTo interface.
+	name = "Write_Of_Copy_WriteTo"
+	t.Run(name, func(t *testing.T) {
+		w, f := makeOffsetWriter(name)
+		defer f.Close()
+		Copy(w, strings.NewReader(content))
+		checkContent(name, f)
+	})
 }

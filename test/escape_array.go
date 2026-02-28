@@ -123,7 +123,7 @@ func doesMakeSlice(x *string, y *string) { // ERROR "leaking param: x" "leaking 
 
 func nonconstArray() {
 	n := 32
-	s1 := make([]int, n)    // ERROR "make\(\[\]int, n\) escapes to heap"
-	s2 := make([]int, 0, n) // ERROR "make\(\[\]int, 0, n\) escapes to heap"
+	s1 := make([]int, n)    // ERROR "make\(\[\]int, 32\) does not escape"
+	s2 := make([]int, 0, n) // ERROR "make\(\[\]int, 0, 32\) does not escape"
 	_, _ = s1, s2
 }

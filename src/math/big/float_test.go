@@ -194,13 +194,11 @@ func alike(x, y *Float) bool {
 func alike32(x, y float32) bool {
 	// we can ignore NaNs
 	return x == y && math.Signbit(float64(x)) == math.Signbit(float64(y))
-
 }
 
 func alike64(x, y float64) bool {
 	// we can ignore NaNs
 	return x == y && math.Signbit(x) == math.Signbit(y)
-
 }
 
 func TestFloatMantExp(t *testing.T) {
@@ -521,7 +519,7 @@ func TestFloatRound(t *testing.T) {
 }
 
 // TestFloatRound24 tests that rounding a float64 to 24 bits
-// matches IEEE-754 rounding to nearest when converting a
+// matches IEEE 754 rounding to nearest when converting a
 // float64 to a float32 (excluding denormal numbers).
 func TestFloatRound24(t *testing.T) {
 	const x0 = 1<<26 - 0x10 // 11...110000 (26 bits)

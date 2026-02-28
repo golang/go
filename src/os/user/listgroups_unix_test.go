@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ((darwin || dragonfly || freebsd || (js && wasm) || (!android && linux) || netbsd || openbsd || solaris) && (!cgo || osusergo)) || aix || illumos
+//go:build (((unix && !android) || (js && wasm) || wasip1) && ((!cgo && !darwin) || osusergo)) || aix
 
 package user
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -25,7 +25,7 @@ invalidgid:*:notanumber:root
 -minussign:*:21:root
 # Next line is invalid (empty group name)
 :*:22:root
-      
+
 daemon:*:1:root
     indented:*:7:root
 # comment:*:4:found
@@ -92,8 +92,8 @@ func checkSameIDs(t *testing.T, got, want []string) {
 		t.Errorf("ID list mismatch: got %v; want %v", got, want)
 		return
 	}
-	sort.Strings(got)
-	sort.Strings(want)
+	slices.Sort(got)
+	slices.Sort(want)
 	mismatch := -1
 	for i, g := range want {
 		if got[i] != g {

@@ -14,6 +14,7 @@ package race_test
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -107,13 +108,18 @@ func processLog(testName string, tsanLog []string) string {
 			gotRace = true
 			break
 		}
+		if strings.Contains(s, "fatal error: concurrent map") {
+			// Detected by the runtime, not the race detector.
+			gotRace = true
+			break
+		}
+		if strings.Contains(s, "--- SKIP:") {
+			return fmt.Sprintf("%-*s SKIPPED", visibleLen, testName)
+		}
 	}
 
 	failing := strings.Contains(testName, "Failing")
 	expRace := !strings.HasPrefix(testName, "No")
-	for len(testName) < visibleLen {
-		testName += " "
-	}
 	if expRace == gotRace {
 		passedTests++
 		totalTests++
@@ -121,7 +127,7 @@ func processLog(testName string, tsanLog []string) string {
 			failed = true
 			failingNeg++
 		}
-		return fmt.Sprintf("%s .", testName)
+		return fmt.Sprintf("%-*s .", visibleLen, testName)
 	}
 	pos := ""
 	if expRace {
@@ -136,7 +142,7 @@ func processLog(testName string, tsanLog []string) string {
 		failed = true
 	}
 	totalTests++
-	return fmt.Sprintf("%s %s%s", testName, "FAILED", pos)
+	return fmt.Sprintf("%-*s %s%s", visibleLen, testName, "FAILED", pos)
 }
 
 // runTests assures that the package and its dependencies is
@@ -177,9 +183,21 @@ func runTests(t *testing.T) ([]byte, error) {
 	)
 	// There are races: we expect tests to fail and the exit code to be non-zero.
 	out, _ := cmd.CombinedOutput()
-	if bytes.Contains(out, []byte("fatal error:")) {
-		// But don't expect runtime to crash.
-		return out, fmt.Errorf("runtime fatal error")
+	fatals := bytes.Count(out, []byte("fatal error:"))
+	mapFatals := bytes.Count(out, []byte("fatal error: concurrent map"))
+	if fatals > mapFatals {
+		// But don't expect runtime to crash (other than
+		// in the map concurrent access detector).
+		return out, errors.New("runtime fatal error")
+	}
+	// A crash in the map concurrent access detector will cause other tests not to run.
+	// Perhaps we should run tests with concurrent map access separately to avoid this,
+	// but for the moment just skip the remaining tests.
+	if mapFatals != 0 {
+		return out, nil
+	}
+	if !bytes.Contains(out, []byte("ALL TESTS COMPLETE")) {
+		return out, errors.New("not all tests ran")
 	}
 	return out, nil
 }

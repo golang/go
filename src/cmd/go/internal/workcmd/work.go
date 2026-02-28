@@ -74,5 +74,6 @@ used.
 		cmdInit,
 		cmdSync,
 		cmdUse,
+		cmdVendor,
 	},
 }

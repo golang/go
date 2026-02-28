@@ -1,0 +1,5 @@
+# go env should caches compiler results
+go env
+go env -x
+! stdout '\|\| true'
+

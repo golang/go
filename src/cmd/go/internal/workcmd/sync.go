@@ -8,8 +8,10 @@ package workcmd
 
 import (
 	"cmd/go/internal/base"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/toolchain"
 	"context"
 
 	"golang.org/x/mod/module"
@@ -41,21 +43,25 @@ for more information.
 }
 
 func init() {
+	base.AddChdirFlag(&cmdSync.Flag)
 	base.AddModCommonFlags(&cmdSync.Flag)
 }
 
 func runSync(ctx context.Context, cmd *base.Command, args []string) {
-	modload.ForceUseModules = true
-	modload.InitWorkfile()
-	if modload.WorkFilePath() == "" {
+	moduleLoaderState := modload.NewState()
+	moduleLoaderState.ForceUseModules = true
+	moduleLoaderState.InitWorkfile()
+	if modload.WorkFilePath(moduleLoaderState) == "" {
 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
 	}
 
-	workGraph := modload.LoadModGraph(ctx, "")
-	_ = workGraph
+	_, err := modload.LoadModGraph(moduleLoaderState, ctx, "")
+	if err != nil {
+		toolchain.SwitchOrFatal(moduleLoaderState, ctx, err)
+	}
 	mustSelectFor := map[module.Version][]module.Version{}
 
-	mms := modload.MainModules
+	mms := moduleLoaderState.MainModules
 
 	opts := modload.PackageOpts{
 		Tags:                     imports.AnyTags(),
@@ -68,7 +74,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	for _, m := range mms.Versions() {
 		opts.MainModule = m
-		_, pkgs := modload.LoadPackages(ctx, opts, "all")
+		_, pkgs := modload.LoadPackages(moduleLoaderState, ctx, opts, "all")
 		opts.MainModule = module.Version{} // reset
 
 		var (
@@ -82,12 +88,13 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 				inMustSelect[r] = true
 			}
 		}
-		module.Sort(mustSelect) // ensure determinism
+		gover.ModSort(mustSelect) // ensure determinism
 		mustSelectFor[m] = mustSelect
 	}
 
-	workFilePath := modload.WorkFilePath() // save go.work path because EnterModule clobbers it.
+	workFilePath := modload.WorkFilePath(moduleLoaderState) // save go.work path because EnterModule clobbers it.
 
+	var goV string
 	for _, m := range mms.Versions() {
 		if mms.ModRoot(m) == "" && m.Path == "command-line-arguments" {
 			// This is not a real module.
@@ -98,37 +105,43 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 
 		// Use EnterModule to reset the global state in modload to be in
 		// single-module mode using the modroot of m.
-		modload.EnterModule(ctx, mms.ModRoot(m))
+		modload.EnterModule(moduleLoaderState, ctx, mms.ModRoot(m))
 
 		// Edit the build list in the same way that 'go get' would if we
 		// requested the relevant module versions explicitly.
-		changed, err := modload.EditBuildList(ctx, nil, mustSelectFor[m])
+		// TODO(#57001): Do we need a toolchain.SwitchOrFatal here,
+		// and do we need to pass a toolchain.Switcher in LoadPackages?
+		// If so, think about saving the WriteGoMods for after the loop,
+		// so we don't write some go.mods with the "before" toolchain
+		// and others with the "after" toolchain. If nothing else, that
+		// discrepancy could show up in auto-recorded toolchain lines.
+		changed, err := modload.EditBuildList(moduleLoaderState, ctx, nil, mustSelectFor[m])
 		if err != nil {
-			base.Errorf("go: %v", err)
-		}
-		if !changed {
 			continue
 		}
-
-		modload.LoadPackages(ctx, modload.PackageOpts{
-			Tags:                     imports.AnyTags(),
-			Tidy:                     true,
-			VendorModulesInGOROOTSrc: true,
-			ResolveMissingImports:    false,
-			LoadTests:                true,
-			AllowErrors:              true,
-			SilenceMissingStdImports: true,
-			SilencePackageErrors:     true,
-		}, "all")
-		modload.WriteGoMod(ctx)
+		if changed {
+			modload.LoadPackages(moduleLoaderState, ctx, modload.PackageOpts{
+				Tags:                     imports.AnyTags(),
+				Tidy:                     true,
+				VendorModulesInGOROOTSrc: true,
+				ResolveMissingImports:    false,
+				LoadTests:                true,
+				AllowErrors:              true,
+				SilenceMissingStdImports: true,
+				SilencePackageErrors:     true,
+			}, "all")
+			modload.WriteGoMod(moduleLoaderState, ctx, modload.WriteOpts{})
+		}
+		goV = gover.Max(goV, moduleLoaderState.MainModules.GoVersion(moduleLoaderState))
 	}
 
 	wf, err := modload.ReadWorkFile(workFilePath)
 	if err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
+	modload.UpdateWorkGoVersion(wf, goV)
 	modload.UpdateWorkFile(wf)
 	if err := modload.WriteWorkFile(workFilePath, wf); err != nil {
-		base.Fatalf("go: %v", err)
+		base.Fatal(err)
 	}
 }

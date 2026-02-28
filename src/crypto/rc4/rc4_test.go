@@ -6,6 +6,8 @@ package rc4
 
 import (
 	"bytes"
+	"crypto/cipher"
+	"crypto/internal/cryptotest"
 	"fmt"
 	"testing"
 )
@@ -134,6 +136,13 @@ func TestBlock(t *testing.T) {
 	if !bytes.Equal(data1, data2) {
 		t.Fatalf("bad block")
 	}
+}
+
+func TestRC4Stream(t *testing.T) {
+	cryptotest.TestStream(t, func() cipher.Stream {
+		c, _ := NewCipher(golden[0].key)
+		return c
+	})
 }
 
 func benchmark(b *testing.B, size int64) {

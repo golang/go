@@ -22,6 +22,8 @@ go build -overlay overlay.json -o print_abspath$GOEXE ./printpath
 exec ./print_abspath$GOEXE
 stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
 
+go vet -overlay overlay.json ./printpath
+
 go build -overlay overlay.json -o print_trimpath$GOEXE -trimpath ./printpath
 exec ./print_trimpath$GOEXE
 stdout ^m[/\\]printpath[/\\]main.go
@@ -68,6 +70,7 @@ env CACHE=$OLD_GOCACHE
 # Run same tests but with gccgo.
 env GO111MODULE=off
 [!exec:gccgo] stop
+[cross] stop  # gccgo can't necessarily cross-compile
 
 ! go build -compiler=gccgo .
 go build -compiler=gccgo -overlay overlay.json -o main_gccgo$GOEXE .

@@ -17,10 +17,10 @@ import (
 	"testing"
 )
 
-func parallelReader(m *RWMutex, clocked chan bool, cunlock *uint32, cdone chan bool) {
+func parallelReader(m *RWMutex, clocked chan bool, cunlock *atomic.Bool, cdone chan bool) {
 	m.RLock()
 	clocked <- true
-	for atomic.LoadUint32(cunlock) == 0 {
+	for !cunlock.Load() {
 	}
 	m.RUnlock()
 	cdone <- true
@@ -29,8 +29,9 @@ func parallelReader(m *RWMutex, clocked chan bool, cunlock *uint32, cdone chan b
 func doTestParallelReaders(numReaders int) {
 	GOMAXPROCS(numReaders + 1)
 	var m RWMutex
+	m.Init()
 	clocked := make(chan bool, numReaders)
-	var cunlock uint32
+	var cunlock atomic.Bool
 	cdone := make(chan bool)
 	for i := 0; i < numReaders; i++ {
 		go parallelReader(&m, clocked, &cunlock, cdone)
@@ -39,7 +40,7 @@ func doTestParallelReaders(numReaders int) {
 	for i := 0; i < numReaders; i++ {
 		<-clocked
 	}
-	atomic.StoreUint32(&cunlock, 1)
+	cunlock.Store(true)
 	// Wait for the goroutines to finish.
 	for i := 0; i < numReaders; i++ {
 		<-cdone
@@ -100,6 +101,7 @@ func HammerRWMutex(gomaxprocs, numReaders, num_iterations int) {
 	// Number of active readers + 10000 * number of active writers.
 	var activity int32
 	var rwm RWMutex
+	rwm.Init()
 	cdone := make(chan bool)
 	go writer(&rwm, num_iterations, &activity, cdone)
 	var i int
@@ -141,6 +143,7 @@ func BenchmarkRWMutexUncontended(b *testing.B) {
 	}
 	b.RunParallel(func(pb *testing.PB) {
 		var rwm PaddedRWMutex
+		rwm.Init()
 		for pb.Next() {
 			rwm.RLock()
 			rwm.RLock()
@@ -154,6 +157,7 @@ func BenchmarkRWMutexUncontended(b *testing.B) {
 
 func benchmarkRWMutex(b *testing.B, localWork, writeRatio int) {
 	var rwm RWMutex
+	rwm.Init()
 	b.RunParallel(func(pb *testing.PB) {
 		foo := 0
 		for pb.Next() {

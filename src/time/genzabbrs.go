@@ -21,7 +21,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sort"
+	"slices"
+	"strings"
 	"text/template"
 	"time"
 )
@@ -53,7 +54,7 @@ type zone struct {
 	DSTime   string
 }
 
-const wzURL = "https://raw.githubusercontent.com/unicode-org/cldr/master/common/supplemental/windowsZones.xml"
+const wzURL = "https://raw.githubusercontent.com/unicode-org/cldr/main/common/supplemental/windowsZones.xml"
 
 type MapZone struct {
 	Other     string `xml:"other,attr"`
@@ -109,8 +110,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	sort.Slice(zs, func(i, j int) bool {
-		return zs[i].UnixName < zs[j].UnixName
+	slices.SortFunc(zs, func(a, b *zone) int {
+		return strings.Compare(a.UnixName, b.UnixName)
 	})
 	var v = struct {
 		URL string

@@ -8,13 +8,15 @@ import (
 	. "internal/cpu"
 	"internal/godebug"
 	"internal/testenv"
-	"os"
 	"os/exec"
+	"runtime"
 	"testing"
 )
 
 func MustHaveDebugOptionsSupport(t *testing.T) {
-	if !DebugOptions {
+	switch runtime.GOOS {
+	case "aix", "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd", "illumos", "solaris", "linux":
+	default:
 		t.Skipf("skipping test: cpu feature options not supported by OS")
 	}
 }
@@ -26,11 +28,9 @@ func MustSupportFeatureDetection(t *testing.T) {
 func runDebugOptionsTest(t *testing.T, test string, options string) {
 	MustHaveDebugOptionsSupport(t)
 
-	testenv.MustHaveExec(t)
-
 	env := "GODEBUG=" + options
 
-	cmd := exec.Command(os.Args[0], "-test.run="+test)
+	cmd := exec.Command(testenv.Executable(t), "-test.run=^"+test+"$")
 	cmd.Env = append(cmd.Env, env)
 
 	output, err := cmd.CombinedOutput()
@@ -48,7 +48,7 @@ func TestDisableAllCapabilities(t *testing.T) {
 func TestAllCapabilitiesDisabled(t *testing.T) {
 	MustHaveDebugOptionsSupport(t)
 
-	if godebug.Get("cpu.all") != "off" {
+	if godebug.New("#cpu.all").Value() != "off" {
 		t.Skipf("skipping test: GODEBUG=cpu.all=off not set")
 	}
 

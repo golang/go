@@ -8,6 +8,4 @@ import "./a"
 
 type X int
 
-func (X) M() int { return 0 }
-
-type _ a.T[X]
+func (X) M() a.T[X] { return 0 }

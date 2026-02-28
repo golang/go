@@ -7,11 +7,11 @@ package types_test
 import (
 	"cmd/compile/internal/types"
 	"reflect"
-	"sort"
+	"slices"
 	"testing"
 )
 
-func TestSymLess(t *testing.T) {
+func TestSymCompare(t *testing.T) {
 	var (
 		local = types.NewPkg("", "")
 		abc   = types.NewPkg("abc", "")
@@ -50,7 +50,7 @@ func TestSymLess(t *testing.T) {
 	if reflect.DeepEqual(data, want) {
 		t.Fatal("data must be shuffled")
 	}
-	sort.Slice(data, func(i, j int) bool { return data[i].Less(data[j]) })
+	slices.SortFunc(data, types.CompareSyms)
 	if !reflect.DeepEqual(data, want) {
 		t.Logf("want: %#v", want)
 		t.Logf("data: %#v", data)

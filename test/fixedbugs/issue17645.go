@@ -12,5 +12,5 @@ type Foo struct {
 
 func main() {
 	var s []int
-	var _ string = append(s, Foo{""}) // ERROR "cannot use .. \(.*untyped string.*\) as .*int.*|incompatible type" "cannot use Foo{.*} \(.*type Foo\) as type int in .*append" "cannot use append\(s\, Foo{.*}\) \(.*type \[\]int\) as type string in (assignment|variable declaration)"
+	var _ string = append(s, Foo{""}) // ERROR "cannot use append\(s, Foo{…}\) .* as string value in variable declaration" "cannot use Foo{…} .* as int value in argument to append" "cannot use .* as int value in struct literal"
 }

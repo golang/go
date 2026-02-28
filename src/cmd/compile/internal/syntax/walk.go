@@ -8,10 +8,9 @@ package syntax
 
 import "fmt"
 
-// Inspect traverses an AST in pre-order: It starts by calling
-// f(node); node must not be nil. If f returns true, Inspect invokes f
-// recursively for each of the non-nil children of node, followed by a
-// call of f(nil).
+// Inspect traverses an AST in pre-order: it starts by calling f(root);
+// root must not be nil. If f returns true, Inspect invokes f recursively
+// for each of the non-nil children of root, followed by a call of f(nil).
 //
 // See Walk for caveats about shared nodes.
 func Inspect(root Node, f func(Node) bool) {
@@ -25,21 +24,6 @@ func (v inspector) Visit(node Node) Visitor {
 		return v
 	}
 	return nil
-}
-
-// Crawl traverses a syntax in pre-order: It starts by calling f(root);
-// root must not be nil. If f returns false (== "continue"), Crawl calls
-// f recursively for each of the non-nil children of that node; if f
-// returns true (== "stop"), Crawl does not traverse the respective node's
-// children.
-//
-// See Walk for caveats about shared nodes.
-//
-// Deprecated: Use Inspect instead.
-func Crawl(root Node, f func(Node) bool) {
-	Inspect(root, func(node Node) bool {
-		return node != nil && !f(node)
-	})
 }
 
 // Walk traverses an AST in pre-order: It starts by calling

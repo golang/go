@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package tests defines an Analyzer that checks for common mistaken
-// usages of tests and examples.
 package tests
 
 import (
-	"fmt"
+	_ "embed"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -17,22 +15,18 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/typeparams"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	"golang.org/x/tools/internal/astutil"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
-const Doc = `check for common mistaken usages of tests and examples
-
-The tests checker walks Test, Benchmark and Example functions checking
-malformed names, wrong signatures and examples documenting non-existent
-identifiers.
-
-Please see the documentation for package testing in golang.org/pkg/testing
-for the conventions that are enforced for Tests, Benchmarks, and Examples.`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name: "tests",
-	Doc:  Doc,
+	Doc:  analyzerutil.MustExtractDoc(doc, "tests"),
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/tests",
 	Run:  run,
 }
 
@@ -54,9 +48,9 @@ var acceptedFuzzTypes = []types.Type{
 	types.NewSlice(types.Universe.Lookup("byte").Type()),
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	for _, f := range pass.Files {
-		if !strings.HasSuffix(pass.Fset.File(f.Pos()).Name(), "_test.go") {
+		if !strings.HasSuffix(pass.Fset.File(f.FileStart).Name(), "_test.go") {
 			continue
 		}
 		for _, decl := range f.Decls {
@@ -73,9 +67,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				checkTest(pass, fn, "Test")
 			case strings.HasPrefix(fn.Name.Name, "Benchmark"):
 				checkTest(pass, fn, "Benchmark")
-			}
-			// run fuzz tests diagnostics only for 1.18 i.e. when analysisinternal.DiagnoseFuzzTests is turned on.
-			if strings.HasPrefix(fn.Name.Name, "Fuzz") && analysisinternal.DiagnoseFuzzTests {
+			case strings.HasPrefix(fn.Name.Name, "Fuzz"):
 				checkTest(pass, fn, "Fuzz")
 				checkFuzz(pass, fn)
 			}
@@ -193,13 +185,13 @@ func checkAddCalls(pass *analysis.Pass, fn *ast.FuncDecl, params *types.Tuple) {
 				i := mismatched[0]
 				expr := call.Args[i]
 				t := pass.TypesInfo.Types[expr].Type
-				pass.ReportRangef(expr, fmt.Sprintf("mismatched type in call to (*testing.F).Add: %v, fuzz target expects %v", t, params.At(i+1).Type()))
+				pass.ReportRangef(expr, "mismatched type in call to (*testing.F).Add: %v, fuzz target expects %v", t, params.At(i+1).Type())
 			} else if len(mismatched) > 1 {
 				var gotArgs, wantArgs []types.Type
 				for i := 0; i < len(call.Args); i++ {
 					gotArgs, wantArgs = append(gotArgs, pass.TypesInfo.Types[call.Args[i]].Type), append(wantArgs, params.At(i+1).Type())
 				}
-				pass.ReportRangef(call, fmt.Sprintf("mismatched types in call to (*testing.F).Add: %v, fuzz target expects %v", gotArgs, wantArgs))
+				pass.ReportRangef(call, "mismatched types in call to (*testing.F).Add: %v, fuzz target expects %v", gotArgs, wantArgs)
 			}
 		}
 		return true
@@ -253,7 +245,7 @@ func validateFuzzArgs(pass *analysis.Pass, params *types.Tuple, expr ast.Expr) b
 					}
 				}
 			}
-			pass.ReportRangef(exprRange, "fuzzing arguments can only have the following types: "+formatAcceptedFuzzType())
+			pass.ReportRangef(exprRange, "fuzzing arguments can only have the following types: %s", formatAcceptedFuzzType())
 			ok = false
 		}
 	}
@@ -261,15 +253,13 @@ func validateFuzzArgs(pass *analysis.Pass, params *types.Tuple, expr ast.Expr) b
 }
 
 func isTestingType(typ types.Type, testingType string) bool {
+	// No Unalias here: I doubt "go test" recognizes
+	// "type A = *testing.T; func Test(A) {}" as a test.
 	ptr, ok := typ.(*types.Pointer)
 	if !ok {
 		return false
 	}
-	named, ok := ptr.Elem().(*types.Named)
-	if !ok {
-		return false
-	}
-	return named.Obj().Pkg().Path() == "testing" && named.Obj().Name() == testingType
+	return typesinternal.IsTypeNamed(ptr.Elem(), "testing", testingType)
 }
 
 // Validate that fuzz target function's arguments are of accepted types.
@@ -403,7 +393,7 @@ func checkExampleName(pass *analysis.Pass, fn *ast.FuncDecl) {
 	if results := fn.Type.Results; results != nil && len(results.List) != 0 {
 		pass.Reportf(fn.Pos(), "%s should return nothing", fnName)
 	}
-	if tparams := typeparams.ForFuncType(fn.Type); tparams != nil && len(tparams.List) > 0 {
+	if tparams := fn.Type.TypeParams; tparams != nil && len(tparams.List) > 0 {
 		pass.Reportf(fn.Pos(), "%s should not have type params", fnName)
 	}
 
@@ -472,15 +462,15 @@ func checkTest(pass *analysis.Pass, fn *ast.FuncDecl, prefix string) {
 		return
 	}
 
-	if tparams := typeparams.ForFuncType(fn.Type); tparams != nil && len(tparams.List) > 0 {
+	if tparams := fn.Type.TypeParams; tparams != nil && len(tparams.List) > 0 {
 		// Note: cmd/go/internal/load also errors about TestXXX and BenchmarkXXX functions with type parameters.
 		// We have currently decided to also warn before compilation/package loading. This can help users in IDEs.
-		// TODO(adonovan): use ReportRangef(tparams).
-		pass.Reportf(fn.Pos(), "%s has type parameters: it will not be run by go test as a %sXXX function", fn.Name.Name, prefix)
+		pass.ReportRangef(astutil.RangeOf(tparams.Opening, tparams.Closing),
+			"%s has type parameters: it will not be run by go test as a %sXXX function",
+			fn.Name.Name, prefix)
 	}
 
 	if !isTestSuffix(fn.Name.Name[len(prefix):]) {
-		// TODO(adonovan): use ReportRangef(fn.Name).
-		pass.Reportf(fn.Pos(), "%s has malformed name: first letter after '%s' must not be lowercase", fn.Name.Name, prefix)
+		pass.ReportRangef(fn.Name, "%s has malformed name: first letter after '%s' must not be lowercase", fn.Name.Name, prefix)
 	}
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Test case for issue 23434: Better synchronization of
+// Test case for go.dev/issue/23434: Better synchronization of
 // parser after missing type. There should be exactly
 // one error each time, with now follow errors.
 
@@ -12,7 +12,7 @@ type T /* ERROR unexpected newline */
 
 type Map map[int] /* ERROR unexpected newline */
 
-// Examples from #23434:
+// Examples from go.dev/issue/23434:
 
 func g() {
 	m := make(map[string] /* ERROR unexpected ! */ !)

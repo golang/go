@@ -1,0 +1,7 @@
+help -v
+
+# To see help for a specific command or condition, run 'help' for it here.
+# For example:
+help wait
+help [verbose]
+help [exec:bash]

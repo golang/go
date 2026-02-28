@@ -11,20 +11,16 @@
 //
 // NOTE: mcall() assumes this clobbers only X31 (REG_TMP).
 TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
+#ifndef GOOS_openbsd
 	MOVB	runtime·iscgo(SB), X31
-	BEQ	X0, X31, nocgo
-
-	MOV	runtime·tls_g(SB), X31
-	ADD	TP, X31		// add offset to thread pointer (X4)
-	MOV	g, (X31)
-
+	BEQZ	X31, nocgo
+#endif
+	MOV	g, runtime·tls_g(SB)
 nocgo:
 	RET
 
 TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
-	MOV	runtime·tls_g(SB), X31
-	ADD	TP, X31		// add offset to thread pointer (X4)
-	MOV	(X31), g
+	MOV	runtime·tls_g(SB), g
 	RET
 
 GLOBL runtime·tls_g(SB), TLSBSS, $8

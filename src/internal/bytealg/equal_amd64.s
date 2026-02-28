@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "go_asm.h"
+#include "asm_amd64.h"
 #include "textflag.h"
 
 // memequal(a, b unsafe.Pointer, size uintptr) bool
@@ -46,10 +47,12 @@ TEXT memeqbody<>(SB),NOSPLIT,$0-0
 	JB	small
 	CMPQ	BX, $64
 	JB	bigloop
+#ifndef hasAVX2
 	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JE	hugeloop_avx2
 
 	// 64 bytes at a time using xmm registers
+	PCALIGN $16
 hugeloop:
 	CMPQ	BX, $64
 	JB	bigloop
@@ -76,8 +79,10 @@ hugeloop:
 	JEQ	hugeloop
 	XORQ	AX, AX	// return 0
 	RET
+#endif
 
 	// 64 bytes at a time using ymm registers
+	PCALIGN $16
 hugeloop_avx2:
 	CMPQ	BX, $64
 	JB	bigloop_avx2
@@ -102,6 +107,7 @@ bigloop_avx2:
 	VZEROUPPER
 
 	// 8 bytes at a time using 64-bit register
+	PCALIGN $16
 bigloop:
 	CMPQ	BX, $8
 	JBE	leftover

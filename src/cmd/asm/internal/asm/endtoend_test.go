@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"internal/buildcfg"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -31,15 +30,15 @@ func testEndToEnd(t *testing.T, goarch, file string) {
 	architecture, ctxt := setArch(goarch)
 	architecture.Init(ctxt)
 	lexer := lex.NewLexer(input)
-	parser := NewParser(ctxt, architecture, lexer, false)
+	parser := NewParser(ctxt, architecture, lexer)
 	pList := new(obj.Plist)
 	var ok bool
-	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
+	testOut = new(strings.Builder) // The assembler writes test output to this buffer.
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
 	ctxt.IsAsm = true
 	defer ctxt.Bso.Flush()
 	failed := false
-	ctxt.DiagFunc = func(format string, args ...interface{}) {
+	ctxt.DiagFunc = func(format string, args ...any) {
 		failed = true
 		t.Errorf(format, args...)
 	}
@@ -51,7 +50,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
 	output := strings.Split(testOut.String(), "\n")
 
 	// Reconstruct expected output by independently "parsing" the input.
-	data, err := ioutil.ReadFile(input)
+	data, err := os.ReadFile(input)
 	if err != nil {
 		t.Error(err)
 		return
@@ -66,6 +65,11 @@ Diff:
 
 		// Ignore include of textflag.h.
 		if strings.HasPrefix(line, "#include ") {
+			continue
+		}
+
+		// Ignore GLOBL.
+		if strings.HasPrefix(line, "GLOBL ") {
 			continue
 		}
 
@@ -137,11 +141,17 @@ Diff:
 		// Turn relative (PC) into absolute (PC) automatically,
 		// so that most branch instructions don't need comments
 		// giving the absolute form.
-		if len(f) > 0 && strings.HasSuffix(printed, "(PC)") {
-			last := f[len(f)-1]
-			n, err := strconv.Atoi(last[:len(last)-len("(PC)")])
+		if len(f) > 0 && strings.Contains(printed, "(PC)") {
+			index := len(f) - 1
+			suf := "(PC)"
+			for !strings.HasSuffix(f[index], suf) {
+				index--
+				suf = "(PC),"
+			}
+			str := f[index]
+			n, err := strconv.Atoi(str[:len(str)-len(suf)])
 			if err == nil {
-				f[len(f)-1] = fmt.Sprintf("%d(PC)", seq+n)
+				f[index] = fmt.Sprintf("%d%s", seq+n, suf)
 			}
 		}
 
@@ -183,11 +193,16 @@ Diff:
 	top := pList.Firstpc
 	var text *obj.LSym
 	ok = true
-	ctxt.DiagFunc = func(format string, args ...interface{}) {
+	ctxt.DiagFunc = func(format string, args ...any) {
 		t.Errorf(format, args...)
 		ok = false
 	}
-	obj.Flushplist(ctxt, pList, nil, "")
+	obj.Flushplist(ctxt, pList, nil)
+
+	if !ok {
+		// If we've encountered errors, the output is unlikely to be sane.
+		t.FailNow()
+	}
 
 	for p := top; p != nil; p = p.Link {
 		if p.As == obj.ATEXT {
@@ -262,7 +277,7 @@ func isHexes(s string) bool {
 // the standard file:line: prefix,
 // but that's not where we are today.
 // It might be at the beginning but it might be in the middle of the printed instruction.
-var fileLineRE = regexp.MustCompile(`(?:^|\()(testdata[/\\][0-9a-z]+\.s:[0-9]+)(?:$|\)|:)`)
+var fileLineRE = regexp.MustCompile(`(?:^|\()(testdata[/\\][\da-z]+\.s:\d+)(?:$|\)|:)`)
 
 // Same as in test/run.go
 var (
@@ -273,18 +288,18 @@ var (
 func testErrors(t *testing.T, goarch, file string, flags ...string) {
 	input := filepath.Join("testdata", file+".s")
 	architecture, ctxt := setArch(goarch)
+	architecture.Init(ctxt)
 	lexer := lex.NewLexer(input)
-	parser := NewParser(ctxt, architecture, lexer, false)
+	parser := NewParser(ctxt, architecture, lexer)
 	pList := new(obj.Plist)
 	var ok bool
-	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
 	ctxt.IsAsm = true
 	defer ctxt.Bso.Flush()
 	failed := false
 	var errBuf bytes.Buffer
 	parser.errorWriter = &errBuf
-	ctxt.DiagFunc = func(format string, args ...interface{}) {
+	ctxt.DiagFunc = func(format string, args ...any) {
 		failed = true
 		s := fmt.Sprintf(format, args...)
 		if !strings.HasSuffix(s, "\n") {
@@ -301,7 +316,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
 		}
 	}
 	pList.Firstpc, ok = parser.Parse()
-	obj.Flushplist(ctxt, pList, nil, "")
+	obj.Flushplist(ctxt, pList, nil)
 	if ok && !failed {
 		t.Errorf("asm: %s had no errors", file)
 	}
@@ -325,7 +340,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
 	}
 
 	// Reconstruct expected errors by independently "parsing" the input.
-	data, err := ioutil.ReadFile(input)
+	data, err := os.ReadFile(input)
 	if err != nil {
 		t.Error(err)
 		return
@@ -368,10 +383,10 @@ func Test386EndToEnd(t *testing.T) {
 }
 
 func TestARMEndToEnd(t *testing.T) {
-	defer func(old int) { buildcfg.GOARM = old }(buildcfg.GOARM)
+	defer func(old int) { buildcfg.GOARM.Version = old }(buildcfg.GOARM.Version)
 	for _, goarm := range []int{5, 6, 7} {
 		t.Logf("GOARM=%d", goarm)
-		buildcfg.GOARM = goarm
+		buildcfg.GOARM.Version = goarm
 		testEndToEnd(t, "arm", "arm")
 		if goarm == 6 {
 			testEndToEnd(t, "arm", "armv6")
@@ -381,6 +396,10 @@ func TestARMEndToEnd(t *testing.T) {
 
 func TestGoBuildErrors(t *testing.T) {
 	testErrors(t, "amd64", "buildtagerror")
+}
+
+func TestGenericErrors(t *testing.T) {
+	testErrors(t, "amd64", "duperror")
 }
 
 func TestARMErrors(t *testing.T) {
@@ -451,19 +470,56 @@ func TestLOONG64Encoder(t *testing.T) {
 	testEndToEnd(t, "loong64", "loong64enc1")
 	testEndToEnd(t, "loong64", "loong64enc2")
 	testEndToEnd(t, "loong64", "loong64enc3")
+	testEndToEnd(t, "loong64", "loong64enc4")
+	testEndToEnd(t, "loong64", "loong64enc5")
+	testEndToEnd(t, "loong64", "loong64enc6")
 	testEndToEnd(t, "loong64", "loong64")
 }
 
+func TestLOONG64Errors(t *testing.T) {
+	testErrors(t, "loong64", "loong64error")
+}
+
 func TestPPC64EndToEnd(t *testing.T) {
-	testEndToEnd(t, "ppc64", "ppc64")
+	defer func(old int) { buildcfg.GOPPC64 = old }(buildcfg.GOPPC64)
+	for _, goppc64 := range []int{8, 9, 10} {
+		t.Logf("GOPPC64=power%d", goppc64)
+		buildcfg.GOPPC64 = goppc64
+		// Some pseudo-ops may assemble differently depending on GOPPC64
+		testEndToEnd(t, "ppc64", "ppc64")
+		testEndToEnd(t, "ppc64", "ppc64_p10")
+	}
 }
 
-func TestRISCVEndToEnd(t *testing.T) {
-	testEndToEnd(t, "riscv64", "riscv64")
+func testRISCV64AllProfiles(t *testing.T, testFn func(t *testing.T)) {
+	t.Helper()
+
+	defer func(orig int) { buildcfg.GORISCV64 = orig }(buildcfg.GORISCV64)
+
+	for _, goriscv64 := range []int{20, 22, 23} {
+		t.Run(fmt.Sprintf("rva%vu64", goriscv64), func(t *testing.T) {
+			buildcfg.GORISCV64 = goriscv64
+			testFn(t)
+		})
+	}
 }
 
-func TestRISCVErrors(t *testing.T) {
-	testErrors(t, "riscv64", "riscv64error")
+func TestRISCV64EndToEnd(t *testing.T) {
+	testRISCV64AllProfiles(t, func(t *testing.T) {
+		testEndToEnd(t, "riscv64", "riscv64")
+	})
+}
+
+func TestRISCV64Errors(t *testing.T) {
+	testRISCV64AllProfiles(t, func(t *testing.T) {
+		testErrors(t, "riscv64", "riscv64error")
+	})
+}
+
+func TestRISCV64Validation(t *testing.T) {
+	testRISCV64AllProfiles(t, func(t *testing.T) {
+		testErrors(t, "riscv64", "riscv64validation")
+	})
 }
 
 func TestS390XEndToEnd(t *testing.T) {

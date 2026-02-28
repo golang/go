@@ -1,7 +1,6 @@
 // errorcheck -0 -d=nil
 
-// +build !wasm
-// +build !aix
+//go:build !wasm && !aix
 
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -240,4 +239,18 @@ func f9() []int {
 	x[0] = 1  // ERROR "removed nil check"
 	y := x[:] // ERROR "removed nil check"
 	return y
+}
+
+// See issue 42673.
+func f10(p **int) int {
+	return * // ERROR "removed nil check"
+	/* */
+	*p // ERROR "removed nil check"
+}
+
+func f11(x []byte) {
+	p := (*[0]byte)(x)
+	_ = *p // ERROR "generated nil check"
+	q := (*[4]byte)(x)
+	_ = *q // ERROR "removed nil check"
 }

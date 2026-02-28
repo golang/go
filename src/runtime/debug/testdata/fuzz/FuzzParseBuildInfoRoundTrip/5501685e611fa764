@@ -1,0 +1,2 @@
+go test fuzz v1
+string("mod\t\t0\n")

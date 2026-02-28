@@ -9,7 +9,10 @@
 //
 // The blocks of the CFG contain all the function's non-control
 // statements.  The CFG does not contain control statements such as If,
-// Switch, Select, and Branch, but does contain their subexpressions.
+// Switch, Select, and Branch, but does contain their subexpressions;
+// also, each block records the control statement (Block.Stmt) that
+// gave rise to it and its relationship (Block.Kind) to that statement.
+//
 // For example, this source code:
 //
 //	if x := f(); x != nil {
@@ -20,14 +23,14 @@
 //
 // produces this CFG:
 //
-//	1:  x := f()
+//	1:  x := f()		Body
 //	    x != nil
 //	    succs: 2, 3
-//	2:  T()
+//	2:  T()			IfThen
 //	    succs: 4
-//	3:  F()
+//	3:  F()			IfElse
 //	    succs: 4
-//	4:
+//	4:			IfDone
 //
 // The CFG does contain Return statements; even implicit returns are
 // materialized (at the position of the function's closing brace).
@@ -50,8 +53,12 @@ import (
 //
 // The entry point is Blocks[0]; there may be multiple return blocks.
 type CFG struct {
-	Blocks []*Block // block[0] is entry; order otherwise undefined
+	Blocks   []*Block // block[0] is entry; order otherwise undefined
+	noreturn bool     // function body lacks a reachable return statement
 }
+
+// NoReturn reports whether the function has no reachable return.
+func (cfg *CFG) NoReturn() bool { return cfg.noreturn }
 
 // A Block represents a basic block: a list of statements and
 // expressions that are always evaluated sequentially.
@@ -59,14 +66,73 @@ type CFG struct {
 // A block may have 0-2 successors: zero for a return block or a block
 // that calls a function such as panic that never returns; one for a
 // normal (jump) block; and two for a conditional (if) block.
+//
+// In a conditional block, the last entry in Nodes is the condition and always
+// an [ast.Expr], Succs[0] is the successor if the condition is true, and
+// Succs[1] is the successor if the condition is false.
 type Block struct {
-	Nodes []ast.Node // statements, expressions, and ValueSpecs
-	Succs []*Block   // successor nodes in the graph
-	Index int32      // index within CFG.Blocks
-	Live  bool       // block is reachable from entry
+	Nodes   []ast.Node // statements, expressions, and ValueSpecs
+	Succs   []*Block   // successor nodes in the graph
+	Index   int32      // index within CFG.Blocks
+	Live    bool       // block is reachable from entry
+	returns bool       // block contains return or defer (which may recover and return)
+	Kind    BlockKind  // block kind
+	Stmt    ast.Stmt   // statement that gave rise to this block (see BlockKind for details)
 
-	comment string    // for debugging
-	succs2  [2]*Block // underlying array for Succs
+	succs2 [2]*Block // underlying array for Succs
+}
+
+// A BlockKind identifies the purpose of a block.
+// It also determines the possible types of its Stmt field.
+type BlockKind uint8
+
+const (
+	KindInvalid BlockKind = iota // Stmt=nil
+
+	KindUnreachable     // unreachable block after {Branch,Return}Stmt / no-return call ExprStmt
+	KindBody            // function body BlockStmt
+	KindForBody         // body of ForStmt
+	KindForDone         // block after ForStmt
+	KindForLoop         // head of ForStmt
+	KindForPost         // post condition of ForStmt
+	KindIfDone          // block after IfStmt
+	KindIfElse          // else block of IfStmt
+	KindIfThen          // then block of IfStmt
+	KindLabel           // labeled block of BranchStmt (Stmt may be nil for dangling label)
+	KindRangeBody       // body of RangeStmt
+	KindRangeDone       // block after RangeStmt
+	KindRangeLoop       // head of RangeStmt
+	KindSelectCaseBody  // body of SelectStmt
+	KindSelectDone      // block after SelectStmt
+	KindSelectAfterCase // block after a CommClause
+	KindSwitchCaseBody  // body of CaseClause
+	KindSwitchDone      // block after {Type.}SwitchStmt
+	KindSwitchNextCase  // secondary expression of a multi-expression CaseClause
+)
+
+func (kind BlockKind) String() string {
+	return [...]string{
+		KindInvalid:         "Invalid",
+		KindUnreachable:     "Unreachable",
+		KindBody:            "Body",
+		KindForBody:         "ForBody",
+		KindForDone:         "ForDone",
+		KindForLoop:         "ForLoop",
+		KindForPost:         "ForPost",
+		KindIfDone:          "IfDone",
+		KindIfElse:          "IfElse",
+		KindIfThen:          "IfThen",
+		KindLabel:           "Label",
+		KindRangeBody:       "RangeBody",
+		KindRangeDone:       "RangeDone",
+		KindRangeLoop:       "RangeLoop",
+		KindSelectCaseBody:  "SelectCaseBody",
+		KindSelectDone:      "SelectDone",
+		KindSelectAfterCase: "SelectAfterCase",
+		KindSwitchCaseBody:  "SwitchCaseBody",
+		KindSwitchDone:      "SwitchDone",
+		KindSwitchNextCase:  "SwitchNextCase",
+	}[kind]
 }
 
 // New returns a new control-flow graph for the specified function body,
@@ -80,14 +146,14 @@ type Block struct {
 func New(body *ast.BlockStmt, mayReturn func(*ast.CallExpr) bool) *CFG {
 	b := builder{
 		mayReturn: mayReturn,
-		cfg:       new(CFG),
 	}
-	b.current = b.newBlock("entry")
+	b.current = b.newBlock(KindBody, body)
 	b.stmt(body)
 
-	// Compute liveness (reachability from entry point), breadth-first.
-	q := make([]*Block, 0, len(b.cfg.Blocks))
-	q = append(q, b.cfg.Blocks[0]) // entry point
+	// Compute liveness (reachability from entry point),
+	// breadth-first, marking Block.Live flags.
+	q := make([]*Block, 0, len(b.blocks))
+	q = append(q, b.blocks[0]) // entry point
 	for len(q) > 0 {
 		b := q[len(q)-1]
 		q = q[:len(q)-1]
@@ -101,19 +167,49 @@ func New(body *ast.BlockStmt, mayReturn func(*ast.CallExpr) bool) *CFG {
 	// Does control fall off the end of the function's body?
 	// Make implicit return explicit.
 	if b.current != nil && b.current.Live {
+		b.current.returns = true
 		b.add(&ast.ReturnStmt{
 			Return: body.End() - 1,
 		})
 	}
 
-	return b.cfg
+	// Is any return (or defer+recover) block reachable?
+	noreturn := true
+	for _, bl := range b.blocks {
+		if bl.Live && bl.returns {
+			noreturn = false
+			break
+		}
+	}
+
+	return &CFG{Blocks: b.blocks, noreturn: noreturn}
 }
 
 func (b *Block) String() string {
-	return fmt.Sprintf("block %d (%s)", b.Index, b.comment)
+	return fmt.Sprintf("block %d (%s)", b.Index, b.comment(nil))
 }
 
-// Return returns the return statement at the end of this block if present, nil otherwise.
+func (b *Block) comment(fset *token.FileSet) string {
+	s := b.Kind.String()
+	if fset != nil && b.Stmt != nil {
+		s = fmt.Sprintf("%s@L%d", s, fset.Position(b.Stmt.Pos()).Line)
+	}
+	return s
+}
+
+// Return returns the return statement at the end of this block if present, nil
+// otherwise.
+//
+// When control falls off the end of the function, the ReturnStmt is synthetic
+// and its [ast.Node.End] position may be beyond the end of the file.
+//
+// A function that contains no return statement (explicit or implied)
+// may yet return normally, and may even return a nonzero value. For example:
+//
+//	func() (res any) {
+//		defer func() { res = recover() }()
+//		panic(123)
+//	}
 func (b *Block) Return() (ret *ast.ReturnStmt) {
 	if len(b.Nodes) > 0 {
 		ret, _ = b.Nodes[len(b.Nodes)-1].(*ast.ReturnStmt)
@@ -125,7 +221,7 @@ func (b *Block) Return() (ret *ast.ReturnStmt) {
 func (g *CFG) Format(fset *token.FileSet) string {
 	var buf bytes.Buffer
 	for _, b := range g.Blocks {
-		fmt.Fprintf(&buf, ".%d: # %s\n", b.Index, b.comment)
+		fmt.Fprintf(&buf, ".%d: # %s\n", b.Index, b.comment(fset))
 		for _, n := range b.Nodes {
 			fmt.Fprintf(&buf, "\t%s\n", formatNode(fset, n))
 		}
@@ -138,6 +234,34 @@ func (g *CFG) Format(fset *token.FileSet) string {
 		}
 		buf.WriteByte('\n')
 	}
+	return buf.String()
+}
+
+// Dot returns the control-flow graph in the [Dot graph description language].
+// Use a command such as 'dot -Tsvg' to render it in a form viewable in a browser.
+// This method is provided as a debugging aid; the details of the
+// output are unspecified and may change.
+//
+// [Dot graph description language]: ​​https://en.wikipedia.org/wiki/DOT_(graph_description_language)
+func (g *CFG) Dot(fset *token.FileSet) string {
+	var buf bytes.Buffer
+	buf.WriteString("digraph CFG {\n")
+	buf.WriteString("  node [shape=box];\n")
+	for _, b := range g.Blocks {
+		// node label
+		var text bytes.Buffer
+		text.WriteString(b.comment(fset))
+		for _, n := range b.Nodes {
+			fmt.Fprintf(&text, "\n%s", formatNode(fset, n))
+		}
+
+		// node and edges
+		fmt.Fprintf(&buf, "  n%d [label=%q];\n", b.Index, &text)
+		for _, succ := range b.Succs {
+			fmt.Fprintf(&buf, "  n%d -> n%d;\n", b.Index, succ.Index)
+		}
+	}
+	buf.WriteString("}\n")
 	return buf.String()
 }
 

@@ -37,7 +37,7 @@ Goals of the sql and sql/driver packages:
 
 * Push complexity, where necessary, down into the sql+driver packages,
   rather than exposing it to users. Said otherwise, the sql package
-  should expose an ideal database that's not finnicky about how it's
+  should expose an ideal database that's not finicky about how it's
   accessed, even if that's not true.
 
 * Provide optional interfaces in sql/driver for drivers to implement

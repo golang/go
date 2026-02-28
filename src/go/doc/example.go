@@ -7,11 +7,11 @@
 package doc
 
 import (
+	"cmp"
 	"go/ast"
 	"go/token"
 	"internal/lazyregexp"
-	"path"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -35,7 +35,7 @@ type Example struct {
 // Examples returns the examples found in testFiles, sorted by Name field.
 // The Order fields record the order in which the examples were encountered.
 // The Suffix field is not populated when Examples is called directly, it is
-// only populated by NewFromFiles for examples it finds in _test.go files.
+// only populated by [NewFromFiles] for examples it finds in _test.go files.
 //
 // Playable Examples must be in a package whose name ends in "_test".
 // An Example is "playable" (the Play field is non-nil) in either of these
@@ -74,6 +74,9 @@ func Examples(testFiles ...*ast.File) []*Example {
 			if params := f.Type.Params; len(params.List) != 0 {
 				continue // function has params; not a valid example
 			}
+			if results := f.Type.Results; results != nil && len(results.List) != 0 {
+				continue // function has results; not a valid example
+			}
 			if f.Body == nil { // ast.File.Body nil dereference (see issue 28044)
 				continue
 			}
@@ -104,15 +107,15 @@ func Examples(testFiles ...*ast.File) []*Example {
 		list = append(list, flist...)
 	}
 	// sort by name
-	sort.Slice(list, func(i, j int) bool {
-		return list[i].Name < list[j].Name
+	slices.SortFunc(list, func(a, b *Example) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 	return list
 }
 
 var outputPrefix = lazyregexp.New(`(?i)^[[:space:]]*(unordered )?output:`)
 
-// Extracts the expected output and whether there was a valid output comment
+// Extracts the expected output and whether there was a valid output comment.
 func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) (output string, unordered, ok bool) {
 	if _, last := lastComment(b, comments); last != nil {
 		// test that it begins with the correct prefix
@@ -191,13 +194,6 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	// Find unresolved identifiers and uses of top-level declarations.
 	depDecls, unresolved := findDeclsAndUnresolved(body, topDecls, typMethods)
 
-	// Remove predeclared identifiers from unresolved list.
-	for n := range unresolved {
-		if predeclaredTypes[n] || predeclaredConstants[n] || predeclaredFuncs[n] {
-			delete(unresolved, n)
-		}
-	}
-
 	// Use unresolved identifiers to determine the imports used by this
 	// example. The heuristic assumes package names match base import
 	// paths for imports w/o renames (should be good enough most of the time).
@@ -227,7 +223,7 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 			// because the package syscall/js is not available in the playground.
 			return nil
 		}
-		n := path.Base(p)
+		n := assumedPackageName(p)
 		if s.Name != nil {
 			n = s.Name.Name
 			switch n {
@@ -244,8 +240,15 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 			spec := *s
 			path := *s.Path
 			spec.Path = &path
-			spec.Path.ValuePos = groupStart(&spec)
+			updateBasicLitPos(spec.Path, groupStart(&spec))
 			namedImports = append(namedImports, &spec)
+			delete(unresolved, n)
+		}
+	}
+
+	// Remove predeclared identifiers from unresolved list.
+	for n := range unresolved {
+		if predeclaredTypes[n] || predeclaredConstants[n] || predeclaredFuncs[n] {
 			delete(unresolved, n)
 		}
 	}
@@ -309,11 +312,11 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	decls = append(decls, depDecls...)
 	decls = append(decls, funcDecl)
 
-	sort.Slice(decls, func(i, j int) bool {
-		return decls[i].Pos() < decls[j].Pos()
+	slices.SortFunc(decls, func(a, b ast.Decl) int {
+		return cmp.Compare(a.Pos(), b.Pos())
 	})
-	sort.Slice(comments, func(i, j int) bool {
-		return comments[i].Pos() < comments[j].Pos()
+	slices.SortFunc(comments, func(a, b *ast.CommentGroup) int {
+		return cmp.Compare(a.Pos(), b.Pos())
 	})
 
 	// Synthesize file.
@@ -388,7 +391,7 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
 	for i := 0; i < len(depDecls); i++ {
 		switch d := depDecls[i].(type) {
 		case *ast.FuncDecl:
-			// Inpect type parameters.
+			// Inspect type parameters.
 			inspectFieldList(d.Type.TypeParams)
 			// Inspect types of parameters and results. See #28492.
 			inspectFieldList(d.Type.Params)
@@ -490,17 +493,14 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
 }
 
 func hasIota(s ast.Spec) bool {
-	has := false
-	ast.Inspect(s, func(n ast.Node) bool {
+	for n := range ast.Preorder(s) {
 		// Check that this is the special built-in "iota" identifier, not
 		// a user-defined shadow.
 		if id, ok := n.(*ast.Ident); ok && id.Name == "iota" && id.Obj == nil {
-			has = true
-			return false
+			return true
 		}
-		return true
-	})
-	return has
+	}
+	return false
 }
 
 // findImportGroupStarts finds the start positions of each sequence of import
@@ -520,7 +520,9 @@ func findImportGroupStarts1(origImps []*ast.ImportSpec) []*ast.ImportSpec {
 	imps := make([]*ast.ImportSpec, len(origImps))
 	copy(imps, origImps)
 	// Assume the imports are sorted by position.
-	sort.Slice(imps, func(i, j int) bool { return imps[i].Pos() < imps[j].Pos() })
+	slices.SortFunc(imps, func(a, b *ast.ImportSpec) int {
+		return cmp.Compare(a.Pos(), b.Pos())
+	})
 	// Assume gofmt has been applied, so there is a blank line between adjacent imps
 	// if and only if they are more than 2 positions apart (newline, tab).
 	var groupStarts []*ast.ImportSpec
@@ -675,8 +677,8 @@ func classifyExamples(p *Package, examples []*Example) {
 
 	// Sort list of example according to the user-specified suffix name.
 	for _, exs := range ids {
-		sort.Slice((*exs), func(i, j int) bool {
-			return (*exs)[i].Suffix < (*exs)[j].Suffix
+		slices.SortFunc(*exs, func(a, b *Example) int {
+			return cmp.Compare(a.Suffix, b.Suffix)
 		})
 	}
 }
@@ -719,4 +721,15 @@ func splitExampleName(s string, i int) (prefix, suffix string, ok bool) {
 func isExampleSuffix(s string) bool {
 	r, size := utf8.DecodeRuneInString(s)
 	return size > 0 && unicode.IsLower(r)
+}
+
+// updateBasicLitPos updates lit.Pos,
+// ensuring that lit.End is displaced by the same amount.
+// (See https://go.dev/issue/76395.)
+func updateBasicLitPos(lit *ast.BasicLit, pos token.Pos) {
+	len := lit.End() - lit.Pos()
+	lit.ValuePos = pos
+	if lit.ValueEnd.IsValid() {
+		lit.ValueEnd = pos + len
+	}
 }

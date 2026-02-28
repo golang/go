@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -47,6 +48,16 @@ var dnsReadConfigTests = []struct {
 		want: &dnsConfig{
 			servers:  []string{"8.8.8.8:53"},
 			search:   []string{"test.", "invalid."},
+			ndots:    1,
+			timeout:  5 * time.Second,
+			attempts: 2,
+		},
+	},
+	{
+		name: "testdata/search-single-dot-resolv.conf",
+		want: &dnsConfig{
+			servers:  []string{"8.8.8.8:53"},
+			search:   []string{},
 			ndots:    1,
 			timeout:  5 * time.Second,
 			attempts: 2,
@@ -166,13 +177,17 @@ func TestDNSReadConfig(t *testing.T) {
 	getHostname = func() (string, error) { return "host.domain.local", nil }
 
 	for _, tt := range dnsReadConfigTests {
+		want := *tt.want
+		if len(want.search) == 0 {
+			want.search = dnsDefaultSearch()
+		}
 		conf := dnsReadConfig(tt.name)
 		if conf.err != nil {
 			t.Fatal(conf.err)
 		}
 		conf.mtime = time.Time{}
-		if !reflect.DeepEqual(conf, tt.want) {
-			t.Errorf("%s:\ngot: %+v\nwant: %+v", tt.name, conf, tt.want)
+		if !reflect.DeepEqual(conf, &want) {
+			t.Errorf("%s:\ngot: %+v\nwant: %+v", tt.name, conf, want)
 		}
 	}
 }
@@ -236,7 +251,7 @@ func TestDNSDefaultSearch(t *testing.T) {
 	for _, tt := range dnsDefaultSearchTests {
 		getHostname = func() (string, error) { return tt.name, tt.err }
 		got := dnsDefaultSearch()
-		if !reflect.DeepEqual(got, tt.want) {
+		if !slices.Equal(got, tt.want) {
 			t.Errorf("dnsDefaultSearch with hostname %q and error %+v = %q, wanted %q", tt.name, tt.err, got, tt.want)
 		}
 	}
@@ -259,8 +274,13 @@ func TestDNSNameLength(t *testing.T) {
 			t.Fatal(conf.err)
 		}
 
+		suffixList := tt.want.search
+		if len(suffixList) == 0 {
+			suffixList = dnsDefaultSearch()
+		}
+
 		var shortestSuffix int
-		for _, suffix := range tt.want.search {
+		for _, suffix := range suffixList {
 			if shortestSuffix == 0 || len(suffix) < shortestSuffix {
 				shortestSuffix = len(suffix)
 			}

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -325,10 +326,10 @@ type BadPathEmbeddedB struct {
 var badPathTests = []struct {
 	v, e any
 }{
-	{&BadPathTestA{}, &TagPathError{reflect.TypeOf(BadPathTestA{}), "First", "items>item1", "Second", "items"}},
-	{&BadPathTestB{}, &TagPathError{reflect.TypeOf(BadPathTestB{}), "First", "items>item1", "Second", "items>item1>value"}},
-	{&BadPathTestC{}, &TagPathError{reflect.TypeOf(BadPathTestC{}), "First", "", "Second", "First"}},
-	{&BadPathTestD{}, &TagPathError{reflect.TypeOf(BadPathTestD{}), "First", "", "Second", "First"}},
+	{&BadPathTestA{}, &TagPathError{reflect.TypeFor[BadPathTestA](), "First", "items>item1", "Second", "items"}},
+	{&BadPathTestB{}, &TagPathError{reflect.TypeFor[BadPathTestB](), "First", "items>item1", "Second", "items>item1>value"}},
+	{&BadPathTestC{}, &TagPathError{reflect.TypeFor[BadPathTestC](), "First", "", "Second", "First"}},
+	{&BadPathTestD{}, &TagPathError{reflect.TypeFor[BadPathTestD](), "First", "", "Second", "First"}},
 }
 
 func TestUnmarshalBadPaths(t *testing.T) {
@@ -1092,7 +1093,7 @@ func TestUnmarshalIntoNil(t *testing.T) {
 	err := Unmarshal([]byte("<T><A>1</A></T>"), nilPointer)
 
 	if err == nil {
-		t.Fatalf("no error in unmarshalling")
+		t.Fatalf("no error in unmarshaling")
 	}
 
 }
@@ -1105,13 +1106,13 @@ func TestCVE202228131(t *testing.T) {
 	err := Unmarshal(bytes.Repeat([]byte("<a>"), maxUnmarshalDepth+1), &n)
 	if err == nil {
 		t.Fatal("Unmarshal did not fail")
-	} else if !errors.Is(err, errExeceededMaxUnmarshalDepth) {
-		t.Fatalf("Unmarshal unexpected error: got %q, want %q", err, errExeceededMaxUnmarshalDepth)
+	} else if !errors.Is(err, errUnmarshalDepth) {
+		t.Fatalf("Unmarshal unexpected error: got %q, want %q", err, errUnmarshalDepth)
 	}
 }
 
 func TestCVE202230633(t *testing.T) {
-	if testing.Short() {
+	if testing.Short() || runtime.GOARCH == "wasm" {
 		t.Skip("test requires significant memory")
 	}
 	defer func() {

@@ -11,11 +11,11 @@
 
 #define SYS_gettimeofday 96
 
-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
-TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
+// func rawVforkSyscall(trap, a1, a2, a3 uintptr) (r1, err uintptr)
+TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-48
 	MOVQ	a1+8(FP), DI
-	MOVQ	$0, SI
-	MOVQ	$0, DX
+	MOVQ	a2+16(FP), SI
+	MOVQ	a3+24(FP), DX
 	MOVQ	$0, R10
 	MOVQ	$0, R8
 	MOVQ	$0, R9
@@ -25,13 +25,13 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
 	PUSHQ	R12
 	CMPQ	AX, $0xfffffffffffff001
 	JLS	ok2
-	MOVQ	$-1, r1+16(FP)
+	MOVQ	$-1, r1+32(FP)
 	NEGQ	AX
-	MOVQ	AX, err+24(FP)
+	MOVQ	AX, err+40(FP)
 	RET
 ok2:
-	MOVQ	AX, r1+16(FP)
-	MOVQ	$0, err+24(FP)
+	MOVQ	AX, r1+32(FP)
+	MOVQ	$0, err+40(FP)
 	RET
 
 // func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
@@ -47,6 +47,10 @@ TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
 
 // func gettimeofday(tv *Timeval) (err uintptr)
 TEXT ·gettimeofday(SB),NOSPLIT,$0-16
+	// Usually, we'd check if we're running
+	// secret code here, but because we execute
+	// gettimeofday on the G stack, it's fine to leave
+	// the registers uncleared
 	MOVQ	tv+0(FP), DI
 	MOVQ	$0, SI
 	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX

@@ -73,7 +73,7 @@ func (f *formatter) formatString(b []byte, s string) {
 	// in the V7 path field as a directory even though the full path
 	// recorded elsewhere (e.g., via PAX record) contains no trailing slash.
 	if len(s) > len(b) && b[len(b)-1] == '/' {
-		n := len(strings.TrimRight(s[:len(b)], "/"))
+		n := len(strings.TrimRight(s[:len(b)-1], "/"))
 		b[n] = 0 // Replace trailing slash with NUL terminator
 	}
 }
@@ -213,15 +213,17 @@ func parsePAXTime(s string) (time.Time, error) {
 	}
 
 	// Parse the nanoseconds.
-	if strings.Trim(sn, "0123456789") != "" {
-		return time.Time{}, ErrHeader
+	// Initialize an array with '0's to handle right padding automatically.
+	nanoDigits := [maxNanoSecondDigits]byte{'0', '0', '0', '0', '0', '0', '0', '0', '0'}
+	for i := range len(sn) {
+		switch c := sn[i]; {
+		case c < '0' || c > '9':
+			return time.Time{}, ErrHeader
+		case i < len(nanoDigits):
+			nanoDigits[i] = c
+		}
 	}
-	if len(sn) < maxNanoSecondDigits {
-		sn += strings.Repeat("0", maxNanoSecondDigits-len(sn)) // Right pad
-	} else {
-		sn = sn[:maxNanoSecondDigits] // Right truncate
-	}
-	nsecs, _ := strconv.ParseInt(sn, 10, 64) // Must succeed
+	nsecs, _ := strconv.ParseInt(string(nanoDigits[:]), 10, 64) // Must succeed after validation
 	if len(ss) > 0 && ss[0] == '-' {
 		return time.Unix(secs, -1*nsecs), nil // Negative correction
 	}
@@ -310,7 +312,7 @@ func formatPAXRecord(k, v string) (string, error) {
 //	"%d %s=%s\n" % (size, key, value)
 //
 // Keys and values should be UTF-8, but the number of bad writers out there
-// forces us to be a more liberal.
+// forces us to be more liberal.
 // Thus, we only reject all keys with NUL, and only reject NULs in values
 // for the PAX version of the USTAR string fields.
 // The key must not contain an '=' character.

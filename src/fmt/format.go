@@ -53,6 +53,8 @@ type fmt struct {
 
 func (f *fmt) clearflags() {
 	f.fmtFlags = fmtFlags{}
+	f.wid = 0
+	f.prec = 0
 }
 
 func (f *fmt) init(buf *buffer) {
@@ -75,7 +77,8 @@ func (f *fmt) writePadding(n int) {
 	}
 	// Decide which byte the padding should be filled with.
 	padByte := byte(' ')
-	if f.zero {
+	// Zero padding is allowed only to the left.
+	if f.zero && !f.minus {
 		padByte = byte('0')
 	}
 	// Fill padding with padByte.
@@ -223,7 +226,7 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, verb rune, digits st
 			f.zero = oldZero
 			return
 		}
-	} else if f.zero && f.widPresent {
+	} else if f.zero && !f.minus && f.widPresent { // Zero padding is allowed only to the left.
 		prec = f.wid
 		if negative || f.plus || f.space {
 			prec-- // leave room for sign
@@ -343,10 +346,7 @@ func (f *fmt) truncate(b []byte) []byte {
 			if n < 0 {
 				return b[:i]
 			}
-			wid := 1
-			if b[i] >= utf8.RuneSelf {
-				_, wid = utf8.DecodeRune(b[i:])
-			}
+			_, wid := utf8.DecodeRune(b[i:])
 			i += wid
 		}
 	}
@@ -461,13 +461,14 @@ func (f *fmt) fmtQ(s string) {
 // fmtC formats an integer as a Unicode character.
 // If the character is not valid Unicode, it will print '\ufffd'.
 func (f *fmt) fmtC(c uint64) {
+	// Explicitly check whether c exceeds utf8.MaxRune since the conversion
+	// of a uint64 to a rune may lose precision that indicates an overflow.
 	r := rune(c)
 	if c > utf8.MaxRune {
 		r = utf8.RuneError
 	}
 	buf := f.intbuf[:0]
-	w := utf8.EncodeRune(buf[:utf8.UTFMax], r)
-	f.pad(buf[:w])
+	f.pad(utf8.AppendRune(buf, r))
 }
 
 // fmtQc formats an integer as a single-quoted, escaped Go character constant.
@@ -579,7 +580,8 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 	if f.plus || num[0] != '+' {
 		// If we're zero padding to the left we want the sign before the leading zeros.
 		// Achieve this by writing the sign out and then padding the unsigned number.
-		if f.zero && f.widPresent && f.wid > len(num) {
+		// Zero padding is allowed only to the left.
+		if f.zero && !f.minus && f.widPresent && f.wid > len(num) {
 			f.buf.writeByte(num[0])
 			f.writePadding(f.wid - len(num))
 			f.buf.write(num[1:])

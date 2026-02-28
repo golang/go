@@ -1,0 +1,1179 @@
+-- expect --
+SUCCESS
+-- trace --
+Trace Go1.22
+EventBatch gen=1 m=18446744073709551615 time=2753926854385 size=5
+Frequency freq=15625000
+EventBatch gen=1 m=1986497 time=2753925247434 size=1430
+ProcStart dt=336 p=2 p_seq=1
+GoStart dt=191 g=19 g_seq=1
+HeapAlloc dt=389 heapalloc_value=1622016
+HeapAlloc dt=4453 heapalloc_value=1662976
+GoBlock dt=572 reason_string=12 stack=29
+ProcStop dt=26
+ProcStart dt=160734 p=2 p_seq=2
+ProcStop dt=21
+ProcStart dt=159292 p=0 p_seq=7
+GoStart dt=299 g=49 g_seq=1
+UserRegionBegin dt=183 task=8 name_string=33 stack=26
+UserLog dt=26 task=8 key_string=24 value_string=49 stack=27
+UserRegionEnd dt=8 task=8 name_string=33 stack=28
+GoDestroy dt=3
+GoStart dt=20 g=50 g_seq=1
+UserRegionBegin dt=40 task=8 name_string=35 stack=26
+UserLog dt=9 task=8 key_string=24 value_string=50 stack=27
+UserRegionEnd dt=2 task=8 name_string=35 stack=28
+GoDestroy dt=1
+ProcStop dt=18
+ProcStart dt=141801 p=4 p_seq=5
+ProcStop dt=18
+ProcStart dt=16860 p=4 p_seq=6
+GoUnblock dt=53 g=1 g_seq=5 stack=0
+GoUnblock dt=9 g=51 g_seq=3 stack=0
+GoStart dt=162 g=51 g_seq=4
+UserTaskEnd dt=35 task=9 stack=36
+UserRegionEnd dt=16 task=8 name_string=31 stack=28
+GoDestroy dt=2
+GoStart dt=20 g=1 g_seq=6
+UserTaskEnd dt=14 task=8 stack=54
+UserLog dt=26 task=3 key_string=24 value_string=51 stack=55
+UserTaskBegin dt=14 task=10 parent_task=3 name_string=26 stack=56
+UserLog dt=42 task=10 key_string=27 value_string=52 stack=57
+UserRegionBegin dt=12 task=10 name_string=29 stack=58
+GoCreate dt=36 new_g=35 new_stack=17 stack=59
+GoCreate dt=11 new_g=36 new_stack=17 stack=59
+GoCreate dt=18 new_g=37 new_stack=17 stack=59
+GoCreate dt=10 new_g=38 new_stack=17 stack=59
+GoCreate dt=6 new_g=39 new_stack=17 stack=59
+GoCreate dt=8 new_g=40 new_stack=17 stack=59
+UserRegionEnd dt=7 task=10 name_string=29 stack=60
+GoBlock dt=9 reason_string=19 stack=61
+GoStart dt=15 g=40 g_seq=1
+UserRegionBegin dt=110 task=10 name_string=53 stack=26
+UserLog dt=16 task=10 key_string=24 value_string=54 stack=27
+UserRegionEnd dt=2 task=10 name_string=53 stack=28
+GoDestroy dt=2
+GoStart dt=6 g=38 g_seq=1
+UserRegionBegin dt=31 task=10 name_string=30 stack=26
+UserLog dt=5 task=10 key_string=24 value_string=55 stack=27
+UserRegionEnd dt=2 task=10 name_string=30 stack=28
+GoDestroy dt=1
+GoStart dt=2 g=39 g_seq=1
+UserRegionBegin dt=23 task=10 name_string=56 stack=26
+UserLog dt=6 task=10 key_string=24 value_string=57 stack=27
+UserRegionEnd dt=1 task=10 name_string=56 stack=28
+GoDestroy dt=1
+GoStart dt=8 g=35 g_seq=1
+UserRegionBegin dt=17 task=10 name_string=33 stack=26
+UserLog dt=4 task=10 key_string=24 value_string=58 stack=27
+UserRegionEnd dt=2 task=10 name_string=33 stack=28
+GoDestroy dt=1
+GoStart dt=3 g=36 g_seq=1
+UserRegionBegin dt=19 task=10 name_string=35 stack=26
+UserLog dt=4 task=10 key_string=24 value_string=59 stack=27
+UserRegionEnd dt=2 task=10 name_string=35 stack=28
+GoDestroy dt=1
+ProcStop dt=11
+ProcStart dt=142205 p=0 p_seq=9
+ProcStop dt=19
+ProcStart dt=16811 p=0 p_seq=10
+GoUnblock dt=26 g=1 g_seq=7 stack=0
+GoStart dt=201 g=1 g_seq=8
+UserTaskEnd dt=24 task=10 stack=62
+UserLog dt=18 task=4 key_string=24 value_string=63 stack=63
+UserTaskBegin dt=11 task=12 parent_task=4 name_string=26 stack=64
+UserLog dt=21 task=12 key_string=27 value_string=64 stack=65
+UserRegionBegin dt=7 task=12 name_string=29 stack=66
+GoCreate dt=33 new_g=5 new_stack=17 stack=67
+GoCreate dt=12 new_g=6 new_stack=17 stack=67
+GoCreate dt=9 new_g=7 new_stack=17 stack=67
+GoCreate dt=8 new_g=8 new_stack=17 stack=67
+GoCreate dt=19 new_g=9 new_stack=17 stack=67
+UserRegionEnd dt=14 task=12 name_string=29 stack=68
+GoBlock dt=11 reason_string=19 stack=69
+GoStart dt=13 g=9 g_seq=1
+UserRegionBegin dt=70 task=12 name_string=56 stack=26
+UserLog dt=11 task=12 key_string=24 value_string=65 stack=27
+UserRegionEnd dt=3 task=12 name_string=56 stack=28
+GoDestroy dt=2
+GoStart dt=7 g=5 g_seq=1
+UserRegionBegin dt=24 task=12 name_string=33 stack=26
+UserLog dt=5 task=12 key_string=24 value_string=66 stack=27
+UserRegionEnd dt=2 task=12 name_string=33 stack=28
+GoDestroy dt=2
+GoStart dt=8 g=6 g_seq=1
+UserRegionBegin dt=15 task=12 name_string=35 stack=26
+UserLog dt=7 task=12 key_string=24 value_string=67 stack=27
+UserRegionEnd dt=2 task=12 name_string=35 stack=28
+GoDestroy dt=1
+GoStart dt=2 g=7 g_seq=1
+UserRegionBegin dt=13 task=12 name_string=31 stack=26
+UserLog dt=5 task=12 key_string=24 value_string=68 stack=27
+UserLog dt=6 task=12 key_string=24 value_string=69 stack=30
+UserTaskBegin dt=5 task=13 parent_task=12 name_string=26 stack=31
+UserLog dt=7 task=13 key_string=27 value_string=70 stack=32
+UserRegionBegin dt=4 task=13 name_string=29 stack=33
+UserRegionEnd dt=6 task=13 name_string=29 stack=34
+GoBlock dt=18 reason_string=19 stack=35
+GoStart dt=12 g=8 g_seq=1
+UserRegionBegin dt=22 task=12 name_string=30 stack=26
+UserLog dt=5 task=12 key_string=24 value_string=71 stack=27
+UserRegionEnd dt=2 task=12 name_string=30 stack=28
+GoDestroy dt=1
+ProcStop dt=20
+ProcStart dt=141838 p=4 p_seq=8
+ProcStop dt=16
+ProcStart dt=17652 p=4 p_seq=9
+GoUnblock dt=48 g=1 g_seq=9 stack=0
+GoUnblock dt=8 g=7 g_seq=2 stack=0
+GoStart dt=271 g=7 g_seq=3
+UserTaskEnd dt=25 task=13 stack=36
+UserRegionEnd dt=15 task=12 name_string=31 stack=28
+GoDestroy dt=4
+GoStart dt=19 g=1 g_seq=10
+UserTaskEnd dt=19 task=12 stack=70
+UserLog dt=21 task=0 key_string=24 value_string=72 stack=13
+UserTaskBegin dt=19 task=14 parent_task=0 name_string=26 stack=14
+UserLog dt=37 task=14 key_string=27 value_string=73 stack=15
+UserRegionBegin dt=6 task=14 name_string=29 stack=16
+GoCreate dt=28 new_g=41 new_stack=17 stack=18
+GoCreate dt=14 new_g=42 new_stack=17 stack=18
+GoCreate dt=12 new_g=43 new_stack=17 stack=18
+GoCreate dt=10 new_g=44 new_stack=17 stack=18
+UserRegionEnd dt=5 task=14 name_string=29 stack=19
+GoBlock dt=9 reason_string=19 stack=20
+GoStart dt=16 g=44 g_seq=1
+UserRegionBegin dt=107 task=14 name_string=30 stack=26
+UserLog dt=16 task=14 key_string=24 value_string=74 stack=27
+UserRegionEnd dt=3 task=14 name_string=30 stack=28
+GoDestroy dt=2
+GoStart dt=7 g=41 g_seq=1
+UserRegionBegin dt=30 task=14 name_string=33 stack=26
+UserLog dt=7 task=14 key_string=24 value_string=75 stack=27
+UserRegionEnd dt=2 task=14 name_string=33 stack=28
+GoDestroy dt=2
+GoStart dt=7 g=42 g_seq=1
+UserRegionBegin dt=27 task=14 name_string=35 stack=26
+UserLog dt=7 task=14 key_string=24 value_string=76 stack=27
+UserRegionEnd dt=2 task=14 name_string=35 stack=28
+GoDestroy dt=2
+ProcStop dt=28
+ProcStart dt=141923 p=0 p_seq=12
+ProcStop dt=19
+ProcStart dt=16780 p=0 p_seq=13
+GoUnblock dt=22 g=43 g_seq=2 stack=0
+GoStart dt=162 g=43 g_seq=3
+UserTaskEnd dt=16 task=15 stack=36
+UserRegionEnd dt=12 task=14 name_string=31 stack=28
+GoDestroy dt=2
+ProcStop dt=8
+ProcStart dt=1532 p=2 p_seq=9
+ProcStop dt=12
+ProcStart dt=141906 p=4 p_seq=11
+ProcStop dt=16
+ProcStart dt=16784 p=4 p_seq=12
+GoUnblock dt=20 g=1 g_seq=13 stack=0
+GoStart dt=191 g=1 g_seq=14
+UserTaskEnd dt=15 task=16 stack=45
+UserLog dt=17 task=2 key_string=24 value_string=84 stack=46
+UserTaskBegin dt=8 task=17 parent_task=2 name_string=26 stack=47
+UserLog dt=20 task=17 key_string=27 value_string=85 stack=48
+UserRegionBegin dt=6 task=17 name_string=29 stack=49
+GoCreate dt=28 new_g=45 new_stack=17 stack=50
+GoCreate dt=9 new_g=46 new_stack=17 stack=50
+GoCreate dt=10 new_g=47 new_stack=17 stack=50
+UserRegionEnd dt=5 task=17 name_string=29 stack=51
+GoBlock dt=6 reason_string=19 stack=52
+GoStart dt=10 g=47 g_seq=1
+UserRegionBegin dt=69 task=17 name_string=31 stack=26
+UserLog dt=11 task=17 key_string=24 value_string=86 stack=27
+UserLog dt=7 task=17 key_string=24 value_string=87 stack=30
+UserTaskBegin dt=5 task=18 parent_task=17 name_string=26 stack=31
+UserLog dt=7 task=18 key_string=27 value_string=88 stack=32
+UserRegionBegin dt=5 task=18 name_string=29 stack=33
+UserRegionEnd dt=4 task=18 name_string=29 stack=34
+HeapAlloc dt=35 heapalloc_value=1818624
+GoBlock dt=14 reason_string=19 stack=35
+HeapAlloc dt=11 heapalloc_value=1826816
+GoStart dt=10 g=45 g_seq=1
+UserRegionBegin dt=29 task=17 name_string=33 stack=26
+UserLog dt=9 task=17 key_string=24 value_string=89 stack=27
+UserRegionEnd dt=3 task=17 name_string=33 stack=28
+GoDestroy dt=1
+GoStart dt=5 g=46 g_seq=1
+UserRegionBegin dt=15 task=17 name_string=35 stack=26
+UserLog dt=8 task=17 key_string=24 value_string=90 stack=27
+UserRegionEnd dt=2 task=17 name_string=35 stack=28
+GoDestroy dt=1
+ProcStop dt=3
+ProcStart dt=141981 p=0 p_seq=16
+ProcStop dt=19
+ProcStart dt=17153 p=0 p_seq=17
+GoUnblock dt=44 g=1 g_seq=15 stack=0
+GoUnblock dt=11 g=47 g_seq=2 stack=0
+GoStart dt=215 g=47 g_seq=3
+UserTaskEnd dt=22 task=18 stack=36
+UserRegionEnd dt=9 task=17 name_string=31 stack=28
+GoDestroy dt=3
+GoStart dt=19 g=1 g_seq=16
+UserTaskEnd dt=13 task=17 stack=54
+UserLog dt=18 task=3 key_string=24 value_string=91 stack=55
+UserTaskBegin dt=7 task=19 parent_task=3 name_string=26 stack=56
+UserLog dt=27 task=19 key_string=27 value_string=92 stack=57
+UserRegionBegin dt=8 task=19 name_string=29 stack=58
+GoCreate dt=30 new_g=10 new_stack=17 stack=59
+GoCreate dt=9 new_g=11 new_stack=17 stack=59
+GoCreate dt=11 new_g=12 new_stack=17 stack=59
+GoCreate dt=7 new_g=13 new_stack=17 stack=59
+GoCreate dt=7 new_g=14 new_stack=17 stack=59
+GoCreate dt=9 new_g=15 new_stack=17 stack=59
+UserRegionEnd dt=5 task=19 name_string=29 stack=60
+GoBlock dt=7 reason_string=19 stack=61
+GoStart dt=17 g=15 g_seq=1
+UserRegionBegin dt=61 task=19 name_string=53 stack=26
+UserLog dt=10 task=19 key_string=24 value_string=93 stack=27
+UserRegionEnd dt=3 task=19 name_string=53 stack=28
+GoDestroy dt=1
+GoStart dt=4 g=10 g_seq=1
+UserRegionBegin dt=26 task=19 name_string=33 stack=26
+UserLog dt=7 task=19 key_string=24 value_string=94 stack=27
+UserRegionEnd dt=2 task=19 name_string=33 stack=28
+GoDestroy dt=1
+GoStart dt=4 g=11 g_seq=1
+UserRegionBegin dt=20 task=19 name_string=35 stack=26
+UserLog dt=5 task=19 key_string=24 value_string=95 stack=27
+UserRegionEnd dt=2 task=19 name_string=35 stack=28
+GoDestroy dt=1
+GoStart dt=7 g=12 g_seq=1
+UserRegionBegin dt=14 task=19 name_string=31 stack=26
+UserLog dt=4 task=19 key_string=24 value_string=96 stack=27
+UserLog dt=4 task=19 key_string=24 value_string=97 stack=30
+UserTaskBegin dt=7 task=20 parent_task=19 name_string=26 stack=31
+UserLog dt=5 task=20 key_string=27 value_string=98 stack=32
+UserRegionBegin dt=4 task=20 name_string=29 stack=33
+UserRegionEnd dt=5 task=20 name_string=29 stack=34
+GoBlock dt=9 reason_string=19 stack=35
+GoStart dt=9 g=14 g_seq=1
+UserRegionBegin dt=28 task=19 name_string=56 stack=26
+UserLog dt=7 task=19 key_string=24 value_string=99 stack=27
+UserRegionEnd dt=2 task=19 name_string=56 stack=28
+GoDestroy dt=2
+ProcStop dt=17
+ProcStart dt=141933 p=2 p_seq=11
+ProcStop dt=13
+ProcStart dt=16744 p=2 p_seq=12
+GoUnblock dt=29 g=1 g_seq=17 stack=0
+GoUnblock dt=7 g=12 g_seq=2 stack=0
+GoStart dt=172 g=12 g_seq=3
+UserTaskEnd dt=15 task=20 stack=36
+UserRegionEnd dt=8 task=19 name_string=31 stack=28
+GoDestroy dt=2
+GoStart dt=11 g=1 g_seq=18
+UserTaskEnd dt=14 task=19 stack=62
+UserLog dt=16 task=4 key_string=24 value_string=101 stack=63
+UserTaskBegin dt=6 task=21 parent_task=4 name_string=26 stack=64
+UserLog dt=25 task=21 key_string=27 value_string=102 stack=65
+UserRegionBegin dt=7 task=21 name_string=29 stack=66
+GoCreate dt=23 new_g=54 new_stack=17 stack=67
+GoCreate dt=8 new_g=55 new_stack=17 stack=67
+GoCreate dt=17 new_g=56 new_stack=17 stack=67
+GoCreate dt=8 new_g=57 new_stack=17 stack=67
+GoCreate dt=7 new_g=58 new_stack=17 stack=67
+UserRegionEnd dt=4 task=21 name_string=29 stack=68
+GoBlock dt=9 reason_string=19 stack=69
+GoStart dt=7 g=58 g_seq=1
+UserRegionBegin dt=46 task=21 name_string=56 stack=26
+UserLog dt=8 task=21 key_string=24 value_string=103 stack=27
+UserRegionEnd dt=4 task=21 name_string=56 stack=28
+GoDestroy dt=1
+GoStart dt=3 g=54 g_seq=1
+UserRegionBegin dt=19 task=21 name_string=33 stack=26
+UserLog dt=7 task=21 key_string=24 value_string=104 stack=27
+UserRegionEnd dt=2 task=21 name_string=33 stack=28
+GoDestroy dt=1
+GoStart dt=2 g=55 g_seq=1
+UserRegionBegin dt=17 task=21 name_string=35 stack=26
+UserLog dt=4 task=21 key_string=24 value_string=105 stack=27
+UserRegionEnd dt=2 task=21 name_string=35 stack=28
+GoDestroy dt=1
+GoStart dt=5 g=56 g_seq=1
+UserRegionBegin dt=16 task=21 name_string=31 stack=26
+UserLog dt=4 task=21 key_string=24 value_string=106 stack=27
+UserLog dt=3 task=21 key_string=24 value_string=107 stack=30
+UserTaskBegin dt=4 task=22 parent_task=21 name_string=26 stack=31
+UserLog dt=6 task=22 key_string=27 value_string=108 stack=32
+UserRegionBegin dt=4 task=22 name_string=29 stack=33
+UserRegionEnd dt=7 task=22 name_string=29 stack=34
+GoBlock dt=14 reason_string=19 stack=35
+GoStart dt=3 g=57 g_seq=1
+UserRegionBegin dt=22 task=21 name_string=30 stack=26
+UserLog dt=6 task=21 key_string=24 value_string=109 stack=27
+UserRegionEnd dt=2 task=21 name_string=30 stack=28
+GoDestroy dt=2
+ProcStop dt=10
+ProcStart dt=128031 p=4 p_seq=15
+ProcStop dt=16
+ProcStart dt=33758 p=2 p_seq=15
+ProcStop dt=18
+EventBatch gen=1 m=1986496 time=2753925246280 size=267
+ProcStart dt=549 p=0 p_seq=1
+GoStart dt=211 g=18 g_seq=1
+GoBlock dt=3533 reason_string=12 stack=21
+GoStart dt=41 g=21 g_seq=1
+GoBlock dt=150 reason_string=10 stack=22
+GoStart dt=93 g=20 g_seq=1
+GoSyscallBegin dt=51 p_seq=2 stack=23
+GoSyscallEnd dt=400
+GoBlock dt=582 reason_string=15 stack=25
+GoStart dt=26 g=23 g_seq=1
+HeapAlloc dt=50 heapalloc_value=1646592
+UserRegionBegin dt=2921 task=5 name_string=31 stack=26
+UserLog dt=28 task=5 key_string=24 value_string=37 stack=27
+UserLog dt=13 task=5 key_string=24 value_string=38 stack=30
+UserTaskBegin dt=15 task=6 parent_task=5 name_string=26 stack=31
+HeapAlloc dt=26 heapalloc_value=1687552
+UserLog dt=14 task=6 key_string=27 value_string=39 stack=32
+UserRegionBegin dt=9 task=6 name_string=29 stack=33
+UserRegionEnd dt=6 task=6 name_string=29 stack=34
+GoBlock dt=15 reason_string=19 stack=35
+ProcStop dt=30
+ProcStart dt=156949 p=4 p_seq=2
+GoUnblock dt=46 g=1 g_seq=1 stack=0
+GoStart dt=253 g=1 g_seq=2
+UserTaskEnd dt=27 task=5 stack=37
+UserLog dt=23 task=1 key_string=24 value_string=40 stack=38
+UserTaskBegin dt=14 task=7 parent_task=1 name_string=26 stack=39
+HeapAlloc dt=596 heapalloc_value=1695744
+HeapAlloc dt=18 heapalloc_value=1703936
+UserLog dt=17 task=7 key_string=27 value_string=41 stack=40
+UserRegionBegin dt=14 task=7 name_string=29 stack=41
+HeapAlloc dt=10 heapalloc_value=1712128
+HeapAlloc dt=17 heapalloc_value=1720320
+GoCreate dt=44 new_g=33 new_stack=17 stack=42
+GoCreate dt=175 new_g=34 new_stack=17 stack=42
+UserRegionEnd dt=50 task=7 name_string=29 stack=43
+GoBlock dt=9 reason_string=19 stack=44
+HeapAlloc dt=16 heapalloc_value=1728512
+GoStart dt=239 g=34 g_seq=1
+HeapAlloc dt=21 heapalloc_value=1736704
+UserRegionBegin dt=92 task=7 name_string=35 stack=26
+UserLog dt=15 task=7 key_string=24 value_string=42 stack=27
+UserRegionEnd dt=4 task=7 name_string=35 stack=28
+GoDestroy dt=2
+ProcStop dt=21
+ProcStart dt=800974 p=4 p_seq=10
+ProcStop dt=39
+ProcStart dt=158775 p=0 p_seq=15
+ProcStop dt=24
+ProcStart dt=159722 p=4 p_seq=13
+GoStart dt=254 g=13 g_seq=1
+UserRegionBegin dt=239 task=19 name_string=30 stack=26
+UserLog dt=23 task=19 key_string=24 value_string=100 stack=27
+UserRegionEnd dt=6 task=19 name_string=30 stack=28
+GoDestroy dt=7
+ProcStop dt=22
+EventBatch gen=1 m=1986495 time=2753925251756 size=320
+ProcStart dt=705 p=4 p_seq=1
+ProcStop dt=1279
+ProcStart dt=158975 p=0 p_seq=5
+ProcStop dt=23
+ProcStart dt=792 p=0 p_seq=6
+GoStart dt=187 g=33 g_seq=1
+UserRegionBegin dt=244 task=7 name_string=33 stack=26
+UserLog dt=32 task=7 key_string=24 value_string=43 stack=27
+UserRegionEnd dt=7 task=7 name_string=33 stack=28
+GoDestroy dt=5
+ProcStop dt=24
+ProcStart dt=160255 p=4 p_seq=4
+ProcStop dt=27
+ProcStart dt=159067 p=2 p_seq=5
+GoStart dt=222 g=37 g_seq=1
+UserRegionBegin dt=114 task=10 name_string=31 stack=26
+UserLog dt=16 task=10 key_string=24 value_string=60 stack=27
+UserLog dt=8 task=10 key_string=24 value_string=61 stack=30
+UserTaskBegin dt=8 task=11 parent_task=10 name_string=26 stack=31
+UserLog dt=19 task=11 key_string=27 value_string=62 stack=32
+UserRegionBegin dt=6 task=11 name_string=29 stack=33
+UserRegionEnd dt=7 task=11 name_string=29 stack=34
+GoBlock dt=15 reason_string=19 stack=35
+ProcStop dt=11
+ProcStart dt=160101 p=4 p_seq=7
+ProcStop dt=21
+ProcStart dt=159647 p=2 p_seq=7
+GoStart dt=277 g=43 g_seq=1
+UserRegionBegin dt=126 task=14 name_string=31 stack=26
+UserLog dt=21 task=14 key_string=24 value_string=77 stack=27
+UserLog dt=9 task=14 key_string=24 value_string=78 stack=30
+UserTaskBegin dt=8 task=15 parent_task=14 name_string=26 stack=31
+UserLog dt=17 task=15 key_string=27 value_string=79 stack=32
+UserRegionBegin dt=6 task=15 name_string=29 stack=33
+UserRegionEnd dt=8 task=15 name_string=29 stack=34
+GoBlock dt=23 reason_string=19 stack=35
+ProcStop dt=17
+ProcStart dt=159706 p=0 p_seq=14
+GoStart dt=229 g=52 g_seq=1
+UserRegionBegin dt=103 task=16 name_string=33 stack=26
+UserLog dt=20 task=16 key_string=24 value_string=83 stack=27
+UserRegionEnd dt=4 task=16 name_string=33 stack=28
+GoDestroy dt=3
+ProcStop dt=17
+ProcStart dt=319699 p=2 p_seq=10
+ProcStop dt=20
+ProcStart dt=158728 p=4 p_seq=14
+ProcStop dt=17
+ProcStart dt=110606 p=2 p_seq=13
+ProcStop dt=10
+ProcStart dt=16732 p=2 p_seq=14
+GoUnblock dt=45 g=18 g_seq=2 stack=0
+GoStart dt=184 g=18 g_seq=3
+GoBlock dt=114 reason_string=12 stack=21
+ProcStop dt=8
+ProcStart dt=16779 p=4 p_seq=16
+ProcStop dt=11
+ProcStart dt=16790 p=4 p_seq=17
+GoUnblock dt=23 g=1 g_seq=19 stack=0
+GoUnblock dt=8 g=56 g_seq=2 stack=0
+GoStart dt=142 g=56 g_seq=3
+UserTaskEnd dt=14 task=22 stack=36
+UserRegionEnd dt=8 task=21 name_string=31 stack=28
+GoDestroy dt=5
+GoStart dt=18 g=1 g_seq=20
+UserTaskEnd dt=17 task=21 stack=70
+UserTaskEnd dt=12 task=4 stack=71
+HeapAlloc dt=802 heapalloc_value=1835008
+HeapAlloc dt=41 heapalloc_value=1843200
+HeapAlloc dt=13 heapalloc_value=1851392
+EventBatch gen=1 m=1986494 time=2753925248778 size=47
+ProcStart dt=390 p=3 p_seq=1
+GoStart dt=1718 g=22 g_seq=1
+HeapAlloc dt=1807 heapalloc_value=1654784
+HeapAlloc dt=406 heapalloc_value=1671168
+HeapAlloc dt=15 heapalloc_value=1679360
+UserRegionBegin dt=49 task=5 name_string=35 stack=26
+UserLog dt=30 task=5 key_string=24 value_string=36 stack=27
+UserRegionEnd dt=5 task=5 name_string=35 stack=28
+GoDestroy dt=5
+ProcStop dt=42
+EventBatch gen=1 m=1986492 time=2753925244400 size=582
+ProcStatus dt=67 p=1 pstatus=1
+GoStatus dt=4 g=1 m=1986492 gstatus=2
+ProcsChange dt=220 procs_value=8 stack=1
+STWBegin dt=127 kind_string=21 stack=2
+HeapGoal dt=3 heapgoal_value=4194304
+ProcStatus dt=2 p=0 pstatus=2
+ProcStatus dt=2 p=2 pstatus=2
+ProcStatus dt=1 p=3 pstatus=2
+ProcStatus dt=1 p=4 pstatus=2
+ProcStatus dt=1 p=5 pstatus=2
+ProcStatus dt=1 p=6 pstatus=2
+ProcStatus dt=1 p=7 pstatus=2
+ProcsChange dt=353 procs_value=8 stack=3
+STWEnd dt=277
+HeapAlloc dt=243 heapalloc_value=1605632
+HeapAlloc dt=24 heapalloc_value=1613824
+GoCreate dt=209 new_g=18 new_stack=4 stack=5
+GoCreate dt=561 new_g=19 new_stack=6 stack=7
+GoCreate dt=25 new_g=20 new_stack=8 stack=9
+UserTaskEnd dt=309 task=2 stack=10
+UserTaskBegin dt=26 task=3 parent_task=1 name_string=22 stack=11
+UserTaskBegin dt=918 task=4 parent_task=0 name_string=23 stack=12
+UserLog dt=461 task=0 key_string=24 value_string=25 stack=13
+UserTaskBegin dt=420 task=5 parent_task=0 name_string=26 stack=14
+UserLog dt=673 task=5 key_string=27 value_string=28 stack=15
+UserRegionBegin dt=15 task=5 name_string=29 stack=16
+HeapAlloc dt=51 heapalloc_value=1630208
+GoCreate dt=24 new_g=21 new_stack=17 stack=18
+GoCreate dt=17 new_g=22 new_stack=17 stack=18
+GoCreate dt=10 new_g=23 new_stack=17 stack=18
+GoCreate dt=9 new_g=24 new_stack=17 stack=18
+UserRegionEnd dt=549 task=5 name_string=29 stack=19
+GoBlock dt=14 reason_string=19 stack=20
+GoStart dt=378 g=24 g_seq=1
+HeapAlloc dt=65 heapalloc_value=1638400
+GoUnblock dt=559 g=21 g_seq=2 stack=24
+UserRegionBegin dt=1498 task=5 name_string=30 stack=26
+UserLog dt=35 task=5 key_string=24 value_string=32 stack=27
+UserRegionEnd dt=8 task=5 name_string=30 stack=28
+GoDestroy dt=5
+GoStart dt=24 g=21 g_seq=3
+UserRegionBegin dt=60 task=5 name_string=33 stack=26
+UserLog dt=7 task=5 key_string=24 value_string=34 stack=27
+UserRegionEnd dt=2 task=5 name_string=33 stack=28
+GoDestroy dt=2
+ProcStop dt=34
+ProcStart dt=141874 p=0 p_seq=3
+ProcStop dt=21
+ProcStart dt=16770 p=0 p_seq=4
+GoUnblock dt=29 g=23 g_seq=2 stack=0
+GoStart dt=176 g=23 g_seq=3
+UserTaskEnd dt=19 task=6 stack=36
+UserRegionEnd dt=14 task=5 name_string=31 stack=28
+GoDestroy dt=2
+ProcStop dt=12
+ProcStart dt=2251 p=4 p_seq=3
+ProcStop dt=22
+ProcStart dt=141952 p=2 p_seq=3
+ProcStop dt=27
+ProcStart dt=16789 p=2 p_seq=4
+GoUnblock dt=35 g=1 g_seq=3 stack=0
+GoStart dt=214 g=1 g_seq=4
+UserTaskEnd dt=26 task=7 stack=45
+UserLog dt=27 task=2 key_string=24 value_string=44 stack=46
+UserTaskBegin dt=10 task=8 parent_task=2 name_string=26 stack=47
+HeapAlloc dt=52 heapalloc_value=1744896
+HeapAlloc dt=22 heapalloc_value=1753088
+UserLog dt=13 task=8 key_string=27 value_string=45 stack=48
+UserRegionBegin dt=11 task=8 name_string=29 stack=49
+HeapAlloc dt=7 heapalloc_value=1761280
+HeapAlloc dt=18 heapalloc_value=1769472
+GoCreate dt=52 new_g=49 new_stack=17 stack=50
+GoCreate dt=12 new_g=50 new_stack=17 stack=50
+HeapAlloc dt=11 heapalloc_value=1777664
+GoCreate dt=9 new_g=51 new_stack=17 stack=50
+UserRegionEnd dt=9 task=8 name_string=29 stack=51
+GoBlock dt=11 reason_string=19 stack=52
+HeapAlloc dt=12 heapalloc_value=1785856
+GoStart dt=14 g=51 g_seq=1
+HeapAlloc dt=18 heapalloc_value=1794048
+UserRegionBegin dt=95 task=8 name_string=31 stack=26
+UserLog dt=22 task=8 key_string=24 value_string=46 stack=27
+UserLog dt=8 task=8 key_string=24 value_string=47 stack=30
+UserTaskBegin dt=5 task=9 parent_task=8 name_string=26 stack=31
+UserLog dt=7 task=9 key_string=27 value_string=48 stack=32
+UserRegionBegin dt=4 task=9 name_string=29 stack=33
+UserRegionEnd dt=7 task=9 name_string=29 stack=34
+HeapAlloc dt=11 heapalloc_value=1802240
+GoStop dt=674 reason_string=16 stack=53
+GoStart dt=12 g=51 g_seq=2
+GoBlock dt=8 reason_string=19 stack=35
+HeapAlloc dt=16 heapalloc_value=1810432
+ProcStop dt=8
+ProcStart dt=159907 p=0 p_seq=8
+ProcStop dt=25
+ProcStart dt=159186 p=2 p_seq=6
+GoUnblock dt=22 g=37 g_seq=2 stack=0
+GoStart dt=217 g=37 g_seq=3
+UserTaskEnd dt=19 task=11 stack=36
+UserRegionEnd dt=15 task=10 name_string=31 stack=28
+GoDestroy dt=5
+ProcStop dt=16
+ProcStart dt=160988 p=0 p_seq=11
+ProcStop dt=29
+ProcStart dt=158554 p=2 p_seq=8
+GoUnblock dt=38 g=1 g_seq=11 stack=0
+GoStart dt=240 g=1 g_seq=12
+UserTaskEnd dt=25 task=14 stack=37
+UserLog dt=23 task=1 key_string=24 value_string=80 stack=38
+UserTaskBegin dt=11 task=16 parent_task=1 name_string=26 stack=39
+UserLog dt=36 task=16 key_string=27 value_string=81 stack=40
+UserRegionBegin dt=13 task=16 name_string=29 stack=41
+GoCreate dt=39 new_g=52 new_stack=17 stack=42
+GoCreate dt=23 new_g=53 new_stack=17 stack=42
+UserRegionEnd dt=11 task=16 name_string=29 stack=43
+GoBlock dt=9 reason_string=19 stack=44
+GoStart dt=244 g=53 g_seq=1
+UserRegionBegin dt=101 task=16 name_string=35 stack=26
+UserLog dt=17 task=16 key_string=24 value_string=82 stack=27
+UserRegionEnd dt=4 task=16 name_string=35 stack=28
+GoDestroy dt=3
+ProcStop dt=28
+EventBatch gen=1 m=18446744073709551615 time=2753926855140 size=56
+GoStatus dt=74 g=2 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=3 m=18446744073709551615 gstatus=4
+GoStatus dt=1 g=4 m=18446744073709551615 gstatus=4
+GoStatus dt=1 g=17 m=18446744073709551615 gstatus=4
+EventBatch gen=1 m=18446744073709551615 time=2753926855560 size=1759
+Stacks
+Stack id=45 nframes=3
+	pc=4804964 func=110 file=111 line=80
+	pc=4804052 func=112 file=113 line=84
+	pc=4803566 func=114 file=113 line=44
+Stack id=22 nframes=7
+	pc=4633935 func=115 file=116 line=90
+	pc=4633896 func=117 file=118 line=223
+	pc=4633765 func=119 file=118 line=216
+	pc=4633083 func=120 file=118 line=131
+	pc=4764601 func=121 file=122 line=152
+	pc=4765335 func=123 file=122 line=238
+	pc=4804612 func=124 file=113 line=70
+Stack id=9 nframes=2
+	pc=4802543 func=125 file=126 line=128
+	pc=4803332 func=114 file=113 line=30
+Stack id=71 nframes=2
+	pc=4803671 func=110 file=111 line=80
+	pc=4803666 func=114 file=113 line=51
+Stack id=10 nframes=2
+	pc=4803415 func=110 file=111 line=80
+	pc=4803410 func=114 file=113 line=33
+Stack id=18 nframes=4
+	pc=4804196 func=127 file=113 line=69
+	pc=4802140 func=128 file=111 line=141
+	pc=4804022 func=112 file=113 line=67
+	pc=4803543 func=114 file=113 line=43
+Stack id=37 nframes=3
+	pc=4804964 func=110 file=111 line=80
+	pc=4804052 func=112 file=113 line=84
+	pc=4803543 func=114 file=113 line=43
+Stack id=31 nframes=4
+	pc=4803865 func=112 file=113 line=61
+	pc=4804890 func=129 file=113 line=73
+	pc=4802140 func=128 file=111 line=141
+	pc=4804691 func=124 file=113 line=70
+Stack id=55 nframes=2
+	pc=4803832 func=112 file=113 line=58
+	pc=4803609 func=114 file=113 line=46
+Stack id=47 nframes=2
+	pc=4803865 func=112 file=113 line=61
+	pc=4803589 func=114 file=113 line=45
+Stack id=38 nframes=2
+	pc=4803832 func=112 file=113 line=58
+	pc=4803566 func=114 file=113 line=44
+Stack id=56 nframes=2
+	pc=4803865 func=112 file=113 line=61
+	pc=4803609 func=114 file=113 line=46
+Stack id=33 nframes=4
+	pc=4804022 func=112 file=113 line=67
+	pc=4804890 func=129 file=113 line=73
+	pc=4802140 func=128 file=111 line=141
+	pc=4804691 func=124 file=113 line=70
+Stack id=44 nframes=3
+	pc=4599892 func=130 file=131 line=195
+	pc=4804036 func=112 file=113 line=83
+	pc=4803566 func=114 file=113 line=44
+Stack id=3 nframes=4
+	pc=4421707 func=132 file=133 line=1382
+	pc=4533555 func=134 file=135 line=255
+	pc=4802469 func=125 file=126 line=125
+	pc=4803332 func=114 file=113 line=30
+Stack id=6 nframes=1
+	pc=4539520 func=136 file=135 line=868
+Stack id=58 nframes=2
+	pc=4804022 func=112 file=113 line=67
+	pc=4803609 func=114 file=113 line=46
+Stack id=64 nframes=2
+	pc=4803865 func=112 file=113 line=61
+	pc=4803629 func=114 file=113 line=47
+Stack id=62 nframes=3
+	pc=4804964 func=110 file=111 line=80
+	pc=4804052 func=112 file=113 line=84
+	pc=4803609 func=114 file=113 line=46
+Stack id=34 nframes=4
+	pc=4804022 func=112 file=113 line=67
+	pc=4804890 func=129 file=113 line=73
+	pc=4802140 func=128 file=111 line=141
+	pc=4804691 func=124 file=113 line=70
+Stack id=30 nframes=4
+	pc=4803832 func=112 file=113 line=58
+	pc=4804890 func=129 file=113 line=73
+	pc=4802140 func=128 file=111 line=141
+	pc=4804691 func=124 file=113 line=70
+Stack id=32 nframes=4
+	pc=4803943 func=112 file=113 line=64
+	pc=4804890 func=129 file=113 line=73
+	pc=4802140 func=128 file=111 line=141
+	pc=4804691 func=124 file=113 line=70
+Stack id=26 nframes=1
+	pc=4804691 func=124 file=113 line=70
+Stack id=46 nframes=2
+	pc=4803832 func=112 file=113 line=58
+	pc=4803589 func=114 file=113 line=45
+Stack id=50 nframes=4
+	pc=4804196 func=127 file=113 line=69
+	pc=4802140 func=128 file=111 line=141
+	pc=4804022 func=112 file=113 line=67
+	pc=4803589 func=114 file=113 line=45
+Stack id=59 nframes=4
+	pc=4804196 func=127 file=113 line=69
+	pc=4802140 func=128 file=111 line=141
+	pc=4804022 func=112 file=113 line=67
+	pc=4803609 func=114 file=113 line=46
+Stack id=7 nframes=4
+	pc=4539492 func=137 file=135 line=868
+	pc=4533572 func=134 file=135 line=258
+	pc=4802469 func=125 file=126 line=125
+	pc=4803332 func=114 file=113 line=30
+Stack id=17 nframes=1
+	pc=4804512 func=124 file=113 line=69
+Stack id=57 nframes=2
+	pc=4803943 func=112 file=113 line=64
+	pc=4803609 func=114 file=113 line=46
+Stack id=41 nframes=2
+	pc=4804022 func=112 file=113 line=67
+	pc=4803566 func=114 file=113 line=44
+Stack id=63 nframes=2
+	pc=4803832 func=112 file=113 line=58
+	pc=4803629 func=114 file=113 line=47
+Stack id=60 nframes=2
+	pc=4804022 func=112 file=113 line=67
+	pc=4803609 func=114 file=113 line=46
+Stack id=5 nframes=4
+	pc=4542549 func=138 file=139 line=42
+	pc=4533560 func=134 file=135 line=257
+	pc=4802469 func=125 file=126 line=125
+	pc=4803332 func=114 file=113 line=30
+Stack id=40 nframes=2
+	pc=4803943 func=112 file=113 line=64
+	pc=4803566 func=114 file=113 line=44
+Stack id=21 nframes=3
+	pc=4217905 func=140 file=141 line=442
+	pc=4539946 func=142 file=135 line=928
+	pc=4542714 func=143 file=139 line=54
+Stack id=2 nframes=3
+	pc=4533284 func=134 file=135 line=238
+	pc=4802469 func=125 file=126 line=125
+	pc=4803332 func=114 file=113 line=30
+Stack id=53 nframes=6
+	pc=4247492 func=144 file=145 line=1374
+	pc=4599676 func=130 file=131 line=186
+	pc=4804036 func=112 file=113 line=83
+	pc=4804890 func=129 file=113 line=73
+	pc=4802140 func=128 file=111 line=141
+	pc=4804691 func=124 file=113 line=70
+Stack id=20 nframes=3
+	pc=4599892 func=130 file=131 line=195
+	pc=4804036 func=112 file=113 line=83
+	pc=4803543 func=114 file=113 line=43
+Stack id=70 nframes=3
+	pc=4804964 func=110 file=111 line=80
+	pc=4804052 func=112 file=113 line=84
+	pc=4803629 func=114 file=113 line=47
+Stack id=15 nframes=2
+	pc=4803943 func=112 file=113 line=64
+	pc=4803543 func=114 file=113 line=43
+Stack id=65 nframes=2
+	pc=4803943 func=112 file=113 line=64
+	pc=4803629 func=114 file=113 line=47
+Stack id=28 nframes=1
+	pc=4804691 func=124 file=113 line=70
+Stack id=48 nframes=2
+	pc=4803943 func=112 file=113 line=64
+	pc=4803589 func=114 file=113 line=45
+Stack id=61 nframes=3
+	pc=4599892 func=130 file=131 line=195
+	pc=4804036 func=112 file=113 line=83
+	pc=4803609 func=114 file=113 line=46
+Stack id=13 nframes=2
+	pc=4803832 func=112 file=113 line=58
+	pc=4803543 func=114 file=113 line=43
+Stack id=29 nframes=3
+	pc=4217905 func=140 file=141 line=442
+	pc=4539946 func=142 file=135 line=928
+	pc=4539559 func=136 file=135 line=871
+Stack id=51 nframes=2
+	pc=4804022 func=112 file=113 line=67
+	pc=4803589 func=114 file=113 line=45
+Stack id=42 nframes=4
+	pc=4804196 func=127 file=113 line=69
+	pc=4802140 func=128 file=111 line=141
+	pc=4804022 func=112 file=113 line=67
+	pc=4803566 func=114 file=113 line=44
+Stack id=14 nframes=2
+	pc=4803865 func=112 file=113 line=61
+	pc=4803543 func=114 file=113 line=43
+Stack id=39 nframes=2
+	pc=4803865 func=112 file=113 line=61
+	pc=4803566 func=114 file=113 line=44
+Stack id=49 nframes=2
+	pc=4804022 func=112 file=113 line=67
+	pc=4803589 func=114 file=113 line=45
+Stack id=52 nframes=3
+	pc=4599892 func=130 file=131 line=195
+	pc=4804036 func=112 file=113 line=83
+	pc=4803589 func=114 file=113 line=45
+Stack id=24 nframes=7
+	pc=4634510 func=146 file=116 line=223
+	pc=4634311 func=117 file=118 line=240
+	pc=4633765 func=119 file=118 line=216
+	pc=4633083 func=120 file=118 line=131
+	pc=4764601 func=121 file=122 line=152
+	pc=4765335 func=123 file=122 line=238
+	pc=4804612 func=124 file=113 line=70
+Stack id=43 nframes=2
+	pc=4804022 func=112 file=113 line=67
+	pc=4803566 func=114 file=113 line=44
+Stack id=19 nframes=2
+	pc=4804022 func=112 file=113 line=67
+	pc=4803543 func=114 file=113 line=43
+Stack id=69 nframes=3
+	pc=4599892 func=130 file=131 line=195
+	pc=4804036 func=112 file=113 line=83
+	pc=4803629 func=114 file=113 line=47
+Stack id=16 nframes=2
+	pc=4804022 func=112 file=113 line=67
+	pc=4803543 func=114 file=113 line=43
+Stack id=54 nframes=3
+	pc=4804964 func=110 file=111 line=80
+	pc=4804052 func=112 file=113 line=84
+	pc=4803589 func=114 file=113 line=45
+Stack id=35 nframes=5
+	pc=4599892 func=130 file=131 line=195
+	pc=4804036 func=112 file=113 line=83
+	pc=4804890 func=129 file=113 line=73
+	pc=4802140 func=128 file=111 line=141
+	pc=4804691 func=124 file=113 line=70
+Stack id=27 nframes=3
+	pc=4804862 func=129 file=113 line=71
+	pc=4802140 func=128 file=111 line=141
+	pc=4804691 func=124 file=113 line=70
+Stack id=4 nframes=1
+	pc=4542656 func=143 file=139 line=42
+Stack id=8 nframes=1
+	pc=4802720 func=147 file=126 line=128
+Stack id=66 nframes=2
+	pc=4804022 func=112 file=113 line=67
+	pc=4803629 func=114 file=113 line=47
+Stack id=1 nframes=4
+	pc=4548715 func=148 file=149 line=255
+	pc=4533263 func=134 file=135 line=237
+	pc=4802469 func=125 file=126 line=125
+	pc=4803332 func=114 file=113 line=30
+Stack id=67 nframes=4
+	pc=4804196 func=127 file=113 line=69
+	pc=4802140 func=128 file=111 line=141
+	pc=4804022 func=112 file=113 line=67
+	pc=4803629 func=114 file=113 line=47
+Stack id=23 nframes=7
+	pc=4641050 func=150 file=151 line=964
+	pc=4751591 func=152 file=153 line=209
+	pc=4751583 func=154 file=155 line=736
+	pc=4751136 func=156 file=155 line=380
+	pc=4753008 func=157 file=158 line=46
+	pc=4753000 func=159 file=160 line=183
+	pc=4802778 func=147 file=126 line=134
+Stack id=11 nframes=1
+	pc=4803445 func=114 file=113 line=36
+Stack id=68 nframes=2
+	pc=4804022 func=112 file=113 line=67
+	pc=4803629 func=114 file=113 line=47
+Stack id=36 nframes=5
+	pc=4804964 func=110 file=111 line=80
+	pc=4804052 func=112 file=113 line=84
+	pc=4804890 func=129 file=113 line=73
+	pc=4802140 func=128 file=111 line=141
+	pc=4804691 func=124 file=113 line=70
+Stack id=12 nframes=1
+	pc=4803492 func=114 file=113 line=39
+Stack id=25 nframes=1
+	pc=4802788 func=147 file=126 line=130
+EventBatch gen=1 m=18446744073709551615 time=2753925243266 size=3466
+Strings
+String id=1
+	data="Not worker"
+String id=2
+	data="GC (dedicated)"
+String id=3
+	data="GC (fractional)"
+String id=4
+	data="GC (idle)"
+String id=5
+	data="unspecified"
+String id=6
+	data="forever"
+String id=7
+	data="network"
+String id=8
+	data="select"
+String id=9
+	data="sync.(*Cond).Wait"
+String id=10
+	data="sync"
+String id=11
+	data="chan send"
+String id=12
+	data="chan receive"
+String id=13
+	data="GC mark assist wait for work"
+String id=14
+	data="GC background sweeper wait"
+String id=15
+	data="system goroutine wait"
+String id=16
+	data="preempted"
+String id=17
+	data="wait for debug call"
+String id=18
+	data="wait until GC ends"
+String id=19
+	data="sleep"
+String id=20
+	data="runtime.Gosched"
+String id=21
+	data="start trace"
+String id=22
+	data="type2"
+String id=23
+	data="type3"
+String id=24
+	data="log"
+String id=25
+	data="before do"
+String id=26
+	data="do"
+String id=27
+	data="log2"
+String id=28
+	data="do"
+String id=29
+	data="fanout"
+String id=30
+	data="region3"
+String id=31
+	data="region2"
+String id=32
+	data="fanout region3"
+String id=33
+	data="region0"
+String id=34
+	data="fanout region0"
+String id=35
+	data="region1"
+String id=36
+	data="fanout region1"
+String id=37
+	data="fanout region2"
+String id=38
+	data="before do"
+String id=39
+	data="do"
+String id=40
+	data="before do"
+String id=41
+	data="do"
+String id=42
+	data="fanout region1"
+String id=43
+	data="fanout region0"
+String id=44
+	data="before do"
+String id=45
+	data="do"
+String id=46
+	data="fanout region2"
+String id=47
+	data="before do"
+String id=48
+	data="do"
+String id=49
+	data="fanout region0"
+String id=50
+	data="fanout region1"
+String id=51
+	data="before do"
+String id=52
+	data="do"
+String id=53
+	data="region5"
+String id=54
+	data="fanout region5"
+String id=55
+	data="fanout region3"
+String id=56
+	data="region4"
+String id=57
+	data="fanout region4"
+String id=58
+	data="fanout region0"
+String id=59
+	data="fanout region1"
+String id=60
+	data="fanout region2"
+String id=61
+	data="before do"
+String id=62
+	data="do"
+String id=63
+	data="before do"
+String id=64
+	data="do"
+String id=65
+	data="fanout region4"
+String id=66
+	data="fanout region0"
+String id=67
+	data="fanout region1"
+String id=68
+	data="fanout region2"
+String id=69
+	data="before do"
+String id=70
+	data="do"
+String id=71
+	data="fanout region3"
+String id=72
+	data="before do"
+String id=73
+	data="do"
+String id=74
+	data="fanout region3"
+String id=75
+	data="fanout region0"
+String id=76
+	data="fanout region1"
+String id=77
+	data="fanout region2"
+String id=78
+	data="before do"
+String id=79
+	data="do"
+String id=80
+	data="before do"
+String id=81
+	data="do"
+String id=82
+	data="fanout region1"
+String id=83
+	data="fanout region0"
+String id=84
+	data="before do"
+String id=85
+	data="do"
+String id=86
+	data="fanout region2"
+String id=87
+	data="before do"
+String id=88
+	data="do"
+String id=89
+	data="fanout region0"
+String id=90
+	data="fanout region1"
+String id=91
+	data="before do"
+String id=92
+	data="do"
+String id=93
+	data="fanout region5"
+String id=94
+	data="fanout region0"
+String id=95
+	data="fanout region1"
+String id=96
+	data="fanout region2"
+String id=97
+	data="before do"
+String id=98
+	data="do"
+String id=99
+	data="fanout region4"
+String id=100
+	data="fanout region3"
+String id=101
+	data="before do"
+String id=102
+	data="do"
+String id=103
+	data="fanout region4"
+String id=104
+	data="fanout region0"
+String id=105
+	data="fanout region1"
+String id=106
+	data="fanout region2"
+String id=107
+	data="before do"
+String id=108
+	data="do"
+String id=109
+	data="fanout region3"
+String id=110
+	data="runtime/trace.(*Task).End"
+String id=111
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/trace/annotation.go"
+String id=112
+	data="main.do"
+String id=113
+	data="/usr/local/google/home/mknyszek/work/go-1/src/internal/trace/v2/testdata/testprog/annotations-stress.go"
+String id=114
+	data="main.main"
+String id=115
+	data="sync.(*Mutex).Lock"
+String id=116
+	data="/usr/local/google/home/mknyszek/work/go-1/src/sync/mutex.go"
+String id=117
+	data="sync.(*Pool).pinSlow"
+String id=118
+	data="/usr/local/google/home/mknyszek/work/go-1/src/sync/pool.go"
+String id=119
+	data="sync.(*Pool).pin"
+String id=120
+	data="sync.(*Pool).Get"
+String id=121
+	data="fmt.newPrinter"
+String id=122
+	data="/usr/local/google/home/mknyszek/work/go-1/src/fmt/print.go"
+String id=123
+	data="fmt.Sprintf"
+String id=124
+	data="main.do.func1.1"
+String id=125
+	data="runtime/trace.Start"
+String id=126
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/trace/trace.go"
+String id=127
+	data="main.do.func1"
+String id=128
+	data="runtime/trace.WithRegion"
+String id=129
+	data="main.do.func1.1.1"
+String id=130
+	data="time.Sleep"
+String id=131
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/time.go"
+String id=132
+	data="runtime.startTheWorld"
+String id=133
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/proc.go"
+String id=134
+	data="runtime.StartTrace"
+String id=135
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/trace2.go"
+String id=136
+	data="runtime.(*traceAdvancerState).start.func1"
+String id=137
+	data="runtime.(*traceAdvancerState).start"
+String id=138
+	data="runtime.traceStartReadCPU"
+String id=139
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/trace2cpu.go"
+String id=140
+	data="runtime.chanrecv1"
+String id=141
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/chan.go"
+String id=142
+	data="runtime.(*wakeableSleep).sleep"
+String id=143
+	data="runtime.traceStartReadCPU.func1"
+String id=144
+	data="runtime.newobject"
+String id=145
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/malloc.go"
+String id=146
+	data="sync.(*Mutex).Unlock"
+String id=147
+	data="runtime/trace.Start.func1"
+String id=148
+	data="runtime.traceLocker.Gomaxprocs"
+String id=149
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/trace2runtime.go"
+String id=150
+	data="syscall.write"
+String id=151
+	data="/usr/local/google/home/mknyszek/work/go-1/src/syscall/zsyscall_linux_amd64.go"
+String id=152
+	data="syscall.Write"
+String id=153
+	data="/usr/local/google/home/mknyszek/work/go-1/src/syscall/syscall_unix.go"
+String id=154
+	data="internal/poll.ignoringEINTRIO"
+String id=155
+	data="/usr/local/google/home/mknyszek/work/go-1/src/internal/poll/fd_unix.go"
+String id=156
+	data="internal/poll.(*FD).Write"
+String id=157
+	data="os.(*File).write"
+String id=158
+	data="/usr/local/google/home/mknyszek/work/go-1/src/os/file_posix.go"
+String id=159
+	data="os.(*File).Write"
+String id=160
+	data="/usr/local/google/home/mknyszek/work/go-1/src/os/file.go"

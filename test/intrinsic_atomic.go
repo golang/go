@@ -1,5 +1,6 @@
 // errorcheck -0 -d=ssa/intrinsics/debug
-// +build amd64 arm64 loong64 mips mipsle mips64 mips64le ppc64 ppc64le riscv64 s390x
+
+//go:build amd64 || arm64 || loong64 || mips || mipsle || mips64 || mips64le || ppc64 || ppc64le || riscv64 || s390x
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

@@ -1,0 +1,9 @@
+! go list all
+stderr 'no required module provides package example.com/tools/cmd/hello'
+
+-- go.mod --
+go 1.24
+
+module example.com/foo
+
+tool example.com/tools/cmd/hello

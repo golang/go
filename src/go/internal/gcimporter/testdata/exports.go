@@ -26,6 +26,7 @@ const (
 	C8          = 42
 	C9  int     = 42
 	C10 float64 = 42
+	C11         = "\n$$\n" // an object file export data marker - export data extraction must not be led astray
 )
 
 type (

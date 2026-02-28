@@ -464,6 +464,23 @@ Function is the outermost frame of the call stack. Traceback should stop at this
 </li>
 </ul>
 
+<h3 id="special-instructions">Special instructions</h3>
+
+<p>
+The <code>PCALIGN</code> pseudo-instruction is used to indicate that the next instruction should be aligned
+to a specified boundary by padding with no-op instructions.
+</p>
+
+<p>
+It is currently supported on arm64, amd64, ppc64, loong64 and riscv64.
+
+For example, the start of the <code>MOVD</code> instruction below is aligned to 32 bytes:
+<pre>
+PCALIGN $32
+MOVD $2, R0
+</pre>
+</p>
+
 <h3 id="data-offsets">Interacting with Go types and constants</h3>
 
 <p>
@@ -1020,6 +1037,12 @@ The value of <code>GOMIPS</code> environment variable (<code>hardfloat</code> or
 The value of <code>GOMIPS64</code> environment variable (<code>hardfloat</code> or
 <code>softfloat</code>) is made available to assembly code by predefining either
 <code>GOMIPS64_hardfloat</code> or <code>GOMIPS64_softfloat</code>.
+</p>
+
+<h3 id="riscv64">RISCV64</h3>
+
+<p>
+Reference: <a href="/pkg/cmd/internal/obj/riscv">Go RISCV64 Assembly Instructions Reference Manual</a>
 </p>
 
 <h3 id="unsupported_opcodes">Unsupported opcodes</h3>

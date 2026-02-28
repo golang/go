@@ -11,7 +11,7 @@ package runtime
 
 import (
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -68,6 +68,30 @@ func (a addrRange) subtract(b addrRange) addrRange {
 		a.limit = b.base
 	}
 	return a
+}
+
+// takeFromFront takes len bytes from the front of the address range, aligning
+// the base to align first. On success, returns the aligned start of the region
+// taken and true.
+func (a *addrRange) takeFromFront(len uintptr, align uint8) (uintptr, bool) {
+	base := alignUp(a.base.addr(), uintptr(align)) + len
+	if base > a.limit.addr() {
+		return 0, false
+	}
+	a.base = offAddr{base}
+	return base - len, true
+}
+
+// takeFromBack takes len bytes from the end of the address range, aligning
+// the limit to align after subtracting len. On success, returns the aligned
+// start of the region taken and true.
+func (a *addrRange) takeFromBack(len uintptr, align uint8) (uintptr, bool) {
+	limit := alignDown(a.limit.addr()-len, uintptr(align))
+	if a.base.addr() > limit {
+		return 0, false
+	}
+	a.limit = offAddr{limit}
+	return limit, true
 }
 
 // removeGreaterEqual removes all addresses in a greater than or equal
@@ -247,7 +271,7 @@ func (a *addrRanges) findSucc(addr uintptr) int {
 	const iterMax = 8
 	bot, top := 0, len(a.ranges)
 	for top-bot > iterMax {
-		i := ((top - bot) / 2) + bot
+		i := int(uint(bot+top) >> 1)
 		if a.ranges[i].contains(base.addr()) {
 			// a.ranges[i] contains base, so
 			// its successor is the next index.

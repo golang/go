@@ -10,6 +10,7 @@ if(! test -f ../bin/go){
 	exit wrongdir
 }
 
+GOENV=off
 eval `{../bin/go tool dist env}
 
 GOPATH=/nonexist-gopath

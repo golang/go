@@ -10,4 +10,4 @@ package p
 
 func f() {
 	if err := http.ListenAndServe( // GCCGO_ERROR "undefined name"
-} // ERROR "unexpected }, expecting expression|expected operand|missing .*\)|expected .*;|expected .*{"
+} // ERROR "unexpected }, expected expression|expected operand|missing .*\)|expected .*;|expected .*{"

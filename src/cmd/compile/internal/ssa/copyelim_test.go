@@ -20,7 +20,7 @@ func BenchmarkCopyElim100000(b *testing.B) { benchmarkCopyElim(b, 100000) }
 func benchmarkCopyElim(b *testing.B, n int) {
 	c := testConfig(b)
 
-	values := make([]interface{}, 0, n+2)
+	values := make([]any, 0, n+2)
 	values = append(values, Valu("mem", OpInitMem, types.TypeMem, 0, nil))
 	last := "mem"
 	for i := 0; i < n; i++ {

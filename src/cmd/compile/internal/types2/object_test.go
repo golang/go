@@ -5,7 +5,7 @@
 package types2_test
 
 import (
-	"cmd/compile/internal/syntax"
+	"fmt"
 	"internal/testenv"
 	"strings"
 	"testing"
@@ -54,20 +54,10 @@ func TestIsAlias(t *testing.T) {
 }
 
 // TestEmbeddedMethod checks that an embedded method is represented by
-// the same Func Object as the original method. See also issue #34421.
+// the same Func Object as the original method. See also go.dev/issue/34421.
 func TestEmbeddedMethod(t *testing.T) {
 	const src = `package p; type I interface { error }`
-
-	// type-check src
-	f, err := parseSrc("", src)
-	if err != nil {
-		t.Fatalf("parse failed: %s", err)
-	}
-	var conf Config
-	pkg, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, nil)
-	if err != nil {
-		t.Fatalf("typecheck failed: %s", err)
-	}
+	pkg := mustTypecheck(src, nil, nil)
 
 	// get original error.Error method
 	eface := Universe.Lookup("error")
@@ -107,7 +97,8 @@ var testObjects = []struct {
 
 	{"type t = struct{f int}", "t", "type p.t = struct{f int}"},
 	{"type t = func(int)", "t", "type p.t = func(int)"},
-
+	{"type A = B; type B = int", "A", "type p.A = p.B"},
+	{"type A[P ~int] = struct{}", "A", "type p.A[P ~int] = struct{}"},
 	{"var v int", "v", "var p.v int"},
 
 	{"func f(int) string", "f", "func p.f(int) string"},
@@ -119,40 +110,42 @@ var testObjects = []struct {
 func TestObjectString(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	for _, test := range testObjects {
-		src := "package p; " + test.src
-		pkg, err := makePkg(src)
-		if err != nil {
-			t.Errorf("%s: %s", src, err)
-			continue
-		}
-
-		names := strings.Split(test.obj, ".")
-		if len(names) != 1 && len(names) != 2 {
-			t.Errorf("%s: invalid object path %s", test.src, test.obj)
-			continue
-		}
-		_, obj := pkg.Scope().LookupParent(names[0], nopos)
-		if obj == nil {
-			t.Errorf("%s: %s not found", test.src, names[0])
-			continue
-		}
-		if len(names) == 2 {
-			if typ, ok := obj.Type().(interface{ TypeParams() *TypeParamList }); ok {
-				obj = lookupTypeParamObj(typ.TypeParams(), names[1])
-				if obj == nil {
-					t.Errorf("%s: %s not found", test.src, test.obj)
-					continue
-				}
-			} else {
-				t.Errorf("%s: %s has no type parameters", test.src, names[0])
-				continue
+	for i, test := range testObjects {
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			src := "package p; " + test.src
+			pkg, err := typecheck(src, nil, nil)
+			if err != nil {
+				t.Fatalf("%s: %s", src, err)
 			}
-		}
 
-		if got := obj.String(); got != test.want {
-			t.Errorf("%s: got %s, want %s", test.src, got, test.want)
-		}
+			names := strings.Split(test.obj, ".")
+			if len(names) != 1 && len(names) != 2 {
+				t.Fatalf("%s: invalid object path %s", test.src, test.obj)
+			}
+
+			var obj Object
+			for s := pkg.Scope(); s != nil && obj == nil; s = s.Parent() {
+				obj = s.Lookup(names[0])
+			}
+			if obj == nil {
+				t.Fatalf("%s: %s not found", test.src, names[0])
+			}
+
+			if len(names) == 2 {
+				if typ, ok := obj.Type().(interface{ TypeParams() *TypeParamList }); ok {
+					obj = lookupTypeParamObj(typ.TypeParams(), names[1])
+					if obj == nil {
+						t.Fatalf("%s: %s not found", test.src, test.obj)
+					}
+				} else {
+					t.Fatalf("%s: %s has no type parameters", test.src, names[0])
+				}
+			}
+
+			if got := obj.String(); got != test.want {
+				t.Errorf("%s: got %s, want %s", test.src, got, test.want)
+			}
+		})
 	}
 }
 

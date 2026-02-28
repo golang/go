@@ -36,7 +36,13 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 	var writtenOut uint64 = 0
 	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr((*offset)>>32), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0)
 
-	written = int(writtenOut)
+	// For some reason on the freebsd-386 builder writtenOut
+	// is modified when the system call returns EINVAL.
+	// The man page says that the value is only written for
+	// success, EINTR, or EAGAIN, so only use those cases.
+	if e1 == 0 || e1 == EINTR || e1 == EAGAIN {
+		written = int(writtenOut)
+	}
 
 	if e1 != 0 {
 		err = e1

@@ -228,10 +228,17 @@ func ExampleRegexp_ReplaceAll() {
 	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("$1")))
 	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("$1W")))
 	fmt.Printf("%s\n", re.ReplaceAll([]byte("-ab-axxb-"), []byte("${1}W")))
+
+	re2 := regexp.MustCompile(`a(?P<1W>x*)b`)
+	fmt.Printf("%s\n", re2.ReplaceAll([]byte("-ab-axxb-"), []byte("$1W")))
+	fmt.Printf("%s\n", re2.ReplaceAll([]byte("-ab-axxb-"), []byte("${1}W")))
+
 	// Output:
 	// -T-T-
 	// --xx-
 	// ---
+	// -W-xxW-
+	// --xx-
 	// -W-xxW-
 }
 
@@ -252,10 +259,17 @@ func ExampleRegexp_ReplaceAllString() {
 	fmt.Println(re.ReplaceAllString("-ab-axxb-", "$1"))
 	fmt.Println(re.ReplaceAllString("-ab-axxb-", "$1W"))
 	fmt.Println(re.ReplaceAllString("-ab-axxb-", "${1}W"))
+
+	re2 := regexp.MustCompile(`a(?P<1W>x*)b`)
+	fmt.Printf("%s\n", re2.ReplaceAllString("-ab-axxb-", "$1W"))
+	fmt.Println(re.ReplaceAllString("-ab-axxb-", "${1}W"))
+
 	// Output:
 	// -T-T-
 	// --xx-
 	// ---
+	// -W-xxW-
+	// --xx-
 	// -W-xxW-
 }
 

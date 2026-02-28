@@ -14,11 +14,11 @@ import (
 	"reflect"
 )
 
-// A FieldFilter may be provided to Fprint to control the output.
+// A FieldFilter may be provided to [Fprint] to control the output.
 type FieldFilter func(name string, value reflect.Value) bool
 
-// NotNilFilter returns true for field values that are not nil;
-// it returns false otherwise.
+// NotNilFilter is a [FieldFilter] that returns true for field values
+// that are not nil; it returns false otherwise.
 func NotNilFilter(_ string, v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
@@ -32,7 +32,7 @@ func NotNilFilter(_ string, v reflect.Value) bool {
 // to that file set. Otherwise positions are printed as integer
 // values (file set specific offsets).
 //
-// A non-nil FieldFilter f may be provided to control the output:
+// A non-nil [FieldFilter] f may be provided to control the output:
 // struct fields for which f(fieldname, fieldvalue) is true are
 // printed; all others are filtered from the output. Unexported
 // struct fields are never printed.

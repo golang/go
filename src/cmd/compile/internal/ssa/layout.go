@@ -15,14 +15,17 @@ func layout(f *Func) {
 // imposed by the linear-scan algorithm.
 func layoutRegallocOrder(f *Func) []*Block {
 	// remnant of an experiment; perhaps there will be another.
-	return layoutOrder(f)
+	return f.Blocks
 }
 
 func layoutOrder(f *Func) []*Block {
 	order := make([]*Block, 0, f.NumBlocks())
-	scheduled := make([]bool, f.NumBlocks())
-	idToBlock := make([]*Block, f.NumBlocks())
-	indegree := make([]int, f.NumBlocks())
+	scheduled := f.Cache.allocBoolSlice(f.NumBlocks())
+	defer f.Cache.freeBoolSlice(scheduled)
+	idToBlock := f.Cache.allocBlockSlice(f.NumBlocks())
+	defer f.Cache.freeBlockSlice(idToBlock)
+	indegree := f.Cache.allocIntSlice(f.NumBlocks())
+	defer f.Cache.freeIntSlice(indegree)
 	posdegree := f.newSparseSet(f.NumBlocks()) // blocks with positive remaining degree
 	defer f.retSparseSet(posdegree)
 	// blocks with zero remaining degree. Use slice to simulate a LIFO queue to implement

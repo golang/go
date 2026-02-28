@@ -4,8 +4,12 @@
 
 package os
 
-import "syscall"
+import (
+	"syscall"
+	_ "unsafe" // for linkname
+)
 
+//go:linkname executablePath
 var executablePath string // set by sysauxv in ../runtime/os3_solaris.go
 
 var initCwd, initCwdErr = Getwd()

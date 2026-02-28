@@ -32,16 +32,6 @@ const (
 	magic64 = 0xdeddeadbeefbeef
 )
 
-// Do the 64-bit functions panic? If so, don't bother testing.
-var test64err = func() (err any) {
-	defer func() {
-		err = recover()
-	}()
-	var x int64
-	AddInt64(&x, 1)
-	return nil
-}()
-
 func TestSwapInt32(t *testing.T) {
 	var x struct {
 		before int32
@@ -127,9 +117,6 @@ func TestSwapUint32Method(t *testing.T) {
 }
 
 func TestSwapInt64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      int64
@@ -152,9 +139,6 @@ func TestSwapInt64(t *testing.T) {
 }
 
 func TestSwapInt64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      Int64
@@ -177,9 +161,6 @@ func TestSwapInt64Method(t *testing.T) {
 }
 
 func TestSwapUint64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      uint64
@@ -202,9 +183,6 @@ func TestSwapUint64(t *testing.T) {
 }
 
 func TestSwapUint64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      Uint64
@@ -420,9 +398,6 @@ func TestAddUint32Method(t *testing.T) {
 }
 
 func TestAddInt64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      int64
@@ -445,9 +420,6 @@ func TestAddInt64(t *testing.T) {
 }
 
 func TestAddInt64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      Int64
@@ -470,9 +442,6 @@ func TestAddInt64Method(t *testing.T) {
 }
 
 func TestAddUint64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      uint64
@@ -495,9 +464,6 @@ func TestAddUint64(t *testing.T) {
 }
 
 func TestAddUint64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      Uint64
@@ -558,6 +524,472 @@ func TestAddUintptrMethod(t *testing.T) {
 		j += delta
 		if x.i.Load() != j || k != j {
 			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i.Load(), j, k)
+		}
+	}
+	if x.before != magicptr || x.after != magicptr {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
+	}
+}
+
+func TestAndInt32(t *testing.T) {
+	var x struct {
+		before int32
+		i      int32
+		after  int32
+	}
+	x.before = magic32
+	x.after = magic32
+	x.i = -1
+	j := x.i
+	for mask := int32(1); mask != 0; mask <<= 1 {
+		old := x.i
+		k := AndInt32(&x.i, ^mask)
+		j &= ^mask
+		if x.i != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i, j, k, old)
+		}
+	}
+	if x.before != magic32 || x.after != magic32 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
+	}
+}
+
+func TestAndInt32Method(t *testing.T) {
+	var x struct {
+		before int32
+		i      Int32
+		after  int32
+	}
+	x.before = magic32
+	x.after = magic32
+	x.i.Store(-1)
+	j := x.i.Load()
+	for mask := int32(1); mask != 0; mask <<= 1 {
+		old := x.i.Load()
+		k := x.i.And(^mask)
+		j &= ^mask
+		if x.i.Load() != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i.Load(), j, k, old)
+		}
+	}
+	if x.before != magic32 || x.after != magic32 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
+	}
+}
+
+func TestAndUint32(t *testing.T) {
+	var x struct {
+		before uint32
+		i      uint32
+		after  uint32
+	}
+	x.before = magic32
+	x.after = magic32
+	x.i = 0xffffffff
+	j := x.i
+	for mask := uint32(1); mask != 0; mask <<= 1 {
+		old := x.i
+		k := AndUint32(&x.i, ^mask)
+		j &= ^mask
+		if x.i != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i, j, k, old)
+		}
+	}
+	if x.before != magic32 || x.after != magic32 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
+	}
+}
+
+func TestAndUint32Method(t *testing.T) {
+	var x struct {
+		before uint32
+		i      Uint32
+		after  uint32
+	}
+	x.before = magic32
+	x.after = magic32
+	x.i.Store(0xffffffff)
+	j := x.i.Load()
+	for mask := uint32(1); mask != 0; mask <<= 1 {
+		old := x.i.Load()
+		k := x.i.And(^mask)
+		j &= ^mask
+		if x.i.Load() != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i.Load(), j, k, old)
+		}
+	}
+	if x.before != magic32 || x.after != magic32 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
+	}
+}
+
+func TestAndInt64(t *testing.T) {
+	var x struct {
+		before int64
+		i      int64
+		after  int64
+	}
+	magic64 := int64(magic64)
+	x.before = magic64
+	x.after = magic64
+	x.i = -1
+	j := x.i
+	for mask := int64(1); mask != 0; mask <<= 1 {
+		old := x.i
+		k := AndInt64(&x.i, ^mask)
+		j &= ^mask
+		if x.i != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i, j, k, old)
+		}
+	}
+	if x.before != magic64 || x.after != magic64 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic64, magic64)
+	}
+}
+
+func TestAndInt64Method(t *testing.T) {
+	var x struct {
+		before int64
+		i      Int64
+		after  int64
+	}
+	magic64 := int64(magic64)
+	x.before = magic64
+	x.after = magic64
+	x.i.Store(-1)
+	j := x.i.Load()
+	for mask := int64(1); mask != 0; mask <<= 1 {
+		old := x.i.Load()
+		k := x.i.And(^mask)
+		j &= ^mask
+		if x.i.Load() != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i.Load(), j, k, old)
+		}
+	}
+	if x.before != magic64 || x.after != magic64 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic64, magic64)
+	}
+}
+
+func TestAndUint64(t *testing.T) {
+	var x struct {
+		before uint64
+		i      uint64
+		after  uint64
+	}
+	magic64 := uint64(magic64)
+	x.before = magic64
+	x.after = magic64
+	x.i = 0xfffffffffffffff
+	j := x.i
+	for mask := uint64(1); mask != 0; mask <<= 1 {
+		old := x.i
+		k := AndUint64(&x.i, ^mask)
+		j &= ^mask
+		if x.i != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i, j, k, old)
+		}
+	}
+	if x.before != magic64 || x.after != magic64 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic64, magic64)
+	}
+}
+
+func TestAndUint64Method(t *testing.T) {
+	var x struct {
+		before uint64
+		i      Uint64
+		after  uint64
+	}
+	magic64 := uint64(magic64)
+	x.before = magic64
+	x.after = magic64
+	x.i.Store(0xfffffffffffffff)
+	j := x.i.Load()
+	for mask := uint64(1); mask != 0; mask <<= 1 {
+		old := x.i.Load()
+		k := x.i.And(^mask)
+		j &= ^mask
+		if x.i.Load() != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i.Load(), j, k, old)
+		}
+	}
+	if x.before != magic64 || x.after != magic64 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic64, magic64)
+	}
+}
+
+func TestAndUintptr(t *testing.T) {
+	var x struct {
+		before uintptr
+		i      uintptr
+		after  uintptr
+	}
+	var m uint64 = magic64
+	magicptr := uintptr(m)
+	x.before = magicptr
+	x.after = magicptr
+	x.i = ^uintptr(0)
+	j := x.i
+	for mask := uintptr(1); mask != 0; mask <<= 1 {
+		old := x.i
+		k := AndUintptr(&x.i, ^mask)
+		j &= ^mask
+		if x.i != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i, j, k, old)
+		}
+	}
+	if x.before != magicptr || x.after != magicptr {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
+	}
+}
+
+func TestAndUintptrMethod(t *testing.T) {
+	var x struct {
+		before uintptr
+		i      Uintptr
+		after  uintptr
+	}
+	var m uint64 = magic64
+	magicptr := uintptr(m)
+	x.before = magicptr
+	x.after = magicptr
+	x.i.Store(^uintptr(0))
+	j := x.i.Load()
+	for mask := uintptr(1); mask != 0; mask <<= 1 {
+		old := x.i.Load()
+		k := x.i.And(^mask)
+		j &= ^mask
+		if x.i.Load() != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i.Load(), j, k, old)
+		}
+	}
+	if x.before != magicptr || x.after != magicptr {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
+	}
+}
+
+func TestOrInt32(t *testing.T) {
+	var x struct {
+		before int32
+		i      int32
+		after  int32
+	}
+	x.before = magic32
+	x.after = magic32
+	var j int32
+	for mask := int32(1); mask != 0; mask <<= 1 {
+		old := x.i
+		k := OrInt32(&x.i, mask)
+		j |= mask
+		if x.i != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i, j, k, old)
+		}
+	}
+	if x.before != magic32 || x.after != magic32 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
+	}
+}
+
+func TestOrInt32Method(t *testing.T) {
+	var x struct {
+		before int32
+		i      Int32
+		after  int32
+	}
+	x.before = magic32
+	x.after = magic32
+	var j int32
+	for mask := int32(1); mask != 0; mask <<= 1 {
+		old := x.i.Load()
+		k := x.i.Or(mask)
+		j |= mask
+		if x.i.Load() != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i.Load(), j, k, old)
+		}
+	}
+	if x.before != magic32 || x.after != magic32 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
+	}
+}
+
+func TestOrUint32(t *testing.T) {
+	var x struct {
+		before uint32
+		i      uint32
+		after  uint32
+	}
+	x.before = magic32
+	x.after = magic32
+	var j uint32
+	for mask := uint32(1); mask != 0; mask <<= 1 {
+		old := x.i
+		k := OrUint32(&x.i, mask)
+		j |= mask
+		if x.i != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i, j, k, old)
+		}
+	}
+	if x.before != magic32 || x.after != magic32 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
+	}
+}
+
+func TestOrUint32Method(t *testing.T) {
+	var x struct {
+		before uint32
+		i      Uint32
+		after  uint32
+	}
+	x.before = magic32
+	x.after = magic32
+	var j uint32
+	for mask := uint32(1); mask != 0; mask <<= 1 {
+		old := x.i.Load()
+		k := x.i.Or(mask)
+		j |= mask
+		if x.i.Load() != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i.Load(), j, k, old)
+		}
+	}
+	if x.before != magic32 || x.after != magic32 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
+	}
+}
+
+func TestOrInt64(t *testing.T) {
+	var x struct {
+		before int64
+		i      int64
+		after  int64
+	}
+	magic64 := int64(magic64)
+	x.before = magic64
+	x.after = magic64
+	var j int64
+	for mask := int64(1); mask != 0; mask <<= 1 {
+		old := x.i
+		k := OrInt64(&x.i, mask)
+		j |= mask
+		if x.i != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i, j, k, old)
+		}
+	}
+	if x.before != magic64 || x.after != magic64 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic64, magic64)
+	}
+}
+
+func TestOrInt64Method(t *testing.T) {
+	var x struct {
+		before int64
+		i      Int64
+		after  int64
+	}
+	magic64 := int64(magic64)
+	x.before = magic64
+	x.after = magic64
+	var j int64
+	for mask := int64(1); mask != 0; mask <<= 1 {
+		old := x.i.Load()
+		k := x.i.Or(mask)
+		j |= mask
+		if x.i.Load() != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i.Load(), j, k, old)
+		}
+	}
+	if x.before != magic64 || x.after != magic64 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic64, magic64)
+	}
+}
+
+func TestOrUint64(t *testing.T) {
+	var x struct {
+		before uint64
+		i      uint64
+		after  uint64
+	}
+	magic64 := uint64(magic64)
+	x.before = magic64
+	x.after = magic64
+	var j uint64
+	for mask := uint64(1); mask != 0; mask <<= 1 {
+		old := x.i
+		k := OrUint64(&x.i, mask)
+		j |= mask
+		if x.i != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i, j, k, old)
+		}
+	}
+	if x.before != magic64 || x.after != magic64 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic64, magic64)
+	}
+}
+
+func TestOrUint64Method(t *testing.T) {
+	var x struct {
+		before uint64
+		i      Uint64
+		after  uint64
+	}
+	magic64 := uint64(magic64)
+	x.before = magic64
+	x.after = magic64
+	var j uint64
+	for mask := uint64(1); mask != 0; mask <<= 1 {
+		old := x.i.Load()
+		k := x.i.Or(mask)
+		j |= mask
+		if x.i.Load() != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i.Load(), j, k, old)
+		}
+	}
+	if x.before != magic64 || x.after != magic64 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic64, magic64)
+	}
+}
+
+func TestOrUintptr(t *testing.T) {
+	var x struct {
+		before uintptr
+		i      uintptr
+		after  uintptr
+	}
+	var m uint64 = magic64
+	magicptr := uintptr(m)
+	x.before = magicptr
+	x.after = magicptr
+	var j uintptr
+	for mask := uintptr(1); mask != 0; mask <<= 1 {
+		old := x.i
+		k := OrUintptr(&x.i, mask)
+		j |= mask
+		if x.i != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i, j, k, old)
+		}
+	}
+	if x.before != magicptr || x.after != magicptr {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
+	}
+}
+
+func TestOrUintptrMethod(t *testing.T) {
+	var x struct {
+		before uintptr
+		i      Uintptr
+		after  uintptr
+	}
+	var m uint64 = magic64
+	magicptr := uintptr(m)
+	x.before = magicptr
+	x.after = magicptr
+	var j uintptr
+	for mask := uintptr(1); mask != 0; mask <<= 1 {
+		old := x.i.Load()
+		k := x.i.Or(mask)
+		j |= mask
+		if x.i.Load() != j || k != old {
+			t.Fatalf("mask=%d i=%d j=%d k=%d old=%d", mask, x.i.Load(), j, k, old)
 		}
 	}
 	if x.before != magicptr || x.after != magicptr {
@@ -682,9 +1114,6 @@ func TestCompareAndSwapUint32Method(t *testing.T) {
 }
 
 func TestCompareAndSwapInt64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      int64
@@ -715,9 +1144,6 @@ func TestCompareAndSwapInt64(t *testing.T) {
 }
 
 func TestCompareAndSwapInt64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      Int64
@@ -748,9 +1174,6 @@ func TestCompareAndSwapInt64Method(t *testing.T) {
 }
 
 func testCompareAndSwapUint64(t *testing.T, cas func(*uint64, uint64, uint64) bool) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      uint64
@@ -785,9 +1208,6 @@ func TestCompareAndSwapUint64(t *testing.T) {
 }
 
 func TestCompareAndSwapUint64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      Uint64
@@ -1027,9 +1447,6 @@ func TestLoadUint32Method(t *testing.T) {
 }
 
 func TestLoadInt64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      int64
@@ -1051,9 +1468,6 @@ func TestLoadInt64(t *testing.T) {
 }
 
 func TestLoadInt64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      Int64
@@ -1077,9 +1491,6 @@ func TestLoadInt64Method(t *testing.T) {
 }
 
 func TestLoadUint64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      uint64
@@ -1101,9 +1512,6 @@ func TestLoadUint64(t *testing.T) {
 }
 
 func TestLoadUint64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      Uint64
@@ -1302,9 +1710,6 @@ func TestStoreUint32Method(t *testing.T) {
 }
 
 func TestStoreInt64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before int64
 		i      int64
@@ -1349,9 +1754,6 @@ func TestStoreInt64Method(t *testing.T) {
 }
 
 func TestStoreUint64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      uint64
@@ -1374,9 +1776,6 @@ func TestStoreUint64(t *testing.T) {
 }
 
 func TestStoreUint64Method(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	var x struct {
 		before uint64
 		i      Uint64
@@ -1997,9 +2396,6 @@ func hammerCompareAndSwapUintptr64Method(uaddr *uint64, count int) {
 }
 
 func TestHammer64(t *testing.T) {
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
-	}
 	const p = 4
 	n := 100000
 	if testing.Short() {
@@ -2252,16 +2648,13 @@ func hammerStoreLoadPointerMethod(t *testing.T, paddr unsafe.Pointer) {
 }
 
 func TestHammerStoreLoad(t *testing.T) {
-	var tests []func(*testing.T, unsafe.Pointer)
-	tests = append(tests, hammerStoreLoadInt32, hammerStoreLoadUint32,
+	tests := []func(*testing.T, unsafe.Pointer){
+		hammerStoreLoadInt32, hammerStoreLoadUint32,
 		hammerStoreLoadUintptr, hammerStoreLoadPointer,
 		hammerStoreLoadInt32Method, hammerStoreLoadUint32Method,
 		hammerStoreLoadUintptrMethod, hammerStoreLoadPointerMethod,
-	)
-	if test64err == nil {
-		tests = append(tests, hammerStoreLoadInt64, hammerStoreLoadUint64,
-			hammerStoreLoadInt64Method, hammerStoreLoadUint64Method,
-		)
+		hammerStoreLoadInt64, hammerStoreLoadUint64,
+		hammerStoreLoadInt64Method, hammerStoreLoadUint64Method,
 	}
 	n := int(1e6)
 	if testing.Short() {
@@ -2336,9 +2729,6 @@ func TestStoreLoadSeqCst32(t *testing.T) {
 func TestStoreLoadSeqCst64(t *testing.T) {
 	if runtime.NumCPU() == 1 {
 		t.Skipf("Skipping test on %v processor machine", runtime.NumCPU())
-	}
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
 	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
 	N := int64(1e3)
@@ -2427,9 +2817,6 @@ func TestStoreLoadRelAcq32(t *testing.T) {
 func TestStoreLoadRelAcq64(t *testing.T) {
 	if runtime.NumCPU() == 1 {
 		t.Skipf("Skipping test on %v processor machine", runtime.NumCPU())
-	}
-	if test64err != nil {
-		t.Skipf("Skipping 64-bit tests: %v", test64err)
 	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
 	N := int64(1e3)
@@ -2604,4 +2991,10 @@ func TestNilDeref(t *testing.T) {
 			f()
 		}()
 	}
+}
+
+// Test that this compiles.
+// When atomic.Pointer used _ [0]T, it did not.
+type List struct {
+	Next Pointer[List]
 }

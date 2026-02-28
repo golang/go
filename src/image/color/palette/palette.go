@@ -10,7 +10,7 @@ import "image/color"
 
 // Plan9 is a 256-color palette that partitions the 24-bit RGB space
 // into 4×4×4 subdivision, with 4 shades in each subcube. Compared to the
-// WebSafe, the idea is to reduce the color resolution by dicing the
+// [WebSafe], the idea is to reduce the color resolution by dicing the
 // color cube into fewer cells, and to use the extra space to increase the
 // intensity resolution. This results in 16 gray shades (4 gray subcubes with
 // 4 samples in each), 13 shades of each primary and secondary color (3

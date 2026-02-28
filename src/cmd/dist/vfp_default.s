@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build gc && !arm
-// +build gc,!arm
 
 #include "textflag.h"
 

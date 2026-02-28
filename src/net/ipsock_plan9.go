@@ -7,7 +7,7 @@ package net
 import (
 	"context"
 	"internal/bytealg"
-	"internal/itoa"
+	"internal/strconv"
 	"io/fs"
 	"os"
 	"syscall"
@@ -128,6 +128,7 @@ func startPlan9(ctx context.Context, net string, addr Addr) (ctl *os.File, dest,
 
 	clone, dest, err := queryCS1(ctx, proto, ip, port)
 	if err != nil {
+		err = handlePlan9DNSError(err, net+":"+ip.String()+":"+strconv.Itoa(port))
 		return
 	}
 	f, err := os.OpenFile(clone, os.O_RDWR, 0)
@@ -181,7 +182,6 @@ func dialPlan9(ctx context.Context, net string, laddr, raddr Addr) (fd *netFD, e
 	}
 	resc := make(chan res)
 	go func() {
-		testHookDialChannel()
 		fd, err := dialPlan9Blocking(ctx, net, laddr, raddr)
 		select {
 		case resc <- res{fd, err}:
@@ -337,9 +337,9 @@ func plan9LocalAddr(addr Addr) string {
 		if port == 0 {
 			return ""
 		}
-		return itoa.Itoa(port)
+		return strconv.Itoa(port)
 	}
-	return ip.String() + "!" + itoa.Itoa(port)
+	return ip.String() + "!" + strconv.Itoa(port)
 }
 
 func hangupCtlWrite(ctx context.Context, proto string, ctl *os.File, msg string) error {

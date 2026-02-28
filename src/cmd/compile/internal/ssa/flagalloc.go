@@ -11,7 +11,8 @@ func flagalloc(f *Func) {
 	// Compute the in-register flag value we want at the end of
 	// each block. This is basically a best-effort live variable
 	// analysis, so it can be much simpler than a full analysis.
-	end := make([]*Value, f.NumBlocks())
+	end := f.Cache.allocValueSlice(f.NumBlocks())
+	defer f.Cache.freeValueSlice(end)
 	po := f.postorder()
 	for n := 0; n < 2; n++ {
 		for _, b := range po {

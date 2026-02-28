@@ -31,7 +31,7 @@ type poolDequeue struct {
 	// The head index is stored in the most-significant bits so
 	// that we can atomically add to it and the overflow is
 	// harmless.
-	headTail uint64
+	headTail atomic.Uint64
 
 	// vals is a ring buffer of interface{} values stored in this
 	// dequeue. The size of this must be a power of 2.
@@ -78,7 +78,7 @@ func (d *poolDequeue) pack(head, tail uint32) uint64 {
 // pushHead adds val at the head of the queue. It returns false if the
 // queue is full. It must only be called by a single producer.
 func (d *poolDequeue) pushHead(val any) bool {
-	ptrs := atomic.LoadUint64(&d.headTail)
+	ptrs := d.headTail.Load()
 	head, tail := d.unpack(ptrs)
 	if (tail+uint32(len(d.vals)))&(1<<dequeueBits-1) == head {
 		// Queue is full.
@@ -102,7 +102,7 @@ func (d *poolDequeue) pushHead(val any) bool {
 
 	// Increment head. This passes ownership of slot to popTail
 	// and acts as a store barrier for writing the slot.
-	atomic.AddUint64(&d.headTail, 1<<dequeueBits)
+	d.headTail.Add(1 << dequeueBits)
 	return true
 }
 
@@ -112,7 +112,7 @@ func (d *poolDequeue) pushHead(val any) bool {
 func (d *poolDequeue) popHead() (any, bool) {
 	var slot *eface
 	for {
-		ptrs := atomic.LoadUint64(&d.headTail)
+		ptrs := d.headTail.Load()
 		head, tail := d.unpack(ptrs)
 		if tail == head {
 			// Queue is empty.
@@ -124,7 +124,7 @@ func (d *poolDequeue) popHead() (any, bool) {
 		// slot.
 		head--
 		ptrs2 := d.pack(head, tail)
-		if atomic.CompareAndSwapUint64(&d.headTail, ptrs, ptrs2) {
+		if d.headTail.CompareAndSwap(ptrs, ptrs2) {
 			// We successfully took back slot.
 			slot = &d.vals[head&uint32(len(d.vals)-1)]
 			break
@@ -147,7 +147,7 @@ func (d *poolDequeue) popHead() (any, bool) {
 func (d *poolDequeue) popTail() (any, bool) {
 	var slot *eface
 	for {
-		ptrs := atomic.LoadUint64(&d.headTail)
+		ptrs := d.headTail.Load()
 		head, tail := d.unpack(ptrs)
 		if tail == head {
 			// Queue is empty.
@@ -158,7 +158,7 @@ func (d *poolDequeue) popTail() (any, bool) {
 		// above) and increment tail. If this succeeds, then
 		// we own the slot at tail.
 		ptrs2 := d.pack(head, tail+1)
-		if atomic.CompareAndSwapUint64(&d.headTail, ptrs, ptrs2) {
+		if d.headTail.CompareAndSwap(ptrs, ptrs2) {
 			// Success.
 			slot = &d.vals[tail&uint32(len(d.vals)-1)]
 			break
@@ -198,7 +198,7 @@ type poolChain struct {
 
 	// tail is the poolDequeue to popTail from. This is accessed
 	// by consumers, so reads and writes must be atomic.
-	tail *poolChainElt
+	tail atomic.Pointer[poolChainElt]
 }
 
 type poolChainElt struct {
@@ -214,15 +214,7 @@ type poolChainElt struct {
 	// prev is written atomically by the consumer and read
 	// atomically by the producer. It only transitions from
 	// non-nil to nil.
-	next, prev *poolChainElt
-}
-
-func storePoolChainElt(pp **poolChainElt, v *poolChainElt) {
-	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(pp)), unsafe.Pointer(v))
-}
-
-func loadPoolChainElt(pp **poolChainElt) *poolChainElt {
-	return (*poolChainElt)(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(pp))))
+	next, prev atomic.Pointer[poolChainElt]
 }
 
 func (c *poolChain) pushHead(val any) {
@@ -233,7 +225,7 @@ func (c *poolChain) pushHead(val any) {
 		d = new(poolChainElt)
 		d.vals = make([]eface, initSize)
 		c.head = d
-		storePoolChainElt(&c.tail, d)
+		c.tail.Store(d)
 	}
 
 	if d.pushHead(val) {
@@ -248,10 +240,11 @@ func (c *poolChain) pushHead(val any) {
 		newSize = dequeueLimit
 	}
 
-	d2 := &poolChainElt{prev: d}
+	d2 := &poolChainElt{}
+	d2.prev.Store(d)
 	d2.vals = make([]eface, newSize)
 	c.head = d2
-	storePoolChainElt(&d.next, d2)
+	d.next.Store(d2)
 	d2.pushHead(val)
 }
 
@@ -263,13 +256,13 @@ func (c *poolChain) popHead() (any, bool) {
 		}
 		// There may still be unconsumed elements in the
 		// previous dequeue, so try backing up.
-		d = loadPoolChainElt(&d.prev)
+		d = d.prev.Load()
 	}
 	return nil, false
 }
 
 func (c *poolChain) popTail() (any, bool) {
-	d := loadPoolChainElt(&c.tail)
+	d := c.tail.Load()
 	if d == nil {
 		return nil, false
 	}
@@ -281,7 +274,7 @@ func (c *poolChain) popTail() (any, bool) {
 		// the pop and the pop fails, then d is permanently
 		// empty, which is the only condition under which it's
 		// safe to drop d from the chain.
-		d2 := loadPoolChainElt(&d.next)
+		d2 := d.next.Load()
 
 		if val, ok := d.popTail(); ok {
 			return val, ok
@@ -297,12 +290,12 @@ func (c *poolChain) popTail() (any, bool) {
 		// to the next dequeue. Try to drop it from the chain
 		// so the next pop doesn't have to look at the empty
 		// dequeue again.
-		if atomic.CompareAndSwapPointer((*unsafe.Pointer)(unsafe.Pointer(&c.tail)), unsafe.Pointer(d), unsafe.Pointer(d2)) {
+		if c.tail.CompareAndSwap(d, d2) {
 			// We won the race. Clear the prev pointer so
 			// the garbage collector can collect the empty
 			// dequeue and so popHead doesn't back up
 			// further than necessary.
-			storePoolChainElt(&d2.prev, nil)
+			d2.prev.Store(nil)
 		}
 		d = d2
 	}

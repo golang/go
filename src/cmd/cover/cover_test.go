@@ -7,16 +7,21 @@ package main_test
 import (
 	"bufio"
 	"bytes"
+	cmdcover "cmd/cover"
+	"cmp"
 	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"internal/testenv"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -27,150 +32,113 @@ const (
 	testdata = "testdata"
 )
 
-var (
-	// Input files.
-	testMain       = filepath.Join(testdata, "main.go")
-	testTest       = filepath.Join(testdata, "test.go")
-	coverProfile   = filepath.Join(testdata, "profile.cov")
-	toolexecSource = filepath.Join(testdata, "toolexec.go")
+// testcover returns the path to the cmd/cover binary that we are going to
+// test. At one point this was created via "go build"; we now reuse the unit
+// test executable itself.
+func testcover(t testing.TB) string {
+	return testenv.Executable(t)
+}
 
-	// The HTML test files are in a separate directory
-	// so they are a complete package.
-	htmlGolden = filepath.Join(testdata, "html", "html.golden")
+// testTempDir is a temporary directory created in TestMain.
+var testTempDir string
 
-	// Temporary files.
-	tmpTestMain    string
-	coverInput     string
-	coverOutput    string
-	htmlProfile    string
-	htmlHTML       string
-	htmlUDir       string
-	htmlU          string
-	htmlUTest      string
-	htmlUProfile   string
-	htmlUHTML      string
-	lineDupDir     string
-	lineDupGo      string
-	lineDupTestGo  string
-	lineDupProfile string
-)
+// If set, this will preserve all the tmpdir files from the test run.
+var debug = flag.Bool("debug", false, "keep tmpdir files for debugging")
 
-var (
-	// testTempDir is a temporary directory created in TestMain.
-	testTempDir string
-
-	// testcover is a newly built version of the cover program.
-	testcover string
-
-	// toolexec is a program to use as the go tool's -toolexec argument.
-	toolexec string
-
-	// testcoverErr records an error building testcover or toolexec.
-	testcoverErr error
-
-	// testcoverOnce is used to build testcover once.
-	testcoverOnce sync.Once
-
-	// toolexecArg is the argument to pass to the go tool.
-	toolexecArg string
-)
-
-var debug = flag.Bool("debug", false, "keep rewritten files for debugging")
-
-// We use TestMain to set up a temporary directory and remove it when
-// the tests are done.
+// TestMain used here so that we can leverage the test executable
+// itself as a cmd/cover executable; compare to similar usage in
+// the cmd/go tests.
 func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "go-testcover")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	os.Setenv("GOPATH", filepath.Join(dir, "_gopath"))
-
-	testTempDir = dir
-
-	tmpTestMain = filepath.Join(dir, "main.go")
-	coverInput = filepath.Join(dir, "test_line.go")
-	coverOutput = filepath.Join(dir, "test_cover.go")
-	htmlProfile = filepath.Join(dir, "html.cov")
-	htmlHTML = filepath.Join(dir, "html.html")
-	htmlUDir = filepath.Join(dir, "htmlunformatted")
-	htmlU = filepath.Join(htmlUDir, "htmlunformatted.go")
-	htmlUTest = filepath.Join(htmlUDir, "htmlunformatted_test.go")
-	htmlUProfile = filepath.Join(htmlUDir, "htmlunformatted.cov")
-	htmlUHTML = filepath.Join(htmlUDir, "htmlunformatted.html")
-	lineDupDir = filepath.Join(dir, "linedup")
-	lineDupGo = filepath.Join(lineDupDir, "linedup.go")
-	lineDupTestGo = filepath.Join(lineDupDir, "linedup_test.go")
-	lineDupProfile = filepath.Join(lineDupDir, "linedup.out")
-
-	status := m.Run()
-
-	if !*debug {
-		os.RemoveAll(dir)
-	}
-
-	os.Exit(status)
-}
-
-// buildCover builds a version of the cover program for testing.
-// This ensures that "go test cmd/cover" tests the current cmd/cover.
-func buildCover(t *testing.T) {
-	t.Helper()
-	testenv.MustHaveGoBuild(t)
-	testcoverOnce.Do(func() {
-		var wg sync.WaitGroup
-		wg.Add(2)
-
-		var err1, err2 error
-		go func() {
-			defer wg.Done()
-			testcover = filepath.Join(testTempDir, "cover.exe")
-			t.Logf("running [go build -o %s]", testcover)
-			out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", testcover).CombinedOutput()
-			if len(out) > 0 {
-				t.Logf("%s", out)
+	if os.Getenv("CMDCOVER_TOOLEXEC") != "" {
+		// When CMDCOVER_TOOLEXEC is set, the test binary is also
+		// running as a -toolexec wrapper.
+		tool := strings.TrimSuffix(filepath.Base(os.Args[1]), ".exe")
+		if tool == "cover" {
+			// Inject this test binary as cmd/cover in place of the
+			// installed tool, so that the go command's invocations of
+			// cover produce coverage for the configuration in which
+			// the test was built.
+			os.Args = os.Args[1:]
+			cmdcover.Main()
+		} else {
+			cmd := exec.Command(os.Args[1], os.Args[2:]...)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				os.Exit(1)
 			}
-			err1 = err
-		}()
-
-		go func() {
-			defer wg.Done()
-			toolexec = filepath.Join(testTempDir, "toolexec.exe")
-			t.Logf("running [go -build -o %s %s]", toolexec, toolexecSource)
-			out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", toolexec, toolexecSource).CombinedOutput()
-			if len(out) > 0 {
-				t.Logf("%s", out)
-			}
-			err2 = err
-		}()
-
-		wg.Wait()
-
-		testcoverErr = err1
-		if err2 != nil && err1 == nil {
-			testcoverErr = err2
 		}
-
-		toolexecArg = "-toolexec=" + toolexec + " " + testcover
-	})
-	if testcoverErr != nil {
-		t.Fatal("failed to build testcover or toolexec program:", testcoverErr)
+		os.Exit(0)
 	}
+	if os.Getenv("CMDCOVER_TEST_RUN_MAIN") != "" {
+		// When CMDCOVER_TEST_RUN_MAIN is set, we're reusing the test
+		// binary as cmd/cover. In this case we run the main func exported
+		// via export_test.go, and exit; CMDCOVER_TEST_RUN_MAIN is set below
+		// for actual test invocations.
+		cmdcover.Main()
+		os.Exit(0)
+	}
+	flag.Parse()
+	topTmpdir, err := os.MkdirTemp("", "cmd-cover-test-")
+	if err != nil {
+		log.Fatal(err)
+	}
+	testTempDir = topTmpdir
+	if !*debug {
+		defer os.RemoveAll(topTmpdir)
+	} else {
+		fmt.Fprintf(os.Stderr, "debug: preserving tmpdir %s\n", topTmpdir)
+	}
+	os.Setenv("CMDCOVER_TEST_RUN_MAIN", "normal")
+	m.Run()
 }
 
-// Run this shell script, but do it in Go so it can be run by "go test".
+var tdmu sync.Mutex
+var tdcount int
+
+func tempDir(t *testing.T) string {
+	tdmu.Lock()
+	dir := filepath.Join(testTempDir, fmt.Sprintf("%03d", tdcount))
+	tdcount++
+	if err := os.Mkdir(dir, 0777); err != nil {
+		t.Fatal(err)
+	}
+	defer tdmu.Unlock()
+	return dir
+}
+
+// TestCoverWithToolExec runs a set of subtests that all make use of a
+// "-toolexec" wrapper program to invoke the cover test executable
+// itself via "go test -cover".
+func TestCoverWithToolExec(t *testing.T) {
+	toolexecArg := "-toolexec=" + testcover(t)
+
+	t.Run("CoverHTML", func(t *testing.T) {
+		testCoverHTML(t, toolexecArg)
+	})
+	t.Run("HtmlUnformatted", func(t *testing.T) {
+		testHtmlUnformatted(t, toolexecArg)
+	})
+	t.Run("FuncWithDuplicateLines", func(t *testing.T) {
+		testFuncWithDuplicateLines(t, toolexecArg)
+	})
+	t.Run("MissingTrailingNewlineIssue58370", func(t *testing.T) {
+		testMissingTrailingNewlineIssue58370(t, toolexecArg)
+	})
+}
+
+// Execute this command sequence:
 //
 //	replace the word LINE with the line number < testdata/test.go > testdata/test_line.go
-//	go build -o testcover
 //	testcover -mode=count -var=CoverTest -o ./testdata/test_cover.go testdata/test_line.go
 //	go run ./testdata/main.go ./testdata/test.go
 func TestCover(t *testing.T) {
-	t.Parallel()
 	testenv.MustHaveGoRun(t)
-	buildCover(t)
+	t.Parallel()
+	dir := tempDir(t)
 
 	// Read in the test file (testTest) and write it, with LINEs specified, to coverInput.
+	testTest := filepath.Join(testdata, "test.go")
 	file, err := os.ReadFile(testTest)
 	if err != nil {
 		t.Fatal(err)
@@ -190,32 +158,36 @@ func TestCover(t *testing.T) {
 		[]byte("}"))
 	lines = append(lines, []byte("func unFormatted2(b bool) {if b{}else{}}"))
 
+	coverInput := filepath.Join(dir, "test_line.go")
 	if err := os.WriteFile(coverInput, bytes.Join(lines, []byte("\n")), 0666); err != nil {
 		t.Fatal(err)
 	}
 
 	// testcover -mode=count -var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest -o ./testdata/test_cover.go testdata/test_line.go
-	cmd := exec.Command(testcover, "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
+	coverOutput := filepath.Join(dir, "test_cover.go")
+	cmd := testenv.Command(t, testcover(t), "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
 	run(cmd, t)
 
-	cmd = exec.Command(testcover, "-mode=set", "-var=Not_an-identifier", "-o", coverOutput, coverInput)
+	cmd = testenv.Command(t, testcover(t), "-mode=set", "-var=Not_an-identifier", "-o", coverOutput, coverInput)
 	err = cmd.Run()
 	if err == nil {
 		t.Error("Expected cover to fail with an error")
 	}
 
-	// Copy testmain to testTempDir, so that it is in the same directory
+	// Copy testmain to tmpdir, so that it is in the same directory
 	// as coverOutput.
+	testMain := filepath.Join(testdata, "main.go")
 	b, err := os.ReadFile(testMain)
 	if err != nil {
 		t.Fatal(err)
 	}
+	tmpTestMain := filepath.Join(dir, "main.go")
 	if err := os.WriteFile(tmpTestMain, b, 0444); err != nil {
 		t.Fatal(err)
 	}
 
 	// go run ./testdata/main.go ./testdata/test.go
-	cmd = exec.Command(testenv.GoToolPath(t), "run", tmpTestMain, coverOutput)
+	cmd = testenv.Command(t, testenv.GoToolPath(t), "run", tmpTestMain, coverOutput)
 	run(cmd, t)
 
 	file, err = os.ReadFile(coverOutput)
@@ -243,8 +215,8 @@ func TestCover(t *testing.T) {
 // above those declarations, even if they are not part of the block of
 // documentation comments.
 func TestDirectives(t *testing.T) {
+	testenv.MustHaveExec(t)
 	t.Parallel()
-	buildCover(t)
 
 	// Read the source file and find all the directives. We'll keep
 	// track of whether each one has been seen in the output.
@@ -256,7 +228,7 @@ func TestDirectives(t *testing.T) {
 	sourceDirectives := findDirectives(source)
 
 	// testcover -mode=atomic ./testdata/directives.go
-	cmd := exec.Command(testcover, "-mode=atomic", testDirectives)
+	cmd := testenv.Command(t, testcover(t), "-mode=atomic", testDirectives)
 	cmd.Stderr = os.Stderr
 	output, err := cmd.Output()
 	if err != nil {
@@ -362,10 +334,9 @@ func findDirectives(source []byte) []directiveInfo {
 // Makes sure that `cover -func=profile.cov` reports accurate coverage.
 // Issue #20515.
 func TestCoverFunc(t *testing.T) {
-	t.Parallel()
-	buildCover(t)
 	// testcover -func ./testdata/profile.cov
-	cmd := exec.Command(testcover, "-func", coverProfile)
+	coverProfile := filepath.Join(testdata, "profile.cov")
+	cmd := testenv.Command(t, testcover(t), "-func", coverProfile)
 	out, err := cmd.Output()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
@@ -382,16 +353,20 @@ func TestCoverFunc(t *testing.T) {
 
 // Check that cover produces correct HTML.
 // Issue #25767.
-func TestCoverHTML(t *testing.T) {
-	t.Parallel()
+func testCoverHTML(t *testing.T, toolexecArg string) {
 	testenv.MustHaveGoRun(t)
-	buildCover(t)
+	dir := tempDir(t)
+
+	t.Parallel()
 
 	// go test -coverprofile testdata/html/html.cov cmd/cover/testdata/html
-	cmd := exec.Command(testenv.GoToolPath(t), "test", toolexecArg, "-coverprofile", htmlProfile, "cmd/cover/testdata/html")
+	htmlProfile := filepath.Join(dir, "html.cov")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", toolexecArg, "-coverprofile", htmlProfile, "cmd/cover/testdata/html")
+	cmd.Env = append(cmd.Environ(), "CMDCOVER_TOOLEXEC=true")
 	run(cmd, t)
 	// testcover -html testdata/html/html.cov -o testdata/html/html.html
-	cmd = exec.Command(testcover, "-html", htmlProfile, "-o", htmlHTML)
+	htmlHTML := filepath.Join(dir, "html.html")
+	cmd = testenv.Command(t, testcover(t), "-html", htmlProfile, "-o", htmlHTML)
 	run(cmd, t)
 
 	// Extract the parts of the HTML with comment markers,
@@ -400,7 +375,7 @@ func TestCoverHTML(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var out bytes.Buffer
+	var out strings.Builder
 	scan := bufio.NewScanner(bytes.NewReader(entireHTML))
 	in := false
 	for scan.Scan() {
@@ -418,6 +393,7 @@ func TestCoverHTML(t *testing.T) {
 	if scan.Err() != nil {
 		t.Error(scan.Err())
 	}
+	htmlGolden := filepath.Join(testdata, "html", "html.golden")
 	golden, err := os.ReadFile(htmlGolden)
 	if err != nil {
 		t.Fatalf("reading golden file: %v", err)
@@ -446,10 +422,17 @@ func TestCoverHTML(t *testing.T) {
 
 // Test HTML processing with a source file not run through gofmt.
 // Issue #27350.
-func TestHtmlUnformatted(t *testing.T) {
-	t.Parallel()
+func testHtmlUnformatted(t *testing.T, toolexecArg string) {
 	testenv.MustHaveGoRun(t)
-	buildCover(t)
+	dir := tempDir(t)
+
+	t.Parallel()
+
+	htmlUDir := filepath.Join(dir, "htmlunformatted")
+	htmlU := filepath.Join(htmlUDir, "htmlunformatted.go")
+	htmlUTest := filepath.Join(htmlUDir, "htmlunformatted_test.go")
+	htmlUProfile := filepath.Join(htmlUDir, "htmlunformatted.cov")
+	htmlUHTML := filepath.Join(htmlUDir, "htmlunformatted.html")
 
 	if err := os.Mkdir(htmlUDir, 0777); err != nil {
 		t.Fatal(err)
@@ -480,17 +463,18 @@ lab:
 	}
 
 	// go test -covermode=count -coverprofile TMPDIR/htmlunformatted.cov
-	cmd := exec.Command(testenv.GoToolPath(t), "test", toolexecArg, "-covermode=count", "-coverprofile", htmlUProfile)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", "-test.v", toolexecArg, "-covermode=count", "-coverprofile", htmlUProfile)
+	cmd.Env = append(cmd.Environ(), "CMDCOVER_TOOLEXEC=true")
 	cmd.Dir = htmlUDir
 	run(cmd, t)
 
 	// testcover -html TMPDIR/htmlunformatted.cov -o unformatted.html
-	cmd = exec.Command(testcover, "-html", htmlUProfile, "-o", htmlUHTML)
+	cmd = testenv.Command(t, testcover(t), "-html", htmlUProfile, "-o", htmlUHTML)
 	cmd.Dir = htmlUDir
 	run(cmd, t)
 }
 
-// lineDupContents becomes linedup.go in TestFuncWithDuplicateLines.
+// lineDupContents becomes linedup.go in testFuncWithDuplicateLines.
 const lineDupContents = `
 package linedup
 
@@ -516,7 +500,7 @@ func LineDup(c int) {
 }
 `
 
-// lineDupTestContents becomes linedup_test.go in TestFuncWithDuplicateLines.
+// lineDupTestContents becomes linedup_test.go in testFuncWithDuplicateLines.
 const lineDupTestContents = `
 package linedup
 
@@ -529,10 +513,16 @@ func TestLineDup(t *testing.T) {
 
 // Test -func with duplicate //line directives with different numbers
 // of statements.
-func TestFuncWithDuplicateLines(t *testing.T) {
-	t.Parallel()
+func testFuncWithDuplicateLines(t *testing.T, toolexecArg string) {
 	testenv.MustHaveGoRun(t)
-	buildCover(t)
+	dir := tempDir(t)
+
+	t.Parallel()
+
+	lineDupDir := filepath.Join(dir, "linedup")
+	lineDupGo := filepath.Join(lineDupDir, "linedup.go")
+	lineDupTestGo := filepath.Join(lineDupDir, "linedup_test.go")
+	lineDupProfile := filepath.Join(lineDupDir, "linedup.out")
 
 	if err := os.Mkdir(lineDupDir, 0777); err != nil {
 		t.Fatal(err)
@@ -549,12 +539,13 @@ func TestFuncWithDuplicateLines(t *testing.T) {
 	}
 
 	// go test -cover -covermode count -coverprofile TMPDIR/linedup.out
-	cmd := exec.Command(testenv.GoToolPath(t), "test", toolexecArg, "-cover", "-covermode", "count", "-coverprofile", lineDupProfile)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", toolexecArg, "-cover", "-covermode", "count", "-coverprofile", lineDupProfile)
+	cmd.Env = append(cmd.Environ(), "CMDCOVER_TOOLEXEC=true")
 	cmd.Dir = lineDupDir
 	run(cmd, t)
 
 	// testcover -func=TMPDIR/linedup.out
-	cmd = exec.Command(testcover, "-func", lineDupProfile)
+	cmd = testenv.Command(t, testcover(t), "-func", lineDupProfile)
 	cmd.Dir = lineDupDir
 	run(cmd, t)
 }
@@ -569,4 +560,307 @@ func run(c *exec.Cmd, t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func runExpectingError(c *exec.Cmd, t *testing.T) string {
+	t.Helper()
+	t.Log("running", c.Args)
+	out, err := c.CombinedOutput()
+	if err == nil {
+		return fmt.Sprintf("unexpected pass for %+v", c.Args)
+	}
+	return string(out)
+}
+
+// Test instrumentation of package that ends before an expected
+// trailing newline following package clause. Issue #58370.
+func testMissingTrailingNewlineIssue58370(t *testing.T, toolexecArg string) {
+	testenv.MustHaveGoBuild(t)
+	dir := tempDir(t)
+
+	t.Parallel()
+
+	noeolDir := filepath.Join(dir, "issue58370")
+	noeolGo := filepath.Join(noeolDir, "noeol.go")
+	noeolTestGo := filepath.Join(noeolDir, "noeol_test.go")
+
+	if err := os.Mkdir(noeolDir, 0777); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(noeolDir, "go.mod"), []byte("module noeol\n"), 0666); err != nil {
+		t.Fatal(err)
+	}
+	const noeolContents = `package noeol`
+	if err := os.WriteFile(noeolGo, []byte(noeolContents), 0444); err != nil {
+		t.Fatal(err)
+	}
+	const noeolTestContents = `
+package noeol
+import "testing"
+func TestCoverage(t *testing.T) { }
+`
+	if err := os.WriteFile(noeolTestGo, []byte(noeolTestContents), 0444); err != nil {
+		t.Fatal(err)
+	}
+
+	// go test -covermode atomic
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", toolexecArg, "-covermode", "atomic")
+	cmd.Env = append(cmd.Environ(), "CMDCOVER_TOOLEXEC=true")
+	cmd.Dir = noeolDir
+	run(cmd, t)
+}
+
+func TestSrcPathWithNewline(t *testing.T) {
+	testenv.MustHaveExec(t)
+	t.Parallel()
+
+	// srcPath is intentionally not clean so that the path passed to testcover
+	// will not normalize the trailing / to a \ on Windows.
+	srcPath := t.TempDir() + string(filepath.Separator) + "\npackage main\nfunc main() { panic(string([]rune{'u', 'h', '-', 'o', 'h'}))\n/*/main.go"
+	mainSrc := ` package main
+
+func main() {
+	/* nothing here */
+	println("ok")
+}
+`
+	if err := os.MkdirAll(filepath.Dir(srcPath), 0777); err != nil {
+		t.Skipf("creating directory with bogus path: %v", err)
+	}
+	if err := os.WriteFile(srcPath, []byte(mainSrc), 0666); err != nil {
+		t.Skipf("writing file with bogus directory: %v", err)
+	}
+
+	cmd := testenv.Command(t, testcover(t), "-mode=atomic", srcPath)
+	cmd.Stderr = new(bytes.Buffer)
+	out, err := cmd.Output()
+	t.Logf("%v:\n%s", cmd, out)
+	t.Logf("stderr:\n%s", cmd.Stderr)
+	if err == nil {
+		t.Errorf("unexpected success; want failure due to newline in file path")
+	}
+}
+
+func TestAlignment(t *testing.T) {
+	// Test that cover data structures are aligned appropriately. See issue 58936.
+	testenv.MustHaveGoRun(t)
+	t.Parallel()
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", "-cover", filepath.Join(testdata, "align.go"), filepath.Join(testdata, "align_test.go"))
+	run(cmd, t)
+}
+
+// lineRange represents a coverage range as a pair of line numbers (1-indexed, inclusive).
+type lineRange struct {
+	start, end int
+}
+
+// parseBrackets strips bracket markers (U+00AB «, U+00BB ») from src,
+// returning the cleaned Go source and a list of expected coverage ranges
+// as line number pairs (1-indexed, inclusive).
+func parseBrackets(src []byte) ([]byte, []lineRange) {
+	const (
+		open  = "\u00ab" // «
+		close = "\u00bb" // »
+	)
+	var (
+		cleaned []byte
+		ranges  []lineRange
+		stack   []int // stack of open marker byte positions in cleaned
+	)
+	i := 0
+	for i < len(src) {
+		if bytes.HasPrefix(src[i:], []byte(open)) {
+			stack = append(stack, len(cleaned))
+			i += len(open)
+		} else if bytes.HasPrefix(src[i:], []byte(close)) {
+			if len(stack) == 0 {
+				panic("unmatched close bracket at offset " + strconv.Itoa(i))
+			}
+			startPos := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			endPos := len(cleaned)
+			// Convert byte positions to line numbers.
+			startLine := 1 + bytes.Count(cleaned[:startPos], []byte{'\n'})
+			endLine := 1 + bytes.Count(cleaned[:endPos], []byte{'\n'})
+			// If endPos is at the start of a line (after \n), the range
+			// actually ended on the previous line.
+			if endPos > 0 && cleaned[endPos-1] == '\n' {
+				endLine--
+			}
+			if endLine < startLine {
+				endLine = startLine
+			}
+			ranges = append(ranges, lineRange{startLine, endLine})
+			i += len(close)
+		} else {
+			cleaned = append(cleaned, src[i])
+			i++
+		}
+	}
+	if len(stack) != 0 {
+		panic("unmatched open bracket(s)")
+	}
+	return cleaned, ranges
+}
+
+// coverRanges runs the cover tool on src and returns the coverage ranges
+// as line number pairs (1-indexed, inclusive).
+func coverRanges(t *testing.T, src []byte) []lineRange {
+	t.Helper()
+	tmpdir := t.TempDir()
+	srcPath := filepath.Join(tmpdir, "test.go")
+	if err := os.WriteFile(srcPath, src, 0666); err != nil {
+		t.Fatalf("writing test file: %v", err)
+	}
+
+	cmd := testenv.Command(t, testcover(t), "-mode=set", srcPath)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("cover failed: %v\nOutput: %s", err, out)
+	}
+
+	outStr := string(out)
+	// Skip the //line directive that cover adds at the top.
+	if _, after, ok := strings.Cut(outStr, "\n"); ok {
+		outStr = after
+	}
+
+	// Parse the coverage struct's Pos array to extract ranges.
+	// Format: startLine, endLine, (endCol<<16)|startCol, // [index]
+	re := regexp.MustCompile(`(\d+), (\d+), (0x[0-9a-f]+), // \[\d+\]`)
+	matches := re.FindAllStringSubmatch(outStr, -1)
+
+	var result []lineRange
+	for _, m := range matches {
+		startLine, _ := strconv.Atoi(m[1])
+		endLine, _ := strconv.Atoi(m[2])
+		var packed int
+		fmt.Sscanf(m[3], "0x%x", &packed)
+		endCol := (packed >> 16) & 0xFFFF
+		startCol := packed & 0xFFFF
+		// Skip zero-width ranges (comment-only or empty blocks).
+		if startLine == endLine && startCol == endCol {
+			continue
+		}
+		// The range [start, end) is half-open. When endCol==1, the
+		// range reaches the beginning of endLine but includes no
+		// content on it, so the last covered line is endLine-1.
+		if endCol == 1 && endLine > startLine {
+			endLine--
+		}
+		result = append(result, lineRange{startLine, endLine})
+	}
+	return result
+}
+
+// compareRanges is a test helper that compares got and want line ranges.
+// Both slices are sorted before comparison since the cover tool's output
+// order (AST walk order) may differ from source order (marker order).
+func compareRanges(t *testing.T, src []byte, got, want []lineRange) {
+	t.Helper()
+	lines := strings.Split(string(src), "\n")
+	snippet := func(r lineRange) string {
+		start, end := r.start-1, r.end
+		if start < 0 {
+			start = 0
+		}
+		if end > len(lines) {
+			end = len(lines)
+		}
+		s := strings.Join(lines[start:end], "\n")
+		if len(s) > 120 {
+			s = s[:117] + "..."
+		}
+		return s
+	}
+
+	sortRanges := func(rs []lineRange) []lineRange {
+		s := append([]lineRange(nil), rs...)
+		slices.SortFunc(s, func(a, b lineRange) int {
+			if c := cmp.Compare(a.start, b.start); c != 0 {
+				return c
+			}
+			return cmp.Compare(a.end, b.end)
+		})
+		return s
+	}
+
+	gotSorted := sortRanges(got)
+	wantSorted := sortRanges(want)
+
+	if len(gotSorted) != len(wantSorted) {
+		t.Errorf("got %d ranges, want %d", len(gotSorted), len(wantSorted))
+		for i, r := range gotSorted {
+			t.Logf("  got[%d]: lines %d-%d %q", i, r.start, r.end, snippet(r))
+		}
+		for i, r := range wantSorted {
+			t.Logf("  want[%d]: lines %d-%d %q", i, r.start, r.end, snippet(r))
+		}
+		return
+	}
+	for i := range wantSorted {
+		if gotSorted[i] != wantSorted[i] {
+			t.Errorf("range %d: got lines %d-%d %q, want lines %d-%d %q",
+				i, gotSorted[i].start, gotSorted[i].end, snippet(gotSorted[i]),
+				wantSorted[i].start, wantSorted[i].end, snippet(wantSorted[i]))
+		}
+	}
+}
+
+// TestCommentedOutCodeExclusion tests that comment-only and blank lines
+// are excluded from coverage ranges using a bracket-marker testdata file.
+func TestCommentedOutCodeExclusion(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	markedSrc, err := os.ReadFile(filepath.Join(testdata, "ranges", "ranges.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	src, want := parseBrackets(markedSrc)
+	got := coverRanges(t, src)
+	compareRanges(t, src, got, want)
+}
+
+// TestLineDirective verifies that //line directives don't affect coverage
+// line number calculations (we use physical lines, not remapped ones).
+func TestLineDirective(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	// Source with //line directive that would remap lines if not handled correctly.
+	testSrc := `package main
+
+import "fmt"
+
+func main() {
+	//line other.go:100
+«	x := 1
+»	// comment that should be excluded
+«	y := 2
+»	//line other.go:200
+«	fmt.Println(x, y)
+»}`
+
+	src, want := parseBrackets([]byte(testSrc))
+	got := coverRanges(t, src)
+	compareRanges(t, src, got, want)
+}
+
+// TestCommentExclusionBasic is a simple test verifying that a comment splits
+// a single block into two separate coverage ranges.
+func TestCommentExclusionBasic(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	testSrc := `package main
+
+func main() {
+«	x := 1
+»	// this comment should split the block
+«	y := 2
+»}`
+
+	src, want := parseBrackets([]byte(testSrc))
+	got := coverRanges(t, src)
+	compareRanges(t, src, got, want)
 }

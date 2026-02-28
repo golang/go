@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build gccgo
-// +build gccgo
 
 package main
 

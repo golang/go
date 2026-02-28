@@ -7,12 +7,12 @@
 package ast_test
 
 import (
-	"bytes"
 	"fmt"
 	. "go/ast"
 	"go/parser"
 	"go/token"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -94,7 +94,7 @@ var res = map[string]string{
 }
 
 func ctext(list []*CommentGroup) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for _, g := range list {
 		buf.WriteString(g.Text())
 	}
@@ -109,7 +109,7 @@ func TestCommentMap(t *testing.T) {
 	}
 	cmap := NewCommentMap(fset, f, f.Comments)
 
-	// very correct association of comments
+	// verify correct association of comments
 	for n, list := range cmap {
 		key := fmt.Sprintf("%2d: %T", fset.Position(n.Pos()).Line, n)
 		got := ctext(list)

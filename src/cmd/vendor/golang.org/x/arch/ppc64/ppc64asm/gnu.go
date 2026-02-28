@@ -359,7 +359,7 @@ func GNUSyntax(inst Inst, pc uint64) string {
 
 // gnuArg formats arg (which is the argIndex's arg in inst) according to GNU rules.
 // NOTE: because GNUSyntax is the only caller of this func, and it receives a copy
-//       of inst, it's ok to modify inst.Args here.
+// of inst, it's ok to modify inst.Args here.
 func gnuArg(inst *Inst, argIndex int, arg Arg, pc uint64) string {
 	// special cases for load/store instructions
 	if _, ok := arg.(Offset); ok {

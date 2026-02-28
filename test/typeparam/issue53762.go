@@ -14,5 +14,5 @@ func use[T any](v Value[T]) {
 }
 
 func main() {
-	use(Value[int](1))
+	use[int](Value[int](1))
 }

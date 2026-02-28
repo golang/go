@@ -4,6 +4,8 @@
 
 package syscall
 
+import "unsafe"
+
 const (
 	// Windows errors.
 	ERROR_FILE_NOT_FOUND      Errno = 2
@@ -27,24 +29,32 @@ const (
 	ERROR_NOT_FOUND           Errno = 1168
 	ERROR_PRIVILEGE_NOT_HELD  Errno = 1314
 	WSAEACCES                 Errno = 10013
+	WSAENOPROTOOPT            Errno = 10042
 	WSAECONNABORTED           Errno = 10053
 	WSAECONNRESET             Errno = 10054
 )
 
 const (
+	_ERROR_INVALID_PARAMETER Errno = 87
+)
+
+const (
 	// Invented values to support what package os expects.
-	O_RDONLY   = 0x00000
-	O_WRONLY   = 0x00001
-	O_RDWR     = 0x00002
-	O_CREAT    = 0x00040
-	O_EXCL     = 0x00080
-	O_NOCTTY   = 0x00100
-	O_TRUNC    = 0x00200
-	O_NONBLOCK = 0x00800
-	O_APPEND   = 0x00400
-	O_SYNC     = 0x01000
-	O_ASYNC    = 0x02000
-	O_CLOEXEC  = 0x80000
+	O_RDONLY       = 0x00000
+	O_WRONLY       = 0x00001
+	O_RDWR         = 0x00002
+	O_CREAT        = 0x00040
+	O_EXCL         = 0x00080
+	O_NOCTTY       = 0x00100
+	O_TRUNC        = 0x00200
+	O_NONBLOCK     = 0x00800
+	O_APPEND       = 0x00400
+	O_SYNC         = 0x01000
+	O_ASYNC        = 0x02000
+	o_DIRECTORY    = 0x04000
+	O_CLOEXEC      = 0x80000
+	o_NOFOLLOW_ANY = 0x200000000 // used by internal/syscall/windows
+	o_WRITE_ATTRS  = 0x800000000 // used by internal/syscall/windows
 )
 
 const (
@@ -82,6 +92,20 @@ var signals = [...]string{
 	15: "terminated",
 }
 
+const fileFlagsMask = 0xFFF00000
+
+const validFileFlagsMask = FILE_FLAG_OPEN_REPARSE_POINT |
+	FILE_FLAG_BACKUP_SEMANTICS |
+	FILE_FLAG_OVERLAPPED |
+	_FILE_FLAG_OPEN_NO_RECALL |
+	_FILE_FLAG_SESSION_AWARE |
+	_FILE_FLAG_POSIX_SEMANTICS |
+	_FILE_FLAG_DELETE_ON_CLOSE |
+	_FILE_FLAG_SEQUENTIAL_SCAN |
+	_FILE_FLAG_NO_BUFFERING |
+	_FILE_FLAG_RANDOM_ACCESS |
+	_FILE_FLAG_WRITE_THROUGH
+
 const (
 	GENERIC_READ    = 0x80000000
 	GENERIC_WRITE   = 0x40000000
@@ -90,6 +114,7 @@ const (
 
 	FILE_LIST_DIRECTORY   = 0x00000001
 	FILE_APPEND_DATA      = 0x00000004
+	_FILE_WRITE_EA        = 0x00000010
 	FILE_WRITE_ATTRIBUTES = 0x00000100
 
 	FILE_SHARE_READ              = 0x00000001
@@ -111,9 +136,19 @@ const (
 	OPEN_ALWAYS       = 4
 	TRUNCATE_EXISTING = 5
 
+	// The following flags are supported by [Open]
+	// and exported in [golang.org/x/sys/windows].
+	_FILE_FLAG_OPEN_NO_RECALL    = 0x00100000
 	FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+	_FILE_FLAG_SESSION_AWARE     = 0x00800000
+	_FILE_FLAG_POSIX_SEMANTICS   = 0x01000000
 	FILE_FLAG_BACKUP_SEMANTICS   = 0x02000000
+	_FILE_FLAG_DELETE_ON_CLOSE   = 0x04000000
+	_FILE_FLAG_SEQUENTIAL_SCAN   = 0x08000000
+	_FILE_FLAG_RANDOM_ACCESS     = 0x10000000
+	_FILE_FLAG_NO_BUFFERING      = 0x20000000
 	FILE_FLAG_OVERLAPPED         = 0x40000000
+	_FILE_FLAG_WRITE_THROUGH     = 0x80000000
 
 	HANDLE_FLAG_INHERIT    = 0x00000001
 	STARTF_USESTDHANDLES   = 0x00000100
@@ -490,8 +525,15 @@ type StartupInfo struct {
 	StdErr        Handle
 }
 
-type _PROC_THREAD_ATTRIBUTE_LIST struct {
-	_ [1]byte
+// _PROC_THREAD_ATTRIBUTE_LIST is a placeholder type to represent a the opaque PROC_THREAD_ATTRIBUTE_LIST.
+//
+// Manipulate this type only through [procThreadAttributeListContainer] to ensure proper handling of the
+// underlying memory. See https://g.dev/issue/73170.
+type _PROC_THREAD_ATTRIBUTE_LIST struct{}
+
+type procThreadAttributeListContainer struct {
+	data     *_PROC_THREAD_ATTRIBUTE_LIST
+	pointers []unsafe.Pointer
 }
 
 const (
@@ -586,7 +628,7 @@ const (
 	SIO_KEEPALIVE_VALS                 = IOC_IN | IOC_VENDOR | 4
 	SIO_UDP_CONNRESET                  = IOC_IN | IOC_VENDOR | 12
 
-	// cf. https://support.microsoft.com/default.aspx?scid=kb;en-us;257460
+	// cf. https://learn.microsoft.com/en-US/troubleshoot/windows/win32/header-library-requirement-socket-ipproto-ip
 
 	IP_TOS             = 0x3
 	IP_TTL             = 0x4

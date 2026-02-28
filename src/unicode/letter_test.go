@@ -518,7 +518,7 @@ func binary(ranges []Range16, r uint16) bool {
 	lo := 0
 	hi := len(ranges)
 	for lo < hi {
-		m := lo + (hi-lo)/2
+		m := int(uint(lo+hi) >> 1)
 		range_ := &ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
 			return (r-range_.Lo)%range_.Stride == 0
@@ -641,4 +641,30 @@ func TestNegativeRune(t *testing.T) {
 			t.Errorf("IsUpper(0x%x - 1<<31) = true, want false", base)
 		}
 	}
+}
+
+func BenchmarkToUpper(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = ToUpper('δ')
+	}
+}
+
+func BenchmarkToLower(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = ToLower('Δ')
+	}
+}
+
+func BenchmarkSimpleFold(b *testing.B) {
+	bench := func(name string, r rune) {
+		b.Run(name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_ = SimpleFold(r)
+			}
+		})
+	}
+	bench("Upper", 'Δ')
+	bench("Lower", 'δ')
+	bench("Fold", '\u212A')
+	bench("NoFold", '習')
 }

@@ -30,7 +30,17 @@ func main() {
 		s string
 		j interface{}
 	}
+	type S3 struct {
+		f any
+		i int
+	}
+	type S4 struct {
+		a [1000]byte
+		b any
+	}
 	b := []byte{1}
+	s1 := S3{func() {}, 0}
+	s2 := S3{func() {}, 1}
 
 	for _, test := range []struct {
 		panic bool
@@ -64,6 +74,9 @@ func main() {
 		{false, T3{s: "foo", j: b}, T3{s: "bar", j: b}},
 		{true, T3{i: b, s: "fooz"}, T3{i: b, s: "bar"}},
 		{false, T3{s: "fooz", j: b}, T3{s: "bar", j: b}},
+		{true, A{s1, s2}, A{s2, s1}},
+		{true, s1, s2},
+		{false, S4{[1000]byte{0}, func() {}}, S4{[1000]byte{1}, func() {}}},
 	} {
 		f := func() {
 			defer func() {

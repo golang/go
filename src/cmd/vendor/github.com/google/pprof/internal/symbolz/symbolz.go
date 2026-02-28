@@ -37,17 +37,13 @@ var (
 // Symbolize symbolizes profile p by parsing data returned by a symbolz
 // handler. syms receives the symbolz query (hex addresses separated by '+')
 // and returns the symbolz output in a string. If force is false, it will only
-// symbolize locations from mappings not already marked as HasFunctions. Never
-// attempts symbolization of addresses from unsymbolizable system
-// mappings as those may look negative - e.g. "[vsyscall]".
+// symbolize locations from mappings not already marked as HasFunctions. Does
+// not skip unsymbolizable files since the symbolz handler can be flexible
+// enough to handle some of those cases such as JIT locations in //anon.
 func Symbolize(p *profile.Profile, force bool, sources plugin.MappingSources, syms func(string, string) ([]byte, error), ui plugin.UI) error {
 	for _, m := range p.Mapping {
 		if !force && m.HasFunctions {
 			// Only check for HasFunctions as symbolz only populates function names.
-			continue
-		}
-		// Skip well-known system mappings.
-		if m.Unsymbolizable() {
 			continue
 		}
 		mappingSources := sources[m.File]
@@ -93,7 +89,7 @@ func symbolz(source string) string {
 		if strings.Contains(url.Path, "/debug/pprof/") || hasGperftoolsSuffix(url.Path) {
 			url.Path = path.Clean(url.Path + "/../symbol")
 		} else {
-			url.Path = "/symbolz"
+			url.Path = path.Clean(url.Path + "/../symbolz")
 		}
 		url.RawQuery = ""
 		return url.String()

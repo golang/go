@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Test case for issue 34946: Better synchronization of
+// Test case for go.dev/issue/34946: Better synchronization of
 // parser for function declarations that start their
 // body's opening { on a new line.
 

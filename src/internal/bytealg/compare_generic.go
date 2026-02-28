@@ -35,6 +35,22 @@ samebytes:
 	return 0
 }
 
+func CompareString(a, b string) int {
+	return runtime_cmpstring(a, b)
+}
+
+// runtime.cmpstring calls are emitted by the compiler.
+//
+// runtime.cmpstring should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gitee.com/zhaochuninhefei/gmgo
+//   - github.com/bytedance/gopkg
+//   - github.com/songzhibin97/gkit
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname runtime_cmpstring runtime.cmpstring
 func runtime_cmpstring(a, b string) int {
 	l := len(a)

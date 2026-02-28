@@ -7,7 +7,10 @@
 // Package sort provides primitives for sorting slices and user-defined collections.
 package sort
 
-import "math/bits"
+import (
+	"math/bits"
+	"slices"
+)
 
 // An implementation of Interface can be sorted by the routines in this package.
 // The methods refer to elements of the underlying collection by integer index.
@@ -23,13 +26,15 @@ type Interface interface {
 	// Sort may place equal elements in any order in the final result,
 	// while Stable preserves the original input order of equal elements.
 	//
-	// Less must describe a transitive ordering:
+	// Less must describe a [Strict Weak Ordering]. For example:
 	//  - if both Less(i, j) and Less(j, k) are true, then Less(i, k) must be true as well.
 	//  - if both Less(i, j) and Less(j, k) are false, then Less(i, k) must be false as well.
 	//
 	// Note that floating-point comparison (the < operator on float32 or float64 values)
-	// is not a transitive ordering when not-a-number (NaN) values are involved.
+	// is not a strict weak ordering when not-a-number (NaN) values are involved.
 	// See Float64Slice.Less for a correct implementation for floating-point values.
+	//
+	// [Strict Weak Ordering]: https://en.wikipedia.org/wiki/Weak_ordering#Strict_weak_orderings
 	Less(i, j int) bool
 
 	// Swap swaps the elements with indexes i and j.
@@ -39,6 +44,9 @@ type Interface interface {
 // Sort sorts data in ascending order as determined by the Less method.
 // It makes one call to data.Len to determine n and O(n*log(n)) calls to
 // data.Less and data.Swap. The sort is not guaranteed to be stable.
+//
+// Note: in many situations, the newer [slices.SortFunc] function is more
+// ergonomic and runs faster.
 func Sort(data Interface) {
 	n := data.Len()
 	if n <= 1 {
@@ -61,8 +69,8 @@ type xorshift uint64
 
 func (r *xorshift) Next() uint64 {
 	*r ^= *r << 13
-	*r ^= *r >> 17
-	*r ^= *r << 5
+	*r ^= *r >> 7
+	*r ^= *r << 17
 	return uint64(*r)
 }
 
@@ -96,6 +104,9 @@ func Reverse(data Interface) Interface {
 }
 
 // IsSorted reports whether data is sorted.
+//
+// Note: in many situations, the newer [slices.IsSortedFunc] function is more
+// ergonomic and runs faster.
 func IsSorted(data Interface) bool {
 	n := data.Len()
 	for i := n - 1; i > 0; i-- {
@@ -154,27 +165,39 @@ func (x StringSlice) Sort() { Sort(x) }
 // Convenience wrappers for common cases
 
 // Ints sorts a slice of ints in increasing order.
-func Ints(x []int) { Sort(IntSlice(x)) }
+//
+// Note: as of Go 1.22, this function simply calls [slices.Sort].
+func Ints(x []int) { slices.Sort(x) }
 
 // Float64s sorts a slice of float64s in increasing order.
 // Not-a-number (NaN) values are ordered before other values.
-func Float64s(x []float64) { Sort(Float64Slice(x)) }
+//
+// Note: as of Go 1.22, this function simply calls [slices.Sort].
+func Float64s(x []float64) { slices.Sort(x) }
 
 // Strings sorts a slice of strings in increasing order.
-func Strings(x []string) { Sort(StringSlice(x)) }
+//
+// Note: as of Go 1.22, this function simply calls [slices.Sort].
+func Strings(x []string) { slices.Sort(x) }
 
 // IntsAreSorted reports whether the slice x is sorted in increasing order.
-func IntsAreSorted(x []int) bool { return IsSorted(IntSlice(x)) }
+//
+// Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+func IntsAreSorted(x []int) bool { return slices.IsSorted(x) }
 
 // Float64sAreSorted reports whether the slice x is sorted in increasing order,
 // with not-a-number (NaN) values before any other values.
-func Float64sAreSorted(x []float64) bool { return IsSorted(Float64Slice(x)) }
+//
+// Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+func Float64sAreSorted(x []float64) bool { return slices.IsSorted(x) }
 
 // StringsAreSorted reports whether the slice x is sorted in increasing order.
-func StringsAreSorted(x []string) bool { return IsSorted(StringSlice(x)) }
+//
+// Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+func StringsAreSorted(x []string) bool { return slices.IsSorted(x) }
 
 // Notes on stable sorting:
-// The used algorithms are simple and provable correct on all input and use
+// The used algorithms are simple and provably correct on all input and use
 // only logarithmic additional stack space. They perform well if compared
 // experimentally to other stable in-place sorting algorithms.
 //
@@ -204,6 +227,9 @@ func StringsAreSorted(x []string) bool { return IsSorted(StringSlice(x)) }
 //
 // It makes one call to data.Len to determine n, O(n*log(n)) calls to
 // data.Less and O(n*log(n)*log(n)) calls to data.Swap.
+//
+// Note: in many situations, the newer slices.SortStableFunc function is more
+// ergonomic and runs faster.
 func Stable(data Interface) {
 	stable(data, data.Len())
 }

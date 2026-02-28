@@ -8,7 +8,7 @@ import "cmd/internal/dwarf"
 
 // LoaderSym holds a loader.Sym value. We can't refer to this
 // type from the sym package since loader imports sym.
-type LoaderSym int
+type LoaderSym uint32
 
 // A CompilationUnit represents a set of source files that are compiled
 // together. Since all Go sources in a Go package are compiled together,
@@ -26,10 +26,11 @@ type CompilationUnit struct {
 	DWInfo    *dwarf.DWDie  // CU root DIE
 	FileTable []string      // The file table used in this compilation unit.
 
-	Consts    LoaderSym   // Package constants DIEs
-	FuncDIEs  []LoaderSym // Function DIE subtrees
-	VarDIEs   []LoaderSym // Global variable DIEs
-	AbsFnDIEs []LoaderSym // Abstract function DIE subtrees
-	RangeSyms []LoaderSym // Symbols for debug_range
-	Textp     []LoaderSym // Text symbols in this CU
+	Consts    LoaderSym            // Package constants DIEs
+	FuncDIEs  []LoaderSym          // Function DIE subtrees
+	VarDIEs   []LoaderSym          // Global variable DIEs
+	AbsFnDIEs []LoaderSym          // Abstract function DIE subtrees
+	RangeSyms []LoaderSym          // Symbols for debug_range
+	Textp     []LoaderSym          // Text symbols in this CU
+	Addrs     map[LoaderSym]uint32 // slot in .debug_addr for fn sym (DWARF5)
 }

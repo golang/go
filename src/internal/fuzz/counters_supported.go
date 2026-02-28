@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (darwin || linux || windows || freebsd) && (amd64 || arm64)
+//go:build (darwin || linux || windows || freebsd || openbsd) && (amd64 || arm64 || loong64)
 
 package fuzz
 
 import (
-	"internal/unsafeheader"
 	"unsafe"
 )
 
@@ -18,12 +17,5 @@ import (
 func coverage() []byte {
 	addr := unsafe.Pointer(&_counters)
 	size := uintptr(unsafe.Pointer(&_ecounters)) - uintptr(addr)
-
-	var res []byte
-	*(*unsafeheader.Slice)(unsafe.Pointer(&res)) = unsafeheader.Slice{
-		Data: addr,
-		Len:  int(size),
-		Cap:  int(size),
-	}
-	return res
+	return unsafe.Slice((*byte)(addr), int(size))
 }

@@ -27,3 +27,12 @@ func z() {
 	z := t{&i}.f // ERROR "t{...}.f escapes to heap"
 	z()
 }
+
+// Should match cmd/compile/internal/ir/cfg.go:MaxStackVarSize.
+const maxStack = 128 * 1024
+
+func w(i int) byte {
+	var x [maxStack]byte
+	var y [maxStack + 1]byte // ERROR "moved to heap: y"
+	return x[i] + y[i]
+}

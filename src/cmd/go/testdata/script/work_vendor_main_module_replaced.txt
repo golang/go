@@ -1,0 +1,46 @@
+# This is a test that if one of the main modules replaces the other
+# the vendor consistency checks still pass. The replacement is ignored
+# because it is of a main module, but it is still recorded in
+# vendor/modules.txt.
+
+go work vendor
+go list all # make sure the consistency checks pass
+! stderr .
+
+# Removing the replace causes consistency checks to fail
+cp a_go_mod_no_replace a/go.mod
+! go list all # consistency checks fail
+stderr 'example.com/b@v0.0.0: is marked as replaced in vendor/modules.txt, but not replaced in the workspace'
+
+
+-- a_go_mod_no_replace --
+module example.com/a
+
+go 1.21
+
+require example.com/b v0.0.0
+-- go.work --
+go 1.21
+
+use (
+    a
+    b
+)
+-- a/go.mod --
+module example.com/a
+
+go 1.21
+
+require example.com/b v0.0.0
+
+replace example.com/b => ../b
+-- a/a.go --
+package a
+
+import _ "example.com/b"
+-- b/go.mod --
+module example.com/b
+
+go 1.21
+-- b/b.go --
+package b

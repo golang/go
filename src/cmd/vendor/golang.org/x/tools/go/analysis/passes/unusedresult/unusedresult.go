@@ -3,10 +3,18 @@
 // license that can be found in the LICENSE file.
 
 // Package unusedresult defines an analyzer that checks for unused
-// results of calls to certain pure functions.
+// results of calls to certain functions.
 package unusedresult
 
+// It is tempting to make this analysis inductive: for each function
+// that tail-calls one of the functions that we check, check those
+// functions too. However, just because you must use the result of
+// fmt.Sprintf doesn't mean you need to use the result of every
+// function that returns a formatted string: it may have other results
+// and effects.
+
 import (
+	_ "embed"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -15,26 +23,19 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/typeparams"
+	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	"golang.org/x/tools/internal/astutil"
 )
 
-// TODO(adonovan): make this analysis modular: export a mustUseResult
-// fact for each function that tail-calls one of the functions that we
-// check, and check those functions too.
-
-const Doc = `check for unused results of calls to some functions
-
-Some functions like fmt.Errorf return a result and have no side effects,
-so it is always a mistake to discard the result. This analyzer reports
-calls to certain functions in which the result of the call is ignored.
-
-The set of functions may be controlled using flags.`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "unusedresult",
-	Doc:      Doc,
+	Doc:      analyzerutil.MustExtractDoc(doc, "unusedresult"),
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unusedresult",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -43,9 +44,79 @@ var Analyzer = &analysis.Analyzer{
 var funcs, stringMethods stringSetFlag
 
 func init() {
-	// TODO(adonovan): provide a comment syntax to allow users to
-	// add their functions to this set using facts.
-	funcs.Set("errors.New,fmt.Errorf,fmt.Sprintf,fmt.Sprint,sort.Reverse,context.WithValue,context.WithCancel,context.WithDeadline,context.WithTimeout")
+	// TODO(adonovan): provide a comment or declaration syntax to
+	// allow users to add their functions to this set using facts.
+	// For example:
+	//
+	//    func ignoringTheErrorWouldBeVeryBad() error {
+	//      type mustUseResult struct{} // enables vet unusedresult check
+	//      ...
+	//    }
+	//
+	//    ignoringTheErrorWouldBeVeryBad() // oops
+	//
+
+	// List standard library functions here.
+	// The context.With{Cancel,Deadline,Timeout} entries are
+	// effectively redundant wrt the lostcancel analyzer.
+	funcs = stringSetFlag{
+		"context.WithCancel":      true,
+		"context.WithDeadline":    true,
+		"context.WithTimeout":     true,
+		"context.WithValue":       true,
+		"errors.New":              true,
+		"fmt.Append":              true,
+		"fmt.Appendf":             true,
+		"fmt.Appendln":            true,
+		"fmt.Errorf":              true,
+		"fmt.Sprint":              true,
+		"fmt.Sprintf":             true,
+		"fmt.Sprintln":            true,
+		"maps.All":                true,
+		"maps.Clone":              true,
+		"maps.Collect":            true,
+		"maps.Equal":              true,
+		"maps.EqualFunc":          true,
+		"maps.Keys":               true,
+		"maps.Values":             true,
+		"slices.All":              true,
+		"slices.AppendSeq":        true,
+		"slices.Backward":         true,
+		"slices.BinarySearch":     true,
+		"slices.BinarySearchFunc": true,
+		"slices.Chunk":            true,
+		"slices.Clip":             true,
+		"slices.Clone":            true,
+		"slices.Collect":          true,
+		"slices.Compact":          true,
+		"slices.CompactFunc":      true,
+		"slices.Compare":          true,
+		"slices.CompareFunc":      true,
+		"slices.Concat":           true,
+		"slices.Contains":         true,
+		"slices.ContainsFunc":     true,
+		"slices.Delete":           true,
+		"slices.DeleteFunc":       true,
+		"slices.Equal":            true,
+		"slices.EqualFunc":        true,
+		"slices.Grow":             true,
+		"slices.Index":            true,
+		"slices.IndexFunc":        true,
+		"slices.Insert":           true,
+		"slices.IsSorted":         true,
+		"slices.IsSortedFunc":     true,
+		"slices.Max":              true,
+		"slices.MaxFunc":          true,
+		"slices.Min":              true,
+		"slices.MinFunc":          true,
+		"slices.Repeat":           true,
+		"slices.Replace":          true,
+		"slices.Sorted":           true,
+		"slices.SortedFunc":       true,
+		"slices.SortedStableFunc": true,
+		"slices.Values":           true,
+		"sort.Reverse":            true,
+	}
 	Analyzer.Flags.Var(&funcs, "funcs",
 		"comma-separated list of functions whose results must be used")
 
@@ -54,52 +125,46 @@ func init() {
 		"comma-separated list of names of methods of type func() string whose results must be used")
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+
+	// Split functions into (pkg, name) pairs to save allocation later.
+	pkgFuncs := make(map[[2]string]bool, len(funcs))
+	for s := range funcs {
+		if i := strings.LastIndexByte(s, '.'); i > 0 {
+			pkgFuncs[[2]string{s[:i], s[i+1:]}] = true
+		}
+	}
 
 	nodeFilter := []ast.Node{
 		(*ast.ExprStmt)(nil),
 	}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := analysisutil.Unparen(n.(*ast.ExprStmt).X).(*ast.CallExpr)
+		call, ok := ast.Unparen(n.(*ast.ExprStmt).X).(*ast.CallExpr)
 		if !ok {
 			return // not a call statement
 		}
-		fun := analysisutil.Unparen(call.Fun)
 
-		if pass.TypesInfo.Types[fun].IsType() {
-			return // a conversion, not a call
-		}
-
-		x, _, _, _ := typeparams.UnpackIndexExpr(fun)
-		if x != nil {
-			fun = x // If this is generic function or method call, skip the instantiation arguments
-		}
-
-		selector, ok := fun.(*ast.SelectorExpr)
+		// Call to function or method?
+		fn, ok := typeutil.Callee(pass.TypesInfo, call).(*types.Func)
 		if !ok {
-			return // neither a method call nor a qualified ident
+			return // e.g. var or builtin
 		}
-
-		sel, ok := pass.TypesInfo.Selections[selector]
-		if ok && sel.Kind() == types.MethodVal {
+		if sig := fn.Signature(); sig.Recv() != nil {
 			// method (e.g. foo.String())
-			obj := sel.Obj().(*types.Func)
-			sig := sel.Type().(*types.Signature)
 			if types.Identical(sig, sigNoArgsStringResult) {
-				if stringMethods[obj.Name()] {
-					pass.Reportf(call.Lparen, "result of (%s).%s call not used",
-						sig.Recv().Type(), obj.Name())
+				if stringMethods[fn.Name()] {
+					pass.ReportRangef(astutil.RangeOf(call.Pos(), call.Lparen),
+						"result of (%s).%s call not used",
+						sig.Recv().Type(), fn.Name())
 				}
 			}
-		} else if !ok {
-			// package-qualified function (e.g. fmt.Errorf)
-			obj := pass.TypesInfo.Uses[selector.Sel]
-			if obj, ok := obj.(*types.Func); ok {
-				qname := obj.Pkg().Path() + "." + obj.Name()
-				if funcs[qname] {
-					pass.Reportf(call.Lparen, "result of %v call not used", qname)
-				}
+		} else {
+			// package-level function (e.g. fmt.Errorf)
+			if pkgFuncs[[2]string{fn.Pkg().Path(), fn.Name()}] {
+				pass.ReportRangef(astutil.RangeOf(call.Pos(), call.Lparen),
+					"result of %s.%s call not used",
+					fn.Pkg().Path(), fn.Name())
 			}
 		}
 	})
@@ -107,9 +172,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 // func() string
-var sigNoArgsStringResult = types.NewSignature(nil, nil,
-	types.NewTuple(types.NewVar(token.NoPos, nil, "", types.Typ[types.String])),
-	false)
+var sigNoArgsStringResult = types.NewSignatureType(nil, nil, nil, nil, types.NewTuple(types.NewParam(token.NoPos, nil, "", types.Typ[types.String])), false)
 
 type stringSetFlag map[string]bool
 
@@ -125,7 +188,7 @@ func (ss *stringSetFlag) String() string {
 func (ss *stringSetFlag) Set(s string) error {
 	m := make(map[string]bool) // clobber previous value
 	if s != "" {
-		for _, name := range strings.Split(s, ",") {
+		for name := range strings.SplitSeq(s, ",") {
 			if name == "" {
 				continue // TODO: report error? proceed?
 			}

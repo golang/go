@@ -15,7 +15,7 @@ package main
 // Verify that type switch statements with impossible cases are detected by the compiler.
 func f0(e error) {
 	switch e.(type) {
-	case int: // ERROR "impossible type switch case: (int\n\t)?e \(.*type error\) cannot have dynamic type int \(missing Error method\)"
+	case int: // ERROR "impossible type switch case: (int\n\t)?e \(.*type error\) cannot have dynamic type int \(missing method Error\)"
 	}
 }
 
@@ -41,6 +41,6 @@ func (*X) Foo() {}
 func f2() {
 	var i I
 	switch i.(type) {
-	case X: // ERROR "impossible type switch case: (X\n\t)?i \(.*type I\) cannot have dynamic type X \(Foo method has pointer receiver\)"
+	case X: // ERROR "impossible type switch case: (X\n\t)?i \(.*type I\) cannot have dynamic type X \(method Foo has pointer receiver\)"
 	}
 }

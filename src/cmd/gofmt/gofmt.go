@@ -17,11 +17,15 @@ import (
 	"internal/diff"
 	"io"
 	"io/fs"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
+	"strconv"
 	"strings"
+
+	"cmd/internal/telemetry/counter"
 
 	"golang.org/x/sync/semaphore"
 )
@@ -37,6 +41,9 @@ var (
 
 	// debugging
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to this file")
+
+	// errors
+	errFormattingDiffers = fmt.Errorf("formatting differs from gofmt's")
 )
 
 // Keep these in sync with go/format/format.go.
@@ -83,10 +90,8 @@ func initParserMode() {
 	}
 }
 
-func isGoFile(f fs.DirEntry) bool {
-	// ignore non-Go files
-	name := f.Name()
-	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") && !f.IsDir()
+func isGoFilename(name string) bool {
+	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")
 }
 
 // A sequencer performs concurrent tasks that may write output, but emits that
@@ -216,8 +221,12 @@ func (r *reporter) Report(err error) {
 		panic("Report with nil error")
 	}
 	st := r.getState()
-	scanner.PrintError(st.err, err)
-	st.exitCode = 2
+	if err == errFormattingDiffers {
+		st.exitCode = 1
+	} else {
+		scanner.PrintError(st.err, err)
+		st.exitCode = 2
+	}
 }
 
 func (r *reporter) ExitCode() int {
@@ -233,12 +242,9 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
 	}
 
 	fileSet := token.NewFileSet()
-	fragmentOk := false
-	if info == nil {
-		// If we are formatting stdin, we accept a program fragment in lieu of a
-		// complete source file.
-		fragmentOk = true
-	}
+	// If we are formatting stdin, we accept a program fragment in lieu of a
+	// complete source file.
+	fragmentOk := info == nil
 	file, sourceAdj, indentAdj, err := parse(fileSet, filename, src, fragmentOk)
 	if err != nil {
 		return err
@@ -272,21 +278,9 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
 			if info == nil {
 				panic("-w should not have been allowed with stdin")
 			}
-			// make a temporary backup before overwriting original
+
 			perm := info.Mode().Perm()
-			bakname, err := backupFile(filename+".", src, perm)
-			if err != nil {
-				return err
-			}
-			fdSem <- true
-			err = os.WriteFile(filename, res, perm)
-			<-fdSem
-			if err != nil {
-				os.Rename(bakname, filename)
-				return err
-			}
-			err = os.Remove(bakname)
-			if err != nil {
+			if err := writeFile(filename, src, res, perm, info.Size()); err != nil {
 				return err
 			}
 		}
@@ -294,6 +288,7 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
 			newName := filepath.ToSlash(filename)
 			oldName := newName + ".orig"
 			r.Write(diff.Diff(oldName, src, newName, res))
+			return errFormattingDiffers
 		}
 	}
 
@@ -385,8 +380,11 @@ func main() {
 }
 
 func gofmtMain(s *sequencer) {
+	counter.Open()
 	flag.Usage = usage
 	flag.Parse()
+	counter.Inc("gofmt/invocations")
+	counter.CountFlags("gofmt/flag:", *flag.CommandLine)
 
 	if *cpuprofile != "" {
 		fdSem <- true
@@ -419,34 +417,30 @@ func gofmtMain(s *sequencer) {
 	}
 
 	for _, arg := range args {
-		switch info, err := os.Stat(arg); {
-		case err != nil:
-			s.AddReport(err)
-		case !info.IsDir():
-			// Non-directory arguments are always formatted.
-			arg := arg
-			s.Add(fileWeight(arg, info), func(r *reporter) error {
-				return processFile(arg, info, nil, r)
-			})
-		default:
-			// Directories are walked, ignoring non-Go files.
-			err := filepath.WalkDir(arg, func(path string, f fs.DirEntry, err error) error {
-				if err != nil || !isGoFile(f) {
-					return err
-				}
-				info, err := f.Info()
-				if err != nil {
-					s.AddReport(err)
-					return nil
-				}
-				s.Add(fileWeight(path, info), func(r *reporter) error {
-					return processFile(path, info, nil, r)
-				})
-				return nil
-			})
-			if err != nil {
-				s.AddReport(err)
+		// Walk each given argument as a directory tree.
+		// If the argument is not a directory, it's always formatted as a Go file.
+		// If the argument is a directory, we walk it, ignoring non-Go files.
+		if err := filepath.WalkDir(arg, func(path string, d fs.DirEntry, err error) error {
+			switch {
+			case err != nil:
+				return err
+			case d.IsDir():
+				return nil // simply recurse into directories
+			case path == arg:
+				// non-directories given as explicit arguments are always formatted
+			case !isGoFilename(d.Name()):
+				return nil // skip walked non-Go files
 			}
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			s.Add(fileWeight(path, info), func(r *reporter) error {
+				return processFile(path, info, nil, r)
+			})
+			return nil
+		}); err != nil {
+			s.AddReport(err)
 		}
 	}
 }
@@ -470,32 +464,111 @@ func fileWeight(path string, info fs.FileInfo) int64 {
 	return info.Size()
 }
 
-const chmodSupported = runtime.GOOS != "windows"
+// writeFile updates a file with the new formatted data.
+func writeFile(filename string, orig, formatted []byte, perm fs.FileMode, size int64) error {
+	// Make a temporary backup file before rewriting the original file.
+	bakname, err := backupFile(filename, orig, perm)
+	if err != nil {
+		return err
+	}
+
+	fdSem <- true
+	defer func() { <-fdSem }()
+
+	fout, err := os.OpenFile(filename, os.O_WRONLY, perm)
+	if err != nil {
+		// We couldn't even open the file, so it should
+		// not have changed.
+		os.Remove(bakname)
+		return err
+	}
+	defer fout.Close() // for error paths
+
+	restoreFail := func(err error) {
+		fmt.Fprintf(os.Stderr, "gofmt: %s: error restoring file to original: %v; backup in %s\n", filename, err, bakname)
+	}
+
+	n, err := fout.Write(formatted)
+	if err == nil && int64(n) < size {
+		err = fout.Truncate(int64(n))
+	}
+
+	if err != nil {
+		// Rewriting the file failed.
+
+		if n == 0 {
+			// Original file unchanged.
+			os.Remove(bakname)
+			return err
+		}
+
+		// Try to restore the original contents.
+
+		no, erro := fout.WriteAt(orig, 0)
+		if erro != nil {
+			// That failed too.
+			restoreFail(erro)
+			return err
+		}
+
+		if no < n {
+			// Original file is shorter. Truncate.
+			if erro = fout.Truncate(int64(no)); erro != nil {
+				restoreFail(erro)
+				return err
+			}
+		}
+
+		if erro := fout.Close(); erro != nil {
+			restoreFail(erro)
+			return err
+		}
+
+		// Original contents restored.
+		os.Remove(bakname)
+		return err
+	}
+
+	if err := fout.Close(); err != nil {
+		restoreFail(err)
+		return err
+	}
+
+	// File updated.
+	os.Remove(bakname)
+	return nil
+}
 
 // backupFile writes data to a new file named filename<number> with permissions perm,
-// with <number randomly chosen such that the file name is unique. backupFile returns
+// with <number> randomly chosen such that the file name is unique. backupFile returns
 // the chosen file name.
 func backupFile(filename string, data []byte, perm fs.FileMode) (string, error) {
 	fdSem <- true
 	defer func() { <-fdSem }()
 
-	// create backup file
-	f, err := os.CreateTemp(filepath.Dir(filename), filepath.Base(filename))
-	if err != nil {
-		return "", err
+	nextRandom := func() string {
+		return strconv.Itoa(rand.Int())
 	}
-	bakname := f.Name()
-	if chmodSupported {
-		err = f.Chmod(perm)
-		if err != nil {
-			f.Close()
-			os.Remove(bakname)
-			return bakname, err
+
+	dir, base := filepath.Split(filename)
+	var (
+		bakname string
+		f       *os.File
+	)
+	for {
+		bakname = filepath.Join(dir, base+"."+nextRandom())
+		var err error
+		f, err = os.OpenFile(bakname, os.O_RDWR|os.O_CREATE|os.O_EXCL, perm)
+		if err == nil {
+			break
+		}
+		if !os.IsExist(err) {
+			return "", err
 		}
 	}
 
 	// write data to backup file
-	_, err = f.Write(data)
+	_, err := f.Write(data)
 	if err1 := f.Close(); err == nil {
 		err = err1
 	}

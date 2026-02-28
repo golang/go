@@ -30,7 +30,7 @@ type Encoder struct {
 const maxLength = 9 // Maximum size of an encoded length.
 var spaceForLength = make([]byte, maxLength)
 
-// NewEncoder returns a new encoder that will transmit on the io.Writer.
+// NewEncoder returns a new encoder that will transmit on the [io.Writer].
 func NewEncoder(w io.Writer) *Encoder {
 	enc := new(Encoder)
 	enc.w = []io.Writer{w}
@@ -39,7 +39,7 @@ func NewEncoder(w io.Writer) *Encoder {
 	return enc
 }
 
-// writer() returns the innermost writer the encoder is using
+// writer returns the innermost writer the encoder is using.
 func (enc *Encoder) writer() io.Writer {
 	return enc.w[len(enc.w)-1]
 }
@@ -60,7 +60,7 @@ func (enc *Encoder) setError(err error) {
 	}
 }
 
-// writeMessage sends the data item preceded by a unsigned count of its length.
+// writeMessage sends the data item preceded by an unsigned count of its length.
 func (enc *Encoder) writeMessage(w io.Writer, b *encBuffer) {
 	// Space has been reserved for the length at the head of the message.
 	// This is a little dirty: we grab the slice from the bytes.Buffer and massage

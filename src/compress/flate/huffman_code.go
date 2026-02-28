@@ -60,7 +60,7 @@ func newHuffmanEncoder(size int) *huffmanEncoder {
 	return &huffmanEncoder{codes: make([]hcode, size)}
 }
 
-// Generates a HuffmanCode corresponding to the fixed literal table
+// Generates a HuffmanCode corresponding to the fixed literal table.
 func generateFixedLiteralEncoding() *huffmanEncoder {
 	h := newHuffmanEncoder(maxNumLit)
 	codes := h.codes
@@ -73,17 +73,14 @@ func generateFixedLiteralEncoding() *huffmanEncoder {
 			// size 8, 000110000  .. 10111111
 			bits = ch + 48
 			size = 8
-			break
 		case ch < 256:
 			// size 9, 110010000 .. 111111111
 			bits = ch + 400 - 144
 			size = 9
-			break
 		case ch < 280:
 			// size 7, 0000000 .. 0010111
 			bits = ch - 256
 			size = 7
-			break
 		default:
 			// size 8, 11000000 .. 11000111
 			bits = ch + 192 - 280
@@ -179,7 +176,7 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 	for {
 		l := &levels[level]
 		if l.nextPairFreq == math.MaxInt32 && l.nextCharFreq == math.MaxInt32 {
-			// We've run out of both leafs and pairs.
+			// We've run out of both leaves and pairs.
 			// End all calculations for this level.
 			// To make sure we never come back to this level or any lower level,
 			// set nextPairFreq impossibly large.

@@ -587,7 +587,7 @@ func Test(t *testing.T) {
 
 type reqsMap map[module.Version][]module.Version
 
-func (r reqsMap) Max(v1, v2 string) string {
+func (r reqsMap) Max(_, v1, v2 string) string {
 	if v1 == "none" || v2 == "" {
 		return v2
 	}
@@ -603,7 +603,7 @@ func (r reqsMap) Max(v1, v2 string) string {
 func (r reqsMap) Upgrade(m module.Version) (module.Version, error) {
 	u := module.Version{Version: "none"}
 	for k := range r {
-		if k.Path == m.Path && r.Max(u.Version, k.Version) == k.Version && !strings.HasSuffix(k.Version, ".hidden") {
+		if k.Path == m.Path && r.Max(k.Path, u.Version, k.Version) == k.Version && !strings.HasSuffix(k.Version, ".hidden") {
 			u = k
 		}
 	}

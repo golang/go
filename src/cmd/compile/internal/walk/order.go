@@ -7,10 +7,12 @@ package walk
 import (
 	"fmt"
 	"go/constant"
+	"internal/abi"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -36,18 +38,6 @@ import (
 // Arrange that receive expressions only appear in direct assignments
 // x = <-c or as standalone statements <-c, never in larger expressions.
 
-// TODO(rsc): The temporary introduction during multiple assignments
-// should be moved into this file, so that the temporaries can be cleaned
-// and so that conversions implicit in the OAS2FUNC and OAS2RECV
-// nodes can be made explicit and then have their temporaries cleaned.
-
-// TODO(rsc): Goto and multilevel break/continue can jump over
-// inserted VARKILL annotations. Work out a way to handle these.
-// The current implementation is safe, in that it will execute correctly.
-// But it won't reuse temporaries as aggressively as it might, and
-// it can result in unnecessary zeroing of those variables in the function
-// prologue.
-
 // orderState holds state during the ordering process.
 type orderState struct {
 	out  []ir.Node             // list of generated statements
@@ -56,7 +46,7 @@ type orderState struct {
 	edit func(ir.Node) ir.Node // cached closure of o.exprNoLHS
 }
 
-// Order rewrites fn.Nbody to apply the ordering constraints
+// order rewrites fn.Nbody to apply the ordering constraints
 // described in the comment at the top of the file.
 func order(fn *ir.Func) {
 	if base.Flag.W > 1 {
@@ -85,7 +75,7 @@ func (o *orderState) newTemp(t *types.Type, clear bool) *ir.Name {
 		}
 		o.free[key] = a[:len(a)-1]
 	} else {
-		v = typecheck.Temp(t)
+		v = typecheck.TempAt(base.Pos, ir.CurFunc, t)
 	}
 	if clear {
 		o.append(ir.NewAssignStmt(base.Pos, v, nil))
@@ -140,7 +130,7 @@ func (o *orderState) cheapExpr(n ir.Node) ir.Node {
 		if l == n.X {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.UnaryExpr)
+		a := ir.Copy(n).(*ir.UnaryExpr)
 		a.X = l
 		return typecheck.Expr(a)
 	}
@@ -166,7 +156,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 		if l == n.X {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.UnaryExpr)
+		a := ir.Copy(n).(*ir.UnaryExpr)
 		a.X = l
 		return typecheck.Expr(a)
 
@@ -176,7 +166,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 		if l == n.X {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.SelectorExpr)
+		a := ir.Copy(n).(*ir.SelectorExpr)
 		a.X = l
 		return typecheck.Expr(a)
 
@@ -186,7 +176,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 		if l == n.X {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.SelectorExpr)
+		a := ir.Copy(n).(*ir.SelectorExpr)
 		a.X = l
 		return typecheck.Expr(a)
 
@@ -196,7 +186,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 		if l == n.X {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.StarExpr)
+		a := ir.Copy(n).(*ir.StarExpr)
 		a.X = l
 		return typecheck.Expr(a)
 
@@ -212,7 +202,7 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 		if l == n.X && r == n.Index {
 			return n
 		}
-		a := ir.SepCopy(n).(*ir.IndexExpr)
+		a := ir.Copy(n).(*ir.IndexExpr)
 		a.X = l
 		a.Index = r
 		return typecheck.Expr(a)
@@ -223,16 +213,6 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
 	}
 }
 
-// isaddrokay reports whether it is okay to pass n's address to runtime routines.
-// Taking the address of a variable makes the liveness and optimization analyses
-// lose track of where the variable's lifetime ends. To avoid hurting the analyses
-// of ordinary stack variables, those are not 'isaddrokay'. Temporaries are okay,
-// because we emit explicit VARKILL instructions marking the end of those
-// temporaries' lifetimes.
-func isaddrokay(n ir.Node) bool {
-	return ir.IsAddressable(n) && (n.Op() != ir.ONAME || n.(*ir.Name).Class == ir.PEXTERN || ir.IsAutoTmp(n))
-}
-
 // addrTemp ensures that n is okay to pass by address to runtime routines.
 // If the original argument n is not okay, addrTemp creates a tmp, emits
 // tmp = n, and then returns tmp.
@@ -240,8 +220,14 @@ func isaddrokay(n ir.Node) bool {
 //
 //	n.Left = o.addrTemp(n.Left)
 func (o *orderState) addrTemp(n ir.Node) ir.Node {
-	if n.Op() == ir.OLITERAL || n.Op() == ir.ONIL {
-		// TODO: expand this to all static composite literal nodes?
+	// Note: Avoid addrTemp with static assignment for literal strings
+	// when compiling FIPS packages.
+	// The problem is that panic("foo") ends up creating a static RODATA temp
+	// for the implicit conversion of "foo" to any, and we can't handle
+	// the relocations in that temp.
+	if n.Op() == ir.ONIL || (n.Op() == ir.OLITERAL && !base.Ctxt.IsFIPS()) {
+		// This is a basic literal or nil that we can store
+		// directly in the read-only data section.
 		n = typecheck.DefaultLit(n, nil)
 		types.CalcSize(n.Type())
 		vstat := readonlystaticname(n.Type())
@@ -253,15 +239,62 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
 		vstat = typecheck.Expr(vstat).(*ir.Name)
 		return vstat
 	}
-	if isaddrokay(n) {
+
+	// Check now for a composite literal to possibly store in the read-only data section.
+	v := staticValue(n)
+	if v == nil {
+		v = n
+	}
+	optEnabled := func(n ir.Node) bool {
+		// Do this optimization only when enabled for this node.
+		return base.LiteralAllocHash.MatchPos(n.Pos(), nil)
+	}
+	if (v.Op() == ir.OSTRUCTLIT || v.Op() == ir.OARRAYLIT) && !base.Ctxt.IsFIPS() {
+		if ir.IsZero(v) && 0 < v.Type().Size() && v.Type().Size() <= abi.ZeroValSize && optEnabled(n) {
+			// This zero value can be represented by the read-only zeroVal.
+			zeroVal := ir.NewLinksymExpr(v.Pos(), ir.Syms.ZeroVal, n.Type())
+			vstat := typecheck.Expr(zeroVal).(*ir.LinksymOffsetExpr)
+			return vstat
+		}
+		if isStaticCompositeLiteral(v) && optEnabled(n) {
+			// v can be directly represented in the read-only data section.
+			lit := v.(*ir.CompLitExpr)
+			vstat := readonlystaticname(n.Type())
+			fixedlit(inInitFunction, initKindStatic, lit, vstat, nil) // nil init
+			vstat = typecheck.Expr(vstat).(*ir.Name)
+			return vstat
+		}
+	}
+
+	// Prevent taking the address of an SSA-able local variable (#63332).
+	//
+	// TODO(mdempsky): Note that OuterValue unwraps OCONVNOPs, but
+	// IsAddressable does not. It should be possible to skip copying for
+	// at least some of these OCONVNOPs (e.g., reinsert them after the
+	// OADDR operation), but at least walkCompare needs to be fixed to
+	// support that (see trybot failures on go.dev/cl/541715, PS1).
+	if ir.IsAddressable(n) {
+		if name, ok := ir.OuterValue(n).(*ir.Name); ok && name.Op() == ir.ONAME {
+			if name.Class == ir.PAUTO && !name.Addrtaken() && ssa.CanSSA(name.Type()) {
+				goto Copy
+			}
+		}
+
 		return n
 	}
+
+Copy:
 	return o.copyExpr(n)
 }
 
 // mapKeyTemp prepares n to be a key in a map runtime call and returns n.
-// It should only be used for map runtime calls which have *_fast* versions.
-func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
+// The first parameter is the position of n's containing node, for use in case
+// that n's position is not unique (e.g., if n is an ONAME).
+func (o *orderState) mapKeyTemp(outerPos src.XPos, t *types.Type, n ir.Node) ir.Node {
+	pos := outerPos
+	if ir.HasUniquePos(n) {
+		pos = n.Pos()
+	}
 	// Most map calls need to take the address of the key.
 	// Exception: map*_fast* calls. See golang.org/issue/19015.
 	alg := mapfast(t)
@@ -285,7 +318,7 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
 		return n
 	case nt.Kind() == kt.Kind(), nt.IsPtrShaped() && kt.IsPtrShaped():
 		// can directly convert (e.g. named type to underlying type, or one pointer to another)
-		return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONVNOP, kt, n))
+		return typecheck.Expr(ir.NewConvExpr(pos, ir.OCONVNOP, kt, n))
 	case nt.IsInteger() && kt.IsInteger():
 		// can directly convert (e.g. int32 to uint32)
 		if n.Op() == ir.OLITERAL && nt.IsSigned() {
@@ -294,7 +327,7 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
 			n.SetType(kt)
 			return n
 		}
-		return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONV, kt, n))
+		return typecheck.Expr(ir.NewConvExpr(pos, ir.OCONV, kt, n))
 	default:
 		// Unsafe cast through memory.
 		// We'll need to do a load with type kt. Create a temporary of type kt to
@@ -305,9 +338,9 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
 		tmp := o.newTemp(kt, true)
 		// *(*nt)(&tmp) = n
 		var e ir.Node = typecheck.NodAddr(tmp)
-		e = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, nt.PtrTo(), e)
-		e = ir.NewStarExpr(n.Pos(), e)
-		o.append(ir.NewAssignStmt(base.Pos, e, n))
+		e = ir.NewConvExpr(pos, ir.OCONVNOP, nt.PtrTo(), e)
+		e = ir.NewStarExpr(pos, e)
+		o.append(ir.NewAssignStmt(pos, e, n))
 		return tmp
 	}
 }
@@ -319,7 +352,7 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
 // For:
 //
 //	x = m[string(k)]
-//	x = m[T1{... Tn{..., string(k), ...}]
+//	x = m[T1{... Tn{..., string(k), ...}}]
 //
 // where k is []byte, T1 to Tn is a nesting of struct and array literals,
 // the allocation of backing bytes for the string can be avoided
@@ -328,6 +361,14 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
 // It would be nice to handle these generally, but because
 // []byte keys are not allowed in maps, the use of string(k)
 // comes up in important cases in practice. See issue 3512.
+//
+// Note that this code does not handle the case:
+//
+//	s := string(k)
+//	x = m[s]
+//
+// Cases like this are handled during SSA, search for slicebytetostring
+// in ../ssa/_gen/generic.rules.
 func mapKeyReplaceStrConv(n ir.Node) bool {
 	var replaced bool
 	switch n.Op() {
@@ -372,25 +413,6 @@ func (o *orderState) popTemp(mark ordermarker) {
 		o.free[key] = append(o.free[key], n)
 	}
 	o.temp = o.temp[:mark]
-}
-
-// cleanTempNoPop emits VARKILL instructions to *out
-// for each temporary above the mark on the temporary stack.
-// It does not pop the temporaries from the stack.
-func (o *orderState) cleanTempNoPop(mark ordermarker) []ir.Node {
-	var out []ir.Node
-	for i := len(o.temp) - 1; i >= int(mark); i-- {
-		n := o.temp[i]
-		out = append(out, typecheck.Stmt(ir.NewUnaryExpr(base.Pos, ir.OVARKILL, n)))
-	}
-	return out
-}
-
-// cleanTemp emits VARKILL instructions for each temporary above the
-// mark on the temporary stack and removes them from the stack.
-func (o *orderState) cleanTemp(top ordermarker) {
-	o.out = append(o.out, o.cleanTempNoPop(top)...)
-	o.popTemp(top)
 }
 
 // stmtList orders each of the statements in the list.
@@ -466,11 +488,11 @@ func (o *orderState) edge() {
 	// never 0.
 	// Another policy presented in the paper is the Saturated Counters policy which
 	// freezes the counter when it reaches the value of 255. However, a range
-	// of experiments showed that that decreases overall performance.
+	// of experiments showed that doing so decreases overall performance.
 	o.append(ir.NewIfStmt(base.Pos,
-		ir.NewBinaryExpr(base.Pos, ir.OEQ, counter, ir.NewInt(0xff)),
-		[]ir.Node{ir.NewAssignStmt(base.Pos, counter, ir.NewInt(1))},
-		[]ir.Node{ir.NewAssignOpStmt(base.Pos, ir.OADD, counter, ir.NewInt(1))}))
+		ir.NewBinaryExpr(base.Pos, ir.OEQ, counter, ir.NewInt(base.Pos, 0xff)),
+		[]ir.Node{ir.NewAssignStmt(base.Pos, counter, ir.NewInt(base.Pos, 1))},
+		[]ir.Node{ir.NewAssignOpStmt(base.Pos, ir.OADD, counter, ir.NewInt(base.Pos, 1))}))
 }
 
 // orderBlock orders the block of statements in n into a new slice,
@@ -488,7 +510,7 @@ func orderBlock(n *ir.Nodes, free map[string][]*ir.Name) {
 	mark := order.markTemp()
 	order.edge()
 	order.stmtList(*n)
-	order.cleanTemp(mark)
+	order.popTemp(mark)
 	*n = order.out
 }
 
@@ -521,7 +543,7 @@ func orderStmtInPlace(n ir.Node, free map[string][]*ir.Name) ir.Node {
 	order.free = free
 	mark := order.markTemp()
 	order.stmt(n)
-	order.cleanTemp(mark)
+	order.popTemp(mark)
 	return ir.NewBlockStmt(src.NoXPos, order.out)
 }
 
@@ -571,16 +593,16 @@ func (o *orderState) call(nn ir.Node) {
 	}
 
 	n := nn.(*ir.CallExpr)
-	typecheck.FixVariadicCall(n)
+	typecheck.AssertFixedCall(n)
 
-	if isFuncPCIntrinsic(n) && isIfaceOfFunc(n.Args[0]) {
+	if ir.IsFuncPCIntrinsic(n) && ir.IsIfaceOfFunc(n.Args[0]) != nil {
 		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function,
 		// do not introduce temporaries here, so it is easier to rewrite it
 		// to symbol address reference later in walk.
 		return
 	}
 
-	n.X = o.expr(n.X, nil)
+	n.Fun = o.expr(n.Fun, nil)
 	o.exprList(n.Args)
 }
 
@@ -620,8 +642,6 @@ func (o *orderState) safeMapRHS(r ir.Node) ir.Node {
 }
 
 // stmt orders the statement n, appending to o.out.
-// Temporaries created during the statement are cleaned
-// up using VARKILL instructions as possible.
 func (o *orderState) stmt(n ir.Node) {
 	if n == nil {
 		return
@@ -634,16 +654,51 @@ func (o *orderState) stmt(n ir.Node) {
 	default:
 		base.Fatalf("order.stmt %v", n.Op())
 
-	case ir.OVARKILL, ir.OVARLIVE, ir.OINLMARK:
+	case ir.OINLMARK:
 		o.out = append(o.out, n)
 
 	case ir.OAS:
 		n := n.(*ir.AssignStmt)
 		t := o.markTemp()
+
+		// There's a delicate interaction here between two OINDEXMAP
+		// optimizations.
+		//
+		// First, we want to handle m[k] = append(m[k], ...) with a single
+		// runtime call to mapassign. This requires the m[k] expressions to
+		// satisfy ir.SameSafeExpr in walkAssign.
+		//
+		// But if k is a slow map key type that's passed by reference (e.g.,
+		// byte), then we want to avoid marking user variables as addrtaken,
+		// if that might prevent the compiler from keeping k in a register.
+		//
+		// TODO(mdempsky): It would be better if walk was responsible for
+		// inserting temporaries as needed.
+		mapAppend := n.X.Op() == ir.OINDEXMAP && n.Y.Op() == ir.OAPPEND &&
+			ir.SameSafeExpr(n.X, n.Y.(*ir.CallExpr).Args[0])
+
 		n.X = o.expr(n.X, nil)
-		n.Y = o.expr(n.Y, n.X)
+		if mapAppend {
+			indexLHS := n.X.(*ir.IndexExpr)
+			indexLHS.X = o.cheapExpr(indexLHS.X)
+			indexLHS.Index = o.cheapExpr(indexLHS.Index)
+
+			call := n.Y.(*ir.CallExpr)
+			arg0 := call.Args[0]
+			// ir.SameSafeExpr skips OCONVNOPs, so we must do the same here (#66096).
+			for arg0.Op() == ir.OCONVNOP {
+				arg0 = arg0.(*ir.ConvExpr).X
+			}
+			indexRHS := arg0.(*ir.IndexExpr)
+			indexRHS.X = indexLHS.X
+			indexRHS.Index = indexLHS.Index
+
+			o.exprList(call.Args[1:])
+		} else {
+			n.Y = o.expr(n.Y, n.X)
+		}
 		o.mapAssign(n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	case ir.OASOP:
 		n := n.(*ir.AssignOpStmt)
@@ -668,12 +723,12 @@ func (o *orderState) stmt(n ir.Node) {
 			r := o.expr(typecheck.Expr(ir.NewBinaryExpr(n.Pos(), n.AsOp, l2, n.Y)), nil)
 			as := typecheck.Stmt(ir.NewAssignStmt(n.Pos(), l1, r))
 			o.mapAssign(as)
-			o.cleanTemp(t)
+			o.popTemp(t)
 			return
 		}
 
 		o.mapAssign(n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	case ir.OAS2:
 		n := n.(*ir.AssignListStmt)
@@ -681,7 +736,7 @@ func (o *orderState) stmt(n ir.Node) {
 		o.exprList(n.Lhs)
 		o.exprList(n.Rhs)
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	// Special: avoid copy of func call n.Right
 	case ir.OAS2FUNC:
@@ -702,7 +757,7 @@ func (o *orderState) stmt(n ir.Node) {
 			o.call(call)
 			o.as2func(n)
 		}
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	// Special: use temporary variables to hold result,
 	// so that runtime can take address of temporary.
@@ -733,13 +788,13 @@ func (o *orderState) stmt(n ir.Node) {
 			r.Index = o.expr(r.Index, nil)
 			// See similar conversion for OINDEXMAP below.
 			_ = mapKeyReplaceStrConv(r.Index)
-			r.Index = o.mapKeyTemp(r.X.Type(), r.Index)
+			r.Index = o.mapKeyTemp(r.Pos(), r.X.Type(), r.Index)
 		default:
 			base.Fatalf("order.stmt: %v", r.Op())
 		}
 
 		o.as2ok(n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	// Special: does not save n onto out.
 	case ir.OBLOCK:
@@ -750,8 +805,6 @@ func (o *orderState) stmt(n ir.Node) {
 	case ir.OBREAK,
 		ir.OCONTINUE,
 		ir.ODCL,
-		ir.ODCLCONST,
-		ir.ODCLTYPE,
 		ir.OFALL,
 		ir.OGOTO,
 		ir.OLABEL,
@@ -764,7 +817,7 @@ func (o *orderState) stmt(n ir.Node) {
 		t := o.markTemp()
 		o.call(n)
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	case ir.OINLCALL:
 		n := n.(*ir.InlinedCallExpr)
@@ -777,12 +830,12 @@ func (o *orderState) stmt(n ir.Node) {
 			}
 		}
 
-	case ir.OCHECKNIL, ir.OCLOSE, ir.OPANIC, ir.ORECV:
+	case ir.OCHECKNIL, ir.OCLEAR, ir.OCLOSE, ir.OPANIC, ir.ORECV:
 		n := n.(*ir.UnaryExpr)
 		t := o.markTemp()
 		n.X = o.expr(n.X, nil)
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	case ir.OCOPY:
 		n := n.(*ir.BinaryExpr)
@@ -790,14 +843,14 @@ func (o *orderState) stmt(n ir.Node) {
 		n.X = o.expr(n.X, nil)
 		n.Y = o.expr(n.Y, nil)
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
-	case ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
+	case ir.OPRINT, ir.OPRINTLN, ir.ORECOVER:
 		n := n.(*ir.CallExpr)
 		t := o.markTemp()
 		o.call(n)
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	// Special: order arguments to inner call but not call itself.
 	case ir.ODEFER, ir.OGO:
@@ -806,16 +859,16 @@ func (o *orderState) stmt(n ir.Node) {
 		o.init(n.Call)
 		o.call(n.Call)
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	case ir.ODELETE:
 		n := n.(*ir.CallExpr)
 		t := o.markTemp()
 		n.Args[0] = o.expr(n.Args[0], nil)
 		n.Args[1] = o.expr(n.Args[1], nil)
-		n.Args[1] = o.mapKeyTemp(n.Args[0].Type(), n.Args[1])
+		n.Args[1] = o.mapKeyTemp(n.Pos(), n.Args[0].Type(), n.Args[1])
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	// Clean temporaries from condition evaluation at
 	// beginning of loop body and after for statement.
@@ -823,11 +876,10 @@ func (o *orderState) stmt(n ir.Node) {
 		n := n.(*ir.ForStmt)
 		t := o.markTemp()
 		n.Cond = o.exprInPlace(n.Cond)
-		n.Body.Prepend(o.cleanTempNoPop(t)...)
 		orderBlock(&n.Body, o.free)
 		n.Post = orderStmtInPlace(n.Post, o.free)
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	// Clean temporaries from condition at
 	// beginning of both branches.
@@ -835,8 +887,6 @@ func (o *orderState) stmt(n ir.Node) {
 		n := n.(*ir.IfStmt)
 		t := o.markTemp()
 		n.Cond = o.exprInPlace(n.Cond)
-		n.Body.Prepend(o.cleanTempNoPop(t)...)
-		n.Else.Prepend(o.cleanTempNoPop(t)...)
 		o.popTemp(t)
 		orderBlock(&n.Body, o.free)
 		orderBlock(&n.Else, o.free)
@@ -857,8 +907,14 @@ func (o *orderState) stmt(n ir.Node) {
 		// Mark []byte(str) range expression to reuse string backing storage.
 		// It is safe because the storage cannot be mutated.
 		n := n.(*ir.RangeStmt)
-		if n.X.Op() == ir.OSTR2BYTES {
-			n.X.(*ir.ConvExpr).SetOp(ir.OSTR2BYTESTMP)
+		if x, ok := n.X.(*ir.ConvExpr); ok {
+			switch x.Op() {
+			case ir.OSTR2BYTES:
+				x.SetOp(ir.OSTR2BYTESTMP)
+				fallthrough
+			case ir.OSTR2BYTESTMP:
+				x.MarkNonNil() // "range []byte(nil)" is fine
+			}
 		}
 
 		t := o.markTemp()
@@ -866,11 +922,14 @@ func (o *orderState) stmt(n ir.Node) {
 
 		orderBody := true
 		xt := typecheck.RangeExprType(n.X.Type())
-		switch xt.Kind() {
+		switch k := xt.Kind(); {
 		default:
 			base.Fatalf("order.stmt range %v", n.Type())
 
-		case types.TARRAY, types.TSLICE:
+		case types.IsInt[k]:
+			// Used only once, no need to copy.
+
+		case k == types.TARRAY, k == types.TSLICE:
 			if n.Value == nil || ir.IsBlank(n.Value) {
 				// for i := range x will only use x once, to compute len(x).
 				// No need to copy it.
@@ -878,7 +937,7 @@ func (o *orderState) stmt(n ir.Node) {
 			}
 			fallthrough
 
-		case types.TCHAN, types.TSTRING:
+		case k == types.TCHAN, k == types.TSTRING:
 			// chan, string, slice, array ranges use value multiple times.
 			// make copy.
 			r := n.X
@@ -891,7 +950,7 @@ func (o *orderState) stmt(n ir.Node) {
 
 			n.X = o.copyExpr(r)
 
-		case types.TMAP:
+		case k == types.TMAP:
 			if isMapClear(n) {
 				// Preserve the body of the map clear pattern so it can
 				// be detected during walk. The loop body will not be used
@@ -908,7 +967,7 @@ func (o *orderState) stmt(n ir.Node) {
 
 			// n.Prealloc is the temp for the iterator.
 			// MapIterType contains pointers and needs to be zeroed.
-			n.Prealloc = o.newTemp(reflectdata.MapIterType(xt), true)
+			n.Prealloc = o.newTemp(reflectdata.MapIterType(), true)
 		}
 		n.Key = o.exprInPlace(n.Key)
 		n.Value = o.exprInPlace(n.Value)
@@ -916,7 +975,7 @@ func (o *orderState) stmt(n ir.Node) {
 			orderBlock(&n.Body, o.free)
 		}
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	case ir.ORETURN:
 		n := n.(*ir.ReturnStmt)
@@ -1023,7 +1082,6 @@ func (o *orderState) stmt(n ir.Node) {
 		// (The temporary cleaning must follow that ninit work.)
 		for _, cas := range n.Cases {
 			orderBlock(&cas.Body, o.free)
-			cas.Body.Prepend(o.cleanTempNoPop(t)...)
 
 			// TODO(mdempsky): Is this actually necessary?
 			// walkSelect appears to walk Ninit.
@@ -1047,7 +1105,7 @@ func (o *orderState) stmt(n ir.Node) {
 			n.Value = o.addrTemp(n.Value)
 		}
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 
 	// TODO(rsc): Clean temporaries more aggressively.
 	// Note that because walkSwitch will rewrite some of the
@@ -1071,7 +1129,7 @@ func (o *orderState) stmt(n ir.Node) {
 		}
 
 		o.out = append(o.out, n)
-		o.cleanTemp(t)
+		o.popTemp(t)
 	}
 
 	base.Pos = lno
@@ -1192,8 +1250,8 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 			}
 		}
 
-		// key must be addressable
-		n.Index = o.mapKeyTemp(n.X.Type(), n.Index)
+		// key may need to be addressable
+		n.Index = o.mapKeyTemp(n.Pos(), n.X.Type(), n.Index)
 		if needCopy {
 			return o.copyExpr(n)
 		}
@@ -1201,7 +1259,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 
 	// concrete type (not interface) argument might need an addressable
 	// temporary to pass to the runtime conversion routine.
-	case ir.OCONVIFACE, ir.OCONVIDATA:
+	case ir.OCONVIFACE:
 		n := n.(*ir.ConvExpr)
 		n.X = o.expr(n.X, nil)
 		if n.X.Type().IsInterface() {
@@ -1210,7 +1268,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		if _, _, needsaddr := dataWordFuncName(n.X.Type()); needsaddr || isStaticCompositeLiteral(n.X) {
 			// Need a temp if we need to pass the address to the conversion function.
 			// We also process static composite literal node here, making a named static global
-			// whose address we can put directly in an interface (see OCONVIFACE/OCONVIDATA case in walk).
+			// whose address we can put directly in an interface (see OCONVIFACE case in walk).
 			n.X = o.addrTemp(n.X)
 		}
 		return n
@@ -1259,7 +1317,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		o.edge()
 		rhs := o.expr(n.Y, nil)
 		o.out = append(o.out, typecheck.Stmt(ir.NewAssignStmt(base.Pos, r, rhs)))
-		o.cleanTemp(t)
+		o.popTemp(t)
 		gen := o.out
 		o.out = saveout
 
@@ -1288,9 +1346,11 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		ir.OMAKEMAP,
 		ir.OMAKESLICE,
 		ir.OMAKESLICECOPY,
+		ir.OMAX,
+		ir.OMIN,
 		ir.ONEW,
 		ir.OREAL,
-		ir.ORECOVERFP,
+		ir.ORECOVER,
 		ir.OSTR2BYTES,
 		ir.OSTR2BYTESTMP,
 		ir.OSTR2RUNES:
@@ -1533,19 +1593,4 @@ func (o *orderState) as2ok(n *ir.AssignListStmt) {
 
 	o.out = append(o.out, n)
 	o.stmt(typecheck.Stmt(as))
-}
-
-// isFuncPCIntrinsic returns whether n is a direct call of internal/abi.FuncPCABIxxx functions.
-func isFuncPCIntrinsic(n *ir.CallExpr) bool {
-	if n.Op() != ir.OCALLFUNC || n.X.Op() != ir.ONAME {
-		return false
-	}
-	fn := n.X.(*ir.Name).Sym()
-	return (fn.Name == "FuncPCABI0" || fn.Name == "FuncPCABIInternal") &&
-		(fn.Pkg.Path == "internal/abi" || fn.Pkg == types.LocalPkg && base.Ctxt.Pkgpath == "internal/abi")
-}
-
-// isIfaceOfFunc returns whether n is an interface conversion from a direct reference of a func.
-func isIfaceOfFunc(n ir.Node) bool {
-	return n.Op() == ir.OCONVIFACE && n.(*ir.ConvExpr).X.Op() == ir.ONAME && n.(*ir.ConvExpr).X.(*ir.Name).Class == ir.PFUNC
 }

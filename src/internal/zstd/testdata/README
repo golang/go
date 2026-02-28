@@ -1,0 +1,10 @@
+This directory holds files for testing zstd.NewReader.
+
+Each one is a Zstandard compressed file named as hash.arbitrary-name.zst,
+where hash is the first eight hexadecimal digits of the SHA256 hash
+of the expected uncompressed content:
+
+	zstd -d < 1890a371.gettysburg.txt-100x.zst | sha256sum | head -c 8
+	1890a371
+
+The test uses hash value to verify decompression result.

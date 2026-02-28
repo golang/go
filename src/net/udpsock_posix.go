@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm) || windows
+//go:build unix || js || wasip1 || windows
 
 package net
 
@@ -186,24 +186,38 @@ func (c *UDPConn) writeMsgAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn 
 
 	switch c.fd.family {
 	case syscall.AF_INET:
-		sa, err := addrPortToSockaddrInet4(addr)
-		if err != nil {
-			return 0, 0, err
+		var sap *syscall.SockaddrInet4
+		if addr.IsValid() {
+			sa, err := addrPortToSockaddrInet4(addr)
+			if err != nil {
+				return 0, 0, err
+			}
+			sap = &sa
 		}
-		return c.fd.writeMsgInet4(b, oob, &sa)
+		return c.fd.writeMsgInet4(b, oob, sap)
 	case syscall.AF_INET6:
-		sa, err := addrPortToSockaddrInet6(addr)
-		if err != nil {
-			return 0, 0, err
+		var sap *syscall.SockaddrInet6
+		if addr.IsValid() {
+			sa, err := addrPortToSockaddrInet6(addr)
+			if err != nil {
+				return 0, 0, err
+			}
+			sap = &sa
 		}
-		return c.fd.writeMsgInet6(b, oob, &sa)
+		return c.fd.writeMsgInet6(b, oob, sap)
 	default:
 		return 0, 0, &AddrError{Err: "invalid address family", Addr: addr.Addr().String()}
 	}
 }
 
 func (sd *sysDialer) dialUDP(ctx context.Context, laddr, raddr *UDPAddr) (*UDPConn, error) {
-	fd, err := internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_DGRAM, 0, "dial", sd.Dialer.Control)
+	ctrlCtxFn := sd.Dialer.ControlContext
+	if ctrlCtxFn == nil && sd.Dialer.Control != nil {
+		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
+			return sd.Dialer.Control(network, address, c)
+		}
+	}
+	fd, err := internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_DGRAM, 0, "dial", ctrlCtxFn)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +225,13 @@ func (sd *sysDialer) dialUDP(ctx context.Context, laddr, raddr *UDPAddr) (*UDPCo
 }
 
 func (sl *sysListener) listenUDP(ctx context.Context, laddr *UDPAddr) (*UDPConn, error) {
-	fd, err := internetSocket(ctx, sl.network, laddr, nil, syscall.SOCK_DGRAM, 0, "listen", sl.ListenConfig.Control)
+	var ctrlCtxFn func(ctx context.Context, network, address string, c syscall.RawConn) error
+	if sl.ListenConfig.Control != nil {
+		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
+			return sl.ListenConfig.Control(network, address, c)
+		}
+	}
+	fd, err := internetSocket(ctx, sl.network, laddr, nil, syscall.SOCK_DGRAM, 0, "listen", ctrlCtxFn)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +239,13 @@ func (sl *sysListener) listenUDP(ctx context.Context, laddr *UDPAddr) (*UDPConn,
 }
 
 func (sl *sysListener) listenMulticastUDP(ctx context.Context, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
-	fd, err := internetSocket(ctx, sl.network, gaddr, nil, syscall.SOCK_DGRAM, 0, "listen", sl.ListenConfig.Control)
+	var ctrlCtxFn func(ctx context.Context, network, address string, c syscall.RawConn) error
+	if sl.ListenConfig.Control != nil {
+		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
+			return sl.ListenConfig.Control(network, address, c)
+		}
+	}
+	fd, err := internetSocket(ctx, sl.network, gaddr, nil, syscall.SOCK_DGRAM, 0, "listen", ctrlCtxFn)
 	if err != nil {
 		return nil, err
 	}

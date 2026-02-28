@@ -4,8 +4,8 @@
 
 //go:build ignore
 
-// encgen writes the helper functions for encoding. Intended to be
-// used with go generate; see the invocation in encode.go.
+// decgen writes the helper functions for decoding. Intended to be
+// used with go generate; see the invocation in decode.go.
 
 // TODO: We could do more by being unsafe. Add a -unsafe flag?
 
@@ -180,6 +180,7 @@ func main() {
 		fmt.Fprintf(&b, arrayHelper, t.lower, t.upper)
 		fmt.Fprintf(&b, sliceHelper, t.lower, t.upper, t.decoder)
 	}
+	fmt.Fprintf(&b, trailer)
 	source, err := format.Source(b.Bytes())
 	if err != nil {
 		log.Fatal("source format error:", err)
@@ -189,6 +190,9 @@ func main() {
 		log.Fatal(err)
 	}
 	if _, err := fd.Write(source); err != nil {
+		log.Fatal(err)
+	}
+	if err := fd.Close(); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -227,7 +231,7 @@ func dec%[2]sArray(state *decoderState, v reflect.Value, length int, ovfl error)
 
 const sliceHelper = `
 func dec%[2]sSlice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	slice, ok := v.Interface().([]%[1]s)
+	slice, ok := reflect.TypeAssert[[]%[1]s](v)
 	if !ok {
 		// It is kind %[1]s but not type %[1]s. TODO: We can handle this unsafely.
 		return false
@@ -236,8 +240,29 @@ func dec%[2]sSlice(state *decoderState, v reflect.Value, length int, ovfl error)
 		if state.b.Len() == 0 {
 			errorf("decoding %[1]s array or slice: length exceeds input size (%%d elements)", length)
 		}
+		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
+			growSlice(v, &slice, length)
+		}
 		%[3]s
 	}
 	return true
+}
+`
+
+const trailer = `
+// growSlice is called for a slice that we only partially allocated,
+// to grow it up to length.
+func growSlice[E any](v reflect.Value, ps *[]E, length int) {
+	var zero E
+	s := *ps
+	s = append(s, zero)
+	cp := cap(s)
+	if cp > length {
+		cp = length
+	}
+	s = s[:cp]
+	v.Set(reflect.ValueOf(s))
+	*ps = s
 }
 `

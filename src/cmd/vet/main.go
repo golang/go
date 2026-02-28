@@ -6,9 +6,10 @@ package main
 
 import (
 	"cmd/internal/objabi"
+	"cmd/internal/telemetry/counter"
 
-	"golang.org/x/tools/go/analysis/unitchecker"
-
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/appends"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
 	"golang.org/x/tools/go/analysis/passes/assign"
 	"golang.org/x/tools/go/analysis/passes/atomic"
@@ -17,8 +18,11 @@ import (
 	"golang.org/x/tools/go/analysis/passes/cgocall"
 	"golang.org/x/tools/go/analysis/passes/composite"
 	"golang.org/x/tools/go/analysis/passes/copylock"
+	"golang.org/x/tools/go/analysis/passes/defers"
+	"golang.org/x/tools/go/analysis/passes/directive"
 	"golang.org/x/tools/go/analysis/passes/errorsas"
 	"golang.org/x/tools/go/analysis/passes/framepointer"
+	"golang.org/x/tools/go/analysis/passes/hostport"
 	"golang.org/x/tools/go/analysis/passes/httpresponse"
 	"golang.org/x/tools/go/analysis/passes/ifaceassert"
 	"golang.org/x/tools/go/analysis/passes/loopclosure"
@@ -27,47 +31,70 @@ import (
 	"golang.org/x/tools/go/analysis/passes/printf"
 	"golang.org/x/tools/go/analysis/passes/shift"
 	"golang.org/x/tools/go/analysis/passes/sigchanyzer"
+	"golang.org/x/tools/go/analysis/passes/slog"
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
+	"golang.org/x/tools/go/analysis/passes/stdversion"
 	"golang.org/x/tools/go/analysis/passes/stringintconv"
 	"golang.org/x/tools/go/analysis/passes/structtag"
 	"golang.org/x/tools/go/analysis/passes/testinggoroutine"
 	"golang.org/x/tools/go/analysis/passes/tests"
+	"golang.org/x/tools/go/analysis/passes/timeformat"
 	"golang.org/x/tools/go/analysis/passes/unmarshal"
 	"golang.org/x/tools/go/analysis/passes/unreachable"
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
+	"golang.org/x/tools/go/analysis/passes/waitgroup"
+	"golang.org/x/tools/go/analysis/unitchecker"
 )
 
 func main() {
+	// Keep consistent with cmd/fix/main.go!
+	counter.Open()
 	objabi.AddVersionFlag()
+	counter.Inc("vet/invocations")
 
-	unitchecker.Main(
-		asmdecl.Analyzer,
-		assign.Analyzer,
-		atomic.Analyzer,
-		bools.Analyzer,
-		buildtag.Analyzer,
-		cgocall.Analyzer,
-		composite.Analyzer,
-		copylock.Analyzer,
-		errorsas.Analyzer,
-		framepointer.Analyzer,
-		httpresponse.Analyzer,
-		ifaceassert.Analyzer,
-		loopclosure.Analyzer,
-		lostcancel.Analyzer,
-		nilfunc.Analyzer,
-		printf.Analyzer,
-		shift.Analyzer,
-		sigchanyzer.Analyzer,
-		stdmethods.Analyzer,
-		stringintconv.Analyzer,
-		structtag.Analyzer,
-		tests.Analyzer,
-		testinggoroutine.Analyzer,
-		unmarshal.Analyzer,
-		unreachable.Analyzer,
-		unsafeptr.Analyzer,
-		unusedresult.Analyzer,
-	)
+	unitchecker.Main(suite...) // (never returns)
+}
+
+// The vet suite analyzers report diagnostics.
+// (Diagnostics must describe real problems, but need not
+// suggest fixes, and fixes are not necessarily safe to apply.)
+var suite = []*analysis.Analyzer{
+	appends.Analyzer,
+	asmdecl.Analyzer,
+	assign.Analyzer,
+	atomic.Analyzer,
+	bools.Analyzer,
+	buildtag.Analyzer,
+	cgocall.Analyzer,
+	composite.Analyzer,
+	copylock.Analyzer,
+	defers.Analyzer,
+	directive.Analyzer,
+	errorsas.Analyzer,
+	// fieldalignment.Analyzer omitted: too noisy
+	framepointer.Analyzer,
+	httpresponse.Analyzer,
+	hostport.Analyzer,
+	ifaceassert.Analyzer,
+	loopclosure.Analyzer,
+	lostcancel.Analyzer,
+	nilfunc.Analyzer,
+	printf.Analyzer,
+	// shadow.Analyzer omitted: too noisy
+	shift.Analyzer,
+	sigchanyzer.Analyzer,
+	slog.Analyzer,
+	stdmethods.Analyzer,
+	stdversion.Analyzer,
+	stringintconv.Analyzer,
+	structtag.Analyzer,
+	tests.Analyzer,
+	testinggoroutine.Analyzer,
+	timeformat.Analyzer,
+	unmarshal.Analyzer,
+	unreachable.Analyzer,
+	unsafeptr.Analyzer,
+	unusedresult.Analyzer,
+	waitgroup.Analyzer,
 }

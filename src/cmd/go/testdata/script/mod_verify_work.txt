@@ -1,0 +1,24 @@
+# Regression test for Issue #62663: we would filter out the toolchain and
+# main modules from the build list incorrectly, leading to the workspace
+# modules being checked for correct sums. Specifically this would happen when
+# the module name sorted after the virtual 'go' version module name because
+# it could not get chopped off when we removed the MainModules.Len() modules
+# at the beginning of the build list and we would remove the go module instead.
+
+go mod verify
+
+-- go.work --
+go 1.21
+
+use (
+    ./a
+    ./b
+)
+-- a/go.mod --
+module hexample.com/a // important for test that module name sorts after 'go'
+
+go 1.21
+-- b/go.mod --
+module hexample.com/b // important for test that module name sorts after 'go'
+
+go 1.21

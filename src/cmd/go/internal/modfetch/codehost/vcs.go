@@ -5,6 +5,7 @@
 package codehost
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"internal/lazyregexp"
@@ -16,11 +17,16 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/par"
 	"cmd/go/internal/str"
+	"cmd/internal/par"
+
+	"golang.org/x/mod/semver"
 )
 
 // A VCSError indicates an error using a version control system.
@@ -38,31 +44,29 @@ type VCSError struct {
 
 func (e *VCSError) Error() string { return e.Err.Error() }
 
+func (e *VCSError) Unwrap() error { return e.Err }
+
 func vcsErrorf(format string, a ...any) error {
 	return &VCSError{Err: fmt.Errorf(format, a...)}
 }
 
-func NewRepo(vcs, remote string) (Repo, error) {
-	type key struct {
-		vcs    string
-		remote string
-	}
-	type cached struct {
-		repo Repo
-		err  error
-	}
-	c := vcsRepoCache.Do(key{vcs, remote}, func() any {
-		repo, err := newVCSRepo(vcs, remote)
-		if err != nil {
-			err = &VCSError{err}
-		}
-		return cached{repo, err}
-	}).(cached)
-
-	return c.repo, c.err
+type vcsCacheKey struct {
+	vcs    string
+	remote string
+	local  bool
 }
 
-var vcsRepoCache par.Cache
+func NewRepo(ctx context.Context, vcs, remote string, local bool) (Repo, error) {
+	return vcsRepoCache.Do(vcsCacheKey{vcs, remote, local}, func() (Repo, error) {
+		repo, err := newVCSRepo(ctx, vcs, remote, local)
+		if err != nil {
+			return nil, &VCSError{err}
+		}
+		return repo, nil
+	})
+}
+
+var vcsRepoCache par.ErrCache[vcsCacheKey, Repo]
 
 type vcsRepo struct {
 	mu lockedfile.Mutex // protects all commands, so we don't have to decide which are safe on a per-VCS basis
@@ -70,6 +74,7 @@ type vcsRepo struct {
 	remote string
 	cmd    *vcsCmd
 	dir    string
+	local  bool
 
 	tagsOnce sync.Once
 	tags     map[string]bool
@@ -79,23 +84,39 @@ type vcsRepo struct {
 
 	fetchOnce sync.Once
 	fetchErr  error
+	fetched   atomic.Bool
+
+	repoSumOnce sync.Once
+	repoSum     string
 }
 
-func newVCSRepo(vcs, remote string) (Repo, error) {
+func newVCSRepo(ctx context.Context, vcs, remote string, local bool) (Repo, error) {
 	if vcs == "git" {
-		return newGitRepo(remote, false)
+		return newGitRepo(ctx, remote, local)
 	}
+	r := &vcsRepo{remote: remote, local: local}
 	cmd := vcsCmds[vcs]
 	if cmd == nil {
 		return nil, fmt.Errorf("unknown vcs: %s %s", vcs, remote)
 	}
+	r.cmd = cmd
+	if local {
+		info, err := os.Stat(remote)
+		if err != nil {
+			return nil, err
+		}
+		if !info.IsDir() {
+			return nil, fmt.Errorf("%s exists but is not a directory", remote)
+		}
+		r.dir = remote
+		r.mu.Path = r.dir + ".lock"
+		return r, nil
+	}
 	if !strings.Contains(remote, "://") {
 		return nil, fmt.Errorf("invalid vcs remote: %s %s", vcs, remote)
 	}
-
-	r := &vcsRepo{remote: remote, cmd: cmd}
 	var err error
-	r.dir, r.mu.Path, err = WorkDir(vcsWorkDirType+vcs, r.remote)
+	r.dir, r.mu.Path, err = WorkDir(ctx, vcsWorkDirType+vcs, r.remote)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +132,17 @@ func newVCSRepo(vcs, remote string) (Repo, error) {
 	defer unlock()
 
 	if _, err := os.Stat(filepath.Join(r.dir, "."+vcs)); err != nil {
-		if _, err := Run(r.dir, cmd.init(r.remote)); err != nil {
+		release, err := base.AcquireNet()
+		if err != nil {
+			return nil, err
+		}
+		_, err = Run(ctx, r.dir, cmd.init(r.remote))
+		if err == nil && cmd.postInit != nil {
+			err = cmd.postInit(ctx, r)
+		}
+		release()
+
+		if err != nil {
 			os.RemoveAll(r.dir)
 			return nil, err
 		}
@@ -122,20 +153,29 @@ func newVCSRepo(vcs, remote string) (Repo, error) {
 const vcsWorkDirType = "vcs1."
 
 type vcsCmd struct {
-	vcs           string                                                         // vcs name "hg"
-	init          func(remote string) []string                                   // cmd to init repo to track remote
-	tags          func(remote string) []string                                   // cmd to list local tags
-	tagRE         *lazyregexp.Regexp                                             // regexp to extract tag names from output of tags cmd
-	branches      func(remote string) []string                                   // cmd to list local branches
-	branchRE      *lazyregexp.Regexp                                             // regexp to extract branch names from output of tags cmd
-	badLocalRevRE *lazyregexp.Regexp                                             // regexp of names that must not be served out of local cache without doing fetch first
-	statLocal     func(rev, remote string) []string                              // cmd to stat local rev
-	parseStat     func(rev, out string) (*RevInfo, error)                        // cmd to parse output of statLocal
-	fetch         []string                                                       // cmd to fetch everything from remote
-	latest        string                                                         // name of latest commit on remote (tip, HEAD, etc)
-	readFile      func(rev, file, remote string) []string                        // cmd to read rev's file
-	readZip       func(rev, subdir, remote, target string) []string              // cmd to read rev's subdir as zip file
-	doReadZip     func(dst io.Writer, workDir, rev, subdir, remote string) error // arbitrary function to read rev's subdir as zip file
+	vcs                string                                            // vcs name "hg"
+	init               func(remote string) []string                      // cmd to init repo to track remote
+	postInit           func(context.Context, *vcsRepo) error             // func to init repo after .init runs
+	repoSum            func(remote string) []string                      // cmd to calculate reposum of remote repo
+	lookupRef          func(remote, ref string) []string                 // cmd to look up ref in remote repo
+	tags               func(remote string) []string                      // cmd to list local tags
+	tagsNeedsFetch     bool                                              // run fetch before tags
+	tagRE              *lazyregexp.Regexp                                // regexp to extract tag names from output of tags cmd
+	branches           func(remote string) []string                      // cmd to list local branches
+	branchesNeedsFetch bool                                              // run branches before tags
+	branchRE           *lazyregexp.Regexp                                // regexp to extract branch names from output of tags cmd
+	badLocalRevRE      *lazyregexp.Regexp                                // regexp of names that must not be served out of local cache without doing fetch first
+	statLocal          func(rev, remote string) []string                 // cmd to stat local rev
+	parseStat          func(rev, out string) (*RevInfo, error)           // func to parse output of statLocal
+	fetch              []string                                          // cmd to fetch everything from remote
+	latest             string                                            // name of latest commit on remote (tip, HEAD, etc)
+	descendsFrom       func(rev, tag string) []string                    // cmd to check whether rev descends from tag
+	recentTags         func(rev string) []string                         // cmd to print tag ancestors of rev
+	readFile           func(rev, file, remote string) []string           // cmd to read rev's file
+	readZip            func(rev, subdir, remote, target string) []string // cmd to read rev's subdir as zip file
+
+	// arbitrary function to read rev's subdir as zip file
+	doReadZip func(ctx context.Context, dst io.Writer, workDir, rev, subdir, remote string) error
 }
 
 var re = lazyregexp.New
@@ -143,33 +183,61 @@ var re = lazyregexp.New
 var vcsCmds = map[string]*vcsCmd{
 	"hg": {
 		vcs: "hg",
-		init: func(remote string) []string {
-			return []string{"hg", "clone", "-U", "--", remote, "."}
+		repoSum: func(remote string) []string {
+			return []string{
+				"hg",
+				"--config=extensions.goreposum=" + filepath.Join(cfg.GOROOT, "lib/hg/goreposum.py"),
+				"goreposum",
+				"--",
+				remote,
+			}
 		},
+		lookupRef: func(remote, ref string) []string {
+			return []string{
+				"hg",
+				"--config=extensions.goreposum=" + filepath.Join(cfg.GOROOT, "lib/hg/goreposum.py"),
+				"golookup",
+				"--",
+				remote,
+				ref,
+			}
+		},
+		init: func(remote string) []string {
+			return []string{"hg", "init", "."}
+		},
+		postInit: hgAddRemote,
 		tags: func(remote string) []string {
 			return []string{"hg", "tags", "-q"}
 		},
-		tagRE: re(`(?m)^[^\n]+$`),
+		tagsNeedsFetch: true,
+		tagRE:          re(`(?m)^[^\n]+$`),
 		branches: func(remote string) []string {
 			return []string{"hg", "branches", "-c", "-q"}
 		},
-		branchRE:      re(`(?m)^[^\n]+$`),
-		badLocalRevRE: re(`(?m)^(tip)$`),
+		branchesNeedsFetch: true,
+		branchRE:           re(`(?m)^[^\n]+$`),
+		badLocalRevRE:      re(`(?m)^(tip)$`),
 		statLocal: func(rev, remote string) []string {
-			return []string{"hg", "log", "-l1", "-r", rev, "--template", "{node} {date|hgdate} {tags}"}
+			return []string{"hg", "log", "-l1", fmt.Sprintf("--rev=%s", rev), "--template", "{node} {date|hgdate} {tags}"}
 		},
 		parseStat: hgParseStat,
 		fetch:     []string{"hg", "pull", "-f"},
 		latest:    "tip",
+		descendsFrom: func(rev, tag string) []string {
+			return []string{"hg", "log", "--rev=ancestors(" + rev + ") and " + tag}
+		},
+		recentTags: func(rev string) []string {
+			return []string{"hg", "log", "--rev=ancestors(" + rev + ") and tag()", "--template", "{tags}\n"}
+		},
 		readFile: func(rev, file, remote string) []string {
-			return []string{"hg", "cat", "-r", rev, file}
+			return []string{"hg", "cat", fmt.Sprintf("--rev=%s", rev), "--", file}
 		},
 		readZip: func(rev, subdir, remote, target string) []string {
 			pattern := []string{}
 			if subdir != "" {
-				pattern = []string{"-I", subdir + "/**"}
+				pattern = []string{fmt.Sprintf("--include=%s", subdir+"/**")}
 			}
-			return str.StringList("hg", "archive", "-t", "zip", "--no-decode", "-r", rev, "--prefix=prefix/", pattern, "--", target)
+			return str.StringList("hg", "archive", "-t", "zip", "--no-decode", fmt.Sprintf("--rev=%s", rev), "--prefix=prefix/", pattern, "--", target)
 		},
 	},
 
@@ -209,19 +277,19 @@ var vcsCmds = map[string]*vcsCmd{
 		tagRE:         re(`(?m)^\S+`),
 		badLocalRevRE: re(`^revno:-`),
 		statLocal: func(rev, remote string) []string {
-			return []string{"bzr", "log", "-l1", "--long", "--show-ids", "-r", rev}
+			return []string{"bzr", "log", "-l1", "--long", "--show-ids", fmt.Sprintf("--revision=%s", rev)}
 		},
 		parseStat: bzrParseStat,
 		latest:    "revno:-1",
 		readFile: func(rev, file, remote string) []string {
-			return []string{"bzr", "cat", "-r", rev, file}
+			return []string{"bzr", "cat", fmt.Sprintf("--revision=%s", rev), "--", file}
 		},
 		readZip: func(rev, subdir, remote, target string) []string {
 			extra := []string{}
 			if subdir != "" {
 				extra = []string{"./" + subdir}
 			}
-			return str.StringList("bzr", "export", "--format=zip", "-r", rev, "--root=prefix/", "--", target, extra)
+			return str.StringList("bzr", "export", "--format=zip", fmt.Sprintf("--revision=%s", rev), "--root=prefix/", "--", target, extra)
 		},
 	},
 
@@ -236,17 +304,17 @@ var vcsCmds = map[string]*vcsCmd{
 		},
 		tagRE: re(`XXXTODO`),
 		statLocal: func(rev, remote string) []string {
-			return []string{"fossil", "info", "-R", ".fossil", rev}
+			return []string{"fossil", "info", "-R", ".fossil", "--", rev}
 		},
 		parseStat: fossilParseStat,
 		latest:    "trunk",
 		readFile: func(rev, file, remote string) []string {
-			return []string{"fossil", "cat", "-R", ".fossil", "-r", rev, file}
+			return []string{"fossil", "cat", "-R", ".fossil", fmt.Sprintf("-r=%s", rev), "--", file}
 		},
 		readZip: func(rev, subdir, remote, target string) []string {
 			extra := []string{}
 			if subdir != "" && !strings.ContainsAny(subdir, "*?[],") {
-				extra = []string{"--include", subdir}
+				extra = []string{fmt.Sprintf("--include=%s", subdir)}
 			}
 			// Note that vcsRepo.ReadZip below rewrites this command
 			// to run in a different directory, to work around a fossil bug.
@@ -255,8 +323,12 @@ var vcsCmds = map[string]*vcsCmd{
 	},
 }
 
-func (r *vcsRepo) loadTags() {
-	out, err := Run(r.dir, r.cmd.tags(r.remote))
+func (r *vcsRepo) loadTags(ctx context.Context) {
+	if r.cmd.tagsNeedsFetch {
+		r.fetchOnce.Do(func() { r.fetch(ctx) })
+	}
+
+	out, err := Run(ctx, r.dir, r.cmd.tags(r.remote))
 	if err != nil {
 		return
 	}
@@ -271,12 +343,16 @@ func (r *vcsRepo) loadTags() {
 	}
 }
 
-func (r *vcsRepo) loadBranches() {
+func (r *vcsRepo) loadBranches(ctx context.Context) {
 	if r.cmd.branches == nil {
 		return
 	}
 
-	out, err := Run(r.dir, r.cmd.branches(r.remote))
+	if r.cmd.branchesNeedsFetch {
+		r.fetchOnce.Do(func() { r.fetch(ctx) })
+	}
+
+	out, err := Run(ctx, r.dir, r.cmd.branches(r.remote))
 	if err != nil {
 		return
 	}
@@ -290,29 +366,98 @@ func (r *vcsRepo) loadBranches() {
 	}
 }
 
-var ErrNoRepoHash = errors.New("RepoHash not supported")
-
-func (r *vcsRepo) CheckReuse(old *Origin, subdir string) error {
-	return fmt.Errorf("vcs %s does not implement CheckReuse", r.cmd.vcs)
+func (r *vcsRepo) loadRepoSum(ctx context.Context) {
+	if r.cmd.repoSum == nil {
+		return
+	}
+	where := r.remote
+	if r.fetched.Load() {
+		where = "." // use local repo
+	}
+	out, err := Run(ctx, r.dir, r.cmd.repoSum(where))
+	if err != nil {
+		return
+	}
+	r.repoSum = strings.TrimSpace(string(out))
 }
 
-func (r *vcsRepo) Tags(prefix string) (*Tags, error) {
+func (r *vcsRepo) lookupRef(ctx context.Context, ref string) (string, error) {
+	if r.cmd.lookupRef == nil {
+		return "", fmt.Errorf("no lookupRef")
+	}
+	out, err := Run(ctx, r.dir, r.cmd.lookupRef(r.remote, ref))
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// repoSumOrigin returns an Origin containing a RepoSum.
+func (r *vcsRepo) repoSumOrigin(ctx context.Context) *Origin {
+	origin := &Origin{
+		VCS:     r.cmd.vcs,
+		URL:     r.remote,
+		RepoSum: r.repoSum,
+	}
+	r.repoSumOnce.Do(func() { r.loadRepoSum(ctx) })
+	origin.RepoSum = r.repoSum
+	return origin
+}
+
+func (r *vcsRepo) CheckReuse(ctx context.Context, old *Origin, subdir string) error {
+	if old == nil {
+		return fmt.Errorf("missing origin")
+	}
+	if old.VCS != r.cmd.vcs || old.URL != r.remote {
+		return fmt.Errorf("origin moved from %v %q to %v %q", old.VCS, old.URL, r.cmd.vcs, r.remote)
+	}
+	if old.Subdir != subdir {
+		return fmt.Errorf("origin moved from %v %q %q to %v %q %q", old.VCS, old.URL, old.Subdir, r.cmd.vcs, r.remote, subdir)
+	}
+
+	if old.Ref == "" && old.RepoSum == "" && old.Hash != "" {
+		// Hash has to remain in repo.
+		hash, err := r.lookupRef(ctx, old.Hash)
+		if err == nil && hash == old.Hash {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("looking up hash: %v", err)
+		}
+		return fmt.Errorf("hash changed") // weird but maybe they made a tag
+	}
+
+	if old.Ref != "" && old.RepoSum == "" {
+		hash, err := r.lookupRef(ctx, old.Ref)
+		if err == nil && hash != "" && hash == old.Hash {
+			return nil
+		}
+	}
+
+	r.repoSumOnce.Do(func() { r.loadRepoSum(ctx) })
+	if r.repoSum != "" {
+		if old.RepoSum == "" {
+			return fmt.Errorf("non-specific origin")
+		}
+		if old.RepoSum != r.repoSum {
+			return fmt.Errorf("repo changed")
+		}
+		return nil
+	}
+	return fmt.Errorf("vcs %s: CheckReuse: %w", r.cmd.vcs, errors.ErrUnsupported)
+}
+
+func (r *vcsRepo) Tags(ctx context.Context, prefix string) (*Tags, error) {
 	unlock, err := r.mu.Lock()
 	if err != nil {
 		return nil, err
 	}
 	defer unlock()
 
-	r.tagsOnce.Do(r.loadTags)
+	r.tagsOnce.Do(func() { r.loadTags(ctx) })
 	tags := &Tags{
-		// None of the other VCS provide a reasonable way to compute TagSum
-		// without downloading the whole repo, so we only include VCS and URL
-		// in the Origin.
-		Origin: &Origin{
-			VCS: r.cmd.vcs,
-			URL: r.remote,
-		},
-		List: []Tag{},
+		Origin: r.repoSumOrigin(ctx),
+		List:   []Tag{},
 	}
 	for tag := range r.tags {
 		if strings.HasPrefix(tag, prefix) {
@@ -325,7 +470,7 @@ func (r *vcsRepo) Tags(prefix string) (*Tags, error) {
 	return tags, nil
 }
 
-func (r *vcsRepo) Stat(rev string) (*RevInfo, error) {
+func (r *vcsRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
 	unlock, err := r.mu.Lock()
 	if err != nil {
 		return nil, err
@@ -335,21 +480,26 @@ func (r *vcsRepo) Stat(rev string) (*RevInfo, error) {
 	if rev == "latest" {
 		rev = r.cmd.latest
 	}
-	r.branchesOnce.Do(r.loadBranches)
+	r.branchesOnce.Do(func() { r.loadBranches(ctx) })
+	if r.local {
+		// Ignore the badLocalRevRE precondition in local only mode.
+		// We cannot fetch latest upstream changes so only serve what's in the local cache.
+		return r.statLocal(ctx, rev)
+	}
 	revOK := (r.cmd.badLocalRevRE == nil || !r.cmd.badLocalRevRE.MatchString(rev)) && !r.branches[rev]
 	if revOK {
-		if info, err := r.statLocal(rev); err == nil {
+		if info, err := r.statLocal(ctx, rev); err == nil {
 			return info, nil
 		}
 	}
 
-	r.fetchOnce.Do(r.fetch)
+	r.fetchOnce.Do(func() { r.fetch(ctx) })
 	if r.fetchErr != nil {
 		return nil, r.fetchErr
 	}
-	info, err := r.statLocal(rev)
+	info, err := r.statLocal(ctx, rev)
 	if err != nil {
-		return nil, err
+		return info, err
 	}
 	if !revOK {
 		info.Version = info.Name
@@ -357,16 +507,24 @@ func (r *vcsRepo) Stat(rev string) (*RevInfo, error) {
 	return info, nil
 }
 
-func (r *vcsRepo) fetch() {
+func (r *vcsRepo) fetch(ctx context.Context) {
 	if len(r.cmd.fetch) > 0 {
-		_, r.fetchErr = Run(r.dir, r.cmd.fetch)
+		release, err := base.AcquireNet()
+		if err != nil {
+			r.fetchErr = err
+			return
+		}
+		_, r.fetchErr = Run(ctx, r.dir, r.cmd.fetch)
+		release()
+		r.fetched.Store(true)
 	}
 }
 
-func (r *vcsRepo) statLocal(rev string) (*RevInfo, error) {
-	out, err := Run(r.dir, r.cmd.statLocal(rev, r.remote))
+func (r *vcsRepo) statLocal(ctx context.Context, rev string) (*RevInfo, error) {
+	out, err := Run(ctx, r.dir, r.cmd.statLocal(rev, r.remote))
 	if err != nil {
-		return nil, &UnknownRevisionError{Rev: rev}
+		info := &RevInfo{Origin: r.repoSumOrigin(ctx)}
+		return info, &UnknownRevisionError{Rev: rev}
 	}
 	info, err := r.cmd.parseStat(rev, string(out))
 	if err != nil {
@@ -377,18 +535,22 @@ func (r *vcsRepo) statLocal(rev string) (*RevInfo, error) {
 	}
 	info.Origin.VCS = r.cmd.vcs
 	info.Origin.URL = r.remote
+	info.Origin.Ref = rev
+	if strings.HasPrefix(info.Name, rev) && len(rev) >= 12 {
+		info.Origin.Ref = "" // duplicates Hash
+	}
 	return info, nil
 }
 
-func (r *vcsRepo) Latest() (*RevInfo, error) {
-	return r.Stat("latest")
+func (r *vcsRepo) Latest(ctx context.Context) (*RevInfo, error) {
+	return r.Stat(ctx, "latest")
 }
 
-func (r *vcsRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
+func (r *vcsRepo) ReadFile(ctx context.Context, rev, file string, maxSize int64) ([]byte, error) {
 	if rev == "latest" {
 		rev = r.cmd.latest
 	}
-	_, err := r.Stat(rev) // download rev into local repo
+	_, err := r.Stat(ctx, rev) // download rev into local repo
 	if err != nil {
 		return nil, err
 	}
@@ -400,39 +562,76 @@ func (r *vcsRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
 	}
 	defer unlock()
 
-	out, err := Run(r.dir, r.cmd.readFile(rev, file, r.remote))
+	out, err := Run(ctx, r.dir, r.cmd.readFile(rev, file, r.remote))
 	if err != nil {
 		return nil, fs.ErrNotExist
 	}
 	return out, nil
 }
 
-func (r *vcsRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag string, err error) {
-	// We don't technically need to lock here since we're returning an error
-	// uncondititonally, but doing so anyway will help to avoid baking in
-	// lock-inversion bugs.
+func (r *vcsRepo) RecentTag(ctx context.Context, rev, prefix string, allowed func(string) bool) (tag string, err error) {
+	// Only lock for the subprocess execution, not for the tag scan.
+	// allowed may call other methods that acquire the lock.
 	unlock, err := r.mu.Lock()
 	if err != nil {
 		return "", err
 	}
-	defer unlock()
 
-	return "", vcsErrorf("RecentTag not implemented")
+	if r.cmd.recentTags == nil {
+		unlock()
+		return "", vcsErrorf("vcs %s: RecentTag: %w", r.cmd.vcs, errors.ErrUnsupported)
+	}
+	out, err := Run(ctx, r.dir, r.cmd.recentTags(rev))
+	unlock()
+	if err != nil {
+		return "", err
+	}
+
+	highest := ""
+	for _, tag := range strings.Fields(string(out)) {
+		if !strings.HasPrefix(tag, prefix) || !allowed(tag) {
+			continue
+		}
+		semtag := tag[len(prefix):]
+		if semver.Compare(semtag, highest) > 0 {
+			highest = semtag
+		}
+	}
+	if highest != "" {
+		return prefix + highest, nil
+	}
+	return "", nil
 }
 
-func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
+func (r *vcsRepo) DescendsFrom(ctx context.Context, rev, tag string) (bool, error) {
 	unlock, err := r.mu.Lock()
 	if err != nil {
 		return false, err
 	}
 	defer unlock()
 
-	return false, vcsErrorf("DescendsFrom not implemented")
+	if r.cmd.descendsFrom == nil {
+		return false, vcsErrorf("vcs %s: DescendsFrom: %w", r.cmd.vcs, errors.ErrUnsupported)
+	}
+
+	out, err := Run(ctx, r.dir, r.cmd.descendsFrom(rev, tag))
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(string(out)) != "", nil
 }
 
-func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
+func (r *vcsRepo) ReadZip(ctx context.Context, rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
 	if r.cmd.readZip == nil && r.cmd.doReadZip == nil {
-		return nil, vcsErrorf("ReadZip not implemented for %s", r.cmd.vcs)
+		return nil, vcsErrorf("vcs %s: ReadZip: %w", r.cmd.vcs, errors.ErrUnsupported)
+	}
+
+	if rev == "latest" {
+		rev = r.cmd.latest
+	}
+	_, err = r.Stat(ctx, rev) // download rev into local repo
+	if err != nil {
+		return nil, err
 	}
 
 	unlock, err := r.mu.Lock()
@@ -441,9 +640,6 @@ func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
 	}
 	defer unlock()
 
-	if rev == "latest" {
-		rev = r.cmd.latest
-	}
 	f, err := os.CreateTemp("", "go-readzip-*.zip")
 	if err != nil {
 		return nil, err
@@ -454,7 +650,7 @@ func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
 			N:               maxSize,
 			ErrLimitReached: errors.New("ReadZip: encoded file exceeds allowed size"),
 		}
-		err = r.cmd.doReadZip(lw, r.dir, rev, subdir, r.remote)
+		err = r.cmd.doReadZip(ctx, lw, r.dir, rev, subdir, r.remote)
 		if err == nil {
 			_, err = f.Seek(0, io.SeekStart)
 		}
@@ -470,9 +666,9 @@ func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
 				args[i] = filepath.Join(r.dir, ".fossil")
 			}
 		}
-		_, err = Run(filepath.Dir(f.Name()), args)
+		_, err = Run(ctx, filepath.Dir(f.Name()), args)
 	} else {
-		_, err = Run(r.dir, r.cmd.readZip(rev, subdir, r.remote, f.Name()))
+		_, err = Run(ctx, r.dir, r.cmd.readZip(rev, subdir, r.remote, f.Name()))
 	}
 	if err != nil {
 		f.Close()
@@ -492,8 +688,13 @@ func (d *deleteCloser) Close() error {
 	return d.File.Close()
 }
 
+func hgAddRemote(ctx context.Context, r *vcsRepo) error {
+	// Write .hg/hgrc with remote URL in it.
+	return os.WriteFile(filepath.Join(r.dir, ".hg/hgrc"), []byte(fmt.Sprintf("[paths]\ndefault = %s\n", r.remote)), 0666)
+}
+
 func hgParseStat(rev, out string) (*RevInfo, error) {
-	f := strings.Fields(string(out))
+	f := strings.Fields(out)
 	if len(f) < 3 {
 		return nil, vcsErrorf("unexpected response from hg log: %q", out)
 	}
@@ -516,9 +717,7 @@ func hgParseStat(rev, out string) (*RevInfo, error) {
 	sort.Strings(tags)
 
 	info := &RevInfo{
-		Origin: &Origin{
-			Hash: hash,
-		},
+		Origin:  &Origin{Hash: hash},
 		Name:    hash,
 		Short:   ShortenSHA1(hash),
 		Time:    time.Unix(t, 0).UTC(),
@@ -531,7 +730,8 @@ func hgParseStat(rev, out string) (*RevInfo, error) {
 func bzrParseStat(rev, out string) (*RevInfo, error) {
 	var revno int64
 	var tm time.Time
-	for _, line := range strings.Split(out, "\n") {
+	var tags []string
+	for line := range strings.SplitSeq(out, "\n") {
 		if line == "" || line[0] == ' ' || line[0] == '\t' {
 			// End of header, start of commit message.
 			break
@@ -539,12 +739,12 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 		if line[0] == '-' {
 			continue
 		}
-		i := strings.Index(line, ":")
-		if i < 0 {
+		before, after, found := strings.Cut(line, ":")
+		if !found {
 			// End of header, start of commit message.
 			break
 		}
-		key, val := line[:i], strings.TrimSpace(line[i+1:])
+		key, val := before, strings.TrimSpace(after)
 		switch key {
 		case "revno":
 			if j := strings.Index(val, " "); j >= 0 {
@@ -565,6 +765,8 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 				return nil, vcsErrorf("unexpected timestamp from bzr log: %q", line)
 			}
 			tm = t.UTC()
+		case "tags":
+			tags = strings.Split(val, ", ")
 		}
 	}
 	if revno == 0 || tm.IsZero() {
@@ -572,22 +774,23 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 	}
 
 	info := &RevInfo{
-		Name:    fmt.Sprintf("%d", revno),
+		Name:    strconv.FormatInt(revno, 10),
 		Short:   fmt.Sprintf("%012d", revno),
 		Time:    tm,
 		Version: rev,
+		Tags:    tags,
 	}
 	return info, nil
 }
 
 func fossilParseStat(rev, out string) (*RevInfo, error) {
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if strings.HasPrefix(line, "uuid:") || strings.HasPrefix(line, "hash:") {
 			f := strings.Fields(line)
 			if len(f) != 5 || len(f[1]) != 40 || f[4] != "UTC" {
 				return nil, vcsErrorf("unexpected response from fossil info: %q", line)
 			}
-			t, err := time.Parse("2006-01-02 15:04:05", f[2]+" "+f[3])
+			t, err := time.Parse(time.DateTime, f[2]+" "+f[3])
 			if err != nil {
 				return nil, vcsErrorf("unexpected response from fossil info: %q", line)
 			}
@@ -597,9 +800,7 @@ func fossilParseStat(rev, out string) (*RevInfo, error) {
 				version = hash // extend to full hash
 			}
 			info := &RevInfo{
-				Origin: &Origin{
-					Hash: hash,
-				},
+				Origin:  &Origin{Hash: hash},
 				Name:    hash,
 				Short:   ShortenSHA1(hash),
 				Time:    t,

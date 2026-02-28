@@ -12,7 +12,13 @@
 
 package cipher
 
-import "crypto/internal/subtle"
+import (
+	"bytes"
+	"crypto/internal/fips140/aes"
+	"crypto/internal/fips140/alias"
+	"crypto/internal/fips140only"
+	"crypto/subtle"
+)
 
 type ctr struct {
 	b       Block
@@ -24,15 +30,21 @@ type ctr struct {
 const streamBufferSize = 512
 
 // ctrAble is an interface implemented by ciphers that have a specific optimized
-// implementation of CTR, like crypto/aes. NewCTR will check for this interface
-// and return the specific Stream if found.
+// implementation of CTR. crypto/aes doesn't use this anymore, and we'd like to
+// eventually remove it.
 type ctrAble interface {
 	NewCTR(iv []byte) Stream
 }
 
-// NewCTR returns a Stream which encrypts/decrypts using the given Block in
-// counter mode. The length of iv must be the same as the Block's block size.
+// NewCTR returns a [Stream] which encrypts/decrypts using the given [Block] in
+// counter mode. The length of iv must be the same as the [Block]'s block size.
 func NewCTR(block Block, iv []byte) Stream {
+	if block, ok := block.(*aes.Block); ok {
+		return aesCtrWrapper{aes.NewCTR(block, iv)}
+	}
+	if fips140only.Enforced() {
+		panic("crypto/cipher: use of CTR with non-AES ciphers is not allowed in FIPS 140-only mode")
+	}
 	if ctr, ok := block.(ctrAble); ok {
 		return ctr.NewCTR(iv)
 	}
@@ -45,10 +57,19 @@ func NewCTR(block Block, iv []byte) Stream {
 	}
 	return &ctr{
 		b:       block,
-		ctr:     dup(iv),
+		ctr:     bytes.Clone(iv),
 		out:     make([]byte, 0, bufSize),
 		outUsed: 0,
 	}
+}
+
+// aesCtrWrapper hides extra methods from aes.CTR.
+type aesCtrWrapper struct {
+	c *aes.CTR
+}
+
+func (x aesCtrWrapper) XORKeyStream(dst, src []byte) {
+	x.c.XORKeyStream(dst, src)
 }
 
 func (x *ctr) refill() {
@@ -76,14 +97,17 @@ func (x *ctr) XORKeyStream(dst, src []byte) {
 	if len(dst) < len(src) {
 		panic("crypto/cipher: output smaller than input")
 	}
-	if subtle.InexactOverlap(dst[:len(src)], src) {
+	if alias.InexactOverlap(dst[:len(src)], src) {
 		panic("crypto/cipher: invalid buffer overlap")
+	}
+	if _, ok := x.b.(*aes.Block); ok {
+		panic("crypto/cipher: internal error: generic CTR used with AES")
 	}
 	for len(src) > 0 {
 		if x.outUsed >= len(x.out)-x.b.BlockSize() {
 			x.refill()
 		}
-		n := xorBytes(dst, src, x.out[x.outUsed:])
+		n := subtle.XORBytes(dst, src, x.out[x.outUsed:])
 		dst = dst[n:]
 		src = src[n:]
 		x.outUsed += n

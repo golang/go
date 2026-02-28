@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !boringcrypto || !linux || !amd64 || !cgo || android || cmd_go_bootstrap || msan
-// +build !boringcrypto !linux !amd64 !cgo android cmd_go_bootstrap msan
+//go:build !(boringcrypto && linux && (amd64 || arm64) && !android && !msan && cgo)
 
 package boring
 
@@ -51,6 +50,7 @@ func NewHMAC(h func() hash.Hash, key []byte) hash.Hash { panic("boringcrypto: no
 
 func NewAESCipher(key []byte) (cipher.Block, error) { panic("boringcrypto: not available") }
 func NewGCMTLS(cipher.Block) (cipher.AEAD, error)   { panic("boringcrypto: not available") }
+func NewGCMTLS13(cipher.Block) (cipher.AEAD, error) { panic("boringcrypto: not available") }
 
 type PublicKeyECDSA struct{ _ int }
 type PrivateKeyECDSA struct{ _ int }
@@ -74,7 +74,7 @@ func VerifyECDSA(pub *PublicKeyECDSA, hash []byte, sig []byte) bool {
 type PublicKeyRSA struct{ _ int }
 type PrivateKeyRSA struct{ _ int }
 
-func DecryptRSAOAEP(h hash.Hash, priv *PrivateKeyRSA, ciphertext, label []byte) ([]byte, error) {
+func DecryptRSAOAEP(h, mgfHash hash.Hash, priv *PrivateKeyRSA, ciphertext, label []byte) ([]byte, error) {
 	panic("boringcrypto: not available")
 }
 func DecryptRSAPKCS1(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
@@ -83,7 +83,7 @@ func DecryptRSAPKCS1(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
 func DecryptRSANoPadding(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
 	panic("boringcrypto: not available")
 }
-func EncryptRSAOAEP(h hash.Hash, pub *PublicKeyRSA, msg, label []byte) ([]byte, error) {
+func EncryptRSAOAEP(h, mgfHash hash.Hash, pub *PublicKeyRSA, msg, label []byte) ([]byte, error) {
 	panic("boringcrypto: not available")
 }
 func EncryptRSAPKCS1(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
@@ -111,3 +111,13 @@ func VerifyRSAPKCS1v15(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte) err
 func VerifyRSAPSS(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte, saltLen int) error {
 	panic("boringcrypto: not available")
 }
+
+type PublicKeyECDH struct{}
+type PrivateKeyECDH struct{}
+
+func ECDH(*PrivateKeyECDH, *PublicKeyECDH) ([]byte, error)      { panic("boringcrypto: not available") }
+func GenerateKeyECDH(string) (*PrivateKeyECDH, []byte, error)   { panic("boringcrypto: not available") }
+func NewPrivateKeyECDH(string, []byte) (*PrivateKeyECDH, error) { panic("boringcrypto: not available") }
+func NewPublicKeyECDH(string, []byte) (*PublicKeyECDH, error)   { panic("boringcrypto: not available") }
+func (*PublicKeyECDH) Bytes() []byte                            { panic("boringcrypto: not available") }
+func (*PrivateKeyECDH) PublicKey() (*PublicKeyECDH, error)      { panic("boringcrypto: not available") }

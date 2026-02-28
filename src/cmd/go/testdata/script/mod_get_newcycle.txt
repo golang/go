@@ -11,4 +11,4 @@ go mod init m
 cmp stderr stderr-expected
 
 -- stderr-expected --
-go: example.com/newcycle/a@v1.0.0 requires example.com/newcycle/a@v1.0.1, not example.com/newcycle/a@v1.0.0
+go: example.com/newcycle/a@v1.0.0 indirectly requires example.com/newcycle/a@v1.0.1, not example.com/newcycle/a@v1.0.0

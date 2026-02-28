@@ -7,6 +7,7 @@ package ssa
 import (
 	"bytes"
 	"cmd/internal/src"
+	"cmp"
 	"fmt"
 	"html"
 	"io"
@@ -28,7 +29,7 @@ type HTMLWriter struct {
 }
 
 func NewHTMLWriter(path string, f *Func, cfgMask string) *HTMLWriter {
-	path = strings.Replace(path, "/", string(filepath.Separator), -1)
+	path = strings.ReplaceAll(path, "/", string(filepath.Separator))
 	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		f.Fatalf("%v", err)
@@ -52,13 +53,13 @@ func NewHTMLWriter(path string, f *Func, cfgMask string) *HTMLWriter {
 }
 
 // Fatalf reports an error and exits.
-func (w *HTMLWriter) Fatalf(msg string, args ...interface{}) {
+func (w *HTMLWriter) Fatalf(msg string, args ...any) {
 	fe := w.Func.Frontend()
 	fe.Fatalf(src.NoXPos, msg, args...)
 }
 
 // Logf calls the (w *HTMLWriter).Func's Logf method passing along a msg and args.
-func (w *HTMLWriter) Logf(msg string, args ...interface{}) {
+func (w *HTMLWriter) Logf(msg string, args ...any) {
 	w.Func.Logf(msg, args...)
 }
 
@@ -741,7 +742,7 @@ function toggleDarkMode() {
 </head>`)
 	w.WriteString("<body>")
 	w.WriteString("<h1>")
-	w.WriteString(html.EscapeString(w.Func.Name))
+	w.WriteString(html.EscapeString(w.Func.NameABI()))
 	w.WriteString("</h1>")
 	w.WriteString(`
 <a href="#" onclick="toggle_visibility('help');return false;" id="helplink">help</a>
@@ -784,7 +785,7 @@ func (w *HTMLWriter) Close() {
 	io.WriteString(w.w, "</body>")
 	io.WriteString(w.w, "</html>")
 	w.w.Close()
-	fmt.Printf("dumped SSA to %v\n", w.path)
+	fmt.Printf("dumped SSA for %s to %v\n", w.Func.NameABI(), w.path)
 }
 
 // WritePhase writes f in a column headed by title.
@@ -827,19 +828,13 @@ type FuncLines struct {
 	Lines       []string
 }
 
-// ByTopo sorts topologically: target function is on top,
+// ByTopoCmp sorts topologically: target function is on top,
 // followed by inlined functions sorted by filename and line numbers.
-type ByTopo []*FuncLines
-
-func (x ByTopo) Len() int      { return len(x) }
-func (x ByTopo) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-func (x ByTopo) Less(i, j int) bool {
-	a := x[i]
-	b := x[j]
-	if a.Filename == b.Filename {
-		return a.StartLineno < b.StartLineno
+func ByTopoCmp(a, b *FuncLines) int {
+	if r := strings.Compare(a.Filename, b.Filename); r != 0 {
+		return r
 	}
-	return a.Filename < b.Filename
+	return cmp.Compare(a.StartLineno, b.StartLineno)
 }
 
 // WriteSources writes lines as source code in a column headed by title.
@@ -848,7 +843,7 @@ func (w *HTMLWriter) WriteSources(phase string, all []*FuncLines) {
 	if w == nil {
 		return // avoid generating HTML just to discard it
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	fmt.Fprint(&buf, "<div class=\"lines\" style=\"width: 8%\">")
 	filename := ""
 	for _, fl := range all {
@@ -890,7 +885,7 @@ func (w *HTMLWriter) WriteAST(phase string, buf *bytes.Buffer) {
 		return // avoid generating HTML just to discard it
 	}
 	lines := strings.Split(buf.String(), "\n")
-	var out bytes.Buffer
+	var out strings.Builder
 
 	fmt.Fprint(&out, "<div>")
 	for _, l := range lines {
@@ -934,7 +929,7 @@ func (w *HTMLWriter) WriteMultiTitleColumn(phase string, titles []string, class,
 	if w == nil {
 		return
 	}
-	id := strings.Replace(phase, " ", "-", -1)
+	id := strings.ReplaceAll(phase, " ", "-")
 	// collapsed column
 	w.Printf("<td id=\"%v-col\" class=\"collapsed\"><div>%v</div></td>", id, phase)
 
@@ -950,7 +945,7 @@ func (w *HTMLWriter) WriteMultiTitleColumn(phase string, titles []string, class,
 	w.WriteString("</td>\n")
 }
 
-func (w *HTMLWriter) Printf(msg string, v ...interface{}) {
+func (w *HTMLWriter) Printf(msg string, v ...any) {
 	if _, err := fmt.Fprintf(w.w, msg, v...); err != nil {
 		w.Fatalf("%v", err)
 	}
@@ -993,6 +988,9 @@ func (v *Value) LongHTML() string {
 	r := v.Block.Func.RegAlloc
 	if int(v.ID) < len(r) && r[v.ID] != nil {
 		s += " : " + html.EscapeString(r[v.ID].String())
+	}
+	if reg := v.Block.Func.tempRegs[v.ID]; reg != nil {
+		s += " tmp=" + reg.String()
 	}
 	var names []string
 	for name, values := range v.Block.Func.NamedValues {
@@ -1053,7 +1051,7 @@ func (b *Block) LongHTML() string {
 }
 
 func (f *Func) HTML(phase string, dot *dotWriter) string {
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 	if dot != nil {
 		dot.writeFuncSVG(buf, phase, f)
 	}
@@ -1082,7 +1080,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 	}
 	buf := new(bytes.Buffer)
 	cmd.Stdout = buf
-	bufErr := new(bytes.Buffer)
+	bufErr := new(strings.Builder)
 	cmd.Stderr = bufErr
 	err = cmd.Start()
 	if err != nil {
@@ -1091,7 +1089,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 		return
 	}
 	fmt.Fprint(pipe, `digraph "" { margin=0; ranksep=.2; `)
-	id := strings.Replace(phase, " ", "-", -1)
+	id := strings.ReplaceAll(phase, " ", "-")
 	fmt.Fprintf(pipe, `id="g_graph_%s";`, id)
 	fmt.Fprintf(pipe, `node [style=filled,fillcolor=white,fontsize=16,fontname="Menlo,Times,serif",margin="0.01,0.03"];`)
 	fmt.Fprintf(pipe, `edge [fontsize=16,fontname="Menlo,Times,serif"];`)
@@ -1272,7 +1270,7 @@ func newDotWriter(mask string) *dotWriter {
 		return nil
 	}
 	// User can specify phase name with _ instead of spaces.
-	mask = strings.Replace(mask, "_", " ", -1)
+	mask = strings.ReplaceAll(mask, "_", " ")
 	ph := make(map[string]bool)
 	ranges := strings.Split(mask, ",")
 	for _, r := range ranges {

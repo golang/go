@@ -1,0 +1,15 @@
+{"Action":"start"}
+{"Action":"run","Test":"TestAttr"}
+{"Action":"output","Test":"TestAttr","Output":"=== RUN   TestAttr\n"}
+{"Action":"attr","Test":"TestAttr","Key":"key","Value":"value"}
+{"Action":"output","Test":"TestAttr","Output":"=== ATTR  TestAttr key value\n"}
+{"Action":"run","Test":"TestAttr/sub"}
+{"Action":"output","Test":"TestAttr/sub","Output":"=== RUN   TestAttr/sub\n"}
+{"Action":"attr","Test":"TestAttr/sub","Key":"key","Value":"value"}
+{"Action":"output","Test":"TestAttr/sub","Output":"=== ATTR  TestAttr/sub key value\n"}
+{"Action":"output","Test":"TestAttr","Output":"--- PASS: TestAttr (0.00s)\n"}
+{"Action":"output","Test":"TestAttr/sub","Output":"    --- PASS: TestAttr/sub (0.00s)\n"}
+{"Action":"pass","Test":"TestAttr/sub"}
+{"Action":"pass","Test":"TestAttr"}
+{"Action":"output","Output":"PASS\n"}
+{"Action":"pass"}

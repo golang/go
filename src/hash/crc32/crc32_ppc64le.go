@@ -18,7 +18,7 @@ const (
 //go:noescape
 func ppc64SlicingUpdateBy8(crc uint32, table8 *slicing8Table, p []byte) uint32
 
-// this function requires the buffer to be 16 byte aligned and > 16 bytes long
+// this function requires the buffer to be 16 byte aligned and > 16 bytes long.
 //
 //go:noescape
 func vectorCrc32(crc uint32, poly uint32, p []byte) uint32

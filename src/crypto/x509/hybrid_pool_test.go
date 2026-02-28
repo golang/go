@@ -33,7 +33,7 @@ func TestHybridPool(t *testing.T) {
 		// dynamically populates roots into its local trust store at time of
 		// use. We can attempt to prime the pool by attempting TLS connections
 		// to google.com until it works, suggesting the pool has been properly
-		// updated. If after we hit the dealine, the pool has _still_ not been
+		// updated. If after we hit the deadline, the pool has _still_ not been
 		// populated with the expected root, it's unlikely we are ever going to
 		// get into a good state, and so we just fail the test. #52108 suggests
 		// a better possible long term solution.

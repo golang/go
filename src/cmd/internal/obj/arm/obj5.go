@@ -34,6 +34,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"internal/abi"
 	"internal/buildcfg"
 	"log"
 )
@@ -65,7 +66,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				ctxt.Diag("%v: TLS MRC instruction must write to R0 as it might get translated into a BL instruction", p.Line())
 			}
 
-			if buildcfg.GOARM < 7 {
+			if buildcfg.GOARM.Version < 7 {
 				// Replace it with BL runtime.read_tls_fallback(SB) for ARM CPUs that lack the tls extension.
 				if progedit_tlsfallback == nil {
 					progedit_tlsfallback = ctxt.Lookup("runtime.read_tls_fallback")
@@ -349,117 +350,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.To.Reg = REGSP
 			p.Spadj = autosize
 
-			if cursym.Func().Text.From.Sym.Wrapper() {
-				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
-				//
-				//	MOVW g_panic(g), R1
-				//	CMP  $0, R1
-				//	B.NE checkargp
-				// end:
-				//	NOP
-				// ... function ...
-				// checkargp:
-				//	MOVW panic_argp(R1), R2
-				//	ADD  $(autosize+4), R13, R3
-				//	CMP  R2, R3
-				//	B.NE end
-				//	ADD  $4, R13, R4
-				//	MOVW R4, panic_argp(R1)
-				//	B    end
-				//
-				// The NOP is needed to give the jumps somewhere to land.
-				// It is a liblink NOP, not an ARM NOP: it encodes to 0 instruction bytes.
-
-				p = obj.Appendp(p, newprog)
-				p.As = AMOVW
-				p.From.Type = obj.TYPE_MEM
-				p.From.Reg = REGG
-				p.From.Offset = 4 * int64(ctxt.Arch.PtrSize) // G.panic
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REG_R1
-
-				p = obj.Appendp(p, newprog)
-				p.As = ACMP
-				p.From.Type = obj.TYPE_CONST
-				p.From.Offset = 0
-				p.Reg = REG_R1
-
-				// B.NE checkargp
-				bne := obj.Appendp(p, newprog)
-				bne.As = ABNE
-				bne.To.Type = obj.TYPE_BRANCH
-
-				// end: NOP
-				end := obj.Appendp(bne, newprog)
-				end.As = obj.ANOP
-
-				// find end of function
-				var last *obj.Prog
-				for last = end; last.Link != nil; last = last.Link {
-				}
-
-				// MOVW panic_argp(R1), R2
-				mov := obj.Appendp(last, newprog)
-				mov.As = AMOVW
-				mov.From.Type = obj.TYPE_MEM
-				mov.From.Reg = REG_R1
-				mov.From.Offset = 0 // Panic.argp
-				mov.To.Type = obj.TYPE_REG
-				mov.To.Reg = REG_R2
-
-				// B.NE branch target is MOVW above
-				bne.To.SetTarget(mov)
-
-				// ADD $(autosize+4), R13, R3
-				p = obj.Appendp(mov, newprog)
-				p.As = AADD
-				p.From.Type = obj.TYPE_CONST
-				p.From.Offset = int64(autosize) + 4
-				p.Reg = REG_R13
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REG_R3
-
-				// CMP R2, R3
-				p = obj.Appendp(p, newprog)
-				p.As = ACMP
-				p.From.Type = obj.TYPE_REG
-				p.From.Reg = REG_R2
-				p.Reg = REG_R3
-
-				// B.NE end
-				p = obj.Appendp(p, newprog)
-				p.As = ABNE
-				p.To.Type = obj.TYPE_BRANCH
-				p.To.SetTarget(end)
-
-				// ADD $4, R13, R4
-				p = obj.Appendp(p, newprog)
-				p.As = AADD
-				p.From.Type = obj.TYPE_CONST
-				p.From.Offset = 4
-				p.Reg = REG_R13
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REG_R4
-
-				// MOVW R4, panic_argp(R1)
-				p = obj.Appendp(p, newprog)
-				p.As = AMOVW
-				p.From.Type = obj.TYPE_REG
-				p.From.Reg = REG_R4
-				p.To.Type = obj.TYPE_MEM
-				p.To.Reg = REG_R1
-				p.To.Offset = 0 // Panic.argp
-
-				// B end
-				p = obj.Appendp(p, newprog)
-				p.As = AB
-				p.To.Type = obj.TYPE_BRANCH
-				p.To.SetTarget(end)
-
-				// reset for subsequent passes
-				p = end
-			}
-
 		case obj.ARET:
 			nocache(p)
 			if cursym.Func().Text.Mark&LEAF != 0 {
@@ -550,7 +440,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.From.Reg = q1.From.Reg
 			p.To.Type = obj.TYPE_MEM
 			p.To.Reg = REGTMP
-			p.To.Offset = 8 * 4 // offset of m.divmod
+			p.To.Offset = 7 * 4 // offset of m.divmod
 
 			/* MOV b, R8 */
 			p = obj.Appendp(p, newprog)
@@ -618,8 +508,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
 			f := c.cursym.Func()
-			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
-				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
+			if f.FuncFlag&abi.FuncFlagSPWrite == 0 {
+				c.cursym.Func().FuncFlag |= abi.FuncFlagSPWrite
 				if ctxt.Debugvlog || !ctxt.IsAsm {
 					ctxt.Logf("auto-SPWRITE: %s %v\n", c.cursym.Name, p)
 					if !ctxt.IsAsm {
@@ -708,7 +598,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	// unnecessarily. See issue #35470.
 	p = c.ctxt.StartUnsafePoint(p, c.newprog)
 
-	if framesize <= objabi.StackSmall {
+	if framesize <= abi.StackSmall {
 		// small stack: SP < stackguard
 		//	CMP	stackguard, SP
 		p = obj.Appendp(p, c.newprog)
@@ -717,7 +607,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_R1
 		p.Reg = REGSP
-	} else if framesize <= objabi.StackBig {
+	} else if framesize <= abi.StackBig {
 		// large stack: SP-framesize < stackguard-StackSmall
 		//	MOVW $-(framesize-StackSmall)(SP), R2
 		//	CMP stackguard, R2
@@ -726,7 +616,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.As = AMOVW
 		p.From.Type = obj.TYPE_ADDR
 		p.From.Reg = REGSP
-		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
+		p.From.Offset = -(int64(framesize) - abi.StackSmall)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
 
@@ -753,7 +643,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.As = ASUB
 		p.Scond = C_SBIT
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) - objabi.StackSmall
+		p.From.Offset = int64(framesize) - abi.StackSmall
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2

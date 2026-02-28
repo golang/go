@@ -7,12 +7,15 @@
 package syscall
 
 import (
+	"internal/bytealg"
 	"runtime"
+	"slices"
 	"sync"
 	"unicode/utf16"
 	"unsafe"
 )
 
+// ForkLock is not used on Windows.
 var ForkLock sync.RWMutex
 
 // EscapeArg rewrites command line argument s as prescribed
@@ -111,31 +114,82 @@ func makeCmdLine(args []string) string {
 	return string(b)
 }
 
+func envSorted(envv []string) []string {
+	if len(envv) < 2 {
+		return envv
+	}
+
+	lowerKeyCache := map[string][]byte{} // lowercased keys to avoid recomputing them in sort
+	lowerKey := func(kv string) []byte {
+		eq := bytealg.IndexByteString(kv, '=')
+		if eq < 0 {
+			return nil
+		}
+		k := kv[:eq]
+		v, ok := lowerKeyCache[k]
+		if !ok {
+			v = []byte(k)
+			for i, b := range v {
+				// We only normalize ASCII for now.
+				// In practice, all environment variables are ASCII, and the
+				// syscall package can't import "unicode" anyway.
+				// Also, per https://nullprogram.com/blog/2023/08/23/ the
+				// sorting of environment variables doesn't really matter.
+				// TODO(bradfitz): use RtlCompareUnicodeString instead,
+				// per that blog post? For now, ASCII is good enough.
+				if 'a' <= b && b <= 'z' {
+					v[i] -= 'a' - 'A'
+				}
+			}
+			lowerKeyCache[k] = v
+		}
+		return v
+	}
+
+	cmpEnv := func(a, b string) int {
+		return bytealg.Compare(lowerKey(a), lowerKey(b))
+	}
+
+	if !slices.IsSortedFunc(envv, cmpEnv) {
+		envv = slices.Clone(envv)
+		slices.SortFunc(envv, cmpEnv)
+	}
+	return envv
+}
+
 // createEnvBlock converts an array of environment strings into
 // the representation required by CreateProcess: a sequence of NUL
 // terminated strings followed by a nil.
 // Last bytes are two UCS-2 NULs, or four NUL bytes.
-func createEnvBlock(envv []string) *uint16 {
+// If any string contains a NUL, it returns (nil, EINVAL).
+func createEnvBlock(envv []string) ([]uint16, error) {
 	if len(envv) == 0 {
-		return &utf16.Encode([]rune("\x00\x00"))[0]
+		return utf16.Encode([]rune("\x00\x00")), nil
 	}
-	length := 0
+
+	// https://learn.microsoft.com/en-us/windows/win32/procthread/changing-environment-variables
+	// says that: "All strings in the environment block must be sorted
+	// alphabetically by name."
+	envv = envSorted(envv)
+
+	var length int
 	for _, s := range envv {
+		if bytealg.IndexByteString(s, 0) != -1 {
+			return nil, EINVAL
+		}
 		length += len(s) + 1
 	}
 	length += 1
 
-	b := make([]byte, length)
-	i := 0
+	b := make([]uint16, 0, length)
 	for _, s := range envv {
-		l := len(s)
-		copy(b[i:i+l], []byte(s))
-		copy(b[i+l:i+l+1], []byte{0})
-		i = i + l + 1
+		for _, c := range s {
+			b = utf16.AppendRune(b, c)
+		}
+		b = utf16.AppendRune(b, 0)
 	}
-	copy(b[i:i+1], []byte{0})
-
-	return &utf16.Encode([]rune(string(b)))[0]
+	b = utf16.AppendRune(b, 0)
+	return b, nil
 }
 
 func CloseOnExec(fd Handle) {
@@ -242,7 +296,7 @@ type SysProcAttr struct {
 	Token                      Token               // if set, runs new process in the security context represented by the token
 	ProcessAttributes          *SecurityAttributes // if set, applies these security attributes as the descriptor for the new process
 	ThreadAttributes           *SecurityAttributes // if set, applies these security attributes as the descriptor for the main thread of the new process
-	NoInheritHandles           bool                // if set, each inheritable handle in the calling process is not inherited by the new process
+	NoInheritHandles           bool                // if set, no handles are inherited by the new process, not even the standard handles, contained in ProcAttr.Files, nor the ones contained in AdditionalInheritedHandles
 	AdditionalInheritedHandles []Handle            // a list of additional handles, already marked as inheritable, that will be inherited by the new process
 	ParentProcess              Handle              // if non-zero, the new process regards the process given by this handle as its parent process, and AdditionalInheritedHandles, if set, should exist in this parent process
 }
@@ -313,17 +367,6 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 		}
 	}
 
-	var maj, min, build uint32
-	rtlGetNtVersionNumbers(&maj, &min, &build)
-	isWin7 := maj < 6 || (maj == 6 && min <= 1)
-	// NT kernel handles are divisible by 4, with the bottom 3 bits left as
-	// a tag. The fully set tag correlates with the types of handles we're
-	// concerned about here.  Except, the kernel will interpret some
-	// special handle values, like -1, -2, and so forth, so kernelbase.dll
-	// checks to see that those bottom three bits are checked, but that top
-	// bit is not checked.
-	isLegacyWin7ConsoleHandle := func(handle Handle) bool { return isWin7 && handle&0x10000003 == 3 }
-
 	p, _ := GetCurrentProcess()
 	parentProcess := p
 	if sys.ParentProcess != 0 {
@@ -332,27 +375,19 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	fd := make([]Handle, len(attr.Files))
 	for i := range attr.Files {
 		if attr.Files[i] > 0 {
-			destinationProcessHandle := parentProcess
-
-			// On Windows 7, console handles aren't real handles, and can only be duplicated
-			// into the current process, not a parent one, which amounts to the same thing.
-			if parentProcess != p && isLegacyWin7ConsoleHandle(Handle(attr.Files[i])) {
-				destinationProcessHandle = p
-			}
-
-			err := DuplicateHandle(p, Handle(attr.Files[i]), destinationProcessHandle, &fd[i], 0, true, DUPLICATE_SAME_ACCESS)
+			err := DuplicateHandle(p, Handle(attr.Files[i]), parentProcess, &fd[i], 0, true, DUPLICATE_SAME_ACCESS)
 			if err != nil {
 				return 0, 0, err
 			}
 			defer DuplicateHandle(parentProcess, fd[i], 0, nil, 0, false, DUPLICATE_CLOSE_SOURCE)
 		}
 	}
-	si := new(_STARTUPINFOEXW)
-	si.ProcThreadAttributeList, err = newProcThreadAttributeList(2)
+	procAttrList, err := newProcThreadAttributeList(2)
 	if err != nil {
 		return 0, 0, err
 	}
-	defer deleteProcThreadAttributeList(si.ProcThreadAttributeList)
+	defer procAttrList.delete()
+	si := new(_STARTUPINFOEXW)
 	si.Cb = uint32(unsafe.Sizeof(*si))
 	si.Flags = STARTF_USESTDHANDLES
 	if sys.HideWindow {
@@ -360,7 +395,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 		si.ShowWindow = SW_HIDE
 	}
 	if sys.ParentProcess != 0 {
-		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, unsafe.Pointer(&sys.ParentProcess), unsafe.Sizeof(sys.ParentProcess), nil, nil)
+		err = procAttrList.update(_PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, unsafe.Pointer(&sys.ParentProcess), unsafe.Sizeof(sys.ParentProcess))
 		if err != nil {
 			return 0, 0, err
 		}
@@ -370,14 +405,6 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	si.StdErr = fd[2]
 
 	fd = append(fd, sys.AdditionalInheritedHandles...)
-
-	// On Windows 7, console handles aren't real handles, so don't pass them
-	// through to PROC_THREAD_ATTRIBUTE_HANDLE_LIST.
-	for i := range fd {
-		if isLegacyWin7ConsoleHandle(fd[i]) {
-			fd[i] = 0
-		}
-	}
 
 	// The presence of a NULL handle in the list is enough to cause PROC_THREAD_ATTRIBUTE_HANDLE_LIST
 	// to treat the entire list as empty, so remove NULL handles.
@@ -394,18 +421,24 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 
 	// Do not accidentally inherit more than these handles.
 	if willInheritHandles {
-		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&fd[0]), uintptr(len(fd))*unsafe.Sizeof(fd[0]), nil, nil)
+		err = procAttrList.update(_PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&fd[0]), uintptr(len(fd))*unsafe.Sizeof(fd[0]))
 		if err != nil {
 			return 0, 0, err
 		}
 	}
 
+	envBlock, err := createEnvBlock(attr.Env)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	si.ProcThreadAttributeList = procAttrList.list()
 	pi := new(ProcessInformation)
 	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT | _EXTENDED_STARTUPINFO_PRESENT
 	if sys.Token != 0 {
-		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
+		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, &envBlock[0], dirp, &si.StartupInfo, pi)
 	} else {
-		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
+		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, &envBlock[0], dirp, &si.StartupInfo, pi)
 	}
 	if err != nil {
 		return 0, 0, err

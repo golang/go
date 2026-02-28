@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file is like map.go2, but instead if importing chans, it contains
+// This file is like map.go, but instead of importing chans, it contains
 // the necessary functionality at the end of the file.
 
 // Package orderedmap provides an ordered map, implemented as a binary tree.
@@ -23,7 +23,7 @@ type node[K, V any] struct {
 
 // New returns a new map.
 func New[K, V any](compare func(K, K) int) *Map[K, V] {
-        return &Map[K, V]{compare: compare}
+	return &Map[K, V]{compare: compare}
 }
 
 // find looks up key in the map, and returns either a pointer
@@ -85,7 +85,7 @@ func (m *Map[K, V]) InOrder() *Iterator[K, V] {
 		// Stop sending values if sender.Send returns false,
 		// meaning that nothing is listening at the receiver end.
 		return f(n.left) &&
-                        sender.Send(keyValue[K, V]{n.key, n.val}) &&
+			sender.Send(keyValue[K, V]{n.key, n.val}) &&
 			f(n.right)
 	}
 	go func() {
@@ -119,7 +119,7 @@ func chans_Ranger[T any]() (*chans_Sender[T], *chans_Receiver[T])
 // A sender is used to send values to a Receiver.
 type chans_Sender[T any] struct {
 	values chan<- T
-	done <-chan bool
+	done   <-chan bool
 }
 
 func (s *chans_Sender[T]) Send(v T) bool {
@@ -137,7 +137,7 @@ func (s *chans_Sender[T]) Close() {
 
 type chans_Receiver[T any] struct {
 	values <-chan T
-	done chan<- bool
+	done   chan<- bool
 }
 
 func (r *chans_Receiver[T]) Next() (T, bool) {

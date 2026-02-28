@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 	"testing/iotest"
+	"testing/synctest"
 	"time"
 )
 
@@ -629,7 +630,7 @@ func TestRequestWrite(t *testing.T) {
 			tt.Req.Header = make(Header)
 		}
 
-		var braw bytes.Buffer
+		var braw strings.Builder
 		err := tt.Req.Write(&braw)
 		if g, e := fmt.Sprintf("%v", err), fmt.Sprintf("%v", tt.WantError); g != e {
 			t.Errorf("writing #%d, err = %q, want %q", i, g, e)
@@ -649,7 +650,7 @@ func TestRequestWrite(t *testing.T) {
 
 		if tt.WantProxy != "" {
 			setBody()
-			var praw bytes.Buffer
+			var praw strings.Builder
 			err = tt.Req.WriteProxy(&praw)
 			if err != nil {
 				t.Errorf("WriteProxy #%d: %s", i, err)
@@ -667,6 +668,13 @@ func TestRequestWrite(t *testing.T) {
 func TestRequestWriteTransport(t *testing.T) {
 	t.Parallel()
 
+	// Run this test in a synctest bubble, since it relies on the transport
+	// successfully probing the request body within 200ms
+	// (see transferWriter.probeRequestBody).
+	// This occasionally flakes on slow builders (#52575) if we don't use a fake clock.
+	synctest.Test(t, testRequestWriteTransport)
+}
+func testRequestWriteTransport(t *testing.T) {
 	matchSubstr := func(substr string) func(string) error {
 		return func(written string) error {
 			if !strings.Contains(written, substr) {
@@ -815,7 +823,7 @@ func TestRequestWriteClosesBody(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 	if err := req.Write(buf); err != nil {
 		t.Error(err)
 	}

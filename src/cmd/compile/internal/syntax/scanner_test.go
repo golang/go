@@ -88,10 +88,10 @@ func TestEmbeddedTokens(t *testing.T) {
 	// make source
 	var buf bytes.Buffer
 	for i, s := range sampleTokens {
-		buf.WriteString("\t\t\t\t"[:i&3])                            // leading indentation
-		buf.WriteString(s.src)                                       // token
-		buf.WriteString("        "[:i&7])                            // trailing spaces
-		buf.WriteString(fmt.Sprintf("/*line foo:%d */ // bar\n", i)) // comments + newline (don't crash w/o directive handler)
+		buf.WriteString("\t\t\t\t"[:i&3])                 // leading indentation
+		buf.WriteString(s.src)                            // token
+		buf.WriteString("        "[:i&7])                 // trailing spaces
+		fmt.Fprintf(&buf, "/*line foo:%d */ // bar\n", i) // comments + newline (don't crash w/o directive handler)
 	}
 
 	// scan source

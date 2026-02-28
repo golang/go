@@ -13,12 +13,6 @@ func AsPointer(t Type) *Pointer {
 	return u
 }
 
-// If t is a signature, AsSignature returns that type, otherwise it returns nil.
-func AsSignature(t Type) *Signature {
-	u, _ := t.Underlying().(*Signature)
-	return u
-}
-
 // If typ is a type parameter, CoreType returns the single underlying
 // type of all types in the corresponding type constraint if it exists, or
 // nil otherwise. If the type set contains only unrestricted and restricted
@@ -26,5 +20,14 @@ func AsSignature(t Type) *Signature {
 // is the restricted channel type if the restrictions are always the same.
 // If typ is not a type parameter, CoreType returns the underlying type.
 func CoreType(t Type) Type {
-	return coreType(t)
+	u, _ := commonUnder(t, nil)
+	return u
+}
+
+// RangeKeyVal returns the key and value types for a range over typ.
+// It panics if range over typ is invalid.
+func RangeKeyVal(typ Type) (Type, Type) {
+	key, val, _, ok := rangeKeyVal(nil, typ, nil)
+	assert(ok)
+	return key, val
 }

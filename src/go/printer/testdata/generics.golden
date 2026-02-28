@@ -45,6 +45,8 @@ type _[P T | T] struct{}
 type _[P T | T | T | T] struct{}
 type _[P *T, _ any] struct{}
 type _[P *T,] struct{}
+type _[P *T,] struct{}
+type _[P ~int] struct{}
 type _[P *T, _ any] struct{}
 type _[P T] struct{}
 type _[P T, _ any] struct{}

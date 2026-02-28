@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/runtime/sys"
+	"unsafe"
+)
 
 type mts struct {
 	tv_sec  int64
@@ -18,9 +21,8 @@ type mscratch struct {
 type mOS struct {
 	waitsema uintptr // semaphore for parking on locks
 	perrno   *int32  // pointer to tls errno
-	// these are here because they are too large to be on the stack
-	// of low-level NOSPLIT functions.
-	//LibCall       libcall;
+	// This is here to avoid using the G stack so the stack can move during the call.
+	libcall libcall
 	ts      mts
 	scratch mscratch
 }
@@ -42,10 +44,10 @@ func sysvicall0(fn *libcFunc) uintptr {
 	}
 	if mp != nil && mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
-		mp.libcallsp = getcallersp()
+		mp.libcallsp = sys.GetCallerSP()
 	} else {
 		mp = nil // See comment in sys_darwin.go:libcCall
 	}
@@ -67,10 +69,10 @@ func sysvicall1(fn *libcFunc, a1 uintptr) uintptr {
 	return r1
 }
 
-//go:nosplit
-
 // sysvicall1Err returns both the system call result and the errno value.
 // This is used by sysvicall1 and pipe.
+//
+//go:nosplit
 func sysvicall1Err(fn *libcFunc, a1 uintptr) (r1, err uintptr) {
 	// Leave caller's PC/SP around for traceback.
 	gp := getg()
@@ -80,10 +82,10 @@ func sysvicall1Err(fn *libcFunc, a1 uintptr) (r1, err uintptr) {
 	}
 	if mp != nil && mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
-		mp.libcallsp = getcallersp()
+		mp.libcallsp = sys.GetCallerSP()
 	} else {
 		mp = nil
 	}
@@ -120,10 +122,10 @@ func sysvicall2Err(fn *libcFunc, a1, a2 uintptr) (uintptr, uintptr) {
 	}
 	if mp != nil && mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
-		mp.libcallsp = getcallersp()
+		mp.libcallsp = sys.GetCallerSP()
 	} else {
 		mp = nil
 	}
@@ -149,7 +151,7 @@ func sysvicall3(fn *libcFunc, a1, a2, a3 uintptr) uintptr {
 //go:cgo_unsafe_args
 
 // sysvicall3Err returns both the system call result and the errno value.
-// This is used by sysicall3 and write1.
+// This is used by sysvicall3 and write1.
 func sysvicall3Err(fn *libcFunc, a1, a2, a3 uintptr) (r1, err uintptr) {
 	// Leave caller's PC/SP around for traceback.
 	gp := getg()
@@ -159,10 +161,10 @@ func sysvicall3Err(fn *libcFunc, a1, a2, a3 uintptr) (r1, err uintptr) {
 	}
 	if mp != nil && mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
-		mp.libcallsp = getcallersp()
+		mp.libcallsp = sys.GetCallerSP()
 	} else {
 		mp = nil
 	}
@@ -189,10 +191,10 @@ func sysvicall4(fn *libcFunc, a1, a2, a3, a4 uintptr) uintptr {
 	}
 	if mp != nil && mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
-		mp.libcallsp = getcallersp()
+		mp.libcallsp = sys.GetCallerSP()
 	} else {
 		mp = nil
 	}
@@ -219,10 +221,10 @@ func sysvicall5(fn *libcFunc, a1, a2, a3, a4, a5 uintptr) uintptr {
 	}
 	if mp != nil && mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
-		mp.libcallsp = getcallersp()
+		mp.libcallsp = sys.GetCallerSP()
 	} else {
 		mp = nil
 	}
@@ -249,10 +251,10 @@ func sysvicall6(fn *libcFunc, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 	}
 	if mp != nil && mp.libcallsp == 0 {
 		mp.libcallg.set(gp)
-		mp.libcallpc = getcallerpc()
+		mp.libcallpc = sys.GetCallerPC()
 		// sp must be the last, because once async cpu profiler finds
 		// all three values to be non-zero, it will use them
-		mp.libcallsp = getcallersp()
+		mp.libcallsp = sys.GetCallerSP()
 	} else {
 		mp = nil
 	}
@@ -266,4 +268,8 @@ func sysvicall6(fn *libcFunc, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 		mp.libcallsp = 0
 	}
 	return libcall.r1
+}
+
+func issetugid() int32 {
+	return int32(sysvicall0(&libc_issetugid))
 }

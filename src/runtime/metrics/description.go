@@ -4,6 +4,8 @@
 
 package metrics
 
+import "internal/godebugs"
+
 // Description describes a runtime metric.
 type Description struct {
 	// Name is the full name of the metric which includes the unit.
@@ -49,13 +51,144 @@ type Description struct {
 }
 
 // The English language descriptions below must be kept in sync with the
-// descriptions of each metric in doc.go.
+// descriptions of each metric in doc.go by running 'go generate'.
 var allDesc = []Description{
 	{
 		Name:        "/cgo/go-to-c-calls:calls",
 		Description: "Count of calls made from Go to C by the current process.",
 		Kind:        KindUint64,
 		Cumulative:  true,
+	},
+	{
+		Name: "/cpu/classes/gc/mark/assist:cpu-seconds",
+		Description: "Estimated total CPU time goroutines spent performing GC tasks " +
+			"to assist the GC and prevent it from falling behind the application. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/gc/mark/dedicated:cpu-seconds",
+		Description: "Estimated total CPU time spent performing GC tasks on " +
+			"processors (as defined by GOMAXPROCS) dedicated to those tasks. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/gc/mark/idle:cpu-seconds",
+		Description: "Estimated total CPU time spent performing GC tasks on " +
+			"spare CPU resources that the Go scheduler could not otherwise find " +
+			"a use for. This should be subtracted from the total GC CPU time to " +
+			"obtain a measure of compulsory GC CPU time. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/gc/pause:cpu-seconds",
+		Description: "Estimated total CPU time spent with the application paused by " +
+			"the GC. Even if only one thread is running during the pause, this is " +
+			"computed as GOMAXPROCS times the pause latency because nothing else " +
+			"can be executing. This is the exact sum of samples in " +
+			"/sched/pauses/total/gc:seconds if each sample is multiplied by " +
+			"GOMAXPROCS at the time it is taken. This metric is an overestimate, " +
+			"and not directly comparable to system CPU time measurements. Compare " +
+			"only with other /cpu/classes metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/gc/total:cpu-seconds",
+		Description: "Estimated total CPU time spent performing GC tasks. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics. Sum of all metrics in /cpu/classes/gc.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/idle:cpu-seconds",
+		Description: "Estimated total available CPU time not spent executing any Go or Go runtime code. " +
+			"In other words, the part of /cpu/classes/total:cpu-seconds that was unused. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/scavenge/assist:cpu-seconds",
+		Description: "Estimated total CPU time spent returning unused memory to the " +
+			"underlying platform in response eagerly to memory pressure. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/scavenge/background:cpu-seconds",
+		Description: "Estimated total CPU time spent performing background tasks " +
+			"to return unused memory to the underlying platform. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/scavenge/total:cpu-seconds",
+		Description: "Estimated total CPU time spent performing tasks that return " +
+			"unused memory to the underlying platform. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics. Sum of all metrics in /cpu/classes/scavenge.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/total:cpu-seconds",
+		Description: "Estimated total available CPU time for user Go code " +
+			"or the Go runtime, as defined by GOMAXPROCS. In other words, GOMAXPROCS " +
+			"integrated over the wall-clock duration this process has been executing for. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics. Sum of all metrics in /cpu/classes.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/cpu/classes/user:cpu-seconds",
+		Description: "Estimated total CPU time spent running user Go code. This may " +
+			"also include some small amount of time spent in the Go runtime. " +
+			"This metric is an overestimate, and not directly comparable to " +
+			"system CPU time measurements. Compare only with other /cpu/classes " +
+			"metrics.",
+		Kind:       KindFloat64,
+		Cumulative: true,
+	},
+	{
+		Name: "/gc/cleanups/executed:cleanups",
+		Description: "Approximate total count of cleanup functions (created by runtime.AddCleanup) " +
+			"executed by the runtime. Subtract /gc/cleanups/queued:cleanups to approximate " +
+			"cleanup queue length. Useful for detecting slow cleanups holding up the queue.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/gc/cleanups/queued:cleanups",
+		Description: "Approximate total count of cleanup functions (created by runtime.AddCleanup) " +
+			"queued by the runtime for execution. Subtract from /gc/cleanups/executed:cleanups " +
+			"to approximate cleanup queue length. Useful for detecting slow cleanups holding up the queue.",
+		Kind:       KindUint64,
+		Cumulative: true,
 	},
 	{
 		Name:        "/gc/cycles/automatic:gc-cycles",
@@ -76,8 +209,40 @@ var allDesc = []Description{
 		Cumulative:  true,
 	},
 	{
+		Name: "/gc/finalizers/executed:finalizers",
+		Description: "Total count of finalizer functions (created by runtime.SetFinalizer) " +
+			"executed by the runtime. Subtract /gc/finalizers/queued:finalizers to approximate " +
+			"finalizer queue length. Useful for detecting finalizers overwhelming the queue, " +
+			"either by being too slow, or by there being too many of them.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/gc/finalizers/queued:finalizers",
+		Description: "Total count of finalizer functions (created by runtime.SetFinalizer) and " +
+			"queued by the runtime for execution. Subtract from /gc/finalizers/executed:finalizers " +
+			"to approximate finalizer queue length. Useful for detecting slow finalizers holding up the queue.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/gc/gogc:percent",
+		Description: "Heap size target percentage configured by the user, otherwise 100. This " +
+			"value is set by the GOGC environment variable, and the runtime/debug.SetGCPercent " +
+			"function.",
+		Kind: KindUint64,
+	},
+	{
+		Name: "/gc/gomemlimit:bytes",
+		Description: "Go runtime memory limit configured by the user, otherwise " +
+			"math.MaxInt64. This value is set by the GOMEMLIMIT environment variable, and " +
+			"the runtime/debug.SetMemoryLimit function.",
+		Kind: KindUint64,
+	},
+	{
 		Name: "/gc/heap/allocs-by-size:bytes",
 		Description: "Distribution of heap allocations by approximate size. " +
+			"Bucket counts increase monotonically. " +
 			"Note that this does not include tiny objects as defined by " +
 			"/gc/heap/tiny/allocs:objects, only tiny blocks.",
 		Kind:       KindFloat64Histogram,
@@ -100,6 +265,7 @@ var allDesc = []Description{
 	{
 		Name: "/gc/heap/frees-by-size:bytes",
 		Description: "Distribution of freed heap allocations by approximate size. " +
+			"Bucket counts increase monotonically. " +
 			"Note that this does not include tiny objects as defined by " +
 			"/gc/heap/tiny/allocs:objects, only tiny blocks.",
 		Kind:       KindFloat64Histogram,
@@ -123,6 +289,11 @@ var allDesc = []Description{
 	{
 		Name:        "/gc/heap/goal:bytes",
 		Description: "Heap size target for the end of the GC cycle.",
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/gc/heap/live:bytes",
+		Description: "Heap memory occupied by live objects that were marked by the previous GC.",
 		Kind:        KindUint64,
 	},
 	{
@@ -151,9 +322,29 @@ var allDesc = []Description{
 	},
 	{
 		Name:        "/gc/pauses:seconds",
-		Description: "Distribution individual GC-related stop-the-world pause latencies.",
+		Description: "Deprecated. Prefer the identical /sched/pauses/total/gc:seconds.",
 		Kind:        KindFloat64Histogram,
 		Cumulative:  true,
+	},
+	{
+		Name:        "/gc/scan/globals:bytes",
+		Description: "The total amount of global variable space that is scannable.",
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/gc/scan/heap:bytes",
+		Description: "The total amount of heap space that is scannable.",
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/gc/scan/stack:bytes",
+		Description: "The number of bytes of stack that were scanned last GC cycle.",
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/gc/scan/total:bytes",
+		Description: "The total amount space that is scannable. Sum of all metrics in /gc/scan.",
+		Kind:        KindUint64,
 	},
 	{
 		Name:        "/gc/stack/starting-size:bytes",
@@ -181,9 +372,11 @@ var allDesc = []Description{
 		Kind: KindUint64,
 	},
 	{
-		Name:        "/memory/classes/heap/stacks:bytes",
-		Description: "Memory allocated from the heap that is reserved for stack space, whether or not it is currently in-use.",
-		Kind:        KindUint64,
+		Name: "/memory/classes/heap/stacks:bytes",
+		Description: "Memory allocated from the heap that is reserved for stack space, whether or not it is currently in-use. " +
+			"Currently, this represents all stack memory for goroutines. It also includes all OS thread stacks in non-cgo programs. " +
+			"Note that stacks may be allocated differently in the future, and this may change.",
+		Kind: KindUint64,
 	},
 	{
 		Name:        "/memory/classes/heap/unused:bytes",
@@ -216,9 +409,13 @@ var allDesc = []Description{
 		Kind:        KindUint64,
 	},
 	{
-		Name:        "/memory/classes/os-stacks:bytes",
-		Description: "Stack memory allocated by the underlying operating system.",
-		Kind:        KindUint64,
+		Name: "/memory/classes/os-stacks:bytes",
+		Description: "Stack memory allocated by the underlying operating system. " +
+			"In non-cgo programs this metric is currently zero. This may change in the future." +
+			"In cgo programs this metric includes OS thread stacks allocated directly from the OS. " +
+			"Currently, this only accounts for one stack in c-shared and c-archive build modes, " +
+			"and other sources of stacks from the OS are not measured. This too may change in the future.",
+		Kind: KindUint64,
 	},
 	{
 		Name:        "/memory/classes/other:bytes",
@@ -241,15 +438,101 @@ var allDesc = []Description{
 		Kind:        KindUint64,
 	},
 	{
+		Name:        "/sched/goroutines-created:goroutines",
+		Description: "Count of goroutines created since program start.",
+		Cumulative:  true,
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/sched/goroutines/not-in-go:goroutines",
+		Description: "Approximate count of goroutines running or blocked in a system call or cgo call. Not guaranteed to add up to /sched/goroutines:goroutines with other goroutine metrics.",
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/sched/goroutines/runnable:goroutines",
+		Description: "Approximate count of goroutines ready to execute, but not executing. Not guaranteed to add up to /sched/goroutines:goroutines with other goroutine metrics.",
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/sched/goroutines/running:goroutines",
+		Description: "Approximate count of goroutines executing. Always less than or equal to /sched/gomaxprocs:threads. Not guaranteed to add up to /sched/goroutines:goroutines with other goroutine metrics.",
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/sched/goroutines/waiting:goroutines",
+		Description: "Approximate count of goroutines waiting on a resource (I/O or sync primitives). Not guaranteed to add up to /sched/goroutines:goroutines with other goroutine metrics.",
+		Kind:        KindUint64,
+	},
+	{
 		Name:        "/sched/goroutines:goroutines",
 		Description: "Count of live goroutines.",
 		Kind:        KindUint64,
 	},
 	{
 		Name:        "/sched/latencies:seconds",
-		Description: "Distribution of the time goroutines have spent in the scheduler in a runnable state before actually running.",
+		Description: "Distribution of the time goroutines have spent in the scheduler in a runnable state before actually running. Bucket counts increase monotonically.",
 		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
 	},
+	{
+		Name:        "/sched/pauses/stopping/gc:seconds",
+		Description: "Distribution of individual GC-related stop-the-world stopping latencies. This is the time it takes from deciding to stop the world until all Ps are stopped. This is a subset of the total GC-related stop-the-world time (/sched/pauses/total/gc:seconds). During this time, some threads may be executing. Bucket counts increase monotonically.",
+		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
+	},
+	{
+		Name:        "/sched/pauses/stopping/other:seconds",
+		Description: "Distribution of individual non-GC-related stop-the-world stopping latencies. This is the time it takes from deciding to stop the world until all Ps are stopped. This is a subset of the total non-GC-related stop-the-world time (/sched/pauses/total/other:seconds). During this time, some threads may be executing. Bucket counts increase monotonically.",
+		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
+	},
+	{
+		Name:        "/sched/pauses/total/gc:seconds",
+		Description: "Distribution of individual GC-related stop-the-world pause latencies. This is the time from deciding to stop the world until the world is started again. Some of this time is spent getting all threads to stop (this is measured directly in /sched/pauses/stopping/gc:seconds), during which some threads may still be running. Bucket counts increase monotonically.",
+		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
+	},
+	{
+		Name:        "/sched/pauses/total/other:seconds",
+		Description: "Distribution of individual non-GC-related stop-the-world pause latencies. This is the time from deciding to stop the world until the world is started again. Some of this time is spent getting all threads to stop (measured directly in /sched/pauses/stopping/other:seconds). Bucket counts increase monotonically.",
+		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
+	},
+	{
+		Name:        "/sched/threads/total:threads",
+		Description: "The current count of live threads that are owned by the Go runtime.",
+		Kind:        KindUint64,
+	},
+	{
+		Name:        "/sync/mutex/wait/total:seconds",
+		Description: "Approximate cumulative time goroutines have spent blocked on a sync.Mutex, sync.RWMutex, or runtime-internal lock. This metric is useful for identifying global changes in lock contention. Collect a mutex or block profile using the runtime/pprof package for more detailed contention data.",
+		Kind:        KindFloat64,
+		Cumulative:  true,
+	},
+}
+
+func init() {
+	// Insert all the non-default-reporting GODEBUGs into the table,
+	// preserving the overall sort order.
+	i := 0
+	for i < len(allDesc) && allDesc[i].Name < "/godebug/" {
+		i++
+	}
+	more := make([]Description, i, len(allDesc)+len(godebugs.All))
+	copy(more, allDesc)
+	for _, info := range godebugs.All {
+		if !info.Opaque {
+			more = append(more, Description{
+				Name: "/godebug/non-default-behavior/" + info.Name + ":events",
+				Description: "The number of non-default behaviors executed by the " +
+					info.Package + " package " + "due to a non-default " +
+					"GODEBUG=" + info.Name + "=... setting.",
+				Kind:       KindUint64,
+				Cumulative: true,
+			})
+		}
+	}
+	allDesc = append(more, allDesc[i:]...)
 }
 
 // All returns a slice of containing metric descriptions for all supported metrics.

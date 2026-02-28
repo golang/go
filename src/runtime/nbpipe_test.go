@@ -14,23 +14,29 @@ import (
 )
 
 func TestNonblockingPipe(t *testing.T) {
-	t.Parallel()
-
 	// NonblockingPipe is the test name for nonblockingPipe.
 	r, w, errno := runtime.NonblockingPipe()
 	if errno != 0 {
 		t.Fatal(syscall.Errno(errno))
 	}
-	defer func() {
-		runtime.Close(r)
-		runtime.Close(w)
-	}()
+	defer runtime.Close(w)
 
 	checkIsPipe(t, r, w)
 	checkNonblocking(t, r, "reader")
 	checkCloseonexec(t, r, "reader")
 	checkNonblocking(t, w, "writer")
 	checkCloseonexec(t, w, "writer")
+
+	// Test that fcntl returns an error as expected.
+	if runtime.Close(r) != 0 {
+		t.Fatalf("Close(%d) failed", r)
+	}
+	val, errno := runtime.Fcntl(r, syscall.F_GETFD, 0)
+	if val != -1 {
+		t.Errorf("Fcntl succeeded unexpectedly")
+	} else if syscall.Errno(errno) != syscall.EBADF {
+		t.Errorf("Fcntl failed with error %v, expected %v", syscall.Errno(errno), syscall.EBADF)
+	}
 }
 
 func checkIsPipe(t *testing.T, r, w int32) {
@@ -49,8 +55,8 @@ func checkIsPipe(t *testing.T, r, w int32) {
 
 func checkNonblocking(t *testing.T, fd int32, name string) {
 	t.Helper()
-	flags, errno := fcntl(uintptr(fd), syscall.F_GETFL, 0)
-	if errno != 0 {
+	flags, errno := runtime.Fcntl(fd, syscall.F_GETFL, 0)
+	if flags == -1 {
 		t.Errorf("fcntl(%s, F_GETFL) failed: %v", name, syscall.Errno(errno))
 	} else if flags&syscall.O_NONBLOCK == 0 {
 		t.Errorf("O_NONBLOCK not set in %s flags %#x", name, flags)
@@ -59,8 +65,8 @@ func checkNonblocking(t *testing.T, fd int32, name string) {
 
 func checkCloseonexec(t *testing.T, fd int32, name string) {
 	t.Helper()
-	flags, errno := fcntl(uintptr(fd), syscall.F_GETFD, 0)
-	if errno != 0 {
+	flags, errno := runtime.Fcntl(fd, syscall.F_GETFD, 0)
+	if flags == -1 {
 		t.Errorf("fcntl(%s, F_GETFD) failed: %v", name, syscall.Errno(errno))
 	} else if flags&syscall.FD_CLOEXEC == 0 {
 		t.Errorf("FD_CLOEXEC not set in %s flags %#x", name, flags)

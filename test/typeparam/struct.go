@@ -21,6 +21,7 @@ type S1 struct {
 
 type Eint = E[int]
 type Ebool = E[bool]
+type Eint2 = Eint
 
 type S2 struct {
 	Eint

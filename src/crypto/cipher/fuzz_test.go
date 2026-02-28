@@ -43,7 +43,7 @@ func TestFuzz(t *testing.T) {
 		c, _ := aes.NewCipher(ft.key)
 
 		cbcAsm := cipher.NewCBCEncrypter(c, commonIV)
-		cbcGeneric := cipher.NewCBCGenericEncrypter(c, commonIV)
+		cbcGeneric := cipher.NewCBCEncrypter(wrap(c), commonIV)
 
 		if testing.Short() {
 			timeout = time.NewTimer(10 * time.Millisecond)
@@ -74,7 +74,7 @@ func TestFuzz(t *testing.T) {
 		}
 
 		cbcAsm = cipher.NewCBCDecrypter(c, commonIV)
-		cbcGeneric = cipher.NewCBCGenericDecrypter(c, commonIV)
+		cbcGeneric = cipher.NewCBCDecrypter(wrap(c), commonIV)
 
 		if testing.Short() {
 			timeout = time.NewTimer(10 * time.Millisecond)

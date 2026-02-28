@@ -8,13 +8,17 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"internal/obscuretestdata"
 	"io"
+	"io/fs"
+	"maps"
 	"os"
 	"path"
-	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"testing/iotest"
 	"time"
 )
@@ -71,8 +75,9 @@ func TestWriter(t *testing.T) {
 	)
 
 	vectors := []struct {
-		file  string // Optional filename of expected output
-		tests []testFnc
+		file     string // Optional filename of expected output
+		obscured bool   // Whether file is obscured
+		tests    []testFnc
 	}{{
 		// The writer test file was produced with this command:
 		// tar (GNU tar) 1.26
@@ -148,7 +153,8 @@ func TestWriter(t *testing.T) {
 		//  bsdtar -xvf writer-big-long.tar
 		//
 		// This file is in PAX format.
-		file: "testdata/writer-big-long.tar",
+		file:     "testdata/writer-big-long.tar.base64",
+		obscured: true,
 		tests: []testFnc{
 			testHeader{Header{
 				Typeflag: TypeReg,
@@ -390,7 +396,8 @@ func TestWriter(t *testing.T) {
 					testClose{},
 				},
 			}, {
-				file: "testdata/gnu-sparse-big.tar",
+				file:     "testdata/gnu-sparse-big.tar.base64",
+				obscured: true,
 				tests: []testFnc{
 					testHeader{Header{
 						Typeflag: TypeGNUSparse,
@@ -422,7 +429,8 @@ func TestWriter(t *testing.T) {
 					testClose{nil},
 				},
 			}, {
-				file: "testdata/pax-sparse-big.tar",
+				file:     "testdata/pax-sparse-big.tar.base64",
+				obscured: true,
 				tests: []testFnc{
 					testHeader{Header{
 						Typeflag: TypeReg,
@@ -480,7 +488,7 @@ func TestWriter(t *testing.T) {
 		return x == y
 	}
 	for _, v := range vectors {
-		t.Run(path.Base(v.file), func(t *testing.T) {
+		t.Run(strings.TrimSuffix(path.Base(v.file), ".base64"), func(t *testing.T) {
 			const maxSize = 10 << 10 // 10KiB
 			buf := new(bytes.Buffer)
 			tw := NewWriter(iotest.TruncateWriter(buf, maxSize))
@@ -519,7 +527,16 @@ func TestWriter(t *testing.T) {
 			}
 
 			if v.file != "" {
-				want, err := os.ReadFile(v.file)
+				path := v.file
+				if v.obscured {
+					tf, err := obscuretestdata.DecodeToTempFile(path)
+					if err != nil {
+						t.Fatalf("obscuretestdata.DecodeToTempFile(%s): %v", path, err)
+					}
+					path = tf
+				}
+
+				want, err := os.ReadFile(path)
 				if err != nil {
 					t.Fatalf("ReadFile() = %v, want nil", err)
 				}
@@ -579,10 +596,10 @@ func TestPaxSymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 	hdr, err := FileInfoHeader(fileinfo, "")
-	hdr.Typeflag = TypeSymlink
 	if err != nil {
 		t.Fatalf("os.Stat:1 %v", err)
 	}
+	hdr.Typeflag = TypeSymlink
 	// Force a PAX long linkname to be written
 	longLinkname := strings.Repeat("1234567890/1234567890", 10)
 	hdr.Linkname = longLinkname
@@ -700,7 +717,7 @@ func TestPaxXattrs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(hdr.Xattrs, xattrs) {
+	if !maps.Equal(hdr.Xattrs, xattrs) {
 		t.Fatalf("xattrs did not survive round trip: got %+v, want %+v",
 			hdr.Xattrs, xattrs)
 	}
@@ -747,7 +764,7 @@ func TestPaxHeadersSorted(t *testing.T) {
 		bytes.Index(buf.Bytes(), []byte("foo=foo")),
 		bytes.Index(buf.Bytes(), []byte("qux=qux")),
 	}
-	if !sort.IntsAreSorted(indices) {
+	if !slices.IsSorted(indices) {
 		t.Fatal("PAX headers are not sorted")
 	}
 }
@@ -759,10 +776,10 @@ func TestUSTARLongName(t *testing.T) {
 		t.Fatal(err)
 	}
 	hdr, err := FileInfoHeader(fileinfo, "")
-	hdr.Typeflag = TypeDir
 	if err != nil {
 		t.Fatalf("os.Stat:1 %v", err)
 	}
+	hdr.Typeflag = TypeDir
 	// Force a PAX long name to be written. The name was taken from a practical example
 	// that fails and replaced ever char through numbers to anonymize the sample.
 	longName := "/0000_0000000/00000-000000000/0000_0000000/00000-0000000000000/0000_0000000/00000-0000000-00000000/0000_0000000/00000000/0000_0000000/000/0000_0000000/00000000v00/0000_0000000/000000/0000_0000000/0000000/0000_0000000/00000y-00/0000/0000/00000000/0x000000/"
@@ -780,7 +797,7 @@ func TestUSTARLongName(t *testing.T) {
 	// Test that we can get a long name back out of the archive.
 	reader := NewReader(&buf)
 	hdr, err = reader.Next()
-	if err != nil {
+	if err != nil && err != ErrInsecurePath {
 		t.Fatal(err)
 	}
 	if hdr.Name != longName {
@@ -995,11 +1012,38 @@ func TestIssue12594(t *testing.T) {
 
 		tr := NewReader(&b)
 		hdr, err := tr.Next()
-		if err != nil {
+		if err != nil && err != ErrInsecurePath {
 			t.Errorf("test %d, unexpected Next error: %v", i, err)
 		}
 		if hdr.Name != name {
 			t.Errorf("test %d, hdr.Name = %s, want %s", i, hdr.Name, name)
+		}
+	}
+}
+
+func TestWriteLongHeader(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		h    *Header
+	}{{
+		name: "name too long",
+		h:    &Header{Name: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "linkname too long",
+		h:    &Header{Linkname: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "uname too long",
+		h:    &Header{Uname: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "gname too long",
+		h:    &Header{Gname: strings.Repeat("a", maxSpecialFileSize)},
+	}, {
+		name: "PAX header too long",
+		h:    &Header{PAXRecords: map[string]string{"GOLANG.x": strings.Repeat("a", maxSpecialFileSize)}},
+	}} {
+		w := NewWriter(io.Discard)
+		if err := w.WriteHeader(test.h); err != ErrFieldTooLong {
+			t.Errorf("%v: w.WriteHeader() = %v, want ErrFieldTooLong", test.name, err)
 		}
 	}
 }
@@ -1252,7 +1296,7 @@ func TestFileWriter(t *testing.T) {
 
 	for i, v := range vectors {
 		var wantStr string
-		bb := new(bytes.Buffer)
+		bb := new(strings.Builder)
 		w := testNonEmptyWriter{bb}
 		var fw fileWriter
 		switch maker := v.maker.(type) {
@@ -1304,5 +1348,101 @@ func TestFileWriter(t *testing.T) {
 		if got := bb.String(); got != wantStr {
 			t.Fatalf("test %d, String() = %q, want %q", i, got, wantStr)
 		}
+	}
+}
+
+func TestWriterAddFS(t *testing.T) {
+	fsys := fstest.MapFS{
+		"emptyfolder":          {Mode: 0o755 | os.ModeDir},
+		"file.go":              {Data: []byte("hello")},
+		"subfolder/another.go": {Data: []byte("world")},
+		"symlink.go":           {Mode: 0o777 | os.ModeSymlink, Data: []byte("file.go")},
+		// Notably missing here is the "subfolder" directory. This makes sure even
+		// if we don't have a subfolder directory listed.
+	}
+	var buf bytes.Buffer
+	tw := NewWriter(&buf)
+	if err := tw.AddFS(fsys); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Add subfolder into fsys to match what we'll read from the tar.
+	fsys["subfolder"] = &fstest.MapFile{Mode: 0o555 | os.ModeDir}
+
+	// Test that we can get the files back from the archive
+	tr := NewReader(&buf)
+
+	names := make([]string, 0, len(fsys))
+	for name := range fsys {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	entriesLeft := len(fsys)
+	for _, name := range names {
+		entriesLeft--
+
+		entryInfo, err := fsys.Lstat(name)
+		if err != nil {
+			t.Fatalf("getting entry info error: %v", err)
+		}
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break // End of archive
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tmpName := name
+		if entryInfo.IsDir() {
+			tmpName += "/"
+		}
+		if hdr.Name != tmpName {
+			t.Errorf("test fs has filename %v; archive header has %v",
+				name, hdr.Name)
+		}
+
+		if entryInfo.Mode() != hdr.FileInfo().Mode() {
+			t.Errorf("%s: test fs has mode %v; archive header has %v",
+				name, entryInfo.Mode(), hdr.FileInfo().Mode())
+		}
+
+		switch entryInfo.Mode().Type() {
+		case fs.ModeDir:
+			// No additional checks necessary.
+		case fs.ModeSymlink:
+			origtarget := string(fsys[name].Data)
+			if hdr.Linkname != origtarget {
+				t.Fatalf("test fs has link content %s; archive header %v", origtarget, hdr.Linkname)
+			}
+		default:
+			data, err := io.ReadAll(tr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			origdata := fsys[name].Data
+			if string(data) != string(origdata) {
+				t.Fatalf("test fs has file content %v; archive header has %v", origdata, data)
+			}
+		}
+	}
+	if entriesLeft > 0 {
+		t.Fatalf("not all entries are in the archive")
+	}
+}
+
+func TestWriterAddFSNonRegularFiles(t *testing.T) {
+	fsys := fstest.MapFS{
+		"device":  {Data: []byte("hello"), Mode: 0755 | fs.ModeDevice},
+		"symlink": {Data: []byte("world"), Mode: 0755 | fs.ModeSymlink},
+	}
+	var buf bytes.Buffer
+	tw := NewWriter(&buf)
+	if err := tw.AddFS(fsys); err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }

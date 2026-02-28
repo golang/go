@@ -13,11 +13,14 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/build/constraint"
 	"go/token"
+	"internal/syslist"
 	"io"
 	"io/fs"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -40,7 +43,7 @@ type Context struct {
 	Dir string
 
 	CgoEnabled  bool   // whether cgo files are included
-	UseAllFiles bool   // use files regardless of +build lines, file names
+	UseAllFiles bool   // use files regardless of //go:build lines, file names
 	Compiler    string // compiler to assume when computing target paths
 
 	// The build, tool, and release tags specify build constraints
@@ -114,175 +117,13 @@ func (ctxt *Context) joinPath(elem ...string) string {
 	return filepath.Join(elem...)
 }
 
-// splitPathList calls ctxt.SplitPathList (if not nil) or else filepath.SplitList.
-func (ctxt *Context) splitPathList(s string) []string {
-	if f := ctxt.SplitPathList; f != nil {
-		return f(s)
-	}
-	return filepath.SplitList(s)
-}
-
-// isAbsPath calls ctxt.IsAbsPath (if not nil) or else filepath.IsAbs.
-func (ctxt *Context) isAbsPath(path string) bool {
-	if f := ctxt.IsAbsPath; f != nil {
-		return f(path)
-	}
-	return filepath.IsAbs(path)
-}
-
-// isDir calls ctxt.IsDir (if not nil) or else uses fsys.Stat.
+// isDir reports whether path is a directory.
 func isDir(path string) bool {
 	fi, err := fsys.Stat(path)
 	return err == nil && fi.IsDir()
 }
 
-// hasSubdir calls ctxt.HasSubdir (if not nil) or else uses
-// the local file system to answer the question.
-func (ctxt *Context) hasSubdir(root, dir string) (rel string, ok bool) {
-	if f := ctxt.HasSubdir; f != nil {
-		return f(root, dir)
-	}
-
-	// Try using paths we received.
-	if rel, ok = hasSubdir(root, dir); ok {
-		return
-	}
-
-	// Try expanding symlinks and comparing
-	// expanded against unexpanded and
-	// expanded against expanded.
-	rootSym, _ := filepath.EvalSymlinks(root)
-	dirSym, _ := filepath.EvalSymlinks(dir)
-
-	if rel, ok = hasSubdir(rootSym, dir); ok {
-		return
-	}
-	if rel, ok = hasSubdir(root, dirSym); ok {
-		return
-	}
-	return hasSubdir(rootSym, dirSym)
-}
-
-// hasSubdir reports if dir is within root by performing lexical analysis only.
-func hasSubdir(root, dir string) (rel string, ok bool) {
-	const sep = string(filepath.Separator)
-	root = filepath.Clean(root)
-	if !strings.HasSuffix(root, sep) {
-		root += sep
-	}
-	dir = filepath.Clean(dir)
-	if !strings.HasPrefix(dir, root) {
-		return "", false
-	}
-	return filepath.ToSlash(dir[len(root):]), true
-}
-
-// gopath returns the list of Go path directories.
-func (ctxt *Context) gopath() []string {
-	var all []string
-	for _, p := range ctxt.splitPathList(ctxt.GOPATH) {
-		if p == "" || p == ctxt.GOROOT {
-			// Empty paths are uninteresting.
-			// If the path is the GOROOT, ignore it.
-			// People sometimes set GOPATH=$GOROOT.
-			// Do not get confused by this common mistake.
-			continue
-		}
-		if strings.HasPrefix(p, "~") {
-			// Path segments starting with ~ on Unix are almost always
-			// users who have incorrectly quoted ~ while setting GOPATH,
-			// preventing it from expanding to $HOME.
-			// The situation is made more confusing by the fact that
-			// bash allows quoted ~ in $PATH (most shells do not).
-			// Do not get confused by this, and do not try to use the path.
-			// It does not exist, and printing errors about it confuses
-			// those users even more, because they think "sure ~ exists!".
-			// The go command diagnoses this situation and prints a
-			// useful error.
-			// On Windows, ~ is used in short names, such as c:\progra~1
-			// for c:\program files.
-			continue
-		}
-		all = append(all, p)
-	}
-	return all
-}
-
 var defaultToolTags, defaultReleaseTags []string
-
-// A Package describes the Go package found in a directory.
-type Package struct {
-	Dir           string   // directory containing package sources
-	Name          string   // package name
-	ImportComment string   // path in import comment on package statement
-	Doc           string   // documentation synopsis
-	ImportPath    string   // import path of package ("" if unknown)
-	Root          string   // root of Go tree where this package lives
-	SrcRoot       string   // package source root directory ("" if unknown)
-	PkgRoot       string   // package install root directory ("" if unknown)
-	PkgTargetRoot string   // architecture dependent install root directory ("" if unknown)
-	BinDir        string   // command install directory ("" if unknown)
-	Goroot        bool     // package found in Go root
-	PkgObj        string   // installed .a file
-	AllTags       []string // tags that can influence file selection in this directory
-	ConflictDir   string   // this directory shadows Dir in $GOPATH
-	BinaryOnly    bool     // cannot be rebuilt from source (has //go:binary-only-package comment)
-
-	// Source files
-	GoFiles           []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-	CgoFiles          []string // .go source files that import "C"
-	IgnoredGoFiles    []string // .go source files ignored for this build (including ignored _test.go files)
-	InvalidGoFiles    []string // .go source files with detected problems (parse error, wrong package name, and so on)
-	IgnoredOtherFiles []string // non-.go source files ignored for this build
-	CFiles            []string // .c source files
-	CXXFiles          []string // .cc, .cpp and .cxx source files
-	MFiles            []string // .m (Objective-C) source files
-	HFiles            []string // .h, .hh, .hpp and .hxx source files
-	FFiles            []string // .f, .F, .for and .f90 Fortran source files
-	SFiles            []string // .s source files
-	SwigFiles         []string // .swig files
-	SwigCXXFiles      []string // .swigcxx files
-	SysoFiles         []string // .syso system object files to add to archive
-
-	// Cgo directives
-	CgoCFLAGS    []string // Cgo CFLAGS directives
-	CgoCPPFLAGS  []string // Cgo CPPFLAGS directives
-	CgoCXXFLAGS  []string // Cgo CXXFLAGS directives
-	CgoFFLAGS    []string // Cgo FFLAGS directives
-	CgoLDFLAGS   []string // Cgo LDFLAGS directives
-	CgoPkgConfig []string // Cgo pkg-config directives
-
-	// Test information
-	TestGoFiles  []string // _test.go files in package
-	XTestGoFiles []string // _test.go files outside package
-
-	// Dependency information
-	Imports        []string                    // import paths from GoFiles, CgoFiles
-	ImportPos      map[string][]token.Position // line information for Imports
-	TestImports    []string                    // import paths from TestGoFiles
-	TestImportPos  map[string][]token.Position // line information for TestImports
-	XTestImports   []string                    // import paths from XTestGoFiles
-	XTestImportPos map[string][]token.Position // line information for XTestImports
-
-	// //go:embed patterns found in Go source files
-	// For example, if a source file says
-	//	//go:embed a* b.c
-	// then the list will contain those two strings as separate entries.
-	// (See package embed for more details about //go:embed.)
-	EmbedPatterns        []string                    // patterns from GoFiles, CgoFiles
-	EmbedPatternPos      map[string][]token.Position // line information for EmbedPatterns
-	TestEmbedPatterns    []string                    // patterns from TestGoFiles
-	TestEmbedPatternPos  map[string][]token.Position // line information for TestEmbedPatterns
-	XTestEmbedPatterns   []string                    // patterns from XTestGoFiles
-	XTestEmbedPatternPos map[string][]token.Position // line information for XTestEmbedPatternPos
-}
-
-// IsCommand reports whether the package is considered a
-// command to be installed (not just a library).
-// Packages named "main" are treated as commands.
-func (p *Package) IsCommand() bool {
-	return p.Name == "main"
-}
 
 // NoGoError is the error used by Import to describe a directory
 // containing no buildable Go source files. (It may still contain
@@ -316,7 +157,7 @@ func nameExt(name string) string {
 	return name[i:]
 }
 
-func fileListForExt(p *Package, ext string) *[]string {
+func fileListForExt(p *build.Package, ext string) *[]string {
 	switch ext {
 	case ".c":
 		return &p.CFiles
@@ -340,125 +181,25 @@ func fileListForExt(p *Package, ext string) *[]string {
 	return nil
 }
 
-var errNoModules = errors.New("not using modules")
-
-func findImportComment(data []byte) (s string, line int) {
-	// expect keyword package
-	word, data := parseWord(data)
-	if string(word) != "package" {
-		return "", 0
-	}
-
-	// expect package name
-	_, data = parseWord(data)
-
-	// now ready for import comment, a // or /* */ comment
-	// beginning and ending on the current line.
-	for len(data) > 0 && (data[0] == ' ' || data[0] == '\t' || data[0] == '\r') {
-		data = data[1:]
-	}
-
-	var comment []byte
-	switch {
-	case bytes.HasPrefix(data, slashSlash):
-		comment, _, _ = bytes.Cut(data[2:], newline)
-	case bytes.HasPrefix(data, slashStar):
-		var ok bool
-		comment, _, ok = bytes.Cut(data[2:], starSlash)
-		if !ok {
-			// malformed comment
-			return "", 0
-		}
-		if bytes.Contains(comment, newline) {
-			return "", 0
-		}
-	}
-	comment = bytes.TrimSpace(comment)
-
-	// split comment into `import`, `"pkg"`
-	word, arg := parseWord(comment)
-	if string(word) != "import" {
-		return "", 0
-	}
-
-	line = 1 + bytes.Count(data[:cap(data)-cap(arg)], newline)
-	return strings.TrimSpace(string(arg)), line
-}
-
 var (
-	slashSlash = []byte("//")
-	slashStar  = []byte("/*")
-	starSlash  = []byte("*/")
-	newline    = []byte("\n")
+	bSlashSlash = []byte("//")
+	bSlashStar  = []byte("/*")
+	bStarSlash  = []byte("*/")
+	bPlusBuild  = []byte("+build")
 )
 
-// skipSpaceOrComment returns data with any leading spaces or comments removed.
-func skipSpaceOrComment(data []byte) []byte {
-	for len(data) > 0 {
-		switch data[0] {
-		case ' ', '\t', '\r', '\n':
-			data = data[1:]
-			continue
-		case '/':
-			if bytes.HasPrefix(data, slashSlash) {
-				i := bytes.Index(data, newline)
-				if i < 0 {
-					return nil
-				}
-				data = data[i+1:]
-				continue
-			}
-			if bytes.HasPrefix(data, slashStar) {
-				data = data[2:]
-				i := bytes.Index(data, starSlash)
-				if i < 0 {
-					return nil
-				}
-				data = data[i+2:]
-				continue
-			}
-		}
-		break
-	}
-	return data
-}
-
-// parseWord skips any leading spaces or comments in data
-// and then parses the beginning of data as an identifier or keyword,
-// returning that word and what remains after the word.
-func parseWord(data []byte) (word, rest []byte) {
-	data = skipSpaceOrComment(data)
-
-	// Parse past leading word characters.
-	rest = data
-	for {
-		r, size := utf8.DecodeRune(rest)
-		if unicode.IsLetter(r) || '0' <= r && r <= '9' || r == '_' {
-			rest = rest[size:]
-			continue
-		}
-		break
-	}
-
-	word = data[:len(data)-len(rest)]
-	if len(word) == 0 {
-		return nil, nil
-	}
-
-	return word, rest
-}
-
-var dummyPkg Package
+var dummyPkg build.Package
 
 // fileInfo records information learned about a file included in a build.
 type fileInfo struct {
-	name     string // full name including dir
-	header   []byte
-	fset     *token.FileSet
-	parsed   *ast.File
-	parseErr error
-	imports  []fileImport
-	embeds   []fileEmbed
+	name       string // full name including dir
+	header     []byte
+	fset       *token.FileSet
+	parsed     *ast.File
+	parseErr   error
+	imports    []fileImport
+	embeds     []fileEmbed
+	directives []build.Directive
 
 	// Additional fields added to go/build's fileinfo for the purposes of the modindex package.
 	binaryOnly           bool
@@ -477,6 +218,8 @@ type fileEmbed struct {
 	pos     token.Position
 }
 
+var errNonSource = errors.New("non source file")
+
 // getFileInfo extracts the information needed from each go file for the module
 // index.
 //
@@ -484,6 +227,9 @@ type fileEmbed struct {
 // Imports and returns that section of the file in the FileInfo's Header field,
 // even though it only considers text until the first non-comment
 // for +build lines.
+//
+// getFileInfo will return errNonSource if the file is not a source or object
+// file and shouldn't even be added to IgnoredFiles.
 func getFileInfo(dir, name string, fset *token.FileSet) (*fileInfo, error) {
 	if strings.HasPrefix(name, "_") ||
 		strings.HasPrefix(name, ".") {
@@ -498,7 +244,7 @@ func getFileInfo(dir, name string, fset *token.FileSet) (*fileInfo, error) {
 
 	if ext != ".go" && fileListForExt(&dummyPkg, ext) == nil {
 		// skip
-		return nil, nil
+		return nil, errNonSource
 	}
 
 	info := &fileInfo{name: filepath.Join(dir, name), fset: fset}
@@ -551,15 +297,9 @@ func cleanDecls(m map[string][]token.Position) ([]string, map[string][]token.Pos
 }
 
 var (
-	bSlashSlash = []byte(slashSlash)
-	bStarSlash  = []byte(starSlash)
-	bSlashStar  = []byte(slashStar)
-	bPlusBuild  = []byte("+build")
-
 	goBuildComment = []byte("//go:build")
 
-	errGoBuildWithoutBuild = errors.New("//go:build comment without // +build comment")
-	errMultipleGoBuild     = errors.New("multiple //go:build comments")
+	errMultipleGoBuild = errors.New("multiple //go:build comments")
 )
 
 func isGoBuildComment(line []byte) bool {
@@ -638,7 +378,7 @@ Lines:
 			end = len(content) - len(p)
 			continue Lines
 		}
-		if !bytes.HasPrefix(line, slashSlash) { // Not comment line
+		if !bytes.HasPrefix(line, bSlashSlash) { // Not comment line
 			ended = true
 		}
 
@@ -655,9 +395,9 @@ Lines:
 	Comments:
 		for len(line) > 0 {
 			if inSlashStar {
-				if i := bytes.Index(line, starSlash); i >= 0 {
+				if i := bytes.Index(line, bStarSlash); i >= 0 {
 					inSlashStar = false
-					line = bytes.TrimSpace(line[i+len(starSlash):])
+					line = bytes.TrimSpace(line[i+len(bStarSlash):])
 					continue Comments
 				}
 				continue Lines
@@ -681,8 +421,8 @@ Lines:
 // saveCgo saves the information from the #cgo lines in the import "C" comment.
 // These lines set CFLAGS, CPPFLAGS, CXXFLAGS and LDFLAGS and pkg-config directives
 // that affect the way cgo's C code is built.
-func (ctxt *Context) saveCgo(filename string, di *Package, text string) error {
-	for _, line := range strings.Split(text, "\n") {
+func (ctxt *Context) saveCgo(filename string, di *build.Package, text string) error {
+	for line := range strings.SplitSeq(text, "\n") {
 		orig := line
 
 		// Line is
@@ -690,6 +430,11 @@ func (ctxt *Context) saveCgo(filename string, di *Package, text string) error {
 		//
 		line = strings.TrimSpace(line)
 		if len(line) < 5 || line[:4] != "#cgo" || (line[4] != ' ' && line[4] != '\t') {
+			continue
+		}
+
+		// #cgo (nocallback|noescape) <function name>
+		if fields := strings.Fields(line); len(fields) == 3 && (fields[1] == "nocallback" || fields[1] == "noescape") {
 			continue
 		}
 
@@ -944,7 +689,7 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 	if ctxt.GOOS == "ios" && name == "darwin" {
 		return true
 	}
-	if name == "unix" && unixOS[ctxt.GOOS] {
+	if name == "unix" && syslist.UnixOS[ctxt.GOOS] {
 		return true
 	}
 	if name == "boringcrypto" {
@@ -952,23 +697,8 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 	}
 
 	// other tags
-	for _, tag := range ctxt.BuildTags {
-		if tag == name {
-			return true
-		}
-	}
-	for _, tag := range ctxt.ToolTags {
-		if tag == name {
-			return true
-		}
-	}
-	for _, tag := range ctxt.ReleaseTags {
-		if tag == name {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(ctxt.BuildTags, name) || slices.Contains(ctxt.ToolTags, name) ||
+		slices.Contains(ctxt.ReleaseTags, name)
 }
 
 // goodOSArchFile returns false if the name contains a $GOOS or $GOARCH
@@ -1007,14 +737,14 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 		l = l[:n-1]
 	}
 	n := len(l)
-	if n >= 2 && knownOS[l[n-2]] && knownArch[l[n-1]] {
+	if n >= 2 && syslist.KnownOS[l[n-2]] && syslist.KnownArch[l[n-1]] {
 		if allTags != nil {
 			// In case we short-circuit on l[n-1].
 			allTags[l[n-2]] = true
 		}
 		return ctxt.matchTag(l[n-1], allTags) && ctxt.matchTag(l[n-2], allTags)
 	}
-	if n >= 1 && (knownOS[l[n-1]] || knownArch[l[n-1]]) {
+	if n >= 1 && (syslist.KnownOS[l[n-1]] || syslist.KnownArch[l[n-1]]) {
 		return ctxt.matchTag(l[n-1], allTags)
 	}
 	return true

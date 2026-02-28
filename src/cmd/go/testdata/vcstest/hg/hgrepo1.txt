@@ -1,0 +1,97 @@
+handle hg
+
+hg init
+
+env date=2018-04-17T15:43:22-04:00
+unquote ''
+cp stdout README
+hg add README
+hg commit --user=rsc --date=$date -m 'empty README'
+hg branch tagbranch
+hg tag --user=rsc --date=$date v1.2.3
+hg update default
+
+env date=2018-04-17T15:45:48-04:00
+hg branch v2
+echo 'v2'
+cp stdout v2
+hg add v2
+hg commit --user=rsc --date=$date -m 'v2'
+hg update tagbranch
+hg tag --user=rsc --date=$date -r v2 v2.3
+hg tag --user=rsc --date=$date -r v2 v2.0.1
+hg update v2
+hg branch v2.3.4
+
+env date=2018-04-17T16:00:19-04:00
+echo 'intermediate'
+cp stdout foo.txt
+hg add foo.txt
+hg commit --user=rsc --date=$date -m 'intermediate'
+
+env date=2018-04-17T16:00:32-04:00
+echo 'another'
+cp stdout another.txt
+hg add another.txt
+hg commit --user=rsc --date=$date -m 'another'
+hg update tagbranch
+hg tag --user=rsc --date=$date -r v2.3.4 v2.0.2
+
+env date=2018-04-17T16:16:52-04:00
+hg update default
+hg branch v3
+mkdir v3/sub/dir
+echo 'v3/sub/dir/file'
+cp stdout v3/sub/dir/file.txt
+hg add v3
+hg commit --user=rsc --date=$date -m 'add v3/sub/dir/file.txt'
+
+env date=2018-04-17T22:23:00-04:00
+hg update default
+hg tag --user=rsc --date=$date -r v1.2.3 v1.2.4-annotated
+
+env date=2018-06-27T12:15:24-04:00
+hg update v2
+unquote ''
+cp stdout dummy
+hg add dummy
+hg commit --user=rsc --date=$date -m 'dummy'
+
+env date=2018-06-27T12:16:10-04:00
+hg update v2.3.4
+hg branch v2.3.4
+unquote ''
+cp stdout dummy
+hg add dummy
+hg commit --user=rsc --date=$date -m 'dummy'
+
+hg book v2 -r v2.0.2 --force
+hg book v2.3.4 -r v2.0.1 --force
+
+hg log -G --debug
+
+hg tags
+cmp stdout .hg-tags
+
+hg branches
+cmp stdout .hg-branches
+
+hg bookmarks
+cmp stdout .hg-bookmarks
+
+-- .hg-tags --
+tip                               11:745aacc8b24d
+v2.0.2                             6:b1ed98abc268
+v2.3                               2:a546811101e1
+v2.0.1                             2:a546811101e1
+v1.2.4-annotated                   0:c0186fb00e50
+v1.2.3                             0:c0186fb00e50
+-- .hg-branches --
+v2.3.4                        11:745aacc8b24d
+v2                            10:2b5ca8689628
+default                        9:a9a2a32d1392
+v3                             8:442174d28f65
+tagbranch                      7:1a3473c317b4
+-- .hg-bookmarks --
+   v2                        6:b1ed98abc268
+   v2.3.4                    2:a546811101e1

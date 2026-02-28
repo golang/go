@@ -14,15 +14,15 @@ import (
 	"golang.org/x/mod/sumdb/tlog"
 )
 
-// NewTestServer constructs a new TestServer
+// NewTestServer constructs a new [TestServer]
 // that will sign its tree with the given signer key
-// (see golang.org/x/mod/sumdb/note)
+// (see [golang.org/x/mod/sumdb/note])
 // and fetch new records as needed by calling gosum.
 func NewTestServer(signer string, gosum func(path, vers string) ([]byte, error)) *TestServer {
 	return &TestServer{signer: signer, gosum: gosum}
 }
 
-// A TestServer is an in-memory implementation of Server for testing.
+// A TestServer is an in-memory implementation of [ServerOps] for testing.
 type TestServer struct {
 	signer string
 	gosum  func(path, vers string) ([]byte, error)
@@ -66,7 +66,7 @@ func (s *TestServer) ReadRecords(ctx context.Context, id, n int64) ([][]byte, er
 	defer s.mu.Unlock()
 
 	var list [][]byte
-	for i := int64(0); i < n; i++ {
+	for i := range n {
 		if id+i >= int64(len(s.records)) {
 			return nil, fmt.Errorf("missing records")
 		}
@@ -107,7 +107,7 @@ func (s *TestServer) Lookup(ctx context.Context, m module.Version) (int64, error
 		s.lookup = make(map[string]int64)
 	}
 	s.lookup[key] = id
-	hashes, err := tlog.StoredHashesForRecordHash(id, tlog.RecordHash([]byte(data)), s.hashes)
+	hashes, err := tlog.StoredHashesForRecordHash(id, tlog.RecordHash(data), s.hashes)
 	if err != nil {
 		panic(err)
 	}

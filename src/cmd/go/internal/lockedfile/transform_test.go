@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// js does not support inter-process file locking.
+// js and wasip1 do not support inter-process file locking.
 //
-//go:build !js
+//go:build !js && !wasip1
 
 package lockedfile_test
 
@@ -36,9 +36,7 @@ func roundDownToPowerOf2(x int) int {
 }
 
 func TestTransform(t *testing.T) {
-	dir, remove := mustTempDir(t)
-	defer remove()
-	path := filepath.Join(dir, "blob.bin")
+	path := filepath.Join(t.TempDir(), "blob.bin")
 
 	const maxChunkWords = 8 << 10
 	buf := make([]byte, 2*maxChunkWords*8)

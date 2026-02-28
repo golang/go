@@ -7,7 +7,7 @@
 package net
 
 /*
-#cgo LDFLAGS: -lsocket -lnsl -lsendfile
+#cgo LDFLAGS: -lsocket -lnsl
 #include <netdb.h>
 */
 import "C"

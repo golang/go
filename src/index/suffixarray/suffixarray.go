@@ -22,6 +22,7 @@ import (
 	"io"
 	"math"
 	"regexp"
+	"slices"
 	"sort"
 )
 
@@ -70,8 +71,8 @@ func (a *ints) slice(i, j int) ints {
 	return ints{nil, a.int64[i:j]}
 }
 
-// New creates a new Index for data.
-// Index creation time is O(N) for N = len(data).
+// New creates a new [Index] for data.
+// [Index] creation time is O(N) for N = len(data).
 func New(data []byte) *Index {
 	ix := &Index{data: data}
 	if len(data) <= maxData32 {
@@ -308,7 +309,7 @@ func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
 			if len(indices) == 0 {
 				return
 			}
-			sort.Ints(indices)
+			slices.Sort(indices)
 			pairs := make([]int, 2*len(indices))
 			result = make([][]int, len(indices))
 			count := 0
@@ -352,7 +353,7 @@ func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
 		if len(indices) == 0 {
 			return
 		}
-		sort.Ints(indices)
+		slices.Sort(indices)
 		result = result[0:0]
 		prev := 0
 		for _, i := range indices {

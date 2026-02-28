@@ -11,7 +11,7 @@
 #include "libcgo.h"
 #include "libcgo_windows.h"
 
-static void threadentry(void*);
+static unsigned long __stdcall threadentry(void*);
 static void (*setg_gcc)(void*);
 
 void
@@ -26,9 +26,9 @@ _cgo_sys_thread_start(ThreadStart *ts)
 	_cgo_beginthread(threadentry, ts);
 }
 
-extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
 
-static void
+static unsigned long
+__stdcall
 threadentry(void *v)
 {
 	ThreadStart ts;
@@ -37,4 +37,5 @@ threadentry(void *v)
 	free(v);
 
 	crosscall1(ts.fn, setg_gcc, (void *)ts.g);
+	return 0;
 }

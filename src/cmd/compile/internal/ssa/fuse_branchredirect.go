@@ -82,7 +82,6 @@ func fuseBranchRedirect(f *Func) bool {
 						continue
 					}
 					b.removePhiArg(v, k)
-					phielimValue(v)
 				}
 				// Fix up child to have one more predecessor.
 				child.Preds = append(child.Preds, Edge{p, pk.i})

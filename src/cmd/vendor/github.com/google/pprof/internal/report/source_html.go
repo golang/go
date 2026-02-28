@@ -69,7 +69,3 @@ function pprof_toggle_asm(e) {
   }
 }
 </script>`
-
-const weblistPageClosing = `
-</body>
-</html>`

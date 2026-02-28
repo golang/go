@@ -219,7 +219,6 @@ func (r ApplicativeFunctor2[H, HT, A1, A2, R]) ApOption(a Option[A1]) Applicativ
 func (r ApplicativeFunctor2[H, HT, A1, A2, R]) Ap(a A1) ApplicativeFunctor1[Cons[A1, H], A1, A2, R] {
 
 	return r.ApOption(Some(a))
-
 }
 
 func Applicative2[A1, A2, R any](fn Func2[A1, A2, R]) ApplicativeFunctor2[Nil, Nil, A1, A2, R] {

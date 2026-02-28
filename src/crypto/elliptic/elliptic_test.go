@@ -48,6 +48,7 @@ func testAllCurves(t *testing.T, f func(*testing.T, Curve)) {
 }
 
 func TestOnCurve(t *testing.T) {
+	t.Parallel()
 	testAllCurves(t, func(t *testing.T, curve Curve) {
 		if !curve.IsOnCurve(curve.Params().Gx, curve.Params().Gy) {
 			t.Error("basepoint is not on the curve")
@@ -56,6 +57,7 @@ func TestOnCurve(t *testing.T) {
 }
 
 func TestOffCurve(t *testing.T) {
+	t.Parallel()
 	testAllCurves(t, func(t *testing.T, curve Curve) {
 		x, y := new(big.Int).SetInt64(1), new(big.Int).SetInt64(1)
 		if curve.IsOnCurve(x, y) {
@@ -76,6 +78,7 @@ func TestOffCurve(t *testing.T) {
 }
 
 func TestInfinity(t *testing.T) {
+	t.Parallel()
 	testAllCurves(t, testInfinity)
 }
 
@@ -150,6 +153,7 @@ func testInfinity(t *testing.T, curve Curve) {
 }
 
 func TestMarshal(t *testing.T) {
+	t.Parallel()
 	testAllCurves(t, func(t *testing.T, curve Curve) {
 		_, x, y, err := GenerateKey(curve, rand.Reader)
 		if err != nil {
@@ -167,6 +171,7 @@ func TestMarshal(t *testing.T) {
 }
 
 func TestUnmarshalToLargeCoordinates(t *testing.T) {
+	t.Parallel()
 	// See https://golang.org/issues/20482.
 	testAllCurves(t, testUnmarshalToLargeCoordinates)
 }
@@ -216,6 +221,7 @@ func testUnmarshalToLargeCoordinates(t *testing.T, curve Curve) {
 // (negative or bigger than P). They are expected to return false from
 // IsOnCurve, all other behavior is undefined.
 func TestInvalidCoordinates(t *testing.T) {
+	t.Parallel()
 	testAllCurves(t, testInvalidCoordinates)
 }
 
@@ -268,6 +274,7 @@ func testInvalidCoordinates(t *testing.T, curve Curve) {
 }
 
 func TestMarshalCompressed(t *testing.T) {
+	t.Parallel()
 	t.Run("P-256/03", func(t *testing.T) {
 		data, _ := hex.DecodeString("031e3987d9f9ea9d7dd7155a56a86b2009e1e0ab332f962d10d8beb6406ab1ad79")
 		x, _ := new(big.Int).SetString("13671033352574878777044637384712060483119675368076128232297328793087057702265", 10)
@@ -326,6 +333,7 @@ func testMarshalCompressed(t *testing.T, curve Curve, x, y *big.Int, want []byte
 }
 
 func TestLargeIsOnCurve(t *testing.T) {
+	t.Parallel()
 	testAllCurves(t, func(t *testing.T, curve Curve) {
 		large := big.NewInt(1)
 		large.Lsh(large, 1000)

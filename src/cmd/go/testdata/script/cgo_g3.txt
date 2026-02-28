@@ -1,0 +1,18 @@
+[!cgo] skip
+
+# Test that -g3 works with cgo.
+env CGO_CFLAGS=-g3
+go build
+
+-- go.mod --
+module cgog3
+
+go 1.25
+-- m.go --
+package main
+
+import "os/user"
+
+func main() {
+	user.Current()
+}

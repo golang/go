@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 package net
 
 import (
@@ -153,7 +151,7 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
 
 		var wantSum int
 		switch runtime.GOOS {
-		case "android", "darwin", "ios", "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd":
+		case "aix", "android", "darwin", "ios", "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd", "solaris":
 			var wantMinCalls int
 			wantSum = want.Len()
 			v := chunks
@@ -187,9 +185,15 @@ func TestWritevError(t *testing.T) {
 	}
 
 	ln := newLocalListener(t, "tcp")
-	defer ln.Close()
 
 	ch := make(chan Conn, 1)
+	defer func() {
+		ln.Close()
+		for c := range ch {
+			c.Close()
+		}
+	}()
+
 	go func() {
 		defer close(ch)
 		c, err := ln.Accept()

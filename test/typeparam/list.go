@@ -47,7 +47,7 @@ type _ListNum[T OrderedNum] struct {
 
 const Clip = 5
 
-// clippedLargest returns the largest in the list of OrderNums, but a max of 5.
+// ClippedLargest returns the largest in the list of OrderNums, but a max of 5.
 // Test use of untyped constant in an expression with a generically-typed parameter
 func (l *_ListNum[T]) ClippedLargest() T {
 	var max T

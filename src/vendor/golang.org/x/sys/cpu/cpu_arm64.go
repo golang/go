@@ -6,7 +6,10 @@ package cpu
 
 import "runtime"
 
-const cacheLineSize = 64
+// cacheLineSize is used to prevent false sharing of cache lines.
+// We choose 128 because Apple Silicon, a.k.a. M1, has 128-byte cache line size.
+// It doesn't cost much and is much more future-proof.
+const cacheLineSize = 128
 
 func initOptions() {
 	options = []option{
@@ -25,6 +28,7 @@ func initOptions() {
 		{Name: "sm3", Feature: &ARM64.HasSM3},
 		{Name: "sm4", Feature: &ARM64.HasSM4},
 		{Name: "sve", Feature: &ARM64.HasSVE},
+		{Name: "sve2", Feature: &ARM64.HasSVE2},
 		{Name: "crc32", Feature: &ARM64.HasCRC32},
 		{Name: "atomics", Feature: &ARM64.HasATOMICS},
 		{Name: "asimdhp", Feature: &ARM64.HasASIMDHP},
@@ -34,6 +38,8 @@ func initOptions() {
 		{Name: "dcpop", Feature: &ARM64.HasDCPOP},
 		{Name: "asimddp", Feature: &ARM64.HasASIMDDP},
 		{Name: "asimdfhm", Feature: &ARM64.HasASIMDFHM},
+		{Name: "dit", Feature: &ARM64.HasDIT},
+		{Name: "i8mm", Feature: &ARM64.HasI8MM},
 	}
 }
 
@@ -41,13 +47,10 @@ func archInit() {
 	switch runtime.GOOS {
 	case "freebsd":
 		readARM64Registers()
-	case "linux", "netbsd":
+	case "linux", "netbsd", "openbsd":
 		doinit()
 	default:
-		// Most platforms don't seem to allow reading these registers.
-		//
-		// OpenBSD:
-		// See https://golang.org/issue/31746
+		// Many platforms don't seem to allow reading these registers.
 		setMinimalFeatures()
 	}
 }
@@ -144,6 +147,11 @@ func parseARM64SystemRegisters(isar0, isar1, pfr0 uint64) {
 		ARM64.HasLRCPC = true
 	}
 
+	switch extractBits(isar1, 52, 55) {
+	case 1:
+		ARM64.HasI8MM = true
+	}
+
 	// ID_AA64PFR0_EL1
 	switch extractBits(pfr0, 16, 19) {
 	case 0:
@@ -164,6 +172,20 @@ func parseARM64SystemRegisters(isar0, isar1, pfr0 uint64) {
 	switch extractBits(pfr0, 32, 35) {
 	case 1:
 		ARM64.HasSVE = true
+
+		parseARM64SVERegister(getzfr0())
+	}
+
+	switch extractBits(pfr0, 48, 51) {
+	case 1:
+		ARM64.HasDIT = true
+	}
+}
+
+func parseARM64SVERegister(zfr0 uint64) {
+	switch extractBits(zfr0, 0, 3) {
+	case 1:
+		ARM64.HasSVE2 = true
 	}
 }
 

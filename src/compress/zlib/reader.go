@@ -26,6 +26,7 @@ package zlib
 import (
 	"bufio"
 	"compress/flate"
+	"encoding/binary"
 	"errors"
 	"hash"
 	"hash/adler32"
@@ -54,7 +55,7 @@ type reader struct {
 	scratch      [4]byte
 }
 
-// Resetter resets a ReadCloser returned by NewReader or NewReaderDict
+// Resetter resets a ReadCloser returned by [NewReader] or [NewReaderDict]
 // to switch to a new underlying Reader. This permits reusing a ReadCloser
 // instead of allocating a new one.
 type Resetter interface {
@@ -65,20 +66,20 @@ type Resetter interface {
 
 // NewReader creates a new ReadCloser.
 // Reads from the returned ReadCloser read and decompress data from r.
-// If r does not implement io.ByteReader, the decompressor may read more
+// If r does not implement [io.ByteReader], the decompressor may read more
 // data than necessary from r.
 // It is the caller's responsibility to call Close on the ReadCloser when done.
 //
-// The ReadCloser returned by NewReader also implements Resetter.
+// The [io.ReadCloser] returned by NewReader also implements [Resetter].
 func NewReader(r io.Reader) (io.ReadCloser, error) {
 	return NewReaderDict(r, nil)
 }
 
-// NewReaderDict is like NewReader but uses a preset dictionary.
+// NewReaderDict is like [NewReader] but uses a preset dictionary.
 // NewReaderDict ignores the dictionary if the compressed data does not refer to it.
-// If the compressed data refers to a different dictionary, NewReaderDict returns ErrDictionary.
+// If the compressed data refers to a different dictionary, NewReaderDict returns [ErrDictionary].
 //
-// The ReadCloser returned by NewReaderDict also implements Resetter.
+// The ReadCloser returned by NewReaderDict also implements [Resetter].
 func NewReaderDict(r io.Reader, dict []byte) (io.ReadCloser, error) {
 	z := new(reader)
 	err := z.Reset(r, dict)
@@ -110,7 +111,7 @@ func (z *reader) Read(p []byte) (int, error) {
 		return n, z.err
 	}
 	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).
-	checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3])
+	checksum := binary.BigEndian.Uint32(z.scratch[:4])
 	if checksum != z.digest.Sum32() {
 		z.err = ErrChecksum
 		return n, z.err
@@ -118,9 +119,9 @@ func (z *reader) Read(p []byte) (int, error) {
 	return n, io.EOF
 }
 
-// Calling Close does not close the wrapped io.Reader originally passed to NewReader.
+// Calling Close does not close the wrapped [io.Reader] originally passed to [NewReader].
 // In order for the ZLIB checksum to be verified, the reader must be
-// fully consumed until the io.EOF.
+// fully consumed until the [io.EOF].
 func (z *reader) Close() error {
 	if z.err != nil && z.err != io.EOF {
 		return z.err
@@ -145,7 +146,7 @@ func (z *reader) Reset(r io.Reader, dict []byte) error {
 		}
 		return z.err
 	}
-	h := uint(z.scratch[0])<<8 | uint(z.scratch[1])
+	h := binary.BigEndian.Uint16(z.scratch[:2])
 	if (z.scratch[0]&0x0f != zlibDeflate) || (z.scratch[0]>>4 > zlibMaxWindow) || (h%31 != 0) {
 		z.err = ErrHeader
 		return z.err
@@ -159,7 +160,7 @@ func (z *reader) Reset(r io.Reader, dict []byte) error {
 			}
 			return z.err
 		}
-		checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3])
+		checksum := binary.BigEndian.Uint32(z.scratch[:4])
 		if checksum != adler32.Checksum(dict) {
 			z.err = ErrDictionary
 			return z.err

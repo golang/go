@@ -3,9 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && loong64 && gc
-// +build linux
-// +build loong64
-// +build gc
 
 #include "textflag.h"
 

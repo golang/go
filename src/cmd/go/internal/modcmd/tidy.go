@@ -9,17 +9,18 @@ package modcmd
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/toolchain"
 	"context"
 	"fmt"
 
 	"golang.org/x/mod/modfile"
-	"golang.org/x/mod/semver"
 )
 
 var cmdTidy = &base.Command{
-	UsageLine: "go mod tidy [-e] [-v] [-go=version] [-compat=version]",
+	UsageLine: "go mod tidy [-e] [-v] [-x] [-diff] [-go=version] [-compat=version]",
 	Short:     "add missing and remove unused modules",
 	Long: `
 Tidy makes sure go.mod matches the source code in the module.
@@ -33,6 +34,10 @@ to standard error.
 
 The -e flag causes tidy to attempt to proceed despite errors
 encountered while loading packages.
+
+The -diff flag causes tidy not to modify go.mod or go.sum but
+instead print the necessary changes as a unified diff. It exits
+with a non-zero code if the diff is not empty.
 
 The -go flag causes tidy to update the 'go' directive in the go.mod
 file to the given version, which may change which module dependencies
@@ -48,6 +53,8 @@ version. By default, tidy acts as if the -compat flag were set to the
 version prior to the one indicated by the 'go' directive in the go.mod
 file.
 
+The -x flag causes tidy to print the commands download executes.
+
 See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 	`,
 	Run: runTidy,
@@ -55,15 +62,19 @@ See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 
 var (
 	tidyE      bool          // if true, report errors but proceed anyway.
+	tidyDiff   bool          // if true, do not update go.mod or go.sum and show changes. Return corresponding exit code.
 	tidyGo     goVersionFlag // go version to write to the tidied go.mod file (toggles lazy loading)
 	tidyCompat goVersionFlag // go version for which the tidied go.mod and go.sum files should be “compatible”
 )
 
 func init() {
 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+	cmdTidy.Flag.BoolVar(&cfg.BuildX, "x", false, "")
 	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "")
+	cmdTidy.Flag.BoolVar(&tidyDiff, "diff", false, "")
 	cmdTidy.Flag.Var(&tidyGo, "go", "")
 	cmdTidy.Flag.Var(&tidyCompat, "compat", "")
+	base.AddChdirFlag(&cmdTidy.Flag)
 	base.AddModCommonFlags(&cmdTidy.Flag)
 }
 
@@ -80,11 +91,11 @@ func (f *goVersionFlag) Get() any       { return f.v }
 
 func (f *goVersionFlag) Set(s string) error {
 	if s != "" {
-		latest := modload.LatestGoVersion()
+		latest := gover.Local()
 		if !modfile.GoVersionRE.MatchString(s) {
 			return fmt.Errorf("expecting a Go version like %q", latest)
 		}
-		if semver.Compare("v"+s, "v"+latest) > 0 {
+		if gover.Compare(s, latest) > 0 {
 			return fmt.Errorf("maximum supported Go version is %s", latest)
 		}
 	}
@@ -94,6 +105,7 @@ func (f *goVersionFlag) Set(s string) error {
 }
 
 func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+	moduleLoaderState := modload.NewState()
 	if len(args) > 0 {
 		base.Fatalf("go: 'go mod tidy' accepts no arguments")
 	}
@@ -108,18 +120,28 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 	// those packages. In order to make 'go test' reproducible for the packages
 	// that are in 'all' but outside of the main module, we must explicitly
 	// request that their test dependencies be included.
-	modload.ForceUseModules = true
-	modload.RootMode = modload.NeedRoot
+	moduleLoaderState.ForceUseModules = true
+	moduleLoaderState.RootMode = modload.NeedRoot
 
-	modload.LoadPackages(ctx, modload.PackageOpts{
-		GoVersion:                tidyGo.String(),
+	goVersion := tidyGo.String()
+	if goVersion != "" && gover.Compare(gover.Local(), goVersion) < 0 {
+		toolchain.SwitchOrFatal(moduleLoaderState, ctx, &gover.TooNewError{
+			What:      "-go flag",
+			GoVersion: goVersion,
+		})
+	}
+
+	modload.LoadPackages(moduleLoaderState, ctx, modload.PackageOpts{
+		TidyGoVersion:            tidyGo.String(),
 		Tags:                     imports.AnyTags(),
 		Tidy:                     true,
+		TidyDiff:                 tidyDiff,
 		TidyCompatibleVersion:    tidyCompat.String(),
 		VendorModulesInGOROOTSrc: true,
 		ResolveMissingImports:    true,
 		LoadTests:                true,
 		AllowErrors:              tidyE,
 		SilenceMissingStdImports: true,
+		Switcher:                 toolchain.NewSwitcher(moduleLoaderState),
 	}, "all")
 }

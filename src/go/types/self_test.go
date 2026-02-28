@@ -6,9 +6,9 @@ package types_test
 
 import (
 	"go/ast"
-	"go/importer"
 	"go/parser"
 	"go/token"
+	"internal/testenv"
 	"path"
 	"path/filepath"
 	"testing"
@@ -18,13 +18,15 @@ import (
 )
 
 func TestSelf(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // The Go command is needed for the importer to determine the locations of stdlib .a files.
+
 	fset := token.NewFileSet()
-	files, err := pkgFiles(fset, ".", 0)
+	files, err := pkgFiles(fset, ".")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	conf := Config{Importer: importer.Default()}
+	conf := Config{Importer: defaultImporter(fset)}
 	_, err = conf.Check("go/types", fset, files, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -32,6 +34,8 @@ func TestSelf(t *testing.T) {
 }
 
 func BenchmarkCheck(b *testing.B) {
+	testenv.MustHaveGoBuild(b) // The Go command is needed for the importer to determine the locations of stdlib .a files.
+
 	for _, p := range []string{
 		"net/http",
 		"go/parser",
@@ -61,7 +65,7 @@ func BenchmarkCheck(b *testing.B) {
 
 func runbench(b *testing.B, path string, ignoreFuncBodies, writeInfo bool) {
 	fset := token.NewFileSet()
-	files, err := pkgFiles(fset, path, 0)
+	files, err := pkgFiles(fset, path)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -77,7 +81,7 @@ func runbench(b *testing.B, path string, ignoreFuncBodies, writeInfo bool) {
 	for i := 0; i < b.N; i++ {
 		conf := Config{
 			IgnoreFuncBodies: ignoreFuncBodies,
-			Importer:         importer.Default(),
+			Importer:         defaultImporter(fset),
 		}
 		var info *Info
 		if writeInfo {
@@ -98,15 +102,15 @@ func runbench(b *testing.B, path string, ignoreFuncBodies, writeInfo bool) {
 	b.ReportMetric(float64(lines)*float64(b.N)/time.Since(start).Seconds(), "lines/s")
 }
 
-func pkgFiles(fset *token.FileSet, path string, mode parser.Mode) ([]*ast.File, error) {
-	filenames, err := pkgFilenames(path) // from stdlib_test.go
+func pkgFiles(fset *token.FileSet, path string) ([]*ast.File, error) {
+	filenames, err := pkgFilenames(path, true) // from stdlib_test.go
 	if err != nil {
 		return nil, err
 	}
 
 	var files []*ast.File
 	for _, filename := range filenames {
-		file, err := parser.ParseFile(fset, filename, nil, mode)
+		file, err := parser.ParseFile(fset, filename, nil, 0)
 		if err != nil {
 			return nil, err
 		}

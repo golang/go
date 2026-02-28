@@ -5,7 +5,7 @@
 
 TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	MOV X1, -464(X2)
-	ADD $-464, X2
+	SUB $464, X2
 	MOV X5, 8(X2)
 	MOV X6, 16(X2)
 	MOV X7, 24(X2)

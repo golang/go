@@ -15,13 +15,9 @@ import (
 )
 
 func TestCreateTemp(t *testing.T) {
-	dir, err := MkdirTemp("", "TestCreateTempBadDir")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(dir)
+	t.Parallel()
 
-	nonexistentDir := filepath.Join(dir, "_not_exists_")
+	nonexistentDir := filepath.Join(t.TempDir(), "_not_exists_")
 	f, err := CreateTemp(nonexistentDir, "foo")
 	if f != nil || err == nil {
 		t.Errorf("CreateTemp(%q, `foo`) = %v, %v", nonexistentDir, f, err)
@@ -29,6 +25,8 @@ func TestCreateTemp(t *testing.T) {
 }
 
 func TestCreateTempPattern(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct{ pattern, prefix, suffix string }{
 		{"tempfile_test", "tempfile_test", ""},
 		{"tempfile_test*", "tempfile_test", ""},
@@ -51,11 +49,9 @@ func TestCreateTempPattern(t *testing.T) {
 }
 
 func TestCreateTempBadPattern(t *testing.T) {
-	tmpDir, err := MkdirTemp("", t.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(tmpDir)
+	t.Parallel()
+
+	tmpDir := t.TempDir()
 
 	const sep = string(PathSeparator)
 	tests := []struct {
@@ -91,6 +87,8 @@ func TestCreateTempBadPattern(t *testing.T) {
 }
 
 func TestMkdirTemp(t *testing.T) {
+	t.Parallel()
+
 	name, err := MkdirTemp("/_not_exists_", "foo")
 	if name != "" || err == nil {
 		t.Errorf("MkdirTemp(`/_not_exists_`, `foo`) = %v, %v", name, err)
@@ -142,25 +140,19 @@ func TestMkdirTemp(t *testing.T) {
 // test that we return a nice error message if the dir argument to TempDir doesn't
 // exist (or that it's empty and TempDir doesn't exist)
 func TestMkdirTempBadDir(t *testing.T) {
-	dir, err := MkdirTemp("", "MkdirTempBadDir")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(dir)
+	t.Parallel()
 
-	badDir := filepath.Join(dir, "not-exist")
-	_, err = MkdirTemp(badDir, "foo")
+	badDir := filepath.Join(t.TempDir(), "not-exist")
+	_, err := MkdirTemp(badDir, "foo")
 	if pe, ok := err.(*fs.PathError); !ok || !IsNotExist(err) || pe.Path != badDir {
 		t.Errorf("TempDir error = %#v; want PathError for path %q satisfying IsNotExist", err, badDir)
 	}
 }
 
 func TestMkdirTempBadPattern(t *testing.T) {
-	tmpDir, err := MkdirTemp("", t.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(tmpDir)
+	t.Parallel()
+
+	tmpDir := t.TempDir()
 
 	const sep = string(PathSeparator)
 	tests := []struct {

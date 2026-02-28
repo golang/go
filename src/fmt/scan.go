@@ -51,7 +51,7 @@ type ScanState interface {
 // Scanner is implemented by any value that has a Scan method, which scans
 // the input for the representation of a value and stores the result in the
 // receiver, which must be a pointer to be useful. The Scan method is called
-// for any argument to Scan, Scanf, or Scanln that implements it.
+// for any argument to [Scan], [Scanf], or [Scanln] that implements it.
 type Scanner interface {
 	Scan(state ScanState, verb rune) error
 }
@@ -64,7 +64,7 @@ func Scan(a ...any) (n int, err error) {
 	return Fscan(os.Stdin, a...)
 }
 
-// Scanln is similar to Scan, but stops scanning at a newline and
+// Scanln is similar to [Scan], but stops scanning at a newline and
 // after the final item there must be a newline or EOF.
 func Scanln(a ...any) (n int, err error) {
 	return Fscanln(os.Stdin, a...)
@@ -100,7 +100,7 @@ func Sscan(str string, a ...any) (n int, err error) {
 	return Fscan((*stringReader)(&str), a...)
 }
 
-// Sscanln is similar to Sscan, but stops scanning at a newline and
+// Sscanln is similar to [Sscan], but stops scanning at a newline and
 // after the final item there must be a newline or EOF.
 func Sscanln(str string, a ...any) (n int, err error) {
 	return Fscanln((*stringReader)(&str), a...)
@@ -125,7 +125,7 @@ func Fscan(r io.Reader, a ...any) (n int, err error) {
 	return
 }
 
-// Fscanln is similar to Fscan, but stops scanning at a newline and
+// Fscanln is similar to [Fscan], but stops scanning at a newline and
 // after the final item there must be a newline or EOF.
 func Fscanln(r io.Reader, a ...any) (n int, err error) {
 	s, old := newScanState(r, false, true)
@@ -416,7 +416,7 @@ func (s *ss) free(old ssave) {
 
 // SkipSpace provides Scan methods the ability to skip space and newline
 // characters in keeping with the current scanning mode set by format strings
-// and Scan/Scanln.
+// and [Scan]/[Scanln].
 func (s *ss) SkipSpace() {
 	for {
 		r := s.getRune()
@@ -462,8 +462,8 @@ func (s *ss) token(skipSpace bool, f func(rune) bool) []byte {
 	return s.buf
 }
 
-var complexError = errors.New("syntax error scanning complex number")
-var boolError = errors.New("syntax error scanning boolean")
+var errComplex = errors.New("syntax error scanning complex number")
+var errBool = errors.New("syntax error scanning boolean")
 
 func indexRune(s string, r rune) int {
 	for i, c := range s {
@@ -542,12 +542,12 @@ func (s *ss) scanBool(verb rune) bool {
 		return true
 	case 't', 'T':
 		if s.accept("rR") && (!s.accept("uU") || !s.accept("eE")) {
-			s.error(boolError)
+			s.error(errBool)
 		}
 		return true
 	case 'f', 'F':
 		if s.accept("aA") && (!s.accept("lL") || !s.accept("sS") || !s.accept("eE")) {
-			s.error(boolError)
+			s.error(errBool)
 		}
 		return false
 	}
@@ -747,16 +747,16 @@ func (s *ss) complexTokens() (real, imag string) {
 	s.buf = s.buf[:0]
 	// Must now have a sign.
 	if !s.accept("+-") {
-		s.error(complexError)
+		s.error(errComplex)
 	}
 	// Sign is now in buffer
 	imagSign := string(s.buf)
 	imag = s.floatToken()
 	if !s.accept("i") {
-		s.error(complexError)
+		s.error(errComplex)
 	}
 	if parens && !s.accept(")") {
-		s.error(complexError)
+		s.error(errComplex)
 	}
 	return real, imagSign + imag
 }
@@ -803,7 +803,7 @@ func (s *ss) convertFloat(str string, n int) float64 {
 	return f
 }
 
-// convertComplex converts the next token to a complex128 value.
+// scanComplex converts the next token to a complex128 value.
 // The atof argument is a type-specific reader for the underlying type.
 // If we're reading complex64, atof will parse float32s and convert them
 // to float64's to avoid reproducing this code for each complex type.

@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"internal/poll"
@@ -23,12 +24,14 @@ import (
 	"os"
 	"os/exec"
 	"os/exec/internal/fdtest"
+	"os/signal"
 	"path/filepath"
-	"reflect"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -38,6 +41,13 @@ import (
 var haveUnexpectedFDs bool
 
 func init() {
+	godebug := os.Getenv("GODEBUG")
+	if godebug != "" {
+		godebug += ","
+	}
+	godebug += "execwait=2"
+	os.Setenv("GODEBUG", godebug)
+
 	if os.Getenv("GO_EXEC_TEST_PID") != "" {
 		return
 	}
@@ -67,6 +77,21 @@ func TestMain(m *testing.M) {
 	if os.Getenv("GO_EXEC_TEST_PID") == "" {
 		os.Setenv("GO_EXEC_TEST_PID", strconv.Itoa(pid))
 
+		if runtime.GOOS == "windows" {
+			// Normalize environment so that test behavior is consistent.
+			// (The behavior of LookPath varies depending on this variable.)
+			//
+			// Ideally we would test both with the variable set and with it cleared,
+			// but I (bcmills) am not sure that that's feasible: it may already be set
+			// in the Windows registry, and I'm not sure if it is possible to remove
+			// a registry variable in a program's environment.
+			//
+			// Per https://learn.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-needcurrentdirectoryforexepathw#remarks,
+			// “the existence of the NoDefaultCurrentDirectoryInExePath environment
+			// variable is checked, and not its value.”
+			os.Setenv("NoDefaultCurrentDirectoryInExePath", "TRUE")
+		}
+
 		code := m.Run()
 		if code == 0 && flag.Lookup("test.run").Value.String() == "" && flag.Lookup("test.list").Value.String() == "" {
 			for cmd := range helperCommands {
@@ -76,6 +101,14 @@ func TestMain(m *testing.M) {
 				}
 			}
 		}
+
+		if !testing.Short() {
+			// Run a couple of GC cycles to increase the odds of detecting
+			// process leaks using the finalizers installed by GODEBUG=execwait=2.
+			runtime.GC()
+			runtime.GC()
+		}
+
 		os.Exit(code)
 	}
 
@@ -126,55 +159,29 @@ func helperCommandContext(t *testing.T, ctx context.Context, name string, args .
 	helperCommandUsed.LoadOrStore(name, true)
 
 	t.Helper()
-	testenv.MustHaveExec(t)
-
+	exe := testenv.Executable(t)
 	cs := append([]string{name}, args...)
 	if ctx != nil {
-		cmd = exec.CommandContext(ctx, exePath(t), cs...)
+		cmd = exec.CommandContext(ctx, exe, cs...)
 	} else {
-		cmd = exec.Command(exePath(t), cs...)
+		cmd = exec.Command(exe, cs...)
 	}
 	return cmd
-}
-
-// exePath returns the path to the running executable.
-func exePath(t testing.TB) string {
-	exeOnce.Do(func() {
-		// Use os.Executable instead of os.Args[0] in case the caller modifies
-		// cmd.Dir: if the test binary is invoked like "./exec.test", it should
-		// not fail spuriously.
-		exeOnce.path, exeOnce.err = os.Executable()
-	})
-
-	if exeOnce.err != nil {
-		if t == nil {
-			panic(exeOnce.err)
-		}
-		t.Fatal(exeOnce.err)
-	}
-
-	return exeOnce.path
-}
-
-var exeOnce struct {
-	path string
-	err  error
-	sync.Once
 }
 
 var helperCommandUsed sync.Map
 
 var helperCommands = map[string]func(...string){
-	"echo":               cmdEcho,
-	"echoenv":            cmdEchoEnv,
-	"cat":                cmdCat,
-	"pipetest":           cmdPipeTest,
-	"stdinClose":         cmdStdinClose,
-	"exit":               cmdExit,
-	"describefiles":      cmdDescribeFiles,
-	"extraFilesAndPipes": cmdExtraFilesAndPipes,
-	"stderrfail":         cmdStderrFail,
-	"yes":                cmdYes,
+	"echo":          cmdEcho,
+	"echoenv":       cmdEchoEnv,
+	"cat":           cmdCat,
+	"pipetest":      cmdPipeTest,
+	"stdinClose":    cmdStdinClose,
+	"exit":          cmdExit,
+	"describefiles": cmdDescribeFiles,
+	"stderrfail":    cmdStderrFail,
+	"yes":           cmdYes,
+	"hang":          cmdHang,
 }
 
 func cmdEcho(args ...string) {
@@ -249,31 +256,12 @@ func cmdExit(args ...string) {
 }
 
 func cmdDescribeFiles(args ...string) {
-	f := os.NewFile(3, fmt.Sprintf("fd3"))
+	f := os.NewFile(3, "fd3")
 	ln, err := net.FileListener(f)
 	if err == nil {
 		fmt.Printf("fd3: listener %s\n", ln.Addr())
 		ln.Close()
 	}
-}
-
-func cmdExtraFilesAndPipes(args ...string) {
-	n, _ := strconv.Atoi(args[0])
-	pipes := make([]*os.File, n)
-	for i := 0; i < n; i++ {
-		pipes[i] = os.NewFile(uintptr(3+i), strconv.Itoa(i))
-	}
-	response := ""
-	for i, r := range pipes {
-		buf := make([]byte, 10)
-		n, err := r.Read(buf)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Child: read error: %v on pipe %d\n", err, i)
-			os.Exit(1)
-		}
-		response = response + string(buf[:n])
-	}
-	fmt.Fprintf(os.Stderr, "child: %s", response)
 }
 
 func cmdStderrFail(...string) {
@@ -295,6 +283,8 @@ func cmdYes(args ...string) {
 }
 
 func TestEcho(t *testing.T) {
+	t.Parallel()
+
 	bs, err := helperCommand(t, "echo", "foo bar", "baz").Output()
 	if err != nil {
 		t.Errorf("echo: %v", err)
@@ -305,6 +295,8 @@ func TestEcho(t *testing.T) {
 }
 
 func TestCommandRelativeName(t *testing.T) {
+	t.Parallel()
+
 	cmd := helperCommand(t, "echo", "foo")
 
 	// Run our own binary as a relative path
@@ -333,6 +325,8 @@ func TestCommandRelativeName(t *testing.T) {
 }
 
 func TestCatStdin(t *testing.T) {
+	t.Parallel()
+
 	// Cat, testing stdin and stdout.
 	input := "Input string\nLine 2"
 	p := helperCommand(t, "cat")
@@ -348,6 +342,8 @@ func TestCatStdin(t *testing.T) {
 }
 
 func TestEchoFileRace(t *testing.T) {
+	t.Parallel()
+
 	cmd := helperCommand(t, "echo")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -368,6 +364,8 @@ func TestEchoFileRace(t *testing.T) {
 }
 
 func TestCatGoodAndBadFile(t *testing.T) {
+	t.Parallel()
+
 	// Testing combined output and error values.
 	bs, err := helperCommand(t, "cat", "/bogus/file.foo", "exec_test.go").CombinedOutput()
 	if _, ok := err.(*exec.ExitError); !ok {
@@ -386,6 +384,8 @@ func TestCatGoodAndBadFile(t *testing.T) {
 }
 
 func TestNoExistExecutable(t *testing.T) {
+	t.Parallel()
+
 	// Can't run a non-existent executable
 	err := exec.Command("/no-exist-executable").Run()
 	if err == nil {
@@ -394,6 +394,8 @@ func TestNoExistExecutable(t *testing.T) {
 }
 
 func TestExitStatus(t *testing.T) {
+	t.Parallel()
+
 	// Test that exit values are returned correctly
 	cmd := helperCommand(t, "exit", "42")
 	err := cmd.Run()
@@ -412,6 +414,8 @@ func TestExitStatus(t *testing.T) {
 }
 
 func TestExitCode(t *testing.T) {
+	t.Parallel()
+
 	// Test that exit code are returned correctly
 	cmd := helperCommand(t, "exit", "42")
 	cmd.Run()
@@ -464,6 +468,8 @@ func TestExitCode(t *testing.T) {
 }
 
 func TestPipes(t *testing.T) {
+	t.Parallel()
+
 	check := func(what string, err error) {
 		if err != nil {
 			t.Fatalf("%s: %v", what, err)
@@ -518,6 +524,8 @@ const stdinCloseTestString = "Some test string."
 
 // Issue 6270.
 func TestStdinClose(t *testing.T) {
+	t.Parallel()
+
 	check := func(what string, err error) {
 		if err != nil {
 			t.Fatalf("%s: %v", what, err)
@@ -533,12 +541,22 @@ func TestStdinClose(t *testing.T) {
 		t.Error("can't access methods of underlying *os.File")
 	}
 	check("Start", cmd.Start())
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	defer wg.Wait()
 	go func() {
+		defer wg.Done()
+
 		_, err := io.Copy(stdin, strings.NewReader(stdinCloseTestString))
 		check("Copy", err)
+
 		// Before the fix, this next line would race with cmd.Wait.
-		check("Close", stdin.Close())
+		if err := stdin.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+			t.Errorf("Close: %v", err)
+		}
 	}()
+
 	check("Wait", cmd.Wait())
 }
 
@@ -549,6 +567,8 @@ func TestStdinClose(t *testing.T) {
 // This test is run by cmd/dist under the race detector to verify that
 // the race detector no longer reports any problems.
 func TestStdinCloseRace(t *testing.T) {
+	t.Parallel()
+
 	cmd := helperCommand(t, "stdinClose")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -556,8 +576,15 @@ func TestStdinCloseRace(t *testing.T) {
 	}
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
+
 	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	defer wg.Wait()
+
 	go func() {
+		defer wg.Done()
 		// We don't check the error return of Kill. It is
 		// possible that the process has already exited, in
 		// which case Kill will return an error "process
@@ -566,17 +593,20 @@ func TestStdinCloseRace(t *testing.T) {
 		// doesn't matter whether this Kill succeeds or not.
 		cmd.Process.Kill()
 	}()
+
 	go func() {
+		defer wg.Done()
 		// Send the wrong string, so that the child fails even
 		// if the other goroutine doesn't manage to kill it first.
 		// This test is to check that the race detector does not
 		// falsely report an error, so it doesn't matter how the
 		// child process fails.
 		io.Copy(stdin, strings.NewReader("unexpected string"))
-		if err := stdin.Close(); err != nil {
+		if err := stdin.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
 			t.Errorf("stdin.Close: %v", err)
 		}
 	}()
+
 	if err := cmd.Wait(); err == nil {
 		t.Fatalf("Wait: succeeded unexpectedly")
 	}
@@ -587,6 +617,7 @@ func TestPipeLookPathLeak(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("we don't currently suppore counting open handles on windows")
 	}
+	// Not parallel: checks for leaked file descriptors
 
 	openFDs := func() []uintptr {
 		var fds []uintptr
@@ -598,7 +629,11 @@ func TestPipeLookPathLeak(t *testing.T) {
 		return fds
 	}
 
-	want := openFDs()
+	old := map[uintptr]bool{}
+	for _, fd := range openFDs() {
+		old[fd] = true
+	}
+
 	for i := 0; i < 6; i++ {
 		cmd := exec.Command("something-that-does-not-exist-executable")
 		cmd.StdoutPipe()
@@ -608,100 +643,24 @@ func TestPipeLookPathLeak(t *testing.T) {
 			t.Fatal("unexpected success")
 		}
 	}
-	got := openFDs()
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("set of open file descriptors changed: got %v, want %v", got, want)
-	}
-}
 
-func TestExtraFilesFDShuffle(t *testing.T) {
-	maySkipHelperCommand("extraFilesAndPipes")
-	testenv.SkipFlaky(t, 5780)
-	switch runtime.GOOS {
-	case "windows":
-		t.Skip("no operating system support; skipping")
-	}
-
-	// syscall.StartProcess maps all the FDs passed to it in
-	// ProcAttr.Files (the concatenation of stdin,stdout,stderr and
-	// ExtraFiles) into consecutive FDs in the child, that is:
-	// Files{11, 12, 6, 7, 9, 3} should result in the file
-	// represented by FD 11 in the parent being made available as 0
-	// in the child, 12 as 1, etc.
-	//
-	// We want to test that FDs in the child do not get overwritten
-	// by one another as this shuffle occurs. The original implementation
-	// was buggy in that in some data dependent cases it would overwrite
-	// stderr in the child with one of the ExtraFile members.
-	// Testing for this case is difficult because it relies on using
-	// the same FD values as that case. In particular, an FD of 3
-	// must be at an index of 4 or higher in ProcAttr.Files and
-	// the FD of the write end of the Stderr pipe (as obtained by
-	// StderrPipe()) must be the same as the size of ProcAttr.Files;
-	// therefore we test that the read end of this pipe (which is what
-	// is returned to the parent by StderrPipe() being one less than
-	// the size of ProcAttr.Files, i.e. 3+len(cmd.ExtraFiles).
-	//
-	// Moving this test case around within the overall tests may
-	// affect the FDs obtained and hence the checks to catch these cases.
-	npipes := 2
-	c := helperCommand(t, "extraFilesAndPipes", strconv.Itoa(npipes+1))
-	rd, wr, _ := os.Pipe()
-	defer rd.Close()
-	if rd.Fd() != 3 {
-		t.Errorf("bad test value for test pipe: fd %d", rd.Fd())
-	}
-	stderr, _ := c.StderrPipe()
-	wr.WriteString("_LAST")
-	wr.Close()
-
-	pipes := make([]struct {
-		r, w *os.File
-	}, npipes)
-	data := []string{"a", "b"}
-
-	for i := 0; i < npipes; i++ {
-		r, w, err := os.Pipe()
-		if err != nil {
-			t.Fatalf("unexpected error creating pipe: %s", err)
-		}
-		pipes[i].r = r
-		pipes[i].w = w
-		w.WriteString(data[i])
-		c.ExtraFiles = append(c.ExtraFiles, pipes[i].r)
-		defer func() {
-			r.Close()
-			w.Close()
-		}()
-	}
-	// Put fd 3 at the end.
-	c.ExtraFiles = append(c.ExtraFiles, rd)
-
-	stderrFd := int(stderr.(*os.File).Fd())
-	if stderrFd != ((len(c.ExtraFiles) + 3) - 1) {
-		t.Errorf("bad test value for stderr pipe")
-	}
-
-	expected := "child: " + strings.Join(data, "") + "_LAST"
-
-	err := c.Start()
-	if err != nil {
-		t.Fatalf("Run: %v", err)
-	}
-
-	buf := make([]byte, 512)
-	n, err := stderr.Read(buf)
-	if err != nil {
-		t.Errorf("Read: %s", err)
-	} else {
-		if m := string(buf[:n]); m != expected {
-			t.Errorf("Read: '%s' not '%s'", m, expected)
+	// Since this test is not running in parallel, we don't expect any new file
+	// descriptors to be opened while it runs. However, if there are additional
+	// FDs present at the start of the test (for example, opened by libc), those
+	// may be closed due to a timeout of some sort. Allow those to go away, but
+	// check that no new FDs are added.
+	for _, fd := range openFDs() {
+		if !old[fd] {
+			t.Errorf("leaked file descriptor %v", fd)
 		}
 	}
-	c.Wait()
 }
 
 func TestExtraFiles(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("skipping test in short mode that would build a helper binary")
+	}
+
 	if haveUnexpectedFDs {
 		// The point of this test is to make sure that any
 		// descriptors we open are marked close-on-exec.
@@ -724,7 +683,10 @@ func TestExtraFiles(t *testing.T) {
 
 	// This test runs with cgo disabled. External linking needs cgo, so
 	// it doesn't work if external linking is required.
-	testenv.MustInternalLink(t)
+	//
+	// N.B. go build below explictly doesn't pass through
+	// -asan/-msan/-race, so we don't care about those.
+	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 
 	if runtime.GOOS == "windows" {
 		t.Skipf("skipping test on %q", runtime.GOOS)
@@ -782,7 +744,7 @@ func TestExtraFiles(t *testing.T) {
 	tempdir := t.TempDir()
 	exe := filepath.Join(tempdir, "read3.exe")
 
-	c := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "read3.go")
+	c := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, "read3.go")
 	// Build the test without cgo, so that C library functions don't
 	// open descriptors unexpectedly. See issue 25628.
 	c.Env = append(os.Environ(), "CGO_ENABLED=0")
@@ -804,7 +766,7 @@ func TestExtraFiles(t *testing.T) {
 	}
 
 	c = exec.CommandContext(ctx, exe)
-	var stdout, stderr bytes.Buffer
+	var stdout, stderr strings.Builder
 	c.Stdout = &stdout
 	c.Stderr = &stderr
 	c.ExtraFiles = []*os.File{tf}
@@ -822,7 +784,7 @@ func TestExtraFiles(t *testing.T) {
 	}
 	err = c.Run()
 	if err != nil {
-		t.Fatalf("Run: %v\n--- stdout:\n%s--- stderr:\n%s", err, stdout.Bytes(), stderr.Bytes())
+		t.Fatalf("Run: %v\n--- stdout:\n%s--- stderr:\n%s", err, stdout.String(), stderr.String())
 	}
 	if stdout.String() != text {
 		t.Errorf("got stdout %q, stderr %q; want %q on stdout", stdout.String(), stderr.String(), text)
@@ -834,6 +796,8 @@ func TestExtraFilesRace(t *testing.T) {
 		maySkipHelperCommand("describefiles")
 		t.Skip("no operating system support; skipping")
 	}
+	t.Parallel()
+
 	listen := func() net.Listener {
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
@@ -885,7 +849,6 @@ func TestExtraFilesRace(t *testing.T) {
 		for _, f := range cb.ExtraFiles {
 			f.Close()
 		}
-
 	}
 }
 
@@ -901,10 +864,14 @@ func (delayedInfiniteReader) Read(b []byte) (int, error) {
 
 // Issue 9173: ignore stdin pipe writes if the program completes successfully.
 func TestIgnorePipeErrorOnSuccess(t *testing.T) {
+	t.Parallel()
+
 	testWith := func(r io.Reader) func(*testing.T) {
 		return func(t *testing.T) {
+			t.Parallel()
+
 			cmd := helperCommand(t, "echo", "foo")
-			var out bytes.Buffer
+			var out strings.Builder
 			cmd.Stdin = r
 			cmd.Stdout = &out
 			if err := cmd.Run(); err != nil {
@@ -926,6 +893,8 @@ func (w *badWriter) Write(data []byte) (int, error) {
 }
 
 func TestClosePipeOnCopyError(t *testing.T) {
+	t.Parallel()
+
 	cmd := helperCommand(t, "yes")
 	cmd.Stdout = new(badWriter)
 	err := cmd.Run()
@@ -935,6 +904,8 @@ func TestClosePipeOnCopyError(t *testing.T) {
 }
 
 func TestOutputStderrCapture(t *testing.T) {
+	t.Parallel()
+
 	cmd := helperCommand(t, "stderrfail")
 	_, err := cmd.Output()
 	ee, ok := err.(*exec.ExitError)
@@ -949,6 +920,8 @@ func TestOutputStderrCapture(t *testing.T) {
 }
 
 func TestContext(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	c := helperCommandContext(t, ctx, "pipetest")
 	stdin, err := c.StdinPipe()
@@ -1021,6 +994,7 @@ func TestContextCancel(t *testing.T) {
 		if time.Since(start) > time.Minute {
 			// Panic instead of calling t.Fatal so that we get a goroutine dump.
 			// We want to know exactly what the os/exec goroutines got stuck on.
+			debug.SetTraceback("system")
 			panic("canceling context did not stop program")
 		}
 
@@ -1042,6 +1016,8 @@ func TestContextCancel(t *testing.T) {
 
 // test that environment variables are de-duped.
 func TestDedupEnvEcho(t *testing.T) {
+	t.Parallel()
+
 	cmd := helperCommand(t, "echoenv", "FOO")
 	cmd.Env = append(cmd.Environ(), "FOO=bad", "FOO=good")
 	out, err := cmd.CombinedOutput()
@@ -1053,7 +1029,21 @@ func TestDedupEnvEcho(t *testing.T) {
 	}
 }
 
+func TestEnvNULCharacter(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("plan9 explicitly allows NUL in the environment")
+	}
+	cmd := helperCommand(t, "echoenv", "FOO", "BAR")
+	cmd.Env = append(cmd.Environ(), "FOO=foo\x00BAR=bar")
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Errorf("output = %q; want error", string(out))
+	}
+}
+
 func TestString(t *testing.T) {
+	t.Parallel()
+
 	echoPath, err := exec.LookPath("echo")
 	if err != nil {
 		t.Skip(err)
@@ -1076,10 +1066,13 @@ func TestString(t *testing.T) {
 }
 
 func TestStringPathNotResolved(t *testing.T) {
+	t.Parallel()
+
 	_, err := exec.LookPath("makemeasandwich")
 	if err == nil {
 		t.Skip("wow, thanks")
 	}
+
 	cmd := exec.Command("makemeasandwich", "-lettuce")
 	want := "makemeasandwich -lettuce"
 	if got := cmd.String(); got != want {
@@ -1092,5 +1085,773 @@ func TestNoPath(t *testing.T) {
 	want := "exec: no command"
 	if err == nil || err.Error() != want {
 		t.Errorf("new(Cmd).Start() = %v, want %q", err, want)
+	}
+}
+
+// TestDoubleStartLeavesPipesOpen checks for a regression in which calling
+// Start twice, which returns an error on the second call, would spuriously
+// close the pipes established in the first call.
+func TestDoubleStartLeavesPipesOpen(t *testing.T) {
+	t.Parallel()
+
+	cmd := helperCommand(t, "pipetest")
+	in, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := cmd.Wait(); err != nil {
+			t.Error(err)
+		}
+	})
+
+	if err := cmd.Start(); err == nil || !strings.HasSuffix(err.Error(), "already started") {
+		t.Fatalf("second call to Start returned a nil; want an 'already started' error")
+	}
+
+	outc := make(chan []byte, 1)
+	go func() {
+		b, err := io.ReadAll(out)
+		if err != nil {
+			t.Error(err)
+		}
+		outc <- b
+	}()
+
+	const msg = "O:Hello, pipe!\n"
+
+	_, err = io.WriteString(in, msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in.Close()
+
+	b := <-outc
+	if !bytes.Equal(b, []byte(msg)) {
+		t.Fatalf("read %q from stdout pipe; want %q", b, msg)
+	}
+}
+
+func cmdHang(args ...string) {
+	sleep, err := time.ParseDuration(args[0])
+	if err != nil {
+		panic(err)
+	}
+
+	fs := flag.NewFlagSet("hang", flag.ExitOnError)
+	exitOnInterrupt := fs.Bool("interrupt", false, "if true, commands should exit 0 on os.Interrupt")
+	subsleep := fs.Duration("subsleep", 0, "amount of time for the 'hang' helper to leave an orphaned subprocess sleeping with stderr open")
+	probe := fs.Duration("probe", 0, "if nonzero, the 'hang' helper should write to stderr at this interval, and exit nonzero if a write fails")
+	read := fs.Bool("read", false, "if true, the 'hang' helper should read stdin to completion before sleeping")
+	fs.Parse(args[1:])
+
+	pid := os.Getpid()
+
+	if *subsleep != 0 {
+		cmd := exec.Command(testenv.Executable(nil), "hang", subsleep.String(), "-read=true", "-probe="+probe.String())
+		cmd.Stdin = os.Stdin
+		cmd.Stderr = os.Stderr
+		out, err := cmd.StdoutPipe()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		cmd.Start()
+
+		buf := new(strings.Builder)
+		if _, err := io.Copy(buf, out); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			cmd.Process.Kill()
+			cmd.Wait()
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "%d: started %d: %v\n", pid, cmd.Process.Pid, cmd)
+		go cmd.Wait() // Release resources if cmd happens not to outlive this process.
+	}
+
+	if *exitOnInterrupt {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		go func() {
+			sig := <-c
+			fmt.Fprintf(os.Stderr, "%d: received %v\n", pid, sig)
+			os.Exit(0)
+		}()
+	} else {
+		signal.Ignore(os.Interrupt)
+	}
+
+	// Signal that the process is set up by closing stdout.
+	os.Stdout.Close()
+
+	if *read {
+		if pipeSignal != nil {
+			signal.Ignore(pipeSignal)
+		}
+		r := bufio.NewReader(os.Stdin)
+		for {
+			line, err := r.ReadBytes('\n')
+			if len(line) > 0 {
+				// Ignore write errors: we want to keep reading even if stderr is closed.
+				fmt.Fprintf(os.Stderr, "%d: read %s", pid, line)
+			}
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%d: finished read: %v", pid, err)
+				break
+			}
+		}
+	}
+
+	if *probe != 0 {
+		ticker := time.NewTicker(*probe)
+		go func() {
+			for range ticker.C {
+				if _, err := fmt.Fprintf(os.Stderr, "%d: ok\n", pid); err != nil {
+					os.Exit(1)
+				}
+			}
+		}()
+	}
+
+	if sleep != 0 {
+		time.Sleep(sleep)
+		fmt.Fprintf(os.Stderr, "%d: slept %v\n", pid, sleep)
+	}
+}
+
+// A tickReader reads an unbounded sequence of timestamps at no more than a
+// fixed interval.
+type tickReader struct {
+	interval time.Duration
+	lastTick time.Time
+	s        string
+}
+
+func newTickReader(interval time.Duration) *tickReader {
+	return &tickReader{interval: interval}
+}
+
+func (r *tickReader) Read(p []byte) (n int, err error) {
+	if len(r.s) == 0 {
+		if d := r.interval - time.Since(r.lastTick); d > 0 {
+			time.Sleep(d)
+		}
+		r.lastTick = time.Now()
+		r.s = r.lastTick.Format(time.RFC3339Nano + "\n")
+	}
+
+	n = copy(p, r.s)
+	r.s = r.s[n:]
+	return n, nil
+}
+
+func startHang(t *testing.T, ctx context.Context, hangTime time.Duration, interrupt os.Signal, waitDelay time.Duration, flags ...string) *exec.Cmd {
+	t.Helper()
+
+	args := append([]string{hangTime.String()}, flags...)
+	cmd := helperCommandContext(t, ctx, "hang", args...)
+	cmd.Stdin = newTickReader(1 * time.Millisecond)
+	cmd.Stderr = new(strings.Builder)
+	if interrupt == nil {
+		cmd.Cancel = nil
+	} else {
+		cmd.Cancel = func() error {
+			return cmd.Process.Signal(interrupt)
+		}
+	}
+	cmd.WaitDelay = waitDelay
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(cmd)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for cmd to close stdout to signal that its handlers are installed.
+	buf := new(strings.Builder)
+	if _, err := io.Copy(buf, out); err != nil {
+		t.Error(err)
+		cmd.Process.Kill()
+		cmd.Wait()
+		t.FailNow()
+	}
+	if buf.Len() > 0 {
+		t.Logf("stdout %v:\n%s", cmd.Args, buf)
+	}
+
+	return cmd
+}
+
+func TestWaitInterrupt(t *testing.T) {
+	t.Parallel()
+
+	// tooLong is an arbitrary duration that is expected to be much longer than
+	// the test runs, but short enough that leaked processes will eventually exit
+	// on their own.
+	const tooLong = 10 * time.Minute
+
+	// Control case: with no cancellation and no WaitDelay, we should wait for the
+	// process to exit.
+	t.Run("Wait", func(t *testing.T) {
+		t.Parallel()
+		cmd := startHang(t, context.Background(), 1*time.Millisecond, os.Kill, 0)
+		err := cmd.Wait()
+		t.Logf("stderr:\n%s", cmd.Stderr)
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		if err != nil {
+			t.Errorf("Wait: %v; want <nil>", err)
+		}
+		if ps := cmd.ProcessState; !ps.Exited() {
+			t.Errorf("cmd did not exit: %v", ps)
+		} else if code := ps.ExitCode(); code != 0 {
+			t.Errorf("cmd.ProcessState.ExitCode() = %v; want 0", code)
+		}
+	})
+
+	// With a very long WaitDelay and no Cancel function, we should wait for the
+	// process to exit even if the command's Context is canceled.
+	t.Run("WaitDelay", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skipf("skipping: os.Interrupt is not implemented on Windows")
+		}
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cmd := startHang(t, ctx, tooLong, nil, tooLong, "-interrupt=true")
+		cancel()
+
+		time.Sleep(1 * time.Millisecond)
+		// At this point cmd should still be running (because we passed nil to
+		// startHang for the cancel signal). Sending it an explicit Interrupt signal
+		// should succeed.
+		if err := cmd.Process.Signal(os.Interrupt); err != nil {
+			t.Error(err)
+		}
+
+		err := cmd.Wait()
+		t.Logf("stderr:\n%s", cmd.Stderr)
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		// This program exits with status 0,
+		// but pretty much always does so during the wait delay.
+		// Since the Cmd itself didn't do anything to stop the process when the
+		// context expired, a successful exit is valid (even if late) and does
+		// not merit a non-nil error.
+		if err != nil {
+			t.Errorf("Wait: %v; want nil", err)
+		}
+		if ps := cmd.ProcessState; !ps.Exited() {
+			t.Errorf("cmd did not exit: %v", ps)
+		} else if code := ps.ExitCode(); code != 0 {
+			t.Errorf("cmd.ProcessState.ExitCode() = %v; want 0", code)
+		}
+	})
+
+	// If the context is canceled and the Cancel function sends os.Kill,
+	// the process should be terminated immediately, and its output
+	// pipes should be closed (causing Wait to return) after WaitDelay
+	// even if a child process is still writing to them.
+	t.Run("SIGKILL-hang", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cmd := startHang(t, ctx, tooLong, os.Kill, 10*time.Millisecond, "-subsleep=10m", "-probe=1ms")
+		cancel()
+		err := cmd.Wait()
+		t.Logf("stderr:\n%s", cmd.Stderr)
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		// This test should kill the child process after 10ms,
+		// leaving a grandchild process writing probes in a loop.
+		// The child process should be reported as failed,
+		// and the grandchild will exit (or die by SIGPIPE) once the
+		// stderr pipe is closed.
+		if ee, ok := errors.AsType[*exec.ExitError](err); !ok {
+			t.Errorf("Wait error = %v; want %T", err, ee)
+		}
+	})
+
+	// If the process exits with status 0 but leaves a child behind writing
+	// to its output pipes, Wait should only wait for WaitDelay before
+	// closing the pipes and returning.  Wait should return ErrWaitDelay
+	// to indicate that the piped output may be incomplete even though the
+	// command returned a “success” code.
+	t.Run("Exit-hang", func(t *testing.T) {
+		t.Parallel()
+
+		cmd := startHang(t, context.Background(), 1*time.Millisecond, nil, 10*time.Millisecond, "-subsleep=10m", "-probe=1ms")
+		err := cmd.Wait()
+		t.Logf("stderr:\n%s", cmd.Stderr)
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		// This child process should exit immediately,
+		// leaving a grandchild process writing probes in a loop.
+		// Since the child has no ExitError to report but we did not
+		// read all of its output, Wait should return ErrWaitDelay.
+		if !errors.Is(err, exec.ErrWaitDelay) {
+			t.Errorf("Wait error = %v; want %T", err, exec.ErrWaitDelay)
+		}
+	})
+
+	// If the Cancel function sends a signal that the process can handle, and it
+	// handles that signal without actually exiting, then it should be terminated
+	// after the WaitDelay.
+	t.Run("SIGINT-ignored", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skipf("skipping: os.Interrupt is not implemented on Windows")
+		}
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cmd := startHang(t, ctx, tooLong, os.Interrupt, 10*time.Millisecond, "-interrupt=false")
+		cancel()
+		err := cmd.Wait()
+		t.Logf("stderr:\n%s", cmd.Stderr)
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		// This command ignores SIGINT, sleeping until it is killed.
+		// Wait should return the usual error for a killed process.
+		if ee, ok := errors.AsType[*exec.ExitError](err); !ok {
+			t.Errorf("Wait error = %v; want %T", err, ee)
+		}
+	})
+
+	// If the process handles the cancellation signal and exits with status 0,
+	// Wait should report a non-nil error (because the process had to be
+	// interrupted), and it should be a context error (because there is no error
+	// to report from the child process itself).
+	t.Run("SIGINT-handled", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skipf("skipping: os.Interrupt is not implemented on Windows")
+		}
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cmd := startHang(t, ctx, tooLong, os.Interrupt, 0, "-interrupt=true")
+		cancel()
+		err := cmd.Wait()
+		t.Logf("stderr:\n%s", cmd.Stderr)
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		if !errors.Is(err, ctx.Err()) {
+			t.Errorf("Wait error = %v; want %v", err, ctx.Err())
+		}
+		if ps := cmd.ProcessState; !ps.Exited() {
+			t.Errorf("cmd did not exit: %v", ps)
+		} else if code := ps.ExitCode(); code != 0 {
+			t.Errorf("cmd.ProcessState.ExitCode() = %v; want 0", code)
+		}
+	})
+
+	// If the Cancel function sends SIGQUIT, it should be handled in the usual
+	// way: a Go program should dump its goroutines and exit with non-success
+	// status. (We expect SIGQUIT to be a common pattern in real-world use.)
+	t.Run("SIGQUIT", func(t *testing.T) {
+		if quitSignal == nil {
+			t.Skipf("skipping: SIGQUIT is not supported on %v", runtime.GOOS)
+		}
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cmd := startHang(t, ctx, tooLong, quitSignal, 0)
+		cancel()
+		err := cmd.Wait()
+		t.Logf("stderr:\n%s", cmd.Stderr)
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		if _, ok := errors.AsType[*exec.ExitError](err); !ok {
+			t.Errorf("Wait error = %v; want %v", err, ctx.Err())
+		}
+
+		if ps := cmd.ProcessState; !ps.Exited() {
+			t.Errorf("cmd did not exit: %v", ps)
+		} else if code := ps.ExitCode(); code != 2 {
+			// The default os/signal handler exits with code 2.
+			t.Errorf("cmd.ProcessState.ExitCode() = %v; want 2", code)
+		}
+
+		if !strings.Contains(fmt.Sprint(cmd.Stderr), "\n\ngoroutine ") {
+			t.Errorf("cmd.Stderr does not contain a goroutine dump")
+		}
+	})
+}
+
+func TestCancelErrors(t *testing.T) {
+	t.Parallel()
+
+	// If Cancel returns a non-ErrProcessDone error and the process
+	// exits successfully, Wait should wrap the error from Cancel.
+	t.Run("success after error", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		cmd := helperCommandContext(t, ctx, "pipetest")
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		errArbitrary := errors.New("arbitrary error")
+		cmd.Cancel = func() error {
+			stdin.Close()
+			t.Logf("Cancel returning %v", errArbitrary)
+			return errArbitrary
+		}
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		cancel()
+
+		err = cmd.Wait()
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+		if !errors.Is(err, errArbitrary) || err == errArbitrary {
+			t.Errorf("Wait error = %v; want an error wrapping %v", err, errArbitrary)
+		}
+	})
+
+	// If Cancel returns an error equivalent to ErrProcessDone,
+	// Wait should ignore that error. (ErrProcessDone indicates that the
+	// process was already done before we tried to interrupt it — maybe we
+	// just didn't notice because Wait hadn't been called yet.)
+	t.Run("success after ErrProcessDone", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		cmd := helperCommandContext(t, ctx, "pipetest")
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// We intentionally race Cancel against the process exiting,
+		// but ensure that the process wins the race (and return ErrProcessDone
+		// from Cancel to report that).
+		interruptCalled := make(chan struct{})
+		done := make(chan struct{})
+		cmd.Cancel = func() error {
+			close(interruptCalled)
+			<-done
+			t.Logf("Cancel returning an error wrapping ErrProcessDone")
+			return fmt.Errorf("%w: stdout closed", os.ErrProcessDone)
+		}
+
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+
+		cancel()
+		<-interruptCalled
+		stdin.Close()
+		io.Copy(io.Discard, stdout) // reaches EOF when the process exits
+		close(done)
+
+		err = cmd.Wait()
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+		if err != nil {
+			t.Errorf("Wait error = %v; want nil", err)
+		}
+	})
+
+	// If Cancel returns an error and the process is killed after
+	// WaitDelay, Wait should report the usual SIGKILL ExitError, not the
+	// error from Cancel.
+	t.Run("killed after error", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		cmd := helperCommandContext(t, ctx, "pipetest")
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer stdin.Close()
+
+		errArbitrary := errors.New("arbitrary error")
+		var interruptCalled atomic.Bool
+		cmd.Cancel = func() error {
+			t.Logf("Cancel called")
+			interruptCalled.Store(true)
+			return errArbitrary
+		}
+		cmd.WaitDelay = 1 * time.Millisecond
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		cancel()
+
+		err = cmd.Wait()
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		// Ensure that Cancel actually had the opportunity to
+		// return the error.
+		if !interruptCalled.Load() {
+			t.Errorf("Cancel was not called when the context was canceled")
+		}
+
+		// This test should kill the child process after 1ms,
+		// To maximize compatibility with existing uses of exec.CommandContext, the
+		// resulting error should be an exec.ExitError without additional wrapping.
+		if _, ok := err.(*exec.ExitError); !ok {
+			t.Errorf("Wait error = %v; want *exec.ExitError", err)
+		}
+	})
+
+	// If Cancel returns ErrProcessDone but the process is not actually done
+	// (and has to be killed), Wait should report the usual SIGKILL ExitError,
+	// not the error from Cancel.
+	t.Run("killed after spurious ErrProcessDone", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		cmd := helperCommandContext(t, ctx, "pipetest")
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer stdin.Close()
+
+		var interruptCalled atomic.Bool
+		cmd.Cancel = func() error {
+			t.Logf("Cancel returning an error wrapping ErrProcessDone")
+			interruptCalled.Store(true)
+			return fmt.Errorf("%w: stdout closed", os.ErrProcessDone)
+		}
+		cmd.WaitDelay = 1 * time.Millisecond
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		cancel()
+
+		err = cmd.Wait()
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		// Ensure that Cancel actually had the opportunity to
+		// return the error.
+		if !interruptCalled.Load() {
+			t.Errorf("Cancel was not called when the context was canceled")
+		}
+
+		// This test should kill the child process after 1ms,
+		// To maximize compatibility with existing uses of exec.CommandContext, the
+		// resulting error should be an exec.ExitError without additional wrapping.
+		if ee, ok := err.(*exec.ExitError); !ok {
+			t.Errorf("Wait error of type %T; want %T", err, ee)
+		}
+	})
+
+	// If Cancel returns an error and the process exits with an
+	// unsuccessful exit code, the process error should take precedence over the
+	// Cancel error.
+	t.Run("nonzero exit after error", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		cmd := helperCommandContext(t, ctx, "stderrfail")
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		errArbitrary := errors.New("arbitrary error")
+		interrupted := make(chan struct{})
+		cmd.Cancel = func() error {
+			close(interrupted)
+			return errArbitrary
+		}
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		cancel()
+		<-interrupted
+		io.Copy(io.Discard, stderr)
+
+		err = cmd.Wait()
+		t.Logf("[%d] %v", cmd.Process.Pid, err)
+
+		if ee, ok := err.(*exec.ExitError); !ok || ee.ProcessState.ExitCode() != 1 {
+			t.Errorf("Wait error = %v; want exit status 1", err)
+		}
+	})
+}
+
+// TestConcurrentExec is a regression test for https://go.dev/issue/61080.
+//
+// Forking multiple child processes concurrently would sometimes hang on darwin.
+// (This test hung on a gomote with -count=100 after only a few iterations.)
+func TestConcurrentExec(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// This test will spawn nHangs subprocesses that hang reading from stdin,
+	// and nExits subprocesses that exit immediately.
+	//
+	// When issue #61080 was present, a long-lived "hang" subprocess would
+	// occasionally inherit the fork/exec status pipe from an "exit" subprocess,
+	// causing the parent process (which expects to see an EOF on that pipe almost
+	// immediately) to unexpectedly block on reading from the pipe.
+	var (
+		nHangs       = runtime.GOMAXPROCS(0)
+		nExits       = runtime.GOMAXPROCS(0)
+		hangs, exits sync.WaitGroup
+	)
+	hangs.Add(nHangs)
+	exits.Add(nExits)
+
+	// ready is done when the goroutines have done as much work as possible to
+	// prepare to create subprocesses. It isn't strictly necessary for the test,
+	// but helps to increase the repro rate by making it more likely that calls to
+	// syscall.StartProcess for the "hang" and "exit" goroutines overlap.
+	var ready sync.WaitGroup
+	ready.Add(nHangs + nExits)
+
+	for i := 0; i < nHangs; i++ {
+		go func() {
+			defer hangs.Done()
+
+			cmd := helperCommandContext(t, ctx, "pipetest")
+			stdin, err := cmd.StdinPipe()
+			if err != nil {
+				ready.Done()
+				t.Error(err)
+				return
+			}
+			cmd.Cancel = stdin.Close
+			ready.Done()
+
+			ready.Wait()
+			if err := cmd.Start(); err != nil {
+				if !errors.Is(err, context.Canceled) {
+					t.Error(err)
+				}
+				return
+			}
+
+			cmd.Wait()
+		}()
+	}
+
+	for i := 0; i < nExits; i++ {
+		go func() {
+			defer exits.Done()
+
+			cmd := helperCommandContext(t, ctx, "exit", "0")
+			ready.Done()
+
+			ready.Wait()
+			if err := cmd.Run(); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+
+	exits.Wait()
+	cancel()
+	hangs.Wait()
+}
+
+// TestPathRace tests that [Cmd.String] can be called concurrently
+// with [Cmd.Start].
+func TestPathRace(t *testing.T) {
+	cmd := helperCommand(t, "exit", "0")
+
+	done := make(chan struct{})
+	go func() {
+		out, err := cmd.CombinedOutput()
+		t.Logf("%v: %v\n%s", cmd, err, out)
+		close(done)
+	}()
+
+	t.Logf("running in background: %v", cmd)
+	<-done
+}
+
+func TestAbsPathExec(t *testing.T) {
+	testenv.MustHaveExec(t)
+	testenv.MustHaveGoBuild(t) // must have GOROOT/bin/{go,gofmt}
+
+	// A simple exec of a full path should work.
+	// Go 1.22 broke this on Windows, requiring ".exe"; see #66586.
+	exe := filepath.Join(testenv.GOROOT(t), "bin/gofmt")
+	cmd := exec.Command(exe)
+	if cmd.Path != exe {
+		t.Errorf("exec.Command(%#q) set Path=%#q", exe, cmd.Path)
+	}
+	err := cmd.Run()
+	if err != nil {
+		t.Errorf("using exec.Command(%#q): %v", exe, err)
+	}
+
+	cmd = &exec.Cmd{Path: exe}
+	err = cmd.Run()
+	if err != nil {
+		t.Errorf("using exec.Cmd{Path: %#q}: %v", cmd.Path, err)
+	}
+
+	cmd = &exec.Cmd{Path: "gofmt", Dir: "/"}
+	err = cmd.Run()
+	if err == nil {
+		t.Errorf("using exec.Cmd{Path: %#q}: unexpected success", cmd.Path)
+	}
+
+	// A simple exec after modifying Cmd.Path should work.
+	// This broke on Windows. See go.dev/issue/68314.
+	t.Run("modified", func(t *testing.T) {
+		if exec.Command(filepath.Join(testenv.GOROOT(t), "bin/go")).Run() == nil {
+			// The implementation of the test case below relies on the go binary
+			// exiting with a non-zero exit code when run without any arguments.
+			// In the unlikely case that changes, we need to use another binary.
+			t.Fatal("test case needs updating to verify fix for go.dev/issue/68314")
+		}
+		exe1 := filepath.Join(testenv.GOROOT(t), "bin/go")
+		exe2 := filepath.Join(testenv.GOROOT(t), "bin/gofmt")
+		cmd := exec.Command(exe1)
+		cmd.Path = exe2
+		cmd.Args = []string{cmd.Path}
+		err := cmd.Run()
+		if err != nil {
+			t.Error("ran wrong binary")
+		}
+	})
+}
+
+// Calling Start twice is an error, regardless of outcome.
+func TestStart_twice(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	cmd := exec.Command("/bin/nonesuch")
+	if err := cmd.Start(); err == nil {
+		t.Fatalf("running invalid command succeeded")
+	}
+	err := cmd.Start()
+	got := fmt.Sprint(err)
+	want := "exec: already started"
+	if got != want {
+		t.Fatalf("Start call returned err %q, want %q", got, want)
 	}
 }

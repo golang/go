@@ -23,14 +23,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"internal/unsafeheader"
 	"unsafe"
 )
 
 // New object file format.
 //
 //    Header struct {
-//       Magic       [...]byte   // "\x00go118ld"
+//       Magic       [...]byte   // "\x00go120ld"
 //       Fingerprint [8]byte
 //       Flags       uint32
 //       Offsets     [...]uint32 // byte offset of each block below
@@ -56,6 +55,7 @@ import (
 //       Flag  uint8
 //       Flag2 uint8
 //       Size  uint32
+//       Align uint32
 //    }
 //    Hashed64Defs [...]struct { // short hashed (content-addressable) symbol definitions
 //       ... // same as SymbolDefs
@@ -134,7 +134,7 @@ import (
 // - If PkgIdx is PkgIdxHashed, SymIdx is the index of the symbol in the
 //   HashedDefs array.
 // - If PkgIdx is PkgIdxNone, SymIdx is the index of the symbol in the
-//   NonPkgDefs array (could natually overflow to NonPkgRefs array).
+//   NonPkgDefs array (could naturally overflow to NonPkgRefs array).
 // - Otherwise, SymIdx is the index of the symbol in some other package's
 //   SymbolDefs array.
 //
@@ -215,7 +215,7 @@ type Header struct {
 	Offsets     [NBlk]uint32
 }
 
-const Magic = "\x00go118ld"
+const Magic = "\x00go120ld"
 
 func (h *Header) Write(w *Writer) {
 	w.RawString(h.Magic)
@@ -245,7 +245,7 @@ func (h *Header) Read(r *Reader) error {
 }
 
 func (h *Header) Size() int {
-	return len(h.Magic) + 4 + 4*len(h.Offsets)
+	return len(h.Magic) + len(h.Fingerprint) + 4 + 4*len(h.Offsets)
 }
 
 // Autolib
@@ -285,6 +285,7 @@ const (
 	_                               // was ObjFlagNeedNameExpansion
 	ObjFlagFromAssembly             // object is from asm src, not go
 	ObjFlagUnlinkable               // unlinkable package (linker will emit an error)
+	ObjFlagStd                      // standard library package
 )
 
 // Sym.Flag
@@ -303,6 +304,10 @@ const (
 	SymFlagUsedInIface = 1 << iota
 	SymFlagItab
 	SymFlagDict
+	SymFlagPkgInit
+	SymFlagLinkname
+	SymFlagABIWrapper
+	SymFlagWasmExport
 )
 
 // Returns the length of the name of the symbol.
@@ -333,6 +338,10 @@ func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
 func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
 func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
 func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
+func (s *Sym) IsPkgInit() bool     { return s.Flag2()&SymFlagPkgInit != 0 }
+func (s *Sym) IsLinkname() bool    { return s.Flag2()&SymFlagLinkname != 0 }
+func (s *Sym) ABIWrapper() bool    { return s.Flag2()&SymFlagABIWrapper != 0 }
+func (s *Sym) WasmExport() bool    { return s.Flag2()&SymFlagWasmExport != 0 }
 
 func (s *Sym) SetName(x string, w *Writer) {
 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
@@ -440,6 +449,9 @@ const (
 	AuxPcline
 	AuxPcinline
 	AuxPcdata
+	AuxWasmImport
+	AuxWasmType
+	AuxSehUnwindInfo
 )
 
 func (a *Aux) Type() uint8 { return a[0] }
@@ -527,6 +539,8 @@ type Writer struct {
 	wr        *bio.Writer
 	stringMap map[string]uint32
 	off       uint32 // running offset
+
+	b [8]byte // scratch space for writing bytes
 }
 
 func NewWriter(wr *bio.Writer) *Writer {
@@ -565,23 +579,20 @@ func (w *Writer) Bytes(s []byte) {
 }
 
 func (w *Writer) Uint64(x uint64) {
-	var b [8]byte
-	binary.LittleEndian.PutUint64(b[:], x)
-	w.wr.Write(b[:])
+	binary.LittleEndian.PutUint64(w.b[:], x)
+	w.wr.Write(w.b[:])
 	w.off += 8
 }
 
 func (w *Writer) Uint32(x uint32) {
-	var b [4]byte
-	binary.LittleEndian.PutUint32(b[:], x)
-	w.wr.Write(b[:])
+	binary.LittleEndian.PutUint32(w.b[:4], x)
+	w.wr.Write(w.b[:4])
 	w.off += 4
 }
 
 func (w *Writer) Uint16(x uint16) {
-	var b [2]byte
-	binary.LittleEndian.PutUint16(b[:], x)
-	w.wr.Write(b[:])
+	binary.LittleEndian.PutUint16(w.b[:2], x)
+	w.wr.Write(w.b[:2])
 	w.off += 2
 }
 
@@ -624,27 +635,9 @@ func (r *Reader) uint64At(off uint32) uint64 {
 	return binary.LittleEndian.Uint64(b)
 }
 
-func (r *Reader) int64At(off uint32) int64 {
-	return int64(r.uint64At(off))
-}
-
 func (r *Reader) uint32At(off uint32) uint32 {
 	b := r.BytesAt(off, 4)
 	return binary.LittleEndian.Uint32(b)
-}
-
-func (r *Reader) int32At(off uint32) int32 {
-	return int32(r.uint32At(off))
-}
-
-func (r *Reader) uint16At(off uint32) uint16 {
-	b := r.BytesAt(off, 2)
-	return binary.LittleEndian.Uint16(b)
-}
-
-func (r *Reader) uint8At(off uint32) uint8 {
-	b := r.BytesAt(off, 1)
-	return b[0]
 }
 
 func (r *Reader) StringAt(off uint32, len uint32) string {
@@ -659,13 +652,7 @@ func toString(b []byte) string {
 	if len(b) == 0 {
 		return ""
 	}
-
-	var s string
-	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(&b[0])
-	hdr.Len = len(b)
-
-	return s
+	return unsafe.String(&b[0], len(b))
 }
 
 func (r *Reader) StringRef(off uint32) string {
@@ -740,7 +727,7 @@ func (r *Reader) NNonpkgref() int {
 
 // SymOff returns the offset of the i-th symbol.
 func (r *Reader) SymOff(i uint32) uint32 {
-	return r.h.Offsets[BlkSymdef] + uint32(i*SymSize)
+	return r.h.Offsets[BlkSymdef] + i*SymSize
 }
 
 // Sym returns a pointer to the i-th symbol.
@@ -765,7 +752,7 @@ func (r *Reader) RefFlags(i int) *RefFlags {
 // Note: here i is the index of short hashed symbols, not all symbols
 // (unlike other accessors).
 func (r *Reader) Hash64(i uint32) uint64 {
-	off := r.h.Offsets[BlkHash64] + uint32(i*Hash64Size)
+	off := r.h.Offsets[BlkHash64] + i*Hash64Size
 	return r.uint64At(off)
 }
 
@@ -773,19 +760,19 @@ func (r *Reader) Hash64(i uint32) uint64 {
 // Note: here i is the index of hashed symbols, not all symbols
 // (unlike other accessors).
 func (r *Reader) Hash(i uint32) *HashType {
-	off := r.h.Offsets[BlkHash] + uint32(i*HashSize)
+	off := r.h.Offsets[BlkHash] + i*HashSize
 	return (*HashType)(unsafe.Pointer(&r.b[off]))
 }
 
 // NReloc returns the number of relocations of the i-th symbol.
 func (r *Reader) NReloc(i uint32) int {
-	relocIdxOff := r.h.Offsets[BlkRelocIdx] + uint32(i*4)
+	relocIdxOff := r.h.Offsets[BlkRelocIdx] + i*4
 	return int(r.uint32At(relocIdxOff+4) - r.uint32At(relocIdxOff))
 }
 
 // RelocOff returns the offset of the j-th relocation of the i-th symbol.
 func (r *Reader) RelocOff(i uint32, j int) uint32 {
-	relocIdxOff := r.h.Offsets[BlkRelocIdx] + uint32(i*4)
+	relocIdxOff := r.h.Offsets[BlkRelocIdx] + i*4
 	relocIdx := r.uint32At(relocIdxOff)
 	return r.h.Offsets[BlkReloc] + (relocIdx+uint32(j))*uint32(RelocSize)
 }
@@ -850,6 +837,15 @@ func (r *Reader) Data(i uint32) []byte {
 	return r.BytesAt(base+off, int(end-off))
 }
 
+// DataString returns the i-th symbol's data as a string.
+func (r *Reader) DataString(i uint32) string {
+	dataIdxOff := r.h.Offsets[BlkDataIdx] + i*4
+	base := r.h.Offsets[BlkData]
+	off := r.uint32At(dataIdxOff)
+	end := r.uint32At(dataIdxOff + 4)
+	return r.StringAt(base+off, end-off)
+}
+
 // NRefName returns the number of referenced symbol names.
 func (r *Reader) NRefName() int {
 	return int(r.h.Offsets[BlkRefName+1]-r.h.Offsets[BlkRefName]) / RefNameSize
@@ -875,3 +871,4 @@ func (r *Reader) Flags() uint32 {
 func (r *Reader) Shared() bool       { return r.Flags()&ObjFlagShared != 0 }
 func (r *Reader) FromAssembly() bool { return r.Flags()&ObjFlagFromAssembly != 0 }
 func (r *Reader) Unlinkable() bool   { return r.Flags()&ObjFlagUnlinkable != 0 }
+func (r *Reader) Std() bool          { return r.Flags()&ObjFlagStd != 0 }

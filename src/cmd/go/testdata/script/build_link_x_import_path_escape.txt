@@ -1,4 +1,4 @@
-[gccgo] skip 'gccgo does not support -ldflags -X'
+[compiler:gccgo] skip 'gccgo does not support -ldflags -X'
 
 go build -o linkx$GOEXE -ldflags -X=my.pkg.Text=linkXworked my.pkg/main
 exec ./linkx$GOEXE

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build cgo,darwin cgo,linux
+//go:build darwin || linux
 
 #include <stdint.h>
 #include "libcgo.h"
@@ -39,6 +39,8 @@ x_cgo_callers(uintptr_t sig, void *info, void *context, void (*cgoTraceback)(str
         __msan_unpoison(&arg, sizeof arg);
 #endif
 
+	_cgo_tsan_acquire();
 	(*cgoTraceback)(&arg);
+	_cgo_tsan_release();
 	sigtramp(sig, info, context);
 }

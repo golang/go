@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm) || plan9
+//go:build unix || (js && wasm) || plan9 || wasip1
 
 // Unix environment variables.
 
@@ -14,9 +14,6 @@ import (
 )
 
 var (
-	// envOnce guards initialization by copyenv, which populates env.
-	envOnce sync.Once
-
 	// envLock guards env and envs.
 	envLock sync.RWMutex
 
@@ -31,12 +28,7 @@ var (
 
 func runtime_envs() []string // in package runtime
 
-// setenv_c and unsetenv_c are provided by the runtime but are no-ops
-// if cgo isn't loaded.
-func setenv_c(k, v string)
-func unsetenv_c(k string)
-
-func copyenv() {
+var copyenv = sync.OnceFunc(func() {
 	env = make(map[string]int)
 	for i, s := range envs {
 		for j := 0; j < len(s); j++ {
@@ -55,10 +47,10 @@ func copyenv() {
 			}
 		}
 	}
-}
+})
 
 func Unsetenv(key string) error {
-	envOnce.Do(copyenv)
+	copyenv()
 
 	envLock.Lock()
 	defer envLock.Unlock()
@@ -67,12 +59,12 @@ func Unsetenv(key string) error {
 		envs[i] = ""
 		delete(env, key)
 	}
-	unsetenv_c(key)
+	runtimeUnsetenv(key)
 	return nil
 }
 
 func Getenv(key string) (value string, found bool) {
-	envOnce.Do(copyenv)
+	copyenv()
 	if len(key) == 0 {
 		return "", false
 	}
@@ -94,7 +86,7 @@ func Getenv(key string) (value string, found bool) {
 }
 
 func Setenv(key, value string) error {
-	envOnce.Do(copyenv)
+	copyenv()
 	if len(key) == 0 {
 		return EINVAL
 	}
@@ -124,25 +116,24 @@ func Setenv(key, value string) error {
 		envs = append(envs, kv)
 	}
 	env[key] = i
-	setenv_c(key, value)
+	runtimeSetenv(key, value)
 	return nil
 }
 
 func Clearenv() {
-	envOnce.Do(copyenv) // prevent copyenv in Getenv/Setenv
+	copyenv()
 
 	envLock.Lock()
 	defer envLock.Unlock()
 
-	for k := range env {
-		unsetenv_c(k)
-	}
+	runtimeClearenv(env)
+
 	env = make(map[string]int)
 	envs = []string{}
 }
 
 func Environ() []string {
-	envOnce.Do(copyenv)
+	copyenv()
 	envLock.RLock()
 	defer envLock.RUnlock()
 	a := make([]string, 0, len(envs))

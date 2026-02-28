@@ -1,0 +1,94 @@
+# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository#creating-issue-forms
+# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema
+name: Bugs
+description: The go command, standard library, or anything else
+title: "import/path: issue title"
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping us improve! 🙏 Please answer these questions and provide as much information as possible about your problem.
+
+  - type: input
+    id: go-version
+    attributes:
+      label: Go version
+      description: |
+        What version of Go are you using (`go version`)?
+
+        Note: we only [support](https://go.dev/doc/devel/release#policy) the two most recent major releases.
+      placeholder: ex. go version go1.20.7 darwin/arm64
+    validations:
+      required: true
+
+  - type: textarea
+    id: go-env
+    attributes:
+      label: "Output of `go env` in your module/workspace:"
+      placeholder: |
+        GO111MODULE=""
+        GOARCH="arm64"
+        GOBIN="/Users/gopher/go/bin"
+        GOCACHE="/Users/gopher/go/cache"
+        GOENV="/Users/gopher/Library/Application Support/go/env"
+        GOEXE=""
+        GOEXPERIMENT=""
+        GOFLAGS=""
+        GOHOSTARCH="arm64"
+        GOHOSTOS="darwin"
+        GOINSECURE=""
+        GOMODCACHE="/Users/gopher/go/pkg/mod"
+        GONOPROXY=""
+        GONOSUMDB=""
+        GOOS="darwin"
+        GOPATH="/Users/gopher/go"
+        GOPRIVATE=""
+        GOPROXY="https://proxy.golang.org,direct"
+        GOROOT="/usr/local/go"
+        GOSUMDB="sum.golang.org"
+        GOTMPDIR=""
+        GOTOOLDIR="/usr/local/go/pkg/tool/darwin_arm64"
+        GOVCS=""
+        GOVERSION="go1.20.7"
+        GCCGO="gccgo"
+        AR="ar"
+        CC="clang"
+        CXX="clang++"
+        CGO_ENABLED="1"
+        GOMOD="/dev/null"
+        GOWORK=""
+        CGO_CFLAGS="-O2 -g"
+        CGO_CPPFLAGS=""
+        CGO_CXXFLAGS="-O2 -g"
+        CGO_FFLAGS="-O2 -g"
+        CGO_LDFLAGS="-O2 -g"
+        PKG_CONFIG="pkg-config"
+        GOGCCFLAGS="-fPIC -arch arm64 -pthread -fno-caret-diagnostics -Qunused-arguments -fmessage-length=0 -fdebug-prefix-map=/var/folders/44/nbbyll_10jd0z8rj_qxm43740000gn/T/go-build2331607515=/tmp/go-build -gno-record-gcc-switches -fno-common"
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-did-you-do
+    attributes:
+      label: "What did you do?"
+      description: "If possible, provide a recipe for reproducing the error. A complete runnable program is good. A link on [go.dev/play](https://go.dev/play) is best."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: "What did you see happen?"
+      description: Command invocations and their associated output, functions with their arguments and return results, full stacktraces for panics (upload a file if it is very long), etc. Prefer copying text output over using screenshots.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: "What did you expect to see?"
+      description: Why is the current output incorrect, and any additional context we may need to understand the issue.
+    validations:
+      required: true

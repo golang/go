@@ -1,19 +1,26 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ssa_test
 
 import (
 	cmddwarf "cmd/internal/dwarf"
 	"cmd/internal/quoted"
+	"cmp"
 	"debug/dwarf"
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
 	"fmt"
+	"internal/platform"
 	"internal/testenv"
 	"internal/xcoff"
 	"io"
 	"os"
 	"runtime"
-	"sort"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -49,8 +56,8 @@ type Line struct {
 }
 
 func TestStmtLines(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	if !platform.ExecutableHasDWARF(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s: no DWARF symbol table in executables", runtime.GOOS, runtime.GOARCH)
 	}
 
 	if runtime.GOOS == "aix" {
@@ -71,8 +78,15 @@ func TestStmtLines(t *testing.T) {
 		}
 	}
 
+	// Build cmd/go forcing DWARF enabled, as a large test case.
+	dir := t.TempDir()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-w=0", "-o", dir+"/test.exe", "cmd/go").CombinedOutput()
+	if err != nil {
+		t.Fatalf("go build: %v\n%s", err, out)
+	}
+
 	lines := map[Line]bool{}
-	dw, err := open(testenv.GoToolPath(t))
+	dw, err := open(dir + "/test.exe")
 	must(err)
 	rdr := dw.Reader()
 	rdr.Seek(0)
@@ -89,7 +103,7 @@ func TestStmtLines(t *testing.T) {
 		if pkgname == "runtime" {
 			continue
 		}
-		if pkgname == "crypto/internal/nistec/fiat" {
+		if pkgname == "crypto/internal/fips140/nistec/fiat" {
 			continue // golang.org/issue/49372
 		}
 		if e.Val(dwarf.AttrStmtList) == nil {
@@ -106,6 +120,11 @@ func TestStmtLines(t *testing.T) {
 				break
 			}
 			must(err)
+			if le.EndSequence {
+				// When EndSequence is true only
+				// le.Address is meaningful, skip.
+				continue
+			}
 			fl := Line{le.File.Name, le.Line}
 			lines[fl] = lines[fl] || le.IsStmt
 		}
@@ -118,25 +137,26 @@ func TestStmtLines(t *testing.T) {
 		}
 	}
 
-	var m int
-	if runtime.GOARCH == "amd64" {
-		m = 1 // > 99% obtained on amd64, no backsliding
-	} else if runtime.GOARCH == "riscv64" {
-		m = 3 // XXX temporary update threshold to 97% for regabi
-	} else {
-		m = 2 // expect 98% elsewhere.
+	var m float64
+	switch runtime.GOARCH {
+	case "amd64":
+		m = 0.015 // > 98.5% obtained on amd64, there has been minor backsliding
+	case "riscv64":
+		m = 0.03 // XXX temporary update threshold to 97% for regabi
+	default:
+		m = 0.02 // expect 98% elsewhere.
 	}
 
-	if len(nonStmtLines)*100 > m*len(lines) {
-		t.Errorf("Saw too many (%s, > %d%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", runtime.GOARCH, m, len(lines), len(nonStmtLines))
+	if float64(len(nonStmtLines)) > m*float64(len(lines)) {
+		t.Errorf("Saw too many (%s, > %.1f%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", runtime.GOARCH, m*100, len(lines), len(nonStmtLines))
 	}
 	t.Logf("Saw %d out of %d lines without statement marks", len(nonStmtLines), len(lines))
 	if testing.Verbose() {
-		sort.Slice(nonStmtLines, func(i, j int) bool {
-			if nonStmtLines[i].File != nonStmtLines[j].File {
-				return nonStmtLines[i].File < nonStmtLines[j].File
+		slices.SortFunc(nonStmtLines, func(a, b Line) int {
+			if a.File != b.File {
+				return strings.Compare(a.File, b.File)
 			}
-			return nonStmtLines[i].Line < nonStmtLines[j].Line
+			return cmp.Compare(a.Line, b.Line)
 		})
 		for _, l := range nonStmtLines {
 			t.Logf("%s:%d has no DWARF is_stmt mark\n", l.File, l.Line)

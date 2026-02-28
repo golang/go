@@ -125,8 +125,8 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
 	for p := sym.Func().Text; p != nil; p = p.Link {
 		checkaddr(ctxt, p, &p.From)
-		if p.GetFrom3() != nil {
-			checkaddr(ctxt, p, p.GetFrom3())
+		for _, v := range p.RestArgs {
+			checkaddr(ctxt, p, &v.Addr)
 		}
 		checkaddr(ctxt, p, &p.To)
 

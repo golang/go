@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"strings"
@@ -81,8 +82,7 @@ type config struct {
 
 // FromEnvironment returns a Config instance populated from the
 // environment variables HTTP_PROXY, HTTPS_PROXY and NO_PROXY (or the
-// lowercase versions thereof). HTTPS_PROXY takes precedence over
-// HTTP_PROXY for https requests.
+// lowercase versions thereof).
 //
 // The environment values may be either a complete URL or a
 // "host[:port]", in which case the "http" scheme is assumed. An error
@@ -150,10 +150,7 @@ func parseProxy(proxy string) (*url.URL, error) {
 	}
 
 	proxyURL, err := url.Parse(proxy)
-	if err != nil ||
-		(proxyURL.Scheme != "http" &&
-			proxyURL.Scheme != "https" &&
-			proxyURL.Scheme != "socks5") {
+	if err != nil || proxyURL.Scheme == "" || proxyURL.Host == "" {
 		// proxy was bogus. Try prepending "http://" to it and
 		// see if that parses correctly. If not, we fall
 		// through and complain about the original one.
@@ -181,8 +178,10 @@ func (cfg *config) useProxy(addr string) bool {
 	if host == "localhost" {
 		return false
 	}
-	ip := net.ParseIP(host)
-	if ip != nil {
+	nip, err := netip.ParseAddr(host)
+	var ip net.IP
+	if err == nil {
+		ip = net.IP(nip.AsSlice())
 		if ip.IsLoopback() {
 			return false
 		}
@@ -364,6 +363,9 @@ type domainMatch struct {
 }
 
 func (m domainMatch) match(host, port string, ip net.IP) bool {
+	if ip != nil {
+		return false
+	}
 	if strings.HasSuffix(host, m.host) || (m.matchHost && host == m.host[1:]) {
 		return m.port == "" || m.port == port
 	}

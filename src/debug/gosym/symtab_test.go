@@ -62,16 +62,26 @@ func TestRemotePackage(t *testing.T) {
 }
 
 func TestIssue29551(t *testing.T) {
-	symNames := []string{
-		"type..eq.[9]debug/elf.intName",
-		"type..hash.debug/elf.ProgHeader",
-		"type..eq.runtime._panic",
-		"type..hash.struct { runtime.gList; runtime.n int32 }",
-		"go.(*struct { sync.Mutex; math/big.table [64]math/big",
+	tests := []struct {
+		sym     Sym
+		pkgName string
+	}{
+		{Sym{goVersion: ver120, Name: "type:.eq.[9]debug/elf.intName"}, ""},
+		{Sym{goVersion: ver120, Name: "type:.hash.debug/elf.ProgHeader"}, ""},
+		{Sym{goVersion: ver120, Name: "type:.eq.runtime._panic"}, ""},
+		{Sym{goVersion: ver120, Name: "type:.hash.struct { runtime.gList; runtime.n int32 }"}, ""},
+		{Sym{goVersion: ver120, Name: "go:(*struct { sync.Mutex; math/big.table [64]math/big"}, ""},
+		{Sym{goVersion: ver120, Name: "go.uber.org/zap/buffer.(*Buffer).AppendString"}, "go.uber.org/zap/buffer"},
+		{Sym{goVersion: ver118, Name: "type..eq.[9]debug/elf.intName"}, ""},
+		{Sym{goVersion: ver118, Name: "type..hash.debug/elf.ProgHeader"}, ""},
+		{Sym{goVersion: ver118, Name: "type..eq.runtime._panic"}, ""},
+		{Sym{goVersion: ver118, Name: "type..hash.struct { runtime.gList; runtime.n int32 }"}, ""},
+		{Sym{goVersion: ver118, Name: "go.(*struct { sync.Mutex; math/big.table [64]math/big"}, ""},
+		// unfortunate
+		{Sym{goVersion: ver118, Name: "go.uber.org/zap/buffer.(*Buffer).AppendString"}, ""},
 	}
 
-	for _, symName := range symNames {
-		s := Sym{Name: symName}
-		assertString(t, fmt.Sprintf("package of %q", s.Name), s.PackageName(), "")
+	for _, tc := range tests {
+		assertString(t, fmt.Sprintf("package of %q", tc.sym.Name), tc.sym.PackageName(), tc.pkgName)
 	}
 }

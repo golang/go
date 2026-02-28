@@ -49,15 +49,15 @@ func TestBasic(t *testing.T) {
 
 // Reregister some basic types to check registration is idempotent.
 func TestReregistration(t *testing.T) {
-	newtyp := getTypeUnlocked("int", reflect.TypeOf(int(0)))
+	newtyp := getTypeUnlocked("int", reflect.TypeFor[int]())
 	if newtyp != tInt.gobType() {
 		t.Errorf("reregistration of %s got new type", newtyp.string())
 	}
-	newtyp = getTypeUnlocked("uint", reflect.TypeOf(uint(0)))
+	newtyp = getTypeUnlocked("uint", reflect.TypeFor[uint]())
 	if newtyp != tUint.gobType() {
 		t.Errorf("reregistration of %s got new type", newtyp.string())
 	}
-	newtyp = getTypeUnlocked("string", reflect.TypeOf("hello"))
+	newtyp = getTypeUnlocked("string", reflect.TypeFor[string]())
 	if newtyp != tString.gobType() {
 		t.Errorf("reregistration of %s got new type", newtyp.string())
 	}
@@ -145,7 +145,7 @@ type Foo struct {
 }
 
 func TestStructType(t *testing.T) {
-	sstruct := getTypeUnlocked("Foo", reflect.TypeOf(Foo{}))
+	sstruct := getTypeUnlocked("Foo", reflect.TypeFor[Foo]())
 	str := sstruct.string()
 	// If we can print it correctly, we built it correctly.
 	expected := "Foo = struct { A int; B int; C string; D bytes; E float; F float; G Bar = struct { X string; }; H Bar; I Foo; }"

@@ -22,12 +22,9 @@ func (any *anyMessage) parseInterfaceMessage(b []byte) *InterfaceMessage {
 	// FreeBSD 10 and beyond have a restructured mbuf
 	// packet header view.
 	// See https://svnweb.freebsd.org/base?view=revision&revision=254804.
-	if supportsABI(1000000) {
-		m := (*ifMsghdr)(unsafe.Pointer(any))
-		p.Header.Data.Hwassist = uint32(m.Data.Hwassist)
-		p.Header.Data.Epoch = m.Data.Epoch
-		p.Header.Data.Lastchange = m.Data.Lastchange
-		return &InterfaceMessage{Header: p.Header, Data: b[int(unsafe.Offsetof(p.Header.Data))+int(p.Header.Data.Datalen) : any.Msglen]}
-	}
+	m := (*ifMsghdr)(unsafe.Pointer(any))
+	p.Header.Data.Hwassist = uint32(m.Data.Hwassist)
+	p.Header.Data.Epoch = m.Data.Epoch
+	p.Header.Data.Lastchange = m.Data.Lastchange
 	return &InterfaceMessage{Header: p.Header, Data: b[int(unsafe.Offsetof(p.Header.Data))+int(p.Header.Data.Datalen) : any.Msglen]}
 }

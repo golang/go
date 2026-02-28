@@ -1,0 +1,15 @@
+golang.org/toolchain@v0.0.1-go1.999testmod.linux-s390x
+
+-- .mod --
+module golang.org/toolchain
+-- .info --
+{"Version":"v0.0.1-go1.999testmod.linux-s390x"}
+-- go.mod --
+module golang.org/toolchain
+-- bin/go --
+#!/bin/sh
+echo go1.999testmod here!
+-- bin/gofmt --
+echo i am unused
+-- pkg/tool/fake --
+-- lib/wasm/go_js_wasm_exec --

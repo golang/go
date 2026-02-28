@@ -41,6 +41,10 @@ func _() {
 	a1 := f3()         // ERROR "assignment mismatch: 1 variable but f3 returns 3 values"
 	a2, b2 := f1()     // ERROR "assignment mismatch: 2 variables but f1 returns 1 value"
 	a3, b3, c3 := f2() // ERROR "assignment mismatch: 3 variables but f2 returns 2 values"
+
+	_ = a1
+	_, _ = a2, b2
+	_, _, _ = a3, b3, c3
 }
 
 type T struct{}
@@ -66,6 +70,10 @@ func _(x T) {
 	a1 := x.f3()         // ERROR "assignment mismatch: 1 variable but .\.f3 returns 3 values"
 	a2, b2 := x.f1()     // ERROR "assignment mismatch: 2 variables but .\.f1 returns 1 value"
 	a3, b3, c3 := x.f2() // ERROR "assignment mismatch: 3 variables but .\.f2 returns 2 values"
+
+	_ = a1
+	_, _ = a2, b2
+	_, _, _ = a3, b3, c3
 }
 
 // some one-off cases

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !goexperiment.jsonv2
+
 package json
 
 // JSON value parser state machine.
@@ -43,7 +45,7 @@ func checkValid(data []byte, scan *scanner) error {
 }
 
 // A SyntaxError is a description of a JSON syntax error.
-// Unmarshal will return a SyntaxError if the JSON can't be parsed.
+// [Unmarshal] will return a SyntaxError if the JSON can't be parsed.
 type SyntaxError struct {
 	msg    string // description of error
 	Offset int64  // error occurred after reading Offset bytes
@@ -173,7 +175,7 @@ func (s *scanner) eof() int {
 	return scanError
 }
 
-// pushParseState pushes a new parse state p onto the parse stack.
+// pushParseState pushes a new parse state newParseState onto the parse stack.
 // an error state is returned if maxNestingDepth was exceeded, otherwise successState is returned.
 func (s *scanner) pushParseState(c byte, newParseState int, successState int) int {
 	s.parseState = append(s.parseState, newParseState)
@@ -594,7 +596,7 @@ func (s *scanner) error(c byte, context string) int {
 	return scanError
 }
 
-// quoteChar formats c as a quoted character literal
+// quoteChar formats c as a quoted character literal.
 func quoteChar(c byte) string {
 	// special cases - different from quoted strings
 	if c == '\'' {

@@ -1,0 +1,223 @@
+pkg bytes, func FieldsFuncSeq([]uint8, func(int32) bool) iter.Seq[[]uint8] #61901
+pkg bytes, func FieldsSeq([]uint8) iter.Seq[[]uint8] #61901
+pkg bytes, func Lines([]uint8) iter.Seq[[]uint8] #61901
+pkg bytes, func SplitAfterSeq([]uint8, []uint8) iter.Seq[[]uint8] #61901
+pkg bytes, func SplitSeq([]uint8, []uint8) iter.Seq[[]uint8] #61901
+pkg crypto/cipher, func NewCFBDecrypter //deprecated #69445
+pkg crypto/cipher, func NewCFBEncrypter //deprecated #69445
+pkg crypto/cipher, func NewGCMWithRandomNonce(Block) (AEAD, error) #69981
+pkg crypto/cipher, func NewOFB //deprecated #69445
+pkg crypto/fips140, func Enabled() bool #70123
+pkg crypto/hkdf, func Expand[$0 hash.Hash](func() $0, []uint8, string, int) ([]uint8, error) #61477
+pkg crypto/hkdf, func Extract[$0 hash.Hash](func() $0, []uint8, []uint8) ([]uint8, error) #61477
+pkg crypto/hkdf, func Key[$0 hash.Hash](func() $0, []uint8, []uint8, string, int) ([]uint8, error) #61477
+pkg crypto/mlkem, const CiphertextSize1024 = 1568 #70122
+pkg crypto/mlkem, const CiphertextSize1024 ideal-int #70122
+pkg crypto/mlkem, const CiphertextSize768 = 1088 #70122
+pkg crypto/mlkem, const CiphertextSize768 ideal-int #70122
+pkg crypto/mlkem, const EncapsulationKeySize1024 = 1568 #70122
+pkg crypto/mlkem, const EncapsulationKeySize1024 ideal-int #70122
+pkg crypto/mlkem, const EncapsulationKeySize768 = 1184 #70122
+pkg crypto/mlkem, const EncapsulationKeySize768 ideal-int #70122
+pkg crypto/mlkem, const SeedSize = 64 #70122
+pkg crypto/mlkem, const SeedSize ideal-int #70122
+pkg crypto/mlkem, const SharedKeySize = 32 #70122
+pkg crypto/mlkem, const SharedKeySize ideal-int #70122
+pkg crypto/mlkem, func GenerateKey1024() (*DecapsulationKey1024, error) #70122
+pkg crypto/mlkem, func GenerateKey768() (*DecapsulationKey768, error) #70122
+pkg crypto/mlkem, func NewDecapsulationKey1024([]uint8) (*DecapsulationKey1024, error) #70122
+pkg crypto/mlkem, func NewDecapsulationKey768([]uint8) (*DecapsulationKey768, error) #70122
+pkg crypto/mlkem, func NewEncapsulationKey1024([]uint8) (*EncapsulationKey1024, error) #70122
+pkg crypto/mlkem, func NewEncapsulationKey768([]uint8) (*EncapsulationKey768, error) #70122
+pkg crypto/mlkem, method (*DecapsulationKey1024) Bytes() []uint8 #70122
+pkg crypto/mlkem, method (*DecapsulationKey1024) Decapsulate([]uint8) ([]uint8, error) #70122
+pkg crypto/mlkem, method (*DecapsulationKey1024) EncapsulationKey() *EncapsulationKey1024 #70122
+pkg crypto/mlkem, method (*DecapsulationKey768) Bytes() []uint8 #70122
+pkg crypto/mlkem, method (*DecapsulationKey768) Decapsulate([]uint8) ([]uint8, error) #70122
+pkg crypto/mlkem, method (*DecapsulationKey768) EncapsulationKey() *EncapsulationKey768 #70122
+pkg crypto/mlkem, method (*EncapsulationKey1024) Bytes() []uint8 #70122
+pkg crypto/mlkem, method (*EncapsulationKey1024) Encapsulate() ([]uint8, []uint8) #70122
+pkg crypto/mlkem, method (*EncapsulationKey768) Bytes() []uint8 #70122
+pkg crypto/mlkem, method (*EncapsulationKey768) Encapsulate() ([]uint8, []uint8) #70122
+pkg crypto/mlkem, type DecapsulationKey1024 struct #70122
+pkg crypto/mlkem, type DecapsulationKey768 struct #70122
+pkg crypto/mlkem, type EncapsulationKey1024 struct #70122
+pkg crypto/mlkem, type EncapsulationKey768 struct #70122
+pkg crypto/pbkdf2, func Key[$0 hash.Hash](func() $0, string, []uint8, int, int) ([]uint8, error) #69488
+pkg crypto/rand, func Text() string #67057
+pkg crypto/sha3, func New224() *SHA3 #69982
+pkg crypto/sha3, func New256() *SHA3 #69982
+pkg crypto/sha3, func New384() *SHA3 #69982
+pkg crypto/sha3, func New512() *SHA3 #69982
+pkg crypto/sha3, func NewCSHAKE128([]uint8, []uint8) *SHAKE #69982
+pkg crypto/sha3, func NewCSHAKE256([]uint8, []uint8) *SHAKE #69982
+pkg crypto/sha3, func NewSHAKE128() *SHAKE #69982
+pkg crypto/sha3, func NewSHAKE256() *SHAKE #69982
+pkg crypto/sha3, func Sum224([]uint8) [28]uint8 #69982
+pkg crypto/sha3, func Sum256([]uint8) [32]uint8 #69982
+pkg crypto/sha3, func Sum384([]uint8) [48]uint8 #69982
+pkg crypto/sha3, func Sum512([]uint8) [64]uint8 #69982
+pkg crypto/sha3, func SumSHAKE128([]uint8, int) []uint8 #69982
+pkg crypto/sha3, func SumSHAKE256([]uint8, int) []uint8 #69982
+pkg crypto/sha3, method (*SHA3) AppendBinary([]uint8) ([]uint8, error) #69982
+pkg crypto/sha3, method (*SHA3) BlockSize() int #69982
+pkg crypto/sha3, method (*SHA3) MarshalBinary() ([]uint8, error) #69982
+pkg crypto/sha3, method (*SHA3) Reset() #69982
+pkg crypto/sha3, method (*SHA3) Size() int #69982
+pkg crypto/sha3, method (*SHA3) Sum([]uint8) []uint8 #69982
+pkg crypto/sha3, method (*SHA3) UnmarshalBinary([]uint8) error #69982
+pkg crypto/sha3, method (*SHA3) Write([]uint8) (int, error) #69982
+pkg crypto/sha3, method (*SHAKE) AppendBinary([]uint8) ([]uint8, error) #69982
+pkg crypto/sha3, method (*SHAKE) BlockSize() int #69982
+pkg crypto/sha3, method (*SHAKE) MarshalBinary() ([]uint8, error) #69982
+pkg crypto/sha3, method (*SHAKE) Read([]uint8) (int, error) #69982
+pkg crypto/sha3, method (*SHAKE) Reset() #69982
+pkg crypto/sha3, method (*SHAKE) UnmarshalBinary([]uint8) error #69982
+pkg crypto/sha3, method (*SHAKE) Write([]uint8) (int, error) #69982
+pkg crypto/sha3, type SHA3 struct #69982
+pkg crypto/sha3, type SHAKE struct #69982
+pkg crypto/subtle, func WithDataIndependentTiming(func()) #66450
+pkg crypto/tls, const X25519MLKEM768 = 4588 #69985
+pkg crypto/tls, const X25519MLKEM768 CurveID #69985
+pkg crypto/tls, type ClientHelloInfo struct, Extensions []uint16 #32936
+pkg crypto/tls, type Config struct, EncryptedClientHelloKeys []EncryptedClientHelloKey #68500
+pkg crypto/tls, type EncryptedClientHelloKey struct #68500
+pkg crypto/tls, type EncryptedClientHelloKey struct, Config []uint8 #68500
+pkg crypto/tls, type EncryptedClientHelloKey struct, PrivateKey []uint8 #68500
+pkg crypto/tls, type EncryptedClientHelloKey struct, SendAsRetry bool #68500
+pkg crypto/x509, const NoValidChains = 10 #68484
+pkg crypto/x509, const NoValidChains InvalidReason #68484
+pkg crypto/x509, method (OID) AppendBinary([]uint8) ([]uint8, error) #62384
+pkg crypto/x509, method (OID) AppendText([]uint8) ([]uint8, error) #62384
+pkg crypto/x509, type Certificate struct, InhibitAnyPolicy int #68484
+pkg crypto/x509, type Certificate struct, InhibitAnyPolicyZero bool #68484
+pkg crypto/x509, type Certificate struct, InhibitPolicyMapping int #68484
+pkg crypto/x509, type Certificate struct, InhibitPolicyMappingZero bool #68484
+pkg crypto/x509, type Certificate struct, PolicyMappings []PolicyMapping #68484
+pkg crypto/x509, type Certificate struct, RequireExplicitPolicy int #68484
+pkg crypto/x509, type Certificate struct, RequireExplicitPolicyZero bool #68484
+pkg crypto/x509, type PolicyMapping struct #68484
+pkg crypto/x509, type PolicyMapping struct, IssuerDomainPolicy OID #68484
+pkg crypto/x509, type PolicyMapping struct, SubjectDomainPolicy OID #68484
+pkg crypto/x509, type VerifyOptions struct, CertificatePolicies []OID #68484
+pkg debug/elf, const VER_FLG_BASE = 1 #63952
+pkg debug/elf, const VER_FLG_BASE DynamicVersionFlag #63952
+pkg debug/elf, const VER_FLG_INFO = 4 #63952
+pkg debug/elf, const VER_FLG_INFO DynamicVersionFlag #63952
+pkg debug/elf, const VER_FLG_WEAK = 2 #63952
+pkg debug/elf, const VER_FLG_WEAK DynamicVersionFlag #63952
+pkg debug/elf, method (*File) DynamicVersionNeeds() ([]DynamicVersionNeed, error) #63952
+pkg debug/elf, method (*File) DynamicVersions() ([]DynamicVersion, error) #63952
+pkg debug/elf, type DynamicVersion struct #63952
+pkg debug/elf, type DynamicVersion struct, Deps []string #63952
+pkg debug/elf, type DynamicVersion struct, Flags DynamicVersionFlag #63952
+pkg debug/elf, type DynamicVersion struct, Name string #63952
+pkg debug/elf, type DynamicVersion struct, Index uint16 #63952
+pkg debug/elf, type DynamicVersionDep struct #63952
+pkg debug/elf, type DynamicVersionDep struct, Dep string #63952
+pkg debug/elf, type DynamicVersionDep struct, Flags DynamicVersionFlag #63952
+pkg debug/elf, type DynamicVersionDep struct, Index uint16 #63952
+pkg debug/elf, type DynamicVersionFlag uint16 #63952
+pkg debug/elf, type DynamicVersionNeed struct #63952
+pkg debug/elf, type DynamicVersionNeed struct, Name string #63952
+pkg debug/elf, type DynamicVersionNeed struct, Needs []DynamicVersionDep #63952
+pkg debug/elf, type Symbol struct, HasVersion bool #63952
+pkg debug/elf, type Symbol struct, VersionIndex VersionIndex #63952
+pkg debug/elf, method (VersionIndex) Index() uint16 #63952
+pkg debug/elf, method (VersionIndex) IsHidden() bool #63952
+pkg debug/elf, type VersionIndex uint16 #63952
+pkg encoding, type BinaryAppender interface { AppendBinary } #62384
+pkg encoding, type BinaryAppender interface, AppendBinary([]uint8) ([]uint8, error) #62384
+pkg encoding, type TextAppender interface { AppendText } #62384
+pkg encoding, type TextAppender interface, AppendText([]uint8) ([]uint8, error) #62384
+pkg go/types, method (*Interface) EmbeddedTypes() iter.Seq[Type] #66626
+pkg go/types, method (*Interface) ExplicitMethods() iter.Seq[*Func] #66626
+pkg go/types, method (*Interface) Methods() iter.Seq[*Func] #66626
+pkg go/types, method (*MethodSet) Methods() iter.Seq[*Selection] #66626
+pkg go/types, method (*Named) Methods() iter.Seq[*Func] #66626
+pkg go/types, method (*Scope) Children() iter.Seq[*Scope] #66626
+pkg go/types, method (*Struct) Fields() iter.Seq[*Var] #66626
+pkg go/types, method (*Tuple) Variables() iter.Seq[*Var] #66626
+pkg go/types, method (*TypeList) Types() iter.Seq[Type] #66626
+pkg go/types, method (*TypeParamList) TypeParams() iter.Seq[*TypeParam] #66626
+pkg go/types, method (*Union) Terms() iter.Seq[*Term] #66626
+pkg hash/maphash, func Comparable[$0 comparable](Seed, $0) uint64 #54670
+pkg hash/maphash, func WriteComparable[$0 comparable](*Hash, $0) #54670
+pkg log/slog, method (*LevelVar) AppendText([]uint8) ([]uint8, error) #62384
+pkg log/slog, method (Level) AppendText([]uint8) ([]uint8, error) #62384
+pkg log/slog, var DiscardHandler Handler #62005
+pkg math/big, method (*Float) AppendText([]uint8) ([]uint8, error) #62384
+pkg math/big, method (*Int) AppendText([]uint8) ([]uint8, error) #62384
+pkg math/big, method (*Rat) AppendText([]uint8) ([]uint8, error) #62384
+pkg math/rand/v2, method (*ChaCha8) AppendBinary([]uint8) ([]uint8, error) #62384
+pkg math/rand/v2, method (*PCG) AppendBinary([]uint8) ([]uint8, error) #62384
+pkg net, method (IP) AppendText([]uint8) ([]uint8, error) #62384
+pkg net/http, method (*Protocols) SetHTTP1(bool) #67814
+pkg net/http, method (*Protocols) SetHTTP2(bool) #67814
+pkg net/http, method (*Protocols) SetUnencryptedHTTP2(bool) #67816
+pkg net/http, method (Protocols) HTTP1() bool #67814
+pkg net/http, method (Protocols) HTTP2() bool #67814
+pkg net/http, method (Protocols) String() string #67814
+pkg net/http, method (Protocols) UnencryptedHTTP2() bool #67816
+pkg net/http, type HTTP2Config struct #67813
+pkg net/http, type HTTP2Config struct, CountError func(string) #67813
+pkg net/http, type HTTP2Config struct, MaxConcurrentStreams int #67813
+pkg net/http, type HTTP2Config struct, MaxDecoderHeaderTableSize int #67813
+pkg net/http, type HTTP2Config struct, MaxEncoderHeaderTableSize int #67813
+pkg net/http, type HTTP2Config struct, MaxReadFrameSize int #67813
+pkg net/http, type HTTP2Config struct, MaxReceiveBufferPerConnection int #67813
+pkg net/http, type HTTP2Config struct, MaxReceiveBufferPerStream int #67813
+pkg net/http, type HTTP2Config struct, PermitProhibitedCipherSuites bool #67813
+pkg net/http, type HTTP2Config struct, PingTimeout time.Duration #67813
+pkg net/http, type HTTP2Config struct, SendPingTimeout time.Duration #67813
+pkg net/http, type HTTP2Config struct, WriteByteTimeout time.Duration #67813
+pkg net/http, type Protocols struct #67814
+pkg net/http, type Server struct, HTTP2 *HTTP2Config #67813
+pkg net/http, type Server struct, Protocols *Protocols #67814
+pkg net/http, type Transport struct, HTTP2 *HTTP2Config #67813
+pkg net/http, type Transport struct, Protocols *Protocols #67814
+pkg net/netip, method (Addr) AppendBinary([]uint8) ([]uint8, error) #62384
+pkg net/netip, method (Addr) AppendText([]uint8) ([]uint8, error) #62384
+pkg net/netip, method (AddrPort) AppendBinary([]uint8) ([]uint8, error) #62384
+pkg net/netip, method (AddrPort) AppendText([]uint8) ([]uint8, error) #62384
+pkg net/netip, method (Prefix) AppendBinary([]uint8) ([]uint8, error) #62384
+pkg net/netip, method (Prefix) AppendText([]uint8) ([]uint8, error) #62384
+pkg net/url, method (*URL) AppendBinary([]uint8) ([]uint8, error) #62384
+pkg os, func OpenInRoot(string, string) (*File, error) #67002
+pkg os, func OpenRoot(string) (*Root, error) #67002
+pkg os, method (*Root) Close() error #67002
+pkg os, method (*Root) Create(string) (*File, error) #67002
+pkg os, method (*Root) FS() fs.FS #67002
+pkg os, method (*Root) Lstat(string) (fs.FileInfo, error) #67002
+pkg os, method (*Root) Mkdir(string, fs.FileMode) error #67002
+pkg os, method (*Root) Name() string #67002
+pkg os, method (*Root) Open(string) (*File, error) #67002
+pkg os, method (*Root) OpenFile(string, int, fs.FileMode) (*File, error) #67002
+pkg os, method (*Root) OpenRoot(string) (*Root, error) #67002
+pkg os, method (*Root) Remove(string) error #67002
+pkg os, method (*Root) Stat(string) (fs.FileInfo, error) #67002
+pkg os, type Root struct #67002
+pkg regexp, method (*Regexp) AppendText([]uint8) ([]uint8, error) #62384
+pkg runtime, func AddCleanup[$0 interface{}, $1 interface{}](*$0, func($1), $1) Cleanup #67535
+pkg runtime, func GOROOT //deprecated #51473
+pkg runtime, method (Cleanup) Stop() #67535
+pkg runtime, type Cleanup struct #67535
+pkg strings, func FieldsFuncSeq(string, func(int32) bool) iter.Seq[string] #61901
+pkg strings, func FieldsSeq(string) iter.Seq[string] #61901
+pkg strings, func Lines(string) iter.Seq[string] #61901
+pkg strings, func SplitAfterSeq(string, string) iter.Seq[string] #61901
+pkg strings, func SplitSeq(string, string) iter.Seq[string] #61901
+pkg testing, method (*B) Chdir(string) #62516
+pkg testing, method (*B) Context() context.Context #36532
+pkg testing, method (*B) Loop() bool #61515
+pkg testing, method (*F) Chdir(string) #62516
+pkg testing, method (*F) Context() context.Context #36532
+pkg testing, method (*T) Chdir(string) #62516
+pkg testing, method (*T) Context() context.Context #36532
+pkg testing, type TB interface, Chdir(string) #62516
+pkg testing, type TB interface, Context() context.Context #36532
+pkg time, method (Time) AppendBinary([]uint8) ([]uint8, error) #62384
+pkg time, method (Time) AppendText([]uint8) ([]uint8, error) #62384
+pkg weak, func Make[$0 interface{}](*$0) Pointer[$0] #67552
+pkg weak, method (Pointer[$0]) Value() *$0 #67552
+pkg weak, type Pointer[$0 interface{}] struct #67552

@@ -1,0 +1,39 @@
+# Tests that crlf in the output of examples are handled.
+# Verifies golang.org/issue/51269
+go test x_test.go
+
+-- x_test.go --
+package  x
+
+import (
+    "io"
+    "fmt"
+    "os"
+    "runtime"
+)
+
+func Example_lf() {
+	fmt.Print("foo", "\n", "bar")
+	// Output:
+	// foo
+	// bar
+}
+
+func Example_println() {
+	fmt.Println("foo")
+	fmt.Println("bar")
+	// Output:
+	// foo
+	// bar
+}
+
+func Example_crlf() {
+	if runtime.GOOS == "windows" {
+		io.WriteString(os.Stdout, "foo\r\nbar\r\n")
+	} else {
+		io.WriteString(os.Stdout, "foo\nbar\n")
+	}
+	// Output:
+	// foo
+	// bar
+}

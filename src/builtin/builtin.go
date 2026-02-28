@@ -10,6 +10,8 @@ for the language's special identifiers.
 */
 package builtin
 
+import "cmp"
+
 // bool is the set of boolean values, true and false.
 type bool bool
 
@@ -51,10 +53,10 @@ type int32 int32
 // Range: -9223372036854775808 through 9223372036854775807.
 type int64 int64
 
-// float32 is the set of all IEEE-754 32-bit floating-point numbers.
+// float32 is the set of all IEEE 754 32-bit floating-point numbers.
 type float32 float32
 
-// float64 is the set of all IEEE-754 64-bit floating-point numbers.
+// float64 is the set of all IEEE 754 64-bit floating-point numbers.
 type float64 float64
 
 // complex64 is the set of all complex numbers with float32 real and
@@ -120,6 +122,10 @@ type Type int
 // invocation.
 type Type1 int
 
+// TypeOrExpr is here for the purposes of documentation only. It is a stand-in
+// for either a Go type or an expression.
+type TypeOrExpr int
+
 // IntegerType is here for the purposes of documentation only. It is a stand-in
 // for any integer type: int, uint, int8 etc.
 type IntegerType int
@@ -160,12 +166,12 @@ func delete(m map[Type]Type1, key Type)
 
 // The len built-in function returns the length of v, according to its type:
 //
-//	Array: the number of elements in v.
-//	Pointer to array: the number of elements in *v (even if v is nil).
-//	Slice, or map: the number of elements in v; if v is nil, len(v) is zero.
-//	String: the number of bytes in v.
-//	Channel: the number of elements queued (unread) in the channel buffer;
-//	         if v is nil, len(v) is zero.
+//   - Array: the number of elements in v.
+//   - Pointer to array: the number of elements in *v (even if v is nil).
+//   - Slice, or map: the number of elements in v; if v is nil, len(v) is zero.
+//   - String: the number of bytes in v.
+//   - Channel: the number of elements queued (unread) in the channel buffer;
+//     if v is nil, len(v) is zero.
 //
 // For some arguments, such as a string literal or a simple array expression, the
 // result can be a constant. See the Go language specification's "Length and
@@ -174,12 +180,12 @@ func len(v Type) int
 
 // The cap built-in function returns the capacity of v, according to its type:
 //
-//	Array: the number of elements in v (same as len(v)).
-//	Pointer to array: the number of elements in *v (same as len(v)).
-//	Slice: the maximum length the slice can reach when resliced;
-//	if v is nil, cap(v) is zero.
-//	Channel: the channel buffer capacity, in units of elements;
-//	if v is nil, cap(v) is zero.
+//   - Array: the number of elements in v (same as len(v)).
+//   - Pointer to array: the number of elements in *v (same as len(v)).
+//   - Slice: the maximum length the slice can reach when resliced;
+//     if v is nil, cap(v) is zero.
+//   - Channel: the channel buffer capacity, in units of elements;
+//     if v is nil, cap(v) is zero.
 //
 // For some arguments, such as a simple array expression, the result can be a
 // constant. See the Go language specification's "Length and capacity" section for
@@ -192,24 +198,41 @@ func cap(v Type) int
 // argument, not a pointer to it. The specification of the result depends on
 // the type:
 //
-//	Slice: The size specifies the length. The capacity of the slice is
-//	equal to its length. A second integer argument may be provided to
-//	specify a different capacity; it must be no smaller than the
-//	length. For example, make([]int, 0, 10) allocates an underlying array
-//	of size 10 and returns a slice of length 0 and capacity 10 that is
-//	backed by this underlying array.
-//	Map: An empty map is allocated with enough space to hold the
-//	specified number of elements. The size may be omitted, in which case
-//	a small starting size is allocated.
-//	Channel: The channel's buffer is initialized with the specified
-//	buffer capacity. If zero, or the size is omitted, the channel is
-//	unbuffered.
+//   - Slice: The size specifies the length. The capacity of the slice is
+//     equal to its length. A second integer argument may be provided to
+//     specify a different capacity; it must be no smaller than the
+//     length. For example, make([]int, 0, 10) allocates an underlying array
+//     of size 10 and returns a slice of length 0 and capacity 10 that is
+//     backed by this underlying array.
+//   - Map: An empty map is allocated with enough space to hold the
+//     specified number of elements. The size may be omitted, in which case
+//     a small starting size is allocated.
+//   - Channel: The channel's buffer is initialized with the specified
+//     buffer capacity. If zero, or the size is omitted, the channel is
+//     unbuffered.
 func make(t Type, size ...IntegerType) Type
 
-// The new built-in function allocates memory. The first argument is a type,
-// not a value, and the value returned is a pointer to a newly
-// allocated zero value of that type.
-func new(Type) *Type
+// The max built-in function returns the largest value of a fixed number of
+// arguments of [cmp.Ordered] types. There must be at least one argument.
+// If T is a floating-point type and any of the arguments are NaNs,
+// max will return NaN.
+func max[T cmp.Ordered](x T, y ...T) T
+
+// The min built-in function returns the smallest value of a fixed number of
+// arguments of [cmp.Ordered] types. There must be at least one argument.
+// If T is a floating-point type and any of the arguments are NaNs,
+// min will return NaN.
+func min[T cmp.Ordered](x T, y ...T) T
+
+// The built-in function new allocates a new, initialized variable and returns
+// a pointer to it. It accepts a single argument, which may be either a type
+// or an expression.
+// If the argument is a type T, then new(T) allocates a variable of type T
+// initialized to its zero value.
+// Otherwise, the argument is an expression x and new(x) allocates a variable
+// of the type of x initialized to the value of x. If that value is an untyped
+// constant, it is first implicitly converted to its default type.
+func new(TypeOrExpr) *Type
 
 // The complex built-in function constructs a complex value from two
 // floating-point values. The real and imaginary parts must be of the same
@@ -226,6 +249,15 @@ func real(c ComplexType) FloatType
 // number c. The return value will be floating point type corresponding to
 // the type of c.
 func imag(c ComplexType) FloatType
+
+// The clear built-in function clears maps and slices.
+// For maps, clear deletes all entries, resulting in an empty map.
+// For slices, clear sets all elements up to the length of the slice
+// to the zero value of the respective element type. If the argument
+// type is a type parameter, the type parameter's type set must
+// contain only map or slice types, and clear performs the operation
+// implied by the type argument. If t is nil, clear is a no-op.
+func clear[T ~[]Type | ~map[Type]Type1](t T)
 
 // The close built-in function closes a channel, which must be either
 // bidirectional or send-only. It should be executed only by the sender,
@@ -249,6 +281,10 @@ func close(c chan<- Type)
 // that point, the program is terminated with a non-zero exit code. This
 // termination sequence is called panicking and can be controlled by the
 // built-in function recover.
+//
+// Starting in Go 1.21, calling panic with a nil interface value or an
+// untyped nil causes a run-time error (a different panic).
+// The GODEBUG setting panicnil=1 disables the run-time error.
 func panic(v any)
 
 // The recover built-in function allows a program to manage behavior of a
@@ -257,9 +293,10 @@ func panic(v any)
 // by restoring normal execution and retrieves the error value passed to the
 // call of panic. If recover is called outside the deferred function it will
 // not stop a panicking sequence. In this case, or when the goroutine is not
-// panicking, or if the argument supplied to panic was nil, recover returns
-// nil. Thus the return value from recover reports whether the goroutine is
-// panicking.
+// panicking, recover returns nil.
+//
+// Prior to Go 1.21, recover would also return nil if panic is called with
+// a nil argument. See [panic] for details.
 func recover() any
 
 // The print built-in function formats its arguments in an

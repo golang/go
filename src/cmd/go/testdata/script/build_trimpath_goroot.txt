@@ -4,11 +4,6 @@
 # if GOROOT was not set explicitly in the environment.
 # It should instead return the empty string, since we know that we don't
 # have a valid path to return.
-#
-# TODO(#51483): when runtime.GOROOT() returns the empty string,
-# go/build should default to 'go env GOROOT' instead.
-
-env GOROOT_FINAL=
 
 [trimpath] env GOROOT=
 [trimpath] ! go env GOROOT
@@ -17,7 +12,7 @@ env GOROOT_FINAL=
 
 [short] stop
 
-# With GOROOT still set but GOROOT_FINAL unset, 'go build' and 'go test -c'
+# With GOROOT still set, 'go build' and 'go test -c'
 # should cause runtime.GOROOT() to report either the correct GOROOT
 # (without -trimpath) or no GOROOT at all (with -trimpath).
 
@@ -52,7 +47,6 @@ stderr 'cannot find package "runtime" in any of:\n\t\(\$GOROOT not set\)\n\t'$WO
 # code).
 
 [trimpath] stop
-[mismatched-goroot] stop
 
 ! go run -trimpath .
 stdout '^GOROOT $'

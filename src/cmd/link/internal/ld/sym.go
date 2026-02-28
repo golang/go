@@ -75,7 +75,7 @@ func (ctxt *Link) computeTLSOffset() {
 	default:
 		log.Fatalf("unknown thread-local storage offset for %v", ctxt.HeadType)
 
-	case objabi.Hplan9, objabi.Hwindows, objabi.Hjs, objabi.Haix:
+	case objabi.Hplan9, objabi.Hwindows, objabi.Hjs, objabi.Hwasip1, objabi.Haix:
 		break
 
 	case objabi.Hlinux,

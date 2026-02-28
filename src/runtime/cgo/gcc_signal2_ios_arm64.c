@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build lldb
+//go:build lldb
 
 // Used by gcc_signal_darwin_arm64.c when doing the test build during cgo.
 // We hope that for real binaries the definition provided by Go will take precedence

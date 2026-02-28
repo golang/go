@@ -14,9 +14,36 @@ import (
 // Public race detection API, present iff build with -race.
 
 func RaceRead(addr unsafe.Pointer)
+
+//go:linkname race_Read internal/race.Read
+//go:nosplit
+func race_Read(addr unsafe.Pointer) {
+	RaceRead(addr)
+}
+
 func RaceWrite(addr unsafe.Pointer)
+
+//go:linkname race_Write internal/race.Write
+//go:nosplit
+func race_Write(addr unsafe.Pointer) {
+	RaceWrite(addr)
+}
+
 func RaceReadRange(addr unsafe.Pointer, len int)
+
+//go:linkname race_ReadRange internal/race.ReadRange
+//go:nosplit
+func race_ReadRange(addr unsafe.Pointer, len int) {
+	RaceReadRange(addr, len)
+}
+
 func RaceWriteRange(addr unsafe.Pointer, len int)
+
+//go:linkname race_WriteRange internal/race.WriteRange
+//go:nosplit
+func race_WriteRange(addr unsafe.Pointer, len int) {
+	RaceWriteRange(addr, len)
+}
 
 func RaceErrors() int {
 	var n uint64
@@ -24,7 +51,11 @@ func RaceErrors() int {
 	return int(n)
 }
 
+//go:linkname race_Errors internal/race.Errors
 //go:nosplit
+func race_Errors() int {
+	return RaceErrors()
+}
 
 // RaceAcquire/RaceRelease/RaceReleaseMerge establish happens-before relations
 // between goroutines. These inform the race detector about actual synchronization
@@ -34,38 +65,58 @@ func RaceErrors() int {
 // RaceReleaseMerge on addr up to and including the last RaceRelease on addr.
 // In terms of the C memory model (C11 §5.1.2.4, §7.17.3),
 // RaceAcquire is equivalent to atomic_load(memory_order_acquire).
+//
+//go:nosplit
 func RaceAcquire(addr unsafe.Pointer) {
 	raceacquire(addr)
 }
 
+//go:linkname race_Acquire internal/race.Acquire
 //go:nosplit
+func race_Acquire(addr unsafe.Pointer) {
+	RaceAcquire(addr)
+}
 
 // RaceRelease performs a release operation on addr that
 // can synchronize with a later RaceAcquire on addr.
 //
 // In terms of the C memory model, RaceRelease is equivalent to
 // atomic_store(memory_order_release).
+//
+//go:nosplit
 func RaceRelease(addr unsafe.Pointer) {
 	racerelease(addr)
 }
 
+//go:linkname race_Release internal/race.Release
 //go:nosplit
+func race_Release(addr unsafe.Pointer) {
+	RaceRelease(addr)
+}
 
 // RaceReleaseMerge is like RaceRelease, but also establishes a happens-before
 // relation with the preceding RaceRelease or RaceReleaseMerge on addr.
 //
 // In terms of the C memory model, RaceReleaseMerge is equivalent to
 // atomic_exchange(memory_order_release).
+//
+//go:nosplit
 func RaceReleaseMerge(addr unsafe.Pointer) {
 	racereleasemerge(addr)
 }
 
+//go:linkname race_ReleaseMerge internal/race.ReleaseMerge
 //go:nosplit
+func race_ReleaseMerge(addr unsafe.Pointer) {
+	RaceReleaseMerge(addr)
+}
 
 // RaceDisable disables handling of race synchronization events in the current goroutine.
 // Handling is re-enabled with RaceEnable. RaceDisable/RaceEnable can be nested.
 // Non-synchronization events (memory accesses, function entry/exit) still affect
 // the race detector.
+//
+//go:nosplit
 func RaceDisable() {
 	gp := getg()
 	if gp.raceignore == 0 {
@@ -74,15 +125,27 @@ func RaceDisable() {
 	gp.raceignore++
 }
 
+//go:linkname race_Disable internal/race.Disable
 //go:nosplit
+func race_Disable() {
+	RaceDisable()
+}
 
 // RaceEnable re-enables handling of race events in the current goroutine.
+//
+//go:nosplit
 func RaceEnable() {
 	gp := getg()
 	gp.raceignore--
 	if gp.raceignore == 0 {
 		racecall(&__tsan_go_ignore_sync_end, gp.racectx, 0, 0, 0)
 	}
+}
+
+//go:linkname race_Enable internal/race.Enable
+//go:nosplit
+func race_Enable() {
+	RaceEnable()
 }
 
 // Private interface for the runtime.
@@ -93,11 +156,11 @@ const raceenabled = true
 // callerpc is a return PC of the function that calls this function,
 // pc is start PC of the function that calls this function.
 func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
-	kind := t.kind & kindMask
-	if kind == kindArray || kind == kindStruct {
+	kind := t.Kind()
+	if kind == abi.Array || kind == abi.Struct {
 		// for composite objects we have to read every address
 		// because a write might happen to any subobject.
-		racereadrangepc(addr, t.size, callerpc, pc)
+		racereadrangepc(addr, t.Size_, callerpc, pc)
 	} else {
 		// for non-composite objects we can read just the start
 		// address, as any write must write the first byte.
@@ -105,12 +168,17 @@ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
 	}
 }
 
+//go:linkname race_ReadObjectPC internal/race.ReadObjectPC
+func race_ReadObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr) {
+	raceReadObjectPC(t, addr, callerpc, pc)
+}
+
 func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
-	kind := t.kind & kindMask
-	if kind == kindArray || kind == kindStruct {
+	kind := t.Kind()
+	if kind == abi.Array || kind == abi.Struct {
 		// for composite objects we have to write every address
 		// because a write might happen to any subobject.
-		racewriterangepc(addr, t.size, callerpc, pc)
+		racewriterangepc(addr, t.Size_, callerpc, pc)
 	} else {
 		// for non-composite objects we can write just the start
 		// address, as any write must write the first byte.
@@ -118,11 +186,26 @@ func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
 	}
 }
 
+//go:linkname race_WriteObjectPC internal/race.WriteObjectPC
+func race_WriteObjectPC(t *abi.Type, addr unsafe.Pointer, callerpc, pc uintptr) {
+	raceWriteObjectPC(t, addr, callerpc, pc)
+}
+
 //go:noescape
 func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
 
 //go:noescape
 func racewritepc(addr unsafe.Pointer, callpc, pc uintptr)
+
+//go:linkname race_ReadPC internal/race.ReadPC
+func race_ReadPC(addr unsafe.Pointer, callerpc, pc uintptr) {
+	racereadpc(addr, callerpc, pc)
+}
+
+//go:linkname race_WritePC internal/race.WritePC
+func race_WritePC(addr unsafe.Pointer, callerpc, pc uintptr) {
+	racewritepc(addr, callerpc, pc)
+}
 
 type symbolizeCodeContext struct {
 	pc   uintptr
@@ -171,37 +254,35 @@ func racecallback(cmd uintptr, ctx unsafe.Pointer) {
 func raceSymbolizeCode(ctx *symbolizeCodeContext) {
 	pc := ctx.pc
 	fi := findfunc(pc)
-	f := fi._Func()
-	if f != nil {
-		file, line := f.FileLine(pc)
-		if line != 0 {
-			if inldata := funcdata(fi, _FUNCDATA_InlTree); inldata != nil {
-				inltree := (*[1 << 20]inlinedCall)(inldata)
-				for {
-					ix := pcdatavalue(fi, _PCDATA_InlTreeIndex, pc, nil)
-					if ix >= 0 {
-						if inltree[ix].funcID == funcID_wrapper {
-							// ignore wrappers
-							// Back up to an instruction in the "caller".
-							pc = f.Entry() + uintptr(inltree[ix].parentPc)
-							continue
-						}
-						ctx.pc = f.Entry() + uintptr(inltree[ix].parentPc) // "caller" pc
-						ctx.fn = cfuncnameFromNameoff(fi, inltree[ix].func_)
-						ctx.line = uintptr(line)
-						ctx.file = &bytes(file)[0] // assume NUL-terminated
-						ctx.off = pc - f.Entry()
-						ctx.res = 1
-						return
-					}
-					break
-				}
+	if fi.valid() {
+		u, uf := newInlineUnwinder(fi, pc)
+		for ; uf.valid(); uf = u.next(uf) {
+			sf := u.srcFunc(uf)
+			if sf.funcID == abi.FuncIDWrapper && u.isInlined(uf) {
+				// Ignore wrappers, unless we're at the outermost frame of u.
+				// A non-inlined wrapper frame always means we have a physical
+				// frame consisting entirely of wrappers, in which case we'll
+				// take an outermost wrapper over nothing.
+				continue
 			}
-			ctx.fn = cfuncname(fi)
+
+			name := sf.name()
+			file, line := u.fileLine(uf)
+			if line == 0 {
+				// Failure to symbolize
+				continue
+			}
+			ctx.fn = &bytes(name)[0] // assume NUL-terminated
 			ctx.line = uintptr(line)
 			ctx.file = &bytes(file)[0] // assume NUL-terminated
-			ctx.off = pc - f.Entry()
+			ctx.off = pc - fi.entry()
 			ctx.res = 1
+			if u.isInlined(uf) {
+				// Set ctx.pc to the "caller" so the race detector calls this again
+				// to further unwind.
+				uf = u.next(uf)
+				ctx.pc = uf.pc
+			}
 			return
 		}
 	}
@@ -225,6 +306,7 @@ type symbolizeDataContext struct {
 
 func raceSymbolizeData(ctx *symbolizeDataContext) {
 	if base, span, _ := findObject(ctx.addr, 0, 0); base != 0 {
+		// TODO: Does this need to handle malloc headers?
 		ctx.heap = 1
 		ctx.start = base
 		ctx.size = span.elemsize
@@ -324,6 +406,10 @@ var __tsan_report_count byte
 //go:cgo_import_static __tsan_go_atomic64_exchange
 //go:cgo_import_static __tsan_go_atomic32_fetch_add
 //go:cgo_import_static __tsan_go_atomic64_fetch_add
+//go:cgo_import_static __tsan_go_atomic32_fetch_and
+//go:cgo_import_static __tsan_go_atomic64_fetch_and
+//go:cgo_import_static __tsan_go_atomic32_fetch_or
+//go:cgo_import_static __tsan_go_atomic64_fetch_or
 //go:cgo_import_static __tsan_go_atomic32_compare_exchange
 //go:cgo_import_static __tsan_go_atomic64_compare_exchange
 
@@ -350,7 +436,7 @@ func racecallbackthunk(uintptr)
 // with up to 4 uintptr arguments.
 func racecall(fn *byte, arg0, arg1, arg2, arg3 uintptr)
 
-// checks if the address has shadow (i.e. heap or data/bss)
+// checks if the address has shadow (i.e. heap or data/bss).
 //
 //go:nosplit
 func isvalidaddr(addr unsafe.Pointer) bool {
@@ -360,14 +446,15 @@ func isvalidaddr(addr unsafe.Pointer) bool {
 
 //go:nosplit
 func raceinit() (gctx, pctx uintptr) {
-	// cgo is required to initialize libc, which is used by race runtime
-	if !iscgo {
+	lockInit(&raceFiniLock, lockRankRaceFini)
+
+	// On most machines, cgo is required to initialize libc, which is used by race runtime.
+	if !iscgo && GOOS != "darwin" {
 		throw("raceinit: race build must use cgo")
 	}
 
 	racecall(&__tsan_init, uintptr(unsafe.Pointer(&gctx)), uintptr(unsafe.Pointer(&pctx)), abi.FuncPCABI0(racecallbackthunk), 0)
 
-	// Round data segment to page boundaries, because it's used in mmap().
 	start := ^uintptr(0)
 	end := uintptr(0)
 	if start > firstmoduledata.noptrdata {
@@ -394,15 +481,16 @@ func raceinit() (gctx, pctx uintptr) {
 	if end < firstmoduledata.ebss {
 		end = firstmoduledata.ebss
 	}
-	size := alignUp(end-start, _PageSize)
-	racecall(&__tsan_map_shadow, start, size, 0, 0)
+	// Use exact bounds for boundary check in racecalladdr. See issue 73483.
 	racedatastart = start
-	racedataend = start + size
+	racedataend = end
+	// Round data segment to page boundaries for race detector (TODO: still needed?)
+	start = alignDown(start, _PageSize)
+	end = alignUp(end, _PageSize)
+	racecall(&__tsan_map_shadow, start, end-start, 0, 0)
 
 	return
 }
-
-var raceFiniLock mutex
 
 //go:nosplit
 func racefini() {
@@ -412,9 +500,16 @@ func racefini() {
 	// already held it's assumed that the first caller exits the program
 	// so other calls can hang forever without an issue.
 	lock(&raceFiniLock)
+
+	// __tsan_fini will run C atexit functions and C++ destructors,
+	// which can theoretically call back into Go.
+	// Tell the scheduler we entering external code.
+	entersyscall()
+
 	// We're entering external code that may call ExitProcess on
 	// Windows.
 	osPreemptExtEnter(getg().m)
+
 	racecall(&__tsan_fini, 0, 0, 0, 0)
 }
 
@@ -469,6 +564,13 @@ func racegostart(pc uintptr) uintptr {
 //go:nosplit
 func racegoend() {
 	racecall(&__tsan_go_end, getg().racectx, 0, 0, 0)
+}
+
+//go:nosplit
+func racectxstart(pc, spawnctx uintptr) uintptr {
+	var racectx uintptr
+	racecall(&__tsan_go_start, spawnctx, uintptr(unsafe.Pointer(&racectx)), pc, 0)
+	return racectx
 }
 
 //go:nosplit
@@ -635,6 +737,36 @@ func abigen_sync_atomic_AddUint64(addr *uint64, delta uint64) (new uint64)
 
 //go:linkname abigen_sync_atomic_AddUintptr sync/atomic.AddUintptr
 func abigen_sync_atomic_AddUintptr(addr *uintptr, delta uintptr) (new uintptr)
+
+//go:linkname abigen_sync_atomic_AndInt32 sync/atomic.AndInt32
+func abigen_sync_atomic_AndInt32(addr *int32, mask int32) (old int32)
+
+//go:linkname abigen_sync_atomic_AndUint32 sync/atomic.AndUint32
+func abigen_sync_atomic_AndUint32(addr *uint32, mask uint32) (old uint32)
+
+//go:linkname abigen_sync_atomic_AndInt64 sync/atomic.AndInt64
+func abigen_sync_atomic_AndInt64(addr *int64, mask int64) (old int64)
+
+//go:linkname abigen_sync_atomic_AndUint64 sync/atomic.AndUint64
+func abigen_sync_atomic_AndUint64(addr *uint64, mask uint64) (old uint64)
+
+//go:linkname abigen_sync_atomic_AndUintptr sync/atomic.AndUintptr
+func abigen_sync_atomic_AndUintptr(addr *uintptr, mask uintptr) (old uintptr)
+
+//go:linkname abigen_sync_atomic_OrInt32 sync/atomic.OrInt32
+func abigen_sync_atomic_OrInt32(addr *int32, mask int32) (old int32)
+
+//go:linkname abigen_sync_atomic_OrUint32 sync/atomic.OrUint32
+func abigen_sync_atomic_OrUint32(addr *uint32, mask uint32) (old uint32)
+
+//go:linkname abigen_sync_atomic_OrInt64 sync/atomic.OrInt64
+func abigen_sync_atomic_OrInt64(addr *int64, mask int64) (old int64)
+
+//go:linkname abigen_sync_atomic_OrUint64 sync/atomic.OrUint64
+func abigen_sync_atomic_OrUint64(addr *uint64, mask uint64) (old uint64)
+
+//go:linkname abigen_sync_atomic_OrUintptr sync/atomic.OrUintptr
+func abigen_sync_atomic_OrUintptr(addr *uintptr, mask uintptr) (old uintptr)
 
 //go:linkname abigen_sync_atomic_CompareAndSwapInt32 sync/atomic.CompareAndSwapInt32
 func abigen_sync_atomic_CompareAndSwapInt32(addr *int32, old, new int32) (swapped bool)

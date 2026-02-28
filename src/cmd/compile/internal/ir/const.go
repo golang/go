@@ -11,19 +11,81 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
 
-func NewBool(b bool) Node {
-	return NewLiteral(constant.MakeBool(b))
+// NewBool returns an OLITERAL representing b as an untyped boolean.
+func NewBool(pos src.XPos, b bool) Node {
+	return NewBasicLit(pos, types.UntypedBool, constant.MakeBool(b))
 }
 
-func NewInt(v int64) Node {
-	return NewLiteral(constant.MakeInt64(v))
+// NewInt returns an OLITERAL representing v as an untyped integer.
+func NewInt(pos src.XPos, v int64) Node {
+	return NewBasicLit(pos, types.UntypedInt, constant.MakeInt64(v))
 }
 
-func NewString(s string) Node {
-	return NewLiteral(constant.MakeString(s))
+// NewString returns an OLITERAL representing s as an untyped string.
+func NewString(pos src.XPos, s string) Node {
+	return NewBasicLit(pos, types.UntypedString, constant.MakeString(s))
 }
+
+// NewUintptr returns an OLITERAL representing v as a uintptr.
+func NewUintptr(pos src.XPos, v int64) Node {
+	return NewBasicLit(pos, types.Types[types.TUINTPTR], constant.MakeInt64(v))
+}
+
+// NewZero returns a zero value of the given type.
+func NewZero(pos src.XPos, typ *types.Type) Node {
+	switch {
+	case typ.HasNil():
+		return NewNilExpr(pos, typ)
+	case typ.IsInteger():
+		return NewBasicLit(pos, typ, intZero)
+	case typ.IsFloat():
+		return NewBasicLit(pos, typ, floatZero)
+	case typ.IsComplex():
+		return NewBasicLit(pos, typ, complexZero)
+	case typ.IsBoolean():
+		return NewBasicLit(pos, typ, constant.MakeBool(false))
+	case typ.IsString():
+		return NewBasicLit(pos, typ, constant.MakeString(""))
+	case typ.IsArray() || typ.IsStruct():
+		// TODO(mdempsky): Return a typechecked expression instead.
+		return NewCompLitExpr(pos, OCOMPLIT, typ, nil)
+	}
+
+	base.FatalfAt(pos, "unexpected type: %v", typ)
+	panic("unreachable")
+}
+
+var (
+	intZero     = constant.MakeInt64(0)
+	floatZero   = constant.ToFloat(intZero)
+	complexZero = constant.ToComplex(intZero)
+)
+
+// NewOne returns an OLITERAL representing 1 with the given type.
+func NewOne(pos src.XPos, typ *types.Type) Node {
+	var val constant.Value
+	switch {
+	case typ.IsInteger():
+		val = intOne
+	case typ.IsFloat():
+		val = floatOne
+	case typ.IsComplex():
+		val = complexOne
+	default:
+		base.FatalfAt(pos, "%v cannot represent 1", typ)
+	}
+
+	return NewBasicLit(pos, typ, val)
+}
+
+var (
+	intOne     = constant.MakeInt64(1)
+	floatOne   = constant.ToFloat(intOne)
+	complexOne = constant.ToComplex(intOne)
+)
 
 const (
 	// Maximum size in bits for big.Ints before signaling

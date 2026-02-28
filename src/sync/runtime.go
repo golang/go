@@ -13,11 +13,19 @@ import "unsafe"
 // library and should not be used directly.
 func runtime_Semacquire(s *uint32)
 
-// SemacquireMutex is like Semacquire, but for profiling contended Mutexes.
+// SemacquireWaitGroup is like Semacquire, but for WaitGroup.Wait.
+func runtime_SemacquireWaitGroup(s *uint32, synctestDurable bool)
+
+// Semacquire(RW)Mutex(R) is like Semacquire, but for profiling contended
+// Mutexes and RWMutexes.
 // If lifo is true, queue waiter at the head of wait queue.
 // skipframes is the number of frames to omit during tracing, counting from
 // runtime_SemacquireMutex's caller.
-func runtime_SemacquireMutex(s *uint32, lifo bool, skipframes int)
+// The different forms of this function just tell the runtime how to present
+// the reason for waiting in a backtrace, and is used to compute some metrics.
+// Otherwise they're functionally identical.
+func runtime_SemacquireRWMutexR(s *uint32, lifo bool, skipframes int)
+func runtime_SemacquireRWMutex(s *uint32, lifo bool, skipframes int)
 
 // Semrelease atomically increments *s and notifies a waiting goroutine
 // if one is blocked in Semacquire.
@@ -47,11 +55,5 @@ func init() {
 	runtime_notifyListCheck(unsafe.Sizeof(n))
 }
 
-// Active spinning runtime support.
-// runtime_canSpin reports whether spinning makes sense at the moment.
-func runtime_canSpin(i int) bool
-
-// runtime_doSpin does active spinning.
-func runtime_doSpin()
-
-func runtime_nanotime() int64
+func throw(string)
+func fatal(string)

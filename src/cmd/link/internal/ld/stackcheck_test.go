@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"os"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"testing"
@@ -20,7 +19,7 @@ func TestStackCheckOutput(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	t.Parallel()
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", os.DevNull, "./testdata/stackcheck")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", os.DevNull, "./testdata/stackcheck")
 	// The rules for computing frame sizes on all of the
 	// architectures are complicated, so just do this on amd64.
 	cmd.Env = append(os.Environ(), "GOARCH=amd64", "GOOS=linux")
@@ -34,7 +33,7 @@ func TestStackCheckOutput(t *testing.T) {
 	t.Logf("linker output:\n%s", out)
 
 	// Get expected limit.
-	limitRe := regexp.MustCompile("nosplit stack over ([0-9]+) byte limit")
+	limitRe := regexp.MustCompile(`nosplit stack over (\d+) byte limit`)
 	m := limitRe.FindStringSubmatch(out)
 	if m == nil {
 		t.Fatalf("no overflow errors in output")
@@ -66,7 +65,7 @@ func TestStackCheckOutput(t *testing.T) {
 	}
 
 	// Parse stanzas
-	stanza := regexp.MustCompile(`^(.*): nosplit stack over [0-9]+ byte limit\n(.*\n(?: .*\n)*)`)
+	stanza := regexp.MustCompile(`^(.*): nosplit stack over \d+ byte limit\n(.*\n(?: .*\n)*)`)
 	// Strip comments from cmd/go
 	out = regexp.MustCompile(`(?m)^#.*\n`).ReplaceAllString(out, "")
 	for len(out) > 0 {

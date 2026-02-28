@@ -9,8 +9,7 @@ import (
 	"debug/pe"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
-	"os/exec"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -22,11 +21,14 @@ func TestUndefinedRelocErrors(t *testing.T) {
 
 	// When external linking, symbols may be defined externally, so we allow
 	// undefined symbols and let external linker resolve. Skip the test.
-	testenv.MustInternalLink(t)
+	//
+	// N.B. go build below explictly doesn't pass through
+	// -asan/-msan/-race, so we don't care about those.
+	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 
 	t.Parallel()
 
-	out, err := exec.Command(testenv.GoToolPath(t), "build", "./testdata/issue10978").CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "build", "./testdata/issue10978").CombinedOutput()
 	if err == nil {
 		t.Fatal("expected build to fail")
 	}
@@ -66,6 +68,9 @@ func TestUndefinedRelocErrors(t *testing.T) {
 		case n > 0:
 			t.Errorf("unmatched error: %s (x%d)", want, n)
 		case n < 0:
+			if runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
+				testenv.SkipFlaky(t, 58807)
+			}
 			t.Errorf("extra errors: %s (x%d)", want, -n)
 		}
 	}
@@ -107,13 +112,13 @@ func TestArchiveBuildInvokeWithExec(t *testing.T) {
 
 	srcfile := filepath.Join(dir, "test.go")
 	arfile := filepath.Join(dir, "test.a")
-	if err := ioutil.WriteFile(srcfile, []byte(carchiveSrcText), 0666); err != nil {
+	if err := os.WriteFile(srcfile, []byte(carchiveSrcText), 0666); err != nil {
 		t.Fatal(err)
 	}
 
 	ldf := fmt.Sprintf("-ldflags=-v -tmpdir=%s", dir)
 	argv := []string{"build", "-buildmode=c-archive", "-o", arfile, ldf, srcfile}
-	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), argv...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("build failure: %s\n%s\n", err, string(out))
 	}
@@ -134,7 +139,7 @@ func TestArchiveBuildInvokeWithExec(t *testing.T) {
 
 func TestLargeTextSectionSplitting(t *testing.T) {
 	switch runtime.GOARCH {
-	case "ppc64", "ppc64le":
+	case "ppc64", "ppc64le", "arm":
 	case "arm64":
 		if runtime.GOOS == "darwin" {
 			break
@@ -155,13 +160,13 @@ func TestLargeTextSectionSplitting(t *testing.T) {
 	// is arbitrary; we just need something sufficiently large that uses
 	// external linking.
 	exe := filepath.Join(dir, "go.exe")
-	out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "-ldflags=-linkmode=external -debugtextsize=1048576", "cmd/go").CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, "-ldflags=-linkmode=external -debugtextsize=1048576", "cmd/go").CombinedOutput()
 	if err != nil {
 		t.Fatalf("build failure: %s\n%s\n", err, string(out))
 	}
 
 	// Check that we did split text sections.
-	out, err = exec.Command(testenv.GoToolPath(t), "tool", "nm", exe).CombinedOutput()
+	out, err = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", exe).CombinedOutput()
 	if err != nil {
 		t.Fatalf("nm failure: %s\n%s\n", err, string(out))
 	}
@@ -170,7 +175,7 @@ func TestLargeTextSectionSplitting(t *testing.T) {
 	}
 
 	// Result should be runnable.
-	_, err = exec.Command(exe, "version").CombinedOutput()
+	_, err = testenv.Command(t, exe, "version").CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +207,7 @@ func testWindowsBuildmodeCSharedASLR(t *testing.T, useASLR bool) {
 
 	srcfile := filepath.Join(dir, "test.go")
 	objfile := filepath.Join(dir, "test.dll")
-	if err := ioutil.WriteFile(srcfile, []byte(`package main; func main() { print("hello") }`), 0666); err != nil {
+	if err := os.WriteFile(srcfile, []byte(`package main; func main() { print("hello") }`), 0666); err != nil {
 		t.Fatal(err)
 	}
 	argv := []string{"build", "-buildmode=c-shared"}
@@ -210,7 +215,7 @@ func testWindowsBuildmodeCSharedASLR(t *testing.T, useASLR bool) {
 		argv = append(argv, "-ldflags", "-aslr=false")
 	}
 	argv = append(argv, "-o", objfile, srcfile)
-	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), argv...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("build failure: %s\n%s\n", err, string(out))
 	}
@@ -302,7 +307,34 @@ package main
 import "runtime"
 import "runtime/pprof"
 func main() {
-        _ = pprof.Profiles()
+	_ = pprof.Profiles()
+	println(runtime.MemProfileRate)
+}
+`,
+			"524288",
+		},
+		{
+			"with_memprofile_runtime_pprof_writeheap",
+			`
+package main
+import "io"
+import "runtime"
+import "runtime/pprof"
+func main() {
+	_ = pprof.WriteHeapProfile(io.Discard)
+	println(runtime.MemProfileRate)
+}
+`,
+			"524288",
+		},
+		{
+			"with_memprofile_runtime_pprof_lookupheap",
+			`
+package main
+import "runtime"
+import "runtime/pprof"
+func main() {
+	_ = pprof.Lookup("heap")
 	println(runtime.MemProfileRate)
 }
 `,
@@ -327,10 +359,10 @@ func main() {
 			t.Parallel()
 			tempDir := t.TempDir()
 			src := filepath.Join(tempDir, "x.go")
-			if err := ioutil.WriteFile(src, []byte(tt.prog), 0644); err != nil {
+			if err := os.WriteFile(src, []byte(tt.prog), 0644); err != nil {
 				t.Fatal(err)
 			}
-			cmd := exec.Command(testenv.GoToolPath(t), "run", src)
+			cmd := testenv.Command(t, testenv.GoToolPath(t), "run", src)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				t.Fatal(err)
@@ -340,5 +372,95 @@ func main() {
 				t.Errorf("got %q; want %q", got, tt.wantOut)
 			}
 		})
+	}
+}
+
+func TestRISCVTrampolines(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "x.s")
+
+	// Calling b from a or c should not use trampolines, however
+	// calling from d to a will require one.
+	buf := new(bytes.Buffer)
+	fmt.Fprintf(buf, "TEXT a(SB),$0-0\n")
+	for i := 0; i < 1<<17; i++ {
+		fmt.Fprintf(buf, "\tADD $0, X5, X0\n")
+	}
+	fmt.Fprintf(buf, "\tCALL b(SB)\n")
+	fmt.Fprintf(buf, "\tRET\n")
+	fmt.Fprintf(buf, "TEXT b(SB),$0-0\n")
+	fmt.Fprintf(buf, "\tRET\n")
+	fmt.Fprintf(buf, "TEXT c(SB),$0-0\n")
+	fmt.Fprintf(buf, "\tCALL b(SB)\n")
+	fmt.Fprintf(buf, "\tRET\n")
+	fmt.Fprintf(buf, "TEXT ·d(SB),0,$0-0\n")
+	for i := 0; i < 1<<17; i++ {
+		fmt.Fprintf(buf, "\tADD $0, X5, X0\n")
+	}
+	fmt.Fprintf(buf, "\tCALL a(SB)\n")
+	fmt.Fprintf(buf, "\tCALL c(SB)\n")
+	fmt.Fprintf(buf, "\tRET\n")
+	if err := os.WriteFile(tmpFile, buf.Bytes(), 0644); err != nil {
+		t.Fatalf("Failed to write assembly file: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module riscvtramp"), 0644); err != nil {
+		t.Fatalf("Failed to write file: %v\n", err)
+	}
+	main := `package main
+func main() {
+	d()
+}
+
+func d()
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "x.go"), []byte(main), 0644); err != nil {
+		t.Fatalf("failed to write main: %v\n", err)
+	}
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-linkmode=internal")
+	cmd.Dir = tmpDir
+	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Build failed: %v, output: %s", err, out)
+	}
+
+	// Check what trampolines exist.
+	cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", filepath.Join(tmpDir, "riscvtramp"))
+	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("nm failure: %s\n%s\n", err, string(out))
+	}
+	if !bytes.Contains(out, []byte(" T a-tramp0")) {
+		t.Errorf("Trampoline a-tramp0 is missing")
+	}
+	if bytes.Contains(out, []byte(" T b-tramp0")) {
+		t.Errorf("Trampoline b-tramp0 exists unnecessarily")
+	}
+}
+
+func TestRounding(t *testing.T) {
+	testCases := []struct {
+		input    int64
+		quantum  int64
+		expected int64
+	}{
+		{0x30000000, 0x2000, 0x30000000}, // Already aligned
+		{0x30002000, 0x2000, 0x30002000}, // Exactly on boundary
+		{0x30001234, 0x2000, 0x30002000},
+		{0x30001000, 0x2000, 0x30002000},
+		{0x30001fff, 0x2000, 0x30002000},
+	}
+
+	for _, tc := range testCases {
+		result := Rnd(tc.input, tc.quantum)
+		if result != tc.expected {
+			t.Errorf("Rnd(0x%x, 0x%x) = 0x%x, expected 0x%x",
+				tc.input, tc.quantum, result, tc.expected)
+		}
 	}
 }

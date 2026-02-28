@@ -20,8 +20,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/google/pprof/internal/plugin"
@@ -86,7 +86,7 @@ func (tr *transport) initialize() error {
 
 	if ca != "" {
 		caCertPool := x509.NewCertPool()
-		caCert, err := ioutil.ReadFile(ca)
+		caCert, err := os.ReadFile(ca)
 		if err != nil {
 			return fmt.Errorf("could not load CA specified by -tls_ca: %v", err)
 		}

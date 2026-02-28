@@ -125,7 +125,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 	}
 
 	// formatted source and golden must be the same
-	if err := checkEqual(source, golden, res, gld); err != nil {
+	if err := checkEqual(fmt.Sprintf("format(%v)", source), golden, res, gld); err != nil {
 		t.Error(err)
 		return
 	}
@@ -548,7 +548,6 @@ func TestBaseIndent(t *testing.T) {
 	}
 
 	for indent := 0; indent < 4; indent++ {
-		indent := indent
 		t.Run(fmt.Sprint(indent), func(t *testing.T) {
 			t.Parallel()
 			var buf bytes.Buffer
@@ -604,6 +603,29 @@ func f()
 	}
 }
 
+// TestChanType tests that the tree for <-(<-chan int), without
+// ParenExpr, is correctly formatted with parens.
+// Test case for issue #63362.
+func TestChanType(t *testing.T) {
+	expr := &ast.UnaryExpr{
+		Op: token.ARROW,
+		X: &ast.CallExpr{
+			Fun: &ast.ChanType{
+				Dir:   ast.RECV,
+				Value: &ast.Ident{Name: "int"},
+			},
+			Args: []ast.Expr{&ast.Ident{Name: "nil"}},
+		},
+	}
+	var buf bytes.Buffer
+	if err := Fprint(&buf, fset, expr); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := buf.String(), `<-(<-chan int)(nil)`; got != want {
+		t.Fatalf("got:\n%s\nwant:\n%s\n", got, want)
+	}
+}
+
 type limitWriter struct {
 	remaining int
 	errCount  int
@@ -645,7 +667,7 @@ func TestWriteErrors(t *testing.T) {
 	}
 }
 
-// TextX is a skeleton test that can be filled in for debugging one-off cases.
+// TestX is a skeleton test that can be filled in for debugging one-off cases.
 // Do not remove.
 func TestX(t *testing.T) {
 	const src = `
@@ -795,5 +817,48 @@ func f() {
 	want := "return call()"
 	if got := buf.String(); got != want {
 		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestSourcePosNewline(t *testing.T) {
+	// We don't provide a syntax for escaping or unescaping characters in line
+	// directives (see https://go.dev/issue/24183#issuecomment-372449628).
+	// As a result, we cannot write a line directive with the correct path for a
+	// filename containing newlines. We should return an error rather than
+	// silently dropping or mangling it.
+
+	fname := "foo\nbar/bar.go"
+	src := `package bar`
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, fname, src, parser.ParseComments|parser.AllErrors|parser.SkipObjectResolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{
+		Mode:     SourcePos, // emit line comments
+		Tabwidth: 8,
+	}
+	var buf bytes.Buffer
+	if err := cfg.Fprint(&buf, fset, f); err == nil {
+		t.Errorf("Fprint did not error for source file path containing newline")
+	}
+	if buf.Len() != 0 {
+		t.Errorf("unexpected Fprint output:\n%s", buf.Bytes())
+	}
+}
+
+// TestEmptyDecl tests that empty decls for const, var, import are printed with
+// valid syntax e.g "var ()" instead of just "var", which is invalid and cannot
+// be parsed.
+func TestEmptyDecl(t *testing.T) { // issue 63566
+	for _, tok := range []token.Token{token.IMPORT, token.CONST, token.TYPE, token.VAR} {
+		var buf bytes.Buffer
+		Fprint(&buf, token.NewFileSet(), &ast.GenDecl{Tok: tok})
+		got := buf.String()
+		want := tok.String() + " ()"
+		if got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
 	}
 }

@@ -9,7 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -70,6 +70,18 @@ func TestStdLib(t *testing.T) {
 			filepath.Join(goroot, "src"),
 			filepath.Join(goroot, "misc"),
 		} {
+			if filepath.Base(dir) == "misc" {
+				// cmd/distpack deletes GOROOT/misc, so skip that directory if it isn't present.
+				// cmd/distpack also requires GOROOT/VERSION to exist, so use that to
+				// suppress false-positive skips.
+				if _, err := os.Stat(dir); os.IsNotExist(err) {
+					if _, err := os.Stat(filepath.Join(testenv.GOROOT(t), "VERSION")); err == nil {
+						fmt.Printf("%s not present; skipping\n", dir)
+						continue
+					}
+				}
+			}
+
 			walkDirs(t, dir, func(filename string) {
 				if skipRx != nil && skipRx.MatchString(filename) {
 					// Always report skipped files since regexp
@@ -112,21 +124,21 @@ func TestStdLib(t *testing.T) {
 }
 
 func walkDirs(t *testing.T, dir string, action func(string)) {
-	fis, err := ioutil.ReadDir(dir)
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	var files, dirs []string
-	for _, fi := range fis {
-		if fi.Mode().IsRegular() {
-			if strings.HasSuffix(fi.Name(), ".go") {
-				path := filepath.Join(dir, fi.Name())
+	for _, entry := range entries {
+		if entry.Type().IsRegular() {
+			if strings.HasSuffix(entry.Name(), ".go") {
+				path := filepath.Join(dir, entry.Name())
 				files = append(files, path)
 			}
-		} else if fi.IsDir() && fi.Name() != "testdata" {
-			path := filepath.Join(dir, fi.Name())
+		} else if entry.IsDir() && entry.Name() != "testdata" {
+			path := filepath.Join(dir, entry.Name())
 			if !strings.HasSuffix(path, string(filepath.Separator)+"test") {
 				dirs = append(dirs, path)
 			}
@@ -174,7 +186,7 @@ func verifyPrint(t *testing.T, filename string, ast1 *File) {
 	}
 	bytes2 := buf2.Bytes()
 
-	if bytes.Compare(bytes1, bytes2) != 0 {
+	if !bytes.Equal(bytes1, bytes2) {
 		fmt.Printf("--- %s ---\n", filename)
 		fmt.Printf("%s\n", bytes1)
 		fmt.Println()
@@ -360,5 +372,24 @@ func TestLineDirectives(t *testing.T) {
 		if col := pos.RelCol(); col != test.col {
 			t.Errorf("%s: got col = %d; want %d", test.src, col, test.col)
 		}
+	}
+}
+
+// Test that typical uses of UnpackListExpr don't allocate.
+func TestUnpackListExprAllocs(t *testing.T) {
+	var x Expr = NewName(Pos{}, "x")
+	allocs := testing.AllocsPerRun(1000, func() {
+		list := UnpackListExpr(x)
+		if len(list) != 1 || list[0] != x {
+			t.Fatalf("unexpected result")
+		}
+	})
+
+	if allocs > 0 {
+		errorf := t.Errorf
+		if testenv.OptimizationOff() {
+			errorf = t.Logf // noopt builder disables inlining
+		}
+		errorf("UnpackListExpr allocated %v times", allocs)
 	}
 }

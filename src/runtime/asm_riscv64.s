@@ -6,10 +6,108 @@
 #include "funcdata.h"
 #include "textflag.h"
 
+
+// When building with -buildmode=c-shared, this symbol is called when the shared
+// library is loaded.
+TEXT _rt0_riscv64_lib(SB),NOSPLIT,$224
+	// Preserve callee-save registers, along with X1 (LR).
+	MOV	X1, (8*3)(X2)
+	MOV	X8, (8*4)(X2)
+	MOV	X9, (8*5)(X2)
+	MOV	X18, (8*6)(X2)
+	MOV	X19, (8*7)(X2)
+	MOV	X20, (8*8)(X2)
+	MOV	X21, (8*9)(X2)
+	MOV	X22, (8*10)(X2)
+	MOV	X23, (8*11)(X2)
+	MOV	X24, (8*12)(X2)
+	MOV	X25, (8*13)(X2)
+	MOV	X26, (8*14)(X2)
+	MOV	g, (8*15)(X2)
+	MOVD	F8, (8*16)(X2)
+	MOVD	F9, (8*17)(X2)
+	MOVD	F18, (8*18)(X2)
+	MOVD	F19, (8*19)(X2)
+	MOVD	F20, (8*20)(X2)
+	MOVD	F21, (8*21)(X2)
+	MOVD	F22, (8*22)(X2)
+	MOVD	F23, (8*23)(X2)
+	MOVD	F24, (8*24)(X2)
+	MOVD	F25, (8*25)(X2)
+	MOVD	F26, (8*26)(X2)
+	MOVD	F27, (8*27)(X2)
+
+	// Initialize g as nil in case of using g later e.g. sigaction in cgo_sigaction.go
+	MOV	X0, g
+
+	MOV	A0, _rt0_riscv64_lib_argc<>(SB)
+	MOV	A1, _rt0_riscv64_lib_argv<>(SB)
+
+	// Synchronous initialization.
+	MOV	$runtime·libpreinit(SB), T1
+	JALR	RA, T1
+
+	// Create a new thread to do the runtime initialization and return.
+	MOV	_cgo_sys_thread_create(SB), T1
+	BEQZ	T1, nocgo
+	MOV	$_rt0_riscv64_lib_go(SB), A0
+	MOV	$0, A1
+	JALR	RA, T1
+	JMP	restore
+
+nocgo:
+	MOV	$0x800000, A0                     // stacksize = 8192KB
+	MOV	$_rt0_riscv64_lib_go(SB), A1
+	MOV	A0, 8(X2)
+	MOV	A1, 16(X2)
+	MOV	$runtime·newosproc0(SB), T1
+	JALR	RA, T1
+
+restore:
+	// Restore callee-save registers, along with X1 (LR).
+	MOV	(8*3)(X2), X1
+	MOV	(8*4)(X2), X8
+	MOV	(8*5)(X2), X9
+	MOV	(8*6)(X2), X18
+	MOV	(8*7)(X2), X19
+	MOV	(8*8)(X2), X20
+	MOV	(8*9)(X2), X21
+	MOV	(8*10)(X2), X22
+	MOV	(8*11)(X2), X23
+	MOV	(8*12)(X2), X24
+	MOV	(8*13)(X2), X25
+	MOV	(8*14)(X2), X26
+	MOV	(8*15)(X2), g
+	MOVD	(8*16)(X2), F8
+	MOVD	(8*17)(X2), F9
+	MOVD	(8*18)(X2), F18
+	MOVD	(8*19)(X2), F19
+	MOVD	(8*20)(X2), F20
+	MOVD	(8*21)(X2), F21
+	MOVD	(8*22)(X2), F22
+	MOVD	(8*23)(X2), F23
+	MOVD	(8*24)(X2), F24
+	MOVD	(8*25)(X2), F25
+	MOVD	(8*26)(X2), F26
+	MOVD	(8*27)(X2), F27
+
+	RET
+
+TEXT _rt0_riscv64_lib_go(SB),NOSPLIT,$0
+	MOV	_rt0_riscv64_lib_argc<>(SB), A0
+	MOV	_rt0_riscv64_lib_argv<>(SB), A1
+	MOV	$runtime·rt0_go(SB), T0
+	JALR	ZERO, T0
+
+DATA _rt0_riscv64_lib_argc<>(SB)/8, $0
+GLOBL _rt0_riscv64_lib_argc<>(SB),NOPTR, $8
+DATA _rt0_riscv64_lib_argv<>(SB)/8, $0
+GLOBL _rt0_riscv64_lib_argv<>(SB),NOPTR, $8
+
 // func rt0_go()
 TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// X2 = stack; A0 = argc; A1 = argv
-	ADD	$-24, X2
+	SUB	$24, X2
 	MOV	A0, 8(X2)	// argc
 	MOV	A1, 16(X2)	// argv
 
@@ -24,19 +122,19 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	MOV	X2, (g_stack+stack_hi)(g)
 
 	// if there is a _cgo_init, call it using the gcc ABI.
-	MOV	_cgo_init(SB), T0
-	BEQ	T0, ZERO, nocgo
+	MOV	_cgo_init(SB), T2
+	BEQ	T2, ZERO, nocgo
 
 	MOV	ZERO, A3		// arg 3: not used
 	MOV	ZERO, A2		// arg 2: not used
 	MOV	$setg_gcc<>(SB), A1	// arg 1: setg
 	MOV	g, A0			// arg 0: G
-	JALR	RA, T0
+	JALR	RA, T2
 
 nocgo:
 	// update stackguard after _cgo_init
 	MOV	(g_stack+stack_lo)(g), T0
-	ADD	$const__StackGuard, T0
+	ADD	$const_stackGuard, T0
 	MOV	T0, g_stackguard0(g)
 	MOV	T0, g_stackguard1(g)
 
@@ -57,7 +155,7 @@ nocgo:
 
 	// create a new goroutine to start program
 	MOV	$runtime·mainPC(SB), T0		// entry
-	ADD	$-16, X2
+	SUB	$16, X2
 	MOV	T0, 8(X2)
 	MOV	ZERO, 0(X2)
 	CALL	runtime·newproc(SB)
@@ -80,12 +178,11 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
 	RET
 
 // func cputicks() int64
-TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+TEXT runtime·cputicks<ABIInternal>(SB),NOSPLIT,$0-0
 	// RDTIME to emulate cpu ticks
 	// RDCYCLE reads counter that is per HART(core) based
 	// according to the riscv manual, see issue 46737
-	RDTIME	A0
-	MOV	A0, ret+0(FP)
+	RDTIME	X10
 	RET
 
 // systemstack_switch is a dummy routine that systemstack leaves at the bottom
@@ -148,18 +245,37 @@ noswitch:
 	ADD	$8, X2
 	JMP	(T1)
 
-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
-	MOV	0(X2), T0		// LR saved by caller
-	MOV	T0, ret+0(FP)
-	RET
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
+	MOV	X10, CTXT			// context register
+	MOV	g_m(g), X11			// curm
+
+	// set g to gcrash
+	MOV	$runtime·gcrash(SB), g	// g = &gcrash
+	CALL	runtime·save_g(SB)	// clobbers X31
+	MOV	X11, g_m(g)			// g.m = curm
+	MOV	g, m_g0(X11)			// curm.g0 = g
+
+	// switch to crashstack
+	MOV	(g_stack+stack_hi)(g), X11
+	SUB	$(4*8), X11
+	MOV	X11, X2
+
+	// call target function
+	MOV	0(CTXT), X10
+	JALR	X1, X10
+
+	// should never return
+	CALL	runtime·abort(SB)
+	UNDEF
 
 /*
  * support for morestack
  */
 
 // Called during function prolog when more stack is needed.
-// Caller has already loaded:
-// R1: framesize, R2: argsize, R3: LR
+// Called with return address (i.e. caller's PC) in X5 (aka T0),
+// and the LR register contains the caller's LR.
 //
 // The traceback routines see morestack on a g0 as being
 // the top of a stack (for example, morestack calling newstack
@@ -168,6 +284,13 @@ TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
 
 // func morestack()
 TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+	// Called from f.
+	// Set g->sched to context in f.
+	MOV	X2, (g_sched+gobuf_sp)(g)
+	MOV	T0, (g_sched+gobuf_pc)(g)
+	MOV	RA, (g_sched+gobuf_lr)(g)
+	MOV	CTXT, (g_sched+gobuf_ctxt)(g)
+
 	// Cannot grow scheduler stack (m->g0).
 	MOV	g_m(g), A0
 	MOV	m_g0(A0), A1
@@ -182,13 +305,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	CALL	runtime·abort(SB)
 
 	// Called from f.
-	// Set g->sched to context in f.
-	MOV	X2, (g_sched+gobuf_sp)(g)
-	MOV	T0, (g_sched+gobuf_pc)(g)
-	MOV	RA, (g_sched+gobuf_lr)(g)
-	MOV	CTXT, (g_sched+gobuf_ctxt)(g)
-
-	// Called from f.
 	// Set m->morebuf to f's caller.
 	MOV	RA, (m_morebuf+gobuf_pc)(A0)	// f's caller's PC
 	MOV	X2, (m_morebuf+gobuf_sp)(A0)	// f's caller's SP
@@ -200,7 +316,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	MOV	(g_sched+gobuf_sp)(g), X2
 	// Create a stack frame on g0 to call newstack.
 	MOV	ZERO, -8(X2)	// Zero saved LR in frame
-	ADD	$-8, X2
+	SUB	$8, X2
 	CALL	runtime·newstack(SB)
 
 	// Not reached, but make sure the return PC from the call to newstack
@@ -209,6 +325,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 
 // func morestack_noctxt()
 TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
+	// Force SPWRITE. This function doesn't actually write SP,
+	// but it is called with a special calling convention where
+	// the caller doesn't save LR on stack but passes it as a
+	// register, and the unwinder currently doesn't understand.
+	// Make it SPWRITE to stop unwinding. (See issue 54332)
+	MOV	X2, X2
+
 	MOV	ZERO, CTXT
 	JMP	runtime·morestack(SB)
 
@@ -221,11 +344,6 @@ TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	JMP	runtime·memhash32Fallback<ABIInternal>(SB)
 TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	JMP	runtime·memhash64Fallback<ABIInternal>(SB)
-
-// func return0()
-TEXT runtime·return0(SB), NOSPLIT, $0
-	MOV	$0, A0
-	RET
 
 // restore state from Gobuf; longjmp
 
@@ -242,17 +360,15 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 
 	MOV	gobuf_sp(T0), X2
 	MOV	gobuf_lr(T0), RA
-	MOV	gobuf_ret(T0), A0
 	MOV	gobuf_ctxt(T0), CTXT
 	MOV	ZERO, gobuf_sp(T0)
-	MOV	ZERO, gobuf_ret(T0)
 	MOV	ZERO, gobuf_lr(T0)
 	MOV	ZERO, gobuf_ctxt(T0)
 	MOV	gobuf_pc(T0), T0
 	JALR	ZERO, T0
 
-// func procyield(cycles uint32)
-TEXT runtime·procyield(SB),NOSPLIT,$0-0
+// func procyieldAsm(cycles uint32)
+TEXT runtime·procyieldAsm(SB),NOSPLIT,$0-0
 	RET
 
 // Switch to m->g0's stack, call fn(g).
@@ -261,11 +377,7 @@ TEXT runtime·procyield(SB),NOSPLIT,$0-0
 
 // func mcall(fn func(*g))
 TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	X10, CTXT
-#else
-	MOV	fn+0(FP), CTXT
-#endif
 
 	// Save caller state in g->sched
 	MOV	X2, (g_sched+gobuf_sp)(g)
@@ -282,7 +394,7 @@ TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
 	MOV	0(CTXT), T1			// code pointer
 	MOV	(g_sched+gobuf_sp)(g), X2	// sp = m->g0->sched.sp
 	// we don't need special macro for regabi since arg0(X10) = g
-	ADD	$-16, X2
+	SUB	$16, X2
 	MOV	X10, 8(X2)			// setup g
 	MOV	ZERO, 0(X2)			// clear return address
 	JALR	RA, T1
@@ -299,11 +411,19 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOV	X31, (g_sched+gobuf_pc)(g)
 	MOV	X2, (g_sched+gobuf_sp)(g)
 	MOV	ZERO, (g_sched+gobuf_lr)(g)
-	MOV	ZERO, (g_sched+gobuf_ret)(g)
 	// Assert ctxt is zero. See func save.
 	MOV	(g_sched+gobuf_ctxt)(g), X31
 	BEQ	ZERO, X31, 2(PC)
 	CALL	runtime·abort(SB)
+	RET
+
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet (during needm).
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
+	MOV	fn+0(FP), X11
+	MOV	arg+8(FP), X10
+	JALR	RA, (X11)
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -311,7 +431,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 // aligned appropriately for the gcc ABI.
 // See cgocall.go for more details.
 TEXT ·asmcgocall(SB),NOSPLIT,$0-20
-	MOV	fn+0(FP), X5
+	MOV	fn+0(FP), X11
 	MOV	arg+8(FP), X10
 
 	MOV	X2, X8	// save original stack pointer
@@ -335,13 +455,13 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	// Now on a scheduling stack (a pthread-created stack).
 g0:
 	// Save room for two of our pointers.
-	ADD	$-16, X2
+	SUB	$16, X2
 	MOV	X9, 0(X2)	// save old g on stack
 	MOV	(g_stack+stack_hi)(X9), X9
 	SUB	X8, X9, X8
 	MOV	X8, 8(X2)	// save depth in old g stack (can't just save SP, as stack might be copied during a callback)
 
-	JALR	RA, (X5)
+	JALR	RA, (X11)
 
 	// Restore g, stack pointer. X10 is return value.
 	MOV	0(X2), g
@@ -503,26 +623,45 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$8
 	RET
 
 // func goexit(neverCallThisFunction)
-// The top-most function running on a goroutine
-// returns to goexit+PCQuantum.
+// The top-most function running on a goroutine, returns to goexit+PCQuantum*2.
+// Note that the NOPs are written in a manner that will not be compressed,
+// since the offset must be known by the runtime.
 TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
-	MOV	ZERO, ZERO	// NOP
+	WORD	$0x00000013	// NOP
 	JMP	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
-	MOV	ZERO, ZERO	// NOP
+	WORD	$0x00000013	// NOP
+
+// This is called from .init_array and follows the platform, not the Go ABI.
+TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+	// Use X31 as it is a scratch register in both the Go ABI and psABI.
+	MOV	runtime·lastmoduledatap(SB), X31
+	MOV	X10, moduledata_next(X31)
+	MOV	X10, runtime·lastmoduledatap(SB)
+	RET
 
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
+	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+	// It is used to dropm while thread is exiting.
+	MOV	fn+0(FP), X7
+	BNE	ZERO, X7, loadg
+	// Restore the g from frame.
+	MOV	frame+8(FP), g
+	JMP	dropm
+
+loadg:
 	// Load m and g from thread-local storage.
 	MOVBU	runtime·iscgo(SB), X5
 	BEQ	ZERO, X5, nocgo
 	CALL	runtime·load_g(SB)
 nocgo:
 
-	// If g is nil, Go did not create the current thread.
+	// If g is nil, Go did not create the current thread,
+	// or if this thread never called into Go on pthread platforms.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
 	// lots of space, but the linker doesn't know. Hide the call from
@@ -535,7 +674,7 @@ nocgo:
 
 needm:
 	MOV	g, savedm-8(SP) // g is zero, so is m.
-	MOV	$runtime·needm(SB), X6
+	MOV	$runtime·needAndBindM(SB), X6
 	JALR	RA, X6
 
 	// Set m->sched.sp = SP, so that if a panic happens
@@ -606,10 +745,24 @@ havem:
 	MOV	savedsp-24(SP), X6	// must match frame size
 	MOV	X6, (g_sched+gobuf_sp)(g)
 
-	// If the m on entry was nil, we called needm above to borrow an m
-	// for the duration of the call. Since the call is over, return it with dropm.
+	// If the m on entry was nil, we called needm above to borrow an m,
+	// 1. for the duration of the call on non-pthread platforms,
+	// 2. or the duration of the C thread alive on pthread platforms.
+	// If the m on entry wasn't nil,
+	// 1. the thread might be a Go thread,
+	// 2. or it wasn't the first call from a C thread on pthread platforms,
+	//    since then we skip dropm to reuse the m in the first call.
 	MOV	savedm-8(SP), X5
 	BNE	ZERO, X5, droppedm
+
+	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+	MOV	_cgo_pthread_key_created(SB), X5
+	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+	BEQ	ZERO, X5, dropm
+	MOV	(X5), X5
+	BNE	ZERO, X5, droppedm
+
+dropm:
 	MOV	$runtime·dropm(SB), X6
 	JALR	RA, X6
 droppedm:
@@ -637,7 +790,6 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOV	T0, ret+0(FP)
 	RET
 
-#ifdef GOEXPERIMENT_regabiargs
 // spillArgs stores return values from registers to a *internal/abi.RegArgs in X25.
 TEXT ·spillArgs(SB),NOSPLIT,$0-0
 	MOV	X10, (0*8)(X25)
@@ -709,60 +861,48 @@ TEXT ·unspillArgs(SB),NOSPLIT,$0-0
 	MOVD	(30*8)(X25), F22
 	MOVD	(31*8)(X25), F23
 	RET
-#else
-TEXT ·spillArgs(SB),NOSPLIT,$0-0
-	RET
 
-TEXT ·unspillArgs(SB),NOSPLIT,$0-0
-	RET
-#endif
-
-// gcWriteBarrier performs a heap pointer write and informs the GC.
+// gcWriteBarrier informs the GC about heap pointer writes.
 //
-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
-// - T0 is the destination of the write
-// - T1 is the value being written at T0.
-// It clobbers R30 (the linker temp register - REG_TMP).
+// gcWriteBarrier does NOT follow the Go ABI. It accepts the
+// number of bytes of buffer needed in X24, and returns a pointer
+// to the buffer space in X24.
+// It clobbers X31 aka T6 (the linker temp register - REG_TMP).
 // The act of CALLing gcWriteBarrier will clobber RA (LR).
 // It does not clobber any other general-purpose registers,
 // but may clobber others (e.g., floating point registers).
-TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$208
+TEXT gcWriteBarrier<>(SB),NOSPLIT,$208
 	// Save the registers clobbered by the fast path.
 	MOV	A0, 24*8(X2)
 	MOV	A1, 25*8(X2)
+retry:
 	MOV	g_m(g), A0
 	MOV	m_p(A0), A0
 	MOV	(p_wbBuf+wbBuf_next)(A0), A1
+	MOV	(p_wbBuf+wbBuf_end)(A0), T6 // T6 is linker temp register (REG_TMP)
 	// Increment wbBuf.next position.
-	ADD	$16, A1
-	MOV	A1, (p_wbBuf+wbBuf_next)(A0)
-	MOV	(p_wbBuf+wbBuf_end)(A0), A0
-	MOV	A0, T6		// T6 is linker temp register (REG_TMP)
-	// Record the write.
-	MOV	T1, -16(A1)	// Record value
-	MOV	(T0), A0	// TODO: This turns bad writes into bad reads.
-	MOV	A0, -8(A1)	// Record *slot
+	ADD	X24, A1
 	// Is the buffer full?
-	BEQ	A1, T6, flush
-ret:
+	BLTU	T6, A1, flush
+	// Commit to the larger buffer.
+	MOV	A1, (p_wbBuf+wbBuf_next)(A0)
+	// Make the return value (the original next position)
+	SUB	X24, A1, X24
+	// Restore registers.
 	MOV	24*8(X2), A0
 	MOV	25*8(X2), A1
-	// Do the write.
-	MOV	T1, (T0)
 	RET
 
 flush:
 	// Save all general purpose registers since these could be
 	// clobbered by wbBufFlush and were not saved by the caller.
-	MOV	T0, 1*8(X2)	// Also first argument to wbBufFlush
-	MOV	T1, 2*8(X2)	// Also second argument to wbBufFlush
+	MOV	T0, 1*8(X2)
+	MOV	T1, 2*8(X2)
 	// X0 is zero register
 	// X1 is LR, saved by prologue
 	// X2 is SP
 	// X3 is GP
 	// X4 is TP
-	// X5 is first arg to wbBufFlush (T0)
-	// X6 is second arg to wbBufFlush (T1)
 	MOV	X7, 3*8(X2)
 	MOV	X8, 4*8(X2)
 	MOV	X9, 5*8(X2)
@@ -789,7 +929,6 @@ flush:
 	MOV	X30, 23*8(X2)
 	// X31 is tmp register.
 
-	// This takes arguments T0 and T1.
 	CALL	runtime·wbBufFlush(SB)
 
 	MOV	1*8(X2), T0
@@ -816,167 +955,59 @@ flush:
 	MOV	22*8(X2), X29
 	MOV	23*8(X2), X30
 
-	JMP	ret
+	JMP	retry
 
-// Note: these functions use a special calling convention to save generated code space.
-// Arguments are passed in registers (ssa/gen/RISCV64Ops.go), but the space for those
-// arguments are allocated in the caller's stack frame.
-// These stubs write the args into that stack space and then tail call to the
-// corresponding runtime handler.
-// The tail call makes these stubs disappear in backtraces.
-TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T0, X10
-	MOV	T1, X11
-#else
-	MOV	T0, x+0(FP)
-	MOV	T1, y+8(FP)
-#endif
-	JMP	runtime·goPanicIndex<ABIInternal>(SB)
-TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T0, X10
-	MOV	T1, X11
-#else
-	MOV	T0, x+0(FP)
-	MOV	T1, y+8(FP)
-#endif
-	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
-TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T1, X10
-	MOV	T2, X11
-#else
-	MOV	T1, x+0(FP)
-	MOV	T2, y+8(FP)
-#endif
-	JMP	runtime·goPanicSliceAlen<ABIInternal>(SB)
-TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T1, X10
-	MOV	T2, X11
-#else
-	MOV	T1, x+0(FP)
-	MOV	T2, y+8(FP)
-#endif
-	JMP	runtime·goPanicSliceAlenU<ABIInternal>(SB)
-TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T1, X10
-	MOV	T2, X11
-#else
-	MOV	T1, x+0(FP)
-	MOV	T2, y+8(FP)
-#endif
-	JMP	runtime·goPanicSliceAcap<ABIInternal>(SB)
-TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T1, X10
-	MOV	T2, X11
-#else
-	MOV	T1, x+0(FP)
-	MOV	T2, y+8(FP)
-#endif
-	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
-TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T0, X10
-	MOV	T1, X11
-#else
-	MOV	T0, x+0(FP)
-	MOV	T1, y+8(FP)
-#endif
-	JMP	runtime·goPanicSliceB<ABIInternal>(SB)
-TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T0, X10
-	MOV	T1, X11
-#else
-	MOV	T0, x+0(FP)
-	MOV	T1, y+8(FP)
-#endif
-	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
-TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T2, X10
-	MOV	T3, X11
-#else
-	MOV	T2, x+0(FP)
-	MOV	T3, y+8(FP)
-#endif
-	JMP	runtime·goPanicSlice3Alen<ABIInternal>(SB)
-TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T2, X10
-	MOV	T3, X11
-#else
-	MOV	T2, x+0(FP)
-	MOV	T3, y+8(FP)
-#endif
-	JMP	runtime·goPanicSlice3AlenU<ABIInternal>(SB)
-TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T2, X10
-	MOV	T3, X11
-#else
-	MOV	T2, x+0(FP)
-	MOV	T3, y+8(FP)
-#endif
-	JMP	runtime·goPanicSlice3Acap<ABIInternal>(SB)
-TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T2, X10
-	MOV	T3, X11
-#else
-	MOV	T2, x+0(FP)
-	MOV	T3, y+8(FP)
-#endif
-	JMP	runtime·goPanicSlice3AcapU<ABIInternal>(SB)
-TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T1, X10
-	MOV	T2, X11
-#else
-	MOV	T1, x+0(FP)
-	MOV	T2, y+8(FP)
-#endif
-	JMP	runtime·goPanicSlice3B<ABIInternal>(SB)
-TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T1, X10
-	MOV	T2, X11
-#else
-	MOV	T1, x+0(FP)
-	MOV	T2, y+8(FP)
-#endif
-	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
-TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T0, X10
-	MOV	T1, X11
-#else
-	MOV	T0, x+0(FP)
-	MOV	T1, y+8(FP)
-#endif
-	JMP	runtime·goPanicSlice3C<ABIInternal>(SB)
-TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T0, X10
-	MOV	T1, X11
-#else
-	MOV	T0, x+0(FP)
-	MOV	T1, y+8(FP)
-#endif
-	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
-TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
-	MOV	T2, X10
-	MOV	T3, X11
-#else
-	MOV	T2, x+0(FP)
-	MOV	T3, y+8(FP)
-#endif
-	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)
+TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
+	MOV	$8, X24
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
+	MOV	$16, X24
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
+	MOV	$24, X24
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
+	MOV	$32, X24
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
+	MOV	$40, X24
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
+	MOV	$48, X24
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
+	MOV	$56, X24
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
+	MOV	$64, X24
+	JMP	gcWriteBarrier<>(SB)
+
+TEXT runtime·panicBounds<ABIInternal>(SB),NOSPLIT,$144-0
+	NO_LOCAL_POINTERS
+	// Save all 16 int registers that could have an index in them.
+	// They may be pointers, but if they are they are dead.
+	// Skip X0 aka ZERO, X1 aka LR, X2 aka SP, X3 aka GP, X4 aka TP.
+	MOV	X5, 24(X2)
+	MOV	X6, 32(X2)
+	MOV	X7, 40(X2)
+	MOV	X8, 48(X2)
+	MOV	X9, 56(X2)
+	MOV	X10, 64(X2)
+	MOV	X11, 72(X2)
+	MOV	X12, 80(X2)
+	MOV	X13, 88(X2)
+	MOV	X14, 96(X2)
+	MOV	X15, 104(X2)
+	MOV	X16, 112(X2)
+	MOV	X17, 120(X2)
+	MOV	X18, 128(X2)
+	MOV	X19, 136(X2)
+	MOV	X20, 144(X2)
+
+	MOV	X1, X10		// PC immediately after call to panicBounds
+	ADD	$24, X2, X11	// pointer to save area
+	CALL	runtime·panicBounds64<ABIInternal>(SB)
+	RET
 
 DATA	runtime·mainPC+0(SB)/8,$runtime·main<ABIInternal>(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$8

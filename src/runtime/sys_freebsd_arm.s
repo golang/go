@@ -27,11 +27,11 @@
 #define SYS_fcntl (SYS_BASE + 92)
 #define SYS___sysctl (SYS_BASE + 202)
 #define SYS_nanosleep (SYS_BASE + 240)
+#define SYS_issetugid (SYS_BASE + 253)
 #define SYS_clock_gettime (SYS_BASE + 232)
 #define SYS_sched_yield (SYS_BASE + 331)
 #define SYS_sigprocmask (SYS_BASE + 340)
 #define SYS_kqueue (SYS_BASE + 362)
-#define SYS_kevent (SYS_BASE + 363)
 #define SYS_sigaction (SYS_BASE + 416)
 #define SYS_thr_exit (SYS_BASE + 431)
 #define SYS_thr_self (SYS_BASE + 432)
@@ -41,6 +41,7 @@
 #define SYS_mmap (SYS_BASE + 477)
 #define SYS_cpuset_getaffinity (SYS_BASE + 487)
 #define SYS_pipe2 (SYS_BASE + 542)
+#define SYS_kevent (SYS_BASE + 560)
 
 TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVW addr+0(FP), R0
@@ -85,7 +86,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	MOVW.CS R8, (R8)
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVW	wait+0(FP), R0
 	// We're done using the stack.
@@ -387,13 +388,18 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVW	R0, ret+24(FP)
 	RET
 
-// void runtime·closeonexec(int32 fd)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
+// func fcntl(fd, cmd, arg int32) (int32, int32)
+TEXT runtime·fcntl(SB),NOSPLIT,$0
 	MOVW fd+0(FP), R0	// fd
-	MOVW $2, R1	// F_SETFD
-	MOVW $1, R2	// FD_CLOEXEC
+	MOVW cmd+4(FP), R1	// cmd
+	MOVW arg+8(FP), R2	// arg
 	MOVW $SYS_fcntl, R7
 	SWI $0
+	MOVW $0, R1
+	MOVW.CS R0, R1
+	MOVW.CS $-1, R0
+	MOVW R0, ret+12(FP)
+	MOVW R1, errno+16(FP)
 	RET
 
 // TODO: this is only valid for ARMv7+
@@ -440,4 +446,11 @@ TEXT runtime·getCntxct(SB),NOSPLIT|NOFRAME,$0-8
 	WORD	$0xec510f1e
 
 	MOVW	R0, ret+4(FP)
+	RET
+
+// func issetugid() int32
+TEXT runtime·issetugid(SB),NOSPLIT,$0
+	MOVW $SYS_issetugid, R7
+	SWI $0
+	MOVW	R0, ret+0(FP)
 	RET

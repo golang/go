@@ -8,8 +8,8 @@ import (
 	"encoding/binary"
 
 	"golang.org/x/crypto/chacha20"
+	"golang.org/x/crypto/internal/alias"
 	"golang.org/x/crypto/internal/poly1305"
-	"golang.org/x/crypto/internal/subtle"
 )
 
 func writeWithPadding(p *poly1305.MAC, b []byte) {
@@ -30,8 +30,11 @@ func writeUint64(p *poly1305.MAC, n int) {
 func (c *chacha20poly1305) sealGeneric(dst, nonce, plaintext, additionalData []byte) []byte {
 	ret, out := sliceForAppend(dst, len(plaintext)+poly1305.TagSize)
 	ciphertext, tag := out[:len(plaintext)], out[len(plaintext):]
-	if subtle.InexactOverlap(out, plaintext) {
-		panic("chacha20poly1305: invalid buffer overlap")
+	if alias.InexactOverlap(out, plaintext) {
+		panic("chacha20poly1305: invalid buffer overlap of output and input")
+	}
+	if alias.AnyOverlap(out, additionalData) {
+		panic("chacha20poly1305: invalid buffer overlap of output and additional data")
 	}
 
 	var polyKey [32]byte
@@ -66,8 +69,11 @@ func (c *chacha20poly1305) openGeneric(dst, nonce, ciphertext, additionalData []
 	writeUint64(p, len(ciphertext))
 
 	ret, out := sliceForAppend(dst, len(ciphertext))
-	if subtle.InexactOverlap(out, ciphertext) {
-		panic("chacha20poly1305: invalid buffer overlap")
+	if alias.InexactOverlap(out, ciphertext) {
+		panic("chacha20poly1305: invalid buffer overlap of output and input")
+	}
+	if alias.AnyOverlap(out, additionalData) {
+		panic("chacha20poly1305: invalid buffer overlap of output and additional data")
 	}
 	if !p.Verify(tag) {
 		for i := range out {

@@ -18,7 +18,7 @@ import (
 // than Rat values, and each unique Rat value requires
 // its own unique *Rat pointer. To "copy" a Rat value,
 // an existing (or newly allocated) Rat must be set to
-// a new value using the Rat.Set method; shallow copies
+// a new value using the [Rat.Set] method; shallow copies
 // of Rats are not supported and may lead to errors.
 type Rat struct {
 	// To make zero values for Rat work w/o initialization,
@@ -29,7 +29,7 @@ type Rat struct {
 	a, b Int
 }
 
-// NewRat creates a new Rat with numerator a and denominator b.
+// NewRat creates a new [Rat] with numerator a and denominator b.
 func NewRat(a, b int64) *Rat {
 	return new(Rat).SetFrac64(a, b)
 }
@@ -74,7 +74,7 @@ func (z *Rat) SetFloat64(f float64) *Rat {
 // nearest to the quotient a/b, using round-to-even in
 // halfway cases. It does not mutate its arguments.
 // Preconditions: b is non-zero; a and b have no common factors.
-func quotToFloat32(a, b nat) (f float32, exact bool) {
+func quotToFloat32(stk *stack, a, b nat) (f float32, exact bool) {
 	const (
 		// float size in bits
 		Fsize = 32
@@ -112,16 +112,16 @@ func quotToFloat32(a, b nat) (f float32, exact bool) {
 	a2 = a2.set(a)
 	b2 = b2.set(b)
 	if shift := Msize2 - exp; shift > 0 {
-		a2 = a2.shl(a2, uint(shift))
+		a2 = a2.lsh(a2, uint(shift))
 	} else if shift < 0 {
-		b2 = b2.shl(b2, uint(-shift))
+		b2 = b2.lsh(b2, uint(-shift))
 	}
 
 	// 2. Compute quotient and remainder (q, r).  NB: due to the
 	// extra shift, the low-order bit of q is logically the
 	// high-order bit of r.
 	var q nat
-	q, r := q.div(a2, a2, b2) // (recycle a2)
+	q, r := q.div(stk, a2, a2, b2) // (recycle a2)
 	mantissa := low32(q)
 	haveRem := len(r) > 0 // mantissa&1 && !haveRem => remainder is exactly half
 
@@ -172,7 +172,7 @@ func quotToFloat32(a, b nat) (f float32, exact bool) {
 // nearest to the quotient a/b, using round-to-even in
 // halfway cases. It does not mutate its arguments.
 // Preconditions: b is non-zero; a and b have no common factors.
-func quotToFloat64(a, b nat) (f float64, exact bool) {
+func quotToFloat64(stk *stack, a, b nat) (f float64, exact bool) {
 	const (
 		// float size in bits
 		Fsize = 64
@@ -210,16 +210,16 @@ func quotToFloat64(a, b nat) (f float64, exact bool) {
 	a2 = a2.set(a)
 	b2 = b2.set(b)
 	if shift := Msize2 - exp; shift > 0 {
-		a2 = a2.shl(a2, uint(shift))
+		a2 = a2.lsh(a2, uint(shift))
 	} else if shift < 0 {
-		b2 = b2.shl(b2, uint(-shift))
+		b2 = b2.lsh(b2, uint(-shift))
 	}
 
 	// 2. Compute quotient and remainder (q, r).  NB: due to the
 	// extra shift, the low-order bit of q is logically the
 	// high-order bit of r.
 	var q nat
-	q, r := q.div(a2, a2, b2) // (recycle a2)
+	q, r := q.div(stk, a2, a2, b2) // (recycle a2)
 	mantissa := low64(q)
 	haveRem := len(r) > 0 // mantissa&1 && !haveRem => remainder is exactly half
 
@@ -275,7 +275,9 @@ func (x *Rat) Float32() (f float32, exact bool) {
 	if len(b) == 0 {
 		b = natOne
 	}
-	f, exact = quotToFloat32(x.a.abs, b)
+	stk := getStack()
+	defer stk.free()
+	f, exact = quotToFloat32(stk, x.a.abs, b)
 	if x.a.neg {
 		f = -f
 	}
@@ -291,7 +293,9 @@ func (x *Rat) Float64() (f float64, exact bool) {
 	if len(b) == 0 {
 		b = natOne
 	}
-	f, exact = quotToFloat64(x.a.abs, b)
+	stk := getStack()
+	defer stk.free()
+	f, exact = quotToFloat64(stk, x.a.abs, b)
 	if x.a.neg {
 		f = -f
 	}
@@ -388,10 +392,9 @@ func (z *Rat) Inv(x *Rat) *Rat {
 }
 
 // Sign returns:
-//
-//	-1 if x <  0
-//	 0 if x == 0
-//	+1 if x >  0
+//   - -1 if x < 0;
+//   - 0 if x == 0;
+//   - +1 if x > 0.
 func (x *Rat) Sign() int {
 	return x.a.Sign()
 }
@@ -411,8 +414,8 @@ func (x *Rat) Num() *Int {
 
 // Denom returns the denominator of x; it is always > 0.
 // The result is a reference to x's denominator, unless
-// x is an uninitialized (zero value) Rat, in which case
-// the result is a new Int of value 1. (To initialize x,
+// x is an uninitialized (zero value) [Rat], in which case
+// the result is a new [Int] of value 1. (To initialize x,
 // any operation that sets x will do, including x.Set(x).)
 // If the result is a reference to x's denominator it
 // may change if a new value is assigned to x, and vice versa.
@@ -438,12 +441,14 @@ func (z *Rat) norm() *Rat {
 		z.b.abs = z.b.abs.setWord(1)
 	default:
 		// z is fraction; normalize numerator and denominator
+		stk := getStack()
+		defer stk.free()
 		neg := z.a.neg
 		z.a.neg = false
 		z.b.neg = false
 		if f := NewInt(0).lehmerGCD(nil, nil, &z.a, &z.b); f.Cmp(intOne) != 0 {
-			z.a.abs, _ = z.a.abs.div(nil, z.a.abs, f.abs)
-			z.b.abs, _ = z.b.abs.div(nil, z.b.abs, f.abs)
+			z.a.abs, _ = z.a.abs.div(stk, nil, z.a.abs, f.abs)
+			z.b.abs, _ = z.b.abs.div(stk, nil, z.b.abs, f.abs)
 		}
 		z.a.neg = neg
 	}
@@ -453,7 +458,7 @@ func (z *Rat) norm() *Rat {
 // mulDenom sets z to the denominator product x*y (by taking into
 // account that 0 values for x or y must be interpreted as 1) and
 // returns z.
-func mulDenom(z, x, y nat) nat {
+func mulDenom(stk *stack, z, x, y nat) nat {
 	switch {
 	case len(x) == 0 && len(y) == 0:
 		return z.setWord(1)
@@ -462,79 +467,93 @@ func mulDenom(z, x, y nat) nat {
 	case len(y) == 0:
 		return z.set(x)
 	}
-	return z.mul(x, y)
+	return z.mul(stk, x, y)
 }
 
 // scaleDenom sets z to the product x*f.
 // If f == 0 (zero value of denominator), z is set to (a copy of) x.
-func (z *Int) scaleDenom(x *Int, f nat) {
+func (z *Int) scaleDenom(stk *stack, x *Int, f nat) {
 	if len(f) == 0 {
 		z.Set(x)
 		return
 	}
-	z.abs = z.abs.mul(x.abs, f)
+	z.abs = z.abs.mul(stk, x.abs, f)
 	z.neg = x.neg
 }
 
 // Cmp compares x and y and returns:
-//
-//	-1 if x <  y
-//	 0 if x == y
-//	+1 if x >  y
+//   - -1 if x < y;
+//   - 0 if x == y;
+//   - +1 if x > y.
 func (x *Rat) Cmp(y *Rat) int {
 	var a, b Int
-	a.scaleDenom(&x.a, y.b.abs)
-	b.scaleDenom(&y.a, x.b.abs)
+	stk := getStack()
+	defer stk.free()
+	a.scaleDenom(stk, &x.a, y.b.abs)
+	b.scaleDenom(stk, &y.a, x.b.abs)
 	return a.Cmp(&b)
 }
 
 // Add sets z to the sum x+y and returns z.
 func (z *Rat) Add(x, y *Rat) *Rat {
+	stk := getStack()
+	defer stk.free()
+
 	var a1, a2 Int
-	a1.scaleDenom(&x.a, y.b.abs)
-	a2.scaleDenom(&y.a, x.b.abs)
+	a1.scaleDenom(stk, &x.a, y.b.abs)
+	a2.scaleDenom(stk, &y.a, x.b.abs)
 	z.a.Add(&a1, &a2)
-	z.b.abs = mulDenom(z.b.abs, x.b.abs, y.b.abs)
+	z.b.abs = mulDenom(stk, z.b.abs, x.b.abs, y.b.abs)
 	return z.norm()
 }
 
 // Sub sets z to the difference x-y and returns z.
 func (z *Rat) Sub(x, y *Rat) *Rat {
+	stk := getStack()
+	defer stk.free()
+
 	var a1, a2 Int
-	a1.scaleDenom(&x.a, y.b.abs)
-	a2.scaleDenom(&y.a, x.b.abs)
+	a1.scaleDenom(stk, &x.a, y.b.abs)
+	a2.scaleDenom(stk, &y.a, x.b.abs)
 	z.a.Sub(&a1, &a2)
-	z.b.abs = mulDenom(z.b.abs, x.b.abs, y.b.abs)
+	z.b.abs = mulDenom(stk, z.b.abs, x.b.abs, y.b.abs)
 	return z.norm()
 }
 
 // Mul sets z to the product x*y and returns z.
 func (z *Rat) Mul(x, y *Rat) *Rat {
+	stk := getStack()
+	defer stk.free()
+
 	if x == y {
 		// a squared Rat is positive and can't be reduced (no need to call norm())
 		z.a.neg = false
-		z.a.abs = z.a.abs.sqr(x.a.abs)
+		z.a.abs = z.a.abs.sqr(stk, x.a.abs)
 		if len(x.b.abs) == 0 {
 			z.b.abs = z.b.abs.setWord(1)
 		} else {
-			z.b.abs = z.b.abs.sqr(x.b.abs)
+			z.b.abs = z.b.abs.sqr(stk, x.b.abs)
 		}
 		return z
 	}
-	z.a.Mul(&x.a, &y.a)
-	z.b.abs = mulDenom(z.b.abs, x.b.abs, y.b.abs)
+
+	z.a.mul(stk, &x.a, &y.a)
+	z.b.abs = mulDenom(stk, z.b.abs, x.b.abs, y.b.abs)
 	return z.norm()
 }
 
 // Quo sets z to the quotient x/y and returns z.
 // If y == 0, Quo panics.
 func (z *Rat) Quo(x, y *Rat) *Rat {
+	stk := getStack()
+	defer stk.free()
+
 	if len(y.a.abs) == 0 {
 		panic("division by zero")
 	}
 	var a, b Int
-	a.scaleDenom(&x.a, y.b.abs)
-	b.scaleDenom(&y.a, x.b.abs)
+	a.scaleDenom(stk, &x.a, y.b.abs)
+	b.scaleDenom(stk, &y.a, x.b.abs)
 	z.a.abs = a.abs
 	z.b.abs = b.abs
 	z.a.neg = a.neg != b.neg

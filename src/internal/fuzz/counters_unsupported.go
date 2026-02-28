@@ -6,9 +6,9 @@
 // the instrumentation is OS specific, but only amd64 and arm64 are
 // supported in the runtime. See src/runtime/libfuzzer*.
 //
-// If you update this constraint, also update cmd/internal/sys.FuzzInstrumeted.
+// If you update this constraint, also update internal/platform.FuzzInstrumented.
 //
-//go:build !((darwin || linux || windows || freebsd) && (amd64 || arm64))
+//go:build !((darwin || linux || windows || freebsd || openbsd) && (amd64 || arm64 || loong64))
 
 package fuzz
 

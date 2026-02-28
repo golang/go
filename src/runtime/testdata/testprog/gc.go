@@ -395,8 +395,11 @@ func gcMemoryLimit(gcPercent int) {
 		// somewhat heavily here) this bound is kept loose. In practice the Go runtime
 		// should do considerably better than this bound.
 		bound := int64(myLimit + 16<<20)
+		if runtime.GOOS == "darwin" {
+			bound += 24 << 20 // Be more lax on Darwin, see issue 73136.
+		}
 		start := time.Now()
-		for time.Now().Sub(start) < 200*time.Millisecond {
+		for time.Since(start) < 200*time.Millisecond {
 			metrics.Read(m[:])
 			retained := int64(m[0].Value.Uint64() - m[1].Value.Uint64())
 			if retained > bound {

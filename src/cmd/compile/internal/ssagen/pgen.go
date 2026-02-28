@@ -5,16 +5,20 @@
 package ssagen
 
 import (
+	"fmt"
 	"internal/buildcfg"
-	"internal/race"
-	"math/rand"
+	"os"
+	"slices"
 	"sort"
+	"strings"
 	"sync"
-	"time"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -23,53 +27,76 @@ import (
 )
 
 // cmpstackvarlt reports whether the stack variable a sorts before b.
-//
-// Sort the list of stack variables. Autos after anything else,
-// within autos, unused after used, within used, things with
-// pointers first, zeroed things first, and then decreasing size.
-// Because autos are laid out in decreasing addresses
-// on the stack, pointers first, zeroed things first and decreasing size
-// really means, in memory, things with pointers needing zeroing at
-// the top of the stack and increasing in size.
-// Non-autos sort on offset.
-func cmpstackvarlt(a, b *ir.Name) bool {
+func cmpstackvarlt(a, b *ir.Name, mls *liveness.MergeLocalsState) bool {
+	// Sort non-autos before autos.
 	if needAlloc(a) != needAlloc(b) {
 		return needAlloc(b)
 	}
 
+	// If both are non-auto (e.g., parameters, results), then sort by
+	// frame offset (defined by ABI).
 	if !needAlloc(a) {
 		return a.FrameOffset() < b.FrameOffset()
 	}
 
+	// From here on, a and b are both autos (i.e., local variables).
+
+	// Sort followers after leaders, if mls != nil
+	if mls != nil {
+		aFollow := mls.Subsumed(a)
+		bFollow := mls.Subsumed(b)
+		if aFollow != bFollow {
+			return bFollow
+		}
+	}
+
+	// Sort used before unused (so AllocFrame can truncate unused
+	// variables).
 	if a.Used() != b.Used() {
 		return a.Used()
 	}
 
+	// Sort pointer-typed before non-pointer types.
+	// Keeps the stack's GC bitmap compact.
 	ap := a.Type().HasPointers()
 	bp := b.Type().HasPointers()
 	if ap != bp {
 		return ap
 	}
 
+	// Group variables that need zeroing, so we can efficiently zero
+	// them altogether.
 	ap = a.Needzero()
 	bp = b.Needzero()
 	if ap != bp {
 		return ap
 	}
 
-	if a.Type().Size() != b.Type().Size() {
-		return a.Type().Size() > b.Type().Size()
+	// Sort variables in descending alignment order, so we can optimally
+	// pack variables into the frame.
+	if a.Type().Alignment() != b.Type().Alignment() {
+		return a.Type().Alignment() > b.Type().Alignment()
 	}
 
+	// Sort normal variables before open-coded-defer slots, so that the
+	// latter are grouped together and near the top of the frame (to
+	// minimize varint encoding of their varp offset).
+	if a.OpenDeferSlot() != b.OpenDeferSlot() {
+		return a.OpenDeferSlot()
+	}
+
+	// If a and b are both open-coded defer slots, then order them by
+	// index in descending order, so they'll be laid out in the frame in
+	// ascending order.
+	//
+	// Their index was saved in FrameOffset in state.openDeferSave.
+	if a.OpenDeferSlot() {
+		return a.FrameOffset() > b.FrameOffset()
+	}
+
+	// Tie breaker for stable results.
 	return a.Sym().Name < b.Sym().Name
 }
-
-// byStackvar implements sort.Interface for []*Node using cmpstackvarlt.
-type byStackVar []*ir.Name
-
-func (s byStackVar) Len() int           { return len(s) }
-func (s byStackVar) Less(i, j int) bool { return cmpstackvarlt(s[i], s[j]) }
-func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // needAlloc reports whether n is within the current frame, for which we need to
 // allocate space. In particular, it excludes arguments and results, which are in
@@ -96,10 +123,19 @@ func needAlloc(n *ir.Name) bool {
 func (s *ssafn) AllocFrame(f *ssa.Func) {
 	s.stksize = 0
 	s.stkptrsize = 0
+	s.stkalign = int64(types.RegSize)
 	fn := s.curfn
 
 	// Mark the PAUTO's unused.
 	for _, ln := range fn.Dcl {
+		if ln.OpenDeferSlot() {
+			// Open-coded defer slots have indices that were assigned
+			// upfront during SSA construction, but the defer statement can
+			// later get removed during deadcode elimination (#61895). To
+			// keep their relative offsets correct, treat them all as used.
+			continue
+		}
+
 		if needAlloc(ln) {
 			ln.SetUsed(false)
 		}
@@ -129,10 +165,57 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		}
 	}
 
-	// Use sort.Stable instead of sort.Sort so stack layout (and thus
+	var mls *liveness.MergeLocalsState
+	var leaders map[*ir.Name]int64
+	if base.Debug.MergeLocals != 0 {
+		mls = liveness.MergeLocals(fn, f)
+		if base.Debug.MergeLocalsTrace > 0 && mls != nil {
+			savedNP, savedP := mls.EstSavings()
+			fmt.Fprintf(os.Stderr, "%s: %d bytes of stack space saved via stack slot merging (%d nonpointer %d pointer)\n", ir.FuncName(fn), savedNP+savedP, savedNP, savedP)
+			if base.Debug.MergeLocalsTrace > 1 {
+				fmt.Fprintf(os.Stderr, "=-= merge locals state for %v:\n%v",
+					fn, mls)
+			}
+		}
+		leaders = make(map[*ir.Name]int64)
+	}
+
+	// Use sort.SliceStable instead of sort.Slice so stack layout (and thus
 	// compiler output) is less sensitive to frontend changes that
 	// introduce or remove unused variables.
-	sort.Stable(byStackVar(fn.Dcl))
+	sort.SliceStable(fn.Dcl, func(i, j int) bool {
+		return cmpstackvarlt(fn.Dcl[i], fn.Dcl[j], mls)
+	})
+
+	if mls != nil {
+		// Rewrite fn.Dcl to reposition followers (subsumed vars) to
+		// be immediately following the leader var in their partition.
+		followers := []*ir.Name{}
+		newdcl := make([]*ir.Name, 0, len(fn.Dcl))
+		for i := 0; i < len(fn.Dcl); i++ {
+			n := fn.Dcl[i]
+			if mls.Subsumed(n) {
+				continue
+			}
+			newdcl = append(newdcl, n)
+			if mls.IsLeader(n) {
+				followers = mls.Followers(n, followers)
+				// position followers immediately after leader
+				newdcl = append(newdcl, followers...)
+			}
+		}
+		fn.Dcl = newdcl
+	}
+
+	if base.Debug.MergeLocalsTrace > 1 && mls != nil {
+		fmt.Fprintf(os.Stderr, "=-= sorted DCL for %v:\n", fn)
+		for i, v := range fn.Dcl {
+			if !ssa.IsMergeCandidate(v) {
+				continue
+			}
+			fmt.Fprintf(os.Stderr, " %d: %q isleader=%v subsumed=%v used=%v sz=%d align=%d t=%s\n", i, v.Sym().Name, mls.IsLeader(v), mls.Subsumed(v), v.Used(), v.Type().Size(), v.Type().Alignment(), v.Type().String())
+		}
+	}
 
 	// Reassign stack offsets of the locals that are used.
 	lastHasPtr := false
@@ -141,11 +224,14 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			// i.e., stack assign if AUTO, or if PARAMOUT in registers (which has no predefined spill locations)
 			continue
 		}
+		if mls != nil && mls.Subsumed(n) {
+			continue
+		}
 		if !n.Used() {
+			fn.DebugInfo.(*ssa.FuncDebug).OptDcl = fn.Dcl[i:]
 			fn.Dcl = fn.Dcl[:i]
 			break
 		}
-
 		types.CalcSize(n.Type())
 		w := n.Type().Size()
 		if w >= types.MaxWidth || w < 0 {
@@ -159,7 +245,10 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			w = 1
 		}
 		s.stksize += w
-		s.stksize = types.Rnd(s.stksize, n.Type().Alignment())
+		s.stksize = types.RoundUp(s.stksize, n.Type().Alignment())
+		if n.Type().Alignment() > int64(types.RegSize) {
+			s.stkalign = n.Type().Alignment()
+		}
 		if n.Type().HasPointers() {
 			s.stkptrsize = s.stksize
 			lastHasPtr = true
@@ -167,10 +256,42 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			lastHasPtr = false
 		}
 		n.SetFrameOffset(-s.stksize)
+		if mls != nil && mls.IsLeader(n) {
+			leaders[n] = -s.stksize
+		}
 	}
 
-	s.stksize = types.Rnd(s.stksize, int64(types.RegSize))
-	s.stkptrsize = types.Rnd(s.stkptrsize, int64(types.RegSize))
+	if mls != nil {
+		// Update offsets of followers (subsumed vars) to be the
+		// same as the leader var in their partition.
+		for i := 0; i < len(fn.Dcl); i++ {
+			n := fn.Dcl[i]
+			if !mls.Subsumed(n) {
+				continue
+			}
+			leader := mls.Leader(n)
+			off, ok := leaders[leader]
+			if !ok {
+				panic("internal error missing leader")
+			}
+			// Set the stack offset this subsumed (followed) var
+			// to be the same as the leader.
+			n.SetFrameOffset(off)
+		}
+
+		if base.Debug.MergeLocalsTrace > 1 {
+			fmt.Fprintf(os.Stderr, "=-= stack layout for %v:\n", fn)
+			for i, v := range fn.Dcl {
+				if v.Op() != ir.ONAME || (v.Class != ir.PAUTO && !(v.Class == ir.PPARAMOUT && v.IsOutputParamInRegisters())) {
+					continue
+				}
+				fmt.Fprintf(os.Stderr, " %d: %q frameoff %d isleader=%v subsumed=%v sz=%d align=%d t=%s\n", i, v.Sym().Name, v.FrameOffset(), mls.IsLeader(v), mls.Subsumed(v), v.Type().Size(), v.Type().Alignment(), v.Type().String())
+			}
+		}
+	}
+
+	s.stksize = types.RoundUp(s.stksize, s.stkalign)
+	s.stkptrsize = types.RoundUp(s.stkptrsize, s.stkalign)
 }
 
 const maxStackSize = 1 << 30
@@ -179,8 +300,8 @@ const maxStackSize = 1 << 30
 // uses it to generate a plist,
 // and flushes that plist to machine code.
 // worker indicates which of the backend workers is doing the processing.
-func Compile(fn *ir.Func, worker int) {
-	f := buildssa(fn, worker)
+func Compile(fn *ir.Func, worker int, profile *pgoir.Profile) {
+	f := buildssa(fn, worker, inline.IsPgoHotFunc(fn, profile) || inline.HasPgoHotInline(fn))
 	// Note: check arg size to fix issue 25507.
 	if f.Frontend().(*ssafn).stksize >= maxStackSize || f.OwnAux.ArgWidth() >= maxStackSize {
 		largeStackFramesMu.Lock()
@@ -206,13 +327,53 @@ func Compile(fn *ir.Func, worker int) {
 	}
 
 	pp.Flush() // assemble, fill in boilerplate, etc.
+
+	// If we're compiling the package init function, search for any
+	// relocations that target global map init outline functions and
+	// turn them into weak relocs.
+	if fn.IsPackageInit() && base.Debug.WrapGlobalMapCtl != 1 {
+		weakenGlobalMapInitRelocs(fn)
+	}
+
 	// fieldtrack must be called after pp.Flush. See issue 20014.
 	fieldtrack(pp.Text.From.Sym, fn.FieldTrack)
 }
 
-func init() {
-	if race.Enabled {
-		rand.Seed(time.Now().UnixNano())
+// globalMapInitLsyms records the LSym of each map.init.NNN outlined
+// map initializer function created by the compiler.
+var globalMapInitLsyms map[*obj.LSym]struct{}
+
+// RegisterMapInitLsym records "s" in the set of outlined map initializer
+// functions.
+func RegisterMapInitLsym(s *obj.LSym) {
+	if globalMapInitLsyms == nil {
+		globalMapInitLsyms = make(map[*obj.LSym]struct{})
+	}
+	globalMapInitLsyms[s] = struct{}{}
+}
+
+// weakenGlobalMapInitRelocs walks through all of the relocations on a
+// given a package init function "fn" and looks for relocs that target
+// outlined global map initializer functions; if it finds any such
+// relocs, it flags them as R_WEAK.
+func weakenGlobalMapInitRelocs(fn *ir.Func) {
+	if globalMapInitLsyms == nil {
+		return
+	}
+	for i := range fn.LSym.R {
+		tgt := fn.LSym.R[i].Sym
+		if tgt == nil {
+			continue
+		}
+		if _, ok := globalMapInitLsyms[tgt]; !ok {
+			continue
+		}
+		if base.Debug.WrapGlobalMapDbg > 1 {
+			fmt.Fprintf(os.Stderr, "=-= weakify fn %v reloc %d %+v\n", fn, i,
+				fn.LSym.R[i])
+		}
+		// set the R_WEAK bit, leave rest of reloc type intact
+		fn.LSym.R[i].Type |= objabi.R_WEAK
 	}
 }
 
@@ -255,11 +416,9 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*obj.LSym]struct{}) {
 	for sym := range tracked {
 		trackSyms = append(trackSyms, sym)
 	}
-	sort.Slice(trackSyms, func(i, j int) bool { return trackSyms[i].Name < trackSyms[j].Name })
+	slices.SortFunc(trackSyms, func(a, b *obj.LSym) int { return strings.Compare(a.Name, b.Name) })
 	for _, sym := range trackSyms {
-		r := obj.Addrel(fnsym)
-		r.Sym = sym
-		r.Type = objabi.R_USEFIELD
+		fnsym.AddRel(base.Ctxt, obj.Reloc{Type: objabi.R_USEFIELD, Sym: sym})
 	}
 }
 
@@ -283,9 +442,9 @@ func CheckLargeStacks() {
 	})
 	for _, large := range largeStackFrames {
 		if large.callee != 0 {
-			base.ErrorfAt(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)
+			base.ErrorfAt(large.pos, 0, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)
 		} else {
-			base.ErrorfAt(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args", large.locals>>20, large.args>>20)
+			base.ErrorfAt(large.pos, 0, "stack frame too large (>1GB): %d MB locals + %d MB args", large.locals>>20, large.args>>20)
 		}
 	}
 }

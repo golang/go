@@ -9,18 +9,17 @@ import (
 	"fmt"
 	"go/constant"
 	"io"
-	"io/ioutil"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
-	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
-	"cmd/internal/notsha256"
+	"cmd/internal/hash"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -57,11 +56,11 @@ func InitSliceBytes(nam *ir.Name, off int64, s string) {
 	if nam.Op() != ir.ONAME {
 		base.Fatalf("InitSliceBytes %v", nam)
 	}
-	InitSlice(nam, off, slicedata(nam.Pos(), s).Linksym(), int64(len(s)))
+	InitSlice(nam, off, slicedata(nam.Pos(), s), int64(len(s)))
 }
 
 const (
-	stringSymPrefix  = "go.string."
+	stringSymPrefix  = "go:string."
 	stringSymPattern = ".gostring.%d.%s"
 )
 
@@ -80,7 +79,7 @@ func StringSym(pos src.XPos, s string) (data *obj.LSym) {
 		// Indulge in some paranoia by writing the length of s, too,
 		// as protection against length extension attacks.
 		// Same pattern is known to fileStringSym below.
-		h := notsha256.New()
+		h := hash.New32()
 		io.WriteString(h, s)
 		symname = fmt.Sprintf(stringSymPattern, len(s), shortHashString(h.Sum(nil)))
 	} else {
@@ -93,9 +92,20 @@ func StringSym(pos src.XPos, s string) (data *obj.LSym) {
 		off := dstringdata(symdata, 0, s, pos, "string")
 		objw.Global(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
 		symdata.Set(obj.AttrContentAddressable, true)
+		symdata.Align = 1
 	}
 
 	return symdata
+}
+
+// StringSymNoCommon is like StringSym, but produces a symbol that is not content-
+// addressable. This symbol is not supposed to appear in the final binary, it is
+// only used to pass string arguments to the linker like R_USENAMEDMETHOD does.
+func StringSymNoCommon(s string) (data *obj.LSym) {
+	var nameSym obj.LSym
+	nameSym.WriteString(base.Ctxt, 0, len(s), s)
+	objw.Global(&nameSym, int32(len(s)), obj.RODATA)
+	return &nameSym
 }
 
 // maxFileSize is the maximum file size permitted by the linker
@@ -107,9 +117,9 @@ const maxFileSize = int64(2e9)
 // or other file with the same content and is placed in a read-only section.
 // If readonly is false, the symbol is a read-write copy separate from any other,
 // for use as the backing store of a []byte.
-// The content hash of file is copied into hash. (If hash is nil, nothing is copied.)
+// The content hash of file is copied into hashBytes. (If hash is nil, nothing is copied.)
 // The returned symbol contains the data itself, not a string header.
-func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.LSym, int64, error) {
+func fileStringSym(pos src.XPos, file string, readonly bool, hashBytes []byte) (*obj.LSym, int64, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return nil, 0, err
@@ -124,7 +134,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 	}
 	size := info.Size()
 	if size <= 1*1024 {
-		data, err := ioutil.ReadAll(f)
+		data, err := io.ReadAll(f)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -135,11 +145,11 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 		if readonly {
 			sym = StringSym(pos, string(data))
 		} else {
-			sym = slicedata(pos, string(data)).Linksym()
+			sym = slicedata(pos, string(data))
 		}
-		if len(hash) > 0 {
-			sum := notsha256.Sum256(data)
-			copy(hash, sum[:])
+		if len(hashBytes) > 0 {
+			sum := hash.Sum32(data)
+			copy(hashBytes, sum[:])
 		}
 		return sym, size, nil
 	}
@@ -152,10 +162,10 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 	}
 
 	// File is too big to read and keep in memory.
-	// Compute hash if needed for read-only content hashing or if the caller wants it.
+	// Compute hashBytes if needed for read-only content hashing or if the caller wants it.
 	var sum []byte
-	if readonly || len(hash) > 0 {
-		h := notsha256.New()
+	if readonly || len(hashBytes) > 0 {
+		h := hash.New32()
 		n, err := io.Copy(h, f)
 		if err != nil {
 			return nil, 0, err
@@ -164,7 +174,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 			return nil, 0, fmt.Errorf("file changed between reads")
 		}
 		sum = h.Sum(nil)
-		copy(hash, sum)
+		copy(hashBytes, sum)
 	}
 
 	var symdata *obj.LSym
@@ -176,6 +186,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 			info.Name = file
 			info.Size = size
 			objw.Global(symdata, int32(size), obj.DUPOK|obj.RODATA|obj.LOCAL)
+			symdata.Align = 1
 			// Note: AttrContentAddressable cannot be set here,
 			// because the content-addressable-handling code
 			// does not know about file symbols.
@@ -183,7 +194,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 	} else {
 		// Emit a zero-length data symbol
 		// and then fix up length and content to use file.
-		symdata = slicedata(pos, "").Linksym()
+		symdata = slicedata(pos, "")
 		symdata.Size = size
 		symdata.Type = objabi.SNOPTRDATA
 		info := symdata.NewFileInfo()
@@ -196,18 +207,15 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 
 var slicedataGen int
 
-func slicedata(pos src.XPos, s string) *ir.Name {
+func slicedata(pos src.XPos, s string) *obj.LSym {
 	slicedataGen++
 	symname := fmt.Sprintf(".gobytes.%d", slicedataGen)
-	sym := types.LocalPkg.Lookup(symname)
-	symnode := typecheck.NewName(sym)
-	sym.Def = symnode
-
-	lsym := symnode.Linksym()
+	lsym := types.LocalPkg.Lookup(symname).LinksymABI(obj.ABI0)
 	off := dstringdata(lsym, 0, s, pos, "slice")
 	objw.Global(lsym, int32(off), obj.NOPTR|obj.LOCAL)
+	lsym.Align = 1
 
-	return symnode
+	return lsym
 }
 
 func dstringdata(s *obj.LSym, off int, t string, pos src.XPos, what string) int {
@@ -215,7 +223,7 @@ func dstringdata(s *obj.LSym, off int, t string, pos src.XPos, what string) int 
 	// causing a cryptic error message by the linker. Check for oversize objects here
 	// and provide a useful error message instead.
 	if int64(len(t)) > 2e9 {
-		base.ErrorfAt(pos, "%v with length %v is too big", what, len(t))
+		base.ErrorfAt(pos, 0, "%v with length %v is too big", what, len(t))
 		return 0
 	}
 
@@ -260,8 +268,8 @@ func GlobalLinksym(n *ir.Name) *obj.LSym {
 }
 
 func WriteFuncSyms() {
-	sort.Slice(funcsyms, func(i, j int) bool {
-		return funcsyms[i].Linksym().Name < funcsyms[j].Linksym().Name
+	slices.SortFunc(funcsyms, func(a, b *ir.Name) int {
+		return strings.Compare(a.Linksym().Name, b.Linksym().Name)
 	})
 	for _, nam := range funcsyms {
 		s := nam.Sym()

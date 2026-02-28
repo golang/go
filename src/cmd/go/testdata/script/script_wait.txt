@@ -21,5 +21,8 @@ stdout 'foo\nbar'
 # The end of the test should interrupt or kill any remaining background
 # programs, but that should not cause the test to fail if it does not
 # care about the exit status of those programs.
-[!exec:sleep] stop
-? exec sleep 86400 &
+[exec:sleep] ? exec sleep 86400 &
+
+# It should also cancel any backgrounded builtins that respond to Context
+# cancellation.
+? sleep 86400s &

@@ -12,16 +12,18 @@ import (
 )
 
 func TestReadLine(t *testing.T) {
-	// /etc/services file does not exist on android, plan9, windows.
+	// /etc/services file does not exist on android, plan9, windows, or wasip1
+	// where it would be required to be mounted from the host file system.
 	switch runtime.GOOS {
-	case "android", "plan9", "windows":
+	case "android", "plan9", "windows", "wasip1":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 	filename := "/etc/services" // a nice big file
 
 	fd, err := os.Open(filename)
 	if err != nil {
-		t.Fatal(err)
+		// The file is missing even on some Unix systems.
+		t.Skipf("skipping because failed to open /etc/services: %v", err)
 	}
 	defer fd.Close()
 	br := bufio.NewReader(fd)

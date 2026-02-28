@@ -11,11 +11,11 @@ package main
 
 func f() {
 	switch {
-	case 0; // ERROR "expecting := or = or : or comma|expecting :"
+	case 0; // ERROR "expecting := or = or : or comma|expected :"
 	}
 
 	switch {
-	case 0; // ERROR "expecting := or = or : or comma|expecting :"
+	case 0; // ERROR "expecting := or = or : or comma|expected :"
 	default:
 	}
 
@@ -25,15 +25,15 @@ func f() {
 
 	switch {
 	case 0: f(); case 0:
-	case 0: f() case 0: // ERROR "unexpected case at end of statement"
+	case 0: f() case 0: // ERROR "unexpected keyword case at end of statement"
 	}
 
 	switch {
 	case 0: f(); default:
-	case 0: f() default: // ERROR "unexpected default at end of statement"
+	case 0: f() default: // ERROR "unexpected keyword default at end of statement"
 	}
 
 	switch {
-	if x: // ERROR "expecting case or default or }"
+	if x: // ERROR "expected case or default or }"
 	}
 }

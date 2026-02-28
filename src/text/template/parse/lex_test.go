@@ -359,8 +359,7 @@ var lexTests = []lexTest{
 	{"extra right paren", "{{3)}}", []item{
 		tLeft,
 		mkItem(itemNumber, "3"),
-		tRpar,
-		mkItem(itemError, `unexpected right paren U+0029 ')'`),
+		mkItem(itemError, "unexpected right paren"),
 	}},
 
 	// Fixed bugs
@@ -394,7 +393,12 @@ var lexTests = []lexTest{
 
 // collect gathers the emitted items into a slice.
 func collect(t *lexTest, left, right string) (items []item) {
-	l := lex(t.name, t.input, left, right, true, true, true)
+	l := lex(t.name, t.input, left, right)
+	l.options = lexOptions{
+		emitComment: true,
+		breakOK:     true,
+		continueOK:  true,
+	}
 	for {
 		item := l.nextItem()
 		items = append(items, item)
@@ -431,7 +435,9 @@ func TestLex(t *testing.T) {
 		items := collect(&test, "", "")
 		if !equal(items, test.items, false) {
 			t.Errorf("%s: got\n\t%+v\nexpected\n\t%v", test.name, items, test.items)
+			return // TODO
 		}
+		t.Log(test.name, "OK")
 	}
 }
 
@@ -485,6 +491,23 @@ func TestDelimsAlphaNumeric(t *testing.T) {
 	}
 }
 
+func TestDelimsAndMarkers(t *testing.T) {
+	test := lexTest{"delims that look like markers", "{{- .x -}} {{- - .x - -}}", []item{
+		mkItem(itemLeftDelim, "{{- "),
+		mkItem(itemField, ".x"),
+		mkItem(itemRightDelim, " -}}"),
+		mkItem(itemLeftDelim, "{{- "),
+		mkItem(itemField, ".x"),
+		mkItem(itemRightDelim, " -}}"),
+		tEOF,
+	}}
+	items := collect(&test, "{{- ", " -}}")
+
+	if !equal(items, test.items, false) {
+		t.Errorf("%s: got\n\t%v\nexpected\n\t%v", test.name, items, test.items)
+	}
+}
+
 var lexPosTests = []lexTest{
 	{"empty", "", []item{{itemEOF, 0, "", 1}}},
 	{"punctuation", "{{,@%#}}", []item{
@@ -522,6 +545,16 @@ var lexPosTests = []lexTest{
 		{itemRightDelim, 11, "}}", 2},
 		{itemEOF, 13, "", 2},
 	}},
+	{"longcomment", "{{/*\n*/}}\n{{undefinedFunction \"test\"}}", []item{
+		{itemComment, 2, "/*\n*/", 1},
+		{itemText, 9, "\n", 2},
+		{itemLeftDelim, 10, "{{", 3},
+		{itemIdentifier, 12, "undefinedFunction", 3},
+		{itemSpace, 29, " ", 3},
+		{itemString, 30, "\"test\"", 3},
+		{itemRightDelim, 36, "}}", 3},
+		{itemEOF, 38, "", 3},
+	}},
 }
 
 // The other tests don't check position, to make the test cases easier to construct.
@@ -544,32 +577,4 @@ func TestPos(t *testing.T) {
 			}
 		}
 	}
-}
-
-// Test that an error shuts down the lexing goroutine.
-func TestShutdown(t *testing.T) {
-	// We need to duplicate template.Parse here to hold on to the lexer.
-	const text = "erroneous{{define}}{{else}}1234"
-	lexer := lex("foo", text, "{{", "}}", false, true, true)
-	_, err := New("root").parseLexer(lexer)
-	if err == nil {
-		t.Fatalf("expected error")
-	}
-	// The error should have drained the input. Therefore, the lexer should be shut down.
-	token, ok := <-lexer.items
-	if ok {
-		t.Fatalf("input was not drained; got %v", token)
-	}
-}
-
-// parseLexer is a local version of parse that lets us pass in the lexer instead of building it.
-// We expect an error, so the tree set and funcs list are explicitly nil.
-func (t *Tree) parseLexer(lex *lexer) (tree *Tree, err error) {
-	defer t.recover(&err)
-	t.ParseName = t.Name
-	t.startParse(nil, lex, map[string]*Tree{})
-	t.parse()
-	t.add()
-	t.stopParse()
-	return t, nil
 }

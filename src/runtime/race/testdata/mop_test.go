@@ -331,7 +331,8 @@ func TestRaceRange(t *testing.T) {
 	var x, y int
 	_ = x + y
 	done := make(chan bool, N)
-	for i, v := range a {
+	var i, v int // declare here (not in for stmt) so that i and v are shared w/ or w/o loop variable sharing change
+	for i, v = range a {
 		go func(i int) {
 			// we don't want a write-vs-write race
 			// so there is no array b here
@@ -611,6 +612,8 @@ func TestNoRaceEnoughRegisters(t *testing.T) {
 }
 
 // emptyFunc should not be inlined.
+//
+//go:noinline
 func emptyFunc(x int) {
 	if false {
 		fmt.Println(x)
@@ -1175,7 +1178,7 @@ func TestNoRaceHeapReallocation(t *testing.T) {
 	// others.
 	const n = 2
 	done := make(chan bool, n)
-	empty := func(p *int) {}
+	empty := func(p *int) { _ = p }
 	for i := 0; i < n; i++ {
 		ms := i
 		go func() {
@@ -1416,7 +1419,7 @@ func TestRaceInterCall2(t *testing.T) {
 
 func TestRaceFuncCall(t *testing.T) {
 	c := make(chan bool, 1)
-	f := func(x, y int) {}
+	f := func(x, y int) { _ = y }
 	x, y := 0, 0
 	go func() {
 		y = 42
@@ -1803,6 +1806,7 @@ func TestRaceAsFunc2(t *testing.T) {
 	x := 0
 	go func() {
 		func(x int) {
+			_ = x
 		}(x)
 		c <- true
 	}()
@@ -1816,6 +1820,7 @@ func TestRaceAsFunc3(t *testing.T) {
 	x := 0
 	go func() {
 		func(x int) {
+			_ = x
 			mu.Lock()
 		}(x) // Read of x must be outside of the mutex.
 		mu.Unlock()
@@ -2091,4 +2096,41 @@ func TestNoRaceTinyAlloc(t *testing.T) {
 	for p := 0; p < P; p++ {
 		<-done
 	}
+}
+
+func TestNoRaceIssue60934(t *testing.T) {
+	// Test that runtime.RaceDisable state doesn't accidentally get applied to
+	// new goroutines.
+
+	// Create several goroutines that end after calling runtime.RaceDisable.
+	var wg sync.WaitGroup
+	ready := make(chan struct{})
+	wg.Add(32)
+	for i := 0; i < 32; i++ {
+		go func() {
+			<-ready // ensure we have multiple goroutines running at the same time
+			runtime.RaceDisable()
+			wg.Done()
+		}()
+	}
+	close(ready)
+	wg.Wait()
+
+	// Make sure race detector still works. If the runtime.RaceDisable state
+	// leaks, the happens-before edges here will be ignored and a race on x will
+	// be reported.
+	var x int
+	ch := make(chan struct{}, 0)
+	wg.Add(2)
+	go func() {
+		x = 1
+		ch <- struct{}{}
+		wg.Done()
+	}()
+	go func() {
+		<-ch
+		_ = x
+		wg.Done()
+	}()
+	wg.Wait()
 }

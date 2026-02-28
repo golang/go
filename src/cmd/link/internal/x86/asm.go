@@ -72,6 +72,9 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 		{"di", 7},
 	} {
 		thunkfunc := ldr.CreateSymForUpdate("__x86.get_pc_thunk."+r.name, 0)
+		if t := thunkfunc.Type(); t != 0 && t != sym.SXREF && t != sym.SDYNIMPORT && t != sym.SUNDEFEXT {
+			continue // symbol already exists, probably loaded from a C object
+		}
 		thunkfunc.SetType(sym.STEXT)
 		ldr.SetAttrLocal(thunkfunc.Sym(), true)
 		o := func(op ...uint8) {
@@ -224,51 +227,6 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_ADDR)
 		return true
-
-	case objabi.MachoRelocOffset + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 0:
-		su := ldr.MakeSymbolUpdater(s)
-		su.SetRelocType(rIdx, objabi.R_ADDR)
-		if targType == sym.SDYNIMPORT {
-			ldr.Errorf(s, "unexpected reloc for dynamic symbol %s", ldr.SymName(targ))
-		}
-		return true
-
-	case objabi.MachoRelocOffset + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 1:
-		su := ldr.MakeSymbolUpdater(s)
-		if targType == sym.SDYNIMPORT {
-			addpltsym(target, ldr, syms, targ)
-			su.SetRelocSym(rIdx, syms.PLT)
-			su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
-			su.SetRelocType(rIdx, objabi.R_PCREL)
-			return true
-		}
-
-		su.SetRelocType(rIdx, objabi.R_PCREL)
-		return true
-
-	case objabi.MachoRelocOffset + ld.MACHO_FAKE_GOTPCREL:
-		su := ldr.MakeSymbolUpdater(s)
-		if targType != sym.SDYNIMPORT {
-			// have symbol
-			// turn MOVL of GOT entry into LEAL of symbol itself
-			sData := ldr.Data(s)
-			if r.Off() < 2 || sData[r.Off()-2] != 0x8b {
-				ldr.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", ldr.SymName(targ))
-				return false
-			}
-
-			su.MakeWritable()
-			writeableData := su.Data()
-			writeableData[r.Off()-2] = 0x8d
-			su.SetRelocType(rIdx, objabi.R_PCREL)
-			return true
-		}
-
-		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_386_GLOB_DAT))
-		su.SetRelocSym(rIdx, syms.GOT)
-		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
-		su.SetRelocType(rIdx, objabi.R_PCREL)
-		return true
 	}
 
 	// Handle references to ELF symbols from our own object files.
@@ -294,7 +252,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		return true
 
 	case objabi.R_ADDR:
-		if ldr.SymType(s) != sym.SDATA {
+		if !ldr.SymType(s).IsDATA() {
 			break
 		}
 		if target.IsElf() {
@@ -399,6 +357,9 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	case objabi.R_ADDR:
 		v = ld.IMAGE_REL_I386_DIR32
 
+	case objabi.R_PEIMAGEOFF:
+		v = ld.IMAGE_REL_I386_DIR32NB
+
 	case objabi.R_CALL,
 		objabi.R_PCREL:
 		v = ld.IMAGE_REL_I386_REL32
@@ -418,7 +379,7 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
 	return -1
 }
 
-func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
 	if plt.Size() == 0 {
 		// pushl got+4
 		plt.AddUint8(0xff)

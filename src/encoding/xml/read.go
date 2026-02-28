@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -18,7 +19,7 @@ import (
 // an XML element is an order-dependent collection of anonymous
 // values, while a data structure is an order-independent collection
 // of named values.
-// See package json for a textual representation more suitable
+// See [encoding/json] for a textual representation more suitable
 // to data structures.
 
 // Unmarshal parses the XML-encoded data and stores the result in
@@ -95,7 +96,7 @@ import (
 // If Unmarshal encounters a field type that implements the Unmarshaler
 // interface, Unmarshal calls its UnmarshalXML method to produce the value from
 // the XML element.  Otherwise, if the value implements
-// encoding.TextUnmarshaler, Unmarshal calls that value's UnmarshalText method.
+// [encoding.TextUnmarshaler], Unmarshal calls that value's UnmarshalText method.
 //
 // Unmarshal maps an XML element to a string or []byte by saving the
 // concatenation of that element's character data in the string or
@@ -104,7 +105,7 @@ import (
 // Unmarshal maps an attribute value to a string or []byte by saving
 // the value in the string or slice.
 //
-// Unmarshal maps an attribute value to an Attr by saving the attribute,
+// Unmarshal maps an attribute value to an [Attr] by saving the attribute,
 // including its name, in the Attr.
 //
 // Unmarshal maps an XML element or attribute value to a slice by
@@ -133,16 +134,16 @@ func Unmarshal(data []byte, v any) error {
 	return NewDecoder(bytes.NewReader(data)).Decode(v)
 }
 
-// Decode works like Unmarshal, except it reads the decoder
+// Decode works like [Unmarshal], except it reads the decoder
 // stream to find the start element.
 func (d *Decoder) Decode(v any) error {
 	return d.DecodeElement(v, nil)
 }
 
-// DecodeElement works like Unmarshal except that it takes
+// DecodeElement works like [Unmarshal] except that it takes
 // a pointer to the start XML element to decode into v.
 // It is useful when a client reads some raw XML tokens itself
-// but also wants to defer to Unmarshal for some elements.
+// but also wants to defer to [Unmarshal] for some elements.
 func (d *Decoder) DecodeElement(v any, start *StartElement) error {
 	val := reflect.ValueOf(v)
 	if val.Kind() != reflect.Pointer {
@@ -183,7 +184,7 @@ type Unmarshaler interface {
 // an XML attribute description of themselves.
 //
 // UnmarshalXMLAttr decodes a single XML attribute.
-// If it returns an error, the outer call to Unmarshal stops and
+// If it returns an error, the outer call to [Unmarshal] stops and
 // returns that error.
 // UnmarshalXMLAttr is used only for struct fields with the
 // "attr" option in the field tag.
@@ -254,36 +255,45 @@ func (d *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
 		}
 		val = val.Elem()
 	}
-	if val.CanInterface() && val.Type().Implements(unmarshalerAttrType) {
+	if val.CanInterface() {
 		// This is an unmarshaler with a non-pointer receiver,
 		// so it's likely to be incorrect, but we do what we're told.
-		return val.Interface().(UnmarshalerAttr).UnmarshalXMLAttr(attr)
+		if unmarshaler, ok := reflect.TypeAssert[UnmarshalerAttr](val); ok {
+			return unmarshaler.UnmarshalXMLAttr(attr)
+		}
 	}
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(unmarshalerAttrType) {
-			return pv.Interface().(UnmarshalerAttr).UnmarshalXMLAttr(attr)
+		if pv.CanInterface() {
+			if unmarshaler, ok := reflect.TypeAssert[UnmarshalerAttr](pv); ok {
+				return unmarshaler.UnmarshalXMLAttr(attr)
+			}
 		}
 	}
 
 	// Not an UnmarshalerAttr; try encoding.TextUnmarshaler.
-	if val.CanInterface() && val.Type().Implements(textUnmarshalerType) {
+	if val.CanInterface() {
 		// This is an unmarshaler with a non-pointer receiver,
 		// so it's likely to be incorrect, but we do what we're told.
-		return val.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(attr.Value))
+		if textUnmarshaler, ok := reflect.TypeAssert[encoding.TextUnmarshaler](val); ok {
+			return textUnmarshaler.UnmarshalText([]byte(attr.Value))
+		}
 	}
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(textUnmarshalerType) {
-			return pv.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(attr.Value))
+		if pv.CanInterface() {
+			if textUnmarshaler, ok := reflect.TypeAssert[encoding.TextUnmarshaler](pv); ok {
+				return textUnmarshaler.UnmarshalText([]byte(attr.Value))
+			}
 		}
 	}
 
-	if val.Type().Kind() == reflect.Slice && val.Type().Elem().Kind() != reflect.Uint8 {
+	if val.Kind() == reflect.Slice && val.Type().Elem().Kind() != reflect.Uint8 {
 		// Slice of element values.
 		// Grow slice.
 		n := val.Len()
-		val.Set(reflect.Append(val, reflect.Zero(val.Type().Elem())))
+		val.Grow(1)
+		val.SetLen(n + 1)
 
 		// Recur to read element into slice.
 		if err := d.unmarshalAttr(val.Index(n), attr); err != nil {
@@ -301,21 +311,19 @@ func (d *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
 	return copyValue(val, []byte(attr.Value))
 }
 
-var (
-	attrType            = reflect.TypeOf(Attr{})
-	unmarshalerType     = reflect.TypeOf((*Unmarshaler)(nil)).Elem()
-	unmarshalerAttrType = reflect.TypeOf((*UnmarshalerAttr)(nil)).Elem()
-	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+var attrType = reflect.TypeFor[Attr]()
+
+const (
+	maxUnmarshalDepth     = 10000
+	maxUnmarshalDepthWasm = 5000 // go.dev/issue/56498
 )
 
-const maxUnmarshalDepth = 10000
-
-var errExeceededMaxUnmarshalDepth = errors.New("exceeded max depth")
+var errUnmarshalDepth = errors.New("exceeded max depth")
 
 // Unmarshal a single XML element into val.
 func (d *Decoder) unmarshal(val reflect.Value, start *StartElement, depth int) error {
-	if depth >= maxUnmarshalDepth {
-		return errExeceededMaxUnmarshalDepth
+	if depth >= maxUnmarshalDepth || runtime.GOARCH == "wasm" && depth >= maxUnmarshalDepthWasm {
+		return errUnmarshalDepth
 	}
 	// Find start element if we need it.
 	if start == nil {
@@ -347,27 +355,35 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement, depth int) e
 		val = val.Elem()
 	}
 
-	if val.CanInterface() && val.Type().Implements(unmarshalerType) {
+	if val.CanInterface() {
 		// This is an unmarshaler with a non-pointer receiver,
 		// so it's likely to be incorrect, but we do what we're told.
-		return d.unmarshalInterface(val.Interface().(Unmarshaler), start)
-	}
-
-	if val.CanAddr() {
-		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(unmarshalerType) {
-			return d.unmarshalInterface(pv.Interface().(Unmarshaler), start)
+		if unmarshaler, ok := reflect.TypeAssert[Unmarshaler](val); ok {
+			return d.unmarshalInterface(unmarshaler, start)
 		}
 	}
 
-	if val.CanInterface() && val.Type().Implements(textUnmarshalerType) {
-		return d.unmarshalTextInterface(val.Interface().(encoding.TextUnmarshaler))
+	if val.CanAddr() {
+		pv := val.Addr()
+		if pv.CanInterface() {
+			if unmarshaler, ok := reflect.TypeAssert[Unmarshaler](pv); ok {
+				return d.unmarshalInterface(unmarshaler, start)
+			}
+		}
+	}
+
+	if val.CanInterface() {
+		if textUnmarshaler, ok := reflect.TypeAssert[encoding.TextUnmarshaler](val); ok {
+			return d.unmarshalTextInterface(textUnmarshaler)
+		}
 	}
 
 	if val.CanAddr() {
 		pv := val.Addr()
-		if pv.CanInterface() && pv.Type().Implements(textUnmarshalerType) {
-			return d.unmarshalTextInterface(pv.Interface().(encoding.TextUnmarshaler))
+		if pv.CanInterface() {
+			if textUnmarshaler, ok := reflect.TypeAssert[encoding.TextUnmarshaler](pv); ok {
+				return d.unmarshalTextInterface(textUnmarshaler)
+			}
 		}
 	}
 
@@ -406,7 +422,8 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement, depth int) e
 		// Slice of element values.
 		// Grow slice.
 		n := v.Len()
-		v.Set(reflect.Append(val, reflect.Zero(v.Type().Elem())))
+		v.Grow(1)
+		v.SetLen(n + 1)
 
 		// Recur to read element into slice.
 		if err := d.unmarshal(v.Index(n), start, depth+1); err != nil {
@@ -447,7 +464,7 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement, depth int) e
 				return UnmarshalError(e)
 			}
 			fv := finfo.value(sv, initNilPointers)
-			if _, ok := fv.Interface().(Name); ok {
+			if _, ok := reflect.TypeAssert[Name](fv); ok {
 				fv.Set(reflect.ValueOf(start.Name))
 			}
 		}
@@ -533,7 +550,7 @@ Loop:
 			consumed := false
 			if sv.IsValid() {
 				// unmarshalPath can call unmarshal, so we need to pass the depth through so that
-				// we can continue to enforce the maximum recusion limit.
+				// we can continue to enforce the maximum recursion limit.
 				consumed, err = d.unmarshalPath(tinfo, sv, nil, &t, depth)
 				if err != nil {
 					return err
@@ -572,20 +589,24 @@ Loop:
 		}
 	}
 
-	if saveData.IsValid() && saveData.CanInterface() && saveData.Type().Implements(textUnmarshalerType) {
-		if err := saveData.Interface().(encoding.TextUnmarshaler).UnmarshalText(data); err != nil {
-			return err
+	if saveData.IsValid() && saveData.CanInterface() {
+		if textUnmarshaler, ok := reflect.TypeAssert[encoding.TextUnmarshaler](saveData); ok {
+			if err := textUnmarshaler.UnmarshalText(data); err != nil {
+				return err
+			}
+			saveData = reflect.Value{}
 		}
-		saveData = reflect.Value{}
 	}
 
 	if saveData.IsValid() && saveData.CanAddr() {
 		pv := saveData.Addr()
-		if pv.CanInterface() && pv.Type().Implements(textUnmarshalerType) {
-			if err := pv.Interface().(encoding.TextUnmarshaler).UnmarshalText(data); err != nil {
-				return err
+		if pv.CanInterface() {
+			if textUnmarshaler, ok := reflect.TypeAssert[encoding.TextUnmarshaler](pv); ok {
+				if err := textUnmarshaler.UnmarshalText(data); err != nil {
+					return err
+				}
+				saveData = reflect.Value{}
 			}
-			saveData = reflect.Value{}
 		}
 	}
 

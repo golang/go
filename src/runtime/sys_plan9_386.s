@@ -58,6 +58,12 @@ TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	AX, ret+4(FP)
 	RET
 
+TEXT runtime·dupfd(SB),NOSPLIT,$0
+	MOVL	$5, AX
+	INT	$64
+	MOVL	AX, ret+8(FP)
+	RET
+
 TEXT runtime·exits(SB),NOSPLIT,$0
 	MOVL    $8, AX
 	INT     $64
@@ -87,32 +93,15 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT nsec<>(SB),NOSPLIT,$0
-	MOVL	$53, AX
-	INT	$64
-	RET
-
-TEXT runtime·nsec(SB),NOSPLIT,$8
-	LEAL	ret+4(FP), AX
-	MOVL	AX, 0(SP)
-	CALL	nsec<>(SB)
-	CMPL	AX, $0
-	JGE	3(PC)
-	MOVL	$-1, ret_lo+4(FP)
-	MOVL	$-1, ret_hi+8(FP)
-	RET
-
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$8-12
-	CALL	runtime·nanotime1(SB)
-	MOVL	0(SP), AX
-	MOVL	4(SP), DX
-
+// func timesplit(u uint64) (sec int64, nsec int32)
+TEXT runtime·timesplit(SB),NOSPLIT,$0
+	MOVL	u_lo+0(FP), AX
+	MOVL	u_hi+4(FP), DX
 	MOVL	$1000000000, CX
 	DIVL	CX
-	MOVL	AX, sec_lo+0(FP)
-	MOVL	$0, sec_hi+4(FP)
-	MOVL	DX, nsec+8(FP)
+	MOVL	AX, sec_lo+8(FP)
+	MOVL	$0, sec_hi+12(FP)
+	MOVL	DX, nsec+16(FP)
 	RET
 
 TEXT runtime·notify(SB),NOSPLIT,$0

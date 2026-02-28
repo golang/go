@@ -10,7 +10,7 @@
 // Licence: I hereby disclaim the copyright on this code and place it
 // in the public domain.
 
-//go:build ppc64 || ppc64le
+//go:build (ppc64 || ppc64le) && !purego
 
 #include "textflag.h"
 
@@ -200,7 +200,7 @@ loop:
 	ADD	R16, R4
 	ADD	R17, R5
 	ADD	$64, R6
-	BC	16, 0, loop // bdnz
+	BDNZ	loop
 
 end:
 	MOVD	dig+0(FP), R10

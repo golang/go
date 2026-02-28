@@ -6,6 +6,8 @@
 
 package codegen
 
+import "unsafe"
+
 // This file contains code generation tests related to the handling of
 // slice types.
 
@@ -14,9 +16,11 @@ package codegen
 // ------------------ //
 
 // Issue #5373 optimize memset idiom
+// Some of the clears get inlined, see #56997
 
 func SliceClear(s []int) []int {
 	// amd64:`.*memclrNoHeapPointers`
+	// ppc64x:`.*memclrNoHeapPointers`
 	for i := range s {
 		s[i] = 0
 	}
@@ -25,6 +29,7 @@ func SliceClear(s []int) []int {
 
 func SliceClearPointers(s []*int) []*int {
 	// amd64:`.*memclrHasPointers`
+	// ppc64x:`.*memclrHasPointers`
 	for i := range s {
 		s[i] = nil
 	}
@@ -38,42 +43,75 @@ func SliceClearPointers(s []*int) []*int {
 // Issue #21266 - avoid makeslice in append(x, make([]T, y)...)
 
 func SliceExtensionConst(s []int) []int {
-	// amd64:`.*runtime\.memclrNoHeapPointers`
+	// amd64:-`.*runtime\.memclrNoHeapPointers`
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
+	// amd64:"MOVUPS X15"
+	// loong64:-`.*runtime\.memclrNoHeapPointers`
+	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
+	// ppc64x:-`.*runtime\.makeslice`
+	// ppc64x:-`.*runtime\.panicmakeslicelen`
 	return append(s, make([]int, 1<<2)...)
 }
 
 func SliceExtensionConstInt64(s []int) []int {
-	// amd64:`.*runtime\.memclrNoHeapPointers`
+	// amd64:-`.*runtime\.memclrNoHeapPointers`
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
+	// amd64:"MOVUPS X15"
+	// loong64:-`.*runtime\.memclrNoHeapPointers`
+	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
+	// ppc64x:-`.*runtime\.makeslice`
+	// ppc64x:-`.*runtime\.panicmakeslicelen`
 	return append(s, make([]int, int64(1<<2))...)
 }
 
 func SliceExtensionConstUint64(s []int) []int {
-	// amd64:`.*runtime\.memclrNoHeapPointers`
+	// amd64:-`.*runtime\.memclrNoHeapPointers`
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
+	// amd64:"MOVUPS X15"
+	// loong64:-`.*runtime\.memclrNoHeapPointers`
+	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
+	// ppc64x:-`.*runtime\.makeslice`
+	// ppc64x:-`.*runtime\.panicmakeslicelen`
 	return append(s, make([]int, uint64(1<<2))...)
 }
 
 func SliceExtensionConstUint(s []int) []int {
-	// amd64:`.*runtime\.memclrNoHeapPointers`
+	// amd64:-`.*runtime\.memclrNoHeapPointers`
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
+	// amd64:"MOVUPS X15"
+	// loong64:-`.*runtime\.memclrNoHeapPointers`
+	// ppc64x:-`.*runtime\.memclrNoHeapPointers`
+	// ppc64x:-`.*runtime\.makeslice`
+	// ppc64x:-`.*runtime\.panicmakeslicelen`
 	return append(s, make([]int, uint(1<<2))...)
+}
+
+// On ppc64x and loong64 continue to use memclrNoHeapPointers
+// for sizes >= 512.
+func SliceExtensionConst512(s []int) []int {
+	// amd64:-`.*runtime\.memclrNoHeapPointers`
+	// loong64:`.*runtime\.memclrNoHeapPointers`
+	// ppc64x:`.*runtime\.memclrNoHeapPointers`
+	return append(s, make([]int, 1<<9)...)
 }
 
 func SliceExtensionPointer(s []*int, l int) []*int {
 	// amd64:`.*runtime\.memclrHasPointers`
 	// amd64:-`.*runtime\.makeslice`
+	// ppc64x:`.*runtime\.memclrHasPointers`
+	// ppc64x:-`.*runtime\.makeslice`
 	return append(s, make([]*int, l)...)
 }
 
 func SliceExtensionVar(s []byte, l int) []byte {
 	// amd64:`.*runtime\.memclrNoHeapPointers`
 	// amd64:-`.*runtime\.makeslice`
+	// ppc64x:`.*runtime\.memclrNoHeapPointers`
+	// ppc64x:-`.*runtime\.makeslice`
 	return append(s, make([]byte, l)...)
 }
 
@@ -114,6 +152,9 @@ func SliceMakeCopyLen(s []int) []int {
 	// amd64:`.*runtime\.mallocgc`
 	// amd64:`.*runtime\.memmove`
 	// amd64:-`.*runtime\.makeslice`
+	// ppc64x:`.*runtime\.mallocgc`
+	// ppc64x:`.*runtime\.memmove`
+	// ppc64x:-`.*runtime\.makeslice`
 	a := make([]int, len(s))
 	copy(a, s)
 	return a
@@ -123,6 +164,9 @@ func SliceMakeCopyLenPtr(s []*int) []*int {
 	// amd64:`.*runtime\.makeslicecopy`
 	// amd64:-`.*runtime\.makeslice\(`
 	// amd64:-`.*runtime\.typedslicecopy
+	// ppc64x:`.*runtime\.makeslicecopy`
+	// ppc64x:-`.*runtime\.makeslice\(`
+	// ppc64x:-`.*runtime\.typedslicecopy
 	a := make([]*int, len(s))
 	copy(a, s)
 	return a
@@ -287,6 +331,12 @@ func SliceMakeCopyNoMemmoveDifferentLen(s []int) []int {
 	return a
 }
 
+func SliceMakeEmptyPointerToZerobase() []int {
+	// amd64:`LEAQ.+runtime\.zerobase`
+	// amd64:-`.*runtime\.makeslice`
+	return make([]int, 0)
+}
+
 // ---------------------- //
 //   Nil check of &s[0]   //
 // ---------------------- //
@@ -302,12 +352,12 @@ func SliceNilCheck(s []int) {
 // ---------------------- //
 // See issue 21561
 func InitSmallSliceLiteral() []int {
-	// amd64:`MOVQ\t[$]42`
+	// amd64:`MOVQ [$]42`
 	return []int{42}
 }
 
 func InitNotSmallSliceLiteral() []int {
-	// amd64:`LEAQ\t.*stmp_`
+	// amd64:`LEAQ .*stmp_`
 	return []int{
 		42,
 		42,
@@ -356,15 +406,65 @@ func InitNotSmallSliceLiteral() []int {
 func SliceWithConstCompare(a []int, b int) []int {
 	var c []int = []int{1, 2, 3, 4, 5}
 	if b+len(a) < len(c) {
-		// ppc64le:-"NEG"
-		// ppc64:-"NEG"
+		// ppc64x:-"NEG"
 		return c[b:]
 	}
 	return a
 }
 
 func SliceWithSubtractBound(a []int, b int) []int {
-	// ppc64le:"SUBC",-"NEG"
-	// ppc64:"SUBC",-"NEG"
+	// ppc64x:"SUBC" -"NEG"
 	return a[(3 - b):]
+}
+
+// --------------------------------------- //
+//   ARM64 folding for slice masks         //
+// --------------------------------------- //
+
+func SliceAndIndex(a []int, b int) int {
+	// arm64:"AND R[0-9]+->63" "ADD R[0-9]+<<3"
+	return a[b:][b]
+}
+
+// --------------------------------------- //
+//   Code generation for unsafe.Slice      //
+// --------------------------------------- //
+
+func Slice1(p *byte, i int) []byte {
+	// amd64:-"MULQ"
+	return unsafe.Slice(p, i)
+}
+func Slice0(p *struct{}, i int) []struct{} {
+	// amd64:-"MULQ"
+	return unsafe.Slice(p, i)
+}
+
+// --------------------------------------- //
+//   Code generation for slice bounds      //
+//   checking comparison                   //
+// --------------------------------------- //
+
+func SlicePut(a []byte, c uint8) []byte {
+	// arm64:`CBZ R1`
+	a[0] = c
+	// arm64:`CMP \$1, R1`
+	a = a[1:]
+	a[0] = c
+	// arm64:`CMP \$2, R1`
+	a = a[1:]
+	a[0] = c
+	a = a[1:]
+	return a
+}
+
+func Issue61730() {
+	var x int
+	// amd64:-"MOVQ .*stmp_"
+	_ = [...][]*int{
+		{&x},
+		nil,
+		nil,
+		nil,
+		nil,
+	}
 }

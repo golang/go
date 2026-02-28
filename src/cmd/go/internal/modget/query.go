@@ -10,11 +10,14 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
+	"cmd/internal/pkgpattern"
 
 	"golang.org/x/mod/module"
 )
@@ -53,7 +56,7 @@ type query struct {
 	// path.
 	matchWildcard func(path string) bool
 
-	// canMatchWildcard, if non-nil, reports whether the module with the given
+	// canMatchWildcardInModule, if non-nil, reports whether the module with the given
 	// path could lexically contain a package matching pattern, which must be a
 	// wildcard.
 	canMatchWildcardInModule func(mPath string) bool
@@ -96,7 +99,7 @@ type query struct {
 	resolved []module.Version
 
 	// matchesPackages is true if the resolved modules provide at least one
-	// package mathcing q.pattern.
+	// package matching q.pattern.
 	matchesPackages bool
 }
 
@@ -136,14 +139,13 @@ func errSet(err error) pathSet { return pathSet{err: err} }
 
 // newQuery returns a new query parsed from the raw argument,
 // which must be either path or path@version.
-func newQuery(raw string) (*query, error) {
-	pattern := raw
-	rawVers := ""
-	if i := strings.Index(raw, "@"); i >= 0 {
-		pattern, rawVers = raw[:i], raw[i+1:]
-		if strings.Contains(rawVers, "@") || rawVers == "" {
-			return nil, fmt.Errorf("invalid module version syntax %q", raw)
-		}
+func newQuery(loaderstate *modload.State, raw string) (*query, error) {
+	pattern, rawVers, found, err := modload.ParsePathVersion(raw)
+	if err != nil {
+		return nil, err
+	}
+	if found && (strings.Contains(rawVers, "@") || rawVers == "") {
+		return nil, fmt.Errorf("invalid module version syntax %q", raw)
 	}
 
 	// If no version suffix is specified, assume @upgrade.
@@ -165,17 +167,17 @@ func newQuery(raw string) (*query, error) {
 		version:        version,
 	}
 	if strings.Contains(q.pattern, "...") {
-		q.matchWildcard = search.MatchPattern(q.pattern)
-		q.canMatchWildcardInModule = search.TreeCanMatchPattern(q.pattern)
+		q.matchWildcard = pkgpattern.MatchPattern(q.pattern)
+		q.canMatchWildcardInModule = pkgpattern.TreeCanMatchPattern(q.pattern)
 	}
-	if err := q.validate(); err != nil {
+	if err := q.validate(loaderstate); err != nil {
 		return q, err
 	}
 	return q, nil
 }
 
 // validate reports a non-nil error if q is not sensible and well-formed.
-func (q *query) validate() error {
+func (q *query) validate(loaderstate *modload.State) error {
 	if q.patternIsLocal {
 		if q.rawVersion != "" {
 			return fmt.Errorf("can't request explicit version %q of path %q in main module", q.rawVersion, q.pattern)
@@ -185,15 +187,15 @@ func (q *query) validate() error {
 
 	if q.pattern == "all" {
 		// If there is no main module, "all" is not meaningful.
-		if !modload.HasModRoot() {
-			return fmt.Errorf(`cannot match "all": %v`, modload.ErrNoModRoot)
+		if !loaderstate.HasModRoot() {
+			return fmt.Errorf(`cannot match "all": %v`, modload.NewNoMainModulesError(loaderstate))
 		}
 		if !versionOkForMainModule(q.version) {
 			// TODO(bcmills): "all@none" seems like a totally reasonable way to
 			// request that we remove all module requirements, leaving only the main
 			// module and standard library. Perhaps we should implement that someday.
 			return &modload.QueryUpgradesAllError{
-				MainModules: modload.MainModules.Versions(),
+				MainModules: loaderstate.MainModules.Versions(),
 				Query:       q.version,
 			}
 		}
@@ -201,6 +203,9 @@ func (q *query) validate() error {
 
 	if search.IsMetaPackage(q.pattern) && q.pattern != "all" {
 		if q.pattern != q.raw {
+			if q.pattern == "tool" {
+				return fmt.Errorf("can't request explicit version of \"tool\" pattern")
+			}
 			return fmt.Errorf("can't request explicit version of standard-library pattern %q", q.pattern)
 		}
 	}
@@ -232,7 +237,7 @@ func (q *query) isWildcard() bool {
 
 // matchesPath reports whether the given path matches q.pattern.
 func (q *query) matchesPath(path string) bool {
-	if q.matchWildcard != nil {
+	if q.matchWildcard != nil && !gover.IsToolchain(path) {
 		return q.matchWildcard(path)
 	}
 	return path == q.pattern
@@ -241,6 +246,9 @@ func (q *query) matchesPath(path string) bool {
 // canMatchInModule reports whether the given module path can potentially
 // contain q.pattern.
 func (q *query) canMatchInModule(mPath string) bool {
+	if gover.IsToolchain(mPath) {
+		return false
+	}
 	if q.canMatchWildcardInModule != nil {
 		return q.canMatchWildcardInModule(mPath)
 	}
@@ -278,8 +286,13 @@ func reportError(q *query, err error) {
 	// If err already mentions all of the relevant parts of q, just log err to
 	// reduce stutter. Otherwise, log both q and err.
 	//
-	// TODO(bcmills): Use errors.As to unpack these errors instead of parsing
+	// TODO(bcmills): Use errors.AsType to unpack these errors instead of parsing
 	// strings with regular expressions.
+
+	if !utf8.ValidString(q.pattern) || !utf8.ValidString(q.version) {
+		base.Errorf("go: %s", errStr)
+		return
+	}
 
 	patternRE := regexp.MustCompile("(?m)(?:[ \t(\"`]|^)" + regexp.QuoteMeta(q.pattern) + "(?:[ @:;)\"`]|$)")
 	if patternRE.MatchString(errStr) {

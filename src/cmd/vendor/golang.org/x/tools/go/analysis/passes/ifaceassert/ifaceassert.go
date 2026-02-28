@@ -2,45 +2,34 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package ifaceassert defines an Analyzer that flags
-// impossible interface-interface type assertions.
 package ifaceassert
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
-const Doc = `detect impossible interface-to-interface type assertions
-
-This checker flags type assertions v.(T) and corresponding type-switch cases
-in which the static type V of v is an interface that cannot possibly implement
-the target interface T. This occurs when V and T contain methods with the same
-name but different signatures. Example:
-
-	var v interface {
-		Read()
-	}
-	_ = v.(io.Reader)
-
-The Read method in v has a different signature than the Read method in
-io.Reader, so this assertion cannot succeed.
-`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "ifaceassert",
-	Doc:      Doc,
+	Doc:      analyzerutil.MustExtractDoc(doc, "ifaceassert"),
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/ifaceassert",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
 
 // assertableTo checks whether interface v can be asserted into t. It returns
 // nil on success, or the first conflicting method on failure.
-func assertableTo(v, t types.Type) *types.Func {
+func assertableTo(free *typeparams.Free, v, t types.Type) *types.Func {
 	if t == nil || v == nil {
 		// not assertable to, but there is no missing method
 		return nil
@@ -54,7 +43,7 @@ func assertableTo(v, t types.Type) *types.Func {
 
 	// Mitigations for interface comparisons and generics.
 	// TODO(https://github.com/golang/go/issues/50658): Support more precise conclusion.
-	if isParameterized(V) || isParameterized(T) {
+	if free.Has(V) || free.Has(T) {
 		return nil
 	}
 	if f, wrongType := types.MissingMethod(V, T, false); wrongType {
@@ -63,12 +52,13 @@ func assertableTo(v, t types.Type) *types.Func {
 	return nil
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	nodeFilter := []ast.Node{
 		(*ast.TypeAssertExpr)(nil),
 		(*ast.TypeSwitchStmt)(nil),
 	}
+	var free typeparams.Free
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		var (
 			assert  *ast.TypeAssertExpr // v.(T) expression
@@ -98,7 +88,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		V := pass.TypesInfo.TypeOf(assert.X)
 		for _, target := range targets {
 			T := pass.TypesInfo.TypeOf(target)
-			if f := assertableTo(V, T); f != nil {
+			if f := assertableTo(&free, V, T); f != nil {
 				pass.Reportf(
 					target.Pos(),
 					"impossible type assertion: no type can implement both %v and %v (conflicting types for %v method)",

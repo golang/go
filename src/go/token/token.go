@@ -235,9 +235,9 @@ var tokens = [...]string{
 
 // String returns the string corresponding to the token tok.
 // For operators, delimiters, and keywords the string is the actual
-// token character sequence (e.g., for the token ADD, the string is
+// token character sequence (e.g., for the token [ADD], the string is
 // "+"). For all other tokens the string corresponds to the token
-// constant name (e.g. for the token IDENT, the string is "IDENT").
+// constant name (e.g. for the token [IDENT], the string is "IDENT").
 func (tok Token) String() string {
 	s := ""
 	if 0 <= tok && tok < Token(len(tokens)) {
@@ -288,7 +288,7 @@ func init() {
 	}
 }
 
-// Lookup maps an identifier to its keyword token or IDENT (if not a keyword).
+// Lookup maps an identifier to its keyword token or [IDENT] (if not a keyword).
 func Lookup(ident string) Token {
 	if tok, is_keyword := keywords[ident]; is_keyword {
 		return tok

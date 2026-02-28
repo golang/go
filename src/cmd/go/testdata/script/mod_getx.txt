@@ -1,6 +1,5 @@
-[short] skip
-[!net] skip
-[!exec:git] skip
+[!net:golang.org] skip
+[!git] skip
 
 env GO111MODULE=on
 env GOPROXY=direct

@@ -17,7 +17,6 @@
 #define SYS_getpid               20
 #define SYS_kill                 37
 #define SYS_brk			 45
-#define SYS_fcntl                55
 #define SYS_mmap                 90
 #define SYS_munmap               91
 #define SYS_setitimer           104
@@ -35,15 +34,11 @@
 #define SYS_sched_getaffinity   240
 #define SYS_tgkill              241
 #define SYS_exit_group          248
-#define SYS_epoll_create        249
-#define SYS_epoll_ctl           250
-#define SYS_epoll_wait          251
 #define SYS_timer_create        254
 #define SYS_timer_settime       255
 #define SYS_timer_delete        258
 #define SYS_clock_gettime       260
 #define SYS_pipe2		325
-#define SYS_epoll_create1       327
 
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	code+0(FP), R2
@@ -51,7 +46,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	SYSCALL
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
 	MOVD	wait+0(FP), R1
 	// We're done using the stack.
@@ -117,9 +112,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
 	MOVW	$1000000, R3
 	DIVD	R3, R2
 	MOVD	R2, 8(R15)
-	MOVW	$1000, R3
-	MULLD	R2, R3
+	MULLD	R2, R3		// Convert sec to usec and subtract
 	SUB	R3, R4
+	MOVW	$1000, R3
+	MULLD	R3, R4		// Convert remaining usec into nsec.
 	MOVD	R4, 16(R15)
 
 	// nanosleep(&ts, 0)
@@ -230,7 +226,7 @@ TEXT runtime·walltime(SB),NOSPLIT,$32-12
 	MOVD	R4, 24(R15)
 
 	MOVD	R14, R8 		// Backup return address
-	MOVD	$sec+0(FP), R4 	// return parameter caller
+	MOVD	$ret-8(FP), R4 	// caller's SP
 
 	MOVD	R8, m_vdsoPC(R6)
 	MOVD	R4, m_vdsoSP(R6)
@@ -316,7 +312,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$32-8
 	MOVD	R4, 24(R15)
 
 	MOVD	R14, R8			// Backup return address
-	MOVD	$ret+0(FP), R4	// caller's SP
+	MOVD	$ret-8(FP), R4	// caller's SP
 
 	MOVD	R8, m_vdsoPC(R6)
 	MOVD	R4, m_vdsoSP(R6)
@@ -415,9 +411,6 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVD	ctx+24(FP), R4
 	MOVD	fn+0(FP), R5
 	BL	R5
-	RET
-
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
 	RET
 
 TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
@@ -589,53 +582,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R2, ret+24(FP)
 	RET
 
-// int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
-	MOVW    size+0(FP), R2
-	MOVW	$SYS_epoll_create, R1
-	SYSCALL
-	MOVW	R2, ret+8(FP)
-	RET
-
-// int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
-	MOVW	flags+0(FP), R2
-	MOVW	$SYS_epoll_create1, R1
-	SYSCALL
-	MOVW	R2, ret+8(FP)
-	RET
-
-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
-TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), R2
-	MOVW	op+4(FP), R3
-	MOVW	fd+8(FP), R4
-	MOVD	ev+16(FP), R5
-	MOVW	$SYS_epoll_ctl, R1
-	SYSCALL
-	MOVW	R2, ret+24(FP)
-	RET
-
-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
-	MOVW	epfd+0(FP), R2
-	MOVD	ev+8(FP), R3
-	MOVW	nev+16(FP), R4
-	MOVW	timeout+20(FP), R5
-	MOVW	$SYS_epoll_wait, R1
-	SYSCALL
-	MOVW	R2, ret+24(FP)
-	RET
-
-// void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
-	MOVW    fd+0(FP), R2  // fd
-	MOVD    $2, R3  // F_SETFD
-	MOVD    $1, R4  // FD_CLOEXEC
-	MOVW	$SYS_fcntl, R1
-	SYSCALL
-	RET
-
 // func sbrk0() uintptr
 TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0-8
 	// Implemented as brk(NULL).
@@ -658,4 +604,54 @@ TEXT runtime·connect(SB),$0-28
 TEXT runtime·socket(SB),$0-20
 	MOVD	$0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
 	MOVW	R0, ret+16(FP)
+	RET
+
+// func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
+TEXT runtime·vgetrandom1(SB),NOSPLIT,$16-48
+	MOVD	buf+0(FP), R2
+	MOVD	length+8(FP), R3
+	MOVW	flags+16(FP), R4
+	MOVD	state+24(FP), R5
+	MOVD	stateSize+32(FP), R6
+
+	MOVD	R15, R7
+
+	MOVD	runtime·vdsoGetrandomSym(SB), R1
+	MOVD	g_m(g), R9
+
+	MOVD	m_vdsoPC(R9), R12
+	MOVD	R12, 8(R15)
+	MOVD	m_vdsoSP(R9), R12
+	MOVD	R12, 16(R15)
+	MOVD	R14, m_vdsoPC(R9)
+	MOVD	$buf+0(FP), R12
+	MOVD	R12, m_vdsoSP(R9)
+
+	SUB	$160, R15
+	MOVD	$~7, R12
+	AND	R12, R15
+
+	MOVB	runtime·iscgo(SB), R12
+	CMPBNE	R12, $0, nosaveg
+	MOVD	m_gsignal(R9), R12
+	CMPBEQ	R12, $0, nosaveg
+	CMPBEQ	g, R12, nosaveg
+	MOVD	(g_stack+stack_lo)(R12), R12
+	MOVD	g, (R12)
+
+	BL	R1
+
+	MOVD	$0, (R12)
+	JMP	restore
+
+nosaveg:
+	BL	R1
+
+restore:
+	MOVD	R7, R15
+	MOVD	16(R15), R12
+	MOVD	R12, m_vdsoSP(R9)
+	MOVD	8(R15), R12
+	MOVD	R12, m_vdsoPC(R9)
+	MOVD	R2, ret+40(FP)
 	RET

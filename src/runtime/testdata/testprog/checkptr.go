@@ -16,10 +16,13 @@ func init() {
 	register("CheckPtrAlignmentNilPtr", CheckPtrAlignmentNilPtr)
 	register("CheckPtrArithmetic", CheckPtrArithmetic)
 	register("CheckPtrArithmetic2", CheckPtrArithmetic2)
+	register("CheckPtrArithmeticUnsafeAdd", CheckPtrArithmeticUnsafeAdd)
 	register("CheckPtrSize", CheckPtrSize)
 	register("CheckPtrSmall", CheckPtrSmall)
 	register("CheckPtrSliceOK", CheckPtrSliceOK)
 	register("CheckPtrSliceFail", CheckPtrSliceFail)
+	register("CheckPtrStringOK", CheckPtrStringOK)
+	register("CheckPtrStringFail", CheckPtrStringFail)
 	register("CheckPtrAlignmentNested", CheckPtrAlignmentNested)
 }
 
@@ -77,6 +80,11 @@ func CheckPtrArithmetic2() {
 	sink2 = unsafe.Pointer(uintptr(p) & ^one)
 }
 
+func CheckPtrArithmeticUnsafeAdd() {
+	data := make([]byte, 128)
+	sink2 = (*byte)(unsafe.Add(unsafe.Pointer(unsafe.SliceData(data)), len(data)))
+}
+
 func CheckPtrSize() {
 	p := new(int64)
 	sink2 = p
@@ -96,6 +104,17 @@ func CheckPtrSliceFail() {
 	p := new(int64)
 	sink2 = p
 	sink2 = unsafe.Slice(p, 100)
+}
+
+func CheckPtrStringOK() {
+	p := new([4]byte)
+	sink2 = unsafe.String(&p[1], 3)
+}
+
+func CheckPtrStringFail() {
+	p := new(byte)
+	sink2 = p
+	sink2 = unsafe.String(p, 100)
 }
 
 func CheckPtrAlignmentNested() {

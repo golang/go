@@ -6,6 +6,7 @@ package bufio_test
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"strconv"
@@ -30,6 +31,33 @@ func ExampleWriter_AvailableBuffer() {
 	}
 	w.Flush()
 	// Output: 1 2 3 4
+}
+
+// ExampleWriter_ReadFrom demonstrates how to use the ReadFrom method of Writer.
+func ExampleWriter_ReadFrom() {
+	var buf bytes.Buffer
+	writer := bufio.NewWriter(&buf)
+
+	data := "Hello, world!\nThis is a ReadFrom example."
+	reader := strings.NewReader(data)
+
+	n, err := writer.ReadFrom(reader)
+	if err != nil {
+		fmt.Println("ReadFrom Error:", err)
+		return
+	}
+
+	if err = writer.Flush(); err != nil {
+		fmt.Println("Flush Error:", err)
+		return
+	}
+
+	fmt.Println("Bytes written:", n)
+	fmt.Println("Buffer contents:", buf.String())
+	// Output:
+	// Bytes written: 41
+	// Buffer contents: Hello, world!
+	// This is a ReadFrom example.
 }
 
 // The simplest use of a Scanner, to read standard input as a set of lines.
@@ -136,4 +164,37 @@ func ExampleScanner_emptyFinalToken() {
 		fmt.Fprintln(os.Stderr, "reading input:", err)
 	}
 	// Output: "1" "2" "3" "4" ""
+}
+
+// Use a Scanner with a custom split function to parse a comma-separated
+// list with an empty final value but stops at the token "STOP".
+func ExampleScanner_earlyStop() {
+	onComma := func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+		i := bytes.IndexByte(data, ',')
+		if i == -1 {
+			if !atEOF {
+				return 0, nil, nil
+			}
+			// If we have reached the end, return the last token.
+			return 0, data, bufio.ErrFinalToken
+		}
+		// If the token is "STOP", stop the scanning and ignore the rest.
+		if string(data[:i]) == "STOP" {
+			return i + 1, nil, bufio.ErrFinalToken
+		}
+		// Otherwise, return the token before the comma.
+		return i + 1, data[:i], nil
+	}
+	const input = "1,2,STOP,4,"
+	scanner := bufio.NewScanner(strings.NewReader(input))
+	scanner.Split(onComma)
+	for scanner.Scan() {
+		fmt.Printf("Got a token %q\n", scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "reading input:", err)
+	}
+	// Output:
+	// Got a token "1"
+	// Got a token "2"
 }

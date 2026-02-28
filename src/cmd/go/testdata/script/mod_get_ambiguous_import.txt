@@ -9,7 +9,7 @@ cp go.mod go.mod.orig
 # TODO(#27899): Should we automatically upgrade example.net/m to v0.2.0
 # to resolve the conflict?
 ! go get example.net/m/p@v1.0.0
-stderr '^example.net/m/p: ambiguous import: found package example.net/m/p in multiple modules:\n\texample.net/m v0.1.0 \(.*[/\\]m1[/\\]p\)\n\texample.net/m/p v1.0.0 \(.*[/\\]p0\)\n\z'
+stderr '^go: example.net/m/p: ambiguous import: found package example.net/m/p in multiple modules:\n\texample.net/m v0.1.0 \(.*[/\\]m1[/\\]p\)\n\texample.net/m/p v1.0.0 \(.*[/\\]p0\)\n\z'
 cmp go.mod go.mod.orig
 
 # Upgrading both modules simultaneously resolves the ambiguous upgrade.

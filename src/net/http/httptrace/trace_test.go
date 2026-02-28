@@ -5,13 +5,13 @@
 package httptrace
 
 import (
-	"bytes"
 	"context"
+	"strings"
 	"testing"
 )
 
 func TestWithClientTrace(t *testing.T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	connectStart := func(b byte) func(network, addr string) {
 		return func(network, addr string) {
 			buf.WriteByte(b)
@@ -37,7 +37,7 @@ func TestWithClientTrace(t *testing.T) {
 }
 
 func TestCompose(t *testing.T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	var testNum int
 
 	connectStart := func(b byte) func(network, addr string) {

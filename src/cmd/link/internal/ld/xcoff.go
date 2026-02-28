@@ -6,17 +6,18 @@ package ld
 
 import (
 	"bytes"
-	"cmd/internal/objabi"
-	"cmd/link/internal/loader"
-	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 	"math/bits"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
+
+	"cmd/internal/objabi"
+	"cmd/link/internal/loader"
+	"cmd/link/internal/sym"
 )
 
 // This file handles all algorithms related to XCOFF files generation.
@@ -37,7 +38,7 @@ const (
 	// XCOFF binaries should normally have all its sections position-independent.
 	// However, this is not yet possible for .text because of some R_ADDR relocations
 	// inside RODATA symbols.
-	// .data and .bss are position-independent so their address start inside a unreachable
+	// .data and .bss are position-independent so their address start inside an unreachable
 	// segment during execution to force segfault if something is wrong.
 	XCOFFTEXTBASE = 0x100000000 // Start of text address
 	XCOFFDATABASE = 0x200000000 // Start of data address
@@ -166,8 +167,7 @@ const (
 )
 
 // Type representing all XCOFF symbols.
-type xcoffSym interface {
-}
+type xcoffSym any
 
 // Symbol Table Entry
 type XcoffSymEnt64 struct {
@@ -533,25 +533,24 @@ func (f *xcoffFile) getXCOFFscnum(sect *sym.Section) int16 {
 	case &Segrelrodata:
 		return f.sectNameToScnum[".data"]
 	}
-	Errorf(nil, "getXCOFFscnum not implemented for section %s", sect.Name)
+	Errorf("getXCOFFscnum not implemented for section %s", sect.Name)
 	return -1
 }
 
 // Xcoffinit initialised some internal value and setups
-// already known header information
+// already known header information.
 func Xcoffinit(ctxt *Link) {
 	xfile.dynLibraries = make(map[string]int)
 
 	HEADR = int32(Rnd(XCOFFHDRRESERVE, XCOFFSECTALIGN))
-	if *FlagTextAddr != -1 {
-		Errorf(nil, "-T not available on AIX")
-	}
-	*FlagTextAddr = XCOFFTEXTBASE + int64(HEADR)
 	if *FlagRound != -1 {
-		Errorf(nil, "-R not available on AIX")
+		Errorf("-R not available on AIX")
 	}
-	*FlagRound = int(XCOFFSECTALIGN)
-
+	*FlagRound = XCOFFSECTALIGN
+	if *FlagTextAddr != -1 {
+		Errorf("-T not available on AIX")
+	}
+	*FlagTextAddr = Rnd(XCOFFTEXTBASE, *FlagRound) + int64(HEADR)
 }
 
 // SYMBOL TABLE
@@ -583,35 +582,29 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 	ldr := ctxt.loader
 	switch stype {
 	default:
-		Errorf(nil, "unknown XCOFF outer symbol for type %s", stype.String())
-	case sym.SRODATA, sym.SRODATARELRO, sym.SFUNCTAB, sym.SSTRING:
+		Errorf("unknown XCOFF outer symbol for type %s", stype.String())
+	case sym.SRODATA, sym.SRODATARELRO, sym.SSTRING:
 		// Nothing to do
-	case sym.STYPERELRO:
-		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
-			// runtime.types size must be removed, as it's a real symbol.
-			tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
-			outerSymSize["typerel.*"] = size - tsize
-			return
-		}
-		fallthrough
 	case sym.STYPE:
-		if !ctxt.DynlinkingGo() {
-			// runtime.types size must be removed, as it's a real symbol.
-			tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
-			outerSymSize["type.*"] = size - tsize
-		}
+		// runtime.types size must be removed, as it's a real symbol.
+		tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
+		outerSymSize["type:*"] = size - tsize
 	case sym.SGOSTRING:
-		outerSymSize["go.string.*"] = size
+		outerSymSize["go:string.*"] = size
 	case sym.SGOFUNC:
 		if !ctxt.DynlinkingGo() {
-			outerSymSize["go.func.*"] = size
+			outerSymSize["go:funcdesc"] = size
 		}
-	case sym.SGOFUNCRELRO:
-		outerSymSize["go.funcrel.*"] = size
 	case sym.SGCBITS:
 		outerSymSize["runtime.gcbits.*"] = size
 	case sym.SPCLNTAB:
-		outerSymSize["runtime.pclntab"] = size
+		// go:func.* size must be removed from pclntab,
+		// as it's a real symbol. Same for runtime.findfunctab.
+		fsize := ldr.SymSize(ldr.Lookup("go:func.*", 0))
+		fft := ldr.Lookup("runtime.findfunctab", 0)
+		fsize = Rnd(fsize, int64(symalign(ldr, fft)))
+		tsize := ldr.SymSize(fft)
+		outerSymSize["runtime.pclntab"] = size - (fsize + tsize)
 	}
 }
 
@@ -677,7 +670,7 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 			dwsize = getDwsectCUSize(sect.Name, name)
 			// .debug_abbrev is common to all packages and not found with the previous function
 			if sect.Name == ".debug_abbrev" {
-				dwsize = uint64(ldr.SymSize(loader.Sym(sect.Sym)))
+				dwsize = uint64(ldr.SymSize(sect.Sym))
 
 			}
 		} else {
@@ -699,7 +692,7 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
 			// Dwarf relocations need the symbol number of .dw* symbols.
 			// It doesn't need to know it for each package, one is enough.
 			// currSymSrcFile.csectAux == nil means first package.
-			ldr.SetSymDynid(loader.Sym(sect.Sym), int32(f.symbolCount))
+			ldr.SetSymDynid(sect.Sym, int32(f.symbolCount))
 
 			if sect.Name == ".debug_frame" && ctxt.LinkMode != LinkExternal {
 				// CIE size must be added to the first package.
@@ -865,16 +858,16 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x loader.Sym) []xcoffSym {
 		Xsmtyp:    XTY_LD, // label definition (based on C)
 		Xauxtype:  _AUX_CSECT,
 	}
-	a4.Xsmtyp |= uint8(xcoffAlign(ldr, x, TextSym) << 3)
+	a4.Xsmtyp |= xcoffAlign(ldr, x, TextSym) << 3
 
 	syms = append(syms, a4)
 	return syms
 }
 
-// put function used by genasmsym to write symbol table
+// put function used by genasmsym to write symbol table.
 func putaixsym(ctxt *Link, x loader.Sym, t SymbolType) {
 	// All XCOFF symbols generated by this GO symbols
-	// Can be a symbol entry or a auxiliary entry
+	// Can be a symbol entry or an auxiliary entry
 	syms := []xcoffSym{}
 
 	ldr := ctxt.loader
@@ -893,7 +886,7 @@ func putaixsym(ctxt *Link, x loader.Sym, t SymbolType) {
 			syms = xfile.writeSymbolFunc(ctxt, x)
 		} else {
 			// Only runtime.text and runtime.etext come through this way
-			if name != "runtime.text" && name != "runtime.etext" && name != "go.buildid" {
+			if name != "runtime.text" && name != "runtime.etext" && name != "go:buildid" {
 				Exitf("putaixsym: unknown text symbol %s", name)
 			}
 			s := &XcoffSymEnt64{
@@ -915,7 +908,7 @@ func putaixsym(ctxt *Link, x loader.Sym, t SymbolType) {
 				Xsmclas:   XMC_PR,
 				Xsmtyp:    XTY_SD,
 			}
-			a4.Xsmtyp |= uint8(xcoffAlign(ldr, x, TextSym) << 3)
+			a4.Xsmtyp |= xcoffAlign(ldr, x, TextSym) << 3
 			syms = append(syms, a4)
 		}
 
@@ -954,7 +947,7 @@ func putaixsym(ctxt *Link, x loader.Sym, t SymbolType) {
 			Xscnlenhi: uint32(size >> 32),
 		}
 
-		if ty := ldr.SymType(x); ty >= sym.STYPE && ty <= sym.SPCLNTAB {
+		if ty := ldr.SymType(x); ty >= sym.SSTRING && ty <= sym.STYPELINK {
 			if ctxt.IsExternal() && strings.HasPrefix(ldr.SymSect(x).Name, ".data.rel.ro") {
 				// During external linking, read-only datas with relocation
 				// must be in .data.
@@ -976,7 +969,7 @@ func putaixsym(ctxt *Link, x loader.Sym, t SymbolType) {
 			a4.Xsmtyp |= XTY_CM
 		}
 
-		a4.Xsmtyp |= uint8(xcoffAlign(ldr, x, t) << 3)
+		a4.Xsmtyp |= xcoffAlign(ldr, x, t) << 3
 
 		syms = append(syms, a4)
 
@@ -1046,7 +1039,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 	for name, size := range outerSymSize {
 		sym := ldr.Lookup(name, 0)
 		if sym == 0 {
-			Errorf(nil, "unknown outer symbol with name %s", name)
+			Errorf("unknown outer symbol with name %s", name)
 		} else {
 			s := ldr.MakeSymbolUpdater(sym)
 			s.SetSize(size)
@@ -1056,7 +1049,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 	// These symbols won't show up in the first loop below because we
 	// skip sym.STEXT symbols. Normal sym.STEXT symbols are emitted by walking textp.
 	s := ldr.Lookup("runtime.text", 0)
-	if ldr.SymType(s) == sym.STEXT {
+	if ldr.SymType(s).IsText() {
 		// We've already included this symbol in ctxt.Textp on AIX with external linker.
 		// See data.go:/textaddress
 		if !ctxt.IsExternal() {
@@ -1075,14 +1068,14 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 		if s == 0 {
 			break
 		}
-		if ldr.SymType(s) == sym.STEXT {
+		if ldr.SymType(s).IsText() {
 			putaixsym(ctxt, s, TextSym)
 		}
 		n++
 	}
 
 	s = ldr.Lookup("runtime.etext", 0)
-	if ldr.SymType(s) == sym.STEXT {
+	if ldr.SymType(s).IsText() {
 		// We've already included this symbol in ctxt.Textp
 		// on AIX with external linker.
 		// See data.go:/textaddress
@@ -1092,11 +1085,6 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 	}
 
 	shouldBeInSymbolTable := func(s loader.Sym, name string) bool {
-		if name == ".go.buildinfo" {
-			// On AIX, .go.buildinfo must be in the symbol table as
-			// it has relocations.
-			return true
-		}
 		if ldr.AttrNotInSymbolTable(s) {
 			return false
 		}
@@ -1117,7 +1105,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 				putaixsym(ctxt, s, TLSSym)
 			}
 
-		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_8BIT_COUNTER:
+		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_8BIT_COUNTER, st == sym.SCOVERAGE_COUNTER:
 			if ldr.AttrReachable(s) {
 				data := ldr.Data(s)
 				if len(data) > 0 {
@@ -1126,7 +1114,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 				putaixsym(ctxt, s, BSSSym)
 			}
 
-		case st >= sym.SELFRXSECT && st < sym.SXREF: // data sections handled in dodata
+		case st >= sym.SELFRXSECT && st < sym.SFirstUnallocated: // data sections handled in dodata
 			if ldr.AttrReachable(s) {
 				putaixsym(ctxt, s, DataSym)
 			}
@@ -1145,7 +1133,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 		putaixsym(ctxt, s, TextSym)
 	}
 
-	if ctxt.Debugvlog != 0 || *flagN {
+	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("symsize = %d\n", uint32(symSize))
 	}
 	xfile.updatePreviousFile(ctxt, true)
@@ -1260,7 +1248,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 					break
 				}
 			}
-		} else if t := ldr.SymType(s); t == sym.SDATA || t == sym.SNOPTRDATA || t == sym.SBUILDINFO || t == sym.SXCOFFTOC {
+		} else if t := ldr.SymType(s); t.IsDATA() || t.IsNOPTRDATA() || t == sym.SBUILDINFO || t == sym.SXCOFFTOC || t == sym.SMODULEDATA {
 			switch ldr.SymSect(targ).Seg {
 			default:
 				ldr.Errorf(s, "unknown segment for .loader relocation with symbol %s", ldr.SymName(targ))
@@ -1332,8 +1320,8 @@ func (ctxt *Link) doxcoff() {
 				panic("cgo_export on static symbol")
 			}
 
-			if ldr.SymType(s) == sym.STEXT {
-				// On AIX, a exported function must have two symbols:
+			if ldr.SymType(s).IsText() {
+				// On AIX, an exported function must have two symbols:
 				// - a .text symbol which must start with a ".".
 				// - a .data symbol which is a function descriptor.
 				name := ldr.SymExtname(s)
@@ -1354,7 +1342,7 @@ func (ctxt *Link) doxcoff() {
 // Currently, this section is created from scratch when assembling the XCOFF file
 // according to information retrieved in xfile object.
 
-// Create loader section and returns its size
+// Create loader section and returns its size.
 func Loaderblk(ctxt *Link, off uint64) {
 	xfile.writeLdrScn(ctxt, off)
 }
@@ -1380,7 +1368,7 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 	/* Symbol table */
 	for _, s := range f.loaderSymbols {
 		lds := &XcoffLdSym64{
-			Loffset: uint32(stlen + 2),
+			Loffset: stlen + 2,
 			Lsmtype: s.smtype,
 			Lsmclas: s.smclas,
 		}
@@ -1581,11 +1569,11 @@ func xcoffwrite(ctxt *Link) {
 	}
 }
 
-// Generate XCOFF assembly file
+// Generate XCOFF assembly file.
 func asmbXcoff(ctxt *Link) {
 	ctxt.Out.SeekSet(0)
 	fileoff := int64(Segdwarf.Fileoff + Segdwarf.Filelen)
-	fileoff = int64(Rnd(int64(fileoff), int64(*FlagRound)))
+	fileoff = Rnd(fileoff, *FlagRound)
 
 	xfile.sectNameToScnum = make(map[string]int16)
 
@@ -1698,7 +1686,7 @@ func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
 			if !ldr.AttrReachable(s) {
 				continue
 			}
-			if ldr.SymValue(s) >= int64(eaddr) {
+			if ldr.SymValue(s) >= eaddr {
 				break
 			}
 
@@ -1760,7 +1748,7 @@ dwarfLoop:
 	for i := 0; i < len(Segdwarf.Sections); i++ {
 		sect := Segdwarf.Sections[i]
 		si := dwarfp[i]
-		if si.secSym() != loader.Sym(sect.Sym) ||
+		if si.secSym() != sect.Sym ||
 			ldr.SymSect(si.secSym()) != sect {
 			panic("inconsistency between dwarfp and Segdwarf")
 		}
@@ -1772,7 +1760,7 @@ dwarfLoop:
 				continue dwarfLoop
 			}
 		}
-		Errorf(nil, "emitRelocations: could not find %q section", sect.Name)
+		Errorf("emitRelocations: could not find %q section", sect.Name)
 	}
 }
 
@@ -1784,10 +1772,7 @@ func xcoffCreateExportFile(ctxt *Link) (fname string) {
 	var buf bytes.Buffer
 
 	ldr := ctxt.loader
-	for s, nsym := loader.Sym(1), loader.Sym(ldr.NSym()); s < nsym; s++ {
-		if !ldr.AttrCgoExport(s) {
-			continue
-		}
+	for s := range ldr.ForAllCgoExportStatic() {
 		extname := ldr.SymExtname(s)
 		if !strings.HasPrefix(extname, "._cgoexp_") {
 			continue
@@ -1805,9 +1790,9 @@ func xcoffCreateExportFile(ctxt *Link) (fname string) {
 		buf.Write([]byte(name + "\n"))
 	}
 
-	err := ioutil.WriteFile(fname, buf.Bytes(), 0666)
+	err := os.WriteFile(fname, buf.Bytes(), 0666)
 	if err != nil {
-		Errorf(nil, "WriteFile %s failed: %v", fname, err)
+		Errorf("WriteFile %s failed: %v", fname, err)
 	}
 
 	return fname

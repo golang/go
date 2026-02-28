@@ -11,7 +11,6 @@ GOARCH=amd64 go tool cgo -godefs defs_openbsd.go
 GOARCH=386 go tool cgo -godefs defs_openbsd.go
 GOARCH=arm go tool cgo -godefs defs_openbsd.go
 GOARCH=arm64 go tool cgo -godefs defs_openbsd.go
-GOARCH=mips64 go tool cgo -godefs defs_openbsd.go
 */
 
 package runtime
@@ -31,9 +30,10 @@ package runtime
 import "C"
 
 const (
-	EINTR  = C.EINTR
-	EFAULT = C.EFAULT
-	EAGAIN = C.EAGAIN
+	EINTR     = C.EINTR
+	EFAULT    = C.EFAULT
+	EAGAIN    = C.EAGAIN
+	ETIMEDOUT = C.ETIMEDOUT
 
 	O_NONBLOCK = C.O_NONBLOCK
 	O_CLOEXEC  = C.O_CLOEXEC
@@ -48,18 +48,14 @@ const (
 	MAP_FIXED   = C.MAP_FIXED
 	MAP_STACK   = C.MAP_STACK
 
-	MADV_FREE = C.MADV_FREE
+	MADV_DONTNEED = C.MADV_DONTNEED
+	MADV_FREE     = C.MADV_FREE
 
 	SA_SIGINFO = C.SA_SIGINFO
 	SA_RESTART = C.SA_RESTART
 	SA_ONSTACK = C.SA_ONSTACK
 
 	PTHREAD_CREATE_DETACHED = C.PTHREAD_CREATE_DETACHED
-
-	F_SETFD    = C.F_SETFD
-	F_GETFL    = C.F_GETFL
-	F_SETFL    = C.F_SETFL
-	FD_CLOEXEC = C.FD_CLOEXEC
 
 	SIGHUP    = C.SIGHUP
 	SIGINT    = C.SIGINT

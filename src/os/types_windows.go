@@ -5,6 +5,8 @@
 package os
 
 import (
+	"internal/filepathlite"
+	"internal/godebug"
 	"internal/syscall/windows"
 	"sync"
 	"syscall"
@@ -16,7 +18,7 @@ import (
 type fileStat struct {
 	name string
 
-	// from ByHandleFileInformation, Win32FileAttributeData and Win32finddata
+	// from ByHandleFileInformation, Win32FileAttributeData, Win32finddata, and GetFileInformationByHandleEx
 	FileAttributes uint32
 	CreationTime   syscall.Filetime
 	LastAccessTime syscall.Filetime
@@ -24,8 +26,8 @@ type fileStat struct {
 	FileSizeHigh   uint32
 	FileSizeLow    uint32
 
-	// from Win32finddata
-	Reserved0 uint32
+	// from Win32finddata and GetFileInformationByHandleEx
+	ReparseTag uint32
 
 	// what syscall.GetFileType returns
 	filetype uint32
@@ -48,22 +50,18 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 		return nil, &PathError{Op: "GetFileInformationByHandle", Path: path, Err: err}
 	}
 
-	var ti windows.FILE_ATTRIBUTE_TAG_INFO
-	err = windows.GetFileInformationByHandleEx(h, windows.FileAttributeTagInfo, (*byte)(unsafe.Pointer(&ti)), uint32(unsafe.Sizeof(ti)))
-	if err != nil {
-		if errno, ok := err.(syscall.Errno); ok && errno == windows.ERROR_INVALID_PARAMETER {
-			// It appears calling GetFileInformationByHandleEx with
-			// FILE_ATTRIBUTE_TAG_INFO fails on FAT file system with
-			// ERROR_INVALID_PARAMETER. Clear ti.ReparseTag in that
-			// instance to indicate no symlinks are possible.
-			ti.ReparseTag = 0
-		} else {
+	var reparseTag uint32
+	if d.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+		var ti windows.FILE_ATTRIBUTE_TAG_INFO
+		err = windows.GetFileInformationByHandleEx(h, windows.FileAttributeTagInfo, (*byte)(unsafe.Pointer(&ti)), uint32(unsafe.Sizeof(ti)))
+		if err != nil {
 			return nil, &PathError{Op: "GetFileInformationByHandleEx", Path: path, Err: err}
 		}
+		reparseTag = ti.ReparseTag
 	}
 
 	return &fileStat{
-		name:           basename(path),
+		name:           filepathlite.Base(path),
 		FileAttributes: d.FileAttributes,
 		CreationTime:   d.CreationTime,
 		LastAccessTime: d.LastAccessTime,
@@ -73,16 +71,16 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 		vol:            d.VolumeSerialNumber,
 		idxhi:          d.FileIndexHigh,
 		idxlo:          d.FileIndexLow,
-		Reserved0:      ti.ReparseTag,
+		ReparseTag:     reparseTag,
 		// fileStat.path is used by os.SameFile to decide if it needs
 		// to fetch vol, idxhi and idxlo. But these are already set,
 		// so set fileStat.path to "" to prevent os.SameFile doing it again.
 	}, nil
 }
 
-// newFileStatFromWin32finddata copies all required information
-// from syscall.Win32finddata d into the newly created fileStat.
-func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
+// newFileStatFromWin32FileAttributeData copies all required information
+// from syscall.Win32FileAttributeData d into the newly created fileStat.
+func newFileStatFromWin32FileAttributeData(d *syscall.Win32FileAttributeData) *fileStat {
 	return &fileStat{
 		FileAttributes: d.FileAttributes,
 		CreationTime:   d.CreationTime,
@@ -90,35 +88,160 @@ func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
 		LastWriteTime:  d.LastWriteTime,
 		FileSizeHigh:   d.FileSizeHigh,
 		FileSizeLow:    d.FileSizeLow,
-		Reserved0:      d.Reserved0,
 	}
 }
 
-func (fs *fileStat) isSymlink() bool {
-	// Use instructions described at
-	// https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/
-	// to recognize whether it's a symlink.
-	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
-		return false
+// newFileStatFromFileIDBothDirInfo copies all required information
+// from windows.FILE_ID_BOTH_DIR_INFO d into the newly created fileStat.
+func newFileStatFromFileIDBothDirInfo(d *windows.FILE_ID_BOTH_DIR_INFO) *fileStat {
+	// The FILE_ID_BOTH_DIR_INFO MSDN documentations isn't completely correct.
+	// FileAttributes can contain any file attributes that is currently set on the file,
+	// not just the ones documented.
+	// EaSize contains the reparse tag if the file is a reparse point.
+	return &fileStat{
+		FileAttributes: d.FileAttributes,
+		CreationTime:   d.CreationTime,
+		LastAccessTime: d.LastAccessTime,
+		LastWriteTime:  d.LastWriteTime,
+		FileSizeHigh:   uint32(d.EndOfFile >> 32),
+		FileSizeLow:    uint32(d.EndOfFile),
+		ReparseTag:     d.EaSize,
+		idxhi:          uint32(d.FileID >> 32),
+		idxlo:          uint32(d.FileID),
 	}
-	return fs.Reserved0 == syscall.IO_REPARSE_TAG_SYMLINK ||
-		fs.Reserved0 == windows.IO_REPARSE_TAG_MOUNT_POINT
+}
+
+// newFileStatFromFileFullDirInfo copies all required information
+// from windows.FILE_FULL_DIR_INFO d into the newly created fileStat.
+func newFileStatFromFileFullDirInfo(d *windows.FILE_FULL_DIR_INFO) *fileStat {
+	return &fileStat{
+		FileAttributes: d.FileAttributes,
+		CreationTime:   d.CreationTime,
+		LastAccessTime: d.LastAccessTime,
+		LastWriteTime:  d.LastWriteTime,
+		FileSizeHigh:   uint32(d.EndOfFile >> 32),
+		FileSizeLow:    uint32(d.EndOfFile),
+		ReparseTag:     d.EaSize,
+	}
+}
+
+// newFileStatFromWin32finddata copies all required information
+// from syscall.Win32finddata d into the newly created fileStat.
+func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
+	fs := &fileStat{
+		FileAttributes: d.FileAttributes,
+		CreationTime:   d.CreationTime,
+		LastAccessTime: d.LastAccessTime,
+		LastWriteTime:  d.LastWriteTime,
+		FileSizeHigh:   d.FileSizeHigh,
+		FileSizeLow:    d.FileSizeLow,
+	}
+	if d.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+		// Per https://learn.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-win32_find_dataw:
+		// “If the dwFileAttributes member includes the FILE_ATTRIBUTE_REPARSE_POINT
+		// attribute, this member specifies the reparse point tag. Otherwise, this
+		// value is undefined and should not be used.”
+		fs.ReparseTag = d.Reserved0
+	}
+	return fs
+}
+
+// isReparseTagNameSurrogate determines whether a tag's associated
+// reparse point is a surrogate for another named entity (for example, a mounted folder).
+//
+// See https://learn.microsoft.com/en-us/windows/win32/api/winnt/nf-winnt-isreparsetagnamesurrogate
+// and https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-point-tags.
+func (fs *fileStat) isReparseTagNameSurrogate() bool {
+	// True for IO_REPARSE_TAG_SYMLINK and IO_REPARSE_TAG_MOUNT_POINT.
+	return fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 && fs.ReparseTag&0x20000000 != 0
 }
 
 func (fs *fileStat) Size() int64 {
 	return int64(fs.FileSizeHigh)<<32 + int64(fs.FileSizeLow)
 }
 
-func (fs *fileStat) Mode() (m FileMode) {
-	if fs == &devNullStat {
-		return ModeDevice | ModeCharDevice | 0666
+var winsymlink = godebug.New("winsymlink")
+
+func (fs *fileStat) Mode() FileMode {
+	m := fs.mode()
+	if winsymlink.Value() == "0" {
+		old := fs.modePreGo1_23()
+		if old != m {
+			winsymlink.IncNonDefault()
+			m = old
+		}
 	}
+	return m
+}
+
+func (fs *fileStat) mode() (m FileMode) {
 	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_READONLY != 0 {
 		m |= 0444
 	} else {
 		m |= 0666
 	}
-	if fs.isSymlink() {
+
+	// Windows reports the FILE_ATTRIBUTE_DIRECTORY bit for reparse points
+	// that refer to directories, such as symlinks and mount points.
+	// However, we follow symlink POSIX semantics and do not set the mode bits.
+	// This allows users to walk directories without following links
+	// by just calling "fi, err := os.Lstat(name); err == nil && fi.IsDir()".
+	// Note that POSIX only defines the semantics for symlinks, not for
+	// mount points or other surrogate reparse points, but we treat them
+	// the same way for consistency. Also, mount points can contain infinite
+	// loops, so it is not safe to walk them without special handling.
+	if !fs.isReparseTagNameSurrogate() {
+		if fs.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
+			m |= ModeDir | 0111
+		}
+
+		switch fs.filetype {
+		case syscall.FILE_TYPE_PIPE:
+			m |= ModeNamedPipe
+		case syscall.FILE_TYPE_CHAR:
+			m |= ModeDevice | ModeCharDevice
+		}
+	}
+
+	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+		switch fs.ReparseTag {
+		case syscall.IO_REPARSE_TAG_SYMLINK:
+			m |= ModeSymlink
+		case windows.IO_REPARSE_TAG_AF_UNIX:
+			m |= ModeSocket
+		case windows.IO_REPARSE_TAG_DEDUP:
+			// If the Data Deduplication service is enabled on Windows Server, its
+			// Optimization job may convert regular files to IO_REPARSE_TAG_DEDUP
+			// whenever that job runs.
+			//
+			// However, DEDUP reparse points remain similar in most respects to
+			// regular files: they continue to support random-access reads and writes
+			// of persistent data, and they shouldn't add unexpected latency or
+			// unavailability in the way that a network filesystem might.
+			//
+			// Go programs may use ModeIrregular to filter out unusual files (such as
+			// raw device files on Linux, POSIX FIFO special files, and so on), so
+			// to avoid files changing unpredictably from regular to irregular we will
+			// consider DEDUP files to be close enough to regular to treat as such.
+		default:
+			m |= ModeIrregular
+		}
+	}
+	return
+}
+
+// modePreGo1_23 returns the FileMode for the fileStat, using the pre-Go 1.23
+// logic for determining the file mode.
+// The logic is subtle and not well-documented, so it is better to keep it
+// separate from the new logic.
+func (fs *fileStat) modePreGo1_23() (m FileMode) {
+	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_READONLY != 0 {
+		m |= 0444
+	} else {
+		m |= 0666
+	}
+	if fs.ReparseTag == syscall.IO_REPARSE_TAG_SYMLINK ||
+		fs.ReparseTag == windows.IO_REPARSE_TAG_MOUNT_POINT {
 		return m | ModeSymlink
 	}
 	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
@@ -129,6 +252,18 @@ func (fs *fileStat) Mode() (m FileMode) {
 		m |= ModeNamedPipe
 	case syscall.FILE_TYPE_CHAR:
 		m |= ModeDevice | ModeCharDevice
+	}
+	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+		if fs.ReparseTag == windows.IO_REPARSE_TAG_AF_UNIX {
+			m |= ModeSocket
+		}
+		if m&ModeType == 0 {
+			if fs.ReparseTag == windows.IO_REPARSE_TAG_DEDUP {
+				// See comment in fs.Mode.
+			} else {
+				m |= ModeIrregular
+			}
+		}
 	}
 	return m
 }
@@ -158,7 +293,7 @@ func (fs *fileStat) loadFileId() error {
 	}
 	var path string
 	if fs.appendNameToPath {
-		path = fs.path + `\` + fs.name
+		path = fixLongPath(fs.path + `\` + fs.name)
 	} else {
 		path = fs.path
 	}
@@ -166,12 +301,23 @@ func (fs *fileStat) loadFileId() error {
 	if err != nil {
 		return err
 	}
-	attrs := uint32(syscall.FILE_FLAG_BACKUP_SEMANTICS)
-	if fs.isSymlink() {
-		// Use FILE_FLAG_OPEN_REPARSE_POINT, otherwise CreateFile will follow symlink.
-		// See https://docs.microsoft.com/en-us/windows/desktop/FileIO/symbolic-link-effects-on-file-systems-functions#createfile-and-createfiletransacted
-		attrs |= syscall.FILE_FLAG_OPEN_REPARSE_POINT
-	}
+
+	// Per https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-points-and-file-operations,
+	// “Applications that use the CreateFile function should specify the
+	// FILE_FLAG_OPEN_REPARSE_POINT flag when opening the file if it is a reparse
+	// point.”
+	//
+	// And per https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew,
+	// “If the file is not a reparse point, then this flag is ignored.”
+	//
+	// So we set FILE_FLAG_OPEN_REPARSE_POINT unconditionally, since we want
+	// information about the reparse point itself.
+	//
+	// If the file is a symlink, the symlink target should have already been
+	// resolved when the fileStat was created, so we don't need to worry about
+	// resolving symlink reparse points again here.
+	attrs := uint32(syscall.FILE_FLAG_BACKUP_SEMANTICS | syscall.FILE_FLAG_OPEN_REPARSE_POINT)
+
 	h, err := syscall.CreateFile(pathp, 0, 0, nil, syscall.OPEN_EXISTING, attrs, 0)
 	if err != nil {
 		return err
@@ -193,24 +339,15 @@ func (fs *fileStat) loadFileId() error {
 // and set name from path.
 func (fs *fileStat) saveInfoFromPath(path string) error {
 	fs.path = path
-	if !isAbs(fs.path) {
+	if !filepathlite.IsAbs(fs.path) {
 		var err error
 		fs.path, err = syscall.FullPath(fs.path)
 		if err != nil {
 			return &PathError{Op: "FullPath", Path: path, Err: err}
 		}
 	}
-	fs.name = basename(path)
+	fs.name = filepathlite.Base(path)
 	return nil
-}
-
-// devNullStat is fileStat structure describing DevNull file ("NUL").
-var devNullStat = fileStat{
-	name: DevNull,
-	// hopefully this will work for SameFile
-	vol:   0,
-	idxhi: 0,
-	idxlo: 0,
 }
 
 func sameFile(fs1, fs2 *fileStat) bool {

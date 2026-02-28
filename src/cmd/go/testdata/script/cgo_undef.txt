@@ -23,9 +23,17 @@
 cc -c -o a/b.syso b/b.c
 cc -c -o b/lib.o b/lib.c
 exec ar rc a/libb.a b/lib.o
+
 go build
+! stderr 'undefined reference'
+
 ! go build -ldflags=-linkmode=internal
 stderr 'some packages could not be built to support internal linking.*m/c|requires external linking|does not support internal cgo'
+
+# Test for issue #68743.
+go build -x m/d
+! stderr 'undefined reference'
+stderr 'test for internal linking'
 
 -- go.mod --
 module m
@@ -48,6 +56,19 @@ int LibFn(int i) { return i; }
 
 -- c/c.go --
 package c
+
+// static int D(int i) { return i; }
+import "C"
+
+import "m/a"
+
+func Fn(i int) (int, int) {
+     return a.GoFn(i), int(C.D(C.int(i)))
+}
+
+-- d/d.go --
+// Package d is a copy of package c, to build with -x.
+package d
 
 // static int D(int i) { return i; }
 import "C"

@@ -32,22 +32,22 @@
 package ld
 
 import (
-	"cmd/internal/goobj"
-	"cmd/link/internal/loader"
-	"cmd/link/internal/sym"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"cmd/internal/goobj"
+	"cmd/link/internal/loader"
+	"cmd/link/internal/sym"
 )
 
 func (ctxt *Link) readImportCfg(file string) {
 	ctxt.PackageFile = make(map[string]string)
 	ctxt.PackageShlib = make(map[string]string)
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		log.Fatalf("-importcfg: %v", err)
 	}
@@ -62,15 +62,13 @@ func (ctxt *Link) readImportCfg(file string) {
 			continue
 		}
 
-		var verb, args string
-		if i := strings.Index(line, " "); i < 0 {
-			verb = line
-		} else {
-			verb, args = line[:i], strings.TrimSpace(line[i+1:])
+		verb, args, found := strings.Cut(line, " ")
+		if found {
+			args = strings.TrimSpace(args)
 		}
-		var before, after string
-		if i := strings.Index(args, "="); i >= 0 {
-			before, after = args[:i], args[i+1:]
+		before, after, exist := strings.Cut(args, "=")
+		if !exist {
+			before = ""
 		}
 		switch verb {
 		default:
@@ -196,9 +194,9 @@ func addlibpath(ctxt *Link, srcref, objref, file, pkg, shlib string, fingerprint
 	l.Fingerprint = fingerprint
 	if shlib != "" {
 		if strings.HasSuffix(shlib, ".shlibname") {
-			data, err := ioutil.ReadFile(shlib)
+			data, err := os.ReadFile(shlib)
 			if err != nil {
-				Errorf(nil, "cannot read %s: %v", shlib, err)
+				Errorf("cannot read %s: %v", shlib, err)
 			}
 			shlib = strings.TrimSpace(string(data))
 		}
@@ -223,7 +221,7 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
 		return nil, 0
 	}
 	amd := ctxt.loader.LookupOrCreateSym("runtime.addmoduledata", 0)
-	if ctxt.loader.SymType(amd) == sym.STEXT && ctxt.BuildMode != BuildModePlugin {
+	if ctxt.loader.SymType(amd).IsText() && ctxt.BuildMode != BuildModePlugin {
 		// we're linking a module containing the runtime -> no need for
 		// an init function
 		return nil, 0
@@ -232,7 +230,7 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
 
 	// Create a new init func text symbol. Caller will populate this
 	// sym with arch-specific content.
-	ifs := ctxt.loader.LookupOrCreateSym("go.link.addmoduledata", 0)
+	ifs := ctxt.loader.LookupOrCreateSym("go:link.addmoduledata", 0)
 	initfunc := ctxt.loader.MakeSymbolUpdater(ifs)
 	ctxt.loader.SetAttrReachable(ifs, true)
 	ctxt.loader.SetAttrLocal(ifs, true)
@@ -245,7 +243,7 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
 	ctxt.Textp = append(ctxt.Textp, initfunc.Sym())
 
 	// Create an init array entry
-	amdi := ctxt.loader.LookupOrCreateSym("go.link.addmoduledatainit", 0)
+	amdi := ctxt.loader.LookupOrCreateSym("go:link.addmoduledatainit", 0)
 	initarray_entry := ctxt.loader.MakeSymbolUpdater(amdi)
 	ctxt.loader.SetAttrReachable(amdi, true)
 	ctxt.loader.SetAttrLocal(amdi, true)

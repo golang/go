@@ -1,8 +1,0 @@
-[!net] skip
-[!exec:git] skip
-env GO111MODULE=off
-
-! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
-
-env GOINSECURE=insecure.go-get-issue-15410.appspot.com
-go get -d insecure.go-get-issue-15410.appspot.com/pkg/p

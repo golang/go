@@ -36,10 +36,10 @@ __attribute__((constructor)) void issue9456() {
 	}
 }
 
-void **nullptr;
+void **nullpointer;
 
 void *crash(void *p) {
-	*nullptr = p;
+	*nullpointer = p;
 	return 0;
 }
 
@@ -92,7 +92,9 @@ func CgoExternalThreadSignal() {
 		return
 	}
 
-	out, err := exec.Command(os.Args[0], "CgoExternalThreadSignal", "crash").CombinedOutput()
+	cmd := exec.Command(os.Args[0], "CgoExternalThreadSignal", "crash")
+	cmd.Dir = os.TempDir() // put any core file in tempdir
+	out, err := cmd.CombinedOutput()
 	if err == nil {
 		fmt.Println("C signal did not crash as expected")
 		fmt.Printf("\n%s\n", out)

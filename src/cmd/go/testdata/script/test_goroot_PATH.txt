@@ -4,12 +4,12 @@
 
 [short] skip
 
-[!plan9] env PATH=
-[plan9] env path=
+[!GOOS:plan9] env PATH=
+[GOOS:plan9] env path=
 go test .
 
-[!plan9] env PATH=$WORK${/}bin
-[plan9] env path=$WORK${/}bin
+[!GOOS:plan9] env PATH=$WORK${/}bin
+[GOOS:plan9] env path=$WORK${/}bin
 go test .
 
 -- go.mod --

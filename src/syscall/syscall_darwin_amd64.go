@@ -24,7 +24,7 @@ func setTimeval(sec, usec int64) Timeval {
 //sys	Stat(path string, stat *Stat_t) (err error) = SYS_stat64
 //sys	Statfs(path string, stat *Statfs_t) (err error) = SYS_statfs64
 //sys   fstatat(fd int, path string, stat *Stat_t, flags int) (err error) = SYS_fstatat64
-//sys   ptrace1(request int, pid int, addr uintptr, data uintptr) (err error) = SYS_ptrace
+//sys   ptrace(request int, pid int, addr uintptr, data uintptr) (err error)
 
 func SetKevent(k *Kevent_t, fd, mode, flags int) {
 	k.Ident = uint64(fd)
@@ -60,8 +60,5 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 func libc_sendfile_trampoline()
 
 //go:cgo_import_dynamic libc_sendfile sendfile "/usr/lib/libSystem.B.dylib"
-
-// Implemented in the runtime package (runtime/sys_darwin_64.go)
-func syscallX(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 
 func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)

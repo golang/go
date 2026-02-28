@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"text/scanner"
 	"unicode/utf8"
 
@@ -20,32 +21,35 @@ import (
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
+	"cmd/internal/obj/riscv"
 	"cmd/internal/obj/x86"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 )
 
 type Parser struct {
-	lex              lex.TokenReader
-	lineNum          int   // Line number in source file.
-	errorLine        int   // Line number of last error.
-	errorCount       int   // Number of errors.
-	sawCode          bool  // saw code in this file (as opposed to comments and blank lines)
-	pc               int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
-	input            []lex.Token
-	inputPos         int
-	pendingLabels    []string // Labels to attach to next instruction.
-	labels           map[string]*obj.Prog
-	toPatch          []Patch
-	addr             []obj.Addr
-	arch             *arch.Arch
-	ctxt             *obj.Link
-	firstProg        *obj.Prog
-	lastProg         *obj.Prog
-	dataAddr         map[string]int64 // Most recent address for DATA for this symbol.
-	isJump           bool             // Instruction being assembled is a jump.
-	compilingRuntime bool
-	errorWriter      io.Writer
+	lex           lex.TokenReader
+	lineNum       int   // Line number in source file.
+	errorLine     int   // Line number of last error.
+	errorCount    int   // Number of errors.
+	sawCode       bool  // saw code in this file (as opposed to comments and blank lines)
+	pc            int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
+	input         []lex.Token
+	inputPos      int
+	pendingLabels []string // Labels to attach to next instruction.
+	labels        map[string]*obj.Prog
+	toPatch       []Patch
+	addr          []obj.Addr
+	arch          *arch.Arch
+	ctxt          *obj.Link
+	firstProg     *obj.Prog
+	lastProg      *obj.Prog
+	dataAddr      map[string]int64 // Most recent address for DATA for this symbol.
+	isJump        bool             // Instruction being assembled is a jump.
+	allowABI      bool             // Whether ABI selectors are allowed.
+	pkgPrefix     string           // Prefix to add to local symbols.
+	errorWriter   io.Writer
 }
 
 type Patch struct {
@@ -53,15 +57,20 @@ type Patch struct {
 	label string
 }
 
-func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader, compilingRuntime bool) *Parser {
+func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
+	pkgPrefix := obj.UnlinkablePkg
+	if ctxt != nil {
+		pkgPrefix = objabi.PathToPrefix(ctxt.Pkgpath)
+	}
 	return &Parser{
-		ctxt:             ctxt,
-		arch:             ar,
-		lex:              lexer,
-		labels:           make(map[string]*obj.Prog),
-		dataAddr:         make(map[string]int64),
-		errorWriter:      os.Stderr,
-		compilingRuntime: compilingRuntime,
+		ctxt:        ctxt,
+		arch:        ar,
+		lex:         lexer,
+		labels:      make(map[string]*obj.Prog),
+		dataAddr:    make(map[string]int64),
+		errorWriter: os.Stderr,
+		allowABI:    ctxt != nil && objabi.LookupPkgSpecial(ctxt.Pkgpath).AllowAsmABI,
+		pkgPrefix:   pkgPrefix,
 	}
 }
 
@@ -69,7 +78,7 @@ func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader, compilingRu
 // and turn it into a recoverable panic.
 var panicOnError bool
 
-func (p *Parser) errorf(format string, args ...interface{}) {
+func (p *Parser) errorf(format string, args ...any) {
 	if panicOnError {
 		panic(fmt.Errorf(format, args...))
 	}
@@ -81,7 +90,7 @@ func (p *Parser) errorf(format string, args ...interface{}) {
 	if p.lex != nil {
 		// Put file and line information on head of message.
 		format = "%s:%d: " + format + "\n"
-		args = append([]interface{}{p.lex.File(), p.lineNum}, args...)
+		args = append([]any{p.lex.File(), p.lineNum}, args...)
 	}
 	fmt.Fprintf(p.errorWriter, format, args...)
 	p.errorCount++
@@ -209,8 +218,8 @@ next:
 		for {
 			tok = p.nextToken()
 			if len(operands) == 0 && len(items) == 0 {
-				if p.arch.InFamily(sys.ARM, sys.ARM64, sys.AMD64, sys.I386) && tok == '.' {
-					// Suffixes: ARM conditionals or x86 modifiers.
+				if p.arch.InFamily(sys.ARM, sys.ARM64, sys.AMD64, sys.I386, sys.Loong64, sys.RISCV64) && tok == '.' {
+					// Suffixes: ARM conditionals, Loong64 vector instructions, RISCV rounding mode or x86 modifiers.
 					tok = p.nextToken()
 					str := p.lex.Text()
 					if tok != scanner.Ident {
@@ -390,18 +399,23 @@ func (p *Parser) operand(a *obj.Addr) {
 	tok := p.next()
 	name := tok.String()
 	if tok.ScanToken == scanner.Ident && !p.atStartOfRegister(name) {
+		// See if this is an architecture specific special operand.
 		switch p.arch.Family {
 		case sys.ARM64:
-			// arm64 special operands.
-			if opd := arch.GetARM64SpecialOperand(name); opd != arm64.SPOP_END {
+			if opd := arch.ARM64SpecialOperand(name); opd != arm64.SPOP_END {
 				a.Type = obj.TYPE_SPECIAL
 				a.Offset = int64(opd)
-				break
 			}
-			fallthrough
-		default:
+		case sys.RISCV64:
+			if opd := arch.RISCV64SpecialOperand(name); opd != riscv.SPOP_END {
+				a.Type = obj.TYPE_SPECIAL
+				a.Offset = int64(opd)
+			}
+		}
+
+		if a.Type != obj.TYPE_SPECIAL {
 			// We have a symbol. Parse $sym±offset(symkind)
-			p.symbolReference(a, name, prefix)
+			p.symbolReference(a, p.qualifySymbol(name), prefix)
 		}
 		// fmt.Printf("SYM %s\n", obj.Dconv(&emptyProg, 0, a))
 		if p.peek() == scanner.EOF {
@@ -562,15 +576,13 @@ func (p *Parser) atRegisterShift() bool {
 // atRegisterExtension reports whether we are at the start of an ARM64 extended register.
 // We have consumed the register or R prefix.
 func (p *Parser) atRegisterExtension() bool {
-	// ARM64 only.
-	if p.arch.Family != sys.ARM64 {
+	switch p.arch.Family {
+	case sys.ARM64, sys.Loong64:
+		// R1.xxx
+		return p.peek() == '.'
+	default:
 		return false
 	}
-	// R1.xxx
-	if p.peek() == '.' {
-		return true
-	}
-	return false
 }
 
 // registerReference parses a register given either the name, R10, or a parenthesized form, SPR(10).
@@ -703,7 +715,7 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
 	if p.arch.Family == sys.ARM64 {
 		off, err := arch.ARM64RegisterShift(r1, op, count)
 		if err != nil {
-			p.errorf(err.Error())
+			p.errorf("%v", err)
 		}
 		return off
 	} else {
@@ -763,13 +775,28 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
 
 	switch p.arch.Family {
 	case sys.ARM64:
-		err := arch.ARM64RegisterExtension(a, ext, reg, num, isAmount, isIndex)
+		err := arm64.EncodeRegisterExtension(a, ext, reg, num, isAmount, isIndex)
 		if err != nil {
-			p.errorf(err.Error())
+			p.errorf("%v", err)
+		}
+	case sys.Loong64:
+		err := arch.Loong64RegisterExtension(a, ext, reg, num, isAmount, isIndex)
+		if err != nil {
+			p.errorf("%v", err)
 		}
 	default:
 		p.errorf("register extension not supported on this architecture")
 	}
+}
+
+// qualifySymbol returns name as a package-qualified symbol name. If
+// name starts with a period, qualifySymbol prepends the package
+// prefix. Otherwise it returns name unchanged.
+func (p *Parser) qualifySymbol(name string) string {
+	if strings.HasPrefix(name, ".") {
+		name = p.pkgPrefix + name
+	}
+	return name
 }
 
 // symbolReference parses a symbol that is known not to be a register.
@@ -867,7 +894,7 @@ func (p *Parser) symRefAttrs(name string, issueError bool) (bool, obj.ABI) {
 		isStatic = true
 	} else if tok == scanner.Ident {
 		abistr := p.get(scanner.Ident).String()
-		if !p.compilingRuntime {
+		if !p.allowABI {
 			if issueError {
 				p.errorf("ABI selector only permitted when compiling runtime, reference was to %q", name)
 			}
@@ -904,6 +931,7 @@ func (p *Parser) funcAddress() (string, obj.ABI, bool) {
 	if tok.ScanToken != scanner.Ident || p.atStartOfRegister(name) {
 		return "", obj.ABI0, false
 	}
+	name = p.qualifySymbol(name)
 	// Parse optional <> (indicates a static symbol) or
 	// <ABIxxx> (selecting text symbol with specific ABI).
 	noErrMsg := false
@@ -931,7 +959,7 @@ func (p *Parser) funcAddress() (string, obj.ABI, bool) {
 }
 
 // registerIndirect parses the general form of a register indirection.
-// It is can be (R1), (R2*scale), (R1)(R2*scale), (R1)(R2.SXTX<<3) or (R1)(R2<<3)
+// It can be (R1), (R2*scale), (R1)(R2*scale), (R1)(R2.SXTX<<3) or (R1)(R2<<3)
 // where R1 may be a simple register or register pair R:R or (R, R) or (R+R).
 // Or it might be a pseudo-indirection like (FP).
 // We are sitting on the opening parenthesis.
@@ -975,13 +1003,13 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 			return
 		}
 		if p.arch.Family == sys.PPC64 {
-			// Special form for PPC64: (R1+R2); alias for (R1)(R2*1).
+			// Special form for PPC64: (R1+R2); alias for (R1)(R2).
 			if prefix != 0 || scale != 0 {
 				p.errorf("illegal address mode for register+register")
 				return
 			}
 			a.Type = obj.TYPE_MEM
-			a.Scale = 1
+			a.Scale = 0
 			a.Index = r2
 			// Nothing may follow.
 			return
@@ -1014,9 +1042,10 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 				p.errorf("unimplemented two-register form")
 			}
 			a.Index = r1
-			if scale != 0 && scale != 1 && p.arch.Family == sys.ARM64 {
+			if scale != 0 && scale != 1 && (p.arch.Family == sys.ARM64 ||
+				p.arch.Family == sys.PPC64) {
 				// Support (R1)(R2) (no scaling) and (R1)(R2*1).
-				p.errorf("arm64 doesn't support scaled register format")
+				p.errorf("%s doesn't support scaled register format", p.arch.Name)
 			} else {
 				a.Scale = int16(scale)
 			}
@@ -1100,7 +1129,7 @@ ListLoop:
 			ext := tok.String()
 			curArrangement, err := arch.ARM64RegisterArrangement(reg, name, ext)
 			if err != nil {
-				p.errorf(err.Error())
+				p.errorf("%v", err)
 			}
 			if firstReg == -1 {
 				// only record the first register and arrangement
@@ -1145,13 +1174,13 @@ ListLoop:
 	case sys.ARM:
 		a.Offset = int64(bits)
 	case sys.ARM64:
-		offset, err := arch.ARM64RegisterListOffset(firstReg, regCnt, arrangement)
+		offset, err := arm64.RegisterListOffset(firstReg, regCnt, arrangement)
 		if err != nil {
-			p.errorf(err.Error())
+			p.errorf("%v", err)
 		}
 		a.Offset = offset
 	default:
-		p.errorf("register list not supported on this architecuture")
+		p.errorf("register list not supported on this architecture")
 	}
 }
 
@@ -1188,7 +1217,7 @@ func (p *Parser) registerListX86(a *obj.Addr) {
 	a.Offset = x86.EncodeRegisterRange(lo, hi)
 }
 
-// register number is ARM-specific. It returns the number of the specified register.
+// registerNumber is ARM-specific. It returns the number of the specified register.
 func (p *Parser) registerNumber(name string) uint16 {
 	if p.arch.Family == sys.ARM && name == "g" {
 		return 10

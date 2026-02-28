@@ -21,16 +21,15 @@ import (
 
 func mkParamResultField(t *types.Type, s *types.Sym, which ir.Class) *types.Field {
 	field := types.NewField(src.NoXPos, s, t)
-	n := typecheck.NewName(s)
+	n := ir.NewNameAt(src.NoXPos, s, t)
 	n.Class = which
 	field.Nname = n
-	n.SetType(t)
 	return field
 }
 
 // mkstruct is a helper routine to create a struct type with fields
 // of the types specified in 'fieldtypes'.
-func mkstruct(fieldtypes []*types.Type) *types.Type {
+func mkstruct(fieldtypes ...*types.Type) *types.Type {
 	fields := make([]*types.Field, len(fieldtypes))
 	for k, t := range fieldtypes {
 		if t == nil {
@@ -39,7 +38,7 @@ func mkstruct(fieldtypes []*types.Type) *types.Type {
 		f := types.NewField(src.NoXPos, nil, t)
 		fields[k] = f
 	}
-	s := types.NewStruct(types.LocalPkg, fields)
+	s := types.NewStruct(fields)
 	return s
 }
 
@@ -57,7 +56,7 @@ func mkFuncType(rcvr *types.Type, ins []*types.Type, outs []*types.Type) *types.
 	if rcvr != nil {
 		rf = mkParamResultField(rcvr, q, ir.PPARAM)
 	}
-	return types.NewSignature(types.LocalPkg, rf, nil, inf, outf)
+	return types.NewSignature(rf, inf, outf)
 }
 
 type expectedDump struct {
@@ -77,7 +76,7 @@ func tokenize(src string) []string {
 }
 
 func verifyParamResultOffset(t *testing.T, f *types.Field, r abi.ABIParamAssignment, which string, idx int) int {
-	n := ir.AsNode(f.Nname).(*ir.Name)
+	n := f.Nname.(*ir.Name)
 	if n.FrameOffset() != int64(r.Offset()) {
 		t.Errorf("%s %d: got offset %d wanted %d t=%v",
 			which, idx, r.Offset(), n.Offset_, f.Type)

@@ -10,8 +10,8 @@ stdout BenchmarkSimple
 
 # Examples
 go test -list=Example
-stdout ExampleSimple
-stdout ExampleWithEmptyOutput
+stdout Example_simple
+stdout Example_withEmptyOutput
 
 -- go.mod --
 module m
@@ -39,19 +39,19 @@ import (
 	"fmt"
 )
 
-func ExampleSimple() {
+func Example_simple() {
 	fmt.Println("Test with Output.")
 
 	// Output: Test with Output.
 }
 
-func ExampleWithEmptyOutput() {
+func Example_withEmptyOutput() {
 	fmt.Println("")
 
 	// Output:
 }
 
-func ExampleNoOutput() {
+func Example_noOutput() {
 	_ = fmt.Sprint("Test with no output")
 }
 -- test_test.go --

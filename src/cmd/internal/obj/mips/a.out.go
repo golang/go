@@ -245,7 +245,7 @@ var MIPSDWARFRegisters = map[int16]int16{}
 func init() {
 	// f assigns dwarfregisters[from:to] = (base):(to-from+base)
 	f := func(from, to, base int16) {
-		for r := int16(from); r <= to; r++ {
+		for r := from; r <= to; r++ {
 			MIPSDWARFRegisters[r] = (r - from) + base
 		}
 	}
@@ -275,6 +275,7 @@ const (
 	NSCHED = 20
 )
 
+//go:generate go run ../mkcnames.go -i a.out.go -o anames0.go -p mips
 const (
 	C_NONE = iota
 	C_REG
@@ -394,6 +395,8 @@ const (
 	AROTRV
 	ASC
 	ASCV
+	ASEB
+	ASEH
 	ASGT
 	ASGTU
 	ASLL
@@ -415,6 +418,7 @@ const (
 	ATLBWR
 	ATNE
 	AWORD
+	AWSBH
 	AXOR
 
 	/* 64-bit */
@@ -434,6 +438,8 @@ const (
 	AADDVU
 	ASUBV
 	ASUBVU
+	ADSBH
+	ADSHD
 
 	/* 64-bit FP */
 	ATRUNCFV

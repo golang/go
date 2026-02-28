@@ -7,7 +7,7 @@
 package syscall
 
 import (
-	"internal/itoa"
+	"internal/strconv"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -69,7 +69,7 @@ func StringSlicePtr(ss []string) []*byte {
 
 // SlicePtrFromStrings converts a slice of strings to a slice of
 // pointers to NUL-terminated byte arrays. If any string contains
-// a NUL byte, it returns (nil, EINVAL).
+// a NUL byte, it returns (nil, [EINVAL]).
 func SlicePtrFromStrings(ss []string) ([]*byte, error) {
 	var err error
 	bb := make([]*byte, len(ss)+1)
@@ -135,6 +135,8 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 		errbuf   [ERRMAX]byte
 		statbuf  [STATMAX]byte
 		dupdevfd int
+		n        int
+		b        []byte
 	)
 
 	// Guard against side effects of shuffling fds below.
@@ -177,14 +179,14 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 dirloop:
 	for {
 		r1, _, _ = RawSyscall6(SYS_PREAD, uintptr(dupdevfd), uintptr(unsafe.Pointer(&statbuf[0])), uintptr(len(statbuf)), ^uintptr(0), ^uintptr(0), 0)
-		n := int(r1)
+		n = int(r1)
 		switch n {
 		case -1:
 			goto childerror
 		case 0:
 			break dirloop
 		}
-		for b := statbuf[:n]; len(b) > 0; {
+		for b = statbuf[:n]; len(b) > 0; {
 			var s []byte
 			s, b = gdirname(b)
 			if s == nil {
@@ -245,7 +247,7 @@ dirloop:
 		nextfd++
 	}
 	for i = 0; i < len(fd); i++ {
-		if fd[i] >= 0 && fd[i] < int(i) {
+		if fd[i] >= 0 && fd[i] < i {
 			if nextfd == pipe { // don't stomp on pipe
 				nextfd++
 			}
@@ -265,7 +267,7 @@ dirloop:
 			RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
 			continue
 		}
-		if fd[i] == int(i) {
+		if fd[i] == i {
 			continue
 		}
 		r1, _, _ = RawSyscall(SYS_DUP, uintptr(fd[i]), uintptr(i), 0)
@@ -276,7 +278,7 @@ dirloop:
 
 	// Pass 3: close fd[i] if it was moved in the previous pass.
 	for i = 0; i < len(fd); i++ {
-		if fd[i] >= 0 && fd[i] != int(i) {
+		if fd[i] >= len(fd) {
 			RawSyscall(SYS_CLOSE, uintptr(fd[i]), 0, 0)
 		}
 	}
@@ -325,7 +327,7 @@ func cexecPipe(p []int) error {
 		return e
 	}
 
-	fd, e := Open("#d/"+itoa.Itoa(p[1]), O_RDWR|O_CLOEXEC)
+	fd, e := Open("#d/"+strconv.Itoa(p[1]), O_RDWR|O_CLOEXEC)
 	if e != nil {
 		Close(p[0])
 		Close(p[1])
@@ -526,7 +528,7 @@ func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	return startProcess(argv0, argv, attr)
 }
 
-// StartProcess wraps ForkExec for package os.
+// StartProcess wraps [ForkExec] for package os.
 func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle uintptr, err error) {
 	pid, err = startProcess(argv0, argv, attr)
 	return pid, 0, err
@@ -579,7 +581,7 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 // WaitProcess waits until the pid of a
 // running process is found in the queue of
 // wait messages. It is used in conjunction
-// with ForkExec/StartProcess to wait for a
+// with [ForkExec]/[StartProcess] to wait for a
 // running process to exit.
 func WaitProcess(pid int, w *Waitmsg) (err error) {
 	procs.Lock()

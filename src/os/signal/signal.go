@@ -7,6 +7,7 @@ package signal
 import (
 	"context"
 	"os"
+	"slices"
 	"sync"
 )
 
@@ -53,6 +54,10 @@ func cancel(sigs []os.Signal, action func(int)) {
 	defer handlers.Unlock()
 
 	remove := func(n int) {
+		if n < 0 {
+			return
+		}
+
 		var zerohandler handler
 
 		for c, h := range handlers.m {
@@ -81,7 +86,7 @@ func cancel(sigs []os.Signal, action func(int)) {
 
 // Ignore causes the provided signals to be ignored. If they are received by
 // the program, nothing will happen. Ignore undoes the effect of any prior
-// calls to Notify for the provided signals.
+// calls to [Notify] for the provided signals.
 // If no signals are provided, all incoming signals will be ignored.
 func Ignore(sig ...os.Signal) {
 	cancel(sig, ignoreSignal)
@@ -113,7 +118,7 @@ var (
 //
 // It is allowed to call Notify multiple times with the same channel:
 // each call expands the set of signals sent to that channel.
-// The only way to remove signals from the set is to call Stop.
+// The only way to remove signals from the set is to call [Stop].
 //
 // It is allowed to call Notify multiple times with different channels
 // and the same signals: each channel receives copies of incoming
@@ -126,19 +131,27 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
 	handlers.Lock()
 	defer handlers.Unlock()
 
-	h := handlers.m[c]
-	if h == nil {
-		if handlers.m == nil {
-			handlers.m = make(map[chan<- os.Signal]*handler)
+	// Lazily create the handler. If all of the signals are bogus there is
+	// no need to install a handler at all.
+	getHandler := func() *handler {
+		h := handlers.m[c]
+		if h == nil {
+			if handlers.m == nil {
+				handlers.m = make(map[chan<- os.Signal]*handler)
+			}
+			h = new(handler)
+			handlers.m[c] = h
 		}
-		h = new(handler)
-		handlers.m[c] = h
+
+		return h
 	}
 
 	add := func(n int) {
 		if n < 0 {
 			return
 		}
+
+		h := getHandler()
 		if !h.want(n) {
 			h.set(n)
 			if handlers.ref[n] == 0 {
@@ -167,7 +180,7 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
 	}
 }
 
-// Reset undoes the effect of any prior calls to Notify for the provided
+// Reset undoes the effect of any prior calls to [Notify] for the provided
 // signals.
 // If no signals are provided, all signal handlers will be reset.
 func Reset(sig ...os.Signal) {
@@ -175,7 +188,7 @@ func Reset(sig ...os.Signal) {
 }
 
 // Stop causes package signal to stop relaying incoming signals to c.
-// It undoes the effect of all prior calls to Notify using c.
+// It undoes the effect of all prior calls to [Notify] using c.
 // When Stop returns, it is guaranteed that c will receive no more signals.
 func Stop(c chan<- os.Signal) {
 	handlers.Lock()
@@ -217,7 +230,7 @@ func Stop(c chan<- os.Signal) {
 
 	for i, s := range handlers.stopping {
 		if s.c == c {
-			handlers.stopping = append(handlers.stopping[:i], handlers.stopping[i+1:]...)
+			handlers.stopping = slices.Delete(handlers.stopping, i, i+1)
 			break
 		}
 	}
@@ -264,18 +277,21 @@ func process(sig os.Signal) {
 // when the returned stop function is called, or when the parent context's
 // Done channel is closed, whichever happens first.
 //
-// The stop function unregisters the signal behavior, which, like signal.Reset,
+// The stop function unregisters the signal behavior, which, like [signal.Reset],
 // may restore the default behavior for a given signal. For example, the default
-// behavior of a Go program receiving os.Interrupt is to exit. Calling
+// behavior of a Go program receiving [os.Interrupt] is to exit. Calling
 // NotifyContext(parent, os.Interrupt) will change the behavior to cancel
 // the returned context. Future interrupts received will not trigger the default
 // (exit) behavior until the returned stop function is called.
+//
+// If a signal causes the returned context to be canceled, calling
+// [context.Cause] on it will return an error describing the signal.
 //
 // The stop function releases resources associated with it, so code should
 // call stop as soon as the operations running in this Context complete and
 // signals no longer need to be diverted to the context.
 func NotifyContext(parent context.Context, signals ...os.Signal) (ctx context.Context, stop context.CancelFunc) {
-	ctx, cancel := context.WithCancel(parent)
+	ctx, cancel := context.WithCancelCause(parent)
 	c := &signalCtx{
 		Context: ctx,
 		cancel:  cancel,
@@ -286,8 +302,8 @@ func NotifyContext(parent context.Context, signals ...os.Signal) (ctx context.Co
 	if ctx.Err() == nil {
 		go func() {
 			select {
-			case <-c.ch:
-				c.cancel()
+			case s := <-c.ch:
+				c.cancel(signalError(s.String() + " signal received"))
 			case <-c.Done():
 			}
 		}()
@@ -298,13 +314,13 @@ func NotifyContext(parent context.Context, signals ...os.Signal) (ctx context.Co
 type signalCtx struct {
 	context.Context
 
-	cancel  context.CancelFunc
+	cancel  context.CancelCauseFunc
 	signals []os.Signal
 	ch      chan os.Signal
 }
 
 func (c *signalCtx) stop() {
-	c.cancel()
+	c.cancel(nil)
 	Stop(c.ch)
 }
 
@@ -331,4 +347,10 @@ func (c *signalCtx) String() string {
 	}
 	buf = append(buf, ')')
 	return string(buf)
+}
+
+type signalError string
+
+func (s signalError) Error() string {
+	return string(s)
 }

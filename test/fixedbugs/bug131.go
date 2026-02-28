@@ -8,5 +8,5 @@ package main
 
 func main() {
 	const a uint64 = 10
-	var b int64 = a // ERROR "convert|cannot|incompatible"
+	var _ int64 = a // ERROR "convert|cannot|incompatible"
 }

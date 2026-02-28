@@ -2,13 +2,24 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package plan9obj implements access to Plan 9 a.out object files.
+/*
+Package plan9obj implements access to Plan 9 a.out object files.
+
+# Security
+
+This package is not designed to be hardened against adversarial inputs, and is
+outside the scope of https://go.dev/security/policy. In particular, only basic
+validation is done when parsing object files. As such, care should be taken when
+parsing untrusted inputs, as parsing malformed files may consume significant
+resources, or cause panics.
+*/
 package plan9obj
 
 import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"internal/saferio"
 	"io"
 	"os"
 )
@@ -55,12 +66,7 @@ type Section struct {
 
 // Data reads and returns the contents of the Plan 9 a.out section.
 func (s *Section) Data() ([]byte, error) {
-	dat := make([]byte, s.sr.Size())
-	n, err := s.sr.ReadAt(dat, 0)
-	if n == len(dat) {
-		err = nil
-	}
-	return dat[0:n], err
+	return saferio.ReadDataAt(s.sr, uint64(s.Size), 0)
 }
 
 // Open returns a new ReadSeeker reading the Plan 9 a.out section.
@@ -94,7 +100,7 @@ func (e *formatError) Error() string {
 	return msg
 }
 
-// Open opens the named file using os.Open and prepares it for use as a Plan 9 a.out binary.
+// Open opens the named file using [os.Open] and prepares it for use as a Plan 9 a.out binary.
 func Open(name string) (*File, error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -109,8 +115,8 @@ func Open(name string) (*File, error) {
 	return ff, nil
 }
 
-// Close closes the File.
-// If the File was created using NewFile directly instead of Open,
+// Close closes the [File].
+// If the [File] was created using [NewFile] directly instead of [Open],
 // Close has no effect.
 func (f *File) Close() error {
 	var err error
@@ -130,7 +136,7 @@ func parseMagic(magic []byte) (uint32, error) {
 	return 0, &formatError{0, "bad magic number", magic}
 }
 
-// NewFile creates a new File for accessing a Plan 9 binary in an underlying reader.
+// NewFile creates a new [File] for accessing a Plan 9 binary in an underlying reader.
 // The Plan 9 binary is expected to start at position 0 in the ReaderAt.
 func NewFile(r io.ReaderAt) (*File, error) {
 	sr := io.NewSectionReader(r, 0, 1<<63-1)
@@ -216,6 +222,9 @@ func walksymtab(data []byte, ptrsz int, fn func(sym) error) error {
 			p = p[4:]
 		}
 
+		if len(p) < 1 {
+			return &formatError{len(data), "unexpected EOF", nil}
+		}
 		typ := p[0] & 0x7F
 		s.typ = typ
 		p = p[1:]
@@ -251,7 +260,7 @@ func walksymtab(data []byte, ptrsz int, fn func(sym) error) error {
 	return nil
 }
 
-// NewTable decodes the Go symbol table in data,
+// newTable decodes the Go symbol table in data,
 // returning an in-memory representation.
 func newTable(symtab []byte, ptrsz int) ([]Sym, error) {
 	var n int
@@ -300,7 +309,7 @@ func newTable(symtab []byte, ptrsz int) ([]Sym, error) {
 	return syms, nil
 }
 
-// ErrNoSymbols is returned by File.Symbols if there is no such section
+// ErrNoSymbols is returned by [File.Symbols] if there is no such section
 // in the File.
 var ErrNoSymbols = errors.New("no symbol section")
 

@@ -5,8 +5,7 @@ package wasm
 import "cmd/internal/obj"
 
 var Anames = []string{
-	obj.A_ARCHSPECIFIC: "CallImport",
-	"Get",
+	obj.A_ARCHSPECIFIC: "Get",
 	"Set",
 	"Tee",
 	"Not",
@@ -195,6 +194,16 @@ var Anames = []string{
 	"I64TruncSatF32U",
 	"I64TruncSatF64S",
 	"I64TruncSatF64U",
+	"MemoryInit",
+	"DataDrop",
+	"MemoryCopy",
+	"MemoryFill",
+	"TableInit",
+	"ElemDrop",
+	"TableCopy",
+	"TableGrow",
+	"TableSize",
+	"TableFill",
 	"Last",
 	"RESUMEPOINT",
 	"CALLNORESUME",

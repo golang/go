@@ -98,3 +98,18 @@ func TestIndexNearPageBoundary(t *testing.T) {
 	}
 	q[len(q)-1] = 0
 }
+
+func TestCountNearPageBoundary(t *testing.T) {
+	t.Parallel()
+	b := dangerousSlice(t)
+	for i := range b {
+		c := Count(b[i:], []byte{1})
+		if c != 0 {
+			t.Fatalf("Count(b[%d:], {1})=%d, want 0\n", i, c)
+		}
+		c = Count(b[:i], []byte{0})
+		if c != i {
+			t.Fatalf("Count(b[:%d], {0})=%d, want %d\n", i, c, i)
+		}
+	}
+}

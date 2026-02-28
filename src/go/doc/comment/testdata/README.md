@@ -24,7 +24,7 @@ The remaining files contain the expected output for the named format generated b
 “html” for Printer.HTML, “markdown” for Printer.Markdown, and “text” for Printer.Text.
 The format can also be “dump” for a textual dump of the raw data structures.
 
-The text before the `-- input --` line, if present, is JSON to be unmarshalled
+The text before the `-- input --` line, if present, is JSON to be unmarshaled
 to initialize a comment.Printer. For example, this test case sets the Printer's
 TextWidth field to 20:
 

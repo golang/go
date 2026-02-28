@@ -9,13 +9,16 @@ import "sync/atomic"
 // Note: This is a uint32 rather than a uint64 because the
 // respective 64 bit atomic instructions are not available
 // on all platforms.
-var lastID uint32
+var lastID atomic.Uint32
 
 // nextID returns a value increasing monotonically by 1 with
 // each call, starting with 1. It may be called concurrently.
-func nextID() uint64 { return uint64(atomic.AddUint32(&lastID, 1)) }
+func nextID() uint64 { return uint64(lastID.Add(1)) }
 
-// A TypeParam represents a type parameter type.
+// A TypeParam represents the type of a type parameter in a generic declaration.
+//
+// A TypeParam has a name; use the [TypeParam.Obj] method to access
+// its [TypeName] object.
 type TypeParam struct {
 	check *Checker  // for lazy type bound completion
 	id    uint64    // unique id, for debugging only
@@ -24,12 +27,9 @@ type TypeParam struct {
 	bound Type      // any type, but underlying is eventually *Interface for correct programs (see TypeParam.iface)
 }
 
-// Obj returns the type name for the type parameter t.
-func (t *TypeParam) Obj() *TypeName { return t.obj }
-
 // NewTypeParam returns a new TypeParam. Type parameters may be set on a Named
-// or Signature type by calling SetTypeParams. Setting a type parameter on more
-// than one type will result in a panic.
+// type by calling SetTypeParams. Setting a type parameter on more than one type
+// will result in a panic.
 //
 // The constraint argument can be nil, and set later via SetConstraint. If the
 // constraint is non-nil, it must be fully defined.
@@ -59,6 +59,9 @@ func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
 	return typ
 }
 
+// Obj returns the type name for the type parameter t.
+func (t *TypeParam) Obj() *TypeName { return t.obj }
+
 // Index returns the index of the type param within its param list, or -1 if
 // the type parameter has not yet been bound to a type.
 func (t *TypeParam) Index() int {
@@ -86,6 +89,10 @@ func (t *TypeParam) SetConstraint(bound Type) {
 	t.iface()
 }
 
+// Underlying returns the [underlying type] of the type parameter t, which is
+// the underlying type of its constraint. This type is always an interface.
+//
+// [underlying type]: https://go.dev/ref/spec#Underlying_types.
 func (t *TypeParam) Underlying() Type {
 	return t.iface()
 }
@@ -106,9 +113,9 @@ func (t *TypeParam) iface() *Interface {
 
 	// determine constraint interface
 	var ityp *Interface
-	switch u := under(bound).(type) {
+	switch u := bound.Underlying().(type) {
 	case *Basic:
-		if u == Typ[Invalid] {
+		if !isValid(u) {
 			// error is reported elsewhere
 			return &emptyInterface
 		}
@@ -132,7 +139,7 @@ func (t *TypeParam) iface() *Interface {
 		// pos is used for tracing output; start with the type parameter position.
 		pos := t.obj.pos
 		// use the (original or possibly instantiated) type bound position if we have one
-		if n, _ := bound.(*Named); n != nil {
+		if n := asNamed(bound); n != nil {
 			pos = n.obj.pos
 		}
 		computeInterfaceTypeSet(t.check, pos, ityp)
@@ -148,9 +155,10 @@ func (t *TypeParam) is(f func(*term) bool) bool {
 	return t.iface().typeSet().is(f)
 }
 
-// underIs calls f with the underlying types of the specific type terms
-// of t's constraint and reports whether all calls to f returned true.
-// If there are no specific terms, underIs returns the result of f(nil).
-func (t *TypeParam) underIs(f func(Type) bool) bool {
-	return t.iface().typeSet().underIs(f)
+// typeset reports whether f(t, y) is true for all (type/underlying type) pairs of the
+// specific type terms of t's constraint.
+// If there are no specific terms, typeset returns f(nil, nil).
+// In any case, typeset is guaranteed to call f at least once.
+func (t *TypeParam) typeset(f func(t, u Type) bool) bool {
+	return t.iface().typeSet().all(f)
 }

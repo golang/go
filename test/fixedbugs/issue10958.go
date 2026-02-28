@@ -1,5 +1,6 @@
-// +build !nacl,!js,disabled_see_issue_18589
 // buildrun -t 10  -gcflags=-d=ssa/insert_resched_checks/on,ssa/check/on
+
+//go:build !nacl && !js && disabled_see_issue_18589
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

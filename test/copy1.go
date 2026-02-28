@@ -20,8 +20,8 @@ func main() {
 	_ = copy(si, "hi") // ERROR "have different element types(.*int.*string| int and byte)"
 	_ = copy(si, sf)   // ERROR "have different element types.*int.*float64"
 
-	_ = copy(1, 2)  // ERROR "must be slices; have int, int|expects slice arguments"
-	_ = copy(1, si) // ERROR "first argument to copy should be|expects slice arguments"
-	_ = copy(si, 2) // ERROR "second argument to copy should be|expects slice arguments"
+	_ = copy(1, 2)  // ERROR "must be slices; have int, int|argument must be a slice; have 1"
+	_ = copy(1, si) // ERROR "first argument to copy should be|argument must be a slice; have 1"
+	_ = copy(si, 2) // ERROR "second argument to copy should be|argument must be a slice; have 2"
 
 }

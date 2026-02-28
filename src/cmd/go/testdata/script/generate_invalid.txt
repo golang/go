@@ -6,8 +6,13 @@ go install echo.go
 env PATH=$GOBIN${:}$PATH
 
 # Test go generate for directory with no go files
-go generate ./nogo
+! go generate ./nogo
 ! stdout 'Fail'
+stderr 'no Go files'
+
+# Test go  generate for module which doesn't exist should fail
+! go generate foo.bar/nothing
+stderr 'no required module provides package foo.bar/nothing'
 
 # Test go generate for package where all .go files are excluded by build
 # constraints

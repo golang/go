@@ -51,6 +51,10 @@ func cbPaletted(cb int) bool {
 	return cbP1 <= cb && cb <= cbP8
 }
 
+func cbTrueColor(cb int) bool {
+	return cb == cbTC8 || cb == cbTC16
+}
+
 // Filter type, as per the PNG spec.
 const (
 	ftNone    = 0
@@ -131,13 +135,6 @@ var chunkOrderError = FormatError("chunk out of order")
 type UnsupportedError string
 
 func (e UnsupportedError) Error() string { return "png: unsupported feature: " + string(e) }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
 
 func (d *decoder) parseIHDR(length uint32) error {
 	if length != 13 {
@@ -870,7 +867,7 @@ func (d *decoder) parseIEND(length uint32) error {
 	return d.verifyChecksum()
 }
 
-func (d *decoder) parseChunk() error {
+func (d *decoder) parseChunk(configOnly bool) error {
 	// Read the length and chunk type.
 	if _, err := io.ReadFull(d.r, d.tmp[:8]); err != nil {
 		return err
@@ -898,6 +895,10 @@ func (d *decoder) parseChunk() error {
 			if d.stage != dsSeenPLTE {
 				return chunkOrderError
 			}
+		} else if cbTrueColor(d.cb) {
+			if d.stage != dsSeenIHDR && d.stage != dsSeenPLTE {
+				return chunkOrderError
+			}
 		} else if d.stage != dsSeenIHDR {
 			return chunkOrderError
 		}
@@ -915,6 +916,9 @@ func (d *decoder) parseChunk() error {
 			break
 		}
 		d.stage = dsSeenIDAT
+		if configOnly {
+			return nil
+		}
 		return d.parseIDAT(length)
 	case "IEND":
 		if d.stage != dsSeenIDAT {
@@ -960,7 +964,7 @@ func (d *decoder) checkHeader() error {
 	return nil
 }
 
-// Decode reads a PNG image from r and returns it as an image.Image.
+// Decode reads a PNG image from r and returns it as an [image.Image].
 // The type of Image returned depends on the PNG contents.
 func Decode(r io.Reader) (image.Image, error) {
 	d := &decoder{
@@ -974,7 +978,7 @@ func Decode(r io.Reader) (image.Image, error) {
 		return nil, err
 	}
 	for d.stage != dsSeenIEND {
-		if err := d.parseChunk(); err != nil {
+		if err := d.parseChunk(false); err != nil {
 			if err == io.EOF {
 				err = io.ErrUnexpectedEOF
 			}
@@ -997,21 +1001,26 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 		}
 		return image.Config{}, err
 	}
+
 	for {
-		if err := d.parseChunk(); err != nil {
+		if err := d.parseChunk(true); err != nil {
 			if err == io.EOF {
 				err = io.ErrUnexpectedEOF
 			}
 			return image.Config{}, err
 		}
-		paletted := cbPaletted(d.cb)
-		if d.stage == dsSeenIHDR && !paletted {
-			break
-		}
-		if d.stage == dsSeenPLTE && paletted {
-			break
+
+		if cbPaletted(d.cb) {
+			if d.stage >= dsSeentRNS {
+				break
+			}
+		} else {
+			if d.stage >= dsSeenIHDR {
+				break
+			}
 		}
 	}
+
 	var cm color.Model
 	switch d.cb {
 	case cbG1, cbG2, cbG4, cbG8:

@@ -13,6 +13,7 @@ package dwarf
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"strconv"
 )
 
@@ -33,7 +34,7 @@ type afield struct {
 // a map from entry format ids to their descriptions
 type abbrevTable map[uint32]abbrev
 
-// ParseAbbrev returns the abbreviation table that starts at byte off
+// parseAbbrev returns the abbreviation table that starts at byte off
 // in the .debug_abbrev section.
 func (d *Data) parseAbbrev(off uint64, vers int) (abbrevTable, error) {
 	if m, ok := d.abbrevCache[off]; ok {
@@ -228,7 +229,7 @@ func formToClass(form format, attr Attr, vers int, b *buf) Class {
 	}
 }
 
-// An entry is a sequence of attribute/value pairs.
+// An Entry is a sequence of attribute/value pairs.
 type Entry struct {
 	Offset   Offset // offset of Entry in DWARF info
 	Tag      Tag    // tag (kind of Entry)
@@ -236,7 +237,7 @@ type Entry struct {
 	Field    []Field
 }
 
-// A Field is a single attribute/value pair in an Entry.
+// A Field is a single attribute/value pair in an [Entry].
 //
 // A value can be one of several "attribute classes" defined by DWARF.
 // The Go types corresponding to each class are:
@@ -257,8 +258,8 @@ type Entry struct {
 //	macptr            int64          ClassMacPtr
 //	rangelistptr      int64          ClassRangeListPtr
 //
-// For unrecognized or vendor-defined attributes, Class may be
-// ClassUnknown.
+// For unrecognized or vendor-defined attributes, [Class] may be
+// [ClassUnknown].
 type Field struct {
 	Attr  Attr
 	Val   any
@@ -375,7 +376,7 @@ func (i Class) GoString() string {
 	return "dwarf." + i.String()
 }
 
-// Val returns the value associated with attribute Attr in Entry,
+// Val returns the value associated with attribute [Attr] in [Entry],
 // or nil if there is no such attribute.
 //
 // A common idiom is to merge the check for nil return with
@@ -389,8 +390,8 @@ func (e *Entry) Val(a Attr) any {
 	return nil
 }
 
-// AttrField returns the Field associated with attribute Attr in
-// Entry, or nil if there is no such attribute.
+// AttrField returns the [Field] associated with attribute [Attr] in
+// [Entry], or nil if there is no such attribute.
 func (e *Entry) AttrField(a Attr) *Field {
 	for i, f := range e.Field {
 		if f.Attr == a {
@@ -400,13 +401,14 @@ func (e *Entry) AttrField(a Attr) *Field {
 	return nil
 }
 
-// An Offset represents the location of an Entry within the DWARF info.
-// (See Reader.Seek.)
+// An Offset represents the location of an [Entry] within the DWARF info.
+// (See [Reader.Seek].)
 type Offset uint32
 
 // Entry reads a single entry from buf, decoding
 // according to the given abbreviation table.
-func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry {
+func (b *buf) entry(cu *Entry, u *unit) *Entry {
+	atab, ubase, vers := u.atable, u.base, u.vers
 	off := b.off
 	id := uint32(b.uint())
 	if id == 0 {
@@ -423,16 +425,6 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 		Children: a.children,
 		Field:    make([]Field, len(a.field)),
 	}
-
-	// If we are currently parsing the compilation unit,
-	// we can't evaluate Addrx or Strx until we've seen the
-	// relevant base entry.
-	type delayed struct {
-		idx int
-		off uint64
-		fmt format
-	}
-	var delay []delayed
 
 	resolveStrx := func(strBase, off uint64) string {
 		off += strBase
@@ -530,18 +522,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 				return nil
 			}
 
-			// We have to adjust by the offset of the
-			// compilation unit. This won't work if the
-			// program uses Reader.Seek to skip over the
-			// unit. Not much we can do about that.
-			var addrBase int64
-			if cu != nil {
-				addrBase, _ = cu.Val(AttrAddrBase).(int64)
-			} else if a.tag == TagCompileUnit {
-				delay = append(delay, delayed{i, off, formAddrx})
-				break
-			}
-
+			addrBase := int64(u.addrBase())
 			var err error
 			val, err = b.dwarf.debugAddr(b.format, uint64(addrBase), off)
 			if err != nil {
@@ -573,7 +554,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 		case formData16:
 			val = b.bytes(16)
 		case formSdata:
-			val = int64(b.int())
+			val = b.int()
 		case formUdata:
 			val = int64(b.uint())
 		case formImplicitConst:
@@ -681,18 +662,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 				off *= 4
 			}
 
-			// We have to adjust by the offset of the
-			// compilation unit. This won't work if the
-			// program uses Reader.Seek to skip over the
-			// unit. Not much we can do about that.
-			var strBase int64
-			if cu != nil {
-				strBase, _ = cu.Val(AttrStrOffsetsBase).(int64)
-			} else if a.tag == TagCompileUnit {
-				delay = append(delay, delayed{i, off, formStrx})
-				break
-			}
-
+			strBase := int64(u.strOffsetsBase())
 			val = resolveStrx(uint64(strBase), off)
 
 		case formStrpSup:
@@ -741,18 +711,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 		case formRnglistx:
 			off := b.uint()
 
-			// We have to adjust by the rnglists_base of
-			// the compilation unit. This won't work if
-			// the program uses Reader.Seek to skip over
-			// the unit. Not much we can do about that.
-			var rnglistsBase int64
-			if cu != nil {
-				rnglistsBase, _ = cu.Val(AttrRnglistsBase).(int64)
-			} else if a.tag == TagCompileUnit {
-				delay = append(delay, delayed{i, off, formRnglistx})
-				break
-			}
-
+			rnglistsBase := int64(u.rngListsBase())
 			val = resolveRnglistx(uint64(rnglistsBase), off)
 		}
 
@@ -761,40 +720,14 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 	if b.err != nil {
 		return nil
 	}
-
-	for _, del := range delay {
-		switch del.fmt {
-		case formAddrx:
-			addrBase, _ := e.Val(AttrAddrBase).(int64)
-			val, err := b.dwarf.debugAddr(b.format, uint64(addrBase), del.off)
-			if err != nil {
-				b.err = err
-				return nil
-			}
-			e.Field[del.idx].Val = val
-		case formStrx:
-			strBase, _ := e.Val(AttrStrOffsetsBase).(int64)
-			e.Field[del.idx].Val = resolveStrx(uint64(strBase), del.off)
-			if b.err != nil {
-				return nil
-			}
-		case formRnglistx:
-			rnglistsBase, _ := e.Val(AttrRnglistsBase).(int64)
-			e.Field[del.idx].Val = resolveRnglistx(uint64(rnglistsBase), del.off)
-			if b.err != nil {
-				return nil
-			}
-		}
-	}
-
 	return e
 }
 
-// A Reader allows reading Entry structures from a DWARF “info” section.
-// The Entry structures are arranged in a tree. The Reader's Next function
+// A Reader allows reading [Entry] structures from a DWARF “info” section.
+// The [Entry] structures are arranged in a tree. The [Reader.Next] function
 // return successive entries from a pre-order traversal of the tree.
 // If an entry has children, its Children field will be true, and the children
-// follow, terminated by an Entry with Tag 0.
+// follow, terminated by an [Entry] with [Tag] 0.
 type Reader struct {
 	b            buf
 	d            *Data
@@ -806,7 +739,7 @@ type Reader struct {
 	cu           *Entry // current compilation unit
 }
 
-// Reader returns a new Reader for Data.
+// Reader returns a new Reader for [Data].
 // The reader is positioned at byte offset 0 in the DWARF “info” section.
 func (d *Data) Reader() *Reader {
 	r := &Reader{d: d}
@@ -825,7 +758,7 @@ func (r *Reader) ByteOrder() binary.ByteOrder {
 	return r.b.order
 }
 
-// Seek positions the Reader at offset off in the encoded entry stream.
+// Seek positions the [Reader] at offset off in the encoded entry stream.
 // Offset 0 can be used to denote the first entry.
 func (r *Reader) Seek(off Offset) {
 	d := r.d
@@ -838,6 +771,7 @@ func (r *Reader) Seek(off Offset) {
 		u := &d.unit[0]
 		r.unit = 0
 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
+		r.collectDwarf5BaseOffsets(u)
 		r.cu = nil
 		return
 	}
@@ -853,6 +787,7 @@ func (r *Reader) Seek(off Offset) {
 	u := &d.unit[i]
 	r.unit = i
 	r.b = makeBuf(r.d, u, "info", off, u.data[off-u.off:])
+	r.collectDwarf5BaseOffsets(u)
 }
 
 // maybeNextUnit advances to the next unit if this one is finished.
@@ -868,12 +803,23 @@ func (r *Reader) nextUnit() {
 	u := &r.d.unit[r.unit]
 	r.b = makeBuf(r.d, u, "info", u.off, u.data)
 	r.cu = nil
+	r.collectDwarf5BaseOffsets(u)
+}
+
+func (r *Reader) collectDwarf5BaseOffsets(u *unit) {
+	if u.vers < 5 || u.unit5 != nil {
+		return
+	}
+	u.unit5 = new(unit5)
+	if err := r.d.collectDwarf5BaseOffsets(u); err != nil {
+		r.err = err
+	}
 }
 
 // Next reads the next entry from the encoded entry stream.
 // It returns nil, nil when it reaches the end of the section.
 // It returns an error if the current offset is invalid or the data at the
-// offset cannot be decoded as a valid Entry.
+// offset cannot be decoded as a valid [Entry].
 func (r *Reader) Next() (*Entry, error) {
 	if r.err != nil {
 		return nil, r.err
@@ -883,7 +829,7 @@ func (r *Reader) Next() (*Entry, error) {
 		return nil, nil
 	}
 	u := &r.d.unit[r.unit]
-	e := r.b.entry(r.cu, u.atable, u.base, u.vers)
+	e := r.b.entry(r.cu, u)
 	if r.b.err != nil {
 		r.err = r.b.err
 		return nil, r.err
@@ -905,8 +851,8 @@ func (r *Reader) Next() (*Entry, error) {
 }
 
 // SkipChildren skips over the child entries associated with
-// the last Entry returned by Next. If that Entry did not have
-// children or Next has not been called, SkipChildren is a no-op.
+// the last [Entry] returned by [Reader.Next]. If that [Entry] did not have
+// children or [Reader.Next] has not been called, SkipChildren is a no-op.
 func (r *Reader) SkipChildren() {
 	if r.err != nil || !r.lastChildren {
 		return
@@ -949,9 +895,9 @@ func (r *Reader) offset() Offset {
 	return r.b.off
 }
 
-// SeekPC returns the Entry for the compilation unit that includes pc,
+// SeekPC returns the [Entry] for the compilation unit that includes pc,
 // and positions the reader to read the children of that unit.  If pc
-// is not covered by any unit, SeekPC returns ErrUnknownPC and the
+// is not covered by any unit, SeekPC returns [ErrUnknownPC] and the
 // position of the reader is undefined.
 //
 // Because compilation units can describe multiple regions of the
@@ -973,9 +919,13 @@ func (r *Reader) SeekPC(pc uint64) (*Entry, error) {
 		r.cu = nil
 		u := &r.d.unit[unit]
 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
+		r.collectDwarf5BaseOffsets(u)
 		e, err := r.Next()
-		if err != nil || e == nil || e.Tag == 0 {
+		if err != nil {
 			return nil, err
+		}
+		if e == nil || e.Tag == 0 {
+			return nil, ErrUnknownPC
 		}
 		ranges, err := r.d.Ranges(e)
 		if err != nil {
@@ -992,7 +942,7 @@ func (r *Reader) SeekPC(pc uint64) (*Entry, error) {
 }
 
 // Ranges returns the PC ranges covered by e, a slice of [low,high) pairs.
-// Only some entry types, such as TagCompileUnit or TagSubprogram, have PC
+// Only some entry types, such as [TagCompileUnit] or [TagSubprogram], have PC
 // ranges; for others, this will return nil with no error.
 func (d *Data) Ranges(e *Entry) ([][2]uint64, error) {
 	var ret [][2]uint64
@@ -1087,7 +1037,7 @@ func (d *Data) baseAddressForEntry(e *Entry) (*Entry, uint64, error) {
 		}
 		u := &d.unit[i]
 		b := makeBuf(d, u, "info", u.off, u.data)
-		cu = b.entry(nil, u.atable, u.base, u.vers)
+		cu = b.entry(nil, u)
 		if b.err != nil {
 			return nil, 0, b.err
 		}
@@ -1103,6 +1053,9 @@ func (d *Data) baseAddressForEntry(e *Entry) (*Entry, uint64, error) {
 }
 
 func (d *Data) dwarf2Ranges(u *unit, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
+	if ranges < 0 || ranges > int64(len(d.ranges)) {
+		return nil, fmt.Errorf("invalid range offset %d (max %d)", ranges, len(d.ranges))
+	}
 	buf := makeBuf(d, u, "ranges", Offset(ranges), d.ranges[ranges:])
 	for len(buf.data) > 0 {
 		low := buf.addr()
@@ -1125,6 +1078,9 @@ func (d *Data) dwarf2Ranges(u *unit, base uint64, ranges int64, ret [][2]uint64)
 // dwarf5Ranges interprets a debug_rnglists sequence, see DWARFv5 section
 // 2.17.3 (page 53).
 func (d *Data) dwarf5Ranges(u *unit, cu *Entry, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
+	if ranges < 0 || ranges > int64(len(d.rngLists)) {
+		return nil, fmt.Errorf("invalid rnglist offset %d (max %d)", ranges, len(d.ranges))
+	}
 	var addrBase int64
 	if cu != nil {
 		addrBase, _ = cu.Val(AttrAddrBase).(int64)

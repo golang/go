@@ -57,7 +57,7 @@ stdout '^example.net/requireincompatible@v0.1.0 example.com/retract/incompatible
 # Unsupported go versions should be rejected, since we don't know
 # what versions they would report.
 ! go mod graph -go=1.99999999999
-stderr '^invalid value "1\.99999999999" for flag -go: maximum supported Go version is '$goversion'\nusage: go mod graph \[-go=version\]\nRun ''go help mod graph'' for details.$'
+stderr '^invalid value "1\.99999999999" for flag -go: maximum supported Go version is '$goversion'\nusage: go mod graph \[-go=version\] \[-x\]\nRun ''go help mod graph'' for details.$'
 
 
 -- go.mod --

@@ -4,6 +4,15 @@ package big
 
 import "strconv"
 
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[Below - -1]
+	_ = x[Exact-0]
+	_ = x[Above-1]
+}
+
 const _Accuracy_name = "BelowExactAbove"
 
 var _Accuracy_index = [...]uint8{0, 5, 10, 15}

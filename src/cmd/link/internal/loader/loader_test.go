@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-// dummyAddSym adds the named symbol to the loader as if it had been
+// addDummyObjSym adds the named symbol to the loader as if it had been
 // read from a Go object file. Note that it allocates a global
 // index without creating an associated object reader, so one can't
 // do anything interesting with this symbol (such as look at its
@@ -26,9 +26,8 @@ func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
 }
 
 func mkLoader() *Loader {
-	edummy := func(str string, off int) {}
 	er := ErrorReporter{}
-	ldr := NewLoader(0, edummy, &er)
+	ldr := NewLoader(0, &er)
 	er.ldr = ldr
 	return ldr
 }
@@ -39,9 +38,9 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	or := &dummyOreader
 
 	// Create some syms from a dummy object file symbol to get things going.
-	ts1 := addDummyObjSym(t, ldr, or, "type.uint8")
+	ts1 := addDummyObjSym(t, ldr, or, "type:uint8")
 	ts2 := addDummyObjSym(t, ldr, or, "mumble")
-	ts3 := addDummyObjSym(t, ldr, or, "type.string")
+	ts3 := addDummyObjSym(t, ldr, or, "type:string")
 
 	// Create some external symbols.
 	es1 := ldr.LookupOrCreateSym("extnew1", 0)
@@ -52,7 +51,7 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	if es1x != es1 {
 		t.Fatalf("LookupOrCreateSym lookup: expected %d got %d for second lookup", es1, es1x)
 	}
-	es2 := ldr.LookupOrCreateSym("go.info.type.uint8", 0)
+	es2 := ldr.LookupOrCreateSym("go:info.type.uint8", 0)
 	if es2 == 0 {
 		t.Fatalf("LookupOrCreateSym failed for go.info.type.uint8")
 	}
@@ -193,7 +192,7 @@ func TestAddMaterializedSymbol(t *testing.T) {
 
 	// ... then data.
 	dat := sb2.Data()
-	if bytes.Compare(dat, d2) != 0 {
+	if !bytes.Equal(dat, d2) {
 		t.Errorf("expected es2 data %v, got %v", d2, dat)
 	}
 
@@ -252,7 +251,7 @@ func TestAddDataMethods(t *testing.T) {
 	or := &dummyOreader
 
 	// Populate loader with some symbols.
-	addDummyObjSym(t, ldr, or, "type.uint8")
+	addDummyObjSym(t, ldr, or, "type:uint8")
 	ldr.LookupOrCreateSym("hello", 0)
 
 	arch := sys.ArchAMD64
@@ -338,6 +337,17 @@ func TestAddDataMethods(t *testing.T) {
 			expKind: sym.SDATA,
 			expRel:  []Reloc{mkReloc(ldr, objabi.R_ADDRCUOFF, 0, 8, 7, 8)},
 		},
+		{
+			which: "AddPEImageRelativeAddrPlus",
+			addDataFunc: func(l *Loader, s Sym, s2 Sym) Sym {
+				sb := l.MakeSymbolUpdater(s)
+				sb.AddPEImageRelativeAddrPlus(arch, s2, 3)
+				return s
+			},
+			expData: []byte{0, 0, 0, 0},
+			expKind: sym.SDATA,
+			expRel:  []Reloc{mkReloc(ldr, objabi.R_PEIMAGEOFF, 0, 4, 3, 9)},
+		},
 	}
 
 	var pmi Sym
@@ -345,14 +355,14 @@ func TestAddDataMethods(t *testing.T) {
 		name := fmt.Sprintf("new%d", k+1)
 		mi := ldr.LookupOrCreateSym(name, 0)
 		if mi == 0 {
-			t.Fatalf("LookupOrCreateSym failed for '" + name + "'")
+			t.Fatalf("LookupOrCreateSym failed for %q", name)
 		}
 		mi = tp.addDataFunc(ldr, mi, pmi)
 		if ldr.SymType(mi) != tp.expKind {
 			t.Errorf("testing Loader.%s: expected kind %s got %s",
 				tp.which, tp.expKind, ldr.SymType(mi))
 		}
-		if bytes.Compare(ldr.Data(mi), tp.expData) != 0 {
+		if !bytes.Equal(ldr.Data(mi), tp.expData) {
 			t.Errorf("testing Loader.%s: expected data %v got %v",
 				tp.which, tp.expData, ldr.Data(mi))
 		}
@@ -371,7 +381,7 @@ func TestOuterSub(t *testing.T) {
 	or := &dummyOreader
 
 	// Populate loader with some symbols.
-	addDummyObjSym(t, ldr, or, "type.uint8")
+	addDummyObjSym(t, ldr, or, "type:uint8")
 	es1 := ldr.LookupOrCreateSym("outer", 0)
 	ldr.MakeSymbolUpdater(es1).SetSize(101)
 	es2 := ldr.LookupOrCreateSym("sub1", 0)

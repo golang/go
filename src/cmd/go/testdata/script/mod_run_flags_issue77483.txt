@@ -1,0 +1,4 @@
+# Regression test for https://go.dev/issue/77483: 'go run -C' should not panic.
+
+! go run -C
+stderr 'flag needs an argument: -C'

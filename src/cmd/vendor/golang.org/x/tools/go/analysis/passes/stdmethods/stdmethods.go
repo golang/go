@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package stdmethods defines an Analyzer that checks for misspellings
-// in the signatures of methods similar to well-known interfaces.
 package stdmethods
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/types"
 	"strings"
@@ -14,32 +13,16 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 )
 
-const Doc = `check signature of methods of well-known interfaces
-
-Sometimes a type may be intended to satisfy an interface but may fail to
-do so because of a mistake in its method signature.
-For example, the result of this WriteTo method should be (int64, error),
-not error, to satisfy io.WriterTo:
-
-	type myWriterTo struct{...}
-        func (myWriterTo) WriteTo(w io.Writer) error { ... }
-
-This check ensures that each method whose name matches one of several
-well-known interface methods from the standard library has the correct
-signature for that interface.
-
-Checked method names include:
-	Format GobEncode GobDecode MarshalJSON MarshalXML
-	Peek ReadByte ReadFrom ReadRune Scan Seek
-	UnmarshalJSON UnreadByte UnreadRune WriteByte
-	WriteTo
-`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "stdmethods",
-	Doc:      Doc,
+	Doc:      analyzerutil.MustExtractDoc(doc, "stdmethods"),
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stdmethods",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -83,7 +66,7 @@ var canonicalMethods = map[string]struct{ args, results []string }{
 	"WriteTo":       {[]string{"=io.Writer"}, []string{"int64", "error"}}, // io.WriterTo
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -134,13 +117,26 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
 		}
 	}
 
+	// Special case: Unwrap has two possible signatures.
+	// Check for Unwrap() []error here.
+	if id.Name == "Unwrap" {
+		if args.Len() == 0 && results.Len() == 1 {
+			t := typeString(results.At(0).Type())
+			if t == "error" || t == "[]error" {
+				return
+			}
+		}
+		pass.ReportRangef(id, "method Unwrap() should have signature Unwrap() error or Unwrap() []error")
+		return
+	}
+
 	// Do the =s (if any) all match?
-	if !matchParams(pass, expect.args, args, "=") || !matchParams(pass, expect.results, results, "=") {
+	if !matchParams(expect.args, args, "=") || !matchParams(expect.results, results, "=") {
 		return
 	}
 
 	// Everything must match.
-	if !matchParams(pass, expect.args, args, "") || !matchParams(pass, expect.results, results, "") {
+	if !matchParams(expect.args, args, "") || !matchParams(expect.results, results, "") {
 		expectFmt := id.Name + "(" + argjoin(expect.args) + ")"
 		if len(expect.results) == 1 {
 			expectFmt += " " + argjoin(expect.results)
@@ -172,7 +168,7 @@ func argjoin(x []string) string {
 }
 
 // Does each type in expect with the given prefix match the corresponding type in actual?
-func matchParams(pass *analysis.Pass, expect []string, actual *types.Tuple, prefix string) bool {
+func matchParams(expect []string, actual *types.Tuple, prefix string) bool {
 	for i, x := range expect {
 		if !strings.HasPrefix(x, prefix) {
 			continue

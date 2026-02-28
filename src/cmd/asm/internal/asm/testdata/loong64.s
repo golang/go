@@ -6,6 +6,7 @@
 // TODO: cover more instruction
 
 TEXT foo(SB),DUPOK|NOSPLIT,$0
-	JAL	1(PC)	//CALL 1(PC)	//000c0054
+	JAL	1(PC)	//CALL 1(PC)	//00040054
 	JAL	(R4)	//CALL (R4)	//8100004c
-	JAL	foo(SB)	//CALL foo(SB)	//00100054
+	// relocation in play so the assembled offset should be 0
+	JAL	foo(SB)	//CALL foo(SB)	//00000054

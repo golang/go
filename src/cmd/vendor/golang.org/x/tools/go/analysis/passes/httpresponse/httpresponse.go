@@ -12,8 +12,8 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 const Doc = `check for mistakes using HTTP responses
@@ -35,16 +35,17 @@ diagnostic for such mistakes.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "httpresponse",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/httpresponse",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	// Fast path: if the package doesn't import net/http,
 	// skip the traversal.
-	if !analysisutil.Imports(pass.Pkg, "net/http") {
+	if !typesinternal.Imports(pass.Pkg, "net/http") {
 		return nil, nil
 	}
 
@@ -115,7 +116,8 @@ func isHTTPFuncOrMethodOnClient(info *types.Info, expr *ast.CallExpr) bool {
 	if res.Len() != 2 {
 		return false // the function called does not return two values.
 	}
-	if ptr, ok := res.At(0).Type().(*types.Pointer); !ok || !isNamedType(ptr.Elem(), "net/http", "Response") {
+	isPtr, named := typesinternal.ReceiverNamed(res.At(0))
+	if !isPtr || named == nil || !typesinternal.IsTypeNamed(named, "net/http", "Response") {
 		return false // the first return type is not *http.Response.
 	}
 
@@ -130,11 +132,11 @@ func isHTTPFuncOrMethodOnClient(info *types.Info, expr *ast.CallExpr) bool {
 		return ok && id.Name == "http" // function in net/http package.
 	}
 
-	if isNamedType(typ, "net/http", "Client") {
+	if typesinternal.IsTypeNamed(typ, "net/http", "Client") {
 		return true // method on http.Client.
 	}
-	ptr, ok := typ.(*types.Pointer)
-	return ok && isNamedType(ptr.Elem(), "net/http", "Client") // method on *http.Client.
+	ptr, ok := types.Unalias(typ).(*types.Pointer)
+	return ok && typesinternal.IsTypeNamed(ptr.Elem(), "net/http", "Client") // method on *http.Client.
 }
 
 // restOfBlock, given a traversal stack, finds the innermost containing
@@ -169,14 +171,4 @@ func rootIdent(n ast.Node) *ast.Ident {
 	default:
 		return nil
 	}
-}
-
-// isNamedType reports whether t is the named type path.name.
-func isNamedType(t types.Type, path, name string) bool {
-	n, ok := t.(*types.Named)
-	if !ok {
-		return false
-	}
-	obj := n.Obj()
-	return obj.Name() == name && obj.Pkg() != nil && obj.Pkg().Path() == path
 }

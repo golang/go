@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 )
 
 func ExampleHijacker() {
@@ -192,4 +193,51 @@ func ExampleNotFoundHandler() {
 	mux.Handle("/resources/people/", newPeopleHandler())
 
 	log.Fatal(http.ListenAndServe(":8080", mux))
+}
+
+func ExampleProtocols_http1() {
+	srv := http.Server{
+		Addr: ":8443",
+	}
+
+	// Serve only HTTP/1.
+	srv.Protocols = new(http.Protocols)
+	srv.Protocols.SetHTTP1(true)
+
+	log.Fatal(srv.ListenAndServeTLS("cert.pem", "key.pem"))
+}
+
+func ExampleProtocols_http1or2() {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+
+	// Use either HTTP/1 and HTTP/2.
+	t.Protocols = new(http.Protocols)
+	t.Protocols.SetHTTP1(true)
+	t.Protocols.SetHTTP2(true)
+
+	cli := &http.Client{Transport: t}
+	res, err := cli.Get("http://www.google.com/robots.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	res.Body.Close()
+}
+
+func ExampleCrossOriginProtection() {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/hello", func(w http.ResponseWriter, req *http.Request) {
+		io.WriteString(w, "request allowed\n")
+	})
+
+	srv := http.Server{
+		Addr:         ":8080",
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		// Use CrossOriginProtection.Handler to block all non-safe cross-origin
+		// browser requests to mux.
+		Handler: http.NewCrossOriginProtection().Handler(mux),
+	}
+
+	log.Fatal(srv.ListenAndServe())
 }

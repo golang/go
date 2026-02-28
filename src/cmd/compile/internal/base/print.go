@@ -7,18 +7,21 @@ package base
 import (
 	"fmt"
 	"internal/buildcfg"
+	"internal/types/errors"
 	"os"
 	"runtime/debug"
 	"sort"
 	"strings"
 
 	"cmd/internal/src"
+	"cmd/internal/telemetry/counter"
 )
 
 // An errorMsg is a queued error message, waiting to be printed.
 type errorMsg struct {
-	pos src.XPos
-	msg string
+	pos  src.XPos
+	msg  string
+	code errors.Code
 }
 
 // Pos is the current source position being processed,
@@ -36,13 +39,13 @@ func Errors() int {
 	return numErrors
 }
 
-// SyntaxErrors returns the number of syntax errors reported
+// SyntaxErrors returns the number of syntax errors reported.
 func SyntaxErrors() int {
 	return numSyntaxErrors
 }
 
 // addErrorMsg adds a new errorMsg (which may be a warning) to errorMsgs.
-func addErrorMsg(pos src.XPos, format string, args ...interface{}) {
+func addErrorMsg(pos src.XPos, code errors.Code, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	// Only add the position if know the position.
 	// See issue golang.org/issue/11361.
@@ -50,8 +53,9 @@ func addErrorMsg(pos src.XPos, format string, args ...interface{}) {
 		msg = fmt.Sprintf("%v: %s", FmtPos(pos), msg)
 	}
 	errorMsgs = append(errorMsgs, errorMsg{
-		pos: pos,
-		msg: msg + "\n",
+		pos:  pos,
+		msg:  msg + "\n",
+		code: code,
 	})
 }
 
@@ -79,10 +83,12 @@ func FlushErrors() {
 	if len(errorMsgs) == 0 {
 		return
 	}
-	sort.Stable(byPos(errorMsgs))
+	if Flag.LowerU == 0 {
+		sort.Stable(byPos(errorMsgs))
+	}
 	for i, err := range errorMsgs {
 		if i == 0 || err.msg != errorMsgs[i-1].msg {
-			fmt.Printf("%s", err.msg)
+			fmt.Print(err.msg)
 		}
 	}
 	errorMsgs = errorMsgs[:0]
@@ -104,12 +110,12 @@ func sameline(a, b src.XPos) bool {
 }
 
 // Errorf reports a formatted error at the current line.
-func Errorf(format string, args ...interface{}) {
-	ErrorfAt(Pos, format, args...)
+func Errorf(format string, args ...any) {
+	ErrorfAt(Pos, 0, format, args...)
 }
 
 // ErrorfAt reports a formatted error message at pos.
-func ErrorfAt(pos src.XPos, format string, args ...interface{}) {
+func ErrorfAt(pos src.XPos, code errors.Code, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 
 	if strings.HasPrefix(msg, "syntax error") {
@@ -132,7 +138,7 @@ func ErrorfAt(pos src.XPos, format string, args ...interface{}) {
 		lasterror.msg = msg
 	}
 
-	addErrorMsg(pos, "%s", msg)
+	addErrorMsg(pos, code, "%s", msg)
 	numErrors++
 
 	hcrash()
@@ -141,11 +147,6 @@ func ErrorfAt(pos src.XPos, format string, args ...interface{}) {
 		fmt.Printf("%v: too many errors\n", FmtPos(pos))
 		ErrorExit()
 	}
-}
-
-// ErrorfVers reports that a language feature (format, args) requires a later version of Go.
-func ErrorfVers(lang string, format string, args ...interface{}) {
-	Errorf("%s requires %s or later (-lang was set to %s; check go.mod)", fmt.Sprintf(format, args...), lang, Flag.Lang)
 }
 
 // UpdateErrorDot is a clumsy hack that rewrites the last error,
@@ -161,11 +162,11 @@ func UpdateErrorDot(line string, name, expr string) {
 	}
 }
 
-// Warnf reports a formatted warning at the current line.
+// Warn reports a formatted warning at the current line.
 // In general the Go compiler does NOT generate warnings,
 // so this should be used only when the user has opted in
 // to additional output by setting a particular flag.
-func Warn(format string, args ...interface{}) {
+func Warn(format string, args ...any) {
 	WarnfAt(Pos, format, args...)
 }
 
@@ -173,8 +174,8 @@ func Warn(format string, args ...interface{}) {
 // In general the Go compiler does NOT generate warnings,
 // so this should be used only when the user has opted in
 // to additional output by setting a particular flag.
-func WarnfAt(pos src.XPos, format string, args ...interface{}) {
-	addErrorMsg(pos, format, args...)
+func WarnfAt(pos src.XPos, format string, args ...any) {
+	addErrorMsg(pos, 0, format, args...)
 	if Flag.LowerM != 0 {
 		FlushErrors()
 	}
@@ -192,9 +193,11 @@ func WarnfAt(pos src.XPos, format string, args ...interface{}) {
 // prints a stack trace.
 //
 // If -h has been specified, Fatalf panics to force the usual runtime info dump.
-func Fatalf(format string, args ...interface{}) {
+func Fatalf(format string, args ...any) {
 	FatalfAt(Pos, format, args...)
 }
+
+var bugStack = counter.NewStack("compile/bug", 16) // 16 is arbitrary; used by gopls and crashmonitor
 
 // FatalfAt reports a fatal error - an internal problem - at pos and exits.
 // If other errors have already been printed, then FatalfAt just quietly exits.
@@ -208,8 +211,10 @@ func Fatalf(format string, args ...interface{}) {
 // prints a stack trace.
 //
 // If -h has been specified, FatalfAt panics to force the usual runtime info dump.
-func FatalfAt(pos src.XPos, format string, args ...interface{}) {
+func FatalfAt(pos src.XPos, format string, args ...any) {
 	FlushErrors()
+
+	bugStack.Inc()
 
 	if Debug.Panic != 0 || numErrors == 0 {
 		fmt.Printf("%v: internal compiler error: ", FmtPos(pos))
@@ -217,7 +222,7 @@ func FatalfAt(pos src.XPos, format string, args ...interface{}) {
 		fmt.Printf("\n")
 
 		// If this is a released compiler version, ask for a bug report.
-		if Debug.Panic == 0 && strings.HasPrefix(buildcfg.Version, "go") {
+		if Debug.Panic == 0 && strings.HasPrefix(buildcfg.Version, "go") && !strings.Contains(buildcfg.Version, "devel") {
 			fmt.Printf("\n")
 			fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
 			fmt.Printf("https://go.dev/issue/new\n")
@@ -241,14 +246,14 @@ func Assert(b bool) {
 }
 
 // Assertf reports a fatal error with Fatalf, unless b is true.
-func Assertf(b bool, format string, args ...interface{}) {
+func Assertf(b bool, format string, args ...any) {
 	if !b {
 		Fatalf(format, args...)
 	}
 }
 
 // AssertfAt reports a fatal error with FatalfAt, unless b is true.
-func AssertfAt(b bool, pos src.XPos, format string, args ...interface{}) {
+func AssertfAt(b bool, pos src.XPos, format string, args ...any) {
 	if !b {
 		FatalfAt(pos, format, args...)
 	}

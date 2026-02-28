@@ -1,3 +1,7 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ssa
 
 import (
@@ -250,7 +254,7 @@ func TestFuseSideEffects(t *testing.T) {
 			Valu("p", OpArg, c.config.Types.IntPtr, 0, nil),
 			If("c1", "z0", "exit")),
 		Bloc("z0",
-			Valu("nilcheck", OpNilCheck, types.TypeVoid, 0, nil, "p", "mem"),
+			Valu("nilcheck", OpNilCheck, c.config.Types.IntPtr, 0, nil, "p", "mem"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("mem"),

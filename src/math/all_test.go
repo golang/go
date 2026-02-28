@@ -899,14 +899,56 @@ var vfceilSC = []float64{
 	0,
 	Inf(1),
 	NaN(),
+	1<<52 - 1,
+	1<<52 - 0.5, // largest fractional float64
+	1 << 52,
+	-1 << 52,
+	-1<<52 + 0.5, // smallest fractional float64
+	-1<<52 + 1,
+	1 << 53,
+	-1 << 53,
 }
-var ceilSC = []float64{
+
+var ceilBaseSC = []float64{
 	Inf(-1),
 	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
 }
+
+var ceilSC = append(ceilBaseSC,
+	1<<52-1,
+	1<<52,
+	1<<52,
+	-1<<52,
+	-1<<52+1,
+	-1<<52+1,
+	1<<53,
+	-1<<53,
+)
+
+var floorSC = append(ceilBaseSC,
+	1<<52-1,
+	1<<52-1,
+	1<<52,
+	-1<<52,
+	-1<<52,
+	-1<<52+1,
+	1<<53,
+	-1<<53,
+)
+
+var truncSC = append(ceilBaseSC,
+	1<<52-1,
+	1<<52-1,
+	1<<52,
+	-1<<52,
+	-1<<52+1,
+	-1<<52+1,
+	1<<53,
+	-1<<53,
+)
 
 var vfcopysignSC = []float64{
 	Inf(-1),
@@ -1687,6 +1729,12 @@ var vfpowSC = [][2]float64{
 	{Nextafter(1, -2), float64(1 << 63)},
 	{Nextafter(-1, 2), float64(1 << 63)},
 	{Nextafter(-1, -2), float64(1 << 63)},
+
+	// Issue #57465
+	{Copysign(0, -1), 1e19},
+	{Copysign(0, -1), -1e19},
+	{Copysign(0, -1), 1<<53 - 1},
+	{Copysign(0, -1), -(1<<53 - 1)},
 }
 var powSC = []float64{
 	0,               // pow(-Inf, -Pi)
@@ -1762,6 +1810,12 @@ var powSC = []float64{
 	0,       // pow(Nextafter(1, -2), float64(1 << 63))
 	0,       // pow(Nextafter(-1, 2), float64(1 << 63))
 	Inf(1),  // pow(Nextafter(-1, -2), float64(1 << 63))
+
+	// Issue #57465
+	0,               // pow(-0, 1e19)
+	Inf(1),          // pow(-0, -1e19)
+	Copysign(0, -1), // pow(-0, 1<<53 -1)
+	Inf(-1),         // pow(-0, -(1<<53 -1))
 }
 
 var vfpow10SC = []int{
@@ -2047,6 +2101,9 @@ var fmaC = []struct{ x, y, z, want float64 }{
 
 	// Special
 	{0, 0, 0, 0},
+	{Copysign(0, -1), 0, 0, 0},
+	{0, 0, Copysign(0, -1), 0},
+	{Copysign(0, -1), 0, Copysign(0, -1), Copysign(0, -1)},
 	{-1.1754226043408471e-38, NaN(), Inf(0), NaN()},
 	{0, 0, 2.22507385643494e-308, 2.22507385643494e-308},
 	{-8.65697792e+09, NaN(), -7.516192799999999e+09, NaN()},
@@ -2065,6 +2122,15 @@ var fmaC = []struct{ x, y, z, want float64 }{
 	{4.612811918325842e+18, 1.4901161193847641e-08, 2.6077032311277997e-08, 6.873625395187494e+10},
 	{-9.094947033611148e-13, 4.450691014249257e-308, 2.086006742350485e-308, 2.086006742346437e-308},
 	{-7.751454006381804e-05, 5.588653777189071e-308, -2.2207280111272877e-308, -2.2211612130544025e-308},
+
+	// Issue #61130
+	{-1, 1, 1, 0},
+	{1, 1, -1, 0},
+
+	// Issue #73757
+	{0x1p-1022, -0x1p-1022, 0, Copysign(0, -1)},
+	{Copysign(0, -1), 1, 0, 0},
+	{1, Copysign(0, -1), 0, 0},
 }
 
 var sqrt32 = []float32{
@@ -2470,8 +2536,8 @@ func TestFloor(t *testing.T) {
 		}
 	}
 	for i := 0; i < len(vfceilSC); i++ {
-		if f := Floor(vfceilSC[i]); !alike(ceilSC[i], f) {
-			t.Errorf("Floor(%g) = %g, want %g", vfceilSC[i], f, ceilSC[i])
+		if f := Floor(vfceilSC[i]); !alike(floorSC[i], f) {
+			t.Errorf("Floor(%g) = %g, want %g", vfceilSC[i], f, floorSC[i])
 		}
 	}
 }
@@ -3015,8 +3081,8 @@ func TestTrunc(t *testing.T) {
 		}
 	}
 	for i := 0; i < len(vfceilSC); i++ {
-		if f := Trunc(vfceilSC[i]); !alike(ceilSC[i], f) {
-			t.Errorf("Trunc(%g) = %g, want %g", vfceilSC[i], f, ceilSC[i])
+		if f := Trunc(vfceilSC[i]); !alike(truncSC[i], f) {
+			t.Errorf("Trunc(%g) = %g, want %g", vfceilSC[i], f, truncSC[i])
 		}
 	}
 }
@@ -3083,6 +3149,45 @@ func TestFMA(t *testing.T) {
 		got = PortableFMA(c.x, c.y, c.z)
 		if !alike(got, c.want) {
 			t.Errorf("PortableFMA(%g,%g,%g) == %g; want %g", c.x, c.y, c.z, got, c.want)
+		}
+	}
+}
+
+//go:noinline
+func fmsub(x, y, z float64) float64 {
+	return FMA(x, y, -z)
+}
+
+//go:noinline
+func fnmsub(x, y, z float64) float64 {
+	return FMA(-x, y, z)
+}
+
+//go:noinline
+func fnmadd(x, y, z float64) float64 {
+	return FMA(-x, y, -z)
+}
+
+func TestFMANegativeArgs(t *testing.T) {
+	// Some architectures have instructions for fused multiply-subtract and
+	// also negated variants of fused multiply-add and subtract. This test
+	// aims to check that the optimizations that generate those instructions
+	// are applied correctly, if they exist.
+	for _, c := range fmaC {
+		want := PortableFMA(c.x, c.y, -c.z)
+		got := fmsub(c.x, c.y, c.z)
+		if !alike(got, want) {
+			t.Errorf("FMA(%g, %g, -(%g)) == %g, want %g", c.x, c.y, c.z, got, want)
+		}
+		want = PortableFMA(-c.x, c.y, c.z)
+		got = fnmsub(c.x, c.y, c.z)
+		if !alike(got, want) {
+			t.Errorf("FMA(-(%g), %g, %g) == %g, want %g", c.x, c.y, c.z, got, want)
+		}
+		want = PortableFMA(-c.x, c.y, -c.z)
+		got = fnmadd(c.x, c.y, c.z)
+		if !alike(got, want) {
+			t.Errorf("FMA(-(%g), %g, -(%g)) == %g, want %g", c.x, c.y, c.z, got, want)
 		}
 	}
 }

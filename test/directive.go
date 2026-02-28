@@ -29,17 +29,9 @@ const c = 1
 //go:noinline // ERROR "misplaced compiler directive"
 type T int
 
-// ok
-//go:notinheap
-type T1 int
-
 type (
-	//go:notinheap
 	//go:noinline // ERROR "misplaced compiler directive"
-	T2  int
-	T2b int
-	//go:notinheap
-	T2c int
+	T2 int
 	//go:noinline // ERROR "misplaced compiler directive"
 	T3 int
 )
@@ -61,11 +53,5 @@ func f() {
 	_ = func() {}
 
 	//go:noinline // ERROR "misplaced compiler directive"
-	// ok:
-	//go:notinheap
 	type T int
 }
-
-// someday there might be a directive that can apply to type aliases, but go:notinheap doesn't.
-//go:notinheap // ERROR "misplaced compiler directive"
-type T6 = int

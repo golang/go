@@ -11,6 +11,10 @@ import _ "unsafe" // For go:linkname
 //go:noescape
 func Compare(a, b []byte) int
 
+func CompareString(a, b string) int {
+	return abigen_runtime_cmpstring(a, b)
+}
+
 // The declaration below generates ABI wrappers for functions
 // implemented in assembly in this package but declared in another
 // package.

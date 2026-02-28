@@ -83,7 +83,7 @@ func (a *addr2LinerJob) close() {
 	a.cmd.Wait()
 }
 
-// newAddr2liner starts the given addr2liner command reporting
+// newAddr2Liner starts the given addr2liner command reporting
 // information about the given executable file. If file is a shared
 // library, base should be the address at which it was mapped in the
 // program under consideration.

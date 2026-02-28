@@ -70,7 +70,6 @@ func switch_ssa(a int) int {
 		ret += 1
 	}
 	return ret
-
 }
 
 func fallthrough_ssa(a int) int {
@@ -92,7 +91,6 @@ func fallthrough_ssa(a int) int {
 		ret++
 	}
 	return ret
-
 }
 
 func testFallthrough(t *testing.T) {

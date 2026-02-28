@@ -42,7 +42,7 @@ func (pd *pollDesc) wait(mode int, isFile bool) error {
 	if pd.closing {
 		return errClosing(isFile)
 	}
-	if isFile { // TODO(neelance): wasm: Use callbacks from JS to block until the read/write finished.
+	if isFile { // TODO(neelance): js/wasm: Use callbacks from JS to block until the read/write finished.
 		return nil
 	}
 	return ErrDeadlineExceeded

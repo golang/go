@@ -33,24 +33,19 @@
 #define SYS_clone		56
 #define SYS_exit		60
 #define SYS_kill		62
-#define SYS_fcntl		72
 #define SYS_sigaltstack 	131
 #define SYS_arch_prctl		158
 #define SYS_gettid		186
 #define SYS_futex		202
 #define SYS_sched_getaffinity	204
-#define SYS_epoll_create	213
 #define SYS_timer_create	222
 #define SYS_timer_settime	223
 #define SYS_timer_delete	226
 #define SYS_clock_gettime	228
 #define SYS_exit_group		231
-#define SYS_epoll_ctl		233
 #define SYS_tgkill		234
 #define SYS_openat		257
 #define SYS_faccessat		269
-#define SYS_epoll_pwait		281
-#define SYS_epoll_create1	291
 #define SYS_pipe2		293
 
 TEXT runtime·exit(SB),NOSPLIT,$0-4
@@ -59,7 +54,7 @@ TEXT runtime·exit(SB),NOSPLIT,$0-4
 	SYSCALL
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-8
 	MOVQ	wait+0(FP), AX
 	// We're done using the stack.
@@ -233,6 +228,18 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 	// due to stack probes inserted to avoid stack/heap collisions.
 	// See issue #20427.
 
+#ifdef GOEXPERIMENT_runtimesecret
+	// The kernel might spill our secrets onto g0
+	// erase our registers here.
+	// TODO(dmo): what is the ABI guarantee here? we use
+	// R14 later, but the function is ABI0
+	CMPL	g_secret(R14), $0
+	JEQ	nosecret
+	CALL	·secretEraseRegisters(SB)
+
+nosecret:
+#endif
+
 	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
 
 	MOVQ	g_m(R14), BX // BX unchanged by C code.
@@ -330,16 +337,14 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVL	sig+8(FP),   DI
 	MOVQ	info+16(FP), SI
 	MOVQ	ctx+24(FP),  DX
-	PUSHQ	BP
-	MOVQ	SP, BP
+	MOVQ	SP, BX		// callee-saved
 	ANDQ	$~15, SP     // alignment for x86_64 ABI
 	CALL	AX
-	MOVQ	BP, SP
-	POPQ	BP
+	MOVQ	BX, SP
 	RET
 
 // Called using C ABI.
-TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME|NOFRAME,$0
 	// Transition from C ABI to Go ABI.
 	PUSH_REGS_HOST_TO_ABI0()
 
@@ -360,11 +365,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
 
 	ADJSP	$-24
 
-        POP_REGS_HOST_TO_ABI0()
+	POP_REGS_HOST_TO_ABI0()
 	RET
 
 // Called using C ABI.
-TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
+TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT|NOFRAME,$0
 	// Transition from C ABI to Go ABI.
 	PUSH_REGS_HOST_TO_ABI0()
 
@@ -465,11 +470,16 @@ sigtrampnog:
 	JMP	AX
 
 // For cgo unwinding to work, this function must look precisely like
-// the one in glibc.  The glibc source code is:
-// https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/x86_64/sigaction.c
+// the one in glibc. The glibc source code is:
+// https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/x86_64/libc_sigaction.c;h=afdce87381228f0cf32fa9fa6c8c4efa5179065c#l80
 // The code that cares about the precise instructions used is:
-// https://gcc.gnu.org/viewcvs/gcc/trunk/libgcc/config/i386/linux-unwind.h?revision=219188&view=markup
-TEXT runtime·sigreturn(SB),NOSPLIT,$0
+// https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/config/i386/linux-unwind.h;h=5486223d60272c73d5103b29ae592d2ee998e1cf#l49
+//
+// For gdb unwinding to work, this function must look precisely like the one in
+// glibc and must be named "__restore_rt" or contain the string "sigaction" in
+// the name. The gdb source code is:
+// https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=gdb/amd64-linux-tdep.c;h=cbbac1a0c64e1deb8181b9d0ff6404e328e2979d#l178
+TEXT runtime·sigreturn__sigaction(SB),NOSPLIT,$0
 	MOVQ	$SYS_rt_sigreturn, AX
 	SYSCALL
 	INT $3	// not reached
@@ -561,7 +571,7 @@ TEXT runtime·futex(SB),NOSPLIT,$0
 	RET
 
 // int32 clone(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
-TEXT runtime·clone(SB),NOSPLIT,$0
+TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0
 	MOVL	flags+0(FP), DI
 	MOVQ	stk+8(FP), SI
 	MOVQ	$0, DX
@@ -625,7 +635,7 @@ nog2:
 	SYSCALL
 	JMP	-3(PC)	// keep exiting
 
-TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVQ	new+0(FP), DI
 	MOVQ	old+8(FP), SI
 	MOVQ	$SYS_sigaltstack, AX
@@ -664,55 +674,6 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 	MOVL	$SYS_sched_getaffinity, AX
 	SYSCALL
 	MOVL	AX, ret+24(FP)
-	RET
-
-// int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),NOSPLIT,$0
-	MOVL    size+0(FP), DI
-	MOVL    $SYS_epoll_create, AX
-	SYSCALL
-	MOVL	AX, ret+8(FP)
-	RET
-
-// int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),NOSPLIT,$0
-	MOVL	flags+0(FP), DI
-	MOVL	$SYS_epoll_create1, AX
-	SYSCALL
-	MOVL	AX, ret+8(FP)
-	RET
-
-// func epollctl(epfd, op, fd int32, ev *epollEvent) int
-TEXT runtime·epollctl(SB),NOSPLIT,$0
-	MOVL	epfd+0(FP), DI
-	MOVL	op+4(FP), SI
-	MOVL	fd+8(FP), DX
-	MOVQ	ev+16(FP), R10
-	MOVL	$SYS_epoll_ctl, AX
-	SYSCALL
-	MOVL	AX, ret+24(FP)
-	RET
-
-// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),NOSPLIT,$0
-	// This uses pwait instead of wait, because Android O blocks wait.
-	MOVL	epfd+0(FP), DI
-	MOVQ	ev+8(FP), SI
-	MOVL	nev+16(FP), DX
-	MOVL	timeout+20(FP), R10
-	MOVQ	$0, R8
-	MOVL	$SYS_epoll_pwait, AX
-	SYSCALL
-	MOVL	AX, ret+24(FP)
-	RET
-
-// void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVL    fd+0(FP), DI  // fd
-	MOVQ    $2, SI  // F_SETFD
-	MOVQ    $1, DX  // FD_CLOEXEC
-	MOVL	$SYS_fcntl, AX
-	SYSCALL
 	RET
 
 // int access(const char *name, int mode)
@@ -754,4 +715,37 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
 	MOVL	$SYS_brk, AX
 	SYSCALL
 	MOVQ	AX, ret+0(FP)
+	RET
+
+// func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
+TEXT runtime·vgetrandom1<ABIInternal>(SB),NOSPLIT,$16-48
+	MOVQ	SI, R8 // stateSize
+	MOVL	CX, DX // flags
+	MOVQ	DI, CX // state
+	MOVQ	BX, SI // length
+	MOVQ	AX, DI // buf
+
+	MOVQ	SP, R12
+
+	MOVQ	runtime·vdsoGetrandomSym(SB), AX
+	MOVQ	g_m(R14), BX
+
+	MOVQ	m_vdsoPC(BX), R9
+	MOVQ	R9, 0(SP)
+	MOVQ	m_vdsoSP(BX), R9
+	MOVQ	R9, 8(SP)
+	LEAQ	buf+0(FP), R9
+	MOVQ	R9, m_vdsoSP(BX)
+	MOVQ	-8(R9), R9
+	MOVQ	R9, m_vdsoPC(BX)
+
+	ANDQ	$~15, SP
+
+	CALL	AX
+
+	MOVQ	R12, SP
+	MOVQ	8(SP), R9
+	MOVQ	R9, m_vdsoSP(BX)
+	MOVQ	0(SP), R9
+	MOVQ	R9, m_vdsoPC(BX)
 	RET

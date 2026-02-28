@@ -5,10 +5,12 @@
 package scanner
 
 import (
+	"fmt"
 	"go/token"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -334,173 +336,171 @@ func TestStripCR(t *testing.T) {
 	}
 }
 
-func checkSemi(t *testing.T, line string, mode Mode) {
-	var S Scanner
-	file := fset.AddFile("TestSemis", fset.Base(), len(line))
-	S.Init(file, []byte(line), nil, mode)
-	pos, tok, lit := S.Scan()
-	for tok != token.EOF {
-		if tok == token.ILLEGAL {
-			// the illegal token literal indicates what
-			// kind of semicolon literal to expect
-			semiLit := "\n"
-			if lit[0] == '#' {
-				semiLit = ";"
-			}
-			// next token must be a semicolon
-			semiPos := file.Position(pos)
-			semiPos.Offset++
-			semiPos.Column++
-			pos, tok, lit = S.Scan()
-			if tok == token.SEMICOLON {
-				if lit != semiLit {
-					t.Errorf(`bad literal for %q: got %q, expected %q`, line, lit, semiLit)
-				}
-				checkPos(t, line, pos, semiPos)
-			} else {
-				t.Errorf("bad token for %q: got %s, expected ;", line, tok)
-			}
-		} else if tok == token.SEMICOLON {
-			t.Errorf("bad token for %q: got ;, expected no ;", line)
+func checkSemi(t *testing.T, input, want string, mode Mode) {
+	if mode&ScanComments == 0 {
+		want = strings.ReplaceAll(want, "COMMENT ", "")
+		want = strings.ReplaceAll(want, " COMMENT", "") // if at end
+		want = strings.ReplaceAll(want, "COMMENT", "")  // if sole token
+	}
+
+	file := fset.AddFile("TestSemis", fset.Base(), len(input))
+	var scan Scanner
+	scan.Init(file, []byte(input), nil, mode)
+	var tokens []string
+	for {
+		pos, tok, lit := scan.Scan()
+		if tok == token.EOF {
+			break
 		}
-		pos, tok, lit = S.Scan()
+		if tok == token.SEMICOLON && lit != ";" {
+			// Artificial semicolon:
+			// assert that position is EOF or that of a newline.
+			off := file.Offset(pos)
+			if off != len(input) && input[off] != '\n' {
+				t.Errorf("scanning <<%s>>, got SEMICOLON at offset %d, want newline or EOF", input, off)
+			}
+		}
+		lit = tok.String() // "\n" => ";"
+		tokens = append(tokens, lit)
+	}
+	if got := strings.Join(tokens, " "); got != want {
+		t.Errorf("scanning <<%s>>, got [%s], want [%s]", input, got, want)
 	}
 }
 
-var lines = []string{
-	// # indicates a semicolon present in the source
-	// $ indicates an automatically inserted semicolon
-	"",
-	"\ufeff#;", // first BOM is ignored
-	"#;",
-	"foo$\n",
-	"123$\n",
-	"1.2$\n",
-	"'x'$\n",
-	`"x"` + "$\n",
-	"`x`$\n",
+var semicolonTests = [...]struct{ input, want string }{
+	{"", ""},
+	{"\ufeff;", ";"}, // first BOM is ignored
+	{";", ";"},
+	{"foo\n", "IDENT ;"},
+	{"123\n", "INT ;"},
+	{"1.2\n", "FLOAT ;"},
+	{"'x'\n", "CHAR ;"},
+	{`"x"` + "\n", "STRING ;"},
+	{"`x`\n", "STRING ;"},
 
-	"+\n",
-	"-\n",
-	"*\n",
-	"/\n",
-	"%\n",
+	{"+\n", "+"},
+	{"-\n", "-"},
+	{"*\n", "*"},
+	{"/\n", "/"},
+	{"%\n", "%"},
 
-	"&\n",
-	"|\n",
-	"^\n",
-	"<<\n",
-	">>\n",
-	"&^\n",
+	{"&\n", "&"},
+	{"|\n", "|"},
+	{"^\n", "^"},
+	{"<<\n", "<<"},
+	{">>\n", ">>"},
+	{"&^\n", "&^"},
 
-	"+=\n",
-	"-=\n",
-	"*=\n",
-	"/=\n",
-	"%=\n",
+	{"+=\n", "+="},
+	{"-=\n", "-="},
+	{"*=\n", "*="},
+	{"/=\n", "/="},
+	{"%=\n", "%="},
 
-	"&=\n",
-	"|=\n",
-	"^=\n",
-	"<<=\n",
-	">>=\n",
-	"&^=\n",
+	{"&=\n", "&="},
+	{"|=\n", "|="},
+	{"^=\n", "^="},
+	{"<<=\n", "<<="},
+	{">>=\n", ">>="},
+	{"&^=\n", "&^="},
 
-	"&&\n",
-	"||\n",
-	"<-\n",
-	"++$\n",
-	"--$\n",
+	{"&&\n", "&&"},
+	{"||\n", "||"},
+	{"<-\n", "<-"},
+	{"++\n", "++ ;"},
+	{"--\n", "-- ;"},
 
-	"==\n",
-	"<\n",
-	">\n",
-	"=\n",
-	"!\n",
+	{"==\n", "=="},
+	{"<\n", "<"},
+	{">\n", ">"},
+	{"=\n", "="},
+	{"!\n", "!"},
 
-	"!=\n",
-	"<=\n",
-	">=\n",
-	":=\n",
-	"...\n",
+	{"!=\n", "!="},
+	{"<=\n", "<="},
+	{">=\n", ">="},
+	{":=\n", ":="},
+	{"...\n", "..."},
 
-	"(\n",
-	"[\n",
-	"{\n",
-	",\n",
-	".\n",
+	{"(\n", "("},
+	{"[\n", "["},
+	{"{\n", "{"},
+	{",\n", ","},
+	{".\n", "."},
 
-	")$\n",
-	"]$\n",
-	"}$\n",
-	"#;\n",
-	":\n",
+	{")\n", ") ;"},
+	{"]\n", "] ;"},
+	{"}\n", "} ;"},
+	{";\n", ";"},
+	{":\n", ":"},
 
-	"break$\n",
-	"case\n",
-	"chan\n",
-	"const\n",
-	"continue$\n",
+	{"break\n", "break ;"},
+	{"case\n", "case"},
+	{"chan\n", "chan"},
+	{"const\n", "const"},
+	{"continue\n", "continue ;"},
 
-	"default\n",
-	"defer\n",
-	"else\n",
-	"fallthrough$\n",
-	"for\n",
+	{"default\n", "default"},
+	{"defer\n", "defer"},
+	{"else\n", "else"},
+	{"fallthrough\n", "fallthrough ;"},
+	{"for\n", "for"},
 
-	"func\n",
-	"go\n",
-	"goto\n",
-	"if\n",
-	"import\n",
+	{"func\n", "func"},
+	{"go\n", "go"},
+	{"goto\n", "goto"},
+	{"if\n", "if"},
+	{"import\n", "import"},
 
-	"interface\n",
-	"map\n",
-	"package\n",
-	"range\n",
-	"return$\n",
+	{"interface\n", "interface"},
+	{"map\n", "map"},
+	{"package\n", "package"},
+	{"range\n", "range"},
+	{"return\n", "return ;"},
 
-	"select\n",
-	"struct\n",
-	"switch\n",
-	"type\n",
-	"var\n",
+	{"select\n", "select"},
+	{"struct\n", "struct"},
+	{"switch\n", "switch"},
+	{"type\n", "type"},
+	{"var\n", "var"},
 
-	"foo$//comment\n",
-	"foo$//comment",
-	"foo$/*comment*/\n",
-	"foo$/*\n*/",
-	"foo$/*comment*/    \n",
-	"foo$/*\n*/    ",
+	{"foo//comment\n", "IDENT COMMENT ;"},
+	{"foo//comment", "IDENT COMMENT ;"},
+	{"foo/*comment*/\n", "IDENT COMMENT ;"},
+	{"foo/*\n*/", "IDENT COMMENT ;"},
+	{"foo/*comment*/    \n", "IDENT COMMENT ;"},
+	{"foo/*\n*/    ", "IDENT COMMENT ;"},
 
-	"foo    $// comment\n",
-	"foo    $// comment",
-	"foo    $/*comment*/\n",
-	"foo    $/*\n*/",
-	"foo    $/*  */ /* \n */ bar$/**/\n",
-	"foo    $/*0*/ /*1*/ /*2*/\n",
+	{"foo    // comment\n", "IDENT COMMENT ;"},
+	{"foo    // comment", "IDENT COMMENT ;"},
+	{"foo    /*comment*/\n", "IDENT COMMENT ;"},
+	{"foo    /*\n*/", "IDENT COMMENT ;"},
+	{"foo    /*  */ /* \n */ bar/**/\n", "IDENT COMMENT COMMENT ; IDENT COMMENT ;"},
+	{"foo    /*0*/ /*1*/ /*2*/\n", "IDENT COMMENT COMMENT COMMENT ;"},
 
-	"foo    $/*comment*/    \n",
-	"foo    $/*0*/ /*1*/ /*2*/    \n",
-	"foo	$/**/ /*-------------*/       /*----\n*/bar       $/*  \n*/baa$\n",
-	"foo    $/* an EOF terminates a line */",
-	"foo    $/* an EOF terminates a line */ /*",
-	"foo    $/* an EOF terminates a line */ //",
+	{"foo    /*comment*/    \n", "IDENT COMMENT ;"},
+	{"foo    /*0*/ /*1*/ /*2*/    \n", "IDENT COMMENT COMMENT COMMENT ;"},
+	{"foo	/**/ /*-------------*/       /*----\n*/bar       /*  \n*/baa\n", "IDENT COMMENT COMMENT COMMENT ; IDENT COMMENT ; IDENT ;"},
+	{"foo    /* an EOF terminates a line */", "IDENT COMMENT ;"},
+	{"foo    /* an EOF terminates a line */ /*", "IDENT COMMENT COMMENT ;"},
+	{"foo    /* an EOF terminates a line */ //", "IDENT COMMENT COMMENT ;"},
 
-	"package main$\n\nfunc main() {\n\tif {\n\t\treturn /* */ }$\n}$\n",
-	"package main$",
+	{"package main\n\nfunc main() {\n\tif {\n\t\treturn /* */ }\n}\n", "package IDENT ; func IDENT ( ) { if { return COMMENT } ; } ;"},
+	{"package main", "package IDENT ;"},
 }
 
-func TestSemis(t *testing.T) {
-	for _, line := range lines {
-		checkSemi(t, line, 0)
-		checkSemi(t, line, ScanComments)
+func TestSemicolons(t *testing.T) {
+	for _, test := range semicolonTests {
+		input, want := test.input, test.want
+		checkSemi(t, input, want, 0)
+		checkSemi(t, input, want, ScanComments)
 
 		// if the input ended in newlines, the input must tokenize the
 		// same with or without those newlines
-		for i := len(line) - 1; i >= 0 && line[i] == '\n'; i-- {
-			checkSemi(t, line[0:i], 0)
-			checkSemi(t, line[0:i], ScanComments)
+		for i := len(input) - 1; i >= 0 && input[i] == '\n'; i-- {
+			checkSemi(t, input[0:i], want, 0)
+			checkSemi(t, input[0:i], want, ScanComments)
 		}
 	}
 }
@@ -668,7 +668,7 @@ func TestInit(t *testing.T) {
 	}
 }
 
-func TestStdErrorHander(t *testing.T) {
+func TestStdErrorHandler(t *testing.T) {
 	const src = "@\n" + // illegal character, cause an error
 		"@ @\n" + // two errors on the same line
 		"//line File2:20\n" +
@@ -815,11 +815,39 @@ var errors = []struct {
 	{`"` + "abc\ufeffdef" + `"`, token.STRING, 4, `"` + "abc\ufeffdef" + `"`, "illegal byte order mark"}, // only first BOM is ignored
 	{"abc\x00def", token.IDENT, 3, "abc", "illegal character NUL"},
 	{"abc\x00", token.IDENT, 3, "abc", "illegal character NUL"},
+	{"“abc”", token.ILLEGAL, 0, "abc", `curly quotation mark '“' (use neutral '"')`},
 }
 
 func TestScanErrors(t *testing.T) {
 	for _, e := range errors {
 		checkError(t, e.src, e.tok, e.pos, e.lit, e.err)
+	}
+}
+
+func TestUTF16(t *testing.T) {
+	// This test doesn't fit within TestScanErrors because
+	// the latter assumes that there was only one error.
+	for _, src := range []string{
+		"\xfe\xff\x00p\x00a\x00c\x00k\x00a\x00g\x00e\x00 \x00p", // BOM + "package p" encoded as UTF-16 BE
+		"\xff\xfep\x00a\x00c\x00k\x00a\x00g\x00e\x00 \x00p\x00", // BOM + "package p" encoded as UTF-16 LE
+	} {
+		var got []string
+		eh := func(posn token.Position, msg string) {
+			got = append(got, fmt.Sprintf("#%d: %s", posn.Offset, msg))
+		}
+		var sc Scanner
+		sc.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), eh, 0)
+		sc.Scan()
+
+		// We expect two errors:
+		// one from the decoder, one from the scanner.
+		want := []string{
+			"#0: illegal UTF-8 encoding (got UTF-16)",
+			"#0: illegal character U+FFFD '�'",
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("Scan(%q) returned errors %q, want %q", src, got, want)
+		}
 	}
 }
 
@@ -1123,5 +1151,195 @@ func TestNumbers(t *testing.T) {
 		if tok != token.EOF {
 			t.Errorf("%q: got %s; want EOF", test.src, tok)
 		}
+	}
+}
+
+func TestScanReuseSemiInNewlineComment(t *testing.T) {
+	fset := token.NewFileSet()
+
+	const src = "identifier /*a\nb*/ + other"
+	var s Scanner
+	s.Init(fset.AddFile("test.go", -1, len(src)), []byte(src), func(pos token.Position, msg string) {
+		t.Fatal(msg)
+	}, ScanComments)
+
+	s.Scan() // IDENT(identifier)
+
+	_, tok, _ := s.Scan() // COMMENT(/*a\nb*/)
+	if tok != token.COMMENT {
+		t.Fatalf("tok = %v; want = token.SEMICOLON", tok)
+	}
+
+	s.Init(fset.AddFile("test.go", -1, len(src)), []byte(src), func(pos token.Position, msg string) {
+		t.Fatal(msg)
+	}, ScanComments)
+
+	_, tok, _ = s.Scan()
+	if tok != token.IDENT {
+		t.Fatalf("tok = %v; want = token.IDENT", tok)
+	}
+}
+
+func TestScannerEnd(t *testing.T) {
+	type tok struct {
+		tok   token.Token
+		start token.Pos
+		end   token.Pos
+	}
+
+	cases := []struct {
+		name string
+		src  string
+		end  []tok
+	}{
+		{
+			name: "operators",
+			src:  "+ - / >> == =",
+			end: []tok{
+				{token.ADD, 1, 2},
+				{token.SUB, 3, 4},
+				{token.QUO, 5, 6},
+				{token.SHR, 7, 9},
+				{token.EQL, 10, 12},
+				{token.ASSIGN, 13, 14},
+				{token.EOF, 14, 14},
+			},
+		},
+		{
+			name: "braces",
+			src:  "{([])}",
+			end: []tok{
+				{token.LBRACE, 1, 2},
+				{token.LPAREN, 2, 3},
+				{token.LBRACK, 3, 4},
+				{token.RBRACK, 4, 5},
+				{token.RPAREN, 5, 6},
+				{token.RBRACE, 6, 7},
+				{token.SEMICOLON, 7, 7},
+				{token.EOF, 7, 7},
+			},
+		},
+		{
+			name: "literals",
+			src:  `"foo" 123 1.23 0b11`,
+			end: []tok{
+				{token.STRING, 1, 6},
+				{token.INT, 7, 10},
+				{token.FLOAT, 11, 15},
+				{token.INT, 16, 20},
+				{token.SEMICOLON, 20, 20},
+				{token.EOF, 20, 20},
+			},
+		},
+		{
+			name: "missing newline at the end of file",
+			src:  "foo",
+			end: []tok{
+				{token.IDENT, 1, 4},
+				{token.SEMICOLON, 4, 4},
+				{token.EOF, 4, 4},
+			},
+		},
+		{
+			name: "newline at the end of file",
+			src:  "foo\n",
+			end: []tok{
+				{token.IDENT, 1, 4},
+				{token.SEMICOLON, 4, 5},
+				{token.EOF, 5, 5},
+			},
+		},
+		{
+			name: "semicolon at the end of file",
+			src:  "foo;",
+			end: []tok{
+				{token.IDENT, 1, 4},
+				{token.SEMICOLON, 4, 5},
+				{token.EOF, 5, 5},
+			},
+		},
+		{
+			name: "semicolon and newline at the end of file",
+			src:  "foo;\n",
+			end: []tok{
+				{token.IDENT, 1, 4},
+				{token.SEMICOLON, 4, 5},
+				{token.EOF, 6, 6},
+			},
+		},
+		{
+			name: "newline in comment acting as semicolon",
+			src:  "foo /*\n*/ bar",
+			end: []tok{
+				{token.IDENT, 1, 4},
+				{token.COMMENT, 5, 10},
+				{token.SEMICOLON, 7, 8},
+				{token.IDENT, 11, 14},
+				{token.SEMICOLON, 14, 14},
+				{token.EOF, 14, 14},
+			},
+		},
+		{
+			name: "BOM",
+			src:  "\uFEFFfoo",
+			end: []tok{
+				{token.IDENT, 4, 7},
+				{token.SEMICOLON, 7, 7},
+				{token.EOF, 7, 7},
+			},
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			fset := token.NewFileSet()
+
+			var s Scanner
+			errorHandler := func(_ token.Position, msg string) { t.Fatal(msg) }
+			s.Init(fset.AddFile("test.go", -1, len(tt.src)), []byte(tt.src), errorHandler, ScanComments)
+
+			if end := s.End(); end != token.NoPos {
+				t.Errorf("after init: s.End() = %v; want token.NoPos", end)
+			}
+
+			var got []tok
+			for {
+				pos, tokTyp, _ := s.Scan()
+				got = append(got, tok{tokTyp, pos, s.End()})
+				if tokTyp == token.EOF {
+					break
+				}
+			}
+
+			if !slices.Equal(got, tt.end) {
+				t.Fatalf("input %q: got = %v; want = %v", tt.src, got, tt.end)
+			}
+		})
+	}
+}
+
+func TestScannerEndReuse(t *testing.T) {
+	fset := token.NewFileSet()
+
+	const src = "identifier /*a\nb*/ + other"
+	var s Scanner
+	s.Init(fset.AddFile("test.go", -1, len(src)), []byte(src), func(pos token.Position, msg string) {
+		t.Fatal(msg)
+	}, ScanComments)
+
+	s.Scan() // IDENT(identifier)
+	s.Scan() // COMMENT(/*a\n*b/)
+
+	_, tok, _ := s.Scan() // SEMICOLON
+	if tok != token.SEMICOLON {
+		t.Fatalf("tok = %v; want = token.SEMICOLON", tok)
+	}
+
+	s.Init(fset.AddFile("test.go", -1, len(src)), []byte(src), func(pos token.Position, msg string) {
+		t.Fatal(msg)
+	}, ScanComments)
+
+	if end := s.End(); end != token.NoPos {
+		t.Errorf("s.End() = %v; want token.NoPos", end)
 	}
 }

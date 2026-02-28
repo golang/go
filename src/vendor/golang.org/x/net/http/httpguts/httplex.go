@@ -12,7 +12,7 @@ import (
 	"golang.org/x/net/idna"
 )
 
-var isTokenTable = [127]bool{
+var isTokenTable = [256]bool{
 	'!':  true,
 	'#':  true,
 	'$':  true,
@@ -93,12 +93,7 @@ var isTokenTable = [127]bool{
 }
 
 func IsTokenRune(r rune) bool {
-	i := int(r)
-	return i < len(isTokenTable) && isTokenTable[i]
-}
-
-func isNotToken(r rune) bool {
-	return !IsTokenRune(r)
+	return r < utf8.RuneSelf && isTokenTable[byte(r)]
 }
 
 // HeaderValuesContainsToken reports whether any string in values
@@ -202,8 +197,8 @@ func ValidHeaderFieldName(v string) bool {
 	if len(v) == 0 {
 		return false
 	}
-	for _, r := range v {
-		if !IsTokenRune(r) {
+	for i := 0; i < len(v); i++ {
+		if !isTokenTable[v[i]] {
 			return false
 		}
 	}

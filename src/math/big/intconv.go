@@ -40,7 +40,7 @@ func (x *Int) String() string {
 	return x.Text(10)
 }
 
-// write count copies of text to s
+// write count copies of text to s.
 func writeMultiple(s fmt.State, text string, count int) {
 	if len(text) > 0 {
 		b := []byte(text)
@@ -52,7 +52,7 @@ func writeMultiple(s fmt.State, text string, count int) {
 
 var _ fmt.Formatter = intOne // *Int must implement fmt.Formatter
 
-// Format implements fmt.Formatter. It accepts the formats
+// Format implements [fmt.Formatter]. It accepts the formats
 // 'b' (binary), 'o' (octal with 0 prefix), 'O' (octal with 0o prefix),
 // 'd' (decimal), 'x' (lowercase hexadecimal), and
 // 'X' (uppercase hexadecimal).
@@ -230,7 +230,7 @@ func (r byteReader) UnreadByte() error {
 
 var _ fmt.Scanner = intOne // *Int must implement fmt.Scanner
 
-// Scan is a support routine for fmt.Scanner; it sets z to the value of
+// Scan is a support routine for [fmt.Scanner]; it sets z to the value of
 // the scanned number. It accepts the formats 'b' (binary), 'o' (octal),
 // 'd' (decimal), 'x' (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
 func (z *Int) Scan(s fmt.ScanState, ch rune) error {

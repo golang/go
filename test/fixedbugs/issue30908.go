@@ -4,7 +4,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !nacl && !js
-// +build !nacl,!js
+//go:build !nacl && !js && !wasip1
 
 package ignored

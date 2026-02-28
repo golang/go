@@ -15,7 +15,7 @@ func isPoorStatementOp(op Op) bool {
 	// Note that Nilcheck often vanishes, but when it doesn't, you'd love to start the statement there
 	// so that a debugger-user sees the stop before the panic, and can examine the value.
 	case OpAddr, OpLocalAddr, OpOffPtr, OpStructSelect, OpPhi, OpITab, OpIData,
-		OpIMake, OpStringMake, OpSliceMake, OpStructMake0, OpStructMake1, OpStructMake2, OpStructMake3, OpStructMake4,
+		OpIMake, OpStringMake, OpSliceMake, OpStructMake,
 		OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F, OpSB, OpSP,
 		OpArgIntReg, OpArgFloatReg:
 		return true
@@ -32,7 +32,7 @@ func nextGoodStatementIndex(v *Value, i int, b *Block) int {
 	// If the value is the last one in the block, too bad, it will have to do
 	// (this assumes that the value ordering vaguely corresponds to the source
 	// program execution order, which tends to be true directly after ssa is
-	// first built.
+	// first built).
 	if i >= len(b.Values)-1 {
 		return i
 	}
@@ -62,7 +62,7 @@ func nextGoodStatementIndex(v *Value, i int, b *Block) int {
 // statement boundary.
 func notStmtBoundary(op Op) bool {
 	switch op {
-	case OpCopy, OpPhi, OpVarKill, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg, OpArgIntReg, OpArgFloatReg:
+	case OpCopy, OpPhi, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg, OpArgIntReg, OpArgFloatReg:
 		return true
 	}
 	return false

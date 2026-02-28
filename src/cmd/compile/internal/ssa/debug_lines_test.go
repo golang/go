@@ -7,32 +7,30 @@ package ssa_test
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"flag"
-	"internal/buildcfg"
-	"runtime"
-	"sort"
-
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
+	"slices"
 	"strconv"
+	"strings"
 	"testing"
 )
 
 // Matches lines in genssa output that are marked "isstmt", and the parenthesized plus-prefixed line number is a submatch
-var asmLine *regexp.Regexp = regexp.MustCompile(`^\s[vb][0-9]+\s+[0-9]+\s\(\+([0-9]+)\)`)
+var asmLine *regexp.Regexp = regexp.MustCompile(`^\s[vb]\d+\s+\d+\s\(\+(\d+)\)`)
 
 // this matches e.g.                            `   v123456789   000007   (+9876654310) MOVUPS	X15, ""..autotmp_2-32(SP)`
 
 // Matches lines in genssa output that describe an inlined file.
 // Note it expects an unadventurous choice of basename.
 var sepRE = regexp.QuoteMeta(string(filepath.Separator))
-var inlineLine *regexp.Regexp = regexp.MustCompile(`^#\s.*` + sepRE + `[-a-zA-Z0-9_]+\.go:([0-9]+)`)
+var inlineLine *regexp.Regexp = regexp.MustCompile(`^#\s.*` + sepRE + `[-\w]+\.go:(\d+)`)
 
 // this matches e.g.                                 #  /pa/inline-dumpxxxx.go:6
 
@@ -45,58 +43,60 @@ func testGoArch() string {
 	return *testGoArchFlag
 }
 
+func hasRegisterABI() bool {
+	switch testGoArch() {
+	case "amd64", "arm64", "loong64", "ppc64", "ppc64le", "riscv", "s390x":
+		return true
+	}
+	return false
+}
+
+func unixOnly(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" { // in particular, it could be windows.
+		t.Skip("this test depends on creating a file with a wonky name, only works for sure on Linux and Darwin")
+	}
+}
+
+// testDebugLinesDefault removes the first wanted statement on architectures that are not (yet) register ABI.
+func testDebugLinesDefault(t *testing.T, gcflags, file, function string, wantStmts []int, ignoreRepeats bool) {
+	unixOnly(t)
+	if !hasRegisterABI() {
+		wantStmts = wantStmts[1:]
+	}
+	testDebugLines(t, gcflags, file, function, wantStmts, ignoreRepeats)
+}
+
 func TestDebugLinesSayHi(t *testing.T) {
 	// This test is potentially fragile, the goal is that debugging should step properly through "sayhi"
 	// If the blocks are reordered in a way that changes the statement order but execution flows correctly,
 	// then rearrange the expected numbers.  Register abi and not-register-abi also have different sequences,
 	// at least for now.
 
-	switch testGoArch() {
-	case "arm64", "amd64": // register ABI
-		testDebugLines(t, "-N -l", "sayhi.go", "sayhi", []int{8, 9, 10, 11}, false)
-
-	case "arm", "386": // probably not register ABI for a while
-		testDebugLines(t, "-N -l", "sayhi.go", "sayhi", []int{9, 10, 11}, false)
-
-	default: // expect ppc64le and riscv will pick up register ABI soonish, not sure about others
-		t.Skip("skipped for many architectures, also changes w/ register ABI")
-	}
+	testDebugLinesDefault(t, "-N -l", "sayhi.go", "sayhi", []int{8, 9, 10, 11}, false)
 }
 
 func TestDebugLinesPushback(t *testing.T) {
-	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" { // in particular, it could be windows.
-		t.Skip("this test depends on creating a file with a wonky name, only works for sure on Linux and Darwin")
-	}
+	unixOnly(t)
 
 	switch testGoArch() {
 	default:
 		t.Skip("skipped for many architectures")
 
-	case "arm64", "amd64": // register ABI
-		fn := "(*List[go.shape.int_0]).PushBack"
-		if buildcfg.Experiment.Unified {
-			// Unified mangles differently
-			fn = "(*List[int]).PushBack-shaped"
-		}
+	case "arm64", "amd64", "loong64": // register ABI
+		fn := "(*List[go.shape.int]).PushBack"
 		testDebugLines(t, "-N -l", "pushback.go", fn, []int{17, 18, 19, 20, 21, 22, 24}, true)
 	}
 }
 
 func TestDebugLinesConvert(t *testing.T) {
-	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" { // in particular, it could be windows.
-		t.Skip("this test depends on creating a file with a wonky name, only works for sure on Linux and Darwin")
-	}
+	unixOnly(t)
 
 	switch testGoArch() {
 	default:
 		t.Skip("skipped for many architectures")
 
-	case "arm64", "amd64": // register ABI
-		fn := "G[go.shape.int_0]"
-		if buildcfg.Experiment.Unified {
-			// Unified mangles differently
-			fn = "G[int]-shaped"
-		}
+	case "arm64", "amd64", "loong64": // register ABI
+		fn := "G[go.shape.int]"
 		testDebugLines(t, "-N -l", "convertline.go", fn, []int{9, 10, 11}, true)
 	}
 }
@@ -111,10 +111,42 @@ func TestInlineLines(t *testing.T) {
 	testInlineStack(t, "inline-dump.go", "f", want)
 }
 
+func TestDebugLines_53456(t *testing.T) {
+	testDebugLinesDefault(t, "-N -l", "b53456.go", "(*T).Inc", []int{15, 16, 17, 18}, true)
+}
+
+func TestDebugLines_74576(t *testing.T) {
+	unixOnly(t)
+
+	switch testGoArch() {
+	default:
+		// Failed on linux/riscv64 (issue 74669), but conservatively
+		// skip many architectures like several other tests here.
+		t.Skip("skipped for many architectures")
+
+	case "arm64", "amd64", "loong64":
+		tests := []struct {
+			file      string
+			wantStmts []int
+		}{
+			{"i74576a.go", []int{12, 13, 13, 14}},
+			{"i74576b.go", []int{12, 13, 13, 14}},
+			{"i74576c.go", []int{12, 13, 13, 14}},
+		}
+		t.Parallel()
+		for _, test := range tests {
+			t.Run(test.file, func(t *testing.T) {
+				t.Parallel()
+				testDebugLines(t, "-N -l", test.file, "main", test.wantStmts, false)
+			})
+		}
+	}
+}
+
 func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
 	testenv.MustHaveGoBuild(t)
 
-	tmpdir, err := ioutil.TempDir("", "debug_lines_test")
+	tmpdir, err := os.MkdirTemp("", "debug_lines_test")
 	if err != nil {
 		panic(fmt.Sprintf("Problem creating TempDir, error %v", err))
 	}
@@ -129,7 +161,7 @@ func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
 		panic(fmt.Sprintf("Could not get abspath of testdata directory and file, %v", err))
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "foo.o", "-gcflags=-d=ssa/genssa/dump="+function+" "+moreGCFlags, source)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "foo.o", "-gcflags=-d=ssa/genssa/dump="+function+" "+moreGCFlags, source)
 	cmd.Dir = tmpdir
 	cmd.Env = replaceEnv(cmd.Env, "GOSSADIR", tmpdir)
 	testGoos := "linux" // default to linux
@@ -143,7 +175,7 @@ func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
 		fmt.Printf("About to run %s\n", asCommandLine("", cmd))
 	}
 
-	var stdout, stderr bytes.Buffer
+	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
@@ -164,16 +196,16 @@ func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
 }
 
 func sortInlineStacks(x [][]int) {
-	sort.Slice(x, func(i, j int) bool {
-		if len(x[i]) != len(x[j]) {
-			return len(x[i]) < len(x[j])
+	slices.SortFunc(x, func(a, b []int) int {
+		if len(a) != len(b) {
+			return cmp.Compare(len(a), len(b))
 		}
-		for k := range x[i] {
-			if x[i][k] != x[j][k] {
-				return x[i][k] < x[j][k]
+		for k := range a {
+			if a[k] != b[k] {
+				return cmp.Compare(a[k], b[k])
 			}
 		}
-		return false
+		return 0
 	})
 }
 
@@ -210,7 +242,7 @@ func testInlineStack(t *testing.T, file, function string, wantStacks [][]int) {
 	sortInlineStacks(gotStacks)
 	sortInlineStacks(wantStacks)
 	if !reflect.DeepEqual(wantStacks, gotStacks) {
-		t.Errorf("wanted inlines %+v but got %+v", wantStacks, gotStacks)
+		t.Errorf("wanted inlines %+v but got %+v\n%s", wantStacks, gotStacks, dumpBytes)
 	}
 
 }
@@ -219,6 +251,9 @@ func testInlineStack(t *testing.T, file, function string, wantStacks [][]int) {
 // then verifies that the statement-marked lines in that file are the same as those in wantStmts
 // These files must all be short because this is super-fragile.
 // "go build" is run in a temporary directory that is normally deleted, unless -test.v
+//
+// TODO: the tests calling this are somewhat expensive; perhaps more tests can be marked t.Parallel,
+// or perhaps the mechanism here can be made more efficient.
 func testDebugLines(t *testing.T, gcflags, file, function string, wantStmts []int, ignoreRepeats bool) {
 	dumpBytes := compileAndDump(t, file, function, gcflags)
 	dump := bufio.NewScanner(bytes.NewReader(dumpBytes))

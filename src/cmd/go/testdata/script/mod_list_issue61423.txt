@@ -1,0 +1,100 @@
+[short] skip 'generates a vcstest git repo'
+[!git] skip
+
+mkdir $WORK/mod1
+mkdir $WORK/mod2
+env GONOSUMDB=vcs-test.golang.org
+
+env GOPROXY=direct
+env GOMODCACHE=$WORK/mod1
+
+
+# If we query a module version from a git repo, we expect its
+# Origin data to be reusable.
+
+go list -m -json vcs-test.golang.org/git/issue61415.git@latest
+cp stdout git-latest.json
+stdout '"Version": "v0.0.0-20231114180001-f213069baa68"'
+stdout '"Origin":'
+stdout '"VCS": "git"'
+stdout '"Hash": "f213069baa68ec26412fb373c7cf6669db1f8e69"'
+stdout '"Ref": "HEAD"'
+stdout '"TagSum": "t1:47DEQpj8HBSa\+/TImW\+5JCeuQeRkm5NMpJWZG3hSuFU="'
+
+go list -reuse=git-latest.json -m -json vcs-test.golang.org/git/issue61415.git@latest
+stdout '"Version": "v0.0.0-20231114180001-f213069baa68"'
+stdout '"Origin":'
+stdout '"VCS": "git"'
+stdout '"Hash": "f213069baa68ec26412fb373c7cf6669db1f8e69"'
+stdout '"Ref": "HEAD"'
+stdout '"TagSum": "t1:47DEQpj8HBSa\+/TImW\+5JCeuQeRkm5NMpJWZG3hSuFU="'
+stdout '"Reuse": true'
+
+
+# Now we construct a filesystem-based module proxy that
+# contains only an older commit.
+
+go clean -modcache
+
+go mod download -json vcs-test.golang.org/git/issue61415.git@08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a
+stdout '"Version": "v0.0.0-20231114180000-08a4fa6bb9c0"'
+stdout '"Origin":'
+stdout '"VCS": "git"'
+stdout '"Hash": "08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a"'
+
+[GOOS:windows] env GOPROXY=file:///$WORK/mod1/cache/download
+[!GOOS:windows] env GOPROXY=file://$WORK/mod1/cache/download
+env GOMODCACHE=$WORK/modcache2
+
+
+# If we resolve the "latest" version query using a proxy,
+# it is only going to have Git origin information about the one
+# commit — not the other tags that would go into resolving
+# the underlying version list.
+# 'go list' should not emit the partial information,
+# since it isn't enough to reconstruct the result.
+
+go list -m -json vcs-test.golang.org/git/issue61415.git@latest
+cp stdout proxy-latest.json
+stdout '"Version": "v0.0.0-20231114180000-08a4fa6bb9c0"'
+! stdout '"Origin":'
+
+# However, if we list a specific, stable version, we should get
+# whatever origin metadata the proxy has for the version.
+
+go list -m -json vcs-test.golang.org/git/issue61415.git@v0.0.0-20231114180000-08a4fa6bb9c0
+cp stdout proxy-version.json
+stdout '"Version": "v0.0.0-20231114180000-08a4fa6bb9c0"'
+stdout '"Origin":'
+stdout '"VCS": "git"'
+stdout '"Hash": "08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a"'
+! stdout '"Ref":'
+! stdout '"TagSum":'
+
+# The -reuse flag has no effect with a proxy, since the proxy can serve
+# metadata about a given module version cheaply anyway.
+
+go list -reuse=proxy-version.json -m -json vcs-test.golang.org/git/issue61415.git@v0.0.0-20231114180000-08a4fa6bb9c0
+stdout '"Version": "v0.0.0-20231114180000-08a4fa6bb9c0"'
+stdout '"Origin":'
+stdout '"VCS": "git"'
+stdout '"Hash": "08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a"'
+! stdout '"Ref":'
+! stdout '"TagSum":'
+! stdout '"Reuse":'
+
+
+# With GOPROXY=direct, the -reuse flag has an effect, but
+# the Origin data from the proxy should not be sufficient
+# for the proxy response to be reused.
+
+env GOPROXY=direct
+
+go list -reuse=proxy-latest.json -m -json vcs-test.golang.org/git/issue61415.git@latest
+stdout '"Version": "v0.0.0-20231114180001-f213069baa68"'
+stdout '"Origin":'
+stdout '"VCS": "git"'
+stdout '"Hash": "f213069baa68ec26412fb373c7cf6669db1f8e69"'
+stdout '"Ref": "HEAD"'
+stdout '"TagSum": "t1:47DEQpj8HBSa\+/TImW\+5JCeuQeRkm5NMpJWZG3hSuFU="'
+! stdout '"Reuse":'

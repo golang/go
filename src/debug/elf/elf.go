@@ -13,7 +13,7 @@
  * $FreeBSD: src/sys/sparc64/include/elf.h,v 1.12 2003/09/25 01:10:26 peter Exp $
  * "System V ABI" (http://www.sco.com/developers/gabi/latest/ch4.eheader.html)
  * "ELF for the ARM® 64-bit Architecture (AArch64)" (ARM IHI 0056B)
- * "RISC-V ELF psABI specification" (https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.md)
+ * "RISC-V ELF psABI specification" (https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc)
  * llvm/BinaryFormat/ELF.h - ELF constants and structures
  *
  * Copyright (c) 1996-1998 John D. Polstra.  All rights reserved.
@@ -620,36 +620,37 @@ func (i SectionIndex) GoString() string { return stringName(uint32(i), shnString
 type SectionType uint32
 
 const (
-	SHT_NULL           SectionType = 0          /* inactive */
-	SHT_PROGBITS       SectionType = 1          /* program defined information */
-	SHT_SYMTAB         SectionType = 2          /* symbol table section */
-	SHT_STRTAB         SectionType = 3          /* string table section */
-	SHT_RELA           SectionType = 4          /* relocation section with addends */
-	SHT_HASH           SectionType = 5          /* symbol hash table section */
-	SHT_DYNAMIC        SectionType = 6          /* dynamic section */
-	SHT_NOTE           SectionType = 7          /* note section */
-	SHT_NOBITS         SectionType = 8          /* no space section */
-	SHT_REL            SectionType = 9          /* relocation section - no addends */
-	SHT_SHLIB          SectionType = 10         /* reserved - purpose unknown */
-	SHT_DYNSYM         SectionType = 11         /* dynamic symbol table section */
-	SHT_INIT_ARRAY     SectionType = 14         /* Initialization function pointers. */
-	SHT_FINI_ARRAY     SectionType = 15         /* Termination function pointers. */
-	SHT_PREINIT_ARRAY  SectionType = 16         /* Pre-initialization function ptrs. */
-	SHT_GROUP          SectionType = 17         /* Section group. */
-	SHT_SYMTAB_SHNDX   SectionType = 18         /* Section indexes (see SHN_XINDEX). */
-	SHT_LOOS           SectionType = 0x60000000 /* First of OS specific semantics */
-	SHT_GNU_ATTRIBUTES SectionType = 0x6ffffff5 /* GNU object attributes */
-	SHT_GNU_HASH       SectionType = 0x6ffffff6 /* GNU hash table */
-	SHT_GNU_LIBLIST    SectionType = 0x6ffffff7 /* GNU prelink library list */
-	SHT_GNU_VERDEF     SectionType = 0x6ffffffd /* GNU version definition section */
-	SHT_GNU_VERNEED    SectionType = 0x6ffffffe /* GNU version needs section */
-	SHT_GNU_VERSYM     SectionType = 0x6fffffff /* GNU version symbol table */
-	SHT_HIOS           SectionType = 0x6fffffff /* Last of OS specific semantics */
-	SHT_LOPROC         SectionType = 0x70000000 /* reserved range for processor */
-	SHT_MIPS_ABIFLAGS  SectionType = 0x7000002a /* .MIPS.abiflags */
-	SHT_HIPROC         SectionType = 0x7fffffff /* specific section header types */
-	SHT_LOUSER         SectionType = 0x80000000 /* reserved range for application */
-	SHT_HIUSER         SectionType = 0xffffffff /* specific indexes */
+	SHT_NULL             SectionType = 0          /* inactive */
+	SHT_PROGBITS         SectionType = 1          /* program defined information */
+	SHT_SYMTAB           SectionType = 2          /* symbol table section */
+	SHT_STRTAB           SectionType = 3          /* string table section */
+	SHT_RELA             SectionType = 4          /* relocation section with addends */
+	SHT_HASH             SectionType = 5          /* symbol hash table section */
+	SHT_DYNAMIC          SectionType = 6          /* dynamic section */
+	SHT_NOTE             SectionType = 7          /* note section */
+	SHT_NOBITS           SectionType = 8          /* no space section */
+	SHT_REL              SectionType = 9          /* relocation section - no addends */
+	SHT_SHLIB            SectionType = 10         /* reserved - purpose unknown */
+	SHT_DYNSYM           SectionType = 11         /* dynamic symbol table section */
+	SHT_INIT_ARRAY       SectionType = 14         /* Initialization function pointers. */
+	SHT_FINI_ARRAY       SectionType = 15         /* Termination function pointers. */
+	SHT_PREINIT_ARRAY    SectionType = 16         /* Pre-initialization function ptrs. */
+	SHT_GROUP            SectionType = 17         /* Section group. */
+	SHT_SYMTAB_SHNDX     SectionType = 18         /* Section indexes (see SHN_XINDEX). */
+	SHT_LOOS             SectionType = 0x60000000 /* First of OS specific semantics */
+	SHT_GNU_ATTRIBUTES   SectionType = 0x6ffffff5 /* GNU object attributes */
+	SHT_GNU_HASH         SectionType = 0x6ffffff6 /* GNU hash table */
+	SHT_GNU_LIBLIST      SectionType = 0x6ffffff7 /* GNU prelink library list */
+	SHT_GNU_VERDEF       SectionType = 0x6ffffffd /* GNU version definition section */
+	SHT_GNU_VERNEED      SectionType = 0x6ffffffe /* GNU version needs section */
+	SHT_GNU_VERSYM       SectionType = 0x6fffffff /* GNU version symbol table */
+	SHT_HIOS             SectionType = 0x6fffffff /* Last of OS specific semantics */
+	SHT_LOPROC           SectionType = 0x70000000 /* reserved range for processor */
+	SHT_RISCV_ATTRIBUTES SectionType = 0x70000003 /* RISCV object attributes */
+	SHT_MIPS_ABIFLAGS    SectionType = 0x7000002a /* .MIPS.abiflags */
+	SHT_HIPROC           SectionType = 0x7fffffff /* specific section header types */
+	SHT_LOUSER           SectionType = 0x80000000 /* reserved range for application */
+	SHT_HIUSER           SectionType = 0xffffffff /* specific indexes */
 )
 
 var shtStrings = []intName{
@@ -678,6 +679,8 @@ var shtStrings = []intName{
 	{0x6ffffffe, "SHT_GNU_VERNEED"},
 	{0x6fffffff, "SHT_GNU_VERSYM"},
 	{0x70000000, "SHT_LOPROC"},
+	// We don't list the processor-dependent SectionType,
+	// as the values overlap.
 	{0x7000002a, "SHT_MIPS_ABIFLAGS"},
 	{0x7fffffff, "SHT_HIPROC"},
 	{0x80000000, "SHT_LOUSER"},
@@ -728,6 +731,7 @@ type CompressionType int
 
 const (
 	COMPRESS_ZLIB   CompressionType = 1          /* ZLIB compression. */
+	COMPRESS_ZSTD   CompressionType = 2          /* ZSTD compression. */
 	COMPRESS_LOOS   CompressionType = 0x60000000 /* First OS-specific. */
 	COMPRESS_HIOS   CompressionType = 0x6fffffff /* Last OS-specific. */
 	COMPRESS_LOPROC CompressionType = 0x70000000 /* First processor-specific type. */
@@ -735,7 +739,8 @@ const (
 )
 
 var compressionStrings = []intName{
-	{0, "COMPRESS_ZLIB"},
+	{1, "COMPRESS_ZLIB"},
+	{2, "COMPRESS_ZSTD"},
 	{0x60000000, "COMPRESS_LOOS"},
 	{0x6fffffff, "COMPRESS_HIOS"},
 	{0x70000000, "COMPRESS_LOPROC"},
@@ -771,6 +776,7 @@ const (
 
 	PT_OPENBSD_RANDOMIZE ProgType = 0x65a3dbe6 /* Random data */
 	PT_OPENBSD_WXNEEDED  ProgType = 0x65a3dbe7 /* W^X violations */
+	PT_OPENBSD_NOBTCFI   ProgType = 0x65a3dbe8 /* No branch target CFI */
 	PT_OPENBSD_BOOTDATA  ProgType = 0x65a41be6 /* Boot arguments */
 
 	PT_SUNW_EH_FRAME ProgType = 0x6474e550 /* Frame unwind information */
@@ -790,6 +796,8 @@ const (
 	PT_MIPS_RTPROC   ProgType = 0x70000001 /* Runtime procedures */
 	PT_MIPS_OPTIONS  ProgType = 0x70000002 /* Options */
 	PT_MIPS_ABIFLAGS ProgType = 0x70000003 /* ABI flags */
+
+	PT_RISCV_ATTRIBUTES ProgType = 0x70000003 /* RISC-V ELF attribute section. */
 
 	PT_S390_PGSTE ProgType = 0x70000000 /* 4k page table size */
 
@@ -1107,6 +1115,124 @@ var dflagStrings = []intName{
 func (i DynFlag) String() string   { return flagName(uint32(i), dflagStrings, false) }
 func (i DynFlag) GoString() string { return flagName(uint32(i), dflagStrings, true) }
 
+// DT_FLAGS_1 values.
+type DynFlag1 uint32
+
+const (
+	// Indicates that all relocations for this object must be processed before
+	// returning control to the program.
+	DF_1_NOW DynFlag1 = 0x00000001
+	// Unused.
+	DF_1_GLOBAL DynFlag1 = 0x00000002
+	// Indicates that the object is a member of a group.
+	DF_1_GROUP DynFlag1 = 0x00000004
+	// Indicates that the object cannot be deleted from a process.
+	DF_1_NODELETE DynFlag1 = 0x00000008
+	// Meaningful only for filters. Indicates that all associated filtees be
+	// processed immediately.
+	DF_1_LOADFLTR DynFlag1 = 0x00000010
+	// Indicates that this object's initialization section be run before any other
+	// objects loaded.
+	DF_1_INITFIRST DynFlag1 = 0x00000020
+	// Indicates that the object cannot be added to a running process with dlopen.
+	DF_1_NOOPEN DynFlag1 = 0x00000040
+	// Indicates the object requires $ORIGIN processing.
+	DF_1_ORIGIN DynFlag1 = 0x00000080
+	// Indicates that the object should use direct binding information.
+	DF_1_DIRECT DynFlag1 = 0x00000100
+	// Unused.
+	DF_1_TRANS DynFlag1 = 0x00000200
+	// Indicates that the objects symbol table is to interpose before all symbols
+	// except the primary load object, which is typically the executable.
+	DF_1_INTERPOSE DynFlag1 = 0x00000400
+	// Indicates that the search for dependencies of this object ignores any
+	// default library search paths.
+	DF_1_NODEFLIB DynFlag1 = 0x00000800
+	// Indicates that this object is not dumped by dldump. Candidates are objects
+	// with no relocations that might get included when generating alternative
+	// objects using.
+	DF_1_NODUMP DynFlag1 = 0x00001000
+	// Identifies this object as a configuration alternative object generated by
+	// crle. Triggers the runtime linker to search for a configuration file $ORIGIN/ld.config.app-name.
+	DF_1_CONFALT DynFlag1 = 0x00002000
+	// Meaningful only for filtees. Terminates a filters search for any
+	// further filtees.
+	DF_1_ENDFILTEE DynFlag1 = 0x00004000
+	// Indicates that this object has displacement relocations applied.
+	DF_1_DISPRELDNE DynFlag1 = 0x00008000
+	// Indicates that this object has displacement relocations pending.
+	DF_1_DISPRELPND DynFlag1 = 0x00010000
+	// Indicates that this object contains symbols that cannot be directly
+	// bound to.
+	DF_1_NODIRECT DynFlag1 = 0x00020000
+	// Reserved for internal use by the kernel runtime-linker.
+	DF_1_IGNMULDEF DynFlag1 = 0x00040000
+	// Reserved for internal use by the kernel runtime-linker.
+	DF_1_NOKSYMS DynFlag1 = 0x00080000
+	// Reserved for internal use by the kernel runtime-linker.
+	DF_1_NOHDR DynFlag1 = 0x00100000
+	// Indicates that this object has been edited or has been modified since the
+	// objects original construction by the link-editor.
+	DF_1_EDITED DynFlag1 = 0x00200000
+	// Reserved for internal use by the kernel runtime-linker.
+	DF_1_NORELOC DynFlag1 = 0x00400000
+	// Indicates that the object contains individual symbols that should interpose
+	// before all symbols except the primary load object, which is typically the
+	// executable.
+	DF_1_SYMINTPOSE DynFlag1 = 0x00800000
+	// Indicates that the executable requires global auditing.
+	DF_1_GLOBAUDIT DynFlag1 = 0x01000000
+	// Indicates that the object defines, or makes reference to singleton symbols.
+	DF_1_SINGLETON DynFlag1 = 0x02000000
+	// Indicates that the object is a stub.
+	DF_1_STUB DynFlag1 = 0x04000000
+	// Indicates that the object is a position-independent executable.
+	DF_1_PIE DynFlag1 = 0x08000000
+	// Indicates that the object is a kernel module.
+	DF_1_KMOD DynFlag1 = 0x10000000
+	// Indicates that the object is a weak standard filter.
+	DF_1_WEAKFILTER DynFlag1 = 0x20000000
+	// Unused.
+	DF_1_NOCOMMON DynFlag1 = 0x40000000
+)
+
+var dflag1Strings = []intName{
+	{0x00000001, "DF_1_NOW"},
+	{0x00000002, "DF_1_GLOBAL"},
+	{0x00000004, "DF_1_GROUP"},
+	{0x00000008, "DF_1_NODELETE"},
+	{0x00000010, "DF_1_LOADFLTR"},
+	{0x00000020, "DF_1_INITFIRST"},
+	{0x00000040, "DF_1_NOOPEN"},
+	{0x00000080, "DF_1_ORIGIN"},
+	{0x00000100, "DF_1_DIRECT"},
+	{0x00000200, "DF_1_TRANS"},
+	{0x00000400, "DF_1_INTERPOSE"},
+	{0x00000800, "DF_1_NODEFLIB"},
+	{0x00001000, "DF_1_NODUMP"},
+	{0x00002000, "DF_1_CONFALT"},
+	{0x00004000, "DF_1_ENDFILTEE"},
+	{0x00008000, "DF_1_DISPRELDNE"},
+	{0x00010000, "DF_1_DISPRELPND"},
+	{0x00020000, "DF_1_NODIRECT"},
+	{0x00040000, "DF_1_IGNMULDEF"},
+	{0x00080000, "DF_1_NOKSYMS"},
+	{0x00100000, "DF_1_NOHDR"},
+	{0x00200000, "DF_1_EDITED"},
+	{0x00400000, "DF_1_NORELOC"},
+	{0x00800000, "DF_1_SYMINTPOSE"},
+	{0x01000000, "DF_1_GLOBAUDIT"},
+	{0x02000000, "DF_1_SINGLETON"},
+	{0x04000000, "DF_1_STUB"},
+	{0x08000000, "DF_1_PIE"},
+	{0x10000000, "DF_1_KMOD"},
+	{0x20000000, "DF_1_WEAKFILTER"},
+	{0x40000000, "DF_1_NOCOMMON"},
+}
+
+func (i DynFlag1) String() string   { return flagName(uint32(i), dflag1Strings, false) }
+func (i DynFlag1) GoString() string { return flagName(uint32(i), dflag1Strings, true) }
+
 // NType values; used in core files.
 type NType int
 
@@ -1166,6 +1292,11 @@ const (
 	STT_HIOS    SymType = 12 /*   specific semantics. */
 	STT_LOPROC  SymType = 13 /* reserved range for processor */
 	STT_HIPROC  SymType = 15 /*   specific semantics. */
+
+	/* Non-standard symbol types. */
+	STT_RELC      SymType = 8  /* Complex relocation expression. */
+	STT_SRELC     SymType = 9  /* Signed complex relocation expression. */
+	STT_GNU_IFUNC SymType = 10 /* Indirect code object. */
 )
 
 var sttStrings = []intName{
@@ -1176,6 +1307,8 @@ var sttStrings = []intName{
 	{4, "STT_FILE"},
 	{5, "STT_COMMON"},
 	{6, "STT_TLS"},
+	{8, "STT_RELC"},
+	{9, "STT_SRELC"},
 	{10, "STT_LOOS"},
 	{12, "STT_HIOS"},
 	{13, "STT_LOPROC"},
@@ -2096,6 +2229,8 @@ const (
 	R_MIPS_TLS_TPREL64     R_MIPS = 48 /* TP-relative offset, 64 bit */
 	R_MIPS_TLS_TPREL_HI16  R_MIPS = 49 /* TP-relative offset, high 16 bits */
 	R_MIPS_TLS_TPREL_LO16  R_MIPS = 50 /* TP-relative offset, low 16 bits */
+
+	R_MIPS_PC32 R_MIPS = 248 /* 32 bit PC relative reference */
 )
 
 var rmipsStrings = []intName{
@@ -2147,12 +2282,13 @@ var rmipsStrings = []intName{
 	{48, "R_MIPS_TLS_TPREL64"},
 	{49, "R_MIPS_TLS_TPREL_HI16"},
 	{50, "R_MIPS_TLS_TPREL_LO16"},
+	{248, "R_MIPS_PC32"},
 }
 
 func (i R_MIPS) String() string   { return stringName(uint32(i), rmipsStrings, false) }
 func (i R_MIPS) GoString() string { return stringName(uint32(i), rmipsStrings, true) }
 
-// Relocation types for LARCH.
+// Relocation types for LoongArch.
 type R_LARCH int
 
 const (
@@ -2169,6 +2305,8 @@ const (
 	R_LARCH_TLS_TPREL32                R_LARCH = 10
 	R_LARCH_TLS_TPREL64                R_LARCH = 11
 	R_LARCH_IRELATIVE                  R_LARCH = 12
+	R_LARCH_TLS_DESC32                 R_LARCH = 13
+	R_LARCH_TLS_DESC64                 R_LARCH = 14
 	R_LARCH_MARK_LA                    R_LARCH = 20
 	R_LARCH_MARK_PCREL                 R_LARCH = 21
 	R_LARCH_SOP_PUSH_PCREL             R_LARCH = 22
@@ -2206,6 +2344,71 @@ const (
 	R_LARCH_SUB24                      R_LARCH = 54
 	R_LARCH_SUB32                      R_LARCH = 55
 	R_LARCH_SUB64                      R_LARCH = 56
+	R_LARCH_GNU_VTINHERIT              R_LARCH = 57
+	R_LARCH_GNU_VTENTRY                R_LARCH = 58
+	R_LARCH_B16                        R_LARCH = 64
+	R_LARCH_B21                        R_LARCH = 65
+	R_LARCH_B26                        R_LARCH = 66
+	R_LARCH_ABS_HI20                   R_LARCH = 67
+	R_LARCH_ABS_LO12                   R_LARCH = 68
+	R_LARCH_ABS64_LO20                 R_LARCH = 69
+	R_LARCH_ABS64_HI12                 R_LARCH = 70
+	R_LARCH_PCALA_HI20                 R_LARCH = 71
+	R_LARCH_PCALA_LO12                 R_LARCH = 72
+	R_LARCH_PCALA64_LO20               R_LARCH = 73
+	R_LARCH_PCALA64_HI12               R_LARCH = 74
+	R_LARCH_GOT_PC_HI20                R_LARCH = 75
+	R_LARCH_GOT_PC_LO12                R_LARCH = 76
+	R_LARCH_GOT64_PC_LO20              R_LARCH = 77
+	R_LARCH_GOT64_PC_HI12              R_LARCH = 78
+	R_LARCH_GOT_HI20                   R_LARCH = 79
+	R_LARCH_GOT_LO12                   R_LARCH = 80
+	R_LARCH_GOT64_LO20                 R_LARCH = 81
+	R_LARCH_GOT64_HI12                 R_LARCH = 82
+	R_LARCH_TLS_LE_HI20                R_LARCH = 83
+	R_LARCH_TLS_LE_LO12                R_LARCH = 84
+	R_LARCH_TLS_LE64_LO20              R_LARCH = 85
+	R_LARCH_TLS_LE64_HI12              R_LARCH = 86
+	R_LARCH_TLS_IE_PC_HI20             R_LARCH = 87
+	R_LARCH_TLS_IE_PC_LO12             R_LARCH = 88
+	R_LARCH_TLS_IE64_PC_LO20           R_LARCH = 89
+	R_LARCH_TLS_IE64_PC_HI12           R_LARCH = 90
+	R_LARCH_TLS_IE_HI20                R_LARCH = 91
+	R_LARCH_TLS_IE_LO12                R_LARCH = 92
+	R_LARCH_TLS_IE64_LO20              R_LARCH = 93
+	R_LARCH_TLS_IE64_HI12              R_LARCH = 94
+	R_LARCH_TLS_LD_PC_HI20             R_LARCH = 95
+	R_LARCH_TLS_LD_HI20                R_LARCH = 96
+	R_LARCH_TLS_GD_PC_HI20             R_LARCH = 97
+	R_LARCH_TLS_GD_HI20                R_LARCH = 98
+	R_LARCH_32_PCREL                   R_LARCH = 99
+	R_LARCH_RELAX                      R_LARCH = 100
+	R_LARCH_DELETE                     R_LARCH = 101
+	R_LARCH_ALIGN                      R_LARCH = 102
+	R_LARCH_PCREL20_S2                 R_LARCH = 103
+	R_LARCH_CFA                        R_LARCH = 104
+	R_LARCH_ADD6                       R_LARCH = 105
+	R_LARCH_SUB6                       R_LARCH = 106
+	R_LARCH_ADD_ULEB128                R_LARCH = 107
+	R_LARCH_SUB_ULEB128                R_LARCH = 108
+	R_LARCH_64_PCREL                   R_LARCH = 109
+	R_LARCH_CALL36                     R_LARCH = 110
+	R_LARCH_TLS_DESC_PC_HI20           R_LARCH = 111
+	R_LARCH_TLS_DESC_PC_LO12           R_LARCH = 112
+	R_LARCH_TLS_DESC64_PC_LO20         R_LARCH = 113
+	R_LARCH_TLS_DESC64_PC_HI12         R_LARCH = 114
+	R_LARCH_TLS_DESC_HI20              R_LARCH = 115
+	R_LARCH_TLS_DESC_LO12              R_LARCH = 116
+	R_LARCH_TLS_DESC64_LO20            R_LARCH = 117
+	R_LARCH_TLS_DESC64_HI12            R_LARCH = 118
+	R_LARCH_TLS_DESC_LD                R_LARCH = 119
+	R_LARCH_TLS_DESC_CALL              R_LARCH = 120
+	R_LARCH_TLS_LE_HI20_R              R_LARCH = 121
+	R_LARCH_TLS_LE_ADD_R               R_LARCH = 122
+	R_LARCH_TLS_LE_LO12_R              R_LARCH = 123
+	R_LARCH_TLS_LD_PCREL20_S2          R_LARCH = 124
+	R_LARCH_TLS_GD_PCREL20_S2          R_LARCH = 125
+	R_LARCH_TLS_DESC_PCREL20_S2        R_LARCH = 126
 )
 
 var rlarchStrings = []intName{
@@ -2222,6 +2425,8 @@ var rlarchStrings = []intName{
 	{10, "R_LARCH_TLS_TPREL32"},
 	{11, "R_LARCH_TLS_TPREL64"},
 	{12, "R_LARCH_IRELATIVE"},
+	{13, "R_LARCH_TLS_DESC32"},
+	{14, "R_LARCH_TLS_DESC64"},
 	{20, "R_LARCH_MARK_LA"},
 	{21, "R_LARCH_MARK_PCREL"},
 	{22, "R_LARCH_SOP_PUSH_PCREL"},
@@ -2259,6 +2464,71 @@ var rlarchStrings = []intName{
 	{54, "R_LARCH_SUB24"},
 	{55, "R_LARCH_SUB32"},
 	{56, "R_LARCH_SUB64"},
+	{57, "R_LARCH_GNU_VTINHERIT"},
+	{58, "R_LARCH_GNU_VTENTRY"},
+	{64, "R_LARCH_B16"},
+	{65, "R_LARCH_B21"},
+	{66, "R_LARCH_B26"},
+	{67, "R_LARCH_ABS_HI20"},
+	{68, "R_LARCH_ABS_LO12"},
+	{69, "R_LARCH_ABS64_LO20"},
+	{70, "R_LARCH_ABS64_HI12"},
+	{71, "R_LARCH_PCALA_HI20"},
+	{72, "R_LARCH_PCALA_LO12"},
+	{73, "R_LARCH_PCALA64_LO20"},
+	{74, "R_LARCH_PCALA64_HI12"},
+	{75, "R_LARCH_GOT_PC_HI20"},
+	{76, "R_LARCH_GOT_PC_LO12"},
+	{77, "R_LARCH_GOT64_PC_LO20"},
+	{78, "R_LARCH_GOT64_PC_HI12"},
+	{79, "R_LARCH_GOT_HI20"},
+	{80, "R_LARCH_GOT_LO12"},
+	{81, "R_LARCH_GOT64_LO20"},
+	{82, "R_LARCH_GOT64_HI12"},
+	{83, "R_LARCH_TLS_LE_HI20"},
+	{84, "R_LARCH_TLS_LE_LO12"},
+	{85, "R_LARCH_TLS_LE64_LO20"},
+	{86, "R_LARCH_TLS_LE64_HI12"},
+	{87, "R_LARCH_TLS_IE_PC_HI20"},
+	{88, "R_LARCH_TLS_IE_PC_LO12"},
+	{89, "R_LARCH_TLS_IE64_PC_LO20"},
+	{90, "R_LARCH_TLS_IE64_PC_HI12"},
+	{91, "R_LARCH_TLS_IE_HI20"},
+	{92, "R_LARCH_TLS_IE_LO12"},
+	{93, "R_LARCH_TLS_IE64_LO20"},
+	{94, "R_LARCH_TLS_IE64_HI12"},
+	{95, "R_LARCH_TLS_LD_PC_HI20"},
+	{96, "R_LARCH_TLS_LD_HI20"},
+	{97, "R_LARCH_TLS_GD_PC_HI20"},
+	{98, "R_LARCH_TLS_GD_HI20"},
+	{99, "R_LARCH_32_PCREL"},
+	{100, "R_LARCH_RELAX"},
+	{101, "R_LARCH_DELETE"},
+	{102, "R_LARCH_ALIGN"},
+	{103, "R_LARCH_PCREL20_S2"},
+	{104, "R_LARCH_CFA"},
+	{105, "R_LARCH_ADD6"},
+	{106, "R_LARCH_SUB6"},
+	{107, "R_LARCH_ADD_ULEB128"},
+	{108, "R_LARCH_SUB_ULEB128"},
+	{109, "R_LARCH_64_PCREL"},
+	{110, "R_LARCH_CALL36"},
+	{111, "R_LARCH_TLS_DESC_PC_HI20"},
+	{112, "R_LARCH_TLS_DESC_PC_LO12"},
+	{113, "R_LARCH_TLS_DESC64_PC_LO20"},
+	{114, "R_LARCH_TLS_DESC64_PC_HI12"},
+	{115, "R_LARCH_TLS_DESC_HI20"},
+	{116, "R_LARCH_TLS_DESC_LO12"},
+	{117, "R_LARCH_TLS_DESC64_LO20"},
+	{118, "R_LARCH_TLS_DESC64_HI12"},
+	{119, "R_LARCH_TLS_DESC_LD"},
+	{120, "R_LARCH_TLS_DESC_CALL"},
+	{121, "R_LARCH_TLS_LE_HI20_R"},
+	{122, "R_LARCH_TLS_LE_ADD_R"},
+	{123, "R_LARCH_TLS_LE_LO12_R"},
+	{124, "R_LARCH_TLS_LD_PCREL20_S2"},
+	{125, "R_LARCH_TLS_GD_PCREL20_S2"},
+	{126, "R_LARCH_TLS_DESC_PCREL20_S2"},
 }
 
 func (i R_LARCH) String() string   { return stringName(uint32(i), rlarchStrings, false) }
@@ -2462,15 +2732,32 @@ const (
 	R_PPC64_GOT16_LO           R_PPC64 = 15 // R_POWERPC_GOT16_LO
 	R_PPC64_GOT16_HI           R_PPC64 = 16 // R_POWERPC_GOT16_HI
 	R_PPC64_GOT16_HA           R_PPC64 = 17 // R_POWERPC_GOT16_HA
+	R_PPC64_COPY               R_PPC64 = 19 // R_POWERPC_COPY
+	R_PPC64_GLOB_DAT           R_PPC64 = 20 // R_POWERPC_GLOB_DAT
 	R_PPC64_JMP_SLOT           R_PPC64 = 21 // R_POWERPC_JMP_SLOT
 	R_PPC64_RELATIVE           R_PPC64 = 22 // R_POWERPC_RELATIVE
+	R_PPC64_UADDR32            R_PPC64 = 24 // R_POWERPC_UADDR32
+	R_PPC64_UADDR16            R_PPC64 = 25 // R_POWERPC_UADDR16
 	R_PPC64_REL32              R_PPC64 = 26 // R_POWERPC_REL32
+	R_PPC64_PLT32              R_PPC64 = 27 // R_POWERPC_PLT32
+	R_PPC64_PLTREL32           R_PPC64 = 28 // R_POWERPC_PLTREL32
+	R_PPC64_PLT16_LO           R_PPC64 = 29 // R_POWERPC_PLT16_LO
+	R_PPC64_PLT16_HI           R_PPC64 = 30 // R_POWERPC_PLT16_HI
+	R_PPC64_PLT16_HA           R_PPC64 = 31 // R_POWERPC_PLT16_HA
+	R_PPC64_SECTOFF            R_PPC64 = 33 // R_POWERPC_SECTOFF
+	R_PPC64_SECTOFF_LO         R_PPC64 = 34 // R_POWERPC_SECTOFF_LO
+	R_PPC64_SECTOFF_HI         R_PPC64 = 35 // R_POWERPC_SECTOFF_HI
+	R_PPC64_SECTOFF_HA         R_PPC64 = 36 // R_POWERPC_SECTOFF_HA
+	R_PPC64_REL30              R_PPC64 = 37 // R_POWERPC_ADDR30
 	R_PPC64_ADDR64             R_PPC64 = 38
 	R_PPC64_ADDR16_HIGHER      R_PPC64 = 39
 	R_PPC64_ADDR16_HIGHERA     R_PPC64 = 40
 	R_PPC64_ADDR16_HIGHEST     R_PPC64 = 41
 	R_PPC64_ADDR16_HIGHESTA    R_PPC64 = 42
+	R_PPC64_UADDR64            R_PPC64 = 43
 	R_PPC64_REL64              R_PPC64 = 44
+	R_PPC64_PLT64              R_PPC64 = 45
+	R_PPC64_PLTREL64           R_PPC64 = 46
 	R_PPC64_TOC16              R_PPC64 = 47
 	R_PPC64_TOC16_LO           R_PPC64 = 48
 	R_PPC64_TOC16_HI           R_PPC64 = 49
@@ -2486,7 +2773,7 @@ const (
 	R_PPC64_GOT16_LO_DS        R_PPC64 = 59
 	R_PPC64_PLT16_LO_DS        R_PPC64 = 60
 	R_PPC64_SECTOFF_DS         R_PPC64 = 61
-	R_PPC64_SECTOFF_LO_DS      R_PPC64 = 61
+	R_PPC64_SECTOFF_LO_DS      R_PPC64 = 62
 	R_PPC64_TOC16_DS           R_PPC64 = 63
 	R_PPC64_TOC16_LO_DS        R_PPC64 = 64
 	R_PPC64_PLTGOT16_DS        R_PPC64 = 65
@@ -2543,6 +2830,42 @@ const (
 	R_PPC64_REL24_NOTOC        R_PPC64 = 116
 	R_PPC64_ADDR64_LOCAL       R_PPC64 = 117
 	R_PPC64_ENTRY              R_PPC64 = 118
+	R_PPC64_PLTSEQ             R_PPC64 = 119
+	R_PPC64_PLTCALL            R_PPC64 = 120
+	R_PPC64_PLTSEQ_NOTOC       R_PPC64 = 121
+	R_PPC64_PLTCALL_NOTOC      R_PPC64 = 122
+	R_PPC64_PCREL_OPT          R_PPC64 = 123
+	R_PPC64_REL24_P9NOTOC      R_PPC64 = 124
+	R_PPC64_D34                R_PPC64 = 128
+	R_PPC64_D34_LO             R_PPC64 = 129
+	R_PPC64_D34_HI30           R_PPC64 = 130
+	R_PPC64_D34_HA30           R_PPC64 = 131
+	R_PPC64_PCREL34            R_PPC64 = 132
+	R_PPC64_GOT_PCREL34        R_PPC64 = 133
+	R_PPC64_PLT_PCREL34        R_PPC64 = 134
+	R_PPC64_PLT_PCREL34_NOTOC  R_PPC64 = 135
+	R_PPC64_ADDR16_HIGHER34    R_PPC64 = 136
+	R_PPC64_ADDR16_HIGHERA34   R_PPC64 = 137
+	R_PPC64_ADDR16_HIGHEST34   R_PPC64 = 138
+	R_PPC64_ADDR16_HIGHESTA34  R_PPC64 = 139
+	R_PPC64_REL16_HIGHER34     R_PPC64 = 140
+	R_PPC64_REL16_HIGHERA34    R_PPC64 = 141
+	R_PPC64_REL16_HIGHEST34    R_PPC64 = 142
+	R_PPC64_REL16_HIGHESTA34   R_PPC64 = 143
+	R_PPC64_D28                R_PPC64 = 144
+	R_PPC64_PCREL28            R_PPC64 = 145
+	R_PPC64_TPREL34            R_PPC64 = 146
+	R_PPC64_DTPREL34           R_PPC64 = 147
+	R_PPC64_GOT_TLSGD_PCREL34  R_PPC64 = 148
+	R_PPC64_GOT_TLSLD_PCREL34  R_PPC64 = 149
+	R_PPC64_GOT_TPREL_PCREL34  R_PPC64 = 150
+	R_PPC64_GOT_DTPREL_PCREL34 R_PPC64 = 151
+	R_PPC64_REL16_HIGH         R_PPC64 = 240
+	R_PPC64_REL16_HIGHA        R_PPC64 = 241
+	R_PPC64_REL16_HIGHER       R_PPC64 = 242
+	R_PPC64_REL16_HIGHERA      R_PPC64 = 243
+	R_PPC64_REL16_HIGHEST      R_PPC64 = 244
+	R_PPC64_REL16_HIGHESTA     R_PPC64 = 245
 	R_PPC64_REL16DX_HA         R_PPC64 = 246 // R_POWERPC_REL16DX_HA
 	R_PPC64_JMP_IREL           R_PPC64 = 247
 	R_PPC64_IRELATIVE          R_PPC64 = 248 // R_POWERPC_IRELATIVE
@@ -2550,6 +2873,8 @@ const (
 	R_PPC64_REL16_LO           R_PPC64 = 250 // R_POWERPC_REL16_LO
 	R_PPC64_REL16_HI           R_PPC64 = 251 // R_POWERPC_REL16_HI
 	R_PPC64_REL16_HA           R_PPC64 = 252 // R_POWERPC_REL16_HA
+	R_PPC64_GNU_VTINHERIT      R_PPC64 = 253
+	R_PPC64_GNU_VTENTRY        R_PPC64 = 254
 )
 
 var rppc64Strings = []intName{
@@ -2571,15 +2896,32 @@ var rppc64Strings = []intName{
 	{15, "R_PPC64_GOT16_LO"},
 	{16, "R_PPC64_GOT16_HI"},
 	{17, "R_PPC64_GOT16_HA"},
+	{19, "R_PPC64_COPY"},
+	{20, "R_PPC64_GLOB_DAT"},
 	{21, "R_PPC64_JMP_SLOT"},
 	{22, "R_PPC64_RELATIVE"},
+	{24, "R_PPC64_UADDR32"},
+	{25, "R_PPC64_UADDR16"},
 	{26, "R_PPC64_REL32"},
+	{27, "R_PPC64_PLT32"},
+	{28, "R_PPC64_PLTREL32"},
+	{29, "R_PPC64_PLT16_LO"},
+	{30, "R_PPC64_PLT16_HI"},
+	{31, "R_PPC64_PLT16_HA"},
+	{33, "R_PPC64_SECTOFF"},
+	{34, "R_PPC64_SECTOFF_LO"},
+	{35, "R_PPC64_SECTOFF_HI"},
+	{36, "R_PPC64_SECTOFF_HA"},
+	{37, "R_PPC64_REL30"},
 	{38, "R_PPC64_ADDR64"},
 	{39, "R_PPC64_ADDR16_HIGHER"},
 	{40, "R_PPC64_ADDR16_HIGHERA"},
 	{41, "R_PPC64_ADDR16_HIGHEST"},
 	{42, "R_PPC64_ADDR16_HIGHESTA"},
+	{43, "R_PPC64_UADDR64"},
 	{44, "R_PPC64_REL64"},
+	{45, "R_PPC64_PLT64"},
+	{46, "R_PPC64_PLTREL64"},
 	{47, "R_PPC64_TOC16"},
 	{48, "R_PPC64_TOC16_LO"},
 	{49, "R_PPC64_TOC16_HI"},
@@ -2595,7 +2937,7 @@ var rppc64Strings = []intName{
 	{59, "R_PPC64_GOT16_LO_DS"},
 	{60, "R_PPC64_PLT16_LO_DS"},
 	{61, "R_PPC64_SECTOFF_DS"},
-	{61, "R_PPC64_SECTOFF_LO_DS"},
+	{62, "R_PPC64_SECTOFF_LO_DS"},
 	{63, "R_PPC64_TOC16_DS"},
 	{64, "R_PPC64_TOC16_LO_DS"},
 	{65, "R_PPC64_PLTGOT16_DS"},
@@ -2652,6 +2994,42 @@ var rppc64Strings = []intName{
 	{116, "R_PPC64_REL24_NOTOC"},
 	{117, "R_PPC64_ADDR64_LOCAL"},
 	{118, "R_PPC64_ENTRY"},
+	{119, "R_PPC64_PLTSEQ"},
+	{120, "R_PPC64_PLTCALL"},
+	{121, "R_PPC64_PLTSEQ_NOTOC"},
+	{122, "R_PPC64_PLTCALL_NOTOC"},
+	{123, "R_PPC64_PCREL_OPT"},
+	{124, "R_PPC64_REL24_P9NOTOC"},
+	{128, "R_PPC64_D34"},
+	{129, "R_PPC64_D34_LO"},
+	{130, "R_PPC64_D34_HI30"},
+	{131, "R_PPC64_D34_HA30"},
+	{132, "R_PPC64_PCREL34"},
+	{133, "R_PPC64_GOT_PCREL34"},
+	{134, "R_PPC64_PLT_PCREL34"},
+	{135, "R_PPC64_PLT_PCREL34_NOTOC"},
+	{136, "R_PPC64_ADDR16_HIGHER34"},
+	{137, "R_PPC64_ADDR16_HIGHERA34"},
+	{138, "R_PPC64_ADDR16_HIGHEST34"},
+	{139, "R_PPC64_ADDR16_HIGHESTA34"},
+	{140, "R_PPC64_REL16_HIGHER34"},
+	{141, "R_PPC64_REL16_HIGHERA34"},
+	{142, "R_PPC64_REL16_HIGHEST34"},
+	{143, "R_PPC64_REL16_HIGHESTA34"},
+	{144, "R_PPC64_D28"},
+	{145, "R_PPC64_PCREL28"},
+	{146, "R_PPC64_TPREL34"},
+	{147, "R_PPC64_DTPREL34"},
+	{148, "R_PPC64_GOT_TLSGD_PCREL34"},
+	{149, "R_PPC64_GOT_TLSLD_PCREL34"},
+	{150, "R_PPC64_GOT_TPREL_PCREL34"},
+	{151, "R_PPC64_GOT_DTPREL_PCREL34"},
+	{240, "R_PPC64_REL16_HIGH"},
+	{241, "R_PPC64_REL16_HIGHA"},
+	{242, "R_PPC64_REL16_HIGHER"},
+	{243, "R_PPC64_REL16_HIGHERA"},
+	{244, "R_PPC64_REL16_HIGHEST"},
+	{245, "R_PPC64_REL16_HIGHESTA"},
 	{246, "R_PPC64_REL16DX_HA"},
 	{247, "R_PPC64_JMP_IREL"},
 	{248, "R_PPC64_IRELATIVE"},
@@ -2659,6 +3037,8 @@ var rppc64Strings = []intName{
 	{250, "R_PPC64_REL16_LO"},
 	{251, "R_PPC64_REL16_HI"},
 	{252, "R_PPC64_REL16_HA"},
+	{253, "R_PPC64_GNU_VTINHERIT"},
+	{254, "R_PPC64_GNU_VTENTRY"},
 }
 
 func (i R_PPC64) String() string   { return stringName(uint32(i), rppc64Strings, false) }
@@ -3241,6 +3621,15 @@ type intName struct {
 	i uint32
 	s string
 }
+
+// Dynamic version flags.
+type DynamicVersionFlag uint16
+
+const (
+	VER_FLG_BASE DynamicVersionFlag = 0x1 /* Version definition of the file. */
+	VER_FLG_WEAK DynamicVersionFlag = 0x2 /* Weak version identifier. */
+	VER_FLG_INFO DynamicVersionFlag = 0x4 /* Reference exists for informational purposes. */
+)
 
 func stringName(i uint32, names []intName, goSyntax bool) string {
 	for _, n := range names {

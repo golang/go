@@ -47,5 +47,5 @@ func f /* =@f */[T1 /* =@T1 */ interface{~[]T2 /* @T2 */}, T2 /* =@T2 */ any](
   var t1var /* =@t1var */ T1 /* @T1 */
 }
 
-// From issue #39634
+// From go.dev/issue/39634
 func(*ph1[e, e])h(d)

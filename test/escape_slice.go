@@ -18,29 +18,29 @@ var sink interface{}
 func slice0() {
 	var s []*int
 	// BAD: i should not escape
-	i := 0 // ERROR "moved to heap: i"
-	s = append(s, &i)
+	i := 0            // ERROR "moved to heap: i"
+	s = append(s, &i) // ERROR "append does not escape"
 	_ = s
 }
 
 func slice1() *int {
 	var s []*int
-	i := 0 // ERROR "moved to heap: i"
-	s = append(s, &i)
+	i := 0            // ERROR "moved to heap: i"
+	s = append(s, &i) // ERROR "append does not escape"
 	return s[0]
 }
 
 func slice2() []*int {
 	var s []*int
-	i := 0 // ERROR "moved to heap: i"
-	s = append(s, &i)
+	i := 0            // ERROR "moved to heap: i"
+	s = append(s, &i) // ERROR "append escapes to heap"
 	return s
 }
 
 func slice3() *int {
 	var s []*int
-	i := 0 // ERROR "moved to heap: i"
-	s = append(s, &i)
+	i := 0            // ERROR "moved to heap: i"
+	s = append(s, &i) // ERROR "append does not escape"
 	for _, p := range s {
 		return p
 	}
@@ -105,6 +105,10 @@ func slice12(x []int) *[1]int { // ERROR "leaking param: x to result ~r0 level=0
 	return (*[1]int)(x)
 }
 
+func slice13(x []*int) [1]*int { // ERROR "leaking param: x to result ~r0 level=1$"
+	return [1]*int(x)
+}
+
 func envForDir(dir string) []string { // ERROR "dir does not escape"
 	env := os.Environ()
 	return mergeEnvLists([]string{"PWD=" + dir}, env) // ERROR ".PWD=. \+ dir escapes to heap" "\[\]string{...} does not escape"
@@ -120,7 +124,7 @@ NextVar:
 				continue NextVar
 			}
 		}
-		out = append(out, inkv)
+		out = append(out, inkv) // ERROR "append escapes to heap"
 	}
 	return out
 }
@@ -133,7 +137,7 @@ const (
 var v4InV6Prefix = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff}
 
 func IPv4(a, b, c, d byte) IP {
-	p := make(IP, IPv6len) // ERROR "make\(IP, IPv6len\) escapes to heap"
+	p := make(IP, IPv6len) // ERROR "make\(IP, 16\) escapes to heap"
 	copy(p, v4InV6Prefix)
 	p[12] = a
 	p[13] = b
@@ -163,7 +167,7 @@ var resolveIPAddrTests = []resolveIPAddrTest{
 }
 
 func setupTestData() {
-	resolveIPAddrTests = append(resolveIPAddrTests,
+	resolveIPAddrTests = append(resolveIPAddrTests, // ERROR "append escapes to heap"
 		[]resolveIPAddrTest{ // ERROR "\[\]resolveIPAddrTest{...} does not escape"
 			{"ip",
 				"localhost",

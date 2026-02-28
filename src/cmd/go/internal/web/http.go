@@ -15,6 +15,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"net"
 	"net/http"
@@ -24,7 +25,9 @@ import (
 	"time"
 
 	"cmd/go/internal/auth"
+	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/web/intercept"
 	"cmd/internal/browser"
 )
 
@@ -32,7 +35,8 @@ import (
 // when we're connecting to https servers that might not be there
 // or might be using self-signed certificates.
 var impatientInsecureHTTPClient = &http.Client{
-	Timeout: 5 * time.Second,
+	CheckRedirect: checkRedirect,
+	Timeout:       5 * time.Second,
 	Transport: &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		TLSClientConfig: &tls.Config{
@@ -41,23 +45,32 @@ var impatientInsecureHTTPClient = &http.Client{
 	},
 }
 
-// securityPreservingHTTPClient is like the default HTTP client, but rejects
-// redirects to plain-HTTP URLs if the original URL was secure.
-var securityPreservingHTTPClient = &http.Client{
-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+var securityPreservingDefaultClient = securityPreservingHTTPClient(http.DefaultClient)
+
+// securityPreservingHTTPClient returns a client that is like the original
+// but rejects redirects to plain-HTTP URLs if the original URL was secure.
+func securityPreservingHTTPClient(original *http.Client) *http.Client {
+	c := new(http.Client)
+	*c = *original
+	c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		if len(via) > 0 && via[0].URL.Scheme == "https" && req.URL.Scheme != "https" {
 			lastHop := via[len(via)-1].URL
 			return fmt.Errorf("redirected from secure URL %s to insecure URL %s", lastHop, req.URL)
 		}
+		return checkRedirect(req, via)
+	}
+	return c
+}
 
-		// Go's http.DefaultClient allows 10 redirects before returning an error.
-		// The securityPreservingHTTPClient also uses this default policy to avoid
-		// Go command hangs.
-		if len(via) >= 10 {
-			return errors.New("stopped after 10 redirects")
-		}
-		return nil
-	},
+func checkRedirect(req *http.Request, via []*http.Request) error {
+	// Go's http.DefaultClient allows 10 redirects before returning an error.
+	// Mimic that behavior here.
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+
+	intercept.Request(req)
+	return nil
 }
 
 func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
@@ -67,35 +80,43 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		return getFile(url)
 	}
 
-	if os.Getenv("TESTGOPROXY404") == "1" && url.Host == "proxy.golang.org" {
-		res := &Response{
-			URL:        url.Redacted(),
-			Status:     "404 testing",
-			StatusCode: 404,
-			Header:     make(map[string][]string),
-			Body:       http.NoBody,
+	if intercept.TestHooksEnabled {
+		switch url.Host {
+		case "proxy.golang.org":
+			if os.Getenv("TESTGOPROXY404") == "1" {
+				res := &Response{
+					URL:        url.Redacted(),
+					Status:     "404 testing",
+					StatusCode: 404,
+					Header:     make(map[string][]string),
+					Body:       http.NoBody,
+				}
+				if cfg.BuildX {
+					fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", url.Redacted(), res.Status, time.Since(start).Seconds())
+				}
+				return res, nil
+			}
+
+		case "localhost.localdev":
+			return nil, fmt.Errorf("no such host localhost.localdev")
+
+		default:
+			if os.Getenv("TESTGONETWORK") == "panic" {
+				if _, ok := intercept.URL(url); !ok {
+					host := url.Host
+					if h, _, err := net.SplitHostPort(url.Host); err == nil && h != "" {
+						host = h
+					}
+					addr := net.ParseIP(host)
+					if addr == nil || (!addr.IsLoopback() && !addr.IsUnspecified()) {
+						panic("use of network: " + url.String())
+					}
+				}
+			}
 		}
-		if cfg.BuildX {
-			fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", url.Redacted(), res.Status, time.Since(start).Seconds())
-		}
-		return res, nil
 	}
 
-	if url.Host == "localhost.localdev" {
-		return nil, fmt.Errorf("no such host localhost.localdev")
-	}
-	if os.Getenv("TESTGONETWORK") == "panic" {
-		host := url.Host
-		if h, _, err := net.SplitHostPort(url.Host); err == nil && h != "" {
-			host = h
-		}
-		addr := net.ParseIP(host)
-		if addr == nil || (!addr.IsLoopback() && !addr.IsUnspecified()) {
-			panic("use of network: " + url.String())
-		}
-	}
-
-	fetch := func(url *urlpkg.URL) (*urlpkg.URL, *http.Response, error) {
+	fetch := func(url *urlpkg.URL) (*http.Response, error) {
 		// Note: The -v build flag does not mean "print logging information",
 		// despite its historical misuse for this in GOPATH-based go get.
 		// We print extra logging in -x mode instead, which traces what
@@ -106,19 +127,70 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 
 		req, err := http.NewRequest("GET", url.String(), nil)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
+		}
+		t, intercepted := intercept.URL(req.URL)
+		var client *http.Client
+		if security == Insecure && url.Scheme == "https" {
+			client = impatientInsecureHTTPClient
+		} else if intercepted && t.Client != nil {
+			client = securityPreservingHTTPClient(t.Client)
+		} else {
+			client = securityPreservingDefaultClient
 		}
 		if url.Scheme == "https" {
-			auth.AddCredentials(req)
+			// Use initial GOAUTH credentials.
+			auth.AddCredentials(client, req, nil, "")
+		}
+		if intercepted {
+			req.Host = req.URL.Host
+			req.URL.Host = t.ToHost
 		}
 
-		var res *http.Response
-		if security == Insecure && url.Scheme == "https" { // fail earlier
-			res, err = impatientInsecureHTTPClient.Do(req)
-		} else {
-			res, err = securityPreservingHTTPClient.Do(req)
+		release, err := base.AcquireNet()
+		if err != nil {
+			return nil, err
 		}
-		return url, res, err
+		defer func() {
+			if err != nil && release != nil {
+				release()
+			}
+		}()
+		res, err := client.Do(req)
+		// If the initial request fails with a 4xx client error and the
+		// response body didn't satisfy the request
+		// (e.g. a valid <meta name="go-import"> tag),
+		// retry the request with credentials obtained by invoking GOAUTH
+		// with the request URL.
+		if url.Scheme == "https" && err == nil && res.StatusCode >= 400 && res.StatusCode < 500 {
+			// Close the body of the previous response since we
+			// are discarding it and creating a new one.
+			res.Body.Close()
+			req, err = http.NewRequest("GET", url.String(), nil)
+			if err != nil {
+				return nil, err
+			}
+			auth.AddCredentials(client, req, res, url.String())
+			intercept.Request(req)
+			res, err = client.Do(req)
+		}
+
+		if err != nil {
+			// Per the docs for [net/http.Client.Do], “On error, any Response can be
+			// ignored. A non-nil Response with a non-nil error only occurs when
+			// CheckRedirect fails, and even then the returned Response.Body is
+			// already closed.”
+			return nil, err
+		}
+
+		// “If the returned error is nil, the Response will contain a non-nil Body
+		// which the user is expected to close.”
+		body := res.Body
+		res.Body = hookCloser{
+			ReadCloser: body,
+			afterClose: release,
+		}
+		return res, nil
 	}
 
 	var (
@@ -131,8 +203,10 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 		*secure = *url
 		secure.Scheme = "https"
 
-		fetched, res, err = fetch(secure)
-		if err != nil {
+		res, err = fetch(secure)
+		if err == nil {
+			fetched = secure
+		} else {
 			if cfg.BuildX {
 				fmt.Fprintf(os.Stderr, "# get %s: %v\n", secure.Redacted(), err)
 			}
@@ -174,8 +248,10 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 			return nil, fmt.Errorf("refusing to pass credentials to insecure URL: %s", insecure.Redacted())
 		}
 
-		fetched, res, err = fetch(insecure)
-		if err != nil {
+		res, err = fetch(insecure)
+		if err == nil {
+			fetched = insecure
+		} else {
 			if cfg.BuildX {
 				fmt.Fprintf(os.Stderr, "# get %s: %v\n", insecure.Redacted(), err)
 			}
@@ -255,3 +331,31 @@ func getFile(u *urlpkg.URL) (*Response, error) {
 }
 
 func openBrowser(url string) bool { return browser.Open(url) }
+
+func isLocalHost(u *urlpkg.URL) bool {
+	// VCSTestRepoURL itself is secure, and it may redirect requests to other
+	// ports (such as a port serving the "svn" protocol) which should also be
+	// considered secure.
+	host, _, err := net.SplitHostPort(u.Host)
+	if err != nil {
+		host = u.Host
+	}
+	if host == "localhost" {
+		return true
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		return true
+	}
+	return false
+}
+
+type hookCloser struct {
+	io.ReadCloser
+	afterClose func()
+}
+
+func (c hookCloser) Close() error {
+	err := c.ReadCloser.Close()
+	c.afterClose()
+	return err
+}

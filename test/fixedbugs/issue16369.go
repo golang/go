@@ -1,4 +1,4 @@
-// compile
+// errorcheck
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -6,7 +6,7 @@
 
 package p
 
-type T interface {
+type T interface { // ERROR "invalid recursive type: anonymous interface refers to itself"
 	M(interface {
 		T
 	})

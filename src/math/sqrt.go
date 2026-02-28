@@ -91,15 +91,10 @@ package math
 //	Sqrt(x < 0) = NaN
 //	Sqrt(NaN) = NaN
 func Sqrt(x float64) float64 {
-	if haveArchSqrt {
-		return archSqrt(x)
-	}
 	return sqrt(x)
 }
 
-// Note: Sqrt is implemented in assembly on some systems.
-// Others have assembly stubs that jump to func sqrt below.
-// On systems where Sqrt is a single instruction, the compiler
+// Note: On systems where Sqrt is a single instruction, the compiler
 // may turn a direct call into a direct use of that instruction instead.
 
 func sqrt(x float64) float64 {

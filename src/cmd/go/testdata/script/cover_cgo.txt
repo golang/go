@@ -1,6 +1,6 @@
 [short] skip
 [!cgo] skip
-[gccgo] skip # gccgo has no cover tool
+[compiler:gccgo] skip # gccgo has no cover tool
 
 # Test coverage on cgo code.
 

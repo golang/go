@@ -1,0 +1,77 @@
+# golang.org/issue/34055
+# Starting in Go 1.25, go-import meta tag support an optional subdirectory paramater.
+# The corresponding go-import meta tag is specified as
+# <meta name="go-import" content="vcs-test.golang.org/go/gitreposubdir git https://vcs-test.golang.org/git/gitreposubdir foo/subdir">
+# and contains the module in vcs-test.golang.org/git/gitreposubdir/foo/subdir.
+# See testdata/vcstest/go/gitreposubdir.txt and testdata/vcstest/git/gitreposubdir.txt
+
+[short] skip 'builds a go program'
+[!git] skip
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+
+# Get the module without having to specify the subdir.
+cd a
+cp go.mod go.mod.orig
+go get vcs-test.golang.org/go/gitreposubdir@v1.2.3
+exists $GOPATH/pkg/mod/vcs-test.golang.org/go/gitreposubdir@v1.2.3
+go get vcs-test.golang.org/go/gitreposubdirv2/v2@v2.0.0
+exists $GOPATH/pkg/mod/vcs-test.golang.org/go/gitreposubdirv2/v2@v2.0.0
+
+# Import the module without having to specify the subdir.
+cp go.mod.orig go.mod
+go mod tidy
+
+# Run main.go which has the import.
+go run main.go
+stdout 'hello, world'
+stdout 'hello, world v2'
+
+# Fail if subdir is specified in get.
+! go get vcs-test.golang.org/go/gitreposubdir/foo/subdir
+stderr 'module vcs-test.golang.org/go/gitreposubdir@upgrade found \(v1.2.3\), but does not contain package vcs-test.golang.org/go/gitreposubdir/foo/subdir'
+! go get vcs-test.golang.org/go/gitreposubdirv2/v2/foo/subdir
+stderr 'module vcs-test.golang.org/go/gitreposubdirv2/v2@upgrade found \(v2.0.0\), but does not contain package vcs-test.golang.org/go/gitreposubdirv2/v2/foo/subdir'
+
+# Fail if subdir is specified in the import.
+cd ../b
+! go mod tidy
+stderr 'module vcs-test.golang.org/go/gitreposubdir@latest found \(v1.2.3\), but does not contain package vcs-test.golang.org/go/gitreposubdir/foo/subdir'
+stderr 'module vcs-test.golang.org/go/gitreposubdirv2/v2@latest found \(v2.0.0\), but does not contain package vcs-test.golang.org/go/gitreposubdirv2/v2/foo/subdir'
+
+-- a/main.go --
+package main
+
+import (
+    "fmt"
+    "vcs-test.golang.org/go/gitreposubdir"
+    "vcs-test.golang.org/go/gitreposubdirv2/v2"
+)
+
+func main() {
+    fmt.Println(greeter.Hello())
+    fmt.Println(greeterv2.Hello())
+}
+-- a/go.mod --
+module example
+
+go 1.24
+-- b/main.go --
+package main
+
+import (
+    "fmt"
+    "vcs-test.golang.org/go/gitreposubdir/foo/subdir"
+    "vcs-test.golang.org/go/gitreposubdirv2/v2/foo/subdir"
+)
+
+func main() {
+    fmt.Println(greeter.Hello())
+    fmt.Println(greeterv2.Hello())
+}
+-- b/go.mod --
+module example
+
+go 1.24

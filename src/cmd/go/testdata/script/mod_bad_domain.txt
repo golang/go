@@ -28,7 +28,7 @@ go get ./useappengine  # TODO(#41315): This should fail.
  # stderr '^useappengine[/\\]x.go:2:8: cannot find package$'
 
 ! go get  ./usenonexistent
-stderr '^x/usenonexistent imports\n\tnonexistent.rsc.io: cannot find module providing package nonexistent.rsc.io$'
+stderr '^go: x/usenonexistent imports\n\tnonexistent.rsc.io: cannot find module providing package nonexistent.rsc.io$'
 
 
 # go mod vendor and go mod tidy should ignore appengine imports.

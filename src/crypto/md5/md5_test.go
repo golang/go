@@ -6,6 +6,7 @@ package md5
 
 import (
 	"bytes"
+	"crypto/internal/cryptotest"
 	"crypto/rand"
 	"encoding"
 	"fmt"
@@ -68,7 +69,7 @@ func TestGolden(t *testing.T) {
 			if j < 2 {
 				io.WriteString(c, g.in)
 			} else if j == 2 {
-				io.WriteString(c, g.in[0:len(g.in)/2])
+				io.WriteString(c, g.in[:len(g.in)/2])
 				c.Sum(nil)
 				io.WriteString(c, g.in[len(g.in)/2:])
 			} else if j > 2 {
@@ -99,8 +100,20 @@ func TestGoldenMarshal(t *testing.T) {
 			continue
 		}
 
+		stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
+		if err != nil {
+			t.Errorf("could not marshal: %v", err)
+			continue
+		}
+		stateAppend = stateAppend[4:]
+
 		if string(state) != g.halfState {
 			t.Errorf("md5(%q) state = %q, want %q", g.in, state, g.halfState)
+			continue
+		}
+
+		if string(stateAppend) != g.halfState {
+			t.Errorf("md5(%q) stateAppend = %q, want %q", g.in, stateAppend, g.halfState)
 			continue
 		}
 
@@ -120,10 +133,11 @@ func TestGoldenMarshal(t *testing.T) {
 
 func TestLarge(t *testing.T) {
 	const N = 10000
+	const offsets = 4
 	ok := "2bb571599a4180e1d542f76904adc3df" // md5sum of "0123456789" * 1000
-	block := make([]byte, 10004)
+	block := make([]byte, N+offsets)
 	c := New()
-	for offset := 0; offset < 4; offset++ {
+	for offset := 0; offset < offsets; offset++ {
 		for i := 0; i < N; i++ {
 			block[offset+i] = '0' + byte(i%10)
 		}
@@ -137,6 +151,31 @@ func TestLarge(t *testing.T) {
 			s := fmt.Sprintf("%x", c.Sum(nil))
 			if s != ok {
 				t.Fatalf("md5 TestLarge offset=%d, blockSize=%d = %s want %s", offset, blockSize, s, ok)
+			}
+		}
+	}
+}
+
+func TestExtraLarge(t *testing.T) {
+	const N = 100000
+	const offsets = 4
+	ok := "13572e9e296cff52b79c52148313c3a5" // md5sum of "0123456789" * 10000
+	block := make([]byte, N+offsets)
+	c := New()
+	for offset := 0; offset < offsets; offset++ {
+		for i := 0; i < N; i++ {
+			block[offset+i] = '0' + byte(i%10)
+		}
+		for blockSize := 10; blockSize <= N; blockSize *= 10 {
+			blocks := N / blockSize
+			b := block[offset : offset+blockSize]
+			c.Reset()
+			for i := 0; i < blocks; i++ {
+				c.Write(b)
+			}
+			s := fmt.Sprintf("%x", c.Sum(nil))
+			if s != ok {
+				t.Fatalf("md5 TestExtraLarge offset=%d, blockSize=%d = %s want %s", offset, blockSize, s, ok)
 			}
 		}
 	}
@@ -212,6 +251,7 @@ func TestLargeHashes(t *testing.T) {
 }
 
 func TestAllocations(t *testing.T) {
+	cryptotest.SkipTestAllocations(t)
 	in := []byte("hello, world!")
 	out := make([]byte, 0, Size)
 	h := New()
@@ -223,6 +263,22 @@ func TestAllocations(t *testing.T) {
 	if n > 0 {
 		t.Errorf("allocs = %d, want 0", n)
 	}
+}
+
+func TestMD5Hash(t *testing.T) {
+	cryptotest.TestHash(t, New)
+}
+
+func TestExtraMethods(t *testing.T) {
+	h := maybeCloner(New())
+	cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+}
+
+func maybeCloner(h hash.Hash) any {
+	if c, ok := h.(hash.Cloner); ok {
+		return &c
+	}
+	return &h
 }
 
 var bench = New()

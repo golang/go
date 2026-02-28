@@ -113,7 +113,7 @@ var IncorrectPasswordError = errors.New("x509: decryption password incorrect")
 // password used to encrypt it and returns a slice of decrypted DER encoded
 // bytes. It inspects the DEK-Info header to determine the algorithm used for
 // decryption. If no DEK-Info header is present, an error is returned. If an
-// incorrect password is detected an IncorrectPasswordError is returned. Because
+// incorrect password is detected an [IncorrectPasswordError] is returned. Because
 // of deficiencies in the format, it's not always possible to detect an
 // incorrect password. In these cases no error will be returned but the
 // decrypted DER bytes will be random noise.

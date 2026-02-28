@@ -1,0 +1,89 @@
+body {
+  overflow: hidden; /* Want scrollbar not here, but in #stack-holder */
+}
+/* Scrollable container for flame graph */
+#stack-holder {
+  width: 100%;
+  flex-grow: 1;
+  overflow-y: auto;
+  background: #eee; /* Light grey gives better contrast with boxes */
+  position: relative; /* Allows absolute positioning of child boxes */
+}
+/* Flame graph */
+#stack-chart {
+  width: 100%;
+  position: relative; /* Allows absolute positioning of child boxes */
+}
+/* Holder for current frame details. */
+#current-details {
+  position: relative;
+  background: #eee; /* Light grey gives better contrast with boxes */
+  font-size: 12pt;
+  padding: 0 4px;
+  width: 100%;
+}
+/* Shows details of frame that is under the mouse */
+#current-details-left {
+  float: left;
+  max-width: 60%;
+  white-space: nowrap;
+  overflow-x: hidden;
+}
+#current-details-right {
+  float: right;
+  max-width: 40%;
+  white-space: nowrap;
+  overflow-x: hidden;
+}
+/* Background of a single flame-graph frame */
+.boxbg {
+  border-width: 0px;
+  position: absolute;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: #d8d8d8;
+}
+.positive { position: absolute; background: #caa; }
+.negative { position: absolute; background: #aca; }
+/* Not-inlined frames are visually separated from their caller. */
+.not-inlined {
+  border-top: 1px solid black;
+}
+/* Function name */
+.boxtext {
+  position: absolute;
+  width: 100%;
+  padding-left: 2px;
+  line-height: 18px;
+  cursor: default;
+  font-family: "Google Sans", Arial, sans-serif;
+  font-size: 12pt;
+  z-index: 2;
+}
+/* Box highlighting via shadows to avoid size changes */
+.hilite { box-shadow: 0px 0px 0px 2px #000; z-index: 1; }
+.hilite2 { box-shadow: 0px 0px 0px 2px #000; z-index: 1; }
+/* Gap left between callers and callees */
+.separator {
+  position: absolute;
+  text-align: center;
+  font-size: 12pt;
+  font-weight: bold;
+}
+/* Right-click menu */
+#action-menu {
+  max-width: 15em;
+}
+/* Right-click menu title */
+#action-title {
+  display: block;
+  padding: 0.5em 1em;
+  background: #888;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+/* Internal canvas used to measure text size when picking fonts */
+#textsizer {
+  position: absolute;
+  bottom: -100px;
+}

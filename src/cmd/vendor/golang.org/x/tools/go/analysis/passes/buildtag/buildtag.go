@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.16
-// +build go1.16
-
 // Package buildtag defines an Analyzer that checks build tags.
 package buildtag
 
@@ -17,18 +14,19 @@ import (
 	"unicode"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+	"golang.org/x/tools/internal/analysis/analyzerutil"
 )
 
-const Doc = "check that +build tags are well-formed and correctly located"
+const Doc = "check //go:build and // +build directives"
 
 var Analyzer = &analysis.Analyzer{
 	Name: "buildtag",
 	Doc:  Doc,
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/buildtag",
 	Run:  runBuildTag,
 }
 
-func runBuildTag(pass *analysis.Pass) (interface{}, error) {
+func runBuildTag(pass *analysis.Pass) (any, error) {
 	for _, f := range pass.Files {
 		checkGoFile(pass, f)
 	}
@@ -39,7 +37,7 @@ func runBuildTag(pass *analysis.Pass) (interface{}, error) {
 	}
 	for _, name := range pass.IgnoredFiles {
 		if strings.HasSuffix(name, ".go") {
-			f, err := parser.ParseFile(pass.Fset, name, nil, parser.ParseComments)
+			f, err := parser.ParseFile(pass.Fset, name, nil, parser.ParseComments|parser.SkipObjectResolution)
 			if err != nil {
 				// Not valid Go source code - not our job to diagnose, so ignore.
 				return nil, nil
@@ -88,7 +86,7 @@ func checkOtherFile(pass *analysis.Pass, filename string) error {
 
 	// We cannot use the Go parser, since this may not be a Go source file.
 	// Read the raw bytes instead.
-	content, tf, err := analysisutil.ReadFile(pass.Fset, filename)
+	content, tf, err := analyzerutil.ReadFile(pass, filename)
 	if err != nil {
 		return err
 	}
@@ -266,6 +264,8 @@ func (check *checker) goBuildLine(pos token.Pos, line string) {
 		return
 	}
 
+	check.tags(pos, x)
+
 	if check.goBuild == nil {
 		check.goBuild = x
 	}
@@ -298,7 +298,7 @@ func (check *checker) plusBuildLine(pos token.Pos, line string) {
 	fields := strings.Fields(line[len("//"):])
 	// IsPlusBuildConstraint check above implies fields[0] == "+build"
 	for _, arg := range fields[1:] {
-		for _, elem := range strings.Split(arg, ",") {
+		for elem := range strings.SplitSeq(arg, ",") {
 			if strings.HasPrefix(elem, "!!") {
 				check.pass.Reportf(pos, "invalid double negative in build constraint: %s", arg)
 				check.crossCheck = false
@@ -325,6 +325,8 @@ func (check *checker) plusBuildLine(pos token.Pos, line string) {
 			check.crossCheck = false
 			return
 		}
+		check.tags(pos, y)
+
 		if check.plusBuild == nil {
 			check.plusBuild = y
 		} else {
@@ -364,4 +366,40 @@ func (check *checker) finish() {
 		check.pass.Reportf(check.plusBuildPos, "+build lines do not match //go:build condition")
 		return
 	}
+}
+
+// tags reports issues in go versions in tags within the expression e.
+func (check *checker) tags(pos token.Pos, e constraint.Expr) {
+	// Use Eval to visit each tag.
+	_ = e.Eval(func(tag string) bool {
+		if malformedGoTag(tag) {
+			check.pass.Reportf(pos, "invalid go version %q in build constraint", tag)
+		}
+		return false // result is immaterial as Eval does not short-circuit
+	})
+}
+
+// malformedGoTag returns true if a tag is likely to be a malformed
+// go version constraint.
+func malformedGoTag(tag string) bool {
+	// Not a go version?
+	if !strings.HasPrefix(tag, "go1") {
+		// Check for close misspellings of the "go1." prefix.
+		for _, pre := range []string{"go.", "g1.", "go"} {
+			suffix := strings.TrimPrefix(tag, pre)
+			if suffix != tag && validGoVersion("go1."+suffix) {
+				return true
+			}
+		}
+		return false
+	}
+
+	// The tag starts with "go1" so it is almost certainly a GoVersion.
+	// Report it if it is not a valid build constraint.
+	return !validGoVersion(tag)
+}
+
+// validGoVersion reports when a tag is a valid go version.
+func validGoVersion(tag string) bool {
+	return constraint.GoVersion(&constraint.TagExpr{Tag: tag}) != ""
 }

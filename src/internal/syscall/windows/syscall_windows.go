@@ -5,12 +5,16 @@
 package windows
 
 import (
-	"internal/unsafeheader"
 	"sync"
 	"syscall"
-	"unicode/utf16"
 	"unsafe"
 )
+
+// CanUseLongPaths is true when the OS supports opting into
+// proper long path handling without the need for fixups.
+//
+//go:linkname CanUseLongPaths
+var CanUseLongPaths bool
 
 // UTF16PtrToString is like UTF16ToString, but takes *uint16
 // as a parameter instead of []uint16.
@@ -18,34 +22,35 @@ func UTF16PtrToString(p *uint16) string {
 	if p == nil {
 		return ""
 	}
-	// Find NUL terminator.
 	end := unsafe.Pointer(p)
 	n := 0
 	for *(*uint16)(end) != 0 {
 		end = unsafe.Pointer(uintptr(end) + unsafe.Sizeof(*p))
 		n++
 	}
-	// Turn *uint16 into []uint16.
-	var s []uint16
-	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(p)
-	hdr.Cap = n
-	hdr.Len = n
-	// Decode []uint16 into string.
-	return string(utf16.Decode(s))
+	return syscall.UTF16ToString(unsafe.Slice(p, n))
 }
 
 const (
+	ERROR_INVALID_HANDLE         syscall.Errno = 6
+	ERROR_BAD_LENGTH             syscall.Errno = 24
 	ERROR_SHARING_VIOLATION      syscall.Errno = 32
 	ERROR_LOCK_VIOLATION         syscall.Errno = 33
 	ERROR_NOT_SUPPORTED          syscall.Errno = 50
 	ERROR_CALL_NOT_IMPLEMENTED   syscall.Errno = 120
 	ERROR_INVALID_NAME           syscall.Errno = 123
+	ERROR_NEGATIVE_SEEK          syscall.Errno = 131
 	ERROR_LOCK_FAILED            syscall.Errno = 167
+	ERROR_IO_INCOMPLETE          syscall.Errno = 996
+	ERROR_NO_TOKEN               syscall.Errno = 1008
 	ERROR_NO_UNICODE_TRANSLATION syscall.Errno = 1113
+	ERROR_CANT_ACCESS_FILE       syscall.Errno = 1920
 )
 
-const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
+const (
+	GAA_FLAG_INCLUDE_PREFIX   = 0x00000010
+	GAA_FLAG_INCLUDE_GATEWAYS = 0x0080
+)
 
 const (
 	IF_TYPE_OTHER              = 1
@@ -107,36 +112,71 @@ type IpAdapterPrefix struct {
 	PrefixLength uint32
 }
 
+type IpAdapterWinsServerAddress struct {
+	Length   uint32
+	Reserved uint32
+	Next     *IpAdapterWinsServerAddress
+	Address  SocketAddress
+}
+
+type IpAdapterGatewayAddress struct {
+	Length   uint32
+	Reserved uint32
+	Next     *IpAdapterGatewayAddress
+	Address  SocketAddress
+}
+
 type IpAdapterAddresses struct {
-	Length                uint32
-	IfIndex               uint32
-	Next                  *IpAdapterAddresses
-	AdapterName           *byte
-	FirstUnicastAddress   *IpAdapterUnicastAddress
-	FirstAnycastAddress   *IpAdapterAnycastAddress
-	FirstMulticastAddress *IpAdapterMulticastAddress
-	FirstDnsServerAddress *IpAdapterDnsServerAdapter
-	DnsSuffix             *uint16
-	Description           *uint16
-	FriendlyName          *uint16
-	PhysicalAddress       [syscall.MAX_ADAPTER_ADDRESS_LENGTH]byte
-	PhysicalAddressLength uint32
-	Flags                 uint32
-	Mtu                   uint32
-	IfType                uint32
-	OperStatus            uint32
-	Ipv6IfIndex           uint32
-	ZoneIndices           [16]uint32
-	FirstPrefix           *IpAdapterPrefix
+	Length                 uint32
+	IfIndex                uint32
+	Next                   *IpAdapterAddresses
+	AdapterName            *byte
+	FirstUnicastAddress    *IpAdapterUnicastAddress
+	FirstAnycastAddress    *IpAdapterAnycastAddress
+	FirstMulticastAddress  *IpAdapterMulticastAddress
+	FirstDnsServerAddress  *IpAdapterDnsServerAdapter
+	DnsSuffix              *uint16
+	Description            *uint16
+	FriendlyName           *uint16
+	PhysicalAddress        [syscall.MAX_ADAPTER_ADDRESS_LENGTH]byte
+	PhysicalAddressLength  uint32
+	Flags                  uint32
+	Mtu                    uint32
+	IfType                 uint32
+	OperStatus             uint32
+	Ipv6IfIndex            uint32
+	ZoneIndices            [16]uint32
+	FirstPrefix            *IpAdapterPrefix
+	TransmitLinkSpeed      uint64
+	ReceiveLinkSpeed       uint64
+	FirstWinsServerAddress *IpAdapterWinsServerAddress
+	FirstGatewayAddress    *IpAdapterGatewayAddress
 	/* more fields might be present here. */
 }
 
+type SecurityAttributes struct {
+	Length             uint16
+	SecurityDescriptor uintptr
+	InheritHandle      bool
+}
+
 type FILE_BASIC_INFO struct {
-	CreationTime   syscall.Filetime
-	LastAccessTime syscall.Filetime
-	LastWriteTime  syscall.Filetime
-	ChangedTime    syscall.Filetime
+	CreationTime   int64
+	LastAccessTime int64
+	LastWriteTime  int64
+	ChangedTime    int64
 	FileAttributes uint32
+
+	// Pad out to 8-byte alignment.
+	//
+	// Without this padding, TestChmod fails due to an argument validation error
+	// in SetFileInformationByHandle on windows/386.
+	//
+	// https://learn.microsoft.com/en-us/cpp/build/reference/zp-struct-member-alignment?view=msvc-170
+	// says that “The C/C++ headers in the Windows SDK assume the platform's
+	// default alignment is used.” What we see here is padding rather than
+	// alignment, but maybe it is related.
+	_ uint32
 }
 
 const (
@@ -149,18 +189,48 @@ const (
 	IfOperStatusLowerLayerDown = 7
 )
 
-//sys	GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
+//sys	GetAdaptersAddresses(family uint32, flags uint32, reserved unsafe.Pointer, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
 //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
 //sys	MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) = MoveFileExW
 //sys	GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
-//sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
+//sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf unsafe.Pointer, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
 //sys	VirtualQuery(address uintptr, buffer *MemoryBasicInformation, length uintptr) (err error) = kernel32.VirtualQuery
+//sys	GetTempPath2(buflen uint32, buf *uint16) (n uint32, err error) = GetTempPath2W
+//sys	GetFileSizeEx(handle syscall.Handle, size *int64) (err error) = kernel32.GetFileSizeEx
+
+const (
+	// flags for CreateToolhelp32Snapshot
+	TH32CS_SNAPMODULE   = 0x08
+	TH32CS_SNAPMODULE32 = 0x10
+)
+
+const MAX_MODULE_NAME32 = 255
+
+type ModuleEntry32 struct {
+	Size         uint32
+	ModuleID     uint32
+	ProcessID    uint32
+	GlblcntUsage uint32
+	ProccntUsage uint32
+	ModBaseAddr  uintptr
+	ModBaseSize  uint32
+	ModuleHandle syscall.Handle
+	Module       [MAX_MODULE_NAME32 + 1]uint16
+	ExePath      [syscall.MAX_PATH]uint16
+}
+
+const SizeofModuleEntry32 = unsafe.Sizeof(ModuleEntry32{})
+
+//sys	Module32First(snapshot syscall.Handle, moduleEntry *ModuleEntry32) (err error) = kernel32.Module32FirstW
+//sys	Module32Next(snapshot syscall.Handle, moduleEntry *ModuleEntry32) (err error) = kernel32.Module32NextW
 
 const (
 	WSA_FLAG_OVERLAPPED        = 0x01
 	WSA_FLAG_NO_HANDLE_INHERIT = 0x80
 
-	WSAEMSGSIZE syscall.Errno = 10040
+	WSAEINVAL       syscall.Errno = 10022
+	WSAEMSGSIZE     syscall.Errno = 10040
+	WSAEAFNOSUPPORT syscall.Errno = 10047
 
 	MSG_PEEK   = 0x2
 	MSG_TRUNC  = 0x0100
@@ -191,7 +261,7 @@ var sendRecvMsgFunc struct {
 }
 
 type WSAMsg struct {
-	Name        syscall.Pointer
+	Name        *syscall.RawSockaddrAny
 	Namelen     int32
 	Buffers     *syscall.WSABuf
 	BufferCount uint32
@@ -200,6 +270,8 @@ type WSAMsg struct {
 }
 
 //sys	WSASocket(af int32, typ int32, protocol int32, protinfo *syscall.WSAProtocolInfo, group uint32, flags uint32) (handle syscall.Handle, err error) [failretval==syscall.InvalidHandle] = ws2_32.WSASocketW
+//sys	WSADuplicateSocket(s syscall.Handle, processID uint32, info *syscall.WSAProtocolInfo) (err error) [failretval!=0] = ws2_32.WSADuplicateSocketW
+//sys	WSAGetOverlappedResult(h syscall.Handle, o *syscall.Overlapped, bytes *uint32, wait bool, flags *uint32) (err error) = ws2_32.WSAGetOverlappedResult
 
 func loadWSASendRecvMsg() error {
 	sendRecvMsgFunc.once.Do(func() {
@@ -309,7 +381,11 @@ const MB_ERR_INVALID_CHARS = 8
 //sys	MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int32, err error) = kernel32.MultiByteToWideChar
 //sys	GetCurrentThread() (pseudoHandle syscall.Handle, err error) = kernel32.GetCurrentThread
 
-const STYPE_DISKTREE = 0x00
+// Constants from lmshare.h
+const (
+	STYPE_DISKTREE  = 0x00
+	STYPE_TEMPORARY = 0x40000000
+)
 
 type SHARE_INFO_2 struct {
 	Netname     *uint16
@@ -337,11 +413,175 @@ const (
 
 //sys	GetFinalPathNameByHandle(file syscall.Handle, filePath *uint16, filePathSize uint32, flags uint32) (n uint32, err error) = kernel32.GetFinalPathNameByHandleW
 
-func LoadGetFinalPathNameByHandle() error {
-	return procGetFinalPathNameByHandleW.Find()
+func ErrorLoadingGetTempPath2() error {
+	return procGetTempPath2W.Find()
 }
 
 //sys	CreateEnvironmentBlock(block **uint16, token syscall.Token, inheritExisting bool) (err error) = userenv.CreateEnvironmentBlock
 //sys	DestroyEnvironmentBlock(block *uint16) (err error) = userenv.DestroyEnvironmentBlock
+//sys	CreateEvent(eventAttrs *SecurityAttributes, manualReset uint32, initialState uint32, name *uint16) (handle syscall.Handle, err error) = kernel32.CreateEventW
 
-//sys	RtlGenRandom(buf []byte) (err error) = advapi32.SystemFunction036
+//sys	ProcessPrng(buf []byte) (err error) = bcryptprimitives.ProcessPrng
+
+type FILE_ID_BOTH_DIR_INFO struct {
+	NextEntryOffset uint32
+	FileIndex       uint32
+	CreationTime    syscall.Filetime
+	LastAccessTime  syscall.Filetime
+	LastWriteTime   syscall.Filetime
+	ChangeTime      syscall.Filetime
+	EndOfFile       uint64
+	AllocationSize  uint64
+	FileAttributes  uint32
+	FileNameLength  uint32
+	EaSize          uint32
+	ShortNameLength uint32
+	ShortName       [12]uint16
+	FileID          uint64
+	FileName        [1]uint16
+}
+
+type FILE_FULL_DIR_INFO struct {
+	NextEntryOffset uint32
+	FileIndex       uint32
+	CreationTime    syscall.Filetime
+	LastAccessTime  syscall.Filetime
+	LastWriteTime   syscall.Filetime
+	ChangeTime      syscall.Filetime
+	EndOfFile       uint64
+	AllocationSize  uint64
+	FileAttributes  uint32
+	FileNameLength  uint32
+	EaSize          uint32
+	FileName        [1]uint16
+}
+
+//sys	GetVolumeInformationByHandle(file syscall.Handle, volumeNameBuffer *uint16, volumeNameSize uint32, volumeNameSerialNumber *uint32, maximumComponentLength *uint32, fileSystemFlags *uint32, fileSystemNameBuffer *uint16, fileSystemNameSize uint32) (err error) = GetVolumeInformationByHandleW
+//sys	GetVolumeNameForVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint16, bufferlength uint32) (err error) = GetVolumeNameForVolumeMountPointW
+
+type RUNTIME_FUNCTION struct {
+	BeginAddress uint32
+	EndAddress   uint32
+	UnwindData   uint32
+}
+
+//sys	RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table unsafe.Pointer) (ret *RUNTIME_FUNCTION) = kernel32.RtlLookupFunctionEntry
+//sys	RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry *RUNTIME_FUNCTION, ctxt unsafe.Pointer, data unsafe.Pointer, frame *uintptr, ctxptrs unsafe.Pointer) (ret uintptr) = kernel32.RtlVirtualUnwind
+
+type SERVICE_STATUS struct {
+	ServiceType             uint32
+	CurrentState            uint32
+	ControlsAccepted        uint32
+	Win32ExitCode           uint32
+	ServiceSpecificExitCode uint32
+	CheckPoint              uint32
+	WaitHint                uint32
+}
+
+const (
+	SERVICE_RUNNING      = 4
+	SERVICE_QUERY_STATUS = 4
+)
+
+//sys    OpenService(mgr syscall.Handle, serviceName *uint16, access uint32) (handle syscall.Handle, err error) = advapi32.OpenServiceW
+//sys	QueryServiceStatus(hService syscall.Handle, lpServiceStatus *SERVICE_STATUS) (err error)  = advapi32.QueryServiceStatus
+//sys    OpenSCManager(machineName *uint16, databaseName *uint16, access uint32) (handle syscall.Handle, err error)  [failretval==0] = advapi32.OpenSCManagerW
+
+func FinalPath(h syscall.Handle, flags uint32) (string, error) {
+	buf := make([]uint16, 100)
+	for {
+		n, err := GetFinalPathNameByHandle(h, &buf[0], uint32(len(buf)), flags)
+		if err != nil {
+			return "", err
+		}
+		if n < uint32(len(buf)) {
+			break
+		}
+		buf = make([]uint16, n)
+	}
+	return syscall.UTF16ToString(buf), nil
+}
+
+// QueryPerformanceCounter retrieves the current value of performance counter.
+//
+//go:linkname QueryPerformanceCounter
+func QueryPerformanceCounter() int64 // Implemented in runtime package.
+
+// QueryPerformanceFrequency retrieves the frequency of the performance counter.
+// The returned value is represented as counts per second.
+//
+//go:linkname QueryPerformanceFrequency
+func QueryPerformanceFrequency() int64 // Implemented in runtime package.
+
+//sys   GetModuleHandle(modulename *uint16) (handle syscall.Handle, err error) = kernel32.GetModuleHandleW
+
+const (
+	PIPE_ACCESS_INBOUND  = 0x00000001
+	PIPE_ACCESS_OUTBOUND = 0x00000002
+	PIPE_ACCESS_DUPLEX   = 0x00000003
+
+	PIPE_TYPE_BYTE    = 0x00000000
+	PIPE_TYPE_MESSAGE = 0x00000004
+
+	PIPE_READMODE_BYTE    = 0x00000000
+	PIPE_READMODE_MESSAGE = 0x00000002
+)
+
+//sys	CreateIoCompletionPort(filehandle syscall.Handle, cphandle syscall.Handle, key uintptr, threadcnt uint32) (handle syscall.Handle, err error)
+//sys	GetOverlappedResult(handle syscall.Handle, overlapped *syscall.Overlapped, done *uint32, wait bool) (err error)
+//sys	CreateNamedPipe(name *uint16, flags uint32, pipeMode uint32, maxInstances uint32, outSize uint32, inSize uint32, defaultTimeout uint32, sa *syscall.SecurityAttributes) (handle syscall.Handle, err error)  [failretval==syscall.InvalidHandle] = CreateNamedPipeW
+
+//sys	ReOpenFile(filehandle syscall.Handle, desiredAccess uint32, shareMode uint32, flagAndAttributes uint32) (handle syscall.Handle, err error) [failretval==syscall.InvalidHandle]
+
+// NTStatus corresponds with NTSTATUS, error values returned by ntdll.dll and
+// other native functions.
+type NTStatus uint32
+
+func (s NTStatus) Errno() syscall.Errno {
+	return rtlNtStatusToDosErrorNoTeb(s)
+}
+
+func langID(pri, sub uint16) uint32 { return uint32(sub)<<10 | uint32(pri) }
+
+func (s NTStatus) Error() string {
+	return s.Errno().Error()
+}
+
+// x/sys/windows/mkerrors.bash can generate a complete list of NTStatus codes.
+//
+// At the moment, we only need a couple, so just put them here manually.
+// If this list starts getting long, we should consider generating the full set.
+const (
+	STATUS_OBJECT_NAME_COLLISION     NTStatus = 0xC0000035
+	STATUS_FILE_IS_A_DIRECTORY       NTStatus = 0xC00000BA
+	STATUS_DIRECTORY_NOT_EMPTY       NTStatus = 0xC0000101
+	STATUS_NOT_A_DIRECTORY           NTStatus = 0xC0000103
+	STATUS_CANNOT_DELETE             NTStatus = 0xC0000121
+	STATUS_REPARSE_POINT_ENCOUNTERED NTStatus = 0xC000050B
+	STATUS_NOT_SUPPORTED             NTStatus = 0xC00000BB
+	STATUS_INVALID_PARAMETER         NTStatus = 0xC000000D
+	STATUS_INVALID_INFO_CLASS        NTStatus = 0xC0000003
+	STATUS_ACCESS_DENIED             NTStatus = 0xC0000022
+)
+
+const (
+	FileModeInformation = 16
+)
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_mode_information
+type FILE_MODE_INFORMATION struct {
+	Mode uint32
+}
+
+//sys	IsProcessorFeaturePresent(ProcessorFeature uint32) (ret bool) = kernel32.IsProcessorFeaturePresent
+
+// NT Native APIs
+//sys   NtCreateFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, allocationSize *int64, attributes uint32, share uint32, disposition uint32, options uint32, eabuffer unsafe.Pointer, ealength uint32) (ntstatus error) = ntdll.NtCreateFile
+//sys   NtOpenFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, share uint32, options uint32) (ntstatus error) = ntdll.NtOpenFile
+//sys   rtlNtStatusToDosErrorNoTeb(ntstatus NTStatus) (ret syscall.Errno) = ntdll.RtlNtStatusToDosErrorNoTeb
+//sys   NtSetInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer unsafe.Pointer, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtSetInformationFile
+//sys	RtlIsDosDeviceName_U(name *uint16) (ret uint32) = ntdll.RtlIsDosDeviceName_U
+//sys   NtQueryInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer unsafe.Pointer, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtQueryInformationFile
+
+//sys	SetEntriesInAcl(countExplicitEntries uint32, explicitEntries *EXPLICIT_ACCESS, oldACL *ACL, newACL **ACL) (ret error) =  advapi32.SetEntriesInAclW
+//sys	SetNamedSecurityInfo(objectName string, objectType uint32, securityInformation uint32, owner *syscall.SID, group *syscall.SID, dacl *ACL, sacl *ACL) (ret error) = advapi32.SetNamedSecurityInfoW

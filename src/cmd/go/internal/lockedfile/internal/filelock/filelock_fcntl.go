@@ -39,8 +39,6 @@ type inodeLock struct {
 	queue []<-chan File
 }
 
-type token struct{}
-
 var (
 	mu     sync.Mutex
 	inodes = map[File]inode{}
@@ -209,8 +207,4 @@ func setlkw(fd uintptr, lt lockType) error {
 			return err
 		}
 	}
-}
-
-func isNotSupported(err error) bool {
-	return err == syscall.ENOSYS || err == syscall.ENOTSUP || err == syscall.EOPNOTSUPP || err == ErrNotSupported
 }

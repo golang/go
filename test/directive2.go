@@ -13,21 +13,20 @@ package main
 
 //go:build bad // ERROR "misplaced compiler directive"
 
-//go:notinheap // ERROR "misplaced compiler directive"
+//go:noinline // ERROR "misplaced compiler directive"
 type (
-	T2  int //go:notinheap // ERROR "misplaced compiler directive"
+	T2  int //go:noinline // ERROR "misplaced compiler directive"
 	T2b int
 	T2c int
 	T3  int
 )
 
-//go:notinheap // ERROR "misplaced compiler directive"
+//go:noinline // ERROR "misplaced compiler directive"
 type (
-	//go:notinheap
 	T4 int
 )
 
-//go:notinheap // ERROR "misplaced compiler directive"
+//go:noinline // ERROR "misplaced compiler directive"
 type ()
 
 type T5 int
@@ -53,10 +52,6 @@ func f() {
 	const c = 1
 
 	_ = func() {}
-
-	// ok:
-	//go:notinheap
-	type T int
 }
 
 // EOF

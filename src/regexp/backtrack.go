@@ -91,9 +91,7 @@ func (b *bitState) reset(prog *syntax.Prog, end int, ncap int) {
 		b.visited = make([]uint32, visitedSize, maxBacktrackVector/visitedBits)
 	} else {
 		b.visited = b.visited[:visitedSize]
-		for i := range b.visited {
-			b.visited[i] = 0
-		}
+		clear(b.visited) // set to 0
 	}
 
 	if cap(b.cap) < ncap {

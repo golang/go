@@ -4,7 +4,7 @@
 
 package runtime
 
-import "runtime/internal/atomic"
+import "internal/runtime/atomic"
 
 // gcCPULimiter is a mechanism to limit GC CPU utilization in situations
 // where it might become excessive and inhibit application progress (e.g.
@@ -33,16 +33,6 @@ type gcCPULimiterState struct {
 	lock atomic.Uint32
 
 	enabled atomic.Bool
-	bucket  struct {
-		// Invariants:
-		// - fill >= 0
-		// - capacity >= 0
-		// - fill <= capacity
-		fill, capacity uint64
-	}
-	// overflow is the cumulative amount of GC CPU time that we tried to fill the
-	// bucket with but exceeded its capacity.
-	overflow uint64
 
 	// gcEnabled is an internal copy of gcBlackenEnabled that determines
 	// whether the limiter tracks total assist time.
@@ -55,7 +45,19 @@ type gcCPULimiterState struct {
 	// the mark and sweep phases.
 	transitioning bool
 
-	_ uint32 // Align assistTimePool and lastUpdate on 32-bit platforms.
+	// test indicates whether this instance of the struct was made for testing purposes.
+	test bool
+
+	bucket struct {
+		// Invariants:
+		// - fill >= 0
+		// - capacity >= 0
+		// - fill <= capacity
+		fill, capacity uint64
+	}
+	// overflow is the cumulative amount of GC CPU time that we tried to fill the
+	// bucket with but exceeded its capacity.
+	overflow uint64
 
 	// assistTimePool is the accumulated assist time since the last update.
 	assistTimePool atomic.Int64
@@ -79,9 +81,6 @@ type gcCPULimiterState struct {
 	//
 	// gomaxprocs isn't used directly so as to keep this structure unit-testable.
 	nprocs int32
-
-	// test indicates whether this instance of the struct was made for testing purposes.
-	test bool
 }
 
 // limiting returns true if the CPU limiter is currently enabled, meaning the Go GC
@@ -176,7 +175,7 @@ func (l *gcCPULimiterState) update(now int64) {
 	l.unlock()
 }
 
-// updatedLocked is the implementation of update. l.lock must be held.
+// updateLocked is the implementation of update. l.lock must be held.
 func (l *gcCPULimiterState) updateLocked(now int64) {
 	lastUpdate := l.lastUpdate.Load()
 	if now < lastUpdate {
@@ -210,13 +209,12 @@ func (l *gcCPULimiterState) updateLocked(now int64) {
 		for _, pp := range allp {
 			typ, duration := pp.limiterEvent.consume(now)
 			switch typ {
-			case limiterEventIdleMarkWork:
-				fallthrough
 			case limiterEventIdle:
+				sched.idleTime.Add(duration)
 				idleTime += duration
-			case limiterEventMarkAssist:
-				fallthrough
-			case limiterEventScavengeAssist:
+			case limiterEventIdleMarkWork:
+				idleTime += duration
+			case limiterEventMarkAssist, limiterEventScavengeAssist:
 				assistTime += duration
 			case limiterEventNone:
 				break
@@ -339,7 +337,7 @@ func (l *gcCPULimiterState) resetCapacity(now int64, nprocs int32) {
 	l.unlock()
 }
 
-// limiterEventType indicates the type of an event occuring on some P.
+// limiterEventType indicates the type of an event occurring on some P.
 //
 // These events represent the full set of events that the GC CPU limiter tracks
 // to execute its function.
@@ -470,13 +468,12 @@ func (e *limiterEvent) stop(typ limiterEventType, now int64) {
 	}
 	// Account for the event.
 	switch typ {
-	case limiterEventIdleMarkWork:
-		fallthrough
 	case limiterEventIdle:
+		sched.idleTime.Add(duration)
 		gcCPULimiter.addIdleTime(duration)
-	case limiterEventMarkAssist:
-		fallthrough
-	case limiterEventScavengeAssist:
+	case limiterEventIdleMarkWork:
+		gcCPULimiter.addIdleTime(duration)
+	case limiterEventMarkAssist, limiterEventScavengeAssist:
 		gcCPULimiter.addAssistTime(duration)
 	default:
 		throw("limiterEvent.stop: invalid limiter event type found")

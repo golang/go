@@ -1,8 +1,8 @@
-# Test support for go mod -edit to set language version.
+# Test support for go mod edit -go to set language version.
 
 env GO111MODULE=on
 ! go build
-stderr ' type aliases requires'
+stderr ' type alias requires'
 go mod edit -go=1.9
 grep 'go 1.9' go.mod
 go build
@@ -11,8 +11,11 @@ go build
 # the cached 1.9 build. (https://golang.org/issue/37804)
 go mod edit -go=1.8
 ! go build
-stderr 'type aliases requires'
+stderr 'type alias requires'
 
+# go=none should drop the line
+go mod edit -go=none
+! grep go go.mod
 
 -- go.mod --
 module m

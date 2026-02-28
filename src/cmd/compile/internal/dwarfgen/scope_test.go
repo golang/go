@@ -5,15 +5,15 @@
 package dwarfgen
 
 import (
+	"cmp"
 	"debug/dwarf"
 	"fmt"
+	"internal/platform"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -51,13 +51,14 @@ type testline struct {
 
 var testfile = []testline{
 	{line: "package main"},
+	{line: "var sink any"},
 	{line: "func f1(x int) { }"},
 	{line: "func f2(x int) { }"},
 	{line: "func f3(x int) { }"},
 	{line: "func f4(x int) { }"},
 	{line: "func f5(x int) { }"},
 	{line: "func f6(x int) { }"},
-	{line: "func fi(x interface{}) { if a, ok := x.(error); ok { a.Error() } }"},
+	{line: "func leak(x interface{}) { sink = x }"},
 	{line: "func gret1() int { return 2 }"},
 	{line: "func gretbool() bool { return true }"},
 	{line: "func gret3() (int, int, int) { return 0, 1, 2 }"},
@@ -178,7 +179,7 @@ var testfile = []testline{
 	{line: "		b := 2", scopes: []int{1}, vars: []string{"var &b *int", "var p *int"}},
 	{line: "		p := &b", scopes: []int{1}},
 	{line: "		f1(a)", scopes: []int{1}},
-	{line: "		fi(p)", scopes: []int{1}},
+	{line: "		leak(p)", scopes: []int{1}},
 	{line: "	}"},
 	{line: "}"},
 	{line: "var fglob func() int"},
@@ -217,21 +218,15 @@ func TestScopeRanges(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	t.Parallel()
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	if !platform.ExecutableHasDWARF(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s: no DWARF symbol table in executables", runtime.GOOS, runtime.GOARCH)
 	}
 
-	dir, err := ioutil.TempDir("", "TestScopeRanges")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
-
-	src, f := gobuild(t, dir, false, testfile)
+	src, f := gobuild(t, t.TempDir(), false, testfile)
 	defer f.Close()
 
 	// the compiler uses forward slashes for paths even on windows
-	src = strings.Replace(src, "\\", "/", -1)
+	src = strings.ReplaceAll(src, "\\", "/")
 
 	pcln, err := f.PCLineTable()
 	if err != nil {
@@ -406,8 +401,8 @@ func readScope(ctxt *scopexplainContext, scope *lexblock, entry *dwarf.Entry) {
 		}
 		switch e.Tag {
 		case 0:
-			sort.Slice(scope.vars, func(i, j int) bool {
-				return scope.vars[i].expr < scope.vars[j].expr
+			slices.SortFunc(scope.vars, func(a, b variable) int {
+				return cmp.Compare(a.expr, b.expr)
 			})
 			return
 		case dwarf.TagFormalParameter:
@@ -475,7 +470,7 @@ func gobuild(t *testing.T, dir string, optimized bool, testfile []testline) (str
 	}
 	args = append(args, "-o", dst, src)
 
-	cmd := exec.Command(testenv.GoToolPath(t), args...)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("build: %s\n", string(b))
 		t.Fatal(err)
@@ -494,17 +489,11 @@ func TestEmptyDwarfRanges(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 	t.Parallel()
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	if !platform.ExecutableHasDWARF(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s: no DWARF symbol table in executables", runtime.GOOS, runtime.GOARCH)
 	}
 
-	dir, err := ioutil.TempDir("", "TestEmptyDwarfRanges")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
-
-	_, f := gobuild(t, dir, true, []testline{{line: "package main"}, {line: "func main(){ println(\"hello\") }"}})
+	_, f := gobuild(t, t.TempDir(), true, []testline{{line: "package main"}, {line: "func main(){ println(\"hello\") }"}})
 	defer f.Close()
 
 	dwarfData, err := f.DWARF()

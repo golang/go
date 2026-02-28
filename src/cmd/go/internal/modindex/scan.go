@@ -1,13 +1,17 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package modindex
 
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/fsys"
-	"cmd/go/internal/par"
 	"cmd/go/internal/str"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/build"
 	"go/doc"
 	"go/scanner"
 	"go/token"
@@ -19,17 +23,17 @@ import (
 // moduleWalkErr returns filepath.SkipDir if the directory isn't relevant
 // when indexing a module or generating a filehash, ErrNotIndexed,
 // if the module shouldn't be indexed, and nil otherwise.
-func moduleWalkErr(modroot string, path string, info fs.FileInfo, err error) error {
+func moduleWalkErr(root string, path string, d fs.DirEntry, err error) error {
 	if err != nil {
 		return ErrNotIndexed
 	}
 	// stop at module boundaries
-	if info.IsDir() && path != modroot {
-		if fi, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
+	if d.IsDir() && path != root {
+		if info, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !info.IsDir() {
 			return filepath.SkipDir
 		}
 	}
-	if info.Mode()&fs.ModeSymlink != 0 {
+	if d.Type()&fs.ModeSymlink != 0 {
 		if target, err := fsys.Stat(path); err == nil && target.IsDir() {
 			// return an error to make the module hash invalid.
 			// Symlink directories in modules are tricky, so we won't index
@@ -48,18 +52,23 @@ func moduleWalkErr(modroot string, path string, info fs.FileInfo, err error) err
 func indexModule(modroot string) ([]byte, error) {
 	fsys.Trace("indexModule", modroot)
 	var packages []*rawPackage
-	err := fsys.Walk(modroot, func(path string, info fs.FileInfo, err error) error {
-		if err := moduleWalkErr(modroot, path, info, err); err != nil {
+
+	// If the root itself is a symlink to a directory,
+	// we want to follow it (see https://go.dev/issue/50807).
+	// Add a trailing separator to force that to happen.
+	root := str.WithFilePathSeparator(modroot)
+	err := fsys.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err := moduleWalkErr(root, path, d, err); err != nil {
 			return err
 		}
 
-		if !info.IsDir() {
+		if !d.IsDir() {
 			return nil
 		}
-		if !str.HasFilePathPrefix(path, modroot) {
+		if !strings.HasPrefix(path, root) {
 			panic(fmt.Errorf("path %v in walk doesn't have modroot %v as prefix", path, modroot))
 		}
-		rel := str.TrimFilePathPrefix(path, modroot)
+		rel := path[len(root):]
 		packages = append(packages, importRaw(modroot, rel))
 		return nil
 	})
@@ -69,7 +78,7 @@ func indexModule(modroot string) ([]byte, error) {
 	return encodeModuleBytes(packages), nil
 }
 
-// indexModule indexes the package at the given directory and returns its
+// indexPackage indexes the package at the given directory and returns its
 // encoded representation. It returns ErrNotIndexed if the package can't
 // be indexed.
 func indexPackage(modroot, pkgdir string) []byte {
@@ -95,7 +104,7 @@ type parseError struct {
 
 // parseErrorToString converts the error from parsing the file into a string
 // representation. A nil error is converted to an empty string, and all other
-// errors are converted to a JSON-marshalled parseError struct, with ErrorList
+// errors are converted to a JSON-marshaled parseError struct, with ErrorList
 // set for errors of type scanner.ErrorList, and ErrorString set to the error's
 // string representation for all other errors.
 func parseErrorToString(err error) string {
@@ -103,10 +112,10 @@ func parseErrorToString(err error) string {
 		return ""
 	}
 	var p parseError
-	if e, ok := err.(scanner.ErrorList); ok {
-		p.ErrorList = &e
+	if errlist, ok := err.(scanner.ErrorList); ok {
+		p.ErrorList = &errlist
 	} else {
-		p.ErrorString = e.Error()
+		p.ErrorString = err.Error()
 	}
 	s, err := json.Marshal(p)
 	if err != nil {
@@ -115,9 +124,9 @@ func parseErrorToString(err error) string {
 	return string(s)
 }
 
-// parseErrorFrom string converts a string produced by parseErrorToString back
+// parseErrorFromString converts a string produced by parseErrorToString back
 // to an error.  An empty string is converted to a nil error, and all
-// other strings are expected to be JSON-marshalled parseError structs.
+// other strings are expected to be JSON-marshaled parseError structs.
 // The two functions are meant to preserve the structure of an
 // error of type scanner.ErrorList in a round trip, but may not preserve the
 // structure of other errors.
@@ -151,6 +160,7 @@ type rawFile struct {
 	plusBuildConstraints []string
 	imports              []rawImport
 	embeds               []embed
+	directives           []build.Directive
 }
 
 type rawImport struct {
@@ -162,8 +172,6 @@ type embed struct {
 	pattern  string
 	position token.Position
 }
-
-var pkgcache par.Cache // for packages not in modcache
 
 // importRaw fills the rawPackage from the package files in srcDir.
 // dir is the package's path relative to the modroot.
@@ -177,7 +185,7 @@ func importRaw(modroot, reldir string) *rawPackage {
 	// We still haven't checked
 	// that p.dir directory exists. This is the right time to do that check.
 	// We can't do it earlier, because we want to gather partial information for the
-	// non-nil *Package returned when an error occurs.
+	// non-nil *build.Package returned when an error occurs.
 	// We need to do this before we return early on FindOnly flag.
 	if !isDir(absdir) {
 		// package was not found
@@ -196,7 +204,7 @@ func importRaw(modroot, reldir string) *rawPackage {
 		if d.IsDir() {
 			continue
 		}
-		if d.Mode()&fs.ModeSymlink != 0 {
+		if d.Type()&fs.ModeSymlink != 0 {
 			if isDir(filepath.Join(absdir, d.Name())) {
 				// Symlinks to directories are not source files.
 				continue
@@ -210,7 +218,10 @@ func importRaw(modroot, reldir string) *rawPackage {
 			continue
 		}
 		info, err := getFileInfo(absdir, name, fset)
-		if err != nil {
+		if err == errNonSource {
+			// not a source or object file. completely ignore in the index
+			continue
+		} else if err != nil {
 			p.sourceFiles = append(p.sourceFiles, &rawFile{name: name, error: err.Error()})
 			continue
 		} else if info == nil {
@@ -222,6 +233,7 @@ func importRaw(modroot, reldir string) *rawPackage {
 			goBuildConstraint:    info.goBuildConstraint,
 			plusBuildConstraints: info.plusBuildConstraints,
 			binaryOnly:           info.binaryOnly,
+			directives:           info.directives,
 		}
 		if info.parsed != nil {
 			rf.pkgName = info.parsed.Name.Name
@@ -263,7 +275,7 @@ func importRaw(modroot, reldir string) *rawPackage {
 // which is the comment on import "C".
 func extractCgoDirectives(doc string) []string {
 	var out []string
-	for _, line := range strings.Split(doc, "\n") {
+	for line := range strings.SplitSeq(doc, "\n") {
 		// Line is
 		//	#cgo [GOOS/GOARCH...] LDFLAGS: stuff
 		//

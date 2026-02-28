@@ -1,0 +1,38 @@
+env date=2019-05-09T18:56:25-04:00
+
+handle hg
+
+hg init
+hg add go.mod tagtests.go
+hg commit --user 'rsc' --date $date -m 'create module tagtests'
+hg branch b
+hg add v0.2.1
+hg commit --user 'rsc' --date $date -m 'v0.2.1'
+hg tag --user 'rsc' --date $date v0.2.1
+
+hg update default
+hg add v0.2.2
+hg commit --user 'rsc' --date $date -m 'v0.2.2'
+hg tag --user 'rsc' --date $date v0.2.2
+
+hg tags
+cmp stdout .hg-tags
+
+hg branches
+cmp stdout .hg-branches
+
+-- go.mod --
+module vcs-test.golang.org/git/tagtests.git
+-- tagtests.go --
+package tagtests
+-- v0.2.1 --
+v0.2.1
+-- v0.2.2 --
+v0.2.2
+-- .hg-tags --
+tip                                4:8d0b18b816df
+v0.2.2                             3:1e531550e864
+v0.2.1                             1:010a2d1a2ea7
+-- .hg-branches --
+default                        4:8d0b18b816df
+b                              2:ceae444ffda5

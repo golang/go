@@ -2,18 +2,26 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm)
+//go:build unix || (js && wasm) || wasip1
 
 package time
 
 import (
 	"errors"
+	"runtime"
 	"syscall"
 )
 
 // for testing: whatever interrupts a sleep
 func interrupt() {
-	syscall.Kill(syscall.Getpid(), syscall.SIGCHLD)
+	// There is no mechanism in wasi to interrupt the call to poll_oneoff
+	// used to implement runtime.usleep so this function does nothing, which
+	// somewhat defeats the purpose of TestSleep but we are still better off
+	// validating that time elapses when the process calls time.Sleep than
+	// skipping the test altogether.
+	if runtime.GOOS != "wasip1" {
+		syscall.Kill(syscall.Getpid(), syscall.SIGCHLD)
+	}
 }
 
 func open(name string) (uintptr, error) {

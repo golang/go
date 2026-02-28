@@ -9,7 +9,8 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
-	"sort"
+	"cmp"
+	"slices"
 )
 
 // SymbolBuilder is a helper designed to help with the construction
@@ -138,6 +139,11 @@ func (sb *SymbolBuilder) SetRelocAdd(i int, a int64) {
 	sb.relocs[i].SetAdd(a)
 }
 
+// SetRelocSiz sets the size of the 'i'-th relocation on this sym to 'sz'
+func (sb *SymbolBuilder) SetRelocSiz(i int, sz uint8) {
+	sb.relocs[i].SetSiz(sz)
+}
+
 // Add n relocations, return a handle to the relocations.
 func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
 	sb.relocs = append(sb.relocs, make([]goobj.Reloc, n)...)
@@ -154,18 +160,11 @@ func (sb *SymbolBuilder) AddRel(typ objabi.RelocType) (Reloc, int) {
 	return relocs.At(j), j
 }
 
-// Sort relocations by offset.
+// SortRelocs Sort relocations by offset.
 func (sb *SymbolBuilder) SortRelocs() {
-	sort.Sort((*relocsByOff)(sb.extSymPayload))
-}
-
-// Implement sort.Interface
-type relocsByOff extSymPayload
-
-func (p *relocsByOff) Len() int           { return len(p.relocs) }
-func (p *relocsByOff) Less(i, j int) bool { return p.relocs[i].Off() < p.relocs[j].Off() }
-func (p *relocsByOff) Swap(i, j int) {
-	p.relocs[i], p.relocs[j] = p.relocs[j], p.relocs[i]
+	slices.SortFunc(sb.extSymPayload.relocs, func(a, b goobj.Reloc) int {
+		return cmp.Compare(a.Off(), b.Off())
+	})
 }
 
 func (sb *SymbolBuilder) Reachable() bool {
@@ -174,10 +173,6 @@ func (sb *SymbolBuilder) Reachable() bool {
 
 func (sb *SymbolBuilder) SetReachable(v bool) {
 	sb.l.SetAttrReachable(sb.symIdx, v)
-}
-
-func (sb *SymbolBuilder) setReachable() {
-	sb.SetReachable(true)
 }
 
 func (sb *SymbolBuilder) ReadOnly() bool {
@@ -332,10 +327,6 @@ func (sb *SymbolBuilder) Addstring(str string) int64 {
 		sb.kind = sym.SNOPTRDATA
 	}
 	r := sb.size
-	if sb.name == ".shstrtab" {
-		// FIXME: find a better mechanism for this
-		sb.l.elfsetstring(str, int(r))
-	}
 	sb.data = append(sb.data, str...)
 	sb.data = append(sb.data, 0)
 	sb.size = int64(len(sb.data))
@@ -385,6 +376,10 @@ func (sb *SymbolBuilder) AddAddrPlus4(arch *sys.Arch, tgt Sym, add int64) int64 
 
 func (sb *SymbolBuilder) AddAddr(arch *sys.Arch, tgt Sym) int64 {
 	return sb.AddAddrPlus(arch, tgt, 0)
+}
+
+func (sb *SymbolBuilder) AddPEImageRelativeAddrPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
+	return sb.addSymRef(tgt, add, objabi.R_PEIMAGEOFF, 4)
 }
 
 func (sb *SymbolBuilder) AddPCRelPlus(arch *sys.Arch, tgt Sym, add int64) int64 {

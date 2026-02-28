@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -26,6 +27,7 @@ type funcDescriptor struct {
 type mOS struct {
 	waitsema uintptr // semaphore for parking on locks
 	perrno   uintptr // pointer to tls errno
+	libcall  libcall
 }
 
 //go:nosplit
@@ -92,8 +94,16 @@ func semawakeup(mp *m) {
 }
 
 func osinit() {
-	ncpu = int32(sysconf(__SC_NPROCESSORS_ONLN))
+	// Call miniterrno so that we can safely make system calls
+	// before calling minit on m0.
+	miniterrno()
+
+	numCPUStartup = getCPUCount()
 	physPageSize = sysconf(__SC_PAGE_SIZE)
+}
+
+func getCPUCount() int32 {
+	return int32(sysconf(__SC_NPROCESSORS_ONLN))
 }
 
 // newosproc0 is a version of newosproc that can be called before the runtime
@@ -110,17 +120,17 @@ func newosproc0(stacksize uintptr, fn *funcDescriptor) {
 	)
 
 	if pthread_attr_init(&attr) != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 
 	if pthread_attr_setstacksize(&attr, threadStackSize) != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 
@@ -139,13 +149,11 @@ func newosproc0(stacksize uintptr, fn *funcDescriptor) {
 	}
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if ret != 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 
 }
-
-var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
 
 // Called to do synchronous initialization of Go code built with
 // -buildmode=c-archive or -buildmode=c-shared.
@@ -164,7 +172,7 @@ func mpreinit(mp *m) {
 }
 
 // errno address must be retrieved by calling _Errno libc function.
-// This will return a pointer to errno
+// This will return a pointer to errno.
 func miniterrno() {
 	mp := getg().m
 	r, _ := syscall0(&libc__Errno)
@@ -180,10 +188,15 @@ func minit() {
 
 func unminit() {
 	unminitSignals()
+	getg().m.procid = 0
 }
 
-// Called from exitm, but not from drop, to undo the effect of thread-owned
+// Called from mexit, but not from dropm, to undo the effect of thread-owned
 // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+//
+// This always runs without a P, so //go:nowritebarrierrec is required.
+//
+//go:nowritebarrierrec
 func mdestroy(mp *m) {
 }
 
@@ -212,16 +225,9 @@ func newosproc(mp *m) {
 	// Disable signals during create, so that the new thread starts
 	// with signals disabled. It will enable them in minit.
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	var ret int32
-	for tries := 0; tries < 20; tries++ {
-		// pthread_create can fail with EAGAIN for no reasons
-		// but it will be ok if it retries.
-		ret = pthread_create(&tid, &attr, &tstart, unsafe.Pointer(mp))
-		if ret != _EAGAIN {
-			break
-		}
-		usleep(uint32(tries+1) * 1000) // Milliseconds.
-	}
+	ret := retryOnEAGAIN(func() int32 {
+		return pthread_create(&tid, &attr, &tstart, unsafe.Pointer(mp))
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if ret != 0 {
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
@@ -233,7 +239,7 @@ func newosproc(mp *m) {
 
 }
 
-func exitThread(wait *uint32) {
+func exitThread(wait *atomic.Uint32) {
 	// We should never reach exitThread on AIX because we let
 	// libc clean up threads.
 	throw("exitThread")
@@ -242,11 +248,11 @@ func exitThread(wait *uint32) {
 var urandom_dev = []byte("/dev/urandom\x00")
 
 //go:nosplit
-func getRandomData(r []byte) {
+func readRandom(r []byte) int {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
 	closefd(fd)
-	extendRandom(r, int(n))
+	return int(n)
 }
 
 func goenvs() {
@@ -296,7 +302,7 @@ func getsig(i uint32) uintptr {
 	return sa.sa_handler
 }
 
-// setSignaltstackSP sets the ss_sp field of a stackt.
+// setSignalstackSP sets the ss_sp field of a stackt.
 //
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
@@ -360,20 +366,17 @@ func walltime() (sec int64, nsec int32) {
 }
 
 //go:nosplit
-func fcntl(fd, cmd, arg int32) int32 {
-	r, _ := syscall3(&libc_fcntl, uintptr(fd), uintptr(cmd), uintptr(arg))
-	return int32(r)
-}
-
-//go:nosplit
-func closeonexec(fd int32) {
-	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+func fcntl(fd, cmd, arg int32) (int32, int32) {
+	r, errno := syscall3(&libc_fcntl, uintptr(fd), uintptr(cmd), uintptr(arg))
+	return int32(r), int32(errno)
 }
 
 //go:nosplit
 func setNonblock(fd int32) {
-	flags := fcntl(fd, _F_GETFL, 0)
-	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
+	flags, _ := fcntl(fd, _F_GETFL, 0)
+	if flags != -1 {
+		fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
+	}
 }
 
 // sigPerThreadSyscall is only used on linux, so we assign a bogus signal
@@ -383,4 +386,44 @@ const sigPerThreadSyscall = 1 << 31
 //go:nosplit
 func runPerThreadSyscall() {
 	throw("runPerThreadSyscall only valid on linux")
+}
+
+//go:nosplit
+func getuid() int32 {
+	r, errno := syscall0(&libc_getuid)
+	if errno != 0 {
+		print("getuid failed ", errno)
+		throw("getuid")
+	}
+	return int32(r)
+}
+
+//go:nosplit
+func geteuid() int32 {
+	r, errno := syscall0(&libc_geteuid)
+	if errno != 0 {
+		print("geteuid failed ", errno)
+		throw("geteuid")
+	}
+	return int32(r)
+}
+
+//go:nosplit
+func getgid() int32 {
+	r, errno := syscall0(&libc_getgid)
+	if errno != 0 {
+		print("getgid failed ", errno)
+		throw("getgid")
+	}
+	return int32(r)
+}
+
+//go:nosplit
+func getegid() int32 {
+	r, errno := syscall0(&libc_getegid)
+	if errno != 0 {
+		print("getegid failed ", errno)
+		throw("getegid")
+	}
+	return int32(r)
 }

@@ -207,6 +207,22 @@ var reqTests = []reqTest{
 		noError,
 	},
 
+	// Tests chunked body and an invalid Content-Length.
+	{
+		"POST / HTTP/1.1\r\n" +
+			"Host: foo.com\r\n" +
+			"Transfer-Encoding: chunked\r\n" +
+			"Content-Length: notdigits\r\n\r\n" + // raise an error
+			"3\r\nfoo\r\n" +
+			"3\r\nbar\r\n" +
+			"0\r\n" +
+			"\r\n",
+		nil,
+		noBodyStr,
+		noTrailer,
+		`bad Content-Length "notdigits"`,
+	},
+
 	// CONNECT request with domain name:
 	{
 		"CONNECT www.google.com:443 HTTP/1.1\r\n\r\n",
@@ -416,7 +432,7 @@ func TestReadRequest(t *testing.T) {
 		req.Body = nil
 		testName := fmt.Sprintf("Test %d (%q)", i, tt.Raw)
 		diff(t, testName, req, tt.Req)
-		var bout bytes.Buffer
+		var bout strings.Builder
 		if rbody != nil {
 			_, err := io.Copy(&bout, rbody)
 			if err != nil {
@@ -450,17 +466,18 @@ Content-Length: 3
 Content-Length: 4
 
 abc`)},
-	{"smuggle_content_len_head", reqBytes(`HEAD / HTTP/1.1
+	{"smuggle_two_content_len_head", reqBytes(`HEAD / HTTP/1.1
 Host: foo
-Content-Length: 5`)},
+Content-Length: 4
+Content-Length: 5
+
+1234`)},
 
 	// golang.org/issue/22464
-	{"leading_space_in_header", reqBytes(`HEAD / HTTP/1.1
- Host: foo
-Content-Length: 5`)},
-	{"leading_tab_in_header", reqBytes(`HEAD / HTTP/1.1
-\tHost: foo
-Content-Length: 5`)},
+	{"leading_space_in_header", reqBytes(`GET / HTTP/1.1
+ Host: foo`)},
+	{"leading_tab_in_header", reqBytes(`GET / HTTP/1.1
+` + "\t" + `Host: foo`)},
 }
 
 func TestReadRequest_Bad(t *testing.T) {

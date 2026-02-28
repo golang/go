@@ -6,7 +6,7 @@ package printer
 
 import (
 	"go/build/constraint"
-	"sort"
+	"slices"
 	"text/tabwriter"
 )
 
@@ -108,7 +108,7 @@ func (p *printer) fixGoBuildLines() {
 
 	// Build sorted list of lines to delete from remainder of output.
 	toDelete := append(p.goBuild, p.plusBuild...)
-	sort.Ints(toDelete)
+	slices.Sort(toDelete)
 
 	// Collect output after insertion point, with lines deleted, into after.
 	var after []byte

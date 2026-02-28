@@ -1,5 +1,6 @@
-// +build amd64,!gcflags_noopt arm64,!gcflags_noopt
 // errorcheck -0 -d=ssa/late_fuse/debug=1
+
+//go:build (amd64 && !gcflags_noopt) || (arm64 && !gcflags_noopt)
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -32,7 +33,7 @@ func fEqLessU(a uint, f float64) bool {
 }
 
 func fEqLeqU(a uint64, f float64) bool {
-	return a == 0 && f > Cf2 || a <= 0 && f < -Cf2 // ERROR "Redirect Leq64U based on Eq64$"
+	return a == 0 && f > Cf2 || a <= 0 && f < -Cf2 // ERROR "Redirect Eq64 based on Eq64$"
 }
 
 func fNeqEq(a int, f float64) bool {
@@ -57,7 +58,7 @@ func fNeqLessU(a uint, f float64) bool {
 }
 
 func fNeqLeqU(a uint32, f float64) bool {
-	return a != 0 && f > Cf2 || a <= 0 && f < -Cf2 // ERROR "Redirect Leq32U based on Neq32$"
+	return a != 2 && f > Cf2 || a <= 2 && f < -Cf2 // ERROR "Redirect Leq32U based on Neq32$"
 }
 
 func fLessEq(a int, f float64) bool {
@@ -109,11 +110,11 @@ func fLessULeqU(a uint64, f float64) bool {
 }
 
 func fLeqUEq(a uint8, f float64) bool {
-	return a <= 0 && f > Cf2 || a == 0 && f < -Cf2 // ERROR "Redirect Eq8 based on Leq8U$"
+	return a <= 2 && f > Cf2 || a == 2 && f < -Cf2 // ERROR "Redirect Eq8 based on Leq8U$"
 }
 
 func fLeqUNeq(a uint16, f float64) bool {
-	return a <= 0 && f > Cf2 || a != 0 && f < -Cf2 // ERROR "Redirect Neq16 based on Leq16U$"
+	return a <= 2 && f > Cf2 || a != 2 && f < -Cf2 // ERROR "Redirect Neq16 based on Leq16U$"
 }
 
 func fLeqLessU(a uint32, f float64) bool {
@@ -121,7 +122,7 @@ func fLeqLessU(a uint32, f float64) bool {
 }
 
 func fLeqLeqU(a uint64, f float64) bool {
-	return a <= 0 && f > Cf2 || a <= 0 && f < -Cf2 // ERROR "Redirect Leq64U based on Leq64U$"
+	return a <= 2 && f > Cf2 || a <= 2 && f < -Cf2 // ERROR "Redirect Leq64U based on Leq64U$"
 }
 
 // Arg tests are disabled because the op name is different on amd64 and arm64.
@@ -147,11 +148,11 @@ func fEqInterEqInter(a interface{}, f float64) bool {
 }
 
 func fEqInterNeqInter(a interface{}, f float64) bool {
-	return a == nil && f > Cf2 || a != nil && f < -Cf2
+	return a == nil && f > Cf2 || a != nil && f < -Cf2 // ERROR "Redirect IsNonNil based on IsNonNil"
 }
 
 func fNeqInterEqInter(a interface{}, f float64) bool {
-	return a != nil && f > Cf2 || a == nil && f < -Cf2
+	return a != nil && f > Cf2 || a == nil && f < -Cf2 // ERROR "Redirect IsNonNil based on IsNonNil"
 }
 
 func fNeqInterNeqInter(a interface{}, f float64) bool {
@@ -163,11 +164,11 @@ func fEqSliceEqSlice(a []int, f float64) bool {
 }
 
 func fEqSliceNeqSlice(a []int, f float64) bool {
-	return a == nil && f > Cf2 || a != nil && f < -Cf2
+	return a == nil && f > Cf2 || a != nil && f < -Cf2 // ERROR "Redirect IsNonNil based on IsNonNil"
 }
 
 func fNeqSliceEqSlice(a []int, f float64) bool {
-	return a != nil && f > Cf2 || a == nil && f < -Cf2
+	return a != nil && f > Cf2 || a == nil && f < -Cf2 // ERROR "Redirect IsNonNil based on IsNonNil"
 }
 
 func fNeqSliceNeqSlice(a []int, f float64) bool {

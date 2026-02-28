@@ -11,7 +11,13 @@
 
 package cipher
 
-import "crypto/internal/subtle"
+import (
+	"bytes"
+	"crypto/internal/fips140/aes"
+	"crypto/internal/fips140/alias"
+	"crypto/internal/fips140only"
+	"crypto/subtle"
+)
 
 type cbc struct {
 	b         Block
@@ -24,7 +30,7 @@ func newCBC(b Block, iv []byte) *cbc {
 	return &cbc{
 		b:         b,
 		blockSize: b.BlockSize(),
-		iv:        dup(iv),
+		iv:        bytes.Clone(iv),
 		tmp:       make([]byte, b.BlockSize()),
 	}
 }
@@ -32,9 +38,8 @@ func newCBC(b Block, iv []byte) *cbc {
 type cbcEncrypter cbc
 
 // cbcEncAble is an interface implemented by ciphers that have a specific
-// optimized implementation of CBC encryption, like crypto/aes.
-// NewCBCEncrypter will check for this interface and return the specific
-// BlockMode if found.
+// optimized implementation of CBC encryption. crypto/aes doesn't use this
+// anymore, and we'd like to eventually remove it.
 type cbcEncAble interface {
 	NewCBCEncrypter(iv []byte) BlockMode
 }
@@ -45,6 +50,12 @@ type cbcEncAble interface {
 func NewCBCEncrypter(b Block, iv []byte) BlockMode {
 	if len(iv) != b.BlockSize() {
 		panic("cipher.NewCBCEncrypter: IV length must equal block size")
+	}
+	if b, ok := b.(*aes.Block); ok {
+		return aes.NewCBCEncrypter(b, [16]byte(iv))
+	}
+	if fips140only.Enforced() {
+		panic("crypto/cipher: use of CBC with non-AES ciphers is not allowed in FIPS 140-only mode")
 	}
 	if cbc, ok := b.(cbcEncAble); ok {
 		return cbc.NewCBCEncrypter(iv)
@@ -72,15 +83,18 @@ func (x *cbcEncrypter) CryptBlocks(dst, src []byte) {
 	if len(dst) < len(src) {
 		panic("crypto/cipher: output smaller than input")
 	}
-	if subtle.InexactOverlap(dst[:len(src)], src) {
+	if alias.InexactOverlap(dst[:len(src)], src) {
 		panic("crypto/cipher: invalid buffer overlap")
+	}
+	if _, ok := x.b.(*aes.Block); ok {
+		panic("crypto/cipher: internal error: generic CBC used with AES")
 	}
 
 	iv := x.iv
 
 	for len(src) > 0 {
 		// Write the xor to dst, then encrypt in place.
-		xorBytes(dst[:x.blockSize], src[:x.blockSize], iv)
+		subtle.XORBytes(dst[:x.blockSize], src[:x.blockSize], iv)
 		x.b.Encrypt(dst[:x.blockSize], dst[:x.blockSize])
 
 		// Move to the next block with this block as the next iv.
@@ -103,9 +117,8 @@ func (x *cbcEncrypter) SetIV(iv []byte) {
 type cbcDecrypter cbc
 
 // cbcDecAble is an interface implemented by ciphers that have a specific
-// optimized implementation of CBC decryption, like crypto/aes.
-// NewCBCDecrypter will check for this interface and return the specific
-// BlockMode if found.
+// optimized implementation of CBC decryption. crypto/aes doesn't use this
+// anymore, and we'd like to eventually remove it.
 type cbcDecAble interface {
 	NewCBCDecrypter(iv []byte) BlockMode
 }
@@ -116,6 +129,12 @@ type cbcDecAble interface {
 func NewCBCDecrypter(b Block, iv []byte) BlockMode {
 	if len(iv) != b.BlockSize() {
 		panic("cipher.NewCBCDecrypter: IV length must equal block size")
+	}
+	if b, ok := b.(*aes.Block); ok {
+		return aes.NewCBCDecrypter(b, [16]byte(iv))
+	}
+	if fips140only.Enforced() {
+		panic("crypto/cipher: use of CBC with non-AES ciphers is not allowed in FIPS 140-only mode")
 	}
 	if cbc, ok := b.(cbcDecAble); ok {
 		return cbc.NewCBCDecrypter(iv)
@@ -143,8 +162,11 @@ func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
 	if len(dst) < len(src) {
 		panic("crypto/cipher: output smaller than input")
 	}
-	if subtle.InexactOverlap(dst[:len(src)], src) {
+	if alias.InexactOverlap(dst[:len(src)], src) {
 		panic("crypto/cipher: invalid buffer overlap")
+	}
+	if _, ok := x.b.(*aes.Block); ok {
+		panic("crypto/cipher: internal error: generic CBC used with AES")
 	}
 	if len(src) == 0 {
 		return
@@ -162,7 +184,7 @@ func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
 	// Loop over all but the first block.
 	for start > 0 {
 		x.b.Decrypt(dst[start:end], src[start:end])
-		xorBytes(dst[start:end], dst[start:end], src[prev:start])
+		subtle.XORBytes(dst[start:end], dst[start:end], src[prev:start])
 
 		end = start
 		start = prev
@@ -171,7 +193,7 @@ func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
 
 	// The first block is special because it uses the saved iv.
 	x.b.Decrypt(dst[start:end], src[start:end])
-	xorBytes(dst[start:end], dst[start:end], x.iv)
+	subtle.XORBytes(dst[start:end], dst[start:end], x.iv)
 
 	// Set the new iv to the first block we copied earlier.
 	x.iv, x.tmp = x.tmp, x.iv

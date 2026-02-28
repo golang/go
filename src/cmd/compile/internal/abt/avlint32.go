@@ -7,6 +7,7 @@ package abt
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -27,7 +28,7 @@ type T struct {
 type node32 struct {
 	// Standard conventions hold for left = smaller, right = larger
 	left, right *node32
-	data        interface{}
+	data        any
 	key         int32
 	height_     int8
 }
@@ -36,7 +37,7 @@ func makeNode(key int32) *node32 {
 	return &node32{key: key, height_: LEAF_HEIGHT}
 }
 
-// IsSingle returns true iff t is empty.
+// IsEmpty returns true iff t is empty.
 func (t *T) IsEmpty() bool {
 	return t.root == nil
 }
@@ -48,21 +49,21 @@ func (t *T) IsSingle() bool {
 
 // VisitInOrder applies f to the key and data pairs in t,
 // with keys ordered from smallest to largest.
-func (t *T) VisitInOrder(f func(int32, interface{})) {
+func (t *T) VisitInOrder(f func(int32, any)) {
 	if t.root == nil {
 		return
 	}
 	t.root.visitInOrder(f)
 }
 
-func (n *node32) nilOrData() interface{} {
+func (n *node32) nilOrData() any {
 	if n == nil {
 		return nil
 	}
 	return n.data
 }
 
-func (n *node32) nilOrKeyAndData() (k int32, d interface{}) {
+func (n *node32) nilOrKeyAndData() (k int32, d any) {
 	if n == nil {
 		k = NOT_KEY32
 		d = nil
@@ -82,7 +83,7 @@ func (n *node32) height() int8 {
 
 // Find returns the data associated with x in the tree, or
 // nil if x is not in the tree.
-func (t *T) Find(x int32) interface{} {
+func (t *T) Find(x int32) any {
 	return t.root.find(x).nilOrData()
 }
 
@@ -91,7 +92,7 @@ func (t *T) Find(x int32) interface{} {
 // x was already a key in the tree.  The previous data associated
 // with x is returned, and is nil if x was not previously a
 // key in the tree.
-func (t *T) Insert(x int32, data interface{}) interface{} {
+func (t *T) Insert(x int32, data any) any {
 	if x == NOT_KEY32 {
 		panic("Cannot use sentinel value -0x80000000 as key")
 	}
@@ -104,7 +105,7 @@ func (t *T) Insert(x int32, data interface{}) interface{} {
 	} else {
 		newroot, n, o = n.aInsert(x)
 	}
-	var r interface{}
+	var r any
 	if o != nil {
 		r = o.data
 	} else {
@@ -120,7 +121,7 @@ func (t *T) Copy() *T {
 	return &u
 }
 
-func (t *T) Delete(x int32) interface{} {
+func (t *T) Delete(x int32) any {
 	n := t.root
 	if n == nil {
 		return nil
@@ -134,7 +135,7 @@ func (t *T) Delete(x int32) interface{} {
 	return d.data
 }
 
-func (t *T) DeleteMin() (int32, interface{}) {
+func (t *T) DeleteMin() (int32, any) {
 	n := t.root
 	if n == nil {
 		return NOT_KEY32, nil
@@ -148,7 +149,7 @@ func (t *T) DeleteMin() (int32, interface{}) {
 	return d.key, d.data
 }
 
-func (t *T) DeleteMax() (int32, interface{}) {
+func (t *T) DeleteMax() (int32, any) {
 	n := t.root
 	if n == nil {
 		return NOT_KEY32, nil
@@ -171,7 +172,7 @@ func (t *T) Size() int {
 // not be symmetric.  If f returns nil, then the key and data are not
 // added to the result.  If f itself is nil, then whatever value was
 // already present in the smaller set is used.
-func (t *T) Intersection(u *T, f func(x, y interface{}) interface{}) *T {
+func (t *T) Intersection(u *T, f func(x, y any) any) *T {
 	if t.Size() == 0 || u.Size() == 0 {
 		return &T{}
 	}
@@ -226,7 +227,7 @@ func (t *T) Intersection(u *T, f func(x, y interface{}) interface{}) *T {
 // is given by f(t's data, u's data) -- f need not be symmetric.  If f returns nil,
 // then the key and data are not added to the result.  If f itself is nil, then
 // whatever value was already present in the larger set is used.
-func (t *T) Union(u *T, f func(x, y interface{}) interface{}) *T {
+func (t *T) Union(u *T, f func(x, y any) any) *T {
 	if t.Size() == 0 {
 		return u
 	}
@@ -283,7 +284,7 @@ func (t *T) Union(u *T, f func(x, y interface{}) interface{}) *T {
 // of f applied to data corresponding to equal keys.  If f returns nil
 // (or if f is nil) then the key+data are excluded, as usual.  If f
 // returns not-nil, then that key+data pair is inserted. instead.
-func (t *T) Difference(u *T, f func(x, y interface{}) interface{}) *T {
+func (t *T) Difference(u *T, f func(x, y any) any) *T {
 	if t.Size() == 0 {
 		return &T{}
 	}
@@ -326,39 +327,21 @@ func (t *T) Equals(u *T) bool {
 	return t.root.equals(u.root)
 }
 
-// This doesn't build with go1.4, sigh
-// func (t *T) String() string {
-// 	var b strings.Builder
-// 	first := true
-// 	for it := t.Iterator(); !it.IsEmpty(); {
-// 		k, v := it.Next()
-// 		if first {
-// 			first = false
-// 		} else {
-// 			b.WriteString("; ")
-// 		}
-// 		b.WriteString(strconv.FormatInt(int64(k), 10))
-// 		b.WriteString(":")
-// 		b.WriteString(v.String())
-// 	}
-// 	return b.String()
-// }
-
 func (t *T) String() string {
-	var b string
+	var b strings.Builder
 	first := true
 	for it := t.Iterator(); !it.Done(); {
 		k, v := it.Next()
 		if first {
 			first = false
 		} else {
-			b += ("; ")
+			b.WriteString("; ")
 		}
-		b += (strconv.FormatInt(int64(k), 10))
-		b += (":")
-		b += fmt.Sprint(v)
+		b.WriteString(strconv.FormatInt(int64(k), 10))
+		b.WriteString(":")
+		fmt.Fprint(&b, v)
 	}
-	return b
+	return b.String()
 }
 
 func (t *node32) equals(u *node32) bool {
@@ -382,7 +365,7 @@ func (t *node32) equals(u *node32) bool {
 	return it.done() == iu.done()
 }
 
-func (t *T) Equiv(u *T, eqv func(x, y interface{}) bool) bool {
+func (t *T) Equiv(u *T, eqv func(x, y any) bool) bool {
 	if t == u {
 		return true
 	}
@@ -392,7 +375,7 @@ func (t *T) Equiv(u *T, eqv func(x, y interface{}) bool) bool {
 	return t.root.equiv(u.root, eqv)
 }
 
-func (t *node32) equiv(u *node32, eqv func(x, y interface{}) bool) bool {
+func (t *node32) equiv(u *node32, eqv func(x, y any) bool) bool {
 	if t == u {
 		return true
 	}
@@ -421,7 +404,7 @@ type Iterator struct {
 	it iterator
 }
 
-func (it *Iterator) Next() (int32, interface{}) {
+func (it *Iterator) Next() (int32, any) {
 	x := it.it.next()
 	if x == nil {
 		return NOT_KEY32, nil
@@ -478,37 +461,37 @@ func (it *iterator) next() *node32 {
 
 // Min returns the minimum element of t.
 // If t is empty, then (NOT_KEY32, nil) is returned.
-func (t *T) Min() (k int32, d interface{}) {
+func (t *T) Min() (k int32, d any) {
 	return t.root.min().nilOrKeyAndData()
 }
 
 // Max returns the maximum element of t.
 // If t is empty, then (NOT_KEY32, nil) is returned.
-func (t *T) Max() (k int32, d interface{}) {
+func (t *T) Max() (k int32, d any) {
 	return t.root.max().nilOrKeyAndData()
 }
 
 // Glb returns the greatest-lower-bound-exclusive of x and the associated
 // data.  If x has no glb in the tree, then (NOT_KEY32, nil) is returned.
-func (t *T) Glb(x int32) (k int32, d interface{}) {
+func (t *T) Glb(x int32) (k int32, d any) {
 	return t.root.glb(x, false).nilOrKeyAndData()
 }
 
 // GlbEq returns the greatest-lower-bound-inclusive of x and the associated
 // data.  If x has no glbEQ in the tree, then (NOT_KEY32, nil) is returned.
-func (t *T) GlbEq(x int32) (k int32, d interface{}) {
+func (t *T) GlbEq(x int32) (k int32, d any) {
 	return t.root.glb(x, true).nilOrKeyAndData()
 }
 
 // Lub returns the least-upper-bound-exclusive of x and the associated
 // data.  If x has no lub in the tree, then (NOT_KEY32, nil) is returned.
-func (t *T) Lub(x int32) (k int32, d interface{}) {
+func (t *T) Lub(x int32) (k int32, d any) {
 	return t.root.lub(x, false).nilOrKeyAndData()
 }
 
 // LubEq returns the least-upper-bound-inclusive of x and the associated
 // data.  If x has no lubEq in the tree, then (NOT_KEY32, nil) is returned.
-func (t *T) LubEq(x int32) (k int32, d interface{}) {
+func (t *T) LubEq(x int32) (k int32, d any) {
 	return t.root.lub(x, true).nilOrKeyAndData()
 }
 
@@ -516,7 +499,7 @@ func (t *node32) isLeaf() bool {
 	return t.left == nil && t.right == nil && t.height_ == LEAF_HEIGHT
 }
 
-func (t *node32) visitInOrder(f func(int32, interface{})) {
+func (t *node32) visitInOrder(f func(int32, any)) {
 	if t.left != nil {
 		t.left.visitInOrder(f)
 	}
@@ -587,7 +570,7 @@ func (t *node32) lub(key int32, allow_eq bool) *node32 {
 			// t is too small, lub is to right.
 			t = t.right
 		} else {
-			// t is a upper bound, record it and seek a better one.
+			// t is an upper bound, record it and seek a better one.
 			best = t
 			t = t.left
 		}
@@ -834,13 +817,6 @@ func (t *node32) leftToRoot() *node32 {
 	t.height_ = 1 + max(lr.height(), t.right.height())
 	left.height_ = 1 + max(t.height(), left.left.height())
 	return left
-}
-
-func max(a, b int8) int8 {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func (t *node32) copy() *node32 {

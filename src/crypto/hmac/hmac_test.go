@@ -5,12 +5,13 @@
 package hmac
 
 import (
-	"bytes"
 	"crypto/internal/boring"
+	"crypto/internal/cryptotest"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"errors"
 	"fmt"
 	"hash"
 	"testing"
@@ -583,6 +584,18 @@ func TestHMAC(t *testing.T) {
 	}
 }
 
+func TestNoClone(t *testing.T) {
+	h := New(func() hash.Hash { return justHash{sha256.New()} }, []byte("key"))
+	if _, ok := h.(hash.Cloner); !ok {
+		t.Skip("no Cloner support")
+	}
+	h.Write([]byte("test"))
+	_, err := h.(hash.Cloner).Clone()
+	if !errors.Is(err, errors.ErrUnsupported) {
+		t.Errorf("Clone() = %v, want ErrUnsupported", err)
+	}
+}
+
 func TestNonUniqueHash(t *testing.T) {
 	if boring.Enabled {
 		t.Skip("hash.Hash provided by boringcrypto are not comparable")
@@ -621,40 +634,27 @@ func TestEqual(t *testing.T) {
 	}
 }
 
-func TestWriteAfterSum(t *testing.T) {
-	h := New(sha1.New, nil)
-	h.Write([]byte("hello"))
-	sumHello := h.Sum(nil)
+func TestHMACHash(t *testing.T) {
+	for i, test := range hmacTests {
+		baseHash := test.hash
+		key := test.key
 
-	h = New(sha1.New, nil)
-	h.Write([]byte("hello world"))
-	sumHelloWorld := h.Sum(nil)
+		t.Run(fmt.Sprintf("test-%d", i), func(t *testing.T) {
+			cryptotest.TestHash(t, func() hash.Hash { return New(baseHash, key) })
+		})
+	}
+}
 
-	// Test that Sum has no effect on future Sum or Write operations.
-	// This is a bit unusual as far as usage, but it's allowed
-	// by the definition of Go hash.Hash, and some clients expect it to work.
-	h = New(sha1.New, nil)
-	h.Write([]byte("hello"))
-	if sum := h.Sum(nil); !bytes.Equal(sum, sumHello) {
-		t.Fatalf("1st Sum after hello = %x, want %x", sum, sumHello)
-	}
-	if sum := h.Sum(nil); !bytes.Equal(sum, sumHello) {
-		t.Fatalf("2nd Sum after hello = %x, want %x", sum, sumHello)
-	}
+func TestExtraMethods(t *testing.T) {
+	h := New(sha256.New, []byte("key"))
+	cryptotest.NoExtraMethods(t, maybeCloner(h))
+}
 
-	h.Write([]byte(" world"))
-	if sum := h.Sum(nil); !bytes.Equal(sum, sumHelloWorld) {
-		t.Fatalf("1st Sum after hello world = %x, want %x", sum, sumHelloWorld)
+func maybeCloner(h hash.Hash) any {
+	if c, ok := h.(hash.Cloner); ok {
+		return &c
 	}
-	if sum := h.Sum(nil); !bytes.Equal(sum, sumHelloWorld) {
-		t.Fatalf("2nd Sum after hello world = %x, want %x", sum, sumHelloWorld)
-	}
-
-	h.Reset()
-	h.Write([]byte("hello"))
-	if sum := h.Sum(nil); !bytes.Equal(sum, sumHello) {
-		t.Fatalf("Sum after Reset + hello = %x, want %x", sum, sumHello)
-	}
+	return &h
 }
 
 func BenchmarkHMACSHA256_1K(b *testing.B) {

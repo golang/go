@@ -5,6 +5,7 @@
 package trace
 
 import (
+	"math"
 	"math/rand"
 	"testing"
 )
@@ -84,4 +85,16 @@ func TestMUDTracking(t *testing.T) {
 			}
 		}
 	}
+}
+
+// aeq returns true if x and y are equal up to 8 digits (1 part in 100
+// million).
+// TODO(amedee) dup of gc_test.go
+func aeq(x, y float64) bool {
+	if x < 0 && y < 0 {
+		x, y = -x, -y
+	}
+	const digits = 8
+	factor := 1 - math.Pow(10, -digits+1)
+	return x*factor <= y && y*factor <= x
 }

@@ -22,7 +22,7 @@ import (
 
 func main() {
 	fmt.Printf("# GOARCH: %s\n", runtime.GOARCH)
-	fmt.Printf("# CPU: %s\n", sysinfo.CPU.Name())
+	fmt.Printf("# CPU: %s\n", sysinfo.CPUName())
 
 	fmt.Printf("# GOOS: %s\n", runtime.GOOS)
 	ver, err := osinfo.Version()

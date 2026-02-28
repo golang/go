@@ -19,6 +19,8 @@ import (
 // that the Requires graph is acyclic;
 // that analyzer fact types are unique;
 // that each fact type is a pointer.
+//
+// Analyzer names need not be unique, though this may be confusing.
 func Validate(analyzers []*Analyzer) error {
 	// Map each fact type to its sole generating analyzer.
 	factTypes := make(map[reflect.Type]*Analyzer)
@@ -61,7 +63,7 @@ func Validate(analyzers []*Analyzer) error {
 					return fmt.Errorf("fact type %s registered by two analyzers: %v, %v",
 						t, a, prev)
 				}
-				if t.Kind() != reflect.Ptr {
+				if t.Kind() != reflect.Pointer {
 					return fmt.Errorf("%s: fact type %s is not a pointer", a, t)
 				}
 				factTypes[t] = a

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build race
-// +build race
 
 #include "go_asm.h"
 #include "funcdata.h"
@@ -26,10 +25,14 @@
 
 // func runtime·raceread(addr uintptr)
 // Called from instrumented code.
-TEXT	runtime·raceread(SB), NOSPLIT, $0-8
+TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
 	// void __tsan_read(ThreadState *thr, void *addr, void *pc);
 	MOVD	$__tsan_read(SB), R1
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	addr+0(FP), R3
+#else
+	MOVD	R2, R3
+#endif
 	MOVD	R14, R4
 	JMP	racecalladdr<>(SB)
 
@@ -47,10 +50,14 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
 
 // func runtime·racewrite(addr uintptr)
 // Called from instrumented code.
-TEXT	runtime·racewrite(SB), NOSPLIT, $0-8
+TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
 	// void __tsan_write(ThreadState *thr, void *addr, void *pc);
 	MOVD	$__tsan_write(SB), R1
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	addr+0(FP), R3
+#else
+	MOVD	R2, R3
+#endif
 	MOVD	R14, R4
 	JMP	racecalladdr<>(SB)
 
@@ -68,10 +75,15 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
 
 // func runtime·racereadrange(addr, size uintptr)
 // Called from instrumented code.
-TEXT	runtime·racereadrange(SB), NOSPLIT, $0-16
+TEXT	runtime·racereadrange<ABIInternal>(SB), NOSPLIT, $0-16
 	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVD	$__tsan_read_range(SB), R1
+#ifndef GOEXPERIMENT_regabiargs
 	LMG	addr+0(FP), R3, R4
+#else
+	MOVD	R3, R4
+	MOVD	R2, R3
+#endif
 	MOVD	R14, R5
 	JMP	racecalladdr<>(SB)
 
@@ -92,10 +104,15 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
 
 // func runtime·racewriterange(addr, size uintptr)
 // Called from instrumented code.
-TEXT	runtime·racewriterange(SB), NOSPLIT, $0-16
+TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
 	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVD	$__tsan_write_range(SB), R1
+#ifndef GOEXPERIMENT_regabiargs
 	LMG	addr+0(FP), R3, R4
+#else
+	MOVD	R3, R4
+	MOVD	R2, R3
+#endif
 	MOVD	R14, R5
 	JMP	racecalladdr<>(SB)
 
@@ -275,6 +292,56 @@ TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-24
 	GO_ARGS
 	JMP	sync∕atomic·AddInt64(SB)
 
+// And
+TEXT	sync∕atomic·AndInt32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	MOVD	$__tsan_go_atomic32_fetch_and(SB), R1
+	BL	racecallatomic<>(SB)
+	RET
+
+TEXT	sync∕atomic·AndInt64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	MOVD	$__tsan_go_atomic64_fetch_and(SB), R1
+	BL	racecallatomic<>(SB)
+	RET
+
+TEXT	sync∕atomic·AndUint32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	JMP	sync∕atomic·AndInt32(SB)
+
+TEXT	sync∕atomic·AndUint64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·AndInt64(SB)
+
+TEXT	sync∕atomic·AndUintptr(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·AndInt64(SB)
+
+// Or
+TEXT	sync∕atomic·OrInt32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	MOVD	$__tsan_go_atomic32_fetch_or(SB), R1
+	BL	racecallatomic<>(SB)
+	RET
+
+TEXT	sync∕atomic·OrInt64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	MOVD	$__tsan_go_atomic64_fetch_or(SB), R1
+	BL	racecallatomic<>(SB)
+	RET
+
+TEXT	sync∕atomic·OrUint32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	JMP	sync∕atomic·OrInt32(SB)
+
+TEXT	sync∕atomic·OrUint64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·OrInt64(SB)
+
+TEXT	sync∕atomic·OrUintptr(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·OrInt64(SB)
+
 // CompareAndSwap
 
 TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0-17
@@ -361,9 +428,16 @@ TEXT	racecall<>(SB), NOSPLIT, $0-0
 	BL	runtime·save_g(SB)		// Save g for callbacks.
 	MOVD	R15, R7				// Save SP.
 	MOVD	g_m(g), R8			// R8 = thread.
-	MOVD	m_g0(R8), R8			// R8 = g0.
-	CMPBEQ	R8, g, call			// Already on g0?
-	MOVD	(g_sched+gobuf_sp)(R8), R15	// Switch SP to g0.
+
+	// Switch to g0 stack if we aren't already on g0 or gsignal.
+	MOVD	m_gsignal(R8), R9
+	CMPBEQ	R9, g, call
+
+	MOVD	m_g0(R8), R9
+	CMPBEQ	R9, g, call
+
+	MOVD	(g_sched+gobuf_sp)(R9), R15	// Switch SP to g0.
+
 call:	SUB	$160, R15			// Allocate C frame.
 	BL	R1				// Call C code.
 	MOVD	R7, R15				// Restore SP.

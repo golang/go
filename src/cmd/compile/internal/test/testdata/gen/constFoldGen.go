@@ -14,8 +14,8 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
-	"io/ioutil"
 	"log"
+	"os"
 )
 
 type op struct {
@@ -300,7 +300,7 @@ func main() {
 	}
 
 	// write to file
-	err = ioutil.WriteFile("../../constFold_test.go", src, 0666)
+	err = os.WriteFile("../../constFold_test.go", src, 0666)
 	if err != nil {
 		log.Fatalf("can't write output: %v\n", err)
 	}

@@ -11,7 +11,7 @@ package main
 
 var (
 	x int = a
-	a int = b // ERROR "a refers to\n.*b refers to\n.*c refers to\n.*a|initialization loop"
+	a int = b // ERROR "a refers to b\n.*b refers to c\n.*c refers to a|initialization loop"
 	b int = c
 	c int = a
 )

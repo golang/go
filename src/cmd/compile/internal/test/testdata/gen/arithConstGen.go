@@ -14,7 +14,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
-	"io/ioutil"
 	"log"
 	"strings"
 	"text/template"
@@ -176,7 +175,7 @@ func {{.Name}}_{{.FNumber}}_{{.Type_}}(a {{.Type_}}) {{.Type_}} { return {{.Numb
 			if len(s.u) > 0 {
 				for _, i := range s.u {
 					fd.Number = fmt.Sprintf("%d", i)
-					fd.FNumber = strings.Replace(fd.Number, "-", "Neg", -1)
+					fd.FNumber = strings.ReplaceAll(fd.Number, "-", "Neg")
 
 					// avoid division by zero
 					if o.name != "mod" && o.name != "div" || i != 0 {
@@ -202,7 +201,7 @@ func {{.Name}}_{{.FNumber}}_{{.Type_}}(a {{.Type_}}) {{.Type_}} { return {{.Numb
 				}
 				for _, i := range s.i {
 					fd.Number = fmt.Sprintf("%d", i)
-					fd.FNumber = strings.Replace(fd.Number, "-", "Neg", -1)
+					fd.FNumber = strings.ReplaceAll(fd.Number, "-", "Neg")
 
 					// avoid division by zero
 					if o.name != "mod" && o.name != "div" || i != 0 {
@@ -243,7 +242,7 @@ type test_%[1]s%[2]s struct {
 				fd := cfncData{s.name, o.name, s.name, o.symbol, "", "", "", ""}
 				for _, i := range s.u {
 					fd.Number = fmt.Sprintf("%d", i)
-					fd.FNumber = strings.Replace(fd.Number, "-", "Neg", -1)
+					fd.FNumber = strings.ReplaceAll(fd.Number, "-", "Neg")
 
 					// unsigned
 					for _, j := range s.u {
@@ -283,7 +282,7 @@ type test_%[1]s%[2]s struct {
 				fd := cfncData{s.name, o.name, s.name, o.symbol, "", "", "", ""}
 				for _, i := range s.i {
 					fd.Number = fmt.Sprintf("%d", i)
-					fd.FNumber = strings.Replace(fd.Number, "-", "Neg", -1)
+					fd.FNumber = strings.ReplaceAll(fd.Number, "-", "Neg")
 					for _, j := range s.i {
 						if o.name != "mod" && o.name != "div" || j != 0 {
 							fd.Ans = ansS(i, j, s.name, o.symbol)
@@ -339,7 +338,7 @@ func TestArithmeticConst(t *testing.T) {
 	}
 
 	// write to file
-	err = ioutil.WriteFile("../arithConst_test.go", src, 0666)
+	err = os.WriteFile("../arithConst_test.go", src, 0666)
 	if err != nil {
 		log.Fatalf("can't write output: %v\n", err)
 	}

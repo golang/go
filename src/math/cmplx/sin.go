@@ -172,7 +172,7 @@ func Cosh(x complex128) complex128 {
 	return complex(c*ch, s*sh)
 }
 
-// calculate sinh and cosh
+// calculate sinh and cosh.
 func sinhcosh(x float64) (sh, ch float64) {
 	if math.Abs(x) <= 0.5 {
 		return math.Sinh(x), math.Cosh(x)

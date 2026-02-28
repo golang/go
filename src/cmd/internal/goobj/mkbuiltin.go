@@ -3,9 +3,8 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
-// Generate builtinlist.go from cmd/compile/internal/typecheck/builtin/runtime.go.
+// Generate builtinlist.go from cmd/compile/internal/typecheck/_builtin/runtime.go.
 
 package main
 
@@ -18,7 +17,6 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -44,7 +42,7 @@ func main() {
 	if *stdout {
 		_, err = os.Stdout.Write(out)
 	} else {
-		err = ioutil.WriteFile("builtinlist.go", out, 0666)
+		err = os.WriteFile("builtinlist.go", out, 0666)
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -54,7 +52,7 @@ func main() {
 func mkbuiltin(w io.Writer) {
 	pkg := "runtime"
 	fset := token.NewFileSet()
-	path := filepath.Join("..", "..", "compile", "internal", "typecheck", "builtin", "runtime.go")
+	path := filepath.Join("..", "..", "compile", "internal", "typecheck", "_builtin", "runtime.go")
 	f, err := parser.ParseFile(fset, path, nil, 0)
 	if err != nil {
 		log.Fatal(err)
@@ -80,7 +78,7 @@ func mkbuiltin(w io.Writer) {
 				continue
 			}
 			if decl.Tok != token.VAR {
-				log.Fatal("unhandled declaration kind", decl.Tok)
+				log.Fatal("unhandled declaration kind: ", decl.Tok)
 			}
 			for _, spec := range decl.Specs {
 				spec := spec.(*ast.ValueSpec)
@@ -94,7 +92,7 @@ func mkbuiltin(w io.Writer) {
 				}
 			}
 		default:
-			log.Fatal("unhandled decl type", decl)
+			log.Fatal("unhandled decl type: ", decl)
 		}
 	}
 
@@ -105,7 +103,7 @@ func mkbuiltin(w io.Writer) {
 	extras := append(fextras[:], enumerateBasicTypes()...)
 	for _, b := range extras {
 		prefix := ""
-		if !strings.HasPrefix(b.name, "type.") {
+		if !strings.HasPrefix(b.name, "type:") {
 			prefix = pkg + "."
 		}
 		name := prefix + b.name
@@ -117,7 +115,7 @@ func mkbuiltin(w io.Writer) {
 	fmt.Fprintln(w, "}")
 }
 
-// addBasicTypes returns the symbol names for basic types that are
+// enumerateBasicTypes returns the symbol names for basic types that are
 // defined in the runtime and referenced in other packages.
 // Needs to be kept in sync with reflect.go:WriteBasicTypes() and
 // reflect.go:writeType() in the compiler.
@@ -130,8 +128,8 @@ func enumerateBasicTypes() []extra {
 		"func(error) string"}
 	result := []extra{}
 	for _, n := range names {
-		result = append(result, extra{"type." + n, 0})
-		result = append(result, extra{"type.*" + n, 0})
+		result = append(result, extra{"type:" + n, 0})
+		result = append(result, extra{"type:*" + n, 0})
 	}
 	return result
 }

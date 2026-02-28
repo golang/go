@@ -5,77 +5,29 @@
 package tls
 
 import (
-	"crypto/elliptic"
+	"crypto"
+	"crypto/ecdh"
 	"crypto/hmac"
+	"crypto/internal/fips140/tls13"
+	"crypto/mlkem"
 	"errors"
 	"hash"
 	"io"
-	"math/big"
-
-	"golang.org/x/crypto/cryptobyte"
-	"golang.org/x/crypto/curve25519"
-	"golang.org/x/crypto/hkdf"
 )
 
 // This file contains the functions necessary to compute the TLS 1.3 key
 // schedule. See RFC 8446, Section 7.
 
-const (
-	resumptionBinderLabel         = "res binder"
-	clientHandshakeTrafficLabel   = "c hs traffic"
-	serverHandshakeTrafficLabel   = "s hs traffic"
-	clientApplicationTrafficLabel = "c ap traffic"
-	serverApplicationTrafficLabel = "s ap traffic"
-	exporterLabel                 = "exp master"
-	resumptionLabel               = "res master"
-	trafficUpdateLabel            = "traffic upd"
-)
-
-// expandLabel implements HKDF-Expand-Label from RFC 8446, Section 7.1.
-func (c *cipherSuiteTLS13) expandLabel(secret []byte, label string, context []byte, length int) []byte {
-	var hkdfLabel cryptobyte.Builder
-	hkdfLabel.AddUint16(uint16(length))
-	hkdfLabel.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
-		b.AddBytes([]byte("tls13 "))
-		b.AddBytes([]byte(label))
-	})
-	hkdfLabel.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
-		b.AddBytes(context)
-	})
-	out := make([]byte, length)
-	n, err := hkdf.Expand(c.hash.New, secret, hkdfLabel.BytesOrPanic()).Read(out)
-	if err != nil || n != length {
-		panic("tls: HKDF-Expand-Label invocation failed unexpectedly")
-	}
-	return out
-}
-
-// deriveSecret implements Derive-Secret from RFC 8446, Section 7.1.
-func (c *cipherSuiteTLS13) deriveSecret(secret []byte, label string, transcript hash.Hash) []byte {
-	if transcript == nil {
-		transcript = c.hash.New()
-	}
-	return c.expandLabel(secret, label, transcript.Sum(nil), c.hash.Size())
-}
-
-// extract implements HKDF-Extract with the cipher suite hash.
-func (c *cipherSuiteTLS13) extract(newSecret, currentSecret []byte) []byte {
-	if newSecret == nil {
-		newSecret = make([]byte, c.hash.Size())
-	}
-	return hkdf.Extract(c.hash.New, newSecret, currentSecret)
-}
-
 // nextTrafficSecret generates the next traffic secret, given the current one,
 // according to RFC 8446, Section 7.2.
 func (c *cipherSuiteTLS13) nextTrafficSecret(trafficSecret []byte) []byte {
-	return c.expandLabel(trafficSecret, trafficUpdateLabel, nil, c.hash.Size())
+	return tls13.ExpandLabel(c.hash.New, trafficSecret, "traffic upd", nil, c.hash.Size())
 }
 
 // trafficKey generates traffic keys according to RFC 8446, Section 7.3.
 func (c *cipherSuiteTLS13) trafficKey(trafficSecret []byte) (key, iv []byte) {
-	key = c.expandLabel(trafficSecret, "key", nil, c.keyLen)
-	iv = c.expandLabel(trafficSecret, "iv", nil, aeadNonceLength)
+	key = tls13.ExpandLabel(c.hash.New, trafficSecret, "key", nil, c.keyLen)
+	iv = tls13.ExpandLabel(c.hash.New, trafficSecret, "iv", nil, aeadNonceLength)
 	return
 }
 
@@ -83,7 +35,7 @@ func (c *cipherSuiteTLS13) trafficKey(trafficSecret []byte) (key, iv []byte) {
 // to RFC 8446, Section 4.4.4. See sections 4.4 and 4.2.11.2 for the baseKey
 // selection.
 func (c *cipherSuiteTLS13) finishedHash(baseKey []byte, transcript hash.Hash) []byte {
-	finishedKey := c.expandLabel(baseKey, "finished", nil, c.hash.Size())
+	finishedKey := tls13.ExpandLabel(c.hash.New, baseKey, "finished", nil, c.hash.Size())
 	verifyData := hmac.New(c.hash.New, finishedKey)
 	verifyData.Write(transcript.Sum(nil))
 	return verifyData.Sum(nil)
@@ -91,109 +43,210 @@ func (c *cipherSuiteTLS13) finishedHash(baseKey []byte, transcript hash.Hash) []
 
 // exportKeyingMaterial implements RFC5705 exporters for TLS 1.3 according to
 // RFC 8446, Section 7.5.
-func (c *cipherSuiteTLS13) exportKeyingMaterial(masterSecret []byte, transcript hash.Hash) func(string, []byte, int) ([]byte, error) {
-	expMasterSecret := c.deriveSecret(masterSecret, exporterLabel, transcript)
+func (c *cipherSuiteTLS13) exportKeyingMaterial(s *tls13.MasterSecret, transcript hash.Hash) func(string, []byte, int) ([]byte, error) {
+	expMasterSecret := s.ExporterMasterSecret(transcript)
 	return func(label string, context []byte, length int) ([]byte, error) {
-		secret := c.deriveSecret(expMasterSecret, label, nil)
-		h := c.hash.New()
-		h.Write(context)
-		return c.expandLabel(secret, "exporter", h.Sum(nil), length), nil
+		return expMasterSecret.Exporter(label, context, length), nil
 	}
 }
 
-// ecdheParameters implements Diffie-Hellman with either NIST curves or X25519,
-// according to RFC 8446, Section 4.2.8.2.
-type ecdheParameters interface {
-	CurveID() CurveID
-	PublicKey() []byte
-	SharedKey(peerPublicKey []byte) []byte
+type keySharePrivateKeys struct {
+	ecdhe *ecdh.PrivateKey
+	mlkem crypto.Decapsulator
 }
 
-func generateECDHEParameters(rand io.Reader, curveID CurveID) (ecdheParameters, error) {
-	if curveID == X25519 {
-		privateKey := make([]byte, curve25519.ScalarSize)
-		if _, err := io.ReadFull(rand, privateKey); err != nil {
-			return nil, err
-		}
-		publicKey, err := curve25519.X25519(privateKey, curve25519.Basepoint)
-		if err != nil {
-			return nil, err
-		}
-		return &x25519Parameters{privateKey: privateKey, publicKey: publicKey}, nil
-	}
+// A keyExchange implements a TLS 1.3 KEM.
+type keyExchange interface {
+	// keyShares generates one or two key shares.
+	//
+	// The first one will match the id, the second (if present) reuses the
+	// traditional component of the requested hybrid, as allowed by
+	// draft-ietf-tls-hybrid-design-09, Section 3.2.
+	keyShares(rand io.Reader) (*keySharePrivateKeys, []keyShare, error)
 
-	curve, ok := curveForCurveID(curveID)
-	if !ok {
-		return nil, errors.New("tls: internal error: unsupported curve")
-	}
+	// serverSharedSecret computes the shared secret and the server's key share.
+	serverSharedSecret(rand io.Reader, clientKeyShare []byte) ([]byte, keyShare, error)
 
-	p := &nistParameters{curveID: curveID}
-	var err error
-	p.privateKey, p.x, p.y, err = elliptic.GenerateKey(curve, rand)
+	// clientSharedSecret computes the shared secret given the server's key
+	// share and the keys generated by keyShares.
+	clientSharedSecret(priv *keySharePrivateKeys, serverKeyShare []byte) ([]byte, error)
+}
+
+func keyExchangeForCurveID(id CurveID) (keyExchange, error) {
+	newMLKEMPrivateKey768 := func(b []byte) (crypto.Decapsulator, error) {
+		return mlkem.NewDecapsulationKey768(b)
+	}
+	newMLKEMPrivateKey1024 := func(b []byte) (crypto.Decapsulator, error) {
+		return mlkem.NewDecapsulationKey1024(b)
+	}
+	newMLKEMPublicKey768 := func(b []byte) (crypto.Encapsulator, error) {
+		return mlkem.NewEncapsulationKey768(b)
+	}
+	newMLKEMPublicKey1024 := func(b []byte) (crypto.Encapsulator, error) {
+		return mlkem.NewEncapsulationKey1024(b)
+	}
+	switch id {
+	case X25519:
+		return &ecdhKeyExchange{id, ecdh.X25519()}, nil
+	case CurveP256:
+		return &ecdhKeyExchange{id, ecdh.P256()}, nil
+	case CurveP384:
+		return &ecdhKeyExchange{id, ecdh.P384()}, nil
+	case CurveP521:
+		return &ecdhKeyExchange{id, ecdh.P521()}, nil
+	case X25519MLKEM768:
+		return &hybridKeyExchange{id, ecdhKeyExchange{X25519, ecdh.X25519()},
+			32, mlkem.EncapsulationKeySize768, mlkem.CiphertextSize768,
+			newMLKEMPrivateKey768, newMLKEMPublicKey768}, nil
+	case SecP256r1MLKEM768:
+		return &hybridKeyExchange{id, ecdhKeyExchange{CurveP256, ecdh.P256()},
+			65, mlkem.EncapsulationKeySize768, mlkem.CiphertextSize768,
+			newMLKEMPrivateKey768, newMLKEMPublicKey768}, nil
+	case SecP384r1MLKEM1024:
+		return &hybridKeyExchange{id, ecdhKeyExchange{CurveP384, ecdh.P384()},
+			97, mlkem.EncapsulationKeySize1024, mlkem.CiphertextSize1024,
+			newMLKEMPrivateKey1024, newMLKEMPublicKey1024}, nil
+	default:
+		return nil, errors.New("tls: unsupported key exchange")
+	}
+}
+
+type ecdhKeyExchange struct {
+	id    CurveID
+	curve ecdh.Curve
+}
+
+func (ke *ecdhKeyExchange) keyShares(rand io.Reader) (*keySharePrivateKeys, []keyShare, error) {
+	priv, err := ke.curve.GenerateKey(rand)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &keySharePrivateKeys{ecdhe: priv}, []keyShare{{ke.id, priv.PublicKey().Bytes()}}, nil
+}
+
+func (ke *ecdhKeyExchange) serverSharedSecret(rand io.Reader, clientKeyShare []byte) ([]byte, keyShare, error) {
+	key, err := ke.curve.GenerateKey(rand)
+	if err != nil {
+		return nil, keyShare{}, err
+	}
+	peerKey, err := ke.curve.NewPublicKey(clientKeyShare)
+	if err != nil {
+		return nil, keyShare{}, err
+	}
+	sharedKey, err := key.ECDH(peerKey)
+	if err != nil {
+		return nil, keyShare{}, err
+	}
+	return sharedKey, keyShare{ke.id, key.PublicKey().Bytes()}, nil
+}
+
+func (ke *ecdhKeyExchange) clientSharedSecret(priv *keySharePrivateKeys, serverKeyShare []byte) ([]byte, error) {
+	peerKey, err := ke.curve.NewPublicKey(serverKeyShare)
 	if err != nil {
 		return nil, err
 	}
-	return p, nil
-}
-
-func curveForCurveID(id CurveID) (elliptic.Curve, bool) {
-	switch id {
-	case CurveP256:
-		return elliptic.P256(), true
-	case CurveP384:
-		return elliptic.P384(), true
-	case CurveP521:
-		return elliptic.P521(), true
-	default:
-		return nil, false
-	}
-}
-
-type nistParameters struct {
-	privateKey []byte
-	x, y       *big.Int // public key
-	curveID    CurveID
-}
-
-func (p *nistParameters) CurveID() CurveID {
-	return p.curveID
-}
-
-func (p *nistParameters) PublicKey() []byte {
-	curve, _ := curveForCurveID(p.curveID)
-	return elliptic.Marshal(curve, p.x, p.y)
-}
-
-func (p *nistParameters) SharedKey(peerPublicKey []byte) []byte {
-	curve, _ := curveForCurveID(p.curveID)
-	// Unmarshal also checks whether the given point is on the curve.
-	x, y := elliptic.Unmarshal(curve, peerPublicKey)
-	if x == nil {
-		return nil
-	}
-
-	xShared, _ := curve.ScalarMult(x, y, p.privateKey)
-	sharedKey := make([]byte, (curve.Params().BitSize+7)/8)
-	return xShared.FillBytes(sharedKey)
-}
-
-type x25519Parameters struct {
-	privateKey []byte
-	publicKey  []byte
-}
-
-func (p *x25519Parameters) CurveID() CurveID {
-	return X25519
-}
-
-func (p *x25519Parameters) PublicKey() []byte {
-	return p.publicKey[:]
-}
-
-func (p *x25519Parameters) SharedKey(peerPublicKey []byte) []byte {
-	sharedKey, err := curve25519.X25519(p.privateKey, peerPublicKey)
+	sharedKey, err := priv.ecdhe.ECDH(peerKey)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	return sharedKey
+	return sharedKey, nil
+}
+
+type hybridKeyExchange struct {
+	id   CurveID
+	ecdh ecdhKeyExchange
+
+	ecdhElementSize     int
+	mlkemPublicKeySize  int
+	mlkemCiphertextSize int
+
+	newMLKEMPrivateKey func([]byte) (crypto.Decapsulator, error)
+	newMLKEMPublicKey  func([]byte) (crypto.Encapsulator, error)
+}
+
+func (ke *hybridKeyExchange) keyShares(rand io.Reader) (*keySharePrivateKeys, []keyShare, error) {
+	priv, ecdhShares, err := ke.ecdh.keyShares(rand)
+	if err != nil {
+		return nil, nil, err
+	}
+	seed := make([]byte, mlkem.SeedSize)
+	if _, err := io.ReadFull(rand, seed); err != nil {
+		return nil, nil, err
+	}
+	priv.mlkem, err = ke.newMLKEMPrivateKey(seed)
+	if err != nil {
+		return nil, nil, err
+	}
+	var shareData []byte
+	// For X25519MLKEM768, the ML-KEM-768 encapsulation key comes first.
+	// For SecP256r1MLKEM768 and SecP384r1MLKEM1024, the ECDH share comes first.
+	// See draft-ietf-tls-ecdhe-mlkem-02, Section 4.1.
+	if ke.id == X25519MLKEM768 {
+		shareData = append(priv.mlkem.Encapsulator().Bytes(), ecdhShares[0].data...)
+	} else {
+		shareData = append(ecdhShares[0].data, priv.mlkem.Encapsulator().Bytes()...)
+	}
+	return priv, []keyShare{{ke.id, shareData}, ecdhShares[0]}, nil
+}
+
+func (ke *hybridKeyExchange) serverSharedSecret(rand io.Reader, clientKeyShare []byte) ([]byte, keyShare, error) {
+	if len(clientKeyShare) != ke.ecdhElementSize+ke.mlkemPublicKeySize {
+		return nil, keyShare{}, errors.New("tls: invalid client key share length for hybrid key exchange")
+	}
+	var ecdhShareData, mlkemShareData []byte
+	if ke.id == X25519MLKEM768 {
+		mlkemShareData = clientKeyShare[:ke.mlkemPublicKeySize]
+		ecdhShareData = clientKeyShare[ke.mlkemPublicKeySize:]
+	} else {
+		ecdhShareData = clientKeyShare[:ke.ecdhElementSize]
+		mlkemShareData = clientKeyShare[ke.ecdhElementSize:]
+	}
+	ecdhSharedSecret, ks, err := ke.ecdh.serverSharedSecret(rand, ecdhShareData)
+	if err != nil {
+		return nil, keyShare{}, err
+	}
+	mlkemPeerKey, err := ke.newMLKEMPublicKey(mlkemShareData)
+	if err != nil {
+		return nil, keyShare{}, err
+	}
+	mlkemSharedSecret, mlkemKeyShare := mlkemPeerKey.Encapsulate()
+	var sharedKey []byte
+	if ke.id == X25519MLKEM768 {
+		sharedKey = append(mlkemSharedSecret, ecdhSharedSecret...)
+		ks.data = append(mlkemKeyShare, ks.data...)
+	} else {
+		sharedKey = append(ecdhSharedSecret, mlkemSharedSecret...)
+		ks.data = append(ks.data, mlkemKeyShare...)
+	}
+	ks.group = ke.id
+	return sharedKey, ks, nil
+}
+
+func (ke *hybridKeyExchange) clientSharedSecret(priv *keySharePrivateKeys, serverKeyShare []byte) ([]byte, error) {
+	if len(serverKeyShare) != ke.ecdhElementSize+ke.mlkemCiphertextSize {
+		return nil, errors.New("tls: invalid server key share length for hybrid key exchange")
+	}
+	var ecdhShareData, mlkemShareData []byte
+	if ke.id == X25519MLKEM768 {
+		mlkemShareData = serverKeyShare[:ke.mlkemCiphertextSize]
+		ecdhShareData = serverKeyShare[ke.mlkemCiphertextSize:]
+	} else {
+		ecdhShareData = serverKeyShare[:ke.ecdhElementSize]
+		mlkemShareData = serverKeyShare[ke.ecdhElementSize:]
+	}
+	ecdhSharedSecret, err := ke.ecdh.clientSharedSecret(priv, ecdhShareData)
+	if err != nil {
+		return nil, err
+	}
+	mlkemSharedSecret, err := priv.mlkem.Decapsulate(mlkemShareData)
+	if err != nil {
+		return nil, err
+	}
+	var sharedKey []byte
+	if ke.id == X25519MLKEM768 {
+		sharedKey = append(mlkemSharedSecret, ecdhSharedSecret...)
+	} else {
+		sharedKey = append(ecdhSharedSecret, mlkemSharedSecret...)
+	}
+	return sharedKey, nil
 }

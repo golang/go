@@ -1,0 +1,36 @@
+-- expect --
+SUCCESS
+-- trace --
+Trace Go1.22
+EventBatch gen=1 m=0 time=0 size=13
+ProcStatus dt=1 p=0 pstatus=1
+GoStatus dt=1 g=1 m=0 gstatus=2
+GoStop dt=1 reason_string=1 stack=0
+EventBatch gen=1 m=1 time=0 size=12
+ProcStatus dt=1 p=1 pstatus=1
+GoStart dt=1 g=1 g_seq=1
+GoStop dt=1 reason_string=1 stack=0
+EventBatch gen=1 m=18446744073709551615 time=0 size=5
+Frequency freq=15625000
+EventBatch gen=1 m=18446744073709551615 time=0 size=1
+Stacks
+EventBatch gen=1 m=18446744073709551615 time=0 size=12
+Strings
+String id=1
+	data="whatever"
+EventBatch gen=2 m=1 time=3 size=8
+ProcStatus dt=1 p=1 pstatus=1
+GoStart dt=1 g=1 g_seq=2
+EventBatch gen=2 m=0 time=5 size=17
+ProcStatus dt=1 p=0 pstatus=1
+GoStatus dt=1 g=1 m=0 gstatus=1
+GoStart dt=1 g=1 g_seq=1
+GoStop dt=1 reason_string=1 stack=0
+EventBatch gen=2 m=18446744073709551615 time=0 size=5
+Frequency freq=15625000
+EventBatch gen=2 m=18446744073709551615 time=0 size=1
+Stacks
+EventBatch gen=2 m=18446744073709551615 time=0 size=12
+Strings
+String id=1
+	data="whatever"
