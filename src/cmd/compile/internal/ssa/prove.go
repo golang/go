@@ -273,6 +273,15 @@ func convertIntWithBitsize[Target uint64 | int64, Source uint64 | int64](x Sourc
 	}
 }
 
+// unsignedFixedLeadingBits extracts the all the most significant fixed bits from the limit.
+// fixed and count are an other way to represent a limit, you can convert them to a limit as follows:
+//
+//	umin = fixed
+//	umax = fixed | (1<<(64-count) - 1)
+//
+// In order to be useful for bitmanip analysis fixed and count are a coarser tool than a limit:
+// 1. the varying section (umax-umin) is always one less than a power of two
+// 2. that section is naturally aligned inside the 64-bit space
 func (l limit) unsignedFixedLeadingBits() (fixed uint64, count uint) {
 	varying := uint(bits.Len64(l.umin ^ l.umax))
 	count = uint(bits.LeadingZeros64(l.umin ^ l.umax))
@@ -2913,6 +2922,35 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				v.SetArg(yPos, zero)
 				if b.Func.pass.debug > 0 {
 					b.Func.Warnl(v.Pos, "Rewrote %v (%v) %v argument is boolean-like; rewrote to %v against 0", v, oldOp, x, v.Op)
+				}
+			}
+		case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
+			x, y := v.Args[0], v.Args[1]
+			xl, yl := ft.limits[x.ID], ft.limits[y.ID]
+			xConst, xIsConst := xl.constValue()
+			yConst, yIsConst := yl.constValue()
+			// Remove no-op Ands
+			switch {
+			case xIsConst && yIsConst:
+			case xIsConst:
+				x, y = y, x
+				xl, yl = yl, xl
+				xConst, yConst = yConst, xConst
+				fallthrough
+			case yIsConst:
+				knownBits, fixedLen := xl.unsignedFixedLeadingBits()
+				varyingLen := 64 - fixedLen
+				wantBits := knownBits | (uint64(1)<<varyingLen - 1)
+				// wantBits has the fixed bits and the worst case bits (set) for the varying bits
+				// if after anding it with y it isn't modified we know the and is always a no-op.
+				if wantBits&uint64(yConst) != wantBits {
+					break
+				}
+
+				oldOp := v.Op
+				v.copyOf(x)
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %v is a no-op %v", v, oldOp)
 				}
 			}
 		}

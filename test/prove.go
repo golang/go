@@ -2802,6 +2802,27 @@ func booleanLikeEqWithOneToNeqWithZero(x uint64) uint64 {
 	return 1337
 }
 
+func noopAnd64(x uint64) uint64 {
+	x = max(x, 0x0f0f0)
+	x = min(x, 0x0f0ff)
+	x &= 0xff0ff // ERROR "Proved v[0-9]+ is a no-op And64"
+	return x
+}
+
+func noopAnd64DoNothingClearsFixed(x uint64) uint64 {
+	x = max(x, 0x0f0f0)
+	x = min(x, 0x0f0ff)
+	x &= 0xf80ff
+	return x
+}
+
+func noopAnd64DoNothingMayClearVarying(x uint64) uint64 {
+	x = max(x, 0x0f0f0)
+	x = min(x, 0x0f0ff)
+	x &= 0xff0f8
+	return x
+}
+
 //go:noinline
 func prove(x int) {
 }
