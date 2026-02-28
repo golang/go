@@ -854,6 +854,9 @@ func TestMkmalloc(t *testing.T) {
 }
 
 func TestScanAllocIssue77573(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("extra allocations with -asan causes this to fail")
+	}
 	verifyScanAlloc := func(t *testing.T, f func(), expectSize uintptr) {
 		runtime.Acquirem()
 		defer runtime.Releasem()
