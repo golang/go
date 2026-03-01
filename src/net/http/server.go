@@ -3014,6 +3014,13 @@ type Server struct {
 	// is zero or negative, there is no timeout.
 	IdleTimeout time.Duration
 
+	// ShutdownGracePeriod is the maximum amount of time to wait for
+	// in-flight requests to arrive before closing HTTP/2 connections
+	// during a graceful shutdown. If zero, no grace period is provided
+	// and connections are closed immediately after sending the final
+	// GOAWAY frame.
+	ShutdownGracePeriod time.Duration
+
 	// MaxHeaderBytes controls the maximum number of bytes the
 	// server will read parsing the request header's keys and
 	// values, including the request line. It does not limit the
