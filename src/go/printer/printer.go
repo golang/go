@@ -311,7 +311,7 @@ func (p *printer) writeString(pos token.Position, s string, isLit bool) {
 	var li int // index of last newline; valid if nlines > 0
 	for i := 0; i < len(s); i++ {
 		// Raw string literals may contain any character except back quote (`).
-		if ch := s[i]; ch == '\n' || ch == '\f' {
+		if ch := s[i]; ch == '\n' {
 			// account for line break
 			nlines++
 			li = i
