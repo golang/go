@@ -436,10 +436,6 @@ type Rows interface {
 	// size as the Columns() are wide.
 	//
 	// Next should return io.EOF when there are no more rows.
-	//
-	// The dest should not be written to outside of Next. Care
-	// should be taken when closing Rows not to modify
-	// a buffer held in dest.
 	Next(dest []Value) error
 }
 
