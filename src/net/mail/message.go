@@ -549,9 +549,14 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
 
 	// domain = dot-atom / domain-literal
 	var domain string
-	p.skipSpace()
+
 	if p.empty() {
 		return "", errors.New("mail: no domain in addr-spec")
+	}
+
+	// CFWS = (1*([FWS] comment) [FWS]) / FWS
+	if !p.skipCFWS() {
+		return "", errors.New("mail: misformatted addr-spec")
 	}
 
 	if p.peek() == '[' {
