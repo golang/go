@@ -305,3 +305,7 @@ const (
 	SYS_FUTEX_WAITV             = 449
 	SYS_SET_MEMPOLICY_HOME_NODE = 450
 )
+
+const (
+	_SYS_landlock_restrict_self = SYS_LANDLOCK_RESTRICT_SELF
+)
