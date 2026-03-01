@@ -17,6 +17,18 @@ import (
 // This is used to reject cases where we don't match zstd.
 var fuzzing = false
 
+const (
+	// magicNumber is the magic number used to identify a zstd stream.
+	// It is the first 4 bytes of a zstd stream.
+	magicNumber = 0xFD2FB528
+	// all 16 values, from 0x184D2A50 to 0x184D2A5F, signal the beginning of a skippable frame
+	magicSkippableStart = 0x184D2A50
+	magicSkippableMask  = 0xFFFFFFF0
+
+	// Maximum block size is smaller of window size and 128K
+	blockMaximumSize = 128 << 10
+)
+
 // Reader implements [io.Reader] to read a zstd compressed stream.
 type Reader struct {
 	// The underlying Reader.
@@ -176,8 +188,8 @@ retry:
 		return r.wrapError(relativeOffset, err)
 	}
 
-	if magic := binary.LittleEndian.Uint32(r.scratch[:4]); magic != 0xfd2fb528 {
-		if magic >= 0x184d2a50 && magic <= 0x184d2a5f {
+	if magic := binary.LittleEndian.Uint32(r.scratch[:4]); magic != magicNumber {
+		if magic&magicSkippableMask == magicSkippableStart {
 			// This is a skippable frame.
 			r.blockOffset += int64(relativeOffset) + 4
 			if err := r.skipFrame(); err != nil {
@@ -387,7 +399,7 @@ func (r *Reader) readBlock() error {
 	// Maximum block size is smaller of window size and 128K.
 	// We don't record the window size for a single segment frame,
 	// so just use 128K. RFC 3.1.1.2.3, 3.1.1.2.4.
-	if blockSize > 128<<10 || (r.window.size > 0 && blockSize > r.window.size) {
+	if blockSize > blockMaximumSize || (r.window.size > 0 && blockSize > r.window.size) {
 		return r.makeError(relativeOffset, "block size too large")
 	}
 
