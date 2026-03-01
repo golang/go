@@ -2653,6 +2653,18 @@ func dropm() {
 	}
 	mp.isExtraInSig = false
 
+	// Release mp.oldp to idle state.
+	oldp := mp.oldp.ptr()
+	mp.oldp = 0
+	if oldp != nil && oldp.status == _Psyscall && atomic.Cas(&oldp.status, _Psyscall, _Pidle) {
+		if trace.enabled {
+			traceGoSysBlock(oldp)
+			traceProcStop(oldp)
+		}
+		oldp.syscalltick++
+		handoffp(oldp)
+	}
+
 	// Block signals before unminit.
 	// Unminit unregisters the signal handling stack (but needs g on some systems).
 	// Setg(nil) clears g, which is the signal handler's cue not to run Go handlers.
