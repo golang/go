@@ -1,0 +1,137 @@
+env GO111MODULE=on
+
+# Test for bug where cached coverage profiles with -coverpkg can contain
+# outdated line references when source files are modified.
+# This reproduces the issue where coverage data from cache may reference
+# lines that no longer exist in the updated source files.
+
+[short] skip
+[GODEBUG:gocacheverify=1] skip
+
+# We're testing cache behavior, so start with a clean GOCACHE.
+env GOCACHE=$WORK/cache
+
+# Create a project structure with multiple packages
+# proj/
+#   some_func.go
+#   some_func_test.go
+#   sub/
+#     sub.go
+#     sub_test.go
+#   sum/
+#     sum.go
+
+# Switch to the proj directory
+cd proj
+
+# Run tests with -coverpkg to collect coverage for all packages
+go test -coverpkg=proj/... -coverprofile=cover1.out ./...
+stdout 'coverage:'
+
+# Verify the first coverage profile exists and has expected content
+exists cover1.out
+grep -q 'proj/sub/sub.go:' cover1.out
+
+# Run again to ensure caching works
+go test -coverpkg=proj/... -coverprofile=cover1_cached.out ./...
+stdout '\(cached\)'
+stdout 'coverage:'
+
+# Note: Due to the bug, cached coverage profiles may have duplicate entries
+# This is the issue we're trying to fix
+
+# Now modify sub.go to change line structure - this will invalidate
+# the cache for sub package but not for proj package
+cp ../sub_modified.go sub/sub.go
+
+# The bug manifests as duplicate or invalid line references in the coverage profile
+# After modifying sub.go, we should not have both old and new line references
+go test -coverpkg=proj/... -coverprofile=cover2.out ./...
+stdout 'coverage:'
+
+# With the bug present, we would see duplicate entries for the same lines
+# This demonstrates the bug - there should be duplicates in the coverage profile
+grep 'proj/sub/sub.go:' cover2.out
+# The fix should ensure that only the new line format exists, not the old one
+grep 'proj/sub/sub.go:3.24,4.35' cover2.out
+# This should fail if the stale coverage line exists (the bug is present)
+! grep 'proj/sub/sub.go:3.24,4.22' cover2.out
+
+-- proj/go.mod --
+module proj
+
+go 1.21
+
+-- proj/some_func.go --
+package proj
+
+import "proj/sum"
+
+func SomeFunc(a, b int) int {
+	if a == 0 && b == 0 {
+		return 0
+	}
+	return sum.Sum(a, b)
+}
+
+-- proj/some_func_test.go --
+package proj
+
+import (
+	"testing"
+)
+
+func Test_SomeFunc(t *testing.T) {
+	t.Run("test1", func(t *testing.T) {
+		result := SomeFunc(1, 1)
+		if result != 2 {
+			t.Errorf("Expected 2, got %d", result)
+		}
+	})
+}
+
+-- proj/sub/sub.go --
+package sub
+
+func Sub(a, b int) int {
+	if a == 0 && b == 0 {
+		return 0
+	}
+	return a - b
+}
+
+-- proj/sub/sub_test.go --
+package sub
+
+import (
+	"testing"
+)
+
+func Test_Sub(t *testing.T) {
+	t.Run("test_sub1", func(t *testing.T) {
+		result := Sub(1, 1)
+		if result != 0 {
+			t.Errorf("Expected 0, got %d", result)
+		}
+	})
+}
+
+-- proj/sum/sum.go --
+package sum
+
+func Sum(a, b int) int {
+	if a == 0 {
+		return b
+	}
+	return a + b
+}
+
+-- sub_modified.go --
+package sub
+
+func Sub(a, b int) int {
+	if a == 0 && b == 0 || a == -100 {
+		return 0
+	}
+	return a - b
+}
