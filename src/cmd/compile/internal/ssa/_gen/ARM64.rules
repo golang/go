@@ -654,6 +654,8 @@
 (TBZ      [t]    (SLLconst [s] x) yes no) && t-s <  0                  => (First            yes no )
 (TBNZ     [t]    (SLLconst [s] x) yes no) && t-s <  0                  => (First            no  yes)
 
+(TB(Z|NZ) [t] rv:(RORconst [r] x) yes no) && rv.Uses == 1 => (TB(Z|NZ) [int64(uint64(t+r)%64)] x yes no)
+
 // Test sign-bit for signed comparisons against zero
 (GE (CMPWconst [0] x) yes no) => (TBZ  [31] x yes no)
 (GE (CMPconst [0] x)  yes no) => (TBZ  [63] x yes no)

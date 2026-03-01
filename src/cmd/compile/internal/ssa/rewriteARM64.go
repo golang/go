@@ -25672,6 +25672,21 @@ func rewriteBlockARM64(b *Block) bool {
 			b.swapSuccessors()
 			return true
 		}
+		// match: (TBNZ [t] rv:(RORconst [r] x) yes no)
+		// cond: rv.Uses == 1
+		// result: (TBNZ [int64(uint64(t+r)%64)] x yes no)
+		for b.Controls[0].Op == OpARM64RORconst {
+			rv := b.Controls[0]
+			r := auxIntToInt64(rv.AuxInt)
+			x := rv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(rv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(int64(uint64(t+r) % 64))
+			return true
+		}
 	case BlockARM64TBZ:
 		// match: (TBZ [0] (XORconst [1] x) yes no)
 		// result: (TBNZ [0] x yes no)
@@ -25742,6 +25757,21 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			b.Reset(BlockFirst)
+			return true
+		}
+		// match: (TBZ [t] rv:(RORconst [r] x) yes no)
+		// cond: rv.Uses == 1
+		// result: (TBZ [int64(uint64(t+r)%64)] x yes no)
+		for b.Controls[0].Op == OpARM64RORconst {
+			rv := b.Controls[0]
+			r := auxIntToInt64(rv.AuxInt)
+			x := rv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(rv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(int64(uint64(t+r) % 64))
 			return true
 		}
 	case BlockARM64UGE:
