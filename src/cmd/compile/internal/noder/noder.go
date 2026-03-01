@@ -258,19 +258,23 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 			}
 		}
 
-	case strings.HasPrefix(text, "go:wasmexport "):
+	case strings.HasPrefix(text, "go:wasmexport"):
 		f := strings.Fields(text)
-		if len(f) != 2 {
-			// TODO: maybe make the name optional? It was once mentioned on proposal 65199.
-			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:wasmexport exportname"})
+		if len(f) > 2 {
+			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:wasmexport [exportname]"})
 			break
+		}
+
+		var exportName string
+		if len(f) == 2 {
+			exportName = f[1]
 		}
 
 		if buildcfg.GOARCH == "wasm" {
 			// Only actually use them if we're compiling to WASM though.
 			pragma.WasmExport = &WasmExport{
 				Pos:  pos,
-				Name: f[1],
+				Name: exportName,
 			}
 		}
 
