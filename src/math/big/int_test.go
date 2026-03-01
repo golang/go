@@ -2010,3 +2010,136 @@ func TestFloat64(t *testing.T) {
 		}
 	}
 }
+
+func TestIntFloorQuo(t *testing.T) {
+	for i, test := range []struct {
+		x, y, q int64
+	}{
+		{0, 1, 0},
+		{0, -1, 0},
+		{1, 1, 1},
+		{1, -1, -1},
+		{-1, 1, -1},
+		{-1, -1, 1},
+		{1, 3, 0},
+		{-1, 3, -1},
+		{1, -3, -1},
+		{-1, -3, 0},
+		// examples from spec#Arithmetic_operators
+		{5, 3, 1},
+		{-5, 3, -2},
+		{5, -3, -2},
+		{-5, -3, 1},
+		{1, 2, 0},
+		{8, 4, 2},
+	} {
+		x := NewInt(test.x)
+		y := NewInt(test.y)
+		q := x.FloorQuo(x, y)
+		if q.Cmp(NewInt(test.q)) != 0 {
+			t.Errorf("#%v got q=%v, want q=%v", i, q, test.q)
+		}
+	}
+}
+
+
+func TestIntFloorQuoRem(t *testing.T) {
+	for i, test := range []struct {
+		x, y, q, r int64
+	}{
+		{0, 1, 0, 0},
+		{0, -1, 0, 0},
+		{1, 1, 1, 0},
+		{1, -1, -1, 0},
+		{-1, 1, -1, 0},
+		{-1, -1, 1, 0},
+		{1, 3, 0, 1},
+		{-1, 3, -1, 2},
+		{1, -3, -1, -2},
+		{-1, -3, 0, -1},
+		// examples from spec#Arithmetic_operators
+		{5, 3, 1, 2},
+		{-5, 3, -2, 1},
+		{5, -3, -2, -1},
+		{-5, -3, 1, -2},
+		{1, 2, 0, 1},
+		{8, 4, 2, 0},
+	} {
+		if test.q*test.y+test.r != test.x {
+			t.Errorf("#%v invalid test, q*y + r != x", i)
+		}
+		x := NewInt(test.x)
+		y := NewInt(test.y)
+		r := new(Int)
+		q, _ := y.FloorQuoRem(x, y, r)
+		if q.Cmp(NewInt(test.q)) != 0 || r.Cmp(NewInt(test.r)) != 0 {
+			t.Errorf("#%v got q=%v r=%v, want q=%v r=%v", i, q, r, test.q, test.r)
+		}
+	}
+}
+
+func TestIntCeilQuo(t *testing.T) {
+	for i, test := range []struct {
+		x, y, q int64
+	}{
+		{0, 1, 0},
+		{0, -1, 0},
+		{1, 1, 1},
+		{1, -1, -1},
+		{-1, 1, -1},
+		{-1, -1, 1},
+		{1, 3, 1},
+		{-1, 3, 0},
+		{1, -3, 0},
+		{-1, -3, 1},
+		// examples from spec#Arithmetic_operators
+		{5, 3, 2},
+		{-5, 3, -1},
+		{5, -3, -1},
+		{-5, -3, 2},
+		{1, 2, 1},
+		{8, 4, 2},
+	} {
+		x := NewInt(test.x)
+		y := NewInt(test.y)
+		q := y.CeilQuo(x, y)
+		if q.Cmp(NewInt(test.q)) != 0 {
+			t.Errorf("#%v got q=%v, want q=%v", i, q, test.q)
+		}
+	}
+}
+
+func TestIntCeilQuoRem(t *testing.T) {
+	for i, test := range []struct {
+		x, y, q, r int64
+	}{
+		{0, 1, 0, 0},
+		{0, -1, 0, 0},
+		{1, 1, 1, 0},
+		{1, -1, -1, 0},
+		{-1, 1, -1, 0},
+		{-1, -1, 1, 0},
+		{1, 3, 1, -2},
+		{-1, 3, 0, -1},
+		{1, -3, 0, 1},
+		{-1, -3, 1, 2},
+		// examples from spec#Arithmetic_operators
+		{5, 3, 2, -1},
+		{-5, 3, -1, -2},
+		{5, -3, -1, 2},
+		{-5, -3, 2, 1},
+		{1, 2, 1, -1},
+		{8, 4, 2, 0},
+	} {
+		if test.q*test.y+test.r != test.x {
+			t.Errorf("#%v invalid test, q*y + r != x", i)
+		}
+		x := NewInt(test.x)
+		y := NewInt(test.y)
+		r := new(Int)
+		q, _ := y.CeilQuoRem(x, y, r)
+		if q.Cmp(NewInt(test.q)) != 0 || r.Cmp(NewInt(test.r)) != 0 {
+			t.Errorf("#%v got q=%v r=%v, want q=%v r=%v", i, q, r, test.q, test.r)
+		}
+	}
+}

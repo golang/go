@@ -1,0 +1,4 @@
+pkg math/big, method (*Int) FloorQuo(*Int, *Int) *Int #76821
+pkg math/big, method (*Int) FloorQuoRem(*Int, *Int, *Int) (*Int, *Int) #76821
+pkg math/big, method (*Int) CeilQuo(*Int, *Int) *Int #76821
+pkg math/big, method (*Int) CeilQuoRem(*Int, *Int, *Int) (*Int, *Int) #76821

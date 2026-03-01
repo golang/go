@@ -1308,3 +1308,87 @@ func (z *Int) Sqrt(x *Int) *Int {
 	z.abs = z.abs.sqrt(nil, x.abs)
 	return z
 }
+
+// FloorQuo sets z to ⌊x/y⌋ for y != 0 and returns z.
+// If y == 0, a division-by-zero run-time panic occurs.
+// FloorQuo implements floor division (unlike Go); see [Int.FloorQuoRem] for more details.
+func (z *Int) FloorQuo(x, y *Int) *Int {
+	var r nat
+	z.abs, r = z.abs.div(nil, r, x.abs, y.abs)
+	neg := x.neg != y.neg
+	if len(r) > 0 && neg {
+		z.abs = z.abs.add(z.abs, natOne)
+	}
+	z.neg = len(z.abs) > 0 && neg // 0 has no sign
+	return z
+}
+
+// FloorQuoRem sets z to ⌊x/y⌋ and r to the remainder x%y
+// and returns the pair (z, r) for y != 0.
+// If y == 0, a division-by-zero run-time panic occurs.
+//
+// FloorQuoRem implements floor division and modulus (unlike Go):
+//
+//	q = ⌊x/y⌋    and
+//	r = x - y*q  where  0 <= |r| < |y|,  sgn(r) ∈ {0, sgn(y)}
+//
+// See [Int.QuoRem] for T-division and modulus (like Go).
+func (z *Int) FloorQuoRem(x, y, r *Int) (*Int, *Int) {
+	y0 := y // save y
+	if z == y || alias(z.abs, y.abs) {
+		y0 = new(Int).Set(y)
+	}
+	z.abs, r.abs = z.abs.div(nil, r.abs, x.abs, y.abs)
+	neg := x.neg != y.neg
+	if len(r.abs) > 0 {
+		if neg {
+			z.abs = z.abs.add(z.abs, natOne)
+			r.abs = r.abs.sub(y0.abs, r.abs)
+		}
+		r.neg = y0.neg
+	}
+	z.neg = len(z.abs) > 0 && neg // 0 has no sign
+	return z, r
+}
+
+// CeilQuo sets z to ⌈x/y⌉ for y != 0 and returns z.
+// If y == 0, a division-by-zero run-time panic occurs.
+// CeilQuo implements ceiling division (unlike Go); see [Int.CeilQuoRem] for more details.
+func (z *Int) CeilQuo(x, y *Int) *Int {
+	var r nat
+	z.abs, r = z.abs.div(nil, r, x.abs, y.abs)
+	neg := x.neg != y.neg
+	if len(r) > 0 && !neg {
+		z.abs = z.abs.add(z.abs, natOne)
+	}
+	z.neg = len(z.abs) > 0 && neg // 0 has no sign
+	return z
+}
+
+// CeilQuoRem sets z to ⌈x/y⌉ and r to the remainder x%y
+// and returns the pair (z, r) for y != 0.
+// If y == 0, a division-by-zero run-time panic occurs.
+//
+// CeilQuoRem implements ceiling division and modulus (unlike Go):
+//
+//	q = ⌈x/y⌉    and
+//	r = x - y*q  where  0 <= |r| < |y|,  sgn(r) ∈ {0, -sgn(y)}
+//
+// See [Int.QuoRem] for T-division and modulus (like Go).
+func (z *Int) CeilQuoRem(x, y, r *Int) (*Int, *Int) {
+	y0 := y // save y
+	if z == y || alias(z.abs, y.abs) {
+		y0 = new(Int).Set(y)
+	}
+	z.abs, r.abs = z.abs.div(nil, r.abs, x.abs, y.abs)
+	neg := x.neg != y.neg
+	if len(r.abs) > 0 {
+		if !neg {
+			z.abs = z.abs.add(z.abs, natOne)
+			r.abs = r.abs.sub(y0.abs, r.abs)
+		}
+		r.neg = !y0.neg
+	}
+	z.neg = len(z.abs) > 0 && neg // 0 has no sign
+	return z, r
+}
