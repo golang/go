@@ -326,6 +326,7 @@ var debug struct {
 	asyncpreemptoff          int32
 	harddecommit             int32
 	adaptivestackstart       int32
+	racelite                 int32 // TODO(thepudds): temporarily make this a runtime debug flag
 	tracefpunwindoff         int32
 	traceadvanceperiod       int32
 	traceCheckStackOwnership int32
@@ -390,6 +391,7 @@ var dbgvars = []*dbgVar{
 	{name: "madvdontneed", value: &debug.madvdontneed},
 	{name: "panicnil", atomic: &debug.panicnil},
 	{name: "profstackdepth", value: &debug.profstackdepth, def: 128},
+	{name: "racelite", value: &debug.racelite},
 	{name: "sbrk", value: &debug.sbrk},
 	{name: "scavtrace", value: &debug.scavtrace},
 	{name: "scheddetail", value: &debug.scheddetail},
@@ -522,6 +524,7 @@ func parsegodebug(godebug string, seen map[string]bool) {
 			continue
 		}
 		key, value := field[:i], field[i+1:]
+
 		if seen[key] {
 			continue
 		}
