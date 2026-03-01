@@ -737,6 +737,8 @@ func (sd *sysDialer) dialSerial(ctx context.Context, ras addrList) (Conn, error)
 		}
 
 		dialCtx := ctx
+		var cancel context.CancelFunc
+
 		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
 			partialDeadline, err := partialDeadline(time.Now(), deadline, len(ras)-i)
 			if err != nil {
@@ -747,13 +749,14 @@ func (sd *sysDialer) dialSerial(ctx context.Context, ras addrList) (Conn, error)
 				break
 			}
 			if partialDeadline.Before(deadline) {
-				var cancel context.CancelFunc
 				dialCtx, cancel = context.WithDeadline(ctx, partialDeadline)
-				defer cancel()
 			}
 		}
 
 		c, err := sd.dialSingle(dialCtx, ra)
+		if cancel != nil {
+			cancel()
+		}
 		if err == nil {
 			return c, nil
 		}
