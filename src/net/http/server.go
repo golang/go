@@ -2554,9 +2554,16 @@ func RedirectHandler(url string, code int) Handler {
 // # Compatibility
 //
 // The pattern syntax and matching behavior of ServeMux changed significantly
-// in Go 1.22. To restore the old behavior, set the GODEBUG environment variable
-// to "httpmuxgo121=1". This setting is read once, at program startup; changes
-// during execution will be ignored.
+// in Go 1.22. 
+//
+// The new behavior is determined by the Go version in the go.mod file. 
+// If the go.mod file specifies Go 1.22 or later, the new patterns and 
+// matching rules are used. If it specifies an earlier version, the 1.21 
+// behavior is maintained for compatibility.
+//
+// To manually restore the old behavior regardless of the go.mod version, 
+// set the GODEBUG environment variable to "httpmuxgo121=1". This setting 
+// is read once, at program startup; changes during execution will be ignored.
 //
 // The backwards-incompatible changes include:
 //   - Wildcards are just ordinary literal path segments in 1.21.
