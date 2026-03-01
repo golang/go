@@ -75,6 +75,9 @@ func funcOutput(profile, outputFile string) error {
 		}
 		funcs, err := findFuncs(file)
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
 			return err
 		}
 		// Now match up functions and profile blocks.
