@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"os"
 	"strings"
 	"testing"
 )
@@ -134,4 +135,24 @@ func TestReaderReusesReaderBuffer(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestReaderPartialBlock(t *testing.T) {
+	data, err := os.ReadFile("testdata/partial-block")
+	if err != nil {
+		t.Error(err)
+	}
+
+	r := NewReader(bytes.NewReader(data))
+	rb := make([]byte, 32)
+	n, err := r.Read(rb)
+	if err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+
+	expected := "hello, world"
+	actual := string(rb[:n])
+	if expected != actual {
+		t.Fatalf("expected: %v, got: %v", expected, actual)
+	}
 }
