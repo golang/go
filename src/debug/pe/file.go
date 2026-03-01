@@ -29,7 +29,11 @@ import (
 
 // A File represents an open PE file.
 type File struct {
-	FileHeader
+	// FileHeader is populated for regular COFF files
+	FileHeader *FileHeader
+	// BigObjHeader is populated for bigobj COFF files
+	BigObjHeader *BigObjHeader
+
 	OptionalHeader any // of type *OptionalHeader32 or *OptionalHeader64
 	Sections       []*Section
 	Symbols        []*Symbol    // COFF symbols with auxiliary symbol records removed
@@ -37,6 +41,69 @@ type File struct {
 	StringTable    StringTable
 
 	closer io.Closer
+}
+
+// IsBigObj reports whether the file is a bigobj COFF file.
+func (f *File) IsBigObj() bool {
+	return f.BigObjHeader != nil
+}
+
+// GetMachine returns the machine type from the appropriate header.
+func (f *File) GetMachine() uint16 {
+	if f.BigObjHeader != nil {
+		return f.BigObjHeader.Machine
+	}
+	return f.FileHeader.Machine
+}
+
+// GetNumberOfSections returns the number of sections from the appropriate header.
+func (f *File) GetNumberOfSections() uint32 {
+	if f.BigObjHeader != nil {
+		return f.BigObjHeader.NumberOfSections
+	}
+	return uint32(f.FileHeader.NumberOfSections)
+}
+
+// GetTimeDateStamp returns the timestamp from the appropriate header.
+func (f *File) GetTimeDateStamp() uint32 {
+	if f.BigObjHeader != nil {
+		return f.BigObjHeader.TimeDateStamp
+	}
+	return f.FileHeader.TimeDateStamp
+}
+
+// GetPointerToSymbolTable returns the symbol table pointer from the appropriate header.
+func (f *File) GetPointerToSymbolTable() uint32 {
+	if f.BigObjHeader != nil {
+		return f.BigObjHeader.PointerToSymbolTable
+	}
+	return f.FileHeader.PointerToSymbolTable
+}
+
+// GetNumberOfSymbols returns the number of symbols from the appropriate header.
+func (f *File) GetNumberOfSymbols() uint32 {
+	if f.BigObjHeader != nil {
+		return f.BigObjHeader.NumberOfSymbols
+	}
+	return f.FileHeader.NumberOfSymbols
+}
+
+// GetSizeOfOptionalHeader returns the optional header size from the appropriate header.
+// BigObj files don't have optional headers, so this returns 0 for them.
+func (f *File) GetSizeOfOptionalHeader() uint16 {
+	if f.BigObjHeader != nil {
+		return 0
+	}
+	return f.FileHeader.SizeOfOptionalHeader
+}
+
+// GetCharacteristics returns the characteristics from the appropriate header.
+// BigObj files don't have characteristics, so this returns 0 for them.
+func (f *File) GetCharacteristics() uint16 {
+	if f.BigObjHeader != nil {
+		return 0
+	}
+	return f.FileHeader.Characteristics
 }
 
 // Open opens the named file using [os.Open] and prepares it for use as a PE binary.
@@ -68,6 +135,69 @@ func (f *File) Close() error {
 
 // TODO(brainman): add Load function, as a replacement for NewFile, that does not call removeAuxSymbols (for performance)
 
+// isBigObjFormat detects if the reader contains a bigobj COFF file by checking
+// the signature and GUID. The reader position should be at the start of the COFF header.
+func isBigObjFormat(r io.ReadSeeker) (bool, error) {
+	currentPos, err := r.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return false, err
+	}
+	defer r.Seek(currentPos, io.SeekStart)
+
+	// Read the first part of what could be a BigObjHeader
+	var sig struct {
+		Sig1          uint16
+		Sig2          uint16
+		Version       uint16
+		Machine       uint16
+		TimeDateStamp uint32
+		ClassID       [16]uint8
+	}
+
+	err = binary.Read(r, binary.LittleEndian, &sig)
+	if err != nil {
+		return false, err
+	}
+
+	if sig.Sig1 != BigObjSig1 || sig.Sig2 != BigObjSig2 {
+		return false, nil
+	}
+
+	if sig.ClassID != BigObjClassID {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// readCOFFHeader reads the appropriate COFF header type ("regular" or bigobj).
+// The unused header type will be nil
+func readCOFFHeader(sr *io.SectionReader, base int64) (*FileHeader, *BigObjHeader, error) {
+	_, err := sr.Seek(base, io.SeekStart)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	isBigObj, err := isBigObjFormat(sr)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if isBigObj {
+		bigObjHeader := new(BigObjHeader)
+		if err := binary.Read(sr, binary.LittleEndian, bigObjHeader); err != nil {
+			return nil, nil, err
+		}
+		return nil, bigObjHeader, nil
+	} else {
+		fileHeader := new(FileHeader)
+		if err := binary.Read(sr, binary.LittleEndian, fileHeader); err != nil {
+			return nil, nil, err
+		}
+		return fileHeader, nil, nil
+	}
+}
+
 // NewFile creates a new [File] for accessing a PE binary in an underlying reader.
 func NewFile(r io.ReaderAt) (*File, error) {
 	f := new(File)
@@ -89,11 +219,24 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	} else {
 		base = int64(0)
 	}
-	sr.Seek(base, io.SeekStart)
-	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
+	// Read appropriate header type - unused header will be nil
+	fileHeader, bigObjHeader, err := readCOFFHeader(sr, base)
+	if err != nil {
 		return nil, err
 	}
-	switch f.FileHeader.Machine {
+	f.FileHeader = fileHeader
+	f.BigObjHeader = bigObjHeader
+
+	// Calculate header size based on actual type
+	var headerSize int
+	if f.BigObjHeader != nil {
+		headerSize = binary.Size(*f.BigObjHeader)
+	} else {
+		headerSize = binary.Size(*f.FileHeader)
+	}
+
+	// Validate machine type
+	switch f.GetMachine() {
 	case IMAGE_FILE_MACHINE_AMD64,
 		IMAGE_FILE_MACHINE_ARM64,
 		IMAGE_FILE_MACHINE_ARMNT,
@@ -104,19 +247,17 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		IMAGE_FILE_MACHINE_UNKNOWN:
 		// ok
 	default:
-		return nil, fmt.Errorf("unrecognized PE machine: %#x", f.FileHeader.Machine)
+		return nil, fmt.Errorf("unrecognized PE machine: %#x", f.GetMachine())
 	}
 
-	var err error
-
 	// Read string table.
-	f.StringTable, err = readStringTable(&f.FileHeader, sr)
+	f.StringTable, err = readStringTableFromFile(f, sr)
 	if err != nil {
 		return nil, err
 	}
 
 	// Read symbol table.
-	f.COFFSymbols, err = readCOFFSymbols(&f.FileHeader, sr)
+	f.COFFSymbols, err = readCOFFSymbols(f, sr)
 	if err != nil {
 		return nil, err
 	}
@@ -126,20 +267,23 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 
 	// Seek past file header.
-	_, err = sr.Seek(base+int64(binary.Size(f.FileHeader)), io.SeekStart)
+	_, err = sr.Seek(base+int64(headerSize), io.SeekStart)
 	if err != nil {
 		return nil, err
 	}
 
-	// Read optional header.
-	f.OptionalHeader, err = readOptionalHeader(sr, f.FileHeader.SizeOfOptionalHeader)
-	if err != nil {
-		return nil, err
+	// Read optional header (only for regular COFF files).
+	if !f.IsBigObj() {
+		f.OptionalHeader, err = readOptionalHeader(sr, f.GetSizeOfOptionalHeader())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Process sections.
-	f.Sections = make([]*Section, f.FileHeader.NumberOfSections)
-	for i := 0; i < int(f.FileHeader.NumberOfSections); i++ {
+	numSections := f.GetNumberOfSections()
+	f.Sections = make([]*Section, numSections)
+	for i := uint32(0); i < numSections; i++ {
 		sh := new(SectionHeader32)
 		if err := binary.Read(sr, binary.LittleEndian, sh); err != nil {
 			return nil, err
