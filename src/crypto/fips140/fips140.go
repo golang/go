@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package fips140 provides access to the FIPS 140-3 validation status of the
+// cryptographic module, including the Enabled and Version functions.
+//
+// For more information, see https://go.dev/doc/security/fips140.
 package fips140
 
 import (
