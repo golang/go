@@ -176,6 +176,8 @@ type quicState struct {
 	transportParams []byte // to send to the peer
 
 	enableSessionEvents bool
+
+	sessionState *SessionState
 }
 
 // QUICClient returns a new TLS client side connection using QUICTransport as the
@@ -335,7 +337,10 @@ func (q *QUICConn) SendSessionTicket(opts QUICSessionTicketOptions) error {
 		return quicError(errors.New("tls: SendSessionTicket called multiple times"))
 	}
 	q.sessionTicketSent = true
-	return quicError(c.sendSessionTicket(opts.EarlyData, opts.Extra))
+
+	sessionState := q.conn.quic.sessionState
+	q.conn.quic.sessionState = nil
+	return quicError(c.sendSessionTicket(sessionState, opts.EarlyData, opts.Extra))
 }
 
 // StoreSession stores a session previously received in a QUICStoreSession event
