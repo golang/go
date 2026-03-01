@@ -505,7 +505,7 @@ func TestDNSFlood(t *testing.T) {
 
 	defer dnsWaitGroup.Wait()
 
-	var N = 5000
+	N := 5000
 	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		// On Darwin this test consumes kernel threads much
 		// than other platforms for some reason.
@@ -757,7 +757,7 @@ func TestLookupPort(t *testing.T) {
 		port    int
 		ok      bool
 	}
-	var tests = []test{
+	tests := []test{
 		{"tcp", "0", 0, true},
 		{"udp", "0", 0, true},
 		{"udp", "domain", 53, true},
@@ -809,7 +809,7 @@ func TestLookupPort_Minimal(t *testing.T) {
 		name    string
 		port    int
 	}
-	var tests = []test{
+	tests := []test{
 		{"tcp", "http", 80},
 		{"tcp", "HTTP", 80}, // case shouldn't matter
 		{"tcp", "https", 443},
@@ -832,7 +832,7 @@ func TestLookupProtocol_Minimal(t *testing.T) {
 		name string
 		want int
 	}
-	var tests = []test{
+	tests := []test{
 		{"tcp", 6},
 		{"TcP", 6}, // case shouldn't matter
 		{"icmp", 1},
@@ -847,7 +847,6 @@ func TestLookupProtocol_Minimal(t *testing.T) {
 			t.Errorf("LookupProtocol(%q) = %d, %v; want %d, error=nil", tt.name, got, err, tt.want)
 		}
 	}
-
 }
 
 func TestLookupNonLDH(t *testing.T) {
@@ -1192,12 +1191,22 @@ func TestLookupIPAddrConcurrentCallsForNetworks(t *testing.T) {
 				t.Errorf("lookupIPAddr(%v, %v): unexpected error: %v", network, host, err)
 			}
 			wantIPs := results[[2]string{network, host}]
-			if !reflect.DeepEqual(gotIPs, wantIPs) {
+			// ingore order
+			if !reflect.DeepEqual(sortedIPAddrStrings(gotIPs), sortedIPAddrStrings(wantIPs)) {
 				t.Errorf("lookupIPAddr(%v, %v): mismatched IPAddr results\n\tGot: %v\n\tWant: %v", network, host, gotIPs, wantIPs)
 			}
 		}()
 	}
 	wg.Wait()
+}
+
+func sortedIPAddrStrings(ipAddrs []IPAddr) []string {
+	ret := make([]string, len(ipAddrs))
+	for i, ipAddr := range ipAddrs {
+		ret[i] = ipAddr.String() + "\000" + ipAddr.Zone
+	}
+	slices.Sort(ret)
+	return ret
 }
 
 // Issue 53995: Resolver.LookupIP should return error for empty host name.
