@@ -68,6 +68,11 @@ TEXT errors(SB),$0
 	SD	X5, 4294967296(X6)		// ERROR "constant 4294967296 too large"
 	FNES	F1, (X5)			// ERROR "needs an integer register output"
 
+	// 19.6.3: Cache-Block Prefetch Instructions, Version 1.0
+	PREFETCHI -65(X5)			// ERROR "The imm[4:0] of PREFETCH must equal 0b00000"
+	PREFETCHR 449(X5)			// ERROR "The imm[4:0] of PREFETCH must equal 0b00000"
+	PREFETCHW 451(X5)			// ERROR "The imm[4:0] of PREFETCH must equal 0b00000"
+
 	//
 	// "V" Standard Extension for Vector Operations, Version 1.0
 	//
