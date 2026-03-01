@@ -14,6 +14,8 @@ import (
 	"os"
 	"reflect"
 	"runtime/debug"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -35,24 +37,24 @@ type reverseBitsTest struct {
 }
 
 var deflateTests = []*deflateTest{
-	{[]byte{}, 0, []byte{1, 0, 0, 255, 255}},
-	{[]byte{0x11}, -1, []byte{18, 4, 4, 0, 0, 255, 255}},
-	{[]byte{0x11}, DefaultCompression, []byte{18, 4, 4, 0, 0, 255, 255}},
-	{[]byte{0x11}, 4, []byte{18, 4, 4, 0, 0, 255, 255}},
+	0: {[]byte{}, 0, []byte{0x3, 0x0}},
+	1: {[]byte{0x11}, BestCompression, []byte{0x12, 0x4, 0xc, 0x0}},
+	2: {[]byte{0x11}, BestCompression, []byte{0x12, 0x4, 0xc, 0x0}},
+	3: {[]byte{0x11}, BestCompression, []byte{0x12, 0x4, 0xc, 0x0}},
 
-	{[]byte{0x11}, 0, []byte{0, 1, 0, 254, 255, 17, 1, 0, 0, 255, 255}},
-	{[]byte{0x11, 0x12}, 0, []byte{0, 2, 0, 253, 255, 17, 18, 1, 0, 0, 255, 255}},
-	{[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, 0,
-		[]byte{0, 8, 0, 247, 255, 17, 17, 17, 17, 17, 17, 17, 17, 1, 0, 0, 255, 255},
+	4: {[]byte{0x11}, 0, []byte{0x0, 0x1, 0x0, 0xfe, 0xff, 0x11, 0x3, 0x0}},
+	5: {[]byte{0x11, 0x12}, 0, []byte{0x0, 0x2, 0x0, 0xfd, 0xff, 0x11, 0x12, 0x3, 0x0}},
+	6: {[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, 0,
+		[]byte{0x0, 0x8, 0x0, 0xf7, 0xff, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x3, 0x0},
 	},
-	{[]byte{}, 2, []byte{1, 0, 0, 255, 255}},
-	{[]byte{0x11}, 2, []byte{18, 4, 4, 0, 0, 255, 255}},
-	{[]byte{0x11, 0x12}, 2, []byte{18, 20, 2, 4, 0, 0, 255, 255}},
-	{[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, 2, []byte{18, 132, 2, 64, 0, 0, 0, 255, 255}},
-	{[]byte{}, 9, []byte{1, 0, 0, 255, 255}},
-	{[]byte{0x11}, 9, []byte{18, 4, 4, 0, 0, 255, 255}},
-	{[]byte{0x11, 0x12}, 9, []byte{18, 20, 2, 4, 0, 0, 255, 255}},
-	{[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, 9, []byte{18, 132, 2, 64, 0, 0, 0, 255, 255}},
+	7:  {[]byte{}, 1, []byte{0x3, 0x0}},
+	8:  {[]byte{0x11}, BestCompression, []byte{0x12, 0x4, 0xc, 0x0}},
+	9:  {[]byte{0x11, 0x12}, BestCompression, []byte{0x12, 0x14, 0x2, 0xc, 0x0}},
+	10: {[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, BestCompression, []byte{0x12, 0x84, 0x1, 0xc0, 0x0}},
+	11: {[]byte{}, 9, []byte{0x3, 0x0}},
+	12: {[]byte{0x11}, 9, []byte{0x12, 0x4, 0xc, 0x0}},
+	13: {[]byte{0x11, 0x12}, 9, []byte{0x12, 0x14, 0x2, 0xc, 0x0}},
+	14: {[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, 9, []byte{0x12, 0x84, 0x1, 0xc0, 0x0}},
 }
 
 var deflateInflateTests = []*deflateInflateTest{
@@ -110,7 +112,7 @@ func TestBulkHash4(t *testing.T) {
 }
 
 func TestDeflate(t *testing.T) {
-	for _, h := range deflateTests {
+	for i, h := range deflateTests {
 		var buf bytes.Buffer
 		w, err := NewWriter(&buf, h.level)
 		if err != nil {
@@ -120,7 +122,7 @@ func TestDeflate(t *testing.T) {
 		w.Write(h.in)
 		w.Close()
 		if !bytes.Equal(buf.Bytes(), h.out) {
-			t.Errorf("Deflate(%d, %x) = \n%#v, want \n%#v", h.level, h.in, buf.Bytes(), h.out)
+			t.Errorf("%d: Deflate(%d, %x) got \n%#v, want \n%#v", i, h.level, h.in, buf.Bytes(), h.out)
 		}
 	}
 }
@@ -191,7 +193,8 @@ func TestVeryLongSparseChunk(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping sparse chunk during short test")
 	}
-	w, err := NewWriter(io.Discard, 1)
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, 1)
 	if err != nil {
 		t.Errorf("NewWriter: %v", err)
 		return
@@ -270,7 +273,7 @@ func testSync(t *testing.T, level int, input []byte, name string) {
 	r := NewReader(buf)
 
 	// Write half the input and read back.
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		var lo, hi int
 		if i == 0 {
 			lo, hi = 0, (len(input)+1)/2
@@ -348,13 +351,13 @@ func testToFromWithLevelAndLimit(t *testing.T, level int, input []byte, name str
 	}
 	w.Write(input)
 	w.Close()
+	if limit > 0 {
+		t.Logf("level: %d - Size:%.2f%%, %d b\n", level, float64(buffer.Len()*100)/float64(limit), buffer.Len())
+	}
 	if limit > 0 && buffer.Len() > limit {
 		t.Errorf("level: %d, len(compress(data)) = %d > limit = %d", level, buffer.Len(), limit)
-		return
 	}
-	if limit > 0 {
-		t.Logf("level: %d, size:%.2f%%, %d b\n", level, float64(buffer.Len()*100)/float64(limit), buffer.Len())
-	}
+
 	r := NewReader(&buffer)
 	out, err := io.ReadAll(r)
 	if err != nil {
@@ -363,6 +366,8 @@ func testToFromWithLevelAndLimit(t *testing.T, level int, input []byte, name str
 	}
 	r.Close()
 	if !bytes.Equal(input, out) {
+		os.WriteFile("testdata/fails/"+t.Name()+".got", out, os.ModePerm)
+		os.WriteFile("testdata/fails/"+t.Name()+".want", input, os.ModePerm)
 		t.Errorf("decompress(compress(data)) != data: level=%d input=%s", level, name)
 		return
 	}
@@ -370,10 +375,9 @@ func testToFromWithLevelAndLimit(t *testing.T, level int, input []byte, name str
 }
 
 func testToFromWithLimit(t *testing.T, input []byte, name string, limit [11]int) {
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		testToFromWithLevelAndLimit(t, i, input, name, limit[i])
 	}
-	// Test HuffmanCompression
 	testToFromWithLevelAndLimit(t, -2, input, name, limit[10])
 }
 
@@ -399,19 +403,19 @@ func TestReverseBits(t *testing.T) {
 type deflateInflateStringTest struct {
 	filename string
 	label    string
-	limit    [11]int
+	limit    [11]int // Number 11 is ConstantCompression
 }
 
 var deflateInflateStringTests = []deflateInflateStringTest{
 	{
 		"../testdata/e.txt",
 		"2.718281828...",
-		[...]int{100018, 50650, 50960, 51150, 50930, 50790, 50790, 50790, 50790, 50790, 43683},
+		[...]int{100018, 67900, 50960, 51150, 50930, 50790, 50790, 50790, 50790, 50790, 43683 + 100},
 	},
 	{
 		"../../testdata/Isaac.Newton-Opticks.txt",
 		"Isaac.Newton-Opticks",
-		[...]int{567248, 218338, 198211, 193152, 181100, 175427, 175427, 173597, 173422, 173422, 325240},
+		[...]int{567248, 218338, 201354, 199101, 190627, 182587, 179765, 174982, 173422, 173422, 325240},
 	},
 }
 
@@ -425,7 +429,16 @@ func TestDeflateInflateString(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		testToFromWithLimit(t, gold, test.label, test.limit)
+		// Remove returns that may be present on Windows
+		neutral := strings.Map(func(r rune) rune {
+			if r != '\r' {
+				return r
+			}
+			return -1
+		}, string(gold))
+
+		testToFromWithLimit(t, []byte(neutral), test.label, test.limit)
+
 		if testing.Short() {
 			break
 		}
@@ -460,27 +473,34 @@ func TestReaderDict(t *testing.T) {
 
 func TestWriterDict(t *testing.T) {
 	const (
-		dict = "hello world"
-		text = "hello again world"
+		dict = "hello world Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
+		text = "hello world Lorem ipsum dolor sit amet"
 	)
-	var b bytes.Buffer
-	w, err := NewWriter(&b, 5)
-	if err != nil {
-		t.Fatalf("NewWriter: %v", err)
-	}
-	w.Write([]byte(dict))
-	w.Flush()
-	b.Reset()
-	w.Write([]byte(text))
-	w.Close()
+	// This test is sensitive to algorithm changes that skip
+	// data in favour of speed. Higher levels are less prone to this
+	// so we test level 4-9.
+	for l := 4; l < 9; l++ {
+		t.Run(fmt.Sprintf("level=%d", l), func(t *testing.T) {
+			var b bytes.Buffer
+			w, err := NewWriter(&b, l)
+			if err != nil {
+				t.Fatalf("NewWriter: %v", err)
+			}
+			w.Write([]byte(dict))
+			w.Flush()
+			b.Reset()
+			w.Write([]byte(text))
+			w.Close()
 
-	var b1 bytes.Buffer
-	w, _ = NewWriterDict(&b1, 5, []byte(dict))
-	w.Write([]byte(text))
-	w.Close()
+			var b1 bytes.Buffer
+			w, _ = NewWriterDict(&b1, l, []byte(dict))
+			w.Write([]byte(text))
+			w.Close()
 
-	if !bytes.Equal(b1.Bytes(), b.Bytes()) {
-		t.Fatalf("writer wrote %q want %q", b1.Bytes(), b.Bytes())
+			if !bytes.Equal(b1.Bytes(), b.Bytes()) {
+				t.Errorf("writer wrote\n%v\n want\n%v", b1.Bytes(), b.Bytes())
+			}
+		})
 	}
 }
 
@@ -495,7 +515,7 @@ func TestRegression2508(t *testing.T) {
 		t.Fatalf("NewWriter: %v", err)
 	}
 	buf := make([]byte, 1024)
-	for i := 0; i < 131072; i++ {
+	for range 131072 {
 		if _, err := w.Write(buf); err != nil {
 			t.Fatalf("writer failed: %v", err)
 		}
@@ -505,7 +525,10 @@ func TestRegression2508(t *testing.T) {
 
 func TestWriterReset(t *testing.T) {
 	t.Parallel()
-	for level := 0; level <= 9; level++ {
+	for level := -2; level <= 9; level++ {
+		if level == -1 {
+			level++
+		}
 		if testing.Short() && level > 1 {
 			break
 		}
@@ -531,12 +554,12 @@ func TestWriterReset(t *testing.T) {
 		// DeepEqual doesn't compare functions.
 		w.d.fill, wref.d.fill = nil, nil
 		w.d.step, wref.d.step = nil, nil
-		w.d.bulkHasher, wref.d.bulkHasher = nil, nil
-		w.d.bestSpeed, wref.d.bestSpeed = nil, nil
+		w.d.state, wref.d.state = nil, nil
+		w.d.fast, wref.d.fast = nil, nil
+
 		// hashMatch is always overwritten when used.
-		copy(w.d.hashMatch[:], wref.d.hashMatch[:])
-		if len(w.d.tokens) != 0 {
-			t.Errorf("level %d Writer not reset after Reset. %d tokens were present", level, len(w.d.tokens))
+		if w.d.tokens.n != 0 {
+			t.Errorf("level %d Writer not reset after Reset. %d tokens were present", level, w.d.tokens.n)
 		}
 		// As long as the length is 0, we don't care about the content.
 		w.d.tokens = wref.d.tokens
@@ -548,76 +571,54 @@ func TestWriterReset(t *testing.T) {
 		}
 	}
 
-	levels := []int{0, 1, 2, 5, 9}
-	for _, level := range levels {
-		t.Run(fmt.Sprint(level), func(t *testing.T) {
-			testResetOutput(t, level, nil)
-		})
+	for i := HuffmanOnly; i <= BestCompression; i++ {
+		testResetOutput(t, fmt.Sprint("level-", i), func(w io.Writer) (*Writer, error) { return NewWriter(w, i) })
 	}
-
-	t.Run("dict", func(t *testing.T) {
-		for _, level := range levels {
-			t.Run(fmt.Sprint(level), func(t *testing.T) {
-				testResetOutput(t, level, nil)
-			})
-		}
-	})
+	dict := []byte(strings.Repeat("we are the world - how are you?", 3))
+	for i := HuffmanOnly; i <= BestCompression; i++ {
+		testResetOutput(t, fmt.Sprint("dict-level-", i), func(w io.Writer) (*Writer, error) { return NewWriterDict(w, i, dict) })
+	}
 }
 
-func testResetOutput(t *testing.T, level int, dict []byte) {
-	writeData := func(w *Writer) {
-		msg := []byte("now is the time for all good gophers")
-		w.Write(msg)
-		w.Flush()
-
-		hello := []byte("hello world")
-		for i := 0; i < 1024; i++ {
-			w.Write(hello)
+func testResetOutput(t *testing.T, name string, newWriter func(w io.Writer) (*Writer, error)) {
+	t.Run(name, func(t *testing.T) {
+		buf := new(bytes.Buffer)
+		w, err := newWriter(buf)
+		if err != nil {
+			t.Fatalf("NewWriter: %v", err)
 		}
+		b := []byte("hello world - how are you doing?")
+		for range 1024 {
+			w.Write(b)
+		}
+		w.Close()
+		out1 := buf.Bytes()
 
-		fill := bytes.Repeat([]byte("x"), 65000)
-		w.Write(fill)
-	}
+		buf2 := new(bytes.Buffer)
+		w.Reset(buf2)
+		for range 1024 {
+			w.Write(b)
+		}
+		w.Close()
+		out2 := buf2.Bytes()
 
-	buf := new(bytes.Buffer)
-	var w *Writer
-	var err error
-	if dict == nil {
-		w, err = NewWriter(buf, level)
-	} else {
-		w, err = NewWriterDict(buf, level, dict)
-	}
-	if err != nil {
-		t.Fatalf("NewWriter: %v", err)
-	}
-
-	writeData(w)
-	w.Close()
-	out1 := buf.Bytes()
-
-	buf2 := new(bytes.Buffer)
-	w.Reset(buf2)
-	writeData(w)
-	w.Close()
-	out2 := buf2.Bytes()
-
-	if len(out1) != len(out2) {
-		t.Errorf("got %d, expected %d bytes", len(out2), len(out1))
-		return
-	}
-	if !bytes.Equal(out1, out2) {
-		mm := 0
-		for i, b := range out1[:len(out2)] {
-			if b != out2[i] {
-				t.Errorf("mismatch index %d: %#02x, expected %#02x", i, out2[i], b)
-			}
-			mm++
-			if mm == 10 {
-				t.Fatal("Stopping")
+		if len(out1) != len(out2) {
+			t.Errorf("got %d, expected %d bytes", len(out2), len(out1))
+		}
+		if !bytes.Equal(out1, out2) {
+			mm := 0
+			for i, b := range out1[:len(out2)] {
+				if b != out2[i] {
+					t.Errorf("mismatch index %d: %02x, expected %02x", i, out2[i], b)
+				}
+				mm++
+				if mm == 10 {
+					t.Fatal("Stopping")
+				}
 			}
 		}
-	}
-	t.Logf("got %d bytes", len(out1))
+		t.Logf("got %d bytes", len(out1))
+	})
 }
 
 // TestBestSpeed tests that round-tripping through deflate and then inflate
@@ -653,8 +654,8 @@ func TestBestSpeed(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		if i >= 3 && testing.Short() {
-			break
+		if testing.Short() && i > 5 {
+			t.Skip()
 		}
 		for _, firstN := range []int{1, 65534, 65535, 65536, 65537, 131072} {
 			tc[0] = firstN
@@ -810,7 +811,8 @@ func TestBestSpeedMatch(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		previous, current []byte
-		t, s, want        int32
+		t, s              int
+		want              int32
 	}{{
 		previous: []byte{0, 0, 0, 1, 2},
 		current:  []byte{3, 4, 5, 0, 1, 2, 3, 4, 5},
@@ -851,18 +853,6 @@ func TestBestSpeedMatch(t *testing.T) {
 		previous: []byte{9, 9, 9, 9, 9},
 		current:  []byte{9, 2, 2, 2, 1, 2, 3, 4, 5},
 		t:        0,
-		s:        1,
-		want:     0,
-	}, {
-		previous: []byte{},
-		current:  []byte{9, 2, 2, 2, 1, 2, 3, 4, 5},
-		t:        -5,
-		s:        1,
-		want:     0,
-	}, {
-		previous: []byte{},
-		current:  []byte{9, 2, 2, 2, 1, 2, 3, 4, 5},
-		t:        -1,
 		s:        1,
 		want:     0,
 	}, {
@@ -915,17 +905,22 @@ func TestBestSpeedMatch(t *testing.T) {
 		want:     100,
 	}}
 	for i, c := range cases {
-		e := deflateFast{prev: c.previous}
-		got := e.matchLen(c.s, c.t, c.current)
-		if got != c.want {
-			t.Errorf("Test %d: match length, want %d, got %d", i, c.want, got)
-		}
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			var e fastGen
+			e.addBlock(c.previous)
+			e.addBlock(c.current)
+			got := e.matchLenLimited(c.s+len(c.previous), c.t+len(c.previous), e.hist)
+			if got != c.want {
+				t.Errorf("Test %d: match length, want %d, got %d", i, c.want, got)
+			}
+		})
 	}
 }
 
 func TestBestSpeedMaxMatchOffset(t *testing.T) {
 	t.Parallel()
 	const abc, xyz = "abcdefgh", "stuvwxyz"
+	const inputMargin = 16 - 1
 	for _, matchBefore := range []bool{false, true} {
 		for _, extra := range []int{0, inputMargin - 1, inputMargin, inputMargin + 1, 2 * inputMargin} {
 			for offsetAdj := -5; offsetAdj <= +5; offsetAdj++ {
@@ -983,59 +978,85 @@ func TestBestSpeedMaxMatchOffset(t *testing.T) {
 	}
 }
 
+type canGetFastGen interface {
+	getFastGen() *fastGen
+}
+
 func TestBestSpeedShiftOffsets(t *testing.T) {
 	// Test if shiftoffsets properly preserves matches and resets out-of-range matches
 	// seen in https://github.com/golang/go/issues/4142
-	enc := newDeflateFast()
 
-	// testData may not generate internal matches.
-	testData := make([]byte, 32)
-	rng := rand.New(rand.NewSource(0))
-	for i := range testData {
-		testData[i] = byte(rng.Uint32())
-	}
+	for level := 1; level <= 6; level++ {
+		t.Run(fmt.Sprintf("level=%d", level), func(t *testing.T) {
+			enc := newFastEnc(level)
 
-	// Encode the testdata with clean state.
-	// Second part should pick up matches from the first block.
-	wantFirstTokens := len(enc.encode(nil, testData))
-	wantSecondTokens := len(enc.encode(nil, testData))
+			// testData may not generate internal matches.
+			testData := make([]byte, 100)
+			rng := rand.New(rand.NewSource(0))
+			for i := range testData {
+				testData[i] = byte(rng.Uint32())
+			}
+			valOrLen := func(val uint16) uint16 {
+				if val == 0 {
+					return uint16(len(testData))
+				}
+				return val
+			}
+			// Encode the testdata with clean state.
+			// Second part should pick up matches from the first block.
+			var firstTokens, secondTokens tokens
+			enc.encode(&firstTokens, testData)
+			enc.encode(&secondTokens, testData)
+			wantFirstTokens := valOrLen(firstTokens.n)
+			wantSecondTokens := valOrLen(secondTokens.n)
 
-	if wantFirstTokens <= wantSecondTokens {
-		t.Fatalf("test needs matches between inputs to be generated")
-	}
-	// Forward the current indicator to before wraparound.
-	enc.cur = bufferReset - int32(len(testData))
+			if wantFirstTokens <= wantSecondTokens {
+				t.Fatalf("test needs matches between inputs to be generated, %d == %d", wantFirstTokens, wantSecondTokens)
+			}
+			// Forward the current indicator to before wraparound.
+			fg := enc.(canGetFastGen).getFastGen()
+			fg.hist = nil
+			fg.cur = bufferReset - int32(len(testData))
 
-	// Part 1 before wrap, should match clean state.
-	got := len(enc.encode(nil, testData))
-	if wantFirstTokens != got {
-		t.Errorf("got %d, want %d tokens", got, wantFirstTokens)
-	}
+			// Part 1 before wrap, should match clean state.
+			var gotTokens tokens
+			enc.encode(&gotTokens, testData)
+			got := valOrLen(gotTokens.n)
+			if wantFirstTokens != got {
+				t.Errorf("got %d, want %d tokens", got, wantFirstTokens)
+			}
 
-	// Verify we are about to wrap.
-	if enc.cur != bufferReset {
-		t.Errorf("got %d, want e.cur to be at bufferReset (%d)", enc.cur, bufferReset)
-	}
+			// Verify we are about to wrap.
+			gotCur := int(fg.cur) + len(fg.hist)
+			if gotCur != bufferReset {
+				t.Errorf("got %d, want e.cur to be at bufferReset (%d)", gotCur, bufferReset)
+			}
 
-	// Part 2 should match clean state as well even if wrapped.
-	got = len(enc.encode(nil, testData))
-	if wantSecondTokens != got {
-		t.Errorf("got %d, want %d token", got, wantSecondTokens)
-	}
+			// Part 2 should match clean state as well even if wrapped.
+			gotTokens.Reset()
+			enc.encode(&gotTokens, testData)
+			got = valOrLen(gotTokens.n)
+			if wantSecondTokens != got {
+				t.Errorf("got %d, want %d token", got, wantSecondTokens)
+			}
 
-	// Verify that we wrapped.
-	if enc.cur >= bufferReset {
-		t.Errorf("want e.cur to be < bufferReset (%d), got %d", bufferReset, enc.cur)
-	}
+			// Verify that we wrapped.
+			if fg.cur >= bufferReset {
+				t.Errorf("want e.cur to be < bufferReset (%d), got %d", bufferReset, fg.cur)
+			}
 
-	// Forward the current buffer, leaving the matches at the bottom.
-	enc.cur = bufferReset
-	enc.shiftOffsets()
+			// Forward the current buffer, leaving the matches at the bottom.
+			fg.cur = bufferReset
+			fg.hist = nil
 
-	// Ensure that no matches were picked up.
-	got = len(enc.encode(nil, testData))
-	if wantFirstTokens != got {
-		t.Errorf("got %d, want %d tokens", got, wantFirstTokens)
+			// Ensure that no matches were picked up.
+			gotTokens.Reset()
+			enc.encode(&gotTokens, testData)
+			got = valOrLen(gotTokens.n)
+			if wantFirstTokens != got {
+				t.Errorf("got %d, want %d tokens", got, wantFirstTokens)
+			}
+		})
 	}
 }
 
