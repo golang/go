@@ -1,0 +1,87 @@
+# Test for #67363: fixes let 'go list -m -json' include an Origin
+
+env GOPROXY=https://proxy.golang.org
+
+go list -m -json golang.org/x/arch@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/benchmarks@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/build@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/crypto@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/debug@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/example@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/exp@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/image@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/mobile@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/mod@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/net@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/oauth2@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/perf@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/pkgsite@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/pkgsite-metrics@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/playground@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/review@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/sync@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/sys@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/term@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/text@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/time@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/tools@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/vgo@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/vuln@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/vulndb@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/website@latest
+stdout 'Origin'
+
+go list -m -json golang.org/x/xerrors@latest
+stdout 'Origin'
