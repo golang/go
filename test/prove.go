@@ -2570,7 +2570,7 @@ func swapbound(v []int) {
 	for i := 0; i < len(v)/2; i++ { // ERROR "Proved Div64 is unsigned|Induction variable"
 		v[i], // ERROR "Proved IsInBounds"
 			v[len(v)-1-i] = // ERROR "Proved IsInBounds"
-			v[len(v)-1-i],  // ERROR "Proved IsInBounds"
+			v[len(v)-1-i], // ERROR "Proved IsInBounds"
 			v[i] // ERROR "Proved IsInBounds"
 	}
 }
