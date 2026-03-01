@@ -9,6 +9,7 @@ package http
 import (
 	"bytes"
 	"internal/testenv"
+	"io"
 	"io/fs"
 	"net/url"
 	"os"
@@ -186,6 +187,45 @@ func TestNoUnicodeStrings(t *testing.T) {
 		return nil
 	}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+type requestTooLargerResponseWriter struct {
+	called bool
+}
+
+func (rw *requestTooLargerResponseWriter) Header() Header              { return Header{} }
+func (rw *requestTooLargerResponseWriter) Write(b []byte) (int, error) { return len(b), nil }
+func (rw *requestTooLargerResponseWriter) WriteHeader(statusCode int)  {}
+func (rw *requestTooLargerResponseWriter) requestTooLarge() {
+	rw.called = true
+}
+
+type wrapper struct {
+	ResponseWriter
+}
+
+func (w *wrapper) Unwrap() ResponseWriter {
+	return w.ResponseWriter
+}
+
+func TestMaxBytesReaderUnwrapTriggersRequestTooLarge(t *testing.T) {
+	body := strings.NewReader("123456")
+	limit := int64(5)
+
+	innerRw := &requestTooLargerResponseWriter{}
+	wrappedRw := &wrapper{ResponseWriter: innerRw}
+
+	l := MaxBytesReader(wrappedRw, io.NopCloser(body), limit)
+
+	buf := make([]byte, 10)
+	_, err := l.Read(buf)
+
+	if _, ok := err.(*MaxBytesError); !ok {
+		t.Errorf("expected MaxBytesError, got %T", err)
+	}
+	if !innerRw.called {
+		t.Errorf("expected requestTooLarge to be called, but it wasn't")
 	}
 }
 

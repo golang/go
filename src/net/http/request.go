@@ -1243,9 +1243,23 @@ func (l *maxBytesReader) Read(p []byte) (n int, err error) {
 	type requestTooLarger interface {
 		requestTooLarge()
 	}
-	if res, ok := l.w.(requestTooLarger); ok {
-		res.requestTooLarge()
+	// Unwrap the ResponseWriter wrappers until we find one that implements
+	// the server-only requestTooLarger interface, then call requestTooLarge().
+	// This ensures that even if the ResponseWriter is wrapped by a custom implementation,
+	// the underlying server writer can be notified when the request body is too large.
+	rw := l.w
+	for {
+		if res, ok := rw.(requestTooLarger); ok {
+			res.requestTooLarge()
+			break
+		}
+		unwrapper, ok := rw.(rwUnwrapper)
+		if !ok {
+			break
+		}
+		rw = unwrapper.Unwrap()
 	}
+
 	l.err = &MaxBytesError{l.i}
 	return n, l.err
 }
