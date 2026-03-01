@@ -39,35 +39,35 @@ func bitsCheckConstLeftShiftU64(a uint64) (n int) {
 
 func bitsCheckConstRightShiftU64(a [8]uint64) (n int) {
 	// amd64:"BTQ [$]63,"
-	// arm64:"LSR [$]63," "TBNZ [$]0,"
+	// arm64:"TBNZ [$]63," -"LSR"
 	// loong64:"SRLV [$]63," "AND [$]1," "BNE"
 	// riscv64:"SRLI [$]63," "ANDI [$]1," "BNEZ"
 	if (a[0]>>63)&1 != 0 {
 		return 1
 	}
 	// amd64:"BTQ [$]63,"
-	// arm64:"LSR [$]63," "CBNZ"
+	// arm64:"TBNZ [$]63," -"LSR"
 	// loong64:"SRLV [$]63," "BNE"
 	// riscv64:"SRLI [$]63," "BNEZ"
 	if a[1]>>63 != 0 {
 		return 1
 	}
 	// amd64:"BTQ [$]63,"
-	// arm64:"LSR [$]63," "CBZ"
+	// arm64:"TBZ [$]63," -"LSR"
 	// loong64:"SRLV [$]63," "BEQ"
 	// riscv64:"SRLI [$]63," "BEQZ"
 	if a[2]>>63 == 0 {
 		return 1
 	}
 	// amd64:"BTQ [$]60,"
-	// arm64:"LSR [$]60," "TBZ [$]0,"
+	// arm64:"TBZ [$]60," -"LSR"
 	// loong64:"SRLV [$]60," "AND [$]1," "BEQ"
 	// riscv64:"SRLI [$]60,", "ANDI [$]1," "BEQZ"
 	if (a[3]>>60)&1 == 0 {
 		return 1
 	}
 	// amd64:"BTL [$]1,"
-	// arm64:"LSR [$]1," "TBZ [$]0,"
+	// arm64:"TBZ [$]1," -"LSR"
 	// loong64:"SRLV [$]1," "AND [$]1," "BEQ"
 	// riscv64:"SRLI [$]1," "ANDI [$]1," "BEQZ"
 	if (a[4]>>1)&1 == 0 {
@@ -81,7 +81,7 @@ func bitsCheckConstRightShiftU64(a [8]uint64) (n int) {
 		return 1
 	}
 	// amd64:"BTL [$]7,"
-	// arm64:"LSR [$]5," "TBNZ [$]2,"
+	// arm64:"TBNZ [$]7," -"LSR"
 	// loong64:"SRLV [$]5," "AND [$]4," "BNE"
 	// riscv64:"SRLI [$]5," "ANDI [$]4," "BNEZ"
 	if (a[6]>>5)&4 == 0 {
