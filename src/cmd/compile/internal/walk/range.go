@@ -589,8 +589,8 @@ func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
 		ir.CurFunc.SetWBPos(wbPos)
 		fn = mkcallstmt("memclrHasPointers", hp, hn)
 	} else {
-		// memclrNoHeapPointers(hp, hn)
-		fn = mkcallstmt("memclrNoHeapPointers", hp, hn)
+		// memclrNoHeapPointersPreemptible(hp, hn)
+		fn = mkcallstmt("memclrNoHeapPointersPreemptible", hp, hn)
 	}
 
 	n.Body.Append(fn)

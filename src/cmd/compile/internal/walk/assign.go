@@ -718,7 +718,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	// hn := l2 * sizeof(elem(s))
 	hn := typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, l2, ir.NewInt(base.Pos, elemtype.Size())), types.Types[types.TUINTPTR])
 
-	clrname := "memclrNoHeapPointers"
+	clrname := "memclrNoHeapPointersPreemptible"
 	hasPointers := elemtype.HasPointers()
 	if hasPointers {
 		clrname = "memclrHasPointers"

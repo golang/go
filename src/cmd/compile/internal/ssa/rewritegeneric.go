@@ -30029,7 +30029,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		return true
 	}
 	// match: (SelectN [0] call:(StaticCall {sym} sptr (Const64 [c]) mem))
-	// cond: isInlinableMemclr(config, int64(c)) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)
+	// cond: isInlinableMemclr(config, int64(c)) && (isSameCall(sym, "runtime.memclrNoHeapPointers") || isSameCall(sym, "runtime.memclrNoHeapPointersPreemptible")) && call.Uses == 1 && clobber(call)
 	// result: (Zero {types.Types[types.TUINT8]} [int64(c)] sptr mem)
 	for {
 		if auxIntToInt64(v.AuxInt) != 0 {
@@ -30047,7 +30047,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(call_1.AuxInt)
-		if !(isInlinableMemclr(config, int64(c)) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)) {
+		if !(isInlinableMemclr(config, int64(c)) && (isSameCall(sym, "runtime.memclrNoHeapPointers") || isSameCall(sym, "runtime.memclrNoHeapPointersPreemptible")) && call.Uses == 1 && clobber(call)) {
 			break
 		}
 		v.reset(OpZero)
@@ -30057,7 +30057,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		return true
 	}
 	// match: (SelectN [0] call:(StaticCall {sym} sptr (Const32 [c]) mem))
-	// cond: isInlinableMemclr(config, int64(c)) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)
+	// cond: isInlinableMemclr(config, int64(c)) && (isSameCall(sym, "runtime.memclrNoHeapPointers") || isSameCall(sym, "runtime.memclrNoHeapPointersPreemptible")) && call.Uses == 1 && clobber(call)
 	// result: (Zero {types.Types[types.TUINT8]} [int64(c)] sptr mem)
 	for {
 		if auxIntToInt64(v.AuxInt) != 0 {
@@ -30075,7 +30075,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 			break
 		}
 		c := auxIntToInt32(call_1.AuxInt)
-		if !(isInlinableMemclr(config, int64(c)) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)) {
+		if !(isInlinableMemclr(config, int64(c)) && (isSameCall(sym, "runtime.memclrNoHeapPointers") || isSameCall(sym, "runtime.memclrNoHeapPointersPreemptible")) && call.Uses == 1 && clobber(call)) {
 			break
 		}
 		v.reset(OpZero)
