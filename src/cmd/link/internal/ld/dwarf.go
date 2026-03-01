@@ -29,6 +29,7 @@ import (
 	"path"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -285,11 +286,14 @@ func (d *dwctxt) newdie(parent *dwarf.DWDie, abbrev int, name string) *dwarf.DWD
 	die.Link = parent.Child
 	parent.Child = die
 
-	newattr(die, dwarf.DW_AT_name, dwarf.DW_CLS_STRING, int64(len(name)), name)
-
 	// Sanity check: all DIEs created in the linker should be named.
 	if name == "" {
 		panic("nameless DWARF DIE")
+	}
+
+	// for constant string types, we defer emitting the DW_AT_name attribute because it is not identical to the symbol name.
+	if abbrev != dwarf.DW_ABRV_CONSTANT_STRINGTYPE {
+		newattr(die, dwarf.DW_AT_name, dwarf.DW_CLS_STRING, int64(len(name)), name)
 	}
 
 	var st sym.SymKind
@@ -1079,6 +1083,24 @@ func getCompilationDir() string {
 	return "."
 }
 
+func (d *dwctxt) genConstStringType(name string) {
+	if d.find(name) != 0 {
+		return
+	}
+	i := strings.LastIndex(name, ".")
+	if i < 0 {
+		log.Fatalf("error: invalid constant string type name %q", name)
+	}
+	size, err := strconv.ParseInt(name[i+1:], 10, 64)
+	if err != nil {
+		log.Fatalf("error: invalid constant string type name %q: %v", name, err)
+	}
+	atname := name[len(dwarf.ConstStringInfoPrefix):i]
+	die := d.newdie(&dwtypes, dwarf.DW_ABRV_CONSTANT_STRINGTYPE, name)
+	newattr(die, dwarf.DW_AT_name, dwarf.DW_CLS_STRING, int64(len(atname)), atname)
+	newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, size, 0)
+}
+
 func (d *dwctxt) importInfoSymbol(dsym loader.Sym) {
 	d.ldr.SetAttrReachable(dsym, true)
 	d.ldr.SetAttrNotInSymbolTable(dsym, true)
@@ -1103,6 +1125,15 @@ func (d *dwctxt) importInfoSymbol(dsym loader.Sym) {
 		// symbol name here?
 		sn := d.ldr.SymName(rsym)
 		tn := sn[len(dwarf.InfoPrefix):]
+
+		// If the symbol is a constant string type, we generate it
+		// These types do not exist in go,
+		// but can tell gdb how to interpret the corresponding values
+		if strings.HasPrefix(tn, dwarf.ConstStringInfoPrefix) {
+			d.genConstStringType(tn)
+			continue
+		}
+
 		ts := d.ldr.Lookup("type:"+tn, 0)
 		d.defgotype(ts)
 	}
