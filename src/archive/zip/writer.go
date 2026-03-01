@@ -6,6 +6,7 @@ package zip
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"hash"
@@ -30,6 +31,10 @@ type Writer struct {
 	compressors map[uint16]Compressor
 	comment     string
 
+	// wa holds the underlying writer if it supports WriteAt, used for
+	// writing local file header versions for ZIP64 entries.
+	wa io.WriterAt
+
 	// testHookCloseSizeOffset if non-nil is called with the size
 	// of offset of the central directory at Close.
 	testHookCloseSizeOffset func(size, offset uint64)
@@ -41,9 +46,29 @@ type header struct {
 	raw    bool
 }
 
+// bufferWriterAt wraps a *bytes.Buffer to implement io.WriterAt.
+// This enables ZIP64 local file header writing for in-memory ZIP creation.
+type bufferWriterAt struct {
+	buf *bytes.Buffer
+}
+
+func (b *bufferWriterAt) WriteAt(p []byte, off int64) (int, error) {
+	data := b.buf.Bytes()
+	if int(off)+len(p) > len(data) {
+		return 0, errors.New("zip: write beyond buffer length")
+	}
+	return copy(data[off:], p), nil
+}
+
 // NewWriter returns a new [Writer] writing a zip file to w.
 func NewWriter(w io.Writer) *Writer {
-	return &Writer{cw: &countWriter{w: bufio.NewWriter(w)}}
+	zw := &Writer{cw: &countWriter{w: bufio.NewWriter(w)}}
+	if wa, ok := w.(io.WriterAt); ok {
+		zw.wa = wa
+	} else if buf, ok := w.(*bytes.Buffer); ok {
+		zw.wa = &bufferWriterAt{buf: buf}
+	}
+	return zw
 }
 
 // SetOffset sets the offset of the beginning of the zip data within the
@@ -55,6 +80,33 @@ func (w *Writer) SetOffset(n int64) {
 		panic("zip: SetOffset called after data was written")
 	}
 	w.cw.count = n
+}
+
+// writeZip64LFH writes the local file header (LFH) version field for ZIP64
+// entries to ensure consistency with the central directory. The LFH is
+// written before the file data when the final size is unknown, so it uses
+// version 20. After the data is written, if the entry exceeds 4GB, the
+// central directory uses version 45. This method write each ZIP64 entry's
+// LFH to update the version to 45.
+func (w *Writer) writeZip64LFH() error {
+	if w.wa == nil {
+		return nil
+	}
+	if err := w.cw.w.(*bufio.Writer).Flush(); err != nil {
+		return err
+	}
+	var versionBuf [2]byte
+	binary.LittleEndian.PutUint16(versionBuf[:], zipVersion45)
+	for _, h := range w.dir {
+		if h.isZip64() {
+			// LFH structure: signature(4) + version(2) + ...
+			// Write version field at offset + 4
+			if _, err := w.wa.WriteAt(versionBuf[:], int64(h.offset)+4); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // Flush flushes any buffered data to the underlying writer.
@@ -86,6 +138,13 @@ func (w *Writer) Close() error {
 		return errors.New("zip: writer closed twice")
 	}
 	w.closed = true
+
+	// write local file header versions for ZIP64 entries to ensure
+	// consistency with the central directory. This is required by strict
+	// ZIP readers.
+	if err := w.writeZip64LFH(); err != nil {
+		return err
+	}
 
 	// write central directory
 	start := w.cw.count
@@ -445,6 +504,11 @@ func (w *Writer) CreateRaw(fh *FileHeader) (io.Writer, error) {
 
 	fh.CompressedSize = uint32(min(fh.CompressedSize64, uint32max))
 	fh.UncompressedSize = uint32(min(fh.UncompressedSize64, uint32max))
+
+	// Set version 45 for ZIP64 entries since sizes are known upfront
+	if fh.isZip64() {
+		fh.ReaderVersion = zipVersion45
+	}
 
 	h := &header{
 		FileHeader: fh,
