@@ -2682,6 +2682,9 @@ func externalLinkingReason(s *modload.State, p *Package) (what string) {
 
 	// Some build modes always require external linking.
 	switch cfg.BuildBuildmode {
+	case "c-archive":
+		// c-archive requires external linking for CGO support.
+		return "-buildmode=" + cfg.BuildBuildmode
 	case "c-shared":
 		if cfg.BuildContext.GOARCH == "wasm" {
 			break
