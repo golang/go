@@ -39,6 +39,9 @@ func IsGraphic(r rune) bool {
 	if uint32(r) <= MaxLatin1 {
 		return properties[uint8(r)]&pg != 0
 	}
+	if Is(Variation_Selector, r) {
+		return false
+	}
 	return In(r, GraphicRanges...)
 }
 
@@ -50,6 +53,9 @@ func IsGraphic(r rune) bool {
 func IsPrint(r rune) bool {
 	if uint32(r) <= MaxLatin1 {
 		return properties[uint8(r)]&pp != 0
+	}
+	if Is(Variation_Selector, r) {
+		return false
 	}
 	return In(r, PrintRanges...)
 }
