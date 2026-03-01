@@ -54,6 +54,26 @@ func jalToSym(ctxt *obj.Link, p *obj.Prog, lr int16) {
 // progedit is called individually for each *obj.Prog. It normalizes instruction
 // formats and eliminates as many pseudo-instructions as possible.
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+	// Convert pseudo instructions into real riscv64 instructions.
+	switch p.As {
+	case ANTLP1, ANTLPALL, ANTLS1, ANTLALL:
+		switch p.As {
+		case ANTLP1:
+			p.From.Reg = REG_X2
+		case ANTLPALL:
+			p.From.Reg = REG_X3
+		case ANTLS1:
+			p.From.Reg = REG_X4
+		case ANTLALL:
+			p.From.Reg = REG_X5
+		}
+		p.As = AADD
+		p.From.Type = obj.TYPE_REG
+		p.Reg = REG_ZERO
+		p.To.Reg = REG_ZERO
+		p.To.Type = obj.TYPE_REG
+	}
+
 	insData, err := instructionDataForAs(p.As)
 	if err != nil {
 		panic(fmt.Sprintf("failed to lookup instruction data for %v: %v", p.As, err))
