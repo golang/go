@@ -2823,6 +2823,25 @@ func noopAnd64DoNothingMayClearVarying(x uint64) uint64 {
 	return x
 }
 
+func limitFlowThroughAnd(x, y uint64, ensureAllBranchesCouldHappen func() bool) int {
+	x = min(x, 1337)
+	x &= y
+	if ensureAllBranchesCouldHappen() && x <= 1337 { // ERROR "Proved Leq64U$"
+		return 1
+	}
+	if ensureAllBranchesCouldHappen() && x < 1338 { // ERROR "Proved Less64U$"
+		return 2
+	}
+
+	if ensureAllBranchesCouldHappen() && x <= 1336 {
+		return 3
+	}
+	if ensureAllBranchesCouldHappen() && x < 1337 {
+		return 4
+	}
+	return 0
+}
+
 //go:noinline
 func prove(x int) {
 }

@@ -1884,11 +1884,6 @@ func (ft *factsTable) flowLimit(v *Value) {
 	// TODO: if y.umax and y.umin share a leading bit pattern, y also has that leading bit pattern.
 	// we could compare the patterns of always set bits in a and b and learn more about minimum and maximum.
 	// But I doubt this help any real world code.
-	case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
-		// AND can only make the value smaller.
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		ft.unsignedMax(v, min(a.umax, b.umax))
 	case OpOr64, OpOr32, OpOr16, OpOr8:
 		// OR can only make the value bigger and can't flip bits proved to be zero in both inputs.
 		a := ft.limits[v.Args[0].ID]
