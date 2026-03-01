@@ -1715,7 +1715,6 @@ func TestCheckLinkname(t *testing.T) {
 		{"badlinkname.go", true},
 	}
 	for _, test := range tests {
-		test := test
 		t.Run(test.src, func(t *testing.T) {
 			t.Parallel()
 			src := "./testdata/linkname/" + test.src
