@@ -4,19 +4,9 @@
 
 package runtime
 
-func checkgoarm() {
-	return // TODO(minux)
-}
-
 //go:nosplit
 func cputicks() int64 {
+	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
 	return nanotime()
-}
-
-//go:nosplit
-func walltime() (sec int64, nsec int32) {
-	var t [1]uint64
-	readtime(&t[0], 1, 1)
-	return timesplit(frombe(t[0]))
 }
