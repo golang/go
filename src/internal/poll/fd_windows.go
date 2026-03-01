@@ -167,9 +167,11 @@ func newWSAMsg(p []byte, oob []byte, flags int, unconnected bool) *windows.WSAMs
 	msg := wsaMsgPool.Get().(*windows.WSAMsg)
 	msg.Buffers.Len = uint32(len(p))
 	msg.Buffers.Buf = unsafe.SliceData(p)
-	msg.Control = syscall.WSABuf{
-		Len: uint32(len(oob)),
-		Buf: unsafe.SliceData(oob),
+	if len(oob) > 0 {
+		msg.Control = syscall.WSABuf{
+			Len: uint32(len(oob)),
+			Buf: unsafe.SliceData(oob),
+		}
 	}
 	msg.Flags = uint32(flags)
 	if unconnected {
