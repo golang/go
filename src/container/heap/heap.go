@@ -38,7 +38,7 @@ type Interface interface {
 // Init is idempotent with respect to the heap invariants
 // and may be called whenever the heap invariants may have been invalidated.
 // The complexity is O(n) where n = h.Len().
-func Init(h Interface) {
+func Init(h sort.Interface) {
 	// heapify
 	n := h.Len()
 	for i := n/2 - 1; i >= 0; i-- {
@@ -80,13 +80,13 @@ func Remove(h Interface, i int) any {
 // Changing the value of the element at index i and then calling Fix is equivalent to,
 // but less expensive than, calling [Remove](h, i) followed by a Push of the new value.
 // The complexity is O(log n) where n = h.Len().
-func Fix(h Interface, i int) {
+func Fix(h sort.Interface, i int) {
 	if !down(h, i, h.Len()) {
 		up(h, i)
 	}
 }
 
-func up(h Interface, j int) {
+func up(h sort.Interface, j int) {
 	for {
 		i := (j - 1) / 2 // parent
 		if i == j || !h.Less(j, i) {
@@ -97,7 +97,7 @@ func up(h Interface, j int) {
 	}
 }
 
-func down(h Interface, i0, n int) bool {
+func down(h sort.Interface, i0, n int) bool {
 	i := i0
 	for {
 		j1 := 2*i + 1
