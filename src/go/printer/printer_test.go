@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -859,6 +860,120 @@ func TestEmptyDecl(t *testing.T) { // issue 63566
 		want := tok.String() + " ()"
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
+		}
+	}
+}
+
+// See https://go.dev/issue/70978 and https://go.dev/issue/77734 for more details.
+func TestImpledSemiAfterIdent(t *testing.T) {
+	cases := []struct {
+		src    string
+		want   string
+		update func(*ast.File)
+	}{
+		{
+			src: `package main
+
+func main() {
+	// comment
+
+	fmt.Println() // Comment
+}
+`,
+			want: `package main
+
+func main() {
+	// comment
+
+	someotherfmtpackage.Println() // Comment
+}
+`,
+			update: func(f *ast.File) {
+				ast.Inspect(f, func(n ast.Node) bool {
+					switch n := n.(type) {
+					case *ast.SelectorExpr:
+						switch x := n.X.(type) {
+						case *ast.Ident:
+							x.Name = "someotherfmtpackage"
+						}
+					}
+					return true
+				})
+			},
+		},
+
+		{
+			src: `package main
+
+func main() {
+	// comment
+
+	fmt.Println() // Comment
+}
+`,
+			want: `package main
+
+func main() {
+	// comment
+
+	someotherfmtpkg.Println() // Comment
+}
+`,
+			update: func(f *ast.File) {
+				ast.Inspect(f, func(n ast.Node) bool {
+					switch n := n.(type) {
+					case *ast.SelectorExpr:
+						switch x := n.X.(type) {
+						case *ast.Ident:
+							x.Name = "someotherfmtpkg"
+						}
+					}
+					return true
+				})
+			},
+		},
+
+		{
+			src: `package main
+
+const (
+	A = 1 // comment1
+
+	B = 2 // comment2
+)
+`,
+			want: `package main
+
+const (
+	A = 1 // comment1
+
+	CCCCCCC = 2 // comment2
+)
+`,
+			update: func(f *ast.File) {
+				// Replace B with CCCCCCC.
+				genDecl := f.Decls[0].(*ast.GenDecl)
+				spec := genDecl.Specs[1].(*ast.ValueSpec)
+				spec.Names[0].Name = "CCCCCCC"
+			},
+		},
+	}
+
+	for _, tt := range cases {
+		fset := token.NewFileSet()
+		f, err := parser.ParseFile(fset, "test.go", tt.src, parser.SkipObjectResolution|parser.ParseComments)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tt.update(f)
+
+		var b strings.Builder
+		config := Config{Mode: UseSpaces | TabIndent, Tabwidth: 8}
+		config.Fprint(&b, fset, f)
+		got := b.String()
+		if got != tt.want {
+			t.Errorf("unexpected Fprint output:\n%s\nwant:\n%s", got, tt.want)
 		}
 	}
 }
