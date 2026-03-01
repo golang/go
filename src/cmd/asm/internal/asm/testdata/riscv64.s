@@ -442,6 +442,20 @@ start:
 	// 26.5.6: Compressed Breakpoint Instruction
 	CEBREAK						// 0290
 
+	// 27.8: Simple code-size saving Instructions (Zcb)
+	CLBU	3(X10), X11		// 6c81
+	CLHU	2(X10), X11		// 2c85
+	CLH		2(X10), X11		// 6c85
+	CSB		X11, 2(X10)		// 2c89
+	CSH		X11, 2(X10)		// 2c8d
+	CZEXTB	X10				// 619d
+	CSEXTB	X10				// 659d
+	CZEXTH	X10				// 699d
+	CSEXTH	X10				// 6d9d
+	CZEXTW	X10				// 719d
+	CNOT	X10				// 759d
+	CMUL	X11, X10		// 4d9d
+
 	// 28.4.1: Address Generation Instructions (Zba)
 	ADDUW		X10, X11, X12			// 3b86a508
 	ADDUW		X10, X11			// bb85a508

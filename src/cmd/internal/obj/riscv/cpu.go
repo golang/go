@@ -641,6 +641,24 @@ const (
 	ACEBREAK
 
 	//
+	// "Zc*" Extension for Code Size Reduction
+	//
+
+	// 27.8: "zcb" Extension for simple code-size saving instruction
+	ACLBU
+	ACLHU
+	ACLH
+	ACSB
+	ACSH
+	ACZEXTB
+	ACSEXTB
+	ACZEXTH
+	ACSEXTH
+	ACZEXTW
+	ACNOT
+	ACMUL
+
+	//
 	// "B" Extension for Bit Manipulation, Version 1.0.0
 	//
 
