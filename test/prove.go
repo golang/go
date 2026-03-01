@@ -2823,6 +2823,26 @@ func noopAnd64DoNothingMayClearVarying(x uint64) uint64 {
 	return x
 }
 
+func noopOr64(x uint64) uint64 {
+	x = max(x, 0x0f0f0)
+	x = min(x, 0x0f0ff)
+	x |= 0x0f0f0 // ERROR "Proved v[0-9]+ is a no-op Or64"
+	return x
+}
+
+func noopOr64DoNothingSetsFixed(x uint64) uint64 {
+	x = max(x, 0x0f0f0)
+	x = min(x, 0x0f0ff)
+	x |= 0x8f0f0
+	return x
+}
+func noopOr64DoNothingMaySetVarying(x uint64) uint64 {
+	x = max(x, 0x0f0f0)
+	x = min(x, 0x0f0ff)
+	x |= 0x0f0f8
+	return x
+}
+
 func limitFlowThroughAnd(x, y uint64, ensureAllBranchesCouldHappen func() bool) int {
 	x = min(x, 1337)
 	x &= y

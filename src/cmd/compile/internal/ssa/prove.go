@@ -2948,6 +2948,33 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 					b.Func.Warnl(v.Pos, "Proved %v is a no-op %v", v, oldOp)
 				}
 			}
+		case OpOr64, OpOr32, OpOr16, OpOr8:
+			x, y := v.Args[0], v.Args[1]
+			xl, yl := ft.limits[x.ID], ft.limits[y.ID]
+			xConst, xIsConst := xl.constValue()
+			yConst, yIsConst := yl.constValue()
+			// Remove no-op Ors
+			switch {
+			case xIsConst && yIsConst:
+			case xIsConst:
+				x, y = y, x
+				xl, yl = yl, xl
+				xConst, yConst = yConst, xConst
+				fallthrough
+			case yIsConst:
+				wantBits, _ := xl.unsignedFixedLeadingBits()
+				// wantBits has the fixed bits and the worst case bits (unset) for the varying bits
+				// if after oring it with y it isn't modified we know the or is always a no-op.
+				if wantBits|uint64(yConst) != wantBits {
+					break
+				}
+
+				oldOp := v.Op
+				v.copyOf(x)
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %v is a no-op %v", v, oldOp)
+				}
+			}
 		}
 
 		// Fold provable constant results.
