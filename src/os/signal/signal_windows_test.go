@@ -96,3 +96,103 @@ func main() {
 		t.Fatalf("Program exited with error: %v\n%v", err, buf.String())
 	}
 }
+
+func TestCtrlBreakForCustomizedSignal(t *testing.T) {
+	// Create source file.
+	const source = `
+package main
+
+import (
+	"log"
+	"os"
+	"os/signal"
+	"time"
+)
+
+const SIGINT = Signal(0x2)
+
+// Signal is copied from x/sys.
+type Signal int
+
+func (s Signal) Signal() {}
+
+func (s Signal) String() string {
+	if 0 <= s && int(s) < len(signals) {
+		str := signals[s]
+		if str != "" {
+			return str
+		}
+	}
+	return "signal " + itoa(int(s))
+}
+
+var signals = [...]string{
+	1:  "hangup",
+	2:  "interrupt",
+	3:  "quit",
+	4:  "illegal instruction",
+	5:  "trace/breakpoint trap",
+	6:  "aborted",
+	7:  "bus error",
+	8:  "floating point exception",
+	9:  "killed",
+	10: "user defined signal 1",
+	11: "segmentation fault",
+	12: "user defined signal 2",
+	13: "broken pipe",
+	14: "alarm clock",
+	15: "terminated",
+}
+
+func main() {
+	c := make(chan os.Signal, 10)
+	signal.Notify(c, SIGINT)
+	select {
+	case s := <-c:
+		if s != os.Interrupt {
+			log.Fatalf("Wrong signal received: got %q, want %q\n", s, os.Interrupt)
+		}
+	case <-time.After(3 * time.Second):
+		log.Fatalf("Timeout waiting for Ctrl+Break\n")
+	}
+}
+`
+	tmp := t.TempDir()
+
+	// Write ctrlbreak.go.
+	name := filepath.Join(tmp, "ctlbreak_customized_signal")
+	src := name + ".go"
+	f, err := os.Create(src)
+	if err != nil {
+		t.Fatalf("Failed to create %v: %v", src, err)
+	}
+	defer f.Close()
+	f.Write([]byte(source))
+
+	// Compile it.
+	exe := name + ".exe"
+	defer os.Remove(exe)
+	o, err := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, src).CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to compile: %v\n%v", err, string(o))
+	}
+
+	// Run it.
+	cmd := testenv.Command(t, exe)
+	var buf strings.Builder
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("Start failed: %v", err)
+	}
+	go func() {
+		time.Sleep(1 * time.Second)
+		sendCtrlBreak(t, cmd.Process.Pid)
+	}()
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("Program exited with error: %v\n%v", err, buf.String())
+	}
+}
