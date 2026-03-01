@@ -55,6 +55,9 @@ file.
 
 The -x flag causes tidy to print the commands download executes.
 
+Tidy treats all build constraints except 'ignore' as satisfied, including
+implicit constraints from filenames.
+
 See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 	`,
 	Run: runTidy,
