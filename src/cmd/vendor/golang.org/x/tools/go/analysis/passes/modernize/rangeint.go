@@ -209,7 +209,7 @@ func rangeint(pass *analysis.Pass) (any, error) {
 						// such as "const limit = 1e3", its effective type may
 						// differ between the two forms.
 						// In a for loop, it must be comparable with int i,
-						//    for i := 0; i < limit; i++
+						//    for i := 0; i < limit; i++ {}
 						// but in a range loop it would become a float,
 						//    for i := range limit {}
 						// which is a type error. We need to convert it to int
@@ -228,9 +228,24 @@ func rangeint(pass *analysis.Pass) (any, error) {
 							beforeLimit, afterLimit = fmt.Sprintf("%s(", types.TypeString(tVar, qual)), ")"
 							info2 := &types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
 							if types.CheckExpr(pass.Fset, pass.Pkg, limit.Pos(), limit, info2) == nil {
-								tLimit := types.Default(info2.TypeOf(limit))
-								if types.AssignableTo(tLimit, tVar) {
-									beforeLimit, afterLimit = "", ""
+								tLimit := info2.TypeOf(limit)
+								// Eliminate conversion when safe.
+								//
+								// Redundant conversions are not only unsightly but may in some cases cause
+								// architecture-specific types (e.g. syscall.Timespec.Nsec) to be inserted
+								// into otherwise portable files.
+								//
+								// The operand must have an integer type (not, say, '1e6')
+								// even when assigning to an existing integer variable.
+								if isInteger(tLimit) {
+									// When declaring a new var from an untyped limit,
+									// the limit's default type is what matters.
+									if init.Tok != token.ASSIGN {
+										tLimit = types.Default(tLimit)
+									}
+									if types.AssignableTo(tLimit, tVar) {
+										beforeLimit, afterLimit = "", ""
+									}
 								}
 							}
 						}
@@ -311,6 +326,11 @@ func isScalarLvalue(info *types.Info, curId inspector.Cursor) bool {
 		if v, ok := info.Defs[id]; ok && v.Pos() != id.Pos() {
 			return true // reassignment of i (i, j := 1, 2)
 		}
+	case edge.RangeStmt_Key:
+		rng := cur.Parent().Node().(*ast.RangeStmt)
+		if rng.Tok == token.ASSIGN {
+			return true // "for k, v = range x" is like an AssignStmt to k, v
+		}
 	case edge.IncDecStmt_X:
 		return true // i++, i--
 	case edge.UnaryExpr_X:
@@ -319,4 +339,9 @@ func isScalarLvalue(info *types.Info, curId inspector.Cursor) bool {
 		}
 	}
 	return false
+}
+
+func isInteger(t types.Type) bool {
+	basic, ok := t.Underlying().(*types.Basic)
+	return ok && basic.Info()&types.IsInteger != 0
 }

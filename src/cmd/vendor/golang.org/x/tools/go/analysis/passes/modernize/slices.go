@@ -144,8 +144,7 @@ func appendclipped(pass *analysis.Pass) (any, error) {
 			// https://go.dev/issue/70815#issuecomment-2671572984
 			fileImports := func(path string) bool {
 				return slices.ContainsFunc(file.Imports, func(spec *ast.ImportSpec) bool {
-					value, _ := strconv.Unquote(spec.Path.Value)
-					return value == path
+					return first(strconv.Unquote(spec.Path.Value)) == path
 				})
 			}
 			clonepkg := cond(

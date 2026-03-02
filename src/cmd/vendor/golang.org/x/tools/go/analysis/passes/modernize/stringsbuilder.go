@@ -78,14 +78,16 @@ nextcand:
 	for _, v := range slices.SortedFunc(maps.Keys(candidates), lexicalOrder) {
 		var edits []analysis.TextEdit
 
-		// Check declaration of s:
+		// Check declaration of s has one of these forms:
 		//
 		//    s := expr
 		//    var s [string] [= expr]
+		//    var ( ...; s [string] [= expr] )			(s is last)
 		//
-		// and transform to:
+		// and transform to one of:
 		//
-		//    var s strings.Builder; s.WriteString(expr)
+		//    var   s strings.Builder ; s.WriteString(expr)
+		//    var ( s strings.Builder); s.WriteString(expr)
 		//
 		def, ok := index.Def(v)
 		if !ok {
@@ -153,9 +155,20 @@ nextcand:
 			}
 
 		} else if ek == edge.ValueSpec_Names &&
-			len(def.Parent().Node().(*ast.ValueSpec).Names) == 1 {
-			// Have: var s [string] [= expr]
+			len(def.Parent().Node().(*ast.ValueSpec).Names) == 1 &&
+			first(def.Parent().Parent().LastChild()) == def.Parent() {
+			// Have: var   s [string] [= expr]
+			//   or: var ( s [string] [= expr] )
 			// => var s strings.Builder; s.WriteString(expr)
+			//
+			// The LastChild check rejects this case:
+			//   var ( s [string] [= expr]; others... )
+			// =>
+			//   var ( s strings.Builder; others... ); s.WriteString(expr)
+			// since it moves 'expr' across 'others', requiring
+			// reformatting of syntax, which in general is lossy
+			// of comments and vertical space.
+			// We expect this to be rare.
 
 			// Add strings import.
 			prefix, importEdits := refactor.AddImport(
@@ -170,6 +183,8 @@ nextcand:
 				init = spec.Type.End()
 			}
 
+			// Replace (possibly absent) type:
+			//
 			// var s [string]
 			//      ----------------
 			// var s strings.Builder
@@ -180,6 +195,25 @@ nextcand:
 			})
 
 			if len(spec.Values) > 0 && !isEmptyString(pass.TypesInfo, spec.Values[0]) {
+				if decl.Rparen.IsValid() {
+					// var decl with explicit parens:
+					//
+					// var ( ...  =               expr )
+					//           -                     -
+					// var ( ... ); s.WriteString(expr)
+					edits = append(edits, []analysis.TextEdit{
+						{
+							Pos:     init,
+							End:     init,
+							NewText: []byte(")"),
+						},
+						{
+							Pos: spec.Values[0].End(),
+							End: decl.End(),
+						},
+					}...)
+				}
+
 				// =               expr
 				// ----------------    -
 				// ; s.WriteString(expr)
@@ -190,8 +224,8 @@ nextcand:
 						NewText: fmt.Appendf(nil, "; %s.WriteString(", v.Name()),
 					},
 					{
-						Pos:     decl.End(),
-						End:     decl.End(),
+						Pos:     spec.Values[0].End(),
+						End:     spec.Values[0].End(),
 						NewText: []byte(")"),
 					},
 				}...)
@@ -220,8 +254,8 @@ nextcand:
 		//    var s string
 		//    for ... { s += expr }
 		//
-		// - The final use of s must be as an rvalue (e.g. use(s), not &s).
-		//   This will become s.String().
+		// - All uses of s after the last += must be rvalue uses (e.g. use(s), not &s).
+		//   Each of these will become s.String().
 		//
 		//   Perhaps surprisingly, it is fine for there to be an
 		//   intervening loop or lambda w.r.t. the declaration of s:
@@ -236,7 +270,7 @@ nextcand:
 		var (
 			numLoopAssigns int             // number of += assignments within a loop
 			loopAssign     *ast.AssignStmt // first += assignment within a loop
-			seenRvalueUse  bool            // => we've seen the sole final use of s as an rvalue
+			seenRvalueUse  bool            // => we've seen at least one rvalue use of s
 		)
 		for curUse := range index.Uses(v) {
 			// Strip enclosing parens around Ident.
@@ -244,11 +278,6 @@ nextcand:
 			for ek == edge.ParenExpr_X {
 				curUse = curUse.Parent()
 				ek, _ = curUse.ParentEdge()
-			}
-
-			// The rvalueUse must be the lexically last use.
-			if seenRvalueUse {
-				continue nextcand
 			}
 
 			// intervening reports whether cur has an ancestor of
@@ -263,6 +292,11 @@ nextcand:
 			}
 
 			if ek == edge.AssignStmt_Lhs {
+				// After an rvalue use, no more assignments are allowed.
+				if seenRvalueUse {
+					continue nextcand
+				}
+
 				assign := curUse.Parent().Node().(*ast.AssignStmt)
 				if assign.Tok != token.ADD_ASSIGN {
 					continue nextcand

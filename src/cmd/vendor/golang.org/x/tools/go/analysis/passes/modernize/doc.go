@@ -460,14 +460,15 @@ is replaced by:
 
 This avoids quadratic memory allocation and improves performance.
 
-The analyzer requires that all references to s except the final one
+The analyzer requires that all references to s before the final uses
 are += operations. To avoid warning about trivial cases, at least one
 must appear within a loop. The variable s must be a local
 variable, not a global or parameter.
 
-The sole use of the finished string must be the last reference to the
-variable s. (It may appear within an intervening loop or function literal,
-since even s.String() is called repeatedly, it does not allocate memory.)
+All uses of the finished string must come after the last += operation.
+Each such use will be replaced by a call to strings.Builder's String method.
+(These may appear within an intervening loop or function literal, since even
+if s.String() is called repeatedly, it does not allocate memory.)
 
 # Analyzer testingcontext
 

@@ -147,6 +147,13 @@ func minmax(pass *analysis.Pass) (any, error) {
 			lhs0 := fassign.Lhs[0]
 			rhs0 := fassign.Rhs[0]
 
+			// If the assignment occurs within a select
+			// comms clause (like "case lhs0 := <-rhs0:"),
+			// there's no way of rewriting it into a min/max call.
+			if ek, _ := prev.ParentEdge(); ek == edge.CommClause_Comm {
+				return
+			}
+
 			if astutil.EqualSyntax(lhs, lhs0) {
 				if astutil.EqualSyntax(rhs, a) && (astutil.EqualSyntax(rhs0, b) || astutil.EqualSyntax(lhs0, b)) {
 					sign = +sign

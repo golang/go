@@ -97,6 +97,9 @@ func waitgroup(pass *analysis.Pass) (any, error) {
 		if !ok || len(goStmt.Call.Args) != 0 {
 			continue // go argument is not func(){...}()
 		}
+		if lit.Type.Results != nil && len(lit.Type.Results.List) > 0 {
+			continue // function literal has return values; wg.Go requires func()
+		}
 		list := lit.Body.List
 		if len(list) == 0 {
 			continue

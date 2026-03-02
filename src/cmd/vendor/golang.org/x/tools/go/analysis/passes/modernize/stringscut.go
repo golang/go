@@ -183,7 +183,7 @@ func stringscut(pass *analysis.Pass) (any, error) {
 			// len(substr)]), then we can replace the call to Index()
 			// with a call to Cut() and use the returned ok, before,
 			// and after variables accordingly.
-			negative, nonnegative, beforeSlice, afterSlice := checkIdxUses(pass.TypesInfo, index.Uses(iObj), s, substr)
+			negative, nonnegative, beforeSlice, afterSlice := checkIdxUses(pass.TypesInfo, index.Uses(iObj), s, substr, iObj)
 
 			// Either there are no uses of before, after, or ok, or some use
 			// of i does not match our criteria - don't suggest a fix.
@@ -374,14 +374,31 @@ func indexArgValid(info *types.Info, index *typeindex.Index, expr ast.Expr, afte
 // 2. nonnegative - a condition equivalent to i >= 0
 // 3. beforeSlice - a slice of `s` that matches either s[:i], s[0:i]
 // 4. afterSlice - a slice of `s` that matches one of: s[i+len(substr):], s[len(substr) + i:], s[i + const], s[k + i] (where k = len(substr))
-func checkIdxUses(info *types.Info, uses iter.Seq[inspector.Cursor], s, substr ast.Expr) (negative, nonnegative, beforeSlice, afterSlice []ast.Expr) {
+//
+// Additionally, all beforeSlice and afterSlice uses must be dominated by a
+// nonnegative guard on i (i.e., inside the body of an if whose condition
+// checks i >= 0, or in the else of a negative check, or after an
+// early-return negative check). This ensures that the rewrite from
+// s[i+len(sep):] to "after" preserves semantics, since when i == -1,
+// s[i+len(sep):] may yield a valid substring (e.g. s[0:] for single-byte
+// separators), but "after" would be "".
+//
+// When len(substr)==1, it's safe to use s[i+1:] even when i < 0.
+// Otherwise, each replacement of s[i+1:] must be guarded by a check
+// that i is nonnegative.
+func checkIdxUses(info *types.Info, uses iter.Seq[inspector.Cursor], s, substr ast.Expr, iObj types.Object) (negative, nonnegative, beforeSlice, afterSlice []ast.Expr) {
+	requireGuard := true
+	if l := constSubstrLen(info, substr); l != -1 && l != 1 {
+		requireGuard = false
+	}
+
 	use := func(cur inspector.Cursor) bool {
 		ek, _ := cur.ParentEdge()
 		n := cur.Parent().Node()
 		switch ek {
 		case edge.BinaryExpr_X, edge.BinaryExpr_Y:
 			check := n.(*ast.BinaryExpr)
-			switch checkIdxComparison(info, check) {
+			switch checkIdxComparison(info, check, iObj) {
 			case -1:
 				negative = append(negative, check)
 				return true
@@ -397,10 +414,10 @@ func checkIdxUses(info *types.Info, uses iter.Seq[inspector.Cursor], s, substr a
 			if slice, ok := cur.Parent().Parent().Node().(*ast.SliceExpr); ok &&
 				sameObject(info, s, slice.X) &&
 				slice.Max == nil {
-				if isBeforeSlice(info, ek, slice) {
+				if isBeforeSlice(info, ek, slice) && (!requireGuard || isSliceIndexGuarded(info, cur, iObj)) {
 					beforeSlice = append(beforeSlice, slice)
 					return true
-				} else if isAfterSlice(info, ek, slice, substr) {
+				} else if isAfterSlice(info, ek, slice, substr) && (!requireGuard || isSliceIndexGuarded(info, cur, iObj)) {
 					afterSlice = append(afterSlice, slice)
 					return true
 				}
@@ -410,10 +427,10 @@ func checkIdxUses(info *types.Info, uses iter.Seq[inspector.Cursor], s, substr a
 			// Check that the thing being sliced is s and that the slice doesn't
 			// have a max index.
 			if sameObject(info, s, slice.X) && slice.Max == nil {
-				if isBeforeSlice(info, ek, slice) {
+				if isBeforeSlice(info, ek, slice) && (!requireGuard || isSliceIndexGuarded(info, cur, iObj)) {
 					beforeSlice = append(beforeSlice, slice)
 					return true
-				} else if isAfterSlice(info, ek, slice, substr) {
+				} else if isAfterSlice(info, ek, slice, substr) && (!requireGuard || isSliceIndexGuarded(info, cur, iObj)) {
 					afterSlice = append(afterSlice, slice)
 					return true
 				}
@@ -465,8 +482,15 @@ func hasModifyingUses(info *types.Info, uses iter.Seq[inspector.Cursor], afterPo
 // Since strings.Index returns exactly -1 if the substring is not found, we
 // don't need to handle expressions like i <= -3.
 // We return 0 if the expression does not match any of these options.
-// We assume that a check passed to checkIdxComparison has i as one of its operands.
-func checkIdxComparison(info *types.Info, check *ast.BinaryExpr) int {
+func checkIdxComparison(info *types.Info, check *ast.BinaryExpr, iObj types.Object) int {
+	isI := func(e ast.Expr) bool {
+		id, ok := e.(*ast.Ident)
+		return ok && info.Uses[id] == iObj
+	}
+	if !isI(check.X) && !isI(check.Y) {
+		return 0
+	}
+
 	// Ensure that the constant (if any) is on the right.
 	x, op, y := check.X, check.Op, check.Y
 	if info.Types[x].Value != nil {
@@ -515,6 +539,31 @@ func isBeforeSlice(info *types.Info, ek edge.Kind, slice *ast.SliceExpr) bool {
 	return ek == edge.SliceExpr_High && (slice.Low == nil || isZeroIntConst(info, slice.Low))
 }
 
+// constSubstrLen returns the constant length of substr, or -1 if unknown.
+func constSubstrLen(info *types.Info, substr ast.Expr) int {
+	// Handle len([]byte(substr))
+	if call, ok := substr.(*ast.CallExpr); ok {
+		tv := info.Types[call.Fun]
+		if tv.IsType() && types.Identical(tv.Type, byteSliceType) {
+			// Only one arg in []byte conversion.
+			substr = call.Args[0]
+		}
+	}
+	substrVal := info.Types[substr].Value
+	if substrVal != nil {
+		switch substrVal.Kind() {
+		case constant.String:
+			return len(constant.StringVal(substrVal))
+		case constant.Int:
+			// constant.Value is a byte literal, e.g. bytes.IndexByte(_, 'a')
+			// or a numeric byte literal, e.g. bytes.IndexByte(_, 65)
+			// ([]byte(rune) is not legal.)
+			return 1
+		}
+	}
+	return -1
+}
+
 // isAfterSlice reports whether the SliceExpr is of the form s[i+len(substr):],
 // or s[i + k:] where k is a const is equal to len(substr).
 func isAfterSlice(info *types.Info, ek edge.Kind, slice *ast.SliceExpr, substr ast.Expr) bool {
@@ -531,27 +580,7 @@ func isAfterSlice(info *types.Info, ek edge.Kind, slice *ast.SliceExpr, substr a
 		return sameObject(info, substr, call.Args[0]) && typeutil.Callee(info, call) == builtinLen
 	}
 
-	// Handle len([]byte(substr))
-	if is[*ast.CallExpr](substr) {
-		call := substr.(*ast.CallExpr)
-		tv := info.Types[call.Fun]
-		if tv.IsType() && types.Identical(tv.Type, byteSliceType) {
-			// Only one arg in []byte conversion.
-			substr = call.Args[0]
-		}
-	}
-	substrLen := -1
-	substrVal := info.Types[substr].Value
-	if substrVal != nil {
-		switch substrVal.Kind() {
-		case constant.String:
-			substrLen = len(constant.StringVal(substrVal))
-		case constant.Int:
-			// constant.Value is a byte literal, e.g. bytes.IndexByte(_, 'a')
-			// or a numeric byte literal, e.g. bytes.IndexByte(_, 65)
-			substrLen = 1
-		}
-	}
+	substrLen := constSubstrLen(info, substr)
 
 	switch ek {
 	case edge.BinaryExpr_X:
@@ -574,6 +603,75 @@ func isAfterSlice(info *types.Info, ek edge.Kind, slice *ast.SliceExpr, substr a
 			kInt, ok := constant.Int64Val(kVal)
 			return ok && substrLen == int(kInt)
 		}
+	}
+	return false
+}
+
+// isSliceIndexGuarded reports whether a use of the index variable i (at the given cursor)
+// inside a slice expression is dominated by a nonnegative guard.
+// A use is considered guarded if any of the following are true:
+//   - It is inside the Body of an IfStmt whose condition is a nonnegative check on i.
+//   - It is inside the Else of an IfStmt whose condition is a negative check on i.
+//   - It is preceded (in the same block) by an IfStmt whose condition is a
+//     negative check on i with a terminating body (e.g., early return).
+//
+// Conversely, a use is immediately rejected if:
+//   - It is inside the Body of an IfStmt whose condition is a negative check on i.
+//   - It is inside the Else of an IfStmt whose condition is a nonnegative check on i.
+//
+// We have already checked (see [hasModifyingUses]) that there are no
+// intervening uses (incl. via aliases) of i that might alter its value.
+func isSliceIndexGuarded(info *types.Info, cur inspector.Cursor, iObj types.Object) bool {
+	for anc := range cur.Enclosing() {
+		switch ek, _ := anc.ParentEdge(); ek {
+		case edge.IfStmt_Body, edge.IfStmt_Else:
+			ifStmt := anc.Parent().Node().(*ast.IfStmt)
+			check := condChecksIdx(info, ifStmt.Cond, iObj)
+			if ek == edge.IfStmt_Else {
+				check = -check
+			}
+			if check > 0 {
+				return true // inside nonnegative-guarded block (i >= 0 here)
+			}
+			if check < 0 {
+				return false // inside negative-guarded block (i < 0 here)
+			}
+		case edge.BlockStmt_List:
+			// Check preceding siblings for early-return negative checks.
+			for sib, ok := anc.PrevSibling(); ok; sib, ok = sib.PrevSibling() {
+				ifStmt, ok := sib.Node().(*ast.IfStmt)
+				if ok && condChecksIdx(info, ifStmt.Cond, iObj) < 0 && bodyTerminates(ifStmt.Body) {
+					return true // preceded by early-return negative check
+				}
+			}
+		case edge.FuncDecl_Body, edge.FuncLit_Body:
+			return false // stop at function boundary
+		}
+	}
+	return false
+}
+
+// condChecksIdx reports whether cond is a BinaryExpr that checks
+// the index variable iObj for negativity or non-negativity.
+// Returns -1 for negative (e.g. i < 0), +1 for nonnegative (e.g. i >= 0), 0 otherwise.
+func condChecksIdx(info *types.Info, cond ast.Expr, iObj types.Object) int {
+	binExpr, ok := cond.(*ast.BinaryExpr)
+	if !ok {
+		return 0
+	}
+	return checkIdxComparison(info, binExpr, iObj)
+}
+
+// bodyTerminates reports whether the given block statement unconditionally
+// terminates execution (via return, break, continue, or goto).
+func bodyTerminates(block *ast.BlockStmt) bool {
+	if len(block.List) == 0 {
+		return false
+	}
+	last := block.List[len(block.List)-1]
+	switch last.(type) {
+	case *ast.ReturnStmt, *ast.BranchStmt:
+		return true // return, break, continue, goto
 	}
 	return false
 }

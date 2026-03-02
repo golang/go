@@ -141,3 +141,5 @@ func lookup(info *types.Info, cur inspector.Cursor, name string) types.Object {
 	_, obj := scope.LookupParent(name, cur.Node().Pos())
 	return obj
 }
+
+func first[T any](x T, _ any) T { return x }
