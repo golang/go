@@ -665,6 +665,13 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already. Or we might already
 	// be on the m->gsignal stack.
+#ifdef GOOS_windows
+	// On Windows, get_tls might return garbage if the thread
+	// has never called into Go, so check tls_g directly.
+	MOVL	runtime·tls_g(SB), CX
+	CMPL	CX, $0
+	JEQ	nosave
+#endif
 	get_tls(CX)
 	MOVL	g(CX), DI
 	CMPL	DI, $0
@@ -741,7 +748,7 @@ loadg:
 #ifdef GOOS_windows
 	MOVL	$0, BP
 	CMPL	CX, $0
-	JEQ	2(PC) // TODO
+	JEQ	needm
 #endif
 	MOVL	g(CX), BP
 	CMPL	BP, $0
