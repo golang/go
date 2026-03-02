@@ -295,6 +295,10 @@ type ModuleGraph struct {
 
 	buildListOnce sync.Once
 	buildList     []module.Version
+
+	// checkPathsOnce ensures checkMultiplePaths runs at most once per graph.
+	// Errors are checked and reported only on the first call.
+	checkPathsOnce sync.Once
 }
 
 var readModGraphDebugOnce sync.Once
@@ -797,7 +801,13 @@ func updateWorkspaceRoots(ld *Loader, ctx context.Context, direct map[string]boo
 		// return an error.
 		panic("add is not empty")
 	}
-	return newRequirements(ld, workspace, rs.rootModules, direct), nil
+	newRS := newRequirements(ld, workspace, rs.rootModules, direct)
+	// The root modules are unchanged (only the direct imports change),
+	// so the module graph can be reused to avoid rebuilding it from scratch.
+	if cached := rs.graph.Load(); cached != nil {
+		newRS.graphOnce.Do(func() { newRS.graph.Store(cached) })
+	}
+	return newRS, nil
 }
 
 // tidyPrunedRoots returns a minimal set of root requirements that maintains the

@@ -2020,13 +2020,21 @@ func (pld *packageLoader) computePatternAll() (all []string) {
 //
 // (See https://golang.org/issue/26607 and https://golang.org/issue/34650.)
 func (pld *packageLoader) checkMultiplePaths(ld *Loader) {
-	mods := pld.requirements.rootModules
 	if cached := pld.requirements.graph.Load(); cached != nil {
 		if mg := cached.mg; mg != nil {
-			mods = mg.BuildList()
+			// The check depends only on the build list and workspace replace
+			// directives, both fixed for the lifetime of mg, so skip it on
+			// subsequent calls sharing the same graph.
+			mg.checkPathsOnce.Do(func() {
+				checkMultiplePathsUncached(ld, pld, mg.BuildList())
+			})
+			return
 		}
 	}
+	checkMultiplePathsUncached(ld, pld, pld.requirements.rootModules)
+}
 
+func checkMultiplePathsUncached(ld *Loader, pld *packageLoader, mods []module.Version) {
 	firstPath := map[module.Version]string{}
 	for _, mod := range mods {
 		src := resolveReplacement(ld, mod)
