@@ -8488,6 +8488,17 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 func rewriteValuegeneric_OpEqB(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	// match: (EqB x x)
+	// result: (ConstBool [true])
+	for {
+		x := v_0
+		if x != v_1 {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = boolToAuxInt(true)
+		return true
+	}
 	// match: (EqB (ConstBool [c]) (ConstBool [d]))
 	// result: (ConstBool [c == d])
 	for {
@@ -19671,6 +19682,17 @@ func rewriteValuegeneric_OpNeq8(v *Value) bool {
 func rewriteValuegeneric_OpNeqB(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	// match: (NeqB x x)
+	// result: (ConstBool [false])
+	for {
+		x := v_0
+		if x != v_1 {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = boolToAuxInt(false)
+		return true
+	}
 	// match: (NeqB (ConstBool [c]) (ConstBool [d]))
 	// result: (ConstBool [c != d])
 	for {
