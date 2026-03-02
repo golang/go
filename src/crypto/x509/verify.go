@@ -547,8 +547,25 @@ func matchDomainConstraint(domain, constraint string, excluded bool, reversedDom
 	}
 
 	if excluded && wildcardDomain && len(domainLabels) > 1 && len(constraintLabels) > 1 {
-		domainLabels = domainLabels[:len(domainLabels)-1]
-		constraintLabels = constraintLabels[:len(constraintLabels)-1]
+		// Rules must apply to wildcard domains as if the wildcard could be any DNS label.
+		//
+		// For inclusion rules this works simply by treating the wildcard like a label
+		// (which does not exist in the constraints, and thus must be within a subtree).
+		//
+		// For exclusion rules, however, care must be taken that the excluded
+		// tree is not covered by the wildcard domain range.
+		//
+		// The following cases exist:
+		//
+		// 1. excluded.example.com <-> *.com: no match, as wildcards can only match one label.
+		// 2. excluded.example.com <-> *.example.com: match, as this contains excluded.example.com.
+		// 3. excluded.example.com <-> *.excluded.example.com: match (but matches just as well when treating the wildcard like a label).
+		//
+		// As such, only case 2 needs explicit handling here.
+		if len(domainLabels) == len(constraintLabels) {
+			domainLabels = domainLabels[:len(domainLabels)-1]
+			constraintLabels = constraintLabels[:len(constraintLabels)-1]
+		}
 	}
 
 	for i, constraintLabel := range constraintLabels {
