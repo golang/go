@@ -255,6 +255,10 @@ func (t *worklist) buildDefUses() {
 			for _, arg := range val.Args {
 				// find its uses, only uses that can become constants take into account
 				if possibleConst(arg) && possibleConst(val) {
+					// Phi may refer to itself as uses, avoid duplicate visits
+					if arg == val {
+						continue
+					}
 					if _, exist := t.defUse[arg]; !exist {
 						t.defUse[arg] = make([]*Value, 0, arg.Uses)
 					}
@@ -274,10 +278,6 @@ func (t *worklist) buildDefUses() {
 // addUses finds all uses of value and appends them into work list for further process
 func (t *worklist) addUses(val *Value) {
 	for _, use := range t.defUse[val] {
-		// Phi may refer to itself as uses, avoid duplicate visits
-		if val == use {
-			continue
-		}
 		// Provenly not a constant, ignore
 		useLt := t.getLatticeCell(use)
 		if useLt.tag == bottom {
