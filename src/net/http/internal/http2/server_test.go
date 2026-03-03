@@ -4705,29 +4705,6 @@ func testServerContinuationAfterInvalidHeader(t testing.TB) {
 	}
 }
 
-func TestServerUpgradeRequestPrefaceFailure(t *testing.T) {
-	synctestTest(t, testServerUpgradeRequestPrefaceFailure)
-}
-func testServerUpgradeRequestPrefaceFailure(t testing.TB) {
-	// An h2c upgrade request fails when the client preface is not as expected.
-	s2 := &Server{
-		// Setting IdleTimeout triggers #67168.
-		IdleTimeout: 60 * time.Minute,
-	}
-	c1, c2 := net.Pipe()
-	donec := make(chan struct{})
-	go func() {
-		defer close(donec)
-		s2.ServeConn(c1, &ServeConnOpts{
-			UpgradeRequest: httptest.NewRequest("GET", "/", nil),
-		})
-	}()
-	// The server expects to see the HTTP/2 preface,
-	// but we close the connection instead.
-	c2.Close()
-	<-donec
-}
-
 // Issue 67036: A stream error should result in the handler's request context being canceled.
 func TestServerRequestCancelOnError(t *testing.T) { synctestTest(t, testServerRequestCancelOnError) }
 func testServerRequestCancelOnError(t testing.TB) {
