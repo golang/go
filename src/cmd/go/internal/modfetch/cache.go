@@ -15,9 +15,11 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -264,7 +266,7 @@ func (r *cachingRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
 				})
 			}
 
-			if err := writeDiskStat(ctx, file, info); err != nil {
+			if err := writeDiskStat(ctx, file, info); err != nil && !isErrReadOnlyFS(err) {
 				fmt.Fprintf(os.Stderr, "go: writing stat cache: %v\n", err)
 			}
 		}
@@ -321,7 +323,7 @@ func (r *cachingRepo) GoMod(ctx context.Context, version string) ([]byte, error)
 			if err := checkGoMod(r.fetcher, r.path, version, text); err != nil {
 				return text, err
 			}
-			if err := writeDiskGoMod(ctx, file, text); err != nil {
+			if err := writeDiskGoMod(ctx, file, text); err != nil && !isErrReadOnlyFS(err) {
 				fmt.Fprintf(os.Stderr, "go: writing go.mod cache: %v\n", err)
 			}
 		}
@@ -688,6 +690,24 @@ func writeDiskCache(ctx context.Context, file string, data []byte) error {
 		rewriteVersionList(ctx, filepath.Dir(file))
 	}
 	return nil
+}
+
+// isErrReadOnlyFS reports whether err is a read-only filesystem error
+// (syscall.EROFS on Unix/wasip1, ERROR_NOT_SUPPORTED on Windows).
+func isErrReadOnlyFS(err error) bool {
+	switch runtime.GOOS {
+	case "plan9":
+		return false
+	case "windows":
+		const ERROR_NOT_SUPPORTED = 50
+		return errors.Is(err, syscall.Errno(ERROR_NOT_SUPPORTED))
+	case "wasip1":
+		const EROFS = 69
+		return errors.Is(err, syscall.Errno(EROFS))
+	default: // unix and js
+		const EROFS = 30
+		return errors.Is(err, syscall.Errno(EROFS))
+	}
 }
 
 // tempFile creates a new temporary file with given permission bits.
