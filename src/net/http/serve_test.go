@@ -6011,27 +6011,17 @@ func TestServerCloseDeadlock(t *testing.T) {
 
 // Issue 17717: tests that Server.SetKeepAlivesEnabled is respected by
 // both HTTP/1 and HTTP/2.
-func TestServerKeepAlivesEnabled(t *testing.T) { run(t, testServerKeepAlivesEnabled, testNotParallel) }
+func TestServerKeepAlivesEnabled(t *testing.T) { runSynctest(t, testServerKeepAlivesEnabled) }
 func testServerKeepAlivesEnabled(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		restore := ExportSetH2GoawayTimeout(10 * time.Millisecond)
-		defer restore()
-	}
-	// Not parallel: messes with global variable. (http2goAwayTimeout)
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}), optFakeNet)
 	defer cst.close()
 	srv := cst.ts.Config
 	srv.SetKeepAlivesEnabled(false)
-	for try := 0; try < 2; try++ {
-		waitCondition(t, 10*time.Millisecond, func(d time.Duration) bool {
-			if !srv.ExportAllConnsIdle() {
-				if d > 0 {
-					t.Logf("test server still has active conns after %v", d)
-				}
-				return false
-			}
-			return true
-		})
+	for try := range 2 {
+		synctest.Wait()
+		if !srv.ExportAllConnsIdle() {
+			t.Fatalf("test server still has active conns before request %v", try)
+		}
 		conns := 0
 		var info httptrace.GotConnInfo
 		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
