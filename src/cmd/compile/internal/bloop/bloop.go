@@ -144,7 +144,7 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 		if name != nil {
 			debugName(name, n.Pos())
 			ret = keepAliveAt([]ir.Node{name}, n)
-		} else if deref := n.X.(*ir.StarExpr); deref != nil {
+		} else if deref, ok := n.X.(*ir.StarExpr); ok && deref != nil {
 			ret = keepAliveAt([]ir.Node{deref}, n)
 			if base.Flag.LowerM > 1 {
 				base.WarnfAt(n.Pos(), "dereference will be kept alive")
@@ -159,7 +159,7 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 			if name != nil {
 				debugName(name, n.Pos())
 				ns = append(ns, name)
-			} else if deref := lhs.(*ir.StarExpr); deref != nil {
+			} else if deref, ok := lhs.(*ir.StarExpr); ok && deref != nil {
 				ns = append(ns, deref)
 				if base.Flag.LowerM > 1 {
 					base.WarnfAt(n.Pos(), "dereference will be kept alive")
@@ -174,7 +174,7 @@ func preserveStmt(curFn *ir.Func, stmt ir.Node) (ret ir.Node) {
 		if name != nil {
 			debugName(name, n.Pos())
 			ret = keepAliveAt([]ir.Node{name}, n)
-		} else if deref := n.X.(*ir.StarExpr); deref != nil {
+		} else if deref, ok := n.X.(*ir.StarExpr); ok && deref != nil {
 			ret = keepAliveAt([]ir.Node{deref}, n)
 			if base.Flag.LowerM > 1 {
 				base.WarnfAt(n.Pos(), "dereference will be kept alive")
