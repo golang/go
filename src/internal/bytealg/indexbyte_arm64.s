@@ -35,7 +35,8 @@ TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
 
 	CBZ	R1, fail
 #ifdef GOOS_android
-	ADD	R0, R1, R20 // R20 = end of data
+	ADD	R0, R1, R20   // R20 = end of data
+	BIC	$0xf, R0, R21 // R21 = earliest we can read
 #endif
 	MOVD	R0, R11
 	// Magic constant 0x40100401 allows us to identify
@@ -57,7 +58,10 @@ TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
 #ifdef GOOS_android
 	// Android requires us to not read outside an aligned 16-byte
 	// region because MTE might be enforced.
-	VLD1.P	(R3), [V1.B16]
+	CMP	R21, R3
+	BLO	2(PC)
+	VLD1	(R3), [V1.B16]
+	ADD	$0x10, R3
 	CMP	R3, R20
 	BLS	2(PC)
 	VLD1	(R3), [V2.B16]
@@ -85,7 +89,10 @@ TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
 
 loop:
 #ifdef GOOS_android
-	VLD1.P	(R3), [V1.B16]
+	CMP	R21, R3
+	BLO	2(PC)
+	VLD1	(R3), [V1.B16]
+	ADD	$0x10, R3
 	CMP	R3, R20
 	BLS	2(PC)
 	VLD1	(R3), [V2.B16]
