@@ -28,8 +28,8 @@ stdout '"message": "address format .* does not work with IPv6",'
 stdout '"suggested_fixes":'
 stdout '"message": "Replace fmt.Sprintf with net.JoinHostPort",'
 
-# vet -fix -diff displays a diff.
-go vet -fix -diff example.com/x
+# vet -fix -diff displays a diff. Diff => nonzero exit.
+! go vet -fix -diff example.com/x
 stdout '\-var _ = fmt.Sprintf\(s\)'
 stdout '\+var _ = fmt.Sprintf\("%s", s\)'
 stdout '\-var _, _ = net.Dial\("tcp", fmt.Sprintf\("%s:%d", s, 80\)\)'
@@ -53,8 +53,8 @@ grep 'net.JoinHostPort' x.go
 ! stderr .
 cp x.go.bak x.go
 
-# Show diff of fixes from the fix suite.
-go fix -diff example.com/x
+# Show diff of fixes from the fix suite. Diff => nonzero exit.
+! go fix -diff example.com/x
 ! stdout '\-var _ = fmt.Sprintf\(s\)'
 stdout '\-var _, _ = net.Dial\("tcp", fmt.Sprintf\("%s:%d", s, 80\)\)'
 stdout '\+var _, _ = net.Dial\("tcp", net.JoinHostPort\(s, "80"\)\)'

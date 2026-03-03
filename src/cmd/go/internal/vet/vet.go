@@ -44,7 +44,8 @@ It supports these flags:
   -fix
 	instead of printing each diagnostic, apply its first fix (if any)
   -diff
-	instead of applying each fix, print the patch as a unified diff
+	instead of applying each fix, print the patch as a unified diff;
+	exit with a non-zero status if the diff is not empty
 
 The -vettool=prog flag selects a different analysis tool with
 alternative or additional checks. For example, the 'shadow' analyzer
@@ -81,7 +82,8 @@ and applies suggested fixes.
 It supports these flags:
 
   -diff
-	instead of applying each fix, print the patch as a unified diff
+	instead of applying each fix, print the patch as a unified diff;
+	exit with a non-zero status if the diff is not empty
 
 The -fixtool=prog flag selects a different analysis tool with
 alternative or additional fixers; see the documentation for go vet's
@@ -165,8 +167,8 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	// command args                 tool args
 	// go vet               =>      cmd/vet -json           Parse stdout, print diagnostics to stderr.
 	// go vet -json         =>      cmd/vet -json           Pass stdout through.
-	// go vet -fix [-diff]  =>      cmd/vet -fix [-diff]    Pass stdout through.
-	// go fix [-diff]       =>      cmd/fix -fix [-diff]    Pass stdout through.
+	// go vet -fix [-diff]  =>      cmd/vet -fix [-diff]    Pass stdout through (and exit 1 if diffs).
+	// go fix [-diff]       =>      cmd/fix -fix [-diff]    Pass stdout through (and exit 1 if diffs).
 	// go fix -json         =>      cmd/fix -json           Pass stdout through.
 	//
 	// Notes:
@@ -189,6 +191,10 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 			toolFlags = append(toolFlags, "-fix")
 			if diffFlag {
 				toolFlags = append(toolFlags, "-diff")
+				// In -diff mode, the tool prints unified diffs to stdout.
+				// Copy stdout through and exit non-zero if diffs were printed,
+				// consistent with gofmt -d and go mod tidy -diff.
+				work.VetHandleStdout = copyAndDetectDiff
 			} else {
 				applyFixes = true
 			}
@@ -343,6 +349,24 @@ func readZip(zipfile string, out map[string][]byte) error {
 	return nil
 }
 
+// copyAndDetectDiff copies the tool's stdout to the go command's stdout
+// and sets exit status 1 if any output was produced (meaning diffs exist).
+// This is used in -diff mode to implement the convention that "go fix -diff"
+// exits non-zero when the diff is not empty, consistent with gofmt -d
+// and go mod tidy -diff.
+func copyAndDetectDiff(r io.Reader) error {
+	stdouterrMu.Lock()
+	defer stdouterrMu.Unlock()
+	n, err := io.Copy(os.Stdout, r)
+	if err != nil {
+		return fmt.Errorf("copying diff output: %w", err)
+	}
+	if n > 0 {
+		base.SetExitStatus(1)
+	}
+	return nil
+}
+
 // printJSONDiagnostics parses JSON (from the tool's stdout) and
 // prints it (to stderr) in "file:line: message" form.
 // It also ensures that we exit nonzero if there were diagnostics.
@@ -386,11 +410,11 @@ func printJSONDiagnostics(r io.Reader) error {
 	return nil
 }
 
-var stderrMu sync.Mutex // serializes concurrent writes to stdout
+var stdouterrMu sync.Mutex // serializes concurrent writes to stdout and stderr
 
 func printJSONDiagnostic(analyzer string, diag jsonDiagnostic) {
-	stderrMu.Lock()
-	defer stderrMu.Unlock()
+	stdouterrMu.Lock()
+	defer stdouterrMu.Unlock()
 
 	type posn struct {
 		file      string

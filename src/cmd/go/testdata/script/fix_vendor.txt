@@ -7,8 +7,8 @@ go mod vendor
 
 # Show fixes on two packages, one in the main module
 # and one in a vendored dependency.
-# Only the main one (a) is shown.
-go fix -diff example.com/a example.com/b
+# Only the main one (a) is shown. Diff => nonzero exit.
+! go fix -diff example.com/a example.com/b
 stdout 'a[/\\]a.go'
 stdout '\-var _ interface\{\}'
 stdout '\+var _ any'
