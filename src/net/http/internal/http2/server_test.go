@@ -3282,57 +3282,16 @@ func TestIssue53(t *testing.T) { synctestTest(t, testIssue53) }
 func testIssue53(t testing.TB) {
 	const data = "PRI * HTTP/2.0\r\n\r\nSM" +
 		"\r\n\r\n\x00\x00\x00\x01\ainfinfin\ad"
-	s := &http.Server{
-		ErrorLog: log.New(io.MultiWriter(stderrv(), twriter{t: t}), "", log.LstdFlags),
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			w.Write([]byte("hello"))
-		}),
-	}
-	s2 := &Server{
-		MaxReadFrameSize:             1 << 16,
-		PermitProhibitedCipherSuites: true,
-	}
-	c := &issue53Conn{[]byte(data), false, false}
-	s2.ServeConn(c, &ServeConnOpts{BaseConfig: s})
-	if !c.closed {
-		t.Fatal("connection is not closed")
-	}
+	st := newServerTester(t, func(w http.ResponseWriter, req *http.Request) {
+		w.Write([]byte("hello"))
+	})
+	st.cc.Write([]byte(data))
+	st.wantFrameType(FrameSettings)
+	st.wantFrameType(FrameWindowUpdate)
+	st.wantFrameType(FrameGoAway)
+	time.Sleep(GoAwayTimeout)
+	st.wantClosed()
 }
-
-type issue53Conn struct {
-	data    []byte
-	closed  bool
-	written bool
-}
-
-func (c *issue53Conn) Read(b []byte) (n int, err error) {
-	if len(c.data) == 0 {
-		return 0, io.EOF
-	}
-	n = copy(b, c.data)
-	c.data = c.data[n:]
-	return
-}
-
-func (c *issue53Conn) Write(b []byte) (n int, err error) {
-	c.written = true
-	return len(b), nil
-}
-
-func (c *issue53Conn) Close() error {
-	c.closed = true
-	return nil
-}
-
-func (c *issue53Conn) LocalAddr() net.Addr {
-	return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 49706}
-}
-func (c *issue53Conn) RemoteAddr() net.Addr {
-	return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 49706}
-}
-func (c *issue53Conn) SetDeadline(t time.Time) error      { return nil }
-func (c *issue53Conn) SetReadDeadline(t time.Time) error  { return nil }
-func (c *issue53Conn) SetWriteDeadline(t time.Time) error { return nil }
 
 // golang.org/issue/12895
 func TestConfigureServer(t *testing.T) { synctestTest(t, testConfigureServer) }
