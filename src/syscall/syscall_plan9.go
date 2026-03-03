@@ -14,6 +14,7 @@ package syscall
 import (
 	"errors"
 	"internal/oserror"
+	"internal/strconv"
 	"runtime"
 	"unsafe"
 )
@@ -29,6 +30,10 @@ const bitSize16 = 2
 // assume it exists. This lets portable code be written
 // without build-tagged files, using runtime.GOOS checks instead.
 type Errno uintptr
+
+func (e Errno) Error() string   { return "errno " + strconv.Itoa(int(e)) }
+func (e Errno) Temporary() bool { return false }
+func (e Errno) Timeout() bool   { return false }
 
 // ErrorString implements Error's String method by returning itself.
 //
