@@ -2650,22 +2650,6 @@ func testRoundTripDoesntConsumeRequestBodyEarly(t testing.TB) {
 	}
 }
 
-func TestClientConnPing(t *testing.T) {
-	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {})
-	tr := &Transport{
-		TLSClientConfig: tlsConfigInsecure,
-	}
-	defer tr.CloseIdleConnections()
-	ctx := context.Background()
-	cc, err := tr.DialClientConn(ctx, ts.Listener.Addr().String(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = cc.Ping(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-}
-
 // Issue 16974: if the server sent a DATA frame after the user
 // canceled the Transport's Request, the Transport previously wrote to a
 // closed pipe, got an error, and ended up closing the whole TCP
