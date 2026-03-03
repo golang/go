@@ -1256,6 +1256,7 @@ type certificateRequestMsgTLS13 struct {
 	supportedSignatureAlgorithms     []SignatureScheme
 	supportedSignatureAlgorithmsCert []SignatureScheme
 	certificateAuthorities           [][]byte
+	raTLSChallenge                   []byte
 }
 
 func (m *certificateRequestMsgTLS13) marshal() ([]byte, error) {
@@ -1310,6 +1311,12 @@ func (m *certificateRequestMsgTLS13) marshal() ([]byte, error) {
 							})
 						}
 					})
+				})
+			}
+			if len(m.raTLSChallenge) > 0 {
+				b.AddUint16(extensionRATLS)
+				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+					b.AddBytes(m.raTLSChallenge)
 				})
 			}
 		})
@@ -1380,6 +1387,13 @@ func (m *certificateRequestMsgTLS13) unmarshal(data []byte) bool {
 					return false
 				}
 				m.certificateAuthorities = append(m.certificateAuthorities, ca)
+			}
+		case extensionRATLS:
+			if len(extData) < 8 || len(extData) > 64 {
+				return false
+			}
+			if !extData.ReadBytes(&m.raTLSChallenge, len(extData)) {
+				return false
 			}
 		default:
 			// Ignore unknown extensions.

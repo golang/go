@@ -506,6 +506,13 @@ type CertificateRequestInfo struct {
 	// Version is the TLS version that was negotiated for this connection.
 	Version uint16
 
+	// RATLSChallenge contains the raw bytes of the RA-TLS challenge
+	// nonce sent by the server in the CertificateRequest message
+	// (extension type 0xffbb). The GetClientCertificate callback can
+	// use this nonce to bind it into a fresh RA-TLS certificate's
+	// report_data for bidirectional challenge-response attestation.
+	RATLSChallenge []byte
+
 	// ctx is the context of the handshake that is in progress.
 	ctx context.Context
 }
@@ -882,6 +889,16 @@ type Config struct {
 	// clients, see the EncryptedClientHelloConfigList field.
 	EncryptedClientHelloKeys []EncryptedClientHelloKey
 
+	// RATLSChallenge, if non-nil, is included as extension type 0xffbb
+	// in the TLS 1.3 CertificateRequest message sent to the client.
+	// The client receives it in CertificateRequestInfo.RATLSChallenge
+	// and can bind it into its RA-TLS certificate's report_data for
+	// bidirectional challenge-response attestation.
+	//
+	// For per-connection nonces, use GetConfigForClient to return a
+	// Config with a freshly generated RATLSChallenge each time.
+	RATLSChallenge []byte
+
 	// mutex protects sessionTicketKeys and autoSessionTicketKeys.
 	mutex sync.RWMutex
 	// sessionTicketKeys contains zero or more ticket keys. If set, it means
@@ -998,6 +1015,7 @@ func (c *Config) Clone() *Config {
 		EncryptedClientHelloConfigList:      c.EncryptedClientHelloConfigList,
 		EncryptedClientHelloRejectionVerify: c.EncryptedClientHelloRejectionVerify,
 		EncryptedClientHelloKeys:            c.EncryptedClientHelloKeys,
+		RATLSChallenge:                      c.RATLSChallenge,
 		sessionTicketKeys:                   c.sessionTicketKeys,
 		autoSessionTicketKeys:               c.autoSessionTicketKeys,
 	}
