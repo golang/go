@@ -511,7 +511,8 @@
 // It supports these flags:
 //
 //	  -diff
-//		instead of applying each fix, print the patch as a unified diff
+//		instead of applying each fix, print the patch as a unified diff;
+//		exit with a non-zero status if the diff is not empty
 //
 // The -fixtool=prog flag selects a different analysis tool with
 // alternative or additional fixers; see the documentation for go vet's
@@ -2056,7 +2057,8 @@
 //	  -fix
 //		instead of printing each diagnostic, apply its first fix (if any)
 //	  -diff
-//		instead of applying each fix, print the patch as a unified diff
+//		instead of applying each fix, print the patch as a unified diff;
+//		exit with a non-zero status if the diff is not empty
 //
 // The -vettool=prog flag selects a different analysis tool with
 // alternative or additional checks. For example, the 'shadow' analyzer
