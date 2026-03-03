@@ -493,7 +493,7 @@ func findnull(s *byte) int {
 	// Avoid IndexByteString on Plan 9 because it uses SSE instructions
 	// on x86 machines, and those are classified as floating point instructions,
 	// which are illegal in a note handler.
-	if GOOS == "plan9" {
+	if GOOS == "plan9" || GOOS == "ios" {
 		p := (*[maxAlloc/2 - 1]byte)(unsafe.Pointer(s))
 		l := 0
 		for p[l] != 0 {
