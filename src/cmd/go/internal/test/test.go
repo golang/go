@@ -1309,7 +1309,7 @@ func builderTest(loaderstate *modload.State, b *work.Builder, ctx context.Contex
 			Deps:       []*work.Action{buildAction},
 			Package:    p,
 			IgnoreFail: true, // run (prepare output) even if build failed
-			TryCache:   rta.c.tryCache,
+			TryCache:   rta.tryCache,
 		}
 		if writeCoverMetaAct != nil {
 			// If writeCoverMetaAct != nil, this indicates that our
@@ -1405,9 +1405,36 @@ type runTestActor struct {
 type runCache struct {
 	disableCache bool // cache should be disabled for this run
 
-	buf *bytes.Buffer
-	id1 cache.ActionID
-	id2 cache.ActionID
+	buf     *bytes.Buffer
+	id1     cache.ActionID
+	id2     cache.ActionID
+	covMeta cache.ActionID // BuildActionID of writeCoverMetaAct, for invalidating coverage profiles
+}
+
+// tryCache intercepts the cache check to include coverage metadata in the cache key.
+func (r *runTestActor) tryCache(b *work.Builder, a *work.Action, linkAction *work.Action) bool {
+	// If we have a writeCoverMetaAct, hash the BuildActionIDs of its dependencies.
+	// These dependencies are the compilation actions for all covered packages.
+	// This ensures coverage profiles are invalidated when any source file in the covered packages changes.
+	if r.writeCoverMetaAct != nil {
+		if len(r.writeCoverMetaAct.Deps) > 0 {
+			h := cache.NewHash("covermeta")
+			var ids []string
+			for _, dep := range r.writeCoverMetaAct.Deps {
+				id := dep.BuildActionID()
+				if id != "" {
+					ids = append(ids, id)
+				}
+			}
+			if len(ids) > 0 {
+				for _, id := range ids {
+					fmt.Fprintf(h, " %s", id)
+				}
+				r.c.covMeta = h.Sum()
+			}
+		}
+	}
+	return r.c.tryCache(b, a, linkAction)
 }
 
 func coverProfTempFile(a *work.Action) string {
@@ -1906,7 +1933,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 	// Merge cached cover profile data to cover profile.
 	if testCoverProfile != "" {
 		// Specifically ignore entry as it will be the same as above.
-		cpData, _, err := cache.GetFile(cache.Default(), coverProfileAndInputKey(testID, testInputsID))
+		cpData, _, err := cache.GetFile(cache.Default(), coverProfileAndInputKey(testID, testInputsID, c.covMeta))
 		if err != nil {
 			if cache.DebugTest {
 				fmt.Fprintf(os.Stderr, "testcache: %s: cached cover profile missing: %v\n", a.Package.ImportPath, err)
@@ -2104,9 +2131,17 @@ func testAndInputKey(testID, testInputsID cache.ActionID) cache.ActionID {
 	return cache.Subkey(testID, fmt.Sprintf("inputs:%x", testInputsID))
 }
 
-// coverProfileAndInputKey returns the "coverprofile" cache key for the pair (testID, testInputsID).
-func coverProfileAndInputKey(testID, testInputsID cache.ActionID) cache.ActionID {
-	return cache.Subkey(testAndInputKey(testID, testInputsID), "coverprofile")
+// coverProfileAndInputKey returns the "coverprofile" cache key for (testID, testInputsID, covMetaID).
+// If covMetaID is non-zero, it is included in the hash to ensure coverage profiles are invalidated
+// when the coverage metadata changes (e.g., when source files in covered packages are modified).
+func coverProfileAndInputKey(testID, testInputsID, covMetaID cache.ActionID) cache.ActionID {
+	h := cache.NewHash("coverprofile")
+	testAndInputs := testAndInputKey(testID, testInputsID)
+	h.Write(testAndInputs[:])
+	if covMetaID != (cache.ActionID{}) {
+		h.Write(covMetaID[:])
+	}
+	return h.Sum()
 }
 
 func (c *runCache) saveOutput(a *work.Action) {
@@ -2147,7 +2182,7 @@ func (c *runCache) saveOutput(a *work.Action) {
 		cache.PutNoVerify(cache.Default(), c.id1, bytes.NewReader(testlog))
 		cache.PutNoVerify(cache.Default(), testAndInputKey(c.id1, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
 		if coverProfile != nil {
-			cache.PutNoVerify(cache.Default(), coverProfileAndInputKey(c.id1, testInputsID), bytes.NewReader(coverProfile))
+			cache.PutNoVerify(cache.Default(), coverProfileAndInputKey(c.id1, testInputsID, c.covMeta), bytes.NewReader(coverProfile))
 		}
 	}
 	if c.id2 != (cache.ActionID{}) {
@@ -2157,7 +2192,7 @@ func (c *runCache) saveOutput(a *work.Action) {
 		cache.PutNoVerify(cache.Default(), c.id2, bytes.NewReader(testlog))
 		cache.PutNoVerify(cache.Default(), testAndInputKey(c.id2, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
 		if coverProfile != nil {
-			cache.PutNoVerify(cache.Default(), coverProfileAndInputKey(c.id2, testInputsID), bytes.NewReader(coverProfile))
+			cache.PutNoVerify(cache.Default(), coverProfileAndInputKey(c.id2, testInputsID, c.covMeta), bytes.NewReader(coverProfile))
 		}
 	}
 }
