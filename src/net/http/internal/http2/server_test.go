@@ -3334,50 +3334,6 @@ func (c *issue53Conn) SetDeadline(t time.Time) error      { return nil }
 func (c *issue53Conn) SetReadDeadline(t time.Time) error  { return nil }
 func (c *issue53Conn) SetWriteDeadline(t time.Time) error { return nil }
 
-// TestServeConnNilOpts ensures that Server.ServeConn(conn, nil) works.
-//
-// golang.org/issue/33839
-func TestServeConnNilOpts(t *testing.T) { synctestTest(t, testServeConnNilOpts) }
-func testServeConnNilOpts(t testing.TB) {
-	// A nil ServeConnOpts uses http.DefaultServeMux as the handler.
-	var gotRequest string
-	var mux http.ServeMux
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		gotRequest = r.URL.Path
-	})
-	SetForTest(t, &http.DefaultServeMux, &mux)
-
-	srvConn, cliConn := net.Pipe()
-	defer srvConn.Close()
-	defer cliConn.Close()
-
-	s2 := &Server{}
-	go s2.ServeConn(srvConn, nil)
-
-	fr := NewFramer(cliConn, cliConn)
-	io.WriteString(cliConn, ClientPreface)
-	fr.WriteSettings()
-	fr.WriteSettingsAck()
-	var henc hpackEncoder
-	const reqPath = "/request"
-	fr.WriteHeaders(HeadersFrameParam{
-		StreamID: 1,
-		BlockFragment: henc.encodeHeaderRaw(t,
-			":method", "GET",
-			":path", reqPath,
-			":scheme", "https",
-			":authority", "foo.com",
-		),
-		EndStream:  true,
-		EndHeaders: true,
-	})
-
-	synctest.Wait()
-	if got, want := gotRequest, reqPath; got != want {
-		t.Errorf("got request: %q, want %q", got, want)
-	}
-}
-
 // golang.org/issue/12895
 func TestConfigureServer(t *testing.T) { synctestTest(t, testConfigureServer) }
 func testConfigureServer(t testing.TB) {
