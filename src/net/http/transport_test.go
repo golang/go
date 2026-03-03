@@ -5655,11 +5655,7 @@ timeoutLoop:
 		c := &Client{Transport: tr}
 
 		idleConns := func() []string {
-			if mode == http2Mode {
-				return tr.IdleConnStrsForTesting_h2()
-			} else {
-				return tr.IdleConnStrsForTesting()
-			}
+			return tr.IdleConnStrsForTesting()
 		}
 
 		var conn string

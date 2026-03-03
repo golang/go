@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"sort"
 	"strconv"
@@ -43,6 +42,8 @@ var (
 	//
 	// Issue #71128.
 	disableExtendedConnectProtocol = true
+
+	inTests = false
 )
 
 func init() {
@@ -224,11 +225,6 @@ func httpCodeString(code int) string {
 	return strconv.Itoa(code)
 }
 
-// from pkg io
-type stringWriter interface {
-	WriteString(s string) (n int, err error)
-}
-
 // A closeWaiter is like a sync.WaitGroup but only goes 1 to 0 (open to closed).
 type closeWaiter chan struct{}
 
@@ -394,7 +390,7 @@ func (s *sorter) Less(i, j int) bool { return s.v[i] < s.v[j] }
 //
 // The returned slice is only valid until s used again or returned to
 // its pool.
-func (s *sorter) Keys(h http.Header) []string {
+func (s *sorter) Keys(h Header) []string {
 	keys := s.v[:0]
 	for k := range h {
 		keys = append(keys, k)

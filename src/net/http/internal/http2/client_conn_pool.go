@@ -10,7 +10,6 @@ import (
 	"context"
 	"errors"
 	"net"
-	"net/http"
 	"sync"
 )
 
@@ -21,8 +20,8 @@ type ClientConnPool interface {
 	// returned ClientConn accounts for the upcoming RoundTrip
 	// call, so the caller should not omit it. If the caller needs
 	// to, ClientConn.RoundTrip can be called with a bogus
-	// new(http.Request) to release the stream reservation.
-	GetClientConn(req *http.Request, addr string) (*ClientConn, error)
+	// new(ClientRequest) to release the stream reservation.
+	GetClientConn(req *ClientRequest, addr string) (*ClientConn, error)
 	MarkDead(*ClientConn)
 }
 
@@ -51,7 +50,7 @@ type clientConnPool struct {
 	addConnCalls map[string]*addConnCall // in-flight addConnIfNeeded calls
 }
 
-func (p *clientConnPool) GetClientConn(req *http.Request, addr string) (*ClientConn, error) {
+func (p *clientConnPool) GetClientConn(req *ClientRequest, addr string) (*ClientConn, error) {
 	return p.getClientConn(req, addr, dialOnMiss)
 }
 
@@ -60,13 +59,13 @@ const (
 	noDialOnMiss = false
 )
 
-func (p *clientConnPool) getClientConn(req *http.Request, addr string, dialOnMiss bool) (*ClientConn, error) {
+func (p *clientConnPool) getClientConn(req *ClientRequest, addr string, dialOnMiss bool) (*ClientConn, error) {
 	// TODO(dneil): Dial a new connection when t.DisableKeepAlives is set?
 	if isConnectionCloseRequest(req) && dialOnMiss {
 		// It gets its own connection.
 		traceGetConn(req, addr)
 		const singleUse = true
-		cc, err := p.t.dialClientConn(req.Context(), addr, singleUse)
+		cc, err := p.t.dialClientConn(req.Context, addr, singleUse)
 		if err != nil {
 			return nil, err
 		}
@@ -92,7 +91,7 @@ func (p *clientConnPool) getClientConn(req *http.Request, addr string, dialOnMis
 			return nil, ErrNoCachedConn
 		}
 		traceGetConn(req, addr)
-		call := p.getStartDialLocked(req.Context(), addr)
+		call := p.getStartDialLocked(req.Context, addr)
 		p.mu.Unlock()
 		<-call.done
 		if shouldRetryDial(call, req) {
@@ -195,7 +194,7 @@ type addConnCall struct {
 }
 
 func (c *addConnCall) run(t *Transport, key string, nc net.Conn) {
-	cc, err := t.NewClientConn(nc)
+	cc, err := t.newClientConn(nc, t.disableKeepAlives(), nil)
 
 	p := c.p
 	p.mu.Lock()
@@ -281,7 +280,7 @@ func filterOutClientConn(in []*ClientConn, exclude *ClientConn) []*ClientConn {
 // connection instead.
 type noDialClientConnPool struct{ *clientConnPool }
 
-func (p noDialClientConnPool) GetClientConn(req *http.Request, addr string) (*ClientConn, error) {
+func (p noDialClientConnPool) GetClientConn(req *ClientRequest, addr string) (*ClientConn, error) {
 	return p.getClientConn(req, addr, noDialOnMiss)
 }
 
@@ -289,12 +288,12 @@ func (p noDialClientConnPool) GetClientConn(req *http.Request, addr string) (*Cl
 // retry dialing after the call finished unsuccessfully, for example
 // if the dial was canceled because of a context cancellation or
 // deadline expiry.
-func shouldRetryDial(call *dialCall, req *http.Request) bool {
+func shouldRetryDial(call *dialCall, req *ClientRequest) bool {
 	if call.err == nil {
 		// No error, no need to retry
 		return false
 	}
-	if call.ctx == req.Context() {
+	if call.ctx == req.Context {
 		// If the call has the same context as the request, the dial
 		// should not be retried, since any cancellation will have come
 		// from this request.

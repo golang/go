@@ -7,6 +7,7 @@ package http2
 import (
 	"errors"
 	"fmt"
+	"reflect"
 )
 
 // An ErrCode is an unsigned 32-bit error code as defined in the HTTP/2 spec.
@@ -88,6 +89,33 @@ func (e StreamError) Error() string {
 		return fmt.Sprintf("stream error: stream ID %d; %v; %v", e.StreamID, e.Code, e.Cause)
 	}
 	return fmt.Sprintf("stream error: stream ID %d; %v", e.StreamID, e.Code)
+}
+
+// This As function permits converting a StreamError into a x/net/http2.StreamError.
+func (e StreamError) As(target any) bool {
+	dst := reflect.ValueOf(target).Elem()
+	dstType := dst.Type()
+	if dstType.Kind() != reflect.Struct {
+		return false
+	}
+	src := reflect.ValueOf(e)
+	srcType := src.Type()
+	numField := srcType.NumField()
+	if dstType.NumField() != numField {
+		return false
+	}
+	for i := 0; i < numField; i++ {
+		sf := srcType.Field(i)
+		df := dstType.Field(i)
+		if sf.Name != df.Name || !sf.Type.ConvertibleTo(df.Type) {
+			return false
+		}
+	}
+	for i := 0; i < numField; i++ {
+		df := dst.Field(i)
+		df.Set(src.Field(i).Convert(df.Type()))
+	}
+	return true
 }
 
 // 6.9.1 The Flow Control Window

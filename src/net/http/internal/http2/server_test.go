@@ -30,7 +30,9 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+	_ "unsafe" // for go:linkname
 
+	"net/http/internal/http2"
 	. "net/http/internal/http2"
 	"net/http/internal/testcert"
 
@@ -79,6 +81,7 @@ type serverTester struct {
 	logFilter    []string   // substrings to filter out
 	scMu         sync.Mutex // guards sc
 	sc           *ServerConn
+	wrotePreface bool
 	testConnFramer
 
 	callsMu sync.Mutex
@@ -125,7 +128,6 @@ func newTestServer(t testing.TB, handler http.HandlerFunc, opts ...interface{}) 
 	ts.EnableHTTP2 = true
 	ts.Config.ErrorLog = log.New(twriter{t: t}, "", log.LstdFlags)
 	ts.Config.Protocols = protocols("h2")
-	h2server := new(Server)
 	for _, opt := range opts {
 		switch v := opt.(type) {
 		case func(*httptest.Server):
@@ -141,7 +143,6 @@ func newTestServer(t testing.TB, handler http.HandlerFunc, opts ...interface{}) 
 			t.Fatalf("unknown newTestServer option type %T", v)
 		}
 	}
-	ConfigureServer(ts.Config, h2server)
 
 	if ts.Config.Protocols.HTTP2() {
 		ts.TLS = testServerTLSConfig
@@ -176,12 +177,7 @@ func newServerTester(t testing.TB, handler http.HandlerFunc, opts ...interface{}
 	t.Helper()
 
 	h1server := &http.Server{}
-	h2server := &Server{}
-	tlsState := tls.ConnectionState{
-		Version:     tls.VersionTLS13,
-		ServerName:  "go.dev",
-		CipherSuite: tls.TLS_AES_128_GCM_SHA256,
-	}
+	var tlsState *tls.ConnectionState
 	for _, opt := range opts {
 		switch v := opt.(type) {
 		case func(*http.Server):
@@ -192,21 +188,51 @@ func newServerTester(t testing.TB, handler http.HandlerFunc, opts ...interface{}
 			}
 			v(h1server.HTTP2)
 		case func(*tls.ConnectionState):
-			v(&tlsState)
+			if tlsState == nil {
+				tlsState = &tls.ConnectionState{
+					Version:     tls.VersionTLS13,
+					ServerName:  "go.dev",
+					CipherSuite: tls.TLS_AES_128_GCM_SHA256,
+				}
+			}
+			v(tlsState)
 		default:
 			t.Fatalf("unknown newServerTester option type %T", v)
 		}
 	}
-	ConfigureServer(h1server, h2server)
 
-	cli, srv := synctestNetPipe()
-	cli.SetReadDeadline(time.Now())
+	tlsConfig := h1server.TLSConfig
+	if tlsConfig == nil {
+		cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tlsConfig = &tls.Config{
+			Certificates:       []tls.Certificate{cert},
+			InsecureSkipVerify: true,
+			NextProtos:         []string{"h2"},
+		}
+		h1server.TLSConfig = tlsConfig
+	}
+
+	var cli, srv net.Conn
+
+	cliPipe, srvPipe := synctestNetPipe()
+
+	if h1server.Protocols != nil && h1server.Protocols.UnencryptedHTTP2() {
+		cli, srv = cliPipe, srvPipe
+	} else {
+		cli = tls.Client(cliPipe, &tls.Config{
+			InsecureSkipVerify: true,
+			NextProtos:         []string{"h2"},
+		})
+		srv = tls.Server(srvPipe, tlsConfig)
+	}
 
 	st := &serverTester{
 		t:        t,
 		cc:       cli,
 		h1server: h1server,
-		h2server: h2server,
 	}
 	st.hpackEnc = hpack.NewEncoder(&st.headerBuf)
 	if h1server.ErrorLog == nil {
@@ -224,23 +250,42 @@ func newServerTester(t testing.TB, handler http.HandlerFunc, opts ...interface{}
 	})
 
 	connc := make(chan *ServerConn)
-	go func() {
-		h2server.TestServeConn(&netConnWithConnectionState{
-			Conn:  srv,
-			state: tlsState,
-		}, &ServeConnOpts{
-			Handler:    handler,
-			BaseConfig: h1server,
-		}, func(sc *ServerConn) {
+	h1server.ConnContext = func(ctx context.Context, conn net.Conn) context.Context {
+		ctx = context.WithValue(ctx, NewConnContextKey, func(sc *ServerConn) {
 			connc <- sc
 		})
+		if tlsState != nil {
+			ctx = context.WithValue(ctx, ConnectionStateContextKey, func() tls.ConnectionState {
+				return *tlsState
+			})
+		}
+		return ctx
+	}
+	go func() {
+		li := newOneConnListener(srv)
+		t.Cleanup(func() {
+			li.Close()
+		})
+		h1server.Serve(li)
 	}()
+	if cliTLS, ok := cli.(*tls.Conn); ok {
+		if err := cliTLS.Handshake(); err != nil {
+			t.Fatalf("client TLS handshake: %v", err)
+		}
+		cliTLS.SetReadDeadline(time.Now())
+	} else {
+		// Confusing but difficult to fix: Preface must be written
+		// before the conn appears on connc.
+		st.writePreface()
+		st.wrotePreface = true
+		cliPipe.SetReadDeadline(time.Now())
+	}
 	st.sc = <-connc
 
 	st.fr = NewFramer(st.cc, st.cc)
 	st.testConnFramer = testConnFramer{
 		t:   t,
-		fr:  NewFramer(st.cc, st.cc),
+		fr:  NewFramer(cli, cli),
 		dec: hpack.NewDecoder(InitialHeaderTableSize, nil),
 	}
 	synctest.Wait()
@@ -253,6 +298,10 @@ type netConnWithConnectionState struct {
 }
 
 func (c *netConnWithConnectionState) ConnectionState() tls.ConnectionState {
+	return c.state
+}
+
+func (c *netConnWithConnectionState) HandshakeContext() tls.ConnectionState {
 	return c.state
 }
 
@@ -336,8 +385,6 @@ func newServerTesterWithRealConn(t testing.TB, handler http.HandlerFunc, opts ..
 			t.Fatalf("unknown newServerTester option type %T", v)
 		}
 	}
-
-	ConfigureServer(ts.Config, h2server)
 
 	// Go 1.22 changes the default minimum TLS version to TLS 1.2,
 	// in order to properly test cases where we want to reject low
@@ -514,6 +561,9 @@ func (st *serverTester) greetAndCheckSettings(checkSetting func(s Setting) error
 }
 
 func (st *serverTester) writePreface() {
+	if st.wrotePreface {
+		return
+	}
 	n, err := st.cc.Write([]byte(ClientPreface))
 	if err != nil {
 		st.t.Fatalf("Error writing client preface: %v", err)
@@ -1256,7 +1306,7 @@ func testServer_MaxQueuedControlFrames(t testing.TB) {
 	st := newServerTester(t, nil)
 	st.greet()
 
-	st.cc.(*synctestNetConn).SetReadBufferSize(0) // all writes block
+	st.cc.(*tls.Conn).NetConn().(*synctestNetConn).SetReadBufferSize(0) // all writes block
 
 	// Send maxQueuedControlFrames pings, plus a few extra
 	// to account for ones that enter the server's write buffer.
@@ -1269,7 +1319,7 @@ func testServer_MaxQueuedControlFrames(t testing.TB) {
 
 	// Unblock the server.
 	// It should have closed the connection after exceeding the control frame limit.
-	st.cc.(*synctestNetConn).SetReadBufferSize(math.MaxInt)
+	st.cc.(*tls.Conn).NetConn().(*synctestNetConn).SetReadBufferSize(math.MaxInt)
 
 	st.advance(GoAwayTimeout)
 	// Some frames may have persisted in the server's buffers.
@@ -3270,8 +3320,6 @@ func benchmarkServerToClientStream(b *testing.B, newServerOpts ...interface{}) {
 	})
 }
 
-// go-fuzz bug, originally reported at https://github.com/bradfitz/http2/issues/53
-// Verify we don't hang.
 func TestIssue53(t *testing.T) { synctestTest(t, testIssue53) }
 func testIssue53(t testing.TB) {
 	const data = "PRI * HTTP/2.0\r\n\r\nSM" +
@@ -3279,6 +3327,7 @@ func testIssue53(t testing.TB) {
 	st := newServerTester(t, func(w http.ResponseWriter, req *http.Request) {
 		w.Write([]byte("hello"))
 	})
+
 	st.cc.Write([]byte(data))
 	st.wantFrameType(FrameSettings)
 	st.wantFrameType(FrameWindowUpdate)
@@ -3287,17 +3336,12 @@ func testIssue53(t testing.TB) {
 	st.wantClosed()
 }
 
-// golang.org/issue/12895
-func TestConfigureServer(t *testing.T) { synctestTest(t, testConfigureServer) }
-func testConfigureServer(t testing.TB) {
+func TestServerServeNoBannedCiphers(t *testing.T) {
 	tests := []struct {
 		name      string
 		tlsConfig *tls.Config
 		wantErr   string
 	}{
-		{
-			name: "empty server",
-		},
 		{
 			name:      "empty CipherSuites",
 			tlsConfig: &tls.Config{},
@@ -3342,9 +3386,15 @@ func testConfigureServer(t testing.TB) {
 		},
 	}
 	for _, tt := range tests {
-		srv := &http.Server{TLSConfig: tt.tlsConfig}
-		err := ConfigureServer(srv, nil)
-		if (err != nil) != (tt.wantErr != "") {
+		tt.tlsConfig.Certificates = testServerTLSConfig.Certificates
+
+		srv := &http.Server{
+			TLSConfig: tt.tlsConfig,
+			Protocols: protocols("h2"),
+		}
+
+		err := srv.ServeTLS(errListener{}, "", "")
+		if (err != net.ErrClosed) != (tt.wantErr != "") {
 			if tt.wantErr != "" {
 				t.Errorf("%s: success, but want error", tt.name)
 			} else {
@@ -3359,6 +3409,12 @@ func testConfigureServer(t testing.TB) {
 		}
 	}
 }
+
+type errListener struct{}
+
+func (li errListener) Accept() (net.Conn, error) { return nil, net.ErrClosed }
+func (li errListener) Close() error              { return nil }
+func (li errListener) Addr() net.Addr            { return nil }
 
 func TestServerNoAutoContentLengthOnHead(t *testing.T) {
 	synctestTest(t, testServerNoAutoContentLengthOnHead)
@@ -4024,7 +4080,12 @@ func testServerGracefulShutdown(t testing.TB) {
 	st.bodylessReq1()
 
 	st.sync()
-	st.h1server.Shutdown(context.Background())
+
+	shutdownc := make(chan struct{})
+	go func() {
+		defer close(shutdownc)
+		st.h1server.Shutdown(context.Background())
+	}()
 
 	st.wantGoAway(1, ErrCodeNo)
 
@@ -4045,6 +4106,9 @@ func testServerGracefulShutdown(t testing.TB) {
 	if n != 0 || err == nil {
 		t.Errorf("Read = %v, %v; want 0, non-nil", n, err)
 	}
+
+	// Shutdown happens after GoAwayTimeout and net/http.Server polling delay.
+	<-shutdownc
 }
 
 // Issue 31753: don't sniff when Content-Encoding is set
@@ -5171,6 +5235,15 @@ func testServerRFC9218PriorityAware(t testing.TB) {
 	}
 }
 
+func TestConsistentConstants(t *testing.T) {
+	if h1, h2 := http.DefaultMaxHeaderBytes, http2.DefaultMaxHeaderBytes; h1 != h2 {
+		t.Errorf("DefaultMaxHeaderBytes: http (%v) != http2 (%v)", h1, h2)
+	}
+	if h1, h2 := http.TimeFormat, http2.TimeFormat; h1 != h2 {
+		t.Errorf("TimeFormat: http (%v) != http2 (%v)", h1, h2)
+	}
+}
+
 var (
 	testServerTLSConfig *tls.Config
 	testClientTLSConfig *tls.Config
@@ -5215,3 +5288,6 @@ func protocols(protos ...string) *http.Protocols {
 	}
 	return p
 }
+
+//go:linkname transportFromH1Transport
+func transportFromH1Transport(tr *http.Transport) any

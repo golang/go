@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"log"
-	"net/http"
 	"net/http/internal/httpcommon"
 	"net/url"
 
@@ -189,9 +188,9 @@ func splitHeaderBlock(ctx writeContext, headerBlock []byte, fn func(ctx writeCon
 // for HTTP response headers or trailers from a server handler.
 type writeResHeaders struct {
 	streamID    uint32
-	httpResCode int         // 0 means no ":status" line
-	h           http.Header // may be nil
-	trailers    []string    // if non-nil, which keys of h to write. nil means all.
+	httpResCode int      // 0 means no ":status" line
+	h           Header   // may be nil
+	trailers    []string // if non-nil, which keys of h to write. nil means all.
 	endStream   bool
 
 	date          string
@@ -263,7 +262,7 @@ type writePushPromise struct {
 	streamID uint32   // pusher stream
 	method   string   // for :method
 	url      *url.URL // for :scheme, :authority, :path
-	h        http.Header
+	h        Header
 
 	// Creates an ID for a pushed stream. This runs on serveG just before
 	// the frame is written. The returned ID is copied to promisedID.
@@ -341,7 +340,7 @@ func (wu writeWindowUpdate) writeFrame(ctx writeContext) error {
 
 // encodeHeaders encodes an http.Header. If keys is not nil, then (k, h[k])
 // is encoded only if k is in keys.
-func encodeHeaders(enc *hpack.Encoder, h http.Header, keys []string) {
+func encodeHeaders(enc *hpack.Encoder, h Header, keys []string) {
 	if keys == nil {
 		sorter := sorterPool.Get().(*sorter)
 		// Using defer here, since the returned keys from the

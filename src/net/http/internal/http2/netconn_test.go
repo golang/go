@@ -334,3 +334,36 @@ func (t *deadlineContext) setDeadline(deadline time.Time) {
 		t.cancel = nil
 	})
 }
+
+type oneConnListener struct {
+	ch   chan net.Conn
+	err  error
+	once sync.Once
+	addr net.Addr
+}
+
+func newOneConnListener(conn net.Conn) net.Listener {
+	ch := make(chan net.Conn, 1)
+	ch <- conn
+	return &oneConnListener{ch: ch}
+}
+
+func (li *oneConnListener) Accept() (net.Conn, error) {
+	c := <-li.ch
+	if c == nil {
+		return nil, li.err
+	}
+	return c, nil
+}
+
+func (li *oneConnListener) Close() error {
+	li.once.Do(func() {
+		li.err = errors.New("closed")
+		close(li.ch)
+	})
+	return nil
+}
+
+func (li *oneConnListener) Addr() net.Addr {
+	return li.addr
+}

@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"net/http"
 	"reflect"
 	"strings"
 	"testing"
@@ -25,27 +24,27 @@ func (panicReader) Close() error             { panic("unexpected Close") }
 
 func TestActualContentLength(t *testing.T) {
 	tests := []struct {
-		req  *http.Request
+		req  *ClientRequest
 		want int64
 	}{
 		// Verify we don't read from Body:
 		0: {
-			req:  &http.Request{Body: panicReader{}},
+			req:  &ClientRequest{Body: panicReader{}},
 			want: -1,
 		},
 		// nil Body means 0, regardless of ContentLength:
 		1: {
-			req:  &http.Request{Body: nil, ContentLength: 5},
+			req:  &ClientRequest{Body: nil, ContentLength: 5},
 			want: 0,
 		},
 		// ContentLength is used if set.
 		2: {
-			req:  &http.Request{Body: panicReader{}, ContentLength: 5},
+			req:  &ClientRequest{Body: panicReader{}, ContentLength: 5},
 			want: 5,
 		},
 		// http.NoBody means 0, not -1.
 		3: {
-			req:  &http.Request{Body: http.NoBody},
+			req:  &ClientRequest{Body: NoBody},
 			want: 0,
 		},
 	}
@@ -200,7 +199,7 @@ func TestTransportUsesGetBodyWhenPresent(t *testing.T) {
 	someBody := func() io.ReadCloser {
 		return struct{ io.ReadCloser }{io.NopCloser(bytes.NewReader(nil))}
 	}
-	req := &http.Request{
+	req := &ClientRequest{
 		Body: someBody(),
 		GetBody: func() (io.ReadCloser, error) {
 			calls++
@@ -229,28 +228,6 @@ func TestTransportUsesGetBodyWhenPresent(t *testing.T) {
 	}
 	if req2.Body == req.Body {
 		t.Error("req2.Body unchanged")
-	}
-}
-
-// Issue 22891: verify that the "https" altproto we register with net/http
-// is a certain type: a struct with one field with our *http2.Transport in it.
-func TestNoDialH2RoundTripperType(t *testing.T) {
-	t1 := new(http.Transport)
-	t2 := new(Transport)
-	rt := noDialH2RoundTripper{t2}
-	if err := registerHTTPSProtocol(t1, rt); err != nil {
-		t.Fatal(err)
-	}
-	rv := reflect.ValueOf(rt)
-	if rv.Type().Kind() != reflect.Struct {
-		t.Fatalf("kind = %v; net/http expects struct", rv.Type().Kind())
-	}
-	if n := rv.Type().NumField(); n != 1 {
-		t.Fatalf("fields = %d; net/http expects 1", n)
-	}
-	v := rv.Field(0)
-	if _, ok := v.Interface().(*Transport); !ok {
-		t.Fatalf("wrong kind %T; want *Transport", v.Interface())
 	}
 }
 

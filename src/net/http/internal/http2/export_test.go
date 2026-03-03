@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/http"
 	"net/textproto"
 	"sync"
 	"testing"
@@ -18,6 +17,10 @@ import (
 
 	"golang.org/x/net/http2/hpack"
 )
+
+func init() {
+	inTests = true
+}
 
 const (
 	DefaultMaxReadFrameSize     = defaultMaxReadFrameSize
@@ -68,7 +71,7 @@ func (sc *serverConn) TestFlowControlConsumed() (consumed int32) {
 	donec := make(chan struct{})
 	sc.sendServeMsg(func(sc *serverConn) {
 		defer close(donec)
-		initial := conf.MaxUploadBufferPerConnection
+		initial := int32(conf.MaxReceiveBufferPerConnection)
 		avail := sc.inflow.avail + sc.inflow.unsent
 		consumed = initial - avail
 	})
@@ -117,16 +120,10 @@ func (t *Transport) TestSetNewClientConnHook(f func(*ClientConn)) {
 	}
 }
 
-func (t *Transport) TestTransport() *http.Transport {
-	if t.t1 == nil {
-		t.t1 = &http.Transport{}
-	}
-	return t.t1
-}
-
 func (cc *ClientConn) TestNetConn() net.Conn     { return cc.tconn }
 func (cc *ClientConn) TestSetNetConn(c net.Conn) { cc.tconn = c }
-func (cc *ClientConn) TestRoundTrip(req *http.Request, f func(stremaID uint32)) (*http.Response, error) {
+
+func (cc *ClientConn) TestRoundTrip(req *ClientRequest, f func(stremaID uint32)) (*ClientResponse, error) {
 	return cc.roundTrip(req, func(cs *clientStream) {
 		f(cs.ID)
 	})
@@ -237,6 +234,6 @@ func NewNoDialClientConnPool() ClientConnPool {
 	return noDialClientConnPool{new(clientConnPool)}
 }
 
-func EncodeRequestHeaders(req *http.Request, addGzipHeader bool, peerMaxHeaderListSize uint64, headerf func(name, value string)) (httpcommon.EncodeHeadersResult, error) {
+func EncodeRequestHeaders(req *ClientRequest, addGzipHeader bool, peerMaxHeaderListSize uint64, headerf func(name, value string)) (httpcommon.EncodeHeadersResult, error) {
 	return encodeRequestHeaders(req, addGzipHeader, peerMaxHeaderListSize, headerf)
 }

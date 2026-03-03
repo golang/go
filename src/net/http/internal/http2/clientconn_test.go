@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"internal/gate"
 	"io"
+	"net"
 	"net/http"
 	. "net/http/internal/http2"
 	"reflect"
@@ -21,6 +22,7 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+	_ "unsafe" // for go:linkname
 
 	"golang.org/x/net/http2/hpack"
 )
@@ -116,26 +118,11 @@ func newTestClientConnFromClientConn(t testing.TB, tr *Transport, cc *ClientConn
 		cc: cc,
 	}
 
-	// srv is the side controlled by the test.
-	var srv *synctestNetConn
-	if tconn := cc.TestNetConn(); tconn == nil {
-		// If cc.tconn is nil, we're being called with a new conn created by the
-		// Transport's client pool. This path skips dialing the server, and we
-		// create a test connection pair here.
-		var cli *synctestNetConn
-		cli, srv = synctestNetPipe()
-		cc.TestSetNetConn(cli)
-	} else {
-		// If cc.tconn is non-nil, we're in a test which provides a conn to the
-		// Transport via a TLSNextProto hook. Extract the test connection pair.
-		if tc, ok := tconn.(*tls.Conn); ok {
-			// Unwrap any *tls.Conn to the underlying net.Conn,
-			// to avoid dealing with encryption in tests.
-			tconn = tc.NetConn()
-			cc.TestSetNetConn(tconn)
-		}
-		srv = tconn.(*synctestNetConn).peer
-	}
+	// cli is the conn used by the client under test, srv is the side controlled by the test.
+	// We replace the conn being used by the client (possibly a *tls.Conn) with a new one,
+	// to avoid dealing with encryption in tests.
+	cli, srv := synctestNetPipe()
+	cc.TestSetNetConn(cli)
 
 	srv.SetReadDeadline(time.Now())
 	tc.netconn = srv
@@ -171,7 +158,8 @@ func newTestClientConn(t testing.TB, opts ...any) *testClientConn {
 
 	tt := newTestTransport(t, opts...)
 	const singleUse = false
-	_, err := tt.tr.TestNewClientConn(nil, singleUse, nil)
+	tr := transportFromH1Transport(tt.tr1).(*Transport)
+	_, err := tr.TestNewClientConn(nil, singleUse, nil)
 	if err != nil {
 		t.Fatalf("newClientConn: %v", err)
 	}
@@ -307,10 +295,48 @@ func (tc *testClientConn) roundTrip(req *http.Request) *testRoundTrip {
 	}
 	tc.roundtrips = append(tc.roundtrips, rt)
 	go func() {
+		// TODO: This duplicates too much of the net/http RoundTrip flow.
+		// We need to do that here because many of the http2 Transport tests
+		// rely on having a ClientConn to operate on.
+		//
+		// We should switch to using net/http.Transport.NewClientConn to create
+		// single-target client connections, and move any http2 tests which
+		// exercise pooling behavior into net/http.
 		defer close(rt.donec)
-		rt.resp, rt.respErr = tc.cc.TestRoundTrip(req, func(streamID uint32) {
-			rt.id.Store(streamID)
+		cresp := &http.Response{}
+		creq := &ClientRequest{
+			Context:       req.Context(),
+			Method:        req.Method,
+			URL:           req.URL,
+			Header:        Header(req.Header),
+			Trailer:       Header(req.Trailer),
+			Body:          req.Body,
+			Host:          req.Host,
+			GetBody:       req.GetBody,
+			ContentLength: req.ContentLength,
+			Cancel:        req.Cancel,
+			Close:         req.Close,
+			ResTrailer:    (*Header)(&cresp.Trailer),
+		}
+		resp, err := tc.cc.TestRoundTrip(creq, func(id uint32) {
+			rt.id.Store(id)
 		})
+		rt.respErr = err
+		if resp != nil {
+			cresp.Status = resp.Status + " " + http.StatusText(resp.StatusCode)
+			cresp.StatusCode = resp.StatusCode
+			cresp.Proto = "HTTP/2.0"
+			cresp.ProtoMajor = 2
+			cresp.ProtoMinor = 0
+			cresp.ContentLength = resp.ContentLength
+			cresp.Uncompressed = resp.Uncompressed
+			cresp.Header = http.Header(resp.Header)
+			cresp.Trailer = http.Header(resp.Trailer)
+			cresp.Body = resp.Body
+			cresp.TLS = resp.TLS
+			cresp.Request = req
+			rt.resp = cresp
+		}
 	}()
 	synctest.Wait()
 
@@ -493,8 +519,8 @@ func diffHeaders(got, want http.Header) string {
 // Tests that aren't specifically exercising RoundTrip's retry loop or connection pooling
 // should use testClientConn instead.
 type testTransport struct {
-	t  testing.TB
-	tr *Transport
+	t   testing.TB
+	tr1 *http.Transport
 
 	ccs []*testClientConn
 }
@@ -505,16 +531,33 @@ func newTestTransport(t testing.TB, opts ...any) *testTransport {
 		t: t,
 	}
 
-	tr := &Transport{}
+	tr1 := &http.Transport{
+		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+			// This connection will be replaced by newTestClientConnFromClientConn.
+			// net/http will perform a TLS handshake on it, though.
+			//
+			// TODO: We can simplify connection handling if we support
+			// returning a non-*tls.Conn from Transport.DialTLSContext,
+			// in which case we could have a DialTLSContext function that
+			// returns an unencrypted conn.
+			cli, srv := synctestNetPipe()
+			go func() {
+				tlsSrv := tls.Server(srv, testServerTLSConfig)
+				if err := tlsSrv.Handshake(); err != nil {
+					t.Errorf("unexpected TLS server handshake error: %v", err)
+				}
+			}()
+			return cli, nil
+		},
+		Protocols:       protocols("h2"),
+		TLSClientConfig: testClientTLSConfig,
+	}
 	for _, o := range opts {
 		switch o := o.(type) {
 		case nil:
 		case func(*http.Transport):
-			o(tr.TestTransport())
-		case *Transport:
-			tr = o
+			o(tr1)
 		case func(*http.HTTP2Config):
-			tr1 := tr.TestTransport()
 			if tr1.HTTP2 == nil {
 				tr1.HTTP2 = &http.HTTP2Config{}
 			}
@@ -523,10 +566,11 @@ func newTestTransport(t testing.TB, opts ...any) *testTransport {
 			t.Fatalf("unknown newTestTransport option type %T", o)
 		}
 	}
-	tt.tr = tr
+	tt.tr1 = tr1
 
-	tr.TestSetNewClientConnHook(func(cc *ClientConn) {
-		tc := newTestClientConnFromClientConn(t, tr, cc)
+	tr2 := transportFromH1Transport(tr1).(*Transport)
+	tr2.TestSetNewClientConnHook(func(cc *ClientConn) {
+		tc := newTestClientConnFromClientConn(t, tr2, cc)
 		tt.ccs = append(tt.ccs, tc)
 	})
 
@@ -552,20 +596,22 @@ func (tt *testTransport) getConn() *testClientConn {
 	}
 	tc := tt.ccs[0]
 	tt.ccs = tt.ccs[1:]
-	synctest.Wait()
 	tc.readClientPreface()
 	synctest.Wait()
 	return tc
 }
 
 func (tt *testTransport) roundTrip(req *http.Request) *testRoundTrip {
+	ctx, cancel := context.WithCancel(req.Context())
+	req = req.WithContext(ctx)
 	rt := &testRoundTrip{
-		t:     tt.t,
-		donec: make(chan struct{}),
+		t:      tt.t,
+		donec:  make(chan struct{}),
+		cancel: cancel,
 	}
 	go func() {
 		defer close(rt.donec)
-		rt.resp, rt.respErr = tt.tr.RoundTrip(req)
+		rt.resp, rt.respErr = tt.tr1.RoundTrip(req)
 	}()
 	synctest.Wait()
 

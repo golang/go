@@ -178,7 +178,7 @@ var optFakeNet = new(struct{})
 // The optFakeNet option configures the server and client to use a fake network implementation,
 // suitable for use in testing/synctest tests.
 func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *clientServerTest {
-	if mode == http2Mode {
+	if mode == http2Mode || mode == http2UnencryptedMode {
 		CondSkipHTTP2(t)
 	}
 	cst := &clientServerTest{
@@ -205,12 +205,6 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		cst.ts = httptest.NewUnstartedServer(h)
 	}
 
-	if mode == http2UnencryptedMode {
-		p := &Protocols{}
-		p.SetUnencryptedHTTP2(true)
-		cst.ts.Config.Protocols = p
-	}
-
 	for _, opt := range opts {
 		switch opt := opt.(type) {
 		case func(*Transport):
@@ -228,16 +222,23 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		cst.ts.Config.ErrorLog = log.New(testLogWriter{t}, "", 0)
 	}
 
+	p := &Protocols{}
+	if cst.ts.Config.Protocols == nil {
+		cst.ts.Config.Protocols = p
+	}
 	switch mode {
 	case http1Mode:
+		p.SetHTTP1(true)
 		cst.ts.Start()
 	case https1Mode:
+		p.SetHTTP1(true)
 		cst.ts.StartTLS()
 	case http2UnencryptedMode:
-		ExportHttp2ConfigureServer(cst.ts.Config, nil)
+		p.SetUnencryptedHTTP2(true)
 		cst.ts.Start()
 	case http2Mode:
-		ExportHttp2ConfigureServer(cst.ts.Config, nil)
+		p.SetHTTP2(true)
+		cst.ts.EnableHTTP2 = true
 		cst.ts.TLS = cst.ts.Config.TLSConfig
 		cst.ts.StartTLS()
 	default:
@@ -245,18 +246,10 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 	}
 	cst.c = cst.ts.Client()
 	cst.tr = cst.c.Transport.(*Transport)
-	if mode == http2Mode || mode == http2UnencryptedMode {
-		if err := ExportHttp2ConfigureTransport(cst.tr); err != nil {
-			t.Fatal(err)
-		}
-	}
 	for _, f := range transportFuncs {
 		f(cst.tr)
 	}
-
-	if mode == http2UnencryptedMode {
-		p := &Protocols{}
-		p.SetUnencryptedHTTP2(true)
+	if cst.tr.Protocols == nil {
 		cst.tr.Protocols = p
 	}
 
@@ -1163,10 +1156,9 @@ func testTransportDiscardsUnneededConns(t *testing.T, mode testMode) {
 			c := noteCloseConn{rc, func() { atomic.AddInt32(&numClose, 1) }}
 			return tls.Client(c, tlsConfig), nil
 		},
+		Protocols: &Protocols{},
 	}
-	if err := ExportHttp2ConfigureTransport(tr); err != nil {
-		t.Fatal(err)
-	}
+	tr.Protocols.SetHTTP2(true)
 	defer tr.CloseIdleConnections()
 
 	c := &Client{Transport: tr}
@@ -1724,6 +1716,16 @@ func TestH12_WebSocketUpgrade(t *testing.T) {
 				t.Errorf("%s: expected HTTP/1.1, got %q", proto, res.Proto)
 			}
 			res.Proto = "HTTP/IGNORE" // skip later checks that Proto must be 1.1 vs 2.0
+		},
+		Opts: []any{
+			func(s *Server) {
+				// Configure servers to support HTTP/1 and HTTP/2,
+				// so we can verify that we use HTTP/1
+				// even when HTTP/2 is an option.
+				s.Protocols = &Protocols{}
+				s.Protocols.SetHTTP1(true)
+				s.Protocols.SetHTTP2(true)
+			},
 		},
 	}.run(t)
 }

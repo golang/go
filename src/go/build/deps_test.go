@@ -662,8 +662,8 @@ var depsRules = `
 	mime/multipart,
 	log
 	< net/http/internal/httpcommon, net/http/internal/httpsfv
-	< net/http
-	< net/http/internal/http2;
+	< net/http/internal/http2
+	< net/http;
 
 	# HTTP-aware packages
 

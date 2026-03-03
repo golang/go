@@ -6,72 +6,52 @@ package http2
 
 import (
 	"math"
-	"net/http"
 	"time"
 )
 
-// http2Config is a package-internal version of net/http.HTTP2Config.
-//
-// http.HTTP2Config was added in Go 1.24.
-// When running with a version of net/http that includes HTTP2Config,
-// we merge the configuration with the fields in Transport or Server
-// to produce an http2Config.
-//
-// Zero valued fields in http2Config are interpreted as in the
-// net/http.HTTPConfig documentation.
-//
-// Precedence order for reconciling configurations is:
-//
-//   - Use the net/http.{Server,Transport}.HTTP2Config value, when non-zero.
-//   - Otherwise use the http2.{Server.Transport} value.
-//   - If the resulting value is zero or out of range, use a default.
-type http2Config struct {
-	MaxConcurrentStreams         uint32
-	StrictMaxConcurrentRequests  bool
-	MaxDecoderHeaderTableSize    uint32
-	MaxEncoderHeaderTableSize    uint32
-	MaxReadFrameSize             uint32
-	MaxUploadBufferPerConnection int32
-	MaxUploadBufferPerStream     int32
-	SendPingTimeout              time.Duration
-	PingTimeout                  time.Duration
-	WriteByteTimeout             time.Duration
-	PermitProhibitedCipherSuites bool
-	CountError                   func(errType string)
+// Config must be kept in sync with net/http.HTTP2Config.
+type Config struct {
+	MaxConcurrentStreams          int
+	StrictMaxConcurrentRequests   bool
+	MaxDecoderHeaderTableSize     int
+	MaxEncoderHeaderTableSize     int
+	MaxReadFrameSize              int
+	MaxReceiveBufferPerConnection int
+	MaxReceiveBufferPerStream     int
+	SendPingTimeout               time.Duration
+	PingTimeout                   time.Duration
+	WriteByteTimeout              time.Duration
+	PermitProhibitedCipherSuites  bool
+	CountError                    func(errType string)
 }
 
-// configFromServer merges configuration settings from
-// net/http.Server.HTTP2Config and http2.Server.
-func configFromServer(h1 *http.Server, h2 *Server) http2Config {
-	conf := http2Config{
-		MaxConcurrentStreams:         h2.MaxConcurrentStreams,
-		MaxEncoderHeaderTableSize:    h2.MaxEncoderHeaderTableSize,
-		MaxDecoderHeaderTableSize:    h2.MaxDecoderHeaderTableSize,
-		MaxReadFrameSize:             h2.MaxReadFrameSize,
-		MaxUploadBufferPerConnection: h2.MaxUploadBufferPerConnection,
-		MaxUploadBufferPerStream:     h2.MaxUploadBufferPerStream,
-		SendPingTimeout:              h2.ReadIdleTimeout,
-		PingTimeout:                  h2.PingTimeout,
-		WriteByteTimeout:             h2.WriteByteTimeout,
-		PermitProhibitedCipherSuites: h2.PermitProhibitedCipherSuites,
-		CountError:                   h2.CountError,
+func configFromServer(h1 ServerConfig, h2 *Server) Config {
+	conf := Config{
+		MaxConcurrentStreams:          int(h2.MaxConcurrentStreams),
+		MaxEncoderHeaderTableSize:     int(h2.MaxEncoderHeaderTableSize),
+		MaxDecoderHeaderTableSize:     int(h2.MaxDecoderHeaderTableSize),
+		MaxReadFrameSize:              int(h2.MaxReadFrameSize),
+		MaxReceiveBufferPerConnection: int(h2.MaxUploadBufferPerConnection),
+		MaxReceiveBufferPerStream:     int(h2.MaxUploadBufferPerStream),
+		SendPingTimeout:               h2.ReadIdleTimeout,
+		PingTimeout:                   h2.PingTimeout,
+		WriteByteTimeout:              h2.WriteByteTimeout,
+		PermitProhibitedCipherSuites:  h2.PermitProhibitedCipherSuites,
+		CountError:                    h2.CountError,
 	}
-	fillNetHTTPConfig(&conf, h1.HTTP2)
+	fillNetHTTPConfig(&conf, h1.HTTP2Config())
 	setConfigDefaults(&conf, true)
 	return conf
 }
 
-// configFromTransport merges configuration settings from h2 and h2.t1.HTTP2
-// (the net/http Transport).
-func configFromTransport(h2 *Transport) http2Config {
-	conf := http2Config{
-		StrictMaxConcurrentRequests: h2.StrictMaxConcurrentStreams,
-		MaxEncoderHeaderTableSize:   h2.MaxEncoderHeaderTableSize,
-		MaxDecoderHeaderTableSize:   h2.MaxDecoderHeaderTableSize,
-		MaxReadFrameSize:            h2.MaxReadFrameSize,
-		SendPingTimeout:             h2.ReadIdleTimeout,
-		PingTimeout:                 h2.PingTimeout,
-		WriteByteTimeout:            h2.WriteByteTimeout,
+func configFromTransport(h2 *Transport) Config {
+	conf := Config{
+		MaxEncoderHeaderTableSize: int(h2.MaxEncoderHeaderTableSize),
+		MaxDecoderHeaderTableSize: int(h2.MaxDecoderHeaderTableSize),
+		MaxReadFrameSize:          int(h2.MaxReadFrameSize),
+		SendPingTimeout:           h2.ReadIdleTimeout,
+		PingTimeout:               h2.PingTimeout,
+		WriteByteTimeout:          h2.WriteByteTimeout,
 	}
 
 	// Unlike most config fields, where out-of-range values revert to the default,
@@ -83,8 +63,9 @@ func configFromTransport(h2 *Transport) http2Config {
 	}
 
 	if h2.t1 != nil {
-		fillNetHTTPConfig(&conf, h2.t1.HTTP2)
+		fillNetHTTPConfig(&conf, h2.t1.HTTP2Config())
 	}
+
 	setConfigDefaults(&conf, false)
 	return conf
 }
@@ -95,19 +76,19 @@ func setDefault[T ~int | ~int32 | ~uint32 | ~int64](v *T, minval, maxval, defval
 	}
 }
 
-func setConfigDefaults(conf *http2Config, server bool) {
-	setDefault(&conf.MaxConcurrentStreams, 1, math.MaxUint32, defaultMaxStreams)
-	setDefault(&conf.MaxEncoderHeaderTableSize, 1, math.MaxUint32, initialHeaderTableSize)
-	setDefault(&conf.MaxDecoderHeaderTableSize, 1, math.MaxUint32, initialHeaderTableSize)
+func setConfigDefaults(conf *Config, server bool) {
+	setDefault(&conf.MaxConcurrentStreams, 1, math.MaxInt32, defaultMaxStreams)
+	setDefault(&conf.MaxEncoderHeaderTableSize, 1, math.MaxInt32, initialHeaderTableSize)
+	setDefault(&conf.MaxDecoderHeaderTableSize, 1, math.MaxInt32, initialHeaderTableSize)
 	if server {
-		setDefault(&conf.MaxUploadBufferPerConnection, initialWindowSize, math.MaxInt32, 1<<20)
+		setDefault(&conf.MaxReceiveBufferPerConnection, initialWindowSize, math.MaxInt32, 1<<20)
 	} else {
-		setDefault(&conf.MaxUploadBufferPerConnection, initialWindowSize, math.MaxInt32, transportDefaultConnFlow)
+		setDefault(&conf.MaxReceiveBufferPerConnection, initialWindowSize, math.MaxInt32, transportDefaultConnFlow)
 	}
 	if server {
-		setDefault(&conf.MaxUploadBufferPerStream, 1, math.MaxInt32, 1<<20)
+		setDefault(&conf.MaxReceiveBufferPerStream, 1, math.MaxInt32, 1<<20)
 	} else {
-		setDefault(&conf.MaxUploadBufferPerStream, 1, math.MaxInt32, transportDefaultStreamFlow)
+		setDefault(&conf.MaxReceiveBufferPerStream, 1, math.MaxInt32, transportDefaultStreamFlow)
 	}
 	setDefault(&conf.MaxReadFrameSize, minMaxFrameSize, maxFrameSize, defaultMaxReadFrameSize)
 	setDefault(&conf.PingTimeout, 1, math.MaxInt64, 15*time.Second)
@@ -123,33 +104,30 @@ func adjustHTTP1MaxHeaderSize(n int64) int64 {
 	return n + typicalHeaders*perFieldOverhead
 }
 
-func fillNetHTTPConfig(conf *http2Config, h2 *http.HTTP2Config) {
-	if h2 == nil {
-		return
-	}
+func fillNetHTTPConfig(conf *Config, h2 Config) {
 	if h2.MaxConcurrentStreams != 0 {
-		conf.MaxConcurrentStreams = uint32(h2.MaxConcurrentStreams)
+		conf.MaxConcurrentStreams = h2.MaxConcurrentStreams
 	}
-	if http2ConfigStrictMaxConcurrentRequests(h2) {
+	if h2.StrictMaxConcurrentRequests {
 		conf.StrictMaxConcurrentRequests = true
 	}
 	if h2.MaxEncoderHeaderTableSize != 0 {
-		conf.MaxEncoderHeaderTableSize = uint32(h2.MaxEncoderHeaderTableSize)
+		conf.MaxEncoderHeaderTableSize = h2.MaxEncoderHeaderTableSize
 	}
 	if h2.MaxDecoderHeaderTableSize != 0 {
-		conf.MaxDecoderHeaderTableSize = uint32(h2.MaxDecoderHeaderTableSize)
+		conf.MaxDecoderHeaderTableSize = h2.MaxDecoderHeaderTableSize
 	}
 	if h2.MaxConcurrentStreams != 0 {
-		conf.MaxConcurrentStreams = uint32(h2.MaxConcurrentStreams)
+		conf.MaxConcurrentStreams = h2.MaxConcurrentStreams
 	}
 	if h2.MaxReadFrameSize != 0 {
-		conf.MaxReadFrameSize = uint32(h2.MaxReadFrameSize)
+		conf.MaxReadFrameSize = h2.MaxReadFrameSize
 	}
 	if h2.MaxReceiveBufferPerConnection != 0 {
-		conf.MaxUploadBufferPerConnection = int32(h2.MaxReceiveBufferPerConnection)
+		conf.MaxReceiveBufferPerConnection = h2.MaxReceiveBufferPerConnection
 	}
 	if h2.MaxReceiveBufferPerStream != 0 {
-		conf.MaxUploadBufferPerStream = int32(h2.MaxReceiveBufferPerStream)
+		conf.MaxReceiveBufferPerStream = h2.MaxReceiveBufferPerStream
 	}
 	if h2.SendPingTimeout != 0 {
 		conf.SendPingTimeout = h2.SendPingTimeout

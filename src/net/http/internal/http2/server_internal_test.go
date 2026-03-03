@@ -7,42 +7,41 @@ package http2
 import (
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 	"testing"
 )
 
 func TestCheckValidHTTP2Request(t *testing.T) {
 	tests := []struct {
-		h    http.Header
+		h    Header
 		want error
 	}{
 		{
-			h:    http.Header{"Te": {"trailers"}},
+			h:    Header{"Te": {"trailers"}},
 			want: nil,
 		},
 		{
-			h:    http.Header{"Te": {"trailers", "bogus"}},
+			h:    Header{"Te": {"trailers", "bogus"}},
 			want: errors.New(`request header "TE" may only be "trailers" in HTTP/2`),
 		},
 		{
-			h:    http.Header{"Foo": {""}},
+			h:    Header{"Foo": {""}},
 			want: nil,
 		},
 		{
-			h:    http.Header{"Connection": {""}},
+			h:    Header{"Connection": {""}},
 			want: errors.New(`request header "Connection" is not valid in HTTP/2`),
 		},
 		{
-			h:    http.Header{"Proxy-Connection": {""}},
+			h:    Header{"Proxy-Connection": {""}},
 			want: errors.New(`request header "Proxy-Connection" is not valid in HTTP/2`),
 		},
 		{
-			h:    http.Header{"Keep-Alive": {""}},
+			h:    Header{"Keep-Alive": {""}},
 			want: errors.New(`request header "Keep-Alive" is not valid in HTTP/2`),
 		},
 		{
-			h:    http.Header{"Upgrade": {""}},
+			h:    Header{"Upgrade": {""}},
 			want: errors.New(`request header "Upgrade" is not valid in HTTP/2`),
 		},
 	}

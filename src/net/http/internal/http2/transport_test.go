@@ -36,6 +36,7 @@ import (
 	"time"
 
 	. "net/http/internal/http2"
+	"net/http/internal/httpcommon"
 
 	"golang.org/x/net/http2/hpack"
 )
@@ -62,7 +63,6 @@ func newTransport(t testing.TB, opts ...any) *http.Transport {
 		Protocols:       protocols("h2"),
 		HTTP2:           &http.HTTP2Config{},
 	}
-	ConfigureTransport(tr1)
 	for _, o := range opts {
 		switch o := o.(type) {
 		case func(*http.Transport):
@@ -88,34 +88,6 @@ func TestTransportExternal(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	res.Write(os.Stdout)
-}
-
-type fakeTLSConn struct {
-	net.Conn
-}
-
-func (c *fakeTLSConn) ConnectionState() tls.ConnectionState {
-	const cipher_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 = 0xC02F // defined in ciphers.go
-	return tls.ConnectionState{
-		Version:     tls.VersionTLS12,
-		CipherSuite: cipher_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-	}
-}
-
-func startH2cServer(t *testing.T) net.Listener {
-	h2Server := &Server{}
-	l := newLocalListener(t)
-	go func() {
-		conn, err := l.Accept()
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		h2Server.ServeConn(&fakeTLSConn{conn}, &ServeConnOpts{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintf(w, "Hello, %v, http: %v", r.URL.Path, r.TLS == nil)
-		})})
-	}()
-	return l
 }
 
 func TestIdleConnTimeout(t *testing.T) {
@@ -201,9 +173,12 @@ func TestIdleConnTimeout(t *testing.T) {
 }
 
 func TestTransportH2c(t *testing.T) {
-	l := startH2cServer(t)
-	defer l.Close()
-	req, err := http.NewRequest("GET", "http://"+l.Addr().String()+"/foobar", nil)
+	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Hello, %v, http: %v", r.URL.Path, r.TLS == nil)
+	}, func(s *http.Server) {
+		s.Protocols = protocols("h2c")
+	})
+	req, err := http.NewRequest("GET", ts.URL+"/foobar", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,7 +192,7 @@ func TestTransportH2c(t *testing.T) {
 	}
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
 	tr := newTransport(t)
-	tr.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		return net.Dial(network, addr)
 	}
 	tr.Protocols = protocols("h2c")
@@ -1313,16 +1288,24 @@ func testTransportChecksRequestHeaderListSize(t testing.TB) {
 		rt.wantStatus(http.StatusOK)
 	}
 	headerListSizeForRequest := func(req *http.Request) (size uint64) {
-		const addGzipHeader = true
-		const peerMaxHeaderListSize = 0xffffffffffffffff
-		_, err := EncodeRequestHeaders(req, addGzipHeader, peerMaxHeaderListSize, func(name, value string) {
+		_, err := httpcommon.EncodeHeaders(context.Background(), httpcommon.EncodeHeadersParam{
+			Request: httpcommon.Request{
+				Header:              req.Header,
+				Trailer:             req.Trailer,
+				URL:                 req.URL,
+				Host:                req.Host,
+				Method:              req.Method,
+				ActualContentLength: req.ContentLength,
+			},
+			AddGzipHeader:         true,
+			PeerMaxHeaderListSize: 0xffffffffffffffff,
+		}, func(name, value string) {
 			hf := hpack.HeaderField{Name: name, Value: value}
 			size += uint64(hf.Size())
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		fmt.Println(size)
 		return size
 	}
 	// Create a new Request for each test, rather than reusing the
@@ -1330,17 +1313,19 @@ func testTransportChecksRequestHeaderListSize(t testing.TB) {
 	// See https://github.com/golang/go/issues/21316
 	newRequest := func() *http.Request {
 		// Body must be non-nil to enable writing trailers.
-		body := strings.NewReader("hello")
+		const bodytext = "hello"
+		body := strings.NewReader(bodytext)
 		req, err := http.NewRequest("POST", "https://example.tld/", body)
 		if err != nil {
 			t.Fatalf("newRequest: NewRequest: %v", err)
 		}
+		req.ContentLength = int64(len(bodytext))
+		req.Header = http.Header{"User-Agent": nil}
 		return req
 	}
 
 	// Pad headers & trailers, but stay under peerSize.
 	req := newRequest()
-	req.Header = make(http.Header)
 	req.Trailer = make(http.Header)
 	filler := strings.Repeat("*", 1024)
 	padHeaders(t, req.Trailer, peerSize, filler)
@@ -1352,7 +1337,6 @@ func testTransportChecksRequestHeaderListSize(t testing.TB) {
 
 	// Add enough header bytes to push us over peerSize.
 	req = newRequest()
-	req.Header = make(http.Header)
 	padHeaders(t, req.Header, peerSize, filler)
 	checkRoundTrip(req, ErrRequestHeaderListSize, "Headers over limit")
 
@@ -1365,7 +1349,6 @@ func testTransportChecksRequestHeaderListSize(t testing.TB) {
 	// Send headers with a single large value.
 	req = newRequest()
 	filler = strings.Repeat("*", int(peerSize))
-	req.Header = make(http.Header)
 	req.Header.Set("Big", filler)
 	checkRoundTrip(req, ErrRequestHeaderListSize, "Single large header")
 
@@ -2596,10 +2579,18 @@ func TestTransportRequestPathPseudo(t *testing.T) {
 	for i, tt := range tests {
 		hbuf := &bytes.Buffer{}
 		henc := hpack.NewEncoder(hbuf)
-
-		const addGzipHeader = false
-		const peerMaxHeaderListSize = 0xffffffffffffffff
-		_, err := EncodeRequestHeaders(tt.req, addGzipHeader, peerMaxHeaderListSize, func(name, value string) {
+		_, err := httpcommon.EncodeHeaders(context.Background(), httpcommon.EncodeHeadersParam{
+			Request: httpcommon.Request{
+				Header:              tt.req.Header,
+				Trailer:             tt.req.Trailer,
+				URL:                 tt.req.URL,
+				Host:                tt.req.Host,
+				Method:              tt.req.Method,
+				ActualContentLength: tt.req.ContentLength,
+			},
+			AddGzipHeader:         false,
+			PeerMaxHeaderListSize: 0xffffffffffffffff,
+		}, func(name, value string) {
 			henc.WriteField(hpack.HeaderField{Name: name, Value: value})
 		})
 		hdrs := hbuf.Bytes()
@@ -3631,10 +3622,11 @@ func testClientConnCloseAtBody(t testing.TB) {
 		),
 	})
 	tc.writeData(rt.streamID(), false, make([]byte, 64))
+	resp := rt.response()
 	tc.cc.Close()
 	synctest.Wait()
 
-	if _, err := io.Copy(io.Discard, rt.response().Body); err == nil {
+	if _, err := io.Copy(io.Discard, resp.Body); err == nil {
 		t.Error("expected a Copy error, got nil")
 	}
 }
@@ -4352,13 +4344,13 @@ func TestTransportCloseRequestBody(t *testing.T) {
 		w.WriteHeader(statusCode)
 	})
 
-	tr := &Transport{TLSClientConfig: tlsConfigInsecure}
-	defer tr.CloseIdleConnections()
+	tr := newTransport(t)
 	ctx := context.Background()
-	cc, err := tr.DialClientConn(ctx, ts.Listener.Addr().String(), false)
+	cc, err := tr.NewClientConn(ctx, "https", ts.Listener.Addr().String())
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer cc.Close()
 
 	for _, status := range []int{200, 401} {
 		t.Run(fmt.Sprintf("status=%d", status), func(t *testing.T) {
@@ -4966,39 +4958,40 @@ func testTransportDataAfter1xxHeader(t testing.TB) {
 }
 
 func TestIssue66763Race(t *testing.T) {
-	tr := &Transport{
-		IdleConnTimeout: 1 * time.Nanosecond,
-		AllowHTTP:       true, // issue 66763 only occurs when AllowHTTP is true
-	}
-	defer tr.CloseIdleConnections()
+	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {},
+		func(s *http.Server) {
+			s.Protocols = protocols("h2c")
+		})
+	tr := newTransport(t)
+	tr.IdleConnTimeout = 1 * time.Nanosecond
+	tr.Protocols = protocols("h2c")
 
-	cli, srv := net.Pipe()
 	donec := make(chan struct{})
 	go func() {
 		// Creating the client conn may succeed or fail,
 		// depending on when the idle timeout happens.
 		// Either way, the idle timeout will close the net.Conn.
-		tr.NewClientConn(cli)
+		conn, err := tr.NewClientConn(t.Context(), "http", ts.URL)
 		close(donec)
+		if err == nil {
+			conn.Close()
+		}
 	}()
 
 	// The client sends its preface and SETTINGS frame,
 	// and then closes its conn after the idle timeout.
-	io.ReadAll(srv)
-	srv.Close()
-
 	<-donec
 }
 
 // Issue 67671: Sending a Connection: close request on a Transport with AllowHTTP
 // set caused a the transport to wedge.
 func TestIssue67671(t *testing.T) {
-	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {})
-	tr := &Transport{
-		TLSClientConfig: tlsConfigInsecure,
-		AllowHTTP:       true,
-	}
-	defer tr.CloseIdleConnections()
+	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {},
+		func(s *http.Server) {
+			s.Protocols = protocols("h2c")
+		})
+	tr := newTransport(t)
+	tr.Protocols = protocols("h2c")
 	req, _ := http.NewRequest("GET", ts.URL, nil)
 	req.Close = true
 	for i := 0; i < 2; i++ {
@@ -5215,6 +5208,7 @@ func testTransportSendNoMoreThanOnePingWithReset(t testing.TB) {
 	// because we haven't received a HEADERS or DATA frame from the server
 	// since the last PING we sent.
 	makeAndResetRequest()
+	tc.wantIdle()
 
 	// Server belatedly responds to request 1.
 	// The server has not responded to our first PING yet.
@@ -5334,26 +5328,45 @@ func testTransportConnBecomesUnresponsive(t testing.TB) {
 	rt2.response().Body.Close()
 }
 
-// Test that the Transport can use a conn provided to it by a TLSNextProto hook.
-func TestTransportTLSNextProtoConnOK(t *testing.T) { synctestTest(t, testTransportTLSNextProtoConnOK) }
-func testTransportTLSNextProtoConnOK(t testing.TB) {
-	t1 := &http.Transport{}
-	t2, _ := ConfigureTransports(t1)
-	tt := newTestTransport(t, t2)
+// newTestTransportWithUnusedConn creates a Transport,
+// sends a request on the Transport,
+// and then cancels the request before the resulting dial completes.
+// It then waits for the dial to finish
+// and returns the Transport with an unused conn in its pool.
+func newTestTransportWithUnusedConn(t testing.TB, opts ...any) *testTransport {
+	tt := newTestTransport(t, opts...)
 
-	// Create a new, fake connection and pass it to the Transport via the TLSNextProto hook.
-	cli, _ := synctestNetPipe()
-	cliTLS := tls.Client(cli, tlsConfigInsecure)
-	go func() {
-		tt.tr.TestTransport().TLSNextProto["h2"]("dummy.tld", cliTLS)
-	}()
+	waitc := make(chan struct{})
+	dialContext := tt.tr1.DialContext
+	tt.tr1.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		<-waitc
+		return dialContext(ctx, network, address)
+	}
+
+	req := Must(http.NewRequest("GET", "https://dummy.tld/", nil))
+	rt := tt.roundTrip(req)
+	rt.cancel()
+	if rt.err() == nil {
+		t.Fatalf("RoundTrip still running after request is canceled")
+	}
+
+	close(waitc)
 	synctest.Wait()
+	return tt
+}
+
+// Test that the Transport can use a conn created for one request, but never used by it.
+func TestTransportUnusedConnOK(t *testing.T) { synctestTest(t, testTransportUnusedConnOK) }
+func testTransportUnusedConnOK(t testing.TB) {
+	tt := newTestTransportWithUnusedConn(t)
+
+	req := Must(http.NewRequest("GET", "https://dummy.tld/", nil))
 	tc := tt.getConn()
-	tc.greet()
+	tc.wantFrameType(FrameSettings)
+	tc.wantFrameType(FrameWindowUpdate)
 
 	// Send a request on the Transport.
 	// It uses the conn we provided.
-	req := Must(http.NewRequest("GET", "https://dummy.tld/", nil))
 	rt := tt.roundTrip(req)
 	tc.wantHeaders(wantHeader{
 		streamID:  1,
@@ -5364,6 +5377,11 @@ func testTransportTLSNextProtoConnOK(t testing.TB) {
 			":path":      []string{"/"},
 		},
 	})
+
+	tc.writeSettings()
+	tc.writeSettingsAck()
+	tc.wantFrameType(FrameSettings) // acknowledgement
+
 	tc.writeHeaders(HeadersFrameParam{
 		StreamID:   1,
 		EndHeaders: true,
@@ -5376,26 +5394,16 @@ func testTransportTLSNextProtoConnOK(t testing.TB) {
 	rt.wantBody(nil)
 }
 
-// Test the case where a conn provided via a TLSNextProto hook immediately encounters an error.
-func TestTransportTLSNextProtoConnImmediateFailureUsed(t *testing.T) {
-	synctestTest(t, testTransportTLSNextProtoConnImmediateFailureUsed)
+// Test the case where an unused conn immediately encounters an error.
+func TestTransportUnusedConnImmediateFailureUsed(t *testing.T) {
+	synctestTest(t, testTransportUnusedConnImmediateFailureUsed)
 }
-func testTransportTLSNextProtoConnImmediateFailureUsed(t testing.TB) {
-	t1 := &http.Transport{}
-	t2, _ := ConfigureTransports(t1)
-	tt := newTestTransport(t, t2)
-
-	// Create a new, fake connection and pass it to the Transport via the TLSNextProto hook.
-	cli, _ := synctestNetPipe()
-	cliTLS := tls.Client(cli, tlsConfigInsecure)
-	go func() {
-		t1.TLSNextProto["h2"]("dummy.tld", cliTLS)
-	}()
-	synctest.Wait()
-	tc := tt.getConn()
+func testTransportUnusedConnImmediateFailureUsed(t testing.TB) {
+	tt := newTestTransportWithUnusedConn(t)
 
 	// The connection encounters an error before we send a request that uses it.
-	tc.closeWrite()
+	tc1 := tt.getConn()
+	tc1.closeWrite()
 
 	// Send a request on the Transport.
 	//
@@ -5407,33 +5415,24 @@ func testTransportTLSNextProtoConnImmediateFailureUsed(t testing.TB) {
 	}
 
 	// Send the request again.
-	// This time it should fail with ErrNoCachedConn,
+	// This time it is sent on a new conn
 	// because the dead conn has been removed from the pool.
-	rt = tt.roundTrip(req)
-	if err := rt.err(); !errors.Is(err, ErrNoCachedConn) {
-		t.Fatalf("RoundTrip after broken conn is used: got %v, want ErrNoCachedConn", err)
-	}
+	_ = tt.roundTrip(req)
+	tc2 := tt.getConn()
+	tc2.wantFrameType(FrameSettings)
+	tc2.wantFrameType(FrameWindowUpdate)
+	tc2.wantFrameType(FrameHeaders)
 }
 
-// Test the case where a conn provided via a TLSNextProto hook is closed for idleness
-// before we use it.
-func TestTransportTLSNextProtoConnIdleTimoutBeforeUse(t *testing.T) {
-	synctestTest(t, testTransportTLSNextProtoConnIdleTimoutBeforeUse)
+// Test the case where an unused conn is closed for idleness before we use it.
+func TestTransportUnusedConnIdleTimoutBeforeUse(t *testing.T) {
+	synctestTest(t, testTransportUnusedConnIdleTimoutBeforeUse)
 }
-func testTransportTLSNextProtoConnIdleTimoutBeforeUse(t testing.TB) {
-	t1 := &http.Transport{
-		IdleConnTimeout: 1 * time.Second,
-	}
-	t2, _ := ConfigureTransports(t1)
-	tt := newTestTransport(t, t2)
+func testTransportUnusedConnIdleTimoutBeforeUse(t testing.TB) {
+	tt := newTestTransportWithUnusedConn(t, func(t1 *http.Transport) {
+		t1.IdleConnTimeout = 1 * time.Second
+	})
 
-	// Create a new, fake connection and pass it to the Transport via the TLSNextProto hook.
-	cli, _ := synctestNetPipe()
-	cliTLS := tls.Client(cli, tlsConfigInsecure)
-	go func() {
-		t1.TLSNextProto["h2"]("dummy.tld", cliTLS)
-	}()
-	synctest.Wait()
 	_ = tt.getConn()
 
 	// The connection encounters an error before we send a request that uses it.
@@ -5442,12 +5441,14 @@ func testTransportTLSNextProtoConnIdleTimoutBeforeUse(t testing.TB) {
 
 	// Send a request on the Transport.
 	//
-	// It should fail with ErrNoCachedConn.
+	// It is sent on a new conn
+	// because the old one has idled out and been removed from the pool.
 	req := Must(http.NewRequest("GET", "https://dummy.tld/", nil))
-	rt := tt.roundTrip(req)
-	if err := rt.err(); !errors.Is(err, ErrNoCachedConn) {
-		t.Fatalf("RoundTrip with conn closed for idleness: got %v, want ErrNoCachedConn", err)
-	}
+	_ = tt.roundTrip(req)
+	tc2 := tt.getConn()
+	tc2.wantFrameType(FrameSettings)
+	tc2.wantFrameType(FrameWindowUpdate)
+	tc2.wantFrameType(FrameHeaders)
 }
 
 // Test the case where a conn provided via a TLSNextProto hook immediately encounters an error,
@@ -5456,21 +5457,13 @@ func TestTransportTLSNextProtoConnImmediateFailureUnused(t *testing.T) {
 	synctestTest(t, testTransportTLSNextProtoConnImmediateFailureUnused)
 }
 func testTransportTLSNextProtoConnImmediateFailureUnused(t testing.TB) {
-	t1 := &http.Transport{}
-	t2, _ := ConfigureTransports(t1)
-	tt := newTestTransport(t, t2)
-
-	// Create a new, fake connection and pass it to the Transport via the TLSNextProto hook.
-	cli, _ := synctestNetPipe()
-	cliTLS := tls.Client(cli, tlsConfigInsecure)
-	go func() {
-		t1.TLSNextProto["h2"]("dummy.tld", cliTLS)
-	}()
-	synctest.Wait()
-	tc := tt.getConn()
+	tt := newTestTransportWithUnusedConn(t, func(t1 *http.Transport) {
+		t1.IdleConnTimeout = 1 * time.Second
+	})
 
 	// The connection encounters an error before we send a request that uses it.
-	tc.closeWrite()
+	tc1 := tt.getConn()
+	tc1.closeWrite()
 
 	// Some time passes.
 	// The dead connection is removed from the pool.
@@ -5478,12 +5471,13 @@ func testTransportTLSNextProtoConnImmediateFailureUnused(t testing.TB) {
 
 	// Send a request on the Transport.
 	//
-	// It should fail with ErrNoCachedConn, because the pool contains no conns.
+	// It is sent on a new conn.
 	req := Must(http.NewRequest("GET", "https://dummy.tld/", nil))
-	rt := tt.roundTrip(req)
-	if err := rt.err(); !errors.Is(err, ErrNoCachedConn) {
-		t.Fatalf("RoundTrip after broken conn expires: got %v, want ErrNoCachedConn", err)
-	}
+	_ = tt.roundTrip(req)
+	tc2 := tt.getConn()
+	tc2.wantFrameType(FrameSettings)
+	tc2.wantFrameType(FrameWindowUpdate)
+	tc2.wantFrameType(FrameHeaders)
 }
 
 func TestExtendedConnectClientWithServerSupport(t *testing.T) {

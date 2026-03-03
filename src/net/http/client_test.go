@@ -60,7 +60,9 @@ func pedanticReadAll(r io.Reader) (b []byte, err error) {
 	}
 }
 
-func TestClient(t *testing.T) { run(t, testClient) }
+func TestClient(t *testing.T) {
+	run(t, testClient, []testMode{http1Mode, https1Mode, http2UnencryptedMode, http2Mode})
+}
 func testClient(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, robotsTxtHandler).ts
 
@@ -2286,6 +2288,11 @@ func testProbeZeroLengthBody(t *testing.T, mode testMode) {
 		defer wg.Done()
 		req, _ := NewRequest("GET", cst.ts.URL, bodyr)
 		res, err := cst.c.Do(req)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer res.Body.Close()
 		b, err := io.ReadAll(res.Body)
 		if err != nil {
 			t.Error(err)
