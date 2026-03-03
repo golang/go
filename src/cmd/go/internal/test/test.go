@@ -1405,9 +1405,10 @@ type runTestActor struct {
 type runCache struct {
 	disableCache bool // cache should be disabled for this run
 
-	buf *bytes.Buffer
-	id1 cache.ActionID
-	id2 cache.ActionID
+	buf     *bytes.Buffer
+	id1     cache.ActionID
+	id2     cache.ActionID
+	covMeta cache.ActionID // Hash of writeCoverMetaAct dependencies, for invalidating coverage profiles
 }
 
 func coverProfTempFile(a *work.Action) string {
@@ -1800,6 +1801,36 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 		return false
 	}
 
+	// If we are collecting coverage for out-of-band packages (-coverpkg),
+	// find the writeCoverMetaAct among the run action's dependencies and hash
+	// its deps to ensure the cache invalidates when covered packages change.
+	// Note: the run action's original deps may be wrapped inside a "test barrier"
+	// action, so we search both a.Deps and any barrier's deps.
+	if len(testCoverPkgs) != 0 {
+		var searchDeps []*work.Action
+		for _, dep := range a.Deps {
+			if dep.Mode == "test barrier" {
+				searchDeps = dep.Deps
+				break
+			}
+		}
+		if searchDeps == nil {
+			searchDeps = a.Deps
+		}
+		for _, dep := range searchDeps {
+			if dep.Mode == "write coverage meta-data file" {
+				h := cache.NewHash("covermeta")
+				for _, metaDep := range dep.Deps {
+					if aid := metaDep.BuildActionID(); aid != "" {
+						fmt.Fprintf(h, "dep %s\n", aid)
+					}
+				}
+				c.covMeta = h.Sum()
+				break
+			}
+		}
+	}
+
 	var cacheArgs []string
 	for _, arg := range testArgs {
 		i := strings.Index(arg, "=")
@@ -1906,7 +1937,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 	// Merge cached cover profile data to cover profile.
 	if testCoverProfile != "" {
 		// Specifically ignore entry as it will be the same as above.
-		cpData, _, err := cache.GetFile(cache.Default(), coverProfileAndInputKey(testID, testInputsID))
+		cpData, _, err := cache.GetFile(cache.Default(), coverProfileAndInputKey(testID, testInputsID, c.covMeta))
 		if err != nil {
 			if cache.DebugTest {
 				fmt.Fprintf(os.Stderr, "testcache: %s: cached cover profile missing: %v\n", a.Package.ImportPath, err)
@@ -1914,6 +1945,18 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 			return false
 		}
 		mergeCoverProfile(cpData)
+	} else if c.covMeta != (cache.ActionID{}) {
+		// If we have a coverage metadata hash but no testCoverProfile, we're collecting
+		// coverage for out-of-band packages. Check if the coverage profile cache is still
+		// valid. If c.covMeta changed (meaning a covered package changed), the coverage
+		// profile cache will miss and we need to re-run the test.
+		_, _, err := cache.GetFile(cache.Default(), coverProfileAndInputKey(testID, testInputsID, c.covMeta))
+		if err != nil {
+			if cache.DebugTest {
+				fmt.Fprintf(os.Stderr, "testcache: %s: coverage metadata changed, re-running test: %v\n", a.Package.ImportPath, err)
+			}
+			return false
+		}
 	}
 
 	if len(data) == 0 || data[len(data)-1] != '\n' {
@@ -2104,9 +2147,15 @@ func testAndInputKey(testID, testInputsID cache.ActionID) cache.ActionID {
 	return cache.Subkey(testID, fmt.Sprintf("inputs:%x", testInputsID))
 }
 
-// coverProfileAndInputKey returns the "coverprofile" cache key for the pair (testID, testInputsID).
-func coverProfileAndInputKey(testID, testInputsID cache.ActionID) cache.ActionID {
-	return cache.Subkey(testAndInputKey(testID, testInputsID), "coverprofile")
+// coverProfileAndInputKey returns the "coverprofile" cache key.
+// If covMetaID is non-zero, it is included in the hash to ensure coverage profiles are invalidated
+// when the coverage metadata changes (e.g., when source files in covered packages are modified).
+func coverProfileAndInputKey(testID, testInputsID, covMetaID cache.ActionID) cache.ActionID {
+	key := testAndInputKey(testID, testInputsID)
+	if covMetaID != (cache.ActionID{}) {
+		key = cache.Subkey(key, fmt.Sprintf("coverdeps:%x", covMetaID))
+	}
+	return cache.Subkey(key, "coverprofile")
 }
 
 func (c *runCache) saveOutput(a *work.Action) {
@@ -2147,7 +2196,11 @@ func (c *runCache) saveOutput(a *work.Action) {
 		cache.PutNoVerify(cache.Default(), c.id1, bytes.NewReader(testlog))
 		cache.PutNoVerify(cache.Default(), testAndInputKey(c.id1, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
 		if coverProfile != nil {
-			cache.PutNoVerify(cache.Default(), coverProfileAndInputKey(c.id1, testInputsID), bytes.NewReader(coverProfile))
+			cache.PutNoVerify(cache.Default(), coverProfileAndInputKey(c.id1, testInputsID, c.covMeta), bytes.NewReader(coverProfile))
+		} else if c.covMeta != (cache.ActionID{}) {
+			// Write a sentinel so the else-if branch in tryCacheWithID can verify
+			// that the covMeta hash has not changed since the last run.
+			cache.PutNoVerify(cache.Default(), coverProfileAndInputKey(c.id1, testInputsID, c.covMeta), bytes.NewReader(nil))
 		}
 	}
 	if c.id2 != (cache.ActionID{}) {
@@ -2157,7 +2210,10 @@ func (c *runCache) saveOutput(a *work.Action) {
 		cache.PutNoVerify(cache.Default(), c.id2, bytes.NewReader(testlog))
 		cache.PutNoVerify(cache.Default(), testAndInputKey(c.id2, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
 		if coverProfile != nil {
-			cache.PutNoVerify(cache.Default(), coverProfileAndInputKey(c.id2, testInputsID), bytes.NewReader(coverProfile))
+			cache.PutNoVerify(cache.Default(), coverProfileAndInputKey(c.id2, testInputsID, c.covMeta), bytes.NewReader(coverProfile))
+		} else if c.covMeta != (cache.ActionID{}) {
+			// Sentinel for covMeta validity; see comment in id1 block above.
+			cache.PutNoVerify(cache.Default(), coverProfileAndInputKey(c.id2, testInputsID, c.covMeta), bytes.NewReader(nil))
 		}
 	}
 }
