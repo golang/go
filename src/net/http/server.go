@@ -19,6 +19,7 @@ import (
 	"maps"
 	"math/rand/v2"
 	"net"
+	"net/http/internal"
 	"net/textproto"
 	"net/url"
 	urlpkg "net/url"
@@ -603,9 +604,9 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
 	// source is available (see golang.org/issue/5660) and provides
 	// enough bytes to perform Content-Type sniffing when required.
 	if !w.cw.wroteHeader {
-		n0, err := io.CopyBuffer(writerOnly{w}, io.LimitReader(src, sniffLen), buf)
+		n0, err := io.CopyBuffer(writerOnly{w}, io.LimitReader(src, internal.SniffLen), buf)
 		n += n0
-		if err != nil || n0 < sniffLen {
+		if err != nil || n0 < internal.SniffLen {
 			return n, err
 		}
 	}

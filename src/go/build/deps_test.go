@@ -636,7 +636,7 @@ var depsRules = `
 	context
 	< internal/gate;
 
-	FMT
+	FMT, encoding/binary
 	< golang.org/x/net/http2/hpack
 	< net/http/internal, net/http/internal/ascii, net/http/internal/testcert;
 
