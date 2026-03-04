@@ -6,7 +6,6 @@ package typecheck
 
 import (
 	"fmt"
-	"go/constant"
 	"internal/types/errors"
 	"strings"
 
@@ -845,10 +844,6 @@ func tcStringHeader(n *ir.StringHeaderExpr) ir.Node {
 
 	n.Ptr = Expr(n.Ptr)
 	n.Len = DefaultLit(Expr(n.Len), types.Types[types.TINT])
-
-	if ir.IsConst(n.Len, constant.Int) && ir.Int64Val(n.Len) < 0 {
-		base.Fatalf("len for OSTRINGHEADER must be non-negative")
-	}
 
 	return n
 }
