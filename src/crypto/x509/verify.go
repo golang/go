@@ -164,7 +164,11 @@ func (e UnknownAuthorityError) Error() string {
 				certName = "serial:" + e.hintCert.SerialNumber.String()
 			}
 		}
-		s += fmt.Sprintf(" (possibly because of %q while trying to verify candidate authority certificate %q)", e.hintErr, certName)
+		if errors.Is(e.hintErr, ErrUnsupportedAlgorithm) {
+			s += fmt.Sprintf(" (the signature algorithm of authority certificate %q is not supported)", certName)
+		} else {
+			s += fmt.Sprintf(" (possibly because of %q while trying to verify candidate authority certificate %q)", e.hintErr, certName)
+		}
 	}
 	return s
 }
