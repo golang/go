@@ -656,6 +656,8 @@ func rewriteValueWasm(v *Value) bool {
 		return rewriteValueWasm_OpWasmI64Store32(v)
 	case OpWasmI64Store8:
 		return rewriteValueWasm_OpWasmI64Store8(v)
+	case OpWasmI64Sub:
+		return rewriteValueWasm_OpWasmI64Sub(v)
 	case OpWasmI64Xor:
 		return rewriteValueWasm_OpWasmI64Xor(v)
 	case OpXor16:
@@ -4742,6 +4744,26 @@ func rewriteValueWasm_OpWasmI64Store8(v *Value) bool {
 		v.reset(OpWasmI64Store8)
 		v.AuxInt = int64ToAuxInt(off + off2)
 		v.AddArg3(ptr, val, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueWasm_OpWasmI64Sub(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (I64Sub (I64Const [x]) (I64Const [y]))
+	// result: (I64Const [x - y])
+	for {
+		if v_0.Op != OpWasmI64Const {
+			break
+		}
+		x := auxIntToInt64(v_0.AuxInt)
+		if v_1.Op != OpWasmI64Const {
+			break
+		}
+		y := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64ToAuxInt(x - y)
 		return true
 	}
 	return false

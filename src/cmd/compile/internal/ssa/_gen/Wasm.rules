@@ -374,6 +374,7 @@
 
 // --- Optimizations ---
 (I64Add (I64Const [x]) (I64Const [y])) => (I64Const [x + y])
+(I64Sub (I64Const [x]) (I64Const [y])) => (I64Const [x - y])
 (I64Mul (I64Const [x]) (I64Const [y])) => (I64Const [x * y])
 (I64And (I64Const [x]) (I64Const [y])) => (I64Const [x & y])
 (I64Or  (I64Const [x]) (I64Const [y])) => (I64Const [x | y])
