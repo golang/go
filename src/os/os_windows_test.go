@@ -73,6 +73,20 @@ func TestSameWindowsFile(t *testing.T) {
 	}
 }
 
+func TestSameFileInvalidFileID(t *testing.T) {
+	fi1, err := os.Stat(`\\.\pipe\`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fi2, err := os.Stat("NUL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if os.SameFile(fi1, fi2) {
+		t.Error("SameFile should return false for \\\\.\\pipe\\ and NUL")
+	}
+}
+
 type dirLinkTest struct {
 	name         string
 	mklink       func(link, target string) error

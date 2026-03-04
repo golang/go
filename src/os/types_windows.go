@@ -359,6 +359,9 @@ func sameFile(fs1, fs2 *fileStat) bool {
 	if e != nil {
 		return false
 	}
+	if fs1.idxhi == 0 && fs1.idxlo == 0 || fs2.idxhi == 0 && fs2.idxlo == 0 {
+		return false
+	}
 	return fs1.vol == fs2.vol && fs1.idxhi == fs2.idxhi && fs1.idxlo == fs2.idxlo
 }
 
