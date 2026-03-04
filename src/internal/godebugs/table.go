@@ -68,6 +68,10 @@ var All = []Info{
 	{Name: "tlssecpmlkem", Package: "crypto/tls", Changed: 26, Old: "0", Opaque: true},
 	{Name: "tlssha1", Package: "crypto/tls", Changed: 25, Old: "1"},
 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
+	// Mark tracebacklabels as Opaque so we don't generate a metric that we can't increment.
+	// IncNonDefault uses a sync.Once, which involves sync.Mutex, and is not safe from a signal handler.
+	// (Tracebacks are generated in signal-handlers.)
+	{Name: "tracebacklabels", Package: "runtime", Changed: 27, Old: "0", Opaque: true},
 	{Name: "updatemaxprocs", Package: "runtime", Changed: 25, Old: "0"},
 	{Name: "urlmaxqueryparams", Package: "net/url", Changed: 24, Old: "0"},
 	{Name: "urlstrictcolons", Package: "net/url", Changed: 26, Old: "0"},

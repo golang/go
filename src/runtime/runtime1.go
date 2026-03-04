@@ -398,7 +398,7 @@ var dbgvars = []*dbgVar{
 	{name: "traceallocfree", atomic: &debug.traceallocfree},
 	{name: "tracecheckstackownership", value: &debug.traceCheckStackOwnership},
 	{name: "tracebackancestors", value: &debug.tracebackancestors},
-	{name: "tracebacklabels", atomic: &debug.tracebacklabels, def: 0},
+	{name: "tracebacklabels", atomic: &debug.tracebacklabels, def: 1},
 	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
 	{name: "updatemaxprocs", value: &debug.updatemaxprocs, def: 1},
 }

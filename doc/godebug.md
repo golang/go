@@ -167,6 +167,11 @@ escaped. Setting `htmlmetacontentescape=0` disables this behavior. To avoid
 content injection attacks, this setting and default was backported to Go 1.25.8
 and Go 1.26.1.
 
+Go 1.27 changes the default for `tracebacklabels` (added in [Go 1.26][#go-126])
+to `1`. This opt-out is expected to be kept indefinitely in case goroutine
+labels acquire sensitive information that shouldn't be made available in
+tracebacks.
+
 ### Go 1.26
 
 Go 1.26 added a new `httpcookiemaxnum` setting that controls the maximum number
