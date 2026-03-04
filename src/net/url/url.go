@@ -615,6 +615,13 @@ func parseHost(scheme, host string) (string, error) {
 				// continue to permit it for postgres:// URLs only.
 				// https://go.dev/issue/75223
 				i = lastColon
+			} else if scheme == "mongodb" || scheme == "mongodb+srv" {
+				// In a MongoDB connection URI, commas are used to separate
+				// multiple host addresses when connecting to a replica set or a sharded cluster.
+				// https://www.mongodb.com/docs/manual/reference/connection-string-formats/
+				// Example:
+				// mongodb://mongodb0.example.com:27017,mongodb1.example.com:27017
+				i = lastColon
 			} else if urlstrictcolons.Value() == "0" {
 				urlstrictcolons.IncNonDefault()
 				i = lastColon
