@@ -220,19 +220,15 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 	// of the level j ancestor.
 	var leafCounts [maxBitsLimit][maxBitsLimit]int32
 
-	// Descending to only have 1 bounds check.
-	l2f := int32(list[2].freq)
-	l1f := int32(list[1].freq)
-	l0f := int32(list[0].freq) + int32(list[1].freq)
-
+	_ = list[2] // check bounds here instead of in loop
 	for level := int32(1); level <= maxBits; level++ {
 		// For every level, the first two items are the first two characters.
 		// We initialize the levels as if we had already figured this out.
 		levels[level] = levelInfo{
 			level:        level,
-			lastFreq:     l1f,
-			nextCharFreq: l2f,
-			nextPairFreq: l0f,
+			lastFreq:     int32(list[1].freq),
+			nextCharFreq: int32(list[2].freq),
+			nextPairFreq: int32(list[0].freq) + int32(list[1].freq),
 		}
 		leafCounts[level][level] = 2
 		if level == 1 {
