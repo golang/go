@@ -122,7 +122,7 @@ func TestDeflate(t *testing.T) {
 		w.Write(h.in)
 		w.Close()
 		if !bytes.Equal(buf.Bytes(), h.out) {
-			t.Errorf("%d: Deflate(%d, %x) got \n%#v, want \n%#v", i, h.level, h.in, buf.Bytes(), h.out)
+			t.Errorf("%d: Deflate(%d, %x) =\n%#v\nwant\n%#v", i, h.level, h.in, buf.Bytes(), h.out)
 		}
 	}
 }
@@ -366,8 +366,6 @@ func testToFromWithLevelAndLimit(t *testing.T, level int, input []byte, name str
 	}
 	r.Close()
 	if !bytes.Equal(input, out) {
-		os.WriteFile("testdata/fails/"+t.Name()+".got", out, os.ModePerm)
-		os.WriteFile("testdata/fails/"+t.Name()+".want", input, os.ModePerm)
 		t.Errorf("decompress(compress(data)) != data: level=%d input=%s", level, name)
 		return
 	}
@@ -429,15 +427,7 @@ func TestDeflateInflateString(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		// Remove returns that may be present on Windows
-		neutral := strings.Map(func(r rune) rune {
-			if r != '\r' {
-				return r
-			}
-			return -1
-		}, string(gold))
-
-		testToFromWithLimit(t, []byte(neutral), test.label, test.limit)
+		testToFromWithLimit(t, gold, test.label, test.limit)
 
 		if testing.Short() {
 			break
@@ -474,7 +464,7 @@ func TestReaderDict(t *testing.T) {
 func TestWriterDict(t *testing.T) {
 	const (
 		dict = "hello world Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
-		text = "hello world Lorem ipsum dolor sit amet"
+		text = "hello world again Lorem ipsum dolor sit amet"
 	)
 	// This test is sensitive to algorithm changes that skip
 	// data in favour of speed. Higher levels are less prone to this
@@ -572,11 +562,11 @@ func TestWriterReset(t *testing.T) {
 	}
 
 	for i := HuffmanOnly; i <= BestCompression; i++ {
-		testResetOutput(t, fmt.Sprint("level-", i), func(w io.Writer) (*Writer, error) { return NewWriter(w, i) })
+		testResetOutput(t, fmt.Sprintf("dict=0/level=%d", i), func(w io.Writer) (*Writer, error) { return NewWriter(w, i) })
 	}
 	dict := []byte(strings.Repeat("we are the world - how are you?", 3))
 	for i := HuffmanOnly; i <= BestCompression; i++ {
-		testResetOutput(t, fmt.Sprint("dict-level-", i), func(w io.Writer) (*Writer, error) { return NewWriterDict(w, i, dict) })
+		testResetOutput(t, fmt.Sprintf("dict=1/level=%d", i), func(w io.Writer) (*Writer, error) { return NewWriterDict(w, i, dict) })
 	}
 }
 
@@ -604,6 +594,7 @@ func testResetOutput(t *testing.T, name string, newWriter func(w io.Writer) (*Wr
 
 		if len(out1) != len(out2) {
 			t.Errorf("got %d, expected %d bytes", len(out2), len(out1))
+			return
 		}
 		if !bytes.Equal(out1, out2) {
 			mm := 0
@@ -654,8 +645,8 @@ func TestBestSpeed(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		if testing.Short() && i > 5 {
-			t.Skip()
+		if testing.Short() && i >= 6 {
+			break
 		}
 		for _, firstN := range []int{1, 65534, 65535, 65536, 65537, 131072} {
 			tc[0] = firstN
@@ -810,9 +801,11 @@ func checkErrors(got []error, want error, t *testing.T) {
 func TestBestSpeedMatch(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		previous, current []byte
-		t, s              int
-		want              int32
+		previous []byte
+		current  []byte
+		t        int
+		s        int
+		want     int32
 	}{{
 		previous: []byte{0, 0, 0, 1, 2},
 		current:  []byte{3, 4, 5, 0, 1, 2, 3, 4, 5},

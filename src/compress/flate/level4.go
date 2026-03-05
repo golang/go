@@ -123,7 +123,7 @@ func (e *fastEncL4) encode(dst *tokens, src []byte) {
 		// them as literal bytes.
 
 		// Extend the 4-byte match as long as possible.
-		l := e.matchlenLong(int(s+4), int(t+4), src) + 4
+		l := e.matchLenLong(int(s+4), int(t+4), src) + 4
 
 		// Extend backwards
 		for t > 0 && s > nextEmit && src[t-1] == src[s-1] {

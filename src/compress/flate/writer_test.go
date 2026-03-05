@@ -45,7 +45,7 @@ func BenchmarkWriterMemUsage(b *testing.B) {
 	data := make([]byte, 100000)
 
 	for level := HuffmanOnly; level <= BestCompression; level++ {
-		b.Run(fmt.Sprint("level-", level), func(b *testing.B) {
+		b.Run(fmt.Sprintf("level=%d", level), func(b *testing.B) {
 			var zr *Writer
 			var err error
 			b.ReportAllocs()
@@ -147,7 +147,7 @@ func TestWriter_Reset(t *testing.T) {
 		if testing.Short() && l > 1 {
 			break
 		}
-		t.Run(fmt.Sprintf("level-%d", l), func(t *testing.T) {
+		t.Run(fmt.Sprintf("level=%d", l), func(t *testing.T) {
 			t.Parallel()
 			offset := 1
 			if testing.Short() {

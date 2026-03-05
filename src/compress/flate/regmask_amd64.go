@@ -4,12 +4,6 @@
 
 package flate
 
-const (
-	// Masks for shifts with register sizes of the shift value.
-	// This can be used to work around the x86 design of shifting by mod register size.
-	// It can be used when a variable shift is always smaller than the register size.
-	// Effectively removes a branch on amd64
-
-	// reg8SizeMask64 - shift value is 8 bits on 64 bit register.
-	reg8SizeMask64 = 63
-)
+// shiftMask is a no-op shift mask for x86-64.
+// Using it lets the compiler omit the check for shift size >= 64.
+const reg8SizeMask64 = 63

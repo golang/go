@@ -179,9 +179,9 @@ func (e *fastEncL5) encode(dst *tokens, src []byte) {
 
 		if l == 0 {
 			// Extend the 4-byte match as long as possible.
-			l = e.matchlenLong(int(s+4), int(t+4), src) + 4
+			l = e.matchLenLong(int(s+4), int(t+4), src) + 4
 		} else if l == maxMatchLength {
-			l += e.matchlenLong(int(s+l), int(t+l), src)
+			l += e.matchLenLong(int(s+l), int(t+l), src)
 		}
 
 		// Try to locate a better match by checking the end of best match...
@@ -197,7 +197,7 @@ func (e *fastEncL5) encode(dst *tokens, src []byte) {
 			s2 := s + skipBeginning
 			off := s2 - t2
 			if t2 >= 0 && off < maxMatchOffset && off > 0 {
-				if l2 := e.matchlenLong(int(s2), int(t2), src); l2 > l {
+				if l2 := e.matchLenLong(int(s2), int(t2), src); l2 > l {
 					t = t2
 					l = l2
 					s = s2

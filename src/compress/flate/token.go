@@ -121,6 +121,8 @@ var offsetCodes14 = [256]uint32{
 	29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29, 29,
 }
 
+// A token is a token that will be written to output stream.
+// It is either a literal or a match with offset and length.
 type token uint32
 
 // tokens are compound values as described above.
@@ -135,6 +137,7 @@ type tokens struct {
 	tokens    [65536]token
 }
 
+// Reset resets the tokens and histograms.
 func (t *tokens) Reset() {
 	if t.n == 0 {
 		return
@@ -146,12 +149,14 @@ func (t *tokens) Reset() {
 	clear(t.offHist[:])
 }
 
+// indexTokens creates tokens from a slice of unindexed tokens.
 func indexTokens(in []token) tokens {
 	var t tokens
 	t.indexTokens(in)
 	return t
 }
 
+// indexTokens clears and sets t from a slice of unindexed tokens.
 func (t *tokens) indexTokens(in []token) {
 	t.Reset()
 	for _, tok := range in {
@@ -172,13 +177,15 @@ func emitLiterals(dst *tokens, lit []byte) {
 	}
 }
 
+// AddLiteral adds a single literal to the tokens.
 func (t *tokens) AddLiteral(lit byte) {
 	t.tokens[t.n] = token(lit)
 	t.litHist[lit]++
 	t.n++
 }
 
-// from https://stackoverflow.com/a/28730362
+// mFastLog2 returns a fast approximation of log2(val).
+// From https://stackoverflow.com/a/28730362.
 func mFastLog2(val float32) float32 {
 	ux := int32(math.Float32bits(val))
 	log2 := (float32)(((ux >> 23) & 255) - 128)
@@ -189,8 +196,10 @@ func mFastLog2(val float32) float32 {
 	return log2
 }
 
-// EstimatedBits will return a minimum size estimated by an *optimal*
-// compression of the block.
+// EstimatedBits returns an estimated minimum size for the
+// optimal compression of t.
+// Minimum 1 bit is assigned per symbol.
+// Maximum 15 bits are assigned per symbol.
 func (t *tokens) EstimatedBits() int {
 	shannon := float32(0)
 	bits := int(0)
@@ -201,7 +210,7 @@ func (t *tokens) EstimatedBits() int {
 		for _, v := range t.litHist[:] {
 			if v > 0 {
 				n := float32(v)
-				shannon += atLeastOne(-mFastLog2(n*invTotal)) * n
+				shannon += min(15, max(1, -mFastLog2(n*invTotal))) * n
 			}
 		}
 		// Just add 15 for EOB
@@ -209,7 +218,7 @@ func (t *tokens) EstimatedBits() int {
 		for i, v := range t.extraHist[1 : literalCount-256] {
 			if v > 0 {
 				n := float32(v)
-				shannon += atLeastOne(-mFastLog2(n*invTotal)) * n
+				shannon += min(15, max(1, -mFastLog2(n*invTotal))) * n
 				bits += int(lengthExtraBits[i&31]) * int(v)
 				nMatches += int(v)
 			}
@@ -220,7 +229,7 @@ func (t *tokens) EstimatedBits() int {
 		for i, v := range t.offHist[:offsetCodeCount] {
 			if v > 0 {
 				n := float32(v)
-				shannon += atLeastOne(-mFastLog2(n*invTotal)) * n
+				shannon += min(15, max(1, -mFastLog2(n*invTotal))) * n
 				bits += int(offsetExtraBits[i&31]) * int(v)
 			}
 		}
@@ -264,6 +273,7 @@ func (t *tokens) AddMatchLong(xlength int32, xoffset uint32) {
 	}
 }
 
+// AddEOB adds an end of block marker to the tokens.
 func (t *tokens) AddEOB() {
 	t.tokens[t.n] = token(endBlockMarker)
 	t.extraHist[0]++
@@ -275,21 +285,22 @@ func (t *tokens) Slice() []token {
 	return t.tokens[:t.n]
 }
 
-// Returns the type of a token
+// typ returns the type of a token.
 func (t token) typ() uint32 { return uint32(t) & typeMask }
 
-// Returns the literal of a literal token
+// literal returns the literal value of t.
 func (t token) literal() uint8 { return uint8(t) }
 
-// Returns the extra offset of a match token
+// offset returns the offset of a match token.
 func (t token) offset() uint32 { return uint32(t) & offsetMask }
 
+// length returns the length of a match token.
 func (t token) length() uint8 { return uint8(t >> lengthShift) }
 
-// Convert length to code.
+// lengthCode converts a match length to its code.
 func lengthCode(len uint8) uint8 { return lengthCodes[len] }
 
-// Returns the offset code corresponding to a specific offset
+// offsetCode returns the offset code corresponding to a specific offset.
 func offsetCode(off uint32) uint32 {
 	if off < uint32(len(offsetCodes)) {
 		return offsetCodes[uint8(off)]

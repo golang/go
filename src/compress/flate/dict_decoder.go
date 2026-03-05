@@ -160,6 +160,7 @@ func (dd *dictDecoder) tryWriteCopy(dist, length int) int {
 	for dstPos < endPos {
 		dstPos += copy(dd.hist[dstPos:endPos], dd.hist[srcPos:dstPos])
 	}
+
 	dd.wrPos = dstPos
 	return dstPos - dstBase
 }
