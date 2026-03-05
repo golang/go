@@ -71,6 +71,9 @@ func Pipe2(p []int, flags int) error {
 	return err
 }
 
+//go:cgo_ldflag "-lxnet"
+//go:cgo_ldflag "-lsocket"
+
 //sys   accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) = libsocket.accept4
 
 func Accept4(fd int, flags int) (int, Sockaddr, error) {
