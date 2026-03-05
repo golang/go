@@ -367,6 +367,108 @@ func (d *compressor) initDeflate() {
 	s.chainHead = -1
 }
 
+// tryBetterMatchAtEnd checks whether a better match exists at the end of the
+// previous match and, if so, emits the skipped literals and adjusts the match.
+// Returns the (possibly updated) prevLength and prevOffset.
+func (d *compressor) tryBetterMatchAtEnd(prevLength, prevOffset, lookahead int) (newLen, newOff int) {
+	// We start checking at checkOff from the current match position.
+	// This allows up to two additional literals, but that could be
+	// compensated by a higher quality match.
+	// If the match looks better, we extend backwards.
+	const checkOff = 2
+	s := d.state
+
+	if prevLength >= maxMatchLength-checkOff {
+		return prevLength, prevOffset
+	}
+	prevIndex := s.index - 1
+	if prevIndex+prevLength >= s.maxInsertIndex {
+		return prevLength, prevOffset
+	}
+
+	end := min(lookahead, maxMatchLength+checkOff) + prevIndex
+	minIndex := max(s.index-windowSize, 0)
+
+	h := hash4(d.window[prevIndex+prevLength:])
+	ch2 := int(s.hashHead[h]) - s.hashOffset - prevLength
+	if prevIndex-ch2 == prevOffset || ch2 <= minIndex+checkOff {
+		return prevLength, prevOffset
+	}
+
+	length := matchLen(d.window[prevIndex+checkOff:end], d.window[ch2+checkOff:])
+	if length <= prevLength {
+		return prevLength, prevOffset
+	}
+
+	prevLength = length
+	prevOffset = prevIndex - ch2
+
+	for i := checkOff - 1; i >= 0; i-- {
+		if prevLength >= maxMatchLength || d.window[prevIndex+i] != d.window[ch2+i] {
+			for j := 0; j <= i; j++ {
+				d.tokens.AddLiteral(d.window[prevIndex+j])
+				if d.tokens.n == maxFlateBlockTokens {
+					if d.err = d.writeBlock(&d.tokens, s.index, false); d.err != nil {
+						return prevLength, prevOffset
+					}
+					d.tokens.Reset()
+				}
+				s.index++
+				if s.index < s.maxInsertIndex {
+					h := hash4(d.window[s.index:])
+					ch := s.hashHead[h]
+					s.chainHead = int(ch)
+					s.hashPrev[s.index&windowMask] = ch
+					s.hashHead[h] = uint32(s.index + s.hashOffset)
+				}
+			}
+			break
+		}
+		prevLength++
+	}
+	return prevLength, prevOffset
+}
+
+// skipLiterals emits extra literal bytes during long runs of uncompressible data,
+// skipping ahead to avoid futile match searches. Returns false on write error.
+func (d *compressor) skipLiterals() bool {
+	s := d.state
+	n := int(s.literalCounter) - d.chain
+	if n <= 0 {
+		return true
+	}
+	n = 1 + n>>6
+	for j := 0; j < n; j++ {
+		if s.index >= d.windowEnd-1 {
+			break
+		}
+		d.tokens.AddLiteral(d.window[s.index-1])
+		if d.tokens.n == maxFlateBlockTokens {
+			if d.err = d.writeBlock(&d.tokens, s.index, false); d.err != nil {
+				return false
+			}
+			d.tokens.Reset()
+		}
+		if s.index < s.maxInsertIndex {
+			h := hash4(d.window[s.index:])
+			ch := s.hashHead[h]
+			s.chainHead = int(ch)
+			s.hashPrev[s.index&windowMask] = ch
+			s.hashHead[h] = uint32(s.index + s.hashOffset)
+		}
+		s.index++
+	}
+	d.tokens.AddLiteral(d.window[s.index-1])
+	d.byteAvailable = false
+	if d.tokens.n == maxFlateBlockTokens {
+		if d.err = d.writeBlock(&d.tokens, s.index, false); d.err != nil {
+			return false
+		}
+		d.tokens.Reset()
+	}
+	return true
+}
+
 // deflateLazy encodes the current window using lazy matching.
 // Lazy matching defers emitting a match to see if the next position yields a better one.
 // Unique to levels 7-9 is that more than 2 matches are potentially checked
@@ -417,12 +519,11 @@ func (d *compressor) deflateLazy() {
 			}
 		}
 		if s.index < s.maxInsertIndex {
-			// Update the hash
-			hash := hash4(d.window[s.index:])
-			ch := s.hashHead[hash]
+			h := hash4(d.window[s.index:])
+			ch := s.hashHead[h]
 			s.chainHead = int(ch)
 			s.hashPrev[s.index&windowMask] = ch
-			s.hashHead[hash] = uint32(s.index + s.hashOffset)
+			s.hashHead[h] = uint32(s.index + s.hashOffset)
 		}
 		prevLength := s.length
 		prevOffset := s.offset
@@ -438,60 +539,11 @@ func (d *compressor) deflateLazy() {
 		}
 
 		if prevLength >= minMatchLength && s.length <= prevLength {
-			// No better match, but check for better match at end...
-			//
-			// Skip forward a number of bytes.
-			// Offset of 2 seems to yield the best results. 3 is sometimes better.
-			const checkOff = 2
-
-			// Check all, except full length
-			if prevLength < maxMatchLength-checkOff {
-				prevIndex := s.index - 1
-				if prevIndex+prevLength < s.maxInsertIndex {
-					end := min(lookahead, maxMatchLength+checkOff)
-					end += prevIndex
-
-					// Hash at match end.
-					h := hash4(d.window[prevIndex+prevLength:])
-					ch2 := int(s.hashHead[h]) - s.hashOffset - prevLength
-					if prevIndex-ch2 != prevOffset && ch2 > minIndex+checkOff {
-						length := matchLen(d.window[prevIndex+checkOff:end], d.window[ch2+checkOff:])
-						// It seems like a pure length metric is best.
-						if length > prevLength {
-							prevLength = length
-							prevOffset = prevIndex - ch2
-
-							// Extend back...
-							for i := checkOff - 1; i >= 0; i-- {
-								if prevLength >= maxMatchLength || d.window[prevIndex+i] != d.window[ch2+i] {
-									// Emit tokens we "owe"
-									for j := 0; j <= i; j++ {
-										d.tokens.AddLiteral(d.window[prevIndex+j])
-										if d.tokens.n == maxFlateBlockTokens {
-											// The block includes the current character
-											if d.err = d.writeBlock(&d.tokens, s.index, false); d.err != nil {
-												return
-											}
-											d.tokens.Reset()
-										}
-										s.index++
-										if s.index < s.maxInsertIndex {
-											h := hash4(d.window[s.index:])
-											ch := s.hashHead[h]
-											s.chainHead = int(ch)
-											s.hashPrev[s.index&windowMask] = ch
-											s.hashHead[h] = uint32(s.index + s.hashOffset)
-										}
-									}
-									break
-								} else {
-									prevLength++
-								}
-							}
-						}
-					}
-				}
+			prevLength, prevOffset = d.tryBetterMatchAtEnd(prevLength, prevOffset, lookahead)
+			if d.err != nil {
+				return
 			}
+
 			// There was a match at the previous step, and the current match is
 			// not better. Output the previous match.
 			d.tokens.AddMatch(uint32(prevLength-3), uint32(prevOffset-minOffsetSize))
@@ -501,7 +553,6 @@ func (d *compressor) deflateLazy() {
 			// lookahead, the last two strings are not inserted into the hash
 			// table.
 			newIndex := s.index + prevLength - 1
-			// Calculate missing hashes
 			end := min(newIndex, s.maxInsertIndex)
 			end += minMatchLength - 1
 			startindex := min(s.index+1, s.maxInsertIndex)
@@ -514,10 +565,7 @@ func (d *compressor) deflateLazy() {
 				for i, val := range dst {
 					di := i + startindex
 					newH = val & hashMask
-					// Get previous value with the same hash.
-					// Our chain should point to the previous value.
 					s.hashPrev[di&windowMask] = s.hashHead[newH]
-					// Set the head of the hash chain to us.
 					s.hashHead[newH] = uint32(di + s.hashOffset)
 				}
 			}
@@ -526,70 +574,33 @@ func (d *compressor) deflateLazy() {
 			d.byteAvailable = false
 			s.length = minMatchLength - 1
 			if d.tokens.n == maxFlateBlockTokens {
-				// The block includes the current character
 				if d.err = d.writeBlock(&d.tokens, s.index, false); d.err != nil {
 					return
 				}
 				d.tokens.Reset()
 			}
 			s.literalCounter = 0
+			continue
+		}
+		if s.length >= minMatchLength {
+			s.literalCounter = 0
+		}
+		if d.byteAvailable {
+			s.literalCounter++
+			d.tokens.AddLiteral(d.window[s.index-1])
+			if d.tokens.n == maxFlateBlockTokens {
+				if d.err = d.writeBlock(&d.tokens, s.index, false); d.err != nil {
+					return
+				}
+				d.tokens.Reset()
+			}
+			s.index++
+			if !d.skipLiterals() {
+				return
+			}
 		} else {
-			// Reset, if we got a match this run.
-			if s.length >= minMatchLength {
-				s.literalCounter = 0
-			}
-			// We have a byte waiting. Emit it.
-			if d.byteAvailable {
-				s.literalCounter++
-				d.tokens.AddLiteral(d.window[s.index-1])
-				if d.tokens.n == maxFlateBlockTokens {
-					if d.err = d.writeBlock(&d.tokens, s.index, false); d.err != nil {
-						return
-					}
-					d.tokens.Reset()
-				}
-				s.index++
-
-				// If we have a long run of no matches, skip additional bytes
-				// Resets when s.literalCounter overflows after 64KB.
-				if n := int(s.literalCounter) - d.chain; n > 0 {
-					n = 1 + int(n>>6)
-					for j := 0; j < n; j++ {
-						if s.index >= d.windowEnd-1 {
-							break
-						}
-						d.tokens.AddLiteral(d.window[s.index-1])
-						if d.tokens.n == maxFlateBlockTokens {
-							if d.err = d.writeBlock(&d.tokens, s.index, false); d.err != nil {
-								return
-							}
-							d.tokens.Reset()
-						}
-						// Index...
-						if s.index < s.maxInsertIndex {
-							h := hash4(d.window[s.index:])
-							ch := s.hashHead[h]
-							s.chainHead = int(ch)
-							s.hashPrev[s.index&windowMask] = ch
-							s.hashHead[h] = uint32(s.index + s.hashOffset)
-						}
-						s.index++
-					}
-					// Flush last byte
-					d.tokens.AddLiteral(d.window[s.index-1])
-					d.byteAvailable = false
-					// s.length = minMatchLength - 1 // not needed, since s.literalCounter is reset above, so it should never be > minMatchLength
-					if d.tokens.n == maxFlateBlockTokens {
-						if d.err = d.writeBlock(&d.tokens, s.index, false); d.err != nil {
-							return
-						}
-						d.tokens.Reset()
-					}
-				}
-			} else {
-				s.index++
-				d.byteAvailable = true
-			}
+			s.index++
+			d.byteAvailable = true
 		}
 	}
 }
