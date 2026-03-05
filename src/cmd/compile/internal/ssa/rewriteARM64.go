@@ -106,6 +106,8 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpARM64FCMPD(v)
 	case OpARM64FCMPS:
 		return rewriteValueARM64_OpARM64FCMPS(v)
+	case OpARM64FCVTDS:
+		return rewriteValueARM64_OpARM64FCVTDS(v)
 	case OpARM64FMOVDfpgp:
 		return rewriteValueARM64_OpARM64FMOVDfpgp(v)
 	case OpARM64FMOVDgpfp:
@@ -4786,6 +4788,115 @@ func rewriteValueARM64_OpARM64FCMPS(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpARM64FCMPS0, types.TypeFlags)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64FCVTDS(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (FCVTDS (FABSD (FCVTSD x)))
+	// result: (FABSS x)
+	for {
+		if v_0.Op != OpARM64FABSD {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpARM64FCVTSD {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpARM64FABSS)
+		v.AddArg(x)
+		return true
+	}
+	// match: (FCVTDS (FSQRTD (FCVTSD x)))
+	// result: (FSQRTS x)
+	for {
+		if v_0.Op != OpARM64FSQRTD {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpARM64FCVTSD {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpARM64FSQRTS)
+		v.AddArg(x)
+		return true
+	}
+	// match: (FCVTDS (FRINTPD (FCVTSD x)))
+	// result: (FRINTPS x)
+	for {
+		if v_0.Op != OpARM64FRINTPD {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpARM64FCVTSD {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpARM64FRINTPS)
+		v.AddArg(x)
+		return true
+	}
+	// match: (FCVTDS (FRINTMD (FCVTSD x)))
+	// result: (FRINTMS x)
+	for {
+		if v_0.Op != OpARM64FRINTMD {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpARM64FCVTSD {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpARM64FRINTMS)
+		v.AddArg(x)
+		return true
+	}
+	// match: (FCVTDS (FRINTAD (FCVTSD x)))
+	// result: (FRINTAS x)
+	for {
+		if v_0.Op != OpARM64FRINTAD {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpARM64FCVTSD {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpARM64FRINTAS)
+		v.AddArg(x)
+		return true
+	}
+	// match: (FCVTDS (FRINTND (FCVTSD x)))
+	// result: (FRINTNS x)
+	for {
+		if v_0.Op != OpARM64FRINTND {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpARM64FCVTSD {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpARM64FRINTNS)
+		v.AddArg(x)
+		return true
+	}
+	// match: (FCVTDS (FRINTZD (FCVTSD x)))
+	// result: (FRINTZS x)
+	for {
+		if v_0.Op != OpARM64FRINTZD {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpARM64FCVTSD {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpARM64FRINTZS)
+		v.AddArg(x)
 		return true
 	}
 	return false

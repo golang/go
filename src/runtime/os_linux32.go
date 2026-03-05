@@ -21,7 +21,12 @@ var isFutexTime32bitOnly atomic.Bool
 
 //go:nosplit
 func futex(addr unsafe.Pointer, op int32, val uint32, ts *timespec, addr2 unsafe.Pointer, val3 uint32) int32 {
-	if !isFutexTime32bitOnly.Load() {
+	// In Android versions 8.0-10 (API levels 26-29), futex_time64
+	// is not in the allowlist of the seccomp filter and will lead to a
+	// runtime crash. See issue 77621.
+	// TODO: Check Android version and do not skip futex_time64
+	// on Android 11 or higher (API level 30+).
+	if GOOS != "android" && !isFutexTime32bitOnly.Load() {
 		ret := futex_time64(addr, op, val, ts, addr2, val3)
 		// futex_time64 is only supported on Linux 5.0+
 		if ret != -_ENOSYS {
@@ -49,7 +54,12 @@ var isSetTime32bitOnly atomic.Bool
 
 //go:nosplit
 func timer_settime(timerid int32, flags int32, new, old *itimerspec) int32 {
-	if !isSetTime32bitOnly.Load() {
+	// In Android versions 8.0-10 (API levels 26-29), timer_settime64
+	// is not in the allowlist of the seccomp filter and will lead to a
+	// runtime crash. See issue 77621.
+	// TODO: Check Android version and do not skip timer_settime64
+	// on Android 11 or higher (API level 30+).
+	if GOOS != "android" && !isSetTime32bitOnly.Load() {
 		ret := timer_settime64(timerid, flags, new, old)
 		// timer_settime64 is only supported on Linux 5.0+
 		if ret != -_ENOSYS {

@@ -508,13 +508,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 
 	if at.Size() == 0 {
 		// For consistency, create these values even though they'll ultimately be unused
-		if at.IsArray() {
-			return makeOf(a, OpArrayMake0, nil)
-		}
-		if at.IsStruct() {
-			return makeOf(a, OpStructMake, nil)
-		}
-		return a
+		return makeOf(a, OpEmpty, nil)
 	}
 
 	sk := selKey{from: container, size: 0, offsetOrIndex: rc.storeOffset, typ: at}

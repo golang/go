@@ -491,7 +491,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	sighandler(sig, info, ctx, gp)
 
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
-		atomic.Store(&gp.m.signalSecret, 1)
+		gp.m.signalSecret = true
 	}
 
 	setg(gp)

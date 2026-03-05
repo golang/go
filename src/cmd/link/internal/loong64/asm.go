@@ -497,7 +497,6 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			objabi.R_LOONG64_TLS_LE_LO,
 			objabi.R_CALLLOONG64,
 			objabi.R_LOONG64_CALL36,
-			objabi.R_JMPLOONG64,
 			objabi.R_LOONG64_TLS_IE_HI,
 			objabi.R_LOONG64_TLS_IE_LO,
 			objabi.R_LOONG64_GOT_HI,
@@ -533,8 +532,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			return val&0xffc003ff | ((t & 0xfff) << 10), noExtReloc, isOk
 		}
 		return val&0xfe00001f | (((t) >> 12 << 5) & 0x1ffffe0), noExtReloc, isOk
-	case objabi.R_CALLLOONG64,
-		objabi.R_JMPLOONG64:
+	case objabi.R_CALLLOONG64:
 		pc := ldr.SymValue(s) + int64(r.Off())
 		t := ldr.SymAddr(rs) + r.Add() - pc
 		return val&0xfc000000 | (((t >> 2) & 0xffff) << 10) | (((t >> 2) & 0x3ff0000) >> 16), noExtReloc, isOk
@@ -600,7 +598,6 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
 		objabi.R_CONST,
 		objabi.R_GOTOFF,
 		objabi.R_CALLLOONG64,
-		objabi.R_JMPLOONG64,
 		objabi.R_LOONG64_TLS_IE_HI,
 		objabi.R_LOONG64_TLS_IE_LO:
 		return ld.ExtrelocSimple(ldr, r), true

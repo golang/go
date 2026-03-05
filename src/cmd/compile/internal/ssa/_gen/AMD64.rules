@@ -124,6 +124,8 @@
 (Ceil x)        => (ROUNDSD [2] x)
 (Trunc x)       => (ROUNDSD [3] x)
 
+(CVTSD2SS (ROUNDSD [c] (CVTSS2SD x))) => (ROUNDSS [c] x)
+
 (FMA x y z) => (VFMADD231SD z x y)
 
 // Lowering extension
@@ -1286,20 +1288,13 @@
 (SETAEstore [off] {sym} ptr (FlagGT_UGT) mem) => (MOVBstore [off] {sym} ptr (MOVLconst <typ.UInt8> [1]) mem)
 
 // Remove redundant *const ops
-(ADDQconst [0] x)          => x
-(ADDLconst [c] x) && c==0  => x
-(SUBQconst [0] x)          => x
-(SUBLconst [c] x) && c==0  => x
-(ANDQconst [0] _)          => (MOVQconst [0])
-(ANDLconst [c] _) && c==0  => (MOVLconst [0])
-(ANDQconst [-1] x)         => x
-(ANDLconst [c] x) && c==-1 => x
-(ORQconst [0] x)           => x
-(ORLconst [c] x)  && c==0  => x
-(ORQconst [-1] _)          => (MOVQconst [-1])
-(ORLconst [c] _)  && c==-1 => (MOVLconst [-1])
-(XORQconst [0] x)          => x
-(XORLconst [c] x) && c==0  => x
+(ADD(Q|L)const [0] x) => x
+(SUB(Q|L)const [0] x) => x
+(AND(Q|L)const [0] _) => (MOVLconst [0])
+(AND(Q|L)const [-1] x) => x
+(OR(Q|L)const [0] x) => x
+(OR(Q|L)const [-1] _) => (MOV(Q|L)const [-1])
+(XOR(Q|L)const [0] x) => x
 // TODO: since we got rid of the W/B versions, we might miss
 // things like (ANDLconst [0x100] x) which were formerly
 // (ANDBconst [0] x).  Probably doesn't happen very often.
@@ -1327,8 +1322,7 @@
 (SARLconst [c] (MOVQconst [d])) => (MOVQconst [int64(int32(d))>>uint64(c)])
 (SARWconst [c] (MOVQconst [d])) => (MOVQconst [int64(int16(d))>>uint64(c)])
 (SARBconst [c] (MOVQconst [d])) => (MOVQconst [int64(int8(d))>>uint64(c)])
-(NEGQ (MOVQconst [c])) => (MOVQconst [-c])
-(NEGL (MOVLconst [c])) => (MOVLconst [-c])
+(NEG(Q|L) (MOV(Q|L)const [c])) => (MOV(Q|L)const [-c])
 (MULQconst [c] (MOVQconst [d])) => (MOVQconst [int64(c)*d])
 (MULLconst [c] (MOVLconst [d])) => (MOVLconst [c*d])
 (ANDQconst [c] (MOVQconst [d])) => (MOVQconst [int64(c)&d])
@@ -1337,8 +1331,7 @@
 (ORLconst [c] (MOVLconst [d])) => (MOVLconst [c|d])
 (XORQconst [c] (MOVQconst [d])) => (MOVQconst [int64(c)^d])
 (XORLconst [c] (MOVLconst [d])) => (MOVLconst [c^d])
-(NOTQ (MOVQconst [c])) => (MOVQconst [^c])
-(NOTL (MOVLconst [c])) => (MOVLconst [^c])
+(NOT(Q|L) (MOV(Q|L)const [c])) => (MOV(Q|L)const [^c])
 (BTSQconst [c] (MOVQconst [d])) => (MOVQconst [d|(1<<uint32(c))])
 (BTRQconst [c] (MOVQconst [d])) => (MOVQconst [d&^(1<<uint32(c))])
 (BTCQconst [c] (MOVQconst [d])) => (MOVQconst [d^(1<<uint32(c))])
@@ -1351,16 +1344,11 @@
 
 // generic simplifications
 // TODO: more of this
-(ADDQ x (NEGQ y)) => (SUBQ x y)
-(ADDL x (NEGL y)) => (SUBL x y)
-(SUBQ x x) => (MOVQconst [0])
-(SUBL x x) => (MOVLconst [0])
-(ANDQ x x) => x
-(ANDL x x) => x
-(ORQ x x)  => x
-(ORL x x)  => x
-(XORQ x x) => (MOVQconst [0])
-(XORL x x) => (MOVLconst [0])
+(ADD(Q|L) x (NEG(Q|L) y)) => (SUB(Q|L) x y)
+(SUB(Q|L) x x) => (MOVLconst [0])
+(AND(Q|L) x x) => x
+(OR(Q|L) x x)  => x
+(XOR(Q|L) x x) => (MOVLconst [0])
 
 (SHLLconst [d] (MOVLconst [c])) => (MOVLconst [c << uint64(d)])
 (SHLQconst [d] (MOVQconst [c])) => (MOVQconst [c << uint64(d)])
@@ -1371,10 +1359,7 @@
 (MULQconst [c] (NEGQ x)) && c != -(1<<31) => (MULQconst [-c] x)
 
 // checking AND against 0.
-(CMPQconst a:(ANDQ x y) [0]) && a.Uses == 1 => (TESTQ x y)
-(CMPLconst a:(ANDL x y) [0]) && a.Uses == 1 => (TESTL x y)
-(CMPWconst a:(ANDL x y) [0]) && a.Uses == 1 => (TESTW x y)
-(CMPBconst a:(ANDL x y) [0]) && a.Uses == 1 => (TESTB x y)
+(CMP(Q|L|W|B)const a:(AND(Q|L|L|L) x y) [0]) && a.Uses == 1 => (TEST(Q|L|W|B) x y)
 (CMPQconst a:(ANDQconst [c] x) [0]) && a.Uses == 1 => (TESTQconst [c] x)
 (CMPLconst a:(ANDLconst [c] x) [0]) && a.Uses == 1 => (TESTLconst [c] x)
 (CMPWconst a:(ANDLconst [c] x) [0]) && a.Uses == 1 => (TESTWconst [int16(c)] x)
@@ -1387,10 +1372,7 @@
 (TESTB (MOVLconst [c]) x) => (TESTBconst [int8(c)] x)
 
 // TEST %reg,%reg is shorter than CMP
-(CMPQconst x [0]) => (TESTQ x x)
-(CMPLconst x [0]) => (TESTL x x)
-(CMPWconst x [0]) => (TESTW x x)
-(CMPBconst x [0]) => (TESTB x x)
+(CMP(Q|L|W|B)const x [0]) => (TEST(Q|L|W|B) x x)
 (TESTQconst [-1] x) && x.Op != OpAMD64MOVQconst => (TESTQ x x)
 (TESTLconst [-1] x) && x.Op != OpAMD64MOVLconst => (TESTL x x)
 (TESTWconst [-1] x) && x.Op != OpAMD64MOVLconst => (TESTW x x)

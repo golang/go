@@ -2202,6 +2202,15 @@ func memclrNoHeapPointersChunked(size uintptr, x unsafe.Pointer) {
 	}
 }
 
+// memclrNoHeapPointersPreemptible is the compiler-callable entry point
+// for clearing large buffers with preemption support. It has the same
+// signature as memclrNoHeapPointers so the compiler can emit calls to it
+// directly. It delegates to memclrNoHeapPointersChunked which splits the
+// work into 256KB chunks with preemption checks between them.
+func memclrNoHeapPointersPreemptible(ptr unsafe.Pointer, n uintptr) {
+	memclrNoHeapPointersChunked(n, ptr)
+}
+
 // implementation of new builtin
 // compiler (both frontend and SSA backend) knows the signature
 // of this function.

@@ -1491,7 +1491,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 	case ssa.OpAMD64LoweredRound32F, ssa.OpAMD64LoweredRound64F:
 		// input is already rounded
-	case ssa.OpAMD64ROUNDSD:
+	case ssa.OpAMD64ROUNDSD, ssa.OpAMD64ROUNDSS:
 		p := s.Prog(v.Op.Asm())
 		val := v.AuxInt
 		// 0 means math.RoundToEven, 1 Floor, 2 Ceil, 3 Trunc

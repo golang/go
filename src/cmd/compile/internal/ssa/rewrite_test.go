@@ -6,6 +6,8 @@ package ssa
 
 import (
 	"cmd/compile/internal/rttype"
+	"math"
+	"math/rand"
 	"reflect"
 	"testing"
 	"unsafe"
@@ -40,6 +42,78 @@ func TestSubFlags(t *testing.T) {
 	if !subFlags32(0, 1).ult() {
 		t.Errorf("subFlags32(0,1).ult() returned false")
 	}
+}
+
+//go:noinline
+func unopt(f func(float64) float64, x float32) float32 {
+	return float32(f(float64(x)))
+}
+
+func differ(x, y float32) bool {
+	if x != x && y != y {
+		// if both are NaN, exact bit pattern of the NaN is uninteresting
+		return false
+	}
+	return math.Float32bits(x) != math.Float32bits(y)
+}
+
+func test32bitUnary(t *testing.T, x float32) {
+	if want, got := unopt(math.Round, x), float32(math.Round(float64(x))); differ(want, got) {
+		t.Errorf("Optimized 32-bit Round did not match, x=%f, want=%f, got=%f", x, want, got)
+	}
+	if want, got := unopt(math.RoundToEven, x), float32(math.RoundToEven(float64(x))); differ(want, got) {
+		t.Errorf("Optimized 32-bit RoundToEven did not match, x=%f, want=%f, got=%f", x, want, got)
+	}
+	if want, got := unopt(math.Trunc, x), float32(math.Trunc(float64(x))); differ(want, got) {
+		t.Errorf("Optimized 32-bit Trunc did not match, x=%f, want=%f, got=%f", x, want, got)
+	}
+	if want, got := unopt(math.Ceil, x), float32(math.Ceil(float64(x))); differ(want, got) {
+		t.Errorf("Optimized 32-bit Ceil did not match, x=%f, want=%f, got=%f", x, want, got)
+	}
+	if want, got := unopt(math.Floor, x), float32(math.Floor(float64(x))); differ(want, got) {
+		t.Errorf("Optimized 32-bit Floor did not match, x=%f, want=%f, got=%f", x, want, got)
+	}
+	if x >= 0 {
+		if want, got := unopt(math.Sqrt, x), float32(math.Sqrt(float64(x))); differ(want, got) {
+			t.Errorf("Optimized 32-bit Sqrt did not match, x=%f, want=%f, got=%f", x, want, got)
+		}
+	}
+	if want, got := unopt(math.Abs, x), float32(math.Abs(float64(x))); differ(want, got) {
+		t.Errorf("Optimized 32-bit Abs did not match, x=%f, want=%f, got=%f", x, want, got)
+	}
+
+}
+
+var zero float32
+
+func Test32bitUnary(t *testing.T) {
+	// this is mostly for testing rounding.
+	test32bitUnary(t, -1.5)
+	test32bitUnary(t, -0.5)
+	test32bitUnary(t, 0.5)
+	test32bitUnary(t, 1.5)
+
+	test32bitUnary(t, -1.4)
+	test32bitUnary(t, -0.4)
+	test32bitUnary(t, 0.4)
+	test32bitUnary(t, 1.4)
+
+	test32bitUnary(t, -1.6)
+	test32bitUnary(t, -0.6)
+	test32bitUnary(t, 0.6)
+	test32bitUnary(t, 1.6)
+
+	// negative zero
+	test32bitUnary(t, 1/(-1/zero))
+
+	var rnd = rand.New(rand.NewSource(0))
+
+	for i := uint32(0); i <= 1<<20; i++ {
+		test32bitUnary(t, math.Float32frombits(math.Float32bits(math.MaxFloat32)-i))
+		test32bitUnary(t, float32(i)+1.5)
+		test32bitUnary(t, math.Float32frombits(rnd.Uint32()))
+	}
+
 }
 
 func TestIsPPC64WordRotateMask(t *testing.T) {

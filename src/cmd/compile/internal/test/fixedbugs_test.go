@@ -5,9 +5,11 @@
 package test
 
 import (
+	"internal/platform"
 	"internal/testenv"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -82,5 +84,42 @@ package main
 
 func Mod32(x uint32) uint32 {
 	return x % 3 // frontend rewrites it as HMUL with 2863311531, the LITERAL node has unknown Pos
+}
+`
+
+// Test that building and running a program with -race -gcflags='all=-N -l'
+// does not crash. This is a regression test for #77597 where generic functions
+// from NoRaceFunc packages (like internal/runtime/atomic) were incorrectly
+// getting racefuncenter/racefuncexit instrumentation when instantiated in
+// other packages with optimizations disabled.
+func TestIssue77597(t *testing.T) {
+	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("race detector not supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveGoRun(t)
+	testenv.MustHaveCGO(t)
+
+	dir := t.TempDir()
+	src := filepath.Join(dir, "main.go")
+	err := os.WriteFile(src, []byte(issue77597src), 0644)
+	if err != nil {
+		t.Fatalf("could not write file: %v", err)
+	}
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "run", "-race", "-gcflags=all=-N -l", src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("program failed: %v\n%s", err, out)
+	}
+}
+
+var issue77597src = `
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("OK")
 }
 `

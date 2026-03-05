@@ -397,10 +397,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 
 func (c *Config) Ctxt() *obj.Link { return c.ctxt }
 
-func (c *Config) Reg(i int8) int16                  { return c.registers[i].objNum }
-func (c *Config) IntParamReg(i abi.RegIndex) int8   { return c.intParamRegs[i] }
-func (c *Config) FloatParamReg(i abi.RegIndex) int8 { return c.floatParamRegs[i] }
-
 func (c *Config) haveByteSwap(size int64) bool {
 	switch size {
 	case 8:

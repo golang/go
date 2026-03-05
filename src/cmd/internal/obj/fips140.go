@@ -366,7 +366,6 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
 		objabi.R_LOONG64_GOT_LO,
 		objabi.R_JMP16LOONG64,
 		objabi.R_JMP21LOONG64,
-		objabi.R_JMPLOONG64,
 		objabi.R_PCREL,
 		objabi.R_PCRELDBL,
 		objabi.R_POWER_TLS_LE,

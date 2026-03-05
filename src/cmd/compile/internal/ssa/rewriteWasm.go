@@ -599,6 +599,8 @@ func rewriteValueWasm(v *Value) bool {
 	case OpWB:
 		v.Op = OpWasmLoweredWB
 		return true
+	case OpWasmF32DemoteF64:
+		return rewriteValueWasm_OpWasmF32DemoteF64(v)
 	case OpWasmF64Add:
 		return rewriteValueWasm_OpWasmF64Add(v)
 	case OpWasmF64Mul:
@@ -3613,6 +3615,121 @@ func rewriteValueWasm_OpStore(v *Value) bool {
 		}
 		v.reset(OpWasmI64Store8)
 		v.AddArg3(ptr, val, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueWasm_OpWasmF32DemoteF64(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (F32DemoteF64 (F64Sqrt (F64PromoteF32 x)))
+	// result: (F32Sqrt x)
+	for {
+		if v_0.Op != OpWasmF64Sqrt {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpWasmF32Sqrt)
+		v.AddArg(x)
+		return true
+	}
+	// match: (F32DemoteF64 (F64Trunc (F64PromoteF32 x)))
+	// result: (F32Trunc x)
+	for {
+		if v_0.Op != OpWasmF64Trunc {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpWasmF32Trunc)
+		v.AddArg(x)
+		return true
+	}
+	// match: (F32DemoteF64 (F64Ceil (F64PromoteF32 x)))
+	// result: (F32Ceil x)
+	for {
+		if v_0.Op != OpWasmF64Ceil {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpWasmF32Ceil)
+		v.AddArg(x)
+		return true
+	}
+	// match: (F32DemoteF64 (F64Floor (F64PromoteF32 x)))
+	// result: (F32Floor x)
+	for {
+		if v_0.Op != OpWasmF64Floor {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpWasmF32Floor)
+		v.AddArg(x)
+		return true
+	}
+	// match: (F32DemoteF64 (F64Nearest (F64PromoteF32 x)))
+	// result: (F32Nearest x)
+	for {
+		if v_0.Op != OpWasmF64Nearest {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpWasmF32Nearest)
+		v.AddArg(x)
+		return true
+	}
+	// match: (F32DemoteF64 (F64Abs (F64PromoteF32 x)))
+	// result: (F32Abs x)
+	for {
+		if v_0.Op != OpWasmF64Abs {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpWasmF32Abs)
+		v.AddArg(x)
+		return true
+	}
+	// match: (F32DemoteF64 (F64Copysign (F64PromoteF32 x) (F64PromoteF32 y)))
+	// result: (F32Copysign x y)
+	for {
+		if v_0.Op != OpWasmF64Copysign {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		x := v_0_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		y := v_0_1.Args[0]
+		v.reset(OpWasmF32Copysign)
+		v.AddArg2(x, y)
 		return true
 	}
 	return false

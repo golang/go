@@ -5,7 +5,6 @@
 package ssa
 
 import (
-	"fmt"
 	"internal/goarch"
 	"slices"
 )
@@ -174,11 +173,11 @@ func rewriteTern(f *Func) {
 	replace := func(a0 *Value, vars0 [3]*Value) {
 		imm := computeTT(a0, vars0)
 		op := ternOpForLogical(a0.Op)
-		if a0.Op >= OpAMD64LoweredGetClosurePtr {
-			return // It is already an AMD64 machine instruction
-		}
 		if op == a0.Op {
-			panic(fmt.Errorf("should have mapped away from input op, a0 is %s", a0.LongString()))
+			if f.pass.debug > 0 {
+				f.Warnl(a0.Pos, "Skipping rewrite for %s, op=%v", a0.LongString(), op)
+			}
+			return
 		}
 		if f.pass.debug > 0 {
 			f.Warnl(a0.Pos, "Rewriting %s into %v of 0b%b %v %v %v", a0.LongString(), op, imm,

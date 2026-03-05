@@ -266,7 +266,7 @@ func decomposeUser(f *Func) {
 // returned.
 func decomposeUserArrayInto(f *Func, name *LocalSlot, slots []*LocalSlot) []*LocalSlot {
 	t := name.Type
-	if t.NumElem() == 0 {
+	if t.Size() == 0 {
 		// TODO(khr): Not sure what to do here.  Probably nothing.
 		// Names for empty arrays aren't important.
 		return slots
@@ -362,6 +362,10 @@ func decomposeUserPhi(v *Value) {
 // and then recursively decomposes the phis for each field.
 func decomposeStructPhi(v *Value) {
 	t := v.Type
+	if t.Size() == 0 {
+		v.reset(OpEmpty)
+		return
+	}
 	n := t.NumFields()
 	fields := make([]*Value, 0, MaxStruct)
 	for i := 0; i < n; i++ {
@@ -385,8 +389,8 @@ func decomposeStructPhi(v *Value) {
 // and then recursively decomposes the element phi.
 func decomposeArrayPhi(v *Value) {
 	t := v.Type
-	if t.NumElem() == 0 {
-		v.reset(OpArrayMake0)
+	if t.Size() == 0 {
+		v.reset(OpEmpty)
 		return
 	}
 	if t.NumElem() != 1 {

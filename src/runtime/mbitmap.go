@@ -626,10 +626,11 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 	src0 := readUintptr(getGCMask(typ))
 
 	// Create repetitions of the bitmap if we have a small slice backing store.
-	scanSize = typ.PtrBytes
 	src := src0
 	if typ.Size_ == goarch.PtrSize {
 		src = (1 << (dataSize / goarch.PtrSize)) - 1
+		// This object is all pointers, so scanSize is just dataSize.
+		scanSize = dataSize
 	} else {
 		// N.B. We rely on dataSize being an exact multiple of the type size.
 		// The alternative is to be defensive and mask out src to the length
@@ -637,6 +638,7 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 		if doubleCheckHeapSetType && !asanenabled && dataSize%typ.Size_ != 0 {
 			throw("runtime: (*mspan).writeHeapBitsSmall: dataSize is not a multiple of typ.Size_")
 		}
+		scanSize = typ.PtrBytes
 		for i := typ.Size_; i < dataSize; i += typ.Size_ {
 			src |= src0 << (i / goarch.PtrSize)
 			scanSize += typ.Size_

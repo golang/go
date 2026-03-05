@@ -349,6 +349,9 @@
 (Abs ...) => (F64Abs ...)
 (Copysign ...) => (F64Copysign ...)
 
+(F32DemoteF64 (F64(Sqrt|Trunc|Ceil|Floor|Nearest|Abs) (F64PromoteF32 x))) => (F32(Sqrt|Trunc|Ceil|Floor|Nearest|Abs) x)
+(F32DemoteF64 (F64Copysign (F64PromoteF32 x) (F64PromoteF32 y))) => (F32Copysign x y)
+
 (Sqrt32 ...) => (F32Sqrt ...)
 
 (Ctz64 ...) => (I64Ctz ...)

@@ -8,7 +8,10 @@
 
 package foo
 
-import "simd/archsimd"
+import (
+	"fmt"
+	"simd/archsimd"
+)
 
 func f1(x archsimd.Int8x16) {
 	return // ERROR "has features avx"
@@ -142,4 +145,15 @@ func ternTricky3(x, y, z archsimd.Int32x8) archsimd.Int32x8 {
 	}
 	// a is a common subexpression
 	return a.Or(w) // ERROR "has features avx[+]avx2[+]avx512"  // This does not rewrite, do we want it to?
+}
+
+func vpternlogdPanic() {
+	resultsMask := archsimd.Mask64x8{}
+
+	for { // ERROR "has features avx+avx2+avx512"
+		resultsMask = archsimd.Mask64x8FromBits(0).Or( // ERROR "has features avx+avx2+avx512"
+			archsimd.Float64x8{}.Less(
+				archsimd.BroadcastFloat64x8(0))).Or(resultsMask) // ERROR "Rewriting.*ternInt" "Skipping rewrite"
+		fmt.Print(resultsMask.And(resultsMask.And(archsimd.Mask64x8{})))
+	}
 }

@@ -25,3 +25,6 @@ func Lstat(name string) (FileInfo, error) {
 	testlog.Stat(name)
 	return lstatNolog(name)
 }
+
+// stathook is set in tests
+var stathook func(f *File, name string) (FileInfo, error)

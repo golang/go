@@ -3476,6 +3476,22 @@ func (s *Server) Serve(l net.Listener) error {
 	}
 }
 
+func (s *Server) setupTLSConfig(certFile, keyFile string, nextProtos []string) (*tls.Config, error) {
+	config := cloneTLSConfig(s.TLSConfig)
+	config.NextProtos = nextProtos
+
+	configHasCert := len(config.Certificates) > 0 || config.GetCertificate != nil || config.GetConfigForClient != nil
+	if !configHasCert || certFile != "" || keyFile != "" {
+		var err error
+		config.Certificates = make([]tls.Certificate, 1)
+		config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return config, nil
+}
+
 // ServeTLS accepts incoming connections on the Listener l, creating a
 // new service goroutine for each. The service goroutines perform TLS
 // setup and then read requests, calling s.Handler to reply to them.
@@ -3497,17 +3513,9 @@ func (s *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 		return err
 	}
 
-	config := cloneTLSConfig(s.TLSConfig)
-	config.NextProtos = adjustNextProtos(config.NextProtos, s.protocols())
-
-	configHasCert := len(config.Certificates) > 0 || config.GetCertificate != nil || config.GetConfigForClient != nil
-	if !configHasCert || certFile != "" || keyFile != "" {
-		var err error
-		config.Certificates = make([]tls.Certificate, 1)
-		config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
-		if err != nil {
-			return err
-		}
+	config, err := s.setupTLSConfig(certFile, keyFile, adjustNextProtos(s.TLSConfig.NextProtos, s.protocols()))
+	if err != nil {
+		return err
 	}
 
 	tlsListener := tls.NewListener(l, config)
@@ -3516,6 +3524,15 @@ func (s *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 
 func (s *Server) protocols() Protocols {
 	if s.Protocols != nil {
+		// Historically, even when Protocols for a Server was set to be empty,
+		// the Server can still run normally with just HTTP/1.
+		// To keep backward-compatibility, the zero value of Protocols is
+		// defined as having only HTTP/1 enabled.
+		if s.Protocols.empty() {
+			var p Protocols
+			p.SetHTTP1(true)
+			return p
+		}
 		return *s.Protocols // user-configured set
 	}
 
@@ -3696,6 +3713,51 @@ func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error {
 	return server.ListenAndServeTLS(certFile, keyFile)
 }
 
+// http3ServerHandler implements an interface in an external library that
+// supports HTTP/3, allowing an external implementation of HTTP/3 to be used
+// via net/http. See https://go.dev/issue/77440 for details.
+//
+// This is currently only used with golang.org/x/net/internal/http3, to allow
+// us to test our HTTP/3 implementation againts tests in net/http. HTTP/3 is
+// not yet accessible to end-users.
+type http3ServerHandler struct {
+	handler   serverHandler
+	tlsConfig *tls.Config
+	baseCtx   context.Context
+	errc      chan error
+}
+
+// ServeHTTP ensures that http3ServerHandler implements the Handler interface,
+// and gives an HTTP/3 server implementation access to the net/http handler.
+func (h http3ServerHandler) ServeHTTP(w ResponseWriter, r *Request) {
+	h.handler.ServeHTTP(w, r)
+}
+
+// Addr gives an HTTP/3 server implementation the address that it should listen
+// on.
+func (h http3ServerHandler) Addr() string {
+	return h.handler.srv.Addr
+}
+
+// TLSConfig gives an HTTP/3 server implementation the *tls.Config that it
+// should use.
+func (h http3ServerHandler) TLSConfig() *tls.Config {
+	return h.tlsConfig
+}
+
+// BaseContext gives an HTTP/3 server implementation the base context to use
+// for server requests.
+func (h http3ServerHandler) BaseContext() context.Context {
+	return h.baseCtx
+}
+
+// ListenErrHook should be called by an HTTP/3 server implementation to
+// propagate any error it encounters when trying to listen, if any, to
+// net/http.
+func (h http3ServerHandler) ListenErrHook(err error) {
+	h.errc <- err
+}
+
 // ListenAndServeTLS listens on the TCP network address s.Addr and
 // then calls [ServeTLS] to handle requests on incoming TLS connections.
 // Accepted connections are configured to enable TCP keep-alives.
@@ -3720,13 +3782,37 @@ func (s *Server) ListenAndServeTLS(certFile, keyFile string) error {
 		addr = ":https"
 	}
 
+	p := s.protocols()
+	if p.http3() {
+		fn, ok := s.TLSNextProto["http/3"]
+		if !ok {
+			return errors.New("http: Server.Protocols contains HTTP3, but Server does not support HTTP/3")
+		}
+		config, err := s.setupTLSConfig(certFile, keyFile, []string{"h3"})
+		if err != nil {
+			return err
+		}
+		errc := make(chan error, 1)
+		go fn(s, nil, http3ServerHandler{
+			handler:   serverHandler{s},
+			tlsConfig: config,
+			baseCtx:   context.WithValue(context.Background(), ServerContextKey, s),
+			errc:      errc,
+		})
+		if err := <-errc; err != nil {
+			return err
+		}
+	}
+
+	// Only start a TCP listener if HTTP/1 or HTTP/2 is used.
+	if !p.HTTP1() && !p.HTTP2() && !p.UnencryptedHTTP2() {
+		return nil
+	}
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
-
 	defer ln.Close()
-
 	return s.ServeTLS(ln, certFile, keyFile)
 }
 

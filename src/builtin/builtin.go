@@ -224,15 +224,14 @@ func max[T cmp.Ordered](x T, y ...T) T
 // min will return NaN.
 func min[T cmp.Ordered](x T, y ...T) T
 
-// The built-in function new creates a new, initialized variable and returns
+// The built-in function new allocates a new, initialized variable and returns
 // a pointer to it. It accepts a single argument, which may be either a type
 // or an expression.
-//
 // If the argument is a type T, then new(T) allocates a variable of type T
 // initialized to its zero value.
-//
-// If the argument is an expression x, then new(x) allocates a variable of
-// the type of x initialized to the value of x.
+// Otherwise, the argument is an expression x and new(x) allocates a variable
+// of the type of x initialized to the value of x. If that value is an untyped
+// constant, it is first implicitly converted to its default type.
 func new(TypeOrExpr) *Type
 
 // The complex built-in function constructs a complex value from two

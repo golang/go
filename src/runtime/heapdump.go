@@ -480,7 +480,7 @@ func dumproots() {
 
 // Bit vector of free marks.
 // Needs to be as big as the largest number of objects per span.
-var freemark [pageSize / 8]bool
+var freemark [gc.MaxObjsPerSpan]bool
 
 func dumpobjs() {
 	// To protect mheap_.allspans.

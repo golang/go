@@ -546,6 +546,43 @@ func TestBadRestartMarker(t *testing.T) {
 	}
 }
 
+// TestDecodeFlexSubsampling tests that decoding images with non-standard
+// (flex) subsampling ratios works correctly.
+func TestDecodeFlexSubsampling(t *testing.T) {
+	// These test cases have non-standard subsampling ratios where either:
+	// - Cb and Cr have different sampling factors, or
+	// - Y doesn't have the maximum sampling factors.
+	testCases := []struct {
+		name     string
+		filename string
+	}{
+		{"2x2,1x1,2x2", "../testdata/video-001.q50.221122.jpeg"}, // Cb differs from Cr
+		{"2x1,1x2,1x1", "../testdata/video-001.q50.211211.jpeg"}, // All three differ
+		{"2x2,2x1,1x2", "../testdata/video-001.q50.222112.jpeg"}, // All three differ
+		{"1x2,1x1,2x1", "../testdata/video-001.q50.121121.jpeg"}, // Y not max, all differ
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			m, err := decodeFile(tc.filename)
+			if err != nil {
+				t.Fatalf("decodeFile(%q): %v", tc.filename, err)
+			}
+			// All video-001 images are 150x103.
+			if got, want := m.Bounds(), image.Rect(0, 0, 150, 103); got != want {
+				t.Errorf("bounds: got %v, want %v", got, want)
+			}
+			// Flex subsampling should produce YCbCr images with 4:4:4 ratio.
+			ycbcr, ok := m.(*image.YCbCr)
+			if !ok {
+				t.Fatalf("got %T, want *image.YCbCr", m)
+			}
+			if got, want := ycbcr.SubsampleRatio, image.YCbCrSubsampleRatio444; got != want {
+				t.Errorf("subsample ratio: got %v, want %v", got, want)
+			}
+		})
+	}
+}
+
 func benchmarkDecode(b *testing.B, filename string) {
 	data, err := os.ReadFile(filename)
 	if err != nil {

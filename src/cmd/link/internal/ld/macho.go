@@ -1338,21 +1338,24 @@ func MachoAddRebase(s loader.Sym, off int64) {
 	machorebase = append(machorebase, machoRebaseRecord{s, off})
 }
 
-// A bind entry tells the dynamic linker the data at GOT+off should be bound
+// A bind entry tells the dynamic linker the data at sym+off should be bound
 // to the address of the target symbol, which is a dynamic import.
+// sym is the symbol containing the pointer (e.g. the GOT or a data symbol),
+// off is the offset within that symbol, and targ is the dynamic import target.
 // For now, the only kind of entry we support is that the data is an absolute
-// address, and the source symbol is always the GOT. That seems all we need.
+// address. That seems all we need.
 // In the binary it uses a compact stateful bytecode encoding. So we record
 // entries as we go and build the table at the end.
 type machoBindRecord struct {
+	sym  loader.Sym
 	off  int64
 	targ loader.Sym
 }
 
 var machobind []machoBindRecord
 
-func MachoAddBind(off int64, targ loader.Sym) {
-	machobind = append(machobind, machoBindRecord{off, targ})
+func MachoAddBind(sym loader.Sym, off int64, targ loader.Sym) {
+	machobind = append(machobind, machoBindRecord{sym, off, targ})
 }
 
 // Generate data for the dynamic linker, used in LC_DYLD_INFO_ONLY load command.
@@ -1412,12 +1415,10 @@ func machoDyldInfo(ctxt *Link) {
 	// Bind table.
 	// TODO: compact encoding, as above.
 	// TODO: lazy binding?
-	got := ctxt.GOT
-	seg := ldr.SymSect(got).Seg
-	gotAddr := ldr.SymValue(got)
 	bind.AddUint8(BIND_OPCODE_SET_TYPE_IMM | BIND_TYPE_POINTER)
 	for _, r := range machobind {
-		off := uint64(gotAddr+r.off) - seg.Vaddr
+		seg := ldr.SymSect(r.sym).Seg
+		off := uint64(ldr.SymValue(r.sym)+r.off) - seg.Vaddr
 		bind.AddUint8(BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB | segId(seg))
 		bind.AddUleb(off)
 

@@ -6,6 +6,7 @@ package net
 
 import (
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -278,5 +279,25 @@ func TestAddrListPartition(t *testing.T) {
 				t.Errorf("#%v: got %v; want %v", i, fallbacks, tt.fallbacks)
 			}
 		}
+	}
+}
+
+func TestListenIPv6WildcardAddr(t *testing.T) {
+	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
+		t.Skip("fake networking does not implement [::] wildcard address assertions")
+	}
+	if !supportsIPv6() {
+		t.Skip("IPv6 not supported")
+	}
+
+	ln, err := Listen("tcp", "[::]:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	addr := ln.Addr().(*TCPAddr)
+	if addr.IP.To4() != nil {
+		t.Errorf("Listen(\"tcp\", \"[::]:0\") bound to %v, want IPv6 address", addr)
 	}
 }

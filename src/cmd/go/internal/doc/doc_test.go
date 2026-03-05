@@ -910,7 +910,7 @@ func TestDoc(t *testing.T) {
 		var flagSet flag.FlagSet
 		var logbuf bytes.Buffer
 		log.SetOutput(&logbuf)
-		err := do(&b, &flagSet, test.args)
+		err := do(t.Context(), &b, &flagSet, test.args)
 		if err != nil {
 			t.Fatalf("%s %v: %s\n", test.name, test.args, err)
 		}
@@ -963,7 +963,7 @@ func TestMultiplePackages(t *testing.T) {
 	// Make sure crypto/rand does not have the symbol.
 	{
 		var flagSet flag.FlagSet
-		err := do(&b, &flagSet, []string{"crypto/rand.float64"})
+		err := do(t.Context(), &b, &flagSet, []string{"crypto/rand.float64"})
 		if err == nil {
 			t.Errorf("expected error from crypto/rand.float64")
 		} else if !strings.Contains(err.Error(), "no symbol float64") {
@@ -973,7 +973,7 @@ func TestMultiplePackages(t *testing.T) {
 	// Make sure math/rand does have the symbol.
 	{
 		var flagSet flag.FlagSet
-		err := do(&b, &flagSet, []string{"math/rand.float64"})
+		err := do(t.Context(), &b, &flagSet, []string{"math/rand.float64"})
 		if err != nil {
 			t.Errorf("unexpected error %q from math/rand.float64", err)
 		}
@@ -981,7 +981,7 @@ func TestMultiplePackages(t *testing.T) {
 	// Try the shorthand.
 	{
 		var flagSet flag.FlagSet
-		err := do(&b, &flagSet, []string{"rand.float64"})
+		err := do(t.Context(), &b, &flagSet, []string{"rand.float64"})
 		if err != nil {
 			t.Errorf("unexpected error %q from rand.float64", err)
 		}
@@ -989,7 +989,7 @@ func TestMultiplePackages(t *testing.T) {
 	// Now try a missing symbol. We should see both packages in the error.
 	{
 		var flagSet flag.FlagSet
-		err := do(&b, &flagSet, []string{"rand.doesnotexit"})
+		err := do(t.Context(), &b, &flagSet, []string{"rand.doesnotexit"})
 		if err == nil {
 			t.Errorf("expected error from rand.doesnotexit")
 		} else {
@@ -1027,21 +1027,21 @@ func TestTwoArgLookup(t *testing.T) {
 	var b bytes.Buffer // We don't care about the output.
 	{
 		var flagSet flag.FlagSet
-		err := do(&b, &flagSet, []string{"binary", "BigEndian"})
+		err := do(t.Context(), &b, &flagSet, []string{"binary", "BigEndian"})
 		if err != nil {
 			t.Errorf("unexpected error %q from binary BigEndian", err)
 		}
 	}
 	{
 		var flagSet flag.FlagSet
-		err := do(&b, &flagSet, []string{"rand", "Float64"})
+		err := do(t.Context(), &b, &flagSet, []string{"rand", "Float64"})
 		if err != nil {
 			t.Errorf("unexpected error %q from rand Float64", err)
 		}
 	}
 	{
 		var flagSet flag.FlagSet
-		err := do(&b, &flagSet, []string{"bytes", "Foo"})
+		err := do(t.Context(), &b, &flagSet, []string{"bytes", "Foo"})
 		if err == nil {
 			t.Errorf("expected error from bytes Foo")
 		} else if !strings.Contains(err.Error(), "no symbol Foo") {
@@ -1050,7 +1050,7 @@ func TestTwoArgLookup(t *testing.T) {
 	}
 	{
 		var flagSet flag.FlagSet
-		err := do(&b, &flagSet, []string{"nosuchpackage", "Foo"})
+		err := do(t.Context(), &b, &flagSet, []string{"nosuchpackage", "Foo"})
 		if err == nil {
 			// actually present in the user's filesystem
 		} else if !strings.Contains(err.Error(), "no such package") {
@@ -1071,7 +1071,7 @@ func TestDotSlashLookup(t *testing.T) {
 
 	var b strings.Builder
 	var flagSet flag.FlagSet
-	err := do(&b, &flagSet, []string{"./template"})
+	err := do(t.Context(), &b, &flagSet, []string{"./template"})
 	if err != nil {
 		t.Errorf("unexpected error %q from ./template", err)
 	}
@@ -1089,7 +1089,7 @@ func TestNoPackageClauseWhenNoMatch(t *testing.T) {
 	maybeSkip(t)
 	var b strings.Builder
 	var flagSet flag.FlagSet
-	err := do(&b, &flagSet, []string{"template.ZZZ"})
+	err := do(t.Context(), &b, &flagSet, []string{"template.ZZZ"})
 	// Expect an error.
 	if err == nil {
 		t.Error("expect an error for template.zzz")

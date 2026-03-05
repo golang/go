@@ -543,6 +543,11 @@
 
 // Optimizations
 
+// Replace widen -> wide_unop -> narrow with narrow_unop when one exists.
+(FCVTDS (F(ABS|SQRT|RINTP|RINTM|RINTA|RINTN|RINTZ)D (FCVTSD x))) => 
+    (F(ABS|SQRT|RINTP|RINTM|RINTA|RINTN|RINTZ)S x)
+
+
 // Absorb boolean tests into block
 (NZ (Equal         cc) yes no) => (EQ  cc yes no)
 (NZ (NotEqual      cc) yes no) => (NE  cc yes no)
