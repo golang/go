@@ -283,8 +283,15 @@ func TestAddrListPartition(t *testing.T) {
 }
 
 func TestListenIPv6WildcardAddr(t *testing.T) {
-	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
+	switch runtime.GOOS {
+	case "js", "wasip1":
 		t.Skip("fake networking does not implement [::] wildcard address assertions")
+	case "dragonfly", "openbsd":
+		// We are assuming that this test will not work on DragonFly BSD and
+		// OpenBSD due to their lack of support for IPV6_V6ONLY=0. However,
+		// this assumption is still unconfirmed. For context, see:
+		// https://go.dev/issue/77945#issuecomment-4008106922
+		t.Skip("The latest DragonFly BSD and OpenBSD kernels do not support IPV6_V6ONLY=0")
 	}
 	if !supportsIPv6() {
 		t.Skip("IPv6 not supported")
