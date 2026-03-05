@@ -222,6 +222,10 @@ func TestTRun(t *T) {
     sub_test.go:NNN: fail
 ^V--- FAIL: chatty with recursion and json/#00/#02 (N.NNs)
 ^V=== NAME  chatty with recursion and json/#00
+^V=== RUN   chatty with recursion and json/#00/#03
+    sub_test.go:NNN: ^[^V^[^[
+^V--- PASS: chatty with recursion and json/#00/#03 (N.NNs)
+^V=== NAME  chatty with recursion and json/#00
 ^V--- FAIL: chatty with recursion and json/#00 (N.NNs)
 ^V=== NAME  chatty with recursion and json
 ^V--- FAIL: chatty with recursion and json (N.NNs)
@@ -231,6 +235,7 @@ func TestTRun(t *T) {
 				t.Run("", func(t *T) {})
 				t.Run("", func(t *T) { t.Skip("skip") })
 				t.Run("", func(t *T) { t.Fatal("fail") })
+				t.Run("", func(t *T) { t.Log(string(markFraming) + string(markEscape)) })
 			})
 		},
 	}, {
@@ -629,7 +634,7 @@ func TestTRun(t *T) {
 			want := strings.TrimSpace(tc.output)
 			re := makeRegexp(want)
 			if ok, err := regexp.MatchString(re, got); !ok || err != nil {
-				t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
+				t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, notateOutput(got), want)
 			}
 		})
 	}
@@ -823,11 +828,21 @@ func TestBRun(t *T) {
 	}
 }
 
+// makeRegexp transforms a line in the text notation to a pattern.
 func makeRegexp(s string) string {
 	s = regexp.QuoteMeta(s)
-	s = strings.ReplaceAll(s, "^V", "\x16")
+	s = strings.ReplaceAll(s, "^V", string(markFraming))
+	s = strings.ReplaceAll(s, "^\\[", string(markEscape))
 	s = strings.ReplaceAll(s, ":NNN:", `:\d\d\d\d?:`)
 	s = strings.ReplaceAll(s, "N\\.NNs", `\d*\.\d*s`)
+	return s
+}
+
+// notateOutput transforms an output line into something more easily comparable
+// to text notation.
+func notateOutput(s string) string {
+	s = strings.ReplaceAll(s, string(markFraming), "^V")
+	s = strings.ReplaceAll(s, string(markEscape), "^[")
 	return s
 }
 
