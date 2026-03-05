@@ -34,28 +34,12 @@ TEXT _rt0_s390x_lib(SB), NOSPLIT|NOFRAME, $0
 	FMOVD	F14, 64(R15)
 	FMOVD	F15, 72(R15)
 
-	// Synchronous initialization.
-	MOVD	$runtime·libpreinit(SB), R1
+	// Initialize g as nil in case of using g later e.g. sigaction in cgo_sigaction.go
+	XOR	g, g
+
+	MOVD	$runtime·libInit(SB), R1
 	BL	R1
 
-	// Create a new thread to finish Go runtime initialization.
-	MOVD	_cgo_sys_thread_create(SB), R1
-	CMP	R1, $0
-	BEQ	nocgo
-	MOVD	$_rt0_s390x_lib_go(SB), R2
-	MOVD	$0, R3
-	BL	R1
-	BR	restore
-
-nocgo:
-	MOVD	$0x800000, R1              // stacksize
-	MOVD	R1, 0(R15)
-	MOVD	$_rt0_s390x_lib_go(SB), R1
-	MOVD	R1, 8(R15)                 // fn
-	MOVD	$runtime·newosproc(SB), R1
-	BL	R1
-
-restore:
 	// Restore F8-F15 from our stack frame.
 	FMOVD	16(R15), F8
 	FMOVD	24(R15), F9
@@ -71,9 +55,9 @@ restore:
 	LMG	48(R15), R6, R15
 	RET
 
-// _rt0_s390x_lib_go initializes the Go runtime.
+// rt0_lib_go initializes the Go runtime.
 // This is started in a separate thread by _rt0_s390x_lib.
-TEXT _rt0_s390x_lib_go(SB), NOSPLIT|NOFRAME, $0
+TEXT runtime·rt0_lib_go<ABIInternal>(SB), NOSPLIT|NOFRAME, $0
 	MOVD	_rt0_s390x_lib_argc<>(SB), R2
 	MOVD	_rt0_s390x_lib_argv<>(SB), R3
 	MOVD	$runtime·rt0_go(SB), R1
@@ -81,7 +65,7 @@ TEXT _rt0_s390x_lib_go(SB), NOSPLIT|NOFRAME, $0
 
 DATA _rt0_s390x_lib_argc<>(SB)/8, $0
 GLOBL _rt0_s390x_lib_argc<>(SB), NOPTR, $8
-DATA _rt0_s90x_lib_argv<>(SB)/8, $0
+DATA _rt0_s390x_lib_argv<>(SB)/8, $0
 GLOBL _rt0_s390x_lib_argv<>(SB), NOPTR, $8
 
 TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0

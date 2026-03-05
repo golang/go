@@ -36,48 +36,17 @@ TEXT _rt0_386_lib(SB),NOSPLIT,$0
 	MOVL	12(BP), AX
 	MOVL	AX, _rt0_386_lib_argv<>(SB)
 
-	// Synchronous initialization.
-	CALL	runtime·libpreinit(SB)
+	CALL	runtime·libInit(SB)
 
-	SUBL	$8, SP
-
-	// Create a new thread to do the runtime initialization.
-	MOVL	_cgo_sys_thread_create(SB), AX
-	TESTL	AX, AX
-	JZ	nocgo
-
-	// Align stack to call C function.
-	// We moved SP to BP above, but BP was clobbered by the libpreinit call.
-	MOVL	SP, BP
-	ANDL	$~15, SP
-
-	MOVL	$_rt0_386_lib_go(SB), BX
-	MOVL	BX, 0(SP)
-	MOVL	$0, 4(SP)
-
-	CALL	AX
-
-	MOVL	BP, SP
-
-	JMP	restore
-
-nocgo:
-	MOVL	$0x800000, 0(SP)                    // stacksize = 8192KB
-	MOVL	$_rt0_386_lib_go(SB), AX
-	MOVL	AX, 4(SP)                           // fn
-	CALL	runtime·newosproc0(SB)
-
-restore:
-	ADDL	$8, SP
 	POPL	DI
 	POPL	SI
 	POPL	BX
 	POPL	BP
 	RET
 
-// _rt0_386_lib_go initializes the Go runtime.
+// rt0_lib_go initializes the Go runtime.
 // This is started in a separate thread by _rt0_386_lib.
-TEXT _rt0_386_lib_go(SB),NOSPLIT,$8
+TEXT runtime·rt0_lib_go<ABIInternal>(SB),NOSPLIT,$8
 	MOVL	_rt0_386_lib_argc<>(SB), AX
 	MOVL	AX, 0(SP)
 	MOVL	_rt0_386_lib_argv<>(SB), AX

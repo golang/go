@@ -57,8 +57,8 @@ _cgo_maybe_run_preinit() {
 }
 
 void
-x_cgo_sys_thread_create(unsigned long (__stdcall *func)(void*), void* arg) {
-	_cgo_beginthread(func, arg);
+x_cgo_sys_thread_create(unsigned long (__stdcall *func)(void*)) {
+	_cgo_beginthread(func, NULL);
 }
 
 int

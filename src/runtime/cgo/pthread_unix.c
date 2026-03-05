@@ -60,14 +60,14 @@ _cgo_sys_thread_start(ThreadStart *ts)
 }
 
 void
-x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
+x_cgo_sys_thread_create(void* (*func)(void*)) {
 	pthread_attr_t attr;
 	pthread_t p;
 	int err;
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	err = _cgo_try_pthread_create(&p, &attr, func, arg);
+	err = _cgo_try_pthread_create(&p, &attr, func, NULL);
 	if (err != 0) {
 		fatalf("pthread_create failed: %s", strerror(err));
 	}

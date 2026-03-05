@@ -785,7 +785,7 @@ func newosproc(mp *m) {
 //
 //go:nowritebarrierrec
 //go:nosplit
-func newosproc0(stacksize uintptr, fn uintptr) {
+func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 	throw("bad newosproc0")
 }
 
