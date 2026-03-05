@@ -1363,30 +1363,7 @@ func (c *common) makeArtifactDir() (string, error) {
 		return c.makeTempDir()
 	}
 
-	// If the test name is longer than maxNameSize, truncate it and replace the last
-	// hashSize bytes with a hash of the full name.
-	const maxNameSize = 64
-	name := strings.ReplaceAll(c.name, "/", "__")
-	if len(name) > maxNameSize {
-		h := fmt.Sprintf("%0x", hashString(name))
-		name = name[:maxNameSize-len(h)] + h
-	}
-
-	// Remove the module path prefix from the import path.
-	pkg := strings.TrimPrefix(c.importPath, c.modulePath+"/")
-
-	// Join with /, not filepath.Join: the import path is /-separated,
-	// and we don't want removeSymbolsExcept to strip \ separators on Windows.
-	base := "/" + pkg + "/" + name
-	base = removeSymbolsExcept(base, "!#$%&()+,-.=@^_{}~ /")
-	base, err := filepath.Localize(base)
-	if err != nil {
-		// This name can't be safely converted into a local filepath.
-		// Drop it and just use _artifacts/<random>.
-		base = ""
-	}
-
-	artifactBase := filepath.Join(artifactDir, base)
+	artifactBase := filepath.Join(artifactDir, c.relativeArtifactBase())
 	if err := os.MkdirAll(artifactBase, 0o777); err != nil {
 		return "", err
 	}
@@ -1398,6 +1375,39 @@ func (c *common) makeArtifactDir() (string, error) {
 		c.chatty.Updatef(c.name, "=== ARTIFACTS %s %v\n", c.name, dir)
 	}
 	return dir, nil
+}
+
+func (c *common) relativeArtifactBase() string {
+	// If the test name is longer than maxNameSize, truncate it and replace the last
+	// hashSize bytes with a hash of the full name.
+	const maxNameSize = 64
+	name := strings.ReplaceAll(c.name, "/", "__")
+	if len(name) > maxNameSize {
+		h := fmt.Sprintf("%0x", hashString(name))
+		name = name[:maxNameSize-len(h)] + h
+	}
+
+	// Remove the module path prefix from the import path.
+	// If this is the root package, pkg will be empty.
+	pkg := strings.TrimPrefix(c.importPath, c.modulePath)
+	// Remove the leading slash.
+	pkg = strings.TrimPrefix(pkg, "/")
+
+	base := name
+	if pkg != "" {
+		// Join with /, not filepath.Join: the import path is /-separated,
+		// and we don't want removeSymbolsExcept to strip \ separators on Windows.
+		base = pkg + "/" + name
+	}
+	base = removeSymbolsExcept(base, "!#$%&()+,-.=@^_{}~ /")
+	base, err := filepath.Localize(base)
+	if err != nil {
+		// This name can't be safely converted into a local filepath.
+		// Drop it and just use _artifacts/<random>.
+		base = ""
+	}
+
+	return base
 }
 
 func removeSymbolsExcept(s, allowed string) string {
