@@ -480,6 +480,7 @@
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall   ...) => (CALLinter   ...)
 (TailCall ...) => (CALLtail ...)
+(TailCallInter ...) => (CALLtailinter ...)
 
 // Atomic Intrinsics
 (AtomicLoad(Ptr|64|32|8)  ...) => (LoweredAtomicLoad(64|64|32|8) ...)

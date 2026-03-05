@@ -540,6 +540,7 @@
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall ...) => (CALLinter ...)
 (TailCall ...) => (CALLtail ...)
+(TailCallInter ...) => (CALLtailinter ...)
 
 // Miscellaneous
 (GetClosurePtr ...) => (LoweredGetClosurePtr ...)

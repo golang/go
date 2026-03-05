@@ -821,6 +821,9 @@ func rewriteValueLOONG64(v *Value) bool {
 	case OpTailCall:
 		v.Op = OpLOONG64CALLtail
 		return true
+	case OpTailCallInter:
+		v.Op = OpLOONG64CALLtailinter
+		return true
 	case OpTrunc16to8:
 		v.Op = OpCopy
 		return true

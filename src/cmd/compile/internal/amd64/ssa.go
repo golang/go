@@ -1306,14 +1306,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		r := v.Reg()
 		getgFromTLS(s, r)
-	case ssa.OpAMD64CALLstatic, ssa.OpAMD64CALLtail:
+	case ssa.OpAMD64CALLstatic, ssa.OpAMD64CALLtail, ssa.OpAMD64CALLtailinter:
 		if s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
 			zeroX15(s)
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
-		if v.Op == ssa.OpAMD64CALLtail {
+		if v.Op == ssa.OpAMD64CALLtail || v.Op == ssa.OpAMD64CALLtailinter {
 			s.TailCall(v)
 			break
 		}

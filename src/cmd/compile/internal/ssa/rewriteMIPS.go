@@ -572,6 +572,9 @@ func rewriteValueMIPS(v *Value) bool {
 	case OpTailCall:
 		v.Op = OpMIPSCALLtail
 		return true
+	case OpTailCallInter:
+		v.Op = OpMIPSCALLtailinter
+		return true
 	case OpTrunc16to8:
 		v.Op = OpCopy
 		return true

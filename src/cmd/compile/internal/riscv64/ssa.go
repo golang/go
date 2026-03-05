@@ -513,7 +513,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpRISCV64CALLstatic, ssa.OpRISCV64CALLclosure, ssa.OpRISCV64CALLinter:
 		s.Call(v)
-	case ssa.OpRISCV64CALLtail:
+	case ssa.OpRISCV64CALLtail, ssa.OpRISCV64CALLtailinter:
 		s.TailCall(v)
 	case ssa.OpRISCV64LoweredWB:
 		p := s.Prog(obj.ACALL)

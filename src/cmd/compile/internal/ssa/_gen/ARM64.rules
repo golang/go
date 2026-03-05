@@ -466,10 +466,11 @@
 (Move [s] dst src mem) && s >= 192 && logLargeCopy(v, s) => (LoweredMoveLoop [s] dst src mem)
 
 // calls
-(StaticCall  ...) => (CALLstatic  ...)
-(ClosureCall ...) => (CALLclosure ...)
-(InterCall   ...) => (CALLinter   ...)
-(TailCall    ...) => (CALLtail    ...)
+(StaticCall    ...) => (CALLstatic    ...)
+(ClosureCall   ...) => (CALLclosure   ...)
+(InterCall     ...) => (CALLinter     ...)
+(TailCall      ...) => (CALLtail      ...)
+(TailCallInter ...) => (CALLtailinter ...)
 
 // checks
 (NilCheck ...) => (LoweredNilCheck ...)

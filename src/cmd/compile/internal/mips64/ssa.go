@@ -489,7 +489,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p6.To.SetTarget(p2)
 	case ssa.OpMIPS64CALLstatic, ssa.OpMIPS64CALLclosure, ssa.OpMIPS64CALLinter:
 		s.Call(v)
-	case ssa.OpMIPS64CALLtail:
+	case ssa.OpMIPS64CALLtail, ssa.OpMIPS64CALLtailinter:
 		s.TailCall(v)
 	case ssa.OpMIPS64LoweredWB:
 		p := s.Prog(obj.ACALL)

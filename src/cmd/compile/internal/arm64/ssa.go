@@ -1320,7 +1320,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssa.OpARM64CALLstatic, ssa.OpARM64CALLclosure, ssa.OpARM64CALLinter:
 		s.Call(v)
-	case ssa.OpARM64CALLtail:
+	case ssa.OpARM64CALLtail, ssa.OpARM64CALLtailinter:
 		s.TailCall(v)
 	case ssa.OpARM64LoweredWB:
 		p := s.Prog(obj.ACALL)

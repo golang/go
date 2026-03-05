@@ -850,7 +850,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.Spadj = +autoffset
 		}
 
-		if p.To.Sym != nil { // retjmp
+		if p.As == obj.ARET && (p.To.Sym != nil || p.To.Type == obj.TYPE_REG) { // retjmp
 			p.As = obj.AJMP
 		}
 	}
