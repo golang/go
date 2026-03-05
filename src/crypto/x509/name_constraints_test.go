@@ -1674,6 +1674,22 @@ var nameConstraintsTests = []nameConstraintsTest{
 			sans: []string{"dns:*.example.com"},
 		},
 	},
+	// #90: a two-label excluded constraint doesn't exclude unrelated wildcards
+	{
+		roots: []constraintsSpec{
+			{
+				bad: []string{"dns:blocked.example"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:*.service.example"},
+		},
+	},
 }
 
 func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
