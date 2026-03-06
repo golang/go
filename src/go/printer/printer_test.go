@@ -902,3 +902,45 @@ func TestEmptyDecl(t *testing.T) { // issue 63566
 		}
 	}
 }
+
+// TestIssue7195 checks that go/printer does not add an extra level of indentation
+// when printing a return statement with multiple multi-line composite literals.
+func TestIssue7195(t *testing.T) {
+	const src = `package p
+
+type T struct{ x int }
+
+func f() (*T, *T) {
+	return &T{
+			x: 1,
+		}, &T{
+			x: 2,
+		}
+}
+`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := Fprint(&buf, fset, file); err != nil {
+		t.Fatal(err)
+	}
+
+	const want = `package p
+
+type T struct{ x int }
+
+func f() (*T, *T) {
+	return &T{
+		x: 1,
+	}, &T{
+		x: 2,
+	}
+}
+`
+	if got := buf.String(); got != want {
+		t.Fatalf("got:\n%s\nwant:\n%s\n", got, want)
+	}
+}

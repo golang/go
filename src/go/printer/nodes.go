@@ -1309,6 +1309,20 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 	}
 }
 
+// isCompositeLitLike reports whether x is a composite literal or an expression
+// whose core is a composite literal (e.g. &T{...}), ignoring parentheses.
+func isCompositeLitLike(x ast.Expr) bool {
+	x = stripParensAlways(x)
+	switch x := x.(type) {
+	case *ast.CompositeLit:
+		return true
+	case *ast.UnaryExpr:
+		_, ok := stripParensAlways(x.X).(*ast.CompositeLit)
+		return x.Op == token.AND && ok
+	}
+	return false
+}
+
 // indentList reports whether an expression list would look better if it
 // were indented wholesale (starting with the very first element, rather
 // than starting at the first line break).
@@ -1332,8 +1346,10 @@ func (p *printer) indentList(list []ast.Expr) bool {
 					return true
 				}
 				if xb < xe {
-					// x is a multi-line element
-					n++
+					// x is a multi-line element.
+					if !isCompositeLitLike(x) {
+						n++
+					}
 				}
 				line = xe
 			}
