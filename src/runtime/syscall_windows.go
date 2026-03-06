@@ -428,10 +428,10 @@ func syscall_syscalln(fn, n uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	if c.N != 0 {
 		c.Args = uintptr(noescape(unsafe.Pointer(&args[0])))
 	}
-	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	errno := cgocall(asmstdcallAddr, unsafe.Pointer(c))
 	// cgocall may reschedule us on to a different M,
 	// but it copies the return values into the new M's
 	// so we can read them from there.
 	c = &getg().m.winsyscall
-	return c.R1, c.R2, c.Err
+	return c.R1, c.R2, uintptr(errno)
 }

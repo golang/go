@@ -79,6 +79,5 @@ _0args:
 	// GetLastError().
 	MOVQ	0x30(GS), DI
 	MOVL	0x68(DI), AX
-	MOVQ	AX, StdCallInfo_Err(CX)
 
 	RET

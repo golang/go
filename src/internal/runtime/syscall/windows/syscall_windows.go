@@ -24,15 +24,20 @@ type StdCallInfo struct {
 	Args uintptr // parameters
 	R1   uintptr // return values
 	R2   uintptr
-	Err  uintptr // error number
 }
 
 // StdCall calls a function using Windows' stdcall convention.
+// The calling thread's last-error code value is cleared before calling the function,
+// and stored in the return value.
 //
 //go:noescape
-func StdCall(fn *StdCallInfo)
+func StdCall(fn *StdCallInfo) uint32
 
 // asmstdcall is the function pointer for [AsmStdCallAddr].
+// The calling thread's last-error code value is cleared before calling the function,
+// and returned in the C ABI return register (not via Go stack convention).
+// This function is not called directly from Go; it is either jumped to from
+// [StdCall] or called from C via [AsmStdCallAddr].
 func asmstdcall(fn *StdCallInfo)
 
 // AsmStdCallAddr is the address of a function that accepts a pointer
