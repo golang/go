@@ -295,7 +295,7 @@ func writeMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {
 	if t.Key().Size() > abi.MapMaxKeyBytes {
 		flags |= abi.MapIndirectKey
 	}
-	if t.Elem().Size() > abi.MapMaxKeyBytes {
+	if t.Elem().Size() > abi.MapMaxElemBytes {
 		flags |= abi.MapIndirectElem
 	}
 	c.Field("Flags").WriteUint32(flags)
