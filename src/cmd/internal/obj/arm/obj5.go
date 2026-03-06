@@ -352,16 +352,25 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		case obj.ARET:
 			nocache(p)
+
+			retSym, retReg := p.To.Sym, p.To.Reg
+			if retReg == obj.REG_NONE {
+				retReg = REGLINK
+			}
+			p.To.Sym = nil
+			p.To.Name = obj.NAME_NONE
+			p.To.Reg = obj.REG_NONE
+
 			if cursym.Func().Text.Mark&LEAF != 0 {
 				if autosize == 0 {
 					p.As = AB
 					p.From = obj.Addr{}
-					if p.To.Sym != nil { // retjmp
+					if retSym != nil { // retjmp
 						p.To.Type = obj.TYPE_BRANCH
 					} else {
 						p.To.Type = obj.TYPE_MEM
 						p.To.Offset = 0
-						p.To.Reg = REGLINK
+						p.To.Reg = retReg
 					}
 
 					break
@@ -380,14 +389,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// this ARET, they come from a branch
 			// with the same stackframe, so no spadj.
 
-			if p.To.Sym != nil { // retjmp
+			if retSym != nil || retReg != REGLINK { // retjmp
 				p.To.Reg = REGLINK
 				q2 = obj.Appendp(p, newprog)
 				q2.As = AB
-				q2.To.Type = obj.TYPE_BRANCH
-				q2.To.Sym = p.To.Sym
-				p.To.Sym = nil
-				p.To.Name = obj.NAME_NONE
+				if retSym != nil {
+					q2.To.Type = obj.TYPE_BRANCH
+					q2.To.Sym = retSym
+				} else {
+					q2.To.Type = obj.TYPE_MEM
+					q2.To.Reg = retReg
+				}
 				p = q2
 			}
 

@@ -596,7 +596,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		case obj.ARET:
 			// Replace RET with epilogue.
-			retJMP := p.To.Sym
+			retJMP, retReg := p.To.Sym, p.To.Reg
+			if retReg == obj.REG_NONE {
+				retReg = REG_LR
+			}
 
 			if stacksize != 0 {
 				// Restore LR.
@@ -621,7 +624,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.As = AJALR
 				p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
 				p.Reg = obj.REG_NONE
-				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
+				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: retReg}
 			}
 
 			// "Add back" the stack removed in the previous instruction.
