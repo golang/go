@@ -7,7 +7,6 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"internal/runtime/syscall/windows"
 	"unsafe"
 )
 
@@ -414,9 +413,6 @@ func callbackWrap(a *callbackArgs) {
 func syscall_syscalln(fn, n uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	if n > uintptr(len(args)) {
 		panic("syscall: n > len(args)") // should not be reachable from user code
-	}
-	if n > windows.MaxArgs {
-		panic("runtime: SyscallN has too many arguments")
 	}
 
 	// The cgocall parameters are stored in m instead of in

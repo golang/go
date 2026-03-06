@@ -10,13 +10,6 @@ import (
 	"internal/abi"
 )
 
-// MaxArgs should be divisible by 2, as Windows stack
-// must be kept 16-byte aligned on syscall entry.
-//
-// Although it only permits maximum 42 parameters, it
-// is arguably large enough.
-const MaxArgs = 42
-
 // StdCallInfo is a structure used to pass parameters to the system call.
 type StdCallInfo struct {
 	Fn   uintptr
