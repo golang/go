@@ -219,9 +219,11 @@ func findIndVar(f *Func) []indVar {
 						if init.AuxInt > v {
 							return false
 						}
+						// TODO(1.27): investigate passing a smaller-magnitude overflow limit to addU
+						// for addWillOverflow.
 						v = addU(init.AuxInt, diff(v, init.AuxInt)/uint64(step)*uint64(step))
 					}
-					if addWillOverflow(v, step) {
+					if addWillOverflow(v, step, maxSignedValue(ind.Type)) {
 						return false
 					}
 					if inclusive && v != limit.AuxInt || !inclusive && v+1 != limit.AuxInt {
@@ -250,7 +252,7 @@ func findIndVar(f *Func) []indVar {
 				// ind < knn - k cannot overflow if step is at most k+1
 				return step <= k+1 && k != maxSignedValue(limit.Type)
 			} else { // step < 0
-				if limit.Op == OpConst64 {
+				if limit.isGenericIntConst() {
 					// Figure out the actual smallest value.
 					v := limit.AuxInt
 					if !inclusive {
@@ -264,9 +266,11 @@ func findIndVar(f *Func) []indVar {
 						if init.AuxInt < v {
 							return false
 						}
+						// TODO(1.27): investigate passing a smaller-magnitude underflow limit to subU
+						// for subWillUnderflow.
 						v = subU(init.AuxInt, diff(init.AuxInt, v)/uint64(-step)*uint64(-step))
 					}
-					if subWillUnderflow(v, -step) {
+					if subWillUnderflow(v, -step, minSignedValue(ind.Type)) {
 						return false
 					}
 					if inclusive && v != limit.AuxInt || !inclusive && v-1 != limit.AuxInt {
@@ -328,14 +332,22 @@ func findIndVar(f *Func) []indVar {
 	return iv
 }
 
-// addWillOverflow reports whether x+y would result in a value more than maxint.
-func addWillOverflow(x, y int64) bool {
-	return x+y < x
+// subWillUnderflow checks if x - y underflows the min value.
+// y must be positive.
+func subWillUnderflow(x, y int64, min int64) bool {
+	if y < 0 {
+		base.Fatalf("expecting positive value")
+	}
+	return x < min+y
 }
 
-// subWillUnderflow reports whether x-y would result in a value less than minint.
-func subWillUnderflow(x, y int64) bool {
-	return x-y > x
+// addWillOverflow checks if x + y overflows the max value.
+// y must be positive.
+func addWillOverflow(x, y int64, max int64) bool {
+	if y < 0 {
+		base.Fatalf("expecting positive value")
+	}
+	return x > max-y
 }
 
 // diff returns x-y as a uint64. Requires x>=y.
@@ -356,7 +368,8 @@ func addU(x int64, y uint64) int64 {
 		x += 1
 		y -= 1 << 63
 	}
-	if addWillOverflow(x, int64(y)) {
+	// TODO(1.27): investigate passing a smaller-magnitude overflow limit in here.
+	if addWillOverflow(x, int64(y), maxSignedValue(types.Types[types.TINT64])) {
 		base.Fatalf("addU overflowed %d + %d", x, y)
 	}
 	return x + int64(y)
@@ -372,7 +385,8 @@ func subU(x int64, y uint64) int64 {
 		x -= 1
 		y -= 1 << 63
 	}
-	if subWillUnderflow(x, int64(y)) {
+	// TODO(1.27): investigate passing a smaller-magnitude underflow limit in here.
+	if subWillUnderflow(x, int64(y), minSignedValue(types.Types[types.TINT64])) {
 		base.Fatalf("subU underflowed %d - %d", x, y)
 	}
 	return x - int64(y)
