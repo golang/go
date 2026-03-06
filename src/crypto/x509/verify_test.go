@@ -1417,6 +1417,52 @@ func TestNameConstraints(t *testing.T) {
 	}
 }
 
+func TestExcludedWildcardNameConstraints(t *testing.T) {
+	tests := []struct {
+		name        string
+		domain      string
+		constraint  string
+		shouldMatch bool
+	}{
+		{
+			name:        "excluded subdomain matches wildcard parent",
+			domain:      "*.example.com",
+			constraint:  "foo.example.com",
+			shouldMatch: true,
+		},
+		{
+			name:        "excluded parent domain matches wildcard",
+			domain:      "*.example.com",
+			constraint:  "example.com",
+			shouldMatch: true,
+		},
+		{
+			name:        "excluded unrelated two-label domain does not match wildcard",
+			domain:      "*.service.example",
+			constraint:  "blocked.example",
+			shouldMatch: false,
+		},
+		{
+			name:        "excluded single-label domain does not match wildcard",
+			domain:      "*.service.example",
+			constraint:  "internal",
+			shouldMatch: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			match, err := matchDomainConstraint(tc.domain, tc.constraint, true, map[string][]string{}, map[string][]string{})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if match != tc.shouldMatch {
+				t.Fatalf("matchDomainConstraint(%q, %q, excluded=true) = %v, want %v", tc.domain, tc.constraint, match, tc.shouldMatch)
+			}
+		})
+	}
+}
+
 const selfSignedWithCommonName = `-----BEGIN CERTIFICATE-----
 MIIDCjCCAfKgAwIBAgIBADANBgkqhkiG9w0BAQsFADAaMQswCQYDVQQKEwJjYTEL
 MAkGA1UEAxMCY2EwHhcNMTYwODI4MTcwOTE4WhcNMjEwODI3MTcwOTE4WjAcMQsw
