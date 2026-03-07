@@ -1201,3 +1201,49 @@ var _ = T{{x}}
 		t.Fatalf("unexpected type for {x}: %s", tv.Type)
 	}
 }
+
+func TestIssue75022(t *testing.T) {
+	// Issue 75022: error messages for instantiated layout cycles should name
+	// the instantiation (e.g. "t[a] refers to a", not "t refers to a").
+	tests := []struct {
+		name string
+		src  string
+		want []string
+	}{
+		{
+			name: "direct self-instantiation",
+			src: `package p
+type t[p any] struct { f p }
+type a t[a]`,
+			want: []string{"invalid recursive type", "a refers to t[a]", "t[a] refers to a"},
+		},
+		{
+			name: "self-instantiation via alias",
+			src: `package p
+type t[p any] struct { f p }
+type b = a
+type a t[b]`,
+			want: []string{"invalid recursive type", "a refers to t[b]", "t[b] refers to a"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var got []string
+			conf := &Config{
+				Error:    func(err error) { got = append(got, err.Error()) },
+				Importer: defaultImporter(token.NewFileSet()),
+			}
+			typecheck(test.src, conf, nil)
+			if len(got) == 0 {
+				t.Fatal("expected type-check error, got none")
+			}
+			fullErr := strings.Join(got, "\n")
+			for _, w := range test.want {
+				if !strings.Contains(fullErr, w) {
+					t.Errorf("error message missing %q\n\tgot: %s", w, fullErr)
+				}
+			}
+		})
+	}
+}
