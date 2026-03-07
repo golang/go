@@ -1425,6 +1425,7 @@ func mallocgcSmallNoscan(size uintptr, typ *_type, needzero bool) (unsafe.Pointe
 
 	checkGCTrigger := false
 	c := getMCache(mp)
+
 	var sizeclass uint8
 	if size <= gc.SmallSizeMax-8 {
 		sizeclass = gc.SizeToSizeClass8[divRoundUp(size, gc.SmallSizeDiv)]
@@ -1500,6 +1501,7 @@ func mallocgcSmallNoscan(size uintptr, typ *_type, needzero bool) (unsafe.Pointe
 			gcStart(t)
 		}
 	}
+
 	return x, size
 }
 
@@ -1573,6 +1575,7 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type) (unsafe.Pointer, uintpt
 
 	checkGCTrigger := false
 	c := getMCache(mp)
+
 	sizeclass := gc.SizeToSizeClass8[divRoundUp(size, gc.SmallSizeDiv)]
 	spc := makeSpanClass(sizeclass, false)
 	span := c.alloc[spc]
@@ -1640,6 +1643,7 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type) (unsafe.Pointer, uintpt
 			gcStart(t)
 		}
 	}
+
 	return x, size
 }
 

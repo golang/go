@@ -1548,6 +1548,7 @@ const (
 	STWReadMemStatsSlow        STWReason = 14
 	STWPageCachePagesLeaked    STWReason = 15
 	STWResetDebugLog           STWReason = 16
+	STWRacelite                STWReason = 17
 
-	NumSTWReasons = 17
+	NumSTWReasons = 18
 )
