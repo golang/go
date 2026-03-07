@@ -1,0 +1,57 @@
+# test for https://github.com/golang/go/issues/66038
+[short] skip
+
+env GO111MODULE=off
+# files
+env GOPATH=$WORK/.dir${:}$WORK/_dir${:}$WORK/testdata
+
+cd $WORK
+go test -coverpkg=./... ./...
+stdout 'coverage: 100.0%'
+
+-- $WORK/a.go --
+package a
+
+// trivial function with 100% test coverage
+
+import (
+	_ "dot_dir"
+	_ "under_dir"
+	_ "testdata_dir"
+)
+
+func F(i int) int {
+	return i*i
+}
+
+-- $WORK/a_test.go --
+package a
+
+import (
+	"testing"
+)
+
+func TestF(t *testing.T) {
+	F(2)
+}
+
+-- $WORK/.dir/src/dot_dir/b.go --
+package dot_dir
+
+func G(i int) int {
+	return i*i
+}
+
+-- $WORK/_dir/src/under_dir/b.go --
+package dot_dir
+
+func G(i int) int {
+	return i*i
+}
+
+-- $WORK/testdata/src/testdata_dir/b.go --
+package testdata_dir
+
+func G(i int) int {
+	return i*i
+}
