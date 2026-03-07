@@ -583,6 +583,11 @@ func (ctxt *Link) loadlib() {
 	// We now have enough information to determine the link mode.
 	determineLinkMode(ctxt)
 
+	// Set minimum section alignment for PE files.
+	if ctxt.HeadType == objabi.Hwindows && ctxt.LinkMode == LinkInternal {
+		ctxt.Target.MinimumSectAlign = int32(PESECTALIGN)
+	}
+
 	if ctxt.LinkMode == LinkExternal && !iscgo && !(buildcfg.GOOS == "darwin" && ctxt.BuildMode != BuildModePlugin && ctxt.Arch.Family == sys.AMD64) {
 		// This indicates a user requested -linkmode=external.
 		// The startup code uses an import of runtime/cgo to decide
