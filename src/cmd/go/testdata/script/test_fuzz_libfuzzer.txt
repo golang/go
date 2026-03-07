@@ -1,0 +1,65 @@
+# Test the -libfuzzer flag for building libFuzzer-compatible binaries.
+
+[short] skip
+[!cgo] skip 'libfuzzer requires cgo'
+[!fuzz-instrumented] skip 'libfuzzer not supported on this platform'
+
+# Test that -libfuzzer flag works with a valid fuzz target
+go test -libfuzzer=FuzzSimple -c ./testfuzz -o simple_fuzz.a
+exists simple_fuzz.a
+
+# Test that the output contains the expected symbols for libFuzzer
+exec nm simple_fuzz.a
+stdout 'LLVMFuzzerTestOneInput'
+
+# Test that -libfuzzer works with -cover flag
+go test -libfuzzer=FuzzSimple -cover -covermode=atomic -c ./testfuzz -o simple_fuzz_cov.a
+exists simple_fuzz_cov.a
+
+# Test multiple fuzz targets - should only build the specified one
+go test -libfuzzer=FuzzBytes -c ./testfuzz -o bytes_fuzz.a
+exists bytes_fuzz.a
+
+# Test that -libfuzzer flag rejects non-existent fuzz target
+! go test -libfuzzer=FuzzNotExist -c ./testfuzz
+stderr 'fuzz target.*not found'
+
+# Test that -libfuzzer rejects -fuzz flag (mutually exclusive)
+! go test -libfuzzer=FuzzSimple -fuzz=. ./testfuzz
+stderr 'cannot use -fuzz and -libfuzzer flags together'
+
+-- go.mod --
+module testmod
+
+go 1.21
+-- testfuzz/fuzz_test.go --
+package testfuzz
+
+import "testing"
+
+func FuzzSimple(f *testing.F) {
+	f.Add("hello")
+	f.Fuzz(func(t *testing.T, s string) {
+		if len(s) > 100 {
+			t.Error("too long")
+		}
+	})
+}
+
+func FuzzBytes(f *testing.F) {
+	f.Add([]byte("world"))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if len(b) > 100 {
+			t.Error("too long")
+		}
+	})
+}
+
+func FuzzMultiArg(f *testing.F) {
+	f.Add(int32(42), "test")
+	f.Fuzz(func(t *testing.T, n int32, s string) {
+		if n < 0 && len(s) > 10 {
+			t.Error("invalid")
+		}
+	})
+}

@@ -22,6 +22,8 @@ var passFlagToTest = map[string]bool{
 	"failfast":             true,
 	"fullpath":             true,
 	"fuzz":                 true,
+	"fuzzconvert":          true,
+	"fuzzlibfuzzercorpus":  true,
 	"fuzzminimizetime":     true,
 	"fuzztime":             true,
 	"list":                 true,
