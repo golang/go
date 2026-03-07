@@ -4,6 +4,152 @@
 
 #include "textflag.h"
 
+#ifdef GOOS_ios
+// func IndexByte(b []byte, c byte) int
+// input:
+//   R0: b ptr
+//   R1: b len
+//   R2: b cap (unused)
+//   R3: c byte to search
+// return
+//   R0: result
+TEXT ·IndexByte<ABIInternal>(SB),NOSPLIT,$0-40
+	MOVD	R3, R2
+	B	·IndexByteString<ABIInternal>(SB)
+
+// func IndexByteString(s string, c byte) int
+// input:
+//   R0: s ptr
+//   R1: s len
+//   R2: c byte to search
+// return
+//   R0: result
+TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
+	// MTE-safe implementation: never reads before start or beyond end.
+	// For each 32-byte chunk we calculate a 64-bit syndrome value,
+	// with two bits per byte. Bit 0 is set if the relevant byte
+	// matched the requested character. Counting trailing zeros
+	// identifies which byte matched.
+
+	CBZ	R1, fail
+	MOVD	R0, R11          // Save original pointer
+	ADD	R0, R1, R4       // R4 = end pointer
+
+	// Setup SIMD constants
+	// Magic constant 0x40100401 allows us to identify which lane matches.
+	// 0x40100401 = ((1<<0) + (4<<8) + (16<<16) + (64<<24))
+	VMOV	R2, V0.B16       // Broadcast search byte to all lanes
+	MOVD	$0x40100401, R5
+	VMOV	R5, V5.S4
+
+	// Check alignment - process unaligned prefix byte-by-byte
+	// This avoids reading before the string start (MTE violation)
+	ANDS	$0x1f, R0, R9
+	BEQ	aligned_start
+
+unaligned_loop:
+	MOVBU	(R0), R5
+	CMP	R2, R5
+	BEQ	found_scalar
+	ADD	$1, R0
+	CMP	R0, R4
+	BEQ	fail
+	TST	$0x1f, R0
+	BNE	unaligned_loop
+
+aligned_start:
+	// Check if we have at least 32 bytes remaining BEFORE loading
+	SUB	R0, R4, R5       // R5 = remaining bytes
+	CMP	$32, R5
+	BLO	tail16_check
+
+loop32:
+	// Load 32 aligned bytes - safe because we verified 32+ bytes remain
+	VLD1.P	32(R0), [V1.B16, V2.B16]
+
+	// Compare both vectors against search byte
+	VCMEQ	V0.B16, V1.B16, V3.B16
+	VCMEQ	V0.B16, V2.B16, V4.B16
+
+	// Quick check: any matches in either vector?
+	VORR	V4.B16, V3.B16, V6.B16
+	VADDP	V6.D2, V6.D2, V6.D2
+	VMOV	V6.D[0], R6
+	CBNZ	R6, found32
+
+	// Check bounds BEFORE next iteration
+	SUB	R0, R4, R5
+	CMP	$32, R5
+	BHS	loop32
+
+tail16_check:
+	// Try 16-byte chunks if available
+	CMP	$16, R5
+	BLO	tail_scalar
+
+loop16:
+	// Load 16 aligned bytes
+	VLD1.P	16(R0), [V1.B16]
+
+	VCMEQ	V0.B16, V1.B16, V3.B16
+	VAND	V5.B16, V3.B16, V3.B16
+	VADDP	V3.B16, V3.B16, V3.B16  // 128->64
+	VADDP	V3.B16, V3.B16, V3.B16  // 64->32
+	VMOV	V3.S[0], R6
+	CBNZ	R6, found16
+
+	// Check bounds BEFORE next iteration
+	SUB	R0, R4, R5
+	CMP	$16, R5
+	BHS	loop16
+
+tail_scalar:
+	// Handle remaining bytes one at a time (always safe)
+	CMP	R0, R4
+	BEQ	fail
+
+tail_loop:
+	MOVBU	(R0), R5
+	CMP	R2, R5
+	BEQ	found_scalar
+	ADD	$1, R0
+	CMP	R0, R4
+	BNE	tail_loop
+	B	fail
+
+found32:
+	// Calculate full syndrome for precise position
+	VAND	V5.B16, V3.B16, V3.B16
+	VAND	V5.B16, V4.B16, V4.B16
+	VADDP	V4.B16, V3.B16, V6.B16  // 256->128
+	VADDP	V6.B16, V6.B16, V6.B16  // 128->64
+	VMOV	V6.D[0], R6
+
+	RBIT	R6, R6
+	SUB	$32, R0, R0      // Compensate post-increment
+	CLZ	R6, R6
+	ADD	R6>>1, R0, R0    // R6 is twice the byte offset
+	SUB	R11, R0, R0
+	RET
+
+found16:
+	RBIT	R6, R6
+	SUB	$16, R0, R0      // Compensate post-increment
+	CLZ	R6, R6
+	ADD	R6>>1, R0, R0    // R6 is twice the byte offset
+	SUB	R11, R0, R0
+	RET
+
+found_scalar:
+	SUB	R11, R0, R0
+	RET
+
+fail:
+	MOVD	$-1, R0
+	RET
+
+#else
+
 // func IndexByte(b []byte, c byte) int
 // input:
 //   R0: b ptr
@@ -150,3 +296,5 @@ tail:
 fail:
 	MOVD	$-1, R0
 	RET
+
+#endif
