@@ -255,6 +255,10 @@ func (check *Checker) cycleError(cycle []Object, start int) {
 	// may refer to imported types. See go.dev/issue/50788.
 	// TODO(gri) This functionality is used elsewhere. Factor it out.
 	name := func(obj Object) string {
+		// include any type arguments in the reported error message
+		if n := asNamed(obj.Type()); n != nil && n.inst != nil {
+			return TypeString(n, check.qualifier)
+		}
 		return packagePrefix(obj.Pkg(), check.qualifier) + obj.Name()
 	}
 
