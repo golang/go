@@ -2887,12 +2887,21 @@
 //
 // # Import path syntax
 //
-// An import path (see 'go help packages') denotes a package stored in the local
-// file system. In general, an import path denotes either a standard package (such
-// as "unicode/utf8") or a package found in a module (For more
+// An import path is used to uniquely identify and locate a package.
+// In general, an import path denotes either a standard library package
+// (such as "unicode/utf8") or a package found in a module (for more
 // details see: 'go help modules').
 //
-// # Internal Packages
+// The standard library reserves all import paths without a dot in the
+// first element for its packages. See "Fully-qualified import paths"
+// below for choosing an import path for your module.
+// The following names are reserved to be used as short module names
+// when working locally, and in tutorials, examples, and test code.
+//
+// - "test"
+// - "example"
+//
+// # Internal packages
 //
 // Code in or below a directory named "internal" is importable only
 // by code that shares the same import path above the internal directory.
@@ -2924,8 +2933,28 @@
 // # Fully-qualified import paths
 //
 // A fully-qualified import path for a package not belonging to the standard library
-// starts with the path of the module the package to which the package belongs. The module's path
-// specifies where to obtain the source code for the module.
+// starts with the path of the module the package to which the package belongs.
+// The module's path specifies where to obtain the source code for the module.
+// The complete import path is formed by joining the module path with the
+// relative directory path of a package within the module. Example:
+//
+//	/home/user/modules/m/
+//	        go.mod                 (declares "module example.com/m")
+//	        crash/
+//	            bang/              (importable as "example.com/m/crash/bang")
+//	                b.go
+//	        foo/                   (importable as "example.com/m/foo")
+//	            f.go
+//	            bar/               (importable as "example.com/m/foo/bar")
+//	                x.go
+//
+// As import paths without a dot in the first element are reserved by the standard library,
+// module paths (which form the prefix of all import paths) should start with an element
+// containing a dot, e.g. "github.com/user/repo", or "example.com/project".
+// A module path may point directly to a code hosting service,
+// or to a custom address that points to the code hosting service in a html meta tags.
+// Modules may also use the reserved names "example" for documentation
+// and "test" for testing. These modules cannot be fetched by the go command.
 //
 // Import paths belonging to modules hosted on common code hosting sites have special syntax:
 //
@@ -3106,105 +3135,145 @@
 //
 //	go <action> [packages]
 //
-// Usually, [packages] is a list of import paths.
+// Usually, [packages] is a list of package patterns,
+// which can take several forms:
 //
-// An import path that is a rooted path or that begins with
-// a . or .. element is interpreted as a file system path and
-// denotes the package in that directory.
-//
-// An import path beginning with ./ or ../ is called a relative path.
-// A relative path can be used as a shorthand on the command line.
-// If you are working in the directory containing the code imported as
-// "unicode" and want to run the tests for "unicode/utf8", you can type
-// "go test ./utf8" instead of needing to specify the full path.
-// Similarly, in the reverse situation, "go test .." will test "unicode" from
-// the "unicode/utf8" directory. Relative patterns are also allowed, like
-// "go test ./..." to test all subdirectories. See 'go help packages' for details
-// on the pattern syntax.
-//
-// Otherwise, the import path P denotes a package found in
-// one of the modules in the build list. The "build list" is the
-// list of module versions used for a build.
-// See https://go.dev/ref/mod#glos-build-list for more details.
+//   - A relative or absolute path to a file system directory,
+//     which can contain "..." wildcard elements.
+//   - An import path, which can also contain "..." wildcard elements.
+//   - A reserved name that expands to a set of packages
+//   - A list of files
 //
 // If no import paths are given, the action applies to the
 // package in the current directory.
 //
-// There are several reserved names for paths that should not be used
-// for packages to be built with the go tool:
+// "..." elements in filesystem or import paths expand
+// to match 0 or more path elements.
+// Specific rules are described below.
 //
-// - "main" denotes the top-level package in a stand-alone executable.
+// # File system patterns
+//
+// Patterns beginning with a file system root like / on Unixes,
+// or a volume name like C: on Windows are interpreted as absolute file system paths.
+// Patterns beginning with a "." or ".." element are interpreted as relative file system paths.
+// File system paths denote the package contained within the given directory.
+//
+// Relative paths can be used as a shorthand on the command line.
+// If you are working in the directory containing the code imported as
+// "unicode" and want to run the tests for "unicode/utf8", you can type
+// "go test ./utf8" instead of needing to specify the full path.
+// Similarly, in the reverse situation, "go test .." will test "unicode" from
+// the "unicode/utf8" directory. Relative patterns are also allowed, such as
+// "go test ./..." to test all subdirectories.
+//
+// File system patterns expanded with the "..." wildcard exclude the following:
+//
+// - Directories named "vendor"
+// - Directories named "testdata"
+// - Files and directories with names beginning with "_" or "."
+// - Directories that contain a go.mod file
+// - Directories matching an ignore directive in a module's go.mod file
+//
+// These can be included by either using them in the prefix,
+// or changing into the directories. For example, "./..." won't
+// match a "./testdata/foo" package, but "./testdata/..." will.
+//
+// Directories containing other go modules,
+// which are denoted by the presence of a go.mod file,
+// can only be matched by changing the working directory into module.
+//
+// # Import path patterns
+//
+// Patterns may be import paths as described in "go help importpath".
+// Import path patterns natch the packages from modules in the build list.
+// The "build list" is the list of module versions used for a build.
+// See https://go.dev/ref/mod#glos-build-list for more details.
+//
+// Some commands accept versioned package patterns,
+// such as: "example.com/my/module@v1.2.3"
+// These describe the matching package at the given version,
+// independent of the versions used by the current module.
+//
+// Import path patterns may also use a "..." wildcard,
+// such as: "example.com/my/module/...".
+// This can be combined with the version specifier
+// such as: "example.com/my/module/...@latest".
+//
+// Import path pattern expansion with "..." depends on context:
+//
+//   - "prefix/..." matches all packages in modules in the build list
+//     that share the prefix, even if they belong to different modules.
+//   - patterns that include a version specifier such as in "prefix/...@latest"
+//     only match packages from the module that "prefix" belongs to.
+//
+// # Reserved names
+//
+// The following reserved names expand to a set of packages:
 //
 // - "work" expands to all packages in the main module (or workspace modules).
+//
+// - "tool" expands to the tools defined in the current module's go.mod file.
 //
 // - "all" expands to all packages in the main module (or workspace modules) and
 // their dependencies, including dependencies needed by tests of any of those. In
 // the legacy GOPATH mode, "all" expands to all packages found in all the GOPATH trees.
 //
-// - "std" is like all but expands to just the packages in the standard
-// Go library.
+// - "std" expands to all the packages in the standard library
+// and their internal libraries.
 //
 // - "cmd" expands to the Go repository's commands and their
 // internal libraries.
 //
-// - "tool" expands to the tools defined in the current module's go.mod file.
+// # List of .go files
 //
-// Package names match against fully-qualified import paths or patterns that
-// match against any number of import paths. For instance, "fmt" refers to the
-// standard library's package fmt, but "http" alone for package http would not
-// match the import path "net/http" from the standard library. Instead, the
-// complete import path "net/http" must be used.
+// If the pattern is a list of Go files rather than a complete package,
+// the go command synthesizes a virtual package named "command-line-arguments"
+// containing just the given files. In most cases, it is an error
+// to do so (e.g. "go build main.go" or "go build *.go").
+// Instead prefer to operate on complete packages (directories),
+// such as: "go build ."
 //
-// Import paths beginning with "cmd/" only match source code in
-// the Go repository.
+// # Package names
 //
-// An import path is a pattern if it includes one or more "..." wildcards,
-// each of which can match any string, including the empty string and
-// strings containing slashes. Such a pattern expands to all packages
-// found in directories matching the pattern, in the case of a
-// file system path pattern, or all packages found in any build list
-// module matching the pattern, otherwise. The "..." wildcard does not
-// cross module boundaries in the case of a file system path pattern.
+// Packages are identified by their import path.
+// Import paths for packages in the standard library use their
+// relative path under "$GOROOT/src".
+// Import paths for all other packages are a combination of their module name
+// and their relative directory path within the module.
+// Within a program, all packages must be identified by a unique import path.
 //
-// To make common patterns more convenient, there are two special cases.
-// First, /... at the end of the pattern can match an empty string,
-// so that net/... matches both net and packages in its subdirectories, like net/http.
-// Second, any slash-separated pattern element containing a wildcard never
-// participates in a match of the "vendor" element in the path of a vendored
-// package, so that ./... does not match packages in subdirectories of
-// ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
-// Note, however, that a directory named vendor that itself contains code
-// is not a vendored package: cmd/vendor would be a command named vendor,
-// and the pattern cmd/... matches it.
-// See https://go.dev/ref/mod#vendoring for more about vendoring or
-// golang.org/s/go15vendor for vendoring in the legacy GOPATH mode.
+// Packages also have names, declared with the "package" keyword
+// in a .go file, and used as the identifier when imported
+// by another package. By convention, the names of importable packages
+// match the last element of their import path, generally the name
+// of the directory containing the package.
 //
-// An import path can also name a package to be downloaded from
-// a remote repository. Run 'go help importpath' for details.
+// Package names do not have to be unique within a module,
+// but packages that share the same name can't be imported
+// together without one of them being aliased to a different name.
 //
-// Every package in a program must have a unique import path.
-// Paths without a dot in the first path element are reserved
-// for the standard library, or in the case of 'example' and 'test',
-// are reserved for use in tutorials, examples, and test code.
-// In module mode, all import paths outside of the standard library
-// start with the module path. This means module paths should have
-// a dot in the first element, e.g., 'github.com/user/repo', or
-// 'example.com/project'.
+// As the go command primarily operates on directories,
+// all non test .go files within a directory (excluding subdirectories)
+// should share the same package declaration.
+// Test files may suffix their package declaration with "_test",
+// tests in these files are compiled as a separate package
+// and don't have access to unexported identifiers of their corresponding
+// package. See "go help test" and "go help testflag" for details.
 //
-// Packages in a program need not have unique package names,
-// but there are two reserved package names with special meaning.
-// The name main indicates a command, not a library.
-// Commands are built into binaries and cannot be imported.
-// The name documentation indicates documentation for
-// a non-Go program in the directory. Files in package documentation
-// are ignored by the go command.
+// There following package names have special meanings:
 //
-// As a special case, if the package list is a list of .go files from a
-// single directory, the command is applied to a single synthesized package
-// named "command-line-arguments" made up of exactly those files.
+// - "main" denotes the top-level package in a stand-alone executable.
+// "main" packages cannot be imported.
 //
-// Directory and file names that begin with "." or "_" are ignored
-// by the go tool, as are directories named "testdata".
+// - "documentation"  indicates documentation for a non-Go program
+// in the directory. Files in package documentation are ignored
+// by the go command.
+//
+// - "_test" suffix in "*_test.go" files. These form a separate test
+// package that only has access to the colocated package's exported
+// identifiers. See "go doc testing" for details.
+//
+// For more information about import paths, see "go help importpath".
 //
 // # Configuration for downloading non-public code
 //
