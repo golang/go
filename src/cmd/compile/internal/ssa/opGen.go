@@ -75418,7 +75418,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "CALLtailinter",
 		auxType:      auxCallOff,
-		argLen:       1,
+		argLen:       2,
 		clobberFlags: true,
 		call:         true,
 		tailCall:     true,
