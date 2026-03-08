@@ -62,8 +62,9 @@ func testGetwdDeep(t *testing.T, setPWD bool) {
 		if err != nil {
 			// We can get an EACCES error if we can't read up
 			// to root, which happens on the Android builders.
-			if errors.Is(err, syscall.EACCES) {
-				t.Logf("ignoring EACCES error: %v", err)
+			// We can also get EPERM in some sandboxes for the same reason.
+			if errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.EPERM) {
+				t.Logf("ignoring EACCES/EPERM error: %v", err)
 				break
 			}
 			t.Fatal(err)
