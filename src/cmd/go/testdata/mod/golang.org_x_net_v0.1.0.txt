@@ -1,0 +1,10 @@
+written by hand - just enough for list_std_vendor.txt
+
+-- .mod --
+module golang.org/x/net
+-- .info --
+{"Version":"v0.1.0","Name":"","Short":"","Time":"2026-03-08T00:00:00Z"}
+-- go.mod --
+module golang.org/x/net
+-- dns/dnsmessage/dnsmessage.go --
+package dnsmessage
