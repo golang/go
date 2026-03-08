@@ -1,11 +1,10 @@
 [exec:bzr] skip 'tests NOT having bzr'
-[!net:launchpad.net] skip
+[short] skip
 
-env GO111MODULE=on
 env GOPROXY=direct
 
 cd empty
-! go get launchpad.net/gocheck
+! go get vcs-test.golang.org/foo.bzr
 stderr '"bzr": executable file not found'
 cd ..
 
@@ -23,6 +22,6 @@ module m
 -- main/main.go --
 package main
 
-import _ "launchpad.net/gocheck"
+import _ "vcs-test.golang.org/foo.bzr"
 
 func main() {}

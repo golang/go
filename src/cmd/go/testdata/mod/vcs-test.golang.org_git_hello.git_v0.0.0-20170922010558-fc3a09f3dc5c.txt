@@ -1,0 +1,13 @@
+written by hand
+
+-- .mod --
+module vcs-test.golang.org/git/hello.git
+-- .info --
+{"Version":"v0.0.0-20170922010558-fc3a09f3dc5c"}
+-- testonly.go --
+package main
+
+func main() {
+	println("hello, world")
+}
+
