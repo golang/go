@@ -387,12 +387,18 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			// If there are instructions following
 			// this ARET, they come from a branch
-			// with the same stackframe, so no spadj.
+			// with the same stackframe, so spadj should
+			// sum to 0.
 
 			if retSym != nil || retReg != REGLINK { // retjmp
 				p.To.Reg = REGLINK
+				// If ARET is a tail-call, the frame pop
+				// and jump are in separate instructions
+				// and spadj is needed.
+				p.Spadj = -autosize
 				q2 = obj.Appendp(p, newprog)
 				q2.As = AB
+				q2.Spadj = +autosize
 				if retSym != nil {
 					q2.To.Type = obj.TYPE_BRANCH
 					q2.To.Sym = retSym
