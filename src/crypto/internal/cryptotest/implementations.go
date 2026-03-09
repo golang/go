@@ -64,6 +64,8 @@ func flagshipBuilder() bool {
 	case "arm64":
 		// Apple M chips support everything we use.
 		return goos.GOOS == "darwin"
+	case "riscv64":
+		return strings.Contains(builder, "_zvk")
 	default:
 		// Presumably the Linux builders are the most capable.
 		return goos.GOOS == "linux"
