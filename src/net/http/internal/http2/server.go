@@ -362,12 +362,6 @@ type ServeConnOpts struct {
 	// or BaseConfig.Handler is nil, http.DefaultServeMux is used.
 	Handler http.Handler
 
-	// UpgradeRequest is an initial request received on a connection
-	// undergoing an h2c upgrade. The request body must have been
-	// completely read from the connection before calling ServeConn,
-	// and the 101 Switching Protocols response written.
-	UpgradeRequest *http.Request
-
 	// Settings is the decoded contents of the HTTP2-Settings header
 	// in an h2c upgrade request.
 	Settings []byte
@@ -558,11 +552,6 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 
 	if hook := testHookGetServerConn; hook != nil {
 		hook(sc)
-	}
-
-	if opts.UpgradeRequest != nil {
-		sc.upgradeRequest(opts.UpgradeRequest)
-		opts.UpgradeRequest = nil
 	}
 
 	sc.serve(conf)
@@ -2163,30 +2152,6 @@ func (sc *serverConn) processHeaders(f *MetaHeadersFrame) error {
 	}
 
 	return sc.scheduleHandler(id, rw, req, handler)
-}
-
-func (sc *serverConn) upgradeRequest(req *http.Request) {
-	sc.serveG.check()
-	id := uint32(1)
-	sc.maxClientStreamID = id
-	st := sc.newStream(id, 0, stateHalfClosedRemote, defaultRFC9218Priority(sc.priorityAware && !sc.hasIntermediary))
-	st.reqTrailer = req.Trailer
-	if st.reqTrailer != nil {
-		st.trailer = make(http.Header)
-	}
-	rw := sc.newResponseWriter(st, req)
-
-	// Disable any read deadline set by the net/http package
-	// prior to the upgrade.
-	if sc.hs.ReadTimeout > 0 {
-		sc.conn.SetReadDeadline(time.Time{})
-	}
-
-	// This is the first request on the connection,
-	// so start the handler directly rather than going
-	// through scheduleHandler.
-	sc.curHandlers++
-	go sc.runHandler(rw, req, sc.handler.ServeHTTP)
 }
 
 func (st *stream) processTrailerHeaders(f *MetaHeadersFrame) error {
