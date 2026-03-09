@@ -92,7 +92,7 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 		byModule := make(map[string][]string)
 		_, pkgs := modload.LoadPackages(moduleLoaderState, ctx, loadOpts, "all")
 		for _, path := range pkgs {
-			m := modload.PackageModule(path)
+			m := moduleLoaderState.PackageModule(path)
 			if m.Path != "" {
 				byModule[m.Path] = append(byModule[m.Path], path)
 			}
@@ -102,13 +102,13 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 			best := ""
 			bestDepth := 1000000000
 			for _, path := range byModule[m.Path] {
-				d := modload.WhyDepth(path)
+				d := moduleLoaderState.WhyDepth(path)
 				if d > 0 && d < bestDepth {
 					best = path
 					bestDepth = d
 				}
 			}
-			why := modload.Why(best)
+			why := moduleLoaderState.Why(best)
 			if why == "" {
 				vendoring := ""
 				if *whyVendor {
@@ -128,7 +128,7 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 		sep := ""
 		for _, m := range matches {
 			for _, path := range m.Pkgs {
-				why := modload.Why(path)
+				why := moduleLoaderState.Why(path)
 				if why == "" {
 					vendoring := ""
 					if *whyVendor {

@@ -1700,13 +1700,13 @@ func (r *resolver) checkPackageProblems(loaderstate *modload.State, ctx context.
 					}
 				}
 			}
-			if m := modload.PackageModule(pkg); m.Path != "" {
+			if m := loaderstate.PackageModule(pkg); m.Path != "" {
 				relevantMods[m] |= hasPkg
 			}
 		}
 		for _, match := range matches {
 			for _, pkg := range match.Pkgs {
-				m := modload.PackageModule(pkg)
+				m := loaderstate.PackageModule(pkg)
 				relevantMods[m] |= named
 			}
 		}

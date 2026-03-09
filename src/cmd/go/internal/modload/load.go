@@ -128,14 +128,6 @@ import (
 	"golang.org/x/mod/module"
 )
 
-// loaded is the most recently-used package loader.
-// It holds details about individual packages.
-//
-// This variable should only be accessed directly in top-level exported
-// functions. All other functions that require or produce a *packageLoader should pass
-// or return it as an explicit parameter.
-var loaded *packageLoader
-
 // PackageOpts control the behavior of the LoadPackages function.
 type PackageOpts struct {
 	// TidyGoVersion is the Go version to which the go.mod file should be updated
@@ -454,8 +446,8 @@ func LoadPackages(loaderstate *State, ctx context.Context, opts PackageOpts, pat
 
 		if opts.TidyDiff {
 			cfg.BuildMod = "readonly"
-			loaded = ld
-			loaderstate.requirements = loaded.requirements
+			loaderstate.pkgLoader = ld
+			loaderstate.requirements = loaderstate.pkgLoader.requirements
 			currentGoMod, updatedGoMod, _, err := UpdateGoModFromReqs(loaderstate, ctx, WriteOpts{})
 			if err != nil {
 				base.Fatal(err)
@@ -466,7 +458,7 @@ func LoadPackages(loaderstate *State, ctx context.Context, opts PackageOpts, pat
 			// Dropping compatibility for 1.16 may result in a strictly smaller go.sum.
 			// Update the keep map with only the loaded.requirements.
 			if gover.Compare(compatVersion, "1.16") > 0 {
-				keep = keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums)
+				keep = keepSums(loaderstate, ctx, loaderstate.pkgLoader, loaderstate.requirements, addBuildListZipSums)
 			}
 			currentGoSum, tidyGoSum := loaderstate.fetcher.TidyGoSum(keep)
 			goSumDiff := diff.Diff("current/go.sum", currentGoSum, "tidy/go.sum", tidyGoSum)
@@ -504,8 +496,8 @@ func LoadPackages(loaderstate *State, ctx context.Context, opts PackageOpts, pat
 	// We'll skip updating if ExplicitWriteGoMod is true (the caller has opted
 	// to call WriteGoMod itself) or if ResolveMissingImports is false (the
 	// command wants to examine the package graph as-is).
-	loaded = ld
-	loaderstate.requirements = loaded.requirements
+	loaderstate.pkgLoader = ld
+	loaderstate.requirements = loaderstate.pkgLoader.requirements
 
 	for _, pkg := range ld.pkgs {
 		if !pkg.isTest() {
@@ -775,7 +767,7 @@ func ImportFromFiles(loaderstate *State, ctx context.Context, gofiles []string) 
 		base.Fatal(err)
 	}
 
-	loaded = loadFromRoots(loaderstate, ctx, loaderParams{
+	loaderstate.pkgLoader = loadFromRoots(loaderstate, ctx, loaderParams{
 		PackageOpts: PackageOpts{
 			Tags:                  tags,
 			ResolveMissingImports: true,
@@ -788,7 +780,7 @@ func ImportFromFiles(loaderstate *State, ctx context.Context, gofiles []string) 
 			return roots
 		},
 	})
-	loaderstate.requirements = loaded.requirements
+	loaderstate.requirements = loaderstate.pkgLoader.requirements
 
 	if !ExplicitWriteGoMod {
 		if err := commitRequirements(loaderstate, ctx, WriteOpts{}); err != nil {
@@ -841,8 +833,8 @@ func (mms *MainModuleSet) DirImportPath(loaderstate *State, ctx context.Context,
 }
 
 // PackageModule returns the module providing the package named by the import path.
-func PackageModule(path string) module.Version {
-	pkg, ok := loaded.pkgCache.Get(path)
+func (loaderstate *State) PackageModule(path string) module.Version {
+	pkg, ok := loaderstate.pkgLoader.pkgCache.Get(path)
 	if !ok {
 		return module.Version{}
 	}
@@ -859,9 +851,9 @@ func Lookup(loaderstate *State, parentPath string, parentIsStd bool, path string
 	}
 
 	if parentIsStd {
-		path = loaded.stdVendor(loaderstate, parentPath, path)
+		path = loaderstate.pkgLoader.stdVendor(loaderstate, parentPath, path)
 	}
-	pkg, ok := loaded.pkgCache.Get(path)
+	pkg, ok := loaderstate.pkgLoader.pkgCache.Get(path)
 	if !ok {
 		// The loader should have found all the relevant paths.
 		// There are a few exceptions, though:
@@ -2391,8 +2383,8 @@ func (pkg *loadPkg) why() string {
 // The package graph must have been loaded already, usually by LoadPackages.
 // If there is no reason for the package to be in the current build,
 // Why returns an empty string.
-func Why(path string) string {
-	pkg, ok := loaded.pkgCache.Get(path)
+func (loaderstate *State) Why(path string) string {
+	pkg, ok := loaderstate.pkgLoader.pkgCache.Get(path)
 	if !ok {
 		return ""
 	}
@@ -2402,9 +2394,9 @@ func Why(path string) string {
 // WhyDepth returns the number of steps in the Why listing.
 // If there is no reason for the package to be in the current build,
 // WhyDepth returns 0.
-func WhyDepth(path string) int {
+func (loaderstate *State) WhyDepth(path string) int {
 	n := 0
-	pkg, _ := loaded.pkgCache.Get(path)
+	pkg, _ := loaderstate.pkgLoader.pkgCache.Get(path)
 	for p := pkg; p != nil; p = p.stack {
 		n++
 	}

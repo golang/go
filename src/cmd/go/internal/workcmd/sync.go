@@ -82,7 +82,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 			inMustSelect = map[module.Version]bool{}
 		)
 		for _, pkg := range pkgs {
-			if r := modload.PackageModule(pkg); r.Version != "" && !inMustSelect[r] {
+			if r := moduleLoaderState.PackageModule(pkg); r.Version != "" && !inMustSelect[r] {
 				// r has a known version, so force that version.
 				mustSelect = append(mustSelect, r)
 				inMustSelect[r] = true

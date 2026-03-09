@@ -106,7 +106,7 @@ func RunVendor(loaderstate *modload.State, ctx context.Context, vendorE bool, ve
 
 	modpkgs := make(map[module.Version][]string)
 	for _, pkg := range pkgs {
-		m := modload.PackageModule(pkg)
+		m := loaderstate.PackageModule(pkg)
 		if m.Path == "" || loaderstate.MainModules.Contains(m.Path) {
 			continue
 		}
@@ -294,7 +294,7 @@ func vendorPkg(s *modload.State, vdir, pkg string) {
 		return matchPotentialSourceFile(dir, info, goVersion)
 	}
 	copyDir(dst, src, matcher, copiedFiles)
-	if m := modload.PackageModule(realPath); m.Path != "" {
+	if m := s.PackageModule(realPath); m.Path != "" {
 		copyMetadata(m.Path, realPath, dst, src, copiedFiles)
 	}
 

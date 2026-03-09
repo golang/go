@@ -54,7 +54,7 @@ func PackageModuleInfo(loaderstate *State, ctx context.Context, pkgpath string) 
 	if isStandardImportPath(pkgpath) || !loaderstate.Enabled() {
 		return nil
 	}
-	m, ok := findModule(loaded, pkgpath)
+	m, ok := findModule(loaderstate.pkgLoader, pkgpath)
 	if !ok {
 		return nil
 	}
@@ -71,7 +71,7 @@ func PackageModRoot(loaderstate *State, ctx context.Context, pkgpath string) str
 	if isStandardImportPath(pkgpath) || !loaderstate.Enabled() || cfg.BuildMod == "vendor" {
 		return ""
 	}
-	m, ok := findModule(loaded, pkgpath)
+	m, ok := findModule(loaderstate.pkgLoader, pkgpath)
 	if !ok {
 		return ""
 	}

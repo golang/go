@@ -435,6 +435,14 @@ type State struct {
 	modulesEnabled bool
 	MainModules    *MainModuleSet
 
+	// pkgLoader is the most recently-used package loader.
+	// It holds details about individual packages.
+	//
+	// This variable should only be accessed directly in top-level exported
+	// functions. All other functions that require or produce a *packageLoader should pass
+	// or return it as an explicit parameter.
+	pkgLoader *packageLoader
+
 	// requirements is the requirement graph for the main module.
 	//
 	// It is always non-nil if the main module's go.mod file has been
@@ -1976,7 +1984,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 	if loaderstate.inWorkspaceMode() {
 		// go.mod files aren't updated in workspace mode, but we still want to
 		// update the go.work.sum file.
-		return loaderstate.Fetcher().WriteGoSum(ctx, keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
+		return loaderstate.Fetcher().WriteGoSum(ctx, keepSums(loaderstate, ctx, loaderstate.pkgLoader, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
 	}
 	_, updatedGoMod, modFile, err := UpdateGoModFromReqs(loaderstate, ctx, opts)
 	if err != nil {
@@ -2000,7 +2008,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 		// Don't write go.mod, but write go.sum in case we added or trimmed sums.
 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
 		if cfg.CmdName != "mod init" {
-			if err := loaderstate.Fetcher().WriteGoSum(ctx, keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate)); err != nil {
+			if err := loaderstate.Fetcher().WriteGoSum(ctx, keepSums(loaderstate, ctx, loaderstate.pkgLoader, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate)); err != nil {
 				return err
 			}
 		}
@@ -2023,7 +2031,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
 		if cfg.CmdName != "mod init" {
 			if err == nil {
-				err = loaderstate.Fetcher().WriteGoSum(ctx, keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
+				err = loaderstate.Fetcher().WriteGoSum(ctx, keepSums(loaderstate, ctx, loaderstate.pkgLoader, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
 			}
 		}
 	}()
