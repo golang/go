@@ -455,7 +455,7 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 			niflen := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLT, len, ir.NewInt(base.Pos, 0)), nil, nil)
 			niflen.Body = []ir.Node{mkcall("panicmakeslicelen", nil, init)}
 			nif.Body.Append(niflen, mkcall("panicmakeslicecap", nil, init))
-			init.Append(typecheck.Stmt(nif))
+			appendWalkStmt(init, nif)
 
 			// var arr [cap]E
 			// s = arr[:len]
