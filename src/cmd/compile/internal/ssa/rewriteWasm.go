@@ -3949,6 +3949,26 @@ func rewriteValueWasm_OpWasmI64And(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(x & y)
 		return true
 	}
+	// match: (I64And x (I64Const [-1]))
+	// result: x
+	for {
+		x := v_0
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != -1 {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (I64And x (I64Const [0]))
+	// result: (I64Const [0])
+	for {
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != 0 {
+			break
+		}
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
 	// match: (I64And (I64Const [x]) y)
 	// cond: y.Op != OpWasmI64Const
 	// result: (I64And y (I64Const [x]))
@@ -4448,6 +4468,26 @@ func rewriteValueWasm_OpWasmI64Mul(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(x * y)
 		return true
 	}
+	// match: (I64Mul x (I64Const [0]))
+	// result: (I64Const [0])
+	for {
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != 0 {
+			break
+		}
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
+	// match: (I64Mul x (I64Const [1]))
+	// result: x
+	for {
+		x := v_0
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != 1 {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	// match: (I64Mul (I64Const [x]) y)
 	// cond: y.Op != OpWasmI64Const
 	// result: (I64Mul y (I64Const [x]))
@@ -4562,6 +4602,26 @@ func rewriteValueWasm_OpWasmI64Or(v *Value) bool {
 		y := auxIntToInt64(v_1.AuxInt)
 		v.reset(OpWasmI64Const)
 		v.AuxInt = int64ToAuxInt(x | y)
+		return true
+	}
+	// match: (I64Or x (I64Const [0]))
+	// result: x
+	for {
+		x := v_0
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != 0 {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (I64Or x (I64Const [-1]))
+	// result: (I64Const [-1])
+	for {
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != -1 {
+			break
+		}
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64ToAuxInt(-1)
 		return true
 	}
 	// match: (I64Or (I64Const [x]) y)
@@ -4786,6 +4846,16 @@ func rewriteValueWasm_OpWasmI64Xor(v *Value) bool {
 		y := auxIntToInt64(v_1.AuxInt)
 		v.reset(OpWasmI64Const)
 		v.AuxInt = int64ToAuxInt(x ^ y)
+		return true
+	}
+	// match: (I64Xor x (I64Const [0]))
+	// result: x
+	for {
+		x := v_0
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != 0 {
+			break
+		}
+		v.copyOf(x)
 		return true
 	}
 	// match: (I64Xor (I64Const [x]) y)
