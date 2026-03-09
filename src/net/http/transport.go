@@ -388,9 +388,8 @@ type dialClientConner interface {
 	// If HTTP/3 proxies are not supported, DialClientConn should return
 	// an error wrapping [errors.ErrUnsupported].
 	//
-	// The RoundTripper returned by DialClientConn may implement
-	// any of the following methods to support the [ClientConn]
-	// method of the same name:
+	// The RoundTripper returned by DialClientConn must also implement the
+	// following methods to support [ClientConn] methods of the same name:
 	//	Close() error
 	//	Err() error
 	// 	Reserve() error
@@ -409,6 +408,16 @@ type dialClientConner interface {
 	// to the state: Close, Reserve, Release, and RoundTrip calls
 	// which don't start a request do not need to call the hook.
 	DialClientConn(ctx context.Context, address string, proxy *url.URL, internalStateHook func()) (RoundTripper, error)
+}
+
+type closeIdleConnectionser interface {
+	// CloseIdleConnections is called by Transport.CloseIdleConnections.
+	//
+	// The transport will close idle connections created with DialClientConn
+	// before calling this method. The HTTP/3 transport should not attempt to
+	// close idle connections, but may clean up shared resources such as UDP
+	// sockets if no connections remain.
+	CloseIdleConnections()
 }
 
 // h2Transport is the interface we expect to be able to call from
@@ -955,6 +964,9 @@ func (t *Transport) CloseIdleConnections() {
 	t.connsPerHostMu.Unlock()
 	if t2 := t.h2transport; t2 != nil {
 		t2.CloseIdleConnections()
+	}
+	if cc, ok := t.h3transport.(closeIdleConnectionser); ok {
+		cc.CloseIdleConnections()
 	}
 }
 
@@ -3088,11 +3100,16 @@ func (pc *persistConn) closeLocked(err error) {
 		pc.t.decConnsPerHost(pc.cacheKey)
 		// Close HTTP/1 (pc.alt == nil) connection.
 		// HTTP/2 closes its connection itself.
+		// Close HTTP/3 connection if it implements io.Closer.
 		if pc.alt == nil {
 			if err != errCallerOwnsConn {
 				pc.conn.Close()
 			}
 			close(pc.closech)
+		} else {
+			if cc, ok := pc.alt.(io.Closer); ok {
+				cc.Close()
+			}
 		}
 	}
 	pc.mutateHeaderFunc = nil
