@@ -157,6 +157,15 @@ var RISCV64 struct {
 	HasFastMisaligned bool // Fast misaligned accesses
 	HasV              bool // Vector extension compatible with RVV 1.0
 	HasZbb            bool // Basic bit-manipulation extension
+	HasZvbb           bool // Vector Basic Bit-manipulation
+	HasZvbc           bool // Vector Carryless Multiplication
+	HasZvkg           bool // Vector GCM/GMAC
+	HasZvkned         bool // NIST Suite: Vector AES Block Cipher
+	HasZvknha         bool // NIST Suite: Vector SHA-2 Secure Hash
+	HasZvknhb         bool // NIST Suite: Vector SHA-2 Secure Hash
+	HasZvksed         bool // ShangMi Suite: SM4 Block Cipher
+	HasZvksh          bool // ShangMi Suite: SM3 Secure Hash
+	HasZvkt           bool // Vector Data-Independent Execution Latency
 	_                 CacheLinePad
 }
 

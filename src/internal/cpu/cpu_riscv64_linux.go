@@ -51,6 +51,16 @@ const (
 	riscv_HWPROBE_KEY_IMA_EXT_0   = 0x4
 	riscv_HWPROBE_IMA_V           = 0x4
 	riscv_HWPROBE_EXT_ZBB         = 0x10
+	riscv_HWPROBE_EXT_ZVBB        = 0x20000
+	riscv_HWPROBE_EXT_ZVBC        = 0x40000
+	riscv_HWPROBE_EXT_ZVKB        = 0x80000
+	riscv_HWPROBE_EXT_ZVKG        = 0x100000
+	riscv_HWPROBE_EXT_ZVKNED      = 0x200000
+	riscv_HWPROBE_EXT_ZVKNHA      = 0x400000
+	riscv_HWPROBE_EXT_ZVKNHB      = 0x800000
+	riscv_HWPROBE_EXT_ZVKSED      = 0x1000000
+	riscv_HWPROBE_EXT_ZVKSH       = 0x2000000
+	riscv_HWPROBE_EXT_ZVKT        = 0x4000000
 	riscv_HWPROBE_KEY_CPUPERF_0   = 0x5
 	riscv_HWPROBE_MISALIGNED_FAST = 0x3
 	riscv_HWPROBE_MISALIGNED_MASK = 0x7
@@ -85,6 +95,15 @@ func osInit() {
 		v := uint(pairs[0].value)
 		RISCV64.HasV = isSet(v, riscv_HWPROBE_IMA_V)
 		RISCV64.HasZbb = isSet(v, riscv_HWPROBE_EXT_ZBB)
+		RISCV64.HasZvbb = isSet(v, riscv_HWPROBE_EXT_ZVBB)
+		RISCV64.HasZvbc = isSet(v, riscv_HWPROBE_EXT_ZVBC)
+		RISCV64.HasZvkg = isSet(v, riscv_HWPROBE_EXT_ZVKG)
+		RISCV64.HasZvkned = isSet(v, riscv_HWPROBE_EXT_ZVKNED)
+		RISCV64.HasZvknha = isSet(v, riscv_HWPROBE_EXT_ZVKNHA)
+		RISCV64.HasZvknhb = isSet(v, riscv_HWPROBE_EXT_ZVKNHB)
+		RISCV64.HasZvksed = isSet(v, riscv_HWPROBE_EXT_ZVKSED)
+		RISCV64.HasZvksh = isSet(v, riscv_HWPROBE_EXT_ZVKSH)
+		RISCV64.HasZvkt = isSet(v, riscv_HWPROBE_EXT_ZVKT)
 	}
 	if pairs[1].key != -1 {
 		v := pairs[1].value & riscv_HWPROBE_MISALIGNED_MASK
