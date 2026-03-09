@@ -13,46 +13,41 @@ TEXT ·addVV(SB), NOSPLIT, $0
 	MOV z_len+8(FP), X5
 	MOV x_base+24(FP), X6
 	MOV y_base+48(FP), X7
-	MOV z_base+0(FP), X8
+	MOV z_base+0(FP), X9
 	// compute unrolled loop lengths
-	AND $3, X5, X9
+	AND $3, X5, X10
 	SRL $2, X5
 	XOR X28, X28	// clear carry
 loop1:
-	BEQZ X9, loop1done
+	BEQZ X10, loop1done
 loop1cont:
 	// unroll 1X
-	MOV 0(X6), X10
-	MOV 0(X7), X11
-	ADD X11, X10	// ADCS X11, X10, X10 (cr=X28)
-	SLTU X11, X10, X31	// ...
-	ADD X28, X10	// ...
-	SLTU X28, X10, X28	// ...
+	MOV 0(X6), X11
+	MOV 0(X7), X12
+	ADD X12, X11	// ADCS X12, X11, X11 (cr=X28)
+	SLTU X12, X11, X31	// ...
+	ADD X28, X11	// ...
+	SLTU X28, X11, X28	// ...
 	ADD X31, X28	// ...
-	MOV X10, 0(X8)
+	MOV X11, 0(X9)
 	ADD $8, X6
 	ADD $8, X7
-	ADD $8, X8
-	SUB $1, X9
-	BNEZ X9, loop1cont
+	ADD $8, X9
+	SUB $1, X10
+	BNEZ X10, loop1cont
 loop1done:
 loop4:
 	BEQZ X5, loop4done
 loop4cont:
 	// unroll 4X
-	MOV 0(X6), X9
-	MOV 8(X6), X10
-	MOV 16(X6), X11
-	MOV 24(X6), X12
-	MOV 0(X7), X13
-	MOV 8(X7), X14
-	MOV 16(X7), X15
-	MOV 24(X7), X16
-	ADD X13, X9	// ADCS X13, X9, X9 (cr=X28)
-	SLTU X13, X9, X31	// ...
-	ADD X28, X9	// ...
-	SLTU X28, X9, X28	// ...
-	ADD X31, X28	// ...
+	MOV 0(X6), X10
+	MOV 8(X6), X11
+	MOV 16(X6), X12
+	MOV 24(X6), X13
+	MOV 0(X7), X14
+	MOV 8(X7), X15
+	MOV 16(X7), X16
+	MOV 24(X7), X17
 	ADD X14, X10	// ADCS X14, X10, X10 (cr=X28)
 	SLTU X14, X10, X31	// ...
 	ADD X28, X10	// ...
@@ -68,13 +63,18 @@ loop4cont:
 	ADD X28, X12	// ...
 	SLTU X28, X12, X28	// ...
 	ADD X31, X28	// ...
-	MOV X9, 0(X8)
-	MOV X10, 8(X8)
-	MOV X11, 16(X8)
-	MOV X12, 24(X8)
+	ADD X17, X13	// ADCS X17, X13, X13 (cr=X28)
+	SLTU X17, X13, X31	// ...
+	ADD X28, X13	// ...
+	SLTU X28, X13, X28	// ...
+	ADD X31, X28	// ...
+	MOV X10, 0(X9)
+	MOV X11, 8(X9)
+	MOV X12, 16(X9)
+	MOV X13, 24(X9)
 	ADD $32, X6
 	ADD $32, X7
-	ADD $32, X8
+	ADD $32, X9
 	SUB $1, X5
 	BNEZ X5, loop4cont
 loop4done:
@@ -86,46 +86,41 @@ TEXT ·subVV(SB), NOSPLIT, $0
 	MOV z_len+8(FP), X5
 	MOV x_base+24(FP), X6
 	MOV y_base+48(FP), X7
-	MOV z_base+0(FP), X8
+	MOV z_base+0(FP), X9
 	// compute unrolled loop lengths
-	AND $3, X5, X9
+	AND $3, X5, X10
 	SRL $2, X5
 	XOR X28, X28	// clear carry
 loop1:
-	BEQZ X9, loop1done
+	BEQZ X10, loop1done
 loop1cont:
 	// unroll 1X
-	MOV 0(X6), X10
-	MOV 0(X7), X11
-	SLTU X28, X10, X31	// SBCS X11, X10, X10
-	SUB X28, X10	// ...
-	SLTU X11, X10, X28	// ...
-	SUB X11, X10	// ...
+	MOV 0(X6), X11
+	MOV 0(X7), X12
+	SLTU X28, X11, X31	// SBCS X12, X11, X11
+	SUB X28, X11	// ...
+	SLTU X12, X11, X28	// ...
+	SUB X12, X11	// ...
 	ADD X31, X28	// ...
-	MOV X10, 0(X8)
+	MOV X11, 0(X9)
 	ADD $8, X6
 	ADD $8, X7
-	ADD $8, X8
-	SUB $1, X9
-	BNEZ X9, loop1cont
+	ADD $8, X9
+	SUB $1, X10
+	BNEZ X10, loop1cont
 loop1done:
 loop4:
 	BEQZ X5, loop4done
 loop4cont:
 	// unroll 4X
-	MOV 0(X6), X9
-	MOV 8(X6), X10
-	MOV 16(X6), X11
-	MOV 24(X6), X12
-	MOV 0(X7), X13
-	MOV 8(X7), X14
-	MOV 16(X7), X15
-	MOV 24(X7), X16
-	SLTU X28, X9, X31	// SBCS X13, X9, X9
-	SUB X28, X9	// ...
-	SLTU X13, X9, X28	// ...
-	SUB X13, X9	// ...
-	ADD X31, X28	// ...
+	MOV 0(X6), X10
+	MOV 8(X6), X11
+	MOV 16(X6), X12
+	MOV 24(X6), X13
+	MOV 0(X7), X14
+	MOV 8(X7), X15
+	MOV 16(X7), X16
+	MOV 24(X7), X17
 	SLTU X28, X10, X31	// SBCS X14, X10, X10
 	SUB X28, X10	// ...
 	SLTU X14, X10, X28	// ...
@@ -141,13 +136,18 @@ loop4cont:
 	SLTU X16, X12, X28	// ...
 	SUB X16, X12	// ...
 	ADD X31, X28	// ...
-	MOV X9, 0(X8)
-	MOV X10, 8(X8)
-	MOV X11, 16(X8)
-	MOV X12, 24(X8)
+	SLTU X28, X13, X31	// SBCS X17, X13, X13
+	SUB X28, X13	// ...
+	SLTU X17, X13, X28	// ...
+	SUB X17, X13	// ...
+	ADD X31, X28	// ...
+	MOV X10, 0(X9)
+	MOV X11, 8(X9)
+	MOV X12, 16(X9)
+	MOV X13, 24(X9)
 	ADD $32, X6
 	ADD $32, X7
-	ADD $32, X8
+	ADD $32, X9
 	SUB $1, X5
 	BNEZ X5, loop4cont
 loop4done:
@@ -160,69 +160,69 @@ TEXT ·lshVU(SB), NOSPLIT, $0
 	BEQZ X5, ret0
 	MOV s+48(FP), X6
 	MOV x_base+24(FP), X7
-	MOV z_base+0(FP), X8
+	MOV z_base+0(FP), X9
 	// run loop backward
-	SLL $3, X5, X9
-	ADD X9, X7
-	SLL $3, X5, X9
-	ADD X9, X8
+	SLL $3, X5, X10
+	ADD X10, X7
+	SLL $3, X5, X10
+	ADD X10, X9
 	// shift first word into carry
-	MOV -8(X7), X9
-	MOV $64, X10
-	SUB X6, X10
-	SRL X10, X9, X11
-	SLL X6, X9
-	MOV X11, c+56(FP)
+	MOV -8(X7), X10
+	MOV $64, X11
+	SUB X6, X11
+	SRL X11, X10, X12
+	SLL X6, X10
+	MOV X12, c+56(FP)
 	// shift remaining words
 	SUB $1, X5
 	// compute unrolled loop lengths
-	AND $3, X5, X11
+	AND $3, X5, X12
 	SRL $2, X5
 loop1:
-	BEQZ X11, loop1done
+	BEQZ X12, loop1done
 loop1cont:
 	// unroll 1X
-	MOV -16(X7), X12
-	SRL X10, X12, X13
-	OR X9, X13
-	SLL X6, X12, X9
-	MOV X13, -8(X8)
+	MOV -16(X7), X13
+	SRL X11, X13, X14
+	OR X10, X14
+	SLL X6, X13, X10
+	MOV X14, -8(X9)
 	ADD $-8, X7
-	ADD $-8, X8
-	SUB $1, X11
-	BNEZ X11, loop1cont
+	ADD $-8, X9
+	SUB $1, X12
+	BNEZ X12, loop1cont
 loop1done:
 loop4:
 	BEQZ X5, loop4done
 loop4cont:
 	// unroll 4X
-	MOV -16(X7), X11
-	MOV -24(X7), X12
-	MOV -32(X7), X13
-	MOV -40(X7), X14
-	SRL X10, X11, X15
-	OR X9, X15
-	SLL X6, X11, X9
-	SRL X10, X12, X11
-	OR X9, X11
-	SLL X6, X12, X9
-	SRL X10, X13, X12
-	OR X9, X12
-	SLL X6, X13, X9
-	SRL X10, X14, X13
-	OR X9, X13
-	SLL X6, X14, X9
-	MOV X15, -8(X8)
-	MOV X11, -16(X8)
-	MOV X12, -24(X8)
-	MOV X13, -32(X8)
+	MOV -16(X7), X12
+	MOV -24(X7), X13
+	MOV -32(X7), X14
+	MOV -40(X7), X15
+	SRL X11, X12, X16
+	OR X10, X16
+	SLL X6, X12, X10
+	SRL X11, X13, X12
+	OR X10, X12
+	SLL X6, X13, X10
+	SRL X11, X14, X13
+	OR X10, X13
+	SLL X6, X14, X10
+	SRL X11, X15, X14
+	OR X10, X14
+	SLL X6, X15, X10
+	MOV X16, -8(X9)
+	MOV X12, -16(X9)
+	MOV X13, -24(X9)
+	MOV X14, -32(X9)
 	ADD $-32, X7
-	ADD $-32, X8
+	ADD $-32, X9
 	SUB $1, X5
 	BNEZ X5, loop4cont
 loop4done:
 	// store final shifted bits
-	MOV X9, -8(X8)
+	MOV X10, -8(X9)
 	RET
 ret0:
 	MOV X0, c+56(FP)
@@ -234,64 +234,64 @@ TEXT ·rshVU(SB), NOSPLIT, $0
 	BEQZ X5, ret0
 	MOV s+48(FP), X6
 	MOV x_base+24(FP), X7
-	MOV z_base+0(FP), X8
+	MOV z_base+0(FP), X9
 	// shift first word into carry
-	MOV 0(X7), X9
-	MOV $64, X10
-	SUB X6, X10
-	SLL X10, X9, X11
-	SRL X6, X9
-	MOV X11, c+56(FP)
+	MOV 0(X7), X10
+	MOV $64, X11
+	SUB X6, X11
+	SLL X11, X10, X12
+	SRL X6, X10
+	MOV X12, c+56(FP)
 	// shift remaining words
 	SUB $1, X5
 	// compute unrolled loop lengths
-	AND $3, X5, X11
+	AND $3, X5, X12
 	SRL $2, X5
 loop1:
-	BEQZ X11, loop1done
+	BEQZ X12, loop1done
 loop1cont:
 	// unroll 1X
-	MOV 8(X7), X12
-	SLL X10, X12, X13
-	OR X9, X13
-	SRL X6, X12, X9
-	MOV X13, 0(X8)
+	MOV 8(X7), X13
+	SLL X11, X13, X14
+	OR X10, X14
+	SRL X6, X13, X10
+	MOV X14, 0(X9)
 	ADD $8, X7
-	ADD $8, X8
-	SUB $1, X11
-	BNEZ X11, loop1cont
+	ADD $8, X9
+	SUB $1, X12
+	BNEZ X12, loop1cont
 loop1done:
 loop4:
 	BEQZ X5, loop4done
 loop4cont:
 	// unroll 4X
-	MOV 8(X7), X11
-	MOV 16(X7), X12
-	MOV 24(X7), X13
-	MOV 32(X7), X14
-	SLL X10, X11, X15
-	OR X9, X15
-	SRL X6, X11, X9
-	SLL X10, X12, X11
-	OR X9, X11
-	SRL X6, X12, X9
-	SLL X10, X13, X12
-	OR X9, X12
-	SRL X6, X13, X9
-	SLL X10, X14, X13
-	OR X9, X13
-	SRL X6, X14, X9
-	MOV X15, 0(X8)
-	MOV X11, 8(X8)
-	MOV X12, 16(X8)
-	MOV X13, 24(X8)
+	MOV 8(X7), X12
+	MOV 16(X7), X13
+	MOV 24(X7), X14
+	MOV 32(X7), X15
+	SLL X11, X12, X16
+	OR X10, X16
+	SRL X6, X12, X10
+	SLL X11, X13, X12
+	OR X10, X12
+	SRL X6, X13, X10
+	SLL X11, X14, X13
+	OR X10, X13
+	SRL X6, X14, X10
+	SLL X11, X15, X14
+	OR X10, X14
+	SRL X6, X15, X10
+	MOV X16, 0(X9)
+	MOV X12, 8(X9)
+	MOV X13, 16(X9)
+	MOV X14, 24(X9)
 	ADD $32, X7
-	ADD $32, X8
+	ADD $32, X9
 	SUB $1, X5
 	BNEZ X5, loop4cont
 loop4done:
 	// store final shifted bits
-	MOV X9, 0(X8)
+	MOV X10, 0(X9)
 	RET
 ret0:
 	MOV X0, c+56(FP)
@@ -302,63 +302,63 @@ TEXT ·mulAddVWW(SB), NOSPLIT, $0
 	MOV m+48(FP), X5
 	MOV a+56(FP), X6
 	MOV z_len+8(FP), X7
-	MOV x_base+24(FP), X8
-	MOV z_base+0(FP), X9
+	MOV x_base+24(FP), X9
+	MOV z_base+0(FP), X10
 	// compute unrolled loop lengths
-	AND $3, X7, X10
+	AND $3, X7, X11
 	SRL $2, X7
 loop1:
-	BEQZ X10, loop1done
+	BEQZ X11, loop1done
 loop1cont:
 	// unroll 1X
-	MOV 0(X8), X11
+	MOV 0(X9), X12
 	// synthetic carry, one column at a time
-	MUL X5, X11, X12
-	MULHU X5, X11, X13
-	ADD X6, X12, X11	// ADDS X6, X12, X11 (cr=X28)
-	SLTU X6, X11, X28	// ...
-	ADD X28, X13, X6	// ADC $0, X13, X6
-	MOV X11, 0(X9)
-	ADD $8, X8
+	MUL X5, X12, X13
+	MULHU X5, X12, X14
+	ADD X6, X13, X12	// ADDS X6, X13, X12 (cr=X28)
+	SLTU X6, X12, X28	// ...
+	ADD X28, X14, X6	// ADC $0, X14, X6
+	MOV X12, 0(X10)
 	ADD $8, X9
-	SUB $1, X10
-	BNEZ X10, loop1cont
+	ADD $8, X10
+	SUB $1, X11
+	BNEZ X11, loop1cont
 loop1done:
 loop4:
 	BEQZ X7, loop4done
 loop4cont:
 	// unroll 4X
-	MOV 0(X8), X10
-	MOV 8(X8), X11
-	MOV 16(X8), X12
-	MOV 24(X8), X13
+	MOV 0(X9), X11
+	MOV 8(X9), X12
+	MOV 16(X9), X13
+	MOV 24(X9), X14
 	// synthetic carry, one column at a time
-	MUL X5, X10, X14
-	MULHU X5, X10, X15
-	ADD X6, X14, X10	// ADDS X6, X14, X10 (cr=X28)
-	SLTU X6, X10, X28	// ...
-	ADD X28, X15, X6	// ADC $0, X15, X6
-	MUL X5, X11, X14
-	MULHU X5, X11, X15
-	ADD X6, X14, X11	// ADDS X6, X14, X11 (cr=X28)
+	MUL X5, X11, X15
+	MULHU X5, X11, X16
+	ADD X6, X15, X11	// ADDS X6, X15, X11 (cr=X28)
 	SLTU X6, X11, X28	// ...
-	ADD X28, X15, X6	// ADC $0, X15, X6
-	MUL X5, X12, X14
-	MULHU X5, X12, X15
-	ADD X6, X14, X12	// ADDS X6, X14, X12 (cr=X28)
+	ADD X28, X16, X6	// ADC $0, X16, X6
+	MUL X5, X12, X15
+	MULHU X5, X12, X16
+	ADD X6, X15, X12	// ADDS X6, X15, X12 (cr=X28)
 	SLTU X6, X12, X28	// ...
-	ADD X28, X15, X6	// ADC $0, X15, X6
-	MUL X5, X13, X14
-	MULHU X5, X13, X15
-	ADD X6, X14, X13	// ADDS X6, X14, X13 (cr=X28)
+	ADD X28, X16, X6	// ADC $0, X16, X6
+	MUL X5, X13, X15
+	MULHU X5, X13, X16
+	ADD X6, X15, X13	// ADDS X6, X15, X13 (cr=X28)
 	SLTU X6, X13, X28	// ...
-	ADD X28, X15, X6	// ADC $0, X15, X6
-	MOV X10, 0(X9)
-	MOV X11, 8(X9)
-	MOV X12, 16(X9)
-	MOV X13, 24(X9)
-	ADD $32, X8
+	ADD X28, X16, X6	// ADC $0, X16, X6
+	MUL X5, X14, X15
+	MULHU X5, X14, X16
+	ADD X6, X15, X14	// ADDS X6, X15, X14 (cr=X28)
+	SLTU X6, X14, X28	// ...
+	ADD X28, X16, X6	// ADC $0, X16, X6
+	MOV X11, 0(X10)
+	MOV X12, 8(X10)
+	MOV X13, 16(X10)
+	MOV X14, 24(X10)
 	ADD $32, X9
+	ADD $32, X10
 	SUB $1, X7
 	BNEZ X7, loop4cont
 loop4done:
@@ -370,86 +370,86 @@ TEXT ·addMulVVWW(SB), NOSPLIT, $0
 	MOV m+72(FP), X5
 	MOV a+80(FP), X6
 	MOV z_len+8(FP), X7
-	MOV x_base+24(FP), X8
-	MOV y_base+48(FP), X9
-	MOV z_base+0(FP), X10
+	MOV x_base+24(FP), X9
+	MOV y_base+48(FP), X10
+	MOV z_base+0(FP), X11
 	// compute unrolled loop lengths
-	AND $3, X7, X11
+	AND $3, X7, X12
 	SRL $2, X7
 loop1:
-	BEQZ X11, loop1done
+	BEQZ X12, loop1done
 loop1cont:
 	// unroll 1X
-	MOV 0(X8), X12
 	MOV 0(X9), X13
+	MOV 0(X10), X14
 	// synthetic carry, one column at a time
-	MUL X5, X13, X14
-	MULHU X5, X13, X15
-	ADD X12, X14	// ADDS X12, X14, X14 (cr=X28)
-	SLTU X12, X14, X28	// ...
-	ADD X28, X15	// ADC $0, X15, X15
-	ADD X6, X14, X13	// ADDS X6, X14, X13 (cr=X28)
-	SLTU X6, X13, X28	// ...
-	ADD X28, X15, X6	// ADC $0, X15, X6
-	MOV X13, 0(X10)
-	ADD $8, X8
+	MUL X5, X14, X15
+	MULHU X5, X14, X16
+	ADD X13, X15	// ADDS X13, X15, X15 (cr=X28)
+	SLTU X13, X15, X28	// ...
+	ADD X28, X16	// ADC $0, X16, X16
+	ADD X6, X15, X14	// ADDS X6, X15, X14 (cr=X28)
+	SLTU X6, X14, X28	// ...
+	ADD X28, X16, X6	// ADC $0, X16, X6
+	MOV X14, 0(X11)
 	ADD $8, X9
 	ADD $8, X10
-	SUB $1, X11
-	BNEZ X11, loop1cont
+	ADD $8, X11
+	SUB $1, X12
+	BNEZ X12, loop1cont
 loop1done:
 loop4:
 	BEQZ X7, loop4done
 loop4cont:
 	// unroll 4X
-	MOV 0(X8), X11
-	MOV 8(X8), X12
-	MOV 16(X8), X13
-	MOV 24(X8), X14
-	MOV 0(X9), X15
-	MOV 8(X9), X16
-	MOV 16(X9), X17
-	MOV 24(X9), X18
+	MOV 0(X9), X12
+	MOV 8(X9), X13
+	MOV 16(X9), X14
+	MOV 24(X9), X15
+	MOV 0(X10), X16
+	MOV 8(X10), X17
+	MOV 16(X10), X18
+	MOV 24(X10), X19
 	// synthetic carry, one column at a time
-	MUL X5, X15, X19
-	MULHU X5, X15, X20
-	ADD X11, X19	// ADDS X11, X19, X19 (cr=X28)
-	SLTU X11, X19, X28	// ...
-	ADD X28, X20	// ADC $0, X20, X20
-	ADD X6, X19, X15	// ADDS X6, X19, X15 (cr=X28)
-	SLTU X6, X15, X28	// ...
-	ADD X28, X20, X6	// ADC $0, X20, X6
-	MUL X5, X16, X19
-	MULHU X5, X16, X20
-	ADD X12, X19	// ADDS X12, X19, X19 (cr=X28)
-	SLTU X12, X19, X28	// ...
-	ADD X28, X20	// ADC $0, X20, X20
-	ADD X6, X19, X16	// ADDS X6, X19, X16 (cr=X28)
+	MUL X5, X16, X20
+	MULHU X5, X16, X21
+	ADD X12, X20	// ADDS X12, X20, X20 (cr=X28)
+	SLTU X12, X20, X28	// ...
+	ADD X28, X21	// ADC $0, X21, X21
+	ADD X6, X20, X16	// ADDS X6, X20, X16 (cr=X28)
 	SLTU X6, X16, X28	// ...
-	ADD X28, X20, X6	// ADC $0, X20, X6
-	MUL X5, X17, X19
-	MULHU X5, X17, X20
-	ADD X13, X19	// ADDS X13, X19, X19 (cr=X28)
-	SLTU X13, X19, X28	// ...
-	ADD X28, X20	// ADC $0, X20, X20
-	ADD X6, X19, X17	// ADDS X6, X19, X17 (cr=X28)
+	ADD X28, X21, X6	// ADC $0, X21, X6
+	MUL X5, X17, X20
+	MULHU X5, X17, X21
+	ADD X13, X20	// ADDS X13, X20, X20 (cr=X28)
+	SLTU X13, X20, X28	// ...
+	ADD X28, X21	// ADC $0, X21, X21
+	ADD X6, X20, X17	// ADDS X6, X20, X17 (cr=X28)
 	SLTU X6, X17, X28	// ...
-	ADD X28, X20, X6	// ADC $0, X20, X6
-	MUL X5, X18, X19
-	MULHU X5, X18, X20
-	ADD X14, X19	// ADDS X14, X19, X19 (cr=X28)
-	SLTU X14, X19, X28	// ...
-	ADD X28, X20	// ADC $0, X20, X20
-	ADD X6, X19, X18	// ADDS X6, X19, X18 (cr=X28)
+	ADD X28, X21, X6	// ADC $0, X21, X6
+	MUL X5, X18, X20
+	MULHU X5, X18, X21
+	ADD X14, X20	// ADDS X14, X20, X20 (cr=X28)
+	SLTU X14, X20, X28	// ...
+	ADD X28, X21	// ADC $0, X21, X21
+	ADD X6, X20, X18	// ADDS X6, X20, X18 (cr=X28)
 	SLTU X6, X18, X28	// ...
-	ADD X28, X20, X6	// ADC $0, X20, X6
-	MOV X15, 0(X10)
-	MOV X16, 8(X10)
-	MOV X17, 16(X10)
-	MOV X18, 24(X10)
-	ADD $32, X8
+	ADD X28, X21, X6	// ADC $0, X21, X6
+	MUL X5, X19, X20
+	MULHU X5, X19, X21
+	ADD X15, X20	// ADDS X15, X20, X20 (cr=X28)
+	SLTU X15, X20, X28	// ...
+	ADD X28, X21	// ADC $0, X21, X21
+	ADD X6, X20, X19	// ADDS X6, X20, X19 (cr=X28)
+	SLTU X6, X19, X28	// ...
+	ADD X28, X21, X6	// ADC $0, X21, X6
+	MOV X16, 0(X11)
+	MOV X17, 8(X11)
+	MOV X18, 16(X11)
+	MOV X19, 24(X11)
 	ADD $32, X9
 	ADD $32, X10
+	ADD $32, X11
 	SUB $1, X7
 	BNEZ X7, loop4cont
 loop4done:

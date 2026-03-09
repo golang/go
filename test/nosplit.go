@@ -146,7 +146,7 @@ start 104 nosplit; REJECT ppc64 ppc64le arm64
 start 108 nosplit; REJECT ppc64 ppc64le
 start 112 nosplit; REJECT ppc64 ppc64le arm64
 start 116 nosplit; REJECT ppc64 ppc64le
-start 120 nosplit; REJECT ppc64 ppc64le amd64 arm64
+start 120 nosplit; REJECT ppc64 ppc64le amd64 arm64 riscv64
 start 124 nosplit; REJECT ppc64 ppc64le amd64
 start 128 nosplit; REJECT
 start 132 nosplit; REJECT
@@ -164,7 +164,7 @@ start 104 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le arm64
 start 108 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
 start 112 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 arm64
 start 116 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64
-start 120 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 arm64
+start 120 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 arm64 riscv64
 start 124 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 386
 start 128 nosplit call f; f 0 nosplit; REJECT
 start 132 nosplit call f; f 0 nosplit; REJECT
@@ -180,7 +180,7 @@ start 104 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 arm64
 start 108 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
 start 112 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 arm64
 start 116 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
-start 120 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 386 arm64
+start 120 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 386 arm64 riscv64
 start 124 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 386
 start 128 nosplit call f; f 0 call f; REJECT
 start 132 nosplit call f; f 0 call f; REJECT
@@ -193,7 +193,7 @@ start 104 nosplit callind; REJECT ppc64 ppc64le amd64 arm64
 start 108 nosplit callind; REJECT ppc64 ppc64le amd64
 start 112 nosplit callind; REJECT ppc64 ppc64le amd64 arm64
 start 116 nosplit callind; REJECT ppc64 ppc64le amd64
-start 120 nosplit callind; REJECT ppc64 ppc64le amd64 386 arm64
+start 120 nosplit callind; REJECT ppc64 ppc64le amd64 386 arm64 riscv64
 start 124 nosplit callind; REJECT ppc64 ppc64le amd64 386
 start 128 nosplit callind; REJECT
 start 132 nosplit callind; REJECT

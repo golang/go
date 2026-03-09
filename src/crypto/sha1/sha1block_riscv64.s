@@ -10,23 +10,23 @@
 	MOVBU	((index*4)+0)(X29), X5; \
 	MOVBU	((index*4)+1)(X29), X6; \
 	MOVBU	((index*4)+2)(X29), X7; \
-	MOVBU	((index*4)+3)(X29), X8; \
+	MOVBU	((index*4)+3)(X29), X9; \
 	SLL	$24, X5; \
 	SLL	$16, X6; \
 	OR	X5, X6, X5; \
 	SLL	$8, X7; \
 	OR	X5, X7, X5; \
-	OR	X5, X8, X5; \
+	OR	X5, X9, X5; \
 	MOVW	X5, (index*4)(X19)
 
 #define SHUFFLE(index) \
 	MOVWU	(((index)&0xf)*4)(X19), X5; \
 	MOVWU	(((index-3)&0xf)*4)(X19), X6; \
 	MOVWU	(((index-8)&0xf)*4)(X19), X7; \
-	MOVWU	(((index-14)&0xf)*4)(X19), X8; \
+	MOVWU	(((index-14)&0xf)*4)(X19), X9; \
 	XOR	X6, X5; \
 	XOR	X7, X5; \
-	XOR	X8, X5; \
+	XOR	X9, X5; \
 	RORW	$31, X5; \
 	MOVW	X5, (((index)&0xf)*4)(X19)
 
@@ -43,20 +43,20 @@
 
 // f = (b & c) | ((b | c) & d)
 #define FUNC3(a, b, c, d, e) \
-	OR	b, c, X8; \
+	OR	b, c, X9; \
 	AND	b, c, X6; \
-	AND	d, X8; \
-	OR	X6, X8, X7
+	AND	d, X9; \
+	OR	X6, X9, X7
 
 #define FUNC4 FUNC2
 
 #define MIX(a, b, c, d, e, key) \
 	RORW	$2, b; \
 	ADD	X7, e; \
-	RORW	$27, a, X8; \
+	RORW	$27, a, X9; \
 	ADD	X5, e; \
 	ADD	key, e; \
-	ADD	X8, e
+	ADD	X9, e
 
 #define ROUND1(a, b, c, d, e, index) \
 	LOAD(index); \

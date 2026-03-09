@@ -544,14 +544,14 @@ func setPCs(p *obj.Prog, pc int64, compress bool) int64 {
 //
 // A nicer version of this diagram can be found on slide 21 of the presentation
 // attached to https://golang.org/issue/16922#issuecomment-243748180.
-func stackOffset(a *obj.Addr, stacksize int64) {
+func stackOffset(a *obj.Addr, stacksize int64, framesize int64) {
 	switch a.Name {
 	case obj.NAME_AUTO:
 		// Adjust to the top of AUTOs.
 		a.Offset += stacksize
 	case obj.NAME_PARAM:
 		// Adjust to the bottom of PARAMs.
-		a.Offset += stacksize + 8
+		a.Offset += framesize + 8
 	}
 }
 
@@ -603,18 +603,30 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		stacksize += ctxt.Arch.FixedFrameSize
 	}
 
+	// If the function has a frame, build an frame record.
+	//
+	// After the frame is created, FP points to 8(SP), SP points to the saved
+	// return address (RA/LR) at 0(SP), and the saved frame pointer (caller S0)
+	// is placed just below it at -PtrSize(SP).
+	useFP := buildcfg.FramePointerEnabled && stacksize != 0
+	framesize := stacksize
+	if useFP {
+		framesize += int64(ctxt.Arch.PtrSize)
+	}
 	cursym.Func().Args = text.To.Val.(int32)
 	cursym.Func().Locals = int32(stacksize)
 
 	prologue := text
 
 	if !cursym.Func().Text.From.Sym.NoSplit() {
-		prologue = stacksplit(ctxt, prologue, cursym, newprog, stacksize) // emit split check
+		prologue = stacksplit(ctxt, prologue, cursym, newprog, framesize) // emit split check
 	}
 
 	q := prologue
 
 	if stacksize != 0 {
+		var prologueEnd *obj.Prog
+
 		prologue = ctxt.StartUnsafePoint(prologue, newprog)
 
 		// Actually save LR.
@@ -622,35 +634,62 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		prologue.As = AMOV
 		prologue.Pos = q.Pos
 		prologue.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
-		prologue.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: -stacksize}
+		prologue.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: -framesize}
+
+		if useFP {
+			// Save caller's frame pointer (S0) in the caller frame slot,
+			// one word below the stack pointer.
+			prologue = obj.Appendp(prologue, newprog)
+			prologue.As = AMOV
+			prologue.Pos = q.Pos
+			prologue.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_S0}
+			prologue.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: -framesize - int64(ctxt.Arch.PtrSize)}
+		}
 
 		// Insert stack adjustment.
 		prologue = obj.Appendp(prologue, newprog)
 		prologue.As = AADDI
 		prologue.Pos = q.Pos
-		prologue.Pos = prologue.Pos.WithXlogue(src.PosPrologueEnd)
-		prologue.From = obj.Addr{Type: obj.TYPE_CONST, Offset: -stacksize}
+		prologue.From = obj.Addr{Type: obj.TYPE_CONST, Offset: -framesize}
 		prologue.Reg = REG_SP
 		prologue.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_SP}
-		prologue.Spadj = int32(stacksize)
-
-		prologue = ctxt.EndUnsafePoint(prologue, newprog, -1)
+		prologue.Spadj = int32(framesize)
 
 		// On Linux, in a cgo binary we may get a SIGSETXID signal early on
 		// before the signal stack is set, as glibc doesn't allow us to block
 		// SIGSETXID. So a signal may land on the current stack and clobber
-		// the content below the SP. We store the LR again after the SP is
-		// decremented.
+		// the content below the SP. Store the LR and FP again after the SP
+		// is decremented.
 		prologue = obj.Appendp(prologue, newprog)
 		prologue.As = AMOV
 		prologue.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
 		prologue.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 0}
+		prologueEnd = prologue
+
+		if useFP {
+			prologue = obj.Appendp(prologue, newprog)
+			prologue.As = AMOV
+			prologue.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_S0}
+			prologue.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: -int64(ctxt.Arch.PtrSize)}
+
+			prologue = obj.Appendp(prologue, newprog)
+			prologue.As = AADDI
+			prologue.Pos = q.Pos
+			prologue.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(ctxt.Arch.PtrSize)}
+			prologue.Reg = REG_SP
+			prologue.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_S0}
+			prologueEnd = prologue
+		}
+
+		// End the async-unsafe region only once the frame record is complete.
+		ctxt.EndUnsafePoint(prologueEnd, newprog, -1)
+		prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
 	}
 
 	// Update stack-based offsets.
 	for p := cursym.Func().Text; p != nil; p = p.Link {
-		stackOffset(&p.From, stacksize)
-		stackOffset(&p.To, stacksize)
+		stackOffset(&p.From, stacksize, framesize)
+		stackOffset(&p.To, stacksize, framesize)
 	}
 
 	// Additional instruction rewriting.
@@ -689,6 +728,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			retJMP := p.To.Sym
 
 			if stacksize != 0 {
+				if useFP {
+					// Restore S0.
+					p.As = AMOV
+					p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: -int64(ctxt.Arch.PtrSize)}
+					p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_S0}
+					p = obj.Appendp(p, newprog)
+				}
+
 				// Restore LR.
 				p.As = AMOV
 				p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 0}
@@ -696,10 +743,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p = obj.Appendp(p, newprog)
 
 				p.As = AADDI
-				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: stacksize}
+				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: framesize}
 				p.Reg = REG_SP
 				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_SP}
-				p.Spadj = int32(-stacksize)
+				p.Spadj = int32(-framesize)
 				p = obj.Appendp(p, newprog)
 			}
 
@@ -720,7 +767,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// Spadj from function entry to each PC, and shouldn't
 			// count adjustments from earlier epilogues, since they
 			// won't affect later PCs.
-			p.Spadj = int32(stacksize)
+			p.Spadj = int32(framesize)
 
 		case AADDI:
 			// Refine Spadjs account for adjustment via ADDI instruction.
@@ -908,26 +955,37 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 	}
 
 	if ctxt.Flag_maymorestack != "" {
-		// Save LR and REGCTXT
-		const frameSize = 16
+		// Save LR FP and REGCTXT
+		const frameSize = 32
 		p = ctxt.StartUnsafePoint(p, newprog)
 
 		// Spill Arguments. This has to happen before we open
 		// any more frame space.
 		p = cursym.Func().SpillRegisterArgs(p, newprog)
 
-		// MOV LR, -16(SP)
+		// MOV LR, -32(SP)
 		p = obj.Appendp(p, newprog)
 		p.As = AMOV
 		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
 		p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: -frameSize}
-		// ADDI $-16, SP
+		// ADDI $-32, SP
 		p = obj.Appendp(p, newprog)
 		p.As = AADDI
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: -frameSize}
 		p.Reg = REG_SP
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_SP}
 		p.Spadj = frameSize
+		// MOV S0, -8(SP)
+		p = obj.Appendp(p, newprog)
+		p.As = AMOV
+		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_S0}
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: -int64(ctxt.Arch.PtrSize)}
+		// ADDI $8, SP, S0
+		p = obj.Appendp(p, newprog)
+		p.As = AADDI
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(ctxt.Arch.PtrSize)}
+		p.Reg = REG_SP
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_S0}
 		// MOV REGCTXT, 8(SP)
 		p = obj.Appendp(p, newprog)
 		p.As = AMOV
@@ -942,19 +1000,24 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 		p.To.Sym = ctxt.LookupABI(ctxt.Flag_maymorestack, cursym.ABI())
 		jalToSym(ctxt, p, REG_X5)
 
-		// Restore LR and REGCTXT
+		// Restore LR FP and REGCTXT
 
 		// MOV 8(SP), REGCTXT
 		p = obj.Appendp(p, newprog)
 		p.As = AMOV
 		p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 8}
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_CTXT}
+		// MOV -8(SP), S0
+		p = obj.Appendp(p, newprog)
+		p.As = AMOV
+		p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: -int64(ctxt.Arch.PtrSize)}
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_S0}
 		// MOV (SP), LR
 		p = obj.Appendp(p, newprog)
 		p.As = AMOV
 		p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 0}
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
-		// ADDI $16, SP
+		// ADDI $32, SP
 		p = obj.Appendp(p, newprog)
 		p.As = AADDI
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: frameSize}

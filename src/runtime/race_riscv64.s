@@ -374,7 +374,7 @@ TEXT	racecallatomic<>(SB), NOSPLIT, $0
 	// X13 = addr of incoming arg list
 
 	// Trigger SIGSEGV early.
-	MOV	24(X2), X6	// 1st arg is addr. after two times CALL, get it at 24(X2)
+	MOV	40(X2), X6	// 1st arg is addr. after two times CALL, get it at 40(X2)
 	MOVB	(X6), X0	// segv here if addr is bad
 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
 	MOV	runtime·racearenastart(SB), X7
@@ -389,9 +389,9 @@ racecallatomic_data:
 racecallatomic_ok:
 	// Addr is within the good range, call the atomic function.
 	MOV	g_racectx(g), X10	// goroutine context
-	MOV	8(X2), X11		// caller pc
+	MOV	16(X2), X11		// caller pc
 	MOV	X1, X12			// pc
-	ADD	$24, X2, X13
+	ADD	$40, X2, X13
 	CALL	racecall<>(SB)
 	RET
 racecallatomic_ignore:
@@ -406,9 +406,9 @@ racecallatomic_ignore:
 	MOV	X21, X23			// restore the target function
 	// Call the atomic function.
 	MOV	g_racectx(g), X10	// goroutine context
-	MOV	8(X2), X11		// caller pc
+	MOV	16(X2), X11		// caller pc
 	MOV	X20, X12		// pc
-	ADD	$24, X2, X13		// arguments
+	ADD	$40, X2, X13		// arguments
 	CALL	racecall<>(SB)
 	// Call __tsan_go_ignore_sync_end.
 	MOV	$__tsan_go_ignore_sync_end(SB), X23
@@ -444,6 +444,10 @@ TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
 
 	MOV	(g_sched+gobuf_sp)(X7), X2	// Switch to g0 stack
 call:
+	// Decrement SP past where the frame pointer is saved in the Go riscv64
+	// ABI (one word below the stack pointer) so the race detector library
+	// code doesn't clobber it.
+	SUB	$8, X2
 	JALR	RA, (X23)			// Call C function
 	MOV	X19, X2				// Restore SP
 	JMP	(X18)				// Return to Go.

@@ -709,7 +709,7 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
 	}
 
 	// Adjust saved frame pointer if there is one.
-	if (goarch.ArchFamily == goarch.AMD64 || goarch.ArchFamily == goarch.ARM64) && frame.argp-frame.varp == 2*goarch.PtrSize {
+	if (goarch.ArchFamily == goarch.AMD64 || goarch.ArchFamily == goarch.ARM64 || goarch.ArchFamily == goarch.RISCV64) && frame.argp-frame.varp == 2*goarch.PtrSize {
 		if stackDebug >= 3 {
 			print("      saved bp\n")
 		}
@@ -725,8 +725,8 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
 		}
 		// On AMD64, this is the caller's frame pointer saved in the current
 		// frame.
-		// On ARM64, this is the frame pointer of the caller's caller saved
-		// by the caller in its frame (one word below its SP).
+		// On ARM64 and RISCV64, this is the frame pointer of the caller's
+		// caller saved by the caller in its frame (one word below its SP).
 		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
 	}
 
@@ -795,6 +795,15 @@ func adjustctxt(gp *g, adjinfo *adjustinfo) {
 		if oldfp == gp.sched.sp-goarch.PtrSize {
 			memmove(unsafe.Pointer(gp.sched.bp), unsafe.Pointer(oldfp), goarch.PtrSize)
 			adjustpointer(adjinfo, unsafe.Pointer(gp.sched.bp))
+		}
+	} else if GOARCH == "riscv64" {
+		// On RISCV64, the frame pointer (S0/X8) points one word above SP,
+		// while the frame pointer is saved one word *below* SP.
+		if oldfp == gp.sched.sp+goarch.PtrSize {
+			oldlink := oldfp - 2*goarch.PtrSize
+			newlink := gp.sched.bp - 2*goarch.PtrSize
+			memmove(unsafe.Pointer(newlink), unsafe.Pointer(oldlink), goarch.PtrSize)
+			adjustpointer(adjinfo, unsafe.Pointer(newlink))
 		}
 	}
 }

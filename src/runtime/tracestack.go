@@ -257,7 +257,7 @@ func makeTraceFrame(gen uintptr, f Frame) traceFrame {
 // tracefpunwindoff returns true if frame pointer unwinding for the tracer is
 // disabled via GODEBUG or not supported by the architecture.
 func tracefpunwindoff() bool {
-	return debug.tracefpunwindoff != 0 || (goarch.ArchFamily != goarch.AMD64 && goarch.ArchFamily != goarch.ARM64)
+	return debug.tracefpunwindoff != 0 || (goarch.ArchFamily != goarch.AMD64 && goarch.ArchFamily != goarch.ARM64 && goarch.ArchFamily != goarch.RISCV64)
 }
 
 // fpTracebackPCs populates pcBuf with the return addresses for each frame and
@@ -266,10 +266,18 @@ func tracefpunwindoff() bool {
 // B, this will return a PC for only B.
 func fpTracebackPCs(fp unsafe.Pointer, pcBuf []uintptr) (i int) {
 	for i = 0; i < len(pcBuf) && fp != nil; i++ {
-		// return addr sits one word above the frame pointer
-		pcBuf[i] = *(*uintptr)(unsafe.Pointer(uintptr(fp) + goarch.PtrSize))
-		// follow the frame pointer to the next one
-		fp = unsafe.Pointer(*(*uintptr)(fp))
+		if GOARCH == "riscv64" {
+			// On RISC-V, the frame pointer (FP) points to SP+PtrSize.
+			// The return address (LR) is at SP+0, which is fp-PtrSize.
+			pcBuf[i] = *(*uintptr)(unsafe.Pointer(uintptr(fp) - goarch.PtrSize))
+			// The saved caller FP is at SP-PtrSize, which is fp-2*PtrSize.
+			fp = unsafe.Pointer(*(*uintptr)(unsafe.Pointer(uintptr(fp) - 2*goarch.PtrSize)))
+		} else {
+			// return addr sits one word above the frame pointer
+			pcBuf[i] = *(*uintptr)(unsafe.Pointer(uintptr(fp) + goarch.PtrSize))
+			// follow the frame pointer to the next one
+			fp = unsafe.Pointer(*(*uintptr)(fp))
+		}
 	}
 	return i
 }

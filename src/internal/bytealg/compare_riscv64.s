@@ -68,10 +68,10 @@ vector_loop:
 	JMP	cmp_len
 
 vector_not_eq:
-	// Load first differing bytes in X8/X9.
+	// Load first differing bytes in X14/X9.
 	ADD	X7, X10
 	ADD	X7, X12
-	MOVBU	(X10), X8
+	MOVBU	(X10), X14
 	MOVBU	(X12), X9
 	JMP	cmp
 
@@ -81,8 +81,8 @@ compare_scalar:
 
 	// Check alignment - if alignment differs we have to do one byte at a time.
 	AND	$7, X10, X7
-	AND	$7, X12, X8
-	BNE	X7, X8, check8_unaligned
+	AND	$7, X12, X14
+	BNE	X7, X14, check8_unaligned
 	BEQZ	X7, compare32
 
 	// Check one byte at a time until we reach 8 byte alignment.
@@ -91,9 +91,9 @@ compare_scalar:
 	SUB	X7, X5, X5
 align:
 	SUB	$1, X7
-	MOVBU	0(X10), X8
+	MOVBU	0(X10), X14
 	MOVBU	0(X12), X9
-	BNE	X8, X9, cmp
+	BNE	X14, X9, cmp
 	ADD	$1, X10
 	ADD	$1, X12
 	BNEZ	X7, align
@@ -139,7 +139,7 @@ check8_unaligned:
 	MOV	$8, X6
 	BLT	X5, X6, check4_unaligned
 compare8_unaligned:
-	MOVBU	0(X10), X8
+	MOVBU	0(X10), X14
 	MOVBU	1(X10), X15
 	MOVBU	2(X10), X17
 	MOVBU	3(X10), X19
@@ -155,7 +155,7 @@ compare8_unaligned:
 	MOVBU	5(X12), X24
 	MOVBU	6(X12), X28
 	MOVBU	7(X12), X30
-	BNE	X8, X9, cmp1a
+	BNE	X14, X9, cmp1a
 	BNE	X15, X16, cmp1b
 	BNE	X17, X18, cmp1c
 	BNE	X19, X20, cmp1d
@@ -173,7 +173,7 @@ check4_unaligned:
 	MOV	$4, X6
 	BLT	X5, X6, compare1
 compare4_unaligned:
-	MOVBU	0(X10), X8
+	MOVBU	0(X10), X14
 	MOVBU	1(X10), X15
 	MOVBU	2(X10), X17
 	MOVBU	3(X10), X19
@@ -181,7 +181,7 @@ compare4_unaligned:
 	MOVBU	1(X12), X16
 	MOVBU	2(X12), X18
 	MOVBU	3(X12), X20
-	BNE	X8, X9, cmp1a
+	BNE	X14, X9, cmp1a
 	BNE	X15, X16, cmp1b
 	BNE	X17, X18, cmp1c
 	BNE	X19, X20, cmp1d
@@ -192,9 +192,9 @@ compare4_unaligned:
 
 compare1:
 	BEQZ	X5, cmp_len
-	MOVBU	0(X10), X8
+	MOVBU	0(X10), X14
 	MOVBU	0(X12), X9
-	BNE	X8, X9, cmp
+	BNE	X14, X9, cmp
 	ADD	$1, X10
 	ADD	$1, X12
 	SUB	$1, X5
@@ -209,15 +209,15 @@ cmp8a:
 cmp8b:
 	MOV	$0xff, X19
 cmp8_loop:
-	AND	X17, X19, X8
+	AND	X17, X19, X14
 	AND	X18, X19, X9
-	BNE	X8, X9, cmp
+	BNE	X14, X9, cmp
 	SLLI	$8, X19
 	JMP	cmp8_loop
 
 cmp1a:
-	SLTU	X9, X8, X5
-	SLTU	X8, X9, X6
+	SLTU	X9, X14, X5
+	SLTU	X14, X9, X6
 	JMP	cmp_ret
 cmp1b:
 	SLTU	X16, X15, X5
@@ -249,11 +249,11 @@ cmp1h:
 	JMP	cmp_ret
 
 cmp_len:
-	MOV	X11, X8
+	MOV	X11, X14
 	MOV	X13, X9
 cmp:
-	SLTU	X9, X8, X5
-	SLTU	X8, X9, X6
+	SLTU	X9, X14, X5
+	SLTU	X14, X9, X6
 cmp_ret:
 	SUB	X5, X6, X10
 	RET

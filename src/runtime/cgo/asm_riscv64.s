@@ -11,8 +11,8 @@
 // function.
 TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
 	MOV	_crosscall2_ptr(SB), X7
-	MOV	$crosscall2_trampoline<>(SB), X8
-	MOV	X8, (X7)
+	MOV	$crosscall2_trampoline<>(SB), X9
+	MOV	X9, (X7)
 	RET
 
 TEXT crosscall2_trampoline<>(SB),NOSPLIT,$0-0

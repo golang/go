@@ -64,9 +64,12 @@ GLOBL _rt0_riscv64_lib_argv<>(SB),NOPTR, $8
 // func rt0_go()
 TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// X2 = stack; A0 = argc; A1 = argv
-	SUB	$24, X2
+	SUB	$32, X2
 	MOV	A0, 8(X2)	// argc
 	MOV	A1, 16(X2)	// argv
+
+	// Call stack unwinding must not proceed past this frame.
+	MOV	ZERO, X8
 
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
@@ -125,6 +128,8 @@ nocgo:
 	RET
 
 TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	// Call stack unwinding must not proceed past this frame.
+	MOV	ZERO, X8
 	CALL	runtime·mstart0(SB)
 	RET // not reached
 
@@ -181,6 +186,7 @@ switch:
 	CALL	runtime·save_g(SB)
 	MOV	(g_sched+gobuf_sp)(g), T0
 	MOV	T0, X2
+	MOV	(g_sched+gobuf_bp)(g), X8
 
 	// call target function
 	MOV	0(CTXT), T1	// code pointer
@@ -192,6 +198,8 @@ switch:
 	CALL	runtime·save_g(SB)
 	MOV	(g_sched+gobuf_sp)(g), X2
 	MOV	ZERO, (g_sched+gobuf_sp)(g)
+	MOV	(g_sched+gobuf_bp)(g), X8
+	MOV	ZERO, (g_sched+gobuf_bp)(g)
 	RET
 
 noswitch:
@@ -199,7 +207,8 @@ noswitch:
 	// Using a tail call here cleans up tracebacks since we won't stop
 	// at an intermediate systemstack.
 	MOV	0(CTXT), T1	// code pointer
-	ADD	$8, X2
+	MOV	-8(X2), X8
+	ADD	$16, X2
 	JMP	(T1)
 
 // func switchToCrashStack0(fn func())
@@ -247,6 +256,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	MOV	T0, (g_sched+gobuf_pc)(g)
 	MOV	RA, (g_sched+gobuf_lr)(g)
 	MOV	CTXT, (g_sched+gobuf_ctxt)(g)
+	MOV	X8, (g_sched+gobuf_bp)(g)
 
 	// Cannot grow scheduler stack (m->g0).
 	MOV	g_m(g), A0
@@ -265,12 +275,14 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Set m->morebuf to f's caller.
 	MOV	RA, (m_morebuf+gobuf_pc)(A0)	// f's caller's PC
 	MOV	X2, (m_morebuf+gobuf_sp)(A0)	// f's caller's SP
+	MOV	X8, (m_morebuf+gobuf_bp)(A0)	// f's caller's FP
 	MOV	g, (m_morebuf+gobuf_g)(A0)
 
 	// Call newstack on m->g0's stack.
 	MOV	m_g0(A0), g
 	CALL	runtime·save_g(SB)
 	MOV	(g_sched+gobuf_sp)(g), X2
+	MOV	ZERO, X8
 	// Create a stack frame on g0 to call newstack.
 	MOV	ZERO, -8(X2)	// Zero saved LR in frame
 	SUB	$8, X2
@@ -316,9 +328,11 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 	CALL	runtime·save_g(SB)
 
 	MOV	gobuf_sp(T0), X2
+	MOV	gobuf_bp(T0), X8
 	MOV	gobuf_lr(T0), RA
 	MOV	gobuf_ctxt(T0), CTXT
 	MOV	ZERO, gobuf_sp(T0)
+	MOV	ZERO, gobuf_bp(T0)
 	MOV	ZERO, gobuf_lr(T0)
 	MOV	ZERO, gobuf_ctxt(T0)
 	MOV	gobuf_pc(T0), T0
@@ -349,6 +363,7 @@ TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
 	MOV	X2, (g_sched+gobuf_sp)(g)
 	MOV	RA, (g_sched+gobuf_pc)(g)
 	MOV	ZERO, (g_sched+gobuf_lr)(g)
+	MOV	X8, (g_sched+gobuf_bp)(g)
 
 	// Switch to m->g0 & its stack, call fn.
 	MOV	g, X10
@@ -359,6 +374,7 @@ TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
 	JMP	runtime·badmcall(SB)
 	MOV	0(CTXT), T1			// code pointer
 	MOV	(g_sched+gobuf_sp)(g), X2	// sp = m->g0->sched.sp
+	MOV	ZERO, X8
 	// we don't need special macro for regabi since arg0(X10) = g
 	SUB	$16, X2
 	MOV	X10, 8(X2)			// setup g
@@ -373,10 +389,11 @@ TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
 // Smashes X31.
 TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOV	$runtime·systemstack_switch(SB), X31
-	ADD	$8, X31	// get past prologue
+	ADD	$24, X31	// get past prologue
 	MOV	X31, (g_sched+gobuf_pc)(g)
 	MOV	X2, (g_sched+gobuf_sp)(g)
 	MOV	ZERO, (g_sched+gobuf_lr)(g)
+	MOV	X8, (g_sched+gobuf_bp)(g)
 	// Assert ctxt is zero. See func save.
 	MOV	(g_sched+gobuf_ctxt)(g), X31
 	BEQ	ZERO, X31, 2(PC)
@@ -389,7 +406,9 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
 	MOV	fn+0(FP), X11
 	MOV	arg+8(FP), X10
+	SUB	$16, X2
 	JALR	RA, (X11)
+	ADD	$16, X2
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -400,8 +419,8 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOV	fn+0(FP), X11
 	MOV	arg+8(FP), X10
 
-	MOV	X2, X8	// save original stack pointer
-	MOV	g, X9
+	MOV	X2, X9	// save original stack pointer
+	MOV	g, X18
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
@@ -417,15 +436,16 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOV	X7, g
 	CALL	runtime·save_g(SB)
 	MOV	(g_sched+gobuf_sp)(g), X2
+	MOV	(g_sched+gobuf_bp)(g), X8
 
 	// Now on a scheduling stack (a pthread-created stack).
 g0:
 	// Save room for two of our pointers.
 	SUB	$16, X2
-	MOV	X9, 0(X2)	// save old g on stack
-	MOV	(g_stack+stack_hi)(X9), X9
-	SUB	X8, X9, X8
-	MOV	X8, 8(X2)	// save depth in old g stack (can't just save SP, as stack might be copied during a callback)
+	MOV	X18, 0(X2)	// save old g on stack
+	MOV	(g_stack+stack_hi)(X18), X5
+	SUB	X9, X5, X6
+	MOV	X6, 8(X2)	// save depth in old g stack (can't just save SP, as stack might be copied during a callback)
 
 	JALR	RA, (X11)
 
@@ -657,6 +677,7 @@ needm:
 	MOV	g_m(g), X5
 	MOV	m_g0(X5), X6
 	MOV	X2, (g_sched+gobuf_sp)(X6)
+	MOV	X8, (g_sched+gobuf_bp)(X6)
 
 havem:
 	// Now there's a valid m, and we're running on its m->g0.
@@ -668,6 +689,7 @@ havem:
 	MOV	(g_sched+gobuf_sp)(X6), X7
 	MOV	X7, savedsp-24(SP)	// must match frame size
 	MOV	X2, (g_sched+gobuf_sp)(X6)
+	MOV	X8, (g_sched+gobuf_bp)(X6)
 
 	// Switch to m->curg stack and call runtime.cgocallbackg.
 	// Because we are taking over the execution of m->curg
@@ -684,21 +706,24 @@ havem:
 	CALL	runtime·save_g(SB)
 	MOV	(g_sched+gobuf_sp)(g), X6 // prepare stack as X6
 	MOV	(g_sched+gobuf_pc)(g), X7
-	MOV	X7, -(24+8)(X6)		// "saved LR"; must match frame size
+	MOV	X7, -(24+16)(X6)	// "saved LR"; must match frame size
+	// Preserve m->curg->sched.bp in the frame-pointer link slot (one word below the SP).
+	MOV	(g_sched+gobuf_bp)(g), X11
+	MOV	X11, -(24+24)(X6)
 	// Gather our arguments into registers.
 	MOV	fn+0(FP), X7
-	MOV	frame+8(FP), X8
+	MOV	frame+8(FP), X12
 	MOV	ctxt+16(FP), X9
-	MOV	$-(24+8)(X6), X2	// switch stack; must match frame size
+	MOV	$-(24+16)(X6), X2	// switch stack; must match frame size
 	MOV	X7, 8(X2)
-	MOV	X8, 16(X2)
+	MOV	X12, 16(X2)
 	MOV	X9, 24(X2)
 	CALL	runtime·cgocallbackg(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	MOV	0(X2), X7
 	MOV	X7, (g_sched+gobuf_pc)(g)
-	MOV	$(24+8)(X2), X6		// must match frame size
+	MOV	$(24+16)(X2), X6		// must match frame size
 	MOV	X6, (g_sched+gobuf_sp)(g)
 
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.
@@ -766,30 +791,29 @@ TEXT ·spillArgs(SB),NOSPLIT,$0-0
 	MOV	X15, (5*8)(X25)
 	MOV	X16, (6*8)(X25)
 	MOV	X17, (7*8)(X25)
-	MOV	X8,  (8*8)(X25)
-	MOV	X9,  (9*8)(X25)
-	MOV	X18, (10*8)(X25)
-	MOV	X19, (11*8)(X25)
-	MOV	X20, (12*8)(X25)
-	MOV	X21, (13*8)(X25)
-	MOV	X22, (14*8)(X25)
-	MOV	X23, (15*8)(X25)
-	MOVD	F10, (16*8)(X25)
-	MOVD	F11, (17*8)(X25)
-	MOVD	F12, (18*8)(X25)
-	MOVD	F13, (19*8)(X25)
-	MOVD	F14, (20*8)(X25)
-	MOVD	F15, (21*8)(X25)
-	MOVD	F16, (22*8)(X25)
-	MOVD	F17, (23*8)(X25)
-	MOVD	F8,  (24*8)(X25)
-	MOVD	F9,  (25*8)(X25)
-	MOVD	F18, (26*8)(X25)
-	MOVD	F19, (27*8)(X25)
-	MOVD	F20, (28*8)(X25)
-	MOVD	F21, (29*8)(X25)
-	MOVD	F22, (30*8)(X25)
-	MOVD	F23, (31*8)(X25)
+	MOV	X9,  (8*8)(X25)
+	MOV	X18, (9*8)(X25)
+	MOV	X19, (10*8)(X25)
+	MOV	X20, (11*8)(X25)
+	MOV	X21, (12*8)(X25)
+	MOV	X22, (13*8)(X25)
+	MOV	X23, (14*8)(X25)
+	MOVD	F10, (15*8)(X25)
+	MOVD	F11, (16*8)(X25)
+	MOVD	F12, (17*8)(X25)
+	MOVD	F13, (18*8)(X25)
+	MOVD	F14, (19*8)(X25)
+	MOVD	F15, (20*8)(X25)
+	MOVD	F16, (21*8)(X25)
+	MOVD	F17, (22*8)(X25)
+	MOVD	F8,  (23*8)(X25)
+	MOVD	F9,  (24*8)(X25)
+	MOVD	F18, (25*8)(X25)
+	MOVD	F19, (26*8)(X25)
+	MOVD	F20, (27*8)(X25)
+	MOVD	F21, (28*8)(X25)
+	MOVD	F22, (29*8)(X25)
+	MOVD	F23, (30*8)(X25)
 	RET
 
 // unspillArgs loads args into registers from a *internal/abi.RegArgs in X25.
@@ -802,30 +826,33 @@ TEXT ·unspillArgs(SB),NOSPLIT,$0-0
 	MOV	(5*8)(X25), X15
 	MOV	(6*8)(X25), X16
 	MOV	(7*8)(X25), X17
-	MOV	(8*8)(X25), X8
-	MOV	(9*8)(X25), X9
-	MOV	(10*8)(X25), X18
-	MOV	(11*8)(X25), X19
-	MOV	(12*8)(X25), X20
-	MOV	(13*8)(X25), X21
-	MOV	(14*8)(X25), X22
-	MOV	(15*8)(X25), X23
-	MOVD	(16*8)(X25), F10
-	MOVD	(17*8)(X25), F11
-	MOVD	(18*8)(X25), F12
-	MOVD	(19*8)(X25), F13
-	MOVD	(20*8)(X25), F14
-	MOVD	(21*8)(X25), F15
-	MOVD	(22*8)(X25), F16
-	MOVD	(23*8)(X25), F17
-	MOVD	(24*8)(X25), F8
-	MOVD	(25*8)(X25), F9
-	MOVD	(26*8)(X25), F18
-	MOVD	(27*8)(X25), F19
-	MOVD	(28*8)(X25), F20
-	MOVD	(29*8)(X25), F21
-	MOVD	(30*8)(X25), F22
-	MOVD	(31*8)(X25), F23
+	MOV	(8*8)(X25), X9
+	MOV	(9*8)(X25), X18
+	MOV	(10*8)(X25), X19
+	MOV	(11*8)(X25), X20
+	MOV	(12*8)(X25), X21
+	MOV	(13*8)(X25), X22
+	MOV	(14*8)(X25), X23
+	MOVD	(15*8)(X25), F10
+	MOVD	(16*8)(X25), F11
+	MOVD	(17*8)(X25), F12
+	MOVD	(18*8)(X25), F13
+	MOVD	(19*8)(X25), F14
+	MOVD	(20*8)(X25), F15
+	MOVD	(21*8)(X25), F16
+	MOVD	(22*8)(X25), F17
+	MOVD	(23*8)(X25), F8
+	MOVD	(24*8)(X25), F9
+	MOVD	(25*8)(X25), F18
+	MOVD	(26*8)(X25), F19
+	MOVD	(27*8)(X25), F20
+	MOVD	(28*8)(X25), F21
+	MOVD	(29*8)(X25), F22
+	MOVD	(30*8)(X25), F23
+	RET
+
+TEXT ·getfp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+	MOV	X8, X10
 	RET
 
 // gcWriteBarrier informs the GC about heap pointer writes.
@@ -869,6 +896,7 @@ flush:
 	// X2 is SP
 	// X3 is GP
 	// X4 is TP
+	// X8 is FP
 	MOV	X7, 3*8(X2)
 	MOV	X8, 4*8(X2)
 	MOV	X9, 5*8(X2)

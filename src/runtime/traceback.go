@@ -501,7 +501,11 @@ func (u *unwinder) next() {
 	// before faking a call.
 	if usesLR && injectedCall {
 		x := *(*uintptr)(unsafe.Pointer(frame.sp))
-		frame.sp += alignUp(sys.MinFrameSize, sys.StackAlign)
+		if goarch.ArchFamily == goarch.RISCV64 && framepointer_enabled {
+			frame.sp += 2 * goarch.PtrSize
+		} else {
+			frame.sp += alignUp(sys.MinFrameSize, sys.StackAlign)
+		}
 		f = findfunc(frame.pc)
 		frame.fn = f
 		if !f.valid() {

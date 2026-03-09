@@ -7,8 +7,8 @@ package abi
 const (
 	// See abi_generic.go.
 
-	// X8 - X23
-	IntArgRegs = 16
+	// X10 - X17, X9, X18 - X23.
+	IntArgRegs = 15
 
 	// F8 - F23.
 	FloatArgRegs = 16

@@ -28,6 +28,7 @@ const (
 	riscv64REG_SP   = 2
 	riscv64REG_GP   = 3
 	riscv64REG_TP   = 4
+	riscv64REG_FP   = 8
 	riscv64REG_TMP  = 31
 	riscv64REG_ZERO = 0
 )
@@ -79,7 +80,7 @@ func init() {
 		// Add general purpose registers to gpMask.
 		switch r {
 		// ZERO, GP, TP and TMP are not in any gp mask.
-		case riscv64REG_ZERO, riscv64REG_GP, riscv64REG_TP, riscv64REG_TMP:
+		case riscv64REG_ZERO, riscv64REG_GP, riscv64REG_TP, riscv64REG_TMP, riscv64REG_FP:
 		case riscv64REG_G:
 			gpgMask |= mask
 			gpspsbgMask |= mask
@@ -590,9 +591,9 @@ func init() {
 		regnames:        regNamesRISCV64,
 		gpregmask:       gpMask,
 		fpregmask:       fpMask,
-		framepointerreg: -1, // not used
-		// Integer parameters passed in register X10-X17, X8-X9, X18-X23
-		ParamIntRegNames: "X10 X11 X12 X13 X14 X15 X16 X17 X8 X9 X18 X19 X20 X21 X22 X23",
+		framepointerreg: 7, // Frame Pointer of RISCV is X8
+		// Integer parameters passed in register X10-X17, X9, X18-X23
+		ParamIntRegNames: "X10 X11 X12 X13 X14 X15 X16 X17 X9 X18 X19 X20 X21 X22 X23",
 		// Float parameters passed in register F10-F17, F8-F9, F18-F23
 		ParamFloatRegNames: "F10 F11 F12 F13 F14 F15 F16 F17 F8 F9 F18 F19 F20 F21 F22 F23",
 	})

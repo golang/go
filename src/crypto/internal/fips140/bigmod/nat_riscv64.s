@@ -34,15 +34,15 @@ loop:
 	MOV	2*8(X5), X16	// z[2]
 	MOV	3*8(X5), X19	// z[3]
 
-	MOV	0*8(X7), X8	// x[0]
+	MOV	0*8(X7), X20	// x[0]
 	MOV	1*8(X7), X11	// x[1]
 	MOV	2*8(X7), X14	// x[2]
 	MOV	3*8(X7), X17	// x[3]
 
-	MULHU	X8, X6, X9	// z_hi[0] = x[0] * y
-	MUL	X8, X6, X8	// z_lo[0] = x[0] * y
-	ADD	X8, X10, X21	// z_lo[0] = x[0] * y + z[0]
-	SLTU	X8, X21, X22
+	MULHU	X20, X6, X9	// z_hi[0] = x[0] * y
+	MUL	X20, X6, X20	// z_lo[0] = x[0] * y
+	ADD	X20, X10, X21	// z_lo[0] = x[0] * y + z[0]
+	SLTU	X20, X21, X22
 	ADD	X9, X22, X9	// z_hi[0] = x[0] * y + z[0]
 	ADD	X21, X29, X10	// z_lo[0] = x[0] * y + z[0] + c
 	SLTU	X21, X10, X22

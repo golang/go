@@ -5339,7 +5339,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 		*(*uintptr)(unsafe.Pointer(sp)) = 0
 		prepGoExitFrame(sp)
 	}
-	if GOARCH == "arm64" {
+	if GOARCH == "arm64" || GOARCH == "riscv64" {
 		// caller's FP
 		*(*uintptr)(unsafe.Pointer(sp - goarch.PtrSize)) = 0
 	}

@@ -1423,6 +1423,10 @@ func recovery(gp *g) {
 		// than the sp. fp is totally useless to us here, because it
 		// only gets us to the caller's fp.
 		gp.sched.bp = sp - goarch.PtrSize
+	case goarch.IsRiscv64 != 0:
+		// On riscv64 with frame pointers enabled, the architectural bp
+		// points one word higher than the sp.
+		gp.sched.bp = sp + goarch.PtrSize
 	}
 	gogo(&gp.sched)
 }
@@ -1719,6 +1723,7 @@ func isAbortPC(pc uintptr) bool {
 }
 
 // For debugging only.
+//
 //go:noinline
 //go:nosplit
 func dumpPanicDeferState(where string, gp *g) {

@@ -901,12 +901,12 @@ func genPPC64(g *gen) {
 func genRISCV64(g *gen) {
 	p := g.p
 
-	// X0 (zero), X1 (LR), X2 (SP), X3 (GP), X4 (TP), X27 (g), X31 (TMP) are special.
+	// X0 (zero), X1 (LR), X2 (SP), X3 (GP), X4 (TP), X8(FP), X27 (g), X31 (TMP) are special.
 	var l = layout{sp: "X2", stack: 8}
 
 	// Add integer registers (X5-X26, X28-30).
 	for i := 5; i < 31; i++ {
-		if i == 27 {
+		if i == 8 || i == 27 {
 			continue
 		}
 		reg := fmt.Sprintf("X%d", i)
@@ -919,14 +919,18 @@ func genRISCV64(g *gen) {
 		l.add("MOVD", reg, 8)
 	}
 
+	l.stack += 8
 	p("MOV X1, -%d(X2)", l.stack)
 	p("SUB $%d, X2", l.stack)
+	p("MOV X8, -8(X2)")
+	p("ADD $8, X2, X8")
 	l.save(g)
 	p("CALL ·asyncPreempt2(SB)")
 	l.restore(g)
 	p("MOV %d(X2), X1", l.stack)
+	p("MOV -8(X2), X8")
 	p("MOV (X2), X31")
-	p("ADD $%d, X2", l.stack+8)
+	p("ADD $%d, X2", l.stack+16)
 	p("JMP (X31)")
 }
 

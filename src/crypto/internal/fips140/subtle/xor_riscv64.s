@@ -25,9 +25,9 @@ TEXT ·xorBytes(SB), NOSPLIT|NOFRAME, $0
 	BEQZ	X5, loop64_check
 
 	// Check one byte at a time until we reach 8 byte alignment.
-	MOV	$8, X8
-	SUB	X5, X8
-	SUB	X8, X13
+	MOV	$8, X9
+	SUB	X5, X9
+	SUB	X9, X13
 align:
 	MOVBU	0(X11), X16
 	MOVBU	0(X12), X17
@@ -36,8 +36,8 @@ align:
 	ADD	$1, X10
 	ADD	$1, X11
 	ADD	$1, X12
-	SUB	$1, X8
-	BNEZ	X8, align
+	SUB	$1, X9
+	BNEZ	X9, align
 
 loop64_check:
 	MOV	$64, X15

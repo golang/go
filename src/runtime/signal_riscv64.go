@@ -63,10 +63,15 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	// functions are correctly handled. This smashes
 	// the stack frame but we're not going back there
 	// anyway.
-	sp := c.sp() - goarch.PtrSize
+	sp := c.sp() - 2*goarch.PtrSize
 	c.set_sp(sp)
 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.ra()
-
+	// Make sure a valid frame pointer is saved on the stack so that the
+	// frame pointer checks in adjustframe are happy, if they're enabled.
+	// Frame pointer unwinding won't visit the sigpanic frame, since
+	// sigpanic will save the same frame pointer before calling into a panic
+	// function.
+	*(*uint64)(unsafe.Pointer(uintptr(sp - goarch.PtrSize))) = c.s0()
 	pc := gp.sigpc
 
 	if shouldPushSigpanic(gp, pc, uintptr(c.ra())) {
@@ -84,9 +89,13 @@ func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
 	// push the call. The function being pushed is responsible
 	// for restoring the LR and setting the SP back.
 	// This extra slot is known to gentraceback.
-	sp := c.sp() - goarch.PtrSize
+	sp := c.sp() - 2*goarch.PtrSize
 	c.set_sp(sp)
 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.ra()
+	// Make sure a valid frame pointer is saved on the stack so that the
+	// frame pointer checks in adjustframe are happy, if they're enabled.
+	// This is not actually used for unwinding.
+	*(*uint64)(unsafe.Pointer(uintptr(sp - goarch.PtrSize))) = c.s0()
 	// Set up PC and LR to pretend the function being signaled
 	// calls targetPC at resumePC.
 	c.set_ra(uint64(resumePC))

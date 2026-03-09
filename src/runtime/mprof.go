@@ -589,7 +589,12 @@ func fpTracebackPartialExpand(skip int, fp unsafe.Pointer, pcBuf []uintptr) int 
 	}
 	for n < len(pcBuf) && fp != nil {
 		// return addr sits one word above the frame pointer
-		pc := *(*uintptr)(unsafe.Pointer(uintptr(fp) + goarch.PtrSize))
+		var pc uintptr
+		if goarch.ArchFamily == goarch.RISCV64 {
+			pc = *(*uintptr)(unsafe.Pointer(uintptr(fp) - goarch.PtrSize))
+		} else {
+			pc = *(*uintptr)(unsafe.Pointer(uintptr(fp) + goarch.PtrSize))
+		}
 
 		if skip > 0 {
 			callPC := pc - 1
@@ -612,7 +617,11 @@ func fpTracebackPartialExpand(skip int, fp unsafe.Pointer, pcBuf []uintptr) int 
 		}
 
 		// follow the frame pointer to the next one
-		fp = unsafe.Pointer(*(*uintptr)(fp))
+		if goarch.ArchFamily == goarch.RISCV64 {
+			fp = unsafe.Pointer(*(*uintptr)(unsafe.Pointer(uintptr(fp) - 2*goarch.PtrSize)))
+		} else {
+			fp = unsafe.Pointer(*(*uintptr)(fp))
+		}
 	}
 	return n
 }

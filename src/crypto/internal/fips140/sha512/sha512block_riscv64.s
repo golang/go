@@ -51,25 +51,25 @@
 	MOVBU	((index*8)+0)(X29), X5; \
 	MOVBU	((index*8)+1)(X29), X6; \
 	MOVBU	((index*8)+2)(X29), X7; \
-	MOVBU	((index*8)+3)(X29), X8; \
+	MOVBU	((index*8)+3)(X29), X22; \
 	SLL	$56, X5; \
 	SLL	$48, X6; \
 	OR	X5, X6, X5; \
 	SLL	$40, X7; \
 	OR	X5, X7, X5; \
-	SLL	$32, X8; \
-	OR	X5, X8, X5; \
+	SLL	$32, X22; \
+	OR	X5, X22, X5; \
 	MOVBU	((index*8)+4)(X29), X9; \
 	MOVBU	((index*8)+5)(X29), X6; \
 	MOVBU	((index*8)+6)(X29), X7; \
-	MOVBU	((index*8)+7)(X29), X8; \
+	MOVBU	((index*8)+7)(X29), X22; \
 	SLL	$24, X9; \
 	OR	X5, X9, X5; \
 	SLL	$16, X6; \
 	OR	X5, X6, X5; \
 	SLL	$8, X7; \
 	OR	X5, X7, X5; \
-	OR	X5, X8, X5; \
+	OR	X5, X22, X5; \
 	MOV	X5, (index*8)(X19)
 
 // Wt = SIGMA1(Wt-2) + Wt-7 + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 79
@@ -81,16 +81,16 @@
 	MOV	(((index-7)&0xf)*8)(X19), X9; \
 	MOV	(((index-16)&0xf)*8)(X19), X21; \
 	ROR	$19, X5, X7; \
-	ROR	$61, X5, X8; \
+	ROR	$61, X5, X22; \
 	SRL	$6, X5; \
 	XOR	X7, X5; \
-	XOR	X8, X5; \
+	XOR	X22, X5; \
 	ADD	X9, X5; \
 	ROR	$1, X6, X7; \
-	ROR	$8, X6, X8; \
+	ROR	$8, X6, X22; \
 	SRL	$7, X6; \
 	XOR	X7, X6; \
-	XOR	X8, X6; \
+	XOR	X22, X6; \
 	ADD	X6, X5; \
 	ADD	X21, X5; \
 	MOV	X5, ((index&0xf)*8)(X19)
@@ -102,15 +102,15 @@
 //     Ch(x, y, z) = (x AND y) XOR (NOT x AND z)
 //                 = ((y XOR z) AND x) XOR z
 #define SHA512T1(index, e, f, g, h) \
-	MOV	(index*8)(X18), X8; \
+	MOV	(index*8)(X18), X22; \
 	ADD	X5, h; \
 	ROR	$14, e, X6; \
-	ADD	X8, h; \
+	ADD	X22, h; \
 	ROR	$18, e, X7; \
-	ROR	$41, e, X8; \
+	ROR	$41, e, X22; \
 	XOR	X7, X6; \
 	XOR	f, g, X5; \
-	XOR	X8, X6; \
+	XOR	X22, X6; \
 	AND	e, X5; \
 	ADD	X6, h; \
 	XOR	g, X5; \
@@ -124,12 +124,12 @@
 #define SHA512T2(a, b, c) \
 	ROR	$28, a, X6; \
 	ROR	$34, a, X7; \
-	ROR	$39, a, X8; \
+	ROR	$39, a, X22; \
 	XOR	X7, X6; \
 	XOR	b, c, X9; \
 	AND	b, c, X7; \
 	AND	a, X9; \
-	XOR	X8, X6; \
+	XOR	X22, X6; \
 	XOR	X7, X9; \
 	ADD	X9, X6
 
@@ -258,11 +258,11 @@ loop:
 	MOV	(0*8)(X20), X5
 	MOV	(1*8)(X20), X6
 	MOV	(2*8)(X20), X7
-	MOV	(3*8)(X20), X8
+	MOV	(3*8)(X20), X22
 	ADD	X5, X10		// H0 = a + H0
 	ADD	X6, X11		// H1 = b + H1
 	ADD	X7, X12		// H2 = c + H2
-	ADD	X8, X13		// H3 = d + H3
+	ADD	X22, X13		// H3 = d + H3
 	MOV	X10, (0*8)(X20)
 	MOV	X11, (1*8)(X20)
 	MOV	X12, (2*8)(X20)
@@ -270,11 +270,11 @@ loop:
 	MOV	(4*8)(X20), X5
 	MOV	(5*8)(X20), X6
 	MOV	(6*8)(X20), X7
-	MOV	(7*8)(X20), X8
+	MOV	(7*8)(X20), X22
 	ADD	X5, X14		// H4 = e + H4
 	ADD	X6, X15		// H5 = f + H5
 	ADD	X7, X16		// H6 = g + H6
-	ADD	X8, X17		// H7 = h + H7
+	ADD	X22, X17		// H7 = h + H7
 	MOV	X14, (4*8)(X20)
 	MOV	X15, (5*8)(X20)
 	MOV	X16, (6*8)(X20)

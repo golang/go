@@ -48,7 +48,7 @@ const DefaultGOEXPERIMENT = defaultGOEXPERIMENT
 // platforms that support it.
 //
 // Note: must agree with runtime.framepointer_enabled.
-var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
+var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "riscv64"
 
 // ParseGOEXPERIMENT parses a (GOOS, GOARCH, GOEXPERIMENT)
 // configuration tuple and returns the enabled and baseline experiment

@@ -16,10 +16,11 @@ var ArchRISCV64 = &Arch{
 		// X2 is SP.
 		// X3 is SB.
 		// X4 is TP.
+		// X8 is FP.
 		// X27 is g.
 		// X28 and X29 are our virtual carry flags.
 		// X31 is the assembler/linker temporary (which we use too).
-		"X5", "X6", "X7", "X8", "X9",
+		"X5", "X6", "X7", "X9",
 		"X10", "X11", "X12", "X13", "X14", "X15", "X16", "X17", "X18", "X19",
 		"X20", "X21", "X22", "X23", "X24", "X25", "X26",
 		"X30",
