@@ -258,6 +258,7 @@ type bufferedWriter struct {
 	conn        net.Conn      // immutable
 	bw          *bufio.Writer // non-nil when data is buffered
 	byteTimeout time.Duration // immutable, WriteByteTimeout
+	werr        error
 }
 
 func newBufferedWriter(conn net.Conn, timeout time.Duration) *bufferedWriter {
@@ -289,12 +290,16 @@ func (w *bufferedWriter) Available() int {
 }
 
 func (w *bufferedWriter) Write(p []byte) (n int, err error) {
+	if w.werr != nil {
+		return 0, w.werr
+	}
 	if w.bw == nil {
 		bw := bufWriterPool.Get().(*bufio.Writer)
 		bw.Reset((*bufferedWriterTimeoutWriter)(w))
 		w.bw = bw
 	}
-	return w.bw.Write(p)
+	n, w.werr = w.bw.Write(p)
+	return n, w.werr
 }
 
 func (w *bufferedWriter) Flush() error {
@@ -302,11 +307,14 @@ func (w *bufferedWriter) Flush() error {
 	if bw == nil {
 		return nil
 	}
-	err := bw.Flush()
+	if w.werr != nil {
+		return w.werr
+	}
+	w.werr = bw.Flush()
 	bw.Reset(nil)
 	bufWriterPool.Put(bw)
 	w.bw = nil
-	return err
+	return w.werr
 }
 
 type bufferedWriterTimeoutWriter bufferedWriter
