@@ -138,7 +138,6 @@ func newTestClientConnFromClientConn(t testing.TB, tr *Transport, cc *ClientConn
 	}
 
 	srv.SetReadDeadline(time.Now())
-	srv.autoWait = true
 	tc.netconn = srv
 	tc.enc = hpack.NewEncoder(&tc.encbuf)
 	tc.fr = NewFramer(srv, srv)
@@ -182,11 +181,13 @@ func newTestClientConn(t testing.TB, opts ...any) *testClientConn {
 
 // hasFrame reports whether a frame is available to be read.
 func (tc *testClientConn) hasFrame() bool {
+	synctest.Wait()
 	return len(tc.netconn.Peek()) > 0
 }
 
 // isClosed reports whether the peer has closed the connection.
 func (tc *testClientConn) isClosed() bool {
+	synctest.Wait()
 	return tc.netconn.IsClosedByPeer()
 }
 
@@ -380,6 +381,7 @@ func (rt *testRoundTrip) streamID() uint32 {
 
 // done reports whether RoundTrip has returned.
 func (rt *testRoundTrip) done() bool {
+	synctest.Wait()
 	select {
 	case <-rt.donec:
 		return true
@@ -544,6 +546,7 @@ func (tt *testTransport) hasConn() bool {
 
 func (tt *testTransport) getConn() *testClientConn {
 	tt.t.Helper()
+	synctest.Wait()
 	if len(tt.ccs) == 0 {
 		tt.t.Fatalf("no new ClientConns created; wanted one")
 	}

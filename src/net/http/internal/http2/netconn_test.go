@@ -14,7 +14,6 @@ import (
 	"net/netip"
 	"os"
 	"sync"
-	"testing/synctest"
 	"time"
 )
 
@@ -43,43 +42,28 @@ type synctestNetConn struct {
 	// Reads pull from the local buffer, and writes push to the remote buffer.
 	loc, rem *synctestNetConnHalf
 
-	// When set, group.Wait is automatically called before reads and after writes.
-	autoWait bool
-
 	// peer is the other endpoint.
 	peer *synctestNetConn
 }
 
 // Read reads data from the connection.
 func (c *synctestNetConn) Read(b []byte) (n int, err error) {
-	if c.autoWait {
-		synctest.Wait()
-	}
 	return c.loc.read(b)
 }
 
 // Peek returns the available unread read buffer,
 // without consuming its contents.
 func (c *synctestNetConn) Peek() []byte {
-	if c.autoWait {
-		synctest.Wait()
-	}
 	return c.loc.peek()
 }
 
 // Write writes data to the connection.
 func (c *synctestNetConn) Write(b []byte) (n int, err error) {
-	if c.autoWait {
-		defer synctest.Wait()
-	}
 	return c.rem.write(b)
 }
 
 // IsClosedByPeer reports whether the peer has closed its end of the connection.
 func (c *synctestNetConn) IsClosedByPeer() bool {
-	if c.autoWait {
-		synctest.Wait()
-	}
 	return c.loc.isClosedByPeer()
 }
 
@@ -87,9 +71,6 @@ func (c *synctestNetConn) IsClosedByPeer() bool {
 func (c *synctestNetConn) Close() error {
 	c.loc.setWriteError(errors.New("connection closed by peer"))
 	c.rem.setReadError(io.EOF)
-	if c.autoWait {
-		synctest.Wait()
-	}
 	return nil
 }
 

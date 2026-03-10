@@ -201,7 +201,6 @@ func newServerTester(t testing.TB, handler http.HandlerFunc, opts ...interface{}
 
 	cli, srv := synctestNetPipe()
 	cli.SetReadDeadline(time.Now())
-	cli.autoWait = true
 
 	st := &serverTester{
 		t:        t,
@@ -1258,7 +1257,6 @@ func testServer_MaxQueuedControlFrames(t testing.TB) {
 	st.greet()
 
 	st.cc.(*synctestNetConn).SetReadBufferSize(0) // all writes block
-	st.cc.(*synctestNetConn).autoWait = false     // don't sync after every write
 
 	// Send maxQueuedControlFrames pings, plus a few extra
 	// to account for ones that enter the server's write buffer.
@@ -2442,10 +2440,6 @@ func testServer_Rejects_Too_Many_Streams(t testing.TB) {
 		<-leaveHandler
 	})
 	defer st.Close()
-
-	// Automatically syncing after every write / before every read
-	// slows this test down substantially.
-	st.cc.(*synctestNetConn).autoWait = false
 
 	st.greet()
 	nextStreamID := uint32(1)
@@ -4946,7 +4940,10 @@ func testServerRFC9218PrioritySmallPayload(t testing.TB) {
 				f.Flush()
 			}
 		}
+	}, func(s *http.Server) {
+		s.Protocols = protocols("h2c")
 	})
+	st.greet()
 	if syncConn, ok := st.cc.(*synctestNetConn); ok {
 		syncConn.SetReadBufferSize(1)
 	} else {
@@ -4954,7 +4951,6 @@ func testServerRFC9218PrioritySmallPayload(t testing.TB) {
 	}
 	defer st.Close()
 	defer func() { endTest = true }()
-	st.greet()
 
 	// Create 5 streams with urgency of 0, and another 5 streams with urgency
 	// of 7.
@@ -5004,14 +5000,16 @@ func testServerRFC9218Priority(t testing.TB) {
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}
+	}, func(s *http.Server) {
+		s.Protocols = protocols("h2c")
 	})
 	defer st.Close()
+	st.greet()
 	if syncConn, ok := st.cc.(*synctestNetConn); ok {
 		syncConn.SetReadBufferSize(1)
 	} else {
 		t.Fatal("Server connection is not synctestNetConn")
 	}
-	st.greet()
 	st.writeWindowUpdate(0, 1<<30)
 	synctest.Wait()
 
@@ -5057,14 +5055,16 @@ func testServerRFC9218PriorityIgnoredWhenProxied(t testing.TB) {
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}
+	}, func(s *http.Server) {
+		s.Protocols = protocols("h2c")
 	})
 	defer st.Close()
+	st.greet()
 	if syncConn, ok := st.cc.(*synctestNetConn); ok {
 		syncConn.SetReadBufferSize(1)
 	} else {
 		t.Fatal("Server connection is not synctestNetConn")
 	}
-	st.greet()
 	st.writeWindowUpdate(0, 1<<30)
 	synctest.Wait()
 
@@ -5104,14 +5104,16 @@ func testServerRFC9218PriorityAware(t testing.TB) {
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}
+	}, func(s *http.Server) {
+		s.Protocols = protocols("h2c")
 	})
 	defer st.Close()
+	st.greet()
 	if syncConn, ok := st.cc.(*synctestNetConn); ok {
 		syncConn.SetReadBufferSize(1)
 	} else {
 		t.Fatal("Server connection is not synctestNetConn")
 	}
-	st.greet()
 	st.writeWindowUpdate(0, 1<<30)
 	synctest.Wait()
 

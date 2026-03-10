@@ -2406,6 +2406,7 @@ func testTransportReturnsDataPaddingFlowControl(t testing.TB) {
 	tc.writeDataPadded(rt.streamID(), false, make([]byte, 5000), pad)
 
 	// Padding flow control should have been returned.
+	synctest.Wait()
 	if got, want := tc.inflowWindow(0), initialConnWindow-5000; got != want {
 		t.Errorf("conn inflow window = %v, want %v", got, want)
 	}
@@ -2633,6 +2634,7 @@ func testRoundTripDoesntConsumeRequestBodyEarly(t testing.TB) {
 	tc := newTestClientConn(t)
 	tc.greet()
 	tc.closeWrite()
+	synctest.Wait()
 
 	const body = "foo"
 	req, _ := http.NewRequest("POST", "http://foo.com/", io.NopCloser(strings.NewReader(body)))
@@ -3066,6 +3068,7 @@ func testTransportRetryHasLimit(t testing.TB) {
 		if totalDelay := time.Since(start); totalDelay > 5*time.Minute {
 			t.Fatalf("RoundTrip still retrying after %v, should have given up", totalDelay)
 		}
+		synctest.Wait()
 	}
 	if got, want := count, 5; got < count {
 		t.Errorf("RoundTrip made %v attempts, want at least %v", got, want)
@@ -3258,6 +3261,7 @@ func testTransportRequestsStallAtServerLimit(t *testing.T) {
 			":status", "200",
 		),
 	})
+	synctest.Wait()
 	tc.wantHeaders(wantHeader{
 		streamID:  rts[maxConcurrent+1].streamID(),
 		endStream: true,
@@ -3287,6 +3291,7 @@ func testTransportMaxDecoderHeaderTableSize(t testing.TB) {
 	}
 
 	tc.writeSettings(Setting{SettingHeaderTableSize, resSize})
+	synctest.Wait()
 	if got, want := tc.cc.TestPeerMaxHeaderTableSize(), resSize; got != want {
 		t.Fatalf("peerHeaderTableSize = %d, want %d", got, want)
 	}
@@ -5198,6 +5203,7 @@ func testTransportSendNoMoreThanOnePingWithReset(t testing.TB) {
 	// The client sends a PING frame along with the reset.
 	makeAndResetRequest()
 	pf1 := readFrame[*PingFrame](t, tc) // client sends PING
+	tc.wantIdle()
 
 	// Create another request and cancel it.
 	// We do not send a PING frame along with the reset,
@@ -5215,19 +5221,23 @@ func testTransportSendNoMoreThanOnePingWithReset(t testing.TB) {
 			":status", "200",
 		),
 	})
+	tc.wantIdle()
 
 	// Create yet another request and cancel it.
 	// We still do not send a PING frame along with the reset.
 	// We've received a HEADERS frame, but it came before the response to the PING.
 	makeAndResetRequest()
+	tc.wantIdle()
 
 	// The server responds to our PING.
 	tc.writePing(true, pf1.Data)
+	tc.wantIdle()
 
 	// Create yet another request and cancel it.
 	// Still no PING frame; we got a response to the previous one,
 	// but no HEADERS or DATA.
 	makeAndResetRequest()
+	tc.wantIdle()
 
 	// Server belatedly responds to the second request.
 	tc.writeHeaders(HeadersFrameParam{
@@ -5238,6 +5248,7 @@ func testTransportSendNoMoreThanOnePingWithReset(t testing.TB) {
 			":status", "200",
 		),
 	})
+	tc.wantIdle()
 
 	// One more request.
 	// This time we send a PING frame.

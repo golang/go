@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"slices"
 	"testing"
+	"testing/synctest"
 
 	. "net/http/internal/http2"
 
@@ -28,6 +29,7 @@ type testConnFramer struct {
 // It returns nil if the conn is closed or no frames are available.
 func (tf *testConnFramer) readFrame() Frame {
 	tf.t.Helper()
+	synctest.Wait()
 	fr, err := tf.fr.ReadFrame()
 	if err == io.EOF || err == os.ErrDeadlineExceeded {
 		return nil
@@ -310,6 +312,7 @@ func (tf *testConnFramer) wantWindowUpdate(streamID, incr uint32) {
 
 func (tf *testConnFramer) wantClosed() {
 	tf.t.Helper()
+	synctest.Wait()
 	fr, err := tf.fr.ReadFrame()
 	if err == nil {
 		tf.t.Fatalf("got unexpected frame (want closed connection): %v", fr)
@@ -321,6 +324,7 @@ func (tf *testConnFramer) wantClosed() {
 
 func (tf *testConnFramer) wantIdle() {
 	tf.t.Helper()
+	synctest.Wait()
 	fr, err := tf.fr.ReadFrame()
 	if err == nil {
 		tf.t.Fatalf("got unexpected frame (want idle connection): %v", fr)
