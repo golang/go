@@ -608,7 +608,7 @@ func (loaderstate *State) WillBeEnabled() bool {
 		return false
 	}
 
-	return FindGoMod(base.Cwd()) != ""
+	return FindGoMod(base.Cwd()) != "" || loaderstate.FindGoWork(base.Cwd()) != ""
 }
 
 // FindGoMod returns the name of the go.mod file for this command,
