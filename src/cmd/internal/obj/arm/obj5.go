@@ -367,6 +367,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					p.From = obj.Addr{}
 					if retSym != nil { // retjmp
 						p.To.Type = obj.TYPE_BRANCH
+						p.To.Name = obj.NAME_EXTERN
+						p.To.Sym = retSym
 					} else {
 						p.To.Type = obj.TYPE_MEM
 						p.To.Offset = 0
