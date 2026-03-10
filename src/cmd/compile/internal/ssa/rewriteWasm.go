@@ -3969,6 +3969,29 @@ func rewriteValueWasm_OpWasmI64And(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(0)
 		return true
 	}
+	// match: (I64And (I64And x (I64Const [c1])) (I64Const [c2]))
+	// result: (I64And x (I64Const [c1 & c2]))
+	for {
+		if v_0.Op != OpWasmI64And {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpWasmI64Const {
+			break
+		}
+		c1 := auxIntToInt64(v_0_1.AuxInt)
+		if v_1.Op != OpWasmI64Const {
+			break
+		}
+		c2 := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpWasmI64And)
+		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(c1 & c2)
+		v.AddArg2(x, v0)
+		return true
+	}
 	// match: (I64And (I64Const [x]) y)
 	// cond: y.Op != OpWasmI64Const
 	// result: (I64And y (I64Const [x]))

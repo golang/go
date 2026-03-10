@@ -400,6 +400,10 @@
 (I64Mul x (I64Const [0])) => (I64Const [0])
 (I64Mul x (I64Const [1])) => x
 
+// Double-mask elimination: cascaded zero-extensions produce
+// (I64And (I64And x C1) C2) which can be collapsed to a single mask.
+(I64And (I64And x (I64Const [c1])) (I64Const [c2])) => (I64And x (I64Const [c1 & c2]))
+
 // TODO: declare these operations as commutative and get rid of these rules?
 (I64Add (I64Const [x]) y) && y.Op != OpWasmI64Const => (I64Add y (I64Const [x]))
 (I64Mul (I64Const [x]) y) && y.Op != OpWasmI64Const => (I64Mul y (I64Const [x]))
