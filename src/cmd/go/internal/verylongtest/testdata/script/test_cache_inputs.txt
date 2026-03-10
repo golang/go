@@ -1,4 +1,6 @@
 env GO111MODULE=off
+env GOPATH=$WORK/gopath
+cd $WORK/gopath/src
 
 # Test that cached test results are invalidated in response to
 # changes to the external inputs to the test.
@@ -103,7 +105,7 @@ go test testcache -run=ExternalFile
 go test testcache -run=ExternalFile
 stdout '\(cached\)'
 
-rm $WORK/external.txt
+rm external.txt
 go test testcache -run=ExternalFile
 stdout '\(cached\)'
 
@@ -191,20 +193,20 @@ go test testcache -run=Exec
 go test testcache -run=Exec
 stdout '\(cached\)'
 
--- testcache/file.txt --
+-- gopath/src/testcache/file.txt --
 xx
--- 4x.txt --
+-- gopath/src/4x.txt --
 xxxx
--- 6x.txt --
+-- gopath/src/6x.txt --
 xxxxxx
--- 2y.txt --
+-- gopath/src/2y.txt --
 yy
--- $WORK/external.txt --
+-- external.txt --
 This file is outside of GOPATH.
--- testcache/script.sh --
+-- gopath/src/testcache/script.sh --
 #!/bin/sh
 exit 0
--- testcache/hello.go --
+-- gopath/src/testcache/hello.go --
 package testcache
 
 import "fmt"
@@ -216,7 +218,7 @@ func HelloWorld(name string) string {
     return fmt.Sprintf("Hello, %s!", name)
 }
 
--- testcache/testcache_test.go --
+-- gopath/src/testcache/testcache_test.go --
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -331,7 +333,7 @@ func TestCoverageCache(t *testing.T) {
     }
 }
 
--- mkold.go --
+-- gopath/src/mkold.go --
 package main
 
 import (

@@ -6,8 +6,9 @@
 [!symlink] skip
 
 # Symlink the compiler to a local path
+env TEST_GOROOT=$GOROOT
 env GOROOT=$WORK/goroot1
-symlink $GOROOT -> $TESTGO_GOROOT
+symlink $GOROOT -> $TEST_GOROOT
 
 # Set up fresh GOCACHE
 env GOCACHE=$WORK/gocache1
@@ -18,7 +19,7 @@ go build -o binary1 -trimpath -x main.go
 
 # Now repeat the same process with the compiler at a different local path
 env GOROOT=$WORK/goroot2
-symlink $GOROOT -> $TESTGO_GOROOT
+symlink $GOROOT -> $TEST_GOROOT
 
 env GOCACHE=$WORK/gocache2
 mkdir $GOCACHE
