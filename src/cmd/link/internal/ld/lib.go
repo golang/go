@@ -2411,9 +2411,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 			if len(ls.Resources) != 0 {
 				setpersrc(ctxt, ls.Resources)
 			}
-			if ls.PData != 0 {
-				sehp.pdata = append(sehp.pdata, ls.PData)
-			}
+			sehp.pdata = append(sehp.pdata, ls.PData...)
 			if ls.XData != 0 {
 				sehp.xdata = append(sehp.xdata, ls.XData)
 			}

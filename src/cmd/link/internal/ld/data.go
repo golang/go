@@ -1689,6 +1689,20 @@ func (ctxt *Link) dodata(symGroupType []sym.SymKind) {
 		ldr.SetAttrOnList(s, true)
 	}
 
+	// SEH symbols are tracked in side lists (sehp.pdata/xdata), so make
+	// them follow the same reachability decision used for all other data.
+	filterReachableSEH := func(syms []loader.Sym) []loader.Sym {
+		out := syms[:0]
+		for _, s := range syms {
+			if ldr.AttrReachable(s) {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+	sehp.pdata = filterReachableSEH(sehp.pdata)
+	sehp.xdata = filterReachableSEH(sehp.xdata)
+
 	// Now that we have the data symbols, but before we start
 	// to assign addresses, record all the necessary
 	// dynamic relocations. These will grow the relocation
