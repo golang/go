@@ -327,7 +327,7 @@ var oprrr = map[obj.As]uint32{
 	AVMADDWEVWH:    0x0e159 << 15,       // vmaddwev.w.h
 	AVMADDWEVVW:    0x0e15a << 15,       // vmaddwev.d.w
 	AVMADDWEVQV:    0x0e15b << 15,       // vmaddwev.q.d
-	AVMADDWODHB:    0x0e15c << 15,       // vmaddwov.h.b
+	AVMADDWODHB:    0x0e15c << 15,       // vmaddwod.h.b
 	AVMADDWODWH:    0x0e15d << 15,       // vmaddwod.w.h
 	AVMADDWODVW:    0x0e15e << 15,       // vmaddwod.d.w
 	AVMADDWODQV:    0x0e15f << 15,       // vmaddwod.q.d
@@ -335,7 +335,7 @@ var oprrr = map[obj.As]uint32{
 	AVMADDWEVWHU:   0x0e169 << 15,       // vmaddwev.w.hu
 	AVMADDWEVVWU:   0x0e16a << 15,       // vmaddwev.d.wu
 	AVMADDWEVQVU:   0x0e16b << 15,       // vmaddwev.q.du
-	AVMADDWODHBU:   0x0e16c << 15,       // vmaddwov.h.bu
+	AVMADDWODHBU:   0x0e16c << 15,       // vmaddwod.h.bu
 	AVMADDWODWHU:   0x0e16d << 15,       // vmaddwod.w.hu
 	AVMADDWODVWU:   0x0e16e << 15,       // vmaddwod.d.wu
 	AVMADDWODQVU:   0x0e16f << 15,       // vmaddwod.q.du
@@ -343,7 +343,7 @@ var oprrr = map[obj.As]uint32{
 	AVMADDWEVWHUH:  0x0e179 << 15,       // vmaddwev.w.hu.h
 	AVMADDWEVVWUW:  0x0e17a << 15,       // vmaddwev.d.wu.w
 	AVMADDWEVQVUV:  0x0e17b << 15,       // vmaddwev.q.du.d
-	AVMADDWODHBUB:  0x0e17c << 15,       // vmaddwov.h.bu.b
+	AVMADDWODHBUB:  0x0e17c << 15,       // vmaddwod.h.bu.b
 	AVMADDWODWHUH:  0x0e17d << 15,       // vmaddwod.w.hu.h
 	AVMADDWODVWUW:  0x0e17e << 15,       // vmaddwod.d.wu.w
 	AVMADDWODQVUV:  0x0e17f << 15,       // vmaddwod.q.du.d
@@ -351,7 +351,7 @@ var oprrr = map[obj.As]uint32{
 	AXVMADDWEVWH:   0x0e959 << 15,       // xvmaddwev.w.h
 	AXVMADDWEVVW:   0x0e95a << 15,       // xvmaddwev.d.w
 	AXVMADDWEVQV:   0x0e95b << 15,       // xvmaddwev.q.d
-	AXVMADDWODHB:   0x0e95c << 15,       // xvmaddwov.h.b
+	AXVMADDWODHB:   0x0e95c << 15,       // xvmaddwod.h.b
 	AXVMADDWODWH:   0x0e95d << 15,       // xvmaddwod.w.h
 	AXVMADDWODVW:   0x0e95e << 15,       // xvmaddwod.d.w
 	AXVMADDWODQV:   0x0e95f << 15,       // xvmaddwod.q.d
@@ -359,7 +359,7 @@ var oprrr = map[obj.As]uint32{
 	AXVMADDWEVWHU:  0x0e969 << 15,       // xvmaddwev.w.hu
 	AXVMADDWEVVWU:  0x0e96a << 15,       // xvmaddwev.d.wu
 	AXVMADDWEVQVU:  0x0e96b << 15,       // xvmaddwev.q.du
-	AXVMADDWODHBU:  0x0e96c << 15,       // xvmaddwov.h.bu
+	AXVMADDWODHBU:  0x0e96c << 15,       // xvmaddwod.h.bu
 	AXVMADDWODWHU:  0x0e96d << 15,       // xvmaddwod.w.hu
 	AXVMADDWODVWU:  0x0e96e << 15,       // xvmaddwod.d.wu
 	AXVMADDWODQVU:  0x0e96f << 15,       // xvmaddwod.q.du
@@ -367,7 +367,7 @@ var oprrr = map[obj.As]uint32{
 	AXVMADDWEVWHUH: 0x0e979 << 15,       // xvmaddwev.w.hu.h
 	AXVMADDWEVVWUW: 0x0e97a << 15,       // xvmaddwev.d.wu.w
 	AXVMADDWEVQVUV: 0x0e97b << 15,       // xvmaddwev.q.du.d
-	AXVMADDWODHBUB: 0x0e97c << 15,       // xvmaddwov.h.bu.b
+	AXVMADDWODHBUB: 0x0e97c << 15,       // xvmaddwod.h.bu.b
 	AXVMADDWODWHUH: 0x0e97d << 15,       // xvmaddwod.w.hu.h
 	AXVMADDWODVWUW: 0x0e97e << 15,       // xvmaddwod.d.wu.w
 	AXVMADDWODQVUV: 0x0e97f << 15,       // xvmaddwod.q.du.d
