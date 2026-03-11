@@ -8,6 +8,11 @@
 // can be read and written in a streaming manner.
 // This package aims to cover most variations of the format,
 // including those produced by GNU and BSD tar tools.
+//
+// The [Writer] uses a blocking factor of 1 (512 bytes per record).
+// This differs from the default blocking factor of 20 (10240 bytes)
+// used by most tar command-line tools, so archives produced by this
+// package may be smaller than those produced by typical tar implementations.
 package tar
 
 import (
