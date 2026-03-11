@@ -166,7 +166,7 @@ use 'go list -m -json all'.
 
 Edit also provides the -C, -n, and -x build flags.
 
-See https://golang.org/ref/mod#go-mod-edit for more about 'go mod edit'.
+See https://go.dev/ref/mod#go-mod-edit for more about 'go mod edit'.
 	`,
 }
 

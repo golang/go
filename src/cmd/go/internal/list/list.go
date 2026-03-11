@@ -339,7 +339,7 @@ For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
 
-For more about modules, see https://golang.org/ref/mod.
+For more about modules, see https://go.dev/ref/mod.
 	`,
 }
 

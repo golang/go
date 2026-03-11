@@ -491,7 +491,7 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 	_, err := pathcache.LookPath(v.Cmd)
 	if err != nil {
 		fmt.Fprintf(os.Stderr,
-			"go: missing %s command. See https://golang.org/s/gogetcmd\n",
+			"go: missing %s command. See https://go.dev/s/gogetcmd\n",
 			v.Name)
 		return nil, err
 	}

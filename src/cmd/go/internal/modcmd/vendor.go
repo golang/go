@@ -49,7 +49,7 @@ path instead of "vendor". The go command can only use a vendor directory
 named "vendor" within the module root directory, so this flag is
 primarily useful for other tools.
 
-See https://golang.org/ref/mod#go-mod-vendor for more about 'go mod vendor'.
+See https://go.dev/ref/mod#go-mod-vendor for more about 'go mod vendor'.
 	`,
 	Run: runVendor,
 }

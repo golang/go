@@ -155,7 +155,7 @@ and test commands:
 		By default, if a vendor directory is present and the go version in go.mod
 		is 1.14 or higher, the go command acts as if -mod=vendor were set.
 		Otherwise, the go command acts as if -mod=readonly were set.
-		See https://golang.org/ref/mod#build-commands for details.
+		See https://go.dev/ref/mod#build-commands for details.
 	-modcacherw
 		leave newly-created directories in the module cache read-write
 		instead of making them read-only.

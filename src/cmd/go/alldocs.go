@@ -199,7 +199,7 @@
 //		By default, if a vendor directory is present and the go version in go.mod
 //		is 1.14 or higher, the go command acts as if -mod=vendor were set.
 //		Otherwise, the go command acts as if -mod=readonly were set.
-//		See https://golang.org/ref/mod#build-commands for details.
+//		See https://go.dev/ref/mod#build-commands for details.
 //	-modcacherw
 //		leave newly-created directories in the module cache read-write
 //		instead of making them read-only.
@@ -714,7 +714,7 @@
 //
 //	go get toolchain@patch
 //
-// See https://golang.org/ref/mod#go-get for details.
+// See https://go.dev/ref/mod#go-get for details.
 //
 // In earlier versions of Go, 'go get' was used to build and install packages.
 // Now, 'go get' is dedicated to adjusting dependencies in go.mod. 'go install'
@@ -725,7 +725,7 @@
 //	go install example.com/pkg@v1.2.3
 //	go install example.com/pkg@latest
 //
-// See 'go help install' or https://golang.org/ref/mod#go-install for details.
+// See 'go help install' or https://go.dev/ref/mod#go-install for details.
 //
 // 'go get' accepts the following flags.
 //
@@ -751,7 +751,7 @@
 //
 // For more about build flags, see 'go help build'.
 //
-// For more about modules, see https://golang.org/ref/mod.
+// For more about modules, see https://go.dev/ref/mod.
 //
 // For more about using 'go get' to update the minimum Go version and
 // suggested Go toolchain, see https://go.dev/doc/toolchain.
@@ -1130,7 +1130,7 @@
 //
 // For more about specifying packages, see 'go help packages'.
 //
-// For more about modules, see https://golang.org/ref/mod.
+// For more about modules, see https://go.dev/ref/mod.
 //
 // # Module maintenance
 //
@@ -1208,9 +1208,9 @@
 //
 // The -x flag causes download to print the commands download executes.
 //
-// See https://golang.org/ref/mod#go-mod-download for more about 'go mod download'.
+// See https://go.dev/ref/mod#go-mod-download for more about 'go mod download'.
 //
-// See https://golang.org/ref/mod#version-queries for more about version queries.
+// See https://go.dev/ref/mod#version-queries for more about version queries.
 //
 // # Edit go.mod from tools or scripts
 //
@@ -1355,7 +1355,7 @@
 //
 // Edit also provides the -C, -n, and -x build flags.
 //
-// See https://golang.org/ref/mod#go-mod-edit for more about 'go mod edit'.
+// See https://go.dev/ref/mod#go-mod-edit for more about 'go mod edit'.
 //
 // # Print module requirement graph
 //
@@ -1374,7 +1374,7 @@
 //
 // The -x flag causes graph to print the commands graph executes.
 //
-// See https://golang.org/ref/mod#go-mod-graph for more about 'go mod graph'.
+// See https://go.dev/ref/mod#go-mod-graph for more about 'go mod graph'.
 //
 // # Initialize new module in current directory
 //
@@ -1390,7 +1390,7 @@
 // module path argument is omitted, init will attempt to infer the module path
 // using import comments in .go files and the current directory (if in GOPATH).
 //
-// See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
+// See https://go.dev/ref/mod#go-mod-init for more about 'go mod init'.
 //
 // # Add missing and remove unused modules
 //
@@ -1430,7 +1430,7 @@
 //
 // The -x flag causes tidy to print the commands download executes.
 //
-// See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
+// See https://go.dev/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 //
 // # Make vendored copy of dependencies
 //
@@ -1453,7 +1453,7 @@
 // named "vendor" within the module root directory, so this flag is
 // primarily useful for other tools.
 //
-// See https://golang.org/ref/mod#go-mod-vendor for more about 'go mod vendor'.
+// See https://go.dev/ref/mod#go-mod-vendor for more about 'go mod vendor'.
 //
 // # Verify dependencies have expected content
 //
@@ -1468,7 +1468,7 @@
 // modules have been changed and causes 'go mod' to exit with a
 // non-zero status.
 //
-// See https://golang.org/ref/mod#go-mod-verify for more about 'go mod verify'.
+// See https://go.dev/ref/mod#go-mod-verify for more about 'go mod verify'.
 //
 // # Explain why packages or modules are needed
 //
@@ -1505,7 +1505,7 @@
 //	(main module does not need package golang.org/x/text/encoding)
 //	$
 //
-// See https://golang.org/ref/mod#go-mod-why for more about 'go mod why'.
+// See https://go.dev/ref/mod#go-mod-why for more about 'go mod why'.
 //
 // # Workspace maintenance
 //
@@ -2394,7 +2394,7 @@
 //	GO111MODULE
 //		Controls whether the go command runs in module-aware mode or GOPATH mode.
 //		May be "off", "on", or "auto".
-//		See https://golang.org/ref/mod#mod-commands.
+//		See https://go.dev/ref/mod#mod-commands.
 //	GOARCH
 //		The architecture, or processor, for which to compile code.
 //		Examples are amd64, 386, arm, ppc64.
@@ -2443,15 +2443,15 @@
 //		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 //		of module path prefixes that should always be fetched directly
 //		or that should not be compared against the checksum database.
-//		See https://golang.org/ref/mod#private-modules.
+//		See https://go.dev/ref/mod#private-modules.
 //	GOPROXY
-//		URL of Go module proxy. See https://golang.org/ref/mod#environment-variables
-//		and https://golang.org/ref/mod#module-proxy for details.
+//		URL of Go module proxy. See https://go.dev/ref/mod#environment-variables
+//		and https://go.dev/ref/mod#module-proxy for details.
 //	GOROOT
 //		The root of the go tree.
 //	GOSUMDB
 //		The name of checksum database to use and optionally its public key and
-//		URL. See https://golang.org/ref/mod#authenticating.
+//		URL. See https://go.dev/ref/mod#authenticating.
 //	GOTMPDIR
 //		Temporary directory used by the go command and testing package.
 //		Overrides the platform-specific temporary directory such as "/tmp".
@@ -2519,7 +2519,7 @@
 //	GOAMD64
 //		For GOARCH=amd64, the microarchitecture level for which to compile.
 //		Valid values are v1 (default), v2, v3, v4.
-//		See https://golang.org/wiki/MinimumRequirements#amd64
+//		See https://go.dev/wiki/MinimumRequirements#amd64
 //	GOARM
 //		For GOARCH=arm, the ARM architecture for which to compile.
 //		Valid values are 5, 6, 7.
@@ -2725,22 +2725,22 @@
 // marking the root of the main (current) module.
 //
 // The go.mod file format is described in detail at
-// https://golang.org/ref/mod#go-mod-file.
+// https://go.dev/ref/mod#go-mod-file.
 //
 // To create a new go.mod file, use 'go mod init'. For details see
-// 'go help mod init' or https://golang.org/ref/mod#go-mod-init.
+// 'go help mod init' or https://go.dev/ref/mod#go-mod-init.
 //
 // To add missing module requirements or remove unneeded requirements,
 // use 'go mod tidy'. For details, see 'go help mod tidy' or
-// https://golang.org/ref/mod#go-mod-tidy.
+// https://go.dev/ref/mod#go-mod-tidy.
 //
 // To add, upgrade, downgrade, or remove a specific module requirement, use
 // 'go get'. For details, see 'go help module-get' or
-// https://golang.org/ref/mod#go-get.
+// https://go.dev/ref/mod#go-get.
 //
 // To make other changes or to parse go.mod as JSON for use by other tools,
 // use 'go mod edit'. See 'go help mod edit' or
-// https://golang.org/ref/mod#go-mod-edit.
+// https://go.dev/ref/mod#go-mod-edit.
 //
 // # GOPATH environment variable
 //
@@ -2780,7 +2780,7 @@
 // The first element of this list is used to set the default module cache and
 // binary install directory locations as described above.
 //
-// See https://golang.org/wiki/SettingGOPATH to set a custom GOPATH.
+// See https://go.dev/wiki/SettingGOPATH to set a custom GOPATH.
 //
 // Each directory listed in GOPATH must have a prescribed structure:
 //
@@ -2828,7 +2828,7 @@
 // but new packages are always downloaded into the first directory
 // in the list.
 //
-// See https://golang.org/doc/code.html for an example.
+// See https://go.dev/doc/code.html for an example.
 //
 // # GOPATH mode vendor directories
 //
@@ -2883,7 +2883,7 @@
 // can be a module proxy.
 //
 // For details on the GOPROXY protocol, see
-// https://golang.org/ref/mod#goproxy-protocol.
+// https://go.dev/ref/mod#goproxy-protocol.
 //
 // # Import path syntax
 //
@@ -2919,7 +2919,7 @@
 // "example.com/m/foo/quux" can all import "foo/internal/baz", but the package
 // "example.com/m/crash/bang" cannot.
 //
-// See https://golang.org/s/go14internal for details.
+// See https://go.dev/s/go14internal for details.
 //
 // # Fully-qualified import paths
 //
@@ -3052,7 +3052,7 @@
 // at https://code.org/r/p/exproj
 //
 // Downloaded modules are stored in the module cache.
-// See https://golang.org/ref/mod#module-cache.
+// See https://go.dev/ref/mod#module-cache.
 //
 // An additional variant of the go-import meta tag is
 // recognized and is preferred over those listing version control systems.
@@ -3062,7 +3062,7 @@
 //
 // This tag means to fetch modules with paths beginning with example.org
 // from the module proxy available at the URL https://code.org/moduleproxy.
-// See https://golang.org/ref/mod#goproxy-protocol for details about the
+// See https://go.dev/ref/mod#goproxy-protocol for details about the
 // proxy protocol.
 //
 // # Modules, module versions, and more
@@ -3074,9 +3074,9 @@
 // repositories or from module proxy servers.
 //
 // For a series of tutorials on modules, see
-// https://golang.org/doc/tutorial/create-module.
+// https://go.dev/doc/tutorial/create-module.
 //
-// For a detailed reference on modules, see https://golang.org/ref/mod.
+// For a detailed reference on modules, see https://go.dev/ref/mod.
 //
 // By default, the go command may download modules from https://proxy.golang.org.
 // It may authenticate modules using the checksum database at
@@ -3087,7 +3087,7 @@
 //
 // The go command's download behavior may be configured using GOPROXY, GOSUMDB,
 // GOPRIVATE, and other environment variables. See 'go help environment'
-// and https://golang.org/ref/mod#private-module-privacy for more information.
+// and https://go.dev/ref/mod#private-module-privacy for more information.
 //
 // # Module authentication using go.sum
 //
@@ -3098,7 +3098,7 @@
 // may also be downloaded from the checksum database depending on the values of
 // GOSUMDB, GOPRIVATE, and GONOSUMDB.
 //
-// For details, see https://golang.org/ref/mod#authenticating.
+// For details, see https://go.dev/ref/mod#authenticating.
 //
 // # Package lists and patterns
 //
@@ -3245,7 +3245,7 @@
 // The 'go env -w' command (see 'go help env') can be used to set these variables
 // for future go command invocations.
 //
-// For more details, see https://golang.org/ref/mod#private-modules.
+// For more details, see https://go.dev/ref/mod#private-modules.
 //
 // # Testing flags
 //

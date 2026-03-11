@@ -2159,7 +2159,7 @@ func (ld *packageLoader) checkTidyCompatibility(loaderstate *State, ctx context.
 		for _, m := range ld.requirements.rootModules {
 			if v := mg.Selected(m.Path); v != m.Version {
 				fmt.Fprintln(os.Stderr)
-				base.Fatalf("go: internal error: failed to diagnose selected-version mismatch for module %s: go %s selects %s, but go %s selects %s\n\tPlease report this at https://golang.org/issue.", m.Path, goVersion, m.Version, compatVersion, v)
+				base.Fatalf("go: internal error: failed to diagnose selected-version mismatch for module %s: go %s selects %s, but go %s selects %s\n\tPlease report this at https://go.dev/issue.", m.Path, goVersion, m.Version, compatVersion, v)
 			}
 		}
 		return

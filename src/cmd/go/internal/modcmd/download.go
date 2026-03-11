@@ -71,9 +71,9 @@ useful on systems that do not preserve the module cache.
 
 The -x flag causes download to print the commands download executes.
 
-See https://golang.org/ref/mod#go-mod-download for more about 'go mod download'.
+See https://go.dev/ref/mod#go-mod-download for more about 'go mod download'.
 
-See https://golang.org/ref/mod#version-queries for more about version queries.
+See https://go.dev/ref/mod#version-queries for more about version queries.
 	`,
 }
 

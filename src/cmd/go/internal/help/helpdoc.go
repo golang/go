@@ -178,7 +178,7 @@ import statement can only appear in packages with the import path prefix
 "example.com/m/foo/quux" can all import "foo/internal/baz", but the package
 "example.com/m/crash/bang" cannot.
 
-See https://golang.org/s/go14internal for details.
+See https://go.dev/s/go14internal for details.
 
 Fully-qualified import paths
 
@@ -311,7 +311,7 @@ tag and then download the code from the "foo/subdir" subdirectory within the Git
 at https://code.org/r/p/exproj
 
 Downloaded modules are stored in the module cache.
-See https://golang.org/ref/mod#module-cache.
+See https://go.dev/ref/mod#module-cache.
 
 An additional variant of the go-import meta tag is
 recognized and is preferred over those listing version control systems.
@@ -321,7 +321,7 @@ That variant uses "mod" as the vcs in the content value, as in:
 
 This tag means to fetch modules with paths beginning with example.org
 from the module proxy available at the URL https://code.org/moduleproxy.
-See https://golang.org/ref/mod#goproxy-protocol for details about the
+See https://go.dev/ref/mod#goproxy-protocol for details about the
 proxy protocol.
 	`,
 }
@@ -366,7 +366,7 @@ On Plan 9, the value is a list.
 The first element of this list is used to set the default module cache and
 binary install directory locations as described above.
 
-See https://golang.org/wiki/SettingGOPATH to set a custom GOPATH.
+See https://go.dev/wiki/SettingGOPATH to set a custom GOPATH.
 
 Each directory listed in GOPATH must have a prescribed structure:
 
@@ -414,7 +414,7 @@ Go searches each directory listed in GOPATH to find source code,
 but new packages are always downloaded into the first directory
 in the list.
 
-See https://golang.org/doc/code.html for an example.
+See https://go.dev/doc/code.html for an example.
 
 GOPATH mode vendor directories
 
@@ -487,7 +487,7 @@ General-purpose environment variables:
 	GO111MODULE
 		Controls whether the go command runs in module-aware mode or GOPATH mode.
 		May be "off", "on", or "auto".
-		See https://golang.org/ref/mod#mod-commands.
+		See https://go.dev/ref/mod#mod-commands.
 	GOARCH
 		The architecture, or processor, for which to compile code.
 		Examples are amd64, 386, arm, ppc64.
@@ -536,15 +536,15 @@ General-purpose environment variables:
 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 		of module path prefixes that should always be fetched directly
 		or that should not be compared against the checksum database.
-		See https://golang.org/ref/mod#private-modules.
+		See https://go.dev/ref/mod#private-modules.
 	GOPROXY
-		URL of Go module proxy. See https://golang.org/ref/mod#environment-variables
-		and https://golang.org/ref/mod#module-proxy for details.
+		URL of Go module proxy. See https://go.dev/ref/mod#environment-variables
+		and https://go.dev/ref/mod#module-proxy for details.
 	GOROOT
 		The root of the go tree.
 	GOSUMDB
 		The name of checksum database to use and optionally its public key and
-		URL. See https://golang.org/ref/mod#authenticating.
+		URL. See https://go.dev/ref/mod#authenticating.
 	GOTMPDIR
 		Temporary directory used by the go command and testing package.
 		Overrides the platform-specific temporary directory such as "/tmp".
@@ -612,7 +612,7 @@ Architecture-specific environment variables:
 	GOAMD64
 		For GOARCH=amd64, the microarchitecture level for which to compile.
 		Valid values are v1 (default), v2, v3, v4.
-		See https://golang.org/wiki/MinimumRequirements#amd64
+		See https://go.dev/wiki/MinimumRequirements#amd64
 	GOARM
 		For GOARCH=arm, the ARM architecture for which to compile.
 		Valid values are 5, 6, 7.

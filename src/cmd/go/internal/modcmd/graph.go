@@ -35,7 +35,7 @@ in the go.mod file.
 
 The -x flag causes graph to print the commands graph executes.
 
-See https://golang.org/ref/mod#go-mod-graph for more about 'go mod graph'.
+See https://go.dev/ref/mod#go-mod-graph for more about 'go mod graph'.
 	`,
 	Run: runGraph,
 }

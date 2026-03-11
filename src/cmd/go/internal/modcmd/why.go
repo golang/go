@@ -47,7 +47,7 @@ For example:
 	(main module does not need package golang.org/x/text/encoding)
 	$
 
-See https://golang.org/ref/mod#go-mod-why for more about 'go mod why'.
+See https://go.dev/ref/mod#go-mod-why for more about 'go mod why'.
 	`,
 }
 
