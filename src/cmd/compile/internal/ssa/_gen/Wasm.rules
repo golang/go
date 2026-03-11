@@ -404,6 +404,14 @@
 // (I64And (I64And x C1) C2) which can be collapsed to a single mask.
 (I64And (I64And x (I64Const [c1])) (I64Const [c2])) => (I64And x (I64Const [c1 & c2]))
 
+// Redundant sign-extensions: idempotent and narrower-subsumes-wider.
+(I64Extend32S (I64Extend32S x)) => (I64Extend32S x)
+(I64Extend16S (I64Extend16S x)) => (I64Extend16S x)
+(I64Extend8S  (I64Extend8S  x)) => (I64Extend8S  x)
+(I64Extend32S (I64Extend16S x)) => (I64Extend16S x)
+(I64Extend32S (I64Extend8S  x)) => (I64Extend8S  x)
+(I64Extend16S (I64Extend8S  x)) => (I64Extend8S  x)
+
 // TODO: declare these operations as commutative and get rid of these rules?
 (I64Add (I64Const [x]) y) && y.Op != OpWasmI64Const => (I64Add y (I64Const [x]))
 (I64Mul (I64Const [x]) y) && y.Op != OpWasmI64Const => (I64Mul y (I64Const [x]))

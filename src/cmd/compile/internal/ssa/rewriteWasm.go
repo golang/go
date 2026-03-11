@@ -618,6 +618,12 @@ func rewriteValueWasm(v *Value) bool {
 		return rewriteValueWasm_OpWasmI64Eq(v)
 	case OpWasmI64Eqz:
 		return rewriteValueWasm_OpWasmI64Eqz(v)
+	case OpWasmI64Extend16S:
+		return rewriteValueWasm_OpWasmI64Extend16S(v)
+	case OpWasmI64Extend32S:
+		return rewriteValueWasm_OpWasmI64Extend32S(v)
+	case OpWasmI64Extend8S:
+		return rewriteValueWasm_OpWasmI64Extend8S(v)
 	case OpWasmI64LeU:
 		return rewriteValueWasm_OpWasmI64LeU(v)
 	case OpWasmI64Load:
@@ -4100,6 +4106,84 @@ func rewriteValueWasm_OpWasmI64Eqz(v *Value) bool {
 		}
 		x := v_0_0.Args[0]
 		v.reset(OpWasmI64Eqz)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueWasm_OpWasmI64Extend16S(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (I64Extend16S (I64Extend16S x))
+	// result: (I64Extend16S x)
+	for {
+		if v_0.Op != OpWasmI64Extend16S {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpWasmI64Extend16S)
+		v.AddArg(x)
+		return true
+	}
+	// match: (I64Extend16S (I64Extend8S x))
+	// result: (I64Extend8S x)
+	for {
+		if v_0.Op != OpWasmI64Extend8S {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpWasmI64Extend8S)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueWasm_OpWasmI64Extend32S(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (I64Extend32S (I64Extend32S x))
+	// result: (I64Extend32S x)
+	for {
+		if v_0.Op != OpWasmI64Extend32S {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpWasmI64Extend32S)
+		v.AddArg(x)
+		return true
+	}
+	// match: (I64Extend32S (I64Extend16S x))
+	// result: (I64Extend16S x)
+	for {
+		if v_0.Op != OpWasmI64Extend16S {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpWasmI64Extend16S)
+		v.AddArg(x)
+		return true
+	}
+	// match: (I64Extend32S (I64Extend8S x))
+	// result: (I64Extend8S x)
+	for {
+		if v_0.Op != OpWasmI64Extend8S {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpWasmI64Extend8S)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueWasm_OpWasmI64Extend8S(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (I64Extend8S (I64Extend8S x))
+	// result: (I64Extend8S x)
+	for {
+		if v_0.Op != OpWasmI64Extend8S {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpWasmI64Extend8S)
 		v.AddArg(x)
 		return true
 	}
