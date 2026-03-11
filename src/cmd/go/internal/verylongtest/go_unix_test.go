@@ -4,7 +4,7 @@
 
 //go:build unix
 
-package main_test
+package verylongtest
 
 import (
 	"bufio"
@@ -13,7 +13,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"slices"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
@@ -24,9 +24,24 @@ func TestGoBuildUmask(t *testing.T) {
 	mask := syscall.Umask(0077) // prohibit low bits
 	defer syscall.Umask(mask)
 
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.tempFile("x.go", `package main; func main() {}`)
+	gotool, err := testenv.GoTool()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpdir, err := os.MkdirTemp("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.RemoveAll(tmpdir); err != nil {
+			t.Fatal(err)
+		}
+	})
+	err = os.WriteFile(filepath.Join(tmpdir, "x.go"), []byte(`package main; func main() {}`), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// We have set a umask, but if the parent directory happens to have a default
 	// ACL, the umask may be ignored. To prevent spurious failures from an ACL,
@@ -34,8 +49,7 @@ func TestGoBuildUmask(t *testing.T) {
 	// by os.WriteFile.
 	//
 	// (See https://go.dev/issue/62724, https://go.dev/issue/17909.)
-	control := tg.path("control")
-	tg.creatingTemp(control)
+	control := filepath.Join(tmpdir, "control")
 	if err := os.WriteFile(control, []byte("#!/bin/sh\nexit 0"), 0777); err != nil {
 		t.Fatal(err)
 	}
@@ -44,9 +58,10 @@ func TestGoBuildUmask(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exe := tg.path("x")
-	tg.creatingTemp(exe)
-	tg.run("build", "-o", exe, tg.path("x.go"))
+	exe := filepath.Join(tmpdir, "x")
+	if err := exec.Command(gotool, "build", "-o", exe, filepath.Join(tmpdir, "x.go")).Run(); err != nil {
+		t.Fatal(err)
+	}
 	fi, err := os.Stat(exe)
 	if err != nil {
 		t.Fatal(err)
@@ -70,18 +85,13 @@ func TestTestInterrupt(t *testing.T) {
 	}
 	// Don't run this test in parallel, for the same reason.
 
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOROOT", testGOROOT)
+	gotool, err := testenv.GoTool()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	cmd := testenv.CommandContext(t, ctx, tg.goTool(), "test", "std", "-short", "-count=1")
-	cmd.Dir = tg.execDir
-
-	// Override $TMPDIR when running the tests: since we're terminating the tests
-	// with a signal they might fail to clean up some temp files, and we don't
-	// want that to cause an "unexpected files" failure at the end of the run.
-	cmd.Env = append(slices.Clip(tg.env), tempEnvName()+"="+t.TempDir())
+	cmd := testenv.CommandContext(t, ctx, gotool, "test", "std", "-short", "-count=1")
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
