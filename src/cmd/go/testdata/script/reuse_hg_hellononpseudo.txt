@@ -1,0 +1,27 @@
+[short] skip
+[!exec:hg] skip
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+env GOMODCACHE=$WORK/modcache
+
+# go mod download vcstest/hello@v0.0.0-20220101120101-123456789abc should fail, still print origin info
+# (non-existent pseudoversion)
+! go mod download -x -json vcs-test.golang.org/hg/hello.hg@v0.0.0-20220101120101-123456789abc
+cp stdout hellononpseudo.json
+stdout '"Version": "v0.0.0-20220101120101-123456789abc"'
+stdout '"Error":.*unknown revision 123456789abc'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
+
+# reuse go mod download vcstest/hello@v0.0.0-20220101120101-123456789abc
+go clean -modcache
+! go mod download -reuse=hellononpseudo.json -x -json vcs-test.golang.org/hg/hello.hg@v0.0.0-20220101120101-123456789abc
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Version": "v0.0.0-20220101120101-123456789abc"'
+stdout '"Error":.*unknown revision 123456789abc'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
+! stdout '"(Dir|Info|GoMod|Zip)"'

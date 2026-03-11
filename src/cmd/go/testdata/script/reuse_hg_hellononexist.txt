@@ -1,0 +1,26 @@
+[short] skip
+[!exec:hg] skip
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+env GOMODCACHE=$WORK/modcache
+
+# go mod download vcstest/hello@nonexist should fail, still print origin info
+! go mod download -x -json vcs-test.golang.org/hg/hello.hg@nonexist
+cp stdout hellononexist.json
+stdout '"Version": "nonexist"'
+stdout '"Error":.*unknown revision nonexist'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
+
+# reuse go mod download vcstest/hello@nonexist
+go clean -modcache
+! go mod download -reuse=hellononexist.json -x -json vcs-test.golang.org/hg/hello.hg@nonexist
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Version": "nonexist"'
+stdout '"Error":.*unknown revision nonexist'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
+! stdout '"(Dir|Info|GoMod|Zip)"'
