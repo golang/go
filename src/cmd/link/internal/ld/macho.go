@@ -461,14 +461,9 @@ func (ctxt *Link) domacho() {
 		if err != nil {
 			Exitf("%v", err)
 		}
-		if load != nil {
-			machoPlatform = load.platform
+		if load != nil && load.platform != PLATFORM_MACOS {
 			ml := newMachoLoad(ctxt.Arch, load.cmd.type_, uint32(len(load.cmd.data)))
 			copy(ml.data, load.cmd.data)
-			if machoPlatform == PLATFORM_MACOS {
-				ml.data[1] = macOS.version()
-				ml.data[2] = macSDK.version()
-			}
 			break
 		}
 	}
@@ -477,7 +472,7 @@ func (ctxt *Link) domacho() {
 		if buildcfg.GOOS == "ios" {
 			machoPlatform = PLATFORM_IOS
 		}
-		if ctxt.LinkMode == LinkInternal && machoPlatform == PLATFORM_MACOS {
+		if load == nil && machoPlatform == PLATFORM_MACOS {
 			ml := newMachoLoad(ctxt.Arch, imacho.LC_BUILD_VERSION, 4)
 			ml.data[0] = uint32(machoPlatform)
 			ml.data[1] = macOS.version()
