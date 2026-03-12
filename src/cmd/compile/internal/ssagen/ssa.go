@@ -1576,6 +1576,16 @@ func (s *state) stmtList(l ir.Nodes) {
 	}
 }
 
+func peelConvNop(n ir.Node) ir.Node {
+	if n == nil {
+		return n
+	}
+	for n.Op() == ir.OCONVNOP {
+		n = n.(*ir.ConvExpr).X
+	}
+	return n
+}
+
 // stmt converts the statement n to SSA and adds it to s.
 func (s *state) stmt(n ir.Node) {
 	s.pushLine(n.Pos())
@@ -1751,12 +1761,10 @@ func (s *state) stmt(n ir.Node) {
 		// arrays referenced are strictly smaller parts of the same base array.
 		// If one side of the assignment is a full array, then partial overlap
 		// can't happen. (The arrays are either disjoint or identical.)
-		mayOverlap := n.X.Op() == ir.ODEREF && (n.Y != nil && n.Y.Op() == ir.ODEREF)
-		if n.Y != nil && n.Y.Op() == ir.ODEREF {
-			p := n.Y.(*ir.StarExpr).X
-			for p.Op() == ir.OCONVNOP {
-				p = p.(*ir.ConvExpr).X
-			}
+		ny := peelConvNop(n.Y)
+		mayOverlap := n.X.Op() == ir.ODEREF && (n.Y != nil && ny.Op() == ir.ODEREF)
+		if ny != nil && ny.Op() == ir.ODEREF {
+			p := peelConvNop(ny.(*ir.StarExpr).X)
 			if p.Op() == ir.OSPTR && p.(*ir.UnaryExpr).X.Type().IsString() {
 				// Pointer fields of strings point to unmodifiable memory.
 				// That memory can't overlap with the memory being written.
