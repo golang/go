@@ -96,10 +96,8 @@ type pkgWriter struct {
 // newPkgWriter returns an initialized pkgWriter for the specified
 // package.
 func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info, otherInfo map[*syntax.FuncLit]bool) *pkgWriter {
-	// Use V2 as the encoded version for aliastypeparams.
-	version := pkgbits.V2
 	return &pkgWriter{
-		PkgEncoder: pkgbits.NewPkgEncoder(version, base.Debug.SyncFrames),
+		PkgEncoder: pkgbits.NewPkgEncoder(uirVersion, base.Debug.SyncFrames),
 
 		m:                     m,
 		curpkg:                pkg,
