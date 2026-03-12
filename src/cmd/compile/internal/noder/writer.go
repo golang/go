@@ -2344,6 +2344,25 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
 	if ptr, ok := types2.CoreType(typ).(*types2.Pointer); ok {
 		typ = ptr.Elem()
 	}
+
+	if w.Version().Has(pkgbits.CompactCompLiterals) {
+		switch typ0 := typ; typ := types2.CoreType(typ).(type) {
+		default:
+			w.p.fatalf(lit, "unexpected composite literal type: %v", typ)
+		case *types2.Array:
+			w.arrayElems(typ.Elem(), lit.ElemList)
+		case *types2.Map:
+			w.rtype(typ0)
+			w.mapElems(typ.Key(), typ.Elem(), lit.ElemList)
+		case *types2.Slice:
+			w.arrayElems(typ.Elem(), lit.ElemList)
+		case *types2.Struct:
+			w.structElems(typ, lit.NKeys == 0, lit.ElemList)
+		}
+		return
+	}
+
+	// old format
 	var keyType, elemType types2.Type
 	var structType *types2.Struct
 	switch typ0 := typ; typ := types2.CoreType(typ).(type) {
@@ -2383,6 +2402,76 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
 			}
 		}
 		w.implicitConvExpr(elemType, elem)
+	}
+}
+
+func (w *writer) arrayElems(elemType types2.Type, elems []syntax.Expr) {
+	valuesOnly := true
+	for _, elem := range elems {
+		if _, ok := elem.(*syntax.KeyValueExpr); ok {
+			valuesOnly = false
+			break
+		}
+	}
+
+	if valuesOnly {
+		w.Int(len(elems))
+		for _, elem := range elems {
+			w.implicitConvExpr(elemType, elem)
+		}
+		return
+	}
+	// some elements may have a key
+	w.Int(-len(elems))
+	for _, elem := range elems {
+		if kv, ok := elem.(*syntax.KeyValueExpr); w.Bool(ok) {
+			w.pos(kv.Key) // use position of Key rather than of elem (which has position of ':')
+			w.implicitConvExpr(nil, kv.Key)
+			elem = kv.Value
+		}
+		w.implicitConvExpr(elemType, elem)
+	}
+}
+
+func (w *writer) mapElems(keyType, valueType types2.Type, elems []syntax.Expr) {
+	// all elements have a key
+	w.Int(-len(elems))
+	for _, elem := range elems {
+		kv := elem.(*syntax.KeyValueExpr)
+		w.pos(kv.Key) // use position of Key rather than of elem (which has position of ':')
+		w.implicitConvExpr(keyType, kv.Key)
+		w.implicitConvExpr(valueType, kv.Value)
+	}
+}
+
+func (w *writer) structElems(typ *types2.Struct, valuesOnly bool, elems []syntax.Expr) {
+	n := len(elems)
+	if valuesOnly {
+		// no element has a key
+		w.Int(n)
+		for i, elem := range elems {
+			w.pos(elem)
+			w.implicitConvExpr(typ.Field(i).Type(), elem)
+		}
+		return
+	}
+	// all elements have a key
+	w.Int(-n)
+	for _, elem := range elems {
+		kv := elem.(*syntax.KeyValueExpr)
+		w.pos(kv.Key) // use position of Key rather than of elem (which has position of ':')
+		// TODO(gri): rather than doing this lookup again, perhaps the index should be recorded by types2
+		fld, index, _ := types2.LookupFieldOrMethod(typ, false, w.p.curpkg, kv.Key.(*syntax.Name).Value)
+		if n := len(index); n > 1 {
+			// embedded field
+			w.Int(-n)
+			for _, i := range index {
+				w.Int(i)
+			}
+		} else { // n == 1
+			w.Int(index[0])
+		}
+		w.implicitConvExpr(fld.Type(), kv.Value)
 	}
 }
 

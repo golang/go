@@ -3028,21 +3028,37 @@ func (r *reader) compLit() ir.Node {
 	if typ.IsMap() {
 		rtype = r.rtype(pos)
 	}
-	isStruct := typ.Kind() == types.TSTRUCT
 
-	elems := make([]ir.Node, r.Len())
-	for i := range elems {
-		elemp := &elems[i]
-
-		if isStruct {
-			sk := ir.NewStructKeyExpr(r.pos(), typ.Field(r.Len()), nil)
-			*elemp, elemp = sk, &sk.Value
-		} else if r.Bool() {
-			kv := ir.NewKeyExpr(r.pos(), r.expr(), nil)
-			*elemp, elemp = kv, &kv.Value
+	var elems []ir.Node
+	if r.Version().Has(pkgbits.CompactCompLiterals) {
+		n := r.Int()
+		elems = make([]ir.Node, max(n, -n) /* abs(n) */)
+		switch typ.Kind() {
+		default:
+			base.FatalfAt(pos, "unexpected composite literal type: %v", typ)
+		case types.TARRAY:
+			r.arrayElems(n >= 0, elems)
+		case types.TMAP:
+			r.mapElems(elems)
+		case types.TSLICE:
+			r.arrayElems(n >= 0, elems)
+		case types.TSTRUCT:
+			r.structElems(typ, n >= 0, elems)
 		}
-
-		*elemp = r.expr()
+	} else {
+		elems = make([]ir.Node, r.Len())
+		isStruct := typ.Kind() == types.TSTRUCT
+		for i := range elems {
+			elemp := &elems[i]
+			if isStruct {
+				sk := ir.NewStructKeyExpr(r.pos(), typ.Field(r.Len()), nil)
+				*elemp, elemp = sk, &sk.Value
+			} else if r.Bool() {
+				kv := ir.NewKeyExpr(r.pos(), r.expr(), nil)
+				*elemp, elemp = kv, &kv.Value
+			}
+			*elemp = r.expr()
+		}
 	}
 
 	lit := typecheck.Expr(ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, elems))
@@ -3055,6 +3071,63 @@ func (r *reader) compLit() ir.Node {
 		lit.SetType(typ0)
 	}
 	return lit
+}
+
+func (r *reader) arrayElems(valuesOnly bool, elems []ir.Node) {
+	if valuesOnly {
+		for i := range elems {
+			elems[i] = r.expr()
+		}
+		return
+	}
+	// some elements may have a key
+	for i := range elems {
+		if r.Bool() {
+			kv := ir.NewKeyExpr(r.pos(), r.expr(), nil)
+			kv.Value = r.expr()
+			elems[i] = kv
+		} else {
+			elems[i] = r.expr()
+		}
+	}
+}
+
+func (r *reader) mapElems(elems []ir.Node) {
+	// all elements have a key
+	for i := range elems {
+		kv := ir.NewKeyExpr(r.pos(), r.expr(), nil)
+		kv.Value = r.expr()
+		elems[i] = kv
+	}
+}
+
+func (r *reader) structElems(typ *types.Type, valuesOnly bool, elems []ir.Node) {
+	if valuesOnly {
+		for i := range elems {
+			sk := ir.NewStructKeyExpr(r.pos(), typ.Field(i), nil)
+			sk.Value = r.expr()
+			elems[i] = sk
+		}
+		return
+	}
+
+	// all elements have a key
+	for i := range elems {
+		pos := r.pos()
+		var fld *types.Field
+		if n := r.Int(); n < 0 {
+			// embedded field
+			for range -n {
+				fld = typ.Field(r.Int())
+				typ = fld.Type
+			}
+		} else { // n >= 0
+			fld = typ.Field(n)
+		}
+		sk := ir.NewStructKeyExpr(pos, fld, nil)
+		sk.Value = r.expr()
+		elems[i] = sk
+	}
 }
 
 func (r *reader) funcLit() ir.Node {
