@@ -82,10 +82,9 @@ var responseWriterStatePool = sync.Pool{
 
 // Test hooks.
 var (
-	testHookOnConn        func()
-	testHookGetServerConn func(*serverConn)
-	testHookOnPanicMu     *sync.Mutex // nil except in tests
-	testHookOnPanic       func(sc *serverConn, panicVal interface{}) (rePanic bool)
+	testHookOnConn    func()
+	testHookOnPanicMu *sync.Mutex // nil except in tests
+	testHookOnPanic   func(sc *serverConn, panicVal interface{}) (rePanic bool)
 )
 
 // Server is an HTTP/2 server.
@@ -269,7 +268,6 @@ func (s *Server) Configure(conf ServerConfig, tcfg *tls.Config) error {
 	// during next-proto selection, but using TLS <1.2 with
 	// HTTP/2 is still the client's bug.
 
-	tcfg.PreferServerCipherSuites = true
 	return nil
 }
 
@@ -481,10 +479,6 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 			return
 		}
 		opts.Settings = nil
-	}
-
-	if hook := testHookGetServerConn; hook != nil {
-		hook(sc)
 	}
 
 	sc.serve(conf)

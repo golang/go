@@ -166,10 +166,6 @@ func SummarizeFrame(f Frame) string {
 	return summarizeFrame(f)
 }
 
-func SetTestHookGetServerConn(t testing.TB, f func(*serverConn)) {
-	SetForTest(t, &testHookGetServerConn, f)
-}
-
 func init() {
 	testHookOnPanicMu = new(sync.Mutex)
 }
