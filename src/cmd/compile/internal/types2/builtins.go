@@ -112,7 +112,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 				for _, u := range typeset(y.typ()) {
 					if s, _ := u.(*Slice); s != nil && Identical(s.elem, universeByte) {
 						// typeset ⊇ {[]byte}
-					} else if isString(u) {
+					} else if u != nil && isString(u) {
 						// typeset ⊇ {string}
 						hasString = true
 					} else {
@@ -375,7 +375,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			for _, u := range typeset(y.typ()) {
 				if s, _ := u.(*Slice); s != nil && Identical(s.elem, universeByte) {
 					// typeset ⊇ {[]byte}
-				} else if isString(u) {
+				} else if u != nil && isString(u) {
 					// typeset ⊇ {string}
 				} else {
 					special = false
