@@ -15,6 +15,10 @@ func caninline(x int) int { // ERROR "can inline caninline"
 	return x
 }
 
+func caninlineMulti(x int) (int, int) { // ERROR "can inline caninlineMulti"
+	return x, x
+}
+
 var something int
 
 func caninlineNoRet(x int) { // ERROR "can inline caninlineNoRet"
@@ -55,6 +59,13 @@ func test(b *testing.B, localsink, cond int) { // ERROR ".*"
 		{
 			caninline(1) // ERROR "inlining call to caninline" "function result will be kept alive"
 		}
+
+		_ = caninline(1) // ERROR "inlining call to caninline" ".*autotmp.* will be kept alive"
+
+		// An assign list stmt with a single rhs expression returning multiple values via a tuple.
+		_, _ = caninlineMulti(1) // ERROR "inlining call to caninlineMulti" ".*autotmp.* will be kept alive"
+		// An assign list stmt with multiple rhs expressions.
+		_, _ = caninline(1), caninline(2) // ERROR "inlining call to caninline" ".*autotmp.* will be kept alive"
 
 		receiver(argument) // ERROR inlining call to receiver" "function arg will be kept alive"
 	}
