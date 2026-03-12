@@ -190,7 +190,10 @@ func chtimesUtimes(atime, mtime time.Time) [2]syscall.Timespec {
 		if t.IsZero() {
 			utimes[i] = syscall.Timespec{Sec: _UTIME_OMIT, Nsec: _UTIME_OMIT}
 		} else {
-			utimes[i] = syscall.NsecToTimespec(t.UnixNano())
+			// Use time.Unix() and time.Nanosecond() separately
+			// instead of time.UnixNano() to avoid int64 overflow
+			// for dates before year 1677 or after 2262. See #75542.
+			utimes[i] = syscall.SecNsecToTimespec(t.Unix(), int64(t.Nanosecond()))
 		}
 	}
 	set(0, atime)
