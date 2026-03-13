@@ -5,6 +5,7 @@
 package user
 
 import (
+	"errors"
 	"os"
 	"slices"
 	"testing"
@@ -90,6 +91,40 @@ func TestLookup(t *testing.T) {
 		t.Fatalf("Lookup: %v", err)
 	}
 	compare(t, want, got)
+}
+
+func TestLookupNonexistent(t *testing.T) {
+	checkUser(t)
+
+	const username = "nonexistent_user_does_not_exist_12345"
+	_, err := Lookup(username)
+	if err == nil {
+		t.Fatalf("Lookup(%q): expected error, got nil", username)
+	}
+	var unknown UnknownUserError
+	if !errors.As(err, &unknown) {
+		t.Fatalf("Lookup(%q): expected UnknownUserError, got %T: %v", username, err, err)
+	}
+	if string(unknown) != username {
+		t.Errorf("Lookup(%q): UnknownUserError = %q, want %q", username, string(unknown), username)
+	}
+}
+
+func TestLookupGroupNonexistent(t *testing.T) {
+	checkGroup(t)
+
+	const groupname = "nonexistent_group_does_not_exist_12345"
+	_, err := LookupGroup(groupname)
+	if err == nil {
+		t.Fatalf("LookupGroup(%q): expected error, got nil", groupname)
+	}
+	var unknown UnknownGroupError
+	if !errors.As(err, &unknown) {
+		t.Fatalf("LookupGroup(%q): expected UnknownGroupError, got %T: %v", groupname, err, err)
+	}
+	if string(unknown) != groupname {
+		t.Errorf("LookupGroup(%q): UnknownGroupError = %q, want %q", groupname, string(unknown), groupname)
+	}
 }
 
 func TestLookupId(t *testing.T) {
