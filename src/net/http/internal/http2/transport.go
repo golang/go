@@ -708,7 +708,7 @@ func (t *Transport) newTLSConfig(host string) *tls.Config {
 	if t.TLSClientConfig != nil {
 		*cfg = *t.TLSClientConfig.Clone()
 	}
-	if !strSliceContains(cfg.NextProtos, NextProtoTLS) {
+	if !slices.Contains(cfg.NextProtos, NextProtoTLS) {
 		cfg.NextProtos = append([]string{NextProtoTLS}, cfg.NextProtos...)
 	}
 	if cfg.ServerName == "" {
@@ -1794,10 +1794,7 @@ var (
 // Request.ContentLength+1, 512KB)).
 func (cs *clientStream) frameScratchBufferLen(maxFrameSize int) int {
 	const max = 512 << 10
-	n := int64(maxFrameSize)
-	if n > max {
-		n = max
-	}
+	n := min(int64(maxFrameSize), max)
 	if cl := cs.reqBodyContentLength; cl != -1 && cl+1 < n {
 		// Add an extra byte past the declared content-length to
 		// give the caller's Request.Body io.Reader a chance to
@@ -3066,21 +3063,21 @@ var (
 	errRequestHeaderListSize  = httpcommon.ErrRequestHeaderListSize
 )
 
-func (cc *ClientConn) logf(format string, args ...interface{}) {
+func (cc *ClientConn) logf(format string, args ...any) {
 	cc.t.logf(format, args...)
 }
 
-func (cc *ClientConn) vlogf(format string, args ...interface{}) {
+func (cc *ClientConn) vlogf(format string, args ...any) {
 	cc.t.vlogf(format, args...)
 }
 
-func (t *Transport) vlogf(format string, args ...interface{}) {
+func (t *Transport) vlogf(format string, args ...any) {
 	if VerboseLogs {
 		t.logf(format, args...)
 	}
 }
 
-func (t *Transport) logf(format string, args ...interface{}) {
+func (t *Transport) logf(format string, args ...any) {
 	log.Printf(format, args...)
 }
 
@@ -3088,15 +3085,6 @@ type missingBody struct{}
 
 func (missingBody) Close() error             { return nil }
 func (missingBody) Read([]byte) (int, error) { return 0, io.ErrUnexpectedEOF }
-
-func strSliceContains(ss []string, s string) bool {
-	for _, v := range ss {
-		if v == s {
-			return true
-		}
-	}
-	return false
-}
 
 type erringRoundTripper struct{ err error }
 

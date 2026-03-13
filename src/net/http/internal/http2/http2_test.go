@@ -45,19 +45,12 @@ func TestSettingString(t *testing.T) {
 }
 
 func TestSorterPoolAllocs(t *testing.T) {
-	ss := []string{"a", "b", "c"}
 	h := Header{
 		"a": nil,
 		"b": nil,
 		"c": nil,
 	}
 	sorter := new(sorter)
-
-	if allocs := testing.AllocsPerRun(100, func() {
-		sorter.SortStrings(ss)
-	}); allocs >= 1 {
-		t.Logf("SortStrings allocs = %v; want <1", allocs)
-	}
 
 	if allocs := testing.AllocsPerRun(5, func() {
 		if len(sorter.Keys(h)) != 3 {

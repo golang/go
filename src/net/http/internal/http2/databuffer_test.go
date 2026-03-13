@@ -8,36 +8,37 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 )
 
 func fmtDataChunk(chunk []byte) string {
-	out := ""
+	var out strings.Builder
 	var last byte
 	var count int
 	for _, c := range chunk {
 		if c != last {
 			if count > 0 {
-				out += fmt.Sprintf(" x %d ", count)
+				out.WriteString(fmt.Sprintf(" x %d ", count))
 				count = 0
 			}
-			out += string([]byte{c})
+			out.WriteString(string([]byte{c}))
 			last = c
 		}
 		count++
 	}
 	if count > 0 {
-		out += fmt.Sprintf(" x %d", count)
+		out.WriteString(fmt.Sprintf(" x %d", count))
 	}
-	return out
+	return out.String()
 }
 
 func fmtDataChunks(chunks [][]byte) string {
-	var out string
+	var out strings.Builder
 	for _, chunk := range chunks {
-		out += fmt.Sprintf("{%q}", fmtDataChunk(chunk))
+		out.WriteString(fmt.Sprintf("{%q}", fmtDataChunk(chunk)))
 	}
-	return out
+	return out.String()
 }
 
 func testDataBuffer(t *testing.T, wantBytes []byte, setup func(t *testing.T) *dataBuffer) {

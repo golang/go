@@ -33,12 +33,12 @@ func TestRoundRobinScheduler(t *testing.T) {
 		ws.Push(wr)
 	}
 	const controlFrames = 2
-	for i := 0; i < controlFrames; i++ {
+	for range controlFrames {
 		ws.Push(makeWriteNonStreamRequest())
 	}
 
 	// We should get the control frames first.
-	for i := 0; i < controlFrames; i++ {
+	for range controlFrames {
 		wr, ok := ws.Pop()
 		if !ok || wr.StreamID() != 0 {
 			t.Fatalf("wr.Pop() = stream %v, %v; want 0, true", wr.StreamID(), ok)

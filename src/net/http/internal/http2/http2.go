@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -273,7 +273,7 @@ func newBufferedWriter(conn net.Conn, timeout time.Duration) *bufferedWriter {
 const bufWriterPoolBufferSize = 4 << 10
 
 var bufWriterPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return bufio.NewWriterSize(nil, bufWriterPoolBufferSize)
 	},
 }
@@ -376,15 +376,11 @@ type connectionStater interface {
 	ConnectionState() tls.ConnectionState
 }
 
-var sorterPool = sync.Pool{New: func() interface{} { return new(sorter) }}
+var sorterPool = sync.Pool{New: func() any { return new(sorter) }}
 
 type sorter struct {
 	v []string // owned by sorter
 }
-
-func (s *sorter) Len() int           { return len(s.v) }
-func (s *sorter) Swap(i, j int)      { s.v[i], s.v[j] = s.v[j], s.v[i] }
-func (s *sorter) Less(i, j int) bool { return s.v[i] < s.v[j] }
 
 // Keys returns the sorted keys of h.
 //
@@ -396,17 +392,8 @@ func (s *sorter) Keys(h Header) []string {
 		keys = append(keys, k)
 	}
 	s.v = keys
-	sort.Sort(s)
+	slices.Sort(s.v)
 	return keys
-}
-
-func (s *sorter) SortStrings(ss []string) {
-	// Our sorter works on s.v, which sorter owns, so
-	// stash it away while we sort the user's buffer.
-	save := s.v
-	s.v = ss
-	sort.Sort(s)
-	s.v = save
 }
 
 // incomparable is a zero-width, non-comparable type. Adding it to a struct

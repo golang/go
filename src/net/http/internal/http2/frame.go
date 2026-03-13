@@ -196,7 +196,7 @@ func (h FrameHeader) writeDebug(buf *bytes.Buffer) {
 	if h.Flags != 0 {
 		buf.WriteString(" flags=")
 		set := 0
-		for i := uint8(0); i < 8; i++ {
+		for i := range uint8(8) {
 			if h.Flags&(1<<i) == 0 {
 				continue
 			}
@@ -229,7 +229,7 @@ func (h *FrameHeader) invalidate() { h.valid = false }
 // frame header bytes.
 // Used only by ReadFrameHeader.
 var fhBytes = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		buf := make([]byte, frameHeaderLen)
 		return &buf
 	},
@@ -343,8 +343,8 @@ type Framer struct {
 
 	debugFramer       *Framer // only use for logging written writes
 	debugFramerBuf    *bytes.Buffer
-	debugReadLoggerf  func(string, ...interface{})
-	debugWriteLoggerf func(string, ...interface{})
+	debugReadLoggerf  func(string, ...any)
+	debugWriteLoggerf func(string, ...any)
 
 	frameCache *frameCache // nil if frames aren't reused (default)
 }
@@ -838,7 +838,7 @@ func (f *SettingsFrame) HasDuplicates() bool {
 	// If it's small enough (the common case), just do the n^2
 	// thing and avoid a map allocation.
 	if num < 10 {
-		for i := 0; i < num; i++ {
+		for i := range num {
 			idi := f.Setting(i).ID
 			for j := i + 1; j < num; j++ {
 				idj := f.Setting(j).ID
@@ -850,7 +850,7 @@ func (f *SettingsFrame) HasDuplicates() bool {
 		return false
 	}
 	seen := map[SettingID]bool{}
-	for i := 0; i < num; i++ {
+	for i := range num {
 		id := f.Setting(i).ID
 		if seen[id] {
 			return true

@@ -21,11 +21,11 @@ import (
 // improved enough that we can instead allocate chunks like this:
 // make([]byte, max(16<<10, expectedBytesRemaining))
 var dataChunkPools = [...]sync.Pool{
-	{New: func() interface{} { return new([1 << 10]byte) }},
-	{New: func() interface{} { return new([2 << 10]byte) }},
-	{New: func() interface{} { return new([4 << 10]byte) }},
-	{New: func() interface{} { return new([8 << 10]byte) }},
-	{New: func() interface{} { return new([16 << 10]byte) }},
+	{New: func() any { return new([1 << 10]byte) }},
+	{New: func() any { return new([2 << 10]byte) }},
+	{New: func() any { return new([4 << 10]byte) }},
+	{New: func() any { return new([8 << 10]byte) }},
+	{New: func() any { return new([16 << 10]byte) }},
 }
 
 func getDataBufferChunk(size int64) []byte {
@@ -121,10 +121,7 @@ func (b *dataBuffer) Write(p []byte) (int, error) {
 		// If the last chunk is empty, allocate a new chunk. Try to allocate
 		// enough to fully copy p plus any additional bytes we expect to
 		// receive. However, this may allocate less than len(p).
-		want := int64(len(p))
-		if b.expected > want {
-			want = b.expected
-		}
+		want := max(b.expected, int64(len(p)))
 		chunk := b.lastChunkOrAlloc(want)
 		n := copy(chunk[b.w:], p)
 		p = p[n:]

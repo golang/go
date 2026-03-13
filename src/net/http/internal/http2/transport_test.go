@@ -123,7 +123,7 @@ func TestIdleConnTimeout(t *testing.T) {
 				tr.IdleConnTimeout = test.idleConnTimeout
 			})
 			var tc *testClientConn
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
 				rt := tt.roundTrip(req)
 
@@ -413,7 +413,7 @@ func testTransportGetGotConnHooks(t *testing.T, useClient bool) {
 		getConns int32
 		gotConns int32
 	)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		trace := &httptrace.ClientTrace{
 			GetConn: func(hostport string) {
 				atomic.AddInt32(&getConns, 1)
@@ -1373,7 +1373,7 @@ func testTransportChecksResponseHeaderListSize(t testing.TB) {
 
 	hdr := []string{":status", "200"}
 	large := strings.Repeat("a", 1<<10)
-	for i := 0; i < 5042; i++ {
+	for range 5042 {
 		hdr = append(hdr, large, large)
 	}
 	hbf := tc.makeHeaderBlockFragment(hdr...)
@@ -1571,7 +1571,7 @@ func TestTransportDisableKeepAlives_Concurrency(t *testing.T) {
 	c := &http.Client{Transport: tr}
 	var reqs sync.WaitGroup
 	const N = 20
-	for i := 0; i < N; i++ {
+	for i := range N {
 		reqs.Add(1)
 		if i == N-1 {
 			// For the final request, try to make all the
@@ -1877,7 +1877,6 @@ func TestTransportRejectsContentLengthWithSign(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Length", tt.cl[0])
@@ -2464,7 +2463,7 @@ func testTransportBodyDoubleEndStream(t testing.TB) {
 
 	tr := newTransport(t)
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		req, _ := http.NewRequest("POST", ts.URL, byteAndEOFReader('a'))
 		req.ContentLength = 1
 		res, err := tr.RoundTrip(req)
@@ -2658,7 +2657,7 @@ func TestTransportCancelDataResponseRace(t *testing.T) {
 			io.WriteString(w, msg)
 			return
 		}
-		for i := 0; i < 50; i++ {
+		for i := range 50 {
 			io.WriteString(w, "Some data.")
 			w.(http.Flusher).Flush()
 			if i == 2 {
@@ -2795,7 +2794,7 @@ func testTransportPingWhenReadingMultiplePings(t testing.TB) {
 		),
 	})
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		// No ping yet...
 		time.Sleep(999 * time.Millisecond)
 		if f := tc.readFrame(); f != nil {
@@ -3157,7 +3156,7 @@ func TestTransportRequestsLowServerLimit(t *testing.T) {
 	}
 
 	const reqCount = 3
-	for i := 0; i < reqCount; i++ {
+	for range reqCount {
 		req, err := http.NewRequest("GET", ts.URL, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -3196,7 +3195,7 @@ func testTransportRequestsStallAtServerLimit(t *testing.T) {
 	// Start maxConcurrent+2 requests.
 	// The server does not respond to any of them yet.
 	var rts []*testRoundTrip
-	for k := 0; k < maxConcurrent+2; k++ {
+	for k := range maxConcurrent + 2 {
 		req, _ := http.NewRequest("GET", fmt.Sprintf("https://dummy.tld/%d", k), nil)
 		if k == maxConcurrent {
 			req.Cancel = cancelClientRequest
@@ -3378,7 +3377,7 @@ func benchSimpleRoundTrip(b *testing.B, nReqHeaders, nResHeader int) {
 	b.ReportAllocs()
 	ts := newTestServer(b,
 		func(w http.ResponseWriter, r *http.Request) {
-			for i := 0; i < nResHeader; i++ {
+			for i := range nResHeader {
 				name := fmt.Sprint("A-", i)
 				w.Header().Set(name, "*")
 			}
@@ -3393,7 +3392,7 @@ func benchSimpleRoundTrip(b *testing.B, nReqHeaders, nResHeader int) {
 		b.Fatal(err)
 	}
 
-	for i := 0; i < nReqHeaders; i++ {
+	for i := range nReqHeaders {
 		name := fmt.Sprint("A-", i)
 		req.Header.Set(name, "*")
 	}
@@ -3496,7 +3495,7 @@ func benchLargeDownloadRoundTrip(b *testing.B, frameSize uint32) {
 			w.Header().Set("Content-Length", strconv.Itoa(transferSize))
 			w.Header().Set("Content-Transfer-Encoding", "binary")
 			var data [1024 * 1024]byte
-			for i := 0; i < transferSize/(1024*1024); i++ {
+			for range transferSize / (1024 * 1024) {
 				w.Write(data[:])
 			}
 		}, optQuiet,
@@ -3922,7 +3921,7 @@ func TestTransportBodyRewindRace(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(clients)
-	for i := 0; i < clients; i++ {
+	for range clients {
 		req, err := http.NewRequest("POST", ts.URL, bytes.NewBufferString("abcdef"))
 		if err != nil {
 			t.Fatalf("unexpected new request error: %v", err)
@@ -4164,10 +4163,8 @@ func TestTransportFrameBufferReuse(t *testing.T) {
 
 	var wg sync.WaitGroup
 	defer wg.Wait()
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 10 {
+		wg.Go(func() {
 			req, err := http.NewRequest("POST", ts.URL, strings.NewReader(filler))
 			if err != nil {
 				t.Error(err)
@@ -4187,7 +4184,7 @@ func TestTransportFrameBufferReuse(t *testing.T) {
 			if res != nil && res.Body != nil {
 				res.Body.Close()
 			}
-		}()
+		})
 	}
 
 }
@@ -4232,7 +4229,6 @@ func TestTransportBlockingRequestWrite(t *testing.T) {
 			return req, err
 		},
 	}} {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 				if v := r.Header.Get("Big"); v != "" && v != filler {
@@ -4880,8 +4876,7 @@ func TestDialRaceResumesDial(t *testing.T) {
 	ctx1, cancel1 := context.WithCancel(context.Background())
 	defer cancel1()
 	req1 := req.WithContext(ctx1)
-	ctx2, cancel2 := context.WithCancel(context.Background())
-	defer cancel2()
+	ctx2 := t.Context()
 	req2 := req.WithContext(ctx2)
 	errCh := make(chan error)
 	go func() {
@@ -4994,7 +4989,7 @@ func TestIssue67671(t *testing.T) {
 	tr.Protocols = protocols("h2c")
 	req, _ := http.NewRequest("GET", ts.URL, nil)
 	req.Close = true
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		res, err := tr.RoundTrip(req)
 		if err != nil {
 			t.Fatal(err)
@@ -5289,7 +5284,7 @@ func testTransportConnBecomesUnresponsive(t testing.TB) {
 	// Send more requests.
 	// None receive a response.
 	// Each is canceled.
-	for i := 0; i < maxConcurrent; i++ {
+	for i := range maxConcurrent {
 		t.Logf("request %v receives no response and is canceled", i)
 		ctx, cancel := context.WithCancel(context.Background())
 		req := Must(http.NewRequestWithContext(ctx, "GET", "https://dummy.tld/", nil))

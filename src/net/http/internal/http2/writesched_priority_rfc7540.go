@@ -5,9 +5,10 @@
 package http2
 
 import (
+	"cmp"
 	"fmt"
 	"math"
-	"sort"
+	"slices"
 )
 
 // RFC 7540, Section 5.3.5: the default weight is 16.
@@ -199,7 +200,19 @@ func (n *priorityNodeRFC7540) walkReadyInOrder(openParent bool, tmp *[]*priority
 		*tmp = append(*tmp, n.kids)
 		n.kids.setParent(nil)
 	}
-	sort.Sort(sortPriorityNodeSiblingsRFC7540(*tmp))
+	slices.SortFunc(*tmp, func(i, k *priorityNodeRFC7540) int {
+		// Prefer the subtree that has sent fewer bytes relative to its weight.
+		// See sections 5.3.2 and 5.3.4.
+		wi, bi := float64(i.weight)+1, float64(i.subtreeBytes)
+		wk, bk := float64(k.weight)+1, float64(k.subtreeBytes)
+		if bi == 0 && bk == 0 {
+			return cmp.Compare(wk, wi)
+		}
+		if bk == 0 {
+			return 0
+		}
+		return cmp.Compare(bi/bk, wi/wk)
+	})
 	for i := len(*tmp) - 1; i >= 0; i-- {
 		(*tmp)[i].setParent(n) // setParent inserts at the head of n.kids
 	}
@@ -209,24 +222,6 @@ func (n *priorityNodeRFC7540) walkReadyInOrder(openParent bool, tmp *[]*priority
 		}
 	}
 	return false
-}
-
-type sortPriorityNodeSiblingsRFC7540 []*priorityNodeRFC7540
-
-func (z sortPriorityNodeSiblingsRFC7540) Len() int      { return len(z) }
-func (z sortPriorityNodeSiblingsRFC7540) Swap(i, k int) { z[i], z[k] = z[k], z[i] }
-func (z sortPriorityNodeSiblingsRFC7540) Less(i, k int) bool {
-	// Prefer the subtree that has sent fewer bytes relative to its weight.
-	// See sections 5.3.2 and 5.3.4.
-	wi, bi := float64(z[i].weight)+1, float64(z[i].subtreeBytes)
-	wk, bk := float64(z[k].weight)+1, float64(z[k].subtreeBytes)
-	if bi == 0 && bk == 0 {
-		return wi >= wk
-	}
-	if bk == 0 {
-		return false
-	}
-	return bi/bk <= wi/wk
 }
 
 type priorityWriteSchedulerRFC7540 struct {

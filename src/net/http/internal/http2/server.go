@@ -44,6 +44,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -73,7 +74,7 @@ var (
 )
 
 var responseWriterStatePool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		rws := &responseWriterState{}
 		rws.bw = bufio.NewWriterSize(chunkWriter{rws}, handlerChunkWriteSize)
 		return rws
@@ -84,7 +85,7 @@ var responseWriterStatePool = sync.Pool{
 var (
 	testHookOnConn    func()
 	testHookOnPanicMu *sync.Mutex // nil except in tests
-	testHookOnPanic   func(sc *serverConn, panicVal interface{}) (rePanic bool)
+	testHookOnPanic   func(sc *serverConn, panicVal any) (rePanic bool)
 )
 
 // Server is an HTTP/2 server.
@@ -357,7 +358,7 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 		streams:                     make(map[uint32]*stream),
 		readFrameCh:                 make(chan readFrameResult),
 		wantWriteFrameCh:            make(chan FrameWriteRequest, 8),
-		serveMsgCh:                  make(chan interface{}, 8),
+		serveMsgCh:                  make(chan any, 8),
 		wroteFrameCh:                make(chan frameWriteResult, 1), // buffered; one send in writeFrameAsync
 		bodyReadCh:                  make(chan bodyReadMsg),         // buffering doesn't matter either way
 		doneServing:                 make(chan struct{}),
@@ -510,7 +511,7 @@ type serverConn struct {
 	wantWriteFrameCh chan FrameWriteRequest // from handlers -> serve
 	wroteFrameCh     chan frameWriteResult  // from writeFrameAsync -> serve, tickles more frame writes
 	bodyReadCh       chan bodyReadMsg       // from handlers -> serve
-	serveMsgCh       chan interface{}       // misc messages & code to send to / run on the serve loop
+	serveMsgCh       chan any               // misc messages & code to send to / run on the serve loop
 	flow             outflow                // conn-wide (not stream-specific) outbound flow control
 	inflow           inflow                 // conn-wide inbound flow control
 	tlsState         *tls.ConnectionState   // shared by all handlers, like net/http
@@ -667,13 +668,13 @@ func (sc *serverConn) setConnState(state ConnState) {
 	sc.hs.ConnState(sc.conn, state)
 }
 
-func (sc *serverConn) vlogf(format string, args ...interface{}) {
+func (sc *serverConn) vlogf(format string, args ...any) {
 	if VerboseLogs {
 		sc.logf(format, args...)
 	}
 }
 
-func (sc *serverConn) logf(format string, args ...interface{}) {
+func (sc *serverConn) logf(format string, args ...any) {
 	if lg := sc.hs.ErrorLog(); lg != nil {
 		lg.Printf(format, args...)
 	} else {
@@ -721,7 +722,7 @@ func isClosedConnError(err error) bool {
 	return false
 }
 
-func (sc *serverConn) condlogf(err error, format string, args ...interface{}) {
+func (sc *serverConn) condlogf(err error, format string, args ...any) {
 	if err == nil {
 		return
 	}
@@ -1042,7 +1043,7 @@ func (sc *serverConn) onIdleTimer()     { sc.sendServeMsg(idleTimerMsg) }
 func (sc *serverConn) onReadIdleTimer() { sc.sendServeMsg(readIdleTimerMsg) }
 func (sc *serverConn) onShutdownTimer() { sc.sendServeMsg(shutdownTimerMsg) }
 
-func (sc *serverConn) sendServeMsg(msg interface{}) {
+func (sc *serverConn) sendServeMsg(msg any) {
 	sc.serveG.checkNotOn() // NOT
 	select {
 	case sc.serveMsgCh <- msg:
@@ -1087,7 +1088,7 @@ func (sc *serverConn) readPreface() error {
 }
 
 var writeDataPool = sync.Pool{
-	New: func() interface{} { return new(writeData) },
+	New: func() any { return new(writeData) },
 }
 
 // writeDataFromHandler writes DATA response frames from a handler on
@@ -2596,7 +2597,7 @@ func (rws *responseWriterState) declareTrailer(k string) {
 		rws.conn.logf("ignoring invalid trailer %q", k)
 		return
 	}
-	if !strSliceContains(rws.trailers, k) {
+	if !slices.Contains(rws.trailers, k) {
 		rws.trailers = append(rws.trailers, k)
 	}
 }
@@ -2759,9 +2760,7 @@ func (rws *responseWriterState) promoteUndeclaredTrailers() {
 	}
 
 	if len(rws.trailers) > 1 {
-		sorter := sorterPool.Get().(*sorter)
-		sorter.SortStrings(rws.trailers)
-		sorterPool.Put(sorter)
+		slices.Sort(rws.trailers)
 	}
 }
 
@@ -3206,7 +3205,7 @@ func foreachHeaderElement(v string, fn func(string)) {
 		fn(v)
 		return
 	}
-	for _, f := range strings.Split(v, ",") {
+	for f := range strings.SplitSeq(v, ",") {
 		if f = textproto.TrimString(f); f != "" {
 			fn(f)
 		}

@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"slices"
 	"sync"
 )
 
@@ -211,10 +212,8 @@ func (c *addConnCall) run(t *Transport, key string, nc net.Conn) {
 
 // p.mu must be held
 func (p *clientConnPool) addConnLocked(key string, cc *ClientConn) {
-	for _, v := range p.conns[key] {
-		if v == cc {
-			return
-		}
+	if slices.Contains(p.conns[key], cc) {
+		return
 	}
 	if p.conns == nil {
 		p.conns = make(map[string][]*ClientConn)

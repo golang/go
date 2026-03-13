@@ -1132,7 +1132,7 @@ func TestMetaFrameHeader(t *testing.T) {
 	tests := [...]struct {
 		name              string
 		w                 func(*Framer)
-		want              interface{} // *MetaHeaderFrame or error
+		want              any // *MetaHeaderFrame or error
 		wantErrReason     string
 		maxHeaderListSize uint32
 	}{
@@ -1181,7 +1181,7 @@ func TestMetaFrameHeader(t *testing.T) {
 			name: "max_header_list_truncated",
 			w: func(f *Framer) {
 				var pairs = []string{":method", "GET", ":path", "/"}
-				for i := 0; i < 100; i++ {
+				for range 100 {
 					pairs = append(pairs, "foo", "bar")
 				}
 				all := encodeHeaderRaw(t, pairs...)
@@ -1279,7 +1279,7 @@ func TestMetaFrameHeader(t *testing.T) {
 			name = fmt.Sprintf("test index %d", i)
 		}
 
-		var got interface{}
+		var got any
 		var err error
 		got, err = f.ReadFrame()
 		if err != nil {
@@ -1302,7 +1302,7 @@ func TestMetaFrameHeader(t *testing.T) {
 					}
 				}
 			}
-			str := func(v interface{}) string {
+			str := func(v any) string {
 				if _, ok := v.(error); ok {
 					return fmt.Sprintf("error %v", v)
 				} else {
@@ -1325,21 +1325,21 @@ func TestSetReuseFrames(t *testing.T) {
 	// SetReuseFrames only currently implements reuse of DataFrames.
 	firstDf := readAndVerifyDataFrame("ABC", 3, fr, buf, t)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		df := readAndVerifyDataFrame("XYZ", 3, fr, buf, t)
 		if df != firstDf {
 			t.Errorf("Expected Framer to return references to the same DataFrame. Have %v and %v", &df, &firstDf)
 		}
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		df := readAndVerifyDataFrame("", 0, fr, buf, t)
 		if df != firstDf {
 			t.Errorf("Expected Framer to return references to the same DataFrame. Have %v and %v", &df, &firstDf)
 		}
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		df := readAndVerifyDataFrame("HHH", 3, fr, buf, t)
 		if df != firstDf {
 			t.Errorf("Expected Framer to return references to the same DataFrame. Have %v and %v", &df, &firstDf)
@@ -1354,7 +1354,7 @@ func TestSetReuseFramesMoreThanOnce(t *testing.T) {
 	firstDf := readAndVerifyDataFrame("ABC", 3, fr, buf, t)
 	fr.SetReuseFrames()
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		df := readAndVerifyDataFrame("XYZ", 3, fr, buf, t)
 		// SetReuseFrames should be idempotent
 		fr.SetReuseFrames()
@@ -1367,11 +1367,11 @@ func TestSetReuseFramesMoreThanOnce(t *testing.T) {
 func TestNoSetReuseFrames(t *testing.T) {
 	fr, buf := testFramer()
 	const numNewDataFrames = 10
-	dfSoFar := make([]interface{}, numNewDataFrames)
+	dfSoFar := make([]any, numNewDataFrames)
 
 	// Check that DataFrames are not reused if SetReuseFrames wasn't called.
 	// SetReuseFrames only currently implements reuse of DataFrames.
-	for i := 0; i < numNewDataFrames; i++ {
+	for i := range numNewDataFrames {
 		df := readAndVerifyDataFrame("XYZ", 3, fr, buf, t)
 		for _, item := range dfSoFar {
 			if df == item {

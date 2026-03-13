@@ -14,7 +14,7 @@ func TestGoroutineLock(t *testing.T) {
 	g := newGoroutineLock()
 	g.check()
 
-	sawPanic := make(chan interface{})
+	sawPanic := make(chan any)
 	go func() {
 		defer func() { sawPanic <- recover() }()
 		g.check() // should panic

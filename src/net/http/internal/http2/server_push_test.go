@@ -112,7 +112,7 @@ func testServer_Push_Success(t testing.TB) {
 	// Send one request, which should push two responses.
 	st.greet()
 	getSlash(st)
-	for k := 0; k < 3; k++ {
+	for k := range 3 {
 		select {
 		case <-time.After(2 * time.Second):
 			t.Errorf("timeout waiting for handler %d to finish", k)
@@ -277,7 +277,7 @@ func testServer_Push_SuccessNoRace(t testing.TB) {
 	// Send one request, which should push one response.
 	st.greet()
 	getSlash(st)
-	for k := 0; k < 2; k++ {
+	for k := range 2 {
 		select {
 		case <-time.After(2 * time.Second):
 			t.Errorf("timeout waiting for handler %d to finish", k)
@@ -543,7 +543,7 @@ func testServer_Push_Underflow(t testing.TB) {
 	// Send several requests.
 	st.greet()
 	const numRequests = 4
-	for i := 0; i < numRequests; i++ {
+	for i := range numRequests {
 		st.writeHeaders(HeadersFrameParam{
 			StreamID:      uint32(1 + i*2), // clients send odd numbers
 			BlockFragment: st.encodeHeader(),

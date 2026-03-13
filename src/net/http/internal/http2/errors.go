@@ -104,14 +104,14 @@ func (e StreamError) As(target any) bool {
 	if dstType.NumField() != numField {
 		return false
 	}
-	for i := 0; i < numField; i++ {
+	for i := range numField {
 		sf := srcType.Field(i)
 		df := dstType.Field(i)
 		if sf.Name != df.Name || !sf.Type.ConvertibleTo(df.Type) {
 			return false
 		}
 	}
-	for i := 0; i < numField; i++ {
+	for i := range numField {
 		df := dst.Field(i)
 		df.Set(src.Field(i).Convert(df.Type()))
 	}
