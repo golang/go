@@ -600,24 +600,40 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	case objabi.R_LOONG64_ADDR_PCREL20_S2:
 		pc := ldr.SymValue(s) + int64(r.Off())
 		t := (ldr.SymAddr(rs) + r.Add() - pc) >> 2
+		if t < -1<<21 || t >= 1<<21 {
+			ldr.Errorf(s, "reloc: R_LOONG64_ADDR_PCREL20_S2, offset out of range %d", t)
+		}
+		// pcaddi
 		return val&0xfe00001f | ((t & 0xfffff) << 5), noExtReloc, isOk
 
 	case objabi.R_LOONG64_TLS_LE_HI,
 		objabi.R_LOONG64_TLS_LE_LO:
 		t := ldr.SymAddr(rs) + r.Add()
+		if t < -1<<31 || t >= 1<<31 {
+			ldr.Errorf(s, "reloc: R_LOONG64_TLS_LE_HI/LO, TLS offset out of range %d", t)
+		}
 		if r.Type() == objabi.R_LOONG64_TLS_LE_LO {
+			// ori
 			return val&0xffc003ff | ((t & 0xfff) << 10), noExtReloc, isOk
 		}
+		// lu12i.w
 		return val&0xfe00001f | (((t) >> 12 << 5) & 0x1ffffe0), noExtReloc, isOk
 
 	case objabi.R_CALLLOONG64:
 		pc := ldr.SymValue(s) + int64(r.Off())
 		t := ldr.SymAddr(rs) + r.Add() - pc
+		if t < -1<<27 || t >= 1<<27 {
+			ldr.Errorf(s, "reloc: R_CALLLOONG64, program too large, call relocation distance = %d", t)
+		}
+		// bl
 		return val&0xfc000000 | (((t >> 2) & 0xffff) << 10) | (((t >> 2) & 0x3ff0000) >> 16), noExtReloc, isOk
 
 	case objabi.R_LOONG64_CALL36:
 		pc := ldr.SymValue(s) + int64(r.Off())
 		t := (ldr.SymAddr(rs) + r.Add() - pc) >> 2
+		if t < -1<<37 || t >= 1<<37 {
+			ldr.Errorf(s, "reloc: R_LOONG64_CALL36, program too large, call relocation distance = %d", t)
+		}
 		// val is pcaddu18i (lower half) + jirl (upper half)
 		pcaddu18i := (val & 0xfe00001f) | (((t + 0x8000) >> 16) << 5)
 		jirl := ((val >> 32) & 0xfc0003ff) | ((t & 0xffff) << 10)
@@ -628,8 +644,16 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		pc := ldr.SymValue(s) + int64(r.Off())
 		t := ldr.SymAddr(rs) + r.Add() - pc
 		if r.Type() == objabi.R_JMP16LOONG64 {
+			if t < -1<<17 || t >= 1<<17 {
+				ldr.Errorf(s, "reloc: R_JMP16LOONG64, program too large, jmp relocation distance = %d", t)
+			}
+			// beq/bne/blt[u]/bge[u]
 			return val&0xfc0003ff | (((t >> 2) & 0xffff) << 10), noExtReloc, isOk
 		}
+		if t < -1<<22 || t >= 1<<22 {
+			ldr.Errorf(s, "reloc: R_JMP21LOONG64, program too large, call relocation distance = %d", t)
+		}
+		// beqz/bnez
 		return val&0xfc0003e0 | (((t >> 2) & 0xffff) << 10) | (((t >> 2) & 0x1f0000) >> 16), noExtReloc, isOk
 
 	case objabi.R_LOONG64_TLS_IE_HI,
@@ -639,6 +663,9 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 				ldr.Errorf(s, "TLS reloc on unsupported OS %v", target.HeadType)
 			}
 			t := ldr.SymAddr(rs) + r.Add()
+			if t < -1<<31 || t >= 1<<31 {
+				ldr.Errorf(s, "reloc: R_LOONG64_TLS_IE_HI/LO, TLS offset out of range %d", t)
+			}
 			if r.Type() == objabi.R_LOONG64_TLS_IE_HI {
 				// pcalau12i -> lu12i.w
 				return (0x14000000 | (val & 0x1f) | ((t >> 12) << 5)), noExtReloc, isOk
