@@ -4197,140 +4197,93 @@ func TestTransportBlockingRequestWrite(t *testing.T) {
 	filler := hex.EncodeToString([]byte(randString(2048)))
 	for _, test := range []struct {
 		name string
-		req  func(url string) (*http.Request, error)
+		req  *http.Request
 	}{{
 		name: "headers",
-		req: func(url string) (*http.Request, error) {
-			req, err := http.NewRequest("POST", url, nil)
-			if err != nil {
-				return nil, err
-			}
+		req: func() *http.Request {
+			req, _ := http.NewRequest("POST", "https://dummy.tld/", nil)
 			req.Header.Set("Big", filler)
-			return req, err
-		},
+			return req
+		}(),
 	}, {
 		name: "body",
-		req: func(url string) (*http.Request, error) {
-			req, err := http.NewRequest("POST", url, strings.NewReader(filler))
-			if err != nil {
-				return nil, err
-			}
-			return req, err
-		},
+		req: func() *http.Request {
+			req, _ := http.NewRequest("POST", "https://dummy.tld/", strings.NewReader(filler))
+			return req
+		}(),
 	}, {
 		name: "trailer",
-		req: func(url string) (*http.Request, error) {
-			req, err := http.NewRequest("POST", url, strings.NewReader("body"))
-			if err != nil {
-				return nil, err
-			}
+		req: func() *http.Request {
+			req, _ := http.NewRequest("POST", "https://dummy.tld/", strings.NewReader("body"))
 			req.Trailer = make(http.Header)
 			req.Trailer.Set("Big", filler)
-			return req, err
-		},
+			return req
+		}(),
 	}} {
 		t.Run(test.name, func(t *testing.T) {
-			ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-				if v := r.Header.Get("Big"); v != "" && v != filler {
-					t.Errorf("request header mismatch")
-				}
-				if v, _ := io.ReadAll(r.Body); len(v) != 0 && string(v) != "body" && string(v) != filler {
-					t.Errorf("request body mismatch\ngot:  %q\nwant: %q", string(v), filler)
-				}
-				if v := r.Trailer.Get("Big"); v != "" && v != filler {
-					t.Errorf("request trailer mismatch\ngot:  %q\nwant: %q", string(v), filler)
-				}
-			}, func(h2 *http.HTTP2Config) {
-				h2.MaxConcurrentStreams = 1
-			}, func(s *http.Server) {
-				s.Protocols = protocols("h2c")
+			synctestTest(t, func(t testing.TB) {
+				testTransportBlockingRequestWrite(t, test.req)
 			})
-
-			// This Transport creates connections that block on writes after 1024 bytes.
-			connc := make(chan *blockingWriteConn, 1)
-			connCount := 0
-			tr := newTransport(t)
-			tr.Protocols = protocols("h2c")
-			tr.Dial = func(network, addr string) (net.Conn, error) {
-				connCount++
-				c, err := net.Dial(network, addr)
-				wc := newBlockingWriteConn(c, 1024)
-				select {
-				case connc <- wc:
-				default:
-				}
-				return wc, err
-			}
-			t.Log(ts.URL)
-
-			// Request 1: A small request to ensure we read the server MaxConcurrentStreams.
-			{
-				req, err := http.NewRequest("POST", ts.URL, nil)
-				if err != nil {
-					t.Fatal(err)
-				}
-				res, err := tr.RoundTrip(req)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if got, want := res.StatusCode, 200; got != want {
-					t.Errorf("StatusCode = %v; want %v", got, want)
-				}
-				if res != nil && res.Body != nil {
-					res.Body.Close()
-				}
-			}
-
-			// Request 2: A large request that blocks while being written.
-			reqc := make(chan struct{})
-			go func() {
-				defer close(reqc)
-				req, err := test.req(ts.URL)
-				if err != nil {
-					t.Error(err)
-					return
-				}
-				res, _ := tr.RoundTrip(req)
-				if res != nil && res.Body != nil {
-					res.Body.Close()
-				}
-			}()
-			conn := <-connc
-			conn.wait() // wait for the request to block
-
-			// Request 3: A small request that is sent on a new connection, since request 2
-			// is hogging the only available stream on the previous connection.
-			{
-				req, err := http.NewRequest("POST", ts.URL, nil)
-				if err != nil {
-					t.Fatal(err)
-				}
-				res, err := tr.RoundTrip(req)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if got, want := res.StatusCode, 200; got != want {
-					t.Errorf("StatusCode = %v; want %v", got, want)
-				}
-				if res != nil && res.Body != nil {
-					res.Body.Close()
-				}
-			}
-
-			// Request 2 should still be blocking at this point.
-			select {
-			case <-reqc:
-				t.Errorf("request 2 unexpectedly completed")
-			default:
-			}
-
-			conn.unblock()
-			<-reqc
-
-			if connCount != 2 {
-				t.Errorf("created %v connections, want 1", connCount)
-			}
 		})
+	}
+}
+func testTransportBlockingRequestWrite(t testing.TB, req2 *http.Request) {
+	tt := newTestTransport(t)
+
+	smallReq := func() *http.Request {
+		req, _ := http.NewRequest("GET", req2.URL.String(), nil)
+		return req
+	}
+
+	// Request 1: A small request to ensure we read the server MaxConcurrentStreams.
+	rt1 := tt.roundTrip(smallReq())
+	tc1 := tt.getConn()
+	tc1.wantFrameType(FrameSettings)
+	tc1.wantFrameType(FrameWindowUpdate)
+	tc1.wantHeaders(wantHeader{
+		streamID:  1,
+		endStream: true,
+	})
+	tc1.writeSettings(Setting{SettingMaxConcurrentStreams, 1})
+	tc1.writeHeaders(HeadersFrameParam{
+		StreamID:   1,
+		EndHeaders: true,
+		EndStream:  true,
+		BlockFragment: tc1.makeHeaderBlockFragment(
+			":status", "200",
+		),
+	})
+	rt1.wantStatus(200)
+	tc1.wantFrameType(FrameSettings) // settings ACK
+
+	// Request 2: A large request that blocks while being written.
+	tc1.netconn.SetReadBufferSize(1024)
+	rt2 := tt.roundTrip(req2)
+
+	// Request 3: A small request that is sent on a new connection, since request 2
+	// is hogging the only available stream on the previous connection.
+	rt3 := tt.roundTrip(smallReq())
+	tc2 := tt.getConn()
+	tc2.wantFrameType(FrameSettings)
+	tc2.wantFrameType(FrameWindowUpdate)
+	tc2.wantHeaders(wantHeader{
+		streamID:  1,
+		endStream: true,
+	})
+	tc2.writeSettings()
+	tc2.writeHeaders(HeadersFrameParam{
+		StreamID:   1,
+		EndHeaders: true,
+		EndStream:  true,
+		BlockFragment: tc1.makeHeaderBlockFragment(
+			":status", "200",
+		),
+	})
+	rt3.wantStatus(200)
+	tc2.wantFrameType(FrameSettings) // settings ACK
+
+	if rt2.done() {
+		t.Errorf("RoundTrip 2 is done, expect it to be still pending")
 	}
 }
 
