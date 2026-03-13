@@ -195,9 +195,12 @@ type transportTestHooks struct {
 }
 
 func (t *Transport) maxHeaderListSize() uint32 {
-	n := t.t1.MaxResponseHeaderBytes()
-	if n > 0 {
-		n = adjustHTTP1MaxHeaderSize(n)
+	n := t.t1.MaxHeaderListSize()
+	if b := t.t1.MaxResponseHeaderBytes(); b != 0 {
+		n = b
+		if n > 0 {
+			n = adjustHTTP1MaxHeaderSize(n)
+		}
 	}
 	if n <= 0 {
 		return 10 << 20
@@ -3251,6 +3254,10 @@ func (cc NetHTTPClientConn) InFlight() int {
 	cc.cc.mu.Lock()
 	defer cc.cc.mu.Unlock()
 	return cc.cc.currentRequestCountLocked()
+}
+
+func (cc NetHTTPClientConn) Ping(ctx context.Context) error {
+	return cc.cc.Ping(ctx)
 }
 
 func (cc *ClientConn) maybeCallStateHook() {

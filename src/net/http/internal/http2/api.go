@@ -94,6 +94,7 @@ type Header = textproto.MIMEHeader
 
 // TransportConfig is configuration from an http.Transport.
 type TransportConfig interface {
+	MaxHeaderListSize() int64
 	MaxResponseHeaderBytes() int64
 	DisableCompression() bool
 	DisableKeepAlives() bool

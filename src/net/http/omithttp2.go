@@ -7,6 +7,7 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"net"
 )
@@ -22,13 +23,25 @@ func (t *Transport) configureHTTP2(protocols Protocols) {}
 func (t *Transport) http2AddConn(scheme, authority string, nc net.Conn) (RoundTripper, error) {
 	return nil, errors.ErrUnsupported
 }
+func (t *Transport) http2ExternalDial(ctx context.Context, cm connectMethod) (RoundTripper, error) {
+	return nil, errors.ErrUnsupported
+}
 func (t *Transport) http2NewClientConn(nc net.Conn, internalStateHook func()) (RoundTripper, error) {
+	return nil, errors.ErrUnsupported
+}
+func (t *Transport) http2NewClientConnFromContext(ctx context.Context) (*ClientConn, error) {
 	return nil, errors.ErrUnsupported
 }
 
 type http2Server struct{}
 
 type http2Transport struct{}
+type http2ExternalTransportConfig interface {
+	ExternalRoundTrip() bool
+	RoundTrip(*Request) (*Response, error)
+	Registered(*Transport)
+	unimplementable()
+}
 
 func (*http2Transport) CloseIdleConnections()            {}
 func (*http2Transport) IdleConnStrsForTesting() []string { return nil }

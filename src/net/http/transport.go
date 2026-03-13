@@ -287,11 +287,12 @@ type Transport struct {
 	ReadBufferSize int
 
 	// nextProtoOnce guards initialization of TLSNextProto and
-	// h2transport (via onceSetNextProtoDefaults)
+	// h2Transport (via onceSetNextProtoDefaults)
 	nextProtoOnce      sync.Once
 	closeIdleFunc      closeIdleConnectionser // non-nil if http2 wired up
-	http2Transport     *http2Transport
-	h3transport        dialClientConner // non-nil if http3 wired up
+	h2Transport        *http2Transport
+	h2Config           http2ExternalTransportConfig
+	h3Transport        dialClientConner // non-nil if http3 wired up
 	tlsNextProtoWasNil bool             // whether TLSNextProto was nil when the Once fired
 
 	// ForceAttemptHTTP2 controls whether HTTP/2 is enabled when a non-zero
@@ -573,6 +574,15 @@ func (t *Transport) useRegisteredProtocol(req *Request) bool {
 func (t *Transport) alternateRoundTripper(req *Request) RoundTripper {
 	if !t.useRegisteredProtocol(req) {
 		return nil
+	}
+	if req.URL.Scheme == "https" && t.h2Config != nil && t.h2Config.ExternalRoundTrip() {
+		// This Transport has been configured to use an x/net/http2 Transport
+		// with a user-provided ClientConnPool. We're going to pass off the
+		// RoundTrip to x/net/http2 so it can use that pool.
+		//
+		// The ClientConnPool API is deprecated, but we're doing our best here
+		// to continue supporting any users who are using it.
+		return t.h2Config
 	}
 	altProto, _ := t.altProto.Load().(map[string]RoundTripper)
 	return altProto[req.URL.Scheme]
@@ -898,9 +908,20 @@ func (t *Transport) registerProtocol(scheme string, rt RoundTripper) error {
 	t.altMu.Lock()
 	defer t.altMu.Unlock()
 
+	if scheme == "http/2" {
+		if t.h2Config != nil {
+			panic("http: HTTP/2 Transport already registered")
+		}
+		var ok bool
+		if t.h2Config, ok = rt.(http2ExternalTransportConfig); !ok {
+			panic("http: HTTP/2 configuration does not implement ExternalTransportConfig")
+		}
+		t.h2Config.Registered(t)
+	}
+
 	if scheme == "http/3" {
 		var ok bool
-		if t.h3transport, ok = rt.(dialClientConner); !ok {
+		if t.h3Transport, ok = rt.(dialClientConner); !ok {
 			panic("http: HTTP/3 RoundTripper does not implement DialClientConn")
 		}
 	}
@@ -946,7 +967,7 @@ func (t *Transport) CloseIdleConnections() {
 	// Tell various associated transports to close their connections.
 
 	// net/http/internal/http2 transport. This is the common case for HTTP/2 users.
-	if tr2 := t.http2Transport; tr2 != nil {
+	if tr2 := t.h2Transport; tr2 != nil {
 		tr2.CloseIdleConnections()
 	}
 	// Probably an older x/net/http2 transport registered via Transport.RegisterProtocol.
@@ -957,7 +978,7 @@ func (t *Transport) CloseIdleConnections() {
 		t2.CloseIdleConnections()
 	}
 	// HTTP/3 transport, probably from x/net/http3.
-	if cc, ok := t.h3transport.(closeIdleConnectionser); ok {
+	if cc, ok := t.h3Transport.(closeIdleConnectionser); ok {
 		cc.CloseIdleConnections()
 	}
 }
@@ -1818,10 +1839,10 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 		if p.HTTP1() || p.HTTP2() || p.UnencryptedHTTP2() {
 			return nil, errors.New("http: when using HTTP3, Transport.Protocols must contain only HTTP3")
 		}
-		if t.h3transport == nil {
+		if t.h3Transport == nil {
 			return nil, errors.New("http: Transport.Protocols contains HTTP3, but Transport does not support HTTP/3")
 		}
-		rt, err := t.h3transport.DialClientConn(ctx, cm.addr(), cm.proxyURL, internalStateHook)
+		rt, err := t.h3Transport.DialClientConn(ctx, cm.addr(), cm.proxyURL, internalStateHook)
 		if err != nil {
 			return nil, err
 		}
@@ -1851,6 +1872,14 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 		}
 		return err
 	}
+
+	if rt, err := t.http2ExternalDial(ctx, cm); err != errors.ErrUnsupported {
+		if err != nil {
+			return nil, err
+		}
+		return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: rt}, nil
+	}
+
 	if cm.scheme() == "https" && t.hasCustomTLSDialer() {
 		var err error
 		pconn.conn, err = t.customDialTLS(ctx, "tcp", cm.addr())
@@ -2018,7 +2047,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 	http2 := unencryptedHTTP2 ||
 		(pconn.tlsState != nil && pconn.tlsState.NegotiatedProtocol == "h2")
 
-	if http2 && t.http2Transport != nil {
+	if http2 && t.h2Transport != nil {
 		if isClientConn {
 			cc, err := t.http2NewClientConn(pconn.conn, internalStateHook)
 			if err == nil {
