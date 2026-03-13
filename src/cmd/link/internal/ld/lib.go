@@ -1488,6 +1488,12 @@ func (ctxt *Link) hostlink() {
 				argv = append(argv, "-Wl,-x")
 			}
 		}
+		if *flagRace {
+			// With https://github.com/llvm/llvm-project/pull/182943, the race object
+			// has a weak import of __dyld_get_dyld_header, which is only defined on
+			// newer macOS (26.4+).
+			argv = append(argv, "-Wl,-U,__dyld_get_dyld_header")
+		}
 		if *flagHostBuildid == "none" {
 			argv = append(argv, "-Wl,-no_uuid")
 		}
