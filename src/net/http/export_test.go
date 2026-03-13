@@ -141,8 +141,8 @@ func (t *Transport) IdleConnStrsForTesting() []string {
 			ret = append(ret, pc.conn.LocalAddr().String()+"/"+pc.conn.RemoteAddr().String())
 		}
 	}
-	if f, ok := t.h2transport.(interface{ IdleConnStrsForTesting() []string }); ok {
-		ret = append(ret, f.IdleConnStrsForTesting()...)
+	if t.http2Transport != nil {
+		ret = append(ret, t.http2Transport.IdleConnStrsForTesting()...)
 	}
 	slices.Sort(ret)
 	return ret
