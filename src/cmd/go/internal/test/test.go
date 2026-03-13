@@ -78,11 +78,11 @@ As part of building a test binary, go test runs go vet on the package
 and its test source files to identify significant problems. If go vet
 finds any problems, go test reports those and does not run the test
 binary. Only a high-confidence subset of the default go vet checks are
-used. That subset is: atomic, bool, buildtags, directive, errorsas,
-ifaceassert, nilfunc, printf, stringintconv, and tests. You can see
-the documentation for these and other vet tests via "go doc cmd/vet".
-To disable the running of go vet, use the -vet=off flag. To run all
-checks, use the -vet=all flag.
+used. That subset is: atomic, bools, buildtag, directive, errorsas,
+ifaceassert, nilfunc, printf, stdversion, stringintconv, and tests.
+You can see the documentation for these and other vet tests via
+"go doc cmd/vet". To disable the running of go vet, use the -vet=off flag.
+To run all checks, use the -vet=all flag.
 
 All test output and summary lines are printed to the go command's
 standard output, even if the test printed them to its own standard
@@ -654,31 +654,41 @@ func testShowPass() bool {
 var defaultVetFlags = []string{
 	// TODO(rsc): Decide which tests are enabled by default.
 	// See golang.org/issue/18085.
+	// "-appends",
 	// "-asmdecl",
 	// "-assign",
 	"-atomic",
-	"-bool",
-	"-buildtags",
+	"-bools",
+	"-buildtag",
 	// "-cgocall",
 	// "-composites",
 	// "-copylocks",
+	// "-defers",
 	"-directive",
 	"-errorsas",
+	// "-framepointer",
+	// "-hostport",
 	// "-httpresponse",
 	"-ifaceassert",
+	// "-loopclosure",
 	// "-lostcancel",
-	// "-methods",
 	"-nilfunc",
 	"-printf",
-	// "-rangeloops",
 	// "-shift",
+	// "-sigchanyzer",
 	"-slog",
+	// "-stdmethods",
+	"-stdversion",
 	"-stringintconv",
-	// "-structtags",
+	// "-structtag",
+	// "-testinggoroutine",
 	"-tests",
+	// "-timeformat",
+	// "-unmarshal",
 	// "-unreachable",
 	// "-unsafeptr",
 	// "-unusedresult",
+	// "-waitgroup",
 }
 
 func runTest(ctx context.Context, cmd *base.Command, args []string) {
