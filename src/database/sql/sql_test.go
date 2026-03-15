@@ -4483,6 +4483,8 @@ func testContextCancelDuringRawBytesScan(t *testing.T, mode string) {
 		for _, b := range s { // some operation reading from the raw memory
 			sink += b
 		}
+		// r.Columns must not deadlock acquiring closemu.RLock.
+		_, _ = r.Columns()
 	}
 	if r.closemuScanHold {
 		t.Errorf("closemu held; should not be")

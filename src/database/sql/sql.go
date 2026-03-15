@@ -1986,7 +1986,7 @@ type Conn struct {
 	// closemu prevents the connection from closing while there
 	// is an active query. It is held for read during queries
 	// and exclusively during close.
-	closemu sync.RWMutex
+	closemu closingMutex
 
 	// dc is owned until close, at which point
 	// it's returned to the connection pool.
@@ -2176,7 +2176,7 @@ type Tx struct {
 	// closemu prevents the transaction from closing while there
 	// is an active query. It is held for read during queries
 	// and exclusively during close.
-	closemu sync.RWMutex
+	closemu closingMutex
 
 	// dc is owned exclusively until Commit or Rollback, at which point
 	// it's returned with putConn.
@@ -2613,7 +2613,7 @@ type Stmt struct {
 	query     string // that created the Stmt
 	stickyErr error  // if non-nil, this error is returned for all operations
 
-	closemu sync.RWMutex // held exclusively during close, for read otherwise.
+	closemu closingMutex // held exclusively during close, for read otherwise.
 
 	// If Stmt is prepared on a Tx or Conn then cg is present and will
 	// only ever grab a connection from cg.
@@ -2947,7 +2947,7 @@ type Rows struct {
 	// and exclusively during close.
 	//
 	// closemu guards lasterr and closed.
-	closemu sync.RWMutex
+	closemu closingMutex
 	lasterr error // non-nil only if closed is true
 	closed  bool
 
@@ -3044,9 +3044,11 @@ func (rs *Rows) Next() bool {
 	}
 
 	var doClose, ok bool
-	withLock(rs.closemu.RLocker(), func() {
+	func() {
+		rs.closemu.RLock()
+		defer rs.closemu.RUnlock()
 		doClose, ok = rs.nextLocked()
-	})
+	}()
 	if doClose {
 		rs.Close()
 	}
