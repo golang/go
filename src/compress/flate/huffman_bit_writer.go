@@ -123,7 +123,7 @@ type huffmanBitWriter struct {
 	nbits  uint8
 	nbytes uint8
 
-	// If 'wroteHuffman' is set, a table for outputting only literals
+	// If wroteHuffman is set, a table for outputting only literals
 	// has been generated and offsets are invalid.
 	wroteHuffman    bool
 	literalEncoding *huffmanEncoder
@@ -200,7 +200,7 @@ func (w *huffmanBitWriter) canReuse(t *tokens) (ok bool) {
 	return true
 }
 
-// flush the currently encoded data.
+// flush flushes the currently encoded data.
 // An EOB will be written if the current block hasn't been ended.
 func (w *huffmanBitWriter) flush() {
 	if w.err != nil {
@@ -230,7 +230,7 @@ func (w *huffmanBitWriter) flush() {
 	w.nbytes = 0
 }
 
-// write the provided bytes directly to the output,
+// write writes the provided bytes directly to the output,
 // ignoring all queued bytes.
 func (w *huffmanBitWriter) write(b []byte) {
 	if w.err != nil {
@@ -981,6 +981,11 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte, sync bool) {
 	ssize, storable := w.storedSize(input)
 	if storable && len(input) > 1024 {
 		// Quick check for incompressible content.
+		// The following checks if all frequencies lie
+		// close to the average frequency.
+		// If so, we quickly store the data uncompressed.
+		// This will typically only trigger on random data.
+		// Most other data will typically exit after only a few iterations.
 		abs := float64(0)
 		avg := float64(len(input)) / 256
 		max := float64(len(input) * 2)

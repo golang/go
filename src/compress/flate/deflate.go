@@ -750,7 +750,7 @@ func (d *compressor) init(w io.Writer, level int) (err error) {
 	return nil
 }
 
-// reset the compressor with a new output writer.
+// reset resets the compressor with a new output writer.
 func (d *compressor) reset(w io.Writer) {
 	d.w.reset(w)
 	d.sync = false
@@ -781,7 +781,7 @@ func (d *compressor) reset(w io.Writer) {
 
 var errWriterClosed = errors.New("flate: closed writer")
 
-// close will flush any uncompressed data and write an EOF block.
+// close flushes any uncompressed data and writes an EOF block.
 func (d *compressor) close() error {
 	if d.err == errWriterClosed {
 		return nil
