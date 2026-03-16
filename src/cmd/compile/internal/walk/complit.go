@@ -127,7 +127,8 @@ func getdyn(n ir.Node, top bool) initGenType {
 	return mode
 }
 
-// isStaticCompositeLiteral reports whether n is a compile-time constant.
+// isStaticCompositeLiteral reports whether n is a compile-time constant,
+// which can be represented in the read-only data section.
 func isStaticCompositeLiteral(n ir.Node) bool {
 	switch n.Op() {
 	case ir.OSLICELIT:
@@ -153,6 +154,11 @@ func isStaticCompositeLiteral(n ir.Node) bool {
 		}
 		return true
 	case ir.OLITERAL, ir.ONIL:
+		if base.Ctxt.IsFIPS() && n.Type().IsString() {
+			// A string reference requires a relocation, not allowed
+			// in static data in FIPS mode.
+			return false
+		}
 		return true
 	case ir.OCONVIFACE:
 		// See staticinit.Schedule.StaticAssign's OCONVIFACE case for comments.
