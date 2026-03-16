@@ -25,8 +25,8 @@ import (
 )
 
 // uirVersion is the unified IR version to use for encoding/decoding.
-// Use V2 as the encoded version for aliastypeparams.
-const uirVersion = pkgbits.V2
+// Use V3 for promoted struct field support in composite literals.
+const uirVersion = pkgbits.V3
 
 // localPkgReader holds the package reader used for reading the local
 // package. It exists so the unified IR linker can refer back to it
