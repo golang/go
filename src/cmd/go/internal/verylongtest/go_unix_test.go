@@ -20,6 +20,8 @@ import (
 )
 
 func TestGoBuildUmask(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
 	// Do not use tg.parallel; avoid other tests seeing umask manipulation.
 	mask := syscall.Umask(0077) // prohibit low bits
 	defer syscall.Umask(mask)
@@ -83,6 +85,7 @@ func TestTestInterrupt(t *testing.T) {
 	if testing.Short() {
 		t.Skipf("skipping in short mode: test executes many subprocesses")
 	}
+	testenv.MustHaveGoBuild(t)
 	// Don't run this test in parallel, for the same reason.
 
 	gotool, err := testenv.GoTool()
