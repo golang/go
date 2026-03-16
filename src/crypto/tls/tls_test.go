@@ -963,6 +963,8 @@ func TestCloneNonFuncFields(t *testing.T) {
 			f.Set(reflect.ValueOf([]EncryptedClientHelloKey{
 				{Config: []byte{1}, PrivateKey: []byte{1}},
 			}))
+		case "RATLSChallenge":
+			f.Set(reflect.ValueOf([]byte("test-nonce")))
 		case "mutex", "autoSessionTicketKeys", "sessionTicketKeys":
 			continue // these are unexported fields that are handled separately
 		default:
