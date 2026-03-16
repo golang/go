@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.27 (March 5, 2026)",
+	"Subtitle": "Language version go1.27 (March 16, 2026)",
 	"Path": "/ref/spec"
 }-->
 
@@ -3211,13 +3211,13 @@ For struct literals with keys the following rules apply:
 	<li>Every element must have a key.
 	</li>
 	<li>Each key must be a valid field <a href="#Selectors">selector</a>
-	    [<a href="#Go_1.27">Go 1.27</a>] for a (possibly embedded) field
+	    [<a href="#Go_1.27">Go 1.27</a>] for a (possibly promoted) field
 	    of the struct; the key selects that field.
 	</li>
 	<li>The types of the embedded fields (if any) <a href="#Selectors">traversed</a>
 	    to reach a selected field must not be pointer types.
 	</li>
-	<li>A key must not denote a field inside an embedded struct if
+	<li>A key must not denote a promoted field inside an embedded struct if
 	    that struct is also specified by another key.
 	</li>
 	<li>The element list does not need to have an element for each struct field.
