@@ -248,7 +248,7 @@ and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environm
 Go 1.25 (starting with Go 1.25 RC 2) disabled build information stamping when
 multiple VCS are detected due to concerns around VCS injection attacks. This
 behavior and setting was backported to Go 1.24.5 and Go 1.23.11. This behavior
-can be renabled with the setting `allowmultiplevcs=1`.
+can be re-enabled with the setting `allowmultiplevcs=1`.
 
 ### Go 1.24
 
