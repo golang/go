@@ -563,12 +563,6 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	const noExtReloc = 0
 
 	switch r.Type() {
-	case objabi.R_CONST:
-		return r.Add(), noExtReloc, isOk
-
-	case objabi.R_GOTOFF:
-		return ldr.SymValue(r.Sym()) + r.Add() - ldr.SymValue(syms.GOT), noExtReloc, isOk
-
 	case objabi.R_LOONG64_ADDR_HI,
 		objabi.R_LOONG64_ADDR_LO,
 		objabi.R_LOONG64_ADDR64_HI,
