@@ -31,6 +31,7 @@ var (
 	RISCV64HasV      = cpu.RISCV64.HasV
 	RISCV64HasZvbb   = cpu.RISCV64.HasZvbb
 	RISCV64HasZvknha = cpu.RISCV64.HasZvknha
+	RISCV64HasZvknhb = cpu.RISCV64.HasZvknhb
 	RISCV64VLENB     = cpu.RISCV64.VLENB
 
 	S390XHasAES    = cpu.S390X.HasAES
