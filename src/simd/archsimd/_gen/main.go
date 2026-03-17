@@ -22,6 +22,7 @@ var (
 	flagTmplgen = flag.Bool("tmplgen", true, "run tmplgen generator")
 	flagSimdgen = flag.Bool("simdgen", true, "run simdgen generator")
 	flagWasmgen = flag.Bool("wasmgen", true, "run wasmgen generator")
+	flagMidway  = flag.Bool("midway", true, "run midway generator")
 
 	flagN         = flag.Bool("n", false, "dry run")
 	flagXedPath   = flag.String("xedPath", defaultXedPath, "load XED datafile from `path`, which must be the XED obj/dgen directory")
@@ -80,6 +81,10 @@ func main() {
 		}
 		ssaGen(ssaGenPath)
 	}
+
+	if *flagMidway {
+		doMidway()
+	}
 }
 
 func removeSimdGenericOps(ssaGenPath string) {
@@ -106,6 +111,11 @@ func doTmplgen() {
 func doWasmgen() {
 	goRun("-C", "wasmgen", ".")
 }
+
+func doMidway() {
+	goRun("-C", "midway", ".")
+}
+
 func doSimdgen() {
 	xedPath, err := resolveXEDPath(*flagXedPath)
 	if err != nil {

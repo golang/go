@@ -780,7 +780,9 @@ func (pw *pkgWriter) objIdx(obj types2.Object) index {
 
 	if isDefinedType(obj) && obj.Pkg() == pw.curpkg {
 		decl, ok := pw.typDecls[obj.(*types2.TypeName)]
-		assert(ok)
+		if !ok {
+			base.Fatalf("%v not in pw.typDecls", obj.(*types2.TypeName))
+		}
 		dict.implicits = decl.implicits
 	}
 

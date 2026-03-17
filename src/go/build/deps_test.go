@@ -260,6 +260,10 @@ var depsRules = `
 
 	FMT, encoding < flag;
 
+	FMT, simd/archsimd < simd/internal/bridge;
+
+	simd/internal/bridge < simd;
+
 	fmt !< encoding/base32, encoding/base64;
 
 	FMT, encoding, encoding/base32, encoding/base64, encoding/binary,
