@@ -1281,6 +1281,9 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 
 	// addLabelSyms adds "label" symbols at s+limit, s+2*limit, etc.
 	addLabelSyms := func(s loader.Sym, limit, sz int64) {
+		if ldr.SymSect(s) == nil {
+			log.Fatalf("gensymlate: symbol %s has no section (type=%v)", ldr.SymName(s), ldr.SymType(s))
+		}
 		v := ldr.SymValue(s)
 		for off := limit; off < sz; off += limit {
 			p := ldr.LookupOrCreateSym(offsetLabelName(ldr, s, off), ldr.SymVersion(s))
@@ -1331,6 +1334,10 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 		}
 		if t >= sym.SDWARFSECT {
 			continue // no need to add label for DWARF symbols
+		}
+		if ldr.AttrSpecial(s) || !ldr.TopLevelSym(s) {
+			// no need to add label for special symbols and non-top-level symbols
+			continue
 		}
 		sz := ldr.SymSize(s)
 		if sz <= limit {
