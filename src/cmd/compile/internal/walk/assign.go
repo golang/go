@@ -723,6 +723,8 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	if hasPointers {
 		clrname = "memclrHasPointers"
 		ir.CurFunc.SetWBPos(n.Pos())
+	} else if ir.CurFunc.Pragma&ir.Nosplit != 0 {
+		clrname = "memclrNoHeapPointers"
 	}
 
 	var clr ir.Nodes
