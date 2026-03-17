@@ -19,6 +19,7 @@ const (
 	fixedRootFinalizers = iota
 	fixedRootFreeGStacks
 	fixedRootCleanups
+	fixedRootUserFrames
 	fixedRootCount
 
 	// rootBlockBytes is the number of bytes to scan per data or
@@ -253,6 +254,11 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
 			n := uintptr(atomic.Load(&cb.n))
 			scanblock(uintptr(unsafe.Pointer(&cb.cleanups[0])), n*unsafe.Sizeof(cleanupFn{}), &cleanupBlockPtrMask[0], gcw, nil)
 		}
+
+	case i == fixedRootUserFrames:
+		// Scan user frame (JIT) roots. Each registered region may
+		// hold Go pointers in shadow stacks or other structures.
+		userFrameScanRoots(gcw)
 
 	case work.baseSpans <= i && i < work.baseStacks:
 		// mark mspan.specials
