@@ -199,7 +199,7 @@ SecP256r1MLKEM768 and SecP384r1MLKEM1024. The default can be reverted using the
 [`tlssecpmlkem` setting](/pkg/crypto/tls/#Config.CurvePreferences).
 
 Go 1.26 added a new `tracebacklabels` setting that controls the inclusion of
-goroutine labels set through the the `runtime/pprof` package. Setting `tracebacklabels=1`
+goroutine labels set through the `runtime/pprof` package. Setting `tracebacklabels=1`
 includes these key/value pairs in the goroutine status header of runtime
 tracebacks and debug=2 runtime/pprof stack dumps. This format may change in the future.
 (see go.dev/issue/76349)
