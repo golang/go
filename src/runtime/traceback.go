@@ -121,6 +121,13 @@ type unwinder struct {
 	// flags are the flags to this unwind. Some of these are updated as we
 	// unwind (see the flags documentation).
 	flags unwindFlags
+
+	// userFramePC is the PC of a user frame that was skipped during the
+	// last next() call. Non-zero only when the skipped region uses
+	// UnwindDeclare mode. Used by traceback2 to print user frame info.
+	// This field is pointer-free (uintptr) to maintain the invariant
+	// that unwinder contains no pointers.
+	userFramePC uintptr
 }
 
 // init initializes u to start unwinding gp's stack and positions the
@@ -207,6 +214,26 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
 
 	f := findfunc(frame.pc)
 	if !f.valid() {
+		// Check if this PC belongs to a registered user frame region.
+		fr := findUserFrameRegion(frame.pc)
+		if fr != nil {
+			// User frame. Try to get caller info to continue unwinding.
+			callerPC, callerSP, _, ok := userFrameNext(fr, frame.pc, frame.sp)
+			if ok && callerPC != 0 {
+				// We can unwind past this user frame.
+				frame.pc = callerPC
+				frame.sp = callerSP
+				frame.fp = 0
+				frame.lr = 0
+				f = findfunc(frame.pc)
+				if f.valid() {
+					goto userFrameResolved
+				}
+			}
+			// Cannot unwind further — stop gracefully.
+			*u = unwinder{}
+			return
+		}
 		if flags&unwindSilentErrors == 0 {
 			print("runtime: g ", gp.goid, " gp=", gp, ": unknown pc ", hex(frame.pc), "\n")
 			tracebackHexdump(gp.stack, &frame, 0)
@@ -217,6 +244,7 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
 		*u = unwinder{}
 		return
 	}
+userFrameResolved:
 	frame.fn = f
 
 	// Populate the unwinder.
@@ -461,6 +489,33 @@ func (u *unwinder) next() {
 	}
 	flr := findfunc(frame.lr)
 	if !flr.valid() {
+		// Check if the return address is in a user frame region.
+		// This handles the case where Go code was called from JIT code.
+		fr := findUserFrameRegion(frame.lr)
+		if fr != nil {
+			// The caller is user code. Try to unwind past it.
+			callerPC, callerSP, _, ok := userFrameNext(fr, frame.lr, frame.fp)
+			if ok && callerPC != 0 {
+				flr = findfunc(callerPC)
+				if flr.valid() {
+					// Successfully resolved past the user frame.
+					// frame.fp is used by next() as the caller's SP.
+					if fr.unwindMode == userFrameUnwindDeclare {
+						u.userFramePC = frame.lr
+					} else {
+						u.userFramePC = 0
+					}
+					frame.lr = callerPC
+					frame.fp = callerSP
+					goto userFrameCallerResolved
+				}
+			}
+			// Cannot unwind further — stop gracefully.
+			frame.lr = 0
+			u.finishInternal()
+			return
+		}
+
 		// This happens if you get a profiling interrupt at just the wrong time.
 		fail := u.errFatal()
 		doPrint := u.flags&unwindSilentErrors == 0
@@ -482,6 +537,7 @@ func (u *unwinder) next() {
 		u.finishInternal()
 		return
 	}
+userFrameCallerResolved:
 
 	if frame.pc == frame.lr && frame.sp == frame.fp {
 		// If the next frame is identical to the current frame, we cannot make
@@ -1085,6 +1141,36 @@ func traceback2(u *unwinder, showRuntime bool, skip, max int) (n, lastN int) {
 				}
 			}
 			print("\n")
+		}
+
+		// Print user frame that was skipped during unwinding (UnwindDeclare mode).
+		if u.userFramePC != 0 {
+			pc := u.userFramePC
+			u.userFramePC = 0
+			fr := findUserFrameRegion(pc)
+			if fr != nil && fr.describe != nil {
+				name, file, line, ok := fr.describe(pc)
+				if ok {
+					if pr, stop := commitFrame(); stop {
+						return
+					} else if pr {
+						printFuncName(name)
+						print("()\n")
+						if file != "" {
+							print("\t", file, ":", line)
+						} else {
+							print("\t<user frame>")
+						}
+						print(" pc=", hex(pc), "\n")
+					}
+				}
+			} else {
+				if pr, stop := commitFrame(); stop {
+					return
+				} else if pr {
+					print("user-frame function at pc=", hex(pc), "\n")
+				}
+			}
 		}
 
 		// Print cgo frames.
