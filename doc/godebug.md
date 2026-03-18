@@ -156,7 +156,7 @@ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
 ### Go 1.27
 
-Go 1.27 removed the `gotypesalias` setting, as noted in the [Go 1.22][#go-122] section.
+Go 1.27 removed the `gotypesalias` setting, as noted in the [Go 1.22](#go-122) section.
 
 Go 1.27 added a new `htmlmetacontenturlescape` setting that controls whether
 html/template will escape URLs in the `url=` portion of the content attribute of
@@ -165,7 +165,7 @@ escaped. Setting `htmlmetacontentescape=0` disables this behavior. To avoid
 content injection attacks, this setting and default was backported to Go 1.25.8
 and Go 1.26.1.
 
-Go 1.27 changes the default for `tracebacklabels` (added in [Go 1.26][#go-126])
+Go 1.27 changes the default for `tracebacklabels` (added in [Go 1.26](#go-126))
 to `1`. This opt-out is expected to be kept indefinitely in case goroutine
 labels acquire sensitive information that shouldn't be made available in
 tracebacks.
