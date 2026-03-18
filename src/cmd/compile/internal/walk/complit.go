@@ -85,9 +85,7 @@ const (
 func getdyn(n ir.Node, top bool) initGenType {
 	switch n.Op() {
 	default:
-		// Handle constants in linker, except that linker cannot do
-		// the relocations necessary for string constants in FIPS packages.
-		if ir.IsConstNode(n) && (!n.Type().IsString() || !base.Ctxt.IsFIPS()) {
+		if isStaticLiteral(n) {
 			return initConst
 		}
 		return initDynamic
@@ -127,8 +125,17 @@ func getdyn(n ir.Node, top bool) initGenType {
 	return mode
 }
 
-// isStaticCompositeLiteral reports whether n is a compile-time constant,
-// which can be represented in the read-only data section.
+// isStaticLiteral reports whether n is a compile-time (non-composite)
+// constant, which can be represented in the read-only data section.
+func isStaticLiteral(n ir.Node) bool {
+	// A string reference requires a relocation, not allowed
+	// in static data in FIPS mode.
+	return ir.IsConstNode(n) && !(base.Ctxt.IsFIPS() && n.Type().IsString())
+}
+
+// isStaticCompositeLiteral reports whether a composite literal n
+// is a compile-time constant, which can be represented in the
+// read-only data section.
 func isStaticCompositeLiteral(n ir.Node) bool {
 	switch n.Op() {
 	case ir.OSLICELIT:
@@ -153,13 +160,10 @@ func isStaticCompositeLiteral(n ir.Node) bool {
 			}
 		}
 		return true
-	case ir.OLITERAL, ir.ONIL:
-		if base.Ctxt.IsFIPS() && n.Type().IsString() {
-			// A string reference requires a relocation, not allowed
-			// in static data in FIPS mode.
-			return false
-		}
+	case ir.ONIL:
 		return true
+	case ir.OLITERAL:
+		return isStaticLiteral(n)
 	case ir.OCONVIFACE:
 		// See staticinit.Schedule.StaticAssign's OCONVIFACE case for comments.
 		if base.Ctxt.IsFIPS() && base.Ctxt.Flag_shared {
@@ -264,7 +268,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 			continue
 		}
 
-		islit := ir.IsConstNode(value)
+		islit := isStaticLiteral(value)
 		if (kind == initKindStatic && !islit) || (kind == initKindDynamic && islit) {
 			continue
 		}
@@ -404,7 +408,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 			continue
 		}
 
-		if vstat != nil && ir.IsConstNode(value) { // already set by copy from static value
+		if vstat != nil && isStaticLiteral(value) { // already set by copy from static value
 			continue
 		}
 
