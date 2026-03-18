@@ -457,6 +457,7 @@ type PackageError struct {
 	Err              error       // the error itself
 	IsImportCycle    bool        // the error is an import cycle
 	alwaysPrintStack bool        // whether to always print the ImportStack
+	importerPos      bool        // Pos refers to the importer, not the imported package
 }
 
 func (p *PackageError) Error() string {
@@ -509,6 +510,13 @@ func (p *PackageError) setPos(posList []token.Position) {
 	pos := posList[0]
 	pos.Filename = base.ShortPath(pos.Filename)
 	p.Pos = pos.String()
+	p.importerPos = true
+}
+
+// IsImporterPos reports whether Pos refers to the import statement
+// in the importing package, not to the imported package's source.
+func (p *PackageError) IsImporterPos() bool {
+	return p.importerPos
 }
 
 // ImportPathError is a type of error that prevents a package from being loaded
