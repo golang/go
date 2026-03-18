@@ -21,11 +21,39 @@ func f(x string) int {
 	}
 }
 
-// use jump tables for 8+ int cases
-func square(x int) int {
+// use jump tables for 8+ string cases
+// Using multiple return values prevent lookup tables.
+func squareJump(x int) (int, int) {
 	// amd64:`JMP \(.*\)\(.*\)$`
 	// arm64:`MOVD \(R.*\)\(R.*<<3\)` `JMP \(R.*\)$`
 	// loong64: `ALSLV` `MOVV` `JMP`
+	switch x {
+	case 1:
+		return 1, 1
+	case 2:
+		return 4, 2
+	case 3:
+		return 9, 3
+	case 4:
+		return 16, 4
+	case 5:
+		return 25, 5
+	case 6:
+		return 36, 6
+	case 7:
+		return 49, 7
+	case 8:
+		return 64, 8
+	default:
+		return x * x, x
+	}
+}
+
+// use lookup tables for 8+ int cases returning constants
+func squareLookup(x int) int {
+	// amd64:`LEAQ .*\(SB\)` `MOVQ .*\(.*\)\(.*\*8\)` -`JMP \(.*\)\(.*\)$`
+	// arm64:`MOVD \(R.*\)\(R.*<<3\)` -`JMP \(R.*\)$`
+	// loong64:`SLLV` `MOVV \(R.*\)\(R.*\)` -`ALSLV`
 	switch x {
 	case 1:
 		return 1
