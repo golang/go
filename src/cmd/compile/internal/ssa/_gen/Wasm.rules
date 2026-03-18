@@ -412,6 +412,13 @@
 (I64Extend32S (I64Extend8S  x)) => (I64Extend8S  x)
 (I64Extend16S (I64Extend8S  x)) => (I64Extend8S  x)
 
+// Sign-extend of a value already zero-extended from fewer bits is a no-op.
+// E.g. (I64Extend32S (I64And x (I64Const [0xff]))) — top 33 bits are already
+// zero, so sign-extending from 32 is identity.
+(I64Extend32S x:(I64And _ (I64Const [c]))) && c >= 0 && int64(int32(c)) == c => x
+(I64Extend16S x:(I64And _ (I64Const [c]))) && c >= 0 && int64(int16(c)) == c => x
+(I64Extend8S  x:(I64And _ (I64Const [c]))) && c >= 0 && int64(int8(c))  == c => x
+
 // TODO: declare these operations as commutative and get rid of these rules?
 (I64Add (I64Const [x]) y) && y.Op != OpWasmI64Const => (I64Add y (I64Const [x]))
 (I64Mul (I64Const [x]) y) && y.Op != OpWasmI64Const => (I64Mul y (I64Const [x]))

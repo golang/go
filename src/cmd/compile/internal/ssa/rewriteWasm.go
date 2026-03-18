@@ -4135,6 +4135,26 @@ func rewriteValueWasm_OpWasmI64Extend16S(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (I64Extend16S x:(I64And _ (I64Const [c])))
+	// cond: c >= 0 && int64(int16(c)) == c
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpWasmI64And {
+			break
+		}
+		_ = x.Args[1]
+		x_1 := x.Args[1]
+		if x_1.Op != OpWasmI64Const {
+			break
+		}
+		c := auxIntToInt64(x_1.AuxInt)
+		if !(c >= 0 && int64(int16(c)) == c) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	return false
 }
 func rewriteValueWasm_OpWasmI64Extend32S(v *Value) bool {
@@ -4172,6 +4192,26 @@ func rewriteValueWasm_OpWasmI64Extend32S(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (I64Extend32S x:(I64And _ (I64Const [c])))
+	// cond: c >= 0 && int64(int32(c)) == c
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpWasmI64And {
+			break
+		}
+		_ = x.Args[1]
+		x_1 := x.Args[1]
+		if x_1.Op != OpWasmI64Const {
+			break
+		}
+		c := auxIntToInt64(x_1.AuxInt)
+		if !(c >= 0 && int64(int32(c)) == c) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	return false
 }
 func rewriteValueWasm_OpWasmI64Extend8S(v *Value) bool {
@@ -4185,6 +4225,26 @@ func rewriteValueWasm_OpWasmI64Extend8S(v *Value) bool {
 		x := v_0.Args[0]
 		v.reset(OpWasmI64Extend8S)
 		v.AddArg(x)
+		return true
+	}
+	// match: (I64Extend8S x:(I64And _ (I64Const [c])))
+	// cond: c >= 0 && int64(int8(c)) == c
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpWasmI64And {
+			break
+		}
+		_ = x.Args[1]
+		x_1 := x.Args[1]
+		if x_1.Op != OpWasmI64Const {
+			break
+		}
+		c := auxIntToInt64(x_1.AuxInt)
+		if !(c >= 0 && int64(int8(c)) == c) {
+			break
+		}
+		v.copyOf(x)
 		return true
 	}
 	return false
