@@ -437,9 +437,6 @@ func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, 
 		run = append(run, "-short")
 	}
 	var tags []string
-	if t.iOS() {
-		tags = append(tags, "lldb")
-	}
 	if noOpt {
 		tags = append(tags, "noopt")
 	}
