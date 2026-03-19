@@ -941,7 +941,7 @@ func collectDepsErrors(p *load.Package) {
 			// The cached Package for dep may be shared by multiple importers.
 			// Clone the error and, if Pos refers to the importer side,
 			// replace it with p's own import position (#78183).
-			depErr := *dep.Error
+			depErr := new(dep.Error)
 			if depErr.IsImporterPos() && p.Internal.Build != nil {
 				if pos := p.Internal.Build.ImportPos[dep.ImportPath]; len(pos) > 0 {
 					p0 := pos[0]
