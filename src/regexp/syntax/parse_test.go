@@ -214,6 +214,7 @@ var parseTests = []parseTest{
 	// Valid repetitions.
 	{`((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}))`, ``},
 	{`((((((((((x{1}){2}){2}){2}){2}){2}){2}){2}){2}){2})`, ``},
+	{`(?:[a-z]{4}){0,250}`, ``},  // nested repeat product 4*250 = 1000, at the limit
 
 	// Valid nesting.
 	{strings.Repeat("(", 999) + strings.Repeat(")", 999), ``},
@@ -500,6 +501,7 @@ var invalidRegexps = []string{
 	`a{100000}`,  // too much repetition
 	`a{100000,}`, // too much repetition
 	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",    // too much repetition
+	`(?:[a-z]{4}){0,251}`,                                      // nested repeat product 4*251 > 1000
 	strings.Repeat("(", 1000) + strings.Repeat(")", 1000),    // too deep
 	strings.Repeat("(?:", 1000) + strings.Repeat(")*", 1000), // too deep
 	"(" + strings.Repeat("(xx?)", 1000) + "){1000}",          // too long
