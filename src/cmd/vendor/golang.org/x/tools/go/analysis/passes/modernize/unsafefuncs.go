@@ -56,11 +56,6 @@ func unsafefuncs(pass *analysis.Pass) (any, error) {
 		tUnsafePointer = types.Typ[types.UnsafePointer]
 	)
 
-	isInteger := func(t types.Type) bool {
-		basic, ok := t.Underlying().(*types.Basic)
-		return ok && basic.Info()&types.IsInteger != 0
-	}
-
 	// isConversion reports whether e is a conversion T(x).
 	// If so, it returns T and x.
 	isConversion := func(curExpr inspector.Cursor) (t types.Type, x inspector.Cursor) {
@@ -88,7 +83,7 @@ func unsafefuncs(pass *analysis.Pass) (any, error) {
 		if sum, ok := curSum.Node().(*ast.BinaryExpr); ok &&
 			sum.Op == token.ADD &&
 			types.Identical(info.TypeOf(sum.X), types.Typ[types.Uintptr]) &&
-			astutil.IsChildOf(curSum, edge.CallExpr_Args) {
+			curSum.ParentEdgeKind() == edge.CallExpr_Args {
 			// Have: sum ≡ T(x:...uintptr... + y:...uintptr...)
 			curX := curSum.ChildAt(edge.BinaryExpr_X, -1)
 			curY := curSum.ChildAt(edge.BinaryExpr_Y, -1)
@@ -102,7 +97,7 @@ func unsafefuncs(pass *analysis.Pass) (any, error) {
 
 			// Is sum.x converted from unsafe.Pointer?
 			_, curPtr := isConversion(curX)
-			if !astutil.CursorValid(curPtr) {
+			if !curPtr.Valid() {
 				continue
 			}
 			ptr := curPtr.Node().(ast.Expr)
@@ -207,4 +202,9 @@ func deleteConv(cur inspector.Cursor) []analysis.TextEdit {
 			End: conv.End(),
 		},
 	}
+}
+
+func isInteger(t types.Type) bool {
+	basic, ok := t.Underlying().(*types.Basic)
+	return ok && basic.Info()&types.IsInteger != 0
 }

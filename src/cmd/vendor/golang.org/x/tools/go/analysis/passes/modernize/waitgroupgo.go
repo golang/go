@@ -22,18 +22,18 @@ import (
 	"golang.org/x/tools/internal/versions"
 )
 
-var WaitGroupAnalyzer = &analysis.Analyzer{
-	Name: "waitgroup",
-	Doc:  analyzerutil.MustExtractDoc(doc, "waitgroup"),
+var WaitGroupGoAnalyzer = &analysis.Analyzer{
+	Name: "waitgroupgo",
+	Doc:  analyzerutil.MustExtractDoc(doc, "waitgroupgo"),
 	Requires: []*analysis.Analyzer{
 		inspect.Analyzer,
 		typeindexanalyzer.Analyzer,
 	},
 	Run: waitgroup,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#waitgroup",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#waitgroupgo",
 }
 
-// The waitgroup pass replaces old more complex code with
+// The waitgroupgo pass replaces old more complex code with
 // go1.25 added API WaitGroup.Go.
 //
 // Patterns:
@@ -96,6 +96,9 @@ func waitgroup(pass *analysis.Pass) (any, error) {
 		lit, ok := goStmt.Call.Fun.(*ast.FuncLit)
 		if !ok || len(goStmt.Call.Args) != 0 {
 			continue // go argument is not func(){...}()
+		}
+		if lit.Type.Results != nil && len(lit.Type.Results.List) > 0 {
+			continue // function literal has return values; wg.Go requires func()
 		}
 		list := lit.Body.List
 		if len(list) == 0 {

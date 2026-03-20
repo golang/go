@@ -14,4 +14,5 @@ var (
 	PlusBuildModernizer    *analysis.Analyzer // = modernize.plusbuildAnalyzer
 	StringsCutModernizer   *analysis.Analyzer // = modernize.stringscutAnalyzer
 	UnsafeFuncsModernizer  *analysis.Analyzer // = modernize.unsafeFuncsAnalyzer
+	AtomicTypesModernizer  *analysis.Analyzer // = modernize.atomicTypesAnalyzer
 )

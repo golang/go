@@ -18,7 +18,6 @@ import (
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
-	"golang.org/x/tools/internal/moreiters"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 	"golang.org/x/tools/internal/versions"
@@ -142,15 +141,12 @@ func rangeint(pass *analysis.Pass) (any, error) {
 
 						// Find references to i within the loop body.
 						v := info.ObjectOf(index).(*types.Var)
-						// TODO(adonovan): use go1.25 v.Kind() == types.PackageVar
-						if typesinternal.IsPackageLevel(v) {
+						switch v.Kind() {
+						case types.PackageVar:
 							continue nextLoop
-						}
-
-						// If v is a named result, it is implicitly
-						// used after the loop (go.dev/issue/76880).
-						// TODO(adonovan): use go1.25 v.Kind() == types.ResultVar.
-						if moreiters.Contains(enclosingSignature(curLoop, info).Results().Variables(), v) {
+						case types.ResultVar:
+							// If v is a named result, it is implicitly
+							// used after the loop (go.dev/issue/76880).
 							continue nextLoop
 						}
 
@@ -230,7 +226,7 @@ func rangeint(pass *analysis.Pass) (any, error) {
 						// such as "const limit = 1e3", its effective type may
 						// differ between the two forms.
 						// In a for loop, it must be comparable with int i,
-						//    for i := 0; i < limit; i++
+						//    for i := 0; i < limit; i++ {}
 						// but in a range loop it would become a float,
 						//    for i := range limit {}
 						// which is a type error. We need to convert it to int
@@ -249,9 +245,24 @@ func rangeint(pass *analysis.Pass) (any, error) {
 							beforeLimit, afterLimit = fmt.Sprintf("%s(", types.TypeString(tVar, qual)), ")"
 							info2 := &types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
 							if types.CheckExpr(pass.Fset, pass.Pkg, limit.Pos(), limit, info2) == nil {
-								tLimit := types.Default(info2.TypeOf(limit))
-								if types.AssignableTo(tLimit, tVar) {
-									beforeLimit, afterLimit = "", ""
+								tLimit := info2.TypeOf(limit)
+								// Eliminate conversion when safe.
+								//
+								// Redundant conversions are not only unsightly but may in some cases cause
+								// architecture-specific types (e.g. syscall.Timespec.Nsec) to be inserted
+								// into otherwise portable files.
+								//
+								// The operand must have an integer type (not, say, '1e6')
+								// even when assigning to an existing integer variable.
+								if isInteger(tLimit) {
+									// When declaring a new var from an untyped limit,
+									// the limit's default type is what matters.
+									if init.Tok != token.ASSIGN {
+										tLimit = types.Default(tLimit)
+									}
+									if types.AssignableTo(tLimit, tVar) {
+										beforeLimit, afterLimit = "", ""
+									}
 								}
 							}
 						}
@@ -316,10 +327,10 @@ func isScalarLvalue(info *types.Info, curId inspector.Cursor) bool {
 	cur := curId
 
 	// Strip enclosing parens.
-	ek, _ := cur.ParentEdge()
+	ek := cur.ParentEdgeKind()
 	for ek == edge.ParenExpr_X {
 		cur = cur.Parent()
-		ek, _ = cur.ParentEdge()
+		ek = cur.ParentEdgeKind()
 	}
 
 	switch ek {

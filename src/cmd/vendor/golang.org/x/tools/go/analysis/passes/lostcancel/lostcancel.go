@@ -16,7 +16,6 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/cfg"
 	"golang.org/x/tools/internal/analysis/analyzerutil"
-	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/typesinternal"
 )
 
@@ -84,7 +83,7 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
 	// {FuncDecl,FuncLit,CallExpr,SelectorExpr}.
 
 	// Find the set of cancel vars to analyze.
-	astutil.PreorderStack(node, nil, func(n ast.Node, stack []ast.Node) bool {
+	ast.PreorderStack(node, nil, func(n ast.Node, stack []ast.Node) bool {
 		if _, ok := n.(*ast.FuncLit); ok && len(stack) > 0 {
 			return false // don't stray into nested functions
 		}

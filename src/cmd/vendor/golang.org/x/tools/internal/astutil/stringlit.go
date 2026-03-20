@@ -40,20 +40,64 @@ func PosInStringLiteral(lit *ast.BasicLit, offset int) (token.Pos, error) {
 		return 0, fmt.Errorf("invalid offset")
 	}
 
+	pos, _ := walkStringLiteral(lit, lit.End(), offset)
+	return pos, nil
+}
+
+// OffsetInStringLiteral returns the byte offset within the logical (unquoted)
+// string corresponding to the specified source position.
+func OffsetInStringLiteral(lit *ast.BasicLit, pos token.Pos) (int, error) {
+	if !NodeContainsPos(lit, pos) {
+		return 0, fmt.Errorf("invalid position")
+	}
+
+	raw := lit.Value
+
+	value, err := strconv.Unquote(raw)
+	if err != nil {
+		return 0, err
+	}
+
+	_, offset := walkStringLiteral(lit, pos, len(value))
+	return offset, nil
+}
+
+// walkStringLiteral iterates through the raw string literal to map between
+// a file position and a logical byte offset. It stops when it reaches
+// either the targetPos or the targetOffset.
+//
+// TODO(hxjiang): consider making an iterator.
+func walkStringLiteral(lit *ast.BasicLit, targetPos token.Pos, targetOffset int) (token.Pos, int) {
+	raw := lit.Value
+	norm := int(lit.End()-lit.Pos()) > len(lit.Value)
+
 	// remove quotes
 	quote := raw[0] // '"' or '`'
 	raw = raw[1 : len(raw)-1]
 
 	var (
-		i   = 0                // byte index within logical value
-		pos = lit.ValuePos + 1 // position within literal
+		i   = 0             // byte index within logical value
+		pos = lit.Pos() + 1 // position within literal
 	)
-	for raw != "" && i < offset {
+
+	for raw != "" {
 		r, _, rest, _ := strconv.UnquoteChar(raw, quote) // can't fail
 		sz := len(raw) - len(rest)                       // length of literal char in raw bytes
-		pos += token.Pos(sz)
+
+		nextPos := pos + token.Pos(sz)
+		if norm && r == '\n' {
+			nextPos++
+		}
+		nextI := i + utf8.RuneLen(r) // length of logical char in "cooked" bytes
+
+		if nextPos > targetPos || nextI > targetOffset {
+			break
+		}
+
 		raw = raw[sz:]
-		i += utf8.RuneLen(r)
+		i = nextI
+		pos = nextPos
 	}
-	return pos, nil
+
+	return pos, i
 }
