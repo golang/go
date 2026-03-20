@@ -573,8 +573,6 @@ func (sc *serverConn) writeSchedIgnoresRFC7540() bool {
 	switch sc.writeSched.(type) {
 	case *priorityWriteSchedulerRFC9218:
 		return true
-	case *randomWriteScheduler:
-		return true
 	case *roundRobinWriteScheduler:
 		return true
 	default:
