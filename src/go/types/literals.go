@@ -233,7 +233,14 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
 				check.assignment(x, etyp, "struct literal")
 			}
 			if len(e.Elts) < len(fields) {
-				check.errorf(inNode(e, e.Rbrace), InvalidStructLit, "too few values in struct literal of type %s", base)
+				var hint string
+				for _, fld := range fields {
+					if !fld.Exported() && fld.pkg != check.pkg {
+						hint = " (type has unexported fields - use key:value pairs)"
+						break
+					}
+				}
+				check.errorf(inNode(e, e.Rbrace), InvalidStructLit, "too few values in struct literal of type %s%s", base, hint)
 				// ok to continue
 			}
 		}
