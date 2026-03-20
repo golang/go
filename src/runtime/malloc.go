@@ -2184,27 +2184,22 @@ func reusableSize(size uintptr) bool {
 // Use this with care; if the data being cleared is tagged to contain
 // pointers, this allows the GC to run before it is all cleared.
 func memclrNoHeapPointersChunked(size uintptr, x unsafe.Pointer) {
-	if getg().preempt {
-		// TODO: no need for this, except to test that
-		// the preemption point is ok for small zeroings.
-		// (The pre-CL-756122 allowed preemption in this case,
-		// which is probably why we noticed 78081 at all.)
-		// Remove once we think 78081 is fixed.
-		// may hold locks, e.g., profiling
-		goschedguarded()
-	}
+	v := uintptr(x)
 	// got this from benchmarking. 128k is too small, 512k is too large.
 	const chunkBytes = 256 * 1024
-	for size > chunkBytes {
-		memclrNoHeapPointers(x, chunkBytes)
-		x = add(x, chunkBytes)
-		size -= chunkBytes
+	vsize := v + size
+	for voff := v; voff < vsize; voff = voff + chunkBytes {
 		if getg().preempt {
 			// may hold locks, e.g., profiling
 			goschedguarded()
 		}
+		// clear min(avail, lump) bytes
+		n := vsize - voff
+		if n > chunkBytes {
+			n = chunkBytes
+		}
+		memclrNoHeapPointers(unsafe.Pointer(voff), n)
 	}
-	memclrNoHeapPointers(x, size)
 }
 
 // memclrNoHeapPointersPreemptible is the compiler-callable entry point
