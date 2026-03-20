@@ -2527,6 +2527,24 @@ func ex76269shouldNotIndVar() {
 	}
 }
 
+func issue45078reverse(s []int) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 { // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Induction variable: limits \(\?,\?\], increment 1$"
+		tmp := s[i] // ERROR "Proved IsInBounds$"
+		s[i] = s[j] // ERROR "Proved IsInBounds$"
+		s[j] = tmp  // ERROR "Proved IsInBounds$"
+	}
+}
+
+func ex45078reverse(s []int, low, high int) {
+	if low >= 0 && high < len(s) {
+		for i, j := low, high; i < j; i, j = i+1, j-1 { // ERROR "Induction variable: limits \[\?,\?\), increment 1$" "Induction variable: limits \(\?,\?\], increment 1$"
+			tmp := s[i] // ERROR "Proved IsInBounds$"
+			s[i] = s[j] // ERROR "Proved IsInBounds$"
+			s[j] = tmp  // ERROR "Proved IsInBounds$"
+		}
+	}
+}
+
 func mulIntoAnd(a, b uint) uint {
 	if a > 1 || b > 1 {
 		return 0

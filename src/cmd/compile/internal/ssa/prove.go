@@ -1572,7 +1572,7 @@ func getSliceInfo(vp *Value) (inf sliceInfo) {
 // successor.
 func prove(f *Func) {
 	// Find induction variables.
-	var indVars map[*Block]indVar
+	var indVars map[*Block][]indVar
 	for _, v := range findIndVar(f) {
 		ind := v.ind
 		if len(ind.Args) != 2 {
@@ -1585,9 +1585,9 @@ func prove(f *Func) {
 			nxt.Uses == 1) { // 1 used by induction
 			// ind or nxt is used inside the loop, add it for the facts table
 			if indVars == nil {
-				indVars = make(map[*Block]indVar)
+				indVars = make(map[*Block][]indVar)
 			}
-			indVars[v.entry] = v
+			indVars[v.entry] = append(indVars[v.entry], v)
 			continue
 		} else {
 			// Since this induction variable is not used for anything but counting the iterations,
@@ -1677,7 +1677,7 @@ func prove(f *Func) {
 
 			// Entering the block, add facts about the induction variable
 			// that is bound to this block.
-			if iv, ok := indVars[node.block]; ok {
+			for _, iv := range indVars[node.block] {
 				addIndVarRestrictions(ft, parent, iv)
 			}
 
