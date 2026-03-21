@@ -9,10 +9,6 @@ package main
 import "runtime"
 
 func main() {
-	if true {
-		// Disabled until CL 757343 is in.
-		return
-	}
 	runtime.GOMAXPROCS(2)
 	c := make(chan bool)
 	for i := 0; i < 16; i++ {
