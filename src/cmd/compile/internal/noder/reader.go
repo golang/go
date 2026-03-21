@@ -3117,6 +3117,7 @@ func (r *reader) structElems(typ *types.Type, valuesOnly bool, elems []ir.Node) 
 		var fld *types.Field
 		if n := r.Int(); n < 0 {
 			// embedded field
+			typ := typ // don't modify the original typ
 			for range -n {
 				fld = typ.Field(r.Int())
 				typ = fld.Type
