@@ -10,6 +10,7 @@ import (
 	"cmd/internal/script/scripttest"
 	"errors"
 	"fmt"
+	"internal/buildcfg"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -47,6 +48,7 @@ func scriptConditions(t *testing.T) map[string]script.Cond {
 	add("git-sha256", script.OnceCondition("the local 'git' version is recent enough to support sha256 object/commit hashes", gitSupportsSHA256))
 	add("net", script.PrefixCondition("can connect to external network host <suffix>", hasNet))
 	add("trimpath", script.OnceCondition("test binary was built with -trimpath", isTrimpath))
+	add("default-cgo", lazyBool("when CGO_ENABLED=1|0 was set in make.bash", defaultCgo))
 
 	return conds
 }
@@ -193,4 +195,8 @@ func hasWorkingBzr() bool {
 	// See go.dev/issue/71504 for an example where 'bzr' exists in PATH but doesn't work.
 	err = exec.Command(bzr, "help").Run()
 	return err == nil
+}
+
+func defaultCgo() bool {
+	return buildcfg.DefaultCGO_ENABLED == "1" || buildcfg.DefaultCGO_ENABLED == "0"
 }
