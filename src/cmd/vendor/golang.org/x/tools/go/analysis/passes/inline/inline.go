@@ -315,47 +315,7 @@ func (a *analyzer) inlineAlias(tn *types.TypeName, curId inspector.Cursor) {
 	curPath := a.pass.Pkg.Path()
 	curFile := astutil.EnclosingFile(curId)
 	id := curId.Node().(*ast.Ident)
-	// We have an identifier A here (n), possibly qualified by a package
-	// identifier (sel.n), and an inlinable "type A = rhs" elsewhere.
-	//
-	// We can replace A with rhs if no name in rhs is shadowed at n's position,
-	// and every package in rhs is importable by the current package.
 
-	var (
-		importPrefixes = map[string]string{curPath: ""} // from pkg path to prefix
-		edits          []analysis.TextEdit
-	)
-	for _, tn := range typenames(rhs) {
-		// Ignore the type parameters of the alias: they won't appear in the result.
-		if typeParamNames[tn] {
-			continue
-		}
-		var pkgPath, pkgName string
-		if pkg := tn.Pkg(); pkg != nil {
-			pkgPath = pkg.Path()
-			pkgName = pkg.Name()
-		}
-		if pkgPath == "" || pkgPath == curPath {
-			// The name is in the current package or the universe scope, so no import
-			// is required. Check that it is not shadowed (that is, that the type
-			// it refers to in rhs is the same one it refers to at n).
-			scope := a.pass.TypesInfo.Scopes[curFile].Innermost(id.Pos()) // n's scope
-			_, obj := scope.LookupParent(tn.Name(), id.Pos())             // what qn.name means in n's scope
-			if obj != tn {
-				return
-			}
-		} else if !packagepath.CanImport(a.pass.Pkg.Path(), pkgPath) {
-			// If this package can't see the package of this part of rhs, we can't inline.
-			return
-		} else if _, ok := importPrefixes[pkgPath]; !ok {
-			// Use AddImport to add pkgPath if it's not there already. Associate the prefix it assigns
-			// with the package path for use by the TypeString qualifier below.
-			prefix, eds := refactor.AddImport(
-				a.pass.TypesInfo, curFile, pkgName, pkgPath, tn.Name(), id.Pos())
-			importPrefixes[pkgPath] = strings.TrimSuffix(prefix, ".")
-			edits = append(edits, eds...)
-		}
-	}
 	// Find the complete identifier, which may take any of these forms:
 	//       Id
 	//       Id[T]
@@ -386,6 +346,49 @@ func (a *analyzer) inlineAlias(tn *types.TypeName, curId inspector.Cursor) {
 		instAlias, _ := types.Instantiate(nil, alias, slices.Collect(targs.Types()), false)
 		rhs = instAlias.(*types.Alias).Rhs()
 	}
+
+	// We have an identifier A here (n), possibly qualified by a package
+	// identifier (sel.n), and an inlinable "type A = rhs" elsewhere.
+	//
+	// We can replace A with rhs if no name in rhs is shadowed at n's position,
+	// and every package in rhs is importable by the current package.
+	var (
+		importPrefixes = map[string]string{curPath: ""} // from pkg path to prefix
+		edits          []analysis.TextEdit
+	)
+	for _, tn := range typenames(rhs) {
+		// Ignore the type parameters of the alias: they won't appear in the result.
+		if typeParamNames[tn] {
+			continue
+		}
+		var pkgPath, pkgName string
+		if pkg := tn.Pkg(); pkg != nil {
+			pkgPath = pkg.Path()
+			pkgName = pkg.Name()
+		}
+		if pkgPath == "" || pkgPath == curPath {
+			// The name is in the current package or the universe scope, so no import
+			// is required. Check that it is not shadowed (that is, that the type
+			// it refers to in rhs is the same one it refers to at n).
+			scope := a.pass.TypesInfo.Scopes[curFile].Innermost(id.Pos()) // n's scope
+			_, obj := scope.LookupParent(tn.Name(), id.Pos())             // what qn.name means in n's scope
+			if obj != tn {
+				return
+			}
+		} else if !packagepath.CanImport(a.pass.Pkg.Path(), pkgPath) {
+			// If this package can't see the package of this part of rhs, we can't inline.
+			return
+		} else if _, ok := importPrefixes[pkgPath]; !ok {
+			// Use AddImport to add pkgPath if it's not there already. Associate the prefix it assigns
+			// with the prefix it assigns
+			// with the package path for use by the TypeString qualifier below.
+			prefix, eds := refactor.AddImport(
+				a.pass.TypesInfo, curFile, pkgName, pkgPath, tn.Name(), id.Pos())
+			importPrefixes[pkgPath] = strings.TrimSuffix(prefix, ".")
+			edits = append(edits, eds...)
+		}
+	}
+
 	// To get the replacement text, render the alias RHS using the package prefixes
 	// we assigned above.
 	newText := types.TypeString(rhs, func(p *types.Package) string {
