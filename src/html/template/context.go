@@ -6,6 +6,7 @@ package template
 
 import (
 	"fmt"
+	"slices"
 	"text/template/parse"
 )
 
@@ -37,7 +38,7 @@ func (c context) String() string {
 	if c.err != nil {
 		err = c.err
 	}
-	return fmt.Sprintf("{%v %v %v %v %v %v %v}", c.state, c.delim, c.urlPart, c.jsCtx, c.attr, c.element, err)
+	return fmt.Sprintf("{%v %v %v %v %v %v %v %v}", c.state, c.delim, c.urlPart, c.jsCtx, c.jsBraceDepth, c.attr, c.element, err)
 }
 
 // eq reports whether two contexts are equal.
@@ -46,6 +47,7 @@ func (c context) eq(d context) bool {
 		c.delim == d.delim &&
 		c.urlPart == d.urlPart &&
 		c.jsCtx == d.jsCtx &&
+		slices.Equal(c.jsBraceDepth, d.jsBraceDepth) &&
 		c.attr == d.attr &&
 		c.element == d.element &&
 		c.err == d.err
@@ -68,6 +70,9 @@ func (c context) mangle(templateName string) string {
 	if c.jsCtx != jsCtxRegexp {
 		s += "_" + c.jsCtx.String()
 	}
+	if c.jsBraceDepth != nil {
+		s += fmt.Sprintf("_jsBraceDepth(%v)", c.jsBraceDepth)
+	}
 	if c.attr != attrNone {
 		s += "_" + c.attr.String()
 	}
@@ -75,6 +80,13 @@ func (c context) mangle(templateName string) string {
 		s += "_" + c.element.String()
 	}
 	return s
+}
+
+// clone returns a copy of c with the same field values.
+func (c context) clone() context {
+	clone := c
+	clone.jsBraceDepth = slices.Clone(c.jsBraceDepth)
+	return clone
 }
 
 // state describes a high-level HTML parser state.
