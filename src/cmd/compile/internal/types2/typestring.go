@@ -110,12 +110,21 @@ func (w *typeWriter) error(msg string) {
 }
 
 func (w *typeWriter) typ(typ Type) {
-	if w.seen[typ] {
-		w.error("cycle to " + goTypeName(typ))
-		return
-	}
-	w.seen[typ] = true
-	defer delete(w.seen, typ)
+	if typ == nil {
+        w.buf.WriteString("<nil>")
+        return
+    }
+
+    if w.seen[typ] {
+        if w.ctxt != nil {
+            w.buf.WriteString("cycle-to-" + goTypeName(typ))
+            return
+        }
+        w.error("cycle to " + goTypeName(typ))
+        return
+    }
+    w.seen[typ] = true
+    defer delete(w.seen, typ)
 
 	switch t := typ.(type) {
 	case nil:
