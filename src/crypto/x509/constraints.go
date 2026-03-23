@@ -351,6 +351,7 @@ func newDNSConstraints(l []string, permitted bool) interface{ query(string) (str
 	if !permitted {
 		parentConstraints := map[string]string{}
 		for _, name := range nc.constraints.set {
+			name = strings.ToLower(name)
 			trimmedName := trimFirstLabel(name)
 			if trimmedName == "" {
 				continue
@@ -376,6 +377,7 @@ func (dnc *dnsConstraints) query(s string) (string, bool) {
 	}
 
 	if !dnc.permitted && len(s) > 0 && s[0] == '*' {
+		s = strings.ToLower(s)
 		trimmed := trimFirstLabel(s)
 		if constraint, found := dnc.parentConstraints[trimmed]; found {
 			return constraint, true
