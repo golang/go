@@ -1549,7 +1549,9 @@
 //
 // The use directive specifies a module to be included in the workspace's
 // set of main modules. The argument to the use directive is the directory
-// containing the module's go.mod file.
+// containing the module's go.mod file. The go command does not resolve
+// symbolic links when matching use paths to module directories, so a
+// symlink to a directory is not interchangeable with its target.
 //
 // The go directive specifies the version of Go the file was written at. It
 // is possible there may be future changes in the semantics of workspaces
@@ -1730,7 +1732,12 @@
 //
 // The -r flag searches recursively for modules in the argument
 // directories, and the use command operates as if each of the directories
-// were specified as arguments.
+// were specified as arguments. When -r is used, symlinks to directories
+// within the argument tree are ignored.
+//
+// The go command matches use paths to module directories without resolving
+// symbolic links. A use directive that names a symlink to a directory is
+// not interchangeable with one that names the symlink's target.
 //
 // See the workspaces reference at https://go.dev/ref/mod#workspaces
 // for more information.

@@ -52,7 +52,9 @@ like in Go imports.
 
 The use directive specifies a module to be included in the workspace's
 set of main modules. The argument to the use directive is the directory
-containing the module's go.mod file.
+containing the module's go.mod file. The go command does not resolve
+symbolic links when matching use paths to module directories, so a
+symlink to a directory is not interchangeable with its target.
 
 The go directive specifies the version of Go the file was written at. It
 is possible there may be future changes in the semantics of workspaces
