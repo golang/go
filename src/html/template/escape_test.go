@@ -1185,6 +1185,18 @@ func TestErrors(t *testing.T) {
 			// html is allowed since it is the last command in the pipeline, but urlquery is not.
 			`predefined escaper "urlquery" disallowed in template`,
 		},
+		{
+			"<script>var a = `{{if .X}}`{{end}}",
+			`{{if}} branches end in different contexts`,
+		},
+		{
+			"<script>var a = `{{if .X}}a{{else}}`{{end}}",
+			`{{if}} branches end in different contexts`,
+		},
+		{
+			"<script>var a = `{{if .X}}a{{else}}b{{end}}`</script>",
+			``,
+		},
 	}
 	for _, test := range tests {
 		buf := new(bytes.Buffer)
@@ -1756,7 +1768,7 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			"<script>var a = `${",
-			context{state: stateJS, element: elementScript},
+			context{state: stateJS, element: elementScript, jsBraceDepth: []int{0}},
 		},
 		{
 			"<script>var a = `${}",
@@ -1764,27 +1776,27 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			"<script>var a = `${`",
-			context{state: stateJSTmplLit, element: elementScript},
+			context{state: stateJSTmplLit, element: elementScript, jsBraceDepth: []int{0}},
 		},
 		{
 			"<script>var a = `${var a = \"",
-			context{state: stateJSDqStr, element: elementScript},
+			context{state: stateJSDqStr, element: elementScript, jsBraceDepth: []int{0}},
 		},
 		{
 			"<script>var a = `${var a = \"`",
-			context{state: stateJSDqStr, element: elementScript},
+			context{state: stateJSDqStr, element: elementScript, jsBraceDepth: []int{0}},
 		},
 		{
 			"<script>var a = `${var a = \"}",
-			context{state: stateJSDqStr, element: elementScript},
+			context{state: stateJSDqStr, element: elementScript, jsBraceDepth: []int{0}},
 		},
 		{
 			"<script>var a = `${``",
-			context{state: stateJS, element: elementScript},
+			context{state: stateJS, element: elementScript, jsBraceDepth: []int{0}},
 		},
 		{
 			"<script>var a = `${`}",
-			context{state: stateJSTmplLit, element: elementScript},
+			context{state: stateJSTmplLit, element: elementScript, jsBraceDepth: []int{0}},
 		},
 		{
 			"<script>`${ {} } asd`</script><script>`${ {} }",
@@ -1792,7 +1804,7 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			"<script>var foo = `${ (_ => { return \"x\" })() + \"${",
-			context{state: stateJSDqStr, element: elementScript},
+			context{state: stateJSDqStr, element: elementScript, jsBraceDepth: []int{0}},
 		},
 		{
 			"<script>var a = `${ {</script><script>var b = `${ x }",
@@ -1820,23 +1832,23 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			"<script>`${ { `` }",
-			context{state: stateJS, element: elementScript},
+			context{state: stateJS, element: elementScript, jsBraceDepth: []int{0}},
 		},
 		{
 			"<script>`${ { }`",
-			context{state: stateJSTmplLit, element: elementScript},
+			context{state: stateJSTmplLit, element: elementScript, jsBraceDepth: []int{0}},
 		},
 		{
 			"<script>var foo = `${ foo({ a: { c: `${",
-			context{state: stateJS, element: elementScript},
+			context{state: stateJS, element: elementScript, jsBraceDepth: []int{2, 0}},
 		},
 		{
 			"<script>var foo = `${ foo({ a: { c: `${ {{.}} }` }, b: ",
-			context{state: stateJS, element: elementScript},
+			context{state: stateJS, element: elementScript, jsBraceDepth: []int{1}},
 		},
 		{
 			"<script>`${ `}",
-			context{state: stateJSTmplLit, element: elementScript},
+			context{state: stateJSTmplLit, element: elementScript, jsBraceDepth: []int{0}},
 		},
 	}
 
