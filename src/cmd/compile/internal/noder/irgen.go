@@ -171,6 +171,10 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 	}
 	base.ExitIfErrors()
 
+	if len(base.Debug.AstDump) > 0 {
+		dumpSyntax(pkg, info, files, "checked")
+	}
+
 	// Rewrite range over function to explicit function calls
 	// with the loop bodies converted into new implicit closures.
 	// We do this now, before serialization to unified IR, so that if the
@@ -180,7 +184,23 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 	// and bodyReaderFor will fail.
 	rangeInfo := rangefunc.Rewrite(pkg, info, files)
 
+	if len(base.Debug.AstDump) > 0 {
+		dumpSyntax(pkg, info, files, "rangefunc")
+	}
+
 	return pkg, info, rangeInfo
+}
+
+func dumpSyntax(pkg *types2.Package, info *types2.Info, files []*syntax.File, phase string) {
+	for _, file := range files {
+		for _, decl := range file.DeclList {
+			if fn, ok := decl.(*syntax.FuncDecl); ok {
+				if MatchASTDump(fn) {
+					DumpNodeHTML(pkg, file, info, fn, phase, fn)
+				}
+			}
+		}
+	}
 }
 
 // A cycleFinder detects anonymous interface cycles (go.dev/issue/56103).
