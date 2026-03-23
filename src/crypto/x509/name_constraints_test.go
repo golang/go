@@ -1656,6 +1656,28 @@ var nameConstraintsTests = []nameConstraintsTest{
 			sans: []string{"dns:"},
 		},
 	},
+	{
+		name: "subdomain exclusion blocks uppercase wildcard",
+		roots: []constraintsSpec{{
+			bad: []string{"dns:sub.example.com"},
+		}},
+		intermediates: [][]constraintsSpec{{{}}},
+		leaf: leafSpec{
+			sans: []string{"dns:*.EXAMPLE.COM"},
+		},
+		expectedError: "\"*.EXAMPLE.COM\" is excluded by constraint \"sub.example.com\"",
+	},
+	{
+		name: "uppercase subdomain exclusion blocks lowercase wildcard",
+		roots: []constraintsSpec{{
+			bad: []string{"dns:SUB.EXAMPLE.COM"},
+		}},
+		intermediates: [][]constraintsSpec{{{}}},
+		leaf: leafSpec{
+			sans: []string{"dns:*.example.com"},
+		},
+		expectedError: "\"*.example.com\" is excluded by constraint \"sub.example.com\"",
+	},
 }
 
 func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
