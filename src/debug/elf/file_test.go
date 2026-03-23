@@ -5,6 +5,7 @@
 package elf
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
@@ -16,6 +17,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -1665,4 +1667,87 @@ func TestNewFileShortReader(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLargeNumberOfSegments(t *testing.T) {
+	switch runtime.GOOS {
+	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+	default:
+		t.Skipf("ELF binaries not generated on %s", runtime.GOOS)
+	}
+
+	if testing.Short() {
+		// The GNU linker takes a long time to run this test.
+		t.Skip("skipping slow test in short mode")
+	}
+
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	scriptFile := filepath.Join(tempDir, "script")
+	f, err := os.Create(scriptFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := bufio.NewWriter(f)
+
+	// These script segments work for GNU ld.
+	const scriptStart = `
+PHDRS {
+	headers PT_PHDR PHDRS;
+	text PT_LOAD FILEHDR PHDRS;
+	dynamic PT_DYNAMIC;
+`
+	const scriptEnd = `
+}
+SECTIONS {
+	.sec1 : { *(.sec1) } :hdr1
+}
+`
+
+	fmt.Fprintf(b, scriptStart)
+	const phdrCount = 70000
+	for i := range phdrCount {
+		fmt.Fprintf(b, "\thdr%d PT_LOAD;", i)
+	}
+	fmt.Fprintf(b, scriptEnd)
+
+	if err := b.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	const cCode = `
+int main(int argc, char **argv) { return 0; }
+`
+	cFile := filepath.Join(tempDir, "x.c")
+	if err := os.WriteFile(cFile, []byte(cCode), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cc := os.Getenv("CC")
+	if cc == "" {
+		cc = "gcc"
+	}
+	oFile := filepath.Join(tempDir, "x.exe")
+
+	out, err := exec.Command(cc, "-o", oFile, "-T", scriptFile, cFile).CombinedOutput()
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
+	if err != nil {
+		t.Skipf("skipping test because generating test case failed: %v", err)
+	}
+
+	ef, err := Open(oFile)
+	if err != nil {
+		t.Fatalf("failed to open test file: %v", err)
+	}
+	got := len(ef.Progs)
+	if got < phdrCount {
+		t.Errorf("got %d program headers, expected at least %d", got, phdrCount)
+	}
+	t.Logf("output file has %d segments", got)
 }
