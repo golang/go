@@ -203,10 +203,6 @@ func EncodeHeaderRaw(t testing.TB, headers ...string) []byte {
 	return encodeHeaderRaw(t, headers...)
 }
 
-func NewPriorityWriteSchedulerRFC7540(cfg *PriorityWriteSchedulerConfig) WriteScheduler {
-	return newPriorityWriteSchedulerRFC7540(cfg)
-}
-
 func NewPriorityWriteSchedulerRFC9218() WriteScheduler {
 	return newPriorityWriteSchedulerRFC9218()
 }

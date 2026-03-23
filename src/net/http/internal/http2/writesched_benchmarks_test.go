@@ -131,26 +131,6 @@ func BenchmarkWriteSchedulerLifetimeRoundRobin(b *testing.B) {
 	benchmarkStreamLifetime(b, newRoundRobinWriteScheduler, PriorityParam{})
 }
 
-func BenchmarkWriteSchedulerThroughputRandom(b *testing.B) {
-	benchmarkThroughput(b, NewRandomWriteScheduler, PriorityParam{})
-}
-
-func BenchmarkWriteSchedulerLifetimeRandom(b *testing.B) {
-	benchmarkStreamLifetime(b, NewRandomWriteScheduler, PriorityParam{})
-}
-
-func BenchmarkWriteSchedulerThroughputPriorityRFC7540(b *testing.B) {
-	benchmarkThroughput(b, func() WriteScheduler { return NewPriorityWriteScheduler(nil) }, PriorityParam{})
-}
-
-func BenchmarkWriteSchedulerLifetimePriorityRFC7540(b *testing.B) {
-	// RFC7540 priority scheduler does not always succeed in closing the
-	// stream, causing this benchmark to panic due to opening an already open
-	// stream.
-	b.SkipNow()
-	benchmarkStreamLifetime(b, func() WriteScheduler { return NewPriorityWriteScheduler(nil) }, PriorityParam{})
-}
-
 func BenchmarkWriteSchedulerThroughputPriorityRFC9218Incremental(b *testing.B) {
 	benchmarkThroughput(b, newPriorityWriteSchedulerRFC9218, PriorityParam{
 		incremental: 1,
