@@ -69,6 +69,10 @@ func RISCV64SpecialOperand(name string) riscv.SpecialOperand {
 			}
 			riscv64SpecialOperand[csrName] = riscv.SpecialOperand(int(csrCode) + int(riscv.SPOP_CSR_BEGIN))
 		}
+		// Add the FENCE operands
+		for opd := riscv.SPOP_FENCE_BEGIN + 1; opd < riscv.SPOP_FENCE_END; opd++ {
+			riscv64SpecialOperand[opd.String()] = opd
+		}
 	}
 	if opd, ok := riscv64SpecialOperand[name]; ok {
 		return opd

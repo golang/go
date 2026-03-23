@@ -1552,7 +1552,10 @@ var rmSuffixSet = map[string]uint8{
 	"RMM": RM_RMM,
 }
 
-const rmSuffixBit uint8 = 1 << 7
+const (
+	fenceTsoSuffixBit uint8 = 1 << 0
+	rmSuffixBit       uint8 = 1 << 7
+)
 
 func rmSuffixEncode(s string) (uint8, error) {
 	if s == "" {
@@ -1621,7 +1624,28 @@ const (
 	SPOP_CSR_BEGIN = SPOP_RVV_END
 	SPOP_CSR_END   = SPOP_CSR_BEGIN + 4096
 
-	SPOP_END = SPOP_CSR_END + 1
+	// FENCE operands. 16 special operands are reserved for FENCE flags (4 bits: IORW).
+	SPOP_FENCE_BEGIN = SPOP_CSR_END
+
+	SPOP_FENCE_W SpecialOperand = SPOP_FENCE_BEGIN + iota - 20
+	SPOP_FENCE_R
+	SPOP_FENCE_RW
+	SPOP_FENCE_O
+	SPOP_FENCE_OW
+	SPOP_FENCE_OR
+	SPOP_FENCE_ORW
+	SPOP_FENCE_I
+	SPOP_FENCE_IW
+	SPOP_FENCE_IR
+	SPOP_FENCE_IRW
+	SPOP_FENCE_IO
+	SPOP_FENCE_IOW
+	SPOP_FENCE_IOR
+	SPOP_FENCE_IORW
+
+	SPOP_FENCE_END = SPOP_FENCE_BEGIN + 16
+
+	SPOP_END = SPOP_FENCE_END + 1
 )
 
 var specialOperands = map[SpecialOperand]struct {
@@ -1646,6 +1670,22 @@ var specialOperands = map[SpecialOperand]struct {
 	SPOP_E16: {encoding: 1, name: "E16"},
 	SPOP_E32: {encoding: 2, name: "E32"},
 	SPOP_E64: {encoding: 3, name: "E64"},
+
+	SPOP_FENCE_W:    {encoding: 1, name: "W"},
+	SPOP_FENCE_R:    {encoding: 2, name: "R"},
+	SPOP_FENCE_RW:   {encoding: 3, name: "RW"},
+	SPOP_FENCE_O:    {encoding: 4, name: "O"},
+	SPOP_FENCE_OW:   {encoding: 5, name: "OW"},
+	SPOP_FENCE_OR:   {encoding: 6, name: "OR"},
+	SPOP_FENCE_ORW:  {encoding: 7, name: "ORW"},
+	SPOP_FENCE_I:    {encoding: 8, name: "I"},
+	SPOP_FENCE_IW:   {encoding: 9, name: "IW"},
+	SPOP_FENCE_IR:   {encoding: 10, name: "IR"},
+	SPOP_FENCE_IRW:  {encoding: 11, name: "IRW"},
+	SPOP_FENCE_IO:   {encoding: 12, name: "IO"},
+	SPOP_FENCE_IOW:  {encoding: 13, name: "IOW"},
+	SPOP_FENCE_IOR:  {encoding: 14, name: "IOR"},
+	SPOP_FENCE_IORW: {encoding: 15, name: "IORW"},
 }
 
 func (so SpecialOperand) encode() uint32 {
@@ -1659,6 +1699,11 @@ func (so SpecialOperand) encode() uint32 {
 		csrNum := uint16(so - SPOP_CSR_BEGIN)
 		if _, ok := csrs[csrNum]; ok {
 			return uint32(csrNum)
+		}
+	case so > SPOP_FENCE_BEGIN && so < SPOP_FENCE_END:
+		op, ok := specialOperands[so]
+		if ok {
+			return op.encoding
 		}
 	}
 	return 0
@@ -1675,6 +1720,11 @@ func (so SpecialOperand) String() string {
 	case so >= SPOP_CSR_BEGIN && so < SPOP_CSR_END:
 		if csrName, ok := csrs[uint16(so-SPOP_CSR_BEGIN)]; ok {
 			return csrName
+		}
+	case so > SPOP_FENCE_BEGIN && so < SPOP_FENCE_END:
+		op, ok := specialOperands[so]
+		if ok {
+			return op.name
 		}
 	}
 	return ""

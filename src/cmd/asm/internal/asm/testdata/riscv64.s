@@ -140,6 +140,10 @@ start:
 
 	// 2.7: Memory Ordering Instructions
 	FENCE						// 0f00f00f
+	FENCE	W, W					// 0f001001
+	FENCE	I, O					// 0f004008
+	FENCE	IORW, IORW				// 0f00f00f
+	FENCE.TSO					// 0f003083
 
 	// 4.2: Integer Computational Instructions (RV64I)
 	ADDIW	$1, X5, X6				// 1b831200

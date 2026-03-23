@@ -68,6 +68,13 @@ TEXT errors(SB),$0
 	SD	X5, 4294967296(X6)		// ERROR "constant 4294967296 too large"
 	FNES	F1, (X5)			// ERROR "needs an integer register output"
 
+	// Memory Ordering Instructions
+	FENCE		X1, R				// ERROR "invalid FENCE predecessor operand"
+	FENCE		R, X2				// ERROR "invalid FENCE successor operand"
+	FENCE		$1, R				// ERROR "invalid FENCE predecessor operand"
+	FENCE		R, $2				// ERROR "invalid FENCE successor operand"
+	FENCE.TSO	R, R				// ERROR "FENCE.TSO must not have operands"
+
 	//
 	// "V" Standard Extension for Vector Operations, Version 1.0
 	//
