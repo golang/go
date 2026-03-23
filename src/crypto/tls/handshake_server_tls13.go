@@ -752,7 +752,7 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 	serverSecret := hs.handshakeSecret.ServerHandshakeTrafficSecret(hs.transcript)
 	c.setWriteTrafficSecret(hs.suite, QUICEncryptionLevelHandshake, serverSecret)
 	clientSecret := hs.handshakeSecret.ClientHandshakeTrafficSecret(hs.transcript)
-	if err := c.setReadTrafficSecret(hs.suite, QUICEncryptionLevelHandshake, clientSecret); err != nil {
+	if err := c.setReadTrafficSecret(hs.suite, QUICEncryptionLevelHandshake, clientSecret, false); err != nil {
 		return err
 	}
 
@@ -1136,7 +1136,7 @@ func (hs *serverHandshakeStateTLS13) readClientFinished() error {
 		return errors.New("tls: invalid client finished hash")
 	}
 
-	if err := c.setReadTrafficSecret(hs.suite, QUICEncryptionLevelApplication, hs.trafficSecret); err != nil {
+	if err := c.setReadTrafficSecret(hs.suite, QUICEncryptionLevelApplication, hs.trafficSecret, false); err != nil {
 		return err
 	}
 
