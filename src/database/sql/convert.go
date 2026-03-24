@@ -361,12 +361,29 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 			if rows == nil {
 				return errors.New("invalid context to convert cursor rows, missing parent *Rows")
 			}
+			// This is hazardous and not really correct: If the user provides us
+			// with the same *Rows for each Scan (which they very likely will),
+			// then this overwrites the previously-used Rows, including its mutexes.
+			// The chained row cancel function below will also repeatedly reference
+			// the same *Rows.
 			*d = Rows{
 				dc:          rows.dc,
 				releaseConn: func(error) {},
 				rowsi:       s,
 			}
 			// Chain the cancel function.
+			//
+			// This has problems:
+			//   - Repeatedly wrapping the cancel func is inefficient compared to
+			//     just storing a []*Rows of children.
+			//   - The cancel func is wrapped for each cursor read. If we scan N
+			//     rows, each with a child cursor, we end up with N chained cancel
+			//     funcs. (Also, if the user is reusing a Rows--see above--the cancel
+			//     funcs might all be referencing the same underlying Rows cursor.)
+			//   - It seems like it would be reasonable to invalidate a cursor
+			//     after advancing to the next parent row (the row which contains
+			//     the cursor). We don't do that now, and it isn't clear that we can
+			//     change this.
 			parentCancel := rows.cancel
 			rows.cancel = func() {
 				// When Rows.cancel is called, the closemu will be locked as well.

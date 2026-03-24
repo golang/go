@@ -1671,6 +1671,100 @@ func testCursorFake(t *testing.T, db *DB) {
 	}
 }
 
+// TestCursorCancel exercises calling Rows.Close at various places,
+// including canceling a cursor (child Rows).
+func TestCursorCancel(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		cancelOn string
+		want     []string
+	}{{
+		// don't cancel
+		name: "no cancel",
+		want: []string{
+			"table1",
+			"1.1",
+			"1.2",
+			"table2",
+			"2.1",
+			"2.2",
+		},
+	}, {
+		name:     "outer cancel",
+		cancelOn: "table2",
+		want: []string{
+			"table1",
+			"1.1",
+			"1.2",
+			"table2",
+		},
+	}, {
+		name:     "inner cancel",
+		cancelOn: "1.1",
+		want: []string{
+			"table1",
+			"1.1",
+			"table2",
+			"2.1",
+			"2.2",
+		},
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			testDatabase(t, func(t *testing.T, db *DB) {
+				testCursorCancel(t, db, test.cancelOn, test.want)
+			})
+		})
+	}
+}
+func testCursorCancel(t *testing.T, db *DB, cancelOn string, want []string) {
+	exec(t, db, "CREATE|table1|col=string")
+	exec(t, db, "INSERT|table1|col=1.1")
+	exec(t, db, "INSERT|table1|col=1.2")
+	exec(t, db, "CREATE|table2|col=string")
+	exec(t, db, "INSERT|table2|col=2.1")
+	exec(t, db, "INSERT|table2|col=2.2")
+
+	exec(t, db, "CREATE|cursor|name=string,list=table")
+	exec(t, db, "INSERT|cursor|name=table1,list=table1!col")
+	exec(t, db, "INSERT|cursor|name=table2,list=table2!col")
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	rows, err := db.QueryContext(ctx, `SELECT|cursor|name,list|`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	var got []string
+	for rows.Next() {
+		var name string
+		cursor := &Rows{}
+		if err := rows.Scan(&name, cursor); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, name)
+		if name == cancelOn {
+			rows.Close()
+		}
+		for cursor.Next() {
+			var col string
+			if err := cursor.Scan(&col); err != nil {
+				t.Fatal(err)
+			}
+			got = append(got, col)
+			if col == cancelOn {
+				cursor.Close()
+			}
+		}
+	}
+
+	if !slices.Equal(got, want) {
+		t.Errorf("cancel after reading %q:\ngot:  %v\nwant: %v", cancelOn, got, want)
+	}
+}
+
 func TestInvalidNilValues(t *testing.T) {
 	var date1 time.Time
 	var date2 int
