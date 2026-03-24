@@ -3539,7 +3539,11 @@ func (s *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 		return err
 	}
 
-	config, err := s.setupTLSConfig(certFile, keyFile, adjustNextProtos(s.TLSConfig.NextProtos, s.protocols()))
+	var nextProtos []string
+	if s.TLSConfig != nil {
+		nextProtos = s.TLSConfig.NextProtos
+	}
+	config, err := s.setupTLSConfig(certFile, keyFile, adjustNextProtos(nextProtos, s.protocols()))
 	if err != nil {
 		return err
 	}
