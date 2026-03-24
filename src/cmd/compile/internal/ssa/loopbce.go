@@ -13,9 +13,8 @@ import (
 type indVarFlags uint8
 
 const (
-	indVarMinExc    indVarFlags = 1 << iota // minimum value is exclusive (default: inclusive)
-	indVarMaxInc                            // maximum value is inclusive (default: exclusive)
-	indVarCountDown                         // if set the iteration starts at max and count towards min (default: min towards max)
+	indVarMinExc indVarFlags = 1 << iota // minimum value is exclusive (default: inclusive)
+	indVarMaxInc                         // maximum value is inclusive (default: exclusive)
 )
 
 type indVar struct {
@@ -24,6 +23,7 @@ type indVar struct {
 	min   *Value // minimum value, inclusive/exclusive depends on flags
 	max   *Value // maximum value, inclusive/exclusive depends on flags
 	entry *Block // the block where the edge from the succeeded comparison of the induction variable goes to, means when the bound check has passed.
+	step  int64
 	flags indVarFlags
 	// Invariant: for all blocks dominated by entry:
 	//	min <= ind <  max    [if flags == 0]
@@ -333,7 +333,6 @@ func findIndVar(f *Func) []indVar {
 				if !inclusive {
 					flags |= indVarMinExc
 				}
-				flags |= indVarCountDown
 				step = -step
 			}
 			if f.pass.debug >= 1 {
@@ -349,6 +348,7 @@ func findIndVar(f *Func) []indVar {
 				// induction variable, not necessarily the in-loop edge from the loop header.
 				// Induction variable bounds are not valid in the loop before this edge.
 				entry: startBody.b,
+				step:  step,
 				flags: flags,
 			})
 			b.Logf("found induction variable %v (inc = %v, min = %v, max = %v)\n", ind, inc, min, max)
