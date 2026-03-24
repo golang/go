@@ -179,8 +179,6 @@ func usage(flagSet *flag.FlagSet) {
 	fmt.Fprintf(os.Stderr, "\tgo doc <pkg> <sym>[.<methodOrField>]\n")
 	fmt.Fprintf(os.Stderr, "For more information run\n")
 	fmt.Fprintf(os.Stderr, "\tgo help doc\n\n")
-	fmt.Fprintf(os.Stderr, "Flags:\n")
-	flagSet.PrintDefaults()
 	os.Exit(2)
 }
 
