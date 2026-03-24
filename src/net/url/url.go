@@ -606,25 +606,22 @@ func parseHost(scheme, host string) (string, error) {
 	} else if i := strings.Index(host, ":"); i != -1 {
 		lastColon := strings.LastIndex(host, ":")
 		if lastColon != i {
-			if scheme == "postgresql" || scheme == "postgres" {
-				// PostgreSQL relies on non-RFC-3986 parsing to accept
-				// a comma-separated list of hosts (with optional ports)
-				// in the host subcomponent:
-				// https://www.postgresql.org/docs/11/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS
-				//
-				// Since we historically permitted colons to appear in the host,
-				// continue to permit it for postgres:// URLs only.
-				// https://go.dev/issue/75223
-				i = lastColon
-			} else if scheme == "mongodb" || scheme == "mongodb+srv" {
-				// In a MongoDB connection URI, commas are used to separate
-				// multiple host addresses when connecting to a replica set or a sharded cluster.
-				// https://www.mongodb.com/docs/manual/reference/connection-string-formats/
-				// Example:
-				// mongodb://mongodb0.example.com:27017,mongodb1.example.com:27017
-				i = lastColon
-			} else if urlstrictcolons.Value() == "0" {
-				urlstrictcolons.IncNonDefault()
+			// RFC 3986 does not allow colons to appear in the host subcomponent.
+			//
+			// However, a number of databases including PostgreSQL and MongoDB
+			// permit a comma-separated list of hosts (with optional ports) in the
+			// host subcomponent.
+			//
+			// Since we historically permitted colons to appear in the host,
+			// enforce strict colons only for http and https URLs.
+			//
+			// See https://go.dev/issue/75223 and https://go.dev/issue/78077.
+			if scheme == "http" || scheme == "https" {
+				if urlstrictcolons.Value() == "0" {
+					urlstrictcolons.IncNonDefault()
+					i = lastColon
+				}
+			} else {
 				i = lastColon
 			}
 		}
