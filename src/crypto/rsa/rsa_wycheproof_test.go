@@ -21,16 +21,27 @@ func TestRSAOAEPDecryptWycheproof(t *testing.T) {
 		"SmallIntegerCiphertext": true,
 	}
 
-	// TODO(XXX): support test files with different hashes for MGF/label
 	for _, file := range []string{
 		"rsa_oaep_2048_sha1_mgf1sha1_test.json",
+		"rsa_oaep_2048_sha224_mgf1sha1_test.json",
 		"rsa_oaep_2048_sha224_mgf1sha224_test.json",
+		"rsa_oaep_2048_sha256_mgf1sha1_test.json",
 		"rsa_oaep_2048_sha256_mgf1sha256_test.json",
+		"rsa_oaep_2048_sha384_mgf1sha1_test.json",
 		"rsa_oaep_2048_sha384_mgf1sha384_test.json",
+		"rsa_oaep_2048_sha512_224_mgf1sha1_test.json",
+		"rsa_oaep_2048_sha512_224_mgf1sha512_224_test.json",
+		"rsa_oaep_2048_sha512_mgf1sha1_test.json",
 		"rsa_oaep_2048_sha512_mgf1sha512_test.json",
+		"rsa_oaep_3072_sha256_mgf1sha1_test.json",
 		"rsa_oaep_3072_sha256_mgf1sha256_test.json",
+		"rsa_oaep_3072_sha512_256_mgf1sha1_test.json",
+		"rsa_oaep_3072_sha512_256_mgf1sha512_256_test.json",
+		"rsa_oaep_3072_sha512_mgf1sha1_test.json",
 		"rsa_oaep_3072_sha512_mgf1sha512_test.json",
+		"rsa_oaep_4096_sha256_mgf1sha1_test.json",
 		"rsa_oaep_4096_sha256_mgf1sha256_test.json",
+		"rsa_oaep_4096_sha512_mgf1sha1_test.json",
 		"rsa_oaep_4096_sha512_mgf1sha512_test.json",
 		"rsa_oaep_misc_test.json",
 	} {
@@ -38,17 +49,13 @@ func TestRSAOAEPDecryptWycheproof(t *testing.T) {
 		wycheproof.LoadVectorFile(t, file, &testdata)
 
 		for _, tg := range testdata.TestGroups {
-			// TODO(XXX): support rsa_oaep_misc_test test cases with different hashes for MGF/label
-			if tg.MgfSha != tg.Sha {
-				t.Skip("test cases with different hashes for MGF/label not yet supported")
-			}
-
 			rawPriv, err := x509.ParsePKCS8PrivateKey(wycheproof.MustDecodeHex(tg.PrivateKeyPkcs8))
 			if err != nil {
 				t.Fatalf("%s failed to parse PKCS #8 private key: %s", file, err)
 			}
 			priv := rawPriv.(*rsa.PrivateKey)
 			hash := wycheproof.ParseHash(tg.Sha)
+			mgfHash := wycheproof.ParseHash(tg.MgfSha)
 
 			for _, tv := range tg.Tests {
 				t.Run(wycheproof.TestName(file, tv), func(t *testing.T) {
@@ -57,7 +64,12 @@ func TestRSAOAEPDecryptWycheproof(t *testing.T) {
 					ct := wycheproof.MustDecodeHex(tv.Ct)
 					label := wycheproof.MustDecodeHex(tv.Label)
 					wantPass := wycheproof.ShouldPass(t, tv.Result, tv.Flags, flagsShouldPass)
-					plaintext, err := rsa.DecryptOAEP(hash.New(), nil, priv, ct, label)
+					opts := &rsa.OAEPOptions{
+						Hash:    hash,
+						MGFHash: mgfHash,
+						Label:   label,
+					}
+					plaintext, err := priv.Decrypt(nil, ct, opts)
 					if wantPass {
 						if err != nil {
 							t.Fatalf("expected success: %s", err)
