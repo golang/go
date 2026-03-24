@@ -220,7 +220,7 @@ func walkAssignRecv(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	fn := chanfn("chanrecv2", 2, r.X.Type())
 	ok := n.Lhs[1]
 	call := mkcall1(fn, types.Types[types.TBOOL], init, r.X, n1)
-	return typecheck.Stmt(ir.NewAssignStmt(base.Pos, ok, call))
+	return walkAssign(init, typecheck.Stmt(ir.NewAssignStmt(base.Pos, ok, call)))
 }
 
 // walkReturn walks an ORETURN node.
