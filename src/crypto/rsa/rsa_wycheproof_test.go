@@ -226,7 +226,7 @@ func TestRSAPSSSignaturesWycheproof(t *testing.T) {
 		"rsa_pss_3072_sha256_mgf1_32_test.json": {67, 68, 69, 70, 71, 72},
 		"rsa_pss_4096_sha256_mgf1_32_test.json": {67, 68, 69, 70, 71, 72},
 		"rsa_pss_4096_sha512_mgf1_32_test.json": {136, 137, 138, 139, 140, 141},
-		// "rsa_pss_misc_test.json": nil,  // TODO: This ones seems to be broken right now, but can enable later on.
+		"rsa_pss_misc_test.json":                nil,
 	}
 
 	for file, overrideIDs := range filesOverrideToPassZeroSLen {
@@ -234,6 +234,13 @@ func TestRSAPSSSignaturesWycheproof(t *testing.T) {
 		wycheproof.LoadVectorFile(t, file, &testdata)
 
 		for _, tg := range testdata.TestGroups {
+			// Go's PSS implementation doesn't support different hash
+			// algorithms for message digest and MGF1. See #46233.
+			// Skip the affected test groups in rsa_pss_misc_test.json.
+			if file == "rsa_pss_misc_test.json" && tg.Sha != tg.MgfSha {
+				continue
+			}
+
 			hash := wycheproof.ParseHash(tg.Sha)
 
 			pub, err := x509.ParsePKCS1PublicKey(wycheproof.MustDecodeHex(tg.PublicKeyAsn))
