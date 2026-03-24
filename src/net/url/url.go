@@ -836,6 +836,13 @@ func (u *URL) String() string {
 			}
 		}
 		path := u.EscapedPath()
+		if u.OmitHost && u.Host == "" && u.User == nil && strings.HasPrefix(path, "//") {
+			// Escape the first / in a path starting with "//" and no authority
+			// so that re-parsing the URL doesn't turn the path into an authority
+			// (e.g., Path="//host/p" producing "http://host/p").
+			buf.WriteString("%2F")
+			path = path[1:]
+		}
 		if path != "" && path[0] != '/' && u.Host != "" {
 			buf.WriteByte('/')
 		}
