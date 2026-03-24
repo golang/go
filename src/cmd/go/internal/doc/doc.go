@@ -151,7 +151,7 @@ func runDoc(ctx context.Context, cmd *base.Command, args []string) {
 	log.SetPrefix("doc: ")
 	dirsInit()
 	var flagSet flag.FlagSet
-	err := do(os.Stdout, &flagSet, args)
+	err := do(ctx, os.Stdout, &flagSet, args)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func usage(flagSet *flag.FlagSet) {
 }
 
 // do is the workhorse, broken out of runDoc to make testing easier.
-func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
+func do(ctx context.Context, writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	flagSet.Usage = func() { usage(flagSet) }
 	unexported = false
 	matchCase = false
@@ -234,7 +234,7 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	// Loop until something is printed.
 	dirs.Reset()
 	for i := 0; ; i++ {
-		buildPackage, userPath, sym, more := parseArgs(flagSet, flagSet.Args())
+		buildPackage, userPath, sym, more := parseArgs(ctx, flagSet, flagSet.Args())
 		if i > 0 && !more { // Ignore the "more" bit on the first iteration.
 			return failMessage(paths, symbol, method)
 		}
@@ -356,7 +356,7 @@ func failMessage(paths []string, symbol, method string) error {
 // and there may be more matches. For example, if the argument
 // is rand.Float64, we must scan both crypto/rand and math/rand
 // to find the symbol, and the first call will return crypto/rand, true.
-func parseArgs(flagSet *flag.FlagSet, args []string) (pkg *build.Package, path, symbol string, more bool) {
+func parseArgs(ctx context.Context, flagSet *flag.FlagSet, args []string) (pkg *build.Package, path, symbol string, more bool) {
 	wd, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
@@ -366,12 +366,29 @@ func parseArgs(flagSet *flag.FlagSet, args []string) (pkg *build.Package, path, 
 		return importDir(wd), "", "", false
 	}
 	arg := args[0]
+
+	var version string
+	if i := strings.Index(arg, "@"); i >= 0 {
+		arg, version = arg[:i], arg[i+1:]
+	}
+
 	// We have an argument. If it is a directory name beginning with . or ..,
 	// use the absolute path name. This discriminates "./errors" from "errors"
 	// if the current directory contains a non-standard errors package.
 	if isDotSlash(arg) {
 		arg = filepath.Join(wd, arg)
 	}
+	if version != "" && (build.IsLocalImport(filepath.ToSlash(arg)) || filepath.IsAbs(arg)) {
+		log.Fatal("cannot use @version with local or absolute paths")
+	}
+
+	importPkg := func(p string) (*build.Package, error) {
+		if version != "" {
+			return loadVersioned(ctx, p, version)
+		}
+		return build.Import(p, wd, build.ImportComment)
+	}
+
 	switch len(args) {
 	default:
 		usage(flagSet)
@@ -379,20 +396,29 @@ func parseArgs(flagSet *flag.FlagSet, args []string) (pkg *build.Package, path, 
 		// Done below.
 	case 2:
 		// Package must be findable and importable.
-		pkg, err := build.Import(args[0], wd, build.ImportComment)
+		pkg, err := importPkg(arg)
 		if err == nil {
-			return pkg, args[0], args[1], false
+			return pkg, arg, args[1], false
 		}
 		for {
-			packagePath, ok := findNextPackage(arg)
+			dir, importPath, ok := findNextPackage(arg)
 			if !ok {
 				break
 			}
-			if pkg, err := build.ImportDir(packagePath, build.ImportComment); err == nil {
-				return pkg, arg, args[1], true
+			if version != "" {
+				if pkg, err = loadVersioned(ctx, importPath, version); err == nil {
+					return pkg, arg, args[1], true
+				}
+			} else {
+				if pkg, err = build.ImportDir(dir, build.ImportComment); err == nil {
+					return pkg, arg, args[1], true
+				}
 			}
 		}
-		return nil, args[0], args[1], false
+		if version != "" {
+			log.Fatal(err)
+		}
+		return nil, arg, args[1], false
 	}
 	// Usual case: one argument.
 	// If it contains slashes, it begins with either a package path
@@ -407,7 +433,7 @@ func parseArgs(flagSet *flag.FlagSet, args []string) (pkg *build.Package, path, 
 			return pkg, arg, "", false
 		}
 	} else {
-		pkg, importErr = build.Import(arg, wd, build.ImportComment)
+		pkg, importErr = importPkg(arg)
 		if importErr == nil {
 			return pkg, arg, "", false
 		}
@@ -443,7 +469,7 @@ func parseArgs(flagSet *flag.FlagSet, args []string) (pkg *build.Package, path, 
 			symbol = arg[period+1:]
 		}
 		// Have we identified a package already?
-		pkg, err := build.Import(arg[0:period], wd, build.ImportComment)
+		pkg, err := importPkg(arg[0:period])
 		if err == nil {
 			return pkg, arg[0:period], symbol, false
 		}
@@ -451,16 +477,43 @@ func parseArgs(flagSet *flag.FlagSet, args []string) (pkg *build.Package, path, 
 		// or ivy/value for robpike.io/ivy/value.
 		pkgName := arg[:period]
 		for {
-			path, ok := findNextPackage(pkgName)
+			dir, importPath, ok := findNextPackage(pkgName)
 			if !ok {
 				break
 			}
-			if pkg, err = build.ImportDir(path, build.ImportComment); err == nil {
-				return pkg, arg[0:period], symbol, true
+			if version != "" {
+				if pkg, err = loadVersioned(ctx, importPath, version); err == nil {
+					return pkg, arg[0:period], symbol, true
+				}
+			} else {
+				if pkg, err = build.ImportDir(dir, build.ImportComment); err == nil {
+					return pkg, arg[0:period], symbol, true
+				}
 			}
 		}
 		dirs.Reset() // Next iteration of for loop must scan all the directories again.
 	}
+
+	// Try inference from $PATH before giving up.
+	if slash < 0 && !isDotSlash(arg) && !filepath.IsAbs(arg) {
+		if pkgPath, v, ok := inferVersion(arg); ok {
+			if version == "" {
+				version = v
+			}
+			pkg, err := loadVersioned(ctx, pkgPath, version)
+			if err == nil {
+				return pkg, pkgPath, "", false
+			}
+		}
+	}
+
+	if version != "" {
+		if importErr != nil {
+			log.Fatal(importErr)
+		}
+		log.Fatalf("no such package %q at version %q", arg, version)
+	}
+
 	// If it has a slash, we've failed.
 	if slash >= 0 {
 		// build.Import should always include the path in its error message,
@@ -541,28 +594,29 @@ func isExported(name string) bool {
 	return unexported || token.IsExported(name)
 }
 
-// findNextPackage returns the next full file name path that matches the
-// (perhaps partial) package path pkg. The boolean reports if any match was found.
-func findNextPackage(pkg string) (string, bool) {
+// findNextPackage returns the next full file name path and import path that
+// matches the (perhaps partial) package path pkg. The boolean reports if
+// any match was found.
+func findNextPackage(pkg string) (string, string, bool) {
 	if filepath.IsAbs(pkg) {
 		if dirs.offset == 0 {
 			dirs.offset = -1
-			return pkg, true
+			return pkg, "", true
 		}
-		return "", false
+		return "", "", false
 	}
 	if pkg == "" || token.IsExported(pkg) { // Upper case symbol cannot be a package name.
-		return "", false
+		return "", "", false
 	}
 	pkg = path.Clean(pkg)
 	pkgSuffix := "/" + pkg
 	for {
 		d, ok := dirs.Next()
 		if !ok {
-			return "", false
+			return "", "", false
 		}
 		if d.importPath == pkg || strings.HasSuffix(d.importPath, pkgSuffix) {
-			return d.dir, true
+			return d.dir, d.importPath, true
 		}
 	}
 }

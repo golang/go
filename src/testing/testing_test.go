@@ -1123,6 +1123,101 @@ func TestArtifactDirConsistent(t *testing.T) {
 	}
 }
 
+func TestArtifactDirectoryPaths(t *testing.T) {
+	testenv.MustHaveExec(t)
+	t.Parallel()
+
+	tempDir := t.TempDir()
+
+	// 1. Setup the temporary module.
+	if err := os.WriteFile(filepath.Join(tempDir, "go.mod"), []byte("module example.com/testmod\n"), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	writeTmpl := func(pkgDir string, content string) {
+		fullDir := filepath.Join(tempDir, pkgDir)
+		if err := os.MkdirAll(fullDir, 0777); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(fullDir, "a_test.go"), []byte(content), 0666); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Root package test
+	writeTmpl(".", `package root_test
+import "testing"
+func TestRootNiceName(t *testing.T) { t.ArtifactDir() }
+`)
+
+	// Subpackage test
+	writeTmpl("subpkg", `package subpkg_test
+import "testing"
+func TestSubNiceName(t *testing.T) { t.ArtifactDir() }
+`)
+
+	// Deep subpackage test with various scenarios
+	writeTmpl("deep/nested/pkg", `package pkg_test
+import "testing"
+func TestNiceName(t *testing.T) { t.ArtifactDir() }
+func TestParent(t *testing.T) {
+	t.Run("SubTest", func(t *testing.T) { t.ArtifactDir() })
+}
+func TestVeryLongNameThatExceedsSixtyFourCharactersAndThereforeMustBeTruncatedAndHashed(t *testing.T) { t.ArtifactDir() }
+func TestInvalid_Chars_In_Name(t *testing.T) { t.ArtifactDir() }
+`)
+	// We use "TestInvalid_Chars_In_Name" because go test framework parses functions by ^Test.
+	// But let's actually make it have invalid path chars:
+	writeTmpl("deep/nested/pkg2", `package pkg2_test
+import "testing"
+func TestInvalid_Chars_In_Name(t *testing.T) {
+	t.Run("SubTest:with*stars", func(t *testing.T) { t.ArtifactDir() })
+}
+`)
+
+	// 2. Run the tests.
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", "-v", "-artifacts", "./...")
+	cmd.Dir = tempDir
+	cmd = testenv.CleanCmdEnv(cmd)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%v failed: %v\n%s", cmd, err, out)
+	}
+
+	// 3. Parse and verify output.
+	tests := []struct {
+		name       string
+		wantPrefix string
+	}{
+		// Root package tests don't have a package prefix because modulePath == importPath
+		{"TestRootNiceName", "TestRootNiceName"},
+		{"TestSubNiceName", "subpkg/TestSubNiceName"},
+		{"TestNiceName", "deep/nested/pkg/TestNiceName"},
+		{"TestParent/SubTest", "deep/nested/pkg/TestParent__SubTest"},
+		{"TestVeryLongNameThatExceedsSixtyFourCharactersAndThereforeMustBeTruncatedAndHashed", `deep/nested/pkg/TestVeryLongNameThatExceedsSixtyFourCharactersAn[0-9a-f]+`},
+		{`TestInvalid_Chars_In_Name/SubTest:with\*stars`, `deep/nested/pkg2/TestInvalid_Chars_In_Name__SubTestwithstars`},
+	}
+
+	for _, tt := range tests {
+		re := regexp.MustCompile(`=== ARTIFACTS ` + tt.name + ` ([^\n]+)`)
+		match := re.FindSubmatch(out)
+		if match == nil {
+			t.Errorf("expected output matching %q, got\n%q", re, out)
+			continue
+		}
+		artifactDir := string(match[1])
+
+		slashDir := filepath.ToSlash(artifactDir)
+
+		wantSuffixPattern := `_artifacts/` + tt.wantPrefix + `/[^/]+$`
+		wantRegex := regexp.MustCompile(wantSuffixPattern)
+
+		if !wantRegex.MatchString(slashDir) {
+			t.Errorf("artifact directory for %s: got %s, want suffix matching %s", tt.name, slashDir, wantSuffixPattern)
+		}
+	}
+}
+
 func checkArtifactDir(t *testing.T, out []byte, testName, outputDir string) {
 	t.Helper()
 

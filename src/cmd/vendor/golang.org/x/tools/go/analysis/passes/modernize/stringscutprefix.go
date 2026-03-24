@@ -201,8 +201,7 @@ func stringscutprefix(pass *analysis.Pass) (any, error) {
 
 					if astutil.EqualSyntax(lhs, bin.X) && astutil.EqualSyntax(call.Args[0], bin.Y) ||
 						(astutil.EqualSyntax(lhs, bin.Y) && astutil.EqualSyntax(call.Args[0], bin.X)) {
-						// TODO(adonovan): avoid FreshName when not needed; see errorsastype.
-						okVarName := refactor.FreshName(info.Scopes[ifStmt], ifStmt.Pos(), "ok")
+						okVarName := freshName(info, index, info.Scopes[ifStmt], ifStmt.Pos(), curIfStmt, curIfStmt, token.NoPos, "ok")
 						// Have one of:
 						//   if rest := TrimPrefix(s, prefix); rest != s { (ditto Suffix)
 						//   if rest := TrimPrefix(s, prefix); s != rest { (ditto Suffix)

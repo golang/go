@@ -318,7 +318,7 @@ func findPrintLike(pass *analysis.Pass, res *Result) {
 
 		// An interface method has no body, but acts
 		// like an implicit call to each implementing method.
-		if w.curBody.Inspector() == nil {
+		if !w.curBody.Valid() {
 			for impl := range impls[w.obj.(*types.Func)] {
 				doCall(w, impl, nil)
 			}

@@ -1,0 +1,21 @@
+[!exec:hg] skip
+[short] skip
+
+# Testing hg->module converter's generation of +incompatible tags; turn off proxy.
+env GOPROXY=direct
+env GOSUMDB=off
+
+# get should include incompatible tags in "latest" calculation.
+go mod edit -droprequire vcs-test.golang.org/hg/legacytest.hg
+go get vcs-test.golang.org/hg/legacytest.hg@latest
+go list
+go list -m all
+stdout '^vcs-test.golang.org/hg/legacytest.hg v2\.0\.0\+incompatible$'
+
+-- go.mod --
+module x
+
+require vcs-test.golang.org/hg/legacytest.hg v1.0.0
+-- x.go --
+package x
+import "vcs-test.golang.org/hg/legacytest.hg"

@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/typeparams"
 	"golang.org/x/tools/internal/typesinternal"
 )
@@ -145,7 +144,7 @@ func AnalyzeCallee(logf func(string, ...any), fset *token.FileSet, pkg *types.Pa
 	var f func(n ast.Node, stack []ast.Node) bool
 	var stack []ast.Node
 	stack = append(stack, decl.Type) // for scope of function itself
-	visit := func(n ast.Node, stack []ast.Node) { astutil.PreorderStack(n, stack, f) }
+	visit := func(n ast.Node, stack []ast.Node) { ast.PreorderStack(n, stack, f) }
 	f = func(n ast.Node, stack []ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.SelectorExpr:
@@ -469,7 +468,7 @@ func analyzeParams(logf func(string, ...any), fset *token.FileSet, info *types.I
 	fieldObjs := fieldObjs(sig)
 	var stack []ast.Node
 	stack = append(stack, decl.Type) // for scope of function itself
-	astutil.PreorderStack(decl.Body, stack, func(n ast.Node, stack []ast.Node) bool {
+	ast.PreorderStack(decl.Body, stack, func(n ast.Node, stack []ast.Node) bool {
 		if id, ok := n.(*ast.Ident); ok {
 			if v, ok := info.Uses[id].(*types.Var); ok {
 				if pinfo, ok := paramInfos[v]; ok {
@@ -533,7 +532,7 @@ func analyzeTypeParams(_ logger, fset *token.FileSet, info *types.Info, decl *as
 	// TODO(jba): can we nevertheless combine this with the traversal in analyzeParams?
 	var stack []ast.Node
 	stack = append(stack, decl.Type) // for scope of function itself
-	astutil.PreorderStack(decl.Body, stack, func(n ast.Node, stack []ast.Node) bool {
+	ast.PreorderStack(decl.Body, stack, func(n ast.Node, stack []ast.Node) bool {
 		if id, ok := n.(*ast.Ident); ok {
 			if v, ok := info.Uses[id].(*types.TypeName); ok {
 				if pinfo, ok := paramInfos[v]; ok {

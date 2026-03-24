@@ -81,7 +81,7 @@ To upgrade the Go toolchain to the latest patch release of the current Go toolch
 
 	go get toolchain@patch
 
-See https://golang.org/ref/mod#go-get for details.
+See https://go.dev/ref/mod#go-get for details.
 
 In earlier versions of Go, 'go get' was used to build and install packages.
 Now, 'go get' is dedicated to adjusting dependencies in go.mod. 'go install'
@@ -92,7 +92,7 @@ current directory. For example:
 	go install example.com/pkg@v1.2.3
 	go install example.com/pkg@latest
 
-See 'go help install' or https://golang.org/ref/mod#go-install for details.
+See 'go help install' or https://go.dev/ref/mod#go-install for details.
 
 'go get' accepts the following flags.
 
@@ -118,7 +118,7 @@ from a repository.
 
 For more about build flags, see 'go help build'.
 
-For more about modules, see https://golang.org/ref/mod.
+For more about modules, see https://go.dev/ref/mod.
 
 For more about using 'go get' to update the minimum Go version and
 suggested Go toolchain, see https://go.dev/doc/toolchain.
@@ -133,13 +133,13 @@ var HelpVCS = &base.Command{
 	UsageLine: "vcs",
 	Short:     "controlling version control with GOVCS",
 	Long: `
-The 'go get' command can run version control commands like git
+The go command can run version control commands like git
 to download imported code. This functionality is critical to the decentralized
 Go package ecosystem, in which code can be imported from any server,
 but it is also a potential security problem, if a malicious server finds a
 way to cause the invoked version control command to run unintended code.
 
-To balance the functionality and security concerns, the 'go get' command
+To balance the functionality and security concerns, the go command
 by default will only use git and hg to download code from public servers.
 But it will use any known version control system (bzr, fossil, git, hg, svn)
 to download code from private servers, defined as those hosting packages
@@ -151,8 +151,8 @@ authenticated environments and are not as well scrutinized as attack surfaces.
 
 The version control command restrictions only apply when using direct version
 control access to download code. When downloading modules from a proxy,
-'go get' uses the proxy protocol instead, which is always permitted.
-By default, the 'go get' command uses the Go module mirror (proxy.golang.org)
+the go command uses the proxy protocol instead, which is always permitted.
+By default, the go command uses the Go module mirror (proxy.golang.org)
 for public packages and only falls back to version control for private
 packages or when the mirror refuses to serve a public package (typically for
 legal reasons). Therefore, clients can still access public code served from
@@ -320,7 +320,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 			"\t'go get' is no longer supported outside a module.\n" +
 			"\tTo build and install a command, use 'go install' with a version,\n" +
 			"\tlike 'go install example.com/cmd@latest'\n" +
-			"\tFor more information, see https://golang.org/doc/go-get-install-deprecation\n" +
+			"\tFor more information, see https://go.dev/doc/go-get-install-deprecation\n" +
 			"\tor run 'go help get' or 'go help install'.")
 	}
 
@@ -402,13 +402,13 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
+	if *getTool {
+		updateTools(moduleLoaderState, ctx, r, queries, &opts)
+	}
+
 	// If a workspace applies, checkPackageProblems will switch to the workspace
 	// using modload.EnterWorkspace when doing the final load, and then switch back.
 	r.checkPackageProblems(moduleLoaderState, ctx, pkgPatterns)
-
-	if *getTool {
-		updateTools(moduleLoaderState, ctx, queries, &opts)
-	}
 
 	// Everything succeeded. Update go.mod.
 	oldReqs := reqsFromGoMod(modload.ModFile(moduleLoaderState))
@@ -433,7 +433,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	}
 }
 
-func updateTools(loaderstate *modload.State, ctx context.Context, queries []*query, opts *modload.WriteOpts) {
+func updateTools(loaderstate *modload.State, ctx context.Context, r *resolver, queries []*query, opts *modload.WriteOpts) {
 	pkgOpts := modload.PackageOpts{
 		VendorModulesInGOROOTSrc: true,
 		LoadTests:                *getT,
@@ -456,6 +456,16 @@ func updateTools(loaderstate *modload.State, ctx context.Context, queries []*que
 		} else {
 			opts.AddTools = append(opts.AddTools, m.Pkgs...)
 		}
+	}
+
+	mg, err := modload.LoadModGraph(loaderstate, ctx, "")
+	if err != nil {
+		toolchain.SwitchOrFatal(loaderstate, ctx, err)
+	}
+	r.buildList = mg.BuildList()
+	r.buildListVersion = make(map[string]string, len(r.buildList))
+	for _, m := range r.buildList {
+		r.buildListVersion[m.Path] = m.Version
 	}
 }
 
@@ -1690,13 +1700,13 @@ func (r *resolver) checkPackageProblems(loaderstate *modload.State, ctx context.
 					}
 				}
 			}
-			if m := modload.PackageModule(pkg); m.Path != "" {
+			if m := loaderstate.PackageModule(pkg); m.Path != "" {
 				relevantMods[m] |= hasPkg
 			}
 		}
 		for _, match := range matches {
 			for _, pkg := range match.Pkgs {
-				m := modload.PackageModule(pkg)
+				m := loaderstate.PackageModule(pkg)
 				relevantMods[m] |= named
 			}
 		}

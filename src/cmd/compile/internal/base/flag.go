@@ -78,6 +78,7 @@ type CmdFlags struct {
 	LowerR CountFlag  "help:\"debug generated wrappers\""
 	LowerT bool       "help:\"enable tracing for debugging the compiler\""
 	LowerW CountFlag  "help:\"debug type checking\""
+	LowerU CountFlag  "help:\"emit unsorted warnings/errors\""
 	LowerV *bool      "help:\"increase debug verbosity\""
 
 	// Special characters
@@ -474,7 +475,6 @@ func concurrentFlagOk() bool {
 		Flag.E == 0 &&
 		Flag.K == 0 &&
 		Flag.L == 0 &&
-		Flag.LowerH == 0 &&
 		Flag.LowerJ == 0 &&
 		Flag.LowerM == 0 &&
 		Flag.LowerR == 0

@@ -1635,7 +1635,6 @@ func addPEBaseReloc(ctxt *Link) {
 func (ctxt *Link) dope() {
 	initdynimport(ctxt)
 	initdynexport(ctxt)
-	writeSEH(ctxt)
 }
 
 func setpersrc(ctxt *Link, syms []loader.Sym) {

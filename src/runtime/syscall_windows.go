@@ -7,7 +7,6 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"internal/runtime/syscall/windows"
 	"unsafe"
 )
 
@@ -415,9 +414,6 @@ func syscall_syscalln(fn, n uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	if n > uintptr(len(args)) {
 		panic("syscall: n > len(args)") // should not be reachable from user code
 	}
-	if n > windows.MaxArgs {
-		panic("runtime: SyscallN has too many arguments")
-	}
 
 	// The cgocall parameters are stored in m instead of in
 	// the stack because the stack can move during fn if it
@@ -428,10 +424,10 @@ func syscall_syscalln(fn, n uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	if c.N != 0 {
 		c.Args = uintptr(noescape(unsafe.Pointer(&args[0])))
 	}
-	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	errno := cgocall(asmstdcallAddr, unsafe.Pointer(c))
 	// cgocall may reschedule us on to a different M,
 	// but it copies the return values into the new M's
 	// so we can read them from there.
 	c = &getg().m.winsyscall
-	return c.R1, c.R2, c.Err
+	return c.R1, c.R2, uintptr(errno)
 }

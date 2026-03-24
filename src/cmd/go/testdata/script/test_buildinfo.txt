@@ -4,15 +4,20 @@
 [short] skip 'invokes go test'
 
 go mod init foo
+go get example.com/version@v1.0.0
+
 go test -v
 stdout '(devel)'
+stdout 'example.com/version v1.0.0'
 
 -- foo_test.go --
-package foo_test
+package foo
 
 import (
         "runtime/debug"
         "testing"
+
+        _ "example.com/version"
 )
 
 func TestBuildInfo(t *testing.T) {
@@ -21,4 +26,8 @@ func TestBuildInfo(t *testing.T) {
                 t.Fatal("no debug info")
         }
         t.Log(info.Main.Version)
+
+        for _, d := range info.Deps {
+                t.Log(d.Path, d.Version)
+        }
 }

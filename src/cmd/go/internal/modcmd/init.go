@@ -24,7 +24,7 @@ Init accepts one optional argument, the module path for the new module. If the
 module path argument is omitted, init will attempt to infer the module path
 using import comments in .go files and the current directory (if in GOPATH).
 
-See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
+See https://go.dev/ref/mod#go-mod-init for more about 'go mod init'.
 `,
 	Run: runInit,
 }

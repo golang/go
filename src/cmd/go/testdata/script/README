@@ -391,6 +391,8 @@ The available conditions are:
 	runtime.Compiler == <suffix>
 [cross]
 	cmd/go GOOS/GOARCH != GOHOSTOS/GOHOSTARCH
+[default-cgo]
+	when CGO_ENABLED=1|0 was set in make.bash
 [exec:*]
 	<suffix> names an executable in the test binary's PATH
 [fuzz]

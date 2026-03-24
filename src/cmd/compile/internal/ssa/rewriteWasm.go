@@ -575,6 +575,9 @@ func rewriteValueWasm(v *Value) bool {
 	case OpTailCall:
 		v.Op = OpWasmLoweredTailCall
 		return true
+	case OpTailCallInter:
+		v.Op = OpWasmLoweredTailCallInter
+		return true
 	case OpTrunc:
 		v.Op = OpWasmF64Trunc
 		return true
@@ -599,6 +602,8 @@ func rewriteValueWasm(v *Value) bool {
 	case OpWB:
 		v.Op = OpWasmLoweredWB
 		return true
+	case OpWasmF32DemoteF64:
+		return rewriteValueWasm_OpWasmF32DemoteF64(v)
 	case OpWasmF64Add:
 		return rewriteValueWasm_OpWasmF64Add(v)
 	case OpWasmF64Mul:
@@ -613,6 +618,12 @@ func rewriteValueWasm(v *Value) bool {
 		return rewriteValueWasm_OpWasmI64Eq(v)
 	case OpWasmI64Eqz:
 		return rewriteValueWasm_OpWasmI64Eqz(v)
+	case OpWasmI64Extend16S:
+		return rewriteValueWasm_OpWasmI64Extend16S(v)
+	case OpWasmI64Extend32S:
+		return rewriteValueWasm_OpWasmI64Extend32S(v)
+	case OpWasmI64Extend8S:
+		return rewriteValueWasm_OpWasmI64Extend8S(v)
 	case OpWasmI64LeU:
 		return rewriteValueWasm_OpWasmI64LeU(v)
 	case OpWasmI64Load:
@@ -651,6 +662,8 @@ func rewriteValueWasm(v *Value) bool {
 		return rewriteValueWasm_OpWasmI64Store32(v)
 	case OpWasmI64Store8:
 		return rewriteValueWasm_OpWasmI64Store8(v)
+	case OpWasmI64Sub:
+		return rewriteValueWasm_OpWasmI64Sub(v)
 	case OpWasmI64Xor:
 		return rewriteValueWasm_OpWasmI64Xor(v)
 	case OpXor16:
@@ -3617,6 +3630,121 @@ func rewriteValueWasm_OpStore(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueWasm_OpWasmF32DemoteF64(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (F32DemoteF64 (F64Sqrt (F64PromoteF32 x)))
+	// result: (F32Sqrt x)
+	for {
+		if v_0.Op != OpWasmF64Sqrt {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpWasmF32Sqrt)
+		v.AddArg(x)
+		return true
+	}
+	// match: (F32DemoteF64 (F64Trunc (F64PromoteF32 x)))
+	// result: (F32Trunc x)
+	for {
+		if v_0.Op != OpWasmF64Trunc {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpWasmF32Trunc)
+		v.AddArg(x)
+		return true
+	}
+	// match: (F32DemoteF64 (F64Ceil (F64PromoteF32 x)))
+	// result: (F32Ceil x)
+	for {
+		if v_0.Op != OpWasmF64Ceil {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpWasmF32Ceil)
+		v.AddArg(x)
+		return true
+	}
+	// match: (F32DemoteF64 (F64Floor (F64PromoteF32 x)))
+	// result: (F32Floor x)
+	for {
+		if v_0.Op != OpWasmF64Floor {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpWasmF32Floor)
+		v.AddArg(x)
+		return true
+	}
+	// match: (F32DemoteF64 (F64Nearest (F64PromoteF32 x)))
+	// result: (F32Nearest x)
+	for {
+		if v_0.Op != OpWasmF64Nearest {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpWasmF32Nearest)
+		v.AddArg(x)
+		return true
+	}
+	// match: (F32DemoteF64 (F64Abs (F64PromoteF32 x)))
+	// result: (F32Abs x)
+	for {
+		if v_0.Op != OpWasmF64Abs {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		x := v_0_0.Args[0]
+		v.reset(OpWasmF32Abs)
+		v.AddArg(x)
+		return true
+	}
+	// match: (F32DemoteF64 (F64Copysign (F64PromoteF32 x) (F64PromoteF32 y)))
+	// result: (F32Copysign x y)
+	for {
+		if v_0.Op != OpWasmF64Copysign {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		x := v_0_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpWasmF64PromoteF32 {
+			break
+		}
+		y := v_0_1.Args[0]
+		v.reset(OpWasmF32Copysign)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
 func rewriteValueWasm_OpWasmF64Add(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -3827,6 +3955,49 @@ func rewriteValueWasm_OpWasmI64And(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(x & y)
 		return true
 	}
+	// match: (I64And x (I64Const [-1]))
+	// result: x
+	for {
+		x := v_0
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != -1 {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (I64And x (I64Const [0]))
+	// result: (I64Const [0])
+	for {
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != 0 {
+			break
+		}
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
+	// match: (I64And (I64And x (I64Const [c1])) (I64Const [c2]))
+	// result: (I64And x (I64Const [c1 & c2]))
+	for {
+		if v_0.Op != OpWasmI64And {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpWasmI64Const {
+			break
+		}
+		c1 := auxIntToInt64(v_0_1.AuxInt)
+		if v_1.Op != OpWasmI64Const {
+			break
+		}
+		c2 := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpWasmI64And)
+		v0 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(c1 & c2)
+		v.AddArg2(x, v0)
+		return true
+	}
 	// match: (I64And (I64Const [x]) y)
 	// cond: y.Op != OpWasmI64Const
 	// result: (I64And y (I64Const [x]))
@@ -3936,6 +4107,144 @@ func rewriteValueWasm_OpWasmI64Eqz(v *Value) bool {
 		x := v_0_0.Args[0]
 		v.reset(OpWasmI64Eqz)
 		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueWasm_OpWasmI64Extend16S(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (I64Extend16S (I64Extend16S x))
+	// result: (I64Extend16S x)
+	for {
+		if v_0.Op != OpWasmI64Extend16S {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpWasmI64Extend16S)
+		v.AddArg(x)
+		return true
+	}
+	// match: (I64Extend16S (I64Extend8S x))
+	// result: (I64Extend8S x)
+	for {
+		if v_0.Op != OpWasmI64Extend8S {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpWasmI64Extend8S)
+		v.AddArg(x)
+		return true
+	}
+	// match: (I64Extend16S x:(I64And _ (I64Const [c])))
+	// cond: c >= 0 && int64(int16(c)) == c
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpWasmI64And {
+			break
+		}
+		_ = x.Args[1]
+		x_1 := x.Args[1]
+		if x_1.Op != OpWasmI64Const {
+			break
+		}
+		c := auxIntToInt64(x_1.AuxInt)
+		if !(c >= 0 && int64(int16(c)) == c) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	return false
+}
+func rewriteValueWasm_OpWasmI64Extend32S(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (I64Extend32S (I64Extend32S x))
+	// result: (I64Extend32S x)
+	for {
+		if v_0.Op != OpWasmI64Extend32S {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpWasmI64Extend32S)
+		v.AddArg(x)
+		return true
+	}
+	// match: (I64Extend32S (I64Extend16S x))
+	// result: (I64Extend16S x)
+	for {
+		if v_0.Op != OpWasmI64Extend16S {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpWasmI64Extend16S)
+		v.AddArg(x)
+		return true
+	}
+	// match: (I64Extend32S (I64Extend8S x))
+	// result: (I64Extend8S x)
+	for {
+		if v_0.Op != OpWasmI64Extend8S {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpWasmI64Extend8S)
+		v.AddArg(x)
+		return true
+	}
+	// match: (I64Extend32S x:(I64And _ (I64Const [c])))
+	// cond: c >= 0 && int64(int32(c)) == c
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpWasmI64And {
+			break
+		}
+		_ = x.Args[1]
+		x_1 := x.Args[1]
+		if x_1.Op != OpWasmI64Const {
+			break
+		}
+		c := auxIntToInt64(x_1.AuxInt)
+		if !(c >= 0 && int64(int32(c)) == c) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	return false
+}
+func rewriteValueWasm_OpWasmI64Extend8S(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (I64Extend8S (I64Extend8S x))
+	// result: (I64Extend8S x)
+	for {
+		if v_0.Op != OpWasmI64Extend8S {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpWasmI64Extend8S)
+		v.AddArg(x)
+		return true
+	}
+	// match: (I64Extend8S x:(I64And _ (I64Const [c])))
+	// cond: c >= 0 && int64(int8(c)) == c
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpWasmI64And {
+			break
+		}
+		_ = x.Args[1]
+		x_1 := x.Args[1]
+		if x_1.Op != OpWasmI64Const {
+			break
+		}
+		c := auxIntToInt64(x_1.AuxInt)
+		if !(c >= 0 && int64(int8(c)) == c) {
+			break
+		}
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -4326,6 +4635,26 @@ func rewriteValueWasm_OpWasmI64Mul(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(x * y)
 		return true
 	}
+	// match: (I64Mul x (I64Const [0]))
+	// result: (I64Const [0])
+	for {
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != 0 {
+			break
+		}
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
+	// match: (I64Mul x (I64Const [1]))
+	// result: x
+	for {
+		x := v_0
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != 1 {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	// match: (I64Mul (I64Const [x]) y)
 	// cond: y.Op != OpWasmI64Const
 	// result: (I64Mul y (I64Const [x]))
@@ -4440,6 +4769,26 @@ func rewriteValueWasm_OpWasmI64Or(v *Value) bool {
 		y := auxIntToInt64(v_1.AuxInt)
 		v.reset(OpWasmI64Const)
 		v.AuxInt = int64ToAuxInt(x | y)
+		return true
+	}
+	// match: (I64Or x (I64Const [0]))
+	// result: x
+	for {
+		x := v_0
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != 0 {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (I64Or x (I64Const [-1]))
+	// result: (I64Const [-1])
+	for {
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != -1 {
+			break
+		}
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64ToAuxInt(-1)
 		return true
 	}
 	// match: (I64Or (I64Const [x]) y)
@@ -4626,6 +4975,26 @@ func rewriteValueWasm_OpWasmI64Store8(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueWasm_OpWasmI64Sub(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (I64Sub (I64Const [x]) (I64Const [y]))
+	// result: (I64Const [x - y])
+	for {
+		if v_0.Op != OpWasmI64Const {
+			break
+		}
+		x := auxIntToInt64(v_0.AuxInt)
+		if v_1.Op != OpWasmI64Const {
+			break
+		}
+		y := auxIntToInt64(v_1.AuxInt)
+		v.reset(OpWasmI64Const)
+		v.AuxInt = int64ToAuxInt(x - y)
+		return true
+	}
+	return false
+}
 func rewriteValueWasm_OpWasmI64Xor(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -4644,6 +5013,16 @@ func rewriteValueWasm_OpWasmI64Xor(v *Value) bool {
 		y := auxIntToInt64(v_1.AuxInt)
 		v.reset(OpWasmI64Const)
 		v.AuxInt = int64ToAuxInt(x ^ y)
+		return true
+	}
+	// match: (I64Xor x (I64Const [0]))
+	// result: x
+	for {
+		x := v_0
+		if v_1.Op != OpWasmI64Const || auxIntToInt64(v_1.AuxInt) != 0 {
+			break
+		}
+		v.copyOf(x)
 		return true
 	}
 	// match: (I64Xor (I64Const [x]) y)

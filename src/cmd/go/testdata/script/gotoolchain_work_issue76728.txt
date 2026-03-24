@@ -1,0 +1,13 @@
+# #76728: with GO111MODULE=auto, we didn't switch toolchains properly
+# in a workspace.
+
+env GO111MODULE=auto
+env TESTGO_VERSION=go1.23.0
+env TESTGO_VERSION_SWITCH=switch
+
+go version
+! stdout 1\.23\.0
+stdout 1\.24\.0
+
+-- go.work --
+go 1.24.0

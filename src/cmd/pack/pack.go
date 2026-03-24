@@ -6,6 +6,7 @@ package main
 
 import (
 	"cmd/internal/archive"
+	"cmd/internal/objabi"
 	"cmd/internal/telemetry/counter"
 	"fmt"
 	"io"
@@ -32,6 +33,7 @@ func main() {
 	log.SetFlags(0)
 	log.SetPrefix("pack: ")
 	counter.Open()
+	objabi.Flagparse(usage)
 	// need "pack op archive" at least.
 	if len(os.Args) < 3 {
 		log.Print("not enough arguments")

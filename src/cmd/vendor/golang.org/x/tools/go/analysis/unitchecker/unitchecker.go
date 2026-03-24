@@ -122,7 +122,7 @@ Usage of %[1]s:
 		os.Exit(0)
 	}
 	if len(args) != 1 || !strings.HasSuffix(args[0], ".cfg") {
-		log.Fatalf(`invoking "go tool vet" directly is unsupported; use "go vet"`)
+		log.Fatalf(`invoking "go tool %[1]s" directly is unsupported; use "go %[1]s"`, progname)
 	}
 	Run(args[0], analyzers)
 }

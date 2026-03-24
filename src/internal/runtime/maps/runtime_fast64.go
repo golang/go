@@ -52,8 +52,10 @@ func runtime_mapaccess2_fast64(typ *abi.MapType, m *Map, key uint64) (unsafe.Poi
 		return unsafe.Pointer(&zeroVal[0]), false
 	}
 
+	// See the related comment in runtime_mapaccess2_fast32
+	// for why we pass local copy of key.
 	k := key
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+	hash := memhash64(unsafe.Pointer(&k), m.seed)
 
 	// Select table.
 	idx := m.directoryIndex(hash)
@@ -142,8 +144,10 @@ func runtime_mapassign_fast64(typ *abi.MapType, m *Map, key uint64) unsafe.Point
 		fatal("concurrent map writes")
 	}
 
+	// See the related comment in runtime_mapaccess2_fast32
+	// for why we pass local copy of key.
 	k := key
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+	hash := memhash64(unsafe.Pointer(&k), m.seed)
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.
@@ -320,8 +324,10 @@ func runtime_mapassign_fast64ptr(typ *abi.MapType, m *Map, key unsafe.Pointer) u
 		fatal("concurrent map writes")
 	}
 
+	// See the related comment in runtime_mapaccess2_fast32
+	// for why we pass local copy of key.
 	k := key
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+	hash := memhash64(unsafe.Pointer(&k), m.seed)
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.

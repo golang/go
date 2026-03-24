@@ -58,11 +58,11 @@ import (
 // of nameConstraintsSet, to handle constraints which define full email
 // addresses (i.e. 'test@example.com'). For bare domain constraints, we use the
 // dnsConstraints type described above, querying the domain portion of the email
-// address. For full email addresses, we also hold a map of email addresses that
-// map the local portion of the email to the domain. When querying full email
-// addresses we then check if the local portion of the email is present in the
-// map, and if so case insensitively compare the domain portion of the
-// email.
+// address. For full email addresses, we also hold a map of email addresses with
+// the domain portion of the email lowercased, since it is case insensitive. When
+// looking up an email address in the constraint set, we first check the full
+// email address map, and if we don't find anything, we check the domain portion
+// of the email address against the dnsConstraints.
 
 type nameConstraintsSet[T *net.IPNet | string, V net.IP | string] struct {
 	set []T
@@ -375,7 +375,7 @@ func (dnc *dnsConstraints) query(s string) (string, bool) {
 		return constraint, true
 	}
 
-	if !dnc.permitted && s[0] == '*' {
+	if !dnc.permitted && len(s) > 0 && s[0] == '*' {
 		trimmed := trimFirstLabel(s)
 		if constraint, found := dnc.parentConstraints[trimmed]; found {
 			return constraint, true
@@ -387,16 +387,22 @@ func (dnc *dnsConstraints) query(s string) (string, bool) {
 type emailConstraints struct {
 	dnsConstraints interface{ query(string) (string, bool) }
 
-	fullEmails map[string]string
+	// fullEmails is map of rfc2821Mailboxs that are fully specified in the
+	// constraints, which we need to check for separately since they don't
+	// follow the same matching rules as the domain-based constraints. The
+	// domain portion of the rfc2821Mailbox has been lowercased, since the
+	// domain portion is case insensitive. When checking the map for an email,
+	// the domain portion of the query should also be lowercased.
+	fullEmails map[rfc2821Mailbox]struct{}
 }
 
 func newEmailConstraints(l []string, permitted bool) interface {
-	query(parsedEmail) (string, bool)
+	query(rfc2821Mailbox) (string, bool)
 } {
 	if len(l) == 0 {
 		return nil
 	}
-	exactMap := map[string]string{}
+	exactMap := map[rfc2821Mailbox]struct{}{}
 	var domains []string
 	for _, c := range l {
 		if !strings.ContainsRune(c, '@') {
@@ -411,7 +417,8 @@ func newEmailConstraints(l []string, permitted bool) interface {
 			// certificate since parsing.
 			continue
 		}
-		exactMap[parsed.local] = parsed.domain
+		parsed.domain = strings.ToLower(parsed.domain)
+		exactMap[parsed] = struct{}{}
 	}
 	ec := &emailConstraints{
 		fullEmails: exactMap,
@@ -422,16 +429,16 @@ func newEmailConstraints(l []string, permitted bool) interface {
 	return ec
 }
 
-func (ec *emailConstraints) query(s parsedEmail) (string, bool) {
-	if len(ec.fullEmails) > 0 && strings.ContainsRune(s.email, '@') {
-		if domain, ok := ec.fullEmails[s.mailbox.local]; ok && strings.EqualFold(domain, s.mailbox.domain) {
-			return ec.fullEmails[s.email] + "@" + s.mailbox.domain, true
+func (ec *emailConstraints) query(s rfc2821Mailbox) (string, bool) {
+	if len(ec.fullEmails) > 0 {
+		if _, ok := ec.fullEmails[s]; ok {
+			return fmt.Sprintf("%s@%s", s.local, s.domain), true
 		}
 	}
 	if ec.dnsConstraints == nil {
 		return "", false
 	}
-	constraint, found := ec.dnsConstraints.query(s.mailbox.domain)
+	constraint, found := ec.dnsConstraints.query(s.domain)
 	return constraint, found
 }
 
@@ -441,7 +448,7 @@ type constraints[T any, V any] struct {
 	excluded       interface{ query(V) (T, bool) }
 }
 
-func checkConstraints[T string | *net.IPNet, V any, P string | net.IP | parsedURI | parsedEmail](c constraints[T, V], s V, p P) error {
+func checkConstraints[T string | *net.IPNet, V any, P string | net.IP | parsedURI | rfc2821Mailbox](c constraints[T, V], s V, p P) error {
 	if c.permitted != nil {
 		if _, found := c.permitted.query(s); !found {
 			return fmt.Errorf("%s %q is not permitted by any constraint", c.constraintType, p)
@@ -459,13 +466,13 @@ type chainConstraints struct {
 	ip    constraints[*net.IPNet, net.IP]
 	dns   constraints[string, string]
 	uri   constraints[string, string]
-	email constraints[string, parsedEmail]
+	email constraints[string, rfc2821Mailbox]
 
 	index int
 	next  *chainConstraints
 }
 
-func (cc *chainConstraints) check(dns []string, uris []parsedURI, emails []parsedEmail, ips []net.IP) error {
+func (cc *chainConstraints) check(dns []string, uris []parsedURI, emails []rfc2821Mailbox, ips []net.IP) error {
 	for _, ip := range ips {
 		if err := checkConstraints(cc.ip, ip, ip); err != nil {
 			return err
@@ -488,8 +495,8 @@ func (cc *chainConstraints) check(dns []string, uris []parsedURI, emails []parse
 		}
 	}
 	for _, e := range emails {
-		if !domainNameValid(e.mailbox.domain, false) {
-			return fmt.Errorf("x509: cannot parse rfc822Name %q", e.mailbox)
+		if !domainNameValid(e.domain, false) {
+			return fmt.Errorf("x509: cannot parse rfc822Name %q", e)
 		}
 		if err := checkConstraints(cc.email, e, e); err != nil {
 			return err
@@ -509,7 +516,7 @@ func checkChainConstraints(chain []*Certificate) error {
 			ip:    constraints[*net.IPNet, net.IP]{"IP address", newIPNetConstraints(c.PermittedIPRanges), newIPNetConstraints(c.ExcludedIPRanges)},
 			dns:   constraints[string, string]{"DNS name", newDNSConstraints(c.PermittedDNSDomains, true), newDNSConstraints(c.ExcludedDNSDomains, false)},
 			uri:   constraints[string, string]{"URI", newDNSConstraints(c.PermittedURIDomains, true), newDNSConstraints(c.ExcludedURIDomains, false)},
-			email: constraints[string, parsedEmail]{"email address", newEmailConstraints(c.PermittedEmailAddresses, true), newEmailConstraints(c.ExcludedEmailAddresses, false)},
+			email: constraints[string, rfc2821Mailbox]{"email address", newEmailConstraints(c.PermittedEmailAddresses, true), newEmailConstraints(c.ExcludedEmailAddresses, false)},
 			index: i,
 		}
 		if currentConstraints == nil {
@@ -592,24 +599,15 @@ func parseURIs(uris []*url.URL) ([]parsedURI, error) {
 	return parsed, nil
 }
 
-type parsedEmail struct {
-	email   string
-	mailbox *rfc2821Mailbox
-}
-
-func (e parsedEmail) String() string {
-	return e.mailbox.local + "@" + e.mailbox.domain
-}
-
-func parseMailboxes(emails []string) ([]parsedEmail, error) {
-	parsed := make([]parsedEmail, 0, len(emails))
+func parseMailboxes(emails []string) ([]rfc2821Mailbox, error) {
+	parsed := make([]rfc2821Mailbox, 0, len(emails))
 	for _, email := range emails {
 		mailbox, ok := parseRFC2821Mailbox(email)
 		if !ok {
 			return nil, fmt.Errorf("cannot parse rfc822Name %q", email)
 		}
 		mailbox.domain = strings.ToLower(mailbox.domain)
-		parsed = append(parsed, parsedEmail{strings.ToLower(email), &mailbox})
+		parsed = append(parsed, mailbox)
 	}
 	return parsed, nil
 }

@@ -341,9 +341,9 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 	if base.Flag.Cfg.Instrumenting && fn.Pragma&ir.Norace == 0 && !fn.Linksym().ABIWrapper() {
 		if !base.Flag.Race || !objabi.LookupPkgSpecial(fn.Sym().Pkg.Path).NoRaceFunc {
 			s.instrumentMemory = true
-		}
-		if base.Flag.Race {
-			s.instrumentEnterExit = true
+			if base.Flag.Race {
+				s.instrumentEnterExit = true
+			}
 		}
 	}
 
@@ -3555,9 +3555,9 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 					// use constants for the bounds check.
 					z := s.constInt(types.Types[types.TINT], 0)
 					s.boundsCheck(z, z, ssa.BoundsIndex, false)
-					// The return value won't be live, return junk.
-					// But not quite junk, in case bounds checks are turned off. See issue 48092.
-					return s.zeroVal(n.Type())
+					// The return value won't be live. In case bounds checks
+					// are turned off, load from (*T)(nil) to cause a segfault.
+					return s.load(n.Type(), s.constNil(n.Type().PtrTo()))
 				}
 				len := s.constInt(types.Types[types.TINT], bound)
 				s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded()) // checks i == 0
@@ -4489,6 +4489,11 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 			// Grab old value of structure.
 			old := s.expr(left.X)
 
+			if left.Type().Size() == 0 {
+				// Nothing to do when assigning zero-sized things.
+				return
+			}
+
 			// Make new structure.
 			new := s.newValue0(ssa.OpStructMake, t)
 
@@ -4524,8 +4529,20 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 				return
 			}
 			if n != 1 {
-				s.Fatalf("assigning to non-1-length array")
+				// This can happen in weird, always-panics cases, like:
+				//     var x [0][2]int
+				//     x[i][j] = 5
+				// We know it always panics because the LHS is ssa-able,
+				// and arrays of length > 1 can't be ssa-able unless
+				// they are somewhere inside an outer [0].
+				// We can ignore the actual assignment, it is dynamically
+				// unreachable. See issue 77635.
+				return
 			}
+			if t.Size() == 0 {
+				return
+			}
+
 			// Rewrite to a = [1]{v}
 			len := s.constInt(types.Types[types.TINT], 1)
 			s.boundsCheck(i, len, ssa.BoundsIndex, false) // checks i == 0
@@ -4571,6 +4588,9 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 
 // zeroVal returns the zero value for type t.
 func (s *state) zeroVal(t *types.Type) *ssa.Value {
+	if t.Size() == 0 {
+		return s.entryNewValue0(ssa.OpEmpty, t)
+	}
 	switch {
 	case t.IsInteger():
 		switch t.Size() {
@@ -4623,13 +4643,8 @@ func (s *state) zeroVal(t *types.Type) *ssa.Value {
 			v.AddArg(s.zeroVal(t.FieldType(i)))
 		}
 		return v
-	case t.IsArray():
-		switch t.NumElem() {
-		case 0:
-			return s.entryNewValue0(ssa.OpArrayMake0, t)
-		case 1:
-			return s.entryNewValue1(ssa.OpArrayMake1, t, s.zeroVal(t.Elem()))
-		}
+	case t.IsArray() && t.NumElem() == 1:
+		return s.entryNewValue1(ssa.OpArrayMake1, t, s.zeroVal(t.Elem()))
 	case t.IsSIMD():
 		return s.newValue0(ssa.OpZeroSIMD, t)
 	}
@@ -4999,7 +5014,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 		fn := fn.(*ir.SelectorExpr)
 		var iclosure *ssa.Value
 		iclosure, rcvr = s.getClosureAndRcvr(fn)
-		if k == callNormal {
+		if k == callNormal || k == callTail {
 			codeptr = s.load(types.Types[types.TUINTPTR], iclosure)
 		} else {
 			closure = iclosure
@@ -5115,6 +5130,10 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 			// Note that the "receiver" parameter is nil because the actual receiver is the first input parameter.
 			aux := ssa.InterfaceAuxCall(params)
 			call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
+			if k == callTail {
+				call.Op = ssa.OpTailLECallInter
+				stksize = 0 // Tail call does not use stack. We reuse caller's frame.
+			}
 		case calleeLSym != nil:
 			aux := ssa.StaticAuxCall(calleeLSym, params)
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
@@ -5216,7 +5235,15 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 	}
 
 	if s.canSSA(n) {
-		s.Fatalf("addr of canSSA expression: %+v", n)
+		// This happens in weird, always-panics cases, like:
+		//     var x [0][2]int
+		//     x[i][j] = 5
+		// The outer assignment, ...[j] = 5, is a fine
+		// assignment to do, but requires computing the address
+		// &x[i], which will always panic when evaluated.
+		// We just return something reasonable in this case.
+		// It will be dynamically unreachable. See issue 77635.
+		return s.newValue1A(ssa.OpAddr, n.Type().PtrTo(), ir.Syms.Zerobase, s.sb)
 	}
 
 	t := types.NewPtr(n.Type())
@@ -5648,7 +5675,7 @@ func (s *state) storeTypeScalars(t *types.Type, left, right *ssa.Value, skip ski
 			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
 			s.storeTypeScalars(ft, addr, val, 0)
 		}
-	case t.IsArray() && t.NumElem() == 0:
+	case t.IsArray() && t.Size() == 0:
 		// nothing
 	case t.IsArray() && t.NumElem() == 1:
 		s.storeTypeScalars(t.Elem(), left, s.newValue1I(ssa.OpArraySelect, t.Elem(), 0, right), 0)
@@ -5688,7 +5715,7 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
 			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
 			s.storeTypePtrs(ft, addr, val)
 		}
-	case t.IsArray() && t.NumElem() == 0:
+	case t.IsArray() && t.Size() == 0:
 		// nothing
 	case t.IsArray() && t.NumElem() == 1:
 		s.storeTypePtrs(t.Elem(), left, s.newValue1I(ssa.OpArraySelect, t.Elem(), 0, right))

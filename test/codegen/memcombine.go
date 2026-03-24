@@ -1027,6 +1027,15 @@ func dwloadResult2(p *[2]int64) (int64, int64) {
 	return p[1], p[0]
 }
 
+func dwloadConditional(p *[2]int64) (int64, int64) {
+	// arm64:"LDP \\(R0\\), \\(R0, R1\\)"
+	x := p[0]
+	if x == 0 {
+		return x, 0
+	}
+	return x, p[1]
+}
+
 // ---------------------------------- //
 //    Arm64 double-register stores    //
 // ---------------------------------- //

@@ -327,12 +327,19 @@ const (
 
 	// Loong64.
 
-	// R_LOONG64_ADDR_HI resolves to the sign-adjusted "upper" 20 bits (bit 5-24) of an
-	// external address, by encoding it into the instruction.
+	// R_LOONG64_ADDR_HI resolves [31...12]bits of 32/64-bit PC-relative offset of an
+	// external address, by encoding it into addi.w/addi.d instruction
 	// R_LOONG64_ADDR_LO resolves to the low 12 bits of an external address, by encoding
-	// it into the instruction.
+	// it into pcalau12i instruction.
 	R_LOONG64_ADDR_HI
 	R_LOONG64_ADDR_LO
+
+	// R_LOONG64_ADDR64_HI resolves [63...52]bits of 64-bit PC-relative offset of an
+	// external address, by encoding it into lu52i.d instruction
+	// R_LOONG64_ADDR64_LO resolves [51...32]bits of 64-bit PC-relative offset of an
+	// external address, by encoding it into lu32i.d instruction
+	R_LOONG64_ADDR64_HI
+	R_LOONG64_ADDR64_LO
 
 	// R_LOONG64_ADDR_PCREL20_S2 resolves to the 22-bit, 4-byte aligned offset of an
 	// external address, by encoding it into a PCADDI instruction.
@@ -358,10 +365,19 @@ const (
 	R_LOONG64_TLS_IE_HI
 	R_LOONG64_TLS_IE_LO
 
-	// R_LOONG64_GOT_HI and R_LOONG64_GOT_LO resolves a GOT-relative instruction sequence,
-	// usually an pcalau12i followed by another ld or addi instruction.
+	// R_LOONG64_GOT_HI resolves [31...12]bits of 32/64-bit PC-relative offset of
+	// GOT entry, by encoding it into pcalau12i instruction
+	// R_LOONG64_GOT_LO resolves [11...0]bits of 32/64-bit PC-relative offset of
+	// GOT entry, by encoding it into ld.w/ld.d instruction
 	R_LOONG64_GOT_HI
 	R_LOONG64_GOT_LO
+
+	// R_LOONG64_GOT64_HI resolves [63...52]bits of 64-bit PC-relative offset of
+	// GOT entry, by encoding it into lu52i.d instruction
+	// R_LOONG64_GOT64_LO resolves [51...32]bits of 64-bit PC-relative offset of
+	// GOT entry, by encoding it into lu32i.d instruction
+	R_LOONG64_GOT64_HI
+	R_LOONG64_GOT64_LO
 
 	// 64-bit in-place addition.
 	R_LOONG64_ADD64
@@ -376,10 +392,6 @@ const (
 	// R_JMP21LOONG64 resolves to the 23-bit 4-byte aligned PC-relative target
 	// address of a BEQZ/BNEZ instruction, by encoding it into the instruction.
 	R_JMP21LOONG64
-
-	// R_JMPLOONG64 resolves to the 28-bit 4-byte aligned PC-relative target
-	// address of a B instruction, by encoding it into the instruction.
-	R_JMPLOONG64
 
 	// R_ADDRMIPSU (only used on mips/mips64) resolves to the sign-adjusted "upper" 16
 	// bits (bit 16-31) of an external address, by encoding it into the instruction.
@@ -458,8 +470,6 @@ func (r RelocType) IsDirectCall() bool {
 func (r RelocType) IsDirectJump() bool {
 	switch r {
 	case R_JMPMIPS:
-		return true
-	case R_JMPLOONG64:
 		return true
 	}
 	return false

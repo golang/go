@@ -280,6 +280,62 @@ func Float64ConstantStore(p *float64) {
 	*p = 5.432
 }
 
+func WideCeilNarrow(x float32) float32 {
+	// amd64/v3:"ROUNDSS" -"CVTSS2SD" -"CVTSD2SS"
+	// arm64:"FRINTPS" -"FCVTSD" -"FCVTDS"
+	// wasm:"F32Ceil" -"F64PromoteF32" -"F32DemoteF64"
+	return float32(math.Ceil(float64(x)))
+}
+
+func WideTruncNarrow(x float32) float32 {
+	// amd64/v3:"ROUNDSS" -"CVTSS2SD" -"CVTSD2SS"
+	// arm64:"FRINTZS" -"FCVTSD" -"FCVTDS"
+	// wasm:"F32Trunc" -"F64PromoteF32" -"F32DemoteF64"
+	return float32(math.Trunc(float64(x)))
+}
+
+func WideFloorNarrow(x float32) float32 {
+	// amd64/v3:"ROUNDSS" -"CVTSS2SD" -"CVTSD2SS"
+	// arm64:"FRINTMS" -"FCVTSD" -"FCVTDS"
+	// wasm:"F32Floor" -"F64PromoteF32" -"F32DemoteF64"
+	return float32(math.Floor(float64(x)))
+}
+
+func WideRoundNarrow(x float32) float32 {
+	// arm64:"FRINTAS" -"FCVTSD" -"FCVTDS"
+	return float32(math.Round(float64(x)))
+}
+
+func WideRoundToEvenNarrow(x float32) float32 {
+	// amd64/v3:"ROUNDSS" -"CVTSS2SD" -"CVTSD2SS"
+	// arm64:"FRINTNS" -"FCVTSD" -"FCVTDS"
+	// wasm:"F32Nearest" -"F64PromoteF32" -"F32DemoteF64"
+	return float32(math.RoundToEven(float64(x)))
+}
+
+func WideSqrtNarrow(x float32) float32 {
+	// arm64:"FSQRTS" -"FCVTSD" -"FCVTDS"
+	// loong64:"SQRTF" -"MOVFD" -"MOVDF"
+	// mips64:"SQRTF" -"MOVFD" -"MOVDF"
+	// riscv64:"FSQRTS" -"FCVTDS" -"FCVTSD"
+	// wasm:"F32Sqrt" -"F64PromoteF32" -"F32DemoteF64"
+	return float32(math.Sqrt(float64(x)))
+}
+
+func WideAbsNarrow(x float32) float32 {
+	// arm64:"FABSS" -"FCVTSD" -"FCVTDS"
+	// loong64:"ABSF" -"MOVFD" -"MOVDF"
+	// mips64:"ABSF" -"MOVFD" -"MOVDF"
+	// riscv64:"FABSS" -"FCVTDS" -"FCVTSD"
+	// wasm:"F32Abs" -"F64PromoteF32" -"F32DemoteF64"
+	return float32(math.Abs(float64(x)))
+}
+
+func WideCopysignNarrow(x, y float32) float32 {
+	// wasm:"F32Copysign"
+	return float32(math.Copysign(float64(x), float64(y)))
+}
+
 // ------------------------ //
 //  Subnormal tests         //
 // ------------------------ //

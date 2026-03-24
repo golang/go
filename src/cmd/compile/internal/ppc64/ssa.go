@@ -1869,7 +1869,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpPPC64CALLstatic:
 		s.Call(v)
 
-	case ssa.OpPPC64CALLtail:
+	case ssa.OpPPC64CALLtail, ssa.OpPPC64CALLtailinter:
 		s.TailCall(v)
 
 	case ssa.OpPPC64CALLclosure, ssa.OpPPC64CALLinter:

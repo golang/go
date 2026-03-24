@@ -547,7 +547,9 @@ func parseAuthority(scheme, authority string) (user *Userinfo, host string, err 
 // parseHost parses host as an authority without user
 // information. That is, as host[:port].
 func parseHost(scheme, host string) (string, error) {
-	if openBracketIdx := strings.LastIndex(host, "["); openBracketIdx != -1 {
+	if openBracketIdx := strings.LastIndex(host, "["); openBracketIdx > 0 {
+		return "", errors.New("invalid IP-literal")
+	} else if openBracketIdx == 0 {
 		// Parse an IP-Literal in RFC 3986 and RFC 6874.
 		// E.g., "[fe80::1]", "[fe80::1%25en0]", "[fe80::1]:80".
 		closeBracketIdx := strings.LastIndex(host, "]")
@@ -614,6 +616,13 @@ func parseHost(scheme, host string) (string, error) {
 				// Since we historically permitted colons to appear in the host,
 				// continue to permit it for postgres:// URLs only.
 				// https://go.dev/issue/75223
+				i = lastColon
+			} else if scheme == "mongodb" || scheme == "mongodb+srv" {
+				// In a MongoDB connection URI, commas are used to separate
+				// multiple host addresses when connecting to a replica set or a sharded cluster.
+				// https://www.mongodb.com/docs/manual/reference/connection-string-formats/
+				// Example:
+				// mongodb://mongodb0.example.com:27017,mongodb1.example.com:27017
 				i = lastColon
 			} else if urlstrictcolons.Value() == "0" {
 				urlstrictcolons.IncNonDefault()
@@ -911,6 +920,19 @@ func (v Values) Del(key string) {
 func (v Values) Has(key string) bool {
 	_, ok := v[key]
 	return ok
+}
+
+// Clone creates a deep copy of the subject [Values].
+func (vs Values) Clone() Values {
+	if vs == nil {
+		return nil
+	}
+
+	newVals := make(Values, len(vs))
+	for k, v := range vs {
+		newVals[k] = slices.Clone(v)
+	}
+	return newVals
 }
 
 // ParseQuery parses the URL-encoded query string and returns
@@ -1321,4 +1343,17 @@ func JoinPath(base string, elem ...string) (result string, err error) {
 		return "", err
 	}
 	return res.String(), nil
+}
+
+// Clone creates a deep copy of the fields of the subject [URL].
+func (u *URL) Clone() *URL {
+	if u == nil {
+		return nil
+	}
+
+	uc := new(*u)
+	if u.User != nil {
+		uc.User = new(*u.User)
+	}
+	return uc
 }

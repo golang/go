@@ -486,6 +486,7 @@ func init() {
 
 		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                                // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
 		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                  // tail call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
+		{name: "CALLtailinter", argLength: -1, reg: regInfo{inputs: []regMask{ptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},     // tail call fn by pointer. arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{ptrsp, buildReg("R12"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
 		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{ptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 

@@ -604,7 +604,17 @@ func getOrigEnv(key string) string {
 
 func checkEnvWrite(key, val string) error {
 	switch key {
-	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOWORK", "GOTOOLDIR", "GOVERSION", "GOTELEMETRY", "GOTELEMETRYDIR":
+	case "GOEXE",
+		"GOGCCFLAGS",
+		"GOHOSTARCH",
+		"GOHOSTOS",
+		"GOMOD",
+		"GOROOT",
+		"GOTELEMETRY",
+		"GOTELEMETRYDIR",
+		"GOTOOLDIR",
+		"GOVERSION",
+		"GOWORK":
 		return fmt.Errorf("%s cannot be modified", key)
 	case "GOENV", "GODEBUG":
 		return fmt.Errorf("%s can only be set using the OS environment", key)

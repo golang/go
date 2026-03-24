@@ -1,0 +1,2 @@
+pkg net/url, method (*URL) Clone() *URL #73450
+pkg net/url, method (Values) Clone() Values #73450

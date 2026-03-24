@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"slices"
 )
 
@@ -206,6 +207,117 @@ func pairLoads(f *Func) {
 			i++ // Skip y next time around the loop.
 		}
 	}
+
+	// Try to pair a load with a load from a subsequent block.
+	// Note that this is always safe to do if the memory arguments match.
+	// (But see the memory barrier case below.)
+	type nextBlockKey struct {
+		op     Op
+		ptr    ID
+		mem    ID
+		auxInt int64
+		aux    any
+	}
+	nextBlock := map[nextBlockKey]*Value{}
+	for _, b := range f.Blocks {
+		if memoryBarrierTest(b) {
+			// TODO: Do we really need to skip write barrier test blocks?
+			//     type T struct {
+			//         a *byte
+			//         b int
+			//     }
+			//     func f(t *T) int {
+			//         r := t.b
+			//         t.a = nil
+			//         return r
+			//     }
+			// This would issue a single LDP for both the t.a and t.b fields,
+			// *before* we check the write barrier flag. (We load the t.a field
+			// to put it in the write barrier buffer.) Not sure if that is ok.
+			continue
+		}
+		// Find loads in the next block(s) that we can move to this one.
+		// TODO: could maybe look further than just one successor hop.
+		clear(nextBlock)
+		for _, e := range b.Succs {
+			if len(e.b.Preds) > 1 {
+				continue
+			}
+			for _, v := range e.b.Values {
+				info := pairableLoads[v.Op]
+				if info.width == 0 {
+					continue
+				}
+				if !offsetOk(v.Aux, v.AuxInt, info.width) {
+					continue // not advisable
+				}
+				nextBlock[nextBlockKey{op: v.Op, ptr: v.Args[0].ID, mem: v.Args[1].ID, auxInt: v.AuxInt, aux: v.Aux}] = v
+			}
+		}
+		if len(nextBlock) == 0 {
+			continue
+		}
+		// don't move too many loads. Each requires a register across a basic block boundary.
+		const maxMoved = 4
+		nMoved := 0
+		for i := len(b.Values) - 1; i >= 0 && nMoved < maxMoved; i-- {
+			x := b.Values[i]
+			info := pairableLoads[x.Op]
+			if info.width == 0 {
+				continue
+			}
+			if !offsetOk(x.Aux, x.AuxInt, info.width) {
+				continue // not advisable
+			}
+			key := nextBlockKey{op: x.Op, ptr: x.Args[0].ID, mem: x.Args[1].ID, auxInt: x.AuxInt + info.width, aux: x.Aux}
+			if y := nextBlock[key]; y != nil {
+				delete(nextBlock, key)
+
+				// Make the 2-register load.
+				load := b.NewValue2IA(x.Pos, info.pair, types.NewTuple(x.Type, y.Type), x.AuxInt, x.Aux, x.Args[0], x.Args[1])
+
+				// Modify x to be (Select0 load).
+				x.reset(OpSelect0)
+				x.SetArgs1(load)
+				// Modify y to be (Copy (Select1 load)).
+				// Note: the Select* needs to live in the load's block, not y's block.
+				y.reset(OpCopy)
+				y.SetArgs1(b.NewValue1(y.Pos, OpSelect1, y.Type, load))
+				nMoved++
+				continue
+			}
+			key.auxInt = x.AuxInt - info.width
+			if y := nextBlock[key]; y != nil {
+				delete(nextBlock, key)
+
+				// Make the 2-register load.
+				load := b.NewValue2IA(x.Pos, info.pair, types.NewTuple(y.Type, x.Type), y.AuxInt, x.Aux, x.Args[0], x.Args[1])
+
+				// Modify x to be (Select1 load).
+				x.reset(OpSelect1)
+				x.SetArgs1(load)
+				// Modify y to be (Copy (Select0 load)).
+				y.reset(OpCopy)
+				y.SetArgs1(b.NewValue1(y.Pos, OpSelect0, y.Type, load))
+				nMoved++
+				continue
+			}
+		}
+	}
+}
+
+func memoryBarrierTest(b *Block) bool {
+	if b.Kind != BlockARM64NZW {
+		return false
+	}
+	c := b.Controls[0]
+	if c.Op != OpARM64MOVWUload {
+		return false
+	}
+	if globl, ok := c.Aux.(*obj.LSym); ok {
+		return globl.Name == "runtime.writeBarrier"
+	}
+	return false
 }
 
 func pairStores(f *Func) {

@@ -74,6 +74,7 @@ func ContainsRune(s string, r rune) bool {
 }
 
 // ContainsFunc reports whether any Unicode code points r within s satisfy f(r).
+// It stops as soon as a call to f returns true.
 func ContainsFunc(s string, f func(rune) bool) bool {
 	return IndexFunc(s, f) >= 0
 }

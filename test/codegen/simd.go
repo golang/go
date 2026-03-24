@@ -104,3 +104,9 @@ func simdIsNaN512() {
 	c := a.Or(b)
 	c.ToInt64x8().StoreSlice(sinkInt64s)
 }
+
+func sftImmVPSRL() archsimd.Uint32x4 {
+	var x archsimd.Uint32x4
+	// amd64:`VPSRLD\s\$1,\s.*$`
+	return x.ShiftAllRight(1)
+}

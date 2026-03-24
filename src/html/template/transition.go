@@ -23,6 +23,8 @@ var transitionFunc = [...]func(context, []byte) (context, int){
 	stateRCDATA:         tSpecialTagEnd,
 	stateAttr:           tAttr,
 	stateURL:            tURL,
+	stateMetaContent:    tMetaContent,
+	stateMetaContentURL: tMetaContentURL,
 	stateSrcset:         tURL,
 	stateJS:             tJS,
 	stateJSDqStr:        tJSDelimited,
@@ -83,6 +85,7 @@ var elementContentType = [...]state{
 	elementStyle:    stateCSS,
 	elementTextarea: stateRCDATA,
 	elementTitle:    stateRCDATA,
+	elementMeta:     stateText,
 }
 
 // tTag is the context transition function for the tag state.
@@ -93,6 +96,11 @@ func tTag(c context, s []byte) (context, int) {
 		return c, len(s)
 	}
 	if s[i] == '>' {
+		// Treat <meta> specially, because it doesn't have an end tag, and we
+		// want to transition into the correct state/element for it.
+		if c.element == elementMeta {
+			return context{state: stateText, element: elementNone}, i + 1
+		}
 		return context{
 			state:   elementContentType[c.element],
 			element: c.element,
@@ -113,6 +121,8 @@ func tTag(c context, s []byte) (context, int) {
 	attrName := strings.ToLower(string(s[i:j]))
 	if c.element == elementScript && attrName == "type" {
 		attr = attrScriptType
+	} else if c.element == elementMeta && attrName == "content" {
+		attr = attrMetaContent
 	} else {
 		switch attrType(attrName) {
 		case contentTypeURL:
@@ -162,12 +172,13 @@ func tAfterName(c context, s []byte) (context, int) {
 }
 
 var attrStartStates = [...]state{
-	attrNone:       stateAttr,
-	attrScript:     stateJS,
-	attrScriptType: stateAttr,
-	attrStyle:      stateCSS,
-	attrURL:        stateURL,
-	attrSrcset:     stateSrcset,
+	attrNone:        stateAttr,
+	attrScript:      stateJS,
+	attrScriptType:  stateAttr,
+	attrStyle:       stateCSS,
+	attrURL:         stateURL,
+	attrSrcset:      stateSrcset,
+	attrMetaContent: stateMetaContent,
 }
 
 // tBeforeValue is the context transition function for stateBeforeValue.
@@ -203,6 +214,7 @@ var specialTagEndMarkers = [...][]byte{
 	elementStyle:    []byte("style"),
 	elementTextarea: []byte("textarea"),
 	elementTitle:    []byte("title"),
+	elementMeta:     []byte(""),
 }
 
 var (
@@ -612,6 +624,28 @@ func tError(c context, s []byte) (context, int) {
 	return c, len(s)
 }
 
+// tMetaContent is the context transition function for the meta content attribute state.
+func tMetaContent(c context, s []byte) (context, int) {
+	for i := 0; i < len(s); i++ {
+		if i+3 <= len(s)-1 && bytes.Equal(bytes.ToLower(s[i:i+4]), []byte("url=")) {
+			c.state = stateMetaContentURL
+			return c, i + 4
+		}
+	}
+	return c, len(s)
+}
+
+// tMetaContentURL is the context transition function for the "url=" part of a meta content attribute state.
+func tMetaContentURL(c context, s []byte) (context, int) {
+	for i := 0; i < len(s); i++ {
+		if s[i] == ';' {
+			c.state = stateMetaContent
+			return c, i + 1
+		}
+	}
+	return c, len(s)
+}
+
 // eatAttrName returns the largest j such that s[i:j] is an attribute name.
 // It returns an error if s[i:] does not look like it begins with an
 // attribute name, such as encountering a quote mark without a preceding
@@ -638,6 +672,7 @@ var elementNameMap = map[string]element{
 	"style":    elementStyle,
 	"textarea": elementTextarea,
 	"title":    elementTitle,
+	"meta":     elementMeta,
 }
 
 // asciiAlpha reports whether c is an ASCII letter.

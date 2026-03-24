@@ -323,10 +323,6 @@ func TestIndexByte(t *testing.T) {
 		if pos != tt.i {
 			t.Errorf(`IndexByte(%q, '%c') = %v`, tt.a, b, pos)
 		}
-		posp := IndexBytePortable(a, b)
-		if posp != tt.i {
-			t.Errorf(`indexBytePortable(%q, '%c') = %v`, tt.a, b, posp)
-		}
 	}
 }
 
@@ -617,8 +613,18 @@ func BenchmarkIndexByte(b *testing.B) {
 	benchBytes(b, indexSizes, bmIndexByte(IndexByte))
 }
 
+// indexBytePortable use as the baseline for performance comparisons.
+func indexBytePortable(s []byte, c byte) int {
+	for i, b := range s {
+		if b == c {
+			return i
+		}
+	}
+	return -1
+}
+
 func BenchmarkIndexBytePortable(b *testing.B) {
-	benchBytes(b, indexSizes, bmIndexByte(IndexBytePortable))
+	benchBytes(b, indexSizes, bmIndexByte(indexBytePortable))
 }
 
 func bmIndexByte(index func([]byte, byte) int) func(b *testing.B, n int) {

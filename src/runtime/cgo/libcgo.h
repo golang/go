@@ -49,7 +49,7 @@ extern void (*_cgo_thread_start)(ThreadStart *ts);
  * Creates a new operating system thread without updating any Go state
  * (OS dependent).
  */
-extern void (*_cgo_sys_thread_create)(void* (*func)(void*), void* arg);
+extern void (*_cgo_sys_thread_create)(void* (*func)(void*));
 
 /*
  * Indicates whether a dummy pthread per-thread variable is allocated.

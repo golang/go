@@ -334,6 +334,7 @@ func morestack()
 func morestack_noctxt()
 
 func rt0_go()
+func rt0_lib_go()
 
 // in asm_*.s
 // not called directly; definitions here supply type information for traceback.

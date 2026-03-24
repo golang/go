@@ -24,6 +24,7 @@ import (
 	"maps"
 	"net"
 	"net/http/httptrace"
+	"net/http/internal"
 	"net/http/internal/ascii"
 	"net/textproto"
 	"net/url"
@@ -288,8 +289,9 @@ type Transport struct {
 	// nextProtoOnce guards initialization of TLSNextProto and
 	// h2transport (via onceSetNextProtoDefaults)
 	nextProtoOnce      sync.Once
-	h2transport        h2Transport // non-nil if http2 wired up
-	tlsNextProtoWasNil bool        // whether TLSNextProto was nil when the Once fired
+	h2transport        h2Transport      // non-nil if http2 wired up
+	h3transport        dialClientConner // non-nil if http3 wired up
+	tlsNextProtoWasNil bool             // whether TLSNextProto was nil when the Once fired
 
 	// ForceAttemptHTTP2 controls whether HTTP/2 is enabled when a non-zero
 	// Dial, DialTLS, or DialContext func or TLSClientConfig is provided.
@@ -380,6 +382,45 @@ func (t *Transport) Clone() *Transport {
 	return t2
 }
 
+type dialClientConner interface {
+	// DialClientConn creates a new client connection to address.
+	//
+	// If proxy is non-nil, the connection should use the provided proxy.
+	// If HTTP/3 proxies are not supported, DialClientConn should return
+	// an error wrapping [errors.ErrUnsupported].
+	//
+	// The RoundTripper returned by DialClientConn must also implement the
+	// following methods to support [ClientConn] methods of the same name:
+	//	Close() error
+	//	Err() error
+	// 	Reserve() error
+	//	Release() error
+	//	Available() int
+	//	InFlight() int
+	//
+	// The client connection should arrange to call internalStateHook
+	// when the connection closes, when requests complete, and when the
+	// connection concurrency limit changes.
+	//
+	// The client connection must call the internal state hook when
+	// the connection state changes asynchronously, such as when a request completes.
+	//
+	// The internal state hook need not be called after synchronous changes
+	// to the state: Close, Reserve, Release, and RoundTrip calls
+	// which don't start a request do not need to call the hook.
+	DialClientConn(ctx context.Context, address string, proxy *url.URL, internalStateHook func()) (RoundTripper, error)
+}
+
+type closeIdleConnectionser interface {
+	// CloseIdleConnections is called by Transport.CloseIdleConnections.
+	//
+	// The transport will close idle connections created with DialClientConn
+	// before calling this method. The HTTP/3 transport should not attempt to
+	// close idle connections, but may clean up shared resources such as UDP
+	// sockets if no connections remain.
+	CloseIdleConnections()
+}
+
 // h2Transport is the interface we expect to be able to call from
 // net/http against an *http2.Transport that's either bundled into
 // h2_bundle.go or supplied by the user via x/net/http2.
@@ -431,34 +472,8 @@ func (t *Transport) onceSetNextProtoDefaults() {
 	if omitBundledHTTP2 {
 		return
 	}
-	t2, err := http2configureTransports(t)
-	if err != nil {
-		log.Printf("Error enabling Transport HTTP/2 support: %v", err)
-		return
-	}
-	t.h2transport = t2
 
-	// Auto-configure the http2.Transport's MaxHeaderListSize from
-	// the http.Transport's MaxResponseHeaderBytes. They don't
-	// exactly mean the same thing, but they're close.
-	//
-	// TODO: also add this to x/net/http2.Configure Transport, behind
-	// a +build go1.7 build tag:
-	if limit1 := t.MaxResponseHeaderBytes; limit1 != 0 && t2.MaxHeaderListSize == 0 {
-		const h2max = 1<<32 - 1
-		if limit1 >= h2max {
-			t2.MaxHeaderListSize = h2max
-		} else {
-			t2.MaxHeaderListSize = uint32(limit1)
-		}
-	}
-
-	// Server.ServeTLS clones the tls.Config before modifying it.
-	// Transport doesn't. We may want to make the two consistent some day.
-	//
-	// http2configureTransport will have already set NextProtos, but adjust it again
-	// here to remove HTTP/1.1 if the user has disabled it.
-	t.TLSClientConfig.NextProtos = adjustNextProtos(t.TLSClientConfig.NextProtos, protocols)
+	t.configureHTTP2(protocols)
 }
 
 func (t *Transport) protocols() Protocols {
@@ -748,6 +763,11 @@ func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 	}
 }
 
+func http2isNoCachedConnError(err error) bool {
+	_, ok := err.(interface{ IsHTTP2NoCachedConnError() })
+	return ok
+}
+
 func awaitLegacyCancel(ctx context.Context, cancel context.CancelCauseFunc, req *Request) {
 	select {
 	case <-req.Cancel:
@@ -863,7 +883,7 @@ func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
 }
 
 // ErrSkipAltProtocol is a sentinel error value defined by Transport.RegisterProtocol.
-var ErrSkipAltProtocol = errors.New("net/http: skip alternate protocol")
+var ErrSkipAltProtocol = internal.ErrSkipAltProtocol
 
 // RegisterProtocol registers a new protocol with scheme.
 // The [Transport] will pass requests using the given scheme to rt.
@@ -876,11 +896,25 @@ var ErrSkipAltProtocol = errors.New("net/http: skip alternate protocol")
 // handle the [Transport.RoundTrip] itself for that one request, as if the
 // protocol were not registered.
 func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
+	if err := t.registerProtocol(scheme, rt); err != nil {
+		panic(err)
+	}
+}
+
+func (t *Transport) registerProtocol(scheme string, rt RoundTripper) error {
 	t.altMu.Lock()
 	defer t.altMu.Unlock()
+
+	if scheme == "http/3" {
+		var ok bool
+		if t.h3transport, ok = rt.(dialClientConner); !ok {
+			panic("http: HTTP/3 RoundTripper does not implement DialClientConn")
+		}
+	}
+
 	oldMap, _ := t.altProto.Load().(map[string]RoundTripper)
 	if _, exists := oldMap[scheme]; exists {
-		panic("protocol " + scheme + " already registered")
+		return errors.New("protocol " + scheme + " already registered")
 	}
 	newMap := maps.Clone(oldMap)
 	if newMap == nil {
@@ -888,6 +922,7 @@ func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
 	}
 	newMap[scheme] = rt
 	t.altProto.Store(newMap)
+	return nil
 }
 
 // CloseIdleConnections closes any connections which were previously
@@ -916,6 +951,9 @@ func (t *Transport) CloseIdleConnections() {
 	t.connsPerHostMu.Unlock()
 	if t2 := t.h2transport; t2 != nil {
 		t2.CloseIdleConnections()
+	}
+	if cc, ok := t.h3transport.(closeIdleConnectionser); ok {
+		cc.CloseIdleConnections()
 	}
 }
 
@@ -1767,6 +1805,28 @@ type erringRoundTripper interface {
 var testHookProxyConnectTimeout = context.WithTimeout
 
 func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn bool, internalStateHook func()) (pconn *persistConn, err error) {
+	// TODO: actually support HTTP/3. Among other things:
+	// - make HTTP/3 play well with proxy.
+	// - implement happy eyeball between HTTP/3 and HTTP/1 & HTTP/2.
+	// - clean up the connection pooling logic.
+	if p := t.protocols(); p.http3() {
+		if p.HTTP1() || p.HTTP2() || p.UnencryptedHTTP2() {
+			return nil, errors.New("http: when using HTTP3, Transport.Protocols must contain only HTTP3")
+		}
+		if t.h3transport == nil {
+			return nil, errors.New("http: Transport.Protocols contains HTTP3, but Transport does not support HTTP/3")
+		}
+		rt, err := t.h3transport.DialClientConn(ctx, cm.addr(), cm.proxyURL, internalStateHook)
+		if err != nil {
+			return nil, err
+		}
+		return &persistConn{
+			t:        t,
+			cacheKey: cm.key(),
+			alt:      rt,
+		}, nil
+	}
+
 	pconn = &persistConn{
 		t:                 t,
 		cacheKey:          cm.key(),
@@ -2807,7 +2867,7 @@ var errTimeout error = &timeoutError{"net/http: timeout awaiting response header
 
 // errRequestCanceled is set to be identical to the one from h2 to facilitate
 // testing.
-var errRequestCanceled = http2errRequestCanceled
+var errRequestCanceled = internal.ErrRequestCanceled
 var errRequestCanceledConn = errors.New("net/http: request canceled while waiting for connection") // TODO: unify?
 
 // errRequestDone is used to cancel the round trip Context after a request is successfully done.
@@ -3027,11 +3087,16 @@ func (pc *persistConn) closeLocked(err error) {
 		pc.t.decConnsPerHost(pc.cacheKey)
 		// Close HTTP/1 (pc.alt == nil) connection.
 		// HTTP/2 closes its connection itself.
+		// Close HTTP/3 connection if it implements io.Closer.
 		if pc.alt == nil {
 			if err != errCallerOwnsConn {
 				pc.conn.Close()
 			}
 			close(pc.closech)
+		} else {
+			if cc, ok := pc.alt.(io.Closer); ok {
+				cc.Close()
+			}
 		}
 	}
 	pc.mutateHeaderFunc = nil

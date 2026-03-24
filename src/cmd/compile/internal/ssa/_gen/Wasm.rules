@@ -323,6 +323,7 @@
 (ClosureCall ...) => (LoweredClosureCall ...)
 (InterCall ...) => (LoweredInterCall ...)
 (TailCall ...) => (LoweredTailCall ...)
+(TailCallInter ...) => (LoweredTailCallInter ...)
 
 // Miscellaneous
 (Convert ...) => (LoweredConvert ...)
@@ -349,6 +350,9 @@
 (Abs ...) => (F64Abs ...)
 (Copysign ...) => (F64Copysign ...)
 
+(F32DemoteF64 (F64(Sqrt|Trunc|Ceil|Floor|Nearest|Abs) (F64PromoteF32 x))) => (F32(Sqrt|Trunc|Ceil|Floor|Nearest|Abs) x)
+(F32DemoteF64 (F64Copysign (F64PromoteF32 x) (F64PromoteF32 y))) => (F32Copysign x y)
+
 (Sqrt32 ...) => (F32Sqrt ...)
 
 (Ctz64 ...) => (I64Ctz ...)
@@ -370,6 +374,7 @@
 
 // --- Optimizations ---
 (I64Add (I64Const [x]) (I64Const [y])) => (I64Const [x + y])
+(I64Sub (I64Const [x]) (I64Const [y])) => (I64Const [x - y])
 (I64Mul (I64Const [x]) (I64Const [y])) => (I64Const [x * y])
 (I64And (I64Const [x]) (I64Const [y])) => (I64Const [x & y])
 (I64Or  (I64Const [x]) (I64Const [y])) => (I64Const [x | y])
@@ -384,6 +389,35 @@
 (I64Shl (I64Const [x]) (I64Const [y])) => (I64Const [x << uint64(y)])
 (I64ShrU (I64Const [x]) (I64Const [y])) => (I64Const [int64(uint64(x) >> uint64(y))])
 (I64ShrS (I64Const [x]) (I64Const [y])) => (I64Const [x >> uint64(y)])
+
+// Identity and absorption rules for AND/OR/XOR/MUL.
+// These fire on nodes created during or after lowering.
+(I64And x (I64Const [-1])) => x
+(I64And x (I64Const [0])) => (I64Const [0])
+(I64Or  x (I64Const [0])) => x
+(I64Or  x (I64Const [-1])) => (I64Const [-1])
+(I64Xor x (I64Const [0])) => x
+(I64Mul x (I64Const [0])) => (I64Const [0])
+(I64Mul x (I64Const [1])) => x
+
+// Double-mask elimination: cascaded zero-extensions produce
+// (I64And (I64And x C1) C2) which can be collapsed to a single mask.
+(I64And (I64And x (I64Const [c1])) (I64Const [c2])) => (I64And x (I64Const [c1 & c2]))
+
+// Redundant sign-extensions: idempotent and narrower-subsumes-wider.
+(I64Extend32S (I64Extend32S x)) => (I64Extend32S x)
+(I64Extend16S (I64Extend16S x)) => (I64Extend16S x)
+(I64Extend8S  (I64Extend8S  x)) => (I64Extend8S  x)
+(I64Extend32S (I64Extend16S x)) => (I64Extend16S x)
+(I64Extend32S (I64Extend8S  x)) => (I64Extend8S  x)
+(I64Extend16S (I64Extend8S  x)) => (I64Extend8S  x)
+
+// Sign-extend of a value already zero-extended from fewer bits is a no-op.
+// E.g. (I64Extend32S (I64And x (I64Const [0xff]))) — top 33 bits are already
+// zero, so sign-extending from 32 is identity.
+(I64Extend32S x:(I64And _ (I64Const [c]))) && c >= 0 && int64(int32(c)) == c => x
+(I64Extend16S x:(I64And _ (I64Const [c]))) && c >= 0 && int64(int16(c)) == c => x
+(I64Extend8S  x:(I64And _ (I64Const [c]))) && c >= 0 && int64(int8(c))  == c => x
 
 // TODO: declare these operations as commutative and get rid of these rules?
 (I64Add (I64Const [x]) y) && y.Op != OpWasmI64Const => (I64Add y (I64Const [x]))

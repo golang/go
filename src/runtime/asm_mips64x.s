@@ -452,6 +452,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already. Or we might already
 	// be on the m->gsignal stack.
+	BEQ	g, R0, nosave
 	MOVV	g_m(g), R5
 	MOVV	m_gsignal(R5), R6
 	BEQ	R6, g, g0
@@ -481,6 +482,20 @@ g0:
 	SUBVU	R6, R5
 	MOVV	R5, R29
 
+	MOVW	R2, ret+16(FP)
+	RET
+
+nosave:
+	// Running on a system stack, perhaps even without a g.
+	// Having no g can happen during thread creation or thread teardown.
+	MOVV	fn+0(FP), R25
+	MOVV	arg+8(FP), R4
+	MOVV	R29, R3
+	ADDV	$-16, R29
+	MOVV	R0, 0(R29)	// Where above code stores g, in case someone looks during debugging.
+	MOVV	R3, 8(R29)	// Save original stack pointer.
+	JAL	(R25)
+	MOVV	8(R29), R29	// Restore stack pointer.
 	MOVW	R2, ret+16(FP)
 	RET
 

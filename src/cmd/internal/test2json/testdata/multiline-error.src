@@ -1,0 +1,15 @@
+! go test -v=test2json
+
+stdout '=== RUN   Test'
+
+-- go.mod --
+module p
+
+-- x_test.go --
+package p
+
+import "testing"
+
+func Test(t *testing.T) {
+	t.Error("Error1\nError2\r")
+}

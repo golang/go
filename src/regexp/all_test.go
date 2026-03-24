@@ -5,6 +5,7 @@
 package regexp
 
 import (
+	"bytes"
 	"reflect"
 	"regexp/syntax"
 	"slices"
@@ -609,6 +610,19 @@ func BenchmarkFindAllNoMatches(b *testing.B) {
 		all := re.FindAll(s, -1)
 		if all != nil {
 			b.Fatalf("FindAll(%q) = %q; want nil", s, all)
+		}
+	}
+}
+
+func BenchmarkFindAllTenMatches(b *testing.B) {
+	re := MustCompile("a+b+")
+	s := bytes.Repeat([]byte("acddeeabbax"), 10)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		all := re.FindAll(s, -1)
+		if len(all) != 10 {
+			b.Fatalf("FindAll(%q) = %q; want 10 matches", s, all)
 		}
 	}
 }

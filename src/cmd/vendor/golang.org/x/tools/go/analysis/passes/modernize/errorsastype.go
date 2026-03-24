@@ -125,22 +125,11 @@ func errorsastype(pass *analysis.Pass) (any, error) {
 		errtype := types.TypeString(v.Type(), qual)
 
 		// Choose a name for the "ok" variable.
-		// TODO(adonovan): this pattern also appears in stditerators,
-		// and is wanted elsewhere; factor.
-		okName := "ok"
-		if okVar := lookup(info, curCall, "ok"); okVar != nil {
-			// The name 'ok' is already declared, but
-			// don't choose a fresh name unless okVar
-			// is also used within the if-statement.
-			curIf := curCall.Parent()
-			for curUse := range index.Uses(okVar) {
-				if curIf.Contains(curUse) {
-					scope := info.Scopes[curIf.Node().(*ast.IfStmt)]
-					okName = refactor.FreshName(scope, v.Pos(), "ok")
-					break
-				}
-			}
-		}
+		// We generate a new name only if 'ok' is already declared at
+		// curCall and it also used within the if-statement.
+		curIf := curCall.Parent()
+		ifScope := info.Scopes[curIf.Node().(*ast.IfStmt)]
+		okName := freshName(info, index, ifScope, v.Pos(), curCall, curIf, token.NoPos, "ok")
 
 		pass.Report(analysis.Diagnostic{
 			Pos:     call.Fun.Pos(),
@@ -189,7 +178,7 @@ func errorsastype(pass *analysis.Pass) (any, error) {
 // declaration of the typed error var. The var must not be
 // used outside the if statement.
 func canUseErrorsAsType(info *types.Info, index *typeindex.Index, curCall inspector.Cursor) (_ *types.Var, _ inspector.Cursor) {
-	if !astutil.IsChildOf(curCall, edge.IfStmt_Cond) {
+	if curCall.ParentEdgeKind() != edge.IfStmt_Cond {
 		return // not beneath if statement
 	}
 	var (
@@ -221,7 +210,7 @@ func canUseErrorsAsType(info *types.Info, index *typeindex.Index, curCall inspec
 			return // v used before/after if statement
 		}
 	}
-	if !astutil.IsChildOf(curDef, edge.ValueSpec_Names) {
+	if curDef.ParentEdgeKind() != edge.ValueSpec_Names {
 		return // v not declared by "var v T"
 	}
 	var (

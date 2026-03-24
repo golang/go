@@ -122,3 +122,19 @@ func doPanic(t *testing.T, msg string) {
 	t.Helper()
 	panic(msg)
 }
+
+func rangeHelper(t *testing.T, msg string) {
+	t.Helper()
+	iter := func(yield func(int) bool) {
+		if yield(0) {
+			yield(1)
+		}
+	}
+	for range iter {
+		t.Error(msg)
+	}
+}
+
+func rangeHelperHelper(t *testing.T) {
+	rangeHelper(t, "range")
+}

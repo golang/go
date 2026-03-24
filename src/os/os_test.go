@@ -767,13 +767,12 @@ func TestReaddirStatFailures(t *testing.T) {
 	}
 
 	var xerr error // error to return for x
-	*LstatP = func(path string) (FileInfo, error) {
+	SetStatHook(t, func(f *File, path string) (FileInfo, error) {
 		if xerr != nil && strings.HasSuffix(path, "x") {
 			return nil, xerr
 		}
-		return Lstat(path)
-	}
-	defer func() { *LstatP = Lstat }()
+		return nil, nil
+	})
 
 	dir := t.TempDir()
 	touch(t, filepath.Join(dir, "good1"))

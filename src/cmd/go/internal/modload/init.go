@@ -29,7 +29,6 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/search"
-	igover "internal/gover"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -436,6 +435,14 @@ type State struct {
 	modulesEnabled bool
 	MainModules    *MainModuleSet
 
+	// pkgLoader is the most recently-used package loader.
+	// It holds details about individual packages.
+	//
+	// This variable should only be accessed directly in top-level exported
+	// functions. All other functions that require or produce a *packageLoader should pass
+	// or return it as an explicit parameter.
+	pkgLoader *packageLoader
+
 	// requirements is the requirement graph for the main module.
 	//
 	// It is always non-nil if the main module's go.mod file has been
@@ -609,7 +616,7 @@ func (loaderstate *State) WillBeEnabled() bool {
 		return false
 	}
 
-	return FindGoMod(base.Cwd()) != ""
+	return FindGoMod(base.Cwd()) != "" || loaderstate.FindGoWork(base.Cwd()) != ""
 }
 
 // FindGoMod returns the name of the go.mod file for this command,
@@ -838,7 +845,7 @@ func WriteWorkFile(path string, wf *modfile.WorkFile) error {
 	wf.Cleanup()
 	out := modfile.Format(wf.Syntax)
 
-	return os.WriteFile(path, out, 0o666)
+	return os.WriteFile(path, out, 0666)
 }
 
 // UpdateWorkGoVersion updates the go line in wf to be at least goVers,
@@ -1149,8 +1156,8 @@ func errWorkTooOld(gomod string, wf *modfile.WorkFile, goVers string) error {
 		// even when it doesn't list any version.
 		verb = "implicitly requires"
 	}
-	return fmt.Errorf("module %s listed in go.work file requires go >= %s, but go.work %s go %s; to update it:\n\tgo work use",
-		base.ShortPath(filepath.Dir(gomod)), goVers, verb, gover.FromGoWork(wf))
+	return fmt.Errorf("module %s listed in go.work file requires go >= %s, but go.work %s go %s; to download and use go %s:\n\tgo work use",
+		base.ShortPath(filepath.Dir(gomod)), goVers, verb, gover.FromGoWork(wf), goVers)
 }
 
 // CheckReservedModulePath checks whether the module path is a reserved module path
@@ -1194,7 +1201,7 @@ func CreateModFile(loaderstate *State, ctx context.Context, modPath string) {
 	modFile := new(modfile.File)
 	modFile.AddModuleStmt(modPath)
 	loaderstate.MainModules = makeMainModules(loaderstate, []module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil}, nil)
-	addGoStmt(modFile, modFile.Module.Mod, DefaultModInitGoVersion()) // Add the go directive before converted module requirements.
+	addGoStmt(modFile, modFile.Module.Mod, gover.Local()) // Add the go directive before converted module requirements.
 
 	rs := requirementsFromModFiles(loaderstate, ctx, nil, []*modfile.File{modFile}, nil)
 	rs, err := updateRoots(loaderstate, ctx, rs.direct, rs, nil, nil, false)
@@ -1830,7 +1837,9 @@ Run 'go help mod init' for more information.
 	return "", fmt.Errorf(msg, dir, reason)
 }
 
-var importCommentRE = lazyregexp.New(`(?m)^package[ \t]+[^ \t\r\n/]+[ \t]+//[ \t]+import[ \t]+(\"[^"]+\")[ \t]*\r?\n`)
+var (
+	importCommentRE = lazyregexp.New(`(?m)^package[ \t]+[^ \t\r\n/]+[ \t]+//[ \t]+import[ \t]+(\"[^"]+\")[ \t]*\r?\n`)
+)
 
 func findImportComment(file string) string {
 	data, err := os.ReadFile(file)
@@ -1975,7 +1984,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 	if loaderstate.inWorkspaceMode() {
 		// go.mod files aren't updated in workspace mode, but we still want to
 		// update the go.work.sum file.
-		return loaderstate.Fetcher().WriteGoSum(ctx, keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
+		return loaderstate.Fetcher().WriteGoSum(ctx, keepSums(loaderstate, ctx, loaderstate.pkgLoader, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
 	}
 	_, updatedGoMod, modFile, err := UpdateGoModFromReqs(loaderstate, ctx, opts)
 	if err != nil {
@@ -1999,7 +2008,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 		// Don't write go.mod, but write go.sum in case we added or trimmed sums.
 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
 		if cfg.CmdName != "mod init" {
-			if err := loaderstate.Fetcher().WriteGoSum(ctx, keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate)); err != nil {
+			if err := loaderstate.Fetcher().WriteGoSum(ctx, keepSums(loaderstate, ctx, loaderstate.pkgLoader, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate)); err != nil {
 				return err
 			}
 		}
@@ -2022,7 +2031,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
 		if cfg.CmdName != "mod init" {
 			if err == nil {
-				err = loaderstate.Fetcher().WriteGoSum(ctx, keepSums(loaderstate, ctx, loaded, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
+				err = loaderstate.Fetcher().WriteGoSum(ctx, keepSums(loaderstate, ctx, loaderstate.pkgLoader, loaderstate.requirements, addBuildListZipSums), mustHaveCompleteRequirements(loaderstate))
 			}
 		}
 	}()
@@ -2065,7 +2074,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 // including any go.mod files needed to reconstruct the MVS result
 // or identify go versions,
 // in addition to the checksums for every module in keepMods.
-func keepSums(loaderstate *State, ctx context.Context, ld *loader, rs *Requirements, which whichSums) map[module.Version]bool {
+func keepSums(loaderstate *State, ctx context.Context, ld *packageLoader, rs *Requirements, which whichSums) map[module.Version]bool {
 	// Every module in the full module graph contributes its requirements,
 	// so in order to ensure that the build list itself is reproducible,
 	// we need sums for every go.mod in the graph (regardless of whether
@@ -2268,30 +2277,4 @@ func CheckGodebug(verb, k, v string) error {
 		}
 	}
 	return fmt.Errorf("unknown %s %q", verb, k)
-}
-
-// DefaultModInitGoVersion returns the appropriate go version to include in a
-// newly initialized module or work file.
-//
-// If the current toolchain version is a stable version of Go 1.N.M, default to
-// go 1.(N-1).0
-//
-// If the current toolchain version is a pre-release version of Go 1.N (Release
-// Candidate M) or a development version of Go 1.N, default to go 1.(N-2).0
-func DefaultModInitGoVersion() string {
-	v := gover.Local()
-	if isPrereleaseOrDevelVersion(v) {
-		v = gover.Prev(gover.Prev(v))
-	} else {
-		v = gover.Prev(v)
-	}
-	if strings.Count(v, ".") < 2 {
-		v += ".0"
-	}
-	return v
-}
-
-func isPrereleaseOrDevelVersion(s string) bool {
-	v := igover.Parse(s)
-	return v.Kind != "" || v.Patch == ""
 }

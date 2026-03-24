@@ -449,15 +449,17 @@ var genericOps = []opData{
 	//
 	// Subsequent architecture-specific lowering only changes the opcode.
 
-	{name: "ClosureCall", argLength: -1, aux: "CallOff", call: true}, // arg0=code pointer, arg1=context ptr, arg2..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
-	{name: "StaticCall", argLength: -1, aux: "CallOff", call: true},  // call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
-	{name: "InterCall", argLength: -1, aux: "CallOff", call: true},   // interface call.  arg0=code pointer, arg1..argN-1 are register inputs, argN=memory, auxint=arg size.  Returns Result of register results, plus memory.
-	{name: "TailCall", argLength: -1, aux: "CallOff", call: true},    // tail call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "ClosureCall", argLength: -1, aux: "CallOff", call: true},   // arg0=code pointer, arg1=context ptr, arg2..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "StaticCall", argLength: -1, aux: "CallOff", call: true},    // call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "InterCall", argLength: -1, aux: "CallOff", call: true},     // interface call.  arg0=code pointer, arg1..argN-1 are register inputs, argN=memory, auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "TailCall", argLength: -1, aux: "CallOff", call: true},      // tail call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "TailCallInter", argLength: -1, aux: "CallOff", call: true}, // tail call function arg0=code pointer, arg1..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
 
-	{name: "ClosureLECall", argLength: -1, aux: "CallOff", call: true}, // late-expanded closure call. arg0=code pointer, arg1=context ptr,  arg2..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
-	{name: "StaticLECall", argLength: -1, aux: "CallOff", call: true},  // late-expanded static call function aux.(*ssa.AuxCall.Fn). arg0..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
-	{name: "InterLECall", argLength: -1, aux: "CallOff", call: true},   // late-expanded interface call. arg0=code pointer, arg1..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
-	{name: "TailLECall", argLength: -1, aux: "CallOff", call: true},    // late-expanded static tail call function aux.(*ssa.AuxCall.Fn). arg0..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+	{name: "ClosureLECall", argLength: -1, aux: "CallOff", call: true},   // late-expanded closure call. arg0=code pointer, arg1=context ptr,  arg2..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+	{name: "StaticLECall", argLength: -1, aux: "CallOff", call: true},    // late-expanded static call function aux.(*ssa.AuxCall.Fn). arg0..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+	{name: "InterLECall", argLength: -1, aux: "CallOff", call: true},     // late-expanded interface call. arg0=code pointer, arg1..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+	{name: "TailLECall", argLength: -1, aux: "CallOff", call: true},      // late-expanded static tail call function aux.(*ssa.AuxCall.Fn). arg0..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
+	{name: "TailLECallInter", argLength: -1, aux: "CallOff", call: true}, // late-expanded static tail call function arg0=code pointer, arg1..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
 
 	// Conversions: signed extensions, zero (unsigned) extensions, truncations
 	{name: "SignExt8to16", argLength: 1, typ: "Int16"},
@@ -537,12 +539,11 @@ var genericOps = []opData{
 	{name: "IData", argLength: 1},                // arg0=interface, returns data field
 
 	// Structs
-	{name: "StructMake", argLength: -1},                // args...=field0..n-1. Returns struct with n fields.
+	{name: "StructMake", argLength: -1},                // args...=field0..n-1. Returns struct with n fields. Must have >0 size (use Empty otherwise).
 	{name: "StructSelect", argLength: 1, aux: "Int64"}, // arg0=struct, auxint=field index.  Returns the auxint'th field.
 
 	// Arrays
-	{name: "ArrayMake0"},                              // Returns array with 0 elements
-	{name: "ArrayMake1", argLength: 1},                // Returns array with 1 element
+	{name: "ArrayMake1", argLength: 1},                // Returns array with 1 element. Use Empty if the element is zero-sized.
 	{name: "ArraySelect", argLength: 1, aux: "Int64"}, // arg0=array, auxint=index. Returns a[i].
 
 	// Spill&restore ops for the register allocator. These are
@@ -681,6 +682,9 @@ var genericOps = []opData{
 
 	// Helper instruction which is semantically equivalent to calling runtime.memequal, but some targets may prefer to custom lower it later, e.g. for specific constant sizes.
 	{name: "MemEq", argLength: 4, commutative: true, typ: "Bool"}, // arg0=ptr0, arg1=ptr1, arg2=size, arg3=memory.
+
+	// Value of a zero-sized type.
+	{name: "Empty", argLength: 0},
 
 	// SIMD
 	{name: "ZeroSIMD", argLength: 0}, // zero value of a vector

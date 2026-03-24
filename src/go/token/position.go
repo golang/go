@@ -112,6 +112,11 @@ type File struct {
 	infos []lineInfo
 }
 
+// String returns a brief description of the File.
+func (f *File) String() string {
+	return fmt.Sprintf("%s(%d-%d)", f.Name(), f.Base(), f.End())
+}
+
 // Name returns the file name of file f as registered with AddFile.
 func (f *File) Name() string {
 	return f.name

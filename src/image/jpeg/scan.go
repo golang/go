@@ -16,28 +16,37 @@ func (d *decoder) makeImg(mxx, myy int) {
 		return
 	}
 
-	h0 := d.comp[0].h
-	v0 := d.comp[0].v
-	hRatio := h0 / d.comp[1].h
-	vRatio := v0 / d.comp[1].v
-	var subsampleRatio image.YCbCrSubsampleRatio
-	switch hRatio<<4 | vRatio {
-	case 0x11:
-		subsampleRatio = image.YCbCrSubsampleRatio444
-	case 0x12:
-		subsampleRatio = image.YCbCrSubsampleRatio440
-	case 0x21:
-		subsampleRatio = image.YCbCrSubsampleRatio422
-	case 0x22:
-		subsampleRatio = image.YCbCrSubsampleRatio420
-	case 0x41:
-		subsampleRatio = image.YCbCrSubsampleRatio411
-	case 0x42:
-		subsampleRatio = image.YCbCrSubsampleRatio410
-	default:
-		panic("unreachable")
+	// Determine if we need flex mode for non-standard subsampling.
+	// Flex mode is needed when:
+	// - Cb and Cr have different sampling factors, or
+	// - The Y component doesn't have the maximum sampling factors, or
+	// - The ratio doesn't match any standard YCbCrSubsampleRatio.
+	subsampleRatio := image.YCbCrSubsampleRatio444
+	if d.comp[1].h != d.comp[2].h || d.comp[1].v != d.comp[2].v ||
+		d.maxH != d.comp[0].h || d.maxV != d.comp[0].v {
+		d.flex = true
+	} else {
+		hRatio := d.maxH / d.comp[1].h
+		vRatio := d.maxV / d.comp[1].v
+		switch hRatio<<4 | vRatio {
+		case 0x11:
+			subsampleRatio = image.YCbCrSubsampleRatio444
+		case 0x12:
+			subsampleRatio = image.YCbCrSubsampleRatio440
+		case 0x21:
+			subsampleRatio = image.YCbCrSubsampleRatio422
+		case 0x22:
+			subsampleRatio = image.YCbCrSubsampleRatio420
+		case 0x41:
+			subsampleRatio = image.YCbCrSubsampleRatio411
+		case 0x42:
+			subsampleRatio = image.YCbCrSubsampleRatio410
+		default:
+			d.flex = true
+		}
 	}
-	m := image.NewYCbCr(image.Rect(0, 0, 8*h0*mxx, 8*v0*myy), subsampleRatio)
+
+	m := image.NewYCbCr(image.Rect(0, 0, 8*d.maxH*mxx, 8*d.maxV*myy), subsampleRatio)
 	d.img3 = m.SubImage(image.Rect(0, 0, d.width, d.height)).(*image.YCbCr)
 
 	if d.nComp == 4 {
@@ -143,9 +152,11 @@ func (d *decoder) processSOS(n int) error {
 	}
 
 	// mxx and myy are the number of MCUs (Minimum Coded Units) in the image.
-	h0, v0 := d.comp[0].h, d.comp[0].v // The h and v values from the Y components.
-	mxx := (d.width + 8*h0 - 1) / (8 * h0)
-	myy := (d.height + 8*v0 - 1) / (8 * v0)
+	// The MCU dimensions are based on the maximum sampling factors.
+	// For standard subsampling, maxH/maxV equals h0/v0 (Y's factors).
+	// For flex mode, Y may not have the maximum factors.
+	mxx := (d.width + 8*d.maxH - 1) / (8 * d.maxH)
+	myy := (d.height + 8*d.maxV - 1) / (8 * d.maxV)
 	if d.img1 == nil && d.img3 == nil {
 		d.makeImg(mxx, myy)
 	}
@@ -439,16 +450,15 @@ func (d *decoder) refineNonZeroes(b *block, zig, zigEnd, nz, delta int32) (int32
 }
 
 func (d *decoder) reconstructProgressiveImage() error {
-	// The h0, mxx, by and bx variables have the same meaning as in the
+	// The mxx, by and bx variables have the same meaning as in the
 	// processSOS method.
-	h0 := d.comp[0].h
-	mxx := (d.width + 8*h0 - 1) / (8 * h0)
+	mxx := (d.width + 8*d.maxH - 1) / (8 * d.maxH)
 	for i := 0; i < d.nComp; i++ {
 		if d.progCoeffs[i] == nil {
 			continue
 		}
-		v := 8 * d.comp[0].v / d.comp[i].v
-		h := 8 * d.comp[0].h / d.comp[i].h
+		v := 8 * d.maxV / d.comp[i].v
+		h := 8 * d.maxH / d.comp[i].h
 		stride := mxx * d.comp[i].h
 		for by := 0; by*v < d.height; by++ {
 			for bx := 0; bx*h < d.width; bx++ {
@@ -469,6 +479,15 @@ func (d *decoder) reconstructBlock(b *block, bx, by, compIndex int) error {
 		b[unzig[zig]] *= qt[zig]
 	}
 	idct(b)
+
+	var h, v int
+	if d.flex {
+		// Flex mode: scale bx and by according to the component's sampling factors.
+		h = d.comp[compIndex].expandH
+		v = d.comp[compIndex].expandV
+		bx, by = bx*h, by*v
+	}
+
 	dst, stride := []byte(nil), 0
 	if d.nComp == 1 {
 		dst, stride = d.img1.Pix[8*(by*d.img1.Stride+bx):], d.img1.Stride
@@ -486,20 +505,31 @@ func (d *decoder) reconstructBlock(b *block, bx, by, compIndex int) error {
 			return UnsupportedError("too many components")
 		}
 	}
+
+	if d.flex {
+		// Flex mode: expand each source pixel to h×v destination pixels.
+		for y := 0; y < 8; y++ {
+			y8 := y * 8
+			yv := y * v
+			for x := 0; x < 8; x++ {
+				val := uint8(max(0, min(255, b[y8+x]+128)))
+				xh := x * h
+				for yy := 0; yy < v; yy++ {
+					for xx := 0; xx < h; xx++ {
+						dst[(yv+yy)*stride+xh+xx] = val
+					}
+				}
+			}
+		}
+		return nil
+	}
+
 	// Level shift by +128, clip to [0, 255], and write to dst.
 	for y := 0; y < 8; y++ {
 		y8 := y * 8
 		yStride := y * stride
 		for x := 0; x < 8; x++ {
-			c := b[y8+x]
-			if c < -128 {
-				c = 0
-			} else if c > 127 {
-				c = 255
-			} else {
-				c += 128
-			}
-			dst[yStride+x] = uint8(c)
+			dst[yStride+x] = uint8(max(0, min(255, b[y8+x]+128)))
 		}
 	}
 	return nil

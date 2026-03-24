@@ -353,6 +353,7 @@ var Anames = []string{
 	"REVW",
 	"ROR",
 	"RORW",
+	"SB",
 	"SBC",
 	"SBCS",
 	"SBCSW",
@@ -543,5 +544,4 @@ var Anames = []string{
 	"AUTIBSP",
 	"AUTIA1716",
 	"AUTIB1716",
-	"LAST",
 }

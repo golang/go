@@ -70,7 +70,7 @@ func expandCalls(f *Func) {
 			case OpInitMem:
 				m0 = v
 
-			case OpClosureLECall, OpInterLECall, OpStaticLECall, OpTailLECall:
+			case OpClosureLECall, OpInterLECall, OpStaticLECall, OpTailLECall, OpTailLECallInter:
 				calls = append(calls, v)
 
 			case OpArg:
@@ -199,6 +199,8 @@ func expandCalls(f *Func) {
 			rewriteCall(v, OpStaticCall, 0)
 		case OpTailLECall:
 			rewriteCall(v, OpTailCall, 0)
+		case OpTailLECallInter:
+			rewriteCall(v, OpTailCallInter, 1)
 		case OpClosureLECall:
 			rewriteCall(v, OpClosureCall, 2)
 		case OpInterLECall:
@@ -280,7 +282,7 @@ func (x *expandState) rewriteCallArgs(v *Value, firstArg int) {
 	argsWithoutMem := v.Args[firstArg : len(v.Args)-1] // Also strip closure/interface Op-specific args
 
 	sp := x.sp
-	if v.Op == OpTailLECall {
+	if v.Op == OpTailLECall || v.Op == OpTailLECallInter {
 		// For tail call, we unwind the frame before the call so we'll use the caller's
 		// SP.
 		sp = v.Block.NewValue1(src.NoXPos, OpGetCallerSP, x.typs.Uintptr, mem)
@@ -508,13 +510,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 
 	if at.Size() == 0 {
 		// For consistency, create these values even though they'll ultimately be unused
-		if at.IsArray() {
-			return makeOf(a, OpArrayMake0, nil)
-		}
-		if at.IsStruct() {
-			return makeOf(a, OpStructMake, nil)
-		}
-		return a
+		return makeOf(a, OpEmpty, nil)
 	}
 
 	sk := selKey{from: container, size: 0, offsetOrIndex: rc.storeOffset, typ: at}
@@ -566,7 +562,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 			addArg(e)
 			pos = pos.WithNotStmt()
 		}
-		if at.NumFields() > 4 {
+		if at.NumFields() > MaxStruct && !types.IsDirectIface(at) {
 			panic(fmt.Errorf("Too many fields (%d, %d bytes), container=%s", at.NumFields(), at.Size(), container.LongString()))
 		}
 		a = makeOf(a, OpStructMake, args)

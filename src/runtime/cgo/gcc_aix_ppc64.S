@@ -40,8 +40,11 @@ crosscall1:
 	mr	30, 5
 
 	// Call setg_gcc(g)
+	// Function pointers are function descriptors.
+	// Dereference setg_gcc to get the entry point and TOC.
 	mr	3, 5      // arg g
-	mr	12, 4     // setg_gcc
+	ld	12, 0(4)  // load entry point from function descriptor
+	ld	2, 8(4)   // load TOC from function descriptor
 	mtctr	12
 	bctrl
 

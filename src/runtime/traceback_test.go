@@ -891,15 +891,19 @@ func TestTracebackGoroutineLabels(t *testing.T) {
 		l     pprof.LabelSet
 		expTB string
 	}{
-		{l: pprof.Labels("foobar", "baz"), expTB: `{"foobar": "baz"}`},
+		{l: pprof.Labels("foobar", "baz"), expTB: `{foobar: baz}`},
 		// Make sure the keys are sorted because the runtime/pprof package sorts for consistency
-		{l: pprof.Labels("foobar", "baz", "fizzle", "bit"), expTB: `{"fizzle": "bit", "foobar": "baz"}`},
+		{l: pprof.Labels("foobar", "baz", "fizzle", "bit"), expTB: `{fizzle: bit, foobar: baz}`},
+		// allow [./_] as well without quoting
+		{l: pprof.Labels("foo_bar", "baz.", "/fizzle", "bit"), expTB: `{/fizzle: bit, foo_bar: baz.}`},
+		// Make sure the keys & values get quoted if there's a non-alnum character
+		{l: pprof.Labels("foobar:", "baz", "fizzle", "bit"), expTB: `{fizzle: bit, "foobar:": baz}`},
 		// make sure newlines get escaped
-		{l: pprof.Labels("fizzle", "bit", "foobar", "baz\n"), expTB: `{"fizzle": "bit", "foobar": "baz\n"}`},
+		{l: pprof.Labels("fizzle", "bit", "foobar", "baz\n"), expTB: `{fizzle: bit, foobar: "baz\n"}`},
 		// make sure null and escape bytes are properly escaped
-		{l: pprof.Labels("fizzle", "b\033it", "foo\"ba\x00r", "baz\n"), expTB: `{"fizzle": "b\x1bit", "foo\"ba\x00r": "baz\n"}`},
+		{l: pprof.Labels("fizzle", "b\033it", "foo\"ba\x00r", "baz\n"), expTB: `{fizzle: "b\x1bit", "foo\"ba\x00r": "baz\n"}`},
 		// verify that simple 16-bit unicode runes are escaped with \u, including a greek upper-case sigma and an arbitrary unicode character.
-		{l: pprof.Labels("fizzle", "\u1234Σ", "fooba\x00r", "baz\n"), expTB: `{"fizzle": "\u1234\u03a3", "fooba\x00r": "baz\n"}`},
+		{l: pprof.Labels("fizzle", "\u1234Σ", "fooba\x00r", "baz\n"), expTB: `{fizzle: "\u1234\u03a3", "fooba\x00r": "baz\n"}`},
 		// verify that 32-bit unicode runes are escaped with \U along with tabs
 		{l: pprof.Labels("fizz\tle", "\U00045678boop", "fooba\x00r", "baz\n"), expTB: `{"fizz\tle": "\U00045678boop", "fooba\x00r": "baz\n"}`},
 		// verify carriage returns and backslashes get escaped along with our nulls, newlines and a 32-bit unicode character
@@ -912,7 +916,7 @@ func TestTracebackGoroutineLabels(t *testing.T) {
 				// We collect the stack only for this goroutine (by passing
 				// false to runtime.Stack). We expect to see the parent's goroutine labels in the traceback.
 				stack := string(buf[:runtime.Stack(buf, false)])
-				if !strings.Contains(stack, "labels:"+tbl.expTB) {
+				if !strings.Contains(stack, tbl.expTB+":") {
 					t.Errorf("failed to find goroutine labels with labels %s (as %s) got:\n%s\n---", tbl.l, tbl.expTB, stack)
 				}
 			}
@@ -938,7 +942,7 @@ func TestTracebackGoroutineLabelsDisabledGODEBUG(t *testing.T) {
 		// We collect the stack only for this goroutine (by passing
 		// false to runtime.Stack).
 		stack := string(buf[:runtime.Stack(buf, false)])
-		if strings.Contains(stack, "labels:") {
+		if strings.Contains(stack, " {foobar: baz}:") {
 			t.Errorf("found goroutine labels with labels %s  got:\n%s\n---", lbls, stack)
 		}
 	}

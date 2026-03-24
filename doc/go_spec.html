@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.26 (Jan 12, 2026)",
+	"Subtitle": "Language version go1.27 (March 16, 2026)",
 	"Path": "/ref/spec"
 }-->
 
@@ -1118,9 +1118,7 @@ that field or method <code>f</code>.
 </p>
 
 <p>
-Promoted fields act like ordinary fields
-of a struct except that they cannot be used as field names in
-<a href="#Composite_literals">composite literals</a> of the struct.
+Promoted fields act like ordinary fields of a struct.
 </p>
 
 <p>
@@ -3175,9 +3173,9 @@ a valid composite literal type.
 The types of the elements and keys must be <a href="#Assignability">assignable</a>
 to the respective field, element, and key types of the LiteralType;
 there is no additional conversion.
-The key is interpreted as a field name for struct literals,
+The key is interpreted as a field <a href="#Selectors">selector</a> for struct literals,
 an index for array and slice literals, and a key for map literals.
-It is an error to specify multiple elements with the same field name
+It is an error to specify multiple elements with the same field selector
 or constant key value.
 A literal may omit the element list; such a literal evaluates
 to the zero value for its type.
@@ -3212,13 +3210,18 @@ For struct literals with keys the following rules apply:
 <ul>
 	<li>Every element must have a key.
 	</li>
-	<li>Each key must be a field name declared in the struct type.
+	<li>Each key must be a valid field <a href="#Selectors">selector</a>
+	    [<a href="#Go_1.27">Go 1.27</a>] for a (possibly promoted) field
+	    of the struct; the key selects that field.
+	</li>
+	<li>The types of the embedded fields (if any) <a href="#Selectors">traversed</a>
+	    to reach a selected field must not be pointer types.
+	</li>
+	<li>A key must not denote a promoted field inside an embedded struct if
+	    that struct is also specified by another key.
 	</li>
 	<li>The element list does not need to have an element for each struct field.
 	    Omitted fields get the zero value for that field.
-	</li>
-	<li>It is an error to specify an element for a non-exported
-	    field of a struct belonging to a different package.
 	</li>
 </ul>
 
@@ -3226,8 +3229,9 @@ For struct literals with keys the following rules apply:
 Given the declarations
 </p>
 <pre>
-type Point3D struct { x, y, z float64 }
-type Line struct { p, q Point3D }
+type Object  struct { name, color string }
+type Point3D struct { Object; x, y, z float64 }
+type Line    struct { Object; p, q Point3D }
 </pre>
 
 <p>
@@ -3235,8 +3239,18 @@ one may write
 </p>
 
 <pre>
-origin := Point3D{}                            // zero value for Point3D
-line := Line{origin, Point3D{y: -4, z: 12.3}}  // zero value for line.q.x
+origin := Point3D{}                                       // zero value for Point3D
+line1 := Line{Object{}, origin, Point3D{y: -4, z: 12.3}}  // zero value for line1.q.x
+line2 := Line{name: "diagonal", q: Point3D{1, 1, 1}}      // zero value for line2.Object.color, line2.p
+</pre>
+
+<p>
+but field selectors may not denote overlapping fields:
+</p>
+
+<pre>
+obj   := Object{"edge", "black"}
+line3 := Line{Object: obj, name: "diagonal"}              // invalid: name denotes a field inside Object
 </pre>
 
 <h4>Array and slice literals</h4>
@@ -6046,7 +6060,7 @@ The following built-in functions are not permitted in statement context:
 </p>
 
 <pre>
-append cap complex imag len make new real
+append cap complex imag len make max min new real
 unsafe.Add unsafe.Alignof unsafe.Offsetof unsafe.Sizeof unsafe.Slice unsafe.SliceData unsafe.String unsafe.StringData
 </pre>
 
@@ -8784,6 +8798,15 @@ function as range expression.
 <li>
 An <a href="#Alias_declarations">alias declaration</a> may declare
 <a href="#Type_parameter_declarations">type parameters</a>.
+</li>
+</ul>
+
+<h4 id="Go_1.27">Go 1.27</h4>
+<ul>
+<li>
+A key in a struct <a href="#Composite_literals">composite literal</a> may
+be any valid field <a href="#Selectors">selector</a> for the struct type,
+not just a (top-level) field name of the struct.
 </li>
 </ul>
 

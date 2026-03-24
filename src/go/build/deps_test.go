@@ -633,7 +633,10 @@ var depsRules = `
 
 	# HTTP, King of Dependencies.
 
-	FMT
+	context
+	< internal/gate;
+
+	FMT, encoding/binary
 	< golang.org/x/net/http2/hpack
 	< net/http/internal, net/http/internal/ascii, net/http/internal/testcert;
 
@@ -659,6 +662,7 @@ var depsRules = `
 	mime/multipart,
 	log
 	< net/http/internal/httpcommon, net/http/internal/httpsfv
+	< net/http/internal/http2
 	< net/http;
 
 	# HTTP-aware packages

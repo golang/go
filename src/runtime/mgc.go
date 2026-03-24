@@ -839,30 +839,12 @@ func gcStart(trigger gcTrigger) {
 	work.cpuStats.accumulateGCPauseTime(stw.stoppingCPUTime, 1)
 
 	if goexperiment.RuntimeSecret {
-		// The world is stopped. Every M is either parked
-		// or in a syscall, or running some non-go code which can't run in secret mode.
-		// To get to a parked or a syscall state
-		// they have to transition through a point where we erase any
-		// confidential information in the registers. Making them
-		// handle a signal now would clobber the signal stack
-		// with non-confidential information.
-		//
-		// TODO(dmo): this is linear with respect to the number of Ms.
-		// Investigate just how long this takes and whether we can somehow
-		// loop over just the Ms that have secret info on their signal stack,
-		// or cooperatively have the Ms send signals to themselves just
-		// after they erase their registers, but before they enter a syscall
-		for mp := allm; mp != nil; mp = mp.alllink {
-			// even through the world is stopped, the kernel can still
-			// invoke our signal handlers. No confidential information can be spilled
-			// (because it's been erased by this time), but we can avoid
-			// sending additional signals by atomically inspecting this variable
-			if atomic.Xchg(&mp.signalSecret, 0) != 0 {
-				noopSignal(mp)
-			}
-			// TODO: syncronize with the signal handler to ensure that the signal
-			// was actually delivered.
-		}
+		// The world is stopped, which means every M is either idle, blocked
+		// in a syscall or this M that we are running on now.
+		// The blocked Ms had any secret spill on their signal stacks erased
+		// when they entered their respective states. Now we have to handle
+		// this one.
+		eraseSecretsSignalStk()
 	}
 
 	// Finish sweep before we start concurrent scan.

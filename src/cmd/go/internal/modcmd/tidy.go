@@ -55,7 +55,7 @@ file.
 
 The -x flag causes tidy to print the commands download executes.
 
-See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
+See https://go.dev/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 	`,
 	Run: runTidy,
 }

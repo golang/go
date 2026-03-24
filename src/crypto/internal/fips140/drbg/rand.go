@@ -124,14 +124,22 @@ func SetTestingReader(r io.Reader) {
 // [crypto/rand.Reader], used to recognize it when passed to
 // APIs that accept a rand io.Reader.
 //
-// Any Reader that implements this interface is assumed to
-// call [Read] as its Read method.
-type DefaultReader interface{ defaultReader() }
+// Any [io.Reader] that embeds this type is assumed to
+// call [Read] as its [io.Reader.Read] method.
+type DefaultReader struct{}
+
+func (d DefaultReader) defaultReader() {}
+
+// IsDefaultReader reports whether the r embeds the [DefaultReader] type.
+func IsDefaultReader(r io.Reader) bool {
+	_, ok := r.(interface{ defaultReader() })
+	return ok
+}
 
 // ReadWithReader uses Reader to fill b with cryptographically secure random
 // bytes. It is intended for use in APIs that expose a rand io.Reader.
 func ReadWithReader(r io.Reader, b []byte) error {
-	if _, ok := r.(DefaultReader); ok {
+	if IsDefaultReader(r) {
 		Read(b)
 		return nil
 	}

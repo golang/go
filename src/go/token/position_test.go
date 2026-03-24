@@ -651,3 +651,11 @@ func TestFile_End(t *testing.T) {
 		t.Errorf("Base, End = %s, want %s", got, want)
 	}
 }
+
+func TestFile_String(t *testing.T) {
+	f := NewFileSet().AddFile("a.go", 100, 42)
+	got := f.String()
+	if want := "a.go(100-142)"; got != want {
+		t.Errorf("String = %q, want %q", got, want)
+	}
+}

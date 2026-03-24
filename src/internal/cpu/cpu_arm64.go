@@ -29,6 +29,8 @@ func doinit() {
 
 func getisar0() uint64
 
+func getisar1() uint64
+
 func getpfr0() uint64
 
 func getMIDR() uint64
@@ -37,7 +39,7 @@ func extractBits(data uint64, start, end uint) uint {
 	return (uint)(data>>start) & ((1 << (end - start + 1)) - 1)
 }
 
-func parseARM64SystemRegisters(isar0, pfr0 uint64) {
+func parseARM64SystemRegisters(isar0, isa1, pfr0 uint64) {
 	// ID_AA64ISAR0_EL1
 	// https://developer.arm.com/documentation/ddi0601/2025-03/AArch64-Registers/ID-AA64ISAR0-EL1--AArch64-Instruction-Set-Attribute-Register-0
 	switch extractBits(isar0, 4, 7) {
@@ -74,6 +76,11 @@ func parseARM64SystemRegisters(isar0, pfr0 uint64) {
 	switch extractBits(isar0, 32, 35) {
 	case 1:
 		ARM64.HasSHA3 = true
+	}
+
+	switch extractBits(isa1, 36, 39) {
+	case 1:
+		ARM64.HasSB = true
 	}
 
 	switch extractBits(pfr0, 48, 51) {

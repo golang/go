@@ -294,15 +294,6 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 
 	pb := p.Internal.Build
 	pmain.DefaultGODEBUG = defaultGODEBUG(loaderstate, pmain, pb.Directives, pb.TestDirectives, pb.XTestDirectives)
-	if !opts.SuppressBuildInfo && (pmain.Internal.BuildInfo == nil || pmain.DefaultGODEBUG != p.DefaultGODEBUG) {
-		// Either we didn't generate build info for the package under test (because it wasn't package main), or
-		// the DefaultGODEBUG used to build the test main package is different from the DefaultGODEBUG
-		// used to build the package under test. If we didn't set build info for the package under test
-		// pmain won't have buildinfo set (since we copy it from the package under test). If the default GODEBUG
-		// used for the package under test is different from that of the test main, the BuildInfo assigned above from the package
-		// under test incorrect for the test main package. Either set or correct pmain's build info.
-		pmain.setBuildInfo(ctx, loaderstate.Fetcher(), opts.AutoVCS)
-	}
 
 	// The generated main also imports testing, regexp, and os.
 	// Also the linker introduces implicit dependencies reported by LinkerDeps.
@@ -377,6 +368,15 @@ func TestPackagesAndErrors(loaderstate *modload.State, ctx context.Context, done
 		if cycleErr != nil {
 			ptest.Error = cycleErr
 			ptest.Incomplete = true
+		}
+
+		if !opts.SuppressBuildInfo {
+			// Now that pmain.Internal.Imports includes the test dependencies,
+			// regenerate build info for the test binary. We can't reuse p's
+			// build info because the test variants of packages can add
+			// packages from modules that don't already have transitive
+			// imports from p.
+			pmain.setBuildInfo(ctx, loaderstate.Fetcher(), opts.AutoVCS)
 		}
 
 		if cover != nil {

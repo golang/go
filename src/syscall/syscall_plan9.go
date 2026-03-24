@@ -14,12 +14,26 @@ package syscall
 import (
 	"errors"
 	"internal/oserror"
+	"internal/strconv"
 	"runtime"
 	"unsafe"
 )
 
 const ImplementsGetwd = true
 const bitSize16 = 2
+
+// Errno is not used with GOOS plan9.
+//
+// It exists because because the Go 1 API contract
+// (api/go1.txt's "pkg syscall, type Errno uintptr")
+// says it exists, and so code in the ecosystem often
+// assume it exists. This lets portable code be written
+// without build-tagged files, using runtime.GOOS checks instead.
+type Errno uintptr
+
+func (e Errno) Error() string   { return "errno " + strconv.Itoa(int(e)) }
+func (e Errno) Temporary() bool { return false }
+func (e Errno) Timeout() bool   { return false }
 
 // ErrorString implements Error's String method by returning itself.
 //

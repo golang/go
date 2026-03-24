@@ -1306,14 +1306,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		r := v.Reg()
 		getgFromTLS(s, r)
-	case ssa.OpAMD64CALLstatic, ssa.OpAMD64CALLtail:
+	case ssa.OpAMD64CALLstatic, ssa.OpAMD64CALLtail, ssa.OpAMD64CALLtailinter:
 		if s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
 			zeroX15(s)
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
-		if v.Op == ssa.OpAMD64CALLtail {
+		if v.Op == ssa.OpAMD64CALLtail || v.Op == ssa.OpAMD64CALLtailinter {
 			s.TailCall(v)
 			break
 		}
@@ -1491,7 +1491,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 	case ssa.OpAMD64LoweredRound32F, ssa.OpAMD64LoweredRound64F:
 		// input is already rounded
-	case ssa.OpAMD64ROUNDSD:
+	case ssa.OpAMD64ROUNDSD, ssa.OpAMD64ROUNDSS:
 		p := s.Prog(v.Op.Asm())
 		val := v.AuxInt
 		// 0 means math.RoundToEven, 1 Floor, 2 Ceil, 3 Trunc

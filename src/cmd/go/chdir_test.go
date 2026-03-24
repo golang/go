@@ -12,6 +12,8 @@ import (
 )
 
 func TestChdir(t *testing.T) {
+	t.Parallel()
+
 	// We want -C to apply to every go subcommand.
 	// Test that every command either has a -C flag registered
 	// or has CustomFlags set. In the latter case, the command

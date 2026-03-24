@@ -2493,6 +2493,40 @@ func issue75144ifNot(a, b []uint64) bool {
 	return false
 }
 
+func issue76269(a, b []byte) byte {
+	lenA := len(a)
+	lenB := len(b)
+	idxA := lenA - 1
+	idxB := lenB - 1
+
+	c := byte(0)
+
+	for idxA >= 0 && idxB >= 0 { // ERROR "Induction variable: limits \[0,\?\], increment 1$"
+		c ^= a[idxA] // ERROR "Proved IsInBounds$"
+		c ^= b[idxB] // ERROR "Proved IsInBounds$"
+		idxA--
+		idxB--
+	}
+	return c
+}
+
+func ex76269shouldNotIndVar() {
+	i, j := 0, 0
+	var a [4]byte
+	for {
+		if i >= 4 {
+			goto next
+		} // looks like a loop exit, but isn't!
+		if j >= 4 { // ERROR "Disproved Leq64$"
+			break
+		}
+	next:
+		_, _ = a[i], a[j] // ERROR "Proved IsInBounds$"
+		i++
+		j++
+	}
+}
+
 func mulIntoAnd(a, b uint) uint {
 	if a > 1 || b > 1 {
 		return 0
@@ -2570,7 +2604,7 @@ func swapbound(v []int) {
 	for i := 0; i < len(v)/2; i++ { // ERROR "Proved Div64 is unsigned|Induction variable"
 		v[i], // ERROR "Proved IsInBounds"
 			v[len(v)-1-i] = // ERROR "Proved IsInBounds"
-			v[len(v)-1-i],  // ERROR "Proved IsInBounds"
+			v[len(v)-1-i], // ERROR "Proved IsInBounds"
 			v[i] // ERROR "Proved IsInBounds"
 	}
 }
@@ -2750,6 +2784,22 @@ func issue76429(s []byte, k int) byte {
 	}
 	s = s[k:]   // ERROR "Proved IsSliceInBounds" "Proved slicemask not needed"
 	return s[0] // ERROR "Proved IsInBounds"
+}
+
+func booleanLikeNeqWithOneToEqWithZero(x uint64) uint64 {
+	x = min(x, 1)
+	if x != 1 { // ERROR "argument is boolean-like; rewrote to Eq64 against 0$"
+		return 42
+	}
+	return 1337
+}
+
+func booleanLikeEqWithOneToNeqWithZero(x uint64) uint64 {
+	x = min(x, 1)
+	if x == 1 { // ERROR "argument is boolean-like; rewrote to Neq64 against 0$"
+		return 42
+	}
+	return 1337
 }
 
 //go:noinline

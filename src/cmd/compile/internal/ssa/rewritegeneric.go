@@ -8488,6 +8488,17 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 func rewriteValuegeneric_OpEqB(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	// match: (EqB x x)
+	// result: (ConstBool [true])
+	for {
+		x := v_0
+		if x != v_1 {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = boolToAuxInt(true)
+		return true
+	}
 	// match: (EqB (ConstBool [c]) (ConstBool [d]))
 	// result: (ConstBool [c == d])
 	for {
@@ -8529,6 +8540,21 @@ func rewriteValuegeneric_OpEqB(v *Value) bool {
 			}
 			x := v_1
 			v.copyOf(x)
+			return true
+		}
+		break
+	}
+	// match: (EqB (Not x) y)
+	// result: (NeqB x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpNot {
+				continue
+			}
+			x := v_0.Args[0]
+			y := v_1
+			v.reset(OpNeqB)
+			v.AddArg2(x, y)
 			return true
 		}
 		break
@@ -11987,6 +12013,37 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		v.copyOf(x)
 		return true
 	}
+	// match: (Load <t1> op:(OffPtr [o1] p1) move:(Move [n] p2 src mem))
+	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p2) && !isVolatile(src)
+	// result: @move.Block (Load <t1> (OffPtr <op.Type> [o1] src) mem)
+	for {
+		t1 := v.Type
+		op := v_0
+		if op.Op != OpOffPtr {
+			break
+		}
+		o1 := auxIntToInt64(op.AuxInt)
+		p1 := op.Args[0]
+		move := v_1
+		if move.Op != OpMove {
+			break
+		}
+		n := auxIntToInt64(move.AuxInt)
+		mem := move.Args[2]
+		p2 := move.Args[0]
+		src := move.Args[1]
+		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p2) && !isVolatile(src)) {
+			break
+		}
+		b = move.Block
+		v0 := b.NewValue0(v.Pos, OpLoad, t1)
+		v.copyOf(v0)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, op.Type)
+		v1.AuxInt = int64ToAuxInt(o1)
+		v1.AddArg(src)
+		v0.AddArg2(v1, mem)
+		return true
+	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const64 [x]) _))
 	// cond: isSamePtr(p1,p2) && t2.Size() == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x)))
 	// result: (Const64F [math.Float64frombits(uint64(x))])
@@ -12420,25 +12477,14 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> _ _)
-	// cond: t.IsStruct() && CanSSA(t) && !t.IsSIMD()
+	// cond: t.IsStruct() && t.Size() > 0 && CanSSA(t) && !t.IsSIMD()
 	// result: rewriteStructLoad(v)
 	for {
 		t := v.Type
-		if !(t.IsStruct() && CanSSA(t) && !t.IsSIMD()) {
+		if !(t.IsStruct() && t.Size() > 0 && CanSSA(t) && !t.IsSIMD()) {
 			break
 		}
 		v.copyOf(rewriteStructLoad(v))
-		return true
-	}
-	// match: (Load <t> _ _)
-	// cond: t.IsArray() && t.NumElem() == 0
-	// result: (ArrayMake0)
-	for {
-		t := v.Type
-		if !(t.IsArray() && t.NumElem() == 0) {
-			break
-		}
-		v.reset(OpArrayMake0)
 		return true
 	}
 	// match: (Load <t> ptr mem)
@@ -12455,6 +12501,17 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpLoad, t.Elem())
 		v0.AddArg2(ptr, mem)
 		v.AddArg(v0)
+		return true
+	}
+	// match: (Load <t> _ _)
+	// cond: t.Size() == 0
+	// result: (Empty)
+	for {
+		t := v.Type
+		if !(t.Size() == 0) {
+			break
+		}
+		v.reset(OpEmpty)
 		return true
 	}
 	// match: (Load <typ.Int8> sptr:(Addr {scon} (SB)) mem)
@@ -19671,6 +19728,17 @@ func rewriteValuegeneric_OpNeq8(v *Value) bool {
 func rewriteValuegeneric_OpNeqB(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	// match: (NeqB x x)
+	// result: (ConstBool [false])
+	for {
+		x := v_0
+		if x != v_1 {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = boolToAuxInt(false)
+		return true
+	}
 	// match: (NeqB (ConstBool [c]) (ConstBool [d]))
 	// result: (ConstBool [c != d])
 	for {
@@ -19716,19 +19784,16 @@ func rewriteValuegeneric_OpNeqB(v *Value) bool {
 		}
 		break
 	}
-	// match: (NeqB (Not x) (Not y))
-	// result: (NeqB x y)
+	// match: (NeqB (Not x) y)
+	// result: (EqB x y)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpNot {
 				continue
 			}
 			x := v_0.Args[0]
-			if v_1.Op != OpNot {
-				continue
-			}
-			y := v_1.Args[0]
-			v.reset(OpNeqB)
+			y := v_1
+			v.reset(OpEqB)
 			v.AddArg2(x, y)
 			return true
 		}
@@ -32219,16 +32284,6 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		v.AddArg3(dst, src, v0)
 		return true
 	}
-	// match: (Store _ (ArrayMake0) mem)
-	// result: mem
-	for {
-		if v_1.Op != OpArrayMake0 {
-			break
-		}
-		mem := v_2
-		v.copyOf(mem)
-		return true
-	}
 	// match: (Store dst (ArrayMake1 e) mem)
 	// result: (Store {e.Type} dst e mem)
 	for {
@@ -32241,6 +32296,16 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		v.reset(OpStore)
 		v.Aux = typeToAux(e.Type)
 		v.AddArg3(dst, e, mem)
+		return true
+	}
+	// match: (Store _ (Empty) mem)
+	// result: mem
+	for {
+		if v_1.Op != OpEmpty {
+			break
+		}
+		mem := v_2
+		v.copyOf(mem)
 		return true
 	}
 	// match: (Store (SelectN [0] call:(StaticLECall ___)) x mem:(SelectN [1] call))
@@ -32734,29 +32799,16 @@ func rewriteValuegeneric_OpStructSelect(v *Value) bool {
 		return true
 	}
 	// match: (StructSelect (IData x))
-	// cond: v.Type.Size() == 0 && v.Type.IsStruct()
-	// result: (StructMake)
+	// cond: v.Type.Size() == 0
+	// result: (Empty)
 	for {
 		if v_0.Op != OpIData {
 			break
 		}
-		if !(v.Type.Size() == 0 && v.Type.IsStruct()) {
+		if !(v.Type.Size() == 0) {
 			break
 		}
-		v.reset(OpStructMake)
-		return true
-	}
-	// match: (StructSelect (IData x))
-	// cond: v.Type.Size() == 0 && v.Type.IsArray()
-	// result: (ArrayMake0)
-	for {
-		if v_0.Op != OpIData {
-			break
-		}
-		if !(v.Type.Size() == 0 && v.Type.IsArray()) {
-			break
-		}
-		v.reset(OpArrayMake0)
+		v.reset(OpEmpty)
 		return true
 	}
 	return false

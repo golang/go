@@ -41,35 +41,15 @@ TEXT _rt0_arm64_lib(SB),NOSPLIT,$184
 	MOVD	R0, _rt0_arm64_lib_argc<>(SB)
 	MOVD	R1, _rt0_arm64_lib_argv<>(SB)
 
-	// Synchronous initialization.
-	MOVD	$runtime·libpreinit(SB), R4
+	MOVD	$runtime·libInit(SB), R4
 	BL	(R4)
 
-	// Create a new thread to do the runtime initialization and return.
-	MOVD	_cgo_sys_thread_create(SB), R4
-	CBZ	R4, nocgo
-	MOVD	$_rt0_arm64_lib_go(SB), R0
-	MOVD	$0, R1
-	SUB	$16, RSP		// reserve 16 bytes for sp-8 where fp may be saved.
-	BL	(R4)
-	ADD	$16, RSP
-	B	restore
-
-nocgo:
-	MOVD	$0x800000, R0                     // stacksize = 8192KB
-	MOVD	$_rt0_arm64_lib_go(SB), R1
-	MOVD	R0, 8(RSP)
-	MOVD	R1, 16(RSP)
-	MOVD	$runtime·newosproc0(SB),R4
-	BL	(R4)
-
-restore:
 	// Restore callee-save registers.
 	RESTORE_R19_TO_R28(24)
 	RESTORE_F8_TO_F15(104)
 	RET
 
-TEXT _rt0_arm64_lib_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_lib_go<ABIInternal>(SB),NOSPLIT,$0
 	MOVD	_rt0_arm64_lib_argc<>(SB), R0
 	MOVD	_rt0_arm64_lib_argv<>(SB), R1
 	MOVD	$runtime·rt0_go(SB),R4
@@ -1244,10 +1224,6 @@ nosave:
 	// This code is like the above sequence but without saving/restoring g
 	// and without worrying about the stack moving out from under us
 	// (because we're on a system stack, not a goroutine stack).
-	// The above code could be used directly if already on a system stack,
-	// but then the only path through this code would be a rare case on Solaris.
-	// Using this code for all "already on system stack" calls exercises it more,
-	// which should help keep it correct.
 	MOVD	fn+0(FP), R1
 	MOVD	arg+8(FP), R0
 	MOVD	RSP, R2

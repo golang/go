@@ -155,7 +155,7 @@ and test commands:
 		By default, if a vendor directory is present and the go version in go.mod
 		is 1.14 or higher, the go command acts as if -mod=vendor were set.
 		Otherwise, the go command acts as if -mod=readonly were set.
-		See https://golang.org/ref/mod#build-commands for details.
+		See https://go.dev/ref/mod#build-commands for details.
 	-modcacherw
 		leave newly-created directories in the module cache read-write
 		instead of making them read-only.
@@ -223,12 +223,14 @@ only for package fmt, while 'go build -gcflags=all=-S fmt'
 prints the disassembly for fmt and all its dependencies.
 
 For more about specifying packages, see 'go help packages'.
-For more about where packages and binaries are installed,
-run 'go help gopath'.
+For more about where binaries are installed, run 'go help gopath'.
 For more about calling between Go and C/C++, run 'go help c'.
+For more about project organization, run 'go help modules'.
 
-Note: Build adheres to certain conventions such as those described
-by 'go help gopath'. Not all projects can follow these conventions,
+Note: go build adheres to certain conventions for organizing projects:
+it primarily supports go modules (see 'go help modules') while
+also supporting an alternative GOPATH mode (see 'go help gopath').
+Not all projects can follow these conventions,
 however. Installations that have their own conventions or that use
 a separate software build system may choose to use lower-level
 invocations such as 'go tool compile' and 'go tool link' to avoid

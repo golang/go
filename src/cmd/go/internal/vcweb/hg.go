@@ -92,9 +92,9 @@ func (h *hgHandler) Handler(dir string, env []string, logger *log.Logger) (http.
 		// repos we serve, so leaving a dozen processes around is not a big deal.
 		u := h.url[dir]
 		if u != nil {
-			h.mu.Unlock()
 			logger.Printf("proxying hg request to %s", u)
 			httputil.NewSingleHostReverseProxy(u).ServeHTTP(w, req)
+			h.mu.Unlock()
 			return
 		}
 
@@ -168,7 +168,7 @@ func (h *hgHandler) Handler(dir string, env []string, logger *log.Logger) (http.
 		}
 		h.url[dir] = u
 		h.cmds = append(h.cmds, cmd)
-		h.mu.Unlock()
+		defer h.mu.Unlock()
 
 		logger.Printf("proxying hg request to %s", u)
 		httputil.NewSingleHostReverseProxy(u).ServeHTTP(w, req)

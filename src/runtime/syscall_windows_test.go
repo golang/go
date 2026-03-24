@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"internal/abi"
 	"internal/race"
-	"internal/runtime/syscall/windows"
 	"internal/syscall/windows/sysdll"
 	"internal/testenv"
 	"io"
@@ -773,12 +772,13 @@ func TestSyscallN(t *testing.T) {
 	if _, err := exec.LookPath("gcc"); err != nil {
 		t.Skip("skipping test: gcc is missing")
 	}
-	if runtime.GOARCH != "amd64" {
-		t.Skipf("skipping test: GOARCH=%s", runtime.GOARCH)
+
+	var nargs = 64
+	if testing.Short() {
+		nargs = 16
 	}
 
-	for arglen := 0; arglen <= windows.MaxArgs; arglen++ {
-		arglen := arglen
+	for arglen := range nargs {
 		t.Run(fmt.Sprintf("arg-%d", arglen), func(t *testing.T) {
 			t.Parallel()
 			args := make([]string, arglen)

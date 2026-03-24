@@ -386,11 +386,20 @@ func FormatSourceRemoveImports(pkg *types.Package, src []byte) ([]byte, error) {
 // particular the name that would implicitly be declared by a
 // non-renaming import of a given existing dependency.
 func removeUnneededImports(fset *token.FileSet, pkg *types.Package, file *ast.File) {
-	// Map each existing dependency to its default import name.
+	// Map each existing dependency and its transitive dependencies to its default import name.
 	// (We'll need this to interpret non-renaming imports.)
 	packageNames := make(map[string]string)
+	var visit func(pkg *types.Package)
+	visit = func(pkg *types.Package) {
+		if packageNames[pkg.Path()] == "" {
+			packageNames[pkg.Path()] = pkg.Name()
+			for _, imp := range pkg.Imports() {
+				visit(imp)
+			}
+		}
+	}
 	for _, imp := range pkg.Imports() {
-		packageNames[imp.Path()] = imp.Name()
+		visit(imp)
 	}
 
 	// Compute the set of free names of the file,
@@ -426,7 +435,7 @@ func removeUnneededImports(fset *token.FileSet, pkg *types.Package, file *ast.Fi
 		}
 		switch name {
 		case "":
-			continue // assume it's a new import
+			continue // assume it's a new import, and we didn't find its default name while searching the import graph
 		case ".":
 			continue // dot imports are tricky
 		case "_":

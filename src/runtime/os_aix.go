@@ -112,7 +112,7 @@ func getCPUCount() int32 {
 // This function is not safe to use after initialization as it does not pass an M as fnarg.
 //
 //go:nosplit
-func newosproc0(stacksize uintptr, fn *funcDescriptor) {
+func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 	var (
 		attr pthread_attr
 		oset sigset
@@ -226,7 +226,7 @@ func newosproc(mp *m) {
 	// with signals disabled. It will enable them in minit.
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 	ret := retryOnEAGAIN(func() int32 {
-		return pthread_create(&tid, &attr, &tstart, unsafe.Pointer(mp))
+		return pthread_create(&tid, &attr, unsafe.Pointer(&tstart), unsafe.Pointer(mp))
 	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if ret != 0 {

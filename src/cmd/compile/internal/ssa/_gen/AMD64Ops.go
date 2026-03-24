@@ -798,6 +798,7 @@ func init() {
 		// ROUNDSD instruction is only guaraneteed to be available if GOAMD64>=v2.
 		// For GOAMD64<v2, any use must be preceded by a successful check of runtime.x86HasSSE41.
 		{name: "ROUNDSD", argLength: 1, reg: fp11, aux: "Int8", asm: "ROUNDSD"},
+		{name: "ROUNDSS", argLength: 1, reg: fp11, aux: "Int8", asm: "ROUNDSS"},
 		// See why we need those in issue #71204
 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
@@ -1035,6 +1036,7 @@ func init() {
 		// With a register ABI, the actual register info for these instructions (i.e., what is used in regalloc) is augmented with per-call-site bindings of additional arguments to specific in and out registers.
 		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                              // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
 		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                // tail call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
+		{name: "CALLtailinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},    // tail call fn by pointer. arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
 		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 

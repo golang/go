@@ -7,7 +7,7 @@ env TESTGO_VERSION=go1.21.1
 env TESTGO_VERSION_SWITCH=switch
 cp go.work go.work.orig
 ! go list
-stderr '^go: module . listed in go.work file requires go >= 1.21.2, but go.work lists go 1.21.1; to update it:\n\tgo work use$'
+stderr '^go: module . listed in go.work file requires go >= 1.21.2, but go.work lists go 1.21.1; to download and use go 1.21.2:\n\tgo work use$'
 go work use
 go list
 
@@ -16,7 +16,7 @@ env TESTGO_VERSION=go1.21.2
 env TESTGO_VERSION_SWITCH=switch
 cp go.work.orig go.work
 ! go list
-stderr '^go: module . listed in go.work file requires go >= 1.21.2, but go.work lists go 1.21.1; to update it:\n\tgo work use$'
+stderr '^go: module . listed in go.work file requires go >= 1.21.2, but go.work lists go 1.21.1; to download and use go 1.21.2:\n\tgo work use$'
 
 # go work use fixes the problem.
 go work use

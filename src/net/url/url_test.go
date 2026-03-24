@@ -10,9 +10,12 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"internal/diff"
 	"io"
+	"maps"
 	"net"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -625,6 +628,27 @@ var urltests = []URLTest{
 			Path:   "",
 		},
 		"postgresql://host1:1,host2:2,host3:3",
+	},
+	// Mongodb URLs can include a comma-separated list of host:post hosts.
+	{
+		"mongodb://user:password@host1:1,host2:2,host3:3",
+		&URL{
+			Scheme: "mongodb",
+			User:   UserPassword("user", "password"),
+			Host:   "host1:1,host2:2,host3:3",
+			Path:   "",
+		},
+		"",
+	},
+	{
+		"mongodb+srv://user:password@host1:1,host2:2,host3:3",
+		&URL{
+			Scheme: "mongodb+srv",
+			User:   UserPassword("user", "password"),
+			Host:   "host1:1,host2:2,host3:3",
+			Path:   "",
+		},
+		"",
 	},
 }
 
@@ -1757,6 +1781,12 @@ func TestParseErrors(t *testing.T) {
 		{"http://[fe80::1", true},                    // missing closing bracket
 		{"http://fe80::1]/", true},                   // missing opening bracket
 		{"http://[test.com]/", true},                 // domain name in brackets
+		{"http://example.com[::1]", true},            // IPv6 literal doesn't start with '['
+		{"http://example.com[::1", true},
+		{"http://[::1", true},
+		{"http://.[::1]", true},
+		{"http:// [::1]", true},
+		{"hxxp://mathepqo[.]serveftp(.)com:9059", true},
 	}
 	for _, tt := range tests {
 		u, err := Parse(tt.in)
@@ -2360,4 +2390,169 @@ func TestParseStrictIpv6(t *testing.T) {
 		})
 	}
 
+}
+
+func TestURLClone(t *testing.T) {
+	tests := []struct {
+		name string
+		in   *URL
+	}{
+		{"nil", nil},
+		{"zero value", &URL{}},
+		{
+			"Populated but nil .User",
+			&URL{
+				User:     nil,
+				Host:     "foo",
+				Path:     "/path",
+				RawQuery: "a=b",
+			},
+		},
+		{
+			"non-nil .User",
+			&URL{
+				User:     User("user"),
+				Host:     "foo",
+				Path:     "/path",
+				RawQuery: "a=b",
+			},
+		},
+		{
+			"non-nil .User: user and password set",
+			&URL{
+				User:     UserPassword("user", "password"),
+				Host:     "foo",
+				Path:     "/path",
+				RawQuery: "a=b",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// 1. The cloned URL must always deep equal the input, but never the same pointer.
+			cloned := tt.in.Clone()
+			if !reflect.DeepEqual(tt.in, cloned) {
+				t.Fatalf("Differing values\n%s",
+					diff.Diff("original", []byte(tt.in.String()), "cloned", []byte(cloned.String())))
+			}
+			if tt.in == nil {
+				return
+			}
+
+			// Ensure that their pointer values are not the same.
+			if tt.in == cloned {
+				t.Fatalf("URL: same pointer returned: %p", cloned)
+			}
+
+			// 2. Test out malleability of URL fields.
+			cloned.Scheme = "https"
+			if cloned.Scheme == tt.in.Scheme {
+				t.Error("Inconsistent state: cloned.scheme changed and reflected in the input's scheme")
+			}
+			if reflect.DeepEqual(tt.in, cloned) {
+				t.Fatal("Inconsistent state: cloned and input are somehow the same")
+			}
+
+			// 3. Ensure that the .User object deep equals but not the same pointer.
+			if !reflect.DeepEqual(tt.in.User, cloned.User) {
+				t.Fatalf("Differing .User\n%s",
+					diff.Diff("original", []byte(tt.in.String()), "cloned", []byte(cloned.String())))
+			}
+			bothNil := tt.in.User == nil && cloned.User == nil
+			if !bothNil && tt.in.User == cloned.User {
+				t.Fatalf(".User: same pointer returned: %p", cloned.User)
+			}
+		})
+	}
+}
+
+func TestValuesClone(t *testing.T) {
+	tests := []struct {
+		name string
+		in   Values
+	}{
+		{"nil", nil},
+		{"empty", Values{}},
+		{"1 key, nil values", Values{"1": nil}},
+		{"1 key, no values", Values{"1": {}}},
+		{"1 key, some values", Values{"1": {"a", "b"}}},
+		{"multiple keys, diverse values", Values{"1": {"a", "b"}, "X": nil, "B": {"abcdefghi"}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// The cloned map must always deep equal the input.
+			cloned1 := tt.in.Clone()
+			if !reflect.DeepEqual(tt.in, cloned1) {
+				t.Fatal("reflect.DeepEqual failed")
+			}
+
+			if cloned1 == nil && tt.in == nil {
+				return
+			}
+			if len(cloned1) == 0 && len(tt.in) == 0 && (cloned1 == nil || tt.in == nil) {
+				t.Fatalf("Inconsistency: both have len=0, yet not both nil\nCloned: %#v\nOriginal: %#v\n", cloned1, tt.in)
+			}
+			// Test out malleability of values.
+			cloned1["XXXXXXXXXXX"] = []string{"a", "b"}
+			if reflect.DeepEqual(tt.in, cloned1) {
+				t.Fatal("Inconsistent state: cloned and input are somehow the same")
+			}
+
+			// Ensure that we can correctly invoke some methods like .Add
+			cloned2 := tt.in.Clone()
+			if !reflect.DeepEqual(tt.in, cloned2) {
+				t.Fatal("reflect.DeepEqual failed")
+			}
+			cloned2.Add("a", "A")
+			if !cloned2.Has("a") {
+				t.Error("Cloned doesn't have the desired key: a")
+			}
+			if !cloned2.Has("a") {
+				t.Error("Cloned doesn't have the desired key: a")
+			}
+			// Assert that any changes to the clone did not change the original.
+			if reflect.DeepEqual(tt.in, cloned2) {
+				t.Fatal("reflect.DeepEqual unexpectedly passed after modify cloned")
+			}
+			cloned2.Del("a")
+			// Assert that reverting the clone's changes bring it back to original state.
+			if !reflect.DeepEqual(tt.in, cloned2) {
+				t.Fatal("reflect.DeepEqual failed")
+			}
+
+			cloned3 := tt.in.Clone()
+			clonedKeys := slices.Collect(maps.Keys(cloned3))
+			if len(clonedKeys) == 0 {
+				return
+			}
+			key0 := clonedKeys[0]
+			// Test modifying the actual slice.
+			if len(cloned3[key0]) == 0 {
+				cloned3[key0] = append(cloned3[key0], "golang")
+			} else {
+				cloned3[key0][0] = "directly modified"
+				if got, want := cloned3.Get(key0), "directly modified"; got != want {
+					t.Errorf("Get failed:\n\tGot:  %q\n\tWant: %q", got, want)
+				}
+			}
+			if reflect.DeepEqual(tt.in, cloned3) {
+				t.Fatal("reflect.DeepEqual unexpectedly passed after modify cloned")
+			}
+
+			// Try out also with .Set.
+			cloned4 := tt.in.Clone()
+			if !reflect.DeepEqual(tt.in, cloned4) {
+				t.Fatal("reflect.DeepEqual failed")
+			}
+			cloned4.Set(key0, "good night")
+			if reflect.DeepEqual(tt.in, cloned4) {
+				t.Fatal("reflect.DeepEqual unexpectedly passed after modify cloned")
+			}
+			if got, want := cloned4.Get(key0), "good night"; got != want {
+				t.Errorf("Get failed:\n\tGot:  %q\n\tWant: %q", got, want)
+			}
+		})
+	}
 }

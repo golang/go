@@ -580,7 +580,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpS390XCALLstatic, ssa.OpS390XCALLclosure, ssa.OpS390XCALLinter:
 		s.Call(v)
-	case ssa.OpS390XCALLtail:
+	case ssa.OpS390XCALLtail, ssa.OpS390XCALLtailinter:
 		s.TailCall(v)
 	case ssa.OpS390XLoweredWB:
 		p := s.Prog(obj.ACALL)

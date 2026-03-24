@@ -20,6 +20,12 @@ func TestPrintQuoted(t *testing.T) {
 		// make sure null and escape bytes are properly escaped
 		{in: "b\033it", expected: `"b\x1bit"`},
 		{in: "b\000ar", expected: `"b\x00ar"`},
+		// Make sure invalid UTF8 bytes make it through as expected
+		{in: "b\xfdar", expected: `"b\xfdar"`},
+		{in: "b\xfda", expected: `"b\xfda"`},
+		{in: "b\xfd\xffar", expected: `"b\xfd\xffar"`},
+		// make sure the unicode replacement character gets correctly escaped
+		{in: "\ufffd!!!!", expected: `"\ufffd!!!!"`},
 		// verify that simple 16-bit unicode runes are escaped with \u, including a greek upper-case sigma and an arbitrary unicode character.
 		{in: "\u1234Σ", expected: `"\u1234\u03a3"`},
 		// verify that 32-bit unicode runes are escaped with \U along with tabs

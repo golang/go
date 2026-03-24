@@ -3331,7 +3331,7 @@ func (b *Builder) swig(a *Action, objdir string, pcCFLAGS []string) error {
 		}
 	}
 	for _, f := range p.SwigCXXFiles {
-		if b.swigOne(a, f, objdir, pcCFLAGS, true, intgosize); err != nil {
+		if err := b.swigOne(a, f, objdir, pcCFLAGS, true, intgosize); err != nil {
 			return err
 		}
 	}
@@ -3649,7 +3649,7 @@ func useResponseFile(path string, argLen int) bool {
 	// TODO: Note that other toolchains like CC are missing here for now.
 	prog := strings.TrimSuffix(filepath.Base(path), ".exe")
 	switch prog {
-	case "compile", "link", "cgo", "asm", "cover":
+	case "compile", "link", "cgo", "asm", "cover", "pack":
 	default:
 		return false
 	}
@@ -3668,24 +3668,35 @@ func useResponseFile(path string, argLen int) bool {
 	return false
 }
 
-// encodeArg encodes an argument for response file writing.
+// encodeArg encodes an argument for response file writing using GCC-compatible format.
+// Arguments containing special characters are wrapped in double quotes with escapes.
 func encodeArg(arg string) string {
-	// If there aren't any characters we need to reencode, fastpath out.
-	if !strings.ContainsAny(arg, "\\\n") {
+	// Empty string must be quoted to preserve it.
+	if arg == "" {
+		return `""`
+	}
+	// If no special characters, return as-is.
+	if !strings.ContainsAny(arg, " \t\n\r'\"\\$`") {
 		return arg
 	}
+
+	// Use double quotes and escape special chars.
 	var b strings.Builder
+	b.WriteByte('"')
 	for _, r := range arg {
 		switch r {
 		case '\\':
-			b.WriteByte('\\')
-			b.WriteByte('\\')
-		case '\n':
-			b.WriteByte('\\')
-			b.WriteByte('n')
+			b.WriteString(`\\`)
+		case '"':
+			b.WriteString(`\"`)
+		case '$':
+			b.WriteString(`\$`)
+		case '`':
+			b.WriteString("\\`")
 		default:
 			b.WriteRune(r)
 		}
 	}
+	b.WriteByte('"')
 	return b.String()
 }
