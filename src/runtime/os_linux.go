@@ -354,6 +354,7 @@ func osinit() {
 	numCPUStartup = getCPUCount()
 	physHugePageSize = getHugePageSize()
 	vgetrandomInit()
+	configure64bitsTimeOn32BitsArchitectures()
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -934,4 +935,65 @@ func (c *sigctxt) sigFromSeccomp() bool {
 func mprotect(addr unsafe.Pointer, n uintptr, prot int32) (ret int32, errno int32) {
 	r, _, err := linux.Syscall6(linux.SYS_MPROTECT, uintptr(addr), n, uintptr(prot), 0, 0, 0)
 	return int32(r), int32(err)
+}
+
+type kernelVersion struct {
+	major int
+	minor int
+}
+
+// getKernelVersion returns major and minor kernel version numbers
+// parsed from the uname release field.
+func getKernelVersion() kernelVersion {
+	var buf linux.Utsname
+	if e := linux.Uname(&buf); e != 0 {
+		throw("uname failed")
+	}
+
+	rel := gostringnocopy(&buf.Release[0])
+	major, minor, _, ok := parseRelease(rel)
+	if !ok {
+		throw("failed to parse kernel version from uname")
+	}
+	return kernelVersion{major: major, minor: minor}
+}
+
+// parseRelease parses a dot-separated version number. It follows the
+// semver syntax, but allows the minor and patch versions to be
+// elided.
+func parseRelease(rel string) (major, minor, patch int, ok bool) {
+	// Strip anything after a dash or plus.
+	for i := 0; i < len(rel); i++ {
+		if rel[i] == '-' || rel[i] == '+' {
+			rel = rel[:i]
+			break
+		}
+	}
+
+	next := func() (int, bool) {
+		for i := 0; i < len(rel); i++ {
+			if rel[i] == '.' {
+				ver, err := strconv.Atoi(rel[:i])
+				rel = rel[i+1:]
+				return ver, err == nil
+			}
+		}
+		ver, err := strconv.Atoi(rel)
+		rel = ""
+		return ver, err == nil
+	}
+	if major, ok = next(); !ok || rel == "" {
+		return
+	}
+	if minor, ok = next(); !ok || rel == "" {
+		return
+	}
+	patch, ok = next()
+	return
+}
+
+// GE checks if the running kernel version
+// is greater than or equal to the provided version.
+func (kv kernelVersion) GE(x, y int) bool {
+	return kv.major > x || (kv.major == x && kv.minor >= y)
 }
