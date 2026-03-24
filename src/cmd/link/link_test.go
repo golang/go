@@ -1468,10 +1468,11 @@ func main() {}
 	// Link with -v -linkmode=external to see the flags we pass to the
 	// external linker.
 	ldflags := "-ldflags=-v -linkmode=external -tmpdir=" + linktmp
-	var out0 []byte
+	var out0, fullOut0 []byte
 	for i := 0; i < 5; i++ {
-		cmd := goCmd(t, "build", ldflags, "-o", exe, src)
-		out, err := cmd.CombinedOutput()
+		cmd := goCmd(t, "build", ldflags, "-x", "-o", exe, src)
+		fullOut, err := cmd.CombinedOutput()
+		out := fullOut
 		if err != nil {
 			t.Fatalf("build failed: %v, output:\n%s", err, out)
 		}
@@ -1504,10 +1505,12 @@ func main() {}
 
 		if i == 0 {
 			out0 = out
+			fullOut0 = fullOut
 			continue
 		}
 		if !bytes.Equal(out0, out) {
-			t.Fatalf("output differ:\n%s\n==========\n%s", out0, out)
+			t.Fatalf("output differ:\n%s\n==========\n%s\n\nfull output:\n%s\n==========\n%s",
+				out0, out, fullOut0, fullOut)
 		}
 	}
 }
