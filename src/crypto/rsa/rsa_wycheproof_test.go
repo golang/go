@@ -74,6 +74,50 @@ func TestRSAOAEPDecryptWycheproof(t *testing.T) {
 	}
 }
 
+func TestRSAPKCS1DecryptWycheproof(t *testing.T) {
+	for _, file := range []string{
+		"rsa_pkcs1_2048_test.json",
+		"rsa_pkcs1_3072_test.json",
+		"rsa_pkcs1_4096_test.json",
+	} {
+		var testdata wycheproof.RsaesPkcs1DecryptSchemaV1Json
+		wycheproof.LoadVectorFile(t, file, &testdata)
+
+		for _, tg := range testdata.TestGroups {
+			rawPriv, err := x509.ParsePKCS8PrivateKey(wycheproof.MustDecodeHex(tg.PrivateKeyPkcs8))
+			if err != nil {
+				t.Fatalf("%s: failed to parse PKCS #8 private key: %v", file, err)
+			}
+			priv := rawPriv.(*rsa.PrivateKey)
+
+			for _, tv := range tg.Tests {
+				t.Run(wycheproof.TestName(file, tv), func(t *testing.T) {
+					t.Parallel()
+
+					ct := wycheproof.MustDecodeHex(tv.Ct)
+					expectedMsg := wycheproof.MustDecodeHex(tv.Msg)
+					wantPass := wycheproof.ShouldPass(t, tv.Result, tv.Flags, nil)
+
+					plaintext, err := rsa.DecryptPKCS1v15(nil, priv, ct)
+					if err != nil {
+						if wantPass {
+							t.Fatalf("DecryptPKCS1v15: %v", err)
+						}
+						return
+					}
+					if !wantPass {
+						t.Errorf("DecryptPKCS1v15 unexpectedly succeeded")
+						return
+					}
+					if !bytes.Equal(plaintext, expectedMsg) {
+						t.Errorf("plaintext mismatch: got %x, want %x", plaintext, expectedMsg)
+					}
+				})
+			}
+		}
+	}
+}
+
 func TestRSAPKCS1SignaturesWycheproof(t *testing.T) {
 	// A map of supported modulus sizes to the list of hashes that Wycheproof has
 	// test vector coverage for.
