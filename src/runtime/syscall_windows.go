@@ -429,5 +429,5 @@ func syscall_syscalln(fn, n uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	// but it copies the return values into the new M's
 	// so we can read them from there.
 	c = &getg().m.winsyscall
-	return c.R1, c.R2, uintptr(errno)
+	return c.R1, c.R2, uintptr(uint32(errno))
 }
