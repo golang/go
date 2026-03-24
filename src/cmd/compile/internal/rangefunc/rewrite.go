@@ -1175,7 +1175,7 @@ func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, fty
 		Type: types2.NewSignatureType(nil, nil, nil,
 			types2.NewTuple(params...),
 			types2.NewTuple(results...),
-			false),
+			ftyp.Variadic()),
 	}
 	tv.SetIsValue()
 	bodyFunc.SetTypeInfo(tv)
