@@ -79,6 +79,16 @@ func (c *fakeConn) getFakeConn() *fakeConn {
 	return c
 }
 
+func getRowsCursor(rs *Rows) *rowsCursor {
+	return rs.rowsi.(interface {
+		getRowsCursor() *rowsCursor
+	}).getRowsCursor()
+}
+
+func (rc *rowsCursor) getRowsCursor() *rowsCursor {
+	return rc
+}
+
 func (c *fakeConnector) Driver() driver.Driver {
 	return fdriver
 }
@@ -1241,6 +1251,8 @@ func converterForType(typ string) driver.ValueConverter {
 	case "uuid":
 		return driver.NotNull{Converter: driver.DefaultParameterConverter}
 	case "nulluuid":
+		return driver.Null{Converter: driver.DefaultParameterConverter}
+	case "nulltable":
 		return driver.Null{Converter: driver.DefaultParameterConverter}
 	case "any":
 		return anyTypeConverter{}

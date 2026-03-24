@@ -70,6 +70,16 @@ Test:
 				"Validator",
 			},
 		},
+		{
+			name:      "scancols",
+			connector: &rowsColumnScannerConnector{name: fakeDBName},
+			features: []string{
+				"ConnBeginTx",
+				"NamedValue",
+				"Validator",
+				"ScanColumn",
+			},
+		},
 	} {
 		for _, req := range require {
 			if !slices.Contains(test.features, req) {
@@ -1671,6 +1681,68 @@ func testCursorFake(t *testing.T, db *DB) {
 	}
 }
 
+func TestCursorDoubleRowsPointer(t *testing.T) {
+	testDatabase(t, testCursorDoubleRowsPointer)
+}
+func testCursorDoubleRowsPointer(t *testing.T, db *DB) {
+	exec(t, db, "CREATE|table1|col=string")
+	exec(t, db, "INSERT|table1|col=value")
+	exec(t, db, "CREATE|cursor|list=table")
+	exec(t, db, "INSERT|cursor|list=table1!col")
+
+	rows, err := db.QueryContext(t.Context(), `SELECT|cursor|list|`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		t.Fatal("no rows")
+	}
+	var cursor *Rows
+	if err := rows.Scan(&cursor); err != nil {
+		t.Fatal(err)
+	}
+	defer cursor.Close()
+
+	if !cursor.Next() {
+		t.Fatal("no child rows")
+	}
+	var col string
+	if err := cursor.Scan(&col); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := col, "value"; got != want {
+		t.Errorf("read col=%q, want %q", got, want)
+	}
+}
+
+func TestCursorNull(t *testing.T) {
+	testDatabase(t, testCursorNull)
+}
+func testCursorNull(t *testing.T, db *DB) {
+	exec(t, db, "CREATE|cursor|list=nulltable")
+	exec(t, db, "INSERT|cursor|list=?", nil)
+
+	rows, err := db.QueryContext(t.Context(), `SELECT|cursor|list|`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		t.Fatal("no rows")
+	}
+
+	var cursor *Rows
+	if err := rows.Scan(&cursor); err != nil {
+		t.Fatal(err)
+	}
+	if cursor != nil {
+		t.Errorf("Scan returned cursor, expected nil")
+	}
+}
+
 // TestCursorCancel exercises calling Rows.Close at various places,
 // including canceling a cursor (child Rows).
 func TestCursorCancel(t *testing.T) {
@@ -2949,7 +3021,7 @@ func testRowsImplicitClose(t *testing.T, db *DB) {
 	}
 
 	want, fail := 2, errors.New("fail")
-	r := rows.rowsi.(*rowsCursor)
+	r := getRowsCursor(rows)
 	r.errPos, r.err = want, fail
 
 	got := 0
@@ -2982,10 +3054,7 @@ func testRowsCloseError(t *testing.T, db *DB) {
 	}
 	got := []row{}
 
-	rc, ok := rows.rowsi.(*rowsCursor)
-	if !ok {
-		t.Fatal("not using *rowsCursor")
-	}
+	rc := getRowsCursor(rows)
 	rc.closeErr = errors.New("rowsCursor: failed to close")
 
 	for rows.Next() {
@@ -5593,4 +5662,115 @@ func TestNullTypeScanNil(t *testing.T) {
 			}
 		})
 	}
+}
+
+type testStringType struct {
+	s string
+}
+
+func TestQueryRowsScanner(t *testing.T) {
+	testDatabase(t, testQueryRowsScanner, requireFeature("ScanColumn"))
+}
+func testQueryRowsScanner(t *testing.T, db *DB) {
+	populate(t, db, "people")
+	rows, err := db.Query("SELECT|people|age,name|")
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	defer rows.Close()
+	type row struct {
+		age  int
+		name testStringType
+	}
+	got := []row{}
+	for rows.Next() {
+		var r row
+		err = rows.Scan(&r.age, &r.name)
+		if err != nil {
+			t.Fatalf("Scan: %v", err)
+		}
+		got = append(got, r)
+	}
+	err = rows.Err()
+	if err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+	want := []row{
+		{age: 1, name: testStringType{"Alice"}},
+		{age: 2, name: testStringType{"Bob"}},
+		{age: 3, name: testStringType{"Chris"}},
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("mismatch.\n got: %#v\nwant: %#v", got, want)
+	}
+}
+
+type rowsColumnScannerConnector struct {
+	fakeConnector
+}
+
+func (c *rowsColumnScannerConnector) Connect(ctx context.Context) (driver.Conn, error) {
+	conn, err := c.fakeConnector.Connect(ctx)
+	fc := getFakeConn(conn)
+	return &rowsColumnScannerConn{fc}, err
+}
+
+// rowsColumnScannerConn is a Conn with rows that implement RowsColumnScanner.
+type rowsColumnScannerConn struct {
+	*fakeConn
+}
+
+func (s *rowsColumnScannerConn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
+	stmt, err := s.fakeConn.PrepareContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	return &rowsColumnScannerStmt{stmt.(*fakeStmt)}, nil
+}
+
+type rowsColumnScannerStmt struct {
+	*fakeStmt
+}
+
+func (s *rowsColumnScannerStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+	rows, err := s.fakeStmt.QueryContext(ctx, args)
+	if err != nil {
+		return nil, err
+	}
+	return &rowsColumnScannerRows{rowsCursor: rows.(*rowsCursor)}, nil
+}
+
+type rowsColumnScannerRows struct {
+	*rowsCursor
+	row []driver.Value
+}
+
+func (c *rowsColumnScannerRows) NextRow() error {
+	if c.row == nil {
+		c.row = make([]driver.Value, len(c.rowsCursor.Columns()))
+	}
+	return c.rowsCursor.Next(c.row)
+}
+
+func (c *rowsColumnScannerRows) NextResultSet() error {
+	c.row = nil
+	return c.rowsCursor.NextResultSet()
+}
+
+func (c *rowsColumnScannerRows) ScanColumn(ctx driver.ScanContext, index int, dest any) error {
+	if index < 0 || index >= len(c.row) {
+		return fmt.Errorf("index %v out of range", index)
+	}
+	switch d := dest.(type) {
+	case *testStringType:
+		switch s := c.row[index].(type) {
+		case string:
+			d.s = s
+			return nil
+		case []byte:
+			d.s = string(s)
+			return nil
+		}
+	}
+	return ConvertAssign(ctx, dest, c.row[index])
 }

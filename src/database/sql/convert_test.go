@@ -624,3 +624,14 @@ func TestDecimal(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertAssignNoContext(t *testing.T) {
+	const want = 42
+	var got int64
+	if err := ConvertAssign(driver.ScanContext{}, &got, want); err != nil {
+		t.Fatalf("ConvertAssign: %v", err)
+	}
+	if got != int64(want) {
+		t.Errorf("after ConvertAssign: got %v, want %v", got, want)
+	}
+}

@@ -9,6 +9,7 @@ package sql
 import (
 	"bytes"
 	"database/sql/driver"
+	"database/sql/internal"
 	"errors"
 	"fmt"
 	"reflect"
@@ -219,8 +220,23 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 // See go.dev/issue/67401.
 //
 //go:linkname convertAssign
-func convertAssign(dest, src any) error {
+func convertAssign(dest any, src any) error {
 	return convertAssignRows(dest, src, nil)
+}
+
+// ConvertAssign copies the value in src to the value pointed at by dest.
+// See the documentation on [Rows.Scan] for details on conversions.
+// dest must be a pointer or must implement [Scanner].
+//
+// Implementations of [driver.RowsColumnScanner] should pass through
+// their [driver.ScanContext] parameter.
+// In other cases, pass driver.ScanContext{} as the context.
+//
+// ConvertAssign is intended for use by driver implementations.
+// Most users should not need to use it directly.
+func ConvertAssign(scanCtx driver.ScanContext, dest any, src driver.Value) error {
+	rows, _ := internal.ScanContextValue(internal.ScanContext(scanCtx)).(*Rows)
+	return convertAssignRows(dest, src, rows)
 }
 
 // convertAssignRows copies to dest the value in src, converting it if possible.
@@ -353,8 +369,8 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 		}
 	// The driver is returning a cursor the client may iterate over.
 	case driver.Rows:
-		switch d := dest.(type) {
-		case *Rows:
+		d, ok := dest.(*Rows)
+		if ok {
 			if d == nil {
 				return errNilPtr
 			}
@@ -387,7 +403,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 			parentCancel := rows.cancel
 			rows.cancel = func() {
 				// When Rows.cancel is called, the closemu will be locked as well.
-				// So we can access rs.lasterr.
+				// So we can access rows.lasterr.
 				d.close(rows.lasterr)
 				if parentCancel != nil {
 					parentCancel()
