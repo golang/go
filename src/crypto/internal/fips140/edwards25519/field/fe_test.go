@@ -489,6 +489,56 @@ func TestSqrtRatio(t *testing.T) {
 	}
 }
 
+func TestSquareN(t *testing.T) {
+	squareNMatchesRepeatSquare := func(x Element) bool {
+		for _, n := range []int{1, 2, 5, 10, 15, 50, 120} {
+			got := new(Element).SquareN(&x, n)
+			want := new(Element).Set(&x)
+			for range n {
+				want.Square(want)
+			}
+			if got.Equal(want) != 1 {
+				t.Logf("SquareN(%d) mismatch", n)
+				return false
+			}
+			if !isInBounds(got) {
+				t.Logf("SquareN(%d) out of bounds", n)
+				return false
+			}
+		}
+		return true
+	}
+
+	if err := quick.Check(squareNMatchesRepeatSquare, quickCheckConfig(1024)); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFeSquareN(t *testing.T) {
+	asmLikeGeneric := func(a Element) bool {
+		for _, n := range []int{1, 2, 5, 10, 15, 50, 120} {
+			t1 := a
+			t2 := a
+
+			feSquareNGeneric(&t1, &t1, n)
+			feSquareN(&t2, &t2, n)
+
+			if t1 != t2 {
+				t.Logf("n=%d: got %#v, expected %#v", n, t2, t1)
+				return false
+			}
+			if !isInBounds(&t2) {
+				return false
+			}
+		}
+		return true
+	}
+
+	if err := quick.Check(asmLikeGeneric, quickCheckConfig(1024)); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestFeSquare(t *testing.T) {
 	asmLikeGeneric := func(a Element) bool {
 		t1 := a

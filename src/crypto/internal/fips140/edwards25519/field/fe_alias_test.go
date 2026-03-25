@@ -96,6 +96,12 @@ func TestAliasing(t *testing.T) {
 		{name: "Negate", oneArgF: (*Element).Negate},
 		{name: "Set", oneArgF: (*Element).Set},
 		{name: "Square", oneArgF: (*Element).Square},
+		{
+			name: "SquareN",
+			oneArgF: func(v, x *Element) *Element {
+				return v.SquareN(x, 10)
+			},
+		},
 		{name: "Pow22523", oneArgF: (*Element).Pow22523},
 		{
 			name: "Mult32",

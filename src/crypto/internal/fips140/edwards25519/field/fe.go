@@ -115,65 +115,40 @@ func (v *Element) Negate(a *Element) *Element {
 //
 // If z == 0, Invert returns v = 0.
 func (v *Element) Invert(z *Element) *Element {
-	// Inversion is implemented as exponentiation with exponent p − 2. It uses the
-	// same sequence of 254 squarings and 11 multiplications as [Curve25519].
-	var z2, z9, z11, z2_5_0, z2_10_0, z2_20_0, z2_50_0, z2_100_0, t Element
+	// Inversion is implemented as exponentiation with exponent p − 2.
+	// It uses 254 squarings and 11 multiplications, grouping squarings to use SquareN.
+	var z11, t0, t1, t2, t Element
 
-	z2.Square(z)             // 2
-	t.Square(&z2)            // 4
-	t.Square(&t)             // 8
-	z9.Multiply(&t, z)       // 9
-	z11.Multiply(&z9, &z2)   // 11
-	t.Square(&z11)           // 22
-	z2_5_0.Multiply(&t, &z9) // 31 = 2^5 - 2^0
+	t1.Square(z)           // 2
+	t.Square(&t1)          // 4
+	t.Square(&t)           // 8
+	t2.Multiply(&t, z)     // 9
+	z11.Multiply(&t2, &t1) // 11
+	t.Square(&z11)         // 22
+	t0.Multiply(&t, &t2)   // 31 = 2^5 - 2^0
 
-	t.Square(&z2_5_0) // 2^6 - 2^1
-	for i := 0; i < 4; i++ {
-		t.Square(&t) // 2^10 - 2^5
-	}
-	z2_10_0.Multiply(&t, &z2_5_0) // 2^10 - 2^0
+	t.SquareN(&t0, 5)    // 2^10 - 2^5
+	t2.Multiply(&t, &t0) // 2^10 - 1
 
-	t.Square(&z2_10_0) // 2^11 - 2^1
-	for i := 0; i < 9; i++ {
-		t.Square(&t) // 2^20 - 2^10
-	}
-	z2_20_0.Multiply(&t, &z2_10_0) // 2^20 - 2^0
+	t.SquareN(&t2, 5)    // 2^15 - 2^5
+	t0.Multiply(&t, &t0) // 2^15 - 1
 
-	t.Square(&z2_20_0) // 2^21 - 2^1
-	for i := 0; i < 19; i++ {
-		t.Square(&t) // 2^40 - 2^20
-	}
-	t.Multiply(&t, &z2_20_0) // 2^40 - 2^0
+	t.SquareN(&t0, 15)   // 2^30 - 2^15
+	t1.Multiply(&t, &t0) // 2^30 - 1
 
-	t.Square(&t) // 2^41 - 2^1
-	for i := 0; i < 9; i++ {
-		t.Square(&t) // 2^50 - 2^10
-	}
-	z2_50_0.Multiply(&t, &z2_10_0) // 2^50 - 2^0
+	t.SquareN(&t1, 30)   // 2^60 - 2^30
+	t0.Multiply(&t, &t1) // 2^60 - 1
 
-	t.Square(&z2_50_0) // 2^51 - 2^1
-	for i := 0; i < 49; i++ {
-		t.Square(&t) // 2^100 - 2^50
-	}
-	z2_100_0.Multiply(&t, &z2_50_0) // 2^100 - 2^0
+	t.SquareN(&t0, 60)   // 2^120 - 2^60
+	t1.Multiply(&t, &t0) // 2^120 - 1
 
-	t.Square(&z2_100_0) // 2^101 - 2^1
-	for i := 0; i < 99; i++ {
-		t.Square(&t) // 2^200 - 2^100
-	}
-	t.Multiply(&t, &z2_100_0) // 2^200 - 2^0
+	t.SquareN(&t1, 120) // 2^240 - 2^120
+	t.Multiply(&t, &t1) // 2^240 - 1
 
-	t.Square(&t) // 2^201 - 2^1
-	for i := 0; i < 49; i++ {
-		t.Square(&t) // 2^250 - 2^50
-	}
-	t.Multiply(&t, &z2_50_0) // 2^250 - 2^0
+	t.SquareN(&t, 10)   // 2^250 - 2^10
+	t.Multiply(&t, &t2) // 2^250 - 1
 
-	t.Square(&t) // 2^251 - 2^1
-	t.Square(&t) // 2^252 - 2^2
-	t.Square(&t) // 2^253 - 2^3
-	t.Square(&t) // 2^254 - 2^4
-	t.Square(&t) // 2^255 - 2^5
+	t.SquareN(&t, 5) // 2^255 - 2^5
 
 	return v.Multiply(&t, &z11) // 2^255 - 21
 }
@@ -311,6 +286,12 @@ func (v *Element) Square(x *Element) *Element {
 	return v
 }
 
+// SquareN sets v = x^(2^n), and returns v. n must be positive.
+func (v *Element) SquareN(x *Element, n int) *Element {
+	feSquareN(v, x, n)
+	return v
+}
+
 // Mult32 sets v = x * y, and returns v.
 func (v *Element) Mult32(x *Element, y uint32) *Element {
 	x0lo, x0hi := mul51(x.l0, y)
@@ -340,51 +321,37 @@ func mul51(a uint64, b uint32) (lo uint64, hi uint64) {
 func (v *Element) Pow22523(x *Element) *Element {
 	var t0, t1, t2 Element
 
-	t0.Square(x)             // x^2
-	t1.Square(&t0)           // x^4
-	t1.Square(&t1)           // x^8
-	t1.Multiply(x, &t1)      // x^9
-	t0.Multiply(&t0, &t1)    // x^11
-	t0.Square(&t0)           // x^22
-	t0.Multiply(&t1, &t0)    // x^31
-	t1.Square(&t0)           // x^62
-	for i := 1; i < 5; i++ { // x^992
-		t1.Square(&t1)
-	}
-	t0.Multiply(&t1, &t0)     // x^1023 -> 1023 = 2^10 - 1
-	t1.Square(&t0)            // 2^11 - 2
-	for i := 1; i < 10; i++ { // 2^20 - 2^10
-		t1.Square(&t1)
-	}
-	t1.Multiply(&t1, &t0)     // 2^20 - 1
-	t2.Square(&t1)            // 2^21 - 2
-	for i := 1; i < 20; i++ { // 2^40 - 2^20
-		t2.Square(&t2)
-	}
-	t1.Multiply(&t2, &t1)     // 2^40 - 1
-	t1.Square(&t1)            // 2^41 - 2
-	for i := 1; i < 10; i++ { // 2^50 - 2^10
-		t1.Square(&t1)
-	}
-	t0.Multiply(&t1, &t0)     // 2^50 - 1
-	t1.Square(&t0)            // 2^51 - 2
-	for i := 1; i < 50; i++ { // 2^100 - 2^50
-		t1.Square(&t1)
-	}
-	t1.Multiply(&t1, &t0)      // 2^100 - 1
-	t2.Square(&t1)             // 2^101 - 2
-	for i := 1; i < 100; i++ { // 2^200 - 2^100
-		t2.Square(&t2)
-	}
-	t1.Multiply(&t2, &t1)     // 2^200 - 1
-	t1.Square(&t1)            // 2^201 - 2
-	for i := 1; i < 50; i++ { // 2^250 - 2^50
-		t1.Square(&t1)
-	}
-	t0.Multiply(&t1, &t0)     // 2^250 - 1
-	t0.Square(&t0)            // 2^251 - 2
-	t0.Square(&t0)            // 2^252 - 4
-	return v.Multiply(&t0, x) // 2^252 - 3 -> x^(2^252-3)
+	t0.Square(x)          // x^2
+	t1.Multiply(x, &t0)   // x^3
+	t0.Square(&t1)        // x^6
+	t0.Square(&t0)        // x^12
+	t0.Multiply(&t1, &t0) // x^15
+	t0.Square(&t0)        // x^30
+	t0.Multiply(x, &t0)   // x^31 = 2^5 - 1
+
+	t1.SquareN(&t0, 5)    // 2^10 - 2^5
+	t1.Multiply(&t1, &t0) // 2^10 - 1
+
+	t2.SquareN(&t1, 5)    // 2^15 - 2^5
+	t0.Multiply(&t2, &t0) // 2^15 - 1
+
+	t2.SquareN(&t0, 15)   // 2^30 - 2^15
+	t2.Multiply(&t2, &t0) // 2^30 - 1
+
+	t0.SquareN(&t2, 30)   // 2^60 - 2^30
+	t0.Multiply(&t0, &t2) // 2^60 - 1
+
+	t2.SquareN(&t0, 60)   // 2^120 - 2^60
+	t2.Multiply(&t2, &t0) // 2^120 - 1
+
+	t0.SquareN(&t2, 120)  // 2^240 - 2^120
+	t0.Multiply(&t0, &t2) // 2^240 - 1
+
+	t0.SquareN(&t0, 10)   // 2^250 - 2^10
+	t0.Multiply(&t0, &t1) // 2^250 - 1
+
+	t0.SquareN(&t0, 2)        // 2^252 - 4
+	return v.Multiply(&t0, x) // 2^252 - 3
 }
 
 // sqrtM1 is 2^((p-1)/4), which squared is equal to -1 by Euler's Criterion.
