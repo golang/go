@@ -11,6 +11,7 @@ import (
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/fips140"
 	"crypto/internal/boring"
 	"crypto/rand"
 	"crypto/tls/internal/fips140tls"
@@ -194,6 +195,13 @@ func runWithFIPSEnabled(t *testing.T, testFunc func(t *testing.T)) {
 }
 
 func runWithFIPSDisabled(t *testing.T, testFunc func(t *testing.T)) {
+	if fips140.Enforced() {
+		t.Run("no-fips140tls", func(t *testing.T) {
+			t.Skip("can't run no-fips140tls tests in fips140=only mode")
+		})
+		return
+	}
+
 	originalFIPS := fips140tls.Required()
 	defer func() {
 		if originalFIPS {

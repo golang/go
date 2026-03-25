@@ -477,6 +477,15 @@ func runMain(m *testing.M) int {
 		defer f.Close()
 	}
 
+	testConfigFIPS140 = testConfig.Clone()
+	// Only crypto/rand.Reader is allowed in FIPS 140-only mode.
+	testConfigFIPS140.Rand = nil
+	// FIPS 140-only mode requires 2048-bit RSA keys.
+	testConfigFIPS140.Certificates = []Certificate{{
+		Certificate: [][]byte{testRSA2048Certificate},
+		PrivateKey:  testRSA2048PrivateKey,
+	}}
+
 	return m.Run()
 }
 
