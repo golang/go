@@ -2878,11 +2878,11 @@
 // GOPATH mode import path checking (see 'go help importpath').
 //
 // In GOPATH mode, the default GODEBUG values built into a binary
-// will be those used in Go 1.20, setting the same GODEBUG values
-// as when a module specifies "godebug default=go1.20". To use
-// different GODEBUG settings, the GODEBUG environment variable must
-// be set to override those values. This also means that the standard
-// library tests will not run properly with GO111MODULE=off.
+// will be the same GODEBUG values as when a module specifies
+// "godebug default=go1.20". To use different GODEBUG settings, the
+// GODEBUG environment variable must be set to override those values.
+// This also means that the standard library tests will not run
+// properly with GO111MODULE=off.
 //
 // See https://go.dev/s/go15vendor for details.
 //
