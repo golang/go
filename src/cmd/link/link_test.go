@@ -451,7 +451,9 @@ func main() { }
 
 func TestMachOBuildVersion(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-
+	if runtime.GOOS != "darwin" {
+		t.Skip("skip on non-Mach-O platforms")
+	}
 	t.Parallel()
 
 	tmpdir := t.TempDir()
@@ -464,11 +466,7 @@ func TestMachOBuildVersion(t *testing.T) {
 
 	exe := filepath.Join(tmpdir, "main")
 	cmd := goCmd(t, "build", "-ldflags=-linkmode=internal", "-o", exe, src)
-	cmd.Env = append(cmd.Env,
-		"CGO_ENABLED=0",
-		"GOOS=darwin",
-		"GOARCH=amd64",
-	)
+	cmd.Env = append(cmd.Env, "CGO_ENABLED=0")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
 	}
