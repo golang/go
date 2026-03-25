@@ -14,7 +14,14 @@ const (
 	enc_Pm
 	enc_Pn
 	enc_Pv
+	enc_Rd
+	enc_Rdn
+	enc_Rm
+	enc_Rn
 	enc_Vd
+	enc_Vdn
+	enc_Vm
+	enc_Vn
 	enc_Za
 	enc_Zd
 	enc_Zda
@@ -206,12 +213,75 @@ func encodeSize8H4S2D(v uint32) (uint32, bool) {
 	return 0, false
 }
 
+// encodeWdn05 is the implementation of the following encoding logic:
+// Is the 32-bit name of the source and destination general-purpose register, encoded in the "Rdn" field.
+// bit range mappings:
+// Rdn: [0:5)
+func encodeWdn05(v uint32) (uint32, bool) {
+	if v == REG_RSP {
+		return 0, false
+	}
+	return v & 31, true
+}
+
+// encodeVd0564 is the implementation of the following encoding logic:
+// Is the 64-bit name of the destination SIMD&FP register, encoded in the "Vd" field.
+// bit range mappings:
+// Vd: [0:5)
+func encodeVd0564(v uint32) (uint32, bool) {
+	return v & 31, true
+}
+
+// encodeRd05 is the implementation of the following encoding logic:
+// Is the 64-bit name of the destination general-purpose register, encoded in the "Rd" field.
+// bit range mappings:
+// Rd: [0:5)
+func encodeRd05(v uint32) (uint32, bool) {
+	if v == REG_RSP {
+		return 0, false
+	}
+	return v & 31, true
+}
+
+// encodeRn510 is the implementation of the following encoding logic:
+// Is the 64-bit name of the first source general-purpose register, encoded in the "Rn" field.
+// bit range mappings:
+// Rn: [5:10)
+func encodeRn510(v uint32) (uint32, bool) {
+	if v == REG_RSP {
+		return 0, false
+	}
+	return (v & 31) << 5, true
+}
+
+// encodeRm1621 is the implementation of the following encoding logic:
+// Is the 64-bit name of the second source general-purpose register, encoded in the "Rm" field.
+// bit range mappings:
+// Rm: [16:21)
+func encodeRm1621(v uint32) (uint32, bool) {
+	if v == REG_RSP {
+		return 0, false
+	}
+	return (v & 31) << 16, true
+}
+
+// encodeXdn05 is the implementation of the following encoding logic:
+// Is the 64-bit name of the source and destination general-purpose register, encoded in the "Rdn" field.
+// bit range mappings:
+// Rdn: [0:5)
+func encodeXdn05(v uint32) (uint32, bool) {
+	if v == REG_RSP {
+		return 0, false
+	}
+	return v & 31, true
+}
+
 // encodeVd is the implementation of the following encoding logic:
 // Is the name of the destination SIMD&FP register, encoded in the "Vd" field.
 // bit range mappings:
 // Vd: [0:5)
 func encodeVd(v uint32) (uint32, bool) {
-	return v, true
+	return v & 31, true
 }
 
 // encodePNd is the implementation of the following encoding logic:
@@ -333,12 +403,12 @@ func encodeZm1621(v uint32) (uint32, bool) {
 	return v << 16, true
 }
 
-// encodeZm510 is the implementation of the following encoding logic:
+// encodeZm510V1 is the implementation of the following encoding logic:
 // Is the name of the second source scalable vector register, encoded in the "Zm" field.
 // bit range mappings:
 // Zm: [5:10)
-func encodeZm510(v uint32) (uint32, bool) {
-	return v << 5, true
+func encodeZm510V1(v uint32) (uint32, bool) {
+	return (v & 31) << 5, true
 }
 
 // encodePdnSrcDst is the implementation of the following encoding logic:
@@ -373,12 +443,20 @@ func encodePn59v2(v uint32) (uint32, bool) {
 	return v << 5, true
 }
 
+// encodeZm510V2 is the implementation of the following encoding logic:
+// Is the name of the source scalable vector register, encoded in the "Zm" field.
+// bit range mappings:
+// Zm: [5:10)
+func encodeZm510V2(v uint32) (uint32, bool) {
+	return (v & 31) << 5, true
+}
+
 // encodeZn510Src is the implementation of the following encoding logic:
 // Is the name of the source scalable vector register, encoded in the "Zn" field.
 // bit range mappings:
 // Zn: [5:10)
 func encodeZn510Src(v uint32) (uint32, bool) {
-	return v << 5, true
+	return (v & 31) << 5, true
 }
 
 // encodeZda3RdSrcDst is the implementation of the following encoding logic:
@@ -435,6 +513,108 @@ func encodePv1014(v uint32) (uint32, bool) {
 // Pv: [5:9)
 func encodePv59(v uint32) (uint32, bool) {
 	return v << 5, true
+}
+
+// encodeRd05ZR is the implementation of the following encoding logic:
+// Is the number [0-30] of the destination general-purpose register or the name ZR (31), encoded in the "Rd" field.
+// bit range mappings:
+// Rd: [0:5)
+func encodeRd05ZR(v uint32) (uint32, bool) {
+	if v == REG_RSP {
+		return 0, false
+	}
+	// ZR is just R31
+	return v & 31, true
+}
+
+// encodeRn510SP is the implementation of the following encoding logic:
+// Is the number [0-30] of the general-purpose source register or the name SP (31), encoded in the "Rn" field.
+// bit range mappings:
+// Rn: [5:10)
+func encodeRn510SP(v uint32) (uint32, bool) {
+	if v == REG_R31 {
+		return 0, false
+	}
+	if v == REG_RSP {
+		return (REG_R31 & 31) << 5, true
+	}
+	return (v & 31) << 5, true
+}
+
+// encodeRdn05ZR is the implementation of the following encoding logic:
+// Is the number [0-30] of the source and destination general-purpose register or the name ZR (31), encoded in the "Rdn" field.
+// bit range mappings:
+// Rdn: [0:5)
+func encodeRdn05ZR(v uint32) (uint32, bool) {
+	if v == REG_RSP {
+		return 0, false
+	}
+	return v & 31, true
+}
+
+// encodeRm1621ZR is the implementation of the following encoding logic:
+// Is the number [0-30] of the source general-purpose register or the name ZR (31), encoded in the "Rm" field.
+// bit range mappings:
+// Rm: [16:21)
+func encodeRm1621ZR(v uint32) (uint32, bool) {
+	if v == REG_RSP {
+		return 0, false
+	}
+	return (v & 31) << 16, true
+}
+
+// encodeRm510ZR is the implementation of the following encoding logic:
+// Is the number [0-30] of the source general-purpose register or the name ZR (31), encoded in the "Rm" field.
+// bit range mappings:
+// Rm: [5:10)
+func encodeRm510ZR(v uint32) (uint32, bool) {
+	if v == REG_RSP {
+		return 0, false
+	}
+	return (v & 31) << 5, true
+}
+
+// encodeRn510ZR is the implementation of the following encoding logic:
+// Is the number [0-30] of the source general-purpose register or the name ZR (31), encoded in the "Rn" field.
+// bit range mappings:
+// Rn: [5:10)
+func encodeRn510ZR(v uint32) (uint32, bool) {
+	if v == REG_RSP {
+		return 0, false
+	}
+	return (v & 31) << 5, true
+}
+
+// encodeVd05 is the implementation of the following encoding logic:
+// Is the number [0-31] of the destination SIMD&FP register, encoded in the "Vd" field.
+// bit range mappings:
+// Vd: [0:5)
+func encodeVd05(v uint32) (uint32, bool) {
+	return v & 31, true
+}
+
+// encodeVm510 is the implementation of the following encoding logic:
+// Is the number [0-31] of the source SIMD&FP register, encoded in the "Vm" field.
+// bit range mappings:
+// Vm: [5:10)
+func encodeVm510(v uint32) (uint32, bool) {
+	return (v & 31) << 5, true
+}
+
+// encodeVn510 is the implementation of the following encoding logic:
+// Is the number [0-31] of the source SIMD&FP register, encoded in the "Vn" field.
+// bit range mappings:
+// Vn: [5:10)
+func encodeVn510(v uint32) (uint32, bool) {
+	return (v & 31) << 5, true
+}
+
+// encodeVdn05 is the implementation of the following encoding logic:
+// Is the number [0-31] of the source and destination SIMD&FP register, encoded in the "Vdn" field.
+// bit range mappings:
+// Vdn: [0:5)
+func encodeVdn05(v uint32) (uint32, bool) {
+	return v & 31, true
 }
 
 // encodePredQualM1617 is the implementation of the following encoding logic:

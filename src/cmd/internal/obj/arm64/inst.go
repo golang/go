@@ -109,6 +109,12 @@ func aclass(a *obj.Addr) AClass {
 				return AC_ARNG
 			}
 		}
+		if a.Reg >= REG_V0 && a.Reg <= REG_V31 {
+			return AC_VREG
+		}
+		if a.Reg >= REG_R0 && a.Reg <= REG_R31 || a.Reg == REG_RSP {
+			return AC_SPZGREG
+		}
 	}
 	panic("unknown AClass")
 }
@@ -140,6 +146,23 @@ func addrComponent(a *obj.Addr, acl AClass, index int) uint32 {
 			return uint32(a.Reg & 31)
 		case 1:
 			return uint32((a.Reg >> 5) & 15)
+		default:
+			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
+		}
+	//	AClass: AC_SPZGREG, AC_VREG
+	//	GNU mnemonic: <width><reg>
+	//	Go mnemonic:
+	//		reg (the width is already represented in the opcode)
+	//	Encoding:
+	//		Type = TYPE_REG
+	// 		Reg = reg
+	case AC_SPZGREG, AC_VREG:
+		switch index {
+		case 0:
+			// These are all width checks, they should map to no-op checks altogether.
+			return 0
+		case 1:
+			return uint32(a.Reg)
 		default:
 			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
 		}

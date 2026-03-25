@@ -614,18 +614,18 @@ type AClass uint16 // operand type
 
 // [insts] is sorted based on the order of these constants and the first match is chosen.
 const (
-	AC_NONE    AClass = iota
-	AC_REG            // general purpose registers R0..R30 and ZR
-	AC_RSP            // general purpose registers R0..R30 and RSP
-	AC_VREG           // vector registers, such as V1
-	AC_ZREG           // the scalable vector registers, such as Z1
-	AC_PREG           // the scalable predicate registers, such as P1
-	AC_PREGZM         // Pg.Z or Pg.M
-	AC_REGIDX         // P8[1]
-	AC_ZREGIDX        // Z1[1]
-	AC_PREGIDX        // P0[R1, 1]
-	AC_ARNG           // vector register with arrangement, such as Z1.D
-	AC_ARNGIDX        // vector register with arrangement and index, such as Z1.D[1]
+	AC_NONE AClass = iota
+	// TODO: probably make this AClass split into AC_REG (R0...R30), AC_RSP (R0...R30, RSP), AC_ZR (R0...R30, ZR).
+	AC_SPZGREG // general purpose registers R0..R30 and RSP and ZR
+	AC_VREG    // vector registers, such as V1
+	AC_ZREG    // the scalable vector registers, such as Z1
+	AC_PREG    // the scalable predicate registers, such as P1
+	AC_PREGZM  // Pg.Z or Pg.M
+	AC_REGIDX  // P8[1]
+	AC_ZREGIDX // Z1[1]
+	AC_PREGIDX // P0[R1, 1]
+	AC_ARNG    // vector register with arrangement, such as Z1.D
+	AC_ARNGIDX // vector register with arrangement and index, such as Z1.D[1]
 
 	AC_IMM // constants
 

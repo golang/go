@@ -34,8 +34,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	PPTRUE PN14.S                                     // 1678a025
 	PPUNPKHI P14.B, P0.H                              // c0413105
 	PPUNPKLO P14.B, P0.H                              // c0413005
-	PRDFFR P13.B                                      // 0df01925
 	PRDFFR P14.Z, P0.B                                // c0f11825
+	PRDFFR P13.B                                      // 0df01925
 	PRDFFRS P14.Z, P0.B                               // c0f15825
 	PREV P14.S, P13.S                                 // cd41b405
 	PSEL P4.B, P2.B, P1, P14.B                        // 5e460425
@@ -68,8 +68,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZAND Z15.B, Z0.B, P3.M, Z0.B                      // e00d1a04
 	ZAND Z7.D, Z6.D, Z23.D                            // d7302704
 	ZANDQV Z25.S, P3, V5.S4                           // 252f9e04
-	ZASR Z2.D, Z10.D, P3.M, Z10.D                     // 4a8cd004
 	ZASR Z15.B, Z0.B, P3.M, Z0.B                      // e08d1004
+	ZASR Z2.D, Z10.D, P3.M, Z10.D                     // 4a8cd004
 	ZASR Z7.D, Z6.H, Z13.H                            // cd806704
 	ZASRR Z15.B, Z0.B, P3.M, Z0.B                     // e08d1404
 	ZBCAX Z23.D, Z13.D, Z21.D, Z21.D                  // f53a6d04
@@ -82,8 +82,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZBFADD Z23.H, Z13.H, P1.M, Z13.H                  // ed860065
 	ZBFADD Z7.H, Z6.H, Z23.H                          // d7000765
 	ZBFCLAMP Z7.H, Z6.H, Z23.H                        // d7242764
-	ZBFCVT Z13.S, P1.Z, Z22.H                         // b6c59a64
 	ZBFCVT Z13.S, P1.M, Z22.H                         // b6a58a65
+	ZBFCVT Z13.S, P1.Z, Z22.H                         // b6c59a64
 	ZBFCVTNT Z13.S, P1.M, Z22.H                       // b6a58a64
 	ZBFCVTNT Z13.S, P1.Z, Z22.H                       // b6a58264
 	ZBFDOT Z7.H, Z6.H, Z23.S                          // d7806764
@@ -102,8 +102,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZBFMUL Z23.H, Z13.H, P1.M, Z13.H                  // ed860265
 	ZBFMUL Z7.H, Z6.H, Z23.H                          // d7080765
 	ZBFSCALE Z23.H, Z13.H, P1.M, Z13.H                // ed860965
-	ZBFSUB Z7.H, Z6.H, Z23.H                          // d7040765
 	ZBFSUB Z23.H, Z13.H, P1.M, Z13.H                  // ed860165
+	ZBFSUB Z7.H, Z6.H, Z23.H                          // d7040765
 	ZBGRP Z7.D, Z23.D, Z13.D                          // edbac745
 	ZBIC Z15.B, Z0.B, P3.M, Z0.B                      // e00d1b04
 	ZBIC Z7.D, Z6.D, Z23.D                            // d730e704
@@ -112,26 +112,26 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZBSL2N Z23.D, Z13.D, Z21.D, Z21.D                 // f53ead04
 	ZCLASTA Z15.B, Z0.B, P3, Z0.B                     // e08d2805
 	ZCLASTB Z15.B, Z0.B, P3, Z0.B                     // e08d2905
-	ZCLS Z7.D, P4.Z, Z13.D                            // edb0c804
 	ZCLS Z7.D, P4.M, Z13.D                            // edb0d804
-	ZCLZ Z7.D, P4.Z, Z13.D                            // edb0c904
+	ZCLS Z7.D, P4.Z, Z13.D                            // edb0c804
 	ZCLZ Z7.D, P4.M, Z13.D                            // edb0d904
+	ZCLZ Z7.D, P4.Z, Z13.D                            // edb0c904
 	ZCMPEQ Z0.H, Z2.H, P0.Z, P14.H                    // 4ea04024
 	ZCMPEQ Z0.D, Z12.S, P0.Z, P14.S                   // 8e218024
 	ZCMPGE Z0.H, Z2.H, P0.Z, P14.H                    // 4e804024
 	ZCMPGE Z0.D, Z12.S, P0.Z, P14.S                   // 8e418024
 	ZCMPGT Z0.H, Z2.H, P0.Z, P14.H                    // 5e804024
 	ZCMPGT Z0.D, Z12.S, P0.Z, P14.S                   // 9e418024
-	ZCMPHI Z0.D, Z12.S, P0.Z, P14.S                   // 9ec18024
 	ZCMPHI Z0.H, Z2.H, P0.Z, P14.H                    // 5e004024
+	ZCMPHI Z0.D, Z12.S, P0.Z, P14.S                   // 9ec18024
 	ZCMPHS Z0.H, Z2.H, P0.Z, P14.H                    // 4e004024
 	ZCMPHS Z0.D, Z12.S, P0.Z, P14.S                   // 8ec18024
 	// TODO: CMPLE
 	// TODO: CMPLO
 	// TODO: CMPLS
 	// TODO: CMPLT
-	ZCMPNE Z0.D, Z12.S, P0.Z, P14.S                   // 9e218024
 	ZCMPNE Z0.H, Z2.H, P0.Z, P14.H                    // 5ea04024
+	ZCMPNE Z0.D, Z12.S, P0.Z, P14.S                   // 9e218024
 	ZCNOT Z7.D, P4.M, Z13.D                           // edb0db04
 	ZCNOT Z7.D, P4.Z, Z13.D                           // edb0cb04
 	ZCNT Z7.D, P4.M, Z13.D                            // edb0da04
@@ -151,8 +151,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZF2CVT Z11.B, Z6.H                                // 66350865
 	ZF2CVTLT Z11.B, Z6.H                              // 66350965
 	ZFABD Z25.S, Z2.S, P1.M, Z2.S                     // 22878865
-	ZFABS Z7.D, P4.Z, Z13.D                           // edb0cc04
 	ZFABS Z7.D, P4.M, Z13.D                           // edb0dc04
+	ZFABS Z7.D, P4.Z, Z13.D                           // edb0cc04
 	ZFACGE Z0.H, Z2.H, P0.Z, P14.H                    // 5ec04065
 	ZFACGT Z0.H, Z2.H, P0.Z, P14.H                    // 5ee04065
 	ZFADD Z25.S, Z2.S, P1.M, Z2.S                     // 22878065
@@ -168,12 +168,12 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZFCMNE Z0.H, Z2.H, P0.Z, P14.H                    // 5e604065
 	ZFCMUO Z0.H, Z2.H, P0.Z, P14.H                    // 4ec04065
 	ZFCVT Z13.H, P1.M, Z22.S                          // b6a58965
-	ZFCVT Z13.S, P1.M, Z22.D                          // b6a5cb65
 	ZFCVT Z13.H, P1.Z, Z22.S                          // b6a59a64
 	ZFCVT Z13.H, P1.M, Z22.D                          // b6a5c965
 	ZFCVT Z13.H, P1.Z, Z22.D                          // b6a5da64
 	ZFCVT Z13.S, P1.M, Z22.H                          // b6a58865
 	ZFCVT Z13.S, P1.Z, Z22.H                          // b6859a64
+	ZFCVT Z13.S, P1.M, Z22.D                          // b6a5cb65
 	ZFCVT Z13.S, P1.Z, Z22.D                          // b6e5da64
 	ZFCVT Z13.D, P1.M, Z22.H                          // b6a5c865
 	ZFCVT Z13.D, P1.Z, Z22.H                          // b685da64
@@ -187,8 +187,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZFCVTNT Z13.S, P1.Z, Z22.H                        // b6a58064
 	ZFCVTNT Z13.D, P1.M, Z22.S                        // b6a5ca64
 	ZFCVTNT Z13.D, P1.Z, Z22.S                        // b6a5c264
-	ZFCVTX Z13.D, P1.Z, Z22.S                         // b6c51a64
 	ZFCVTX Z13.D, P1.M, Z22.S                         // b6a50a65
+	ZFCVTX Z13.D, P1.Z, Z22.S                         // b6c51a64
 	ZFCVTXNT Z13.D, P1.M, Z22.S                       // b6a50a64
 	ZFCVTXNT Z13.D, P1.Z, Z22.S                       // b6a50264
 	ZFCVTZS Z13.H, P1.M, Z22.H                        // b6a55a65
@@ -205,25 +205,25 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZFCVTZS Z13.D, P1.Z, Z22.S                        // b685de64
 	ZFCVTZS Z13.D, P1.M, Z22.D                        // b6a5de65
 	ZFCVTZS Z13.D, P1.Z, Z22.D                        // b6c5df64
-	ZFCVTZU Z13.D, P1.Z, Z22.S                        // b6a5de64
-	ZFCVTZU Z13.H, P1.M, Z22.D                        // b6a55f65
 	ZFCVTZU Z13.H, P1.M, Z22.H                        // b6a55b65
 	ZFCVTZU Z13.H, P1.Z, Z22.H                        // b6e55e64
-	ZFCVTZU Z13.D, P1.Z, Z22.D                        // b6e5df64
 	ZFCVTZU Z13.H, P1.M, Z22.S                        // b6a55d65
 	ZFCVTZU Z13.H, P1.Z, Z22.S                        // b6a55f64
+	ZFCVTZU Z13.H, P1.M, Z22.D                        // b6a55f65
 	ZFCVTZU Z13.H, P1.Z, Z22.D                        // b6e55f64
-	ZFCVTZU Z13.D, P1.M, Z22.D                        // b6a5df65
 	ZFCVTZU Z13.S, P1.M, Z22.S                        // b6a59d65
-	ZFCVTZU Z13.D, P1.M, Z22.S                        // b6a5d965
-	ZFCVTZU Z13.S, P1.Z, Z22.D                        // b6a5df64
-	ZFCVTZU Z13.S, P1.M, Z22.D                        // b6a5dd65
 	ZFCVTZU Z13.S, P1.Z, Z22.S                        // b6a59f64
+	ZFCVTZU Z13.S, P1.M, Z22.D                        // b6a5dd65
+	ZFCVTZU Z13.S, P1.Z, Z22.D                        // b6a5df64
+	ZFCVTZU Z13.D, P1.M, Z22.S                        // b6a5d965
+	ZFCVTZU Z13.D, P1.Z, Z22.S                        // b6a5de64
+	ZFCVTZU Z13.D, P1.M, Z22.D                        // b6a5df65
+	ZFCVTZU Z13.D, P1.Z, Z22.D                        // b6e5df64
 	ZFDIV Z25.S, Z2.S, P1.M, Z2.S                     // 22878d65
 	ZFDIVR Z25.S, Z2.S, P1.M, Z2.S                    // 22878c65
-	ZFDOT Z7.B, Z6.B, Z23.S                           // d7846764
-	ZFDOT Z7.B, Z6.B, Z23.H                           // d7842764
 	ZFDOT Z7.H, Z6.H, Z23.S                           // d7802764
+	ZFDOT Z7.B, Z6.B, Z23.H                           // d7842764
+	ZFDOT Z7.B, Z6.B, Z23.S                           // d7846764
 	ZFEXPA Z1.S, Z26.S                                // 3ab8a004
 	ZFLOGB Z7.D, P4.M, Z13.D                          // edb01e65
 	ZFLOGB Z7.D, P4.Z, Z13.D                          // edf01e64
@@ -247,8 +247,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZFMLALLBT Z7.B, Z6.B, Z23.S                       // d7982764
 	ZFMLALLTB Z7.B, Z6.B, Z23.S                       // d7a82764
 	ZFMLALLTT Z7.B, Z6.B, Z23.S                       // d7b82764
-	ZFMLALT Z7.B, Z6.B, Z23.H                         // d798a764
 	ZFMLALT Z7.H, Z6.H, Z23.S                         // d784a764
+	ZFMLALT Z7.B, Z6.B, Z23.H                         // d798a764
 	ZFMLS Z0.H, Z2.H, P0.M, Z14.H                     // 4e206065
 	ZFMLSLB Z7.H, Z6.H, Z23.S                         // d7a0a764
 	ZFMLSLT Z7.H, Z6.H, Z23.S                         // d7a4a764
@@ -259,8 +259,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZFMMLA Z7.B, Z6.B, Z23.H                          // d7e06764
 	ZFMMLA Z7.B, Z6.B, Z23.S                          // d7e02764
 	ZFMSB Z0.H, Z2.H, P0.M, Z14.H                     // 4ea06065
-	ZFMUL Z7.D, Z23.D, Z13.D                          // ed0ac765
 	ZFMUL Z25.S, Z2.S, P1.M, Z2.S                     // 22878265
+	ZFMUL Z7.D, Z23.D, Z13.D                          // ed0ac765
 	ZFMULX Z25.S, Z2.S, P1.M, Z2.S                    // 22878a65
 	ZFNEG Z7.D, P4.M, Z13.D                           // edb0dd04
 	ZFNEG Z7.D, P4.Z, Z13.D                           // edb0cd04
@@ -274,33 +274,33 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZFRECPX Z7.D, P4.Z, Z13.D                         // ed90db64
 	ZFRINT32X Z7.D, P4.M, Z13.D                       // edb01365
 	ZFRINT32X Z7.D, P4.Z, Z13.D                       // edf01c64
-	ZFRINT32Z Z7.D, P4.Z, Z13.D                       // edd01c64
 	ZFRINT32Z Z7.D, P4.M, Z13.D                       // edb01265
-	ZFRINT64X Z7.D, P4.Z, Z13.D                       // edf01d64
+	ZFRINT32Z Z7.D, P4.Z, Z13.D                       // edd01c64
 	ZFRINT64X Z7.D, P4.M, Z13.D                       // edb01765
+	ZFRINT64X Z7.D, P4.Z, Z13.D                       // edf01d64
 	ZFRINT64Z Z7.D, P4.M, Z13.D                       // edb01665
 	ZFRINT64Z Z7.D, P4.Z, Z13.D                       // edd01d64
 	ZFRINTA Z7.D, P4.M, Z13.D                         // edb0c465
 	ZFRINTA Z7.D, P4.Z, Z13.D                         // ed90d964
-	ZFRINTI Z7.D, P4.Z, Z13.D                         // edf0d964
 	ZFRINTI Z7.D, P4.M, Z13.D                         // edb0c765
-	ZFRINTM Z7.D, P4.Z, Z13.D                         // edd0d864
+	ZFRINTI Z7.D, P4.Z, Z13.D                         // edf0d964
 	ZFRINTM Z7.D, P4.M, Z13.D                         // edb0c265
+	ZFRINTM Z7.D, P4.Z, Z13.D                         // edd0d864
 	ZFRINTN Z7.D, P4.M, Z13.D                         // edb0c065
 	ZFRINTN Z7.D, P4.Z, Z13.D                         // ed90d864
 	ZFRINTP Z7.D, P4.M, Z13.D                         // edb0c165
 	ZFRINTP Z7.D, P4.Z, Z13.D                         // edb0d864
-	ZFRINTX Z7.D, P4.Z, Z13.D                         // edd0d964
 	ZFRINTX Z7.D, P4.M, Z13.D                         // edb0c665
+	ZFRINTX Z7.D, P4.Z, Z13.D                         // edd0d964
 	ZFRINTZ Z7.D, P4.M, Z13.D                         // edb0c365
 	ZFRINTZ Z7.D, P4.Z, Z13.D                         // edf0d864
 	ZFRSQRTE Z1.S, Z26.S                              // 3a308f65
 	ZFRSQRTS Z7.D, Z23.D, Z13.D                       // ed1ec765
 	ZFSCALE Z25.S, Z2.S, P1.M, Z2.S                   // 22878965
-	ZFSQRT Z7.D, P4.Z, Z13.D                          // edb0db64
 	ZFSQRT Z7.D, P4.M, Z13.D                          // edb0cd65
-	ZFSUB Z7.D, Z23.D, Z13.D                          // ed06c765
+	ZFSQRT Z7.D, P4.Z, Z13.D                          // edb0db64
 	ZFSUB Z25.S, Z2.S, P1.M, Z2.S                     // 22878165
+	ZFSUB Z7.D, Z23.D, Z13.D                          // ed06c765
 	ZFSUBR Z25.S, Z2.S, P1.M, Z2.S                    // 22878365
 	ZFTSMUL Z7.D, Z23.D, Z13.D                        // ed0ec765
 	ZFTSSEL Z7.D, Z23.D, Z13.D                        // edb2e704
@@ -312,8 +312,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZLSL Z7.D, Z6.H, Z13.H                            // cd8c6704
 	ZLSLR Z15.B, Z0.B, P3.M, Z0.B                     // e08d1704
 	ZLSR Z15.B, Z0.B, P3.M, Z0.B                      // e08d1104
-	ZLSR Z7.D, Z6.H, Z13.H                            // cd846704
 	ZLSR Z2.D, Z10.D, P3.M, Z10.D                     // 4a8cd104
+	ZLSR Z7.D, Z6.H, Z13.H                            // cd846704
 	ZLSRR Z15.B, Z0.B, P3.M, Z0.B                     // e08d1504
 	ZMAD Z0.H, Z2.H, P0.M, Z14.H                      // 0ec04204
 	ZMADPT Z7.D, Z6.D, Z23.D                          // f7d8c644
@@ -324,8 +324,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZMOVPRFX Z7.D, P4.Z, Z21.D                        // f530d004
 	ZMOVPRFX Z11, Z6                                  // 66bd2004
 	ZMSB Z0.H, Z2.H, P0.M, Z14.H                      // 0ee04204
-	ZMUL Z7.D, Z23.D, Z13.D                           // ed62e704
 	ZMUL Z15.B, Z0.B, P3.M, Z0.B                      // e00d1004
+	ZMUL Z7.D, Z23.D, Z13.D                           // ed62e704
 	ZNBSL Z23.D, Z13.D, Z21.D, Z21.D                  // f53eed04
 	ZNEG Z7.D, P4.M, Z13.D                            // edb0d704
 	ZNEG Z7.D, P4.Z, Z13.D                            // edb0c704
@@ -335,27 +335,27 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZORQV Z25.S, P3, V5.S4                            // 252f9c04
 	ZORR Z15.B, Z0.B, P3.M, Z0.B                      // e00d1804
 	ZORR Z7.D, Z6.D, Z23.D                            // d7306704
-	ZPMOV P14.B, Z6                                   // c6392b05
 	ZPMOV Z11, P0.B                                   // 60392a05
+	ZPMOV P14.B, Z6                                   // c6392b05
 	ZPMUL Z7.B, Z6.B, Z23.B                           // d7642704
 	ZPMULLB Z8.B, Z4.B, Z30.H                         // 9e684845
 	ZPMULLB Z7.D, Z6.D, Z23.Q                         // d7680745
-	ZPMULLT Z7.D, Z6.D, Z23.Q                         // d76c0745
 	ZPMULLT Z8.B, Z4.B, Z30.H                         // 9e6c4845
+	ZPMULLT Z7.D, Z6.D, Z23.Q                         // d76c0745
 	ZRADDHNB Z22.S, Z10.S, Z8.H                       // 4869b645
 	ZRADDHNT Z22.S, Z10.S, Z8.H                       // 486db645
 	ZRAX1 Z7.D, Z6.D, Z23.D                           // d7f42745
-	ZRBIT Z7.D, P4.Z, Z13.D                           // edb0e705
 	ZRBIT Z7.D, P4.M, Z13.D                           // ed90e705
+	ZRBIT Z7.D, P4.Z, Z13.D                           // edb0e705
 	ZREV Z1.S, Z26.S                                  // 3a38b805
-	ZREVB Z7.D, P4.Z, Z13.D                           // edb0e405
 	ZREVB Z7.D, P4.M, Z13.D                           // ed90e405
+	ZREVB Z7.D, P4.Z, Z13.D                           // edb0e405
 	ZREVD Z13.Q, P1.M, Z22.Q                          // b6852e05
 	ZREVD Z13.Q, P1.Z, Z22.Q                          // b6a52e05
-	ZREVH Z7.D, P4.Z, Z13.D                           // edb0e505
 	ZREVH Z7.D, P4.M, Z13.D                           // ed90e505
-	ZREVW Z13.D, P1.Z, Z22.D                          // b6a5e605
+	ZREVH Z7.D, P4.Z, Z13.D                           // edb0e505
 	ZREVW Z13.D, P1.M, Z22.D                          // b685e605
+	ZREVW Z13.D, P1.Z, Z22.D                          // b6a5e605
 	ZRSUBHNB Z22.S, Z10.S, Z8.H                       // 4879b645
 	ZRSUBHNT Z22.S, Z10.S, Z8.H                       // 487db645
 	ZSABA Z7.D, Z23.D, Z13.D                          // edfac745
@@ -374,27 +374,27 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZSBCLB Z7.D, Z23.D, Z13.D                         // edd2c745
 	ZSBCLT Z7.D, Z23.D, Z13.D                         // edd6c745
 	ZSCLAMP Z7.D, Z23.D, Z13.D                        // edc2c744
-	ZSCVTF Z13.S, P1.M, Z22.D                         // b6a5d065
 	// TODO: SCVTF  <Zd>.<T>, <Zn>.<Tb>
+	ZSCVTF Z13.H, P1.M, Z22.H                         // b6a55265
+	ZSCVTF Z13.H, P1.Z, Z22.H                         // b6c55c64
+	ZSCVTF Z13.S, P1.M, Z22.H                         // b6a55465
+	ZSCVTF Z13.S, P1.Z, Z22.H                         // b6855d64
+	ZSCVTF Z13.S, P1.M, Z22.S                         // b6a59465
+	ZSCVTF Z13.S, P1.Z, Z22.S                         // b6859d64
+	ZSCVTF Z13.S, P1.M, Z22.D                         // b6a5d065
+	ZSCVTF Z13.S, P1.Z, Z22.D                         // b685dc64
+	ZSCVTF Z13.D, P1.M, Z22.H                         // b6a55665
+	ZSCVTF Z13.D, P1.Z, Z22.H                         // b6c55d64
 	ZSCVTF Z13.D, P1.M, Z22.S                         // b6a5d465
 	ZSCVTF Z13.D, P1.Z, Z22.S                         // b685dd64
 	ZSCVTF Z13.D, P1.M, Z22.D                         // b6a5d665
 	ZSCVTF Z13.D, P1.Z, Z22.D                         // b6c5dd64
-	ZSCVTF Z13.H, P1.Z, Z22.H                         // b6c55c64
-	ZSCVTF Z13.S, P1.M, Z22.H                         // b6a55465
-	ZSCVTF Z13.S, P1.Z, Z22.H                         // b6855d64
-	ZSCVTF Z13.D, P1.Z, Z22.H                         // b6c55d64
-	ZSCVTF Z13.D, P1.M, Z22.H                         // b6a55665
-	ZSCVTF Z13.S, P1.Z, Z22.D                         // b685dc64
-	ZSCVTF Z13.H, P1.M, Z22.H                         // b6a55265
-	ZSCVTF Z13.S, P1.Z, Z22.S                         // b6859d64
-	ZSCVTF Z13.S, P1.M, Z22.S                         // b6a59465
 	// TODO: SCVTFLT
 	ZSDIV Z25.S, Z2.S, P1.M, Z2.S                     // 22079404
 	ZSDIVR Z25.S, Z2.S, P1.M, Z2.S                    // 22079604
-	ZSDOT Z15.B, Z0.B, Z12.S                          // 0c008f44
-	ZSDOT Z7.H, Z6.H, Z23.S                           // d7c80744
 	// TODO: SDOT  <Zda>.H, <Zn>.B, <Zm>.B
+	ZSDOT Z7.H, Z6.H, Z23.S                           // d7c80744
+	ZSDOT Z15.B, Z0.B, Z12.S                          // 0c008f44
 	ZSEL Z23.B, Z21.B, P14, Z2.B                      // a2fa3705
 	ZSHADD Z15.B, Z0.B, P3.M, Z0.B                    // e08d1044
 	ZSHSUB Z15.B, Z0.B, P3.M, Z0.B                    // e08d1244
@@ -412,15 +412,15 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZSMLSLB Z8.B, Z4.B, Z30.H                         // 9e504844
 	ZSMLSLT Z8.B, Z4.B, Z30.H                         // 9e544844
 	ZSMMLA Z7.B, Z6.B, Z23.S                          // d7980745
-	ZSMULH Z7.D, Z23.D, Z13.D                         // ed6ae704
 	ZSMULH Z15.B, Z0.B, P3.M, Z0.B                    // e00d1204
+	ZSMULH Z7.D, Z23.D, Z13.D                         // ed6ae704
 	ZSMULLB Z8.B, Z4.B, Z30.H                         // 9e704845
 	ZSMULLT Z8.B, Z4.B, Z30.H                         // 9e744845
 	ZSPLICE Z15.B, Z0.B, P3, Z0.B                     // e08d2c05
 	ZSQABS Z7.D, P4.M, Z13.D                          // edb0c844
 	ZSQABS Z7.D, P4.Z, Z13.D                          // edb0ca44
-	ZSQADD Z7.D, Z23.D, Z13.D                         // ed12e704
 	ZSQADD Z15.B, Z0.B, P3.M, Z0.B                    // e08d1844
+	ZSQADD Z7.D, Z23.D, Z13.D                         // ed12e704
 	ZSQDECP P14.S, Z26.S                              // da81aa25
 	ZSQDMLALB Z8.B, Z4.B, Z30.H                       // 9e604844
 	ZSQDMLALBT Z8.B, Z4.B, Z30.H                      // 9e084844
@@ -441,8 +441,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZSQRSHLR Z15.B, Z0.B, P3.M, Z0.B                  // e08d0e44
 	ZSQSHL Z15.B, Z0.B, P3.M, Z0.B                    // e08d0844
 	ZSQSHLR Z15.B, Z0.B, P3.M, Z0.B                   // e08d0c44
-	ZSQSUB Z7.D, Z23.D, Z13.D                         // ed1ae704
 	ZSQSUB Z15.B, Z0.B, P3.M, Z0.B                    // e08d1a44
+	ZSQSUB Z7.D, Z23.D, Z13.D                         // ed1ae704
 	ZSQSUBR Z15.B, Z0.B, P3.M, Z0.B                   // e08d1e44
 	ZSQXTNB Z30.D, Z29.S                              // dd436045
 	ZSQXTNT Z30.D, Z29.S                              // dd476045
@@ -457,19 +457,19 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZSSUBLTB Z8.B, Z4.B, Z30.H                        // 9e8c4845
 	ZSSUBWB Z22.S, Z10.D, Z5.D                        // 4551d645
 	ZSSUBWT Z22.S, Z10.D, Z5.D                        // 4555d645
-	ZSUB Z7.D, Z23.D, Z13.D                           // ed06e704
 	ZSUB Z15.B, Z0.B, P3.M, Z0.B                      // e00d0104
+	ZSUB Z7.D, Z23.D, Z13.D                           // ed06e704
 	ZSUBHNB Z22.S, Z10.S, Z8.H                        // 4871b645
 	ZSUBHNT Z22.S, Z10.S, Z8.H                        // 4875b645
 	// TODO: SUBP  <Zdn>.<T>, <Pg>/M, <Zdn>.<T>, <Zm>.<T>
-	ZSUBPT Z7.D, Z6.D, Z23.D                          // d70ce704
 	ZSUBPT Z23.D, Z13.D, P1.M, Z13.D                  // ed06c504
+	ZSUBPT Z7.D, Z6.D, Z23.D                          // d70ce704
 	ZSUBR Z15.B, Z0.B, P3.M, Z0.B                     // e00d0304
 	ZSUNPKHI Z15.B, Z0.H                              // e0397105
 	ZSUNPKLO Z15.B, Z0.H                              // e0397005
 	ZSUQADD Z15.B, Z0.B, P3.M, Z0.B                   // e08d1c44
-	ZSXTB Z7.D, P4.Z, Z13.D                           // edb0c004
 	ZSXTB Z7.D, P4.M, Z13.D                           // edb0d004
+	ZSXTB Z7.D, P4.Z, Z13.D                           // edb0c004
 	ZSXTH Z7.D, P4.M, Z13.D                           // edb0d204
 	ZSXTH Z7.D, P4.Z, Z13.D                           // edb0c204
 	ZSXTW Z13.D, P1.M, Z22.D                          // b6a5d404
@@ -493,21 +493,21 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZUADDWB Z22.S, Z10.D, Z5.D                        // 4549d645
 	ZUADDWT Z22.S, Z10.D, Z5.D                        // 454dd645
 	ZUCLAMP Z7.D, Z23.D, Z13.D                        // edc6c744
-	ZUCVTF Z13.D, P1.Z, Z22.S                         // b6a5dd64
-	ZUCVTF Z13.D, P1.M, Z22.H                         // b6a55765
+	// TODO: UCVTF  <Zd>.<T>, <Zn>.<Tb>
+	ZUCVTF Z13.H, P1.M, Z22.H                         // b6a55365
+	ZUCVTF Z13.H, P1.Z, Z22.H                         // b6e55c64
+	ZUCVTF Z13.S, P1.M, Z22.H                         // b6a55565
 	ZUCVTF Z13.S, P1.Z, Z22.H                         // b6a55d64
 	ZUCVTF Z13.S, P1.M, Z22.S                         // b6a59565
 	ZUCVTF Z13.S, P1.Z, Z22.S                         // b6a59d64
 	ZUCVTF Z13.S, P1.M, Z22.D                         // b6a5d165
 	ZUCVTF Z13.S, P1.Z, Z22.D                         // b6a5dc64
-	ZUCVTF Z13.H, P1.M, Z22.H                         // b6a55365
+	ZUCVTF Z13.D, P1.M, Z22.H                         // b6a55765
 	ZUCVTF Z13.D, P1.Z, Z22.H                         // b6e55d64
 	ZUCVTF Z13.D, P1.M, Z22.S                         // b6a5d565
-	ZUCVTF Z13.H, P1.Z, Z22.H                         // b6e55c64
+	ZUCVTF Z13.D, P1.Z, Z22.S                         // b6a5dd64
 	ZUCVTF Z13.D, P1.M, Z22.D                         // b6a5d765
 	ZUCVTF Z13.D, P1.Z, Z22.D                         // b6e5dd64
-	ZUCVTF Z13.S, P1.M, Z22.H                         // b6a55565
-	// TODO: UCVTF  <Zd>.<T>, <Zn>.<Tb>
 	// TODO: UCVTFLT
 	ZUDIV Z25.S, Z2.S, P1.M, Z2.S                     // 22079504
 	ZUDIVR Z25.S, Z2.S, P1.M, Z2.S                    // 22079704
@@ -579,4 +579,127 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZZIP2 Z7.Q, Z6.Q, Z23.Q                           // d704a705
 	ZZIPQ1 Z7.D, Z23.D, Z13.D                         // ede2c744
 	ZZIPQ2 Z7.D, Z23.D, Z13.D                         // ede6c744
+	CTERMEQ ZR, R25                                   // 2023ff25
+	CTERMEQW ZR, R25                                  // 2023bf25
+	CTERMNE ZR, R25                                   // 3023ff25
+	CTERMNEW ZR, R25                                  // 3023bf25
+	PCNTP P2.B, P14, R2                               // 42b82025
+	PDECP P14.S, ZR                                   // df89ad25
+	PFIRSTP P2.B, P14, R2                             // 42b82125
+	PINCP P14.S, ZR                                   // df89ac25
+	PLASTP P2.B, P14, R2                              // 42b82225
+	PSQDECP P14.S, ZR                                 // df8daa25
+	PSQDECPW R8, P10.D, R8                            // 4889ea25
+	PSQINCP P14.S, ZR                                 // df8da825
+	PSQINCPW R8, P10.D, R8                            // 4889e825
+	PUQDECP P14.S, ZR                                 // df8dab25
+	PUQDECPW P14.S, ZR                                // df89ab25
+	PUQINCP P14.S, ZR                                 // df8da925
+	PUQINCPW P14.S, ZR                                // df89a925
+	PWHILEGE R2, R10, P10.H                           // 4a116225
+	PWHILEGEW R2, R10, P10.H                          // 4a016225
+	PWHILEGT R2, R10, P10.H                           // 5a116225
+	PWHILEGTW R2, R10, P10.H                          // 5a016225
+	PWHILEHI R2, R10, P10.H                           // 5a196225
+	PWHILEHIW R2, R10, P10.H                          // 5a096225
+	PWHILEHS R2, R10, P10.H                           // 4a196225
+	PWHILEHSW R2, R10, P10.H                          // 4a096225
+	PWHILELE R2, R10, P10.H                           // 5a156225
+	PWHILELEW R2, R10, P10.H                          // 5a056225
+	PWHILELO R2, R10, P10.H                           // 4a1d6225
+	PWHILELOW R2, R10, P10.H                          // 4a0d6225
+	PWHILELS R2, R10, P10.H                           // 5a1d6225
+	PWHILELSW R2, R10, P10.H                          // 5a0d6225
+	PWHILELT R2, R10, P10.H                           // 4a156225
+	PWHILELTW R2, R10, P10.H                          // 4a056225
+	PWHILERW R2, R10, P10.H                           // 5a316225
+	PWHILEWR R2, R10, P10.H                           // 4a316225
+	ZANDVB Z6.B, P3, V2                               // c22c1a04
+	ZANDVD Z10.D, P3, V15                             // 4f2dda04
+	ZANDVH Z3.H, P1, V29                              // 7d245a04
+	ZANDVS Z17.S, P1, V27                             // 3b269a04
+	ZCLASTA Z9.D, R10, P2, R10                        // 2aa9f005
+	ZCLASTAB Z2.B, V29, P1, V29                       // 5d842a05
+	ZCLASTAD Z9.D, V10, P2, V10                       // 2a89ea05
+	ZCLASTAH Z8.H, V15, P2, V15                       // 0f896a05
+	ZCLASTAS Z26.S, V30, P7, V30                      // 5e9faa05
+	ZCLASTAW Z8.H, R15, P2, R15                       // 0fa97005
+	ZCLASTB Z9.D, R10, P2, R10                        // 2aa9f105
+	ZCLASTBB Z2.B, V29, P1, V29                       // 5d842b05
+	ZCLASTBD Z9.D, V10, P2, V10                       // 2a89eb05
+	ZCLASTBH Z8.H, V15, P2, V15                       // 0f896b05
+	ZCLASTBS Z26.S, V30, P7, V30                      // 5e9fab05
+	ZCLASTBW Z8.H, R15, P2, R15                       // 0fa97105
+	ZCPY R20, P1.M, Z2.D                              // 82a6e805
+	ZCPYB V4, P1.M, Z16.B                             // 90842005
+	ZCPYD V20, P1.M, Z2.D                             // 8286e005
+	ZCPYH V7, P6.M, Z23.H                             // f7986005
+	ZCPYS V13, P1.M, Z22.S                            // b685a005
+	ZCPYW RSP, P5.M, Z6.H                             // e6b76805
+	ZDUP R2, Z10.D                                    // 4a38e005
+	ZDUPW R25, Z11.B                                  // 2b3b2005
+	ZEORVB Z6.B, P3, V2                               // c22c1904
+	ZEORVD Z10.D, P3, V15                             // 4f2dd904
+	ZEORVH Z3.H, P1, V29                              // 7d245904
+	ZEORVS Z17.S, P1, V27                             // 3b269904
+	ZFADDAD Z9.D, V10, P2, V10                        // 2a29d865
+	ZFADDAH Z8.H, V15, P2, V15                        // 0f295865
+	ZFADDAS Z26.S, V30, P7, V30                       // 5e3f9865
+	ZFADDVD Z10.D, P3, V15                            // 4f2dc065
+	ZFADDVH Z3.H, P1, V29                             // 7d244065
+	ZFADDVS Z17.S, P1, V27                            // 3b268065
+	ZFMAXNMVD Z10.D, P3, V15                          // 4f2dc465
+	ZFMAXNMVH Z3.H, P1, V29                           // 7d244465
+	ZFMAXNMVS Z17.S, P1, V27                          // 3b268465
+	ZFMAXVD Z10.D, P3, V15                            // 4f2dc665
+	ZFMAXVH Z3.H, P1, V29                             // 7d244665
+	ZFMAXVS Z17.S, P1, V27                            // 3b268665
+	ZFMINNMVD Z10.D, P3, V15                          // 4f2dc565
+	ZFMINNMVH Z3.H, P1, V29                           // 7d244565
+	ZFMINNMVS Z17.S, P1, V27                          // 3b268565
+	ZFMINVD Z10.D, P3, V15                            // 4f2dc765
+	ZFMINVH Z3.H, P1, V29                             // 7d244765
+	ZFMINVS Z17.S, P1, V27                            // 3b268765
+	ZINDEX R13, R20, Z9.D                             // 894eed04
+	ZINDEXW R2, R10, Z8.H                             // 484d6204
+	ZINSR R2, Z10.D                                   // 4a38e405
+	ZINSRB V25, Z11.B                                 // 2b3b3405
+	ZINSRD V2, Z10.D                                  // 4a38f405
+	ZINSRH V7, Z6.H                                   // e6387405
+	ZINSRS V14, Z8.S                                  // c839b405
+	ZINSRW R25, Z11.B                                 // 2b3b2405
+	ZLASTA Z10.D, P3, R15                             // 4fade005
+	ZLASTAB Z6.B, P3, V2                              // c28c2205
+	ZLASTAD Z10.D, P3, V15                            // 4f8de205
+	ZLASTAH Z3.H, P1, V29                             // 7d846205
+	ZLASTAS Z17.S, P1, V27                            // 3b86a205
+	ZLASTAW Z6.B, P3, R2                              // c2ac2005
+	ZLASTB Z10.D, P3, R15                             // 4fade105
+	ZLASTBB Z6.B, P3, V2                              // c28c2305
+	ZLASTBD Z10.D, P3, V15                            // 4f8de305
+	ZLASTBH Z3.H, P1, V29                             // 7d846305
+	ZLASTBS Z17.S, P1, V27                            // 3b86a305
+	ZLASTBW Z6.B, P3, R2                              // c2ac2105
+	ZORVB Z6.B, P3, V2                                // c22c1804
+	ZORVD Z10.D, P3, V15                              // 4f2dd804
+	ZORVH Z3.H, P1, V29                               // 7d245804
+	ZORVS Z17.S, P1, V27                              // 3b269804
+	ZSADDVD Z6.B, P3, V2                              // c22c0004
+	ZSMAXVB Z6.B, P3, V2                              // c22c0804
+	ZSMAXVD Z10.D, P3, V15                            // 4f2dc804
+	ZSMAXVH Z3.H, P1, V29                             // 7d244804
+	ZSMAXVS Z17.S, P1, V27                            // 3b268804
+	ZSMINVB Z6.B, P3, V2                              // c22c0a04
+	ZSMINVD Z10.D, P3, V15                            // 4f2dca04
+	ZSMINVH Z3.H, P1, V29                             // 7d244a04
+	ZSMINVS Z17.S, P1, V27                            // 3b268a04
+	ZUADDVD Z10.D, P3, V15                            // 4f2dc104
+	ZUMAXVB Z6.B, P3, V2                              // c22c0904
+	ZUMAXVD Z10.D, P3, V15                            // 4f2dc904
+	ZUMAXVH Z3.H, P1, V29                             // 7d244904
+	ZUMAXVS Z17.S, P1, V27                            // 3b268904
+	ZUMINVB Z6.B, P3, V2                              // c22c0b04
+	ZUMINVD Z10.D, P3, V15                            // 4f2dcb04
+	ZUMINVH Z3.H, P1, V29                             // 7d244b04
+	ZUMINVS Z17.S, P1, V27                            // 3b268b04
 	RET
