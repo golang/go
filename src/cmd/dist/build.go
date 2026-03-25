@@ -1819,7 +1819,6 @@ var cgoEnabled = map[string]bool{
 	"openbsd/amd64":   true,
 	"openbsd/arm":     true,
 	"openbsd/arm64":   true,
-	"openbsd/mips64":  true,
 	"openbsd/ppc64":   false,
 	"openbsd/riscv64": true,
 	"plan9/386":       false,
@@ -1838,7 +1837,6 @@ var cgoEnabled = map[string]bool{
 var broken = map[string]bool{
 	"freebsd/riscv64": true, // Broken: go.dev/issue/76475.
 	"linux/sparc64":   true, // An incomplete port. See CL 132155.
-	"openbsd/mips64":  true, // Broken: go.dev/issue/58110.
 }
 
 // List of platforms which are first class ports. See go.dev/issue/38874.

@@ -345,18 +345,6 @@ openbsd_arm64)
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
 	mkasm="go run mkasm.go"
 	;;
-openbsd_mips64)
-	GOOSARCH_in="syscall_openbsd_$GOARCH.go"
-	mkerrors="$mkerrors -m64"
-	mksyscall="./mksyscall.pl -openbsd"
-	mksysctl="./mksysctl_openbsd.pl"
-	zsysctl="zsysctl_openbsd.go"
-	mksysnum="curl -s 'http://cvsweb.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_openbsd.pl"
-	# Let the type of C char be signed to make the bare syscall
-	# API consistent between platforms.
-	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
-	mkasm="go run mkasm.go"
-	;;
 openbsd_ppc64)
 	GOOSARCH_in="syscall_openbsd_$GOARCH.go"
 	mkerrors="$mkerrors -m64"
