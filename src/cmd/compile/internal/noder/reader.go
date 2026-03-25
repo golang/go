@@ -3827,7 +3827,7 @@ type methodValueWrapper struct {
 // needWrapper records that wrapper methods may be needed at link
 // time.
 func (r *reader) needWrapper(typ *types.Type) {
-	if typ.IsPtr() {
+	if typ.IsPtr() || typ.IsKind(types.TFORW) {
 		return
 	}
 
