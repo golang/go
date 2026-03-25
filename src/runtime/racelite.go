@@ -19,7 +19,7 @@ const (
 	raceliteVRNum = 1 << raceliteVRShift
 
 	// raceliteRecordShift is log2(raceliteRecordNum).
-	raceliteRecordShift uint8 = 8
+	raceliteRecordShift uint8 = 13
 	// raceliteRecordNum is the number of data race records we have.
 	raceliteRecordNum = 1 << raceliteRecordShift
 
@@ -41,11 +41,11 @@ const (
 	// They are used to determine the access type pair.
 	raceliteOp1Read, raceliteOp2Read uint8 = 0b01, 0b10
 
-	// racelitePCTempShift is log2(racelitePCTempSize).
-	racelitePCTempShift uint8 = 16
-	// racelitePCTempSize is the size of the array that
+	// raceliteTempShift is log2(raceliteTempSize).
+	raceliteTempShift uint8 = 16
+	// raceliteTempSize is the size of the array that
 	// monitors the temperature of PCs.
-	racelitePCTempSize = 1 << racelitePCTempShift
+	raceliteTempSize = 1 << raceliteTempShift
 )
 
 var (
@@ -61,10 +61,10 @@ var (
 	// raceliteReg is the global array of virtual registers.
 	raceliteReg *[raceliteVRNum]raceliteVirtualRegister
 
-	// racelitePCTemp is the array that monitors PC temperatures.
+	// raceliteTemp is the array that monitors PC temperatures.
 	// The higher the temperature, the less likely for the PC
 	// to execute the instrumentation.
-	racelitePCTemp *[racelitePCTempSize]uint16
+	raceliteTemp *[raceliteTempSize]uint16
 
 	// raceliteRecords is the array that records data races.
 	// This prevents duplicate data races from being reported.
@@ -79,6 +79,10 @@ var (
 	// Initialized in raceliteinit based on the value of debug.racelite.
 	raceliteSamplingMask uint32
 )
+
+func racelitediag() bool {
+	return debug.racelite >= 2
+}
 
 // Initialize Racelite tooling
 func raceliteinit() {
@@ -113,7 +117,7 @@ func raceliteinit() {
 	raceliteRecords = new([raceliteRecordNum]bool)
 
 	// Initialize instrumented PC temperatures
-	racelitePCTemp = new([racelitePCTempSize]uint16)
+	raceliteTemp = new([raceliteTempSize]uint16)
 }
 
 // racelitetick refreshes the sampler and reduces
@@ -124,12 +128,9 @@ func racelitetick(delay uint32) {
 	// Appropriately reduce temperature based on the delay.
 	decrement := uint16(sys.Len64(uint64(delay)))
 
-	for i := 0; i < racelitePCTempSize; i++ {
-		if temp := racelitePCTemp[i]; temp >= decrement {
-			racelitePCTemp[i] = temp - decrement
-		} else {
-			racelitePCTemp[i] = 0
-		}
+	for i := 0; i < raceliteTempSize; i++ {
+		temp := raceliteTemp[i]
+		raceliteTemp[i] = temp - min(temp, decrement)
 	}
 }
 
@@ -142,12 +143,21 @@ func inStack(addr uintptr) bool {
 // racelitepause injects a small delay to a load
 // or store operation, allowing Racelite to see
 // whether another thread accessed the same address.
-func racelitepause() {
-	if cheaprandn(10_000) == 0 {
-		// TODO(thepudds): multiple ways to delay here. For now, do something simple that hopefully
-		// let's us see it work for the first time. ;)
-		usleep(1)
+// The pause probability is weighted by PC temperature.
+func racelitepause(temp uint16) {
+	if !racelitehotskip(temp) {
+		usleep(5)
 	}
+}
+
+// racelitemixpcs combines pcs in an array up to a given length
+// into a single value, which can then be hashed using racelitehash.
+func racelitemixpcs(pcs [racelitePCDepth]uintptr, n int) uintptr {
+	var combinedPC uintptr = 0
+	for i := 0; i < n; i++ {
+		combinedPC = 31*combinedPC + pcs[i]
+	}
+	return combinedPC
 }
 
 // racelitehash computes the Fibonacci hash of the given value,
@@ -159,25 +169,37 @@ func racelitehash(v uintptr, shift uint8) uintptr {
 
 // raceliteraceheat drastically increases the temperature
 // of a PC where a data race has been detected.
-func raceliteraceheat(v uintptr) {
-	slot := racelitehash(v, racelitePCTempShift)
-	temp := racelitePCTemp[slot]
-	racelitePCTemp[slot] = (temp + 1) << 4
+func raceliteraceheat(pcs [racelitePCDepth]uintptr, n int) {
+	pc := racelitemixpcs(pcs, n)
+	slot := racelitehash(pc, raceliteTempShift)
+	temp := raceliteTemp[slot]
+	raceliteTemp[slot] = min(1024, (temp+1)<<3)
 }
 
-// racelitehottemp stochastically uses the temperature to determine
-// whether a PC should be instrumented or not.
-func racelitehottemp(temp uint16) bool {
+// racelitetemp gets the temperature for a PC with stack depth, incrementing it.
+// Returns the temperature after increment.
+// Captures multiple stack frames to create unique temperature slots.
+//
+//go:noinline
+func racelitetemp() uint16 {
+	// Capture a few stack frames to differentiate call sites
+	var pcs [racelitePCDepth]uintptr
+	n := callers(2, pcs[:])
+
+	// Combine PCs by XORing them together
+	pc := racelitemixpcs(pcs, n)
+	hash := racelitehash(pc, raceliteTempShift)
+	raceliteTemp[hash] = min(1024, raceliteTemp[hash]+1)
+	temp := raceliteTemp[hash]
+	return temp
+}
+
+// racelitehotskip stochastically uses temperature to make decisions.
+// Higher temperature → higher probability of returning true.
+// Used for both skipping instrumentation and micropause decisions.
+func racelitehotskip(temp uint16) bool {
 	t := uint32(sys.Len64(uint64(temp) >> 3))
 	return t > 0 && cheaprandn(t) != 0
-}
-
-// raceliteskippc checks whether to skip instrumentation of a PC by
-// using its temperature.
-func raceliteskippc(v uintptr) bool {
-	hash := racelitehash(v, racelitePCTempShift)
-	racelitePCTemp[hash]++
-	return racelitehottemp(racelitePCTemp[hash])
 }
 
 // racelitesampled checks if we should sample the given address for data race detection.
@@ -278,7 +300,7 @@ func (r *raceliteVirtualRegister) claim(addr uintptr) bool {
 		rec.n2 = callers(2, rec.pcs2[:racelitePCDepth])
 
 		// Heat up the previous writer PC.
-		raceliteraceheat(rec.pcs1[0])
+		raceliteraceheat(rec.pcs1, rec.n1)
 
 		rec.goid2 = getg().goid
 		rec.report()
@@ -343,7 +365,7 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 		rec.goid1 = getg().goid // Get goroutine ID of reader goroutine.
 
 		// Heat up the reader PC where the data race occurred.
-		raceliteraceheat(rec.pcs1[0])
+		raceliteraceheat(rec.pcs1, rec.n1)
 	case op&raceliteOp2Read != 0:
 		// The writer occurred first, so we have a write-read race.
 		// Place the reader as the second goroutine.
@@ -351,7 +373,7 @@ func (r *raceliteVirtualRegister) monitor(addr uintptr, op uint8) bool {
 		rec.goid2 = getg().goid // Get goroutine ID of reader goroutine.
 
 		// Heat up the reader PC where the data race occurred.
-		raceliteraceheat(rec.pcs2[0])
+		raceliteraceheat(rec.pcs2, rec.n2)
 	default:
 		// Something strange happened. Tolerate, but drop the report.
 		return true
@@ -433,7 +455,9 @@ func (rec raceliteRec) reportPC(pcs [racelitePCDepth]uintptr, n int) {
 //	[stack trace of the previous writer]
 //	==================
 func (rec raceliteRec) report() {
-	slot := racelitehash(((rec.pcs1[0] + rec.pcs2[0]) ^ (rec.pcs1[0] * rec.pcs2[0])), raceliteRecordShift)
+	pc1 := racelitemixpcs(rec.pcs1, rec.n1)
+	pc2 := racelitemixpcs(rec.pcs2, rec.n2)
+	slot := racelitehash(((pc1 + pc2) ^ (pc1 * pc2)), raceliteRecordShift)
 	if raceliteRecords[slot] {
 		// We already recorded this data race.
 		return
@@ -487,7 +511,8 @@ func racelitewrite(addr uintptr) {
 		return
 	}
 
-	if raceliteskippc(sys.GetCallerPC()) {
+	temp := racelitetemp()
+	if racelitehotskip(temp) {
 		// This PC is hot, so we skip instrumentation.
 		return
 	}
@@ -501,7 +526,7 @@ func racelitewrite(addr uintptr) {
 		return
 	}
 
-	racelitepause()
+	racelitepause(temp)
 
 	// Release the virtual register.
 	r.release()
@@ -523,7 +548,8 @@ func raceliteread(addr uintptr) {
 		return
 	}
 
-	if raceliteskippc(sys.GetCallerPC()) {
+	temp := racelitetemp()
+	if racelitehotskip(temp) {
 		// This PC is hot, so we skip instrumentation.
 		return
 	}
@@ -534,7 +560,7 @@ func raceliteread(addr uintptr) {
 		return
 	}
 
-	racelitepause()
+	racelitepause(temp)
 
 	// Check for a read-write race.
 	r.monitor(addr, raceliteOp1Read)
