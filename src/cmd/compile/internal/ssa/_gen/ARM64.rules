@@ -656,6 +656,9 @@
 
 (TB(Z|NZ) [t] rv:(RORconst [r] x) yes no) && rv.Uses == 1 => (TB(Z|NZ) [int64(uint64(t+r)%64)] x yes no)
 
+(TB(Z|NZ) [t] sv:(SRAconst [s] x) yes no) && t+s <  64 && sv.Uses == 1 => (TB(Z|NZ) [t+s] x yes no)
+(TB(Z|NZ) [t] sv:(SRAconst [s] x) yes no) && t+s >= 64 && sv.Uses == 1 => (TB(Z|NZ) [63 ] x yes no)
+
 // Test sign-bit for signed comparisons against zero
 (GE (CMPWconst [0] x) yes no) => (TBZ  [31] x yes no)
 (GE (CMPconst [0] x)  yes no) => (TBZ  [63] x yes no)

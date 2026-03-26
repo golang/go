@@ -25687,6 +25687,36 @@ func rewriteBlockARM64(b *Block) bool {
 			b.AuxInt = int64ToAuxInt(int64(uint64(t+r) % 64))
 			return true
 		}
+		// match: (TBNZ [t] sv:(SRAconst [s] x) yes no)
+		// cond: t+s < 64 && sv.Uses == 1
+		// result: (TBNZ [t+s] x yes no)
+		for b.Controls[0].Op == OpARM64SRAconst {
+			sv := b.Controls[0]
+			s := auxIntToInt64(sv.AuxInt)
+			x := sv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(t+s < 64 && sv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(t + s)
+			return true
+		}
+		// match: (TBNZ [t] sv:(SRAconst [s] x) yes no)
+		// cond: t+s >= 64 && sv.Uses == 1
+		// result: (TBNZ [63 ] x yes no)
+		for b.Controls[0].Op == OpARM64SRAconst {
+			sv := b.Controls[0]
+			s := auxIntToInt64(sv.AuxInt)
+			x := sv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(t+s >= 64 && sv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(63)
+			return true
+		}
 	case BlockARM64TBZ:
 		// match: (TBZ [0] (XORconst [1] x) yes no)
 		// result: (TBNZ [0] x yes no)
@@ -25772,6 +25802,36 @@ func rewriteBlockARM64(b *Block) bool {
 			}
 			b.resetWithControl(BlockARM64TBZ, x)
 			b.AuxInt = int64ToAuxInt(int64(uint64(t+r) % 64))
+			return true
+		}
+		// match: (TBZ [t] sv:(SRAconst [s] x) yes no)
+		// cond: t+s < 64 && sv.Uses == 1
+		// result: (TBZ [t+s] x yes no)
+		for b.Controls[0].Op == OpARM64SRAconst {
+			sv := b.Controls[0]
+			s := auxIntToInt64(sv.AuxInt)
+			x := sv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(t+s < 64 && sv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(t + s)
+			return true
+		}
+		// match: (TBZ [t] sv:(SRAconst [s] x) yes no)
+		// cond: t+s >= 64 && sv.Uses == 1
+		// result: (TBZ [63 ] x yes no)
+		for b.Controls[0].Op == OpARM64SRAconst {
+			sv := b.Controls[0]
+			s := auxIntToInt64(sv.AuxInt)
+			x := sv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(t+s >= 64 && sv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(63)
 			return true
 		}
 	case BlockARM64UGE:
