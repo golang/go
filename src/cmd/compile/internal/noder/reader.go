@@ -4114,6 +4114,8 @@ const dictParamName = typecheck.LocalDictName
 //
 // The parameter types.Fields are all copied too, so their Nname
 // fields can be initialized for use by the shape function.
+//
+// All signatures returned by shapeSig are marked as shaped.
 func shapeSig(fn *ir.Func, dict *readerDict) *types.Type {
 	sig := fn.Nname.Type()
 	oldRecv := sig.Recv()
@@ -4136,5 +4138,7 @@ func shapeSig(fn *ir.Func, dict *readerDict) *types.Type {
 		results[i] = types.NewField(result.Pos, result.Sym, result.Type)
 	}
 
-	return types.NewSignature(recv, params, results)
+	typ := types.NewSignature(recv, params, results)
+	typ.SetHasShape(true)
+	return typ
 }
