@@ -1,0 +1,62 @@
+name: Build & Test RA-TLS Go Fork
+
+on:
+  push:
+    branches: [ratls]
+    tags: ['privasys-*']
+  pull_request:
+    branches: [ratls]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install bootstrap Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+          cache: false
+
+      - name: Build Go toolchain
+        run: |
+          cd src
+          GOROOT_BOOTSTRAP=$(go env GOROOT) ./make.bash
+        env:
+          GOFLAGS: ''
+
+      - name: Run RA-TLS unit tests
+        run: |
+          export PATH="$PWD/bin:$PATH"
+          export GOROOT="$PWD"
+          cd src/crypto/tls
+          go test -v -run 'TestRATLS|TestCloneNonFuncFields' -count=1
+
+      - name: Package toolchain
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          if [[ "$VERSION" == refs/* ]]; then
+            VERSION="dev-$(git rev-parse --short HEAD)"
+          fi
+          tar czf "go-ratls-${VERSION}-linux-amd64.tar.gz" \
+            --transform "s,^,go-ratls/," \
+            bin/ pkg/ src/
+          echo "ARTIFACT=go-ratls-${VERSION}-linux-amd64.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: go-ratls-linux-amd64
+          path: ${{ env.ARTIFACT }}
+
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ARTIFACT }}
+          generate_release_notes: true
