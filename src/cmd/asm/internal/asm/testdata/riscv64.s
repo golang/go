@@ -1965,6 +1965,23 @@ start:
 	VMV4RV		V8, V4				// 57b2819e
 	VMV8RV		V8, V0				// 57b0839e
 
+
+	//
+	// Cryptography Extensions: Vector Instructions, Version 1.0
+	//
+
+	// 32.2.5: Zvkned - NIST Suite: Vector AES Block Cipher
+	VAESEFVV	V8, V12				// 77a681a2
+	VAESEFVS	V8, V12				// 77a681a6
+	VAESEMVV	V9, V13				// f72691a2
+	VAESEMVS	V9, V13				// f72691a6
+	VAESDFVV	V10, V14			// 77a7a0a2
+	VAESDFVS	V10, V14			// 77a7a0a6
+	VAESDMVV	V11, V15			// f727b0a2
+	VAESDMVS	V11, V15			// f727b0a6
+	VAESKF1VI	$1, V13, V17			// f7a8d08a
+	VAESKF2VI	$2, V14, V18			// 7729e1aa
+	VAESZVS		V12, V16			// 77a8c3a6
 	//
 	// Privileged ISA
 	//
