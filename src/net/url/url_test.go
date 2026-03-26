@@ -626,6 +626,27 @@ var urltests = []URLTest{
 		},
 		"postgresql://host1:1,host2:2,host3:3",
 	},
+	// Mongodb URLs can include a comma-separated list of host:post hosts.
+	{
+		"mongodb://user:password@host1:1,host2:2,host3:3",
+		&URL{
+			Scheme: "mongodb",
+			User:   UserPassword("user", "password"),
+			Host:   "host1:1,host2:2,host3:3",
+			Path:   "",
+		},
+		"",
+	},
+	{
+		"mongodb+srv://user:password@host1:1,host2:2,host3:3",
+		&URL{
+			Scheme: "mongodb+srv",
+			User:   UserPassword("user", "password"),
+			Host:   "host1:1,host2:2,host3:3",
+			Path:   "",
+		},
+		"",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
