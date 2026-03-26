@@ -4,9 +4,15 @@ package arm64
 
 const (
 	enc_NIL component = iota
+	enc_i1_tsz
+	enc_i2h_i2l
+	enc_i3h_i3l
+	enc_i4h_i4l
+	enc_imm2_tsz
 	enc_tszh_tszl
 	enc_M
 	enc_PNd
+	enc_PNn
 	enc_Pd
 	enc_Pdm
 	enc_Pdn
@@ -29,9 +35,13 @@ const (
 	enc_Zk
 	enc_Zm
 	enc_Zn
+	enc_i1
+	enc_i2
+	enc_imm2
 	enc_size
 	enc_size0
 	enc_sz
+	enc_tsz
 )
 
 // encodeArngBCheck is the implementation of the following encoding logic:
@@ -97,6 +107,164 @@ func encodeZeroPredCheck(v uint32) (uint32, bool) {
 	return 0, false
 }
 
+// encodeI2_1921_16To32Bit is the implementation of the following encoding logic:
+// For the "16-bit to 32-bit" variant: is the immediate index of a pair of 16-bit elements within each 128-bit vector segment, in the range 0 to 3, encoded in the "i2" field.
+// bit range mappings:
+// i2: [19:21)
+func encodeI2_1921_16To32Bit(v uint32) (uint32, bool) {
+	if v > 3 {
+		return 0, false
+	}
+	return v << 19, true
+}
+
+// encodeI1_2021_16To64Bit is the implementation of the following encoding logic:
+// For the "16-bit to 64-bit" variant: is the immediate index of a 64-bit group of four 16-bit values within each 128-bit vector segment, in the range 0 to 1, encoded in the "i1" field.
+// bit range mappings:
+// i1: [20:21)
+func encodeI1_2021_16To64Bit(v uint32) (uint32, bool) {
+	if v > 1 {
+		return 0, false
+	}
+	return v << 20, true
+}
+
+// encodeZm1620_16To64Bit is the implementation of the following encoding logic:
+// For the "16-bit to 64-bit" variant: is the name of the second source scalable vector register Z0-Z15, encoded in the "Zm" field.
+// bit range mappings:
+// Zm: [16:20)
+func encodeZm1620_16To64Bit(v uint32) (uint32, bool) {
+	if v > 15 {
+		return 0, false
+	}
+	return v << 16, true
+}
+
+// encodeZm1619_16Bit32Bit is the implementation of the following encoding logic:
+// For the "16-bit" and "32-bit" variants: is the name of the second source scalable vector register Z0-Z7, encoded in the "Zm" field.
+// bit range mappings:
+// Zm: [16:19)
+func encodeZm1619_16Bit32Bit(v uint32) (uint32, bool) {
+	if v > 7 {
+		return 0, false
+	}
+	return v << 16, true
+}
+
+// encodeI3hI3l_1923_16Bit is the implementation of the following encoding logic:
+// For the "16-bit" variant: is the element index, in the range 0 to 7, encoded in the "i3h:i3l" fields.
+// bit range mappings:
+// i3h: [22:23)
+// i3l: [19:21)
+func encodeI3hI3l_1923_16Bit(v uint32) (uint32, bool) {
+	if v > 7 {
+		return 0, false
+	}
+	return (v&3)<<19 | (v>>2)<<22, true
+}
+
+// encodeI2_1921_32Bit is the implementation of the following encoding logic:
+// For the "32-bit" variant: is the element index, in the range 0 to 3, encoded in the "i2" field.
+// bit range mappings:
+// i2: [19:21)
+func encodeI2_1921_32Bit(v uint32) (uint32, bool) {
+	if v > 3 {
+		return 0, false
+	}
+	return v << 19, true
+}
+
+// encodeI3hI3l_1119_32Bit is the implementation of the following encoding logic:
+// For the "32-bit" variant: is the element index, in the range 0 to 7, encoded in the "i3h:i3l" fields.
+// bit range mappings:
+// i3h: [19:21)
+// i3l: [11:12)
+func encodeI3hI3l_1119_32Bit(v uint32) (uint32, bool) {
+	if v > 7 {
+		return 0, false
+	}
+	return (v&1)<<11 | (v>>1)<<19, true
+}
+
+// encodeZm1619_32Bit is the implementation of the following encoding logic:
+// For the "32-bit" variant: is the name of the second source scalable vector register Z0-Z7, encoded in the "Zm" field.
+// bit range mappings:
+// Zm: [16:19)
+func encodeZm1619_32Bit(v uint32) (uint32, bool) {
+	if v > 7 {
+		return 0, false
+	}
+	return v << 16, true
+}
+
+// encodeI1_2021_64Bit is the implementation of the following encoding logic:
+// For the "64-bit" variant: is the element index, in the range 0 to 1, encoded in the "i1" field.
+// bit range mappings:
+// i1: [20:21)
+func encodeI1_2021_64Bit(v uint32) (uint32, bool) {
+	if v > 1 {
+		return 0, false
+	}
+	return v << 20, true
+}
+
+// encodeI2hI2l_1120_64Bit is the implementation of the following encoding logic:
+// For the "64-bit" variant: is the element index, in the range 0 to 3, encoded in the "i2h:i2l" fields.
+// bit range mappings:
+// i2h: [20:21)
+// i2l: [11:12)
+func encodeI2hI2l_1120_64Bit(v uint32) (uint32, bool) {
+	if v > 3 {
+		return 0, false
+	}
+	return (v&1)<<11 | (v>>1)<<20, true
+}
+
+// encodeZm1620_64Bit is the implementation of the following encoding logic:
+// For the "64-bit" variant: is the name of the second source scalable vector register Z0-Z15, encoded in the "Zm" field.
+// bit range mappings:
+// Zm: [16:20)
+func encodeZm1620_64Bit(v uint32) (uint32, bool) {
+	if v > 15 {
+		return 0, false
+	}
+	return v << 16, true
+}
+
+// encodeI3hI3l_1923_8To16Bit is the implementation of the following encoding logic:
+// For the "8-bit to 16-bit" variant: is the immediate index of a pair of 8-bit elements within each 128-bit vector segment, in the range 0 to 7, encoded in the "i3h:i3l" fields.
+// bit range mappings:
+// i3h: [22:23)
+// i3l: [19:21)
+func encodeI3hI3l_1923_8To16Bit(v uint32) (uint32, bool) {
+	if v > 7 {
+		return 0, false
+	}
+	return (v&3)<<19 | (v>>2)<<22, true
+}
+
+// encodeI2_1921_8To32Bit is the implementation of the following encoding logic:
+// For the "8-bit to 32-bit" variant: is the immediate index of a 32-bit group of four 8-bit values within each 128-bit vector segment, in the range 0 to 3, encoded in the "i2" field.
+// bit range mappings:
+// i2: [19:21)
+func encodeI2_1921_8To32Bit(v uint32) (uint32, bool) {
+	if v > 3 {
+		return 0, false
+	}
+	return v << 19, true
+}
+
+// encodeZm1619_8To32Bit is the implementation of the following encoding logic:
+// For the "8-bit to 32-bit" variant: is the name of the second source scalable vector register Z0-Z7, encoded in the "Zm" field.
+// bit range mappings:
+// Zm: [16:19)
+func encodeZm1619_8To32Bit(v uint32) (uint32, bool) {
+	if v > 7 {
+		return 0, false
+	}
+	return v << 16, true
+}
+
 // encodeSzByteHalfword is the implementation of the following encoding logic:
 // For the "Byte and halfword" variant: is the size specifier,
 // sz	<T>
@@ -135,6 +303,74 @@ func encodeSizeByteMergeZero(v uint32) (uint32, bool) {
 	return 0, false
 }
 
+// encodeI1_2021_DoublePrecision is the implementation of the following encoding logic:
+// For the "Double-precision" variant: is the immediate index, in the range 0 to 1, encoded in the "i1" field.
+// bit range mappings:
+// i1: [20:21)
+func encodeI1_2021_DoublePrecision(v uint32) (uint32, bool) {
+	if v > 1 {
+		return 0, false
+	}
+	return v << 20, true
+}
+
+// encodeZm1620_DoublePrecision is the implementation of the following encoding logic:
+// For the "Double-precision" variant: is the name of the second source scalable vector register Z0-Z15, encoded in the "Zm" field.
+// bit range mappings:
+// Zm: [16:20)
+func encodeZm1620_DoublePrecision(v uint32) (uint32, bool) {
+	if v > 15 {
+		return 0, false
+	}
+	return v << 16, true
+}
+
+// encodeI3hI3l_1722_Doubleword is the implementation of the following encoding logic:
+// For the "Doubleword" variant: is the optional portion index, in the range 0 to 7, defaulting to 0, encoded in the "i3h:i3l" fields.
+// bit range mappings:
+// i3h: [22:23)
+// i3l: [17:19)
+func encodeI3hI3l_1722_Doubleword(v uint32) (uint32, bool) {
+	if v > 7 {
+		return 0, false
+	}
+	return (v&3)<<17 | (v>>2)<<22, true
+}
+
+// encodeZm1619_HalfSinglePrecision is the implementation of the following encoding logic:
+// For the "Half-precision" and "Single-precision" variants: is the name of the second source scalable vector register Z0-Z7, encoded in the "Zm" field.
+// bit range mappings:
+// Zm: [16:19)
+func encodeZm1619_HalfSinglePrecision(v uint32) (uint32, bool) {
+	if v > 7 {
+		return 0, false
+	}
+	return v << 16, true
+}
+
+// encodeI3hI3l_1923_HalfPrecision is the implementation of the following encoding logic:
+// For the "Half-precision" variant: is the immediate index, in the range 0 to 7, encoded in the "i3h:i3l" fields.
+// bit range mappings:
+// i3h: [22:23)
+// i3l: [19:21)
+func encodeI3hI3l_1923_HalfPrecision(v uint32) (uint32, bool) {
+	if v > 7 {
+		return 0, false
+	}
+	return (v&3)<<19 | (v>>2)<<22, true
+}
+
+// encodeI1_1718_Halfword is the implementation of the following encoding logic:
+// For the "Halfword" variant: is the optional portion index, in the range 0 to 1, defaulting to 0, encoded in the "i1" field.
+// bit range mappings:
+// i1: [17:18)
+func encodeI1_1718_Halfword(v uint32) (uint32, bool) {
+	if v > 1 {
+		return 0, false
+	}
+	return v << 17, true
+}
+
 // encodeSize0HalfwordMergeZero is the implementation of the following encoding logic:
 // For the "Halfword, merging" and "Halfword, zeroing" variants: is the size specifier,
 // size[0]	<T>
@@ -152,6 +388,17 @@ func encodeSize0HalfwordMergeZero(v uint32) (uint32, bool) {
 	return 0, false
 }
 
+// encodeI2_1921_SinglePrecision is the implementation of the following encoding logic:
+// For the "Single-precision" variant: is the immediate index, in the range 0 to 3, encoded in the "i2" field.
+// bit range mappings:
+// i2: [19:21)
+func encodeI2_1921_SinglePrecision(v uint32) (uint32, bool) {
+	if v > 3 {
+		return 0, false
+	}
+	return v << 19, true
+}
+
 // encodeSzWordDoubleword is the implementation of the following encoding logic:
 // For the "Word and doubleword" variant: is the size specifier,
 // sz	<T>
@@ -167,6 +414,17 @@ func encodeSzWordDoubleword(v uint32) (uint32, bool) {
 		return 1 << 22, true
 	}
 	return 0, false
+}
+
+// encodeI2_1719_Word is the implementation of the following encoding logic:
+// For the "Word" variant: is the optional portion index, in the range 0 to 3, defaulting to 0, encoded in the "i2" field.
+// bit range mappings:
+// i2: [17:19)
+func encodeI2_1719_Word(v uint32) (uint32, bool) {
+	if v > 3 {
+		return 0, false
+	}
+	return v << 17, true
 }
 
 // encodeSize16B8H4S2D is the implementation of the following encoding logic:
@@ -276,6 +534,98 @@ func encodeXdn05(v uint32) (uint32, bool) {
 	return v & 31, true
 }
 
+// encodeI2_1921_8BitGroup is the implementation of the following encoding logic:
+// Is the immediate index of a 32-bit group of four 8-bit values within each 128-bit vector segment, in the range 0 to 3, encoded in the "i2" field.
+// bit range mappings:
+// i2: [19:21)
+func encodeI2_1921_8BitGroup(v uint32) (uint32, bool) {
+	if v > 3 {
+		return 0, false
+	}
+	return v << 19, true
+}
+
+// encodeI2_1921_Pair16Bit is the implementation of the following encoding logic:
+// Is the immediate index of a pair of 16-bit elements within each 128-bit vector segment, in the range 0 to 3, encoded in the "i2" field.
+// bit range mappings:
+// i2: [19:21)
+func encodeI2_1921_Pair16Bit(v uint32) (uint32, bool) {
+	if v > 3 {
+		return 0, false
+	}
+	return v << 19, true
+}
+
+// encodeI3hI3l_1119_Pair8Bit is the implementation of the following encoding logic:
+// Is the immediate index of a pair of 8-bit elements within each 128-bit vector segment, in the range 0 to 7, encoded in the "i3h:i3l" fields.
+// bit range mappings:
+// i3h: [19:21)
+// i3l: [11:12)
+func encodeI3hI3l_1119_Pair8Bit(v uint32) (uint32, bool) {
+	if v > 7 {
+		return 0, false
+	}
+	return (v&1)<<11 | (v>>1)<<19, true
+}
+
+// encodeI4hI4l_1019 is the implementation of the following encoding logic:
+// Is the immediate index, in the range 0 to 15, encoded in the "i4h:i4l" fields.
+// bit range mappings:
+// i4h: [19:21)
+// i4l: [10:12)
+func encodeI4hI4l_1019(v uint32) (uint32, bool) {
+	if v > 15 {
+		return 0, false
+	}
+	return (v&3)<<10 | (v>>2)<<19, true
+}
+
+// encodeI3hI3l_1119 is the implementation of the following encoding logic:
+// Is the immediate index, in the range 0 to 7, encoded in the "i3h:i3l" fields.
+// bit range mappings:
+// i3h: [19:21)
+// i3l: [11:12)
+func encodeI3hI3l_1119(v uint32) (uint32, bool) {
+	if v > 7 {
+		return 0, false
+	}
+	return (v&1)<<11 | (v>>1)<<19, true
+}
+
+// encodeI3hI3l_1922 is the implementation of the following encoding logic:
+// Is the immediate index, in the range 0 to 7, encoded in the "i3h:i3l" fields.
+// bit range mappings:
+// i3h: [22:23)
+// i3l: [19:21)
+func encodeI3hI3l_1922(v uint32) (uint32, bool) {
+	if v > 7 {
+		return 0, false
+	}
+	return (v&3)<<19 | (v>>2)<<22, true
+}
+
+// encodeI1Tsz_Delegate is the implementation of the following encoding logic:
+// Is the immediate index, in the range 0 to one less than the number of elements in 128 bits, encoded in "i1:tsz".
+// bit range mappings:
+// i1: [20:21)
+// tsz: [16:20)
+func encodeI1Tsz_Delegate(v uint32) (uint32, bool) {
+	// The statement "range 0 to one less than the number of elements in 128 bits"
+	// is not possible to handle here, we delegate this to the caller.
+	return codeI1Tsz, false
+}
+
+// encodeImm2Tsz_Delegate is the implementation of the following encoding logic:
+// Is the immediate index, in the range 0 to one less than the number of elements in 512 bits, encoded in "imm2:tsz".
+// bit range mappings:
+// imm2: [22:24)
+// tsz: [16:21)
+func encodeImm2Tsz_Delegate(v uint32) (uint32, bool) {
+	// The statement "range 0 to one less than the number of elements in 512 bits"
+	// is not possible to handle here, we delegate this to the caller.
+	return codeImm2Tsz, false
+}
+
 // encodeVd is the implementation of the following encoding logic:
 // Is the name of the destination SIMD&FP register, encoded in the "Vd" field.
 // bit range mappings:
@@ -326,6 +676,18 @@ func encodePdnDest(v uint32) (uint32, bool) {
 // Zdn: [0:5)
 func encodeZdnDest(v uint32) (uint32, bool) {
 	return v, true
+}
+
+// encodePnN_58 is the implementation of the following encoding logic:
+// Is the name of the first source scalable predicate register PN8-PN15, with predicate-as-counter encoding, encoded in the "PNn" field.
+// bit range mappings:
+// PNn: [5:8)
+func encodePnN_58(v uint32) (uint32, bool) {
+	if v >= 24 && v <= 31 {
+		// PN registers starts from 16.
+		return (v - 24) << 5, true
+	}
+	return 0, false
 }
 
 // encodePn59 is the implementation of the following encoding logic:
@@ -393,6 +755,17 @@ func encodeZdaDest(v uint32) (uint32, bool) {
 // Pm: [16:20)
 func encodePm1620(v uint32) (uint32, bool) {
 	return v << 16, true
+}
+
+// encodeZm_1619_Range0_7 is the implementation of the following encoding logic:
+// Is the name of the second source scalable vector register Z0-Z7, encoded in the "Zm" field.
+// bit range mappings:
+// Zm: [16:19)
+func encodeZm_1619_Range0_7(v uint32) (uint32, bool) {
+	if v <= 7 {
+		return v << 16, true
+	}
+	return 0, false
 }
 
 // encodeZm1621 is the implementation of the following encoding logic:
@@ -615,6 +988,17 @@ func encodeVn510(v uint32) (uint32, bool) {
 // Vdn: [0:5)
 func encodeVdn05(v uint32) (uint32, bool) {
 	return v & 31, true
+}
+
+// encodeImm2_810 is the implementation of the following encoding logic:
+// Is the portion index, in the range 0 to 3, encoded in the "imm2" field.
+// bit range mappings:
+// imm2: [8:10)
+func encodeImm2_810(v uint32) (uint32, bool) {
+	if v > 3 {
+		return 0, false
+	}
+	return v << 8, true
 }
 
 // encodePredQualM1617 is the implementation of the following encoding logic:
@@ -996,6 +1380,57 @@ func encodeSzSD2223(v uint32) (uint32, bool) {
 		return 0 << 22, true
 	case ARNG_D:
 		return 1 << 22, true
+	}
+	return 0, false
+}
+
+// encodeTsz_1620_SizeSpecifier4 is the implementation of the following encoding logic:
+// Is the size specifier,
+// tsz	<T>
+// 0000	RESERVED
+// xxx1	B
+// xx10	H
+// x100	S
+// 1000	D
+// bit range mappings:
+// tsz: [16:20)
+func encodeTsz_1620_SizeSpecifier4(v uint32) (uint32, bool) {
+	switch v {
+	case ARNG_B:
+		return 1 << 16, true
+	case ARNG_H:
+		return 2 << 16, true
+	case ARNG_S:
+		return 4 << 16, true
+	case ARNG_D:
+		return 8 << 16, true
+	}
+	return 0, false
+}
+
+// encodeTsz_1621_SizeSpecifier5 is the implementation of the following encoding logic:
+// Is the size specifier,
+// tsz	<T>
+// 00000	RESERVED
+// xxxx1	B
+// xxx10	H
+// xx100	S
+// x1000	D
+// 10000	Q
+// bit range mappings:
+// tsz: [16:21)
+func encodeTsz_1621_SizeSpecifier5(v uint32) (uint32, bool) {
+	switch v {
+	case ARNG_B:
+		return 1 << 16, true
+	case ARNG_H:
+		return 2 << 16, true
+	case ARNG_S:
+		return 4 << 16, true
+	case ARNG_D:
+		return 8 << 16, true
+	case ARNG_Q:
+		return 16 << 16, true
 	}
 	return 0, false
 }

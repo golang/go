@@ -1864,7 +1864,7 @@ func rclass(r int16) int {
 		return C_RSP
 	case r >= REG_ARNG && r < REG_ELEM:
 		return C_ARNG
-	case r >= REG_ELEM && r < REG_ELEM_END:
+	case r >= REG_ELEM && r < REG_ZARNG:
 		return C_ELEM
 	case r >= REG_UXTB && r < REG_SPECIAL,
 		r >= REG_LSL && r < REG_ARNG:
@@ -8419,19 +8419,54 @@ func EncodeRegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, 
 		var arng int
 		switch ext {
 		case "B":
+			if isIndex {
+				a.Reg = REG_ZARNGELEM + (reg & 31) + int16((ARNG_B&15)<<5)
+				a.Index = num
+				return nil
+			}
 			arng = ARNG_B
 		case "H":
+			if isIndex {
+				a.Reg = REG_ZARNGELEM + (reg & 31) + int16((ARNG_H&15)<<5)
+				a.Index = num
+				return nil
+			}
 			arng = ARNG_H
 		case "S":
+			if isIndex {
+				a.Reg = REG_ZARNGELEM + (reg & 31) + int16((ARNG_S&15)<<5)
+				a.Index = num
+				return nil
+			}
 			arng = ARNG_S
 		case "D":
+			if isIndex {
+				a.Reg = REG_ZARNGELEM + (reg & 31) + int16((ARNG_D&15)<<5)
+				a.Index = num
+				return nil
+			}
 			arng = ARNG_D
 		case "Q":
+			if isIndex {
+				a.Reg = REG_ZARNGELEM + (reg & 31) + int16((ARNG_Q&15)<<5)
+				a.Index = num
+				return nil
+			}
 			arng = ARNG_Q
 		default:
+			if isIndex && ext == "" {
+				a.Reg = REG_PZELEM + (reg & 31)
+				a.Index = num
+				return nil
+			}
 			return errors.New("invalid Z register arrangement: " + ext)
 		}
-		a.Reg = REG_ZARNG + (reg & 31) + int16((arng&15)<<5)
+		if isIndex {
+			a.Reg = REG_ZARNGELEM + (reg & 31) + int16((arng&15)<<5)
+			a.Index = num
+		} else {
+			a.Reg = REG_ZARNG + (reg & 31) + int16((arng&15)<<5)
+		}
 	} else if REG_P0 <= reg && reg <= REG_PN15 {
 		var arng int
 		switch ext {
@@ -8450,6 +8485,11 @@ func EncodeRegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, 
 		case "M":
 			arng = PRED_M
 		default:
+			if isIndex && ext == "" {
+				a.Reg = REG_PZELEM + (reg & 31) + (1 << 5)
+				a.Index = num
+				return nil
+			}
 			return errors.New("invalid P register arrangement: " + ext)
 		}
 		a.Reg = REG_PARNGZM + (reg & 31) + int16((arng&15)<<5)

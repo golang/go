@@ -702,4 +702,110 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZUMINVD Z10.D, P3, V15                            // 4f2dcb04
 	ZUMINVH Z3.H, P1, V29                             // 7d244b04
 	ZUMINVS Z17.S, P1, V27                            // 3b268b04
+	PPEXT PN11[1], P13.S                              // 7d71a025
+	ZBFDOT Z6.H[3], Z23.H, Z13.S                      // ed427e64
+	ZBFMLA Z6.H[3], Z23.H, Z13.H                      // ed0a3e64
+	ZBFMLALB Z6.H[3], Z23.H, Z13.S                    // ed4aee64
+	ZBFMLALT Z6.H[3], Z23.H, Z13.S                    // ed4eee64
+	ZBFMLS Z6.H[3], Z23.H, Z13.H                      // ed0e3e64
+	ZBFMLSLB Z6.H[3], Z23.H, Z13.S                    // ed6aee64
+	ZBFMLSLT Z6.H[3], Z23.H, Z13.S                    // ed6eee64
+	ZBFMUL Z6.H[3], Z23.H, Z13.H                      // ed2a3e64
+	ZDUP Z27.Q[1], Z25.Q                              // 79237005
+	ZDUPQ Z8.H[2], Z15.H                              // 0f252a05
+	ZFDOT Z6.H[3], Z23.H, Z13.S                       // ed423e64
+	ZFDOT Z6.B[3], Z23.B, Z13.H                       // ed4e2e64
+	ZFDOT Z6.B[3], Z23.B, Z13.S                       // ed467e64
+	ZFMLA Z6.H[3], Z23.H, Z13.H                       // ed023e64
+	ZFMLA Z6.S[3], Z23.S, Z13.S                       // ed02be64
+	ZFMLA Z5.D[0], Z15.D, Z6.D                        // e601e564
+	ZFMLALB Z6.H[3], Z23.H, Z13.S                     // ed4aae64
+	ZFMLALB Z6.B[3], Z23.B, Z13.H                     // ed5e2664
+	ZFMLALLBB Z6.B[3], Z23.B, Z13.S                   // edce2664
+	ZFMLALLBT Z6.B[3], Z23.B, Z13.S                   // edce6664
+	ZFMLALLTB Z6.B[3], Z23.B, Z13.S                   // edcea664
+	ZFMLALLTT Z6.B[3], Z23.B, Z13.S                   // edcee664
+	ZFMLALT Z6.H[3], Z23.H, Z13.S                     // ed4eae64
+	ZFMLALT Z6.B[3], Z23.B, Z13.H                     // ed5ea664
+	ZFMLS Z6.H[3], Z23.H, Z13.H                       // ed063e64
+	ZFMLS Z6.S[3], Z23.S, Z13.S                       // ed06be64
+	ZFMLS Z5.D[0], Z15.D, Z6.D                        // e605e564
+	ZFMLSLB Z6.H[3], Z23.H, Z13.S                     // ed6aae64
+	ZFMLSLT Z6.H[3], Z23.H, Z13.S                     // ed6eae64
+	ZFMUL Z6.H[3], Z23.H, Z13.H                       // ed223e64
+	ZFMUL Z6.S[3], Z23.S, Z13.S                       // ed22be64
+	ZFMUL Z5.D[0], Z15.D, Z6.D                        // e621e564
+	ZMLA Z6.H[3], Z23.H, Z13.H                        // ed0a3e44
+	ZMLA Z6.S[3], Z23.S, Z13.S                        // ed0abe44
+	ZMLA Z5.D[0], Z15.D, Z6.D                         // e609e544
+	ZMLS Z6.H[3], Z23.H, Z13.H                        // ed0e3e44
+	ZMLS Z6.S[3], Z23.S, Z13.S                        // ed0ebe44
+	ZMLS Z5.D[0], Z15.D, Z6.D                         // e60de544
+	ZMUL Z6.H[3], Z23.H, Z13.H                        // edfa3e44
+	ZMUL Z6.S[3], Z23.S, Z13.S                        // edfabe44
+	ZMUL Z5.D[0], Z15.D, Z6.D                         // e6f9e544
+	ZPMOV Z27[1], P13.S                               // 6d3b6a05
+	ZPMOV Z27[1], P13.S                               // 6d3b6a05
+	ZPMOV Z27[1], P13.S                               // 6d3b6a05
+	ZPMOV P14.S, Z25[2]                               // d9396d05
+	ZPMOV P14.S, Z25[2]                               // d9396d05
+	ZPMOV P14.S, Z25[2]                               // d9396d05
+	// TODO: SDOT  <Zda>.H, <Zn>.B, <Zm>.B[<imm>]
+	ZSDOT Z6.H[3], Z23.H, Z13.S                       // edca9e44
+	ZSDOT Z6.B[3], Z23.B, Z13.S                       // ed02be44
+	ZSDOT Z5.H[0], Z15.H, Z6.D                        // e601e544
+	ZSMLALB Z6.H[3], Z23.H, Z13.S                     // ed8aae44
+	ZSMLALB Z6.S[3], Z23.S, Z13.D                     // ed8af644
+	ZSMLALT Z6.H[3], Z23.H, Z13.S                     // ed8eae44
+	ZSMLALT Z6.S[3], Z23.S, Z13.D                     // ed8ef644
+	ZSMLSLB Z6.H[3], Z23.H, Z13.S                     // edaaae44
+	ZSMLSLB Z6.S[3], Z23.S, Z13.D                     // edaaf644
+	ZSMLSLT Z6.H[3], Z23.H, Z13.S                     // edaeae44
+	ZSMLSLT Z6.S[3], Z23.S, Z13.D                     // edaef644
+	ZSMULLB Z6.H[3], Z23.H, Z13.S                     // edcaae44
+	ZSMULLB Z6.S[3], Z23.S, Z13.D                     // edcaf644
+	ZSMULLT Z6.H[3], Z23.H, Z13.S                     // edceae44
+	ZSMULLT Z6.S[3], Z23.S, Z13.D                     // edcef644
+	ZSQDMLALB Z6.H[3], Z23.H, Z13.S                   // ed2aae44
+	ZSQDMLALB Z6.S[3], Z23.S, Z13.D                   // ed2af644
+	ZSQDMLALT Z6.H[3], Z23.H, Z13.S                   // ed2eae44
+	ZSQDMLALT Z6.S[3], Z23.S, Z13.D                   // ed2ef644
+	ZSQDMLSLB Z6.H[3], Z23.H, Z13.S                   // ed3aae44
+	ZSQDMLSLB Z6.S[3], Z23.S, Z13.D                   // ed3af644
+	ZSQDMLSLT Z6.H[3], Z23.H, Z13.S                   // ed3eae44
+	ZSQDMLSLT Z6.S[3], Z23.S, Z13.D                   // ed3ef644
+	ZSQDMULH Z6.H[3], Z23.H, Z13.H                    // edf23e44
+	ZSQDMULH Z6.S[3], Z23.S, Z13.S                    // edf2be44
+	ZSQDMULH Z5.D[0], Z15.D, Z6.D                     // e6f1e544
+	ZSQDMULLB Z6.H[3], Z23.H, Z13.S                   // edeaae44
+	ZSQDMULLB Z6.S[3], Z23.S, Z13.D                   // edeaf644
+	ZSQDMULLT Z6.H[3], Z23.H, Z13.S                   // edeeae44
+	ZSQDMULLT Z6.S[3], Z23.S, Z13.D                   // edeef644
+	ZSQRDMLAH Z6.H[3], Z23.H, Z13.H                   // ed123e44
+	ZSQRDMLAH Z6.S[3], Z23.S, Z13.S                   // ed12be44
+	ZSQRDMLAH Z5.D[0], Z15.D, Z6.D                    // e611e544
+	ZSQRDMLSH Z6.H[3], Z23.H, Z13.H                   // ed163e44
+	ZSQRDMLSH Z6.S[3], Z23.S, Z13.S                   // ed16be44
+	ZSQRDMLSH Z5.D[0], Z15.D, Z6.D                    // e615e544
+	ZSQRDMULH Z6.H[3], Z23.H, Z13.H                   // edf63e44
+	ZSQRDMULH Z6.S[3], Z23.S, Z13.S                   // edf6be44
+	ZSQRDMULH Z5.D[0], Z15.D, Z6.D                    // e6f5e544
+	ZSUDOT Z6.B[3], Z23.B, Z13.S                      // ed1ebe44
+	// TODO: UDOT  <Zda>.H, <Zn>.B, <Zm>.B[<imm>]
+	ZUDOT Z6.H[3], Z23.H, Z13.S                       // edce9e44
+	ZUDOT Z6.B[3], Z23.B, Z13.S                       // ed06be44
+	ZUDOT Z5.H[0], Z15.H, Z6.D                        // e605e544
+	ZUMLALB Z6.H[3], Z23.H, Z13.S                     // ed9aae44
+	ZUMLALB Z6.S[3], Z23.S, Z13.D                     // ed9af644
+	ZUMLALT Z6.H[3], Z23.H, Z13.S                     // ed9eae44
+	ZUMLALT Z6.S[3], Z23.S, Z13.D                     // ed9ef644
+	ZUMLSLB Z6.H[3], Z23.H, Z13.S                     // edbaae44
+	ZUMLSLB Z6.S[3], Z23.S, Z13.D                     // edbaf644
+	ZUMLSLT Z6.H[3], Z23.H, Z13.S                     // edbeae44
+	ZUMLSLT Z6.S[3], Z23.S, Z13.D                     // edbef644
+	ZUMULLB Z6.H[3], Z23.H, Z13.S                     // eddaae44
+	ZUMULLB Z6.S[3], Z23.S, Z13.D                     // eddaf644
+	ZUMULLT Z6.H[3], Z23.H, Z13.S                     // eddeae44
+	ZUMULLT Z6.S[3], Z23.S, Z13.D                     // eddef644
+	ZUSDOT Z6.B[3], Z23.B, Z13.S                      // ed1abe44
 	RET

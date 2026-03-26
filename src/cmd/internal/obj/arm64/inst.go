@@ -98,8 +98,18 @@ func aclass(a *obj.Addr) AClass {
 		if a.Reg >= REG_ARNG && a.Reg < REG_ELEM {
 			return AC_ARNG
 		}
-		if a.Reg >= REG_ZARNG && a.Reg < REG_PARNGZM {
+		if a.Reg >= REG_ZARNG && a.Reg < REG_ZARNGELEM {
 			return AC_ARNG
+		}
+		if a.Reg >= REG_ZARNGELEM && a.Reg < REG_PZELEM {
+			return AC_ARNGIDX
+		}
+		if a.Reg >= REG_PZELEM && a.Reg < REG_PARNGZM {
+			if a.Reg&(1<<5) == 0 {
+				return AC_ZREGIDX
+			} else {
+				return AC_PREGIDX
+			}
 		}
 		if a.Reg >= REG_PARNGZM && a.Reg < REG_PARNGZM_END {
 			switch (a.Reg >> 5) & 15 {
@@ -149,6 +159,27 @@ func addrComponent(a *obj.Addr, acl AClass, index int) uint32 {
 		default:
 			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
 		}
+	//	AClass: AC_ARNGIDX, AC_PREGIDX, AC_ZREGIDX
+	//	GNU mnemonic: <reg>.<T>[<index>]
+	//	Go mnemonic:
+	//		reg.T[index]
+	//	Encoding:
+	//		Type = TYPE_REG
+	// 		Reg = reg | (arrangement << 5)
+	//		Index = index
+	case AC_ARNGIDX, AC_PREGIDX, AC_ZREGIDX:
+		switch index {
+		case 0:
+			return uint32(a.Reg & 31)
+		case 1:
+			// Arrangement
+			return uint32((a.Reg >> 5) & 15)
+		case 2:
+			// Index
+			return uint32(a.Index)
+		default:
+			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
+		}
 	//	AClass: AC_SPZGREG, AC_VREG
 	//	GNU mnemonic: <width><reg>
 	//	Go mnemonic:
@@ -171,6 +202,96 @@ func addrComponent(a *obj.Addr, acl AClass, index int) uint32 {
 	panic(fmt.Errorf("unknown AClass %d", acl))
 }
 
+var codeI1Tsz uint32 = 0xffffffff
+var codeImm2Tsz uint32 = 0xfffffffe
+
+// encodeI1Tsz is the implementation of the following encoding logic:
+// Is the immediate index, in the range 0 to one less than the number of elements in 128 bits, encoded in "i1:tsz".
+// bit range mappings:
+// i1: [20:21)
+// tsz: [16:20)
+// Note:
+//
+//	arr is the arrangement.
+//	This encoding is aligned to the high bit of the box, according to the spec.
+func encodeI1Tsz(v, arr uint32) (uint32, bool) {
+	switch arr {
+	case ARNG_B:
+		if v > 15 {
+			return 0, false
+		}
+		return v << 17, true
+	case ARNG_H:
+		if v > 7 {
+			return 0, false
+		}
+		return v << 18, true
+	case ARNG_S:
+		if v > 3 {
+			return 0, false
+		}
+		return v << 19, true
+	case ARNG_D:
+		if v > 1 {
+			return 0, false
+		}
+		return v << 20, true
+	case ARNG_Q:
+		if v > 0 {
+			return 0, false
+		}
+		return 0, true
+	default:
+		return 0, false
+	}
+}
+
+// encodeImm2Tsz is the implementation of the following encoding logic:
+// Is the immediate index, in the range 0 to one less than the number of elements in 512 bits, encoded in "imm2:tsz".
+// bit range mappings:
+// imm2: [22:24)
+// tsz: [16:21)
+// Note:
+//
+//	arr is the arrangement.
+//	This encoding is aligned to the high bit of the box, according to the spec.
+func encodeImm2Tsz(v, arr uint32) (uint32, bool) {
+	switch arr {
+	case ARNG_B:
+		if v > 63 {
+			return 0, false
+		}
+		v <<= 1
+		return (v&31)<<16 | (v>>5)<<22, true
+	case ARNG_H:
+		if v > 31 {
+			return 0, false
+		}
+		v <<= 2
+		return (v&31)<<16 | (v>>5)<<22, true
+	case ARNG_S:
+		if v > 15 {
+			return 0, false
+		}
+		v <<= 3
+		return (v&31)<<16 | (v>>5)<<22, true
+	case ARNG_D:
+		if v > 7 {
+			return 0, false
+		}
+		v <<= 4
+		return (v&31)<<16 | (v>>5)<<22, true
+	case ARNG_Q:
+		if v > 3 {
+			return 0, false
+		}
+		v <<= 5
+		return (v&31)<<16 | (v>>5)<<22, true
+	default:
+		return 0, false
+	}
+}
+
 // tryEncode tries to encode p with i, it returns the encoded binary and ok signal.
 func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 	bin := i.fixedBits
@@ -191,7 +312,20 @@ func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 		}
 		for i, enc := range op.elemEncoders {
 			val := addrComponent(addr, acl, i)
-			if b, ok := enc.fn(val); ok {
+			if b, ok := enc.fn(val); ok || b != 0 {
+				if !ok {
+					switch b {
+					case codeI1Tsz:
+						b, ok = encodeI1Tsz(val, addrComponent(addr, acl, i-1))
+					case codeImm2Tsz:
+						b, ok = encodeImm2Tsz(val, addrComponent(addr, acl, i-1))
+					default:
+						panic(fmt.Errorf("unknown encoding function code %d", b))
+					}
+				}
+				if !ok {
+					return 0, false
+				}
 				bin |= b
 				if _, ok := encoded[enc.comp]; ok && b != encoded[enc.comp] {
 					return 0, false

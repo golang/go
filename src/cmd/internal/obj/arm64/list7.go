@@ -176,14 +176,25 @@ func rconv(r int) string {
 		return fmt.Sprintf("R%d<<%d", r&31, (r>>5)&7)
 	case REG_ARNG <= r && r < REG_ELEM:
 		return fmt.Sprintf("V%d.%s", r&31, arrange((r>>5)&15))
-	case REG_ELEM <= r && r < REG_ELEM_END:
+	case REG_ELEM <= r && r < REG_ZARNG:
 		return fmt.Sprintf("V%d.%s", r&31, arrange((r>>5)&15))
-	case REG_ZARNG <= r && r < REG_PARNGZM:
+	case REG_ZARNG <= r && r < REG_PZELEM:
 		return fmt.Sprintf("Z%d.%s", r&31, arrange((r>>5)&15))
+	case REG_PZELEM <= r && r < REG_PARNGZM:
+		regPrefix := "Z"
+		reg := r & 31
+		if r&(1<<5) != 0 {
+			regPrefix = "P"
+			if reg >= 16 {
+				regPrefix = "PN"
+				reg -= 16
+			}
+		}
+		return fmt.Sprintf("%s%d", regPrefix, reg)
 	case REG_PARNGZM <= r && r < REG_PARNGZM_END:
 		// SVE predicate register with arrangement.
 		// Pn.<T> or Pn/M, Pn/Z.
-		arng := (r >> 5) & 31
+		arng := (r >> 5) & 15
 		suffix := arrange(arng)
 		reg := r & 31
 		if reg >= 16 {

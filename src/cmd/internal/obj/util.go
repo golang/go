@@ -273,8 +273,8 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
 			io.WriteString(w, Rconv(int(a.Reg)))
 		}
 
-		if (RBaseARM64+1<<10+1<<9) /* arm64.REG_ELEM */ <= a.Reg &&
-			a.Reg < (RBaseARM64+1<<11) /* arm64.REG_ELEM_END */ {
+		if ((RBaseARM64+1<<10+1<<9) /* arm64.REG_ELEM */ <= a.Reg && a.Reg < (RBaseARM64+1<<11) /* arm64.REG_ZARNG */) ||
+			((RBaseARM64+1<<11+1<<9) /* arm64.REG_ZARNGELEM */ <= a.Reg && a.Reg < (RBaseARM64+1<<11+1<<10+1<<9) /* arm64.REG_PARNGZM */) {
 			fmt.Fprintf(w, "[%d]", a.Index)
 		}
 

@@ -218,12 +218,21 @@ const (
 
 // bits 0-4 indicates register: Vn
 // bits 5-8 indicates arrangement: <T>
+// TODO: consider putting the register and arrangement in different fields of an
+// [obj.Prog] to make the bit pattern less confusing.
 const (
-	REG_ARNG = obj.RBaseARM64 + 1<<10 + iota<<9 // Vn.<T>
-	REG_ELEM                                    // Vn.<T>[index]
-	REG_ELEM_END
-	REG_ZARNG   // Zn.<T>
+	REG_ARNG      = obj.RBaseARM64 + 1<<10 + iota<<9 // Vn.<T>
+	REG_ELEM                                         // Vn.<T>[index]
+	REG_ZARNG                                        // Zn.<T>
+	REG_ZARNGELEM                                    // Zn.<T>[index]
+	// PZELEM is taking a portion of the P or Z register.
+	// Since it does not have an arrangement, it interpret bit 5 differently:
+	// bit 5 = 0: Z register
+	// bit 5 = 1: P register
+	REG_PZELEM  // Zn[index] or Pn[index] or PNd[index]
 	REG_PARNGZM // Pn.<T> or Pn/M, Pn/Z
+	// This currently overlaps with REG_EXT, if more arrangements are to be added,
+	// move REG_EXT to a higher range and update RBase.*.
 	REG_PARNGZM_END
 )
 
@@ -621,9 +630,9 @@ const (
 	AC_ZREG    // the scalable vector registers, such as Z1
 	AC_PREG    // the scalable predicate registers, such as P1
 	AC_PREGZM  // Pg.Z or Pg.M
-	AC_REGIDX  // P8[1]
-	AC_ZREGIDX // Z1[1]
-	AC_PREGIDX // P0[R1, 1]
+	AC_PREGIDX // P8[1] or PN1[1] or Z1[1]
+	AC_ZREGIDX // P8[1] or PN1[1] or Z1[1]
+	AC_PREGSEL // P0[R1, 1], index is calculated as R1 + 1
 	AC_ARNG    // vector register with arrangement, such as Z1.D
 	AC_ARNGIDX // vector register with arrangement and index, such as Z1.D[1]
 
