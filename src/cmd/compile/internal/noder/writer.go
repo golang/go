@@ -2229,7 +2229,7 @@ func (w *writer) methodExpr(expr *syntax.SelectorExpr, recv types2.Type, sel *ty
 		w.p.fatalf(expr, "isInterface inconsistency: %v and %v", recv, sig.Recv().Type())
 	}
 
-	if !isInterface(recv) {
+	if isConcreteMethod(sig) {
 		if named, ok := types2.Unalias(deref2(recv)).(*types2.Named); ok {
 			obj, targs := splitNamed(named)
 			info := w.p.objInstIdx(obj, targs, w.dict)
@@ -2606,6 +2606,26 @@ func isInterface(typ types2.Type) bool {
 
 	_, ok := typ.Underlying().(*types2.Interface)
 	return ok
+}
+
+// isConcreteMethod reports whether typ is a concrete method. That is,
+// it's a method with a receiver that isn't an interface type.
+func isConcreteMethod(typ types2.Type) bool {
+	sig, ok := typ.(*types2.Signature)
+	return ok && sig.Recv() != nil && !isInterface(sig.Recv().Type())
+}
+
+// TODO(mark): Use isGenericMethod. It is included now to help justify
+// the existence of isConcreteMethod.
+
+// isGenericMethod reports whether typ is a generic method. That is,
+// it's a method with type parameters apart from those which may or
+// may not appear on the receiver type.
+//
+// Note that generic methods are always concrete methods.
+func isGenericMethod(typ types2.Type) bool {
+	sig, ok := typ.(*types2.Signature)
+	return ok && sig.Recv() != nil && sig.TypeParams().Len() > 0
 }
 
 // op writes an Op into the bitstream.
