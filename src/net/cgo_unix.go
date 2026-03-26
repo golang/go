@@ -342,7 +342,10 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
 	// useful in the response, even though there *is* a response.
 	bufSize := maxDNSPacketSize
 	buf := (*_C_uchar)(_C_malloc(uintptr(bufSize)))
-	defer _C_free(unsafe.Pointer(buf))
+	defer func() {
+		// Free in a closure which captures buf to pick up a reallocated buffer from below.
+		_C_free(unsafe.Pointer(buf))
+	}()
 
 	s, err := syscall.BytePtrFromString(hostname)
 	if err != nil {
