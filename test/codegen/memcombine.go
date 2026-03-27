@@ -1062,15 +1062,23 @@ func dwstoreF32(p *struct{ a, b float32 }, x, y float32) {
 }
 
 func dwstoreBig(p *struct{ a, b, c, d, e, f int64 }, a, b, c, d, e, f int64) {
-	// This is not perfect. We merge b+a, then d+e, then c and f have no pair.
+	// arm64:`STP\s\(R[0-9]+, R[0-9]+\), 16\(R[0-9]+\)`
 	p.c = c
 	p.f = f
 	// arm64:`STP \(R[0-9]+, R[0-9]+\), \(R[0-9]+\)`
 	p.a = a
-	// arm64:`STP \(R[0-9]+, R[0-9]+\), 24\(R[0-9]+\)`
+	// arm64:`STP\s\(R[0-9]+, R[0-9]+\), 32\(R[0-9]+\)`
 	p.e = e
 	p.d = d
 	p.b = b
+}
+
+func dwstoreBigNil(p *struct{ i, j struct{ a, b, c int } }) {
+	// arm64:`STP\s\(ZR, ZR\), 32\(R[0-9]+\)`
+	p.j = struct{ a, b, c int }{}
+	// arm64:`STP\s\(ZR, ZR\), \(R[0-9]+\)`
+	// arm64:`STP\s\(ZR, ZR\), 16\(R[0-9]+\)`
+	p.i = struct{ a, b, c int }{}
 }
 
 func dwstoreRet() [2]int {
