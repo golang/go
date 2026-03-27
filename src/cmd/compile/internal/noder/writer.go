@@ -616,7 +616,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 }
 
 // namedType writes a use of the given named type into the bitstream.
-func (w *writer) namedType(obj *types2.TypeName, targs *types2.TypeList) {
+func (w *writer) namedType(obj *types2.TypeName, targs []types2.Type) {
 	// Named types that are declared within a generic function (and
 	// thus have implicit type parameters) are always derived types.
 	if w.p.hasImplicitTypeParams(obj) {
@@ -721,7 +721,7 @@ func (w *writer) param(param *types2.Var) {
 // If obj is a generic object, then explicits are the explicit type
 // arguments used to instantiate it (i.e., used to substitute the
 // object's own declared type parameters).
-func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
+func (w *writer) obj(obj types2.Object, explicits []types2.Type) {
 	w.objInfo(w.p.objInstIdx(obj, explicits, w.dict))
 }
 
@@ -743,10 +743,10 @@ func (w *writer) objInfo(info objInfo) {
 // objInstIdx returns the indices for an object and a corresponding
 // list of type arguments used to instantiate it, adding them to the
 // export data as needed.
-func (pw *pkgWriter) objInstIdx(obj types2.Object, explicits *types2.TypeList, dict *writerDict) objInfo {
-	explicitInfos := make([]typeInfo, explicits.Len())
+func (pw *pkgWriter) objInstIdx(obj types2.Object, explicits []types2.Type, dict *writerDict) objInfo {
+	explicitInfos := make([]typeInfo, len(explicits))
 	for i := range explicitInfos {
-		explicitInfos[i] = pw.typIdx(explicits.At(i), dict)
+		explicitInfos[i] = pw.typIdx(explicits[i], dict)
 	}
 	return objInfo{idx: pw.objIdx(obj), explicits: explicitInfos}
 }
@@ -1799,7 +1799,7 @@ func (w *writer) expr(expr syntax.Expr) {
 	expr = syntax.Unparen(expr) // skip parens; unneeded after typecheck
 
 	obj, inst := lookupObj(w.p, expr)
-	targs := inst.TypeArgs
+	targs := asTypeSlice(inst.TypeArgs)
 
 	if tv, ok := w.p.maybeTypeAndValue(expr); ok {
 		if tv.IsRuntimeHelper() {
@@ -1844,7 +1844,7 @@ func (w *writer) expr(expr syntax.Expr) {
 	}
 
 	if obj != nil {
-		if targs.Len() != 0 {
+		if len(targs) != 0 {
 			obj := obj.(*types2.Func)
 
 			w.Code(exprFuncInst)
@@ -2115,7 +2115,7 @@ func (w *writer) expr(expr syntax.Expr) {
 				obj := obj.(*types2.Func)
 
 				w.pos(fun)
-				w.funcInst(obj, inst.TypeArgs)
+				w.funcInst(obj, asTypeSlice(inst.TypeArgs))
 				return
 			}
 
@@ -2183,7 +2183,7 @@ func (w *writer) recvExpr(expr *syntax.SelectorExpr, sel *types2.Selection) type
 }
 
 // funcInst writes a reference to an instantiated function.
-func (w *writer) funcInst(obj *types2.Func, targs *types2.TypeList) {
+func (w *writer) funcInst(obj *types2.Func, targs []types2.Type) {
 	info := w.p.objInstIdx(obj, targs, w.dict)
 
 	// Type arguments list contains derived types; we can emit a static
@@ -2247,7 +2247,7 @@ func (w *writer) methodExpr(expr *syntax.SelectorExpr, recv types2.Type, sel *ty
 			// Method on a fully known receiver type. These can be handled
 			// by a static call to the shaped method, and with a static
 			// reference to the receiver type's dictionary.
-			if targs.Len() != 0 {
+			if len(targs) != 0 {
 				w.Bool(false) // no dynamic subdictionary
 				w.Bool(true)  // static dictionary
 				w.objInfo(info)
@@ -3127,22 +3127,34 @@ func objTypeParams(obj types2.Object) *types2.TypeParamList {
 
 // splitNamed decomposes a use of a defined type into its original
 // type definition and the type arguments used to instantiate it.
-func splitNamed(typ *types2.Named) (*types2.TypeName, *types2.TypeList) {
+func splitNamed(typ *types2.Named) (*types2.TypeName, []types2.Type) {
 	base.Assertf(typ.TypeParams().Len() == typ.TypeArgs().Len(), "use of uninstantiated type: %v", typ)
 
 	orig := typ.Origin()
 	base.Assertf(orig.TypeArgs() == nil, "origin %v of %v has type arguments", orig, typ)
 	base.Assertf(typ.Obj() == orig.Obj(), "%v has object %v, but %v has object %v", typ, typ.Obj(), orig, orig.Obj())
 
-	return typ.Obj(), typ.TypeArgs()
+	return typ.Obj(), asTypeSlice(typ.TypeArgs())
 }
 
 // splitAlias is like splitNamed, but for an alias type.
-func splitAlias(typ *types2.Alias) (*types2.TypeName, *types2.TypeList) {
+func splitAlias(typ *types2.Alias) (*types2.TypeName, []types2.Type) {
 	orig := typ.Origin()
 	base.Assertf(typ.Obj() == orig.Obj(), "alias type %v has object %v, but %v has object %v", typ, typ.Obj(), orig, orig.Obj())
 
-	return typ.Obj(), typ.TypeArgs()
+	return typ.Obj(), asTypeSlice(typ.TypeArgs())
+}
+
+// asTypeSlice unpacks a types2.TypeList to a []types2.Type
+func asTypeSlice(l *types2.TypeList) []types2.Type {
+	if l.Len() == 0 {
+		return nil
+	}
+	s := make([]types2.Type, l.Len())
+	for i := range l.Len() {
+		s[i] = l.At(i)
+	}
+	return s
 }
 
 func asPragmaFlag(p syntax.Pragma) ir.PragmaFlag {
