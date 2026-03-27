@@ -1281,3 +1281,39 @@ func namedBoolTest() {
 	var i M = ok // ERROR "ok does not escape"
 	i.M()        // ERROR "devirtualizing i.M to namedBool$" "inlining call to namedBool.M"
 }
+
+//go:noinline
+func identicalType() {
+	var i C = struct {
+		CImpl
+	}{} // ERROR "struct \{ CImpl \}\{\} escapes to heap"
+
+	i = struct {
+		CImpl
+	}{} // ERROR "struct \{ CImpl \}\{\} escapes to heap"
+
+	i.C()
+}
+
+type GenericAImpl[T any] struct{ _ T }
+
+//go:noinline
+func (GenericAImpl[T]) A() {}
+
+//go:noinline
+func generics() {
+	{
+		var i A = GenericAImpl[int]{} // ERROR "GenericAImpl\[int\]\{\} does not escape"
+		i.A()                         // ERROR "devirtualizing i.A to GenericAImpl\[int\]"
+	}
+	{
+		var i A = GenericAImpl[int]{} // ERROR "GenericAImpl\[int\]\{\} does not escape"
+		i = GenericAImpl[int]{}       // ERROR "GenericAImpl\[int\]\{\} does not escape"
+		i.A()                         // ERROR "devirtualizing i.A to GenericAImpl\[int\]"
+	}
+	{
+		var i A = GenericAImpl[int]{} // ERROR "GenericAImpl\[int\]\{\} escapes to heap"
+		i = GenericAImpl[byte]{}      // ERROR "GenericAImpl\[uint8\]\{\} escapes to heap"
+		i.A()
+	}
+}

@@ -293,9 +293,22 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types
 				continue
 			}
 		}
-		if t == nil || (typ != nil && !types.Identical(typ, t)) {
-			return nil
+		if t == nil {
+			return nil // unknown concrete type
 		}
+
+		// Methods are only declared on named types, and each named type
+		// is represented by a unique [*types.Type], thus pointer comparison
+		// is fine here.
+		//
+		// The only scenario where [types.IdenticalStrict] could help here is with
+		// unnamed struct types that embed another type (e.g. foo = struct { Impl }{}).
+		// However, such patterns are uncommon and not worth the additional complexity
+		// in the devirtualizer.
+		if typ != nil && typ != t {
+			return nil // assigned with a different type
+		}
+
 		typ = t
 	}
 
