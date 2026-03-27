@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.27 (April 1, 2026)",
+	"Subtitle": "Language version go1.27 (April 7, 2026)",
 	"Path": "/ref/spec"
 }-->
 
@@ -1294,6 +1294,8 @@ those methods, and the corresponding <a href="#Method_sets">method set</a> consi
 exactly of the methods specified by the interface.
 Interfaces whose type sets can be defined entirely by a list of methods are called
 <i>basic interfaces.</i>
+Interface methods cannot declare <a href="#Type_parameter_declarations">type parameters</a>,
+but they may use type parameters from the interface declaration.
 </p>
 
 <pre>
@@ -2625,11 +2627,11 @@ func (l *List[T]) Len() int  { … }
 <h3 id="Type_parameter_declarations">Type parameter declarations</h3>
 
 <p>
-A type parameter list declares the <i>type parameters</i> of a generic function or type declaration.
+A type parameter list declares the <i>type parameters</i> of a generic function, method, or type declaration.
 The type parameter list looks like an ordinary <a href="#Function_types">function parameter list</a>
 except that the type parameter names must all be present and the list is enclosed
 in square brackets rather than parentheses
-[<a href="#Go_1.18">Go 1.18</a>].
+[<a href="#Go_1.18">Go 1.18</a>, <a href="#Go_1.27">Go 1.27</a>].
 </p>
 
 <pre class="ebnf">
@@ -2643,7 +2645,7 @@ All non-blank names in the list must be unique.
 Each name declares a type parameter, which is a new and different <a href="#Types">named type</a>
 that acts as a placeholder for an (as of yet) unknown type in the declaration.
 The type parameter is replaced with a <i>type argument</i> upon
-<a href="#Instantiations">instantiation</a> of the generic function or type.
+<a href="#Instantiations">instantiation</a> of the generic function, method, or type.
 </p>
 
 <pre>
@@ -2978,7 +2980,7 @@ and associates the method with the receiver's <i>base type</i>.
 </p>
 
 <pre class="ebnf">
-MethodDecl = "func" Receiver MethodName Signature [ FunctionBody ] .
+MethodDecl = "func" Receiver MethodName [ TypeParameters ] Signature [ FunctionBody ] .
 Receiver   = Parameters .
 </pre>
 
@@ -3069,6 +3071,27 @@ type IPair         = Pair[int, int]
 func (*GPoint[P]) Draw(P)   { … }  // illegal: alias must not be generic
 func (HPoint) Draw(P)       { … }  // illegal: alias must not denote instantiated type GPoint[int]
 func (*IPair) Second() int  { … }  // illegal: alias must not denote instantiated type Pair[int, int]
+</pre>
+
+<p>
+If the method declaration specifies <a href="#Type_parameter_declarations">type parameters</a>
+(possibly in addition to type parameters declared by the receiver specification), the method name denotes
+a <i>generic method</i>.
+Like a generic function, a generic method must be <a href="#Instantiations">instantiated</a> before it can
+be called or used as a value.
+</p>
+
+<pre>
+type List[E any] []E
+
+// Apply returns the list obtained from applying f to each element of l.
+func (l List[E]) Apply[F any](f func(E) F) List[F] {
+	r := make(List[F], len(l))
+	for i, x := range l {
+		r[i] = f(x)
+	}
+	return r
+}
 </pre>
 
 <h2 id="Expressions">Expressions</h2>
@@ -4354,7 +4377,7 @@ with the same underlying array.
 <h3 id="Instantiations">Instantiations</h3>
 
 <p>
-A generic function or type is <i>instantiated</i> by substituting <i>type arguments</i>
+A generic function, method, or type is <i>instantiated</i> by substituting <i>type arguments</i>
 for the type parameters [<a href="#Go_1.18">Go 1.18</a>].
 Instantiation proceeds in two steps:
 </p>
@@ -4376,7 +4399,7 @@ of the corresponding type parameter. Otherwise instantiation fails.
 
 <p>
 Instantiating a type results in a new non-generic <a href="#Types">named type</a>;
-instantiating a function produces a new non-generic function.
+instantiating a function or method produces a new non-generic function or method.
 </p>
 
 <pre>
@@ -8806,6 +8829,10 @@ An <a href="#Alias_declarations">alias declaration</a> may declare
 
 <h4 id="Go_1.27">Go 1.27</h4>
 <ul>
+<li>
+A <a href="#Method_declarations">method declaration</a> may declare
+<a href="#Type_parameter_declarations">type parameters</a>.
+</li>
 <li>
 A key in a struct <a href="#Composite_literals">composite literal</a> may
 be any valid field <a href="#Selectors">selector</a> for the struct type,
