@@ -182,6 +182,17 @@ const concreteTypeDebug = false
 // Returns nil when the concrete type could not be determined, or when there are multiple
 // (different) types assigned to an interface.
 func concreteType(s *State, n ir.Node) (typ *types.Type) {
+	if concreteTypeDebug {
+		base.Warn("concreteType(%v) - analyzing", n)
+		defer func() {
+			t := typ.String()
+			if typ == nil {
+				t = "<nil> (unknown static type)"
+			}
+			base.Warn("concreteType(%v) -> %v", n, t)
+		}()
+	}
+
 	typ = concreteType1(s, n, make(map[*ir.Name]struct{}))
 	if typ == &noType {
 		return nil
@@ -206,6 +217,9 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types
 			t := "&noType"
 			if outT != &noType {
 				t = outT.String()
+			}
+			if outT == nil {
+				t = "<nil> (unknown static type)"
 			}
 			base.Warn("concreteType1(%v) -> %v", nn, t)
 		}()
