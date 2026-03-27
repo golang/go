@@ -197,7 +197,7 @@ SecP256r1MLKEM768 and SecP384r1MLKEM1024. The default can be reverted using the
 [`tlssecpmlkem` setting](/pkg/crypto/tls/#Config.CurvePreferences).
 
 Go 1.26 added a new `tracebacklabels` setting that controls the inclusion of
-goroutine labels set through the the `runtime/pprof` package. Setting `tracebacklabels=1`
+goroutine labels set through the `runtime/pprof` package. Setting `tracebacklabels=1`
 includes these key/value pairs in the goroutine status header of runtime
 tracebacks and debug=2 runtime/pprof stack dumps. This format may change in the future.
 (see go.dev/issue/76349)
@@ -246,7 +246,7 @@ and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environm
 Go 1.25 (starting with Go 1.25 RC 2) disabled build information stamping when
 multiple VCS are detected due to concerns around VCS injection attacks. This
 behavior and setting was backported to Go 1.24.5 and Go 1.23.11. This behavior
-can be renabled with the setting `allowmultiplevcs=1`.
+can be re-enabled with the setting `allowmultiplevcs=1`.
 
 ### Go 1.24
 
