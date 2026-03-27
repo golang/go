@@ -316,7 +316,7 @@ func WideRoundToEvenNarrow(x float32) float32 {
 func WideSqrtNarrow(x float32) float32 {
 	// arm64:"FSQRTS" -"FCVTSD" -"FCVTDS"
 	// loong64:"SQRTF" -"MOVFD" -"MOVDF"
-	// mips64:"SQRTF" -"MOVFD" -"MOVDF"
+	// mips64/hardfloat:"SQRTF" -"MOVFD" -"MOVDF"
 	// riscv64:"FSQRTS" -"FCVTDS" -"FCVTSD"
 	// wasm:"F32Sqrt" -"F64PromoteF32" -"F32DemoteF64"
 	return float32(math.Sqrt(float64(x)))
@@ -325,7 +325,7 @@ func WideSqrtNarrow(x float32) float32 {
 func WideAbsNarrow(x float32) float32 {
 	// arm64:"FABSS" -"FCVTSD" -"FCVTDS"
 	// loong64:"ABSF" -"MOVFD" -"MOVDF"
-	// mips64:"ABSF" -"MOVFD" -"MOVDF"
+	// mips64/hardfloat:"ABSF" -"MOVFD" -"MOVDF"
 	// riscv64:"FABSS" -"FCVTDS" -"FCVTSD"
 	// wasm:"F32Abs" -"F64PromoteF32" -"F32DemoteF64"
 	return float32(math.Abs(float64(x)))
