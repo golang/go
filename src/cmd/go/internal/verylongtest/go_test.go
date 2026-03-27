@@ -6,12 +6,33 @@ package verylongtest
 
 import (
 	"bytes"
+	"flag"
+	"fmt"
 	"internal/testenv"
 	"os"
 	"os/exec"
 	"runtime"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if testing.Short() {
+		return
+	}
+
+	tmpdir, err := os.MkdirTemp("", "verylongtest")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create temp gocache: %v\n", err)
+		os.Exit(1)
+	}
+	os.Setenv("GOCACHE", tmpdir)
+
+	code := m.Run()
+
+	os.RemoveAll(tmpdir)
+	os.Exit(code)
+}
 
 // Regression test for golang.org/issue/34499: version command should not crash
 // when executed in a deleted directory on Linux.
