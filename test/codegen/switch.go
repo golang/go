@@ -24,8 +24,8 @@ func f(x string) int {
 // use jump tables for 8+ int cases
 func square(x int) int {
 	// amd64:`JMP \(.*\)\(.*\)$`
-	// arm64:`MOVD \(R.*\)\(R.*<<3\)`,`JMP \(R.*\)$`
-	// loong64: `ALSLV`,`MOVV`,`JMP`
+	// arm64:`MOVD \(R.*\)\(R.*<<3\)` `JMP \(R.*\)$`
+	// loong64: `ALSLV` `MOVV` `JMP`
 	switch x {
 	case 1:
 		return 1
@@ -51,8 +51,8 @@ func square(x int) int {
 // use jump tables for 8+ string lengths
 func length(x string) int {
 	// amd64:`JMP \(.*\)\(.*\)$`
-	// arm64:`MOVD \(R.*\)\(R.*<<3\)`,`JMP \(R.*\)$`
-	// loong64:`ALSLV`,`MOVV`,`JMP`
+	// arm64:`MOVD \(R.*\)\(R.*<<3\)` `JMP \(R.*\)$`
+	// loong64:`ALSLV` `MOVV` `JMP`
 	switch x {
 	case "a":
 		return 1
@@ -78,23 +78,23 @@ func length(x string) int {
 // Use single-byte ordered comparisons for binary searching strings.
 // See issue 53333.
 func mimetype(ext string) string {
-	// amd64: `CMPB 1\(.*\), \$104$`,-`cmpstring`
-	// arm64: `MOVB 1\(R.*\), R.*$`, `CMPW \$104, R.*$`, -`cmpstring`
+	// amd64: `CMPB 1\(.*\), \$104$` -`cmpstring`
+	// arm64: `MOVB 1\(R.*\), R.*$` `CMPW \$104, R.*$` -`cmpstring`
 	switch ext {
 	// amd64: `CMPL \(.*\), \$1836345390$`
-	// arm64: `MOVD \$1836345390`, `CMPW R.*, R.*$`
+	// arm64: `MOVD \$1836345390` `CMPW R.*, R.*$`
 	case ".htm":
 		return "A"
 	// amd64: `CMPL \(.*\), \$1953457454$`
-	// arm64: `MOVD \$1953457454`, `CMPW R.*, R.*$`
+	// arm64: `MOVD \$1953457454` `CMPW R.*, R.*$`
 	case ".eot":
 		return "B"
 	// amd64: `CMPL \(.*\), \$1735815982$`
-	// arm64: `MOVD \$1735815982`, `CMPW R.*, R.*$`
+	// arm64: `MOVD \$1735815982` `CMPW R.*, R.*$`
 	case ".svg":
 		return "C"
 	// amd64: `CMPL \(.*\), \$1718907950$`
-	// arm64: `MOVD \$1718907950`, `CMPW R.*, R.*$`
+	// arm64: `MOVD \$1718907950` `CMPW R.*, R.*$`
 	case ".ttf":
 		return "D"
 	default:
@@ -105,7 +105,7 @@ func mimetype(ext string) string {
 // use jump tables for type switches to concrete types.
 func typeSwitch(x any) int {
 	// amd64:`JMP \(.*\)\(.*\)$`
-	// arm64:`MOVD \(R.*\)\(R.*<<3\)`,`JMP \(R.*\)$`
+	// arm64:`MOVD \(R.*\)\(R.*<<3\)` `JMP \(R.*\)$`
 	switch x.(type) {
 	case int:
 		return 0
@@ -137,8 +137,8 @@ type K interface {
 
 // use a runtime call for type switches to interface types.
 func interfaceSwitch(x any) int {
-	// amd64:`CALL runtime.interfaceSwitch`,`MOVL 16\(AX\)`,`MOVQ 8\(.*\)(.*\*8)`
-	// arm64:`CALL runtime.interfaceSwitch`,`LDAR`,`MOVWU 16\(R0\)`,`MOVD \(R.*\)\(R.*\)`
+	// amd64:`CALL runtime.interfaceSwitch` `MOVL 16\(AX\)` `MOVQ 8\(.*\)(.*\*8)`
+	// arm64:`CALL runtime.interfaceSwitch` `LDAR` `MOVWU 16\(R0\)` `MOVD \(R.*\)\(R.*\)`
 	switch x.(type) {
 	case I:
 		return 1
@@ -150,8 +150,8 @@ func interfaceSwitch(x any) int {
 }
 
 func interfaceSwitch2(x K) int {
-	// amd64:`CALL runtime.interfaceSwitch`,`MOVL 16\(AX\)`,`MOVQ 8\(.*\)(.*\*8)`
-	// arm64:`CALL runtime.interfaceSwitch`,`LDAR`,`MOVWU 16\(R0\)`,`MOVD \(R.*\)\(R.*\)`
+	// amd64:`CALL runtime.interfaceSwitch` `MOVL 16\(AX\)` `MOVQ 8\(.*\)(.*\*8)`
+	// arm64:`CALL runtime.interfaceSwitch` `LDAR` `MOVWU 16\(R0\)` `MOVD \(R.*\)\(R.*\)`
 	switch x.(type) {
 	case I:
 		return 1
@@ -163,8 +163,8 @@ func interfaceSwitch2(x K) int {
 }
 
 func interfaceCast(x any) int {
-	// amd64:`CALL runtime.typeAssert`,`MOVL 16\(AX\)`,`MOVQ 8\(.*\)(.*\*1)`
-	// arm64:`CALL runtime.typeAssert`,`LDAR`,`MOVWU 16\(R0\)`,`MOVD \(R.*\)\(R.*\)`
+	// amd64:`CALL runtime.typeAssert` `MOVL 16\(AX\)` `MOVQ 8\(.*\)(.*\*1)`
+	// arm64:`CALL runtime.typeAssert` `LDAR` `MOVWU 16\(R0\)` `MOVD \(R.*\)\(R.*\)`
 	if _, ok := x.(I); ok {
 		return 3
 	}
@@ -172,8 +172,8 @@ func interfaceCast(x any) int {
 }
 
 func interfaceCast2(x K) int {
-	// amd64:`CALL runtime.typeAssert`,`MOVL 16\(AX\)`,`MOVQ 8\(.*\)(.*\*1)`
-	// arm64:`CALL runtime.typeAssert`,`LDAR`,`MOVWU 16\(R0\)`,`MOVD \(R.*\)\(R.*\)`
+	// amd64:`CALL runtime.typeAssert` `MOVL 16\(AX\)` `MOVQ 8\(.*\)(.*\*1)`
+	// arm64:`CALL runtime.typeAssert` `LDAR` `MOVWU 16\(R0\)` `MOVD \(R.*\)\(R.*\)`
 	if _, ok := x.(I); ok {
 		return 3
 	}
@@ -181,8 +181,8 @@ func interfaceCast2(x K) int {
 }
 
 func interfaceConv(x IJ) I {
-	// amd64:`CALL runtime.typeAssert`,`MOVL 16\(AX\)`,`MOVQ 8\(.*\)(.*\*1)`
-	// arm64:`CALL runtime.typeAssert`,`LDAR`,`MOVWU 16\(R0\)`,`MOVD \(R.*\)\(R.*\)`
+	// amd64:`CALL runtime.typeAssert` `MOVL 16\(AX\)` `MOVQ 8\(.*\)(.*\*1)`
+	// arm64:`CALL runtime.typeAssert` `LDAR` `MOVWU 16\(R0\)` `MOVD \(R.*\)\(R.*\)`
 	return x
 }
 

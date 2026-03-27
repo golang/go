@@ -331,14 +331,14 @@ func ubfx16(x uint64) uint64 {
 //
 //go:nosplit
 func shift_no_cmp(x int) int {
-	// arm64:`LSL [$]17`,-`CMP`
-	// mips64:`SLLV [$]17`,-`SGT`
+	// arm64:`LSL [$]17` -`CMP`
+	// mips64:`SLLV [$]17` -`SGT`
 	return x << 17
 }
 
 func rev16(c uint64) (uint64, uint64, uint64) {
-	// arm64:`REV16`,-`AND`,-`LSR`,-`AND`,-`ORR R[0-9]+<<8`
-	// loong64:`REVB4H`,-`MOVV`,-`AND`,-`SRLV`,-`AND`,-`SLLV`,-`OR`
+	// arm64:`REV16` -`AND` -`LSR` -`AND` -`ORR R[0-9]+<<8`
+	// loong64:`REVB4H` -`MOVV` -`AND` -`SRLV` -`AND` -`SLLV` -`OR`
 	b1 := ((c & 0xff00ff00ff00ff00) >> 8) | ((c & 0x00ff00ff00ff00ff) << 8)
 	// arm64:-`ADD R[0-9]+<<8`
 	// loong64:-`ADDV`
@@ -350,8 +350,8 @@ func rev16(c uint64) (uint64, uint64, uint64) {
 }
 
 func rev16w(c uint32) (uint32, uint32, uint32) {
-	// arm64:`REV16W`,-`AND`,-`UBFX`,-`AND`,-`ORR R[0-9]+<<8`
-	// loong64:`REVB2H`,-`AND`,-`SRL`,-`AND`,-`SLL`,-`OR`
+	// arm64:`REV16W` -`AND` -`UBFX` -`AND` -`ORR R[0-9]+<<8`
+	// loong64:`REVB2H` -`AND` -`SRL` -`AND` -`SLL` -`OR`
 	b1 := ((c & 0xff00ff00) >> 8) | ((c & 0x00ff00ff) << 8)
 	// arm64:-`ADD R[0-9]+<<8`
 	// loong64:-`ADDV`
@@ -363,16 +363,16 @@ func rev16w(c uint32) (uint32, uint32, uint32) {
 }
 
 func shift(x uint32, y uint16, z uint8) uint64 {
-	// arm64:-`MOVWU`,-`LSR [$]32`
-	// loong64:-`MOVWU`,-`SRLV [$]32`
+	// arm64:-`MOVWU` -`LSR [$]32`
+	// loong64:-`MOVWU` -`SRLV [$]32`
 	a := uint64(x) >> 32
 	// arm64:-`MOVHU`
-	// loong64:-`MOVHU`,-`SRLV [$]16`
+	// loong64:-`MOVHU` -`SRLV [$]16`
 	b := uint64(y) >> 16
 	// arm64:-`MOVBU`
-	// loong64:-`MOVBU`,-`SRLV [$]8`
+	// loong64:-`MOVBU` -`SRLV [$]8`
 	c := uint64(z) >> 8
-	// arm64:`MOVD ZR`,-`ADD R[0-9]+>>16`,-`ADD R[0-9]+>>8`,
-	// loong64:`MOVV R0`,-`ADDVU`
+	// arm64:`MOVD ZR` -`ADD R[0-9]+>>16` -`ADD R[0-9]+>>8`
+	// loong64:`MOVV R0` -`ADDVU`
 	return a + b + c
 }

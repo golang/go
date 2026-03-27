@@ -62,7 +62,7 @@ func bitsCheckConstRightShiftU64(a [8]uint64) (n int) {
 	// amd64:"BTQ [$]60,"
 	// arm64:"TBZ [$]60," -"LSR"
 	// loong64:"SRLV [$]60," "AND [$]1," "BEQ"
-	// riscv64:"SRLI [$]60,", "ANDI [$]1," "BEQZ"
+	// riscv64:"SRLI [$]60," "ANDI [$]1," "BEQZ"
 	if (a[3]>>60)&1 == 0 {
 		return 1
 	}
@@ -472,37 +472,37 @@ func bitsIssue19857b(a uint64) uint64 {
 }
 
 func bitsIssue19857c(a, b uint32) (uint32, uint32) {
-	// arm/7:`BIC`,-`AND`
+	// arm/7:`BIC` -`AND`
 	a &= 0xffffaaaa
-	// arm/7:`BFC`,-`AND`,-`BIC`
+	// arm/7:`BFC` -`AND` -`BIC`
 	b &= 0xffc003ff
 	return a, b
 }
 
 func bitsAndNot(x, y uint32) uint32 {
-	// arm64:`BIC `,-`AND`
+	// arm64:`BIC ` -`AND`
 	// loong64:"ANDN " -"AND "
 	// riscv64:"ANDN" -"AND "
 	return x &^ y
 }
 
 func bitsXorNot(x, y, z uint32, a []uint32, n, m uint64) uint64 {
-	// arm64:`EON `,-`EOR`,-`MVN`
+	// arm64:`EON ` -`EOR` -`MVN`
 	// loong64:"NOR" "XOR"
 	// riscv64:"XNOR " -"MOV [$]" -"XOR "
 	a[0] = x ^ (y ^ 0xffffffff)
 
-	// arm64:`EON `,-`EOR`,-`MVN`
+	// arm64:`EON ` -`EOR` -`MVN`
 	// loong64:"XOR" "NOR"
 	// riscv64:"XNOR" -"XOR "
 	a[1] = ^(y ^ z)
 
-	// arm64:`EON `,-`XOR`
+	// arm64:`EON ` -`XOR`
 	// loong64:"NOR" "XOR"
 	// riscv64:"XNOR" -"XOR " -"NOT"
 	a[2] = x ^ ^z
 
-	// arm64:`EON `,-`EOR`,-`MVN`
+	// arm64:`EON ` -`EOR` -`MVN`
 	// loong64:"NOR" "XOR"
 	// riscv64:"XNOR" -"MOV [$]" -"XOR "
 	return n ^ (m ^ 0xffffffffffffffff)
@@ -550,12 +550,12 @@ func bitsMaskContiguousZeroes64U(x uint64) uint64 {
 }
 
 func bitsIssue44228a(a []int64, i int) bool {
-	// amd64: "BTQ", -"SHL"
+	// amd64: "BTQ" -"SHL"
 	return a[i>>6]&(1<<(i&63)) != 0
 }
 
 func bitsIssue44228b(a []int32, i int) bool {
-	// amd64: "BTL", -"SHL"
+	// amd64: "BTL" -"SHL"
 	return a[i>>5]&(1<<(i&31)) != 0
 }
 
@@ -580,9 +580,9 @@ func bitsFoldConstOutOfRange(a uint64) uint64 {
 func bitsSignExtendAndMask8to64U(a int8) (s, z uint64) {
 	// Verify sign-extended values are not zero-extended under a bit mask (#61297)
 
-	// ppc64x: "MOVB", "ANDCC [$]1015,"
+	// ppc64x: "MOVB" "ANDCC [$]1015,"
 	s = uint64(a) & 0x3F7
-	// ppc64x: -"MOVB", "ANDCC [$]247,"
+	// ppc64x: -"MOVB" "ANDCC [$]247,"
 	z = uint64(uint8(a)) & 0x3F7
 	return
 }
@@ -590,9 +590,9 @@ func bitsSignExtendAndMask8to64U(a int8) (s, z uint64) {
 func bitsZeroExtendAndMask8toU64(a int8, b int16) (x, y uint64) {
 	// Verify zero-extended values are not sign-extended under a bit mask (#61297)
 
-	// ppc64x: -"MOVB ", -"ANDCC", "MOVBZ"
+	// ppc64x: -"MOVB " -"ANDCC" "MOVBZ"
 	x = uint64(a) & 0xFF
-	// ppc64x: -"MOVH ", -"ANDCC", "MOVHZ"
+	// ppc64x: -"MOVH " -"ANDCC" "MOVHZ"
 	y = uint64(b) & 0xFFFF
 	return
 }
@@ -604,19 +604,19 @@ func bitsRotateAndMask(io64 [8]uint64, io32 [4]uint32, io16 [4]uint16, io8 [4]ui
 	io64[0] = io64[0] & 0xFFFFFFFFFFFF0000
 	// ppc64x: "RLDICL [$]0, R[0-9]*, [$]16, R"
 	io64[1] = io64[1] & 0x0000FFFFFFFFFFFF
-	// ppc64x: -"SRD", -"AND", "RLDICL [$]60, R[0-9]*, [$]16, R"
+	// ppc64x: -"SRD" -"AND" "RLDICL [$]60, R[0-9]*, [$]16, R"
 	io64[2] = (io64[2] >> 4) & 0x0000FFFFFFFFFFFF
 	// ppc64x: -"SRD" -"AND" "RLDICL [$]36, R[0-9]*, [$]29, R"
 	io64[3] = (io64[3] >> 28) & 0x00000007FFFFFFFF
 
-	// ppc64x: "MOVWZ", "RLWNM [$]1, R[0-9]*, [$]28, [$]3, R"
+	// ppc64x: "MOVWZ" "RLWNM [$]1, R[0-9]*, [$]28, [$]3, R"
 	io64[4] = uint64(bits.RotateLeft32(io32[0], 1) & 0xF000000F)
 
 	// ppc64x: "RLWNM [$]0, R[0-9]*, [$]4, [$]19, R"
 	io32[0] = io32[0] & 0x0FFFF000
 	// ppc64x: "RLWNM [$]0, R[0-9]*, [$]20, [$]3, R"
 	io32[1] = io32[1] & 0xF0000FFF
-	// ppc64x: -"RLWNM", "MOVD", "AND"
+	// ppc64x: -"RLWNM" "MOVD" "AND"
 	io32[2] = io32[2] & 0xFFFF0002
 
 	var bigc uint32 = 0x12345678
