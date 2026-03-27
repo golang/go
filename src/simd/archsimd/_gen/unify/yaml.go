@@ -14,7 +14,7 @@ import (
 	"regexp"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // ReadOpts provides options to [Read] and related functions. The zero value is
