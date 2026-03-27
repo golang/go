@@ -1436,6 +1436,7 @@ func TestExtLinkCmdlineDeterminism(t *testing.T) {
 	// Test that we pass flags in deterministic order to the external linker
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t) // this test requires -linkmode=external
+	t.Parallel()
 
 	// test source code, with some cgo exports
 	testSrc := `
