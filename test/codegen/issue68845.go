@@ -11,7 +11,7 @@ type T1 struct {
 }
 
 func f1() *T1 {
-	// amd64:-`MOVQ\s[$]0`,-`MOVUPS\sX15`
+	// amd64:-`MOVQ [$]0`,-`MOVUPS X15`
 	return &T1{}
 }
 
@@ -20,7 +20,7 @@ type T2 struct {
 }
 
 func f2() *T2 {
-	// amd64:-`MOVQ\s[$]0`,-`MOVUPS\sX15`
+	// amd64:-`MOVQ [$]0`,-`MOVUPS X15`
 	return &T2{}
 }
 
@@ -29,7 +29,7 @@ type T3 struct {
 }
 
 func f3() *T3 {
-	// amd64:-`MOVQ\s[$]0`,-`MOVUPS\sX15`
+	// amd64:-`MOVQ [$]0`,-`MOVUPS X15`
 	return &T3{}
 }
 
@@ -38,7 +38,7 @@ type T4 struct {
 }
 
 func f4() *T4 {
-	// amd64:-`MOVQ\s[$]0`,-`MOVUPS\sX15`
+	// amd64:-`MOVQ [$]0`,-`MOVUPS X15`
 	return &T4{}
 }
 
@@ -47,6 +47,6 @@ type T5 struct {
 }
 
 func f5() *T5 {
-	// amd64:-`MOVQ\s[$]0`,-`MOVUPS\sX15`
+	// amd64:-`MOVQ [$]0`,-`MOVUPS X15`
 	return &T5{}
 }

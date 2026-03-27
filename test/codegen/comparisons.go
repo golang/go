@@ -173,8 +173,8 @@ func CmpMem5(p **int) {
 }
 
 func CmpMem6(a []int) int {
-	// 386:`CMPL\s8\([A-Z]+\),`
-	// amd64:`CMPQ\s16\([A-Z]+\),`
+	// 386:`CMPL 8\([A-Z]+\),`
+	// amd64:`CMPQ 16\([A-Z]+\),`
 	if a[1] > a[2] {
 		return 1
 	} else {
@@ -237,7 +237,7 @@ func CmpToZero(a, b, d int32, e, f int64, deOptC0, deOptC1 bool) int32 {
 	c7 := e&(f<<3) < 0
 	// For arm64, could be CMN+BPL or ADD+TBZ
 	c8 := e+(f<<3) < 0
-	// arm64:`TST\sR[0-9],\sR[0-9]+`
+	// arm64:`TST R[0-9], R[0-9]+`
 	c9 := e&(-19) < 0
 	if c0 {
 		return 1

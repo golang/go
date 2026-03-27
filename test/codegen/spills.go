@@ -6,7 +6,7 @@
 
 package codegen
 
-func i64(a, b int64) int64 { // arm64:`STP\s`,`LDP\s`
+func i64(a, b int64) int64 { // arm64:`STP `,`LDP `
 	g()
 	return a + b
 }

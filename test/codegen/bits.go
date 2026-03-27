@@ -445,11 +445,11 @@ func bitsFlipU32(a, b uint32) (n uint32) {
 func bitsOpOnMem(a []uint32, b, c, d uint32) {
 	// check direct operation on memory with constant
 
-	// amd64:`ANDL\s[$]200,\s\([A-Z][A-Z0-9]+\)`
+	// amd64:`ANDL [$]200, \([A-Z][A-Z0-9]+\)`
 	a[0] &= 200
-	// amd64:`ORL\s[$]220,\s4\([A-Z][A-Z0-9]+\)`
+	// amd64:`ORL [$]220, 4\([A-Z][A-Z0-9]+\)`
 	a[1] |= 220
-	// amd64:`XORL\s[$]240,\s8\([A-Z][A-Z0-9]+\)`
+	// amd64:`XORL [$]240, 8\([A-Z][A-Z0-9]+\)`
 	a[2] ^= 240
 }
 

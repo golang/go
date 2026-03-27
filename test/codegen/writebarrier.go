@@ -90,14 +90,14 @@ func issue71228(dst *S, ptr *int) {
 }
 
 func writeDouble(p *[2]*int, x, y *int) {
-	// arm64: `LDP\s`, `STP\s\(R[0-9]+, R[0-9]+\), \(`
+	// arm64: `LDP `, `STP \(R[0-9]+, R[0-9]+\), \(`
 	p[0] = x
-	// arm64: `STP\s\(R[0-9]+, R[0-9]+\), 16\(`
+	// arm64: `STP \(R[0-9]+, R[0-9]+\), 16\(`
 	p[1] = y
 }
 
 func writeDoubleNil(p *[2]*int) {
-	// arm64: `LDP\s`, `STP\s\(R[0-9]+, R[0-9]+\),`, `STP\s\(ZR, ZR\),`
+	// arm64: `LDP `, `STP \(R[0-9]+, R[0-9]+\),`, `STP \(ZR, ZR\),`
 	p[0] = nil
 	p[1] = nil
 }
