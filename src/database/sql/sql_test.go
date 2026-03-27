@@ -184,8 +184,21 @@ func closeDB(t testing.TB, db *DB) {
 	}
 
 	// Connections close asynchronously; wait for them to finish doing so.
-	synctest.Wait()
-	if numOpen := db.numOpenConns(); numOpen != 0 {
+	numOpenConns := func() int {
+		db.mu.Lock()
+		defer db.mu.Unlock()
+		return db.numOpen
+	}
+	if _, ok := t.(*testing.B); ok {
+		// We don't use synctest in benchmarks, so just poll.
+		deadline := time.Now().Add(5 * time.Second)
+		for numOpenConns() > 0 && time.Now().Before(deadline) {
+			time.Sleep(1 * time.Millisecond)
+		}
+	} else {
+		synctest.Wait()
+	}
+	if numOpen := numOpenConns(); numOpen != 0 {
 		t.Fatalf("%d connections still open after closing DB", numOpen)
 	}
 }
@@ -211,13 +224,6 @@ func (db *DB) numFreeConns() int {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	return len(db.freeConn)
-}
-
-func (db *DB) numOpenConns() int {
-	synctest.Wait()
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	return db.numOpen
 }
 
 // clearAllConns closes all connections in db.
