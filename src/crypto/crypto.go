@@ -143,7 +143,7 @@ func (h Hash) Available() bool {
 // hash function. This is intended to be called from the init function in
 // packages that implement hash functions.
 func RegisterHash(h Hash, f func() hash.Hash) {
-	if h >= maxHash {
+	if h == 0 || h >= maxHash {
 		panic("crypto: RegisterHash of unknown hash function")
 	}
 	hashes[h] = f
