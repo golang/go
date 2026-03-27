@@ -832,7 +832,7 @@ func (p *addrParser) consumeComment() (string, bool) {
 	// '(' already consumed.
 	depth := 1
 
-	var comment string
+	var comment strings.Builder
 	for {
 		if p.empty() || depth == 0 {
 			break
@@ -846,12 +846,12 @@ func (p *addrParser) consumeComment() (string, bool) {
 			depth--
 		}
 		if depth > 0 {
-			comment += p.s[:1]
+			comment.WriteByte(p.s[0])
 		}
 		p.s = p.s[1:]
 	}
 
-	return comment, depth == 0
+	return comment.String(), depth == 0
 }
 
 func (p *addrParser) decodeRFC2047Word(s string) (word string, isEncoded bool, err error) {
