@@ -26,63 +26,63 @@ func TestOutput(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if test.goos != "" && test.goos != runtime.GOOS {
-			t.Logf("test %v runs only on %v, skipping: ", test.name, test.goos)
-			continue
-		}
-		dir := t.TempDir()
-		source := "main.go"
-		if test.run == "test" {
-			source = "main_test.go"
-		}
-		src := filepath.Join(dir, source)
-		f, err := os.Create(src)
-		if err != nil {
-			t.Fatalf("failed to create file: %v", err)
-		}
-		_, err = f.WriteString(test.source)
-		if err != nil {
-			f.Close()
-			t.Fatalf("failed to write: %v", err)
-		}
-		if err := f.Close(); err != nil {
-			t.Fatalf("failed to close file: %v", err)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			if test.goos != "" && test.goos != runtime.GOOS {
+				t.Skipf("runs only on %v", test.goos)
+			}
+			dir := t.TempDir()
+			source := "main.go"
+			if test.run == "test" {
+				source = "main_test.go"
+			}
+			src := filepath.Join(dir, source)
+			f, err := os.Create(src)
+			if err != nil {
+				t.Fatalf("failed to create file: %v", err)
+			}
+			_, err = f.WriteString(test.source)
+			if err != nil {
+				f.Close()
+				t.Fatalf("failed to write: %v", err)
+			}
+			if err := f.Close(); err != nil {
+				t.Fatalf("failed to close file: %v", err)
+			}
 
-		cmd := exec.Command(testenv.GoToolPath(t), test.run, "-race", "-pkgdir="+pkgdir, src)
-		// GODEBUG spoils program output, GOMAXPROCS makes it flaky.
-		for _, env := range os.Environ() {
-			if strings.HasPrefix(env, "GODEBUG=") ||
-				strings.HasPrefix(env, "GOMAXPROCS=") ||
-				strings.HasPrefix(env, "GORACE=") {
-				continue
+			cmd := exec.Command(testenv.GoToolPath(t), test.run, "-race", "-pkgdir="+pkgdir, src)
+			// GODEBUG spoils program output, GOMAXPROCS makes it flaky.
+			for _, env := range os.Environ() {
+				if strings.HasPrefix(env, "GODEBUG=") ||
+					strings.HasPrefix(env, "GOMAXPROCS=") ||
+					strings.HasPrefix(env, "GORACE=") {
+					continue
+				}
+				cmd.Env = append(cmd.Env, env)
 			}
-			cmd.Env = append(cmd.Env, env)
-		}
-		cmd.Env = append(cmd.Env,
-			"GOMAXPROCS=1", // see comment in race_test.go
-			"GORACE="+test.gorace,
-		)
-		got, _ := cmd.CombinedOutput()
-		matched := false
-		for _, re := range test.re {
-			if regexp.MustCompile(re).MatchString(string(got)) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			exp := fmt.Sprintf("expect:\n%v\n", test.re[0])
-			if len(test.re) > 1 {
-				exp = fmt.Sprintf("expected one of %d patterns:\n",
-					len(test.re))
-				for k, re := range test.re {
-					exp += fmt.Sprintf("pattern %d:\n%v\n", k, re)
+			cmd.Env = append(cmd.Env,
+				"GOMAXPROCS=1", // see comment in race_test.go
+				"GORACE="+test.gorace,
+			)
+			got, _ := cmd.CombinedOutput()
+			matched := false
+			for _, re := range test.re {
+				if regexp.MustCompile(re).MatchString(string(got)) {
+					matched = true
+					break
 				}
 			}
-			t.Fatalf("failed test case %v, %sgot:\n%s",
-				test.name, exp, got)
-		}
+			if !matched {
+				exp := fmt.Sprintf("expect:\n%v\n", test.re[0])
+				if len(test.re) > 1 {
+					exp = fmt.Sprintf("expected one of %d patterns:\n",
+						len(test.re))
+					for k, re := range test.re {
+						exp += fmt.Sprintf("pattern %d:\n%v\n", k, re)
+					}
+				}
+				t.Fatalf("failed test case: %sgot:\n%s", exp, got)
+			}
+		})
 	}
 }
 
