@@ -24,7 +24,8 @@ import (
 func (b *Builder) CovData(a *Action, cmdargs ...any) ([]byte, error) {
 	cmdline := str.StringList(cmdargs...)
 	args := append([]string{}, cfg.BuildToolexec...)
-	args = append(args, "go", "tool", "covdata")
+	goBin := filepath.Join(cfg.GOROOTbin, "go"+cfg.ExeSuffix)
+	args = append(args, goBin, "tool", "covdata")
 	args = append(args, cmdline...)
 	return b.Shell(a).runOut(a.Objdir, nil, args)
 }
