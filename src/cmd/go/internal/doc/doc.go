@@ -134,7 +134,8 @@ Flags:
   	-http
 		Serve HTML docs over HTTP.
 	-short
-		One-line representation for each symbol.
+		One-line representation for each symbol. Cannot be
+		combined with -all.
 	-src
 		Show the full source code for the symbol. This will
 		display the full Go source of its declaration and
@@ -205,6 +206,9 @@ func do(ctx context.Context, writer io.Writer, flagSet *flag.FlagSet, args []str
 		if err := os.Chdir(chdir); err != nil {
 			return err
 		}
+	}
+	if showAll && short {
+		return fmt.Errorf("cannot combine -all and -short")
 	}
 	if serveHTTP {
 		// Special case: if there are no arguments, try to go to an appropriate page
