@@ -606,8 +606,8 @@ func bitsRotateAndMask(io64 [8]uint64, io32 [4]uint32, io16 [4]uint16, io8 [4]ui
 	io64[1] = io64[1] & 0x0000FFFFFFFFFFFF
 	// ppc64x: -"SRD", -"AND", "RLDICL [$]60, R[0-9]*, [$]16, R"
 	io64[2] = (io64[2] >> 4) & 0x0000FFFFFFFFFFFF
-	// ppc64x: -"SRD", -"AND", "RLDICL [$]36, R[0-9]*, [$]28, R"
-	io64[3] = (io64[3] >> 28) & 0x0000FFFFFFFFFFFF
+	// ppc64x: -"SRD" -"AND" "RLDICL [$]36, R[0-9]*, [$]29, R"
+	io64[3] = (io64[3] >> 28) & 0x00000007FFFFFFFF
 
 	// ppc64x: "MOVWZ", "RLWNM [$]1, R[0-9]*, [$]28, [$]3, R"
 	io64[4] = uint64(bits.RotateLeft32(io32[0], 1) & 0xF000000F)
