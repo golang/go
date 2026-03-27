@@ -37,11 +37,11 @@ func AddLargeConst(a uint64, out []uint64) {
 	// ppc64x/power9:"ADDIS [$]-32768,", "ADD [$]1,"
 	// ppc64x/power8:"ADDIS [$]-32768,", "ADD [$]1,"
 	out[5] = a - 2147483647
-	// ppc64x:"ADDIS [$]-32768,", ^"ADD "
+	// ppc64x:"ADDIS [$]-32768,", -"ADD "
 	out[6] = a - 2147483648
-	// ppc64x:"ADD [$]2147450880,", ^"ADDIS "
+	// ppc64x:"ADD [$]2147450880,", -"ADDIS "
 	out[7] = a + 0x7FFF8000
-	// ppc64x:"ADD [$]-32768,", ^"ADDIS "
+	// ppc64x:"ADD [$]-32768,", -"ADDIS "
 	out[8] = a - 32768
 	// ppc64x/power10:"ADD [$]-32769,"
 	// ppc64x/power9:"ADDIS [$]-1,", "ADD [$]32767,"

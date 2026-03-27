@@ -188,15 +188,15 @@ func ubfiz5(x uint8) uint64 {
 }
 
 func ubfiz6(x uint32) uint64 {
-	return uint64(x << 30) // arm64:"UBFIZ [$]30, R[0-9]+, [$]2",
+	return uint64(x << 30) // arm64:"UBFIZ [$]30, R[0-9]+, [$]2"
 }
 
 func ubfiz7(x uint16) uint64 {
-	return uint64(x << 10) // arm64:"UBFIZ [$]10, R[0-9]+, [$]6",
+	return uint64(x << 10) // arm64:"UBFIZ [$]10, R[0-9]+, [$]6"
 }
 
 func ubfiz8(x uint8) uint64 {
-	return uint64(x << 7) // arm64:"UBFIZ [$]7, R[0-9]+, [$]1",
+	return uint64(x << 7) // arm64:"UBFIZ [$]7, R[0-9]+, [$]1"
 }
 
 // merge ANDconst into ubfiz.
@@ -366,7 +366,7 @@ func shift(x uint32, y uint16, z uint8) uint64 {
 	// arm64:-`MOVWU`,-`LSR [$]32`
 	// loong64:-`MOVWU`,-`SRLV [$]32`
 	a := uint64(x) >> 32
-	// arm64:-`MOVHU
+	// arm64:-`MOVHU`
 	// loong64:-`MOVHU`,-`SRLV [$]16`
 	b := uint64(y) >> 16
 	// arm64:-`MOVBU`

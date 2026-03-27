@@ -221,7 +221,7 @@ func div7_int16u(i int16) int16 {
 	// arm64: "UBFX [$]18, R[0-9]+, [$]14,"
 	// arm64: -"SUB"
 	// wasm: "I64Const [$]37450"
-	// wasm -"I64Sub"
+	// wasm: -"I64Sub"
 	return i / 7
 }
 
@@ -238,7 +238,7 @@ func div7_int32u(i int32) int32 {
 	// arm64: "LSR [$]34,"
 	// arm64: -"SUB"
 	// wasm: "I64Const [$]2454267027"
-	// wasm -"I64Sub"
+	// wasm: -"I64Sub"
 	return i / 7
 }
 
@@ -253,7 +253,7 @@ func div7_int64u(i int64) int64 {
 	// arm64: -"SUB"
 	// wasm: "I64Const [$]1227133514"
 	// wasm: "I64Const [$]2454267026"
-	// wasm -"I64Sub"
+	// wasm: -"I64Sub"
 	return i / 7
 }
 
