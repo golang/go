@@ -10,7 +10,34 @@ import (
 	"go/constant"
 	. "internal/types/errors"
 	"slices"
+	"strings" // Added
 )
+
+// objTypeName returns the (possibly qualified) name of obj,
+// including type arguments if obj is an instantiated TypeName.
+// The qualifier function is used to qualify package names.
+func objTypeName(obj Object, qualifier func(*Package) string) string {
+	// Use obj.Name() for non-TypeName objects or non-instantiated TypeNames.
+	// For instantiated TypeNames, format as Name[Args].
+	if tname, ok := obj.(*TypeName); ok {
+		if named, ok := tname.Type().(*Named); ok && named.TypeArgs() != nil {
+			var b strings.Builder
+			b.WriteString(packagePrefix(obj.Pkg(), qualifier))
+			b.WriteString(obj.Name()) // Base name
+			b.WriteByte('[')
+			for i, targ := range named.TypeArgs().list() {
+				if i > 0 {
+					b.WriteString(", ")
+				}
+				// TypeString is expected to be available in this package.
+				b.WriteString(TypeString(targ, qualifier))
+			}
+			b.WriteByte(']')
+			return b.String()
+		}
+	}
+	return packagePrefix(obj.Pkg(), qualifier) + obj.Name()
+}
 
 func (check *Checker) declare(scope *Scope, id *syntax.Name, obj Object, pos syntax.Pos) {
 	// spec: "The blank identifier, represented by the underscore
@@ -39,7 +66,7 @@ func pathString(path []Object) string {
 		if i > 0 {
 			s += "->"
 		}
-		s += p.Name()
+		s += objTypeName(p, nil) // Use objTypeName
 	}
 	return s
 }
@@ -210,7 +237,7 @@ loop:
 	}
 
 	if check.conf.Trace {
-		check.trace(obj.Pos(), "## cycle detected: objPath = %s->%s (len = %d)", pathString(cycle), obj.Name(), len(cycle))
+		check.trace(obj.Pos(), "## cycle detected: objPath = %s->%s (len = %d)", pathString(cycle), objTypeName(obj, nil), len(cycle)) // Use objTypeName
 		if tparCycle {
 			check.trace(obj.Pos(), "## cycle contains: generic type in a type parameter list")
 		} else {
@@ -255,7 +282,7 @@ func (check *Checker) cycleError(cycle []Object, start int) {
 	// may refer to imported types. See go.dev/issue/50788.
 	// TODO(gri) This functionality is used elsewhere. Factor it out.
 	name := func(obj Object) string {
-		return packagePrefix(obj.Pkg(), check.qualifier) + obj.Name()
+		return objTypeName(obj, check.qualifier) // Use objTypeName
 	}
 
 	// If obj is a type alias, mark it as valid (not broken) in order to avoid follow-on errors.
