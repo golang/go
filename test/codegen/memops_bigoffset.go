@@ -33,7 +33,7 @@ func loadLargeOffset(sw *big1, sd *big2) (uint32, uint64) {
 	// ppc64x/power9:`ADD` `MOVD +\(R[0-9]+\), R[0-9]+`
 	// ppc64x/power8:`ADD` `MOVD +\(R[0-9]+\), R[0-9]+`
 	b4 := sd.d[1<<16]
-	// ppc64le/power10`:`MOVD +[0-9]+\(R[0-9]+\)` -`ADD`
+	// ppc64le/power10:`MOVD +[0-9]+\(R[0-9]+\)` -`ADD`
 	// ppc64x/power9:`ADD` `MOVD +\(R[0-9]+\), R[0-9]+`
 	// ppc64x/power8:`ADD` `MOVD +\(R[0-9]+\), R[0-9]+`
 	c4 := sd.d[1<<27]
@@ -62,7 +62,7 @@ func storeLargeOffset(sw *big1, sd *big2) {
 	// ppc64x/power9:`MOVD +R[0-9]+, \(R[0-9]+\)` `ADD`
 	// ppc64x/power8:`MOVD +R[0-9]+, \(R[0-9]+\)` `ADD`
 	sd.d[1<<16] = uint64(50)
-	// ppc64le/power10`:`MOVD +R[0-9]+, [0-9]+\(R[0-9]+\)` -`ADD`
+	// ppc64le/power10:`MOVD +R[0-9]+, [0-9]+\(R[0-9]+\)` -`ADD`
 	// ppc64x/power9:`MOVD +R[0-9]+, \(R[0-9]+\)` `ADD`
 	// ppc64x/power8:`MOVD +R[0-9]+, \(R[0-9]+\)` `ADD`
 	sd.d[1<<27] = uint64(60)

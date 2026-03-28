@@ -173,7 +173,7 @@ func m27(x int64) int64 {
 }
 func m28(x int64) int64 {
 	// amd64: "IMUL3Q [$]28,"
-	// arm64: "LSL [$]5, "SUB R[0-9]+<<2,"
+	// arm64: "LSL [$]5," "SUB R[0-9]+<<2,"
 	// loong64: "ALSLV [$]1," "SLLV [$]2," "ALSLV [$]3,"
 	return x * 28
 }

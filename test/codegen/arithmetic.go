@@ -606,7 +606,7 @@ func LenDiv1(a []int) int {
 	// amd64:"SHRQ [$]10"
 	// arm64:"LSR [$]10" -"SDIV"
 	// arm:"SRL [$]10" -".*udiv"
-	// ppc64x:"SRD" [$]10"
+	// ppc64x:"SRD [$]10"
 	return len(a) / 1024
 }
 

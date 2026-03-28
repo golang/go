@@ -1683,6 +1683,8 @@ func (t test) wantedAsmOpcodes(fn string) asmChecks {
 			tail := comment[lastUsed:]
 			if possibleOpcodeRx.MatchString(tail) {
 				t.Errorf("%s:%d: possible unused assembly pattern: %v", t.goFileName(), i+1, tail)
+			} else if strings.Count(comment, "\"")%2 != 0 || strings.Count(comment, "`")%2 != 0 {
+				t.Errorf("%s:%d: unbalanced quotes: %v", t.goFileName(), i+1, comment)
 			}
 		}
 		comment = ""

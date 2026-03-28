@@ -429,7 +429,7 @@ func store_le64(b []byte, x uint64) {
 	// amd64:`MOVQ .*\(.*\)$` -`SHR.`
 	// arm64:`MOVD` -`MOV[WBH]`
 	// ppc64le:`MOVD ` -`MOV[BHW] `
-	// ppc64:`MOVDBR` -MOVB `
+	// ppc64:`MOVDBR` -`MOVB `
 	// s390x:`MOVDBR .*\(.*\)$`
 	binary.LittleEndian.PutUint64(b, x)
 }
