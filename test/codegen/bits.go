@@ -40,8 +40,8 @@ func bitsCheckConstLeftShiftU64(a uint64) (n int) {
 func bitsCheckConstRightShiftU64(a [8]uint64) (n int) {
 	// amd64:"BTQ [$]63,"
 	// arm64:"TBNZ [$]63," -"LSR"
-	// loong64:"SRLV [$]63," "AND [$]1," "BNE"
-	// riscv64:"SRLI [$]63," "ANDI [$]1," "BNEZ"
+	// loong64:"SRLV [$]63," "BNE"
+	// riscv64:"SRLI [$]63," "BNEZ"
 	if (a[0]>>63)&1 != 0 {
 		return 1
 	}
@@ -265,8 +265,8 @@ func bitsCheckConstShiftLeftU32(a uint32) (n int) {
 func bitsCheckConstRightShiftU32(a [8]uint32) (n int) {
 	// amd64:"BTL [$]31,"
 	// arm64:"UBFX [$]31," "CBNZW"
-	// loong64:"SRL [$]31," "AND [$]1," "BNE"
-	// riscv64:"SRLIW [$]31," "ANDI [$]1," "BNEZ"
+	// loong64:"SRL [$]31," "BNE"
+	// riscv64:"SRLIW [$]31," "BNEZ"
 	if (a[0]>>31)&1 != 0 {
 		return 1
 	}
