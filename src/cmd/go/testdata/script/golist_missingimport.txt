@@ -1,0 +1,26 @@
+# Test that go list reports correct Pos for each import of a missing package.
+# When two different packages import the same missing package, each should
+# report the position of its own import statement, not reuse the first one.
+# See issue #78183.
+
+env GOWORK=off
+
+go list -e -f '{{range .DepsErrors}}package {{$.ImportPath}}: error at {{.Pos}}: {{.Err}}{{end}}' ./...
+
+stdout 'package example.com/test/p: error at p/p.go:3:8: no required module'
+stdout 'package example.com/test/q: error at q/q.go:3:8: no required module'
+
+-- go.mod --
+module example.com/test
+
+go 1.22
+
+-- p/p.go --
+package p
+
+import _ "example.com/missing"
+
+-- q/q.go --
+package q
+
+import _ "example.com/missing"
