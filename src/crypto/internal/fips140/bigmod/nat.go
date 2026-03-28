@@ -784,12 +784,7 @@ func (x *Nat) montgomeryMul(a *Nat, b *Nat, m *Modulus) *Nat {
 
 	switch n {
 	default:
-		// Attempt to use a stack-allocated backing array.
-		T := make([]uint, 0, preallocLimbs*2)
-		if cap(T) < n*2 {
-			T = make([]uint, 0, n*2)
-		}
-		T = T[:n*2]
+		T := makeWideLimbs(n)
 
 		// This loop implements Word-by-Word Montgomery Multiplication, as
 		// described in Algorithm 4 (Fig. 3) of "Efficient Software
@@ -935,12 +930,7 @@ func (x *Nat) Mul(y *Nat, m *Modulus) *Nat {
 
 	switch n {
 	default:
-		// Attempt to use a stack-allocated backing array.
-		T := make([]uint, 0, preallocLimbs*2)
-		if cap(T) < n*2 {
-			T = make([]uint, 0, n*2)
-		}
-		T = T[:n*2]
+		T := makeWideLimbs(n)
 
 		// T = x * y
 		for i := 0; i < n; i++ {
