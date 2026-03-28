@@ -883,3 +883,14 @@
 (OR (CZEROEQZ x:(ANDI <t> [c] z) cond) y:(CZERONEZ z cond)) => (OR x y)
 (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> ((ADDI|ORI|XORI) [c] x) cond)) => ((ADD|OR|XOR) x (CZERONEZ <t> (MOVDconst [c]) cond))
 (OR (CZEROEQZ <t> ((ADDI|ORI|XORI) [c] x) cond) (CZERONEZ <t> x cond)) => ((ADD|OR|XOR) x (CZEROEQZ <t> (MOVDconst [c]) cond))
+
+// Constant folding loads from read-only globals.
+// The resulting MOVDconst is a register-width constant that embeds the data
+// read at compile time, eliminating runtime memory accesses to .rodata.
+(MOVBUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read8(sym, int64(off)))])
+(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVWUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVDload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read64(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVBload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(int8(read8(sym, int64(off))))])
+(MOVHload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(int16(read16(sym, int64(off), config.ctxt.Arch.ByteOrder)))])
+(MOVWload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder)))])
