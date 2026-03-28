@@ -94,7 +94,7 @@ import (
 
 	"simd/archsimd/_gen/unify"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 var (
