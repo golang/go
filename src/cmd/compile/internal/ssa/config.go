@@ -355,6 +355,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.floatParamRegs = paramFloatRegRISCV64
 		c.FPReg = framepointerRegRISCV64
 		c.hasGReg = true
+		c.unalignedOK = true
 	case "wasm":
 		c.PtrSize = 8
 		c.RegSize = 8
