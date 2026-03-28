@@ -3,6 +3,16 @@
 // license that can be found in the LICENSE file.
 
 // Package slices defines various functions useful with slices of any type.
+//
+// Many functions in this package modify and return a slice.
+// A Go slice is a view over an underlying (or "backing") array, and
+// multiple slices can share the same backing array.
+// Functions that grow the length of a slice beyond its capacity (such as
+// [Insert], [Replace], or [Grow]) allocate a new backing array, so the
+// returned slice will not alias the original.
+// Functions that reduce or maintain the length (such as [Delete],
+// [DeleteFunc], [Compact], [CompactFunc], and [Clip]) modify the
+// backing array of the input slice and return a slice that shares it.
 package slices
 
 import (
