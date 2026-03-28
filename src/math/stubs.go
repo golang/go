@@ -87,12 +87,6 @@ func archExpm1(x float64) float64 {
 	panic("not implemented")
 }
 
-const haveArchFrexp = false
-
-func archFrexp(x float64) (float64, int) {
-	panic("not implemented")
-}
-
 const haveArchLdexp = false
 
 func archLdexp(frac float64, exp int) float64 {
