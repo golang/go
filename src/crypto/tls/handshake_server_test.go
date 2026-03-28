@@ -2269,6 +2269,73 @@ func testHandshakeChainExpiryResumption(t *testing.T, version uint16) {
 			serverConfig.ClientCAs.AddCert(freshRoot)
 
 			testResume(t, serverConfig, clientConfig, false)
+
+			// With InsecureSkipVerify, an expired server certificate should not
+			// force a full handshake when resuming.
+			serverConfigInsecure := testConfig.Clone()
+			serverConfigInsecure.MaxVersion = version
+			serverConfigInsecure.Certificates = []Certificate{{
+				Certificate: [][]byte{initialLeafDER, expiredLeafDER},
+				PrivateKey:  testECDSAPrivateKey,
+			}}
+			serverConfigInsecure.Time = func() time.Time {
+				return now
+			}
+			clientConfigInsecure := testConfig.Clone()
+			clientConfigInsecure.MaxVersion = version
+			clientConfigInsecure.ClientSessionCache = NewLRUClientSessionCache(32)
+			clientConfigInsecure.InsecureSkipVerify = true
+			clientConfigInsecure.ServerName = "expired-resume.example.com"
+			clientConfigInsecure.Time = func() time.Time {
+				return now
+			}
+
+			testResume(t, serverConfigInsecure, clientConfigInsecure, false)
+			testResume(t, serverConfigInsecure, clientConfigInsecure, true)
+
+			serverConfigInsecure.Time = func() time.Time {
+				return expiredNow
+			}
+
+			testResume(t, serverConfigInsecure, clientConfigInsecure, true)
+
+			// If the server is not configured to verify client certificates,
+			// their expiration should not block resumption.
+			serverConfigRequestClientCert := testConfig.Clone()
+			serverConfigRequestClientCert.MaxVersion = version
+			serverConfigRequestClientCert.Certificates = []Certificate{{
+				Certificate: [][]byte{initialLeafDER, expiredLeafDER},
+				PrivateKey:  testECDSAPrivateKey,
+			}}
+			serverConfigRequestClientCert.ClientCAs = x509.NewCertPool()
+			serverConfigRequestClientCert.ClientCAs.AddCert(initialRoot)
+			serverConfigRequestClientCert.ClientAuth = RequestClientCert
+			serverConfigRequestClientCert.Time = func() time.Time {
+				return now
+			}
+
+			clientConfigRequestClientCert := testConfig.Clone()
+			clientConfigRequestClientCert.MaxVersion = version
+			clientConfigRequestClientCert.Certificates = []Certificate{{
+				Certificate: [][]byte{initialLeafDER, expiredLeafDER},
+				PrivateKey:  testECDSAPrivateKey,
+			}}
+			clientConfigRequestClientCert.RootCAs = x509.NewCertPool()
+			clientConfigRequestClientCert.RootCAs.AddCert(initialRoot)
+			clientConfigRequestClientCert.ServerName = "expired-resume.example.com"
+			clientConfigRequestClientCert.ClientSessionCache = NewLRUClientSessionCache(32)
+			clientConfigRequestClientCert.Time = func() time.Time {
+				return now
+			}
+
+			testResume(t, serverConfigRequestClientCert, clientConfigRequestClientCert, false)
+			testResume(t, serverConfigRequestClientCert, clientConfigRequestClientCert, true)
+
+			serverConfigRequestClientCert.Time = func() time.Time {
+				return expiredNow
+			}
+
+			testResume(t, serverConfigRequestClientCert, clientConfigRequestClientCert, true)
 		})
 	}
 
