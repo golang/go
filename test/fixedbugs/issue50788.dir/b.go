@@ -6,4 +6,4 @@ package b
 
 import "./a"
 
-type T a.T[T] // ERROR "invalid recursive type T\n.*T refers to a\.T\n.*a\.T refers to T"
+type T a.T[T] // ERROR "invalid recursive type T\n.*T refers to a\.T\[T\]\n.*a\.T\[T\] refers to T"
