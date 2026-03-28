@@ -464,6 +464,18 @@ func appendInt(b []byte, x int, width int) []byte {
 	return b
 }
 
+const onesDigit = "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"
+const tensDigit = "0000000000111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999"
+
+// appendIntWidth4 is semantically identical to appendInt(b, x, 4)
+// but optimized for 0 ≤ x < 10000.
+func appendIntWidth4(b []byte, x int) []byte {
+	if x < 0 || x >= 1e4 {
+		return appendInt(b, x, 4)
+	}
+	return append(b, tensDigit[x/1e2], onesDigit[x/1e2], tensDigit[x%1e2], onesDigit[x%1e2])
+}
+
 // Never printed, just needs to be non-nil for return by atoi.
 var errAtoi = errors.New("time: invalid number")
 
