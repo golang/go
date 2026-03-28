@@ -604,27 +604,45 @@ func (d *Decoder) rawToken() (Token, error) {
 	case '?':
 		// <?: Processing instruction.
 		var target string
+		var data []byte
 		if target, ok = d.name(); !ok {
 			if d.err == nil {
 				d.err = d.syntaxError("expected target name after <?")
 			}
 			return nil, d.err
 		}
-		d.space()
 		d.buf.Reset()
-		var b0 byte
-		for {
+		if b, ok = d.mustgetc(); !ok {
+			return nil, d.err
+		}
+		switch b {
+		case ' ', '\t', '\r', '\n':
+			d.space()
+			var b0 byte
+			for {
+				if b, ok = d.mustgetc(); !ok {
+					return nil, d.err
+				}
+				d.buf.WriteByte(b)
+				if b0 == '?' && b == '>' {
+					break
+				}
+				b0 = b
+			}
+			data = d.buf.Bytes()
+			data = data[0 : len(data)-2] // chop ?>
+		case '?':
 			if b, ok = d.mustgetc(); !ok {
 				return nil, d.err
 			}
-			d.buf.WriteByte(b)
-			if b0 == '?' && b == '>' {
-				break
+			if b != '>' {
+				d.err = d.syntaxError("expected ?> after empty processing instruction")
+				return nil, d.err
 			}
-			b0 = b
+		default:
+			d.err = d.syntaxError("unexpected byte after processing instruction name")
+			return nil, d.err
 		}
-		data := d.buf.Bytes()
-		data = data[0 : len(data)-2] // chop ?>
 
 		if target == "xml" {
 			content := string(data)
