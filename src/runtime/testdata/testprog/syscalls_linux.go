@@ -30,7 +30,9 @@ func tidExists(tid int) (exists, supported bool, err error) {
 	if err != nil {
 		return false, false, err
 	}
-	status, err := io.ReadAll(os.NewFile(uintptr(fd), statusFile))
+	f := os.NewFile(uintptr(fd), statusFile)
+	defer f.Close()
+	status, err := io.ReadAll(f)
 	if err != nil {
 		return false, false, err
 	}
