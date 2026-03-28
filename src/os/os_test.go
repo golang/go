@@ -1579,6 +1579,53 @@ func TestChtimesToUnixZero(t *testing.T) {
 	}
 }
 
+func TestChtimesExtremeDates(t *testing.T) {
+	t.Parallel()
+
+	file := newFile(t)
+	fn := file.Name()
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test dates outside the range of time.UnixNano (~1677-2262).
+	// These timestamps overflow int64 when converted to nanoseconds,
+	// which previously caused Chtimes to set corrupted timestamps.
+	// See #75542.
+	tests := []struct {
+		name string
+		time time.Time
+	}{
+		{"year 1000", time.Date(1000, time.January, 1, 0, 0, 0, 0, time.UTC)},
+		{"year 1600", time.Date(1600, time.January, 1, 0, 0, 0, 0, time.UTC)},
+		{"year 3000", time.Date(3000, time.January, 1, 0, 0, 0, 0, time.UTC)},
+		{"year 2300", time.Date(2300, time.June, 15, 12, 0, 0, 0, time.UTC)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := Chtimes(fn, tt.time, tt.time); err != nil {
+				// Some filesystems don't support timestamps outside a limited range.
+				t.Skipf("Chtimes failed for %v (filesystem may not support this date range): %v", tt.time, err)
+			}
+
+			st, err := Stat(fn)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// The filesystem may truncate to second precision,
+			// so compare only up to seconds.
+			got := st.ModTime().Unix()
+			want := tt.time.Unix()
+			if got != want {
+				t.Errorf("ModTime = %v (unix %d), want %v (unix %d)",
+					st.ModTime(), got, tt.time, want)
+			}
+		})
+	}
+}
+
 func TestFileChdir(t *testing.T) {
 	wd, err := Getwd()
 	if err != nil {
