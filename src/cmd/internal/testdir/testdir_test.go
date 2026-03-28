@@ -1489,7 +1489,6 @@ var (
 	//	"[\s,]+" matches " "
 	//	second reMatchCheck matches "`SUB`"
 	//	")*)" closes started groups; "*" means that there might be other elements in the space-separated list
-	// (TODO: remove allowance for comma-separation once the repo is all fixed.)
 	rxAsmPlatform = regexp.MustCompile(`(\w+)(/[\w.]+)?(/\w*)?\s*:\s*(` + reMatchCheck + `(?:[\s,]+` + reMatchCheck + `)*)`)
 
 	// Regexp to extract a single opcoded check
@@ -1685,6 +1684,8 @@ func (t test) wantedAsmOpcodes(fn string) asmChecks {
 				t.Errorf("%s:%d: possible unused assembly pattern: %v", t.goFileName(), i+1, tail)
 			} else if strings.Count(comment, "\"")%2 != 0 || strings.Count(comment, "`")%2 != 0 {
 				t.Errorf("%s:%d: unbalanced quotes: %v", t.goFileName(), i+1, comment)
+			} else if strings.Contains(comment, "\",") || strings.Contains(comment, "`,") {
+				t.Errorf("%s:%d: comma separator - use space instead: %v", t.goFileName(), i+1, comment)
 			}
 		}
 		comment = ""
