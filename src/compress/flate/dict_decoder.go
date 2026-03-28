@@ -104,10 +104,7 @@ func (dd *dictDecoder) writeCopy(dist, length int) int {
 	dstBase := dd.wrPos
 	dstPos := dstBase
 	srcPos := dstPos - dist
-	endPos := dstPos + length
-	if endPos > len(dd.hist) {
-		endPos = len(dd.hist)
-	}
+	endPos := min(dstPos+length, len(dd.hist))
 
 	// Copy non-overlapping section after destination position.
 	//
