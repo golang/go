@@ -510,6 +510,17 @@ func cmovmathhalveu(a uint, b bool) uint {
 	return a
 }
 
+func cmovmathor(a uint, b bool) uint {
+	if b {
+		a |= 1
+	}
+	// amd64:"ORQ", -"CMOV"
+	// arm64:"ORR", -"CSEL"
+	// ppc64x:"OR", -"ISEL"
+	// wasm:"I64Or", -"Select"
+	return a
+}
+
 func branchlessBoolToUint8(b bool) (r uint8) {
 	if b {
 		r = 1
