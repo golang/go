@@ -18198,8 +18198,8 @@ func rewriteValuegeneric_OpMul16(v *Value) bool {
 		break
 	}
 	// match: (Mul16 <t> x (Const16 [c]))
-	// cond: isPowerOfTwo(c) && v.Block.Func.pass.name != "opt"
-	// result: (Lsh16x64 <t> x (Const64 <typ.UInt64> [log16(c)]))
+	// cond: isPowerOfTwo(uint16(c)) && v.Block.Func.pass.name != "opt"
+	// result: (Lsh16x64 <t> x (Const64 <typ.UInt64> [log16u(uint16(c))]))
 	for {
 		t := v.Type
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -18208,21 +18208,21 @@ func rewriteValuegeneric_OpMul16(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt16(v_1.AuxInt)
-			if !(isPowerOfTwo(c) && v.Block.Func.pass.name != "opt") {
+			if !(isPowerOfTwo(uint16(c)) && v.Block.Func.pass.name != "opt") {
 				continue
 			}
 			v.reset(OpLsh16x64)
 			v.Type = t
 			v0 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-			v0.AuxInt = int64ToAuxInt(log16(c))
+			v0.AuxInt = int64ToAuxInt(log16u(uint16(c)))
 			v.AddArg2(x, v0)
 			return true
 		}
 		break
 	}
 	// match: (Mul16 <t> x (Const16 [c]))
-	// cond: t.IsSigned() && isPowerOfTwo(-c) && v.Block.Func.pass.name != "opt"
-	// result: (Neg16 (Lsh16x64 <t> x (Const64 <typ.UInt64> [log16(-c)])))
+	// cond: isPowerOfTwo(uint16(-c)) && v.Block.Func.pass.name != "opt"
+	// result: (Neg16 (Lsh16x64 <t> x (Const64 <typ.UInt64> [log16u(uint16(-c))])))
 	for {
 		t := v.Type
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -18231,13 +18231,13 @@ func rewriteValuegeneric_OpMul16(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt16(v_1.AuxInt)
-			if !(t.IsSigned() && isPowerOfTwo(-c) && v.Block.Func.pass.name != "opt") {
+			if !(isPowerOfTwo(uint16(-c)) && v.Block.Func.pass.name != "opt") {
 				continue
 			}
 			v.reset(OpNeg16)
 			v0 := b.NewValue0(v.Pos, OpLsh16x64, t)
 			v1 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-			v1.AuxInt = int64ToAuxInt(log16(-c))
+			v1.AuxInt = int64ToAuxInt(log16u(uint16(-c)))
 			v0.AddArg2(x, v1)
 			v.AddArg(v0)
 			return true
@@ -18448,8 +18448,8 @@ func rewriteValuegeneric_OpMul32(v *Value) bool {
 		break
 	}
 	// match: (Mul32 <t> x (Const32 [c]))
-	// cond: isPowerOfTwo(c) && v.Block.Func.pass.name != "opt"
-	// result: (Lsh32x64 <t> x (Const64 <typ.UInt64> [log32(c)]))
+	// cond: isPowerOfTwo(uint32(c)) && v.Block.Func.pass.name != "opt"
+	// result: (Lsh32x64 <t> x (Const64 <typ.UInt64> [log32u(uint32(c))]))
 	for {
 		t := v.Type
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -18458,21 +18458,21 @@ func rewriteValuegeneric_OpMul32(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt32(v_1.AuxInt)
-			if !(isPowerOfTwo(c) && v.Block.Func.pass.name != "opt") {
+			if !(isPowerOfTwo(uint32(c)) && v.Block.Func.pass.name != "opt") {
 				continue
 			}
 			v.reset(OpLsh32x64)
 			v.Type = t
 			v0 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-			v0.AuxInt = int64ToAuxInt(log32(c))
+			v0.AuxInt = int64ToAuxInt(log32u(uint32(c)))
 			v.AddArg2(x, v0)
 			return true
 		}
 		break
 	}
 	// match: (Mul32 <t> x (Const32 [c]))
-	// cond: t.IsSigned() && isPowerOfTwo(-c) && v.Block.Func.pass.name != "opt"
-	// result: (Neg32 (Lsh32x64 <t> x (Const64 <typ.UInt64> [log32(-c)])))
+	// cond: isPowerOfTwo(uint32(-c)) && v.Block.Func.pass.name != "opt"
+	// result: (Neg32 (Lsh32x64 <t> x (Const64 <typ.UInt64> [log32u(uint32(-c))])))
 	for {
 		t := v.Type
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -18481,13 +18481,13 @@ func rewriteValuegeneric_OpMul32(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt32(v_1.AuxInt)
-			if !(t.IsSigned() && isPowerOfTwo(-c) && v.Block.Func.pass.name != "opt") {
+			if !(isPowerOfTwo(uint32(-c)) && v.Block.Func.pass.name != "opt") {
 				continue
 			}
 			v.reset(OpNeg32)
 			v0 := b.NewValue0(v.Pos, OpLsh32x64, t)
 			v1 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-			v1.AuxInt = int64ToAuxInt(log32(-c))
+			v1.AuxInt = int64ToAuxInt(log32u(uint32(-c)))
 			v0.AddArg2(x, v1)
 			v.AddArg(v0)
 			return true
@@ -18859,8 +18859,8 @@ func rewriteValuegeneric_OpMul64(v *Value) bool {
 		break
 	}
 	// match: (Mul64 <t> x (Const64 [c]))
-	// cond: isPowerOfTwo(c) && v.Block.Func.pass.name != "opt"
-	// result: (Lsh64x64 <t> x (Const64 <typ.UInt64> [log64(c)]))
+	// cond: isPowerOfTwo(uint64(c)) && v.Block.Func.pass.name != "opt"
+	// result: (Lsh64x64 <t> x (Const64 <typ.UInt64> [log64u(uint64(c))]))
 	for {
 		t := v.Type
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -18869,21 +18869,21 @@ func rewriteValuegeneric_OpMul64(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt64(v_1.AuxInt)
-			if !(isPowerOfTwo(c) && v.Block.Func.pass.name != "opt") {
+			if !(isPowerOfTwo(uint64(c)) && v.Block.Func.pass.name != "opt") {
 				continue
 			}
 			v.reset(OpLsh64x64)
 			v.Type = t
 			v0 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-			v0.AuxInt = int64ToAuxInt(log64(c))
+			v0.AuxInt = int64ToAuxInt(log64u(uint64(c)))
 			v.AddArg2(x, v0)
 			return true
 		}
 		break
 	}
 	// match: (Mul64 <t> x (Const64 [c]))
-	// cond: t.IsSigned() && isPowerOfTwo(-c) && v.Block.Func.pass.name != "opt"
-	// result: (Neg64 (Lsh64x64 <t> x (Const64 <typ.UInt64> [log64(-c)])))
+	// cond: isPowerOfTwo(uint64(-c)) && v.Block.Func.pass.name != "opt"
+	// result: (Neg64 (Lsh64x64 <t> x (Const64 <typ.UInt64> [log64u(uint64(-c))])))
 	for {
 		t := v.Type
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -18892,13 +18892,13 @@ func rewriteValuegeneric_OpMul64(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt64(v_1.AuxInt)
-			if !(t.IsSigned() && isPowerOfTwo(-c) && v.Block.Func.pass.name != "opt") {
+			if !(isPowerOfTwo(uint64(-c)) && v.Block.Func.pass.name != "opt") {
 				continue
 			}
 			v.reset(OpNeg64)
 			v0 := b.NewValue0(v.Pos, OpLsh64x64, t)
 			v1 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-			v1.AuxInt = int64ToAuxInt(log64(-c))
+			v1.AuxInt = int64ToAuxInt(log64u(uint64(-c)))
 			v0.AddArg2(x, v1)
 			v.AddArg(v0)
 			return true
@@ -19270,8 +19270,8 @@ func rewriteValuegeneric_OpMul8(v *Value) bool {
 		break
 	}
 	// match: (Mul8 <t> x (Const8 [c]))
-	// cond: isPowerOfTwo(c) && v.Block.Func.pass.name != "opt"
-	// result: (Lsh8x64 <t> x (Const64 <typ.UInt64> [log8(c)]))
+	// cond: isPowerOfTwo(uint8(c)) && v.Block.Func.pass.name != "opt"
+	// result: (Lsh8x64 <t> x (Const64 <typ.UInt64> [log8u(uint8(c))]))
 	for {
 		t := v.Type
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -19280,21 +19280,21 @@ func rewriteValuegeneric_OpMul8(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt8(v_1.AuxInt)
-			if !(isPowerOfTwo(c) && v.Block.Func.pass.name != "opt") {
+			if !(isPowerOfTwo(uint8(c)) && v.Block.Func.pass.name != "opt") {
 				continue
 			}
 			v.reset(OpLsh8x64)
 			v.Type = t
 			v0 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-			v0.AuxInt = int64ToAuxInt(log8(c))
+			v0.AuxInt = int64ToAuxInt(log8u(uint8(c)))
 			v.AddArg2(x, v0)
 			return true
 		}
 		break
 	}
 	// match: (Mul8 <t> x (Const8 [c]))
-	// cond: t.IsSigned() && isPowerOfTwo(-c) && v.Block.Func.pass.name != "opt"
-	// result: (Neg8 (Lsh8x64 <t> x (Const64 <typ.UInt64> [log8(-c)])))
+	// cond: isPowerOfTwo(uint8(-c)) && v.Block.Func.pass.name != "opt"
+	// result: (Neg8 (Lsh8x64 <t> x (Const64 <typ.UInt64> [log8u(uint8(-c))])))
 	for {
 		t := v.Type
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -19303,13 +19303,13 @@ func rewriteValuegeneric_OpMul8(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt8(v_1.AuxInt)
-			if !(t.IsSigned() && isPowerOfTwo(-c) && v.Block.Func.pass.name != "opt") {
+			if !(isPowerOfTwo(uint8(-c)) && v.Block.Func.pass.name != "opt") {
 				continue
 			}
 			v.reset(OpNeg8)
 			v0 := b.NewValue0(v.Pos, OpLsh8x64, t)
 			v1 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
-			v1.AuxInt = int64ToAuxInt(log8(-c))
+			v1.AuxInt = int64ToAuxInt(log8u(uint8(-c)))
 			v0.AddArg2(x, v1)
 			v.AddArg(v0)
 			return true

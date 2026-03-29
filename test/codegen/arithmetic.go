@@ -820,3 +820,16 @@ func U8Xor(v uint8) uint8 {
 	// ppc64x:"XOR[I]? [$]128" -"MOVD"
 	return v ^ (1 << 7)
 }
+
+func mul9223372036854775808(a uint64) uint64 {
+	// amd64: "SHLQ [$]63"
+	// arm64: "LSL [$]63"
+	// ppc64x:"SLD [$]63"
+	return a * 9223372036854775808
+}
+func mulneg17293822569102704640(a uint64) uint64 {
+	// amd64: "SHLQ [$]60" "NEGQ"
+	// arm64: "NEG R[0-9]+<<60" -"LSL"
+	// ppc64x:"SLD [$]60" "NEG"
+	return a * 17293822569102704640
+}

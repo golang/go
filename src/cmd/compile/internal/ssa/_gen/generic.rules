@@ -1080,22 +1080,22 @@
 // Excluded from early opt so that prove can recognize mod
 // by the x - (x/d)*d pattern.
 // (Runs during "middle opt" and "late opt".)
-(Mul8  <t> x (Const8  [c])) && isPowerOfTwo(c) && v.Block.Func.pass.name != "opt" =>
-  (Lsh8x64  <t> x (Const64 <typ.UInt64> [log8(c)]))
-(Mul16 <t> x (Const16 [c])) && isPowerOfTwo(c) && v.Block.Func.pass.name != "opt" =>
-  (Lsh16x64 <t> x (Const64 <typ.UInt64> [log16(c)]))
-(Mul32 <t> x (Const32 [c])) && isPowerOfTwo(c) && v.Block.Func.pass.name != "opt" =>
-  (Lsh32x64 <t> x (Const64 <typ.UInt64> [log32(c)]))
-(Mul64 <t> x (Const64 [c])) && isPowerOfTwo(c) && v.Block.Func.pass.name != "opt" =>
-  (Lsh64x64 <t> x (Const64 <typ.UInt64> [log64(c)]))
-(Mul8  <t> x (Const8  [c])) && t.IsSigned() && isPowerOfTwo(-c) && v.Block.Func.pass.name != "opt" =>
-  (Neg8  (Lsh8x64  <t> x (Const64 <typ.UInt64> [log8(-c)])))
-(Mul16 <t> x (Const16 [c])) && t.IsSigned() && isPowerOfTwo(-c) && v.Block.Func.pass.name != "opt" =>
-  (Neg16 (Lsh16x64 <t> x (Const64 <typ.UInt64> [log16(-c)])))
-(Mul32 <t> x (Const32 [c])) && t.IsSigned() && isPowerOfTwo(-c) && v.Block.Func.pass.name != "opt" =>
-  (Neg32 (Lsh32x64 <t> x (Const64 <typ.UInt64> [log32(-c)])))
-(Mul64 <t> x (Const64 [c])) && t.IsSigned() && isPowerOfTwo(-c) && v.Block.Func.pass.name != "opt" =>
-  (Neg64 (Lsh64x64 <t> x (Const64 <typ.UInt64> [log64(-c)])))
+(Mul8  <t> x (Const8  [c])) && isPowerOfTwo(uint8(c)) && v.Block.Func.pass.name != "opt" =>
+  (Lsh8x64  <t> x (Const64 <typ.UInt64> [log8u(uint8(c))]))
+(Mul16 <t> x (Const16 [c])) && isPowerOfTwo(uint16(c)) && v.Block.Func.pass.name != "opt" =>
+  (Lsh16x64 <t> x (Const64 <typ.UInt64> [log16u(uint16(c))]))
+(Mul32 <t> x (Const32 [c])) && isPowerOfTwo(uint32(c)) && v.Block.Func.pass.name != "opt" =>
+  (Lsh32x64 <t> x (Const64 <typ.UInt64> [log32u(uint32(c))]))
+(Mul64 <t> x (Const64 [c])) && isPowerOfTwo(uint64(c)) && v.Block.Func.pass.name != "opt" =>
+  (Lsh64x64 <t> x (Const64 <typ.UInt64> [log64u(uint64(c))]))
+(Mul8  <t> x (Const8  [c])) && isPowerOfTwo(uint8(-c)) && v.Block.Func.pass.name != "opt" =>
+  (Neg8  (Lsh8x64  <t> x (Const64 <typ.UInt64> [log8u(uint8(-c))])))
+(Mul16 <t> x (Const16 [c])) && isPowerOfTwo(uint16(-c)) && v.Block.Func.pass.name != "opt" =>
+  (Neg16 (Lsh16x64 <t> x (Const64 <typ.UInt64> [log16u(uint16(-c))])))
+(Mul32 <t> x (Const32 [c])) && isPowerOfTwo(uint32(-c)) && v.Block.Func.pass.name != "opt" =>
+  (Neg32 (Lsh32x64 <t> x (Const64 <typ.UInt64> [log32u(uint32(-c))])))
+(Mul64 <t> x (Const64 [c])) && isPowerOfTwo(uint64(-c)) && v.Block.Func.pass.name != "opt" =>
+  (Neg64 (Lsh64x64 <t> x (Const64 <typ.UInt64> [log64u(uint64(-c))])))
 
 // Strength reduction of mod to div.
 // Strength reduction of div to mul is delayed to divmod.rules.
