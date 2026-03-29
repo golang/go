@@ -521,6 +521,17 @@ func cmovmathor(a uint, b bool) uint {
 	return a
 }
 
+func cmovmathxor(a uint, b bool) uint {
+	if b {
+		a ^= 1
+	}
+	// amd64:"XORQ", -"CMOV"
+	// arm64:"EOR", -"CSEL"
+	// ppc64x:"XOR", -"ISEL"
+	// wasm:"I64Xor", -"Select"
+	return a
+}
+
 func branchlessBoolToUint8(b bool) (r uint8) {
 	if b {
 		r = 1
