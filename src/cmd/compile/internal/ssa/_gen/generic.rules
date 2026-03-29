@@ -2297,31 +2297,39 @@
 => (StaticLECall {f} [argsize] dict_ (StringMake <typ.String> ptr len) mem)
 
 // Transform some CondSelect into math operations.
-// if b { x += c } => x += b * c // but not on arm64 because it has CSINC
+// if b { x += c } => x += b * c
 (CondSelect op:(Add8 <t> x c:(Const8)) x bool) &&
-	canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) &&
-	config.arch != "arm64" =>
+	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
 	(Add8 x (Mul8 <t> c (CvtBoolToUint8 <t> bool)))
 (CondSelect op:(Add(64|32|16) <t> x c:(Const(64|32|16))) x bool) &&
-	canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) &&
-	config.arch != "arm64" =>
+	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
 	(Add(64|32|16) x (Mul(64|32|16) <t> c (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
-// if !b { x += c } => x += !b * c // but not on arm64 because it has CSINC
+// if !b { x += c } => x += !b * c
 (CondSelect x op:(Add8 <t> x c:(Const8)) bool) &&
-	canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) &&
-	config.arch != "arm64" =>
+	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
 	(Add8 x (Mul8 <t> c (CvtBoolToUint8 <t> (Not <bool.Type> bool))))
 (CondSelect x op:(Add(64|32|16) <t> x c:(Const(64|32|16))) bool) &&
-	canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) &&
-	config.arch != "arm64" =>
+	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
 	(Add(64|32|16) x (Mul(64|32|16) <t> c (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 
-// if b { x-- } => x -= b
-(CondSelect (Add8 <t> x (Const8 [-1])) x bool) => (Sub8 x (CvtBoolToUint8 <t> bool))
-(CondSelect (Add(64|32|16) <t> x (Const(64|32|16) [-1])) x bool) => (Sub(64|32|16) x (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool)))
-// if !b { x-- } => x -= !b
-(CondSelect x (Add8 <t> x (Const8 [-1])) bool) => (Sub8 x (CvtBoolToUint8 <t> (Not <bool.Type> bool)))
-(CondSelect x (Add(64|32|16) <t> x (Const(64|32|16) [-1])) bool) => (Sub(64|32|16) x (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool))))
+// if b { x += c } => x -= b * -c // looks redundant but useful if the arch can inline materialize -c but not c
+(CondSelect op:(Add8 <t> x c:(Const8 [consT])) x bool) &&
+	!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) &&
+	rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt) =>
+	(Sub8 x (Mul8 <t> (Const8 <t> [-consT]) (CvtBoolToUint8 <t> bool)))
+(CondSelect op:(Add(64|32|16) <t> x c:(Const(64|32|16) [consT])) x bool) &&
+	!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) &&
+	rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt) =>
+	(Sub(64|32|16) x (Mul(64|32|16) <t> (Const(64|32|16) <t> [-consT]) (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
+// if !b { x += c } => x -= !b * -c // looks redundant but useful if the arch can inline materialize -c but not c
+(CondSelect x op:(Add8 <t> x c:(Const8 [consT])) bool) &&
+	!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) &&
+	rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt) =>
+	(Sub8 x (Mul8 <t> (Const8 <t> [-consT]) (CvtBoolToUint8 <t> (Not <bool.Type> bool))))
+(CondSelect x op:(Add(64|32|16) <t> x c:(Const(64|32|16) [consT])) bool) &&
+	!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) &&
+	rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt) =>
+	(Sub(64|32|16) x (Mul(64|32|16) <t> (Const(64|32|16) <t> [-consT]) (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 
 // if b { x <<= 1 } => x <<= b
 (CondSelect (Lsh(64|32|16|8)x64 x (Const64 [1])) x bool) => (Lsh(64|32|16|8)x8 [true] x (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))
@@ -2335,19 +2343,35 @@
 (CondSelect x (Rsh(64|32|16|8)x64 x (Const64 [1])) bool) => (Rsh(64|32|16|8)x8 [true] x (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))
 (CondSelect x (Rsh(64|32|16|8)Ux64 x (Const64 [1])) bool) => (Rsh(64|32|16|8)Ux8 [true] x (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))
 
-// if b { x |= 1 } => x |= b
-(CondSelect (Or8 <t> x (Const8 [1])) x bool) => (Or8 x (CvtBoolToUint8 <t> bool))
-(CondSelect (Or(64|32|16) <t> x (Const(64|32|16) [1])) x bool) => (Or(64|32|16) x (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool)))
-// if !b { x |= 1 } => x |= !b
-(CondSelect x (Or8 <t> x (Const8 [1])) bool) => (Or8 x (CvtBoolToUint8 <t> (Not <bool.Type> bool)))
-(CondSelect x (Or(64|32|16) <t> x (Const(64|32|16) [1])) bool) => (Or(64|32|16) x (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool))))
+// if b { x |= c } => x |= b * c
+(CondSelect op:(Or8 <t> x c:(Const8)) x bool) &&
+	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+	(Or8 x (Mul8 <t> c (CvtBoolToUint8 <t> bool)))
+(CondSelect op:(Or(64|32|16) <t> x c:(Const(64|32|16))) x bool) &&
+	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+	(Or(64|32|16) x (Mul(64|32|16) <t> c (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
+// if !b { x |= c } => x |= !b * c
+(CondSelect x op:(Or8 <t> x c:(Const8)) bool) &&
+	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+	(Or8 x (Mul8 <t> c (CvtBoolToUint8 <t> (Not <bool.Type> bool))))
+(CondSelect x op:(Or(64|32|16) <t> x c:(Const(64|32|16))) bool) &&
+	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+	(Or(64|32|16) x (Mul(64|32|16) <t> c (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 
-// if b { x ^= 1 } => x ^= b
-(CondSelect (Xor8 <t> x (Const8 [1])) x bool) => (Xor8 x (CvtBoolToUint8 <t> bool))
-(CondSelect (Xor(64|32|16) <t> x (Const(64|32|16) [1])) x bool) => (Xor(64|32|16) x (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool)))
-// if !b { x ^= 1 } => x ^= !b
-(CondSelect x (Xor8 <t> x (Const8 [1])) bool) => (Xor8 x (CvtBoolToUint8 <t> (Not <bool.Type> bool)))
-(CondSelect x (Xor(64|32|16) <t> x (Const(64|32|16) [1])) bool) => (Xor(64|32|16) x (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool))))
+// if b { x ^= c } => x ^= b * c
+(CondSelect op:(Xor8 <t> x c:(Const8)) x bool) &&
+	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+	(Xor8 x (Mul8 <t> c (CvtBoolToUint8 <t> bool)))
+(CondSelect op:(Xor(64|32|16) <t> x c:(Const(64|32|16))) x bool) &&
+	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+	(Xor(64|32|16) x (Mul(64|32|16) <t> c (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
+// if !b { x ^= c } => x ^= !b * c
+(CondSelect x op:(Xor8 <t> x c:(Const8)) bool) &&
+	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+	(Xor8 x (Mul8 <t> c (CvtBoolToUint8 <t> (Not <bool.Type> bool))))
+(CondSelect x op:(Xor(64|32|16) <t> x c:(Const(64|32|16))) bool) &&
+	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+	(Xor(64|32|16) x (Mul(64|32|16) <t> c (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 
 // bool(int(x)) => x
 (Neq8                                (CvtBoolToUint8 x)  (Const8          [0])) => x
