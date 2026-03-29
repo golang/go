@@ -2297,12 +2297,24 @@
 => (StaticLECall {f} [argsize] dict_ (StringMake <typ.String> ptr len) mem)
 
 // Transform some CondSelect into math operations.
-// if b { x++ } => x += b // but not on arm64 because it has CSINC
-(CondSelect (Add8 <t> x (Const8 [1])) x bool) && config.arch != "arm64" => (Add8 x (CvtBoolToUint8 <t> bool))
-(CondSelect (Add(64|32|16) <t> x (Const(64|32|16) [1])) x bool) && config.arch != "arm64" => (Add(64|32|16) x (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool)))
-// if !b { x++ } => x += !b // but not on arm64 because it has CSINC
-(CondSelect x (Add8 <t> x (Const8 [1])) bool) && config.arch != "arm64" => (Add8 x (CvtBoolToUint8 <t> (Not <bool.Type> bool)))
-(CondSelect x (Add(64|32|16) <t> x (Const(64|32|16) [1])) bool) && config.arch != "arm64" => (Add(64|32|16) x (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool))))
+// if b { x += c } => x += b * c // but not on arm64 because it has CSINC
+(CondSelect op:(Add8 <t> x c:(Const8)) x bool) &&
+	canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) &&
+	config.arch != "arm64" =>
+	(Add8 x (Mul8 <t> c (CvtBoolToUint8 <t> bool)))
+(CondSelect op:(Add(64|32|16) <t> x c:(Const(64|32|16))) x bool) &&
+	canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) &&
+	config.arch != "arm64" =>
+	(Add(64|32|16) x (Mul(64|32|16) <t> c (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
+// if !b { x += c } => x += !b * c // but not on arm64 because it has CSINC
+(CondSelect x op:(Add8 <t> x c:(Const8)) bool) &&
+	canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) &&
+	config.arch != "arm64" =>
+	(Add8 x (Mul8 <t> c (CvtBoolToUint8 <t> (Not <bool.Type> bool))))
+(CondSelect x op:(Add(64|32|16) <t> x c:(Const(64|32|16))) bool) &&
+	canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) &&
+	config.arch != "arm64" =>
+	(Add(64|32|16) x (Mul(64|32|16) <t> c (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 
 // if b { x-- } => x -= b
 (CondSelect (Add8 <t> x (Const8 [-1])) x bool) => (Sub8 x (CvtBoolToUint8 <t> bool))

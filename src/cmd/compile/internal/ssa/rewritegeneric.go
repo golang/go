@@ -5912,245 +5912,289 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		v.copyOf(x)
 		return true
 	}
-	// match: (CondSelect (Add8 <t> x (Const8 [1])) x bool)
-	// cond: config.arch != "arm64"
-	// result: (Add8 x (CvtBoolToUint8 <t> bool))
+	// match: (CondSelect op:(Add8 <t> x c:(Const8)) x bool)
+	// cond: canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64"
+	// result: (Add8 x (Mul8 <t> c (CvtBoolToUint8 <t> bool)))
 	for {
-		if v_0.Op != OpAdd8 {
+		op := v_0
+		if op.Op != OpAdd8 {
 			break
 		}
-		t := v_0.Type
-		_ = v_0.Args[1]
-		v_0_0 := v_0.Args[0]
-		v_0_1 := v_0.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			x := v_0_0
-			if v_0_1.Op != OpConst8 || auxIntToInt8(v_0_1.AuxInt) != 1 || x != v_1 {
+		t := op.Type
+		_ = op.Args[1]
+		op_0 := op.Args[0]
+		op_1 := op.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
+			x := op_0
+			c := op_1
+			if c.Op != OpConst8 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(config.arch != "arm64") {
+			if !(canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64") {
 				continue
 			}
 			v.reset(OpAdd8)
-			v0 := b.NewValue0(v.Pos, OpCvtBoolToUint8, t)
-			v0.AddArg(bool)
+			v0 := b.NewValue0(v.Pos, OpMul8, t)
+			v1 := b.NewValue0(v.Pos, OpCvtBoolToUint8, t)
+			v1.AddArg(bool)
+			v0.AddArg2(c, v1)
 			v.AddArg2(x, v0)
 			return true
 		}
 		break
 	}
-	// match: (CondSelect (Add64 <t> x (Const64 [1])) x bool)
-	// cond: config.arch != "arm64"
-	// result: (Add64 x (ZeroExt8to64 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool)))
+	// match: (CondSelect op:(Add64 <t> x c:(Const64)) x bool)
+	// cond: canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64"
+	// result: (Add64 x (Mul64 <t> c (ZeroExt8to64 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 	for {
-		if v_0.Op != OpAdd64 {
+		op := v_0
+		if op.Op != OpAdd64 {
 			break
 		}
-		t := v_0.Type
-		_ = v_0.Args[1]
-		v_0_0 := v_0.Args[0]
-		v_0_1 := v_0.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			x := v_0_0
-			if v_0_1.Op != OpConst64 || auxIntToInt64(v_0_1.AuxInt) != 1 || x != v_1 {
+		t := op.Type
+		_ = op.Args[1]
+		op_0 := op.Args[0]
+		op_1 := op.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
+			x := op_0
+			c := op_1
+			if c.Op != OpConst64 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(config.arch != "arm64") {
+			if !(canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64") {
 				continue
 			}
 			v.reset(OpAdd64)
-			v0 := b.NewValue0(v.Pos, OpZeroExt8to64, t)
-			v1 := b.NewValue0(v.Pos, OpCvtBoolToUint8, types.Types[types.TUINT8])
-			v1.AddArg(bool)
-			v0.AddArg(v1)
+			v0 := b.NewValue0(v.Pos, OpMul64, t)
+			v1 := b.NewValue0(v.Pos, OpZeroExt8to64, t)
+			v2 := b.NewValue0(v.Pos, OpCvtBoolToUint8, types.Types[types.TUINT8])
+			v2.AddArg(bool)
+			v1.AddArg(v2)
+			v0.AddArg2(c, v1)
 			v.AddArg2(x, v0)
 			return true
 		}
 		break
 	}
-	// match: (CondSelect (Add32 <t> x (Const32 [1])) x bool)
-	// cond: config.arch != "arm64"
-	// result: (Add32 x (ZeroExt8to32 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool)))
+	// match: (CondSelect op:(Add32 <t> x c:(Const32)) x bool)
+	// cond: canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64"
+	// result: (Add32 x (Mul32 <t> c (ZeroExt8to32 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 	for {
-		if v_0.Op != OpAdd32 {
+		op := v_0
+		if op.Op != OpAdd32 {
 			break
 		}
-		t := v_0.Type
-		_ = v_0.Args[1]
-		v_0_0 := v_0.Args[0]
-		v_0_1 := v_0.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			x := v_0_0
-			if v_0_1.Op != OpConst32 || auxIntToInt32(v_0_1.AuxInt) != 1 || x != v_1 {
+		t := op.Type
+		_ = op.Args[1]
+		op_0 := op.Args[0]
+		op_1 := op.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
+			x := op_0
+			c := op_1
+			if c.Op != OpConst32 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(config.arch != "arm64") {
+			if !(canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64") {
 				continue
 			}
 			v.reset(OpAdd32)
-			v0 := b.NewValue0(v.Pos, OpZeroExt8to32, t)
-			v1 := b.NewValue0(v.Pos, OpCvtBoolToUint8, types.Types[types.TUINT8])
-			v1.AddArg(bool)
-			v0.AddArg(v1)
+			v0 := b.NewValue0(v.Pos, OpMul32, t)
+			v1 := b.NewValue0(v.Pos, OpZeroExt8to32, t)
+			v2 := b.NewValue0(v.Pos, OpCvtBoolToUint8, types.Types[types.TUINT8])
+			v2.AddArg(bool)
+			v1.AddArg(v2)
+			v0.AddArg2(c, v1)
 			v.AddArg2(x, v0)
 			return true
 		}
 		break
 	}
-	// match: (CondSelect (Add16 <t> x (Const16 [1])) x bool)
-	// cond: config.arch != "arm64"
-	// result: (Add16 x (ZeroExt8to16 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool)))
+	// match: (CondSelect op:(Add16 <t> x c:(Const16)) x bool)
+	// cond: canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64"
+	// result: (Add16 x (Mul16 <t> c (ZeroExt8to16 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 	for {
-		if v_0.Op != OpAdd16 {
+		op := v_0
+		if op.Op != OpAdd16 {
 			break
 		}
-		t := v_0.Type
-		_ = v_0.Args[1]
-		v_0_0 := v_0.Args[0]
-		v_0_1 := v_0.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
-			x := v_0_0
-			if v_0_1.Op != OpConst16 || auxIntToInt16(v_0_1.AuxInt) != 1 || x != v_1 {
+		t := op.Type
+		_ = op.Args[1]
+		op_0 := op.Args[0]
+		op_1 := op.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
+			x := op_0
+			c := op_1
+			if c.Op != OpConst16 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(config.arch != "arm64") {
+			if !(canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64") {
 				continue
 			}
 			v.reset(OpAdd16)
-			v0 := b.NewValue0(v.Pos, OpZeroExt8to16, t)
-			v1 := b.NewValue0(v.Pos, OpCvtBoolToUint8, types.Types[types.TUINT8])
-			v1.AddArg(bool)
-			v0.AddArg(v1)
+			v0 := b.NewValue0(v.Pos, OpMul16, t)
+			v1 := b.NewValue0(v.Pos, OpZeroExt8to16, t)
+			v2 := b.NewValue0(v.Pos, OpCvtBoolToUint8, types.Types[types.TUINT8])
+			v2.AddArg(bool)
+			v1.AddArg(v2)
+			v0.AddArg2(c, v1)
 			v.AddArg2(x, v0)
 			return true
 		}
 		break
 	}
-	// match: (CondSelect x (Add8 <t> x (Const8 [1])) bool)
-	// cond: config.arch != "arm64"
-	// result: (Add8 x (CvtBoolToUint8 <t> (Not <bool.Type> bool)))
+	// match: (CondSelect x op:(Add8 <t> x c:(Const8)) bool)
+	// cond: canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64"
+	// result: (Add8 x (Mul8 <t> c (CvtBoolToUint8 <t> (Not <bool.Type> bool))))
 	for {
 		x := v_0
-		if v_1.Op != OpAdd8 {
+		op := v_1
+		if op.Op != OpAdd8 {
 			break
 		}
-		t := v_1.Type
-		_ = v_1.Args[1]
-		v_1_0 := v_1.Args[0]
-		v_1_1 := v_1.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
-			if x != v_1_0 || v_1_1.Op != OpConst8 || auxIntToInt8(v_1_1.AuxInt) != 1 {
+		t := op.Type
+		_ = op.Args[1]
+		op_0 := op.Args[0]
+		op_1 := op.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
+			if x != op_0 {
+				continue
+			}
+			c := op_1
+			if c.Op != OpConst8 {
 				continue
 			}
 			bool := v_2
-			if !(config.arch != "arm64") {
+			if !(canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64") {
 				continue
 			}
 			v.reset(OpAdd8)
-			v0 := b.NewValue0(v.Pos, OpCvtBoolToUint8, t)
-			v1 := b.NewValue0(v.Pos, OpNot, bool.Type)
-			v1.AddArg(bool)
-			v0.AddArg(v1)
+			v0 := b.NewValue0(v.Pos, OpMul8, t)
+			v1 := b.NewValue0(v.Pos, OpCvtBoolToUint8, t)
+			v2 := b.NewValue0(v.Pos, OpNot, bool.Type)
+			v2.AddArg(bool)
+			v1.AddArg(v2)
+			v0.AddArg2(c, v1)
 			v.AddArg2(x, v0)
 			return true
 		}
 		break
 	}
-	// match: (CondSelect x (Add64 <t> x (Const64 [1])) bool)
-	// cond: config.arch != "arm64"
-	// result: (Add64 x (ZeroExt8to64 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool))))
+	// match: (CondSelect x op:(Add64 <t> x c:(Const64)) bool)
+	// cond: canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64"
+	// result: (Add64 x (Mul64 <t> c (ZeroExt8to64 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 	for {
 		x := v_0
-		if v_1.Op != OpAdd64 {
+		op := v_1
+		if op.Op != OpAdd64 {
 			break
 		}
-		t := v_1.Type
-		_ = v_1.Args[1]
-		v_1_0 := v_1.Args[0]
-		v_1_1 := v_1.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
-			if x != v_1_0 || v_1_1.Op != OpConst64 || auxIntToInt64(v_1_1.AuxInt) != 1 {
+		t := op.Type
+		_ = op.Args[1]
+		op_0 := op.Args[0]
+		op_1 := op.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
+			if x != op_0 {
+				continue
+			}
+			c := op_1
+			if c.Op != OpConst64 {
 				continue
 			}
 			bool := v_2
-			if !(config.arch != "arm64") {
+			if !(canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64") {
 				continue
 			}
 			v.reset(OpAdd64)
-			v0 := b.NewValue0(v.Pos, OpZeroExt8to64, t)
-			v1 := b.NewValue0(v.Pos, OpCvtBoolToUint8, types.Types[types.TUINT8])
-			v2 := b.NewValue0(v.Pos, OpNot, bool.Type)
-			v2.AddArg(bool)
+			v0 := b.NewValue0(v.Pos, OpMul64, t)
+			v1 := b.NewValue0(v.Pos, OpZeroExt8to64, t)
+			v2 := b.NewValue0(v.Pos, OpCvtBoolToUint8, types.Types[types.TUINT8])
+			v3 := b.NewValue0(v.Pos, OpNot, bool.Type)
+			v3.AddArg(bool)
+			v2.AddArg(v3)
 			v1.AddArg(v2)
-			v0.AddArg(v1)
+			v0.AddArg2(c, v1)
 			v.AddArg2(x, v0)
 			return true
 		}
 		break
 	}
-	// match: (CondSelect x (Add32 <t> x (Const32 [1])) bool)
-	// cond: config.arch != "arm64"
-	// result: (Add32 x (ZeroExt8to32 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool))))
+	// match: (CondSelect x op:(Add32 <t> x c:(Const32)) bool)
+	// cond: canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64"
+	// result: (Add32 x (Mul32 <t> c (ZeroExt8to32 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 	for {
 		x := v_0
-		if v_1.Op != OpAdd32 {
+		op := v_1
+		if op.Op != OpAdd32 {
 			break
 		}
-		t := v_1.Type
-		_ = v_1.Args[1]
-		v_1_0 := v_1.Args[0]
-		v_1_1 := v_1.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
-			if x != v_1_0 || v_1_1.Op != OpConst32 || auxIntToInt32(v_1_1.AuxInt) != 1 {
+		t := op.Type
+		_ = op.Args[1]
+		op_0 := op.Args[0]
+		op_1 := op.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
+			if x != op_0 {
+				continue
+			}
+			c := op_1
+			if c.Op != OpConst32 {
 				continue
 			}
 			bool := v_2
-			if !(config.arch != "arm64") {
+			if !(canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64") {
 				continue
 			}
 			v.reset(OpAdd32)
-			v0 := b.NewValue0(v.Pos, OpZeroExt8to32, t)
-			v1 := b.NewValue0(v.Pos, OpCvtBoolToUint8, types.Types[types.TUINT8])
-			v2 := b.NewValue0(v.Pos, OpNot, bool.Type)
-			v2.AddArg(bool)
+			v0 := b.NewValue0(v.Pos, OpMul32, t)
+			v1 := b.NewValue0(v.Pos, OpZeroExt8to32, t)
+			v2 := b.NewValue0(v.Pos, OpCvtBoolToUint8, types.Types[types.TUINT8])
+			v3 := b.NewValue0(v.Pos, OpNot, bool.Type)
+			v3.AddArg(bool)
+			v2.AddArg(v3)
 			v1.AddArg(v2)
-			v0.AddArg(v1)
+			v0.AddArg2(c, v1)
 			v.AddArg2(x, v0)
 			return true
 		}
 		break
 	}
-	// match: (CondSelect x (Add16 <t> x (Const16 [1])) bool)
-	// cond: config.arch != "arm64"
-	// result: (Add16 x (ZeroExt8to16 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool))))
+	// match: (CondSelect x op:(Add16 <t> x c:(Const16)) bool)
+	// cond: canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64"
+	// result: (Add16 x (Mul16 <t> c (ZeroExt8to16 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 	for {
 		x := v_0
-		if v_1.Op != OpAdd16 {
+		op := v_1
+		if op.Op != OpAdd16 {
 			break
 		}
-		t := v_1.Type
-		_ = v_1.Args[1]
-		v_1_0 := v_1.Args[0]
-		v_1_1 := v_1.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
-			if x != v_1_0 || v_1_1.Op != OpConst16 || auxIntToInt16(v_1_1.AuxInt) != 1 {
+		t := op.Type
+		_ = op.Args[1]
+		op_0 := op.Args[0]
+		op_1 := op.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
+			if x != op_0 {
+				continue
+			}
+			c := op_1
+			if c.Op != OpConst16 {
 				continue
 			}
 			bool := v_2
-			if !(config.arch != "arm64") {
+			if !(canImplementXOpBooleanLikeTimesAConstantCheaply(config, op.Op, c.AuxInt) && config.arch != "arm64") {
 				continue
 			}
 			v.reset(OpAdd16)
-			v0 := b.NewValue0(v.Pos, OpZeroExt8to16, t)
-			v1 := b.NewValue0(v.Pos, OpCvtBoolToUint8, types.Types[types.TUINT8])
-			v2 := b.NewValue0(v.Pos, OpNot, bool.Type)
-			v2.AddArg(bool)
+			v0 := b.NewValue0(v.Pos, OpMul16, t)
+			v1 := b.NewValue0(v.Pos, OpZeroExt8to16, t)
+			v2 := b.NewValue0(v.Pos, OpCvtBoolToUint8, types.Types[types.TUINT8])
+			v3 := b.NewValue0(v.Pos, OpNot, bool.Type)
+			v3.AddArg(bool)
+			v2.AddArg(v3)
 			v1.AddArg(v2)
-			v0.AddArg(v1)
+			v0.AddArg2(c, v1)
 			v.AddArg2(x, v0)
 			return true
 		}

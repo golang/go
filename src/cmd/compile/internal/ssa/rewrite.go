@@ -2799,3 +2799,23 @@ func bool2int(x bool) int {
 	}
 	return b
 }
+
+// canImplementXOpBooleanLikeTimesAConstantCheaply reports whether we can cheaply implement:
+// x OP (y * constant) when we know y is either 0 or 1.
+func canImplementXOpBooleanLikeTimesAConstantCheaply(config *Config, op Op, constant int64) bool {
+	if constant == 1 {
+		return true
+	}
+	switch config.arch {
+	case "amd64":
+		switch op {
+		case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
+			switch constant {
+			case 2, 4, 8:
+				// Implemented with LEA a + b * displacement form
+				return true
+			}
+		}
+	}
+	return false
+}

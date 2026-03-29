@@ -475,6 +475,51 @@ func cmovmathaddelse(a uint, b bool) uint {
 	return a
 }
 
+func cmovmathadd2(a uint, b bool) uint {
+	if b {
+		a += 2
+	}
+	// amd64:"LEAQ" -"CMOV" -"MUL"
+	return a
+}
+func cmovmathadd2else(a uint, b bool) uint {
+	if !b {
+		a += 2
+	}
+	// amd64:"LEAQ" -"CMOV" -"MUL"
+	return a
+}
+
+func cmovmathadd4(a uint, b bool) uint {
+	if b {
+		a += 4
+	}
+	// amd64:"LEAQ" -"CMOV" -"MUL"
+	return a
+}
+func cmovmathadd4else(a uint, b bool) uint {
+	if !b {
+		a += 4
+	}
+	// amd64:"LEAQ" -"CMOV" -"MUL"
+	return a
+}
+
+func cmovmathadd8(a uint, b bool) uint {
+	if b {
+		a += 8
+	}
+	// amd64:"LEAQ" -"CMOV" -"MUL"
+	return a
+}
+func cmovmathadd8else(a uint, b bool) uint {
+	if !b {
+		a += 8
+	}
+	// amd64:"LEAQ" -"CMOV" -"MUL"
+	return a
+}
+
 func cmovmathsub(a uint, b bool) uint {
 	if b {
 		a--
