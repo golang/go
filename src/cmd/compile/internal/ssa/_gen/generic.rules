@@ -2358,7 +2358,6 @@
 (Neq(64|32|16) (ZeroExt8to(64|32|16) (CvtBoolToUint8 x)) (Const(64|32|16) [1])) => (Not x)
 (Eq(64|32|16)  (ZeroExt8to(64|32|16) (CvtBoolToUint8 x)) (Const(64|32|16) [1])) => x
 (Eq(64|32|16)  (ZeroExt8to(64|32|16) (CvtBoolToUint8 x)) (Const(64|32|16) [0])) => (Not x)
-(Neq(64|32|16) (SignExt8to(64|32|16) (CvtBoolToUint8 x)) (Const(64|32|16) [0])) => x
-(Neq(64|32|16) (SignExt8to(64|32|16) (CvtBoolToUint8 x)) (Const(64|32|16) [1])) => (Not x)
-(Eq(64|32|16)  (SignExt8to(64|32|16) (CvtBoolToUint8 x)) (Const(64|32|16) [1])) => x
-(Eq(64|32|16)  (SignExt8to(64|32|16) (CvtBoolToUint8 x)) (Const(64|32|16) [0])) => (Not x)
+
+// Canonicalize sext(int(bool)) => zext(int(bool))
+(SignExt8to(64|32|16) cvt:(CvtBoolToUint8 bool)) => (ZeroExt8to(64|32|16) cvt)

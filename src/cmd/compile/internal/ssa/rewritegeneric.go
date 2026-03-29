@@ -8780,47 +8780,6 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 		}
 		break
 	}
-	// match: (Eq16 (SignExt8to16 (CvtBoolToUint8 x)) (Const16 [1]))
-	// result: x
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpSignExt8to16 {
-				continue
-			}
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpCvtBoolToUint8 {
-				continue
-			}
-			x := v_0_0.Args[0]
-			if v_1.Op != OpConst16 || auxIntToInt16(v_1.AuxInt) != 1 {
-				continue
-			}
-			v.copyOf(x)
-			return true
-		}
-		break
-	}
-	// match: (Eq16 (SignExt8to16 (CvtBoolToUint8 x)) (Const16 [0]))
-	// result: (Not x)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpSignExt8to16 {
-				continue
-			}
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpCvtBoolToUint8 {
-				continue
-			}
-			x := v_0_0.Args[0]
-			if v_1.Op != OpConst16 || auxIntToInt16(v_1.AuxInt) != 0 {
-				continue
-			}
-			v.reset(OpNot)
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
 	return false
 }
 func rewriteValuegeneric_OpEq32(v *Value) bool {
@@ -8965,47 +8924,6 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpZeroExt8to32 {
-				continue
-			}
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpCvtBoolToUint8 {
-				continue
-			}
-			x := v_0_0.Args[0]
-			if v_1.Op != OpConst32 || auxIntToInt32(v_1.AuxInt) != 0 {
-				continue
-			}
-			v.reset(OpNot)
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: (Eq32 (SignExt8to32 (CvtBoolToUint8 x)) (Const32 [1]))
-	// result: x
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpSignExt8to32 {
-				continue
-			}
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpCvtBoolToUint8 {
-				continue
-			}
-			x := v_0_0.Args[0]
-			if v_1.Op != OpConst32 || auxIntToInt32(v_1.AuxInt) != 1 {
-				continue
-			}
-			v.copyOf(x)
-			return true
-		}
-		break
-	}
-	// match: (Eq32 (SignExt8to32 (CvtBoolToUint8 x)) (Const32 [0]))
-	// result: (Not x)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpSignExt8to32 {
 				continue
 			}
 			v_0_0 := v_0.Args[0]
@@ -9189,47 +9107,6 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpZeroExt8to64 {
-				continue
-			}
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpCvtBoolToUint8 {
-				continue
-			}
-			x := v_0_0.Args[0]
-			if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != 0 {
-				continue
-			}
-			v.reset(OpNot)
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: (Eq64 (SignExt8to64 (CvtBoolToUint8 x)) (Const64 [1]))
-	// result: x
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpSignExt8to64 {
-				continue
-			}
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpCvtBoolToUint8 {
-				continue
-			}
-			x := v_0_0.Args[0]
-			if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != 1 {
-				continue
-			}
-			v.copyOf(x)
-			return true
-		}
-		break
-	}
-	// match: (Eq64 (SignExt8to64 (CvtBoolToUint8 x)) (Const64 [0]))
-	// result: (Not x)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpSignExt8to64 {
 				continue
 			}
 			v_0_0 := v_0.Args[0]
@@ -20086,47 +19963,6 @@ func rewriteValuegeneric_OpNeq16(v *Value) bool {
 		}
 		break
 	}
-	// match: (Neq16 (SignExt8to16 (CvtBoolToUint8 x)) (Const16 [0]))
-	// result: x
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpSignExt8to16 {
-				continue
-			}
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpCvtBoolToUint8 {
-				continue
-			}
-			x := v_0_0.Args[0]
-			if v_1.Op != OpConst16 || auxIntToInt16(v_1.AuxInt) != 0 {
-				continue
-			}
-			v.copyOf(x)
-			return true
-		}
-		break
-	}
-	// match: (Neq16 (SignExt8to16 (CvtBoolToUint8 x)) (Const16 [1]))
-	// result: (Not x)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpSignExt8to16 {
-				continue
-			}
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpCvtBoolToUint8 {
-				continue
-			}
-			x := v_0_0.Args[0]
-			if v_1.Op != OpConst16 || auxIntToInt16(v_1.AuxInt) != 1 {
-				continue
-			}
-			v.reset(OpNot)
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
 	return false
 }
 func rewriteValuegeneric_OpNeq32(v *Value) bool {
@@ -20271,47 +20107,6 @@ func rewriteValuegeneric_OpNeq32(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpZeroExt8to32 {
-				continue
-			}
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpCvtBoolToUint8 {
-				continue
-			}
-			x := v_0_0.Args[0]
-			if v_1.Op != OpConst32 || auxIntToInt32(v_1.AuxInt) != 1 {
-				continue
-			}
-			v.reset(OpNot)
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: (Neq32 (SignExt8to32 (CvtBoolToUint8 x)) (Const32 [0]))
-	// result: x
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpSignExt8to32 {
-				continue
-			}
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpCvtBoolToUint8 {
-				continue
-			}
-			x := v_0_0.Args[0]
-			if v_1.Op != OpConst32 || auxIntToInt32(v_1.AuxInt) != 0 {
-				continue
-			}
-			v.copyOf(x)
-			return true
-		}
-		break
-	}
-	// match: (Neq32 (SignExt8to32 (CvtBoolToUint8 x)) (Const32 [1]))
-	// result: (Not x)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpSignExt8to32 {
 				continue
 			}
 			v_0_0 := v_0.Args[0]
@@ -20495,47 +20290,6 @@ func rewriteValuegeneric_OpNeq64(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpZeroExt8to64 {
-				continue
-			}
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpCvtBoolToUint8 {
-				continue
-			}
-			x := v_0_0.Args[0]
-			if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != 1 {
-				continue
-			}
-			v.reset(OpNot)
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: (Neq64 (SignExt8to64 (CvtBoolToUint8 x)) (Const64 [0]))
-	// result: x
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpSignExt8to64 {
-				continue
-			}
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpCvtBoolToUint8 {
-				continue
-			}
-			x := v_0_0.Args[0]
-			if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != 0 {
-				continue
-			}
-			v.copyOf(x)
-			return true
-		}
-		break
-	}
-	// match: (Neq64 (SignExt8to64 (CvtBoolToUint8 x)) (Const64 [1]))
-	// result: (Not x)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpSignExt8to64 {
 				continue
 			}
 			v_0_0 := v_0.Args[0]
@@ -31626,6 +31380,17 @@ func rewriteValuegeneric_OpSignExt8to16(v *Value) bool {
 		v.copyOf(x)
 		return true
 	}
+	// match: (SignExt8to16 cvt:(CvtBoolToUint8 bool))
+	// result: (ZeroExt8to16 cvt)
+	for {
+		cvt := v_0
+		if cvt.Op != OpCvtBoolToUint8 {
+			break
+		}
+		v.reset(OpZeroExt8to16)
+		v.AddArg(cvt)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpSignExt8to32(v *Value) bool {
@@ -31664,6 +31429,17 @@ func rewriteValuegeneric_OpSignExt8to32(v *Value) bool {
 		v.copyOf(x)
 		return true
 	}
+	// match: (SignExt8to32 cvt:(CvtBoolToUint8 bool))
+	// result: (ZeroExt8to32 cvt)
+	for {
+		cvt := v_0
+		if cvt.Op != OpCvtBoolToUint8 {
+			break
+		}
+		v.reset(OpZeroExt8to32)
+		v.AddArg(cvt)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpSignExt8to64(v *Value) bool {
@@ -31700,6 +31476,17 @@ func rewriteValuegeneric_OpSignExt8to64(v *Value) bool {
 			break
 		}
 		v.copyOf(x)
+		return true
+	}
+	// match: (SignExt8to64 cvt:(CvtBoolToUint8 bool))
+	// result: (ZeroExt8to64 cvt)
+	for {
+		cvt := v_0
+		if cvt.Op != OpCvtBoolToUint8 {
+			break
+		}
+		v.reset(OpZeroExt8to64)
+		v.AddArg(cvt)
 		return true
 	}
 	return false
