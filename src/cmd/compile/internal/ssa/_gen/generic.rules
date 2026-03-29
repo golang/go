@@ -2422,3 +2422,11 @@
 
 // Canonicalize sext(int(bool)) => zext(int(bool))
 (SignExt8to(64|32|16) cvt:(CvtBoolToUint8 bool)) => (ZeroExt8to(64|32|16) cvt)
+
+// int(bool)^1 => int(!bool)
+(Xor8                                (CvtBoolToUint8        bool)  (Const8 [1]))          && invertibleBool(bool.Op) =>                       (CvtBoolToUint8        (Not <bool.Type> bool))
+(Xor(64|32|16) (ZeroExt8to(64|32|16) (CvtBoolToUint8 <cvtT> bool)) (Const(64|32|16) [1])) && invertibleBool(bool.Op) => (ZeroExt8to(64|32|16) (CvtBoolToUint8 <cvtT> (Not <bool.Type> bool)))
+
+// int(!bool)^c => int(bool)^(c^1)
+(Xor8                                (CvtBoolToUint8 <cvtT> (Not bool))  (Const8          <constT> [c])) && c != 1 => (Xor8                                (CvtBoolToUint8 <cvtT> bool)  (Const8          <constT> [c^1]))
+(Xor(64|32|16) (ZeroExt8to(64|32|16) (CvtBoolToUint8 <cvtT> (Not bool))) (Const(64|32|16) <constT> [c])) && c != 1 => (Xor(64|32|16) (ZeroExt8to(64|32|16) (CvtBoolToUint8 <cvtT> bool)) (Const(64|32|16) <constT> [c^1]))

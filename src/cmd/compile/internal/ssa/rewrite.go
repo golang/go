@@ -2883,3 +2883,18 @@ func modularMultiplicativeInverse(x uint64) (y uint64) {
 	y *= 2 - x*y // 96 bits; good enough
 	return
 }
+
+func invertibleBool(op Op) bool {
+	switch op {
+	case OpLess64, OpLess32, OpLess16, OpLess8,
+		OpLeq64, OpLeq32, OpLeq16, OpLeq8,
+		OpLess64U, OpLess32U, OpLess16U, OpLess8U,
+		OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U,
+		OpEq64, OpEq32, OpEq16, OpEq8,
+		OpNeq64, OpNeq32, OpNeq16, OpNeq8,
+		OpNot:
+		return true
+	default:
+		return false
+	}
+}

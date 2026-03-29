@@ -37726,6 +37726,7 @@ func rewriteValuegeneric_OpXor16(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (Xor16 (Const16 [c]) (Const16 [d]))
 	// result: (Const16 [c^d])
 	for {
@@ -38190,6 +38191,71 @@ func rewriteValuegeneric_OpXor16(v *Value) bool {
 		}
 		break
 	}
+	// match: (Xor16 (ZeroExt8to16 (CvtBoolToUint8 <cvtT> bool)) (Const16 [1]))
+	// cond: invertibleBool(bool.Op)
+	// result: (ZeroExt8to16 (CvtBoolToUint8 <cvtT> (Not <bool.Type> bool)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpZeroExt8to16 {
+				continue
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpCvtBoolToUint8 {
+				continue
+			}
+			cvtT := v_0_0.Type
+			bool := v_0_0.Args[0]
+			if v_1.Op != OpConst16 || auxIntToInt16(v_1.AuxInt) != 1 || !(invertibleBool(bool.Op)) {
+				continue
+			}
+			v.reset(OpZeroExt8to16)
+			v0 := b.NewValue0(v.Pos, OpCvtBoolToUint8, cvtT)
+			v1 := b.NewValue0(v.Pos, OpNot, bool.Type)
+			v1.AddArg(bool)
+			v0.AddArg(v1)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (Xor16 (ZeroExt8to16 (CvtBoolToUint8 <cvtT> (Not bool))) (Const16 <constT> [c]))
+	// cond: c != 1
+	// result: (Xor16 (ZeroExt8to16 (CvtBoolToUint8 <cvtT> bool)) (Const16 <constT> [c^1]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpZeroExt8to16 {
+				continue
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpCvtBoolToUint8 {
+				continue
+			}
+			cvtT := v_0_0.Type
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpNot {
+				continue
+			}
+			bool := v_0_0_0.Args[0]
+			if v_1.Op != OpConst16 {
+				continue
+			}
+			constT := v_1.Type
+			c := auxIntToInt16(v_1.AuxInt)
+			if !(c != 1) {
+				continue
+			}
+			v.reset(OpXor16)
+			v0 := b.NewValue0(v.Pos, OpZeroExt8to16, typ.UInt16)
+			v1 := b.NewValue0(v.Pos, OpCvtBoolToUint8, cvtT)
+			v1.AddArg(bool)
+			v0.AddArg(v1)
+			v2 := b.NewValue0(v.Pos, OpConst16, constT)
+			v2.AuxInt = int16ToAuxInt(c ^ 1)
+			v.AddArg2(v0, v2)
+			return true
+		}
+		break
+	}
 	return false
 }
 func rewriteValuegeneric_OpXor32(v *Value) bool {
@@ -38197,6 +38263,7 @@ func rewriteValuegeneric_OpXor32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (Xor32 (Const32 [c]) (Const32 [d]))
 	// result: (Const32 [c^d])
 	for {
@@ -38661,6 +38728,71 @@ func rewriteValuegeneric_OpXor32(v *Value) bool {
 		}
 		break
 	}
+	// match: (Xor32 (ZeroExt8to32 (CvtBoolToUint8 <cvtT> bool)) (Const32 [1]))
+	// cond: invertibleBool(bool.Op)
+	// result: (ZeroExt8to32 (CvtBoolToUint8 <cvtT> (Not <bool.Type> bool)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpZeroExt8to32 {
+				continue
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpCvtBoolToUint8 {
+				continue
+			}
+			cvtT := v_0_0.Type
+			bool := v_0_0.Args[0]
+			if v_1.Op != OpConst32 || auxIntToInt32(v_1.AuxInt) != 1 || !(invertibleBool(bool.Op)) {
+				continue
+			}
+			v.reset(OpZeroExt8to32)
+			v0 := b.NewValue0(v.Pos, OpCvtBoolToUint8, cvtT)
+			v1 := b.NewValue0(v.Pos, OpNot, bool.Type)
+			v1.AddArg(bool)
+			v0.AddArg(v1)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (Xor32 (ZeroExt8to32 (CvtBoolToUint8 <cvtT> (Not bool))) (Const32 <constT> [c]))
+	// cond: c != 1
+	// result: (Xor32 (ZeroExt8to32 (CvtBoolToUint8 <cvtT> bool)) (Const32 <constT> [c^1]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpZeroExt8to32 {
+				continue
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpCvtBoolToUint8 {
+				continue
+			}
+			cvtT := v_0_0.Type
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpNot {
+				continue
+			}
+			bool := v_0_0_0.Args[0]
+			if v_1.Op != OpConst32 {
+				continue
+			}
+			constT := v_1.Type
+			c := auxIntToInt32(v_1.AuxInt)
+			if !(c != 1) {
+				continue
+			}
+			v.reset(OpXor32)
+			v0 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
+			v1 := b.NewValue0(v.Pos, OpCvtBoolToUint8, cvtT)
+			v1.AddArg(bool)
+			v0.AddArg(v1)
+			v2 := b.NewValue0(v.Pos, OpConst32, constT)
+			v2.AuxInt = int32ToAuxInt(c ^ 1)
+			v.AddArg2(v0, v2)
+			return true
+		}
+		break
+	}
 	return false
 }
 func rewriteValuegeneric_OpXor64(v *Value) bool {
@@ -38668,6 +38800,7 @@ func rewriteValuegeneric_OpXor64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (Xor64 (Const64 [c]) (Const64 [d]))
 	// result: (Const64 [c^d])
 	for {
@@ -39128,6 +39261,71 @@ func rewriteValuegeneric_OpXor64(v *Value) bool {
 			}
 			v.reset(OpRotateLeft64)
 			v.AddArg2(x, z)
+			return true
+		}
+		break
+	}
+	// match: (Xor64 (ZeroExt8to64 (CvtBoolToUint8 <cvtT> bool)) (Const64 [1]))
+	// cond: invertibleBool(bool.Op)
+	// result: (ZeroExt8to64 (CvtBoolToUint8 <cvtT> (Not <bool.Type> bool)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpZeroExt8to64 {
+				continue
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpCvtBoolToUint8 {
+				continue
+			}
+			cvtT := v_0_0.Type
+			bool := v_0_0.Args[0]
+			if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != 1 || !(invertibleBool(bool.Op)) {
+				continue
+			}
+			v.reset(OpZeroExt8to64)
+			v0 := b.NewValue0(v.Pos, OpCvtBoolToUint8, cvtT)
+			v1 := b.NewValue0(v.Pos, OpNot, bool.Type)
+			v1.AddArg(bool)
+			v0.AddArg(v1)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (Xor64 (ZeroExt8to64 (CvtBoolToUint8 <cvtT> (Not bool))) (Const64 <constT> [c]))
+	// cond: c != 1
+	// result: (Xor64 (ZeroExt8to64 (CvtBoolToUint8 <cvtT> bool)) (Const64 <constT> [c^1]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpZeroExt8to64 {
+				continue
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpCvtBoolToUint8 {
+				continue
+			}
+			cvtT := v_0_0.Type
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpNot {
+				continue
+			}
+			bool := v_0_0_0.Args[0]
+			if v_1.Op != OpConst64 {
+				continue
+			}
+			constT := v_1.Type
+			c := auxIntToInt64(v_1.AuxInt)
+			if !(c != 1) {
+				continue
+			}
+			v.reset(OpXor64)
+			v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+			v1 := b.NewValue0(v.Pos, OpCvtBoolToUint8, cvtT)
+			v1.AddArg(bool)
+			v0.AddArg(v1)
+			v2 := b.NewValue0(v.Pos, OpConst64, constT)
+			v2.AuxInt = int64ToAuxInt(c ^ 1)
+			v.AddArg2(v0, v2)
 			return true
 		}
 		break
@@ -39599,6 +39797,58 @@ func rewriteValuegeneric_OpXor8(v *Value) bool {
 			}
 			v.reset(OpRotateLeft8)
 			v.AddArg2(x, z)
+			return true
+		}
+		break
+	}
+	// match: (Xor8 (CvtBoolToUint8 bool) (Const8 [1]))
+	// cond: invertibleBool(bool.Op)
+	// result: (CvtBoolToUint8 (Not <bool.Type> bool))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpCvtBoolToUint8 {
+				continue
+			}
+			bool := v_0.Args[0]
+			if v_1.Op != OpConst8 || auxIntToInt8(v_1.AuxInt) != 1 || !(invertibleBool(bool.Op)) {
+				continue
+			}
+			v.reset(OpCvtBoolToUint8)
+			v0 := b.NewValue0(v.Pos, OpNot, bool.Type)
+			v0.AddArg(bool)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (Xor8 (CvtBoolToUint8 <cvtT> (Not bool)) (Const8 <constT> [c]))
+	// cond: c != 1
+	// result: (Xor8 (CvtBoolToUint8 <cvtT> bool) (Const8 <constT> [c^1]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpCvtBoolToUint8 {
+				continue
+			}
+			cvtT := v_0.Type
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpNot {
+				continue
+			}
+			bool := v_0_0.Args[0]
+			if v_1.Op != OpConst8 {
+				continue
+			}
+			constT := v_1.Type
+			c := auxIntToInt8(v_1.AuxInt)
+			if !(c != 1) {
+				continue
+			}
+			v.reset(OpXor8)
+			v0 := b.NewValue0(v.Pos, OpCvtBoolToUint8, cvtT)
+			v0.AddArg(bool)
+			v1 := b.NewValue0(v.Pos, OpConst8, constT)
+			v1.AuxInt = int8ToAuxInt(c ^ 1)
+			v.AddArg2(v0, v1)
 			return true
 		}
 		break
