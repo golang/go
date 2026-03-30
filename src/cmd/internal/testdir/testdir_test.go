@@ -696,6 +696,7 @@ func (t test) run() error {
 		// against a set of regexps in comments.
 		ops := t.wantedAsmOpcodes(long)
 		self := runtime.GOOS + "/" + runtime.GOARCH
+		var lastErr error
 		for _, env := range ops.Envs() {
 			// Only run checks relevant to the current GOOS/GOARCH,
 			// to avoid triggering a cross-compile of the runtime.
@@ -733,14 +734,19 @@ func (t test) run() error {
 			var buf bytes.Buffer
 			cmd.Stdout, cmd.Stderr = &buf, &buf
 			if err := cmd.Run(); err != nil {
+				lastErr = err
 				t.Log(env, "\n", cmd.Stderr)
-				return err
 			}
 
 			err := t.asmCheck(buf.String(), long, env, ops[env])
 			if err != nil {
-				return err
+				lastErr = err
+				t.Log(err)
 			}
+		}
+		// The error(s) have been logged earlier. Pass up a generic one.
+		if lastErr != nil {
+			return errors.New("One or more asmcheck tests failed. Check log for failure details.")
 		}
 		return nil
 
