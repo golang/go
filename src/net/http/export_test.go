@@ -33,6 +33,7 @@ var (
 	Export_writeStatusLine            = writeStatusLine
 	Export_is408Message               = is408Message
 	MaxPostCloseReadTime              = maxPostCloseReadTime
+	ProtocolSetHTTP3                  = protocolSetHTTP3
 )
 
 var MaxWriteWaitBeforeConnReuse = &maxWriteWaitBeforeConnReuse

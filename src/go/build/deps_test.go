@@ -569,6 +569,9 @@ var depsRules = `
 	  crypto/mlkem
 	< CRYPTO;
 
+	CRYPTO
+	< golang.org/x/crypto/hkdf;
+
 	CGO, fmt, net !< CRYPTO;
 
 	# CRYPTO-MATH is crypto that exposes math/big APIs - no cgo, net; fmt now ok.
@@ -662,6 +665,12 @@ var depsRules = `
 	< net/http/internal/httpcommon, net/http/internal/httpsfv
 	< net/http/internal/http2
 	< net/http;
+
+	net/http, golang.org/x/crypto/hkdf, log/slog
+	< golang.org/x/net/internal/quic/quicwire
+	< golang.org/x/net/quic, golang.org/x/net/internal/httpcommon
+	< golang.org/x/net/internal/http3
+	< golang.org/x/net/http3;
 
 	# HTTP-aware packages
 

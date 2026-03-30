@@ -19,6 +19,7 @@ import (
 	"log"
 	"maps"
 	"net"
+	"net/http"
 	. "net/http"
 	"net/http/httptest"
 	"net/http/httptrace"
@@ -35,7 +36,16 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+	_ "unsafe" // for linkname
+
+	_ "golang.org/x/net/http3"
 )
+
+//go:linkname registerHTTP3Transport
+func registerHTTP3Transport(*http.Transport)
+
+//go:linkname registerHTTP3Server
+func registerHTTP3Server(*http.Server) <-chan string
 
 type testMode string
 
@@ -44,13 +54,14 @@ const (
 	https1Mode           = testMode("https1")        // HTTPS/1.1
 	http2Mode            = testMode("h2")            // HTTP/2
 	http2UnencryptedMode = testMode("h2unencrypted") // HTTP/2
+	http3Mode            = testMode("h3")            // HTTP/3
 )
 
 func (m testMode) Scheme() string {
 	switch m {
 	case http1Mode, http2UnencryptedMode:
 		return "http"
-	case https1Mode, http2Mode:
+	case https1Mode, http2Mode, http3Mode:
 		return "https"
 	}
 	panic("unknown testMode")
@@ -189,7 +200,8 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 
 	var transportFuncs []func(*Transport)
 
-	if idx := slices.Index(opts, any(optFakeNet)); idx >= 0 {
+	switch idx := slices.Index(opts, any(optFakeNet)); {
+	case idx >= 0:
 		opts = slices.Delete(opts, idx, idx+1)
 		cst.li = fakeNetListen()
 		cst.ts = &httptest.Server{
@@ -201,7 +213,12 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 				return cst.li.connect(), nil
 			}
 		})
-	} else {
+	case mode == http3Mode:
+		// TODO: support testing HTTP/3 using fakenet.
+		cst.ts = &httptest.Server{
+			Config: &Server{Handler: h},
+		}
+	default:
 		cst.ts = httptest.NewUnstartedServer(h)
 	}
 
@@ -241,6 +258,24 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		cst.ts.EnableHTTP2 = true
 		cst.ts.TLS = cst.ts.Config.TLSConfig
 		cst.ts.StartTLS()
+	case http3Mode:
+		http.ProtocolSetHTTP3(p)
+		cst.ts.TLS = cst.ts.Config.TLSConfig
+		cst.ts.StartTLS()
+		listenAddrCh := registerHTTP3Server(cst.ts.Config)
+
+		cst.ts.Config.TLSConfig = cst.ts.TLS
+		cst.ts.Config.Addr = "localhost:0"
+		go cst.ts.Config.ListenAndServeTLS("", "")
+
+		listenAddr := <-listenAddrCh
+		cst.ts.URL = "https://" + listenAddr
+		t.Cleanup(func() {
+			// Same timeout as in HTTP/2 goAwayTimeout when shutting down in tests.
+			ctx, cancel := context.WithTimeout(t.Context(), 25*time.Millisecond)
+			defer cancel()
+			cst.ts.Config.Shutdown(ctx)
+		})
 	default:
 		t.Fatalf("unknown test mode %v", mode)
 	}
@@ -251,6 +286,9 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 	}
 	if cst.tr.Protocols == nil {
 		cst.tr.Protocols = p
+	}
+	if mode == http3Mode {
+		registerHTTP3Transport(cst.tr)
 	}
 
 	t.Cleanup(func() {

@@ -88,6 +88,9 @@ func (p Protocols) String() string {
 	if p.UnencryptedHTTP2() {
 		s = append(s, "UnencryptedHTTP2")
 	}
+	if p.http3() {
+		s = append(s, "HTTP3")
+	}
 	return "{" + strings.Join(s, ",") + "}"
 }
 
