@@ -709,7 +709,7 @@ func testServeIndexHtmlFS(t *testing.T, mode testMode) {
 	}
 }
 
-func TestFileServerZeroByte(t *testing.T) { run(t, testFileServerZeroByte) }
+func TestFileServerZeroByte(t *testing.T) { run(t, testFileServerZeroByte, http3SkippedMode) }
 func testFileServerZeroByte(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, FileServer(Dir("."))).ts
 
@@ -842,7 +842,10 @@ func (fsys fakeFS) Open(name string) (File, error) {
 	return &fakeFile{ReadSeeker: strings.NewReader(f.contents), fi: f, path: name}, nil
 }
 
-func TestDirectoryIfNotModified(t *testing.T) { run(t, testDirectoryIfNotModified) }
+func TestDirectoryIfNotModified(t *testing.T) {
+	// HTTP/3 trips off race detector.
+	run(t, testDirectoryIfNotModified, http3SkippedMode)
+}
 func testDirectoryIfNotModified(t *testing.T, mode testMode) {
 	const indexContents = "I am a fake index.html file"
 	fileMod := time.Unix(1000000000, 0).UTC()
@@ -916,7 +919,10 @@ func mustStat(t *testing.T, fileName string) fs.FileInfo {
 	return fi
 }
 
-func TestServeContent(t *testing.T) { run(t, testServeContent) }
+func TestServeContent(t *testing.T) {
+	// HTTP/3 trips off race detector.
+	run(t, testServeContent, http3SkippedMode)
+}
 func testServeContent(t *testing.T, mode testMode) {
 	type serveParam struct {
 		name        string

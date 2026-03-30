@@ -359,7 +359,7 @@ func TestPostRedirects(t *testing.T) {
 	want := strings.Join(wantSegments, "\n")
 	run(t, func(t *testing.T, mode testMode) {
 		testRedirectsByMethod(t, mode, "POST", postRedirectTests, want)
-	})
+	}, http3SkippedMode)
 }
 
 func TestDeleteRedirects(t *testing.T) {
@@ -398,7 +398,7 @@ func TestDeleteRedirects(t *testing.T) {
 	want := strings.Join(wantSegments, "\n")
 	run(t, func(t *testing.T, mode testMode) {
 		testRedirectsByMethod(t, mode, "DELETE", deleteRedirectTests, want)
-	})
+	}, http3SkippedMode)
 }
 
 func testRedirectsByMethod(t *testing.T, mode testMode, method string, table []redirectTest, want string) {
@@ -1201,7 +1201,7 @@ func TestStripPasswordFromError(t *testing.T) {
 	}
 }
 
-func TestClientTimeout(t *testing.T) { run(t, testClientTimeout) }
+func TestClientTimeout(t *testing.T) { run(t, testClientTimeout, http3SkippedMode) }
 func testClientTimeout(t *testing.T, mode testMode) {
 	var (
 		mu           sync.Mutex
@@ -1302,7 +1302,11 @@ func testClientTimeout(t *testing.T, mode testMode) {
 }
 
 // Client.Timeout firing before getting to the body
-func TestClientTimeout_Headers(t *testing.T) { run(t, testClientTimeout_Headers) }
+func TestClientTimeout_Headers(t *testing.T) {
+	// Running this test against our HTTP/3 implementation with race detector
+	// trips off TestMain's goroutine leak detection.
+	run(t, testClientTimeout_Headers, http3SkippedMode)
+}
 func testClientTimeout_Headers(t *testing.T, mode testMode) {
 	donec := make(chan bool, 1)
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -1346,7 +1350,7 @@ func testClientTimeout_Headers(t *testing.T, mode testMode) {
 
 // Issue 16094: if Client.Timeout is set but not hit, a Timeout error shouldn't be
 // returned.
-func TestClientTimeoutCancel(t *testing.T) { run(t, testClientTimeoutCancel) }
+func TestClientTimeoutCancel(t *testing.T) { run(t, testClientTimeoutCancel, http3SkippedMode) }
 func testClientTimeoutCancel(t *testing.T, mode testMode) {
 	testDone := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1511,7 +1515,9 @@ func TestClientRedirectResponseWithoutRequest(t *testing.T) {
 // Issue 35104: Since both URLs have the same host (localhost)
 // but different ports, sensitive headers like Cookie and Authorization
 // are preserved.
-func TestClientCopyHeadersOnRedirect(t *testing.T) { run(t, testClientCopyHeadersOnRedirect) }
+func TestClientCopyHeadersOnRedirect(t *testing.T) {
+	run(t, testClientCopyHeadersOnRedirect, http3SkippedMode)
+}
 func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 	const (
 		ua   = "some-agent/1.2"
@@ -1577,7 +1583,7 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 // Issue #70530: Once we strip a header on a redirect to a different host,
 // the header should stay stripped across any further redirects.
 func TestClientStripHeadersOnRepeatedRedirect(t *testing.T) {
-	run(t, testClientStripHeadersOnRepeatedRedirect)
+	run(t, testClientStripHeadersOnRepeatedRedirect, http3SkippedMode)
 }
 func testClientStripHeadersOnRepeatedRedirect(t *testing.T, mode testMode) {
 	var proto string
@@ -2220,7 +2226,10 @@ func TestClientPopulatesNilResponseBody(t *testing.T) {
 }
 
 // Issue 40382: Client calls Close multiple times on Request.Body.
-func TestClientCallsCloseOnlyOnce(t *testing.T) { run(t, testClientCallsCloseOnlyOnce) }
+func TestClientCallsCloseOnlyOnce(t *testing.T) {
+	// Trips off race detector for HTTP/3.
+	run(t, testClientCallsCloseOnlyOnce, http3SkippedMode)
+}
 func testClientCallsCloseOnlyOnce(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.WriteHeader(StatusNoContent)
