@@ -111,6 +111,7 @@ test dependencies as well.
 
 The -tool flag instructs go to add a matching tool line to go.mod for each
 listed package. If -tool is used with @none, the line will be removed.
+See 'go help tool' for more information.
 
 The -x flag prints commands as they are executed. This is useful for
 debugging version control commands when a module is downloaded directly
