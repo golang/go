@@ -289,7 +289,7 @@ var depsRules = `
 	# hashes
 	io
 	< hash
-	< hash/adler32, hash/crc32, hash/crc64, hash/fnv;
+	< hash/adler32, hash/crc32, hash/crc64, hash/fnv, hash/maphash;
 
 	# math/big
 	FMT, math/rand
@@ -625,9 +625,6 @@ var depsRules = `
 
 	crypto/tls
 	< net/smtp;
-
-	crypto/rand
-	< hash/maphash; # for purego implementation
 
 	# HTTP, King of Dependencies.
 

@@ -701,14 +701,6 @@ func (t *tester) registerTests() {
 				tags:    []string{"osusergo"},
 				pkg:     "os/user",
 			})
-		t.registerTest("hash/maphash purego implementation",
-			&goTest{
-				variant: "purego",
-				timeout: 300 * time.Second,
-				tags:    []string{"purego"},
-				pkg:     "hash/maphash",
-				env:     []string{"GODEBUG=fips140=off"}, // FIPS 140-3 mode is incompatible with purego
-			})
 	}
 
 	// Check that all crypto packages compile with the purego build tag.
