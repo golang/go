@@ -993,8 +993,8 @@ func (w *writer) method(wext *writer, meth *types2.Func) {
 	wext.funcExt(meth)
 }
 
-// qualifiedIdent writes out the name of an object declared at package
-// scope. (For now, it's also used to refer to local defined types.)
+// qualifiedIdent writes out the name of an object typically declared at package
+// scope. It's also used to refer to generic methods and locally defined types.
 func (w *writer) qualifiedIdent(obj types2.Object) {
 	w.Sync(pkgbits.SyncSym)
 
@@ -1010,6 +1010,13 @@ func (w *writer) qualifiedIdent(obj types2.Object) {
 			// TODO(mdempsky): Find a better solution; this is terrible.
 			name = fmt.Sprintf("%s·%v", name, decl.gen)
 		}
+	}
+
+	// Generic methods are promoted to objects and thus need qualified identifiers.
+	// They must be contextualized by their defining type.
+	if isGenericMethod(obj.Type()) {
+		recv := types2.Unalias(deref2(obj.Type().(*types2.Signature).Recv().Type()))
+		name = fmt.Sprintf("%s.%s", recv.(*types2.Named).Obj().Name(), name)
 	}
 
 	w.pkg(obj.Pkg())
