@@ -136,17 +136,18 @@ func walkGrowslice(slice *ir.Name, init *ir.Nodes, oldPtr, newLen, oldCap, num i
 }
 
 // walkClear walks an OCLEAR node.
-func walkClear(n *ir.UnaryExpr) ir.Node {
+func walkClear(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
+	x := walkExpr(n.X, init)
 	typ := n.X.Type()
 	switch {
 	case typ.IsSlice():
-		if n := arrayClear(n.X.Pos(), n.X, nil); n != nil {
+		if n := arrayClear(x.Pos(), x, nil); n != nil {
 			return n
 		}
 		// If n == nil, we are clearing an array which takes zero memory, do nothing.
 		return ir.NewBlockStmt(n.Pos(), nil)
 	case typ.IsMap():
-		return mapClear(n.X, reflectdata.TypePtrAt(n.X.Pos(), n.X.Type()))
+		return mapClear(x, reflectdata.TypePtrAt(x.Pos(), typ))
 	}
 	panic("unreachable")
 }
