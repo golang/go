@@ -98,6 +98,7 @@ type Link struct {
 
 	moduledataTypeDescOffset int64
 	moduledataItabOffset     int64
+	moduledataItabSizeOffset int64
 
 	PackageFile  map[string]string
 	PackageShlib map[string]string

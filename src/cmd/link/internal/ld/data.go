@@ -2549,6 +2549,19 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 			su.SetUint(ctxt.Arch, ctxt.moduledataItabOffset, uint64(typeSize))
 		}
 
+		itabSize := int64(0)
+		for ; i < len(sl); i++ {
+			itabSize = Rnd(itabSize, int64(symalign(ldr, sl[i].sym)))
+			itabSize += sl[i].sz
+		}
+
+		if ctxt.moduledataItabSizeOffset == 0 {
+			Errorf("internal error: phase error: moduledataItabSizeOffset not set in dodataSect")
+		} else {
+			su := ldr.MakeSymbolUpdater(ctxt.Moduledata)
+			su.SetUint(ctxt.Arch, ctxt.moduledataItabSizeOffset, uint64(itabSize))
+		}
+
 	default:
 		sort.Slice(sl, sortFn)
 	}

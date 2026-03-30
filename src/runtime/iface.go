@@ -269,7 +269,8 @@ func itabsinit() {
 // This is an optimization to let us skip creating itabs we already have.
 func addModuleItabs(md *moduledata) {
 	p := md.types + md.itaboffset
-	for p < md.etypes {
+	end := p + md.itabsize
+	for p < end {
 		itab := (*itab)(unsafe.Pointer(p))
 		itabAdd(itab)
 		p += uintptr(itab.Size())
