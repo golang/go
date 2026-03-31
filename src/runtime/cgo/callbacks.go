@@ -157,3 +157,13 @@ var _cgo_yield unsafe.Pointer
 //go:cgo_import_static _cgo_getstackbound
 //go:linkname _cgo_getstackbound _cgo_getstackbound
 var _cgo_getstackbound unsafe.Pointer
+
+// x_cgo_isglibc is set to 1 during _cgo_init if running on glibc.
+// Used to determine if .init_array argc/argv are reliable.
+// See go.dev/issue/13492.
+
+//go:cgo_import_static x_cgo_isglibc
+//go:linkname x_cgo_isglibc x_cgo_isglibc
+//go:linkname _cgo_isglibc _cgo_isglibc
+var x_cgo_isglibc byte
+var _cgo_isglibc = &x_cgo_isglibc

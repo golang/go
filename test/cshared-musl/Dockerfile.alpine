@@ -1,0 +1,32 @@
+# Stage 1: Get a bootstrap Go toolchain (>=1.24.6)
+FROM golang:1.24-alpine AS bootstrap
+
+# Stage 2: Build and test on Alpine (musl)
+FROM alpine:3.21
+
+RUN apk add --no-cache bash build-base linux-headers git
+
+# Copy bootstrap Go from the official image
+COPY --from=bootstrap /usr/local/go /usr/local/go-bootstrap
+
+# Copy the Go source tree for building from source
+COPY . /go-src/
+
+# Build Go toolchain from source
+ENV GOROOT_BOOTSTRAP=/usr/local/go-bootstrap
+RUN cd /go-src/src && ./make.bash
+
+ENV PATH="/go-src/bin:$PATH"
+ENV GOROOT="/go-src"
+
+WORKDIR /test
+COPY test/cshared-musl/testdata/ /test/
+
+# Build the c-shared library
+RUN CGO_ENABLED=1 go build -buildmode=c-shared -o libtest.so libtest.go
+
+# Compile the C loader
+RUN gcc -o loader loader.c -ldl
+
+# Run the test
+CMD ["./loader", "./libtest.so"]

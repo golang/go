@@ -22,6 +22,8 @@
 // If !iscgo, this is a no-op.
 //
 // NOTE: setg_gcc<> assume this clobbers only R31.
+// With TLS_GD, this also clobbers R18 and LR via the __tls_get_addr call.
+// Callers in GD mode must be aware.
 TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
 #ifndef GOOS_aix
 #ifndef GOOS_openbsd
@@ -30,8 +32,18 @@ TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
 	BEQ	nocgo
 #endif
 #endif
+#ifdef TLS_GD
+	// General Dynamic TLS: MOVD runtime·tls_g(SB) generates a GOT
+	// access that may call __tls_get_addr, clobbering LR.
+	// Save LR in R18 (caller-saved, not used by Go).
+	MOVD	LR, R18
 	MOVD	runtime·tls_g(SB), R31
 	MOVD	g, 0(R31)
+	MOVD	R18, LR
+#else
+	MOVD	runtime·tls_g(SB), R31
+	MOVD	g, 0(R31)
+#endif
 
 nocgo:
 	RET
@@ -45,9 +57,17 @@ nocgo:
 // usual Go registers aren't set up.
 //
 // NOTE: _cgo_topofstack assumes this only clobbers g (R30), and R31.
+// With TLS_GD, this also clobbers R18 and LR.
 TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
+#ifdef TLS_GD
+	MOVD	LR, R18
 	MOVD	runtime·tls_g(SB), R31
 	MOVD	0(R31), g
+	MOVD	R18, LR
+#else
+	MOVD	runtime·tls_g(SB), R31
+	MOVD	0(R31), g
+#endif
 	RET
 
 GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8

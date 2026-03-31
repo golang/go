@@ -598,6 +598,12 @@ const (
 	// offset from the thread local base.
 	C_TLS_IE
 
+	// TLS "var" in general dynamic mode using TLSDESC: will become a
+	// 4-instruction sequence (adrp, ldr, add, blr) that calls the
+	// TLSDESC resolver to obtain the TLS offset. Required for libraries
+	// loaded via dlopen on non-glibc systems (e.g. musl).
+	C_TLS_GD
+
 	C_ROFF // register offset (including register extended)
 
 	C_GOK

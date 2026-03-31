@@ -293,6 +293,8 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write32(uint32(elf.R_ARM_TLS_LE32) | uint32(elfsym)<<8)
 	case objabi.R_TLS_IE:
 		out.Write32(uint32(elf.R_ARM_TLS_IE32) | uint32(elfsym)<<8)
+	case objabi.R_TLS_GD:
+		out.Write32(uint32(elf.R_ARM_TLS_GD32) | uint32(elfsym)<<8)
 	case objabi.R_GOTPCREL:
 		if siz == 4 {
 			out.Write32(uint32(elf.R_ARM_GOT_PREL) | uint32(elfsym)<<8)

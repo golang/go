@@ -72,6 +72,11 @@ const (
 	// is not set on intel platforms but is set to a TLS symbol -- runtime.tlsg -- in
 	// the linker when externally linking).
 	R_TLS_IE
+	// R_TLS_GD, used on amd64, resolves using the General Dynamic TLS model
+	// (TLSDESC on amd64). Generates a TLSDESC sequence that calls the dynamic
+	// linker's resolver to obtain the TLS offset. Required for libraries loaded
+	// via dlopen on non-glibc systems. See go.dev/issue/13492.
+	R_TLS_GD
 	R_GOTOFF
 	R_PLT0
 	R_PLT1
@@ -136,6 +141,12 @@ const (
 	// the thread local base and the thread local variable defined by the
 	// referenced (thread local) symbol from the GOT.
 	R_ARM64_TLS_IE
+
+	// R_ARM64_TLS_GD relocates an ADRP; LDR; ADD; BLR instruction sequence
+	// (TLSDESC) to obtain the offset from the thread local base to the
+	// thread local variable. Used for General Dynamic TLS model, required
+	// for libraries loaded via dlopen on non-glibc systems.
+	R_ARM64_TLS_GD
 
 	// R_ARM64_GOTPCREL relocates an adrp, ld64 pair to compute the address of the GOT
 	// slot of the referenced symbol.
@@ -212,6 +223,11 @@ const (
 	// the thread pointer in one prefixed instruction.
 	R_POWER_TLS_LE_TPREL34
 
+	// R_POWER_TLS_GD relocates a D-form instruction pair using the General Dynamic
+	// TLS model for ppc64. Emits R_PPC64_GOT_TLSGD16_HA/LO to obtain the GOT entry
+	// for the TLS variable, used with __tls_get_addr. See go.dev/issue/13492.
+	R_POWER_TLS_GD
+
 	// R_ADDRPOWER_DS is similar to R_ADDRPOWER above, but assumes the second
 	// instruction is a "DS-form" instruction, which has an immediate field occupying
 	// bits [15:2] of the instruction word. Bits [15:2] of the address of the
@@ -281,6 +297,11 @@ const (
 	// R_RISCV_TLS_LE resolves a 32 bit TLS local-exec address for a
 	// LUI + I-type instruction sequence.
 	R_RISCV_TLS_LE
+
+	// R_RISCV_TLS_GD resolves a 32 bit TLS general-dynamic address for an
+	// AUIPC + ADDI instruction pair. Used with __tls_get_addr.
+	// See go.dev/issue/13492.
+	R_RISCV_TLS_GD
 
 	// R_RISCV_GOT_HI20 resolves the high 20 bits of a 32-bit PC-relative GOT
 	// address.
@@ -364,6 +385,12 @@ const (
 	// pair to compute the address of the GOT slot of the tls symbol.
 	R_LOONG64_TLS_IE_HI
 	R_LOONG64_TLS_IE_LO
+
+	// R_LOONG64_TLS_GD_HI and R_LOONG64_TLS_GD_LO relocate a pcalau12i, addi.d
+	// pair using the General Dynamic TLS model for loong64. Used with
+	// __tls_get_addr. See go.dev/issue/13492.
+	R_LOONG64_TLS_GD_HI
+	R_LOONG64_TLS_GD_LO
 
 	// R_LOONG64_GOT_HI resolves [31...12]bits of 32/64-bit PC-relative offset of
 	// GOT entry, by encoding it into pcalau12i instruction

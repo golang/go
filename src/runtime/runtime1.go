@@ -75,6 +75,13 @@ func goargs() {
 	if GOOS == "windows" {
 		return
 	}
+	if islibrary || isarchive {
+		// In library/archive mode, argc/argv may contain garbage.
+		// The library does not own the process arguments.
+		// See go.dev/issue/13492.
+		argslice = make([]string, 0)
+		return
+	}
 	argslice = make([]string, argc)
 	for i := int32(0); i < argc; i++ {
 		argslice[i] = gostringnocopy(argv_index(argv, i))

@@ -479,6 +479,7 @@ var optab = []Optab{
 	{AMOVD, C_GOTADDR, C_NONE, C_NONE, C_ZREG, C_NONE, 71, 8, 0, 0, 0},
 	{AMOVD, C_TLS_LE, C_NONE, C_NONE, C_ZREG, C_NONE, 69, 4, 0, 0, 0},
 	{AMOVD, C_TLS_IE, C_NONE, C_NONE, C_ZREG, C_NONE, 70, 8, 0, 0, 0},
+	{AMOVD, C_TLS_GD, C_NONE, C_NONE, C_ZREG, C_NONE, 111, 16, 0, 0, 0},
 
 	{AFMOVS, C_FREG, C_NONE, C_NONE, C_ADDR, C_NONE, 64, 12, 0, 0, 0},
 	{AFMOVS, C_ADDR, C_NONE, C_NONE, C_FREG, C_NONE, 65, 12, 0, 0, 0},
@@ -2067,7 +2068,9 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 			c.instoffset = a.Offset
 			if a.Sym != nil { // use relocation
 				if a.Sym.Type == objabi.STLSBSS {
-					if c.ctxt.Flag_shared {
+					if c.ctxt.Flag_tlsgd {
+						return C_TLS_GD
+					} else if c.ctxt.Flag_shared {
 						return C_TLS_IE
 					} else {
 						return C_TLS_LE
@@ -4671,6 +4674,30 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			Type: objabi.R_ARM64_TLS_IE,
 			Off:  int32(c.pc),
 			Siz:  8,
+			Sym:  p.From.Sym,
+		})
+		if p.From.Offset != 0 {
+			c.ctxt.Diag("invalid offset on MOVW $tlsvar")
+		}
+
+	case 111: /* GD model movd $tlsvar, reg -> TLSDESC sequence: adrp x0; ldr x1,[x0]; add x0,x0; blr x1 */
+		// TLSDESC ABI: result (TLS offset) is always in X0.
+		// Clobbers X0, X1, and LR (X30).
+		if p.To.Reg != REG_R0 {
+			c.ctxt.Diag("TLSDESC (GD TLS) result must target R0, got %v", p.To)
+		}
+		// adrp x0, :tlsdesc:sym
+		o1 = ADR(1, 0, REG_R0)
+		// ldr x1, [x0, :tlsdesc_lo12:sym]
+		o2 = c.olsr12u(p, c.opldr(p, AMOVD), 0, REG_R0, REG_R1)
+		// add x0, x0, :tlsdesc_lo12:sym
+		o3 = c.opirr(p, AADD) | uint32(REG_R0&31)<<5 | uint32(REG_R0&31)
+		// blr x1
+		o4 = 0xD63F0020 // BLR X1
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_ARM64_TLS_GD,
+			Off:  int32(c.pc),
+			Siz:  16,
 			Sym:  p.From.Sym,
 		})
 		if p.From.Offset != 0 {

@@ -119,6 +119,7 @@ type CmdFlags struct {
 	Pack               bool         "help:\"write to file.a instead of file.o\""
 	Race               bool         "help:\"enable race detector\""
 	Shared             *bool        "help:\"generate code that can be linked into a shared library\"" // &Ctxt.Flag_shared, set below
+	Tls                string       "help:\"TLS model for thread-local storage (auto, GD, IE)\""
 	SmallFrames        bool         "help:\"reduce the size limit for stack allocated objects\""      // small stacks, to diagnose GC latency; see golang.org/issue/27732
 	Spectre            string       "help:\"enable spectre mitigations in `list` (all, index, ret)\""
 	Std                bool         "help:\"compiling standard library\""
@@ -304,6 +305,16 @@ func ParseFlags() {
 
 	Ctxt.CompressInstructions = Debug.CompressInstructions != 0
 	Ctxt.Flag_shared = Ctxt.Flag_dynlink || Ctxt.Flag_shared
+	switch Flag.Tls {
+	case "", "auto":
+		// Default: set externally by the go command.
+	case "GD":
+		Ctxt.Flag_tlsgd = true
+	case "IE":
+		Ctxt.Flag_tlsgd = false
+	default:
+		log.Fatalf("unknown -tls=%s; must be auto, GD, or IE", Flag.Tls)
+	}
 	Ctxt.Flag_optimize = Flag.N == 0
 	Ctxt.Debugasm = int(Flag.S)
 	Ctxt.Flag_maymorestack = Debug.MayMoreStack

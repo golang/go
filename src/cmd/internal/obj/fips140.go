@@ -364,6 +364,8 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
 		objabi.R_LOONG64_TLS_LE_LO,
 		objabi.R_LOONG64_TLS_IE_HI,
 		objabi.R_LOONG64_TLS_IE_LO,
+		objabi.R_LOONG64_TLS_GD_HI,
+		objabi.R_LOONG64_TLS_GD_LO,
 		objabi.R_LOONG64_GOT_HI,
 		objabi.R_LOONG64_GOT_LO,
 		objabi.R_LOONG64_GOT64_HI,
@@ -377,6 +379,7 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
 		objabi.R_POWER_TLS,
 		objabi.R_POWER_TLS_IE_PCREL34,
 		objabi.R_POWER_TLS_LE_TPREL34,
+		objabi.R_POWER_TLS_GD,
 		objabi.R_RISCV_JAL,
 		objabi.R_RISCV_PCREL_ITYPE,
 		objabi.R_RISCV_PCREL_STYPE,
@@ -392,6 +395,9 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
 		objabi.R_RISCV_RVC_JUMP,
 		objabi.R_TLS_IE,
 		objabi.R_TLS_LE,
+		objabi.R_TLS_GD,
+		objabi.R_ARM64_TLS_GD,
+		objabi.R_RISCV_TLS_GD,
 		objabi.R_WEAKADDROFF:
 		// ok
 		return
