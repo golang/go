@@ -994,7 +994,14 @@ func (r *rewriter) computeBranchNext() {
 				l := n.Label.Value
 				labels = append(labels, l)
 				f := forStack[len(forStack)-1]
-				r.labelLoop[l] = f
+				if _, existed := r.labelLoop[l]; existed {
+					// The typechecker has already validated that labels are unique within this scope.
+					// If a duplicate label 'X' is encountered, it must reside in a nested scope
+					// (e.g., inside a function literal). Because nested labels do not affect
+					// the current control flow analysis, they can be safely ignored.
+				} else {
+					r.labelLoop[l] = f
+				}
 			}
 		} else {
 			n := stack[len(stack)-1]
